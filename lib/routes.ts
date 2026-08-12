@@ -49,8 +49,14 @@ export const passRoutes = {
    * not a second page with its own copy of the fetching.
    */
   notices: '/notices',
-  /** 게시글 관리 (등록 · 수정 · 고정 · 숨김 · Category). */
+  /** 게시글 관리 (목록 · 고정 · 숨김 · Category). */
   adminPosts: '/admin/posts',
+  /**
+   * 등록 · 수정은 모달이 아니라 페이지다 — 언어 탭 두 벌과 본문 에디터,
+   * 이미지 업로드가 한 화면에 들어가서 모달 폭에서는 라벨 열이 무너진다.
+   */
+  adminPostNew: (type: 'NOTICE' | 'FAQ') => `/admin/posts/new?type=${type}`,
+  adminPostEdit: (postId: number | string) => `/admin/posts/${postId}`,
   /**
    * LIN-25 Admin Pipeline routes (app/admin/pipelines/**). Page mapping per
    * docs/api/pipeline-orchestrator-bff.md §2. Detail URLs carry the path id ONLY

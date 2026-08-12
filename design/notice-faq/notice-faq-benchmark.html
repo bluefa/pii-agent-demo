@@ -1,0 +1,1527 @@
+<title>공지·FAQ 벤치마크</title>
+
+<style>
+  /* ═══════════════════════════════════════════════════════════════
+     Document chrome. Deliberately NOT the product palette — the
+     specimens below carry the product tokens, so the page around
+     them has to read as a different voice or the two blur together.
+     Steel blue accent sits darker and greyer than the product's
+     #0064FF for exactly that reason.
+     ═══════════════════════════════════════════════════════════════ */
+  :root {
+    --paper:    #F6F7F9;
+    --card:     #FFFFFF;
+    --sunk:     #EEF0F4;
+    --ink:      #12161D;
+    --ink-2:    #4C5663;
+    --ink-3:    #838D9A;
+    --rule:     #E3E7EC;
+    --rule-2:   #F0F2F5;
+    --accent:   #17538A;
+    --accent-bg:#E7EEF6;
+    --ok:       #146B5C;
+    --ok-bg:    #E4F1ED;
+    --flag:     #8A5200;
+    --flag-bg:  #FBF0DF;
+    --stop:     #A32F26;
+    --stop-bg:  #FBE9E7;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper:    #0E1116;
+      --card:     #161A21;
+      --sunk:     #1B2029;
+      --ink:      #E8ECF2;
+      --ink-2:    #A6B0BD;
+      --ink-3:    #78838F;
+      --rule:     #262C36;
+      --rule-2:   #1E232B;
+      --accent:   #7FB3E3;
+      --accent-bg:#152534;
+      --ok:       #6FC8B4;
+      --ok-bg:    #10241F;
+      --flag:     #DFAE63;
+      --flag-bg:  #2A1F0F;
+      --stop:     #E8938A;
+      --stop-bg:  #2B1512;
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper:    #0E1116;
+    --card:     #161A21;
+    --sunk:     #1B2029;
+    --ink:      #E8ECF2;
+    --ink-2:    #A6B0BD;
+    --ink-3:    #78838F;
+    --rule:     #262C36;
+    --rule-2:   #1E232B;
+    --accent:   #7FB3E3;
+    --accent-bg:#152534;
+    --ok:       #6FC8B4;
+    --ok-bg:    #10241F;
+    --flag:     #DFAE63;
+    --flag-bg:  #2A1F0F;
+    --stop:     #E8938A;
+    --stop-bg:  #2B1512;
+  }
+
+  /* Product tokens — scoped to specimen frames only, fixed in both
+     themes. The product ships one light identity (DESIGN.md); a dark
+     "screenshot" would misrepresent it. */
+  .ui {
+    --c-primary:    #0064FF;
+    --c-primary-hv: #0050D6;
+    --c-primary-lt: #E8F1FF;
+    --c-nav:        #0F172A;
+    --c-page:       #F2F4F6;
+    --c-white:      #FFFFFF;
+    --c-surf-2:     #F9FAFB;
+    --c-surf-3:     #F3F4F6;
+    --c-bd-light:   #F3F4F6;
+    --c-bd:         #E5E7EB;
+    --c-bd-strong:  #D1D5DB;
+    --c-t1:         #191F28;
+    --c-t2:         #4E5968;
+    --c-t3:         #8B95A1;
+    --c-t4:         #B0B8C1;
+    --c-warn-d:     #9A3412;
+    --c-succ-d:     #2A7D52;
+    color: var(--c-t1);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: 'Pretendard', -apple-system, BlinkMacSystemFont,
+                 'Apple SD Gothic Neo', 'Malgun Gothic', system-ui, sans-serif;
+    font-size: 16px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 64px 24px 120px;
+    display: flex;
+    flex-direction: column;
+    gap: 64px;
+  }
+
+  /* ── Masthead ─────────────────────────────────────────────── */
+  .masthead { display: flex; flex-direction: column; gap: 16px; }
+  .kicker {
+    font-size: 12px; font-weight: 700; letter-spacing: .12em;
+    text-transform: uppercase; color: var(--accent);
+  }
+  h1 {
+    margin: 0; font-size: 40px; font-weight: 800; letter-spacing: -.035em;
+    line-height: 1.12; text-wrap: balance;
+  }
+  .lede { margin: 0; max-width: 64ch; color: var(--ink-2); font-size: 16px; }
+  .tally {
+    display: flex; flex-wrap: wrap; gap: 0; margin-top: 8px;
+    border: 1px solid var(--rule); border-radius: 10px; overflow: hidden;
+    background: var(--card); width: fit-content;
+  }
+  .tally div {
+    padding: 12px 20px; border-right: 1px solid var(--rule);
+    display: flex; flex-direction: column; gap: 2px;
+  }
+  .tally div:last-child { border-right: 0; }
+  .tally .num {
+    font-size: 24px; font-weight: 800; letter-spacing: -.03em;
+    font-variant-numeric: tabular-nums; line-height: 1.1;
+  }
+  .tally .lbl { font-size: 12px; color: var(--ink-3); font-weight: 600; }
+
+  /* ── Sections ─────────────────────────────────────────────── */
+  section { display: flex; flex-direction: column; gap: 24px; }
+  .sec-head { display: flex; flex-direction: column; gap: 8px; }
+  .sec-head h2 {
+    margin: 0; font-size: 26px; font-weight: 800; letter-spacing: -.025em;
+    line-height: 1.2;
+  }
+  .sec-head p { margin: 0; color: var(--ink-2); max-width: 70ch; font-size: 16px; }
+  .sec-num {
+    font-size: 12px; font-weight: 700; color: var(--ink-3);
+    letter-spacing: .1em; font-variant-numeric: tabular-nums;
+  }
+
+  /* ── Evidence grades ──────────────────────────────────────── */
+  .grade {
+    display: inline-flex; align-items: center; flex: 0 0 auto;
+    font-size: 12px; font-weight: 700; letter-spacing: .02em;
+    padding: 3px 8px; border-radius: 5px; white-space: nowrap;
+  }
+  .grade.num  { background: var(--stop-bg); color: var(--stop); }
+  .grade.ux   { background: var(--accent-bg); color: var(--accent); }
+  .grade.op   { background: var(--flag-bg); color: var(--flag); }
+  .grade.said { background: var(--ok-bg); color: var(--ok); }
+
+  .legend {
+    display: flex; flex-wrap: wrap; gap: 8px 18px; padding: 14px 18px;
+    background: var(--card); border: 1px solid var(--rule); border-radius: 10px;
+  }
+  .legend span.t { font-size: 14px; color: var(--ink-2); }
+
+  /* ── Problem list ─────────────────────────────────────────── */
+  .probs { display: flex; flex-direction: column; gap: 10px; counter-reset: p; }
+  .prob {
+    display: grid; grid-template-columns: 34px 1fr; gap: 14px;
+    padding: 16px 20px; background: var(--card);
+    border: 1px solid var(--rule); border-radius: 10px;
+  }
+  .prob::before {
+    counter-increment: p; content: counter(p, decimal-leading-zero);
+    font-size: 14px; font-weight: 800; color: var(--ink-3);
+    font-variant-numeric: tabular-nums; padding-top: 2px;
+  }
+  .prob .body { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+  .prob .hd { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .prob .ttl { font-size: 16px; font-weight: 700; letter-spacing: -.01em; }
+  .prob .ev { font-size: 14px; color: var(--ink-2); }
+  .prob .ev code, code.k {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 12px; background: var(--sunk); border-radius: 4px;
+    padding: 1px 5px; color: var(--ink);
+  }
+
+  /* ── Reference cards ──────────────────────────────────────── */
+  .refs { display: flex; flex-direction: column; gap: 16px; }
+  .ref {
+    background: var(--card); border: 1px solid var(--rule);
+    border-radius: 12px; overflow: hidden;
+  }
+  .ref-hd {
+    display: grid; grid-template-columns: 42px 1fr auto; gap: 14px;
+    align-items: start; padding: 18px 22px;
+  }
+  .ref-rank {
+    font-size: 20px; font-weight: 800; color: var(--ink-3);
+    font-variant-numeric: tabular-nums; letter-spacing: -.03em; line-height: 1.3;
+  }
+  .ref-id { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+  .ref-name { font-size: 18px; font-weight: 750; letter-spacing: -.02em; }
+  .ref-url {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 12px; color: var(--accent); text-decoration: none;
+    word-break: break-all;
+  }
+  .ref-url:hover { text-decoration: underline; }
+  .ref-body {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 18px 24px;
+    padding: 0 22px 20px;
+  }
+  .ref-body .f { display: flex; flex-direction: column; gap: 5px; }
+  .ref-body .f .h {
+    font-size: 12px; font-weight: 700; letter-spacing: .08em;
+    text-transform: uppercase; color: var(--ink-3);
+  }
+  .ref-body .f .v { font-size: 14px; color: var(--ink-2); }
+  .ref-body .f.wide { grid-column: 1 / -1; }
+  .bench { display: flex; flex-wrap: wrap; gap: 6px; }
+  .bench span {
+    font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 999px;
+    background: var(--accent-bg); color: var(--accent);
+  }
+  .spec {
+    border-top: 1px solid var(--rule-2); background: var(--sunk);
+    padding: 20px 22px; display: flex; flex-direction: column; gap: 8px;
+  }
+  .spec .cap {
+    font-size: 12px; font-weight: 700; letter-spacing: .08em;
+    text-transform: uppercase; color: var(--ink-3);
+  }
+  .spec-frame { overflow-x: auto; }
+
+  /* ── Proposals ────────────────────────────────────────────── */
+  .prop {
+    background: var(--card); border: 1px solid var(--rule);
+    border-radius: 12px; overflow: hidden;
+  }
+  .prop.pick { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-bg); }
+  .prop-hd {
+    display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap;
+    padding: 20px 22px 0;
+  }
+  .prop-tag {
+    font-size: 12px; font-weight: 800; letter-spacing: .06em;
+    color: var(--accent); background: var(--accent-bg);
+    padding: 4px 10px; border-radius: 6px;
+  }
+  .prop-name { font-size: 20px; font-weight: 780; letter-spacing: -.02em; }
+  .prop-sub { font-size: 14px; color: var(--ink-2); padding: 8px 22px 0; max-width: 74ch; }
+  .prop-meta {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 16px 24px; padding: 18px 22px 22px;
+  }
+  .prop-meta .f { display: flex; flex-direction: column; gap: 5px; }
+  .prop-meta .f .h {
+    font-size: 12px; font-weight: 700; letter-spacing: .08em;
+    text-transform: uppercase; color: var(--ink-3);
+  }
+  .prop-meta .f .v { font-size: 14px; color: var(--ink-2); }
+  .prop-meta .f.wide { grid-column: 1 / -1; }
+
+  /* Metric provenance table */
+  .metrics { width: 100%; border-collapse: collapse; font-size: 14px; }
+  .metrics th {
+    text-align: left; font-size: 12px; font-weight: 700; letter-spacing: .06em;
+    text-transform: uppercase; color: var(--ink-3);
+    padding: 8px 12px; border-bottom: 1px solid var(--rule);
+  }
+  .metrics td {
+    padding: 9px 12px; border-bottom: 1px solid var(--rule-2); color: var(--ink-2);
+    vertical-align: top;
+  }
+  .metrics tr:last-child td { border-bottom: 0; }
+  .metrics td b { color: var(--ink); font-weight: 700; font-variant-numeric: tabular-nums; }
+  .metrics-wrap { overflow-x: auto; }
+
+  /* ── Comparison ───────────────────────────────────────────── */
+  .cmp-wrap { overflow-x: auto; }
+  .cmp {
+    min-width: 860px; width: 100%; border-collapse: collapse;
+    background: var(--card); border: 1px solid var(--rule); border-radius: 12px;
+    overflow: hidden; font-size: 14px;
+  }
+  .cmp th {
+    text-align: left; font-size: 12px; font-weight: 700; color: var(--ink-3);
+    letter-spacing: .04em; padding: 14px 16px; border-bottom: 1px solid var(--rule);
+    background: var(--sunk); white-space: nowrap;
+  }
+  .cmp td {
+    padding: 14px 16px; border-bottom: 1px solid var(--rule-2);
+    color: var(--ink-2); vertical-align: top;
+  }
+  .cmp tr:last-child td { border-bottom: 0; }
+  .cmp td.nm { color: var(--ink); font-weight: 700; white-space: nowrap; }
+  .cmp tr.win td { background: var(--accent-bg); }
+  .cov {
+    display: inline-flex; flex-wrap: wrap; gap: 3px;
+    font-variant-numeric: tabular-nums;
+  }
+  .cov b {
+    font-size: 12px; font-weight: 700; padding: 2px 6px; border-radius: 4px;
+    background: var(--ok-bg); color: var(--ok);
+  }
+  .cost { font-weight: 700; font-variant-numeric: tabular-nums; }
+
+  /* ── Callouts ─────────────────────────────────────────────── */
+  .note {
+    border: 1px solid var(--rule); background: var(--card);
+    border-left: 3px solid var(--flag);
+    border-radius: 10px; padding: 18px 20px;
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  .note.stop { border-left-color: var(--stop); }
+  .note.pick { border-left-color: var(--accent); }
+  .note h3 { margin: 0; font-size: 16px; font-weight: 750; letter-spacing: -.01em; }
+  .note p { margin: 0; font-size: 14px; color: var(--ink-2); max-width: 76ch; }
+
+  hr.rule { border: 0; border-top: 1px solid var(--rule); margin: 0; }
+
+  /* ═══════════════════════════════════════════════════════════
+     Specimen primitives — product UI rebuilt inline. External
+     images are blocked by CSP, so every reference fragment is
+     re-drawn here rather than screenshotted.
+     ═══════════════════════════════════════════════════════════ */
+  .card-s {
+    background: var(--c-white); border: 1px solid var(--c-bd);
+    border-radius: 12px; overflow: hidden;
+  }
+  .card-hd {
+    display: flex; align-items: center; gap: 10px;
+    padding: 18px 22px; border-bottom: 1px solid var(--c-bd);
+  }
+  .card-hd .h { font-size: 16px; font-weight: 700; letter-spacing: -.02em; }
+  .card-hd .n {
+    font-size: 12px; font-weight: 700; color: var(--c-primary-hv);
+    background: var(--c-primary-lt); border-radius: 999px; padding: 2px 8px;
+    font-variant-numeric: tabular-nums;
+  }
+  .card-hd .more {
+    margin-left: auto; font-size: 12px; color: var(--c-t3); text-decoration: none;
+  }
+  .row-s {
+    display: flex; align-items: stretch; gap: 16px;
+    padding: 16px 22px; border-bottom: 1px solid var(--c-bd-light);
+  }
+  .row-s:last-child { border-bottom: 0; }
+  .row-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+  .row-meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .row-t {
+    font-size: 14px; font-weight: 600; color: var(--c-t1);
+    letter-spacing: -.01em; line-height: 1.45;
+  }
+  .row-d {
+    font-size: 12px; color: var(--c-t3); font-variant-numeric: tabular-nums;
+    white-space: nowrap; line-height: 1.4;
+  }
+  .row-side {
+    flex: 0 0 auto; display: flex; flex-direction: column;
+    align-items: flex-end; justify-content: space-between; gap: 10px;
+  }
+  .caret {
+    width: 8px; height: 8px; flex: 0 0 auto; margin: 0 3px 4px 0;
+    border-right: 1.8px solid var(--c-t3); border-bottom: 1.8px solid var(--c-t3);
+    transform: rotate(45deg);
+  }
+  .caret.up { transform: rotate(-135deg) translate(-3px, -3px); border-color: var(--c-primary-hv); }
+  .bdg {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-size: 12px; font-weight: 700; padding: 3px 8px;
+    border-radius: 999px; white-space: nowrap;
+  }
+  .bdg .ic { width: 13px; height: 13px; flex: 0 0 auto; }
+  .bdg.pin  { background: var(--c-primary-lt); color: var(--c-primary-hv); }
+  .bdg.cat  { background: var(--c-white); color: var(--c-t2); border: 1px solid var(--c-bd); font-weight: 600; }
+  .bdg.hide { background: var(--c-surf-3); color: #6B7280; border: 1px dashed var(--c-bd-strong); }
+  .panel-s {
+    background: var(--c-surf-2); padding: 16px 22px 42px;
+    font-size: 14px; line-height: 1.75; color: var(--c-t2);
+    border-bottom: 1px solid var(--c-bd-light);
+  }
+  .panel-s p { margin: 0 0 10px; }
+  .panel-s p:last-child { margin: 0; }
+  .icon-btn-s {
+    width: 30px; height: 30px; padding: 0; flex: 0 0 auto;
+    display: inline-flex; align-items: center; justify-content: center;
+    border: 1px solid var(--c-bd); border-radius: 6px;
+    background: var(--c-white); color: var(--c-t2); position: relative;
+  }
+  .icon-btn-s .ic { width: 14px; height: 14px; }
+  .icon-btn-s .dot {
+    position: absolute; top: -4px; right: -4px;
+    min-width: 14px; height: 14px; padding: 0 3px; border-radius: 999px;
+    background: var(--c-primary); color: #fff;
+    font-size: 10px; font-weight: 700; line-height: 14px;
+    font-variant-numeric: tabular-nums;
+  }
+  .btn-s {
+    font-size: 12px; font-weight: 600; padding: 7px 12px; border-radius: 6px;
+    display: inline-flex; align-items: center; gap: 6px; border: 0; line-height: 1.2;
+  }
+  .btn-s.pri { background: var(--c-primary); color: #fff; }
+  .btn-s.gho { background: transparent; color: var(--c-t2); border: 1px solid var(--c-bd); }
+
+  /* generic mini-mock scaffolding used by reference specimens */
+  .mini {
+    background: #fff; border: 1px solid #E3E6EA; border-radius: 10px;
+    overflow: hidden; color: #1B2128; font-size: 14px; line-height: 1.5;
+  }
+  .mini .mh {
+    padding: 10px 14px; border-bottom: 1px solid #EDEFF2;
+    font-size: 12px; font-weight: 700; color: #6B7480;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .mini .mr {
+    padding: 11px 14px; border-bottom: 1px solid #F1F3F5;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .mini .mr:last-child { border-bottom: 0; }
+  .mini .mt { font-weight: 650; color: #12161D; }
+  .mini .ms { color: #6B7480; font-size: 12px; }
+  .mini .mdate {
+    margin-left: auto; color: #98A1AC; font-size: 12px;
+    font-variant-numeric: tabular-nums; white-space: nowrap;
+  }
+  .chip-s {
+    font-size: 12px; font-weight: 700; padding: 2px 7px; border-radius: 4px;
+    background: #EEF1F5; color: #4C5663; white-space: nowrap;
+  }
+  .chip-s.blue { background: #E7EEF6; color: #17538A; }
+  .chip-s.green { background: #E4F1ED; color: #146B5C; }
+  .chip-s.amber { background: #FBF0DF; color: #8A5200; }
+  .rail-s {
+    display: grid; grid-template-columns: 168px 1fr; gap: 0;
+    background: #fff; border: 1px solid #E3E6EA; border-radius: 10px; overflow: hidden;
+  }
+  .rail-s .rl {
+    border-right: 1px solid #EDEFF2; padding: 8px; display: flex;
+    flex-direction: column; gap: 2px; background: #FBFCFD;
+  }
+  .rail-s .rl a {
+    display: flex; align-items: center; gap: 8px; padding: 8px 10px;
+    border-radius: 6px; text-decoration: none; font-size: 14px;
+    color: #4C5663; font-weight: 500;
+  }
+  .rail-s .rl a.on { background: #E7EEF6; color: #17538A; font-weight: 700; }
+  .rail-s .rl a .c {
+    margin-left: auto; font-size: 12px; color: #98A1AC;
+    font-variant-numeric: tabular-nums;
+  }
+  .rail-s .rl a.on .c { color: #17538A; }
+  .rail-s .rr { padding: 12px 14px; display: flex; flex-direction: column; gap: 10px; }
+  .grp-h {
+    display: flex; align-items: baseline; gap: 8px;
+    font-size: 14px; font-weight: 750; color: #12161D;
+  }
+  .grp-h .gc { font-size: 12px; color: #98A1AC; font-variant-numeric: tabular-nums; }
+
+  .stripe { background: repeating-linear-gradient(135deg,#FAFBFC 0 6px,#F1F3F5 6px 12px); }
+
+  .toolbar-s {
+    display: flex; align-items: center; gap: 4px; flex-wrap: wrap;
+    padding: 8px 10px; background: var(--c-surf-2); border-bottom: 1px solid var(--c-bd);
+  }
+  .tb {
+    min-width: 28px; height: 28px; padding: 0 8px; border-radius: 6px;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 700; color: var(--c-t2); background: transparent;
+  }
+  .tb.on { background: var(--c-primary-lt); color: var(--c-primary-hv); }
+  .tb-sep { width: 1px; height: 18px; background: var(--c-bd); margin: 0 4px; }
+
+  @media (max-width: 900px) {
+    .ref-body, .prop-meta { grid-template-columns: 1fr; }
+    .wrap { padding: 40px 16px 80px; }
+    h1 { font-size: 30px; }
+  }
+</style>
+
+<svg width="0" height="0" aria-hidden="true" focusable="false" style="position:absolute">
+  <symbol id="i-pin" viewBox="0 0 16 16" fill="currentColor">
+    <rect x="4" y="1.5" width="8" height="2.2" rx="1.1" />
+    <path d="M6.2 3.7h3.6l1 4.3H5.2Z" />
+    <rect x="7.4" y="8" width="1.2" height="5.5" rx="0.6" />
+  </symbol>
+  <symbol id="i-filter" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+          stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3Z" />
+  </symbol>
+</svg>
+
+<div class="wrap">
+
+  <header class="masthead">
+    <div class="kicker">Design Benchmark · PII Agent Pass</div>
+    <h1>공지사항 · FAQ 화면 벤치마크</h1>
+    <p class="lede">
+      구현된 화면이 왜 밋밋하게 읽히는지 수치로 진단하고, 같은 문제를 이미 푼 제품 13곳을
+      실물로 확인해, 개선안 5개와 추천 하나로 정리했습니다.
+      리서치 문서이며 코드는 바꾸지 않았습니다.
+    </p>
+    <div class="tally">
+      <div><span class="num">13</span><span class="lbl">진단된 문제</span></div>
+      <div><span class="num">13</span><span class="lbl">레퍼런스</span></div>
+      <div><span class="num">5</span><span class="lbl">개선안</span></div>
+      <div><span class="num">9</span><span class="lbl">아티팩트 이탈 항목</span></div>
+    </div>
+  </header>
+
+  <hr class="rule" />
+
+  <!-- ══════════════ 1. 진단 ══════════════ -->
+  <section>
+    <div class="sec-head">
+      <span class="sec-num">01</span>
+      <h2>문제 진단</h2>
+      <p>
+        근거 등급을 붙였습니다. <b>수치 위반</b>은 오너 제공 디자인 가이드의 세트 값을 어긴 것이라
+        논쟁의 여지가 없고, <b>UX 원칙</b>은 이름 있는 휴리스틱, <b>제안</b>은 제 주관입니다.
+        <b>요청 이탈</b>은 대화에서 직접 정하신 사항이 구현에 빠진 것입니다.
+      </p>
+    </div>
+
+    <div class="legend">
+      <span class="grade num">수치 위반</span>
+      <span class="t">가이드 세트 값 위반 — 객관</span>
+      <span class="grade ux">UX 원칙</span>
+      <span class="t">일반 휴리스틱</span>
+      <span class="grade said">요청 이탈</span>
+      <span class="t">직접 정한 사항 누락</span>
+      <span class="grade op">제안</span>
+      <span class="t">주관 판단</span>
+    </div>
+
+    <div class="spec ui" style="border-radius:12px; border:1px solid var(--rule);">
+      <div class="cap">현재 구현 — 사용자 화면 행</div>
+      <div class="spec-frame">
+        <div class="card-s" style="min-width:520px;">
+          <div class="card-hd">
+            <span class="h">공지사항</span>
+            <a class="more" href="#s1">전체 보기</a>
+          </div>
+          <div style="display:flex; align-items:center; gap:8px; padding:16px 20px; border-bottom:1px solid var(--c-bd-light);">
+            <span class="bdg pin"><svg class="ic"><use href="#i-pin"/></svg>고정</span>
+            <span style="font-size:12px; font-weight:500; color:var(--c-primary-hv);">서비스 점검</span>
+            <span style="flex:1; font-size:14px; font-weight:500; color:var(--c-t1);">8월 정기 점검 안내</span>
+            <span class="row-d">2026-08-10</span>
+          </div>
+          <div style="display:flex; align-items:center; gap:8px; padding:16px 20px;">
+            <span style="font-size:12px; font-weight:500; color:var(--c-primary-hv);">기능 업데이트</span>
+            <span style="flex:1; font-size:14px; font-weight:500; color:var(--c-t1);">IDC 연동 방식이 개선되었습니다</span>
+            <span class="row-d">2026-08-09</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="probs">
+
+      <div class="prob">
+        <div class="body">
+          <div class="hd"><span class="ttl">한 줄에 역할 다섯이 뭉쳐 있다</span><span class="grade ux">UX 원칙</span></div>
+          <div class="ev">
+            고정 배지 · Category · 제목 · 날짜가 <code class="k">gap-2</code>(8px) 한 줄에 나란합니다.
+            역할은 다섯인데 크기는 <b>12/14 두 개</b>, 무게는 <b>500 하나</b>뿐 —
+            가이드의 “인접 계층은 레버 2개 이상 차이” 기준에서 제목과 Category는 레버 1개 차이라
+            계층이 아니라 오차입니다. 결과가 “뭉탱이”입니다.
+          </div>
+        </div>
+      </div>
+
+      <div class="prob">
+        <div class="body">
+          <div class="hd"><span class="ttl">펼쳐지는 행이라는 신호가 없다</span><span class="grade ux">UX 원칙</span><span class="grade said">요청 이탈</span></div>
+          <div class="ev">
+            캐럿이 없습니다. Carbon · W3C APG · shadcn 모두 collapsed 상태를 알리는 지시자를
+            헤더 끝에 두라고 규정합니다. 클릭하기 전에는 이 행이 링크인지 아코디언인지 알 수 없습니다.
+            아티팩트에는 “Expand/collapse는 오른쪽 하단”으로 정해 뒀습니다.
+          </div>
+        </div>
+      </div>
+
+      <div class="prob">
+        <div class="body">
+          <div class="hd"><span class="ttl">닫는 방법이 펼친 뒤에만 생긴다</span><span class="grade ux">UX 원칙</span></div>
+          <div class="ev">
+            펼침은 행 클릭, 접기는 하단의 “접기” 텍스트. 토글이 비대칭이라 같은 조작의
+            왕복이 서로 다른 자리에서 일어납니다.
+          </div>
+        </div>
+      </div>
+
+      <div class="prob">
+        <div class="body">
+          <div class="hd"><span class="ttl">카드 좌우 패딩 20px</span><span class="grade num">수치 위반</span></div>
+          <div class="ev">
+            <code class="k">px-5</code> = 20px. 가이드의 카드 패딩 세트는 <b>상 20 · 좌우 24 · 하 24</b>입니다.
+            라운드 12px 카드에서 좌우가 좁으면 4번 원칙(“라운드가 클수록 안쪽으로 들여 써야 그룹핑이 완성된다”)이 깨집니다.
+          </div>
+        </div>
+      </div>
+
+      <div class="prob">
+        <div class="body">
+          <div class="hd"><span class="ttl">아코디언 하단 여백 26px</span><span class="grade num">수치 위반</span></div>
+          <div class="ev">
+            <code class="k">pb-[26px]</code>. 간격 세트는 4/8/12/16/24/32/40입니다. 26은 세트 밖 임의값입니다.
+            “10픽셀 더”라는 요청을 16+10=26으로 계산했는데, 세트를 지키려면 40이었어야 합니다.
+          </div>
+        </div>
+      </div>
+
+      <div class="prob">
+        <div class="body">
+          <div class="hd"><span class="ttl">섹션 간 여백이 내부 여백의 2배에 못 미친다</span><span class="grade num">수치 위반</span></div>
+          <div class="ev">
+            카드 사이 <code class="k">gap-6</code>(24px) vs 행 내부 <code class="k">py-4</code>(16px) = <b>1.5배</b>.
+            가이드는 “섹션 간 여백은 섹션 내부 여백의 2배 이상”을 요구합니다. 두 카드가 한 덩어리로 붙어 읽힙니다.
+          </div>
+        </div>
+      </div>
+
+      <div class="prob">
+        <div class="body">
+          <div class="hd"><span class="ttl">펼친 본문이 목록과 같은 평면에 있다</span><span class="grade op">제안</span><span class="grade said">요청 이탈</span></div>
+          <div class="ev">
+            펼침 패널에 배경 구분이 없어 본문과 다음 행의 경계가 1px 선 하나뿐입니다.
+            아티팩트는 <code class="k">#F9FAFB</code> 틴트를 깔아 “이건 위 행에 속한 내용”을 면으로 말합니다.
+          </div>
+        </div>
+      </div>
+
+      <div class="prob">
+        <div class="body">
+          <div class="hd"><span class="ttl">카드 헤더에 건수가 없다</span><span class="grade said">요청 이탈</span></div>
+          <div class="ev">
+            5건만 보여주고 “전체 보기”를 걸어 뒀는데, 전체가 몇 건인지 말하지 않습니다.
+            누를 이유를 주지 않는 링크입니다. 아티팩트에는 건수 필이 있습니다.
+          </div>
+        </div>
+      </div>
+
+      <div class="prob">
+        <div class="body">
+          <div class="hd"><span class="ttl">Pass 소개 배너가 없다</span><span class="grade said">요청 이탈</span></div>
+          <div class="ev">
+            요구사항 원문과 아티팩트 모두 보라 그라데이션 배너가 카드 위에 있습니다. 구현에는 없습니다.
+            (계약상 이 배너는 API 범위 밖 고정 콘텐츠라 구현 난이도는 낮습니다.)
+          </div>
+        </div>
+      </div>
+
+      <div class="prob">
+        <div class="body">
+          <div class="hd"><span class="ttl">전체보기가 상한 없는 평평한 목록</span><span class="grade ux">UX 원칙</span><span class="grade said">요청 이탈</span></div>
+          <div class="ev">
+            계약이 페이지네이션을 두지 않기로 했으므로(§5 범위 밖) 이 목록은 시간이 갈수록 단조 증가합니다.
+            지금은 Category 그룹도 필터도 없어 200건이 되면 스크롤 외에 방법이 없습니다.
+            <b>디자인 문제가 아니라 구조 결함</b>입니다.
+          </div>
+        </div>
+      </div>
+
+      <div class="prob">
+        <div class="body">
+          <div class="hd"><span class="ttl">Admin 숨김 표시가 배지 하나</span><span class="grade op">제안</span><span class="grade said">요청 이탈</span></div>
+          <div class="ev">
+            삭제가 없는 도메인이라 숨김 글이 목록에 영구히 남습니다. 회색 배지 하나로는
+            스캔 중에 “이건 안 나가는 글”이 안 잡힙니다. 아티팩트는 행 전체에 사선 스트라이프를 깔았습니다.
+          </div>
+        </div>
+      </div>
+
+      <div class="prob">
+        <div class="body">
+          <div class="hd"><span class="ttl">Admin에 필터가 없다</span><span class="grade said">요청 이탈</span></div>
+          <div class="ev">
+            “필터는 웬만하면 필터 아이콘을 이용하자”고 정하셨고 아티팩트에 아이콘 버튼 + 활성 개수 닷까지 있는데,
+            구현에는 필터 자체가 없습니다.
+          </div>
+        </div>
+      </div>
+
+      <div class="prob">
+        <div class="body">
+          <div class="hd"><span class="ttl">에디터 필드에 라벨이 없다</span><span class="grade ux">UX 원칙</span></div>
+          <div class="ev">
+            제목 입력이 placeholder(“한국어 제목”)만으로 자기를 설명합니다. 한 글자 치는 순간 그 설명이 사라집니다.
+            언어 탭까지 있는 화면이라 “지금 어느 언어의 무슨 필드인지”가 특히 중요합니다.
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <hr class="rule" />
+
+  <!-- ══════════════ 2. 레퍼런스 ══════════════ -->
+  <section>
+    <div class="sec-head">
+      <span class="sec-num">02</span>
+      <h2>레퍼런스 13</h2>
+      <p>
+        관련도 순입니다 — 번호가 곧 순위이고, 우리 문제와 같은 종류를 푸는 것이 앞에 옵니다.
+        전부 이번 세션에 실제로 열어 확인했습니다. 아티팩트는 외부 이미지를 차단하므로
+        스크린샷 대신 각 레퍼런스가 쓰는 패턴만 인라인으로 다시 그렸습니다.
+      </p>
+    </div>
+
+    <div class="refs">
+
+      <!-- 01 -->
+      <div class="ref">
+        <div class="ref-hd">
+          <span class="ref-rank">01</span>
+          <span class="ref-id">
+            <span class="ref-name">Carbon Design System — Accordion</span>
+            <a class="ref-url" href="https://carbondesignsystem.com/components/accordion/usage/">carbondesignsystem.com/components/accordion/usage</a>
+          </span>
+          <span class="grade said">확인함</span>
+        </div>
+        <div class="ref-body">
+          <div class="f"><span class="h">푸는 문제</span><span class="v">접힌 행이 자기 상태를 말하지 못하는 문제.</span></div>
+          <div class="f"><span class="h">메커니즘</span><span class="v">캐럿을 헤더 <b>끝쪽</b>에 두고 접힘 ↓ / 펼침 ↑. 제목이 다른 타입 요소와 좌측 정렬을 유지하도록 하는 게 끝쪽 배치의 이유. 캐럿과 헤더 영역 <b>어디를 눌러도</b> 토글.</span></div>
+          <div class="f wide"><span class="h">벤치마크 요소</span>
+            <span class="bench"><span>캐럿 끝쪽 배치</span><span>헤더 전체가 클릭 영역</span><span>기본 접힘</span><span>flush 정렬 변형</span></span></div>
+        </div>
+        <div class="spec ui">
+          <div class="cap">Carbon 방식 — 캐럿이 끝, 제목은 좌측 정렬 유지</div>
+          <div class="spec-frame">
+            <div class="mini" style="min-width:420px;">
+              <div class="mr"><span class="mt">스캔에 필요한 권한은 무엇인가요?</span><span class="mdate">▾</span></div>
+              <div class="mr" style="background:#FAFBFC;"><span class="mt" style="color:#17538A;">연동 요청 후 얼마나 기다려야 하나요?</span><span class="mdate" style="color:#17538A;">▴</span></div>
+              <div class="mr" style="border-top:0; color:#4C5663; display:block;">관리자 승인까지 보통 1영업일 이내입니다.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 02 -->
+      <div class="ref">
+        <div class="ref-hd">
+          <span class="ref-rank">02</span>
+          <span class="ref-id">
+            <span class="ref-name">W3C ARIA APG — Accordion Pattern</span>
+            <a class="ref-url" href="https://www.w3.org/WAI/ARIA/apg/patterns/accordion/">w3.org/WAI/ARIA/apg/patterns/accordion</a>
+          </span>
+          <span class="grade said">확인함</span>
+        </div>
+        <div class="ref-body">
+          <div class="f"><span class="h">푸는 문제</span><span class="v">아코디언의 접근성 계약. 우리 구현이 이미 절반은 지키고 있는지 판정하는 기준.</span></div>
+          <div class="f"><span class="h">메커니즘</span><span class="v">헤더 제목은 <code class="k">role="button"</code>, <code class="k">aria-expanded</code>로 상태, <code class="k">aria-controls</code>로 패널 연결. 접힌 패널이 열 수 없는 상태면 <code class="k">aria-disabled</code>.</span></div>
+          <div class="f wide"><span class="h">벤치마크 요소</span>
+            <span class="bench"><span>aria-controls 연결</span><span>heading 래핑</span><span>Enter/Space 동등</span></span></div>
+        </div>
+        <div class="spec">
+          <div class="cap">우리 구현과 대조 — 이미 맞는 것 / 빠진 것</div>
+          <div class="metrics-wrap">
+            <table class="metrics">
+              <thead><tr><th>요구</th><th>현재</th></tr></thead>
+              <tbody>
+                <tr><td><code class="k">button</code> 트리거</td><td><b>충족</b> — <code class="k">&lt;button type="button"&gt;</code></td></tr>
+                <tr><td><code class="k">aria-expanded</code></td><td><b>충족</b></td></tr>
+                <tr><td><code class="k">aria-controls</code> + 패널 <code class="k">id</code></td><td><b>없음</b> — 스크린리더가 패널을 트리거와 못 잇는다</td></tr>
+                <tr><td>heading 래핑</td><td><b>없음</b> — <code class="k">li &gt; button</code></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- 03 -->
+      <div class="ref">
+        <div class="ref-hd">
+          <span class="ref-rank">03</span>
+          <span class="ref-id">
+            <span class="ref-name">Nielsen Norman Group — Accordions on Desktop</span>
+            <a class="ref-url" href="https://www.nngroup.com/articles/accordions-complex-content/">nngroup.com/articles/accordions-complex-content</a>
+          </span>
+          <span class="grade said">확인함</span>
+        </div>
+        <div class="ref-body">
+          <div class="f"><span class="h">푸는 문제</span><span class="v">“접어 두는 게 정말 이득인가”의 판단 기준.</span></div>
+          <div class="f"><span class="h">메커니즘</span><span class="v">클릭 하나하나가 인지 비용이며 <b>“헛클릭이라 느끼면 반감이 생긴다”</b>. 그래서 접힌 헤더는 “충분히 서술적이고 끌릴 만큼” 써야 하고, 헤더 묶음 자체가 페이지의 미니 정보구조 역할을 해야 한다.</span></div>
+          <div class="f wide"><span class="h">벤치마크 요소</span>
+            <span class="bench"><span>헤더가 곧 정보구조</span><span>제목만으로 펼칠지 결정 가능</span><span>스크롤 &gt; 선택 비용</span></span></div>
+        </div>
+        <div class="spec">
+          <div class="cap">함의 — 우리 제목은 “서술적”인가</div>
+          <div class="spec-frame">
+            <div class="mini" style="min-width:420px;">
+              <div class="mr"><span class="chip-s amber">약함</span><span class="mt">IDC 연동 방식이 개선되었습니다</span></div>
+              <div class="mr"><span class="chip-s green">좋음</span><span class="mt">스캔 결과가 비어 있어요</span><span class="ms">— 증상이 제목에 있어 펼칠지 판단된다</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 04 -->
+      <div class="ref">
+        <div class="ref-hd">
+          <span class="ref-rank">04</span>
+          <span class="ref-id">
+            <span class="ref-name">GitHub Primer — ActionList</span>
+            <a class="ref-url" href="https://primer.style/product/components/action-list/">primer.style/product/components/action-list</a>
+          </span>
+          <span class="grade said">확인함</span>
+        </div>
+        <div class="ref-body">
+          <div class="f"><span class="h">푸는 문제</span><span class="v">행 하나에 정보가 여럿일 때의 배치 — 정확히 우리 1번 문제.</span></div>
+          <div class="f"><span class="h">메커니즘</span><span class="v">설명을 <b>inline</b>(제목 옆)과 <b>block</b>(제목 아래) 두 변형으로 나누고, 짧은 보조정보는 inline, 길거나 중요한 것은 block. 앞은 leading visual, 뒤는 trailing visual/action으로 구역을 못 박는다.</span></div>
+          <div class="f wide"><span class="h">벤치마크 요소</span>
+            <span class="bench"><span>inline vs block 설명</span><span>leading/trailing 구역 고정</span><span>trailing은 비대화형 기본</span></span></div>
+        </div>
+        <div class="spec ui">
+          <div class="cap">inline(현재) vs block(제안) — 같은 데이터, 다른 계층</div>
+          <div class="spec-frame">
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px; min-width:640px;">
+              <div class="card-s">
+                <div style="padding:8px 14px; font-size: 12px; font-weight:700; color:#98A1AC; border-bottom:1px solid #F1F3F5;">INLINE — 현재</div>
+                <div style="display:flex; align-items:center; gap:8px; padding:16px 20px;">
+                  <span style="font-size:12px; color:var(--c-primary-hv);">서비스 점검</span>
+                  <span style="flex:1; font-size:14px; font-weight:500;">8월 정기 점검 안내</span>
+                  <span class="row-d">08-10</span>
+                </div>
+              </div>
+              <div class="card-s">
+                <div style="padding:8px 14px; font-size: 12px; font-weight:700; color:#98A1AC; border-bottom:1px solid #F1F3F5;">BLOCK — 제안</div>
+                <div class="row-s">
+                  <div class="row-main">
+                    <div class="row-meta">
+                      <span class="bdg cat">서비스 점검</span>
+                    </div>
+                    <span class="row-t">8월 정기 점검 안내</span>
+                  </div>
+                  <div class="row-side"><span class="row-d">2026-08-10</span><span class="caret"></span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 05 -->
+      <div class="ref">
+        <div class="ref-hd">
+          <span class="ref-rank">05</span>
+          <span class="ref-id">
+            <span class="ref-name">WordPress — Posts Screen</span>
+            <a class="ref-url" href="https://wordpress.org/documentation/article/posts-screen/">wordpress.org/documentation/article/posts-screen</a>
+          </span>
+          <span class="grade said">확인함</span>
+        </div>
+        <div class="ref-body">
+          <div class="f"><span class="h">푸는 문제</span><span class="v">고정(sticky)·숨김 상태를 가진 글 목록의 관리 — 우리 Admin과 도메인이 같다.</span></div>
+          <div class="f"><span class="h">메커니즘</span><span class="v">상태를 별도 열이 아니라 <b>제목 옆에 굵은 글씨로</b> 붙인다(“Draft, Private, Pending, <b>Sticky</b>”). 표 위에는 <b>상태별 링크 + 건수</b>(All · Published · Draft …)를 두어 필터가 곧 현황 요약이 된다.</span></div>
+          <div class="f wide"><span class="h">벤치마크 요소</span>
+            <span class="bench"><span>제목 옆 인라인 상태어</span><span>상태 링크 + 건수</span><span>정렬 가능한 상태 열</span><span>행 hover 액션</span></span></div>
+        </div>
+        <div class="spec ui">
+          <div class="cap">WordPress 방식을 우리 Admin에 대입</div>
+          <div class="spec-frame">
+            <div class="card-s" style="min-width:560px;">
+              <div class="card-hd">
+                <span class="h">공지사항</span>
+                <span class="n">12</span>
+                <span style="margin-left:auto; display:flex; gap:12px; font-size:12px; color:var(--c-t3);">
+                  <b style="color:var(--c-primary-hv);">전체 12</b><span>노출 9</span><span>숨김 3</span><span>고정 2</span>
+                </span>
+              </div>
+              <div class="row-s">
+                <div class="row-main"><span class="row-t">8월 정기 점검 안내 <span style="color:var(--c-primary-hv); font-weight:700;">— 고정</span></span></div>
+                <div class="row-side"><span class="row-d">2026-08-10</span></div>
+              </div>
+              <div class="row-s stripe">
+                <div class="row-main"><span class="row-t" style="color:var(--c-t3);">구버전 스캔 리포트 다운로드 종료 <span style="color:#6B7280; font-weight:700;">— 숨김</span></span></div>
+                <div class="row-side"><span class="row-d">2026-07-28</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 06 -->
+      <div class="ref">
+        <div class="ref-hd">
+          <span class="ref-rank">06</span>
+          <span class="ref-id">
+            <span class="ref-name">GitHub Changelog</span>
+            <a class="ref-url" href="https://github.blog/changelog/">github.blog/changelog</a>
+          </span>
+          <span class="grade said">확인함</span>
+        </div>
+        <div class="ref-body">
+          <div class="f"><span class="h">푸는 문제</span><span class="v">끝없이 늘어나는 공지 목록의 항해 — 우리 10번 문제.</span></div>
+          <div class="f"><span class="h">메커니즘</span><span class="v">사이드 필터 레일에 카테고리 목록과 <b>“Filters (0 selected)”</b> 상태 표시, Any/All 매칭 토글. 본문은 월 단위로 묶고 아래는 연도 페이지네이션.</span></div>
+          <div class="f wide"><span class="h">벤치마크 요소</span>
+            <span class="bench"><span>필터 선택 개수 노출</span><span>날짜 그룹 헤더</span><span>타입 표시(Release/Improvement/Retired)</span><span>다중 태그 +N</span></span></div>
+        </div>
+        <div class="spec">
+          <div class="cap">GitHub 방식 — 필터 레일 + 날짜 그룹</div>
+          <div class="spec-frame">
+            <div class="rail-s" style="min-width:560px;">
+              <div class="rl">
+                <a href="#s2" class="on">전체 <span class="c">12</span></a>
+                <a href="#s2">서비스 점검 <span class="c">4</span></a>
+                <a href="#s2">기능 업데이트 <span class="c">6</span></a>
+                <a href="#s2">미분류 <span class="c">2</span></a>
+              </div>
+              <div class="rr">
+                <div class="grp-h">2026년 8월 <span class="gc">3건</span></div>
+                <div class="mini">
+                  <div class="mr"><span class="chip-s blue">점검</span><span class="mt">8월 정기 점검 안내</span><span class="mdate">08-10</span></div>
+                  <div class="mr"><span class="chip-s">업데이트</span><span class="mt">IDC 연동 방식이 개선되었습니다</span><span class="mdate">08-09</span></div>
+                </div>
+                <div class="grp-h">2026년 7월 <span class="gc">1건</span></div>
+                <div class="mini">
+                  <div class="mr"><span class="chip-s">업데이트</span><span class="mt">스캔 리포트 형식 변경</span><span class="mdate">07-28</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 07 -->
+      <div class="ref">
+        <div class="ref-hd">
+          <span class="ref-rank">07</span>
+          <span class="ref-id">
+            <span class="ref-name">Google Cloud — Release Notes</span>
+            <a class="ref-url" href="https://docs.cloud.google.com/release-notes">docs.cloud.google.com/release-notes</a>
+          </span>
+          <span class="grade said">확인함</span>
+        </div>
+        <div class="ref-body">
+          <div class="f"><span class="h">푸는 문제</span><span class="v">제품 수십 개 × 매일 갱신되는 공지를 UI 없이 스캔 가능하게 만들기.</span></div>
+          <div class="f"><span class="h">메커니즘</span><span class="v">날짜 → 제품 → <b>변경 유형 라벨</b>(Feature / Fixed / Announcement / Security / Breaking) 3단 계층. 화려한 항해 장치 대신 <b>반복되는 구조</b> 자체로 스캔 속도를 낸다. 기본 노출은 최근 60일로 잘라 목록 길이에 상한을 만든다.</span></div>
+          <div class="f wide"><span class="h">벤치마크 요소</span>
+            <span class="bench"><span>변경 유형 라벨</span><span>날짜 그룹 헤더</span><span>기간 컷으로 상한 만들기</span><span>구조 반복 = 스캔</span></span></div>
+        </div>
+        <div class="spec">
+          <div class="cap">기간 컷 — 페이지네이션 없이 목록에 상한을 두는 방법</div>
+          <div class="spec-frame">
+            <div class="mini" style="min-width:460px;">
+              <div class="mh">최근 60일 · 3건 <span style="margin-left:auto; color:#17538A;">전체 기록 보기 →</span></div>
+              <div class="mr"><span class="chip-s green">Feature</span><span class="mt">IDC 연동 방식이 개선되었습니다</span><span class="mdate">08-09</span></div>
+              <div class="mr"><span class="chip-s amber">Announcement</span><span class="mt">8월 정기 점검 안내</span><span class="mdate">08-10</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 08 -->
+      <div class="ref">
+        <div class="ref-hd">
+          <span class="ref-rank">08</span>
+          <span class="ref-id">
+            <span class="ref-name">Notion — Help Center</span>
+            <a class="ref-url" href="https://www.notion.com/help">notion.com/help</a>
+          </span>
+          <span class="grade said">확인함</span>
+        </div>
+        <div class="ref-body">
+          <div class="f"><span class="h">푸는 문제</span><span class="v">FAQ가 많아졌을 때의 진입 — 우리 전체보기 화면.</span></div>
+          <div class="f"><span class="h">메커니즘</span><span class="v">좌측 <b>카테고리 레일</b> + 상단 검색 + “인기 주제” 타일. 주목할 점: Notion은 <b>아코디언을 쓰지 않고</b> 전부 문서 링크로 보냅니다 — 글이 길어지면 인라인 펼침이 오히려 항해를 방해한다는 판단입니다.</span></div>
+          <div class="f wide"><span class="h">벤치마크 요소</span>
+            <span class="bench"><span>카테고리 레일</span><span>인기 주제 우선 노출</span><span>긴 글은 아코디언 대신 링크</span></span></div>
+        </div>
+        <div class="spec">
+          <div class="cap">반례로서의 가치 — 본문이 길면 아코디언이 손해가 된다</div>
+          <div class="spec-frame">
+            <div class="mini" style="min-width:440px;">
+              <div class="mr"><span class="chip-s green">짧음</span><span class="mt">연동 요청 후 얼마나 기다려야 하나요?</span><span class="ms">2문단 — 아코디언 적합</span></div>
+              <div class="mr"><span class="chip-s amber">김</span><span class="mt">스캔에 필요한 권한 전체 목록</span><span class="ms">이미지 5장 — 별도 페이지가 낫다</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 09 -->
+      <div class="ref">
+        <div class="ref-hd">
+          <span class="ref-rank">09</span>
+          <span class="ref-id">
+            <span class="ref-name">Strapi — Content Manager</span>
+            <a class="ref-url" href="https://docs.strapi.io/cms/features/content-manager">docs.strapi.io/cms/features/content-manager</a>
+          </span>
+          <span class="grade said">확인함</span>
+        </div>
+        <div class="ref-body">
+          <div class="f"><span class="h">푸는 문제</span><span class="v">draft/published 상태를 가진 콘텐츠의 관리 목록.</span></div>
+          <div class="f"><span class="h">메커니즘</span><span class="v">Status를 <b>정렬 가능한 열</b>로 두고(“Click the Status column header to sort from draft to published”), Filters 메뉴에 Status 필드를 넣어 조건 필터를 <b>누적</b>시킨다. 표시 열 자체를 사용자가 고를 수 있다.</span></div>
+          <div class="f wide"><span class="h">벤치마크 요소</span>
+            <span class="bench"><span>상태로 정렬</span><span>누적 조건 필터</span><span>열 구성 선택</span></span></div>
+        </div>
+        <div class="spec ui">
+          <div class="cap">필터 아이콘 + 활성 개수 — 우리가 정해 둔 형태</div>
+          <div class="spec-frame">
+            <div class="card-s" style="min-width:420px;">
+              <div class="card-hd">
+                <span class="h">FAQ</span><span class="n">8</span>
+                <span style="margin-left:auto; display:flex; gap:8px; align-items:center;">
+                  <span class="icon-btn-s"><svg class="ic"><use href="#i-filter"/></svg><span class="dot">2</span></span>
+                  <span class="btn-s pri">게시글 등록</span>
+                </span>
+              </div>
+              <div class="row-s"><div class="row-main"><span class="row-t">스캔 결과가 비어 있어요</span></div><div class="row-side"><span class="row-d">2026-08-05</span></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 10 -->
+      <div class="ref">
+        <div class="ref-hd">
+          <span class="ref-rank">10</span>
+          <span class="ref-id">
+            <span class="ref-name">Linear — Changelog</span>
+            <a class="ref-url" href="https://linear.app/changelog">linear.app/changelog</a>
+          </span>
+          <span class="grade said">확인함</span>
+        </div>
+        <div class="ref-body">
+          <div class="f"><span class="h">푸는 문제</span><span class="v">공지 목록이 “정리된 느낌”을 갖는 조건.</span></div>
+          <div class="f"><span class="h">메커니즘</span><span class="v">날짜를 <b>큰 활자로 최상단</b>에 놓아 시간축을 1차 계층으로 못 박고, 항목 사이에 <b>과감한 공백</b>을 준다. 상단에는 All / Changelog / Product launches 같은 성격 탭.</span></div>
+          <div class="f wide"><span class="h">벤치마크 요소</span>
+            <span class="bench"><span>날짜를 1차 계층으로</span><span>항목 간 넉넉한 공백</span><span>성격 탭 분리</span></span></div>
+        </div>
+        <div class="spec">
+          <div class="cap">공백이 계층을 만든다 — 현재 24px vs Linear식</div>
+          <div class="spec-frame">
+            <div style="display:flex; gap:14px; min-width:520px;">
+              <div class="mini" style="flex:1;">
+                <div class="mh">현재 — 항목 간 16px</div>
+                <div class="mr" style="padding:8px 14px;"><span class="mt">8월 정기 점검 안내</span></div>
+                <div class="mr" style="padding:8px 14px;"><span class="mt">IDC 연동 방식 개선</span></div>
+                <div class="mr" style="padding:8px 14px;"><span class="mt">스캔 리포트 형식 변경</span></div>
+              </div>
+              <div class="mini" style="flex:1;">
+                <div class="mh">Linear식 — 그룹 사이 2배</div>
+                <div class="mr" style="padding:14px; display:block;"><span class="ms" style="font-weight:700; color:#12161D;">2026-08-10</span><div class="mt">8월 정기 점검 안내</div></div>
+                <div class="mr" style="padding:20px 14px 14px; display:block;"><span class="ms" style="font-weight:700; color:#12161D;">2026-08-09</span><div class="mt">IDC 연동 방식 개선</div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 11 -->
+      <div class="ref">
+        <div class="ref-hd">
+          <span class="ref-rank">11</span>
+          <span class="ref-id">
+            <span class="ref-name">Vercel — Changelog</span>
+            <a class="ref-url" href="https://vercel.com/changelog">vercel.com/changelog</a>
+          </span>
+          <span class="grade said">확인함</span>
+        </div>
+        <div class="ref-body">
+          <div class="f"><span class="h">푸는 문제</span><span class="v">거의 매일 쌓이는 항목을 카드 목록으로 유지하기.</span></div>
+          <div class="f"><span class="h">메커니즘</span><span class="v">날짜를 <b>그룹 헤더</b>로 올리고(“11 August”) 그 아래 항목을 붙인다. 항목마다 작성자 아바타 + 이름. 상단 성격 탭(All / Engineering / Community …)과 검색.</span></div>
+          <div class="f wide"><span class="h">벤치마크 요소</span>
+            <span class="bench"><span>날짜 그룹 헤더 승격</span><span>작성자 표기</span><span>성격 탭 + 검색 병치</span></span></div>
+        </div>
+        <div class="spec">
+          <div class="cap">날짜를 행에서 빼 그룹 헤더로 — 행이 한 칸 가벼워진다</div>
+          <div class="spec-frame">
+            <div class="mini" style="min-width:440px;">
+              <div class="mh">8월 10일</div>
+              <div class="mr"><span class="mt">8월 정기 점검 안내</span><span class="ms">인프라팀</span></div>
+              <div class="mh" style="border-top:1px solid #EDEFF2;">8월 9일</div>
+              <div class="mr"><span class="mt">IDC 연동 방식이 개선되었습니다</span><span class="ms">플랫폼팀</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 12 -->
+      <div class="ref">
+        <div class="ref-hd">
+          <span class="ref-rank">12</span>
+          <span class="ref-id">
+            <span class="ref-name">shadcn/ui — Accordion</span>
+            <a class="ref-url" href="https://ui.shadcn.com/docs/components/accordion">ui.shadcn.com/docs/components/accordion</a>
+          </span>
+          <span class="grade said">확인함</span>
+        </div>
+        <div class="ref-body">
+          <div class="f"><span class="h">푸는 문제</span><span class="v">구분선을 어디에 그을 것인가 — 카드 테두리와 행 구분선의 중복.</span></div>
+          <div class="f"><span class="h">메커니즘</span><span class="v">감싸는 요소에 <code class="k">border</code>, 각 항목에 <code class="k">border-b last:border-b-0</code>. 즉 <b>마지막 항목의 아래선을 지워</b> 카드 테두리와 겹치지 않게 한다. 우리 구현이 이미 쓰는 규칙이다.</span></div>
+          <div class="f wide"><span class="h">벤치마크 요소</span>
+            <span class="bench"><span>last:border-b-0</span><span>트리거=heading</span><span>캐럿 회전</span></span></div>
+        </div>
+        <div class="spec ui">
+          <div class="cap">현재 구현이 이미 맞게 하고 있는 부분</div>
+          <div class="spec-frame">
+            <div class="card-s" style="min-width:360px;">
+              <div class="row-s"><div class="row-main"><span class="row-t">항목 하나</span></div><div class="row-side"><span class="caret"></span></div></div>
+              <div class="row-s"><div class="row-main"><span class="row-t">항목 둘 — 아래선 없음</span></div><div class="row-side"><span class="caret"></span></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 13 -->
+      <div class="ref">
+        <div class="ref-hd">
+          <span class="ref-rank">13</span>
+          <span class="ref-id">
+            <span class="ref-name">Tiptap — Simple Editor Template</span>
+            <a class="ref-url" href="https://tiptap.dev/docs/ui-components/templates/simple-editor">tiptap.dev/docs/ui-components/templates/simple-editor</a>
+          </span>
+          <span class="grade said">확인함</span>
+        </div>
+        <div class="ref-body">
+          <div class="f"><span class="h">푸는 문제</span><span class="v">우리가 방금 도입한 에디터의 툴바 구성 기준.</span></div>
+          <div class="f"><span class="h">메커니즘</span><span class="v">Bold/Italic/Underline · 목록 · 정렬 · 제목 · 이미지 업로드 · 링크 · undo/redo를 <b>spacer로 구역을 나눠</b> 배치. 이미지 업로드는 버튼과 노드가 분리된 컴포넌트.</span></div>
+          <div class="f wide"><span class="h">벤치마크 요소</span>
+            <span class="bench"><span>구역 구분자</span><span>이미지 버튼 분리</span><span>허용 서식만 남기는 축소</span></span></div>
+        </div>
+        <div class="spec ui">
+          <div class="cap">우리 툴바 = allow-list 그대로 (취소선·밑줄은 계약에 없어 제외)</div>
+          <div class="spec-frame">
+            <div class="card-s" style="min-width:420px;">
+              <div class="toolbar-s">
+                <span class="tb">제목</span><span class="tb on">B</span><span class="tb">I</span><span class="tb">code</span>
+                <span class="tb-sep"></span>
+                <span class="tb">• 목록</span><span class="tb">1. 목록</span>
+                <span class="tb-sep"></span>
+                <span class="tb">링크</span>
+                <span style="flex:1"></span>
+                <span class="tb">이미지</span>
+              </div>
+              <div style="padding:14px 16px; font-size: 14px; color:var(--c-t2);">본문을 여기에 씁니다.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <hr class="rule" />
+
+  <!-- ══════════════ 3. 개선안 ══════════════ -->
+  <section>
+    <div class="sec-head">
+      <span class="sec-num">03</span>
+      <h2>개선안 5</h2>
+      <p>
+        모든 수치는 <b>역할이 같은 기존 화면</b>에서 가져왔습니다 — 대부분 우리가 이미 합의한
+        아티팩트, 나머지는 오너 제공 디자인 가이드의 세트 값입니다. 컴포넌트 기본값에서 나온 숫자는 없습니다.
+      </p>
+    </div>
+
+    <!-- A -->
+    <div class="prop">
+      <div class="prop-hd"><span class="prop-tag">시안 A</span><span class="prop-name">아티팩트 복원</span></div>
+      <div class="prop-sub">
+        새로 디자인하지 않습니다. 이미 합의된 아티팩트의 행 구조를 그대로 구현합니다 —
+        2줄 행, 우측 레일(날짜 위 · 캐럿 아래), 건수 필, 틴트 패널, 배너.
+      </div>
+      <div class="spec ui">
+        <div class="cap">시안 A</div>
+        <div class="spec-frame">
+          <div class="card-s" style="min-width:560px;">
+            <div class="card-hd">
+              <span class="h">공지사항</span><span class="n">12</span>
+              <a class="more" href="#s3">전체보기 →</a>
+            </div>
+            <div class="row-s" style="background:var(--c-surf-2);">
+              <div class="row-main">
+                <div class="row-meta">
+                  <span class="bdg pin"><svg class="ic"><use href="#i-pin"/></svg>고정</span>
+                  <span class="bdg cat">서비스 점검</span>
+                </div>
+                <span class="row-t" style="color:var(--c-primary-hv);">8월 정기 점검 안내</span>
+              </div>
+              <div class="row-side"><span class="row-d">2026-08-10</span><span class="caret up"></span></div>
+            </div>
+            <div class="panel-s">
+              <p>8월 20일 02:00 ~ 04:00 정기 점검이 진행됩니다.</p>
+              <p>점검 중 신규 연동 요청이 제한됩니다.</p>
+            </div>
+            <div class="row-s">
+              <div class="row-main">
+                <div class="row-meta"><span class="bdg cat">기능 업데이트</span></div>
+                <span class="row-t">IDC 연동 방식이 개선되었습니다</span>
+              </div>
+              <div class="row-side"><span class="row-d">2026-08-09</span><span class="caret"></span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="prop-meta">
+        <div class="f"><span class="h">빌려온 곳</span><span class="v">01 Carbon(캐럿 끝쪽) · 12 shadcn(구분선) · 04 Primer(block 설명)</span></div>
+        <div class="f"><span class="h">해결하는 진단</span><span class="v">01 · 02 · 03 · 04 · 05 · 06 · 07 · 08 · 09</span></div>
+        <div class="f wide"><span class="h">대가</span><span class="v">행 높이가 <b>56 → 74px</b>로 커져 카드당 보이는 건수가 5 → 4로 줄어듭니다. 새로운 아이디어는 없습니다 — 이미 정한 것을 하는 안입니다.</span></div>
+        <div class="f wide"><span class="h">수치 출처</span>
+          <div class="metrics-wrap">
+            <table class="metrics">
+              <thead><tr><th>값</th><th>출처</th></tr></thead>
+              <tbody>
+                <tr><td><b>16 / 22px</b> 행 패딩</td><td>아티팩트 <code class="k">.acc-head</code></td></tr>
+                <tr><td><b>6px</b> 배지줄↔제목 간격</td><td>아티팩트 <code class="k">.acc-main</code></td></tr>
+                <tr><td><b>8 × 8px</b> 캐럿, 1.8px 선</td><td>아티팩트 <code class="k">.caret</code></td></tr>
+                <tr><td><b>16 / 22 / 42px</b> 패널 패딩</td><td>아티팩트 <code class="k">.acc-body</code> (하단 &gt; 상단, 여백 7원칙 §2)</td></tr>
+                <tr><td><b>#F9FAFB</b> 패널 배경</td><td>아티팩트 <code class="k">.acc-panel</code> = theme <code class="k">c-surf-2</code></td></tr>
+                <tr><td><b>12px / 700</b> 건수 필</td><td>아티팩트 <code class="k">.list-head .n</code></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- B -->
+    <div class="prop">
+      <div class="prop-hd"><span class="prop-tag">시안 B</span><span class="prop-name">A + 본문 미리보기 한 줄</span></div>
+      <div class="prop-sub">
+        시안 A에 제목 아래 본문 발췌 한 줄을 더합니다. NN/g의 “헛클릭이면 반감이 생긴다”에 대한
+        직접적인 대응 — 펼치기 전에 펼칠 값어치를 판단하게 합니다.
+      </div>
+      <div class="spec ui">
+        <div class="cap">시안 B</div>
+        <div class="spec-frame">
+          <div class="card-s" style="min-width:560px;">
+            <div class="card-hd"><span class="h">FAQ</span><span class="n">8</span><a class="more" href="#s3">전체보기 →</a></div>
+            <div class="row-s">
+              <div class="row-main">
+                <div class="row-meta"><span class="bdg cat">연동</span></div>
+                <span class="row-t">연동 요청 후 얼마나 기다려야 하나요?</span>
+                <span style="font-size: 14px; color:var(--c-t3); line-height:1.5; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">관리자 승인까지 보통 1영업일 이내입니다. 승인 이후 설치는 자동으로…</span>
+              </div>
+              <div class="row-side"><span class="row-d">2026-08-12</span><span class="caret"></span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="prop-meta">
+        <div class="f"><span class="h">빌려온 곳</span><span class="v">04 Primer(block 설명) · 03 NN/g(펼칠 값어치) · 11 Vercel(항목 밀도)</span></div>
+        <div class="f"><span class="h">해결하는 진단</span><span class="v">A의 전부 + 접힌 상태의 정보량</span></div>
+        <div class="f wide"><span class="h">대가</span>
+          <span class="v">
+            <b>계약 변경이 필요합니다.</b> 목록 응답은 본문을 담지 않기로 확정했으므로(D19),
+            발췌를 보여주려면 <code class="k">PostSummary</code>에 <code class="k">excerpt</code>(평문, 서버가 자른 값)를 새로 넣어야 합니다.
+            본문 전체를 되돌리는 게 아니라 <b>고정 길이</b> 필드를 더하는 것이라 D19의 근거(목록 크기 무한 증가)와는 충돌하지 않습니다.
+            행 높이는 <b>96px</b>가 됩니다.
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <!-- C -->
+    <div class="prop">
+      <div class="prop-hd"><span class="prop-tag">시안 C</span><span class="prop-name">전체보기 = 카테고리 레일 + 기간 컷</span></div>
+      <div class="prop-sub">
+        전체보기 화면만 바꿉니다. 좌측 200px 카테고리 레일(건수 포함) + 기본 노출을 최근 기간으로 자르고
+        “전체 기록 보기”를 따로 둡니다. 페이지네이션 없이 목록 길이에 상한을 만드는 방법입니다.
+      </div>
+      <div class="spec ui">
+        <div class="cap">시안 C</div>
+        <div class="spec-frame">
+          <div class="rail-s" style="min-width:620px; border-color:var(--c-bd);">
+            <div class="rl" style="background:var(--c-white);">
+              <a href="#s3" class="on">전체 <span class="c">12</span></a>
+              <a href="#s3">서비스 점검 <span class="c">4</span></a>
+              <a href="#s3">기능 업데이트 <span class="c">6</span></a>
+              <a href="#s3">미분류 <span class="c">2</span></a>
+            </div>
+            <div class="rr" style="gap:0; padding:0;">
+              <div style="display:flex; align-items:center; gap:8px; padding:14px 20px; border-bottom:1px solid var(--c-bd-light); font-size:12px; color:var(--c-t3);">
+                최근 90일 · 8건 <span style="margin-left:auto; color:var(--c-primary-hv); font-weight:600;">전체 기록 보기 →</span>
+              </div>
+              <div class="row-s">
+                <div class="row-main">
+                  <div class="row-meta"><span class="bdg pin"><svg class="ic"><use href="#i-pin"/></svg>고정</span><span class="bdg cat">서비스 점검</span></div>
+                  <span class="row-t">8월 정기 점검 안내</span>
+                </div>
+                <div class="row-side"><span class="row-d">2026-08-10</span><span class="caret"></span></div>
+              </div>
+              <div class="row-s">
+                <div class="row-main">
+                  <div class="row-meta"><span class="bdg cat">기능 업데이트</span></div>
+                  <span class="row-t">IDC 연동 방식이 개선되었습니다</span>
+                </div>
+                <div class="row-side"><span class="row-d">2026-08-09</span><span class="caret"></span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="prop-meta">
+        <div class="f"><span class="h">빌려온 곳</span><span class="v">08 Notion(카테고리 레일) · 06 GitHub(레일 건수) · 07 GCP(기간 컷)</span></div>
+        <div class="f"><span class="h">해결하는 진단</span><span class="v">10 (구조 결함)</span></div>
+        <div class="f wide"><span class="h">대가</span>
+          <span class="v">
+            레일은 이미 있는 <code class="k">GET /post-categories</code>로 그리지만 <b>건수가 계약에 없습니다</b> —
+            사용자용 <code class="k">PostCategory</code>에는 <code class="k">postCount</code>가 없고 Admin 쪽에만 있습니다.
+            건수를 빼고 이름만 걸거나, 사용자 Category에도 <code class="k">postCount</code>를 추가해야 합니다.
+            기간 컷은 <code class="k">?since=</code> 같은 쿼리가 필요해 역시 계약 추가입니다.
+          </span>
+        </div>
+        <div class="f wide"><span class="h">수치 출처</span>
+          <div class="metrics-wrap">
+            <table class="metrics">
+              <thead><tr><th>값</th><th>출처</th></tr></thead>
+              <tbody>
+                <tr><td><b>200px</b> 레일 폭 · <b>24px</b> 간격</td><td>아티팩트 <code class="k">.grouped</code></td></tr>
+                <tr><td><b>9 / 12px</b> 레일 항목 패딩, radius 6</td><td>아티팩트 <code class="k">.cat-nav a</code></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- D -->
+    <div class="prop">
+      <div class="prop-hd"><span class="prop-tag">시안 D</span><span class="prop-name">Admin = 상태 우선 목록</span></div>
+      <div class="prop-sub">
+        Admin만 바꿉니다. 카드 헤더에 상태별 건수를 띄우고(전체 · 노출 · 숨김 · 고정), 숨김 행에는
+        사선 스트라이프를, 제목 옆에는 상태어를 붙입니다. 삭제가 없는 도메인이라 숨김 글이 영구히 쌓이는 화면입니다.
+      </div>
+      <div class="spec ui">
+        <div class="cap">시안 D</div>
+        <div class="spec-frame">
+          <div class="card-s" style="min-width:600px;">
+            <div class="card-hd">
+              <span class="h">공지사항</span>
+              <span style="display:flex; gap:10px; font-size:12px; color:var(--c-t3); margin-left:4px;">
+                <b style="color:var(--c-primary-hv);">전체 12</b><span>노출 9</span><span>숨김 3</span><span>고정 2</span>
+              </span>
+              <span style="margin-left:auto; display:flex; gap:8px; align-items:center;">
+                <span class="icon-btn-s"><svg class="ic"><use href="#i-filter"/></svg><span class="dot">1</span></span>
+                <span class="btn-s pri">게시글 등록</span>
+              </span>
+            </div>
+            <div class="row-s">
+              <div class="row-main">
+                <div class="row-meta"><span class="bdg pin"><svg class="ic"><use href="#i-pin"/></svg>고정</span><span class="bdg cat">서비스 점검</span></div>
+                <span class="row-t">8월 정기 점검 안내</span>
+              </div>
+              <div class="row-side">
+                <span class="row-d">2026-08-10</span>
+                <span style="display:flex; gap:6px;"><span class="btn-s gho">고정 해제</span><span class="btn-s gho">숨김</span></span>
+              </div>
+            </div>
+            <div class="row-s stripe">
+              <div class="row-main">
+                <div class="row-meta"><span class="bdg hide">숨김</span><span class="bdg cat">기능 업데이트</span></div>
+                <span class="row-t" style="color:var(--c-t3);">구버전 스캔 리포트 다운로드 종료</span>
+              </div>
+              <div class="row-side">
+                <span class="row-d">2026-07-28</span>
+                <span style="display:flex; gap:6px;"><span class="btn-s gho">고정</span><span class="btn-s gho">복구</span></span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="prop-meta">
+        <div class="f"><span class="h">빌려온 곳</span><span class="v">05 WordPress(상태 링크+건수, 인라인 상태어) · 09 Strapi(누적 필터) · 06 GitHub(필터 개수 노출)</span></div>
+        <div class="f"><span class="h">해결하는 진단</span><span class="v">11 · 12 (+ 01·02·04·06을 Admin 쪽에서)</span></div>
+        <div class="f wide"><span class="h">대가</span>
+          <span class="v">
+            건수는 계약 추가 없이 <b>클라이언트에서 셀 수 있습니다</b> — Admin 목록은 전체 배열을 받으니까요.
+            대신 행이 커지고 액션 버튼이 항상 보여 밀도가 떨어집니다. 스트라이프는 대비를 낮추는 장식이므로
+            숨김 행의 <b>본문 대비 4.5:1</b>을 별도로 확인해야 합니다.
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <!-- E -->
+    <div class="prop">
+      <div class="prop-hd"><span class="prop-tag">시안 E</span><span class="prop-name">단일 타임라인 (기존 결정과 충돌)</span></div>
+      <div class="prop-sub">
+        두 카드를 없애고 한 컬럼으로 합칩니다. 날짜를 그룹 헤더로 올리고 FAQ/공지는 칩 필터로 가릅니다.
+        Linear · Vercel · GCP가 전부 이 형태입니다.
+      </div>
+      <div class="spec ui">
+        <div class="cap">시안 E</div>
+        <div class="spec-frame">
+          <div style="min-width:560px; display:flex; flex-direction:column; gap:12px;">
+            <div style="display:flex; gap:6px;">
+              <span class="bdg" style="background:var(--c-primary-lt); color:var(--c-primary-hv);">전체 20</span>
+              <span class="bdg cat">공지사항 12</span>
+              <span class="bdg cat">FAQ 8</span>
+            </div>
+            <div class="card-s">
+              <div style="padding:12px 22px; background:var(--c-surf-2); font-size:12px; font-weight:700; color:var(--c-t2); border-bottom:1px solid var(--c-bd-light);">2026년 8월</div>
+              <div class="row-s">
+                <div class="row-main">
+                  <div class="row-meta"><span class="bdg pin"><svg class="ic"><use href="#i-pin"/></svg>고정</span><span class="bdg cat">공지 · 서비스 점검</span></div>
+                  <span class="row-t">8월 정기 점검 안내</span>
+                </div>
+                <div class="row-side"><span class="row-d">08-10</span><span class="caret"></span></div>
+              </div>
+              <div class="row-s">
+                <div class="row-main">
+                  <div class="row-meta"><span class="bdg cat">FAQ · 연동</span></div>
+                  <span class="row-t">연동 요청 후 얼마나 기다려야 하나요?</span>
+                </div>
+                <div class="row-side"><span class="row-d">08-12</span><span class="caret"></span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="prop-meta">
+        <div class="f"><span class="h">빌려온 곳</span><span class="v">10 Linear · 11 Vercel · 07 GCP</span></div>
+        <div class="f"><span class="h">해결하는 진단</span><span class="v">01 · 02 · 06 · 10</span></div>
+        <div class="f wide"><span class="h">대가</span>
+          <span class="v">
+            <b>“FAQ와 공지를 각 카드로 양옆에 배치”라는 직접 정하신 요구를 버립니다.</b>
+            그리고 FAQ는 시간순이 의미 없는 콘텐츠라 — “권한이 뭔가요”가 8월 글인지 7월 글인지는
+            독자에게 무가치합니다 — 날짜를 1차 계층으로 올리면 FAQ 쪽이 손해를 봅니다.
+            비교를 위해 넣었을 뿐 추천하지 않습니다.
+          </span>
+        </div>
+      </div>
+    </div>
+
+  </section>
+
+  <hr class="rule" />
+
+  <!-- ══════════════ 4. 비교 ══════════════ -->
+  <section>
+    <div class="sec-head">
+      <span class="sec-num">04</span>
+      <h2>비교와 추천</h2>
+      <p>같은 축으로 점수를 매기고, 표에서 따라 나오는 결론을 씁니다.</p>
+    </div>
+
+    <div class="cmp-wrap">
+      <table class="cmp">
+        <thead>
+          <tr>
+            <th>시안</th><th>해결하는 진단</th><th>구현 비용</th><th>계약 변경</th><th>기존 화면 일관성</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="win">
+            <td class="nm">A · 아티팩트 복원</td>
+            <td><span class="cov"><b>01</b><b>02</b><b>03</b><b>04</b><b>05</b><b>06</b><b>07</b><b>08</b><b>09</b></span> 9건</td>
+            <td class="cost">낮음 — 컴포넌트 2개 + 배너</td>
+            <td>없음</td>
+            <td>합의된 아티팩트 그대로 = 최상</td>
+          </tr>
+          <tr class="win">
+            <td class="nm">B · A + 발췌</td>
+            <td><span class="cov"><b>01</b><b>02</b><b>03</b><b>04</b><b>05</b><b>06</b><b>07</b><b>08</b><b>09</b></span> 9건 + 펼침 판단</td>
+            <td class="cost">낮음 — A + 한 줄</td>
+            <td><b>있음</b> — <code class="k">excerpt</code> 필드</td>
+            <td>Primer 패턴, 앱 내 선례 없음</td>
+          </tr>
+          <tr>
+            <td class="nm">C · 레일 + 기간 컷</td>
+            <td><span class="cov"><b>10</b></span> 1건 (구조 결함)</td>
+            <td class="cost">중간 — 새 레이아웃</td>
+            <td><b>있음</b> — 사용자 <code class="k">postCount</code>, <code class="k">?since=</code></td>
+            <td>레일은 앱 내 다수 선례 있음</td>
+          </tr>
+          <tr>
+            <td class="nm">D · 상태 우선 Admin</td>
+            <td><span class="cov"><b>11</b><b>12</b></span> 2건 (+Admin측 4건)</td>
+            <td class="cost">낮음 — 클라이언트 집계</td>
+            <td>없음</td>
+            <td>Admin 다른 탭의 필터 패턴과 일치</td>
+          </tr>
+          <tr>
+            <td class="nm">E · 단일 타임라인</td>
+            <td><span class="cov"><b>01</b><b>02</b><b>06</b><b>10</b></span> 4건</td>
+            <td class="cost">높음 — 화면 재설계</td>
+            <td>없음</td>
+            <td><b>기존 결정과 충돌</b></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="note pick">
+      <h3>추천 — A를 먼저, D를 같이, C는 다음</h3>
+      <p>
+        표에서 A가 <b>진단 13건 중 9건을 계약 변경 없이</b> 덮습니다. 새 디자인이 아니라 이미 합의한
+        설계를 실행하는 것이라 “일관성” 축에서도 다툴 여지가 없습니다. D는 대상이 Admin으로 겹치지 않고
+        비용도 낮으므로 같은 PR에 넣을 수 있습니다. 남는 건 10번(전체보기 구조 결함) 하나이고,
+        그건 C인데 <b>계약 추가가 필요해 별도 결정</b>이 필요합니다.
+      </p>
+      <p>
+        B는 A와 비용 차이가 거의 없고 효과(펼치기 전 판단)가 크지만 <code class="k">excerpt</code> 필드 하나를
+        계약에 넣어야 합니다. A를 먼저 구현하고, 발췌가 필요한지는 실제 글이 쌓인 뒤 판단하는 편이 안전합니다.
+      </p>
+    </div>
+
+    <div class="note">
+      <h3>이 벤치마크가 답하지 않는 것</h3>
+      <p>
+        레퍼런스 08(Notion)이 던진 질문이 남습니다 — <b>본문이 길고 이미지가 여러 장인 글도 아코디언이 맞는가.</b>
+        우리는 게시글당 이미지 10개 · 10MB까지 허용하기로 했으므로, 그런 글이 카드 안에서 펼쳐지면
+        목록이 화면 밖으로 밀립니다. 별도 상세 페이지로 보낼 임계값(본문 길이? 이미지 수?)은
+        실제 콘텐츠를 보고 정해야 할 문제라 여기서 결론 내지 않았습니다.
+      </p>
+    </div>
+
+    <div class="note stop">
+      <h3>구현 전 확인</h3>
+      <p>
+        시안 A의 캐럿을 넣을 때 <code class="k">aria-controls</code>와 패널 <code class="k">id</code>도 같이 붙여야 합니다(레퍼런스 02).
+        지금은 <code class="k">aria-expanded</code>만 있어 스크린리더가 “무엇이 펼쳐졌는지”를 못 잇습니다.
+        캐럿은 눈에 보이는 지시자이고, <code class="k">aria-controls</code>는 그 지시자의 접근성 등가물입니다 — 둘은 한 쌍입니다.
+      </p>
+    </div>
+
+  </section>
+
+</div>

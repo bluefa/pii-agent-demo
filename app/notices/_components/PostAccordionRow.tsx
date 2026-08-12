@@ -1,29 +1,26 @@
 'use client';
 
-import { useState } from 'react';
-import { PinBadge } from '@/app/notices/_components/PinBadge';
+import { useId, useState } from 'react';
+import { CategoryBadge, PinBadge } from '@/app/notices/_components/PostBadge';
 import { renderGuideAst } from '@/app/components/features/process-status/GuideCard/render-guide-ast';
 import { getPost } from '@/app/lib/api/posts';
 import { POST_IMAGE_SRC_PREFIXES } from '@/lib/constants/post-images';
-import { bgColors, borderColors, cn, primaryColors, tableRowLift, textColors } from '@/lib/theme';
-import type { PostSummary } from '@/lib/types/post';
+import { bgColors, cn, postStyles } from '@/lib/theme';
+import { formatPostDate, type PostSummary } from '@/lib/types/post';
 import { validateGuideHtml } from '@/lib/utils/validate-guide-html';
-
-/** yyyy-mm-dd, sliced off the ISO string so it does not shift with timezone. */
-const publishDate = (iso: string): string => iso.slice(0, 10);
 
 interface PostAccordionRowProps {
   post: PostSummary;
-  /** The row was opened and the post turned out to be hidden — drop it. */
+  /** 행을 열었더니 숨김 처리된 글이었다 — 목록에서 뺀다. */
   onGone: (postId: number) => void;
 }
 
 export const PostAccordionRow = ({ post, onGone }: PostAccordionRowProps) => {
   const [open, setOpen] = useState(false);
-  // Body is fetched once and kept. Collapsing does not discard it, so
-  // reopening a row costs nothing (§5 본문 로딩).
+  // 본문은 한 번만 받아 두고 유지한다. 접었다 펴도 다시 요청하지 않는다(§5 본문 로딩).
   const [body, setBody] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
+  const panelId = useId();
 
   const toggle = async () => {
     const next = !open;
@@ -34,8 +31,8 @@ export const PostAccordionRow = ({ post, onGone }: PostAccordionRowProps) => {
       const detail = await getPost(post.id);
       setBody(detail.contents.ko);
     } catch (error) {
-      // 404 = hidden between the list load and this click. That is not an
-      // error the reader should see; the row simply no longer exists.
+      // 404 = 목록을 받은 뒤 숨김 처리된 글. 독자에게 보일 오류가 아니라
+      // 그냥 없는 행이다.
       if (error instanceof Error && 'status' in error && error.status === 404) {
         onGone(post.id);
         return;
@@ -49,67 +46,54 @@ export const PostAccordionRow = ({ post, onGone }: PostAccordionRowProps) => {
     : validateGuideHtml(body, { allowImages: true, imageSrcPrefixes: POST_IMAGE_SRC_PREFIXES });
 
   return (
-    <li className={cn('border-b last:border-b-0', borderColors.light)}>
+    <li className="border-b border-[#F3F4F6] last:border-b-0">
       <button
         type="button"
         onClick={toggle}
         aria-expanded={open}
+        // 캐럿은 눈에 보이는 지시자, aria-controls 는 그 접근성 등가물이다. 한 쌍이라
+        // 하나만 두면 화면 읽는 사람에게는 상태만 있고 대상이 없다.
+        aria-controls={panelId}
         className={cn(
-          'flex w-full items-center gap-2 px-5 py-4 text-left focus-visible:outline-none',
-          tableRowLift.base,
-          tableRowLift.target,
+          'w-full focus-visible:outline-2 focus-visible:outline-[#0064FF] focus-visible:-outline-offset-2',
+          postStyles.row,
+          'border-b-0',
+          postStyles.rowHover,
+          open && postStyles.rowOpen,
         )}
       >
-        {post.pinned && <PinBadge />}
-        {post.categoryName && (
-          <span className={cn('shrink-0 text-xs font-medium', primaryColors.textOnLight)}>
-            {post.categoryName}
+        <span className={postStyles.rowMain}>
+          <span className={postStyles.rowMeta}>
+            {post.pinned && <PinBadge />}
+            {post.categoryName && <CategoryBadge name={post.categoryName} />}
           </span>
-        )}
-        <span className={cn('min-w-0 flex-1 truncate text-sm font-medium', textColors.primary)}>
-          {post.titles.ko}
+          {/* 배지줄과 제목이 다른 줄에 있어야 제목이 행의 주어가 된다 —
+              한 줄에 나란하면 크기 한 단 차이뿐이라 계층이 서지 않는다. */}
+          <span className={cn(postStyles.rowTitle, open && postStyles.rowTitleOpen)}>
+            {post.titles.ko}
+          </span>
         </span>
-        {/* Pushed to the far right so every row's date sits on one rule. */}
-        <span className={cn('shrink-0 text-xs tabular-nums', textColors.tertiary)}>
-          {publishDate(post.publishedAt)}
+
+        {/* 날짜 위, 캐럿 아래 — 레일이 행 높이를 다 쓰므로 space-between 이 둘을 벌린다. */}
+        <span className={postStyles.rowSide}>
+          <span className={postStyles.rowDate}>{formatPostDate(post.publishedAt)}</span>
+          <span className={cn(postStyles.caret, open && postStyles.caretOpen)} />
         </span>
       </button>
 
-      {/* 0fr → 1fr animates to the content's own height without measuring it. */}
       <div
-        className={cn(
-          'grid transition-[grid-template-rows] duration-200 ease-out',
-          open ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]',
-        )}
+        id={panelId}
+        className={cn(postStyles.panelGrid, open ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]')}
       >
         <div className="overflow-hidden">
-          {/* pb is 10px past the top padding — a body that ends flush against
-              the next row reads as clipped rather than finished. */}
-          <div className={cn('px-5 pt-2 pb-[26px]', textColors.secondary)}>
-            {failed && <p className="text-sm">본문을 불러오지 못했습니다.</p>}
+          <div className={cn(postStyles.panelBg, postStyles.panelBody)}>
+            {failed && <p>본문을 불러오지 못했습니다.</p>}
             {!failed && body === null && (
-              <div className={cn('h-4 w-2/3 animate-pulse rounded', bgColors.panel)} />
+              <div className={cn('h-4 w-2/3 animate-pulse rounded', bgColors.divider)} />
             )}
-            {/* Same body styling as every other guide surface — bullets, link
-                colour and image sizing already live in `.prose-guide`. */}
-            {parsed?.valid && (
-              <div className="prose-guide text-sm leading-relaxed">
-                {renderGuideAst(parsed.ast)}
-              </div>
-            )}
-            {parsed && !parsed.valid && (
-              <p className="text-sm">본문 형식이 올바르지 않아 표시할 수 없습니다.</p>
-            )}
-
-            <div className="mt-3 flex justify-end">
-              <button
-                type="button"
-                onClick={toggle}
-                className={cn('text-xs font-medium hover:underline', textColors.tertiary)}
-              >
-                접기
-              </button>
-            </div>
+            {/* 본문 서식은 `.prose-guide` 가 단일 출처 — 목록·에디터·가이드가 같은 규칙으로 그린다. */}
+            {parsed?.valid && <div className="prose-guide">{renderGuideAst(parsed.ast)}</div>}
+            {parsed && !parsed.valid && <p>본문 형식이 올바르지 않아 표시할 수 없습니다.</p>}
           </div>
         </div>
       </div>

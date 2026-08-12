@@ -1,24 +1,27 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
-import Link from 'next/link';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
+import { PassBanner } from '@/app/notices/_components/PassBanner';
 import { PostBoardCard } from '@/app/notices/_components/PostBoardCard';
+import { PostAccordionRow } from '@/app/notices/_components/PostAccordionRow';
 import { listPosts } from '@/app/lib/api/posts';
-import { passRoutes } from '@/lib/routes';
-import { cn, textColors } from '@/lib/theme';
-import { parsePostType, type PostSummary } from '@/lib/types/post';
+import { cn, postStyles } from '@/lib/theme';
+import { parsePostType, type PostSummary, type PostType } from '@/lib/types/post';
 
-/** Rows shown per card on the two-card view before 전체 보기 takes over. */
+/** 카드 한 장이 전체보기로 넘기기 전에 보여 주는 행 수. */
 const CARD_ROWS = 5;
 
+/** Category 레일의 "전체" 항목. `null` 은 미분류 게시글을 뜻한다. */
+const ALL = '__all__';
+
 export const NoticeBoardView = () => {
-  // `?type=` switches the same screen between the side-by-side summary and one
-  // full list. One route, one data source — the listing is not a second page
-  // with its own fetching to keep in sync.
+  // `?type=` 이 같은 라우트를 2카드 요약 ↔ 한 종류 전체목록으로 바꾼다.
+  // 라우트 하나, 데이터 출처 하나 — 전체보기는 별도 페이지가 아니라 이 화면의 한 상태다.
   const focus = parsePostType(useSearchParams().get('type'));
 
   const [posts, setPosts] = useState<PostSummary[] | null>(null);
+  const [category, setCategory] = useState<string>(ALL);
 
   useEffect(() => {
     let alive = true;
@@ -28,54 +31,122 @@ export const NoticeBoardView = () => {
     return () => { alive = false; };
   }, []);
 
-  // A row that 404s on expand was hidden after this list loaded. Drop it here
-  // rather than leaving a row that opens to nothing.
+  // 펼칠 때 404 가 난 행은 목록을 받은 뒤 숨김 처리된 글이다. 열리지 않는 행을
+  // 남겨 두는 대신 여기서 뺀다.
   const dropPost = useCallback((postId: number) => {
     setPosts((current) => current?.filter((post) => post.id !== postId) ?? null);
   }, []);
 
-  const byType = (type: 'NOTICE' | 'FAQ') =>
+  const byType = (type: PostType) =>
     posts === null ? null : posts.filter((post) => post.type === type);
 
-  if (focus) {
+  const focused = focus ? byType(focus) : null;
+
+  /**
+   * Category 레일. 사용자용 `PostCategory` 에는 건수가 없어서(Admin 쪽에만 있다)
+   * 받아 온 목록에서 직접 센다 — 계약이 전량을 내려주므로 셀 수 있다.
+   */
+  const groups = useMemo(() => {
+    if (!focused) return [];
+    const order: { key: string; label: string; posts: PostSummary[] }[] = [];
+    for (const post of focused) {
+      const key = post.categoryName ?? '미분류';
+      const found = order.find((group) => group.key === key);
+      if (found) found.posts.push(post);
+      else order.push({ key, label: key, posts: [post] });
+    }
+    return order;
+  }, [focused]);
+
+  if (focus && focused) {
+    const shown = category === ALL
+      ? groups
+      : groups.filter((group) => group.key === category);
+
     return (
-      <div className="mx-auto w-full max-w-4xl px-6 py-8">
-        <Link
-          href={passRoutes.notices}
-          className={cn('text-xs font-medium hover:underline', textColors.tertiary)}
-        >
-          ← 공지사항 · FAQ
-        </Link>
-        <div className="mt-4">
-          <PostBoardCard
-            title={focus === 'NOTICE' ? '공지사항' : 'FAQ'}
-            type={focus}
-            posts={byType(focus)}
-            onGone={dropPost}
-          />
+      <div className={postStyles.page}>
+        <div>
+          <h1 className={postStyles.pageTitle}>{focus === 'NOTICE' ? '공지사항' : 'FAQ'}</h1>
+          <p className={postStyles.pageSub}>
+            Category별로 모아 보여줍니다. 숨김 처리된 게시글은 나오지 않습니다.
+          </p>
+        </div>
+
+        {/* 계약에 페이지네이션이 없어 이 목록은 시간이 갈수록 단조 증가한다.
+            레일이 그 길이를 Category 단위로 자르는 유일한 장치다. */}
+        <div className={postStyles.grouped}>
+          <nav className={postStyles.catNav} aria-label="Category">
+            <button
+              type="button"
+              onClick={() => setCategory(ALL)}
+              className={cn(postStyles.catNavItem, category === ALL && postStyles.catNavItemOn)}
+            >
+              전체 <span className={postStyles.catNavCount}>{focused.length}</span>
+            </button>
+            {groups.map((group) => (
+              <button
+                key={group.key}
+                type="button"
+                onClick={() => setCategory(group.key)}
+                className={cn(
+                  postStyles.catNavItem,
+                  category === group.key && postStyles.catNavItemOn,
+                )}
+              >
+                {group.label}
+                <span className={postStyles.catNavCount}>{group.posts.length}</span>
+              </button>
+            ))}
+          </nav>
+
+          <div className="flex flex-col gap-6">
+            {shown.map((group) => (
+              <section key={group.key}>
+                <header className={postStyles.groupHead}>
+                  <h2 className={postStyles.groupTitle}>{group.label}</h2>
+                  <span className={postStyles.groupCount}>{group.posts.length}건</span>
+                </header>
+                <div className={postStyles.card}>
+                  <ul>
+                    {group.posts.map((post) => (
+                      <PostAccordionRow key={post.id} post={post} onGone={dropPost} />
+                    ))}
+                  </ul>
+                </div>
+              </section>
+            ))}
+            {shown.length === 0 && (
+              <p className="px-[22px] py-10 text-center text-[14px] text-[#6B7280]">
+                등록된 게시글이 없습니다.
+              </p>
+            )}
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    // 2 equal columns. min-w-0 lives on the card so a long title truncates
-    // instead of widening its own column and squeezing the other one.
-    <div className="mx-auto grid w-full max-w-6xl grid-cols-2 gap-6 px-6 py-8">
-      <PostBoardCard
-        title="공지사항"
-        type="NOTICE"
-        posts={byType('NOTICE')}
-        limit={CARD_ROWS}
-        onGone={dropPost}
-      />
-      <PostBoardCard
-        title="FAQ"
-        type="FAQ"
-        posts={byType('FAQ')}
-        limit={CARD_ROWS}
-        onGone={dropPost}
-      />
+    <div className={postStyles.page}>
+      <PassBanner />
+      {/* 공지사항 좌 · FAQ 우. min-w-0 은 카드 쪽에 있어야 긴 제목이 자기 열을 넓혀
+          옆 열을 밀지 않는다. */}
+      <div className={postStyles.dual}>
+        <PostBoardCard
+          title="공지사항"
+          type="NOTICE"
+          posts={byType('NOTICE')}
+          limit={CARD_ROWS}
+          onGone={dropPost}
+        />
+        <PostBoardCard
+          title="FAQ"
+          type="FAQ"
+          posts={byType('FAQ')}
+          limit={CARD_ROWS}
+          onGone={dropPost}
+        />
+      </div>
     </div>
   );
 };

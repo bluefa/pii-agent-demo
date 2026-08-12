@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { PostAccordionRow } from '@/app/notices/_components/PostAccordionRow';
-import { bgColors, borderColors, cn, primaryColors, textColors, tossShadow } from '@/lib/theme';
+import { bgColors, cn, postStyles } from '@/lib/theme';
 import { passRoutes } from '@/lib/routes';
 import type { PostSummary, PostType } from '@/lib/types/post';
 
@@ -10,7 +10,7 @@ interface PostBoardCardProps {
   title: string;
   type: PostType;
   posts: PostSummary[] | null;
-  /** Rows past this are behind 전체 보기. Omit to show every row. */
+  /** 이 수를 넘는 행은 전체보기 뒤에 둔다. 생략하면 전부 그린다. */
   limit?: number;
   onGone: (postId: number) => void;
 }
@@ -19,17 +19,15 @@ export const PostBoardCard = ({ title, type, posts, limit, onGone }: PostBoardCa
   const visible = posts === null ? null : (limit === undefined ? posts : posts.slice(0, limit));
 
   return (
-    <section className={cn('flex min-w-0 flex-col rounded-xl', bgColors.surface, tossShadow.sm)}>
-      <header
-        className={cn('flex items-center justify-between border-b px-5 py-4', borderColors.light)}
-      >
-        <h2 className={cn('text-base font-bold', textColors.primary)}>{title}</h2>
+    <section className={cn('flex min-w-0 flex-col', postStyles.card)}>
+      <header className={postStyles.cardHeader}>
+        <h2 className={postStyles.cardTitle}>{title}</h2>
+        {/* 건수가 있어야 "전체보기"에 누를 이유가 생긴다. 5건만 보이는데
+            전체가 몇 건인지 말하지 않으면 링크가 그냥 장식이다. */}
+        {posts !== null && <span className={postStyles.cardCount}>{posts.length}</span>}
         {limit !== undefined && (
-          <Link
-            href={`${passRoutes.notices}?type=${type}`}
-            className={cn('text-xs font-medium hover:underline', primaryColors.textOnLight)}
-          >
-            전체 보기
+          <Link href={`${passRoutes.notices}?type=${type}`} className={postStyles.cardMore}>
+            전체보기 →
           </Link>
         )}
       </header>
@@ -37,15 +35,15 @@ export const PostBoardCard = ({ title, type, posts, limit, onGone }: PostBoardCa
       {visible === null && (
         <ul>
           {[0, 1, 2].map((row) => (
-            <li key={row} className={cn('border-b px-5 py-4 last:border-b-0', borderColors.light)}>
-              <div className={cn('h-4 w-3/4 animate-pulse rounded', bgColors.panel)} />
+            <li key={row} className={cn(postStyles.row, 'block')}>
+              <div className={cn('h-4 w-3/4 animate-pulse rounded', bgColors.divider)} />
             </li>
           ))}
         </ul>
       )}
 
       {visible !== null && visible.length === 0 && (
-        <p className={cn('px-5 py-10 text-center text-sm', textColors.tertiary)}>
+        <p className="px-[22px] py-10 text-center text-[14px] text-[#6B7280]">
           등록된 게시글이 없습니다.
         </p>
       )}

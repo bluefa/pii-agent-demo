@@ -1,0 +1,1953 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1"><style>:root{color-scheme:light}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}</style></head><body>
+<title>공지·FAQ 화면 설계</title>
+<style>
+  /* ─────────────────────────────────────────────────────────────
+     Page chrome tokens. The MOCKUP FRAMES below are deliberately
+     light-only in every theme — the product itself ships a single
+     light identity (DESIGN.md), so showing a dark "screenshot"
+     would misrepresent it. Only the surrounding page adapts.
+     ───────────────────────────────────────────────────────────── */
+  :root {
+    --page-bg:   #FAFBFC;
+    --panel:     #FFFFFF;
+    --ink:       #191F28;
+    --ink-2:     #4E5968;
+    --ink-3:     #8B95A1;
+    --rule:      #E3E8EF;
+    --rule-soft: #EFF2F6;
+    --accent:    #0064FF;
+    --accent-bg: #E8F1FF;
+    --warn-ink:  #9A3412;
+    --warn-bg:   #FFF4EC;
+    --warn-rule: #F8CFA9;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --page-bg:   #10151C;
+      --panel:     #161D26;
+      --ink:       #E9EEF4;
+      --ink-2:     #A2AEBC;
+      --ink-3:     #77828F;
+      --rule:      #263140;
+      --rule-soft: #1D2530;
+      --accent:    #4D94FF;
+      --accent-bg: #16283F;
+      --warn-ink:  #F0B27A;
+      --warn-bg:   #2A1D12;
+      --warn-rule: #4A3320;
+    }
+  }
+  :root[data-theme="dark"] {
+    --page-bg:   #10151C;
+    --panel:     #161D26;
+    --ink:       #E9EEF4;
+    --ink-2:     #A2AEBC;
+    --ink-3:     #77828F;
+    --rule:      #263140;
+    --rule-soft: #1D2530;
+    --accent:    #4D94FF;
+    --accent-bg: #16283F;
+    --warn-ink:  #F0B27A;
+    --warn-bg:   #2A1D12;
+    --warn-rule: #4A3320;
+  }
+
+  /* Product tokens — fixed values, scoped to the mockup frames only. */
+  .ui {
+    --c-primary:    #0064FF;
+    --c-primary-hv: #0050D6;
+    --c-primary-lt: #E8F1FF;
+    --c-nav:        #0F172A;
+    --c-page:       #F2F4F6;
+    --c-white:      #FFFFFF;
+    --c-surf-2:     #F9FAFB;
+    --c-surf-3:     #F3F4F6;
+    --c-bd-light:   #F3F4F6;
+    --c-bd:         #E5E7EB;
+    --c-bd-strong:  #D1D5DB;
+    --c-t1:         #191F28;
+    --c-t2:         #4E5968;
+    --c-t3:         #8B95A1;
+    --c-t4:         #B0B8C1;
+    --c-sdu:        #9333EA;
+    --c-accent:     #4F46E5;
+    --c-warn-d:     #9A3412;
+    --c-succ-d:     #2A7D52;
+    --warn-chip-bg: #FFF4EC;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--page-bg);
+    color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo',
+                 'Pretendard', 'Malgun Gothic', system-ui, sans-serif;
+    font-size: 16px;
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap {
+    max-width: 1360px;
+    margin: 0 auto;
+    padding: 56px 28px 96px;
+    display: flex;
+    flex-direction: column;
+    gap: 56px;
+  }
+
+  /* ── Page header ─────────────────────────────────────────── */
+  .masthead { display: flex; flex-direction: column; gap: 14px; }
+  .eyebrow {
+    font-size: 12px; font-weight: 700; letter-spacing: .09em;
+    text-transform: uppercase; color: var(--accent);
+  }
+  h1 {
+    margin: 0; font-size: 34px; font-weight: 800;
+    letter-spacing: -.03em; line-height: 1.15; text-wrap: balance;
+  }
+  .lede {
+    margin: 0; max-width: 66ch; color: var(--ink-2); font-size: 16px;
+  }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+  .chip {
+    font-size: 12px; font-weight: 600; padding: 5px 11px;
+    border-radius: 9999px; border: 1px solid var(--rule);
+    color: var(--ink-2); background: var(--panel);
+  }
+  .chip.hi { color: var(--accent); border-color: var(--accent); background: var(--accent-bg); }
+
+  /* ── Section scaffold ────────────────────────────────────── */
+  section { display: flex; flex-direction: column; gap: 20px; }
+  .sec-head { display: flex; flex-direction: column; gap: 6px; }
+  .sec-head h2 {
+    margin: 0; font-size: 22px; font-weight: 750;
+    letter-spacing: -.02em; text-wrap: balance;
+  }
+  .sec-head .route {
+    font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, monospace;
+    font-size: 12px; color: var(--ink-3);
+  }
+  .sec-head p { margin: 0; color: var(--ink-2); max-width: 72ch; font-size: 14px; }
+
+  /* ── Mockup frame ────────────────────────────────────────── */
+  .frame-scroll { overflow-x: auto; padding-bottom: 4px; }
+  .frame {
+    min-width: 1180px;
+    border: 1px solid var(--rule);
+    border-radius: 14px;
+    /* relative + hidden keeps the Category modal inside the mock browser */
+    position: relative;
+    overflow: hidden;
+    background: var(--c-page);
+    box-shadow: 0 1px 2px rgba(16,22,30,.05), 0 12px 32px rgba(16,22,30,.07);
+  }
+
+  /* ── App shell: TopNav (navStyles.bg = slate-900) ────────── */
+  .nav {
+    height: 76px; display: flex; align-items: center; gap: 32px;
+    padding: 8px 24px; background: var(--c-nav); color: #fff;
+  }
+  .logo { width: 240px; display: flex; flex-direction: column; gap: 1px; }
+  .logo .mark { font-size: 22px; font-weight: 800; letter-spacing: -.04em; }
+  .logo .mark span { color: #4D94FF; }
+  .logo .desc { font-size: 10px; color: #94A3B8; letter-spacing: .01em; }
+  .logo .desc em { color: #A78BFA; font-style: normal; font-weight: 700; }
+  .navlinks { display: flex; gap: 4px; }
+  .navlinks a {
+    display: inline-flex; align-items: center; gap: 7px;
+    padding: 8px 16px; border-radius: 6px;
+    font-size: 14px; font-weight: 500; color: #CBD5E1; text-decoration: none;
+    white-space: nowrap;
+  }
+  .navlinks a.on { color: #fff; background: rgba(255,255,255,.10); }
+  .navlinks a.off { opacity: .5; }
+  .navutil { margin-left: auto; display: flex; align-items: center; gap: 14px; }
+  .navutil .u {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 12px; color: #CBD5E1;
+  }
+  .navutil .u.on { color: #fff; font-weight: 600; }
+  .navutil .sep { width: 1px; height: 20px; background: rgba(255,255,255,.15); }
+  .avatar {
+    width: 32px; height: 32px; border-radius: 9999px; background: #475569;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 600; color: #fff;
+  }
+  .dot-i {
+    width: 14px; height: 14px; border: 1.6px solid currentColor;
+    border-radius: 3px; display: inline-block;
+  }
+  .dot-i.round { border-radius: 9999px; }
+
+  /* ── App page body ───────────────────────────────────────── */
+  .page { padding: 32px 40px 48px; display: flex; flex-direction: column; gap: 24px; }
+  .page-title { font-size: 30px; font-weight: 800; letter-spacing: -.03em; color: var(--c-t1); line-height: 1.2; }
+  .page-sub { font-size: 14px; color: var(--c-t2); margin-top: 6px; }
+
+  /* Pass banner — purple gradient (requirement). See "확인 필요" §. */
+  .banner {
+    border-radius: 12px; padding: 26px 28px; color: #fff;
+    background: linear-gradient(101deg, #6D28D9 0%, #7C3AED 46%, #4F46E5 100%);
+    display: flex; align-items: center; justify-content: space-between; gap: 28px;
+    position: relative; overflow: hidden;
+  }
+  .banner::after {
+    content: ""; position: absolute; right: -70px; top: -90px;
+    width: 280px; height: 280px; border-radius: 9999px;
+    background: rgba(255,255,255,.10);
+  }
+  .banner .b-eyebrow {
+    font-size: 12px; font-weight: 700; letter-spacing: .1em;
+    text-transform: uppercase; color: rgba(255,255,255,.78);
+  }
+  .banner .b-title { font-size: 24px; font-weight: 800; letter-spacing: -.03em; margin-top: 7px; }
+  .banner .b-body { font-size: 14px; color: rgba(255,255,255,.86); margin-top: 7px; max-width: 60ch; }
+  .banner .b-cta {
+    position: relative; z-index: 1; white-space: nowrap;
+    background: #fff; color: #5B21B6; font-size: 14px; font-weight: 700;
+    padding: 11px 20px; border-radius: 8px;
+  }
+
+  .count { font-size: 14px; color: var(--c-t3); font-variant-numeric: tabular-nums; }
+
+  /* ── Two list cards, side by side ────────────────────────── */
+  .dual { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; align-items: start; }
+  .list-card { background: var(--c-white); border: 1px solid var(--c-bd); border-radius: 12px; }
+  .list-head {
+    display: flex; align-items: center; gap: 10px;
+    padding: 18px 22px; border-bottom: 1px solid var(--c-bd);
+    position: relative; /* anchors the filter popover */
+  }
+  .list-head .h { font-size: 16px; font-weight: 700; color: var(--c-t1); letter-spacing: -.02em; }
+  .list-head .n {
+    font-size: 12px; font-weight: 700; color: var(--c-primary-hv);
+    background: var(--c-primary-lt); border-radius: 9999px; padding: 2px 8px;
+    font-variant-numeric: tabular-nums;
+  }
+  .list-head .more { margin-left: auto; font-size: 12px; color: var(--c-t3); text-decoration: none; }
+  .list-head .rail { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+  .list-head .sub {
+    font-size: 12px; color: var(--c-t3); font-variant-numeric: tabular-nums;
+  }
+
+  /* ── Accordion (interactive) ─────────────────────────────── */
+  .acc-row { border-bottom: 1px solid var(--c-bd-light); }
+  .acc-row:last-child { border-bottom: 0; }
+  /* stretch, not flex-start: the right rail spans the row's full height so
+     space-between can pin the date to the top and the caret to the bottom. */
+  .acc-head {
+    width: 100%; display: flex; align-items: stretch; gap: 16px;
+    padding: 16px 22px; cursor: pointer;
+    background: none; border: 0; text-align: left; font: inherit; color: inherit;
+    transition: background-color .15s ease;
+  }
+  .acc-head:hover { background: var(--c-surf-2); }
+  .acc-head:focus-visible { outline: 2px solid var(--c-primary); outline-offset: -2px; }
+  .acc-head[aria-expanded="true"] { background: var(--c-surf-2); }
+  .acc-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+  .acc-meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .acc-t {
+    font-size: 14px; font-weight: 600; color: var(--c-t1);
+    letter-spacing: -.01em; line-height: 1.45;
+  }
+  .acc-head[aria-expanded="true"] .acc-t { color: var(--c-primary-hv); }
+
+  /* Right rail: 게시일자 위, 펼침 표시 아래. */
+  .acc-side {
+    flex: 0 0 auto; display: flex; flex-direction: column;
+    align-items: flex-end; justify-content: space-between; gap: 10px;
+  }
+  .acc-d {
+    font-size: 12px; color: var(--c-t3); font-variant-numeric: tabular-nums;
+    letter-spacing: .01em; white-space: nowrap; line-height: 1.4;
+  }
+  .caret {
+    width: 8px; height: 8px; flex: 0 0 auto; margin: 0 3px 4px 0;
+    border-right: 1.8px solid var(--c-t3); border-bottom: 1.8px solid var(--c-t3);
+    transform: rotate(45deg); transition: transform .2s ease, border-color .2s ease;
+  }
+  .acc-head[aria-expanded="true"] .caret {
+    transform: rotate(-135deg) translate(-3px, -3px); border-color: var(--c-primary-hv);
+  }
+  /* 0fr → 1fr animates the panel open without measuring its height in JS. */
+  .acc-panel {
+    display: grid; grid-template-rows: 0fr;
+    background: var(--c-surf-2); transition: grid-template-rows .24s ease;
+  }
+  .acc-head[aria-expanded="true"] + .acc-panel { grid-template-rows: 1fr; }
+  .acc-panel > .inner { overflow: hidden; }
+  /* 요구사항: 아코디언 상단 여백보다 하단 여백을 크게 (16 → 42) */
+  .acc-body { padding: 16px 22px 42px; font-size: 14px; line-height: 1.75; color: var(--c-t2); }
+  .acc-body p { margin: 0 0 10px; }
+  .acc-body p:last-child, .acc-body ul:last-child { margin-bottom: 0; }
+  .acc-body ul { margin: 0; padding-left: 18px; }
+  .acc-body li { margin-bottom: 4px; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .acc-head, .acc-panel, .caret { transition: none; }
+  }
+
+  /* Badges */
+  .bdg {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-size: 12px; font-weight: 700; padding: 3px 8px;
+    border-radius: 9999px; white-space: nowrap; letter-spacing: .01em;
+  }
+  /* No fractional offset: a half-pixel translate lands the glyph between the
+     device pixels and the antialiaser smears its colour across both. Flex
+     centring already aligns it, so the nudge only cost sharpness. */
+  .bdg .ic { width: 13px; height: 13px; flex: 0 0 auto; }
+  .bdg.pin  { background: var(--c-primary-lt); color: var(--c-primary-hv); }
+  .bdg.faq  { background: #EEF2FF; color: #3730A3; }
+  .bdg.not  { background: #F3F4F6; color: #4E5968; }
+  .bdg.hide { background: #F3F4F6; color: #6B7280; border: 1px dashed var(--c-bd-strong); }
+  .bdg.cat  { background: var(--c-white); color: var(--c-t2); border: 1px solid var(--c-bd); font-weight: 600; }
+
+  /* ── Admin rows (same card language as the user screen) ──── */
+  .adm-row {
+    display: flex; align-items: stretch; gap: 16px;
+    padding: 16px 22px; border-bottom: 1px solid var(--c-bd-light);
+  }
+  .adm-row:last-child { border-bottom: 0; }
+  .adm-row.is-hidden {
+    background: repeating-linear-gradient(135deg, #FAFBFC 0 6px, #F5F6F8 6px 12px);
+  }
+  .adm-row.is-hidden .acc-t { color: var(--c-t3); }
+  .adm-side {
+    flex: 0 0 auto; display: flex; flex-direction: column;
+    align-items: flex-end; justify-content: space-between; gap: 10px;
+  }
+  .btn {
+    font-size: 14px; font-weight: 600; padding: 9px 16px; border-radius: 8px;
+    white-space: nowrap; display: inline-flex; align-items: center; gap: 6px;
+    font-family: inherit; border: 0; line-height: 1.2;
+  }
+  button.btn { cursor: pointer; }
+  button.btn:focus-visible { outline: 2px solid var(--c-primary); outline-offset: 2px; }
+  .btn.sm { font-size: 12px; padding: 7px 12px; border-radius: 6px; }
+  .btn .ic { width: 12px; height: 12px; flex: 0 0 auto; }
+  .btn.pri { background: var(--c-primary); color: #fff; }
+  .btn.sec { background: var(--c-surf-3); color: var(--c-t2); }
+  .btn.gho { background: transparent; color: var(--c-t2); border: 1px solid var(--c-bd); padding: 6px 11px; font-size: 12px; border-radius: 6px; }
+  .btn.dis { background: transparent; color: var(--c-t4); border: 1px solid var(--c-bd-light); padding: 6px 11px; font-size: 12px; border-radius: 6px; }
+
+  table { width: 100%; border-collapse: collapse; }
+  thead th {
+    text-align: left; font-size: 12px; font-weight: 700; letter-spacing: .04em;
+    color: var(--c-t3); padding: 11px 16px; border-bottom: 1px solid var(--c-bd);
+    background: var(--c-surf-2); white-space: nowrap;
+  }
+  tbody td {
+    padding: 14px 16px; font-size: 14px; color: var(--c-t2);
+    border-bottom: 1px solid var(--c-bd-light); vertical-align: middle;
+  }
+  tbody tr:last-child td { border-bottom: 0; }
+  .acts { display: flex; gap: 6px; justify-content: flex-end; }
+
+  /* ── 전체보기: category rail + grouped sections ──────────── */
+  .grouped { display: grid; grid-template-columns: 200px 1fr; gap: 24px; align-items: start; }
+  .cat-nav {
+    background: var(--c-white); border: 1px solid var(--c-bd); border-radius: 12px;
+    padding: 8px; display: flex; flex-direction: column; gap: 2px;
+  }
+  .cat-nav a {
+    display: flex; align-items: center; gap: 8px;
+    padding: 9px 12px; border-radius: 6px; text-decoration: none;
+    font-size: 14px; font-weight: 500; color: var(--c-t2);
+  }
+  .cat-nav a:hover { background: var(--c-surf-2); }
+  .cat-nav a.on { background: var(--c-primary-lt); color: var(--c-primary-hv); font-weight: 700; }
+  .cat-nav a .c {
+    margin-left: auto; font-size: 12px; color: var(--c-t3);
+    font-variant-numeric: tabular-nums;
+  }
+  .cat-nav a.on .c { color: var(--c-primary-hv); }
+  .groups { display: flex; flex-direction: column; gap: 24px; }
+  .group-head { display: flex; align-items: baseline; gap: 8px; padding: 0 2px 10px; }
+  .group-head .gt {
+    font-size: 16px; font-weight: 700; color: var(--c-t1); letter-spacing: -.02em;
+  }
+  .group-head .gc { font-size: 12px; color: var(--c-t3); font-variant-numeric: tabular-nums; }
+
+  /* ── Rendered body: what the allow-list actually permits ─── */
+  .acc-body h4 {
+    margin: 0 0 8px; font-size: 14px; font-weight: 700; color: var(--c-t1);
+    letter-spacing: -.01em;
+  }
+  .acc-body h4 + p { margin-top: 0; }
+  .acc-body a { color: var(--c-primary-hv); text-decoration: underline; }
+  .acc-body code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 12px; background: var(--c-surf-3); border-radius: 4px; padding: 1px 5px;
+  }
+  .acc-body strong { color: var(--c-t1); font-weight: 700; }
+  .acc-body img {
+    display: block; max-width: 100%; width: 420px; height: auto;
+    border: 1px solid var(--c-bd); border-radius: 8px; margin: 4px 0;
+  }
+
+  /* ── Editor screen ───────────────────────────────────────── */
+  .form-card {
+    background: var(--c-white); border: 1px solid var(--c-bd); border-radius: 12px;
+    display: flex; flex-direction: column;
+  }
+  .form-sec { padding: 22px; border-bottom: 1px solid var(--c-bd-light); }
+  .form-sec:last-child { border-bottom: 0; }
+  .form-grid { display: grid; grid-template-columns: 200px 1fr; gap: 20px 24px; align-items: start; }
+  .lb { font-size: 12px; font-weight: 700; color: var(--c-t2); letter-spacing: .02em; }
+  .lb .req { color: var(--c-primary); margin-left: 3px; }
+  .lang-tabs { display: flex; align-items: center; gap: 10px; }
+  .lang-state {
+    font-size: 12px; font-weight: 700; border-radius: 9999px; padding: 3px 9px;
+  }
+  .lang-state.done { background: #E7F6ED; color: var(--c-succ-d); }
+  .lang-state.todo { background: var(--warn-chip-bg); color: var(--c-warn-d); }
+  .rt {
+    border: 1px solid var(--c-bd); border-radius: 8px; overflow: hidden;
+    background: var(--c-white);
+  }
+  .rt-bar {
+    display: flex; align-items: center; gap: 4px; flex-wrap: wrap;
+    padding: 8px 10px; background: var(--c-surf-2); border-bottom: 1px solid var(--c-bd);
+  }
+  .rt-btn {
+    display: inline-flex; align-items: center; gap: 5px;
+    min-width: 28px; height: 28px; padding: 0 8px; border-radius: 6px;
+    border: 1px solid transparent; background: transparent;
+    font-family: inherit; font-size: 12px; font-weight: 700; color: var(--c-t2);
+    cursor: pointer; justify-content: center;
+  }
+  .rt-btn:hover { background: var(--c-surf-3); color: var(--c-t1); }
+  .rt-btn:focus-visible { outline: 2px solid var(--c-primary); outline-offset: 1px; }
+  .rt-btn .ic { width: 14px; height: 14px; }
+  .rt-btn.img {
+    border-color: var(--c-bd); background: var(--c-white); color: var(--c-primary-hv);
+  }
+  .rt-sep { width: 1px; height: 18px; background: var(--c-bd); margin: 0 4px; }
+  .rt-body {
+    padding: 16px 18px; font-size: 14px; line-height: 1.75; color: var(--c-t2);
+    min-height: 200px;
+  }
+  .rt-body h4 { margin: 0 0 8px; font-size: 14px; font-weight: 700; color: var(--c-t1); }
+  .rt-body p { margin: 0 0 10px; }
+  .rt-body ul { margin: 0 0 10px; padding-left: 18px; }
+  .rt-body code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 12px; background: var(--c-surf-3); border-radius: 4px; padding: 1px 5px;
+  }
+  .rt-body a { color: var(--c-primary-hv); text-decoration: underline; }
+  /* selected image in the editor — the only handle is drag-to-reorder */
+  .rt-img {
+    position: relative; display: inline-block; margin: 4px 0 10px;
+    outline: 2px solid var(--c-primary); outline-offset: 3px; border-radius: 8px;
+  }
+  .rt-img img {
+    display: block; width: 360px; max-width: 100%; height: auto;
+    border: 1px solid var(--c-bd); border-radius: 8px;
+  }
+  .rt-img .tagline {
+    position: absolute; left: 0; bottom: -26px;
+    font-size: 12px; color: var(--c-t3); white-space: nowrap;
+  }
+  .hint { font-size: 12px; color: var(--c-t3); margin-top: 8px; line-height: 1.6; }
+  .inp-line {
+    border: 1px solid var(--c-bd); border-radius: 6px; padding: 10px 12px;
+    font-size: 14px; color: var(--c-t1); background: var(--c-white);
+  }
+  .inp-line.ph { color: var(--c-t4); }
+  .form-foot {
+    display: flex; align-items: center; gap: 12px; justify-content: flex-end;
+    padding: 18px 22px; border-top: 1px solid var(--c-bd);
+  }
+  .form-foot .warn {
+    margin-right: auto; font-size: 12px; color: var(--c-warn-d);
+    display: inline-flex; align-items: center; gap: 6px;
+  }
+  .btn.off { background: var(--c-surf-3); color: var(--c-t4); cursor: not-allowed; }
+
+  /* ── Filter: icon button + popover ───────────────────────── */
+  .icon-btn {
+    width: 30px; height: 30px; padding: 0; flex: 0 0 auto;
+    display: inline-flex; align-items: center; justify-content: center;
+    border: 1px solid var(--c-bd); border-radius: 6px;
+    background: var(--c-white); color: var(--c-t2); cursor: pointer;
+    position: relative; transition: background-color .15s ease, color .15s ease;
+  }
+  .icon-btn:hover { background: var(--c-surf-2); color: var(--c-t1); }
+  .icon-btn:focus-visible { outline: 2px solid var(--c-primary); outline-offset: 2px; }
+  .icon-btn[aria-expanded="true"] {
+    background: var(--c-primary-lt); border-color: var(--c-primary-lt); color: var(--c-primary-hv);
+  }
+  .icon-btn .ic { width: 14px; height: 14px; }
+  /* Count of active filters — the icon alone cannot say "something is filtered". */
+  .icon-btn .dot {
+    position: absolute; top: -4px; right: -4px;
+    min-width: 14px; height: 14px; padding: 0 3px; border-radius: 9999px;
+    background: var(--c-primary); color: #fff;
+    font-size: 10px; font-weight: 700; line-height: 14px;
+    font-variant-numeric: tabular-nums;
+  }
+  .icon-btn .dot[hidden] { display: none; }
+
+  .filter-pop {
+    position: absolute; top: calc(100% - 6px); right: 22px; z-index: 4;
+    width: 236px; padding: 14px;
+    background: var(--c-white); border: 1px solid var(--c-bd); border-radius: 10px;
+    box-shadow: 0 12px 28px rgba(15, 23, 42, .14);
+    display: none; flex-direction: column; gap: 14px;
+  }
+  .filter-pop.open { display: flex; }
+  .fgroup { display: flex; flex-direction: column; gap: 8px; }
+  .fgroup .lb { font-size: 12px; font-weight: 700; color: var(--c-t2); letter-spacing: .02em; }
+  .fchips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .fchip {
+    font-size: 12px; font-weight: 500; padding: 5px 10px; border-radius: 9999px;
+    border: 1px solid var(--c-bd); background: var(--c-white); color: var(--c-t2);
+    font-family: inherit; cursor: pointer; line-height: 1.4;
+  }
+  .fchip:hover { background: var(--c-surf-2); }
+  .fchip:focus-visible { outline: 2px solid var(--c-primary); outline-offset: 2px; }
+  .fchip.on {
+    background: var(--c-primary-lt); border-color: var(--c-primary-lt);
+    color: var(--c-primary-hv); font-weight: 700;
+  }
+
+  /* ── Category modal (scoped to the mock browser frame) ───── */
+  .modal-wrap {
+    position: absolute; inset: 0; z-index: 5;
+    display: none; align-items: center; justify-content: center;
+    background: rgba(15, 23, 42, .45);
+  }
+  .modal-wrap.open { display: flex; }
+  .modal {
+    width: 460px; background: var(--c-white); border-radius: 12px;
+    box-shadow: 0 24px 64px rgba(15, 23, 42, .28);
+    display: flex; flex-direction: column;
+  }
+  .modal-head { padding: 22px 24px 0; }
+  .modal-head .mt {
+    font-size: 18px; font-weight: 700; color: var(--c-t1); letter-spacing: -.02em;
+  }
+  .modal-head .ms { font-size: 12px; color: var(--c-t3); margin-top: 6px; }
+  .modal-body { padding: 20px 24px; display: flex; flex-direction: column; gap: 20px; }
+  .field { display: flex; flex-direction: column; gap: 8px; }
+  .field .lb { font-size: 12px; font-weight: 700; color: var(--c-t2); letter-spacing: .02em; }
+  .inp {
+    border: 1px solid var(--c-bd); border-radius: 6px;
+    padding: 10px 12px; font-size: 14px; color: var(--c-t4); background: var(--c-white);
+  }
+  .seg {
+    display: inline-flex; align-self: flex-start;
+    background: var(--c-surf-3); border-radius: 8px; padding: 3px; gap: 2px;
+  }
+  .seg span {
+    font-size: 14px; padding: 6px 16px; border-radius: 6px; font-weight: 500; color: var(--c-t2);
+  }
+  .seg span.on {
+    background: var(--c-white); color: var(--c-t1); font-weight: 700;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, .06);
+  }
+  .cat-list { border: 1px solid var(--c-bd); border-radius: 8px; }
+  .cat-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 14px; border-bottom: 1px solid var(--c-bd-light);
+  }
+  .cat-row:last-child { border-bottom: 0; }
+  .cat-row .nm { flex: 1; font-size: 14px; color: var(--c-t1); font-weight: 500; }
+  .cat-row .ct {
+    font-size: 12px; color: var(--c-t3); font-variant-numeric: tabular-nums;
+    background: var(--c-surf-3); border-radius: 9999px; padding: 2px 9px;
+  }
+  .modal-foot {
+    padding: 16px 24px 22px; display: flex; justify-content: flex-end; gap: 12px;
+    border-top: 1px solid var(--c-bd-light);
+  }
+  .modal-note {
+    font-size: 12px; color: var(--c-t3); margin-right: auto; align-self: center;
+    max-width: 240px; line-height: 1.5;
+  }
+
+  /* ── Callout pins ────────────────────────────────────────── */
+  .pin {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 19px; height: 19px; border-radius: 9999px;
+    background: #0064FF; color: #fff;
+    font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums;
+    flex: 0 0 auto; line-height: 1;
+  }
+  .pin.abs { position: absolute; }
+  .rel { position: relative; }
+
+  .keys { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 10px 24px; }
+  .key { display: flex; gap: 10px; align-items: flex-start; }
+  .key .pin { margin-top: 3px; background: var(--accent); }
+  .key .kt { font-size: 14px; color: var(--ink-2); }
+  .key .kt b { color: var(--ink); font-weight: 650; }
+  .key code {
+    display: inline-block; margin-top: 2px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 12px; color: var(--accent);
+    background: var(--accent-bg); border-radius: 4px; padding: 1px 6px;
+  }
+
+  /* ── Prose blocks ────────────────────────────────────────── */
+  .note {
+    border: 1px solid var(--warn-rule); background: var(--warn-bg);
+    border-radius: 12px; padding: 20px 22px;
+    display: flex; flex-direction: column; gap: 10px;
+  }
+  .note h3 {
+    margin: 0; font-size: 14px; font-weight: 750; color: var(--warn-ink);
+    letter-spacing: -.01em;
+  }
+  .note p { margin: 0; font-size: 14px; color: var(--ink-2); max-width: 78ch; }
+  .note code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 12px; background: var(--rule-soft); padding: 1px 5px; border-radius: 4px;
+  }
+
+  .maptable-scroll { overflow-x: auto; }
+  .maptable {
+    min-width: 720px; background: var(--panel);
+    border: 1px solid var(--rule); border-radius: 12px; overflow: hidden;
+  }
+  .maptable th {
+    background: transparent; color: var(--ink-3);
+    border-bottom: 1px solid var(--rule); padding: 12px 18px;
+  }
+  .maptable td {
+    color: var(--ink-2); border-bottom: 1px solid var(--rule-soft); padding: 12px 18px;
+  }
+  .maptable tr:last-child td { border-bottom: 0; }
+  .maptable td code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 12px; color: var(--accent); white-space: nowrap;
+  }
+  .maptable td b { color: var(--ink); font-weight: 650; }
+
+  .open-list { display: flex; flex-direction: column; gap: 12px; }
+  .open-item {
+    display: flex; gap: 12px; align-items: flex-start;
+    padding: 14px 18px; background: var(--panel);
+    border: 1px solid var(--rule); border-radius: 10px;
+  }
+  .open-item .tag {
+    font-size: 12px; font-weight: 700; color: var(--accent);
+    background: var(--accent-bg); border-radius: 5px; padding: 3px 8px;
+    flex: 0 0 auto; letter-spacing: .02em;
+  }
+  .open-item .ot { font-size: 14px; color: var(--ink-2); }
+  .open-item .ot b { color: var(--ink); font-weight: 650; }
+
+  hr.rule { border: 0; border-top: 1px solid var(--rule); margin: 0; }
+
+  @media (max-width: 820px) {
+    .keys { grid-template-columns: 1fr; }
+    .wrap { padding: 40px 18px 72px; }
+    h1 { font-size: 28px; }
+  }
+</style>
+
+<!-- Icon sprite. Emoji were rendering at inconsistent sizes across platforms and
+     colliding with the badge label, so every glyph is an inline SVG path now. -->
+<svg width="0" height="0" aria-hidden="true" focusable="false" style="position:absolute">
+  <!-- Filled thumbtack, built from whole-number primitives. The stroke-based
+       pin this replaced collapsed into a smudge at badge size: its 1px lines
+       sat closer than a pixel apart once a 24-unit path was scaled to 12px. -->
+  <symbol id="i-pin" viewBox="0 0 16 16" fill="currentColor">
+    <rect x="4" y="1.5" width="8" height="2.2" rx="1.1" />
+    <path d="M6.2 3.7h3.6l1 4.3H5.2Z" />
+    <rect x="7.4" y="8" width="1.2" height="5.5" rx="0.6" />
+  </symbol>
+  <symbol id="i-filter" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+          stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3Z" />
+  </symbol>
+  <symbol id="i-link" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+          stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+    <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+  </symbol>
+  <symbol id="i-image" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+          stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="3" y="3" width="18" height="18" rx="2" />
+    <circle cx="9" cy="9" r="2" />
+    <path d="m21 15-4.35-4.35a2 2 0 0 0-2.83 0L3 21" />
+  </symbol>
+  <!-- Two elements on a 16-unit grid, not three on a 24-unit one: at 13px the
+       original's arcs and slash overlapped into a blur. -->
+  <symbol id="i-eye-off" viewBox="0 0 16 16" fill="none" stroke="currentColor"
+          stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M2 8s2.4-3.6 6-3.6S14 8 14 8s-2.4 3.6-6 3.6S2 8 2 8Z" />
+    <line x1="3" y1="13" x2="13" y2="3" />
+  </symbol>
+</svg>
+
+<div class="wrap">
+
+  <header class="masthead">
+    <div class="eyebrow">PII Agent · Self-Installation Tool</div>
+    <h1>공지사항 · FAQ 화면 설계</h1>
+    <p class="lede">
+      확정된 요구사항을 사용자 메인 화면과 Admin 관리 화면 두 벌로 옮긴 목업입니다.
+      기존 <b>TopNav</b> 셸과 <b>DESIGN.md</b> 토큰을 그대로 사용했고, 각 영역에 붙은 번호는
+      그 영역을 채우는 BFF 엔드포인트를 가리킵니다.
+    </p>
+    <div class="chips">
+      <span class="chip hi">Draft</span>
+      <span class="chip">화면 2</span>
+      <span class="chip">엔드포인트 12</span>
+      <span class="chip">Tag · FAQ &amp; Notices</span>
+    </div>
+  </header>
+
+  <hr class="rule" />
+
+  <!-- ══════════════════ SCREEN 1 ══════════════════ -->
+  <section>
+    <div class="sec-head">
+      <span class="route">/pass/main</span>
+      <h2>사용자 메인 — 공지사항 · FAQ</h2>
+      <p>
+        배너 아래에 공지사항(좌) · FAQ(우) 카드가 나란히 놓입니다. 각 카드는 서버가 정렬을 마친
+        배열을 그대로 렌더링하며, 행을 클릭하면 본문이 펼쳐집니다 — 이 목업에서 직접 눌러볼 수 있습니다.
+      </p>
+    </div>
+
+    <div class="frame-scroll">
+      <div class="frame ui">
+        <!-- TopNav -->
+        <div class="nav">
+          <div class="logo">
+            <div class="mark">PA<span>SS</span></div>
+            <div class="desc"><em>PII</em> Agent Self-Service</div>
+          </div>
+          <nav class="navlinks">
+            <a href="#s1"><span class="dot-i"></span>서비스 목록</a>
+            <a href="#s1"><span class="dot-i round"></span>관리자</a>
+            <a href="#s1" class="off">Credentials</a>
+            <a href="#s1" class="off">PII Tag mgmt.</a>
+            <a href="#s1" class="off">PII Map</a>
+          </nav>
+          <div class="navutil">
+            <span class="u on">Notice</span>
+            <span class="u">Guide</span>
+            <span class="u on">FAQ</span>
+            <span class="sep"></span>
+            <span class="avatar">CY</span>
+          </div>
+        </div>
+
+        <!-- Page -->
+        <div class="page">
+          <!-- ① Pass banner -->
+          <div class="banner rel">
+            <span class="pin abs" style="top:12px; left:12px;">1</span>
+            <div>
+              <div class="b-eyebrow">Introducing Pass</div>
+              <div class="b-title">연동부터 스캔까지, 한 화면에서</div>
+              <div class="b-body">
+                클라우드 인프라를 등록하면 Pass가 권한 점검 · Test Connection · PII 스캔까지
+                이어서 처리합니다. 담당자가 챙길 일은 승인 하나뿐입니다.
+              </div>
+            </div>
+            <div class="b-cta">Pass 알아보기 →</div>
+          </div>
+
+          <!-- ② Notice card (left) + ③ FAQ card (right) -->
+          <div class="dual">
+            <div class="rel">
+              <span class="pin abs" style="top:-10px; left:-10px;">2</span>
+              <div class="list-card">
+                <div class="list-head">
+                  <span class="h">공지사항</span>
+                  <span class="n">5</span>
+                  <a class="more" href="#s1">전체보기 →</a>
+                </div>
+
+                <div class="acc-row">
+                  <button type="button" class="acc-head" aria-expanded="true">
+                    <span class="acc-main">
+                      <span class="acc-meta">
+                        <span class="bdg pin"><svg class="ic"><use href="#i-pin" /></svg>고정</span>
+                        <span class="bdg cat">배포</span>
+                      </span>
+                      <span class="acc-t">PII Agent 2.0 배포 안내 및 점검 시간 공지</span>
+                    </span>
+                    <span class="acc-side">
+                      <span class="acc-d">26-08-12</span>
+                      <span class="caret"></span>
+                    </span>
+                  </button>
+                  <div class="acc-panel"><div class="inner"><div class="acc-body rel">
+                    <span class="pin abs" style="top:16px; right:16px;">3</span>
+                    <h4>작업 일정</h4>
+                    <p>8월 20일(수) <strong>02:00 ~ 05:00</strong> 사이 PII Agent 2.0 배포 작업이 진행됩니다.
+                       작업 시간 동안 신규 연동 요청과 스캔 실행이 <em>일시 중단</em>됩니다.</p>
+                    <ul>
+                      <li>진행 중인 파이프라인은 중단되지 않고 완료까지 실행됩니다.</li>
+                      <li>Test Connection 재시도는 작업 종료 후 자동으로 재개됩니다.</li>
+                      <li>점검 중에는 <code>/services</code> 화면이 읽기 전용으로 동작합니다.</li>
+                    </ul>
+                    <h4>점검 중 화면</h4>
+                    <p><img src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 320 180'><rect width='320' height='180' fill='%23F8FAFC'/><rect width='320' height='26' fill='%23E8EBEF'/><circle cx='14' cy='13' r='4' fill='%23C3CAD3'/><circle cx='28' cy='13' r='4' fill='%23C3CAD3'/><circle cx='42' cy='13' r='4' fill='%23C3CAD3'/><rect x='16' y='42' width='80' height='122' rx='6' fill='%23FFFFFF' stroke='%23E5E7EB'/><rect x='26' y='54' width='60' height='8' rx='4' fill='%23E5E7EB'/><rect x='26' y='70' width='44' height='8' rx='4' fill='%23D6E4FF'/><rect x='26' y='86' width='52' height='8' rx='4' fill='%23E5E7EB'/><rect x='26' y='102' width='38' height='8' rx='4' fill='%23E5E7EB'/><rect x='108' y='42' width='196' height='58' rx='6' fill='%23FFFFFF' stroke='%23E5E7EB'/><rect x='120' y='56' width='90' height='10' rx='5' fill='%239CC0FF'/><rect x='120' y='74' width='150' height='8' rx='4' fill='%23E5E7EB'/><rect x='108' y='110' width='196' height='54' rx='6' fill='%23FFFFFF' stroke='%23E5E7EB'/><rect x='122' y='140' width='16' height='14' rx='2' fill='%237FB0FF'/><rect x='146' y='128' width='16' height='26' rx='2' fill='%237FB0FF'/><rect x='170' y='134' width='16' height='20' rx='2' fill='%237FB0FF'/><rect x='194' y='122' width='16' height='32' rx='2' fill='%237FB0FF'/><rect x='218' y='132' width='16' height='22' rx='2' fill='%237FB0FF'/></svg>" alt="점검 중 서비스 목록 화면. 실행 버튼이 비활성으로 표시된다."
+                            width="320" height="180" loading="lazy" /></p>
+                    <p>점검이 끝나면 배너가 사라집니다. 자세한 내용은
+                       <a href="#s1">릴리스 노트</a>에서 확인하세요.</p>
+                  </div></div></div>
+                </div>
+
+                <div class="acc-row">
+                  <button type="button" class="acc-head" aria-expanded="false">
+                    <span class="acc-main">
+                      <span class="acc-meta">
+                        <span class="bdg pin"><svg class="ic"><use href="#i-pin" /></svg>고정</span>
+                        <span class="bdg cat">정책</span>
+                      </span>
+                      <span class="acc-t">스캔 대상 제외 DB 등록 정책이 변경됩니다</span>
+                    </span>
+                    <span class="acc-side">
+                      <span class="acc-d">26-08-10</span>
+                      <span class="caret"></span>
+                    </span>
+                  </button>
+                  <div class="acc-panel"><div class="inner"><div class="acc-body">
+                    <p>9월 1일부터 연동 제외 DB는 서비스 담당자가 직접 등록할 수 있습니다.
+                       기존에 운영팀으로 요청하던 절차는 그대로 유지되며, 두 경로 모두 사용할 수 있습니다.</p>
+                  </div></div></div>
+                </div>
+
+                <div class="acc-row">
+                  <button type="button" class="acc-head" aria-expanded="false">
+                    <span class="acc-main">
+                      <span class="acc-meta">
+                        <span class="bdg cat">배포</span>
+                      </span>
+                      <span class="acc-t">8월 정기 점검 결과 안내</span>
+                    </span>
+                    <span class="acc-side">
+                      <span class="acc-d">26-08-11</span>
+                      <span class="caret"></span>
+                    </span>
+                  </button>
+                  <div class="acc-panel"><div class="inner"><div class="acc-body">
+                    <p>8월 정기 점검이 완료되었습니다. 점검 중 확인된 스캔 지연 이슈는
+                       모두 해소되었으며, 별도 조치가 필요한 서비스는 없습니다.</p>
+                  </div></div></div>
+                </div>
+
+                <div class="acc-row">
+                  <button type="button" class="acc-head" aria-expanded="false">
+                    <span class="acc-main">
+                      <span class="acc-meta">
+                        <span class="bdg cat">점검</span>
+                      </span>
+                      <span class="acc-t">7월 정기 점검 결과 안내</span>
+                    </span>
+                    <span class="acc-side">
+                      <span class="acc-d">26-07-30</span>
+                      <span class="caret"></span>
+                    </span>
+                  </button>
+                  <div class="acc-panel"><div class="inner"><div class="acc-body">
+                    <p>7월 정기 점검이 완료되었습니다. 조치가 필요한 항목은 담당자에게
+                       개별 안내되었습니다.</p>
+                  </div></div></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="rel">
+              <span class="pin abs" style="top:-10px; left:-10px;">4</span>
+              <div class="list-card">
+                <div class="list-head">
+                  <span class="h">FAQ</span>
+                  <span class="n">4</span>
+                  <a class="more" href="#s1">전체보기 →</a>
+                </div>
+
+                <div class="acc-row">
+                  <button type="button" class="acc-head" aria-expanded="false">
+                    <span class="acc-main">
+                      <span class="acc-meta">
+                        <span class="bdg pin"><svg class="ic"><use href="#i-pin" /></svg>고정</span>
+                        <span class="bdg cat">연동 요청</span>
+                      </span>
+                      <span class="acc-t">Test Connection이 계속 실패하면 무엇을 확인해야 하나요?</span>
+                    </span>
+                    <span class="acc-side">
+                      <span class="acc-d">26-08-08</span>
+                      <span class="caret"></span>
+                    </span>
+                  </button>
+                  <div class="acc-panel"><div class="inner"><div class="acc-body">
+                    <p>대부분 보안 그룹 또는 방화벽에서 Pass 스캔 대역이 열리지 않은 경우입니다.
+                       아래 순서로 확인해 주세요.</p>
+                    <ul>
+                      <li>대상 DB의 인바운드 규칙에 스캔 대역이 포함되어 있는지</li>
+                      <li>계정에 <code>SELECT</code> 권한이 부여되어 있는지</li>
+                      <li>포트가 기본값과 다른 경우 등록 정보에 반영되어 있는지</li>
+                    </ul>
+                  </div></div></div>
+                </div>
+
+                <div class="acc-row">
+                  <button type="button" class="acc-head" aria-expanded="false">
+                    <span class="acc-main">
+                      <span class="acc-meta">
+                        <span class="bdg cat">권한</span>
+                      </span>
+                      <span class="acc-t">IDC 연동은 어떤 권한이 필요한가요?</span>
+                    </span>
+                    <span class="acc-side">
+                      <span class="acc-d">26-08-11</span>
+                      <span class="caret"></span>
+                    </span>
+                  </button>
+                  <div class="acc-panel"><div class="inner"><div class="acc-body">
+                    <p>IDC는 클라우드와 달리 역할(Role) 위임이 없으므로, 스캔 전용 계정을
+                       직접 발급해 등록해야 합니다. 읽기 권한만 있으면 되고 쓰기 권한은 필요 없습니다.</p>
+                  </div></div></div>
+                </div>
+
+                <div class="acc-row">
+                  <button type="button" class="acc-head" aria-expanded="false">
+                    <span class="acc-main">
+                      <span class="acc-meta">
+                        <span class="bdg cat">요금</span>
+                      </span>
+                      <span class="acc-t">스캔 비용은 어떻게 산정되나요?</span>
+                    </span>
+                    <span class="acc-side">
+                      <span class="acc-d">26-08-05</span>
+                      <span class="caret"></span>
+                    </span>
+                  </button>
+                  <div class="acc-panel"><div class="inner"><div class="acc-body">
+                    <p>스캔 대상 테이블 수가 아니라 실제 읽은 데이터량 기준으로 산정됩니다.
+                       연동 제외 DB를 지정하면 그만큼 줄어듭니다.</p>
+                  </div></div></div>
+                </div>
+
+                <div class="acc-row">
+                  <button type="button" class="acc-head" aria-expanded="false">
+                    <span class="acc-main">
+                      <span class="acc-meta">
+                        <span class="bdg cat">연동 요청</span>
+                      </span>
+                      <span class="acc-t">등록 후 스캔 결과를 보기까지 얼마나 걸리나요?</span>
+                    </span>
+                    <span class="acc-side">
+                      <span class="acc-d">26-07-22</span>
+                      <span class="caret"></span>
+                    </span>
+                  </button>
+                  <div class="acc-panel"><div class="inner"><div class="acc-body">
+                    <p>관리자 승인까지 보통 1영업일, 승인 이후 인프라 작업과 첫 스캔에
+                       2~3시간이 걸립니다. 진행 상황은 서비스 목록에서 확인할 수 있습니다.</p>
+                  </div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="keys">
+      <div class="key">
+        <span class="pin">1</span>
+        <span class="kt"><b>Pass 소개 배너</b> — 고정 콘텐츠. 별도 API 없이 프론트가 소유합니다.
+        Admin 편집이 필요해지면 기존 <code>Admin Guides</code> Tag 재사용을 먼저 검토합니다.</span>
+      </div>
+      <div class="key">
+        <span class="pin">2</span>
+        <span class="kt"><b>공지사항 카드</b> — 자기 유형만 담은 독립 목록입니다.
+        <code>GET /install/v1/posts?type=NOTICE</code></span>
+      </div>
+      <div class="key">
+        <span class="pin">3</span>
+        <span class="kt"><b>펼친 본문</b> — 펼치는 시점에 단건 조회로 가져옵니다. 목록 응답에는
+        본문이 없습니다. 받는 동안 스켈레톤을 두고, 한 번 받은 본문은 다시 펴도 재요청하지 않습니다.
+        <code>GET /install/v1/posts/{postId}</code></span>
+      </div>
+      <div class="key">
+        <span class="pin">4</span>
+        <span class="kt"><b>FAQ 카드</b> — 같은 엔드포인트에 <code>type</code>만 다릅니다.
+        <code>GET /install/v1/posts?type=FAQ</code></span>
+      </div>
+      <div class="key">
+        <span class="pin" style="background:var(--ink-3);">·</span>
+        <span class="kt"><b>행 하나가 담는 것</b> — 왼쪽에 Category 배지와 Title,
+        오른쪽 끝에 게시일자(위)와 펼침 표시(아래). 본문은 펼쳤을 때 나옵니다.</span>
+      </div>
+    </div>
+
+    <div class="note">
+      <h3>두 카드가 각자 정렬됩니다 — 카드별 정렬 검증 케이스입니다</h3>
+      <p>
+        고정 글은 <b>자기 카드 안에서만</b> 위로 갑니다. 두 카드 사이에는 순서 관계가 없습니다.
+        왼쪽 공지사항 카드에서 3번째 <b>08-11</b>이 2번째 고정 글 <b>08-10</b>보다 최신인데도 아래에 있고,
+        오른쪽 FAQ 카드에서도 2번째 <b>08-11</b>이 고정 글 <b>08-08</b> 아래입니다.
+        구현 후 이 순서가 나오지 않으면 정렬이 잘못된 것입니다.
+      </p>
+      <p>
+        카드가 나뉘어도 <b>BFF 계약은 그대로</b>입니다. 단일 <code>posts</code> 리소스에
+        <code>type</code>만 붙이면 되므로, 통합 목록이든 분리 카드든 엔드포인트를 새로 만들 일이 없습니다.
+      </p>
+    </div>
+  </section>
+
+  <hr class="rule" />
+
+  <!-- ══════════════════ SCREEN 2 — 전체보기 ══════════════════ -->
+  <section>
+    <div class="sec-head">
+      <span class="route">/pass/notices</span>
+      <h2>전체보기 — Category별 목록</h2>
+      <p>
+        메인 카드의 <b>전체보기</b>가 여는 화면입니다. 같은 게시글을 Category로 묶어 보여주고,
+        행 동작은 메인과 동일한 아코디언입니다. FAQ의 전체보기는 <code>type</code>만 다른 같은 화면입니다.
+      </p>
+    </div>
+
+    <div class="frame-scroll">
+      <div class="frame ui">
+        <div class="nav">
+          <div class="logo">
+            <div class="mark">PA<span>SS</span></div>
+            <div class="desc"><em>PII</em> Agent Self-Service</div>
+          </div>
+          <nav class="navlinks">
+            <a href="#s2"><span class="dot-i"></span>서비스 목록</a>
+            <a href="#s2"><span class="dot-i round"></span>관리자</a>
+            <a href="#s2" class="off">Credentials</a>
+            <a href="#s2" class="off">PII Tag mgmt.</a>
+            <a href="#s2" class="off">PII Map</a>
+          </nav>
+          <div class="navutil">
+            <span class="u on">Notice</span>
+            <span class="u">Guide</span>
+            <span class="u">FAQ</span>
+            <span class="sep"></span>
+            <span class="avatar">CY</span>
+          </div>
+        </div>
+
+        <div class="page">
+          <div>
+            <div class="page-title">공지사항</div>
+            <div class="page-sub">Category별로 모아 보여줍니다. 숨김 처리된 게시글은 나오지 않습니다.</div>
+          </div>
+
+          <div class="grouped">
+            <!-- ⑤ Category 레일 -->
+            <div class="rel">
+              <span class="pin abs" style="top:-10px; left:-10px;">5</span>
+              <nav class="cat-nav">
+                <a class="on" href="#s2">전체 <span class="c">4</span></a>
+                <a href="#s2">배포 <span class="c">2</span></a>
+                <a href="#s2">정책 <span class="c">1</span></a>
+                <a href="#s2">점검 <span class="c">1</span></a>
+              </nav>
+            </div>
+
+            <!-- ⑥ Category 그룹 -->
+            <div class="groups rel">
+              <span class="pin abs" style="top:-10px; left:-10px;">6</span>
+              <div class="group">
+                <div class="group-head">
+                  <span class="gt">배포</span>
+                  <span class="gc">2건</span>
+                </div>
+                <div class="list-card">
+                  <div class="acc-row">
+                    <button type="button" class="acc-head" aria-expanded="false">
+                      <span class="acc-main">
+                        <span class="acc-meta">
+                          <span class="bdg pin"><svg class="ic"><use href="#i-pin" /></svg>고정</span>
+                          <span class="bdg cat">배포</span>
+                        </span>
+                        <span class="acc-t">PII Agent 2.0 배포 안내 및 점검 시간 공지</span>
+                      </span>
+                      <span class="acc-side">
+                        <span class="acc-d">26-08-12</span>
+                        <span class="caret"></span>
+                      </span>
+                    </button>
+                    <div class="acc-panel"><div class="inner"><div class="acc-body">
+                      <p>8월 20일(수) 02:00 ~ 05:00 사이 배포 작업이 진행됩니다. 작업 시간 동안 신규 연동 요청과 스캔 실행이 일시 중단됩니다.</p>
+                    </div></div></div>
+                  </div>
+                  <div class="acc-row">
+                    <button type="button" class="acc-head" aria-expanded="false">
+                      <span class="acc-main">
+                        <span class="acc-meta">
+                          <span class="bdg cat">배포</span>
+                        </span>
+                        <span class="acc-t">8월 정기 점검 결과 안내</span>
+                      </span>
+                      <span class="acc-side">
+                        <span class="acc-d">26-08-11</span>
+                        <span class="caret"></span>
+                      </span>
+                    </button>
+                    <div class="acc-panel"><div class="inner"><div class="acc-body">
+                      <p>8월 정기 점검이 완료되었습니다. 점검 중 확인된 스캔 지연 이슈는 모두 해소되었습니다.</p>
+                    </div></div></div>
+                  </div>
+                </div>
+              </div>
+              <div class="group">
+                <div class="group-head">
+                  <span class="gt">정책</span>
+                  <span class="gc">1건</span>
+                </div>
+                <div class="list-card">
+                  <div class="acc-row">
+                    <button type="button" class="acc-head" aria-expanded="false">
+                      <span class="acc-main">
+                        <span class="acc-meta">
+                          <span class="bdg pin"><svg class="ic"><use href="#i-pin" /></svg>고정</span>
+                          <span class="bdg cat">정책</span>
+                        </span>
+                        <span class="acc-t">스캔 대상 제외 DB 등록 정책이 변경됩니다</span>
+                      </span>
+                      <span class="acc-side">
+                        <span class="acc-d">26-08-10</span>
+                        <span class="caret"></span>
+                      </span>
+                    </button>
+                    <div class="acc-panel"><div class="inner"><div class="acc-body">
+                      <p>9월 1일부터 연동 제외 DB는 서비스 담당자가 직접 등록할 수 있습니다. 기존 운영팀 요청 절차도 그대로 유지됩니다.</p>
+                    </div></div></div>
+                  </div>
+                </div>
+              </div>
+              <div class="group">
+                <div class="group-head">
+                  <span class="gt">점검</span>
+                  <span class="gc">1건</span>
+                </div>
+                <div class="list-card">
+                  <div class="acc-row">
+                    <button type="button" class="acc-head" aria-expanded="false">
+                      <span class="acc-main">
+                        <span class="acc-meta">
+                          <span class="bdg cat">점검</span>
+                        </span>
+                        <span class="acc-t">7월 정기 점검 결과 안내</span>
+                      </span>
+                      <span class="acc-side">
+                        <span class="acc-d">26-07-30</span>
+                        <span class="caret"></span>
+                      </span>
+                    </button>
+                    <div class="acc-panel"><div class="inner"><div class="acc-body">
+                      <p>7월 정기 점검이 완료되었습니다. 조치가 필요한 항목은 담당자에게 개별 안내되었습니다.</p>
+                    </div></div></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="keys">
+      <div class="key">
+        <span class="pin">5</span>
+        <span class="kt"><b>Category 레일</b> — 이름과 표시 순서는 Category API가 소유합니다.
+        옆 숫자는 화면에 보이는 게시글 수라 게시글 응답에서 셉니다.
+        <code>GET /install/v1/post-categories?type=NOTICE</code></span>
+      </div>
+      <div class="key">
+        <span class="pin">6</span>
+        <span class="kt"><b>Category 그룹</b> — 메인과 <b>같은 응답</b>을 클라이언트가
+        <code>categoryId</code>로 묶은 것입니다. 그룹 전용 API는 없습니다.
+        <code>GET /install/v1/posts?type=NOTICE</code></span>
+      </div>
+      <div class="key">
+        <span class="pin" style="background:var(--ink-3);">·</span>
+        <span class="kt"><b>고정 글은 그룹 안에서만</b> 위로 갑니다. 그룹을 가로질러
+        맨 위로 끌어올리지 않습니다 — 그러면 Category 묶음이 깨집니다.</span>
+      </div>
+      <div class="key">
+        <span class="pin" style="background:var(--ink-3);">·</span>
+        <span class="kt"><b>게시글이 0건인 Category</b>는 그룹을 그리지 않습니다.
+        레일에도 노출하지 않아 빈 화면으로 들어가는 길을 막습니다.</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════ SCREEN 3 — Admin ══════════════════ -->
+  <section>
+    <div class="sec-head">
+      <span class="route">/pass/admin/posts</span>
+      <h2>Admin — 게시글 · Category 관리</h2>
+      <p>
+        게시글 목록과 Category 관리를 한 화면에 둡니다. Category 삭제 가능 여부가 게시글 수에
+        걸려 있어서, 두 패널을 오가지 않고 같은 화면에서 판단할 수 있어야 합니다.
+      </p>
+    </div>
+
+    <div class="frame-scroll">
+      <div class="frame ui">
+        <div class="nav">
+          <div class="logo">
+            <div class="mark">PA<span>SS</span></div>
+            <div class="desc"><em>PII</em> Agent Self-Service</div>
+          </div>
+          <nav class="navlinks">
+            <a href="#s2"><span class="dot-i"></span>서비스 목록</a>
+            <a href="#s2" class="on"><span class="dot-i round"></span>관리자</a>
+            <a href="#s2" class="off">Credentials</a>
+            <a href="#s2" class="off">PII Tag mgmt.</a>
+            <a href="#s2" class="off">PII Map</a>
+          </nav>
+          <div class="navutil">
+            <span class="u">Notice</span>
+            <span class="u">Guide</span>
+            <span class="u">FAQ</span>
+            <span class="sep"></span>
+            <span class="avatar">CY</span>
+          </div>
+        </div>
+
+        <div class="page">
+          <div>
+            <div class="page-title">FAQ · 공지사항 관리</div>
+            <div class="page-sub">숨김 처리된 게시글을 포함해 전체를 확인할 수 있습니다.</div>
+          </div>
+
+          <!-- ⑤ 공지사항 관리(좌) + ⑥ FAQ 관리(우) — 사용자 화면과 같은 카드 구조 -->
+          <div class="dual">
+            <div class="rel">
+              <span class="pin abs" style="top:-10px; left:-10px;">7</span>
+              <div class="list-card">
+                <div class="list-head">
+                  <span class="h">공지사항</span>
+                  <span class="n">5</span>
+                  <span class="rail">
+                    <span class="sub">숨김 1</span>
+                    <button type="button" class="icon-btn" data-open-filter="NOTICE"
+                            aria-expanded="false" aria-label="필터">
+                      <svg class="ic"><use href="#i-filter" /></svg>
+                      <span class="dot" hidden>0</span>
+                    </button>
+                    <button type="button" class="btn gho" data-open-modal="NOTICE">Category 관리</button>
+                    <span class="rel"><span class="pin abs" style="top:-12px; right:-12px;">8</span><button type="button" class="btn pri sm">＋ 게시글 등록</button></span>
+                  </span>
+                  <div class="filter-pop" data-filter-pop="NOTICE">
+                    <div class="fgroup">
+                      <span class="lb">Category</span>
+                      <div class="fchips">
+                        <button type="button" class="fchip on" data-fchip="cat">전체</button>
+                        <button type="button" class="fchip" data-fchip="cat">배포</button>
+                        <button type="button" class="fchip" data-fchip="cat">정책</button>
+                        <button type="button" class="fchip" data-fchip="cat">점검</button>
+                        <button type="button" class="fchip" data-fchip="cat">이벤트</button>
+                      </div>
+                    </div>
+                    <div class="fgroup">
+                      <span class="lb">노출 상태</span>
+                      <div class="fchips">
+                        <button type="button" class="fchip on" data-fchip="vis">전체</button>
+                        <button type="button" class="fchip" data-fchip="vis">노출</button>
+                        <button type="button" class="fchip" data-fchip="vis">숨김</button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="adm-row">
+                  <span class="acc-main">
+                    <span class="acc-meta">
+                        <span class="bdg pin"><svg class="ic"><use href="#i-pin" /></svg>고정</span>
+                        <span class="bdg cat">배포</span>
+                    </span>
+                    <span class="acc-t">PII Agent 2.0 배포 안내 및 점검 시간 공지</span>
+                  </span>
+                  <span class="adm-side">
+                    <span class="acc-d">26-08-12</span>
+                    <span class="acts">
+                        <button type="button" class="btn gho">수정</button>
+                        <button type="button" class="btn gho"><svg class="ic"><use href="#i-pin" /></svg>고정 해제</button>
+                        <button type="button" class="btn gho">숨김</button>
+                    </span>
+                  </span>
+                </div>
+                <div class="adm-row">
+                  <span class="acc-main">
+                    <span class="acc-meta">
+                        <span class="bdg pin"><svg class="ic"><use href="#i-pin" /></svg>고정</span>
+                        <span class="bdg cat">정책</span>
+                    </span>
+                    <span class="acc-t">스캔 대상 제외 DB 등록 정책이 변경됩니다</span>
+                  </span>
+                  <span class="adm-side">
+                    <span class="acc-d">26-08-10</span>
+                    <span class="acts">
+                        <button type="button" class="btn gho">수정</button>
+                        <button type="button" class="btn gho"><svg class="ic"><use href="#i-pin" /></svg>고정 해제</button>
+                        <button type="button" class="btn gho">숨김</button>
+                    </span>
+                  </span>
+                </div>
+                <div class="adm-row">
+                  <span class="acc-main">
+                    <span class="acc-meta">
+                        <span class="bdg cat">배포</span>
+                    </span>
+                    <span class="acc-t">8월 정기 점검 결과 안내</span>
+                  </span>
+                  <span class="adm-side">
+                    <span class="acc-d">26-08-11</span>
+                    <span class="acts">
+                        <button type="button" class="btn gho">수정</button>
+                        <button type="button" class="btn gho"><svg class="ic"><use href="#i-pin" /></svg>상단 고정</button>
+                        <button type="button" class="btn gho">숨김</button>
+                    </span>
+                  </span>
+                </div>
+                <div class="adm-row">
+                  <span class="acc-main">
+                    <span class="acc-meta">
+                        <span class="bdg cat">점검</span>
+                    </span>
+                    <span class="acc-t">7월 정기 점검 결과 안내</span>
+                  </span>
+                  <span class="adm-side">
+                    <span class="acc-d">26-07-30</span>
+                    <span class="acts">
+                      <button type="button" class="btn gho">수정</button>
+                      <button type="button" class="btn gho"><svg class="ic"><use href="#i-pin" /></svg>상단 고정</button>
+                      <button type="button" class="btn gho">숨김</button>
+                    </span>
+                  </span>
+                </div>
+                <div class="adm-row is-hidden">
+                  <span class="acc-main">
+                    <span class="acc-meta">
+                        <span class="bdg hide"><svg class="ic"><use href="#i-eye-off" /></svg>숨김</span>
+                        <span class="bdg cat">점검</span>
+                    </span>
+                    <span class="acc-t">6월 정기 점검 결과 안내</span>
+                  </span>
+                  <span class="adm-side">
+                    <span class="acc-d">26-06-30</span>
+                    <span class="acts">
+                      <button type="button" class="btn gho">수정</button>
+                      <button type="button" class="btn gho">숨김 해제</button>
+                    </span>
+                  </span>
+                </div>
+              </div>
+            </div>
+            <div class="rel">
+              <span class="pin abs" style="top:-10px; left:-10px;">9</span>
+              <div class="list-card">
+                <div class="list-head">
+                  <span class="h">FAQ</span>
+                  <span class="n">5</span>
+                  <span class="rail">
+                    <span class="sub">숨김 1</span>
+                    <button type="button" class="icon-btn" data-open-filter="FAQ"
+                            aria-expanded="false" aria-label="필터">
+                      <svg class="ic"><use href="#i-filter" /></svg>
+                      <span class="dot" hidden>0</span>
+                    </button>
+                    <button type="button" class="btn gho" data-open-modal="FAQ">Category 관리</button>
+                    <button type="button" class="btn pri sm">＋ 게시글 등록</button>
+                  </span>
+                  <div class="filter-pop" data-filter-pop="FAQ">
+                    <div class="fgroup">
+                      <span class="lb">Category</span>
+                      <div class="fchips">
+                        <button type="button" class="fchip on" data-fchip="cat">전체</button>
+                        <button type="button" class="fchip" data-fchip="cat">연동 요청</button>
+                        <button type="button" class="fchip" data-fchip="cat">권한</button>
+                        <button type="button" class="fchip" data-fchip="cat">요금</button>
+                        <button type="button" class="fchip" data-fchip="cat">계정</button>
+                      </div>
+                    </div>
+                    <div class="fgroup">
+                      <span class="lb">노출 상태</span>
+                      <div class="fchips">
+                        <button type="button" class="fchip on" data-fchip="vis">전체</button>
+                        <button type="button" class="fchip" data-fchip="vis">노출</button>
+                        <button type="button" class="fchip" data-fchip="vis">숨김</button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="adm-row">
+                  <span class="acc-main">
+                    <span class="acc-meta">
+                        <span class="bdg pin"><svg class="ic"><use href="#i-pin" /></svg>고정</span>
+                        <span class="bdg cat">연동 요청</span>
+                    </span>
+                    <span class="acc-t">Test Connection이 계속 실패하면 무엇을 확인해야 하나요?</span>
+                  </span>
+                  <span class="adm-side">
+                    <span class="acc-d">26-08-08</span>
+                    <span class="acts">
+                        <button type="button" class="btn gho">수정</button>
+                        <button type="button" class="btn gho"><svg class="ic"><use href="#i-pin" /></svg>고정 해제</button>
+                        <button type="button" class="btn gho">숨김</button>
+                    </span>
+                  </span>
+                </div>
+                <div class="adm-row">
+                  <span class="acc-main">
+                    <span class="acc-meta">
+                        <span class="bdg cat">권한</span>
+                    </span>
+                    <span class="acc-t">IDC 연동은 어떤 권한이 필요한가요?</span>
+                  </span>
+                  <span class="adm-side">
+                    <span class="acc-d">26-08-11</span>
+                    <span class="acts">
+                        <button type="button" class="btn gho">수정</button>
+                        <button type="button" class="btn gho"><svg class="ic"><use href="#i-pin" /></svg>상단 고정</button>
+                        <button type="button" class="btn gho">숨김</button>
+                    </span>
+                  </span>
+                </div>
+                <div class="adm-row">
+                  <span class="acc-main">
+                    <span class="acc-meta">
+                        <span class="bdg cat">요금</span>
+                    </span>
+                    <span class="acc-t">스캔 비용은 어떻게 산정되나요?</span>
+                  </span>
+                  <span class="adm-side">
+                    <span class="acc-d">26-08-05</span>
+                    <span class="acts">
+                        <button type="button" class="btn gho">수정</button>
+                        <button type="button" class="btn gho"><svg class="ic"><use href="#i-pin" /></svg>상단 고정</button>
+                        <button type="button" class="btn gho">숨김</button>
+                    </span>
+                  </span>
+                </div>
+                <div class="adm-row">
+                  <span class="acc-main">
+                    <span class="acc-meta">
+                        <span class="bdg cat">연동 요청</span>
+                    </span>
+                    <span class="acc-t">등록 후 스캔 결과를 보기까지 얼마나 걸리나요?</span>
+                  </span>
+                  <span class="adm-side">
+                    <span class="acc-d">26-07-22</span>
+                    <span class="acts">
+                      <button type="button" class="btn gho">수정</button>
+                      <button type="button" class="btn gho"><svg class="ic"><use href="#i-pin" /></svg>상단 고정</button>
+                      <button type="button" class="btn gho">숨김</button>
+                    </span>
+                  </span>
+                </div>
+                <div class="adm-row is-hidden">
+                  <span class="acc-main">
+                    <span class="acc-meta">
+                        <span class="bdg hide"><svg class="ic"><use href="#i-eye-off" /></svg>숨김</span>
+                        <span class="bdg cat">권한</span>
+                    </span>
+                    <span class="acc-t">구버전 콘솔에서 권한을 설정하려면?</span>
+                  </span>
+                  <span class="adm-side">
+                    <span class="acc-d">26-06-18</span>
+                    <span class="acts">
+                      <button type="button" class="btn gho">수정</button>
+                      <button type="button" class="btn gho">숨김 해제</button>
+                    </span>
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ⑧ Category 관리 모달 — 카드 헤더의 "Category 관리"로 열립니다 -->
+        <div class="modal-wrap" id="cat-modal" role="dialog" aria-modal="true" aria-label="Category 관리">
+          <div class="modal rel">
+            <span class="pin abs" style="top:-10px; left:-10px;">10</span>
+            <div class="modal-head">
+              <div class="mt">Category 관리</div>
+              <div class="ms">게시글이 남아 있는 Category는 삭제할 수 없습니다.</div>
+            </div>
+            <div class="modal-body">
+              <div class="field">
+                <span class="lb">유형</span>
+                <span class="seg">
+                  <span data-seg="NOTICE" class="on">공지사항</span>
+                  <span data-seg="FAQ">FAQ</span>
+                </span>
+              </div>
+              <div class="field">
+                <span class="lb">새 Category 이름</span>
+                <span class="inp">예: 점검</span>
+              </div>
+              <div class="field">
+                <span class="lb">등록된 Category</span>
+              <div class="cat-list" data-cat-list="NOTICE">
+                <div class="cat-row"><span class="nm">배포</span><span class="ct">2</span><button type="button" class="btn dis">삭제</button></div>
+                <div class="cat-row"><span class="nm">정책</span><span class="ct">1</span><button type="button" class="btn dis">삭제</button></div>
+                <div class="cat-row"><span class="nm">점검</span><span class="ct">2</span><button type="button" class="btn dis">삭제</button></div>
+                <div class="cat-row"><span class="nm">이벤트</span><span class="ct">0</span><button type="button" class="btn gho">삭제</button></div>
+              </div>
+              <div class="cat-list" data-cat-list="FAQ" hidden>
+                <div class="cat-row"><span class="nm">연동 요청</span><span class="ct">2</span><button type="button" class="btn dis">삭제</button></div>
+                <div class="cat-row"><span class="nm">권한</span><span class="ct">2</span><button type="button" class="btn dis">삭제</button></div>
+                <div class="cat-row"><span class="nm">요금</span><span class="ct">1</span><button type="button" class="btn dis">삭제</button></div>
+                <div class="cat-row"><span class="nm">계정</span><span class="ct">0</span><button type="button" class="btn gho">삭제</button></div>
+              </div>
+              </div>
+            </div>
+            <div class="modal-foot">
+              <span class="modal-note">게시글 수가 0인 Category만 삭제가 열립니다.</span>
+              <button type="button" class="btn sec" data-close-modal>취소</button>
+              <button type="button" class="btn pri">추가</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="keys">
+      <div class="key">
+        <span class="pin">7</span>
+        <span class="kt"><b>공지사항 관리 카드</b> — 숨김 포함. 정렬은 사용자 화면과 동일합니다.
+        <code>GET /install/v1/admin/posts?type=NOTICE</code></span>
+      </div>
+      <div class="key">
+        <span class="pin">8</span>
+        <span class="kt"><b>게시글 등록 CTA</b> — 카드마다 하나. 그 카드의 유형이 이미 정해진
+        상태로 폼이 열립니다. <code>POST /install/v1/admin/posts</code></span>
+      </div>
+      <div class="key">
+        <span class="pin">9</span>
+        <span class="kt"><b>FAQ 관리 카드</b> — 같은 엔드포인트에 <code>type</code>만 다릅니다.
+        <code>GET /install/v1/admin/posts?type=FAQ</code></span>
+      </div>
+      <div class="key">
+        <span class="pin">10</span>
+        <span class="kt"><b>Category 관리 모달</b> — 카드 헤더의 버튼으로 열립니다. 눌러보세요.
+        <code>GET|POST|DELETE /install/v1/admin/post-categories</code></span>
+      </div>
+      <div class="key">
+        <span class="pin" style="background:var(--ink-3);">·</span>
+        <span class="kt"><b>행 안의 세 버튼</b>은 각각 다른 엔드포인트입니다 — 수정은
+        <code>PUT {postId}</code>, 고정은 <code>PUT …/pinned</code>, 숨김은 <code>PUT …/hidden</code>.</span>
+      </div>
+      <div class="key">
+        <span class="pin" style="background:var(--ink-3);">·</span>
+        <span class="kt"><b>필터 아이콘</b> — 선택값이 그대로 쿼리 파라미터가 됩니다.
+        Category는 <code>categoryId</code>, 노출 상태는 <code>hidden</code>.
+        아이콘 위 숫자는 적용 중인 필터 개수입니다.</span>
+      </div>
+    </div>
+
+    <div class="note">
+      <h3>Admin을 사용자 화면과 같은 카드 구조로 맞췄습니다</h3>
+      <p>
+        이전 안은 표 하나에 유형·Category·숨김 필터를 얹고 Category를 옆 패널로 뺀 형태였습니다.
+        사용자 화면은 카드 두 장인데 Admin만 표라서, 같은 데이터를 두 가지 방식으로 읽어야 했습니다.
+        지금은 <b>공지사항(좌) · FAQ(우)</b>로 같은 구조를 쓰고, 유형 필터가 카드 분리로 대체됩니다.
+        행 레이아웃도 동일합니다 — 왼쪽에 배지와 Title, 오른쪽 끝에 게시일자(위)와 작업 버튼(아래).
+      </p>
+      <p>
+        <b>Category는 모달로 뺐습니다.</b> 항상 펼쳐진 옆 패널은 자리를 계속 차지하는데,
+        Category 추가·삭제는 게시글 관리보다 훨씬 드물게 하는 일입니다.
+      </p>
+      <p>
+        숨김은 삭제가 아니라 되돌릴 수 있는 상태이므로, 마지막 행은 회색으로 죽이는 대신
+        빗금 배경 + <b>숨김</b> 배지 + <b>숨김 해제</b> 버튼으로 표시했습니다.
+        같은 이유로 숨김 행에는 <b>상단 고정</b>이 없습니다 — 사용자에게 보이지 않는 글을
+        상단에 고정하는 동작은 의미가 없습니다.
+      </p>
+    </div>
+  </section>
+
+  <hr class="rule" />
+
+  <!-- ══════════════════ SCREEN 4 — 게시글 등록/수정 ══════════════════ -->
+  <section>
+    <div class="sec-head">
+      <span class="route">/pass/admin/posts/new</span>
+      <h2>게시글 등록 — 언어 탭 · 서식 · 이미지</h2>
+      <p>
+        Admin 카드의 <b>＋ 게시글 등록</b>과 행의 <b>수정</b>이 여는 화면입니다.
+        한국어/영어 네 값이 모두 필수라 언어 탭이 있고, 본문 툴바는 allow-list와 1:1로 대응합니다.
+      </p>
+    </div>
+
+    <div class="frame-scroll">
+      <div class="frame ui">
+        <div class="nav">
+          <div class="logo">
+            <div class="mark">PA<span>SS</span></div>
+            <div class="desc"><em>PII</em> Agent Self-Service</div>
+          </div>
+          <nav class="navlinks">
+            <a href="#s4"><span class="dot-i"></span>서비스 목록</a>
+            <a href="#s4" class="on"><span class="dot-i round"></span>관리자</a>
+            <a href="#s4" class="off">Credentials</a>
+            <a href="#s4" class="off">PII Tag mgmt.</a>
+            <a href="#s4" class="off">PII Map</a>
+          </nav>
+          <div class="navutil">
+            <span class="u">Notice</span>
+            <span class="u">Guide</span>
+            <span class="u">FAQ</span>
+            <span class="sep"></span>
+            <span class="avatar">CY</span>
+          </div>
+        </div>
+
+        <div class="page">
+          <div>
+            <div class="page-title">게시글 등록</div>
+            <div class="page-sub">공지사항 · 한국어와 영어를 모두 작성해야 저장됩니다.</div>
+          </div>
+
+          <div class="form-card">
+            <div class="form-sec">
+              <div class="form-grid">
+                <span class="lb">유형<span class="req">*</span></span>
+                <span class="seg">
+                  <span class="on">공지사항</span>
+                  <span>FAQ</span>
+                </span>
+
+                <span class="lb">Category</span>
+                <span class="sel">배포<span class="cv"></span></span>
+              </div>
+            </div>
+
+            <!-- ⑪ 언어 탭 -->
+            <div class="form-sec rel">
+              <span class="pin abs" style="top:14px; left:-10px;">11</span>
+              <div class="lang-tabs">
+                <span class="seg">
+                  <span class="on">한국어</span>
+                  <span>English</span>
+                </span>
+                <span class="lang-state done">한국어 작성됨</span>
+                <span class="lang-state todo">English 미작성</span>
+              </div>
+              <div class="hint">
+                네 값(Title ko/en · 본문 ko/en)이 모두 채워져야 저장됩니다. 언어별 fallback은 없습니다.
+              </div>
+            </div>
+
+            <div class="form-sec">
+              <div class="form-grid">
+                <span class="lb">Title (한국어)<span class="req">*</span></span>
+                <span class="inp-line">PII Agent 2.0 배포 안내 및 점검 시간 공지</span>
+              </div>
+            </div>
+
+            <!-- ⑫ 본문 툴바 + ⑬ 이미지 -->
+            <div class="form-sec rel">
+              <span class="pin abs" style="top:14px; left:-10px;">12</span>
+              <div class="form-grid">
+                <span class="lb">본문 (한국어)<span class="req">*</span></span>
+                <div>
+                  <div class="rt">
+                    <div class="rt-bar">
+                      <button type="button" class="rt-btn">H4</button>
+                      <button type="button" class="rt-btn"><b>B</b></button>
+                      <button type="button" class="rt-btn"><em>I</em></button>
+                      <button type="button" class="rt-btn">&lt;/&gt;</button>
+                      <span class="rt-sep"></span>
+                      <button type="button" class="rt-btn">• 목록</button>
+                      <button type="button" class="rt-btn">1. 목록</button>
+                      <span class="rt-sep"></span>
+                      <button type="button" class="rt-btn">
+                        <svg class="ic"><use href="#i-link" /></svg>링크
+                      </button>
+                      <span class="rel">
+                        <span class="pin abs" style="top:-14px; right:-12px;">13</span>
+                        <button type="button" class="rt-btn img">
+                          <svg class="ic"><use href="#i-image" /></svg>이미지
+                        </button>
+                      </span>
+                    </div>
+                    <div class="rt-body">
+                      <h4>작업 일정</h4>
+                      <p>8월 20일(수) <strong>02:00 ~ 05:00</strong> 사이 PII Agent 2.0 배포 작업이
+                         진행됩니다.</p>
+                      <ul>
+                        <li>진행 중인 파이프라인은 완료까지 실행됩니다.</li>
+                        <li>점검 중에는 <code>/services</code> 화면이 읽기 전용입니다.</li>
+                      </ul>
+                      <h4>점검 중 화면</h4>
+                      <span class="rt-img">
+                        <img src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 320 180'><rect width='320' height='180' fill='%23F8FAFC'/><rect width='320' height='26' fill='%23E8EBEF'/><circle cx='14' cy='13' r='4' fill='%23C3CAD3'/><circle cx='28' cy='13' r='4' fill='%23C3CAD3'/><circle cx='42' cy='13' r='4' fill='%23C3CAD3'/><rect x='16' y='42' width='80' height='122' rx='6' fill='%23FFFFFF' stroke='%23E5E7EB'/><rect x='26' y='54' width='60' height='8' rx='4' fill='%23E5E7EB'/><rect x='26' y='70' width='44' height='8' rx='4' fill='%23D6E4FF'/><rect x='26' y='86' width='52' height='8' rx='4' fill='%23E5E7EB'/><rect x='26' y='102' width='38' height='8' rx='4' fill='%23E5E7EB'/><rect x='108' y='42' width='196' height='58' rx='6' fill='%23FFFFFF' stroke='%23E5E7EB'/><rect x='120' y='56' width='90' height='10' rx='5' fill='%239CC0FF'/><rect x='120' y='74' width='150' height='8' rx='4' fill='%23E5E7EB'/><rect x='108' y='110' width='196' height='54' rx='6' fill='%23FFFFFF' stroke='%23E5E7EB'/><rect x='122' y='140' width='16' height='14' rx='2' fill='%237FB0FF'/><rect x='146' y='128' width='16' height='26' rx='2' fill='%237FB0FF'/><rect x='170' y='134' width='16' height='20' rx='2' fill='%237FB0FF'/><rect x='194' y='122' width='16' height='32' rx='2' fill='%237FB0FF'/><rect x='218' y='132' width='16' height='22' rx='2' fill='%237FB0FF'/></svg>" alt="점검 중 서비스 목록 화면" />
+                        <span class="tagline">maintenance-notice.png · 248KB · 320×180 — 끌어서 문단 사이 위치를 옮깁니다</span>
+                      </span>
+                      <p style="margin-top:26px;">자세한 내용은 <a href="#s4">릴리스 노트</a>에서
+                         확인하세요.</p>
+                    </div>
+                  </div>
+                  <div class="hint">
+                    png · jpeg · webp / 파일 1개당 5MB 이하. 업로드 후 본문에는 URL만 저장됩니다.<br />
+                    정렬·크기 조절은 없습니다 — 조정할 수 있는 것은 문단 사이 <b>위치</b>뿐입니다.
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="form-foot">
+              <span class="warn">
+                <svg class="ic" style="width:14px;height:14px;"><use href="#i-eye-off" /></svg>
+                English Title과 본문이 비어 있어 저장할 수 없습니다
+              </span>
+              <span class="btn sec">취소</span>
+              <span class="btn off">저장</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="keys">
+      <div class="key">
+        <span class="pin">11</span>
+        <span class="kt"><b>언어 탭</b> — 저장은 네 값이 모두 채워졌을 때만 열립니다.
+        한쪽만 저장하는 경로가 없으므로 조회 쪽에 fallback 규칙이 들어가지 않습니다.
+        <code>titles.ko/en</code>, <code>contents.ko/en</code></span>
+      </div>
+      <div class="key">
+        <span class="pin">12</span>
+        <span class="kt"><b>본문 툴바</b> — 버튼이 allow-list와 1:1입니다.
+        <code>h4</code> · <code>strong</code> · <code>em</code> · <code>code</code> ·
+        <code>ul</code> · <code>ol</code> · <code>a</code> · <code>img</code>.
+        여기에 없는 서식은 저장 단계에서 거부됩니다.</span>
+      </div>
+      <div class="key">
+        <span class="pin">13</span>
+        <span class="kt"><b>이미지 업로드</b> — 파일을 먼저 올리고 받은 URL을 본문에 넣습니다.
+        <code>POST /install/v1/admin/posts/images</code></span>
+      </div>
+      <div class="key">
+        <span class="pin" style="background:var(--ink-3);">·</span>
+        <span class="kt"><b>저장</b>은 전체 교체(<code>PUT</code>)입니다. 수정 화면은 기존 네 값을
+        모두 채운 채로 열리고, 한국어만 고쳐도 네 값을 그대로 다시 보냅니다.</span>
+      </div>
+    </div>
+
+    <div class="note">
+      <h3>툴바에 없는 것이 곧 계약입니다</h3>
+      <p>
+        글꼴·색·크기 버튼이 없습니다. allow-list에 <code>style</code>과 <code>class</code> 속성이
+        없어서, 있어도 저장 단계에서 거부됩니다. "관리자는 폰트 스타일을 수정할 수 없다"는
+        요구사항이 UI 제약이 아니라 <b>계약 제약</b>으로 지켜집니다.
+      </p>
+      <p>
+        이미지에도 정렬·크기 핸들이 없습니다. 선택하면 나오는 것은 위치를 옮기는 핸들뿐입니다.
+        표시 폭은 CSS가 정하고, <code>width</code>/<code>height</code>는 업로드 응답이 준
+        원본 픽셀 크기를 그대로 기록한 값입니다 — 펼칠 때 이미지가 늦게 떠서 본문이 밀리는 것을 막습니다.
+      </p>
+      <p>
+        캡션(<code>figcaption</code>)도 allow-list에 없습니다. 이미지 설명이 필요하면
+        이미지 아래 문단으로 씁니다.
+      </p>
+    </div>
+  </section>
+
+  <hr class="rule" />
+
+  <!-- ══════════════════ MAPPING ══════════════════ -->
+  <section>
+    <div class="sec-head">
+      <h2>화면 → 엔드포인트 매핑</h2>
+      <p>이 화면들이 실제로 호출하는 것만 적었습니다. 목록에 없는 엔드포인트는 이 두 화면 밖에서 쓰입니다.</p>
+    </div>
+    <div class="maptable-scroll">
+      <table class="maptable">
+        <thead>
+          <tr><th style="width:96px;">화면</th><th style="width:150px;">동작</th><th>엔드포인트</th><th style="width:290px;">비고</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><b>메인</b></td><td>공지사항 카드 (좌)</td><td><code>GET /install/v1/posts?type=NOTICE</code></td><td>숨김 제외 · 정렬 완료 · <b>본문 없음</b></td></tr>
+          <tr><td><b>메인</b></td><td>FAQ 카드 (우)</td><td><code>GET /install/v1/posts?type=FAQ</code></td><td>카드마다 1회, 총 2회 호출</td></tr>
+          <tr><td><b>메인</b></td><td>아코디언 펼침</td><td><code>GET /install/v1/posts/{postId}</code></td><td>본문은 목록에 없음. 펼칠 때 조회</td></tr>
+          <tr><td><b>메인</b></td><td>URL 직접 접근</td><td><code>GET /install/v1/posts/{postId}</code></td><td>같은 엔드포인트. 숨김 글이면 404</td></tr>
+          <tr><td><b>전체보기</b></td><td>게시글</td><td><code>GET /install/v1/posts?type=NOTICE</code></td><td>메인과 같은 응답(본문 없음). 그룹화는 클라이언트가 수행</td></tr>
+          <tr><td><b>전체보기</b></td><td>Category 레일</td><td><code>GET /install/v1/post-categories?type=NOTICE</code></td><td>이름과 표시 순서만. 건수는 게시글 응답에서 셈</td></tr>
+          <tr><td><b>Admin</b></td><td>공지사항 카드 (좌)</td><td><code>GET /install/v1/admin/posts?type=NOTICE</code></td><td>숨김 포함 · <code>hidden</code> 노출 · 본문 없음</td></tr>
+          <tr><td><b>Admin</b></td><td>FAQ 카드 (우)</td><td><code>GET /install/v1/admin/posts?type=FAQ</code></td><td>카드마다 1회, 총 2회 호출</td></tr>
+          <tr><td><b>등록·수정</b></td><td>이미지 업로드</td><td><code>POST /install/v1/admin/posts/images</code></td><td>요청 1회 1파일 · 5MB 이하. 본문에는 URL만 저장</td></tr>
+          <tr><td><b>Admin</b></td><td>등록 CTA</td><td><code>POST /install/v1/admin/posts</code></td><td>카드의 <code>type</code>이 이미 정해진 채로 열림</td></tr>
+          <tr><td><b>Admin</b></td><td>수정</td><td><code>PUT /install/v1/admin/posts/{postId}</code></td><td>전체 교체 · <code>updatedAt</code>만 갱신</td></tr>
+          <tr><td><b>Admin</b></td><td>고정 / 해제</td><td><code>PUT /install/v1/admin/posts/{postId}/pinned</code></td><td>같은 상태로 눌러도 200</td></tr>
+          <tr><td><b>Admin</b></td><td>숨김 / 복구</td><td><code>PUT /install/v1/admin/posts/{postId}/hidden</code></td><td>삭제 엔드포인트는 없음</td></tr>
+          <tr><td><b>Admin</b></td><td>Category 목록</td><td><code>GET /install/v1/admin/post-categories</code></td><td><code>postCount</code>로 삭제 버튼 판단</td></tr>
+          <tr><td><b>Admin</b></td><td>Category 추가</td><td><code>POST /install/v1/admin/post-categories</code></td><td>같은 유형 안에서 이름 중복 불가</td></tr>
+          <tr><td><b>Admin</b></td><td>Category 삭제</td><td><code>DELETE /install/v1/admin/post-categories/{categoryId}</code></td><td>잔여 게시글 있으면 409</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <hr class="rule" />
+
+  <!-- ══════════════════ OPEN ══════════════════ -->
+  <section>
+    <div class="sec-head">
+      <h2>확인이 필요한 것</h2>
+      <p>목업을 그리면서 새로 드러난 항목입니다. API 초안의 D1–D11과 별개입니다.</p>
+    </div>
+
+    <div class="note">
+      <h3>보라색 배너는 지금 디자인 시스템으로 만들 수 없습니다</h3>
+      <p>
+        DESIGN.md는 <code>primary-accent</code>(#4F46E5)를 <b>상단 네비게이션 그라디언트의 오른쪽 정지점으로만</b>
+        허용하고 단독 배경으로 쓰지 말라고 명시합니다. 보라 계열 중 자유롭게 쓸 수 있는 토큰은
+        <code>provider-sdu</code>(#9333EA)뿐인데 이건 SDU 프로바이더 색이라 의미가 충돌합니다.
+        목업에는 요청하신 대로 그렸지만, 구현 전에 <b>DESIGN.md의 <code>colors:</code>에 배너용 토큰을 먼저 추가</b>해야
+        합니다 — 저장소 규칙상 토큰 없이 색을 쓰는 것은 막혀 있습니다(⛔ #4, post-edit 훅).
+      </p>
+    </div>
+
+    <div class="open-list">
+      <div class="open-item">
+        <span class="tag">진입 경로</span>
+        <span class="ot"><b>이 화면에 어떻게 들어오나요?</b> 현재 TopNav 우측의 Notice · Guide · FAQ 세 항목은
+        모두 "준비 중" 토스트만 띄우는 placeholder입니다. Notice와 FAQ가 같은 화면(<code>/pass/main</code>)의
+        서로 다른 필터로 들어가는 건지, 별도 메뉴인지 정해야 링크를 붙일 수 있습니다.</span>
+      </div>
+      <div class="open-item">
+        <span class="tag">아코디언</span>
+        <span class="ot"><b>동시에 여러 개 펼칠 수 있게 할까요?</b> 지금은 각 행이 독립 토글이라
+        두 답변을 나란히 두고 볼 수 있습니다. 한 번에 하나만 열리는 방식이 필요하면 알려주세요 —
+        BFF 계약과는 무관한 화면 동작입니다.</span>
+      </div>
+      <div class="open-item">
+        <span class="tag">전체보기</span>
+        <span class="ot"><b>Category 레일을 앵커로 볼지, 필터로 볼지</b> 정해야 합니다. 지금은
+        앵커(클릭하면 해당 그룹으로 스크롤, 모든 그룹은 계속 표시)로 그렸습니다.
+        필터로 하면 한 번에 한 Category만 보이고 URL에 상태가 남습니다.</span>
+      </div>
+      <div class="open-item">
+        <span class="tag">Admin 진입</span>
+        <span class="ot"><b>관리자 메뉴 위치.</b> 목업에서는 기존 <code>관리자</code> 탭 하위로 두었습니다.
+        현재 그 탭은 파이프라인 대시보드로 가므로, 게시글 관리를 그 안의 서브메뉴로 넣을지
+        별도 진입점으로 뺄지 확인이 필요합니다.</span>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<script>
+  // Accordion. Rows toggle independently — opening one does not close another,
+  // so a reader can keep two answers side by side. If the spec later calls for
+  // one-at-a-time, close the siblings inside this same handler.
+  document.querySelectorAll('.acc-head').forEach(function (head, i) {
+    var panel = head.nextElementSibling;
+    var id = 'acc-panel-' + i;
+    panel.id = id;
+    head.setAttribute('aria-controls', id);
+
+    head.addEventListener('click', function () {
+      var open = head.getAttribute('aria-expanded') === 'true';
+      head.setAttribute('aria-expanded', open ? 'false' : 'true');
+    });
+  });
+
+  // Filter popover. The icon is the only affordance in the header; the badge on
+  // it carries the one thing an icon cannot say — that a filter is active.
+  var filterBtns = document.querySelectorAll('[data-open-filter]');
+
+  function popFor(type) {
+    return document.querySelector('[data-filter-pop="' + type + '"]');
+  }
+
+  function closeFilters(except) {
+    filterBtns.forEach(function (btn) {
+      if (btn === except) return;
+      btn.setAttribute('aria-expanded', 'false');
+      popFor(btn.dataset.openFilter).classList.remove('open');
+    });
+  }
+
+  function syncBadge(type) {
+    var pop = popFor(type);
+    var active = 0;
+    pop.querySelectorAll('.fchips').forEach(function (group) {
+      var on = group.querySelector('.fchip.on');
+      if (on && on.textContent.trim() !== '전체') active++;
+    });
+    var dot = document.querySelector('[data-open-filter="' + type + '"] .dot');
+    dot.textContent = String(active);
+    dot.hidden = active === 0;
+  }
+
+  filterBtns.forEach(function (btn) {
+    var type = btn.dataset.openFilter;
+    var pop = popFor(type);
+
+    btn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      var open = btn.getAttribute('aria-expanded') === 'true';
+      closeFilters(btn);
+      btn.setAttribute('aria-expanded', open ? 'false' : 'true');
+      pop.classList.toggle('open', !open);
+    });
+
+    pop.addEventListener('click', function (e) { e.stopPropagation(); });
+
+    pop.querySelectorAll('.fchip').forEach(function (chip) {
+      chip.addEventListener('click', function () {
+        chip.parentElement.querySelectorAll('.fchip').forEach(function (c) {
+          c.classList.toggle('on', c === chip);
+        });
+        syncBadge(type);
+      });
+    });
+  });
+
+  document.addEventListener('click', function () { closeFilters(null); });
+
+  // Category modal. Opens from either admin card and arrives already scoped to
+  // that card's type — the admin never picks 공지사항/FAQ twice.
+  var modal = document.getElementById('cat-modal');
+
+  function openModal(type) {
+    modal.querySelectorAll('[data-seg]').forEach(function (s) {
+      s.classList.toggle('on', s.dataset.seg === type);
+    });
+    modal.querySelectorAll('[data-cat-list]').forEach(function (list) {
+      list.hidden = list.dataset.catList !== type;
+    });
+    modal.classList.add('open');
+  }
+
+  function closeModal() {
+    modal.classList.remove('open');
+  }
+
+  document.querySelectorAll('[data-open-modal]').forEach(function (btn) {
+    btn.addEventListener('click', function () { openModal(btn.dataset.openModal); });
+  });
+  modal.querySelectorAll('[data-close-modal]').forEach(function (btn) {
+    btn.addEventListener('click', closeModal);
+  });
+  modal.addEventListener('click', function (e) {
+    if (e.target === modal) closeModal();
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key !== 'Escape') return;
+    closeModal();
+    closeFilters(null);
+  });
+</script>
+
+</body></html>

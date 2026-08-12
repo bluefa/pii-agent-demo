@@ -2913,6 +2913,130 @@ export const pipelineStyles = {
   },
 } as const;
 
+/**
+ * 공지사항 · FAQ (`design/notice-faq/notice-faq-screens.html`).
+ *
+ * 값의 출처는 전부 그 목업이다. 네 화면(메인 카드 · 전체보기 · Admin · 에디터)이
+ * 같은 행 언어를 쓰므로, 숫자를 컴포넌트마다 두면 화면끼리 어긋난다.
+ * 여기 없는 값이 필요하면 새로 정하지 말고 목업에서 찾아 이리로 옮긴다.
+ */
+export const postStyles = {
+  /** 카드 — 그림자가 아니라 테두리로 면을 만든다(목업 `.list-card`). */
+  card: 'bg-white border border-[#E5E7EB] rounded-xl',
+  cardHeader: 'flex items-center gap-2.5 px-[22px] py-[18px] border-b border-[#E5E7EB]',
+  cardTitle: 'text-[16px] font-bold tracking-[-0.02em] text-[#191F28]',
+  /** 건수 필 — "전체보기"를 누를 이유를 주는 값. */
+  cardCount:
+    'text-[12px] font-bold text-[#0050D6] bg-[#E8F1FF] rounded-full px-2 py-0.5 tabular-nums',
+  cardMore: 'ml-auto text-[12px] text-[#6B7280] transition-colors hover:text-[#4E5968]',
+
+  /** 행 — `items-stretch` 라야 우측 레일이 행 높이를 다 차지해 날짜↔캐럿이 위아래로 벌어진다. */
+  row: 'flex items-stretch gap-4 px-[22px] py-4 border-b border-[#F3F4F6] last:border-b-0',
+  rowHover: 'transition-colors hover:bg-[#F9FAFB]',
+  rowOpen: 'bg-[#F9FAFB]',
+  /** 숨김 행 — 배지 하나로는 스캔에 안 걸려서 면 전체로 말한다. */
+  rowHidden: 'bg-[repeating-linear-gradient(135deg,#FAFBFC_0_6px,#F5F6F8_6px_12px)]',
+
+  rowMain: 'flex-1 min-w-0 flex flex-col gap-1.5 text-left',
+  rowMeta: 'flex items-center gap-2 flex-wrap',
+  rowTitle: 'text-[14px] font-semibold tracking-[-0.01em] leading-[1.45] text-[#191F28]',
+  rowTitleOpen: 'text-[#0050D6]',
+  rowTitleMuted: 'text-[#6B7280]',
+  /** 우측 레일 — 날짜 위, 캐럿/액션 아래. */
+  rowSide: 'flex-none flex flex-col items-end justify-between gap-2.5',
+  rowDate: 'text-[12px] text-[#6B7280] tabular-nums whitespace-nowrap leading-[1.4]',
+
+  /**
+   * 캐럿 — 접힘 ↓ / 펼침 ↑. 지시자는 헤더 끝쪽(Carbon).
+   * 목업의 #8B95A1 은 흰 바탕에서 3.04:1 로 비텍스트 최소선(3:1)에 겨우 걸친다.
+   * "펼칠 수 있다"를 혼자 말하는 유일한 표시라 같은 레일의 날짜와 같은 톤으로 내렸다.
+   */
+  caret:
+    'w-2 h-2 flex-none mr-[3px] mb-1 border-r-[1.8px] border-b-[1.8px] border-[#6B7280] rotate-45 transition-transform duration-200 motion-reduce:transition-none',
+  caretOpen: '-rotate-[135deg] -translate-x-[3px] -translate-y-[3px] border-[#0050D6]',
+
+  /** 0fr → 1fr — 높이를 재지 않고 편다. */
+  panelGrid:
+    'grid transition-[grid-template-rows] duration-[240ms] ease-out motion-reduce:transition-none',
+  panelBg: 'bg-[#F9FAFB]',
+  /** 하단 42 > 상단 16 — 그룹이 끝나는 쪽을 더 넓게(여백 7원칙 §2). */
+  panelBody: 'px-[22px] pt-4 pb-[42px] text-[14px] leading-[1.75] text-[#4E5968]',
+
+  /** 배지 3종. */
+  badge:
+    'inline-flex items-center gap-1.5 text-[12px] font-bold px-2 py-[3px] rounded-full whitespace-nowrap',
+  badgePin: 'bg-[#E8F1FF] text-[#0050D6]',
+  badgeCat: 'bg-white text-[#4E5968] border border-[#E5E7EB] font-semibold',
+  badgeHidden: 'bg-[#F3F4F6] text-[#4E5968] border border-dashed border-[#D1D5DB]',
+  badgeIcon: 'w-[13px] h-[13px] flex-none',
+
+  /** 필터 아이콘 버튼 + 활성 개수 닷 — 아이콘만으로는 "지금 걸려 있다"를 못 말한다. */
+  iconBtn:
+    'relative w-[30px] h-[30px] flex-none inline-flex items-center justify-center rounded-md border border-[#E5E7EB] bg-white text-[#4E5968] transition-colors hover:bg-[#F9FAFB]',
+  iconBtnOn: 'bg-[#E8F1FF] border-[#E8F1FF] text-[#0050D6]',
+  iconBtnDot:
+    'absolute -top-1 -right-1 min-w-[14px] h-[14px] px-[3px] rounded-full bg-[#0064FF] text-white text-[10px] font-bold leading-[14px] tabular-nums',
+  filterPop:
+    'absolute right-[22px] top-[calc(100%-6px)] z-10 w-[236px] p-3.5 bg-white border border-[#E5E7EB] rounded-[10px] shadow-[0_12px_28px_rgba(15,23,42,0.14)] flex flex-col gap-3.5',
+  filterChip:
+    'text-[12px] font-medium px-2.5 py-[5px] rounded-full border border-[#E5E7EB] bg-white text-[#4E5968] transition-colors hover:bg-[#F9FAFB]',
+  filterChipOn: 'bg-[#E8F1FF] border-[#E8F1FF] text-[#0050D6] font-bold hover:bg-[#E8F1FF]',
+
+  /** 전체보기 — 좌측 Category 레일 + 그룹. */
+  grouped: 'grid grid-cols-[200px_1fr] gap-6 items-start',
+  catNav: 'bg-white border border-[#E5E7EB] rounded-xl p-2 flex flex-col gap-0.5',
+  catNavItem:
+    'flex items-center gap-2 px-3 py-[9px] rounded-md text-[14px] font-medium text-[#4E5968] transition-colors hover:bg-[#F9FAFB]',
+  catNavItemOn: 'bg-[#E8F1FF] text-[#0050D6] font-bold hover:bg-[#E8F1FF]',
+  catNavCount: 'ml-auto text-[12px] text-[#6B7280] tabular-nums',
+  groupHead: 'flex items-baseline gap-2 px-0.5 pb-2.5',
+  groupTitle: 'text-[16px] font-bold tracking-[-0.02em] text-[#191F28]',
+  groupCount: 'text-[12px] text-[#6B7280] tabular-nums',
+
+  /** 페이지 골격. */
+  page: 'px-10 pt-8 pb-12 flex flex-col gap-6',
+  pageTitle: 'text-[30px] font-extrabold tracking-[-0.03em] leading-[1.2] text-[#191F28]',
+  pageSub: 'text-[14px] text-[#4E5968] mt-1.5',
+  dual: 'grid grid-cols-2 gap-6 items-start',
+} as const;
+
+/**
+ * 게시글 등록 · 수정 폼 (`design/notice-faq/notice-faq-screens.html` 화면 4).
+ *
+ * 라벨을 200px 열로 세우는 이유: placeholder 는 한 글자 치는 순간 사라지므로
+ * 언어 탭이 있는 화면에서 "지금 어느 언어의 무슨 필드인지"를 말해 줄 수 없다.
+ */
+export const postFormStyles = {
+  card: 'bg-white border border-[#E5E7EB] rounded-xl flex flex-col',
+  section: 'p-[22px] border-b border-[#F3F4F6] last:border-b-0',
+  grid: 'grid grid-cols-[200px_1fr] gap-x-6 gap-y-5 items-start',
+  label: 'text-[12px] font-bold tracking-[0.02em] text-[#4E5968]',
+  required: 'text-[#0064FF] ml-[3px]',
+  input:
+    'w-full border border-[#E5E7EB] rounded-md px-3 py-2.5 text-[14px] text-[#191F28] placeholder:text-[#6B7280] focus:outline-none focus:ring-2 focus:ring-[#0064FF] focus:border-transparent',
+  /** 언어별 작성 상태 — 저장을 눌러야 알 수 있으면 이미 늦다. */
+  langState: 'text-[12px] font-bold rounded-full px-2.5 py-[3px]',
+  langDone: 'bg-[#E7F6ED] text-[#2A7D52]',
+  langTodo: 'bg-[#FFF4EC] text-[#9A3412]',
+  hint: 'text-[12px] text-[#6B7280] mt-2 leading-[1.6]',
+  foot: 'flex items-center gap-3 justify-end px-[22px] py-[18px] border-t border-[#E5E7EB]',
+  footWarn: 'mr-auto text-[12px] text-[#9A3412]',
+} as const;
+
+/**
+ * Pass 소개 배너. 계약 범위 밖의 고정 콘텐츠라 API가 없다 —
+ * 문구를 바꾸려면 배너 컴포넌트를 고친다.
+ */
+export const passBannerStyles = {
+  root: 'relative overflow-hidden rounded-xl px-7 py-[26px] text-white flex items-center justify-between gap-7 bg-[linear-gradient(101deg,#6D28D9_0%,#7C3AED_46%,#4F46E5_100%)]',
+  /** 우상단 광원 — 그라데이션만으로는 면이 평평하게 읽힌다. */
+  glow: 'pointer-events-none absolute -right-[70px] -top-[90px] w-[280px] h-[280px] rounded-full bg-white/10',
+  eyebrow: 'text-[12px] font-bold tracking-[0.1em] uppercase text-white/[0.78]',
+  title: 'text-[24px] font-extrabold tracking-[-0.03em] mt-[7px]',
+  body: 'text-[14px] text-white/[0.86] mt-[7px] max-w-[60ch]',
+  cta: 'relative z-[1] whitespace-nowrap bg-white text-[#5B21B6] text-[14px] font-bold px-5 py-[11px] rounded-lg',
+} as const;
+
 // =============================================================================
 // 타입 내보내기 (Type Exports)
 // =============================================================================

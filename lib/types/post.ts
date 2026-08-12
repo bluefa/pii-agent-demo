@@ -13,6 +13,13 @@ export const POST_TYPES = ['FAQ', 'NOTICE'] as const;
 
 export type PostType = (typeof POST_TYPES)[number];
 
+/**
+ * Screens print `yy-mm-dd` — the format the tag guide's `publishedAt`
+ * description fixes. Slicing the ISO string keeps the date from shifting
+ * a day under a timezone conversion.
+ */
+export const formatPostDate = (iso: string): string => iso.slice(2, 10);
+
 /** `?type=` reader. An unknown value means "no filter", not an error. */
 export const parsePostType = (raw: string | null): PostType | undefined =>
   (POST_TYPES as readonly string[]).includes(raw ?? '') ? (raw as PostType) : undefined;
