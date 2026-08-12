@@ -10161,8 +10161,6 @@ components:
           type: string
         service_name:
           type: string
-        is_eos_service:
-          type: boolean
     SortObject:
       type: object
       properties:
