@@ -60,6 +60,7 @@ A discussion at `Implemented` or later must have a `관련 PR` URL — the skill
 
 | Date | Title | Tags | Status | File |
 | --- | --- | --- | --- | --- |
-| _no discussion docs yet_ | | | | |
+| 2026-05-12 | Target Sources Registration Preview API 추가 | target-sources | Draft | [2026-05-12-target-sources-registration-preview-added.md](./2026-05-12-target-sources-registration-preview-added.md) |
+| 2026-08-12 | FAQ & Notices API 추가 | faq-notices | Draft | [2026-08-12-faq-notices-added.md](./2026-08-12-faq-notices-added.md) |
 
 > The index is rebuilt by `/bff-api-docs index` (separate from `validate`, which only reports). Do not hand-edit this section once the skill is in place.

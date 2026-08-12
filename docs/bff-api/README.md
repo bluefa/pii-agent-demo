@@ -38,6 +38,7 @@ The Confluence numbering (`5.2.3.5.5.10.x`) is preserved on each file's `> Confl
 | Services | [tag-guides/services.md](./tag-guides/services.md) | Draft |
 | Test Connection | [tag-guides/test-connection.md](./tag-guides/test-connection.md) | Draft |
 | Admin Guides | [tag-guides/admin-guides.md](./tag-guides/admin-guides.md) | Implemented |
+| FAQ & Notices | [tag-guides/faq-notices.md](./tag-guides/faq-notices.md) | Draft |
 
 ## 3. Catalogs
 
