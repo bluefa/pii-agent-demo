@@ -32,7 +32,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         children
       ) : (
         // Not the shared EmptyState: this is a whole-page denial, so it centres
-        // on the viewport (76px = TopNav's fixed bar height) and carries its own
+        // on the viewport (76px = TopNav's sticky bar, which occupies flow) and carries its own
         // larger type. EmptyState's block variant is sized for a slot inside a
         // page and is shared app-wide — it cannot grow for this one screen.
         <div className="flex min-h-[calc(100vh-76px)] flex-col items-center justify-center px-6 text-center">

@@ -5,7 +5,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const { meMock } = vi.hoisted(() => ({ meMock: vi.fn() }));
 
 vi.mock('@/lib/bff/client', () => ({ bff: { users: { me: meMock } } }));
-vi.mock('@/app/components/layout/TopNav', () => ({ TopNav: () => null }));
+// Rendered, not stubbed to null: TopNav is the denied user's only way off this
+// page (the notice carries no link of its own), so its presence is an assertion.
+vi.mock('@/app/components/layout/TopNav', () => ({ TopNav: () => <nav>topnav</nav> }));
 
 import AdminLayout from '@/app/admin/layout';
 
@@ -55,5 +57,20 @@ describe('AdminLayout role gate', () => {
     await renderGate();
     expect(screen.queryByText('admin content')).toBeNull();
     expect(screen.getByText(DENIED)).toBeTruthy();
+  });
+
+  // 차단 화면에는 자체 링크가 없다. TopNav 가 유일한 탈출구라서, 차단 분기
+  // 안으로 옮기거나 지우면 막다른 화면이 된다.
+  it('차단된 사용자에게도 TopNav 는 남는다', async () => {
+    meMock.mockResolvedValue({ id: 'u1', role: 'USER' });
+    await renderGate();
+    expect(screen.getByText('topnav')).toBeTruthy();
+  });
+
+  // 게이트를 요청마다 돌게 하는 유일한 선언. 지워도 나머지 테스트는 전부
+  // 통과하므로 여기서 직접 고정한다.
+  it('force-dynamic 을 선언한다', async () => {
+    const mod = await import('@/app/admin/layout');
+    expect(mod.dynamic).toBe('force-dynamic');
   });
 });

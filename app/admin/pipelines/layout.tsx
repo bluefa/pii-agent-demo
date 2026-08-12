@@ -63,8 +63,11 @@ export default function PipelinesLayout({ children }: { children: ReactNode }) {
 
   // Nav count badges: 연동 요청 = 승인 대기 requests, 운영 알림 = the four Step 3~6
   // action buckets. Hidden at 0, clamped to "9+".
-  // Read once per mount — the operator refreshes to re-read. A background
-  // interval here ran on EVERY admin screen, including hidden tabs.
+  // Re-read on every admin navigation, NOT on an interval (one ran on EVERY
+  // admin screen, hidden tabs included). Mount alone is not enough: this is a
+  // client layout, so React preserves it across in-app navigation and a
+  // `[]` dep would freeze the counts for the whole session — 승인 → router.push
+  // back to the list would leave the badge contradicting the list beside it.
   // Best-effort (errors ignored): the nav badge must never break the shell.
   const [pendingApprovals, setPendingApprovals] = useState(0);
   const [alertCount, setAlertCount] = useState(0);
@@ -83,7 +86,7 @@ export default function PipelinesLayout({ children }: { children: ReactNode }) {
       })
       .catch(() => undefined);
     return () => controller.abort();
-  }, []);
+  }, [pathname]);
   const isDashboard = pathname === passRoutes.pipelines.dashboard;
   // Pipeline detail = a single dynamic segment under the base (not `services`,
   // not `targets/…`); it gets the fluid full-height column so its flow canvas

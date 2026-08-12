@@ -13,8 +13,9 @@
  *    G1 (no server query). Its tier counts + row filtering live in `_p1/logic`.
  *  - `delay_seconds` is server-computed; the client never recomputes elapsed time.
  *  - No background poll (it duplicated the shell's own summary fetch every
- *    tick). The monitor re-reads on filter/page change; 현황 re-reads only on
- *    다시 시도. Otherwise the operator refreshes.
+ *    tick). The monitor re-reads on filter/page change and on its 재시도; 현황
+ *    rides the same `retryNonce` but has no control of its own. Otherwise the
+ *    operator refreshes.
  *
  * Visual language: tqStyles (prototype pixel SSOT) + shared pipeline primitives.
  * The monitor table is composed from `pipelineStyles.table` tokens rather than
@@ -95,7 +96,11 @@ export default function QueueDashboardPage(): ReactElement {
   const [error, setError] = useState<unknown>(null);
   const [retryNonce, setRetryNonce] = useState(0);
 
-  // Summary fetch — silent degrade; refetched by the monitor's 다시 시도.
+  // Summary fetch — degrades to "—" on error. It shares the monitor's
+  // `retryNonce`, but that control only renders inside the monitor's own error
+  // branch: when 현황 fails ALONE the tiles stay "—" until a browser refresh.
+  // Acceptable because refresh is this console's stated refresh model; the tile
+  // showing "—" is the visible signal.
   useAbortableEffect(
     (signal) =>
       getDashboardSummary({ signal })
