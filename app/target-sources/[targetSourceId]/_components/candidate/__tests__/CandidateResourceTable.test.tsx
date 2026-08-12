@@ -316,7 +316,7 @@ describe('CandidateResourceTable — RDS cluster instances', () => {
     expect(screen.queryAllByRole('radio')).toHaveLength(0);
     const nameCell = screen.getByText('demo-cluster').closest('td');
     expect(nameCell?.textContent).toContain('demo-2');
-    // 역할은 인스턴스 이름 바로 옆 — 별도 열로 떨어뜨리지 않는다.
+    // The role rides beside the instance name; it never gets a column of its own.
     expect(nameCell?.textContent).toContain('Reader');
   });
 

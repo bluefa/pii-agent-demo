@@ -2,7 +2,12 @@
 
 import { createPortal } from 'react-dom';
 import { getDatabaseShortLabel } from '@/app/components/ui/DatabaseIcon';
-import { DeleteIcon, EditIcon, StatusWarningIcon } from '@/app/components/ui/icons';
+import {
+  ChevronRightIcon,
+  DeleteIcon,
+  EditIcon,
+  StatusWarningIcon,
+} from '@/app/components/ui/icons';
 import { ReasonChipInline } from '@/app/components/ui/ReasonChipInline';
 import { IdentifierTip, Tooltip } from '@/app/components/ui/Tooltip';
 import { ResourceIdCell } from '@/app/target-sources/[targetSourceId]/_components/shared/ResourceIdCell';
@@ -18,7 +23,6 @@ import {
   RdsClusterTag,
   RdsMemberChip,
 } from '@/app/components/ui/RdsInstanceChips';
-import { ChevronRightIcon } from '@/app/components/ui/icons';
 import { RdsInstancePanel } from '@/app/target-sources/[targetSourceId]/_components/candidate/RdsInstancePanel';
 import { isEc2Instance, resolveExclusionReason } from '@/lib/types';
 import {
@@ -172,15 +176,12 @@ export const CandidateResourceRow = ({
   // sharing one tint, with nothing between them, is what makes the pair read as one block that
   // opened rather than as a row with a panel underneath it. (The Athena parent stays untinted —
   // its children are real rows and the tree rail draws that connection. There is no rail here.)
-  const rowStateClass = isExpanded
-    ? statusColors.info.bg
-    : isRdsClusterRow && instancesExpanded
-      ? bgColors.panel
-      : showConfigNeeded
-        ? statusColors.warning.bg
-        : dimmed
-          ? ROW_EXCLUDED
-          : ROW_TARGET;
+  const rowStateClass = (() => {
+    if (isExpanded) return statusColors.info.bg;
+    if (isRdsClusterRow && instancesExpanded) return bgColors.panel;
+    if (showConfigNeeded) return statusColors.warning.bg;
+    return dimmed ? ROW_EXCLUDED : ROW_TARGET;
+  })();
 
   const handleRowClick = () => {
     if (canExpand) actions.expandToggle(isExpanded ? null : candidate.id);
@@ -259,10 +260,10 @@ export const CandidateResourceRow = ({
             // lines the name is already the middle one, which is the line `lead` centres the
             // chevron on.
             //
-            // PR #630 removed a parent summary here — that ruling assumed the member rows were
-            // always visible, so a parent that named the chosen one said it twice. Folding by
-            // default removes the assumption; what comes back is the SELECTION, not the rejected
-            // count summary ("인스턴스 3 · 1 선택").
+            // The line names the SELECTION and never a count: a parent that tallies its members
+            // says what the open band already says one line at a time, and a summary that only
+            // repeats is the thing this table keeps rejecting. Precedent trail lives in
+            // docs/ux/benchmark/step1-resource-table.md, not here.
             //
             // The chevron is what says the cluster is configurable at all. Without it the row
             // read as a plain row and nobody would look for a choice inside it (owner,
@@ -300,10 +301,16 @@ export const CandidateResourceRow = ({
                 >
                   <span className="block truncate">{displayName || '—'}</span>
                 </Tooltip>
+                {/* `secondary`, not `tertiary`, in BOTH fold states: opening the row flips its
+                    background to `bgColors.panel`, and that token's contract says gray-500 reads
+                    4.37:1 there — under AA. One value for both states rather than a conditional,
+                    because a line that changes weight when you open the row is a hierarchy that
+                    moves for no reason. It stays the quiet tier by size (12 vs 14) and by being
+                    the third line. */}
                 <span
                   className={cn(
                     'flex min-w-0 max-w-full items-center gap-1.5 text-[12px]',
-                    textColors.tertiary,
+                    textColors.secondary,
                   )}
                 >
                   <span aria-hidden="true">↳</span>
