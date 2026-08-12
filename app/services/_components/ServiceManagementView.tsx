@@ -343,21 +343,38 @@ export const ServiceManagementView = () => {
                     bgColors.muted,
                   )}
                 >
+                  {/* The layout this page IS: rail on the left with rows in it,
+                      empty pane on the right. It was a terminal `>_` — a console
+                      glyph on a screen with no console anywhere near it.
+                      An empty state's job is to say what to DO, not to name the
+                      room, so the mark shows the pick-on-the-left gesture rather
+                      than a service-shaped noun.
+
+                      A solid column, not list ticks: three 1.5-weight ticks in a
+                      7-unit column are the same weight as the frame around them,
+                      so at this size the whole glyph flattened into one texture.
+                      Fill separates the two halves in one read. */}
                   <svg
-                    className={cn('w-8 h-8', textColors.quaternary)}
+                    className={cn('w-9 h-9', textColors.quaternary)}
                     fill="none"
                     stroke="currentColor"
+                    strokeWidth={1.5}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
                     viewBox="0 0 24 24"
+                    aria-hidden="true"
                   >
                     <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                      d="M3 6.5A2.5 2.5 0 015.5 4H10v16H5.5A2.5 2.5 0 013 17.5z"
+                      fill="currentColor"
+                      stroke="none"
                     />
+                    <rect x="3" y="4" width="18" height="16" rx="2.5" />
                   </svg>
                 </div>
-                <p className={textColors.tertiary}>서비스를 선택하세요</p>
+                <p className={cn('text-[24px] leading-8', textColors.tertiary)}>
+                  서비스를 선택하세요
+                </p>
               </div>
             </div>
           ) : (
