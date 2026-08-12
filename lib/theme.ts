@@ -2982,19 +2982,35 @@ export const postStyles = {
     'text-[12px] font-medium px-2.5 py-[5px] rounded-full border border-[#E5E7EB] bg-white text-[#4E5968] transition-colors hover:bg-[#F9FAFB]',
   filterChipOn: 'bg-[#E8F1FF] border-[#E8F1FF] text-[#0050D6] font-bold hover:bg-[#E8F1FF]',
 
-  /** 전체보기 — 좌측 Category 레일 + 그룹. */
-  grouped: 'grid grid-cols-[200px_1fr] gap-6 items-start',
-  catNav: 'bg-white border border-[#E5E7EB] rounded-xl p-2 flex flex-col gap-0.5',
+  /**
+   * 전체보기 — 레일과 목록을 테두리 하나로 묶는다. 레일을 `items-start` 로 띄워 두면
+   * 글이 쌓일수록 우측이 레일보다 길어져 레일이 목록 밖으로 흘러나온 것처럼 읽힌다
+   * (InstallStatusDetail 의 레일에서 이미 받은 지적). 폭 224 · 레일 표면 · 선택 표시는
+   * 그 레일에서 그대로 가져왔다 — 같은 역할이면 같은 수치다.
+   */
+  grouped:
+    'grid grid-cols-[224px_minmax(0,1fr)] bg-white border border-[#E5E7EB] rounded-xl overflow-hidden',
+  /**
+   * 레일은 가라앉은 면, 목록은 카드의 흰 바닥. 구분선 하나로 가르면 "같은 종류의 정보가
+   * 두 단 있다"로 읽힌다 — 회색은 구조, 흰색은 내용이라는 한 가지 규칙만 쓴다.
+   */
+  catNav: 'flex flex-col gap-0.5 p-2 border-r border-[#E5E7EB] bg-[#F3F4F6]',
   catNavItem:
-    'flex items-center gap-2 px-3 py-[9px] rounded-md text-[14px] font-medium text-[#4E5968] transition-colors hover:bg-[#F9FAFB]',
-  catNavItemOn: 'bg-[#E8F1FF] text-[#0050D6] font-bold hover:bg-[#E8F1FF]',
-  catNavCount: 'ml-auto text-[12px] text-[#6B7280] tabular-nums',
-  groupHead: 'flex items-baseline gap-2 px-0.5 pb-2.5',
-  groupTitle: 'text-[16px] font-bold tracking-[-0.02em] text-[#191F28]',
-  groupCount: 'text-[12px] text-[#6B7280] tabular-nums',
+    'flex items-center gap-2 px-3 py-[9px] rounded-lg text-[14px] font-medium text-[#4E5968] transition-colors hover:bg-white/60',
+  /** 레일이 회색이라 선택 항목은 흰 카드로 떠오른다 — 대비를 반대 방향으로 준다. */
+  catNavItemOn: 'bg-white text-[#0050D6] font-bold hover:bg-white',
+  /** 회색 면 위에서 #6B7280 은 4.39:1 로 AA 에 못 미친다. 대신 크기·무게로 계층을 준다. */
+  catNavCount: 'ml-auto text-[12px] font-normal text-[#4E5968] tabular-nums',
+  /** 그룹 머리 — 레일과 같은 면. 카드 안에서 구역을 가르는 띠지, 또 하나의 카드가 아니다. */
+  groupHead:
+    'flex items-baseline gap-2 px-[22px] py-2.5 bg-[#F3F4F6] border-b border-[#E5E7EB]',
+  groupTitle: 'text-[14px] font-bold tracking-[-0.01em] text-[#191F28]',
+  groupCount: 'text-[12px] text-[#4E5968] tabular-nums',
+  /** 그룹 사이의 선 — 첫 그룹은 카드 위 테두리가 대신한다. */
+  groupSection: 'border-t border-[#E5E7EB] first:border-t-0',
 
   /** 페이지 골격. */
-  page: 'px-10 pt-8 pb-12 flex flex-col gap-6',
+  page: 'px-8 pt-8 pb-12 flex flex-col gap-6',
   pageTitle: 'text-[30px] font-extrabold tracking-[-0.03em] leading-[1.2] text-[#191F28]',
   pageSub: 'text-[14px] text-[#4E5968] mt-1.5',
   dual: 'grid grid-cols-2 gap-6 items-start',

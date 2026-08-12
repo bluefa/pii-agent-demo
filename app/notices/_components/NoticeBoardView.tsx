@@ -99,20 +99,18 @@ export const NoticeBoardView = () => {
             ))}
           </nav>
 
-          <div className="flex flex-col gap-6">
+          <div>
             {shown.map((group) => (
-              <section key={group.key}>
+              <section key={group.key} className={postStyles.groupSection}>
                 <header className={postStyles.groupHead}>
                   <h2 className={postStyles.groupTitle}>{group.label}</h2>
                   <span className={postStyles.groupCount}>{group.posts.length}건</span>
                 </header>
-                <div className={postStyles.card}>
-                  <ul>
-                    {group.posts.map((post) => (
-                      <PostAccordionRow key={post.id} post={post} onGone={dropPost} />
-                    ))}
-                  </ul>
-                </div>
+                <ul>
+                  {group.posts.map((post) => (
+                    <PostAccordionRow key={post.id} post={post} onGone={dropPost} />
+                  ))}
+                </ul>
               </section>
             ))}
             {shown.length === 0 && (
