@@ -5,18 +5,12 @@ import { cn, idcStyles, textColors } from '@/lib/theme';
 import { getDatabaseShortLabel } from '@/app/components/ui/DatabaseIcon';
 import { groupResourceRows } from '@/lib/resource-grouping';
 import { getResourceDisplayName } from '@/lib/resource';
-import { sortRdsInstances } from '@/lib/rds-instances';
 import type { CandidateDraftState, CandidateResource } from '@/lib/types/resources';
 import { InfoTooltip } from '@/app/components/ui/Tooltip';
 import {
   CandidateResourceRow,
   type CandidateRowActions,
 } from '@/app/target-sources/[targetSourceId]/_components/candidate/CandidateResourceRow';
-import { RdsInstancePanel } from '@/app/target-sources/[targetSourceId]/_components/candidate/RdsInstancePanel';
-import {
-  getCandidateBehavior,
-  resolveRdsInstanceResourceId,
-} from '@/app/target-sources/[targetSourceId]/_components/candidate/candidate-resource-behavior';
 import { useRailHover, type RailRowProps } from '@/app/hooks/useRailHover';
 import { TableEmptyState } from '@/app/target-sources/[targetSourceId]/_components/shared/TableEmptyState';
 import {
@@ -126,33 +120,25 @@ export const CandidateResourceTable = ({
     [candidates, selectedIds],
   );
 
-  // Groups start COLLAPSED (owner, 2026-08-11: "항상 펼쳐져 있으면 가독성이 너무 떨어져").
-  // Tracked as the set of OPEN keys rather than closed ones so the default needs no seeding
-  // and a group arriving later (filter change, new scan) still starts folded. What the user
-  // opened stays open for the session — a fold that resets on every re-render is not a
+  // Everything foldable starts COLLAPSED (owner, 2026-08-11: "항상 펼쳐져 있으면 가독성이 너무
+  // 떨어져. Athena도 마찬가지야"). ONE set for both kinds of fold — Athena group keys
+  // (`ATHENA|region`) and RDS cluster ids share it, since the two never collide and the policy
+  // is the same. Tracked as the set of OPEN keys rather than closed ones so the default needs
+  // no seeding and a row arriving later (filter change, new scan) still starts folded. What the
+  // user opened stays open for the session — a fold that resets on every re-render is not a
   // "collapsed by default" table, it is a table that keeps re-collapsing under them.
-  const [expandedGroups, setExpandedGroups] = useState<ReadonlySet<string>>(() => new Set());
-
-  // The one cluster whose instance panel is showing. Closed on load; opened from the row.
-  const [panelClusterId, setPanelClusterId] = useState<string | null>(null);
+  const [expandedKeys, setExpandedKeys] = useState<ReadonlySet<string>>(() => new Set());
 
   // The group rails: parent and children carry the group's key, so hovering any of them
   // lights the whole group.
   const railRow = useRailHover();
 
-  const toggleGroup = (key: string) =>
-    setExpandedGroups((previous) => {
+  const toggleExpanded = (key: string) =>
+    setExpandedKeys((previous) => {
       const next = new Set(previous);
       if (!next.delete(key)) next.add(key);
       return next;
     });
-
-  const panelCluster = candidates.find(
-    (candidate) =>
-      candidate.id === panelClusterId
-      && getCandidateBehavior(candidate).configKind === 'rdsInstance',
-  );
-  const panelSelected = panelCluster ? selectedIds.has(panelCluster.id) : false;
 
   if (totalCount === 0) {
     return <TableEmptyState message={emptyMessage ?? '발견된 리소스가 없습니다'} />;
@@ -162,13 +148,8 @@ export const CandidateResourceTable = ({
     // Step 2's connected grammar, not idcStyles.table.frame: no border/shadow/radius —
     // the toolbar above owns the rounded top, the Pagination footer below owns the
     // rounded bottom, and everything between stays bare (step-2 table silhouette).
-    // `relative` anchors the instance panel to the table's own box — it overlays the table
-    // instead of pushing it, so the Resource Name column keeps its full width. It wraps the
-    // clipping box rather than being it: the panel's card is `sticky`, and `overflow-hidden`
-    // on its offset parent would make that box the scrollport and the card would never move.
-    <div className="relative">
-      <div className="overflow-hidden bg-white">
-        <div className="overflow-x-auto">
+    <div className="overflow-hidden bg-white">
+      <div className="overflow-x-auto">
         {/* Row height raised one step over approvalCell's py-4 (owner request) — table-scoped
             so the shared token keeps every other table family at its current rhythm. The
             :not([colspan]) guard keeps it off spanning cells: VmDatabaseConfigPanel's td is
@@ -224,10 +205,8 @@ export const CandidateResourceTable = ({
                   grouped={grouped}
                   lastInGroup={lastInGroup}
                   rail={rail}
-                  instancePanelOpen={panelClusterId === candidate.id}
-                  onInstancePanelToggle={() =>
-                    setPanelClusterId((previous) => (previous === candidate.id ? null : candidate.id))
-                  }
+                  instancesExpanded={expandedKeys.has(candidate.id)}
+                  onInstancesToggle={() => toggleExpanded(candidate.id)}
                 />
               );
             };
@@ -242,7 +221,7 @@ export const CandidateResourceTable = ({
 
             const { group } = section;
             const rowsId = `candidate-group-${group.key.replace('|', '-')}`;
-            const collapsed = !expandedGroups.has(group.key);
+            const collapsed = !expandedKeys.has(group.key);
             const rail = railRow(group.key);
             return (
               <Fragment key={group.key}>
@@ -251,7 +230,7 @@ export const CandidateResourceTable = ({
                     type={group.type}
                     region={group.region}
                     expanded={!collapsed}
-                    onToggle={() => toggleGroup(group.key)}
+                    onToggle={() => toggleExpanded(group.key)}
                     controls={rowsId}
                     rail={rail}
                     // Read-only drops the 제외 사유 column, so the aggregate has no cell to sit
@@ -329,32 +308,8 @@ export const CandidateResourceTable = ({
               </Fragment>
             );
           })}
-          </table>
-        </div>
+        </table>
       </div>
-
-      {panelCluster && (
-        <RdsInstancePanel
-          // Remount per cluster so nothing carries over when the panel switches rows.
-          key={panelCluster.id}
-          clusterName={getResourceDisplayName(panelCluster)}
-          instances={sortRdsInstances(panelCluster.rdsInstanceCandidates ?? [])}
-          // An unchecked cluster submits no instance, so nothing is marked and there are no
-          // radios — the list is the evidence for leaving it out, not a choice being offered.
-          chosenResourceId={
-            panelSelected ? resolveRdsInstanceResourceId(panelCluster, drafts) : undefined
-          }
-          selectable={panelSelected && !readonly}
-          readonly={readonly}
-          engineLabel={
-            panelCluster.databaseType ? getDatabaseShortLabel(panelCluster.databaseType) : null
-          }
-          onSelect={(instanceResourceId) =>
-            actions.selectRdsInstance(panelCluster.id, instanceResourceId)
-          }
-          onClose={() => setPanelClusterId(null)}
-        />
-      )}
     </div>
   );
 };

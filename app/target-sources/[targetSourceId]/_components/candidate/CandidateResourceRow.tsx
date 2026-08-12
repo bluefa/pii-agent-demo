@@ -18,6 +18,8 @@ import {
   RdsClusterTag,
   RdsMemberChip,
 } from '@/app/components/ui/RdsInstanceChips';
+import { ChevronRightIcon } from '@/app/components/ui/icons';
+import { RdsInstancePanel } from '@/app/target-sources/[targetSourceId]/_components/candidate/RdsInstancePanel';
 import { isEc2Instance, resolveExclusionReason } from '@/lib/types';
 import {
   cn,
@@ -94,12 +96,12 @@ interface CandidateResourceRowProps {
   /** Grouped child: its share of the group's rail, tagged with the group's key by the table. */
   rail?: RailRowProps;
   /**
-   * RDS cluster only — whether THIS cluster's split panel is the one showing. The instances
-   * are not rows any more (see `RdsInstancePanel`); the row states the chosen one and opens
-   * the panel to change it, and the table owns which cluster is open.
+   * RDS cluster only — whether its instance band is open. The instances are not rows any more
+   * (see `RdsInstancePanel`); the collapsed row states the chosen one and the chevron opens the
+   * band under it. The table owns the fold so it survives this row re-rendering.
    */
-  instancePanelOpen?: boolean;
-  onInstancePanelToggle?: () => void;
+  instancesExpanded?: boolean;
+  onInstancesToggle?: () => void;
 }
 
 export const CandidateResourceRow = ({
@@ -114,8 +116,8 @@ export const CandidateResourceRow = ({
   grouped = false,
   lastInGroup = false,
   rail,
-  instancePanelOpen = false,
-  onInstancePanelToggle,
+  instancesExpanded = false,
+  onInstancesToggle,
 }: CandidateResourceRowProps) => {
   const ineligibleModal = useModal();
   const behavior = getCandidateBehavior(candidate);
@@ -175,10 +177,9 @@ export const CandidateResourceRow = ({
 
   const handleRowClick = () => {
     if (canExpand) actions.expandToggle(isExpanded ? null : candidate.id);
-    // "Default closed, opens on selection" — picking the row IS the gesture that opens the
-    // panel, so the whole cluster row is the pointer target and the identity line below is
-    // the keyboard one.
-    if (isRdsClusterRow) onInstancePanelToggle?.();
+    // The whole cluster row is the pointer target for its band — the chevron is the labelled
+    // control, so a keyboard user gets one stop per cluster instead of one per cell.
+    if (isRdsClusterRow) onInstancesToggle?.();
   };
 
   const handleCheckboxChange = (checked: boolean, anchor: HTMLElement) => {
@@ -248,56 +249,73 @@ export const CandidateResourceRow = ({
             // member the agent connects through is the whole point of the row, so the collapsed
             // row states it, and the ROLE rides directly beside the instance name (owner: "정말
             // 중요한 정보") rather than in a column of its own. No positional lift: with three
-            // lines the name is already the middle one, which is the line the row centres on.
+            // lines the name is already the middle one, which is the line `lead` centres the
+            // chevron on.
             //
             // PR #630 removed a parent summary here — that ruling assumed the member rows were
             // always visible, so a parent that named the chosen one said it twice. Folding by
             // default removes the assumption; what comes back is the SELECTION, not the rejected
             // count summary ("인스턴스 3 · 1 선택").
-            <span className="flex w-full min-w-0 flex-col items-start gap-1">
-              <RdsClusterTag />
-              <Tooltip
-                content={<IdentifierTip label="Resource Name" value={displayName} />}
-                variant="value"
-                size="md"
-                triggerClassName="min-w-0 max-w-[200px] block"
-                truncatedOnly
-              >
-                <span className="block truncate">{displayName || '—'}</span>
-              </Tooltip>
+            //
+            // The chevron is what says the cluster is configurable at all. Without it the row
+            // read as a plain row and nobody would look for a choice inside it (owner,
+            // 2026-08-12) — which is exactly why `toggleClosed` carries the primary hue.
+            <span className={idcStyles.table.group.lead}>
               <button
                 type="button"
-                // No aria-controls: the panel is unmounted while closed, and a dangling
-                // reference is worse than the optional attribute's absence (APG disclosure:
-                // aria-expanded alone is conforming).
-                aria-expanded={instancePanelOpen}
-                aria-label={`${displayName} 접속 인스턴스 ${instancePanelOpen ? '닫기' : '선택'}`}
+                // No aria-controls: the band is unmounted while closed, and a dangling reference
+                // is worse than the optional attribute's absence (APG disclosure: aria-expanded
+                // alone is conforming).
+                aria-expanded={instancesExpanded}
+                aria-label={`${displayName} 인스턴스 목록 ${instancesExpanded ? '접기' : '펼치기'}`}
                 onClick={(event) => {
                   event.stopPropagation();
-                  onInstancePanelToggle?.();
+                  onInstancesToggle?.();
                 }}
                 className={cn(
-                  'flex min-w-0 max-w-full items-center gap-1.5 text-[12px]',
-                  textColors.tertiary,
+                  idcStyles.table.group.toggle,
+                  instancesExpanded
+                    ? idcStyles.table.group.toggleOpen
+                    : idcStyles.table.group.toggleClosed,
                   primaryColors.focusRing,
                 )}
               >
-                <span aria-hidden="true">↳</span>
-                {chosenInstance ? (
-                  <>
-                    <RdsMemberChip role={chosenInstance.cluster_member_role} />
-                    <span className="min-w-0 truncate font-mono underline decoration-dotted underline-offset-2">
-                      {rdsInstanceLabel(chosenInstance)}
-                    </span>
-                  </>
-                ) : (
-                  // Left out of the request: no instance is submitted, so there is nothing to
-                  // name — the list is still worth reaching, as the evidence for excluding it.
-                  <span className="whitespace-nowrap underline decoration-dotted underline-offset-2">
-                    {`인스턴스 ${sortedInstances.length}건`}
-                  </span>
-                )}
+                <ChevronRightIcon className="h-3.5 w-3.5" />
               </button>
+              <span className="flex w-full min-w-0 flex-col items-start gap-1">
+                <RdsClusterTag />
+                <Tooltip
+                  content={<IdentifierTip label="Resource Name" value={displayName} />}
+                  variant="value"
+                  size="md"
+                  triggerClassName="min-w-0 max-w-[200px] block"
+                  truncatedOnly
+                >
+                  <span className="block truncate">{displayName || '—'}</span>
+                </Tooltip>
+                <span
+                  className={cn(
+                    'flex min-w-0 max-w-full items-center gap-1.5 text-[12px]',
+                    textColors.tertiary,
+                  )}
+                >
+                  <span aria-hidden="true">↳</span>
+                  {chosenInstance ? (
+                    <>
+                      <RdsMemberChip role={chosenInstance.cluster_member_role} />
+                      <span className="min-w-0 truncate font-mono">
+                        {rdsInstanceLabel(chosenInstance)}
+                      </span>
+                    </>
+                  ) : (
+                    // Left out of the request: no instance is submitted, so there is nothing to
+                    // name — the count is what the row can honestly say.
+                    <span className="whitespace-nowrap">
+                      {`인스턴스 ${sortedInstances.length}건`}
+                    </span>
+                  )}
+                </span>
+              </span>
             </span>
           ) : isEc2 ? (
             // 종류 태그는 이름 위 — RDS Cluster 와 같은 자리다. 이 열이 행의 정체성을
@@ -488,6 +506,22 @@ export const CandidateResourceRow = ({
           </td>
         )}
       </tr>
+
+      {isRdsClusterRow && instancesExpanded && (
+        <RdsInstancePanel
+          clusterId={candidate.id}
+          // Editable table: checkbox + 5 data columns + exclusion-reason column.
+          colSpan={showCheckboxColumn ? 7 : 5}
+          instances={sortedInstances}
+          chosenResourceId={chosenInstanceResourceId}
+          // Radios exist only inside a checked cluster: an unchecked cluster submits no
+          // instance, so offering the choice would promise something the payload never sends.
+          selectable={isSelected && !readonly}
+          readonly={readonly}
+          engineLabel={effectiveDbType ? getDatabaseShortLabel(effectiveDbType) : null}
+          onSelect={(instanceResourceId) => actions.selectRdsInstance(candidate.id, instanceResourceId)}
+        />
+      )}
 
       {isExpanded && (
         <VmDatabaseConfigPanel
