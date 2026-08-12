@@ -668,7 +668,7 @@ export const CandidateResourceSection = ({
                   헤더가 아니라 스트립/히어로가 소유한다 — 목록이 있을 때 이 카드의
                   primary CTA는 하단 승인 요청 하나뿐이고, 스캔은 보조 밴드로 물러난다. */}
               <header className={cardStyles.header}>
-                <span className={cardStyles.stepTag}>1번째 단계</span>
+                <span className={cardStyles.stepTag}>1단계</span>
                 <h2 className={cn(cardStyles.cardTitle)}>연동 대상 DB 선택</h2>
                 {/* 2호흡: 스캔→선택 / 사유→승인. 강조는 사용자가 직접 해야 하는
                     행동 두 가지(선택·사유 입력)만 파랑 — 승인은 시스템 몫이라 평문.

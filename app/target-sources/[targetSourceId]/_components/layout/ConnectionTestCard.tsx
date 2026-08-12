@@ -361,7 +361,7 @@ export const ConnectionTestCard = ({
     <section className={cardStyles.base}>
       <header className={cn(cardStyles.header, 'flex items-center justify-between')}>
         <div>
-          <span className={cardStyles.stepTag}>5번째 단계</span>
+          <span className={cardStyles.stepTag}>5단계</span>
           <h2 className={cardStyles.cardTitle}>연결 테스트</h2>
           <p className={cn('mt-2.5', cardStyles.subtitle)}>
             지정한 Credential로 각 대상에 실제 접속해 자격 증명, 네트워크(방화벽·보안 그룹), Agent 연결을 한 번에

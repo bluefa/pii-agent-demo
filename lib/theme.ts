@@ -484,7 +484,7 @@ export const cardStyles = {
   // so tighter tracking reads as cramped instead of as a tightened headline.
   cardTitle: 'text-[22px] font-extrabold tracking-[-0.01em] leading-[1.2] text-[#191F28]',
   /**
-   * "N번째 단계" tag above a step-card title, matching INSTALL_STEPS order in
+   * "N단계" tag above a step-card title, matching INSTALL_STEPS order in
    * InstallationProcessProgressBar. Was copy-pasted into every step card with a "keep the two in
    * sync" note; six cards (cloud 1·2·3, IDC 1·2·3 + 6) is where that stops being a note.
    */
@@ -1141,7 +1141,7 @@ export const idcStyles = {
     title: 'px-2.5 pb-2 pt-2 text-[14px] font-semibold text-[#191F28]',
     // 프리셋 값은 칩(태그 피커) — 맨텍스트 행은 휴지 상태에서 선택지로 읽히지
     // 않는다. 표면은 승인 요청 모달 타일과 같은 흰 카드+스트로크+lg 섀도 패턴,
-    // 라운드는 "N번째 단계" 태그의 6px. 휴지 gray-200 보더 < hover 브랜드 프리뷰
+    // 라운드는 "N단계" 태그의 6px. 휴지 gray-200 보더 < hover 브랜드 프리뷰
     // < 선택 브랜드+틴트로, Step1·2 필터 타일과 같은 상호작용 사다리. 색 충돌
     // 방지를 위해 border-color는 rest/selected 어느 한쪽만 소유한다(cn은 단순
     // join — 순서가 승자를 못 정한다).
@@ -1675,8 +1675,12 @@ export const serviceSidebarStyles = {
    * head. #4E5968, not #666D7B: the latter reads 4.17:1 on this rail, under AA.
    */
   sectionLabel: 'text-[12px] font-medium tracking-[0.02em] text-[#4E5968]',
-  /** Row name — wraps rather than riding off the rail's edge; service names run to ~30 characters. */
-  rowName: 'text-[14px] font-medium leading-5 text-[#191F28]',
+  /**
+   * Row name — wraps rather than riding off the rail's edge; service names run to ~30 characters.
+   * `leading-6` moves with the 16px size: at the old `leading-5` the ratio would drop to 1.25, and
+   * this is the one label in the rail that routinely runs to the `line-clamp-3` limit.
+   */
+  rowName: 'text-[16px] font-medium leading-6 text-[#191F28]',
   /**
    * Row code — a Toss tag in its own right-hand column. Service codes are always
    * three characters, so `min-w` sizes the column to exactly that and every code

@@ -23,17 +23,26 @@ import { navStyles } from '@/lib/theme';
  *
  * Both viewBoxes are the glyphs' real ink boxes, so `h-*` IS the drawn height
  * and the two rows sit flush at the left with no side bearing between them.
- * Geometry: 40 + 4 gap + 15 = a 59px lockup, which is the 76px bar less its
- * py-2 and change. Neither row is free in width — the wordmark is 3.34:1 and
- * the descriptor 9.86:1, so height picks width for both.
+ * Geometry: 28 + 2 gap + 11 = a 41px lockup. It is sized against the NAV, not
+ * against the bar. The items beside it are a 36px box (14px label, 16px icon,
+ * py-2) and the lockup used to be 59px — it filled the bar's entire 60px content
+ * budget while its neighbours used 60% of theirs, so the mark read as a splash
+ * screen with a menu parked next to it. 41 against 36 makes them peers.
+ *
+ * Growing the nav instead would have been the wrong lever: the bar's intrinsic
+ * width IS the app's minimum width (see the header's own comment), and every
+ * nav item pays into it while the logo does not.
+ *
+ * Neither row is free in width — the wordmark is 3.34:1 and the descriptor
+ * 9.86:1, so height picks width for both.
  */
 export const PassLogo = () => (
-  <span className="inline-flex flex-col items-start gap-1">
+  <span className="inline-flex flex-col items-start gap-0.5">
     <svg
       viewBox="8.29 -1.69 345.64 103.38"
       role="img"
       aria-label="PASS"
-      className="h-[40px] w-auto"
+      className="h-[28px] w-auto"
     >
       <path className={navStyles.brand.wordmarkInk} d="M31.04 64.89V44.66H49.16Q52.39 44.66 55.13 43.33Q57.87 41.99 59.55 39.26Q61.24 36.52 61.24 32.44Q61.24 28.37 59.55 25.63Q57.87 22.89 55.13 21.56Q52.39 20.22 49.16 20.22H31.04V0H54.63Q64.33 0 72.12 3.86Q79.92 7.72 84.48 14.96Q89.04 22.19 89.04 32.44Q89.04 42.56 84.48 49.86Q79.92 57.16 72.12 61.03Q64.33 64.89 54.63 64.89ZM8.29 100V0H36.38V100Z" />
       <path className={navStyles.brand.wordmarkInk} d="M85.96 100 124.02 0H152.67L190.31 100H161.1L133.15 15.03H143.26L114.61 100ZM110.67 83.15V61.24H166.57V83.15Z" />
@@ -47,7 +56,7 @@ export const PassLogo = () => (
       viewBox="10.86 -4.29 1323.43 134.29"
       role="img"
       aria-label="PII Agent Self Service"
-      className="hidden xl:block h-[15px] w-auto"
+      className="hidden xl:block h-[11px] w-auto"
     >
       <g className={navStyles.brand.descriptorSubject}>
         <path d="M22.14 62.29V48H47.14Q52.29 48 56.21 45.93Q60.14 43.86 62.43 40.07Q64.71 36.29 64.71 31.14Q64.71 26 62.43 22.21Q60.14 18.43 56.21 16.36Q52.29 14.29 47.14 14.29H22.14V0H48Q57.43 0 64.93 3.86Q72.43 7.71 76.79 14.71Q81.14 21.71 81.14 31.14Q81.14 40.57 76.79 47.57Q72.43 54.57 64.93 58.43Q57.43 62.29 48 62.29ZM10.86 100V0H27.29V100Z" />

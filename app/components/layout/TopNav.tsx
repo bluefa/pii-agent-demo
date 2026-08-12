@@ -129,7 +129,7 @@ export const TopNav = () => {
           // the padding declares a 60px content budget rather than letting the
           // 8px fall out of items-center as a leftover. Anything taller than
           // that now overflows visibly instead of silently eating its own
-          // breathing room — the 59px logo lockup sits just inside the budget.
+          // breathing room — the 41px logo lockup is the tallest thing in it.
           //
           // ⚠ 76px is not local. Everything that sits below this bar or fills
           // the rest of the viewport hard-codes it, because Tailwind class

@@ -91,7 +91,7 @@ export const ConnectionVerifiedStep = ({
               primaryColors.textOnLight,
             )}
           >
-            6번째 단계
+            6단계
           </span>
           {/* The step tag sits on its own row above, so the title and the action share one
               centered row — the text-weight action lines up with the title, not with the tag. */}
