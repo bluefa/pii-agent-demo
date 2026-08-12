@@ -1,6 +1,7 @@
 import { TopNav } from '@/app/components/layout/TopNav';
-import { EmptyState } from '@/app/components/ui/state/EmptyState';
+import { LockIcon } from '@/app/components/ui/icons';
 import { bff } from '@/lib/bff/client';
+import { cn, textColors } from '@/lib/theme';
 
 /**
  * Admin-only gate for `/admin/**`. `role` is read from the same `/user/me` the
@@ -30,10 +31,21 @@ export default async function AdminLayout({ children }: { children: React.ReactN
       {isAdmin ? (
         children
       ) : (
-        <EmptyState
-          title="관리자만 접근할 수 있어요"
-          description="이 페이지는 관리자 권한이 필요해요. 접근이 필요하면 관리자에게 문의해 주세요."
-        />
+        // Not the shared EmptyState: this is a whole-page denial, so it centres
+        // on the viewport (76px = TopNav's fixed bar height) and carries its own
+        // larger type. EmptyState's block variant is sized for a slot inside a
+        // page and is shared app-wide — it cannot grow for this one screen.
+        <div className="flex min-h-[calc(100vh-76px)] flex-col items-center justify-center px-6 text-center">
+          {/* Decorative: the heading already carries the message, so the glyph
+              stays aria-hidden (LockIcon's default) and adds no label. */}
+          <LockIcon className={cn('mb-4 h-12 w-12', textColors.tertiary)} />
+          <h1 className={cn('text-[24px] font-bold', textColors.secondary)}>
+            관리자만 접근할 수 있어요
+          </h1>
+          <p className={cn('mt-3 text-[20px]', textColors.tertiary)}>
+            이 페이지는 관리자 권한이 필요해요. 접근이 필요하면 관리자에게 문의해 주세요.
+          </p>
+        </div>
       )}
     </>
   );
