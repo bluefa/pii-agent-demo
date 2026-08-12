@@ -1,6 +1,7 @@
 'use client';
 
 import type { ReactNode } from 'react';
+import { Badge } from '@/app/components/ui/Badge';
 import { ChevronRightIcon } from '@/app/components/ui/icons';
 import { getDatabaseShortLabel } from '@/app/components/ui/DatabaseIcon';
 import { cn, idcStyles, primaryColors } from '@/lib/theme';
@@ -34,9 +35,11 @@ interface ResourceGroupRowProps {
    * row, not a colspan band (시안 §04), so the caller decides which columns carry the aggregate —
    * Step 1 answers in 설치 구분, the approval table answers in 요청 대상 여부.
    *
-   * Database Type and Region belong here, filled with the group's own values: the group is keyed
-   * on exactly that pair, so they are its attributes, and the children inherit rather than repeat
-   * them. A parent left blank across four columns read as a broken row, not as a summary.
+   * Database Type and Region do NOT belong here any more — the group is keyed on that pair, and
+   * the identity cell now says both (the label IS the type, the chip beside it IS the region).
+   * Filling the two columns as well printed each of them twice on the one row that has them, next
+   * to children that leave both blank. What earns a cell here is what the identity cannot say:
+   * the aggregate, and whichever column the screen uses to answer its own question.
    */
   children: ReactNode;
 }
@@ -83,6 +86,15 @@ export const ResourceGroupRow = ({
         <ChevronRightIcon className="h-3.5 w-3.5" />
       </button>
       <span className={idcStyles.table.group.label}>{label}</span>
+      {/* The region rides the label instead of holding a column of its own (owner, 2026-08-12).
+          The group is keyed on the (type, region) PAIR, so the two are one identity — split
+          across the row they read as two independent facts, and the Region column then repeated
+          for the parent what the children below leave blank anyway. A neutral chip, not the
+          violet `resourceKind` tier: that tier answers "what this row IS", and where it runs is
+          a different question. */}
+      <Badge variant="neutral" size="sm" className="font-mono">
+        {region}
+      </Badge>
       {inlineMeta}
     </span>
   );
@@ -118,7 +130,13 @@ export const ResourceGroupRow = ({
   );
 };
 
-/** Aggregate summary shown in one of the parent row's own columns. */
+/**
+ * Aggregate summary shown in one of the parent row's own columns.
+ *
+ * Two numbers, not three: the total was the sum of the two beside it, so it never told anyone
+ * anything they could not read off the same line, and it made a three-part phrase out of a
+ * two-part fact (owner, 2026-08-12).
+ */
 export const ResourceGroupCount = ({
   targetCount,
   excludedCount,
@@ -127,6 +145,7 @@ export const ResourceGroupCount = ({
   excludedCount: number;
 }) => (
   <span className={idcStyles.table.group.meta}>
-    {`${targetCount} 대상 · ${excludedCount} 제외 · 총 ${targetCount + excludedCount}`}
+    <span className={idcStyles.table.group.metaValue}>{targetCount}</span> 대상 ·{' '}
+    <span className={idcStyles.table.group.metaValue}>{excludedCount}</span> 제외
   </span>
 );

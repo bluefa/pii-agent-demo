@@ -1462,6 +1462,15 @@ export const idcStyles = {
       /** Aggregate cells — tabular so counts stay aligned down the column. */
       meta: 'whitespace-nowrap text-[12px] tabular-nums text-[#6B7684]',
       /**
+       * The counts inside `meta`, one step up from the words beside them (owner, 2026-08-12).
+       *
+       * "대상"/"제외" are the same two words on every group row; only the numbers differ, and the
+       * number is what the row is actually reporting. Size carries the whole difference — same
+       * colour, same weight — so the pair keeps reading as one phrase rather than as a value with
+       * a caption stuck under it.
+       */
+      metaValue: 'text-[14px]',
+      /**
        * Child row's first cell — the tree rail. A vertical hairline runs the full row height
        * under the parent's chevron and an elbow reaches into the name; `childCellLast` cuts
        * the rail at the elbow so the group's end is drawn, not merely implied.

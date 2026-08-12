@@ -2,7 +2,6 @@
 
 import { Fragment, useMemo, useState } from 'react';
 import { cn, idcStyles, textColors } from '@/lib/theme';
-import { getDatabaseShortLabel } from '@/app/components/ui/DatabaseIcon';
 import { groupResourceRows } from '@/lib/resource-grouping';
 import { getResourceDisplayName } from '@/lib/resource';
 import type { CandidateDraftState, CandidateResource } from '@/lib/types/resources';
@@ -263,31 +262,16 @@ export const CandidateResourceTable = ({
                   >
                     {/* Resource ID stays blank — the catalog id lives only inside each child's
                         resource_id string, which we do not parse.
-                        Database Type and Region ARE the pair the group is keyed on, so they are
-                        the parent's own values; the children below leave those two cells empty
-                        rather than repeat them.
+                        Database Type and Region stay blank too: the group is keyed on that pair,
+                        and the identity cell already says both — the label is the type, the chip
+                        beside it is the region. Filling the columns as well printed "Athena"
+                        twice on one row (owner, 2026-08-12).
                         설치 구분 stays EMPTY: it is the scan's per-resource verdict, and a group
                         is not a resource the scan judged — a value there would be invented.
                         The aggregate goes in the trailing column, the only one with room. */}
                     <td className={idcStyles.table.approvalCell} />
-                    <td
-                      className={cn(
-                        idcStyles.table.approvalCell,
-                        'whitespace-nowrap text-[14px]',
-                        textColors.secondary,
-                      )}
-                    >
-                      {getDatabaseShortLabel(group.type)}
-                    </td>
-                    <td
-                      className={cn(
-                        idcStyles.table.approvalCell,
-                        'whitespace-nowrap font-mono text-[14px]',
-                        textColors.secondary,
-                      )}
-                    >
-                      {group.region}
-                    </td>
+                    <td className={idcStyles.table.approvalCell} />
+                    <td className={idcStyles.table.approvalCell} />
                     <td className={idcStyles.table.approvalCell} />
                     {showCheckboxColumn && (
                       <td className={idcStyles.table.approvalCell}>

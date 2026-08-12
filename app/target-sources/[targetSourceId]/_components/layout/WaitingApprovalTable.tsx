@@ -868,24 +868,13 @@ export const WaitingApprovalTable = memo(
                       rail={railRow(group.key)}
                     >
                       {/* Resource ID stays blank: the catalog id lives only inside each child's
-                          resource_id string, which we do not parse. Database Type and Region are
-                          the pair the group is keyed on, so they are the parent's own values and
-                          the children below leave those two cells empty. */}
+                          resource_id string, which we do not parse. Database Type and Region stay
+                          blank as well — the group is keyed on that pair and the identity cell
+                          says both, so filling the columns printed each of them twice on the one
+                          row that has them (owner, 2026-08-12; same change in step 1). */}
                       <td className={idcStyles.table.approvalCell} />
-                      <td
-                        className={cn(
-                          idcStyles.table.approvalCell,
-                          'text-[14px]',
-                          textColors.secondary,
-                        )}
-                      >
-                        {getDatabaseShortLabel(group.type)}
-                      </td>
-                      <td
-                        className={cn(idcStyles.table.approvalCell, monoCell, textColors.secondary)}
-                      >
-                        {group.region}
-                      </td>
+                      <td className={idcStyles.table.approvalCell} />
+                      <td className={idcStyles.table.approvalCell} />
                       {/* Only the approval variant reaches here, so the aggregate always lands
                           in the verdict column — the question that column asks. */}
                       <td className={idcStyles.table.approvalCell}>
