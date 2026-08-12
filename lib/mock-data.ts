@@ -106,6 +106,7 @@ const createStatusForProcessStatus = (
 export const mockUsers: User[] = [
   {
     id: 'user-1',
+    knoxId: 'gildong.hong',
     name: '홍길동',
     email: 'hong@company.com',
     role: 'SERVICE_MANAGER',
@@ -113,6 +114,7 @@ export const mockUsers: User[] = [
   },
   {
     id: 'user-2',
+    knoxId: 'chulsoo.kim',
     name: '김철수',
     email: 'kim@company.com',
     role: 'SERVICE_MANAGER',
@@ -120,6 +122,7 @@ export const mockUsers: User[] = [
   },
   {
     id: 'admin-1',
+    knoxId: 'admin.pass',
     name: '관리자',
     email: 'admin@company.com',
     role: 'ADMIN',
@@ -128,13 +131,13 @@ export const mockUsers: User[] = [
   // 접근 권한 화면들이 쓸 사용자들 — 표와 페이저에 실을 것이 있어야 하고, 권한이
   // 없는 사용자(user-6·user-8)가 있어야 "권한 요청" 흐름을 열어 볼 수 있다.
   // 여기 두는 이유: 현재 사용자(getCurrentUser)는 이 배열에서만 고를 수 있다.
-  { id: 'user-3', name: '이영희', email: 'lee@company.com', role: 'SERVICE_MANAGER', serviceCodePermissions: ['aws', 'gcp'] },
-  { id: 'user-4', name: '박민수', email: 'park@company.com', role: 'SERVICE_MANAGER', serviceCodePermissions: ['azure'] },
-  { id: 'user-5', name: '정수진', email: 'jung@company.com', role: 'SERVICE_MANAGER', serviceCodePermissions: ['aws', 'idc', 'SDU'] },
-  { id: 'user-6', name: '최동현', email: 'choi@company.com', role: 'SERVICE_MANAGER', serviceCodePermissions: [] },
-  { id: 'user-7', name: '강하늘', email: 'kang@company.com', role: 'SERVICE_MANAGER', serviceCodePermissions: ['gcp'] },
-  { id: 'user-8', name: '윤서연', email: 'yoon@company.com', role: 'SERVICE_MANAGER', serviceCodePermissions: [] },
-  { id: 'user-9', name: '임재현', email: 'lim@company.com', role: 'SERVICE_MANAGER', serviceCodePermissions: ['aws'] },
+  { id: 'user-3', knoxId: 'younghee.lee', name: '이영희', email: 'lee@company.com', role: 'SERVICE_MANAGER', serviceCodePermissions: ['aws', 'gcp'] },
+  { id: 'user-4', knoxId: 'minsu.park', name: '박민수', email: 'park@company.com', role: 'SERVICE_MANAGER', serviceCodePermissions: ['azure'] },
+  { id: 'user-5', knoxId: 'sujin.jung', name: '정수진', email: 'jung@company.com', role: 'SERVICE_MANAGER', serviceCodePermissions: ['aws', 'idc', 'SDU'] },
+  { id: 'user-6', knoxId: 'donghyun.choi', name: '최동현', email: 'choi@company.com', role: 'SERVICE_MANAGER', serviceCodePermissions: [] },
+  { id: 'user-7', knoxId: 'haneul.kang', name: '강하늘', email: 'kang@company.com', role: 'SERVICE_MANAGER', serviceCodePermissions: ['gcp'] },
+  { id: 'user-8', knoxId: 'seoyeon.yoon', name: '윤서연', email: 'yoon@company.com', role: 'SERVICE_MANAGER', serviceCodePermissions: [] },
+  { id: 'user-9', knoxId: 'jaehyun.lim', name: '임재현', email: 'lim@company.com', role: 'SERVICE_MANAGER', serviceCodePermissions: ['aws'] },
 ];
 
 // ===== Current User (기본: 관리자) =====

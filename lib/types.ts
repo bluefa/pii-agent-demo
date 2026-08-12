@@ -225,6 +225,11 @@ export type AwsRegion =
 
 export interface User {
   id: string;
+  /**
+   * Knox 계정 식별자. 접근 권한 화면들이 사람을 **표시**하는 값이다
+   * (`UserSummary.knox_id`) — 사람 이름은 계약에 없다. 쓰기의 식별 키는 email.
+   */
+  knoxId: string;
   name: string;
   email: string;
   role: UserRole;

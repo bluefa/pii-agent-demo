@@ -43,19 +43,16 @@ import {
   ConfirmDangerModal,
   UserPickerModal,
 } from '@/app/admin/pipelines/access/_components/AccessModals';
-import {
-  GrantTypePill,
-  HistoryTypePill,
-} from '@/app/admin/pipelines/access/_components/AccessPills';
+import { HistoryTypePill } from '@/app/admin/pipelines/access/_components/AccessPills';
 import { accessStyles as a } from '@/app/admin/pipelines/access/_components/accessStyles';
 import {
   getAccessHistory,
   getServiceUsers,
   grantServiceUsers,
   revokeServiceUser,
-  type AccessGrant,
   type AccessHistoryEntry,
   type AccessPage,
+  type AccessUser,
 } from '@/app/lib/api/access';
 
 const SERVICE_PAGE_SIZE = SERVICE_RAIL_PAGE_SIZE;
@@ -72,19 +69,21 @@ const emptyPage = <T,>(): AccessPage<T> => ({
   size: ROWS_PER_PAGE,
 });
 
+/**
+ * 담당자 표는 두 열뿐이다 — 계약이 사용자 그 자체만 준다(부여 일시·부여자·부여 경로
+ * 없음, owner decision 2026-08-13). 열을 채우려고 없는 값을 지어내지 않는다. 부여가
+ * 언제 어떤 경로로 일어났는지는 바로 아래 이력 구역이 답한다.
+ */
 const USER_COLUMNS: readonly Column[] = [
-  { label: '이름', className: a.name },
+  { label: 'Knox ID', className: a.knox },
   { label: '이메일', className: a.email },
-  { label: '부여 경로', className: a.path },
-  { label: '부여자', className: a.actor },
-  { label: '부여 일시', className: a.when },
   { className: a.tail },
 ];
 
 const HISTORY_COLUMNS: readonly Column[] = [
   { label: '구분', className: a.status },
-  { label: '대상 사용자', className: a.name },
-  { label: '수행자', className: a.actor },
+  { label: '대상', className: a.knox },
+  { label: '수행자', className: a.knox },
   { label: '사유', className: a.note },
   { label: '일시', className: a.when },
 ];
@@ -165,10 +164,10 @@ export default function AccessServicesPage(): ReactElement {
 
   // ── 오른쪽 시트 ──────────────────────────────────────────────────────────
   const fetchUsers = useCallback(
-    (page: number, opts: { signal: AbortSignal }): Promise<AccessPage<AccessGrant>> =>
+    (page: number, opts: { signal: AbortSignal }): Promise<AccessPage<AccessUser>> =>
       selectedCode
         ? getServiceUsers(selectedCode, page, { ...opts, size: ROWS_PER_PAGE })
-        : Promise.resolve(emptyPage<AccessGrant>()),
+        : Promise.resolve(emptyPage<AccessUser>()),
     [selectedCode],
   );
   const fetchHistory = useCallback(
@@ -183,13 +182,13 @@ export default function AccessServicesPage(): ReactElement {
   const history = usePagedSection(fetchHistory);
 
   const [pickerOpen, setPickerOpen] = useState(false);
-  /** 해제 확인 중인 행 — null 이면 모달이 닫혀 있다. */
-  const [revoking, setRevoking] = useState<AccessGrant | null>(null);
+  /** 해제 확인 중인 담당자 — null 이면 모달이 닫혀 있다. */
+  const [revoking, setRevoking] = useState<AccessUser | null>(null);
 
-  const grant = async (userIds: string[]): Promise<void> => {
+  const grant = async (emails: string[]): Promise<void> => {
     if (!selectedCode) return;
     try {
-      const result = await grantServiceUsers(selectedCode, userIds);
+      const result = await grantServiceUsers(selectedCode, emails);
       setPickerOpen(false);
       toast.show(`${result.granted_count}명에게 ${selectedName} 권한을 부여했어요`);
       users.reload();
@@ -202,8 +201,8 @@ export default function AccessServicesPage(): ReactElement {
   const revoke = async (): Promise<void> => {
     if (!selectedCode || !revoking) return;
     try {
-      await revokeServiceUser(selectedCode, revoking.user.id);
-      toast.show(`${revoking.user.name}님의 ${selectedName} 권한을 해제했어요`);
+      await revokeServiceUser(selectedCode, revoking.email);
+      toast.show(`${revoking.knoxId}의 ${selectedName} 권한을 해제했어요`);
       setRevoking(null);
       users.reload();
       history.reload();
@@ -335,7 +334,7 @@ export default function AccessServicesPage(): ReactElement {
             <PagedCard
               bare
               title="권한 사용자"
-              desc="이 서비스에 접근할 수 있는 사용자예요 — 부여 경로로 요청 승인과 직접 부여를 구분해요"
+              desc="이 서비스에 접근할 수 있는 사용자예요 — 언제 어떤 경로로 부여됐는지는 아래 이력에서 볼 수 있어요"
               icon="shield-check"
               tone="primary"
               state={users}
@@ -352,21 +351,12 @@ export default function AccessServicesPage(): ReactElement {
             >
               {(rows) =>
                 rows.map((row) => (
-                  <div key={row.user.id} role="row" className={a.row}>
-                    <span role="cell" className={cn(a.name, a.nameStrong)}>
-                      {row.user.name}
+                  <div key={row.email} role="row" className={a.row}>
+                    <span role="cell" className={a.knox}>
+                      {row.knoxId}
                     </span>
                     <span role="cell" className={a.email}>
-                      {row.user.email}
-                    </span>
-                    <span role="cell" className={a.path}>
-                      <GrantTypePill grantType={row.grantType} />
-                    </span>
-                    <span role="cell" className={a.actor}>
-                      {row.grantedBy?.name ?? '—'}
-                    </span>
-                    <span role="cell" className={a.when}>
-                      {fmtDateTime(row.grantedAt)}
+                      {row.email}
                     </span>
                     <span role="cell" className={a.tail}>
                       <PlButton variant="ghost" size="sm" onClick={() => setRevoking(row)}>
@@ -383,7 +373,7 @@ export default function AccessServicesPage(): ReactElement {
             <PagedCard
               bare
               title="이 서비스의 권한 이력"
-              desc="이 서비스 코드에서 권한이 부여·해제된 기록이에요"
+              desc="이 서비스 코드에서 권한이 움직인 기록이에요 — 요청 승인과 직접 부여가 여기서 갈려요"
               icon="clock"
               tone="muted"
               state={history}
@@ -399,11 +389,11 @@ export default function AccessServicesPage(): ReactElement {
                     <span role="cell" className={a.status}>
                       <HistoryTypePill type={row.type} />
                     </span>
-                    <span role="cell" className={cn(a.name, a.nameStrong)}>
-                      {row.targetUser.name}
+                    <span role="cell" className={a.knox}>
+                      {row.targetUser.knoxId}
                     </span>
-                    <span role="cell" className={a.actor}>
-                      {row.actor.name}
+                    <span role="cell" className={a.knox}>
+                      {row.actor.knoxId}
                     </span>
                     <span role="cell" className={a.note}>
                       {row.reason ?? '—'}
@@ -433,7 +423,7 @@ export default function AccessServicesPage(): ReactElement {
         open={revoking != null}
         onClose={() => setRevoking(null)}
         title="서비스 권한 해제"
-        sub={`${revoking?.user.name ?? ''}님의 ${selectedName} 접근 권한을 해제해요.`}
+        sub={`${revoking?.knoxId ?? ''}의 ${selectedName} 접근 권한을 해제해요.`}
         confirmLabel="해제"
         onConfirm={revoke}
       >

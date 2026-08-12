@@ -77,8 +77,8 @@ export default function AccessRequestDetailPage(): ReactElement {
         setModal(null);
         toast.show(
           kind === 'approve'
-            ? `${updated.requester.name}님에게 ${updated.serviceName} 권한을 부여했어요`
-            : `${updated.requester.name}님의 요청을 반려했어요`,
+            ? `${updated.requester.knoxId}에게 ${updated.serviceName} 권한을 부여했어요`
+            : `${updated.requester.knoxId}의 요청을 반려했어요`,
         );
         back();
       } catch (err) {
@@ -91,7 +91,7 @@ export default function AccessRequestDetailPage(): ReactElement {
 
   const crumbs = [
     { label: '권한 요청', href: passRoutes.pipelines.access.requests },
-    { label: request ? `${request.requester.name}님의 요청` : `#${params.requestId}` },
+    { label: request ? `${request.requester.knoxId}의 요청` : `#${params.requestId}` },
   ];
 
   if (error != null) {
@@ -123,7 +123,7 @@ export default function AccessRequestDetailPage(): ReactElement {
   }
 
   const pending = request.status === 'PENDING';
-  const subject = `${request.requester.name}님의 ${request.serviceName} 접근 요청`;
+  const subject = `${request.requester.knoxId}의 ${request.serviceName} 접근 요청`;
 
   return (
     <div>
@@ -139,7 +139,9 @@ export default function AccessRequestDetailPage(): ReactElement {
         <SectionHeader first title="요청 정보" />
         <div className={a.factRow}>
           <span className={a.factLabel}>요청자</span>
-          <span className={a.nameStrong}>{request.requester.name}</span>
+          <span className={cn(a.mono, 'text-[var(--pl-text-strong)]')}>
+            {request.requester.knoxId}
+          </span>
           <span className="text-[var(--pl-text-weak)]">{request.requester.email}</span>
         </div>
         <div className={a.factRow}>
@@ -159,7 +161,7 @@ export default function AccessRequestDetailPage(): ReactElement {
           <>
             <SectionHeader
               title="처리 결과"
-              desc={`${request.processedBy?.name ?? '—'} · ${fmtDateTime(request.processedAt)}`}
+              desc={`${request.processedBy?.knoxId ?? '—'} · ${fmtDateTime(request.processedAt)}`}
             />
             <p className={a.quote}>
               {request.verdictMessage ??

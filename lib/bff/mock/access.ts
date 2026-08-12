@@ -6,6 +6,13 @@
  * one history log, and `/admin/access/*` requires ADMIN while `/access/*` does not
  * (a user with no permission still has to be able to ask for one).
  *
+ * Owner decisions (2026-08-13) baked in here:
+ *  - **email is the identity key** for every write. Reads still return `knox_id`
+ *    alongside it, but nothing is addressed by an internal id.
+ *  - **knox_id is what screens display.** The contract carries no person name.
+ *  - **no grant metadata.** 담당자 목록은 사용자 목록 그 자체이고, 누가 언제 어떤
+ *    경로로 부여했는지는 `/history` 의 이벤트로만 남는다.
+ *
  * The store is built on FIRST CALL, not at import — `lib/bff/client.ts` imports the
  * mock adapter unconditionally, so module-level seeding would run in HTTP mode too.
  *
@@ -17,18 +24,15 @@ import { NextResponse } from 'next/server';
 import * as mockData from '@/lib/mock-data';
 import type { User } from '@/lib/types';
 import type {
-  AccessGrantTypeWire,
   AccessHistoryTypeWire,
   AccessRequestStatusWire,
   AccessPageWire,
 } from '@/lib/bff/types';
 
+/** 담당자 관계 그 자체. 부여 메타데이터는 계약에 없으므로 저장하지도 않는다. */
 interface Grant {
   serviceCode: string;
   userId: string;
-  grantedAt: string;
-  grantedBy: string | null;
-  grantType: AccessGrantTypeWire;
 }
 
 interface AccessRequest {
@@ -53,18 +57,13 @@ interface HistoryEntry {
   createdAt: string;
 }
 
-interface AdminGrant {
-  userId: string;
-  grantedAt: string;
-  grantedBy: string | null;
-}
-
 interface Store {
   users: User[];
   grants: Grant[];
   requests: AccessRequest[];
   history: HistoryEntry[];
-  admins: AdminGrant[];
+  /** 관리자 user id 집합 — 여기도 부여 메타데이터는 없다. */
+  admins: string[];
   requestSeq: number;
   historySeq: number;
 }
@@ -82,29 +81,25 @@ function seed(): Store {
   // "권한을 받으면 그 서비스가 보인다"가 성립하고, 현재 사용자도 이 배열에서만 나온다.
   const users = mockData.mockUsers;
   declaredPermissions ??= new Map(users.map((u) => [u.id, [...u.serviceCodePermissions]]));
+  const declaredRoles = new Map(users.map((u) => [u.id, u.role]));
   for (const user of users) {
     user.serviceCodePermissions = [...(declaredPermissions.get(user.id) ?? [])];
+    user.role = declaredRoles.get(user.id) ?? user.role;
   }
+
   const grants: Grant[] = [];
   const history: HistoryEntry[] = [];
   let historySeq = 1;
 
-  // Every existing permission becomes a grant row. Alternating the path keeps both
-  // 부여 경로 values on screen — the audit distinction is the point of the column.
+  // 기존 권한은 그대로 담당자 관계가 된다. 이력에는 부여 이벤트를 남기되 경로를
+  // 번갈아 준다 — 직접 부여와 요청 승인이 이력에서 어떻게 갈리는지 보여야 해서.
   let n = 0;
   for (const user of users) {
     for (const serviceCode of user.serviceCodePermissions) {
-      const direct = n % 3 === 0;
-      grants.push({
-        serviceCode,
-        userId: user.id,
-        grantedAt: T(1 + (n % 9), 9 + (n % 8)),
-        grantedBy: 'admin-1',
-        grantType: direct ? 'DIRECT' : 'REQUEST_APPROVED',
-      });
+      grants.push({ serviceCode, userId: user.id });
       history.push({
         historyId: historySeq++,
-        type: direct ? 'GRANTED' : 'APPROVED',
+        type: n % 3 === 0 ? 'GRANTED' : 'APPROVED',
         serviceCode,
         targetUserId: user.id,
         actorId: 'admin-1',
@@ -142,9 +137,7 @@ function seed(): Store {
     grants,
     requests,
     history,
-    admins: users
-      .filter((user) => user.role === 'ADMIN')
-      .map((user) => ({ userId: user.id, grantedAt: T(1, 9), grantedBy: null })),
+    admins: users.filter((user) => user.role === 'ADMIN').map((user) => user.id),
     requestSeq: 1007,
     historySeq,
   };
@@ -175,23 +168,32 @@ const conflict = (message: string): NextResponse =>
 const me = (): User | null => mockData.getCurrentUser() ?? null;
 
 const isAdmin = (user: User | null): boolean =>
-  user != null && getStore().admins.some((a) => a.userId === user.id);
+  user != null && getStore().admins.includes(user.id);
 
 const userOf = (userId: string): User | undefined =>
   getStore().users.find((u) => u.id === userId);
 
-const userWire = (userId: string): { id: string; name: string; email: string } => {
-  const user = userOf(userId);
-  return { id: userId, name: user?.name ?? userId, email: user?.email ?? '' };
+/** 쓰기의 식별 키는 email — 대소문자는 무시한다(같은 사람을 두 번 부여하면 안 된다). */
+const userByEmail = (email: string): User | undefined => {
+  const needle = email.trim().toLowerCase();
+  return getStore().users.find((u) => u.email.toLowerCase() === needle);
 };
 
-const namedWire = (userId: string): { id: string; name: string } => ({
-  id: userId,
-  name: userOf(userId)?.name ?? userId,
-});
+/** UserSummary — 이름은 계약에 없다. */
+const userWire = (userId: string): { knox_id: string; email: string; role: string } => {
+  const user = userOf(userId);
+  return {
+    knox_id: user?.knoxId ?? userId,
+    email: user?.email ?? '',
+    role: user?.role ?? 'SERVICE_MANAGER',
+  };
+};
 
-const actorWire = (userId: string | null): { id: string; name: string } | null =>
-  userId == null ? null : namedWire(userId);
+/** 이력의 행위자·대상 — 표시에 필요한 최소값. */
+const actorWire = (userId: string): { knox_id: string; email: string } => {
+  const user = userOf(userId);
+  return { knox_id: user?.knoxId ?? userId, email: user?.email ?? '' };
+};
 
 const serviceName = (code: string): string =>
   mockData.mockServiceCodes.find((s) => s.code === code)?.name ?? code;
@@ -216,11 +218,11 @@ function log(entry: Omit<HistoryEntry, 'historyId' | 'createdAt'>): void {
   s.history.push({ ...entry, historyId: s.historySeq++, createdAt: nowIso() });
 }
 
-/** Grant + mirror onto the user record so the legacy authorized-users read agrees. */
-function addGrant(serviceCode: string, userId: string, by: string, type: AccessGrantTypeWire): boolean {
+/** Grant + mirror onto the user record so `/user/services/page` agrees. */
+function addGrant(serviceCode: string, userId: string): boolean {
   const s = getStore();
   if (s.grants.some((g) => g.serviceCode === serviceCode && g.userId === userId)) return false;
-  s.grants.push({ serviceCode, userId, grantedAt: nowIso(), grantedBy: by, grantType: type });
+  s.grants.push({ serviceCode, userId });
   const user = userOf(userId);
   if (user && !user.serviceCodePermissions.includes(serviceCode)) {
     user.serviceCodePermissions.push(serviceCode);
@@ -237,7 +239,7 @@ const requestWire = (request: AccessRequest) => ({
   requested_at: request.requestedAt,
   status: request.status,
   processed_at: request.processedAt,
-  processed_by: actorWire(request.processedBy),
+  processed_by: request.processedBy ? actorWire(request.processedBy) : null,
   verdict_message: request.verdictMessage,
 });
 
@@ -245,57 +247,56 @@ const MAX_TEXT = 1000;
 const trim = (value: unknown): string =>
   typeof value === 'string' ? value.trim().slice(0, MAX_TEXT) : '';
 
-const idList = (value: unknown): string[] =>
+const emailList = (value: unknown): string[] =>
   Array.isArray(value) ? value.filter((v): v is string => typeof v === 'string' && v !== '') : [];
+
+/** knox_id 오름차순 — 부여 일시가 없으니 정렬은 사람 식별자로 한다(항상 같은 순서). */
+const byKnoxId = (a: string, b: string): number =>
+  (userOf(a)?.knoxId ?? a).localeCompare(userOf(b)?.knoxId ?? b);
 
 // ── handlers ─────────────────────────────────────────────────────────────────
 
 export const mockAccess = {
-  // §1 — 서비스별 권한 사용자 목록
+  // §1 — 서비스 담당자 목록
   listServiceUsers: async (serviceCode: string, pageNumber: number, size: number) => {
-    const caller = me();
-    if (!isAdmin(caller)) return forbidden('관리자만 서비스 권한을 조회할 수 있어요.');
+    if (!isAdmin(me())) return forbidden('관리자만 서비스 권한을 조회할 수 있어요.');
     const rows = getStore()
       .grants.filter((g) => g.serviceCode === serviceCode)
-      .sort((a, b) => b.grantedAt.localeCompare(a.grantedAt))
-      .map((g) => ({
-        user: userWire(g.userId),
-        granted_at: g.grantedAt,
-        granted_by: actorWire(g.grantedBy),
-        grant_type: g.grantType,
-      }));
+      .map((g) => g.userId)
+      .sort(byKnoxId)
+      .map(userWire);
     return NextResponse.json(page(rows, pageNumber, size));
   },
 
-  // §2 — 직접 부여 (bulk)
-  grantServiceUsers: async (serviceCode: string, userIds: string[]) => {
+  // §2 — 직접 부여 (bulk, email 키)
+  grantServiceUsers: async (serviceCode: string, emails: string[]) => {
     const caller = me();
     if (!isAdmin(caller) || !caller) return forbidden('관리자만 권한을 부여할 수 있어요.');
-    const ids = idList(userIds);
-    if (ids.length === 0) return badRequest('부여할 사용자를 한 명 이상 선택해 주세요.');
+    const list = emailList(emails);
+    if (list.length === 0) return badRequest('부여할 사용자를 한 명 이상 선택해 주세요.');
     let granted = 0;
-    for (const userId of ids) {
-      if (!userOf(userId)) continue;
-      if (!addGrant(serviceCode, userId, caller.id, 'DIRECT')) continue;
+    for (const email of list) {
+      const user = userByEmail(email);
+      if (!user) continue;
+      if (!addGrant(serviceCode, user.id)) continue;
       granted += 1;
-      log({ type: 'GRANTED', serviceCode, targetUserId: userId, actorId: caller.id, reason: null });
+      log({ type: 'GRANTED', serviceCode, targetUserId: user.id, actorId: caller.id, reason: null });
     }
     return NextResponse.json({ granted_count: granted });
   },
 
-  // §3 — 권한 해제
-  revokeServiceUser: async (serviceCode: string, userId: string) => {
+  // §3 — 권한 해제 (email 키)
+  revokeServiceUser: async (serviceCode: string, email: string) => {
     const caller = me();
     if (!isAdmin(caller) || !caller) return forbidden('관리자만 권한을 해제할 수 있어요.');
+    const user = userByEmail(email);
+    if (!user) return notFound('사용자를 찾을 수 없어요.');
     const s = getStore();
-    const index = s.grants.findIndex((g) => g.serviceCode === serviceCode && g.userId === userId);
+    const index = s.grants.findIndex((g) => g.serviceCode === serviceCode && g.userId === user.id);
     if (index < 0) return notFound('해당 사용자는 이 서비스 권한을 가지고 있지 않아요.');
     s.grants.splice(index, 1);
-    const user = userOf(userId);
-    if (user) {
-      user.serviceCodePermissions = user.serviceCodePermissions.filter((c) => c !== serviceCode);
-    }
-    log({ type: 'REVOKED', serviceCode, targetUserId: userId, actorId: caller.id, reason: null });
+    user.serviceCodePermissions = user.serviceCodePermissions.filter((c) => c !== serviceCode);
+    log({ type: 'REVOKED', serviceCode, targetUserId: user.id, actorId: caller.id, reason: null });
     return NextResponse.json({ ok: true });
   },
 
@@ -327,7 +328,7 @@ export const mockAccess = {
     request.processedBy = caller.id;
     request.verdictMessage = trim(message) || null;
     // 승인이 곧 부여다 — 별도의 부여 호출은 없다.
-    addGrant(request.serviceCode, request.userId, caller.id, 'REQUEST_APPROVED');
+    addGrant(request.serviceCode, request.userId);
     log({
       type: 'APPROVED',
       serviceCode: request.serviceCode,
@@ -360,7 +361,8 @@ export const mockAccess = {
     return NextResponse.json(requestWire(request));
   },
 
-  // §5 — 이력 (service_code 필터가 "서비스 코드 단위 조회"를 담당한다)
+  // §5 — 이력. 담당자 목록이 부여 메타데이터를 잃은 뒤로, "누가 언제 어떤 경로로"는
+  // 오직 여기에만 남는다.
   listHistory: async (
     query: { serviceCode?: string; type?: string },
     pageNumber: number,
@@ -379,8 +381,8 @@ export const mockAccess = {
         type: h.type,
         service_code: h.serviceCode,
         service_name: h.serviceCode ? serviceName(h.serviceCode) : null,
-        target_user: namedWire(h.targetUserId),
-        actor: namedWire(h.actorId),
+        target_user: actorWire(h.targetUserId),
+        actor: actorWire(h.actorId),
         reason: h.reason,
         created_at: h.createdAt,
       }));
@@ -390,47 +392,41 @@ export const mockAccess = {
   // §6 — 관리자 권한
   listAdmins: async (pageNumber: number, size: number) => {
     if (!isAdmin(me())) return forbidden('관리자만 조회할 수 있어요.');
-    const rows = getStore()
-      .admins.slice()
-      .sort((a, b) => a.grantedAt.localeCompare(b.grantedAt))
-      .map((a) => ({
-        user: userWire(a.userId),
-        granted_at: a.grantedAt,
-        granted_by: actorWire(a.grantedBy),
-      }));
+    const rows = getStore().admins.slice().sort(byKnoxId).map(userWire);
     return NextResponse.json(page(rows, pageNumber, size));
   },
 
-  grantAdmins: async (userIds: string[]) => {
+  grantAdmins: async (emails: string[]) => {
     const caller = me();
     if (!isAdmin(caller) || !caller) return forbidden('관리자만 관리자 권한을 부여할 수 있어요.');
-    const ids = idList(userIds);
-    if (ids.length === 0) return badRequest('부여할 사용자를 한 명 이상 선택해 주세요.');
+    const list = emailList(emails);
+    if (list.length === 0) return badRequest('부여할 사용자를 한 명 이상 선택해 주세요.');
     const s = getStore();
     let granted = 0;
-    for (const userId of ids) {
-      const user = userOf(userId);
-      if (!user || s.admins.some((a) => a.userId === userId)) continue;
-      s.admins.push({ userId, grantedAt: nowIso(), grantedBy: caller.id });
+    for (const email of list) {
+      const user = userByEmail(email);
+      if (!user || s.admins.includes(user.id)) continue;
+      s.admins.push(user.id);
       user.role = 'ADMIN';
       granted += 1;
-      log({ type: 'ADMIN_GRANTED', serviceCode: null, targetUserId: userId, actorId: caller.id, reason: null });
+      log({ type: 'ADMIN_GRANTED', serviceCode: null, targetUserId: user.id, actorId: caller.id, reason: null });
     }
     return NextResponse.json({ granted_count: granted });
   },
 
-  revokeAdmin: async (userId: string) => {
+  revokeAdmin: async (email: string) => {
     const caller = me();
     if (!isAdmin(caller) || !caller) return forbidden('관리자만 관리자 권한을 회수할 수 있어요.');
+    const user = userByEmail(email);
+    if (!user) return notFound('사용자를 찾을 수 없어요.');
     // 자기 자신은 회수할 수 없다 — 마지막 관리자가 스스로를 지우면 되돌릴 화면이 없다.
-    if (caller.id === userId) return badRequest('자신의 관리자 권한은 회수할 수 없어요.');
+    if (caller.id === user.id) return badRequest('자신의 관리자 권한은 회수할 수 없어요.');
     const s = getStore();
-    const index = s.admins.findIndex((a) => a.userId === userId);
+    const index = s.admins.indexOf(user.id);
     if (index < 0) return notFound('관리자가 아닌 사용자예요.');
     s.admins.splice(index, 1);
-    const user = userOf(userId);
-    if (user) user.role = 'SERVICE_MANAGER';
-    log({ type: 'ADMIN_REVOKED', serviceCode: null, targetUserId: userId, actorId: caller.id, reason: null });
+    user.role = 'SERVICE_MANAGER';
+    log({ type: 'ADMIN_REVOKED', serviceCode: null, targetUserId: user.id, actorId: caller.id, reason: null });
     return NextResponse.json({ ok: true });
   },
 
@@ -441,7 +437,7 @@ export const mockAccess = {
     const q = (query.query ?? '').trim().toLowerCase();
     const users = s.users
       .filter((user) => {
-        if (query.role === 'ADMIN' && s.admins.some((a) => a.userId === user.id)) return false;
+        if (query.role === 'ADMIN' && s.admins.includes(user.id)) return false;
         if (
           query.excludeServiceCode != null &&
           s.grants.some((g) => g.serviceCode === query.excludeServiceCode && g.userId === user.id)
@@ -449,14 +445,12 @@ export const mockAccess = {
           return false;
         }
         if (!q) return true;
-        return (
-          user.name.toLowerCase().includes(q) ||
-          user.email.toLowerCase().includes(q) ||
-          user.id.toLowerCase().includes(q)
-        );
+        // 이름은 계약에 없다 — 검색도 knox_id 와 email 로만 한다.
+        return user.knoxId.toLowerCase().includes(q) || user.email.toLowerCase().includes(q);
       })
+      .sort((a, b) => a.knoxId.localeCompare(b.knoxId))
       .slice(0, 50)
-      .map((user) => ({ id: user.id, name: user.name, email: user.email }));
+      .map((user) => userWire(user.id));
     return NextResponse.json({ users });
   },
 

@@ -328,15 +328,12 @@ export const httpBff: BffClient = {
       getSnakeRaw(
         `/admin/access/services/${encodeURIComponent(serviceCode)}/users${buildQuery({ page, size })}`,
       ),
-    grantServiceUsers: (serviceCode, userIds) =>
-      post(`/admin/access/services/${encodeURIComponent(serviceCode)}/users`, {
-        user_ids: userIds,
-      }),
-    revokeServiceUser: (serviceCode, userId) =>
-      send(
-        'DELETE',
-        `/admin/access/services/${encodeURIComponent(serviceCode)}/users/${encodeURIComponent(userId)}`,
-      ),
+    grantServiceUsers: (serviceCode, emails) =>
+      post(`/admin/access/services/${encodeURIComponent(serviceCode)}/users`, { emails }),
+    // POST …/remove, not DELETE …/{email}: the key is an email address, and an
+    // email in a URL path is PII in every access log and referrer along the way.
+    revokeServiceUser: (serviceCode, email) =>
+      post(`/admin/access/services/${encodeURIComponent(serviceCode)}/users/remove`, { email }),
     listRequests: (status, page, size) =>
       getSnakeRaw(`/admin/access/requests${buildQuery({ status, page, size })}`),
     getRequest: (requestId) => getSnakeRaw(`/admin/access/requests/${requestId}`),
@@ -354,9 +351,8 @@ export const httpBff: BffClient = {
         })}`,
       ),
     listAdmins: (page, size) => getSnakeRaw(`/admin/access/admins${buildQuery({ page, size })}`),
-    grantAdmins: (userIds) => post('/admin/access/admins', { user_ids: userIds }),
-    revokeAdmin: (userId) =>
-      send('DELETE', `/admin/access/admins/${encodeURIComponent(userId)}`),
+    grantAdmins: (emails) => post('/admin/access/admins', { emails }),
+    revokeAdmin: (email) => post('/admin/access/admins/remove', { email }),
     searchUsers: (query) =>
       getSnakeRaw(
         `/admin/access/users${buildQuery({

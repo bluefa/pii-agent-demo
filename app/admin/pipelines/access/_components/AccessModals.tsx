@@ -33,7 +33,8 @@ export interface UserPickerModalProps {
   /** 'ADMIN' 이면 이미 관리자인 사용자를 후보에서 제외한다. */
   excludeRole?: 'ADMIN';
   submitLabel: string;
-  onSubmit: (userIds: string[]) => Promise<void>;
+  /** 선택한 사람들의 **email** — 계약의 식별 키다. */
+  onSubmit: (emails: string[]) => Promise<void>;
 }
 
 export function UserPickerModal({
@@ -85,9 +86,9 @@ export function UserPickerModal({
     [open, debounced, excludeServiceCode, excludeRole],
   );
 
-  const toggle = (userId: string): void =>
+  const toggle = (email: string): void =>
     setPicked((prev) =>
-      prev.includes(userId) ? prev.filter((id) => id !== userId) : [...prev, userId],
+      prev.includes(email) ? prev.filter((picked) => picked !== email) : [...prev, email],
     );
 
   const submit = async (): Promise<void> => {
@@ -123,7 +124,7 @@ export function UserPickerModal({
       <div className={a.pickerSearch}>
         <SearchBox
           wrapClassName="block w-full"
-          placeholder="이름 · 이메일 · 사번 검색"
+          placeholder="Knox ID · 이메일 검색"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           aria-label="사용자 검색"
@@ -140,14 +141,14 @@ export function UserPickerModal({
           </div>
         ) : (
           users.map((user) => (
-            <label key={user.id} className={a.pickerRow}>
+            <label key={user.email} className={a.pickerRow}>
               <input
                 type="checkbox"
                 className={a.checkbox}
-                checked={picked.includes(user.id)}
-                onChange={() => toggle(user.id)}
+                checked={picked.includes(user.email)}
+                onChange={() => toggle(user.email)}
               />
-              <span className={a.pickerName}>{user.name}</span>
+              <span className={a.pickerName}>{user.knoxId}</span>
               <span className={a.pickerEmail}>{user.email}</span>
             </label>
           ))

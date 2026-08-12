@@ -336,8 +336,10 @@ export interface BffClient {
    */
   access: {
     listServiceUsers: (serviceCode: string, page: number, size: number) => Promise<AccessGrantPageWire>;
-    grantServiceUsers: (serviceCode: string, userIds: string[]) => Promise<AccessGrantResultWire>;
-    revokeServiceUser: (serviceCode: string, userId: string) => Promise<void>;
+    // 쓰기의 식별 키는 email (owner decision 2026-08-13). 해제·회수가 DELETE 가 아니라
+    // POST body 인 이유이기도 하다 — 이메일은 개인정보라 URL 에 실으면 로그에 남는다.
+    grantServiceUsers: (serviceCode: string, emails: string[]) => Promise<AccessGrantResultWire>;
+    revokeServiceUser: (serviceCode: string, email: string) => Promise<void>;
     listRequests: (status: string | undefined, page: number, size: number) => Promise<AccessRequestPageWire>;
     getRequest: (requestId: number) => Promise<AccessRequestItemWire>;
     approveRequest: (requestId: number, message: string) => Promise<AccessRequestItemWire>;
@@ -348,8 +350,8 @@ export interface BffClient {
       size: number,
     ) => Promise<AccessHistoryPageWire>;
     listAdmins: (page: number, size: number) => Promise<AdminGrantPageWire>;
-    grantAdmins: (userIds: string[]) => Promise<AccessGrantResultWire>;
-    revokeAdmin: (userId: string) => Promise<void>;
+    grantAdmins: (emails: string[]) => Promise<AccessGrantResultWire>;
+    revokeAdmin: (email: string) => Promise<void>;
     searchUsers: (query: {
       query?: string;
       excludeServiceCode?: string;
@@ -428,26 +430,20 @@ export interface OpsTargetSourceListPageWire {
  * 접근 권한 assumed-contract wire shapes (docs/api/access-assumed-contracts.md).
  * snake_case wire, Spring `Page` envelope — same conventions as install-v1.
  */
+/**
+ * `UserSummary` — the contract carries NO person name (owner decision 2026-08-13).
+ * `knox_id` is what screens display; `email` is the identity key every write takes.
+ */
 export interface AccessUserWire {
-  id: string;
-  name: string;
+  knox_id: string;
   email: string;
+  role: string;
 }
 
-/** Actor reference — who did it. `null` where the grant predates the audit log. */
+/** Actor reference in the audit log — who did it / who it happened to. */
 export interface AccessActorWire {
-  id: string;
-  name: string;
-}
-
-/** How a user came to hold a service: through a request, or by admin fiat. */
-export type AccessGrantTypeWire = 'REQUEST_APPROVED' | 'DIRECT';
-
-export interface AccessGrantItemWire {
-  user: AccessUserWire;
-  granted_at: string;
-  granted_by: AccessActorWire | null;
-  grant_type: AccessGrantTypeWire;
+  knox_id: string;
+  email: string;
 }
 
 /** Spring-Page subset every assumed access endpoint returns. */
@@ -459,7 +455,14 @@ export interface AccessPageWire<T> {
   number: number;
 }
 
-export type AccessGrantPageWire = AccessPageWire<AccessGrantItemWire>;
+/**
+ * 담당자 목록의 항목은 사용자 그 자체다. 부여 일시·부여자·부여 경로는 계약에 없다
+ * (owner decision 2026-08-13) — 그 사실들은 `/history` 의 이벤트로만 남는다.
+ */
+export type AccessGrantPageWire = AccessPageWire<AccessUserWire>;
+
+/** 관리자 목록도 같은 이유로 사용자 목록 그 자체다. */
+export type AdminGrantPageWire = AccessPageWire<AccessUserWire>;
 
 export interface AccessGrantResultWire {
   granted_count: number;
@@ -503,14 +506,6 @@ export interface AccessHistoryItemWire {
 }
 
 export type AccessHistoryPageWire = AccessPageWire<AccessHistoryItemWire>;
-
-export interface AdminGrantItemWire {
-  user: AccessUserWire;
-  granted_at: string;
-  granted_by: AccessActorWire | null;
-}
-
-export type AdminGrantPageWire = AccessPageWire<AdminGrantItemWire>;
 
 export interface AccessUserSearchWire {
   users: AccessUserWire[];

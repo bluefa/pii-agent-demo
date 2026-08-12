@@ -10,8 +10,6 @@
  * 되돌릴 화면이 남지 않는다.
  */
 import { useState, type ReactElement } from 'react';
-import { cn } from '@/lib/theme';
-import { fmtDateTime } from '@/lib/pipeline/format';
 import { useAbortableEffect } from '@/app/hooks/useAbortableEffect';
 import { getCurrentUser } from '@/app/lib/api';
 
@@ -34,19 +32,18 @@ import {
   grantAdmins,
   revokeAdmin,
   type AccessPage,
-  type AdminGrant,
+  type AccessUser,
 } from '@/app/lib/api/access';
 
 const fetchAdmins = (
   page: number,
   opts: { signal: AbortSignal },
-): Promise<AccessPage<AdminGrant>> => getAccessAdmins(page, { ...opts, size: ROWS_PER_PAGE });
+): Promise<AccessPage<AccessUser>> => getAccessAdmins(page, { ...opts, size: ROWS_PER_PAGE });
 
+/** 담당자 표와 같은 이유로 두 열뿐이다 — 계약에 부여 일시·부여자가 없다. */
 const ADMIN_COLUMNS: readonly Column[] = [
-  { label: '이름', className: a.name },
+  { label: 'Knox ID', className: a.knox },
   { label: '이메일', className: a.email },
-  { label: '부여자', className: a.actor },
-  { label: '부여 일시', className: a.when },
   { className: a.tail },
 ];
 
@@ -54,22 +51,23 @@ export default function AccessAdminsPage(): ReactElement {
   const admins = usePagedSection(fetchAdmins);
   const toast = usePlToast();
   const [pickerOpen, setPickerOpen] = useState(false);
-  const [revoking, setRevoking] = useState<AdminGrant | null>(null);
-  const [myId, setMyId] = useState<string | null>(null);
+  const [revoking, setRevoking] = useState<AccessUser | null>(null);
+  const [myEmail, setMyEmail] = useState<string | null>(null);
 
-  // 본인 행의 회수 버튼을 잠그기 위한 식별자. 실패해도 화면은 그대로 — 서버가 막는다.
+  // 본인 행의 회수 버튼을 잠그기 위한 식별자 — 계약의 키가 email 이라 email 로 맞춘다.
+  // 실패해도 화면은 그대로: 서버가 같은 규칙으로 막는다.
   useAbortableEffect((signal) => {
     return getCurrentUser()
       .then((user) => {
         if (signal.aborted) return;
-        setMyId(user.id ?? null);
+        setMyEmail(user.email?.toLowerCase() ?? null);
       })
       .catch(() => undefined);
   }, []);
 
-  const grant = async (userIds: string[]): Promise<void> => {
+  const grant = async (emails: string[]): Promise<void> => {
     try {
-      const result = await grantAdmins(userIds);
+      const result = await grantAdmins(emails);
       setPickerOpen(false);
       toast.show(`${result.granted_count}명에게 관리자 권한을 부여했어요`);
       admins.reload();
@@ -81,8 +79,8 @@ export default function AccessAdminsPage(): ReactElement {
   const revoke = async (): Promise<void> => {
     if (!revoking) return;
     try {
-      await revokeAdmin(revoking.user.id);
-      toast.show(`${revoking.user.name}님의 관리자 권한을 회수했어요`);
+      await revokeAdmin(revoking.email);
+      toast.show(`${revoking.knoxId}의 관리자 권한을 회수했어요`);
       setRevoking(null);
       admins.reload();
     } catch (err) {
@@ -114,20 +112,14 @@ export default function AccessAdminsPage(): ReactElement {
       >
         {(rows) =>
           rows.map((row) => {
-            const isMe = myId != null && row.user.id === myId;
+            const isMe = myEmail != null && row.email.toLowerCase() === myEmail;
             return (
-              <div key={row.user.id} role="row" className={a.row}>
-                <span role="cell" className={cn(a.name, a.nameStrong)}>
-                  {row.user.name}
+              <div key={row.email} role="row" className={a.row}>
+                <span role="cell" className={a.knox}>
+                  {row.knoxId}
                 </span>
                 <span role="cell" className={a.email}>
-                  {row.user.email}
-                </span>
-                <span role="cell" className={a.actor}>
-                  {row.grantedBy?.name ?? '—'}
-                </span>
-                <span role="cell" className={a.when}>
-                  {fmtDateTime(row.grantedAt)}
+                  {row.email}
                 </span>
                 <span role="cell" className={a.tail}>
                   <PlButton
@@ -160,7 +152,7 @@ export default function AccessAdminsPage(): ReactElement {
         open={revoking != null}
         onClose={() => setRevoking(null)}
         title="관리자 권한 회수"
-        sub={`${revoking?.user.name ?? ''}님의 관리자 권한을 회수해요.`}
+        sub={`${revoking?.knoxId ?? ''}의 관리자 권한을 회수해요.`}
         confirmLabel="회수"
         onConfirm={revoke}
       >

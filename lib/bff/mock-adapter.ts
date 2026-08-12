@@ -142,10 +142,10 @@ export const mockBff: BffClient = {
   access: {
     listServiceUsers: async (code, page, size) =>
       unwrap(await mockAccess.listServiceUsers(code, page, size)),
-    grantServiceUsers: async (code, userIds) =>
-      unwrap(await mockAccess.grantServiceUsers(code, userIds)),
-    revokeServiceUser: async (code, userId) => {
-      await unwrap(await mockAccess.revokeServiceUser(code, userId));
+    grantServiceUsers: async (code, emails) =>
+      unwrap(await mockAccess.grantServiceUsers(code, emails)),
+    revokeServiceUser: async (code, email) => {
+      await unwrap(await mockAccess.revokeServiceUser(code, email));
     },
     listRequests: async (status, page, size) =>
       unwrap(await mockAccess.listRequests(status, page, size)),
@@ -157,9 +157,9 @@ export const mockBff: BffClient = {
     listHistory: async (query, page, size) =>
       unwrap(await mockAccess.listHistory(query, page, size)),
     listAdmins: async (page, size) => unwrap(await mockAccess.listAdmins(page, size)),
-    grantAdmins: async (userIds) => unwrap(await mockAccess.grantAdmins(userIds)),
-    revokeAdmin: async (userId) => {
-      await unwrap(await mockAccess.revokeAdmin(userId));
+    grantAdmins: async (emails) => unwrap(await mockAccess.grantAdmins(emails)),
+    revokeAdmin: async (email) => {
+      await unwrap(await mockAccess.revokeAdmin(email));
     },
     searchUsers: async (query) => unwrap(await mockAccess.searchUsers(query)),
     listRequestableServices: async (query, page, size) =>

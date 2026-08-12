@@ -51,6 +51,7 @@ describe('mockScan.getStatus aggregation window', () => {
     vi.clearAllMocks();
     const admin: User = {
       id: 'u1',
+      knoxId: 'admin.u1',
       name: '관리자',
       email: 'admin@example.com',
       role: 'ADMIN',

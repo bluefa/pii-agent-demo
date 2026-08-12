@@ -10,10 +10,9 @@
  */
 import { fetchInfraJson } from '@/app/lib/api/infra';
 import type {
-  AccessGrantItemWire,
+  AccessActorWire,
   AccessGrantPageWire,
   AccessGrantResultWire,
-  AccessGrantTypeWire,
   AccessHistoryItemWire,
   AccessHistoryPageWire,
   AccessHistoryTypeWire,
@@ -22,25 +21,29 @@ import type {
   AccessRequestPageWire,
   AccessRequestStatusWire,
   AccessUserSearchWire,
-  AdminGrantItemWire,
+  AccessUserWire,
   AdminGrantPageWire,
   RequestableServicePageWire,
 } from '@/lib/bff/types';
 
 // ── Domain models ────────────────────────────────────────────────────────────
 
+/**
+ * 사람. **이름이 없다** — 계약이 주지 않는다(owner decision 2026-08-13).
+ * 화면에 찍는 값은 `knoxId`, 서버에 보내는 키는 `email`.
+ */
 export interface AccessUser {
-  id: string;
-  name: string;
+  knoxId: string;
+  email: string;
+  role: string;
+}
+
+/** 이력의 행위자·대상 — 표시에 필요한 최소값. */
+export interface AccessActor {
+  knoxId: string;
   email: string;
 }
 
-export interface AccessActor {
-  id: string;
-  name: string;
-}
-
-export type AccessGrantType = AccessGrantTypeWire;
 export type AccessRequestStatus = AccessRequestStatusWire;
 export type AccessHistoryType = AccessHistoryTypeWire;
 
@@ -51,14 +54,6 @@ export interface AccessPage<T> {
   totalPages: number;
   number: number;
   size: number;
-}
-
-export interface AccessGrant {
-  user: AccessUser;
-  grantedAt: string;
-  grantedBy: AccessActor | null;
-  /** 요청 승인으로 들어왔는지, 관리자가 직접 열어 줬는지 — 감사의 첫 질문. */
-  grantType: AccessGrantType;
 }
 
 export interface AccessRequest {
@@ -86,12 +81,6 @@ export interface AccessHistoryEntry {
   createdAt: string;
 }
 
-export interface AdminGrant {
-  user: AccessUser;
-  grantedAt: string;
-  grantedBy: AccessActor | null;
-}
-
 export interface RequestableService {
   serviceCode: string;
   serviceName: string;
@@ -107,23 +96,27 @@ const toPage = <W, T>(wire: AccessPageWire<W>, map: (item: W) => T): AccessPage<
   size: wire.size ?? 0,
 });
 
-const toGrant = (wire: AccessGrantItemWire): AccessGrant => ({
-  user: wire.user,
-  grantedAt: wire.granted_at,
-  grantedBy: wire.granted_by,
-  grantType: wire.grant_type,
+const toUser = (wire: AccessUserWire): AccessUser => ({
+  knoxId: wire.knox_id,
+  email: wire.email,
+  role: wire.role,
+});
+
+const toActor = (wire: AccessActorWire): AccessActor => ({
+  knoxId: wire.knox_id,
+  email: wire.email,
 });
 
 const toRequest = (wire: AccessRequestItemWire): AccessRequest => ({
   requestId: wire.request_id,
   serviceCode: wire.service_code,
   serviceName: wire.service_name,
-  requester: wire.requester,
+  requester: toUser(wire.requester),
   reason: wire.reason,
   requestedAt: wire.requested_at,
   status: wire.status,
   processedAt: wire.processed_at,
-  processedBy: wire.processed_by,
+  processedBy: wire.processed_by ? toActor(wire.processed_by) : null,
   verdictMessage: wire.verdict_message,
 });
 
@@ -132,16 +125,10 @@ const toHistoryEntry = (wire: AccessHistoryItemWire): AccessHistoryEntry => ({
   type: wire.type,
   serviceCode: wire.service_code,
   serviceName: wire.service_name,
-  targetUser: wire.target_user,
-  actor: wire.actor,
+  targetUser: toActor(wire.target_user),
+  actor: toActor(wire.actor),
   reason: wire.reason,
   createdAt: wire.created_at,
-});
-
-const toAdminGrant = (wire: AdminGrantItemWire): AdminGrant => ({
-  user: wire.user,
-  grantedAt: wire.granted_at,
-  grantedBy: wire.granted_by,
 });
 
 // ── Client funcs ─────────────────────────────────────────────────────────────
@@ -163,12 +150,12 @@ const query = (params: Record<string, string | number | undefined>): string => {
   return search.toString();
 };
 
-/** §1 — 서비스 권한을 가진 사용자. */
+/** §1 — 서비스 담당자. 항목은 사용자 그 자체다(부여 메타데이터는 계약에 없다). */
 export async function getServiceUsers(
   serviceCode: string,
   page: number,
   opts?: Opts,
-): Promise<AccessPage<AccessGrant>> {
+): Promise<AccessPage<AccessUser>> {
   const wire = await fetchInfraJson<AccessGrantPageWire>(
     `/admin/access/services/${encodeURIComponent(serviceCode)}/users?${query({
       page,
@@ -176,25 +163,25 @@ export async function getServiceUsers(
     })}`,
     { signal: opts?.signal },
   );
-  return toPage(wire, toGrant);
+  return toPage(wire, toUser);
 }
 
-/** §2 — 직접 부여. 한 번의 호출로 선택한 사용자 전부를 부여한다. */
+/** §2 — 직접 부여. 한 번의 호출로 선택한 사용자 전부를 부여한다(키는 email). */
 export function grantServiceUsers(
   serviceCode: string,
-  userIds: string[],
+  emails: string[],
 ): Promise<AccessGrantResultWire> {
   return fetchInfraJson<AccessGrantResultWire>(
     `/admin/access/services/${encodeURIComponent(serviceCode)}/users`,
-    { method: 'POST', body: { user_ids: userIds } },
+    { method: 'POST', body: { emails } },
   );
 }
 
-/** §3 — 권한 해제. */
-export function revokeServiceUser(serviceCode: string, userId: string): Promise<void> {
+/** §3 — 권한 해제. email 은 body 로 보낸다 — URL 에 실으면 로그에 개인정보가 남는다. */
+export function revokeServiceUser(serviceCode: string, email: string): Promise<void> {
   return fetchInfraJson<void>(
-    `/admin/access/services/${encodeURIComponent(serviceCode)}/users/${encodeURIComponent(userId)}`,
-    { method: 'DELETE' },
+    `/admin/access/services/${encodeURIComponent(serviceCode)}/users/remove`,
+    { method: 'POST', body: { email } },
   );
 }
 
@@ -267,30 +254,31 @@ export async function getAccessHistory(
   return toPage(wire, toHistoryEntry);
 }
 
-/** §6 — 관리자 목록. */
+/** §6 — 관리자 목록. 여기도 항목은 사용자 그 자체다. */
 export async function getAccessAdmins(
   page: number,
   opts?: Opts,
-): Promise<AccessPage<AdminGrant>> {
+): Promise<AccessPage<AccessUser>> {
   const wire = await fetchInfraJson<AdminGrantPageWire>(
     `/admin/access/admins?${query({ page, size: opts?.size ?? ACCESS_PAGE_SIZE })}`,
     { signal: opts?.signal },
   );
-  return toPage(wire, toAdminGrant);
+  return toPage(wire, toUser);
 }
 
-/** §6 — 관리자 권한 부여. */
-export function grantAdmins(userIds: string[]): Promise<AccessGrantResultWire> {
+/** §6 — 관리자 권한 부여 (키는 email). */
+export function grantAdmins(emails: string[]): Promise<AccessGrantResultWire> {
   return fetchInfraJson<AccessGrantResultWire>('/admin/access/admins', {
     method: 'POST',
-    body: { user_ids: userIds },
+    body: { emails },
   });
 }
 
 /** §6 — 관리자 권한 회수 (자기 자신은 서버가 400). */
-export function revokeAdmin(userId: string): Promise<void> {
-  return fetchInfraJson<void>(`/admin/access/admins/${encodeURIComponent(userId)}`, {
-    method: 'DELETE',
+export function revokeAdmin(email: string): Promise<void> {
+  return fetchInfraJson<void>('/admin/access/admins/remove', {
+    method: 'POST',
+    body: { email },
   });
 }
 
@@ -307,7 +295,7 @@ export async function searchAccessUsers(
     })}`,
     { signal: opts?.signal },
   );
-  return wire.users ?? [];
+  return (wire.users ?? []).map(toUser);
 }
 
 /** §8 — 내가 아직 권한이 없는(그리고 대기 중 요청도 없는) 서비스. */

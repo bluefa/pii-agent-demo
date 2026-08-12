@@ -9,6 +9,23 @@ handlers and delete the corresponding section here.
 Conventions follow install-v1: snake_case wire, Spring `Page` for pagination, `ErrorMessage`
 problem responses.
 
+## Owner decisions baked in (2026-08-13)
+
+Three answers from the draft backend spec review shape every section below:
+
+- **`email` is the identity key.** Every write addresses a person by email; nothing is
+  addressed by an internal id. Comparison is case-insensitive.
+- **`knox_id` is what screens display.** `UserSummary` carries no person name, so the
+  tables, the picker and the audit log all print the Knox ID — an identifier, set in mono
+  like a service code, not a name.
+- **There is no grant metadata.** 담당자 목록은 사용자 목록 그 자체다. Who granted it, when,
+  and by which path are NOT fields on the list; those facts survive only as `/history`
+  events (`GRANTED` = 직접 부여, `APPROVED` = 요청 승인).
+
+A consequence worth stating plainly: the 담당자 표 is two columns wide (Knox ID · 이메일).
+That is what the contract supports, and inventing a third would mean rendering a value the
+server never sent.
+
 ## The one real endpoint this feature already has
 
 ```
@@ -16,9 +33,15 @@ GET /install/v1/services/{serviceCode}/authorized-users
 → 200 AuthorizedUsersResponse { users: UserInfo[] }   // UserInfo = { id, name, email }
 ```
 
-Read-only, unpaged, and carries **no grant metadata** — it cannot say when a user was
-granted, by whom, or through which path. §1 supersedes it for the admin surface; the
-existing consumer (`app/api/v1/services/[serviceCode]/authorized-users`) is untouched.
+Read-only, unpaged, and has no writer. The owner confirmed (2026-08-13) that this set and
+the draft spec's **owners** are the same thing — so one of the two should eventually go.
+§1 supersedes it for the admin surface; the existing route is untouched here because it has
+no caller (`getPermissions()` in `app/lib/api/index.ts` is dead), which also makes it the
+cheaper of the two to retire.
+
+Note the shape difference the merge has to resolve: this endpoint returns
+`{ id, name, email }` while the draft spec's `UserSummary` is `{ knox_id, email, role }`.
+The screens are built on `UserSummary`.
 
 ## Two audiences, two path prefixes
 
@@ -32,25 +55,25 @@ for one, so those three endpoints deliberately sit outside the admin gate.
 
 ```
 GET /admin/access/services/{serviceCode}/users?page={0}&size={10}
-→ 200 Page<AccessGrantItem>
+→ 200 Page<UserSummary>
 
-AccessGrantItem {
-  user:       UserInfo                        // { id, name, email }
-  granted_at: string (date-time)
-  granted_by: { id, name } | null             // null = 시스템/마이그레이션 유입
-  grant_type: "REQUEST_APPROVED" | "DIRECT"   // 요청 승인 경로 / 관리자 직접 부여
+UserSummary {
+  knox_id: string      // 화면에 찍는 값
+  email:   string      // 모든 쓰기의 식별 키
+  role:    string
 }
 ```
 
-`grant_type` exists for audit: "이 사람이 왜 이 서비스에 접근하지?" — `REQUEST_APPROVED`
-means the reason is in the request history (§5), `DIRECT` means an admin opened it without a
-request, which is the row an auditor looks at first.
+The page item IS the user — no `granted_at`, no `granted_by`, no `grant_type`. "이 사람이 왜
+이 서비스에 접근하지?" is answered by §5's history instead, where `GRANTED` (직접 부여) and
+`APPROVED` (요청 승인) are separate event types. Rows are ordered by `knox_id`, since without
+a grant timestamp there is nothing chronological to sort on.
 
 ## 2. 서비스 권한 부여 (직접 부여)
 
 ```
 POST /admin/access/services/{serviceCode}/users
-body    { user_ids: string[] }        // 1건 이상, 이미 가진 사용자는 서버가 무시
+body    { emails: string[] }          // 1건 이상, 이미 가진 사용자는 서버가 무시
 → 200  { service_code: string, granted_count: number }
 ```
 
@@ -59,9 +82,14 @@ Bulk by design — the picker grants a checked set in one call, not one call per
 ## 3. 서비스 권한 해제
 
 ```
-DELETE /admin/access/services/{serviceCode}/users/{userId}
+POST /admin/access/services/{serviceCode}/users/remove
+body    { email: string }
 → 204
 ```
+
+POST with a body rather than `DELETE …/{email}`: the key is an email address, and an email
+in a URL path is personal data written into every access log, proxy trace and referrer
+header along the way. The same reasoning applies to §6's admin removal.
 
 ## 4. 접근 권한 요청 — 관리자 측
 
@@ -84,7 +112,7 @@ AccessRequestItem {
   request_id:      number
   service_code:    string
   service_name:    string
-  requester:       UserInfo
+  requester:       UserSummary
   reason:          string             // 요청자가 적은 사유
   requested_at:    string (date-time)
   status:          "PENDING" | "APPROVED" | "REJECTED"
@@ -109,8 +137,8 @@ AccessHistoryItem {
   type:        "APPROVED" | "REJECTED" | "GRANTED" | "REVOKED" | "ADMIN_GRANTED" | "ADMIN_REVOKED"
   service_code: string | null         // null = 서비스와 무관한 항목(관리자 권한 부여/회수)
   service_name: string | null
-  target_user: { id, name }           // 권한을 받거나 잃은 사람
-  actor:       { id, name }           // 그렇게 만든 사람
+  target_user: { knox_id, email }     // 권한을 받거나 잃은 사람
+  actor:       { knox_id, email }     // 그렇게 만든 사람
   reason:      string | null          // 반려 사유 / 승인 메시지
   created_at:  string (date-time)
 }
@@ -123,19 +151,14 @@ AccessHistoryItem {
 
 ```
 GET    /admin/access/admins?page={0}&size={10}
-→ 200  Page<AdminGrantItem>
-
-AdminGrantItem {
-  user:       UserInfo
-  granted_at: string (date-time)
-  granted_by: { id, name } | null
-}
+→ 200  Page<UserSummary>               // 여기도 부여 메타데이터는 없다
 
 POST   /admin/access/admins
-body     { user_ids: string[] }
+body     { emails: string[] }
 → 200   { granted_count: number }
 
-DELETE /admin/access/admins/{userId}
+POST   /admin/access/admins/remove
+body     { email: string }
 → 204                                  // 자기 자신은 400 — 마지막 관리자가 스스로를 지우는 사고 방지
 ```
 
@@ -143,8 +166,10 @@ DELETE /admin/access/admins/{userId}
 
 ```
 GET /admin/access/users?query={q}&exclude_service_code={CODE}&role={ADMIN}
-→ 200 { users: UserInfo[] }            // 상한 50건, 서버 정렬
+→ 200 { users: UserSummary[] }         // 상한 50건, knox_id 오름차순
 ```
+
+`query` matches `knox_id` and `email` only — there is no name to match on.
 
 `/user/search` (install-v1) was not reused: it filters `role != ADMIN` out, which makes it
 unable to feed the 관리자 권한 picker, and it cannot exclude "already granted on this

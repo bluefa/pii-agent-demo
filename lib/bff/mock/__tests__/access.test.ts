@@ -23,6 +23,10 @@ import type {
   RequestableServicePageWire,
 } from '@/lib/bff/types';
 
+/** 쓰기의 식별 키는 email — 테스트도 계약과 같은 키로 부른다. */
+const CHOI = 'choi@company.com';
+const ADMIN = 'admin@company.com';
+
 const body = async <T>(res: NextResponse): Promise<T> => (await res.json()) as T;
 
 /** 승인 대기 시드 — user-6 의 aws 요청. */
@@ -42,9 +46,12 @@ describe('승인', () => {
     expect(approved.verdict_message).toBe('확인했어요');
 
     const users = await body<AccessGrantPageWire>(await mockAccess.listServiceUsers('aws', 0, 50));
-    const granted = users.content.find((row) => row.user.id === 'user-6');
+    const granted = users.content.find((row) => row.email === CHOI);
     expect(granted).toBeDefined();
-    expect(granted?.grant_type).toBe('REQUEST_APPROVED');
+    // 계약이 주는 건 사람 그 자체다 — 이름도, 부여 메타데이터도 없다.
+    expect(granted?.knox_id).toBe('donghyun.choi');
+    expect(granted).not.toHaveProperty('granted_at');
+    expect(granted).not.toHaveProperty('grant_type');
   });
 
   it('승인 이력이 그 서비스 코드로 남는다', async () => {
@@ -54,10 +61,10 @@ describe('승인', () => {
       await mockAccess.listHistory({ serviceCode: 'aws' }, 0, 50),
     );
     const entry = history.content.find(
-      (row) => row.type === 'APPROVED' && row.target_user.id === 'user-6',
+      (row) => row.type === 'APPROVED' && row.target_user.email === CHOI,
     );
     expect(entry).toBeDefined();
-    expect(entry?.actor.id).toBe('admin-1');
+    expect(entry?.actor.email).toBe(ADMIN);
   });
 
   it('이미 처리된 요청은 다시 결정할 수 없다', async () => {
@@ -85,17 +92,18 @@ describe('반려', () => {
     await mockAccess.rejectRequest(PENDING_REQUEST_ID, '담당 조직이 달라요');
 
     const users = await body<AccessGrantPageWire>(await mockAccess.listServiceUsers('aws', 0, 50));
-    expect(users.content.some((row) => row.user.id === 'user-6')).toBe(false);
+    expect(users.content.some((row) => row.email === CHOI)).toBe(false);
   });
 });
 
 describe('직접 부여 · 해제', () => {
   it('직접 부여는 요청 승인과 다른 경로로 기록된다', async () => {
-    await mockAccess.grantServiceUsers('gcp', ['user-6']);
+    await mockAccess.grantServiceUsers('gcp', [CHOI]);
 
     const users = await body<AccessGrantPageWire>(await mockAccess.listServiceUsers('gcp', 0, 50));
-    expect(users.content.find((row) => row.user.id === 'user-6')?.grant_type).toBe('DIRECT');
+    expect(users.content.some((row) => row.email === CHOI)).toBe(true);
 
+    // 부여 경로는 목록의 열이 아니라 이력의 이벤트 종류로만 남는다.
     const history = await body<AccessHistoryPageWire>(
       await mockAccess.listHistory({ serviceCode: 'gcp' }, 0, 50),
     );
@@ -103,11 +111,11 @@ describe('직접 부여 · 해제', () => {
   });
 
   it('해제하면 목록에서 빠지고 이력에 남는다', async () => {
-    await mockAccess.grantServiceUsers('gcp', ['user-6']);
-    await mockAccess.revokeServiceUser('gcp', 'user-6');
+    await mockAccess.grantServiceUsers('gcp', [CHOI]);
+    await mockAccess.revokeServiceUser('gcp', CHOI);
 
     const users = await body<AccessGrantPageWire>(await mockAccess.listServiceUsers('gcp', 0, 50));
-    expect(users.content.some((row) => row.user.id === 'user-6')).toBe(false);
+    expect(users.content.some((row) => row.email === CHOI)).toBe(false);
 
     const history = await body<AccessHistoryPageWire>(
       await mockAccess.listHistory({ serviceCode: 'gcp' }, 0, 50),
@@ -116,7 +124,7 @@ describe('직접 부여 · 해제', () => {
   });
 
   it('service_code 필터는 그 서비스의 이력만 돌려준다', async () => {
-    await mockAccess.grantServiceUsers('gcp', ['user-6']);
+    await mockAccess.grantServiceUsers('gcp', [CHOI]);
 
     const scoped = await body<AccessHistoryPageWire>(
       await mockAccess.listHistory({ serviceCode: 'gcp' }, 0, 100),
@@ -158,7 +166,7 @@ describe('요청자 측', () => {
     mockData.setCurrentUser('user-6');
     const mine = await body<AccessRequestPageWire>(await mockAccess.listMyRequests(0, 50));
     expect(mine.content.length).toBeGreaterThan(0);
-    expect(mine.content.every((row) => row.requester.id === 'user-6')).toBe(true);
+    expect(mine.content.every((row) => row.requester.email === CHOI)).toBe(true);
   });
 
   it('관리자가 아니면 관리자용 목록을 볼 수 없다', async () => {
@@ -170,21 +178,23 @@ describe('요청자 측', () => {
 
 describe('관리자 권한', () => {
   it('자기 자신은 회수할 수 없다', async () => {
-    const res = await mockAccess.revokeAdmin('admin-1');
+    const res = await mockAccess.revokeAdmin(ADMIN);
     expect(res.status).toBe(400);
   });
 
   it('부여하면 목록에 들어오고 회수하면 빠진다', async () => {
-    await mockAccess.grantAdmins(['user-6']);
-    const added = await body<{ content: { user: { id: string } }[] }>(
-      await mockAccess.listAdmins(0, 50),
-    );
-    expect(added.content.some((row) => row.user.id === 'user-6')).toBe(true);
+    await mockAccess.grantAdmins([CHOI]);
+    const added = await body<AccessGrantPageWire>(await mockAccess.listAdmins(0, 50));
+    expect(added.content.some((row) => row.email === CHOI)).toBe(true);
 
-    await mockAccess.revokeAdmin('user-6');
-    const removed = await body<{ content: { user: { id: string } }[] }>(
-      await mockAccess.listAdmins(0, 50),
-    );
-    expect(removed.content.some((row) => row.user.id === 'user-6')).toBe(false);
+    await mockAccess.revokeAdmin(CHOI);
+    const removed = await body<AccessGrantPageWire>(await mockAccess.listAdmins(0, 50));
+    expect(removed.content.some((row) => row.email === CHOI)).toBe(false);
+  });
+
+  it('email 대소문자가 달라도 같은 사람이다', async () => {
+    await mockAccess.grantAdmins([CHOI.toUpperCase()]);
+    const added = await body<AccessGrantPageWire>(await mockAccess.listAdmins(0, 50));
+    expect(added.content.filter((row) => row.email === CHOI)).toHaveLength(1);
   });
 });

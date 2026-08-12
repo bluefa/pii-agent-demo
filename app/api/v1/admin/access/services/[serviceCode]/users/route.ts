@@ -6,7 +6,7 @@ import { bff } from '@/lib/bff/client';
 // backing; the wire passes through verbatim and app/lib/api/access.ts owns the
 // snake→camel boundary (same split as the ops console's assumed reads).
 
-// GET /admin/access/services/{serviceCode}/users?page=&size= — 권한을 가진 사용자
+// GET /admin/access/services/{serviceCode}/users?page=&size= — 담당자 목록
 export const GET = withV1(async (request, { params }) => {
   const query = new URL(request.url).searchParams;
   const page = Number(query.get('page') ?? 0);
@@ -14,11 +14,11 @@ export const GET = withV1(async (request, { params }) => {
   return NextResponse.json(await bff.access.listServiceUsers(params.serviceCode, page, size));
 });
 
-// POST /admin/access/services/{serviceCode}/users — 직접 부여 (일괄)
+// POST /admin/access/services/{serviceCode}/users — 직접 부여 (일괄), body { emails }
 export const POST = withV1(async (request, { params }) => {
-  const body = (await request.json()) as { user_ids?: unknown };
-  const userIds = Array.isArray(body.user_ids)
-    ? body.user_ids.filter((id): id is string => typeof id === 'string')
+  const body = (await request.json()) as { emails?: unknown };
+  const emails = Array.isArray(body.emails)
+    ? body.emails.filter((email): email is string => typeof email === 'string')
     : [];
-  return NextResponse.json(await bff.access.grantServiceUsers(params.serviceCode, userIds));
+  return NextResponse.json(await bff.access.grantServiceUsers(params.serviceCode, emails));
 });

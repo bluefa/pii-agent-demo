@@ -12,11 +12,11 @@ export const GET = withV1(async (request) => {
   return NextResponse.json(await bff.access.listAdmins(page, size));
 });
 
-// POST /admin/access/admins — 관리자 권한 부여 (일괄)
+// POST /admin/access/admins — 관리자 권한 부여 (일괄), body { emails }
 export const POST = withV1(async (request) => {
-  const body = (await request.json()) as { user_ids?: unknown };
-  const userIds = Array.isArray(body.user_ids)
-    ? body.user_ids.filter((id): id is string => typeof id === 'string')
+  const body = (await request.json()) as { emails?: unknown };
+  const emails = Array.isArray(body.emails)
+    ? body.emails.filter((email): email is string => typeof email === 'string')
     : [];
-  return NextResponse.json(await bff.access.grantAdmins(userIds));
+  return NextResponse.json(await bff.access.grantAdmins(emails));
 });

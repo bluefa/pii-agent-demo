@@ -52,7 +52,7 @@ const fetchHistory = (
 
 /** 두 액션 카드는 같은 골격을 쓴다 — flex-1 컬럼 수까지 같아야 격자 너머로 열이 맞는다. */
 const actionColumns = (note: string, when: string): readonly Column[] => [
-  { label: '요청자', className: a.name },
+  { label: '요청자', className: a.knox },
   { label: '서비스', className: a.name },
   { label: '코드', className: a.code },
   { label: note, className: a.note },
@@ -67,8 +67,8 @@ const HISTORY_COLUMNS: readonly Column[] = [
   { label: '구분', className: a.status },
   { label: '서비스', className: a.name },
   { label: '코드', className: a.code },
-  { label: '대상 사용자', className: a.actor },
-  { label: '수행자', className: a.actor },
+  { label: '대상', className: a.knox },
+  { label: '수행자', className: a.knox },
   // 반려 사유·승인 메시지 — 감사 로그가 "무엇이" 뿐 아니라 "왜"까지 말하게 한다.
   // 늘어나는 두 번째 열이기도 해서 서비스 이름이 남는 폭을 혼자 먹지 않는다.
   { label: '사유', className: a.note },
@@ -105,13 +105,13 @@ export default function AccessRequestsPage(): ReactElement {
               <div key={row.requestId} role="row" className={cn(a.row, a.rowLink)}>
                 {/* 링크는 첫 셀 안에 둔다 — role=row 는 셀만 자식으로 가져야 한다.
                     absolute inset-0 이라 클릭 면적은 행 전체 그대로다. */}
-                <span role="cell" className={cn(a.name, a.nameStrong)}>
+                <span role="cell" className={a.knox}>
                   <Link
                     href={passRoutes.pipelines.access.request(row.requestId)}
-                    aria-label={`${row.requester.name}님의 ${row.serviceName} 접근 요청 상세 보기`}
+                    aria-label={`${row.requester.knoxId}의 ${row.serviceName} 접근 요청 상세 보기`}
                     className="absolute inset-0"
                   />
-                  {row.requester.name}
+                  {row.requester.knoxId}
                 </span>
                 <span role="cell" className={a.name}>
                   {row.serviceName}
@@ -148,13 +148,13 @@ export default function AccessRequestsPage(): ReactElement {
           {(rows) =>
             rows.map((row) => (
               <div key={row.requestId} role="row" className={cn(a.row, a.rowLink)}>
-                <span role="cell" className={cn(a.name, a.nameStrong)}>
+                <span role="cell" className={a.knox}>
                   <Link
                     href={passRoutes.pipelines.access.request(row.requestId)}
-                    aria-label={`${row.requester.name}님의 ${row.serviceName} 반려 내역 상세 보기`}
+                    aria-label={`${row.requester.knoxId}의 ${row.serviceName} 반려 내역 상세 보기`}
                     className="absolute inset-0"
                   />
-                  {row.requester.name}
+                  {row.requester.knoxId}
                 </span>
                 <span role="cell" className={a.name}>
                   {row.serviceName}
@@ -199,11 +199,11 @@ export default function AccessRequestsPage(): ReactElement {
               <span role="cell" className={cn(a.code, a.mono)}>
                 {row.serviceCode ?? '—'}
               </span>
-              <span role="cell" className={cn(a.actor, a.nameStrong)}>
-                {row.targetUser.name}
+              <span role="cell" className={a.knox}>
+                {row.targetUser.knoxId}
               </span>
-              <span role="cell" className={a.actor}>
-                {row.actor.name}
+              <span role="cell" className={a.knox}>
+                {row.actor.knoxId}
               </span>
               <span role="cell" className={a.note} title={row.reason ?? undefined}>
                 {row.reason ?? '—'}
