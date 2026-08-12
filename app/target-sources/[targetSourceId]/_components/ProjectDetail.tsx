@@ -74,7 +74,7 @@ export const ProjectDetail = ({ initialProject, jiraTicket }: ProjectDetailProps
   // does not exist. The service list stays, because it is how you leave.
   if (project.isSduType) {
     return (
-      <div className="flex h-[calc(100vh-76px)]">
+      <div className="flex h-[calc(100vh-64px)]">
         <ServiceListPanel
           currentService={{ code: project.serviceCode, name: project.serviceName }}
         />
@@ -86,7 +86,7 @@ export const ProjectDetail = ({ initialProject, jiraTicket }: ProjectDetailProps
   }
 
   return (
-    <div className="flex h-[calc(100vh-76px)]">
+    <div className="flex h-[calc(100vh-64px)]">
       <ServiceListPanel
         currentService={{ code: project.serviceCode, name: project.serviceName }}
       />

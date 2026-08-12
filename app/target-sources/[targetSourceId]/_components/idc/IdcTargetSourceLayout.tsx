@@ -38,7 +38,7 @@ export const IdcTargetSourceLayout = (props: IdcStepProps) => {
   if (!step) return null;
   return (
     // `min-h-full`, not `min-h-screen` (#665) — see CloudTargetSourceLayout: a
-    // full 100vh inside ProjectDetail's `100vh - 76px` column is dead scroll.
+    // full 100vh inside ProjectDetail's `100vh - 64px` column is dead scroll.
     <main className="min-h-full">
       {/* Flat page header (chrome) spans the column edge-to-edge above the padded
           body — the layout owns it; steps render cards only (cloud layout parity). */}

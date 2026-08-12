@@ -1750,9 +1750,18 @@ export const serviceSidebarStyles = {
    * flush rail. The disabled glyph is #8B95A1, not #B0B8C1: 1.4.11 exempts inactive
    * controls, but at 1.61:1 on this surface the arrow was a smudge rather than a
    * greyed-out arrow. 2.44:1 still reads as unavailable next to the live one at 5.71.
+   *
+   * Hover turns the arrow brand-blue. #0064FF is only 3.95:1 on the rail itself —
+   * unusable — but it never lands there: `hover:bg-white` fires on the same event,
+   * so the blue is always read against white (4.58:1). The two hover rules are one
+   * effect; splitting them puts the blue back on the rail.
+   *
+   * `disabled:hover:text-*` restates the disabled ink instead of trusting variant
+   * order to resolve it — an arrow that turns blue under the cursor advertises a
+   * page that is not there.
    */
   pagerBtn:
-    'flex h-[26px] w-[26px] items-center justify-center rounded-[6px] text-[#4E5968] transition-colors hover:bg-white disabled:cursor-not-allowed disabled:text-[#8B95A1] disabled:hover:bg-transparent',
+    'flex h-[26px] w-[26px] items-center justify-center rounded-[6px] text-[#4E5968] transition-colors hover:bg-white hover:text-[#0064FF] disabled:cursor-not-allowed disabled:text-[#8B95A1] disabled:hover:bg-transparent disabled:hover:text-[#8B95A1]',
 } as const;
 
 // =============================================================================
@@ -2001,10 +2010,10 @@ export const pipelineStyles = {
     // REAL app chrome, TopNav (app/components/layout/TopNav.tsx, `h-14` = 56px).
     // 56 here is a deliberate deviation from the prototype's 52 so the shell's
     // min-height matches the actual viewport remainder under the app's TopNav.
-    shell: 'flex min-w-[1080px] min-h-[calc(100vh_-_76px)] bg-[var(--pl-bg-page)] tracking-[-0.014em] leading-[1.4] [font-family:var(--pl-font-sans)]',
+    shell: 'flex min-w-[1080px] min-h-[calc(100vh_-_64px)] bg-[var(--pl-bg-page)] tracking-[-0.014em] leading-[1.4] [font-family:var(--pl-font-sans)]',
     sidebar:
       // Sticky under the 56px TopNav so the section nav never scrolls away.
-      'w-[216px] flex-none bg-[var(--pl-gray-900)] px-3 py-4 sticky top-[76px] self-start h-[calc(100vh_-_76px)] overflow-y-auto',
+      'w-[216px] flex-none bg-[var(--pl-gray-900)] px-3 py-4 sticky top-[64px] self-start h-[calc(100vh_-_64px)] overflow-y-auto',
     sidebarTitle: cn(pipelineText.sidebarTitle, 'block px-2.5 pt-2 pb-2.5'),
     // Item base carries no text color/weight — idle/active own it (plain `cn` join
     // has no tailwind-merge, so overlapping utilities must never co-occur).

@@ -12,7 +12,7 @@ import {
 import { AppError } from '@/lib/errors';
 import type { ProjectSummary } from '@/lib/types';
 import { passRoutes } from '@/lib/routes';
-import { bgColors, cn, serviceSidebarStyles, textColors } from '@/lib/theme';
+import { cn, serviceSidebarStyles, textColors } from '@/lib/theme';
 import {
   ServiceSidebar,
   SERVICE_RAIL_PAGE_SIZE,
@@ -301,13 +301,13 @@ export const ServiceManagementView = () => {
   }, []);
 
   return (
-    // Exact viewport minus the sticky 76px TopNav — `min-h-screen` here stacked a
-    // full 100vh under the nav, so the page scrolled 76px and the left panel ended
+    // Exact viewport minus the sticky 64px TopNav — `min-h-screen` here stacked a
+    // full 100vh under the nav, so the page scrolled 64px and the left panel ended
     // short of the bottom edge.
     // 바닥은 gray-50 이 아니라 앱 캔버스 — /target-sources 가 쓰는 바닥과 같아야
     // 같은 레일이 두 화면에서 같은 대비를 갖는다. gray-50 위에서는 흰 카드가
     // ΔE00 1.20(식별 한계 아래)이라 테두리에만 기대고 있었다.
-    <div className={cn('h-[calc(100vh-76px)]', serviceSidebarStyles.canvas)}>
+    <div className={cn('h-[calc(100vh-64px)]', serviceSidebarStyles.canvas)}>
       <div className="flex h-full">
         <ServiceSidebar
           services={services}
@@ -337,42 +337,45 @@ export const ServiceManagementView = () => {
           {!selectedService ? (
             <div className="h-full flex items-center justify-center">
               <div className="text-center">
-                <div
-                  className={cn(
-                    'w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4',
-                    bgColors.muted,
-                  )}
-                >
-                  {/* The layout this page IS: rail on the left with rows in it,
-                      empty pane on the right. It was a terminal `>_` — a console
-                      glyph on a screen with no console anywhere near it.
-                      An empty state's job is to say what to DO, not to name the
-                      room, so the mark shows the pick-on-the-left gesture rather
-                      than a service-shaped noun.
+                {/* The layout this page IS: rail on the left with rows in it,
+                    empty pane on the right. It was a terminal `>_` — a console
+                    glyph on a screen with no console anywhere near it.
+                    An empty state's job is to say what to DO, not to name the
+                    room, so the mark shows the pick-on-the-left gesture rather
+                    than a service-shaped noun.
 
-                      A solid column, not list ticks: three 1.5-weight ticks in a
-                      7-unit column are the same weight as the frame around them,
-                      so at this size the whole glyph flattened into one texture.
-                      Fill separates the two halves in one read. */}
-                  <svg
-                    className={cn('w-9 h-9', textColors.quaternary)}
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth={1.5}
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    viewBox="0 0 24 24"
-                    aria-hidden="true"
-                  >
-                    <path
-                      d="M3 6.5A2.5 2.5 0 015.5 4H10v16H5.5A2.5 2.5 0 013 17.5z"
-                      fill="currentColor"
-                      stroke="none"
-                    />
-                    <rect x="3" y="4" width="18" height="16" rx="2.5" />
-                  </svg>
-                </div>
-                <p className={cn('text-[24px] leading-8', textColors.tertiary)}>
+                    A solid column, not list ticks: three 1.5-weight ticks in a
+                    7-unit column are the same weight as the frame around them,
+                    so at this size the whole glyph flattened into one texture.
+                    Fill separates the two halves in one read.
+
+                    No plate behind it. A tinted disc is what a glyph gets when it
+                    is too small to hold the eye on its own; at 48px this one holds
+                    it. Standing on the canvas it also has to carry its own
+                    contrast, so it leaves `quaternary` — that token is explicitly
+                    for glyphs sitting ON something, and 2.54:1 was borrowed from
+                    the plate. */}
+                <svg
+                  className={cn('w-12 h-12 mx-auto mb-4', textColors.tertiary)}
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth={1.5}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  viewBox="0 0 24 24"
+                  aria-hidden="true"
+                >
+                  <path
+                    d="M3 6.5A2.5 2.5 0 015.5 4H10v16H5.5A2.5 2.5 0 013 17.5z"
+                    fill="currentColor"
+                    stroke="none"
+                  />
+                  <rect x="3" y="4" width="18" height="16" rx="2.5" />
+                </svg>
+                {/* Ink, not the quiet tier. This line is the pane's only content —
+                    there is nothing for it to sit quietly behind. `tertiary` is
+                    for text that yields to something louder nearby. */}
+                <p className={cn('text-[24px] leading-8', textColors.primary)}>
                   서비스를 선택하세요
                 </p>
               </div>

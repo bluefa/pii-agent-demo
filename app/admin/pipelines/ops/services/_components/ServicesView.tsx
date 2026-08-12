@@ -141,7 +141,7 @@ export function ServicesView(): ReactElement {
       {/* 좌 — 서비스 레일. 우측 상세는 표·타일로 길어지므로 레일이 같이 늘어나면
           페이지 이동 버튼이 화면 밖으로 밀린다 — 뷰포트 높이에 고정하고 목록만 스크롤. */}
       <aside
-        // top-[76px] = sticky TopNav 높이. top-0 이면 레일 제목이 TopNav 밑으로 들어간다.
+        // top-[64px] = sticky TopNav 높이. top-0 이면 레일 제목이 TopNav 밑으로 들어간다.
         className={cn(s.rail, s.railSticky)}
         aria-label="서비스 목록"
       >
