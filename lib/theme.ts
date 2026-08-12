@@ -2928,7 +2928,13 @@ export const postStyles = {
   /** 건수 필 — "전체보기"를 누를 이유를 주는 값. */
   cardCount:
     'text-[12px] font-bold text-[#0050D6] bg-[#E8F1FF] rounded-full px-2 py-0.5 tabular-nums',
-  cardMore: 'ml-auto text-[12px] text-[#6B7280] transition-colors hover:text-[#4E5968]',
+  /**
+   * 전체보기 — 목록 끝에 둔다. 헤더에 있으면 5행을 다 읽고 나서 눈이 위로 되돌아가야
+   * 하는데, 더 보고 싶어지는 시점은 목록이 끊긴 자리다
+   * (Cloudscape Dashboard items: "View all" element at the end of the list).
+   */
+  cardMore:
+    'flex items-center justify-center px-[22px] py-3 border-t border-[#F3F4F6] text-[12px] font-medium text-[#4E5968] transition-colors hover:bg-[#F9FAFB]',
 
   /** 행 — `items-stretch` 라야 우측 레일이 행 높이를 다 차지해 날짜↔캐럿이 위아래로 벌어진다. */
   row: 'flex items-stretch gap-4 px-[22px] py-4 border-b border-[#F3F4F6] last:border-b-0',
@@ -3009,10 +3015,19 @@ export const postStyles = {
   /** 그룹 사이의 선 — 첫 그룹은 카드 위 테두리가 대신한다. */
   groupSection: 'border-t border-[#E5E7EB] first:border-t-0',
 
-  /** 페이지 골격. */
-  page: 'px-8 pt-8 pb-12 flex flex-col gap-6',
+  /**
+   * 페이지 골격. 넓은 화면에서 좌우 여백을 키우지 않고 폭에 상한을 둔다 —
+   * 여백을 늘리면 글 길이가 화면마다 달라진다(Carbon 2x Grid 는 1584 에서 멈춘다).
+   */
+  page: 'w-full max-w-[1664px] mx-auto px-10 pt-8 pb-12 flex flex-col gap-6',
   pageTitle: 'text-[30px] font-extrabold tracking-[-0.03em] leading-[1.2] text-[#191F28]',
   pageSub: 'text-[14px] text-[#4E5968] mt-1.5',
+  /**
+   * 카드 높이는 내용이 정한다 — 화면 아래까지 늘리지 않는다. 테두리는 "여기까지가
+   * 내용"이라는 약속이라, 늘린 카드는 빈 곳을 테두리로 강조하는 셈이 된다
+   * (Cloudscape: "the height of dashboard items are defined by its content").
+   * 남는 자리를 메워야 할 때 늘릴 것은 카드가 아니라 카드 수다.
+   */
   dual: 'grid grid-cols-2 gap-6 items-start',
 } as const;
 
@@ -3044,13 +3059,32 @@ export const postFormStyles = {
  * 문구를 바꾸려면 배너 컴포넌트를 고친다.
  */
 export const passBannerStyles = {
-  root: 'relative overflow-hidden rounded-xl px-7 py-[26px] text-white flex items-center justify-between gap-7 bg-[linear-gradient(101deg,#6D28D9_0%,#7C3AED_46%,#4F46E5_100%)]',
+  /**
+   * 넓은 화면에서 그라데이션만으로는 띠 하나로 읽혀서 세 겹으로 면을 세운다:
+   * 안쪽 흰 실선(면의 경계), 보라로 물든 그림자(바닥에서 띄우기), 오른쪽 점 격자
+   * (글이 없는 절반을 채우는 것). 그림자 색을 중립 검정이 아니라 그라데이션의
+   * 어두운 끝(#4C1D95)에서 뽑는다 — 회색 그림자는 보라 면 아래에서 때처럼 읽힌다.
+   */
+  root:
+    'relative isolate overflow-hidden rounded-xl px-10 py-10 text-white flex items-center justify-between gap-10 bg-[linear-gradient(101deg,#6D28D9_0%,#7C3AED_46%,#4F46E5_100%)] ring-1 ring-inset ring-white/20 shadow-[0_20px_44px_-20px_rgba(76,29,149,0.75)]',
   /** 우상단 광원 — 그라데이션만으로는 면이 평평하게 읽힌다. */
   glow: 'pointer-events-none absolute -right-[70px] -top-[90px] w-[280px] h-[280px] rounded-full bg-white/10',
+  /** 두 번째 광원. 하나뿐이면 빛의 방향이 아니라 "원이 하나 있다"로 읽힌다. */
+  glowSoft:
+    'pointer-events-none absolute right-[170px] -bottom-[150px] w-[260px] h-[260px] rounded-full bg-[#A78BFA]/25',
+  /**
+   * 점 격자 — 글이 끝나는 지점부터 오른쪽 끝까지. 왼쪽으로 갈수록 사라지는 마스크를
+   * 걸어 본문 대비는 건드리지 않는다(글자 뒤에는 점이 오지 않는다).
+   */
+  dots:
+    'pointer-events-none absolute inset-y-0 right-0 w-[58%] bg-[radial-gradient(circle,rgba(255,255,255,0.20)_1px,transparent_1px)] bg-[length:18px_18px] [mask-image:linear-gradient(to_right,transparent,#000_60%)]',
+  /** 장식이 절대 배치라 본문은 새 층으로 올려야 점 격자 위에 온다. */
+  content: 'relative z-[1] min-w-0',
   eyebrow: 'text-[12px] font-bold tracking-[0.1em] uppercase text-white/[0.78]',
-  title: 'text-[24px] font-extrabold tracking-[-0.03em] mt-[7px]',
-  body: 'text-[14px] text-white/[0.86] mt-[7px] max-w-[60ch]',
-  cta: 'relative z-[1] whitespace-nowrap bg-white text-[#5B21B6] text-[14px] font-bold px-5 py-[11px] rounded-lg',
+  title: 'text-[32px] font-extrabold tracking-[-0.03em] leading-[1.25] mt-2',
+  body: 'text-[14px] text-white/[0.86] leading-[1.6] mt-3 max-w-[60ch]',
+  cta:
+    'relative z-[1] whitespace-nowrap bg-white text-[#5B21B6] text-[14px] font-bold px-6 py-[13px] rounded-lg shadow-[0_8px_20px_-8px_rgba(23,10,60,0.55)]',
 } as const;
 
 // =============================================================================

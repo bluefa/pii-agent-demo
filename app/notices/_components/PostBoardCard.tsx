@@ -25,11 +25,6 @@ export const PostBoardCard = ({ title, type, posts, limit, onGone }: PostBoardCa
         {/* 건수가 있어야 "전체보기"에 누를 이유가 생긴다. 5건만 보이는데
             전체가 몇 건인지 말하지 않으면 링크가 그냥 장식이다. */}
         {posts !== null && <span className={postStyles.cardCount}>{posts.length}</span>}
-        {limit !== undefined && (
-          <Link href={`${passRoutes.notices}?type=${type}`} className={postStyles.cardMore}>
-            전체보기 →
-          </Link>
-        )}
       </header>
 
       {visible === null && (
@@ -54,6 +49,12 @@ export const PostBoardCard = ({ title, type, posts, limit, onGone }: PostBoardCa
             <PostAccordionRow key={post.id} post={post} onGone={onGone} />
           ))}
         </ul>
+      )}
+
+      {limit !== undefined && (
+        <Link href={`${passRoutes.notices}?type=${type}`} className={postStyles.cardMore}>
+          전체보기 →
+        </Link>
       )}
     </section>
   );

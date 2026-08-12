@@ -9,8 +9,10 @@ import { cn, passBannerStyles } from '@/lib/theme';
  */
 export const PassBanner = () => (
   <section className={passBannerStyles.root}>
+    <span className={passBannerStyles.dots} aria-hidden />
     <span className={passBannerStyles.glow} aria-hidden />
-    <div>
+    <span className={passBannerStyles.glowSoft} aria-hidden />
+    <div className={passBannerStyles.content}>
       <p className={passBannerStyles.eyebrow}>Introducing Pass</p>
       <p className={passBannerStyles.title}>연동부터 스캔까지, 한 화면에서</p>
       <p className={passBannerStyles.body}>

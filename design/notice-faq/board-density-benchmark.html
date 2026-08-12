@@ -1,0 +1,777 @@
+<title>빈 카드 벤치마크</title>
+
+<style>
+  :root {
+    color-scheme: light dark;
+    --ground: #F6F7FA;
+    --surface: #FFFFFF;
+    --surface-2: #EFF1F6;
+    --line: #DDE0E9;
+    --line-soft: #E9EBF1;
+    --ink: #14171F;
+    --ink-2: #4A5164;
+    --ink-3: #626A7C;
+    --accent: #6D28D9;
+    --accent-ink: #5B21B6;
+    --accent-wash: #F1ECFD;
+    --warn: #9A5B0B;
+    --warn-wash: #FDF3E4;
+    --ok: #1F6B45;
+    --ok-wash: #E7F4EC;
+    --shadow: 0 1px 2px rgba(20, 23, 31, .05), 0 12px 28px -18px rgba(20, 23, 31, .22);
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+    --sans: Pretendard, -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo",
+      "Segoe UI", "Noto Sans KR", sans-serif;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #0F1116;
+      --surface: #171A21;
+      --surface-2: #1F232C;
+      --line: #2C313C;
+      --line-soft: #242833;
+      --ink: #EAECF2;
+      --ink-2: #AEB5C4;
+      --ink-3: #838B9C;
+      --accent: #A78BFA;
+      --accent-ink: #C4B5FD;
+      --accent-wash: #241C3C;
+      --warn: #E5B168;
+      --warn-wash: #2E2413;
+      --ok: #6FCB99;
+      --ok-wash: #14291E;
+      --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 12px 28px -18px rgba(0, 0, 0, .8);
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --ground: #0F1116;
+    --surface: #171A21;
+    --surface-2: #1F232C;
+    --line: #2C313C;
+    --line-soft: #242833;
+    --ink: #EAECF2;
+    --ink-2: #AEB5C4;
+    --ink-3: #838B9C;
+    --accent: #A78BFA;
+    --accent-ink: #C4B5FD;
+    --accent-wash: #241C3C;
+    --warn: #E5B168;
+    --warn-wash: #2E2413;
+    --ok: #6FCB99;
+    --ok-wash: #14291E;
+    --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 12px 28px -18px rgba(0, 0, 0, .8);
+  }
+
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size:16px;
+    line-height: 1.7;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap {
+    max-width: 1120px;
+    margin: 0 auto;
+    padding: 56px 32px 96px;
+  }
+
+  /* ---- masthead ---------------------------------------------------- */
+  .mast { border-bottom: 2px solid var(--ink); padding-bottom: 20px; margin-bottom: 8px; }
+  .kicker {
+    font-family: var(--mono);
+    font-size:12px;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: var(--accent-ink);
+    margin-bottom: 10px;
+  }
+  h1 {
+    font-size:40px;
+    font-weight: 800;
+    letter-spacing: -.035em;
+    line-height: 1.14;
+    text-wrap: balance;
+    margin: 0;
+  }
+  .dek { color: var(--ink-2); font-size:18px; margin-top: 12px; max-width: 62ch; }
+  .meta {
+    display: flex; flex-wrap: wrap; gap: 8px 20px;
+    font-family: var(--mono); font-size:12px; color: var(--ink-3);
+    margin-top: 16px;
+  }
+
+  /* ---- section ----------------------------------------------------- */
+  section { margin-top: 64px; }
+  h2 {
+    font-size:14px; font-family: var(--mono); letter-spacing: .12em;
+    text-transform: uppercase; color: var(--ink-3);
+    border-bottom: 1px solid var(--line); padding-bottom: 8px; margin: 0 0 24px;
+  }
+  h3 { font-size:22px; font-weight: 700; letter-spacing: -.02em; margin: 0 0 8px; }
+  p { margin: 0 0 14px; max-width: 74ch; }
+  .lede { font-size:18px; color: var(--ink-2); max-width: 68ch; }
+
+  /* the one loud thing on the page */
+  .verdict {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-left: 4px solid var(--accent);
+    border-radius: 4px;
+    padding: 26px 30px;
+    margin: 28px 0;
+    box-shadow: var(--shadow);
+  }
+  .verdict q {
+    display: block;
+    font-size:26px; font-weight: 700; letter-spacing: -.025em; line-height: 1.35;
+    quotes: "“" "”";
+  }
+  .verdict cite {
+    display: block; margin-top: 12px; font-style: normal;
+    font-family: var(--mono); font-size:12px; color: var(--ink-3);
+  }
+
+  /* ---- tables ------------------------------------------------------ */
+  .scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  table { border-collapse: collapse; width: 100%; font-size:14px; min-width: 620px; }
+  th, td { text-align: left; padding: 11px 14px; border-bottom: 1px solid var(--line-soft); vertical-align: top; }
+  th {
+    font-family: var(--mono); font-size:12px; letter-spacing: .08em;
+    text-transform: uppercase; color: var(--ink-3);
+    border-bottom: 1px solid var(--line);
+  }
+  td.num { font-variant-numeric: tabular-nums; font-family: var(--mono); white-space: nowrap; }
+
+  .tag {
+    display: inline-block; font-family: var(--mono); font-size:12px;
+    padding: 2px 7px; border-radius: 3px; white-space: nowrap;
+  }
+  .t-hard { background: var(--warn-wash); color: var(--warn); }
+  .t-ux { background: var(--accent-wash); color: var(--accent-ink); }
+  .t-op { background: var(--surface-2); color: var(--ink-3); }
+  .t-ok { background: var(--ok-wash); color: var(--ok); }
+
+  /* ---- reference grid ---------------------------------------------- */
+  .refs { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 18px; }
+  .ref {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 6px;
+    padding: 20px; display: flex; flex-direction: column; gap: 12px;
+  }
+  .ref-head { display: flex; align-items: baseline; gap: 10px; }
+  .ref-n {
+    font-family: var(--mono); font-size:12px; color: var(--ink-3);
+    font-variant-numeric: tabular-nums;
+  }
+  .ref-name { font-weight: 700; font-size:16px; letter-spacing: -.01em; }
+  .ref p { font-size:14px; color: var(--ink-2); margin: 0; max-width: none; }
+  .ref a { color: var(--accent-ink); font-size:12px; font-family: var(--mono); word-break: break-all; }
+  .took {
+    font-size:14px; border-top: 1px dashed var(--line); padding-top: 10px;
+    color: var(--ink); margin-top: auto;
+  }
+  .took b { color: var(--accent-ink); font-weight: 700; }
+
+  /* ---- tiny UI mockups --------------------------------------------- */
+  .mock {
+    background: var(--surface-2); border: 1px solid var(--line-soft); border-radius: 5px;
+    padding: 12px; font-size:12px; line-height: 1.5; overflow: hidden;
+  }
+  .m-card { background: var(--surface); border: 1px solid var(--line); border-radius: 4px; }
+  .m-head {
+    display: flex; align-items: center; gap: 6px; padding: 7px 9px;
+    border-bottom: 1px solid var(--line-soft); font-weight: 700; font-size:12px;
+  }
+  .m-more { margin-left: auto; color: var(--ink-3); font-weight: 400; }
+  .m-row { padding: 7px 9px; border-bottom: 1px solid var(--line-soft); }
+  .m-row:last-child { border-bottom: 0; }
+  .m-bar { height: 5px; border-radius: 2px; background: var(--line); }
+  .m-bar.short { width: 42%; }
+  .m-bar.mid { width: 66%; }
+  .m-bar.long { width: 88%; }
+  .m-void {
+    background: repeating-linear-gradient(135deg, transparent 0 5px, var(--line-soft) 5px 10px);
+    display: grid; place-items: center; color: var(--ink-3); font-family: var(--mono);
+  }
+  .m-pill {
+    display: inline-block; padding: 1px 6px; border-radius: 999px;
+    background: var(--accent-wash); color: var(--accent-ink); font-size:10px; font-weight: 700;
+  }
+  .m-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .m-label { font-family: var(--mono); font-size:10px; color: var(--ink-3); margin-bottom: 5px; }
+
+  /* ---- proposals ---------------------------------------------------- */
+  .prop {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 6px;
+    padding: 24px; margin-bottom: 18px;
+  }
+  .prop.pick { border-color: var(--accent); box-shadow: var(--shadow); }
+  .prop-head { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
+  .prop-id {
+    font-family: var(--mono); font-size:12px; color: var(--surface);
+    background: var(--ink); border-radius: 3px; padding: 2px 8px;
+  }
+  .prop.pick .prop-id { background: var(--accent); }
+  .prop-body { display: grid; grid-template-columns: minmax(0, 1fr) minmax(240px, 300px); gap: 24px; align-items: start; }
+  @media (max-width: 720px) { .prop-body { grid-template-columns: minmax(0, 1fr); } }
+  .cost { font-size:14px; color: var(--ink-2); border-top: 1px solid var(--line-soft); padding-top: 12px; margin-top: 4px; }
+  .cost b { color: var(--ink); }
+
+  ul { margin: 0 0 14px; padding-left: 20px; max-width: 74ch; }
+  li { margin-bottom: 5px; }
+  code {
+    font-family: var(--mono); font-size: .88em;
+    background: var(--surface-2); padding: 1px 5px; border-radius: 3px;
+  }
+  a { color: var(--accent-ink); }
+  hr { border: 0; border-top: 1px solid var(--line); margin: 0; }
+</style>
+
+<div class="wrap">
+
+  <header class="mast">
+    <div class="kicker">Design Benchmark · 2026-08-12</div>
+    <h1>카드가 화면을 채우자 빈 곳이 더 잘 보였다</h1>
+    <p class="dek">
+      공지사항 · FAQ 보드를 뷰포트 높이까지 늘렸더니 카드 바닥에 345px의 흰 공백이 생겼다.
+      같은 문제를 다른 제품들은 어떻게 풀었는지 13곳을 찾아 확인했다.
+    </p>
+    <div class="meta">
+      <span>대상 /pass/notices</span>
+      <span>레퍼런스 13 · 직접 확인 11</span>
+      <span>시안 5</span>
+    </div>
+  </header>
+
+  <section>
+    <h2>1 — 무엇이 문제인가</h2>
+    <p class="lede">
+      원래는 카드가 내용만큼만 높고 그 아래는 회색 캔버스였다. 카드를 남은 화면까지 늘리자
+      같은 크기의 빈 공간이 <b>캔버스에서 테두리 안쪽</b>으로 옮겨왔다. 면적은 그대로인데
+      더 비어 보이는 이유가 여기 있다.
+    </p>
+
+    <div class="mock" style="margin:22px 0">
+      <div class="m-cols" style="gap:20px">
+        <div>
+          <div class="m-label">이전 — 내용 높이</div>
+          <div class="m-card">
+            <div class="m-head">공지사항 <span class="m-pill">2</span><span class="m-more">전체보기 →</span></div>
+            <div class="m-row"><div class="m-bar long"></div></div>
+            <div class="m-row"><div class="m-bar mid"></div></div>
+          </div>
+          <div style="height:96px" class="m-void">캔버스 여백</div>
+        </div>
+        <div>
+          <div class="m-label">지금 — 뷰포트 채움</div>
+          <div class="m-card">
+            <div class="m-head">공지사항 <span class="m-pill">2</span><span class="m-more">전체보기 →</span></div>
+            <div class="m-row"><div class="m-bar long"></div></div>
+            <div class="m-row"><div class="m-bar mid"></div></div>
+            <div class="m-void" style="height:96px;border-top:0">카드 안 345px</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="scroll">
+      <table>
+        <thead>
+          <tr><th style="width:34px">#</th><th>문제</th><th style="width:150px">근거</th><th style="width:110px">등급</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="num">1</td>
+            <td>카드 높이를 내용이 아니라 뷰포트가 정한다</td>
+            <td>실측 공백 345px</td>
+            <td><span class="tag t-ux">UX 원칙</span></td>
+          </tr>
+          <tr>
+            <td class="num">2</td>
+            <td>행 폭 780px — 제목은 왼쪽 끝, 날짜는 780px 건너편이라 한 줄이 두 번에 읽힌다</td>
+            <td>실측 카드 폭</td>
+            <td><span class="tag t-ux">UX 원칙</span></td>
+          </tr>
+          <tr>
+            <td class="num">3</td>
+            <td>행 수가 2 vs 3인 두 카드를 같은 높이로 맞춰, 짧은 쪽 공백이 더 커진다</td>
+            <td><code>items-stretch</code></td>
+            <td><span class="tag t-op">제안</span></td>
+          </tr>
+          <tr>
+            <td class="num">4</td>
+            <td>「전체보기」가 헤더에만 있다 — 목록을 다 읽고 눈이 멈추는 바닥에는 아무것도 없다</td>
+            <td>레퍼런스 01</td>
+            <td><span class="tag t-ux">UX 원칙</span></td>
+          </tr>
+          <tr>
+            <td class="num">5</td>
+            <td>빈 영역이 아무 말도 하지 않는다 — 로딩 중인지, 글이 없는지, 원래 그런지 알 수 없다</td>
+            <td>레퍼런스 10</td>
+            <td><span class="tag t-ux">UX 원칙</span></td>
+          </tr>
+          <tr>
+            <td class="num">6</td>
+            <td>글이 5건뿐이다. 레이아웃이 아니라 콘텐츠의 문제를 레이아웃으로 덮는 중</td>
+            <td>seed 6건 중 1건 숨김</td>
+            <td><span class="tag t-op">제안</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <h2>2 — 조사하다 나온 한 문장</h2>
+    <p>
+      AWS의 디자인 시스템이 정확히 이 질문에 한 줄로 답해 두었다. 나머지 12곳도 같은 방향이었다.
+    </p>
+    <div class="verdict">
+      <q>정적 대시보드에서 항목의 높이는 그 내용이 정한다.</q>
+      <cite>AWS Cloudscape — Service dashboard / Dashboard items (직접 확인)</cite>
+    </div>
+    <p>
+      뷰포트에 맞춰 높이를 늘리는 방식은 Cloudscape에서 <b>configurable</b> 대시보드에만 있다.
+      그것도 자동으로 늘리는 게 아니라 <b>사용자가 직접 크기를 끌어 조절</b>할 때다.
+      즉 "화면을 채운다"는 사용자가 내리는 결정이지, 레이아웃이 알아서 할 일이 아니다.
+    </p>
+  </section>
+
+  <section>
+    <h2>3 — 레퍼런스 13</h2>
+    <div class="refs">
+
+      <article class="ref">
+        <div class="ref-head"><span class="ref-n">01</span><span class="ref-name">AWS Cloudscape — Dashboard items</span> <span class="tag t-ok">확인함</span></div>
+        <div class="mock">
+          <div class="m-card">
+            <div class="m-head">Recent alarms <span class="m-more">View all</span></div>
+            <div class="m-row"><div class="m-bar long"></div></div>
+            <div class="m-row"><div class="m-bar short"></div></div>
+          </div>
+          <div class="m-label" style="margin:6px 0 0">↑ 높이는 두 행만큼</div>
+        </div>
+        <p>항목 높이는 내용이 정한다. 목록 아래에 「View all」을 두어 전체 목록 페이지로 보낸다. 한 항목은 하나의 목적만 담는다.</p>
+        <div class="took">가져온 것 — <b>높이 = 내용</b>, 그리고 <b>목록 끝의 전체보기</b></div>
+        <a href="https://cloudscape.design/patterns/general/service-dashboard/dashboard-items/">cloudscape.design/patterns/general/service-dashboard/dashboard-items/</a>
+      </article>
+
+      <article class="ref">
+        <div class="ref-head"><span class="ref-n">02</span><span class="ref-name">AWS Cloudscape — Empty states</span> <span class="tag t-ok">확인함</span></div>
+        <div class="mock">
+          <div class="m-card" style="padding:14px;text-align:center">
+            <div style="font-weight:700">No distributions</div>
+            <div style="color:var(--ink-3);margin:3px 0 7px">아직 만든 것이 없습니다.</div>
+            <span style="border:1px solid var(--line);border-radius:3px;padding:3px 9px">Create distribution</span>
+          </div>
+        </div>
+        <p>제목 + (필요할 때만) 설명 + <b>반드시 액션 하나</b>. "빠져나갈 길이 없으면 혼란이 된다." 건수 카운터를 항상 함께 노출한다.</p>
+        <div class="took">가져온 것 — 빈 영역엔 <b>항상 행동 하나</b>, 그리고 <b>건수 표시</b></div>
+        <a href="https://cloudscape.design/patterns/general/empty-states/">cloudscape.design/patterns/general/empty-states/</a>
+      </article>
+
+      <article class="ref">
+        <div class="ref-head"><span class="ref-n">03</span><span class="ref-name">AWS Console Home — Widgets</span> <span class="tag t-ok">확인함</span></div>
+        <div class="mock">
+          <div class="m-cols">
+            <div class="m-card"><div class="m-head">Recently visited</div><div class="m-row"><div class="m-bar mid"></div></div></div>
+            <div class="m-card"><div class="m-head">Health</div><div class="m-row"><div class="m-bar short"></div></div></div>
+            <div class="m-card"><div class="m-head">Cost</div><div class="m-row"><div class="m-bar long"></div></div></div>
+            <div class="m-card" style="display:grid;place-items:center;color:var(--ink-3);padding:8px">+ Add widgets</div>
+          </div>
+        </div>
+        <p>남는 자리를 카드를 늘려서가 아니라 <b>위젯을 더 놓아서</b> 채운다. 추가 · 삭제 · 드래그 이동 · 크기 조절이 전부 사용자 몫이고, 기본 배치로 되돌리는 버튼이 있다.</p>
+        <div class="took">가져온 것 — 남는 공간은 <b>다른 내용</b>이 채운다</div>
+        <a href="https://docs.aws.amazon.com/awsconsolehelpdocs/latest/gsg/work-with-widgets.html">docs.aws.amazon.com/awsconsolehelpdocs/latest/gsg/work-with-widgets.html</a>
+      </article>
+
+      <article class="ref">
+        <div class="ref-head"><span class="ref-n">04</span><span class="ref-name">IBM Carbon — 2x Grid</span> <span class="tag t-ok">확인함</span></div>
+        <div class="mock" style="text-align:center">
+          <div style="display:flex;gap:0;align-items:stretch;height:56px">
+            <div style="width:14%" class="m-void"></div>
+            <div style="flex:1" class="m-card"></div>
+            <div style="width:14%" class="m-void"></div>
+          </div>
+          <div class="m-label" style="margin-top:6px">max-width 1584 · 나머지는 마진</div>
+        </div>
+        <p>거터는 <b>모든 브레이크포인트에서 32px 고정</b>이고, 그리드는 <b>1584px에서 멈춘다</b>. 그보다 넓어지면 열이 아니라 마진이 늘어난다.</p>
+        <div class="took">가져온 것 — 넓은 화면은 <b>마진이 아니라 max-width</b>로 푼다</div>
+        <a href="https://v10.carbondesignsystem.com/guidelines/2x-grid/implementation/">v10.carbondesignsystem.com/guidelines/2x-grid/implementation/</a>
+      </article>
+
+      <article class="ref">
+        <div class="ref-head"><span class="ref-n">05</span><span class="ref-name">GitHub Primer — Blankslate</span> <span class="tag t-ok">확인함</span></div>
+        <div class="mock">
+          <div class="m-card" style="padding:14px;text-align:center;border-style:dashed">
+            <div style="width:18px;height:18px;border-radius:4px;background:var(--line);margin:0 auto 6px"></div>
+            <div style="font-weight:700">아직 공지가 없습니다</div>
+            <div style="color:var(--ink-3)">등록되면 여기에 표시됩니다</div>
+          </div>
+        </div>
+        <p>Visual · Heading · Description · PrimaryAction · SecondaryAction 다섯 조각. 크기 small / medium / large, 변형 narrow · spacious · <b>bordered</b>. 빈 곳을 컴포넌트로 승격시킨 사례.</p>
+        <div class="took">가져온 것 — 빈 곳에 <b>점선 테두리 + 아이콘 + 한 줄</b></div>
+        <a href="https://primer.style/product/components/blankslate/">primer.style/product/components/blankslate/</a>
+      </article>
+
+      <article class="ref">
+        <div class="ref-head"><span class="ref-n">06</span><span class="ref-name">GitHub Changelog</span> <span class="tag t-ok">확인함</span></div>
+        <div class="mock">
+          <div class="m-label">August</div>
+          <div class="m-row" style="border-top:1px solid var(--line-soft)"><div class="m-bar long"></div></div>
+          <div class="m-row"><div class="m-bar mid"></div></div>
+          <div class="m-label" style="margin-top:8px">July</div>
+          <div class="m-row" style="border-top:1px solid var(--line-soft)"><div class="m-bar short"></div></div>
+        </div>
+        <p>카드가 <b>아예 없다</b>. 월 단위 헤더 + 구분선만으로 목록을 끊고, 섹션은 내용만큼만 높다. 필터는 고정 열이 아니라 눌러서 여는 패널이다.</p>
+        <div class="took">가져온 것 — 카드를 빼면 <b>빌 카드도 없다</b></div>
+        <a href="https://github.blog/changelog/">github.blog/changelog/</a>
+      </article>
+
+      <article class="ref">
+        <div class="ref-head"><span class="ref-n">07</span><span class="ref-name">Vercel — Changelog</span> <span class="tag t-ok">확인함</span></div>
+        <div class="mock" style="text-align:center">
+          <div style="display:flex;gap:0;height:58px">
+            <div style="flex:1"></div>
+            <div style="width:56%;display:flex;flex-direction:column;gap:5px">
+              <div class="m-bar long" style="width:100%"></div>
+              <div class="m-bar mid"></div>
+              <div class="m-bar long" style="width:100%"></div>
+            </div>
+            <div style="flex:1"></div>
+          </div>
+          <div class="m-label" style="margin-top:4px">단일 고정폭 열</div>
+        </div>
+        <p>고정폭 한 열, 카드 없는 목록. 옆에 남는 폭에 <b>아무것도 두지 않는다</b> — 빈 곳을 채우려 하지 않고 열 자체를 좁혔다.</p>
+        <div class="took">가져온 것 — 좁은 열이 <b>긴 행보다 낫다</b></div>
+        <a href="https://vercel.com/changelog">vercel.com/changelog</a>
+      </article>
+
+      <article class="ref">
+        <div class="ref-head"><span class="ref-n">08</span><span class="ref-name">Linear — Changelog</span> <span class="tag t-ok">확인함</span></div>
+        <div class="mock">
+          <div style="font-weight:700;font-size:12px">July 30, 2026</div>
+          <div class="m-row" style="padding-left:0"><div class="m-bar long"></div></div>
+          <div class="m-row" style="padding-left:0;border-bottom:0"><div class="m-bar mid"></div></div>
+        </div>
+        <p>max-width로 읽기 좋은 줄 길이를 유지한다. 날짜가 <b>항목 안의 작은 글씨가 아니라 섹션 헤더</b>라, 행에서 날짜 칸이 사라져 행이 가벼워진다.</p>
+        <div class="took">가져온 것 — 날짜를 <b>행에서 그룹 헤더로</b> 올리기</div>
+        <a href="https://linear.app/changelog">linear.app/changelog</a>
+      </article>
+
+      <article class="ref">
+        <div class="ref-head"><span class="ref-n">09</span><span class="ref-name">Baymard — Dashboard cards</span> <span class="tag t-ok">확인함</span></div>
+        <div class="mock">
+          <div class="m-cols">
+            <div class="m-card"><div class="m-head">A</div><div class="m-row"><div class="m-bar mid"></div></div></div>
+            <div class="m-card"><div class="m-head">B</div><div class="m-row"><div class="m-bar mid"></div></div></div>
+          </div>
+          <div class="m-label" style="margin-top:6px">카드끼리 같은 규칙일 것</div>
+        </div>
+        <p>사용자 테스트 결과: 카드마다 스타일이 다르면 "복잡하다"고 느끼며 <b>보이는 기능을 놓친다</b>. 헤더는 충분한 여백과 무게로 스캔의 실마리를 준다. 그림은 시선을 목표에서 뺏는다.</p>
+        <div class="took">가져온 것 — 빈 곳을 <b>일러스트로 채우지 말 것</b></div>
+        <a href="https://baymard.com/blog/cards-dashboard-layout">baymard.com/blog/cards-dashboard-layout</a>
+      </article>
+
+      <article class="ref">
+        <div class="ref-head"><span class="ref-n">10</span><span class="ref-name">NN/g — Empty states</span> <span class="tag t-ok">확인함</span></div>
+        <div class="mock">
+          <div class="m-card" style="padding:12px">
+            <div style="color:var(--ink-3)">선택한 기간에 표시할 기록이 없습니다.</div>
+          </div>
+          <div class="m-label" style="margin-top:6px">침묵보다 한 문장</div>
+        </div>
+        <p>빈 영역의 세 가지 일: ① 시스템 상태 알리기 ② 배울 기회 주기 ③ 다음 할 일로 보내기. "간단한 메시지 하나가 상태를 말해 주고 사용자 확신을 높인다."</p>
+        <div class="took">가져온 것 — 빈 곳도 <b>말을 해야 한다</b></div>
+        <a href="https://www.nngroup.com/articles/empty-state-interface-design/">nngroup.com/articles/empty-state-interface-design/</a>
+      </article>
+
+      <article class="ref">
+        <div class="ref-head"><span class="ref-n">11</span><span class="ref-name">Google Cloud — Collapsible groups</span> <span class="tag t-ok">확인함</span></div>
+        <div class="mock">
+          <div class="m-card">
+            <div class="m-head">▸ 지난 공지 <span class="m-more">12</span></div>
+            <div class="m-head" style="border-bottom:0">▾ 이번 달 <span class="m-more">2</span></div>
+          </div>
+        </div>
+        <p>대시보드를 그룹으로 접는다. 접힌 그룹은 자리를 거의 차지하지 않고, 그 안의 데이터는 <b>더 낮은 우선순위로 늦게</b> 불러와 로딩도 빨라진다.</p>
+        <div class="took">가져온 것 — 안 보는 구간은 <b>접어서 자리도 요청도 줄인다</b></div>
+        <a href="https://docs.cloud.google.com/monitoring/dashboards/text-and-grouping">docs.cloud.google.com/monitoring/dashboards/text-and-grouping</a>
+      </article>
+
+      <article class="ref">
+        <div class="ref-head"><span class="ref-n">12</span><span class="ref-name">Material Design 3 — Layout</span> <span class="tag t-op">검색 근거</span></div>
+        <div class="mock" style="text-align:center">
+          <div style="display:flex;height:44px">
+            <div style="width:16px" class="m-void"></div>
+            <div style="flex:1" class="m-card"></div>
+            <div style="width:16px" class="m-void"></div>
+          </div>
+          <div class="m-label" style="margin-top:5px">compact 16 · expanded 24</div>
+        </div>
+        <p>마진은 compact 16dp, medium · expanded 24dp. 창이 커져도 마진을 키우는 게 아니라 <b>pane을 하나 더 세운다</b>(pane 사이 간격도 24dp).</p>
+        <div class="took">가져온 것 — 넓어지면 <b>여백이 아니라 단이 늘어난다</b></div>
+        <a href="https://m3.material.io/foundations/layout/applying-layout/large-extra-large">m3.material.io/foundations/layout/applying-layout/large-extra-large</a>
+      </article>
+
+      <article class="ref">
+        <div class="ref-head"><span class="ref-n">13</span><span class="ref-name">Atlassian — Empty state</span> <span class="tag t-op">부분 확인</span></div>
+        <div class="mock">
+          <div class="m-card" style="padding:12px;text-align:center;color:var(--ink-3)">
+            표시할 데이터가 없습니다<br><span style="color:var(--accent-ink)">다음에 할 일 →</span>
+          </div>
+        </div>
+        <p>"빈 상태는 표시할 데이터가 없을 때 나타나며, <b>사용자가 다음에 무엇을 할 수 있는지</b>를 설명한다." 정의 자체가 액션을 포함한다.</p>
+        <div class="took">가져온 것 — 빈 상태의 정의에 <b>다음 행동이 들어간다</b></div>
+        <a href="https://atlassian.design/components/empty-state/examples">atlassian.design/components/empty-state/examples</a>
+      </article>
+
+    </div>
+  </section>
+
+  <section>
+    <h2>4 — 시안 5</h2>
+
+    <div class="prop pick">
+      <div class="prop-head">
+        <span class="prop-id">시안 A</span>
+        <h3>높이를 내용에게 돌려주고, 폭을 잡는다</h3>
+        <span class="tag t-ok">추천</span>
+      </div>
+      <div class="prop-body">
+        <div>
+          <p>
+            <code>items-stretch</code> · <code>flex-1</code>을 걷어내 카드가 내용만큼만 서게 하고,
+            대신 페이지에 <code>max-width</code>를 건다. 780px이던 행이 좁아지면서 제목과 날짜가
+            한 눈에 들어오고, 카드 안 공백은 <b>0</b>이 된다.
+          </p>
+          <p>
+            아래 회색 캔버스는 그대로 남는다 — 그게 맞다.
+            <b>캔버스의 여백은 정상이고, 카드 안의 여백만 결함이다.</b>
+            테두리는 "여기까지가 내용"이라는 약속인데, 늘린 카드는 그 약속을 어긴다.
+          </p>
+          <p>레퍼런스 01 · 04 · 07 · 08 · 12가 전부 이 방향이다.</p>
+          <div class="cost">
+            <b>비용</b> — CSS 두 줄. 계약 변경 없음. 화면 아래쪽은 여전히 빈 캔버스로 남는다.
+          </div>
+        </div>
+        <div class="mock">
+          <div class="m-cols">
+            <div class="m-card">
+              <div class="m-head">공지사항 <span class="m-pill">2</span><span class="m-more">전체 →</span></div>
+              <div class="m-row"><div class="m-bar long"></div></div>
+              <div class="m-row"><div class="m-bar mid"></div></div>
+            </div>
+            <div class="m-card">
+              <div class="m-head">FAQ <span class="m-pill">3</span><span class="m-more">전체 →</span></div>
+              <div class="m-row"><div class="m-bar long"></div></div>
+              <div class="m-row"><div class="m-bar mid"></div></div>
+              <div class="m-row"><div class="m-bar short"></div></div>
+            </div>
+          </div>
+          <div class="m-label" style="margin-top:8px">카드 안 공백 0 · 아래는 캔버스</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="prop">
+      <div class="prop-head"><span class="prop-id">시안 B</span><h3>남는 자리에 위젯을 더 놓는다</h3></div>
+      <div class="prop-body">
+        <div>
+          <p>
+            AWS Console Home 방식(레퍼런스 03). 카드를 늘리는 대신 아래 줄에 다른 위젯을 놓는다 —
+            「내 연동 요청 현황」, 「3단계로 시작하기」, 「가이드 바로가기」.
+            화면이 정말로 채워지고, 채운 것이 <b>공백이 아니라 쓸모</b>다.
+          </p>
+          <p>페이지의 성격이 게시판에서 <b>홈 대시보드</b>로 바뀐다는 점이 진짜 결정 사항이다.</p>
+          <div class="cost">
+            <b>비용</b> — 가장 크다. 새 위젯마다 데이터 출처가 필요하고 「내 연동 요청」은 계약 추가다.
+            화면의 정체성을 바꾸는 결정이라 이 벤치마크 범위를 넘는다.
+          </div>
+        </div>
+        <div class="mock">
+          <div class="m-cols" style="margin-bottom:8px">
+            <div class="m-card"><div class="m-head">공지사항 <span class="m-pill">2</span></div><div class="m-row"><div class="m-bar long"></div></div><div class="m-row"><div class="m-bar mid"></div></div></div>
+            <div class="m-card"><div class="m-head">FAQ <span class="m-pill">3</span></div><div class="m-row"><div class="m-bar long"></div></div><div class="m-row"><div class="m-bar mid"></div></div></div>
+          </div>
+          <div class="m-cols">
+            <div class="m-card"><div class="m-head">내 연동 요청</div><div class="m-row"><div class="m-bar short"></div></div></div>
+            <div class="m-card"><div class="m-head">시작하기</div><div class="m-row"><div class="m-bar mid"></div></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="prop">
+      <div class="prop-head"><span class="prop-id">시안 C</span><h3>카드를 없애고 한 열 목록으로</h3></div>
+      <div class="prop-body">
+        <div>
+          <p>
+            GitHub Changelog · Vercel 방식(레퍼런스 06 · 07). 테두리를 없애면 <b>빌 카드 자체가 사라진다.</b>
+            공지사항 / FAQ는 카드가 아니라 구분선 있는 섹션 헤더로 나누고, 한 열 안에 세로로 쌓는다.
+          </p>
+          <p>
+            가장 근본적인 해법이지만, "FAQ와 공지를 각 카드로 양옆에" 라는 확정 요구와 정면으로 충돌한다.
+          </p>
+          <div class="cost">
+            <b>비용</b> — 합의된 설계를 버린다. 두 종류를 나란히 비교하는 이점도 잃는다.
+          </div>
+        </div>
+        <div class="mock">
+          <div style="font-weight:700;font-size:12px;padding-bottom:4px">공지사항 <span class="m-pill">2</span></div>
+          <div class="m-row" style="border-top:1px solid var(--line-soft)"><div class="m-bar long"></div></div>
+          <div class="m-row"><div class="m-bar mid"></div></div>
+          <div style="font-weight:700;font-size:12px;padding:10px 0 4px">FAQ <span class="m-pill">3</span></div>
+          <div class="m-row" style="border-top:1px solid var(--line-soft)"><div class="m-bar long"></div></div>
+          <div class="m-row" style="border-bottom:0"><div class="m-bar short"></div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="prop">
+      <div class="prop-head"><span class="prop-id">시안 D</span><h3>늘린 채로, 바닥에 Blankslate를 둔다</h3></div>
+      <div class="prop-body">
+        <div>
+          <p>
+            지금 구조를 유지하되 남는 공간을 Primer Blankslate(레퍼런스 05)로 채운다 —
+            점선 테두리 안에 「앞으로 등록되는 공지가 여기에 쌓입니다」 한 줄과 「전체보기 →」.
+            NN/g가 말한 "빈 곳도 상태를 말해야 한다"(레퍼런스 10)를 만족한다.
+          </p>
+          <p>
+            다만 Cloudscape는 빈 상태를 <b>정말 아무것도 없을 때</b>로 정의한다. 2건이 있는데
+            빈 상태 문구를 띄우면 "없다"고 말하는 셈이라, 문구를 정직하게 쓰기 어렵다.
+          </p>
+          <div class="cost">
+            <b>비용</b> — 작다. 하지만 <b>증상만 덮는다.</b> 카드가 왜 그 높이여야 하는지에는 답하지 않는다.
+          </div>
+        </div>
+        <div class="mock">
+          <div class="m-card">
+            <div class="m-head">공지사항 <span class="m-pill">2</span></div>
+            <div class="m-row"><div class="m-bar long"></div></div>
+            <div class="m-row"><div class="m-bar mid"></div></div>
+            <div style="margin:10px;border:1px dashed var(--line);border-radius:4px;padding:14px 8px;text-align:center;color:var(--ink-3)">
+              앞으로 등록되는 공지가 여기 쌓입니다<br><span style="color:var(--accent-ink)">전체보기 →</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="prop">
+      <div class="prop-head"><span class="prop-id">시안 E</span><h3>행을 더 보여준다 (5 → 8)</h3></div>
+      <div class="prop-body">
+        <div>
+          <p>
+            <code>CARD_ROWS</code>를 5에서 8로 올리고 날짜를 Linear식 그룹 헤더로 올려(레퍼런스 08)
+            행을 가볍게 만든다. 데이터가 쌓이면 자연히 채워진다.
+          </p>
+          <p>
+            문제는 <b>지금은 글이 5건뿐</b>이라는 것. 상한을 올려도 오늘 화면은 한 픽셀도 안 변한다.
+            나중에 효과가 나오는 안이지 지금의 답은 아니다.
+          </p>
+          <div class="cost">
+            <b>비용</b> — 한 줄. 대신 오늘 아무 변화가 없고, 글이 많아지면 「전체보기」가 할 일을 뺏는다.
+          </div>
+        </div>
+        <div class="mock">
+          <div class="m-card">
+            <div class="m-head">공지사항 <span class="m-pill">2</span></div>
+            <div class="m-row"><div class="m-bar long"></div></div>
+            <div class="m-row"><div class="m-bar mid"></div></div>
+            <div class="m-void" style="height:60px;border-top:0">변화 없음</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>5 — 비교</h2>
+    <div class="scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>시안</th><th>덮는 문제</th><th>구현 비용</th><th>계약 추가</th>
+            <th>합의된 설계와</th><th>레퍼런스 지지</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><b>A</b> 내용 높이 + max-width</td>
+            <td class="num">1 · 2 · 3</td>
+            <td>CSS 2줄</td>
+            <td>없음</td>
+            <td>유지</td>
+            <td class="num">5 / 13</td>
+          </tr>
+          <tr>
+            <td><b>B</b> 위젯 추가</td>
+            <td class="num">1 · 5 · 6</td>
+            <td>큼 (화면 성격 변경)</td>
+            <td><span class="tag t-hard">필요</span></td>
+            <td>확장</td>
+            <td class="num">2 / 13</td>
+          </tr>
+          <tr>
+            <td><b>C</b> 카드 제거</td>
+            <td class="num">1 · 2 · 3 · 6</td>
+            <td>중간</td>
+            <td>없음</td>
+            <td><span class="tag t-hard">충돌</span></td>
+            <td class="num">3 / 13</td>
+          </tr>
+          <tr>
+            <td><b>D</b> Blankslate</td>
+            <td class="num">5</td>
+            <td>작음</td>
+            <td>없음</td>
+            <td>유지</td>
+            <td class="num">3 / 13</td>
+          </tr>
+          <tr>
+            <td><b>E</b> 행 수 증가</td>
+            <td class="num">6 (미래)</td>
+            <td>1줄</td>
+            <td>없음</td>
+            <td>유지</td>
+            <td class="num">1 / 13</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="verdict" style="margin-top:32px">
+      <q>시안 A. 늘리기를 되돌리고, 폭을 max-width로 잡는다.</q>
+      <cite>표에서 나온 결론 — 커버리지 3건을 CSS 두 줄로, 계약 변경 없이, 13곳 중 5곳의 직접 지지로</cite>
+    </div>
+
+    <p>
+      표를 그대로 읽으면 A다. C가 문제를 하나 더 덮지만 확정 요구와 충돌하고, B는 이 화면을
+      게시판이 아닌 홈 대시보드로 바꾸는 별도 결정이다. D는 증상만 덮고, E는 오늘 아무것도 바꾸지 않는다.
+    </p>
+    <p>
+      A와 함께 <b>레퍼런스 01의 「목록 끝 전체보기」</b>만 같이 가져오기를 권한다 —
+      진단 4번이고, 링크 하나를 카드 바닥으로 옮기는 일이라 비용이 없다.
+    </p>
+    <p>
+      <b>B는 버리지 말고 남겨 둔다.</b> 글이 쌓이고 「내 연동 요청 현황」 계약이 생기면,
+      화면 아래의 빈 캔버스를 채울 정답은 그때 B다.
+    </p>
+  </section>
+
+  <section>
+    <h2>6 — 답하지 않은 것</h2>
+    <p>
+      앱의 다른 화면은 전부 full-bleed다. A의 <code>max-width</code>를 넣으면 이 4개 화면이
+      첫 사례가 된다. 앱 전체가 따라갈지, 이 화면만 예외로 둘지는 이 벤치마크가 정할 문제가 아니다.
+    </p>
+    <p>
+      그리고 이 문제의 진짜 원인 — 게시글이 5건뿐이라는 것 — 은 어떤 레이아웃으로도 풀리지 않는다.
+    </p>
+  </section>
+
+</div>
