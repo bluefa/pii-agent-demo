@@ -44,7 +44,9 @@ paths:
         정렬은 BFF가 수행하며 클라이언트는 응답 순서를 그대로 사용한다.
         1순위 `pinned` 내림차순(고정 게시글이 앞), 2순위 `publishedAt` 내림차순(최신이 앞).
 
-        아코디언 즉시 펼침을 위해 목록 응답에 `content`를 포함한다. 별도의 본문 조회 호출이 필요 없다.
+        **본문(`contents`)은 담지 않는다.** 담으면 응답 크기가 게시글 수에 비례해 커지고,
+        페이지네이션이 없는 이 계약(§5 범위 밖)에서는 시간이 갈수록 단조 증가한다.
+        본문은 아코디언을 펼칠 때 `GET /install/v1/posts/{postId}`로 가져온다.
       parameters:
       - name: type
         in: query
@@ -67,7 +69,7 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/Post'
+                  $ref: '#/components/schemas/PostSummary'
         '500':
           description: Internal Server Error
           content:
@@ -89,9 +91,12 @@ paths:
       operationId: getPost
       x-expected-duration: 50ms
       description: |
-        게시글 단건 조회. 딥링크(URL 직접 접근)용이며 목록 렌더링에는 사용하지 않는다.
+        본문까지 담은 게시글 단건 조회. **아코디언을 펼칠 때 호출한다.** 딥링크(URL 직접 접근)도
+        같은 엔드포인트를 쓴다.
 
         숨김 게시글은 `403`이 아니라 `404`를 반환한다. 존재 여부 자체를 사용자에게 노출하지 않는다.
+        목록을 받은 뒤 관리자가 숨김 처리하면 펼치는 시점에 404가 날 수 있다 — 화면은 이 경우를
+        오류가 아니라 "지금은 볼 수 없는 글"로 처리한다.
       responses:
         '200':
           description: 조회 성공
@@ -183,7 +188,7 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/AdminPost'
+                  $ref: '#/components/schemas/AdminPostSummary'
         '500':
           description: Internal Server Error
           content:
@@ -586,8 +591,23 @@ paths:
 components:
   schemas:
     AdminPost:
+      description: >-
+        본문과 감사 필드까지 담은 Admin 게시글 단건. 수정 화면 진입과 등록·수정·상태 전이 응답에 쓰인다.
+      allOf:
+      - $ref: '#/components/schemas/AdminPostSummary'
+      - type: object
+        properties:
+          contents:
+            $ref: '#/components/schemas/LocalizedText'
+          createdBy:
+            type: string
+          updatedBy:
+            type: string
+    AdminPostSummary:
       type: object
-      description: Admin 화면용 게시글. Post에 숨김 상태와 감사 필드를 더한 형태다.
+      description: >-
+        Admin 목록용 게시글. 사용자 목록과 같은 이유로 본문을 담지 않는다.
+        Admin 목록 화면은 배지·Title·게시일자·작업 버튼만 그리므로 본문이 필요 없다.
       properties:
         id:
           type: integer
@@ -602,8 +622,6 @@ components:
           type: string
           nullable: true
         titles:
-          $ref: '#/components/schemas/LocalizedText'
-        contents:
           $ref: '#/components/schemas/LocalizedText'
         publishedAt:
           type: string
@@ -621,10 +639,6 @@ components:
           format: date-time
           nullable: true
           description: 마지막으로 숨김 처리된 시각. hidden이 false면 null.
-        createdBy:
-          type: string
-        updatedBy:
-          type: string
     AdminPostCategory:
       type: object
       properties:
@@ -709,8 +723,19 @@ components:
         en:
           type: string
     Post:
+      description: >-
+        본문까지 담은 사용자 화면용 게시글 단건. 아코디언을 펼칠 때 이 응답을 받는다.
+      allOf:
+      - $ref: '#/components/schemas/PostSummary'
+      - type: object
+        properties:
+          contents:
+            $ref: '#/components/schemas/LocalizedText'
+    PostSummary:
       type: object
-      description: 사용자 화면용 게시글. 숨김 관련 필드를 노출하지 않는다.
+      description: >-
+        목록용 게시글. 본문(`contents`)을 담지 않는다 — 목록 응답이 게시글 수에 비례해
+        커지지 않도록 하기 위해서다. 본문은 펼칠 때 단건 조회로 가져온다.
       properties:
         id:
           type: integer
@@ -726,8 +751,6 @@ components:
           type: string
           nullable: true
         titles:
-          $ref: '#/components/schemas/LocalizedText'
-        contents:
           $ref: '#/components/schemas/LocalizedText'
         publishedAt:
           type: string
@@ -825,12 +848,12 @@ components:
 
 | Method | Path | 설명 | 상태 |
 | --- | --- | --- | --- |
-| GET | `/install/v1/posts` | 사용자용 게시글 목록. 숨김 제외, 고정→시간 정렬, 본문 포함 | Draft |
-| GET | `/install/v1/posts/{postId}` | 사용자용 게시글 단건 조회 (딥링크용). 숨김이면 404 | Draft |
+| GET | `/install/v1/posts` | 사용자용 게시글 목록. 숨김 제외, 고정→시간 정렬. **본문 없음** | Draft |
+| GET | `/install/v1/posts/{postId}` | 본문 포함 단건 조회. 아코디언 펼침 + 딥링크. 숨김이면 404 | Draft |
 | GET | `/install/v1/post-categories` | 사용자용 Category 목록. 비활성 제외 | Draft |
-| GET | `/install/v1/admin/posts` | Admin 게시글 목록. 숨김 포함, `hidden` 노출 | Draft |
+| GET | `/install/v1/admin/posts` | Admin 게시글 목록. 숨김 포함, `hidden` 노출. **본문 없음** | Draft |
 | POST | `/install/v1/admin/posts` | 게시글 등록 | Draft |
-| GET | `/install/v1/admin/posts/{postId}` | Admin 게시글 단건 조회. 숨김도 조회 가능 | Draft |
+| GET | `/install/v1/admin/posts/{postId}` | 본문 포함 단건 조회 (수정 화면 진입). 숨김도 조회 가능 | Draft |
 | PUT | `/install/v1/admin/posts/{postId}` | Title / 본문 / Category 전체 교체 수정 | Draft |
 | PUT | `/install/v1/admin/posts/{postId}/hidden` | 숨김 처리 / 복구 | Draft |
 | PUT | `/install/v1/admin/posts/{postId}/pinned` | 상단 고정 / 고정 해제 | Draft |
@@ -844,7 +867,8 @@ components:
 | Response 항목 | 설명 | 관련 기준 |
 | --- | --- | --- |
 | 목록 응답의 배열 순서 | 서버가 정렬을 마친 순서다. 클라이언트는 재정렬하지 않는다. 재정렬하면 메인 페이지와 상세 페이지의 순서가 갈라진다. | §5 정렬 규칙 |
-| `titles` / `contents` | 항상 `ko`와 `en`을 모두 담는다. 화면이 언어를 고르므로, 언어를 바꿀 때 다시 조회하지 않는다. 저장 시 두 언어 모두 필수라 빈 문자열이 내려오는 경우는 없다. | §5 다국어 규칙 |
+| `titles` | 목록·단건 모두에 있으며 항상 `ko`와 `en`을 담는다. 화면이 언어를 고르므로 언어 전환에 재조회가 없다. | §5 다국어 규칙 |
+| `contents` | **단건 응답에만 있다.** 목록(`PostSummary` / `AdminPostSummary`)에는 없다. 목록에서 본문을 읽으려 하면 `undefined`다 — 펼침 시 단건 조회로 가져와야 한다. | §5 본문 로딩 |
 | `contents.*` 안의 `img` | `src`는 업로드 API가 돌려준 URL만 들어 있다. `width`/`height`는 원본 픽셀 크기이며 관리자가 조절한 값이 아니다 — 레이아웃 밀림을 막기 위한 값이다. | §5 본문 HTML allow-list |
 | `publishedAt` | 최초 등록 시각이며 수정으로 변하지 않는다. 화면 표기는 `yy-mm-dd`로 절삭한다. | 화면 요구사항 |
 | `updatedAt` | 마지막 수정 시각. 고정/숨김 전이로는 갱신되지 않는다. 내용이 바뀐 경우에만 갱신된다. | §5 시각 규칙 |
@@ -895,6 +919,14 @@ components:
 - 조회 API는 언어를 고르지 않고 **양쪽을 모두 반환한다.** 화면이 언어를 선택하므로 언어 전환에 재조회가 없다. `lang` 쿼리 파라미터는 두지 않는다.
 - 언어별 fallback은 없다. 한쪽이 비는 상태를 저장 단계에서 막기 때문에 조회 단계에서 대체할 일이 없다.
 - 프론트엔드에는 이미 같은 구조의 자산이 있다 — 언어 탭/미리보기 토글(`segmentedControlStyles`), allow-list 검증기(`lib/utils/validate-guide-html.ts`), AST 렌더러(`render-guide-ast.tsx`). 새로 설계하지 않고 이들을 게시글에 적용한다.
+
+### 본문 로딩
+
+- 목록 API는 본문을 담지 않는다. 아코디언을 펼치는 시점에 `GET /install/v1/posts/{postId}`를 호출한다.
+- 목록에 본문을 실으면 응답 크기가 `게시글 수 × 2개 언어`에 비례해 커진다. 페이지네이션이 없으므로(§5 범위 밖) 이 값은 시간이 갈수록 단조 증가하며, 특히 전체보기 화면은 정의상 전량을 받으므로 상한이 없다.
+- 대가는 펼칠 때마다 왕복 한 번이다. 화면은 펼침 패널에 스켈레톤을 두고, 한 번 받은 본문은 다시 접었다 펴도 재요청하지 않는다.
+- 같은 규칙이 Admin 목록에도 적용된다. Admin 목록 화면은 배지·Title·게시일자·작업 버튼만 그리므로 본문이 필요 없고, 수정 화면이 `GET /install/v1/admin/posts/{postId}`로 본문을 가져온다.
+- 목록을 받은 뒤 관리자가 숨김 처리하면 펼침 시점에 `404 POST_NOT_FOUND`가 날 수 있다. 화면은 이를 오류가 아니라 "지금은 볼 수 없는 글"로 처리하고 해당 행을 목록에서 제거한다.
 
 ### 본문 이미지
 
@@ -960,3 +992,4 @@ enum 카탈로그(`catalogs/enums-and-states.md`)가 아직 부트스트랩되�
 | --- | --- | --- | --- | --- |
 | 26.08.12 | Draft | Added | FAQ / 공지사항 게시글·Category API 12건 초안 작성. 단일 `posts` 리소스 + `type` 구분, 삭제 없이 숨김 전이, Category 삭제는 잔여 게시글 0건일 때만 허용하는 방향으로 제안. | [2026-08-12 논의](../discussions/2026-08-12-faq-notices-added.md) |
 | 26.08.12 | Draft | Changed | Title·본문을 ko/en 쌍(`titles`, `contents`)으로 변경하고 본문 이미지 업로드 API를 추가(12 → 13건). allow-list에 `img` 추가. Draft 단계라 별도 discussion 없이 같은 논의 문서(§2.9)에 이어 기록. | [2026-08-12 논의](../discussions/2026-08-12-faq-notices-added.md) |
+| 26.08.12 | Draft | Changed | 목록 응답에서 본문을 제거하고 단건 조회로 옮김(`PostSummary` / `AdminPostSummary` 신설). 초안의 "목록에 본문 포함" 결정을 뒤집은 것으로, ko/en 2배 · 페이지네이션 없음 · 전체보기 화면이 겹쳐 목록 크기에 상한이 없어졌기 때문이다. 엔드포인트 수는 13건 그대로. | [2026-08-12 논의](../discussions/2026-08-12-faq-notices-added.md) §2.3 |
