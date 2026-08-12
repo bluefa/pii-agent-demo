@@ -11,9 +11,8 @@
  * Database Type carries no chip: it is a repeating attribute, not a status.
  */
 import { Fragment, type ReactElement } from 'react';
-import { cn, idcStyles, primaryColors, textColors, verdictRailClass } from '@/lib/theme';
+import { bgColors, cn, idcStyles, primaryColors, textColors, verdictRailClass } from '@/lib/theme';
 import { useClusterFold } from '@/app/hooks/useClusterFold';
-import { useRailHover } from '@/app/hooks/useRailHover';
 import { ChevronRightIcon } from '@/app/components/ui/icons';
 import { getDatabaseShortLabel } from '@/app/components/ui/DatabaseIcon';
 import { ReasonChipInline } from '@/app/components/ui/ReasonChipInline';
@@ -28,12 +27,9 @@ import {
   clampReason,
 } from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalTable';
 import { ResourceIdCell } from '@/app/target-sources/[targetSourceId]/_components/shared/ResourceIdCell';
-import {
-  Ec2InstanceTag,
-  RdsClusterTag,
-  RdsInstanceIdentity,
-} from '@/app/components/ui/RdsInstanceChips';
-import { isRdsCluster, rdsInstanceLabel, sortRdsInstances } from '@/lib/rds-instances';
+import { RdsInstancePanel } from '@/app/target-sources/[targetSourceId]/_components/shared/RdsInstancePanel';
+import { Ec2InstanceTag, RdsClusterTag } from '@/app/components/ui/RdsInstanceChips';
+import { isRdsCluster, sortRdsInstances } from '@/lib/rds-instances';
 import { isEc2Instance, resolveExclusionReason } from '@/lib/types';
 import type { RequestResourceRow } from '@/app/lib/api/task-queue-requests';
 
@@ -62,8 +58,6 @@ export function CloudResourceTable({ rows }: CloudResourceTableProps): ReactElem
   // Instance lists follow the shared fold policy (`useClusterFold`): open while the cluster is
   // part of the request, folded once it is excluded. The chevron overrides one cluster.
   const clusterFold = useClusterFold();
-  // …and the shared rail hover: the cluster row and its members light together.
-  const railRow = useRailHover();
   return (
     // No frame of its own — the toolbar above owns the rounded top and the pager below
     // the bottom, exactly as step 1's list table does (CONNECTED_FRAME).
@@ -109,15 +103,20 @@ export function CloudResourceTable({ rows }: CloudResourceTableProps): ReactElem
             const hasInstances = instances.length > 0;
             const fold = clusterFold(rowKey, row.selected);
             const instancesOpen = hasInstances && fold.open;
-            // Only a cluster draws a rail; other rows get no handlers so a pointer move down
-            // the list does not re-render the table for a class with nothing to colour.
-            const rail = hasInstances ? railRow(rowKey) : undefined;
             return (
               <Fragment key={rowKey}>
+              {/* No rail-hover handlers: the members are inside the accordion body now, which
+                  draws its own rail, so there is no second ROW for a hover to light with this
+                  one — and a handler on every row re-renders the table for nothing.
+
+                  An open cluster row is the accordion's HEADER, so it wears the body's own
+                  surface: one tint across the two, nothing between them, and the pair reads as
+                  a row that opened instead of a panel that appeared under it. */}
               <tr
-                className={cn(ROW_BASE, excluded ? ROW_EXCLUDED : ROW_TARGET, rail?.className)}
-                onMouseEnter={rail?.onMouseEnter}
-                onMouseLeave={rail?.onMouseLeave}
+                className={cn(
+                  ROW_BASE,
+                  instancesOpen ? bgColors.panel : excluded ? ROW_EXCLUDED : ROW_TARGET,
+                )}
               >
                 <td
                   className={cn(
@@ -130,8 +129,8 @@ export function CloudResourceTable({ rows }: CloudResourceTableProps): ReactElem
                     verdictRailClass(excluded, excluded && row.integrationCategory === 'INSTALL_INELIGIBLE'),
                     // The row's anchor lifts to brand, marking which cell identifies it.
                     primaryColors.textGroupHover,
-                    // The rail's first segment runs from the chevron down to the first
-                    // instance row; without it the children's rail hangs off nothing.
+                    // The rail's first segment runs from the chevron down into the open band;
+                    // without it the members' rail hangs off nothing.
                     instancesOpen && table.group.parentCell,
                   )}
                 >
@@ -219,50 +218,23 @@ export function CloudResourceTable({ rows }: CloudResourceTableProps): ReactElem
                   {excluded && <ReasonChip row={row} />}
                 </td>
               </tr>
-              {/* One row per member instance. Everything the cluster answers for (id, verdict,
-                  reason) stays on the parent; these carry identity, role and their own AZ.
-                  레일도 부모의 것이다 — 멤버마다 세우면 하나의 결정이 행 수만큼 반복돼
-                  제외 건수를 세는 눈을 속인다. */}
-              {instancesOpen && instances.map((instance, instanceIndex) => (
-                <tr
-                  key={instance.resource_id}
-                  className={cn(ROW_BASE, excluded ? ROW_EXCLUDED : ROW_TARGET, rail?.className)}
-                  onMouseEnter={rail?.onMouseEnter}
-                  onMouseLeave={rail?.onMouseLeave}
-                >
-                  <td
-                    className={cn(
-                      table.approvalCell,
-                      'font-mono text-[14px]',
-                      textColors.primary,
-                      table.group.childCell,
-                      instanceIndex === instances.length - 1 && table.group.childCellLast,
-                    )}
-                  >
-                    <RdsInstanceIdentity
-                      identifier={rdsInstanceLabel(instance)}
-                      role={instance.cluster_member_role}
-                      selected={instance.resource_id === row.selectedRdsInstanceResourceId}
-                    />
-                  </td>
-                  <td className={table.approvalCell} />
-                  <td className={cn(table.approvalCell, 'text-[14px]', tone, CELL_LIFT)}>
-                    Instance
-                  </td>
-                  <td
-                    className={cn(
-                      table.approvalCell,
-                      'whitespace-nowrap font-mono text-[14px]',
-                      tone,
-                      CELL_LIFT,
-                    )}
-                  >
-                    {instance.availability_zone ?? ''}
-                  </td>
-                  <td className={table.approvalCell} />
-                  <td className={table.approvalCell} />
-                </tr>
-              ))}
+              {/* The member instances — the app's own accordion body in read-only mode, the
+                  same one steps 1·2·3 open (owner, 2026-08-13). Everything the cluster answers
+                  for (id, verdict, reason) stays on the parent, which is exactly why they are
+                  not rows of this table: half its columns were the cluster's single decision
+                  and sat blank on every member, the endpoint had no column at all, and the AZ
+                  was filed under the Region header for want of anywhere else to put it. */}
+              {instancesOpen && (
+                <RdsInstancePanel
+                  clusterId={rowKey}
+                  showCheckboxColumn={false}
+                  colSpan={6}
+                  instances={instances}
+                  chosenResourceId={row.selectedRdsInstanceResourceId ?? undefined}
+                  selectable={false}
+                  readonly
+                />
+              )}
               </Fragment>
             );
           })}

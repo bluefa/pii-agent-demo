@@ -1,5 +1,5 @@
 import { memberRole, memberRoleLabel } from '@/lib/rds-instances';
-import { cn, idcStyles, primaryColors, statusColors, tableRowLift, tagStyles } from '@/lib/theme';
+import { cn, primaryColors, statusColors, tableRowLift, tagStyles } from '@/lib/theme';
 
 // `chipEdge` is inert outside a `tableRowLift.base` row — it is a `group-hover:` rule, so a
 // chip rendered anywhere without that ancestor draws no ring. Every chip here can appear in a
@@ -62,33 +62,4 @@ export const RdsMemberChip = ({ role }: { role?: string }) => {
  */
 export const RdsSelectionChip = () => (
   <span className={cn(CHIP_BASE, primaryColors.bgLight, primaryColors.textOnLight)}>선택됨</span>
-);
-
-/**
- * A member instance's identity cell — role (and 선택됨) ABOVE the name, the same two-line stack
- * the cluster row above it uses. Owner request, and it holds on every surface: beside the name
- * the chips landed at a different x on every row (the identifier's length decides it), so the
- * one thing the eye scans down the column moved with each row's chips.
- *
- * `nameClassName` exists because step 1 styles the name span itself while steps 2–7 and admin
- * style the cell — the stack is the shared part, the type is not.
- */
-export const RdsInstanceIdentity = ({
-  identifier,
-  role,
-  selected = false,
-  nameClassName,
-}: {
-  identifier: string;
-  role?: string;
-  selected?: boolean;
-  nameClassName?: string;
-}) => (
-  <span className={cn('flex min-w-0 flex-col items-start gap-1', idcStyles.table.stackedIdentityLift)}>
-    <span className="flex items-center gap-2">
-      <RdsMemberChip role={role} />
-      {selected && <RdsSelectionChip />}
-    </span>
-    <span className={cn('block truncate', nameClassName)}>{identifier}</span>
-  </span>
 );

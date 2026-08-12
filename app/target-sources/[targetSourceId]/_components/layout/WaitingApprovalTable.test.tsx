@@ -332,9 +332,12 @@ describe('WaitingApprovalTable', () => {
 
       const rows = screen.getAllByRole('row');
       expect(rows).toHaveLength(4);
-      // Read down the tree: Athena → Database. The name alone is just a string.
+      // Read down the tree: Athena → Database, and the region repeats on every database
+      // (owner, 2026-08-13) — a column is read DOWN, and a blank there says "no region".
       for (const row of rows.slice(2)) {
-        expect(within(row).getAllByRole('cell')[2].textContent).toBe('Database');
+        const memberCells = within(row).getAllByRole('cell');
+        expect(memberCells[2].textContent).toBe('Database');
+        expect(memberCells[3].textContent).toBe('ap-northeast-1');
       }
       expect(screen.getByText('sampledb')).toBeTruthy();
       expect(screen.getByText('integration')).toBeTruthy();
@@ -492,49 +495,46 @@ describe('WaitingApprovalTable', () => {
       ...overrides,
     });
 
-    const instanceNames = () =>
-      screen
-        .getAllByRole('row')
-        .map((row) => row.querySelector('td')?.textContent ?? '')
-        .filter((text) => text.includes('demo-'))
-        .filter((text) => !text.includes('demo-cluster'));
+    /**
+     * The instance names, in render order. They are NOT table rows — the members live in the
+     * accordion body (`RdsInstancePanel`), one colspan cell holding its own grid, so read them
+     * out of that cell rather than off `getAllByRole('row')`.
+     */
+    const instanceNames = () => {
+      const band = document.querySelector('td.px-0');
+      if (!band) return [];
+      return Array.from(band.querySelectorAll('span'))
+        .map((span) => span.textContent ?? '')
+        .filter((text) => /^demo-\d$/.test(text));
+    };
 
     it('lists instances Reader-first then by ARN, regardless of wire order', () => {
       render(<WaitingApprovalTable resources={[cluster()]} />);
-      // The cell reads "<role chip><name>", so pull the name out rather than slicing the head.
-      expect(instanceNames().map((text) => text.match(/demo-\d/)?.[0])).toEqual([
-        'demo-2',
-        'demo-3',
-        'demo-1',
-      ]);
+      expect(instanceNames()).toEqual(['demo-2', 'demo-3', 'demo-1']);
     });
 
     it('marks only the chosen instance 선택됨, and never offers a radio', () => {
       render(<WaitingApprovalTable resources={[cluster()]} />);
       expect(screen.getAllByText('선택됨')).toHaveLength(1);
       expect(screen.queryAllByRole('radio')).toHaveLength(0);
-      // The chip sits on the chosen INSTANCE row — the cluster row's summary names demo-2
-      // too, so the lookup has to skip the parent.
-      const chosenRow = screen
-        .getAllByRole('row')
-        .find(
-          (row) =>
-            row.textContent?.includes('demo-2') && !row.textContent.includes('demo-cluster'),
-        );
-      expect(chosenRow?.textContent).toContain('선택됨');
+      // The chip rides the chosen instance's own LINE inside the band.
+      expect(screen.getByText('선택됨').closest('div')?.textContent).toContain('demo-2');
     });
 
-    it('shows the member role on every instance row', () => {
+    it('shows the member role on every instance line', () => {
       render(<WaitingApprovalTable resources={[cluster()]} />);
       expect(screen.getAllByText('Reader')).toHaveLength(2);
       expect(screen.getAllByText('Writer')).toHaveLength(1);
     });
 
-    it('says Instance in the type column and gives each instance its own region', () => {
+    // The band is why the columns can say this at all: as rows of this table the AZ was filed
+    // under the Region header (the one column left that could hold it) and the endpoint — the
+    // other thing a reviewer compares — had nowhere to go.
+    it('gives each instance its own labelled AZ and endpoint columns', () => {
       render(<WaitingApprovalTable resources={[cluster()]} />);
-      expect(screen.getAllByText('Instance')).toHaveLength(3);
-      // The Region column carries the cluster's region on the parent and each instance's OWN
-      // availability zone on its child row — same column, one tier finer.
+      expect(screen.getByText('가용 영역')).toBeTruthy();
+      expect(screen.getByText('엔드포인트')).toBeTruthy();
+      // The table's Region column stays the CLUSTER's region — one row, one value.
       expect(screen.getAllByText('ap-northeast-2')).toHaveLength(1);
       expect(screen.getByText('ap-northeast-2a')).toBeTruthy();
       expect(screen.getByText('ap-northeast-2b')).toBeTruthy();
@@ -570,24 +570,20 @@ describe('WaitingApprovalTable', () => {
       expect(screen.getByText('RDS Cluster')).toBeTruthy();
     });
 
-    // The children inherit the parent's tier: full-contrast instances under a dimmed cluster
-    // read as a rendering fault, and the queue table already dimmed them.
-    it('keeps an excluded cluster’s instance rows at full contrast', () => {
+    // 부모가 제외됐다고 멤버의 글자를 낮추지 않는다 — 제외는 레일이 말한다. The band also sits
+    // on `bgColors.panel`, whose contract forbids `tertiary` there (4.37:1, under AA), so this
+    // holds the line for both reasons at once.
+    it('keeps an excluded cluster’s instance lines at full contrast', () => {
       render(
         <WaitingApprovalTable
           resources={[cluster({ selected: false, selectedRdsInstanceResourceId: undefined })]}
         />,
       );
-      // An excluded cluster starts folded (useClusterFold) — open it to read the rows.
+      // An excluded cluster starts folded (useClusterFold) — open it to read the lines.
       fireEvent.click(screen.getByRole('button', { name: 'demo-cluster 인스턴스 목록 펼치기' }));
-      const instanceRow = screen
-        .getAllByRole('row')
-        .find((r) => r.textContent?.includes('demo-2') && !r.textContent.includes('demo-cluster'));
-      const cells = instanceRow!.querySelectorAll('td');
-      // 부모가 제외됐다고 멤버 행의 글자를 낮추지 않는다 — 제외는 레일이 말한다.
-      expect(cells[0].className).not.toContain(textColors.tertiary);
-      expect(cells[2].className).not.toContain(textColors.tertiary);
-      expect(cells[3].className).not.toContain(textColors.tertiary);
+      const band = document.querySelector('td.px-0') as HTMLElement;
+      expect(instanceNames()).toHaveLength(3);
+      expect(band.innerHTML).not.toContain(textColors.tertiary);
     });
 
     // An excluded cluster chose nothing, so nothing is marked; the list is still the evidence,

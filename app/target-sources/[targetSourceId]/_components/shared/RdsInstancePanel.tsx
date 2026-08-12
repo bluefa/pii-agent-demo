@@ -15,11 +15,15 @@ import {
 /**
  * RDS cluster member instances — the accordion body the cluster row opens.
  *
- * The instances are NOT rows of the OUTER table. Three of its seven columns say nothing about
- * an instance (Resource ID, 설치 구분, 제외 사유 belong to the cluster), and the two things the
- * user actually compares — the endpoint and the AZ — have no column at all, so as outer rows
- * they were a wide band of blanks. Inside the body they get their OWN three columns and fill
- * every one of them.
+ * Used by every surface that shows a cluster's members: step 1 (choose one, radios), steps 2·3
+ * and the admin request queue (review the choice, no radios, `선택됨` chip instead).
+ *
+ * The instances are NOT rows of the OUTER table. Half of its columns say nothing about an
+ * instance (Resource ID, the verdict, 제외 사유 all belong to the cluster — one decision, not
+ * one per member), and the two things the user actually compares — the endpoint and the AZ —
+ * have no column at all: as outer rows they were a wide band of blanks, and the review surfaces
+ * ended up filing the AZ under a "Region" header to have somewhere to put it. Inside the body
+ * they get their OWN three columns and fill every one of them.
  *
  * It is an ACCORDION, not a card floating under the row: no margin, no rounded box, no shadow.
  * The body is flush against its cluster and shares that row's open tint, so the header and the
@@ -38,8 +42,13 @@ import {
 interface RdsInstancePanelProps {
   /** The cluster the body belongs to — scopes the radio group. */
   clusterId: string;
-  /** Editable table = checkbox + 5 data columns + 제외 사유; read-only drops the two. */
+  /**
+   * Whether the host table opens with a checkbox column. This sets the INDENT only: the body
+   * hangs off the name column's left edge, and the checkbox column is what moves it.
+   */
   showCheckboxColumn: boolean;
+  /** Columns to span — passed, not derived: the three host tables run 7 / 6 / 6 wide. */
+  colSpan: number;
   /** Display order (Reader-first) — the caller sorts, the wire order is what the payload echoes. */
   instances: readonly RdsInstanceCandidate[];
   /** The cluster's effective selection; undefined while the cluster is left out of the request. */
@@ -47,7 +56,9 @@ interface RdsInstancePanelProps {
   /** Radios exist only inside a checked cluster in the editable table (absent, not disabled). */
   selectable: boolean;
   readonly: boolean;
-  onSelect: (instanceResourceId: string) => void;
+  /** Answers the radio, so it is required by `selectable` and by nothing else — a review
+   *  surface (steps 2·3, the admin queue) renders no radio to answer. */
+  onSelect?: (instanceResourceId: string) => void;
 }
 
 /**
@@ -77,6 +88,7 @@ const INDENT_WITHOUT_CHECKBOX = 'pl-[54px]';
 export const RdsInstancePanel = ({
   clusterId,
   showCheckboxColumn,
+  colSpan,
   instances,
   chosenResourceId,
   selectable,
@@ -84,7 +96,7 @@ export const RdsInstancePanel = ({
   onSelect,
 }: RdsInstancePanelProps) => (
   <tr>
-    <td colSpan={showCheckboxColumn ? 7 : 5} className="px-0 py-0">
+    <td colSpan={colSpan} className="px-0 py-0">
       {/* Bottom padding is deliberately larger than the top one (owner, 2026-08-12): the body
           belongs to the cluster ABOVE it, so sitting tight under that row and leaving room
           before the next resource is what says so. 16 → 24, both on the spacing set. The top
@@ -137,7 +149,7 @@ export const RdsInstancePanel = ({
                       name={`rds-instance-${clusterId}`}
                       value={instance.resource_id}
                       checked={chosen}
-                      onChange={() => onSelect(instance.resource_id)}
+                      onChange={() => onSelect?.(instance.resource_id)}
                       aria-label={`접속 인스턴스 ${identifier} 선택`}
                       className={cn(
                         idcStyles.table.instanceBand.radio,

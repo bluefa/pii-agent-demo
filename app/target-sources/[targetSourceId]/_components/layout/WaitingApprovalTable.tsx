@@ -17,15 +17,11 @@ import { LogicalDbCountCell } from '@/app/target-sources/[targetSourceId]/_compo
 import { GROUPED_CHILD_KIND_LABEL, groupResourceRows } from '@/lib/resource-grouping';
 import {
   isRdsCluster,
-  rdsInstanceLabel,
   sortRdsInstances,
   type RdsInstanceCandidate,
 } from '@/lib/rds-instances';
-import {
-  Ec2InstanceTag,
-  RdsClusterTag,
-  RdsInstanceIdentity,
-} from '@/app/components/ui/RdsInstanceChips';
+import { Ec2InstanceTag, RdsClusterTag } from '@/app/components/ui/RdsInstanceChips';
+import { RdsInstancePanel } from '@/app/target-sources/[targetSourceId]/_components/shared/RdsInstancePanel';
 import { hasLogicalDatabases, isEc2Instance, resolveExclusionReason } from '@/lib/types';
 import {
   INSTALL_STATUS_LABEL,
@@ -33,6 +29,7 @@ import {
   type InstallStepValue,
 } from '@/app/components/features/process-status/install-status-detail/model';
 import {
+  bgColors,
   idcStyles,
   primaryColors,
   statusColors,
@@ -404,10 +401,12 @@ export const WaitingApprovalTable = memo(
       const isCluster = isRdsCluster(resource.declaredResourceType ?? '');
       const isEc2 = isEc2Instance(resource.declaredResourceType);
       // Every row of one rail shares a key: a group's children take the group's (passed in by
-      // the caller), a cluster or a folded region and its members take the row's own. Rows that
-      // draw NO rail get no handlers: this table is memo()'d and paginated, and lighting nothing
-      // on every pointer move would re-render the whole list for a class with no effect.
-      const rail = grouped || instancesOpen || (folded && open) ? railRow(railKey ?? rowKey) : undefined;
+      // the caller), a folded region and its members take the row's own. Rows that draw NO rail
+      // get no handlers: this table is memo()'d and paginated, and lighting nothing on every
+      // pointer move would re-render the whole list for a class with no effect. An open cluster
+      // is one such row now — its members moved into the accordion body, which draws its own
+      // rail, so there is no second row left to light with it.
+      const rail = grouped || (folded && open) ? railRow(railKey ?? rowKey) : undefined;
       const row = (
         <tr
           // `resource_id` is optional in the contract, so two id-less rows would collide on
@@ -416,7 +415,11 @@ export const WaitingApprovalTable = memo(
           key={rowKey}
           className={cn(
             ROW_BASE,
-            excluded ? ROW_EXCLUDED : ROW_TARGET,
+            // An open cluster row is an accordion HEADER, so it wears the body's own surface:
+            // the two sharing one tint with nothing between them is what makes the pair read as
+            // one block that opened rather than as a row with a panel underneath it — the same
+            // override step 1's cluster row makes.
+            instancesOpen ? bgColors.panel : excluded ? ROW_EXCLUDED : ROW_TARGET,
             foldToggleable && 'cursor-pointer',
             rail?.className,
           )}
@@ -700,59 +703,27 @@ export const WaitingApprovalTable = memo(
         return (
           <Fragment key={rowKey}>
             {row}
-            {/* The cluster's member instances — read-only here: the choice was made on step 1
-                and this surface exists to review it, so there are no radios. Everything the
-                cluster answers for (id, verdict, reason) stays on the parent row. */}
-            {instancesOpen &&
-              instances.map((instance, index) => (
-                // 인스턴스 행은 클러스터의 틴트만 물려받고 레일은 그리지 않는다. 판정은
-                // 클러스터가 답하는 것이고(id·verdict·reason 이 전부 부모 행에 있다), 멤버마다
-                // 레일을 세우면 하나의 결정이 행 수만큼 반복돼 제외 건수를 세는 눈을 속인다.
-                // 부모의 레일과 트리 레일이 이 행들을 그 결정 아래로 묶는다.
-                <tr
-                  key={instance.resource_id}
-                  className={cn(ROW_BASE, excluded ? ROW_EXCLUDED : ROW_TARGET, rail?.className)}
-                  onMouseEnter={rail?.onMouseEnter}
-                  onMouseLeave={rail?.onMouseLeave}
-                >
-                  <td
-                    className={cn(
-                      idcStyles.table.approvalCell,
-                      'font-mono text-[14px]',
-                      textColors.primary,
-                      idcStyles.table.group.childCell,
-                      index === instances.length - 1 && idcStyles.table.group.childCellLast,
-                    )}
-                  >
-                    <RdsInstanceIdentity
-                      identifier={rdsInstanceLabel(instance)}
-                      role={instance.cluster_member_role}
-                      selected={instance.resource_id === resource.selectedRdsInstanceResourceId}
-                    />
-                  </td>
-                  <td className={idcStyles.table.approvalCell} />
-                  <td
-                    className={cn(
-                      idcStyles.table.approvalCell,
-                      'text-[14px]',
-                      textColors.secondary,
-                    )}
-                  >
-                    Instance
-                  </td>
-                  <td
-                    className={cn(
-                      idcStyles.table.approvalCell,
-                      monoCell,
-                      textColors.secondary,
-                    )}
-                  >
-                    {instance.availability_zone ?? ''}
-                  </td>
-                  <td className={idcStyles.table.approvalCell} />
-                  <td className={idcStyles.table.approvalCell} />
-                </tr>
-              ))}
+            {/* The cluster's member instances — the SAME accordion body step 1 opens, in its
+                read-only mode: the choice was made there and this surface exists to review it,
+                so the radios are gone and the 선택됨 chip states the pick (owner, 2026-08-13:
+                "모든 Step에 적용").
+
+                They used to be rows of this table, which cost more than the swap saved: three
+                of the six columns are the cluster's own answer (id, verdict, reason — one
+                decision, not one per member) so they sat empty, the endpoint had no column at
+                all, and the AZ was filed under the "Region" header for want of anywhere else.
+                Inside the body those three have their own labelled columns. */}
+            {instancesOpen && (
+              <RdsInstancePanel
+                clusterId={rowKey}
+                showCheckboxColumn={false}
+                colSpan={6}
+                instances={instances}
+                chosenResourceId={resource.selectedRdsInstanceResourceId ?? undefined}
+                selectable={false}
+                readonly
+              />
+            )}
           </Fragment>
         );
       }
@@ -761,9 +732,13 @@ export const WaitingApprovalTable = memo(
       return (
         <Fragment key={rowKey}>
           {row}
-          {/* The region's databases. Name, and what the name IS — read down the column it
-              says Athena → Database, as on steps 1·2·3. Everything else is the region's own
-              answer and does not vary per database, so those cells stay empty. */}
+          {/* The region's databases. Name, what the name IS, and where it is — read down the
+              columns they say Athena → Database and repeat the region, as on steps 1·2·3
+              (owner, 2026-08-13). A column is read DOWN: a blank region beside every database
+              reads as "no region", and the row that carries the value scrolls off as soon as
+              the fold is long. Everything else IS the region's own single answer (its logical-DB
+              counts, its verdict) and would be a per-database claim nobody made, so those cells
+              stay empty. */}
           {open &&
             members.map((member, index) => (
               <tr
@@ -787,7 +762,9 @@ export const WaitingApprovalTable = memo(
                 <td className={cn(idcStyles.table.approvalCell, 'text-[14px]', textColors.secondary)}>
                   {GROUPED_CHILD_KIND_LABEL}
                 </td>
-                <td className={idcStyles.table.approvalCell} />
+                <td className={cn(idcStyles.table.approvalCell, monoCell, textColors.secondary)}>
+                  {resource.region || PLACEHOLDER}
+                </td>
                 <td className={idcStyles.table.approvalCell} />
                 <td className={idcStyles.table.approvalCell} />
               </tr>

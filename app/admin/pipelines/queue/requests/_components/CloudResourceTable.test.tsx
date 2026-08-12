@@ -57,19 +57,25 @@ const clusterRow = (overrides: Partial<RequestResourceRow> = {}): RequestResourc
     ...overrides,
   });
 
-/** Instance rows only — the cluster's own row is excluded by its name. */
-const instanceNames = () =>
-  screen
-    .getAllByRole('row')
-    .map((r) => r.querySelector('td')?.textContent ?? '')
-    .filter((text) => text.includes('demo-') && !text.includes('demo-cluster'));
+/**
+ * The instance names, in render order. They are NOT table rows — the members live in the
+ * accordion body (`RdsInstancePanel`), one colspan cell holding its own grid, so read them out
+ * of that cell rather than off `getAllByRole('row')`.
+ */
+const instanceNames = () => {
+  const band = document.querySelector('td.px-0');
+  if (!band) return [];
+  return Array.from(band.querySelectorAll('span'))
+    .map((span) => span.textContent ?? '')
+    .filter((text) => /^demo-\d$/.test(text));
+};
 
 describe('CloudResourceTable', () => {
   it('renders a plain resource row with no cluster affordances', () => {
     render(<CloudResourceTable rows={[row()]} />);
     expect(screen.getByText('mysql-prod-01')).toBeTruthy();
     expect(screen.queryByText('RDS Cluster')).toBeNull();
-    expect(screen.queryByText('Instance')).toBeNull();
+    expect(screen.queryByText('가용 영역')).toBeNull();
   });
 
   // The admin queue reviews a submitted request, so it has to show which member instance the
@@ -86,7 +92,6 @@ describe('CloudResourceTable', () => {
       );
       expect(screen.getByText('RDS Cluster')).toBeTruthy();
       expect(instanceNames()).toHaveLength(0);
-      expect(screen.queryByText('Instance')).toBeNull();
       // Nothing to fold, so no control offered.
       expect(screen.queryByRole('button', { name: /인스턴스 목록/ })).toBeNull();
     });
@@ -114,31 +119,27 @@ describe('CloudResourceTable', () => {
 
     it('lists instances Reader-first then by resource_id, regardless of request order', () => {
       render(<CloudResourceTable rows={[clusterRow()]} />);
-      // The cell reads "<role chip><name>", so pull the name out rather than slicing the head.
-      expect(instanceNames().map((text) => text.match(/demo-\d/)?.[0])).toEqual([
-        'demo-2',
-        'demo-3',
-        'demo-1',
-      ]);
+      expect(instanceNames()).toEqual(['demo-2', 'demo-3', 'demo-1']);
     });
 
     it('marks only the chosen instance 선택됨, and offers no radio', () => {
       render(<CloudResourceTable rows={[clusterRow()]} />);
       expect(screen.getAllByText('선택됨')).toHaveLength(1);
       expect(screen.queryAllByRole('radio')).toHaveLength(0);
-      const chosenRow = screen
-        .getAllByRole('row')
-        .find((r) => r.textContent?.includes('demo-2') && !r.textContent.includes('demo-cluster'));
-      expect(chosenRow?.textContent).toContain('선택됨');
+      // The chip rides the chosen instance's own LINE, not the band.
+      expect(screen.getByText('선택됨').closest('div')?.textContent).toContain('demo-2');
     });
 
-    it('prettifies the member role and gives each instance its own availability zone', () => {
+    // The band is why the columns can say this at all: as rows of the outer table the AZ was
+    // filed under the Region header and the endpoint had nowhere to go.
+    it('gives each instance its own labelled AZ and endpoint columns', () => {
       render(<CloudResourceTable rows={[clusterRow()]} />);
       expect(screen.getAllByText('Reader')).toHaveLength(2);
       expect(screen.getAllByText('Writer')).toHaveLength(1);
       expect(screen.queryByText('WRITER')).toBeNull();
-      expect(screen.getAllByText('Instance')).toHaveLength(3);
-      // The cluster's region on the parent, each instance's AZ on its own row.
+      // The band's own headers — the outer table's Region column keeps the cluster's region.
+      expect(screen.getByText('가용 영역')).toBeTruthy();
+      expect(screen.getByText('엔드포인트')).toBeTruthy();
       expect(screen.getAllByText('ap-northeast-2')).toHaveLength(1);
       expect(screen.getByText('ap-northeast-2b')).toBeTruthy();
     });

@@ -23,7 +23,7 @@ import {
   RdsClusterTag,
   RdsMemberChip,
 } from '@/app/components/ui/RdsInstanceChips';
-import { RdsInstancePanel } from '@/app/target-sources/[targetSourceId]/_components/candidate/RdsInstancePanel';
+import { RdsInstancePanel } from '@/app/target-sources/[targetSourceId]/_components/shared/RdsInstancePanel';
 import { isEc2Instance, resolveExclusionReason } from '@/lib/types';
 import {
   bgColors,
@@ -534,6 +534,8 @@ export const CandidateResourceRow = ({
         <RdsInstancePanel
           clusterId={candidate.id}
           showCheckboxColumn={showCheckboxColumn}
+          // Editable: checkbox + 5 data columns + 제외 사유; read-only drops the two.
+          colSpan={showCheckboxColumn ? 7 : 5}
           instances={sortedInstances}
           chosenResourceId={chosenInstanceResourceId}
           // Radios exist only inside a checked cluster: an unchecked cluster submits no
