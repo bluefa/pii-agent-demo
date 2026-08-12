@@ -235,6 +235,8 @@ export interface ServiceCode {
   code: string;
   name: string;
   description?: string;
+  /** `ServiceItem.is_eos_service`. 미지정은 "EOS 아님"이 아니라 "모름"이다. */
+  isEosService?: boolean;
 }
 
 export interface ResourceExclusion {

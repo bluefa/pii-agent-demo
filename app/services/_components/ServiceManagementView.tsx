@@ -32,6 +32,28 @@ const SERVICE_PAGE_SIZE = SERVICE_RAIL_PAGE_SIZE;
 const SEARCH_DEBOUNCE_MS = 300;
 
 /**
+ * EOS 여부를 계약에 **없는** 필드에서 읽는다.
+ *
+ * `/user/services/page` 의 `ServiceItem` 은 `{service_code, service_name}` 뿐이다
+ * (업스트림 `api-docs.yaml`). EOS 플래그는 target-source 를 타고 오는 응답에만 있어서
+ * 이 화면 — 아직 target 이 하나도 없을 수 있는 서비스 목록 — 에서는 쓸 수 없다.
+ *
+ * swagger 에 필드를 손으로 넣는 건 ADR-019 D8 위반이고, `gen:api` 가 우리 스펙을
+ * 입력으로 읽기 때문에 D7 신선도 게이트도 그 조작을 잡지 못한다. 대신 생성 스키마가
+ * `.partial().passthrough()` 라는 사실을 쓴다: 계약에 없는 키도 `parse()` 를 그대로
+ * 통과해 클라이언트까지 온다. 그래서 **BFF 가 필드를 싣기 시작하는 날, 코드 변경 없이**
+ * 이 화면이 켜진다.
+ *
+ * `=== true` 는 방어가 아니라 의도의 표기다 — 세 상태(true / false / 없음) 중 EOS 라고
+ * 말할 근거가 있는 건 하나뿐이고, 나머지 둘은 "모른다"로 접힌다.
+ */
+export const readIsEosService = (item: unknown): boolean | undefined => {
+  if (typeof item !== 'object' || item === null) return undefined;
+  const value = (item as { is_eos_service?: unknown }).is_eos_service;
+  return value === true ? true : value === false ? false : undefined;
+};
+
+/**
  * A resolved panel and the service it resolved for. Exactly one of `items`/`error`
  * is set: a fetch either produced a list or a reason it could not.
  */
@@ -63,9 +85,9 @@ export const ServiceManagementView = () => {
   // Three states, and the value carries the code it belongs to — the same shape as
   // `resolvedName` below, for the same reason. `null` is "not resolved yet", distinct
   // from `{ items: [] }` = "resolved, and there are none"; a `[]` start made the first
-  // paint of every service claim 등록된 계정이 없어요 before the request had even been
-  // made. `error` is the third: a failed fetch must not render as "this service has no
-  // accounts", which is a claim we cannot make and whose only CTA is the wrong one.
+  // paint of every service claim 등록된 인프라가 없습니다. before the request had even
+  // been made. `error` is the third: a failed fetch must not render as "this service has
+  // no accounts", which is a claim we cannot make.
   //
   // Keying to `code` is what makes a late response harmless. Both writers stamp their
   // own code, and the render below discards anything that does not match the current
@@ -81,8 +103,14 @@ export const ServiceManagementView = () => {
   // Keyed to the code it belongs to. Clearing it in an effect instead would still let
   // one render pair the new code with the previous service's name — the effect runs
   // after that paint. Derived at render, the pair can never come apart.
-  const [resolvedName, setResolvedName] = useState<{ code: string; name: string } | null>(null);
-  const selectedName = resolvedName?.code === selectedService ? resolvedName.name : '';
+  // `isEos` 는 3-상태다: true / false / undefined(아직 못 읽었거나 BFF 가 안 실어 보냄).
+  // 헤더가 EOS 를 그리는 조건이 `=== true` 라 세 번째 상태는 자동으로 "EOS 아님" 쪽으로
+  // 접힌다 — 계약이 나가기 전까지는 지금과 같은 화면이라는 뜻이다.
+  const [resolvedName, setResolvedName] = useState<
+    { code: string; name: string; isEos?: boolean } | null
+  >(null);
+  const resolved = resolvedName?.code === selectedService ? resolvedName : null;
+  const selectedName = resolved?.name ?? '';
   const panel = projects?.code === selectedService ? projects : null;
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -146,7 +174,13 @@ export const ServiceManagementView = () => {
       .then((data) => {
         if (cancelled) return;
         const hit = (data.content ?? []).find((s) => s.service_code === selectedService);
-        setResolvedName({ code: selectedService, name: hit?.service_name ?? '' });
+        setResolvedName({
+          code: selectedService,
+          name: hit?.service_name ?? '',
+          // 못 찾았거나 필드가 안 왔으면 undefined 로 남긴다 — `?? false` 로 접으면
+          // "모른다"가 "운영 중"이라는 단정으로 바뀐다.
+          isEos: readIsEosService(hit),
+        });
       })
       .catch(() => {
         // Name is decoration — the code alone still identifies the service.
@@ -344,6 +378,7 @@ export const ServiceManagementView = () => {
               <ServiceHeaderV7
                 serviceCode={selectedService}
                 serviceName={selectedName}
+                isEosService={resolved?.isEos}
                 onAddInfra={openCreateModal}
               />
 
@@ -358,7 +393,6 @@ export const ServiceManagementView = () => {
                 projects={panel?.items ?? null}
                 error={panel?.error ?? null}
                 loading={loading}
-                onAddInfra={openCreateModal}
                 onRetry={refreshProjects}
                 onOpenDetail={handleOpenDetail}
                 onManageAction={handleManageAction}

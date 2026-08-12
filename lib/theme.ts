@@ -1724,7 +1724,10 @@ export const serviceSidebarStyles = {
    * short result leaves the list ending mid-rail. The total moved to the title
    * pill, so nothing here counts rows.
    */
-  footer: 'mt-auto flex shrink-0 items-center justify-center gap-1 px-3 py-2.5',
+  // 2026-08-11 오너 지시로 이 푸터의 모든 치수를 +2px 했다 (gap 4→6, px 12→14,
+  // py 10→12, footerPage 12→14, pagerBtn 24→26 / r4→r6, 화살표 12→14). 하나만
+  // 키우면 그 하나가 나머지에서 떨어져 나오므로 세 토큰과 SVG 는 함께 움직인다.
+  footer: 'mt-auto flex shrink-0 items-center justify-center gap-1.5 px-3.5 py-3',
   /**
    * The rail's empty result. `textColors.tertiary` reads 3.88:1 here — and this is
    * the one state where the message IS the rail's only content, so it cannot be the
@@ -1737,7 +1740,7 @@ export const serviceSidebarStyles = {
    */
   emptyAction: 'text-[12px] cursor-pointer text-[#0050D6] hover:text-[#003FA8]',
   /** "1 / 2 페이지" — tabular so the digits do not jitter as pages change. */
-  footerPage: 'px-1 text-[12px] font-medium tabular-nums text-[#4E5968]',
+  footerPage: 'px-1.5 text-[14px] font-medium tabular-nums text-[#4E5968]',
   /**
    * Borderless ghost pager — a bordered button pair floats like a card control on a
    * flush rail. The disabled glyph is #8B95A1, not #B0B8C1: 1.4.11 exempts inactive
@@ -1745,7 +1748,7 @@ export const serviceSidebarStyles = {
    * greyed-out arrow. 2.44:1 still reads as unavailable next to the live one at 5.71.
    */
   pagerBtn:
-    'flex h-6 w-6 items-center justify-center rounded-[4px] text-[#4E5968] transition-colors hover:bg-white disabled:cursor-not-allowed disabled:text-[#8B95A1] disabled:hover:bg-transparent',
+    'flex h-[26px] w-[26px] items-center justify-center rounded-[6px] text-[#4E5968] transition-colors hover:bg-white disabled:cursor-not-allowed disabled:text-[#8B95A1] disabled:hover:bg-transparent',
 } as const;
 
 // =============================================================================
