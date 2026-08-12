@@ -410,6 +410,58 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorMessage'
+  /install/v1/admin/posts/images:
+    post:
+      tags:
+      - FAQ & Notices
+      summary: Upload a body image
+      operationId: uploadPostImage
+      x-expected-duration: 800ms
+      description: |
+        본문에 넣을 이미지를 업로드하고 참조 URL을 돌려준다. 게시글과 무관하게 동작하며,
+        업로드만으로는 어떤 게시글에도 연결되지 않는다. 실제 연결은 반환된 `url`이
+        본문 HTML의 `img.src`로 저장되는 시점에 생긴다.
+
+        본문에는 이미지 바이트를 넣지 않는다. 목록 API가 본문을 통째로 내려주는 구조이므로
+        base64 인라인은 목록 응답을 수 MB 단위로 부풀린다.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+              - file
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: png / jpeg / webp. 최대 5MB.
+      responses:
+        '201':
+          description: 업로드 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImageUploadResponse'
+        '400':
+          description: 허용되지 않는 형식 (UNSUPPORTED_IMAGE_TYPE)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '413':
+          description: 파일 크기 초과 (IMAGE_TOO_LARGE)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
   /install/v1/admin/post-categories:
     get:
       tags:
@@ -543,10 +595,10 @@ components:
         categoryName:
           type: string
           nullable: true
-        title:
-          type: string
-        content:
-          type: string
+        titles:
+          $ref: '#/components/schemas/LocalizedText'
+        contents:
+          $ref: '#/components/schemas/LocalizedText'
         publishedAt:
           type: string
           format: date-time
@@ -607,9 +659,48 @@ components:
           - CATEGORY_NOT_FOUND
           - CATEGORY_IN_USE
           - CATEGORY_NAME_DUPLICATED
+          - UNSUPPORTED_IMAGE_TYPE
+          - IMAGE_TOO_LARGE
         message:
           type: string
         path:
+          type: string
+    ImageUploadResponse:
+      type: object
+      description: 업로드된 이미지의 참조 정보. 에디터는 이 값으로 본문에 img 태그를 만든다.
+      properties:
+        url:
+          type: string
+          description: >-
+            저장된 이미지의 절대 URL. 본문 img.src에는 이 값만 넣을 수 있으며,
+            BFF는 저장 시 허용된 호스트 prefix인지 검사한다.
+          example: "https://storage.example.com/pass/posts/2026/08/9f3c1a.png"
+        width:
+          type: integer
+          format: int32
+          description: 원본 픽셀 너비. 레이아웃 밀림을 막기 위한 값이며 관리자가 조절하는 값이 아니다.
+        height:
+          type: integer
+          format: int32
+          description: 원본 픽셀 높이.
+    LocalizedText:
+      type: object
+      description: 한국어/영어 쌍. 두 값 모두 항상 존재한다.
+      properties:
+        ko:
+          type: string
+        en:
+          type: string
+    LocalizedTextRequest:
+      type: object
+      description: 한국어/영어 모두 필수. 태그 제거 후 공백만 남으면 거부된다.
+      required:
+      - ko
+      - en
+      properties:
+        ko:
+          type: string
+        en:
           type: string
     Post:
       type: object
@@ -628,11 +719,10 @@ components:
         categoryName:
           type: string
           nullable: true
-        title:
-          type: string
-        content:
-          type: string
-          description: HTML 본문. allow-list를 통과한 값만 저장되어 있다.
+        titles:
+          $ref: '#/components/schemas/LocalizedText'
+        contents:
+          $ref: '#/components/schemas/LocalizedText'
         publishedAt:
           type: string
           format: date-time
@@ -672,8 +762,8 @@ components:
       type: object
       required:
       - type
-      - title
-      - content
+      - titles
+      - contents
       properties:
         type:
           $ref: '#/components/schemas/PostType'
@@ -682,12 +772,10 @@ components:
           format: int64
           nullable: true
           description: 생략하거나 null이면 미분류 게시글이 된다.
-        title:
-          type: string
-          description: 필수. 공백만으로 이루어질 수 없다.
-        content:
-          type: string
-          description: 필수. HTML allow-list를 통과해야 하며, 태그 제거 후 텍스트가 남아야 한다.
+        titles:
+          $ref: '#/components/schemas/LocalizedTextRequest'
+        contents:
+          $ref: '#/components/schemas/LocalizedTextRequest'
     PostHiddenRequest:
       type: object
       required:
@@ -711,21 +799,20 @@ components:
       type: object
       description: >-
         수정 후의 완성된 상태를 그대로 보내는 전체 교체 요청. 생략된 필드는 "유지"가 아니라 "비움"이다.
+        한 언어만 고쳐도 네 값(titles.ko/en, contents.ko/en)을 모두 다시 보낸다.
       required:
-      - title
-      - content
+      - titles
+      - contents
       properties:
         categoryId:
           type: integer
           format: int64
           nullable: true
           description: 생략하거나 null이면 미분류가 된다. 기존 Category는 유지되지 않는다.
-        title:
-          type: string
-          description: 필수. 공백만으로 이루어질 수 없다.
-        content:
-          type: string
-          description: 필수. HTML allow-list를 통과해야 하며, 태그 제거 후 텍스트가 남아야 한다.
+        titles:
+          $ref: '#/components/schemas/LocalizedTextRequest'
+        contents:
+          $ref: '#/components/schemas/LocalizedTextRequest'
 ```
 
 ## 3. API 목록
@@ -741,6 +828,7 @@ components:
 | PUT | `/install/v1/admin/posts/{postId}` | Title / 본문 / Category 전체 교체 수정 | Draft |
 | PUT | `/install/v1/admin/posts/{postId}/hidden` | 숨김 처리 / 복구 | Draft |
 | PUT | `/install/v1/admin/posts/{postId}/pinned` | 상단 고정 / 고정 해제 | Draft |
+| POST | `/install/v1/admin/posts/images` | 본문 이미지 업로드. URL 반환 | Draft |
 | GET | `/install/v1/admin/post-categories` | Admin Category 목록. 비활성 포함, `postCount` 포함 | Draft |
 | POST | `/install/v1/admin/post-categories` | Category 추가 | Draft |
 | DELETE | `/install/v1/admin/post-categories/{categoryId}` | Category 삭제. 잔여 게시글 있으면 409 | Draft |
@@ -750,6 +838,8 @@ components:
 | Response 항목 | 설명 | 관련 기준 |
 | --- | --- | --- |
 | 목록 응답의 배열 순서 | 서버가 정렬을 마친 순서다. 클라이언트는 재정렬하지 않는다. 재정렬하면 메인 페이지와 상세 페이지의 순서가 갈라진다. | §5 정렬 규칙 |
+| `titles` / `contents` | 항상 `ko`와 `en`을 모두 담는다. 화면이 언어를 고르므로, 언어를 바꿀 때 다시 조회하지 않는다. 저장 시 두 언어 모두 필수라 빈 문자열이 내려오는 경우는 없다. | §5 다국어 규칙 |
+| `contents.*` 안의 `img` | `src`는 업로드 API가 돌려준 URL만 들어 있다. `width`/`height`는 원본 픽셀 크기이며 관리자가 조절한 값이 아니다 — 레이아웃 밀림을 막기 위한 값이다. | §5 본문 HTML allow-list |
 | `publishedAt` | 최초 등록 시각이며 수정으로 변하지 않는다. 화면 표기는 `yy-mm-dd`로 절삭한다. | 화면 요구사항 |
 | `updatedAt` | 마지막 수정 시각. 고정/숨김 전이로는 갱신되지 않는다. 내용이 바뀐 경우에만 갱신된다. | §5 시각 규칙 |
 | `categoryId` / `categoryName` | 둘 다 null이면 미분류 게시글이다. 상세 페이지의 Category 그룹화에서 별도 "미분류" 그룹으로 처리해야 한다. | §5 Category 규칙 |
@@ -789,10 +879,25 @@ components:
 ### 수정
 
 - `PUT`은 `publishedAt`을 갱신하지 않고 `updatedAt`만 갱신한다.
-- `PUT`은 partial update가 아니다. 수정 화면은 기존 값을 채운 상태로 열고, 사용자가 건드리지 않은 필드도 그대로 다시 보낸다. `categoryId`를 빠뜨리면 게시글이 조용히 미분류가 된다.
+- `PUT`은 partial update가 아니다. 수정 화면은 기존 값을 채운 상태로 열고, 사용자가 건드리지 않은 필드도 그대로 다시 보낸다. `categoryId`를 빠뜨리면 게시글이 조용히 미분류가 된다. 한국어만 고쳐도 `titles`와 `contents`의 네 값을 모두 다시 보낸다.
 - `type` 변경은 지원하지 않는다.
-- `title`, `content`는 필수값이며 공백만으로 이루어질 수 없다. `content`는 HTML 태그 제거 후 텍스트가 남아야 한다.
 - 폰트 스타일은 관리자가 수정할 수 없다 — HTML allow-list에 `style` / `class` 속성이 없으므로 계약 수준에서 이미 차단된다.
+
+### 다국어
+
+- `titles`와 `contents`는 각각 `ko`, `en`을 모두 갖는다. **네 값이 전부 필수**이며, HTML 태그를 제거한 뒤 공백만 남으면 저장이 거부된다. 기존 `Admin Guides` Tag와 같은 규칙이다.
+- 조회 API는 언어를 고르지 않고 **양쪽을 모두 반환한다.** 화면이 언어를 선택하므로 언어 전환에 재조회가 없다. `lang` 쿼리 파라미터는 두지 않는다.
+- 언어별 fallback은 없다. 한쪽이 비는 상태를 저장 단계에서 막기 때문에 조회 단계에서 대체할 일이 없다.
+- 프론트엔드에는 이미 같은 구조의 자산이 있다 — 언어 탭/미리보기 토글(`segmentedControlStyles`), allow-list 검증기(`lib/utils/validate-guide-html.ts`), AST 렌더러(`render-guide-ast.tsx`). 새로 설계하지 않고 이들을 게시글에 적용한다.
+
+### 본문 이미지
+
+- 이미지는 `POST /install/v1/admin/posts/images`로 먼저 업로드하고, 응답의 `url`을 본문 `img.src`에 넣는다. 본문에 바이트를 인라인(base64)하지 않는다.
+- 관리자가 조절할 수 있는 것은 **본문 안에서의 위치(순서)뿐**이다. 정렬·크기 조절은 이번 범위가 아니다. `img`에 `class`/`style`/`align`을 허용하지 않으므로 계약 수준에서 막힌다.
+- `width`/`height`는 업로드 응답이 준 원본 픽셀 크기를 에디터가 그대로 기록한 값이다. 관리자 입력값이 아니며, 화면 표시 폭은 CSS(`max-width: 100%`)가 통제한다.
+- `img.src`는 **허용된 저장소 호스트 prefix로 시작해야 한다.** 임의 외부 URL은 `POST_CONTENT_INVALID`로 거부한다.
+- 업로드만으로는 어떤 게시글에도 연결되지 않는다. 업로드 후 저장하지 않고 이탈하면 고아 파일이 남는다 — 정리 정책이 필요하다(§5 범위 밖).
+- 아코디언은 접힌 상태에서도 이미지 노드가 렌더 트리에 존재하므로, 렌더러는 `loading="lazy"`를 붙인다. 붙이지 않으면 메인 화면 진입만으로 모든 게시글의 이미지가 내려받아진다.
 
 ### Category
 
@@ -805,13 +910,18 @@ components:
 
 `Admin Guides` Tag와 **동일한 allow-list**를 사용한다. 별도 정책을 만들지 않는다.
 
+`Admin Guides`의 allow-list에 `img` 하나만 더한 형태다.
+
 | 구분 | 허용 값 |
 | --- | --- |
-| Tags | `h4`, `p`, `br`, `ul`, `ol`, `li`, `strong`, `em`, `code`, `a` |
-| Attributes | `a.href`, `a.target`, `a.rel` |
+| Tags | `h4`, `p`, `br`, `ul`, `ol`, `li`, `strong`, `em`, `code`, `a`, `img` |
+| Attributes | `a.href`, `a.target`, `a.rel`, `img.src`, `img.alt`, `img.width`, `img.height` |
 | href | `http://...`, `https://...`, `mailto:...`, `/...` |
+| img.src | 업로드 API가 반환한 저장소 호스트 prefix로 시작하는 URL만 |
 
-이미지(`img`)와 첨부파일은 allow-list에 없으므로 지원하지 않는다. 허용되지 않은 HTML은 sanitize해서 저장하지 않고 `POST_CONTENT_INVALID`로 거부한다.
+`//...` protocol-relative URL, `javascript:...`, `data:...`, inline event handler, style/class 속성, allow-list 밖의 태그는 저장할 수 없다. 첨부파일은 지원하지 않는다. 허용되지 않은 HTML은 sanitize해서 저장하지 않고 `POST_CONTENT_INVALID`로 거부한다.
+
+`img`를 허용하려면 프론트엔드도 두 곳을 함께 고쳐야 한다 — `validate-guide-html.ts`의 노드 타입과 `render-guide-ast.tsx`의 렌더 분기다. 렌더러는 `dangerouslySetInnerHTML`을 쓰지 않고 타입이 정의된 노드만 그리므로, 서버 allow-list만 열면 이미지가 조용히 사라진다.
 
 ### 범위 밖
 
@@ -840,3 +950,4 @@ enum 카탈로그(`catalogs/enums-and-states.md`)가 아직 부트스트랩되�
 | 날짜 | 상태 | 변경 유형 | 요약 | 관련 논의 |
 | --- | --- | --- | --- | --- |
 | 26.08.12 | Draft | Added | FAQ / 공지사항 게시글·Category API 12건 초안 작성. 단일 `posts` 리소스 + `type` 구분, 삭제 없이 숨김 전이, Category 삭제는 잔여 게시글 0건일 때만 허용하는 방향으로 제안. | [2026-08-12 논의](../discussions/2026-08-12-faq-notices-added.md) |
+| 26.08.12 | Draft | Changed | Title·본문을 ko/en 쌍(`titles`, `contents`)으로 변경하고 본문 이미지 업로드 API를 추가(12 → 13건). allow-list에 `img` 추가. Draft 단계라 별도 discussion 없이 같은 논의 문서(§2.9)에 이어 기록. | [2026-08-12 논의](../discussions/2026-08-12-faq-notices-added.md) |
