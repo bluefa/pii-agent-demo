@@ -60,7 +60,13 @@ B를 채택하면 "FAQ와 Notice를 별도 메뉴로 분리할지, 하나의 목
 
 ### 2.7 수정 시 시각 — publishedAt은 불변
 
-`PATCH /install/v1/admin/posts/{postId}`는 `updatedAt`만 갱신하고 `publishedAt`은 건드리지 않는다. 목록 정렬 기준이 `publishedAt`이므로, 오타 하나를 고쳤다고 게시글이 목록 최상단으로 올라오면 안 된다.
+`PUT /install/v1/admin/posts/{postId}`는 `updatedAt`만 갱신하고 `publishedAt`은 건드리지 않는다. 목록 정렬 기준이 `publishedAt`이므로, 오타 하나를 고쳤다고 게시글이 목록 최상단으로 올라오면 안 된다.
+
+### 2.8 수정은 PATCH가 아니라 PUT이다
+
+프론트엔드가 partial update 요청을 만들지 않기로 해서, 수정은 `PUT`(전체 교체 저장)으로 둔다. 같은 저장소의 `Admin Guides`(`PUT /install/v1/admin/guides/{name}`)가 이미 전체 교체 방식이므로 관례도 일치한다.
+
+대가는 하나 있다. 전체 교체이므로 **생략된 필드는 "유지"가 아니라 "비움"** 이다. `categoryId`를 빠뜨린 요청은 게시글을 조용히 미분류로 만든다. 수정 화면은 반드시 기존 값을 모두 채운 상태로 열고, 사용자가 건드리지 않은 필드도 그대로 다시 보내야 한다. 이 위험을 줄이려고 `title`과 `content`는 `required`로 두었지만, `categoryId`는 미분류가 정상 상태이므로 `required`로 강제할 수 없다.
 
 ## 3. 관련 BFF Swagger 위치
 
@@ -75,7 +81,7 @@ B를 채택하면 "FAQ와 Notice를 별도 메뉴로 분리할지, 하나의 목
 
   | 후보 코드 | HTTP | 발생 지점 |
   | --- | --- | --- |
-  | `POST_CONTENT_INVALID` | 400 | `POST/PATCH /install/v1/admin/posts` — 본문 allow-list·공백 위반 |
+  | `POST_CONTENT_INVALID` | 400 | `POST /install/v1/admin/posts`, `PUT /install/v1/admin/posts/{postId}` — 본문 allow-list·공백 위반 |
   | `POST_NOT_FOUND` | 404 | `posts/{postId}`를 다루는 모든 API |
   | `CATEGORY_NOT_FOUND` | 404 | 없는 `categoryId`로 게시글 생성/수정 |
   | `CATEGORY_IN_USE` | 409 | 게시글이 남아 있는 Category 삭제 시도 |
@@ -100,6 +106,7 @@ B를 채택하면 "FAQ와 Notice를 별도 메뉴로 분리할지, 하나의 목
 | D9 | Pass 소개 배너 | 고정 콘텐츠로 보고 **BFF API를 두지 않는다** | 예 — Admin 편집이 필요하면 `Admin Guides` Tag 재사용을 우선 검토 |
 | D10 | 페이지네이션 | 사용자·Admin 목록 모두 **전체 배열 반환**. 페이징 없음 | 예 — 게시글 증가 시 Admin 목록부터 Spring `Page` 도입 |
 | D11 | 관리자 권한 판정 | BFF가 `/install/v1/admin/**` 경로에서 기존 인증 컨텍스트로 판정. 별도 role 파라미터 없음 | 예 — 기존 admin 판정 기준 확인 필요 |
+| D12 | 게시글 수정 method | `PUT` (전체 교체). FE가 partial update 요청을 만들지 않는다 | 아니오 — FE 결정. §2.8의 "생략 = 비움" 주의사항이 따라온다 |
 
 ## 6. 후속 작업
 
