@@ -68,6 +68,37 @@ B를 채택하면 "FAQ와 Notice를 별도 메뉴로 분리할지, 하나의 목
 
 대가는 하나 있다. 전체 교체이므로 **생략된 필드는 "유지"가 아니라 "비움"** 이다. `categoryId`를 빠뜨린 요청은 게시글을 조용히 미분류로 만든다. 수정 화면은 반드시 기존 값을 모두 채운 상태로 열고, 사용자가 건드리지 않은 필드도 그대로 다시 보내야 한다. 이 위험을 줄이려고 `title`과 `content`는 `required`로 두었지만, `categoryId`는 미분류가 정상 상태이므로 `required`로 강제할 수 없다.
 
+### 2.9 다국어 — Title과 본문을 ko/en 쌍으로
+
+게시글 등록 시 한국어/영어 Title과 본문을 모두 입력하는 요구가 추가됐다. `title`/`content`를 `titles`/`contents`의 `{ko, en}` 쌍으로 바꾼다.
+
+이건 새로 설계할 구조가 아니다. 같은 저장소의 `Admin Guides`가 이미 `contents: {ko, en}` + HTML allow-list 검증으로 동작하고, 프론트엔드에도 대응 자산이 이미 있다 — 언어 탭/미리보기 토글(`segmentedControlStyles`), allow-list 검증기(`lib/utils/validate-guide-html.ts`), AST 렌더러(`render-guide-ast.tsx`), 언어별 빈 상태(`GuideCardEmptyLang`). 같은 패턴을 게시글에 적용한다.
+
+결정 두 가지:
+
+- **네 값 모두 필수**(D13). `Admin Guides`와 같은 규칙이라 fallback 로직이 아예 필요 없다. 대가는 운영 부담이다 — 공지 하나를 올릴 때마다 영문을 반드시 작성해야 한다.
+- **조회는 양쪽을 모두 반환**한다. `lang` 파라미터를 두지 않는다. 화면이 언어를 고르므로 전환 시 재조회가 없고, 저장 단계에서 빈 언어를 막으므로 fallback 규칙을 계약에 넣을 필요도 없다. 대가는 payload가 2배가 되는 것인데, 페이지네이션 없는 목록 규모(D10)에서는 문제되지 않는다.
+
+### 2.10 본문 이미지 — 업로드 API를 하나 추가한다
+
+본문에 이미지를 넣고 위치를 조정하는 요구가 추가됐다. 범위는 **본문 안에서의 순서(위치)까지**이며, 정렬·크기 조절은 포함하지 않는다(D14).
+
+`POST /install/v1/admin/posts/images`를 추가한다. 업로드 → URL 반환 → 그 URL을 본문 `img.src`에 저장하는 흐름이다.
+
+| 옵션 | 내용 | 판단 |
+| --- | --- | --- |
+| A. 외부 URL만 허용 | 업로드 없이 기존 이미지 URL을 붙여넣기 | 기각. "업로드 가능"이 요구사항이다 |
+| B. base64 인라인 | 본문에 이미지 바이트를 직접 담음 | **기각.** 목록 API가 본문을 통째로 내려주는 구조(§2.3)라 목록 응답이 수 MB가 된다 |
+| **C. 업로드 API + URL 참조** | 파일은 저장소에, 본문에는 URL만 | **채택** |
+
+계약에 따라오는 것들:
+
+- allow-list에 `img`와 `src`/`alt`/`width`/`height`를 추가한다. `class`/`style`/`align`은 넣지 않는다 — 넣는 순간 "관리자는 폰트 스타일을 수정할 수 없다"는 기존 요구사항에 구멍이 생기고, 정렬 기능을 안 만들기로 한 D14와도 어긋난다.
+- `width`/`height`는 업로드 응답이 준 원본 픽셀 크기다. **관리자 입력값이 아니다.** 아코디언이 펼쳐질 때 이미지 로드로 레이아웃이 밀리는 것을 막기 위한 값이며, 표시 폭은 CSS가 통제한다.
+- `img.src`는 허용된 저장소 호스트 prefix로 시작해야 한다. 임의 외부 URL은 `POST_CONTENT_INVALID`로 거부한다.
+- 프론트엔드는 서버 allow-list만으로 끝나지 않는다. 렌더러가 `dangerouslySetInnerHTML` 없이 타입이 정의된 노드만 그리므로, `validate-guide-html.ts`와 `render-guide-ast.tsx` 양쪽에 `img` 노드를 추가해야 이미지가 화면에 나온다.
+- 업로드만으로는 게시글에 연결되지 않는다. 저장하지 않고 이탈하면 고아 파일이 남는다 — 정리 정책이 필요하다(D16).
+
 ## 3. 관련 BFF Swagger 위치
 
 - Tag 가이드: `../tag-guides/faq-notices.md`
@@ -85,6 +116,9 @@ B를 채택하면 "FAQ와 Notice를 별도 메뉴로 분리할지, 하나의 목
   | `POST_NOT_FOUND` | 404 | `posts/{postId}`를 다루는 모든 API |
   | `CATEGORY_NOT_FOUND` | 404 | 없는 `categoryId`로 게시글 생성/수정 |
   | `CATEGORY_IN_USE` | 409 | 게시글이 남아 있는 Category 삭제 시도 |
+  | `CATEGORY_NAME_DUPLICATED` | 409 | 같은 유형 안에 동일한 Category명 존재 |
+  | `UNSUPPORTED_IMAGE_TYPE` | 400 | `POST /install/v1/admin/posts/images` — png/jpeg/webp 외 형식 |
+  | `IMAGE_TOO_LARGE` | 413 | `POST /install/v1/admin/posts/images` — 5MB 초과 |
 
   `VALIDATION_FAILED`는 기존 코드를 재사용하며 `관련 API Tag` 셀에 `FAQ & Notices` 추가가 필요하다.
 - **다른 Tag 영향**: 없음. `Admin Guides`와 저장 대상이 겹치지 않는다.
@@ -107,6 +141,10 @@ B를 채택하면 "FAQ와 Notice를 별도 메뉴로 분리할지, 하나의 목
 | D10 | 페이지네이션 | 사용자·Admin 목록 모두 **전체 배열 반환**. 페이징 없음 | 예 — 게시글 증가 시 Admin 목록부터 Spring `Page` 도입 |
 | D11 | 관리자 권한 판정 | BFF가 `/install/v1/admin/**` 경로에서 기존 인증 컨텍스트로 판정. 별도 role 파라미터 없음 | 예 — 기존 admin 판정 기준 확인 필요 |
 | D12 | 게시글 수정 method | `PUT` (전체 교체). FE가 partial update 요청을 만들지 않는다 | 아니오 — FE 결정. §2.8의 "생략 = 비움" 주의사항이 따라온다 |
+| D13 | 다국어 필수 여부 | `titles.ko/en`, `contents.ko/en` 네 값 모두 필수 | 아니오 — 확정. `Admin Guides`와 동일 |
+| D14 | 이미지 위치 조정 범위 | 본문 내 순서만. 정렬·크기 조절 없음 | 아니오 — 확정 |
+| D15 | 이미지 저장소 | BFF 업로드 엔드포인트 + 오브젝트 스토리지(GCS 검토 중) | 예 — 저장소·URL 공개 범위·서명 URL 여부는 BE 협의 필요 |
+| D16 | 고아 이미지 정리 | 미정 | 예 — 업로드 후 미저장분, 게시글에서 제거된 이미지의 수명 정책 |
 
 ## 6. 후속 작업
 
