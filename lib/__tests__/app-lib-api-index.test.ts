@@ -486,6 +486,35 @@ describe('app/lib/api/index', () => {
     });
   });
 
+  /**
+   * payer 만 나가던 동안 폼의 Linked Account 는 state 에서 끝났다. 두 값은 서로 다른 것을
+   * 가리키므로 — payer 는 결제 루트, linked 는 리소스가 실제로 있는 계정 — 하나로 접을 수 없다.
+   *
+   * 바로 위 테스트가 payer 만 넘겼을 때의 metadata 를 `toEqual` 로 통째 비교하므로, 이 키가
+   * 조건 없이 항상 실리면 그쪽이 깨진다. 두 테스트가 짝으로 "있을 때만 싣는다"를 잡는다.
+   */
+  it('getCreationCandidates는 linked account 를 payer 와 함께 metadata 에 싣는다', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify([]), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      }),
+    );
+
+    await getCreationCandidates('SERVICE-A', {
+      cloudType: 'aws',
+      awsAccountId: '123456789012',
+      awsLinkedAccountId: '987654321098',
+      dbTypes: ['MYSQL'],
+    });
+
+    const body = JSON.parse(String(fetchSpy.mock.calls[0]?.[1]?.body));
+    expect(body.metadata).toEqual({
+      aws_account_id: '123456789012',
+      aws_linked_account_id: '987654321098',
+    });
+  });
+
   it('getCreationCandidates는 GCP project_id 를 metadata 에 매핑한다 (35)', async () => {
     const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       new Response(JSON.stringify([]), {

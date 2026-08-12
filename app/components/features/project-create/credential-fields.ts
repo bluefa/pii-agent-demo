@@ -61,8 +61,9 @@ export const CREDENTIAL_FIELDS: Record<ProviderChipKey, CredentialFieldDef[]> = 
     awsAccountField(
       'linkedAccount',
       'Linked Account',
-      '선택 입력 — 연결된 하위 계정이 있다면 입력해 주세요',
-      true,
+      // 하위 계정을 쓰지 않는 조직도 있어 이 안내가 붙는다 — 필수로 바뀐 이상 그 경우를
+      // 열어 두지 않으면 단일 계정 사용자는 2단계를 통과할 방법이 없다.
+      '리소스가 있는 하위 계정 ID(숫자 12자리) — 하위 계정을 쓰지 않으면 Payer Account와 같은 값',
     ),
     descriptionField('설명'),
   ],

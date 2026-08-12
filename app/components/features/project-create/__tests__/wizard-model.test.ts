@@ -5,6 +5,10 @@ import {
   type WizardFormState,
 } from '@/app/components/features/project-create/wizard-model';
 import {
+  CREDENTIAL_FIELDS,
+  getCredentialErrors,
+} from '@/app/components/features/project-create/credential-fields';
+import {
   candidateDescriptionLine,
   candidateIdentity,
   candidateInstallModeIsAuto,
@@ -131,16 +135,27 @@ describe('isStepComplete — step gating', () => {
     expect(
       isStepComplete(
         2,
-        baseState({ fields: { payerAccount: '123456789012', description: '결제 운영계' } }),
+        baseState({
+          fields: {
+            payerAccount: '123456789012',
+            linkedAccount: '210987654321',
+            description: '결제 운영계',
+          },
+        }),
       ),
     ).toBe(true);
   });
 
-  it('treats the optional AWS linked account as optional but still validates its format', () => {
-    const valid = baseState({
+  it('requires the AWS linked account, and still validates its format', () => {
+    const withoutLinked = baseState({
       fields: { payerAccount: '123456789012', description: '결제 운영계' },
     });
-    expect(isStepComplete(2, valid)).toBe(true);
+    expect(isStepComplete(2, withoutLinked)).toBe(false);
+    expect(getCredentialErrors('aws', withoutLinked.fields).linkedAccount).toBe(
+      'Linked Account을(를) 입력해 주세요',
+    );
+
+    // Present but malformed is still refused — required did not replace the format check.
     expect(
       isStepComplete(
         2,
@@ -149,6 +164,52 @@ describe('isStepComplete — step gating', () => {
         }),
       ),
     ).toBe(false);
+
+    // A single-account org repeats the payer id — the helper tells them to, so it must pass.
+    expect(
+      isStepComplete(
+        2,
+        baseState({
+          fields: {
+            payerAccount: '123456789012',
+            linkedAccount: '123456789012',
+            description: '결제 운영계',
+          },
+        }),
+      ),
+    ).toBe(true);
+  });
+
+  /**
+   * 게이트가 값을 받아내는 것과 그 값이 실제로 나가는 것은 다른 일이다. 둘을 따로 두는
+   * 이유는 단순하다 — 필수 검증만 있고 배선이 없던 동안 위 테스트들은 전부 통과했다.
+   */
+  it('carries the linked account into the request input, not just the form state', () => {
+    const input = buildCandidatesInput(
+      baseState({
+        fields: { payerAccount: '123456789012', linkedAccount: '210987654321' },
+      }),
+    );
+    expect(input.awsAccountId).toBe('123456789012');
+    expect(input.awsLinkedAccountId).toBe('210987654321');
+  });
+
+  it('does not send a linked account for non-AWS providers', () => {
+    // 폼이 묻지도 않는 값이 provider 를 바꿨다고 따라 나가면 안 된다.
+    const azure = buildCandidatesInput(
+      baseState({
+        providerKey: 'azure',
+        fields: { tenantId: 't', subscriptionId: 's', linkedAccount: '210987654321' },
+      }),
+    );
+    expect(azure.awsLinkedAccountId).toBeUndefined();
+  });
+
+  it('marks Linked Account as required in the field definition', () => {
+    const linked = CREDENTIAL_FIELDS.aws.find((field) => field.name === 'linkedAccount');
+    expect(linked?.optional).toBeFalsy();
+    // The label renders (선택) off `optional`, so the helper must not promise optional either.
+    expect(linked?.helper).not.toContain('선택');
   });
 
   it('requires a description for IDC and 기타', () => {

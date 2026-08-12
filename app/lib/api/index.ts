@@ -131,6 +131,17 @@ export interface CreationCandidatesInput {
   /** Lowercase request `cloud_type` (aws|azure|gcp|idc|others) — the UI owns it verbatim. */
   cloudType: TargetSourceRequestCloudType;
   awsAccountId?: string;
+  /**
+   * 리소스가 실제로 있는 하위 계정. payer(`awsAccountId`)와 짝을 이룬다.
+   *
+   * ⚠ 라이브 스펙에 아직 없는 필드다 — `install-v1.yaml` 과 업스트림 `api-docs.yaml`
+   * 모두 linked 계정 항목이 0건이다. 원래 `registration-preview` 요청에는
+   * `awsLinkedAccountId` 가 있었고(옵셔널, 미입력 시 BFF 가 payer 로 echo)
+   * `creation-candidates` 로 옮겨오며 빠졌다 —
+   * `docs/bff-api/sit-v7-screen-3-usage.md:79,165`. 그 누락을 되돌리는 것이므로
+   * 와이어 키는 payer 형제(`aws_account_id`)의 표기를 그대로 따른다.
+   */
+  awsLinkedAccountId?: string;
   isChinaRegion?: boolean;
   isTerraformExecutionGranted?: boolean;
   tenantId?: string;
@@ -159,6 +170,9 @@ export const getCreationCandidates = async (
       : {}),
     metadata: {
       ...(input.awsAccountId ? { aws_account_id: input.awsAccountId } : {}),
+      ...(input.awsLinkedAccountId
+        ? { aws_linked_account_id: input.awsLinkedAccountId }
+        : {}),
       ...(input.tenantId ? { tenant_id: input.tenantId } : {}),
       ...(input.subscriptionId ? { subscription_id: input.subscriptionId } : {}),
       // GCP project id is `project_id` in the candidate request metadata.
