@@ -39,6 +39,9 @@ export const passRoutes = {
   credentials: '/credentials',
   piiTag: '/pii-tag',
   piiMap: '/pii-map',
+  /** 내 권한 요청 — 관리자 화면이 아니다. `/admin/**` 게이트 밖에 있어야 권한이 없는
+   *  사용자가 들어올 수 있다(그게 이 화면의 대상이다). @see passRoutes.pipelines.access */
+  accessRequests: '/access-requests',
   /**
    * LIN-25 Admin Pipeline routes (app/admin/pipelines/**). Page mapping per
    * docs/api/pipeline-orchestrator-bff.md §2. Detail URLs carry the path id ONLY
@@ -75,6 +78,18 @@ export const passRoutes = {
       targetSource: (targetSourceId: number | string, tab?: OpsTargetTab) =>
         `/admin/pipelines/ops/target-sources/${encodeURIComponent(String(targetSourceId))}`
         + (tab ? `?tab=${tab}` : ''),
+    },
+    /** 접근 권한 — 관리자 화면들 (docs/api/access-assumed-contracts.md). 요청자 본인의
+     *  화면은 admin 게이트 밖에 있다 — `passRoutes.accessRequests`. */
+    access: {
+      services: '/admin/pipelines/access/services',
+      /** 서비스별 권한 deep link — services 페이지가 optional catch-all 이라 둘 다 유효하다. */
+      service: (serviceCode: string) =>
+        `/admin/pipelines/access/services/${encodeURIComponent(serviceCode)}`,
+      admins: '/admin/pipelines/access/admins',
+      requests: '/admin/pipelines/access/requests',
+      request: (requestId: number | string) =>
+        `/admin/pipelines/access/requests/${encodeURIComponent(String(requestId))}`,
     },
   },
 } as const;

@@ -42,3 +42,21 @@ describe('UserChip 계정 카드의 관리자 항목', () => {
     expect(screen.getByRole('link', { name: '관리자' })).toBeTruthy();
   });
 });
+
+// 내 권한 요청은 관리자 항목과 정반대다 — 권한이 없는 사람이 권한을 요청하는 화면이라
+// 게이트를 붙이면 대상 사용자만 골라 막는다. role 과 무관하게 늘 있어야 하고, 링크는
+// `/admin/**` 밖을 가리켜야 한다(안이면 서버 게이트가 같은 사람들을 되돌려 보낸다).
+describe('UserChip 계정 카드의 내 권한 요청 항목', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it.each([
+    ['ADMIN', { id: 'u1', name: '관리자', role: 'ADMIN' }],
+    ['USER', { id: 'u1', name: '홍길동', role: 'USER' }],
+    ['SERVICE_MANAGER', { id: 'u1', name: '홍길동', role: 'SERVICE_MANAGER' }],
+    ['role 없음', { id: 'u1', name: '홍길동' }],
+  ])('%s 이면 내 권한 요청 링크가 있다', async (_label, me) => {
+    await openCard(me);
+    const link = screen.getByRole('link', { name: '내 권한 요청' });
+    expect(link.getAttribute('href')).not.toContain('/admin/');
+  });
+});

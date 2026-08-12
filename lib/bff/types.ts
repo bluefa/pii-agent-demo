@@ -327,6 +327,42 @@ export interface BffClient {
     ) => Promise<z.infer<typeof schemas.AwsAssumeRoleUpsertResponse>>;
     getTargetSourceList: (query: string | undefined, page: number, size: number) => Promise<OpsTargetSourceListPageWire>;
   };
+
+  /**
+   * 서비스 접근 권한 관리 — ASSUMED contracts (docs/api/access-assumed-contracts.md).
+   * Same deliberate exception as `ops` above: the 접근 권한 menu group needs these
+   * before the BFF ships them. `/admin/access/*` is admin-only; `/access/*` is the
+   * requester's own surface (a user with no permission still has to be able to ask).
+   */
+  access: {
+    listServiceUsers: (serviceCode: string, page: number, size: number) => Promise<AccessGrantPageWire>;
+    grantServiceUsers: (serviceCode: string, userIds: string[]) => Promise<AccessGrantResultWire>;
+    revokeServiceUser: (serviceCode: string, userId: string) => Promise<void>;
+    listRequests: (status: string | undefined, page: number, size: number) => Promise<AccessRequestPageWire>;
+    getRequest: (requestId: number) => Promise<AccessRequestItemWire>;
+    approveRequest: (requestId: number, message: string) => Promise<AccessRequestItemWire>;
+    rejectRequest: (requestId: number, reason: string) => Promise<AccessRequestItemWire>;
+    listHistory: (
+      query: { serviceCode?: string; type?: string },
+      page: number,
+      size: number,
+    ) => Promise<AccessHistoryPageWire>;
+    listAdmins: (page: number, size: number) => Promise<AdminGrantPageWire>;
+    grantAdmins: (userIds: string[]) => Promise<AccessGrantResultWire>;
+    revokeAdmin: (userId: string) => Promise<void>;
+    searchUsers: (query: {
+      query?: string;
+      excludeServiceCode?: string;
+      role?: string;
+    }) => Promise<AccessUserSearchWire>;
+    listRequestableServices: (
+      query: string | undefined,
+      page: number,
+      size: number,
+    ) => Promise<RequestableServicePageWire>;
+    listMyRequests: (page: number, size: number) => Promise<AccessRequestPageWire>;
+    createRequest: (serviceCode: string, reason: string) => Promise<AccessRequestItemWire>;
+  };
 }
 
 /** Ops console assumed-contract wire shapes (docs/api/ops-assumed-contracts.md). */
@@ -387,6 +423,105 @@ export interface OpsTargetSourceListPageWire {
   number: number;
   content: OpsTargetSourceListItemWire[];
 }
+
+/**
+ * 접근 권한 assumed-contract wire shapes (docs/api/access-assumed-contracts.md).
+ * snake_case wire, Spring `Page` envelope — same conventions as install-v1.
+ */
+export interface AccessUserWire {
+  id: string;
+  name: string;
+  email: string;
+}
+
+/** Actor reference — who did it. `null` where the grant predates the audit log. */
+export interface AccessActorWire {
+  id: string;
+  name: string;
+}
+
+/** How a user came to hold a service: through a request, or by admin fiat. */
+export type AccessGrantTypeWire = 'REQUEST_APPROVED' | 'DIRECT';
+
+export interface AccessGrantItemWire {
+  user: AccessUserWire;
+  granted_at: string;
+  granted_by: AccessActorWire | null;
+  grant_type: AccessGrantTypeWire;
+}
+
+/** Spring-Page subset every assumed access endpoint returns. */
+export interface AccessPageWire<T> {
+  content: T[];
+  totalElements: number;
+  totalPages: number;
+  size: number;
+  number: number;
+}
+
+export type AccessGrantPageWire = AccessPageWire<AccessGrantItemWire>;
+
+export interface AccessGrantResultWire {
+  granted_count: number;
+}
+
+export type AccessRequestStatusWire = 'PENDING' | 'APPROVED' | 'REJECTED';
+
+export interface AccessRequestItemWire {
+  request_id: number;
+  service_code: string;
+  service_name: string;
+  requester: AccessUserWire;
+  reason: string;
+  requested_at: string;
+  status: AccessRequestStatusWire;
+  processed_at: string | null;
+  processed_by: AccessActorWire | null;
+  verdict_message: string | null;
+}
+
+export type AccessRequestPageWire = AccessPageWire<AccessRequestItemWire>;
+
+export type AccessHistoryTypeWire =
+  | 'APPROVED'
+  | 'REJECTED'
+  | 'GRANTED'
+  | 'REVOKED'
+  | 'ADMIN_GRANTED'
+  | 'ADMIN_REVOKED';
+
+export interface AccessHistoryItemWire {
+  history_id: number;
+  type: AccessHistoryTypeWire;
+  /** null for admin-role entries — they belong to no service. */
+  service_code: string | null;
+  service_name: string | null;
+  target_user: AccessActorWire;
+  actor: AccessActorWire;
+  reason: string | null;
+  created_at: string;
+}
+
+export type AccessHistoryPageWire = AccessPageWire<AccessHistoryItemWire>;
+
+export interface AdminGrantItemWire {
+  user: AccessUserWire;
+  granted_at: string;
+  granted_by: AccessActorWire | null;
+}
+
+export type AdminGrantPageWire = AccessPageWire<AdminGrantItemWire>;
+
+export interface AccessUserSearchWire {
+  users: AccessUserWire[];
+}
+
+export interface RequestableServiceWire {
+  service_code: string;
+  service_name: string;
+}
+
+export type RequestableServicePageWire = AccessPageWire<RequestableServiceWire>;
 
 /**
  * 서비스 운영은 assumed 계약을 쓰지 않는다 — `/admin/ops/services*` 는 install-v1.yaml

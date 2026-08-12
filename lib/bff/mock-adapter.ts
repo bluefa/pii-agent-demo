@@ -20,6 +20,7 @@ import { mockServices } from '@/lib/bff/mock/services';
 import { mockScan } from '@/lib/bff/mock/scan';
 import { mockAws } from '@/lib/bff/mock/aws';
 import { mockOps, mockServiceJiraTickets } from '@/lib/bff/mock/ops';
+import { mockAccess } from '@/lib/bff/mock/access';
 import { mockAzure } from '@/lib/bff/mock/azure';
 import { mockGcp } from '@/lib/bff/mock/gcp';
 import { mockIdc } from '@/lib/bff/mock/idc';
@@ -134,6 +135,37 @@ export const mockBff: BffClient = {
     putRole: async (id, kind, roleArn) => unwrap(await mockOps.putRole(id, kind, roleArn)),
     getTargetSourceList: async (query, page, size) =>
       unwrap(await mockOps.getTargetSourceList(query, page, size)),
+  },
+
+  // 접근 권한 — ASSUMED contracts (docs/api/access-assumed-contracts.md).
+  // Business rules (승인=부여, admin gate, 중복 요청 409) live in the mock module.
+  access: {
+    listServiceUsers: async (code, page, size) =>
+      unwrap(await mockAccess.listServiceUsers(code, page, size)),
+    grantServiceUsers: async (code, userIds) =>
+      unwrap(await mockAccess.grantServiceUsers(code, userIds)),
+    revokeServiceUser: async (code, userId) => {
+      await unwrap(await mockAccess.revokeServiceUser(code, userId));
+    },
+    listRequests: async (status, page, size) =>
+      unwrap(await mockAccess.listRequests(status, page, size)),
+    getRequest: async (requestId) => unwrap(await mockAccess.getRequest(requestId)),
+    approveRequest: async (requestId, message) =>
+      unwrap(await mockAccess.approveRequest(requestId, message)),
+    rejectRequest: async (requestId, reason) =>
+      unwrap(await mockAccess.rejectRequest(requestId, reason)),
+    listHistory: async (query, page, size) =>
+      unwrap(await mockAccess.listHistory(query, page, size)),
+    listAdmins: async (page, size) => unwrap(await mockAccess.listAdmins(page, size)),
+    grantAdmins: async (userIds) => unwrap(await mockAccess.grantAdmins(userIds)),
+    revokeAdmin: async (userId) => {
+      await unwrap(await mockAccess.revokeAdmin(userId));
+    },
+    searchUsers: async (query) => unwrap(await mockAccess.searchUsers(query)),
+    listRequestableServices: async (query, page, size) =>
+      unwrap(await mockAccess.listRequestableServices(query, page, size)),
+    listMyRequests: async (page, size) => unwrap(await mockAccess.listMyRequests(page, size)),
+    createRequest: async (code, reason) => unwrap(await mockAccess.createRequest(code, reason)),
   },
 
   // Azure mock returns raw snake wire; the route validates with schemas.X.parse().

@@ -86,6 +86,32 @@ export const UserChip = () => {
             </div>
           </div>
 
+          <div aria-hidden="true" className={navStyles.user.menu.divider} />
+          {/* 내 권한 요청 — account-scoped and role-agnostic, so it sits above the
+              admin block with no gate. This is the only entry point for a user who
+              lacks permission on a service: the 접근 권한 admin screens are behind the
+              ADMIN allowlist, which is exactly the audience that never needs to ask. */}
+          <Link
+            href={passRoutes.accessRequests}
+            onClick={() => setOpen(false)}
+            className={navStyles.user.menu.item}
+          >
+            <svg
+              aria-hidden="true"
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              className={navStyles.user.menu.itemIcon}
+            >
+              <rect x="4" y="10.5" width="16" height="10" rx="2" />
+              <path d="M8 10.5V7a4 4 0 0 1 8 0v3.5" />
+            </svg>
+            내 권한 요청
+          </Link>
+
           {isAdminRole(user.role) && (
             <>
               <div aria-hidden="true" className={navStyles.user.menu.divider} />

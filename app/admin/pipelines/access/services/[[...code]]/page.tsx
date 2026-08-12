@@ -1,0 +1,447 @@
+'use client';
+
+/**
+ * 서비스별 권한 (/admin/pipelines/access/services 와 /…/services/{code}).
+ *
+ * 서비스·대상 검색과 같은 부품으로 만든 화면이다 — 레일은 `serviceListStyles` 와
+ * `getServicesPage` 를 그대로 쓰고(폭·타일·검색·페이저 전부 한 곳에서 온다), 오른쪽은
+ * 시트 한 장이다. 시트 안에 카드를 또 얹지 않는다: 표면이 두 겹이 되면 한 화면이 여러
+ * 섬으로 갈라진다. 구역은 가로줄로만 나눈다.
+ *
+ * optional catch-all 이라 `/services/{code}` 로 바로 들어와도 열리고, 레일 클릭은
+ * router.push 만 한다 — 선택이 바뀌어도 레일의 검색·페이지 상태는 유지된다.
+ *
+ * 이력 구역은 같은 이력 API 를 `service_code` 로 필터한 것이다 — 요구사항의 "service
+ * code 단위 이력 조회"가 여기 산다. 전역 로그는 권한 요청 화면 아래에 따로 있다.
+ */
+import { useCallback, useEffect, useState, type ReactElement } from 'react';
+import { useParams, useRouter } from 'next/navigation';
+import { cn, serviceSidebarStyles } from '@/lib/theme';
+import { passRoutes } from '@/lib/routes';
+import { fmtDateTime } from '@/lib/pipeline/format';
+import { useAbortableEffect } from '@/app/hooks/useAbortableEffect';
+import { getServicesPage } from '@/app/lib/api';
+
+import { SearchBox } from '@/app/admin/pipelines/_components/SearchBox';
+import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
+import { PlEmptyState } from '@/app/admin/pipelines/_components/PlEmptyState';
+import { usePlToast } from '@/app/admin/pipelines/_components/usePlToast';
+import { SERVICE_RAIL_PAGE_SIZE } from '@/app/components/features/admin/ServiceSidebar';
+import { serviceTileClass } from '@/app/components/features/admin/ServiceSidebar/ServiceRow';
+import { SidebarPagination } from '@/app/components/features/admin/ServiceSidebar/SidebarPagination';
+import { serviceItemsFrom, type ServiceItem } from '@/app/admin/pipelines/_services/logic';
+import { serviceListStyles } from '@/app/admin/pipelines/_services/styles';
+
+import {
+  PagedCard,
+  ROWS_PER_PAGE,
+  errorMessage,
+  usePagedSection,
+  type Column,
+} from '@/app/admin/pipelines/access/_components/PagedCard';
+import {
+  ConfirmDangerModal,
+  UserPickerModal,
+} from '@/app/admin/pipelines/access/_components/AccessModals';
+import {
+  GrantTypePill,
+  HistoryTypePill,
+} from '@/app/admin/pipelines/access/_components/AccessPills';
+import { accessStyles as a } from '@/app/admin/pipelines/access/_components/accessStyles';
+import {
+  getAccessHistory,
+  getServiceUsers,
+  grantServiceUsers,
+  revokeServiceUser,
+  type AccessGrant,
+  type AccessHistoryEntry,
+  type AccessPage,
+} from '@/app/lib/api/access';
+
+const SERVICE_PAGE_SIZE = SERVICE_RAIL_PAGE_SIZE;
+/** 늘어난 레일 행 하나의 상한 — serviceListStyles.item 참고. */
+const ROW_MAX_PX = 88;
+const SEARCH_DEBOUNCE_MS = 300;
+
+/** 서비스가 안 골라졌을 때 카드가 그릴 빈 페이지 — 훅은 조건부로 못 쓴다. */
+const emptyPage = <T,>(): AccessPage<T> => ({
+  content: [],
+  totalElements: 0,
+  totalPages: 1,
+  number: 0,
+  size: ROWS_PER_PAGE,
+});
+
+const USER_COLUMNS: readonly Column[] = [
+  { label: '이름', className: a.name },
+  { label: '이메일', className: a.email },
+  { label: '부여 경로', className: a.path },
+  { label: '부여자', className: a.actor },
+  { label: '부여 일시', className: a.when },
+  { className: a.tail },
+];
+
+const HISTORY_COLUMNS: readonly Column[] = [
+  { label: '구분', className: a.status },
+  { label: '대상 사용자', className: a.name },
+  { label: '수행자', className: a.actor },
+  { label: '사유', className: a.note },
+  { label: '일시', className: a.when },
+];
+
+export default function AccessServicesPage(): ReactElement {
+  const router = useRouter();
+  const params = useParams<{ code?: string[] }>();
+  const selectedCode = params.code?.[0] ?? null;
+  const toast = usePlToast();
+
+  // ── 레일 (서비스·대상 검색과 동일) ───────────────────────────────────────
+  const [services, setServices] = useState<ServiceItem[]>([]);
+  const [servicesLoading, setServicesLoading] = useState(true);
+  const [servicesError, setServicesError] = useState<unknown>(null);
+  const [servicesRetry, setServicesRetry] = useState(0);
+  const [svcQuery, setSvcQuery] = useState('');
+  const [debouncedQuery, setDebouncedQuery] = useState('');
+  const [svcPage, setSvcPage] = useState(1);
+  const [svcPages, setSvcPages] = useState(1);
+  const [svcTotal, setSvcTotal] = useState(0);
+  const [resolvedName, setResolvedName] = useState<{ code: string; name: string } | null>(null);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedQuery(svcQuery.trim());
+      setSvcPage(1);
+    }, SEARCH_DEBOUNCE_MS);
+    return () => clearTimeout(timer);
+  }, [svcQuery]);
+
+  useAbortableEffect(
+    (signal) => {
+      setServicesLoading(true);
+      setServicesError(null);
+      return getServicesPage(svcPage - 1, SERVICE_PAGE_SIZE, debouncedQuery || undefined, { signal })
+        .then((page) => {
+          if (signal.aborted) return;
+          setServices(serviceItemsFrom(page));
+          setSvcPages(Math.max(1, page.totalPages ?? 1));
+          setSvcTotal(page.totalElements ?? 0);
+          setServicesLoading(false);
+        })
+        .catch((err) => {
+          if (signal.aborted) return;
+          setServicesError(err);
+          setSvcTotal(0);
+          setSvcPages(1);
+          setServicesLoading(false);
+        });
+    },
+    [servicesRetry, svcPage, debouncedQuery],
+  );
+
+  const listName = services.find((svc) => svc.service_code === selectedCode)?.service_name ?? null;
+
+  // 다른 페이지에 있는 서비스로 바로 들어온 경우에만 이름을 한 번 찾아온다.
+  useAbortableEffect(
+    (signal) => {
+      if (!selectedCode || listName) return;
+      return getServicesPage(0, SERVICE_PAGE_SIZE, selectedCode, { signal })
+        .then((page) => {
+          if (signal.aborted) return;
+          const match = serviceItemsFrom(page).find((item) => item.service_code === selectedCode);
+          if (match) {
+            setResolvedName({ code: selectedCode, name: match.service_name ?? selectedCode });
+          }
+        })
+        .catch(() => {});
+    },
+    [selectedCode, listName],
+  );
+
+  const selectedName =
+    listName ??
+    (resolvedName?.code === selectedCode ? resolvedName.name : null) ??
+    selectedCode ??
+    '';
+
+  // ── 오른쪽 시트 ──────────────────────────────────────────────────────────
+  const fetchUsers = useCallback(
+    (page: number, opts: { signal: AbortSignal }): Promise<AccessPage<AccessGrant>> =>
+      selectedCode
+        ? getServiceUsers(selectedCode, page, { ...opts, size: ROWS_PER_PAGE })
+        : Promise.resolve(emptyPage<AccessGrant>()),
+    [selectedCode],
+  );
+  const fetchHistory = useCallback(
+    (page: number, opts: { signal: AbortSignal }): Promise<AccessPage<AccessHistoryEntry>> =>
+      selectedCode
+        ? getAccessHistory({ serviceCode: selectedCode }, page, { ...opts, size: ROWS_PER_PAGE })
+        : Promise.resolve(emptyPage<AccessHistoryEntry>()),
+    [selectedCode],
+  );
+
+  const users = usePagedSection(fetchUsers);
+  const history = usePagedSection(fetchHistory);
+
+  const [pickerOpen, setPickerOpen] = useState(false);
+  /** 해제 확인 중인 행 — null 이면 모달이 닫혀 있다. */
+  const [revoking, setRevoking] = useState<AccessGrant | null>(null);
+
+  const grant = async (userIds: string[]): Promise<void> => {
+    if (!selectedCode) return;
+    try {
+      const result = await grantServiceUsers(selectedCode, userIds);
+      setPickerOpen(false);
+      toast.show(`${result.granted_count}명에게 ${selectedName} 권한을 부여했어요`);
+      users.reload();
+      history.reload();
+    } catch (err) {
+      toast.show(errorMessage(err));
+    }
+  };
+
+  const revoke = async (): Promise<void> => {
+    if (!selectedCode || !revoking) return;
+    try {
+      await revokeServiceUser(selectedCode, revoking.user.id);
+      toast.show(`${revoking.user.name}님의 ${selectedName} 권한을 해제했어요`);
+      setRevoking(null);
+      users.reload();
+      history.reload();
+    } catch (err) {
+      toast.show(errorMessage(err));
+    }
+  };
+
+  const s = serviceListStyles;
+
+  return (
+    <div className={s.split}>
+      <aside className={cn(s.rail, s.railSticky)} aria-label="서비스 목록">
+        <div className={s.railHead}>
+          <h1 className={s.railTitle}>서비스별 권한</h1>
+          {!servicesLoading && svcTotal > 0 && <span className={s.railCount}>{svcTotal}</span>}
+        </div>
+        <div className={s.railSearch}>
+          <SearchBox
+            wrapClassName="block w-full"
+            placeholder="서비스 코드/이름 검색"
+            value={svcQuery}
+            onChange={(event) => setSvcQuery(event.target.value)}
+            aria-label="서비스 코드/이름 검색"
+          />
+        </div>
+        <div className={s.railBody}>
+          {servicesLoading ? (
+            <div className="min-h-[240px] flex-1" aria-busy="true" />
+          ) : servicesError != null ? (
+            <div className="flex-1">
+              <PlEmptyState
+                onGround
+                icon="search"
+                message={errorMessage(servicesError)}
+                meta={
+                  <PlButton
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => setServicesRetry((n) => n + 1)}
+                  >
+                    재시도
+                  </PlButton>
+                }
+              />
+            </div>
+          ) : services.length === 0 ? (
+            <div className="flex-1">
+              <PlEmptyState onGround icon="search" message="검색 결과가 없습니다." />
+            </div>
+          ) : (
+            <>
+              <div className={s.railSection}>{svcQuery ? '검색 결과' : '전체 서비스'}</div>
+              <div className={s.railList} style={{ maxHeight: services.length * ROW_MAX_PX }}>
+                {services.map((service) => {
+                  const code = service.service_code ?? '';
+                  const name = service.service_name ?? code;
+                  const active = code === selectedCode;
+                  return (
+                    <button
+                      key={code}
+                      type="button"
+                      onClick={() => {
+                        if (code === selectedCode) return;
+                        router.push(passRoutes.pipelines.access.service(code));
+                      }}
+                      title={`${name} (${code})`}
+                      aria-current={active ? 'true' : undefined}
+                      className={cn(s.item, active ? s.itemActive : s.itemIdle)}
+                    >
+                      <span
+                        className={cn(serviceSidebarStyles.tile, serviceTileClass(code))}
+                        aria-hidden="true"
+                      >
+                        {name.charAt(0).toUpperCase()}
+                      </span>
+                      <span className={cn(s.name, active ? s.nameActive : s.nameIdle)}>{name}</span>
+                      <span className={active ? s.codeActive : s.code}>{code}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </>
+          )}
+          <div className={s.railFoot}>
+            <SidebarPagination
+              pageInfo={{
+                totalElements: svcTotal,
+                totalPages: svcPages,
+                number: svcPage - 1,
+                size: SERVICE_PAGE_SIZE,
+              }}
+              onPageChange={(next) => setSvcPage(next + 1)}
+            />
+          </div>
+        </div>
+      </aside>
+
+      <section className={s.main}>
+        {!selectedCode ? (
+          <div className={cn(s.sheet, 'items-center justify-center')}>
+            <PlEmptyState icon="cursor" center message="좌측에서 서비스를 선택해 주세요." />
+          </div>
+        ) : (
+          <div className={s.sheet}>
+            <div className={a.identity}>
+              <span className={a.eyebrow}>서비스</span>
+              <div className={a.titleRow}>
+                <h2 className={a.svcTitle}>{selectedName}</h2>
+                <span className={a.svcCodeChip}>
+                  <span className={a.svcCodeChipLabel}>서비스코드</span>
+                  <span className="[font-family:var(--pl-font-mono)]">{selectedCode}</span>
+                </span>
+              </div>
+              <div className={a.statRow}>
+                <div className={a.stat}>
+                  <span className={a.statLabel}>권한 사용자</span>
+                  <span className={a.statVal}>{users.paged?.totalElements ?? '—'}</span>
+                </div>
+                <div className={a.stat}>
+                  <span className={a.statLabel}>기록된 변경</span>
+                  <span className={a.statVal}>{history.paged?.totalElements ?? '—'}</span>
+                </div>
+              </div>
+            </div>
+
+            <hr className={s.sheetRule} />
+
+            <PagedCard
+              bare
+              title="권한 사용자"
+              desc="이 서비스에 접근할 수 있는 사용자예요 — 부여 경로로 요청 승인과 직접 부여를 구분해요"
+              icon="shield-check"
+              tone="primary"
+              state={users}
+              columns={USER_COLUMNS}
+              empty={{
+                title: '권한을 가진 사용자가 없어요',
+                caption: '사용자 추가로 바로 부여하거나, 접근 요청을 승인해 주세요',
+              }}
+              action={
+                <PlButton variant="primary" size="sm" onClick={() => setPickerOpen(true)}>
+                  사용자 추가
+                </PlButton>
+              }
+            >
+              {(rows) =>
+                rows.map((row) => (
+                  <div key={row.user.id} role="row" className={a.row}>
+                    <span role="cell" className={cn(a.name, a.nameStrong)}>
+                      {row.user.name}
+                    </span>
+                    <span role="cell" className={a.email}>
+                      {row.user.email}
+                    </span>
+                    <span role="cell" className={a.path}>
+                      <GrantTypePill grantType={row.grantType} />
+                    </span>
+                    <span role="cell" className={a.actor}>
+                      {row.grantedBy?.name ?? '—'}
+                    </span>
+                    <span role="cell" className={a.when}>
+                      {fmtDateTime(row.grantedAt)}
+                    </span>
+                    <span role="cell" className={a.tail}>
+                      <PlButton variant="ghost" size="sm" onClick={() => setRevoking(row)}>
+                        해제
+                      </PlButton>
+                    </span>
+                  </div>
+                ))
+              }
+            </PagedCard>
+
+            <hr className={s.sheetRule} />
+
+            <PagedCard
+              bare
+              title="이 서비스의 권한 이력"
+              desc="이 서비스 코드에서 권한이 부여·해제된 기록이에요"
+              icon="clock"
+              tone="muted"
+              state={history}
+              columns={HISTORY_COLUMNS}
+              empty={{
+                title: '기록된 변경이 없어요',
+                caption: '권한이 부여되거나 해제되면 여기에 쌓여요',
+              }}
+            >
+              {(rows) =>
+                rows.map((row) => (
+                  <div key={row.historyId} role="row" className={a.row}>
+                    <span role="cell" className={a.status}>
+                      <HistoryTypePill type={row.type} />
+                    </span>
+                    <span role="cell" className={cn(a.name, a.nameStrong)}>
+                      {row.targetUser.name}
+                    </span>
+                    <span role="cell" className={a.actor}>
+                      {row.actor.name}
+                    </span>
+                    <span role="cell" className={a.note}>
+                      {row.reason ?? '—'}
+                    </span>
+                    <span role="cell" className={a.when}>
+                      {fmtDateTime(row.createdAt)}
+                    </span>
+                  </div>
+                ))
+              }
+            </PagedCard>
+          </div>
+        )}
+      </section>
+
+      <UserPickerModal
+        open={pickerOpen}
+        onClose={() => setPickerOpen(false)}
+        title={`${selectedName} 권한 부여`}
+        sub="요청 절차 없이 바로 부여해요. 이력에는 '직접 부여'로 남아요."
+        excludeServiceCode={selectedCode ?? undefined}
+        submitLabel="부여"
+        onSubmit={grant}
+      />
+
+      <ConfirmDangerModal
+        open={revoking != null}
+        onClose={() => setRevoking(null)}
+        title="서비스 권한 해제"
+        sub={`${revoking?.user.name ?? ''}님의 ${selectedName} 접근 권한을 해제해요.`}
+        confirmLabel="해제"
+        onConfirm={revoke}
+      >
+        <p className={a.quote}>
+          해제하면 이 사용자는 {selectedName} 화면에 더 이상 들어올 수 없어요. 다시 부여하려면
+          사용자 추가를 하거나 새 요청을 승인해야 해요.
+        </p>
+      </ConfirmDangerModal>
+    </div>
+  );
+}

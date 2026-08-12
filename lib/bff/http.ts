@@ -321,6 +321,57 @@ export const httpBff: BffClient = {
       getSnakeRaw(`/admin/ops/target-sources${buildQuery({ query, page, size })}`),
   },
 
+  // 접근 권한 — ASSUMED contracts (docs/api/access-assumed-contracts.md). Wire is
+  // snake and the CSR adapter owns the camel boundary, so reads use getSnakeRaw.
+  access: {
+    listServiceUsers: (serviceCode, page, size) =>
+      getSnakeRaw(
+        `/admin/access/services/${encodeURIComponent(serviceCode)}/users${buildQuery({ page, size })}`,
+      ),
+    grantServiceUsers: (serviceCode, userIds) =>
+      post(`/admin/access/services/${encodeURIComponent(serviceCode)}/users`, {
+        user_ids: userIds,
+      }),
+    revokeServiceUser: (serviceCode, userId) =>
+      send(
+        'DELETE',
+        `/admin/access/services/${encodeURIComponent(serviceCode)}/users/${encodeURIComponent(userId)}`,
+      ),
+    listRequests: (status, page, size) =>
+      getSnakeRaw(`/admin/access/requests${buildQuery({ status, page, size })}`),
+    getRequest: (requestId) => getSnakeRaw(`/admin/access/requests/${requestId}`),
+    approveRequest: (requestId, message) =>
+      post(`/admin/access/requests/${requestId}/approve`, { message }),
+    rejectRequest: (requestId, reason) =>
+      post(`/admin/access/requests/${requestId}/reject`, { reason }),
+    listHistory: (query, page, size) =>
+      getSnakeRaw(
+        `/admin/access/history${buildQuery({
+          service_code: query.serviceCode,
+          type: query.type,
+          page,
+          size,
+        })}`,
+      ),
+    listAdmins: (page, size) => getSnakeRaw(`/admin/access/admins${buildQuery({ page, size })}`),
+    grantAdmins: (userIds) => post('/admin/access/admins', { user_ids: userIds }),
+    revokeAdmin: (userId) =>
+      send('DELETE', `/admin/access/admins/${encodeURIComponent(userId)}`),
+    searchUsers: (query) =>
+      getSnakeRaw(
+        `/admin/access/users${buildQuery({
+          query: query.query,
+          exclude_service_code: query.excludeServiceCode,
+          role: query.role,
+        })}`,
+      ),
+    listRequestableServices: (query, page, size) =>
+      getSnakeRaw(`/access/requestable-services${buildQuery({ query, page, size })}`),
+    listMyRequests: (page, size) => getSnakeRaw(`/access/requests${buildQuery({ page, size })}`),
+    createRequest: (serviceCode, reason) =>
+      post('/access/requests', { service_code: serviceCode, reason }),
+  },
+
   // Azure responses are raw snake passthrough — the route validates with
   // schemas.X.parse(raw) and the CSR adapter owns the camel conversion.
   // (AzureHealthCheckResult wire is already camelCase per swagger; getSnakeRaw is a

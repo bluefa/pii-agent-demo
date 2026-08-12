@@ -125,6 +125,16 @@ export const mockUsers: User[] = [
     role: 'ADMIN',
     serviceCodePermissions: [],
   },
+  // 접근 권한 화면들이 쓸 사용자들 — 표와 페이저에 실을 것이 있어야 하고, 권한이
+  // 없는 사용자(user-6·user-8)가 있어야 "권한 요청" 흐름을 열어 볼 수 있다.
+  // 여기 두는 이유: 현재 사용자(getCurrentUser)는 이 배열에서만 고를 수 있다.
+  { id: 'user-3', name: '이영희', email: 'lee@company.com', role: 'SERVICE_MANAGER', serviceCodePermissions: ['aws', 'gcp'] },
+  { id: 'user-4', name: '박민수', email: 'park@company.com', role: 'SERVICE_MANAGER', serviceCodePermissions: ['azure'] },
+  { id: 'user-5', name: '정수진', email: 'jung@company.com', role: 'SERVICE_MANAGER', serviceCodePermissions: ['aws', 'idc', 'SDU'] },
+  { id: 'user-6', name: '최동현', email: 'choi@company.com', role: 'SERVICE_MANAGER', serviceCodePermissions: [] },
+  { id: 'user-7', name: '강하늘', email: 'kang@company.com', role: 'SERVICE_MANAGER', serviceCodePermissions: ['gcp'] },
+  { id: 'user-8', name: '윤서연', email: 'yoon@company.com', role: 'SERVICE_MANAGER', serviceCodePermissions: [] },
+  { id: 'user-9', name: '임재현', email: 'lim@company.com', role: 'SERVICE_MANAGER', serviceCodePermissions: ['aws'] },
 ];
 
 // ===== Current User (기본: 관리자) =====
