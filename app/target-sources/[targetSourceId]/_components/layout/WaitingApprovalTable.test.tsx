@@ -157,8 +157,9 @@ describe('WaitingApprovalTable', () => {
     // them — filling those printed each of them twice on the one row that has them. The children
     // still say Database in the type column, so reading down the tree gives Athena → Database and
     // a child name like `db_a` is identified rather than left as a bare string. The child's id is
-    // dropped: it is the parent's path plus that name.
-    it('keeps the parent type and region in its identity cell, Database on each child', () => {
+    // dropped: it is the parent's path plus that name — but the region is NOT, because a column
+    // is read down and a blank there says "no region" (owner, 2026-08-12).
+    it('keeps the parent type and region in its identity cell, Database + region on each child', () => {
       render(
         <WaitingApprovalTable
           resources={[athena('db_a', 'ap-northeast-1', true), athena('db_b', 'ap-northeast-1', false)]}
@@ -179,7 +180,7 @@ describe('WaitingApprovalTable', () => {
         const cells = within(row).getAllByRole('cell');
         expect(cells[1].textContent).toBe('');
         expect(cells[2].textContent).toBe('Database');
-        expect(cells[3].textContent).toBe('');
+        expect(cells[3].textContent).toBe('ap-northeast-1');
       }
     });
 

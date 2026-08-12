@@ -594,7 +594,9 @@ export const WaitingApprovalTable = memo(
           {/* DB Type is a repeating attribute, not a status — one badge per row (the
               verdict) is enough; a second pill would compete with it.
               Inside a group this column carries what the row IS: the parent says `Athena`,
-              each child says `Database`. Region belongs to the parent alone. */}
+              each child says `Database`. The Region column repeats the parent's value on every
+              child (owner, 2026-08-12) — a column is read down, and blanks under it read as
+              "no region" once the parent has scrolled away. */}
           {!installVariant && (
             <>
               <td
@@ -617,7 +619,7 @@ export const WaitingApprovalTable = memo(
                   CELL_LIFT,
                 )}
               >
-                {grouped ? null : resource.region || PLACEHOLDER}
+                {resource.region || PLACEHOLDER}
               </td>
             </>
           )}

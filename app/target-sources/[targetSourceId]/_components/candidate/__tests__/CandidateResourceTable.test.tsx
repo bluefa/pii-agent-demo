@@ -511,5 +511,11 @@ describe('CandidateResourceTable — Athena groups', () => {
     fireEvent.click(toggle);
     expect(rows?.hidden).toBe(false);
     expect(screen.getByRole('button', { name: 'Athena ap-northeast-2 그룹 접기' })).toBeTruthy();
+
+    // Each child repeats the region (owner, 2026-08-12): the column is read down, and a blank
+    // cell beside every database reads as "no region".
+    // Checkbox(0) · Name(1) · ID(2) · DB Type(3) · Region(4) · 설치 구분(5) · 제외 사유(6).
+    const childCells = rows?.querySelectorAll('tr')[0].querySelectorAll('td');
+    expect(childCells?.[4].textContent).toBe('ap-northeast-2');
   });
 });

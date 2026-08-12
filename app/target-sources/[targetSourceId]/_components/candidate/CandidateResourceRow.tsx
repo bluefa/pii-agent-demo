@@ -403,7 +403,7 @@ export const CandidateResourceRow = ({
         {/* DB Type is a repeating attribute, not a status — plain text, no badge; the
             config-needed warning is the one exception because it names an action.
             Inside a group this column carries what the row IS: the parent says `Athena`,
-            each child says `Database`. Region belongs to the parent alone. */}
+            each child says `Database`. */}
         <td
           className={cn(
             idcStyles.table.approvalCell,
@@ -432,9 +432,14 @@ export const CandidateResourceRow = ({
             CELL_LIFT,
           )}
         >
-          {/* A searched instance carries no region: the search response reports the private
+          {/* A grouped child says its region too (owner, 2026-08-12). The parent states it as
+              its name, but a column exists to be read DOWN: a blank cell beside every database
+              reads as "no region", and the one row that fills it is scrolled off the moment the
+              group is long. Repeating the parent's value is what a column does.
+
+              A searched instance carries no region: the search response reports the private
               address and the scan version, nothing else about where it sits. */}
-          {grouped || isManualEc2 ? null : region}
+          {isManualEc2 ? null : region}
         </td>
 
         {/* 시스템 분류는 조용한 사실 티어 — 행동을 막는 설치 불가만 주황 + 안내
