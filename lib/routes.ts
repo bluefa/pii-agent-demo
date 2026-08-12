@@ -44,6 +44,14 @@ export const passRoutes = {
    *  사용자가 들어올 수 있다(그게 이 화면의 대상이다). @see passRoutes.pipelines.access */
   accessRequests: '/access-requests',
   /**
+   * 공지사항 · FAQ. `?type=NOTICE|FAQ` switches the same route from the
+   * side-by-side cards to one full list — the listing is a view of this page,
+   * not a second page with its own copy of the fetching.
+   */
+  notices: '/notices',
+  /** 게시글 관리 (등록 · 수정 · 고정 · 숨김 · Category). */
+  adminPosts: '/admin/posts',
+  /**
    * LIN-25 Admin Pipeline routes (app/admin/pipelines/**). Page mapping per
    * docs/api/pipeline-orchestrator-bff.md §2. Detail URLs carry the path id ONLY
    * (R20 — no query-param nav-context; pages derive service names from the API).

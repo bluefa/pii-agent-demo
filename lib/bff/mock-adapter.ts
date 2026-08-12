@@ -28,6 +28,7 @@ import { mockLogicalDb } from '@/lib/bff/mock/logical-db';
 import { mockConfirm } from '@/lib/bff/mock/confirm';
 import { mockTaskQueue } from '@/lib/bff/mock/task-queue';
 import { mockGuides } from '@/lib/bff/mock/guides';
+import { mockPosts } from '@/lib/bff/mock/posts';
 import { mockPipeline } from '@/lib/bff/mock/pipeline';
 import type { z } from 'zod';
 import type { schemas } from '@/lib/generated/install-v1';
@@ -377,4 +378,8 @@ export const mockBff: BffClient = {
     get: async (name) => unwrap(await mockGuides.get(name)),
     put: async (name, body) => unwrap(await mockGuides.put(name, body)),
   },
+
+  // `mockPosts` returns domain objects and throws BffError directly, so there
+  // is nothing to unwrap — it is already the BffClient shape.
+  posts: mockPosts,
 };

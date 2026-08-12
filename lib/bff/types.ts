@@ -27,6 +27,19 @@ import type { OrchestratorRawResponse } from '@/lib/pipeline/types';
  */
 export type ConfirmedResourceProvider = 'AWS' | 'GCP' | 'AZURE' | 'IDC';
 import type { AlertTargetKind } from '@/lib/types/task-queue';
+import type {
+  AdminPost,
+  AdminPostCategory,
+  AdminPostSummary,
+  ImageUploadResponse,
+  Post,
+  PostCategory,
+  PostCategoryCreateRequest,
+  PostCreateRequest,
+  PostSummary,
+  PostType,
+  PostUpdateRequest,
+} from '@/lib/types/post';
 
 /**
  * pipeline-orchestrator proxy domain (LIN-25).
@@ -167,6 +180,30 @@ export interface BffClient {
   guides: {
     get: (name: string) => Promise<z.infer<typeof schemas.GuideDetail>>;
     put: (name: string, body: unknown) => Promise<z.infer<typeof schemas.GuideDetail>>;
+  };
+
+  /**
+   * FAQ & Notices (docs/bff-api/tag-guides/faq-notices.md).
+   *
+   * CONTRACT GAP: the Tag is Draft and not in docs/swagger/install-v1.yaml, so
+   * there is no generated schema to type these with. `lib/types/post.ts` mirrors
+   * the tag guide and is swapped for `schemas.*` when the swagger catches up.
+   */
+  posts: {
+    list: (type?: PostType, categoryId?: number) => Promise<PostSummary[]>;
+    get: (postId: number) => Promise<Post>;
+    listCategories: (type?: PostType) => Promise<PostCategory[]>;
+    listAdmin: (type?: PostType, hidden?: boolean) => Promise<AdminPostSummary[]>;
+    getAdmin: (postId: number) => Promise<AdminPost>;
+    create: (body: PostCreateRequest) => Promise<AdminPost>;
+    update: (postId: number, body: PostUpdateRequest) => Promise<AdminPost>;
+    setHidden: (postId: number, hidden: boolean) => Promise<AdminPost>;
+    setPinned: (postId: number, pinned: boolean) => Promise<AdminPost>;
+    uploadImage: (file: { bytes: Uint8Array<ArrayBuffer>; contentType: string })
+      => Promise<ImageUploadResponse>;
+    listAdminCategories: (type?: PostType) => Promise<AdminPostCategory[]>;
+    createCategory: (body: PostCategoryCreateRequest) => Promise<AdminPostCategory>;
+    deleteCategory: (categoryId: number) => Promise<void>;
   };
 
   aws: {

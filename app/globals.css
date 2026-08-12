@@ -420,6 +420,17 @@ body {
   color: var(--color-primary);
 }
 
+/* Body images (FAQ & Notices). The img's own width/height attributes carry the
+   upload's intrinsic size so the box is reserved before the bytes arrive;
+   display width is CSS's job, which is why the allow-list gives an author no
+   style/class to override it with. */
+.prose-guide img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 0.5rem;
+  margin: 0.5rem 0;
+}
+
 .prose-guide code {
   /* inherit, not a mono stack: <code> defaults to the browser monospace face and
      the app is single-family Pretendard. */
