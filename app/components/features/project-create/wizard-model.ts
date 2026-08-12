@@ -47,6 +47,9 @@ export const buildCandidatesInput = (state: WizardFormState): CreationCandidates
     ...(providerKey === 'aws'
       ? {
           awsAccountId: field('payerAccount'),
+          // payer 는 결제 루트일 뿐이고 스캔 대상 리소스는 하위 계정에 있다. 폼이 두 칸을
+          // 묻는 이상 둘 다 나가야 한다 — 배선 전까지 이 값은 state 에만 남아 있었다.
+          awsLinkedAccountId: field('linkedAccount'),
           // AWS only: 자동 delegates Terraform execution, 수동 keeps the script with the admin.
           isTerraformExecutionGranted: state.installMode === 'auto',
         }

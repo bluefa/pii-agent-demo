@@ -180,6 +180,31 @@ describe('isStepComplete — step gating', () => {
     ).toBe(true);
   });
 
+  /**
+   * 게이트가 값을 받아내는 것과 그 값이 실제로 나가는 것은 다른 일이다. 둘을 따로 두는
+   * 이유는 단순하다 — 필수 검증만 있고 배선이 없던 동안 위 테스트들은 전부 통과했다.
+   */
+  it('carries the linked account into the request input, not just the form state', () => {
+    const input = buildCandidatesInput(
+      baseState({
+        fields: { payerAccount: '123456789012', linkedAccount: '210987654321' },
+      }),
+    );
+    expect(input.awsAccountId).toBe('123456789012');
+    expect(input.awsLinkedAccountId).toBe('210987654321');
+  });
+
+  it('does not send a linked account for non-AWS providers', () => {
+    // 폼이 묻지도 않는 값이 provider 를 바꿨다고 따라 나가면 안 된다.
+    const azure = buildCandidatesInput(
+      baseState({
+        providerKey: 'azure',
+        fields: { tenantId: 't', subscriptionId: 's', linkedAccount: '210987654321' },
+      }),
+    );
+    expect(azure.awsLinkedAccountId).toBeUndefined();
+  });
+
   it('marks Linked Account as required in the field definition', () => {
     const linked = CREDENTIAL_FIELDS.aws.find((field) => field.name === 'linkedAccount');
     expect(linked?.optional).toBeFalsy();
