@@ -8,9 +8,17 @@
  * 필요로 하는 사람만 골라 막았을 것이다. 진입점은 계정 카드(UserChip)이고, 화면 자체는
  * 접근 권한 관리자 화면들과 같은 부품·같은 계약을 쓴다.
  *
- * 왼쪽 카드는 "내가 아직 못 가진 서비스"다 — `/user/services/page` 가 전체 서비스와
- * `access_status` 를 주므로, NONE 이거나 REJECTED 인 것만 걸러 낸 것이다. 오른쪽 카드는
- * 결과까지 담은 내 요청 내역이고, 반려 사유는 그 자리에서 읽힌다.
+ * 화면은 세 평면으로 읽힌다 (design/access/access-requests-hierarchy.html 시안 A):
+ *  1. **판정** — 헤더 문장. 재방문자가 이 화면에 오는 이유("내 요청 어떻게 됐지?")에
+ *     스크롤 없이 답한다. 32px 수치가 화면에서 가장 큰 타입이다.
+ *  2. **행동** — 요청할 수 있는 서비스. 이 화면에서 **유일하게 테두리를 가진 면**이다.
+ *  3. **기록** — 내 요청 내역. 면 없이 바닥에 직접(`quiet`), 헤어라인으로만 나뉜다.
+ *
+ * 둘 다 카드였을 때는 같은 바닥의 형제 둘이라 무슨 등급을 매겨도 평평했다. 계층은
+ * 포함에서 생기지 등급에서 생기지 않는다 — 그래서 등급이 아니라 **표면 수**를 줄였다.
+ *
+ * 왼쪽 목록은 "내가 아직 못 가진 서비스"다 — `/user/services/page` 가 전체 서비스와
+ * `access_status` 를 주므로, NONE 이거나 REJECTED 인 것만 걸러 낸 것이다.
  */
 import { useCallback, useEffect, useState, type ReactElement } from 'react';
 import { cn, serviceSidebarStyles } from '@/lib/theme';
@@ -45,7 +53,7 @@ import {
  * 요청 가능한 서비스 = access_status 가 NONE 이거나 REJECTED 인 것.
  *
  * 서버 페이지를 그대로 쓸 수 없어 한 번에 크게 받아 걸러 낸다 — 필터가 화면 쪽에 있으니
- * 서버가 나눠 준 페이지에는 이미 걸러질 행이 섞여 있고, 그대로 그리면 5행짜리 카드에
+ * 서버가 나눠 준 페이지에는 이미 걸러질 행이 섞여 있고, 그대로 그리면 10행짜리 카드에
  * 2행만 남는 페이지가 생긴다. 서비스 수는 목록 화면 하나 분량이라 이 정도가 맞다.
  *
  * 검색어는 서버로 보낸다(코드·이름). 걸러 내는 축이 둘(질의는 서버, 권한 상태는 화면)이라
@@ -53,23 +61,30 @@ import {
  */
 const REQUESTABLE = new Set(['NONE', 'REJECTED']);
 const SEARCH_DEBOUNCE_MS = 300;
-
-const fetchMine = (
-  page: number,
-  opts: { signal: AbortSignal },
-): Promise<AccessPage<PermissionRequestDetail>> =>
-  getMyAccessRequests(page, { ...opts, size: ROWS_PER_PAGE });
+/** 한 번에 크게 받는 크기 — 서비스도 내 요청도 목록 화면 하나 분량이다. */
+const FETCH_ALL = 200;
+/** 서비스는 2열로 흐르므로 한 장이 10개다(기록은 공용 5행 그대로). */
+const SERVICE_ROWS = ROWS_PER_PAGE * 2;
 
 /**
- * 로딩 중 서비스 행 — 타일 · 이름 · 코드 태그의 실제 모양을 그대로 흉내 낸다.
- * 도착했을 때 목록이 튀지 않는 건 이 세 칸의 크기가 진짜 행과 같기 때문이다.
+ * 로딩 중 서비스 목록 — 실제 2열 격자에 타일 · 이름 · 코드 태그의 크기를 그대로 흉내
+ * 낸다. 도착했을 때 목록이 튀지 않는 건 이 칸들이 진짜 행과 같기 때문이다.
  */
 const SERVICE_SKELETON = (
-  <div className={a.svcRow} aria-hidden="true">
-    <span className={cn(serviceSidebarStyles.tile, a.skeletonBar, 'h-7 w-7')} />
-    <span className={cn(a.skeletonBar, 'h-4 flex-1')} />
-    <span className={cn(a.skeletonBar, 'h-5 w-[38px]')} />
-    <span className={a.tail} />
+  <div
+    role="rowgroup"
+    className={a.svcGrid}
+    aria-busy="true"
+    aria-label="목록을 불러오는 중"
+  >
+    {Array.from({ length: SERVICE_ROWS }, (_, row) => (
+      <div key={row} className={a.svcRow} aria-hidden="true">
+        <span className={cn(serviceSidebarStyles.tile, a.skeletonBar, 'h-7 w-7')} />
+        <span className={cn(a.skeletonBar, 'h-4 flex-1')} />
+        <span className={cn(a.skeletonBar, 'h-5 w-[38px]')} />
+        <span className={a.svcAction} />
+      </div>
+    ))}
   </div>
 );
 
@@ -80,6 +95,70 @@ const MINE_COLUMNS: readonly Column[] = [
   { label: '결과 · 사유', className: a.note },
   { label: '요청 일자', className: a.when },
 ];
+
+/** 헤더가 먼저 말하는 사실. 급한 순서로 고른다 — 반려는 내가 다시 움직여야 하는 상태다. */
+function HeaderVerdict({ mine }: { mine: PermissionRequestDetail[] | null }): ReactElement {
+  if (mine == null) {
+    // 수를 모르는 동안 문장을 지어내지 않는다 — 어떤 문장이 될지도 아직 모른다.
+    return <span className={cn(a.skeletonBar, 'mt-2 block h-5 w-[340px]')} aria-hidden="true" />;
+  }
+
+  const total = mine.length;
+  const count = (status: string): number => mine.filter((row) => row.status === status).length;
+  const rejected = count('REJECTED');
+  const pending = count('PENDING');
+  const approved = count('APPROVED');
+
+  if (total === 0) {
+    return (
+      <p className={a.pageDesc}>
+        아직 요청한 권한이 없어요 — 아래에서 서비스를 골라 권한을 요청해 보세요
+      </p>
+    );
+  }
+
+  const featured = rejected > 0 ? 'REJECTED' : pending > 0 ? 'PENDING' : 'APPROVED';
+  const num = cn(a.pageTotal, a.pageTotalTone[featured]);
+  const sentence =
+    featured === 'REJECTED' ? (
+      <>
+        반려된<strong className={num}>{rejected}</strong>건이 있어요 — 사유를 확인하고 다시 요청할
+        수 있어요
+      </>
+    ) : featured === 'PENDING' ? (
+      <>
+        {/* 전부 대기 중이면 "1건 중 1건"이 된다 — 분모가 분자와 같으면 말하지 않는다. */}
+        요청한 {pending < total && `${total}건 중 `}
+        <strong className={num}>{pending}</strong>건이 관리자 확인을 기다리고 있어요
+      </>
+    ) : (
+      <>
+        요청한<strong className={num}>{total}</strong>건이 모두 승인됐어요
+      </>
+    );
+
+  // 문장이 이미 말한 수는 다시 쓰지 않는다 — 같은 사실을 두 번 쓰면 정보량은 그대로인데
+  // 읽을 것만 늘어난다. 0건인 상태도 굳이 말하지 않는다.
+  const rest: { label: string; value: number }[] = [];
+  if (featured !== 'REJECTED' && rejected > 0) rest.push({ label: '반려', value: rejected });
+  if (featured !== 'PENDING' && pending > 0) rest.push({ label: '대기', value: pending });
+  if (featured !== 'APPROVED' && approved > 0) rest.push({ label: '승인', value: approved });
+
+  return (
+    <>
+      <p className={a.pageDesc}>{sentence}</p>
+      {rest.length > 0 && (
+        <p className={a.pageMeta}>
+          {rest.map((item) => (
+            <span key={item.label}>
+              {item.label} <b className={a.pageMetaVal}>{item.value}</b>
+            </span>
+          ))}
+        </p>
+      )}
+    </>
+  );
+}
 
 export default function MyAccessRequestsPage(): ReactElement {
   const [query, setQuery] = useState('');
@@ -92,14 +171,29 @@ export default function MyAccessRequestsPage(): ReactElement {
 
   const fetchRequestable = useCallback(
     async (page: number, opts: { signal: AbortSignal }): Promise<AccessPage<UserServiceRow>> => {
-      const all = await getUserServices(debounced || undefined, 0, { ...opts, size: 200 });
+      const all = await getUserServices(debounced || undefined, 0, { ...opts, size: FETCH_ALL });
       return sliceToPage(
         all.content.filter((row) => REQUESTABLE.has(row.accessStatus)),
         page,
-        ROWS_PER_PAGE,
+        SERVICE_ROWS,
       );
     },
     [debounced],
+  );
+
+  // 헤더 판정은 상태별 합이라 한 페이지로는 셀 수 없다(계약에 상태 필터가 없다).
+  // 전체를 한 번 받아 화면이 세고, 표는 그 결과를 나눠 그린다 — 호출은 그대로 하나다.
+  const [mineAll, setMineAll] = useState<PermissionRequestDetail[] | null>(null);
+  const fetchMine = useCallback(
+    async (
+      page: number,
+      opts: { signal: AbortSignal },
+    ): Promise<AccessPage<PermissionRequestDetail>> => {
+      const all = await getMyAccessRequests(0, { ...opts, size: FETCH_ALL });
+      if (!opts.signal.aborted) setMineAll(all.content);
+      return sliceToPage(all.content, page, ROWS_PER_PAGE);
+    },
+    [],
   );
 
   const requestable = usePagedSection(fetchRequestable);
@@ -132,44 +226,43 @@ export default function MyAccessRequestsPage(): ReactElement {
   return (
     <div>
       <h1 className={a.pageTitle}>내 권한 요청</h1>
-      <p className={a.pageDesc}>
-        권한이 없는 서비스에 접근을 요청하고, 승인·반려 결과를 확인해요
-      </p>
+      <HeaderVerdict mine={mineAll} />
 
-      <div className={a.grid}>
-        <PagedCard
-          title="요청할 수 있는 서비스"
-          desc="아직 접근 권한이 없는 서비스예요 — 사유를 적어 요청하면 관리자가 검토해요"
-          icon="compass"
-          tone="primary"
-          state={requestable}
-          search={
-            <SearchBox
-              wrapClassName="block w-full"
-              placeholder="서비스 코드/이름 검색"
-              aria-label="서비스 코드/이름 검색"
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-            />
-          }
-          skeletonRow={SERVICE_SKELETON}
-          empty={
-            debounced
-              ? {
-                  title: '검색 결과가 없어요',
-                  caption: '이미 권한이 있거나 요청해 둔 서비스는 여기 나오지 않아요',
-                }
-              : {
-                  title: '요청할 서비스가 없어요',
-                  caption: '모든 서비스에 권한이 있거나, 이미 요청해 두었어요',
-                }
-          }
-        >
-          {/* 서비스는 `/services` 레일과 같은 모양으로 읽힌다 — 타일 · 이름 · 코드 태그.
-              고를 수 있는 목록이 아니라 요청할 목록이라 행 자체는 버튼이 아니고, 행 끝의
-              [요청] 만 누를 수 있다. */}
-          {(rows) =>
-            rows.map((row) => (
+      <PagedCard
+        className="mt-6"
+        title="요청할 수 있는 서비스"
+        desc="아직 접근 권한이 없는 서비스예요 — 사유를 적어 요청하면 관리자가 검토해요"
+        icon="compass"
+        tone="primary"
+        state={requestable}
+        search={
+          <SearchBox
+            wrapClassName="block w-full"
+            placeholder="서비스 코드/이름 검색"
+            aria-label="서비스 코드/이름 검색"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+          />
+        }
+        skeleton={SERVICE_SKELETON}
+        empty={
+          debounced
+            ? {
+                title: '검색 결과가 없어요',
+                caption: '이미 권한이 있거나 요청해 둔 서비스는 여기 나오지 않아요',
+              }
+            : {
+                title: '요청할 서비스가 없어요',
+                caption: '모든 서비스에 권한이 있거나, 이미 요청해 두었어요',
+              }
+        }
+      >
+        {/* 서비스는 `/services` 레일과 같은 모양으로 읽힌다 — 타일 · 이름 · 코드 태그.
+            고를 수 있는 목록이 아니라 요청할 목록이라 행 자체는 버튼이 아니고, 행 끝의
+            [권한 요청] 만 누를 수 있다. */}
+        {(rows) => (
+          <div role="rowgroup" className={a.svcGrid}>
+            {rows.map((row) => (
               <div key={row.serviceCode} role="row" className={a.svcRow}>
                 <span
                   className={cn(serviceSidebarStyles.tile, serviceTileClass(row.serviceCode))}
@@ -183,51 +276,53 @@ export default function MyAccessRequestsPage(): ReactElement {
                 <span role="cell" className={sl.code}>
                   {row.serviceCode}
                 </span>
-                <span role="cell" className={a.tail}>
-                  <PlButton variant="secondary" size="sm" onClick={() => setTarget(row)}>
-                    요청
+                <span role="cell" className={a.svcAction}>
+                  <PlButton variant="primary" size="sm" onClick={() => setTarget(row)}>
+                    권한 요청
                   </PlButton>
                 </span>
               </div>
-            ))
-          }
-        </PagedCard>
+            ))}
+          </div>
+        )}
+      </PagedCard>
 
-        <PagedCard
-          title="내 요청 내역"
-          desc="요청한 건의 처리 상태예요 — 반려된 건은 사유를 확인하고 다시 요청할 수 있어요"
-          icon="clock"
-          tone="muted"
-          state={mine}
-          columns={MINE_COLUMNS}
-          empty={{
-            title: '요청한 내역이 없어요',
-            caption: '왼쪽에서 서비스를 골라 접근 권한을 요청해 보세요',
-          }}
-        >
-          {(rows) =>
-            rows.map((row) => (
-              <div key={row.requestId} role="row" className={a.row}>
-                <span role="cell" className={cn(a.name, a.nameStrong)}>
-                  {row.serviceName}
-                </span>
-                <span role="cell" className={cn(a.code, a.mono)}>
-                  {row.serviceCode}
-                </span>
-                <span role="cell" className={a.status}>
-                  <RequestStatusPill status={row.status} />
-                </span>
-                <span role="cell" className={a.note} title={row.processedNote ?? undefined}>
-                  {row.processedNote ?? '—'}
-                </span>
-                <span role="cell" className={a.when}>
-                  {fmtDateTime(row.requestedAt)}
-                </span>
-              </div>
-            ))
-          }
-        </PagedCard>
-      </div>
+      {/* 기록. 설명 줄이 없는 건 반려 안내를 헤더 판정이 이미 말하기 때문이다. */}
+      <PagedCard
+        quiet
+        className="mt-8"
+        title="내 요청 내역"
+        icon="clock"
+        tone="muted"
+        state={mine}
+        columns={MINE_COLUMNS}
+        empty={{
+          title: '요청한 내역이 없어요',
+          caption: '위에서 서비스를 골라 접근 권한을 요청해 보세요',
+        }}
+      >
+        {(rows) =>
+          rows.map((row) => (
+            <div key={row.requestId} role="row" className={a.row}>
+              <span role="cell" className={cn(a.name, a.nameStrong)}>
+                {row.serviceName}
+              </span>
+              <span role="cell" className={cn(a.code, a.mono)}>
+                {row.serviceCode}
+              </span>
+              <span role="cell" className={a.status}>
+                <RequestStatusPill status={row.status} />
+              </span>
+              <span role="cell" className={a.note} title={row.processedNote ?? undefined}>
+                {row.processedNote ?? '—'}
+              </span>
+              <span role="cell" className={a.when}>
+                {fmtDateTime(row.requestedAt)}
+              </span>
+            </div>
+          ))
+        }
+      </PagedCard>
 
       <RequestAccessModal
         open={target != null}

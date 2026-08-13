@@ -11,6 +11,23 @@
 export const accessStyles = {
   pageTitle: 'text-[24px] font-bold leading-[1.2] tracking-[-0.02em] text-[var(--pl-text-strong)]',
   pageDesc: 'mt-1 text-[14px] leading-[1.4] text-[var(--pl-text-weak)]',
+  /** 판정 수치 — 연동 요청(queue/requests)의 `contextTotal` 과 같은 크기. 화면에서
+   *  가장 큰 타입이 곧 화면이 먼저 말하는 사실이고, 이 페이지의 그 사실은 "내 요청이
+   *  지금 어떤 상태인가"다.
+   *
+   *  색은 여기 없다 — 세는 대상에 따라 갈린다. queue/requests 는 언제나 "확인이 필요한
+   *  건"이라 primary 한 색으로 충분하지만, 이 수치는 반려일 수도 승인일 수도 있다.
+   *  반려 건수를 파랑으로 쓰면 수치와 문장이 서로 다른 말을 한다. */
+  pageTotal: 'mx-0.5 align-baseline text-[32px] font-bold leading-none',
+  /** 판정 수치의 색 — 표 안의 상태 pill 과 같은 잉크를 쓴다. */
+  pageTotalTone: {
+    REJECTED: 'text-[var(--pl-err-text)]',
+    PENDING: 'text-[var(--pl-warn-text)]',
+    APPROVED: 'text-[var(--pl-ok-text)]',
+  },
+  /** 판정 문장이 다루지 않은 나머지 상태 — 문장이 말한 수는 여기 다시 쓰지 않는다. */
+  pageMeta: 'mt-2 flex items-center gap-4 text-[14px] text-[var(--pl-text-weak)]',
+  pageMetaVal: 'font-semibold text-[var(--pl-text-medium)]',
   grid: 'mt-6 grid grid-cols-2 gap-6',
 
   /** 카드 — min-h 로 2단에 나란히 선 카드가 담긴 양과 무관하게 같은 높이를 지킨다. */
@@ -22,6 +39,9 @@ export const accessStyles = {
   titleWrap: 'flex items-center gap-2',
   titleIcon: 'text-[var(--pl-text-medium)]',
   title: 'text-[18px] font-semibold leading-[1.5] text-[var(--pl-text-strong)]',
+  /** 바닥에 직접 놓인 기록 구역의 제목 — 면을 가진 카드보다 한 단 아래여야 순위가
+   *  생긴다. 이 한 칸이 없으면 카드와 기록이 같은 18/600 으로 "둘 다 1등"이 된다. */
+  titleQuiet: 'text-[14px] font-semibold leading-[1.5] text-[var(--pl-text-medium)]',
   badge:
     'inline-flex flex-none items-center rounded-full px-2 py-[3px] text-[12px] font-semibold tabular-nums',
   desc: 'mt-1.5 text-[14px] leading-[1.5] text-[var(--pl-gray-600)]',
@@ -40,6 +60,11 @@ export const accessStyles = {
    *  이 제품 어디서나 같은 모양으로 읽혀야 하므로 여기서 다시 그리지 않는다.
    *  gap 은 레일의 2.5, py 는 28px 타일에 맞춘 값. */
   svcRow: 'flex items-center gap-2.5 border-t border-[var(--pl-border)] py-2',
+  /** 서비스 행은 2열로 흐른다 — 1200px 폭에서 한 행이 594px 이라 타일·이름·코드·버튼에
+   *  적정하고, 한 장에 10개가 들어와 검색 없이도 훑을 수 있다. */
+  svcGrid: 'grid grid-cols-2 gap-x-6',
+  /** 행 끝 CTA 셀 — "권한 요청"(12px/600, sm 패딩 10)이 줄바꿈 없이 들어가는 폭. */
+  svcAction: 'w-[84px] flex-none text-right',
 
   /** 컬럼 폭 — 같은 골격을 쓰는 카드끼리 격자 간격 너머로 열이 맞도록 공유한다. */
   name: 'min-w-0 flex-1 truncate',

@@ -11,7 +11,7 @@
  * `fetcher` 는 반드시 안정된 참조여야 한다(모듈 상수 또는 useCallback) — 매 렌더
  * 새 함수가 들어오면 effect 가 끝없이 다시 돈다.
  */
-import { Fragment, useCallback, useState, type ReactElement, type ReactNode } from 'react';
+import { useCallback, useState, type ReactElement, type ReactNode } from 'react';
 import { cn } from '@/lib/theme';
 import { useAbortableEffect } from '@/app/hooks/useAbortableEffect';
 import { Icon, type IconName } from '@/app/admin/pipelines/_components/icons';
@@ -86,7 +86,8 @@ export interface Column {
 
 export interface PagedCardProps<T> {
   title: string;
-  desc: string;
+  /** 없으면 설명 줄을 그리지 않는다 — 기록 구역처럼 제목만으로 충분한 자리. */
+  desc?: string;
   icon: IconName;
   tone: CardTone;
   state: PagedSection<T>;
@@ -100,12 +101,22 @@ export interface PagedCardProps<T> {
   empty: { title: string; caption: string };
   /** 설명 아래·목록 위의 목록 조작 — 지금은 검색창. */
   search?: ReactNode;
-  /** 컬럼이 없는 목록의 스켈레톤 한 행. 없으면 컬럼 폭으로 막대를 그린다. */
-  skeletonRow?: ReactNode;
+  /** 로딩 자리를 통째로 대신한다. 컬럼이 없거나 행이 격자로 흐르는 목록은 기본
+   *  스켈레톤(컬럼 폭 막대)이 실제 모양과 어긋나므로 화면이 직접 그린다. */
+  skeleton?: ReactNode;
   /** 제목 줄 오른쪽 액션. 주면 건수 배지 대신 이것이 그려진다. */
   action?: ReactNode;
   /** 이미 시트 위에 있을 때 — 카드 크롬(테두리·그림자·고정 높이)을 벗는다. */
   bare?: boolean;
+  /**
+   * 기록 구역 — 면 없이 페이지 바닥에 직접 놓는다.
+   *
+   * `bare` 와 다르다. `bare` 는 "이미 시트 위에 있어 크롬만 벗는다"이고 제목은
+   * 그대로 18/600 이다. `quiet` 는 **등급을 한 칸 내린다** — 크롬도 벗고 제목도
+   * 14/600 으로, 아이콘도 뺀다. 테두리 있는 표면은 화면당 하나여야 하고, 나머지는
+   * 바닥에 놓여야 계층이 생긴다(같은 바닥의 형제 둘은 등급을 매겨도 평평하다).
+   */
+  quiet?: boolean;
   children: (rows: T[]) => ReactNode;
   className?: string;
 }
@@ -119,9 +130,10 @@ export function PagedCard<T>({
   columns = [],
   empty,
   search,
-  skeletonRow,
+  skeleton,
   action,
   bare,
+  quiet,
   children,
   className,
 }: PagedCardProps<T>): ReactElement {
@@ -131,11 +143,11 @@ export function PagedCard<T>({
   const colSpan = Math.max(1, columns.length);
 
   return (
-    <section className={cn(bare ? a.section : a.card, className)} aria-label={title}>
+    <section className={cn(bare || quiet ? a.section : a.card, className)} aria-label={title}>
       <div className={a.head}>
         <div className={a.titleWrap}>
-          <Icon name={icon} size={20} className={a.titleIcon} />
-          <h2 className={a.title}>{title}</h2>
+          {!quiet && <Icon name={icon} size={20} className={a.titleIcon} />}
+          <h2 className={quiet ? a.titleQuiet : a.title}>{title}</h2>
         </div>
         {action != null ? (
           <div className={a.headAction}>{action}</div>
@@ -148,7 +160,7 @@ export function PagedCard<T>({
           )
         )}
       </div>
-      <p className={a.desc}>{desc}</p>
+      {desc != null && <p className={a.desc}>{desc}</p>}
       {search != null && <div className={a.search}>{search}</div>}
 
       {/* 행은 flex div 라 표 의미를 명시적으로 선언한다 — 스크린리더가 "이메일:
@@ -177,11 +189,9 @@ export function PagedCard<T>({
             </div>
           </div>
         ) : loading ? (
-          <div role="rowgroup" aria-busy="true" aria-label="목록을 불러오는 중">
-            {Array.from({ length: ROWS_PER_PAGE }, (_, row) =>
-              skeletonRow != null ? (
-                <Fragment key={row}>{skeletonRow}</Fragment>
-              ) : (
+          skeleton ?? (
+            <div role="rowgroup" aria-busy="true" aria-label="목록을 불러오는 중">
+              {Array.from({ length: ROWS_PER_PAGE }, (_, row) => (
                 <div key={row} className={a.row} role="row" aria-hidden="true">
                   {columns.map((col, index) => (
                     <span
@@ -191,9 +201,9 @@ export function PagedCard<T>({
                     />
                   ))}
                 </div>
-              ),
-            )}
-          </div>
+              ))}
+            </div>
+          )
         ) : rows.length === 0 ? (
           <div role="row">
             <div role="cell" aria-colspan={colSpan} className={a.empty}>
