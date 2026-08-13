@@ -61,6 +61,35 @@ fine — it still only emits contract fields). Do not invent a wire field to car
 data has no contract home, it is not sent. Re-read the full DTO first (see the trap above) — the
 field you think is missing is usually there.
 
+## A value is not "sent" until it survives every hop
+
+"Wired it up" means the value reaches the call that **persists** it — not the first call that
+mentions it. Count the hops before you claim a field is sent, and assert the body of the last one.
+
+**Round-trip endpoints are the trap.** Some flows are two calls where the second posts back what
+the first returned — `creation-candidates` (35) returns a candidate, `createTargetSource` (36)
+posts that same candidate. A key the contract does not declare **cannot survive the turnaround**:
+the upstream has no reason to echo it, and the mock deletes it outright (`buildCandidateMetadata`
+in `lib/bff/mock/target-sources.ts` rebuilds `metadata` from a fixed whitelist). The value must be
+re-attached from local state right before the second post — see `attachLinkedAccount` (PR #704).
+
+This bug shape is silent and passes review, because every test is green:
+
+- a unit test asserting call 1's body proves only that call 1 is correct;
+- the form validates and requires the field, so the UI looks right;
+- the mock returns 200 and registration "succeeds" — with the field missing.
+
+Rules:
+
+- **Count the call sites.** `grep` the wire key across the whole flow. One hit for a two-call flow
+  is a bug, not a wiring.
+- **Test the persisting call.** Assert the body of the call that creates/updates, not just preview.
+- **Never rely on echo for an undeclared key.** If the contract does not declare it, assume every
+  response drops it and re-attach from the source of truth (form/domain state).
+- **When an endpoint is swapped or renamed, diff the old request body field-by-field.** The
+  original loss here came from #507 replacing `registration-preview` with `creation-candidates`:
+  `awsLinkedAccountId` had no counterpart in the new DTO and vanished with no test to notice.
+
 ## Checklist before any boundary change
 
 1. Find the exact `schemas.<Name>` for the request/response. Read the WHOLE object.
@@ -68,3 +97,5 @@ field you think is missing is usually there.
 3. `schemas.<Name>.parse(raw)` at the route.
 4. No `as any` / parallel `*Wire` / invented field / out-of-contract key — anywhere.
 5. Mock emits the same contract shape (`schemas.X.parse()` accepts it without casts).
+6. `grep` the wire key across the flow — every call that must carry it, carries it. For a
+   round trip, that is the preview call AND the create/update call.
