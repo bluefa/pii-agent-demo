@@ -4,13 +4,20 @@ import type { Project } from '@/lib/types';
 import { BffError } from '@/lib/bff/errors';
 import { TARGET_SOURCE_LOAD_FALLBACK } from '@/app/target-sources/[targetSourceId]/load-error';
 
-const { getTargetSourceMock, getCurrentUserMock, getProcessStatusMock, getJiraTicketMock } =
-  vi.hoisted(() => ({
-    getTargetSourceMock: vi.fn(),
-    getCurrentUserMock: vi.fn(),
-    getProcessStatusMock: vi.fn(),
-    getJiraTicketMock: vi.fn(),
-  }));
+const {
+  getTargetSourceMock,
+  getCurrentUserMock,
+  getProcessStatusMock,
+  getJiraTicketMock,
+  AccessDeniedStub,
+} = vi.hoisted(() => ({
+  getTargetSourceMock: vi.fn(),
+  getCurrentUserMock: vi.fn(),
+  getProcessStatusMock: vi.fn(),
+  getJiraTicketMock: vi.fn(),
+  // 배럴을 모킹하므로 실물을 import 해 비교하면 다른 참조가 된다 — 스텁이 곧 기댓값이다.
+  AccessDeniedStub: () => null,
+}));
 
 vi.mock('@/lib/bff/client', () => ({
   bff: {
@@ -33,6 +40,7 @@ vi.mock('@/app/target-sources/[targetSourceId]/_components/ProjectDetail', () =>
 
 vi.mock('@/app/target-sources/[targetSourceId]/_components/common', () => ({
   ErrorState: () => null,
+  AccessDeniedState: AccessDeniedStub,
 }));
 
 import ProjectDetailPage from '@/app/target-sources/[targetSourceId]/page';
@@ -122,9 +130,17 @@ describe('GET /pass/target-sources/[targetSourceId]', () => {
       expect(console.error).toHaveBeenCalled();
     });
 
-    it('403 은 권한 문제라고 말한다', async () => {
+    // 권한 없음은 오류 화면이 아니라 요청으로 이어지는 화면을 받는다. 문구가 아니라
+    // 어떤 컴포넌트가 렌더되는지를 고정한다 — 이 화면의 값어치는 카피가 아니라 그
+    // 화면이 주는 행동(권한 요청하기)에 있다.
+    it('403 은 오류가 아니라 접근 권한 안내 화면을 준다', async () => {
       getTargetSourceMock.mockRejectedValue(new BffError(403, 'FORBIDDEN', 'denied'));
-      expect((await load()).props.message).toContain('권한이 없어요');
+      expect((await load()).type).toBe(AccessDeniedStub);
+    });
+
+    it('401 도 같은 화면을 준다', async () => {
+      getTargetSourceMock.mockRejectedValue(new BffError(401, 'UNAUTHORIZED', 'nope'));
+      expect((await load()).type).toBe(AccessDeniedStub);
     });
 
     it('분류 못 하는 실패는 기본 문구로 떨어진다', async () => {

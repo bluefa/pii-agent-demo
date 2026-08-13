@@ -19,8 +19,24 @@ const bffError = (status: number) =>
 describe('classifyTargetSourceLoad', () => {
   it('names the failure the user can act on', () => {
     expect(targetSourceLoadMessage(bffError(404))).toContain('찾을 수 없어요');
-    expect(targetSourceLoadMessage(bffError(403))).toContain('권한이 없어요');
-    expect(targetSourceLoadMessage(bffError(401))).toContain('권한이 없어요');
+  });
+
+  /**
+   * 권한 없음은 문구가 아니라 **화면**으로 답한다(AccessDeniedState) — 권한을 요청할 수
+   * 있는 곳으로 보내는 게 이 상황의 답이지, 한 줄 설명이 아니다. 그래서 여기서는 copy 가
+   * 아니라 kind 를 고정한다. kind 가 'other' 로 새면 page.tsx 가 빨간 오류 화면을 띄우고,
+   * 사용자는 시스템이 고장 난 줄 안다.
+   */
+  it('classifies 401/403 as forbidden and leaves the copy to the screen', () => {
+    for (const status of [401, 403]) {
+      expect(classifyTargetSourceLoad(bffError(status))).toMatchObject({
+        kind: 'forbidden',
+        message: '',
+        unexpected: false,
+      });
+    }
+    expect(classifyTargetSourceLoad(bffError(404)).kind).toBe('other');
+    expect(classifyTargetSourceLoad(bffError(500)).kind).toBe('other');
   });
 
   it('falls back for anything it cannot classify', () => {
@@ -63,7 +79,8 @@ describe('classifyTargetSourceLoad', () => {
 
   it('keeps copy and expectedness in step', () => {
     // 문구가 fallback 이면 분류하지 못한 것이고, 분류하지 못했으면 예상 못 한 실패다.
-    for (const status of [400, 401, 403, 404, 409, 500, 502, 503]) {
+    // forbidden 은 예외 — 문구 자체를 쓰지 않으므로 이 등식의 대상이 아니다.
+    for (const status of [400, 404, 409, 500, 502, 503]) {
       const { message, unexpected } = classifyTargetSourceLoad(bffError(status));
       expect(unexpected).toBe(message === TARGET_SOURCE_LOAD_FALLBACK);
     }
