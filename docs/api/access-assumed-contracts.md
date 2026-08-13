@@ -185,9 +185,17 @@ GET /user/services/page?query=&page={0}&size={20}
 access_status: "OWNED" | "REQUESTED" | "REJECTED" | "NONE"
 ```
 
-요청 가능한 서비스 = `access_status` 가 `NONE` 이거나 `REJECTED` 인 것들. 기존
-`bff.users.getServicesPage` 도 같은 업스트림을 보지만 스웨거 계약(`PageServiceItem`)으로
-파싱해 이 필드를 버리므로, 접근 권한 기능은 별도 투영으로 읽는다.
+`/access-requests` 의 서비스 탭 둘이 이 한 번의 호출을 나눠 쓴다 — 요청할 수 있는
+서비스 = `NONE` 또는 `REJECTED`, 내가 접근할 수 있는 서비스 = `OWNED`. 자르는 축이
+`access_status` 뿐이라 상태별 엔드포인트를 따로 두지 않았다.
+
+기존 `bff.users.getServicesPage` 도 같은 업스트림을 보지만 스웨거 계약
+(`PageServiceItem`)으로 파싱해 이 필드를 버리므로, 접근 권한 기능은 별도 투영으로 읽는다.
+
+> **⚠️ 이 응답 형태는 아직 `docs/swagger/*.yaml`(api-docs) 어디에도 없다.** `access_status`
+> 는 이 문서가 선언하는 가정이고, 화면 셋(요청 가능·접근 가능·헤더 판정)이 전부 그 위에
+> 서 있다. 업스트림이 필드를 다른 이름으로 주거나 enum 값이 다르면 세 탭이 함께 빈다 —
+> 계약이 확정되면 `lib/bff/types.ts:ServiceAccessStatusWire` 부터 맞춘다.
 
 ```
 GET /users/search?query={q}&excludeEmails={a,b}

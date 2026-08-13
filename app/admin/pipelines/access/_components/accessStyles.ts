@@ -39,9 +39,6 @@ export const accessStyles = {
   titleWrap: 'flex items-center gap-2',
   titleIcon: 'text-[var(--pl-text-medium)]',
   title: 'text-[18px] font-semibold leading-[1.5] text-[var(--pl-text-strong)]',
-  /** 바닥에 직접 놓인 기록 구역의 제목 — 면을 가진 카드보다 한 단 아래여야 순위가
-   *  생긴다. 이 한 칸이 없으면 카드와 기록이 같은 18/600 으로 "둘 다 1등"이 된다. */
-  titleQuiet: 'text-[14px] font-semibold leading-[1.5] text-[var(--pl-text-medium)]',
   badge:
     'inline-flex flex-none items-center rounded-full px-2 py-[3px] text-[12px] font-semibold tabular-nums',
   desc: 'mt-1.5 text-[14px] leading-[1.5] text-[var(--pl-gray-600)]',
@@ -52,6 +49,19 @@ export const accessStyles = {
    *  목록의 첫 경계선을 검색창에서 떼어 놓는 유일한 것이다. */
   search: 'mt-3 mb-2',
 
+  /** 탭 레일 — 한 카드 안에서 목록 둘을 가른다(운영 화면의 line tab 과 같은 문법).
+   *
+   *  카드 패딩(p-4) 밖으로 빼내 밑줄이 카드 양 끝까지 닿게 한다. 레일이 본문보다
+   *  좁으면 탭이 카드 위에 얹힌 또 하나의 부품처럼 보이고, 그러면 표면을 하나로
+   *  줄이려고 합친 의미가 없어진다. */
+  tabStrip: '-mx-4 -mt-1 mb-1 flex items-center gap-1 border-b border-[var(--pl-border)] px-4',
+  tab: 'flex cursor-pointer items-center gap-1.5 whitespace-nowrap border-b-2 px-3 py-2.5 text-[14px] transition-colors -mb-px',
+  tabActive: 'font-semibold text-[var(--pl-primary)] border-[var(--pl-primary)]',
+  tabIdle:
+    'font-medium text-[var(--pl-text-weak)] border-transparent hover:text-[var(--pl-text-strong)] hover:border-[var(--pl-border-strong)]',
+  /** 탭이 세는 수 — 탭이 곧 제목이므로 건수 배지도 여기로 온다(카드 머리엔 없다). */
+  tabCount: 'text-[12px] font-semibold tabular-nums',
+
   headRow: 'mt-3 flex items-center gap-3 py-2 text-[12px] font-medium text-[var(--pl-text-weak)]',
   row: 'group relative flex items-center gap-3 border-t border-[var(--pl-border)] py-2.5 text-[14px] text-[var(--pl-text-medium)] transition-colors',
   rowLink: 'hover:bg-[var(--pl-gray-50)]',
@@ -60,8 +70,20 @@ export const accessStyles = {
    *  이 제품 어디서나 같은 모양으로 읽혀야 하므로 여기서 다시 그리지 않는다.
    *  gap 은 레일의 2.5, py 는 28px 타일에 맞춘 값. */
   svcRow: 'flex items-center gap-2.5 border-t border-[var(--pl-border)] py-2',
-  /** 행 끝 CTA 셀 — "권한 요청"(12px/600, sm 패딩 10)이 줄바꿈 없이 들어가는 폭. */
-  svcAction: 'w-[84px] flex-none text-right',
+  /** 행 끝 액션 셀 — "권한 요청"이 줄바꿈 없이 들어가는 폭. */
+  svcAction: 'w-[68px] flex-none text-right',
+  /** 열이 있는 표(내 요청 내역) 안의 서비스 셀 — `svcRow` 와 같은 타일·이름·코드를
+   *  한 칸 안에 담는다. 같은 서비스가 탭 하나 건너 다른 모양으로 보이면 같은 것으로
+   *  읽히지 않는다. flex-[1.4] 는 사유 두 열보다 조금 넓게 두려는 것(타일이 먼저 폭을
+   *  가져가서, 1 이면 이름이 사유보다 먼저 잘린다). */
+  svcCell: 'flex min-w-0 flex-[1.4] items-center gap-2.5',
+  /** 행마다 반복되는 행위는 글자로 쓴다.
+   *
+   *  면을 가진 CTA 로 두면 한 장에 파란 버튼이 다섯 개가 되고, 다섯 개가 되면 강조가
+   *  아니라 배경이 된다. 목록에서 고르는 일 자체가 이미 이 화면의 행동이라 버튼이
+   *  그 사실을 한 번 더 말할 필요가 없다. */
+  svcLink:
+    'cursor-pointer whitespace-nowrap text-[14px] font-medium text-[var(--pl-primary)] underline-offset-2 transition-colors hover:text-[var(--pl-primary-hover)] hover:underline',
 
   /** 컬럼 폭 — 같은 골격을 쓰는 카드끼리 격자 간격 너머로 열이 맞도록 공유한다. */
   name: 'min-w-0 flex-1 truncate',

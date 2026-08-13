@@ -106,17 +106,16 @@ export interface PagedCardProps<T> {
   skeleton?: ReactNode;
   /** 제목 줄 오른쪽 액션. 주면 건수 배지 대신 이것이 그려진다. */
   action?: ReactNode;
+  /**
+   * 머리 줄을 통째로 대신한다 — 탭 레일처럼 제목이 카드 밖에서 오는 경우.
+   *
+   * 제목과 나란히 놓지 않고 대신하는 이유: 탭이 이미 제목이다. 둘 다 그리면 같은
+   * 이름이 한 카드에 두 번 적히고, 건수도 배지와 탭에 각각 붙는다.
+   * `title` 은 그래도 받는다 — 화면에는 안 보여도 `aria-label` 은 있어야 한다.
+   */
+  head?: ReactNode;
   /** 이미 시트 위에 있을 때 — 카드 크롬(테두리·그림자·고정 높이)을 벗는다. */
   bare?: boolean;
-  /**
-   * 기록 구역 — 면 없이 페이지 바닥에 직접 놓는다.
-   *
-   * `bare` 와 다르다. `bare` 는 "이미 시트 위에 있어 크롬만 벗는다"이고 제목은
-   * 그대로 18/600 이다. `quiet` 는 **등급을 한 칸 내린다** — 크롬도 벗고 제목도
-   * 14/600 으로, 아이콘도 뺀다. 테두리 있는 표면은 화면당 하나여야 하고, 나머지는
-   * 바닥에 놓여야 계층이 생긴다(같은 바닥의 형제 둘은 등급을 매겨도 평평하다).
-   */
-  quiet?: boolean;
   children: (rows: T[]) => ReactNode;
   className?: string;
 }
@@ -132,8 +131,8 @@ export function PagedCard<T>({
   search,
   skeleton,
   action,
+  head,
   bare,
-  quiet,
   children,
   className,
 }: PagedCardProps<T>): ReactElement {
@@ -143,23 +142,25 @@ export function PagedCard<T>({
   const colSpan = Math.max(1, columns.length);
 
   return (
-    <section className={cn(bare || quiet ? a.section : a.card, className)} aria-label={title}>
-      <div className={a.head}>
-        <div className={a.titleWrap}>
-          {!quiet && <Icon name={icon} size={20} className={a.titleIcon} />}
-          <h2 className={quiet ? a.titleQuiet : a.title}>{title}</h2>
+    <section className={cn(bare ? a.section : a.card, className)} aria-label={title}>
+      {head ?? (
+        <div className={a.head}>
+          <div className={a.titleWrap}>
+            <Icon name={icon} size={20} className={a.titleIcon} />
+            <h2 className={a.title}>{title}</h2>
+          </div>
+          {action != null ? (
+            <div className={a.headAction}>{action}</div>
+          ) : (
+            // 로딩 중에는 숨긴다 — 스켈레톤 옆의 '0건'은 아직 모르는 수를 단언하는 것.
+            paged != null && (
+              <span className={cn(a.badge, TONE_BADGE[tone])}>
+                {paged.totalElements.toLocaleString()}건
+              </span>
+            )
+          )}
         </div>
-        {action != null ? (
-          <div className={a.headAction}>{action}</div>
-        ) : (
-          // 로딩 중에는 숨긴다 — 스켈레톤 옆의 '0건'은 아직 모르는 수를 단언하는 것.
-          paged != null && (
-            <span className={cn(a.badge, TONE_BADGE[tone])}>
-              {paged.totalElements.toLocaleString()}건
-            </span>
-          )
-        )}
-      </div>
+      )}
       {desc != null && <p className={a.desc}>{desc}</p>}
       {search != null && <div className={a.search}>{search}</div>}
 
