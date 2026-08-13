@@ -1,7 +1,10 @@
 import { memberRole, memberRoleLabel } from '@/lib/rds-instances';
-import { cn, idcStyles, primaryColors, statusColors, tagStyles } from '@/lib/theme';
+import { cn, idcStyles, primaryColors, statusColors, tableRowLift, tagStyles } from '@/lib/theme';
 
-const CHIP_BASE = 'shrink-0 rounded-full px-2 py-0.5 text-xs';
+// `chipEdge` is inert outside a `tableRowLift.base` row — it is a `group-hover:` rule, so a
+// chip rendered anywhere without that ancestor draws no ring. Every chip here can appear in a
+// resource-table row, and in one they all go equiluminant with the tint; see the token.
+const CHIP_BASE = cn('shrink-0 rounded-full px-2 py-0.5 text-xs', tableRowLift.chipEdge);
 
 /**
  * Marks the row as an RDS cluster rather than a single instance — the distinction that explains

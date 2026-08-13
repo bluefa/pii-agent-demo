@@ -428,7 +428,10 @@ export const verdictRailClass = (excluded: boolean, ineligible = false): string 
  * - 각 상태가 자기 색 두 벌(기본/hover)을 모두 소유한다: base 는 색을 갖지 않는다.
  */
 export const tableRowLift = {
-  base: 'group transition-colors duration-150 motion-reduce:transition-none',
+  // `group/row` in addition to the bare `group`: `cellText` below is a plain `group-hover:`
+  // and needs `.group`, while `chipEdge` must fire for ROWS ONLY and named groups are the
+  // only way to say that — a bare `group-hover:` answers to any `.group` ancestor anywhere.
+  base: 'group group/row transition-colors duration-150 motion-reduce:transition-none',
   target: 'hover:bg-[#EAEEF7] focus-within:bg-[#EAEEF7]',
   // 틴트가 아니라 `verdictRail` 이 제외를 표시한다 — #F9FAFB 는 흰 바탕과 1.05:1 이라
   // WCAG 1.4.11 의 3:1 근처에도 못 가서, 행 단위 신호로는 처음부터 작동한 적이 없다.
@@ -439,11 +442,33 @@ export const tableRowLift = {
   /** hover 행의 셀 텍스트 승격 — #4E5968 → #191F28 (6.12:1 → 14.25:1 on the hover tint). */
   cellText: 'group-hover:text-[#191F28] group-focus-within:text-[#191F28]',
   /**
-   * Card-row hover on the tinted canvas — violet, borrowed from the EC2 tag's
-   * SURFACE (`tagStyles.resourceKind`, `#F3EEFF`), so the two land in one family.
-   * Only the fill is shared: the tag's own letters are grey (#4E5968), because a
-   * tag sits inside a row and must not out-shout the name beside it, while this
-   * tint covers a whole card and carries the row's normal text.
+   * hover 동안에만 나타나는 칩 테두리 — 행 안의 모든 칩(kind 태그·Reader/Writer·선택됨·
+   * 상태 pill)이 공유한다.
+   *
+   * 칩 어휘 전체가 L* 88.7..96.2 에 모여 있는데 두 hover 틴트가 L* 92.0/94.0 으로 그 안에
+   * 앉는다. 즉 어떤 칩 하나가 아니라 **모든 칩**이 커서 아래에서 틴트와 등휘도가 된다
+   * (gray-100 1.06:1 · 선택됨 1.02:1 · orange-100 1.01:1 · blue/red-100 1.05:1).
+   * 틴트를 옮겨서 푸는 길은 없다: 밴드 폭이 7.5 L* 라 안쪽 어디에 두든 무언가와 부딪히고,
+   * 밴드 아래로 내리면 승격 대상이 아닌 판정 글자(#B45309)가 AA 밑으로 떨어진다.
+   *
+   * 그래서 움직이는 쪽은 칩이고, 움직이는 것은 면이 아니라 **경계**다. 검정 15% 를 칩 자기
+   * 면 위에 얹으므로 8종 각각이 자기 색조를 어둡게 한 테두리를 갖는다 — 어떤 칩에도 남의
+   * 색을 들여오지 않는다. 최악값도 바깥 틴트와 1.33:1, 안쪽 자기 면과 1.40:1 이라, 등휘도
+   * 경계가 잃어버린 '양쪽 모두에 대한 명도차'를 1px 선이 되돌려준다.
+   *
+   * inset 이라 레이아웃을 건드리지 않는다(box-shadow 다) — 행 기하는 이미 맞춰져 있고
+   * 칩이 커지면 `stackedIdentityLift` 의 12px 계산이 어긋난다. rest 에서는 아무것도 그리지
+   * 않는다: 흰 행 위에서 칩은 이미 판으로 읽히므로, 크롬은 필요한 순간에만 존재한다.
+   */
+  chipEdge:
+    'group-hover/row:ring-1 group-hover/row:ring-inset group-hover/row:ring-black/15 group-focus-within/row:ring-1 group-focus-within/row:ring-inset group-focus-within/row:ring-black/15',
+  /**
+   * Card-row hover on the tinted canvas — violet, originally lifted byte-for-byte
+   * from the EC2 tag's surface so the two would land in one family. They still
+   * share the family; they no longer share the value. `tagStyles.resourceKind`
+   * moved to #E4DAFB because a chip whose fill EQUALS the row under the cursor
+   * has no edge left (ΔE00 0), and a tag has to survive the surface it sits on
+   * while this tint only has to separate from the card and the canvas.
    *
    * `bg-gray-50` measured ΔE00 1.20 from the white card: under the ~2.3 threshold
    * at which two colours are seen as different at all, so the whole card was a
@@ -1002,11 +1027,23 @@ export const tagStyles = {
    *
    * 면은 보라, 글자는 회색. 판정(파랑·주황·빨강)과 색 가족을 나눠 갖는 일은 면이 하고,
    * 글자는 읽히기만 하면 된다 — 채도 있는 글자는 행 안에서 이름보다 먼저 눈에 들어와
-   * 사실을 판정처럼 외치게 만든다. 대비는 그대로다: #4E5968 이 이 면에서 6.26:1 로,
-   * 앞서 쓰던 #6D28D9(6.25:1)와 같다. 즉 이 변경으로 잃는 가독성은 없다.
-   * 회색 한 칸 아래(#6B7280)는 4.26:1 로 AA 미달이라 쓸 수 없다.
+   * 사실을 판정처럼 외치게 만든다. #4E5968 은 이 면에서 5.32:1 로 AA 를 넘고,
+   * 회색 한 칸 아래(#6B7280)는 3.62:1 이라 쓸 수 없다.
+   *
+   * 면이 #F3EEFF 가 아닌 이유는 hover 다. 그 값은 L* 94.9 라, 행이
+   * `tableRowLift.target`(#EAEEF7, L* 94.0)으로 바뀌는 순간 칩과 행의 명도차가 0.9 로
+   * 무너지고(1.02:1) 밝기 순서까지 뒤집혔다 — 흰 행에서 '주변보다 어두운' 칩이 hover 에서
+   * '아주 살짝 밝은' 칩이 된다. 그러면 경계를 지탱하는 건 채도뿐인데, 색채 채널은 명도
+   * 채널보다 공간 해상도가 낮아 20px 칩의 등휘도 경계는 테두리가 아니라 얼룩으로 읽힌다.
+   * ΔE00 은 5.99 로 JND 를 넉넉히 통과했다: H10(#CFE0FF)과 같은 함정이라, 작은 표시는
+   * 색차가 아니라 대비로 판정해야 한다.
+   *
+   * #E4DAFB(L* 88.7)는 hover 위에서 1.15:1 — 흰 행에서 이미 잘 보이는 1.14:1 과 같은
+   * 분리다. 기준이 3:1 이 아닌 이유는 뜻을 나르는 게 'EC2'·'RDS Cluster' 라는 글자이지
+   * 면이 아니어서다(1.4.11 의 대상이 아니다). 지켜야 할 값은 '평상시 수준을 hover 에서도
+   * 유지한다'이고, 그래서 이 면은 어떤 표면 위에서도 그 표면보다 어두워야 한다.
    */
-  resourceKind: 'bg-[#F3EEFF] text-[#4E5968]',
+  resourceKind: 'bg-[#E4DAFB] text-[#4E5968]',
 } as const;
 
 /**
@@ -1066,18 +1103,20 @@ export const idcStyles = {
   /** Kind badge — `.idc-kind` (11.5px / 600 / 3px 8px / radius 6). */
   kindBadge: {
     base: 'inline-flex items-center rounded-md px-2 py-[3px] text-[11.5px] font-semibold',
-    single: 'bg-[#E8F1FF] text-[#1747B5]',
-    multi: 'bg-[#FEF0E1] text-[#7A3F0E]',
-    domain: 'bg-[#EEF2FF] text-[#4338CA]',
+    // The edge rides each FILL, not `base`: these badges sit in resource rows, and on the
+    // hover tint every one of these three fills goes equiluminant with it (see chipEdge).
+    single: `bg-[#E8F1FF] text-[#1747B5] ${tableRowLift.chipEdge}`,
+    multi: `bg-[#FEF0E1] text-[#7A3F0E] ${tableRowLift.chipEdge}`,
+    domain: `bg-[#EEF2FF] text-[#4338CA] ${tableRowLift.chipEdge}`,
   },
   /** Inline color tag — `.tag` (4px 10px / radius 8 / 12px / 600). */
   tag: {
     base: 'inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-[12px] font-semibold tracking-[-0.01em] whitespace-nowrap',
-    blue: 'bg-[#E8F1FF] text-[#1747B5]',
-    green: 'bg-[#E5F8EE] text-[#197A3F]',
-    red: 'bg-[#FEECEC] text-[#B42318]',
-    orange: 'bg-[#FEF0E1] text-[#7A3F0E]',
-    gray: 'bg-[#F7F8FA] text-[#4E5968]',
+    blue: `bg-[#E8F1FF] text-[#1747B5] ${tableRowLift.chipEdge}`,
+    green: `bg-[#E5F8EE] text-[#197A3F] ${tableRowLift.chipEdge}`,
+    red: `bg-[#FEECEC] text-[#B42318] ${tableRowLift.chipEdge}`,
+    orange: `bg-[#FEF0E1] text-[#7A3F0E] ${tableRowLift.chipEdge}`,
+    gray: `bg-[#F7F8FA] text-[#4E5968] ${tableRowLift.chipEdge}`,
   },
   /** Health/connection status — `.status` (bare text + dot, 12.5px / 500 / dot 8px; NO bg/pad/radius). */
   status: {
@@ -1253,7 +1292,10 @@ export const idcStyles = {
     header: 'bg-[#FAFBFC] text-left text-[13px] font-bold text-[#4E5968]',
     headerCell: 'px-4 py-3.5',
     body: 'divide-y divide-[#EBEEF2]',
-    row: 'hover:bg-[#F7F8FA] transition-colors',
+    // `group/row` so the chips in these rows get `tableRowLift.chipEdge` too. This tint is
+    // ABOVE the whole chip band (L* 97.6), so chips stay the darker plate and mostly survive
+    // it — except `tag.gray`, whose fill IS #F7F8FA, i.e. 1.00:1 and gone outright.
+    row: 'group/row hover:bg-[#F7F8FA] transition-colors',
     cell: 'px-4 py-3.5',
     /** Table wrapper — `.db-list-table` border + radius + shadow (v16 1850–1869). */
     frame:
@@ -1546,8 +1588,7 @@ export const ec2Styles = {
    * 잃지 않는다.
    */
   rowJustAdded: 'animate-[ec2-row-tint_1100ms_ease-in-out] motion-reduce:animate-none',
-  newBadge:
-    'ml-2 inline-flex shrink-0 items-center rounded-full bg-[#E8F1FF] px-2 py-px text-[11.5px] font-bold text-[#1747B5] animate-[ec2-new-badge_4000ms_ease-out_forwards] motion-reduce:animate-none', // design-exempt: mirrors idcStyles.kindBadge 11.5px token
+  newBadge: `ml-2 inline-flex shrink-0 items-center rounded-full bg-[#E8F1FF] px-2 py-px text-[11.5px] font-bold text-[#1747B5] animate-[ec2-new-badge_4000ms_ease-out_forwards] motion-reduce:animate-none ${tableRowLift.chipEdge}`, // design-exempt: mirrors idcStyles.kindBadge 11.5px token
   /** Step1 행의 정체성 스택 (EC2 태그 → instance id → Private IP). */
   rowStack: 'flex flex-col items-start gap-1',
   rowId: 'font-mono text-[12px] text-[#4E5968]',

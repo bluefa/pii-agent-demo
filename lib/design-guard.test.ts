@@ -124,8 +124,10 @@ const resolve = (expr: string): string => {
 };
 
 /** Class string of `key:` inside a source file (values are single-quoted, may wrap once). */
+// Accepts a template literal as well as a plain string: tokens that compose another token
+// (`${tableRowLift.chipEdge}`) are backticked, and reading only `'…'` would silently skip them.
 const classOf = (src: string, key: string) => {
-  const m = src.match(new RegExp(`(?<![\\w])${key}:\\s*\\n?\\s*'([^']*)'`));
+  const m = src.match(new RegExp(`(?<![\\w])${key}:\\s*\\n?\\s*['\`]([^'\`]*)['\`]`));
   if (!m) throw new Error(`key ${key} not found`);
   return m[1];
 };
@@ -227,6 +229,25 @@ const rail = bgOf(classOf(railBlock, 'surface')); // user-facing rail
 const plGround = bgOf(classOf(adminSrc, 'split')); // admin split ground (--pl-gray-100)
 const sheet = bgOf(classOf(adminSrc, 'sheet')); // admin content sheet (white)
 
+// The EC2 / RDS Cluster kind tag and the row tints it has to survive. Every resource table
+// that draws the tag (steps 1·2·3·4·6·7, the admin request table, the connection-test card)
+// hovers to one of these two, so the tag's fill stands on four surfaces, not one.
+const kindTagFill = bgOf(classOf(themeSrc, 'resourceKind'));
+const rowHover = hoverBgOf(classOf(liftBlock, 'target'));
+const rowHoverExcluded = hoverBgOf(classOf(liftBlock, 'excluded'));
+
+/**
+ * A nested `key: { … }` object. Takes the PARENT's source rather than searching all of
+ * theme.ts: `tag`, `green`, `gray` and friends are names any future token block could also
+ * use, and a file-wide search silently returns whichever is declared first — measuring the
+ * wrong colors and still passing. (`blockOf` below is the top-level `export const` form.)
+ */
+const nestedBlockOf = (src: string, key: string) => {
+  const m = src.match(new RegExp(`(?<![\\w])${key}: \\{[\\s\\S]*?\\n  \\},`));
+  if (!m) throw new Error(`nested block ${key} not found`);
+  return m[0];
+};
+
 /**
  * `bgOf`/`textOf` read arbitrary-value classes (`bg-[#…]`). The base `bgColors` and
  * `textColors` tokens are palette classes instead (`bg-gray-100`), so they need the
@@ -253,6 +274,10 @@ const blockOf = (name: string) => {
 };
 const bgTokens = blockOf('bgColors');
 const textTokens = blockOf('textColors');
+const idcBlock = blockOf('idcStyles');
+const kindBadgeBlock = nestedBlockOf(idcBlock, 'kindBadge');
+const idcTagBlock = nestedBlockOf(idcBlock, 'tag');
+const idcTableBlock = nestedBlockOf(idcBlock, 'table');
 
 // The target-source detail header went backgroundless (C3): it paints no plane of
 // its own, so every run of text and every chip in it stands on the canvas wash.
@@ -297,6 +322,14 @@ const SURFACES: SurfacePair[] = [
   // the page. `bg-gray-50` here measured 1.20 from the card it replaced.
   { what: 'card hover tint on canvas', top: hoverBgOf(classOf(liftBlock, 'card')), under: canvas },
   { what: 'card hover tint on the white card', top: hoverBgOf(classOf(liftBlock, 'card')), under: '#FFFFFF' },
+  // The kind tag paints its own fill over whatever the row is, so the row's HOVER tint is
+  // one of the surfaces it sits on — and it was the missing one. `card` is here too because
+  // its fill was deliberately borrowed from this tag (see tableRowLift.card): the two were
+  // byte-identical, so a kind tag on a card row would have vanished outright.
+  { what: 'kind tag fill on the white row', top: kindTagFill, under: '#FFFFFF' },
+  { what: 'kind tag fill on the row hover tint', top: kindTagFill, under: rowHover },
+  { what: 'kind tag fill on the excluded-row hover tint', top: kindTagFill, under: rowHoverExcluded },
+  { what: 'kind tag fill on the card hover tint', top: kindTagFill, under: hoverBgOf(classOf(liftBlock, 'card')) },
   // The rail's skeleton is reused on the admin ground — a second surface it must clear.
   { what: 'skeleton bar on admin ground', top: bgOf(classOf(railBlock, 'skeletonBar')), under: plGround },
   // The dashboard's service-code chip. Its fill WAS gray-100 — the same token the row
@@ -350,9 +383,11 @@ const TEXT: TextPair[] = [
   { what: 'row label on card hover tint', fg: resolve('#3B6BB5'), on: hoverBgOf(classOf(liftBlock, 'card')) },
   ...serviceTileGlyphs.map((t, i) => ({ what: `service tile ${i} glyph on its fill`, ...t })),
   // The EC2 / RDS Cluster kind tag. Its letters were desaturated from #6D28D9 to a grey
-  // on the argument that contrast was unchanged (6.25 → 6.26:1) — that argument is only
-  // as good as a measurement, so it gets one. The next grey down (#6B7280) is 4.26:1 on
-  // this fill, i.e. the quiet-er value someone will reach for is already below AA.
+  // on the argument that contrast was unchanged — that argument is only as good as a
+  // measurement, so it gets one. Deepening the fill for hover spent the slack that
+  // argument relied on: the grey now reads 5.32:1 here (it was 6.26:1 on #F3EEFF), and
+  // the next grey down (#6B7280) is 3.62:1, i.e. the quieter value someone will reach
+  // for is no longer merely below AA, it is well below it.
   {
     what: 'resource kind tag label on its tag',
     fg: textOf(classOf(themeSrc, 'resourceKind')),
@@ -453,6 +488,143 @@ describe('surface separation (CIEDE2000 >= JND)', () => {
   });
 });
 
+/**
+ * The kind tag's fill against the row tints, by POLARITY rather than by a threshold.
+ *
+ * A plate this pale can never win a contrast number against a tint that is itself pale —
+ * the honest floor here is ~1.1:1, which is too close to the 1.02:1 that broke to be worth
+ * asserting. What broke was not the size of the step but its DIRECTION: on white the chip
+ * was darker than the row, and on `tableRowLift.target` it became lighter, so the chip
+ * inverted mid-hover and passed through equiluminance on the way. One consistent direction
+ * is the invariant a reader's eye actually relies on, and it is binary, so it is checkable.
+ *
+ * The floor stays as a second assertion only to catch a fill that technically stays darker
+ * while collapsing to nothing.
+ */
+const KIND_TAG_SURFACES: Array<[string, string]> = [
+  ['the white row', '#FFFFFF'],
+  ['the row hover tint', rowHover],
+  ['the excluded-row hover tint', rowHoverExcluded],
+  ['the card hover tint', hoverBgOf(classOf(liftBlock, 'card'))],
+];
+
+describe('kind tag fill stays the darker plate on every row tint', () => {
+  it.each(KIND_TAG_SURFACES)('darker than %s', (_what, surface) => {
+    expect(luminance(kindTagFill)).toBeLessThan(luminance(surface));
+    expect(contrast(kindTagFill, surface)).toBeGreaterThanOrEqual(1.08);
+  });
+});
+
+/**
+ * `tableRowLift.chipEdge` — the hover-only ring that keeps every OTHER chip legible as a
+ * plate, since retinting the fills the way the kind tag was retinted is not available to
+ * them (their fills are shared palette steps, and the band is 7.5 L* wide either way).
+ *
+ * A ring earns its place only if it separates on BOTH sides: from the tint outside it, or
+ * the chip has no outline, and from its own fill inside it, or the chip just looks bigger
+ * and blurrier. Black at 15% is composited onto each fill, so every chip gets an edge in
+ * its own hue rather than a foreign grey; the floors below are the measured worst cases
+ * (1.26:1 outside on green-100, 1.40:1 inside) with a little headroom taken off.
+ *
+ * Tailwind resolves `ring-black/15` through color-mix in oklab, which for a pure black
+ * leaves RGB at zero and alpha at 0.15 — i.e. the same result as this sRGB composite.
+ */
+const RING_ALPHA = (() => {
+  const m = classOf(liftBlock, 'chipEdge').match(/ring-black\/(\d+)\b/);
+  if (!m) throw new Error('no ring-black/<n> in chipEdge');
+  return Number(m[1]) / 100;
+})();
+
+const composite = (base: string, alpha: number) => {
+  const [r, g, b] = srgb(base).map((v) => Math.round(v * 255 * (1 - alpha)));
+  return `#${[r, g, b].map((v) => v.toString(16).padStart(2, '0')).join('')}`;
+};
+
+// Every chip fill that can appear inside a `tableRowLift` row. Palette steps are spelled
+// out because they arrive as `bg-gray-100`-style classes, not as arbitrary values.
+const ROW_CHIPS: Array<[string, string]> = [
+  ['kind tag', kindTagFill],
+  ['RdsMemberChip (gray-100)', '#F3F4F6'],
+  ['RdsSelectionChip', bgOf(classOf(themeSrc, 'bgLight'))],
+  ['status success (green-100)', '#DCFCE7'],
+  ['status info (blue-100)', '#DBEAFE'],
+  ['status warning (orange-100)', '#FFEDD5'],
+  ['status error (red-100)', '#FEE2E2'],
+  ['amber-100', '#FEF3C7'],
+  // idcStyles.kindBadge.* and idcStyles.tag.*, read from the live tokens — which carry
+  // `chipEdge` on each FILL rather than on their shared `base`, because the base line holds
+  // an 11.5px font size the design hook will not let anyone touch.
+  //
+  // Scoped to their own blocks, not looked up in the whole file: `green`/`red`/`orange`/`gray`
+  // are also keys in `tagStyles`, which is declared FIRST, so an unscoped `classOf` silently
+  // measures the wrong token (and one that is a palette class `bgOf` cannot even parse).
+  ['kindBadge single', bgOf(classOf(kindBadgeBlock, 'single'))],
+  ['kindBadge multi', bgOf(classOf(kindBadgeBlock, 'multi'))],
+  ['kindBadge domain', bgOf(classOf(kindBadgeBlock, 'domain'))],
+  ['tag green', bgOf(classOf(idcTagBlock, 'green'))],
+  ['tag red', bgOf(classOf(idcTagBlock, 'red'))],
+  ['tag orange', bgOf(classOf(idcTagBlock, 'orange'))],
+  ['tag gray', bgOf(classOf(idcTagBlock, 'gray'))],
+];
+
+describe('chip hover ring separates on both sides', () => {
+  it.each(ROW_CHIPS)('%s', (_what, fill) => {
+    const edge = composite(fill, RING_ALPHA);
+    expect(contrast(edge, rowHover)).toBeGreaterThanOrEqual(1.2);
+    expect(contrast(edge, rowHoverExcluded)).toBeGreaterThanOrEqual(1.2);
+    expect(contrast(edge, fill)).toBeGreaterThanOrEqual(1.35);
+  });
+});
+
+/**
+ * The WIRING, which the contrast checks above cannot see: they measure a colour the token
+ * declares, so deleting `${tableRowLift.chipEdge}` from every chip would leave them green.
+ *
+ * Both halves have to hold. `chipEdge` is a NAMED group variant, so it draws nothing unless
+ * an ancestor carries `group/row` — and it must stay named, because a bare `group-hover:`
+ * answers to any `.group` in the tree and this repo puts `group` on card rows, service tiles
+ * and modal list items that are not resource rows at all.
+ */
+const chipEdgeToken = classOf(liftBlock, 'chipEdge');
+const chipBaseDecl = (() => {
+  const m = read('app/components/ui/RdsInstanceChips.tsx').match(/const CHIP_BASE =[\s\S]*?;/);
+  if (!m) throw new Error('CHIP_BASE not found');
+  return m[0];
+})();
+const CHIP_EDGE_CONSUMERS: Array<[string, string]> = [
+  ['RdsInstanceChips CHIP_BASE', chipBaseDecl],
+  ['idcStyles.kindBadge.single', classOf(kindBadgeBlock, 'single')],
+  ['idcStyles.kindBadge.multi', classOf(kindBadgeBlock, 'multi')],
+  ['idcStyles.kindBadge.domain', classOf(kindBadgeBlock, 'domain')],
+  ['idcStyles.tag.blue', classOf(idcTagBlock, 'blue')],
+  ['idcStyles.tag.green', classOf(idcTagBlock, 'green')],
+  ['idcStyles.tag.red', classOf(idcTagBlock, 'red')],
+  ['idcStyles.tag.orange', classOf(idcTagBlock, 'orange')],
+  ['idcStyles.tag.gray', classOf(idcTagBlock, 'gray')],
+  ['ec2Styles.newBadge', classOf(themeSrc, 'newBadge')],
+];
+
+describe('chip hover ring is actually wired up', () => {
+  it('chipEdge is scoped to the named row group, not to any `group`', () => {
+    expect(chipEdgeToken).toMatch(/group-hover\/row:/);
+    expect(chipEdgeToken).toMatch(/group-focus-within\/row:/);
+    // A bare `group-hover:`/`group-focus-within:` here would leak to every unrelated `.group`.
+    expect(chipEdgeToken).not.toMatch(/group-hover:/);
+    expect(chipEdgeToken).not.toMatch(/group-focus-within:/);
+  });
+
+  it.each([
+    ['tableRowLift.base', classOf(liftBlock, 'base')],
+    ['idcStyles.table.row', classOf(idcTableBlock, 'row')],
+  ])('%s marks the row with group/row', (_what, cls) => {
+    expect(cls).toMatch(/(?:^|\s)group\/row(?:\s|$)/);
+  });
+
+  it.each(CHIP_EDGE_CONSUMERS)('%s carries chipEdge', (_what, src) => {
+    expect(src).toContain('tableRowLift.chipEdge');
+  });
+});
+
 describe('text contrast against its actual surface', () => {
   it.each(TEXT)('$what', ({ fg, on, min }) => {
     expect(contrast(fg, on)).toBeGreaterThanOrEqual(min ?? 4.5);
@@ -538,6 +710,26 @@ describe('detects the PR #624 regressions the hook missed', () => {
     // chip is declared 100 lines from the hover it collides with.
     expect(deltaE00(resolve('var(--pl-gray-100)'), dashRowHover)).toBeLessThan(SURFACE_MIN);
     expect(contrast(resolve('var(--pl-gray-100)'), dashRowHover)).toBeLessThan(1.01);
+  });
+
+  it('H11 kind tag #F3EEFF inverted against the row hover tint (1.02:1)', () => {
+    // Reported as "the EC2 / RDS Cluster tag fades out under the cursor". #F3EEFF is L* 94.9
+    // and `tableRowLift.target` is L* 94.0, so hovering left 0.9 L* between chip and row and
+    // flipped which of the two was lighter. ΔE00 was 5.99 — six times the JND — so the surface
+    // rule above called it fine, the same metric-selection trap as H10.
+    expect(deltaE00('#F3EEFF', rowHover)).toBeGreaterThanOrEqual(SURFACE_MIN);
+    expect(contrast('#F3EEFF', rowHover)).toBeLessThan(1.05);
+    expect(luminance('#F3EEFF')).toBeGreaterThan(luminance(rowHover)); // the inversion
+
+    // And it was never one tag's bug: the whole chip vocabulary is built at L* 92..96 while
+    // both row tints sit at L* 92..94, so every chip fill goes equiluminant under the cursor.
+    // These fills are still equiluminant and always will be — moving the tint cannot fix it
+    // (the band is 7.5 L* wide, and below the band the unpromoted verdict text #B45309 drops
+    // under AA). What changed is that the fill is no longer the only thing holding the chip:
+    // `chipEdge` gives each one a measured stroke while the row is tinted.
+    for (const chip of ['#F3F4F6', '#E8F1FF', '#DBEAFE', '#FFEDD5', '#FEE2E2']) {
+      expect(contrast(chip, rowHover)).toBeLessThan(1.1);
+    }
   });
 
   it('H7 --pl-bg-page tinted to #F2F4F7 collides with the ops-alerts tiles', () => {
