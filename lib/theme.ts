@@ -1801,12 +1801,27 @@ export const serviceSidebarStyles = {
    * The row for the service the page is about — tint + 2px accent bar, the way a
    * desktop rail marks "you are here". It replaced a pinned band above the list:
    * the page header already names the service, so the band only repeated it.
+   *
+   * The bar rides the RIGHT edge, against the content column the row is about —
+   * the same edge the admin console rail marks (`serviceListStyles.itemActive`).
+   *
+   * VIOLET, not the brand blue, and the same violet the target-source card rows
+   * hover to (`tableRowLift.card` #F3EEFF) — one family for "this is the row you
+   * are on", whichever list you are in.
+   *
+   * Only the hue moved. Each value keeps its blue counterpart's L* and takes the
+   * violet's hue (h −58) at the same chroma ratio, so every measured pair holds:
+   *
+   *   tint vs rail      1.10 → 1.10      ink #191F28 on tint  14.56 → 14.58
+   *   bar vs tint       4.33 → 4.36      bar vs rail          3.97 (1.4.11 ≥ 3)
+   *
+   * The tint lands ON #F3EEFF exactly — the blue tint already shared that L*.
    */
   rowCurrent:
-    'relative bg-[#E8F1FF] hover:bg-[#D6E7FF] focus-visible:bg-[#D6E7FF] before:absolute before:inset-y-0 before:left-0 before:w-0.5 before:bg-[#0064FF] before:content-[""]',
-  /** Code tag on the current row — primary pair on the row's tint (see primaryColors.textOnLight). */
+    'relative bg-[#F3EEFF] hover:bg-[#EAE1FF] focus-visible:bg-[#EAE1FF] before:absolute before:inset-y-0 before:right-0 before:w-0.5 before:bg-[#6458F4] before:content-[""]',
+  /** Code tag on the current row — the violet at #0050D6's level (6.70:1 on white). */
   rowCodeCurrent:
-    'inline-flex shrink-0 min-w-[38px] items-center justify-center rounded-[6px] bg-white px-1.5 py-0.5 font-mono text-[12px] font-semibold leading-5 text-[#0050D6]',
+    'inline-flex shrink-0 min-w-[38px] items-center justify-center rounded-[6px] bg-white px-1.5 py-0.5 font-mono text-[12px] font-semibold leading-5 text-[#5047CE]',
   /** Hairline between rows — rows that stretch to fill the rail need a rule to read as a list instead of as floating text. */
   rowDivide: 'divide-y divide-[#D2D8DC]',
   /** Skeleton bar for the rail — a step darker than the surface, or it vanishes into it. */
