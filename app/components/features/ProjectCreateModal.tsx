@@ -20,6 +20,7 @@ import {
 } from '@/app/components/features/project-create/Step5Result';
 import { WizardRail } from '@/app/components/features/project-create/WizardRail';
 import {
+  attachLinkedAccount,
   buildCandidatesInput,
   isStepComplete,
   type AwsInstallMode,
@@ -201,7 +202,10 @@ export const ProjectCreateModal = ({
       addCandidates.map(async (candidate, idx) => {
         const key = `row-${idx}`;
         try {
-          await createTargetSource(selectedServiceCode, candidate);
+          await createTargetSource(
+            selectedServiceCode,
+            attachLinkedAccount(candidate, formState),
+          );
           updateRow(key, 'done');
         } catch (err) {
           updateRow(key, 'failed', err instanceof Error ? err.message : '등록 실패');
