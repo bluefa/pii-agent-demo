@@ -89,6 +89,8 @@ export const NoticeBoardView = () => {
               레일이 그 길이를 Category 단위로 자르는 유일한 장치다. */}
           <div className={postStyles.grouped}>
             <nav className={postStyles.catNav} aria-label="Category">
+              {/* 머리는 목록이 아니라 칸의 것이라, 불러오는 중에도 자리를 지킨다. */}
+              <p className={postStyles.catNavHead}>Category</p>
               {/* 선택을 색으로만 말하면 스크린 리더에는 아무 일도 일어나지 않는다
                   (Primer NavList 가 같은 자리에 `aria-current` 를 쓴다). */}
               {loading && [0, 1, 2].map((row) => (
@@ -106,6 +108,7 @@ export const NoticeBoardView = () => {
                 전체 <span className={postStyles.catNavCount}>{focused.length}</span>
               </button>
               )}
+              {!loading && groups.length > 0 && <hr className={postStyles.catNavDivide} />}
               {groups.map((group) => (
                 <button
                   key={group.key}

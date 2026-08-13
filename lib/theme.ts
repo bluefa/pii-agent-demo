@@ -2966,16 +2966,16 @@ export const postStyles = {
   entryRailPinned: 'scale-y-100 bg-[#A9C6F8] group-hover:bg-[#0064FF]',
   /** 날짜 단 — 폭이 고정이라야 제목 시작선이 모든 행에서 같다. */
   entryDate:
-    'flex-none w-[76px] pt-[7px] text-[12px] text-[#59647A] tabular-nums leading-[1.4] whitespace-nowrap transition-colors duration-150 group-hover:text-[#0064FF] motion-reduce:transition-none',
+    'flex-none w-[84px] pt-[6px] text-[14px] text-[#59647A] tabular-nums leading-[1.4] whitespace-nowrap transition-colors duration-150 group-hover:text-[#0064FF] motion-reduce:transition-none',
   entryMain: 'flex-1 min-w-0 flex flex-col gap-1.5',
   /**
-   * 22px. 잰 13곳 중 목록 제목이 18px 인 곳은 없었다 — Linear·Vercel 32,
-   * GitHub 은 월 머리가 28, 토스페이먼츠·Stripe·채널톡이 20~24. 22 는 그 범위의
-   * 아래쪽이라 페이지 제목과 부딪히지 않으면서 행의 주어가 된다.
+   * 24px. 잰 13곳 중 목록 제목이 18px 인 곳은 없었다 — Linear·Vercel 32,
+   * GitHub 은 월 머리가 28, 토스페이먼츠·Stripe·채널톡이 20~24. 24 는 그 범위 안이고,
+   * 밴드 제목 40px 과도 한 칸 이상 벌어져 둘이 같은 등급으로 읽히지 않는다.
    * `max-w` 는 읽기 폭 — 제목이 1600px 를 가로지르면 다시 표가 된다.
    */
   entryTitle:
-    'text-[22px] font-bold tracking-[-0.02em] leading-[1.45] text-[#191F28] max-w-[62ch] transition-colors duration-150 group-hover:text-[#0050D6] motion-reduce:transition-none',
+    'text-[24px] font-bold tracking-[-0.02em] leading-[1.45] text-[#191F28] max-w-[62ch] transition-colors duration-150 group-hover:text-[#0050D6] motion-reduce:transition-none',
   entryTitleOpen: 'text-[#0050D6]',
   /** 캐럿 자리 — hover 에 옅은 원판이 깔려 "누르는 곳"이 손끝보다 먼저 보인다. */
   entryCaretSlot:
@@ -3066,6 +3066,19 @@ export const postStyles = {
    */
   catNav:
     'flex flex-col gap-0.5 p-2 overflow-y-auto border-r border-[#DDE3ED] bg-[#EEF1F7]',
+  /**
+   * 레일 머리. 없으면 목록이 "전체"부터 냅다 시작해서, 이 칸이 무엇을 고르는 자리인지
+   * 말하는 데가 없다. Stripe 문서 사이드바가 같은 자리에 구역 라벨을 쓴다
+   * (VERSIONING · ESSENTIALS · TOOLS, 실측). 라틴 문자라 자간을 벌릴 수 있다 —
+   * 한글이면 못 하는 처리다.
+   */
+  catNavHead:
+    'px-3 pt-1 pb-2 text-[12px] font-bold tracking-[0.06em] text-[#54627A]',
+  /**
+   * "전체"와 Category 목록 사이의 선. 전체는 Category 가 아니라 필터를 푸는 자리라
+   * 같은 줄에 세워 두면 4개 중 하나로 읽힌다.
+   */
+  catNavDivide: 'my-1.5 border-t border-[#DDE3ED]',
   /** 32px — GitHub Issues 사이드바 실측(항목 32 · radius 6 · 14px)에서 가져왔다. */
   catNavItem:
     'flex items-center gap-2 px-3 py-1.5 leading-5 rounded-lg text-[14px] font-medium text-[#3E4C63] transition-colors hover:bg-white/70',
