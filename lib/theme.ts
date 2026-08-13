@@ -3128,7 +3128,15 @@ export const postStyles = {
    */
   bandTitle: 'text-[40px] font-extrabold tracking-[-0.03em] leading-[1.15] text-[#191F28]',
   bandSub: 'text-[14px] text-[#4E5968] mt-2',
-  /** 밴드 아래 본문 칸. 남은 높이를 전부 받아 `grouped` 에 넘긴다. */
+  /**
+   * 밴드 아래 본문 칸. 남은 높이를 전부 받아 `grouped` 에 넘긴다.
+   *
+   * `min-h-0` 은 여기서 반드시 필요하다 — `catNav`·`listPane` 과 달리 이 칸은
+   * 스크롤 컨테이너가 아니라서 자동 최소 크기가 내용 높이다. 떼고 94행을 넣어
+   * 확인했다: 목록 칸이 `656 → 7416px` 로 부풀고, `pageFill` 의 `overflow-hidden`
+   * 이 그걸 잘라 **6760px 가 스크롤로 닿지 않는다.** 글이 몇 건 없을 때는 넘칠 일이
+   * 없어 붙이나 떼나 같아 보인다.
+   */
   pageBody: 'flex-1 min-h-0 px-6 py-6 flex flex-col',
   /**
    * 카드 높이는 내용이 정한다 — 화면 아래까지 늘리지 않는다. 테두리는 "여기까지가
