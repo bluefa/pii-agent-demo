@@ -81,8 +81,8 @@ export const RdsSelectionChip = () => (
  *
  * Which instance was picked is the whole point of a cluster row, and folding the band away must
  * not delete it, so the row states it whether the band is open or shut. Shared by steps 1·2·3
- * and the admin queue (owner, 2026-08-13: "Step2 이상부터는 접었을 때도 instance 정보가 step1
- * 처럼"): a review surface is where that choice is checked, so it cannot be the one place that
+ * and the admin queue (owner, 2026-08-13 — the request is
+ * recorded verbatim in `docs/ux/benchmark/step1-resource-table.md` 적용 ③): a review surface is where that choice is checked, so it cannot be the one place that
  * only counts.
  *
  * The line names the SELECTION, never a tally. A parent that counts its members says what the
@@ -90,7 +90,7 @@ export const RdsSelectionChip = () => (
  * PR #630. `총` only stands in when there is NO selection — an excluded cluster submits no
  * instance, so the count is the honest thing left to say.
  *
- * The role rides directly beside the name (owner: "정말 중요한 정보"), not in a column of its own.
+ * The role rides directly beside the name (owner: it is the information that matters most on the line), not in a column of its own.
  */
 export const RdsChosenInstanceLine = ({
   chosen,

@@ -3,6 +3,8 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import type { CandidateResource } from '@/lib/types/resources';
 import { CandidateResourceTable } from '@/app/target-sources/[targetSourceId]/_components/candidate/CandidateResourceTable';
+import { RDS_INSTANCE_BAND_LABEL } from '@/app/target-sources/[targetSourceId]/_components/shared/RdsInstancePanel';
+import { required } from '@/lib/test-dom';
 import { textColors, verdictRail } from '@/lib/theme';
 
 const candidateFixture = (overrides: Partial<CandidateResource> = {}): CandidateResource =>
@@ -308,6 +310,20 @@ describe('CandidateResourceTable — RDS cluster instances', () => {
       .find((radio) => radio.checked)
       ?.value;
 
+  // colSpan is hand-passed by each host table (`showCheckboxColumn ? 7 : 5` here), so a column
+  // added to or removed from the header silently leaves the band short or overflowing.
+  it('spans the band across every column of this table', () => {
+    renderCluster();
+    openBand();
+    const band = required(
+      screen.getByRole('table', { name: RDS_INSTANCE_BAND_LABEL }).closest('td'),
+      "the band's spanning cell",
+    );
+    expect(Number(band.getAttribute('colspan'))).toBe(
+      document.querySelectorAll('thead th').length,
+    );
+  });
+
   // The owner's rule (2026-08-11): folding cuts row COUNT, never information. A cluster row
   // that folded its instances away and said nothing about them would have deleted the answer
   // to the only question the row asks.
@@ -396,7 +412,7 @@ describe('CandidateResourceTable — RDS cluster instances', () => {
 
   // An Aurora cluster carries a writer and up to fifteen readers. A fixed tile grid turns that
   // into ragged rows of cards — a layout that assumes the count is small (owner, 2026-08-12:
-  // "instance가 8개면 어떻게 하려고 그러냐"). One line each, and the band is however long that is.
+  // what happens at eight?). One line each, and the band is however long that adds up to.
   it('grows one line per instance — eight instances, eight lines', () => {
     const eight = Array.from({ length: 8 }, (_, i) => ({
       resource_id: `arn:db:demo-${i + 1}`,
@@ -493,7 +509,7 @@ describe('CandidateResourceTable — Athena groups', () => {
     const toggle = screen.getByRole('button', { name: 'Athena ap-northeast-2 그룹 펼치기' });
     expect(toggle.getAttribute('aria-expanded')).toBe('false');
 
-    const identity = toggle.closest('td') as HTMLElement;
+    const identity = required(toggle.closest('td'), "the group's identity cell");
     expect(identity.textContent).toContain('ap-northeast-2');
     // The fixture's rows are unselected, so both land on the 제외 side.
     expect(identity.textContent).toContain('데이터베이스 · 대상 0 · 제외 2');
@@ -505,7 +521,7 @@ describe('CandidateResourceTable — Athena groups', () => {
     const toggle = screen.getByRole('button', { name: 'Athena ap-northeast-2 그룹 펼치기' });
     // The children stay MOUNTED while folded so `aria-controls` always resolves — `hidden` is
     // what the fold actually flips, and a query for their text would find them either way.
-    const rows = document.getElementById(toggle.getAttribute('aria-controls') as string);
+    const rows = document.getElementById(required(toggle.getAttribute('aria-controls'), 'aria-controls on the group toggle'));
     expect(rows?.hidden).toBe(true);
 
     fireEvent.click(toggle);
@@ -517,5 +533,63 @@ describe('CandidateResourceTable — Athena groups', () => {
     // Checkbox(0) · Name(1) · ID(2) · DB Type(3) · Region(4) · 설치 구분(5) · 제외 사유(6).
     const childCells = rows?.querySelectorAll('tr')[0].querySelectorAll('td');
     expect(childCells?.[4].textContent).toBe('ap-northeast-2');
+  });
+
+  /**
+   * The fold must never hide the control that unblocks the approval CTA.
+   *
+   * An unselected TARGET without an exclusion reason DISABLES the CTA
+   * (`listMissingExclusionReasons`), and the only control that clears it — 사유 입력 — sits on
+   * that resource's own row. Collapsed by default put that row inside a `hidden` tbody, which
+   * takes it out of the accessibility tree as well: the CTA named a resource the user had no
+   * way to reach except by guessing which group to open.
+   */
+  describe('a group holding a row that blocks the approval CTA', () => {
+    const renderBlocked = () =>
+      render(
+        <CandidateResourceTable
+          {...defaultProps}
+          candidates={[
+            candidateFixture({ id: 'plain-1', resourceId: 'res-plain', resourceName: 'res-plain' }),
+            athenaFixture('a-0', 'raw_athena_db_prod'),
+          ]}
+          // Something IS selected, so the CTA's next unmet condition is the missing reason.
+          selectedIds={new Set(['plain-1'])}
+        />,
+      );
+
+    it('opens on its own so 사유 입력 is reachable', () => {
+      renderBlocked();
+      const toggle = screen.getByRole('button', { name: 'Athena ap-northeast-2 그룹 접기' });
+      expect(toggle.getAttribute('aria-expanded')).toBe('true');
+
+      const rows = document.getElementById(required(toggle.getAttribute('aria-controls'), 'aria-controls on the group toggle'));
+      expect(rows?.hidden).toBe(false);
+      expect(screen.getByText('raw_athena_db_prod')).toBeTruthy();
+      // Two rows own one: the plain resource is selected, so only the Athena child asks.
+      expect(screen.getAllByRole('button', { name: '제외 사유 입력' })).toHaveLength(1);
+    });
+
+    // The derived default is a DEFAULT, not a lock — a dead chevron is worse than a folded group.
+    it('still closes from the chevron', () => {
+      renderBlocked();
+      fireEvent.click(screen.getByRole('button', { name: 'Athena ap-northeast-2 그룹 접기' }));
+
+      const toggle = screen.getByRole('button', { name: 'Athena ap-northeast-2 그룹 펼치기' });
+      expect(
+        document.getElementById(required(toggle.getAttribute('aria-controls'), 'aria-controls on the group toggle'))?.hidden,
+      ).toBe(true);
+    });
+
+    // With nothing selected the CTA asks for a selection first and no reason is owed yet, so an
+    // untouched table still opens fully collapsed — the owner's rule for this step.
+    it('stays collapsed while nothing is selected', () => {
+      renderGroup(['raw_athena_db_prod']);
+      expect(
+        screen
+          .getByRole('button', { name: 'Athena ap-northeast-2 그룹 펼치기' })
+          .getAttribute('aria-expanded'),
+      ).toBe('false');
+    });
   });
 });

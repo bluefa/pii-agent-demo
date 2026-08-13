@@ -34,8 +34,8 @@ import {
  *
  * ONE LINE PER INSTANCE, and the body's height is whatever that adds up to. An Aurora cluster
  * can carry a writer and fifteen readers; a fixed card grid turned that into ragged rows of
- * tiles, which is a layout pretending the count is small (owner: "instance가 8개면 어떻게 하려고
- * 그러냐"). A list just gets longer, and the columns stay aligned so scanning down eight AZs or
+ * tiles, which is a layout pretending the count is small (owner: what happens at eight instances?
+ * — a variable-length accordion, measured at 480px for eight lines). A list just gets longer, and the columns stay aligned so scanning down eight AZs or
  * eight endpoints is one eye movement instead of eight.
  */
 
@@ -68,8 +68,8 @@ interface RdsInstancePanelProps {
  * each line said the same word N times and the cluster row's own Database Type cell already
  * says it once (owner, 2026-08-12).
  *
- * The role chip rides the NAME rather than taking a column of its own (owner: "Reader/Writer가
- * Instance와 최대한 가까웠으면 한다"). Everything else is a column, because a column is what
+ * The role chip rides the NAME rather than taking a column of its own (owner: Reader/Writer has to sit as
+ * close to the instance as it can). Everything else is a column, because a column is what
  * makes eight of them comparable.
  */
 const LINE_GRID = 'grid grid-cols-[minmax(0,5fr)_minmax(0,3fr)_minmax(0,6fr)] items-center gap-4';
@@ -84,6 +84,21 @@ const LINE_GRID = 'grid grid-cols-[minmax(0,5fr)_minmax(0,3fr)_minmax(0,6fr)] it
  */
 const INDENT_WITH_CHECKBOX = 'pl-[106px]';
 const INDENT_WITHOUT_CHECKBOX = 'pl-[54px]';
+
+/**
+ * The band is a TABLE, said in roles rather than in `<table>` markup.
+ *
+ * Three labelled columns whose whole point is comparing values down them have to be a table to a
+ * screen reader too — without the roles the header strip is three loose words followed by bare
+ * strings, and nothing ties an AZ to the instance it belongs to. Roles rather than a nested
+ * `<table>` because the alignment comes from ONE grid template shared by the header and every
+ * line (`LINE_GRID`); real table layout would have to re-derive that with fixed widths and would
+ * change what the columns do at narrow widths.
+ *
+ * Exported so a test names the band the way a screen reader finds it, instead of reaching for
+ * the colspan cell by class.
+ */
+export const RDS_INSTANCE_BAND_LABEL = '접속 인스턴스 목록';
 
 export const RdsInstancePanel = ({
   clusterId,
@@ -115,6 +130,8 @@ export const RdsInstancePanel = ({
           bgColors.panel,
           showCheckboxColumn ? INDENT_WITH_CHECKBOX : INDENT_WITHOUT_CHECKBOX,
         )}
+        role="table"
+        aria-label={RDS_INSTANCE_BAND_LABEL}
       >
         {/* No title strip. The row above already names the cluster and the count, and the
             guidance repeated what the checked radio and the Reader-first order say by
@@ -126,13 +143,14 @@ export const RdsInstancePanel = ({
             idcStyles.table.instanceBand.headerStrip,
             textColors.secondary,
           )}
+          role="row"
         >
-          <span>인스턴스</span>
-          <span>가용 영역</span>
-          <span>엔드포인트</span>
+          <span role="columnheader">인스턴스</span>
+          <span role="columnheader">가용 영역</span>
+          <span role="columnheader">엔드포인트</span>
         </div>
 
-        <div>
+        <div role="rowgroup">
           {instances.map((instance, index) => {
             const identifier = rdsInstanceLabel(instance);
             const chosen = instance.resource_id === chosenResourceId;
@@ -142,7 +160,7 @@ export const RdsInstancePanel = ({
 
             const body = (
               <>
-                <span className="relative flex min-w-0 items-center gap-2">
+                <span role="cell" className="relative flex min-w-0 items-center gap-2">
                   {selectable && (
                     <input
                       type="radio"
@@ -165,10 +183,10 @@ export const RdsInstancePanel = ({
                   <RdsMemberChip role={instance.cluster_member_role} />
                   {readonly && chosen && <RdsSelectionChip />}
                 </span>
-                <span className={cn('truncate font-mono text-[12px]', textColors.secondary)}>
+                <span role="cell" className={cn('truncate font-mono text-[12px]', textColors.secondary)}>
                   {instance.availability_zone ?? '—'}
                 </span>
-                <span className={cn('truncate font-mono text-[12px]', textColors.secondary)}>
+                <span role="cell" className={cn('truncate font-mono text-[12px]', textColors.secondary)}>
                   {endpoint ?? '—'}
                 </span>
               </>
@@ -198,11 +216,11 @@ export const RdsInstancePanel = ({
             // No radio → nothing to label, so the line is a plain block rather than a
             // `<label>` pointing at an input that does not exist.
             return selectable ? (
-              <label key={instance.resource_id} className={cn(lineClass, 'cursor-pointer')}>
+              <label key={instance.resource_id} role="row" className={cn(lineClass, 'cursor-pointer')}>
                 {body}
               </label>
             ) : (
-              <div key={instance.resource_id} className={lineClass}>
+              <div key={instance.resource_id} role="row" className={lineClass}>
                 {body}
               </div>
             );

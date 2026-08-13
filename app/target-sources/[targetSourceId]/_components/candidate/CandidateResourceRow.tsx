@@ -259,8 +259,8 @@ export const CandidateResourceRow = ({
             //
             // The third line is what folding the instances away would otherwise delete. Which
             // member the agent connects through is the whole point of the row, so the collapsed
-            // row states it, and the ROLE rides directly beside the instance name (owner: "정말
-            // 중요한 정보") rather than in a column of its own. No positional lift: with three
+            // row states it, and the ROLE rides directly beside the instance name (owner: it is the
+            // information that matters most on the line) rather than in a column of its own. No positional lift: with three
             // lines the name is already the middle one, which is the line `lead` centres the
             // chevron on.
             //

@@ -18,6 +18,7 @@ vi.mock('@/app/lib/api', () => ({
 }));
 
 import { RequestTab } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/RequestTab';
+import { RDS_INSTANCE_BAND_LABEL } from '@/app/target-sources/[targetSourceId]/_components/shared/RdsInstancePanel';
 
 const row = (index: number, selected = true): RequestResourceRow => ({
   resourceId: `res-${index}`,
@@ -191,7 +192,7 @@ describe('RequestTab 요청 리소스', () => {
       expect(screen.getByText('RDS Cluster')).toBeTruthy();
       // The members live in the accordion body (`RdsInstancePanel`) — one colspan cell, not rows
       // of this table — so the lookups scope to it.
-      const band = within(document.querySelector('td.px-0') as HTMLElement);
+      const band = within(screen.getByRole('table', { name: RDS_INSTANCE_BAND_LABEL }));
       expect(band.getByText('demo-1')).toBeTruthy();
       expect(band.getByText('demo-2')).toBeTruthy();
       // Prettified from the contract's uppercase WRITER / READER.

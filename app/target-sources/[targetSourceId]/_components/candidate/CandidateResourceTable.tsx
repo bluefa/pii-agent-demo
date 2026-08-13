@@ -1,8 +1,10 @@
 'use client';
 
-import { Fragment, useMemo, useState } from 'react';
+import { Fragment, useMemo } from 'react';
 import { cn, idcStyles } from '@/lib/theme';
 import { groupResourceRows } from '@/lib/resource-grouping';
+import { useClusterFold } from '@/app/hooks/useClusterFold';
+import { listMissingExclusionReasons } from '@/app/target-sources/[targetSourceId]/_components/candidate/approval-payload';
 import type { CandidateDraftState, CandidateResource } from '@/lib/types/resources';
 import { InfoTooltip } from '@/app/components/ui/Tooltip';
 import {
@@ -101,25 +103,19 @@ export const CandidateResourceTable = ({
     [candidates, selectedIds],
   );
 
-  // Everything foldable starts COLLAPSED (owner, 2026-08-11: "항상 펼쳐져 있으면 가독성이 너무
-  // 떨어져. Athena도 마찬가지야"). ONE set for both kinds of fold — Athena group keys
-  // (`ATHENA|region`) and RDS cluster ids share it, since the two never collide and the policy
-  // is the same. Tracked as the set of OPEN keys rather than closed ones so the default needs
-  // no seeding and a row arriving later (filter change, new scan) still starts folded. What the
-  // user opened stays open for the session — a fold that resets on every re-render is not a
-  // "collapsed by default" table, it is a table that keeps re-collapsing under them.
-  const [expandedKeys, setExpandedKeys] = useState<ReadonlySet<string>>(() => new Set());
+  // Everything foldable starts COLLAPSED — the owner's rule for this step (2026-08-11): a table
+  // that is always expanded reads as too dense, Athena groups included. ONE fold for both kinds,
+  // since Athena group keys (`ATHENA|region`) and RDS cluster ids never collide and the policy is
+  // the same. What the user presses wins and survives the default changing under it.
+  //
+  // `useClusterFold` rather than a set of open keys, because one default has to be DERIVED per
+  // render (see `blocksApproval` below) and a seeded set would compute it once — at first render,
+  // before the fetch has delivered a single candidate to look at.
+  const foldOf = useClusterFold();
 
   // The group rails: parent and children carry the group's key, so hovering any of them
   // lights the whole group.
   const railRow = useRailHover();
-
-  const toggleExpanded = (key: string) =>
-    setExpandedKeys((previous) => {
-      const next = new Set(previous);
-      if (!next.delete(key)) next.add(key);
-      return next;
-    });
 
   if (totalCount === 0) {
     return <TableEmptyState message={emptyMessage ?? '발견된 리소스가 없습니다'} />;
@@ -186,8 +182,8 @@ export const CandidateResourceTable = ({
                   grouped={grouped}
                   lastInGroup={lastInGroup}
                   rail={rail}
-                  instancesExpanded={expandedKeys.has(candidate.id)}
-                  onInstancesToggle={() => toggleExpanded(candidate.id)}
+                  instancesExpanded={foldOf(candidate.id, false).open}
+                  onInstancesToggle={foldOf(candidate.id, false).toggle}
                 />
               );
             };
@@ -202,7 +198,22 @@ export const CandidateResourceTable = ({
 
             const { group } = section;
             const rowsId = `candidate-group-${group.key.replace('|', '-')}`;
-            const collapsed = !expandedKeys.has(group.key);
+            // A group holding a row that BLOCKS the approval CTA opens by itself. Collapsed is
+            // the default because a full group is noise; a group whose child is the reason the
+            // button is dead is not noise, it is the work. The only control that clears it —
+            // 사유 입력 — lives on that child's row, and `hidden` takes the child out of the
+            // accessibility tree too, so leaving the group folded left the CTA naming a resource
+            // the user could not reach without guessing which group to open.
+            //
+            // Gated on there being a selection at all, matching the CTA's own order of reasons
+            // (`CandidateResourceSection`): with nothing selected the button asks for a selection
+            // and no reason is owed yet, so an untouched table still opens fully collapsed.
+            const fold = foldOf(
+              group.key,
+              selectedIds.size > 0
+                && listMissingExclusionReasons(group.rows, selectedIds, exclusionReasons).length > 0,
+            );
+            const collapsed = !fold.open;
             const rail = railRow(group.key);
             return (
               <Fragment key={group.key}>
@@ -211,7 +222,7 @@ export const CandidateResourceTable = ({
                     type={group.type}
                     region={group.region}
                     expanded={!collapsed}
-                    onToggle={() => toggleExpanded(group.key)}
+                    onToggle={fold.toggle}
                     controls={rowsId}
                     rail={rail}
                     // The aggregate rides the identity, next to the region it counts within

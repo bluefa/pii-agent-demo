@@ -5,6 +5,8 @@ import {
   WaitingApprovalTable,
   type WaitingApprovalResource,
 } from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalTable';
+import { RDS_INSTANCE_BAND_LABEL } from '@/app/target-sources/[targetSourceId]/_components/shared/RdsInstancePanel';
+import { required } from '@/lib/test-dom';
 import { textColors, verdictRail } from '@/lib/theme';
 
 const fixture: WaitingApprovalResource[] = [
@@ -129,7 +131,7 @@ describe('WaitingApprovalTable', () => {
     /** The aggregate rides the identity cell, beside the region it counts within. */
     const aggregateOf = (region: string) => {
       const toggle = screen.getByRole('button', { name: new RegExp(`Athena ${region} 그룹`) });
-      const row = toggle.closest('tr') as HTMLElement;
+      const row = required(toggle.closest('tr'), 'the group row holding the toggle');
       return within(row).getAllByRole('cell')[0].textContent;
     };
 
@@ -496,12 +498,12 @@ describe('WaitingApprovalTable', () => {
     });
 
     /**
-     * The instance names, in render order. They are NOT table rows — the members live in the
-     * accordion body (`RdsInstancePanel`), one colspan cell holding its own grid, so read them
-     * out of that cell rather than off `getAllByRole('row')`.
+     * The instance names, in render order. They are not rows of the OUTER table — the members
+     * live in the accordion body (`RdsInstancePanel`), which carries its own table roles, so
+     * they are read out of that band and never off a page-wide row query.
      */
     const instanceNames = () => {
-      const band = document.querySelector('td.px-0');
+      const band = screen.queryByRole('table', { name: RDS_INSTANCE_BAND_LABEL });
       if (!band) return [];
       return Array.from(band.querySelectorAll('span'))
         .map((span) => span.textContent ?? '')
@@ -521,9 +523,23 @@ describe('WaitingApprovalTable', () => {
       expect(screen.getByText('선택됨').closest('div')?.textContent).toContain('demo-2');
     });
 
+    // colSpan is hand-passed by each host table (`colSpan={6}` here), so a column added to or
+    // removed from the header silently leaves the band short or overflowing. `lib/theme.ts`
+    // names this exact failure mode as the reason a separate verdict column was rejected.
+    it('spans the band across every column of this table', () => {
+      render(<WaitingApprovalTable resources={[cluster()]} />);
+      const band = required(
+        screen.getByRole('table', { name: RDS_INSTANCE_BAND_LABEL }).closest('td'),
+        "the band's spanning cell",
+      );
+      expect(Number(band.getAttribute('colspan'))).toBe(
+        document.querySelectorAll('thead th').length,
+      );
+    });
+
     it('shows the member role on every instance line', () => {
       render(<WaitingApprovalTable resources={[cluster()]} />);
-      const band = within(document.querySelector('td.px-0') as HTMLElement);
+      const band = within(screen.getByRole('table', { name: RDS_INSTANCE_BAND_LABEL }));
       expect(band.getAllByText('Reader')).toHaveLength(2);
       expect(band.getAllByText('Writer')).toHaveLength(1);
       // Scoped to the band because the cluster row now carries the chosen member's role too —
@@ -550,7 +566,10 @@ describe('WaitingApprovalTable', () => {
     // surface the choice is the fact being reviewed.
     it('names the chosen instance on the cluster row, not a count', () => {
       render(<WaitingApprovalTable resources={[cluster()]} />);
-      const clusterCell = screen.getByText('demo-cluster').closest('td') as HTMLElement;
+      const clusterCell = required(
+        screen.getByText('demo-cluster').closest('td'),
+        "the cluster's identity cell",
+      );
       expect(clusterCell.textContent).toContain('demo-2');
       expect(clusterCell.textContent).toContain('Reader');
       expect(screen.queryByText('3개 인스턴스')).toBeNull();
@@ -574,11 +593,14 @@ describe('WaitingApprovalTable', () => {
       expect(instanceNames()).toHaveLength(0);
       // Folding hides the comparison, never the choice: the tag and the chosen member survive.
       expect(screen.getByText('RDS Cluster')).toBeTruthy();
-      const clusterCell = screen.getByText('demo-cluster').closest('td') as HTMLElement;
+      const clusterCell = required(
+        screen.getByText('demo-cluster').closest('td'),
+        "the cluster's identity cell",
+      );
       expect(clusterCell.textContent).toContain('demo-2');
     });
 
-    // 부모가 제외됐다고 멤버의 글자를 낮추지 않는다 — 제외는 레일이 말한다. The band also sits
+    // An excluded PARENT never dims its members' text — exclusion is what the rail says. The band sits
     // on `bgColors.panel`, whose contract forbids `tertiary` there (4.37:1, under AA), so this
     // holds the line for both reasons at once.
     it('keeps an excluded cluster’s instance lines at full contrast', () => {
@@ -589,7 +611,7 @@ describe('WaitingApprovalTable', () => {
       );
       // An excluded cluster starts folded (useClusterFold) — open it to read the lines.
       fireEvent.click(screen.getByRole('button', { name: 'demo-cluster 인스턴스 목록 펼치기' }));
-      const band = document.querySelector('td.px-0') as HTMLElement;
+      const band = screen.getByRole('table', { name: RDS_INSTANCE_BAND_LABEL });
       expect(instanceNames()).toHaveLength(3);
       expect(band.innerHTML).not.toContain(textColors.tertiary);
     });

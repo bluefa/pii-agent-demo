@@ -460,8 +460,8 @@ export const WaitingApprovalTable = memo(
           >
             {hasInstances ? (
               // Three-line identity, exactly step 1's: kind tag → cluster name → the instance it
-              // connects through (owner, 2026-08-13: "Step2 이상부터는 접었을 때도 instance 정보가
-              // step1처럼"). No positional lift here — with three lines the name is already the
+              // connects through (owner, 2026-08-13; recorded verbatim in
+              // `docs/ux/benchmark/step1-resource-table.md` 적용 ③). No positional lift here — with three lines the name is already the
               // middle one, which is the line `lead` centres the chevron on.
               <span className={idcStyles.table.group.lead}>
                 <button
@@ -484,7 +484,7 @@ export const WaitingApprovalTable = memo(
                 >
                   <ChevronRightIcon className="h-3.5 w-3.5" />
                 </button>
-                <span className="flex min-w-0 flex-col items-start gap-1">
+                <span className="flex w-full min-w-0 flex-col items-start gap-1">
                   <RdsClusterTag />
                   <Tooltip
                     content={<IdentifierTip label="Resource Name" value={resource.resourceName} />}

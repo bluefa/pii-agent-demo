@@ -165,7 +165,7 @@ export function CloudResourceTable({ rows }: CloudResourceTableProps): ReactElem
                       </button>
                     )}
                     <span className={cn(
-                      'flex min-w-0 flex-col items-start gap-1',
+                      'flex w-full min-w-0 flex-col items-start gap-1',
                       // Only a TWO-line row needs the lift — an untagged one is already on the
                       // middle, and so is the name of a three-line cluster (tag → name → member).
                       (isCluster || isEc2) && !hasInstances && table.stackedIdentityLift,

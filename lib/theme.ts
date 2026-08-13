@@ -1385,9 +1385,14 @@ export const idcStyles = {
       '[&_tbody+tbody>tr:first-child]:border-t [&_tbody+tbody>tr:first-child]:border-[#EBEEF2]',
     /**
      * Grouped parent row (Athena × Region) — Cloudscape "nested resources" 시안.
-     * Chosen in `docs/ux/athena-group-samples.html` §04 over the v16 orange band: the
-     * parent stays a REAL row sharing the table's columns, so sorting, pagination and
-     * selection remain row-based and no colspan breaks the column rhythm.
+     * Chosen in `docs/ux/athena-group-samples.html` §04 over the v16 orange band.
+     *
+     * The parent has since moved its identity into ONE spanning cell rather than a value per
+     * column (owner, 2026-08-12; recorded in `docs/ux/benchmark/step1-resource-table.md`) — once
+     * the type, the region and the counts sat in the identity, the columns keyed on them printed
+     * the same two facts twice on the one row that has them. Pagination still groups by unit
+     * (`toPaginationUnits`); nothing sorts by column here and there is no group-level checkbox,
+     * so the day either arrives it reads the GROUP, not this row.
      *
      * Every value is copied from a metric this table family already uses — the row tint
      * is `table.header`'s #FAFBFC, the chip/connector borders are the #EBEEF2 divider,

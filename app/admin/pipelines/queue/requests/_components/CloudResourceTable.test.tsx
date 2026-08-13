@@ -3,6 +3,8 @@ import { fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import type { RequestResourceRow } from '@/app/lib/api/task-queue-requests';
 import { CloudResourceTable } from '@/app/admin/pipelines/queue/requests/_components/CloudResourceTable';
+import { RDS_INSTANCE_BAND_LABEL } from '@/app/target-sources/[targetSourceId]/_components/shared/RdsInstancePanel';
+import { required } from '@/lib/test-dom';
 
 const row = (overrides: Partial<RequestResourceRow> = {}): RequestResourceRow => ({
   resourceId: 'arn:aws:rds:ap-northeast-2:acct:db:mysql-prod-01',
@@ -58,12 +60,12 @@ const clusterRow = (overrides: Partial<RequestResourceRow> = {}): RequestResourc
   });
 
 /**
- * The instance names, in render order. They are NOT table rows — the members live in the
- * accordion body (`RdsInstancePanel`), one colspan cell holding its own grid, so read them out
- * of that cell rather than off `getAllByRole('row')`.
+ * The instance names, in render order. They are not rows of the OUTER table — the members live
+ * in the accordion body (`RdsInstancePanel`), which carries its own table roles, so they are
+ * read out of that band and never off a page-wide row query.
  */
 const instanceNames = () => {
-  const band = document.querySelector('td.px-0');
+  const band = screen.queryByRole('table', { name: RDS_INSTANCE_BAND_LABEL });
   if (!band) return [];
   return Array.from(band.querySelectorAll('span'))
     .map((span) => span.textContent ?? '')
@@ -117,6 +119,19 @@ describe('CloudResourceTable', () => {
       expect(screen.getAllByText('RDS Cluster')).toHaveLength(1);
     });
 
+    // colSpan is hand-passed by each host table (`colSpan={6}` here), so a column added to or
+    // removed from the header silently leaves the band short or overflowing.
+    it('spans the band across every column of this table', () => {
+      render(<CloudResourceTable rows={[clusterRow()]} />);
+      const band = required(
+        screen.getByRole('table', { name: RDS_INSTANCE_BAND_LABEL }).closest('td'),
+        "the band's spanning cell",
+      );
+      expect(Number(band.getAttribute('colspan'))).toBe(
+        document.querySelectorAll('thead th').length,
+      );
+    });
+
     it('lists instances Reader-first then by resource_id, regardless of request order', () => {
       render(<CloudResourceTable rows={[clusterRow()]} />);
       expect(instanceNames()).toEqual(['demo-2', 'demo-3', 'demo-1']);
@@ -146,7 +161,7 @@ describe('CloudResourceTable', () => {
     it('gives each instance its own labelled AZ and endpoint columns', () => {
       render(<CloudResourceTable rows={[clusterRow()]} />);
       // Scoped to the band: the cluster row carries the chosen member's role too.
-      const band = within(document.querySelector('td.px-0') as HTMLElement);
+      const band = within(screen.getByRole('table', { name: RDS_INSTANCE_BAND_LABEL }));
       expect(band.getAllByText('Reader')).toHaveLength(2);
       expect(band.getAllByText('Writer')).toHaveLength(1);
       expect(screen.queryByText('WRITER')).toBeNull();
