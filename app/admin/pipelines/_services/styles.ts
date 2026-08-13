@@ -54,9 +54,10 @@ export const serviceListStyles = {
    *  `flex-1` stretches it to fill the rail; `min-h` keeps it readable when a short
    *  viewport makes the list scroll instead. State variants own bg + name color. */
   item: 'flex w-full flex-1 min-h-[48px] items-center gap-2.5 px-3 text-left cursor-pointer transition-colors',
-  /** Tint + 2px accent bar — how a desktop rail marks "you are here". */
+  /** Tint + 2px accent bar — how a desktop rail marks "you are here". The bar
+   *  sits on the RIGHT edge, the side the rail hands off to the detail pane. */
   itemActive:
-    'relative bg-[var(--pl-primary-bg)] before:absolute before:inset-y-0 before:left-0 before:w-0.5 before:bg-[var(--pl-primary)] before:content-[""]',
+    'relative bg-[var(--pl-primary-bg)] before:absolute before:inset-y-0 before:right-0 before:w-0.5 before:bg-[var(--pl-primary)] before:content-[""]',
   /** White, not a deeper grey — on a recessed rail the row under the cursor lifts. */
   itemIdle: 'hover:bg-[var(--pl-bg-card)]',
   /** Service names run to ~30 characters — wrap rather than clip at the rail's edge.
