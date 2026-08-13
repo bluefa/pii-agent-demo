@@ -9,9 +9,7 @@
  * 자기 자신은 회수할 수 없다(서버도 400 으로 막는다). 마지막 관리자가 스스로를 지우면
  * 되돌릴 화면이 남지 않는다.
  */
-import { useState, type ReactElement } from 'react';
-import { useAbortableEffect } from '@/app/hooks/useAbortableEffect';
-import { getCurrentUser } from '@/app/lib/api';
+import { useCallback, useState, type ReactElement } from 'react';
 
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
 import { usePlToast } from '@/app/admin/pipelines/_components/usePlToast';
@@ -28,17 +26,15 @@ import {
 } from '@/app/admin/pipelines/access/_components/AccessModals';
 import { accessStyles as a } from '@/app/admin/pipelines/access/_components/accessStyles';
 import {
-  getAccessAdmins,
-  grantAdmins,
-  revokeAdmin,
+  addAdmin,
+  getAdmins,
+  removeAdmin,
+  sliceToPage,
   type AccessPage,
   type AccessUser,
 } from '@/app/lib/api/access';
 
-const fetchAdmins = (
-  page: number,
-  opts: { signal: AbortSignal },
-): Promise<AccessPage<AccessUser>> => getAccessAdmins(page, { ...opts, size: ROWS_PER_PAGE });
+
 
 /** 담당자 표와 같은 이유로 두 열뿐이다 — 계약에 부여 일시·부여자가 없다. */
 const ADMIN_COLUMNS: readonly Column[] = [
@@ -48,38 +44,46 @@ const ADMIN_COLUMNS: readonly Column[] = [
 ];
 
 export default function AccessAdminsPage(): ReactElement {
+  // 계약이 관리자 전체를 한 번에 준다(페이지 아님) — 나누는 일은 화면 몫이다.
+  // 전체 목록은 따로 붙잡아 둔다: 피커의 제외 목록은 **모든** 관리자여야 하고,
+  // 현재 페이지만 넘기면 2페이지의 관리자가 후보로 다시 나온다.
+  const [allAdmins, setAllAdmins] = useState<AccessUser[]>([]);
+  const fetchAdmins = useCallback(
+    async (page: number, opts: { signal: AbortSignal }): Promise<AccessPage<AccessUser>> => {
+      const all = await getAdmins(opts);
+      if (!opts.signal.aborted) setAllAdmins(all);
+      return sliceToPage(all, page, ROWS_PER_PAGE);
+    },
+    [],
+  );
   const admins = usePagedSection(fetchAdmins);
   const toast = usePlToast();
   const [pickerOpen, setPickerOpen] = useState(false);
   const [revoking, setRevoking] = useState<AccessUser | null>(null);
-  const [myEmail, setMyEmail] = useState<string | null>(null);
 
-  // 본인 행의 회수 버튼을 잠그기 위한 식별자 — 계약의 키가 email 이라 email 로 맞춘다.
-  // 실패해도 화면은 그대로: 서버가 같은 규칙으로 막는다.
-  useAbortableEffect((signal) => {
-    return getCurrentUser()
-      .then((user) => {
-        if (signal.aborted) return;
-        setMyEmail(user.email?.toLowerCase() ?? null);
-      })
-      .catch(() => undefined);
-  }, []);
-
+  // 계약의 부여는 단수(`POST /admins` body { email })라 고른 만큼 순차로 부른다.
+  // 하나가 실패하면 거기서 멈추고 그때까지 부여된 것은 남는다 — 목록을 다시 읽어
+  // 실제로 무엇이 반영됐는지 화면이 사실대로 말하게 한다.
   const grant = async (emails: string[]): Promise<void> => {
+    let added = 0;
     try {
-      const result = await grantAdmins(emails);
+      for (const email of emails) {
+        await addAdmin(email);
+        added += 1;
+      }
       setPickerOpen(false);
-      toast.show(`${result.granted_count}명에게 관리자 권한을 부여했어요`);
-      admins.reload();
+      toast.show(`${added}명에게 관리자 권한을 부여했어요`);
     } catch (err) {
       toast.show(errorMessage(err));
+    } finally {
+      admins.reload();
     }
   };
 
   const revoke = async (): Promise<void> => {
     if (!revoking) return;
     try {
-      await revokeAdmin(revoking.email);
+      await removeAdmin(revoking.email);
       toast.show(`${revoking.knoxId}의 관리자 권한을 회수했어요`);
       setRevoking(null);
       admins.reload();
@@ -112,7 +116,8 @@ export default function AccessAdminsPage(): ReactElement {
       >
         {(rows) =>
           rows.map((row) => {
-            const isMe = myEmail != null && row.email.toLowerCase() === myEmail;
+            // 계약의 규칙은 "마지막 관리자면 400" — 자기 자신이냐가 아니라 몇 명 남느냐다.
+            const isLastAdmin = allAdmins.length <= 1;
             return (
               <div key={row.email} role="row" className={a.row}>
                 <span role="cell" className={a.knox}>
@@ -125,8 +130,8 @@ export default function AccessAdminsPage(): ReactElement {
                   <PlButton
                     variant="ghost"
                     size="sm"
-                    disabled={isMe}
-                    title={isMe ? '자신의 관리자 권한은 회수할 수 없어요' : undefined}
+                    disabled={isLastAdmin}
+                    title={isLastAdmin ? '마지막 관리자는 회수할 수 없어요' : undefined}
                     onClick={() => setRevoking(row)}
                   >
                     회수
@@ -143,7 +148,7 @@ export default function AccessAdminsPage(): ReactElement {
         onClose={() => setPickerOpen(false)}
         title="관리자 권한 부여"
         sub="관리자는 모든 서비스의 권한을 조회하고 부여·해제할 수 있어요."
-        excludeRole="ADMIN"
+        excludeEmails={allAdmins.map((row) => row.email)}
         submitLabel="부여"
         onSubmit={grant}
       />

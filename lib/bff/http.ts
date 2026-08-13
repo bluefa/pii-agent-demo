@@ -321,51 +321,52 @@ export const httpBff: BffClient = {
       getSnakeRaw(`/admin/ops/target-sources${buildQuery({ query, page, size })}`),
   },
 
-  // 접근 권한 — ASSUMED contracts (docs/api/access-assumed-contracts.md). Wire is
-  // snake and the CSR adapter owns the camel boundary, so reads use getSnakeRaw.
+  // 서비스 접근 권한 — 오너가 준 백엔드 초안 스펙 그대로
+  // (docs/api/access-assumed-contracts.md). 관리자 경로의 base 는 `/admin` 으로 잡았다
+  // — 스펙에 base 가 안 적혀 있어 저장소 관례(`/admin/queue/*`, `/admin/ops/*`)를 따랐다.
+  // wire 는 snake 이고 camel 경계는 CSR 어댑터가 갖는다.
   access: {
-    listServiceUsers: (serviceCode, page, size) =>
-      getSnakeRaw(
-        `/admin/access/services/${encodeURIComponent(serviceCode)}/users${buildQuery({ page, size })}`,
-      ),
-    grantServiceUsers: (serviceCode, emails) =>
-      post(`/admin/access/services/${encodeURIComponent(serviceCode)}/users`, { emails }),
-    // POST …/remove, not DELETE …/{email}: the key is an email address, and an
-    // email in a URL path is PII in every access log and referrer along the way.
-    revokeServiceUser: (serviceCode, email) =>
-      post(`/admin/access/services/${encodeURIComponent(serviceCode)}/users/remove`, { email }),
+    listServices: (query, page, size) =>
+      getSnakeRaw(`/admin/services${buildQuery({ q: query, page, size })}`),
+    listServiceOwners: (serviceCode) =>
+      getSnakeRaw(`/admin/services/${encodeURIComponent(serviceCode)}/owners`),
+    addServiceOwners: (serviceCode, emails) =>
+      post(`/admin/services/${encodeURIComponent(serviceCode)}/owners`, { emails }),
+    removeServiceOwner: (serviceCode, email) =>
+      post(`/admin/services/${encodeURIComponent(serviceCode)}/owners/remove`, { email }),
+    listAdmins: () => getSnakeRaw('/admin/admins'),
+    addAdmin: (email) => post('/admin/admins', { email }),
+    removeAdmin: (email) => post('/admin/admins/remove', { email }),
     listRequests: (status, page, size) =>
-      getSnakeRaw(`/admin/access/requests${buildQuery({ status, page, size })}`),
-    getRequest: (requestId) => getSnakeRaw(`/admin/access/requests/${requestId}`),
+      getSnakeRaw(`/admin/permission-access${buildQuery({ status, page, size })}`),
+    getRequest: (requestId) => getSnakeRaw(`/admin/permission-access/${requestId}`),
     approveRequest: (requestId, message) =>
-      post(`/admin/access/requests/${requestId}/approve`, { message }),
+      post(`/admin/permission-access/${requestId}/approve`, { message }),
     rejectRequest: (requestId, reason) =>
-      post(`/admin/access/requests/${requestId}/reject`, { reason }),
+      post(`/admin/permission-access/${requestId}/reject`, { reason }),
     listHistory: (query, page, size) =>
       getSnakeRaw(
-        `/admin/access/history${buildQuery({
+        `/admin/history${buildQuery({
           service_code: query.serviceCode,
           type: query.type,
           page,
           size,
         })}`,
       ),
-    listAdmins: (page, size) => getSnakeRaw(`/admin/access/admins${buildQuery({ page, size })}`),
-    grantAdmins: (emails) => post('/admin/access/admins', { emails }),
-    revokeAdmin: (email) => post('/admin/access/admins/remove', { email }),
-    searchUsers: (query) =>
+    // 사용자 측 — admin 게이트 밖. 요청 생성은 멱등이라 재시도가 안전하다.
+    createRequest: (serviceCode, reason) =>
+      post(`/services/${encodeURIComponent(serviceCode)}/permission-access`, { reason }),
+    listMyRequests: (page, size) =>
+      getSnakeRaw(`/permission-access/mine${buildQuery({ page, size })}`),
+    listUserServices: (query, page, size) =>
+      getSnakeRaw(`/user/services/page${buildQuery({ query, page, size })}`),
+    searchUsers: (query, excludeEmails) =>
       getSnakeRaw(
-        `/admin/access/users${buildQuery({
-          query: query.query,
-          exclude_service_code: query.excludeServiceCode,
-          role: query.role,
+        `/users/search${buildQuery({
+          query,
+          excludeEmails: excludeEmails.length ? excludeEmails.join(',') : undefined,
         })}`,
       ),
-    listRequestableServices: (query, page, size) =>
-      getSnakeRaw(`/access/requestable-services${buildQuery({ query, page, size })}`),
-    listMyRequests: (page, size) => getSnakeRaw(`/access/requests${buildQuery({ page, size })}`),
-    createRequest: (serviceCode, reason) =>
-      post('/access/requests', { service_code: serviceCode, reason }),
   },
 
   // Azure responses are raw snake passthrough — the route validates with

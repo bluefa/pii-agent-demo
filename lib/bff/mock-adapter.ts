@@ -137,35 +137,39 @@ export const mockBff: BffClient = {
       unwrap(await mockOps.getTargetSourceList(query, page, size)),
   },
 
-  // 접근 권한 — ASSUMED contracts (docs/api/access-assumed-contracts.md).
-  // Business rules (승인=부여, admin gate, 중복 요청 409) live in the mock module.
+  // 서비스 접근 권한 — 규칙(승인=부여, 400/멱등, 마지막 관리자)은 mock 모듈에 산다.
   access: {
-    listServiceUsers: async (code, page, size) =>
-      unwrap(await mockAccess.listServiceUsers(code, page, size)),
-    grantServiceUsers: async (code, emails) =>
-      unwrap(await mockAccess.grantServiceUsers(code, emails)),
-    revokeServiceUser: async (code, email) => {
-      await unwrap(await mockAccess.revokeServiceUser(code, email));
+    listServices: async (query, page, size) =>
+      unwrap(await mockAccess.listServices(query, page, size)),
+    listServiceOwners: async (code) => unwrap(await mockAccess.listServiceOwners(code)),
+    addServiceOwners: async (code, emails) =>
+      unwrap(await mockAccess.addServiceOwners(code, emails)),
+    removeServiceOwner: async (code, email) =>
+      unwrap(await mockAccess.removeServiceOwner(code, email)),
+    listAdmins: async () => unwrap(await mockAccess.listAdmins()),
+    addAdmin: async (email) => unwrap(await mockAccess.addAdmin(email)),
+    removeAdmin: async (email) => {
+      await unwrap(await mockAccess.removeAdmin(email));
     },
     listRequests: async (status, page, size) =>
       unwrap(await mockAccess.listRequests(status, page, size)),
     getRequest: async (requestId) => unwrap(await mockAccess.getRequest(requestId)),
-    approveRequest: async (requestId, message) =>
-      unwrap(await mockAccess.approveRequest(requestId, message)),
-    rejectRequest: async (requestId, reason) =>
-      unwrap(await mockAccess.rejectRequest(requestId, reason)),
+    approveRequest: async (requestId, message) => {
+      await unwrap(await mockAccess.approveRequest(requestId, message));
+    },
+    rejectRequest: async (requestId, reason) => {
+      await unwrap(await mockAccess.rejectRequest(requestId, reason));
+    },
     listHistory: async (query, page, size) =>
       unwrap(await mockAccess.listHistory(query, page, size)),
-    listAdmins: async (page, size) => unwrap(await mockAccess.listAdmins(page, size)),
-    grantAdmins: async (emails) => unwrap(await mockAccess.grantAdmins(emails)),
-    revokeAdmin: async (email) => {
-      await unwrap(await mockAccess.revokeAdmin(email));
+    createRequest: async (code, reason) => {
+      await unwrap(await mockAccess.createRequest(code, reason));
     },
-    searchUsers: async (query) => unwrap(await mockAccess.searchUsers(query)),
-    listRequestableServices: async (query, page, size) =>
-      unwrap(await mockAccess.listRequestableServices(query, page, size)),
     listMyRequests: async (page, size) => unwrap(await mockAccess.listMyRequests(page, size)),
-    createRequest: async (code, reason) => unwrap(await mockAccess.createRequest(code, reason)),
+    listUserServices: async (query, page, size) =>
+      unwrap(await mockAccess.listUserServices(query, page, size)),
+    searchUsers: async (query, excludeEmails) =>
+      unwrap(await mockAccess.searchUsers(query, excludeEmails)),
   },
 
   // Azure mock returns raw snake wire; the route validates with schemas.X.parse().

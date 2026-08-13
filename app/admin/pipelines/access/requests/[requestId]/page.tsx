@@ -31,7 +31,7 @@ import {
   approveAccessRequest,
   getAccessRequest,
   rejectAccessRequest,
-  type AccessRequest,
+  type PermissionRequestDetail,
 } from '@/app/lib/api/access';
 
 type ModalKind = 'approve' | 'reject' | null;
@@ -42,7 +42,7 @@ export default function AccessRequestDetailPage(): ReactElement {
   const requestId = Number(params.requestId);
   const toast = usePlToast();
 
-  const [request, setRequest] = useState<AccessRequest | null>(null);
+  const [request, setRequest] = useState<PermissionRequestDetail | null>(null);
   const [error, setError] = useState<unknown>(null);
   const [retry, setRetry] = useState(0);
   const [modal, setModal] = useState<ModalKind>(null);
@@ -70,15 +70,13 @@ export default function AccessRequestDetailPage(): ReactElement {
   const decide = useCallback(
     async (kind: 'approve' | 'reject', text: string): Promise<void> => {
       try {
-        const updated =
-          kind === 'approve'
-            ? await approveAccessRequest(requestId, text)
-            : await rejectAccessRequest(requestId, text);
+        // 계약이 204 라 응답 본문이 없다 — 문구는 이미 화면이 들고 있는 요청으로 만든다.
+        if (kind === 'approve') await approveAccessRequest(requestId, text);
+        else await rejectAccessRequest(requestId, text);
         setModal(null);
+        const who = request ? `${request.requester.knoxId}의 ${request.serviceName} 접근 요청` : '요청';
         toast.show(
-          kind === 'approve'
-            ? `${updated.requester.knoxId}에게 ${updated.serviceName} 권한을 부여했어요`
-            : `${updated.requester.knoxId}의 요청을 반려했어요`,
+          kind === 'approve' ? `${who}을 승인했어요 — 권한이 부여됐어요` : `${who}을 반려했어요`,
         );
         back();
       } catch (err) {
@@ -86,7 +84,7 @@ export default function AccessRequestDetailPage(): ReactElement {
         toast.show(errorMessage(err));
       }
     },
-    [requestId, toast, back],
+    [requestId, toast, back, request],
   );
 
   const crumbs = [
@@ -164,7 +162,7 @@ export default function AccessRequestDetailPage(): ReactElement {
               desc={`${request.processedBy?.knoxId ?? '—'} · ${fmtDateTime(request.processedAt)}`}
             />
             <p className={a.quote}>
-              {request.verdictMessage ??
+              {request.processedNote ??
                 (request.status === 'APPROVED' ? '메시지 없이 승인했어요' : '사유가 없어요')}
             </p>
           </>

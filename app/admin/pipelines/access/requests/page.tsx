@@ -30,19 +30,19 @@ import {
   getAccessRequests,
   type AccessHistoryEntry,
   type AccessPage,
-  type AccessRequest,
+  type PermissionRequestRow,
 } from '@/app/lib/api/access';
 
 // 모듈 상수 fetcher — deps 가 렌더마다 흔들리지 않게(useAbortableEffect 재실행 방지).
 const fetchPending = (
   page: number,
   opts: { signal: AbortSignal },
-): Promise<AccessPage<AccessRequest>> =>
+): Promise<AccessPage<PermissionRequestRow>> =>
   getAccessRequests('PENDING', page, { ...opts, size: ROWS_PER_PAGE });
 const fetchRejected = (
   page: number,
   opts: { signal: AbortSignal },
-): Promise<AccessPage<AccessRequest>> =>
+): Promise<AccessPage<PermissionRequestRow>> =>
   getAccessRequests('REJECTED', page, { ...opts, size: ROWS_PER_PAGE });
 const fetchHistory = (
   page: number,
@@ -50,18 +50,20 @@ const fetchHistory = (
 ): Promise<AccessPage<AccessHistoryEntry>> =>
   getAccessHistory({}, page, { ...opts, size: ROWS_PER_PAGE });
 
-/** 두 액션 카드는 같은 골격을 쓴다 — flex-1 컬럼 수까지 같아야 격자 너머로 열이 맞는다. */
-const actionColumns = (note: string, when: string): readonly Column[] => [
+/**
+ * 두 액션 카드는 같은 골격을 쓴다 — flex-1 컬럼 수까지 같아야 격자 너머로 열이 맞는다.
+ *
+ * 사유 열이 없다: `PermissionRequestRow` 가 `reason` 도 `status` 도 싣지 않는다(갭 B3).
+ * 사유는 상세에만 있어서, 목록에 미리보기를 그리려면 행마다 상세를 부르는 N+1 이 된다.
+ * 계약에 세 필드(`reason`·`status`·`processed_at`)가 붙으면 이 열은 되살아난다.
+ */
+const REQUEST_COLUMNS: readonly Column[] = [
   { label: '요청자', className: a.knox },
   { label: '서비스', className: a.name },
   { label: '코드', className: a.code },
-  { label: note, className: a.note },
-  { label: when, className: a.when },
+  { label: '요청 일자', className: a.when },
   { className: a.chev },
 ];
-
-const PENDING_COLUMNS = actionColumns('요청 사유', '요청 일자');
-const REJECTED_COLUMNS = actionColumns('반려 사유', '반려 일자');
 
 const HISTORY_COLUMNS: readonly Column[] = [
   { label: '구분', className: a.status },
@@ -90,11 +92,11 @@ export default function AccessRequestsPage(): ReactElement {
       <div className={a.grid}>
         <PagedCard
           title="승인 대기"
-          desc="요청자와 사유를 확인한 뒤 승인하거나 반려해 주세요 — 승인하면 즉시 권한이 부여돼요"
+          desc="행을 눌러 요청 사유를 확인한 뒤 승인하거나 반려해 주세요 — 승인하면 즉시 권한이 부여돼요"
           icon="inbox"
           tone="primary"
           state={pending}
-          columns={PENDING_COLUMNS}
+          columns={REQUEST_COLUMNS}
           empty={{
             title: '승인을 기다리는 요청이 없어요',
             caption: '새 접근 권한 요청이 들어오면 여기에 표시돼요',
@@ -119,9 +121,6 @@ export default function AccessRequestsPage(): ReactElement {
                 <span role="cell" className={cn(a.code, a.mono)}>
                   {row.serviceCode}
                 </span>
-                <span role="cell" className={a.note}>
-                  {row.reason}
-                </span>
                 <span role="cell" className={a.when}>
                   {fmtDateTime(row.requestedAt)}
                 </span>
@@ -135,11 +134,11 @@ export default function AccessRequestsPage(): ReactElement {
 
         <PagedCard
           title="반려"
-          desc="반려한 요청이에요 — 행을 눌러 요청 사유와 반려 사유를 함께 볼 수 있어요"
+          desc="반려한 요청이에요 — 사유는 계약상 상세에만 있어서, 행을 눌러 확인해요"
           icon="warn-tri"
           tone="danger"
           state={rejected}
-          columns={REJECTED_COLUMNS}
+          columns={REQUEST_COLUMNS}
           empty={{
             title: '반려한 요청이 없어요',
             caption: '반려 처리한 요청이 여기에 모여요',
@@ -162,11 +161,8 @@ export default function AccessRequestsPage(): ReactElement {
                 <span role="cell" className={cn(a.code, a.mono)}>
                   {row.serviceCode}
                 </span>
-                <span role="cell" className={a.note}>
-                  {row.verdictMessage ?? '—'}
-                </span>
                 <span role="cell" className={a.when}>
-                  {fmtDateTime(row.processedAt)}
+                  {fmtDateTime(row.requestedAt)}
                 </span>
                 <span role="cell" className={a.chev}>
                   <Icon name="arrow-up-right" size="sm" />
@@ -203,10 +199,10 @@ export default function AccessRequestsPage(): ReactElement {
                 {row.targetUser.knoxId}
               </span>
               <span role="cell" className={a.knox}>
-                {row.actor.knoxId}
+                {row.actorUser.knoxId}
               </span>
-              <span role="cell" className={a.note} title={row.reason ?? undefined}>
-                {row.reason ?? '—'}
+              <span role="cell" className={a.note} title={row.note ?? undefined}>
+                {row.note ?? '—'}
               </span>
               <span role="cell" className={a.when}>
                 {fmtDateTime(row.createdAt)}

@@ -28,10 +28,11 @@ export interface UserPickerModalProps {
   onClose: () => void;
   title: string;
   sub: string;
-  /** 이 서비스를 이미 가진 사용자를 후보에서 제외한다. */
-  excludeServiceCode?: string;
-  /** 'ADMIN' 이면 이미 관리자인 사용자를 후보에서 제외한다. */
-  excludeRole?: 'ADMIN';
+  /**
+   * 후보에서 뺄 사람들의 email. 계약의 `/users/search` 가 `excludeEmails` 를 받으므로
+   * "이미 가진 사람"을 아는 쪽(화면)이 넘긴다 — 서버는 그 맥락을 모른다.
+   */
+  excludeEmails: string[];
   submitLabel: string;
   /** 선택한 사람들의 **email** — 계약의 식별 키다. */
   onSubmit: (emails: string[]) => Promise<void>;
@@ -42,8 +43,7 @@ export function UserPickerModal({
   onClose,
   title,
   sub,
-  excludeServiceCode,
-  excludeRole,
+  excludeEmails,
   submitLabel,
   onSubmit,
 }: UserPickerModalProps): ReactElement {
@@ -67,13 +67,16 @@ export function UserPickerModal({
     return () => clearTimeout(timer);
   }, [query]);
 
+  // 배열은 렌더마다 새 참조라 deps 에 그대로 두면 매 렌더 재조회가 된다. 내용으로 키를
+  // 만들고, 요청에 쓰는 배열도 그 키에서 되만든다 — 그래야 deps 와 실제로 보내는 값이
+  // 같은 것에서 나온다(둘이 갈리면 키는 그대로인데 값만 바뀌는 창이 생긴다).
+  const excludeKey = excludeEmails.join(',');
+
   useAbortableEffect(
     (signal) => {
       if (!open) return;
-      return searchAccessUsers(
-        { query: debounced || undefined, excludeServiceCode, role: excludeRole },
-        { signal },
-      )
+      const exclude = excludeKey ? excludeKey.split(',') : [];
+      return searchAccessUsers(debounced || undefined, exclude, { signal })
         .then((result) => {
           if (signal.aborted) return;
           setUsers(result);
@@ -83,7 +86,7 @@ export function UserPickerModal({
           setUsers([]);
         });
     },
-    [open, debounced, excludeServiceCode, excludeRole],
+    [open, debounced, excludeKey],
   );
 
   const toggle = (email: string): void =>

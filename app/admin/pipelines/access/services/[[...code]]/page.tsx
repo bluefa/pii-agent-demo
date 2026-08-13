@@ -20,7 +20,6 @@ import { cn, serviceSidebarStyles } from '@/lib/theme';
 import { passRoutes } from '@/lib/routes';
 import { fmtDateTime } from '@/lib/pipeline/format';
 import { useAbortableEffect } from '@/app/hooks/useAbortableEffect';
-import { getServicesPage } from '@/app/lib/api';
 
 import { SearchBox } from '@/app/admin/pipelines/_components/SearchBox';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
@@ -29,7 +28,6 @@ import { usePlToast } from '@/app/admin/pipelines/_components/usePlToast';
 import { SERVICE_RAIL_PAGE_SIZE } from '@/app/components/features/admin/ServiceSidebar';
 import { serviceTileClass } from '@/app/components/features/admin/ServiceSidebar/ServiceRow';
 import { SidebarPagination } from '@/app/components/features/admin/ServiceSidebar/SidebarPagination';
-import { serviceItemsFrom, type ServiceItem } from '@/app/admin/pipelines/_services/logic';
 import { serviceListStyles } from '@/app/admin/pipelines/_services/styles';
 
 import {
@@ -46,13 +44,16 @@ import {
 import { HistoryTypePill } from '@/app/admin/pipelines/access/_components/AccessPills';
 import { accessStyles as a } from '@/app/admin/pipelines/access/_components/accessStyles';
 import {
+  addServiceOwners,
   getAccessHistory,
-  getServiceUsers,
-  grantServiceUsers,
-  revokeServiceUser,
+  getAdminServices,
+  getServiceOwners,
+  removeServiceOwner,
+  sliceToPage,
   type AccessHistoryEntry,
   type AccessPage,
   type AccessUser,
+  type AdminServiceRow,
 } from '@/app/lib/api/access';
 
 const SERVICE_PAGE_SIZE = SERVICE_RAIL_PAGE_SIZE;
@@ -95,7 +96,7 @@ export default function AccessServicesPage(): ReactElement {
   const toast = usePlToast();
 
   // ── 레일 (서비스·대상 검색과 동일) ───────────────────────────────────────
-  const [services, setServices] = useState<ServiceItem[]>([]);
+  const [services, setServices] = useState<AdminServiceRow[]>([]);
   const [servicesLoading, setServicesLoading] = useState(true);
   const [servicesError, setServicesError] = useState<unknown>(null);
   const [servicesRetry, setServicesRetry] = useState(0);
@@ -118,12 +119,15 @@ export default function AccessServicesPage(): ReactElement {
     (signal) => {
       setServicesLoading(true);
       setServicesError(null);
-      return getServicesPage(svcPage - 1, SERVICE_PAGE_SIZE, debouncedQuery || undefined, { signal })
+      return getAdminServices(debouncedQuery || undefined, svcPage - 1, {
+        signal,
+        size: SERVICE_PAGE_SIZE,
+      })
         .then((page) => {
           if (signal.aborted) return;
-          setServices(serviceItemsFrom(page));
-          setSvcPages(Math.max(1, page.totalPages ?? 1));
-          setSvcTotal(page.totalElements ?? 0);
+          setServices(page.content);
+          setSvcPages(page.totalPages);
+          setSvcTotal(page.totalElements);
           setServicesLoading(false);
         })
         .catch((err) => {
@@ -137,19 +141,17 @@ export default function AccessServicesPage(): ReactElement {
     [servicesRetry, svcPage, debouncedQuery],
   );
 
-  const listName = services.find((svc) => svc.service_code === selectedCode)?.service_name ?? null;
+  const listName = services.find((svc) => svc.serviceCode === selectedCode)?.serviceName ?? null;
 
   // 다른 페이지에 있는 서비스로 바로 들어온 경우에만 이름을 한 번 찾아온다.
   useAbortableEffect(
     (signal) => {
       if (!selectedCode || listName) return;
-      return getServicesPage(0, SERVICE_PAGE_SIZE, selectedCode, { signal })
+      return getAdminServices(selectedCode, 0, { signal, size: SERVICE_PAGE_SIZE })
         .then((page) => {
           if (signal.aborted) return;
-          const match = serviceItemsFrom(page).find((item) => item.service_code === selectedCode);
-          if (match) {
-            setResolvedName({ code: selectedCode, name: match.service_name ?? selectedCode });
-          }
+          const match = page.content.find((item) => item.serviceCode === selectedCode);
+          if (match) setResolvedName({ code: selectedCode, name: match.serviceName });
         })
         .catch(() => {});
     },
@@ -163,11 +165,20 @@ export default function AccessServicesPage(): ReactElement {
     '';
 
   // ── 오른쪽 시트 ──────────────────────────────────────────────────────────
+  // 계약이 권한 사용자 전체를 한 번에 준다(페이지 아님) — 나누는 일은 화면 몫이다.
+  // 전체 목록을 따로 붙잡는 이유는 피커다: 제외 목록이 **모든** 권한 사용자여야 하는데
+  // 현재 페이지만 넘기면 2페이지에 있는 사람이 후보로 다시 올라온다.
+  const [allOwners, setAllOwners] = useState<AccessUser[]>([]);
   const fetchUsers = useCallback(
-    (page: number, opts: { signal: AbortSignal }): Promise<AccessPage<AccessUser>> =>
-      selectedCode
-        ? getServiceUsers(selectedCode, page, { ...opts, size: ROWS_PER_PAGE })
-        : Promise.resolve(emptyPage<AccessUser>()),
+    async (page: number, opts: { signal: AbortSignal }): Promise<AccessPage<AccessUser>> => {
+      if (!selectedCode) {
+        setAllOwners([]);
+        return emptyPage<AccessUser>();
+      }
+      const { owners } = await getServiceOwners(selectedCode, opts);
+      if (!opts.signal.aborted) setAllOwners(owners);
+      return sliceToPage(owners, page, ROWS_PER_PAGE);
+    },
     [selectedCode],
   );
   const fetchHistory = useCallback(
@@ -188,9 +199,10 @@ export default function AccessServicesPage(): ReactElement {
   const grant = async (emails: string[]): Promise<void> => {
     if (!selectedCode) return;
     try {
-      const result = await grantServiceUsers(selectedCode, emails);
+      const before = allOwners.length;
+      const { owners } = await addServiceOwners(selectedCode, emails);
       setPickerOpen(false);
-      toast.show(`${result.granted_count}명에게 ${selectedName} 권한을 부여했어요`);
+      toast.show(`${owners.length - before}명에게 ${selectedName} 권한을 부여했어요`);
       users.reload();
       history.reload();
     } catch (err) {
@@ -201,7 +213,7 @@ export default function AccessServicesPage(): ReactElement {
   const revoke = async (): Promise<void> => {
     if (!selectedCode || !revoking) return;
     try {
-      await revokeServiceUser(selectedCode, revoking.email);
+      await removeServiceOwner(selectedCode, revoking.email);
       toast.show(`${revoking.knoxId}의 ${selectedName} 권한을 해제했어요`);
       setRevoking(null);
       users.reload();
@@ -258,8 +270,8 @@ export default function AccessServicesPage(): ReactElement {
               <div className={s.railSection}>{svcQuery ? '검색 결과' : '전체 서비스'}</div>
               <div className={s.railList} style={{ maxHeight: services.length * ROW_MAX_PX }}>
                 {services.map((service) => {
-                  const code = service.service_code ?? '';
-                  const name = service.service_name ?? code;
+                  const code = service.serviceCode;
+                  const name = service.serviceName;
                   const active = code === selectedCode;
                   return (
                     <button
@@ -393,10 +405,10 @@ export default function AccessServicesPage(): ReactElement {
                       {row.targetUser.knoxId}
                     </span>
                     <span role="cell" className={a.knox}>
-                      {row.actor.knoxId}
+                      {row.actorUser.knoxId}
                     </span>
                     <span role="cell" className={a.note}>
-                      {row.reason ?? '—'}
+                      {row.note ?? '—'}
                     </span>
                     <span role="cell" className={a.when}>
                       {fmtDateTime(row.createdAt)}
@@ -414,7 +426,7 @@ export default function AccessServicesPage(): ReactElement {
         onClose={() => setPickerOpen(false)}
         title={`${selectedName} 권한 부여`}
         sub="요청 절차 없이 바로 부여해요. 이력에는 '직접 부여'로 남아요."
-        excludeServiceCode={selectedCode ?? undefined}
+        excludeEmails={allOwners.map((owner) => owner.email)}
         submitLabel="부여"
         onSubmit={grant}
       />

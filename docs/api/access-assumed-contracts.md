@@ -1,210 +1,220 @@
-# 서비스 접근 권한 관리 — Assumed Contracts
+# 서비스 접근 권한 — Contracts
 
-The 접근 권한 admin menu group (`/admin/pipelines/access/**`) needs eleven endpoints that
-**do not exist in `docs/swagger/install-v1.yaml`**. They are implemented mock-first behind
-Next.js routes with the shapes below — the same exception the Ops console took
-(`docs/api/ops-assumed-contracts.md`). When the BFF ships real endpoints, replace the mock
-handlers and delete the corresponding section here.
+The 접근 권한 admin menu group (`/admin/pipelines/access/**`) and the requester screen
+(`/access-requests`) run on the **backend draft spec the owner supplied (2026-08-13)** —
+paths, field names and status codes are followed verbatim. Two things in it do not exist
+yet; both are marked **GAP** below.
 
-Conventions follow install-v1: snake_case wire, Spring `Page` for pagination, `ErrorMessage`
-problem responses.
+None of these endpoints are in `docs/swagger/install-v1.yaml` yet, so they 404 against the
+real BFF and the feature is mock-first (`lib/bff/mock/access.ts`). Conventions follow
+install-v1: snake_case wire, Spring `Page` for the paged reads, `ErrorMessage` problems.
 
-## Owner decisions baked in (2026-08-13)
+## Decisions this contract encodes
 
-Three answers from the draft backend spec review shape every section below:
+- **`email` is the identity key.** Every write addresses a person by email, compared
+  case-insensitively. Nothing is addressed by an internal id.
+- **`knox_id` is what screens display.** `UserSummary` carries no person name, so tables,
+  the picker and the audit log print the Knox ID — an identifier, set in mono like a
+  service code.
+- **No grant metadata.** 권한 사용자 목록은 사용자 목록 그 자체다. Who granted it, when, and
+  by which path are not fields; those facts survive only as `/history` events
+  (`GRANTED` = 직접 부여, `APPROVED` = 요청 승인). The 권한 사용자 표 is therefore two
+  columns wide — that is what the contract supports.
+- **Terminology split.** The contract says *owners*; the UI says **권한 사용자**. The wire
+  keeps the spec's word, the screens keep the user's.
 
-- **`email` is the identity key.** Every write addresses a person by email; nothing is
-  addressed by an internal id. Comparison is case-insensitive.
-- **`knox_id` is what screens display.** `UserSummary` carries no person name, so the
-  tables, the picker and the audit log all print the Knox ID — an identifier, set in mono
-  like a service code, not a name.
-- **There is no grant metadata.** 담당자 목록은 사용자 목록 그 자체다. Who granted it, when,
-  and by which path are NOT fields on the list; those facts survive only as `/history`
-  events (`GRANTED` = 직접 부여, `APPROVED` = 요청 승인).
+## Two audiences, two prefixes
 
-A consequence worth stating plainly: the 담당자 표 is two columns wide (Knox ID · 이메일).
-That is what the contract supports, and inventing a third would mean rendering a value the
-server never sent.
+`/admin/**` is ADMIN-only. `/services/{code}/permission-access` and the requester reads are
+what any signed-in user calls — a service manager with no permission must still be able to
+ask, so those sit outside the admin gate.
 
-## The one real endpoint this feature already has
+**Base path assumption:** the spec gave full paths only for the user API
+(`/install/v1/services/{serviceCode}/permission-access`) and bare paths for the admin side
+(`/services`, `/admins`, `/permission-access`, `/history`). We mounted the admin set under
+`/install/v1/admin/…`, following the repo's existing `/admin/queue/*` and `/admin/ops/*`.
+**Confirm this before the BFF ships.**
+
+## Shared shapes
 
 ```
-GET /install/v1/services/{serviceCode}/authorized-users
-→ 200 AuthorizedUsersResponse { users: UserInfo[] }   // UserInfo = { id, name, email }
+UserSummary { knox_id: string, email: string, role: string }
 ```
-
-Read-only, unpaged, and has no writer. The owner confirmed (2026-08-13) that this set and
-the draft spec's **owners** are the same thing — so one of the two should eventually go.
-§1 supersedes it for the admin surface; the existing route is untouched here because it has
-no caller (`getPermissions()` in `app/lib/api/index.ts` is dead), which also makes it the
-cheaper of the two to retire.
-
-Note the shape difference the merge has to resolve: this endpoint returns
-`{ id, name, email }` while the draft spec's `UserSummary` is `{ knox_id, email, role }`.
-The screens are built on `UserSummary`.
-
-## Two audiences, two path prefixes
-
-`/admin/access/**` is ADMIN-only. `/access/**` is what any signed-in user calls for their
-own requests — a service manager with no permission on a service must still be able to ask
-for one, so those three endpoints deliberately sit outside the admin gate.
 
 ---
 
-## 1. 서비스별 권한 사용자 목록
+## 관리자 API
+
+### 서비스
 
 ```
-GET /admin/access/services/{serviceCode}/users?page={0}&size={10}
-→ 200 Page<UserSummary>
+GET  /admin/services?page={0}&size={20}&q={검색어}
+→ 200 Page<AdminServiceRow>
 
-UserSummary {
-  knox_id: string      // 화면에 찍는 값
-  email:   string      // 모든 쓰기의 식별 키
-  role:    string
+AdminServiceRow {
+  service_code:     string
+  service_name:     string
+  owner_count:      number          // 레일이 권한자 수를 여기서 읽는다
+  owners:           UserSummary[]
+  last_modified_at: string | null
 }
 ```
 
-The page item IS the user — no `granted_at`, no `granted_by`, no `grant_type`. "이 사람이 왜
-이 서비스에 접근하지?" is answered by §5's history instead, where `GRANTED` (직접 부여) and
-`APPROVED` (요청 승인) are separate event types. Rows are ordered by `knox_id`, since without
-a grant timestamp there is nothing chronological to sort on.
-
-## 2. 서비스 권한 부여 (직접 부여)
-
 ```
-POST /admin/access/services/{serviceCode}/users
-body    { emails: string[] }          // 1건 이상, 이미 가진 사용자는 서버가 무시
-→ 200  { service_code: string, granted_count: number }
-```
+GET  /admin/services/{serviceCode}/owners
+→ 200 ServiceOwnersResponse
 
-Bulk by design — the picker grants a checked set in one call, not one call per row.
+ServiceOwnersResponse {
+  service_code: string
+  service_name: string
+  owners:       UserSummary[]       // 페이지가 아니다 — 전체를 준다
+}
 
-## 3. 서비스 권한 해제
+POST /admin/services/{serviceCode}/owners
+body    { emails: string[] }        // 직접 부여, 이미 가진 사용자는 서버가 무시
+→ 200  ServiceOwnersResponse        // 갱신된 전체 목록
 
-```
-POST /admin/access/services/{serviceCode}/users/remove
+POST /admin/services/{serviceCode}/owners/remove
 body    { email: string }
-→ 204
+→ 200  ServiceOwnersResponse
 ```
 
-POST with a body rather than `DELETE …/{email}`: the key is an email address, and an email
-in a URL path is personal data written into every access log, proxy trace and referrer
-header along the way. The same reasoning applies to §6's admin removal.
+쓰기가 갱신된 전체 목록을 돌려주므로 화면이 재조회할 필요가 없다. 목록이 페이지가
+아니므로 나눠 그리는 일은 화면 몫이다 (`sliceToPage`).
 
-## 4. 접근 권한 요청 — 관리자 측
+### 관리자
 
 ```
-GET  /admin/access/requests?status={PENDING|REJECTED|ALL}&page={0}&size={10}
-→ 200 Page<AccessRequestItem>
+GET  /admin/admins
+→ 200 AdminListResponse { admins: UserSummary[] }   // 페이지 아님
 
-GET  /admin/access/requests/{requestId}
-→ 200 AccessRequestItem
+POST /admin/admins
+body    { email: string }           // 단수 — 여러 명은 호출을 반복한다
+→ 200  UserSummary
 
-POST /admin/access/requests/{requestId}/approve
-body    { message: string }           // 선택, maxLength 1000
-→ 200  AccessRequestItem              // status=APPROVED, 권한은 이 호출로 부여된다
+POST /admin/admins/remove
+body    { email: string }
+→ 204                                // 마지막 관리자면 400
+```
 
-POST /admin/access/requests/{requestId}/reject
-body    { reason: string }            // 필수, maxLength 1000
-→ 200  AccessRequestItem              // status=REJECTED
+회수 규칙은 "자기 자신"이 아니라 **"마지막 한 명"**이다. 관리자가 둘 이상이면 스스로를
+내릴 수 있고, 그 순간 이후의 관리자 조회는 정상적으로 403 이 된다.
 
-AccessRequestItem {
-  request_id:      number
-  service_code:    string
-  service_name:    string
-  requester:       UserSummary
-  reason:          string             // 요청자가 적은 사유
-  requested_at:    string (date-time)
-  status:          "PENDING" | "APPROVED" | "REJECTED"
-  processed_at:    string | null
-  processed_by:    { id, name } | null
-  verdict_message: string | null      // 승인 메시지 또는 반려 사유
+### 접근 권한 요청
+
+```
+GET  /admin/permission-access?status={PENDING}&page={0}&size={20}
+→ 200 Page<PermissionRequestRow>
+
+PermissionRequestRow {
+  request_id:   number
+  service_code: string
+  service_name: string
+  requester:    UserSummary
+  requested_at: string (date-time)
 }
 ```
 
-Approving is what grants the permission — there is no separate grant call afterwards. A
-request that is not PENDING answers 409 to either action, so two admins racing on the same
-row cannot double-decide it.
-
-## 5. 승인·반려 이력
+> **GAP — B3.** 행에 `reason` 도 `status` 도 없다. 요청 사유는 상세에만 있어서 승인 대기·
+> 반려 카드가 사유 미리보기를 그리지 못한다. 행마다 상세를 부르면 N+1 이 되므로 지금은
+> 열을 두지 않았다. `reason`·`status`·`processed_at` 세 필드가 행에 붙으면 열이 되살아난다.
 
 ```
-GET /admin/access/history?service_code={CODE}&type={TYPE}&page={0}&size={10}
-→ 200 Page<AccessHistoryItem>
+GET  /admin/permission-access/{requestId}
+→ 200 PermissionRequestDetail
 
-AccessHistoryItem {
-  history_id:  number
-  type:        "APPROVED" | "REJECTED" | "GRANTED" | "REVOKED" | "ADMIN_GRANTED" | "ADMIN_REVOKED"
-  service_code: string | null         // null = 서비스와 무관한 항목(관리자 권한 부여/회수)
+PermissionRequestDetail {
+  request_id, service_code, service_name
+  requester:      UserSummary
+  reason:         string
+  status:         "PENDING" | "APPROVED" | "REJECTED"
+  requested_at:   string
+  processed_at:   string | null
+  processed_by:   UserSummary | null
+  processed_note: string | null     // 승인 메시지 또는 반려 사유
+}
+
+POST /admin/permission-access/{requestId}/approve
+body    { message?: string }        // 선택
+→ 204                                // 담당자 부여까지 한 트랜잭션. 이미 처리된 건 400
+
+POST /admin/permission-access/{requestId}/reject
+body    { reason: string }          // 필수
+→ 204                                // 이미 처리된 건 400
+```
+
+승인이 곧 부여다 — 뒤따르는 부여 호출은 없다. 응답이 204 라 화면은 결과 문구를 스스로
+만들고 목록을 다시 읽는다.
+
+### 이력
+
+```
+GET /admin/history?service_code={CODE}&type={TYPE}&page={0}&size={20}
+→ 200 Page<AccessHistoryRow>
+
+AccessHistoryRow {
+  history_id:   number
+  type:         "APPROVED" | "REJECTED" | "GRANTED" | "REVOKED" | "ADMIN_GRANTED" | "ADMIN_REVOKED"
+  service_code: string | null       // null = 관리자 권한 부여/회수 (서비스와 무관)
   service_name: string | null
-  target_user: { knox_id, email }     // 권한을 받거나 잃은 사람
-  actor:       { knox_id, email }     // 그렇게 만든 사람
-  reason:      string | null          // 반려 사유 / 승인 메시지
-  created_at:  string (date-time)
+  target_user:  UserSummary
+  actor_user:   UserSummary
+  note:         string | null
+  created_at:   string (date-time)
 }
 ```
 
-`service_code` is the filter the 서비스별 권한 상세가 쓰는 축이다 — 요구사항의 "service code
-단위 이력 조회"가 이 파라미터 하나로 끝난다. Omit it for the global log.
-
-## 6. 관리자 권한
-
-```
-GET    /admin/access/admins?page={0}&size={10}
-→ 200  Page<UserSummary>               // 여기도 부여 메타데이터는 없다
-
-POST   /admin/access/admins
-body     { emails: string[] }
-→ 200   { granted_count: number }
-
-POST   /admin/access/admins/remove
-body     { email: string }
-→ 204                                  // 자기 자신은 400 — 마지막 관리자가 스스로를 지우는 사고 방지
-```
-
-## 7. 사용자 검색 (권한 부여 피커)
-
-```
-GET /admin/access/users?query={q}&exclude_service_code={CODE}&role={ADMIN}
-→ 200 { users: UserSummary[] }         // 상한 50건, knox_id 오름차순
-```
-
-`query` matches `knox_id` and `email` only — there is no name to match on.
-
-`/user/search` (install-v1) was not reused: it filters `role != ADMIN` out, which makes it
-unable to feed the 관리자 권한 picker, and it cannot exclude "already granted on this
-service". `exclude_service_code` drops users who already hold that service; `role=ADMIN`
-drops users who are already admins.
+`service_code` 가 요구사항의 "service code 단위 이력 조회" 축이다. 생략하면 전역 로그.
+**`type` enum 값은 아직 확인받지 못했다** — 위 여섯은 화면이 가정한 값이고, 배지 어휘가
+여기서 나온다.
 
 ---
 
-## 8. 요청 가능한 서비스 — 사용자 측
+## 사용자 API
 
 ```
-GET /access/requestable-services?query={q}&page={0}&size={10}
-→ 200 Page<{ service_code: string, service_name: string }>
+POST /services/{serviceCode}/permission-access
+body    { reason: string }          // 필수. 담당자 검사 면제
+→ 204                                // 멱등 — PENDING 이 있으면 그대로 두고 성공
 ```
 
-Services the caller does **not** have permission for, minus the ones they already have a
-PENDING request on. `/user/services/page` cannot answer this — it returns only what the
-caller already holds, which is the exact complement.
-
-## 9. 접근 권한 요청 생성 — 사용자 측
-
 ```
-POST /access/requests
-body    { service_code: string, reason: string }   // reason 필수, maxLength 1000
-→ 200  AccessRequestItem                            // status=PENDING
+GET /user/services/page?query=&page={0}&size={20}
+→ 200 Page<{ service_code, service_name, access_status }>
+
+access_status: "OWNED" | "REQUESTED" | "REJECTED" | "NONE"
 ```
 
-409 when the caller already has a PENDING request on that service, or already holds it.
-
-## 10. 내 요청 내역 — 사용자 측
+요청 가능한 서비스 = `access_status` 가 `NONE` 이거나 `REJECTED` 인 것들. 기존
+`bff.users.getServicesPage` 도 같은 업스트림을 보지만 스웨거 계약(`PageServiceItem`)으로
+파싱해 이 필드를 버리므로, 접근 권한 기능은 별도 투영으로 읽는다.
 
 ```
-GET /access/requests?page={0}&size={10}
-→ 200 Page<AccessRequestItem>          // 호출자 본인 것만, 최신순
+GET /users/search?query={q}&excludeEmails={a,b}
+→ 200 { users: UserSummary[] }
 ```
 
-승인·반려 결과(`status`, `processed_at`, `verdict_message`)를 같은 shape 으로 실어 보내므로
-요청 화면과 결과 화면이 한 모델을 쓴다.
+이름이 없으므로 `knox_id` 와 `email` 로만 매칭한다. "이미 가진 사람"을 아는 쪽은 화면이라
+제외 목록을 화면이 넘긴다 — 그래서 피커는 **현재 페이지가 아니라 전체 목록**을 들고 있어야
+한다(2페이지의 담당자가 후보로 다시 올라오면 안 된다).
+
+> **GAP — B4.** 사용자 본인의 요청 내역을 볼 엔드포인트가 없다. `access_status` 만으로는
+> 반려 사유도 처리 일시도 말할 수 없어 "승인 내역 조회" 요구사항이 성립하지 않는다.
+> 오너가 추가하기로 했고, 그때까지 화면은 제안한 모양을 쓴다:
+>
+> ```
+> GET /permission-access/mine?page={0}&size={20}
+> → 200 Page<PermissionRequestDetail>          // 호출자 본인 것만, 최신순
+> ```
+
+---
+
+## 아직 열려 있는 것
+
+| | 내용 |
+|---|---|
+| B3 | 요청 목록 행에 `reason`·`status`·`processed_at` 추가 여부 |
+| B4 | 사용자 본인 요청 내역 엔드포인트 (오너 추가 예정) |
+| D4 | `/history` 의 `type` enum 실제 값 |
+| D6 | 관리자 API base path (`/install/v1/admin/…` 로 가정) |
+| — | `authorized-users` 와 `owners` 는 같은 집합으로 확인됐다. 둘 중 하나는 없어져야 한다 — 프론트는 `/owners` 선호, `getPermissions()` 는 호출자가 없어 삭제 비용 0 |

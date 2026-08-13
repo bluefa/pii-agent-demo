@@ -1,35 +1,41 @@
 /**
  * 서비스 접근 권한 관리 — CSR adapter (docs/api/access-assumed-contracts.md).
  *
- * The routes pass the assumed snake wire through verbatim, so THIS FILE is the
- * one wire↔domain boundary for the feature — same split the ops console uses.
- * Components below it only ever see the camel domain types declared here.
+ * 라우트가 스펙의 snake wire 를 그대로 흘려보내므로 **이 파일이 이 기능의 유일한
+ * wire↔domain 경계**다 — 운영 콘솔과 같은 분업. 아래 화면들은 여기 선언된 camel 도메인만
+ * 본다.
  *
- * Every endpoint here is ASSUMED: it 404s against the real BFF until the
- * contract ships. The doc above is the record of what was invented and why.
+ * 계약은 오너가 준 백엔드 초안 스펙 그대로다. 세 가지가 화면 모양을 정한다:
+ *  - 사람에겐 **이름이 없다**. `knoxId` 를 찍고 `email` 로 쓴다.
+ *  - 권한 사용자·관리자 목록은 **페이지가 아니다**. 전체를 받아 화면에서 나눠 그린다.
+ *  - 승인·반려·회수는 **204** 다. 응답 본문이 없으니 호출한 화면이 다시 읽는다.
  */
 import { fetchInfraJson } from '@/app/lib/api/infra';
 import type {
-  AccessActorWire,
-  AccessGrantPageWire,
-  AccessGrantResultWire,
-  AccessHistoryItemWire,
   AccessHistoryPageWire,
+  AccessHistoryRowWire,
   AccessHistoryTypeWire,
   AccessPageWire,
-  AccessRequestItemWire,
-  AccessRequestPageWire,
   AccessRequestStatusWire,
   AccessUserSearchWire,
   AccessUserWire,
-  AdminGrantPageWire,
-  RequestableServicePageWire,
+  AdminListWire,
+  AdminServicePageWire,
+  AdminServiceRowWire,
+  PermissionRequestDetailPageWire,
+  PermissionRequestDetailWire,
+  PermissionRequestPageWire,
+  PermissionRequestRowWire,
+  ServiceAccessStatusWire,
+  ServiceOwnersWire,
+  UserServicePageWire,
+  UserServiceRowWire,
 } from '@/lib/bff/types';
 
 // ── Domain models ────────────────────────────────────────────────────────────
 
 /**
- * 사람. **이름이 없다** — 계약이 주지 않는다(owner decision 2026-08-13).
+ * 사람. **이름이 없다** — 계약이 주지 않는다.
  * 화면에 찍는 값은 `knoxId`, 서버에 보내는 키는 `email`.
  */
 export interface AccessUser {
@@ -38,16 +44,11 @@ export interface AccessUser {
   role: string;
 }
 
-/** 이력의 행위자·대상 — 표시에 필요한 최소값. */
-export interface AccessActor {
-  knoxId: string;
-  email: string;
-}
-
 export type AccessRequestStatus = AccessRequestStatusWire;
 export type AccessHistoryType = AccessHistoryTypeWire;
+export type ServiceAccessStatus = ServiceAccessStatusWire;
 
-/** Spring `Page` subset — the assumed endpoints return exactly these five keys. */
+/** Spring `Page` subset — 페이지드 엔드포인트가 주는 다섯 키. */
 export interface AccessPage<T> {
   content: T[];
   totalElements: number;
@@ -56,18 +57,44 @@ export interface AccessPage<T> {
   size: number;
 }
 
-export interface AccessRequest {
+/** 관리자 서비스 목록의 행 — 레일이 권한자 수를 여기서 읽는다. */
+export interface AdminServiceRow {
+  serviceCode: string;
+  serviceName: string;
+  ownerCount: number;
+  owners: AccessUser[];
+  lastModifiedAt: string | null;
+}
+
+/** 한 서비스의 권한 사용자 — 페이지가 아니라 전체. */
+export interface ServiceOwners {
+  serviceCode: string;
+  serviceName: string;
+  owners: AccessUser[];
+}
+
+/** 요청 목록의 행. 사유와 상태가 없다 — 계약 갭(B3). */
+export interface PermissionRequestRow {
+  requestId: number;
+  serviceCode: string;
+  serviceName: string;
+  requester: AccessUser;
+  requestedAt: string;
+}
+
+/** 요청 상세 — 사유와 판정이 사는 곳. */
+export interface PermissionRequestDetail {
   requestId: number;
   serviceCode: string;
   serviceName: string;
   requester: AccessUser;
   reason: string;
-  requestedAt: string;
   status: AccessRequestStatus;
+  requestedAt: string;
   processedAt: string | null;
-  processedBy: AccessActor | null;
-  /** 승인 메시지 또는 반려 사유 — 결정의 말이 한 자리에 있다. */
-  verdictMessage: string | null;
+  processedBy: AccessUser | null;
+  /** 승인 메시지 또는 반려 사유. */
+  processedNote: string | null;
 }
 
 export interface AccessHistoryEntry {
@@ -75,18 +102,36 @@ export interface AccessHistoryEntry {
   type: AccessHistoryType;
   serviceCode: string | null;
   serviceName: string | null;
-  targetUser: AccessActor;
-  actor: AccessActor;
-  reason: string | null;
+  targetUser: AccessUser;
+  actorUser: AccessUser;
+  note: string | null;
   createdAt: string;
 }
 
-export interface RequestableService {
+/** 사용자 시점의 서비스 한 줄. */
+export interface UserServiceRow {
   serviceCode: string;
   serviceName: string;
+  accessStatus: ServiceAccessStatus;
 }
 
 // ── Wire → domain ────────────────────────────────────────────────────────────
+
+/**
+ * 페이지가 아닌 응답(권한 사용자·관리자 전체)을 카드가 쓰는 페이지 모양으로 자른다.
+ * 계약이 전체를 주기로 한 이상 나누는 일은 화면 몫이다.
+ */
+export function sliceToPage<T>(items: T[], page: number, size: number): AccessPage<T> {
+  const safeSize = size > 0 ? size : 10;
+  const start = page * safeSize;
+  return {
+    content: items.slice(start, start + safeSize),
+    totalElements: items.length,
+    totalPages: Math.max(1, Math.ceil(items.length / safeSize)),
+    number: page,
+    size: safeSize,
+  };
+}
 
 const toPage = <W, T>(wire: AccessPageWire<W>, map: (item: W) => T): AccessPage<T> => ({
   content: (wire.content ?? []).map(map),
@@ -102,38 +147,61 @@ const toUser = (wire: AccessUserWire): AccessUser => ({
   role: wire.role,
 });
 
-const toActor = (wire: AccessActorWire): AccessActor => ({
-  knoxId: wire.knox_id,
-  email: wire.email,
+const toServiceRow = (wire: AdminServiceRowWire): AdminServiceRow => ({
+  serviceCode: wire.service_code,
+  serviceName: wire.service_name,
+  ownerCount: wire.owner_count ?? 0,
+  owners: (wire.owners ?? []).map(toUser),
+  lastModifiedAt: wire.last_modified_at,
 });
 
-const toRequest = (wire: AccessRequestItemWire): AccessRequest => ({
+const toServiceOwners = (wire: ServiceOwnersWire): ServiceOwners => ({
+  serviceCode: wire.service_code,
+  serviceName: wire.service_name,
+  owners: (wire.owners ?? []).map(toUser),
+});
+
+const toRequestRow = (wire: PermissionRequestRowWire): PermissionRequestRow => ({
+  requestId: wire.request_id,
+  serviceCode: wire.service_code,
+  serviceName: wire.service_name,
+  requester: toUser(wire.requester),
+  requestedAt: wire.requested_at,
+});
+
+const toRequestDetail = (wire: PermissionRequestDetailWire): PermissionRequestDetail => ({
   requestId: wire.request_id,
   serviceCode: wire.service_code,
   serviceName: wire.service_name,
   requester: toUser(wire.requester),
   reason: wire.reason,
-  requestedAt: wire.requested_at,
   status: wire.status,
+  requestedAt: wire.requested_at,
   processedAt: wire.processed_at,
-  processedBy: wire.processed_by ? toActor(wire.processed_by) : null,
-  verdictMessage: wire.verdict_message,
+  processedBy: wire.processed_by ? toUser(wire.processed_by) : null,
+  processedNote: wire.processed_note,
 });
 
-const toHistoryEntry = (wire: AccessHistoryItemWire): AccessHistoryEntry => ({
+const toHistoryEntry = (wire: AccessHistoryRowWire): AccessHistoryEntry => ({
   historyId: wire.history_id,
   type: wire.type,
   serviceCode: wire.service_code,
   serviceName: wire.service_name,
-  targetUser: toActor(wire.target_user),
-  actor: toActor(wire.actor),
-  reason: wire.reason,
+  targetUser: toUser(wire.target_user),
+  actorUser: toUser(wire.actor_user),
+  note: wire.note,
   createdAt: wire.created_at,
+});
+
+const toUserService = (wire: UserServiceRowWire): UserServiceRow => ({
+  serviceCode: wire.service_code,
+  serviceName: wire.service_name,
+  accessStatus: wire.access_status,
 });
 
 // ── Client funcs ─────────────────────────────────────────────────────────────
 
-/** Shared page size — one card body height across every table in the section. */
+/** 카드 본문 한 장의 행 수 — 화면들이 공유하는 높이. */
 export const ACCESS_PAGE_SIZE = 5;
 
 interface Opts {
@@ -150,93 +218,130 @@ const query = (params: Record<string, string | number | undefined>): string => {
   return search.toString();
 };
 
-/** §1 — 서비스 담당자. 항목은 사용자 그 자체다(부여 메타데이터는 계약에 없다). */
-export async function getServiceUsers(
-  serviceCode: string,
+/** 관리자 서비스 목록 — 레일의 데이터원. */
+export async function getAdminServices(
+  search: string | undefined,
   page: number,
   opts?: Opts,
-): Promise<AccessPage<AccessUser>> {
-  const wire = await fetchInfraJson<AccessGrantPageWire>(
-    `/admin/access/services/${encodeURIComponent(serviceCode)}/users?${query({
+): Promise<AccessPage<AdminServiceRow>> {
+  const wire = await fetchInfraJson<AdminServicePageWire>(
+    `/admin/access/services?${query({ q: search, page, size: opts?.size ?? ACCESS_PAGE_SIZE })}`,
+    { signal: opts?.signal },
+  );
+  return toPage(wire, toServiceRow);
+}
+
+/** 한 서비스의 권한 사용자 전체. */
+export async function getServiceOwners(
+  serviceCode: string,
+  opts?: { signal?: AbortSignal },
+): Promise<ServiceOwners> {
+  return toServiceOwners(
+    await fetchInfraJson<ServiceOwnersWire>(
+      `/admin/access/services/${encodeURIComponent(serviceCode)}/owners`,
+      { signal: opts?.signal },
+    ),
+  );
+}
+
+/** 직접 부여 — 갱신된 전체 목록이 돌아오므로 재조회가 필요 없다. */
+export async function addServiceOwners(
+  serviceCode: string,
+  emails: string[],
+): Promise<ServiceOwners> {
+  return toServiceOwners(
+    await fetchInfraJson<ServiceOwnersWire>(
+      `/admin/access/services/${encodeURIComponent(serviceCode)}/owners`,
+      { method: 'POST', body: { emails } },
+    ),
+  );
+}
+
+/** 권한 해제 — email 은 body 로 보낸다(URL 에 실으면 로그에 개인정보가 남는다). */
+export async function removeServiceOwner(
+  serviceCode: string,
+  email: string,
+): Promise<ServiceOwners> {
+  return toServiceOwners(
+    await fetchInfraJson<ServiceOwnersWire>(
+      `/admin/access/services/${encodeURIComponent(serviceCode)}/owners/remove`,
+      { method: 'POST', body: { email } },
+    ),
+  );
+}
+
+/** 관리자 전체 — 페이지가 아니다. */
+export async function getAdmins(opts?: { signal?: AbortSignal }): Promise<AccessUser[]> {
+  const wire = await fetchInfraJson<AdminListWire>('/admin/access/admins', {
+    signal: opts?.signal,
+  });
+  return (wire.admins ?? []).map(toUser);
+}
+
+/** 관리자 권한 부여 — 계약이 단수라 한 번에 한 명이다. */
+export async function addAdmin(email: string): Promise<AccessUser> {
+  return toUser(
+    await fetchInfraJson<AccessUserWire>('/admin/access/admins', {
+      method: 'POST',
+      body: { email },
+    }),
+  );
+}
+
+/** 관리자 권한 회수 — 마지막 관리자면 서버가 400. */
+export function removeAdmin(email: string): Promise<void> {
+  return fetchInfraJson<void>('/admin/access/admins/remove', {
+    method: 'POST',
+    body: { email },
+  });
+}
+
+/** 요청 목록. `status` 생략 = 서버 기본값(PENDING). */
+export async function getAccessRequests(
+  status: AccessRequestStatus | 'ALL' | undefined,
+  page: number,
+  opts?: Opts,
+): Promise<AccessPage<PermissionRequestRow>> {
+  const wire = await fetchInfraJson<PermissionRequestPageWire>(
+    `/admin/access/permission-access?${query({
+      status,
       page,
       size: opts?.size ?? ACCESS_PAGE_SIZE,
     })}`,
     { signal: opts?.signal },
   );
-  return toPage(wire, toUser);
+  return toPage(wire, toRequestRow);
 }
 
-/** §2 — 직접 부여. 한 번의 호출로 선택한 사용자 전부를 부여한다(키는 email). */
-export function grantServiceUsers(
-  serviceCode: string,
-  emails: string[],
-): Promise<AccessGrantResultWire> {
-  return fetchInfraJson<AccessGrantResultWire>(
-    `/admin/access/services/${encodeURIComponent(serviceCode)}/users`,
-    { method: 'POST', body: { emails } },
-  );
-}
-
-/** §3 — 권한 해제. email 은 body 로 보낸다 — URL 에 실으면 로그에 개인정보가 남는다. */
-export function revokeServiceUser(serviceCode: string, email: string): Promise<void> {
-  return fetchInfraJson<void>(
-    `/admin/access/services/${encodeURIComponent(serviceCode)}/users/remove`,
-    { method: 'POST', body: { email } },
-  );
-}
-
-/** §4 — 접근 요청 목록. `status` 생략 = 전체. */
-export async function getAccessRequests(
-  status: AccessRequestStatus | 'ALL' | undefined,
-  page: number,
-  opts?: Opts,
-): Promise<AccessPage<AccessRequest>> {
-  const wire = await fetchInfraJson<AccessRequestPageWire>(
-    `/admin/access/requests?${query({ status, page, size: opts?.size ?? ACCESS_PAGE_SIZE })}`,
-    { signal: opts?.signal },
-  );
-  return toPage(wire, toRequest);
-}
-
-/** §4 — 요청 상세. */
 export async function getAccessRequest(
   requestId: number,
   opts?: { signal?: AbortSignal },
-): Promise<AccessRequest> {
-  return toRequest(
-    await fetchInfraJson<AccessRequestItemWire>(`/admin/access/requests/${requestId}`, {
-      signal: opts?.signal,
-    }),
+): Promise<PermissionRequestDetail> {
+  return toRequestDetail(
+    await fetchInfraJson<PermissionRequestDetailWire>(
+      `/admin/access/permission-access/${requestId}`,
+      { signal: opts?.signal },
+    ),
   );
 }
 
-/** §4 — 승인. 이 호출이 곧 권한 부여다. */
-export async function approveAccessRequest(
-  requestId: number,
-  message: string,
-): Promise<AccessRequest> {
-  return toRequest(
-    await fetchInfraJson<AccessRequestItemWire>(`/admin/access/requests/${requestId}/approve`, {
-      method: 'POST',
-      body: { message },
-    }),
-  );
+/** 승인 — 이 호출이 곧 부여다. 204 라 반환값이 없다. */
+export function approveAccessRequest(requestId: number, message: string): Promise<void> {
+  return fetchInfraJson<void>(`/admin/access/permission-access/${requestId}/approve`, {
+    method: 'POST',
+    body: { message },
+  });
 }
 
-/** §4 — 반려. 사유는 요청자에게 그대로 전달된다. */
-export async function rejectAccessRequest(
-  requestId: number,
-  reason: string,
-): Promise<AccessRequest> {
-  return toRequest(
-    await fetchInfraJson<AccessRequestItemWire>(`/admin/access/requests/${requestId}/reject`, {
-      method: 'POST',
-      body: { reason },
-    }),
-  );
+/** 반려 — 사유는 요청자에게 그대로 전달된다. 204. */
+export function rejectAccessRequest(requestId: number, reason: string): Promise<void> {
+  return fetchInfraJson<void>(`/admin/access/permission-access/${requestId}/reject`, {
+    method: 'POST',
+    body: { reason },
+  });
 }
 
-/** §5 — 이력. `serviceCode` 를 주면 그 서비스 코드 단위 이력이 된다. */
+/** 이력. `serviceCode` 를 주면 그 서비스 코드 단위 이력이 된다. */
 export async function getAccessHistory(
   filter: { serviceCode?: string; type?: AccessHistoryType | 'ALL' },
   page: number,
@@ -254,91 +359,55 @@ export async function getAccessHistory(
   return toPage(wire, toHistoryEntry);
 }
 
-/** §6 — 관리자 목록. 여기도 항목은 사용자 그 자체다. */
-export async function getAccessAdmins(
-  page: number,
-  opts?: Opts,
-): Promise<AccessPage<AccessUser>> {
-  const wire = await fetchInfraJson<AdminGrantPageWire>(
-    `/admin/access/admins?${query({ page, size: opts?.size ?? ACCESS_PAGE_SIZE })}`,
-    { signal: opts?.signal },
-  );
-  return toPage(wire, toUser);
-}
-
-/** §6 — 관리자 권한 부여 (키는 email). */
-export function grantAdmins(emails: string[]): Promise<AccessGrantResultWire> {
-  return fetchInfraJson<AccessGrantResultWire>('/admin/access/admins', {
-    method: 'POST',
-    body: { emails },
-  });
-}
-
-/** §6 — 관리자 권한 회수 (자기 자신은 서버가 400). */
-export function revokeAdmin(email: string): Promise<void> {
-  return fetchInfraJson<void>('/admin/access/admins/remove', {
-    method: 'POST',
-    body: { email },
-  });
-}
-
-/** §7 — 부여 피커용 사용자 검색. */
+/** 부여 피커용 검색. 이미 가진 사람은 호출자가 `excludeEmails` 로 걸러 낸다. */
 export async function searchAccessUsers(
-  filter: { query?: string; excludeServiceCode?: string; role?: 'ADMIN' },
+  search: string | undefined,
+  excludeEmails: string[],
   opts?: { signal?: AbortSignal },
 ): Promise<AccessUser[]> {
   const wire = await fetchInfraJson<AccessUserSearchWire>(
-    `/admin/access/users?${query({
-      query: filter.query,
-      exclude_service_code: filter.excludeServiceCode,
-      role: filter.role,
+    `/access/users?${query({
+      query: search,
+      excludeEmails: excludeEmails.length ? excludeEmails.join(',') : undefined,
     })}`,
     { signal: opts?.signal },
   );
   return (wire.users ?? []).map(toUser);
 }
 
-/** §8 — 내가 아직 권한이 없는(그리고 대기 중 요청도 없는) 서비스. */
-export async function getRequestableServices(
+/** 사용자 시점의 서비스 목록 — 요청 가능 여부가 `accessStatus` 에 실려 온다. */
+export async function getUserServices(
   search: string | undefined,
   page: number,
   opts?: Opts,
-): Promise<AccessPage<RequestableService>> {
-  const wire = await fetchInfraJson<RequestableServicePageWire>(
-    `/access/requestable-services?${query({
+): Promise<AccessPage<UserServiceRow>> {
+  const wire = await fetchInfraJson<UserServicePageWire>(
+    `/access/user-services?${query({
       query: search,
       page,
       size: opts?.size ?? ACCESS_PAGE_SIZE,
     })}`,
     { signal: opts?.signal },
   );
-  return toPage(wire, (item) => ({
-    serviceCode: item.service_code,
-    serviceName: item.service_name,
-  }));
+  return toPage(wire, toUserService);
 }
 
-/** §9 — 권한 요청 생성. 이미 보유/대기 중이면 서버가 409. */
-export async function createAccessRequest(
-  serviceCode: string,
-  reason: string,
-): Promise<AccessRequest> {
-  return toRequest(
-    await fetchInfraJson<AccessRequestItemWire>('/access/requests', {
-      method: 'POST',
-      body: { service_code: serviceCode, reason },
-    }),
+/** 권한 요청 생성 — 멱등이라 이미 대기 중이어도 성공한다. 204. */
+export function createAccessRequest(serviceCode: string, reason: string): Promise<void> {
+  return fetchInfraJson<void>(
+    `/access/services/${encodeURIComponent(serviceCode)}/permission-access`,
+    { method: 'POST', body: { reason } },
   );
 }
 
-/** §10 — 내 요청 내역 (승인·반려 결과 포함). */
+/** 내 요청 내역 (승인·반려 결과 포함) — 계약 갭 B4, 오너가 추가 예정. */
 export async function getMyAccessRequests(
   page: number,
   opts?: Opts,
-): Promise<AccessPage<AccessRequest>> {
-  const wire = await fetchInfraJson<AccessRequestPageWire>(
-    `/access/requests?${query({ page, size: opts?.size ?? ACCESS_PAGE_SIZE })}`,
+): Promise<AccessPage<PermissionRequestDetail>> {
+  const wire = await fetchInfraJson<PermissionRequestDetailPageWire>(
+    `/access/permission-access/mine?${query({ page, size: opts?.size ?? ACCESS_PAGE_SIZE })}`,
     { signal: opts?.signal },
   );
-  return toPage(wire, toRequest);
+  return toPage(wire, toRequestDetail);
 }

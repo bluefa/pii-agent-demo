@@ -8,9 +8,9 @@
  * 필요로 하는 사람만 골라 막았을 것이다. 진입점은 계정 카드(UserChip)이고, 화면 자체는
  * 접근 권한 관리자 화면들과 같은 부품·같은 계약을 쓴다.
  *
- * 왼쪽 카드는 "내가 아직 못 가진 서비스"다 — `/user/services/page` 는 그 반대(이미
- * 가진 것)만 돌려주므로 요청 화면의 목록이 될 수 없다. 오른쪽 카드는 결과까지 담은 내
- * 요청 내역이고, 반려 사유는 그 자리에서 읽힌다(요청 화면과 결과 화면이 한 모델을 쓴다).
+ * 왼쪽 카드는 "내가 아직 못 가진 서비스"다 — `/user/services/page` 가 전체 서비스와
+ * `access_status` 를 주므로, NONE 이거나 REJECTED 인 것만 걸러 낸 것이다. 오른쪽 카드는
+ * 결과까지 담은 내 요청 내역이고, 반려 사유는 그 자리에서 읽힌다.
  */
 import { useState, type ReactElement } from 'react';
 import { cn } from '@/lib/theme';
@@ -31,22 +31,37 @@ import { accessStyles as a } from '@/app/admin/pipelines/access/_components/acce
 import {
   createAccessRequest,
   getMyAccessRequests,
-  getRequestableServices,
+  getUserServices,
+  sliceToPage,
   type AccessPage,
-  type AccessRequest,
-  type RequestableService,
+  type PermissionRequestDetail,
+  type UserServiceRow,
 } from '@/app/lib/api/access';
 
-const fetchRequestable = (
+/**
+ * 요청 가능한 서비스 = access_status 가 NONE 이거나 REJECTED 인 것.
+ *
+ * 서버 페이지를 그대로 쓸 수 없어 한 번에 크게 받아 걸러 낸다 — 필터가 화면 쪽에 있으니
+ * 서버가 나눠 준 페이지에는 이미 걸러질 행이 섞여 있고, 그대로 그리면 5행짜리 카드에
+ * 2행만 남는 페이지가 생긴다. 서비스 수는 목록 화면 하나 분량이라 이 정도가 맞다.
+ */
+const REQUESTABLE = new Set(['NONE', 'REJECTED']);
+const fetchRequestable = async (
   page: number,
   opts: { signal: AbortSignal },
-): Promise<AccessPage<RequestableService>> =>
-  getRequestableServices(undefined, page, { ...opts, size: ROWS_PER_PAGE });
+): Promise<AccessPage<UserServiceRow>> => {
+  const all = await getUserServices(undefined, 0, { ...opts, size: 200 });
+  return sliceToPage(
+    all.content.filter((row) => REQUESTABLE.has(row.accessStatus)),
+    page,
+    ROWS_PER_PAGE,
+  );
+};
 
 const fetchMine = (
   page: number,
   opts: { signal: AbortSignal },
-): Promise<AccessPage<AccessRequest>> =>
+): Promise<AccessPage<PermissionRequestDetail>> =>
   getMyAccessRequests(page, { ...opts, size: ROWS_PER_PAGE });
 
 const REQUESTABLE_COLUMNS: readonly Column[] = [
@@ -68,7 +83,7 @@ export default function MyAccessRequestsPage(): ReactElement {
   const mine = usePagedSection(fetchMine);
   const toast = usePlToast();
   /** 요청 모달을 연 서비스 — null 이면 닫혀 있다. */
-  const [target, setTarget] = useState<RequestableService | null>(null);
+  const [target, setTarget] = useState<UserServiceRow | null>(null);
 
   const submit = async (reason: string): Promise<void> => {
     if (!target) return;
@@ -147,8 +162,8 @@ export default function MyAccessRequestsPage(): ReactElement {
                 <span role="cell" className={a.status}>
                   <RequestStatusPill status={row.status} />
                 </span>
-                <span role="cell" className={a.note} title={row.verdictMessage ?? undefined}>
-                  {row.verdictMessage ?? '—'}
+                <span role="cell" className={a.note} title={row.processedNote ?? undefined}>
+                  {row.processedNote ?? '—'}
                 </span>
                 <span role="cell" className={a.when}>
                   {fmtDateTime(row.requestedAt)}
