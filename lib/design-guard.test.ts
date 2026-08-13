@@ -227,6 +227,13 @@ const rail = bgOf(classOf(railBlock, 'surface')); // user-facing rail
 const plGround = bgOf(classOf(adminSrc, 'split')); // admin split ground (--pl-gray-100)
 const sheet = bgOf(classOf(adminSrc, 'sheet')); // admin content sheet (white)
 
+// The EC2 / RDS Cluster kind tag and the row tints it has to survive. Every resource table
+// that draws the tag (steps 1·2·3·4·6·7, the admin request table, the connection-test card)
+// hovers to one of these two, so the tag's fill stands on four surfaces, not one.
+const kindTagFill = bgOf(classOf(themeSrc, 'resourceKind'));
+const rowHover = hoverBgOf(classOf(liftBlock, 'target'));
+const rowHoverExcluded = hoverBgOf(classOf(liftBlock, 'excluded'));
+
 /**
  * `bgOf`/`textOf` read arbitrary-value classes (`bg-[#…]`). The base `bgColors` and
  * `textColors` tokens are palette classes instead (`bg-gray-100`), so they need the
@@ -297,6 +304,14 @@ const SURFACES: SurfacePair[] = [
   // the page. `bg-gray-50` here measured 1.20 from the card it replaced.
   { what: 'card hover tint on canvas', top: hoverBgOf(classOf(liftBlock, 'card')), under: canvas },
   { what: 'card hover tint on the white card', top: hoverBgOf(classOf(liftBlock, 'card')), under: '#FFFFFF' },
+  // The kind tag paints its own fill over whatever the row is, so the row's HOVER tint is
+  // one of the surfaces it sits on — and it was the missing one. `card` is here too because
+  // its fill was deliberately borrowed from this tag (see tableRowLift.card): the two were
+  // byte-identical, so a kind tag on a card row would have vanished outright.
+  { what: 'kind tag fill on the white row', top: kindTagFill, under: '#FFFFFF' },
+  { what: 'kind tag fill on the row hover tint', top: kindTagFill, under: rowHover },
+  { what: 'kind tag fill on the excluded-row hover tint', top: kindTagFill, under: rowHoverExcluded },
+  { what: 'kind tag fill on the card hover tint', top: kindTagFill, under: hoverBgOf(classOf(liftBlock, 'card')) },
   // The rail's skeleton is reused on the admin ground — a second surface it must clear.
   { what: 'skeleton bar on admin ground', top: bgOf(classOf(railBlock, 'skeletonBar')), under: plGround },
   // The dashboard's service-code chip. Its fill WAS gray-100 — the same token the row
@@ -350,9 +365,11 @@ const TEXT: TextPair[] = [
   { what: 'row label on card hover tint', fg: resolve('#3B6BB5'), on: hoverBgOf(classOf(liftBlock, 'card')) },
   ...serviceTileGlyphs.map((t, i) => ({ what: `service tile ${i} glyph on its fill`, ...t })),
   // The EC2 / RDS Cluster kind tag. Its letters were desaturated from #6D28D9 to a grey
-  // on the argument that contrast was unchanged (6.25 → 6.26:1) — that argument is only
-  // as good as a measurement, so it gets one. The next grey down (#6B7280) is 4.26:1 on
-  // this fill, i.e. the quiet-er value someone will reach for is already below AA.
+  // on the argument that contrast was unchanged — that argument is only as good as a
+  // measurement, so it gets one. Deepening the fill for hover spent the slack that
+  // argument relied on: the grey now reads 5.32:1 here (it was 6.26:1 on #F3EEFF), and
+  // the next grey down (#6B7280) is 3.62:1, i.e. the quieter value someone will reach
+  // for is no longer merely below AA, it is well below it.
   {
     what: 'resource kind tag label on its tag',
     fg: textOf(classOf(themeSrc, 'resourceKind')),
@@ -453,6 +470,33 @@ describe('surface separation (CIEDE2000 >= JND)', () => {
   });
 });
 
+/**
+ * The kind tag's fill against the row tints, by POLARITY rather than by a threshold.
+ *
+ * A plate this pale can never win a contrast number against a tint that is itself pale —
+ * the honest floor here is ~1.1:1, which is too close to the 1.02:1 that broke to be worth
+ * asserting. What broke was not the size of the step but its DIRECTION: on white the chip
+ * was darker than the row, and on `tableRowLift.target` it became lighter, so the chip
+ * inverted mid-hover and passed through equiluminance on the way. One consistent direction
+ * is the invariant a reader's eye actually relies on, and it is binary, so it is checkable.
+ *
+ * The floor stays as a second assertion only to catch a fill that technically stays darker
+ * while collapsing to nothing.
+ */
+const KIND_TAG_SURFACES: Array<[string, string]> = [
+  ['the white row', '#FFFFFF'],
+  ['the row hover tint', rowHover],
+  ['the excluded-row hover tint', rowHoverExcluded],
+  ['the card hover tint', hoverBgOf(classOf(liftBlock, 'card'))],
+];
+
+describe('kind tag fill stays the darker plate on every row tint', () => {
+  it.each(KIND_TAG_SURFACES)('darker than %s', (_what, surface) => {
+    expect(luminance(kindTagFill)).toBeLessThan(luminance(surface));
+    expect(contrast(kindTagFill, surface)).toBeGreaterThanOrEqual(1.08);
+  });
+});
+
 describe('text contrast against its actual surface', () => {
   it.each(TEXT)('$what', ({ fg, on, min }) => {
     expect(contrast(fg, on)).toBeGreaterThanOrEqual(min ?? 4.5);
@@ -538,6 +582,24 @@ describe('detects the PR #624 regressions the hook missed', () => {
     // chip is declared 100 lines from the hover it collides with.
     expect(deltaE00(resolve('var(--pl-gray-100)'), dashRowHover)).toBeLessThan(SURFACE_MIN);
     expect(contrast(resolve('var(--pl-gray-100)'), dashRowHover)).toBeLessThan(1.01);
+  });
+
+  it('H11 kind tag #F3EEFF inverted against the row hover tint (1.02:1)', () => {
+    // Reported as "the EC2 / RDS Cluster tag fades out under the cursor". #F3EEFF is L* 94.9
+    // and `tableRowLift.target` is L* 94.0, so hovering left 0.9 L* between chip and row and
+    // flipped which of the two was lighter. ΔE00 was 5.99 — six times the JND — so the surface
+    // rule above called it fine, the same metric-selection trap as H10.
+    expect(deltaE00('#F3EEFF', rowHover)).toBeGreaterThanOrEqual(SURFACE_MIN);
+    expect(contrast('#F3EEFF', rowHover)).toBeLessThan(1.05);
+    expect(luminance('#F3EEFF')).toBeGreaterThan(luminance(rowHover)); // the inversion
+
+    // And it was never one tag's bug: the whole chip vocabulary is built at L* 92..96 while
+    // both row tints sit at L* 92..94, so every chip goes equiluminant under the cursor.
+    // Deepening this one tag fixes the reported symptom, not the family — retinting the row
+    // hover is the owner's call, so these stand as the record of what is still unfixed.
+    for (const chip of ['#F3F4F6', '#E8F1FF', '#DBEAFE', '#FFEDD5', '#FEE2E2']) {
+      expect(contrast(chip, rowHover)).toBeLessThan(1.1);
+    }
   });
 
   it('H7 --pl-bg-page tinted to #F2F4F7 collides with the ops-alerts tiles', () => {

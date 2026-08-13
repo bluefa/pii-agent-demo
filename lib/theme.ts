@@ -439,11 +439,12 @@ export const tableRowLift = {
   /** hover 행의 셀 텍스트 승격 — #4E5968 → #191F28 (6.12:1 → 14.25:1 on the hover tint). */
   cellText: 'group-hover:text-[#191F28] group-focus-within:text-[#191F28]',
   /**
-   * Card-row hover on the tinted canvas — violet, borrowed from the EC2 tag's
-   * SURFACE (`tagStyles.resourceKind`, `#F3EEFF`), so the two land in one family.
-   * Only the fill is shared: the tag's own letters are grey (#4E5968), because a
-   * tag sits inside a row and must not out-shout the name beside it, while this
-   * tint covers a whole card and carries the row's normal text.
+   * Card-row hover on the tinted canvas — violet, originally lifted byte-for-byte
+   * from the EC2 tag's surface so the two would land in one family. They still
+   * share the family; they no longer share the value. `tagStyles.resourceKind`
+   * moved to #E4DAFB because a chip whose fill EQUALS the row under the cursor
+   * has no edge left (ΔE00 0), and a tag has to survive the surface it sits on
+   * while this tint only has to separate from the card and the canvas.
    *
    * `bg-gray-50` measured ΔE00 1.20 from the white card: under the ~2.3 threshold
    * at which two colours are seen as different at all, so the whole card was a
@@ -1002,11 +1003,23 @@ export const tagStyles = {
    *
    * 면은 보라, 글자는 회색. 판정(파랑·주황·빨강)과 색 가족을 나눠 갖는 일은 면이 하고,
    * 글자는 읽히기만 하면 된다 — 채도 있는 글자는 행 안에서 이름보다 먼저 눈에 들어와
-   * 사실을 판정처럼 외치게 만든다. 대비는 그대로다: #4E5968 이 이 면에서 6.26:1 로,
-   * 앞서 쓰던 #6D28D9(6.25:1)와 같다. 즉 이 변경으로 잃는 가독성은 없다.
-   * 회색 한 칸 아래(#6B7280)는 4.26:1 로 AA 미달이라 쓸 수 없다.
+   * 사실을 판정처럼 외치게 만든다. #4E5968 은 이 면에서 5.32:1 로 AA 를 넘고,
+   * 회색 한 칸 아래(#6B7280)는 3.62:1 이라 쓸 수 없다.
+   *
+   * 면이 #F3EEFF 가 아닌 이유는 hover 다. 그 값은 L* 94.9 라, 행이
+   * `tableRowLift.target`(#EAEEF7, L* 94.0)으로 바뀌는 순간 칩과 행의 명도차가 0.9 로
+   * 무너지고(1.02:1) 밝기 순서까지 뒤집혔다 — 흰 행에서 '주변보다 어두운' 칩이 hover 에서
+   * '아주 살짝 밝은' 칩이 된다. 그러면 경계를 지탱하는 건 채도뿐인데, 색채 채널은 명도
+   * 채널보다 공간 해상도가 낮아 20px 칩의 등휘도 경계는 테두리가 아니라 얼룩으로 읽힌다.
+   * ΔE00 은 5.99 로 JND 를 넉넉히 통과했다: H10(#CFE0FF)과 같은 함정이라, 작은 표시는
+   * 색차가 아니라 대비로 판정해야 한다.
+   *
+   * #E4DAFB(L* 88.7)는 hover 위에서 1.15:1 — 흰 행에서 이미 잘 보이는 1.14:1 과 같은
+   * 분리다. 기준이 3:1 이 아닌 이유는 뜻을 나르는 게 'EC2'·'RDS Cluster' 라는 글자이지
+   * 면이 아니어서다(1.4.11 의 대상이 아니다). 지켜야 할 값은 '평상시 수준을 hover 에서도
+   * 유지한다'이고, 그래서 이 면은 어떤 표면 위에서도 그 표면보다 어두워야 한다.
    */
-  resourceKind: 'bg-[#F3EEFF] text-[#4E5968]',
+  resourceKind: 'bg-[#E4DAFB] text-[#4E5968]',
 } as const;
 
 /**
