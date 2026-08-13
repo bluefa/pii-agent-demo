@@ -128,7 +128,13 @@ export const NoticeBoardView = () => {
                 </header>
                 <ul>
                   {group.posts.map((post) => (
-                    <PostAccordionRow key={post.id} post={post} onGone={dropPost} />
+                    // 그룹 머리가 Category 를 이미 말했다 — 행에서 한 번 더 말하지 않는다.
+                    <PostAccordionRow
+                      key={post.id}
+                      post={post}
+                      onGone={dropPost}
+                      showCategory={false}
+                    />
                   ))}
                 </ul>
               </section>

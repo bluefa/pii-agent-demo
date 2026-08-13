@@ -1,0 +1,985 @@
+<title>게시판을 벗어나기</title>
+<style>
+  :root {
+    --bg: #F7F7FB;
+    --surface: #FFFFFF;
+    --surface-2: #EFEEF6;
+    --surface-3: #E4E2EF;
+    --ink: #17161D;
+    --ink-2: #46445A;
+    --ink-3: #64627A;
+    --line: #E3E2EC;
+    --line-2: #CAC8DA;
+    --accent: #5B4FCF;
+    --accent-soft: #EBE9FB;
+    --hot: #A32F2A;
+    --hot-soft: #FBEAE8;
+    --good: #1F6B4A;
+    --good-soft: #E2F2EA;
+    --shadow: 0 1px 2px rgba(23, 22, 29, 0.06);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #131319;
+      --surface: #1B1B23;
+      --surface-2: #23222D;
+      --surface-3: #2C2B38;
+      --ink: #EDECF3;
+      --ink-2: #B6B4C6;
+      --ink-3: #8E8CA2;
+      --line: #2D2C39;
+      --line-2: #3D3B4C;
+      --accent: #A79BF5;
+      --accent-soft: #272443;
+      --hot: #E8938D;
+      --hot-soft: #33201F;
+      --good: #7CC7A2;
+      --good-soft: #1A2A22;
+      --shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #131319;
+    --surface: #1B1B23;
+    --surface-2: #23222D;
+    --surface-3: #2C2B38;
+    --ink: #EDECF3;
+    --ink-2: #B6B4C6;
+    --ink-3: #8E8CA2;
+    --line: #2D2C39;
+    --line-2: #3D3B4C;
+    --accent: #A79BF5;
+    --accent-soft: #272443;
+    --hot: #E8938D;
+    --hot-soft: #33201F;
+    --good: #7CC7A2;
+    --good-soft: #1A2A22;
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    font-size: 16px;
+    line-height: 1.7;
+    margin: 0;
+    padding: 0 24px 120px;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 1060px; margin: 0 auto; }
+  code, .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-variant-numeric: tabular-nums; }
+
+  header.top { padding: 88px 0 48px; }
+  .eyebrow {
+    font-size: 12px; font-weight: 700; letter-spacing: 0.16em;
+    text-transform: uppercase; color: var(--accent); margin: 0 0 20px;
+  }
+  h1 {
+    font-size: 40px; line-height: 1.14; letter-spacing: -0.035em;
+    font-weight: 800; margin: 0 0 20px; text-wrap: balance;
+  }
+  .lede { font-size: 18px; color: var(--ink-2); margin: 0; max-width: 60ch; }
+  .meta {
+    margin-top: 28px; font-size: 12px; color: var(--ink-3);
+    display: flex; flex-wrap: wrap; gap: 18px;
+    border-top: 1px solid var(--line); padding-top: 20px;
+  }
+
+  section.blk { padding: 60px 0 0; }
+  .blk-head { display: flex; align-items: baseline; gap: 14px; margin-bottom: 8px; }
+  .blk-n { font-family: ui-monospace, monospace; font-size: 12px; font-weight: 700; color: var(--accent); }
+  h2 { font-size: 28px; letter-spacing: -0.025em; font-weight: 800; margin: 0; }
+  .blk-sub { font-size: 16px; color: var(--ink-2); margin: 0 0 32px; max-width: 66ch; }
+  h3 { font-size: 18px; font-weight: 700; letter-spacing: -0.01em; margin: 0 0 4px; }
+
+  .scroller { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; font-size: 14px; min-width: 680px; }
+  th {
+    text-align: left; font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase;
+    color: var(--ink-3); font-weight: 700; padding: 0 14px 10px 0; border-bottom: 1px solid var(--line);
+  }
+  td { padding: 13px 14px 13px 0; border-bottom: 1px solid var(--line); vertical-align: top; color: var(--ink-2); }
+  td.k { color: var(--ink); font-weight: 600; }
+  tr:last-child td { border-bottom: 0; }
+
+  .tag {
+    display: inline-block; font-size: 10px; font-weight: 700; letter-spacing: 0.04em;
+    padding: 3px 8px; border-radius: 999px; white-space: nowrap;
+  }
+  .t-num { background: var(--hot-soft); color: var(--hot); }
+  .t-ux { background: var(--accent-soft); color: var(--accent); }
+  .t-op { background: var(--surface-2); color: var(--ink-3); }
+  .t-ok { background: var(--good-soft); color: var(--good); }
+
+  /* 시간축 — changelog 는 본래 연대순이라 세로 선이 내용에 맞는 장치다 */
+  .tl { position: relative; padding-left: 34px; }
+  .tl::before {
+    content: ""; position: absolute; left: 9px; top: 8px; bottom: 8px;
+    width: 2px; background: var(--line); border-radius: 1px;
+  }
+  .refs { display: flex; flex-direction: column; gap: 20px; }
+  .ref { position: relative; }
+  .ref::before {
+    content: ""; position: absolute; left: -30px; top: 26px;
+    width: 10px; height: 10px; border-radius: 50%;
+    background: var(--surface); border: 2px solid var(--line-2);
+  }
+  .ref.key::before { background: var(--accent); border-color: var(--accent); }
+  .ref-in {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 10px;
+    box-shadow: var(--shadow); display: grid; grid-template-columns: 320px minmax(0, 1fr);
+    overflow: hidden;
+  }
+  @media (max-width: 880px) { .ref-in { grid-template-columns: minmax(0, 1fr); } .tl { padding-left: 0; } .tl::before, .ref::before { display: none; } }
+  .ref-mock {
+    background: var(--surface-2); border-right: 1px solid var(--line);
+    padding: 18px; display: flex; align-items: center;
+  }
+  @media (max-width: 880px) { .ref-mock { border-right: 0; border-bottom: 1px solid var(--line); } }
+  .ref-body { padding: 18px 22px 20px; min-width: 0; }
+  .ref-top { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-bottom: 2px; }
+  .ref-n { font-family: ui-monospace, monospace; font-size: 12px; color: var(--ink-3); font-weight: 700; }
+  .ref-take { font-size: 14px; color: var(--ink-2); margin: 8px 0 0; }
+  .ref-take b { color: var(--ink); font-weight: 700; }
+  .ref-link { font-size: 12px; margin-top: 10px; word-break: break-all; }
+  .ref-link a { color: var(--accent); text-decoration: none; border-bottom: 1px solid var(--line-2); }
+  .facts { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+  .fact {
+    font-family: ui-monospace, monospace; font-size: 12px; background: var(--surface-2);
+    color: var(--ink-2); border: 1px solid var(--line); border-radius: 6px; padding: 2px 8px;
+  }
+
+  /* 목업 부품 — 게시글 행 */
+  .m { width: 100%; background: var(--surface); border: 1px solid var(--line-2); border-radius: 8px; padding: 12px; }
+  .m.plain { border: 0; background: transparent; padding: 4px; }
+  .mrow { padding: 8px 0; border-bottom: 1px solid var(--line); }
+  .mrow:last-child { border-bottom: 0; }
+  .mdate { font-family: ui-monospace, monospace; font-size: 10px; color: var(--ink-3); }
+  .mtitle { font-size: 14px; font-weight: 700; color: var(--ink); letter-spacing: -0.01em; margin-top: 2px; line-height: 1.35; }
+  .mtitle.big { font-size: 18px; }
+  .mexc { font-size: 12px; color: var(--ink-2); margin-top: 4px; line-height: 1.5; }
+  .mchips { display: flex; gap: 4px; margin-top: 6px; flex-wrap: wrap; }
+  .chip {
+    font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 999px;
+    background: var(--surface-2); color: var(--ink-3); border: 1px solid var(--line);
+  }
+  .chip.n { background: var(--accent-soft); color: var(--accent); border-color: transparent; }
+  .chip.h { background: var(--hot-soft); color: var(--hot); border-color: transparent; }
+  .chip.g { background: var(--good-soft); color: var(--good); border-color: transparent; }
+  .mmonth {
+    font-size: 10px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
+    color: var(--ink-3); padding: 6px 0 2px; border-bottom: 1px solid var(--line);
+  }
+  .mspread { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+  .m-cap { font-size: 10px; color: var(--ink-3); text-align: center; margin-top: 10px; }
+  .mside { display: grid; grid-template-columns: 54px minmax(0,1fr); gap: 10px; }
+
+  .props { display: flex; flex-direction: column; gap: 22px; }
+  .prop { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; box-shadow: var(--shadow); overflow: hidden; }
+  .prop.win { border-color: var(--accent); border-width: 2px; }
+  .prop-h {
+    display: flex; align-items: center; gap: 12px; padding: 15px 22px;
+    border-bottom: 1px solid var(--line); background: var(--surface-2); flex-wrap: wrap;
+  }
+  .prop-badge {
+    font-family: ui-monospace, monospace; font-size: 14px; font-weight: 700;
+    background: var(--ink); color: var(--surface); width: 26px; height: 26px;
+    border-radius: 6px; display: grid; place-items: center; flex: none;
+  }
+  .prop-t { font-size: 18px; font-weight: 700; letter-spacing: -0.01em; margin: 0; }
+  .prop-b { display: grid; grid-template-columns: 360px minmax(0, 1fr); }
+  @media (max-width: 880px) { .prop-b { grid-template-columns: minmax(0, 1fr); } }
+  .prop-mock { padding: 20px; background: var(--surface-2); border-right: 1px solid var(--line); }
+  @media (max-width: 880px) { .prop-mock { border-right: 0; border-bottom: 1px solid var(--line); } }
+  .prop-text { padding: 18px 22px 22px; min-width: 0; font-size: 14px; color: var(--ink-2); }
+  .prop-text p { margin: 0 0 10px; }
+  .prop-text p:last-child { margin-bottom: 0; }
+  .kv { margin: 12px 0 0; font-size: 12px; }
+  .kv div { display: flex; gap: 10px; padding: 5px 0; border-top: 1px solid var(--line); }
+  .kv span:first-child { color: var(--ink-3); flex: none; width: 74px; font-weight: 700; }
+
+  .note {
+    border-left: 3px solid var(--hot); background: var(--hot-soft);
+    padding: 16px 20px; border-radius: 0 8px 8px 0; font-size: 14px;
+    margin: 26px 0 0; color: var(--ink-2);
+  }
+  .note b { color: var(--ink); }
+  .callout {
+    border: 1px solid var(--line); border-left: 3px solid var(--accent); background: var(--surface);
+    padding: 20px 24px; border-radius: 0 8px 8px 0; margin: 26px 0 0; box-shadow: var(--shadow);
+  }
+  .callout p { margin: 0; font-size: 16px; color: var(--ink-2); }
+  .callout .q { font-size: 18px; color: var(--ink); font-weight: 700; margin-bottom: 8px; letter-spacing: -0.01em; }
+  ul.plain { padding-left: 20px; margin: 12px 0 0; font-size: 14px; color: var(--ink-2); }
+  ul.plain li { margin-bottom: 9px; }
+  a { color: var(--accent); }
+
+  .ba { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-top: 24px; }
+  @media (max-width: 720px) { .ba { grid-template-columns: 1fr; } }
+  .ba-c { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px; box-shadow: var(--shadow); }
+  .ba-l { font-size: 10px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 12px; }
+  .ba-l.now { color: var(--hot); }
+  .ba-l.next { color: var(--good); }
+</style>
+
+<div class="wrap">
+
+<header class="top">
+  <p class="eyebrow">Design Benchmark · 005</p>
+  <h1>게시판을 벗어나기</h1>
+  <p class="lede">
+    공지사항·FAQ 목록이 사내 게시판처럼 읽힌다. 같은 문제를 오래 다듬어 온 제품 12곳을
+    재서, 행 하나에 들어가는 요소를 처음부터 다시 정한다.
+  </p>
+  <div class="meta">
+    <span>2026-08-13</span>
+    <span>대상 · <code>PostAccordionRow</code> / <code>PostBoardCard</code> / 전체보기</span>
+    <span>레퍼런스 12</span>
+    <span>시안 5</span>
+    <span>계약 갭 3</span>
+  </div>
+</header>
+
+<!-- 01 진단 -->
+<section class="blk">
+  <div class="blk-head"><span class="blk-n">01</span><h2>왜 게시판으로 읽히나</h2></div>
+  <p class="blk-sub">
+    브라우저에서 잰 현재 값이다. "게시판 같다"는 인상은 취향이 아니라
+    <b>요소 배치가 실제로 표(table)의 배치</b>이기 때문에 생긴다.
+  </p>
+
+  <div class="ba">
+    <div class="ba-c">
+      <p class="ba-l now">지금 — 표의 행</p>
+      <div class="m plain">
+        <div class="mrow" style="border-bottom:1px solid var(--line)">
+          <div class="mspread">
+            <div class="mchips" style="margin:0"><span class="chip n">고정</span><span class="chip">서비스 점검</span></div>
+            <span class="mdate">26-08-10</span>
+          </div>
+          <div class="mtitle">8월 정기 점검 안내</div>
+        </div>
+      </div>
+      <p class="m-cap">제목 14px · 행 폭 1630px · 날짜는 반대편 끝</p>
+    </div>
+    <div class="ba-c">
+      <p class="ba-l next">레퍼런스 — 글의 행</p>
+      <div class="m plain">
+        <div class="mrow" style="border-bottom:1px solid var(--line)">
+          <div class="mdate">2026년 8월 10일</div>
+          <div class="mtitle big">8월 정기 점검 안내</div>
+          <div class="mexc">8월 17일 새벽 2시부터 4시까지 스캔이 일시 중단됩니다.</div>
+          <div class="mchips"><span class="chip h">고정</span></div>
+        </div>
+      </div>
+      <p class="m-cap">제목 18px · 읽기 폭 · 날짜는 제목 위</p>
+    </div>
+  </div>
+
+  <div class="scroller" style="margin-top:32px">
+  <table>
+    <tr><th style="width:26px">#</th><th style="width:200px">문제</th><th>측정값과 레퍼런스 대조</th><th style="width:86px">등급</th></tr>
+    <tr>
+      <td class="k mono">1</td><td class="k">제목이 본문 크기</td>
+      <td>제목 <span class="mono">14px</span>. Linear 실측은 항목 제목 <span class="mono">24~32px</span>,
+        본문 <span class="mono">17px</span>. <b>12곳 중 제목이 14px 인 곳은 없다.</b>
+        제목이 본문과 같은 크기면 목록이 아니라 표로 읽힌다.</td>
+      <td><span class="tag t-ux">UX 원칙</span></td>
+    </tr>
+    <tr>
+      <td class="k mono">2</td><td class="k">읽기 폭이 없다</td>
+      <td>행 폭 <span class="mono">1630px</span>. Linear 본문 컬럼 실측 <span class="mono">624px</span>.
+        제목은 왼쪽 끝, 날짜는 <span class="mono">1400px</span> 건너편이라 <b>눈이 좌우로 왕복</b>한다 —
+        이게 표를 읽는 동작이다.</td>
+      <td><span class="tag t-ux">UX 원칙</span></td>
+    </tr>
+    <tr>
+      <td class="k mono">3</td><td class="k">배지가 그룹을 반복</td>
+      <td>"서비스 점검" 그룹 안 <b>모든 행에 "서비스 점검" 배지</b>가 붙는다.
+        같은 사실을 두 번 말하면서 자리를 두 번 쓴다.</td>
+      <td><span class="tag t-num">중복</span></td>
+    </tr>
+    <tr>
+      <td class="k mono">4</td><td class="k">읽을 것이 없다</td>
+      <td>행에 제목뿐. <b>12곳 중 9곳이 한 줄 요약</b>을 준다(GitHub·Vercel·Shopify·Sentry·Notion…).
+        요약이 없으면 목록은 "펼쳐 봐야 아는 제목 모음"이 된다.</td>
+      <td><span class="tag t-ux">UX 원칙</span></td>
+    </tr>
+    <tr>
+      <td class="k mono">5</td><td class="k">날짜가 기계 포맷</td>
+      <td><span class="mono">26-08-10</span>. 12곳 전부 사람 포맷("August 11", "12 Aug").
+        <span class="mono">yy-mm-dd</span> 는 로그 포맷이지 읽는 포맷이 아니다.</td>
+      <td><span class="tag t-op">제안</span></td>
+    </tr>
+    <tr>
+      <td class="k mono">6</td><td class="k">변화의 종류를 말 안 함</td>
+      <td>Shopify 는 <b>New · Improvement · Changed · Removed</b>, GitHub 는
+        <b>Release · Improvement · Retired</b> 를 배지로 낸다. 우리는 Category(주제)만 있고
+        <b>"무슨 종류의 소식인가"</b> 축이 없다.</td>
+      <td><span class="tag t-op">제안</span></td>
+    </tr>
+    <tr>
+      <td class="k mono">7</td><td class="k">시간축이 사라짐</td>
+      <td>Category 로만 묶는다. <b>12곳 중 6곳이 월·날짜로 묶는다</b>(GitHub·Sentry·Vercel·Notion·Slack·Raycast).
+        공지는 본래 연대순 매체인데 우리 목록에는 시간 구조가 없다.</td>
+      <td><span class="tag t-ux">UX 원칙</span></td>
+    </tr>
+    <tr>
+      <td class="k mono">8</td><td class="k">FAQ와 공지가 같은 옷</td>
+      <td>질문과 발표는 다른 물건인데 행 디자인이 같다.
+        레퍼런스에서도 changelog(9곳)와 help center(2곳)는 <b>레이아웃이 완전히 다르다</b>.</td>
+      <td><span class="tag t-ux">UX 원칙</span></td>
+    </tr>
+    <tr>
+      <td class="k mono">9</td><td class="k">고정과 분류가 같은 무게</td>
+      <td>"고정"과 "서비스 점검"이 둘 다 <span class="mono">12px</span> 알약.
+        고정은 <b>순서를 바꾸는 사실</b>, Category 는 <b>분류</b> — 다른 층인데 같아 보인다.</td>
+      <td><span class="tag t-op">제안</span></td>
+    </tr>
+    <tr>
+      <td class="k mono">10</td><td class="k">긴 글도 아코디언</td>
+      <td>글당 이미지 10장·10MB 를 허용해 놓고 인라인으로 편다. Figma 는 도움말을
+        <b>인라인 확장하지 않고 페이지로 보낸다</b>. 이전 벤치마크에서 미해결로 남긴 항목이다.</td>
+      <td><span class="tag t-ux">UX 원칙</span></td>
+    </tr>
+  </table>
+  </div>
+</section>
+
+<!-- 02 레퍼런스 -->
+<section class="blk">
+  <div class="blk-head"><span class="blk-n">02</span><h2>레퍼런스 12</h2></div>
+  <p class="blk-sub">
+    공지·릴리스노트·도움말을 실제로 운영하는 제품만 골랐다. <span class="tag t-ok">실측</span> 은
+    브라우저에서 직접 잰 것, <span class="tag t-op">문서</span> 는 페이지를 읽은 것이다.
+    화면 캡처는 CSP 에 막혀 조각을 HTML 로 다시 그렸다.
+  </p>
+
+  <div class="tl">
+  <div class="refs">
+
+    <div class="ref key">
+      <div class="ref-in">
+        <div class="ref-mock"><div style="width:100%">
+          <div class="m">
+            <div class="mtitle" style="font-size:20px">Coding sessions on mobile</div>
+            <div class="mexc" style="font-size:12px">Start and review agent sessions from your phone, with the same context.</div>
+            <div style="height:1px;background:var(--line);margin:10px 0"></div>
+            <div class="mtitle" style="font-size:14px">Guided Reviews are now GA</div>
+            <div class="mtitle" style="font-size:14px;margin-top:6px">Support for GitHub teams</div>
+          </div>
+          <p class="m-cap">48 / 32 / 24 — 세 단 위계</p>
+        </div></div>
+        <div class="ref-body">
+          <div class="ref-top"><span class="ref-n">01</span><h3>Linear — Changelog</h3><span class="tag t-ok">실측</span></div>
+          <p class="ref-take">
+            <b>이 벤치마크의 기준선.</b> 잰 값: 페이지 제목 <span class="mono">48px</span>,
+            큰 항목 <span class="mono">32px</span>, 보통 항목 <span class="mono">24px</span>,
+            본문 <span class="mono">17px/27.2</span>, <b>본문 컬럼 폭 <span class="mono">624px</span></b>.
+            항목마다 크기를 달리해 <b>중요도를 타이포로만</b> 말한다 — 배지도 색도 안 쓴다.
+          </p>
+          <div class="facts"><span class="fact">48/32/24</span><span class="fact">body 17px</span><span class="fact">col 624</span><span class="fact">배지 없음</span></div>
+          <p class="ref-link"><a href="https://linear.app/changelog">linear.app/changelog</a></p>
+        </div>
+      </div>
+    </div>
+
+    <div class="ref key">
+      <div class="ref-in">
+        <div class="ref-mock"><div style="width:100%">
+          <div class="m">
+            <div class="mmonth">2026년 8월</div>
+            <div class="mrow"><div class="mspread"><span class="mdate">Aug.12</span><span class="chip g">Release</span></div>
+              <div class="mtitle">Agent Plugins 1.0</div>
+              <div class="mchips"><span class="chip">copilot</span><span class="chip">platform</span><span class="chip">…+1</span></div></div>
+            <div class="mrow"><div class="mspread"><span class="mdate">Aug.11</span><span class="chip">Retired</span></div>
+              <div class="mtitle">Legacy API sunset</div></div>
+          </div>
+          <p class="m-cap">월 그룹 · 종류 배지 · 주제 태그</p>
+        </div></div>
+        <div class="ref-body">
+          <div class="ref-top"><span class="ref-n">02</span><h3>GitHub — Changelog</h3><span class="tag t-op">문서</span></div>
+          <p class="ref-take">
+            축이 <b>세 개로 분리</b>돼 있다: <b>월</b>(그룹) · <b>종류</b>(Release/Improvement/Retired 배지) ·
+            <b>주제</b>(태그, 넘치면 <span class="mono">…+1</span>). 우리는 이 셋이 Category 하나로 뭉개져 있다.
+            구분선 없이 간격만으로 항목을 가른다.
+          </p>
+          <div class="facts"><span class="fact">월 그룹</span><span class="fact">종류 배지 3종</span><span class="fact">태그 오버플로 +n</span><span class="fact">구분선 없음</span></div>
+          <p class="ref-link"><a href="https://github.blog/changelog/">github.blog/changelog</a></p>
+        </div>
+      </div>
+    </div>
+
+    <div class="ref key">
+      <div class="ref-in">
+        <div class="ref-mock"><div style="width:100%">
+          <div class="m">
+            <div class="mside">
+              <div class="mdate" style="padding-top:2px">12 Aug</div>
+              <div>
+                <div class="mtitle">AI Gateway now supports streaming</div>
+                <div class="mexc">Lower latency for long completions across all models.</div>
+                <div style="display:flex;gap:3px;margin-top:8px;align-items:center">
+                  <span style="width:16px;height:16px;border-radius:50%;background:var(--surface-3);display:inline-block"></span>
+                  <span style="width:16px;height:16px;border-radius:50%;background:var(--line-2);display:inline-block;margin-left:-6px"></span>
+                  <span class="mdate" style="margin-left:6px">+4</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          <p class="m-cap">날짜는 왼쪽 단, 글은 오른쪽 단</p>
+        </div></div>
+        <div class="ref-body">
+          <div class="ref-top"><span class="ref-n">03</span><h3>Vercel — Changelog</h3><span class="tag t-op">문서</span></div>
+          <p class="ref-take">
+            날짜를 <b>행의 반대편이 아니라 왼쪽 단</b>으로 뺀다. 제목·요약·작성자가 오른쪽 한 단에
+            쌓이니 눈이 한 방향으로만 흐른다. 썸네일은 안 쓰고
+            <b>작성자 아바타 <span class="mono">32px</span></b> 만 둔다 — 소식에 사람을 붙이는 가장 싼 방법.
+          </p>
+          <div class="facts"><span class="fact">2단: 날짜 | 글</span><span class="fact">아바타 32px</span><span class="fact">썸네일 없음</span></div>
+          <p class="ref-link"><a href="https://vercel.com/changelog">vercel.com/changelog</a></p>
+        </div>
+      </div>
+    </div>
+
+    <div class="ref">
+      <div class="ref-in">
+        <div class="ref-mock"><div style="width:100%">
+          <div class="m">
+            <div class="mspread"><div class="mtitle" style="font-size:12px">Adds invoice description…</div><span class="chip h">Breaking</span></div>
+            <div style="height:1px;background:var(--line);margin:8px 0"></div>
+            <div class="mspread"><div class="mtitle" style="font-size:12px">Quotes API params</div><span class="chip g">Non-breaking</span></div>
+            <div style="height:1px;background:var(--line);margin:8px 0"></div>
+            <div class="mchips"><span class="chip">Billing</span><span class="chip">api</span></div>
+          </div>
+          <p class="m-cap">파급도를 열로 세운다</p>
+        </div></div>
+        <div class="ref-body">
+          <div class="ref-top"><span class="ref-n">04</span><h3>Stripe — Changelog</h3><span class="tag t-op">문서</span></div>
+          <p class="ref-take">
+            제목 옆에 <b>Breaking / Non-breaking</b> 을 고정 열로 둔다. 독자가 실제로 묻는 것이
+            "이게 나한테 영향이 있나" 라서다. 우리 화면의 대응물은 <b>"조치가 필요한가"</b> —
+            점검 공지와 기능 소개는 독자가 할 일이 다르다.
+          </p>
+          <div class="facts"><span class="fact">파급도 열</span><span class="fact">버전 &gt; 제품 2단 그룹</span></div>
+          <p class="ref-link"><a href="https://docs.stripe.com/changelog">docs.stripe.com/changelog</a></p>
+        </div>
+      </div>
+    </div>
+
+    <div class="ref">
+      <div class="ref-in">
+        <div class="ref-mock"><div style="width:100%">
+          <div class="m">
+            <div class="mmonth">August 2026</div>
+            <div class="mrow"><div class="mdate">August 12, 2026</div>
+              <div class="mtitle">Trace view improvements</div>
+              <div class="mexc">Spans now collapse by default.</div>
+              <div class="mexc" style="color:var(--accent);font-weight:700">Read On →</div></div>
+          </div>
+          <p class="m-cap">본문은 안 펼치고 보낸다</p>
+        </div></div>
+        <div class="ref-body">
+          <div class="ref-top"><span class="ref-n">05</span><h3>Sentry — Changelog</h3><span class="tag t-op">문서</span></div>
+          <p class="ref-take">
+            목록에는 <b>날짜 · 제목 · 한 문장 · "Read On →"</b> 만. 본문은 목록 안에서 펼치지 않는다.
+            우측에 <b>월별 점프 목록</b>(2026-08 … 2023-03)을 둬서 시간축 자체가 내비게이션이 된다.
+            테두리 없이 간격만으로 항목을 가른다.
+          </p>
+          <div class="facts"><span class="fact">월 그룹 + 월 점프</span><span class="fact">한 문장 요약</span><span class="fact">인라인 확장 없음</span></div>
+          <p class="ref-link"><a href="https://sentry.io/changelog/">sentry.io/changelog</a></p>
+        </div>
+      </div>
+    </div>
+
+    <div class="ref key">
+      <div class="ref-in">
+        <div class="ref-mock"><div style="width:100%">
+          <div class="m">
+            <div class="mrow"><div class="mdate">August 11</div>
+              <div class="mtitle">Bulk edit in Admin</div>
+              <div class="mexc">Edit up to 50 products at once.</div>
+              <div class="mchips"><span class="chip n">New</span><span class="chip">Admin</span></div></div>
+            <div class="mrow"><div class="mdate">August 9</div>
+              <div class="mtitle">POS receipt layout</div>
+              <div class="mchips"><span class="chip">Improvement</span><span class="chip">POS</span></div></div>
+          </div>
+          <p class="m-cap">종류 배지 + 영역 배지, 두 축</p>
+        </div></div>
+        <div class="ref-body">
+          <div class="ref-top"><span class="ref-n">06</span><h3>Shopify — Changelog</h3><span class="tag t-op">문서</span></div>
+          <p class="ref-take">
+            우리 화면에 <b>가장 가까운 구조</b>. 행마다 <b>상태 태그</b>(New / Improvement / Changed /
+            Removed / Feature)와 <b>영역 배지</b>(Admin, POS, Analytics)를 함께 낸다.
+            필터는 <b>40여 개 카테고리 다중 선택 + 전체 해제</b> — 우리 레일의 확장형이다.
+          </p>
+          <div class="facts"><span class="fact">상태 5종</span><span class="fact">영역 배지</span><span class="fact">다중선택 필터 40+</span><span class="fact">날짜 내림차순</span></div>
+          <p class="ref-link"><a href="https://changelog.shopify.com/">changelog.shopify.com</a></p>
+        </div>
+      </div>
+    </div>
+
+    <div class="ref">
+      <div class="ref-in">
+        <div class="ref-mock"><div style="width:100%">
+          <div class="m">
+            <div class="mspread"><div class="mtitle" style="font-size:12px">v1.104.0</div><span class="mdate">Dec 16, 2025</span></div>
+            <div style="height:44px;border-radius:6px;background:var(--surface-3);margin:8px 0"></div>
+            <div class="mtitle" style="font-size:12px">💎 New</div>
+            <div class="mexc">· Window management shortcuts</div>
+            <div class="mtitle" style="font-size:12px;margin-top:6px">🐞 Fixes</div>
+            <div class="mexc">· Fixed clipboard sync</div>
+          </div>
+          <p class="m-cap">큰 소식만 이미지를 받는다</p>
+        </div></div>
+        <div class="ref-body">
+          <div class="ref-top"><span class="ref-n">07</span><h3>Raycast — Changelog</h3><span class="tag t-op">문서</span></div>
+          <p class="ref-take">
+            한 릴리스 안에서 <b>큰 기능만 히어로 이미지</b>를 받고 나머지는 불릿으로 내려간다 —
+            <b>모든 항목을 똑같이 대접하지 않는다</b>. 우리 목록이 5건이든 50건이든 같은 행 높이인 것과 대비된다.
+            플랫폼 탭과 페이지네이션으로 목록 길이를 자른다.
+          </p>
+          <div class="facts"><span class="fact">버전 + 날짜</span><span class="fact">이모지 섹션</span><span class="fact">중요도별 대접 차등</span><span class="fact">페이지네이션</span></div>
+          <p class="ref-link"><a href="https://www.raycast.com/changelog">raycast.com/changelog</a></p>
+        </div>
+      </div>
+    </div>
+
+    <div class="ref">
+      <div class="ref-in">
+        <div class="ref-mock"><div style="width:100%">
+          <div class="m">
+            <div class="mdate">August 7, 2026</div>
+            <div class="mtitle big">Notion 3.6</div>
+            <div style="height:52px;border-radius:6px;background:var(--surface-3);margin:8px 0"></div>
+            <div class="mexc">Databases get a new timeline layout.</div>
+            <div class="mexc" style="color:var(--accent);font-weight:700">Learn more →</div>
+          </div>
+          <p class="m-cap">버전 릴리스는 확대 취급</p>
+        </div></div>
+        <div class="ref-body">
+          <div class="ref-top"><span class="ref-n">08</span><h3>Notion — Releases</h3><span class="tag t-op">문서</span></div>
+          <p class="ref-take">
+            날짜 헤더 + 제목 + <b>이미지/영상</b> + 한 문단 + CTA. 큰 버전(3.6, 3.5)은 하위 섹션까지
+            달고 확대 취급한다. <b>미디어를 목록 안에 넣는 유일한 레퍼런스</b> 중 하나인데,
+            그만큼 항목당 세로 길이가 길어 <b>페이지네이션이 필수</b>가 된다.
+          </p>
+          <div class="facts"><span class="fact">이미지/영상 인라인</span><span class="fact">CTA 링크</span><span class="fact">Next page</span></div>
+          <p class="ref-link"><a href="https://www.notion.com/releases">notion.com/releases</a></p>
+        </div>
+      </div>
+    </div>
+
+    <div class="ref">
+      <div class="ref-in">
+        <div class="ref-mock"><div style="width:100%">
+          <div class="m">
+            <div class="mtitle" style="font-size:12px">Slack 4.51.185</div>
+            <div class="mdate">August 5, 2026</div>
+            <div class="mtitle" style="font-size:12px;margin-top:8px">What's New</div>
+            <div class="mexc">· Huddles now remember your last device.</div>
+            <div class="mtitle" style="font-size:12px;margin-top:6px">Bug Fixes</div>
+            <div class="mexc">· 작은 조정으로 앱을 최상 상태로 유지했습니다.</div>
+          </div>
+          <p class="m-cap">고정된 섹션 이름</p>
+        </div></div>
+        <div class="ref-body">
+          <div class="ref-top"><span class="ref-n">09</span><h3>Slack — Release Notes</h3><span class="tag t-op">문서</span></div>
+          <p class="ref-take">
+            릴리스마다 <b>같은 이름의 섹션</b>(What's New / Bug Fixes / Security Guidance)이 반복된다.
+            독자가 <b>어디를 볼지 학습하면 다음부터 그 자리만 본다</b>. 문체도 일부러 가볍다 —
+            공지는 사무 문서가 아니라 제품의 목소리라는 입장.
+          </p>
+          <div class="facts"><span class="fact">고정 섹션 3종</span><span class="fact">플랫폼 탭</span><span class="fact">브랜드 보이스</span></div>
+          <p class="ref-link"><a href="https://slack.com/release-notes">slack.com/release-notes</a></p>
+        </div>
+      </div>
+    </div>
+
+    <div class="ref">
+      <div class="ref-in">
+        <div class="ref-mock"><div style="width:100%">
+          <div class="m" style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+            <div style="border:1px solid var(--line);border-radius:6px;padding:8px">
+              <div style="width:18px;height:18px;border-radius:5px;background:var(--accent-soft);margin-bottom:6px"></div>
+              <div class="mtitle" style="font-size:12px">Getting Started</div>
+              <div class="mdate">12 articles</div>
+            </div>
+            <div style="border:1px solid var(--line);border-radius:6px;padding:8px">
+              <div style="width:18px;height:18px;border-radius:5px;background:var(--good-soft);margin-bottom:6px"></div>
+              <div class="mtitle" style="font-size:12px">Inbox</div>
+              <div class="mdate">34 articles</div>
+            </div>
+          </div>
+          <p class="m-cap">주제 카드 + 글 수</p>
+        </div></div>
+        <div class="ref-body">
+          <div class="ref-top"><span class="ref-n">10</span><h3>Intercom — Help Center</h3><span class="tag t-op">문서</span></div>
+          <p class="ref-take">
+            도움말 홈은 <b>목록이 아니라 주제 카드 15장</b>이고, 카드마다 아이콘 · 제목 ·
+            <b>글 수와 작성자 수</b>가 붙는다. 검색이 최상단. FAQ 가 커지면 목록이 아니라
+            <b>주제 지도</b>가 되어야 한다는 답이다 — 우리 FAQ 3건에는 아직 이르다.
+          </p>
+          <div class="facts"><span class="fact">주제 카드 15</span><span class="fact">글 수 노출</span><span class="fact">검색 상단</span></div>
+          <p class="ref-link"><a href="https://www.intercom.com/help">intercom.com/help</a></p>
+        </div>
+      </div>
+    </div>
+
+    <div class="ref">
+      <div class="ref-in">
+        <div class="ref-mock"><div style="width:100%">
+          <div class="m">
+            <div class="mdate">Help &gt; Administration &gt; Preferences</div>
+            <div class="mtitle" style="margin-top:6px">Manage color profiles</div>
+            <div class="mchips"><span class="chip">Pro 이상</span><span class="chip">편집 권한</span></div>
+            <div class="mexc" style="margin-top:8px">본문은 별도 페이지에서 · 앵커로 이동</div>
+          </div>
+          <p class="m-cap">인라인 확장 없음</p>
+        </div></div>
+        <div class="ref-body">
+          <div class="ref-top"><span class="ref-n">11</span><h3>Figma — Help Center</h3><span class="tag t-op">문서</span></div>
+          <p class="ref-take">
+            <b>인라인으로 펼치지 않는다.</b> 목록은 링크이고 본문은 페이지, 긴 글은 앵커로 이동한다.
+            문서 머리에 <b>"어떤 플랜에서 · 어떤 권한이 필요한지"</b> 를 메타로 먼저 준다 —
+            읽기 전에 <b>나에게 해당되는 글인지</b> 알려 주는 장치다. 우리 진단 10 의 반례.
+          </p>
+          <div class="facts"><span class="fact">링크 이동</span><span class="fact">앵커</span><span class="fact">머리에 적용 대상</span><span class="fact">도움됨 피드백</span></div>
+          <p class="ref-link"><a href="https://help.figma.com/hc/en-us/articles/360039825114-Figma-release-notes">help.figma.com</a></p>
+        </div>
+      </div>
+    </div>
+
+    <div class="ref">
+      <div class="ref-in">
+        <div class="ref-mock"><div style="width:100%">
+          <div class="m">
+            <div class="mtitle" style="font-size:12px">스캔 결과가 비어 있어요</div>
+            <div class="mexc">✓ 사용자가 실제로 쓰는 말</div>
+            <div style="height:1px;background:var(--line);margin:8px 0"></div>
+            <div class="mtitle" style="font-size:12px;color:var(--ink-3);text-decoration:line-through">스캔 결과 미표출 시 조치 안내</div>
+            <div class="mexc" style="color:var(--hot)">✗ 만들어 낸 질문</div>
+          </div>
+          <p class="m-cap">질문은 독자의 어휘로</p>
+        </div></div>
+        <div class="ref-body">
+          <div class="ref-top"><span class="ref-n">12</span><h3>NN/g — FAQ 설계</h3><span class="tag t-op">문서</span></div>
+          <p class="ref-take">
+            질문은 <b>실제로 문의받은 말</b>을 그대로 써야 한다 — "사람들은 당신의 해법이 아니라
+            자기 문제를 검색한다". 실패 원인으로 <b>만들어 낸 질문</b>, 검색에만 의존,
+            <b>스캔하기 어려운 시각 디자인</b>, 오래된 내용을 꼽는다. 10개 미만이면
+            <b>질문 목록 + 답변</b> 구조가 여전히 최선이다 — 우리 FAQ 3건은 지금 구조가 맞다.
+          </p>
+          <div class="facts"><span class="fact">독자 어휘</span><span class="fact">주제별 청킹</span><span class="fact">&lt;10개면 현 구조 OK</span></div>
+          <p class="ref-link"><a href="https://www.nngroup.com/articles/faqs-deliver-value/">nngroup.com/articles/faqs-deliver-value</a></p>
+        </div>
+      </div>
+    </div>
+
+  </div>
+  </div>
+
+  <div class="callout">
+    <p class="q">12곳이 공통으로 하는 것, 우리가 안 하는 것</p>
+    <p>
+      <b>축을 나눈다.</b> 시간(월 그룹) · 종류(New/Improvement) · 주제(태그) 가 각각 다른 자리를 쓴다.
+      우리는 셋을 <code>categoryName</code> 하나로 눌러 놓고, 그 하나를 <b>그룹 헤더와 행 배지에 두 번</b> 그린다.
+      그래서 정보는 적은데 요소는 많다 — 그게 게시판의 정의다.
+    </p>
+  </div>
+</section>
+
+<!-- 03 시안 -->
+<section class="blk">
+  <div class="blk-head"><span class="blk-n">03</span><h2>시안 5</h2></div>
+  <p class="blk-sub">
+    <code>PostSummary</code> 는 아직 Draft 계약(<code>lib/types/post.ts</code> 의 손 타입)이라
+    필드를 늘리려면 tag guide 를 먼저 고쳐야 한다. 시안마다 <b>계약 필요 여부</b>를 명시한다.
+  </p>
+
+  <div class="props">
+
+    <div class="prop win">
+      <div class="prop-h">
+        <span class="prop-badge">A</span><h3 class="prop-t">행을 표에서 글로</h3>
+        <span class="tag t-ok">추천</span><span class="tag t-op">레퍼런스 01 · 03</span>
+      </div>
+      <div class="prop-b">
+        <div class="prop-mock">
+          <div class="m">
+            <div class="mside">
+              <div class="mdate" style="padding-top:3px">8월 10일</div>
+              <div>
+                <div class="mtitle big">8월 정기 점검 안내</div>
+                <div class="mchips"><span class="chip h">고정</span></div>
+              </div>
+            </div>
+            <div style="height:1px;background:var(--line);margin:10px 0"></div>
+            <div class="mside">
+              <div class="mdate" style="padding-top:3px">8월 9일</div>
+              <div><div class="mtitle big">IDC 연동 방식이 개선되었습니다</div></div>
+            </div>
+          </div>
+          <p class="m-cap">날짜 왼쪽 단 · 제목 18px · 배지 중복 제거</p>
+        </div>
+        <div class="prop-text">
+          <p>
+            날짜를 <b>행 반대편에서 왼쪽 단</b>으로 옮기고(레퍼런스 03), 제목을
+            <span class="mono">14</span> → <span class="mono">18px</span> 로 올린다(레퍼런스 01).
+            글 단에 <b>읽기 폭 상한</b>을 둬서 제목이 <span class="mono">1630px</span> 를 가로지르지 않게 한다.
+          </p>
+          <p>
+            Category 배지는 <b>그룹 안에서만 지운다</b> — 그룹 헤더가 이미 말한 것을 반복하지 않는다.
+            "전체" 를 보고 있을 때는 그룹이 없으니 배지를 그대로 둔다. 고정 배지는 남기되
+            Category 와 <b>다른 층으로</b> 보이게 색을 가른다(진단 9).
+          </p>
+          <div class="kv">
+            <div><span>덮는 문제</span><span>1 · 2 · 3 · 9</span></div>
+            <div><span>비용</span><span>행 컴포넌트 재배치. 로직 변화 없음</span></div>
+            <div><span>계약</span><span><b>변경 없음</b> — 있는 필드만 재배치</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="prop">
+      <div class="prop-h">
+        <span class="prop-badge">B</span><h3 class="prop-t">한 줄 요약을 붙인다</h3>
+        <span class="tag t-num">계약 필요</span><span class="tag t-op">레퍼런스 02 · 03 · 05 · 06</span>
+      </div>
+      <div class="prop-b">
+        <div class="prop-mock">
+          <div class="m">
+            <div class="mside">
+              <div class="mdate" style="padding-top:3px">8월 10일</div>
+              <div>
+                <div class="mtitle big">8월 정기 점검 안내</div>
+                <div class="mexc">8월 17일 새벽 2시부터 4시까지 PII 스캔이 일시 중단됩니다. 진행 중인 작업은 자동 재개됩니다.</div>
+              </div>
+            </div>
+          </div>
+          <p class="m-cap">제목 아래 두 줄, 말줄임</p>
+        </div>
+        <div class="prop-text">
+          <p>
+            <b>진단 4 를 정면으로 덮는 유일한 안.</b> 12곳 중 9곳이 하는 일이고, 목록을
+            "펼쳐 봐야 아는 제목 모음" 에서 <b>읽히는 목록</b>으로 바꾼다.
+          </p>
+          <p>
+            비용은 계약이다. <code>PostSummary</code> 에 <code>excerpt</code>(ko/en) 가 필요한데,
+            <b>목록 응답이 <span class="mono">글 수 × 2개 언어</span> 로 커지는 것을 피하려고 본문을
+            빼 둔 설계</b>(tag guide §5)와 정면으로 만난다. 발췌를 <span class="mono">120자</span> 로
+            묶으면 본문과 달리 상한이 있으니 협상 가능하다 — <b>내가 정할 일이 아니라 스펙 작성자와 정할 일</b>이다.
+          </p>
+          <div class="kv">
+            <div><span>덮는 문제</span><span>4</span></div>
+            <div><span>비용</span><span>계약 협의 + BFF + mock</span></div>
+            <div><span>계약</span><span><b>필요</b> — tag guide §2 스키마 변경</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="prop">
+      <div class="prop-h">
+        <span class="prop-badge">C</span><h3 class="prop-t">시간축을 되살린다</h3>
+        <span class="tag t-op">레퍼런스 02 · 05 · 06</span>
+      </div>
+      <div class="prop-b">
+        <div class="prop-mock">
+          <div class="m">
+            <div class="mmonth">2026년 8월</div>
+            <div class="mrow"><div class="mside"><div class="mdate" style="padding-top:3px">10일</div>
+              <div><div class="mtitle">8월 정기 점검 안내</div></div></div></div>
+            <div class="mrow"><div class="mside"><div class="mdate" style="padding-top:3px">9일</div>
+              <div><div class="mtitle">IDC 연동 방식 개선</div></div></div></div>
+            <div class="mmonth">2026년 7월</div>
+            <div class="mrow"><div class="mside"><div class="mdate" style="padding-top:3px">28일</div>
+              <div><div class="mtitle">권한 점검 정책 변경</div></div></div></div>
+          </div>
+          <p class="m-cap">그룹은 월, 레일은 필터</p>
+        </div>
+        <div class="prop-text">
+          <p>
+            목록의 <b>그룹을 Category 에서 월로</b> 바꾸고, Category 는 왼쪽 레일의 <b>필터 역할만</b> 맡는다.
+            지금은 레일과 그룹 헤더가 <b>같은 축을 두 번</b> 그리고 있다 — 배지 중복(진단 3)과 뿌리가 같다.
+          </p>
+          <p>
+            <code>publishedAt</code> 으로 계산하므로 <b>계약 추가가 없다</b>. 다만 <b>고정 글이 시간축을
+            깬다</b> — 8월 5일 글이 고정이면 8월 그룹 맨 위인가, 목록 맨 위인가. Sentry·GitHub 에는
+            고정 개념이 없어 답을 못 빌린다. <b>고정 구역을 월 그룹 위에 따로 두는 것</b>이 유일하게
+            모순 없는 배치다.
+          </p>
+          <div class="kv">
+            <div><span>덮는 문제</span><span>3 · 7</span></div>
+            <div><span>비용</span><span>그룹 로직 교체 + 고정 구역 신설</span></div>
+            <div><span>계약</span><span>변경 없음</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="prop">
+      <div class="prop-h">
+        <span class="prop-badge">D</span><h3 class="prop-t">FAQ와 공지를 다른 옷으로</h3>
+        <span class="tag t-op">레퍼런스 11 · 12</span>
+      </div>
+      <div class="prop-b">
+        <div class="prop-mock">
+          <div class="m">
+            <div class="mdate">FAQ — 질문 목록</div>
+            <div class="mrow"><div class="mspread"><div class="mtitle">스캔 결과가 비어 있어요</div><span class="mdate">▾</span></div></div>
+            <div class="mrow"><div class="mspread"><div class="mtitle">연동 요청 후 얼마나 기다려야 하나요?</div><span class="mdate">▾</span></div></div>
+            <div style="height:10px"></div>
+            <div class="mdate">공지 — 소식 목록</div>
+            <div class="mrow"><div class="mside"><div class="mdate" style="padding-top:3px">8월 10일</div>
+              <div><div class="mtitle big">8월 정기 점검 안내</div></div></div></div>
+          </div>
+          <p class="m-cap">질문은 아코디언, 소식은 글</p>
+        </div>
+        <div class="prop-text">
+          <p>
+            FAQ 행에서 <b>날짜를 뺀다.</b> 질문이 언제 등록됐는지는 독자의 관심사가 아니다 —
+            <b>답이 지금 유효한지</b>가 관심사고, 그건 날짜로 말할 수 없다. 대신 질문을 크게 두고
+            캐럿만 남긴다(레퍼런스 12: 10개 미만이면 질문 목록 구조가 최선).
+          </p>
+          <p>
+            공지는 A·C 를 받아 날짜가 주인공인 글 목록이 된다. <b>같은 컴포넌트를 쓰되 행 구성이 갈린다</b> —
+            두 화면을 따로 만드는 게 아니라 <code>type</code> 으로 행 구성만 나눈다.
+          </p>
+          <div class="kv">
+            <div><span>덮는 문제</span><span>8 (5 부분)</span></div>
+            <div><span>비용</span><span><code>PostAccordionRow</code> 에 분기 하나</span></div>
+            <div><span>계약</span><span>변경 없음</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="prop">
+      <div class="prop-h">
+        <span class="prop-badge">E</span><h3 class="prop-t">긴 글은 페이지로 보낸다</h3>
+        <span class="tag t-op">레퍼런스 05 · 11</span>
+      </div>
+      <div class="prop-b">
+        <div class="prop-mock">
+          <div class="m">
+            <div class="mside"><div class="mdate" style="padding-top:3px">8월 10일</div>
+              <div><div class="mtitle big">8월 정기 점검 안내</div>
+                <div class="mexc" style="color:var(--accent);font-weight:700">자세히 보기 →</div></div></div>
+            <div style="height:1px;background:var(--line);margin:10px 0"></div>
+            <div class="mside"><div class="mdate" style="padding-top:3px">8월 9일</div>
+              <div><div class="mtitle big">IDC 연동 방식 개선</div>
+                <div class="mexc">짧은 글은 그대로 펼친다 ▾</div></div></div>
+          </div>
+          <p class="m-cap">길이에 따라 갈린다</p>
+        </div>
+        <div class="prop-text">
+          <p>
+            이미지 10장·10MB 짜리 글을 목록 안에서 펼치면 <b>다른 글이 전부 화면 밖으로 밀린다</b>.
+            Sentry 와 Figma 는 둘 다 목록에서 펼치지 않고 보낸다.
+          </p>
+          <p>
+            문제는 <b>임계값을 목록 시점에 알 수 없다</b>는 것이다. <code>PostSummary</code> 에 본문이
+            없으니 길이도 이미지 수도 모른다 — 열어 봐야 안다. <b>전부 페이지로 보내면</b> 계약 없이
+            가능하지만, <b>아코디언은 합의된 설계</b>(tag guide §5, 본문 지연 로딩)라 이 안은
+            그 결정을 되돌리는 제안이다. <b>이전 벤치마크에서도 같은 이유로 미결로 남겼다.</b>
+          </p>
+          <div class="kv">
+            <div><span>덮는 문제</span><span>10</span></div>
+            <div><span>비용</span><span>상세 라우트 신설 + 합의 재협상</span></div>
+            <div><span>계약</span><span>변경 없음 / <b>설계 합의 변경</b></span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- 04 비교 -->
+<section class="blk">
+  <div class="blk-head"><span class="blk-n">04</span><h2>비교와 추천</h2></div>
+
+  <div class="scroller">
+  <table>
+    <tr><th style="width:30px">시안</th><th style="width:120px">덮는 문제</th><th style="width:90px">비용</th>
+      <th style="width:90px">계약</th><th style="width:120px">합의 설계와</th><th>레퍼런스 지지</th></tr>
+    <tr><td class="k">A</td><td class="mono">1 · 2 · 3 · 9</td><td>재배치</td><td><span class="tag t-ok">없음</span></td>
+      <td><span class="tag t-ok">유지</span></td><td class="mono">01 · 03 (2/12)</td></tr>
+    <tr><td class="k">B</td><td class="mono">4</td><td>계약 협의</td><td><span class="tag t-num">필요</span></td>
+      <td><span class="tag t-num">§5 와 충돌</span></td><td class="mono">02·03·05·06 (4/12)</td></tr>
+    <tr><td class="k">C</td><td class="mono">3 · 7</td><td>그룹 교체</td><td><span class="tag t-ok">없음</span></td>
+      <td><span class="tag t-op">고정 배치 미정</span></td><td class="mono">02·05·06 (3/12)</td></tr>
+    <tr><td class="k">D</td><td class="mono">8 (5 부분)</td><td>분기 하나</td><td><span class="tag t-ok">없음</span></td>
+      <td><span class="tag t-ok">유지</span></td><td class="mono">11 · 12 (2/12)</td></tr>
+    <tr><td class="k">E</td><td class="mono">10</td><td>라우트 신설</td><td><span class="tag t-ok">없음</span></td>
+      <td><span class="tag t-num">§5 되돌림</span></td><td class="mono">05 · 11 (2/12)</td></tr>
+  </table>
+  </div>
+
+  <div class="callout">
+    <p class="q">추천 — A 먼저, 이어서 D. C 는 고정 배치를 정한 뒤.</p>
+    <p>
+      <b>A 가 "게시판 같다"는 인상을 직접 만드는 네 가지(제목 크기·읽기 폭·배지 중복·배지 층)를
+      계약도 합의도 안 건드리고 덮는다.</b> D 는 분기 하나로 FAQ 를 질문답게 만든다.
+      C 는 효과가 크지만 <b>고정 글을 월 그룹 어디에 둘지</b>가 먼저다 — 레퍼런스에 답이 없어
+      우리가 정해야 한다. B 는 가장 큰 변화지만 스펙 작성자와 <b>목록 응답 크기</b>를 놓고
+      합의해야 하므로 내가 단독으로 진행할 수 없다. E 는 합의된 아코디언을 되돌리는 제안이라 보류.
+    </p>
+  </div>
+
+  <div class="note">
+    <b>히어로는 여기에 넣지 않는다.</b> 전체보기에 배너를 넣어 보니 마스터-디테일 영역이
+    <span class="mono">751</span> → <span class="mono">471px</span>, 레일에 보이는 Category 가
+    <span class="mono">20</span> → <span class="mono">12</span> 개로 줄었다(실측).
+    목록을 보러 들어온 화면에서 <b>목록 자리를 40% 내주는 거래</b>다. 2카드 뷰에는 그대로 둔다.
+  </div>
+</section>
+
+<!-- 05 계약 갭 -->
+<section class="blk">
+  <div class="blk-head"><span class="blk-n">05</span><h2>계약이 막고 있는 것</h2></div>
+  <p class="blk-sub">
+    이 셋은 디자인 결정이 아니라 스펙 작성자와 정할 일이다. 벤치마크가 근거를 만들어 둔다.
+  </p>
+  <div class="scroller">
+  <table>
+    <tr><th style="width:150px">필요한 것</th><th>왜</th><th style="width:150px">지금 상태</th></tr>
+    <tr>
+      <td class="k"><code>excerpt</code> (ko/en)</td>
+      <td>레퍼런스 12곳 중 9곳이 목록에 한 줄 요약을 준다. 없으면 목록은 제목 모음이다.</td>
+      <td>없음. 본문은 단건 조회에만(§5)</td>
+    </tr>
+    <tr>
+      <td class="k">소식 종류</td>
+      <td>Shopify 5종 · GitHub 3종. 주제(Category)와 종류는 다른 축인데 지금은 하나뿐이다.</td>
+      <td><code>categoryName</code> 만</td>
+    </tr>
+    <tr>
+      <td class="k">본문 규모</td>
+      <td>시안 E 의 임계값(길면 페이지로)을 목록 시점에 판단하려면 글자 수나 이미지 수가 필요하다.</td>
+      <td>없음 — 열어 봐야 안다</td>
+    </tr>
+  </table>
+  </div>
+</section>
+
+<!-- 06 -->
+<section class="blk">
+  <div class="blk-head"><span class="blk-n">06</span><h2>답하지 않은 것</h2></div>
+  <ul class="plain">
+    <li><b>고정 글과 시간축.</b> 시안 C 의 전제 조건이고 레퍼런스에 답이 없다. 고정 구역을
+      월 그룹 위에 따로 두는 안을 제시했지만 검증한 것은 아니다.</li>
+    <li><b>한국어 제품 레퍼런스가 없다.</b> 12곳 모두 영어권이다. 한국어는 같은 글자 수에 더
+      넓은 폭을 쓰고 조사 때문에 제목 말줄임 위치가 다른데, 그 차이를 확인할 레퍼런스를 못 넣었다.</li>
+    <li><b>AWS What's New</b> 는 목록이 JS 로 그려져 행 구조를 못 읽었다. 12곳에서 뺐다.</li>
+    <li><b>글이 5건인 지금은 어떤 안도 극적으로 보이지 않는다.</b> 이전 벤치마크의 결론과 같다 —
+      밀도 문제는 콘텐츠가 쌓여야 풀린다.</li>
+  </ul>
+</section>
+
+</div>

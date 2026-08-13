@@ -2943,6 +2943,43 @@ export const postStyles = {
   /** 숨김 행 — 배지 하나로는 스캔에 안 걸려서 면 전체로 말한다. */
   rowHidden: 'bg-[repeating-linear-gradient(135deg,#FAFBFC_0_6px,#F5F6F8_6px_12px)]',
 
+  /**
+   * 읽는 쪽 행. Admin 의 `row` 와 갈라 둔다 — 저쪽은 관리 표라 날짜가 열로 있는 게 맞고,
+   * 이쪽은 소식 목록이라 날짜가 글의 머리다.
+   *
+   * 날짜를 오른쪽 끝이 아니라 왼쪽 단으로 뺀다(Vercel Changelog). 제목이 왼쪽 끝이고
+   * 날짜가 1400px 건너편이면 눈이 좌우로 왕복하는데, 그게 표를 읽는 동작이라
+   * 목록 전체가 게시판으로 읽힌다.
+   */
+  entryRow:
+    'group relative flex w-full items-start gap-5 px-[22px] py-[18px] text-left border-b border-[#F3F4F6] last:border-b-0 transition-colors duration-150 hover:bg-[#FAFBFD] motion-reduce:transition-none',
+  entryRowOpen: 'bg-[#F7F9FC]',
+  /**
+   * 왼쪽 지시바 — hover·펼침에 세로로 자란다. 배경 틴트만으로는 "지금 여기"가
+   * 흰 바탕과 1.05:1 이라 거의 안 보인다(`tableRowLift` 에서 받은 같은 지적).
+   * 면을 더 칠하는 대신 3px 짜리 획 하나를 움직인다.
+   */
+  entryRail:
+    'absolute left-0 top-0 bottom-0 w-[3px] origin-center scale-y-0 bg-[#0064FF] transition-transform duration-200 ease-out group-hover:scale-y-100 motion-reduce:transition-none',
+  entryRailOn: 'scale-y-100',
+  /** 고정 글은 상시로 켜 두되 톤을 낮춘다 — 상태지 상호작용이 아니다. */
+  entryRailPinned: 'scale-y-100 bg-[#A9C6F8] group-hover:bg-[#0064FF]',
+  /** 날짜 단 — 폭이 고정이라야 제목 시작선이 모든 행에서 같다. */
+  entryDate:
+    'flex-none w-[76px] pt-[5px] text-[12px] text-[#6B7280] tabular-nums leading-[1.4] whitespace-nowrap transition-colors duration-150 group-hover:text-[#4E5968] motion-reduce:transition-none',
+  entryMain: 'flex-1 min-w-0 flex flex-col gap-2',
+  /**
+   * 18px. 14 는 본문 크기라 제목이 행의 주어가 되지 못한다 — 잰 레퍼런스 중
+   * 제목이 14px 인 곳은 없었다(Linear 는 24~32).
+   * `max-w` 는 읽기 폭 — 제목이 1600px 를 가로지르면 다시 표가 된다.
+   */
+  entryTitle:
+    'text-[18px] font-bold tracking-[-0.02em] leading-[1.45] text-[#191F28] max-w-[62ch] transition-colors duration-150 group-hover:text-[#0050D6] motion-reduce:transition-none',
+  entryTitleOpen: 'text-[#0050D6]',
+  /** 캐럿 자리 — hover 에 옅은 원판이 깔려 "누르는 곳"이 손끝보다 먼저 보인다. */
+  entryCaretSlot:
+    'flex-none mt-0.5 w-7 h-7 grid place-items-center rounded-full transition-colors duration-150 group-hover:bg-[#E8F1FF] motion-reduce:transition-none',
+
   rowMain: 'flex-1 min-w-0 flex flex-col gap-1.5 text-left',
   rowMeta: 'flex items-center gap-2 flex-wrap',
   rowTitle: 'text-[14px] font-semibold tracking-[-0.01em] leading-[1.45] text-[#191F28]',
@@ -2967,6 +3004,16 @@ export const postStyles = {
   panelBg: 'bg-[#F9FAFB]',
   /** 하단 42 > 상단 16 — 그룹이 끝나는 쪽을 더 넓게(여백 7원칙 §2). */
   panelBody: 'px-[22px] pt-4 pb-[42px] text-[14px] leading-[1.75] text-[#4E5968]',
+  /**
+   * 본문은 높이보다 늦게 도착한다. 칸이 열리는 200ms 동안 글자가 같이 늘어나면
+   * 늘어나는 것처럼 보여서, 칸이 자리를 잡은 뒤 글이 떠오르게 지연을 준다.
+   */
+  panelFade:
+    'transition-[opacity,transform] duration-200 ease-out motion-reduce:transition-none',
+  panelFadeOn: 'opacity-100 translate-y-0 delay-[90ms]',
+  panelFadeOff: 'opacity-0 -translate-y-1',
+  /** 본문 왼쪽 획 — 펼친 칸이 어느 행에 속하는지 눈으로 잇는다. */
+  panelEdge: 'border-l-[3px] border-[#0064FF]',
 
   /** 배지 3종. */
   badge:
@@ -3021,9 +3068,16 @@ export const postStyles = {
   catNavItemOn: 'bg-white text-[#0050D6] font-bold hover:bg-white',
   /** 회색 면 위에서 #6B7280 은 4.39:1 로 AA 에 못 미친다. 대신 크기·무게로 계층을 준다. */
   catNavCount: 'ml-auto text-[12px] font-normal text-[#4E5968] tabular-nums',
-  /** 그룹 머리 — 레일과 같은 면. 카드 안에서 구역을 가르는 띠지, 또 하나의 카드가 아니다. */
+  /**
+   * 그룹 머리 — 레일과 같은 면. 카드 안에서 구역을 가르는 띠지, 또 하나의 카드가 아니다.
+   *
+   * 목록 칸 위에 붙어 따라온다. 스크롤해서 그룹 머리가 화면 밖으로 나가면 지금 읽는 글이
+   * 어느 Category 인지 사라지는데, 이 목록은 상한이 없어 그 일이 반드시 생긴다.
+   * 아래 글이 비쳐야 "떠 있는 띠"로 읽히므로 면을 반투명으로 두고 뒤를 흐린다 —
+   * 불투명하면 그냥 목록이 잘린 것처럼 보인다.
+   */
   groupHead:
-    'flex items-baseline gap-2 px-[22px] py-2.5 bg-[#F3F4F6] border-b border-[#E5E7EB]',
+    'sticky top-0 z-[1] flex items-baseline gap-2 px-[22px] py-2.5 bg-[#F3F4F6]/85 backdrop-blur-[6px] border-b border-[#E5E7EB]',
   groupTitle: 'text-[14px] font-bold tracking-[-0.01em] text-[#191F28]',
   groupCount: 'text-[12px] text-[#4E5968] tabular-nums',
   /** 그룹 사이의 선 — 첫 그룹은 카드 위 테두리가 대신한다. */
