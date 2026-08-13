@@ -3045,12 +3045,15 @@ export const postStyles = {
   filterChipOn: 'bg-[#E8F1FF] border-[#E8F1FF] text-[#0050D6] font-bold hover:bg-[#E8F1FF]',
 
   /**
-   * 전체보기 — 레일과 목록을 테두리 하나로 묶는다. 레일을 `items-start` 로 띄워 두면
-   * 글이 쌓일수록 우측이 레일보다 길어져 레일이 목록 밖으로 흘러나온 것처럼 읽힌다
-   * (InstallStatusDetail 의 레일에서 이미 받은 지적). 레일 표면 · 선택 표시는
-   * 그 레일에서 그대로 가져왔다 — 같은 역할이면 같은 수치다.
+   * 전체보기 — **회색 패널이 목록을 감싼다.**
    *
-   * `flex-1` 이 `pageFill` 의 남은 높이를 전부 받아 온다. 이게 있어야 레일의 회색 면이
+   * 전에는 흰 카드 안에 회색 레일이 한 칸 들어앉은 구조였다. 그런데 그룹 머리도 같은
+   * 회색이라 레일과 그룹 머리가 이어 붙어 ㄱ자 덩어리로 읽혔고, 레일이 독립한 패널로
+   * 보이지 않았다(받은 지적). 색을 하나 더 만들어 가르는 대신 구조를 뒤집었다 —
+   * 회색이 바깥 틀이 되고, 목록은 그 안에 떠 있는 흰 판이 된다.
+   * 규칙은 그대로 하나다: 회색은 구조, 흰색은 내용.
+   *
+   * `flex-1` 이 `pageFill` 의 남은 높이를 전부 받아 온다. 이게 있어야 회색 면이
    * Category 개수와 무관하게 바닥에서 끝난다 — 중간에 끊기면 구조물이 아니라 카드 안에
    * 놓인 상자로 읽힌다. 떼면 751 → 256 으로 돌아간다(확인함).
    *
@@ -3058,10 +3061,10 @@ export const postStyles = {
    * 아니라 한 화면 안의 필터라 그쪽이 같은 역할이다.
    */
   grouped:
-    'grid grid-cols-[240px_minmax(0,1fr)] flex-1 bg-white border border-[#E5E7EB] rounded-xl overflow-hidden',
+    'grid grid-cols-[240px_minmax(0,1fr)] gap-3 flex-1 p-3 bg-[#E7ECF5] border border-[#D6DEEC] rounded-xl overflow-hidden',
   /**
-   * 레일은 가라앉은 면, 목록은 카드의 흰 바닥. 구분선 하나로 가르면 "같은 종류의 정보가
-   * 두 단 있다"로 읽힌다 — 회색은 구조, 흰색은 내용이라는 한 가지 규칙만 쓴다.
+   * 레일은 이제 자기 면을 갖지 않는다 — 바깥 패널의 회색 위에 바로 놓인다. 선택 항목의
+   * 흰 알약이 그 회색 위로 떠오르는 것도 같은 이유로 그대로 성립한다.
    *
    * 여기에 `min-h-0` 은 필요 없다. grid 자식의 자동 최소 크기는 보통 `auto` 지만
    * **스크롤 컨테이너면 0** 이라, `overflow-y-auto` 자신이 그 일을 이미 한다.
@@ -3072,8 +3075,7 @@ export const postStyles = {
    * 면을 중립 회색(#F3F4F6, S 8%)에서 푸른 쪽으로 옮긴다. 대비는 이미 맞았는데
    * 채도가 없어서 바래 보였다 — 회색은 대비를 얻어도 생기를 못 얻는다.
    */
-  catNav:
-    'flex flex-col gap-0.5 p-2 overflow-y-auto border-r border-[#DDE3ED] bg-[#EEF1F7]',
+  catNav: 'flex flex-col gap-0.5 overflow-y-auto',
   /**
    * 레일 머리. 없으면 목록이 "전체"부터 냅다 시작해서, 이 칸이 무엇을 고르는 자리인지
    * 말하는 데가 없다. Stripe 문서 사이드바가 같은 자리에 구역 라벨을 쓴다
@@ -3086,7 +3088,7 @@ export const postStyles = {
    * "전체"와 Category 목록 사이의 선. 전체는 Category 가 아니라 필터를 푸는 자리라
    * 같은 줄에 세워 두면 4개 중 하나로 읽힌다.
    */
-  catNavDivide: 'my-1.5 border-t border-[#DDE3ED]',
+  catNavDivide: 'my-1.5 border-t border-[#D6DEEC]',
   /**
    * GitHub Issues 사이드바 실측(항목 32 · radius 6 · 14px)에서 시작했지만 그쪽은
    * 필터가 십수 개인 조밀한 목록이다. 여기는 서너 개가 656px 칸에 놓여 조밀할 이유가
@@ -3103,7 +3105,11 @@ export const postStyles = {
     'bg-white text-[#0064FF] font-bold hover:bg-white ring-1 ring-[#C7D9FA] shadow-[0_1px_2px_rgba(15,23,43,0.06)]',
   catNavCount: 'ml-auto text-[14px] font-normal text-[#54627A] tabular-nums',
   /**
-   * 그룹 머리 — 레일과 같은 면. 카드 안에서 구역을 가르는 띠지, 또 하나의 카드가 아니다.
+   * 그룹 머리 — 카드 안에서 구역을 가르는 띠다.
+   *
+   * 예전엔 레일과 같은 회색을 썼는데, 그러면 레일과 그룹 머리가 이어진 ㄱ자 덩어리로
+   * 읽혀 레일이 독립한 패널로 안 보인다(받은 지적). 이제 회색은 바깥 패널 하나만
+   * 쓴다 — 안쪽은 전부 흰 면이고, 구역은 굵은 글씨와 아래 선이 가른다.
    *
    * 목록 칸 위에 붙어 따라온다. 스크롤해서 그룹 머리가 화면 밖으로 나가면 지금 읽는 글이
    * 어느 Category 인지 사라지는데, 이 목록은 상한이 없어 그 일이 반드시 생긴다.
@@ -3111,7 +3117,7 @@ export const postStyles = {
    * 불투명하면 그냥 목록이 잘린 것처럼 보인다.
    */
   groupHead:
-    'sticky top-0 z-[1] flex items-baseline gap-2 px-[22px] py-2.5 bg-[#EEF1F7]/85 backdrop-blur-[6px] border-b border-[#DDE3ED]',
+    'sticky top-0 z-[1] flex items-baseline gap-2 px-[22px] py-3 bg-white/90 backdrop-blur-[6px] border-b border-[#E5E7EB]',
   /** 레일 항목(16px)과 같은 이름을 이고 있어 한 칸 위여야 한다 — 저쪽은 고르는 자리고 여기는 구역의 머리다. */
   groupTitle: 'text-[18px] font-bold tracking-[-0.01em] text-[#141A24]',
   groupCount: 'text-[12px] text-[#54627A] tabular-nums',
@@ -3142,9 +3148,14 @@ export const postStyles = {
    * 면 색은 레일과 같은 값을 쓴다. 이 화면의 규칙이 "회색은 구조, 흰색은 내용" 하나라,
    * 밴드에 새 회색을 들이면 규칙이 둘이 된다.
    */
-  pageBand: 'flex-none px-6 py-7 bg-[#EEF1F7] border-b border-[#DDE3ED]',
-  /** 목록 칸. 긴 글을 펼쳐도 페이지가 아니라 이 칸이 흐른다. */
-  listPane: 'overflow-y-auto',
+  pageBand: 'flex-none px-6 py-7 bg-[#E7ECF5] border-b border-[#D6DEEC]',
+  /**
+   * 목록 칸. 긴 글을 펼쳐도 페이지가 아니라 이 칸이 흐른다.
+   * 회색 패널 위에 떠 있는 흰 판이다 — 테두리 대신 그림자로 띄운다. 패널 회색과
+   * 카드 테두리는 서로 너무 가까워 선을 그으면 경계가 오히려 흐려진다.
+   */
+  listPane:
+    'overflow-y-auto bg-white rounded-lg shadow-[0_1px_3px_rgba(15,23,43,0.08)]',
   pageTitle: 'text-[30px] font-extrabold tracking-[-0.03em] leading-[1.2] text-[#191F28]',
   pageSub: 'text-[14px] text-[#4E5968] mt-1.5',
   /**
