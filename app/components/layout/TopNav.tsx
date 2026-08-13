@@ -47,6 +47,22 @@ const UTILITY_ITEMS: Array<{ label: string; icon: React.ReactNode; href?: string
 
 const NAV_ITEMS: NavItem[] = [
   {
+    label: 'Home',
+    // `/` 가 아니라 공지사항·FAQ 2카드 화면이다. `/` 는 서비스 목록으로 redirect
+    // 하므로 그리로 걸면 바로 옆 항목과 목적지가 같아지고, 한 화면에 활성 항목이
+    // 둘이 되어 어느 쪽이 지금인지 말하지 못한다. 오른쪽 Notice · FAQ 는 같은
+    // 화면의 한 종류 전체보기(`?type=`)라 여기와 목적지가 겹치지 않는다.
+    href: passRoutes.notices,
+    isActive: (pathname) => pathname === passRoutes.notices,
+    icon: (
+      <svg {...iconProps} aria-hidden="true">
+        <path d="M3 10.5 12 3l9 7.5" />
+        <path d="M5.5 9.5V20a1 1 0 0 0 1 1h11a1 1 0 0 0 1-1V9.5" />
+        <path d="M9.5 21v-6h5v6" />
+      </svg>
+    ),
+  },
+  {
     label: '서비스 목록',
     href: passRoutes.services,
     isActive: (pathname) =>
