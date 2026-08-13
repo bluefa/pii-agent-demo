@@ -570,11 +570,25 @@ export interface ConnectionTestHistory {
   results: ConnectionTestResult[];
 }
 
-// Credential이 필요한지 확인하는 헬퍼
-export const needsCredential = (databaseType: DatabaseType): boolean => {
+/**
+ * 이 엔진이 접속에 자격 증명을 쓰는가.
+ *
+ * 목록은 "안 쓰는 쪽"만 나열한다 — Athena·DynamoDB·CosmosDB·BigQuery 는 IAM/계정 키로 붙으므로
+ * 물어볼 자격 증명이 없다. 허용 목록으로 두면 새 엔진이 조용히 "불필요"로 떨어져 설정 버튼이
+ * 사라지고 Run Test 게이트까지 통과한다 — mysql·postgresql·redshift 만 참이던 시절 mssql·oracle·
+ * mongodb 가 실제로 그랬다.
+ *
+ * CosmosDB 는 표기가 두 갈래다: 스캔 wire 는 `COSMOSDB`, 설치 요청 enum 은 `cosmosdb_nosql`
+ * (lib/constants/db-types.ts). 한쪽만 적으면 다른 화면에서 안 걸린다.
+ *
+ * `hasLogicalDatabases` 와 같은 목록이 아니다 — CosmosDB·BigQuery 는 자격 증명은 없어도
+ * 논리 DB 는 있다.
+ */
+const NO_CREDENTIAL_ENGINES = ['athena', 'dynamodb', 'cosmosdb', 'cosmosdb_nosql', 'bigquery'];
+
+export const needsCredential = (databaseType: DatabaseType): boolean =>
   // db type is lowercase-canonical but legacy data is uppercase — compare case-insensitively.
-  return ['mysql', 'postgresql', 'redshift'].includes(databaseType.toLowerCase());
-};
+  !NO_CREDENTIAL_ENGINES.includes(databaseType.toLowerCase());
 
 /**
  * 이 엔진이 논리 DB 라는 개념을 갖는가.

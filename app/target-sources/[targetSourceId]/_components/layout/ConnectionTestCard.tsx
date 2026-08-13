@@ -75,11 +75,9 @@ const PLACEHOLDER = '—';
 const seedCreds = (confirmed: readonly ConfirmedResource[]): CredMap =>
   Object.fromEntries(confirmed.map((r) => [r.resourceId, r.credentialId ?? '']));
 
-// ⚠️ `needsCredential` 은 mysql·postgresql·redshift 만 참인 허용 목록이다(lib/types.ts).
-// 그래서 여기서 "불필요" 로 떨어지는 것은 IAM 기반 엔진(Athena·DynamoDB)만이 아니라
-// mssql·oracle·mongodb 도 포함된다 — 그 엔진들은 실제로는 자격 증명이 필요하고, IDC step 5 는
-// 같은 엔진에 요구한다. 판정 자체를 고치는 것은 Run Test 게이트를 전 프로바이더에서 바꾸므로
-// 별도 작업으로 뺐다(LIN-90). 이 화면의 문구는 그때까지 엔진을 단정하지 않는다.
+// "불필요" 로 떨어지는 것은 `needsCredential` 이 세는 IAM 기반 엔진뿐이다(lib/types.ts).
+// 엔진을 모를 때(null·빈 문자열)는 여기서 false 다 — 없는 값을 "필요" 로 읽으면 이 화면에만
+// 미설정 경고가 서고 Run Test 가 영영 막힌다. 계약상 database_type 은 optional 이다.
 const requiresCredential = (databaseType: string | null): boolean =>
   !!databaseType && needsCredential(databaseType);
 
@@ -514,9 +512,9 @@ export const ConnectionTestCard = ({
                         흰 표 위의 검은 상자는 다른 시스템의 UI 처럼 보인다. */}
                     <span className="inline-flex items-center gap-1">
                       Credential
-                      {/* 엔진을 열거하지 않는다 — "불필요" 로 떨어지는 집합은 IAM 엔진만이 아니라서
-                          (위 requiresCredential 주석), 예시를 들면 화면이 거짓을 말한다. 표가 이미
-                          찍은 값을 가리키는 편이 언제나 참이다. */}
+                      {/* 엔진을 열거하지 않는다 — 목록(lib/types.ts NO_CREDENTIAL_ENGINES)은 엔진이
+                          늘 때마다 바뀌고, 여기 적은 예시는 같이 안 바뀐다. 표가 이미 찍은 값을
+                          가리키는 편이 언제나 참이다. */}
                       <Tooltip
                         variant="value"
                         size="lg"
