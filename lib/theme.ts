@@ -3104,12 +3104,32 @@ export const postStyles = {
    * 정하고, 여기는 목록 브라우저라 높이를 화면이 정한다. 고정 높이인데도 글이 잘리지
    * 않는 건 안쪽 두 칸에 각각 스크롤을 걸기 때문이다(`catNav` · `listPane`).
    * 64 = TopNav — `/pass/services` 가 쓰는 것과 같은 식이다.
+   *
+   * 여백은 이제 자식이 나눠 갖는다 — 밴드는 전폭이라 부모의 `px-6` 안에 있으면 안 된다.
    */
-  pageFill: 'w-full h-[calc(100vh-64px)] overflow-hidden px-6 pt-8 pb-6 flex flex-col gap-6',
+  pageFill: 'w-full h-[calc(100vh-64px)] overflow-hidden flex flex-col',
+  /**
+   * 제목 밴드. 홍보 배너가 아니라 제목이 서는 무대다 — 잰 10곳 중 8곳이 120~270px
+   * 짜리 면 위에 제목을 올린다(NHN 200 중앙 · NCP 130 중앙 · 채널톡 270 그라데이션 ·
+   * GitHub 170 다크 · 네이버웍스 230). 목록이 흰 면 위 흰 면이면 대비할 상대가 없다.
+   *
+   * 면 색은 레일과 같은 값을 쓴다. 이 화면의 규칙이 "회색은 구조, 흰색은 내용" 하나라,
+   * 밴드에 새 회색을 들이면 규칙이 둘이 된다.
+   */
+  pageBand: 'flex-none px-6 py-7 bg-[#EEF1F7] border-b border-[#DDE3ED]',
   /** 목록 칸. 긴 글을 펼쳐도 페이지가 아니라 이 칸이 흐른다. */
   listPane: 'overflow-y-auto',
   pageTitle: 'text-[30px] font-extrabold tracking-[-0.03em] leading-[1.2] text-[#191F28]',
   pageSub: 'text-[14px] text-[#4E5968] mt-1.5',
+  /**
+   * 밴드 위의 제목은 `pageTitle`(30px) 보다 한 칸 크다. 30 은 잰 13곳 중 가장 작았고
+   * (중앙값 48), Admin 화면이 `pageTitle` 을 함께 쓰고 있어 그쪽 값을 건드리는 대신
+   * 이 화면 전용으로 갈랐다.
+   */
+  bandTitle: 'text-[40px] font-extrabold tracking-[-0.03em] leading-[1.15] text-[#191F28]',
+  bandSub: 'text-[14px] text-[#4E5968] mt-2',
+  /** 밴드 아래 본문 칸. 남은 높이를 전부 받아 `grouped` 에 넘긴다. */
+  pageBody: 'flex-1 min-h-0 px-6 py-6 flex flex-col',
   /**
    * 카드 높이는 내용이 정한다 — 화면 아래까지 늘리지 않는다. 테두리는 "여기까지가
    * 내용"이라는 약속이라, 늘린 카드는 빈 곳을 테두리로 강조하는 셈이 된다

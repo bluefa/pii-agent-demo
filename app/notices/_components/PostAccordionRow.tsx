@@ -1,6 +1,6 @@
 'use client';
 
-import { useId, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import { CategoryBadge, PinBadge } from '@/app/notices/_components/PostBadge';
 import { renderGuideAst } from '@/app/components/features/process-status/GuideCard/render-guide-ast';
 import { getPost } from '@/app/lib/api/posts';
@@ -18,37 +18,48 @@ interface PostAccordionRowProps {
    * 행마다 다시 말하면 같은 사실이 자리를 두 번 쓴다.
    */
   showCategory?: boolean;
+  /**
+   * 처음부터 펼쳐 둔다. 목록의 첫 글에만 붙는다 — 빈 목록 칸을 글로 채우는 것이
+   * 목적이라 한 건이면 된다.
+   */
+  defaultOpen?: boolean;
 }
 
 export const PostAccordionRow = ({
   post,
   onGone,
   showCategory = true,
+  defaultOpen = false,
 }: PostAccordionRowProps) => {
-  const [open, setOpen] = useState(false);
-  // 본문은 한 번만 받아 두고 유지한다. 접었다 펴도 다시 요청하지 않는다(§5 본문 로딩).
+  const [open, setOpen] = useState(defaultOpen);
   const [body, setBody] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
   const panelId = useId();
 
-  const toggle = async () => {
-    const next = !open;
-    setOpen(next);
-    if (!next || body !== null) return;
-
-    try {
-      const detail = await getPost(post.id);
-      setBody(detail.contents.ko);
-    } catch (error) {
-      // 404 = 목록을 받은 뒤 숨김 처리된 글. 독자에게 보일 오류가 아니라
-      // 그냥 없는 행이다.
-      if (error instanceof Error && 'status' in error && error.status === 404) {
-        onGone(post.id);
-        return;
-      }
-      setFailed(true);
-    }
-  };
+  /**
+   * 본문 요청을 누르는 동작이 아니라 **펼쳐진 상태**에 매단다. 처음부터 펼친 행은
+   * 누른 적이 없어서, 요청이 toggle 안에 있으면 본문이 영영 오지 않는다.
+   *
+   * 받아 둔 본문은 유지한다 — 접었다 펴도 `body` 가 남아 있어 다시 요청하지
+   * 않는다(§5 본문 로딩).
+   */
+  useEffect(() => {
+    if (!open || body !== null || failed) return;
+    let alive = true;
+    getPost(post.id)
+      .then((detail) => { if (alive) setBody(detail.contents.ko); })
+      .catch((error) => {
+        if (!alive) return;
+        // 404 = 목록을 받은 뒤 숨김 처리된 글. 독자에게 보일 오류가 아니라
+        // 그냥 없는 행이다.
+        if (error instanceof Error && 'status' in error && error.status === 404) {
+          onGone(post.id);
+          return;
+        }
+        setFailed(true);
+      });
+    return () => { alive = false; };
+  }, [open, body, failed, post.id, onGone]);
 
   const parsed = body === null
     ? null
@@ -58,7 +69,7 @@ export const PostAccordionRow = ({
     <li className="border-b border-[#F3F4F6] last:border-b-0">
       <button
         type="button"
-        onClick={toggle}
+        onClick={() => setOpen((current) => !current)}
         aria-expanded={open}
         // 캐럿은 눈에 보이는 지시자, aria-controls 는 그 접근성 등가물이다. 한 쌍이라
         // 하나만 두면 화면 읽는 사람에게는 상태만 있고 대상이 없다.
