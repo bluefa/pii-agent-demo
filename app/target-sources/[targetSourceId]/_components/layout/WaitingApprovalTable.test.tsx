@@ -205,10 +205,11 @@ describe('WaitingApprovalTable', () => {
         <WaitingApprovalTable
           variant="confirmed"
           resources={[
-            { ...athena('db_a', 'ap-northeast-1', true), resourceType: 'athena' },
+            { ...athena('db_a', 'ap-northeast-1', true), displayDbType: 'athena' },
             {
               resourceId: 'rds-1',
-              resourceType: 'mysql',
+              resourceType: 'AWS_DB_INSTANCE',
+              displayDbType: 'mysql',
               region: 'ap-northeast-1',
               resourceName: 'rds-1',
               selected: true,
@@ -231,10 +232,34 @@ describe('WaitingApprovalTable', () => {
       ]);
     });
 
-    // An engine we were not told is not an engine without logical DBs. `database_type` is
-    // optional in the contract, and claiming 설정 불필요 there hid three real target databases
-    // on the final-approval screen and removed the 설정 button that reaches them.
-    it('keeps the counts when the engine is missing, rather than claiming 설정 불필요', () => {
+    // The verdict reads `database_type` and nothing else. `AWS_ATHENA_DATABASE` is a resource
+    // type — it is not the database type `athena` and must not answer for it, or the row's
+    // verdict rides on which vocabulary the caller happened to fill in.
+    it('does not judge on resourceType when database_type is absent', () => {
+      render(
+        <WaitingApprovalTable
+          variant="confirmed"
+          resources={[
+            {
+              ...athena('db_a', 'ap-northeast-1', true, [3, 0]),
+              // The confirmed caller overloads this slot with the database type, so it is the one
+              // field that CAN carry a matching value while `displayDbType` is empty. The verdict
+              // must still refuse to read it: a row missing database_type keeps its counts.
+              resourceType: 'athena',
+            },
+          ]}
+        />,
+      );
+
+      const cells = within(screen.getAllByRole('row')[1]).getAllByRole('cell').slice(4);
+      expect(cells.map((td) => td.textContent)).not.toContain('설정 불필요');
+      expect(screen.getByRole('button', { name: 'db_a 연동 논리 DB 목록 보기' })).toBeTruthy();
+    });
+
+    // A database type we were not told is not a database type without logical DBs.
+    // `database_type` is optional in the contract, and claiming 설정 불필요 there hid three real
+    // target databases on the final-approval screen and removed the 설정 button that reaches them.
+    it('keeps the counts when the database type is missing, rather than claiming 설정 불필요', () => {
       render(
         <WaitingApprovalTable
           variant="confirmed"
@@ -265,8 +290,12 @@ describe('WaitingApprovalTable', () => {
               ...athena('unused', 'ap-northeast-1', true),
               resourceId: 'athena:1:ap-northeast-1/AwsDataCatalog',
               // Steps 6·7 read `database_type` off the confirmed-integration contract, not the
-              // scan's `resource_type` the fixture above carries.
+              // scan's `resource_type` the fixture above carries. The confirmed caller puts that
+              // one value in BOTH fields (ConfirmedIntegrationTable): `resourceType` because the
+              // fold prints its label from there, `displayDbType` because the 논리 DB verdict
+              // reads database_type and nothing else.
               resourceType: 'athena',
+              displayDbType: 'athena',
               foldedMembers: [
                 { resourceId: 'athena:1:ap-northeast-1:AwsDataCatalog/sampledb', resourceName: 'sampledb' },
                 { resourceId: 'athena:1:ap-northeast-1:AwsDataCatalog/integration', resourceName: 'integration' },
@@ -306,6 +335,7 @@ describe('WaitingApprovalTable', () => {
               ...athena('unused', 'ap-northeast-1', true),
               resourceId: 'athena:1:ap-northeast-1/AwsDataCatalog',
               resourceType: 'athena',
+              displayDbType: 'athena',
               foldedMembers: [
                 { resourceId: 'athena:1:ap-northeast-1:AwsDataCatalog/a', resourceName: '' },
                 { resourceId: 'athena:1:ap-northeast-1:AwsDataCatalog/b', resourceName: '' },
@@ -332,6 +362,7 @@ describe('WaitingApprovalTable', () => {
               ...athena('unused', 'ap-northeast-1', true),
               resourceId: 'athena:1:ap-northeast-1/AwsDataCatalog',
               resourceType: 'athena',
+              displayDbType: 'athena',
               foldedMembers: [
                 { resourceId: 'athena:1:ap-northeast-1:AwsDataCatalog/sampledb', resourceName: 'sampledb' },
               ],
@@ -354,6 +385,7 @@ describe('WaitingApprovalTable', () => {
           ...athena('unused', 'ap-northeast-1', true),
           resourceId: 'athena:1:ap-northeast-1/AwsDataCatalog',
           resourceType: 'athena',
+          displayDbType: 'athena',
           foldedMembers: [
             { resourceId: 'athena:1:ap-northeast-1:AwsDataCatalog/sampledb', resourceName: 'sampledb' },
           ],
