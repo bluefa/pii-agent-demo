@@ -1,4 +1,4 @@
-import { PostEditorForm } from '@/app/admin/posts/_components/PostEditorForm';
+import { PostEditorForm } from '@/app/admin/pipelines/posts/_components/PostEditorForm';
 
 /**
  * 게시글 수정. `type` 은 불러온 게시글이 정하므로 여기서 넘기는 값은 첫 렌더용

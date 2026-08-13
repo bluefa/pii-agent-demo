@@ -3132,6 +3132,12 @@ export const postStyles = {
    */
   page: 'w-full px-6 pt-8 pb-12 flex flex-col gap-6',
   /**
+   * 같은 골격에서 여백만 뺀 것. 관리자 셸(`pipelineStyles.layout.content`) 안에
+   * 놓이는 게시판 화면용이다 — 셸이 이미 좌우 32 · 위 24 를 주고 있어서 자기
+   * 여백을 또 들고 가면 제목이 옆 메뉴의 화면들보다 8px 왼쪽에 선다.
+   */
+  sectionPage: 'w-full flex flex-col gap-6',
+  /**
    * 전체보기 골격. 2카드 뷰(`page`)와 규칙이 반대다 — 저쪽은 대시보드라 높이를 내용이
    * 정하고, 여기는 목록 브라우저라 높이를 화면이 정한다. 고정 높이인데도 글이 잘리지
    * 않는 건 안쪽 두 칸에 각각 스크롤을 걸기 때문이다(`catNav` · `listPane`).

@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react';
 import {
   PostFilterButton,
   type VisibilityFilter,
-} from '@/app/admin/posts/_components/PostFilterButton';
+} from '@/app/admin/pipelines/posts/_components/PostFilterButton';
 import { CategoryBadge, HiddenBadge, PinBadge } from '@/app/notices/_components/PostBadge';
 import { Button } from '@/app/components/ui/Button';
 import { bgColors, cn, postStyles } from '@/lib/theme';

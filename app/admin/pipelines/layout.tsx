@@ -54,6 +54,14 @@ const SIDEBAR_GROUPS = [
       { label: '권한 요청', href: passRoutes.pipelines.access.requests, exact: false },
     ],
   },
+  {
+    title: '게시판',
+    items: [
+      // 등록·수정(`posts/new`, `posts/{id}`)은 이 목록에서만 들어가는 드릴다운이라
+      // 항목을 따로 두지 않는다 — `exact: false` 가 그 화면들에서도 활성을 유지한다.
+      { label: '공지사항 · FAQ', href: passRoutes.adminPosts, exact: false },
+    ],
+  },
 ] as const;
 
 /** Counts the nav badges read. */
@@ -140,7 +148,11 @@ export default function PipelinesLayout({ children }: { children: ReactNode }) {
   const rest = pathname.startsWith(`${passRoutes.pipelines.dashboard}/`)
     ? pathname.slice(passRoutes.pipelines.dashboard.length + 1)
     : '';
-  const isDetail = rest !== '' && !rest.includes('/') && rest !== 'services' && rest !== 'queue';
+  // 단일 세그먼트 중 파이프라인 id 가 아닌 것들은 빼야 한다. 빼지 않으면 게시판
+  // 목록이 상한 없는 `contentDetail` 을 받아 넓은 화면에서 카드 두 장이 1440 을
+  // 넘어가고, 바로 아래 `posts/new` 는 상한을 받아 두 화면 폭이 어긋난다.
+  const SECTION_SEGMENTS = ['services', 'queue', 'posts'];
+  const isDetail = rest !== '' && !rest.includes('/') && !SECTION_SEGMENTS.includes(rest);
   // Task Queue pages are fluid like the dashboard — they must grow/shrink with
   // the viewport instead of capping at layout.content's max-width.
   const isQueue = rest === 'queue' || rest.startsWith('queue/');
@@ -160,6 +172,8 @@ export default function PipelinesLayout({ children }: { children: ReactNode }) {
   // full-bleed (opsStyles.headCard), so under the cap they stop at 1440px while the
   // page ground continues — the seam described above, on the busiest ops screen.
   const isOpsTarget = rest.startsWith('ops/target-sources');
+  // 게시판은 `content` 기본값을 그대로 쓴다 — 화면 쪽이 `postStyles.sectionPage`
+  // 로 자기 여백을 비워 두어서, 제목이 옆 메뉴의 화면들과 같은 x 에 선다.
   const mainClass =
     isDashboard || isQueue || isSplit || isOpsTarget
       ? layout.contentFluid

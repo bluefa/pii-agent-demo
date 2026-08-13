@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/app/components/ui/Button';
-import { PostBodyEditor } from '@/app/admin/posts/_components/PostBodyEditor';
+import { PostBodyEditor } from '@/app/admin/pipelines/posts/_components/PostBodyEditor';
 import {
   createPost,
   getAdminPost,
@@ -127,7 +127,7 @@ export const PostEditorForm = ({ type: initialType, postId }: PostEditorFormProp
   };
 
   return (
-    <div className={postStyles.page}>
+    <div className={postStyles.sectionPage}>
       <div>
         <h1 className={postStyles.pageTitle}>
           {postId === undefined ? '게시글 등록' : '게시글 수정'}

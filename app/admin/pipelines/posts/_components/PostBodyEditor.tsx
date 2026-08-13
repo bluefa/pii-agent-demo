@@ -3,7 +3,7 @@
 import { useCallback, useRef, useState } from 'react';
 import { EditorContent, useEditor, type Editor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
-import { PostImage } from '@/app/admin/posts/_components/post-image-node';
+import { PostImage } from '@/app/admin/pipelines/posts/_components/post-image-node';
 import { uploadPostImage } from '@/app/lib/api/posts';
 import {
   POST_IMAGE_ACCEPT,

@@ -2,8 +2,8 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { CategoryModal } from '@/app/admin/posts/_components/CategoryModal';
-import { PostAdminCard } from '@/app/admin/posts/_components/PostAdminCard';
+import { CategoryModal } from '@/app/admin/pipelines/posts/_components/CategoryModal';
+import { PostAdminCard } from '@/app/admin/pipelines/posts/_components/PostAdminCard';
 import { listAdminPosts, setPostHidden, setPostPinned } from '@/app/lib/api/posts';
 import { passRoutes } from '@/lib/routes';
 import { postStyles } from '@/lib/theme';
@@ -48,7 +48,7 @@ export const PostAdminView = () => {
   });
 
   return (
-    <div className={postStyles.page}>
+    <div className={postStyles.sectionPage}>
       <div>
         <h1 className={postStyles.pageTitle}>FAQ · 공지사항 관리</h1>
         <p className={postStyles.pageSub}>
