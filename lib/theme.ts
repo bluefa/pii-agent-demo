@@ -2952,7 +2952,7 @@ export const postStyles = {
    * 목록 전체가 게시판으로 읽힌다.
    */
   entryRow:
-    'group relative flex w-full items-start gap-5 px-[22px] py-[18px] text-left border-b border-[#F3F4F6] last:border-b-0 transition-colors duration-150 hover:bg-[#FAFBFD] motion-reduce:transition-none',
+    'group relative flex w-full items-start gap-5 px-[22px] py-[14px] text-left border-b border-[#F3F4F6] last:border-b-0 transition-colors duration-150 hover:bg-[#FAFBFD] motion-reduce:transition-none',
   entryRowOpen: 'bg-[#F7F9FC]',
   /**
    * 왼쪽 지시바 — hover·펼침에 세로로 자란다. 배경 틴트만으로는 "지금 여기"가
@@ -2966,15 +2966,16 @@ export const postStyles = {
   entryRailPinned: 'scale-y-100 bg-[#A9C6F8] group-hover:bg-[#0064FF]',
   /** 날짜 단 — 폭이 고정이라야 제목 시작선이 모든 행에서 같다. */
   entryDate:
-    'flex-none w-[76px] pt-[5px] text-[12px] text-[#59647A] tabular-nums leading-[1.4] whitespace-nowrap transition-colors duration-150 group-hover:text-[#0064FF] motion-reduce:transition-none',
-  entryMain: 'flex-1 min-w-0 flex flex-col gap-2',
+    'flex-none w-[76px] pt-[7px] text-[12px] text-[#59647A] tabular-nums leading-[1.4] whitespace-nowrap transition-colors duration-150 group-hover:text-[#0064FF] motion-reduce:transition-none',
+  entryMain: 'flex-1 min-w-0 flex flex-col gap-1.5',
   /**
-   * 18px. 14 는 본문 크기라 제목이 행의 주어가 되지 못한다 — 잰 레퍼런스 중
-   * 제목이 14px 인 곳은 없었다(Linear 는 24~32).
+   * 22px. 잰 13곳 중 목록 제목이 18px 인 곳은 없었다 — Linear·Vercel 32,
+   * GitHub 은 월 머리가 28, 토스페이먼츠·Stripe·채널톡이 20~24. 22 는 그 범위의
+   * 아래쪽이라 페이지 제목과 부딪히지 않으면서 행의 주어가 된다.
    * `max-w` 는 읽기 폭 — 제목이 1600px 를 가로지르면 다시 표가 된다.
    */
   entryTitle:
-    'text-[18px] font-bold tracking-[-0.02em] leading-[1.45] text-[#191F28] max-w-[62ch] transition-colors duration-150 group-hover:text-[#0050D6] motion-reduce:transition-none',
+    'text-[22px] font-bold tracking-[-0.02em] leading-[1.45] text-[#191F28] max-w-[62ch] transition-colors duration-150 group-hover:text-[#0050D6] motion-reduce:transition-none',
   entryTitleOpen: 'text-[#0050D6]',
   /** 캐럿 자리 — hover 에 옅은 원판이 깔려 "누르는 곳"이 손끝보다 먼저 보인다. */
   entryCaretSlot:
@@ -3086,7 +3087,7 @@ export const postStyles = {
    */
   groupHead:
     'sticky top-0 z-[1] flex items-baseline gap-2 px-[22px] py-2.5 bg-[#EEF1F7]/85 backdrop-blur-[6px] border-b border-[#DDE3ED]',
-  groupTitle: 'text-[14px] font-bold tracking-[-0.01em] text-[#141A24]',
+  groupTitle: 'text-[16px] font-bold tracking-[-0.01em] text-[#141A24]',
   groupCount: 'text-[12px] text-[#54627A] tabular-nums',
   /** 그룹 사이의 선 — 첫 그룹은 카드 위 테두리가 대신한다. */
   groupSection: 'border-t border-[#E5E7EB] first:border-t-0',
