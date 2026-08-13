@@ -55,9 +55,11 @@ export const serviceListStyles = {
    *  viewport makes the list scroll instead. State variants own bg + name color. */
   item: 'flex w-full flex-1 min-h-[48px] items-center gap-2.5 px-3 text-left cursor-pointer transition-colors',
   /** Tint + 2px accent bar — how a desktop rail marks "you are here". The bar
-   *  sits on the RIGHT edge, the side the rail hands off to the detail pane. */
+   *  sits on the RIGHT edge, the side the rail hands off to the detail pane, and
+   *  the pair is the violet `--pl-current*` set: primary blue is what you can do,
+   *  this is where you are. Same swap the /services rail made. */
   itemActive:
-    'relative bg-[var(--pl-primary-bg)] before:absolute before:inset-y-0 before:right-0 before:w-0.5 before:bg-[var(--pl-primary)] before:content-[""]',
+    'relative bg-[var(--pl-current-bg)] before:absolute before:inset-y-0 before:right-0 before:w-0.5 before:bg-[var(--pl-current)] before:content-[""]',
   /** White, not a deeper grey — on a recessed rail the row under the cursor lifts. */
   itemIdle: 'hover:bg-[var(--pl-bg-card)]',
   /** Service names run to ~30 characters — wrap rather than clip at the rail's edge.
@@ -66,7 +68,7 @@ export const serviceListStyles = {
    *  10 vs 8). This is the one rail label that routinely reaches `line-clamp-3`, so the
    *  leading moves with the size — 16 on `leading-5` would be a 1.25 ratio. */
   name: 'flex-1 min-w-0 line-clamp-3 break-words text-[16px] font-medium leading-6',
-  nameActive: 'text-[var(--pl-primary)]',
+  nameActive: 'text-[var(--pl-current-ink)]',
   nameIdle: 'text-[var(--pl-text-strong)]',
   /** 코드 태그 — codes are 3 characters, so `min-w` fixes the column and every code
    *  lands on one x down the list; packed against a wrapping name it would not.
@@ -74,7 +76,7 @@ export const serviceListStyles = {
    *  는 #E4E7EC 위에서 4.01 로 AA 미달이고, medium(#344054)이 8.44. */
   code: 'inline-flex shrink-0 min-w-[38px] items-center justify-center rounded-[6px] bg-[var(--pl-gray-200)] px-1.5 py-0.5 font-mono text-[12px] font-medium leading-5 text-[var(--pl-text-medium)]',
   codeActive:
-    'inline-flex shrink-0 min-w-[38px] items-center justify-center rounded-[6px] bg-[var(--pl-white)] px-1.5 py-0.5 font-mono text-[12px] font-semibold leading-5 text-[var(--pl-primary)]',
+    'inline-flex shrink-0 min-w-[38px] items-center justify-center rounded-[6px] bg-[var(--pl-white)] px-1.5 py-0.5 font-mono text-[12px] font-semibold leading-5 text-[var(--pl-current-ink)]',
 
   /**
    * Content sheet — the page's ONE raised plane, filling the pane so the grey
