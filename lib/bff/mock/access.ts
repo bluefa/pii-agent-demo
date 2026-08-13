@@ -486,9 +486,14 @@ export const mockAccess = {
   },
 
   // GET /users/search?query&excludeEmails — 실계약. 이름이 없으니 knox_id·email 로만 찾는다.
+  //
+  // 빈 질의는 아무도 돌려주지 않는다. 검색은 "찾는 사람을 아는 사람"을 위한 것이고,
+  // 질의 없이 부르면 사람 디렉터리 전체를 열거하는 창구가 된다. 화면도 검색어가 있을
+  // 때만 부르지만, 규칙은 서버 쪽에도 있어야 다른 호출자가 우회하지 못한다.
   searchUsers: async (query: string | undefined, excludeEmails: string[]) => {
     if (!isAdmin(me())) return forbidden('관리자만 사용자를 검색할 수 있어요.');
     const q = (query ?? '').trim().toLowerCase();
+    if (!q) return NextResponse.json({ users: [] });
     const excluded = new Set(emailList(excludeEmails).map((e) => e.trim().toLowerCase()));
     const users = getStore()
       .users.filter(

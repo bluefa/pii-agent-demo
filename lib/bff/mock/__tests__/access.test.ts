@@ -278,11 +278,20 @@ describe('관리자 권한', () => {
 });
 
 describe('사용자 검색', () => {
+  // 질의 없이 부르면 사람 디렉터리 전체를 열거하는 창구가 된다.
+  it('빈 질의는 아무도 돌려주지 않는다', async () => {
+    for (const blank of [undefined, '', '   ']) {
+      const found = await body<{ users: unknown[] }>(await mockAccess.searchUsers(blank, []));
+      expect(found.users).toHaveLength(0);
+    }
+  });
+
   it('excludeEmails 로 이미 가진 사람을 걸러 낸다', async () => {
     const held = (await owners('aws')).owners.map((row) => row.email);
     const found = await body<{ users: { email: string }[] }>(
-      await mockAccess.searchUsers(undefined, held),
+      await mockAccess.searchUsers('company.com', held),
     );
+    expect(found.users.length).toBeGreaterThan(0);
     expect(found.users.some((row) => held.includes(row.email))).toBe(false);
   });
 

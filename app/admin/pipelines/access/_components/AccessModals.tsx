@@ -19,7 +19,8 @@ import { accessStyles as a } from '@/app/admin/pipelines/access/_components/acce
 
 /** 계약 maxLength — 사유/메시지 모두 1,000자. */
 const MAX_TEXT = 1000;
-const SEARCH_DEBOUNCE_MS = 300;
+/** 타이핑이 멎고 나서 찾는다. 한 글자마다 쏘면 사람 목록을 훑는 요청이 줄줄이 나간다. */
+const SEARCH_DEBOUNCE_MS = 500;
 
 // ── 사용자 피커 (서비스 권한 부여 / 관리자 권한 부여) ─────────────────────────
 
@@ -72,11 +73,17 @@ export function UserPickerModal({
   // 같은 것에서 나온다(둘이 갈리면 키는 그대로인데 값만 바뀌는 창이 생긴다).
   const excludeKey = excludeEmails.join(',');
 
+  // 검색어가 있을 때만 찾는다. 빈 질의로 부르면 사람 디렉터리 전체가 모달을 열자마자
+  // 쏟아진다 — 부여할 사람을 고르는 화면이 조직도 열람 창이 되면 안 된다. 찾는 사람을
+  // 이미 아는 관리자만 그 사람을 본다.
   useAbortableEffect(
     (signal) => {
-      if (!open) return;
+      if (!open || !debounced) {
+        setUsers(null);
+        return;
+      }
       const exclude = excludeKey ? excludeKey.split(',') : [];
-      return searchAccessUsers(debounced || undefined, exclude, { signal })
+      return searchAccessUsers(debounced, exclude, { signal })
         .then((result) => {
           if (signal.aborted) return;
           setUsers(result);
@@ -134,14 +141,15 @@ export function UserPickerModal({
         />
       </div>
       <div className={a.pickerList}>
-        {users == null ? (
+        {!debounced ? (
+          // 검색 전에는 아무도 보여주지 않는다 — 위 effect 의 이유와 같다.
+          <div className={a.pickerEmpty}>Knox ID 나 이메일로 검색해 주세요</div>
+        ) : users == null ? (
           <div className={a.pickerEmpty} aria-busy="true">
-            불러오는 중이에요
+            찾는 중이에요
           </div>
         ) : users.length === 0 ? (
-          <div className={a.pickerEmpty}>
-            {debounced ? '검색 결과가 없어요' : '추가할 수 있는 사용자가 없어요'}
-          </div>
+          <div className={a.pickerEmpty}>검색 결과가 없어요</div>
         ) : (
           users.map((user) => (
             <label key={user.email} className={a.pickerRow}>
