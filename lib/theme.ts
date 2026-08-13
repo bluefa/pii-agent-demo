@@ -3125,12 +3125,13 @@ export const postStyles = {
   groupSection: 'border-t border-[#E5E7EB] first:border-t-0',
 
   /**
-   * 페이지 골격. 좌우 24 는 이 앱의 셸이 이미 쓰는 값이다 — TopNav 의 `px-6`,
-   * 서비스 화면 본문의 `p-6`. 여기만 40 을 쓰면 네비는 화면 끝까지 가는데 본문만
-   * 안으로 들여쓴 것처럼 읽힌다. 페이지 폭 상한은 두지 않는다(셸에 맞추는 쪽이
-   * 우선이고, 다른 화면도 상한 없이 전폭이다).
+   * 페이지 골격. 좌우 44 = 셸의 24 + 20. 셸(TopNav 의 `px-6`, 서비스 화면 본문의
+   * `p-6`)에 맞춘 24 로 시작했는데, 이 화면은 카드 두 장이 전폭을 채워서 24 로는
+   * 배너와 카드가 창 끝에 붙어 답답하게 읽혔다. 전체보기(`pageBand`·`pageBody`)도
+   * 같은 값을 쓴다 — 다르면 "전체보기 →" 한 번에 본문이 옆으로 튄다.
+   * 페이지 폭 상한은 여전히 두지 않는다(다른 화면도 상한 없이 전폭이다).
    */
-  page: 'w-full px-6 pt-8 pb-12 flex flex-col gap-6',
+  page: 'w-full px-[44px] pt-8 pb-12 flex flex-col gap-6',
   /**
    * 같은 골격에서 여백만 뺀 것. 관리자 셸(`pipelineStyles.layout.content`) 안에
    * 놓이는 게시판 화면용이다 — 셸이 이미 좌우 32 · 위 24 를 주고 있어서 자기
@@ -3154,7 +3155,7 @@ export const postStyles = {
    * 면 색은 레일과 같은 값을 쓴다. 이 화면의 규칙이 "회색은 구조, 흰색은 내용" 하나라,
    * 밴드에 새 회색을 들이면 규칙이 둘이 된다.
    */
-  pageBand: 'flex-none px-6 py-7 bg-[#E7ECF5] border-b border-[#D6DEEC]',
+  pageBand: 'flex-none px-[44px] py-7 bg-[#E7ECF5] border-b border-[#D6DEEC]',
   /**
    * 목록 칸. 긴 글을 펼쳐도 페이지가 아니라 이 칸이 흐른다.
    * 회색 패널 위에 떠 있는 흰 판이다 — 테두리 대신 그림자로 띄운다. 패널 회색과
@@ -3180,7 +3181,7 @@ export const postStyles = {
    * 이 그걸 잘라 **6760px 가 스크롤로 닿지 않는다.** 글이 몇 건 없을 때는 넘칠 일이
    * 없어 붙이나 떼나 같아 보인다.
    */
-  pageBody: 'flex-1 min-h-0 px-6 py-6 flex flex-col',
+  pageBody: 'flex-1 min-h-0 px-[44px] py-6 flex flex-col',
   /**
    * 카드 높이는 내용이 정한다 — 화면 아래까지 늘리지 않는다. 테두리는 "여기까지가
    * 내용"이라는 약속이라, 늘린 카드는 빈 곳을 테두리로 강조하는 셈이 된다
