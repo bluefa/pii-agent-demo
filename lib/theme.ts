@@ -2966,16 +2966,16 @@ export const postStyles = {
   entryRailPinned: 'scale-y-100 bg-[#A9C6F8] group-hover:bg-[#0064FF]',
   /** 날짜 단 — 폭이 고정이라야 제목 시작선이 모든 행에서 같다. */
   entryDate:
-    'flex-none w-[84px] pt-[6px] text-[14px] text-[#59647A] tabular-nums leading-[1.4] whitespace-nowrap transition-colors duration-150 group-hover:text-[#0064FF] motion-reduce:transition-none',
+    'flex-none w-[92px] pt-[7px] text-[16px] text-[#59647A] tabular-nums leading-[1.4] whitespace-nowrap transition-colors duration-150 group-hover:text-[#0064FF] motion-reduce:transition-none',
   entryMain: 'flex-1 min-w-0 flex flex-col gap-1.5',
   /**
-   * 24px. 잰 13곳 중 목록 제목이 18px 인 곳은 없었다 — Linear·Vercel 32,
-   * GitHub 은 월 머리가 28, 토스페이먼츠·Stripe·채널톡이 20~24. 24 는 그 범위 안이고,
-   * 밴드 제목 40px 과도 한 칸 이상 벌어져 둘이 같은 등급으로 읽히지 않는다.
+   * 26px. 잰 13곳 중 목록 제목이 18px 인 곳은 없었다 — 토스페이먼츠·Stripe 20,
+   * GitHub 월 머리 28, Linear·Vercel 32. 26 은 그 범위 안이고, 밴드 제목 40px 과
+   * 한 칸 이상 벌어져 둘이 같은 등급으로 읽히지 않는다.
    * `max-w` 는 읽기 폭 — 제목이 1600px 를 가로지르면 다시 표가 된다.
    */
   entryTitle:
-    'text-[24px] font-bold tracking-[-0.02em] leading-[1.45] text-[#191F28] max-w-[62ch] transition-colors duration-150 group-hover:text-[#0050D6] motion-reduce:transition-none',
+    'text-[26px] font-bold tracking-[-0.02em] leading-[1.45] text-[#191F28] max-w-[62ch] transition-colors duration-150 group-hover:text-[#0050D6] motion-reduce:transition-none',
   entryTitleOpen: 'text-[#0050D6]',
   /** 캐럿 자리 — hover 에 옅은 원판이 깔려 "누르는 곳"이 손끝보다 먼저 보인다. */
   entryCaretSlot:
@@ -3003,8 +3003,16 @@ export const postStyles = {
   panelGrid:
     'grid transition-[grid-template-rows] duration-[240ms] ease-out motion-reduce:transition-none',
   panelBg: 'bg-[#F9FAFB]',
-  /** 하단 42 > 상단 16 — 그룹이 끝나는 쪽을 더 넓게(여백 7원칙 §2). */
-  panelBody: 'px-[22px] pt-4 pb-[42px] text-[14px] leading-[1.75] text-[#4E5968]',
+  /**
+   * 하단이 상단보다 넓다(여백 7원칙 §2). 두 여백이 하는 일이 다르기 때문이다 —
+   * 위는 제목과 그 제목의 본문을 띄우는 같은 덩어리 안의 간격이고, 아래는 이 글의
+   * 끝과 다음 글 사이의 경계다.
+   *
+   * 값은 눈에 보이는 간격으로 맞췄다. 위쪽 실측 간격은 패딩 16 이 아니라 38 인데,
+   * 행의 아래 여백 14 와 첫 줄의 반행간이 함께 얹히기 때문이다. 그래서 42 로는
+   * 아래가 44 밖에 안 돼 둘이 같아 보였다. 64 로 올려 아래를 66 으로 만든다(1.7배).
+   */
+  panelBody: 'px-[22px] pt-4 pb-16 text-[14px] leading-[1.75] text-[#4E5968]',
   /**
    * 본문은 높이보다 늦게 도착한다. 칸이 열리는 200ms 동안 글자가 같이 늘어나면
    * 늘어나는 것처럼 보여서, 칸이 자리를 잡은 뒤 글이 떠오르게 지연을 준다.
@@ -3073,15 +3081,19 @@ export const postStyles = {
    * 한글이면 못 하는 처리다.
    */
   catNavHead:
-    'px-3 pt-1 pb-2 text-[12px] font-bold tracking-[0.06em] text-[#54627A]',
+    'px-3 pt-1.5 pb-2.5 text-[14px] font-extrabold tracking-[0.04em] text-[#141A24]',
   /**
    * "전체"와 Category 목록 사이의 선. 전체는 Category 가 아니라 필터를 푸는 자리라
    * 같은 줄에 세워 두면 4개 중 하나로 읽힌다.
    */
   catNavDivide: 'my-1.5 border-t border-[#DDE3ED]',
-  /** 32px — GitHub Issues 사이드바 실측(항목 32 · radius 6 · 14px)에서 가져왔다. */
+  /**
+   * GitHub Issues 사이드바 실측(항목 32 · radius 6 · 14px)에서 시작했지만 그쪽은
+   * 필터가 십수 개인 조밀한 목록이다. 여기는 서너 개가 656px 칸에 놓여 조밀할 이유가
+   * 없어 한 칸씩 올렸다 — 16px · 40px 높이는 앱 좌측 내비가 쓰는 크기다.
+   */
   catNavItem:
-    'flex items-center gap-2 px-3 py-1.5 leading-5 rounded-lg text-[14px] font-medium text-[#3E4C63] transition-colors hover:bg-white/70',
+    'flex items-center gap-2 px-3 py-2 leading-6 rounded-lg text-[16px] font-semibold text-[#3E4C63] transition-colors hover:bg-white/70',
   /**
    * 레일이 회색이라 선택 항목은 흰 카드로 떠오른다 — 대비를 반대 방향으로 준다.
    * 글자를 #0050D6(6.73:1) 에서 앱 Primary #0064FF(4.92:1) 로 올린다. 대비는 한 칸
@@ -3089,7 +3101,7 @@ export const postStyles = {
    */
   catNavItemOn:
     'bg-white text-[#0064FF] font-bold hover:bg-white ring-1 ring-[#C7D9FA] shadow-[0_1px_2px_rgba(15,23,43,0.06)]',
-  catNavCount: 'ml-auto text-[12px] font-normal text-[#54627A] tabular-nums',
+  catNavCount: 'ml-auto text-[14px] font-normal text-[#54627A] tabular-nums',
   /**
    * 그룹 머리 — 레일과 같은 면. 카드 안에서 구역을 가르는 띠지, 또 하나의 카드가 아니다.
    *
@@ -3100,7 +3112,8 @@ export const postStyles = {
    */
   groupHead:
     'sticky top-0 z-[1] flex items-baseline gap-2 px-[22px] py-2.5 bg-[#EEF1F7]/85 backdrop-blur-[6px] border-b border-[#DDE3ED]',
-  groupTitle: 'text-[16px] font-bold tracking-[-0.01em] text-[#141A24]',
+  /** 레일 항목(16px)과 같은 이름을 이고 있어 한 칸 위여야 한다 — 저쪽은 고르는 자리고 여기는 구역의 머리다. */
+  groupTitle: 'text-[18px] font-bold tracking-[-0.01em] text-[#141A24]',
   groupCount: 'text-[12px] text-[#54627A] tabular-nums',
   /** 그룹 사이의 선 — 첫 그룹은 카드 위 테두리가 대신한다. */
   groupSection: 'border-t border-[#E5E7EB] first:border-t-0',
