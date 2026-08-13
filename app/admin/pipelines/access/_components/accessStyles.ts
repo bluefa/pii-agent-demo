@@ -60,9 +60,6 @@ export const accessStyles = {
    *  이 제품 어디서나 같은 모양으로 읽혀야 하므로 여기서 다시 그리지 않는다.
    *  gap 은 레일의 2.5, py 는 28px 타일에 맞춘 값. */
   svcRow: 'flex items-center gap-2.5 border-t border-[var(--pl-border)] py-2',
-  /** 서비스 행은 2열로 흐른다 — 1200px 폭에서 한 행이 594px 이라 타일·이름·코드·버튼에
-   *  적정하고, 한 장에 10개가 들어와 검색 없이도 훑을 수 있다. */
-  svcGrid: 'grid grid-cols-2 gap-x-6',
   /** 행 끝 CTA 셀 — "권한 요청"(12px/600, sm 패딩 10)이 줄바꿈 없이 들어가는 폭. */
   svcAction: 'w-[84px] flex-none text-right',
 

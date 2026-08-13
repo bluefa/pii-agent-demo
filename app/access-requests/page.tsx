@@ -63,21 +63,14 @@ const REQUESTABLE = new Set(['NONE', 'REJECTED']);
 const SEARCH_DEBOUNCE_MS = 300;
 /** 한 번에 크게 받는 크기 — 서비스도 내 요청도 목록 화면 하나 분량이다. */
 const FETCH_ALL = 200;
-/** 서비스는 2열로 흐르므로 한 장이 10개다(기록은 공용 5행 그대로). */
-const SERVICE_ROWS = ROWS_PER_PAGE * 2;
 
 /**
- * 로딩 중 서비스 목록 — 실제 2열 격자에 타일 · 이름 · 코드 태그의 크기를 그대로 흉내
- * 낸다. 도착했을 때 목록이 튀지 않는 건 이 칸들이 진짜 행과 같기 때문이다.
+ * 로딩 중 서비스 목록 — 타일 · 이름 · 코드 태그의 크기를 그대로 흉내 낸다. 도착했을 때
+ * 목록이 튀지 않는 건 이 칸들이 진짜 행과 같기 때문이다.
  */
 const SERVICE_SKELETON = (
-  <div
-    role="rowgroup"
-    className={a.svcGrid}
-    aria-busy="true"
-    aria-label="목록을 불러오는 중"
-  >
-    {Array.from({ length: SERVICE_ROWS }, (_, row) => (
+  <div role="rowgroup" aria-busy="true" aria-label="목록을 불러오는 중">
+    {Array.from({ length: ROWS_PER_PAGE }, (_, row) => (
       <div key={row} className={a.svcRow} aria-hidden="true">
         <span className={cn(serviceSidebarStyles.tile, a.skeletonBar, 'h-7 w-7')} />
         <span className={cn(a.skeletonBar, 'h-4 flex-1')} />
@@ -175,7 +168,7 @@ export default function MyAccessRequestsPage(): ReactElement {
       return sliceToPage(
         all.content.filter((row) => REQUESTABLE.has(row.accessStatus)),
         page,
-        SERVICE_ROWS,
+        ROWS_PER_PAGE,
       );
     },
     [debounced],
@@ -259,32 +252,33 @@ export default function MyAccessRequestsPage(): ReactElement {
       >
         {/* 서비스는 `/services` 레일과 같은 모양으로 읽힌다 — 타일 · 이름 · 코드 태그.
             고를 수 있는 목록이 아니라 요청할 목록이라 행 자체는 버튼이 아니고, 행 끝의
-            [권한 요청] 만 누를 수 있다. */}
-        {(rows) => (
-          <div role="rowgroup" className={a.svcGrid}>
-            {rows.map((row) => (
-              <div key={row.serviceCode} role="row" className={a.svcRow}>
-                <span
-                  className={cn(serviceSidebarStyles.tile, serviceTileClass(row.serviceCode))}
-                  aria-hidden="true"
-                >
-                  {row.serviceName.charAt(0).toUpperCase()}
-                </span>
-                <span role="cell" className={cn(sl.name, sl.nameIdle)}>
-                  {row.serviceName}
-                </span>
-                <span role="cell" className={sl.code}>
-                  {row.serviceCode}
-                </span>
-                <span role="cell" className={a.svcAction}>
-                  <PlButton variant="primary" size="sm" onClick={() => setTarget(row)}>
-                    권한 요청
-                  </PlButton>
-                </span>
-              </div>
-            ))}
-          </div>
-        )}
+            [권한 요청] 만 누를 수 있다.
+
+            한 줄에 하나다. 2열로 흘려 봤더니 순서가 좌→우→아래로 튀어서 목록의 차례를
+            읽을 수 없었다 — 폭을 쓰자고 훑기를 망치는 거래였다. */}
+        {(rows) =>
+          rows.map((row) => (
+            <div key={row.serviceCode} role="row" className={a.svcRow}>
+              <span
+                className={cn(serviceSidebarStyles.tile, serviceTileClass(row.serviceCode))}
+                aria-hidden="true"
+              >
+                {row.serviceName.charAt(0).toUpperCase()}
+              </span>
+              <span role="cell" className={cn(sl.name, sl.nameIdle)}>
+                {row.serviceName}
+              </span>
+              <span role="cell" className={sl.code}>
+                {row.serviceCode}
+              </span>
+              <span role="cell" className={a.svcAction}>
+                <PlButton variant="primary" size="sm" onClick={() => setTarget(row)}>
+                  권한 요청
+                </PlButton>
+              </span>
+            </div>
+          ))
+        }
       </PagedCard>
 
       {/* 기록. 설명 줄이 없는 건 반려 안내를 헤더 판정이 이미 말하기 때문이다. */}

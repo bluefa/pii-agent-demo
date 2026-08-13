@@ -11,10 +11,11 @@ import { PlToastProvider } from '@/app/admin/pipelines/_components/PlToastProvid
  * `flex-1` does nothing, there is no `mx-auto`, and the block ends up pinned to
  * the left wall with the whole remainder of a wide monitor empty on the right.
  *
- * 1200 rather than 1440: the sidebar's width was never this screen's to take,
- * and this is two lists, not the row-scan tables the wider cap was raised for.
+ * 1000 rather than 1440: the sidebar's width was never this screen's to take,
+ * and this is two single-column lists, not the row-scan tables the wider cap
+ * was raised for. A wider column here only stretches each row's whitespace.
  */
-const CONTENT = 'mx-auto w-full max-w-[1200px] px-8 pt-6 pb-12';
+const CONTENT = 'mx-auto w-full max-w-[1000px] px-8 pt-6 pb-12';
 
 /**
  * 내 권한 요청 section shell.
