@@ -124,8 +124,10 @@ const resolve = (expr: string): string => {
 };
 
 /** Class string of `key:` inside a source file (values are single-quoted, may wrap once). */
+// Accepts a template literal as well as a plain string: tokens that compose another token
+// (`${tableRowLift.chipEdge}`) are backticked, and reading only `'…'` would silently skip them.
 const classOf = (src: string, key: string) => {
-  const m = src.match(new RegExp(`(?<![\\w])${key}:\\s*\\n?\\s*'([^']*)'`));
+  const m = src.match(new RegExp(`(?<![\\w])${key}:\\s*\\n?\\s*['\`]([^'\`]*)['\`]`));
   if (!m) throw new Error(`key ${key} not found`);
   return m[1];
 };
@@ -233,6 +235,18 @@ const sheet = bgOf(classOf(adminSrc, 'sheet')); // admin content sheet (white)
 const kindTagFill = bgOf(classOf(themeSrc, 'resourceKind'));
 const rowHover = hoverBgOf(classOf(liftBlock, 'target'));
 const rowHoverExcluded = hoverBgOf(classOf(liftBlock, 'excluded'));
+
+/**
+ * A nested `key: { … }` object, so a generic key name resolves inside the right parent.
+ * (`blockOf` below is the top-level `export const` equivalent.)
+ */
+const nestedBlockOf = (key: string) => {
+  const m = themeSrc.match(new RegExp(`(?<![\\w])${key}: \\{[\\s\\S]*?\\n  \\},`));
+  if (!m) throw new Error(`nested block ${key} not found`);
+  return m[0];
+};
+const kindBadgeBlock = nestedBlockOf('kindBadge');
+const idcTagBlock = nestedBlockOf('tag');
 
 /**
  * `bgOf`/`textOf` read arbitrary-value classes (`bg-[#…]`). The base `bgColors` and
@@ -497,6 +511,67 @@ describe('kind tag fill stays the darker plate on every row tint', () => {
   });
 });
 
+/**
+ * `tableRowLift.chipEdge` — the hover-only ring that keeps every OTHER chip legible as a
+ * plate, since retinting the fills the way the kind tag was retinted is not available to
+ * them (their fills are shared palette steps, and the band is 7.5 L* wide either way).
+ *
+ * A ring earns its place only if it separates on BOTH sides: from the tint outside it, or
+ * the chip has no outline, and from its own fill inside it, or the chip just looks bigger
+ * and blurrier. Black at 15% is composited onto each fill, so every chip gets an edge in
+ * its own hue rather than a foreign grey; the floors below are the measured worst cases
+ * (1.26:1 outside on green-100, 1.40:1 inside) with a little headroom taken off.
+ *
+ * Tailwind resolves `ring-black/15` through color-mix in oklab, which for a pure black
+ * leaves RGB at zero and alpha at 0.15 — i.e. the same result as this sRGB composite.
+ */
+const RING_ALPHA = (() => {
+  const m = classOf(liftBlock, 'chipEdge').match(/ring-black\/(\d+)\b/);
+  if (!m) throw new Error('no ring-black/<n> in chipEdge');
+  return Number(m[1]) / 100;
+})();
+
+const composite = (base: string, alpha: number) => {
+  const [r, g, b] = srgb(base).map((v) => Math.round(v * 255 * (1 - alpha)));
+  return `#${[r, g, b].map((v) => v.toString(16).padStart(2, '0')).join('')}`;
+};
+
+// Every chip fill that can appear inside a `tableRowLift` row. Palette steps are spelled
+// out because they arrive as `bg-gray-100`-style classes, not as arbitrary values.
+const ROW_CHIPS: Array<[string, string]> = [
+  ['kind tag', kindTagFill],
+  ['RdsMemberChip (gray-100)', '#F3F4F6'],
+  ['RdsSelectionChip', bgOf(classOf(themeSrc, 'bgLight'))],
+  ['status success (green-100)', '#DCFCE7'],
+  ['status info (blue-100)', '#DBEAFE'],
+  ['status warning (orange-100)', '#FFEDD5'],
+  ['status error (red-100)', '#FEE2E2'],
+  ['amber-100', '#FEF3C7'],
+  // idcStyles.kindBadge.* and idcStyles.tag.*, read from the live tokens — which carry
+  // `chipEdge` on each FILL rather than on their shared `base`, because the base line holds
+  // an 11.5px font size the design hook will not let anyone touch.
+  //
+  // Scoped to their own blocks, not looked up in the whole file: `green`/`red`/`orange`/`gray`
+  // are also keys in `tagStyles`, which is declared FIRST, so an unscoped `classOf` silently
+  // measures the wrong token (and one that is a palette class `bgOf` cannot even parse).
+  ['kindBadge single', bgOf(classOf(kindBadgeBlock, 'single'))],
+  ['kindBadge multi', bgOf(classOf(kindBadgeBlock, 'multi'))],
+  ['kindBadge domain', bgOf(classOf(kindBadgeBlock, 'domain'))],
+  ['tag green', bgOf(classOf(idcTagBlock, 'green'))],
+  ['tag red', bgOf(classOf(idcTagBlock, 'red'))],
+  ['tag orange', bgOf(classOf(idcTagBlock, 'orange'))],
+  ['tag gray', bgOf(classOf(idcTagBlock, 'gray'))],
+];
+
+describe('chip hover ring separates on both sides', () => {
+  it.each(ROW_CHIPS)('%s', (_what, fill) => {
+    const edge = composite(fill, RING_ALPHA);
+    expect(contrast(edge, rowHover)).toBeGreaterThanOrEqual(1.2);
+    expect(contrast(edge, rowHoverExcluded)).toBeGreaterThanOrEqual(1.2);
+    expect(contrast(edge, fill)).toBeGreaterThanOrEqual(1.35);
+  });
+});
+
 describe('text contrast against its actual surface', () => {
   it.each(TEXT)('$what', ({ fg, on, min }) => {
     expect(contrast(fg, on)).toBeGreaterThanOrEqual(min ?? 4.5);
@@ -594,9 +669,11 @@ describe('detects the PR #624 regressions the hook missed', () => {
     expect(luminance('#F3EEFF')).toBeGreaterThan(luminance(rowHover)); // the inversion
 
     // And it was never one tag's bug: the whole chip vocabulary is built at L* 92..96 while
-    // both row tints sit at L* 92..94, so every chip goes equiluminant under the cursor.
-    // Deepening this one tag fixes the reported symptom, not the family — retinting the row
-    // hover is the owner's call, so these stand as the record of what is still unfixed.
+    // both row tints sit at L* 92..94, so every chip fill goes equiluminant under the cursor.
+    // These fills are still equiluminant and always will be — moving the tint cannot fix it
+    // (the band is 7.5 L* wide, and below the band the unpromoted verdict text #B45309 drops
+    // under AA). What changed is that the fill is no longer the only thing holding the chip:
+    // `chipEdge` gives each one a measured stroke while the row is tinted.
     for (const chip of ['#F3F4F6', '#E8F1FF', '#DBEAFE', '#FFEDD5', '#FEE2E2']) {
       expect(contrast(chip, rowHover)).toBeLessThan(1.1);
     }

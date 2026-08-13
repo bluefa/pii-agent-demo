@@ -439,6 +439,27 @@ export const tableRowLift = {
   /** hover 행의 셀 텍스트 승격 — #4E5968 → #191F28 (6.12:1 → 14.25:1 on the hover tint). */
   cellText: 'group-hover:text-[#191F28] group-focus-within:text-[#191F28]',
   /**
+   * hover 동안에만 나타나는 칩 테두리 — 행 안의 모든 칩(kind 태그·Reader/Writer·선택됨·
+   * 상태 pill)이 공유한다.
+   *
+   * 칩 어휘 전체가 L* 88.7..96.2 에 모여 있는데 두 hover 틴트가 L* 92.0/94.0 으로 그 안에
+   * 앉는다. 즉 어떤 칩 하나가 아니라 **모든 칩**이 커서 아래에서 틴트와 등휘도가 된다
+   * (gray-100 1.06:1 · 선택됨 1.02:1 · orange-100 1.01:1 · blue/red-100 1.05:1).
+   * 틴트를 옮겨서 푸는 길은 없다: 밴드 폭이 7.5 L* 라 안쪽 어디에 두든 무언가와 부딪히고,
+   * 밴드 아래로 내리면 승격 대상이 아닌 판정 글자(#B45309)가 AA 밑으로 떨어진다.
+   *
+   * 그래서 움직이는 쪽은 칩이고, 움직이는 것은 면이 아니라 **경계**다. 검정 15% 를 칩 자기
+   * 면 위에 얹으므로 8종 각각이 자기 색조를 어둡게 한 테두리를 갖는다 — 어떤 칩에도 남의
+   * 색을 들여오지 않는다. 최악값도 바깥 틴트와 1.33:1, 안쪽 자기 면과 1.40:1 이라, 등휘도
+   * 경계가 잃어버린 '양쪽 모두에 대한 명도차'를 1px 선이 되돌려준다.
+   *
+   * inset 이라 레이아웃을 건드리지 않는다(box-shadow 다) — 행 기하는 이미 맞춰져 있고
+   * 칩이 커지면 `stackedIdentityLift` 의 12px 계산이 어긋난다. rest 에서는 아무것도 그리지
+   * 않는다: 흰 행 위에서 칩은 이미 판으로 읽히므로, 크롬은 필요한 순간에만 존재한다.
+   */
+  chipEdge:
+    'group-hover:ring-1 group-hover:ring-inset group-hover:ring-black/15 group-focus-within:ring-1 group-focus-within:ring-inset group-focus-within:ring-black/15',
+  /**
    * Card-row hover on the tinted canvas — violet, originally lifted byte-for-byte
    * from the EC2 tag's surface so the two would land in one family. They still
    * share the family; they no longer share the value. `tagStyles.resourceKind`
@@ -1079,18 +1100,20 @@ export const idcStyles = {
   /** Kind badge — `.idc-kind` (11.5px / 600 / 3px 8px / radius 6). */
   kindBadge: {
     base: 'inline-flex items-center rounded-md px-2 py-[3px] text-[11.5px] font-semibold',
-    single: 'bg-[#E8F1FF] text-[#1747B5]',
-    multi: 'bg-[#FEF0E1] text-[#7A3F0E]',
-    domain: 'bg-[#EEF2FF] text-[#4338CA]',
+    // The edge rides each FILL, not `base`: these badges sit in resource rows, and on the
+    // hover tint every one of these three fills goes equiluminant with it (see chipEdge).
+    single: `bg-[#E8F1FF] text-[#1747B5] ${tableRowLift.chipEdge}`,
+    multi: `bg-[#FEF0E1] text-[#7A3F0E] ${tableRowLift.chipEdge}`,
+    domain: `bg-[#EEF2FF] text-[#4338CA] ${tableRowLift.chipEdge}`,
   },
   /** Inline color tag — `.tag` (4px 10px / radius 8 / 12px / 600). */
   tag: {
     base: 'inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-[12px] font-semibold tracking-[-0.01em] whitespace-nowrap',
-    blue: 'bg-[#E8F1FF] text-[#1747B5]',
-    green: 'bg-[#E5F8EE] text-[#197A3F]',
-    red: 'bg-[#FEECEC] text-[#B42318]',
-    orange: 'bg-[#FEF0E1] text-[#7A3F0E]',
-    gray: 'bg-[#F7F8FA] text-[#4E5968]',
+    blue: `bg-[#E8F1FF] text-[#1747B5] ${tableRowLift.chipEdge}`,
+    green: `bg-[#E5F8EE] text-[#197A3F] ${tableRowLift.chipEdge}`,
+    red: `bg-[#FEECEC] text-[#B42318] ${tableRowLift.chipEdge}`,
+    orange: `bg-[#FEF0E1] text-[#7A3F0E] ${tableRowLift.chipEdge}`,
+    gray: `bg-[#F7F8FA] text-[#4E5968] ${tableRowLift.chipEdge}`,
   },
   /** Health/connection status — `.status` (bare text + dot, 12.5px / 500 / dot 8px; NO bg/pad/radius). */
   status: {
@@ -1559,8 +1582,7 @@ export const ec2Styles = {
    * 잃지 않는다.
    */
   rowJustAdded: 'animate-[ec2-row-tint_1100ms_ease-in-out] motion-reduce:animate-none',
-  newBadge:
-    'ml-2 inline-flex shrink-0 items-center rounded-full bg-[#E8F1FF] px-2 py-px text-[11.5px] font-bold text-[#1747B5] animate-[ec2-new-badge_4000ms_ease-out_forwards] motion-reduce:animate-none', // design-exempt: mirrors idcStyles.kindBadge 11.5px token
+  newBadge: `ml-2 inline-flex shrink-0 items-center rounded-full bg-[#E8F1FF] px-2 py-px text-[11.5px] font-bold text-[#1747B5] animate-[ec2-new-badge_4000ms_ease-out_forwards] motion-reduce:animate-none ${tableRowLift.chipEdge}`, // design-exempt: mirrors idcStyles.kindBadge 11.5px token
   /** Step1 행의 정체성 스택 (EC2 태그 → instance id → Private IP). */
   rowStack: 'flex flex-col items-start gap-1',
   rowId: 'font-mono text-[12px] text-[#4E5968]',
