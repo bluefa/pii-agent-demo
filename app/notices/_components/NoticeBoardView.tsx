@@ -64,7 +64,7 @@ export const NoticeBoardView = () => {
       : groups.filter((group) => group.key === category);
 
     return (
-      <div className={postStyles.page}>
+      <div className={postStyles.pageFill}>
         <div>
           <h1 className={postStyles.pageTitle}>{focus === 'NOTICE' ? '공지사항' : 'FAQ'}</h1>
           <p className={postStyles.pageSub}>
@@ -76,9 +76,12 @@ export const NoticeBoardView = () => {
             레일이 그 길이를 Category 단위로 자르는 유일한 장치다. */}
         <div className={postStyles.grouped}>
           <nav className={postStyles.catNav} aria-label="Category">
+            {/* 선택을 색으로만 말하면 스크린 리더에는 아무 일도 일어나지 않는다
+                (Primer NavList 가 같은 자리에 `aria-current` 를 쓴다). */}
             <button
               type="button"
               onClick={() => setCategory(ALL)}
+              aria-current={category === ALL || undefined}
               className={cn(postStyles.catNavItem, category === ALL && postStyles.catNavItemOn)}
             >
               전체 <span className={postStyles.catNavCount}>{focused.length}</span>
@@ -88,6 +91,7 @@ export const NoticeBoardView = () => {
                 key={group.key}
                 type="button"
                 onClick={() => setCategory(group.key)}
+                aria-current={category === group.key || undefined}
                 className={cn(
                   postStyles.catNavItem,
                   category === group.key && postStyles.catNavItemOn,
@@ -99,7 +103,7 @@ export const NoticeBoardView = () => {
             ))}
           </nav>
 
-          <div>
+          <div className={postStyles.listPane}>
             {shown.map((group) => (
               <section key={group.key} className={postStyles.groupSection}>
                 <header className={postStyles.groupHead}>

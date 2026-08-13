@@ -1,0 +1,1259 @@
+<title>Category 레일</title>
+<style>
+  :root {
+    --bg: #F6F7FA;
+    --surface: #FFFFFF;
+    --surface-2: #EEF0F6;
+    --surface-3: #E4E7EF;
+    --ink: #131720;
+    --ink-2: #464E5E;
+    --ink-3: #626A7C;
+    --line: #DDE1EA;
+    --line-2: #C8CEDA;
+    --accent: #2B4C8C;
+    --accent-soft: #E4EBF8;
+    --ochre: #8A4F12;
+    --ochre-soft: #F7ECDD;
+    --good: #1F6B45;
+    --good-soft: #E2F1E9;
+    --shadow: 0 1px 2px rgba(19, 23, 32, 0.05);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #12151B;
+      --surface: #1A1E26;
+      --surface-2: #222731;
+      --surface-3: #2A303B;
+      --ink: #E9ECF3;
+      --ink-2: #B3BAC8;
+      --ink-3: #8B93A3;
+      --line: #2B313C;
+      --line-2: #3A4250;
+      --accent: #9DB8E8;
+      --accent-soft: #232D3F;
+      --ochre: #D9A468;
+      --ochre-soft: #33291C;
+      --good: #7FC7A0;
+      --good-soft: #1C2A23;
+      --shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #12151B;
+    --surface: #1A1E26;
+    --surface-2: #222731;
+    --surface-3: #2A303B;
+    --ink: #E9ECF3;
+    --ink-2: #B3BAC8;
+    --ink-3: #8B93A3;
+    --line: #2B313C;
+    --line-2: #3A4250;
+    --accent: #9DB8E8;
+    --accent-soft: #232D3F;
+    --ochre: #D9A468;
+    --ochre-soft: #33291C;
+    --good: #7FC7A0;
+    --good-soft: #1C2A23;
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    font-size: 16px;
+    line-height: 1.7;
+    margin: 0;
+    padding: 0 24px 120px;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap { max-width: 1080px; margin: 0 auto; }
+
+  code, .num { font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace; }
+  .num { font-variant-numeric: tabular-nums; }
+
+  /* ---- 페이지 머리 ---- */
+  header.top { padding: 88px 0 56px; border-bottom: 1px solid var(--line); }
+  .eyebrow {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    margin: 0 0 20px;
+  }
+  h1 {
+    font-size: 40px;
+    line-height: 1.15;
+    letter-spacing: -0.03em;
+    font-weight: 800;
+    margin: 0 0 20px;
+    text-wrap: balance;
+  }
+  .lede { font-size: 18px; color: var(--ink-2); margin: 0; max-width: 62ch; }
+  .meta {
+    margin-top: 28px;
+    font-size: 12px;
+    color: var(--ink-3);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20px;
+  }
+
+  /* ---- 섹션 — 왼쪽 레일이 이 문서의 구조 장치다 ---- */
+  section.blk { padding: 64px 0 0; }
+  .blk-head { display: flex; align-items: baseline; gap: 14px; margin-bottom: 8px; }
+  .blk-n {
+    font-family: ui-monospace, monospace;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--accent);
+    letter-spacing: 0.06em;
+  }
+  h2 { font-size: 28px; letter-spacing: -0.02em; font-weight: 800; margin: 0; }
+  .blk-sub { font-size: 16px; color: var(--ink-2); margin: 0 0 32px; max-width: 68ch; }
+
+  h3 { font-size: 18px; font-weight: 700; letter-spacing: -0.01em; margin: 0 0 6px; }
+
+  /* ---- 진단 표 ---- */
+  .scroller { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; font-size: 14px; min-width: 660px; }
+  th {
+    text-align: left;
+    font-size: 12px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    font-weight: 700;
+    padding: 0 14px 10px 0;
+    border-bottom: 1px solid var(--line);
+  }
+  td { padding: 14px 14px 14px 0; border-bottom: 1px solid var(--line); vertical-align: top; color: var(--ink-2); }
+  td.k { color: var(--ink); font-weight: 600; }
+  tr:last-child td { border-bottom: 0; }
+
+  .tag {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    padding: 3px 8px;
+    border-radius: 999px;
+    white-space: nowrap;
+  }
+  .t-num { background: var(--ochre-soft); color: var(--ochre); }
+  .t-ux { background: var(--accent-soft); color: var(--accent); }
+  .t-op { background: var(--surface-2); color: var(--ink-3); }
+  .t-ok { background: var(--good-soft); color: var(--good); }
+
+  /* ---- 레퍼런스 카드 ---- */
+  .refs { display: flex; flex-direction: column; gap: 20px; }
+  .ref {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    box-shadow: var(--shadow);
+    display: grid;
+    grid-template-columns: 300px minmax(0, 1fr);
+    overflow: hidden;
+  }
+  @media (max-width: 860px) { .ref { grid-template-columns: minmax(0, 1fr); } }
+  .ref-mock {
+    background: var(--surface-2);
+    border-right: 1px solid var(--line);
+    padding: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  @media (max-width: 860px) { .ref-mock { border-right: 0; border-bottom: 1px solid var(--line); } }
+  .ref-body { padding: 20px 24px 22px; min-width: 0; }
+  .ref-top { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-bottom: 4px; }
+  .ref-n { font-family: ui-monospace, monospace; font-size: 12px; color: var(--ink-3); font-weight: 700; }
+  .ref-take { font-size: 14px; color: var(--ink-2); margin: 10px 0 0; }
+  .ref-take b { color: var(--ink); font-weight: 700; }
+  .ref-link { font-size: 12px; margin-top: 12px; word-break: break-all; }
+  .ref-link a { color: var(--accent); text-decoration: none; border-bottom: 1px solid var(--line-2); }
+  .ref-link a:hover { border-bottom-color: var(--accent); }
+  .facts { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+  .fact {
+    font-family: ui-monospace, monospace;
+    font-size: 12px;
+    background: var(--surface-2);
+    color: var(--ink-2);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 2px 8px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* ---- 목업 부품 ---- */
+  .m {
+    width: 100%;
+    background: var(--surface);
+    border: 1px solid var(--line-2);
+    border-radius: 8px;
+    overflow: hidden;
+    font-size: 12px;
+  }
+  .m-split { display: grid; grid-template-columns: 108px minmax(0, 1fr); min-height: 168px; }
+  .m-rail { padding: 8px; display: flex; flex-direction: column; gap: 3px; }
+  .m-rail.filled { background: var(--surface-2); border-right: 1px solid var(--line); }
+  .m-rail.bordered { border-right: 1px solid var(--line); }
+  .m-i {
+    font-size: 10px;
+    color: var(--ink-2);
+    padding: 5px 7px;
+    border-radius: 6px;
+    display: flex;
+    justify-content: space-between;
+    gap: 6px;
+    align-items: center;
+    white-space: nowrap;
+  }
+  .m-i .c { font-family: ui-monospace, monospace; color: var(--ink-3); font-size: 10px; }
+  .m-i.on { background: var(--accent-soft); color: var(--accent); font-weight: 700; }
+  .m-i.on-white { background: var(--surface); color: var(--accent); font-weight: 700; }
+  .m-head {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    padding: 6px 7px 4px;
+  }
+  .m-body { padding: 10px; display: flex; flex-direction: column; gap: 7px; background: var(--surface); }
+  .m-line { height: 7px; border-radius: 3px; background: var(--surface-3); }
+  .m-line.s { width: 55%; }
+  .m-line.m { width: 78%; }
+  .m-band { background: var(--surface-2); height: 15px; border-bottom: 1px solid var(--line); }
+  .m-cap {
+    font-size: 10px;
+    color: var(--ink-3);
+    text-align: center;
+    margin-top: 10px;
+    letter-spacing: 0.02em;
+  }
+  .m-scrollbar {
+    width: 3px;
+    border-radius: 2px;
+    background: var(--line-2);
+    position: absolute;
+    right: 3px;
+    top: 10px;
+    height: 46px;
+  }
+  .m-rel { position: relative; }
+  .m-cut {
+    border-top: 1px dashed var(--line-2);
+    margin-top: auto;
+    padding-top: 5px;
+    font-size: 10px;
+    color: var(--ink-3);
+    text-align: center;
+  }
+
+  /* ---- 시안 ---- */
+  .props { display: flex; flex-direction: column; gap: 22px; }
+  .prop {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    box-shadow: var(--shadow);
+    overflow: hidden;
+  }
+  .prop.win { border-color: var(--accent); border-width: 2px; }
+  .prop-h {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 16px 24px;
+    border-bottom: 1px solid var(--line);
+    background: var(--surface-2);
+    flex-wrap: wrap;
+  }
+  .prop-badge {
+    font-family: ui-monospace, monospace;
+    font-size: 14px;
+    font-weight: 700;
+    background: var(--ink);
+    color: var(--surface);
+    width: 26px;
+    height: 26px;
+    border-radius: 6px;
+    display: grid;
+    place-items: center;
+    flex: none;
+  }
+  .prop-t { font-size: 18px; font-weight: 700; letter-spacing: -0.01em; margin: 0; }
+  .prop-b { display: grid; grid-template-columns: 340px minmax(0, 1fr); }
+  @media (max-width: 860px) { .prop-b { grid-template-columns: minmax(0, 1fr); } }
+  .prop-mock { padding: 24px; background: var(--surface-2); border-right: 1px solid var(--line); }
+  @media (max-width: 860px) { .prop-mock { border-right: 0; border-bottom: 1px solid var(--line); } }
+  .prop-text { padding: 20px 24px 24px; min-width: 0; font-size: 14px; color: var(--ink-2); }
+  .prop-text p { margin: 0 0 12px; }
+  .prop-text p:last-child { margin-bottom: 0; }
+  .kv { margin: 14px 0 0; font-size: 12px; }
+  .kv div { display: flex; gap: 10px; padding: 5px 0; border-top: 1px solid var(--line); }
+  .kv span:first-child {
+    color: var(--ink-3);
+    flex: none;
+    width: 76px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+  }
+
+  pre {
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 14px 16px;
+    overflow-x: auto;
+    font-size: 12px;
+    line-height: 1.7;
+    color: var(--ink-2);
+    margin: 14px 0 0;
+  }
+
+  .note {
+    border-left: 3px solid var(--ochre);
+    background: var(--ochre-soft);
+    padding: 16px 20px;
+    border-radius: 0 8px 8px 0;
+    font-size: 14px;
+    margin: 28px 0 0;
+    color: var(--ink-2);
+  }
+  .note b { color: var(--ink); }
+
+  .callout {
+    border: 1px solid var(--line);
+    border-left: 3px solid var(--accent);
+    background: var(--surface);
+    padding: 20px 24px;
+    border-radius: 0 8px 8px 0;
+    margin: 28px 0 0;
+    box-shadow: var(--shadow);
+  }
+  .callout p { margin: 0; font-size: 16px; color: var(--ink-2); }
+  .callout .q { font-size: 18px; color: var(--ink); font-weight: 600; margin-bottom: 8px; }
+
+  ul.plain { padding-left: 20px; margin: 12px 0 0; font-size: 14px; color: var(--ink-2); }
+  ul.plain li { margin-bottom: 8px; }
+  a { color: var(--accent); }
+</style>
+
+<div class="wrap">
+
+<header class="top">
+  <p class="eyebrow">Design Benchmark · 004</p>
+  <h1>레일은 카드가 아니다</h1>
+  <p class="lede">
+    <code>/pass/notices?type=NOTICE</code> 의 Category 레일을 다시 만든다.
+    지금은 회색 상자가 카드 안에 얹혀 있고, 스크롤이 없고, 항목 수만큼만 자란다.
+    잘 만든 레일 13곳을 재서 그 셋을 어떻게 해결했는지 본다.
+  </p>
+  <div class="meta">
+    <span>2026-08-13</span>
+    <span>대상 · <code>NoticeBoardView</code> / <code>postStyles.catNav</code></span>
+    <span>레퍼런스 13 · 실측 4</span>
+    <span>시안 5</span>
+  </div>
+</header>
+
+<!-- ================= 진단 ================= -->
+<section class="blk">
+  <div class="blk-head"><span class="blk-n">01</span><h2>지금 무엇이 잘못됐나</h2></div>
+  <p class="blk-sub">
+    브라우저에서 직접 잰 값이다(뷰포트 <span class="num">1710 × 947</span>). 앞의 셋은 사용자가 지적한 것이고,
+    나머지는 재면서 같이 나온 것이다.
+  </p>
+
+  <div class="scroller">
+  <table>
+    <tr>
+      <th style="width:26px">#</th><th style="width:210px">문제</th><th>측정값과 근거</th><th style="width:88px">등급</th>
+    </tr>
+    <tr>
+      <td class="k num">1</td>
+      <td class="k">레일이 카드로 읽힌다</td>
+      <td>회색 면(<code>#F3F4F6</code>)이 <span class="num">254px</span> 에서 끝난다. 카드 바닥까지 가지 않으니
+          구조물이 아니라 <b>카드 안에 놓인 또 하나의 상자</b>다. 아래 흰 바닥과 선택 항목의 흰 알약이 같은 색이라
+          레일이 짧을수록 둘이 붙어 보인다.</td>
+      <td><span class="tag t-ux">UX 원칙</span></td>
+    </tr>
+    <tr>
+      <td class="k num">2</td>
+      <td class="k">스크롤이 없다</td>
+      <td><code>overflow-y: visible</code>. Category 가 <span class="num">20</span> 개가 되면 레일이
+          <span class="num">800px</span> 로 자라 목록을 아래로 밀어낸다. 계약에 Category 상한이 없다.</td>
+      <td><span class="tag t-num">구조 결함</span></td>
+    </tr>
+    <tr>
+      <td class="k num">3</td>
+      <td class="k">화면을 안 쓴다</td>
+      <td>마스터-디테일 영역이 <span class="num">256px</span> — 뷰포트 <span class="num">947px</span> 의
+          <b>27%</b>. 아래 <span class="num">508px</span> 이 죽은 캔버스다.</td>
+      <td><span class="tag t-ux">UX 원칙</span></td>
+    </tr>
+    <tr>
+      <td class="k num">4</td>
+      <td class="k">항목 높이가 그리드 밖</td>
+      <td><code>py-[9px]</code> → 항목 <span class="num">39px</span>. 4의 배수가 아니다.
+          벤치마크는 전부 <span class="num">32</span> 나 <span class="num">36</span>.</td>
+      <td><span class="tag t-num">수치 위반</span></td>
+    </tr>
+    <tr>
+      <td class="k num">5</td>
+      <td class="k">폭이 좁다</td>
+      <td><span class="num">224px</span>. 잰 것 중 가장 좁은 GitHub 필터 목록이 <span class="num">239</span>,
+          앱 사이드바는 <span class="num">256~320</span>.</td>
+      <td><span class="tag t-op">제안</span></td>
+    </tr>
+    <tr>
+      <td class="k num">6</td>
+      <td class="k">레일에 머리가 없다</td>
+      <td>"Category" 라는 말이 화면에 없다 — <code>aria-label</code> 안에만 있다.
+          첫 항목 "전체" 가 그룹 이름 없이 목록을 시작한다.</td>
+      <td><span class="tag t-ux">UX 원칙</span></td>
+    </tr>
+    <tr>
+      <td class="k num">7</td>
+      <td class="k">건수가 계층을 못 만든다</td>
+      <td>건수와 이름이 같은 색(<code>#4E5968</code>). 크기만 <span class="num">12</span> 대
+          <span class="num">14</span> 라 스캔할 때 한 덩어리로 읽힌다.</td>
+      <td><span class="tag t-op">제안</span></td>
+    </tr>
+  </table>
+  </div>
+
+  <div class="note">
+    <b>회색 면 자체는 유죄가 아니다.</b> 같은 앱의 <code>InstallStatusDetail</code> 레일이 이미
+    <span class="num">224px</span> · 가라앉은 회색 · 흰 알약 선택 표시를 쓰고, 이건 오너가 한 번 고쳐 준 결과다.
+    문제는 색이 아니라 <b>그 면이 어디서 끝나는가</b> 다. 바닥까지 가면 구조물, 중간에 끊기면 상자.
+  </div>
+</section>
+
+<!-- ================= 레퍼런스 ================= -->
+<section class="blk">
+  <div class="blk-head"><span class="blk-n">02</span><h2>레퍼런스 13</h2></div>
+  <p class="blk-sub">
+    관련도 순. <span class="tag t-ok">실측</span> 은 이번에 브라우저에서 직접 잰 것,
+    <span class="tag t-op">문서</span> 는 공식 문서·소스를 읽은 것이다. 화면 캡처는 CSP 에 막혀서
+    가져온 조각을 HTML 로 다시 그렸다.
+  </p>
+
+  <div class="refs">
+
+    <!-- 01 -->
+    <div class="ref">
+      <div class="ref-mock">
+        <div>
+          <div class="m m-rel" style="height:168px">
+            <div class="m-split" style="grid-template-columns:112px minmax(0,1fr);height:100%">
+              <div class="m-rail bordered" style="overflow:hidden">
+                <div class="m-i on">Dashboard</div>
+                <div class="m-i">Instances</div>
+                <div class="m-i">Volumes</div>
+                <div class="m-i">Snapshots</div>
+                <div class="m-i">Networking</div>
+                <div class="m-i">Security</div>
+                <div class="m-i">Load balancers</div>
+              </div>
+              <div class="m-body">
+                <div class="m-line"></div><div class="m-line m"></div><div class="m-line s"></div>
+              </div>
+            </div>
+            <div class="m-scrollbar" style="left:104px;right:auto;height:70px"></div>
+          </div>
+          <p class="m-cap">레일이 뷰포트 바닥까지 · 안에서 스크롤</p>
+        </div>
+      </div>
+      <div class="ref-body">
+        <div class="ref-top"><span class="ref-n">01</span><h3>AWS Cloudscape — Side navigation</h3><span class="tag t-ok">실측</span></div>
+        <p class="ref-take">
+          <b>세 가지 요구가 한 컴포넌트에 다 있다.</b> 잰 값 그대로: 폭 <span class="num">280</span>,
+          높이 <span class="num">882</span> — 뷰포트 <span class="num">958</span> 에서 헤더
+          <span class="num">78</span> 을 뺀 <b>잔여 전부</b>. <code>overflow-y: auto</code>,
+          <code>position: relative</code>. 배경은 <b>투명</b> 이고 경계는 옆의 구분선이 만든다.
+        </p>
+        <div class="facts">
+          <span class="fact">w 280</span><span class="fact">h 882 = vh−78</span>
+          <span class="fact">overflow-y auto</span><span class="fact">bg transparent</span>
+        </div>
+        <p class="ref-link"><a href="https://cloudscape.design/components/side-navigation/">cloudscape.design/components/side-navigation</a></p>
+      </div>
+    </div>
+
+    <!-- 02 -->
+    <div class="ref">
+      <div class="ref-mock">
+        <div>
+          <div class="m m-rel" style="height:168px">
+            <div class="m-split" style="grid-template-columns:114px minmax(0,1fr);height:100%">
+              <div class="m-rail bordered" style="background:var(--surface-2)">
+                <div class="m-head">Repository</div>
+                <div class="m-i on-white">Issues <span class="c">1.2k</span></div>
+                <div class="m-i">Pull requests <span class="c">312</span></div>
+                <div class="m-i">Discussions <span class="c">88</span></div>
+                <div class="m-i">Actions</div>
+                <div class="m-i">Projects</div>
+                <div class="m-cut">스크롤은 안쪽에서</div>
+              </div>
+              <div class="m-body">
+                <div class="m-line"></div><div class="m-line m"></div><div class="m-line s"></div>
+              </div>
+            </div>
+          </div>
+          <p class="m-cap">머리는 고정 · 몸통만 스크롤</p>
+        </div>
+      </div>
+      <div class="ref-body">
+        <div class="ref-top"><span class="ref-n">02</span><h3>GitHub — Issues 앱 사이드바</h3><span class="tag t-ok">실측</span></div>
+        <p class="ref-take">
+          폭 <span class="num">256</span>, 높이 <span class="num">766</span> = 뷰포트 전부,
+          <code>position: sticky</code>. 중요한 건 <b>스크롤이 사이드바 자신이 아니라 안쪽 몸통에 걸려 있다</b>는
+          점이다 — 사이드바는 <code>overflow: clip</code>, 안쪽 <code>__body</code> 가
+          <span class="num">666px</span> 로 <code>overflow-y: auto</code>. 그래서 머리는 고정되고 목록만 흐른다.
+          면 대신 <b>오른쪽 경계선</b><code>0.8px</code> 이 레일을 만든다.
+        </p>
+        <div class="facts">
+          <span class="fact">w 256</span><span class="fact">sticky · h=vh</span>
+          <span class="fact">body overflow-y auto 666</span><span class="fact">border-right 0.8px</span>
+          <span class="fact">item 32 / r6 / p6·8 / 14px</span>
+        </div>
+        <p class="ref-link"><a href="https://github.com/vercel/next.js/issues">github.com/vercel/next.js/issues</a></p>
+      </div>
+    </div>
+
+    <!-- 03 -->
+    <div class="ref">
+      <div class="ref-mock">
+        <div>
+          <div class="m" style="height:168px">
+            <div class="m-split" style="grid-template-columns:112px minmax(0,1fr);height:100%">
+              <div class="m-rail" style="background:transparent">
+                <div class="m-head">Filter by</div>
+                <div class="m-i">Label</div>
+                <div class="m-i">Milestone</div>
+                <div class="m-i">Assignee</div>
+                <div class="m-cut" style="border-top-style:solid;color:var(--ochre)">여기서 끝난다</div>
+              </div>
+              <div class="m-body">
+                <div class="m-line"></div><div class="m-line m"></div>
+                <div class="m-line s"></div><div class="m-line m"></div>
+              </div>
+            </div>
+          </div>
+          <p class="m-cap">대조군 — 채우지 않는 쪽</p>
+        </div>
+      </div>
+      <div class="ref-body">
+        <div class="ref-top"><span class="ref-n">03</span><h3>GitHub — Issues 필터 목록 (대조군)</h3><span class="tag t-ok">실측</span></div>
+        <p class="ref-take">
+          같은 화면 안에 <b>정반대 처리가 공존한다</b>. 폭 <span class="num">239</span>,
+          배경 <b>완전 투명</b>, <code>position: static</code>, 높이 <span class="num">313</span> — 내용만큼만.
+          <b>바닥까지 안 가는 대신 면도 안 칠한다.</b> 우리 화면의 실패는 이 둘을 섞은 것이다 —
+          면은 칠하고 바닥까지는 안 갔다.
+        </p>
+        <div class="facts">
+          <span class="fact">w 239</span><span class="fact">bg transparent</span>
+          <span class="fact">static · 내용 높이</span>
+        </div>
+        <p class="ref-link"><a href="https://github.com/vercel/next.js/issues">github.com/vercel/next.js/issues</a></p>
+      </div>
+    </div>
+
+    <!-- 04 -->
+    <div class="ref">
+      <div class="ref-mock">
+        <div>
+          <div class="m" style="height:168px">
+            <div class="m-split" style="grid-template-columns:114px minmax(0,1fr);height:100%">
+              <div class="m-rail" style="background:var(--surface-2);border-right:1px solid var(--line);padding:0">
+                <div style="padding:8px 8px 6px;border-bottom:1px solid var(--line)">
+                  <div class="m-i" style="font-weight:700;color:var(--ink)">Header</div>
+                </div>
+                <div style="padding:8px;display:flex;flex-direction:column;gap:3px;flex:1;min-height:0;overflow:hidden">
+                  <div class="m-i on-white">Content</div>
+                  <div class="m-i">min-h-0</div>
+                  <div class="m-i">flex-1</div>
+                  <div class="m-i">overflow-auto</div>
+                </div>
+                <div style="padding:6px 8px;border-top:1px solid var(--line)">
+                  <div class="m-i" style="color:var(--ink-3)">Footer</div>
+                </div>
+              </div>
+              <div class="m-body">
+                <div class="m-line"></div><div class="m-line m"></div><div class="m-line s"></div>
+              </div>
+            </div>
+          </div>
+          <p class="m-cap">머리 · 몸통 · 발 3부 구조</p>
+        </div>
+      </div>
+      <div class="ref-body">
+        <div class="ref-top"><span class="ref-n">04</span><h3>shadcn/ui — Sidebar</h3><span class="tag t-op">문서</span></div>
+        <p class="ref-take">
+          <code>SIDEBAR_WIDTH = "16rem"</code>(<span class="num">256px</span>),
+          아이콘 모드 <code>"3rem"</code>. 껍데기는 <code>min-h-svh</code> 로 화면을 채우고,
+          <b>스크롤은 <code>SidebarContent</code> 하나에만</b> 걸린다:
+          <code>flex min-h-0 flex-1 flex-col overflow-auto</code>.
+          <b><code>min-h-0</code> 이 이 패턴의 핵심</b>이다 — flex/grid 자식은 기본
+          <code>min-height: auto</code> 라서 이게 없으면 <code>overflow-auto</code> 를 걸어도
+          스크롤되지 않고 부모를 밀어낸다. 우리가 지금 겪는 증상 그대로다.
+        </p>
+        <div class="facts">
+          <span class="fact">16rem = 256</span><span class="fact">min-h-svh</span>
+          <span class="fact">Content: min-h-0 flex-1 overflow-auto</span>
+        </div>
+        <p class="ref-link"><a href="https://ui.shadcn.com/docs/components/sidebar">ui.shadcn.com/docs/components/sidebar</a></p>
+      </div>
+    </div>
+
+    <!-- 05 -->
+    <div class="ref">
+      <div class="ref-mock">
+        <div>
+          <div class="m" style="height:168px">
+            <div class="m-split" style="grid-template-columns:118px minmax(0,1fr);height:100%">
+              <div class="m-rail bordered">
+                <div class="m-i on">sidebar</div>
+                <div class="m-i" style="border:1px dashed var(--line-2);border-radius:6px">floating</div>
+                <div class="m-i" style="background:var(--surface-3);border-radius:6px">inset</div>
+                <div class="m-cut">변형이 곧 위계</div>
+              </div>
+              <div class="m-body"><div class="m-line"></div><div class="m-line s"></div></div>
+            </div>
+          </div>
+          <p class="m-cap">떠 있는 레일은 별도 변형으로만</p>
+        </div>
+      </div>
+      <div class="ref-body">
+        <div class="ref-top"><span class="ref-n">05</span><h3>shadcn/ui — sidebar.tsx 소스</h3><span class="tag t-op">문서</span></div>
+        <p class="ref-take">
+          변형이 <code>sidebar</code> · <code>floating</code> · <code>inset</code> 셋으로 <b>명시적으로 갈린다</b>.
+          기본값은 붙어 있는 <code>sidebar</code> 이고, <b>떠 있는 카드처럼 보이는 건 <code>floating</code> 을
+          일부러 골랐을 때만</b> 나온다. 우리 레일은 <code>sidebar</code> 를 의도했는데 결과가
+          <code>floating</code> 처럼 나온 경우다.
+        </p>
+        <div class="facts">
+          <span class="fact">SIDEBAR_WIDTH 16rem</span><span class="fact">WIDTH_ICON 3rem</span>
+          <span class="fact">variant 3종</span>
+        </div>
+        <p class="ref-link"><a href="https://github.com/shadcn-ui/ui/blob/main/apps/v4/registry/new-york-v4/ui/sidebar.tsx">github.com/shadcn-ui/ui · sidebar.tsx</a></p>
+      </div>
+    </div>
+
+    <!-- 06 -->
+    <div class="ref">
+      <div class="ref-mock">
+        <div>
+          <div class="m" style="height:168px">
+            <div class="m-split" style="grid-template-columns:126px minmax(0,1fr);height:100%">
+              <div class="m-rail bordered">
+                <div class="m-head">Category</div>
+                <div class="m-i on">전체 <span class="c">12</span></div>
+                <div class="m-i">서비스 점검 <span class="c">7</span></div>
+                <div class="m-i">기능 업데이트 <span class="c">5</span></div>
+              </div>
+              <div class="m-body"><div class="m-line"></div><div class="m-line m"></div></div>
+            </div>
+          </div>
+          <p class="m-cap">건수 = TrailingVisual</p>
+        </div>
+      </div>
+      <div class="ref-body">
+        <div class="ref-top"><span class="ref-n">06</span><h3>GitHub Primer — NavList</h3><span class="tag t-op">문서</span></div>
+        <p class="ref-take">
+          우리 레일의 <b>구조가 그대로 이 컴포넌트</b>다. 건수는 <code>NavList.TrailingVisual</code> —
+          문서가 든 예시가 정확히 "읽지 않은 알림 수" 다. 선택 상태는 클래스가 아니라
+          <code>aria-current="page"</code> 로 말하고, 그룹 머리는 <code>NavList.Group</code> 의 title 로 낸다.
+          <b>우리 구현엔 <code>aria-current</code> 가 없다</b> — 선택이 색으로만 존재한다.
+        </p>
+        <div class="facts">
+          <span class="fact">TrailingVisual = 건수</span><span class="fact">aria-current="page"</span>
+          <span class="fact">Group title</span>
+        </div>
+        <p class="ref-link"><a href="https://primer.style/components/nav-list">primer.style/components/nav-list</a></p>
+      </div>
+    </div>
+
+    <!-- 07 -->
+    <div class="ref">
+      <div class="ref-mock">
+        <div>
+          <div class="m" style="height:168px">
+            <div class="m-split" style="grid-template-columns:118px minmax(0,1fr);height:100%">
+              <div class="m-rail bordered">
+                <div class="m-i on" style="border-radius:8px">Active</div>
+                <div class="m-i">Default</div>
+                <div style="height:1px;background:var(--line);margin:5px 7px"></div>
+                <div class="m-head" style="padding-top:0">Section</div>
+                <div class="m-i">Item</div>
+              </div>
+              <div class="m-body"><div class="m-line"></div><div class="m-line s"></div></div>
+            </div>
+          </div>
+          <p class="m-cap">구역은 선으로, 선택은 면으로</p>
+        </div>
+      </div>
+      <div class="ref-body">
+        <div class="ref-top"><span class="ref-n">07</span><h3>Cloudscape — side-navigation 소스</h3><span class="tag t-op">문서</span></div>
+        <p class="ref-take">
+          토큰 이름이 설계를 말해 준다. 선택 표시는 <code>$color-background-side-navigation-item-active</code> —
+          <b>배경은 항목에만 있고 레일 전체에는 없다.</b> 구역 나눔은
+          <code>$color-border-divider-default</code> 의 <b>선</b>이 맡는다.
+          항목 세로 패딩이 <code>(item-height − line-height) / 2</code> 로 <b>계산</b>돼서, 글자 크기를 바꿔도
+          항목 높이는 토큰 값에 고정된다.
+        </p>
+        <div class="facts">
+          <span class="fact">item bg = 선택시에만</span><span class="fact">divider = 선</span>
+          <span class="fact">padding = (h − lh)/2</span>
+        </div>
+        <p class="ref-link"><a href="https://github.com/cloudscape-design/components/blob/main/src/side-navigation/styles.scss">github.com/cloudscape-design/components · styles.scss</a></p>
+      </div>
+    </div>
+
+    <!-- 08 -->
+    <div class="ref">
+      <div class="ref-mock">
+        <div>
+          <div class="m" style="height:168px">
+            <div class="m-split" style="grid-template-columns:112px minmax(0,1fr);height:100%">
+              <div class="m-rail filled">
+                <div class="m-i">Item</div><div class="m-i">Item</div>
+                <div class="m-i">Item</div><div class="m-i">Item</div>
+                <div class="m-i" style="opacity:.45">Item</div>
+                <div class="m-i" style="opacity:.2">Item</div>
+              </div>
+              <div class="m-body"><div class="m-line"></div><div class="m-line m"></div></div>
+            </div>
+          </div>
+          <p class="m-cap">아래로 갈수록 덜 본다</p>
+        </div>
+      </div>
+      <div class="ref-body">
+        <div class="ref-top"><span class="ref-n">08</span><h3>NN/g — Left-Side Vertical Navigation</h3><span class="tag t-op">문서</span></div>
+        <p class="ref-take">
+          두 가지를 가져온다. 하나, 레일은 <b>배경색과 테두리로 도드라져야</b> 한다 — 본문과 같은 면이면
+          내비로 안 읽힌다. 둘, 스크롤은 세로 내비에서 <b>허용되는 패턴</b>이지만 접히는 아래쪽은 덜 읽히므로
+          <b>덜 중요한 항목을 아래로</b> 보내라고 말한다. 우리 레일에서 이건 "전체" 를 맨 위에 두는 근거다.
+        </p>
+        <div class="facts">
+          <span class="fact">배경 + 테두리로 구분</span><span class="fact">스크롤 OK</span>
+          <span class="fact">중요한 것 위로</span>
+        </div>
+        <p class="ref-link"><a href="https://www.nngroup.com/articles/vertical-nav/">nngroup.com/articles/vertical-nav</a></p>
+      </div>
+    </div>
+
+    <!-- 09 -->
+    <div class="ref">
+      <div class="ref-mock">
+        <div>
+          <div class="m" style="height:168px">
+            <div class="m-split" style="grid-template-columns:132px minmax(0,1fr);height:100%">
+              <div class="m-rail bordered" style="background:var(--surface-2)">
+                <div class="m-i" style="font-weight:700;color:var(--ink)">320px</div>
+                <div class="m-i">docked</div>
+                <div class="m-i">본문을 밀어냄</div>
+              </div>
+              <div class="m-body"><div class="m-line s"></div></div>
+            </div>
+          </div>
+          <p class="m-cap">고정하면 본문을 밀어낸다</p>
+        </div>
+      </div>
+      <div class="ref-body">
+        <div class="ref-top"><span class="ref-n">09</span><h3>Elastic EUI — Collapsible nav</h3><span class="tag t-op">문서</span></div>
+        <p class="ref-take">
+          기본 폭 <span class="num">320</span>. 특이한 건 <b>"dock" 개념</b>이다 — 평소엔 떠 있는 flyout 이고,
+          고정하면 본문에 왼쪽 패딩을 줘서 <b>밀어낸다</b>. 즉 레일이 본문 위에 겹치느냐 옆에 나란히 서느냐를
+          한 속성으로 나눈다. 작은 화면에서는 본문 폭을 지키려고 dock 을 막는다.
+        </p>
+        <div class="facts">
+          <span class="fact">w 320 기본</span><span class="fact">dock = 본문 밀기</span>
+        </div>
+        <p class="ref-link"><a href="https://eui.elastic.co/docs/components/navigation/collapsible-nav/">eui.elastic.co · collapsible-nav</a></p>
+      </div>
+    </div>
+
+    <!-- 10 -->
+    <div class="ref">
+      <div class="ref-mock">
+        <div>
+          <div class="m" style="height:168px">
+            <div class="m-split" style="grid-template-columns:118px minmax(0,1fr);height:100%">
+              <div class="m-rail bordered">
+                <div class="m-i on">Top level</div>
+                <div class="m-i" style="padding-left:16px">Sub level</div>
+                <div class="m-i" style="padding-left:16px">Sub level</div>
+                <div class="m-i" style="padding-left:26px;opacity:.35;text-decoration:line-through">3단계 없음</div>
+              </div>
+              <div class="m-body"><div class="m-line"></div><div class="m-line m"></div></div>
+            </div>
+          </div>
+          <p class="m-cap">2단계까지만</p>
+        </div>
+      </div>
+      <div class="ref-body">
+        <div class="ref-top"><span class="ref-n">10</span><h3>GitLab Pajamas — Navigation sidebar</h3><span class="tag t-op">문서</span></div>
+        <p class="ref-take">
+          <b>"상위 · 하위 두 단계. 세 번째 깊이는 없다."</b> 우리 레일은 지금 1단계인데,
+          Category 가 늘면 타입(공지/FAQ) 을 위 단계로 올리고 싶어질 수 있다 — 그때 이 선을 넘지 않는다는 뜻이다.
+          노출 기준도 명시적이다: <span class="num">1200px</span> 이상에서 상시, 그 아래는 오버레이.
+        </p>
+        <div class="facts">
+          <span class="fact">2단계 상한</span><span class="fact">≥1200px 상시</span>
+          <span class="fact">pinned 항목</span>
+        </div>
+        <p class="ref-link"><a href="https://design.gitlab.com/patterns/navigation-sidebar/">design.gitlab.com/patterns/navigation-sidebar</a></p>
+      </div>
+    </div>
+
+    <!-- 11 -->
+    <div class="ref">
+      <div class="ref-mock">
+        <div>
+          <div class="m" style="height:168px">
+            <div class="m-split" style="grid-template-columns:44px minmax(0,1fr);height:100%">
+              <div class="m-rail bordered" style="padding:8px 4px">
+                <div class="m-i on" style="justify-content:center">▣</div>
+                <div class="m-i" style="justify-content:center">▤</div>
+                <div class="m-i" style="justify-content:center">▥</div>
+              </div>
+              <div class="m-body"><div class="m-line"></div><div class="m-line m"></div><div class="m-line s"></div></div>
+            </div>
+          </div>
+          <p class="m-cap">rail — 접어도 자리는 지킨다</p>
+        </div>
+      </div>
+      <div class="ref-body">
+        <div class="ref-top"><span class="ref-n">11</span><h3>IBM Carbon — UI Shell SideNav</h3><span class="tag t-op">문서</span></div>
+        <p class="ref-take">
+          상태를 <code>expanded</code> · <code>collapsed</code> · <code>rail</code> · <code>hidden</code> 네 개로
+          <b>이름 붙여 구분</b>한다. <code>rail</code> 은 접혀도 <b>자리를 지키는</b> 상태고, 마우스를 올리면
+          <span class="num">100ms</span> 지연 뒤 펼쳐진다. 레일이 사라지느냐 얇아지느냐가 다른 결정이라는 것.
+        </p>
+        <div class="facts">
+          <span class="fact">expanded/collapsed/rail/hidden</span><span class="fact">hover 100ms</span>
+        </div>
+        <p class="ref-link"><a href="https://github.com/carbon-design-system/carbon/blob/main/packages/react/src/components/UIShell/SideNav.tsx">github.com/carbon-design-system/carbon · SideNav.tsx</a></p>
+      </div>
+    </div>
+
+    <!-- 12 -->
+    <div class="ref">
+      <div class="ref-mock">
+        <div>
+          <div class="m" style="height:168px">
+            <div class="m-split" style="grid-template-columns:126px minmax(0,1fr);height:100%">
+              <div class="m-rail bordered">
+                <div class="m-i">서비스 점검 <span class="c">7</span></div>
+                <div class="m-i">기능 업데이트 <span class="c">5</span></div>
+                <div class="m-i" style="opacity:.4">보안 <span class="c">0</span></div>
+                <div class="m-cut" style="color:var(--ochre)">0건은 쓸모가 없다</div>
+              </div>
+              <div class="m-body"><div class="m-line"></div><div class="m-line s"></div></div>
+            </div>
+          </div>
+          <p class="m-cap">건수가 결과를 예고한다</p>
+        </div>
+      </div>
+      <div class="ref-body">
+        <div class="ref-top"><span class="ref-n">12</span><h3>Baymard — Filter UI 연구</h3><span class="tag t-op">문서</span></div>
+        <p class="ref-take">
+          필터 개수 자체보다 <b>스캔 가능성</b>이 문제라는 결론. 그리고 "선택했을 때 무슨 일이 일어나는지
+          UI 가 감춘다" 를 실패 원인으로 꼽는다 — 우리 레일의 건수가 바로 그걸 막는 장치다.
+          <b>건수는 장식이 아니라 클릭 전에 결과를 알려 주는 예고</b>다. 뒤집으면,
+          <span class="num">0</span> 건 Category 는 레일에 있을 이유가 없다.
+        </p>
+        <div class="facts">
+          <span class="fact">스캔 가능성 &gt; 개수</span><span class="fact">건수 = 결과 예고</span>
+        </div>
+        <p class="ref-link"><a href="https://baymard.com/learn/ecommerce-filter-ui">baymard.com/learn/ecommerce-filter-ui</a></p>
+      </div>
+    </div>
+
+    <!-- 13 -->
+    <div class="ref">
+      <div class="ref-mock">
+        <div>
+          <div class="m" style="height:168px;display:grid;place-items:center;padding:16px">
+            <div style="text-align:center">
+              <div style="font-size:12px;color:var(--ink-3);text-decoration:line-through">Side navigation</div>
+              <div style="font-size:20px;color:var(--ink-3);margin:6px 0">↓</div>
+              <div style="font-size:14px;font-weight:700;color:var(--ink)">Navigation system</div>
+            </div>
+          </div>
+          <p class="m-cap">컴포넌트에서 시스템으로</p>
+        </div>
+      </div>
+      <div class="ref-body">
+        <div class="ref-top"><span class="ref-n">13</span><h3>Atlassian — Side navigation 폐기</h3><span class="tag t-op">문서</span></div>
+        <p class="ref-take">
+          문서를 열면 <b>"이 패키지는 폐기되었습니다. 새 내비게이션 시스템을 쓰세요"</b> 만 있다.
+          레일을 <b>혼자 쓰는 컴포넌트로 두지 않고</b> 화면 전체 레이아웃 시스템 안으로 옮겼다는 뜻이다.
+          우리에게 주는 경고: 레일의 높이·스크롤은 레일 혼자 못 정한다. <b>바깥 컨테이너가 높이를 갖고 있어야</b>
+          안쪽이 스크롤할 수 있다.
+        </p>
+        <div class="facts">
+          <span class="fact">컴포넌트 → 시스템</span><span class="fact">높이는 바깥이 준다</span>
+        </div>
+        <p class="ref-link"><a href="https://atlassian.design/components/side-navigation/examples">atlassian.design/components/side-navigation</a></p>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="callout">
+    <p class="q">13곳을 관통하는 한 문장</p>
+    <p>
+      <b>면을 칠할 거면 바닥까지 칠하고, 바닥까지 못 갈 거면 면을 칠하지 마라.</b>
+      Cloudscape·GitHub 사이드바·shadcn 은 전자(전체 높이), GitHub 필터 목록은 후자(투명).
+      <b>둘을 섞은 곳은 한 군데도 없었다</b> — 지금 우리 화면만 그렇게 하고 있다.
+    </p>
+  </div>
+</section>
+
+<!-- ================= 시안 ================= -->
+<section class="blk">
+  <div class="blk-head"><span class="blk-n">03</span><h2>시안 5</h2></div>
+  <p class="blk-sub">
+    수치는 전부 위 실측이나 이 앱의 기존 화면에서 가져왔다. 새로 만든 값은 없다.
+  </p>
+
+  <div class="props">
+
+    <!-- A -->
+    <div class="prop win">
+      <div class="prop-h">
+        <span class="prop-badge">A</span>
+        <h3 class="prop-t">뷰포트 고정 + 양쪽 독립 스크롤</h3>
+        <span class="tag t-ok">추천</span>
+        <span class="tag t-op">레퍼런스 01 · 04 · 13</span>
+      </div>
+      <div class="prop-b">
+        <div class="prop-mock">
+          <div class="m m-rel" style="height:210px">
+            <div class="m-split" style="grid-template-columns:120px minmax(0,1fr);height:100%">
+              <div class="m-rail filled" style="overflow:hidden">
+                <div class="m-head">Category</div>
+                <div class="m-i on-white">전체 <span class="c">12</span></div>
+                <div class="m-i">서비스 점검 <span class="c">7</span></div>
+                <div class="m-i">기능 업데이트 <span class="c">3</span></div>
+                <div class="m-i">보안 <span class="c">2</span></div>
+                <div class="m-i" style="opacity:.5">정책</div>
+              </div>
+              <div class="m-body" style="overflow:hidden">
+                <div class="m-band"></div>
+                <div class="m-line"></div><div class="m-line m"></div>
+                <div class="m-band"></div>
+                <div class="m-line s"></div><div class="m-line m"></div>
+                <div class="m-line"></div>
+              </div>
+            </div>
+            <div class="m-scrollbar" style="left:112px;right:auto;height:60px"></div>
+            <div class="m-scrollbar" style="height:90px"></div>
+          </div>
+          <p class="m-cap">회색이 바닥까지 · 스크롤바 둘</p>
+        </div>
+        <div class="prop-text">
+          <p>
+            마스터-디테일 영역에 <b>확정 높이</b>를 준다. 레일과 목록이 각자 안에서 스크롤하고,
+            레일의 회색 면은 항목이 <span class="num">3</span> 개든 <span class="num">30</span> 개든
+            <b>언제나 바닥에서 끝난다</b>. Cloudscape 가 잰 그대로의 구조다.
+          </p>
+          <p>
+            <code>min-h-0</code> 이 빠지면 스크롤이 안 걸리고 부모가 늘어난다 — 레퍼런스 04 가 짚은 함정이고,
+            지금 증상의 정확한 원인이기도 하다.
+          </p>
+          <pre>region  h-[calc(100vh-224px)] overflow-hidden
+rail    min-h-0 overflow-y-auto   (회색 면 유지)
+list    min-h-0 overflow-y-auto</pre>
+          <div class="kv">
+            <div><span>덮는 문제</span><span>1 · 2 · 3</span></div>
+            <div><span>비용</span><span>페이지 스크롤이 내부 스크롤 둘로 바뀐다. 긴 글을 펼치면 목록 안에서 스크롤.</span></div>
+            <div><span>계약</span><span>변경 없음</span></div>
+            <div><span>수치 출처</span><span>224 = TopNav 64 + 헤더 블록 실측</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- B -->
+    <div class="prop">
+      <div class="prop-h">
+        <span class="prop-badge">B</span>
+        <h3 class="prop-t">sticky 레일 + 페이지 스크롤</h3>
+        <span class="tag t-op">레퍼런스 02</span>
+      </div>
+      <div class="prop-b">
+        <div class="prop-mock">
+          <div class="m m-rel" style="height:210px">
+            <div class="m-split" style="grid-template-columns:120px minmax(0,1fr);height:100%">
+              <div class="m-rail filled">
+                <div class="m-head">Category</div>
+                <div class="m-i on-white">전체 <span class="c">12</span></div>
+                <div class="m-i">서비스 점검 <span class="c">7</span></div>
+                <div class="m-i">기능 업데이트 <span class="c">3</span></div>
+              </div>
+              <div class="m-body">
+                <div class="m-band"></div>
+                <div class="m-line"></div><div class="m-line m"></div>
+                <div class="m-line s"></div><div class="m-line"></div>
+                <div class="m-line m"></div><div class="m-line s"></div>
+              </div>
+            </div>
+            <div class="m-scrollbar" style="height:120px"></div>
+          </div>
+          <p class="m-cap">스크롤바 하나 · 레일은 따라온다</p>
+        </div>
+        <div class="prop-text">
+          <p>
+            레일만 <code>sticky top-[64px] h-[calc(100vh-64px)]</code> 로 잡고 목록은 페이지와 함께 흐른다.
+            브라우저 스크롤바가 하나만 남아서 <b>스크롤 감각이 평범</b>하다는 게 가장 큰 장점이다.
+          </p>
+          <p>
+            문제는 지금 구조와 충돌한다는 점이다. <code>postStyles.grouped</code> 가
+            <code>rounded-xl overflow-hidden</code> 으로 둘을 한 카드에 묶고 있는데,
+            <b><code>overflow-hidden</code> 은 안쪽 <code>sticky</code> 를 무력화</b>한다. 카드를 풀어야 한다 —
+            그런데 그 카드는 오너가 <b>"레일과 목록을 테두리 하나로 묶어라"</b> 라고 지시해서 만든 것이다.
+          </p>
+          <div class="kv">
+            <div><span>덮는 문제</span><span>1 · 2 · 3</span></div>
+            <div><span>비용</span><span>카드 한 겹을 풀어야 한다 — 오너 지시와 정면 충돌</span></div>
+            <div><span>계약</span><span>변경 없음</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- C -->
+    <div class="prop">
+      <div class="prop-h">
+        <span class="prop-badge">C</span>
+        <h3 class="prop-t">레일을 화면 셸로 승격</h3>
+        <span class="tag t-op">레퍼런스 09 · 13</span>
+      </div>
+      <div class="prop-b">
+        <div class="prop-mock">
+          <div class="m" style="height:210px">
+            <div style="height:18px;background:var(--surface-3);border-bottom:1px solid var(--line)"></div>
+            <div class="m-split" style="grid-template-columns:60px 60px minmax(0,1fr);height:calc(100% - 18px)">
+              <div class="m-rail filled" style="padding:6px 4px">
+                <div class="m-i" style="font-size:10px;justify-content:center">앱</div>
+                <div class="m-i" style="font-size:10px;justify-content:center">셸</div>
+              </div>
+              <div class="m-rail bordered" style="background:var(--surface-2)">
+                <div class="m-i on-white" style="font-size:10px">전체</div>
+                <div class="m-i" style="font-size:10px">점검</div>
+              </div>
+              <div class="m-body"><div class="m-line"></div><div class="m-line m"></div></div>
+            </div>
+          </div>
+          <p class="m-cap">레일 두 겹</p>
+        </div>
+        <div class="prop-text">
+          <p>
+            카드에서 꺼내 TopNav 아래 화면 좌측 셸로 만든다. 가장 <b>"패널" 다운</b> 결과이고 높이·스크롤이
+            공짜로 따라온다.
+          </p>
+          <p>
+            하지만 이 앱은 <code>/pass/services</code> 에 이미 <span class="num">296px</span> 짜리 사이드바를
+            갖고 있다. 공지 화면에서만 그 자리에 다른 레일이 서면 <b>같은 위치가 화면마다 다른 것을 뜻하게</b> 된다.
+            EUI 가 작은 화면에서 dock 을 막는 것도 같은 이유 — 셸 자리는 비싸다.
+          </p>
+          <div class="kv">
+            <div><span>덮는 문제</span><span>1 · 2 · 3 · 6</span></div>
+            <div><span>비용</span><span>레이아웃 계층 변경. 셸 자리의 의미가 화면마다 달라짐</span></div>
+            <div><span>계약</span><span>변경 없음</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- D -->
+    <div class="prop">
+      <div class="prop-h">
+        <span class="prop-badge">D</span>
+        <h3 class="prop-t">면을 지운다 — 채우지 않는 쪽</h3>
+        <span class="tag t-op">레퍼런스 03</span>
+      </div>
+      <div class="prop-b">
+        <div class="prop-mock">
+          <div class="m" style="height:210px">
+            <div class="m-split" style="grid-template-columns:120px minmax(0,1fr);height:100%">
+              <div class="m-rail" style="background:transparent;border-right:1px solid var(--line)">
+                <div class="m-head">Category</div>
+                <div class="m-i on">전체 <span class="c">12</span></div>
+                <div class="m-i">서비스 점검 <span class="c">7</span></div>
+                <div class="m-i">기능 업데이트 <span class="c">3</span></div>
+              </div>
+              <div class="m-body">
+                <div class="m-band"></div>
+                <div class="m-line"></div><div class="m-line m"></div>
+              </div>
+            </div>
+          </div>
+          <p class="m-cap">선만 남기고 면은 없앤다</p>
+        </div>
+        <div class="prop-text">
+          <p>
+            회색 면을 지우고 오른쪽 경계선만 남긴다. 선택 항목만 연한 파란 면을 갖는다(레퍼런스 07 의 원칙:
+            면은 항목에만). <b>바닥까지 못 갈 거면 애초에 칠하지 않는다</b>는 GitHub 필터 목록의 답이다.
+          </p>
+          <p>
+            <b>사용자가 요청한 "아래까지 뻗어야 한다" 를 거부하는 안</b>이라 단독으로는 채택할 수 없다.
+            다만 <b>A 와 합칠 수 있다</b> — A 로 높이를 해결한 뒤에도 회색 면이 여전히 무겁게 느껴지면
+            면만 이 안으로 바꾸면 된다. 두 결정이 서로 독립이라는 게 이 안의 쓸모다.
+          </p>
+          <div class="kv">
+            <div><span>덮는 문제</span><span>1 (7 부분)</span></div>
+            <div><span>비용</span><span>거의 없음 — 클래스 두 줄</span></div>
+            <div><span>계약</span><span>변경 없음</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- E -->
+    <div class="prop">
+      <div class="prop-h">
+        <span class="prop-badge">E</span>
+        <h3 class="prop-t">A + 머리·발 3부 구조</h3>
+        <span class="tag t-ok">머리만 채택</span>
+        <span class="tag t-op">레퍼런스 04 · 06</span>
+      </div>
+      <div class="prop-b">
+        <div class="prop-mock">
+          <div class="m m-rel" style="height:210px">
+            <div class="m-split" style="grid-template-columns:120px minmax(0,1fr);height:100%">
+              <div class="m-rail filled" style="padding:0;overflow:hidden">
+                <div style="padding:8px 8px 7px;border-bottom:1px solid var(--line)">
+                  <div style="font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)">Category</div>
+                </div>
+                <div style="padding:8px;display:flex;flex-direction:column;gap:3px;overflow:hidden">
+                  <div class="m-i on-white">전체 <span class="c">12</span></div>
+                  <div class="m-i">서비스 점검 <span class="c">7</span></div>
+                  <div class="m-i">기능 업데이트 <span class="c">3</span></div>
+                  <div class="m-i" style="opacity:.5">보안 <span class="c">2</span></div>
+                </div>
+                <div style="margin-top:auto;padding:6px 8px;border-top:1px solid var(--line);font-size:10px;color:var(--ink-3)">선택 해제</div>
+              </div>
+              <div class="m-body" style="overflow:hidden">
+                <div class="m-band"></div>
+                <div class="m-line"></div><div class="m-line m"></div>
+                <div class="m-band"></div><div class="m-line s"></div>
+              </div>
+            </div>
+            <div class="m-scrollbar" style="left:112px;right:auto;height:52px"></div>
+          </div>
+          <p class="m-cap">머리 고정 · 몸통 스크롤 · 발 고정</p>
+        </div>
+        <div class="prop-text">
+          <p>
+            A 위에 shadcn 의 3부 구조를 얹는다. 머리에 "Category" 와 총건수를 박아 두면
+            <b>스크롤해도 지금 뭘 고르는 중인지</b> 가 사라지지 않는다(진단 6). GitHub 사이드바가 머리를 고정하고
+            몸통만 흐르게 한 이유가 이거다.
+          </p>
+          <p>
+            <b>발(Footer) 은 채택하지 않는다.</b> 지금 거기 놓을 액션이 "선택 해제" 하나뿐인데,
+            그건 레일 첫 항목 "전체" 가 이미 하는 일이다. <b>같은 일을 하는 두 번째 컨트롤은 계층이 아니라 중복</b>이다.
+          </p>
+          <div class="kv">
+            <div><span>덮는 문제</span><span>1 · 2 · 3 · 6</span></div>
+            <div><span>비용</span><span>머리만: 요소 하나. 발까지: 쓸 액션이 없음</span></div>
+            <div><span>계약</span><span>변경 없음 — 총건수는 받은 목록에서 센다</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ================= 비교 ================= -->
+<section class="blk">
+  <div class="blk-head"><span class="blk-n">04</span><h2>비교와 추천</h2></div>
+  <p class="blk-sub">같은 축으로 다섯을 매긴다. 문제 번호는 진단 표 기준.</p>
+
+  <div class="scroller">
+  <table>
+    <tr>
+      <th style="width:30px">시안</th><th style="width:130px">덮는 문제</th><th style="width:80px">비용</th>
+      <th style="width:70px">계약</th><th style="width:130px">기존 화면과</th><th>레퍼런스 지지</th>
+    </tr>
+    <tr>
+      <td class="k">A</td><td class="num">1 · 2 · 3</td><td>CSS 4줄</td><td>없음</td>
+      <td><span class="tag t-ok">유지</span></td><td class="num">01 · 04 · 13 (3/13)</td>
+    </tr>
+    <tr>
+      <td class="k">B</td><td class="num">1 · 2 · 3</td><td>구조 변경</td><td>없음</td>
+      <td><span class="tag t-num">오너 지시 충돌</span></td><td class="num">02 (1/13)</td>
+    </tr>
+    <tr>
+      <td class="k">C</td><td class="num">1 · 2 · 3 · 6</td><td>레이아웃 계층</td><td>없음</td>
+      <td><span class="tag t-num">셸 의미 충돌</span></td><td class="num">09 · 13 (2/13)</td>
+    </tr>
+    <tr>
+      <td class="k">D</td><td class="num">1 (7 부분)</td><td>2줄</td><td>없음</td>
+      <td><span class="tag t-ok">유지</span></td><td class="num">03 · 07 (2/13)</td>
+    </tr>
+    <tr>
+      <td class="k">E</td><td class="num">1 · 2 · 3 · 6</td><td>A + 요소 1</td><td>없음</td>
+      <td><span class="tag t-ok">유지</span></td><td class="num">02 · 04 · 06 (3/13)</td>
+    </tr>
+  </table>
+  </div>
+
+  <div class="callout">
+    <p class="q">추천 — E (= A + 머리), 발은 뺀다</p>
+    <p>
+      A 가 사용자가 말한 셋을 <b>계약 변경 없이, 기존 합의를 하나도 안 건드리고</b> 덮는 유일한 안이고,
+      E 의 머리는 그 위에 요소 하나를 더해 진단 6 까지 가져간다. B 와 C 는 덮는 범위가 같거나 하나 많은데
+      각각 <b>오너가 이미 내린 결정</b>(테두리 하나로 묶기)과 <b>셸 자리의 의미</b>를 건드린다 — 같은 값을 더 비싸게 산다.
+      D 는 반대 방향이라 단독 채택은 안 되지만, A 를 넣고도 회색이 무거우면 <b>그때 면만 바꾸면 되는 독립 손잡이</b>로 남긴다.
+    </p>
+  </div>
+
+  <div class="note">
+    <b>같이 고칠 잔돈.</b> 항목 <code>py-[9px]</code>→<code>py-1.5</code> 로 <span class="num">39</span>→<span class="num">32</span>
+    (레퍼런스 02 의 실측값), 폭 <span class="num">224</span>→<span class="num">240</span>,
+    선택 항목에 <code>aria-current="page"</code>(레퍼런스 06), 건수 색을 한 칸 낮춰 이름과 갈라 주기(진단 7).
+    폭은 <span class="num">256</span> 이 벤치마크 중앙값이지만, 우리 레일은 앱 내비가 아니라 한 화면 안의 필터라
+    가장 가까운 역할인 GitHub 필터 목록(<span class="num">239</span>)에 맞춘다.
+  </div>
+</section>
+
+<!-- ================= 안 한 것 ================= -->
+<section class="blk">
+  <div class="blk-head"><span class="blk-n">05</span><h2>답하지 않은 것</h2></div>
+  <ul class="plain">
+    <li>
+      <b>고정 높이와 지난주 결정의 관계.</b> 며칠 전 이 화면의 2카드 뷰에서 <code>min-h</code> 대신
+      고정 높이를 쓰면 내용이 잘린다고 적었다. A 는 고정 높이를 쓰지만 <b>안쪽에 스크롤을 걸어서</b>
+      자르지 않는다 — 두 결정은 충돌하지 않는다. 다만 같은 파일에 반대로 보이는 주석이 두 개 남으므로
+      A 를 넣을 때 그 주석을 함께 손봐야 한다.
+    </li>
+    <li>
+      <b>Category <span class="num">0</span> 건 처리.</b> 레퍼런스 12 는 결과가 없는 필터를 빼라고 하지만,
+      지금 레일은 받아 온 목록에서 세기 때문에 <span class="num">0</span> 건 Category 는 애초에 나타나지 않는다.
+      Admin 이 만든 빈 Category 를 보여줄지는 계약(<code>PostCategory</code>)을 봐야 정해진다.
+    </li>
+    <li>
+      <b>Material 3 와 Fluent 는 못 읽었다.</b> 두 문서 모두 본문이 JS 로 그려져서 수치를 확인하지 못했고,
+      기억으로 채우지 않았다. 그래서 레퍼런스가 13곳이지 15곳이 아니다.
+    </li>
+    <li>
+      <b>모바일.</b> 이 앱은 데스크톱 전용이라 GitLab 의 <span class="num">1200px</span> 오버레이 전환은
+      가져오지 않았다.
+    </li>
+  </ul>
+</section>
+
+</div>

@@ -2991,18 +2991,32 @@ export const postStyles = {
   /**
    * 전체보기 — 레일과 목록을 테두리 하나로 묶는다. 레일을 `items-start` 로 띄워 두면
    * 글이 쌓일수록 우측이 레일보다 길어져 레일이 목록 밖으로 흘러나온 것처럼 읽힌다
-   * (InstallStatusDetail 의 레일에서 이미 받은 지적). 폭 224 · 레일 표면 · 선택 표시는
+   * (InstallStatusDetail 의 레일에서 이미 받은 지적). 레일 표면 · 선택 표시는
    * 그 레일에서 그대로 가져왔다 — 같은 역할이면 같은 수치다.
+   *
+   * `flex-1` 이 `pageFill` 의 남은 높이를 전부 받아 온다. 이게 있어야 레일의 회색 면이
+   * Category 개수와 무관하게 바닥에서 끝난다 — 중간에 끊기면 구조물이 아니라 카드 안에
+   * 놓인 상자로 읽힌다. 떼면 751 → 256 으로 돌아간다(확인함).
+   *
+   * 폭 240 은 GitHub Issues 의 필터 목록(실측 239)에서 가져왔다. 앱 내비(256~320)가
+   * 아니라 한 화면 안의 필터라 그쪽이 같은 역할이다.
    */
   grouped:
-    'grid grid-cols-[224px_minmax(0,1fr)] bg-white border border-[#E5E7EB] rounded-xl overflow-hidden',
+    'grid grid-cols-[240px_minmax(0,1fr)] flex-1 bg-white border border-[#E5E7EB] rounded-xl overflow-hidden',
   /**
    * 레일은 가라앉은 면, 목록은 카드의 흰 바닥. 구분선 하나로 가르면 "같은 종류의 정보가
    * 두 단 있다"로 읽힌다 — 회색은 구조, 흰색은 내용이라는 한 가지 규칙만 쓴다.
+   *
+   * 여기에 `min-h-0` 은 필요 없다. grid 자식의 자동 최소 크기는 보통 `auto` 지만
+   * **스크롤 컨테이너면 0** 이라, `overflow-y-auto` 자신이 그 일을 이미 한다.
+   * 33개까지 넣어 확인했다 — 붙이나 떼나 결과가 같다. (shadcn `SidebarContent` 는
+   * 스크롤이 없는 경우까지 감당하느라 `min-h-0` 을 함께 쓴다.)
    */
-  catNav: 'flex flex-col gap-0.5 p-2 border-r border-[#E5E7EB] bg-[#F3F4F6]',
+  catNav:
+    'flex flex-col gap-0.5 p-2 overflow-y-auto border-r border-[#E5E7EB] bg-[#F3F4F6]',
+  /** 32px — GitHub Issues 사이드바 실측(항목 32 · radius 6 · 14px)에서 가져왔다. */
   catNavItem:
-    'flex items-center gap-2 px-3 py-[9px] rounded-lg text-[14px] font-medium text-[#4E5968] transition-colors hover:bg-white/60',
+    'flex items-center gap-2 px-3 py-1.5 leading-5 rounded-lg text-[14px] font-medium text-[#4E5968] transition-colors hover:bg-white/60',
   /** 레일이 회색이라 선택 항목은 흰 카드로 떠오른다 — 대비를 반대 방향으로 준다. */
   catNavItemOn: 'bg-white text-[#0050D6] font-bold hover:bg-white',
   /** 회색 면 위에서 #6B7280 은 4.39:1 로 AA 에 못 미친다. 대신 크기·무게로 계층을 준다. */
@@ -3016,10 +3030,21 @@ export const postStyles = {
   groupSection: 'border-t border-[#E5E7EB] first:border-t-0',
 
   /**
-   * 페이지 골격. 넓은 화면에서 좌우 여백을 키우지 않고 폭에 상한을 둔다 —
-   * 여백을 늘리면 글 길이가 화면마다 달라진다(Carbon 2x Grid 는 1584 에서 멈춘다).
+   * 페이지 골격. 좌우 24 는 이 앱의 셸이 이미 쓰는 값이다 — TopNav 의 `px-6`,
+   * 서비스 화면 본문의 `p-6`. 여기만 40 을 쓰면 네비는 화면 끝까지 가는데 본문만
+   * 안으로 들여쓴 것처럼 읽힌다. 페이지 폭 상한은 두지 않는다(셸에 맞추는 쪽이
+   * 우선이고, 다른 화면도 상한 없이 전폭이다).
    */
-  page: 'w-full max-w-[1664px] mx-auto px-10 pt-8 pb-12 flex flex-col gap-6',
+  page: 'w-full px-6 pt-8 pb-12 flex flex-col gap-6',
+  /**
+   * 전체보기 골격. 2카드 뷰(`page`)와 규칙이 반대다 — 저쪽은 대시보드라 높이를 내용이
+   * 정하고, 여기는 목록 브라우저라 높이를 화면이 정한다. 고정 높이인데도 글이 잘리지
+   * 않는 건 안쪽 두 칸에 각각 스크롤을 걸기 때문이다(`catNav` · `listPane`).
+   * 64 = TopNav — `/pass/services` 가 쓰는 것과 같은 식이다.
+   */
+  pageFill: 'w-full h-[calc(100vh-64px)] overflow-hidden px-6 pt-8 pb-6 flex flex-col gap-6',
+  /** 목록 칸. 긴 글을 펼쳐도 페이지가 아니라 이 칸이 흐른다. */
+  listPane: 'overflow-y-auto',
   pageTitle: 'text-[30px] font-extrabold tracking-[-0.03em] leading-[1.2] text-[#191F28]',
   pageSub: 'text-[14px] text-[#4E5968] mt-1.5',
   /**
@@ -3066,7 +3091,7 @@ export const passBannerStyles = {
    * 어두운 끝(#4C1D95)에서 뽑는다 — 회색 그림자는 보라 면 아래에서 때처럼 읽힌다.
    */
   root:
-    'relative isolate overflow-hidden rounded-xl px-10 py-10 text-white flex items-center justify-between gap-10 bg-[linear-gradient(101deg,#6D28D9_0%,#7C3AED_46%,#4F46E5_100%)] ring-1 ring-inset ring-white/20 shadow-[0_20px_44px_-20px_rgba(76,29,149,0.75)]',
+    'relative isolate overflow-hidden rounded-xl px-12 py-14 text-white flex items-center justify-between gap-10 bg-[linear-gradient(101deg,#6D28D9_0%,#7C3AED_46%,#4F46E5_100%)] ring-1 ring-inset ring-white/20 shadow-[0_20px_44px_-20px_rgba(76,29,149,0.75)]',
   /** 우상단 광원 — 그라데이션만으로는 면이 평평하게 읽힌다. */
   glow: 'pointer-events-none absolute -right-[70px] -top-[90px] w-[280px] h-[280px] rounded-full bg-white/10',
   /** 두 번째 광원. 하나뿐이면 빛의 방향이 아니라 "원이 하나 있다"로 읽힌다. */
@@ -3081,10 +3106,20 @@ export const passBannerStyles = {
   /** 장식이 절대 배치라 본문은 새 층으로 올려야 점 격자 위에 온다. */
   content: 'relative z-[1] min-w-0',
   eyebrow: 'text-[12px] font-bold tracking-[0.1em] uppercase text-white/[0.78]',
-  title: 'text-[32px] font-extrabold tracking-[-0.03em] leading-[1.25] mt-2',
-  body: 'text-[14px] text-white/[0.86] leading-[1.6] mt-3 max-w-[60ch]',
+  /**
+   * 40 은 이 앱이 이미 쓰는 최대 크기다(다른 5곳). 32 로는 페이지 제목 30 과 두 칸
+   * 차이라 배너가 목록을 이기지 못했다 — 1584px 면 안에서 32px 은 띠에 얹은 글이지
+   * 히어로가 아니다.
+   */
+  title: 'text-[40px] font-extrabold tracking-[-0.03em] leading-[1.2] mt-2',
+  /**
+   * 16 은 읽기 크기이기도 하지만, 여기서는 글 블록의 폭을 정하는 값이다 —
+   * `max-w` 단위가 `ch` 라서 본문 크기가 곧 컬럼 폭이다(14px·60ch 일 때 500px 로
+   * 쪼그라들어 면의 32% 만 썼다).
+   */
+  body: 'text-[16px] text-white/[0.86] leading-[1.7] mt-4 max-w-[58ch]',
   cta:
-    'relative z-[1] whitespace-nowrap bg-white text-[#5B21B6] text-[14px] font-bold px-6 py-[13px] rounded-lg shadow-[0_8px_20px_-8px_rgba(23,10,60,0.55)]',
+    'relative z-[1] whitespace-nowrap bg-white text-[#5B21B6] text-[16px] font-bold px-7 py-4 rounded-lg shadow-[0_8px_20px_-8px_rgba(23,10,60,0.55)]',
 } as const;
 
 // =============================================================================
