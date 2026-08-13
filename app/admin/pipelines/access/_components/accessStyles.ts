@@ -75,6 +75,9 @@ export const accessStyles = {
   code: 'w-[72px] min-w-0 shrink truncate',
   mono: 'text-[12px] text-[var(--pl-text-strong)] [font-family:var(--pl-font-mono)]',
   note: 'min-w-0 flex-1 truncate pointer-events-none',
+  /** 사유 열 — 자르지 않고 접는다. 문장이라 잘라 놓으면 있으나 마나이고, 내 요청
+   *  내역은 훑는 표가 아니라 읽는 기록이다(행 높이는 행마다 달라도 된다). */
+  reason: 'min-w-0 flex-1 whitespace-pre-wrap break-words',
   path: 'w-[84px] min-w-0 shrink truncate',
   status: 'w-[96px] min-w-0 shrink truncate',
   actor: 'w-[92px] min-w-0 shrink truncate',

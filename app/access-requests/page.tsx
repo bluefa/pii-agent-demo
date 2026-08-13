@@ -81,11 +81,17 @@ const SERVICE_SKELETON = (
   </div>
 );
 
+/**
+ * 사유가 두 열인 이유: 계약의 `reason`(내가 쓴 요청 사유)과 `processedNote`(관리자가
+ * 남긴 승인 메시지 또는 반려 사유)는 **다른 사람이 쓴 다른 사실**이다. 한 열에 합치면
+ * 대기 중인 행에서 내가 쓴 사유가 관리자 답변처럼 읽힌다.
+ */
 const MINE_COLUMNS: readonly Column[] = [
   { label: '서비스', className: a.name },
   { label: '코드', className: a.code },
   { label: '상태', className: a.status },
-  { label: '결과 · 사유', className: a.note },
+  { label: '요청 사유', className: a.reason },
+  { label: '처리 결과', className: a.reason },
   { label: '요청 일자', className: a.when },
 ];
 
@@ -297,7 +303,9 @@ export default function MyAccessRequestsPage(): ReactElement {
       >
         {(rows) =>
           rows.map((row) => (
-            <div key={row.requestId} role="row" className={a.row}>
+            // items-start — 사유가 접히면 행 높이가 늘어난다. 가운데 정렬이면 서비스명과
+            // 상태가 긴 사유의 세로 한가운데로 떠서 첫 줄끼리 맞지 않는다.
+            <div key={row.requestId} role="row" className={cn(a.row, 'items-start')}>
               <span role="cell" className={cn(a.name, a.nameStrong)}>
                 {row.serviceName}
               </span>
@@ -307,7 +315,11 @@ export default function MyAccessRequestsPage(): ReactElement {
               <span role="cell" className={a.status}>
                 <RequestStatusPill status={row.status} />
               </span>
-              <span role="cell" className={a.note} title={row.processedNote ?? undefined}>
+              <span role="cell" className={a.reason}>
+                {row.reason}
+              </span>
+              <span role="cell" className={a.reason}>
+                {/* 아직 처리 전이면 관리자가 쓴 것이 없다 — 비어 있는 게 사실이다. */}
                 {row.processedNote ?? '—'}
               </span>
               <span role="cell" className={a.when}>
