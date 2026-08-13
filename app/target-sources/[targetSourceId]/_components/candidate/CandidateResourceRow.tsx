@@ -512,6 +512,7 @@ export const CandidateResourceRow = ({
       {isRdsClusterRow && instancesExpanded && (
         <RdsInstancePanel
           clusterId={candidate.id}
+          clusterName={displayName}
           showCheckboxColumn={showCheckboxColumn}
           // Editable: checkbox + 5 data columns + 제외 사유; read-only drops the two.
           colSpan={showCheckboxColumn ? 7 : 5}

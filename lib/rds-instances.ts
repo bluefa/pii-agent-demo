@@ -27,7 +27,7 @@ export interface RdsInstanceCandidate {
   /** The instance's ARN. Identity — the selection is sent as this value. */
   resource_id: string;
   resource_name?: string;
-  /** Connection endpoint, rendered as `host:port` in the instance band. May arrive as a string. */
+  /** Connection endpoint, rendered as `host:port` in the instance band. */
   host?: string;
   port?: number;
   availability_zone?: string;

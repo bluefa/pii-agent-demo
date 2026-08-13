@@ -1,6 +1,7 @@
 'use client';
 
 import { RdsMemberChip, RdsSelectionChip } from '@/app/components/ui/RdsInstanceChips';
+import { IdentifierTip, Tooltip } from '@/app/components/ui/Tooltip';
 import { rdsInstanceLabel, type RdsInstanceCandidate } from '@/lib/rds-instances';
 import {
   bgColors,
@@ -41,6 +42,8 @@ import {
 interface RdsInstancePanelProps {
   /** The cluster the body belongs to — scopes the radio group. */
   clusterId: string;
+  /** Names the band, so several open at once stay distinguishable. */
+  clusterName: string;
   /**
    * Whether the host table opens with a checkbox column. This sets the INDENT only: the body
    * hangs off the name column's left edge, and the checkbox column is what moves it.
@@ -94,13 +97,14 @@ const INDENT_WITHOUT_CHECKBOX = 'pl-[54px]';
  * line (`LINE_GRID`); real table layout would have to re-derive that with fixed widths and would
  * change what the columns do at narrow widths.
  *
- * Exported so a test names the band the way a screen reader finds it, instead of reaching for
- * the colspan cell by class.
+ * The name carries the CLUSTER, because step 1 can hold several open at once and three tables
+ * all named "접속 인스턴스 목록" are three tables a screen-reader user cannot tell apart.
  */
-export const RDS_INSTANCE_BAND_LABEL = '접속 인스턴스 목록';
+export const rdsInstanceBandLabel = (clusterName: string) => `${clusterName} 접속 인스턴스 목록`;
 
 export const RdsInstancePanel = ({
   clusterId,
+  clusterName,
   showCheckboxColumn,
   colSpan,
   instances,
@@ -130,7 +134,7 @@ export const RdsInstancePanel = ({
           showCheckboxColumn ? INDENT_WITH_CHECKBOX : INDENT_WITHOUT_CHECKBOX,
         )}
         role="table"
-        aria-label={RDS_INSTANCE_BAND_LABEL}
+        aria-label={rdsInstanceBandLabel(clusterName)}
       >
         {/* No title strip. The row above already names the cluster and the count, and the
             guidance repeated what the checked radio and the Reader-first order say by
@@ -185,8 +189,23 @@ export const RdsInstancePanel = ({
                 <span role="cell" className={cn('truncate font-mono text-[12px]', textColors.secondary)}>
                   {instance.availability_zone ?? '—'}
                 </span>
-                <span role="cell" className={cn('truncate font-mono text-[12px]', textColors.secondary)}>
-                  {endpoint ?? '—'}
+                {/* The endpoint is the longest value on the line and the reason the column
+                    exists, so truncation must not be where it disappears — the app's own
+                    truncated-value tip carries the whole string, and only when it is clipped. */}
+                <span role="cell" className={cn('min-w-0 font-mono text-[12px]', textColors.secondary)}>
+                  {endpoint ? (
+                    <Tooltip
+                      content={<IdentifierTip label="엔드포인트" value={endpoint} />}
+                      variant="value"
+                      size="md"
+                      triggerClassName="block min-w-0 max-w-full"
+                      truncatedOnly
+                    >
+                      <span className="block truncate">{endpoint}</span>
+                    </Tooltip>
+                  ) : (
+                    '—'
+                  )}
                 </span>
               </>
             );

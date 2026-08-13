@@ -149,9 +149,9 @@ export function CloudResourceTable({ rows }: CloudResourceTableProps): ReactElem
                     {hasInstances && (
                       <button
                         type="button"
-                        // No aria-controls: the instance rows are `<tr>` siblings with no
-                        // single element to point at (APG disclosure: aria-expanded alone
-                        // is conforming).
+                        // No aria-controls: the band is unmounted while closed, so the
+                        // reference would dangle half the time — worse than the optional
+                        // attribute's absence (APG disclosure: aria-expanded alone conforms).
                         aria-expanded={instancesOpen}
                         aria-label={`${row.resourceName ?? ''} 인스턴스 목록 ${instancesOpen ? '접기' : '펼치기'}`}
                         onClick={fold.toggle}
@@ -242,6 +242,7 @@ export function CloudResourceTable({ rows }: CloudResourceTableProps): ReactElem
               {instancesOpen && (
                 <RdsInstancePanel
                   clusterId={rowKey}
+                  clusterName={row.resourceName ?? rowKey}
                   showCheckboxColumn={false}
                   colSpan={6}
                   instances={instances}

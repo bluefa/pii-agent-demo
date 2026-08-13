@@ -5,7 +5,7 @@ import {
   WaitingApprovalTable,
   type WaitingApprovalResource,
 } from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalTable';
-import { RDS_INSTANCE_BAND_LABEL } from '@/app/target-sources/[targetSourceId]/_components/shared/RdsInstancePanel';
+import { rdsInstanceBandLabel } from '@/app/target-sources/[targetSourceId]/_components/shared/RdsInstancePanel';
 import { required } from '@/lib/test-dom';
 import { textColors, verdictRail } from '@/lib/theme';
 
@@ -503,7 +503,7 @@ describe('WaitingApprovalTable', () => {
      * they are read out of that band and never off a page-wide row query.
      */
     const instanceNames = () => {
-      const band = screen.queryByRole('table', { name: RDS_INSTANCE_BAND_LABEL });
+      const band = screen.queryByRole('table', { name: rdsInstanceBandLabel('demo-cluster') });
       if (!band) return [];
       return Array.from(band.querySelectorAll('span'))
         .map((span) => span.textContent ?? '')
@@ -529,7 +529,7 @@ describe('WaitingApprovalTable', () => {
     it('spans the band across every column of this table', () => {
       render(<WaitingApprovalTable resources={[cluster()]} />);
       const band = required(
-        screen.getByRole('table', { name: RDS_INSTANCE_BAND_LABEL }).closest('td'),
+        screen.getByRole('table', { name: rdsInstanceBandLabel('demo-cluster') }).closest('td'),
         "the band's spanning cell",
       );
       expect(Number(band.getAttribute('colspan'))).toBe(
@@ -539,7 +539,7 @@ describe('WaitingApprovalTable', () => {
 
     it('shows the member role on every instance line', () => {
       render(<WaitingApprovalTable resources={[cluster()]} />);
-      const band = within(screen.getByRole('table', { name: RDS_INSTANCE_BAND_LABEL }));
+      const band = within(screen.getByRole('table', { name: rdsInstanceBandLabel('demo-cluster') }));
       expect(band.getAllByText('Reader')).toHaveLength(2);
       expect(band.getAllByText('Writer')).toHaveLength(1);
       // Scoped to the band because the cluster row now carries the chosen member's role too —
@@ -611,7 +611,7 @@ describe('WaitingApprovalTable', () => {
       );
       // An excluded cluster starts folded (useClusterFold) — open it to read the lines.
       fireEvent.click(screen.getByRole('button', { name: 'demo-cluster 인스턴스 목록 펼치기' }));
-      const band = screen.getByRole('table', { name: RDS_INSTANCE_BAND_LABEL });
+      const band = screen.getByRole('table', { name: rdsInstanceBandLabel('demo-cluster') });
       expect(instanceNames()).toHaveLength(3);
       expect(band.innerHTML).not.toContain(textColors.tertiary);
     });

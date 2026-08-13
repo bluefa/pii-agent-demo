@@ -467,8 +467,9 @@ export const WaitingApprovalTable = memo(
               <span className={idcStyles.table.group.lead}>
                 <button
                   type="button"
-                  // No aria-controls: the instance rows are `<tr>` siblings with no single
-                  // element to point at (APG disclosure: aria-expanded alone is conforming).
+                  // No aria-controls: the band is unmounted while closed, so the reference
+                  // would dangle half the time — worse than the optional attribute's absence
+                  // (APG disclosure: aria-expanded alone is conforming).
                   aria-expanded={instancesOpen}
                   aria-label={`${resource.resourceName} 인스턴스 목록 ${instancesOpen ? '접기' : '펼치기'}`}
                   onClick={(event) => {
@@ -724,6 +725,7 @@ export const WaitingApprovalTable = memo(
             {instancesOpen && (
               <RdsInstancePanel
                 clusterId={rowKey}
+                clusterName={resource.resourceName ?? resource.resourceId}
                 showCheckboxColumn={false}
                 colSpan={6}
                 instances={instances}

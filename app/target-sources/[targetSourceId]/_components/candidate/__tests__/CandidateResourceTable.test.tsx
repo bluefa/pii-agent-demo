@@ -3,7 +3,7 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import type { CandidateResource } from '@/lib/types/resources';
 import { CandidateResourceTable } from '@/app/target-sources/[targetSourceId]/_components/candidate/CandidateResourceTable';
-import { RDS_INSTANCE_BAND_LABEL } from '@/app/target-sources/[targetSourceId]/_components/shared/RdsInstancePanel';
+import { rdsInstanceBandLabel } from '@/app/target-sources/[targetSourceId]/_components/shared/RdsInstancePanel';
 import { required } from '@/lib/test-dom';
 import { textColors, verdictRail } from '@/lib/theme';
 
@@ -316,7 +316,7 @@ describe('CandidateResourceTable — RDS cluster instances', () => {
     renderCluster();
     openBand();
     const band = required(
-      screen.getByRole('table', { name: RDS_INSTANCE_BAND_LABEL }).closest('td'),
+      screen.getByRole('table', { name: rdsInstanceBandLabel('demo-cluster') }).closest('td'),
       "the band's spanning cell",
     );
     expect(Number(band.getAttribute('colspan'))).toBe(

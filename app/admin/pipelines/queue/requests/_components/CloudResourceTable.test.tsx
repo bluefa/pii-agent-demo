@@ -3,7 +3,7 @@ import { fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import type { RequestResourceRow } from '@/app/lib/api/task-queue-requests';
 import { CloudResourceTable } from '@/app/admin/pipelines/queue/requests/_components/CloudResourceTable';
-import { RDS_INSTANCE_BAND_LABEL } from '@/app/target-sources/[targetSourceId]/_components/shared/RdsInstancePanel';
+import { rdsInstanceBandLabel } from '@/app/target-sources/[targetSourceId]/_components/shared/RdsInstancePanel';
 import { required } from '@/lib/test-dom';
 
 const row = (overrides: Partial<RequestResourceRow> = {}): RequestResourceRow => ({
@@ -65,7 +65,7 @@ const clusterRow = (overrides: Partial<RequestResourceRow> = {}): RequestResourc
  * read out of that band and never off a page-wide row query.
  */
 const instanceNames = () => {
-  const band = screen.queryByRole('table', { name: RDS_INSTANCE_BAND_LABEL });
+  const band = screen.queryByRole('table', { name: rdsInstanceBandLabel('demo-cluster') });
   if (!band) return [];
   return Array.from(band.querySelectorAll('span'))
     .map((span) => span.textContent ?? '')
@@ -124,7 +124,7 @@ describe('CloudResourceTable', () => {
     it('spans the band across every column of this table', () => {
       render(<CloudResourceTable rows={[clusterRow()]} />);
       const band = required(
-        screen.getByRole('table', { name: RDS_INSTANCE_BAND_LABEL }).closest('td'),
+        screen.getByRole('table', { name: rdsInstanceBandLabel('demo-cluster') }).closest('td'),
         "the band's spanning cell",
       );
       expect(Number(band.getAttribute('colspan'))).toBe(
@@ -161,7 +161,7 @@ describe('CloudResourceTable', () => {
     it('gives each instance its own labelled AZ and endpoint columns', () => {
       render(<CloudResourceTable rows={[clusterRow()]} />);
       // Scoped to the band: the cluster row carries the chosen member's role too.
-      const band = within(screen.getByRole('table', { name: RDS_INSTANCE_BAND_LABEL }));
+      const band = within(screen.getByRole('table', { name: rdsInstanceBandLabel('demo-cluster') }));
       expect(band.getAllByText('Reader')).toHaveLength(2);
       expect(band.getAllByText('Writer')).toHaveLength(1);
       expect(screen.queryByText('WRITER')).toBeNull();
