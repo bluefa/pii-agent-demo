@@ -84,8 +84,21 @@ export const ServiceSidebar = ({
   // a pinned band above the list repeated it.
   const listed = services;
 
+  // Slots a short LAST page leaves empty. Rows divide the list's height, so the
+  // last page of 20 services (four rows) stretched each of them to ROW_MAX_PX —
+  // half again as tall as the same row on a full page — and still ended ~280px
+  // above the bottom-docked pager. Holding the missing slots keeps a row a row
+  // on every page and the pager where it already was.
+  //
+  // Only when the list is PAGED: a two-hit search is a short list, not a page
+  // with holes in it, and padding it would invent rows that were never there.
+  const emptySlots =
+    !loading && listed.length > 0 && pageInfo.totalPages > 1
+      ? Math.max(0, SERVICE_RAIL_PAGE_SIZE - listed.length)
+      : 0;
+
   // Rows the ul will actually lay out — drives the height cap below.
-  const rowCount = loading ? SKELETON_ROWS : listed.length;
+  const rowCount = loading ? SKELETON_ROWS : listed.length + emptySlots;
 
   return (
     // v16 `.sidebar` — fixed 296px width (measured), shrink-0 so the main column owns the rest.
@@ -242,6 +255,15 @@ export const ServiceSidebar = ({
                 />
               );
             })
+          )}
+
+          {/* One spacer growing for all the missing slots, not one <li> each: the
+              ul's `divide-y` would draw a hairline between every filler, and a
+              stack of ruled empty rows reads as a list that failed to load. As a
+              single sibling it takes exactly its slots' share of the height and
+              carries one divider — the line that closes the list. */}
+          {emptySlots > 0 && (
+            <li aria-hidden="true" style={{ flex: `${emptySlots} 1 0%` }} />
           )}
         </ul>
 
