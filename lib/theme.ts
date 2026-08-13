@@ -2966,7 +2966,7 @@ export const postStyles = {
   entryRailPinned: 'scale-y-100 bg-[#A9C6F8] group-hover:bg-[#0064FF]',
   /** 날짜 단 — 폭이 고정이라야 제목 시작선이 모든 행에서 같다. */
   entryDate:
-    'flex-none w-[76px] pt-[5px] text-[12px] text-[#6B7280] tabular-nums leading-[1.4] whitespace-nowrap transition-colors duration-150 group-hover:text-[#4E5968] motion-reduce:transition-none',
+    'flex-none w-[76px] pt-[5px] text-[12px] text-[#59647A] tabular-nums leading-[1.4] whitespace-nowrap transition-colors duration-150 group-hover:text-[#0064FF] motion-reduce:transition-none',
   entryMain: 'flex-1 min-w-0 flex flex-col gap-2',
   /**
    * 18px. 14 는 본문 크기라 제목이 행의 주어가 되지 못한다 — 잰 레퍼런스 중
@@ -3059,15 +3059,23 @@ export const postStyles = {
    * 33개까지 넣어 확인했다 — 붙이나 떼나 결과가 같다. (shadcn `SidebarContent` 는
    * 스크롤이 없는 경우까지 감당하느라 `min-h-0` 을 함께 쓴다.)
    */
+  /**
+   * 면을 중립 회색(#F3F4F6, S 8%)에서 푸른 쪽으로 옮긴다. 대비는 이미 맞았는데
+   * 채도가 없어서 바래 보였다 — 회색은 대비를 얻어도 생기를 못 얻는다.
+   */
   catNav:
-    'flex flex-col gap-0.5 p-2 overflow-y-auto border-r border-[#E5E7EB] bg-[#F3F4F6]',
+    'flex flex-col gap-0.5 p-2 overflow-y-auto border-r border-[#DDE3ED] bg-[#EEF1F7]',
   /** 32px — GitHub Issues 사이드바 실측(항목 32 · radius 6 · 14px)에서 가져왔다. */
   catNavItem:
-    'flex items-center gap-2 px-3 py-1.5 leading-5 rounded-lg text-[14px] font-medium text-[#4E5968] transition-colors hover:bg-white/60',
-  /** 레일이 회색이라 선택 항목은 흰 카드로 떠오른다 — 대비를 반대 방향으로 준다. */
-  catNavItemOn: 'bg-white text-[#0050D6] font-bold hover:bg-white',
-  /** 회색 면 위에서 #6B7280 은 4.39:1 로 AA 에 못 미친다. 대신 크기·무게로 계층을 준다. */
-  catNavCount: 'ml-auto text-[12px] font-normal text-[#4E5968] tabular-nums',
+    'flex items-center gap-2 px-3 py-1.5 leading-5 rounded-lg text-[14px] font-medium text-[#3E4C63] transition-colors hover:bg-white/70',
+  /**
+   * 레일이 회색이라 선택 항목은 흰 카드로 떠오른다 — 대비를 반대 방향으로 준다.
+   * 글자를 #0050D6(6.73:1) 에서 앱 Primary #0064FF(4.92:1) 로 올린다. 대비는 한 칸
+   * 내주지만 AA 는 지키고, 채도가 이 화면에서 유일하게 100% 인 자리라 여기가 밝아야 한다.
+   */
+  catNavItemOn:
+    'bg-white text-[#0064FF] font-bold hover:bg-white ring-1 ring-[#C7D9FA] shadow-[0_1px_2px_rgba(15,23,43,0.06)]',
+  catNavCount: 'ml-auto text-[12px] font-normal text-[#54627A] tabular-nums',
   /**
    * 그룹 머리 — 레일과 같은 면. 카드 안에서 구역을 가르는 띠지, 또 하나의 카드가 아니다.
    *
@@ -3077,9 +3085,9 @@ export const postStyles = {
    * 불투명하면 그냥 목록이 잘린 것처럼 보인다.
    */
   groupHead:
-    'sticky top-0 z-[1] flex items-baseline gap-2 px-[22px] py-2.5 bg-[#F3F4F6]/85 backdrop-blur-[6px] border-b border-[#E5E7EB]',
-  groupTitle: 'text-[14px] font-bold tracking-[-0.01em] text-[#191F28]',
-  groupCount: 'text-[12px] text-[#4E5968] tabular-nums',
+    'sticky top-0 z-[1] flex items-baseline gap-2 px-[22px] py-2.5 bg-[#EEF1F7]/85 backdrop-blur-[6px] border-b border-[#DDE3ED]',
+  groupTitle: 'text-[14px] font-bold tracking-[-0.01em] text-[#141A24]',
+  groupCount: 'text-[12px] text-[#54627A] tabular-nums',
   /** 그룹 사이의 선 — 첫 그룹은 카드 위 테두리가 대신한다. */
   groupSection: 'border-t border-[#E5E7EB] first:border-t-0',
 
