@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import { fireEvent } from '@testing-library/dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { RequestResourceRow } from '@/app/lib/api/task-queue-requests';
@@ -18,6 +18,7 @@ vi.mock('@/app/lib/api', () => ({
 }));
 
 import { RequestTab } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/RequestTab';
+import { rdsInstanceBandLabel } from '@/app/target-sources/[targetSourceId]/_components/shared/RdsInstancePanel';
 
 const row = (index: number, selected = true): RequestResourceRow => ({
   resourceId: `res-${index}`,
@@ -189,18 +190,19 @@ describe('RequestTab 요청 리소스', () => {
 
       expect(await screen.findByText('demo-cluster')).toBeTruthy();
       expect(screen.getByText('RDS Cluster')).toBeTruthy();
-      expect(screen.getByText('demo-1')).toBeTruthy();
-      expect(screen.getByText('demo-2')).toBeTruthy();
+      // The members live in the accordion body (`RdsInstancePanel`) — one colspan cell, not rows
+      // of this table — so the lookups scope to it.
+      const band = within(screen.getByRole('table', { name: rdsInstanceBandLabel('demo-cluster') }));
+      expect(band.getByText('demo-1')).toBeTruthy();
+      expect(band.getByText('demo-2')).toBeTruthy();
       // Prettified from the contract's uppercase WRITER / READER.
-      expect(screen.getByText('Writer')).toBeTruthy();
-      expect(screen.getByText('Reader')).toBeTruthy();
+      expect(band.getByText('Writer')).toBeTruthy();
+      expect(band.getByText('Reader')).toBeTruthy();
       // Exactly one instance is the choice, and it is the one the request named.
-      const chips = screen.getAllByText('선택됨');
-      expect(chips).toHaveLength(1);
-      const chosenRow = screen
-        .getAllByRole('row')
-        .find((r) => r.textContent?.includes('demo-2') && !r.textContent.includes('demo-cluster'));
-      expect(chosenRow?.textContent).toContain('선택됨');
+      expect(screen.getAllByText('선택됨')).toHaveLength(1);
+      expect(screen.getByText('선택됨').closest('div')?.textContent).toContain('demo-2');
+      // The cluster row names it too, so folding the band away cannot delete the choice.
+      expect(screen.getByText('demo-cluster').closest('td')?.textContent).toContain('demo-2');
     });
 
     // Read-only surface: the admin reviews the choice, it does not re-make it.

@@ -1385,9 +1385,14 @@ export const idcStyles = {
       '[&_tbody+tbody>tr:first-child]:border-t [&_tbody+tbody>tr:first-child]:border-[#EBEEF2]',
     /**
      * Grouped parent row (Athena × Region) — Cloudscape "nested resources" 시안.
-     * Chosen in `docs/ux/athena-group-samples.html` §04 over the v16 orange band: the
-     * parent stays a REAL row sharing the table's columns, so sorting, pagination and
-     * selection remain row-based and no colspan breaks the column rhythm.
+     * Chosen in `docs/ux/athena-group-samples.html` §04 over the v16 orange band.
+     *
+     * The parent has since moved its identity into ONE spanning cell rather than a value per
+     * column (owner, 2026-08-12; recorded in `docs/ux/benchmark/step1-resource-table.md`) — once
+     * the type, the region and the counts sat in the identity, the columns keyed on them printed
+     * the same two facts twice on the one row that has them. Pagination still groups by unit
+     * (`toPaginationUnits`); nothing sorts by column here and there is no group-level checkbox,
+     * so the day either arrives it reads the GROUP, not this row.
      *
      * Every value is copied from a metric this table family already uses — the row tint
      * is `table.header`'s #FAFBFC, the chip/connector borders are the #EBEEF2 divider,
@@ -1453,14 +1458,26 @@ export const idcStyles = {
        */
       toggleStatic: 'rotate-90 text-[#6B7684]',
       /**
-       * Service label — one tier BELOW the child rows' name, not above it. The parent is
-       * context, not the headline: the rows a user acts on are the databases. Same 14px mono
-       * as the Resource Name column so it stays in that column's voice, weight 600 vs the
-       * children's 500, and no second line.
+       * The group's NAME line — its region. One Athena catalog per region is exactly what a
+       * group is, so the region is what tells two of them apart; the service rides above it as
+       * the kind tag (`tagStyles.resourceKind`), the tier `RDS Cluster` and `EC2` already wear.
+       *
+       * One tier BELOW the child rows' name, not above it. The parent is context, not the
+       * headline: the rows a user acts on are the databases. Same 14px mono as the Resource
+       * Name column so it stays in that column's voice, weight 600 vs the children's 500.
        */
       label: 'whitespace-nowrap font-mono text-[14px] font-semibold text-[#4E5968]',
       /** Aggregate cells — tabular so counts stay aligned down the column. */
       meta: 'whitespace-nowrap text-[12px] tabular-nums text-[#6B7684]',
+      /**
+       * The counts inside `meta`, one step up from the words beside them (owner, 2026-08-12).
+       *
+       * "대상"/"제외" are the same two words on every group row; only the numbers differ, and the
+       * number is what the row is actually reporting. Size carries the whole difference — same
+       * colour, same weight — so the pair keeps reading as one phrase rather than as a value with
+       * a caption stuck under it.
+       */
+      metaValue: 'text-[14px]',
       /**
        * Child row's first cell — the tree rail. A vertical hairline runs the full row height
        * under the parent's chevron and an elbow reaches into the name; `childCellLast` cuts
@@ -1508,6 +1525,50 @@ export const idcStyles = {
        * #0064FF is the app's single interactive hue — the same value the closed chevron uses.
        */
       railActive: '[--rail:#0064FF]',
+    },
+    /**
+     * RDS instance band — the accordion body's tree rail.
+     *
+     * The band is ONE colspan cell holding its own lines, not a run of child rows, so it cannot
+     * reuse `group.childCell`: that token's offsets are measured from a name cell that starts at
+     * the checkbox column's right edge, and this cell starts at the table's left edge. The rail
+     * it draws is the same rail, re-anchored.
+     *
+     * Geometry — the band's content box starts at the CLUSTER's own name x (52 + 30 = 82; 30 in a
+     * table with no checkbox column), and every offset below is negative from there:
+     *   68   trunk        = the cluster chevron's centre, so the parent's segment and the band's
+     *                       are one unbroken line (`group.parentCell` carries the first stretch)
+     *   68..76  elbow     — 8px, then a 6px gap. `group`'s 22px elbow ends 16px short of its
+     *                       child's name; this tier has to fit a radio in the same span, so both
+     *                       shrink together rather than the gap closing to a touch
+     *   82   radio        (the 16px control the elbow points at)
+     *   106  instance name = 82 + 24, the same tier an Athena database hangs at. The name is what
+     *                       the eye scans down, so it is the thing that has to land on the tier;
+     *                       the radio lives in the gap the tier opens up, the way the group
+     *                       chevron lives in the name cell's padding.
+     *
+     * The trunk rides each line rather than the container so the LAST line can cut it at its own
+     * elbow (`lineLast`) — a rail that runs past the last thing it connects reads as a group that
+     * continues below, which is exactly what this band does not do.
+     */
+    instanceBand: {
+      /** Column-header strip — trunk only, no elbow: it labels the lines, it is not one of them. */
+      headerStrip:
+        "relative before:absolute before:-left-[38px] before:bottom-0 before:top-0 before:w-px before:bg-[var(--rail,#C4CEDA)] before:content-['']",
+      /** One instance line — trunk through the full height, elbow reaching the radio. */
+      line:
+        "relative before:absolute before:-left-[38px] before:bottom-0 before:top-0 before:w-px before:bg-[var(--rail,#C4CEDA)] before:content-[''] after:absolute after:-left-[38px] after:top-1/2 after:h-px after:w-[8px] after:bg-[var(--rail,#C4CEDA)] after:content-['']",
+      /** Last line — the trunk stops at its elbow, closing the band. */
+      lineLast: 'before:bottom-1/2',
+      /**
+       * The radio, hung in the tier gap instead of standing in the flow.
+       *
+       * In the flow it pushed every instance name 24px right of the tier, so the one column the
+       * eye scans started at a different x from the Athena children directly above it. Out of the
+       * flow the name keeps the tier and the control reads as a margin affordance — the same
+       * trade `group.toggle` makes with the chevron.
+       */
+      radio: 'absolute -left-6 top-1/2 h-4 w-4 -translate-y-1/2',
     },
   },
 } as const;

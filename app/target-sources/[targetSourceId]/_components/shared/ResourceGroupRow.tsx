@@ -1,6 +1,7 @@
 'use client';
 
 import type { ReactNode } from 'react';
+import { ResourceKindTag } from '@/app/components/ui/RdsInstanceChips';
 import { ChevronRightIcon } from '@/app/components/ui/icons';
 import { getDatabaseShortLabel } from '@/app/components/ui/DatabaseIcon';
 import { cn, idcStyles, primaryColors } from '@/lib/theme';
@@ -16,20 +17,24 @@ interface ResourceGroupRowProps {
   controls: string;
   /** Leading spacer cell — pass the checkbox column's `<td>` when the table has one. */
   leadingCell?: ReactNode;
-  /** Aggregate rendered beside the identity, for tables with no spare column to put it in. */
+  /** Third identity line — see `ResourceGroupCount` for what it says and why it sits there. */
   inlineMeta?: ReactNode;
   /** This row's share of the group's tree rail (`useRailHover`), tagged with the group's key. */
   rail?: RailRowProps;
   /**
-   * The parent's remaining `<td>`s, one per column after the identity cell. The parent is a real
-   * row, not a colspan band (시안 §04), so the caller decides which columns carry the aggregate —
-   * Step 1 answers in 설치 구분, the approval table answers in 요청 대상 여부.
+   * How many columns the identity spans — every column after `leadingCell`.
    *
-   * Database Type and Region belong here, filled with the group's own values: the group is keyed
-   * on exactly that pair, so they are its attributes, and the children inherit rather than repeat
-   * them. A parent left blank across four columns read as a broken row, not as a summary.
+   * The parent used to be a real row with one `<td>` per column, and every one of them ended up
+   * empty: Database Type and Region are the pair the group is KEYED on, so the identity says
+   * both and filling the columns printed each twice; 설치 구분 is a per-resource verdict a group
+   * never received; and the aggregate moved onto the identity to sit beside the region it counts
+   * within. A row of blanks that also squeezed the identity into one narrow column — the region
+   * chip wrapped to three lines — is not a row, so the identity takes the width instead.
+   *
+   * NOTE: both tables zero `py-5` for spanning cells (`[&_td:not([colspan])]`), so this one
+   * restates its own vertical padding to keep the group row on the list's rhythm.
    */
-  children: ReactNode;
+  colSpan: number;
 }
 
 /**
@@ -48,10 +53,9 @@ export const ResourceGroupRow = ({
   leadingCell,
   inlineMeta,
   rail,
-  children,
+  colSpan,
 }: ResourceGroupRowProps) => {
   const label = getDatabaseShortLabel(type);
-
   return (
     <tr
       className={cn(idcStyles.table.group.row, 'cursor-pointer', rail?.className)}
@@ -61,12 +65,31 @@ export const ResourceGroupRow = ({
     >
       {leadingCell}
       <td
+        colSpan={colSpan}
         className={cn(
           idcStyles.table.approvalCell,
+          'py-5',
           idcStyles.table.nameCell,
           expanded && idcStyles.table.group.parentCell,
         )}
       >
+        {/* Three tiers, one per channel — the same stack the RDS cluster row two rows down
+            already uses (kind tag → name → detail), so the two foldable rows on this screen
+            read alike.
+
+            On one line these three were three greys at three sizes and no rank (owner,
+            2026-08-12): a filled grey chip made the REGION shout over the label that owns it,
+            and the 14px count sat level with the 14px label. Split across tiers each one gets
+            a different channel instead of a different size — surface for the kind, the name
+            voice for the region, the quiet meta tone for the counts.
+
+            The region is the NAME here, not an attribute: one Athena catalog per region is
+            exactly what a group is, so the region is what tells two groups apart. The type is
+            the kind tag, which is what `resourceKind` is for — and it is the same tag `RDS
+            Cluster` and `EC2` wear, which is the point.
+
+            The chevron hangs off this box (`toggle` is absolute against it) and centres on the
+            stack's middle line, which is the name — same as the cluster row. */}
         <span className={idcStyles.table.group.lead}>
           <button
             type="button"
@@ -85,16 +108,31 @@ export const ResourceGroupRow = ({
           >
             <ChevronRightIcon className="h-3.5 w-3.5" />
           </button>
-          <span className={idcStyles.table.group.label}>{label}</span>
-          {inlineMeta}
+          <span className="flex w-full min-w-0 flex-col items-start gap-1">
+            <ResourceKindTag>{label}</ResourceKindTag>
+            <span className={idcStyles.table.group.label}>{region}</span>
+            {inlineMeta}
+          </span>
         </span>
       </td>
-      {children}
     </tr>
   );
 };
 
-/** Aggregate summary shown in one of the parent row's own columns. */
+/**
+ * What the group holds — the identity's third line, under the region it counts within.
+ *
+ * The unit is a segment of its own, not a modifier on the first count: "데이터베이스 대상 1 ·
+ * 제외 0" read as one noun phrase run into a second, and broke the parallel between the two
+ * counts (owner, 2026-08-12). Separated, the line is a subject and two matching facts.
+ *
+ * Naming the unit at all is the point: "대상 1" on a row labelled Athena left the reader to
+ * work out what was counted, and the answer is neither Athena nor the region — it is the
+ * databases folded underneath. Grouping is Athena-only (`GROUPED_TYPES`) and an Athena group's
+ * children are databases, so the word is a fact about this row rather than a guess.
+ *
+ * Two numbers, not three: the total was the sum of the two printed beside it.
+ */
 export const ResourceGroupCount = ({
   targetCount,
   excludedCount,
@@ -103,6 +141,7 @@ export const ResourceGroupCount = ({
   excludedCount: number;
 }) => (
   <span className={idcStyles.table.group.meta}>
-    {`${targetCount} 대상 · ${excludedCount} 제외 · 총 ${targetCount + excludedCount}`}
+    데이터베이스 · 대상 <span className={idcStyles.table.group.metaValue}>{targetCount}</span> ·
+    제외 <span className={idcStyles.table.group.metaValue}>{excludedCount}</span>
   </span>
 );

@@ -3,9 +3,13 @@
  *
  * Athena is a family, not a row: one catalog/workgroup per region carries many
  * databases, and a flat table hides that a dozen rows all belong to the same
- * region's Athena. The parent row is a REAL table row (same columns, aggregate
- * values), so sorting, pagination and selection stay row-based — see
- * `docs/ux/athena-group-samples.html` §04 for the chosen 시안.
+ * region's Athena. See `docs/ux/athena-group-samples.html` §04 for the chosen 시안.
+ *
+ * The parent row states its identity in ONE spanning cell — type, region and the
+ * aggregate together — rather than filling the columns keyed on them (owner,
+ * 2026-08-12; recorded in `docs/ux/benchmark/step1-resource-table.md`). Nothing here
+ * turns on that: this module only partitions rows, and pagination consumes a partition
+ * as one unit (`toPaginationUnits`) rather than as table rows.
  *
  * Nothing here invents data: a group is derived from fields the rows already
  * carry (resource type + region). No wire field is read that the contract does

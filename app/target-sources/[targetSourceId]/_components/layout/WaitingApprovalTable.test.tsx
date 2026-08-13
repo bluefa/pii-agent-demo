@@ -5,6 +5,8 @@ import {
   WaitingApprovalTable,
   type WaitingApprovalResource,
 } from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalTable';
+import { rdsInstanceBandLabel } from '@/app/target-sources/[targetSourceId]/_components/shared/RdsInstancePanel';
+import { required } from '@/lib/test-dom';
 import { textColors, verdictRail } from '@/lib/theme';
 
 const fixture: WaitingApprovalResource[] = [
@@ -126,6 +128,13 @@ describe('WaitingApprovalTable', () => {
       ...(counts ? { logicalDbCount: counts[0], excludedLogicalDbCount: counts[1] } : {}),
     });
 
+    /** The aggregate rides the identity cell, beside the region it counts within. */
+    const aggregateOf = (region: string) => {
+      const toggle = screen.getByRole('button', { name: new RegExp(`Athena ${region} 그룹`) });
+      const row = required(toggle.closest('tr'), 'the group row holding the toggle');
+      return within(row).getAllByRole('cell')[0].textContent;
+    };
+
     it('renders one parent row per region with the target/excluded aggregate', () => {
       render(
         <WaitingApprovalTable
@@ -140,14 +149,19 @@ describe('WaitingApprovalTable', () => {
       const toggles = screen.getAllByRole('button', { name: /그룹 (펼치기|접기)$/ });
       expect(toggles).toHaveLength(2);
       expect(toggles[0].getAttribute('aria-expanded')).toBe('true');
-      expect(screen.getByText('1 대상 · 1 제외 · 총 2')).toBeTruthy();
-      expect(screen.getByText('1 대상 · 0 제외 · 총 1')).toBeTruthy();
+      // The counts are split across spans (the numbers sit a size up), so `getByText` — which
+      // matches an element's OWN text nodes — cannot see the phrase. Read the cell instead.
+      expect(aggregateOf('ap-northeast-1')).toContain('데이터베이스 · 대상 1 · 제외 1');
+      expect(aggregateOf('us-east-1')).toContain('데이터베이스 · 대상 1 · 제외 0');
     });
 
-    // Read down the tree the Database Type column says Athena → Database, so a child name like
-    // `db_a` is identified as a database rather than left as a bare string. Region is the
-    // parent's alone, and the child's id is dropped — it is the parent's path plus that name.
-    it('says Athena on the parent and Database on each child, with Region only on the parent', () => {
+    // The parent's type and region live in its identity cell, not in the two columns keyed on
+    // them — filling those printed each of them twice on the one row that has them. The children
+    // still say Database in the type column, so reading down the tree gives Athena → Database and
+    // a child name like `db_a` is identified rather than left as a bare string. The child's id is
+    // dropped: it is the parent's path plus that name — but the region is NOT, because a column
+    // is read down and a blank there says "no region" (owner, 2026-08-12).
+    it('keeps the parent type and region in its identity cell, Database + region on each child', () => {
       render(
         <WaitingApprovalTable
           resources={[athena('db_a', 'ap-northeast-1', true), athena('db_b', 'ap-northeast-1', false)]}
@@ -156,15 +170,19 @@ describe('WaitingApprovalTable', () => {
 
       const rows = screen.getAllByRole('row');
       // Column order: Name(0) · ID(1) · DB Type(2) · Region(3) · 요청 대상 여부(4) · 제외 사유(5).
+      // The parent is one spanning cell now — it had a value for none of the columns once its
+      // identity carried the type, the region and the counts.
       const parent = within(rows[1]).getAllByRole('cell');
-      expect(parent[2].textContent).toBe('Athena');
-      expect(parent[3].textContent).toBe('ap-northeast-1');
+      expect(parent).toHaveLength(1);
+      expect(parent[0].getAttribute('colspan')).toBe('6');
+      expect(parent[0].textContent).toContain('Athena');
+      expect(parent[0].textContent).toContain('ap-northeast-1');
 
       for (const row of rows.slice(2)) {
         const cells = within(row).getAllByRole('cell');
         expect(cells[1].textContent).toBe('');
         expect(cells[2].textContent).toBe('Database');
-        expect(cells[3].textContent).toBe('');
+        expect(cells[3].textContent).toBe('ap-northeast-1');
       }
     });
 
@@ -316,9 +334,12 @@ describe('WaitingApprovalTable', () => {
 
       const rows = screen.getAllByRole('row');
       expect(rows).toHaveLength(4);
-      // Read down the tree: Athena → Database. The name alone is just a string.
+      // Read down the tree: Athena → Database, and the region repeats on every database
+      // (owner, 2026-08-13) — a column is read DOWN, and a blank there says "no region".
       for (const row of rows.slice(2)) {
-        expect(within(row).getAllByRole('cell')[2].textContent).toBe('Database');
+        const memberCells = within(row).getAllByRole('cell');
+        expect(memberCells[2].textContent).toBe('Database');
+        expect(memberCells[3].textContent).toBe('ap-northeast-1');
       }
       expect(screen.getByText('sampledb')).toBeTruthy();
       expect(screen.getByText('integration')).toBeTruthy();
@@ -476,61 +497,82 @@ describe('WaitingApprovalTable', () => {
       ...overrides,
     });
 
-    const instanceNames = () =>
-      screen
-        .getAllByRole('row')
-        .map((row) => row.querySelector('td')?.textContent ?? '')
-        .filter((text) => text.includes('demo-'))
-        .filter((text) => !text.includes('demo-cluster'));
+    /**
+     * The instance names, in render order. They are not rows of the OUTER table — the members
+     * live in the accordion body (`RdsInstancePanel`), which carries its own table roles, so
+     * they are read out of that band and never off a page-wide row query.
+     */
+    const instanceNames = () => {
+      const band = screen.queryByRole('table', { name: rdsInstanceBandLabel('demo-cluster') });
+      if (!band) return [];
+      return Array.from(band.querySelectorAll('span'))
+        .map((span) => span.textContent ?? '')
+        .filter((text) => /^demo-\d$/.test(text));
+    };
 
     it('lists instances Reader-first then by ARN, regardless of wire order', () => {
       render(<WaitingApprovalTable resources={[cluster()]} />);
-      // The cell reads "<role chip><name>", so pull the name out rather than slicing the head.
-      expect(instanceNames().map((text) => text.match(/demo-\d/)?.[0])).toEqual([
-        'demo-2',
-        'demo-3',
-        'demo-1',
-      ]);
+      expect(instanceNames()).toEqual(['demo-2', 'demo-3', 'demo-1']);
     });
 
     it('marks only the chosen instance 선택됨, and never offers a radio', () => {
       render(<WaitingApprovalTable resources={[cluster()]} />);
       expect(screen.getAllByText('선택됨')).toHaveLength(1);
       expect(screen.queryAllByRole('radio')).toHaveLength(0);
-      // The chip sits on the chosen INSTANCE row — the cluster row's summary names demo-2
-      // too, so the lookup has to skip the parent.
-      const chosenRow = screen
-        .getAllByRole('row')
-        .find(
-          (row) =>
-            row.textContent?.includes('demo-2') && !row.textContent.includes('demo-cluster'),
-        );
-      expect(chosenRow?.textContent).toContain('선택됨');
+      // The chip rides the chosen instance's own LINE inside the band.
+      expect(screen.getByText('선택됨').closest('div')?.textContent).toContain('demo-2');
     });
 
-    it('shows the member role on every instance row', () => {
+    // colSpan is hand-passed by each host table (`colSpan={6}` here), so a column added to or
+    // removed from the header silently leaves the band short or overflowing. `lib/theme.ts`
+    // names this exact failure mode as the reason a separate verdict column was rejected.
+    it('spans the band across every column of this table', () => {
       render(<WaitingApprovalTable resources={[cluster()]} />);
-      expect(screen.getAllByText('Reader')).toHaveLength(2);
-      expect(screen.getAllByText('Writer')).toHaveLength(1);
+      const band = required(
+        screen.getByRole('table', { name: rdsInstanceBandLabel('demo-cluster') }).closest('td'),
+        "the band's spanning cell",
+      );
+      expect(Number(band.getAttribute('colspan'))).toBe(
+        document.querySelectorAll('thead th').length,
+      );
     });
 
-    it('says Instance in the type column and gives each instance its own region', () => {
+    it('shows the member role on every instance line', () => {
       render(<WaitingApprovalTable resources={[cluster()]} />);
-      expect(screen.getAllByText('Instance')).toHaveLength(3);
-      // The Region column carries the cluster's region on the parent and each instance's OWN
-      // availability zone on its child row — same column, one tier finer.
+      const band = within(screen.getByRole('table', { name: rdsInstanceBandLabel('demo-cluster') }));
+      expect(band.getAllByText('Reader')).toHaveLength(2);
+      expect(band.getAllByText('Writer')).toHaveLength(1);
+      // Scoped to the band because the cluster row now carries the chosen member's role too —
+      // a document-wide count would be 3 Readers and pin nothing in particular.
+      expect(screen.getAllByText('Reader')).toHaveLength(3);
+    });
+
+    // The band is why the columns can say this at all: as rows of this table the AZ was filed
+    // under the Region header (the one column left that could hold it) and the endpoint — the
+    // other thing a reviewer compares — had nowhere to go.
+    it('gives each instance its own labelled AZ and endpoint columns', () => {
+      render(<WaitingApprovalTable resources={[cluster()]} />);
+      expect(screen.getByText('가용 영역')).toBeTruthy();
+      expect(screen.getByText('엔드포인트')).toBeTruthy();
+      // The table's Region column stays the CLUSTER's region — one row, one value.
       expect(screen.getAllByText('ap-northeast-2')).toHaveLength(1);
       expect(screen.getByText('ap-northeast-2a')).toBeTruthy();
       expect(screen.getByText('ap-northeast-2b')).toBeTruthy();
       expect(screen.getByText('ap-northeast-2c')).toBeTruthy();
     });
 
-    // The parent carries the COUNT only — the 선택됨 chip is the single statement of the choice.
-    it('counts instances on the cluster row without naming the chosen one', () => {
+    // The cluster row NAMES the member it connects through, exactly as step 1 does (owner,
+    // 2026-08-13) — the count it used to print was the tally PR #630 threw out, and on a review
+    // surface the choice is the fact being reviewed.
+    it('names the chosen instance on the cluster row, not a count', () => {
       render(<WaitingApprovalTable resources={[cluster()]} />);
-      expect(screen.getByText('3개 인스턴스')).toBeTruthy();
-      // demo-2 appears once — on its own instance row, not in a parent summary.
-      expect(instanceNames().filter((text) => text.includes('demo-2'))).toHaveLength(1);
+      const clusterCell = required(
+        screen.getByText('demo-cluster').closest('td'),
+        "the cluster's identity cell",
+      );
+      expect(clusterCell.textContent).toContain('demo-2');
+      expect(clusterCell.textContent).toContain('Reader');
+      expect(screen.queryByText('3개 인스턴스')).toBeNull();
     });
 
     it('tags the cluster row RDS Cluster, before the name', () => {
@@ -549,29 +591,29 @@ describe('WaitingApprovalTable', () => {
 
       fireEvent.click(screen.getByRole('button', { name: 'demo-cluster 인스턴스 목록 접기' }));
       expect(instanceNames()).toHaveLength(0);
-      // The count and the tag survive the collapse.
-      expect(screen.getByText('3개 인스턴스')).toBeTruthy();
+      // Folding hides the comparison, never the choice: the tag and the chosen member survive.
       expect(screen.getByText('RDS Cluster')).toBeTruthy();
+      const clusterCell = required(
+        screen.getByText('demo-cluster').closest('td'),
+        "the cluster's identity cell",
+      );
+      expect(clusterCell.textContent).toContain('demo-2');
     });
 
-    // The children inherit the parent's tier: full-contrast instances under a dimmed cluster
-    // read as a rendering fault, and the queue table already dimmed them.
-    it('keeps an excluded cluster’s instance rows at full contrast', () => {
+    // An excluded PARENT never dims its members' text — exclusion is what the rail says. The band sits
+    // on `bgColors.panel`, whose contract forbids `tertiary` there (4.37:1, under AA), so this
+    // holds the line for both reasons at once.
+    it('keeps an excluded cluster’s instance lines at full contrast', () => {
       render(
         <WaitingApprovalTable
           resources={[cluster({ selected: false, selectedRdsInstanceResourceId: undefined })]}
         />,
       );
-      // An excluded cluster starts folded (useClusterFold) — open it to read the rows.
+      // An excluded cluster starts folded (useClusterFold) — open it to read the lines.
       fireEvent.click(screen.getByRole('button', { name: 'demo-cluster 인스턴스 목록 펼치기' }));
-      const instanceRow = screen
-        .getAllByRole('row')
-        .find((r) => r.textContent?.includes('demo-2') && !r.textContent.includes('demo-cluster'));
-      const cells = instanceRow!.querySelectorAll('td');
-      // 부모가 제외됐다고 멤버 행의 글자를 낮추지 않는다 — 제외는 레일이 말한다.
-      expect(cells[0].className).not.toContain(textColors.tertiary);
-      expect(cells[2].className).not.toContain(textColors.tertiary);
-      expect(cells[3].className).not.toContain(textColors.tertiary);
+      const band = screen.getByRole('table', { name: rdsInstanceBandLabel('demo-cluster') });
+      expect(instanceNames()).toHaveLength(3);
+      expect(band.innerHTML).not.toContain(textColors.tertiary);
     });
 
     // An excluded cluster chose nothing, so nothing is marked; the list is still the evidence,
@@ -587,7 +629,8 @@ describe('WaitingApprovalTable', () => {
       fireEvent.click(screen.getByRole('button', { name: 'demo-cluster 인스턴스 목록 펼치기' }));
       expect(instanceNames()).toHaveLength(3);
       expect(screen.queryByText('선택됨')).toBeNull();
-      expect(screen.getByText('3개 인스턴스')).toBeTruthy();
+      // Nothing was chosen, so the third line falls back to the count — the honest thing left.
+      expect(screen.getByText('인스턴스 3건')).toBeTruthy();
     });
 
     // Every other row shape, and every other variant, must be untouched by this addition.

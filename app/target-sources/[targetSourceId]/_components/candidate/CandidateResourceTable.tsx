@@ -1,16 +1,16 @@
 'use client';
 
-import { Fragment, useMemo, useState } from 'react';
-import { cn, idcStyles, textColors } from '@/lib/theme';
-import { getDatabaseShortLabel } from '@/app/components/ui/DatabaseIcon';
+import { Fragment, useMemo } from 'react';
+import { cn, idcStyles } from '@/lib/theme';
 import { groupResourceRows } from '@/lib/resource-grouping';
+import { useClusterFold } from '@/app/hooks/useClusterFold';
+import { listMissingExclusionReasons } from '@/app/target-sources/[targetSourceId]/_components/candidate/approval-payload';
 import type { CandidateDraftState, CandidateResource } from '@/lib/types/resources';
 import { InfoTooltip } from '@/app/components/ui/Tooltip';
 import {
   CandidateResourceRow,
   type CandidateRowActions,
 } from '@/app/target-sources/[targetSourceId]/_components/candidate/CandidateResourceRow';
-import { useClusterFold } from '@/app/hooks/useClusterFold';
 import { useRailHover, type RailRowProps } from '@/app/hooks/useRailHover';
 import { TableEmptyState } from '@/app/target-sources/[targetSourceId]/_components/shared/TableEmptyState';
 import {
@@ -92,8 +92,7 @@ export const CandidateResourceTable = ({
   const showCheckboxColumn = !readonly;
 
   // Athena arrives as many rows of one catalog family per region; grouping restores the parent
-  // they belong to (LIN-85). Groups start OPEN — Step 1 is where each row is individually
-  // selected, so a collapsed group would hide the very checkboxes the step exists for.
+  // they belong to (LIN-85).
   const sections = useMemo(
     () =>
       groupResourceRows(candidates, (candidate) => ({
@@ -103,22 +102,20 @@ export const CandidateResourceTable = ({
       })),
     [candidates, selectedIds],
   );
-  const [collapsedGroups, setCollapsedGroups] = useState<ReadonlySet<string>>(() => new Set());
 
-  // RDS cluster instance rows — shared fold policy: open while the cluster is selected, folded
-  // once it is excluded (see `useClusterFold`). The chevron overrides one cluster at a time.
-  const clusterFold = useClusterFold();
+  // Everything foldable starts COLLAPSED — the owner's rule for this step (2026-08-11): a table
+  // that is always expanded reads as too dense, Athena groups included. ONE fold for both kinds,
+  // since Athena group keys (`ATHENA|region`) and RDS cluster ids never collide and the policy is
+  // the same. What the user presses wins and survives the default changing under it.
+  //
+  // `useClusterFold` rather than a set of open keys, because one default has to be DERIVED per
+  // render (see `blocksApproval` below) and a seeded set would compute it once — at first render,
+  // before the fetch has delivered a single candidate to look at.
+  const foldOf = useClusterFold();
 
   // The group rails: parent and children carry the group's key, so hovering any of them
-  // lights the whole group. A cluster's rail is owned by its own row.
+  // lights the whole group.
   const railRow = useRailHover();
-
-  const toggleGroup = (key: string) =>
-    setCollapsedGroups((previous) => {
-      const next = new Set(previous);
-      if (!next.delete(key)) next.add(key);
-      return next;
-    });
 
   if (totalCount === 0) {
     return <TableEmptyState message={emptyMessage ?? '발견된 리소스가 없습니다'} />;
@@ -171,7 +168,6 @@ export const CandidateResourceTable = ({
               rail?: RailRowProps,
             ) => {
               const isSelected = selectedIds.has(candidate.id);
-              const fold = clusterFold(candidate.id, isSelected);
               return (
                 <CandidateResourceRow
                   key={candidate.id}
@@ -186,8 +182,8 @@ export const CandidateResourceTable = ({
                   grouped={grouped}
                   lastInGroup={lastInGroup}
                   rail={rail}
-                  rdsInstancesExpanded={fold.open}
-                  onRdsInstancesToggle={fold.toggle}
+                  instancesExpanded={foldOf(candidate.id, false).open}
+                  onInstancesToggle={foldOf(candidate.id, false).toggle}
                 />
               );
             };
@@ -202,7 +198,22 @@ export const CandidateResourceTable = ({
 
             const { group } = section;
             const rowsId = `candidate-group-${group.key.replace('|', '-')}`;
-            const collapsed = collapsedGroups.has(group.key);
+            // A group holding a row that BLOCKS the approval CTA opens by itself. Collapsed is
+            // the default because a full group is noise; a group whose child is the reason the
+            // button is dead is not noise, it is the work. The only control that clears it —
+            // 사유 입력 — lives on that child's row, and `hidden` takes the child out of the
+            // accessibility tree too, so leaving the group folded left the CTA naming a resource
+            // the user could not reach without guessing which group to open.
+            //
+            // Gated on there being a selection at all, matching the CTA's own order of reasons
+            // (`CandidateResourceSection`): with nothing selected the button asks for a selection
+            // and no reason is owed yet, so an untouched table still opens fully collapsed.
+            const fold = foldOf(
+              group.key,
+              selectedIds.size > 0
+                && listMissingExclusionReasons(group.rows, selectedIds, exclusionReasons).length > 0,
+            );
+            const collapsed = !fold.open;
             const rail = railRow(group.key);
             return (
               <Fragment key={group.key}>
@@ -211,18 +222,17 @@ export const CandidateResourceTable = ({
                     type={group.type}
                     region={group.region}
                     expanded={!collapsed}
-                    onToggle={() => toggleGroup(group.key)}
+                    onToggle={fold.toggle}
                     controls={rowsId}
                     rail={rail}
-                    // Read-only drops the 제외 사유 column, so the aggregate has no cell to sit
-                    // in — it rides along with the identity instead of vanishing.
+                    // The aggregate rides the identity, next to the region it counts within
+                    // (owner, 2026-08-12) — a column at the far end of the row put the numbers a
+                    // screen-width away from the group they belong to.
                     inlineMeta={
-                      showCheckboxColumn ? undefined : (
-                        <ResourceGroupCount
-                          targetCount={group.targetCount}
-                          excludedCount={group.excludedCount}
-                        />
-                      )
+                      <ResourceGroupCount
+                        targetCount={group.targetCount}
+                        excludedCount={group.excludedCount}
+                      />
                     }
                     leadingCell={
                       showCheckboxColumn ? (
@@ -231,44 +241,10 @@ export const CandidateResourceTable = ({
                         <td className={cn(idcStyles.table.approvalCell, 'w-10')} />
                       ) : undefined
                     }
-                  >
-                    {/* Resource ID stays blank — the catalog id lives only inside each child's
-                        resource_id string, which we do not parse.
-                        Database Type and Region ARE the pair the group is keyed on, so they are
-                        the parent's own values; the children below leave those two cells empty
-                        rather than repeat them.
-                        설치 구분 stays EMPTY: it is the scan's per-resource verdict, and a group
-                        is not a resource the scan judged — a value there would be invented.
-                        The aggregate goes in the trailing column, the only one with room. */}
-                    <td className={idcStyles.table.approvalCell} />
-                    <td
-                      className={cn(
-                        idcStyles.table.approvalCell,
-                        'whitespace-nowrap text-[14px]',
-                        textColors.secondary,
-                      )}
-                    >
-                      {getDatabaseShortLabel(group.type)}
-                    </td>
-                    <td
-                      className={cn(
-                        idcStyles.table.approvalCell,
-                        'whitespace-nowrap font-mono text-[14px]',
-                        textColors.secondary,
-                      )}
-                    >
-                      {group.region}
-                    </td>
-                    <td className={idcStyles.table.approvalCell} />
-                    {showCheckboxColumn && (
-                      <td className={idcStyles.table.approvalCell}>
-                        <ResourceGroupCount
-                          targetCount={group.targetCount}
-                          excludedCount={group.excludedCount}
-                        />
-                      </td>
-                    )}
-                  </ResourceGroupRow>
+                    // Resource Name · Resource ID · Database Type · Region · 설치 구분, plus
+                    // 제외 사유 when the table is editable.
+                    colSpan={showCheckboxColumn ? 6 : 5}
+                  />
                 </tbody>
                 {/* Kept mounted while collapsed so `aria-controls` always resolves. */}
                 <tbody id={rowsId} hidden={collapsed} className={idcStyles.table.body}>
