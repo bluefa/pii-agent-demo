@@ -428,7 +428,10 @@ export const verdictRailClass = (excluded: boolean, ineligible = false): string 
  * - 각 상태가 자기 색 두 벌(기본/hover)을 모두 소유한다: base 는 색을 갖지 않는다.
  */
 export const tableRowLift = {
-  base: 'group transition-colors duration-150 motion-reduce:transition-none',
+  // `group/row` in addition to the bare `group`: `cellText` below is a plain `group-hover:`
+  // and needs `.group`, while `chipEdge` must fire for ROWS ONLY and named groups are the
+  // only way to say that — a bare `group-hover:` answers to any `.group` ancestor anywhere.
+  base: 'group group/row transition-colors duration-150 motion-reduce:transition-none',
   target: 'hover:bg-[#EAEEF7] focus-within:bg-[#EAEEF7]',
   // 틴트가 아니라 `verdictRail` 이 제외를 표시한다 — #F9FAFB 는 흰 바탕과 1.05:1 이라
   // WCAG 1.4.11 의 3:1 근처에도 못 가서, 행 단위 신호로는 처음부터 작동한 적이 없다.
@@ -458,7 +461,7 @@ export const tableRowLift = {
    * 않는다: 흰 행 위에서 칩은 이미 판으로 읽히므로, 크롬은 필요한 순간에만 존재한다.
    */
   chipEdge:
-    'group-hover:ring-1 group-hover:ring-inset group-hover:ring-black/15 group-focus-within:ring-1 group-focus-within:ring-inset group-focus-within:ring-black/15',
+    'group-hover/row:ring-1 group-hover/row:ring-inset group-hover/row:ring-black/15 group-focus-within/row:ring-1 group-focus-within/row:ring-inset group-focus-within/row:ring-black/15',
   /**
    * Card-row hover on the tinted canvas — violet, originally lifted byte-for-byte
    * from the EC2 tag's surface so the two would land in one family. They still
@@ -1289,7 +1292,10 @@ export const idcStyles = {
     header: 'bg-[#FAFBFC] text-left text-[13px] font-bold text-[#4E5968]',
     headerCell: 'px-4 py-3.5',
     body: 'divide-y divide-[#EBEEF2]',
-    row: 'hover:bg-[#F7F8FA] transition-colors',
+    // `group/row` so the chips in these rows get `tableRowLift.chipEdge` too. This tint is
+    // ABOVE the whole chip band (L* 97.6), so chips stay the darker plate and mostly survive
+    // it — except `tag.gray`, whose fill IS #F7F8FA, i.e. 1.00:1 and gone outright.
+    row: 'group/row hover:bg-[#F7F8FA] transition-colors',
     cell: 'px-4 py-3.5',
     /** Table wrapper — `.db-list-table` border + radius + shadow (v16 1850–1869). */
     frame:

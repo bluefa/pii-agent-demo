@@ -237,16 +237,16 @@ const rowHover = hoverBgOf(classOf(liftBlock, 'target'));
 const rowHoverExcluded = hoverBgOf(classOf(liftBlock, 'excluded'));
 
 /**
- * A nested `key: { … }` object, so a generic key name resolves inside the right parent.
- * (`blockOf` below is the top-level `export const` equivalent.)
+ * A nested `key: { … }` object. Takes the PARENT's source rather than searching all of
+ * theme.ts: `tag`, `green`, `gray` and friends are names any future token block could also
+ * use, and a file-wide search silently returns whichever is declared first — measuring the
+ * wrong colors and still passing. (`blockOf` below is the top-level `export const` form.)
  */
-const nestedBlockOf = (key: string) => {
-  const m = themeSrc.match(new RegExp(`(?<![\\w])${key}: \\{[\\s\\S]*?\\n  \\},`));
+const nestedBlockOf = (src: string, key: string) => {
+  const m = src.match(new RegExp(`(?<![\\w])${key}: \\{[\\s\\S]*?\\n  \\},`));
   if (!m) throw new Error(`nested block ${key} not found`);
   return m[0];
 };
-const kindBadgeBlock = nestedBlockOf('kindBadge');
-const idcTagBlock = nestedBlockOf('tag');
 
 /**
  * `bgOf`/`textOf` read arbitrary-value classes (`bg-[#…]`). The base `bgColors` and
@@ -274,6 +274,10 @@ const blockOf = (name: string) => {
 };
 const bgTokens = blockOf('bgColors');
 const textTokens = blockOf('textColors');
+const idcBlock = blockOf('idcStyles');
+const kindBadgeBlock = nestedBlockOf(idcBlock, 'kindBadge');
+const idcTagBlock = nestedBlockOf(idcBlock, 'tag');
+const idcTableBlock = nestedBlockOf(idcBlock, 'table');
 
 // The target-source detail header went backgroundless (C3): it paints no plane of
 // its own, so every run of text and every chip in it stands on the canvas wash.
@@ -569,6 +573,55 @@ describe('chip hover ring separates on both sides', () => {
     expect(contrast(edge, rowHover)).toBeGreaterThanOrEqual(1.2);
     expect(contrast(edge, rowHoverExcluded)).toBeGreaterThanOrEqual(1.2);
     expect(contrast(edge, fill)).toBeGreaterThanOrEqual(1.35);
+  });
+});
+
+/**
+ * The WIRING, which the contrast checks above cannot see: they measure a colour the token
+ * declares, so deleting `${tableRowLift.chipEdge}` from every chip would leave them green.
+ *
+ * Both halves have to hold. `chipEdge` is a NAMED group variant, so it draws nothing unless
+ * an ancestor carries `group/row` — and it must stay named, because a bare `group-hover:`
+ * answers to any `.group` in the tree and this repo puts `group` on card rows, service tiles
+ * and modal list items that are not resource rows at all.
+ */
+const chipEdgeToken = classOf(liftBlock, 'chipEdge');
+const chipBaseDecl = (() => {
+  const m = read('app/components/ui/RdsInstanceChips.tsx').match(/const CHIP_BASE =[\s\S]*?;/);
+  if (!m) throw new Error('CHIP_BASE not found');
+  return m[0];
+})();
+const CHIP_EDGE_CONSUMERS: Array<[string, string]> = [
+  ['RdsInstanceChips CHIP_BASE', chipBaseDecl],
+  ['idcStyles.kindBadge.single', classOf(kindBadgeBlock, 'single')],
+  ['idcStyles.kindBadge.multi', classOf(kindBadgeBlock, 'multi')],
+  ['idcStyles.kindBadge.domain', classOf(kindBadgeBlock, 'domain')],
+  ['idcStyles.tag.blue', classOf(idcTagBlock, 'blue')],
+  ['idcStyles.tag.green', classOf(idcTagBlock, 'green')],
+  ['idcStyles.tag.red', classOf(idcTagBlock, 'red')],
+  ['idcStyles.tag.orange', classOf(idcTagBlock, 'orange')],
+  ['idcStyles.tag.gray', classOf(idcTagBlock, 'gray')],
+  ['ec2Styles.newBadge', classOf(themeSrc, 'newBadge')],
+];
+
+describe('chip hover ring is actually wired up', () => {
+  it('chipEdge is scoped to the named row group, not to any `group`', () => {
+    expect(chipEdgeToken).toMatch(/group-hover\/row:/);
+    expect(chipEdgeToken).toMatch(/group-focus-within\/row:/);
+    // A bare `group-hover:`/`group-focus-within:` here would leak to every unrelated `.group`.
+    expect(chipEdgeToken).not.toMatch(/group-hover:/);
+    expect(chipEdgeToken).not.toMatch(/group-focus-within:/);
+  });
+
+  it.each([
+    ['tableRowLift.base', classOf(liftBlock, 'base')],
+    ['idcStyles.table.row', classOf(idcTableBlock, 'row')],
+  ])('%s marks the row with group/row', (_what, cls) => {
+    expect(cls).toMatch(/(?:^|\s)group\/row(?:\s|$)/);
+  });
+
+  it.each(CHIP_EDGE_CONSUMERS)('%s carries chipEdge', (_what, src) => {
+    expect(src).toContain('tableRowLift.chipEdge');
   });
 });
 
