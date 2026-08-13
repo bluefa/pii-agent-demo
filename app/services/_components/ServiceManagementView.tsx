@@ -30,6 +30,8 @@ import {
 // Page size belongs to the rail, not to this page — see SERVICE_RAIL_PAGE_SIZE.
 const SERVICE_PAGE_SIZE = SERVICE_RAIL_PAGE_SIZE;
 const SEARCH_DEBOUNCE_MS = 300;
+// 실패 패널의 본문. 제목이 이미 "불러오지 못했습니다"를 말하므로 여기서는 다음 행동만 남긴다.
+const PANEL_RETRY_HINT = '잠시 후 다시 시도해 주세요.';
 
 /**
  * EOS 여부를 계약에 **없는** 필드에서 읽는다.
@@ -140,7 +142,10 @@ export const ServiceManagementView = () => {
     } catch (err) {
       if (controller.signal.aborted) return;
       if (err instanceof AppError && err.code === 'ABORTED') return;
-      toast.error(err instanceof Error ? err.message : '서비스 목록 조회 실패');
+      // 업스트림 message 를 그대로 싣지 않는다. 조회 실패에 사용자가 할 수 있는 일은
+      // 재시도뿐인데, 게이트웨이 문구("backend service unavailable")는 그 판단에
+      // 아무것도 보태지 못한 채 영어 원문으로 노출된다.
+      toast.error('서비스 목록을 불러오지 못했습니다.');
     } finally {
       // Also on failure: a rail stuck in skeleton forever tells the user less than
       // the empty state does, and the toast already carried the error.
@@ -202,10 +207,12 @@ export const ServiceManagementView = () => {
       try {
         const items = await getProjects(code);
         setProjects({ code, items });
-      } catch (err) {
-        const message = err instanceof Error ? err.message : failureMessage;
-        setProjects({ code, error: message });
-        toast.error(message);
+      } catch {
+        // 업스트림 원문은 여기서도 버린다. 패널은 제목이 이미 실패를 말하므로
+        // (InfraRowList 의 실패 화면) 본문에는 다음 행동만 남기고, 실패 사실은
+        // 토스트가 문장으로 말한다.
+        setProjects({ code, error: PANEL_RETRY_HINT });
+        toast.error(failureMessage);
       } finally {
         // Stale too: a response for a code the user has since left must not clear the
         // flag belonging to the request that replaced it.
@@ -221,12 +228,12 @@ export const ServiceManagementView = () => {
       return;
     }
     setProjects(null);
-    void loadProjects(selectedService, '타겟소스 목록 조회 실패');
+    void loadProjects(selectedService, '연동 대상 계정을 불러오지 못했습니다.');
   }, [selectedService, loadProjects]);
 
   const refreshProjects = useCallback(async () => {
     if (!selectedService) return;
-    await loadProjects(selectedService, '타겟소스 목록 새로고침 실패');
+    await loadProjects(selectedService, '연동 대상 계정을 새로고침하지 못했습니다.');
   }, [selectedService, loadProjects]);
 
   const handleSelectService = useCallback(
