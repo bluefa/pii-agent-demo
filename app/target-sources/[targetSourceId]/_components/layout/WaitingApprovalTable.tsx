@@ -58,9 +58,10 @@ export interface WaitingApprovalResource {
   /** Optional metadata line shown beneath the reason text in the tooltip — typically registrant and date. */
   exclusionMeta?: string;
   /**
-   * What the Database Type column PRINTS — `metadata.database_type`, and on step 1 the user's
-   * unsaved VM endpoint draft on top of it. It is a display value, not an identity: do not key
-   * grouping or lookups on it (that is `resourceType`).
+   * `metadata.database_type`, and on step 1 the user's unsaved VM endpoint draft on top of it.
+   * The Database Type column prints it, and the 논리 DB columns judge on it — it is the only
+   * field that carries a database type, so a verdict that needs one reads THIS and nothing else.
+   * Still not an identity: do not key grouping or lookups on it (that is `resourceType`).
    */
   displayDbType?: string;
   /**
@@ -624,8 +625,14 @@ export const WaitingApprovalTable = memo(
             /* Athena·DynamoDB have no logical-DB management at all, so both columns answer
                설정 불필요 rather than —. The dash is where a value we do not have goes; on a
                concept that does not exist it reads as missing data and sends the user looking
-               for it. Step 5's 논리 DB 확인 says the same words for the same reason. */
-            hasLogicalDatabases(resource.displayDbType ?? resource.resourceType) ? (
+               for it. Step 5's 논리 DB 확인 says the same words for the same reason.
+
+               `database_type` ONLY — never `resourceType`. The two are different vocabularies:
+               the database type is `athena`, the resource type is `AWS_ATHENA_DATABASE`, and
+               this judgment lists database types. The old fallback let a value that can never
+               match cast the verdict. The DB Type LABEL above still falls back, because there
+               printing something beats printing nothing — a label is not a verdict. */
+            hasLogicalDatabases(resource.displayDbType) ? (
               /* A folded row's counts are a SUM across its databases, and the drill-in queries
                  one resource id. Opening the region id would answer with a list that cannot
                  match the number it was clicked from, so the aggregate is text, not a link. */

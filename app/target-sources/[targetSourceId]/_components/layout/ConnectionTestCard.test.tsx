@@ -266,6 +266,18 @@ describe('ConnectionTestCard', () => {
     expect(screen.getByRole('button', { name: /Run Test/ })).toHaveProperty('disabled', false);
   });
 
+  // 판정이 mysql·postgresql·redshift 허용 목록이던 동안 이 엔진들은 "불필요"로 찍혔다 —
+  // 실제로는 계정이 있어야 붙고, IDC step 5 는 같은 엔진에 이미 요구하고 있었다.
+  it.each(['mssql', 'oracle', 'mongodb', 'mariadb'])(
+    'requires a credential for %s, and blocks Run Test until one is set',
+    (databaseType) => {
+      renderCard([makeResource({ resourceId: `${databaseType}-1`, databaseType, credentialId: null })]);
+      expect(screen.queryByText('불필요')).toBeNull();
+      expect(screen.getByRole('button', { name: /Credential 수정 — 현재 미설정/ })).toBeTruthy();
+      expect(screen.getByRole('button', { name: /Run Test/ })).toHaveProperty('disabled', true);
+    },
+  );
+
   it('counts Credential-free engines as neither, and the warning line filters the table', () => {
     // The table names rows by Resource Name (Resource ID is not a column here).
     renderCard([
