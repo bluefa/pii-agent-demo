@@ -1939,8 +1939,12 @@ const pipelineText = {
   statDen: 'text-[20px] font-medium text-[var(--pl-text-faint)]',
   /** status-bar current label — 14 / 600 / medium. */
   statusCurrent: 'text-[14px] font-semibold text-[var(--pl-text-medium)]',
-  /** sidebar caption — 12 / 600 / +.06em / uppercase. */
-  sidebarTitle: 'text-[12px] font-semibold uppercase tracking-[0.06em] text-[var(--pl-gray-500)]',
+  /** sidebar caption — 12 / 600 / +.06em / uppercase.
+   *  On the gray-900 sidebar the ramp runs the other way: quieter means LIGHTER, so
+   *  gray-500 (a page-ground value) landed at 3.57:1 there. gray-400 is 6.89:1 and
+   *  still reads below the idle items (--pl-chrome-item, 9.70:1), which is the only
+   *  thing the caption has to stay under. */
+  sidebarTitle: 'text-[12px] font-semibold uppercase tracking-[0.06em] text-[var(--pl-gray-400)]', // design-exempt: gray-400 on the gray-900 sidebar (6.89:1), not on white
 } as const;
 
 /** Semantic status → the four status tokens (bg tint, text, solid dot, border). */
@@ -2185,7 +2189,12 @@ export const pipelineStyles = {
     stripOk: 'bg-[var(--pl-ok)]',
     stripActive: 'bg-[var(--pl-info)]',
     stripRest: 'bg-[var(--pl-gray-200)]',
-    stripCaption: 'mt-1 block text-[11px] text-[var(--pl-text-faint)] tabular-nums',
+    /* The caption is the strip's only literal reading ("2단계 진행 중 · 1/4") — the
+       segments carry the shape, this carries the numbers — so it answers to AA like
+       any other run of text. `--pl-text-faint` measured 2.58:1 on the white row and
+       2.34:1 on the hovered one; `--pl-text-weak` is 4.97:1 and 4.51:1. It matches
+       the tier of the code chip beside it, and stays subordinate to it by size. */
+    stripCaption: 'mt-1 block text-[11px] text-[var(--pl-text-weak)] tabular-nums', // design-exempt: 11px is the pre-existing caption size — this change touches colour only
   },
 
   /** KindChip — mono 12/600 h20 pad 0 6, NO base border; cond = dashed gray-300.
@@ -2442,8 +2451,21 @@ export const pipelineStyles = {
     identity: 'flex flex-col items-start gap-[3px]',
     identityName: 'block max-w-[34ch] truncate text-[14px] font-semibold text-[var(--pl-text-strong)]',
     identityMeta: 'flex items-center gap-2',
+    /**
+     * The chip's fill WAS gray-100 — byte-identical to `row`'s hover tint one line
+     * above, so hovering a row erased it: 1.000:1 chip-against-row, the plate gone
+     * and only its letters left floating. A fill can only survive both row states
+     * if it separates from white AND from the tint, and the tint is what the row
+     * uses to say "this one" — it is not moving.
+     *
+     * White + stroke is the shape that holds on both: on the white row the hairline
+     * carries the edge (the same white-on-white + border-strong grammar as
+     * `filterChip.base`), and under the cursor the fill itself steps out of the
+     * tint. `py-px` + the 1px border keeps the 20.8px box the borderless chip had,
+     * so the two-line identity stack does not grow on hover.
+     */
     identityCode:
-      'inline-flex items-center rounded-md px-2 py-0.5 text-[12px] font-semibold bg-[var(--pl-gray-100)] text-[var(--pl-text-medium)]',
+      'inline-flex items-center rounded-md border border-[var(--pl-border-strong)] px-2 py-px text-[12px] font-semibold bg-[var(--pl-bg-card)] text-[var(--pl-text-medium)]',
     /**
      * Target Source 번호 — 평소엔 중립, **행에 커서가 올라갔을 때만** 링크색으로 (오너).
      * `group-hover` 이지 `hover` 가 아니다: 열리는 건 행 전체이므로 행 어디에 커서가

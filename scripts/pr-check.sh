@@ -130,8 +130,12 @@ run_policy_grep() {
         ;;
     esac
 
+    # raw-hex exists to stop UI code from spelling a colour out instead of naming a
+    # token. theme.ts is where the tokens are spelled out, and design-guard.test.ts is
+    # what measures them — its Tailwind palette constants and its regression fixtures
+    # (the exact before-values that shipped broken) ARE literal colours by definition.
     case "${file}" in
-      *theme.ts) ;;
+      *theme.ts | *design-guard.test.ts) ;;
       *)
         if hits=$(/usr/bin/grep -HnE '#[0-9a-fA-F]{6}' "${file}" 2>/dev/null | head -2); [ -n "${hits}" ]; then
           append_problem "raw-hex" "${hits}"
