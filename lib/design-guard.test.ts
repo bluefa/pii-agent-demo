@@ -145,6 +145,23 @@ const textOf = (cls: string) => {
   if (!m) throw new Error(`no rest text in "${cls}"`);
   return resolve(m[1]);
 };
+/**
+ * First rest-state border color. A stroke is a surface's edge, and for a chip whose
+ * fill is white on a white row it is the ONLY thing separating the two — so it has to
+ * be measurable here, not just assumed.
+ */
+const borderOf = (cls: string) => {
+  const m = cls.match(new RegExp(`${REST}border-\\[${COLOR}\\]`));
+  if (!m) throw new Error(`no rest border in "${cls}"`);
+  return resolve(m[1]);
+};
+/** The one quoted class string in `src` containing `needle` — for values with no key
+ *  of their own, or whose key name repeats across the file. */
+const classWith = (src: string, needle: string) => {
+  const m = src.match(new RegExp(`'([^']*${needle}[^']*)'`));
+  if (!m) throw new Error(`no class containing "${needle}"`);
+  return m[1];
+};
 
 const themeSrc = read('lib/theme.ts');
 const railBlock = (() => {
@@ -153,6 +170,24 @@ const railBlock = (() => {
   return m[0];
 })();
 const adminSrc = read('app/admin/pipelines/_services/styles.ts');
+// The /admin/pipelines dashboard. Its row is the section's densest stack of tiers —
+// name, code chip, id, provider, step strip and its caption — and all of it stands on
+// a row that swaps to a tint under the cursor, so every pair here has two surfaces.
+const pipelineBlock = (() => {
+  const m = themeSrc.match(/export const pipelineStyles = \{[\s\S]*?\n\} as const/);
+  if (!m) throw new Error('pipelineStyles not found');
+  return m[0];
+})();
+const pipelineTextBlock = (() => {
+  const m = themeSrc.match(/const pipelineText = \{[\s\S]*?\n\} as const/);
+  if (!m) throw new Error('pipelineText not found');
+  return m[0];
+})();
+const navLayoutSrc = read('app/admin/pipelines/layout.tsx');
+const dashCodeChip = classOf(pipelineBlock, 'identityCode');
+// `sidebar:` puts a comment between the key and its value, which `classOf` cannot
+// step over — anchor on the width instead, which is the class's own signature.
+const plSidebar = bgOf(classWith(pipelineBlock, 'w-\\[216px\\]'));
 const liftBlock = (() => {
   const m = themeSrc.match(/export const tableRowLift = \{[\s\S]*?\n\} as const/);
   if (!m) throw new Error('tableRowLift not found');
@@ -169,6 +204,13 @@ const hoverBgOf = (cls: string) => {
   if (!m) throw new Error(`no hover bg in "${cls}"`);
   return resolve(m[1]);
 };
+
+/**
+ * The dashboard row's hover tint — anchored on the class body, since `row:` repeats.
+ * `transition-colors` is load-bearing in that anchor: `rowClickable` is the other
+ * `group cursor-pointer` row in this block and it hovers to gray-50, one step lighter.
+ */
+const dashRowHover = hoverBgOf(classWith(pipelineBlock, 'group cursor-pointer transition-colors'));
 
 /** The `tilePalette` array's `bg-[#...]`/`text-[#...]` pairs, in declaration order. */
 const serviceTiles = (() => {
@@ -257,6 +299,14 @@ const SURFACES: SurfacePair[] = [
   { what: 'card hover tint on the white card', top: hoverBgOf(classOf(liftBlock, 'card')), under: '#FFFFFF' },
   // The rail's skeleton is reused on the admin ground — a second surface it must clear.
   { what: 'skeleton bar on admin ground', top: bgOf(classOf(railBlock, 'skeletonBar')), under: plGround },
+  // The dashboard's service-code chip. Its fill WAS gray-100 — the same token the row
+  // hovers to, byte for byte — so the plate vanished under the cursor at exactly 1.000:1
+  // and the letters were left floating on the tint. It is white now, which separates from
+  // the tint by luminance; on the WHITE row nothing but the stroke is left, so the stroke
+  // is measured against both surfaces rather than assumed to be visible on either.
+  { what: 'dashboard code chip fill on the row hover tint', top: bgOf(dashCodeChip), under: dashRowHover },
+  { what: 'dashboard code chip stroke on its own fill', top: borderOf(dashCodeChip), under: bgOf(dashCodeChip) },
+  { what: 'dashboard code chip stroke on the row hover tint', top: borderOf(dashCodeChip), under: dashRowHover },
   // The wizard groups by surface and draws no rule between its two columns, so this
   // pair IS the separation — re-tint `panel` toward white and the card dissolves with
   // nothing else left to mark where it starts.
@@ -333,6 +383,36 @@ const TEXT: TextPair[] = [
   // is not visibility for a 2px line, which is why this pair uses the contrast rule.
   { what: 'stepper walked road on the page wash', fg: bgOf(classOf(stepperBlock, 'lineDone')), on: canvas, min: 3.0 },
   { what: 'admin section label on ground', fg: textOf(classOf(adminSrc, 'railSection')), on: plGround },
+  // /admin/pipelines. Three tiers that shipped under AA because each was measured
+  // against a surface it does not sit on:
+  //  - the step-strip caption is the strip's only literal reading, and `--pl-text-faint`
+  //    put it at 2.58:1 on the white row and 2.34:1 on the hovered one;
+  //  - the sidebar caption inherited a page-ground grey onto a gray-900 panel, where the
+  //    ramp runs the other way (quieter = lighter) and it landed at 3.57:1;
+  //  - the nav count badge wore the dot/bar red as a FILL under white letters, 3.76:1.
+  // Both row states are pinned for the caption: the tint is the surface the row swaps to
+  // while you are reading it, so it is not a lesser case of white.
+  {
+    what: 'dashboard step-strip caption on the white row',
+    fg: textOf(classOf(pipelineBlock, 'stripCaption')),
+    on: '#FFFFFF',
+  },
+  {
+    what: 'dashboard step-strip caption on the row hover tint',
+    fg: textOf(classOf(pipelineBlock, 'stripCaption')),
+    on: dashRowHover,
+  },
+  { what: 'dashboard code chip label on its fill', fg: textOf(dashCodeChip), on: bgOf(dashCodeChip) },
+  {
+    what: 'pipelines sidebar caption on the gray-900 sidebar',
+    fg: textOf(classOf(pipelineTextBlock, 'sidebarTitle')),
+    on: plSidebar,
+  },
+  {
+    what: 'pipelines nav count badge on its red fill',
+    fg: textOf(classWith(navLayoutSrc, 'min-w-\\[18px\\]')),
+    on: bgOf(classWith(navLayoutSrc, 'min-w-\\[18px\\]')),
+  },
   // The wizard's step column has no surface of its own, so every run of text in it is
   // measured against the dialog's gray panel. `tertiary` is 4.39:1 there and shipped
   // broken for three commits — these two pin the tiers that are allowed to replace it.
@@ -430,6 +510,34 @@ describe('detects the PR #624 regressions the hook missed', () => {
     expect(deltaE00('#CFE0FF', canvas)).toBeGreaterThanOrEqual(SURFACE_MIN);
     expect(deltaE00('#CFE0FF', '#E4E5EE')).toBeGreaterThanOrEqual(SURFACE_MIN);
     expect(contrast('#CFE0FF', canvas)).toBeLessThan(3.0);
+  });
+
+  // /admin/pipelines, found by eye on the live page. Every one of the four is the same
+  // mistake in a different place: a colour picked against a surface, then rendered on a
+  // different one. The replays are the BEFORE values, so they fail the rules above.
+  it('H12 step-strip caption --pl-text-faint on the row, white (2.58:1) and hovered (2.34:1)', () => {
+    expect(contrast(resolve('var(--pl-text-faint)'), '#FFFFFF')).toBeLessThan(4.5);
+    expect(contrast(resolve('var(--pl-text-faint)'), dashRowHover)).toBeLessThan(4.5);
+  });
+
+  it('H13 sidebar caption --pl-gray-500 on the gray-900 sidebar (3.57:1)', () => {
+    // It clears AA on the page ground it was borrowed from — the dark panel is where
+    // the ramp inverts, and a token cannot carry which direction it was chosen for.
+    expect(contrast(resolve('var(--pl-gray-500)'), plSidebar)).toBeLessThan(4.5);
+    expect(contrast(resolve('var(--pl-gray-500)'), resolve('var(--pl-bg-page)'))).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it('H14 nav count badge: white on --pl-err (3.76:1), the dot red used as a fill', () => {
+    expect(contrast('#FFFFFF', resolve('var(--pl-err)'))).toBeLessThan(4.5);
+    expect(contrast('#FFFFFF', resolve('var(--pl-err-solid)'))).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it('H15 code chip fill was the row hover tint itself — the chip erased at 1.000:1', () => {
+    // ΔE00 0.00 and contrast 1.000: not "hard to see", absent. The surface rule catches
+    // this one, which is the point — the pair was simply never written down, because the
+    // chip is declared 100 lines from the hover it collides with.
+    expect(deltaE00(resolve('var(--pl-gray-100)'), dashRowHover)).toBeLessThan(SURFACE_MIN);
+    expect(contrast(resolve('var(--pl-gray-100)'), dashRowHover)).toBeLessThan(1.01);
   });
 
   it('H7 --pl-bg-page tinted to #F2F4F7 collides with the ops-alerts tiles', () => {

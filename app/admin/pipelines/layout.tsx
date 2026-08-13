@@ -58,6 +58,16 @@ const NAV_BADGES: Record<
   },
 };
 
+/**
+ * Nav count badge. `--pl-err` is the section's dot/bar red — it is sized for a mark,
+ * and as a FILL carrying white letters it measures 3.76:1, under AA. `--pl-err-solid`
+ * is the red that already exists for exactly this job (white text on the destructive
+ * buttons) and reads 4.83:1. Named rather than inlined so the pair stays on one line
+ * where the design hook can see both halves of it.
+ */
+const NAV_BADGE_CLASS =
+  'inline-block min-w-[18px] flex-none rounded-full bg-[var(--pl-err-solid)] px-1.5 py-px text-center text-[11px] font-bold tabular-nums text-[var(--pl-white)]'; // design-exempt: 11px is the badge's pre-existing size
+
 export default function PipelinesLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname() ?? '';
   const { layout } = pipelineStyles;
@@ -149,7 +159,7 @@ export default function PipelinesLayout({ children }: { children: ReactNode }) {
                   {item.label}
                   {badge && count > 0 && (
                     <span
-                      className="inline-block min-w-[18px] flex-none rounded-full bg-[var(--pl-err)] px-1.5 py-px text-center text-[11px] font-bold tabular-nums text-[var(--pl-white)]"
+                      className={NAV_BADGE_CLASS}
                       role="status"
                       aria-label={`${badge.label} ${count}건`}
                     >
