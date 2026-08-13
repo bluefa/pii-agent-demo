@@ -81,9 +81,9 @@ export const RdsSelectionChip = () => (
  *
  * Which instance was picked is the whole point of a cluster row, and folding the band away must
  * not delete it, so the row states it whether the band is open or shut. Shared by steps 1·2·3
- * and the admin queue (owner, 2026-08-13 — the request is
- * recorded verbatim in `docs/ux/benchmark/step1-resource-table.md` 적용 ③): a review surface is where that choice is checked, so it cannot be the one place that
- * only counts.
+ * and the admin queue (owner, 2026-08-13; the request is recorded verbatim in the propagation
+ * section of `docs/ux/benchmark/step1-resource-table.md`): a review surface is where that choice
+ * is checked, so it cannot be the one place that only counts.
  *
  * The line names the SELECTION, never a tally. A parent that counts its members says what the
  * open band already says one line at a time, and that summary is what this table rejected in

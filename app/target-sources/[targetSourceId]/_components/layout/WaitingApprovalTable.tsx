@@ -460,9 +460,10 @@ export const WaitingApprovalTable = memo(
           >
             {hasInstances ? (
               // Three-line identity, exactly step 1's: kind tag → cluster name → the instance it
-              // connects through (owner, 2026-08-13; recorded verbatim in
-              // `docs/ux/benchmark/step1-resource-table.md` 적용 ③). No positional lift here — with three lines the name is already the
-              // middle one, which is the line `lead` centres the chevron on.
+              // connects through (owner, 2026-08-13; recorded verbatim in the propagation section
+              // of `docs/ux/benchmark/step1-resource-table.md`). No positional lift here — with
+              // three lines the name is already the middle one, which is the line `lead` centres
+              // the chevron on.
               <span className={idcStyles.table.group.lead}>
                 <button
                   type="button"

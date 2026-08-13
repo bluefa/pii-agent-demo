@@ -26,17 +26,16 @@ import {
  * they get their OWN three columns and fill every one of them.
  *
  * It is an ACCORDION, not a card floating under the row: no margin, no rounded box, no shadow.
- * The body is flush against its cluster and shares that row's open tint, so the header and the
- * body read as one block that opened — a detached card read as "a panel appeared somewhere
- * below", which is what the owner kept rejecting (2026-08-12). The indent is the app's own tier
- * step, the same one a grouped child row hangs at, so "this belongs to that" is said the way
- * this table already says it.
+ * The body is flush against its cluster and shares that row's open tint, so the pair reads as one
+ * block that opened rather than a panel that appeared somewhere below. The indent is the app's
+ * own tier step, the same one a grouped child row hangs at.
  *
- * ONE LINE PER INSTANCE, and the body's height is whatever that adds up to. An Aurora cluster
- * can carry a writer and fifteen readers; a fixed card grid turned that into ragged rows of
- * tiles, which is a layout pretending the count is small (owner: what happens at eight instances?
- * — a variable-length accordion, measured at 480px for eight lines). A list just gets longer, and the columns stay aligned so scanning down eight AZs or
- * eight endpoints is one eye movement instead of eight.
+ * ONE LINE PER INSTANCE, and the body's height is whatever that adds up to — an Aurora cluster
+ * carries a writer and up to fifteen readers, so any fixed grid is a layout that assumes the
+ * count is small. A list just gets longer, and the columns stay aligned so scanning down eight
+ * AZs is one eye movement instead of eight.
+ *
+ * Rejected shapes and the owner sessions behind them: `docs/ux/benchmark/step1-resource-table.md`.
  */
 
 interface RdsInstancePanelProps {
@@ -192,15 +191,11 @@ export const RdsInstancePanel = ({
               </>
             );
 
-            // A line carries NO fill of its own — not for the chosen one, and not on hover
-            // (owner, 2026-08-12). The radio already says which instance is chosen, and where
-            // there is no radio (read-only) the 선택됨 chip does; a fill on top of that was a
-            // third voice saying the same thing. It also cost more than it said: the role chip
-            // is a grey pill (`statusColors.pending.bg`), the SAME grey as this body's surface,
-            // so any line that lifted off that surface was the only one whose chip looked like
-            // a chip. One line in a list differing from its neighbours is a difference the eye
-            // reads as meaning, and here it meant nothing. The band is a flat list; the rail
-            // says what belongs to what, and the radio says what is selected.
+            // A line carries NO fill of its own — not for the chosen one, and not on hover. The
+            // radio says which instance is chosen, and where there is no radio (read-only) the
+            // 선택됨 chip does. A fill would also break the role chip: it is a grey pill
+            // (`statusColors.pending.bg`), the SAME grey as this body's surface, so the one
+            // lifted line would be the only one whose chip stopped reading as a chip.
             //
             // The rule rides each line rather than `divide-y` on the list: `divide-*` colours
             // through the children's inherited border-color, which preflight has already set
