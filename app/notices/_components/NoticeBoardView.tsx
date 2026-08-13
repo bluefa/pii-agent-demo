@@ -6,7 +6,7 @@ import { PassBanner } from '@/app/notices/_components/PassBanner';
 import { PostBoardCard } from '@/app/notices/_components/PostBoardCard';
 import { PostAccordionRow } from '@/app/notices/_components/PostAccordionRow';
 import { listPosts } from '@/app/lib/api/posts';
-import { cn, postStyles } from '@/lib/theme';
+import { bgColors, cn, postStyles } from '@/lib/theme';
 import { parsePostType, type PostSummary, type PostType } from '@/lib/types/post';
 
 /** 카드 한 장이 전체보기로 넘기기 전에 보여 주는 행 수. */
@@ -58,7 +58,11 @@ export const NoticeBoardView = () => {
     return order;
   }, [focused]);
 
-  if (focus && focused) {
+  // `focused` 가 아니라 `focus` 로 가른다. 목록이 도착하기 전엔 `focused` 가 null 이라
+  // 예전에는 2카드 뷰로 떨어졌고, 거기 있는 Pass 배너가 한 프레임 떴다가 사라졌다.
+  // 화면이 바뀌는 게 아니라 채워지는 것이므로 골격은 처음부터 같아야 한다.
+  if (focus) {
+    const loading = focused === null;
     const shown = category === ALL
       ? groups
       : groups.filter((group) => group.key === category);
@@ -78,6 +82,12 @@ export const NoticeBoardView = () => {
           <nav className={postStyles.catNav} aria-label="Category">
             {/* 선택을 색으로만 말하면 스크린 리더에는 아무 일도 일어나지 않는다
                 (Primer NavList 가 같은 자리에 `aria-current` 를 쓴다). */}
+            {loading && [0, 1, 2].map((row) => (
+              <div key={row} className={cn(postStyles.catNavItem, 'pointer-events-none')}>
+                <span className={cn('h-3 w-2/3 animate-pulse rounded', bgColors.divider)} />
+              </div>
+            ))}
+            {!loading && (
             <button
               type="button"
               onClick={() => setCategory(ALL)}
@@ -86,6 +96,7 @@ export const NoticeBoardView = () => {
             >
               전체 <span className={postStyles.catNavCount}>{focused.length}</span>
             </button>
+            )}
             {groups.map((group) => (
               <button
                 key={group.key}
@@ -104,6 +115,11 @@ export const NoticeBoardView = () => {
           </nav>
 
           <div className={postStyles.listPane}>
+            {loading && [0, 1, 2].map((row) => (
+              <div key={row} className={postStyles.row}>
+                <div className={cn('h-4 w-1/3 animate-pulse rounded', bgColors.divider)} />
+              </div>
+            ))}
             {shown.map((group) => (
               <section key={group.key} className={postStyles.groupSection}>
                 <header className={postStyles.groupHead}>
@@ -117,7 +133,7 @@ export const NoticeBoardView = () => {
                 </ul>
               </section>
             ))}
-            {shown.length === 0 && (
+            {!loading && shown.length === 0 && (
               <p className="px-[22px] py-10 text-center text-[14px] text-[#6B7280]">
                 등록된 게시글이 없습니다.
               </p>
