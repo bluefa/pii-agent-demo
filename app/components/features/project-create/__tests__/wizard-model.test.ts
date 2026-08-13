@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  attachLinkedAccount,
   buildCandidatesInput,
   isStepComplete,
   type WizardFormState,
@@ -203,6 +204,31 @@ describe('isStepComplete — step gating', () => {
       }),
     );
     expect(azure.awsLinkedAccountId).toBeUndefined();
+  });
+
+  /**
+   * 35 에 실었다고 끝이 아니다 — 36 은 35 응답을 되던지므로, 응답이 키를 떨구면 등록
+   * 요청에는 payer 만 남는다. mock 의 `buildCandidateMetadata` 가 실제로 그렇게 떨군다.
+   */
+  it('re-attaches the linked account to a candidate whose metadata came back without it', () => {
+    const returned = candidate({ metadata: { aws_account_id: '123456789012' } });
+    const posted = attachLinkedAccount(
+      returned,
+      baseState({ fields: { payerAccount: '123456789012', linkedAccount: '210987654321' } }),
+    );
+    expect(posted.metadata).toEqual({
+      aws_account_id: '123456789012',
+      aws_linked_account_id: '210987654321',
+    });
+  });
+
+  it('leaves a non-AWS candidate untouched when re-attaching', () => {
+    const returned = candidate({ cloud_type: 'AZURE', metadata: { tenant_id: 't' } });
+    const posted = attachLinkedAccount(
+      returned,
+      baseState({ providerKey: 'azure', fields: { linkedAccount: '210987654321' } }),
+    );
+    expect(posted).toBe(returned);
   });
 
   it('marks Linked Account as required in the field definition', () => {
