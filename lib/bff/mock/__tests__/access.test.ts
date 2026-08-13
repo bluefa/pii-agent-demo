@@ -188,6 +188,19 @@ describe('요청자 측', () => {
     expect(statusOf('gcp')).toBe('NONE');
   });
 
+  it('서비스 검색은 코드·이름 어느 쪽이든, 대소문자 없이 걸린다', async () => {
+    mockData.setCurrentUser('user-6');
+    const codes = async (query: string): Promise<string[]> =>
+      (
+        await body<UserServicePageWire>(await mockAccess.listUserServices(query, 0, 100))
+      ).content.map((row) => row.service_code);
+
+    // 코드는 소문자 'azure', 이름은 대문자 'Azure' — 어느 쪽으로 쳐도 같은 한 건.
+    expect(await codes('AZ')).toEqual(['azure']);
+    expect(await codes('azure')).toEqual(['azure']);
+    expect(await codes('없는서비스')).toEqual([]);
+  });
+
   it('반려된 서비스는 REJECTED 로 남는다', async () => {
     mockData.setCurrentUser('user-7'); // 시드 1004 가 반려된 사용자
     const services = await body<UserServicePageWire>(

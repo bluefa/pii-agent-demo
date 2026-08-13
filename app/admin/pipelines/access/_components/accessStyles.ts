@@ -28,9 +28,18 @@ export const accessStyles = {
   /** 제목 줄 우측 액션(사용자 추가 등) — 배지 자리를 대신 쓴다. */
   headAction: 'flex flex-none items-center gap-2',
 
+  /** 목록 조작(검색) — 설명과 목록 사이. 컬럼 머리가 없는 카드에서는 이 여백이
+   *  목록의 첫 경계선을 검색창에서 떼어 놓는 유일한 것이다. */
+  search: 'mt-3 mb-2',
+
   headRow: 'mt-3 flex items-center gap-3 py-2 text-[12px] font-medium text-[var(--pl-text-weak)]',
   row: 'group relative flex items-center gap-3 border-t border-[var(--pl-border)] py-2.5 text-[14px] text-[var(--pl-text-medium)] transition-colors',
   rowLink: 'hover:bg-[var(--pl-gray-50)]',
+  /** 서비스 패널 행 — 타일 · 이름 · 코드 태그. `/services` 레일과 같은 문법을 카드
+   *  안에서 쓴다(폭·색·타일 해시는 `serviceListStyles` 에서 그대로 온다). 서비스는
+   *  이 제품 어디서나 같은 모양으로 읽혀야 하므로 여기서 다시 그리지 않는다.
+   *  gap 은 레일의 2.5, py 는 28px 타일에 맞춘 값. */
+  svcRow: 'flex items-center gap-2.5 border-t border-[var(--pl-border)] py-2',
 
   /** 컬럼 폭 — 같은 골격을 쓰는 카드끼리 격자 간격 너머로 열이 맞도록 공유한다. */
   name: 'min-w-0 flex-1 truncate',

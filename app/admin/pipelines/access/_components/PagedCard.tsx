@@ -11,7 +11,7 @@
  * `fetcher` 는 반드시 안정된 참조여야 한다(모듈 상수 또는 useCallback) — 매 렌더
  * 새 함수가 들어오면 effect 가 끝없이 다시 돈다.
  */
-import { useCallback, useState, type ReactElement, type ReactNode } from 'react';
+import { Fragment, useCallback, useState, type ReactElement, type ReactNode } from 'react';
 import { cn } from '@/lib/theme';
 import { useAbortableEffect } from '@/app/hooks/useAbortableEffect';
 import { Icon, type IconName } from '@/app/admin/pipelines/_components/icons';
@@ -90,9 +90,18 @@ export interface PagedCardProps<T> {
   icon: IconName;
   tone: CardTone;
   state: PagedSection<T>;
-  /** 머리 행과 스켈레톤을 함께 만든다 — 둘이 실제 행과 어긋날 수 없다. */
-  columns: readonly Column[];
+  /**
+   * 머리 행과 스켈레톤을 함께 만든다 — 둘이 실제 행과 어긋날 수 없다.
+   *
+   * 컬럼 없는 목록(서비스 패널 행처럼 열이 아니라 한 덩어리로 읽는 행)은 생략한다.
+   * 그때 머리 행은 그려지지 않고, 스켈레톤 모양은 `skeletonRow` 가 준다.
+   */
+  columns?: readonly Column[];
   empty: { title: string; caption: string };
+  /** 설명 아래·목록 위의 목록 조작 — 지금은 검색창. */
+  search?: ReactNode;
+  /** 컬럼이 없는 목록의 스켈레톤 한 행. 없으면 컬럼 폭으로 막대를 그린다. */
+  skeletonRow?: ReactNode;
   /** 제목 줄 오른쪽 액션. 주면 건수 배지 대신 이것이 그려진다. */
   action?: ReactNode;
   /** 이미 시트 위에 있을 때 — 카드 크롬(테두리·그림자·고정 높이)을 벗는다. */
@@ -107,8 +116,10 @@ export function PagedCard<T>({
   icon,
   tone,
   state,
-  columns,
+  columns = [],
   empty,
+  search,
+  skeletonRow,
   action,
   bare,
   children,
@@ -116,6 +127,8 @@ export function PagedCard<T>({
 }: PagedCardProps<T>): ReactElement {
   const { paged, loading, error, page, setPage, reload } = state;
   const rows = paged?.content ?? [];
+  /** 열이 없는 목록도 상태 행은 한 칸을 차지한다 — colspan 0 은 셀이 없다는 뜻이다. */
+  const colSpan = Math.max(1, columns.length);
 
   return (
     <section className={cn(bare ? a.section : a.card, className)} aria-label={title}>
@@ -136,20 +149,27 @@ export function PagedCard<T>({
         )}
       </div>
       <p className={a.desc}>{desc}</p>
+      {search != null && <div className={a.search}>{search}</div>}
 
       {/* 행은 flex div 라 표 의미를 명시적으로 선언한다 — 스크린리더가 "이메일:
           hong@company.com" 으로 읽는다. 메시지 상태들도 표 안의 행으로 남는다. */}
       <div role="table" aria-label={`${title} 목록`}>
-        <div className={a.headRow} role="row">
-          {columns.map((col, index) => (
-            <span key={col.label ?? `tail-${index}`} role="columnheader" className={col.className}>
-              {col.label}
-            </span>
-          ))}
-        </div>
+        {columns.length > 0 && (
+          <div className={a.headRow} role="row">
+            {columns.map((col, index) => (
+              <span
+                key={col.label ?? `tail-${index}`}
+                role="columnheader"
+                className={col.className}
+              >
+                {col.label}
+              </span>
+            ))}
+          </div>
+        )}
         {error != null ? (
           <div role="row">
-            <div role="cell" aria-colspan={columns.length} className={a.state}>
+            <div role="cell" aria-colspan={colSpan} className={a.state}>
               <span className="min-w-0 truncate">{errorMessage(error)}</span>
               <PlButton variant="secondary" size="sm" onClick={reload}>
                 재시도
@@ -158,21 +178,25 @@ export function PagedCard<T>({
           </div>
         ) : loading ? (
           <div role="rowgroup" aria-busy="true" aria-label="목록을 불러오는 중">
-            {Array.from({ length: ROWS_PER_PAGE }, (_, row) => (
-              <div key={row} className={a.row} role="row" aria-hidden="true">
-                {columns.map((col, index) => (
-                  <span
-                    key={col.label ?? `tail-${index}`}
-                    role="cell"
-                    className={cn(col.className, col.label != null && a.skeletonBar)}
-                  />
-                ))}
-              </div>
-            ))}
+            {Array.from({ length: ROWS_PER_PAGE }, (_, row) =>
+              skeletonRow != null ? (
+                <Fragment key={row}>{skeletonRow}</Fragment>
+              ) : (
+                <div key={row} className={a.row} role="row" aria-hidden="true">
+                  {columns.map((col, index) => (
+                    <span
+                      key={col.label ?? `tail-${index}`}
+                      role="cell"
+                      className={cn(col.className, col.label != null && a.skeletonBar)}
+                    />
+                  ))}
+                </div>
+              ),
+            )}
           </div>
         ) : rows.length === 0 ? (
           <div role="row">
-            <div role="cell" aria-colspan={columns.length} className={a.empty}>
+            <div role="cell" aria-colspan={colSpan} className={a.empty}>
               <span className={a.emptyTitle}>{empty.title}</span>
               <span className={a.emptyCaption}>{empty.caption}</span>
             </div>
