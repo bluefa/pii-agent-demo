@@ -17,11 +17,11 @@ import { useModal } from '@/app/hooks/useModal';
 import { type RailRowProps } from '@/app/hooks/useRailHover';
 import { getResourceDisplayName } from '@/lib/resource';
 import { GROUPED_CHILD_KIND_LABEL } from '@/lib/resource-grouping';
-import { rdsInstanceLabel, sortRdsInstances } from '@/lib/rds-instances';
+import { sortRdsInstances } from '@/lib/rds-instances';
 import {
   Ec2InstanceTag,
+  RdsChosenInstanceLine,
   RdsClusterTag,
-  RdsMemberChip,
 } from '@/app/components/ui/RdsInstanceChips';
 import { RdsInstancePanel } from '@/app/target-sources/[targetSourceId]/_components/shared/RdsInstancePanel';
 import { isEc2Instance, resolveExclusionReason } from '@/lib/types';
@@ -311,28 +311,7 @@ export const CandidateResourceRow = ({
                     because a line that changes weight when you open the row is a hierarchy that
                     moves for no reason. It stays the quiet tier by size (12 vs 14) and by being
                     the third line. */}
-                <span
-                  className={cn(
-                    'flex min-w-0 max-w-full items-center gap-1.5 text-[12px]',
-                    textColors.secondary,
-                  )}
-                >
-                  <span aria-hidden="true">↳</span>
-                  {chosenInstance ? (
-                    <>
-                      <RdsMemberChip role={chosenInstance.cluster_member_role} />
-                      <span className="min-w-0 truncate font-mono">
-                        {rdsInstanceLabel(chosenInstance)}
-                      </span>
-                    </>
-                  ) : (
-                    // Left out of the request: no instance is submitted, so there is nothing to
-                    // name — the count is what the row can honestly say.
-                    <span className="whitespace-nowrap">
-                      {`인스턴스 ${sortedInstances.length}건`}
-                    </span>
-                  )}
-                </span>
+                <RdsChosenInstanceLine chosen={chosenInstance} total={sortedInstances.length} />
               </span>
             </span>
           ) : isEc2 ? (

@@ -523,8 +523,12 @@ describe('WaitingApprovalTable', () => {
 
     it('shows the member role on every instance line', () => {
       render(<WaitingApprovalTable resources={[cluster()]} />);
-      expect(screen.getAllByText('Reader')).toHaveLength(2);
-      expect(screen.getAllByText('Writer')).toHaveLength(1);
+      const band = within(document.querySelector('td.px-0') as HTMLElement);
+      expect(band.getAllByText('Reader')).toHaveLength(2);
+      expect(band.getAllByText('Writer')).toHaveLength(1);
+      // Scoped to the band because the cluster row now carries the chosen member's role too —
+      // a document-wide count would be 3 Readers and pin nothing in particular.
+      expect(screen.getAllByText('Reader')).toHaveLength(3);
     });
 
     // The band is why the columns can say this at all: as rows of this table the AZ was filed
@@ -541,12 +545,15 @@ describe('WaitingApprovalTable', () => {
       expect(screen.getByText('ap-northeast-2c')).toBeTruthy();
     });
 
-    // The parent carries the COUNT only — the 선택됨 chip is the single statement of the choice.
-    it('counts instances on the cluster row without naming the chosen one', () => {
+    // The cluster row NAMES the member it connects through, exactly as step 1 does (owner,
+    // 2026-08-13) — the count it used to print was the tally PR #630 threw out, and on a review
+    // surface the choice is the fact being reviewed.
+    it('names the chosen instance on the cluster row, not a count', () => {
       render(<WaitingApprovalTable resources={[cluster()]} />);
-      expect(screen.getByText('3개 인스턴스')).toBeTruthy();
-      // demo-2 appears once — on its own instance row, not in a parent summary.
-      expect(instanceNames().filter((text) => text.includes('demo-2'))).toHaveLength(1);
+      const clusterCell = screen.getByText('demo-cluster').closest('td') as HTMLElement;
+      expect(clusterCell.textContent).toContain('demo-2');
+      expect(clusterCell.textContent).toContain('Reader');
+      expect(screen.queryByText('3개 인스턴스')).toBeNull();
     });
 
     it('tags the cluster row RDS Cluster, before the name', () => {
@@ -565,9 +572,10 @@ describe('WaitingApprovalTable', () => {
 
       fireEvent.click(screen.getByRole('button', { name: 'demo-cluster 인스턴스 목록 접기' }));
       expect(instanceNames()).toHaveLength(0);
-      // The count and the tag survive the collapse.
-      expect(screen.getByText('3개 인스턴스')).toBeTruthy();
+      // Folding hides the comparison, never the choice: the tag and the chosen member survive.
       expect(screen.getByText('RDS Cluster')).toBeTruthy();
+      const clusterCell = screen.getByText('demo-cluster').closest('td') as HTMLElement;
+      expect(clusterCell.textContent).toContain('demo-2');
     });
 
     // 부모가 제외됐다고 멤버의 글자를 낮추지 않는다 — 제외는 레일이 말한다. The band also sits
@@ -599,7 +607,8 @@ describe('WaitingApprovalTable', () => {
       fireEvent.click(screen.getByRole('button', { name: 'demo-cluster 인스턴스 목록 펼치기' }));
       expect(instanceNames()).toHaveLength(3);
       expect(screen.queryByText('선택됨')).toBeNull();
-      expect(screen.getByText('3개 인스턴스')).toBeTruthy();
+      // Nothing was chosen, so the third line falls back to the count — the honest thing left.
+      expect(screen.getByText('인스턴스 3건')).toBeTruthy();
     });
 
     // Every other row shape, and every other variant, must be untouched by this addition.

@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import type { RequestResourceRow } from '@/app/lib/api/task-queue-requests';
 import { CloudResourceTable } from '@/app/admin/pipelines/queue/requests/_components/CloudResourceTable';
@@ -130,12 +130,25 @@ describe('CloudResourceTable', () => {
       expect(screen.getByText('선택됨').closest('div')?.textContent).toContain('demo-2');
     });
 
+    // Folding the band away must never be what deletes the choice — checking it is why this
+    // screen exists (owner, 2026-08-13: the step-1 third line applies from step 2 on).
+    it('names the chosen instance on the cluster row, folded or not', () => {
+      render(<CloudResourceTable rows={[clusterRow()]} />);
+      expect(screen.getByText('demo-cluster').closest('td')?.textContent).toContain('demo-2');
+
+      fireEvent.click(screen.getByRole('button', { name: 'demo-cluster 인스턴스 목록 접기' }));
+      expect(instanceNames()).toHaveLength(0);
+      expect(screen.getByText('demo-cluster').closest('td')?.textContent).toContain('demo-2');
+    });
+
     // The band is why the columns can say this at all: as rows of the outer table the AZ was
     // filed under the Region header and the endpoint had nowhere to go.
     it('gives each instance its own labelled AZ and endpoint columns', () => {
       render(<CloudResourceTable rows={[clusterRow()]} />);
-      expect(screen.getAllByText('Reader')).toHaveLength(2);
-      expect(screen.getAllByText('Writer')).toHaveLength(1);
+      // Scoped to the band: the cluster row carries the chosen member's role too.
+      const band = within(document.querySelector('td.px-0') as HTMLElement);
+      expect(band.getAllByText('Reader')).toHaveLength(2);
+      expect(band.getAllByText('Writer')).toHaveLength(1);
       expect(screen.queryByText('WRITER')).toBeNull();
       // The band's own headers — the outer table's Region column keeps the cluster's region.
       expect(screen.getByText('가용 영역')).toBeTruthy();

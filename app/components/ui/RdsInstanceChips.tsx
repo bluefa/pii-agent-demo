@@ -1,5 +1,17 @@
-import { memberRole, memberRoleLabel } from '@/lib/rds-instances';
-import { cn, primaryColors, statusColors, tableRowLift, tagStyles } from '@/lib/theme';
+import {
+  memberRole,
+  memberRoleLabel,
+  rdsInstanceLabel,
+  type RdsInstanceCandidate,
+} from '@/lib/rds-instances';
+import {
+  cn,
+  primaryColors,
+  statusColors,
+  tableRowLift,
+  tagStyles,
+  textColors,
+} from '@/lib/theme';
 
 // `chipEdge` is inert outside a `tableRowLift.base` row — it is a `group-hover:` rule, so a
 // chip rendered anywhere without that ancestor draws no ring. Every chip here can appear in a
@@ -62,4 +74,40 @@ export const RdsMemberChip = ({ role }: { role?: string }) => {
  */
 export const RdsSelectionChip = () => (
   <span className={cn(CHIP_BASE, primaryColors.bgLight, primaryColors.textOnLight)}>선택됨</span>
+);
+
+/**
+ * The cluster identity's third line — the member the agent connects through.
+ *
+ * Which instance was picked is the whole point of a cluster row, and folding the band away must
+ * not delete it, so the row states it whether the band is open or shut. Shared by steps 1·2·3
+ * and the admin queue (owner, 2026-08-13: "Step2 이상부터는 접었을 때도 instance 정보가 step1
+ * 처럼"): a review surface is where that choice is checked, so it cannot be the one place that
+ * only counts.
+ *
+ * The line names the SELECTION, never a tally. A parent that counts its members says what the
+ * open band already says one line at a time, and that summary is what this table rejected in
+ * PR #630. `총` only stands in when there is NO selection — an excluded cluster submits no
+ * instance, so the count is the honest thing left to say.
+ *
+ * The role rides directly beside the name (owner: "정말 중요한 정보"), not in a column of its own.
+ */
+export const RdsChosenInstanceLine = ({
+  chosen,
+  total,
+}: {
+  chosen: RdsInstanceCandidate | undefined;
+  total: number;
+}) => (
+  <span className={cn('flex min-w-0 max-w-full items-center gap-1.5 text-[12px]', textColors.secondary)}>
+    <span aria-hidden="true">↳</span>
+    {chosen ? (
+      <>
+        <RdsMemberChip role={chosen.cluster_member_role} />
+        <span className="min-w-0 truncate font-mono">{rdsInstanceLabel(chosen)}</span>
+      </>
+    ) : (
+      <span className="whitespace-nowrap">{`인스턴스 ${total}건`}</span>
+    )}
+  </span>
 );

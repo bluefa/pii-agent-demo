@@ -28,7 +28,11 @@ import {
 } from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalTable';
 import { ResourceIdCell } from '@/app/target-sources/[targetSourceId]/_components/shared/ResourceIdCell';
 import { RdsInstancePanel } from '@/app/target-sources/[targetSourceId]/_components/shared/RdsInstancePanel';
-import { Ec2InstanceTag, RdsClusterTag } from '@/app/components/ui/RdsInstanceChips';
+import {
+  Ec2InstanceTag,
+  RdsChosenInstanceLine,
+  RdsClusterTag,
+} from '@/app/components/ui/RdsInstanceChips';
 import { isRdsCluster, sortRdsInstances } from '@/lib/rds-instances';
 import { isEc2Instance, resolveExclusionReason } from '@/lib/types';
 import type { RequestResourceRow } from '@/app/lib/api/task-queue-requests';
@@ -101,6 +105,10 @@ export function CloudResourceTable({ rows }: CloudResourceTableProps): ReactElem
             const isEc2 = isEc2Instance(row.resourceType);
             const instances = sortRdsInstances(row.rdsInstanceCandidates);
             const hasInstances = instances.length > 0;
+            // An excluded cluster submits no instance, so there is nothing chosen to name.
+            const chosenInstance = instances.find(
+              (instance) => instance.resource_id === row.selectedRdsInstanceResourceId,
+            );
             const fold = clusterFold(rowKey, row.selected);
             const instancesOpen = hasInstances && fold.open;
             return (
@@ -158,8 +166,9 @@ export function CloudResourceTable({ rows }: CloudResourceTableProps): ReactElem
                     )}
                     <span className={cn(
                       'flex min-w-0 flex-col items-start gap-1',
-                      // Only a tagged row is two lines — an untagged one is already on the middle.
-                      (isCluster || isEc2) && table.stackedIdentityLift,
+                      // Only a TWO-line row needs the lift — an untagged one is already on the
+                      // middle, and so is the name of a three-line cluster (tag → name → member).
+                      (isCluster || isEc2) && !hasInstances && table.stackedIdentityLift,
                     )}>
                     {isCluster && <RdsClusterTag />}
                     {isEc2 && <Ec2InstanceTag />}
@@ -172,6 +181,12 @@ export function CloudResourceTable({ rows }: CloudResourceTableProps): ReactElem
                     >
                       <span className="block truncate">{row.resourceName || '—'}</span>
                     </Tooltip>
+                    {/* Which member the request connects through — the same third line steps
+                        1·2·3 carry (owner, 2026-08-13). The queue exists to check that choice,
+                        so folding the band away must not be what deletes it. */}
+                    {hasInstances && (
+                      <RdsChosenInstanceLine chosen={chosenInstance} total={instances.length} />
+                    )}
                     </span>
                   </span>
                 </td>

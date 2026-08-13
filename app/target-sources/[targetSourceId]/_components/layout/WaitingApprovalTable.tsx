@@ -20,7 +20,11 @@ import {
   sortRdsInstances,
   type RdsInstanceCandidate,
 } from '@/lib/rds-instances';
-import { Ec2InstanceTag, RdsClusterTag } from '@/app/components/ui/RdsInstanceChips';
+import {
+  Ec2InstanceTag,
+  RdsChosenInstanceLine,
+  RdsClusterTag,
+} from '@/app/components/ui/RdsInstanceChips';
 import { RdsInstancePanel } from '@/app/target-sources/[targetSourceId]/_components/shared/RdsInstancePanel';
 import { hasLogicalDatabases, isEc2Instance, resolveExclusionReason } from '@/lib/types';
 import {
@@ -395,6 +399,10 @@ export const WaitingApprovalTable = memo(
         ? sortRdsInstances(resource.rdsInstanceCandidates)
         : [];
       const hasInstances = instances.length > 0;
+      // An excluded cluster submits no instance, so there is nothing chosen to name.
+      const chosenInstance = instances.find(
+        (instance) => instance.resource_id === resource.selectedRdsInstanceResourceId,
+      );
       const instanceFold = clusterFold(rowKey, resource.selected);
       const instancesOpen = hasInstances && instanceFold.open;
       // Keyed on the declared top-level type, never on `resourceType` — see the field's note.
@@ -451,9 +459,10 @@ export const WaitingApprovalTable = memo(
             )}
           >
             {hasInstances ? (
-              // A cluster keeps its own name — two-line identity (owner request): the tag sits
-              // ABOVE the name, and the chevron centres on the pair.
-              // Same stack as the step-1 cluster row so the three steps read identically.
+              // Three-line identity, exactly step 1's: kind tag → cluster name → the instance it
+              // connects through (owner, 2026-08-13: "Step2 이상부터는 접었을 때도 instance 정보가
+              // step1처럼"). No positional lift here — with three lines the name is already the
+              // middle one, which is the line `lead` centres the chevron on.
               <span className={idcStyles.table.group.lead}>
                 <button
                   type="button"
@@ -475,16 +484,8 @@ export const WaitingApprovalTable = memo(
                 >
                   <ChevronRightIcon className="h-3.5 w-3.5" />
                 </button>
-                <span className={cn('flex min-w-0 flex-col items-start gap-1', idcStyles.table.stackedIdentityLift)}>
-                  {/* Count only, on the tag line — same stack as the step-1 cluster row. The
-                      선택됨 chip on the instance row is the single place the choice is stated,
-                      so the parent can never contradict it. */}
-                  <span className="flex items-center gap-2">
-                    <RdsClusterTag />
-                    <span className={cn('whitespace-nowrap font-sans text-[12px]', textColors.tertiary)}>
-                      {instances.length}개 인스턴스
-                    </span>
-                  </span>
+                <span className="flex min-w-0 flex-col items-start gap-1">
+                  <RdsClusterTag />
                   <Tooltip
                     content={<IdentifierTip label="Resource Name" value={resource.resourceName} />}
                     variant="value"
@@ -494,6 +495,12 @@ export const WaitingApprovalTable = memo(
                   >
                     <span className="block truncate">{resource.resourceName || PLACEHOLDER}</span>
                   </Tooltip>
+                  {/* The count it replaces was the tally PR #630 threw out — and on a REVIEW
+                      surface it was the wrong fact besides: which member the request connects
+                      through is the thing being reviewed, and the row said only how many there
+                      were. `RdsChosenInstanceLine` falls back to the count when the cluster is
+                      excluded, because then there is no selection to name. */}
+                  <RdsChosenInstanceLine chosen={chosenInstance} total={instances.length} />
                 </span>
               </span>
             ) : folded ? (
