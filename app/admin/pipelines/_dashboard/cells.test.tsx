@@ -115,6 +115,29 @@ describe('TargetCell', () => {
     expect(num?.[1]).toContain('group-hover:text-[var(--pl-info-text)]');
   });
 
+  /**
+   * 이 열에서 색을 가진 건 마크뿐이다 (오너 2026-08-14). 상태 색을 페이지당 두 낱말로
+   * 줄이고 남은 자리를 마크에 준 것이라, 로고는 상태 채널을 잠식하지 않는다 — 로고는
+   * 실행이 어떻게 되어가는지에 대해 아무 말도 하지 않기 때문이다.
+   *
+   * 브랜드 색 자체(주황·구글 4색·Azure 파랑)는 여기서 세지 않는다. 세는 것은 마크가
+   * 여러 색 경로를 유지하고 있는지다 — mono 로 되돌아가면 0 이 된다.
+   */
+  const brandFills = (html: string): string[] => html.match(/fill="#[0-9A-F]{6}"/gi) ?? [];
+
+  it('gives the three public clouds their own brand marks', () => {
+    expect(brandFills(target({ provider: 'AWS' }))).toHaveLength(2); // 워드마크 + 스마일
+    expect(brandFills(target({ provider: 'GCP' }))).toHaveLength(4); // 구글 4색
+    expect(brandFills(target({ provider: 'AZURE' }))).toHaveLength(3);
+  });
+
+  it('leaves IDC and SDU on the column colour — neither has a brand', () => {
+    for (const html of [target({ provider: 'IDC' }), target({ provider: 'AWS', isSdu: true })]) {
+      expect(brandFills(html)).toHaveLength(0);
+      expect(html).toContain('currentColor');
+    }
+  });
+
   it('names the provider for a reader who cannot see the glyph', () => {
     expect(target({ provider: 'AWS' })).toContain('aria-label="AWS"');
     expect(target({ provider: 'AWS', isSdu: true })).toContain('aria-label="SDU"');
