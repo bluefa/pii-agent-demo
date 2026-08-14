@@ -20,8 +20,10 @@ import {
   recipeLabel,
   runWindow,
   statusKo,
+  stripTerraformAction,
   taskInfraSide,
   taskMetaLine,
+  taskRunLine,
 } from '@/lib/pipeline/format';
 import type { TaskDetail, TaskStatus, TaskSummary } from '@/lib/pipeline/types';
 
@@ -438,6 +440,92 @@ describe('exec-band helpers (design-benchmark 시안 1·2·5)', () => {
     expect(fmtElapsedMs(2 * 3_600_000 + 5 * 60_000)).toBe('2시간 5분');
     expect(fmtElapsedMs(-1)).toBe('-');
     expect(fmtElapsedMs(Number.NaN)).toBe('-');
+  });
+
+});
+
+describe('taskRunLine — 카드 실행 요약 (시안 F)', () => {
+  it('끝난 태스크는 시작·완료 시각과 소요를 모두 말한다', () => {
+    expect(
+      taskRunLine(
+        summary({
+          status: 'DONE',
+          started_at: '2026-08-14T10:41:00Z',
+          finished_at: '2026-08-14T10:43:00Z',
+        }),
+      ),
+    ).toEqual({
+      startedAt: '2026-08-14 19:41',
+      finishedAt: '2026-08-14 19:43',
+      elapsed: '2분',
+    });
+  });
+
+  it('판정은 담지 않는다 — 테두리·코너 배지 몫이라 상태가 달라도 같은 값이 나온다', () => {
+    const at = { started_at: '2026-08-14T10:41:00Z', finished_at: '2026-08-14T10:43:00Z' };
+    const statuses: TaskStatus[] = ['DONE', 'FAILED', 'CANCELLED'];
+    for (const status of statuses) {
+      expect(taskRunLine(summary({ status, ...at }))).toEqual({
+        startedAt: '2026-08-14 19:41',
+        finishedAt: '2026-08-14 19:43',
+        elapsed: '2분',
+      });
+    }
+  });
+
+  it('시작 전 태스크는 세 칸 모두 비어 있다', () => {
+    expect(taskRunLine(summary({ status: 'BLOCKED' }))).toEqual({
+      startedAt: '-',
+      finishedAt: '-',
+      elapsed: null,
+    });
+  });
+
+  it('진행 중이면 완료 시각과 소요가 비고 시작 시각만 찬다 — 경과 시계는 실행 밴드 몫', () => {
+    expect(
+      taskRunLine(summary({ status: 'IN_PROGRESS', started_at: '2026-08-14T10:41:00Z' })),
+    ).toEqual({ startedAt: '2026-08-14 19:41', finishedAt: '-', elapsed: null });
+  });
+
+  it('종료 시각이 비어 온 FAILED도 같은 갈래로 떨어진다', () => {
+    expect(
+      taskRunLine(summary({ status: 'FAILED', fail_count: 2, started_at: '2026-08-14T08:20:00Z' })),
+    ).toEqual({ startedAt: '2026-08-14 17:20', finishedAt: '-', elapsed: null });
+  });
+
+  it('종료가 시작보다 이르면 소요를 지어내지 않고 비운다', () => {
+    expect(
+      taskRunLine(
+        summary({
+          status: 'DONE',
+          started_at: '2026-08-14T10:43:00Z',
+          finished_at: '2026-08-14T10:41:00Z',
+        }),
+      ).elapsed,
+    ).toBeNull();
+  });
+});
+
+describe('stripTerraformAction — 카드 제목의 실행 종류 접미사', () => {
+  it('후행 Plan/Apply/Destroy 를 뗀다', () => {
+    expect(stripTerraformAction('AWS Service Level 테라폼 Plan', 'PLAN')).toBe(
+      'AWS Service Level 테라폼',
+    );
+    expect(stripTerraformAction('Azure BDC 테라폼 Apply', 'APPLY')).toBe('Azure BDC 테라폼');
+    expect(stripTerraformAction('AWS BDC 테라폼 Destroy', 'DESTROY')).toBe('AWS BDC 테라폼');
+  });
+
+  it('접미사가 없거나 action 이 null 이면 원문 그대로', () => {
+    expect(stripTerraformAction('네트워크 준비 확인', null)).toBe('네트워크 준비 확인');
+    expect(stripTerraformAction('Apply 이후 검증', 'APPLY')).toBe('Apply 이후 검증');
+  });
+
+  it('단어 경계를 지킨다 — 이름 끝이 우연히 같은 글자로 끝나도 자르지 않는다', () => {
+    expect(stripTerraformAction('BDC 테라폼 Preplan', 'PLAN')).toBe('BDC 테라폼 Preplan');
+  });
+
+  it('떼면 빈 이름이 되는 경우에는 원문을 지킨다', () => {
+    expect(stripTerraformAction('Apply', 'APPLY')).toBe('Apply');
   });
 });
 

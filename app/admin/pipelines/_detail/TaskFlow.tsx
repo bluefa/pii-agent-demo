@@ -30,7 +30,12 @@ import { Icon } from '@/app/admin/pipelines/_components/icons';
 import { TerraformLogo, providerLogo } from '@/app/admin/pipelines/_components/brandMarks';
 import { JobKindTag } from '@/app/admin/pipelines/_components/JobKindTag';
 import { InfraSideTag } from '@/app/admin/pipelines/_components/InfraSideTag';
-import { taskInfraSide } from '@/lib/pipeline/format';
+import {
+  statusKo,
+  stripTerraformAction,
+  taskInfraSide,
+  taskRunLine,
+} from '@/lib/pipeline/format';
 import {
   connectorClass,
   nodeStateClass,
@@ -110,7 +115,10 @@ export const FLOW_CSS = `
 const DETAIL_CSS = `
 .pl-flow.pl-detail{background-color:var(--pl-flow-canvas)}
 .pl-flow.pl-detail .pl-scroll{padding:36px 28px}
-.pl-flow.pl-detail .pl-tnode{width:288px;padding:24px;border-radius:16px;display:flex;align-items:center;gap:20px}
+.pl-flow.pl-detail .pl-tnode{width:288px;padding:24px;border-radius:16px;display:flex;flex-direction:column;gap:16px}
+/* Identity row (mark + title column); the run block below spans the full card so
+   the timestamps get the whole 240px instead of the 162px left of the logomark. */
+.pl-flow.pl-detail .nd-main{display:flex;align-items:center;gap:20px}
 .pl-flow.pl-detail .nd-icons{margin:0;flex:none}
 .pl-flow.pl-detail .nd-mark,.pl-flow.pl-detail .nd-mark.m-cond{width:56px;height:56px;border:0;border-radius:0;background:transparent}
 .pl-flow.pl-detail .nd-mark.m-cond{color:var(--pl-warn)}
@@ -118,6 +126,13 @@ const DETAIL_CSS = `
 .pl-flow.pl-detail .nd-body{flex:1;min-width:0;display:flex;flex-direction:column}
 .pl-flow.pl-detail .nd-name{font-size:16px;line-height:1.35;font-weight:700}
 .pl-flow.pl-detail .nd-meta{font-size:14px;line-height:1.5;margin-top:10px;color:var(--pl-text-weak)}
+.pl-flow.pl-detail .nd-run{padding-top:12px;border-top:1px solid var(--pl-border);display:flex;flex-direction:column;gap:4px;font-size:12px;line-height:1.4;font-variant-numeric:tabular-nums}
+/* nowrap keeps a timestamp whole; wrap lets a rare long 소요 ("12시간 45분") drop to
+   its own line instead of overflowing the card. */
+.pl-flow.pl-detail .nd-run-row{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 8px;white-space:nowrap}
+.pl-flow.pl-detail .nd-run-k{flex:none;color:var(--pl-text-weak)}
+.pl-flow.pl-detail .nd-run-v{color:var(--pl-text-medium)}
+.pl-flow.pl-detail .nd-run-el{margin-left:auto;flex:none;font-weight:600;color:var(--pl-text-medium)}
 `;
 /* nd-meta at text-weak/14px — faint(#98A2B3) measured 2.6:1 on the white node
  * card; this line is the failure-cause reader (design-guide floor 4.5:1). */
@@ -236,12 +251,22 @@ export function TaskFlow({
       <div className="pl-scroll">
         <div className="pl-track">
         {tasks.map((task, index) => {
-          const name = resolveName(task);
+          // The card drops the trailing Plan/Apply/Destroy — the JobKindTag right above
+          // the title already says it, and the freed line goes to the run times (owner).
+          // The drawer keeps the full name, which is its only carrier of the action.
+          const name = stripTerraformAction(resolveName(task), task.terraform_action);
           // Secondary line (Figma): the task description sentence, or the red
           // failure line (fail count + error code) for FAILED. Both come from the
           // catalog + summary via resolveMeta — no per-task detail fetch.
           const meta = resolveMeta(task);
           const side = taskInfraSide(task.task_definition);
+          // Verdict + timing (시안 F): the run window moves out of the 500px drawer
+          // onto the card, which had room to spare — so the drawer's first block can
+          // lead with the judgment instead of a timestamp.
+          const run = taskRunLine(task);
+          // Status stays a stroke/badge signal on the card (owner) — but a border color
+          // is silent, so the accessible name is where the verdict gets spelled out.
+          const verdict = statusKo(task.status);
           return (
             <Fragment key={task.task_id}>
               {index > 0 && (
@@ -256,7 +281,7 @@ export function TaskFlow({
                 className={cn('pl-tnode', nodeStateClass(task.status), selectedId === task.task_id && 's-selected')}
                 role="button"
                 tabIndex={0}
-                aria-label={`${name} 상세 열기`}
+                aria-label={`${name} · ${verdict} · 상세 열기`}
                 aria-pressed={selectedId === task.task_id}
                 onClick={(event) => {
                   onOpen(task);
@@ -264,28 +289,41 @@ export function TaskFlow({
                 }}
                 onKeyDown={onKey(task)}
               >
-                <div className="nd-icons">
-                  {task.kind === 'TERRAFORM_JOB' ? (
-                    <span className="nd-mark" title="Terraform">
-                      <TerraformLogo />
-                    </span>
-                  ) : (
-                    <span className="nd-mark m-cond" title="조건 확인(폴링)">
-                      {/* 70:35 condition gate — amber ring + check (currentColor). */}
-                      <Icon name="check-circle" strokeWidth={2.2} />
-                    </span>
-                  )}
-                </div>
                 {nodeBadge(task.status, task.sequence)}
-                <div className="nd-body">
-                  {(task.terraform_action || side) && (
-                    <div className="flex items-center gap-1 self-start mb-1.5">
-                      <JobKindTag action={task.terraform_action} />
-                      <InfraSideTag side={side} />
-                    </div>
-                  )}
-                  <span className="nd-name">{name}</span>
-                  <div className="nd-meta">{meta}</div>
+                <div className="nd-main">
+                  <div className="nd-icons">
+                    {task.kind === 'TERRAFORM_JOB' ? (
+                      <span className="nd-mark" title="Terraform">
+                        <TerraformLogo />
+                      </span>
+                    ) : (
+                      <span className="nd-mark m-cond" title="조건 확인(폴링)">
+                        {/* 70:35 condition gate — amber ring + check (currentColor). */}
+                        <Icon name="check-circle" strokeWidth={2.2} />
+                      </span>
+                    )}
+                  </div>
+                  <div className="nd-body">
+                    {(task.terraform_action || side) && (
+                      <div className="flex items-center gap-1 self-start mb-1.5">
+                        <JobKindTag action={task.terraform_action} />
+                        <InfraSideTag side={side} />
+                      </div>
+                    )}
+                    <span className="nd-name">{name}</span>
+                    <div className="nd-meta">{meta}</div>
+                  </div>
+                </div>
+                <div className="nd-run">
+                  <div className="nd-run-row">
+                    <span className="nd-run-k">시작 시간</span>
+                    <span className="nd-run-v">{run.startedAt}</span>
+                  </div>
+                  <div className="nd-run-row">
+                    <span className="nd-run-k">완료 시간</span>
+                    <span className="nd-run-v">{run.finishedAt}</span>
+                    {run.elapsed && <span className="nd-run-el">소요 {run.elapsed}</span>}
+                  </div>
                 </div>
               </div>
             </Fragment>
