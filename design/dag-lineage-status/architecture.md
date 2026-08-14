@@ -5,9 +5,13 @@ DAG별 최근 7일 상태를 준실시간으로 제공하는 시스템.
 
 ## 요구사항
 
-- Composer 환경 여러 개, DAG 약 10만 개, DAG당 task 약 11개
+- Composer 환경 여러 개, 대상 DAG 약 10만 개, DAG당 task 약 11개, 365일 매일 실행
 - 준실시간에 가까운 상태 반영
 - DAG 단위(task 아님) 라이프사이클: 스케줄 시작 / 성공 / 실패
+- **기존 OpenLineage transport가 이미 존재** — 건드리지 않고 공존해야 함
+- 이번 transport는 **DAG 이름이 특정 prefix로 시작하는 DAG만** 지정
+  Pub/Sub topic으로 보냄
+- DAG 이름 ↔ 외부 ID는 별도 API 서버로 조회 (1:1, Composer·Spring 둘 다 접근 가능)
 - 주간 화면:
   1. 최근 7일간 1회 이상 성공 여부 + 성공 시각
   2. 날짜별 상태: 성공 > 동작중 > 실패 > 스케줄 안 됨
@@ -15,17 +19,20 @@ DAG별 최근 7일 상태를 준실시간으로 제공하는 시스템.
 ## 전체 구조
 
 ```
-Composer env A ─┐  (openlineage provider + custom PubSubTransport)
+Composer env A ─┐  composite transport = 기존 transport + PubSubTransport
 Composer env B ─┼──▶ Pub/Sub topic: lineage-events
-Composer env N ─┘         │
+Composer env N ─┘   (DAG-only + name-prefix 허용 목록)
+                          │
                           ├─▶ pull 구독 ──▶ Spring server (GKE)
                           │                  parse → 멱등 upsert
                           │                       │
                           │                       ▼
-                          │                  Postgres dag_run_status
-                          │                       │
-                          │                       ▼
-                          │                  주간 조회 API (GROUP BY)
+                          │             Postgres dag_run_status
+                          │                       │        ▲
+                          │              (read 시 join)    │ reconciler가
+                          │                       │   dag_registry 채움
+                          │                       ▼        │
+                          │             주간 조회 API   dag-id API server
                           │
                           ├─▶ BigQuery export 구독  (원본 보관, 재계산용)
                           └─▶ dead-letter topic     (max delivery attempts 5)
@@ -52,8 +59,11 @@ DAG 하나가 1회 실행될 때 provider가 발행하는 이벤트 (task 11개 
 **결정: transport에서 필터한다.** Pub/Sub 요금 자체는 크지 않지만,
 쓰지 않을 트래픽의 92%가 폭주 구간에 구독자·DB를 직격하고, BQ 원본
 보관과 DLQ 노이즈도 그만큼 커진다. 필터는 transport의 `emit()` 안
-3줄이고, **허용 목록 방식**(jobType facet이 `DAG`인 것만 통과)이라
-새 이벤트 종류가 생겨도 조용히 새지 않는다.
+몇 줄이고, **허용 목록 2중 조건**(jobType facet이 `DAG` **AND** DAG
+이름이 설정된 prefix로 시작)만 통과시키므로 새 이벤트 종류나 대상
+외 DAG가 생겨도 조용히 새지 않는다. prefix 필터는 요구사항이기도
+하지만, prefix 밖 DAG가 늘어나도 이 파이프라인 볼륨이 불변이라는
+격리 효과도 있다.
 
 기각한 대안 — `AIRFLOW__OPENLINEAGE__DISABLED_FOR_OPERATORS`:
 커스텀 코드 없이 task 이벤트를 끌 수 있으나 operator 클래스 목록을
@@ -62,17 +72,35 @@ DAG 하나가 1회 실행될 때 provider가 발행하는 이벤트 (task 11개 
 
 ## 구성요소별 결정
 
-### Composer 쪽 (transport/)
+### Composer 쪽 (transport/) — 기존 transport와 공존
 
-- `apache-airflow-providers-openlineage` + 커스텀 `PubSubTransport`
-  (작은 PyPI 패키지로 전 환경에 설치).
-- 환경변수 2개로 끝: `AIRFLOW__OPENLINEAGE__TRANSPORT`(topic 설정),
-  `AIRFLOW__OPENLINEAGE__NAMESPACE`(환경별 유니크 — 환경 간 dag_id
-  충돌을 흡수하는 키).
+기존 transport가 이미 있으므로 **composite transport**로 나란히 건다.
+기존 설정은 그대로 옮겨 담고, 새 `PubSubTransport`를 추가한다:
+
+```
+AIRFLOW__OPENLINEAGE__TRANSPORT='{
+  "type": "composite",
+  "continue_on_failure": true,
+  "transports": {
+    "existing":      { ...기존 transport 설정 그대로... },
+    "weekly_status": { "type": "lineage_pubsub.PubSubTransport",
+                       "project": "my-project",
+                       "topic": "lineage-events",
+                       "dag_name_prefix": "pii_" }
+  }
+}'
+AIRFLOW__OPENLINEAGE__NAMESPACE='composer-env-a'   # 환경별 유니크
+```
+
+- `continue_on_failure: true` 필수 — 새 Pub/Sub 경로 장애가 기존
+  lineage 흐름을 깨면 안 되고, 그 역도 마찬가지.
+- prefix 필터는 새 transport **내부에서만** 적용된다. 기존 transport는
+  지금 받던 이벤트를 그대로 받는다 (기존 동작 불변이 공존의 정의).
 - DAG 수준 이벤트는 스케줄러 프로세스의 listener가 발행하므로,
   환경변수는 Composer 환경 전체에 적용(기본 동작)이어야 한다.
 - publish는 클라이언트의 백그라운드 배칭에 맡기고 future를 기다리지
   않는다 — 스케줄러를 블로킹하면 안 된다.
+- namespace는 환경 간 dag_id 충돌을 흡수하는 키다.
 
 ### Pub/Sub
 
@@ -107,6 +135,31 @@ DAG 하나가 1회 실행될 때 provider가 발행하는 이벤트 (task 11개 
     RUNNING으로 자연 복귀
 - 규모: 10만 DAG × 7일 ≈ 주 70만 행. Postgres로 충분.
 
+### DAG 이름 → 외부 ID 해석 (dag_registry)
+
+매핑이 **1:1 정적**이고 DAG가 365일 매일 도는 조건에서, "언제
+알아내는가"의 답은 **이벤트 경로 밖에서 한 번만**이다.
+
+채택안 — Spring 쪽 `dag_registry` 테이블:
+
+1. **초기 백필 1회**: API 서버에 벌크/목록 조회가 있으면 한 번에
+   10만 건 적재. 단건 조회만 있으면 일회성 백필 스크립트로 채운다.
+2. **reconciler 주기 실행** (기본 5분): `dag_run_status`에는 있는데
+   `dag_registry`에 없는 이름만 API로 해석해 저장. 매일 도는 DAG
+   10만 개는 첫날 안에 전부 등록되므로, **정상 상태에서 API 호출은
+   신규 DAG가 생겼을 때만** 발생한다 (하루 0건에 수렴).
+3. **조회 시 join**: 주간 화면이 `dag_registry`를 LEFT JOIN해서
+   외부 ID를 붙인다. 갓 생긴 DAG는 최대 reconcile 주기만큼 ID가
+   null로 보였다가 채워진다.
+
+기각한 대안 (전부 "매번 다시 알아내기"라 낭비이거나 장애 전파 경로):
+
+| 대안 | 기각 사유 |
+|------|----------|
+| transport에서 이벤트마다 API 조회 후 첨부 | 스케줄러 경로에 외부 호출 삽입, N개 환경 각각 캐시 필요, 이벤트 스키마 오염 |
+| 각 DAG 안에서 매일 자기 ID 조회 | 정적 매핑에 10만 × 365 호출. Composer가 API에 접근 가능하다는 사실이 이유가 되지 못함 |
+| Spring 소비 콜백에서 인라인 조회 | ack 경로가 API 서버 가용성에 종속 — 자정 폭주가 API 서버로 전파되고, API 장애가 수집 정체로 역전파 |
+
 ### 주간 조회 (읽기 시점 집계)
 
 - 날짜 버킷은 **이벤트 시각이 아니라 `logical_date`의 KST 날짜**.
@@ -115,6 +168,7 @@ DAG 하나가 1회 실행될 때 provider가 발행하는 이벤트 (task 11개 
   NOT_SCHEDULED. (실패 후 재실행 중이면 "동작중"으로 보인다.)
 - "주간 1회 이상 성공"의 성공 시각은 **가장 최근 성공**의
   eventTime을 쓴다.
+- 외부 ID는 `dag_registry`를 LEFT JOIN해서 응답에 붙인다.
 - 주 70만 행 인덱스 스캔이라 사전 집계 테이블 없이 읽기 시점
   GROUP BY로 충분하다.
 
@@ -131,10 +185,19 @@ DAG 하나가 1회 실행될 때 provider가 발행하는 이벤트 (task 11개 
    provider 버전 종속. 대상 Composer에서 이벤트 1건을 떠서
    parsing.md의 경로 표와 대조 후 확정한다.
 2. **버전 핀**: openlineage-python 클라이언트의 Transport API가
-   메이저 간 변경됨. provider·client 버전을 함께 고정.
-3. **DAG 카탈로그 소스**: 현재 목록은 이벤트에서 유도되므로 7일간
+   메이저 간 변경됨. provider·client 버전을 함께 고정. composite
+   transport의 `transports` 설정 형식(dict/list)과
+   `continue_on_failure` 기본값도 고정 버전에서 확인.
+3. **기존 transport 설정 형식 확인**: 현재 어떤 방식으로 설정돼
+   있는지(`AIRFLOW__OPENLINEAGE__TRANSPORT` / `openlineage.yml` /
+   config_path)에 따라 composite로 옮겨 담는 방법이 달라진다.
+4. **prefix 확정**: 값과 단수/복수 여부. 복수가 되면
+   `dag_name_prefix`를 리스트로 확장 (transport 코드 한 줄).
+5. **dag-id API의 벌크 조회 유무**: 있으면 초기 백필이 호출 1번,
+   없으면 단건 10만 회 백필 스크립트(레이트 리밋 필요).
+6. **DAG 카탈로그 소스**: 현재 목록은 이벤트에서 유도되므로 7일간
    이벤트가 0건인 DAG는 화면에서 아예 사라진다. "7일 내내 스케줄
-   안 됨" 행으로 보여야 한다면 별도 DAG 카탈로그(예: 각 환경
-   REST API 일 1회 동기화)에서 페이지네이션해야 한다.
-4. 스케줄 주기가 daily가 아닌 DAG 비중 — 시간당 스케줄이면 볼륨
-   산정이 ×24.
+   안 됨" 행으로 보여야 한다면 별도 DAG 카탈로그(예: dag-id API가
+   전체 목록을 준다면 그것)에서 페이지네이션해야 한다.
+7. 스케줄 주기가 daily가 아닌 DAG 비중 — 시간당 스케줄이면 볼륨
+   산정이 ×24. (365일 매일 1회면 현재 산정 그대로.)

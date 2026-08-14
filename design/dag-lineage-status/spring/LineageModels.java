@@ -28,10 +28,11 @@ record DagKey(String namespace, String dagId) {}
 /** One (dag, day) aggregate returned by the day-status query. */
 record DayStatusRow(DagKey key, LocalDate day, DayState state, OffsetDateTime successTime) {}
 
-/** Weekly board row for one DAG. */
+/** Weekly board row for one DAG. externalId is null until the reconciler resolves a new DAG. */
 record DagWeeklyStatus(
         String namespace,
         String dagId,
+        String externalId,
         boolean succeededThisWeek,
         OffsetDateTime lastSuccessAt,
         List<DayStatus> days) {

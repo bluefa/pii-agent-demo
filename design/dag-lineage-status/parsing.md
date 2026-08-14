@@ -4,8 +4,12 @@
 
 Pull 구독이므로 push의 base64 봉투가 없다. `PubsubMessage.data`가
 OpenLineage **RunEvent JSON 원문** 그대로다. transport에서 DAG-only
-필터를 통과한 이벤트만 도착하지만, 소비 쪽 파싱은 그 가정에 기대지
-않는다(아래 방어 참조).
++ 이름 prefix 필터를 통과한 이벤트만 도착하지만, 소비 쪽 파싱은 그
+가정에 기대지 않는다(아래 방어 참조).
+
+**외부 DAG ID는 이벤트에 없다** — 파싱 대상이 아니다. 이름→ID
+해석은 수집 경로 밖의 reconciler + `dag_registry` 테이블이 담당하고
+(architecture.md 참조), 주간 조회가 join으로 붙인다.
 
 ## 추출 필드 (7개)
 

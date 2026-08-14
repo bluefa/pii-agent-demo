@@ -1,15 +1,25 @@
 """OpenLineage custom transport: publish DAG-level RunEvents to GCP Pub/Sub.
 
-Ship as a small PyPI package installed on every Composer environment, then
-point the provider at it with two environment variables:
+Coexists with the already-deployed transport via a composite transport —
+the existing config is moved as-is into "transports" and keeps receiving
+exactly what it receives today:
 
-    AIRFLOW__OPENLINEAGE__TRANSPORT='{"type": "lineage_pubsub.PubSubTransport",
-                                      "project": "my-project",
-                                      "topic": "lineage-events"}'
+    AIRFLOW__OPENLINEAGE__TRANSPORT='{
+      "type": "composite",
+      "continue_on_failure": true,
+      "transports": {
+        "existing":      { ...current transport config, unchanged... },
+        "weekly_status": { "type": "lineage_pubsub.PubSubTransport",
+                           "project": "my-project",
+                           "topic": "lineage-events",
+                           "dag_name_prefix": "pii_" }
+      }
+    }'
     AIRFLOW__OPENLINEAGE__NAMESPACE='composer-env-a'   # unique per environment
 
-Written against openlineage-python 1.x. The Transport/Config API has moved
-between majors — pin the client version together with the Airflow provider.
+Written against openlineage-python 1.x. The Transport/Config API and the
+composite transport config shape have moved between versions — pin the
+client version together with the Airflow provider and verify.
 """
 from dataclasses import dataclass
 
@@ -22,10 +32,15 @@ from openlineage.client.transport import Config, Transport
 class PubSubConfig(Config):
     project: str
     topic: str
+    dag_name_prefix: str
 
     @classmethod
     def from_dict(cls, params: dict) -> "PubSubConfig":
-        return cls(project=params["project"], topic=params["topic"])
+        return cls(
+            project=params["project"],
+            topic=params["topic"],
+            dag_name_prefix=params["dag_name_prefix"],
+        )
 
 
 class PubSubTransport(Transport):
@@ -37,12 +52,17 @@ class PubSubTransport(Transport):
         # the scheduler/worker on publish latency.
         self._publisher = pubsub_v1.PublisherClient()
         self._topic = self._publisher.topic_path(config.project, config.topic)
+        self._prefix = config.dag_name_prefix
 
     def emit(self, event) -> None:
-        # Allow-list, not deny-list: only DAG lifecycle events leave the
-        # environment. Task events (12x the count, 10-25x the bytes) are
-        # dropped at the source. See architecture.md for the volume math.
+        # Double allow-list, not deny-list:
+        #  1) only DAG lifecycle events (task events are 12x the count and
+        #     10-25x the bytes — see architecture.md for the volume math)
+        #  2) only DAGs whose name starts with the configured prefix
         if not self._is_dag_event(event):
+            return
+        name = getattr(getattr(event, "job", None), "name", None)
+        if name is None or not name.startswith(self._prefix):
             return
         self._publisher.publish(self._topic, Serde.to_json(event).encode("utf-8"))
 

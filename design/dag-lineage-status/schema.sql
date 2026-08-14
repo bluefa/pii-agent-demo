@@ -16,3 +16,11 @@ CREATE INDEX idx_dag_run_status_window ON dag_run_status (logical_date);
 
 -- Per-DAG lookup and DISTINCT paging
 CREATE INDEX idx_dag_run_status_dag ON dag_run_status (namespace, dag_id, logical_date);
+
+-- dag name -> external id (1:1, static). Filled once by the initial backfill,
+-- then kept complete by the reconciler; the event path never calls the id API.
+CREATE TABLE dag_registry (
+    dag_name    text PRIMARY KEY,
+    external_id text NOT NULL,
+    resolved_at timestamptz NOT NULL DEFAULT now()
+);

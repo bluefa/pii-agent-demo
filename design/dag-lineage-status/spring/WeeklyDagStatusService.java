@@ -22,9 +22,11 @@ public class WeeklyDagStatusService {
     private static final ZoneId KST = ZoneId.of("Asia/Seoul");
 
     private final DagRunStatusRepository repository;
+    private final DagRegistryRepository registry;
 
-    public WeeklyDagStatusService(DagRunStatusRepository repository) {
+    public WeeklyDagStatusService(DagRunStatusRepository repository, DagRegistryRepository registry) {
         this.repository = repository;
+        this.registry = registry;
     }
 
     public List<DagWeeklyStatus> weeklyStatuses(int page, int size) {
@@ -35,13 +37,17 @@ public class WeeklyDagStatusService {
         Map<DagKey, List<DayStatusRow>> rowsByDag =
                 repository.dayStatuses(keys, windowStart).stream()
                         .collect(Collectors.groupingBy(DayStatusRow::key));
+        Map<String, String> externalIds =
+                registry.externalIds(keys.stream().map(DagKey::dagId).toList());
 
         return keys.stream()
-                .map(key -> summarize(key, firstDay, rowsByDag.getOrDefault(key, List.of())))
+                .map(key -> summarize(key, externalIds.get(key.dagId()), firstDay,
+                        rowsByDag.getOrDefault(key, List.of())))
                 .toList();
     }
 
-    private static DagWeeklyStatus summarize(DagKey key, LocalDate firstDay, List<DayStatusRow> rows) {
+    private static DagWeeklyStatus summarize(DagKey key, String externalId, LocalDate firstDay,
+            List<DayStatusRow> rows) {
         Map<LocalDate, DayStatusRow> byDay =
                 rows.stream().collect(Collectors.toMap(DayStatusRow::day, row -> row));
 
@@ -62,7 +68,7 @@ public class WeeklyDagStatusService {
                 .max(Comparator.naturalOrder())
                 .orElse(null);
 
-        return new DagWeeklyStatus(key.namespace(), key.dagId(),
+        return new DagWeeklyStatus(key.namespace(), key.dagId(), externalId,
                 lastSuccessAt != null, lastSuccessAt, days);
     }
 }
