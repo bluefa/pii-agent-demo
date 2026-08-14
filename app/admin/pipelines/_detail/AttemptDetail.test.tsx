@@ -51,7 +51,7 @@ describe('AttemptDetail — failure cause when there are no job rows', () => {
 
   it('keeps the compact behavior (no cause block) when the attempt has job rows', () => {
     const out = html(attempt({ failure_detail: 'should stay hidden', job_states: [jobState()] }));
-    expect(out).toContain('Terraform Job');
+    expect(out).toContain('Job 현황');
     expect(out).not.toContain('실패 원인');
     expect(out).not.toContain('should stay hidden');
   });
@@ -75,22 +75,39 @@ describe('AttemptDetail — failure cause when there are no job rows', () => {
   });
 });
 
-describe('AttemptDetail — Terraform Job pagination', () => {
-  const jobs = (n: number): TerraformJobStateSummary[] =>
-    Array.from({ length: n }, (_, i) => jobState({ job_id: `job-${i + 1}` }));
+// 시안 B — the job list answers "how many of them failed" before the rows, puts the
+// failures first, and folds the settled successes instead of paging them away.
+describe('AttemptDetail — Job 현황', () => {
+  const ok = (n: number): TerraformJobStateSummary[] =>
+    Array.from({ length: n }, (_, i) => jobState({ job_id: `ok-${i + 1}`, last_state: 'COMPLETED' }));
+  const bad = jobState({ job_id: 'bad-1', last_state: 'FAILED', last_fail_reason: 'mock forced failure' });
 
-  it('renders only the first page and the total count when there are more than 5 jobs', () => {
-    const out = html(attempt({ job_states: jobs(21) }));
+  it('counts every bucket and folds the successes past 5 jobs', () => {
+    const out = html(attempt({ job_states: [...ok(20), bad] }));
     expect(out).toContain('총 21개');
-    expect(out).toContain('1 / 5');
-    expect(out).toContain('>job-5<');
-    expect(out).not.toContain('>job-6<');
+    expect(out).toContain('성공 20개 펼치기');
+    // The failure and its reason are on screen without opening anything…
+    expect(out).toContain('>bad-1<');
+    expect(out).toContain('mock forced failure');
+    // …and no success row is drawn while folded.
+    expect(out).not.toContain('>ok-1<');
   });
 
-  it('renders every job with no pager at 5 or fewer', () => {
-    const out = html(attempt({ job_states: jobs(5) }));
-    expect(out).toContain('>job-5<');
-    expect(out).not.toContain('총 5개');
-    expect(out).not.toContain('1 / 1');
+  it('puts the failure above the successes once unfolded', () => {
+    const out = html(attempt({ job_states: [...ok(3), bad] }));
+    expect(out.indexOf('>bad-1<')).toBeLessThan(out.indexOf('>ok-1<'));
+  });
+
+  it('renders every job with no fold at 5 or fewer', () => {
+    const out = html(attempt({ job_states: ok(5) }));
+    expect(out).toContain('>ok-5<');
+    expect(out).toContain('총 5개');
+    expect(out).not.toContain('펼치기');
+  });
+
+  it('offers no fold when there is nothing settled to hide', () => {
+    const out = html(attempt({ job_states: Array.from({ length: 6 }, (_, i) => jobState({ job_id: `run-${i}` })) }));
+    expect(out).toContain('>run-5<');
+    expect(out).not.toContain('펼치기');
   });
 });

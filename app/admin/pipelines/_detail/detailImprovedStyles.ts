@@ -186,16 +186,24 @@ export const improvedStyles = {
     failReasonClamp: 'mt-2.5 text-[14px] leading-[1.6] text-[var(--pl-err-text)] break-words line-clamp-2',
     /** "자세히" link under a clamped failure cause — opens the full-message modal. */
     failReasonMore: 'mt-1.5 text-[12px] font-semibold text-[var(--pl-primary)] hover:underline transition-colors',
+    /** Verdict hero (design-benchmark 2026-08-14 시안 A) — the first thing the
+     *  exec tab says, now that the card carries the progress log. The judgment is
+     *  type size + a dot, never a tinted plate, and the supporting facts drop a
+     *  tier under it. Tone comes from `jobStyles.verdictTextTone`. */
+    verdict: 'flex flex-col gap-1.5',
+    verdictHead: 'flex items-center gap-2 text-[20px] font-bold tracking-[-0.196px]',
+    verdictDot: 'inline-block h-2 w-2 flex-none rounded-full bg-current',
+    /** Error/verdict code chip — white face + stroke, so it reads against both the
+     *  panel and the toned head text it sits beside. */
+    verdictCode:
+      'inline-flex items-center rounded-full border border-[var(--pl-border)] bg-[var(--pl-bg-card)] px-2 py-0.5 text-[12px] font-semibold tracking-normal text-[var(--pl-text-medium)] [font-family:var(--pl-font-mono)]',
+    /** Supporting facts under the verdict — attempts used, next poll, external state. */
+    verdictFacts: 'text-[14px] leading-[1.6] text-[var(--pl-text-weak)] tabular-nums',
+
     /** key/value progress rows — value is regular weight, 14px (node 70:35). */
     kvRow: 'flex items-center justify-between gap-3',
     kvKey: 'text-[14px] text-[var(--pl-text-weak)]',
     kvVal: 'text-[14px] font-normal text-[var(--pl-text-strong)] tabular-nums',
-    kvValErr: 'text-[14px] font-normal text-[var(--pl-err-text)] tabular-nums',
-    /** Attempt count / retry budget — bold label + value on one row, same 14px
-     *  as the label so the value doesn't outrank it (owner Figma node 121-5). */
-    attemptRow: 'flex items-center justify-between gap-3',
-    bigVal: 'text-[14px] font-bold text-[var(--pl-text-strong)] tabular-nums',
-    bigValErr: 'text-[14px] font-bold text-[var(--pl-err-text)] tabular-nums',
     rowsGap: 'mt-4 flex flex-col gap-2.5',
 
     /** attempts table. */

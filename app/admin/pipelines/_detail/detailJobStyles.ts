@@ -46,7 +46,10 @@ export const jobStyles = {
   /** Bare row list on the panel — rows carry their own hairline divider, no card
    *  wrap (owner Figma nodes 121-74 / 121-311). Top margin clears the heading. */
   list: 'mt-5 flex flex-col',
-  listTight: 'mt-4 flex flex-col',
+  /** Job list — capped and self-scrolling. The drawer has no bounded height (the
+   *  page grows with it), so 21 unfolded rows would stretch the content row and
+   *  push the flow cards out of view; the cap keeps the panel inside one screen. */
+  jobList: 'mt-4 flex flex-col max-h-[420px] overflow-y-auto overscroll-contain',
 
   /** Attempt-history row — a full-width button that drills into the attempt. */
   attemptRow: 'w-full flex items-center gap-2.5 pt-2.5 pb-[11px] text-left border-b border-[var(--pl-border)] last:border-b-0 hover:bg-[var(--pl-gray-50)] transition-colors',
@@ -54,8 +57,23 @@ export const jobStyles = {
   /** Row CTA — blue "view details" link text, right-aligned. */
   attemptDetail: 'ml-auto flex-none text-[12px] font-semibold text-[var(--pl-primary)] tracking-[-0.196px]',
 
+  /** Job rollup (design-benchmark 시안 B) — "몇 개 중 몇 개가 실패했나"를 목록
+   *  위에서 먼저 답하는 줄. Count takes the verdict's own tone; the total stays
+   *  faint at the right end. */
+  rollup: 'mt-4 flex items-baseline gap-x-4 gap-y-1 flex-wrap',
+  rollupItem: 'text-[12px] text-[var(--pl-text-weak)]',
+  rollupNum: 'mr-1 text-[16px] font-bold tabular-nums',
+  rollupTotal: 'ml-auto text-[12px] font-normal text-[var(--pl-text-weak)] tabular-nums',
+
+  /** Terraform Job entry — the row plus, for a failed job, its reason line. The
+   *  hairline moved here so the reason sits inside the same entry as its row. */
+  jobItem: 'flex flex-col border-b border-[var(--pl-border)] last:border-b-0',
   /** Terraform Job row — verdict + id + meta + log action. */
-  jobRow: 'flex items-center gap-2.5 pt-3 pb-[13px] border-b border-[var(--pl-border)] last:border-b-0',
+  jobRow: 'flex items-center gap-2.5 pt-3 pb-[13px]',
+  /** `last_fail_reason` under a failed job — the cause the panel used to keep
+   *  three hops away (attempt row → job row → log viewer). Clamped; the full
+   *  text is in the log viewer. */
+  jobFailReason: '-mt-1.5 pb-3 text-[14px] leading-[1.6] text-[var(--pl-err-text)] break-words line-clamp-2',
   jobId: 'text-[13px] font-bold text-[var(--pl-text-strong)] [font-family:var(--pl-font-mono)] tabular-nums tracking-[-0.196px]',
   /** Log action — blue text button (owner Figma node 121-326), not a bordered btn. */
   logBtn: 'ml-auto flex-none rounded-[8px] px-1 text-[12px] font-semibold text-[var(--pl-primary)] hover:underline transition-colors',

@@ -1,8 +1,8 @@
 /**
  * Shared primitives for the task drawer surface (TaskDrawer + execTabs +
- * AttemptDetail + JobViewer): style handles, the viewer target type, time
- * helpers, and the two small presentational pieces (MiniPill / Section) reused
- * across the sub-modules.
+ * AttemptDetail + JobStatus + JobViewer): style handles, the viewer target type,
+ * time helpers, and the small presentational pieces (MiniPill / Section /
+ * FailureCause / OperatorDescription) reused across the sub-modules.
  */
 import { type ReactElement, type ReactNode } from 'react';
 import { cn } from '@/lib/theme';
@@ -47,6 +47,35 @@ export function Section({ label, hint, children }: { label: string; hint?: strin
       {hint && <div className={j.labelHint}>{hint}</div>}
       {children}
     </div>
+  );
+}
+
+/**
+ * Terminal-failure cause of an attempt that has NO job rows (e.g. the terraform
+ * dispatch call itself failed) — with no job row there is no log-viewer entry
+ * point, so `failure_detail` is the only cause the client has. A long cause is
+ * clamped to a preview that opens in FailureReasonModal. Rendered at the drawer
+ * root for the latest attempt and inside the attempt drill-down.
+ */
+export function FailureCause({
+  attempt,
+  onOpenFailure,
+}: {
+  attempt: TaskAttemptView;
+  onOpenFailure: (detail: string) => void;
+}): ReactElement {
+  const cause = attempt.failure_detail ?? attempt.error_code ?? '원인 미기록';
+  // A dispatch-failure detail (Feign message) can run to ~512 chars.
+  const isLong = (attempt.failure_detail?.length ?? 0) > 120;
+  return (
+    <Section label="실패 원인">
+      <p className={isLong ? d.failReasonClamp : d.failReason}>{cause}</p>
+      {isLong && (
+        <button type="button" className={d.failReasonMore} onClick={() => onOpenFailure(cause)}>
+          자세히
+        </button>
+      )}
+    </Section>
   );
 }
 

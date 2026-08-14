@@ -6,62 +6,111 @@
 import { useState, type ReactElement } from 'react';
 import { cn } from '@/lib/theme';
 import { PipelineStatusBadge } from '@/app/admin/pipelines/_detail/PipelineStatusBadge';
-import { fmtDateTime, KIND_POLICY } from '@/lib/pipeline/format';
+import { fmtDateTime, KIND_POLICY, statusKo } from '@/lib/pipeline/format';
+import { JobStatus } from '@/app/admin/pipelines/_detail/JobStatus';
+import type { JobVerdict } from '@/app/admin/pipelines/_detail/jobRows';
 import {
   conditionVerdict,
   d,
+  FailureCause,
   j,
   MiniPill,
   OperatorDescription,
   Section,
+  type ViewerTarget,
 } from '@/app/admin/pipelines/_detail/taskDrawerShared';
-import type { TaskDetail } from '@/lib/pipeline/types';
+import type { TaskDetail, TaskStatus } from '@/lib/pipeline/types';
 
-/** Execution info for TERRAFORM_JOB — progress log / attempt count / attempt history. */
+/** Task status → the verdict tone it is spoken in (jobStyles.verdictTextTone). */
+const STATUS_TONE: Record<TaskStatus, JobVerdict> = {
+  DONE: 'success',
+  FAILED: 'failed',
+  IN_PROGRESS: 'running',
+  READY: 'none',
+  BLOCKED: 'none',
+  CANCELLED: 'none',
+};
+
+/**
+ * The verdict hero (design-benchmark 2026-08-14 시안 A) — how this task ended,
+ * and under which code, before anything else. The progress log that used to open
+ * this tab now sits on the flow card (시안 F), so the space it freed says what
+ * the card deliberately does not: the judgment, in words. No tinted plate — the
+ * tone rides the type and the supporting facts drop a tier (기존 규칙).
+ */
+function Verdict({
+  tone,
+  label,
+  code,
+  facts,
+}: {
+  tone: JobVerdict;
+  label: string;
+  code?: string | null;
+  facts: ReactElement;
+}): ReactElement {
+  return (
+    <div className={d.verdict}>
+      <div className={cn(d.verdictHead, j.verdictTextTone[tone])}>
+        <span className={d.verdictDot} aria-hidden="true" />
+        {label}
+        {code && <span className={d.verdictCode}>{code}</span>}
+      </div>
+      <p className={d.verdictFacts}>{facts}</p>
+    </div>
+  );
+}
+
+/** Execution info for TERRAFORM_JOB — verdict / job status / attempt history. */
 export function TerraformExec({
   detail,
   onOpenAttempt,
+  onOpenViewer,
+  onOpenFailure,
 }: {
   detail: TaskDetail;
   onOpenAttempt: (n: number) => void;
+  onOpenViewer: (t: ViewerTarget) => void;
+  onOpenFailure: (attemptNumber: number, cause: string) => void;
 }): ReactElement {
-  const failed = detail.status === 'FAILED';
+  // Attempts arrive oldest-first — the root speaks for the latest one.
+  const latest = detail.attempts.length > 0 ? detail.attempts[detail.attempts.length - 1] : null;
+  const hasJobs = latest
+    ? (latest.job_states?.length ?? 0) + (latest.terraform_results?.length ?? 0) > 0
+    : false;
   return (
     <>
       <OperatorDescription detail={detail} />
-      <Section label="진행 기록">
-        <div className={d.rowsGap}>
-          <div className={d.kvRow}>
-            <span className={d.kvKey}>Started</span>
-            <span className={d.kvVal}>{fmtDateTime(detail.started_at)}</span>
-          </div>
-          <div className={d.kvRow}>
-            <span className={d.kvKey}>{failed ? 'Failed' : 'Finished'}</span>
-            <span className={failed ? d.kvValErr : d.kvVal}>{fmtDateTime(detail.finished_at)}</span>
-          </div>
-          {failed && detail.error_code && (
-            <div className={d.kvRow}>
-              <span className={d.kvKey}>실패 코드</span>
-              <span className={cn(d.kvValErr, '[font-family:var(--pl-font-mono)]')}>{detail.error_code}</span>
-            </div>
-          )}
-          {detail.next_check_at && (
-            <div className={d.kvRow}>
-              <span className={d.kvKey}>다음 확인</span>
-              <span className={d.kvVal}>{fmtDateTime(detail.next_check_at)}</span>
-            </div>
-          )}
-        </div>
-      </Section>
+      <Verdict
+        tone={STATUS_TONE[detail.status]}
+        label={statusKo(detail.status)}
+        code={detail.error_code}
+        facts={
+          <>
+            {/* Attempts actually made (attempts.length), not the failure count — a
+                task that succeeded on the first run has fail_count 0 but 1 attempt. */}
+            시도 {detail.attempts.length}/{detail.effective_max_fail_count}회
+            {detail.next_check_at ? ` · 다음 확인 ${fmtDateTime(detail.next_check_at)}` : ''}
+          </>
+        }
+      />
 
-      <div className={d.attemptRow}>
-        <span className={d.sectionLabel}>시도 횟수</span>
-        {/* Attempts actually made (attempts.length), not the failure count —
-            a task that succeeded on the first run has fail_count 0 but 1 attempt. */}
-        <span className={failed ? d.bigValErr : d.bigVal}>
-          {detail.attempts.length} / {detail.effective_max_fail_count}
-        </span>
-      </div>
+      {latest && hasJobs && (
+        <JobStatus
+          attempt={latest}
+          operation={detail.operation}
+          hint={detail.attempts.length > 1 ? `최신 시도 #${latest.attempt_number} 기준` : undefined}
+          onOpenJob={(jobId) => onOpenViewer({ attemptNumber: latest.attempt_number, jobId })}
+        />
+      )}
+      {/* No job row means no log viewer to reach — then `failure_detail` is the only
+          cause the client has, so it takes the Job 현황 slot instead. */}
+      {latest && !hasJobs && latest.status === 'FAILED' && (
+        <FailureCause
+          attempt={latest}
+          onOpenFailure={(cause) => onOpenFailure(latest.attempt_number, cause)}
+        />
+      )}
 
       <Section label="시도 이력" hint="행을 눌러서 Job 로그 상세 정보를 확인하세요.">
         {detail.attempts.length === 0 ? (
@@ -101,44 +150,18 @@ export function ConditionExec({ detail }: { detail: TaskDetail }): ReactElement 
   return (
     <>
       <OperatorDescription detail={detail} />
-      <Section label="진행 기록">
-        <div className={d.rowsGap}>
-          <div className={d.kvRow}>
-            <span className={d.kvKey}>Started</span>
-            <span className={d.kvVal}>{fmtDateTime(detail.started_at)}</span>
-          </div>
-          <div className={d.kvRow}>
-            <span className={d.kvKey}>현재 판정</span>
-            <span className={d.kvVal}>
-              {verdict ? (
-                <span className={cn(j.verdictText, j.verdictTextTone[verdict.tone])}>{verdict.label}</span>
-              ) : (
-                '—'
-              )}
-            </span>
-          </div>
-          <div className={d.kvRow}>
-            <span className={d.kvKey}>외부 상태</span>
-            <span className={cn(d.kvVal, '[font-family:var(--pl-font-mono)]')}>
-              {latest?.check?.last_external_status ?? '—'}
-            </span>
-          </div>
-          {detail.next_check_at && (
-            <div className={d.kvRow}>
-              <span className={d.kvKey}>다음 확인</span>
-              <span className={d.kvVal}>{fmtDateTime(detail.next_check_at)}</span>
-            </div>
-          )}
-        </div>
-      </Section>
-
-      <div className={d.attemptRow}>
-        <span className={d.sectionLabel}>시도 횟수</span>
-        {/* Attempts actually made (poll count), not the not-met failure count. */}
-        <span className={d.bigVal}>
-          {detail.attempts.length} / {detail.effective_max_fail_count}
-        </span>
-      </div>
+      <Verdict
+        tone={verdict ? verdict.tone : 'none'}
+        label={verdict ? verdict.label : '기록 없음'}
+        code={latest?.check?.last_external_status ?? null}
+        facts={
+          <>
+            {/* Attempts actually made (poll count), not the not-met failure count. */}
+            확인 {detail.attempts.length}/{detail.effective_max_fail_count}회
+            {detail.next_check_at ? ` · 다음 확인 ${fmtDateTime(detail.next_check_at)}` : ''}
+          </>
+        }
+      />
 
       <Section label="확인 이력">
         {detail.attempts.length === 0 ? (

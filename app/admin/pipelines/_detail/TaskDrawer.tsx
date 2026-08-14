@@ -176,7 +176,14 @@ export function TaskDrawer({
             detail.kind === 'CONDITION_CHECK' ? (
               <ConditionExec detail={detail} />
             ) : (
-              <TerraformExec detail={detail} onOpenAttempt={(n) => setView({ name: 'attempt', n })} />
+              <TerraformExec
+                detail={detail}
+                onOpenAttempt={(n) => setView({ name: 'attempt', n })}
+                onOpenViewer={viewerModal.open}
+                onOpenFailure={(n, cause) =>
+                  failModal.open({ detail: cause, subtitle: `${displayName} · 시도 #${n}` })
+                }
+              />
             )
           ) : (
             <DefinitionTab detail={detail} displayName={displayName} />
