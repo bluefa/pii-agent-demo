@@ -21,6 +21,13 @@
  *
  * 첫 탭은 "내가 아직 못 가진 서비스"다 — `/user/services/page` 가 전체 서비스와
  * `access_status` 를 주므로, NONE 이거나 REJECTED 인 것만 걸러 낸 것이다.
+ *
+ * 탭으로 합친 뒤에도 카드 **안**은 평평했다(2차 진단:
+ * design/access/access-requests-benchmark-r2.html). 이름 칸 735px 에 든 글자가 41px,
+ * 94% 가 빈 폭이었고 카드 안의 타입은 12·14·16 셋뿐이라 훑을 굵은 줄이 없었다.
+ * 시안 A — 행을 두 단으로 만든다: 윗단 [이름 코드], 아랫단 설명(12/weak). 코드는
+ * 오른쪽 끝에서 이름 옆으로 오고, 목록은 640px 열 안에서 읽는다. 이제 등급이 카드
+ * 사이가 아니라 **행 안**에 있다.
  */
 import { useCallback, useEffect, useState, type ReactElement } from 'react';
 import { cn, serviceSidebarStyles } from '@/lib/theme';
@@ -43,10 +50,12 @@ import { accessStyles as a } from '@/app/admin/pipelines/access/_components/acce
 import {
   createAccessRequest,
   getMyAccessRequests,
+  getServicesPage,
   getUserServices,
   sliceToPage,
   type AccessPage,
   type PermissionRequestDetail,
+  type ServiceRow,
   type UserServiceRow,
 } from '@/app/lib/api/access';
 
@@ -66,16 +75,22 @@ const SEARCH_DEBOUNCE_MS = 300;
 const FETCH_ALL = 200;
 
 /**
- * 로딩 중 서비스 목록 — 타일 · 이름 · 코드 태그의 크기를 그대로 흉내 낸다. 도착했을 때
- * 목록이 튀지 않는 건 이 칸들이 진짜 행과 같기 때문이다.
+ * 로딩 중 서비스 목록 — 타일 · [이름 코드] · 설명의 크기를 그대로 흉내 낸다. 두 단이
+ * 됐으므로 스켈레톤도 두 단이다. 도착했을 때 목록이 튀지 않는 건 이 칸들이 진짜 행과
+ * 같기 때문이다.
  */
 const SERVICE_SKELETON = (
   <div role="rowgroup" aria-busy="true" aria-label="목록을 불러오는 중">
     {Array.from({ length: ROWS_PER_PAGE }, (_, row) => (
       <div key={row} className={a.svcRow} aria-hidden="true">
         <span className={cn(serviceSidebarStyles.tile, a.skeletonBar, 'h-7 w-7')} />
-        <span className={cn(a.skeletonBar, 'h-4 flex-1')} />
-        <span className={cn(a.skeletonBar, 'h-5 w-[38px]')} />
+        <span className={a.svcStack}>
+          <span className={a.svcIdent}>
+            <span className={cn(a.skeletonBar, 'h-4 w-[128px]')} />
+            <span className={cn(a.skeletonBar, 'h-5 w-[38px]')} />
+          </span>
+          <span className={cn(a.skeletonBar, 'h-3 w-[172px]')} />
+        </span>
         <span className={a.svcAction} />
       </div>
     ))}
@@ -98,22 +113,62 @@ const MINE_COLUMNS: readonly Column[] = [
 ];
 
 /**
- * 서비스 한 건의 표기 — 타일 · 이름 · 코드 태그. `/services` 레일의 것을 그대로 쓴다.
+ * 서비스 한 건의 표기 — 타일 · [이름 코드] · 설명. `/services` 레일의 부품을 그대로 쓴다.
  *
  * 두 탭이 같은 이것을 쓴다. 요청할 때 본 서비스와 내역에서 보는 서비스가 다른 모양이면
- * 같은 것으로 읽히지 않는다. 감싸는 칸(`a.svcCell`)이 gap 을 주므로 여기선 배치가 없다.
+ * 같은 것으로 읽히지 않는다. 감싸는 칸(`a.svcCell`)이 타일과 덩어리 사이 gap 을 준다.
+ *
+ * 설명은 서비스 목록에서만 온다 — 내 요청 내역의 행은 이미 상태·사유·처리 결과·일자를
+ * 들고 있어서 다섯 번째 사실을 더 얹을 자리가 아니다(계약에도 없다).
  */
-function ServiceIdentity({ code, name }: { code: string; name: string }): ReactElement {
+function ServiceIdentity({
+  code,
+  name,
+  desc,
+}: {
+  code: string;
+  name: string;
+  desc?: string | null;
+}): ReactElement {
   return (
     <>
       <span className={cn(serviceSidebarStyles.tile, serviceTileClass(code))} aria-hidden="true">
         {name.charAt(0).toUpperCase()}
       </span>
-      <span className={cn(sl.name, sl.nameIdle)}>{name}</span>
-      <span className={sl.code}>{code}</span>
+      <span className={a.svcStack}>
+        <span className={a.svcIdent}>
+          <span className={cn(sl.name, sl.nameIdle)}>{name}</span>
+          <span className={sl.code}>{code}</span>
+        </span>
+        {/* 계약 확정 전이라 없을 수 있다 — 없으면 빈 줄을 남기지 않고 한 단으로 돌아간다. */}
+        {desc && <span className={a.svcDesc}>{desc}</span>}
+      </span>
     </>
   );
 }
+
+/**
+ * 담당자 줄 — 행의 둘째 단.
+ *
+ * `/services/page` 만 담당자를 싣는다(담당 서비스 목록은 싣지 않는다). 신청 화면에서
+ * 가장 쓸모 있는 사실이 이것이라 여기 온다 — 내 요청을 볼 사람이 누구인지, 그리고
+ * 이름이 비슷한 서비스 둘 중 어느 쪽이 내가 아는 그 서비스인지. 계약에 이 필드가 생긴
+ * 이유가 정확히 그 헷갈림이다.
+ *
+ * 이름은 둘까지만 쓰고 나머지는 수로 접는다. 담당자가 없으면 그렇게 쓴다 — 신청해도
+ * 볼 사람이 없다는 뜻이라 감출 사실이 아니다.
+ */
+function ownerLine(row: ServiceRow): string {
+  const shown = row.owners.slice(0, 2);
+  if (shown.length === 0) {
+    return row.ownerCount > 0 ? `담당자 ${row.ownerCount}명` : '담당자 없음';
+  }
+  const rest = row.ownerCount - shown.length;
+  return `담당자 ${shown.join(' · ')}${rest > 0 ? ` 외 ${rest}명` : ''}`;
+}
+
+/** 담당자를 싣는 계약은 한쪽뿐이라 행 타입이 갈린다 — 둘째 단은 이 좁힘 뒤에만 그린다. */
+const hasOwners = (row: UserServiceRow): row is ServiceRow => 'owners' in row;
 
 /** 헤더가 먼저 말하는 사실. 급한 순서로 고른다 — 반려는 내가 다시 움직여야 하는 상태다. */
 function HeaderVerdict({ mine }: { mine: PermissionRequestDetail[] | null }): ReactElement {
@@ -192,8 +247,8 @@ export default function MyAccessRequestsPage(): ReactElement {
   }, [query]);
 
   const fetchRequestable = useCallback(
-    async (page: number, opts: { signal: AbortSignal }): Promise<AccessPage<UserServiceRow>> => {
-      const all = await getUserServices(debounced || undefined, 0, { ...opts, size: FETCH_ALL });
+    async (page: number, opts: { signal: AbortSignal }): Promise<AccessPage<ServiceRow>> => {
+      const all = await getServicesPage(debounced || undefined, 0, { ...opts, size: FETCH_ALL });
       return sliceToPage(
         all.content.filter((row) => REQUESTABLE.has(row.accessStatus)),
         page,
@@ -203,8 +258,8 @@ export default function MyAccessRequestsPage(): ReactElement {
     [debounced],
   );
 
-  // 같은 목록을 다른 축으로 자른 것 — 호출도 같다. 이미 가진 것과 아직 못 가진 것을
-  // 한 표에 섞으면 "요청" 버튼이 있는 행과 없는 행이 번갈아 나온다.
+  // 다른 호출이다 — `/user/services/page` 는 내가 담당인 것만 준다. 다만 ADMIN 에게는
+  // 전체가 오므로(role 로 통과할 뿐 담당자는 아니다) 여기서 한 번 더 거른다.
   const fetchOwned = useCallback(
     async (page: number, opts: { signal: AbortSignal }): Promise<AccessPage<UserServiceRow>> => {
       const all = await getUserServices(debounced || undefined, 0, { ...opts, size: FETCH_ALL });
@@ -321,7 +376,7 @@ export default function MyAccessRequestsPage(): ReactElement {
           state={requestTab ? requestable : owned}
           search={
             <SearchBox
-              wrapClassName="block w-full"
+              wrapClassName={cn('block w-full', a.svcColumn)}
               placeholder="서비스 코드/이름 검색"
               aria-label="서비스 코드/이름 검색"
               value={query}
@@ -359,7 +414,11 @@ export default function MyAccessRequestsPage(): ReactElement {
             rows.map((row) => (
               <div key={row.serviceCode} role="row" className={a.svcRow}>
                 <span role="cell" className={a.svcCell}>
-                  <ServiceIdentity code={row.serviceCode} name={row.serviceName} />
+                  <ServiceIdentity
+                    code={row.serviceCode}
+                    name={row.serviceName}
+                    desc={hasOwners(row) ? ownerLine(row) : null}
+                  />
                 </span>
                 {/* 칸은 두 탭 모두 자리를 지킨다 — 접근 가능 탭에서만 비우면 코드 태그가
                     탭을 옮길 때마다 68px 씩 튄다. */}

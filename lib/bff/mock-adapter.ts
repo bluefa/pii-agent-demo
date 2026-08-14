@@ -168,6 +168,8 @@ export const mockBff: BffClient = {
     listMyRequests: async (page, size) => unwrap(await mockAccess.listMyRequests(page, size)),
     listUserServices: async (query, page, size) =>
       unwrap(await mockAccess.listUserServices(query, page, size)),
+    listServicesPage: async (query, page, size) =>
+      unwrap(await mockAccess.listServicesPage(query, page, size)),
     searchUsers: async (query, excludeEmails) =>
       unwrap(await mockAccess.searchUsers(query, excludeEmails)),
   },

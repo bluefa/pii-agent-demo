@@ -25,6 +25,7 @@ import type {
   PermissionRequestDetailWire,
   PermissionRequestPageWire,
   ServiceOwnersWire,
+  ServicePageWire,
   UserServicePageWire,
 } from '@/lib/bff/types';
 
@@ -178,8 +179,8 @@ describe('직접 부여 · 해제', () => {
 describe('요청자 측', () => {
   it('access_status 가 보유·대기·없음으로 갈린다', async () => {
     mockData.setCurrentUser('user-6');
-    const services = await body<UserServicePageWire>(
-      await mockAccess.listUserServices(undefined, 0, 100),
+    const services = await body<ServicePageWire>(
+      await mockAccess.listServicesPage(undefined, 0, 100),
     );
     const statusOf = (code: string): string | undefined =>
       services.content.find((row) => row.service_code === code)?.access_status;
@@ -188,11 +189,46 @@ describe('요청자 측', () => {
     expect(statusOf('gcp')).toBe('NONE');
   });
 
+  it('담당 서비스 목록은 내가 담당인 것만 준다 — 전체 목록은 다른 호출이다', async () => {
+    mockData.setCurrentUser('user-7'); // gcp 한 건만 담당
+    const mine = await body<UserServicePageWire>(
+      await mockAccess.listUserServices(undefined, 0, 100),
+    );
+    expect(mine.content.map((row) => row.service_code)).toEqual(['gcp']);
+
+    // 같은 호출자가 전체 목록을 부르면 신청 대상이 다 보인다 — 두 탭의 소스가 갈린
+    // 이유가 이것이다(2026-08-14 오너 스펙).
+    const all = await body<ServicePageWire>(await mockAccess.listServicesPage(undefined, 0, 100));
+    expect(all.content.length).toBe(mockData.mockServiceCodes.length);
+  });
+
+  it('ADMIN 은 담당 서비스 목록으로도 전체를 받는다 — 화면이 OWNED 로 다시 거른다', async () => {
+    mockData.setCurrentUser('admin-1'); // PAY·MBR 두 건만 담당
+    const mine = await body<UserServicePageWire>(
+      await mockAccess.listUserServices(undefined, 0, 100),
+    );
+    expect(mine.content.length).toBe(mockData.mockServiceCodes.length);
+    expect(mine.content.filter((row) => row.access_status === 'OWNED').map((r) => r.service_code))
+      .toEqual(['PAY', 'MBR']);
+  });
+
+  it('전체 목록의 행은 담당자를 싣는다 — 없으면 빈 배열과 0', async () => {
+    mockData.setCurrentUser('user-6');
+    const all = await body<ServicePageWire>(await mockAccess.listServicesPage(undefined, 0, 100));
+    const gcp = all.content.find((row) => row.service_code === 'gcp');
+
+    // 행의 둘째 단이 이 값이다. 계약에 사람 이름이 없어 Knox ID 가 표시명이다.
+    expect(gcp?.owners).toContain('haneul.kang');
+    expect(gcp?.owner_count).toBe(gcp?.owners.length);
+    // 담당자가 없는 서비스도 키는 있어야 한다 — 화면이 "담당자 없음"을 그 수로 판단한다.
+    expect(all.content.every((row) => Array.isArray(row.owners))).toBe(true);
+  });
+
   it('서비스 검색은 코드·이름 어느 쪽이든, 대소문자 없이 걸린다', async () => {
     mockData.setCurrentUser('user-6');
     const codes = async (query: string): Promise<string[]> =>
       (
-        await body<UserServicePageWire>(await mockAccess.listUserServices(query, 0, 100))
+        await body<ServicePageWire>(await mockAccess.listServicesPage(query, 0, 100))
       ).content.map((row) => row.service_code);
 
     // 코드는 소문자 'azure', 이름은 대문자 'Azure' — 어느 쪽으로 쳐도 같은 한 건.
@@ -203,8 +239,8 @@ describe('요청자 측', () => {
 
   it('반려된 서비스는 REJECTED 로 남는다', async () => {
     mockData.setCurrentUser('user-7'); // 시드 1004 가 반려된 사용자
-    const services = await body<UserServicePageWire>(
-      await mockAccess.listUserServices(undefined, 0, 100),
+    const services = await body<ServicePageWire>(
+      await mockAccess.listServicesPage(undefined, 0, 100),
     );
     expect(services.content.find((row) => row.service_code === 'idc')?.access_status).toBe(
       'REJECTED',
@@ -226,8 +262,8 @@ describe('요청자 측', () => {
   it('요청하면 그 서비스의 access_status 가 REQUESTED 로 바뀐다', async () => {
     mockData.setCurrentUser('user-6');
     await mockAccess.createRequest('gcp', '점검 업무가 배정됐어요');
-    const services = await body<UserServicePageWire>(
-      await mockAccess.listUserServices(undefined, 0, 100),
+    const services = await body<ServicePageWire>(
+      await mockAccess.listServicesPage(undefined, 0, 100),
     );
     expect(services.content.find((row) => row.service_code === 'gcp')?.access_status).toBe(
       'REQUESTED',

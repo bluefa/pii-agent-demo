@@ -564,11 +564,11 @@ export const mockAccess = {
   },
 
   /**
-   * GET /user/services/page — 전체 서비스 + access_status.
+   * GET /user/services/page — **내가 담당인 서비스만**. ADMIN 은 전체를 받는다.
    *
-   * 요청 화면의 목록이 여기서 나온다: 요청 가능한 서비스 = access_status 가 NONE 이거나
-   * REJECTED 인 것들. 기존 `bff.users.getServicesPage` 는 같은 경로를 보되 이 필드를
-   * 읽지 않으므로 그대로 둔다.
+   * 2026-08-14 오너 스펙: 경로 이름과 뜻이 어긋나지 않게 이 호출을 담당 서비스로 좁혔다.
+   * 화면의 "내가 접근할 수 있는 서비스" 탭이 여기서 나온다 — ADMIN 은 전체가 오므로
+   * 화면이 `OWNED` 로 한 번 더 거른다(관리자는 role 로 통과할 뿐 담당자는 아니다).
    */
   listUserServices: async (query: string | undefined, pageNumber: number, size: number) => {
     const caller = me();
@@ -576,11 +576,43 @@ export const mockAccess = {
     const q = (query ?? '').trim().toLowerCase();
     const rows = mockData.mockServiceCodes
       .filter((service) => matches([service.code, service.name], q))
+      .filter((service) => isAdmin(caller) || accessStatusFor(caller.id, service.code) === 'OWNED')
       .map((service) => ({
         service_code: service.code,
         service_name: service.name,
         access_status: accessStatusFor(caller.id, service.code),
+        is_eos_service: service.isEosService ?? null,
       }));
+    return NextResponse.json(page(rows, pageNumber, size));
+  },
+
+  /**
+   * GET /services/page — 전체 서비스 + 내 access_status + 담당자. 신청 대상 선택용.
+   *
+   * `/user/services/page` 가 담당 서비스로 좁혀지면서 갈라져 나온 목록이다. 담당자를
+   * 함께 싣는 건 "이름이 비슷한 서비스가 많아 어디에 신청할지 헷갈린다"는 요청 때문이고,
+   * 화면은 그 이름들을 행의 둘째 단에 그린다.
+   */
+  listServicesPage: async (query: string | undefined, pageNumber: number, size: number) => {
+    const caller = me();
+    if (!caller) return forbidden('로그인이 필요해요.');
+    const q = (query ?? '').trim().toLowerCase();
+    const rows = mockData.mockServiceCodes
+      .filter((service) => matches([service.code, service.name], q))
+      .map((service) => {
+        const owners = ownersOf(service.code);
+        return {
+          service_code: service.code,
+          service_name: service.name,
+          // 카탈로그에 약어가 없다 — 목이 지어내면 있지도 않은 값이 화면에 선다.
+          service_abbr_name: null,
+          access_status: accessStatusFor(caller.id, service.code),
+          is_eos_service: service.isEosService ?? null,
+          // "담당자 표시명" — 계약에 사람 이름이 없으므로 Knox ID 가 그 이름이다.
+          owners: owners.map((userId) => userWire(userId).knox_id),
+          owner_count: owners.length,
+        };
+      });
     return NextResponse.json(page(rows, pageNumber, size));
   },
 };

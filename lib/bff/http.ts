@@ -356,10 +356,17 @@ export const httpBff: BffClient = {
     // 사용자 측 — admin 게이트 밖. 요청 생성은 멱등이라 재시도가 안전하다.
     createRequest: (serviceCode, reason) =>
       post(`/services/${encodeURIComponent(serviceCode)}/permission-access`, { reason }),
+    // 2026-08-14 오너 확정 — 본인 신청 내역은 `/user/permission-access` (갭 B4 해소).
+    // `status` 필터가 생겼지만 화면이 상태별 합을 직접 세므로 전체를 받는다.
     listMyRequests: (page, size) =>
-      getSnakeRaw(`/permission-access/mine${buildQuery({ page, size })}`),
+      getSnakeRaw(`/user/permission-access${buildQuery({ page, size })}`),
+    // 담당 서비스만 — ADMIN 은 전체를 받는다. "내가 접근할 수 있는 서비스"가 이것이다.
     listUserServices: (query, page, size) =>
       getSnakeRaw(`/user/services/page${buildQuery({ query, page, size })}`),
+    // 전체 서비스 + 내 access_status + 담당자 — 신청 대상을 고르는 목록.
+    listServicesPage: (query, page, size) =>
+      getSnakeRaw(`/services/page${buildQuery({ query, page, size })}`),
+    // ADMIN 전용으로 좁혀졌다(임직원 명부라서). 요청자 화면은 부르지 않는다.
     searchUsers: (query, excludeEmails) =>
       getSnakeRaw(
         `/users/search${buildQuery({

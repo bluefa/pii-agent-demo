@@ -28,6 +28,8 @@ import type {
   PermissionRequestRowWire,
   ServiceAccessStatusWire,
   ServiceOwnersWire,
+  ServicePageRowWire,
+  ServicePageWire,
   UserServicePageWire,
   UserServiceRowWire,
 } from '@/lib/bff/types';
@@ -108,11 +110,27 @@ export interface AccessHistoryEntry {
   createdAt: string;
 }
 
-/** 사용자 시점의 서비스 한 줄. */
+/** 사용자 시점의 서비스 한 줄 — 담당 서비스 목록(`/user/services/page`). */
 export interface UserServiceRow {
   serviceCode: string;
   serviceName: string;
   accessStatus: ServiceAccessStatus;
+  isEosService: boolean | null;
+}
+
+/**
+ * 전체 서비스 목록의 한 줄(`/services/page`) — 신청 대상 선택용.
+ *
+ * 담당자를 함께 싣는 계약이라 행이 이름 하나로 끝나지 않는다. 이름이 비슷한 서비스가
+ * 많아 어디에 신청할지 헷갈린다는 게 그 필드가 생긴 이유이고, 화면은 정확히 그 자리에
+ * 그린다 — 이름 아래 둘째 단.
+ */
+export interface ServiceRow extends UserServiceRow {
+  /** 없으면 null — 카탈로그가 약어를 갖고 있을 때만 온다. */
+  serviceAbbrName: string | null;
+  /** 담당자 표시명. `ownerCount` 는 이 배열이 잘려 와도 맞는 전체 수다. */
+  owners: string[];
+  ownerCount: number;
 }
 
 // ── Wire → domain ────────────────────────────────────────────────────────────
@@ -197,6 +215,15 @@ const toUserService = (wire: UserServiceRowWire): UserServiceRow => ({
   serviceCode: wire.service_code,
   serviceName: wire.service_name,
   accessStatus: wire.access_status,
+  // 미지정은 "EOS 아님"이 아니라 "모름"이다 — false 로 접지 않는다.
+  isEosService: wire.is_eos_service ?? null,
+});
+
+const toServicePageRow = (wire: ServicePageRowWire): ServiceRow => ({
+  ...toUserService(wire),
+  serviceAbbrName: wire.service_abbr_name ?? null,
+  owners: wire.owners ?? [],
+  ownerCount: wire.owner_count ?? 0,
 });
 
 // ── Client funcs ─────────────────────────────────────────────────────────────
@@ -375,7 +402,7 @@ export async function searchAccessUsers(
   return (wire.users ?? []).map(toUser);
 }
 
-/** 사용자 시점의 서비스 목록 — 요청 가능 여부가 `accessStatus` 에 실려 온다. */
+/** 내가 담당인 서비스 목록 — ADMIN 은 전체가 오므로 화면이 `OWNED` 로 한 번 더 거른다. */
 export async function getUserServices(
   search: string | undefined,
   page: number,
@@ -390,6 +417,23 @@ export async function getUserServices(
     { signal: opts?.signal },
   );
   return toPage(wire, toUserService);
+}
+
+/** 전체 서비스 목록 — 신청 대상을 고르는 쪽. 담당자가 행마다 실려 온다. */
+export async function getServicesPage(
+  search: string | undefined,
+  page: number,
+  opts?: Opts,
+): Promise<AccessPage<ServiceRow>> {
+  const wire = await fetchInfraJson<ServicePageWire>(
+    `/access/services-page?${query({
+      query: search,
+      page,
+      size: opts?.size ?? ACCESS_PAGE_SIZE,
+    })}`,
+    { signal: opts?.signal },
+  );
+  return toPage(wire, toServicePageRow);
 }
 
 /** 권한 요청 생성 — 멱등이라 이미 대기 중이어도 성공한다. 204. */

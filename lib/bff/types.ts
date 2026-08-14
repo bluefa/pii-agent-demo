@@ -359,6 +359,7 @@ export interface BffClient {
     createRequest: (serviceCode: string, reason: string) => Promise<void>;
     listMyRequests: (page: number, size: number) => Promise<PermissionRequestDetailPageWire>;
     listUserServices: (query: string | undefined, page: number, size: number) => Promise<UserServicePageWire>;
+    listServicesPage: (query: string | undefined, page: number, size: number) => Promise<ServicePageWire>;
     searchUsers: (query: string | undefined, excludeEmails: string[]) => Promise<AccessUserSearchWire>;
   };
 }
@@ -545,13 +546,43 @@ export interface AccessUserSearchWire {
  */
 export type ServiceAccessStatusWire = 'OWNED' | 'REQUESTED' | 'REJECTED' | 'NONE';
 
+/**
+ * `GET /user/services/page` — **내가 담당인 서비스만** (ADMIN 은 전체).
+ *
+ * 2026-08-14 오너 스펙 변경: 경로 이름과 뜻이 어긋나지 않도록 이 호출은 담당 서비스로
+ * 좁혔고, 전체 목록은 `GET /services/page` 로 갈라졌다. 요청 대상을 고르는 목록은
+ * 그쪽이다 — 이쪽은 "내가 접근할 수 있는 서비스".
+ */
 export interface UserServiceRowWire {
   service_code: string;
   service_name: string;
   access_status: ServiceAccessStatusWire;
+  /** infra 카탈로그의 EOS 값. 미지정은 "EOS 아님"이 아니라 "모름"이다. */
+  is_eos_service: boolean | null;
 }
 
 export type UserServicePageWire = AccessPageWire<UserServiceRowWire>;
+
+/**
+ * `GET /services/page` — 전체 서비스 + 내 접근 상태 + 담당자. 신청 대상 선택용.
+ *
+ * `owners` 는 오너 스펙의 "담당자 표시명"이다 — `UserSummary` 가 아니라 문자열 배열로
+ * 읽는다. 사람 이름 필드가 계약 어디에도 없으므로 목은 Knox ID 를 싣는다(화면이 사람을
+ * 부르는 이름이 그것이다). **실제 원소 모양은 확인 대기** — UserSummary 로 오면
+ * `toServiceRow` 한 곳만 바뀐다.
+ */
+export interface ServicePageRowWire {
+  service_code: string;
+  service_name: string;
+  /** 약어 — infra 카탈로그가 주던 값을 그대로 흘려보낸다. 없으면 null. */
+  service_abbr_name: string | null;
+  access_status: ServiceAccessStatusWire;
+  is_eos_service: boolean | null;
+  owners: string[];
+  owner_count: number;
+}
+
+export type ServicePageWire = AccessPageWire<ServicePageRowWire>;
 
 /**
  * 서비스 운영은 assumed 계약을 쓰지 않는다 — `/admin/ops/services*` 는 install-v1.yaml

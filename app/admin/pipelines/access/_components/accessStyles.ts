@@ -68,8 +68,25 @@ export const accessStyles = {
   /** 서비스 패널 행 — 타일 · 이름 · 코드 태그. `/services` 레일과 같은 문법을 카드
    *  안에서 쓴다(폭·색·타일 해시는 `serviceListStyles` 에서 그대로 온다). 서비스는
    *  이 제품 어디서나 같은 모양으로 읽혀야 하므로 여기서 다시 그리지 않는다.
-   *  gap 은 레일의 2.5, py 는 28px 타일에 맞춘 값. */
-  svcRow: 'flex items-center gap-2.5 border-t border-[var(--pl-border)] py-2',
+   *  gap 은 레일의 2.5, py 는 28px 타일에 맞춘 값.
+   *
+   *  `max-w` 는 목록이 카드만큼 넓을 이유가 없어서다 — 1710px 화면에서 이름 칸이
+   *  735px 인데 그 안에 든 글자는 41px 이었다(94% 가 빈 폭). 가장 긴 서비스명 실폭
+   *  340 + 코드 태그 + 액션이 640 안에 들어가므로, 남는 폭은 열을 늘리는 대신
+   *  오른쪽 여백으로 둔다. 폭이 넓다고 정보가 늘지는 않는다. */
+  svcRow: 'flex max-w-[640px] items-center gap-2.5 border-t border-[var(--pl-border)] py-2',
+  /** 목록과 같은 폭을 쓰는 것들(검색창) — 목록보다 넓으면 조작이 목록에서 떨어진다. */
+  svcColumn: 'max-w-[640px]',
+  /** 행 안의 두 단 — 윗단 이름·코드, 아랫단 설명. 등급이 카드 사이가 아니라 행 안에서
+   *  생기는 자리다(Carbon structured list, NN/g "굵은 줄만 따라 읽기"). */
+  svcStack: 'flex min-w-0 flex-1 flex-col gap-0.5',
+  /** 이름과 코드는 붙는다(gap 6). 레일에서 코드가 오른쪽 끝에 서 있는 건 폭이 좁아
+   *  코드들을 한 x 에 맞추려는 것이고, 여기선 반대가 필요하다 — 사이가 벌어지면
+   *  이름과 코드가 한 서비스의 두 표기가 아니라 두 열로 읽힌다. `self-start` 라야
+   *  덩어리가 글자만큼만 넓어지고, 그래야 코드가 이름을 따라온다. */
+  svcIdent: 'flex min-w-0 max-w-full items-center gap-1.5 self-start',
+  /** 설명 줄 — 12/weak. 같은 2단 문법을 쓰는 연동 요청 행의 설명 열과 같은 급이다. */
+  svcDesc: 'min-w-0 truncate text-[12px] leading-[1.5] text-[var(--pl-text-weak)]',
   /** 행 끝 액션 셀 — "권한 요청"이 줄바꿈 없이 들어가는 폭. */
   svcAction: 'w-[68px] flex-none text-right',
   /** 열이 있는 표(내 요청 내역) 안의 서비스 셀 — `svcRow` 와 같은 타일·이름·코드를

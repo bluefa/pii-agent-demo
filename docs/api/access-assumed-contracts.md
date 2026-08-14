@@ -1,13 +1,28 @@
 # 서비스 접근 권한 — Contracts
 
 The 접근 권한 admin menu group (`/admin/pipelines/access/**`) and the requester screen
-(`/access-requests`) run on the **backend draft spec the owner supplied (2026-08-13)** —
-paths, field names and status codes are followed verbatim. Two things in it do not exist
-yet; both are marked **GAP** below.
+(`/access-requests`) run on the **backend spec the owner supplied (2026-08-13, updated
+2026-08-14)** — paths, field names and status codes are followed verbatim.
 
 None of these endpoints are in `docs/swagger/install-v1.yaml` yet, so they 404 against the
 real BFF and the feature is mock-first (`lib/bff/mock/access.ts`). Conventions follow
 install-v1: snake_case wire, Spring `Page` for the paged reads, `ErrorMessage` problems.
+
+## 2026-08-14 오너 업데이트 — 무엇이 바뀌었나
+
+| | 바뀐 것 | 우리 쪽 반영 |
+|---|---|---|
+| **B4 해소** | 본인 신청 내역이 `GET /user/permission-access?status=&page=&size=` 로 생겼다 (반려 사유 포함) | `listMyRequests` 경로 교체. 우리가 제안했던 `/permission-access/mine` 은 폐기 |
+| **의미 반전** | `GET /user/services/page` 가 **담당 서비스만** 준다 (ADMIN 은 전체) | "내가 접근할 수 있는 서비스" 탭이 이 호출이 됐다 |
+| **새 엔드포인트** | 전체 목록이 `GET /services/page` 로 갈라졌다 — `access_status` + `owners`(담당자 표시명) + `owner_count` + `service_abbr_name` | "요청할 수 있는 서비스" 탭이 이쪽으로 옮겼고, 담당자를 행의 둘째 단에 그린다 |
+| **필드 추가** | 두 목록 모두 `is_eos_service` 를 싣는다 (infra 카탈로그 값) | wire 에 선언. 요청 화면은 아직 그리지 않는다 |
+| **권한 축소** | `GET /users/search` 가 ADMIN 전용 실구현 (임직원 명부라서) | 요청자 화면은 부르지 않는다. 아래에서 관리자 API 로 옮겨 적었다 |
+| **실구현** | `GET /services/{code}/authorized-users` 가 고정 응답에서 실구현으로 | 프론트는 `/owners` 만 쓴다 — 중복 정리는 여전히 오너 몫 |
+| **표기 통일** | 관리 화면 응답 DTO 가 snake_case 로 통일 | 이미 snake wire 로 읽고 있어 변경 없음 |
+
+이 업데이트로 **`description` 요청(C-1)은 철회한다.** 행이 이름 하나로 끝나던 문제는
+`owners` 가 대신 푼다 — 오너가 그 필드를 붙인 이유("이름이 비슷한 서비스가 많아 어디에
+신청할지 헷갈린다")가 화면이 설명을 달라고 한 이유와 같은 것이었다.
 
 ## Decisions this contract encodes
 
@@ -29,11 +44,13 @@ install-v1: snake_case wire, Spring `Page` for the paged reads, `ErrorMessage` p
 what any signed-in user calls — a service manager with no permission must still be able to
 ask, so those sit outside the admin gate.
 
-**Base path assumption:** the spec gave full paths only for the user API
-(`/install/v1/services/{serviceCode}/permission-access`) and bare paths for the admin side
-(`/services`, `/admins`, `/permission-access`, `/history`). We mounted the admin set under
-`/install/v1/admin/…`, following the repo's existing `/admin/queue/*` and `/admin/ops/*`.
-**Confirm this before the BFF ships.**
+**Base path assumption (여전히 미확인):** 오너의 표는 사용자 API 만 전체 경로
+(`/install/v1/…`)로 적고 관리 API 는 계속 bare (`/services`, `/admins`,
+`/permission-access`, `/history`) 로 적는다. 08-14 업데이트도 마찬가지다 — 본문에서는
+사용자 API 인 `/install/v1/services/page` 를 그냥 `/services/page` 로 부르므로, **bare 는
+"prefix 생략"이지 "prefix 없음"이 아니다**. 그래서 이것으로는 관리 API 의 base 를
+가릴 수 없다. 우리는 저장소 관례(`/admin/queue/*`, `/admin/ops/*`)를 따라
+`/install/v1/admin/…` 에 걸어 두었다. **BFF 나가기 전에 확인해야 한다.**
 
 ## Shared shapes
 
@@ -168,6 +185,24 @@ AccessHistoryRow {
 **`type` enum 값은 아직 확인받지 못했다** — 위 여섯은 화면이 가정한 값이고, 배지 어휘가
 여기서 나온다.
 
+### 사용자 검색
+
+```
+GET /users/search?query={q}&excludeEmails={a,b}
+→ 200 { users: UserSummary[] }
+```
+
+**ADMIN 전용이다** (2026-08-14). 임직원 명부(knox_id·email·role)를 돌려주므로 인증만으로
+열어 둘 수 없다는 오너 판단이고, 실제로 부르는 화면도 담당자 피커(관리자 전용) 하나뿐이다.
+
+이름이 없으므로 `knox_id` 와 `email` 로만 매칭한다. "이미 가진 사람"을 아는 쪽은 화면이라
+제외 목록을 화면이 넘긴다 — 그래서 피커는 **현재 페이지가 아니라 전체 목록**을 들고 있어야
+한다(2페이지의 담당자가 후보로 다시 올라오면 안 된다).
+
+**빈 질의는 빈 목록을 돌려준다.** `query` 없이 부르면 사람 디렉터리 전체를 열거하는
+창구가 되므로, mock 은 빈 질의에 아무도 주지 않고 화면도 검색어가 생긴 뒤에만 부른다.
+**실 BFF 도 같은 규칙이어야 한다** — 화면 쪽 규칙만으로는 다른 호출자가 우회할 수 있다.
+
 ---
 
 ## 사용자 API
@@ -179,45 +214,43 @@ body    { reason: string }          // 필수. 담당자 검사 면제
 ```
 
 ```
-GET /user/services/page?query=&page={0}&size={20}
-→ 200 Page<{ service_code, service_name, access_status }>
+GET /user/permission-access?status={PENDING}&page={0}&size={20}
+→ 200 Page<PermissionRequestDetail>  // 호출자 본인 것만, 최신순. 반려 사유 포함
+```
+
+B4 가 이것으로 닫혔다. 화면은 `status` 를 붙이지 않는다 — 헤더 판정이 반려·대기·승인을
+한 문장으로 세므로 상태별로 나눠 받으면 호출이 셋이 된다.
+
+```
+GET /services/page?query=&page={0}&size={20}
+→ 200 Page<{ service_code, service_name, service_abbr_name,
+             access_status, is_eos_service, owners, owner_count }>
 
 access_status: "OWNED" | "REQUESTED" | "REJECTED" | "NONE"
+owners:        string[]   // 담당자 표시명
 ```
 
-`/access-requests` 의 서비스 탭 둘이 이 한 번의 호출을 나눠 쓴다 — 요청할 수 있는
-서비스 = `NONE` 또는 `REJECTED`, 내가 접근할 수 있는 서비스 = `OWNED`. 자르는 축이
-`access_status` 뿐이라 상태별 엔드포인트를 따로 두지 않았다.
+**요청할 수 있는 서비스** 탭이 이 호출이다 — `NONE` 또는 `REJECTED` 만 남긴다. 행의
+둘째 단이 `owners` 다: 내 요청을 볼 사람이 누구인지, 그리고 이름이 비슷한 둘 중 어느
+쪽이 내가 아는 그 서비스인지. 이름은 둘까지 쓰고 나머지는 `owner_count` 로 접는다.
+
+```
+GET /user/services/page?query=&page={0}&size={20}
+→ 200 Page<{ service_code, service_name, access_status, is_eos_service }>
+```
+
+**내가 접근할 수 있는 서비스** 탭. 담당 서비스만 오지만 **ADMIN 에게는 전체가 오므로**
+화면이 `OWNED` 로 한 번 더 거른다 — 관리자는 role 로 통과할 뿐 담당자는 아니다.
+담당자는 싣지 않는다(그쪽 목록에서는 내가 이미 담당자다).
 
 기존 `bff.users.getServicesPage` 도 같은 업스트림을 보지만 스웨거 계약
-(`PageServiceItem`)으로 파싱해 이 필드를 버리므로, 접근 권한 기능은 별도 투영으로 읽는다.
+(`PageServiceItem`)으로 파싱해 이 필드들을 버리므로, 접근 권한 기능은 별도 투영으로 읽는다.
 
-> **⚠️ 이 응답 형태는 아직 `docs/swagger/*.yaml`(api-docs) 어디에도 없다.** `access_status`
-> 는 이 문서가 선언하는 가정이고, 화면 셋(요청 가능·접근 가능·헤더 판정)이 전부 그 위에
-> 서 있다. 업스트림이 필드를 다른 이름으로 주거나 enum 값이 다르면 세 탭이 함께 빈다 —
-> 계약이 확정되면 `lib/bff/types.ts:ServiceAccessStatusWire` 부터 맞춘다.
-
-```
-GET /users/search?query={q}&excludeEmails={a,b}
-→ 200 { users: UserSummary[] }
-```
-
-이름이 없으므로 `knox_id` 와 `email` 로만 매칭한다. "이미 가진 사람"을 아는 쪽은 화면이라
-제외 목록을 화면이 넘긴다 — 그래서 피커는 **현재 페이지가 아니라 전체 목록**을 들고 있어야
-한다(2페이지의 담당자가 후보로 다시 올라오면 안 된다).
-
-**빈 질의는 빈 목록을 돌려준다.** `query` 없이 부르면 사람 디렉터리 전체를 열거하는
-창구가 되므로, mock 은 빈 질의에 아무도 주지 않고 화면도 검색어가 생긴 뒤에만 부른다.
-**실 BFF 도 같은 규칙이어야 한다** — 화면 쪽 규칙만으로는 다른 호출자가 우회할 수 있다.
-
-> **GAP — B4.** 사용자 본인의 요청 내역을 볼 엔드포인트가 없다. `access_status` 만으로는
-> 반려 사유도 처리 일시도 말할 수 없어 "승인 내역 조회" 요구사항이 성립하지 않는다.
-> 오너가 추가하기로 했고, 그때까지 화면은 제안한 모양을 쓴다:
->
-> ```
-> GET /permission-access/mine?page={0}&size={20}
-> → 200 Page<PermissionRequestDetail>          // 호출자 본인 것만, 최신순
-> ```
+> **⚠️ 두 응답 형태 모두 아직 `docs/swagger/*.yaml`(api-docs) 어디에도 없다.**
+> `access_status` 도 `owners` 도 이 문서가 적어 두는 것이고, 화면 셋(요청 가능·접근
+> 가능·헤더 판정)이 전부 그 위에 서 있다. 필드 이름이나 enum 이 다르면 세 탭이 함께
+> 빈다 — 확정되면 `lib/bff/types.ts` 의 `ServiceAccessStatusWire`·`ServicePageRowWire`
+> 부터 맞춘다.
 
 ---
 
@@ -225,8 +258,13 @@ GET /users/search?query={q}&excludeEmails={a,b}
 
 | | 내용 |
 |---|---|
-| B3 | 요청 목록 행에 `reason`·`status`·`processed_at` 추가 여부 |
-| B4 | 사용자 본인 요청 내역 엔드포인트 (오너 추가 예정) |
+| B3 | 요청 목록 행에 `reason`·`status`·`processed_at` 추가 여부 (08-14 업데이트에도 안 들어왔다) |
 | D4 | `/history` 의 `type` enum 실제 값 |
-| D6 | 관리자 API base path (`/install/v1/admin/…` 로 가정) |
-| — | `authorized-users` 와 `owners` 는 같은 집합으로 확인됐다. 둘 중 하나는 없어져야 한다 — 프론트는 `/owners` 선호, `getPermissions()` 는 호출자가 없어 삭제 비용 0 |
+| D6 | 관리자 API base path (`/install/v1/admin/…` 로 가정) — 08-14 표기로도 가려지지 않았다 |
+| E1 | `GET /services/page` 가 `query` 를 받나. 화면에 검색창이 있고 지금은 받는다고 가정한다 |
+| E2 | `owners` 원소가 문자열인가 `UserSummary` 인가. "담당자 표시명"으로 적혀 있어 문자열로 읽는다 — 객체면 `toServicePageRow` 한 곳만 바뀐다 |
+| E3 | `service_abbr_name` 을 실제로 채워 주는 서비스가 어떤 것들인가. 목은 카탈로그에 약어가 없어 전부 `null` 이고, 화면도 아직 그리지 않는다 |
+| — | `authorized-users` 가 실구현됐지만 `owners` 와 같은 집합이다. 둘 중 하나는 없어져야 한다 — 프론트는 `/owners` 만 쓴다 |
+
+**닫힌 것** — B4(본인 신청 내역 `/user/permission-access`), C-1(`description` 요청은
+철회, `owners` 가 대신한다).
