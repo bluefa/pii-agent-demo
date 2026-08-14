@@ -72,7 +72,18 @@ interface Store {
 const T = (day: number, hour = 10): string =>
   `2026-08-${String(day).padStart(2, '0')}T${String(hour).padStart(2, '0')}:20:00Z`;
 
-let store: Store | null = null;
+/**
+ * 스토어는 **globalThis 에** 산다 — 모듈 레벨 변수로 두면 안 된다.
+ *
+ * Next 는 라우트 핸들러를 파일별로 번들링하므로 이 모듈이 라우트마다 별도 인스턴스로
+ * 로드된다. `let store` 로 두면 `POST /access/services/{code}/permission-access` 가 쓴
+ * 요청을 `GET /access/permission-access/mine` 이 영영 못 본다 — 쓰기는 204 로 성공하고
+ * 목록만 조용히 그대로다. 같은 파일 안의 GET·POST 만 우연히 맞아 떨어져서 더 안 보인다.
+ * pipeline·task-queue·ops 목이 이미 같은 이유로 globalThis 를 쓴다.
+ */
+declare global {
+  var __accessMockStore: Store | undefined;
+}
 /**
  * 최초 seed 때의 선언값. 부여/해제/관리자 변경이 User 레코드를 **직접** 고치므로, 이게
  * 없으면 리셋이 리셋이 아니다.
@@ -172,11 +183,11 @@ function seed(): Store {
   };
 }
 
-const getStore = (): Store => (store ??= seed());
+const getStore = (): Store => (globalThis.__accessMockStore ??= seed());
 
 /** Test seam — drops the store so the next call re-seeds. */
 export const __resetAccessStore = (): void => {
-  store = null;
+  globalThis.__accessMockStore = undefined;
 };
 
 // ── helpers ──────────────────────────────────────────────────────────────────

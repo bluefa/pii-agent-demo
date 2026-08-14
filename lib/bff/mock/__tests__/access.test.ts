@@ -275,6 +275,23 @@ describe('요청자 측', () => {
     expect(mine.content.find((row) => row.service_code === 'gcp')?.reason).toBe('첫 요청');
   });
 
+  /**
+   * 위 두 테스트는 **한 모듈 인스턴스 안에서만** 참이라 런타임의 진짜 실패를 못 잡는다.
+   * Next 는 라우트 핸들러를 파일별로 번들링하므로 이 목이 라우트마다 새로 로드된다 —
+   * 스토어가 모듈 지역 변수면 POST 라우트가 쓴 요청을 GET 라우트가 영영 못 보고, 화면은
+   * 204 를 받고도 목록이 그대로다(실제로 그랬다). 스토어가 globalThis 에 있는지가
+   * 그 불변식이고, 여기서만 검사할 수 있다.
+   */
+  it('쓰기는 globalThis 스토어에 남는다 — 라우트별 모듈 복제를 견딘다', async () => {
+    mockData.setCurrentUser('user-6');
+    await mockAccess.createRequest('gcp', '모듈이 복제돼도 남아야 한다');
+
+    const shared = globalThis.__accessMockStore;
+    expect(shared?.requests.some((r) => r.serviceCode === 'gcp' && r.userId === 'user-6')).toBe(
+      true,
+    );
+  });
+
   it('요청하면 그 서비스의 access_status 가 REQUESTED 로 바뀐다', async () => {
     mockData.setCurrentUser('user-6');
     await mockAccess.createRequest('gcp', '점검 업무가 배정됐어요');
