@@ -2,13 +2,14 @@
 
 ## 입력 형태
 
-Pull 구독이므로 push의 base64 봉투가 없다. `PubsubMessage.data`가
-OpenLineage **RunEvent JSON 원문** 그대로다. transport에서 DAG-only
+Pull 구독이므로 push 구독과 달리 메시지가 base64로 래핑되어 있지
+않다. `PubsubMessage.data`가 OpenLineage **RunEvent JSON 원문**
+그대로다. transport에서 DAG-only
 + 이름 prefix 필터를 통과한 이벤트만 도착하지만, 소비 쪽 파싱은 그
 가정에 기대지 않는다(아래 방어 참조).
 
 **외부 DAG ID는 이벤트에 없다** — 파싱 대상이 아니다. 이름→ID
-해석은 수집 경로 밖의 reconciler + `dag_registry` 테이블이 담당하고
+해석은 수집 흐름과 분리된 reconciler + `dag_registry` 테이블이 담당하고
 (architecture.md 참조), 주간 조회가 join으로 붙인다.
 
 ## 추출 필드 (7개)
@@ -16,10 +17,10 @@ OpenLineage **RunEvent JSON 원문** 그대로다. transport에서 DAG-only
 | 필드 | JSON 경로 | 용도 | 필수 | 결측 시 |
 |------|-----------|------|------|---------|
 | eventType | `/eventType` | 상태 매핑 | ✔ | nack → DLQ |
-| eventTime | `/eventTime` | 폴드 순서 판정 (도착 순서 대신) | ✔ | nack → DLQ |
+| eventTime | `/eventTime` | 상태 갱신 순서 판정 (도착 순서 대신) | ✔ | nack → DLQ |
 | namespace | `/job/namespace` | Composer 환경 식별 | ✔ | nack → DLQ |
 | dag_id | `/job/name` | DAG 식별 | ✔ | nack → DLQ |
-| runId | `/run/runId` | run 단위 폴드 키 (START·터미널 동일 UUID) | ✔ | nack → DLQ |
+| runId | `/run/runId` | run 단위 상태 병합 키 (START·종료 이벤트 동일 UUID) | ✔ | nack → DLQ |
 | logical_date | `/run/facets/airflowDagRun/dagRun/logical_date` | 날짜 버킷 키 | ✔ (fallback 있음) | fallback 후에도 없으면 nack |
 | run_type | `/run/facets/airflowDagRun/dagRun/run_type` | scheduled/manual 구분 | — | null 저장 |
 
@@ -32,7 +33,7 @@ provider 버전에 따라 facet 구성이 달라서 두 경로를 모두 선언�
 전체 OpenLineage 스키마(또는 `openlineage-java`의 RunEvent)를 매핑하지
 않는다. 이유:
 
-- 쓰는 건 7개 필드뿐인데 스키마 전체와 버전 결합이 생긴다.
+- 쓰는 건 7개 필드뿐인데 전체 스키마와 특정 provider 버전에 결합된다.
 - provider 업그레이드로 facet이 추가·변경돼도, 관심 경로만 선언한
   record + `@JsonIgnoreProperties(ignoreUnknown = true)`는 깨지지
   않는다.
@@ -67,7 +68,7 @@ DB 일시 장애                → 동일 (재전송이 곧 재시도 큐)
 알 수 없는 eventType        → ack (의도적 무시)
 ```
 
-nack을 try/except로 삼키고 ack하지 말 것 — 데이터가 조용히 증발한다.
+예외를 try/except로 무시한 채 ack하지 말 것 — 데이터가 경고 없이 유실된다.
 
 ## 순서·중복 처리 (파싱이 아니라 upsert가 담당)
 
@@ -78,7 +79,7 @@ ON CONFLICT (run_id) DO UPDATE ... WHERE EXCLUDED.event_time > 기존.event_time
 ```
 
 - 중복 재전송: 같은 event_time → no-op
-- 역순 도착(터미널 먼저): 늦게 온 START가 더 오래됨 → 탈락
+- 역순 도착(종료 이벤트 먼저): 늦게 온 START가 더 오래됨 → 탈락
 - clear 후 재실행: 새 START가 더 나중 → RUNNING 복귀 (의도된 동작)
 
 ## 착수 전 확인
