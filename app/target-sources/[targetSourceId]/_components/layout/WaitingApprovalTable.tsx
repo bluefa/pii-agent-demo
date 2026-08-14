@@ -130,19 +130,31 @@ export interface WaitingApprovalResource {
  */
 type WaitingApprovalTableVariant = 'approval' | 'confirmed' | 'install';
 
-/**
- * Replaces the Resource Name + Resource ID pair with ONE caller-rendered column.
- *
- * For a provider whose rows are named by a scan this pair IS the identity. IDC's is not:
- * it has no scan-assigned name, and its `resource_id` is an internal NLB key it may not
- * print (design-spec §8) — what identifies an IDC row is its endpoint list, the same
- * 접속 주소 cell steps 2·3·5·6·7 already print.
- */
-export interface ApprovalIdentityColumn {
+export interface ApprovalIdentityCell {
   label: string;
   render: (resource: WaitingApprovalResource) => ReactNode;
+  /** 헤더 폭 — 호출자의 다른 단계 표에서 그대로 복사해, 단계끼리 열이 어긋나지 않게 한다. */
+  widthClass?: string;
+}
+
+/**
+ * Replaces the Resource Name + Resource ID pair with the caller's own leading columns.
+ *
+ * For a provider whose rows are named by a scan that pair IS the identity. IDC's is not:
+ * it has no scan-assigned name, and its `resource_id` is an internal NLB key it may not
+ * print (design-spec §8). An IDC row is identified the way steps 2·3·5·6·7 identify it —
+ * 구분 · 접속 주소 · Port · Database Type.
+ */
+export interface ApprovalIdentityColumns {
+  columns: readonly ApprovalIdentityCell[];
   /** 검색창 placeholder — 표가 보여주지 않는 필드를 약속하지 않도록 같이 바꾼다. */
   searchPlaceholder?: string;
+  /**
+   * Database Type 필터 옵션을 만드는 접근자. 옵션은 이 표가 실제로 찍는 글자여야 하는데,
+   * 앞 열을 호출자가 그리면 그 글자도 호출자의 것이다 — IDC 는 MSSQL 이라 쓰고 클라우드
+   * 라벨 맵은 SQL Server 라 쓴다. 없으면 훅의 기본 접근자를 그대로 쓴다.
+   */
+  dbTypeLabel?: (resource: WaitingApprovalResource) => string;
 }
 
 interface WaitingApprovalTableProps {
@@ -179,10 +191,10 @@ interface WaitingApprovalTableProps {
    */
   expandFolds?: boolean;
   /**
-   * `install` variant only — see `ApprovalIdentityColumn`. The other two variants group,
+   * `install` variant only — see `ApprovalIdentityColumns`. The other two variants group,
    * fold and cluster on the name/id pair, so the swap is not offered there.
    */
-  identityColumn?: ApprovalIdentityColumn;
+  identityColumns?: ApprovalIdentityColumns;
 }
 
 // v16 `.approval-table-wrap` (CSS ~2846): border:0; overflow:hidden; background:#fff — joins flush
@@ -332,7 +344,7 @@ export const WaitingApprovalTable = memo(
     raisedRows = false,
     regionLabel = 'Region',
     expandFolds = false,
-    identityColumn,
+    identityColumns,
   }: WaitingApprovalTableProps) => {
     // Athena arrives as many rows of one catalog family per region; grouping restores the
     // parent it belongs to (LIN-85). Groups start OPEN — the approval table is the "review
@@ -456,6 +468,23 @@ export const WaitingApprovalTable = memo(
           onMouseEnter={rail?.onMouseEnter}
           onMouseLeave={rail?.onMouseLeave}
         >
+          {identityColumns ? (
+            /* 호출자가 앞 열 전체를 그린다. 판정 레일과 26px 들여쓰기는 첫 칸의 몫이고,
+               나머지는 여느 셀과 같다 — 이 표의 다른 열들과 같은 리듬을 유지한다. */
+            identityColumns.columns.map((column, index) => (
+              <td
+                key={column.label}
+                className={cn(
+                  idcStyles.table.approvalCell,
+                  index === 0 && verdictRailClass(excluded),
+                  index === 0 && idcStyles.table.nameCell,
+                )}
+              >
+                {column.render(resource)}
+              </td>
+            ))
+          ) : (
+            <>
           {/* One line, always. Wrapping turned the row's darkest column into a 2–3 line
               block and left row heights ragged (59/69/75px); the full name is in the tip. */}
           <td
@@ -479,9 +508,7 @@ export const WaitingApprovalTable = memo(
               (instancesOpen || (folded && open)) && idcStyles.table.group.parentCell,
             )}
           >
-            {identityColumn ? (
-              identityColumn.render(resource)
-            ) : hasInstances ? (
+            {hasInstances ? (
               // Three-line identity, exactly step 1's: kind tag → cluster name → the instance it
               // connects through (owner, 2026-08-13; recorded verbatim in the propagation section
               // of `docs/ux/benchmark/step1-resource-table.md`). No positional lift here — with
@@ -608,25 +635,25 @@ export const WaitingApprovalTable = memo(
           {/* A folded row toggles on click, and this cell holds a copy button — without the
               guard, copying the region id also opened the fold. The chevron above stops its
               own propagation for the same reason. */}
-          {!identityColumn && (
-            <td
-              className={idcStyles.table.approvalCell}
-              onClick={foldToggleable ? (event) => event.stopPropagation() : undefined}
-            >
-              {/* An absent id renders nothing rather than a bare control: a consumer that
-                  withholds it (IDC's resource_id is internal) would otherwise get a
-                  focusable "Resource ID 복사" on every row, copying ''. */}
-              {grouped || !resource.resourceId ? null : (
-                // 260px (the cell default) plus a non-wrapping Region overran the card.
-                <ResourceIdCell
-                  value={resource.resourceId}
-                  label="Resource ID"
-                  maxWidthClass="max-w-[220px]"
-                  sizeClass="text-[14px]"
-                  textClassName={cn(textColors.secondary, CELL_LIFT)}
-                />
-              )}
-            </td>
+          <td
+            className={idcStyles.table.approvalCell}
+            onClick={foldToggleable ? (event) => event.stopPropagation() : undefined}
+          >
+            {/* An absent id renders nothing rather than a bare control: a consumer that
+                withholds it (IDC's resource_id is internal) would otherwise get a
+                focusable "Resource ID 복사" on every row, copying ''. */}
+            {grouped || !resource.resourceId ? null : (
+              // 260px (the cell default) plus a non-wrapping Region overran the card.
+              <ResourceIdCell
+                value={resource.resourceId}
+                label="Resource ID"
+                maxWidthClass="max-w-[220px]"
+                sizeClass="text-[14px]"
+                textClassName={cn(textColors.secondary, CELL_LIFT)}
+              />
+            )}
+          </td>
+            </>
           )}
           {/* DB Type is a repeating attribute, not a status — one badge per row (the
               verdict) is enough; a second pill would compete with it.
@@ -827,10 +854,19 @@ export const WaitingApprovalTable = memo(
               {/* Identity (name → id) → attributes (type · region) → decision (verdict → reason).
                   The scan anchor is the human-readable name, not a 3-value category column. */}
               <tr className="whitespace-nowrap">
-                {identityColumn ? (
-                  <th className={cn(idcStyles.table.approvalHeaderCell, idcStyles.table.nameCell)}>
-                    {identityColumn.label}
-                  </th>
+                {identityColumns ? (
+                  identityColumns.columns.map((column, index) => (
+                    <th
+                      key={column.label}
+                      className={cn(
+                        idcStyles.table.approvalHeaderCell,
+                        index === 0 && idcStyles.table.nameCell,
+                        column.widthClass,
+                      )}
+                    >
+                      {column.label}
+                    </th>
+                  ))
                 ) : (
                   <>
                     <th className={cn(idcStyles.table.approvalHeaderCell, idcStyles.table.nameCell)}>Resource Name</th>

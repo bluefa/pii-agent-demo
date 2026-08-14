@@ -83,8 +83,9 @@ const renderStep = () =>
   );
 
 /**
- * IDC 행의 정체성은 IP 내역이다 — 스캔이 붙인 이름이 없고, resource_id 는 내부 NLB 키라
- * 화면에 나가지 않는다(design-spec §8). 표는 steps 2·3 이 쓰는 접속 주소 셀을 그대로 쓴다.
+ * IDC 행의 정체성은 구분·접속 주소·Port·Database Type 이다 — 스캔이 붙인 이름이 없고,
+ * resource_id 는 내부 NLB 키라 화면에 나가지 않는다(design-spec §8). 표는 steps 2·3 이
+ * 쓰는 그 셀들을 그대로 쓴다.
  */
 describe('IdcStep4Installing 정체성 열', () => {
   beforeEach(() => {
@@ -98,15 +99,23 @@ describe('IdcStep4Installing 정체성 열', () => {
     };
   });
 
-  it('접속 주소로 행을 식별하고 resource_id 는 어디에도 쓰지 않는다', async () => {
+  it('IDC 네 열로 행을 식별하고 resource_id 는 어디에도 쓰지 않는다', async () => {
     const { container } = renderStep();
 
-    expect(await screen.findByRole('columnheader', { name: '접속 주소' })).toBeTruthy();
+    expect(await screen.findByRole('columnheader', { name: '구분' })).toBeTruthy();
+    for (const label of ['접속 주소', 'Port', 'Database Type']) {
+      expect(screen.getByRole('columnheader', { name: label })).toBeTruthy();
+    }
     expect(screen.queryByRole('columnheader', { name: 'Resource ID' })).toBeNull();
     expect(screen.queryByRole('columnheader', { name: 'Resource Name' })).toBeNull();
     // 헤더만 지우고 셀이 남으면 키가 그대로 새어 나간다 — 문서 전체로 확인한다.
     expect(container.textContent).not.toContain(NLB_KEY);
+
+    // 열마다 값이 실제로 도착하는지 — 헤더만 서고 칸이 비면 이 표는 거짓말을 한다.
+    expect(screen.getByText('Multi')).toBeTruthy();
     expect(screen.getByText('10.20.31.10')).toBeTruthy();
+    expect(screen.getByText('3306')).toBeTruthy();
+    expect(screen.getByText('MySQL')).toBeTruthy();
   });
 
   it('나머지 IP 는 더보기로 펼친다', async () => {

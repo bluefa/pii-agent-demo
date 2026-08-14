@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { AppError } from '@/lib/errors';
 import { bgColors, borderColors, cardStyles, cn, statusColors, textColors } from '@/lib/theme';
 import {
@@ -22,7 +22,11 @@ import {
 import {
   RejectionAlert,
 } from '@/app/target-sources/[targetSourceId]/_components/common';
-import { IdcEndpointCell } from '@/app/target-sources/[targetSourceId]/_components/idc/cells';
+import {
+  IdcDbTypeCell,
+  IdcEndpointCell,
+  IdcKindBadge,
+} from '@/app/target-sources/[targetSourceId]/_components/idc/cells';
 import { IDC_SEARCH_PLACEHOLDER } from '@/app/target-sources/[targetSourceId]/_components/idc/steps/step-copy';
 import { IdcFirewallModal } from '@/app/target-sources/[targetSourceId]/_components/idc/modals/IdcFirewallModal';
 import type { IdcStepProps } from '@/app/target-sources/[targetSourceId]/_components/idc/types';
@@ -123,7 +127,7 @@ export const IdcStep4Installing = ({
     resources.map((r) => [
       r.resourceId,
       {
-        // 화면에 찍히는 값이 아니라 검색 건초더미다 — 정체성 열은 아래 identityColumn 이
+        // 화면에 찍히는 값이 아니라 검색 건초더미다 — 정체성 열은 아래 identityColumns 가
         // 접속 주소로 그리므로, 첫 IP 만 담으면 두 번째 IP 로는 검색이 안 된다.
         // (IDC steps 2·3 의 useIdcApprovalTable 과 같은 투영)
         resourceName: r.hosts.join(' '),
@@ -135,22 +139,62 @@ export const IdcStep4Installing = ({
     ]),
   );
 
-  // 정체성 열: IDC 는 스캔이 붙인 이름이 없고 resource_id 는 내부 NLB 키다(design-spec §8).
-  // 행을 식별하는 것은 IP 내역이므로, steps 2·3·5·6·7 이 쓰는 그 접속 주소 셀을 그대로 쓴다.
-  const identityColumn = useMemo(() => {
+  // 앞 열: IDC 는 스캔이 붙인 이름이 없고 resource_id 는 내부 NLB 키다(design-spec §8).
+  // 행을 식별하는 것은 구분·접속 주소·Port·Database Type 네 가지 — steps 2·3·5·6·7 의
+  // IdcResourceTable 이 쓰는 그 셀과 그 폭을 그대로 가져온다.
+  const identityColumns = useMemo(() => {
     const byId = new Map(resources.map((r) => [r.resourceId, r]));
+    // 설치 상태에는 있는데 확정 연동 목록에 없는 행 — 없는 값을 지어내지 않는다.
+    // 커링하지 않는다: 함수를 돌려주는 함수는 lint 가 컴포넌트 팩토리로 읽는다.
+    const cell = (
+      row: { resourceId: string },
+      render: (resource: IdcResourceView) => ReactNode,
+    ): ReactNode => {
+      const resource = byId.get(row.resourceId);
+      return resource ? render(resource) : <span className={textColors.tertiary}>—</span>;
+    };
     return {
-      label: '접속 주소',
       searchPlaceholder: IDC_SEARCH_PLACEHOLDER,
-      render: (row: { resourceId: string }) => {
-        const resource = byId.get(row.resourceId);
-        // 설치 상태에는 있는데 확정 연동 목록에 없는 행 — 없는 주소를 지어내지 않는다.
-        return resource ? (
-          <IdcEndpointCell resource={resource} />
-        ) : (
-          <span className={textColors.tertiary}>—</span>
-        );
-      },
+      // Database Type 열이 IDC 라벨(MSSQL)을 찍으므로 필터 옵션도 같은 글자여야 한다 —
+      // 훅의 기본 접근자는 클라우드 라벨 맵이라 같은 값을 SQL Server 라 부른다.
+      dbTypeLabel: (row: { resourceId: string }) => byId.get(row.resourceId)?.databaseTypeLabel ?? '',
+      columns: [
+        {
+          label: '구분',
+          widthClass: 'w-[110px]',
+          // 끝점이 없는 행은 종류도 없다 — 어댑터의 기본값 'SINGLE' 은 아무도 보고하지
+          // 않은 모양을 단언한다 (IdcResourceTable 과 같은 가드).
+          render: (row: { resourceId: string }) =>
+            cell(row, (r) =>
+              r.hosts.length > 0 ? (
+                <IdcKindBadge kind={r.kind} />
+              ) : (
+                <span className={textColors.tertiary}>—</span>
+              ),
+            ),
+        },
+        {
+          label: '접속 주소',
+          widthClass: 'w-[168px]',
+          render: (row: { resourceId: string }) => cell(row, (r) => <IdcEndpointCell resource={r} />),
+        },
+        {
+          label: 'Port',
+          widthClass: 'w-[80px]',
+          // 0 은 "페이로드에 포트가 없다"는 어댑터 값이지 포트가 아니다.
+          render: (row: { resourceId: string }) =>
+            cell(row, (r) => (
+              <span className={cn('font-mono text-[12px]', textColors.secondary)}>
+                {r.port || <span className={textColors.tertiary}>—</span>}
+              </span>
+            )),
+        },
+        {
+          label: 'Database Type',
+          widthClass: 'w-[172px]',
+          render: (row: { resourceId: string }) => cell(row, (r) => <IdcDbTypeCell resource={r} />),
+        },
+      ],
     };
   }, [resources]);
 
@@ -227,7 +271,7 @@ export const IdcStep4Installing = ({
                 resources={detailResources}
                 steps={steps}
                 meta={detailMeta}
-                identityColumn={identityColumn}
+                identityColumns={identityColumns}
               />
             </>
           )}

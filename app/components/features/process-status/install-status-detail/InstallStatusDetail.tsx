@@ -21,7 +21,7 @@ import { Pagination } from '@/app/components/ui/Pagination';
 import { EmptyState } from '@/app/components/ui/state';
 import {
   WaitingApprovalTable,
-  type ApprovalIdentityColumn,
+  type ApprovalIdentityColumns,
   type WaitingApprovalResource,
 } from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalTable';
 import { WaitingApprovalToolbar } from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalToolbar';
@@ -217,10 +217,10 @@ const FILTER_EMPTY_MESSAGE = '조건에 맞는 결과가 없어요.';
  */
 const StepResourceTable = ({
   rows,
-  identityColumn,
+  identityColumns,
 }: {
   rows: ResourceRow[];
-  identityColumn?: ApprovalIdentityColumn;
+  identityColumns?: ApprovalIdentityColumns;
 }) => {
   const approvalRows = useMemo<readonly WaitingApprovalResource[]>(
     () =>
@@ -238,7 +238,7 @@ const StepResourceTable = ({
       })),
     [rows],
   );
-  const table = useApprovalTableState(approvalRows);
+  const table = useApprovalTableState(approvalRows, identityColumns?.dbTypeLabel);
 
   if (rows.length === 0) {
     return (
@@ -260,14 +260,14 @@ const StepResourceTable = ({
         onRegionChange={table.onRegionChange}
         dbTypeOptions={table.dbTypeOptions}
         regionOptions={table.regionOptions}
-        searchPlaceholder={identityColumn?.searchPlaceholder}
+        searchPlaceholder={identityColumns?.searchPlaceholder}
       />
       <WaitingApprovalTable
         resources={table.visibleResources}
         variant="install"
         connected
         emptyMessage={FILTER_EMPTY_MESSAGE}
-        identityColumn={identityColumn}
+        identityColumns={identityColumns}
       />
       {table.filteredCount > 0 && (
         <Pagination
@@ -485,9 +485,9 @@ export interface InstallStatusDetailProps {
   reference?: InstallReferenceStep;
   /**
    * 리소스 표의 정체성 열을 Resource Name·ID 대신 호출자가 그린다 — IDC 처럼 스캔이 붙인
-   * 이름이 없고 resource_id 를 노출하지 않는 provider 용. see `ApprovalIdentityColumn`.
+   * 이름이 없고 resource_id 를 노출하지 않는 provider 용. see `ApprovalIdentityColumns`.
    */
-  identityColumn?: ApprovalIdentityColumn;
+  identityColumns?: ApprovalIdentityColumns;
 }
 
 export const InstallStatusDetail = ({
@@ -497,7 +497,7 @@ export const InstallStatusDetail = ({
   panelSteps = [],
   meta,
   reference,
-  identityColumn,
+  identityColumns,
 }: InstallStatusDetailProps) => {
   // Grouped rail (v2) — on only when EVERY step declares a group (AWS first).
   // A half-migrated adapter (some steps missing `group`) falls back to the
@@ -697,7 +697,7 @@ export const InstallStatusDetail = ({
     />
   ) : (
     // key resets pagination when switching steps
-    <StepResourceTable key={active.id} rows={rows} identityColumn={identityColumn} />
+    <StepResourceTable key={active.id} rows={rows} identityColumns={identityColumns} />
   );
 
   // ---------------------------------------------------------------------------
