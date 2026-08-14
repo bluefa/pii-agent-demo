@@ -156,7 +156,7 @@ export function CurrentPipelineCard({
 }: CurrentPipelineCardProps): ReactElement {
   const label = recipeLabel(detail.recipe_definition);
   const title =
-    detail.type === 'CUSTOM' ? 'Custom 작업' : recipeDisplayName(detail.recipe_definition);
+    detail.type === 'CUSTOM' ? '커스텀 작업' : recipeDisplayName(detail.recipe_definition);
   const tasks = [...detail.tasks].sort((a, b) => a.sequence - b.sequence);
   const retry =
     detail.current_fail_count != null && detail.current_max_fail_count != null
@@ -312,7 +312,7 @@ export function LastRunFailedCard({
   blockedReason = null,
 }: LastRunFailedCardProps): ReactElement {
   const title =
-    detail.type === 'CUSTOM' ? 'Custom 작업' : recipeDisplayName(detail.recipe_definition);
+    detail.type === 'CUSTOM' ? '커스텀 작업' : recipeDisplayName(detail.recipe_definition);
   const tasks = [...detail.tasks].sort((a, b) => a.sequence - b.sequence);
   // The stop point: the failed task, else the first task that never completed
   // (a cancelled run's in-flight task). Same rule the server resumes from.
@@ -452,7 +452,7 @@ export function EmptyPipelineCard({
           실행 중인 작업이 없습니다.
         </div>
         <p className="mt-2 max-w-[468px] text-[15px] leading-[1.6] text-[var(--pl-text-weak)]">
-          작업을 시작해 보세요. 설치·삭제·Custom 흐름이 여러 단계로 실행되고, 진행 상황을 여기서
+          작업을 시작해 보세요. 설치·삭제·커스텀 흐름이 여러 단계로 실행되고, 진행 상황을 여기서
           바로 볼 수 있어요.
         </p>
         {/* Pre-warning, in info blue: nothing is wrong yet — this states what the

@@ -325,7 +325,7 @@ export function TargetPipelineSections({
                               <TypeTile type={p.type} size="xs" />
                               <span className="min-w-0 truncate">
                                 {p.type === 'CUSTOM'
-                                  ? 'Custom 작업'
+                                  ? '커스텀 작업'
                                   : recipeDisplayName(p.recipe_definition)}
                               </span>
                             </span>

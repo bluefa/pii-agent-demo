@@ -45,7 +45,7 @@ import {
   TypeTile,
 } from '@/app/admin/pipelines/_detail/r24Task';
 import { passRoutes } from '@/lib/routes';
-import { taskInfraSide, type InfraSide } from '@/lib/pipeline/format';
+import { taskInfraSide, typeKo, type InfraSide } from '@/lib/pipeline/format';
 import {
   createCustomPipeline,
   createPipeline,
@@ -68,12 +68,6 @@ const ALREADY_ACTIVE = 'ORCHESTRATION_PIPELINE_ALREADY_ACTIVE';
 
 /** Modal title — Figma type ramp `title · 18 / 700` (nodes 9:999 / 9:1093). */
 const MODAL_H3 = 'mb-3 text-[18px] font-bold leading-[1.3] tracking-[-0.018em] text-[var(--pl-text-strong)]';
-
-const TYPE_LABELS: Record<PipelineType, string> = {
-  INSTALL: '설치',
-  DELETE: '삭제',
-  CUSTOM: 'Custom',
-};
 
 const TYPE_DESCS: Record<PipelineType, string> = {
   INSTALL: '이 대상에 인프라를 설치합니다. 표준 레시피 7개 Task를 순서대로 실행합니다.',
@@ -192,7 +186,7 @@ export function PreviewModal({
   const [catalogError, setCatalogError] = useState<string | null>(null);
   const [catalogKey, setCatalogKey] = useState(0);
   const [chosen, setChosen] = useState<TaskCatalogEntry[]>([]);
-  const label = type ? TYPE_LABELS[type] : '';
+  const label = type ? typeKo(type) : '';
 
   // Reset AFTER close so every reopen starts at the type options.
   useEffect(() => {
@@ -301,13 +295,13 @@ export function PreviewModal({
       type="button"
       className="flex w-full items-center gap-3.5 rounded-[10px] border border-[var(--pl-border)] bg-[var(--pl-bg-card)] px-4 py-[15px] text-left cursor-pointer transition-[border-color,box-shadow] duration-150 hover:border-[var(--pl-primary)] hover:shadow-[0_0_0_3px_var(--pl-primary-ring)] disabled:cursor-not-allowed disabled:opacity-55 disabled:hover:border-[var(--pl-border)] disabled:hover:shadow-none"
       disabled={disabled}
-      title={disabled ? '이 provider는 Custom 실행을 지원하지 않습니다' : undefined}
+      title={disabled ? '이 provider는 커스텀 실행을 지원하지 않습니다' : undefined}
       onClick={() => pick(t)}
     >
       <TypeTile type={t} />
       <span className="min-w-0 flex-1">
         <span className="flex items-center gap-2 text-[14px] font-bold text-[var(--pl-text-strong)]">
-          {TYPE_LABELS[t]}
+          {typeKo(t)}
           <TypePill type={t} />
         </span>
         <span className="mt-1 block text-[12.5px] leading-[1.55] text-[var(--pl-text-weak)]">
@@ -368,7 +362,7 @@ export function PreviewModal({
         <>
           <Eyebrow type="CUSTOM" />
           <h3 id={TITLE_ID} className={MODAL_H3}>
-            Custom 작업 구성
+            커스텀 작업 구성
           </h3>
           {/* Figma 9:1257 copy — the drag affordance is highlighted (owner: 너무 안 보임). */}
           <div className="text-[14px] leading-[1.48] tracking-[-0.014em] text-[var(--pl-text-weak)]">
@@ -414,7 +408,7 @@ export function PreviewModal({
         <>
           <Eyebrow type="CUSTOM" />
           <h3 id={TITLE_ID} className={MODAL_H3}>
-            Custom 작업 시작
+            커스텀 작업 시작
           </h3>
           {/* Consistent with the preview step — 14px, no id·provider prefix. */}
           <div className="text-[14px] leading-[1.48] tracking-[-0.014em] text-[var(--pl-text-weak)]">
@@ -449,7 +443,7 @@ export function PreviewModal({
               }}
             >
               <Icon name="play" size="sm" />
-              Custom 시작
+              커스텀 시작
             </PlButton>
           </div>
         </>
