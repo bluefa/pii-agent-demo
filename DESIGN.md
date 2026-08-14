@@ -184,7 +184,7 @@ One exception, and it is narrow: a provider's **actual logotype** may carry its 
 
 ### Pipeline type
 
-Three colours name what an infra job *does to* infrastructure, and they are the one place in this product where a status hue is deliberately reused for a non-status meaning.
+Three colours name what an infra job *does to* infrastructure. Like `jobKindTag`'s red DESTROY, they deliberately reuse a status hue for a non-status meaning; unlike it, they sit in a dense list directly beside the status word, which is what the rest of this section is about.
 
 | Token | Value | Type |
 |-------|-------|------|
@@ -194,7 +194,9 @@ Three colours name what an infra job *does to* infrastructure, and they are the 
 
 These live in the pipeline console's isolated `--pl-*` palette (`app/globals.css`), and inside it install-green and delete-red are byte-identical to that palette's own `--pl-ok-text` and `--pl-err-text` — the greens and reds the 완료 and 실패 status words wear one column over. That is a collision by construction, and the rule that makes it safe is a **channel split**: type owns the *glyph*, status owns the *word*. A 20px shape and a 12px label do not compete for the same reading even in the same hue, and the pairing operators actually need to distinguish — a delete job that failed — reads as a red trash glyph beside the red word 실패, which is two facts rather than one said twice.
 
-The split is the whole licence, so it is also the limit. Colouring the type *label* was tried and pulled (owner, 2026-08-14): with glyph and word both tinted, type spoke on three channels — shape, word, colour — and a screen where red means two things had no second channel left to separate them. If a future surface wants the type in colour, it colours the mark, not the text.
+The split is the whole licence, so it is also the limit **wherever a type sits next to a status**. Colouring the type *label* there was tried and pulled (owner, 2026-08-14): with glyph and word both tinted, type spoke on three channels — shape, word, colour — and a screen where red means two things had no second channel left to separate them. On those surfaces, colour goes on the mark, not the text.
+
+One surface is deliberately outside that rule: the run-detail header's combined `AWS 삭제` tag (`detailImprovedStyles.header.typeTagDelete`) tints the **text** red and carries no glyph, because a destructive run must not read neutral in the one place an operator confirms what they are about to stop. It gets away with it for the reason the dashboard could not — the header is not a row in a list, so there is no adjacent status word for the red to be confused with. If that header ever gains a type glyph, the tint moves to it and this exception ends.
 
 Custom's violet sits outside the status ramp on purpose: there is no status hue for "an operator built this by hand", so borrowing one would assert a meaning the value does not have.
 
