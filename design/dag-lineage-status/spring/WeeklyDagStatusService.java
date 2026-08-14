@@ -89,7 +89,7 @@ public class WeeklyDagStatusService {
                 .orElse(null);
 
         String namespace = rows.isEmpty() ? null : rows.get(0).namespace();
-        return new DagWeeklyStatus(namespace, entry.dagName(), entry.externalId(),
+        return new DagWeeklyStatus(namespace, entry.dagName(), entry.logicalDatabaseId(),
                 lastSuccessAt != null, lastSuccessAt, days);
     }
 }

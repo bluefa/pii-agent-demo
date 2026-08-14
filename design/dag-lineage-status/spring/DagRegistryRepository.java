@@ -7,7 +7,7 @@ import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Repository;
 
 /**
- * DAG catalog: name -> external id (1:1, names globally unique across
+ * DAG catalog: name -> logical database (1:1, names globally unique across
  * environments), plus the group axis (target_source_id — see schema.sql).
  * This table is the source of truth for WHICH DAGs the weekly board lists —
  * a DAG with zero events still shows as 7x NOT_SCHEDULED.
@@ -16,7 +16,7 @@ import org.springframework.stereotype.Repository;
 public class DagRegistryRepository {
 
     private static final RowMapper<DagCatalogEntry> CATALOG_ROW = (rs, i) -> new DagCatalogEntry(
-            rs.getString("dag_name"), rs.getString("external_id"),
+            rs.getString("dag_name"), rs.getString("logical_database_id"),
             rs.getObject("target_source_id", Long.class));
 
     private final JdbcTemplate jdbc;
@@ -28,7 +28,7 @@ public class DagRegistryRepository {
     /** Keyset page ordered by dag_name; pass the previous page's last name (null for the first page). */
     public List<DagCatalogEntry> page(String afterDagName, int limit) {
         return jdbc.query("""
-                SELECT dag_name, external_id, target_source_id
+                SELECT dag_name, logical_database_id, target_source_id
                   FROM dag_registry
                  WHERE dag_name > ?
                  ORDER BY dag_name
@@ -44,7 +44,7 @@ public class DagRegistryRepository {
      */
     public List<DagCatalogEntry> pageByGroup(long targetSourceId, String afterDagName, int limit) {
         return jdbc.query("""
-                SELECT dag_name, external_id, target_source_id
+                SELECT dag_name, logical_database_id, target_source_id
                   FROM dag_registry
                  WHERE target_source_id = ?
                    AND dag_name > ?
@@ -81,15 +81,15 @@ public class DagRegistryRepository {
      */
     public void saveAll(List<DagCatalogEntry> entries) {
         jdbc.batchUpdate("""
-                INSERT INTO dag_registry (dag_name, external_id)
+                INSERT INTO dag_registry (dag_name, logical_database_id)
                 VALUES (?, ?) AS new
                 ON DUPLICATE KEY UPDATE
-                    external_id = new.external_id,
+                    logical_database_id = new.logical_database_id,
                     synced_at = NOW(6)
                 """,
                 entries, 1000, (ps, entry) -> {
                     ps.setString(1, entry.dagName());
-                    ps.setString(2, entry.externalId());
+                    ps.setString(2, entry.logicalDatabaseId());
                 });
     }
 

@@ -29,7 +29,7 @@ record DagRunRow(
  * the first group GET (it is unknowable earlier), immutable afterwards.
  * The catalog sync never fills it.
  */
-record DagCatalogEntry(String dagName, String externalId, Long targetSourceId) {}
+record DagCatalogEntry(String dagName, String logicalDatabaseId, Long targetSourceId) {}
 
 /** One (dag, day) aggregate returned by the day-status query. */
 record DayStatusRow(String dagId, String namespace, LocalDate day, DayState state,
@@ -37,13 +37,13 @@ record DayStatusRow(String dagId, String namespace, LocalDate day, DayState stat
 
 /**
  * Weekly board row for one DAG. Listed DAGs come from the catalog, so
- * externalId is always present; namespace is null when the DAG had no events
- * in the window (nothing ran, so there is no row to read it from).
+ * logicalDatabaseId is always present; namespace is null when the DAG had no
+ * events in the window (nothing ran, so there is no row to read it from).
  */
 record DagWeeklyStatus(
         String namespace,
         String dagId,
-        String externalId,
+        String logicalDatabaseId,
         boolean succeededThisWeek,
         OffsetDateTime lastSuccessAt,
         List<DayStatus> days) {

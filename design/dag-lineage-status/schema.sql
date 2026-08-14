@@ -25,21 +25,22 @@ CREATE INDEX idx_dag_run_status_window ON dag_run_status (logical_date);
 -- Day-status lookup for one page of DAGs (dag names are globally unique)
 CREATE INDEX idx_dag_run_status_dag ON dag_run_status (dag_id, logical_date);
 
--- DAG catalog: name -> external id (1:1; names globally unique across
+-- DAG catalog: name -> logical database (1:1; names globally unique across
 -- environments — owner-confirmed). Source of truth for WHICH DAGs the weekly
 -- board lists. Filled by the initial backfill, then kept in sync with the
--- dag-id API by DagCatalogSync; the event path never calls the id API.
+-- catalog API by DagCatalogSync; the event path never calls that API, so
+-- ingest never waits on it and a burst never propagates to it.
 CREATE TABLE dag_registry (
-    dag_name         VARCHAR(250) PRIMARY KEY,
-    external_id      VARCHAR(100) NOT NULL UNIQUE,  -- size TBD against the real id format
+    dag_name            VARCHAR(250) PRIMARY KEY,
+    logical_database_id VARCHAR(100) NOT NULL UNIQUE,  -- size TBD against the real id format
     -- Group axis: one logical DB per target source, one DAG per logical DB,
     -- so a DAG belongs to at most ONE target source — a column, not a join
     -- table. Unknowable before a group GET arrives (owner-confirmed: not at
     -- publish, consume, or catalog-sync time), so it is learned lazily from
     -- the first GET for the group and write-once after that (membership
     -- never changes) — see assignGroup's IS NULL guard.
-    target_source_id BIGINT,
-    synced_at        DATETIME(6)  NOT NULL DEFAULT CURRENT_TIMESTAMP(6)  -- liveness marker: rows a full sync did not touch get deleted
+    target_source_id    BIGINT,
+    synced_at           DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6)  -- liveness marker: rows a full sync did not touch get deleted
 ) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
 
 -- Group board: keyset pagination WITHIN one target source (up to ~10k DAGs

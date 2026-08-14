@@ -8,8 +8,8 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 /**
- * Keeps dag_registry in sync with the dag-id API, OUTSIDE the event path —
- * the subscriber's ack never depends on the id API's availability.
+ * Keeps dag_registry in sync with the catalog API, OUTSIDE the event path —
+ * the subscriber's ack never depends on the catalog API's availability.
  *
  * The registry doubles as the board's DAG catalog, so this sync also decides
  * which DAGs are listed: rows absent from the fetched catalog are deleted
@@ -48,7 +48,7 @@ public class DagCatalogSync {
     }
 
     /**
-     * Adapter for the dag-name -> id API server; implement with the real
+     * Adapter for the dag-name -> logical-database catalog API; implement with the real
      * client. If the API has no bulk/list endpoint, a paged fetch loop goes
      * here (open issue #5 in architecture.md).
      */
