@@ -34,9 +34,13 @@ export interface ResourceSectionProps {
   nlbLocked: boolean;
   /** IDC only — open the NLB assignment modal over one resource. */
   onAssignNlb: (row: RequestResourceRow) => void;
-  /** IDC only — open that resource's 서비스별 NLB 배정 list. */
-  onShowServices: (row: RequestResourceRow) => void;
-  onOpenNlbListeners: () => void;
+  /**
+   * IDC only — open that resource's 서비스별 NLB 배정 list, and the NLB 리스너 현황
+   * table. Both read CURRENT infrastructure, so a surface that reports a past request
+   * (승인 요청 상세) omits them; the column and the toolbar button go with them.
+   */
+  onShowServices?: (row: RequestResourceRow) => void;
+  onOpenNlbListeners?: () => void;
 }
 
 export function ResourceSection({
@@ -91,7 +95,7 @@ export function ResourceSection({
           },
         ]}
         actions={
-          isIdc ? (
+          isIdc && onOpenNlbListeners ? (
             <PlButton variant="secondary" size="sm" onClick={onOpenNlbListeners}>
               NLB 리스너 현황
             </PlButton>

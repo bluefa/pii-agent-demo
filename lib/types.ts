@@ -108,6 +108,8 @@ export interface IdcResourceConfig {
   sourceIps: string[];
   /** Firewall open state for this resource — Step 4. */
   firewallOpen: boolean;
+  /** NLB the admin assigned this target to (wire metadata.nlb_index). Unassigned → absent. */
+  nlbIndex?: number;
 }
 
 export type AwsResourceType = 'RDS' | 'RDS_CLUSTER' | 'DOCUMENTDB' | 'DYNAMODB' | 'ATHENA' | 'REDSHIFT' | 'EC2';

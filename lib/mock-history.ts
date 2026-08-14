@@ -57,7 +57,7 @@ export const getProjectHistory = (options: GetProjectHistoryOptions): GetProject
 // ===== Seed =====
 
 /**
- * Seeded approval trail for the ops demo target 1583. `projectHistory` starts empty and only a
+ * Seeded approval trail for the ops demo targets. `projectHistory` starts empty and only a
  * live 확정→승인 flow writes to it, so the ops 승인 요청 내역 card had nothing to render on any
  * target — the card, its pager and its 상세 보기 modal were only reachable by first driving the
  * whole request flow by hand.
@@ -74,36 +74,72 @@ export const getProjectHistory = (options: GetProjectHistoryOptions): GetProject
  */
 const OPS_DEMO_TARGET_SOURCE_ID = 1583;
 
+/**
+ * Second seeded target, and the only reason it exists: 1583 is IDC, so on it the 상세 보기
+ * modal only ever renders the IDC table. 1007 is AWS (and carries an RDS cluster), so the
+ * modal's OTHER branch — Resource Name · Resource ID · Region, cluster instance band — has
+ * a target to be checked on. Its timestamps sit in that project's own 2024-01-18 window.
+ */
+const CLOUD_DEMO_TARGET_SOURCE_ID = 1007;
+
 const REQUESTER: ProjectHistoryActor = { id: 'user-1', name: '홍길동' };
 const APPROVER: ProjectHistoryActor = { id: 'admin-1', name: '관리자' };
 
 export const buildSeedProjectHistory = (): ProjectHistory[] => {
   const at = (
+    targetSourceId: number,
     id: string,
     type: ProjectHistoryType,
     actor: ProjectHistoryActor,
     timestamp: string,
     details: ProjectHistory['details'] = {},
-  ): ProjectHistory => ({ id, targetSourceId: OPS_DEMO_TARGET_SOURCE_ID, type, actor, timestamp, details });
+  ): ProjectHistory => ({ id, targetSourceId, type, actor, timestamp, details });
+
+  const idc = (
+    id: string,
+    type: ProjectHistoryType,
+    actor: ProjectHistoryActor,
+    timestamp: string,
+    details: ProjectHistory['details'] = {},
+  ) => at(OPS_DEMO_TARGET_SOURCE_ID, id, type, actor, timestamp, details);
+
+  const cloud = (
+    id: string,
+    type: ProjectHistoryType,
+    actor: ProjectHistoryActor,
+    timestamp: string,
+    details: ProjectHistory['details'] = {},
+  ) => at(CLOUD_DEMO_TARGET_SOURCE_ID, id, type, actor, timestamp, details);
 
   return [
-    at('ph-seed-15831-req', 'TARGET_CONFIRMED', REQUESTER, '2026-07-16T10:31:00+09:00', {
+    idc('ph-seed-15831-req', 'TARGET_CONFIRMED', REQUESTER, '2026-07-16T10:31:00+09:00', {
       resourceCount: 2,
       excludedResourceCount: 1,
     }),
-    at('ph-seed-15831-res', 'REJECTION', APPROVER, '2026-07-16T15:40:00+09:00', {
+    idc('ph-seed-15831-res', 'REJECTION', APPROVER, '2026-07-16T15:40:00+09:00', {
       reason: '대상 3건 중 10.20.4.18(ORACLE)은 대외 구간이라 접근 허용 근거가 필요합니다. 근거 첨부 후 다시 요청해 주세요.',
     }),
-    at('ph-seed-15832-req', 'TARGET_CONFIRMED', REQUESTER, '2026-07-17T09:12:00+09:00', {
+    idc('ph-seed-15832-req', 'TARGET_CONFIRMED', REQUESTER, '2026-07-17T09:12:00+09:00', {
       resourceCount: 3,
       excludedResourceCount: 0,
     }),
-    at('ph-seed-15832-res', 'APPROVAL_CANCELLED', REQUESTER, '2026-07-17T09:58:00+09:00'),
-    at('ph-seed-15833-req', 'TARGET_CONFIRMED', REQUESTER, '2026-07-17T14:20:00+09:00', {
+    idc('ph-seed-15832-res', 'APPROVAL_CANCELLED', REQUESTER, '2026-07-17T09:58:00+09:00'),
+    idc('ph-seed-15833-req', 'TARGET_CONFIRMED', REQUESTER, '2026-07-17T14:20:00+09:00', {
       resourceCount: 3,
       excludedResourceCount: 0,
     }),
-    at('ph-seed-15833-res', 'APPROVAL', APPROVER, '2026-07-17T18:56:00+09:00'),
+    idc('ph-seed-15833-res', 'APPROVAL', APPROVER, '2026-07-17T18:56:00+09:00'),
+
+    // 1007 is a REJECTED target, so its trail ends on the rejection its project already
+    // states — one row, and the reason matches `rejectionReason` rather than inventing a
+    // second story for the same verdict.
+    cloud('ph-seed-10071-req', 'TARGET_CONFIRMED', REQUESTER, '2024-01-18T10:20:00+09:00', {
+      resourceCount: 3,
+      excludedResourceCount: 6,
+    }),
+    cloud('ph-seed-10071-res', 'REJECTION', APPROVER, '2024-01-18T14:00:00+09:00', {
+      reason: 'RDS_CLUSTER 리소스는 현재 지원되지 않습니다. RDS 단일 인스턴스만 선택해주세요.',
+    }),
   ];
 };
 

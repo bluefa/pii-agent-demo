@@ -16,6 +16,7 @@
 import { useCallback, useEffect, useState, type ReactElement, type ReactNode } from 'react';
 import { cn, pipelineStyles } from '@/lib/theme';
 import { AppError, isMissingConfirmedIntegrationError } from '@/lib/errors';
+import { normalizeCloudProvider } from '@/lib/types';
 import { fmtDateTime } from '@/lib/pipeline/format';
 import { getDatabaseShortLabel } from '@/app/components/ui/DatabaseIcon';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
@@ -255,7 +256,9 @@ export function RequestTab({ targetSourceId, detail }: RequestTabProps): ReactEl
     };
   }, [targetSourceId, reloadKey]);
 
-  const isIdc = detail.cloud_provider === 'IDC';
+  // Normalized, like every other read of this field: a raw compare flips on one casing
+  // and would hand IDC rows to the cloud table — the exact defect this tab just fixed.
+  const isIdc = normalizeCloudProvider(detail.cloud_provider) === 'IDC';
 
   const confirmedDbTypes =
     confirmed.state === 'ready' && confirmed.data

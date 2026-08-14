@@ -45,8 +45,13 @@ export interface IdcResourceTableProps {
   disabled?: boolean;
   /** Open NlbAssignModal for this resource. */
   onAssignNlb: (row: RequestResourceRow) => void;
-  /** Open ServiceAssignmentModal for this resource. */
-  onShowServices: (row: RequestResourceRow) => void;
+  /**
+   * Open ServiceAssignmentModal for this resource. Optional: the 승인 요청 상세 modal
+   * reads a PAST request, while this lookup answers about the assignment as it stands
+   * today — a different question. Omitting it drops the column rather than leaving it
+   * empty down every row.
+   */
+  onShowServices?: (row: RequestResourceRow) => void;
 }
 
 // A text button, not a control cluster: opening the assignment is one act, and the
@@ -113,7 +118,9 @@ export function IdcResourceTable({
                 — a fan-out no cell can hold. The column carries the way in, not the list.
                 Named for what is behind it (the consuming services), not 배정: that word
                 belongs to the NLB 배정 column, which is the one the admin can change. */}
-            <th className={cn(table.approvalHeaderCell, 'w-[110px]')}>사용 서비스</th>
+            {onShowServices && (
+              <th className={cn(table.approvalHeaderCell, 'w-[110px]')}>사용 서비스</th>
+            )}
             <th className={table.approvalHeaderCell}>제외 사유</th>
           </tr>
         </thead>
@@ -177,7 +184,7 @@ export function IdcResourceTable({
                       IPs — blank rather than asserting a missing value. */}
                   <td className={table.approvalCell} />
                   <td className={table.approvalCell} />
-                  <td className={table.approvalCell} />
+                  {onShowServices && <td className={table.approvalCell} />}
                   <td className={cn(table.approvalCell, 'text-sm')}>
                     <ReasonChip row={row} />
                   </td>
@@ -227,15 +234,17 @@ export function IdcResourceTable({
                 <td className={table.approvalCell}>
                   <IdcSourceIpCell sourceIps={row.sourceIps} />
                 </td>
-                <td className={table.approvalCell}>
-                  {/* Same text-button grammar as the assignment beside it — one column,
-                      one way in. A row with no resource_id has nothing to look up. */}
-                  {row.resourceId != null && (
-                    <button type="button" className={NLB_BTN} onClick={() => onShowServices(row)}>
-                      조회
-                    </button>
-                  )}
-                </td>
+                {onShowServices && (
+                  <td className={table.approvalCell}>
+                    {/* Same text-button grammar as the assignment beside it — one column,
+                        one way in. A row with no resource_id has nothing to look up. */}
+                    {row.resourceId != null && (
+                      <button type="button" className={NLB_BTN} onClick={() => onShowServices(row)}>
+                        조회
+                      </button>
+                    )}
+                  </td>
+                )}
                 {/* 제외 사유 — a target row has none. */}
                 <td className={table.approvalCell} />
               </tr>

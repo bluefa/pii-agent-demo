@@ -76,9 +76,14 @@ const toModalItem = (row: ApprovalHistoryRowWire) => ({
 
 export interface ApprovalHistoryCardProps {
   targetSourceId: number;
+  /** Picks the table the 상세 보기 modal renders (IDC vs cloud). */
+  isIdc: boolean;
 }
 
-export function ApprovalHistoryCard({ targetSourceId }: ApprovalHistoryCardProps): ReactElement {
+export function ApprovalHistoryCard({
+  targetSourceId,
+  isIdc,
+}: ApprovalHistoryCardProps): ReactElement {
   const [rows, setRows] = useState<ApprovalHistoryRowWire[]>([]);
   const [page, setPage] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
@@ -174,6 +179,7 @@ export function ApprovalHistoryCard({ targetSourceId }: ApprovalHistoryCardProps
         onClose={() => setDetail(null)}
         item={detail ? toModalItem(detail) : null}
         targetSourceId={targetSourceId}
+        isIdc={isIdc}
       />
     </section>
   );

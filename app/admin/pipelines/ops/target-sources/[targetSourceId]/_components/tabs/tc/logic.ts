@@ -330,6 +330,10 @@ export function filterConfirmedRows(
     return (
       row.resource_id.toLowerCase().includes(needle)
       || (row.resource_name ?? '').toLowerCase().includes(needle)
+      // An IDC row has no name and does not print its id — its address is the only
+      // identity on the screen, so it has to be what the box matches.
+      || (row.idc_host ?? '').toLowerCase().includes(needle)
+      || (row.idc_ips ?? []).some((ip) => ip.toLowerCase().includes(needle))
     );
   });
 }

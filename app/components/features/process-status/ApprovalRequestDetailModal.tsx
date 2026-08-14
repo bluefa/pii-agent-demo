@@ -3,25 +3,17 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Badge } from '@/app/components/ui/Badge';
 import { Modal } from '@/app/components/ui/Modal';
-import { Pagination } from '@/app/components/ui/Pagination';
 import {
   getApprovalRequestDetail,
   type ApprovalRequestLatestResponse,
   type ApprovalResourceItem,
 } from '@/app/lib/api';
 import { formatDate } from '@/lib/utils/date';
-import { readRdsInstanceMetadata } from '@/lib/rds-instances';
 import { MetaField } from '@/app/target-sources/[targetSourceId]/_components/shared/MetaField';
-import {
-  StatTile,
-  WaitingApprovalStats,
-} from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalStats';
-import { WaitingApprovalToolbar } from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalToolbar';
-import {
-  WaitingApprovalTable,
-  type WaitingApprovalResource,
-} from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalTable';
-import { useApprovalTableState } from '@/app/target-sources/[targetSourceId]/_components/layout/useApprovalTableState';
+import { StatTile } from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalStats';
+import { toRequestResourceRow } from '@/app/lib/api/task-queue-requests';
+import { ResourceSection } from '@/app/admin/pipelines/queue/requests/_components/ResourceSection';
+import { useResourceListState } from '@/app/admin/pipelines/queue/requests/_resourceQuery';
 import { borderColors, cn, getButtonClass, statusColors, textColors } from '@/lib/theme';
 
 interface ApprovalHistoryItem {
@@ -50,9 +42,18 @@ interface ApprovalRequestDetailModalProps {
    * 대상/비대상 resource lists instead of counts alone.
    */
   targetSourceId?: number;
+  /**
+   * Which table the list renders. An IDC request has no Resource Name and no Region —
+   * its identity is the endpoint — so it reads through the queue's IDC table, exactly
+   * as the 연동 요청 정보 tab beside this card does.
+   */
+  isIdc?: boolean;
 }
 
 type ResultStatus = string | undefined;
+
+/** `nlbLocked` hides the assign button, so this never fires — the prop is required. */
+const NOOP = (): void => {};
 
 /** Header badge only — the verdict is stated once, not restated as a filled panel. */
 const getResultMeta = (status: ResultStatus) => {
@@ -123,67 +124,13 @@ const toSummaryViewFromHistory = (item: ApprovalHistoryItem): NormalizedData => 
   };
 };
 
-/** integration_category → operator-facing label for a 비대상 row without an explicit reason. */
-const CATEGORY_LABEL: Record<string, string> = {
-  NO_INSTALL_NEEDED: '설치 선택',
-  INSTALL_INELIGIBLE: '설치 불가',
-};
-
-/**
- * 위치 — host:port when the resource carries one, else the region. An IDC or
- * host-based row has no region at all, so reading only `region` would drop the
- * endpoint that was actually approved. Hence the column is 위치, not Region.
- */
-const locationOf = (item: ApprovalResourceItem): string => {
-  const host = item.metadata?.host ?? null;
-  if (host) return item.metadata?.port != null ? `${host}:${item.metadata.port}` : host;
-  return item.metadata?.region ?? '';
-};
-
-/**
- * Wire → the row shape the step-2 table reads. Same mapping as
- * WaitingApprovalCard.toResourceRow, plus the category fallback this modal has
- * always applied to a 비대상 row that carries no explicit reason.
- */
-const toResourceRow = (item: ApprovalResourceItem): WaitingApprovalResource => {
-  // `idc_host_format` (IP | HOST) is the wire's own IDC marker — present only on an IDC
-  // resource, so it settles the provider without the modal being told which one it serves.
-  const isIdc = item.metadata?.idc_host_format != null;
-  return {
-    // An IDC resource_id is an internal NLB-PUT key (design-spec §8). The queue's tab
-    // blanks it for this very table; this modal feeds the same one.
-    resourceId: isIdc ? '' : item.resource_id ?? '',
-    // …it still keys the row, since blanked ids would collide with each other.
-    rowKey: item.resource_id ?? undefined,
-    resourceType: item.resource_type ?? item.metadata?.database_type ?? '',
-    region: locationOf(item),
-    // An IDC row carries no scan-assigned name; its endpoint is its identity.
-    resourceName: item.resource_name ?? (isIdc ? locationOf(item) : ''),
-    selected: item.selected ?? false,
-    displayDbType: item.metadata?.database_type ?? item.resource_type ?? undefined,
-    exclusionReason:
-      item.exclusion_reason || CATEGORY_LABEL[item.integration_category ?? ''] || undefined,
-    // The scan's INSTALL_INELIGIBLE verdict is not a user's exclusion — the table reads
-    // this to render 연동 불가 instead of a revisable 제외 pill.
-    integrationCategory: item.integration_category ?? undefined,
-    recommendFailReason: item.recommend_fail_reason ?? undefined,
-    // Top-level type, no metadata fallback: this drives the RDS Cluster tag, and
-    // `resourceType` above falls back to an engine name.
-    declaredResourceType: item.resource_type ?? undefined,
-    // An RDS cluster lists its member instances under the row and marks the one the agent
-    // connects through. Any other resource gets neither key back and is unchanged.
-    ...readRdsInstanceMetadata(item.metadata, item.resource_type),
-  };
-};
-
-const FILTER_EMPTY_MESSAGE = '조건에 맞는 결과가 없어요.';
-
 export const ApprovalRequestDetailModal = ({
   isOpen,
   onClose,
   item,
   latestResponse,
   targetSourceId,
+  isIdc = false,
 }: ApprovalRequestDetailModalProps) => {
   // Resource lists: latest responses carry them inline; history items need the
   // per-request detail fetch (GET …/approval-requests/{requestId}).
@@ -222,11 +169,8 @@ export const ApprovalRequestDetailModal = ({
       : null;
 
   // Declared before the early return — the list state is a hook and cannot be conditional.
-  const rows = useMemo<readonly WaitingApprovalResource[]>(
-    () => (resources ?? []).map(toResourceRow),
-    [resources],
-  );
-  const table = useApprovalTableState(rows);
+  const rows = useMemo(() => (resources ?? []).map(toRequestResourceRow), [resources]);
+  const list = useResourceListState();
 
   if (!item && !latestResponse) return null;
 
@@ -234,7 +178,6 @@ export const ApprovalRequestDetailModal = ({
     ? toSummaryViewFromLatest(latestResponse)
     : toSummaryViewFromHistory(item!);
   const resultMeta = getResultMeta(data.resultStatus);
-  const showFilterEmpty = rows.length > 0 && table.filteredCount === 0;
 
   return (
     <Modal
@@ -287,50 +230,23 @@ export const ApprovalRequestDetailModal = ({
         </div>
       )}
 
-      {/* ③ 요청 리소스 — the payload, and the reason this modal exists. Same stack as
-          step 2: filter tiles → toolbar → table → pagination. */}
+      {/* ③ 요청 리소스 — the payload, and the reason this modal exists. The queue's own
+          연동 요청 상세 section, so this card and the 연동 요청 정보 tab beside it report
+          one request through one table (and an IDC row is never asked for a name). NLB
+          assignment is locked: the request being read here is already decided. */}
       <div className="mt-6">
         {fetchLoading ? (
           <p className={cn('rounded-lg border p-6 text-center text-sm', borderColors.default, textColors.tertiary)}>
             리소스 목록을 불러오는 중…
           </p>
         ) : resources != null ? (
-          <>
-            <WaitingApprovalStats
-              totalCount={table.countsByFilter.all}
-              selectedCount={table.countsByFilter.target}
-              excludedCount={table.countsByFilter.excluded}
-              filter={table.filter}
-              onFilterChange={table.onFilterChange}
-            />
-            <WaitingApprovalToolbar
-              searchValue={table.searchValue}
-              onSearchChange={table.onSearchChange}
-              dbType={table.dbType}
-              onDbTypeChange={table.onDbTypeChange}
-              region={table.region}
-              onRegionChange={table.onRegionChange}
-              dbTypeOptions={table.dbTypeOptions}
-              regionOptions={table.regionOptions}
-            />
-            <WaitingApprovalTable
-              resources={table.visibleResources}
-              connected
-              // This modal serves every provider, and an IDC row's location is its
-              // endpoint, not a region — see locationOf.
-              regionLabel="위치"
-              emptyMessage={showFilterEmpty ? FILTER_EMPTY_MESSAGE : undefined}
-            />
-            {table.filteredCount > 0 && (
-              <Pagination
-                page={table.safePage}
-                pageSize={table.pageSize}
-                totalCount={table.filteredCount}
-                onPageChange={table.onPageChange}
-                onPageSizeChange={table.onPageSizeChange}
-              />
-            )}
-          </>
+          <ResourceSection
+            resources={rows}
+            isIdc={isIdc}
+            list={list}
+            nlbLocked
+            onAssignNlb={NOOP}
+          />
         ) : (
           /* Detail unavailable (fetch failed, or a history row with no numeric id to fetch
              by) — the summary counts still answer "얼마나", in the tiles the list would

@@ -1344,8 +1344,11 @@ mockProjects.push(
     processStatus: ProcessStatus.WAITING_CONNECTION_TEST,
     updatedAt: '2026-07-19T14:52:00Z',
     resources: [
-      { id: 'ivt-res-1', type: 'IDC_RESOURCE', resourceId: 'idc-ivt-9a01', databaseType: 'MYSQL', selectedCredentialId: 'hgildong-mysql-prod', connectionStatus: 'CONNECTED', isSelected: true, integrationCategory: 'TARGET', idcConfig: { inputFormat: 'HOST', ips: [], domain: 'db-mysql.ivt.prod.internal', sourceIps: ['10.20.9.11'], firewallOpen: true } },
-      { id: 'ivt-res-2', type: 'IDC_RESOURCE', resourceId: 'idc-ivt-9a02', databaseType: 'MYSQL', selectedCredentialId: 'hgildong-mysql-prod', connectionStatus: 'CONNECTED', isSelected: true, integrationCategory: 'TARGET', idcConfig: { inputFormat: 'IP', ips: ['10.20.4.11'], domain: '', sourceIps: ['10.20.9.11'], firewallOpen: true } },
+      // nlbIndex: assigned, so the admin screens' NLB 배정 column reads a value instead
+      // of standing empty on every row. 9a03 is deliberately left unassigned — that is
+      // the state the 배정하기 affordance exists for.
+      { id: 'ivt-res-1', type: 'IDC_RESOURCE', resourceId: 'idc-ivt-9a01', databaseType: 'MYSQL', selectedCredentialId: 'hgildong-mysql-prod', connectionStatus: 'CONNECTED', isSelected: true, integrationCategory: 'TARGET', idcConfig: { inputFormat: 'HOST', ips: [], domain: 'db-mysql.ivt.prod.internal', sourceIps: ['10.20.9.11'], firewallOpen: true, nlbIndex: 3 } },
+      { id: 'ivt-res-2', type: 'IDC_RESOURCE', resourceId: 'idc-ivt-9a02', databaseType: 'MYSQL', selectedCredentialId: 'hgildong-mysql-prod', connectionStatus: 'CONNECTED', isSelected: true, integrationCategory: 'TARGET', idcConfig: { inputFormat: 'IP', ips: ['10.20.4.11'], domain: '', sourceIps: ['10.20.9.11'], firewallOpen: true, nlbIndex: 3 } },
       { id: 'ivt-res-3', type: 'IDC_RESOURCE', resourceId: 'idc-ivt-9a03', databaseType: 'ORACLE', selectedCredentialId: 'kimcs-redshift-dw', connectionStatus: 'DISCONNECTED', isSelected: true, integrationCategory: 'TARGET', idcConfig: { inputFormat: 'IP', ips: ['10.20.4.18'], domain: '', oracleSid: 'IVTPDB', sourceIps: ['10.20.9.12'], firewallOpen: false } },
     ],
   }),

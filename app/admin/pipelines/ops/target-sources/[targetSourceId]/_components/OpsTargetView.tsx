@@ -127,10 +127,8 @@ export function OpsTargetView({ targetSourceId, initialTab }: OpsTargetViewProps
    * Sits above the loading / SDU early returns so the effect below can join the other
    * hooks; `detail` is null on the first render, which just leaves every tab in place.
    */
-  const tabs =
-    detail != null && normalizeCloudProvider(detail.cloud_provider) === 'IDC'
-      ? TABS.filter((tab) => tab !== OPS_TAB_SLUGS.scan)
-      : TABS;
+  const isIdc = detail != null && normalizeCloudProvider(detail.cloud_provider) === 'IDC';
+  const tabs = isIdc ? TABS.filter((tab) => tab !== OPS_TAB_SLUGS.scan) : TABS;
   const currentTab = tabs.includes(requestedTab) ? requestedTab : tabs[0];
 
   // A `?tab=scan` link to an IDC target — a bookmark from before the tab was dropped,
@@ -307,7 +305,7 @@ export function OpsTargetView({ targetSourceId, initialTab }: OpsTargetViewProps
               </section>
             )}
             <div className={opsStyles.cardsRow}>
-              <ApprovalHistoryCard targetSourceId={targetSourceId} />
+              <ApprovalHistoryCard targetSourceId={targetSourceId} isIdc={isIdc} />
               <StatusHistoryCard targetSourceId={targetSourceId} />
             </div>
           </>
@@ -333,6 +331,7 @@ export function OpsTargetView({ targetSourceId, initialTab }: OpsTargetViewProps
         {currentTab === 'Test Connection' && (
           <TcTab
             targetSourceId={targetSourceId}
+            isIdc={isIdc}
             status={tcStatus}
             latest={tcLatest}
             results={tcResults}
