@@ -14,19 +14,21 @@ import type {
   IdcResourceView,
 } from '@/app/lib/api/idc';
 
+/**
+ * 주소의 **종류**를 말한다 — 몇 개인지가 아니라. Single/Multi 로 갈라 봐야 그 숫자는 바로
+ * 아래 'IP N개 더보기'가 이미 정확히 말하고 있고, 배지는 같은 말을 덜 정확하게 반복했다.
+ * 남는 구분은 IP 냐 Domain 이냐 하나뿐이고, 그건 주소를 읽는 방법을 바꾸는 진짜 차이다.
+ */
 const KIND_LABEL: Record<IdcKind, string> = {
-  SINGLE: 'Single',
-  MULTIPLE_IP: 'Multi',
+  SINGLE: 'IP',
+  MULTIPLE_IP: 'IP',
   DOMAIN: 'Domain',
-};
-const KIND_STYLE: Record<IdcKind, string> = {
-  SINGLE: idcStyles.kindBadge.single,
-  MULTIPLE_IP: idcStyles.kindBadge.multi,
-  DOMAIN: idcStyles.kindBadge.domain,
 };
 
 export const IdcKindBadge = ({ kind }: { kind: IdcKind }) => (
-  <span className={cn(idcStyles.kindBadge.base, KIND_STYLE[kind])}>{KIND_LABEL[kind]}</span>
+  <span className={cn(idcStyles.kindBadge.base, idcStyles.kindBadge.fill)}>
+    {KIND_LABEL[kind]}
+  </span>
 );
 
 /**
