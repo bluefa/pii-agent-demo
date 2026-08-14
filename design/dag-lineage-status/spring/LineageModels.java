@@ -24,26 +24,27 @@ record DagRunRow(
         OffsetDateTime eventTime) {}
 
 /**
- * One row of dag_registry (the list of DAGs we know about) (dag names are globally unique across
- * environments). targetSourceId is the group axis — null until learned from
- * the first group GET (it is unknowable earlier), immutable afterwards.
- * The registry sync never fills it.
+ * One row of dag_database_uri (dag names are globally unique across
+ * environments). databaseUri is null until DatabaseUriResolver fills it in;
+ * the mapping is 1:1 and immutable, so it is written once.
  */
-record DagRegistryEntry(String dagName, String logicalDatabaseId, Long targetSourceId) {}
+record DagDatabaseUri(String dagName, String databaseUri) {}
 
 /** One (dag, day) aggregate returned by the day-status query. */
 record DayStatusRow(String dagId, String namespace, LocalDate day, DayState state,
         OffsetDateTime successTime) {}
 
 /**
- * Weekly board row for one DAG. Listed DAGs come from the registry, so
- * logicalDatabaseId is always present; namespace is null when the DAG had no
- * events in the window (nothing ran, so there is no row to read it from).
+ * Weekly board row, keyed by databaseUri — the board lists what Infra Manager
+ * returned for the target source, so databaseUri is always present. dagName is
+ * null when no DAG has been mapped to that databaseUri (it never ran), and
+ * namespace is null when the DAG had no events in the window (nothing ran, so
+ * there is no row to read it from).
  */
 record DagWeeklyStatus(
+        String databaseUri,
+        String dagName,
         String namespace,
-        String dagId,
-        String logicalDatabaseId,
         boolean succeededThisWeek,
         OffsetDateTime lastSuccessAt,
         List<DayStatus> days) {

@@ -1,7 +1,18 @@
 # DAG 주간 상태 현황판 — 아키텍처
 
 멀티 Composer 환경의 DAG 실행 상태를 OpenLineage 이벤트로 수집해,
-DAG별 최근 7일 상태를 준실시간으로 제공하는 시스템.
+논리 DB별 최근 7일 상태를 준실시간으로 제공하는 시스템.
+
+## 용어
+
+| 용어 | 뜻 |
+|------|-----|
+| **Monitoring Manager** | 이 문서가 설계하는 서버. 이벤트를 수집·저장하고 주간 상태를 응답한다 |
+| **Pipeline Manager** | 상류. `dagName` → `databaseUri` 단건 조회 |
+| **Infra Manager** | 상류. `targetSourceId` → databaseUri 목록 |
+| **databaseUri** | 논리 DB 식별자. 화면 행의 키 |
+| **target source** | 논리 DB의 묶음. 조회 요청의 키(`targetSourceId`, long) |
+| **dag name** | Airflow의 dag id. 이름 ↔ 논리 DB는 1:1 불변 |
 
 ## 요구사항
 
@@ -11,56 +22,76 @@ DAG별 최근 7일 상태를 준실시간으로 제공하는 시스템.
 - **기존 OpenLineage transport가 이미 존재** — 건드리지 않고 공존해야 함
 - 이번 transport는 **DAG 이름이 특정 prefix로 시작하는 DAG만** 지정
   Pub/Sub topic으로 보냄
-- DAG 이름 ↔ 논리 DB(`logical_database_id`)는 별도 API 서버로 조회
-  (1:1, Composer·Spring 둘 다 접근 가능). **DAG 이름은 환경 간 전역
-  유니크** (오너 확인)
+- **DAG 이름은 환경 간 전역 유니크** (오너 확인)
+- **상류 서버 2개** (오너 확인):
+  | 서버 | 답해주는 것 | 제약 |
+  |------|------------|------|
+  | **Pipeline Manager** | `dagName` → `databaseUri`(논리 DB). 1:1 불변 | **단건만.** 역방향(`databaseUri` → `dagName`) 없음, 벌크 없음 |
+  | **Infra Manager** | `targetSourceId` → 그 target source의 databaseUri 목록 | 20x일 때만 유효 |
 - 주간 화면:
   1. 최근 7일간 1회 이상 성공 여부 + 성공 시각
   2. 날짜별 상태: 성공 > 동작중 > 실패 > 스케줄 안 됨
-- **그룹(target source) 단위 조회**: target source 하나에 속한 DAG
-  N개(최대 1만)의 주간 상태를 반환해야 한다. target source 단위로
-  논리 DB가 생성되고 **논리 DB 1개 = DAG 1개**. DAG가 한번 그룹에
-  편입되면 영원히 그 그룹이다(오너 확인 — 이동·탈퇴 없음).
-  `target_source_id`는 long이고, **GET 쿼리가 오기 전까지는 절대 알
-  수 없다** — 이벤트 발송·처리 시점 모두(오너 확인).
+- **조회 진입점은 target source 단위 하나뿐**: 요청 키는
+  `targetSourceId`(long). Monitoring Manager가 Infra Manager를 호출해
+  20x면, 그 응답의 **databaseUri 각각에 대해** 주간 종합 + 일자별
+  결과를 돌려준다. target source 하나가 논리 DB 최대 1만 개를 가진다
+  (논리 DB 1개 = DAG 1개).
+- **관계의 성질** (오너 확인): `databaseUri → targetSourceId`는
+  **불변**이다. 그러나 `targetSourceId → databaseUri 목록`은
+  **변한다** — 논리 DB가 실제로 사라질 수 있다. 그래서 멤버 목록이
+  확정되는 시점은 **매 GET의 Infra Manager 응답**뿐이다.
 
 ## 결정 사항 (오너 확정)
 
 - **manual/backfill 실행의 성공도 그날의 '성공'으로 인정** — 화면의
   질문이 "그날 일이 됐는가"이므로. run_type은 저장만 하고 집계
   필터로 쓰지 않는다.
-- **DAG 이름은 환경 간 전역 유니크** — registry·조회 키는 dag_name 단독.
-- **주간 화면의 DAG 목록 진실 원천은 `dag_registry`(= 우리가 아는 DAG 목록)** —
-  이벤트에서 목록을 유도하지 않는다. (외부 리뷰 C3/M2 반영)
+- **DAG 이름은 환경 간 전역 유니크** — 조회 키는 dag_name 단독.
+- **화면 목록의 진실 원천은 Infra Manager 응답이다** — 우리 DB가
+  아니다. 응답의 databaseUri 하나가 화면의 행 하나이고, 우리는 그 행을
+  채우기만 한다.
 - **lineage 이벤트 원본은 보존하지 않는다** — 보존 요구사항이
   없다. BigQuery export 없음, `dag_run_status`도 7일 창을 지나면
   삭제. 대가: 과거 재계산 수단이 없다(아래 Pub/Sub 절 참조).
 - **저장은 기존 운영 MySQL 8** — Postgres 전환은 불가(운영 DB 기정).
-- **그룹 축은 `dag_registry`의 컬럼(`target_source_id` BIGINT)이다** —
-  DAG:논리DB가 1:1이고 논리DB는 target source 하나에 속하므로,
-  멤버십은 DAG의 속성이다. 별도 join 테이블도, 이벤트·상태 행에
-  그룹을 스탬핑하는 것도 없다. 값은 그룹 GET이 처음 도착할 때
-  **읽기 경로에서 학습**해 write-once로 영속한다(아래 그룹 조회 절).
+- **그룹 멤버십은 저장하지 않는다** — 목록이 변할 수 있고 Infra
+  Manager는 매 요청 호출해야 하므로(20x가 곧 존재 확인), 저장분은
+  사라진 논리 DB가 남아 있는 상위집합일 뿐이다. `target_source_id`
+  컬럼도, join 테이블도, 그룹별 사전 집계 테이블도 두지 않는다.
+- **우리가 저장하는 유일한 상류 사실은 `dagName → databaseUri`다**
+  (`dag_database_uri`) — 역방향 조회가 없어서 역방향 맵을 우리가
+  들고 있어야 하기 때문이다. **그 이름의 원천은 이벤트다** — 벌크
+  목록 API가 없으니 이름을 먼저 알아야 물어볼 수 있다.
 
 ## 전체 구조
 
+수집과 조회가 서로를 기다리지 않는다. 수집은 상류 서버를 전혀
+호출하지 않고, 조회는 상류 서버 2개를 호출한다.
+
 ```
+[수집]
 Composer env A ─┐  composite transport = 기존 transport + PubSubTransport
-Composer env B ─┼──▶ Pub/Sub topic: lineage-events
-Composer env N ─┘   (DAG-only + name-prefix 허용 목록)
-                          │
-                          ├─▶ pull 구독 ──▶ Spring server (GKE)
-                          │                  parse → 멱등 upsert
-                          │                       │
-                          │                       ▼
-                          │               MySQL dag_run_status
-                          │                       │        ▲
-                          │            (DAG 목록 기준 조회) │ 목록 sync가
-                          │                       │   dag_registry 채움
-                          │                       ▼        │
-                          │             주간 조회 API   DAG 목록 API 서버
-                          │
-                          └─▶ dead-letter topic     (max delivery attempts 5)
+Composer env B ─┼─▶ Pub/Sub topic ─┬─▶ pull 구독 ─▶ Monitoring Manager (GKE)
+Composer env N ─┘  (DAG-only+prefix)│                parse → 멱등 upsert
+                                    │                  │            │
+                                    │                  ▼            ▼
+                                    │         dag_run_status   dag_database_uri
+                                    │                          (이름만, uri는 NULL)
+                                    └─▶ dead-letter topic (max delivery attempts 5)
+
+[resolver — 수집 경로 밖, 비동기]
+   dag_database_uri의 미해결 이름 ──단건 조회──▶ Pipeline Manager (dagName → uri)
+
+[조회]  GET(targetSourceId)
+          │
+          ├─▶ Infra Manager ──20x──▶ databaseUri 목록 (최대 1만)
+          │                              └─ 페이지 슬라이스(예: 100)
+          │                                        │
+          ├─▶ dag_database_uri  WHERE database_uri IN (…) → dag_name 역변환
+          │                                        │
+          └─▶ dag_run_status    7일 집계 (dag_id, logical_date)
+                                                   ▼
+             databaseUri별 주간 종합 + 일자별 (매핑 없으면 7일 전부 '스케줄 안 됨')
 ```
 
 ## 이벤트 볼륨 산정과 transport 필터 결정
@@ -187,57 +218,69 @@ AIRFLOW__OPENLINEAGE__NAMESPACE='composer-env-a'   # 환경별 유니크
   00:00)보다 항상 과거라 화면과 경합하지 않는다. 파티셔닝은 채택하지
   않음(과설계).
 
-### DAG 목록 테이블 (dag_registry)
+### 이름 ↔ databaseUri 매핑 (dag_database_uri)
 
-`dag_registry`는 **우리 MySQL에 두는 "존재하는 DAG 목록"**이다.
-행 하나가 DAG 하나이고, 컬럼은 DAG 이름 · 논리 DB · 그룹(target
-source) · 마지막 sync 시각이다.
+`dag_database_uri`는 **역방향 맵 하나만 담는 테이블**이다. 행 하나가
+DAG 하나이고, 컬럼은 DAG 이름 · databaseUri · 시도 횟수 · 시각뿐이다.
+그룹 컬럼은 없다.
 
-두 역할을 겸한다: **이름→논리 DB 매핑**이자, 주간 화면이 어떤 DAG를
-보여줄지 결정하는 **목록(진실 원천)**이다. 이벤트에서 DAG 목록을
-유도하지 않으므로, 7일간 이벤트가 0건인 DAG도 "7일 내내 스케줄 안 됨"
-행으로 화면에 남는다.
+이 테이블이 존재하는 이유는 **Pipeline Manager의 제약** 하나다:
+`dagName → databaseUri` 단방향, 단건. 그런데 그룹 조회는 손에
+databaseUri를 들고 시작해서 이름으로 되돌아가야 한다. 역방향을
+물어볼 데가 없으니 우리가 들고 있는다.
 
-**이벤트 저장 시점에 논리 DB를 조회하지 않는다.** 이벤트에는
-`logical_database_id`가 없지만, 그렇다고 소비 콜백에서 API를
-호출하지 않는다 — `dag_run_status`에는 이벤트에 실려 온 `dag_id`만
-저장하고, 이름→논리 DB 해석은 **읽기 시점에 `dag_registry`에서**
-한다. 이름이 전역 유니크이고 매핑이 1:1 정적이라 나중에 붙여도 같은
-결과가 나오므로, 조회를 쓰기 경로에 둘 이유가 없다. 얻는 것:
+**이름의 원천은 이벤트다.** 벌크 목록 API가 없어서 "존재하는 DAG
+전체"를 받아올 방법이 없고, 단건 조회는 이름을 이미 알아야 쓸 수
+있다. 그 이름을 유일하게 알려주는 게 이벤트다.
 
-- 수집 ack가 API 가용성에 종속되지 않는다 (API 장애 → 수집 정체 없음)
-- 자정 폭주(최악 ~330건/s)가 API 서버로 전파되지 않는다 —
-  하루 20만 건의 조회가 통째로 사라진다
+**그래도 이벤트 저장 시점에 API를 호출하지는 않는다.** 소비 콜백은
+`dag_run_status` upsert와 `INSERT IGNORE INTO dag_database_uri
+(dag_name)` — 로컬 쓰기 둘뿐이다. 해석은 뒤에서 따로 한다. 얻는 것:
+
+- 수집 ack가 Pipeline Manager 가용성에 종속되지 않는다
+- 자정 폭주(최악 ~330건/s)가 상류로 전파되지 않는다 — 하루 20만 건의
+  조회가 통째로 사라진다
 - 캐시·재시도·타임아웃 같은 부수 장치가 수집 경로에 필요 없다
 
 채우고 쓰는 방식:
 
-1. **초기 백필 1회**: DAG 목록 API의 벌크 조회로 10만 건 적재.
-2. **주기 sync** (기본 1시간, `DagRegistrySync`): 전체 목록을
-   다시 받아 upsert하고, 이번 sync에 없던 행은 삭제한다(삭제된
-   DAG 정리). 새로 생성된 DAG는 최대 sync 주기만큼 늦게 화면에
-   나타난다. 빈 응답·조회 실패 시에는 registry를 지우지 않고 다음
-   주기로 넘긴다.
-3. **조회**: 주간 화면이 `dag_registry`를 dag_name keyset으로
-   페이지네이션하고, 그 페이지의 DAG들에 대해서만 `dag_run_status`를
-   조회한다. 10만 행 OFFSET 딥 페이징이 없다.
+1. **seed (수집 경로)**: 이벤트를 소비할 때마다 이름을 `INSERT
+   IGNORE`. 이미 있으면 no-op이라 사실상 신규 DAG에서만 행이 는다.
+2. **resolve (`DatabaseUriResolver`, 비동기)**: `database_uri IS
+   NULL`인 이름만 골라 Pipeline Manager에 단건 조회해 채운다. 매핑이
+   1:1 불변이라 **DAG 하나당 평생 1회**다. 실패는 `attempts`를 올리고
+   다음 주기에 재시도하되, 상한(기본 5회)을 넘으면 멈춘다 — 상류가
+   영영 모르는 이름을 매 주기 두드리지 않기 위해서다.
+3. **조회 (읽기 경로)**: 그룹 조회가 Infra Manager에게 받은 페이지의
+   databaseUri들을 `IN (…)`으로 이름으로 되돌린다. IN 목록은 페이지
+   크기(예: 100)에 묶이므로 1만 개가 한 번에 들어가지 않는다.
 
-이벤트 처리 경로는 DAG 목록 API를 전혀 호출하지 않는다 — API 장애가
-수집 정체로 전파되지 않고, 그 반대도 없다.
+**이벤트가 0건인 DAG는 이 테이블에 없다 — 그래도 화면은 정확하다.**
+화면의 행은 이제 DAG가 아니라 **databaseUri**이고, 그 목록은 Infra
+Manager가 준다. 매핑이 없는 databaseUri는 "그 논리 DB의 DAG가 한 번도
+돌지 않았다"는 뜻이므로 **7일 전부 '스케줄 안 됨'**이 정답이다.
+이름을 몰라도 답이 나오므로, 맵은 실제로 돌았던 DAG만 덮으면 충분하다.
+
+> **이전 결정 뒤집힘**: 앞선 리뷰(C3/M2)에서 "이벤트에서 목록 유도 +
+> 미해석 이름만 단건 조회(reconciler)"를 기각했었다. 기각 사유는
+> *이벤트 0건 DAG가 화면에서 사라진다*였는데, 목록 축이 우리 DB에서
+> **Infra Manager로 옮겨간 지금은 그 부작용이 없다**. 그래서 그 구조를
+> 다시 채택한다.
 
 기각한 대안:
 
 | 대안 | 기각 사유 |
 |------|----------|
-| 이벤트에서 DAG 목록 유도 + 미해석 이름만 단건 조회 (reconciler) | 이벤트 0건 DAG가 화면에서 사라지고, "어떤 DAG가 있는가"의 진실 원천이 이벤트/목록 둘로 갈라진다 (리뷰 C3/M2로 목록 단일 축으로 전환) |
+| 전체 목록을 주기 sync해 로컬 목록 유지 | 불가 — 벌크/목록 조회가 없다(오너 확인). 단건 조회는 이름을 이미 알아야 쓸 수 있다 |
+| 매 조회마다 Pipeline Manager로 역변환 | 불가 — 역방향 조회가 없다. 있더라도 단건뿐이라 페이지당 100콜 |
 | transport에서 이벤트마다 API 조회 후 첨부 | 스케줄러 경로에 외부 호출 삽입, N개 환경 각각 캐시 필요, 이벤트 스키마 오염 |
 | 각 DAG 안에서 매일 자기 ID 조회 | 정적 매핑에 10만 × 365 호출. Composer가 API에 접근할 수 있다는 이유만으로 채택할 근거가 되지 않음 |
-| Spring 소비 콜백에서 인라인 조회 | ack 경로가 API 서버 가용성에 종속 — 자정 폭주가 API 서버로 전파되고, API 장애가 수집 정체로 역전파 |
+| Spring 소비 콜백에서 인라인 조회 | ack 경로가 상류 가용성에 종속 — 자정 폭주가 상류로 전파되고, 상류 장애가 수집 정체로 역전파 |
 
 ### 주간 조회 (읽기 시점 집계)
 
-- **목록·페이지네이션 축은 `dag_registry`** (keyset, dag_name 순).
-  이벤트가 0건인 DAG도 "7일 내내 스케줄 안 됨"으로 표시된다.
+- **목록·페이지네이션 축은 Infra Manager 응답** (databaseUri 순).
+  매핑이 없는 databaseUri도 "7일 내내 스케줄 안 됨"으로 표시된다.
 - 날짜 버킷은 **이벤트 시각이 아니라 `logical_date`의 KST 날짜**.
   자정 넘겨 끝나는 run이 이틀에 걸치지 않는다.
 - 날짜별 상태 우선순위: SUCCESS > RUNNING > FAILED, 행 없음 →
@@ -245,54 +288,54 @@ source) · 마지막 sync 시각이다.
 - manual/backfill 성공도 그날의 성공으로 집계한다 (결정 사항 참조).
 - "주간 1회 이상 성공"의 성공 시각은 **가장 최근 성공**의
   eventTime을 쓴다.
-- 논리 DB ID는 목록 페이지에서 함께 읽으므로 항상 채워져 있다.
+- 응답의 키는 databaseUri다(항상 존재). dag 이름은 매핑이 아직 없으면
+  null이고, namespace는 창 안에 이벤트가 없으면 null이다.
 - 주 70만 행 인덱스 스캔이라 사전 집계 테이블 없이 읽기 시점
   GROUP BY로 충분하다.
 
 ### 그룹(Target Source) 단위 조회
 
-target source = 그룹, 그룹 하나가 DAG 최대 1만 개를 가진다. 제약이
-하나 있다: `target_source_id`(long)는 **그룹 GET이 도착하기 전까지
-절대 알 수 없다** — 이벤트 발송 시점에도, 처리 시점에도 알기 어렵고,
-목록 sync로 미리 당겨올 수도 없다(오너 확인). 우려는 "매
-요청마다 멤버 id N개를 불러와서 N개를 조회"하는 부하인데, 알 수 있는
-유일한 시점(GET)에 배운 것을 영속해 그 패턴을 반복하지 않는 게 답이다:
+그룹 하나가 논리 DB 최대 1만 개를 가진다. 우려는 "매 요청마다 멤버
+N개를 불러와서 N개를 조회"하는 부하인데, **멤버십을 저장해서 푸는
+문제가 아니다.** 목록은 변할 수 있고 Infra Manager는 어차피 매 요청
+불러야 하므로(20x가 곧 존재 확인), 우리가 저장한 멤버십은 사라진
+논리 DB가 남은 상위집합이 될 뿐이다 — 정확성에 보태는 게 없다.
 
-1. **첫 GET에서 학습하고 write-once로 영속** — 그룹 GET이 도착한
-   시점에만 멤버 목록을 알 수 있으므로, 그 목록을
-   `dag_registry.target_source_id`에 fold한다(`assignGroup` —
-   `target_source_id IS NULL`인 행만 갱신). "한번 편입되면
-   영원히"이므로 학습된 사실은 만료되지 않는다: 같은 목록이 다시
-   와도 no-op이고, 멤버십이 틀려질 방법이 없다. 멤버 id N개를 다루는
-   비용이 **매 요청**에서 **그룹당 최초 1회 + 신규 편입분**으로
-   줄어든다. id가 long이라 1만 개여도 ~80KB 수준이다.
-2. **학습된 뒤로는 id 목록 없이 로컬 인덱스로** —
-   `WHERE target_source_id = ?` + `(target_source_id, dag_name)`
-   인덱스로 **그룹 안에서 keyset 페이지네이션**한다. 1만 개 id를
-   메모리에 올려 IN절로 되던지는 단계가 없고, 요청당 비용은 페이지
-   크기(예: 100)에만 비례한다 — N이 1만이어도 동일하다.
-3. **집계는 기존 주간 조회와 동일 경로** — 그룹 페이지의 DAG들에
-   대해서만 `dag_run_status`를 (dag_id, logical_date) 인덱스로 읽는다.
-   그룹 전용 집계 테이블이 필요 없다.
+대신 **페이지 밖으로 새는 비용을 없앤다**:
 
-목록 sync는 그룹을 **모른다** — sync 원천에 target_source_id가
-없으므로(위 제약) sync upsert는 이 컬럼을 건드리지 않는다. 학습된
-멤버십은 DAG가 목록에 살아 있는 한 유지된다(liveness 삭제 시
-함께 삭제 — 삭제된 DAG는 그룹 화면에서도 빠지는 게 맞다).
+1. **Infra Manager 호출 1회** — 그 target source의 databaseUri 목록.
+   20x가 아니면 조회 실패로 반환한다(빈 목록이 아니다 — 장애를
+   "논리 DB 없음"으로 위장하면 안 된다).
+2. **페이지로 자른다** (예: 100) — 이후 단계는 전부 페이지 크기에만
+   비례한다. 1만 개를 IN절에 되던지는 단계가 없다.
+3. **이름 역변환** — `dag_database_uri`를 `database_uri IN (…)`으로
+   조회. 페이지에 없는 uri는 애초에 묻지 않는다.
+4. **집계는 기존 주간 조회와 동일 경로** — 그 페이지의 dag 이름으로만
+   `dag_run_status`를 `(dag_id, logical_date)` 인덱스로 읽는다. 그룹
+   전용 집계 테이블이 필요 없다.
 
-이벤트 경로도 그룹을 모른다 — transport·소비 어느 쪽도
-target_source_id를 알 필요가 없고, 그룹은 읽기 경로에서만 존재한다.
-"발송·처리 시점에 그룹을 알기 어렵다"는 제약이 설계에 비용을
-만들지 않는 이유다.
+남는 비용은 **DB가 아니라 Infra Manager 응답 크기**다. 1만 건이면
+목록만 수 MB이고, 페이지를 넘길 때마다 다시 부르면 그게 반복된다.
+상류가 페이징을 지원하면 커서를 그대로 통과시키고, 지원하지 않으면
+`targetSourceId`별로 **짧은 TTL 캐시**(예: 60초)를 둬 한 화면 세션
+동안 한 번만 부르게 한다. 목록이 변할 수 있으므로 **TTL만으로
+충분하고 무효화 로직은 필요 없다** — 최대 지연이 TTL이다. (미결:
+확인 필요 #10)
+
+이벤트 경로는 그룹을 **모른다** — transport·소비 어느 쪽도
+`targetSourceId`를 알 필요가 없고, 그룹은 읽기 경로에만 존재한다.
+"발송·처리 시점에 그룹을 알기 어렵다"는 제약이 설계에 비용을 만들지
+않는 이유다.
 
 기각한 대안:
 
 | 대안 | 기각 사유 |
 |------|----------|
-| 목록 sync로 멤버십 선적재 | 불가 — target_source_id는 GET 전까지 알 수 없다(오너 확인). sync 원천에 없는 값은 실을 수 없다 |
-| `dag_run_status` 행에 target_source_id 스탬핑 (소비 시점) | 처리 시점에 그룹을 알 수 없고(위 제약), 알 수 있더라도 소비 콜백마다 조회가 필요해 수집이 다른 시스템에 결합된다. 읽기 시점 해석이면 전부 불필요 |
-| 별도 멤버십 join 테이블 | DAG당 그룹이 최대 1개(1:1×N:1)라 컬럼으로 충분. 테이블 분리는 학습·조회 양쪽에 join만 추가 |
+| 멤버십(`target_source_id`)을 우리 DB에 저장 | 목록이 변한다(논리 DB 소멸). Infra Manager를 어차피 매 요청 부르므로 저장분은 stale 상위집합일 뿐이고, 사라진 논리 DB가 화면에 남는다 |
+| `dag_run_status` 행에 target_source_id 스탬핑 (소비 시점) | 처리 시점에 그룹을 알 수 없고, 알더라도 소비 콜백마다 조회가 필요해 수집이 다른 시스템에 결합된다. 읽기 시점 해석이면 전부 불필요 |
+| 별도 멤버십 join 테이블 | 위와 동일한 stale 문제 + join 추가. 멤버십은 애초에 우리 사실이 아니다 |
 | 그룹별 사전 집계(요약) 테이블 | 페이지 단위 read-time GROUP BY로 충분(위 주간 조회 결정과 동일). 집계 테이블은 갱신 시점·정합성 문제를 새로 만든다 |
+| 전역(비그룹) 주간 보드 유지 | 진입점이 target source 단위 하나뿐이고, 전역 목록의 원천이 사라졌다(벌크 목록 API 없음). 필요해지면 "이벤트가 있었던 DAG"를 축으로 되살린다 |
 
 ## 운영
 
@@ -327,10 +370,11 @@ target_source_id를 알 필요가 없고, 그룹은 읽기 경로에서만 존�
    config_path)에 따라 composite 설정으로 전환하는 방법이 달라진다.
 4. **prefix 확정**: 값과 단수/복수 여부. 복수가 되면
    `dag_name_prefix`를 리스트로 확장 (transport 코드 한 줄).
-5. **DAG 목록 API의 벌크 조회 유무**: 목록 sync의 전제.
-   목록 API가 없으면 단건 조회만으로는 전체 DAG 목록을 알 수
-   없으므로, 이름 목록의 별도 원천(예: Composer DAG 목록 export)이
-   필요하다.
+5. **Pipeline Manager의 허용 QPS와 콜드 스타트 시간**: 단건 조회뿐이라
+   초기에는 "지금까지 돈 DAG 전체"를 이름 하나씩 물어야 한다(최대
+   10만 회, 1회성). 기본값(1분마다 500건)이면 완주에 ~3.5시간이다.
+   상류가 견디는 QPS를 확인해 배치 크기·주기를 정하고, 필요하면 작은
+   고정 스레드 풀로 병렬화한다.
 6. **runId 안정성 실측**: clear 후 재실행이 같은 runId를
    재사용하는지. 같으면 기존 행이 갱신되고, 새 runId면 행이 하나 더
    생기는데 — 날짜 상태 집계는 두 경우 모두 동일하게 나온다
@@ -343,8 +387,15 @@ target_source_id를 알 필요가 없고, 그룹은 읽기 경로에서만 존�
 9. **운영 MySQL 버전 확인**: upsert의 `VALUES ... AS new` 별칭
    구문은 8.0.19+, CHECK 강제는 8.0.16+. 8.0.19 미만이면 별칭 대신
    구식 `VALUES(col)` 함수 구문으로 대체한다.
-10. **첫 GET의 멤버 목록 계약 확정**: 그룹 GET이 멤버 dag 목록을
-    어떻게 알게 해주는지(요청에 id 목록 포함 vs 서버가
-    target_source_id로 원천에 조회) 및 id의 형태(dag 이름 / 외부
-    ID — `assignGroup`의 WHERE 키만 달라진다). 어느 쪽이든 "학습 후
-    write-once 영속" 구조는 동일하다.
+10. **Infra Manager 응답 형태**: 1만 건을 한 번에 주는지, 페이징을
+    지원하는지. 페이징이 있으면 커서를 통과시키고, 없으면
+    `targetSourceId`별 짧은 TTL 캐시로 페이지 전환마다의 재호출을
+    막는다. 응답 1건의 크기(= databaseUri 길이)도 함께 확인해
+    `VARCHAR(500)` 가정을 확정한다.
+11. **비-20x 응답의 의미 확정**: 현재 설계는 조회 실패로 반환한다(빈
+    목록과 구분). 404가 "target source 없음"을 뜻한다면 그것만 빈
+    화면으로 분기할지 정해야 한다.
+12. **resolve 상한 도달 시 운영**: `attempts`가 상한(기본 5)에 닿은
+    이름은 재시도가 멈춘다. 상류가 뒤늦게 등록하는 경우를 대비해
+    상한 도달 건수 알람 + 수동 리셋(`UPDATE ... SET attempts = 0`)
+    절차를 둔다.

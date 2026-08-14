@@ -12,12 +12,17 @@ import java.util.stream.IntStream;
 import org.springframework.stereotype.Service;
 
 /**
- * Weekly board: for each DAG in the registry, the last 7 KST days.
+ * Weekly board for one target source, keyed by databaseUri:
  *  1) succeededThisWeek + lastSuccessAt (latest success in the window)
  *  2) per-day state: SUCCESS > RUNNING > FAILED, no row -> NOT_SCHEDULED
  *
- * Pages over dag_registry (keyset by dag_name), so a DAG with zero events
- * still renders as 7x NOT_SCHEDULED instead of disappearing.
+ * The member list comes from Infra Manager on every request — it is the only
+ * moment the target source's databaseUris are known, and it can shrink (a
+ * logical DB may disappear), so it is never cached in our schema.
+ *
+ * A databaseUri with no mapped DAG renders as 7x NOT_SCHEDULED: we only learn
+ * dag names from events, so "unmapped" means "never ran", which is the answer
+ * anyway.
  *
  * A manual/backfill success counts as that day's SUCCESS (owner decision):
  * run_type is stored but never used as an aggregate filter.
@@ -28,45 +33,47 @@ public class WeeklyDagStatusService {
     private static final ZoneId KST = ZoneId.of("Asia/Seoul");
 
     private final DagRunStatusRepository repository;
-    private final DagRegistryRepository registry;
+    private final DagDatabaseUriRepository uriRepository;
+    private final InfraManagerClient infraManager;
 
-    public WeeklyDagStatusService(DagRunStatusRepository repository, DagRegistryRepository registry) {
+    public WeeklyDagStatusService(DagRunStatusRepository repository,
+            DagDatabaseUriRepository uriRepository, InfraManagerClient infraManager) {
         this.repository = repository;
-        this.registry = registry;
+        this.uriRepository = uriRepository;
+        this.infraManager = infraManager;
     }
 
-    /** afterDagName: last dag name of the previous page, null for the first page. */
-    public List<DagWeeklyStatus> weeklyStatuses(String afterDagName, int size) {
-        return summarizePage(registry.page(afterDagName, size));
-    }
+    /** afterDatabaseUri: last databaseUri of the previous page, null for the first page. */
+    public List<DagWeeklyStatus> weeklyStatuses(long targetSourceId, String afterDatabaseUri, int size) {
+        // ponytail: Infra Manager has no paging yet, so the full member list
+        // (up to ~10k) is sorted and sliced here. If paging lands upstream, pass
+        // the cursor through instead; if it does not, cache the list per
+        // targetSourceId with a short TTL so page 2..N skip the refetch.
+        List<String> page = infraManager.databaseUris(targetSourceId).stream()
+                .sorted()
+                .dropWhile(uri -> afterDatabaseUri != null && uri.compareTo(afterDatabaseUri) <= 0)
+                .limit(size)
+                .toList();
 
-    /**
-     * Same board, scoped to one group (target source). The page comes from the
-     * group's slice of the registry; aggregation is identical. A group can hold
-     * up to ~10k DAGs, but each request still touches only one page of them.
-     * Membership must have been learned first (registry.assignGroup — the GET
-     * that carries the member list is the only moment the group is knowable).
-     */
-    public List<DagWeeklyStatus> weeklyStatusesByGroup(long targetSourceId, String afterDagName, int size) {
-        return summarizePage(registry.pageByGroup(targetSourceId, afterDagName, size));
-    }
-
-    private List<DagWeeklyStatus> summarizePage(List<DagRegistryEntry> page) {
         LocalDate firstDay = LocalDate.now(KST).minusDays(6);
         OffsetDateTime windowStart = firstDay.atStartOfDay(KST).toOffsetDateTime();
 
-        List<String> names = page.stream().map(DagRegistryEntry::dagName).toList();
+        Map<String, String> dagNameByUri = uriRepository.findByDatabaseUris(page).stream()
+                .collect(Collectors.toMap(DagDatabaseUri::databaseUri, DagDatabaseUri::dagName));
         Map<String, List<DayStatusRow>> rowsByDag =
-                repository.dayStatuses(names, windowStart).stream()
+                repository.dayStatuses(List.copyOf(dagNameByUri.values()), windowStart).stream()
                         .collect(Collectors.groupingBy(DayStatusRow::dagId));
 
         return page.stream()
-                .map(entry -> summarize(entry, firstDay,
-                        rowsByDag.getOrDefault(entry.dagName(), List.of())))
+                .map(uri -> {
+                    String dagName = dagNameByUri.get(uri);
+                    return summarize(uri, dagName, firstDay,
+                            rowsByDag.getOrDefault(dagName, List.of()));
+                })
                 .toList();
     }
 
-    private static DagWeeklyStatus summarize(DagRegistryEntry entry, LocalDate firstDay,
+    private static DagWeeklyStatus summarize(String databaseUri, String dagName, LocalDate firstDay,
             List<DayStatusRow> rows) {
         Map<LocalDate, DayStatusRow> byDay =
                 rows.stream().collect(Collectors.toMap(DayStatusRow::day, row -> row));
@@ -89,7 +96,16 @@ public class WeeklyDagStatusService {
                 .orElse(null);
 
         String namespace = rows.isEmpty() ? null : rows.get(0).namespace();
-        return new DagWeeklyStatus(namespace, entry.dagName(), entry.logicalDatabaseId(),
+        return new DagWeeklyStatus(databaseUri, dagName, namespace,
                 lastSuccessAt != null, lastSuccessAt, days);
+    }
+
+    /**
+     * Adapter for Infra Manager: targetSourceId -> the databaseUris of that
+     * target source. A non-2xx response is a failed read, not an empty group —
+     * throw, so the caller never renders "no logical DBs" for an outage.
+     */
+    public interface InfraManagerClient {
+        List<String> databaseUris(long targetSourceId);
     }
 }

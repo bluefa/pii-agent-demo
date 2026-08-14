@@ -33,16 +33,19 @@ public class LineageEventSubscriber {
     private final PubSubTemplate pubSubTemplate;
     private final ObjectMapper objectMapper;
     private final DagRunStatusRepository repository;
+    private final DagDatabaseUriRepository uriRepository;
     private final String subscription;
 
     public LineageEventSubscriber(
             PubSubTemplate pubSubTemplate,
             ObjectMapper objectMapper,
             DagRunStatusRepository repository,
+            DagDatabaseUriRepository uriRepository,
             @Value("${lineage.subscription}") String subscription) {
         this.pubSubTemplate = pubSubTemplate;
         this.objectMapper = objectMapper;
         this.repository = repository;
+        this.uriRepository = uriRepository;
         this.subscription = subscription;
     }
 
@@ -68,7 +71,12 @@ public class LineageEventSubscriber {
                 message.ack();
                 return;
             }
-            repository.upsert(toRow(event, state));
+            DagRunRow row = toRow(event, state);
+            repository.upsert(row);
+            // The event is the only place a dag name comes from, and Pipeline
+            // Manager can only be asked forward (name -> databaseUri). Record
+            // the name locally; the resolver looks it up later, off this path.
+            uriRepository.seen(row.dagId());
             message.ack();
         } catch (Exception e) {
             log.warn("lineage event rejected: {}", e.getMessage());
