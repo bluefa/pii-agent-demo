@@ -16,7 +16,8 @@ import org.springframework.stereotype.Repository;
 public class DagRegistryRepository {
 
     private static final RowMapper<DagCatalogEntry> CATALOG_ROW = (rs, i) -> new DagCatalogEntry(
-            rs.getString("dag_name"), rs.getString("external_id"), rs.getString("target_source_id"));
+            rs.getString("dag_name"), rs.getString("external_id"),
+            rs.getObject("target_source_id", Long.class));
 
     private final JdbcTemplate jdbc;
 
@@ -41,7 +42,7 @@ public class DagRegistryRepository {
      * (target_source_id, dag_name) index, so a request costs one page —
      * never "load all N member ids, then query each" — regardless of N.
      */
-    public List<DagCatalogEntry> pageByGroup(String targetSourceId, String afterDagName, int limit) {
+    public List<DagCatalogEntry> pageByGroup(long targetSourceId, String afterDagName, int limit) {
         return jdbc.query("""
                 SELECT dag_name, external_id, target_source_id
                   FROM dag_registry
@@ -53,22 +54,42 @@ public class DagRegistryRepository {
                 CATALOG_ROW, targetSourceId, afterDagName == null ? "" : afterDagName, limit);
     }
 
-    /** Bulk upsert from a catalog sync; touching synced_at marks the row as still alive. */
+    /**
+     * Learn group membership at read time — a group GET is the ONLY moment
+     * target_source_id is knowable (owner-confirmed: never at publish,
+     * consume, or catalog-sync time). Write-once via the IS NULL guard:
+     * membership is immutable, so a learned fact never expires and
+     * re-sending the same list is a no-op.
+     */
+    public void assignGroup(long targetSourceId, List<String> dagNames) {
+        jdbc.batchUpdate("""
+                UPDATE dag_registry
+                   SET target_source_id = ?
+                 WHERE dag_name = ?
+                   AND target_source_id IS NULL
+                """,
+                dagNames, 1000, (ps, name) -> {
+                    ps.setLong(1, targetSourceId);
+                    ps.setString(2, name);
+                });
+    }
+
+    /**
+     * Bulk upsert from a catalog sync; touching synced_at marks the row as
+     * still alive. Deliberately never touches target_source_id — the sync
+     * source cannot know it (see assignGroup).
+     */
     public void saveAll(List<DagCatalogEntry> entries) {
         jdbc.batchUpdate("""
-                INSERT INTO dag_registry (dag_name, external_id, target_source_id)
-                VALUES (?, ?, ?) AS new
+                INSERT INTO dag_registry (dag_name, external_id)
+                VALUES (?, ?) AS new
                 ON DUPLICATE KEY UPDATE
                     external_id = new.external_id,
-                    -- Membership is write-once (owner-confirmed): first non-null
-                    -- value sticks, later syncs can never move a DAG to another group.
-                    target_source_id = COALESCE(target_source_id, new.target_source_id),
                     synced_at = NOW(6)
                 """,
                 entries, 1000, (ps, entry) -> {
                     ps.setString(1, entry.dagName());
                     ps.setString(2, entry.externalId());
-                    ps.setString(3, entry.targetSourceId());
                 });
     }
 

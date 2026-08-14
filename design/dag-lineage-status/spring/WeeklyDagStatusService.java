@@ -44,8 +44,10 @@ public class WeeklyDagStatusService {
      * Same board, scoped to one group (target source). The page comes from the
      * group's slice of the registry; aggregation is identical. A group can hold
      * up to ~10k DAGs, but each request still touches only one page of them.
+     * Membership must have been learned first (registry.assignGroup — the GET
+     * that carries the member list is the only moment the group is knowable).
      */
-    public List<DagWeeklyStatus> weeklyStatusesByGroup(String targetSourceId, String afterDagName, int size) {
+    public List<DagWeeklyStatus> weeklyStatusesByGroup(long targetSourceId, String afterDagName, int size) {
         return summarizePage(registry.pageByGroup(targetSourceId, afterDagName, size));
     }
 

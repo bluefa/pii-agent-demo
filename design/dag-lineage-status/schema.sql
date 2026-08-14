@@ -34,9 +34,11 @@ CREATE TABLE dag_registry (
     external_id      VARCHAR(100) NOT NULL UNIQUE,  -- size TBD against the real id format
     -- Group axis: one logical DB per target source, one DAG per logical DB,
     -- so a DAG belongs to at most ONE target source — a column, not a join
-    -- table. NULL until assigned; write-once after that (owner-confirmed:
-    -- membership never changes), enforced by the COALESCE guard in saveAll.
-    target_source_id VARCHAR(100),
+    -- table. Unknowable before a group GET arrives (owner-confirmed: not at
+    -- publish, consume, or catalog-sync time), so it is learned lazily from
+    -- the first GET for the group and write-once after that (membership
+    -- never changes) — see assignGroup's IS NULL guard.
+    target_source_id BIGINT,
     synced_at        DATETIME(6)  NOT NULL DEFAULT CURRENT_TIMESTAMP(6)  -- liveness marker: rows a full sync did not touch get deleted
 ) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
 
