@@ -108,7 +108,7 @@ describe('IdcResourceTable — step-6 logicalro', () => {
     render(
       <IdcResourceTable
         resources={[view({ resourceId: 'r1' })]}
-        cols={['src', 'logicalro']}
+        cols={['logicalro', 'src']}
         logicalDbCounts={counts}
         onLogicalOpen={onOpen}
       />,
@@ -123,21 +123,48 @@ describe('IdcResourceTable — step-6 logicalro', () => {
     const { container } = render(
       <IdcResourceTable
         resources={[view({ resourceId: 'other' })]}
-        cols={['src', 'logicalro']}
+        cols={['logicalro', 'src']}
         logicalDbCounts={counts}
       />,
     );
     const cells = Array.from(container.querySelectorAll('tbody td')).map((td) => td.textContent);
-    // 접속 주소(구분 배지 포함) / Port / Database Type / BDC측 출발지 / 연동 논리 DB / 연동 제외
+    // 접속 주소(구분 배지 포함) / Port / Database Type / 연동 논리 DB / 연동 제외 / BDC측 출발지
+    expect(cells[3]).toBe('—');
     expect(cells[4]).toBe('—');
-    expect(cells[5]).toBe('—');
+  });
+
+  // 출발지 자리는 cols 순서가 정한다: 마지막이면 맨 오른쪽 열이다(steps 5·6·7).
+  // 헤더만 옮기고 셀을 두면 값이 남의 열 아래로 들어간다 — 둘 다 확인한다.
+  it('출발지를 cols 마지막에 두면 표의 마지막 열이 된다', () => {
+    const { container } = render(
+      <IdcResourceTable
+        resources={[view({ resourceId: 'r1' })]}
+        cols={['cred', 'logicalro', 'src']}
+        credentials={{ r1: 'idc_svc_mysql' }}
+        onCredentialOpen={() => {}}
+        logicalDbCounts={counts}
+      />,
+    );
+    const headers = screen.getAllByRole('columnheader').map((th) => th.textContent?.trim());
+    expect(headers[headers.length - 1]).toContain('BDC측 출발지');
+
+    const cells = Array.from(container.querySelectorAll('tbody td'));
+    expect(cells[cells.length - 1].textContent).toContain('172.16.0.11');
+    expect(cells).toHaveLength(headers.length);
+  });
+
+  // step 3 은 그대로 앞자리 — 순서 규칙이 다른 화면까지 끌고 가지 않는다.
+  it('출발지가 cols 앞이면 Database Type 다음 자리를 지킨다', () => {
+    render(<IdcResourceTable resources={[view({ resourceId: 'r1' })]} cols={['src', 'excl']} />);
+    const headers = screen.getAllByRole('columnheader').map((th) => th.textContent?.trim());
+    expect(headers[3]).toContain('BDC측 출발지');
   });
 
   it('drops the Credential and Connection Status columns without the `cred` col (steps 6·7)', () => {
     render(
       <IdcResourceTable
         resources={[view({ resourceId: 'r1', credentialId: 'idc_svc_mysql' })]}
-        cols={['src', 'logicalro']}
+        cols={['logicalro', 'src']}
         logicalDbCounts={counts}
       />,
     );
@@ -152,7 +179,7 @@ describe('IdcResourceTable — step-6 logicalro', () => {
     render(
       <IdcResourceTable
         resources={[view({ resourceId: 'r1' })]}
-        cols={['src', 'cred', 'logicalro']}
+        cols={['cred', 'logicalro', 'src']}
         credentials={{ r1: 'idc_svc_mysql' }}
         onCredentialOpen={onCredentialOpen}
         logicalDbCounts={counts}
@@ -166,7 +193,7 @@ describe('IdcResourceTable — step-6 logicalro', () => {
     render(
       <IdcResourceTable
         resources={[view({ resourceId: 'r1' })]}
-        cols={['src', 'cred', 'logicalro']}
+        cols={['cred', 'logicalro', 'src']}
         credentials={{}}
         onCredentialOpen={() => {}}
         logicalDbCounts={counts}

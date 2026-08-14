@@ -26,6 +26,11 @@ import {
 } from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalTable';
 import type { LogicalDbCountMap } from '@/app/target-sources/[targetSourceId]/_components/confirmed/logical-db-summaries';
 
+/**
+ * Column set per step. Order matters for `src` alone: last in the list puts 출발지 at the right
+ * edge (steps 5·6·7), anywhere else keeps it next to the identity columns (step 3). Every other
+ * column has one fixed place.
+ */
 export type IdcTableCol =
   | 'src'
   | 'excl'
@@ -130,6 +135,22 @@ export const IdcResourceTable = ({
         cell: idcStyles.table.cell,
       };
 
+  // 출발지는 steps 5·6·7 에서 맨 오른쪽으로 간다: 그 화면들의 주어는 이미 확정된 대상이고
+  // 출발지는 전제라, 정체성 열들 사이에 끼면 접속 주소~Database Type 을 갈라놓는다.
+  // step 3 은 아직 대상을 고르는 화면이라 앞자리를 지킨다.
+  const srcAtEnd = cols[cols.length - 1] === 'src';
+  const srcHead = has('src') ? (
+    <th className={cn(skin.headerCell, 'w-[144px]')}>
+      <SourceIpHeader />
+    </th>
+  ) : null;
+  const srcCell = (r: IdcResourceView) =>
+    has('src') ? (
+      <td className={skin.cell}>
+        <IdcSourceIpCell sourceIps={r.sourceIps} />
+      </td>
+    ) : null;
+
   if (rows.length === 0) {
     return (
       <div className={cn('px-6 py-10 text-center text-sm', textColors.tertiary)}>
@@ -153,11 +174,7 @@ export const IdcResourceTable = ({
                 so the same four leading columns did not line up between steps. 172 is step 6's
                 own width — the widest engine label plus its SID line fits. */}
             <th className={cn(skin.headerCell, 'w-[172px]')}>Database Type</th>
-            {has('src') && (
-              <th className={cn(skin.headerCell, 'w-[144px]')}>
-                <SourceIpHeader />
-              </th>
-            )}
+            {!srcAtEnd && srcHead}
             {/* Two columns, not one merged cell: the verdict and the why answer different
                 questions, which is how the cloud steps 2·3 table asks them. */}
             {has('excl') && (
@@ -177,6 +194,7 @@ export const IdcResourceTable = ({
               </>
             )}
             {has('health') && <th className={skin.headerCell}>Status</th>}
+            {srcAtEnd && srcHead}
           </tr>
         </thead>
         <tbody className={idcStyles.table.body}>
@@ -202,11 +220,7 @@ export const IdcResourceTable = ({
                   {r.port || <span className={textColors.tertiary}>—</span>}
                 </td>
                 <td className={skin.cell}><IdcDbTypeCell resource={r} /></td>
-                {has('src') && (
-                  <td className={skin.cell}>
-                    <IdcSourceIpCell sourceIps={r.sourceIps} />
-                  </td>
-                )}
+                {!srcAtEnd && srcCell(r)}
                 {has('excl') && (
                   <>
                     <td className={skin.cell}>
@@ -264,6 +278,7 @@ export const IdcResourceTable = ({
                   </>
                 )}
                 {has('health') && <td className={skin.cell}><IdcHealthBadge health={r.health} /></td>}
+                {srcAtEnd && srcCell(r)}
               </tr>
             );
           })}
