@@ -264,3 +264,48 @@ h1 24px 과 타일 숫자 32px 은 건드리지 않았다 — "기본"이 아니
 그 -3px 은 레일 폭을 되돌리려고 있던 것이라, 레일만 지우고 두면 표 전체가 3px 왼쪽으로
 밀린다. 삭제 후 재실측: h1 248 · 행 글리프 248 로 그대로 붙어 있다.
 실패는 이제 낱말 빨강 + 세그먼트 빨강 두 채널로 남는다.
+
+---
+
+## 11. 경과 열 (2026-08-14, 오너)
+
+진행도 옆에 "얼마나 걸렸나"를 붙였다. **목록 계약에는 소요시간 필드가 없다** —
+`PipelineSummary` 의 시각은 `created_at` 과 `last_activity_at` 둘뿐이고, 실행 시작
+시각인 태스크 `started_at` 은 상세 응답에만 있다.
+
+**`last_activity_at` 은 이름이 거짓말이다.** orchestrator 원본(`bluefa/pipeline-orchestrator`
+@ `522dc53`)을 확인했다. 그 컬럼에 쓰는 곳은 셋뿐이다 —
+`PipelineInserter`(생성) · `StepReporter.terminalize()`(DONE/FAILED/CANCELLED 전이) ·
+`PipelineRepository.cancelIfIdle`(CANCELLED). PENDING→RUNNING 전이(`PipelineClaimer`)도,
+매 스텝 write-back(`finishStep`/`releaseClaim`/`reschedule`)도 건드리지 않는다.
+엔티티는 맨 `@Column(nullable = false)` 이고 스키마는 `ddl-auto: update` 생성이라
+`@UpdateTimestamp` 도 `ON UPDATE CURRENT_TIMESTAMP` 도 없다.
+
+→ **종단 행에서만 "끝난 시각"이다.** 살아 있는 행에서는 `created_at` 에 고정돼 있어,
+`last_activity_at − created_at` 을 쓰면 실행 중 행이 전부 **0** 이 된다.
+
+그래서 기준점을 상태가 정한다:
+
+```
+경과 = (terminal ? last_activity_at : now) − created_at
+```
+
+기준이 `created_at` 하나뿐이라 어느 상태에서도 참인 문장이 된다. 라벨이 "소요"가
+아니라 **"경과"** 인 이유는 첫 dispatch 전 대기(`start-delay` PT15S)가 포함되기
+때문이다. 분 단위 표시에서는 안 보이지만 이름은 정확해야 한다.
+
+`now` 는 브라우저 시계다. 서버 스탬프와 어긋나 음수가 나면 `fmtElapsedMs` 가 `'-'` 로
+낮춘다. 옆 생성시간 열의 상대시각이 이미 같은 뺄셈을 하고 있어 새로 지는 위험은 아니다.
+
+`elapsedMs` 의 라이브 분기는 뮤테이션으로 검증했다 — 분기를 지우면
+`expected +0 to be 2820000` 으로 터진다. 정확히 위의 0 버그다.
+
+**읽을 때 헷갈릴 수 있는 자리 하나.** 실패 행이 `경과 17분 / 생성 2시간 전` 처럼 보인다.
+모순이 아니라 "2시간 전에 시작해 17분 만에 실패했다"는 뜻이고, 두 열의 머리말이
+그 구별을 진다. 값 자체는 둘 다 정확하다.
+
+**UTC.** `created_at` 은 Java `Instant`(정의상 UTC), 저장은 `hibernate.jdbc.time_zone: UTC`,
+와이어는 ISO-8601 `Z` 문자열이다(`orchestrator-v1.yaml:864`). 다만 orchestrator 에는
+웹 레이어 테스트가 하나도 없고 `spring.jackson` 설정도 없어, 그 포맷은 Spring Boot
+자동설정 기본값에 기대고 있고 아무도 검증하지 않는다. 유일한 직렬화 테스트는 자기
+`ObjectMapper` 를 직접 만들어 쓰는데 그 기본값은 정반대(숫자 epoch)라 증거가 못 된다.

@@ -2738,6 +2738,11 @@ export const pipelineStyles = {
     timeTip:
       'absolute bottom-full left-0 mb-1.5 hidden group-hover/time:block z-10 whitespace-nowrap rounded-lg bg-[var(--pl-gray-800)] px-2.5 py-1.5 text-[12px] text-[var(--pl-white)] shadow-[var(--pl-shadow-lg)]',
 
+    /** 경과 — 진행도 옆에서 같은 행을 읽는 두 번째 사실이라 진행도보다 조용하다.
+     *  숫자가 열로 줄서므로 tabular-nums (`timeText` 를 재쓰지 않는 이유: 저쪽의
+     *  cursor-default 는 툴팁이 붙은 자리의 것이다). */
+    elapsed: 'text-[12px] text-[var(--pl-text-weak)] tabular-nums',
+
     /** Row action — hover-reveal dark button (row hover via the unnamed group). */
     actionCell: 'px-5 py-3.5 text-right',
     /** w-8 not w-7: the glyph inside went 14 → 18px (오너), and a 28px button around

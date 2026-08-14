@@ -14,7 +14,9 @@ import type { ReactElement, ReactNode } from 'react';
 import { cn, pipelineStyles } from '@/lib/theme';
 import {
   displayProvider,
+  elapsedMs,
   fmtDateTime,
+  fmtElapsedMs,
   fmtRelativeTime,
   providerLabel,
   statusKo,
@@ -90,6 +92,28 @@ export function StatusText({ status }: { status: PipelineStatus }): ReactElement
     <span className={cn(d.statusWrap, d.statusText, d.statusTextTone[status])}>
       {status === 'CANCELLED' && <Icon name="stop" size="sm" />}
       {statusKo(status)}
+    </span>
+  );
+}
+
+/**
+ * 생성 이후 경과 — 진행도 옆에서 "어디까지 갔나"에 "얼마나 걸렸나"를 붙인다.
+ * 라이브 행은 렌더 시점의 시계로 잰다(옆 생성시간 열의 상대시각과 같은 성질 —
+ * 폴링이 없으므로 다시 렌더될 때까지 멈춰 있다). 브라우저 시계와 서버 스탬프가
+ * 어긋나 음수가 나오면 `fmtElapsedMs`가 '-'로 낮춘다.
+ */
+export function ElapsedTime({
+  status,
+  createdAt,
+  lastActivityAt,
+}: {
+  status: PipelineStatus;
+  createdAt: string;
+  lastActivityAt: string;
+}): ReactElement {
+  return (
+    <span className={d.elapsed}>
+      {fmtElapsedMs(elapsedMs(status, createdAt, lastActivityAt))}
     </span>
   );
 }

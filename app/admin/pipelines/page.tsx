@@ -47,6 +47,7 @@ import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
 import { FilterMenu } from '@/app/admin/pipelines/queue/requests/_components/ResourceFilterBar';
 import {
   DashRow,
+  ElapsedTime,
   RelativeTime,
   RowAction,
   StatusText,
@@ -412,6 +413,7 @@ export default function DashboardPage(): ReactElement {
                   <th className={d.th}>작업 유형</th>
                   <th className={d.th}>상태</th>
                   <th className={d.th}>진행도</th>
+                  <th className={d.th}>경과</th>
                   <th className={d.th}>생성시간</th>
                   <th className={d.th} />
                 </tr>
@@ -442,6 +444,13 @@ export default function DashboardPage(): ReactElement {
                         n={row.done_task_count}
                         m={row.total_task_count}
                         status={row.status}
+                      />
+                    </td>
+                    <td className={d.cell}>
+                      <ElapsedTime
+                        status={row.status}
+                        createdAt={row.created_at}
+                        lastActivityAt={row.last_activity_at}
                       />
                     </td>
                     <td className={d.cell}>
