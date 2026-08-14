@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { AppError } from '@/lib/errors';
 import { bgColors, borderColors, cardStyles, cn, statusColors, textColors } from '@/lib/theme';
 import {
@@ -22,6 +22,8 @@ import {
 import {
   RejectionAlert,
 } from '@/app/target-sources/[targetSourceId]/_components/common';
+import { IdcEndpointCell } from '@/app/target-sources/[targetSourceId]/_components/idc/cells';
+import { IDC_SEARCH_PLACEHOLDER } from '@/app/target-sources/[targetSourceId]/_components/idc/steps/step-copy';
 import { IdcFirewallModal } from '@/app/target-sources/[targetSourceId]/_components/idc/modals/IdcFirewallModal';
 import type { IdcStepProps } from '@/app/target-sources/[targetSourceId]/_components/idc/types';
 import { InstallCardHeader } from '@/app/components/features/process-status/install-status-detail/InstallCardHeader';
@@ -121,7 +123,10 @@ export const IdcStep4Installing = ({
     resources.map((r) => [
       r.resourceId,
       {
-        resourceName: r.hosts[0] ?? null,
+        // 화면에 찍히는 값이 아니라 검색 건초더미다 — 정체성 열은 아래 identityColumn 이
+        // 접속 주소로 그리므로, 첫 IP 만 담으면 두 번째 IP 로는 검색이 안 된다.
+        // (IDC steps 2·3 의 useIdcApprovalTable 과 같은 투영)
+        resourceName: r.hosts.join(' '),
         region: null,
         databaseType: r.databaseTypeWire ?? null,
         // IDC has no cloud resource type — the tag never applies here.
@@ -129,6 +134,25 @@ export const IdcStep4Installing = ({
       },
     ]),
   );
+
+  // 정체성 열: IDC 는 스캔이 붙인 이름이 없고 resource_id 는 내부 NLB 키다(design-spec §8).
+  // 행을 식별하는 것은 IP 내역이므로, steps 2·3·5·6·7 이 쓰는 그 접속 주소 셀을 그대로 쓴다.
+  const identityColumn = useMemo(() => {
+    const byId = new Map(resources.map((r) => [r.resourceId, r]));
+    return {
+      label: '접속 주소',
+      searchPlaceholder: IDC_SEARCH_PLACEHOLDER,
+      render: (row: { resourceId: string }) => {
+        const resource = byId.get(row.resourceId);
+        // 설치 상태에는 있는데 확정 연동 목록에 없는 행 — 없는 주소를 지어내지 않는다.
+        return resource ? (
+          <IdcEndpointCell resource={resource} />
+        ) : (
+          <span className={textColors.tertiary}>—</span>
+        );
+      },
+    };
+  }, [resources]);
 
   // group 은 **누가 실행하는가**다(AWS/Azure/GCP 와 같은 규칙). IDC 는 두 Terraform
   // 구간을 BDC 가 돌리고, 서비스 측이 하는 일은 방화벽 오픈·확인 하나뿐이다.
@@ -203,6 +227,7 @@ export const IdcStep4Installing = ({
                 resources={detailResources}
                 steps={steps}
                 meta={detailMeta}
+                identityColumn={identityColumn}
               />
             </>
           )}

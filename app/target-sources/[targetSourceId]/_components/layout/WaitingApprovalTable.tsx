@@ -1,6 +1,6 @@
 'use client';
 
-import { Fragment, memo, useMemo, useState } from 'react';
+import { Fragment, memo, useMemo, useState, type ReactNode } from 'react';
 import { useClusterFold } from '@/app/hooks/useClusterFold';
 import { useRailHover } from '@/app/hooks/useRailHover';
 import { ReasonChipInline } from '@/app/components/ui/ReasonChipInline';
@@ -130,6 +130,21 @@ export interface WaitingApprovalResource {
  */
 type WaitingApprovalTableVariant = 'approval' | 'confirmed' | 'install';
 
+/**
+ * Replaces the Resource Name + Resource ID pair with ONE caller-rendered column.
+ *
+ * For a provider whose rows are named by a scan this pair IS the identity. IDC's is not:
+ * it has no scan-assigned name, and its `resource_id` is an internal NLB key it may not
+ * print (design-spec §8) — what identifies an IDC row is its endpoint list, the same
+ * 접속 주소 cell steps 2·3·5·6·7 already print.
+ */
+export interface ApprovalIdentityColumn {
+  label: string;
+  render: (resource: WaitingApprovalResource) => ReactNode;
+  /** 검색창 placeholder — 표가 보여주지 않는 필드를 약속하지 않도록 같이 바꾼다. */
+  searchPlaceholder?: string;
+}
+
 interface WaitingApprovalTableProps {
   resources: readonly WaitingApprovalResource[];
   variant?: WaitingApprovalTableVariant;
@@ -163,6 +178,11 @@ interface WaitingApprovalTableProps {
    * shows the user a region that does not visibly contain what they typed.
    */
   expandFolds?: boolean;
+  /**
+   * `install` variant only — see `ApprovalIdentityColumn`. The other two variants group,
+   * fold and cluster on the name/id pair, so the swap is not offered there.
+   */
+  identityColumn?: ApprovalIdentityColumn;
 }
 
 // v16 `.approval-table-wrap` (CSS ~2846): border:0; overflow:hidden; background:#fff — joins flush
@@ -312,6 +332,7 @@ export const WaitingApprovalTable = memo(
     raisedRows = false,
     regionLabel = 'Region',
     expandFolds = false,
+    identityColumn,
   }: WaitingApprovalTableProps) => {
     // Athena arrives as many rows of one catalog family per region; grouping restores the
     // parent it belongs to (LIN-85). Groups start OPEN — the approval table is the "review
@@ -458,7 +479,9 @@ export const WaitingApprovalTable = memo(
               (instancesOpen || (folded && open)) && idcStyles.table.group.parentCell,
             )}
           >
-            {hasInstances ? (
+            {identityColumn ? (
+              identityColumn.render(resource)
+            ) : hasInstances ? (
               // Three-line identity, exactly step 1's: kind tag → cluster name → the instance it
               // connects through (owner, 2026-08-13; recorded verbatim in the propagation section
               // of `docs/ux/benchmark/step1-resource-table.md`). No positional lift here — with
@@ -585,24 +608,26 @@ export const WaitingApprovalTable = memo(
           {/* A folded row toggles on click, and this cell holds a copy button — without the
               guard, copying the region id also opened the fold. The chevron above stops its
               own propagation for the same reason. */}
-          <td
-            className={idcStyles.table.approvalCell}
-            onClick={foldToggleable ? (event) => event.stopPropagation() : undefined}
-          >
-            {/* An absent id renders nothing rather than a bare control: a consumer that
-                withholds it (IDC's resource_id is internal) would otherwise get a
-                focusable "Resource ID 복사" on every row, copying ''. */}
-            {grouped || !resource.resourceId ? null : (
-              // 260px (the cell default) plus a non-wrapping Region overran the card.
-              <ResourceIdCell
-                value={resource.resourceId}
-                label="Resource ID"
-                maxWidthClass="max-w-[220px]"
-                sizeClass="text-[14px]"
-                textClassName={cn(textColors.secondary, CELL_LIFT)}
-              />
-            )}
-          </td>
+          {!identityColumn && (
+            <td
+              className={idcStyles.table.approvalCell}
+              onClick={foldToggleable ? (event) => event.stopPropagation() : undefined}
+            >
+              {/* An absent id renders nothing rather than a bare control: a consumer that
+                  withholds it (IDC's resource_id is internal) would otherwise get a
+                  focusable "Resource ID 복사" on every row, copying ''. */}
+              {grouped || !resource.resourceId ? null : (
+                // 260px (the cell default) plus a non-wrapping Region overran the card.
+                <ResourceIdCell
+                  value={resource.resourceId}
+                  label="Resource ID"
+                  maxWidthClass="max-w-[220px]"
+                  sizeClass="text-[14px]"
+                  textClassName={cn(textColors.secondary, CELL_LIFT)}
+                />
+              )}
+            </td>
+          )}
           {/* DB Type is a repeating attribute, not a status — one badge per row (the
               verdict) is enough; a second pill would compete with it.
               Inside a group this column carries what the row IS: the parent says `Athena`,
@@ -802,8 +827,16 @@ export const WaitingApprovalTable = memo(
               {/* Identity (name → id) → attributes (type · region) → decision (verdict → reason).
                   The scan anchor is the human-readable name, not a 3-value category column. */}
               <tr className="whitespace-nowrap">
-                <th className={cn(idcStyles.table.approvalHeaderCell, idcStyles.table.nameCell)}>Resource Name</th>
-                <th className={idcStyles.table.approvalHeaderCell}>Resource ID</th>
+                {identityColumn ? (
+                  <th className={cn(idcStyles.table.approvalHeaderCell, idcStyles.table.nameCell)}>
+                    {identityColumn.label}
+                  </th>
+                ) : (
+                  <>
+                    <th className={cn(idcStyles.table.approvalHeaderCell, idcStyles.table.nameCell)}>Resource Name</th>
+                    <th className={idcStyles.table.approvalHeaderCell}>Resource ID</th>
+                  </>
+                )}
                 {/* Step 4 drops the two attribute columns: the engine was settled back on
                     steps 1·2 and the install runs the same either way, and the region is a
                     constant within one target source (and already inside the resource id).
