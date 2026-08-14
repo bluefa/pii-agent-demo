@@ -3,6 +3,7 @@ import {
   canCancel,
   currentTask,
   currentTaskLabel,
+  elapsedMs,
   fmtDateTime,
   fmtDateTimeSec,
   fmtDuration,
@@ -437,5 +438,38 @@ describe('exec-band helpers (design-benchmark 시안 1·2·5)', () => {
     expect(fmtElapsedMs(2 * 3_600_000 + 5 * 60_000)).toBe('2시간 5분');
     expect(fmtElapsedMs(-1)).toBe('-');
     expect(fmtElapsedMs(Number.NaN)).toBe('-');
+  });
+});
+
+/**
+ * 경과는 기준점이 상태에 따라 갈린다. orchestrator가 `last_activity_at`을 쓰는 곳은
+ * 생성과 종단 전이뿐이라, 살아 있는 행에서는 그 값이 `created_at`과 같다 — 라이브
+ * 분기를 지우면 실행 중 행이 전부 "0초"가 된다. 아래 두 케이스는 같은 픽스처에서
+ * 그 갈림을 직접 깨뜨려 확인한다.
+ */
+describe('elapsedMs — 기준점은 상태가 정한다', () => {
+  const created = '2026-08-14T01:00:00Z';
+  const stampedAtCreate = created; // 실제 오케스트레이터의 라이브 행 모습
+  const now = Date.parse('2026-08-14T01:47:00Z');
+
+  it('라이브 행은 now로 잰다 — last_activity_at은 created_at에 고정돼 있다', () => {
+    for (const live of ['RUNNING', 'PENDING'] as const) {
+      expect(elapsedMs(live, created, stampedAtCreate, now)).toBe(47 * 60_000);
+    }
+  });
+
+  it('종단 행은 last_activity_at에서 멈춘다 — now가 흘러도 값이 자라지 않는다', () => {
+    const ended = '2026-08-14T01:12:00Z';
+    for (const terminal of ['DONE', 'FAILED', 'CANCELLED'] as const) {
+      expect(elapsedMs(terminal, created, ended, now)).toBe(12 * 60_000);
+      // now를 하루 밀어도 같은 값이어야 한다 — 끝난 일은 더 길어지지 않는다.
+      expect(elapsedMs(terminal, created, ended, now + 86_400_000)).toBe(12 * 60_000);
+    }
+  });
+
+  it('브라우저 시계가 뒤처지면 음수를 그대로 넘긴다 — 낮추는 건 fmtElapsedMs의 일', () => {
+    const skewed = Date.parse('2026-08-14T00:59:00Z');
+    expect(elapsedMs('RUNNING', created, stampedAtCreate, skewed)).toBeLessThan(0);
+    expect(fmtElapsedMs(elapsedMs('RUNNING', created, stampedAtCreate, skewed))).toBe('-');
   });
 });

@@ -32,6 +32,7 @@ colors:
   provider-idc:          "#374151"
   provider-sdu:          "#9333EA"
   surface-page:          "#F2F4F6"
+  row-hover:             "#F6F3FF"
   text-strong-toss:      "#191F28"
   text-medium-toss:      "#4E5968"
   text-weak-toss:        "#8B95A1"
@@ -147,6 +148,7 @@ The palette has four roles: brand, status, neutral (text/surface/border), and pr
   - **As a badge or chip fill** — step tags, numbered markers, a row under hover or focus — the label is `#0050D6` (`primaryColors.textOnLight`). `{colors.primary}` is not available here: `#0064FF` measures 4.33:1 on the tint, under AA for the small text these badges carry, where `#0050D6` gives 5.92:1.
   - **As a panel surface** — help cards, callouts — the text is neutral, but only down to `{colors.text-secondary}` (9.06:1). `{colors.text-tertiary}` is calibrated against white: it drops from 4.83:1 to 4.25:1 on the tint and fails AA there.
 - **`{colors.primary-accent}`** (`#4F46E5`) — appears only as the right-hand stop of the brand gradient on the top navigation. Do not use it as a standalone fill.
+- **`{colors.row-hover}`** (`#F6F3FF`) — the hovered-row tint on dense operational tables. It is deliberately not `{colors.primary-light}`: a row that tints toward the interaction blue reads as *selected*, and these rows are not selectable — the hover only says "this is the row under your cursor". The value is two steps lighter than the app's own `#F3EEFF` card hover for a measured reason: the quiet text tier those tables use (`#667085`) reads 4.379:1 on `#F3EEFF` — under AA, on three separate runs of text — and 4.544:1 here. Anything placed on this tint is re-measured against it, never against white.
 
 ### Status
 
@@ -174,6 +176,8 @@ The four text tiers are not four ranks of text. `{colors.text-quaternary}` (`#9C
 ### Provider
 
 Each cloud provider has a single brand colour used in icons, the left border of provider-scoped cards, and pill backgrounds at low opacity. Do not introduce gradients or alternative shades per provider here — those belong in `lib/theme.ts`'s `providerColors[*].gradient` if the prototype needs them.
+
+One exception, and it is narrow: a provider's **actual logotype** may carry its vendor's own multi-colour mark (owner, 2026-08-14) — AWS's two-tone wordmark, Azure's three blues, Google's four. That is reproduction of someone else's trademark, not a palette choice, which is also why it is exempt from contrast rules (WCAG 1.4.11 excludes logotypes). It is opt-in per consumer via `ProviderGlyph`'s `tone="brand"`; every other consumer stays monochrome and inherits its column's colour. The single-colour rule above still governs everything that is *ours* — borders, pill fills, tints — and IDC and SDU have no brand, so they have no branded form at all.
 
 ## Typography
 
@@ -224,6 +228,7 @@ Status badges, modals, inputs, and tables consume the same colour tokens but are
 - **Do** use `{colors.success-dark}` for success body text on light surfaces. The base `{colors.success}` (`#45CB85`, 2.07:1 on white) is reserved for backgrounds and large display, and does **not** meet WCAG AA for body text.
 - **Do** reuse the components in `app/components/ui/` (`Button`, `Card`, `Badge`, `Modal`, `Table`, `LoadingSpinner`, `Tooltip`). They already consume the tokens declared here.
 - **Do** keep status colour assignments stable: green = success/connected, orange = in-progress/AWS-domain, red = error, grey = pending, blue = info.
+- **Do** read that assignment as being about *indicators*, not about every surface that names a state. The pipeline dashboard's status column is the standing exception (owner, 2026-08-14/15): there a run in flight is **blue**, because the word and the progress strip's live segment are two places in one row saying "right here" and they must say it in one colour; a cancelled run is **amber**; grey is left to "not started yet" alone. Orange still means in-progress everywhere an indicator carries it. Extending this exception to another screen needs the same argument — two channels in one row that would otherwise disagree — not a preference.
 - **Don't** introduce a new colour by adding a Tailwind utility class somewhere in `app/`. Add the hex to `colors:` in this file first; the runtime layer derives from it.
 - **Don't** pick a font face per component. Body text uses the system stack declared in `app/globals.css`; a deviation requires a typography token here.
 - **Don't** mix raw colour Tailwind classes (`bg-blue-600`, `text-red-500`) with these tokens. The hard rule lives in `CLAUDE.md` ⛔ #4 and is enforced at edit time by `.claude/hooks/post-edit-grep.sh`.

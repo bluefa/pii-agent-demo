@@ -5,11 +5,11 @@
  * on, which is the only way a list row can say "step 2 of 4 is where it failed"
  * without opening the run.
  *
- * Steps are coloured — green finished, blue current, red failed, grey untouched
- * (owner: "완료된건 초록색, 현재 진행중인건 파란색"). That is a deliberate exception to
- * the section's monochrome status ramp, and the exception is what makes the strip
- * work: a pill carries one status, but three neighbouring 12px blocks carrying
- * three different ones cannot be told apart by weight. See the token comment.
+ * Colour marks the step the run is SITTING ON, and nothing else (오너 2026-08-14,
+ * "색상이 강하지 않게"): blue while it runs, red where it failed, neutral grey for
+ * every step already done and lighter grey for every step not reached. The earlier
+ * rule painted finished steps green, which put 62% of the table's coloured area on
+ * the one thing needing no action. See the token comment for the reversal.
  */
 import type { ReactElement } from 'react';
 import { cn, pipelineStyles } from '@/lib/theme';
@@ -31,9 +31,10 @@ export interface PipelineStepStripProps {
 
 function segTone(index: number, n: number, status?: PipelineStatus | TaskStatus): string {
   const { progress } = pipelineStyles;
-  // A cancelled run's finished steps stay grey: they ran, but the run did not
-  // succeed, and green here would read as one that did.
-  if (index < n) return status === 'CANCELLED' ? progress.fillOff : progress.stripOk;
+  // Every finished step is neutral, cancelled or not. The branch that used to
+  // grey out a cancelled run's steps existed to keep green from claiming success
+  // on a run that never had it; with green gone there is nothing to separate.
+  if (index < n) return progress.stripOk;
   if (index > n) return progress.stripRest;
   // The step the run is sitting on. PENDING has not entered it and CANCELLED
   // stopped before it, so for those it is still bare track.

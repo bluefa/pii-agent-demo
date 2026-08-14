@@ -405,6 +405,32 @@ export function runWindow(
   return { start, end: endsBeforeLastActivity ? lastActivityAt : end };
 }
 
+/**
+ * 생성 이후 경과(ms) — 목록 계약에 실행 시간 필드가 없어 created_at 하나로 유도한다.
+ *
+ * 종단 행은 last_activity_at에서 멈춘다. orchestrator가 그 컬럼을 쓰는 곳은 생성
+ * (PipelineInserter)과 종단 전이(StepReporter.terminalize · cancelIfIdle)뿐이라,
+ * 종단 행에서만 "끝난 시각"이다. 실행 중에는 claim도 스텝 write-back도 그 값을
+ * 건드리지 않아 created_at에 고정돼 있으므로, 라이브 행에 쓰면 항상 0이 된다 —
+ * 그래서 라이브 행만 now로 잰다.
+ *
+ * 기준이 created_at이라 첫 dispatch 전 대기(start-delay)를 포함한다. "소요"가 아니라
+ * "경과"인 이유이고, 실행 시작 시각인 태스크 started_at은 목록 응답에 없다.
+ *
+ * `now`의 기본값이 여기 있는 것은 `fmtRelativeTime`과 같은 이유다 — 시계 읽기를 이
+ * 경계에 두면 파생은 순수하게 주입 테스트할 수 있고, 호출측(렌더)은 impure 호출을
+ * 직접 들고 있지 않아도 된다. 같은 행의 생성시간 열이 이미 같은 모양이다.
+ */
+export function elapsedMs(
+  status: PipelineStatus,
+  createdAt: string,
+  lastActivityAt: string,
+  now: number = Date.now(),
+): number {
+  const end = isLivePipeline(status) ? now : Date.parse(lastActivityAt);
+  return end - Date.parse(createdAt);
+}
+
 /** 경과/소요 표시: 60초 미만 'N초', 60분 미만 'N분', 이후 'H시간 M분'. 음수/NaN → '-'. */
 export function fmtElapsedMs(ms: number): string {
   if (!Number.isFinite(ms) || ms < 0) return '-';
