@@ -56,6 +56,7 @@ import {
   runWindow,
   statusKo,
   taskMetaLine,
+  typeKo,
 } from '@/lib/pipeline/format';
 import {
   getLatestPipelineByTarget,
@@ -68,10 +69,6 @@ import type { PipelineDetail, PipelineSummary, TaskDetail, TaskSummary } from '@
 
 /** R23 (C안) — live-run poll cadence. */
 const POLL_INTERVAL_MS = 10_000;
-
-/** Type label for the combined "AWS 설치" tag — glued to the provider so the
- *  pair reads as a single concept. */
-const TYPE_KO = { INSTALL: '설치', DELETE: '삭제', CUSTOM: '커스텀' } as const;
 
 type LoadStatus = 'loading' | 'ready' | 'notfound' | 'error';
 
@@ -475,7 +472,8 @@ export function PipelineDetailView(): ReactElement {
                 </span>
               )}
               <span className={cn(h.typeTag, detail.type === 'DELETE' && h.typeTagDelete)}>
-                {providerLabel(provider)} {TYPE_KO[detail.type]}
+                {/* "AWS 설치" — provider 에 붙여 한 개념으로 읽히게 한다. */}
+                {providerLabel(provider)} {typeKo(detail.type)}
                 {recipeDesc && (
                   <span className={h.tipWrap} tabIndex={0} aria-label="레시피 설명 보기">
                     <Icon name="info" size="sm" />

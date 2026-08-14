@@ -2049,6 +2049,10 @@ const pipelineText = {
   sidebarTitle: 'text-[12px] font-semibold uppercase tracking-[0.06em] text-[var(--pl-gray-400)]', // design-exempt: gray-400 on the gray-900 sidebar (6.89:1), not on white
 } as const;
 
+/** 유형 키 — theme 은 도메인 타입을 import 하지 않는다(PipelineStatusToneKey 와 같은
+ *  규칙). PipelineType 과 어긋나면 PipelineTypeTag 의 인덱싱에서 컴파일이 깨진다. */
+type PipelineTypeToneKey = 'INSTALL' | 'DELETE' | 'CUSTOM';
+
 /** Semantic status → the four status tokens (bg tint, text, solid dot, border). */
 type PipelineStatusToneKey =
   | 'PENDING'
@@ -2181,18 +2185,31 @@ export const pipelineStyles = {
     tone: PIPELINE_PILL_TONE,
   },
 
-  /** PipelineTypeTag (R18 §1) — icon+color+enum triple encoding; bg-less inline
-   *  tag so it never competes with the filled status pills. Icon carries the
-   *  hue (tone), text stays medium mono. */
   /**
-   * 글리프는 라벨 색을 물려받는다 — 공용 `ProvTag` 와 같은 문법 (오너 2026-08-14:
-   * "색상이 강하지 않게"). 유형별 틴트(파랑·빨강·보라)를 따로 주던 것을 걷었다:
-   * DELETE 의 빨강이 같은 행의 실패 빨강과 같은 가족이라 **한 화면에서 빨강이 두 뜻**을
-   * 가졌고, 아이콘 모양과 enum 원문이 이미 유형을 두 채널로 말하고 있어 색은 셋째
-   * 사본이었다. `--pl-type-*` 토큰 자체는 상세 화면의 타일이 계속 쓴다.
+   * PipelineTypeTag (R18 §1) — bg-less inline tag so it never competes with the
+   * status word one column over.
+   *
+   * 색은 **글리프만** 입는다 (오너 2026-08-15). 2026-08-14 에 유형 틴트를 걷었던
+   * 이유는 "DELETE 빨강이 같은 행 실패 빨강과 한 가족"이었는데, 그때는 틴트가
+   * 글리프와 라벨을 함께 물들여 유형이 색까지 셋째 채널로 말하고 있었다. 지금은
+   * 채널이 갈린다 — **유형은 글리프, 상태는 낱말**. 같은 #B42318 이 한 행에 두 번
+   * 나와도 하나는 20px 도형이고 하나는 12px 낱말이라 서로를 덮지 않는다.
+   * 라벨은 `--pl-text-medium` 고정: 색을 두 곳에 주면 08-14 의 문제로 되돌아간다.
+   *
+   * mono 선언은 뺐다 — 라벨이 wire enum(`INSTALL`)에서 한글(`설치`)로 바뀌면서
+   * 근거가 사라졌다(`--pl-font-mono` 는 이미 sans 별칭이라 픽셀은 그대로).
    */
   typeTag: {
-    base: 'inline-flex items-center gap-1 whitespace-nowrap text-[12px] font-semibold text-[var(--pl-text-medium)] [font-family:var(--pl-font-mono)]',
+    base: 'inline-flex items-center gap-1.5 whitespace-nowrap text-[12px] font-semibold text-[var(--pl-text-medium)]',
+    /** 글리프 전용 틴트. 도형(비텍스트)이라 WCAG 1.4.11 의 3:1 이 기준선 —
+     *  실측 흰 행 / hover(#F6F3FF): install 5.41/4.94 · delete 6.57/6.01 ·
+     *  custom 6.62/6.05. 전부 텍스트 기준(4.5:1)도 넘으므로 라벨과 붙어 서도
+     *  둘 중 하나만 흐려 보이는 일은 없다. */
+    glyphTone: {
+      INSTALL: 'text-[var(--pl-type-install)]',
+      DELETE: 'text-[var(--pl-type-delete)]',
+      CUSTOM: 'text-[var(--pl-type-custom)]',
+    } satisfies Record<PipelineTypeToneKey, string>,
   },
 
   /** JobKindTag — the terraform action (PLAN/APPLY/DESTROY) on a job node.

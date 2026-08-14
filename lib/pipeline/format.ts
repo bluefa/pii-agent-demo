@@ -15,6 +15,7 @@
 import type {
   CloudProvider,
   PipelineStatus,
+  PipelineType,
   TaskDetail,
   TaskKind,
   TaskStatus,
@@ -357,6 +358,21 @@ const STATUS_KO: Record<PipelineStatus | TaskStatus, string> = {
 
 export function statusKo(status: PipelineStatus | TaskStatus): string {
   return STATUS_KO[status];
+}
+
+/** 한글 작업 유형 라벨 한 벌 (오너 2026-08-15). 상태와 같은 규칙: 사람이 읽는
+ *  자리는 한글, enum 원문은 데이터 표기(TypePill)에만 남긴다. CUSTOM이 '커스텀'인
+ *  것은 이 라벨이 attributive로도 쓰이기 때문 — '설치/삭제'와 나란히 서고
+ *  ('설치·삭제·커스텀'), 앞에 provider가 붙고('AWS 커스텀'), 뒤에 명사가 붙는다
+ *  ('커스텀 작업'). '직접 구성'·'사용자 정의'는 이 세 자리를 다 견디지 못한다. */
+const TYPE_KO: Record<PipelineType, string> = {
+  INSTALL: '설치',
+  DELETE: '삭제',
+  CUSTOM: '커스텀',
+};
+
+export function typeKo(type: PipelineType): string {
+  return TYPE_KO[type];
 }
 
 /**

@@ -26,7 +26,7 @@ import type { ReactElement, ReactNode } from 'react';
 import { useAbortableEffect } from '@/app/hooks/useAbortableEffect';
 import { cn, pipelineStyles } from '@/lib/theme';
 import { passRoutes } from '@/lib/routes';
-import { providerLabel, statusKo } from '@/lib/pipeline/format';
+import { providerLabel, statusKo, typeKo } from '@/lib/pipeline/format';
 import { OrchestratorApiError, getPipelineStatistics, listPipelines } from '@/app/lib/api/pipeline';
 import type {
   CloudProvider,
@@ -154,6 +154,12 @@ const errorMessage = (err: unknown): string =>
 const statusOptionLabel = (value: string): string => {
   const known = STATUS_FILTERS.find((option) => option === value);
   return known ? statusKo(known) : value;
+};
+
+/** 작업 유형 옵션의 한글 라벨 — `statusOptionLabel` 과 같은 좁히기. */
+const typeOptionLabel = (value: string): string => {
+  const known = TYPE_FILTERS.find((option) => option === value);
+  return known ? typeKo(known) : value;
 };
 
 export default function DashboardPage(): ReactElement {
@@ -314,7 +320,15 @@ export default function DashboardPage(): ReactElement {
       options: PROVIDER_FILTERS,
       formatOption: providerLabel,
     },
-    { key: 'type', label: '작업 유형', value: type, onChange: applyType, options: TYPE_FILTERS },
+    {
+      key: 'type',
+      label: '작업 유형',
+      value: type,
+      onChange: applyType,
+      options: TYPE_FILTERS,
+      // 상태 필터와 같은 이유 — 행이 "설치"면 메뉴도 "설치"여야 한다.
+      formatOption: typeOptionLabel,
+    },
   ];
   const hasFilter = Boolean(status) || Boolean(provider) || Boolean(type) || Boolean(q.trim());
 
