@@ -4,9 +4,9 @@ import { bff } from '@/lib/bff/client';
 
 // GET /permission-access/mine?page=&size= — 내 요청 내역 (승인·반려 결과 포함).
 //
-// CONTRACT GAP — 초안 스펙에 아직 없는 두 가지 중 하나. 오너가 추가하기로 했고,
-// 그때까지는 제안한 모양(상세와 같은 shape 의 페이지) 그대로다. `access_status` 만으로는
-// 반려 사유도 처리 일시도 말할 수 없어 "승인 내역 조회" 요구사항이 성립하지 않는다.
+// 업스트림은 `GET /user/permission-access` 다 — 2026-08-14 에 실구현되면서 갭 B4 가
+// 닫혔다. 경로에 남은 `mine` 은 그전에 우리가 제안했던 이름으로, 내부 프록시 주소일
+// 뿐 계약과는 무관하다.
 export const GET = withV1(async (request) => {
   const params = new URL(request.url).searchParams;
   const page = Number(params.get('page') ?? 0);

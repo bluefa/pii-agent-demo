@@ -117,9 +117,7 @@ export const accessStyles = {
   /** 사유 열 — 자르지 않고 접는다. 문장이라 잘라 놓으면 있으나 마나이고, 내 요청
    *  내역은 훑는 표가 아니라 읽는 기록이다(행 높이는 행마다 달라도 된다). */
   reason: 'min-w-0 flex-1 whitespace-pre-wrap break-words',
-  path: 'w-[84px] min-w-0 shrink truncate',
   status: 'w-[96px] min-w-0 shrink truncate',
-  actor: 'w-[92px] min-w-0 shrink truncate',
   when: 'w-[124px] min-w-0 shrink truncate whitespace-nowrap tabular-nums text-[var(--pl-text-weak)]',
   /** 행 끝 액션 셀 — 해제/회수 버튼이 들어간다. */
   tail: 'w-[56px] flex-none text-right',
@@ -158,6 +156,9 @@ export const accessStyles = {
     'flex-1 min-w-0 truncate text-[14px] font-medium text-[var(--pl-text-strong)] [font-family:var(--pl-font-mono)]',
   pickerEmail: 'w-[180px] min-w-0 truncate text-[12px] text-[var(--pl-text-weak)]',
   pickerEmpty: 'px-3 py-8 text-center text-[14px] text-[var(--pl-text-weak)]',
+  /** 검색이 실패했을 때 — 빈 결과와 같은 자리지만 재시도가 붙어 가로로 놓인다. */
+  pickerError:
+    'flex items-center justify-center gap-2 px-3 py-8 text-center text-[14px] text-[var(--pl-text-weak)]',
   pickerCount: 'mt-3 text-[12px] font-medium text-[var(--pl-text-weak)]',
   /** 체크박스 — accent-color 로 primary 를 입힌다(커스텀 SVG 없이). */
   checkbox: 'h-4 w-4 flex-none accent-[var(--pl-primary)]',

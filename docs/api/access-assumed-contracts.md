@@ -272,6 +272,8 @@ GET /user/services/page?query=&page={0}&size={20}
 | E3 | `service_abbr_name` 을 실제로 채워 주는 서비스가 어떤 것들인가. 목은 카탈로그에 약어가 없어 전부 `null` 이고, 화면도 아직 그리지 않는다 |
 | **E4** | `GET /users/search` 의 `excludeIds` 는 무엇으로 키잉되나. 새 응답(`UserSummary`)에는 id 가 없어 실을 값이 없다 — **확인 전까지 보내지 않고 화면이 응답에서 거른다** |
 | E5 | swagger 의 `UserSearchResponse`(id·name·email)가 08-14 실구현(knox_id·email·role)과 다르다. `/install/v1/users/search` 를 부르는 기존 라우트(`app/api/v1/users/search`)는 그 stale 스키마로 파싱한다 — 스펙 갱신은 오너 몫 |
+| **E6** | 신청 사유·승인 메시지·반려 사유의 최대 길이. 계약은 말하지 않는다 — 화면이 **우리가 정한** 1,000자로 자른다(`AccessModals.tsx`). 서버 상한이 정해지면 그 값으로 맞춘다 |
+| **E7** | 승인 body 의 `message` 가 빈 문자열로 와도 되나. 선택 필드라 화면은 비면 **키째 뺀다** — 빈 문자열을 그대로 저장하는 서버면 상세의 "메시지 없이 승인했어요" 자리가 빈칸이 된다 |
 | — | `authorized-users` 가 실구현됐지만 `owners` 와 같은 집합이다. 둘 중 하나는 없어져야 한다 — 프론트는 `/owners` 만 쓴다 |
 
 **닫힌 것** — B4(본인 신청 내역 `/user/permission-access`), C-1(`description` 요청은

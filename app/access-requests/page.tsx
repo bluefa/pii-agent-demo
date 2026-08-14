@@ -49,6 +49,7 @@ import { RequestStatusPill } from '@/app/admin/pipelines/access/_components/Acce
 import { accessStyles as a } from '@/app/admin/pipelines/access/_components/accessStyles';
 import {
   createAccessRequest,
+  fetchEveryPage,
   getMyAccessRequests,
   getServicesPage,
   getUserServices,
@@ -71,8 +72,8 @@ import {
  */
 const REQUESTABLE = new Set(['NONE', 'REJECTED']);
 const SEARCH_DEBOUNCE_MS = 300;
-/** 한 번에 크게 받는 크기 — 서비스도 내 요청도 목록 화면 하나 분량이다. */
-const FETCH_ALL = 200;
+/** 전체를 받아 올 때의 한 장 크기 — 상한이 아니라 왕복 횟수를 줄이는 값이다. */
+const PAGE_CHUNK = 200;
 
 /**
  * 로딩 중 서비스 목록 — 타일 · [이름 코드] · 설명의 크기를 그대로 흉내 낸다. 두 단이
@@ -248,9 +249,11 @@ export default function MyAccessRequestsPage(): ReactElement {
 
   const fetchRequestable = useCallback(
     async (page: number, opts: { signal: AbortSignal }): Promise<AccessPage<ServiceRow>> => {
-      const all = await getServicesPage(debounced || undefined, 0, { ...opts, size: FETCH_ALL });
+      const all = await fetchEveryPage((n) =>
+        getServicesPage(debounced || undefined, n, { ...opts, size: PAGE_CHUNK }),
+      );
       return sliceToPage(
-        all.content.filter((row) => REQUESTABLE.has(row.accessStatus)),
+        all.filter((row) => REQUESTABLE.has(row.accessStatus)),
         page,
         ROWS_PER_PAGE,
       );
@@ -262,9 +265,11 @@ export default function MyAccessRequestsPage(): ReactElement {
   // 전체가 오므로(role 로 통과할 뿐 담당자는 아니다) 여기서 한 번 더 거른다.
   const fetchOwned = useCallback(
     async (page: number, opts: { signal: AbortSignal }): Promise<AccessPage<UserServiceRow>> => {
-      const all = await getUserServices(debounced || undefined, 0, { ...opts, size: FETCH_ALL });
+      const all = await fetchEveryPage((n) =>
+        getUserServices(debounced || undefined, n, { ...opts, size: PAGE_CHUNK }),
+      );
       return sliceToPage(
-        all.content.filter((row) => row.accessStatus === 'OWNED'),
+        all.filter((row) => row.accessStatus === 'OWNED'),
         page,
         ROWS_PER_PAGE,
       );
@@ -280,9 +285,11 @@ export default function MyAccessRequestsPage(): ReactElement {
       page: number,
       opts: { signal: AbortSignal },
     ): Promise<AccessPage<PermissionRequestDetail>> => {
-      const all = await getMyAccessRequests(0, { ...opts, size: FETCH_ALL });
-      if (!opts.signal.aborted) setMineAll(all.content);
-      return sliceToPage(all.content, page, ROWS_PER_PAGE);
+      const all = await fetchEveryPage((n) =>
+        getMyAccessRequests(n, { ...opts, size: PAGE_CHUNK }),
+      );
+      if (!opts.signal.aborted) setMineAll(all);
+      return sliceToPage(all, page, ROWS_PER_PAGE);
     },
     [],
   );
@@ -293,15 +300,6 @@ export default function MyAccessRequestsPage(): ReactElement {
   const toast = usePlToast();
   /** 요청 모달을 연 서비스 — null 이면 닫혀 있다. */
   const [target, setTarget] = useState<UserServiceRow | null>(null);
-
-  // 검색어가 바뀌면 첫 장으로. 3장짜리 목록의 3페이지에서 검색해 한 장만 남으면
-  // 있지도 않은 페이지를 그리게 된다. 검색창은 하나지만 서비스 목록은 둘이라 둘 다.
-  const { setPage: setRequestablePage } = requestable;
-  const { setPage: setOwnedPage } = owned;
-  useEffect(() => {
-    setRequestablePage(0);
-    setOwnedPage(0);
-  }, [debounced, setRequestablePage, setOwnedPage]);
 
   const submit = async (reason: string): Promise<void> => {
     if (!target) return;

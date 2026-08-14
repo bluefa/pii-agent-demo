@@ -450,7 +450,8 @@ export interface AccessPageWire<T> {
   number: number;
 }
 
-/** `AdminServiceRow` — 관리자 서비스 목록의 행. 레일의 권한자 수가 여기서 나온다. */
+/** `AdminServiceRow` — 관리자 서비스 목록의 행. 계약이 싣는 전부이고, 레일이 쓰는
+ *  건 코드·이름뿐이다(`AdminServiceRow` 는 그 둘만 투영한다). */
 export interface AdminServiceRowWire {
   service_code: string;
   service_name: string;

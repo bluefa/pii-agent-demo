@@ -59,13 +59,16 @@ export interface AccessPage<T> {
   size: number;
 }
 
-/** 관리자 서비스 목록의 행 — 레일이 권한자 수를 여기서 읽는다. */
+/**
+ * 관리자 서비스 목록의 행 — 레일이 그리는 것이 전부다.
+ *
+ * 계약은 `owner_count`·`owners`·`last_modified_at` 도 싣지만 레일은 타일·이름·코드만
+ * 그린다. 안 그리는 것을 행마다 도메인 객체로 빚어 두면 "어딘가 쓰이겠지"로 읽히므로
+ * 투영하지 않는다 — 그릴 자리가 생기면 그때 `toServiceRow` 한 곳만 늘리면 된다.
+ */
 export interface AdminServiceRow {
   serviceCode: string;
   serviceName: string;
-  ownerCount: number;
-  owners: AccessUser[];
-  lastModifiedAt: string | null;
 }
 
 /** 한 서비스의 권한 사용자 — 페이지가 아니라 전체. */
@@ -151,6 +154,25 @@ export function sliceToPage<T>(items: T[], page: number, size: number): AccessPa
   };
 }
 
+/**
+ * 페이지를 끝까지 읽어 하나로 합친다.
+ *
+ * 걸러 내고 세는 축(권한 상태)이 계약에 필터로 없어서 화면이 전체를 들고 있어야 한다.
+ * 첫 장만 받아 놓고 전체인 척하면 그 뒤 항목들은 존재하지 않는 것이 되고 — 신청할 수도,
+ * 검색으로 찾을 수도 없다 — 헤더가 말하는 건수까지 틀린다. 장수는 서버가 말한
+ * `totalPages` 만 따른다.
+ */
+export async function fetchEveryPage<T>(
+  fetchPage: (page: number) => Promise<AccessPage<T>>,
+): Promise<T[]> {
+  const first = await fetchPage(0);
+  const all = [...first.content];
+  for (let page = 1; page < first.totalPages; page += 1) {
+    all.push(...(await fetchPage(page)).content);
+  }
+  return all;
+}
+
 const toPage = <W, T>(wire: AccessPageWire<W>, map: (item: W) => T): AccessPage<T> => ({
   content: (wire.content ?? []).map(map),
   totalElements: wire.totalElements ?? 0,
@@ -168,9 +190,6 @@ const toUser = (wire: AccessUserWire): AccessUser => ({
 const toServiceRow = (wire: AdminServiceRowWire): AdminServiceRow => ({
   serviceCode: wire.service_code,
   serviceName: wire.service_name,
-  ownerCount: wire.owner_count ?? 0,
-  owners: (wire.owners ?? []).map(toUser),
-  lastModifiedAt: wire.last_modified_at,
 });
 
 const toServiceOwners = (wire: ServiceOwnersWire): ServiceOwners => ({
@@ -325,7 +344,7 @@ export function removeAdmin(email: string): Promise<void> {
 
 /** 요청 목록. `status` 생략 = 서버 기본값(PENDING). */
 export async function getAccessRequests(
-  status: AccessRequestStatus | 'ALL' | undefined,
+  status: AccessRequestStatus | undefined,
   page: number,
   opts?: Opts,
 ): Promise<AccessPage<PermissionRequestRow>> {
@@ -352,11 +371,18 @@ export async function getAccessRequest(
   );
 }
 
-/** 승인 — 이 호출이 곧 부여다. 204 라 반환값이 없다. */
+/**
+ * 승인 — 이 호출이 곧 부여다. 204 라 반환값이 없다.
+ *
+ * 메시지는 선택이라 비어 있으면 **키째 뺀다.** `{ message: "" }` 를 보내면 빈 문자열을
+ * 그대로 저장하는 서버에서 상세 화면의 "메시지 없이 승인했어요" 대체 문구가 빗나가고,
+ * 처리 결과 자리가 빈칸으로 남는다.
+ */
 export function approveAccessRequest(requestId: number, message: string): Promise<void> {
+  const trimmed = message.trim();
   return fetchInfraJson<void>(`/admin/access/permission-access/${requestId}/approve`, {
     method: 'POST',
-    body: { message },
+    body: trimmed ? { message: trimmed } : {},
   });
 }
 
@@ -370,7 +396,7 @@ export function rejectAccessRequest(requestId: number, reason: string): Promise<
 
 /** 이력. `serviceCode` 를 주면 그 서비스 코드 단위 이력이 된다. */
 export async function getAccessHistory(
-  filter: { serviceCode?: string; type?: AccessHistoryType | 'ALL' },
+  filter: { serviceCode?: string; type?: AccessHistoryType },
   page: number,
   opts?: Opts,
 ): Promise<AccessPage<AccessHistoryEntry>> {
@@ -399,7 +425,7 @@ export async function searchAccessUsers(
   opts?: { signal?: AbortSignal },
 ): Promise<AccessUser[]> {
   const wire = await fetchInfraJson<AccessUserSearchWire>(
-    `/access/users?${query({ q: search })}`,
+    `/admin/access/users?${query({ q: search })}`,
     { signal: opts?.signal },
   );
   const excluded = new Set(excludeEmails.map((email) => email.trim().toLowerCase()));

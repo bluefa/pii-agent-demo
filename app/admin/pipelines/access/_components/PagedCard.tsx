@@ -53,6 +53,15 @@ export function usePagedSection<T>(
       return fetcher(page, { signal })
         .then((result) => {
           if (signal.aborted) return;
+          // 서 있던 페이지가 사라졌으면 마지막 장으로 물러난다. 목록이 짧아지는 길은
+          // 넷이다 — 레일에서 다른 서비스로, 검색, 마지막 행 회수, 마지막 행에서 신청.
+          // 그냥 두면 배지는 "4건"인데 본문은 빈 상태고 페이저는 없는 페이지를 가리킨다.
+          // `loading` 을 켠 채로 두고 다시 읽으므로 그 사이 잘못된 화면이 없다.
+          const last = Math.max(result.totalPages - 1, 0);
+          if (page > last) {
+            setPage(last);
+            return;
+          }
           setPaged(result);
           setLoading(false);
         })

@@ -5,6 +5,9 @@ import { bff } from '@/lib/bff/client';
 // GET /users/search?q= — 부여 피커용 검색. 응답이 UserSummary 로 바뀐 그 엔드포인트다.
 // 이름이 없으므로 knox_id 와 email 로만 매칭한다.
 // 이미 가진 사람 제외는 화면 몫 — 계약의 `excludeIds` 키잉이 미확정이다(E4).
+//
+// 임직원 명부라서 ADMIN 전용이고, 그래서 요청자 프리픽스가 아니라 `/admin/access/**`
+// 아래 둔다 — 이 기능에서는 경로 앞머리가 곧 대상 독자다.
 export const GET = withV1(async (request) => {
   const q = new URL(request.url).searchParams.get('q') ?? undefined;
   return NextResponse.json(await bff.access.searchUsers(q));
