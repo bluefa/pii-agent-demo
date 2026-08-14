@@ -135,6 +135,11 @@ export interface ApprovalIdentityCell {
   render: (resource: WaitingApprovalResource) => ReactNode;
   /** 헤더 폭 — 호출자의 다른 단계 표에서 그대로 복사해, 단계끼리 열이 어긋나지 않게 한다. */
   widthClass?: string;
+  /**
+   * 헤더 내용 — 글자 말고 다른 것이 붙는 열에만(Source IP 의 설명 툴팁 등). `label` 은
+   * 그대로 남는다: React key 이자, 여기 없을 때 그리는 기본값이다.
+   */
+  head?: ReactNode;
 }
 
 /**
@@ -864,7 +869,7 @@ export const WaitingApprovalTable = memo(
                         column.widthClass,
                       )}
                     >
-                      {column.label}
+                      {column.head ?? column.label}
                     </th>
                   ))
                 ) : (

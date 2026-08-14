@@ -72,10 +72,11 @@ interface IdcResourceTableProps {
 const [TIP_TITLE, ...TIP_REST] = IDC_SOURCE_IP_TOOLTIP.split('\n');
 
 /** Exported so the admin's P3 request table heads the column identically — the
- *  "방화벽 등록 필요" note answers the same question on both surfaces. */
-export const SourceIpHeader = () => (
+ *  "방화벽 등록 필요" note answers the same question on both surfaces.
+ *  `label` 은 step 4 를 위한 것 — 그 화면은 이 열을 'BDC측 출발지'라 부르지만 설명은 같다. */
+export const SourceIpHeader = ({ label = 'Source IP' }: { label?: string }) => (
   <span className="inline-flex items-center gap-1">
-    Source IP
+    {label}
     <InfoTooltip
       // Light `value` box, the same one the 접속 주소 cell tooltip uses — one table should not
       // answer a hover with a dark popover in one column and a light one in another.

@@ -56,7 +56,7 @@ const confirmed: IdcResourceView = {
   port: 3306,
   databaseTypeLabel: 'MySQL',
   databaseTypeWire: 'MYSQL',
-  sourceIps: [],
+  sourceIps: ['10.10.0.21'],
   firewallOpen: false,
   connection: 'PENDING',
   health: null,
@@ -83,9 +83,9 @@ const renderStep = () =>
   );
 
 /**
- * IDC 행의 정체성은 구분·접속 주소·Port·Database Type 이다 — 스캔이 붙인 이름이 없고,
- * resource_id 는 내부 NLB 키라 화면에 나가지 않는다(design-spec §8). 표는 steps 2·3 이
- * 쓰는 그 셀들을 그대로 쓴다.
+ * IDC 행의 정체성은 BDC측 출발지 · 접속 주소(구분 포함) · Port · Database Type 이다 —
+ * 스캔이 붙인 이름이 없고, resource_id 는 내부 NLB 키라 화면에 나가지 않는다
+ * (design-spec §8). 표는 steps 2·3 이 쓰는 그 셀들을 그대로 쓴다.
  */
 describe('IdcStep4Installing 정체성 열', () => {
   beforeEach(() => {
@@ -99,19 +99,24 @@ describe('IdcStep4Installing 정체성 열', () => {
     };
   });
 
-  it('IDC 네 열로 행을 식별하고 resource_id 는 어디에도 쓰지 않는다', async () => {
+  it('IDC 열로 행을 식별하고 resource_id 는 어디에도 쓰지 않는다', async () => {
     const { container } = renderStep();
 
-    expect(await screen.findByRole('columnheader', { name: '구분' })).toBeTruthy();
-    for (const label of ['접속 주소', 'Port', 'Database Type']) {
-      expect(screen.getByRole('columnheader', { name: label })).toBeTruthy();
-    }
-    expect(screen.queryByRole('columnheader', { name: 'Resource ID' })).toBeNull();
-    expect(screen.queryByRole('columnheader', { name: 'Resource Name' })).toBeNull();
+    // 첫 열은 이 단계의 주어인 출발지다 — 그 옆이 도착지라 한 행이 한 경로로 읽힌다.
+    expect(await screen.findByRole('columnheader', { name: /BDC측 출발지/ })).toBeTruthy();
+    const headers = screen.getAllByRole('columnheader').map((th) => th.textContent?.trim());
+    expect(headers[0]).toContain('BDC측 출발지');
+    expect(headers[1]).toBe('접속 주소');
+    // 구분은 제 열을 갖지 않는다 — 접속 주소 위에 붙는다.
+    expect(headers).not.toContain('구분');
+    expect(headers).not.toContain('Resource ID');
+    expect(headers).not.toContain('Resource Name');
+    for (const label of ['Port', 'Database Type']) expect(headers).toContain(label);
     // 헤더만 지우고 셀이 남으면 키가 그대로 새어 나간다 — 문서 전체로 확인한다.
     expect(container.textContent).not.toContain(NLB_KEY);
 
     // 열마다 값이 실제로 도착하는지 — 헤더만 서고 칸이 비면 이 표는 거짓말을 한다.
+    expect(screen.getByText('10.10.0.21')).toBeTruthy();
     expect(screen.getByText('Multi')).toBeTruthy();
     expect(screen.getByText('10.20.31.10')).toBeTruthy();
     expect(screen.getByText('3306')).toBeTruthy();

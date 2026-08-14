@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { CopyButton } from '@/app/components/ui/CopyButton';
 import { IdentifierTip, Tooltip } from '@/app/components/ui/Tooltip';
-import { cn, idcStyles, textColors, verdictText } from '@/lib/theme';
+import { cn, idcStyles, primaryColors, textColors, verdictText } from '@/lib/theme';
 import { ExcludedIcon } from '@/app/components/ui/icons';
 import { CELL_LIFT } from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalTable';
 import type {
@@ -40,10 +40,13 @@ const HostCell = ({
   value,
   label,
   maxWidthClass = 'max-w-[200px]',
+  textClassName = textColors.primary,
 }: {
   value: string;
   label: string;
   maxWidthClass?: string;
+  /** 값 글자색 — 기본은 이 표의 본문 색. 강조가 필요한 열만 바꿔 넣는다. */
+  textClassName?: string;
 }) => (
   <span className={cn('group/host inline-flex items-center gap-1.5 min-w-0', maxWidthClass)}>
     <Tooltip
@@ -56,7 +59,7 @@ const HostCell = ({
       <span
         className={cn(
           'min-w-0 overflow-hidden text-ellipsis whitespace-nowrap font-mono text-[12.5px] text-left [direction:ltr]',
-          textColors.primary,
+          textClassName,
         )}
       >
         {value}
@@ -138,7 +141,17 @@ export const IdcDbTypeCell = ({ resource }: { resource: IdcResourceView }) => (
   </div>
 );
 
-export const IdcSourceIpCell = ({ sourceIps }: { sourceIps: string[] }) => {
+export const IdcSourceIpCell = ({
+  sourceIps,
+  label = 'Source IP',
+  emphasis = false,
+}: {
+  sourceIps: string[];
+  /** 툴팁·복사 버튼이 부르는 이름 — 열 머리글과 같은 말이어야 한다. */
+  label?: string;
+  /** 이 열이 화면의 주어인 단계(step 4)에서만 켠다. */
+  emphasis?: boolean;
+}) => {
   // Blank, not an em-dash. The BDC assigns source IPs to integration targets only, so an empty
   // value means the row is not one — the same reason the 제외 사유 cell of a 대상 row is blank.
   // An em-dash would read as "this row should have had one and it is missing".
@@ -146,7 +159,17 @@ export const IdcSourceIpCell = ({ sourceIps }: { sourceIps: string[] }) => {
   return (
     <span className="flex flex-col gap-0.5">
       {sourceIps.map((ip) => (
-        <HostCell key={ip} value={ip} label="Source IP" maxWidthClass="max-w-[150px]" />
+        <HostCell
+          key={ip}
+          value={ip}
+          label={label}
+          maxWidthClass="max-w-[150px]"
+          {...(emphasis && {
+            // hover 리프트를 같이 건다 — #0064FF 는 흰 바탕 4.92:1 이지만 행 hover 틴트
+            // 위에서 4.46:1 로 AA 아래다 (primaryColors.textGroupHover 주석 참조).
+            textClassName: cn('font-semibold', primaryColors.text, primaryColors.textGroupHover),
+          })}
+        />
       ))}
     </span>
   );

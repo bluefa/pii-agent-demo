@@ -26,7 +26,9 @@ import {
   IdcDbTypeCell,
   IdcEndpointCell,
   IdcKindBadge,
+  IdcSourceIpCell,
 } from '@/app/target-sources/[targetSourceId]/_components/idc/cells';
+import { SourceIpHeader } from '@/app/target-sources/[targetSourceId]/_components/idc/IdcResourceTable';
 import { IDC_SEARCH_PLACEHOLDER } from '@/app/target-sources/[targetSourceId]/_components/idc/steps/step-copy';
 import { IdcFirewallModal } from '@/app/target-sources/[targetSourceId]/_components/idc/modals/IdcFirewallModal';
 import type { IdcStepProps } from '@/app/target-sources/[targetSourceId]/_components/idc/types';
@@ -35,6 +37,14 @@ import { InstallCardHeader } from '@/app/components/features/process-status/inst
 const isAbort = (err: unknown): boolean => err instanceof AppError && err.code === 'ABORTED';
 
 const EMPTY_RESOURCES: IdcResourceView[] = [];
+
+/**
+ * 이 화면은 Source IP 를 그 정체(누구의 IP인가)로 부른다 — 여기서 사용자가 하는 일은
+ * 방화벽에 BDC 를 통과시키는 것이고, 'Source' 는 무엇의 출발지인지 말하지 않는다.
+ * 툴팁 설명은 steps 2·3 과 같은 문장을 그대로 쓴다.
+ */
+const BDC_SOURCE_LABEL = 'BDC측 출발지';
+const BdcSourceHeader = () => <SourceIpHeader label={BDC_SOURCE_LABEL} />;
 
 // IDC lastCheck status is the shared install enum; the generic detail wants the
 // 3-value LastCheckInfo bucket.
@@ -140,8 +150,9 @@ export const IdcStep4Installing = ({
   );
 
   // 앞 열: IDC 는 스캔이 붙인 이름이 없고 resource_id 는 내부 NLB 키다(design-spec §8).
-  // 행을 식별하는 것은 구분·접속 주소·Port·Database Type 네 가지 — steps 2·3·5·6·7 의
-  // IdcResourceTable 이 쓰는 그 셀과 그 폭을 그대로 가져온다.
+  // 행을 식별하는 것은 구분·접속 주소·Port·Database Type 이고, 여기에 이 단계가 시키는
+  // 일의 출발지인 Source IP 가 붙는다 — steps 2·3 의 IdcResourceTable(`src`)이 쓰는
+  // 그 셀과 그 폭을 그대로 가져온다.
   const identityColumns = useMemo(() => {
     const byId = new Map(resources.map((r) => [r.resourceId, r]));
     // 설치 상태에는 있는데 확정 연동 목록에 없는 행 — 없는 값을 지어내지 않는다.
@@ -160,14 +171,18 @@ export const IdcStep4Installing = ({
       dbTypeLabel: (row: { resourceId: string }) => byId.get(row.resourceId)?.databaseTypeLabel ?? '',
       columns: [
         {
-          label: '구분',
-          widthClass: 'w-[110px]',
-          // 끝점이 없는 행은 종류도 없다 — 어댑터의 기본값 'SINGLE' 은 아무도 보고하지
-          // 않은 모양을 단언한다 (IdcResourceTable 과 같은 가드).
+          // 이 단계가 시키는 일이 "출발지 → 연동 대상 방화벽 오픈"이라, 출발지가 이 표의
+          // 주어다 — 맨 왼쪽에 서고 혼자 색을 갖는다. 바로 옆이 도착지(접속 주소)라
+          // 한 행이 곧 열어야 할 한 경로로 읽힌다.
+          label: BDC_SOURCE_LABEL,
+          widthClass: 'w-[150px]',
+          head: <BdcSourceHeader />,
           render: (row: { resourceId: string }) =>
             cell(row, (r) =>
-              r.hosts.length > 0 ? (
-                <IdcKindBadge kind={r.kind} />
+              // 이 단계의 모든 행은 확정된 연동 대상이라 출발지가 있어야 한다. 빈 칸은
+              // "이 행은 대상이 아니다"라는 다른 단계의 뜻이 되므로 여기선 대시로 말한다.
+              r.sourceIps.length > 0 ? (
+                <IdcSourceIpCell sourceIps={r.sourceIps} label={BDC_SOURCE_LABEL} emphasis />
               ) : (
                 <span className={textColors.tertiary}>—</span>
               ),
@@ -176,7 +191,17 @@ export const IdcStep4Installing = ({
         {
           label: '접속 주소',
           widthClass: 'w-[168px]',
-          render: (row: { resourceId: string }) => cell(row, (r) => <IdcEndpointCell resource={r} />),
+          // 구분(Single/Multi/Domain)은 제 열을 갖지 않는다 — 주소가 몇 개인지를 말하는
+          // 값이라 주소 위에 붙어야 읽힌다. 클러스터 태그가 이름 위에 서는 그 스택이다.
+          // 끝점이 없는 행은 종류도 없다: 어댑터의 기본값 'SINGLE' 은 아무도 보고하지
+          // 않은 모양을 단언한다 (IdcResourceTable 과 같은 가드).
+          render: (row: { resourceId: string }) =>
+            cell(row, (r) => (
+              <span className="flex min-w-0 flex-col items-start gap-1">
+                {r.hosts.length > 0 && <IdcKindBadge kind={r.kind} />}
+                <IdcEndpointCell resource={r} />
+              </span>
+            )),
         },
         {
           label: 'Port',
