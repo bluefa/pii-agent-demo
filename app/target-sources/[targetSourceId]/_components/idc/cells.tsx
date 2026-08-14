@@ -15,21 +15,19 @@ import type {
 } from '@/app/lib/api/idc';
 
 /**
- * 주소의 **종류**를 말한다 — 몇 개인지가 아니라. Single/Multi 로 갈라 봐야 그 숫자는 바로
- * 아래 'IP N개 더보기'가 이미 정확히 말하고 있고, 배지는 같은 말을 덜 정확하게 반복했다.
- * 남는 구분은 IP 냐 Domain 이냐 하나뿐이고, 그건 주소를 읽는 방법을 바꾸는 진짜 차이다.
+ * Domain 행에만 붙는 태그 — IP 행은 아무것도 달지 않는다(null).
+ *
+ * 값 자체가 이미 자기 종류를 말한다: `10.20.30.40` 을 보고 IP 가 아니라고 읽을 사람은 없다.
+ * 모든 행에 'IP'를 달면 표의 기본값을 매 줄 반복하는 것이고, 그러면 정작 다른 하나인
+ * Domain 이 그 반복 속에 묻힌다. 태그는 **예외**에만 붙을 때 예외를 가리킨다.
+ *
+ * EC2 태그와 같은 규칙이기도 하다 — 그 태그도 EC2 인 행에만 붙지 RDS 행에 'RDS'를 달지
+ * 않는다. 면과 글자색도 그 태그의 토큰(`tagStyles.resourceKind`)을 그대로 참조한다.
  */
-const KIND_LABEL: Record<IdcKind, string> = {
-  SINGLE: 'IP',
-  MULTIPLE_IP: 'IP',
-  DOMAIN: 'Domain',
-};
-
-export const IdcKindBadge = ({ kind }: { kind: IdcKind }) => (
-  <span className={cn(idcStyles.kindBadge.base, idcStyles.kindBadge.fill)}>
-    {KIND_LABEL[kind]}
-  </span>
-);
+export const IdcKindBadge = ({ kind }: { kind: IdcKind }) =>
+  kind === 'DOMAIN' ? (
+    <span className={cn(idcStyles.kindBadge.base, idcStyles.kindBadge.fill)}>Domain</span>
+  ) : null;
 
 /**
  * Long host/SID/IP: ellipsis + copy-on-hover + full-value tooltip (res-id-cell pattern).
@@ -107,24 +105,23 @@ export const IdcEndpointCell = ({ resource }: { resource: IdcResourceView }) => 
 };
 
 /**
- * 접속 주소 + 구분 — 종류는 제 열을 갖지 않고 주소 위에 얹힌다. Single/Multi/Domain 은
- * 주소가 몇 개인지를 말하는 값이라 주소를 **소개하는 줄**이지 그 옆에 설 동렬이 아니다:
- * EC2·RDS Cluster 태그가 Resource Name 위에 서는 그 2줄 정체성과 같은 형태다.
+ * 접속 주소 — Domain 행이면 태그가 주소 **위에** 얹힌다. 태그는 주소 옆에 설 동렬이 아니라
+ * 주소를 소개하는 줄이다: EC2·RDS Cluster 태그가 Resource Name 위에 서는 그 2줄 정체성이다.
  *
- * 리프트는 한 줄짜리 끝점에만 건다. 행의 정렬선은 태그가 아니라 주소이므로 스택을 반 줄
- * 올려야 Port·Database Type 이 앉은 선에 주소가 맞는다(`stackedIdentityLift` 주석).
- * MULTIPLE_IP 은 더보기로 아래로 자라 그 선이 없어져, 인스턴스를 펼친 행에서 리프트를
- * 빼는 CloudResourceTable 과 같은 규칙으로 끈다.
+ * IP 행은 태그가 없으므로 한 줄이고, 스택도 리프트도 필요 없다 — 리프트는 태그 줄 높이를
+ * 되돌리는 보정이라 태그 없는 행에 걸면 주소만 이웃 칸 위로 12px 뜬다. 그래서 조건은
+ * 정확히 '태그가 그려지는 행'이고, 그건 DOMAIN 뿐이다(`IdcKindBadge`).
+ * DOMAIN 은 언제나 주소 한 줄이라 MULTIPLE_IP 의 '더보기로 자라는' 예외와 겹치지 않는다.
  */
 export const IdcEndpointWithKindCell = ({ resource }: { resource: IdcResourceView }) => {
-  // 끝점이 없는 행은 종류도 없다 — 어댑터의 기본값 'SINGLE' 은 아무도 보고하지 않은
-  // 모양을 단언한다. IdcEndpointCell 이 그리는 em-dash 하나로 끝낸다.
+  if (resource.kind !== 'DOMAIN') return <IdcEndpointCell resource={resource} />;
+  // 끝점이 없는 행은 종류도 없다 — 어댑터의 기본값을 모양으로 단언하지 않는다.
   if (resource.hosts.length === 0) return <IdcEndpointCell resource={resource} />;
   return (
     <span
       className={cn(
         'flex min-w-0 flex-col items-start gap-1',
-        resource.kind !== 'MULTIPLE_IP' && idcStyles.table.stackedIdentityLift,
+        idcStyles.table.stackedIdentityLift,
       )}
     >
       <IdcKindBadge kind={resource.kind} />

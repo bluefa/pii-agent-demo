@@ -117,8 +117,8 @@ describe('IdcStep4Installing 정체성 열', () => {
 
     // 열마다 값이 실제로 도착하는지 — 헤더만 서고 칸이 비면 이 표는 거짓말을 한다.
     expect(screen.getByText('10.10.0.21')).toBeTruthy();
-    // 배지는 종류만 말한다 — 몇 개인지는 바로 아래 '더보기'가 말한다.
-    expect(screen.getByText('IP')).toBeTruthy();
+    // IP 행에는 태그가 없다 — 값이 이미 자기 종류를 말한다.
+    expect(screen.queryByText('IP')).toBeNull();
     expect(screen.getByText('10.20.31.10')).toBeTruthy();
     expect(screen.getByText('3306')).toBeTruthy();
     expect(screen.getByText('MySQL')).toBeTruthy();
