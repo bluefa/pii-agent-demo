@@ -55,3 +55,38 @@ describe('AccessModals — 필수 사유가 CTA 를 잠근다', () => {
     expect(cta('요청').disabled).toBe(false);
   });
 });
+
+/**
+ * 두 번째 축 — **입력 상한.** 요청 사유만 500 이다(승인 시트의 고정 높이 칸에서 읽히는
+ * 글이라서). 셋이 한 몸통을 쓰므로 기본값을 500 으로 내리면 승인 메시지·반려 사유까지
+ * 조용히 따라 내려간다 — 그쪽은 요청자에게 통째로 전달되는 글이라 잘리면 안 된다.
+ */
+describe('AccessModals — 입력 상한', () => {
+  const box = (): HTMLTextAreaElement => screen.getByRole('textbox') as HTMLTextAreaElement;
+
+  it('요청 사유는 500자까지다', () => {
+    render(
+      <RequestAccessModal
+        open
+        onClose={noop}
+        serviceCode="SVC-A"
+        serviceName="결제"
+        onSubmit={noop}
+      />,
+    );
+    expect(box().maxLength).toBe(500);
+  });
+
+  it('승인 메시지와 반려 사유는 1000자 그대로다', () => {
+    const { unmount } = render(
+      <ApproveAccessModal open onClose={noop} subject="김철수님의 AWS 접근 요청" onSubmit={noop} />,
+    );
+    expect(box().maxLength).toBe(1000);
+    unmount();
+
+    render(
+      <RejectAccessModal open onClose={noop} subject="김철수님의 AWS 접근 요청" onSubmit={noop} />,
+    );
+    expect(box().maxLength).toBe(1000);
+  });
+});
