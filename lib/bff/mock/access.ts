@@ -160,6 +160,17 @@ function seed(): Store {
     { requestId: 1011, serviceCode: 'CSC', userId: 'admin-1', reason: '고객센터 상담 이력은 EOS 예정 서비스라 종료 전 스캔 결과를 남겨 두려 합니다.', requestedAt: T(11, 9), status: 'PENDING', processedAt: null, processedBy: null, processedNote: null },
     { requestId: 1012, serviceCode: 'SEL', userId: 'admin-1', reason: '셀러 정산 대상 등록 문의 대응.', requestedAt: T(12, 10), status: 'PENDING', processedAt: null, processedBy: null, processedNote: null },
     { requestId: 1013, serviceCode: 'LOG', userId: 'admin-1', reason: '통합 로그 수집 파이프라인 점검.', requestedAt: T(12, 16), status: 'PENDING', processedAt: null, processedBy: null, processedNote: null },
+
+    // 아래 둘은 이력 첫 장이 여섯 종류를 다 담게 하려고 최근으로 처리해 둔 건이다.
+    // 이력에 REQUEST_* 를 직접 심지 않고 요청 행으로 두는 이유: 반려 탭은 반려된
+    // **요청**을 세므로, 로그에만 반려 이벤트를 넣으면 탭은 4건인데 이력엔 5번
+    // 반려한 것으로 보인다.
+    //
+    // 승인 건의 서비스는 대상자의 권한 목록에 이미 있고(minsu.park ← PRD), 반려 건의
+    // 서비스는 없다(seoyeon.yoon ↛ NTF). 반대로 두면 "승인했는데 권한이 없다"거나
+    // "반려했는데 들어가 있다"가 된다.
+    { requestId: 1014, serviceCode: 'PRD', userId: 'user-4', reason: '상품 마스터 스캔 대상 등록을 맡게 되었습니다.', requestedAt: T(11, 9), status: 'APPROVED', processedAt: T(12, 17), processedBy: 'admin-1', processedNote: '승인했어요.' },
+    { requestId: 1015, serviceCode: 'NTF', userId: 'user-8', reason: '알림 발송 로그의 수신자 정보를 확인하려 합니다.', requestedAt: T(10, 14), status: 'REJECTED', processedAt: T(11, 10), processedBy: 'admin-1', processedNote: '수신자 정보는 마스킹 대상이라 조회 권한을 드리기 어려워요.' },
   ];
 
   for (const request of requests) {
@@ -175,6 +186,28 @@ function seed(): Store {
     });
   }
 
+  /**
+   * 요청을 거치지 않는 네 종류 — 직접 부여·해제와 관리자 부여·회수. 이 넷은 런타임
+   * 행동으로만 생겨서 seed 직후 이력에는 승인·반려 둘밖에 없었고, 그러면 화면이
+   * 여섯 종류를 어떻게 그리는지 첫 장에서 볼 수가 없다.
+   *
+   * 날짜를 요청 처리분보다 뒤(10~13일)에 두어 위의 REQUEST_* 둘과 함께 이력 첫 장
+   * 8줄 안에 여섯 종류가 다 든다.
+   *
+   * 부여는 대상자가 실제로 그 권한을 갖고 있는 쌍으로, 회수·해제는 갖고 있지 **않은**
+   * 쌍으로 고른다 — 이력과 담당자 목록이 서로 다른 말을 하면 안 된다. 사유는 회수 쪽에만
+   * 있다(피드는 사유가 있을 때만 셋째 줄을 그린다).
+   */
+  const directEvents: Omit<HistoryEntry, 'historyId'>[] = [
+    { type: 'ADMIN_REVOKED', serviceCode: 'RVW', targetUserId: 'user-6', actorUserId: 'admin-1', note: '리뷰 도메인 담당에서 빠져 회수했어요.', createdAt: T(13, 16) },
+    { type: 'OWNER_GRANTED', serviceCode: 'IVT', targetUserId: 'user-5', actorUserId: 'user-1', note: null, createdAt: T(13, 11) },
+    { type: 'ADMIN_GRANTED', serviceCode: 'CSC', targetUserId: 'user-9', actorUserId: 'admin-1', note: null, createdAt: T(12, 13) },
+    { type: 'OWNER_REVOKED', serviceCode: 'DLV', targetUserId: 'user-7', actorUserId: 'user-2', note: '배송 정산 과제가 끝나 해제했어요.', createdAt: T(11, 15) },
+  ];
+  for (const event of directEvents) {
+    history.push({ ...event, historyId: historySeq++ });
+  }
+
   return {
     users,
     grants,
@@ -182,7 +215,8 @@ function seed(): Store {
     history,
     admins: users.filter((user) => user.role === 'ADMIN').map((user) => user.id),
     serviceTouchedAt,
-    requestSeq: 1014,
+    /** seed 의 마지막 requestId 다음 값 — 위 배열을 늘리면 여기도 같이 올린다. */
+    requestSeq: 1016,
     historySeq,
   };
 }
