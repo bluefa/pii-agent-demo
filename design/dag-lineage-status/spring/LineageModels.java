@@ -23,8 +23,12 @@ record DagRunRow(
         DagRunState state,
         OffsetDateTime eventTime) {}
 
-/** One catalog row of dag_registry (dag names are globally unique across environments). */
-record DagCatalogEntry(String dagName, String externalId) {}
+/**
+ * One catalog row of dag_registry (dag names are globally unique across
+ * environments). targetSourceId is the group axis — null until the DAG's
+ * logical DB is assigned to a target source, immutable afterwards.
+ */
+record DagCatalogEntry(String dagName, String externalId, String targetSourceId) {}
 
 /** One (dag, day) aggregate returned by the day-status query. */
 record DayStatusRow(String dagId, String namespace, LocalDate day, DayState state,

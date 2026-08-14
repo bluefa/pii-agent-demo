@@ -3,15 +3,20 @@ package com.example.lineage;
 import java.time.OffsetDateTime;
 import java.util.List;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Repository;
 
 /**
  * DAG catalog: name -> external id (1:1, names globally unique across
- * environments). This table is the source of truth for WHICH DAGs the weekly
- * board lists — a DAG with zero events still shows as 7x NOT_SCHEDULED.
+ * environments), plus the group axis (target_source_id — see schema.sql).
+ * This table is the source of truth for WHICH DAGs the weekly board lists —
+ * a DAG with zero events still shows as 7x NOT_SCHEDULED.
  */
 @Repository
 public class DagRegistryRepository {
+
+    private static final RowMapper<DagCatalogEntry> CATALOG_ROW = (rs, i) -> new DagCatalogEntry(
+            rs.getString("dag_name"), rs.getString("external_id"), rs.getString("target_source_id"));
 
     private final JdbcTemplate jdbc;
 
@@ -22,28 +27,48 @@ public class DagRegistryRepository {
     /** Keyset page ordered by dag_name; pass the previous page's last name (null for the first page). */
     public List<DagCatalogEntry> page(String afterDagName, int limit) {
         return jdbc.query("""
-                SELECT dag_name, external_id
+                SELECT dag_name, external_id, target_source_id
                   FROM dag_registry
                  WHERE dag_name > ?
                  ORDER BY dag_name
                  LIMIT ?
                 """,
-                (rs, i) -> new DagCatalogEntry(rs.getString("dag_name"), rs.getString("external_id")),
-                afterDagName == null ? "" : afterDagName, limit);
+                CATALOG_ROW, afterDagName == null ? "" : afterDagName, limit);
+    }
+
+    /**
+     * Keyset page WITHIN one group (target source). Uses the
+     * (target_source_id, dag_name) index, so a request costs one page —
+     * never "load all N member ids, then query each" — regardless of N.
+     */
+    public List<DagCatalogEntry> pageByGroup(String targetSourceId, String afterDagName, int limit) {
+        return jdbc.query("""
+                SELECT dag_name, external_id, target_source_id
+                  FROM dag_registry
+                 WHERE target_source_id = ?
+                   AND dag_name > ?
+                 ORDER BY dag_name
+                 LIMIT ?
+                """,
+                CATALOG_ROW, targetSourceId, afterDagName == null ? "" : afterDagName, limit);
     }
 
     /** Bulk upsert from a catalog sync; touching synced_at marks the row as still alive. */
     public void saveAll(List<DagCatalogEntry> entries) {
         jdbc.batchUpdate("""
-                INSERT INTO dag_registry (dag_name, external_id)
-                VALUES (?, ?) AS new
+                INSERT INTO dag_registry (dag_name, external_id, target_source_id)
+                VALUES (?, ?, ?) AS new
                 ON DUPLICATE KEY UPDATE
                     external_id = new.external_id,
+                    -- Membership is write-once (owner-confirmed): first non-null
+                    -- value sticks, later syncs can never move a DAG to another group.
+                    target_source_id = COALESCE(target_source_id, new.target_source_id),
                     synced_at = NOW(6)
                 """,
                 entries, 1000, (ps, entry) -> {
                     ps.setString(1, entry.dagName());
                     ps.setString(2, entry.externalId());
+                    ps.setString(3, entry.targetSourceId());
                 });
     }
 

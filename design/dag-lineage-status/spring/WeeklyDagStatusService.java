@@ -37,10 +37,22 @@ public class WeeklyDagStatusService {
 
     /** afterDagName: last dag name of the previous page, null for the first page. */
     public List<DagWeeklyStatus> weeklyStatuses(String afterDagName, int size) {
+        return summarizePage(registry.page(afterDagName, size));
+    }
+
+    /**
+     * Same board, scoped to one group (target source). The page comes from the
+     * group's slice of the registry; aggregation is identical. A group can hold
+     * up to ~10k DAGs, but each request still touches only one page of them.
+     */
+    public List<DagWeeklyStatus> weeklyStatusesByGroup(String targetSourceId, String afterDagName, int size) {
+        return summarizePage(registry.pageByGroup(targetSourceId, afterDagName, size));
+    }
+
+    private List<DagWeeklyStatus> summarizePage(List<DagCatalogEntry> page) {
         LocalDate firstDay = LocalDate.now(KST).minusDays(6);
         OffsetDateTime windowStart = firstDay.atStartOfDay(KST).toOffsetDateTime();
 
-        List<DagCatalogEntry> page = registry.page(afterDagName, size);
         List<String> names = page.stream().map(DagCatalogEntry::dagName).toList();
         Map<String, List<DayStatusRow>> rowsByDag =
                 repository.dayStatuses(names, windowStart).stream()

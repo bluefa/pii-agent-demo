@@ -19,7 +19,7 @@ CREATE TABLE dag_run_status (
     updated_at   DATETIME(6)  NOT NULL DEFAULT CURRENT_TIMESTAMP(6)
 ) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
 
--- Weekly window scan and the 30-day retention delete (WHERE logical_date < ?)
+-- Weekly window scan and the 7-day retention delete (WHERE logical_date < ?)
 CREATE INDEX idx_dag_run_status_window ON dag_run_status (logical_date);
 
 -- Day-status lookup for one page of DAGs (dag names are globally unique)
@@ -30,7 +30,16 @@ CREATE INDEX idx_dag_run_status_dag ON dag_run_status (dag_id, logical_date);
 -- board lists. Filled by the initial backfill, then kept in sync with the
 -- dag-id API by DagCatalogSync; the event path never calls the id API.
 CREATE TABLE dag_registry (
-    dag_name    VARCHAR(250) PRIMARY KEY,
-    external_id VARCHAR(100) NOT NULL UNIQUE,  -- size TBD against the real id format
-    synced_at   DATETIME(6)  NOT NULL DEFAULT CURRENT_TIMESTAMP(6)  -- liveness marker: rows a full sync did not touch get deleted
+    dag_name         VARCHAR(250) PRIMARY KEY,
+    external_id      VARCHAR(100) NOT NULL UNIQUE,  -- size TBD against the real id format
+    -- Group axis: one logical DB per target source, one DAG per logical DB,
+    -- so a DAG belongs to at most ONE target source — a column, not a join
+    -- table. NULL until assigned; write-once after that (owner-confirmed:
+    -- membership never changes), enforced by the COALESCE guard in saveAll.
+    target_source_id VARCHAR(100),
+    synced_at        DATETIME(6)  NOT NULL DEFAULT CURRENT_TIMESTAMP(6)  -- liveness marker: rows a full sync did not touch get deleted
 ) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
+
+-- Group board: keyset pagination WITHIN one target source (up to ~10k DAGs
+-- per group). Per-request cost is bounded by the page size, not by N.
+CREATE INDEX idx_dag_registry_group ON dag_registry (target_source_id, dag_name);
