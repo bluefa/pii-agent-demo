@@ -19,7 +19,6 @@ import { fmtDateTime } from '@/lib/pipeline/format';
 import { Icon } from '@/app/admin/pipelines/_components/icons';
 import {
   PagedCard,
-  ROWS_PER_PAGE,
   usePagedSection,
   type Column,
 } from '@/app/admin/pipelines/access/_components/PagedCard';
@@ -37,18 +36,15 @@ import {
 const fetchPending = (
   page: number,
   opts: { signal: AbortSignal },
-): Promise<AccessPage<PermissionRequestRow>> =>
-  getAccessRequests('PENDING', page, { ...opts, size: ROWS_PER_PAGE });
+): Promise<AccessPage<PermissionRequestRow>> => getAccessRequests('PENDING', page, opts);
 const fetchRejected = (
   page: number,
   opts: { signal: AbortSignal },
-): Promise<AccessPage<PermissionRequestRow>> =>
-  getAccessRequests('REJECTED', page, { ...opts, size: ROWS_PER_PAGE });
+): Promise<AccessPage<PermissionRequestRow>> => getAccessRequests('REJECTED', page, opts);
 const fetchHistory = (
   page: number,
   opts: { signal: AbortSignal },
-): Promise<AccessPage<AccessHistoryEntry>> =>
-  getAccessHistory({}, page, { ...opts, size: ROWS_PER_PAGE });
+): Promise<AccessPage<AccessHistoryEntry>> => getAccessHistory({}, page, opts);
 
 /**
  * 두 액션 카드는 같은 골격을 쓴다 — flex-1 컬럼 수까지 같아야 격자 너머로 열이 맞는다.

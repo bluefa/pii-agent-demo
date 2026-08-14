@@ -39,7 +39,6 @@ import { serviceTileClass } from '@/app/components/features/admin/ServiceSidebar
 import { serviceListStyles as sl } from '@/app/admin/pipelines/_services/styles';
 import {
   PagedCard,
-  ROWS_PER_PAGE,
   errorMessage,
   usePagedSection,
   type Column,
@@ -48,6 +47,7 @@ import { RequestAccessModal } from '@/app/admin/pipelines/access/_components/Acc
 import { RequestStatusPill } from '@/app/admin/pipelines/access/_components/AccessPills';
 import { accessStyles as a } from '@/app/admin/pipelines/access/_components/accessStyles';
 import {
+  ACCESS_PAGE_SIZE,
   createAccessRequest,
   fetchEveryPage,
   getMyAccessRequests,
@@ -82,7 +82,7 @@ const PAGE_CHUNK = 200;
  */
 const SERVICE_SKELETON = (
   <div role="rowgroup" aria-busy="true" aria-label="목록을 불러오는 중">
-    {Array.from({ length: ROWS_PER_PAGE }, (_, row) => (
+    {Array.from({ length: ACCESS_PAGE_SIZE }, (_, row) => (
       <div key={row} className={a.svcRow} aria-hidden="true">
         <span className={cn(serviceSidebarStyles.tile, a.skeletonBar, 'h-7 w-7')} />
         <span className={a.svcStack}>
@@ -255,7 +255,7 @@ export default function MyAccessRequestsPage(): ReactElement {
       return sliceToPage(
         all.filter((row) => REQUESTABLE.has(row.accessStatus)),
         page,
-        ROWS_PER_PAGE,
+        ACCESS_PAGE_SIZE,
       );
     },
     [debounced],
@@ -271,7 +271,7 @@ export default function MyAccessRequestsPage(): ReactElement {
       return sliceToPage(
         all.filter((row) => row.accessStatus === 'OWNED'),
         page,
-        ROWS_PER_PAGE,
+        ACCESS_PAGE_SIZE,
       );
     },
     [debounced],
@@ -289,7 +289,7 @@ export default function MyAccessRequestsPage(): ReactElement {
         getMyAccessRequests(n, { ...opts, size: PAGE_CHUNK }),
       );
       if (!opts.signal.aborted) setMineAll(all);
-      return sliceToPage(all, page, ROWS_PER_PAGE);
+      return sliceToPage(all, page, ACCESS_PAGE_SIZE);
     },
     [],
   );
