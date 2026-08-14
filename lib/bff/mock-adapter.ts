@@ -165,7 +165,8 @@ export const mockBff: BffClient = {
     createRequest: async (code, reason) => {
       await unwrap(await mockAccess.createRequest(code, reason));
     },
-    listMyRequests: async (page, size) => unwrap(await mockAccess.listMyRequests(page, size)),
+    listMyRequests: async (status, page, size) =>
+      unwrap(await mockAccess.listMyRequests(status, page, size)),
     listUserServices: async (query, page, size) =>
       unwrap(await mockAccess.listUserServices(query, page, size)),
     listServicesPage: async (query, page, size) =>

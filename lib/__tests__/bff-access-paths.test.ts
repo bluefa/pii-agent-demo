@@ -69,8 +69,8 @@ describe('httpBff.access — 업스트림 경로', () => {
     );
     vi.restoreAllMocks();
     vi.resetModules();
-    await expect(urlOf((b) => b.access.listMyRequests(0, 5))).resolves.toBe(
-      '/install/v1/user/permission-access?page=0&size=5',
+    await expect(urlOf((b) => b.access.listMyRequests('REJECTED', 0, 5))).resolves.toBe(
+      '/install/v1/user/permission-access?status=REJECTED&page=0&size=5',
     );
   });
 });

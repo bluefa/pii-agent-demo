@@ -125,7 +125,7 @@ function seed(): Store {
       grants.push({ serviceCode, userId: user.id });
       history.push({
         historyId: historySeq++,
-        type: n % 3 === 0 ? 'GRANTED' : 'APPROVED',
+        type: n % 3 === 0 ? 'OWNER_GRANTED' : 'REQUEST_APPROVED',
         serviceCode,
         targetUserId: user.id,
         actorUserId: 'admin-1',
@@ -166,7 +166,7 @@ function seed(): Store {
     if (request.status === 'PENDING') continue;
     history.push({
       historyId: historySeq++,
-      type: request.status === 'APPROVED' ? 'APPROVED' : 'REJECTED',
+      type: request.status === 'APPROVED' ? 'REQUEST_APPROVED' : 'REQUEST_REJECTED',
       serviceCode: request.serviceCode,
       targetUserId: request.userId,
       actorUserId: request.processedBy ?? 'admin-1',
@@ -375,7 +375,7 @@ export const mockAccess = {
     for (const email of list) {
       const user = userByEmail(email);
       if (!user || !addGrant(serviceCode, user.id)) continue;
-      log({ type: 'GRANTED', serviceCode, targetUserId: user.id, actorUserId: caller.id, note: null });
+      log({ type: 'OWNER_GRANTED', serviceCode, targetUserId: user.id, actorUserId: caller.id, note: null });
     }
     return NextResponse.json(serviceOwnersWire(serviceCode));
   },
@@ -391,7 +391,7 @@ export const mockAccess = {
     if (index < 0) return notFound('해당 사용자는 이 서비스 권한을 가지고 있지 않아요.');
     s.grants.splice(index, 1);
     user.serviceCodePermissions = user.serviceCodePermissions.filter((c) => c !== serviceCode);
-    log({ type: 'REVOKED', serviceCode, targetUserId: user.id, actorUserId: caller.id, note: null });
+    log({ type: 'OWNER_REVOKED', serviceCode, targetUserId: user.id, actorUserId: caller.id, note: null });
     return NextResponse.json(serviceOwnersWire(serviceCode));
   },
 
@@ -464,7 +464,7 @@ export const mockAccess = {
     request.processedNote = trim(message) || null;
     addGrant(request.serviceCode, request.userId);
     log({
-      type: 'APPROVED',
+      type: 'REQUEST_APPROVED',
       serviceCode: request.serviceCode,
       targetUserId: request.userId,
       actorUserId: caller.id,
@@ -487,7 +487,7 @@ export const mockAccess = {
     request.processedBy = caller.id;
     request.processedNote = text;
     log({
-      type: 'REJECTED',
+      type: 'REQUEST_REJECTED',
       serviceCode: request.serviceCode,
       targetUserId: request.userId,
       actorUserId: caller.id,
@@ -576,13 +576,23 @@ export const mockAccess = {
    * 상세와 같은 shape 을 페이지로 준다. `access_status` 만으로는 반려 사유도 처리
    * 일시도 말할 수 없어서, 이 엔드포인트가 있어야 "승인 내역 조회"가 성립한다.
    */
-  listMyRequests: async (pageNumber: number, size: number) => {
+  listMyRequests: async (status: string | undefined, pageNumber: number, size: number) => {
     const caller = me();
     if (!caller) return forbidden('로그인이 필요해요.');
     const rows = getStore()
       .requests.filter((r) => r.userId === caller.id)
+      .filter((r) => !status || r.status === status)
       .sort((a, b) => b.requestedAt.localeCompare(a.requestedAt))
-      .map(requestDetailWire);
+      // 실구현이 싣는 여섯 필드만 — 관리자 상세의 shape 을 여기서 흉내 내면 목이
+      // 있지도 않은 처리 결과를 주고, 화면은 실서버에서만 비는 열을 그린다.
+      .map((r) => ({
+        request_id: r.requestId,
+        service_code: r.serviceCode,
+        service_name: serviceName(r.serviceCode),
+        status: r.status,
+        reason: r.reason,
+        requested_at: r.requestedAt,
+      }));
     return NextResponse.json(page(rows, pageNumber, size));
   },
 

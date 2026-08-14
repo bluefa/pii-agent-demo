@@ -357,7 +357,11 @@ export interface BffClient {
     ) => Promise<AccessHistoryPageWire>;
     // 사용자 측 — admin 게이트 밖
     createRequest: (serviceCode: string, reason: string) => Promise<void>;
-    listMyRequests: (page: number, size: number) => Promise<PermissionRequestDetailPageWire>;
+    listMyRequests: (
+      status: string | undefined,
+      page: number,
+      size: number,
+    ) => Promise<MyAccessRequestPageWire>;
     listUserServices: (query: string | undefined, page: number, size: number) => Promise<UserServicePageWire>;
     listServicesPage: (query: string | undefined, page: number, size: number) => Promise<ServicePageWire>;
     searchUsers: (query: string | undefined) => Promise<AccessUserSearchWire>;
@@ -511,13 +515,41 @@ export interface PermissionRequestDetailWire {
   processed_note: string | null;
 }
 
-export type PermissionRequestDetailPageWire = AccessPageWire<PermissionRequestDetailWire>;
+/**
+ * `GET /user/permission-access` 한 줄 — 관리자 상세와 **다른 shape 이다.**
+ *
+ * 2026-08-14 실구현이 싣는 것은 이 여섯 필드가 전부다. 요청자(`requester`)가 없는 건
+ * 자연스럽다 — 호출자 본인 것만 주므로 적을 이유가 없는 값이다. 처리 결과 셋
+ * (`processed_at`·`processed_by`·`processed_note`)이 없는 건 **갭이다(B5)**: 요청자가
+ * 자기 반려 사유를 볼 길이 이 화면 말고 없다.
+ *
+ * 그래서 `PermissionRequestDetailWire` 를 이 목록에 재사용하지 않는다. 재사용하면
+ * 오지 않는 필드를 코드가 있는 것처럼 읽고(`requester.knox_id` 에서 실제로 터졌다),
+ * 화면은 언제나 비어 있는 열을 그린다.
+ */
+export interface MyAccessRequestWire {
+  request_id: number;
+  service_code: string;
+  service_name: string;
+  status: AccessRequestStatusWire;
+  reason: string;
+  requested_at: string;
+}
 
+export type MyAccessRequestPageWire = AccessPageWire<MyAccessRequestWire>;
+
+/**
+ * 이력 이벤트 여섯 종 — 2026-08-14 백엔드 실구현 값이다.
+ *
+ * 앞 넷은 우리가 `GRANTED`·`REVOKED`·`APPROVED`·`REJECTED` 로 짧게 적어 두었던 것이고,
+ * 실제 이름은 **무엇을 통해 움직였는지**를 앞에 달고 있다 — 서비스 담당자 자리를 직접
+ * 넣고 뺀 것(`OWNER_*`)인지, 요청을 처리한 결과(`REQUEST_*`)인지.
+ */
 export type AccessHistoryTypeWire =
-  | 'APPROVED'
-  | 'REJECTED'
-  | 'GRANTED'
-  | 'REVOKED'
+  | 'OWNER_GRANTED'
+  | 'OWNER_REVOKED'
+  | 'REQUEST_APPROVED'
+  | 'REQUEST_REJECTED'
   | 'ADMIN_GRANTED'
   | 'ADMIN_REVOKED';
 

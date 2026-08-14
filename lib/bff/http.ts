@@ -362,9 +362,10 @@ export const httpBff: BffClient = {
     createRequest: (serviceCode, reason) =>
       post(`/services/${encodeURIComponent(serviceCode)}/permission-access`, { reason }),
     // 2026-08-14 오너 확정 — 본인 신청 내역은 `/user/permission-access` (갭 B4 해소).
-    // `status` 필터가 생겼지만 화면이 상태별 합을 직접 세므로 전체를 받는다.
-    listMyRequests: (page, size) =>
-      getSnakeRaw(`/user/permission-access${buildQuery({ page, size })}`),
+    // 헤더 판정이 상태별 건수를 말하므로 `status` 를 실어 수만 받는다 — 목록을 통째로
+    // 훑던 것을 이걸로 바꿨다.
+    listMyRequests: (status, page, size) =>
+      getSnakeRaw(`/user/permission-access${buildQuery({ status, page, size })}`),
     // 담당 서비스만 — ADMIN 은 전체를 받는다. "내가 접근할 수 있는 서비스"가 이것이다.
     listUserServices: (query, page, size) =>
       getSnakeRaw(`/user/services/page${buildQuery({ query, page, size })}`),

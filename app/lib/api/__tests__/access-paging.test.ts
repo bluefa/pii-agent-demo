@@ -1,50 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import {
-  approveAccessRequest,
-  fetchEveryPage,
-  type AccessPage,
-} from '@/app/lib/api/access';
-
-/**
- * 화면이 전체를 들고 세는 목록들(신청 가능 서비스·접근 가능 서비스·내 요청 내역)은
- * 계약에 상태 필터가 없어서 전부 받아야 한다. 첫 장만 받아 놓고 전체인 척하면 그 뒤
- * 항목들은 존재하지 않는 것이 되고 헤더 건수까지 틀리는데, 목이 한 장에 다 담기는
- * 크기라 **화면으로는 절대 안 보인다.** 그래서 여기서 잡는다.
- */
-describe('fetchEveryPage', () => {
-  const page = <T,>(content: T[], number: number, totalPages: number): AccessPage<T> => ({
-    content,
-    totalElements: totalPages * 2,
-    totalPages,
-    number,
-    size: 2,
-  });
-
-  it('마지막 장까지 읽어 순서대로 합친다', async () => {
-    const pages = [page(['a', 'b'], 0, 3), page(['c', 'd'], 1, 3), page(['e'], 2, 3)];
-    const asked: number[] = [];
-
-    const all = await fetchEveryPage(async (n) => {
-      asked.push(n);
-      return pages[n];
-    });
-
-    expect(all).toEqual(['a', 'b', 'c', 'd', 'e']);
-    expect(asked).toEqual([0, 1, 2]);
-  });
-
-  it('한 장뿐이면 한 번만 부른다', async () => {
-    const asked: number[] = [];
-
-    const all = await fetchEveryPage(async (n) => {
-      asked.push(n);
-      return page(['only'], n, 1);
-    });
-
-    expect(all).toEqual(['only']);
-    expect(asked).toEqual([0]);
-  });
-});
+import { approveAccessRequest } from '@/app/lib/api/access';
 
 /**
  * 승인 메시지는 선택 필드다. 비었을 때 `{ message: "" }` 를 보내면, 빈 문자열을 그대로

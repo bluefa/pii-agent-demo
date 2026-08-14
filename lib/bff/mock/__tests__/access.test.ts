@@ -21,7 +21,7 @@ import * as mockData from '@/lib/mock-data';
 import type {
   AccessHistoryPageWire,
   AdminListWire,
-  PermissionRequestDetailPageWire,
+  MyAccessRequestPageWire,
   PermissionRequestDetailWire,
   PermissionRequestPageWire,
   ServiceOwnersWire,
@@ -76,7 +76,7 @@ describe('승인', () => {
       await mockAccess.listHistory({ serviceCode: 'aws' }, 0, 50),
     );
     const entry = history.content.find(
-      (row) => row.type === 'APPROVED' && row.target_user.email === CHOI,
+      (row) => row.type === 'REQUEST_APPROVED' && row.target_user.email === CHOI,
     );
     expect(entry).toBeDefined();
     expect(entry?.actor_user.email).toBe(ADMIN);
@@ -143,7 +143,7 @@ describe('직접 부여 · 해제', () => {
     const history = await body<AccessHistoryPageWire>(
       await mockAccess.listHistory({ serviceCode: 'gcp' }, 0, 50),
     );
-    expect(history.content[0]?.type).toBe('GRANTED');
+    expect(history.content[0]?.type).toBe('OWNER_GRANTED');
   });
 
   it('service_code 필터는 그 서비스의 이력만 돌려준다', async () => {
@@ -268,8 +268,8 @@ describe('요청자 측', () => {
     expect((await mockAccess.createRequest('gcp', '첫 요청')).status).toBe(200);
     expect((await mockAccess.createRequest('gcp', '두 번째 요청')).status).toBe(200);
 
-    const mine = await body<PermissionRequestDetailPageWire>(
-      await mockAccess.listMyRequests(0, 50),
+    const mine = await body<MyAccessRequestPageWire>(
+      await mockAccess.listMyRequests(undefined, 0, 50),
     );
     expect(mine.content.filter((row) => row.service_code === 'gcp')).toHaveLength(1);
     expect(mine.content.find((row) => row.service_code === 'gcp')?.reason).toBe('첫 요청');
@@ -303,16 +303,36 @@ describe('요청자 측', () => {
     );
   });
 
-  it('내 요청 내역은 내 것만, 반려 사유까지 담는다', async () => {
+  /**
+   * 실구현이 싣는 건 여섯 필드뿐이다 — 요청자도, 처리 결과 셋도 오지 않는다. 목이
+   * 관리자 상세의 shape 을 흉내 내는 동안 화면은 `requester.knox_id` 를 읽었고,
+   * 실서버에서 그 줄이 터졌다. 목이 좁은 채로 남아 있는지를 여기서 지킨다.
+   */
+  it('내 요청 내역은 내 것만, 계약이 싣는 여섯 필드만 준다', async () => {
     mockData.setCurrentUser('user-7');
-    const mine = await body<PermissionRequestDetailPageWire>(
-      await mockAccess.listMyRequests(0, 50),
+    const mine = await body<MyAccessRequestPageWire>(
+      await mockAccess.listMyRequests(undefined, 0, 50),
     );
     expect(mine.content.length).toBeGreaterThan(0);
-    expect(mine.content.every((row) => row.requester.email === 'kang@company.com')).toBe(true);
-    expect(mine.content.find((row) => row.status === 'REJECTED')?.processed_note).toContain(
-      '담당 조직',
+    expect(Object.keys(mine.content[0] ?? {}).sort()).toEqual([
+      'reason',
+      'request_id',
+      'requested_at',
+      'service_code',
+      'service_name',
+      'status',
+    ]);
+  });
+
+  it('status 를 주면 그 상태만 온다 — 헤더 건수가 이걸로 센다', async () => {
+    mockData.setCurrentUser('user-7');
+    const rejected = await body<MyAccessRequestPageWire>(
+      await mockAccess.listMyRequests('REJECTED', 0, 1),
     );
+    expect(rejected.content.every((row) => row.status === 'REJECTED')).toBe(true);
+    // 한 줄만 받아도 전체 수는 맞아야 한다 — 화면이 읽는 건 이 값이다.
+    expect(rejected.totalElements).toBeGreaterThan(0);
+    expect(rejected.content.length).toBeLessThanOrEqual(1);
   });
 
   it('관리자가 아니면 관리자용 목록을 볼 수 없다', async () => {
