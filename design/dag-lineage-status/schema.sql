@@ -25,10 +25,10 @@ CREATE INDEX idx_dag_run_status_window ON dag_run_status (logical_date);
 -- Day-status lookup for one page of DAGs (dag names are globally unique)
 CREATE INDEX idx_dag_run_status_dag ON dag_run_status (dag_id, logical_date);
 
--- DAG catalog: name -> logical database (1:1; names globally unique across
+-- The list of DAGs we know about: name -> logical database (1:1; names globally unique across
 -- environments — owner-confirmed). Source of truth for WHICH DAGs the weekly
 -- board lists. Filled by the initial backfill, then kept in sync with the
--- catalog API by DagCatalogSync; the event path never calls that API, so
+-- DAG list API by DagRegistrySync; the event path never calls that API, so
 -- ingest never waits on it and a burst never propagates to it.
 CREATE TABLE dag_registry (
     dag_name            VARCHAR(250) PRIMARY KEY,
@@ -36,7 +36,7 @@ CREATE TABLE dag_registry (
     -- Group axis: one logical DB per target source, one DAG per logical DB,
     -- so a DAG belongs to at most ONE target source — a column, not a join
     -- table. Unknowable before a group GET arrives (owner-confirmed: not at
-    -- publish, consume, or catalog-sync time), so it is learned lazily from
+    -- publish, consume, or registry-sync time), so it is learned lazily from
     -- the first GET for the group and write-once after that (membership
     -- never changes) — see assignGroup's IS NULL guard.
     target_source_id    BIGINT,

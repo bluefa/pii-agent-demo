@@ -12,7 +12,7 @@ import java.util.stream.IntStream;
 import org.springframework.stereotype.Service;
 
 /**
- * Weekly board: for each DAG in the catalog, the last 7 KST days.
+ * Weekly board: for each DAG in the registry, the last 7 KST days.
  *  1) succeededThisWeek + lastSuccessAt (latest success in the window)
  *  2) per-day state: SUCCESS > RUNNING > FAILED, no row -> NOT_SCHEDULED
  *
@@ -51,11 +51,11 @@ public class WeeklyDagStatusService {
         return summarizePage(registry.pageByGroup(targetSourceId, afterDagName, size));
     }
 
-    private List<DagWeeklyStatus> summarizePage(List<DagCatalogEntry> page) {
+    private List<DagWeeklyStatus> summarizePage(List<DagRegistryEntry> page) {
         LocalDate firstDay = LocalDate.now(KST).minusDays(6);
         OffsetDateTime windowStart = firstDay.atStartOfDay(KST).toOffsetDateTime();
 
-        List<String> names = page.stream().map(DagCatalogEntry::dagName).toList();
+        List<String> names = page.stream().map(DagRegistryEntry::dagName).toList();
         Map<String, List<DayStatusRow>> rowsByDag =
                 repository.dayStatuses(names, windowStart).stream()
                         .collect(Collectors.groupingBy(DayStatusRow::dagId));
@@ -66,7 +66,7 @@ public class WeeklyDagStatusService {
                 .toList();
     }
 
-    private static DagWeeklyStatus summarize(DagCatalogEntry entry, LocalDate firstDay,
+    private static DagWeeklyStatus summarize(DagRegistryEntry entry, LocalDate firstDay,
             List<DayStatusRow> rows) {
         Map<LocalDate, DayStatusRow> byDay =
                 rows.stream().collect(Collectors.toMap(DayStatusRow::day, row -> row));

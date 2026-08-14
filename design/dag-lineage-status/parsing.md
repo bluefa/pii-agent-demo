@@ -10,8 +10,8 @@ Pull 구독이므로 push 구독과 달리 메시지가 base64로 래핑되어 �
 
 **논리 DB ID(`logical_database_id`)는 이벤트에 없다** — 파싱 대상이
 아니고, **저장 시점에 API로 조회하지도 않는다**. 이름→논리 DB는
-수집 흐름과 분리된 카탈로그 sync + `dag_registry` 테이블이 담당하고
-(architecture.md 참조), 주간 조회가 카탈로그 페이지에서 함께 읽는다.
+수집 흐름과 분리된 목록 sync + `dag_registry` 테이블이 담당하고
+(architecture.md 참조), 주간 조회가 목록 페이지에서 함께 읽는다.
 
 ## 추출 필드 (8개)
 

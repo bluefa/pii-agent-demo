@@ -24,19 +24,19 @@ record DagRunRow(
         OffsetDateTime eventTime) {}
 
 /**
- * One catalog row of dag_registry (dag names are globally unique across
+ * One row of dag_registry (the list of DAGs we know about) (dag names are globally unique across
  * environments). targetSourceId is the group axis — null until learned from
  * the first group GET (it is unknowable earlier), immutable afterwards.
- * The catalog sync never fills it.
+ * The registry sync never fills it.
  */
-record DagCatalogEntry(String dagName, String logicalDatabaseId, Long targetSourceId) {}
+record DagRegistryEntry(String dagName, String logicalDatabaseId, Long targetSourceId) {}
 
 /** One (dag, day) aggregate returned by the day-status query. */
 record DayStatusRow(String dagId, String namespace, LocalDate day, DayState state,
         OffsetDateTime successTime) {}
 
 /**
- * Weekly board row for one DAG. Listed DAGs come from the catalog, so
+ * Weekly board row for one DAG. Listed DAGs come from the registry, so
  * logicalDatabaseId is always present; namespace is null when the DAG had no
  * events in the window (nothing ran, so there is no row to read it from).
  */

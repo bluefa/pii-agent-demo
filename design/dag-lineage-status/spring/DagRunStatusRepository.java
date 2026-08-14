@@ -44,7 +44,7 @@ public class DagRunStatusRepository {
 
     /**
      * Day-level aggregate for one page of DAG names. The page comes from
-     * dag_registry (the catalog decides WHICH DAGs are listed; this query
+     * dag_registry (the registry decides WHICH DAGs are listed; this query
      * only fills in their days).
      * Day bucket = logical_date in KST (not event arrival time).
      * Day precedence: SUCCESS > RUNNING > FAILED (min of the rank).

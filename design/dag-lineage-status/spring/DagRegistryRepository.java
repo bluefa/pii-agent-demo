@@ -7,7 +7,7 @@ import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Repository;
 
 /**
- * DAG catalog: name -> logical database (1:1, names globally unique across
+ * The list of DAGs we know about: name -> logical database (1:1, names globally unique across
  * environments), plus the group axis (target_source_id — see schema.sql).
  * This table is the source of truth for WHICH DAGs the weekly board lists —
  * a DAG with zero events still shows as 7x NOT_SCHEDULED.
@@ -15,7 +15,7 @@ import org.springframework.stereotype.Repository;
 @Repository
 public class DagRegistryRepository {
 
-    private static final RowMapper<DagCatalogEntry> CATALOG_ROW = (rs, i) -> new DagCatalogEntry(
+    private static final RowMapper<DagRegistryEntry> CATALOG_ROW = (rs, i) -> new DagRegistryEntry(
             rs.getString("dag_name"), rs.getString("logical_database_id"),
             rs.getObject("target_source_id", Long.class));
 
@@ -26,7 +26,7 @@ public class DagRegistryRepository {
     }
 
     /** Keyset page ordered by dag_name; pass the previous page's last name (null for the first page). */
-    public List<DagCatalogEntry> page(String afterDagName, int limit) {
+    public List<DagRegistryEntry> page(String afterDagName, int limit) {
         return jdbc.query("""
                 SELECT dag_name, logical_database_id, target_source_id
                   FROM dag_registry
@@ -42,7 +42,7 @@ public class DagRegistryRepository {
      * (target_source_id, dag_name) index, so a request costs one page —
      * never "load all N member ids, then query each" — regardless of N.
      */
-    public List<DagCatalogEntry> pageByGroup(long targetSourceId, String afterDagName, int limit) {
+    public List<DagRegistryEntry> pageByGroup(long targetSourceId, String afterDagName, int limit) {
         return jdbc.query("""
                 SELECT dag_name, logical_database_id, target_source_id
                   FROM dag_registry
@@ -57,7 +57,7 @@ public class DagRegistryRepository {
     /**
      * Learn group membership at read time — a group GET is the ONLY moment
      * target_source_id is knowable (owner-confirmed: never at publish,
-     * consume, or catalog-sync time). Write-once via the IS NULL guard:
+     * consume, or registry-sync time). Write-once via the IS NULL guard:
      * membership is immutable, so a learned fact never expires and
      * re-sending the same list is a no-op.
      */
@@ -75,11 +75,11 @@ public class DagRegistryRepository {
     }
 
     /**
-     * Bulk upsert from a catalog sync; touching synced_at marks the row as
+     * Bulk upsert from a registry sync; touching synced_at marks the row as
      * still alive. Deliberately never touches target_source_id — the sync
      * source cannot know it (see assignGroup).
      */
-    public void saveAll(List<DagCatalogEntry> entries) {
+    public void saveAll(List<DagRegistryEntry> entries) {
         jdbc.batchUpdate("""
                 INSERT INTO dag_registry (dag_name, logical_database_id)
                 VALUES (?, ?) AS new
@@ -93,7 +93,7 @@ public class DagRegistryRepository {
                 });
     }
 
-    /** Remove DAGs the source catalog no longer returns (deleted DAGs). */
+    /** Remove DAGs the source list no longer returns (deleted DAGs). */
     public int deleteNotSyncedSince(OffsetDateTime syncStart) {
         return jdbc.update("DELETE FROM dag_registry WHERE synced_at < ?", syncStart);
     }
