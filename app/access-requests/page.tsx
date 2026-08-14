@@ -31,6 +31,7 @@
  */
 import { useCallback, useEffect, useState, type ReactElement } from 'react';
 import { cn, serviceSidebarStyles } from '@/lib/theme';
+import { useAbortableEffect } from '@/app/hooks/useAbortableEffect';
 import { fmtDateTime } from '@/lib/pipeline/format';
 
 import { SearchBox } from '@/app/admin/pipelines/_components/SearchBox';
@@ -49,13 +50,12 @@ import { accessStyles as a } from '@/app/admin/pipelines/access/_components/acce
 import {
   ACCESS_PAGE_SIZE,
   createAccessRequest,
-  fetchEveryPage,
   getMyAccessRequests,
   getServicesPage,
   getUserServices,
-  sliceToPage,
   type AccessPage,
-  type PermissionRequestDetail,
+  type AccessRequestStatus,
+  type MyAccessRequest,
   type ServiceRow,
   type UserServiceRow,
 } from '@/app/lib/api/access';
@@ -63,17 +63,23 @@ import {
 /**
  * 요청 가능한 서비스 = access_status 가 NONE 이거나 REJECTED 인 것.
  *
- * 서버 페이지를 그대로 쓸 수 없어 한 번에 크게 받아 걸러 낸다 — 필터가 화면 쪽에 있으니
- * 서버가 나눠 준 페이지에는 이미 걸러질 행이 섞여 있고, 그대로 그리면 10행짜리 카드에
- * 2행만 남는 페이지가 생긴다. 서비스 수는 목록 화면 하나 분량이라 이 정도가 맞다.
+ * 거르는 일은 화면 몫이다 — 계약에 `access_status` 필터가 없다. 그래서 **서버가 준 장
+ * 안에서만** 거른다. 예전에는 전체를 훑어 거른 뒤 다시 나눴는데, 서비스가 2,000 개인
+ * 계정에서 그건 목록 하나가 열 몇 번의 왕복이 된다(오너 확인 2026-08-14).
  *
- * 검색어는 서버로 보낸다(코드·이름). 걸러 내는 축이 둘(질의는 서버, 권한 상태는 화면)이라
- * 순서가 중요하다 — 질의로 좁힌 다음 상태로 거르고, 그 결과를 나눈다.
+ * 대가는 둘이다: 이미 권한이 있는 서비스만큼 장이 짧아지고, 배지 건수는 서버가 센
+ * 전체라 걸러진 행까지 포함한다. 둘 다 서버 필터 하나면 사라지므로 계약에 올려 둔다(B6).
  */
 const REQUESTABLE = new Set(['NONE', 'REJECTED']);
 const SEARCH_DEBOUNCE_MS = 300;
-/** 전체를 받아 올 때의 한 장 크기 — 상한이 아니라 왕복 횟수를 줄이는 값이다. */
-const PAGE_CHUNK = 200;
+
+/**
+ * 헤더 판정이 세는 축. 필요한 건 건수뿐이라 상태마다 `size=1` 로 한 줄씩만 받아
+ * `totalElements` 를 읽는다 — 세 번, 요청이 몇 건이든 고정이다.
+ */
+const VERDICT_STATUSES: readonly AccessRequestStatus[] = ['PENDING', 'APPROVED', 'REJECTED'];
+
+type VerdictCounts = { pending: number; approved: number; rejected: number };
 
 /**
  * 로딩 중 서비스 목록 — 타일 · [이름 코드] · 설명의 크기를 그대로 흉내 낸다. 두 단이
@@ -99,9 +105,12 @@ const SERVICE_SKELETON = (
 );
 
 /**
- * 사유가 두 열인 이유: 계약의 `reason`(내가 쓴 요청 사유)과 `processedNote`(관리자가
- * 남긴 승인 메시지 또는 반려 사유)는 **다른 사람이 쓴 다른 사실**이다. 한 열에 합치면
- * 대기 중인 행에서 내가 쓴 사유가 관리자 답변처럼 읽힌다.
+ * "처리 결과" 열이 없다. `GET /user/permission-access` 는 여섯 필드
+ * (`request_id`·`service_code`·`service_name`·`status`·`reason`·`requested_at`)만 싣는다 —
+ * 관리자가 남긴 승인 메시지·반려 사유(`processed_note`)도, 처리 일시도 오지 않는다.
+ *
+ * 그래서 요청자는 **자기 반려 사유를 볼 길이 없다.** 상태만 '반려'로 뒤집힌다. 열을
+ * 남겨 두면 모든 행이 영원히 `—` 인 열이 되므로 지우고, 갭으로 올려 둔다(B5).
  */
 const MINE_COLUMNS: readonly Column[] = [
   // 코드가 따로 없는 건 서비스 셀이 타일·이름·코드를 한 덩어리로 그리기 때문이다 —
@@ -109,7 +118,6 @@ const MINE_COLUMNS: readonly Column[] = [
   { label: '서비스', className: a.svcCell },
   { label: '상태', className: a.status },
   { label: '요청 사유', className: a.reason },
-  { label: '처리 결과', className: a.reason },
   { label: '요청 일자', className: a.when },
 ];
 
@@ -119,8 +127,8 @@ const MINE_COLUMNS: readonly Column[] = [
  * 두 탭이 같은 이것을 쓴다. 요청할 때 본 서비스와 내역에서 보는 서비스가 다른 모양이면
  * 같은 것으로 읽히지 않는다. 감싸는 칸(`a.svcCell`)이 타일과 덩어리 사이 gap 을 준다.
  *
- * 설명은 서비스 목록에서만 온다 — 내 요청 내역의 행은 이미 상태·사유·처리 결과·일자를
- * 들고 있어서 다섯 번째 사실을 더 얹을 자리가 아니다(계약에도 없다).
+ * 설명은 서비스 목록에서만 온다 — 내 요청 내역의 행은 이미 상태·사유·일자를 들고
+ * 있어서 네 번째 사실을 더 얹을 자리가 아니다(계약에도 없다).
  */
 function ServiceIdentity({
   code,
@@ -171,18 +179,23 @@ function ownerLine(row: ServiceRow): string {
 /** 담당자를 싣는 계약은 한쪽뿐이라 행 타입이 갈린다 — 둘째 단은 이 좁힘 뒤에만 그린다. */
 const hasOwners = (row: UserServiceRow): row is ServiceRow => 'owners' in row;
 
-/** 헤더가 먼저 말하는 사실. 급한 순서로 고른다 — 반려는 내가 다시 움직여야 하는 상태다. */
-function HeaderVerdict({ mine }: { mine: PermissionRequestDetail[] | null }): ReactElement {
-  if (mine == null) {
+/**
+ * 헤더가 먼저 말하는 사실. 급한 순서로 고른다 — 반려는 내가 다시 움직여야 하는 상태다.
+ *
+ * 목록이 아니라 건수를 받는다. 세는 데 필요한 게 수뿐인데 목록을 통째로 들고 있으면
+ * 이 문장 하나 때문에 화면이 모든 장을 훑게 된다.
+ */
+function HeaderVerdict({ counts }: { counts: VerdictCounts | 'error' | null }): ReactElement | null {
+  // 못 셌으면 아무 문장도 쓰지 않는다 — 틀린 수를 말하느니 말하지 않는다. 실패 자체는
+  // 아래 목록 카드가 재시도와 함께 말한다.
+  if (counts === 'error') return null;
+  if (counts == null) {
     // 수를 모르는 동안 문장을 지어내지 않는다 — 어떤 문장이 될지도 아직 모른다.
     return <span className={cn(a.skeletonBar, 'mt-2 block h-5 w-[340px]')} aria-hidden="true" />;
   }
 
-  const total = mine.length;
-  const count = (status: string): number => mine.filter((row) => row.status === status).length;
-  const rejected = count('REJECTED');
-  const pending = count('PENDING');
-  const approved = count('APPROVED');
+  const { pending, approved, rejected } = counts;
+  const total = pending + approved + rejected;
 
   if (total === 0) {
     return (
@@ -247,16 +260,14 @@ export default function MyAccessRequestsPage(): ReactElement {
     return () => clearTimeout(timer);
   }, [query]);
 
+  // 서버가 나눠 준 장을 그대로 그린다. 거르기는 그 장 안에서만 한다(위 REQUESTABLE 주석).
   const fetchRequestable = useCallback(
     async (page: number, opts: { signal: AbortSignal }): Promise<AccessPage<ServiceRow>> => {
-      const all = await fetchEveryPage((n) =>
-        getServicesPage(debounced || undefined, n, { ...opts, size: PAGE_CHUNK }),
-      );
-      return sliceToPage(
-        all.filter((row) => REQUESTABLE.has(row.accessStatus)),
-        page,
-        ACCESS_PAGE_SIZE,
-      );
+      const result = await getServicesPage(debounced || undefined, page, opts);
+      return {
+        ...result,
+        content: result.content.filter((row) => REQUESTABLE.has(row.accessStatus)),
+      };
     },
     [debounced],
   );
@@ -265,32 +276,15 @@ export default function MyAccessRequestsPage(): ReactElement {
   // 전체가 오므로(role 로 통과할 뿐 담당자는 아니다) 여기서 한 번 더 거른다.
   const fetchOwned = useCallback(
     async (page: number, opts: { signal: AbortSignal }): Promise<AccessPage<UserServiceRow>> => {
-      const all = await fetchEveryPage((n) =>
-        getUserServices(debounced || undefined, n, { ...opts, size: PAGE_CHUNK }),
-      );
-      return sliceToPage(
-        all.filter((row) => row.accessStatus === 'OWNED'),
-        page,
-        ACCESS_PAGE_SIZE,
-      );
+      const result = await getUserServices(debounced || undefined, page, opts);
+      return { ...result, content: result.content.filter((row) => row.accessStatus === 'OWNED') };
     },
     [debounced],
   );
 
-  // 헤더 판정은 상태별 합이라 한 페이지로는 셀 수 없다(계약에 상태 필터가 없다).
-  // 전체를 한 번 받아 화면이 세고, 표는 그 결과를 나눠 그린다 — 호출은 그대로 하나다.
-  const [mineAll, setMineAll] = useState<PermissionRequestDetail[] | null>(null);
   const fetchMine = useCallback(
-    async (
-      page: number,
-      opts: { signal: AbortSignal },
-    ): Promise<AccessPage<PermissionRequestDetail>> => {
-      const all = await fetchEveryPage((n) =>
-        getMyAccessRequests(n, { ...opts, size: PAGE_CHUNK }),
-      );
-      if (!opts.signal.aborted) setMineAll(all);
-      return sliceToPage(all, page, ACCESS_PAGE_SIZE);
-    },
+    (page: number, opts: { signal: AbortSignal }): Promise<AccessPage<MyAccessRequest>> =>
+      getMyAccessRequests(undefined, page, opts),
     [],
   );
 
@@ -298,6 +292,26 @@ export default function MyAccessRequestsPage(): ReactElement {
   const owned = usePagedSection(fetchOwned);
   const mine = usePagedSection(fetchMine);
   const toast = usePlToast();
+
+  // 헤더 판정용 건수 — 상태마다 한 줄씩(`size=1`), 세 번. 요청을 넣으면 다시 센다.
+  const [counted, setCounted] = useState(0);
+  const [verdict, setVerdict] = useState<VerdictCounts | 'error' | null>(null);
+  useAbortableEffect(
+    (signal) =>
+      Promise.all(
+        VERDICT_STATUSES.map((status) =>
+          getMyAccessRequests(status, 0, { signal, size: 1 }).then((p) => p.totalElements),
+        ),
+      )
+        .then(([pending, approved, rejected]) => {
+          if (signal.aborted) return;
+          setVerdict({ pending, approved, rejected });
+        })
+        .catch(() => {
+          if (!signal.aborted) setVerdict('error');
+        }),
+    [counted],
+  );
   /** 요청 모달을 연 서비스 — null 이면 닫혀 있다. */
   const [target, setTarget] = useState<UserServiceRow | null>(null);
 
@@ -311,6 +325,7 @@ export default function MyAccessRequestsPage(): ReactElement {
       // 접근 가능 목록은 승인이 나야 바뀌므로 여기서는 건드리지 않는다.
       requestable.reload();
       mine.reload();
+      setCounted((n) => n + 1);
     } catch (err) {
       toast.show(errorMessage(err));
     }
@@ -355,7 +370,7 @@ export default function MyAccessRequestsPage(): ReactElement {
   return (
     <div>
       <h1 className={a.pageTitle}>내 권한 요청</h1>
-      <HeaderVerdict mine={mineAll} />
+      <HeaderVerdict counts={verdict} />
 
       {tab !== 'mine' ? (
         // 서비스 탭 둘은 같은 목록을 다른 축으로 자른 것이라 카드도 하나로 그린다 —
@@ -459,10 +474,6 @@ export default function MyAccessRequestsPage(): ReactElement {
                 </span>
                 <span role="cell" className={a.reason}>
                   {row.reason}
-                </span>
-                <span role="cell" className={a.reason}>
-                  {/* 아직 처리 전이면 관리자가 쓴 것이 없다 — 비어 있는 게 사실이다. */}
-                  {row.processedNote ?? '—'}
                 </span>
                 <span role="cell" className={a.when}>
                   {fmtDateTime(row.requestedAt)}

@@ -73,13 +73,13 @@ export function RequestStatusPill({
 /**
  * 부여 경로 배지는 없다. 담당자 목록이 `granted_at`/`granted_by`/부여 경로를 싣지 않기로
  * 정해져서(owner decision 2026-08-13), "요청 승인이었나 직접 부여였나"는 목록의 열이
- * 아니라 아래 이력의 이벤트(`GRANTED` vs `APPROVED`)로만 답한다.
+ * 아니라 아래 이력의 이벤트(`OWNER_GRANTED` vs `REQUEST_APPROVED`)로만 답한다.
  */
 const HISTORY_TONE: Record<AccessHistoryType, { label: string; tone: Tone }> = {
-  APPROVED: { label: '요청 승인', tone: 'ok' },
-  REJECTED: { label: '요청 반려', tone: 'err' },
-  GRANTED: { label: '직접 부여', tone: 'info' },
-  REVOKED: { label: '권한 해제', tone: 'off' },
+  REQUEST_APPROVED: { label: '요청 승인', tone: 'ok' },
+  REQUEST_REJECTED: { label: '요청 반려', tone: 'err' },
+  OWNER_GRANTED: { label: '직접 부여', tone: 'info' },
+  OWNER_REVOKED: { label: '권한 해제', tone: 'off' },
   ADMIN_GRANTED: { label: '관리자 부여', tone: 'info' },
   ADMIN_REVOKED: { label: '관리자 회수', tone: 'off' },
 };

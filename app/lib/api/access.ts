@@ -22,7 +22,8 @@ import type {
   AdminListWire,
   AdminServicePageWire,
   AdminServiceRowWire,
-  PermissionRequestDetailPageWire,
+  MyAccessRequestPageWire,
+  MyAccessRequestWire,
   PermissionRequestDetailWire,
   PermissionRequestPageWire,
   PermissionRequestRowWire,
@@ -102,6 +103,23 @@ export interface PermissionRequestDetail {
   processedNote: string | null;
 }
 
+/**
+ * 내 요청 한 줄 — `GET /user/permission-access` 가 싣는 것이 전부다.
+ *
+ * 관리자 상세(`PermissionRequestDetail`)와 이름이 겹치지만 **다른 것이다.** 처리 결과
+ * 셋도 요청자도 오지 않는다. 없는 것을 타입에 적어 두면 화면이 언제나 비어 있는 열을
+ * 그리고, 코드는 오지 않는 필드를 읽는다 — `requester.knox_id` 에서 실제로 터졌다.
+ * 반려 사유가 요청자에게 닿지 않는 건 갭이다(B5).
+ */
+export interface MyAccessRequest {
+  requestId: number;
+  serviceCode: string;
+  serviceName: string;
+  status: AccessRequestStatus;
+  reason: string;
+  requestedAt: string;
+}
+
 export interface AccessHistoryEntry {
   historyId: number;
   type: AccessHistoryType;
@@ -154,25 +172,6 @@ export function sliceToPage<T>(items: T[], page: number, size: number): AccessPa
   };
 }
 
-/**
- * 페이지를 끝까지 읽어 하나로 합친다.
- *
- * 걸러 내고 세는 축(권한 상태)이 계약에 필터로 없어서 화면이 전체를 들고 있어야 한다.
- * 첫 장만 받아 놓고 전체인 척하면 그 뒤 항목들은 존재하지 않는 것이 되고 — 신청할 수도,
- * 검색으로 찾을 수도 없다 — 헤더가 말하는 건수까지 틀린다. 장수는 서버가 말한
- * `totalPages` 만 따른다.
- */
-export async function fetchEveryPage<T>(
-  fetchPage: (page: number) => Promise<AccessPage<T>>,
-): Promise<T[]> {
-  const first = await fetchPage(0);
-  const all = [...first.content];
-  for (let page = 1; page < first.totalPages; page += 1) {
-    all.push(...(await fetchPage(page)).content);
-  }
-  return all;
-}
-
 const toPage = <W, T>(wire: AccessPageWire<W>, map: (item: W) => T): AccessPage<T> => ({
   content: (wire.content ?? []).map(map),
   totalElements: wire.totalElements ?? 0,
@@ -217,6 +216,15 @@ const toRequestDetail = (wire: PermissionRequestDetailWire): PermissionRequestDe
   processedAt: wire.processed_at,
   processedBy: wire.processed_by ? toUser(wire.processed_by) : null,
   processedNote: wire.processed_note,
+});
+
+const toMyRequest = (wire: MyAccessRequestWire): MyAccessRequest => ({
+  requestId: wire.request_id,
+  serviceCode: wire.service_code,
+  serviceName: wire.service_name,
+  status: wire.status,
+  reason: wire.reason,
+  requestedAt: wire.requested_at,
 });
 
 const toHistoryEntry = (wire: AccessHistoryRowWire): AccessHistoryEntry => ({
@@ -480,14 +488,26 @@ export function createAccessRequest(serviceCode: string, reason: string): Promis
   );
 }
 
-/** 내 요청 내역 (승인·반려 결과 포함) — `GET /user/permission-access` (2026-08-14 확정). */
+/**
+ * 내 요청 내역 — `GET /user/permission-access`.
+ *
+ * `status` 를 주면 그 상태만 온다. 헤더 판정이 상태별 건수를 말해야 하는데 세는 데
+ * 필요한 건 `totalElements` 뿐이라, 목록을 통째로 받아 화면에서 세는 대신 `size=1` 로
+ * 상태마다 한 줄씩 받아 수만 읽는다. 서비스가 2,000 개인 계정에서 전체를 훑으면
+ * 화면 하나가 열 몇 번의 왕복이 된다.
+ */
 export async function getMyAccessRequests(
+  status: AccessRequestStatus | undefined,
   page: number,
   opts?: Opts,
-): Promise<AccessPage<PermissionRequestDetail>> {
-  const wire = await fetchInfraJson<PermissionRequestDetailPageWire>(
-    `/access/permission-access/mine?${query({ page, size: opts?.size ?? ACCESS_PAGE_SIZE })}`,
+): Promise<AccessPage<MyAccessRequest>> {
+  const wire = await fetchInfraJson<MyAccessRequestPageWire>(
+    `/access/permission-access/mine?${query({
+      status,
+      page,
+      size: opts?.size ?? ACCESS_PAGE_SIZE,
+    })}`,
     { signal: opts?.signal },
   );
-  return toPage(wire, toRequestDetail);
+  return toPage(wire, toMyRequest);
 }
