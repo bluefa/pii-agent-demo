@@ -57,6 +57,38 @@ describe('IdcConnStatusCell — credential-aware status', () => {
 });
 
 /**
+ * 구분은 제 열이 아니라 접속 주소 위의 배지다 (EC2·RDS Cluster 태그와 같은 2줄 정체성).
+ * 리프트는 한 줄짜리 끝점에만 걸린다 — MULTIPLE_IP 은 더보기로 아래로 자라 맞출 선이 없다.
+ */
+describe('IdcResourceTable — 접속 주소에 얹힌 구분', () => {
+  const firstCell = (r: Partial<IdcResourceView>) => {
+    const { container } = render(<IdcResourceTable resources={[view(r)]} cols={['logicalro']} />);
+    return container.querySelector('tbody td') as HTMLElement;
+  };
+
+  it('구분 열 없이 배지를 주소와 한 칸에 넣는다', () => {
+    render(<IdcResourceTable resources={[view({ kind: 'DOMAIN', hosts: ['db.a.internal'] })]} cols={['logicalro']} />);
+    const headers = screen.getAllByRole('columnheader').map((th) => th.textContent?.trim());
+    expect(headers).not.toContain('구분');
+    expect(headers[0]).toBe('접속 주소');
+
+    const cell = screen.getByText('db.a.internal').closest('td');
+    // 배지가 남의 칸에 있으면 이 표는 열을 하나 지운 게 아니라 옮긴 것이다.
+    expect(cell?.textContent).toContain('Domain');
+  });
+
+  it('한 줄 끝점만 리프트를 받는다', () => {
+    expect(firstCell({ kind: 'SINGLE' }).innerHTML).toContain('-top-[12px]');
+    // 더보기로 자라는 행은 정렬선이 없다 — 올리면 주소가 이웃 칸 위로 뜬다.
+    expect(firstCell({ kind: 'MULTIPLE_IP', hosts: ['10.0.0.1', '10.0.0.2'] }).innerHTML).not.toContain(
+      '-top-[12px]',
+    );
+    // 끝점이 없는 행은 배지도 없다: 어댑터 기본값 'SINGLE' 을 모양으로 단언하지 않는다.
+    expect(firstCell({ hosts: [] }).textContent).toBe('—');
+  });
+});
+
+/**
  * Steps 5·6·7 column set (`src`, `logicalro`) — the Step 5 logical-DB result. A non-zero count
  * opens the read-only list; 0 has nothing to open; a resource with no summary row renders
  * "—" rather than a fabricated 0.
@@ -89,9 +121,9 @@ describe('IdcResourceTable — step-6 logicalro', () => {
       />,
     );
     const cells = Array.from(container.querySelectorAll('tbody td')).map((td) => td.textContent);
-    // 구분 / 접속 주소 / Port / Database Type / BDC측 출발지 / 연동 논리 DB / 연동 제외
+    // 접속 주소(구분 배지 포함) / Port / Database Type / BDC측 출발지 / 연동 논리 DB / 연동 제외
+    expect(cells[4]).toBe('—');
     expect(cells[5]).toBe('—');
-    expect(cells[6]).toBe('—');
   });
 
   it('drops the Credential and Connection Status columns without the `cred` col (steps 6·7)', () => {

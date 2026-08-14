@@ -104,6 +104,33 @@ export const IdcEndpointCell = ({ resource }: { resource: IdcResourceView }) => 
   );
 };
 
+/**
+ * 접속 주소 + 구분 — 종류는 제 열을 갖지 않고 주소 위에 얹힌다. Single/Multi/Domain 은
+ * 주소가 몇 개인지를 말하는 값이라 주소를 **소개하는 줄**이지 그 옆에 설 동렬이 아니다:
+ * EC2·RDS Cluster 태그가 Resource Name 위에 서는 그 2줄 정체성과 같은 형태다.
+ *
+ * 리프트는 한 줄짜리 끝점에만 건다. 행의 정렬선은 태그가 아니라 주소이므로 스택을 반 줄
+ * 올려야 Port·Database Type 이 앉은 선에 주소가 맞는다(`stackedIdentityLift` 주석).
+ * MULTIPLE_IP 은 더보기로 아래로 자라 그 선이 없어져, 인스턴스를 펼친 행에서 리프트를
+ * 빼는 CloudResourceTable 과 같은 규칙으로 끈다.
+ */
+export const IdcEndpointWithKindCell = ({ resource }: { resource: IdcResourceView }) => {
+  // 끝점이 없는 행은 종류도 없다 — 어댑터의 기본값 'SINGLE' 은 아무도 보고하지 않은
+  // 모양을 단언한다. IdcEndpointCell 이 그리는 em-dash 하나로 끝낸다.
+  if (resource.hosts.length === 0) return <IdcEndpointCell resource={resource} />;
+  return (
+    <span
+      className={cn(
+        'flex min-w-0 flex-col items-start gap-1',
+        resource.kind !== 'MULTIPLE_IP' && idcStyles.table.stackedIdentityLift,
+      )}
+    >
+      <IdcKindBadge kind={resource.kind} />
+      <IdcEndpointCell resource={resource} />
+    </span>
+  );
+};
+
 export const IdcDbTypeCell = ({ resource }: { resource: IdcResourceView }) => (
   <div className="flex flex-col items-start gap-1">
     {/* Plain text, matching the CSP approval table: the engine name is an attribute,

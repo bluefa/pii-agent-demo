@@ -24,8 +24,7 @@ import {
 } from '@/app/target-sources/[targetSourceId]/_components/common';
 import {
   IdcDbTypeCell,
-  IdcEndpointCell,
-  IdcKindBadge,
+  IdcEndpointWithKindCell,
   IdcSourceIpCell,
 } from '@/app/target-sources/[targetSourceId]/_components/idc/cells';
 import { SourceIpHeader } from '@/app/target-sources/[targetSourceId]/_components/idc/IdcResourceTable';
@@ -183,18 +182,10 @@ export const IdcStep4Installing = ({
         },
         {
           label: '접속 주소',
-          widthClass: 'w-[168px]',
-          // 구분(Single/Multi/Domain)은 제 열을 갖지 않는다 — 주소가 몇 개인지를 말하는
-          // 값이라 주소 위에 붙어야 읽힌다. 클러스터 태그가 이름 위에 서는 그 스택이다.
-          // 끝점이 없는 행은 종류도 없다: 어댑터의 기본값 'SINGLE' 은 아무도 보고하지
-          // 않은 모양을 단언한다 (IdcResourceTable 과 같은 가드).
+          // 폭도 셀도 steps 2·3·5·6·7 의 그 열 그대로 — 단계끼리 어긋나지 않게.
+          widthClass: 'w-[200px]',
           render: (row: { resourceId: string }) =>
-            cell(row, (r) => (
-              <span className="flex min-w-0 flex-col items-start gap-1">
-                {r.hosts.length > 0 && <IdcKindBadge kind={r.kind} />}
-                <IdcEndpointCell resource={r} />
-              </span>
-            )),
+            cell(row, (r) => <IdcEndpointWithKindCell resource={r} />),
         },
         {
           label: 'Port',

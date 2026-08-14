@@ -9,10 +9,9 @@ import { IDC_SOURCE_IP_TOOLTIP, IDC_SOURCE_LABEL } from '@/lib/constants/idc';
 import type { IdcInstallStatus, IdcResourceView } from '@/app/lib/api/idc';
 import {
   IdcDbTypeCell,
-  IdcEndpointCell,
+  IdcEndpointWithKindCell,
   IdcFirewallBadge,
   IdcHealthBadge,
-  IdcKindBadge,
   IdcSourceIpCell,
 } from '@/app/target-sources/[targetSourceId]/_components/idc/cells';
 import { LogicalDbCountCell } from '@/app/target-sources/[targetSourceId]/_components/logical-db/LogicalDbCountCell';
@@ -145,8 +144,9 @@ export const IdcResourceTable = ({
       <table className="w-full">
         <thead className={skin.header}>
           <tr>
-            <th className={cn(skin.headerCell, 'w-[110px]')}>구분</th>
-            <th className={cn(skin.headerCell, 'w-[168px]')}>접속 주소</th>
+            {/* 구분은 제 열을 갖지 않는다 — 배지가 주소 위에 얹힌다(IdcEndpointWithKindCell).
+                200 은 HostCell 이 이미 쓰던 max-w — 잘림 계약이 그 폭에 맞춰 쓰여 있다. */}
+            <th className={cn(skin.headerCell, 'w-[200px]')}>접속 주소</th>
             <th className={cn(skin.headerCell, 'w-[80px]')}>Port</th>
             {/* Declared, not auto. As the only un-widthed column it was the slack sink: with the
                 six columns of steps 2·3 it rendered 306px against the 172px it takes on step 6,
@@ -192,19 +192,10 @@ export const IdcResourceTable = ({
                     : cn(idcStyles.table.row, r.excluded && 'bg-[#F7F8FA]')
                 }
               >
-                {/* Same rule as the host and port cells: rows from ExcludedResourceInfoDto carry
-                    no endpoint at all, and the adapter's fallback 'SINGLE' would assert an
-                    endpoint shape nobody reported. */}
-                <td
-                  className={cn(skin.cell, verdictRailClass(r.excluded))}
-                >
-                  {r.hosts.length > 0 ? (
-                    <IdcKindBadge kind={r.kind} />
-                  ) : (
-                    <span className={textColors.tertiary}>—</span>
-                  )}
+                {/* 판정 레일은 첫 칸이 진다 — 구분이 빠지면서 그 자리가 접속 주소로 넘어왔다. */}
+                <td className={cn(skin.cell, verdictRailClass(r.excluded))}>
+                  <IdcEndpointWithKindCell resource={r} />
                 </td>
-                <td className={skin.cell}><IdcEndpointCell resource={r} /></td>
                 {/* 0 is the adapter's "no port in the payload" value, not a port — an em-dash
                     says the field is missing instead of asserting a nonsense one. */}
                 <td className={cn(skin.cell, 'font-mono text-[12px]', textColors.secondary, CELL_LIFT)}>
