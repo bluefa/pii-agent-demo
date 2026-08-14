@@ -8,6 +8,8 @@
  * 레일은 스타일을 새로 만들지 않고 `serviceListStyles` 를 그대로 가져다 쓴다
  * (서비스·대상 검색과 같은 부품). 여기서 다시 선언하면 두 화면이 조용히 갈라진다.
  */
+import { serviceSidebarStyles } from '@/lib/theme';
+
 export const accessStyles = {
   pageTitle: 'text-[24px] font-bold leading-[1.2] tracking-[-0.02em] text-[var(--pl-text-strong)]',
   pageDesc: 'mt-1 text-[14px] leading-[1.4] text-[var(--pl-text-weak)]',
@@ -61,6 +63,10 @@ export const accessStyles = {
     'font-medium text-[var(--pl-text-weak)] border-transparent hover:text-[var(--pl-text-strong)] hover:border-[var(--pl-border-strong)]',
   /** 탭이 세는 수 — 탭이 곧 제목이므로 건수 배지도 여기로 온다(카드 머리엔 없다). */
   tabCount: 'text-[12px] font-semibold tabular-nums',
+  /** 페이지 레벨 탭 레일 — 카드 안이 아니라 화면 자체를 가르는 자리라 음수 마진이 없다. */
+  pageTabStrip: 'mt-5 flex items-center gap-1 border-b border-[var(--pl-border)]',
+  /** 화면을 가르는 탭은 카드 안의 탭보다 한 칸 크다 — 이게 이 화면의 목차다. */
+  tabLg: 'text-[16px]',
 
   headRow: 'mt-3 flex items-center gap-3 py-2 text-[12px] font-medium text-[var(--pl-text-weak)]',
   row: 'group relative flex items-center gap-3 border-t border-[var(--pl-border)] py-2.5 text-[14px] text-[var(--pl-text-medium)] transition-colors',
@@ -145,6 +151,69 @@ export const accessStyles = {
   /** 사유 — 있을 때만 그린다. 없는 값에 '—' 를 찍으면 줄만 늘고 뜻은 안 는다.
    *  그래서 반려처럼 할 말이 있는 행만 세 줄이 되고, 그게 읽을 행을 먼저 보이게 한다. */
   feedNote: 'min-w-0 truncate text-[12px] leading-[1.5] text-[var(--pl-text-weak)]',
+
+  /** 이력 구역이 쓰는 폭 — 전체 폭 탭으로 옮겨 와도 줄은 넓어지지 않는다.
+   *  줄로 읽는 기록에 1376px 을 주면 `svcRow` 가 640 으로 묶은 것과 같은 죽은 폭이
+   *  생긴다(폭이 넓다고 사실이 늘지는 않는다). 사실 일곱이 다시 열로 설 값어치가
+   *  있는지는 별개 결정이라 여기서는 폭만 묶는다. */
+  feedColumn: 'max-w-[880px]',
+
+  /**
+   * 승인 워크벤치 — 왼쪽 대기 목록, 오른쪽 고른 요청 하나.
+   *
+   * 바닥이 `serviceSidebarStyles.canvas`(#F4F4FB)인 것이 이 블록의 전부다. 흰 카드는
+   * 이 제품의 기본 바닥(#F9FAFB) 위에서 ΔE00 1.20 — JND 아래라 테두리 혼자 버티고,
+   * 그게 "흰 바탕에 흰 카드"의 실제 정체다. 같은 흰 면이 캔버스 위에서는 4.12 로
+   * 읽힌다(theme.ts `serviceSidebarStyles.canvas` 주석에 측정값이 있다). 카드를 덜
+   * 희게 만들 수 없으면 바닥을 내린다.
+   */
+  /* 높이는 뷰포트까지 — 워크벤치는 카드가 아니라 이 화면의 작업면이다. 내용 높이에
+   * 맡기면 사유가 짧은 날엔 화면 아래 200px 이 그냥 비고, 그러면 다시 "떠 있는 카드"로
+   * 읽힌다. 282 = 상단 내비 64 + main 상단 여백 24 + 제목·판정 문장·탭 146 + 바닥 48
+   * (서비스별 권한 split 이 같은 방식으로 높이를 잡는다). */
+  bench: `mt-4 grid min-h-[calc(100vh-282px)] grid-cols-[320px_1fr] overflow-hidden rounded-[12px] ${serviceSidebarStyles.canvas}`,
+  /** 목록은 헤어라인이 아니라 간격으로 끊는다 — 그래야 표가 아니라 요청 더미로 읽힌다. */
+  benchList: 'flex flex-col p-2.5',
+  benchRows: 'flex flex-col gap-1.5',
+  benchFooter: 'mt-auto pt-2',
+  /** 시트 머리의 40px 타일. `serviceSidebarStyles.tile` 에 크기를 덧씌우지 않고 따로
+   *  선언한다 — `cn` 은 단순 join 이라 h-7 과 h-10 을 같이 주면 Tailwind 출력 순서가
+   *  이긴다. 색만 `serviceTileClass` 에서 가져온다. */
+  benchTile:
+    'flex h-10 w-10 shrink-0 items-center justify-center rounded-[9px] text-[16px] font-semibold leading-none',
+  /** 목록 자리의 스켈레톤 조각 — `skeletonBar` 는 h-3.5 라 타일 자리에 못 쓴다(같은 이유). */
+  benchSkelTile: 'h-7 w-7 flex-none animate-pulse rounded-[6px] bg-[var(--pl-gray-100)]',
+  benchItem:
+    'flex w-full cursor-pointer items-center gap-2.5 rounded-[9px] border bg-[var(--pl-bg-card)] px-2.5 py-2 text-left transition-colors',
+  benchItemIdle: 'border-[var(--pl-border)] hover:border-[var(--pl-border-strong)]',
+  /** 고른 항목은 테두리와 안쪽 막대 둘 다 — 테두리만으로는 캔버스 위에서 약하다. */
+  benchItemActive:
+    'border-[var(--pl-primary)] shadow-[inset_3px_0_0_var(--pl-primary)] bg-[var(--pl-primary-bg)]',
+  benchItemStack: 'flex min-w-0 flex-1 flex-col',
+  benchItemName: 'truncate text-[14px] font-semibold text-[var(--pl-text-strong)]',
+  benchItemNameActive: 'truncate text-[14px] font-semibold text-[var(--pl-primary)]',
+  benchItemWho: 'truncate text-[12px] text-[var(--pl-text-weak)] [font-family:var(--pl-font-mono)]',
+  /** 대기 경과 — 기록이 못 하는 말이라 큐만 쓴다. 임계를 넘으면 잉크가 바뀐다. */
+  benchWait:
+    'flex-none rounded-full bg-[var(--pl-gray-100)] px-2 py-0.5 text-[12px] font-semibold tabular-nums text-[var(--pl-text-medium)]',
+  benchWaitHot: 'flex-none rounded-full bg-[var(--pl-warn-bg)] px-2 py-0.5 text-[12px] font-semibold tabular-nums text-[var(--pl-warn-text)]',
+  /** 오른쪽 시트 — 왼쪽 여백이 없다. 목록과 시트 사이는 캔버스가 직접 만든다. */
+  benchPane:
+    'm-2.5 ml-0 overflow-y-auto rounded-[9px] border border-[var(--pl-border)] bg-[var(--pl-bg-card)] p-5',
+  benchHead: 'flex items-start gap-3',
+  benchTitle:
+    'mt-0.5 text-[20px] font-bold leading-[1.3] tracking-[-0.02em] text-[var(--pl-text-strong)]',
+  /** 사실은 나열 문장이 아니라 격자로 — 라벨과 값이 같은 x 에 서야 훑힌다. */
+  benchGrid: 'grid grid-cols-2 gap-x-8 gap-y-4',
+  benchKey: 'text-[12px] font-medium text-[var(--pl-text-weak)]',
+  benchVal: 'mt-0.5 text-[14px] font-semibold text-[var(--pl-text-strong)]',
+  benchRule: 'my-4 border-t border-[var(--pl-border)]',
+  benchLabel: 'mb-1.5 text-[12px] font-semibold text-[var(--pl-text-weak)]',
+  /** 결정은 구석의 버튼 두 개가 아니라 자기 자리를 가진 블록이다. */
+  benchDecide: 'rounded-[9px] bg-[var(--pl-gray-50)] p-4',
+  benchDecideTitle: 'text-[14px] font-semibold text-[var(--pl-text-strong)]',
+  benchDecideDesc: 'mt-0.5 text-[12px] text-[var(--pl-text-weak)]',
+  benchDecideActions: 'mt-3 flex gap-2',
 
   skeletonBar: 'h-3.5 animate-pulse rounded-[6px] bg-[var(--pl-gray-100)]',
 
