@@ -115,9 +115,14 @@ export const FLOW_CSS = `
 const DETAIL_CSS = `
 .pl-flow.pl-detail{background-color:var(--pl-flow-canvas)}
 .pl-flow.pl-detail .pl-scroll{padding:36px 28px}
-.pl-flow.pl-detail .pl-tnode{width:288px;padding:24px;border-radius:16px;display:flex;flex-direction:column;gap:16px}
+/* 352px so the widest catalog name ("AWS BDC Service Level 테라폼", 217px at
+   16px/700) fits one line — a wrapped title is what this width answers (owner).
+   The canvas already scrolls horizontally while the drawer is open (992px of
+   viewport against a 1320px track at the old 288px), so the extra width buys a
+   one-line title without introducing a new affordance. */
+.pl-flow.pl-detail .pl-tnode{width:352px;padding:24px;border-radius:16px;display:flex;flex-direction:column;gap:16px}
 /* Identity row (mark + title column); the run block below spans the full card so
-   the timestamps get the whole 240px instead of the 162px left of the logomark. */
+   the timestamps get the whole 304px instead of the 226px left of the logomark. */
 .pl-flow.pl-detail .nd-main{display:flex;align-items:center;gap:20px}
 .pl-flow.pl-detail .nd-icons{margin:0;flex:none}
 .pl-flow.pl-detail .nd-mark,.pl-flow.pl-detail .nd-mark.m-cond{width:56px;height:56px;border:0;border-radius:0;background:transparent}
@@ -133,6 +138,9 @@ const DETAIL_CSS = `
 .pl-flow.pl-detail .nd-run-k{flex:none;color:var(--pl-text-weak)}
 .pl-flow.pl-detail .nd-run-v{color:var(--pl-text-medium)}
 .pl-flow.pl-detail .nd-run-el{margin-left:auto;flex:none;font-weight:600;color:var(--pl-text-medium)}
+/* The duration reads one step louder than the timestamps it sits beside — it is
+   the only derived number on the card, and the two dates are context for it. */
+.pl-flow.pl-detail .nd-run-el-v{font-size:14px;font-weight:700}
 `;
 /* nd-meta at text-weak/14px — faint(#98A2B3) measured 2.6:1 on the white node
  * card; this line is the failure-cause reader (design-guide floor 4.5:1). */
@@ -322,7 +330,11 @@ export function TaskFlow({
                   <div className="nd-run-row">
                     <span className="nd-run-k">완료 시간</span>
                     <span className="nd-run-v">{run.finishedAt}</span>
-                    {run.elapsed && <span className="nd-run-el">소요 {run.elapsed}</span>}
+                    {run.elapsed && (
+                      <span className="nd-run-el">
+                        소요 <span className="nd-run-el-v">{run.elapsed}</span>
+                      </span>
+                    )}
                   </div>
                 </div>
               </div>
