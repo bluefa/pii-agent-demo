@@ -297,7 +297,13 @@ export const accessStyles = {
     'whitespace-pre-wrap rounded-[8px] bg-[var(--pl-gray-50)] px-4 py-3 text-[14px] leading-[1.6] text-[var(--pl-text-medium)]',
   /** 요청자가 한 말 — 파란 면에 담는다(오너 지시 2026-08-14). 회색 `quote` 는 처리
    *  결과처럼 **우리가** 남긴 말의 자리로 남는다: 두 인용이 같은 회색이면 누구 말인지
-   *  면이 구분해 주지 못하고, 승인 화면에서 읽어야 할 쪽은 요청자 쪽이다. */
+   *  면이 구분해 주지 못하고, 승인 화면에서 읽어야 할 쪽은 요청자 쪽이다.
+   *
+   *  높이는 사유 길이와 무관하게 92px 로 고정한다(오너 지시 2026-08-14) — 세 줄
+   *  (14px·leading 1.6 → 22.4 × 3 = 67.2)에 위아래 패딩 24. 사유는 계약에 상한이 없고
+   *  입력만 1000자로 막혀 있어서, 늘어나게 두면 레일에서 요청을 옮길 때마다 아래 승인·
+   *  반려 버튼이 오르내린다 — 누를 자리가 고른 요청에 따라 움직이면 안 된다.
+   *  자르지 않고 넘치면 스크롤한다: 승인 화면에서 사유의 뒷부분을 감추면 안 된다. */
   quoteAsk:
-    'whitespace-pre-wrap rounded-[8px] bg-[var(--pl-primary-bg)] px-4 py-3 text-[14px] leading-[1.6] text-[var(--pl-text-medium)]',
+    'h-[92px] overflow-y-auto whitespace-pre-wrap rounded-[8px] bg-[var(--pl-primary-bg)] px-4 py-3 text-[14px] leading-[1.6] text-[var(--pl-text-medium)]',
 } as const;
