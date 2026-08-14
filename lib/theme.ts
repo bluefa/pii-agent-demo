@@ -2310,9 +2310,11 @@ export const pipelineStyles = {
     /* The caption is the strip's only literal reading ("2단계 진행 중 · 1/4") — the
        segments carry the shape, this carries the numbers — so it answers to AA like
        any other run of text. `--pl-text-faint` measured 2.58:1 on the white row and
-       2.34:1 on the hovered one; `--pl-text-weak` is 4.97:1 and 4.51:1. It matches
-       the tier of the code chip beside it, and stays subordinate to it by size. */
-    stripCaption: 'mt-1 block text-[11px] text-[var(--pl-text-weak)] tabular-nums', // design-exempt: 11px is the pre-existing caption size — this change touches colour only
+       2.34:1 on the hovered one; `--pl-text-weak` is 4.97:1 and 4.51:1.
+       12px, not the 11 it shipped at (오너 2026-08-14): this page now runs on one
+       base size, and a caption one pixel under it was a tier nobody could see.
+       Colour is what holds it down, which is the lever that was doing the work. */
+    stripCaption: 'mt-1 block text-[12px] text-[var(--pl-text-weak)] tabular-nums',
   },
 
   /** KindChip — mono 12/600 h20 pad 0 6, NO base border; cond = dashed gray-300.
@@ -2409,7 +2411,7 @@ export const pipelineStyles = {
      *  16px inset icon, blue focus ring. */
     iconLg: 'absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--pl-text-weak)] pointer-events-none',
     inputLg:
-      'h-9 rounded-lg border border-[var(--pl-border)] text-[14px] bg-[var(--pl-bg-card)] text-[var(--pl-text-strong)] placeholder:text-[var(--pl-text-weak)] focus:outline-none focus:border-[var(--pl-primary)] focus:shadow-[0_0_0_3px_var(--pl-primary-ring)] w-full pr-3 pl-9',
+      'h-9 rounded-lg border border-[var(--pl-border)] text-[12px] bg-[var(--pl-bg-card)] text-[var(--pl-text-strong)] placeholder:text-[var(--pl-text-weak)] focus:outline-none focus:border-[var(--pl-primary)] focus:shadow-[0_0_0_3px_var(--pl-primary-ring)] w-full pr-3 pl-9',
   },
 
   /** Text input / select — h32, border-strong, focus ring. */
@@ -2541,7 +2543,7 @@ export const pipelineStyles = {
     /** 전체 is not a bucket, it is "no filter" — an outline rather than a fill. */
     bucketTileAllIdle:
       'border-dashed border-[var(--pl-gray-300)] bg-transparent hover:bg-[var(--pl-gray-100)]',
-    bucketLabel: 'text-[14px] font-semibold leading-[1.3]',
+    bucketLabel: 'text-[12px] font-semibold leading-[1.3]',
     bucketValue:
       'mt-1 block text-[32px] font-semibold leading-[1.2] tracking-[-0.02em] tabular-nums',
     /** The mark wears no container — 운영 알림 카드 grammar (`AlertStageCard` bare 20px Icon).
@@ -2563,6 +2565,15 @@ export const pipelineStyles = {
     bucketMarkOk: 'text-[var(--pl-text-weak)]',
     /** Page header row (title + period selector). */
     headerRow: 'flex items-center justify-between mb-6',
+    /**
+     * The period toggle at this page's base size (오너 2026-08-14: 기본 12px).
+     * It reaches the buttons as a descendant selector rather than a class handed
+     * to SegControl, for two reasons: `seg.button` already declares its own size
+     * and `cn` is a plain join, so two size classes would let CSS output order
+     * pick the winner; and SegControl is shared with the TC result list, which
+     * keeps its own scale.
+     */
+    periodSeg: '[&_button]:text-[12px]',
 
     /** Filter bar — h9 controls on the page, no plate of its own. The gray-50 fill
      *  it used to wear was 1.05:1 against both the card above it and the rows
@@ -2577,14 +2588,12 @@ export const pipelineStyles = {
     chipsWrap: 'px-5',
 
     /**
-     * Table chrome. The extra -3px is the status rail's own width: `listBlock`
-     * gives back the cells' px-5, but the rail is a column before the first cell,
-     * so without this the row's TEXT lands 3px right of the h1 and the tiles —
-     * an offset small enough to read as a mistake rather than as an indent. Shifted
-     * here rather than by widening `listBlock`, because the filter bar and the pager
-     * have no rail and are already on the grid.
+     * Table chrome. The -3px that used to live here was the status rail's own
+     * width; with the rail gone (오너 2026-08-14) the first cell IS the first
+     * column, and `listBlock` giving back px-5 already lands the row text on the
+     * same grid line as the h1 and the tiles.
      */
-    table: 'w-full -ml-[3px]',
+    table: 'w-full',
     /**
      * Column labels — the section's shared header grammar (`pipelineStyles.table.th`:
      * h34, 12/600 uppercase, tracking .03em, text-weak), with px-5 rather than the
@@ -2599,8 +2608,6 @@ export const pipelineStyles = {
      * the page instead of inside a box.
      */
     th: 'h-[34px] px-5 text-left whitespace-nowrap text-[12px] font-semibold uppercase tracking-[0.03em] text-[var(--pl-text-weak)] border-b-2 border-[var(--pl-text-strong)]',
-    /** The head rule alone, for a column that carries no label (the rail). */
-    thBand: 'border-b-2 border-[var(--pl-text-strong)]',
     body: 'divide-y divide-[var(--pl-gray-100)]',
     /**
      * Hover는 서비스 목록 행이 쓰는 보라 그대로 (오너 2026-08-14) — `--pl-row-hover`.
@@ -2694,9 +2701,10 @@ export const pipelineStyles = {
      * 한글 라벨은 공용 `statusKo` 한 벌을 쓴다 — enum 원문은 데이터 표기(정의·계약 탭,
      * 오류 코드)에만 남긴다.
      *
-     * 색은 **끝난 두 상태에만** — 실패는 빨강, 완료는 초록 (오너 2026-08-14,
-     * "색상이 강하지 않게" 다음에 "완료는 초록색으로 표현해"). 살아 있는 상태들은
-     * 명도로 갈린다: 실행 중은 medium, 대기는 weak.
+     * 색을 받는 상태는 셋이다 — 실패 빨강, 완료 초록, **실행 중 파랑**
+     * (오너 2026-08-14, "실행중 -> 파란색으로"). 파랑은 스트립의 진행 칸과 같은
+     * `--pl-info-text` 다: 한 행에서 "지금 여기"를 말하는 두 자리가 같은 색을 쓴다.
+     * 색이 없는 것은 **아직/이제 아무 일도 일어나지 않는** 상태뿐이다 — 대기와 중단.
      *
      * 여기의 초록은 세그먼트에서 뺀 초록과 다른 자리다. 세그먼트의 초록은 한 행에
      * 여러 칸을 칠해 표 면적의 62%를 먹었지만, 이 초록은 **행당 낱말 하나**다 —
@@ -2707,29 +2715,20 @@ export const pipelineStyles = {
      * 성공했다고 말하게 되고, 회색만 주면 대기와 구별되지 않는다 — 낱말 하나에
      * 색을 더 쓰지 않고 채널을 하나 더 여는 쪽을 택했다.
      */
-    statusText: 'text-[13px] font-semibold tracking-[0.02em]',
+    statusText: 'text-[12px] font-semibold tracking-[0.02em]',
     /** 마크를 다는 상태를 위한 줄 — `statusText` 에 display 를 얹지 않으려고 분리했다
      *  (`cn` 은 단순 join 이라 같은 속성이 두 번 실리면 출력 순서가 승자를 정한다). */
     statusWrap: 'inline-flex items-center gap-1',
     statusTextTone: {
       PENDING: 'text-[var(--pl-text-weak)]',
-      RUNNING: 'text-[var(--pl-text-medium)]',
-      IN_PROGRESS: 'text-[var(--pl-text-medium)]',
+      RUNNING: 'text-[var(--pl-info-text)]',
+      IN_PROGRESS: 'text-[var(--pl-info-text)]',
       READY: 'text-[var(--pl-text-weak)]',
       DONE: 'text-[var(--pl-ok-text)]',
       FAILED: 'text-[var(--pl-err-text)]',
       CANCELLED: 'text-[var(--pl-text-weak)]',
       BLOCKED: 'text-[var(--pl-text-weak)]',
     } as Record<PipelineStatusToneKey, string>,
-
-    /**
-     * Status rail — 3px at the row's leading edge. ONLY FAILED paints it. Failure
-     * is the one state worth finding without reading, and the row's own edge is
-     * where a scan hits first — its red used to be one 68px pill stranded in the
-     * middle of a 1400px row.
-     */
-    railCell: 'w-[3px] p-0',
-    railErr: 'bg-[var(--pl-err)]',
 
     /** Relative-time cell + hover tooltip (named group so only the cell triggers it). */
     timeWrap: 'group/time relative inline-block',
@@ -2757,17 +2756,17 @@ export const pipelineStyles = {
     pager: 'relative flex items-center justify-center gap-2 px-5 py-3.5',
     /** Fetch-window notice — only rendered when rows were actually left behind. */
     pagerTruncated:
-      'absolute left-5 top-1/2 -translate-y-1/2 text-[14px] text-[var(--pl-text-faint)]',
+      'absolute left-5 top-1/2 -translate-y-1/2 text-[12px] text-[var(--pl-text-weak)]',
     pagerBtn:
       'inline-flex items-center justify-center w-8 h-8 rounded-lg text-[var(--pl-text-faint)] transition-colors hover:text-[var(--pl-text-medium)] hover:bg-[var(--pl-gray-100)] disabled:opacity-40 disabled:pointer-events-none',
-    pagerCount: 'text-[14px] text-[var(--pl-text-weak)] tabular-nums',
+    pagerCount: 'text-[12px] text-[var(--pl-text-weak)] tabular-nums',
     /** The page you are on, in brand — the only moving number in the row. */
     pagerCurrent: 'font-semibold text-[var(--pl-primary)]',
 
     /** No-results empty state inside the card. */
-    empty: 'px-5 py-12 text-center text-[14px] text-[var(--pl-text-faint)]',
+    empty: 'px-5 py-12 text-center text-[12px] text-[var(--pl-text-weak)]',
     /** Loading / error min-height so the card doesn't collapse. */
-    stateBox: 'min-h-[240px] flex flex-col items-center justify-center gap-3 text-[14px] text-[var(--pl-text-faint)]',
+    stateBox: 'min-h-[240px] flex flex-col items-center justify-center gap-3 text-[12px] text-[var(--pl-text-weak)]',
   },
 } as const;
 

@@ -37,11 +37,11 @@ const { dashboard: d } = pipelineStyles;
  * The glyph carries an accessible name of its own: alone it is only a shape, and
  * the provider label that used to sit beside it is no longer in the row.
  *
- * It is the one branded thing here (오너 2026-08-14). This list dropped status colour
- * down to two words per page, which left room for the marks to carry their vendors'
- * own colours — the fastest way to read "which cloud" without a label, and no cost to
- * the status channel because a logo says nothing about how the run is going. IDC and
- * SDU are ours and have no brand, so they stay on the column's grey.
+ * It is the one branded thing here (오너 2026-08-14). Status colour is spent on one
+ * word per row, which left room for the marks to carry their vendors' own colours —
+ * the fastest way to read "which cloud" without a label, and no cost to the status
+ * channel because a logo says nothing about how the run is going. IDC and SDU are
+ * ours and have no brand, so they stay on the column's grey.
  */
 export function TargetCell({
   name,
@@ -75,11 +75,6 @@ export function TargetCell({
       </span>
     </span>
   );
-}
-
-/** The row's leading 3px. Painted for FAILED only — see the token comment. */
-export function StatusRail({ status }: { status: PipelineStatus }): ReactElement {
-  return <td className={cn(d.railCell, status === 'FAILED' && d.railErr)} />;
 }
 
 /**

@@ -49,7 +49,6 @@ import {
   DashRow,
   RelativeTime,
   RowAction,
-  StatusRail,
   StatusText,
   TargetCell,
 } from '@/app/admin/pipelines/_dashboard/cells';
@@ -329,6 +328,7 @@ export default function DashboardPage(): ReactElement {
       <div className={d.headerRow}>
         <h1 className={pipelineStyles.text.dashboardPageTitle}>인프라 작업 대시보드</h1>
         <SegControl
+          className={d.periodSeg}
           options={PERIOD_OPTIONS}
           value={period}
           onChange={(value) => {
@@ -408,11 +408,6 @@ export default function DashboardPage(): ReactElement {
             <table className={d.table}>
               <thead>
                 <tr>
-                  {/* The rail column has no label — it is the row's own edge, so it
-                      takes railCell ALONE. Merging d.th in would hand the column
-                      that token's px-5 (cn is a plain join; Tailwind's output order
-                      picks the winner, and padding beat p-0 at 40px wide). */}
-                  <th className={cn(d.railCell, d.thBand)} />
                   <th className={cn(d.th, 'w-[38ch]')}>대상</th>
                   <th className={d.th}>작업 유형</th>
                   <th className={d.th}>상태</th>
@@ -427,7 +422,6 @@ export default function DashboardPage(): ReactElement {
                     key={row.pipeline_id}
                     onActivate={() => router.push(passRoutes.pipelines.pipeline(row.pipeline_id))}
                   >
-                    <StatusRail status={row.status} />
                     <td className={d.cell}>
                       <TargetCell
                         name={row.service_name}

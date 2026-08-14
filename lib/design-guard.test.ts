@@ -470,13 +470,24 @@ const TEXT: TextPair[] = [
   { what: 'dashboard service code value on the row hover tint', fg: textOf(dashIdCodeValue), on: dashRowHover },
   { what: 'dashboard service name on the white row', fg: textOf(dashIdName), on: '#FFFFFF' },
   { what: 'dashboard service name on the row hover tint', fg: textOf(dashIdName), on: dashRowHover },
-  // The status word is the column's only hue, and it is 13px — the size at which the raw
+  // The status word is the column's only hue, and it is 12px — the size at which the raw
   // signal colours drop under AA, which is why these are the `-text` ramp and not `--pl-ok`.
   { what: 'dashboard 완료 green on the white row', fg: dashStatusTone('DONE'), on: '#FFFFFF' },
   { what: 'dashboard 완료 green on the row hover tint', fg: dashStatusTone('DONE'), on: dashRowHover },
   { what: 'dashboard 실패 red on the white row', fg: dashStatusTone('FAILED'), on: '#FFFFFF' },
   { what: 'dashboard 실패 red on the row hover tint', fg: dashStatusTone('FAILED'), on: dashRowHover },
-  { what: 'dashboard 실행 중 on the row hover tint', fg: dashStatusTone('RUNNING'), on: dashRowHover },
+  { what: 'dashboard 실행 중 blue on the white row', fg: dashStatusTone('RUNNING'), on: '#FFFFFF' },
+  { what: 'dashboard 실행 중 blue on the row hover tint', fg: dashStatusTone('RUNNING'), on: dashRowHover },
+  { what: 'dashboard 대기 on the white row', fg: dashStatusTone('PENDING'), on: '#FFFFFF' },
+  { what: 'dashboard 대기 on the row hover tint', fg: dashStatusTone('PENDING'), on: dashRowHover },
+  // 빈 상태·페이저·잘림 안내는 12px 로 내려오면서 `--pl-text-faint`(2.58:1) 를 벗었다.
+  { what: 'dashboard empty state on the white page', fg: textOf(classOf(pipelineBlock, 'empty')), on: '#FFFFFF' },
+  { what: 'dashboard pager count on the white page', fg: textOf(classOf(pipelineBlock, 'pagerCount')), on: '#FFFFFF' },
+  {
+    what: 'dashboard fetch-window notice on the white page',
+    fg: textOf(classOf(pipelineBlock, 'pagerTruncated')),
+    on: '#FFFFFF',
+  },
   {
     what: 'pipelines sidebar caption on the gray-900 sidebar',
     fg: textOf(classOf(pipelineTextBlock, 'sidebarTitle')),

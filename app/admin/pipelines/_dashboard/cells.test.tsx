@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 
 import { StatusText, TargetCell } from '@/app/admin/pipelines/_dashboard/cells';
+import { pipelineStyles } from '@/lib/theme';
 import type { PipelineStatus } from '@/lib/pipeline/types';
 
 const status = (value: PipelineStatus): string =>
@@ -37,23 +38,28 @@ describe('StatusText', () => {
   });
 
   /**
-   * 오너 2026-08-14: 색은 **끝난 두 상태에만** — 실패 빨강, 완료 초록.
-   * 살아 있는 상태(대기·실행 중)는 명도로만 갈린다. 여기 초록이 도로 들어온 것은
-   * 세그먼트에서 뺀 초록과 다른 자리다 — 이건 행당 낱말 하나고, 그건 행당 여러 칸이었다.
+   * 오너 2026-08-14: 색을 받는 상태는 셋 — 실패 빨강, 완료 초록, 실행 중 파랑.
+   * 색이 없는 것은 아직/이제 아무 일도 일어나지 않는 상태뿐이다(대기·중단).
+   * 실행 중의 파랑은 스트립의 진행 칸과 **같은 토큰**이다 — 한 행에서 "지금 여기"를
+   * 말하는 두 자리가 서로 다른 파랑을 쓰면 같은 뜻으로 읽히지 않는다.
    */
-  it('colours the two settled outcomes and nothing else', () => {
+  it('colours the three states something is or was happening in', () => {
     expect(status('FAILED')).toContain('--pl-err-text');
     expect(status('DONE')).toContain('--pl-ok-text');
-    for (const live of ['PENDING', 'RUNNING'] as const) {
-      expect(status(live)).not.toContain('--pl-err');
-      expect(status(live)).not.toContain('--pl-ok');
-      expect(status(live)).not.toContain('--pl-info');
-    }
+    expect(status('RUNNING')).toContain('--pl-info-text');
+    // IN_PROGRESS 는 톤 맵에만 있는 키(`PipelineStatus` 밖)라 렌더로 닿지 않는다.
+    // 같은 뜻인 두 키가 갈라지는 것이 정확히 이 자리의 버그다.
+    const tone = pipelineStyles.dashboard.statusTextTone;
+    expect(tone.IN_PROGRESS).toBe(tone.RUNNING);
   });
 
-  it('separates 실행 중 from 대기 by weight', () => {
-    expect(status('RUNNING')).toContain('--pl-text-medium');
-    expect(status('PENDING')).toContain('--pl-text-weak');
+  it('leaves the two idle states uncoloured', () => {
+    for (const idle of ['PENDING', 'CANCELLED'] as const) {
+      expect(status(idle)).toContain('--pl-text-weak');
+      expect(status(idle)).not.toContain('--pl-err');
+      expect(status(idle)).not.toContain('--pl-ok');
+      expect(status(idle)).not.toContain('--pl-info');
+    }
   });
 
   /**
