@@ -95,10 +95,10 @@ AIRFLOW__OPENLINEAGE__TRANSPORT='{
   "continue_on_failure": true,
   "transports": {
     "existing":      { ...기존 transport 설정 그대로... },
-    "weekly_status": { "type": "lineage_pubsub.PubSubTransport",
-                       "project": "my-project",
-                       "topic": "lineage-events",
-                       "dag_name_prefix": "pii_" }
+    "dag_monitoring": { "type": "lineage_pubsub.PubSubTransport",
+                        "project": "my-project",
+                        "topic": "lineage-events",
+                        "dag_name_prefix": "pii_" }
   }
 }'
 AIRFLOW__OPENLINEAGE__NAMESPACE='composer-env-a'   # 환경별 유니크

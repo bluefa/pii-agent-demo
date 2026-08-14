@@ -9,10 +9,10 @@ exactly what it receives today:
       "continue_on_failure": true,
       "transports": {
         "existing":      { ...current transport config, unchanged... },
-        "weekly_status": { "type": "lineage_pubsub.PubSubTransport",
-                           "project": "my-project",
-                           "topic": "lineage-events",
-                           "dag_name_prefix": "pii_" }
+        "dag_monitoring": { "type": "lineage_pubsub.PubSubTransport",
+                            "project": "my-project",
+                            "topic": "lineage-events",
+                            "dag_name_prefix": "pii_" }
       }
     }'
     AIRFLOW__OPENLINEAGE__NAMESPACE='composer-env-a'   # unique per environment
