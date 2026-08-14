@@ -126,7 +126,11 @@ export const mockUsers: User[] = [
     name: '관리자',
     email: 'admin@company.com',
     role: 'ADMIN',
-    serviceCodePermissions: [],
+    // ADMIN 은 서비스 검사를 role 로 통과하므로(`role !== 'ADMIN' && !permissions…`)
+    // 이 목록은 다른 화면에 영향이 없다. 접근 권한 화면에서만 읽힌다 — `access_status`
+    // 를 정하는 건 role 이 아니라 이 목록이라서, 승인된 요청(1007·1008)의 서비스가
+    // 여기 없으면 "승인됨"인데 접근 가능 목록엔 없는 상태가 된다.
+    serviceCodePermissions: ['PAY', 'MBR'],
   },
   // 접근 권한 화면들이 쓸 사용자들 — 표와 페이저에 실을 것이 있어야 하고, 권한이
   // 없는 사용자(user-6·user-8)가 있어야 "권한 요청" 흐름을 열어 볼 수 있다.

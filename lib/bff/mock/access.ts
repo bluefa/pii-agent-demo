@@ -131,6 +131,20 @@ function seed(): Store {
     { requestId: 1004, serviceCode: 'idc', userId: 'user-7', reason: 'IDC 방화벽 신청 건 확인용으로 조회 권한이 필요합니다.', requestedAt: T(9, 16), status: 'REJECTED', processedAt: T(9, 18), processedBy: 'admin-1', processedNote: '담당 조직이 달라 반려해요. 인프라운영팀을 통해 다시 요청해 주세요.' },
     { requestId: 1005, serviceCode: 'azure', userId: 'user-9', reason: 'Azure Private Link 점검 지원.', requestedAt: T(8, 13), status: 'REJECTED', processedAt: T(8, 17), processedBy: 'admin-1', processedNote: '점검 기간이 끝나 접근이 더 필요하지 않아요.' },
     { requestId: 1006, serviceCode: 'aws', userId: 'user-3', reason: '스캔 결과 확인 권한이 필요합니다.', requestedAt: T(5, 10), status: 'APPROVED', processedAt: T(5, 15), processedBy: 'admin-1', processedNote: '승인했어요. 대상 등록 전 스캔 결과부터 확인해 주세요.' },
+
+    // 호출자(`admin-1`) 본인의 내역 — `/access-requests` 의 "내 요청 내역" 이 여기서만
+    // 나온다. 세 상태를 모두 담고 5행 페이저를 한 번 넘기도록 7건이다.
+    //
+    // APPROVED 두 건의 서비스는 `mockUsers` 의 `admin-1` 권한 목록에도 들어 있다.
+    // 승인은 났는데 접근 가능 목록에는 없는 상태가 되면 같은 화면의 두 탭이 서로 다른
+    // 말을 한다(seed 는 승인 이력만 남기고 grant 를 따로 만들지 않는다).
+    { requestId: 1007, serviceCode: 'PAY', userId: 'admin-1', reason: '결제 승인 로그의 PII 태깅 현황을 직접 확인해야 합니다.', requestedAt: T(3, 10), status: 'APPROVED', processedAt: T(3, 14), processedBy: 'admin-1', processedNote: '승인했어요.' },
+    { requestId: 1008, serviceCode: 'MBR', userId: 'admin-1', reason: '회원 통합 인증 대상 등록 지원 건입니다.', requestedAt: T(4, 11), status: 'APPROVED', processedAt: T(4, 16), processedBy: 'admin-1', processedNote: '승인했어요. 대상 등록까지 함께 봐 주세요.' },
+    { requestId: 1009, serviceCode: 'ORD', userId: 'admin-1', reason: '주문 취소·반품 경로의 개인정보 흐름을 점검하려 합니다.', requestedAt: T(6, 9), status: 'REJECTED', processedAt: T(6, 13), processedBy: 'admin-1', processedNote: '점검 범위가 확정되면 다시 요청해 주세요. 지금은 대상 목록이 비어 있어요.' },
+    { requestId: 1010, serviceCode: 'ADS', userId: 'admin-1', reason: '광고 리포팅 적재 경로 확인.', requestedAt: T(7, 15), status: 'REJECTED', processedAt: T(7, 17), processedBy: 'admin-1', processedNote: '광고 도메인은 담당 조직에서 직접 관리해요.' },
+    { requestId: 1011, serviceCode: 'CSC', userId: 'admin-1', reason: '고객센터 상담 이력은 EOS 예정 서비스라 종료 전 스캔 결과를 남겨 두려 합니다.', requestedAt: T(11, 9), status: 'PENDING', processedAt: null, processedBy: null, processedNote: null },
+    { requestId: 1012, serviceCode: 'SEL', userId: 'admin-1', reason: '셀러 정산 대상 등록 문의 대응.', requestedAt: T(12, 10), status: 'PENDING', processedAt: null, processedBy: null, processedNote: null },
+    { requestId: 1013, serviceCode: 'LOG', userId: 'admin-1', reason: '통합 로그 수집 파이프라인 점검.', requestedAt: T(12, 16), status: 'PENDING', processedAt: null, processedBy: null, processedNote: null },
   ];
 
   for (const request of requests) {
@@ -153,7 +167,7 @@ function seed(): Store {
     history,
     admins: users.filter((user) => user.role === 'ADMIN').map((user) => user.id),
     serviceTouchedAt,
-    requestSeq: 1007,
+    requestSeq: 1014,
     historySeq,
   };
 }
