@@ -423,13 +423,11 @@ export default function AccessRequestsPage(): ReactElement {
                     {detail.serviceName.charAt(0).toUpperCase()}
                   </span>
                   <div className="min-w-0 flex-1">
-                    <span className={a.eyebrow}>접근 권한 요청</span>
-                    <h2 className={a.benchTitle}>
-                      {detail.serviceName}
-                      <span className={cn(a.svcCodeChip, 'ml-2 align-middle')}>
-                        {detail.serviceCode}
-                      </span>
-                    </h2>
+                    <h2 className={a.benchTitle}>접근 권한 요청</h2>
+                    <div className={a.benchMeta}>
+                      <span className={a.benchMetaName}>{detail.serviceName}</span>
+                      <span className={cn(a.svcCodeChip, 'flex-none')}>{detail.serviceCode}</span>
+                    </div>
                   </div>
                   {/* 대기 경과는 아직 기다리는 요청만의 사실이다. 처리가 끝난 요청은
                       경과가 아니라 판정을 말해야 한다. */}
@@ -451,17 +449,17 @@ export default function AccessRequestsPage(): ReactElement {
                 <hr className={a.benchRule} />
 
                 <div className={a.benchGrid}>
-                  <div>
+                  {/* 이메일은 같은 사람의 두 번째 표기라 요청자 값 아래에 붙는다 — 칸을
+                      따로 주면 사실 셋이 같은 급으로 평평해지고, 그러면 결정의 대상인
+                      사람이 요청 일시와 같은 무게로 읽힌다. */}
+                  <div className="min-w-0">
                     <div className={a.benchKey}>요청자</div>
-                    <div className={cn(a.benchVal, '[font-family:var(--pl-font-mono)]')}>
+                    <div className={cn(a.benchValLg, '[font-family:var(--pl-font-mono)]')}>
                       {detail.requester.knoxId}
                     </div>
+                    <div className={a.benchSub}>{detail.requester.email}</div>
                   </div>
-                  <div>
-                    <div className={a.benchKey}>이메일</div>
-                    <div className={a.benchVal}>{detail.requester.email}</div>
-                  </div>
-                  <div>
+                  <div className="min-w-0">
                     <div className={a.benchKey}>요청 일시</div>
                     <div className={cn(a.benchVal, 'tabular-nums')}>
                       {fmtDateTime(detail.requestedAt)}
@@ -494,8 +492,10 @@ export default function AccessRequestsPage(): ReactElement {
                 ) : (
                   <>
                     <div className={a.benchLabel}>
-                      처리 결과 — {detail.processedBy?.knoxId ?? '—'} ·{' '}
-                      {fmtDateTime(detail.processedAt)}
+                      처리 결과
+                      <span className={a.benchLabelMeta}>
+                        {detail.processedBy?.knoxId ?? '—'} · {fmtDateTime(detail.processedAt)}
+                      </span>
                     </div>
                     <p className={a.quote}>
                       {detail.processedNote ??
