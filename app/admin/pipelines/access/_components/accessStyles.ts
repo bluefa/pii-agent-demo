@@ -139,6 +139,12 @@ export const accessStyles = {
   code: 'w-[72px] min-w-0 shrink truncate',
   mono: 'text-[12px] text-[var(--pl-text-strong)] [font-family:var(--pl-font-mono)]',
   note: 'min-w-0 flex-1 truncate pointer-events-none',
+  /** 서비스 열 — 이름과 코드가 한 칸 안에서 붙어 선다(`svcIdent` 와 같은 이유: 사이가
+   *  벌어지면 한 서비스의 두 표기가 아니라 두 열로 읽힌다). */
+  svcCol: 'flex min-w-0 flex-[1.4] items-center gap-1.5',
+  /** 사유 열 — 문장이라 한 칸을 더 받는다. `note` 와 달리 포인터를 죽이지 않는다:
+   *  행이 링크가 아니라 가릴 오버레이가 없고, 죽이면 잘린 전문을 줄 title 도 안 뜬다. */
+  noteWide: 'min-w-0 flex-[1.6] truncate',
   /** 사유 열 — 자르지 않고 접는다. 문장이라 잘라 놓으면 있으나 마나이고, 내 요청
    *  내역은 훑는 표가 아니라 읽는 기록이다(행 높이는 행마다 달라도 된다). */
   reason: 'min-w-0 flex-1 whitespace-pre-wrap break-words',
@@ -147,35 +153,6 @@ export const accessStyles = {
   /** 행 끝 액션 셀 — 해제/회수 버튼이 들어간다. */
   tail: 'w-[56px] flex-none text-right',
   chev: 'w-3.5 flex-none text-[var(--pl-text-weak)] group-hover:text-[var(--pl-primary)]',
-
-  /** 이력 피드 — 열이 아니라 줄로 읽는 기록.
-   *
-   *  전체 이력은 사실이 일곱이다(구분·서비스·코드·대상·수행자·사유·일시). 전체 폭에서는
-   *  표가 맞지만 요청 카드와 나란히 서면 고정 폭만 364px 이라 늘어나는 네 열에 38px 씩
-   *  밖에 안 남는다. 열을 지워 사실을 버리는 대신 한 행을 줄로 편다 — 훑는 표가 아니라
-   *  읽는 기록이 되고, 사실은 하나도 안 빠진다. */
-  feedRow: 'flex flex-col gap-1 border-t border-[var(--pl-border)] py-2.5',
-  /** 윗줄 — 무슨 일이(pill) 어느 서비스에(이름·코드), 언제(오른쪽 끝). */
-  feedHead: 'flex items-center gap-2',
-  /** 이름과 코드는 붙는다 — `svcIdent` 와 같은 이유다. 남는 폭은 이 덩어리가 먹고,
-   *  그래야 코드가 일시 옆이 아니라 이름 옆에 선다. */
-  feedIdent: 'flex min-w-0 flex-1 items-center gap-1.5',
-  feedSvc: 'min-w-0 truncate text-[14px] font-medium text-[var(--pl-text-strong)]',
-  feedWhen: 'flex-none text-[12px] tabular-nums text-[var(--pl-text-weak)]',
-  /** 아랫줄 — 누구에게·누가. 라벨을 붙인다: "haneul.kang ← admin.pass" 는 화살표
-   *  방향을 이미 아는 사람만 읽을 수 있다. */
-  feedFacts: 'flex flex-wrap items-center gap-x-5 gap-y-1 text-[14px]',
-  feedLabel: 'mr-1.5 text-[12px] font-medium text-[var(--pl-text-weak)]',
-  feedWho: 'font-medium text-[var(--pl-text-medium)] [font-family:var(--pl-font-mono)]',
-  /** 사유 — 있을 때만 그린다. 없는 값에 '—' 를 찍으면 줄만 늘고 뜻은 안 는다.
-   *  그래서 반려처럼 할 말이 있는 행만 세 줄이 되고, 그게 읽을 행을 먼저 보이게 한다. */
-  feedNote: 'min-w-0 truncate text-[12px] leading-[1.5] text-[var(--pl-text-weak)]',
-
-  /** 이력 구역이 쓰는 폭 — 전체 폭 탭으로 옮겨 와도 줄은 넓어지지 않는다.
-   *  줄로 읽는 기록에 1376px 을 주면 `svcRow` 가 640 으로 묶은 것과 같은 죽은 폭이
-   *  생긴다(폭이 넓다고 사실이 늘지는 않는다). 사실 일곱이 다시 열로 설 값어치가
-   *  있는지는 별개 결정이라 여기서는 폭만 묶는다. */
-  feedColumn: 'max-w-[880px]',
 
   /**
    * 승인 워크벤치 — 왼쪽 대기 목록, 오른쪽 고른 요청 하나.

@@ -30,6 +30,7 @@ import {
   PagedCard,
   errorMessage,
   usePagedSection,
+  type Column,
   type PagedSection,
 } from '@/app/admin/pipelines/access/_components/PagedCard';
 import {
@@ -78,6 +79,25 @@ const fetchHistory = (
   opts: { signal: AbortSignal },
 ): Promise<AccessPage<AccessHistoryEntry>> =>
   getAccessHistory({}, page, { ...opts, size: HISTORY_PAGE_SIZE });
+
+/**
+ * 이력은 열로 읽는다 — 서비스별 권한 시트의 이력 표에 서비스 열 하나만 더한 것이고,
+ * 그래서 같은 기록이 두 화면에서 같은 모양이다.
+ *
+ * 전에는 한 행을 두세 줄로 폈다. 요청 카드와 나란히 서던 때는 그럴 이유가 있었지만
+ * (고정 폭만 364px 이라 늘어나는 열에 38px 씩밖에 안 남았다) 지금은 탭 하나를 통째로
+ * 쓴다. 그 폭에서 줄로 펴면 등급이 어긋난다 — 12px 구분 pill 아래에 14px 대상·수행자가
+ * 오고, 세 줄이 다 같은 x 에서 시작해 pill 자리와 '대상' 라벨 자리가 번갈아 선다.
+ * 사실 여섯이 다 같은 모양이면 그건 계층이 아니라 열이다.
+ */
+const HISTORY_COLUMNS: readonly Column[] = [
+  { label: '구분', className: a.status },
+  { label: '서비스', className: a.svcCol },
+  { label: '대상', className: a.knox },
+  { label: '수행자', className: a.knox },
+  { label: '사유', className: a.noteWide },
+  { label: '일시', className: a.when },
+];
 
 type RequestTab = 'pending' | 'rejected' | 'history';
 
@@ -177,14 +197,15 @@ export default function AccessRequestsPage(): ReactElement {
     { key: 'history', label: '전체 이력', count: history.paged?.totalElements },
   ];
 
-  /** 이력 스켈레톤 — 열이 없어 기본(컬럼 폭 막대)이 실제 행 모양과 어긋난다.
-   *  줄 수는 이 탭의 장 크기를 따른다 — 5줄을 그리고 8줄이 도착하면 목록이 튄다. */
+  /** 기본 스켈레톤과 모양은 같고 줄 수만 다르다 — 기본은 `ACCESS_PAGE_SIZE`(5) 줄이라
+   *  5줄을 그리고 8줄이 도착하면 목록이 튄다. */
   const historySkeleton: ReactNode = (
-    <div role="rowgroup" aria-busy="true" aria-label="이력을 불러오는 중" className="mt-3">
+    <div role="rowgroup" aria-busy="true" aria-label="이력을 불러오는 중">
       {Array.from({ length: HISTORY_PAGE_SIZE }, (_, row) => (
-        <div key={row} className={a.feedRow} role="row" aria-hidden="true">
-          <span className={cn(a.skeletonBar, 'w-1/2')} />
-          <span className={cn(a.skeletonBar, 'w-2/3')} />
+        <div key={row} className={a.row} role="row" aria-hidden="true">
+          {HISTORY_COLUMNS.map((col) => (
+            <span key={col.label} role="cell" className={cn(col.className, a.skeletonBar)} />
+          ))}
         </div>
       ))}
     </div>
@@ -233,59 +254,54 @@ export default function AccessRequestsPage(): ReactElement {
 
       {tab === 'history' ? (
         <PagedCard
-          // 폭을 카드째 묶는다 — 목록만 묶으면 설명·페이저가 목록보다 넓게 서고, 그러면
-          // 셋이 같은 구역으로 안 읽힌다.
-          className={cn('mt-4', a.feedColumn)}
+          className="mt-4"
           bare
-          // 탭이 이미 "전체 이력 41"이라고 말했다. 머리 줄을 그리면 제목도 건수도 두 번이다.
+          // 탭이 이미 "전체 이력 47"이라고 말했다. 머리 줄을 그리면 제목도 건수도 두 번이다.
           head={null}
           title="전체 이력"
           desc="승인·반려는 물론 직접 부여와 해제까지, 권한이 움직인 모든 기록이에요"
           icon="clock"
           tone="muted"
           state={history}
+          columns={HISTORY_COLUMNS}
           skeleton={historySkeleton}
           empty={{
             title: '표시할 이력이 없어요',
             caption: '권한이 부여되거나 해제되면 여기에 쌓여요',
           }}
         >
-          {(entries) => (
-            // 목록을 설명에서 떼어 놓는 자리 — 열이 있는 카드에서는 머리 행(mt-3)이 하던
-            // 일이다. 피드엔 머리 행이 없으니 여기서 같은 간격을 준다.
-            <div role="rowgroup" className="mt-3">
-              {entries.map((row) => (
-                <div key={row.historyId} role="row" className={a.feedRow}>
-                  <span role="cell" className={a.feedHead}>
-                    <HistoryTypePill type={row.type} />
-                    <span className={a.feedIdent}>
-                      <span className={a.feedSvc}>{row.serviceName ?? '—'}</span>
-                      {row.serviceCode != null && (
-                        <span className={cn(a.mono, 'flex-none')}>{row.serviceCode}</span>
-                      )}
-                    </span>
-                    <span className={a.feedWhen}>{fmtDateTime(row.createdAt)}</span>
+          {(entries) =>
+            entries.map((row) => (
+              <div key={row.historyId} role="row" className={a.row}>
+                <span role="cell" className={a.status}>
+                  <HistoryTypePill type={row.type} />
+                </span>
+                <span role="cell" className={a.svcCol}>
+                  {/* `name`(flex-1)이 아니다 — 이름이 열을 다 먹으면 코드가 열 오른쪽
+                      끝으로 밀려 이름과 갈라선다. 줄어들기만 하면 코드가 따라온다. */}
+                  <span className={cn(a.nameStrong, 'min-w-0 truncate')}>
+                    {row.serviceName ?? '—'}
                   </span>
-                  <span role="cell" className={a.feedFacts}>
-                    <span>
-                      <span className={a.feedLabel}>대상</span>
-                      <span className={a.feedWho}>{row.targetUser.knoxId}</span>
-                    </span>
-                    <span>
-                      <span className={a.feedLabel}>수행자</span>
-                      <span className={a.feedWho}>{row.actorUser.knoxId}</span>
-                    </span>
-                  </span>
-                  {/* 사유는 있을 때만 — 없는 값에 '—' 를 찍으면 줄만 늘고 뜻은 안 는다. */}
-                  {row.note != null && (
-                    <span role="cell" className={a.feedNote} title={row.note}>
-                      {row.note}
-                    </span>
+                  {row.serviceCode != null && (
+                    <span className={cn(a.mono, 'flex-none')}>{row.serviceCode}</span>
                   )}
-                </div>
-              ))}
-            </div>
-          )}
+                </span>
+                <span role="cell" className={a.knox}>
+                  {row.targetUser.knoxId}
+                </span>
+                <span role="cell" className={a.knox}>
+                  {row.actorUser.knoxId}
+                </span>
+                {/* 잘린 문장은 title 로 전문을 준다 — 열 폭이 사유를 없애면 안 된다. */}
+                <span role="cell" className={a.noteWide} title={row.note ?? undefined}>
+                  {row.note ?? '—'}
+                </span>
+                <span role="cell" className={a.when}>
+                  {fmtDateTime(row.createdAt)}
+                </span>
+              </div>
+            ))
+          }
         </PagedCard>
       ) : (
         <div className={a.bench}>
