@@ -78,6 +78,21 @@
   --pl-gray-700: #344054;
   --pl-gray-800: #1D2939;
   --pl-gray-900: #101828;
+  /* Clickable-row hover (오너 2026-08-14) — the violet the app's own card rows
+     already hover with (`hoverStyles.card` #F3EEFF), brought into the --pl-*
+     palette so the pipeline section keeps one colour source. A neutral tint has
+     to buy its separation from a white row on LEVEL alone, which is why gray-50
+     was invisible (1.03:1) and gray-100 only reaches 1.10:1; violet buys it on
+     chroma instead, so the row is told apart without darkening far enough to
+     drag the text sitting on it under AA.
+
+     Two steps lighter than the app's own #F3EEFF, and the reason is measured:
+     this table's quiet tier is `--pl-text-weak` (#667085), which reads 4.379:1
+     on #F3EEFF — under AA, on three separate runs of text (서비스 이름, 코드,
+     진행 캡션). #F6F3FF puts it at 4.544:1. The tint gives up 0.04 of contrast
+     against the white row for it, which it can afford because its separation
+     was never coming from level in the first place. */
+  --pl-row-hover: #F6F3FF;
   /* sidebar-chrome-only idle item text — dark-sidebar grey outside the shared
      neutral scale (design/pipeline/admin-pipeline.html .sb-item). */
   --pl-chrome-item: #B9C0CC;

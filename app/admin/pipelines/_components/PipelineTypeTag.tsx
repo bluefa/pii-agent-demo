@@ -1,7 +1,11 @@
 /**
- * PipelineTypeTag (R18 §1) — INSTALL / DELETE / CUSTOM with icon + color + enum
- * text (triple encoding; `color-not-only`). Background-less inline tag so it
- * stays visually subordinate to the filled status pills.
+ * PipelineTypeTag (R18 §1) — INSTALL / DELETE / CUSTOM as icon + enum text.
+ * Background-less inline tag so it stays visually subordinate to the status word.
+ *
+ * The per-type tint is gone (오너 2026-08-14, "색상이 강하지 않게"): the glyph now
+ * inherits the label's colour, the same monotone grammar `ProvTag` uses. Encoding
+ * stays double (shape + word), which is what `color-not-only` asks for; DELETE's
+ * red was the third copy AND collided with the failure red one column over.
  */
 import type { ReactElement } from 'react';
 import { cn, pipelineStyles } from '@/lib/theme';
@@ -23,7 +27,7 @@ export function PipelineTypeTag({ type, className }: PipelineTypeTagProps): Reac
   const t = pipelineStyles.typeTag;
   return (
     <span className={cn(t.base, className)}>
-      <Icon name={TYPE_ICON[type]} size="sm" className={t.tone[type]} />
+      <Icon name={TYPE_ICON[type]} size="sm" />
       {type}
     </span>
   );

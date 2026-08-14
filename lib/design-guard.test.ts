@@ -186,7 +186,12 @@ const pipelineTextBlock = (() => {
   return m[0];
 })();
 const navLayoutSrc = read('app/admin/pipelines/layout.tsx');
-const dashCodeChip = classOf(pipelineBlock, 'identityCode');
+// The plate moved: it used to wrap the service CODE and now wraps the Target Source
+// identifier that leads the cell (오너 2026-08-14). Same white-fill + stroke shape and
+// the same reason it must be measured on both row states — only the anchor changed.
+const dashIdTag = classOf(pipelineBlock, 'identityTag');
+const dashIdCode = classOf(pipelineBlock, 'identityCode');
+const dashIdName = classOf(pipelineBlock, 'identityName');
 // `sidebar:` puts a comment between the key and its value, which `classOf` cannot
 // step over — anchor on the width instead, which is the class's own signature.
 const plSidebar = bgOf(classWith(pipelineBlock, 'w-\\[216px\\]'));
@@ -332,14 +337,19 @@ const SURFACES: SurfacePair[] = [
   { what: 'kind tag fill on the card hover tint', top: kindTagFill, under: hoverBgOf(classOf(liftBlock, 'card')) },
   // The rail's skeleton is reused on the admin ground — a second surface it must clear.
   { what: 'skeleton bar on admin ground', top: bgOf(classOf(railBlock, 'skeletonBar')), under: plGround },
-  // The dashboard's service-code chip. Its fill WAS gray-100 — the same token the row
-  // hovers to, byte for byte — so the plate vanished under the cursor at exactly 1.000:1
+  // The dashboard's identifier plate. Its fill WAS gray-100 — the same token the row
+  // hovered to, byte for byte — so the plate vanished under the cursor at exactly 1.000:1
   // and the letters were left floating on the tint. It is white now, which separates from
   // the tint by luminance; on the WHITE row nothing but the stroke is left, so the stroke
   // is measured against both surfaces rather than assumed to be visible on either.
-  { what: 'dashboard code chip fill on the row hover tint', top: bgOf(dashCodeChip), under: dashRowHover },
-  { what: 'dashboard code chip stroke on its own fill', top: borderOf(dashCodeChip), under: bgOf(dashCodeChip) },
-  { what: 'dashboard code chip stroke on the row hover tint', top: borderOf(dashCodeChip), under: dashRowHover },
+  { what: 'dashboard identifier tag fill on the row hover tint', top: bgOf(dashIdTag), under: dashRowHover },
+  { what: 'dashboard identifier tag stroke on its own fill', top: borderOf(dashIdTag), under: bgOf(dashIdTag) },
+  { what: 'dashboard identifier tag stroke on the row hover tint', top: borderOf(dashIdTag), under: dashRowHover },
+  // The list has no card any more, so the page ground under it IS white — the tiles and
+  // the step strip separate from that ground on their stroke and their fill alone.
+  { what: 'dashboard bucket tile stroke on the white screen', top: borderOf(classOf(pipelineBlock, 'bucketTileIdle')), under: '#FFFFFF' },
+  { what: 'dashboard step-strip track on the row hover tint', top: bgOf(classOf(pipelineBlock, 'stripRest')), under: dashRowHover },
+  { what: 'dashboard finished step against the untouched track', top: bgOf(classOf(pipelineBlock, 'stripOk')), under: bgOf(classOf(pipelineBlock, 'stripRest')) },
   // The wizard groups by surface and draws no rule between its two columns, so this
   // pair IS the separation — re-tint `panel` toward white and the card dissolves with
   // nothing else left to mark where it starts.
@@ -437,7 +447,13 @@ const TEXT: TextPair[] = [
     fg: textOf(classOf(pipelineBlock, 'stripCaption')),
     on: dashRowHover,
   },
-  { what: 'dashboard code chip label on its fill', fg: textOf(dashCodeChip), on: bgOf(dashCodeChip) },
+  { what: 'dashboard identifier label on its own plate', fg: textOf(dashIdTag), on: bgOf(dashIdTag) },
+  // The two lines the identity cell reads out. Both are `--pl-text-weak`, so both have to
+  // clear the white screen AND the violet hover the row tints to.
+  { what: 'dashboard service code on the white row', fg: textOf(dashIdCode), on: '#FFFFFF' },
+  { what: 'dashboard service code on the row hover tint', fg: textOf(dashIdCode), on: dashRowHover },
+  { what: 'dashboard service name on the white row', fg: textOf(dashIdName), on: '#FFFFFF' },
+  { what: 'dashboard service name on the row hover tint', fg: textOf(dashIdName), on: dashRowHover },
   {
     what: 'pipelines sidebar caption on the gray-900 sidebar',
     fg: textOf(classOf(pipelineTextBlock, 'sidebarTitle')),
@@ -708,8 +724,15 @@ describe('detects the PR #624 regressions the hook missed', () => {
     // ΔE00 0.00 and contrast 1.000: not "hard to see", absent. The surface rule catches
     // this one, which is the point — the pair was simply never written down, because the
     // chip is declared 100 lines from the hover it collides with.
-    expect(deltaE00(resolve('var(--pl-gray-100)'), dashRowHover)).toBeLessThan(SURFACE_MIN);
-    expect(contrast(resolve('var(--pl-gray-100)'), dashRowHover)).toBeLessThan(1.01);
+    //
+    // Both halves are LITERALS, not tokens: the row hover has since moved to violet, and
+    // reading it live would quietly stop replaying the bug the day the token changed.
+    const historicChipFill = '#F2F4F7';
+    const historicRowHover = '#F2F4F7';
+    expect(deltaE00(historicChipFill, historicRowHover)).toBeLessThan(SURFACE_MIN);
+    expect(contrast(historicChipFill, historicRowHover)).toBeLessThan(1.01);
+    // …and the plate that replaced it still clears whatever the row hovers to TODAY.
+    expect(deltaE00(bgOf(dashIdTag), dashRowHover)).toBeGreaterThanOrEqual(SURFACE_MIN);
   });
 
   it('H11 kind tag #F3EEFF inverted against the row hover tint (1.02:1)', () => {

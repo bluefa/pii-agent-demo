@@ -12,16 +12,30 @@
 import type { ReactElement, ReactNode } from 'react';
 
 import { cn, pipelineStyles } from '@/lib/theme';
-import { fmtDateTime, fmtRelativeTime } from '@/lib/pipeline/format';
+import {
+  displayProvider,
+  fmtDateTime,
+  fmtRelativeTime,
+  providerLabel,
+  statusKo,
+} from '@/lib/pipeline/format';
 import { Icon } from '@/app/admin/pipelines/_components/icons';
-import { ProvTag } from '@/app/admin/pipelines/_components/ProvTag';
+import { ProviderGlyph } from '@/app/components/ui/CloudProviderIcon';
 import type { CloudProvider, PipelineStatus } from '@/lib/pipeline/types';
 
 const { dashboard: d } = pipelineStyles;
 
 /**
- * Which target this row is, in one column and two lines: the service name, then
- * the code chip, the Target Source number, and the provider mark.
+ * Which target this row is: the provider mark on the left, then two lines —
+ * the Target Source identifier, and the service name under it (오너 2026-08-14).
+ *
+ * The identifier leads because it is what the row opens and what makes the row
+ * unique. The service name repeats across rows — "PII Agent 설치 - 고객 DB" appears
+ * three times in one page of mock data — so as the largest text in the column it
+ * was the one thing that could not tell two rows apart.
+ *
+ * The glyph carries an accessible name of its own: alone it is only a shape, and
+ * the provider label that used to sit beside it is no longer in the row.
  */
 export function TargetCell({
   name,
@@ -36,13 +50,18 @@ export function TargetCell({
   provider: CloudProvider | string;
   isSdu?: boolean;
 }): ReactElement {
+  const shown = displayProvider(provider, isSdu);
   return (
     <span className={d.identity}>
-      <span className={d.identityName}>{name}</span>
-      <span className={d.identityMeta}>
-        <span className={d.identityCode}>{code}</span>
-        <span className={d.identityTarget}>#{targetId}</span>
-        <ProvTag provider={provider} isSdu={isSdu} />
+      <span className={d.identityGlyph} role="img" aria-label={providerLabel(shown)}>
+        <ProviderGlyph provider={shown} className={pipelineStyles.provTag.glyph} />
+      </span>
+      <span className={d.identityStack}>
+        <span className={d.identityHead}>
+          <span className={d.identityTag}>TargetSource #{targetId}</span>
+          <span className={d.identityCode}>코드: {code}</span>
+        </span>
+        <span className={d.identityName}>{name}</span>
       </span>
     </span>
   );
@@ -53,9 +72,11 @@ export function StatusRail({ status }: { status: PipelineStatus }): ReactElement
   return <td className={cn(d.railCell, status === 'FAILED' && d.railErr)} />;
 }
 
-/** Status with the chip taken off — colour is all that is left of the pill. */
+/** Status with the chip taken off, in the section's shared Korean label set
+ *  (`statusKo`: 대기 / 실행 중 / 완료 / 실패 / 중단). Only 실패 keeps a hue — see
+ *  `statusTextTone`. */
 export function StatusText({ status }: { status: PipelineStatus }): ReactElement {
-  return <span className={cn(d.statusText, d.statusTextTone[status])}>{status}</span>;
+  return <span className={cn(d.statusText, d.statusTextTone[status])}>{statusKo(status)}</span>;
 }
 
 /** Relative time ("3시간 전") with an absolute-time hover tooltip. */

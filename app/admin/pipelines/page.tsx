@@ -14,6 +14,10 @@
  * Visual language: docs/ux/benchmark/pipelines-dashboard.md. The row wears the
  * section's shared parts (ProvTag / PipelineTypeTag / step strip); what is local
  * is what the owner asked to differ, and it is written down in that file.
+ * The list wears NO card — docs/ux/benchmark/pipelines-dashboard-flat.md. The
+ * screen is one white surface (`dashboard.bleed`) with the table standing on it,
+ * because a #FFFFFF card on a #F9FAFB page measured 1.05:1 and the boundary was
+ * doing the work of a boundary nowhere.
  */
 import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -22,7 +26,7 @@ import type { ReactElement, ReactNode } from 'react';
 import { useAbortableEffect } from '@/app/hooks/useAbortableEffect';
 import { cn, pipelineStyles } from '@/lib/theme';
 import { passRoutes } from '@/lib/routes';
-import { providerLabel } from '@/lib/pipeline/format';
+import { providerLabel, statusKo } from '@/lib/pipeline/format';
 import { OrchestratorApiError, getPipelineStatistics, listPipelines } from '@/app/lib/api/pipeline';
 import type {
   CloudProvider,
@@ -36,7 +40,6 @@ import type {
 
 import { Icon, type IconName } from '@/app/admin/pipelines/_components/icons';
 import { SegControl } from '@/app/admin/pipelines/_components/SegControl';
-import { Card } from '@/app/admin/pipelines/_components/Card';
 import { SearchBox } from '@/app/admin/pipelines/_components/SearchBox';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
 // The list's three conditions live behind one trigger, as in step 1's resource
@@ -142,6 +145,16 @@ const BUCKETS: ReadonlyArray<{
 
 const errorMessage = (err: unknown): string =>
   err instanceof OrchestratorApiError || err instanceof Error ? err.message : String(err);
+
+/**
+ * 상태 옵션의 한글 라벨. `FilterGroup.formatOption` 은 `(value: string)` 이고
+ * `statusKo` 는 enum 만 받으므로, 캐스팅 대신 옵션 목록에서 되찾아 좁힌다 —
+ * 목록에 없는 값이 들어오면 원문을 그대로 돌려주므로 라벨이 비지 않는다.
+ */
+const statusOptionLabel = (value: string): string => {
+  const known = STATUS_FILTERS.find((option) => option === value);
+  return known ? statusKo(known) : value;
+};
 
 export default function DashboardPage(): ReactElement {
   const router = useRouter();
@@ -283,7 +296,16 @@ export default function DashboardPage(): ReactElement {
   // the same three choices; closed, the bar is a search box, and what is actually
   // set is said once, by the chip row, instead of by three selects reading 전체.
   const filterGroups = [
-    { key: 'status', label: '상태', value: status, onChange: applyStatus, options: STATUS_FILTERS },
+    {
+      key: 'status',
+      label: '상태',
+      value: status,
+      onChange: applyStatus,
+      options: STATUS_FILTERS,
+      // 메뉴가 부르는 이름과 행이 쓰는 이름이 같아야 한다 — 행이 "실패"인데
+      // 메뉴만 FAILED 면 같은 값을 두 이름으로 부르는 셈이다.
+      formatOption: statusOptionLabel,
+    },
     {
       key: 'provider',
       label: 'Cloud',
@@ -303,7 +325,7 @@ export default function DashboardPage(): ReactElement {
   const truncated = pageData != null && pageData.content.length < fetchedTotal;
 
   return (
-    <div>
+    <div className={d.bleed}>
       <div className={d.headerRow}>
         <h1 className={pipelineStyles.text.dashboardPageTitle}>인프라 작업 대시보드</h1>
         <SegControl
@@ -336,7 +358,7 @@ export default function DashboardPage(): ReactElement {
         ))}
       </div>
 
-      <Card variant="flush">
+      <div className={d.listBlock}>
         <div className={d.filterBar}>
           <SearchBox
             lg
@@ -472,7 +494,7 @@ export default function DashboardPage(): ReactElement {
             </div>
           </>
         )}
-      </Card>
+      </div>
     </div>
   );
 }

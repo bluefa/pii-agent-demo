@@ -10,8 +10,9 @@
 import type { ReactElement } from 'react';
 
 import { cn, pipelineStyles } from '@/lib/theme';
-import { providerLabel } from '@/lib/pipeline/format';
+import { providerLabel, statusKo } from '@/lib/pipeline/format';
 import { Icon } from '@/app/admin/pipelines/_components/icons';
+import type { PipelineStatus } from '@/lib/pipeline/types';
 
 /** One chip. `onRemove` present → removable (× button); absent → scope chip. */
 function Chip({
@@ -43,8 +44,9 @@ function Chip({
 }
 
 export interface FilterChipsProps {
-  /** Wire PipelineStatus or '' (no filter). */
-  status: string;
+  /** Wire PipelineStatus or '' (no filter). Narrower than its siblings because the
+   *  chip renders the Korean label for it, and `statusKo` only accepts the enum. */
+  status: '' | PipelineStatus;
   /** Wire CloudProvider (UPPERCASE) or '' (no filter). */
   provider: string;
   /** Wire PipelineType or '' (no filter). */
@@ -76,7 +78,12 @@ export function FilterChips({
   return (
     <div className={filterChip.row}>
       {status && (
-        <Chip keyLabel="상태" value={status} onRemove={onClearStatus} removeAria="상태 필터 제거" />
+        <Chip
+          keyLabel="상태"
+          value={statusKo(status)}
+          onRemove={onClearStatus}
+          removeAria="상태 필터 제거"
+        />
       )}
       {provider && (
         <Chip

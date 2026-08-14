@@ -2150,7 +2150,8 @@ export const pipelineStyles = {
     tableWrap: 'overflow-x-auto',
     /** No-padding card (Figma dashboard mock table-card) — children own their
      *  own padding/dividers; overflow-hidden clips the table's square corners
-     *  to the card radius. Dashboard-exclusive (page.tsx). */
+     *  to the card radius. Used by the pipeline detail's section cards
+     *  (`TargetPipelineSections`); the dashboard list no longer wears a card. */
     flush: 'bg-[var(--pl-bg-card)] border border-[var(--pl-border)] rounded-[12px] shadow-[var(--pl-shadow-xs)] overflow-hidden',
   },
 
@@ -2183,13 +2184,15 @@ export const pipelineStyles = {
   /** PipelineTypeTag (R18 §1) — icon+color+enum triple encoding; bg-less inline
    *  tag so it never competes with the filled status pills. Icon carries the
    *  hue (tone), text stays medium mono. */
+  /**
+   * 글리프는 라벨 색을 물려받는다 — 공용 `ProvTag` 와 같은 문법 (오너 2026-08-14:
+   * "색상이 강하지 않게"). 유형별 틴트(파랑·빨강·보라)를 따로 주던 것을 걷었다:
+   * DELETE 의 빨강이 같은 행의 실패 빨강과 같은 가족이라 **한 화면에서 빨강이 두 뜻**을
+   * 가졌고, 아이콘 모양과 enum 원문이 이미 유형을 두 채널로 말하고 있어 색은 셋째
+   * 사본이었다. `--pl-type-*` 토큰 자체는 상세 화면의 타일이 계속 쓴다.
+   */
   typeTag: {
     base: 'inline-flex items-center gap-1 whitespace-nowrap text-[12px] font-semibold text-[var(--pl-text-medium)] [font-family:var(--pl-font-mono)]',
-    tone: {
-      INSTALL: 'text-[var(--pl-type-install)]',
-      DELETE: 'text-[var(--pl-type-delete)]',
-      CUSTOM: 'text-[var(--pl-type-custom)]',
-    } as Record<'INSTALL' | 'DELETE' | 'CUSTOM', string>,
   },
 
   /** JobKindTag — the terraform action (PLAN/APPLY/DESTROY) on a job node.
@@ -2288,8 +2291,21 @@ export const pipelineStyles = {
     stripWrap: 'inline-block',
     strip: 'flex gap-[2px] w-[110px]',
     stripSeg: 'h-1.5 flex-1 rounded-[2px]',
-    stripOk: 'bg-[var(--pl-ok)]',
-    stripActive: 'bg-[var(--pl-info)]',
+    /**
+     * 오너 판정 뒤집힘 (2026-08-14): 위 문단의 "완료된건 초록색"은 더 이상 적용되지
+     * 않는다. 근거였던 "세 상태가 나란히 붙으면 명도만으로 못 가른다"는 실행 중인
+     * 행에서만 성립하는데, 3/3 완료 행에는 나란히 붙는 다른 상태가 없어 그 자리에
+     * 색만 남았다 — 표 안 채도 면적의 62%가 거기였다(조치가 필요 없는 정보).
+     *
+     * 끝난 칸은 중립 회색으로 내려간다. `fillOff`(CANCELLED 완료 칸)와 같은 값이라
+     * 취소된 실행을 따로 칠할 이유도 함께 사라졌다. 남는 색은 "지금 무슨 일이
+     * 일어나는 중"인 칸 하나뿐 — 실행 중은 파랑, 실패는 빨강.
+     * 완료 #98A2B3 : 미착수 #E4E7EC = 2.08:1 로, 근거가 요구한 구분은 중립으로도 선다.
+     */
+    stripOk: 'bg-[var(--pl-gray-400)]',
+    /** 원색 `--pl-info` 에서 한 칸 내려온다 — 6px 블록에서는 더 깊은 파랑이 더 조용하다. */
+    stripActive: 'bg-[var(--pl-info-text)]',
+    /** 실패만 원색을 유지한다: 이 표에서 찾아내야 하는 유일한 칸이다. */
     stripRest: 'bg-[var(--pl-gray-200)]',
     /* The caption is the strip's only literal reading ("2단계 진행 중 · 1/4") — the
        segments carry the shape, this carries the numbers — so it answers to AA like
@@ -2469,6 +2485,32 @@ export const pipelineStyles = {
    */
   dashboard: {
     /**
+     * The screen's ONE surface. There is no list card here any more: the page
+     * ground under this route is painted white and the table sits straight on
+     * it, because the card was claiming a surface it could not draw. Its fill
+     * was #FFFFFF on a #F9FAFB page — 1.05:1 — so the only thing separating the
+     * two was a 1px #E4E7EC hairline (1.19:1) and a 5%-alpha shadow. Four more
+     * near-white bands were nested inside it, all within the same 0.14 of
+     * contrast ratio, which is what "흰 바탕에 흰 카드" was describing.
+     *
+     * The ground is painted HERE, not on `--pl-bg-page`: that token is the
+     * section's, and tinting it moves every sibling screen (the ops-alerts
+     * tiles read straight off it). Negative margins undo `layout.contentFluid`'s
+     * padding so the white bleeds to the content edges, the same escape hatch
+     * `serviceListStyles.split` uses for the recessed treatment on the two
+     * service screens.
+     */
+    bleed:
+      '-mx-8 -mt-6 -mb-12 px-8 pt-6 pb-12 min-h-[calc(100vh_-_64px)] bg-[var(--pl-bg-card)]',
+    /**
+     * The list block, pulled back out by its own cell padding so the table's
+     * first column lands on the page grid with the h1 and the tiles. Inside a
+     * card the px-5 was measured from the card's edge; with the card gone it
+     * would indent the rows 20px past everything above them. The row hover keeps
+     * that 20px on each side, so the tint still runs wider than the text.
+     */
+    listBlock: '-mx-5',
+    /**
      * Summary buckets — the tiles ARE the filter, so they wear the section's
      * selectable-tile grammar from 운영 알림 (`AlertsView` summary*): the border
      * is present even when idle so selecting one never resizes it, and idle vs
@@ -2483,10 +2525,19 @@ export const pipelineStyles = {
     bucketGrid: 'grid grid-cols-4 gap-3 mb-6',
     bucketTile:
       'flex items-center justify-between gap-3 rounded-[8px] border px-4 py-3.5 text-left transition-colors',
+    /**
+     * On the white ground a gray-100 fill measures 1.05:1 — the tile would be a
+     * number floating on the page. The edge carries it instead:
+     * `--pl-border-strong` is 1.41:1 against white, the same white-plus-stroke
+     * shape `identityCode` uses two blocks down for exactly this reason.
+     */
     bucketTileIdle:
-      'border-transparent bg-[var(--pl-gray-100)] hover:border-[var(--pl-gray-300)] hover:bg-[var(--pl-gray-200)]',
-    /** Selection is a brand stroke; severity is the value's colour. Two signals, two channels. */
-    bucketTileActive: 'border-[var(--pl-primary)] bg-[var(--pl-bg-card)]',
+      'border-[var(--pl-border-strong)] bg-[var(--pl-bg-card)] hover:border-[var(--pl-gray-400)] hover:bg-[var(--pl-gray-100)]',
+    /** Selection is a brand stroke; severity is the value's colour. Two signals, two
+     *  channels. The shadow is the second lever: idle is now white too, so stroke
+     *  colour alone would be the only thing telling selected from not. */
+    bucketTileActive:
+      'border-[var(--pl-primary)] bg-[var(--pl-bg-card)] shadow-[var(--pl-shadow-sm)]',
     /** 전체 is not a bucket, it is "no filter" — an outline rather than a fill. */
     bucketTileAllIdle:
       'border-dashed border-[var(--pl-gray-300)] bg-transparent hover:bg-[var(--pl-gray-100)]',
@@ -2502,83 +2553,114 @@ export const pipelineStyles = {
     bucketToneAlert: 'text-[var(--pl-err-text)]',
     bucketToneMuted: 'text-[var(--pl-text-weak)]',
     bucketMarkMuted: 'text-[var(--pl-text-faint)]',
-    /** 진행 중 / 종료 marks, in the same blue and green the rows under them use —
-     *  NOT `--pl-primary`, which on these tiles already means "this one is selected". */
+    /** 진행 중 mark — 아래 행들의 진행 세그먼트와 같은 파랑. NOT `--pl-primary`,
+     *  which on these tiles already means "this one is selected". */
     bucketMarkActive: 'text-[var(--pl-info-text)]',
-    bucketMarkOk: 'text-[var(--pl-ok-text)]',
+    /** 종료 mark 는 초록을 내려놓는다 (오너: "색상이 강하지 않게") — 끝난 일에는
+     *  손댈 것이 없고, 초록은 이 화면 색 예산의 가장 큰 몫이었다. faint(2.58:1)가
+     *  아니라 weak(4.97:1)인 이유는 이게 버킷이기 때문이다 — 필터가 안 걸린 상태를
+     *  뜻하는 `bucketMarkMuted` 만 그 아래 칸을 쓴다. */
+    bucketMarkOk: 'text-[var(--pl-text-weak)]',
     /** Page header row (title + period selector). */
     headerRow: 'flex items-center justify-between mb-6',
 
-    /** Filter bar inside the card — tinted, bordered, h9 controls. */
-    filterBar: 'flex items-center gap-2 px-5 py-3 border-b border-[var(--pl-gray-100)] bg-[var(--pl-gray-50)]',
+    /** Filter bar — h9 controls on the page, no plate of its own. The gray-50 fill
+     *  it used to wear was 1.05:1 against both the card above it and the rows
+     *  below, so it read as a seam rather than a band; the table's own head rule
+     *  is the boundary now, and a hairline directly above a 2px rule is noise. */
+    filterBar: 'flex items-center gap-2 px-5 py-3',
     /** Search wrapper — flex-1 up to a max width (SearchBox adds `relative`). */
     searchWrap: 'flex-1 max-w-xs',
     /** The filter trigger rides the bar's right edge — `ResourceToolbar` grammar. */
     filterTrigger: 'ml-auto flex items-center',
-    /** Removable-filter chips row inside the card (only rendered when a filter is on). */
+    /** Removable-filter chips row (only rendered when a filter is on). */
     chipsWrap: 'px-5',
 
-    /** Table chrome. */
-    table: 'w-full',
+    /**
+     * Table chrome. The extra -3px is the status rail's own width: `listBlock`
+     * gives back the cells' px-5, but the rail is a column before the first cell,
+     * so without this the row's TEXT lands 3px right of the h1 and the tiles —
+     * an offset small enough to read as a mistake rather than as an indent. Shifted
+     * here rather than by widening `listBlock`, because the filter bar and the pager
+     * have no rail and are already on the grid.
+     */
+    table: 'w-full -ml-[3px]',
     /**
      * Column labels — the section's shared header grammar (`pipelineStyles.table.th`:
-     * h34, 12/600 uppercase, tracking .03em, text-weak on gray-50 with a border-b).
-     * Only the horizontal padding differs: px-5, because this table's cells are px-5
-     * and a th on the shared px-3 would sit a column off from the values it labels.
-     * The tinted band carries the header's own bottom border, so the row-level
-     * `headRow` border it used to need is gone.
+     * h34, 12/600 uppercase, tracking .03em, text-weak), with px-5 rather than the
+     * shared px-3 because this table's cells are px-5 and a th on px-3 would sit a
+     * column off from the values it labels.
+     *
+     * The gray-50 band is gone with the card. Without a card the table needs ONE
+     * line that says where it starts, and a 1px #E4E7EC hairline is not it —
+     * 1.19:1 on white, the same whisper the card's own edge was. A 2px rule in
+     * `--pl-text-strong` is: it reads as the head of a table rather than as one
+     * more divider among nine, which is the whole grammar of a list that stands on
+     * the page instead of inside a box.
      */
-    th: 'h-[34px] px-5 text-left whitespace-nowrap text-[12px] font-semibold uppercase tracking-[0.03em] text-[var(--pl-text-weak)] bg-[var(--pl-gray-50)] border-b border-[var(--pl-border)]',
-    /** The header band alone, for a column that carries no label (the rail). */
-    thBand: 'bg-[var(--pl-gray-50)] border-b border-[var(--pl-border)]',
+    th: 'h-[34px] px-5 text-left whitespace-nowrap text-[12px] font-semibold uppercase tracking-[0.03em] text-[var(--pl-text-weak)] border-b-2 border-[var(--pl-text-strong)]',
+    /** The head rule alone, for a column that carries no label (the rail). */
+    thBand: 'border-b-2 border-[var(--pl-text-strong)]',
     body: 'divide-y divide-[var(--pl-gray-100)]',
-    /** Hover on gray-100, not gray-50: the card is white and gray-50 (#F9FAFB) sits
-     *  1.03:1 from it, so the row highlight was there in the DOM and invisible on
-     *  screen. gray-100 (#F2F4F7) is the same surface the filter bar already uses. */
-    row: 'group cursor-pointer transition-colors hover:bg-[var(--pl-gray-100)]',
+    /**
+     * Hover는 서비스 목록 행이 쓰는 보라 그대로 (오너 2026-08-14) — `--pl-row-hover`.
+     * gray-50 은 흰 행에서 1.03:1 이라 DOM 에만 있었고, gray-100 도 1.10:1 이다.
+     * 중립 틴트는 명도로만 갈라져야 해서 더 내려가면 그 위 글자가 AA 아래로 떨어진다.
+     * 보라는 채도로 갈라지므로 명도를 거의 내리지 않고도 행이 구별된다.
+     */
+    row: 'group cursor-pointer transition-colors hover:bg-[var(--pl-row-hover)]',
     cell: 'px-5 py-3.5 align-middle',
 
     /**
-     * Row identity — ONE column, two lines: the service name, then the chips that
-     * say which target it is. As four columns (이름 · 코드 · Target · Cloud) the
-     * three answers to "which one is this" sat more than 300px apart at 1600px,
-     * so reading one row meant reassembling it from three places.
+     * Row identity — ONE column, a leading provider mark and two lines beside it
+     * (오너 2026-08-14). As four columns (이름 · 코드 · Target · Cloud) the three
+     * answers to "which one is this" sat more than 300px apart at 1600px, so
+     * reading one row meant reassembling it from three places.
      *
-     * Line geometry is the section's 2-line stack (`tqStyles.stepStack`): gap 3px,
-     * the second line a 12/600 r6 chip on gray-100. No baseline lift here — every
-     * row in this column is two lines, so there is no single-line sibling to align
-     * against (that is what `stackedIdentityLift` exists for, in a table that mixes
-     * both).
+     * The tiers are the owner's: **Target Source 번호가 1행**, 서비스 이름이 2행이다.
+     * 이 표에서 행을 여는 키는 Target Source 이고 열리는 화면도 그것이다 — 서비스
+     * 이름은 그게 무엇인지 알려주는 설명이지 식별자가 아니다. 이름을 1행에 두었을
+     * 때는 같은 이름("PII Agent 설치 - 고객 DB")이 여러 행에 그대로 반복돼, 가장 큰
+     * 글자가 행을 구별해 주지 못했다.
+     *
+     * 마크는 왼쪽에 한 번, 두 줄 전체에 걸쳐 세로 가운데. 2행 안에 섞여 있을 때는
+     * 어느 줄에 속한 것인지가 모호했고, 밖으로 나오면 "이 행 전체가 이 CSP" 가 된다.
      */
-    identity: 'flex flex-col items-start gap-[3px]',
-    identityName: 'block max-w-[34ch] truncate text-[14px] font-semibold text-[var(--pl-text-strong)]',
-    identityMeta: 'flex items-center gap-2',
+    identity: 'flex items-center gap-2.5',
     /**
-     * The chip's fill WAS gray-100 — byte-identical to `row`'s hover tint one line
-     * above, so hovering a row erased it: 1.000:1 chip-against-row, the plate gone
-     * and only its letters left floating. A fill can only survive both row states
-     * if it separates from white AND from the tint, and the tint is what the row
-     * uses to say "this one" — it is not moving.
-     *
-     * White + stroke is the shape that holds on both: on the white row the hairline
-     * carries the edge (the same white-on-white + border-strong grammar as
-     * `filterChip.base`), and under the cursor the fill itself steps out of the
-     * tint. `py-px` + the 1px border keeps the 20.8px box the borderless chip had,
-     * so the two-line identity stack does not grow on hover.
+     * 두 줄에 걸치는 선두 마크. 슬롯 폭을 고정하는 이유는 `ProviderGlyph` 가
+     * UNKNOWN 에서 null 을 돌려주기 때문이다 — 그대로 두면 마크 없는 행만 글자가
+     * 왼쪽으로 당겨져 열이 어긋난다. 글리프 자체는 공용 `provTag.glyph`(14px).
      */
-    identityCode:
-      'inline-flex items-center rounded-md border border-[var(--pl-border-strong)] px-2 py-px text-[12px] font-semibold bg-[var(--pl-bg-card)] text-[var(--pl-text-medium)]',
+    identityGlyph:
+      'flex-none w-[18px] flex items-center justify-center text-[var(--pl-text-medium)]',
+    identityStack: 'flex min-w-0 flex-col items-start gap-[3px]',
+    identityHead: 'flex items-center gap-2',
     /**
-     * Target Source 번호 — 평소엔 중립, **행에 커서가 올라갔을 때만** 링크색으로 (오너).
-     * `group-hover` 이지 `hover` 가 아니다: 열리는 건 행 전체이므로 행 어디에 커서가
-     * 있든 이 번호가 반응해야 "지금 열리는 게 이것"이라고 말한다. 12px 번호 위에서만
-     * 반응하면 그 좁은 폭에 커서를 올린 사람만 응답을 본다.
+     * 1행 — 식별자. 오너: "태그로 약간 강조해도 됨".
      *
-     * `--pl-info-text` 는 hover 표면(gray-100) 위 5.43:1, 평소의 weak 는 흰 배경
-     * 4.97:1 — 두 상태 다 4.5:1 위. 원색 `--pl-info` 는 3:1 대라 12px 로는 못 쓴다.
+     * 흰 면 + stroke 는 발명이 아니라 이 셀이 이미 쓰던 모양이다(PR #700, 오너 지시):
+     * 칩 면이 gray-100 이던 시절 행 hover 틴트와 byte-identical 이라 커서가 올라가면
+     * 1.000:1 로 사라졌고, 흰 면 + `--pl-border-strong` 만이 흰 행과 틴트된 행 양쪽에서
+     * 버텼다. 코드 칩이 쓰던 그 판을 이제 식별자 줄 전체가 입는다.
+     *
+     * `py-px` + 1px 테두리로 박스 높이를 유지해 hover 시 2행 스택이 자라지 않는다.
      */
-    identityTarget:
-      'whitespace-nowrap text-[12px] font-medium text-[var(--pl-text-weak)] [font-family:var(--pl-font-mono)] transition-colors group-hover:text-[var(--pl-info-text)]',
+    identityTag:
+      'inline-flex items-center whitespace-nowrap rounded-md border border-[var(--pl-border-strong)] bg-[var(--pl-bg-card)] px-2 py-px text-[14px] font-semibold text-[var(--pl-text-strong)] [font-family:var(--pl-font-mono)] transition-colors group-hover:border-[var(--pl-info-text)] group-hover:text-[var(--pl-info-text)]',
+    /**
+     * 행에 커서가 올라갔을 때만 링크색으로 (오너). `group-hover` 이지 `hover` 가
+     * 아니다: 열리는 건 행 전체이므로 행 어디에 커서가 있든 식별자가 반응해야
+     * "지금 열리는 게 이것"이라고 말한다. 좁은 태그 위에서만 반응하면 그 폭에
+     * 커서를 올린 사람만 응답을 본다.
+     *
+     * `--pl-info-text` 는 hover 표면(gray-100) 위 5.43:1, 흰 배경 6.28:1 — 두 상태 다
+     * 4.5:1 위. 원색 `--pl-info` 는 3:1 대라 이 크기로는 못 쓴다.
+     */
+    identityCode: 'whitespace-nowrap text-[12px] font-medium text-[var(--pl-text-weak)]',
+    /** 2행 — 서비스 이름 (오너: 12px, 회색). 식별자가 아니라 그것이 무엇인지의 설명. */
+    identityName:
+      'block max-w-[38ch] truncate text-[12px] text-[var(--pl-text-weak)]',
 
     /**
      * Status as bare text, no chip (owner: "상태는 그냥 태그없이 텍스트로만 표현하고
@@ -2586,20 +2668,24 @@ export const pipelineStyles = {
      * word legible inside a busy row; here the word sits alone in its own column,
      * so that chrome was carrying nothing the column did not already say.
      *
-     * Hues match the step strip beside it — DONE green, RUNNING blue — but on the
-     * `-text` ramp: the raw signal colours are mixed for fills and drop under
-     * 4.5:1 as 13px text on white.
+     * 한글 라벨은 공용 `statusKo` 한 벌을 쓴다 — enum 원문은 데이터 표기(정의·계약 탭,
+     * 오류 코드)에만 남긴다.
+     *
+     * 색은 등급 3개까지 (오너: "색상이 강하지 않게"). 초록·파랑이 빠지고 **유일한
+     * 색상은 실패**다. 나머지는 명도로만 갈린다 — 실행 중은 살아 있으니 medium,
+     * 대기·완료·중단은 지금 할 일이 없으니 weak. 강조를 색상 하나와 명도 두 칸으로
+     * 나눠 주면, 색이 켜져 있는 행이 정확히 손이 필요한 행이 된다.
      */
     statusText: 'text-[13px] font-semibold tracking-[0.02em]',
     statusTextTone: {
       PENDING: 'text-[var(--pl-text-weak)]',
-      RUNNING: 'text-[var(--pl-info-text)]',
-      IN_PROGRESS: 'text-[var(--pl-info-text)]',
+      RUNNING: 'text-[var(--pl-text-medium)]',
+      IN_PROGRESS: 'text-[var(--pl-text-medium)]',
       READY: 'text-[var(--pl-text-weak)]',
-      DONE: 'text-[var(--pl-ok-text)]',
+      DONE: 'text-[var(--pl-text-weak)]',
       FAILED: 'text-[var(--pl-err-text)]',
-      CANCELLED: 'text-[var(--pl-off-text)]',
-      BLOCKED: 'text-[var(--pl-off-text)]',
+      CANCELLED: 'text-[var(--pl-text-weak)]',
+      BLOCKED: 'text-[var(--pl-text-weak)]',
     } as Record<PipelineStatusToneKey, string>,
 
     /**
@@ -2613,7 +2699,9 @@ export const pipelineStyles = {
 
     /** Relative-time cell + hover tooltip (named group so only the cell triggers it). */
     timeWrap: 'group/time relative inline-block',
-    timeText: 'text-[14px] text-[var(--pl-text-weak)] cursor-default',
+    /** 12px (오너 2026-08-14) — 경과 시간은 행을 고르는 근거지 식별자가 아니다.
+     *  14px 일 때는 식별자 태그와 같은 단에 서서 두 값이 같은 등급으로 읽혔다. */
+    timeText: 'text-[12px] text-[var(--pl-text-weak)] cursor-default',
     timeTip:
       'absolute bottom-full left-0 mb-1.5 hidden group-hover/time:block z-10 whitespace-nowrap rounded-lg bg-[var(--pl-gray-800)] px-2.5 py-1.5 text-[12px] text-[var(--pl-white)] shadow-[var(--pl-shadow-lg)]',
 
