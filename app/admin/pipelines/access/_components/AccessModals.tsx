@@ -23,6 +23,13 @@ import { errorMessage } from '@/app/admin/pipelines/access/_components/PagedCard
  * 서버가 상한을 확정하면 그 값으로 맞춘다.
  */
 const MAX_TEXT = 1000;
+/**
+ * 권한 요청 사유만 500 이다(오너 지시 2026-08-14). 이 글은 승인 시트의 고정 높이
+ * 파란 칸에서 읽히는데, 1000자면 그 칸을 세 번 넘게 스크롤해야 끝까지 읽힌다 —
+ * 읽는 자리가 정해져 있으면 쓰는 칸도 거기에 맞춰야 한다. 승인 메시지·반려 사유는
+ * 그대로 1000 이다: 그쪽은 요청자에게 통째로 전달되는 글이라 잘릴 자리가 없다.
+ */
+const MAX_REASON = 500;
 /** 타이핑이 멎고 나서 찾는다. 한 글자마다 쏘면 사람 목록을 훑는 요청이 줄줄이 나간다. */
 const SEARCH_DEBOUNCE_MS = 500;
 
@@ -194,8 +201,8 @@ export function UserPickerModal({
 
 /**
  * 사유·메시지를 한 칸 받아 제출하는 모달. 셋(승인·반려·권한 요청)이 문구만 다르고
- * 규칙은 같아서 몸통을 하나로 둔다 — 닫을 때 비우기, 제출 중 잠그기, `MAX_TEXT` 로
- * 자르기, 그리고 필수 칸이면 비어 있는 동안 CTA 를 잠그기.
+ * 규칙은 같아서 몸통을 하나로 둔다 — 닫을 때 비우기, 제출 중 잠그기, `max` 로 자르기,
+ * 그리고 필수 칸이면 비어 있는 동안 CTA 를 잠그기.
  *
  * 셋을 따로 두면 이 규칙 넷이 세 벌로 갈린다. 실제로 갈려 있었다 — 승인만 잘라내기가
  * 빠져 있었다.
@@ -213,6 +220,8 @@ interface TextModalProps {
   required?: boolean;
   /** 되돌릴 수 없는 쪽(반려)의 CTA. */
   danger?: boolean;
+  /** 입력 상한. 세 모달의 기본은 `MAX_TEXT` 고, 권한 요청 사유만 낮춰 받는다. */
+  max?: number;
   eyebrowCtx?: string;
   eyebrowId?: string;
   onSubmit: (text: string) => Promise<void>;
@@ -228,6 +237,7 @@ function TextModal({
   submitLabel,
   required,
   danger,
+  max = MAX_TEXT,
   eyebrowCtx,
   eyebrowId,
   onSubmit,
@@ -243,7 +253,7 @@ function TextModal({
   const submit = async (): Promise<void> => {
     setSubmitting(true);
     try {
-      await onSubmit(text.slice(0, MAX_TEXT));
+      await onSubmit(text.slice(0, max));
     } finally {
       setSubmitting(false);
     }
@@ -275,12 +285,12 @@ function TextModal({
       <div className={modal.label}>{label}</div>
       <textarea
         className={modal.textarea}
-        maxLength={MAX_TEXT}
+        maxLength={max}
         value={text}
         onChange={(event) => setText(event.target.value)}
         placeholder={placeholder}
       />
-      <CharCount count={text.length} max={MAX_TEXT} />
+      <CharCount count={text.length} max={max} />
     </TqModal>
   );
 }
@@ -420,6 +430,7 @@ export function RequestAccessModal({
       placeholder="어떤 업무 때문에 이 서비스 접근이 필요한지 적어 주세요"
       submitLabel="요청"
       required
+      max={MAX_REASON}
       onSubmit={onSubmit}
     />
   );
