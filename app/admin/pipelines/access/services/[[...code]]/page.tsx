@@ -233,12 +233,13 @@ export default function AccessServicesPage(): ReactElement {
           {!servicesLoading && svcTotal > 0 && <span className={s.railCount}>{svcTotal}</span>}
         </div>
         <div className={s.railSearch}>
+          {/* 담당자로도 걸린다 — "이 사람이 담당인 서비스"를 찾는 축이다(계약). */}
           <SearchBox
             wrapClassName="block w-full"
-            placeholder="서비스 코드/이름 검색"
+            placeholder="서비스 코드/이름/담당자 검색"
             value={svcQuery}
             onChange={(event) => setSvcQuery(event.target.value)}
-            aria-label="서비스 코드/이름 검색"
+            aria-label="서비스 코드/이름/담당자 검색"
           />
         </div>
         <div className={s.railBody}>

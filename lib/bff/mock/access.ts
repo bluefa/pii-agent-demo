@@ -316,13 +316,22 @@ const matches = (haystack: string[], needle: string): boolean =>
 // ── handlers ─────────────────────────────────────────────────────────────────
 
 export const mockAccess = {
-  // GET /admin/services?page&size&q
+  // GET /admin/services?page&size&q — 코드·이름·담당자로 검색한다(2026-08-14 오너 스펙).
   listServices: async (query: string | undefined, pageNumber: number, size: number) => {
     if (!isAdmin(me())) return forbidden('관리자만 서비스를 조회할 수 있어요.');
     const s = getStore();
     const q = (query ?? '').trim().toLowerCase();
     const rows = mockData.mockServiceCodes
-      .filter((service) => matches([service.code, service.name], q))
+      .filter((service) => {
+        // 담당자 축은 사람을 찾는 게 아니라 "이 사람이 담당인 서비스"를 찾는 것이다 —
+        // 그래서 한 명이라도 걸리면 서비스가 남는다. 화면에 찍히는 값이 Knox ID 라
+        // 그걸로도, 식별 키인 email 로도 걸린다.
+        const people = ownersOf(service.code).flatMap((userId) => {
+          const owner = userWire(userId);
+          return [owner.knox_id, owner.email];
+        });
+        return matches([service.code, service.name, ...people], q);
+      })
       .map((service) => {
         const owners = ownersOf(service.code);
         return {

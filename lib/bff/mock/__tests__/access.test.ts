@@ -159,6 +159,22 @@ describe('직접 부여 · 해제', () => {
     expect(all.totalElements).toBeGreaterThan(scoped.totalElements);
   });
 
+  it('서비스 검색은 담당자로도 걸린다 — 사람이 아니라 그 사람이 담당인 서비스가 나온다', async () => {
+    const codes = async (query: string): Promise<string[]> =>
+      (
+        await body<{ content: { service_code: string }[] }>(
+          await mockAccess.listServices(query, 0, 100),
+        )
+      ).content.map((row) => row.service_code);
+
+    // 화면에 찍히는 Knox ID 로도, 식별 키인 email 로도 같은 결과.
+    expect(await codes('haneul.kang')).toEqual(['gcp']);
+    expect(await codes('kang@company.com')).toEqual(['gcp']);
+    // 담당자가 붙으면 그 서비스가 검색에 새로 들어온다.
+    await mockAccess.addServiceOwners('NTF', [CHOI]);
+    expect(await codes('donghyun.choi')).toContain('NTF');
+  });
+
   it('서비스 목록의 권한자 수가 부여를 따라간다', async () => {
     const before = await body<{ content: { service_code: string; owner_count: number }[] }>(
       await mockAccess.listServices(undefined, 0, 100),

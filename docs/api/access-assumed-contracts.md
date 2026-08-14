@@ -18,6 +18,7 @@ install-v1: snake_case wire, Spring `Page` for the paged reads, `ErrorMessage` p
 | **필드 추가** | 두 목록 모두 `is_eos_service` 를 싣는다 (infra 카탈로그 값) | wire 에 선언. 요청 화면은 아직 그리지 않는다 |
 | **권한 축소** | `GET /users/search` 가 ADMIN 전용 실구현 (임직원 명부라서) | 요청자 화면은 부르지 않는다. 아래에서 관리자 API 로 옮겨 적었다 |
 | **실구현** | `GET /services/{code}/authorized-users` 가 고정 응답에서 실구현으로 | 프론트는 `/owners` 만 쓴다 — 중복 정리는 여전히 오너 몫 |
+| **검색 축 추가** | `GET /services` 를 코드·이름에 더해 **담당자**로도 검색한다 | 목의 매칭과 레일 검색창 라벨을 함께 넓혔다 |
 | **표기 통일** | 관리 화면 응답 DTO 가 snake_case 로 통일 | 이미 snake wire 로 읽고 있어 변경 없음 |
 
 이 업데이트로 **`description` 요청(C-1)은 철회한다.** 행이 이름 하나로 끝나던 문제는
