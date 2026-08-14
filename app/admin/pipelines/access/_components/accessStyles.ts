@@ -168,8 +168,11 @@ export const accessStyles = {
    * 읽힌다. 282 = 상단 내비 64 + main 상단 여백 24 + 제목·판정 문장·탭 146 + 바닥 48
    * (서비스별 권한 split 이 같은 방식으로 높이를 잡는다). */
   bench: `mt-4 grid min-h-[calc(100vh-282px)] grid-cols-[320px_1fr] overflow-hidden rounded-[12px] ${serviceSidebarStyles.canvas}`,
-  /** 목록은 헤어라인이 아니라 간격으로 끊는다 — 그래야 표가 아니라 요청 더미로 읽힌다. */
-  benchList: 'flex flex-col p-2.5',
+  /** 목록은 헤어라인이 아니라 간격으로 끊는다 — 그래야 표가 아니라 요청 더미로 읽힌다.
+   *  캔버스 여백은 26px 다(오너 지시 2026-08-14: 10 → 16 → 26). 10px 이던 때는 카드가
+   *  바닥에 얹힌 게 아니라 바닥을 꽉 채운 것처럼 보였다. 시트 쪽 `m-[26px]` 와 같은
+   *  값이라야 네 변이 같고, 레일과 시트 사이도 여기 오른쪽 패딩이 혼자 만든다. */
+  benchList: 'flex flex-col p-[26px]',
   benchRows: 'flex flex-col gap-1.5',
   benchFooter: 'mt-auto pt-2',
   /** 목록 자리의 스켈레톤 조각 — `skeletonBar` 는 h-3.5 라 타일 자리에 못 쓴다
@@ -192,15 +195,18 @@ export const accessStyles = {
     'flex-none rounded-full bg-[var(--pl-warn-bg)] px-2 py-0.5 text-[12px] font-semibold tabular-nums text-[var(--pl-warn-text)]',
   /** 오른쪽 시트 — 왼쪽 여백이 없다. 목록과 시트 사이는 캔버스가 직접 만든다. */
   benchPane:
-    'm-2.5 ml-0 overflow-y-auto rounded-[9px] border border-[var(--pl-border)] bg-[var(--pl-bg-card)] p-5',
+    'm-[26px] ml-0 overflow-y-auto rounded-[9px] border border-[var(--pl-border)] bg-[var(--pl-bg-card)] p-6',
   benchHead: 'flex items-start gap-3',
   /** 시트의 주어는 서비스가 아니라 **요청**이다 — 서비스 이름을 제목으로 쓰면 이 시트가
    *  서비스 상세로 읽히고, 결정할 것(승인·반려)이 무엇에 대한 결정인지 제목이 말하지
    *  않는다(오너 지시 2026-08-14). 서비스는 아래 사실 격자의 한 칸으로 내려간다. */
   benchTitle: 'text-[20px] font-bold leading-[1.3] tracking-[-0.02em] text-[var(--pl-text-strong)]',
   /** 사실은 나열 문장이 아니라 격자로 — 라벨과 값이 같은 x 에 서야 훑힌다.
-   *  머리 바로 밑에 붙는다(20px): 요청자는 이 시트의 첫 사실이지 한 구역 아래가 아니다. */
-  benchGrid: 'mt-5 grid grid-cols-2 gap-x-8 gap-y-4',
+   *  머리 바로 밑에 붙는다(20px): 요청자는 이 시트의 첫 사실이지 한 구역 아래가 아니다.
+   *
+   *  셋이 한 행이다(오너 지시 2026-08-14) — 2열이면 요청 일시 혼자 둘째 줄로 내려가
+   *  같은 급의 사실이 두 덩어리로 갈리고, 오른쪽 절반은 그대로 빈다. */
+  benchGrid: 'mt-5 grid grid-cols-3 gap-x-8',
   benchKey: 'text-[12px] font-medium text-[var(--pl-text-weak)]',
   benchVal: 'mt-0.5 text-[14px] font-semibold text-[var(--pl-text-strong)]',
   /** 서비스 코드 라벨 — 면이 아니라 선으로 만든다(오너 지시 2026-08-14). 이 시트엔 회색
@@ -217,10 +223,11 @@ export const accessStyles = {
   benchLabel: 'mb-2 text-[14px] font-semibold text-[var(--pl-text-strong)]',
   /** 구역 머리에 딸린 사실(누가·언제) — 머리는 강해지되 꼬리는 따라 강해지지 않는다. */
   benchLabelMeta: 'ml-2 text-[12px] font-medium text-[var(--pl-text-weak)]',
-  /** 결정은 구석의 버튼 두 개가 아니라 자기 자리를 가진 블록이다. */
-  benchDecide: 'rounded-[9px] bg-[var(--pl-gray-50)] p-4',
-  benchDecideTitle: 'text-[14px] font-semibold text-[var(--pl-text-strong)]',
-  benchDecideDesc: 'mt-0.5 text-[12px] text-[var(--pl-text-weak)]',
+  /** 결정은 시트의 마지막 구역이다 — 회색 면은 없다(오너 지시 2026-08-14). 자기 면을
+   *  가진 블록이던 때는 시트에 카드가 한 겹 더 있는 셈이었고, 사유 인용까지 치면 회색
+   *  면이 둘이라 어느 쪽이 읽을 것이고 어느 쪽이 할 것인지 면이 구분해 주지 못했다.
+   *  구역 제목은 `benchLabel` 을 함께 쓴다 — 요청 사유와 같은 급이다. */
+  benchDecideDesc: 'text-[12px] leading-[1.5] text-[var(--pl-text-weak)]',
   benchDecideActions: 'mt-3 flex gap-2',
 
   skeletonBar: 'h-3.5 animate-pulse rounded-[6px] bg-[var(--pl-gray-100)]',
@@ -269,4 +276,9 @@ export const accessStyles = {
   /** 요청 사유·반려 사유 전문 — 접힘 없이 그대로 읽는 자리. */
   quote:
     'whitespace-pre-wrap rounded-[8px] bg-[var(--pl-gray-50)] px-4 py-3 text-[14px] leading-[1.6] text-[var(--pl-text-medium)]',
+  /** 요청자가 한 말 — 파란 면에 담는다(오너 지시 2026-08-14). 회색 `quote` 는 처리
+   *  결과처럼 **우리가** 남긴 말의 자리로 남는다: 두 인용이 같은 회색이면 누구 말인지
+   *  면이 구분해 주지 못하고, 승인 화면에서 읽어야 할 쪽은 요청자 쪽이다. */
+  quoteAsk:
+    'whitespace-pre-wrap rounded-[8px] bg-[var(--pl-primary-bg)] px-4 py-3 text-[14px] leading-[1.6] text-[var(--pl-text-medium)]',
 } as const;

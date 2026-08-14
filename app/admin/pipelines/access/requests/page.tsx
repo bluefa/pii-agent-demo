@@ -466,12 +466,12 @@ export default function AccessRequestsPage(): ReactElement {
 
                 <div className={a.benchSection}>
                   <div className={a.benchLabel}>요청 사유</div>
-                  <p className={a.quote}>{detail.reason}</p>
+                  <p className={a.quoteAsk}>{detail.reason}</p>
                 </div>
 
                 {detail.status === 'PENDING' ? (
-                  <div className={cn(a.benchSection, a.benchDecide)}>
-                    <div className={a.benchDecideTitle}>승인 결정</div>
+                  <div className={a.benchSection}>
+                    <div className={a.benchLabel}>승인 결정</div>
                     <div className={a.benchDecideDesc}>
                       승인하면 즉시 권한이 부여돼요. 반려에는 사유가 필요해요.
                     </div>

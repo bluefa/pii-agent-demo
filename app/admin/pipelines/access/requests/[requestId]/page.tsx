@@ -153,7 +153,9 @@ export default function AccessRequestDetailPage(): ReactElement {
         </div>
 
         <SectionHeader title="요청 사유" />
-        <p className={a.quote}>{request.reason}</p>
+        {/* 워크벤치와 같은 규칙 — 요청자가 한 말은 파란 면, 우리가 남긴 말은 회색. 같은
+            요청이 딥링크로 열렸다고 사유 면이 달라지면 안 된다. */}
+        <p className={a.quoteAsk}>{request.reason}</p>
 
         {!pending && (
           <>
