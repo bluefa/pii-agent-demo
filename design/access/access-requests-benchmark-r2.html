@@ -1,0 +1,652 @@
+<meta charset="utf-8">
+<title>권한 요청 화면 벤치마크</title>
+<style>
+:root{
+  --bg:#FFFFFF; --panel:#F8F9FC; --panel2:#F2F4F8; --ink:#191F28; --body:#4E5968; --mute:#8B95A1;
+  --line:#E5E8EB; --accent:#0064FF; --accent-soft:#EBF2FF; --accent-ink:#0050CC;
+  --p0:#D22030; --p0-soft:#FDEBED; --p1:#B54708; --p1-soft:#FDF3E3; --p2:#556170; --p2-soft:#EEF1F4;
+  --ok:#0A7D45; --ok-soft:#E8F6EE; --code:#EFF2F6;
+  --shadow:0 1px 2px rgba(25,31,40,.04),0 8px 24px rgba(25,31,40,.06);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#101419; --panel:#161B22; --panel2:#1C232C; --ink:#E9EDF2; --body:#AAB4C0; --mute:#77828F;
+    --line:#2A323D; --accent:#4D94FF; --accent-soft:#12233D; --accent-ink:#7FB1FF;
+    --p0:#FF7A85; --p0-soft:#3A1A20; --p1:#F0A860; --p1-soft:#382513; --p2:#9AA6B4; --p2-soft:#232B34;
+    --ok:#57C98B; --ok-soft:#12301F; --code:#1D242E;
+    --shadow:0 1px 2px rgba(0,0,0,.3),0 8px 24px rgba(0,0,0,.35);
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#101419; --panel:#161B22; --panel2:#1C232C; --ink:#E9EDF2; --body:#AAB4C0; --mute:#77828F;
+  --line:#2A323D; --accent:#4D94FF; --accent-soft:#12233D; --accent-ink:#7FB1FF;
+  --p0:#FF7A85; --p0-soft:#3A1A20; --p1:#F0A860; --p1-soft:#382513; --p2:#9AA6B4; --p2-soft:#232B34;
+  --ok:#57C98B; --ok-soft:#12301F; --code:#1D242E;
+  --shadow:0 1px 2px rgba(0,0,0,.3),0 8px 24px rgba(0,0,0,.35);
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+@media (prefers-reduced-motion: reduce){html{scroll-behavior:auto}}
+body{margin:0;background:var(--bg);color:var(--ink);
+  font-family:"Pretendard Variable",Pretendard,-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Segoe UI","Malgun Gothic",sans-serif;
+  font-size:16px;line-height:1.65;-webkit-font-smoothing:antialiased}
+a{color:var(--accent-ink);text-decoration:none}
+a:hover{text-decoration:underline}
+a:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:4px}
+.wrap{max-width:1060px;margin:0 auto;padding:0 28px 96px}
+code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.86em;background:var(--code);
+  padding:1px 5px;border-radius:4px;color:var(--ink);word-break:break-all}
+h1,h2,h3,h4{text-wrap:balance;line-height:1.3}
+h2{font-size:24px;font-weight:700;margin:0 0 6px}
+h3{font-size:18px;font-weight:700;margin:34px 0 10px}
+p{margin:8px 0}
+.hero{padding:64px 0 34px;border-bottom:1px solid var(--line)}
+.eyebrow{font-size:12px;font-weight:700;letter-spacing:.14em;color:var(--accent-ink);text-transform:uppercase;margin-bottom:14px}
+.hero h1{font-size:34px;font-weight:800;margin:0 0 14px;letter-spacing:-.02em}
+.hero p{max-width:64ch;color:var(--body);font-size:16px;margin:0}
+.meta{display:flex;gap:18px;flex-wrap:wrap;margin-top:20px;font-size:14px;color:var(--mute)}
+.meta b{color:var(--body);font-weight:600}
+.nav{position:sticky;top:0;z-index:30;background:var(--bg);border-bottom:1px solid var(--line);
+  display:flex;gap:6px;overflow-x:auto;padding:10px 28px;margin:0 -28px}
+.nav a{flex:0 0 auto;font-size:14px;font-weight:600;color:var(--body);padding:6px 12px;border-radius:999px;border:1px solid var(--line)}
+.nav a:hover{background:var(--panel);text-decoration:none}
+section{padding-top:56px}
+.sec-eyebrow{font-size:12px;font-weight:700;letter-spacing:.14em;color:var(--mute);text-transform:uppercase}
+.sec-sub{color:var(--body);max-width:72ch;margin:4px 0 22px}
+.chip{display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:700;padding:2px 9px;border-radius:999px;white-space:nowrap;vertical-align:1px}
+.chip.p0{background:var(--p0-soft);color:var(--p0)}
+.chip.p1{background:var(--p1-soft);color:var(--p1)}
+.chip.p2{background:var(--p2-soft);color:var(--p2)}
+.chip.ok{background:var(--ok-soft);color:var(--ok)}
+.verdict{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin:26px 0 8px}
+@media(max-width:860px){.verdict{grid-template-columns:1fr}}
+.vcard{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:20px 20px 18px}
+.vcard .no{font-size:12px;font-weight:800;color:var(--accent-ink);letter-spacing:.08em}
+.vcard h4{margin:6px 0 8px;font-size:16px}
+.vcard p{margin:0;font-size:14px;color:var(--body)}
+.tblwrap{overflow-x:auto;border:1px solid var(--line);border-radius:12px;margin:14px 0}
+table{border-collapse:collapse;width:100%;font-size:14px;min-width:660px}
+th{background:var(--panel);text-align:left;font-size:12px;letter-spacing:.04em;color:var(--mute);font-weight:700;padding:9px 14px;border-bottom:1px solid var(--line);white-space:nowrap}
+td{padding:9px 14px;border-bottom:1px solid var(--line);vertical-align:top;color:var(--body)}
+tr:last-child td{border-bottom:none}
+td b{color:var(--ink);font-weight:600}
+.callout{border-radius:12px;padding:15px 18px;margin:16px 0;font-size:14px;border:1px solid var(--line);background:var(--panel)}
+.callout.blue{background:var(--accent-soft);border-color:transparent;color:var(--ink)}
+.callout.red{background:var(--p0-soft);border-color:transparent}
+.callout .lbl{display:block;margin-bottom:5px;font-weight:700;font-size:12px;letter-spacing:.06em;color:var(--accent-ink)}
+.callout.red .lbl{color:var(--p0)}
+.alt{border:1px solid var(--line);border-radius:16px;margin:26px 0;overflow:hidden;box-shadow:var(--shadow)}
+.alt.win{border-color:var(--accent)}
+.alt-head{padding:18px 24px 0;display:flex;gap:12px;align-items:baseline;flex-wrap:wrap}
+.alt-key{font-size:14px;font-weight:800;color:var(--accent-ink);background:var(--accent-soft);border-radius:8px;padding:3px 10px}
+.alt-head h4{margin:0;font-size:18px;flex:1}
+.alt-body{padding:14px 24px 22px;font-size:14px;color:var(--body)}
+.alt-body ul{margin:6px 0 12px;padding-left:18px}
+.alt-body li{margin:4px 0}
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:22px}
+@media(max-width:860px){.cols{grid-template-columns:1fr}}
+.lbl{font-weight:700;color:var(--ink);font-size:12px;letter-spacing:.02em}
+.road{border-left:3px solid var(--accent);margin:20px 0 0 6px;padding-left:22px}
+.road .step{margin-bottom:18px}
+.road .step h4{margin:0 0 4px;font-size:16px}
+.road .step p{margin:0;font-size:14px;color:var(--body)}
+footer{margin-top:72px;border-top:1px solid var(--line);padding-top:18px;font-size:12px;color:var(--mute)}
+figcaption{font-size:12px;color:var(--mute);margin-top:8px}
+figure{margin:18px 0}
+
+/* ── 뷰포트 도식 ───────────────────────────────────────────── */
+.vp{border:1px solid var(--line);border-radius:10px;overflow:hidden;font-size:12px;margin:12px 0}
+.vp-bar{display:flex;height:64px}
+.vp-fill{background:var(--accent-soft);color:var(--accent-ink);display:flex;align-items:center;justify-content:center;font-weight:700}
+.vp-void{background:repeating-linear-gradient(135deg,var(--panel2),var(--panel2) 6px,var(--bg) 6px,var(--bg) 12px);
+  color:var(--mute);display:flex;align-items:center;justify-content:center;font-weight:600}
+.vp-cap{padding:7px 12px;border-top:1px solid var(--line);color:var(--mute);background:var(--panel)}
+
+/* ── 제품 UI 목업 (라이트 고정 — 실제 화면을 묘사한다) ───────── */
+.ui{
+  --ink:#101828; --mid:#344054; --weak:#667085; --hair:#E4E7EC; --edge:#D0D5DD;
+  --card:#FFFFFF; --ground:#F4F4FB; --g50:#F9FAFB; --g100:#F2F4F7; --g200:#E4E7EC;
+  --pri:#2563EB; --pri-bg:#EFF4FF; --ok-t:#027A48; --ok-b:#ECFDF3;
+  --er-t:#B42318; --er-b:#FEF3F2; --wa-t:#B54708; --wa-b:#FFFAEB; --blue-t:#1747B5; --blue-b:#E8F1FF;
+  background:var(--ground);color:var(--ink);border:1px solid #D9DCE6;border-radius:12px;
+  padding:20px;font-size:14px;line-height:1.5;letter-spacing:-.014em;overflow-x:auto;
+}
+.ui *{box-sizing:border-box}
+.ui .h1{font-size:22px;font-weight:700;letter-spacing:-.02em;color:var(--ink);margin:0}
+.ui .sub{font-size:14px;color:var(--weak);margin:3px 0 0}
+.ui .big{font-size:28px;font-weight:700;color:var(--pri);line-height:1;vertical-align:-1px;margin:0 3px}
+.ui .metaline{font-size:14px;color:var(--weak);margin:7px 0 0;display:flex;gap:14px;flex-wrap:wrap}
+.ui .metaline b{color:var(--mid);font-weight:600}
+.ui .grid2{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:20px}
+.ui .grid-asym{display:grid;grid-template-columns:1.35fr 1fr;gap:20px;margin-top:20px}
+.ui .card{background:var(--card);border:1px solid var(--edge);border-radius:11px;padding:15px;
+  box-shadow:0 1px 2px rgba(16,24,40,.04),0 4px 12px rgba(16,24,40,.05)}
+.ui .flat{padding:0;margin-top:26px}
+/* 리세스는 표준값 #F2F4F7 이 아니라 한 단 더 깊은 라벤더다 — 이 화면의 바닥이
+   #F4F4FB 라서 표준 리세스는 바닥과 구분되지 않는다(시안 C 리스크 참조). */
+.ui .recess{background:#E9EBF3;border-radius:11px;padding:15px}
+.ui .chead{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.ui .ctitle{font-size:16px;font-weight:600;color:var(--ink);display:flex;align-items:center;gap:7px}
+.ui .ctitle.sm{font-size:14px;font-weight:600;color:var(--mid);letter-spacing:.01em}
+.ui .cbadge{font-size:12px;font-weight:700;border-radius:999px;padding:2px 8px;background:var(--blue-b);color:var(--blue-t)}
+.ui .cbadge.mut{background:var(--g100);color:var(--mid)}
+.ui .cdesc{font-size:12px;color:#475467;margin:5px 0 0}
+.ui .search{margin:10px 0 8px;height:29px;border:1px solid var(--edge);border-radius:7px;background:var(--card);
+  display:flex;align-items:center;padding:0 10px;color:#98A2B3;font-size:12px;gap:6px}
+.ui .colhead{display:flex;gap:10px;padding:6px 0;font-size:12px;font-weight:600;color:var(--weak)}
+.ui .row{display:flex;align-items:center;gap:9px;border-top:1px solid var(--hair);padding:7px 0;font-size:14px;color:var(--mid)}
+.ui .row.tall{padding:6px 0}
+.ui .tile{width:24px;height:24px;flex:none;border-radius:6px;display:flex;align-items:center;justify-content:center;
+  font-size:12px;font-weight:700}
+.ui .t1{background:#E8F1FF;color:#1747B5}.ui .t2{background:#E5F8EE;color:#197A3F}
+.ui .t3{background:#FEF0E1;color:#7A3F0E}.ui .t4{background:#F0EBFE;color:#5B21B6}
+.ui .t5{background:#E6F6FA;color:#0E6478}
+.ui .nm{flex:1;min-width:0;font-size:14px;font-weight:500;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ui .tag{flex:none;min-width:34px;text-align:center;border-radius:5px;background:var(--g200);color:var(--mid);
+  font-family:ui-monospace,Menlo,monospace;font-size:12px;font-weight:500;padding:1px 5px}
+.ui .btn{flex:none;border-radius:7px;font-size:12px;font-weight:600;padding:4px 10px;white-space:nowrap}
+.ui .btn.pri{background:var(--pri);color:#fff}
+.ui .btn.sec{background:var(--card);border:1px solid var(--edge);color:var(--mid)}
+.ui .pill{flex:none;display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:600;border-radius:999px;padding:2px 8px}
+.ui .pill.wait{background:var(--wa-b);color:var(--wa-t)}
+.ui .pill.ok{background:var(--ok-b);color:var(--ok-t)}
+.ui .pill.no{background:var(--er-b);color:var(--er-t)}
+.ui .note{flex:1;min-width:0;font-size:12px;color:var(--weak);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ui .when{flex:none;width:74px;font-size:12px;color:var(--weak);font-variant-numeric:tabular-nums}
+.ui .pager{display:flex;justify-content:center;gap:6px;margin-top:11px;font-size:12px;color:var(--weak)}
+.ui .rail{width:210px;flex:none;display:flex;flex-direction:column}
+.ui .split{display:flex;gap:0;background:#EFF2F3;border-radius:11px;overflow:hidden;margin-top:16px}
+.ui .railitem{display:flex;align-items:center;gap:8px;padding:8px 10px;border-bottom:1px solid #E1E5E8}
+.ui .railitem.on{background:var(--pri-bg);box-shadow:inset 2px 0 0 var(--pri)}
+.ui .railitem.on .nm{color:var(--pri)}
+.ui .sheet{flex:1;min-width:0;margin:12px;background:var(--card);border:1px solid var(--hair);border-radius:11px;padding:16px}
+.ui .eyeb{font-size:12px;font-weight:500;color:var(--weak)}
+.ui .hero2{font-size:22px;font-weight:800;letter-spacing:-.03em;margin:5px 0 0}
+.ui .kv{display:flex;gap:34px;margin-top:12px}
+.ui .kv .k{font-size:12px;font-weight:500;color:var(--weak)}
+.ui .kv .v{font-size:16px;font-weight:600;color:var(--ink);margin-top:3px}
+.ui .rule{border:0;border-top:1px solid var(--hair);margin:14px 0}
+.ui .bucket{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:16px}
+.ui .bcard{background:var(--card);border:1px solid var(--edge);border-radius:11px;padding:13px}
+.ui .bnum{font-size:22px;font-weight:700;margin-top:4px}
+.ui .ann{display:inline-block;background:#D22030;color:#fff;font-size:10px;font-weight:700;
+  border-radius:4px;padding:1px 6px;margin-left:6px;vertical-align:2px;letter-spacing:.02em}
+.ui .ann.g{background:#0A7D45}
+</style>
+
+
+<style>
+/* ── 이 문서에만 있는 부품 ─────────────────────────────────── */
+.bar{display:flex;height:34px;border-radius:8px;overflow:hidden;border:1px solid var(--line);font-size:12px;font-weight:700;margin:10px 0 4px}
+.bar span{display:flex;align-items:center;justify-content:center;white-space:nowrap;overflow:hidden}
+.bar .s-tile{background:var(--accent-soft);color:var(--accent-ink)}
+.bar .s-name{background:var(--ok-soft);color:var(--ok)}
+.bar .s-void{background:repeating-linear-gradient(135deg,var(--p0-soft),var(--p0-soft) 7px,var(--bg) 7px,var(--bg) 14px);color:var(--p0)}
+.bar .s-code{background:var(--p2-soft);color:var(--p2)}
+.bar .s-act{background:var(--p1-soft);color:var(--p1)}
+.src{display:grid;grid-template-columns:150px 1fr;gap:0;border:1px solid var(--line);border-radius:12px;overflow:hidden;margin:14px 0}
+.src>div{padding:13px 16px;border-bottom:1px solid var(--line)}
+.src>div:nth-child(odd){background:var(--panel);font-weight:700;font-size:14px;color:var(--ink)}
+.src>div:nth-child(even){font-size:14px;color:var(--body)}
+.src>div:nth-last-child(-n+2){border-bottom:none}
+.src .take{display:block;margin-top:6px;font-size:14px;color:var(--accent-ink);font-weight:600}
+.pros{display:grid;grid-template-columns:1fr 1fr;gap:0 22px;margin-top:6px}
+@media(max-width:860px){.pros{grid-template-columns:1fr}.src{grid-template-columns:1fr}}
+.ui .desc2{font-size:12px;color:var(--weak);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ui .stack{flex:1;min-width:0}
+.ui .band{background:#FEF3F2;border-radius:9px;padding:11px 13px;margin:10px 0 2px}
+.ui .bandhd{font-size:12px;font-weight:700;color:#B42318;display:flex;align-items:center;gap:6px}
+.ui .bandrow{display:flex;align-items:center;gap:9px;padding:7px 0 0}
+.ui .link{flex:none;font-size:12px;font-weight:600;color:var(--pri)}
+.ui .stage{display:flex;align-items:center;gap:5px;font-size:12px;color:var(--weak);flex:none}
+.ui .dot{width:12px;height:12px;border-radius:50%;border:2px solid var(--g200);flex:none}
+.ui .dot.done{background:var(--ok-t);border-color:var(--ok-t)}
+.ui .dot.now{border-color:var(--wa-t);background:#fff;box-shadow:inset 0 0 0 2px var(--wa-t)}
+.ui .seg{width:18px;height:2px;background:var(--g200);flex:none}
+.ui .seg.done{background:var(--ok-t)}
+.ui .open{background:var(--g50);border-radius:9px;padding:12px 13px;margin:2px 0 6px}
+.ui .quote{background:#fff;border:1px solid var(--hair);border-radius:7px;padding:9px 11px;font-size:12px;color:var(--mid);margin-top:8px}
+.ui .caret{flex:none;color:var(--weak);font-size:12px;width:12px}
+</style>
+
+<div class="wrap">
+
+<div class="hero">
+  <div class="eyebrow">PII Agent · Design Research · Round 2</div>
+  <h1>탭으로 합쳤는데도 평평한 이유</h1>
+  <p><code>/access-requests</code> 를 한 카드 + 탭 3개로 합친 뒤에도 "강약이 없다"는 평가가 그대로입니다. 이번엔 인상이 아니라 <b>브라우저에서 잰 수치</b>로 원인을 특정하고, 같은 문제를 먼저 겪은 제품 5곳이 무엇을 했는지 확인한 뒤 시안 3안을 제시합니다.</p>
+  <div class="meta">
+    <span><b>대상</b> /access-requests</span>
+    <span><b>기준 코드</b> feat/access-admin · e2d77ac3</span>
+    <span><b>측정</b> Chrome 1710×947 · 실측</span>
+    <span><b>작성</b> 2026-08-14</span>
+  </div>
+</div>
+
+<nav class="nav">
+  <a href="#summary">결론</a>
+  <a href="#fixed">건드리지 않는 것</a>
+  <a href="#diag">① 진단</a>
+  <a href="#bench">② 벤치마크</a>
+  <a href="#alts">③ 시안 3안</a>
+  <a href="#reject">기각안</a>
+  <a href="#apply">적용 수치</a>
+</nav>
+
+<!-- ══════════════════ SUMMARY ══════════════════ -->
+<section id="summary">
+  <div class="sec-eyebrow">Executive Summary</div>
+  <h2>결론 먼저 — 세 수치</h2>
+  <p class="sec-sub">1차에서는 표면이 둘이라 평평했고, 그건 탭으로 고쳤습니다. 지금 남은 평평함은 <b>카드 안</b>의 문제입니다. 세 가지 다 측정값이 있습니다.</p>
+
+  <div class="verdict">
+    <div class="vcard">
+      <div class="no">결론 1</div>
+      <h4>카드 안에 등급이 없다</h4>
+      <p>카드 내부에서 쓰이는 글자 크기는 <b>12 · 14 · 16</b> 셋뿐이고, 가장 큰 것이 16px입니다. 이 화면에서 제일 큰 타입인 <b>32px 판정 수치는 카드 밖</b>에 있습니다. 즉 카드는 통째로 한 등급이고, 목록은 첫 줄부터 끝 줄까지 같은 무게로 읽힙니다.</p>
+    </div>
+    <div class="vcard">
+      <div class="no">결론 2</div>
+      <h4>서비스 행의 94%가 공백</h4>
+      <p>이름 칸은 <b>735px</b>인데 실제 글자는 <b>41px</b>("Azure")입니다. 남는 <b>694px</b>가 이름과 코드 태그 사이에서 그냥 빕니다. 계약이 주는 필드가 <code>service_code · service_name · access_status</code> 셋뿐이라 <b>채울 것이 없어서</b> 생긴 공백입니다.</p>
+    </div>
+    <div class="vcard">
+      <div class="no">결론 3</div>
+      <h4>화면이 세로 67%에서 끝난다</h4>
+      <p>카드 바닥이 <b>635px</b>, 뷰포트가 <b>947px</b>. 스크롤이 아예 없고 아래 <b>312px</b>가 빈 바닥입니다. 끝났다는 신호도, 더 있다는 신호도 없이 그냥 멈춥니다.</p>
+    </div>
+  </div>
+
+  <div class="callout blue">
+    <span class="lbl">한 줄 요약</span>
+    강약을 <b>더 넣을</b> 문제가 아니라, 행에 담을 <b>사실이 모자란</b> 문제입니다. 두 필드를 735px에 펼쳐 놓으면 어떤 색·굵기를 써도 평평합니다. 그래서 이번 시안은 전부 <b>같은 폭에 사실을 더 담거나, 폭을 사실에 맞추거나</b> 둘 중 하나입니다.
+  </div>
+</section>
+
+<!-- ══════════════════ FIXED ══════════════════ -->
+<section id="fixed">
+  <div class="sec-eyebrow">Constraints</div>
+  <h2>건드리지 않는 것</h2>
+  <p class="sec-sub">이미 결정됐거나 기각된 것들입니다. 시안 셋 다 이 안에서 움직입니다.</p>
+
+  <div class="tblwrap">
+    <table>
+      <thead><tr><th style="width:200px">결정</th><th>내용</th><th style="width:110px">시점</th></tr></thead>
+      <tbody>
+        <tr><td><b>탭 구조 유지</b></td><td>목록 셋은 한 카드 안의 탭이다. 위아래 구역으로 되돌리거나 2-up 카드로 펼치는 안은 이 문서에서 다루지 않는다.</td><td>08-14 결정</td></tr>
+        <tr><td><b>2열 목록 금지</b></td><td>서비스를 2열로 흘리면 읽는 차례가 좌→우→아래로 튄다. 타일 그리드도 같은 문제라 기각안으로만 기록한다.</td><td>08-13 기각</td></tr>
+        <tr><td><b>좌측 사이드바 없음</b></td><td>이 화면은 <code>/admin/**</code> 밖이다. 어드민 셸의 216px 다크 사이드바는 이 화면의 것이 아니다 — 프레임을 사이드바로 만들 수 없다.</td><td>설계 전제</td></tr>
+        <tr><td><b>수치 타일 금지</b></td><td>대기·반려·승인을 스탯 카드 3장으로 세우는 안. 카드는 행위 단위지 정보 단위가 아니다.</td><td>누적 규칙</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ══════════════════ DIAGNOSIS ══════════════════ -->
+<section id="diag">
+  <div class="sec-eyebrow">① Diagnosis</div>
+  <h2>측정값</h2>
+  <p class="sec-sub">인상으로 판정하지 않기 위해, 실제 DOM에서 잰 값입니다. 뷰포트 1710×947, 기본 탭(요청할 수 있는 서비스).</p>
+
+  <div class="tblwrap">
+    <table>
+      <thead><tr><th style="width:230px">측정 대상</th><th style="width:130px">값</th><th>읽는 법</th></tr></thead>
+      <tbody>
+        <tr><td>콘텐츠 폭 <code>main</code></td><td><b>1000px</b></td><td>1차에서 1440 → 1000으로 줄인 값. 그때는 좌측 쏠림을 고치는 게 목적이었다.</td></tr>
+        <tr><td>카드 폭</td><td><b>936px</b></td><td>1000 − 좌우 패딩 64.</td></tr>
+        <tr><td>행 폭</td><td><b>902px</b></td><td>936 − 카드 패딩 34.</td></tr>
+        <tr><td>서비스 이름 칸</td><td><b>735px</b></td><td>타일 28 · 코드칩 · CTA 68을 뺀 나머지를 이 칸이 전부 먹는다.</td></tr>
+        <tr><td>이름 글자 실폭</td><td><b>41px</b></td><td>"Azure". 가장 긴 이름("배송 물류 거점 통합 관제 및 실시간 배차 운영 플랫폼")도 340px 안쪽.</td></tr>
+        <tr><td><b>죽은 폭</b></td><td><b>694px (94%)</b></td><td>이름 뒤부터 코드 태그 앞까지. 행에서 눈이 <b>가장 오래 지나는 구간</b>에 아무것도 없다.</td></tr>
+        <tr><td>카드 안 글자 크기</td><td><b>12 / 14 / 16</b></td><td>세 단계. NN/g 권고(3단계)는 지키지만 <b>최댓값이 16px</b>이라 단계 폭이 좁다.</td></tr>
+        <tr><td>카드 안 굵기</td><td><b>400 / 500 / 600</b></td><td>가장 굵은 것이 600. 700 이상이 하나도 없다.</td></tr>
+        <tr><td>카드 바닥 / 뷰포트</td><td><b>635 / 947px</b></td><td>세로 67%에서 끝. 문서 높이 = 뷰포트 높이라 스크롤이 발생하지 않는다.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>행 해부 — 902px에 무엇이 있는가</h3>
+  <div class="bar" role="img" aria-label="서비스 행의 가로 구성: 타일 28px, 이름 41px, 공백 694px, 코드 태그 50px, 액션 68px">
+    <span class="s-tile" style="width:3.2%">28</span>
+    <span class="s-name" style="width:4.6%">41</span>
+    <span class="s-void" style="width:77%">공백 694px</span>
+    <span class="s-code" style="width:5.6%">50</span>
+    <span class="s-act" style="width:7.6%">68</span>
+  </div>
+  <figcaption>이름과 코드 태그가 한 행의 양 끝으로 밀려나 서로 관계가 없어 보인다. 코드 태그는 이름의 부속인데 694px 떨어져 있으면 별개의 열로 읽힌다 — 근접성(proximity)이 관계를 만든다는 원칙이 정확히 반대로 작동하고 있다.</figcaption>
+
+  <h3>세로 — 화면의 3분의 1이 빈 바닥</h3>
+  <div class="vp">
+    <div class="vp-bar">
+      <div class="vp-fill" style="width:67%">콘텐츠 635px</div>
+      <div class="vp-void" style="width:33%">빈 바닥 312px</div>
+    </div>
+    <div class="vp-cap">스크롤이 없다는 건 좋은 신호지만, 끝을 알리는 것이 아무것도 없으면 "덜 로드된 화면"으로 읽힌다.</div>
+  </div>
+
+  <h3>지금 화면 (요청할 수 있는 서비스 탭)</h3>
+  <div class="ui">
+    <div class="h1">내 권한 요청</div>
+    <p class="sub">반려된<span class="big" style="color:#B42318">2</span>건이 있어요 — 사유를 확인하고 다시 요청할 수 있어요</p>
+    <p class="metaline"><span>대기 <b>3</b></span><span>승인 <b>2</b></span></p>
+
+    <div class="card" style="margin-top:16px">
+      <div style="display:flex;gap:2px;border-bottom:1px solid var(--hair);margin:-15px -15px 8px;padding:0 15px">
+        <div style="padding:9px 11px;font-size:12px;font-weight:600;color:var(--pri);border-bottom:2px solid var(--pri)">요청할 수 있는 서비스 <span style="font-weight:700">15</span></div>
+        <div style="padding:9px 11px;font-size:12px;font-weight:500;color:var(--weak)">내가 접근할 수 있는 서비스 <span style="font-weight:700">2</span></div>
+        <div style="padding:9px 11px;font-size:12px;font-weight:500;color:var(--weak)">내 요청 내역 <span style="font-weight:700">7</span></div>
+      </div>
+      <p class="cdesc">아직 접근 권한이 없는 서비스예요 — 사유를 적어 요청하면 관리자가 검토해요</p>
+      <div class="search">🔍 서비스 코드/이름 검색</div>
+      <div class="row"><span class="tile t1">A</span><span class="nm">Azure</span><span class="tag">azure</span><span class="link">권한 요청</span></div>
+      <div class="row"><span class="tile t2">A</span><span class="nm">AWS</span><span class="tag">aws</span><span class="link">권한 요청</span></div>
+      <div class="row"><span class="tile t3">I</span><span class="nm">IDC</span><span class="tag">idc</span><span class="link">권한 요청</span></div>
+      <div class="row"><span class="tile t4">G</span><span class="nm">GCP</span><span class="tag">gcp</span><span class="link">권한 요청</span></div>
+      <div class="row"><span class="tile t5">S</span><span class="nm">SDU</span><span class="tag">SDU</span><span class="link">권한 요청</span></div>
+      <div class="pager">‹ <b style="color:var(--pri)">1</b> 2 3 ›</div>
+    </div>
+  </div>
+  <figcaption>목업은 실제 토큰 값으로 그린 것이다. 눈에 걸릴 것이 없다는 점까지 그대로다 — 다섯 행이 같은 높이·같은 굵기·같은 색으로 반복된다.</figcaption>
+
+  <div class="callout red">
+    <span class="lbl">원인은 색이 아니다</span>
+    NN/g는 시각적 계층을 <b>크기 · 색 · 굵기 · 근접성 · 공통 영역 · 여백</b>으로 만든다고 정리하면서, 동시에 <b>"모든 것이 대비되면 아무것도 두드러지지 않는다"</b>고 경고합니다. 이 화면은 대비가 <b>과한</b> 쪽이 아니라 <b>쓸 재료가 없는</b> 쪽입니다. 행에 사실이 둘뿐이면 굵기를 올려도 그 둘이 같이 굵어질 뿐입니다.
+  </div>
+</section>
+
+<!-- ══════════════════ BENCHMARK ══════════════════ -->
+<section id="bench">
+  <div class="sec-eyebrow">② Benchmark</div>
+  <h2>같은 화면을 먼저 만든 곳들</h2>
+  <p class="sec-sub">"내가 요청할 수 있는 것 / 내가 가진 것 / 내가 낸 요청" — 이건 IAM 제품의 표준 화면입니다. 이미 답이 나와 있는 문제라 새로 발명할 필요가 없습니다.</p>
+
+  <div class="src">
+    <div>Microsoft Entra<br>My Access</div>
+    <div>
+      좌측 내비가 <b>Access packages / Request history / Approvals</b> 세 갈래. 요청 내역의 각 행은 짧고, 행 끝의 <b>View</b> 를 누르면 <b>우측 패널</b>이 열려 그 요청의 이력·승인자·재요청 버튼이 나온다. 대기 중이면 취소, 반려면 <b>Resubmit</b>.
+      <span class="take">가져올 것 — 목록 행은 짧게 두고 <b>깊이는 패널/펼침</b>에 둔다. 사유 전문을 행에 펼쳐 놓지 않는다.</span>
+    </div>
+
+    <div>ServiceNow<br>Service Portal</div>
+    <div>
+      요청 행에 <b>stage 인디케이터</b>를 그린다 — 완료 단계는 체크 원, 현재 단계는 화살표, 남은 단계는 빈 원. 상태를 낱말 하나가 아니라 <b>진행 그림</b>으로 말한다.
+      <span class="take">가져올 것 — "승인 대기"는 상태가 아니라 <b>위치</b>다. 요청→검토→처리 중 어디인지 그림으로 보이면 pill 하나보다 무게가 훨씬 크다.</span>
+    </div>
+
+    <div>Okta<br>End-User Dashboard</div>
+    <div>
+      사용자가 쓸 수 있는 앱을 <b>타일(카드) 그리드</b>로 보여준다. 리스트 뷰도 고를 수 있지만 기본은 타일이다 — 항목당 정보가 <b>아이콘 + 이름</b>뿐이라 표의 행으로 만들면 빈다.
+      <span class="take">진단만 가져온다 — "이름밖에 없는 항목은 표가 아니다"라는 판단은 맞다. 다만 2열 배치는 이 제품에서 이미 기각됐다(<a href="#reject">기각안 1</a>).</span>
+    </div>
+
+    <div>Nielsen Norman<br>Group</div>
+    <div>
+      계층은 <b>크기·색·굵기·근접성·공통 영역·여백</b>으로 만든다. 수치 권고가 명확하다 — <b>"크기는 세 단계까지(small · medium · large)"</b>, <b>"크게 쓸 요소는 최대 2개"</b>, 본문 14–16 · 소제목 18–22 · 제목 32까지. 그리고 <b>"모든 것이 대비되면 아무것도 두드러지지 않는다"</b>.
+      <span class="take">가져올 것 — 지금 카드 안의 세 단계는 12/14/16 으로 <b>간격이 너무 좁다</b>. 크게 쓸 자리 2개 중 하나를 카드 안으로 들여온다.</span>
+    </div>
+
+    <div>IBM Carbon<br>Structured list</div>
+    <div>
+      structured list는 <b>"가장 단순한 형태로 그룹을 훑거나 그중 하나를 고를 때"</b>, 그리고 <b>"설명과 상세 정보를 함께 보여줄 때"</b> 쓴다. <b>"항목이 25개를 넘거나 보여줄 내용이 더 있으면 그때 data table"</b>.
+      <span class="take">가져올 것 — 서비스 목록(20개, 필드 2개)은 <b>data table 이 아니라 structured list</b>다. 반대로 내 요청 내역(필드 5개)은 표가 맞다. <b>한 카드 안에서 두 탭이 다른 부품이어야 한다.</b></span>
+    </div>
+  </div>
+
+  <h3>제품 안 — 답은 이미 옆 화면에 있다</h3>
+  <p>바깥을 볼 것도 없이, 같은 제품의 <code>연동 요청</code> 화면과 <b>같은 화면의 세 번째 탭</b>이 이미 강약을 가지고 있습니다.</p>
+
+  <div class="tblwrap">
+    <table>
+      <thead><tr><th style="width:220px">화면</th><th style="width:130px">행의 열 수</th><th>강약이 어디서 오는가</th></tr></thead>
+      <tbody>
+        <tr><td><b>연동 요청</b><br><code>queue/requests</code></td><td>6열</td><td>상단 2-up + 하단 full-width. <b>폭이 다른 블록</b>이 곧 등급이다. 행은 서비스명·코드·클라우드 로고·설명·일자·↗ 로 <b>꽉 차 있어</b> 죽은 폭이 없다.</td></tr>
+        <tr><td><b>내 요청 내역</b><br>(같은 화면, 3번 탭)</td><td>5열</td><td>261 / 96 / 186 / 186 / 124 — <b>공백 0</b>. 상태 pill 이 색을 가지고, 사유가 두 줄로 접히며 행 높이가 달라진다. 이 탭만은 평평하지 않다.</td></tr>
+        <tr><td><b>요청할 수 있는 서비스</b><br>(같은 화면, 1번 탭)</td><td>2열</td><td>735px 중 41px만 글자. <b>같은 카드, 같은 토큰인데 이 탭만 비어 보이는 이유가 여기 있다.</b></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout blue">
+    <span class="lbl">벤치마크 종합</span>
+    다섯 곳 모두 같은 말을 다르게 합니다 — <b>행이 담을 사실의 개수가 부품을 정한다.</b> 2개면 structured list(설명 한 줄을 붙여 2단으로), 5개면 표, 그 이상이면 접었다 펴는 행. 지금은 필드 2개짜리 목록을 필드 5개짜리와 <b>같은 부품으로</b> 그리고 있습니다.
+  </div>
+</section>
+
+<!-- ══════════════════ ALTERNATIVES ══════════════════ -->
+<section id="alts">
+  <div class="sec-eyebrow">③ Alternatives</div>
+  <h2>시안 3안</h2>
+  <p class="sec-sub">셋 다 탭 구조를 유지합니다. A는 폭 문제, B는 순서 문제, C는 깊이 문제를 답합니다 — <b>서로 배타적이지 않습니다.</b></p>
+
+  <!-- 시안 A -->
+  <div class="alt win">
+    <div class="alt-head">
+      <span class="alt-key">시안 A</span>
+      <h4>행을 두 단으로 — structured list</h4>
+      <span class="chip ok">추천 · 바닥</span>
+    </div>
+    <div class="alt-body">
+      <p>코드 태그를 <b>이름 바로 옆</b>으로 붙이고, 그 아래 <b>설명 한 줄</b>을 깐다. 694px 공백이 글로 차고, 행 안에 <b>16/600 → 12/weak</b> 두 단이 생긴다. 카드 안에 처음으로 등급이 만들어진다.</p>
+
+      <div class="ui">
+        <div class="card">
+          <div style="display:flex;gap:2px;border-bottom:1px solid var(--hair);margin:-15px -15px 8px;padding:0 15px">
+            <div style="padding:9px 11px;font-size:12px;font-weight:600;color:var(--pri);border-bottom:2px solid var(--pri)">요청할 수 있는 서비스 <span style="font-weight:700">15</span></div>
+            <div style="padding:9px 11px;font-size:12px;font-weight:500;color:var(--weak)">내가 접근할 수 있는 서비스 <span style="font-weight:700">2</span></div>
+            <div style="padding:9px 11px;font-size:12px;font-weight:500;color:var(--weak)">내 요청 내역 <span style="font-weight:700">7</span></div>
+          </div>
+          <div class="search">🔍 서비스 코드/이름 검색</div>
+          <div class="row tall"><span class="tile t1" style="width:30px;height:30px">A</span>
+            <span class="stack"><span style="display:flex;align-items:center;gap:6px"><b style="font-size:14px;color:var(--ink)">Azure</b><span class="tag">azure</span></span>
+            <span class="desc2">Azure 도메인 PII Agent 연동 · 대상 12</span></span>
+            <span class="link">권한 요청</span></div>
+          <div class="row tall"><span class="tile t3" style="width:30px;height:30px">배</span>
+            <span class="stack"><span style="display:flex;align-items:center;gap:6px"><b style="font-size:14px;color:var(--ink)">배송 물류 거점 통합 관제 및 실시간 배차 운영 플랫폼</b><span class="tag">DLV</span></span>
+            <span class="desc2">배송 도메인 PII Agent 연동 · 대상 3</span></span>
+            <span class="link">권한 요청</span></div>
+          <div class="row tall"><span class="tile t4" style="width:30px;height:30px">쿠</span>
+            <span class="stack"><span style="display:flex;align-items:center;gap:6px"><b style="font-size:14px;color:var(--ink)">쿠폰·프로모션 발급 정산</b><span class="tag">CPN</span></span>
+            <span class="desc2">쿠폰/프로모션 도메인 PII Agent 연동 · 대상 0</span></span>
+            <span class="link">권한 요청</span></div>
+        </div>
+      </div>
+
+      <div class="pros">
+        <div><span class="lbl">얻는 것</span>
+          <ul>
+            <li>죽은 폭 694px → <b>0</b>. 이름·코드·설명이 한 덩어리로 붙어 근접성이 관계를 만든다.</li>
+            <li>행 안에 등급 2단. 목록을 훑을 때 굵은 줄만 따라 읽을 수 있다(layer-cake 스캔).</li>
+            <li>세로가 늘어 카드가 뷰포트를 채운다 — 결론 3도 같이 풀린다.</li>
+          </ul>
+        </div>
+        <div><span class="lbl">비용 · 리스크</span>
+          <ul>
+            <li><b>설명은 계약에 없다.</b> <code>UserServiceRow</code> 는 <code>service_code · service_name · access_status</code> 뿐이다 → <a href="#apply">계약 요청 C-1</a>.</li>
+            <li>"대상 N" 같은 부가 수치도 마찬가지로 계약 밖이다. 없는 값을 지어내지 않는다.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="callout">
+        <span class="lbl">A-minus — 계약을 기다리지 않는 판</span>
+        설명 필드가 오기 전까지는 <b>코드 태그를 이름 옆에 붙이고 목록 폭을 720px로 줄인다</b>. 죽은 폭 694 → 약 <b>60px</b>. 한 줄짜리 행이 그대로지만, 이름과 코드가 붙는 것만으로 행이 "덩어리"로 읽힌다. 코드 두 줄이면 되고 계약 의존이 없다.
+      </div>
+    </div>
+  </div>
+
+  <!-- 시안 B -->
+  <div class="alt">
+    <div class="alt-head">
+      <span class="alt-key">시안 B</span>
+      <h4>급한 것을 위로 — 반려 밴드</h4>
+      <span class="chip p1">추천 · 얹기</span>
+    </div>
+    <div class="alt-body">
+      <p>내 요청 내역 탭 맨 위에 <b>반려 건만 모은 밴드</b>를 둔다. 사유와 [다시 요청]이 거기 있고, 나머지 표는 아래에서 조용히 이어진다. 같은 표 안에서 <b>위와 아래의 표면이 달라</b>지므로 등급이 아니라 <b>포함</b>으로 계층이 생긴다. 탭 라벨에는 붉은 점 하나.</p>
+
+      <div class="ui">
+        <div class="card">
+          <div style="display:flex;gap:2px;border-bottom:1px solid var(--hair);margin:-15px -15px 8px;padding:0 15px">
+            <div style="padding:9px 11px;font-size:12px;font-weight:500;color:var(--weak)">요청할 수 있는 서비스 <span style="font-weight:700">15</span></div>
+            <div style="padding:9px 11px;font-size:12px;font-weight:500;color:var(--weak)">내가 접근할 수 있는 서비스 <span style="font-weight:700">2</span></div>
+            <div style="padding:9px 11px;font-size:12px;font-weight:600;color:var(--pri);border-bottom:2px solid var(--pri)">내 요청 내역 <span style="font-weight:700">7</span> <span style="color:#B42318">●</span></div>
+          </div>
+          <div class="band">
+            <div class="bandhd">⚠ 반려된 2건 — 사유를 확인하고 다시 요청할 수 있어요</div>
+            <div class="bandrow"><span class="tile t3" style="width:22px;height:22px;font-size:12px">광</span><b style="font-size:12px;color:var(--ink);flex:none">광고 노출 및 정산 리포팅</b><span class="note">광고 도메인은 담당 조직에서 직접 관리해요</span><span class="link">다시 요청</span></div>
+            <div class="bandrow"><span class="tile t5" style="width:22px;height:22px;font-size:12px">주</span><b style="font-size:12px;color:var(--ink);flex:none">주문 접수 및 취소·반품 처리</b><span class="note">점검 범위가 확정되면 다시 요청해 주세요</span><span class="link">다시 요청</span></div>
+          </div>
+          <div class="colhead" style="margin-top:10px"><span style="flex:1">서비스</span><span style="width:70px">상태</span><span style="flex:1">요청 사유</span><span style="width:74px">요청 일자</span></div>
+          <div class="row"><span class="tile t2" style="width:22px;height:22px;font-size:12px">통</span><span class="nm" style="font-size:12px">통합 로그 수집</span><span class="pill wait" style="width:70px">승인 대기</span><span class="note">통합 로그 수집 파이프라인 점검</span><span class="when">08-13</span></div>
+          <div class="row"><span class="tile t4" style="width:22px;height:22px;font-size:12px">셀</span><span class="nm" style="font-size:12px">셀러 정산 및 입점 심사</span><span class="pill wait" style="width:70px">승인 대기</span><span class="note">셀러 정산 대상 등록 문의 대응</span><span class="when">08-12</span></div>
+          <div class="row"><span class="tile t1" style="width:22px;height:22px;font-size:12px">회</span><span class="nm" style="font-size:12px">회원 통합 인증</span><span class="pill ok" style="width:70px">승인</span><span class="note">회원 통합 인증 대상 등록 지원 건</span><span class="when">08-04</span></div>
+        </div>
+      </div>
+
+      <div class="pros">
+        <div><span class="lbl">얻는 것</span>
+          <ul>
+            <li>이 화면에 다시 오는 이유(<b>반려됐나?</b>)가 탭을 열자마자 답해진다.</li>
+            <li>[다시 요청]이 사유 <b>옆</b>에 있다 — 지금은 사유를 읽고 다른 탭으로 건너가야 한다.</li>
+            <li>헤더의 32px 판정과 목록이 처음으로 연결된다.</li>
+          </ul>
+        </div>
+        <div><span class="lbl">비용 · 리스크</span>
+          <ul>
+            <li>반려가 0건이면 밴드가 사라져 <b>탭 높이가 달라진다</b>. 빈 밴드를 남기지 말 것 — 없는 게 사실이다.</li>
+            <li>반려 건이 <b>밴드와 표에 두 번</b> 나오면 안 된다. 밴드로 올린 건 표에서 뺀다.</li>
+            <li>[다시 요청]은 새 요청 생성이다. 계약상 <code>POST</code> 그대로라 추가 계약은 없다.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 시안 C -->
+  <div class="alt">
+    <div class="alt-head">
+      <span class="alt-key">시안 C</span>
+      <h4>행이 열린다 — 접힘 + 진행 단계</h4>
+      <span class="chip p2">선택 · 뼈대</span>
+    </div>
+    <div class="alt-body">
+      <p>내 요청 내역의 접힌 행은 <b>서비스 · 진행 단계 · 일자</b> 셋만. 사유 두 열을 접어 넣으면 표가 짧아지고 열 폭에 여유가 생긴다. 펼치면 <b>요청 → 검토 → 처리</b> 스테퍼와 사유 전문이 나온다. 오너가 이미 <b>"행은 기본 접힘"</b>을 결정한 판례(08-11)와 같은 방향이다.</p>
+
+      <div class="ui">
+        <div class="card">
+          <div class="colhead"><span style="width:12px"></span><span style="flex:1">서비스</span><span style="width:150px">진행</span><span style="width:74px">요청 일자</span></div>
+          <div class="row"><span class="caret">▾</span><span class="tile t2" style="width:22px;height:22px;font-size:12px">통</span><span class="nm" style="font-size:12px">통합 로그 수집</span>
+            <span class="stage" style="width:150px"><span class="dot done"></span><span class="seg done"></span><span class="dot now"></span><span class="seg"></span><span class="dot"></span><span style="margin-left:4px;color:var(--wa-t);font-weight:600">검토 중</span></span>
+            <span class="when">08-13</span></div>
+          <div class="open">
+            <div style="display:flex;gap:30px;font-size:12px;color:var(--weak)">
+              <span>요청 <b style="color:var(--mid)">08-13 01:20</b></span>
+              <span>검토 <b style="color:var(--mid)">진행 중</b></span>
+              <span>처리 <b style="color:var(--mid)">—</b></span>
+            </div>
+            <div class="quote">통합 로그 수집 파이프라인 점검.</div>
+          </div>
+          <div class="row"><span class="caret">›</span><span class="tile t3" style="width:22px;height:22px;font-size:12px">광</span><span class="nm" style="font-size:12px">광고 노출 및 정산 리포팅</span>
+            <span class="stage" style="width:150px"><span class="dot done"></span><span class="seg done"></span><span class="dot done"></span><span class="seg done"></span><span class="dot" style="background:#B42318;border-color:#B42318"></span><span style="margin-left:4px;color:#B42318;font-weight:600">반려</span></span>
+            <span class="when">08-08</span></div>
+          <div class="row"><span class="caret">›</span><span class="tile t1" style="width:22px;height:22px;font-size:12px">회</span><span class="nm" style="font-size:12px">회원 통합 인증</span>
+            <span class="stage" style="width:150px"><span class="dot done"></span><span class="seg done"></span><span class="dot done"></span><span class="seg done"></span><span class="dot done"></span><span style="margin-left:4px;color:var(--ok-t);font-weight:600">승인</span></span>
+            <span class="when">08-04</span></div>
+        </div>
+      </div>
+
+      <div class="pros">
+        <div><span class="lbl">얻는 것</span>
+          <ul>
+            <li>"승인 대기"가 <b>낱말</b>에서 <b>위치</b>로 바뀐다. 세 점 중 어디인지가 한눈에 읽힌다.</li>
+            <li>사유 두 열이 사라져 표가 5열 → 3열. 열마다 폭이 넉넉해진다.</li>
+            <li>행 높이가 사유 길이에 따라 들쭉날쭉하던 것이 <b>고정</b>된다.</li>
+          </ul>
+        </div>
+        <div><span class="lbl">비용 · 리스크</span>
+          <ul>
+            <li>스테퍼 3단계는 <b>계약이 말하는 것 이상을 그리면 안 된다</b>. 계약은 <code>PENDING / APPROVED / REJECTED</code> 셋뿐이라 "검토 중"은 PENDING 의 다른 이름일 뿐 — 실제 중간 단계가 있는 척하면 안 된다.</li>
+            <li>그래서 스테퍼는 <b>3점 고정</b>이고, 상태별로 몇 번째까지 칠할지만 정한다. 그 이상은 계약이 생긴 뒤에.</li>
+            <li>사유를 접으면 <b>훑어서 비교</b>할 수 없다. 7건 규모라 괜찮지만 수십 건이 되면 되짚어야 한다.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="callout blue">
+    <span class="lbl">권고 조합</span>
+    <b>A-minus 를 바닥에 깔고(계약 없이 지금), B를 얹고(가장 큰 체감), C는 그다음</b>. A의 완전판(설명 줄)은 계약 요청 C-1 이 답을 받은 뒤. 셋을 한 번에 넣으면 무엇이 효과가 있었는지 알 수 없습니다.
+  </div>
+</section>
+
+<!-- ══════════════════ REJECTED ══════════════════ -->
+<section id="reject">
+  <div class="sec-eyebrow">Rejected</div>
+  <h2>기각안 — 검토했고 안 하기로 한 것</h2>
+  <p class="sec-sub">다음 라운드에서 같은 안이 다시 올라오지 않도록 이유를 남깁니다.</p>
+
+  <div class="verdict">
+    <div class="vcard">
+      <div class="no" style="color:var(--p0)">기각 1</div>
+      <h4>타일 그리드 2열 (Okta 방식)</h4>
+      <p>필드 2개짜리 목록을 타일 격자로 바꾸면 폭은 차지만 <b>읽는 차례가 좌→우→아래로 튄다</b>. 08-13에 같은 이유로 이미 되돌린 판이다 — "2줄로 보여주는 거야? 하나로 보여줘".</p>
+    </div>
+    <div class="vcard">
+      <div class="no" style="color:var(--p0)">기각 2</div>
+      <h4>탭 해체 후 2-up 카드</h4>
+      <p><code>연동 요청</code> 처럼 상단 2-up + 하단 full-width 로 펴면 폭 차이가 곧 등급이 된다. 그러나 <b>08-14에 탭으로 합치기로 결정</b>했고, 그 결정은 "한 번에 하나만 본다"는 판단이었다. 되돌리지 않는다.</p>
+    </div>
+    <div class="vcard">
+      <div class="no" style="color:var(--p0)">기각 3</div>
+      <h4>대기·반려·승인 스탯 타일 3장</h4>
+      <p>헤더 아래 수치 카드 3장. 큰 숫자가 생기니 강약은 붙지만, <b>카드는 행위 단위지 정보 단위가 아니다</b>. 누를 것이 없는 카드 3장은 표면만 늘리고 계층은 오히려 평평하게 만든다. 지금의 판정 문장 한 줄이 같은 일을 더 적은 표면으로 한다.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════ APPLY ══════════════════ -->
+<section id="apply">
+  <div class="sec-eyebrow">Apply</div>
+  <h2>적용 수치</h2>
+  <p class="sec-sub">고칠 때 쓸 값입니다. 새로 만든 숫자가 아니라 같은 역할을 하는 기존 화면에서 가져온 값입니다.</p>
+
+  <div class="tblwrap">
+    <table>
+      <thead><tr><th style="width:190px">대상</th><th style="width:150px">지금</th><th style="width:150px">제안</th><th>출처 / 근거</th></tr></thead>
+      <tbody>
+        <tr><td>서비스 목록 폭</td><td>735px (이름 칸)</td><td><b>≤ 640px</b></td><td>A-minus. 가장 긴 서비스명 실폭 340px + 여유. 나머지는 오른쪽 여백으로 둔다.</td></tr>
+        <tr><td>코드 태그 위치</td><td>행 오른쪽 끝</td><td><b>이름 바로 옆 gap 6</b></td><td><code>/services</code> 레일과 같다 — 레일에선 폭이 좁아 원래 붙어 있었다.</td></tr>
+        <tr><td>서비스 타일</td><td>28×28</td><td><b>30×30</b> (2단일 때)</td><td>2단 행 높이(16+12+간격)에 맞춘 값. 1단이면 28 유지.</td></tr>
+        <tr><td>설명 줄</td><td>없음</td><td><b>12px / weak</b></td><td>같은 2단 문법을 쓰는 <code>연동 요청</code> 행의 설명 열과 같은 급.</td></tr>
+        <tr><td>반려 밴드</td><td>없음</td><td><b>#FEF3F2 · r9 · p11/13</b></td><td>기존 <code>--pl-err-bg</code>. 새 색을 만들지 않는다.</td></tr>
+        <tr><td>스테퍼 점</td><td>없음</td><td><b>12px · seg 18×2</b></td><td>파이프라인 진행 스테퍼의 축소판. 3점 고정.</td></tr>
+        <tr><td>카드 최소 높이</td><td>360px</td><td><b>그대로</b></td><td>탭을 옮길 때 카드가 튀지 않게 하는 값. 세로 여백은 행을 2단으로 만들며 자연히 는다.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>계약 요청</h3>
+  <div class="callout red">
+    <span class="lbl">C-1 · GET /user/services/page 에 설명 한 필드</span>
+    <p style="margin:0 0 6px">지금 이 응답은 <code>service_code · service_name · access_status</code> 셋뿐입니다. 서비스 행이 비는 근본 원인이고, 화면에서 메울 수 있는 종류의 공백이 아닙니다.</p>
+    <p style="margin:0"><b>요청</b> — <code>description</code>(또는 이미 다른 화면이 쓰는 서비스 설명)을 같이 내려 주면 A 완전판이 가능합니다. 없으면 <b>A-minus 로 갑니다</b>(폭 축소). 없는 값을 화면에서 지어내지 않습니다.</p>
+    <p style="margin:6px 0 0;font-size:14px;color:var(--body)">※ 이 엔드포인트의 응답 형태 자체가 아직 <code>docs/swagger/*.yaml</code> 어디에도 없습니다 — <code>access_status</code> 를 포함해 전부 <code>docs/api/access-assumed-contracts.md</code> 가 선언하는 가정 위에 서 있습니다.</p>
+  </div>
+
+  <h3>순서</h3>
+  <div class="road">
+    <div class="step"><h4>1 · A-minus — 폭과 근접성</h4><p>코드 태그를 이름 옆으로, 목록 폭 축소. 계약 의존 없음. 두 줄 수정이고 되돌리기도 쉽다.</p></div>
+    <div class="step"><h4>2 · B — 반려 밴드</h4><p>체감이 가장 큰 변화. 반려 0건일 때 밴드가 사라지는 것까지 확인한다(사용자 <code>user-5</code> 는 반려 0건, <code>admin-1</code> 은 2건).</p></div>
+    <div class="step"><h4>3 · C — 접힘 + 스테퍼</h4><p>계약이 말하는 세 상태만 그린다. 중간 단계가 있는 척하지 않는다.</p></div>
+    <div class="step"><h4>4 · A 완전판</h4><p>C-1 답을 받은 뒤. 설명 줄이 들어오면 A-minus 의 폭 축소는 되돌려도 된다.</p></div>
+  </div>
+</section>
+
+<footer>
+  <p>PII Agent · <code>/access-requests</code> 강약 2차 진단 · 기준 <code>feat/access-admin @ e2d77ac3</code> · 2026-08-14</p>
+  <p>1차 진단(표면 수 줄이기 → 탭 통합)은 <code>design/access/access-requests-hierarchy.html</code>. 측정값은 Chrome 1710×947 에서 <code>getBoundingClientRect</code> 로 직접 잰 값입니다.</p>
+  <p>외부 출처 — Microsoft Entra <i>My Access portal</i> 문서, ServiceNow <i>Service Portal</i> stage 인디케이터, Okta <i>End-User Dashboard</i>, Nielsen Norman Group <i>Visual Hierarchy in UX: Definition</i>, IBM Carbon <i>Structured list</i> usage.</p>
+</footer>
+
+</div>
