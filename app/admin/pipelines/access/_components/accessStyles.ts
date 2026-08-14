@@ -25,10 +25,14 @@ export const accessStyles = {
    *  건"이라 primary 한 색으로 충분하지만, 이 수치는 반려일 수도 승인일 수도 있다.
    *  반려 건수를 파랑으로 쓰면 수치와 문장이 서로 다른 말을 한다. */
   pageTotal: 'mx-0.5 align-baseline text-[32px] font-bold leading-none',
-  /** 판정 수치의 색 — 표 안의 상태 pill 과 같은 잉크를 쓴다. */
+  /** 판정 수치의 색 — 판정이 있는 상태는 표 안의 상태 pill 과 같은 잉크를 쓴다.
+   *
+   *  대기만 파랑이다(오너 지시 2026-08-14). 대기는 나쁜 소식이 아니라 **할 일**이고,
+   *  주황은 늦었다는 뜻이라 0건이든 6건이든 늘 경고처럼 읽혔다. 늦은 건은 레일의
+   *  `benchWaitHot`(3일 넘은 건)이 따로 말한다 — 경고는 거기 한 군데면 된다. */
   pageTotalTone: {
     REJECTED: 'text-[var(--pl-err-text)]',
-    PENDING: 'text-[var(--pl-warn-text)]',
+    PENDING: 'text-[var(--pl-primary)]',
     APPROVED: 'text-[var(--pl-ok-text)]',
   },
   /** 판정 문장이 다루지 않은 나머지 상태 — 문장이 말한 수는 여기 다시 쓰지 않는다. */
@@ -167,40 +171,56 @@ export const accessStyles = {
    * 맡기면 사유가 짧은 날엔 화면 아래 200px 이 그냥 비고, 그러면 다시 "떠 있는 카드"로
    * 읽힌다. 282 = 상단 내비 64 + main 상단 여백 24 + 제목·판정 문장·탭 146 + 바닥 48
    * (서비스별 권한 split 이 같은 방식으로 높이를 잡는다). */
-  bench: `mt-4 grid min-h-[calc(100vh-282px)] grid-cols-[320px_1fr] overflow-hidden rounded-[12px] ${serviceSidebarStyles.canvas}`,
+  bench: `mt-4 grid min-h-[calc(100vh-282px)] grid-cols-[352px_1fr] overflow-hidden rounded-[12px] ${serviceSidebarStyles.canvas}`,
   /** 목록은 헤어라인이 아니라 간격으로 끊는다 — 그래야 표가 아니라 요청 더미로 읽힌다.
-   *  캔버스 여백은 26px 다(오너 지시 2026-08-14: 10 → 16 → 26). 10px 이던 때는 카드가
-   *  바닥에 얹힌 게 아니라 바닥을 꽉 채운 것처럼 보였다. 시트 쪽 `m-[26px]` 와 같은
-   *  값이라야 네 변이 같고, 레일과 시트 사이도 여기 오른쪽 패딩이 혼자 만든다. */
-  benchList: 'flex flex-col p-[26px]',
+   *  캔버스 여백은 36px 다(오너 지시 2026-08-14: 10 → 16 → 26 → 36). 10px 이던 때는
+   *  카드가 바닥에 얹힌 게 아니라 바닥을 꽉 채운 것처럼 보였다.
+   *
+   *  이 패딩이 곧 레일 카드의 여백이자 레일과 시트 사이의 간격이다 — 시트는 `ml-0` 이라
+   *  둘 사이를 여기 오른쪽 패딩 혼자 만든다. 그래서 오른쪽·위·아래는 시트의 `m-9` 와
+   *  같은 36 이고, 두 카드의 윗변도 같은 y 에 선다.
+   *
+   *  왼쪽만 20 이다(오너 지시 2026-08-14) — 왼쪽 여백은 캔버스 가장자리라 아무것도
+   *  가르지 않는데, 그 폭이 곧 카드에서 빠지는 폭이다. 열도 320 → 352 라 카드는
+   *  248 → 296 으로 넓어진다. */
+  benchList: 'flex flex-col py-9 pl-5 pr-9',
   benchRows: 'flex flex-col gap-1.5',
   benchFooter: 'mt-auto pt-2',
   /** 목록 자리의 스켈레톤 조각 — `skeletonBar` 는 h-3.5 라 타일 자리에 못 쓴다
    *  (`cn` 은 단순 join 이라 h-3.5 와 h-7 을 같이 주면 Tailwind 출력 순서가 이긴다). */
   benchSkelTile: 'h-7 w-7 flex-none animate-pulse rounded-[6px] bg-[var(--pl-gray-100)]',
   benchItem:
-    'flex w-full cursor-pointer items-center gap-2.5 rounded-[9px] border bg-[var(--pl-bg-card)] px-2.5 py-2 text-left transition-colors',
+    'flex w-full cursor-pointer items-center gap-3 rounded-[9px] border bg-[var(--pl-bg-card)] px-3.5 py-3 text-left transition-colors',
   benchItemIdle: 'border-[var(--pl-border)] hover:border-[var(--pl-border-strong)]',
   /** 고른 항목은 테두리와 안쪽 막대 둘 다 — 테두리만으로는 캔버스 위에서 약하다. */
   benchItemActive:
     'border-[var(--pl-primary)] shadow-[inset_3px_0_0_var(--pl-primary)] bg-[var(--pl-primary-bg)]',
   benchItemStack: 'flex min-w-0 flex-1 flex-col',
-  benchItemName: 'truncate text-[14px] font-semibold text-[var(--pl-text-strong)]',
-  benchItemNameActive: 'truncate text-[14px] font-semibold text-[var(--pl-primary)]',
+  /** 서비스 이름 16px — 이 카드에서 고르는 것은 서비스이고, 요청자·경과는 그걸 고르고
+   *  나서 읽는 값이다(오너 지시 2026-08-14). 14px 이던 때는 셋이 거의 같은 급이었다. */
+  benchItemName: 'truncate text-[16px] font-semibold text-[var(--pl-text-strong)]',
+  benchItemNameActive: 'truncate text-[16px] font-semibold text-[var(--pl-primary)]',
+  /** 아랫줄은 요청자의 이메일 — 시트가 요청자로 쓰는 값과 같은 값이라야 레일에서 고른
+   *  사람과 시트가 보여주는 사람이 같다는 게 눈으로 확인된다. */
   benchItemWho: 'truncate text-[12px] text-[var(--pl-text-weak)] [font-family:var(--pl-font-mono)]',
   /** 대기 경과 — 기록이 못 하는 말이라 큐만 쓴다. 임계를 넘으면 잉크가 바뀐다. */
   benchWait:
     'flex-none rounded-full bg-[var(--pl-gray-100)] px-2 py-0.5 text-[12px] font-semibold tabular-nums text-[var(--pl-text-medium)]',
   benchWaitHot:
     'flex-none rounded-full bg-[var(--pl-warn-bg)] px-2 py-0.5 text-[12px] font-semibold tabular-nums text-[var(--pl-warn-text)]',
-  /** 오른쪽 시트 — 왼쪽 여백이 없다. 목록과 시트 사이는 캔버스가 직접 만든다. */
+  /** 오른쪽 시트 — 왼쪽 여백이 없다. 목록과 시트 사이는 레일의 오른쪽 패딩이 만든다.
+   *
+   *  바깥 36 · 안쪽 32 — 바닥이 카드를 두르는 폭보다 카드가 글을 두르는 폭이 좁다.
+   *  둘이 같으면 내용이 면 한가운데 떠 있는 것처럼 보이고, 안쪽이 더 넓으면 이번엔 바닥이
+   *  좁아 카드가 캔버스를 채운 것처럼 보인다. 한 칸 차이가 둘을 다 피한다. */
   benchPane:
-    'm-[26px] ml-0 overflow-y-auto rounded-[9px] border border-[var(--pl-border)] bg-[var(--pl-bg-card)] p-6',
+    'm-9 ml-0 overflow-y-auto rounded-[9px] border border-[var(--pl-border)] bg-[var(--pl-bg-card)] p-8',
   benchHead: 'flex items-start gap-3',
   /** 시트의 주어는 서비스가 아니라 **요청**이다 — 서비스 이름을 제목으로 쓰면 이 시트가
    *  서비스 상세로 읽히고, 결정할 것(승인·반려)이 무엇에 대한 결정인지 제목이 말하지
    *  않는다(오너 지시 2026-08-14). 서비스는 아래 사실 격자의 한 칸으로 내려간다. */
-  benchTitle: 'text-[20px] font-bold leading-[1.3] tracking-[-0.02em] text-[var(--pl-text-strong)]',
+  benchTitle:
+    'text-[20px] font-semibold leading-[1.3] tracking-[-0.02em] text-[var(--pl-text-strong)]',
   /** 사실은 나열 문장이 아니라 격자로 — 라벨과 값이 같은 x 에 서야 훑힌다.
    *  머리 바로 밑에 붙는다(20px): 요청자는 이 시트의 첫 사실이지 한 구역 아래가 아니다.
    *
@@ -223,12 +243,11 @@ export const accessStyles = {
   benchLabel: 'mb-2 text-[14px] font-semibold text-[var(--pl-text-strong)]',
   /** 구역 머리에 딸린 사실(누가·언제) — 머리는 강해지되 꼬리는 따라 강해지지 않는다. */
   benchLabelMeta: 'ml-2 text-[12px] font-medium text-[var(--pl-text-weak)]',
-  /** 결정은 시트의 마지막 구역이다 — 회색 면은 없다(오너 지시 2026-08-14). 자기 면을
-   *  가진 블록이던 때는 시트에 카드가 한 겹 더 있는 셈이었고, 사유 인용까지 치면 회색
-   *  면이 둘이라 어느 쪽이 읽을 것이고 어느 쪽이 할 것인지 면이 구분해 주지 못했다.
-   *  구역 제목은 `benchLabel` 을 함께 쓴다 — 요청 사유와 같은 급이다. */
-  benchDecideDesc: 'text-[12px] leading-[1.5] text-[var(--pl-text-weak)]',
-  benchDecideActions: 'mt-3 flex gap-2',
+  /** 결정은 시트의 마지막 구역이다 — 회색 면도, 제목도, 설명도 없다(오너 지시
+   *  2026-08-14). 면을 가진 블록이던 때는 시트에 카드가 한 겹 더 있는 셈이었고, 제목은
+   *  버튼 둘이 이미 말하며, 즉시 부여·사유 필수는 각 모달이 누를 때 말한다.
+   *  위 간격은 `benchSection` 에서 온다 — 여기서 `mt-*` 를 또 주면 둘이 부딪친다. */
+  benchDecideActions: 'flex gap-2',
 
   skeletonBar: 'h-3.5 animate-pulse rounded-[6px] bg-[var(--pl-gray-100)]',
 

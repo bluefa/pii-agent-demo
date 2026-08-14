@@ -365,7 +365,7 @@ export default function AccessRequestsPage(): ReactElement {
                         <span className={on ? a.benchItemNameActive : a.benchItemName}>
                           {row.serviceName}
                         </span>
-                        <span className={a.benchItemWho}>{row.requester.knoxId}</span>
+                        <span className={a.benchItemWho}>{row.requester.email}</span>
                       </span>
                       {/* 대기는 승인 대기 탭에서만 뜻이 있다 — 반려된 요청은 더 안 기다린다. */}
                       {tab === 'pending' && (
@@ -470,19 +470,16 @@ export default function AccessRequestsPage(): ReactElement {
                 </div>
 
                 {detail.status === 'PENDING' ? (
-                  <div className={a.benchSection}>
-                    <div className={a.benchLabel}>승인 결정</div>
-                    <div className={a.benchDecideDesc}>
-                      승인하면 즉시 권한이 부여돼요. 반려에는 사유가 필요해요.
-                    </div>
-                    <div className={a.benchDecideActions}>
-                      <PlButton variant="primary" onClick={() => setModal('approve')}>
-                        승인
-                      </PlButton>
-                      <PlButton variant="danger" onClick={() => setModal('reject')}>
-                        반려
-                      </PlButton>
-                    </div>
+                  // 제목도 설명도 없다 — 버튼 둘이 곧 "승인 결정"이고, 즉시 부여된다는
+                  // 것과 반려에 사유가 필요하다는 것은 각 모달이 누를 때 말한다(둘 다
+                  // `sub`/`label` 에 있다). 누르기 전에 미리 읽힐 필요가 없는 경고다.
+                  <div className={cn(a.benchSection, a.benchDecideActions)}>
+                    <PlButton variant="primary" onClick={() => setModal('approve')}>
+                      승인
+                    </PlButton>
+                    <PlButton variant="danger" onClick={() => setModal('reject')}>
+                      반려
+                    </PlButton>
                   </div>
                 ) : (
                   <div className={a.benchSection}>
