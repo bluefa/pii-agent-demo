@@ -36,10 +36,10 @@ public class DagRegistryRepository {
     public void saveAll(List<DagCatalogEntry> entries) {
         jdbc.batchUpdate("""
                 INSERT INTO dag_registry (dag_name, external_id)
-                VALUES (?, ?)
-                ON CONFLICT (dag_name) DO UPDATE
-                   SET external_id = EXCLUDED.external_id,
-                       synced_at = now()
+                VALUES (?, ?) AS new
+                ON DUPLICATE KEY UPDATE
+                    external_id = new.external_id,
+                    synced_at = NOW(6)
                 """,
                 entries, 1000, (ps, entry) -> {
                     ps.setString(1, entry.dagName());
@@ -54,6 +54,6 @@ public class DagRegistryRepository {
 
     /** DB clock, so the liveness cutoff is immune to app/DB clock skew. */
     public OffsetDateTime dbNow() {
-        return jdbc.queryForObject("SELECT now()", OffsetDateTime.class);
+        return jdbc.queryForObject("SELECT NOW(6)", OffsetDateTime.class);
     }
 }

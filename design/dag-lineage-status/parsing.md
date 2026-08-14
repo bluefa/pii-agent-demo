@@ -76,10 +76,14 @@ DAG가 아닌 jobType          → ack (2차 방어, 의도적 무시)
 
 ## 순서·중복 처리 (파싱이 아니라 upsert가 담당)
 
-파서는 이벤트를 정렬하지 않는다. 멱등성은 SQL 한 줄이 담당:
+파서는 이벤트를 정렬하지 않는다. 멱등성은 upsert의 컬럼별 가드가 담당
+(MySQL — 대입 순서 등 상세는 architecture.md 저장 모델 참조):
 
 ```sql
-ON CONFLICT (run_id) DO UPDATE ... WHERE EXCLUDED.event_time > 기존.event_time
+ON DUPLICATE KEY UPDATE
+    status     = IF(new.event_time > event_time, new.status, status),
+    ...
+    event_time = IF(new.event_time > event_time, new.event_time, event_time)
 ```
 
 - 중복 재전송: 같은 event_time → no-op
@@ -90,7 +94,7 @@ ON CONFLICT (run_id) DO UPDATE ... WHERE EXCLUDED.event_time > 기존.event_time
 
 문서의 facet 경로는 provider 버전 종속이다. 확정 절차:
 
-1. 대상 Composer에서 console transport 또는 BQ export로 DAG 수준
-   이벤트 1건을 캡처한다.
+1. 대상 Composer에서 console transport로 DAG 수준 이벤트 1건을
+   캡처한다.
 2. 위 표의 JSON 경로와 대조하고, 다르면 `LineageEvent.java`의
    record 경로만 고친다 (소비 로직은 불변).

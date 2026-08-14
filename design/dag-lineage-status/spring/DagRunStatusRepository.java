@@ -20,17 +20,21 @@ public class DagRunStatusRepository {
     /**
      * Idempotent fold: one row per run, newest eventTime wins.
      * Absorbs at-least-once duplicates (same eventTime -> no-op) and
-     * out-of-order delivery (older event -> rejected by the WHERE clause).
+     * out-of-order delivery (older event -> rejected by the IF guards).
+     *
+     * MySQL has no row-level condition like Postgres' ON CONFLICT ... WHERE,
+     * so every column carries its own IF guard. Assignments apply left to
+     * right and later ones see earlier results — event_time (the guard's
+     * reference) MUST stay last. `VALUES ... AS new` needs MySQL 8.0.19+.
      */
     private static final String UPSERT = """
             INSERT INTO dag_run_status
                 (run_id, namespace, dag_id, logical_date, run_type, status, event_time)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-            ON CONFLICT (run_id) DO UPDATE
-               SET status = EXCLUDED.status,
-                   event_time = EXCLUDED.event_time,
-                   updated_at = now()
-             WHERE EXCLUDED.event_time > dag_run_status.event_time
+            VALUES (?, ?, ?, ?, ?, ?, ?) AS new
+            ON DUPLICATE KEY UPDATE
+                status     = IF(new.event_time > event_time, new.status, status),
+                updated_at = IF(new.event_time > event_time, NOW(6), updated_at),
+                event_time = IF(new.event_time > event_time, new.event_time, event_time)
             """;
 
     public void upsert(DagRunRow row) {
@@ -50,16 +54,18 @@ public class DagRunStatusRepository {
             return List.of();
         }
         String placeholders = dagIds.stream().map(n -> "?").collect(Collectors.joining(", "));
+        // Fixed +09:00 offset: KST has no DST, so CONVERT_TZ works without
+        // the mysql tz tables being loaded. logical_date is stored as UTC.
         String sql = """
                 SELECT dag_id,
-                       max(namespace) AS namespace,
-                       (logical_date AT TIME ZONE 'Asia/Seoul')::date AS day,
-                       min(CASE status
+                       MAX(namespace) AS namespace,
+                       DATE(CONVERT_TZ(logical_date, '+00:00', '+09:00')) AS day,
+                       MIN(CASE status
                              WHEN 'SUCCESS' THEN 1
                              WHEN 'RUNNING' THEN 2
                              WHEN 'FAILED'  THEN 3
                            END) AS state_rank,
-                       max(event_time) FILTER (WHERE status = 'SUCCESS') AS success_time
+                       MAX(CASE WHEN status = 'SUCCESS' THEN event_time END) AS success_time
                   FROM dag_run_status
                  WHERE logical_date >= ? AND dag_id IN (%s)
                  GROUP BY dag_id, day

@@ -25,6 +25,10 @@ DAG별 최근 7일 상태를 준실시간으로 제공하는 시스템.
 - **DAG 이름은 환경 간 전역 유니크** — registry·조회 키는 dag_name 단독.
 - **주간 화면의 DAG 목록 진실 원천은 `dag_registry`(카탈로그)** —
   이벤트에서 목록을 유도하지 않는다. (외부 리뷰 C3/M2 반영)
+- **lineage 이벤트 원본은 보존하지 않는다** — 보존 요구사항이
+  없다. BigQuery export 없음, `dag_run_status`도 7일 창을 지나면
+  삭제. 대가: 과거 재계산 수단이 없다(아래 Pub/Sub 절 참조).
+- **저장은 기존 운영 MySQL 8** — Postgres 전환은 불가(운영 DB 기정).
 
 ## 전체 구조
 
@@ -37,14 +41,13 @@ Composer env N ─┘   (DAG-only + name-prefix 허용 목록)
                           │                  parse → 멱등 upsert
                           │                       │
                           │                       ▼
-                          │             Postgres dag_run_status
+                          │               MySQL dag_run_status
                           │                       │        ▲
                           │            (카탈로그 기준 조회) │ catalog sync가
                           │                       │   dag_registry 채움
                           │                       ▼        │
                           │             주간 조회 API   dag-id API server
                           │
-                          ├─▶ BigQuery export 구독  (원본 보관, 재계산용)
                           └─▶ dead-letter topic     (max delivery attempts 5)
 ```
 
@@ -64,11 +67,10 @@ DAG 하나가 1회 실행될 때 provider가 발행하는 이벤트 (task 11개 
 | 일간 건수 | ~240만 | ~20만 (92%↓) |
 | 일간 바이트 | 수십 GB | ~0.4GB |
 | 자정 폭주 시 유입 (최악: 전 DAG 동시 스케줄) | 수천 건/s | ~330건/s |
-| BigQuery 원본 보관 | 30배 이상 | 기준 |
 
 **결정: transport에서 필터한다.** Pub/Sub 요금 자체는 크지 않지만,
 쓰지 않을 트래픽의 92%가 폭주 구간에 구독자와 DB에 직접 부하를
-주고, BQ 원본 보관과 DLQ 노이즈도 그만큼 커진다. 필터는 transport의 `emit()` 안
+주고, DLQ 노이즈도 그만큼 커진다. 필터는 transport의 `emit()` 안
 몇 줄이고, **허용 목록 2중 조건**(jobType facet이 `DAG` **AND** DAG
 이름이 설정된 prefix로 시작)만 통과시키므로 새 이벤트 종류나 대상
 외 DAG가 생겨도 의도치 않게 유입되지 않는다. prefix 필터는 요구사항이기도
@@ -117,9 +119,13 @@ AIRFLOW__OPENLINEAGE__NAMESPACE='composer-env-a'   # 환경별 유니크
 
 ### Pub/Sub
 
-- 단일 토픽, 구독 3개: Spring pull 구독 / BigQuery export(원본 보관,
-  상태 집계 로직 변경 시 재계산의 유일한 수단) / 본 구독에 dead-letter
+- 단일 토픽, 구독은 Spring pull 구독 하나. 본 구독에 dead-letter
   정책을 걸어 max delivery attempts 5 소진 시 DLQ 토픽으로.
+- 원본 보관용 export 구독은 두지 않는다 — lineage 이벤트 보존
+  요구사항이 없다(결정 사항). 대가는 명시해 둔다: 집계 로직 변경이나
+  소비 버그로 데이터가 오염되면 과거를 재계산할 수단이 없고, 7일
+  창이 지나며 자연 복구되는 것까지가 한계다. 화면 자체가 7일
+  창이므로 수용한다.
 - 본 구독의 재시도 정책은 exponential backoff(예: 최소 10초, 최대
   600초) — 소비 실패가 즉시 재전송 폭주로 되돌아오지 않게 한다.
 - ordering key는 쓰지 않는다. 순서·중복은 소비 쪽 멱등 upsert가
@@ -144,18 +150,30 @@ AIRFLOW__OPENLINEAGE__NAMESPACE='composer-env-a'   # 환경별 유니크
 ### 저장 모델 (schema.sql)
 
 - `dag_run_status`: **run 1건 = 행 1개** (run_id PK). 이벤트 로그를
-  쌓지 않고 최신 상태만 저장한다. 원본은 BQ export에 보관한다.
-- 멱등 upsert: `ON CONFLICT (run_id) DO UPDATE ... WHERE
-  EXCLUDED.event_time > 기존.event_time`
+  쌓지 않고 최신 상태만 저장한다. 원본은 어디에도 보관하지 않는다
+  (결정 사항).
+- 멱등 upsert: MySQL엔 Postgres `ON CONFLICT ... WHERE` 같은 행 단위
+  조건이 없으므로, `INSERT ... ON DUPLICATE KEY UPDATE`에 컬럼마다
+  `IF(new.event_time > event_time, 새 값, 기존 값)` 가드를 건다.
   - at-least-once 중복 → 같은 event_time이라 no-op
-  - 역순 도착(FAIL 먼저, START 나중) → 오래된 이벤트 탈락
+  - 역순 도착(FAIL 먼저, START 나중) → 오래된 이벤트가 가드에 탈락
   - clear 후 재실행 → 새 START의 event_time이 더 나중이라
     RUNNING으로 자연 복귀
-- 규모: 10만 DAG × 7일 ≈ 주 70만 행. Postgres로 충분.
-- **보존 30일**: 주간 화면은 7일만 읽지만 행은 계속 쌓인다(하루
-  ~10만 행). 일 1회 배치로 `DELETE FROM dag_run_status WHERE
-  logical_date < now() - interval '30 days'` 정리. 최대 ~300만 행
-  규모라 파티셔닝은 채택하지 않음(과설계).
+  - **대입 순서 함정**: ON DUPLICATE KEY UPDATE는 왼쪽부터 차례로
+    반영되고 뒤의 대입이 앞의 결과를 본다. 가드 기준인
+    `event_time`은 반드시 **맨 마지막에** 대입한다.
+- MySQL 8 규약: `DATETIME(6)`에 UTC로 저장, 커넥션
+  `connectionTimeZone=UTC`. KST 날짜 버킷은
+  `CONVERT_TZ(logical_date, '+00:00', '+09:00')` 고정 오프셋 —
+  KST는 DST가 없어 tz 테이블 로드가 필요 없다. dag 이름 컬럼은
+  `utf8mb4_bin`(Airflow dag_id는 대소문자 구분 — 기본 ai_ci
+  collation이면 `Foo`/`foo`가 PK 충돌).
+- 규모: 10만 DAG × 7일 ≈ 상시 ~70만 행. MySQL로 충분.
+- **보존 7일**: 주간 화면이 읽는 창이 곧 보존 기간이다. 일 1회
+  배치로 `DELETE FROM dag_run_status WHERE logical_date <
+  NOW() - INTERVAL 7 DAY` 정리 — 창의 가장 오래된 시각(6일 전 KST
+  00:00)보다 항상 과거라 화면과 경합하지 않는다. 파티셔닝은 채택하지
+  않음(과설계).
 
 ### DAG 카탈로그와 외부 ID (dag_registry)
 
@@ -214,12 +232,11 @@ DAG도 "7일 내내 스케줄 안 됨" 행으로 화면에 남는다.
     gserviceaccount.com`)에 부여한다 — DLQ 토픽에 publisher, 본
     구독에 subscriber. 누락 시 dead-letter가 동작하지 않는다.
   - **DLQ 토픽에도 구독이 최소 1개 필요** — 구독 없는 토픽에 발행된
-    메시지는 버려진다. 우선은 pull 구독 하나(보존 기본 7일, 최대
-    31일)로 쌓아두고, 장기 보관·SQL 조사가 필요해지면 BigQuery
-    export 구독을 붙인다.
-  - 재처리 두 갈래: 파서 수정 후 DLQ에서 pull해 원 토픽에
-    재발행(멱등 upsert라 중복 무해), DLQ로 빠진 기간이 길면 원본
-    BQ export에서 재계산.
+    메시지는 버려진다. pull 구독 하나(보존 기본 7일, 최대 31일)로
+    쌓아둔다.
+  - 재처리: 파서 수정 후 DLQ에서 pull해 원 토픽에 재발행(멱등
+    upsert라 중복 무해). 원본 보관이 없으므로 DLQ 보존을 넘긴
+    메시지는 소실되지만, 화면 자체가 7일 창이라 수용한다(결정 사항).
 
 ## 확인 필요 (착수 전 오픈 이슈)
 
@@ -248,3 +265,6 @@ DAG도 "7일 내내 스케줄 안 됨" 행으로 화면에 남는다.
    따라가는지 부하 테스트로 확인한다.
 8. 스케줄 주기가 daily가 아닌 DAG 비중 — 시간당 스케줄이면 볼륨
    산정이 ×24. (365일 매일 1회면 현재 산정 그대로.)
+9. **운영 MySQL 버전 확인**: upsert의 `VALUES ... AS new` 별칭
+   구문은 8.0.19+, CHECK 강제는 8.0.16+. 8.0.19 미만이면 별칭 대신
+   구식 `VALUES(col)` 함수 구문으로 대체한다.
