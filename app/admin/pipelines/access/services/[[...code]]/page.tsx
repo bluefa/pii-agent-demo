@@ -32,7 +32,6 @@ import { serviceListStyles } from '@/app/admin/pipelines/_services/styles';
 
 import {
   PagedCard,
-  ROWS_PER_PAGE,
   errorMessage,
   usePagedSection,
   type Column,
@@ -44,6 +43,7 @@ import {
 import { HistoryTypePill } from '@/app/admin/pipelines/access/_components/AccessPills';
 import { accessStyles as a } from '@/app/admin/pipelines/access/_components/accessStyles';
 import {
+  ACCESS_PAGE_SIZE,
   addServiceOwners,
   getAccessHistory,
   getAdminServices,
@@ -67,7 +67,7 @@ const emptyPage = <T,>(): AccessPage<T> => ({
   totalElements: 0,
   totalPages: 1,
   number: 0,
-  size: ROWS_PER_PAGE,
+  size: ACCESS_PAGE_SIZE,
 });
 
 /**
@@ -177,14 +177,14 @@ export default function AccessServicesPage(): ReactElement {
       }
       const { owners } = await getServiceOwners(selectedCode, opts);
       if (!opts.signal.aborted) setAllOwners(owners);
-      return sliceToPage(owners, page, ROWS_PER_PAGE);
+      return sliceToPage(owners, page, ACCESS_PAGE_SIZE);
     },
     [selectedCode],
   );
   const fetchHistory = useCallback(
     (page: number, opts: { signal: AbortSignal }): Promise<AccessPage<AccessHistoryEntry>> =>
       selectedCode
-        ? getAccessHistory({ serviceCode: selectedCode }, page, { ...opts, size: ROWS_PER_PAGE })
+        ? getAccessHistory({ serviceCode: selectedCode }, page, opts)
         : Promise.resolve(emptyPage<AccessHistoryEntry>()),
     [selectedCode],
   );

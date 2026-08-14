@@ -18,10 +18,7 @@ import { Icon, type IconName } from '@/app/admin/pipelines/_components/icons';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
 import { OpsPagination } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/OpsPagination';
 import { accessStyles as a } from '@/app/admin/pipelines/access/_components/accessStyles';
-import type { AccessPage } from '@/app/lib/api/access';
-
-/** 카드 본문 한 장의 행 수 — 모든 카드가 같은 높이를 갖게 하는 값. */
-export const ROWS_PER_PAGE = 5;
+import { ACCESS_PAGE_SIZE, type AccessPage } from '@/app/lib/api/access';
 
 export const errorMessage = (err: unknown): string =>
   err instanceof Error ? err.message : String(err);
@@ -201,7 +198,7 @@ export function PagedCard<T>({
         ) : loading ? (
           skeleton ?? (
             <div role="rowgroup" aria-busy="true" aria-label="목록을 불러오는 중">
-              {Array.from({ length: ROWS_PER_PAGE }, (_, row) => (
+              {Array.from({ length: ACCESS_PAGE_SIZE }, (_, row) => (
                 <div key={row} className={a.row} role="row" aria-hidden="true">
                   {columns.map((col, index) => (
                     <span

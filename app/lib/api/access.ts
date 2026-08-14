@@ -247,7 +247,13 @@ const toServicePageRow = (wire: ServicePageRowWire): ServiceRow => ({
 
 // ── Client funcs ─────────────────────────────────────────────────────────────
 
-/** 카드 본문 한 장의 행 수 — 화면들이 공유하는 높이. */
+/**
+ * 카드 본문 한 장의 행 수 — 화면들이 공유하는 높이이자 조회의 기본 `size` 다.
+ *
+ * 둘은 같은 수여야 한다. 갈리면 한 장에 열 줄을 받아 다섯 줄짜리 칸에 그리거나,
+ * 스켈레톤이 실제 행보다 짧게 뜬다. 그래서 이름도 하나다 — `PagedCard` 의 스켈레톤과
+ * `sliceToPage` 의 폭까지 전부 여기서 온다.
+ */
 export const ACCESS_PAGE_SIZE = 5;
 
 interface Opts {
