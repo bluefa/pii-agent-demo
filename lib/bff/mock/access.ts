@@ -80,27 +80,31 @@ const T = (day: number, hour = 10): string =>
  * 요청을 `GET /access/permission-access/mine` 이 영영 못 본다 — 쓰기는 204 로 성공하고
  * 목록만 조용히 그대로다. 같은 파일 안의 GET·POST 만 우연히 맞아 떨어져서 더 안 보인다.
  * pipeline·task-queue·ops 목이 이미 같은 이유로 globalThis 를 쓴다.
+ *
+ * `__accessMockDeclared` 는 최초 seed 때의 선언값이다. 부여/해제/관리자 변경이 User
+ * 레코드를 **직접** 고치므로 이게 없으면 리셋이 리셋이 아니다. 권한과 role 을 한
+ * 스냅샷에 같이 담는 게 핵심이다 — role 만 매 seed 때 다시 찍으면 "이미 바뀐 값"을
+ * 선언값으로 굳혀 버려서, 관리자에서 내려온 사용자가 리셋 후에도 일반 사용자로 남고
+ * 그 사용자가 호출자였다면 그 뒤 모든 관리자 조회가 403 이 된다.
+ *
+ * 이쪽도 같은 이유로 globalThis 다. 지역 변수로 두면 두 번째 번들이 **이미 바뀐**
+ * mockUsers 를 선언값으로 굳힌다 — 지금은 seed 가 프로세스당 한 번뿐이라 닿지 않지만,
+ * 리셋 seam 이 테스트 밖으로 나가는 순간 참이 된다.
  */
 declare global {
   var __accessMockStore: Store | undefined;
+  var __accessMockDeclared:
+    | Map<string, { permissions: string[]; role: User['role'] }>
+    | undefined;
 }
-/**
- * 최초 seed 때의 선언값. 부여/해제/관리자 변경이 User 레코드를 **직접** 고치므로, 이게
- * 없으면 리셋이 리셋이 아니다.
- *
- * 권한과 role 을 한 스냅샷에 같이 담는 게 핵심이다. role 만 매 seed 때 다시 찍으면
- * "이미 바뀐 값"을 선언값으로 굳혀 버린다 — 관리자에서 내려온 사용자가 리셋 후에도
- * 계속 일반 사용자로 남고, 그 사용자가 호출자였다면 그 뒤 모든 관리자 조회가 403 이 된다.
- */
-let declared: Map<string, { permissions: string[]; role: User['role'] }> | null = null;
 
 function seed(): Store {
   // 사용자는 mockData 를 참조로 쓴다 — 부여/해제가 `/user/services/page` 에도 반영돼야
   // "권한을 받으면 그 서비스가 보인다"가 성립하고, 현재 사용자도 이 배열에서만 나온다.
   const users = mockData.mockUsers;
-  declared ??= new Map(
+  const declared = (globalThis.__accessMockDeclared ??= new Map(
     users.map((u) => [u.id, { permissions: [...u.serviceCodePermissions], role: u.role }]),
-  );
+  ));
   for (const user of users) {
     const initial = declared.get(user.id);
     user.serviceCodePermissions = [...(initial?.permissions ?? [])];
@@ -327,7 +331,7 @@ const matches = (haystack: string[], needle: string): boolean =>
 // ── handlers ─────────────────────────────────────────────────────────────────
 
 export const mockAccess = {
-  // GET /admin/services?page&size&q — 코드·이름·담당자로 검색한다(2026-08-14 오너 스펙).
+  // GET /admin/access/services?page&size&q — 코드·이름·담당자로 검색한다(2026-08-14 오너 스펙).
   listServices: async (query: string | undefined, pageNumber: number, size: number) => {
     if (!isAdmin(me())) return forbidden('관리자만 서비스를 조회할 수 있어요.');
     const s = getStore();
@@ -356,13 +360,13 @@ export const mockAccess = {
     return NextResponse.json(page(rows, pageNumber, size));
   },
 
-  // GET /admin/services/{serviceCode}/owners — 페이지가 아니다, 전체를 준다.
+  // GET /admin/access/services/{serviceCode}/owners — 페이지가 아니다, 전체를 준다.
   listServiceOwners: async (serviceCode: string) => {
     if (!isAdmin(me())) return forbidden('관리자만 권한 사용자를 조회할 수 있어요.');
     return NextResponse.json(serviceOwnersWire(serviceCode));
   },
 
-  // POST /admin/services/{serviceCode}/owners — 직접 부여 (일괄, email 키)
+  // POST /admin/access/services/{serviceCode}/owners — 직접 부여 (일괄, email 키)
   addServiceOwners: async (serviceCode: string, emails: string[]) => {
     const caller = me();
     if (!isAdmin(caller) || !caller) return forbidden('관리자만 권한을 부여할 수 있어요.');
@@ -376,7 +380,7 @@ export const mockAccess = {
     return NextResponse.json(serviceOwnersWire(serviceCode));
   },
 
-  // POST /admin/services/{serviceCode}/owners/remove — 해제 (email 키)
+  // POST /admin/access/services/{serviceCode}/owners/remove — 해제 (email 키)
   removeServiceOwner: async (serviceCode: string, email: string) => {
     const caller = me();
     if (!isAdmin(caller) || !caller) return forbidden('관리자만 권한을 해제할 수 있어요.');
@@ -391,13 +395,13 @@ export const mockAccess = {
     return NextResponse.json(serviceOwnersWire(serviceCode));
   },
 
-  // GET /admin/admins — 페이지가 아니다.
+  // GET /admin/access/admins — 페이지가 아니다.
   listAdmins: async () => {
     if (!isAdmin(me())) return forbidden('관리자만 조회할 수 있어요.');
     return NextResponse.json({ admins: getStore().admins.slice().sort(byKnoxId).map(userWire) });
   },
 
-  // POST /admin/admins — 한 명씩(계약이 단수다).
+  // POST /admin/access/admins — 한 명씩(계약이 단수다).
   addAdmin: async (email: string) => {
     const caller = me();
     if (!isAdmin(caller) || !caller) return forbidden('관리자만 관리자 권한을 부여할 수 있어요.');
@@ -412,7 +416,7 @@ export const mockAccess = {
     return NextResponse.json(userWire(user.id));
   },
 
-  // POST /admin/admins/remove — 마지막 관리자면 400.
+  // POST /admin/access/admins/remove — 마지막 관리자면 400.
   removeAdmin: async (email: string) => {
     const caller = me();
     if (!isAdmin(caller) || !caller) return forbidden('관리자만 관리자 권한을 회수할 수 있어요.');
@@ -429,7 +433,7 @@ export const mockAccess = {
     return noContent();
   },
 
-  // GET /admin/permission-access?status&page&size
+  // GET /admin/access/permission-access?status&page&size
   listRequests: async (status: string | undefined, pageNumber: number, size: number) => {
     if (!isAdmin(me())) return forbidden('관리자만 접근 요청을 조회할 수 있어요.');
     const wanted = status ?? 'PENDING';
@@ -447,7 +451,7 @@ export const mockAccess = {
     return NextResponse.json(requestDetailWire(request));
   },
 
-  // POST /admin/permission-access/{id}/approve — 담당자 부여까지 한 트랜잭션, 204.
+  // POST /admin/access/permission-access/{id}/approve — 담당자 부여까지 한 트랜잭션, 204.
   approveRequest: async (requestId: number, message: string) => {
     const caller = me();
     if (!isAdmin(caller) || !caller) return forbidden('관리자만 승인할 수 있어요.');
@@ -469,7 +473,7 @@ export const mockAccess = {
     return noContent();
   },
 
-  // POST /admin/permission-access/{id}/reject — 사유 필수, 204.
+  // POST /admin/access/permission-access/{id}/reject — 사유 필수, 204.
   rejectRequest: async (requestId: number, reason: string) => {
     const caller = me();
     if (!isAdmin(caller) || !caller) return forbidden('관리자만 반려할 수 있어요.');
@@ -492,7 +496,7 @@ export const mockAccess = {
     return noContent();
   },
 
-  // GET /admin/history?service_code&type&page&size — 부여 경로는 여기서만 갈린다.
+  // GET /admin/access/history?service_code&type&page&size — 부여 경로는 여기서만 갈린다.
   listHistory: async (
     query: { serviceCode?: string; type?: string },
     pageNumber: number,
@@ -568,9 +572,9 @@ export const mockAccess = {
   /**
    * GET /permission-access/mine?page&size — 사용자 본인의 요청 내역.
    *
-   * 아직 스펙에 없는 두 가지 중 하나(갭 B4) — 오너가 추가하기로 했다. 그때까지는 제안한
-   * 모양 그대로다: 상세와 같은 shape 을 페이지로 준다. `access_status` 만으로는 반려
-   * 사유도 처리 일시도 말할 수 없어서 요구사항이 성립하지 않는다.
+   * 업스트림은 `/user/permission-access` — 2026-08-14 실구현으로 갭 B4 가 닫혔다.
+   * 상세와 같은 shape 을 페이지로 준다. `access_status` 만으로는 반려 사유도 처리
+   * 일시도 말할 수 없어서, 이 엔드포인트가 있어야 "승인 내역 조회"가 성립한다.
    */
   listMyRequests: async (pageNumber: number, size: number) => {
     const caller = me();

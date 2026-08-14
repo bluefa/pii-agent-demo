@@ -16,8 +16,12 @@ import { tqStyles } from '@/app/admin/pipelines/queue/_components/tqStyles';
 import { useAbortableEffect } from '@/app/hooks/useAbortableEffect';
 import { searchAccessUsers, type AccessUser } from '@/app/lib/api/access';
 import { accessStyles as a } from '@/app/admin/pipelines/access/_components/accessStyles';
+import { errorMessage } from '@/app/admin/pipelines/access/_components/PagedCard';
 
-/** 계약 maxLength — 사유/메시지 모두 1,000자. */
+/**
+ * 사유·메시지 입력 상한 — **우리가 정한 값이다.** 계약은 길이를 말하지 않는다(E6).
+ * 서버가 상한을 확정하면 그 값으로 맞춘다.
+ */
 const MAX_TEXT = 1000;
 /** 타이핑이 멎고 나서 찾는다. 한 글자마다 쏘면 사람 목록을 훑는 요청이 줄줄이 나간다. */
 const SEARCH_DEBOUNCE_MS = 500;
@@ -51,6 +55,8 @@ export function UserPickerModal({
   const [query, setQuery] = useState('');
   const [debounced, setDebounced] = useState('');
   const [users, setUsers] = useState<AccessUser[] | null>(null);
+  const [error, setError] = useState<unknown>(null);
+  const [retry, setRetry] = useState(0);
   const [picked, setPicked] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
 
@@ -61,6 +67,7 @@ export function UserPickerModal({
     setDebounced('');
     setPicked([]);
     setUsers(null);
+    setError(null);
   }, [open]);
 
   useEffect(() => {
@@ -80,20 +87,26 @@ export function UserPickerModal({
     (signal) => {
       if (!open || !debounced) {
         setUsers(null);
+        setError(null);
         return;
       }
+      setError(null);
       const exclude = excludeKey ? excludeKey.split(',') : [];
       return searchAccessUsers(debounced, exclude, { signal })
         .then((result) => {
           if (signal.aborted) return;
           setUsers(result);
         })
-        .catch(() => {
+        .catch((err) => {
           if (signal.aborted) return;
-          setUsers([]);
+          // 실패를 빈 결과로 그리면 안 된다. 이 검색은 ADMIN 전용이라 403 이 흔한 실패인데,
+          // "검색 결과가 없어요"로 보이면 관리자는 있는 계정을 없다고 읽고 물러난다 —
+          // 부여로 가는 유일한 길이 조용히 막힌다. 실패는 실패로 말하고 재시도를 준다.
+          setError(err);
+          setUsers(null);
         });
     },
-    [open, debounced, excludeKey],
+    [open, debounced, excludeKey, retry],
   );
 
   const toggle = (email: string): void =>
@@ -144,6 +157,13 @@ export function UserPickerModal({
         {!debounced ? (
           // 검색 전에는 아무도 보여주지 않는다 — 위 effect 의 이유와 같다.
           <div className={a.pickerEmpty}>Knox ID 나 이메일로 검색해 주세요</div>
+        ) : error != null ? (
+          <div className={a.pickerError}>
+            <span className="min-w-0 truncate">{errorMessage(error)}</span>
+            <PlButton variant="secondary" size="sm" onClick={() => setRetry((n) => n + 1)}>
+              재시도
+            </PlButton>
+          </div>
         ) : users == null ? (
           <div className={a.pickerEmpty} aria-busy="true">
             찾는 중이에요

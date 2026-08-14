@@ -41,17 +41,17 @@ install-v1: snake_case wire, Spring `Page` for the paged reads, `ErrorMessage` p
 
 ## Two audiences, two prefixes
 
-`/admin/**` is ADMIN-only. `/services/{code}/permission-access` and the requester reads are
+`/admin/access/**` is ADMIN-only. `/services/{code}/permission-access` and the requester reads are
 what any signed-in user calls — a service manager with no permission must still be able to
 ask, so those sit outside the admin gate.
 
-**Base path assumption (여전히 미확인):** 오너의 표는 사용자 API 만 전체 경로
-(`/install/v1/…`)로 적고 관리 API 는 계속 bare (`/services`, `/admins`,
-`/permission-access`, `/history`) 로 적는다. 08-14 업데이트도 마찬가지다 — 본문에서는
-사용자 API 인 `/install/v1/services/page` 를 그냥 `/services/page` 로 부르므로, **bare 는
-"prefix 생략"이지 "prefix 없음"이 아니다**. 그래서 이것으로는 관리 API 의 base 를
-가릴 수 없다. 우리는 저장소 관례(`/admin/queue/*`, `/admin/ops/*`)를 따라
-`/install/v1/admin/…` 에 걸어 두었다. **BFF 나가기 전에 확인해야 한다.**
+**Base path — `/install/v1/admin/access/**` (2026-08-14 오너 확정, D6 닫힘).** 관리자
+API 넷(`services`, `admins`, `permission-access`, `history`) 모두 이 base 아래 있다.
+오너의 표가 관리 API 를 base 없이 bare 로만 적어서 우리는 저장소 관례
+(`/admin/queue/*`, `/admin/ops/*`)를 따라 `/install/v1/admin/…` 로 걸어 두었었고,
+그건 틀린 경로였다 — `/install/v1/admin/admins`, `/install/v1/admin/services` 로
+나가고 있었다. 이제 업스트림 경로가 우리 프록시 경로(`/api/v1/admin/access/**`)와
+같은 모양이다.
 
 ## Shared shapes
 
@@ -66,7 +66,7 @@ UserSummary { knox_id: string, email: string, role: string }
 ### 서비스
 
 ```
-GET  /admin/services?page={0}&size={20}&q={검색어}
+GET  /admin/access/services?page={0}&size={20}&q={검색어}
 → 200 Page<AdminServiceRow>
 
 AdminServiceRow {
@@ -79,7 +79,7 @@ AdminServiceRow {
 ```
 
 ```
-GET  /admin/services/{serviceCode}/owners
+GET  /admin/access/services/{serviceCode}/owners
 → 200 ServiceOwnersResponse
 
 ServiceOwnersResponse {
@@ -88,11 +88,11 @@ ServiceOwnersResponse {
   owners:       UserSummary[]       // 페이지가 아니다 — 전체를 준다
 }
 
-POST /admin/services/{serviceCode}/owners
+POST /admin/access/services/{serviceCode}/owners
 body    { emails: string[] }        // 직접 부여, 이미 가진 사용자는 서버가 무시
 → 200  ServiceOwnersResponse        // 갱신된 전체 목록
 
-POST /admin/services/{serviceCode}/owners/remove
+POST /admin/access/services/{serviceCode}/owners/remove
 body    { email: string }
 → 200  ServiceOwnersResponse
 ```
@@ -103,14 +103,14 @@ body    { email: string }
 ### 관리자
 
 ```
-GET  /admin/admins
+GET  /admin/access/admins
 → 200 AdminListResponse { admins: UserSummary[] }   // 페이지 아님
 
-POST /admin/admins
+POST /admin/access/admins
 body    { email: string }           // 단수 — 여러 명은 호출을 반복한다
 → 200  UserSummary
 
-POST /admin/admins/remove
+POST /admin/access/admins/remove
 body    { email: string }
 → 204                                // 마지막 관리자면 400
 ```
@@ -121,7 +121,7 @@ body    { email: string }
 ### 접근 권한 요청
 
 ```
-GET  /admin/permission-access?status={PENDING}&page={0}&size={20}
+GET  /admin/access/permission-access?status={PENDING}&page={0}&size={20}
 → 200 Page<PermissionRequestRow>
 
 PermissionRequestRow {
@@ -138,7 +138,7 @@ PermissionRequestRow {
 > 열을 두지 않았다. `reason`·`status`·`processed_at` 세 필드가 행에 붙으면 열이 되살아난다.
 
 ```
-GET  /admin/permission-access/{requestId}
+GET  /admin/access/permission-access/{requestId}
 → 200 PermissionRequestDetail
 
 PermissionRequestDetail {
@@ -152,11 +152,11 @@ PermissionRequestDetail {
   processed_note: string | null     // 승인 메시지 또는 반려 사유
 }
 
-POST /admin/permission-access/{requestId}/approve
+POST /admin/access/permission-access/{requestId}/approve
 body    { message?: string }        // 선택
 → 204                                // 담당자 부여까지 한 트랜잭션. 이미 처리된 건 400
 
-POST /admin/permission-access/{requestId}/reject
+POST /admin/access/permission-access/{requestId}/reject
 body    { reason: string }          // 필수
 → 204                                // 이미 처리된 건 400
 ```
@@ -167,7 +167,7 @@ body    { reason: string }          // 필수
 ### 이력
 
 ```
-GET /admin/history?service_code={CODE}&type={TYPE}&page={0}&size={20}
+GET /admin/access/history?service_code={CODE}&type={TYPE}&page={0}&size={20}
 → 200 Page<AccessHistoryRow>
 
 AccessHistoryRow {
@@ -266,13 +266,14 @@ GET /user/services/page?query=&page={0}&size={20}
 |---|---|
 | B3 | 요청 목록 행에 `reason`·`status`·`processed_at` 추가 여부 (08-14 업데이트에도 안 들어왔다) |
 | D4 | `/history` 의 `type` enum 실제 값 |
-| D6 | 관리자 API base path (`/install/v1/admin/…` 로 가정) — 08-14 표기로도 가려지지 않았다 |
 | E1 | `GET /services/page` 가 `query` 를 받나. 화면에 검색창이 있고 지금은 받는다고 가정한다 |
 | E2 | `owners` 원소가 문자열인가 `UserSummary` 인가. "담당자 표시명"으로 적혀 있어 문자열로 읽는다 — 객체면 `toServicePageRow` 한 곳만 바뀐다 |
 | E3 | `service_abbr_name` 을 실제로 채워 주는 서비스가 어떤 것들인가. 목은 카탈로그에 약어가 없어 전부 `null` 이고, 화면도 아직 그리지 않는다 |
 | **E4** | `GET /users/search` 의 `excludeIds` 는 무엇으로 키잉되나. 새 응답(`UserSummary`)에는 id 가 없어 실을 값이 없다 — **확인 전까지 보내지 않고 화면이 응답에서 거른다** |
 | E5 | swagger 의 `UserSearchResponse`(id·name·email)가 08-14 실구현(knox_id·email·role)과 다르다. `/install/v1/users/search` 를 부르는 기존 라우트(`app/api/v1/users/search`)는 그 stale 스키마로 파싱한다 — 스펙 갱신은 오너 몫 |
+| **E6** | 신청 사유·승인 메시지·반려 사유의 최대 길이. 계약은 말하지 않는다 — 화면이 **우리가 정한** 1,000자로 자른다(`AccessModals.tsx`). 서버 상한이 정해지면 그 값으로 맞춘다 |
+| **E7** | 승인 body 의 `message` 가 빈 문자열로 와도 되나. 선택 필드라 화면은 비면 **키째 뺀다** — 빈 문자열을 그대로 저장하는 서버면 상세의 "메시지 없이 승인했어요" 자리가 빈칸이 된다 |
 | — | `authorized-users` 가 실구현됐지만 `owners` 와 같은 집합이다. 둘 중 하나는 없어져야 한다 — 프론트는 `/owners` 만 쓴다 |
 
 **닫힌 것** — B4(본인 신청 내역 `/user/permission-access`), C-1(`description` 요청은
-철회, `owners` 가 대신한다).
+철회, `owners` 가 대신한다), **D6(관리자 API base 는 `/install/v1/admin/access/**`)**.
