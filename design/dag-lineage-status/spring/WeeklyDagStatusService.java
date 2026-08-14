@@ -12,9 +12,15 @@ import java.util.stream.IntStream;
 import org.springframework.stereotype.Service;
 
 /**
- * Weekly board: for each DAG, the last 7 KST days.
+ * Weekly board: for each DAG in the catalog, the last 7 KST days.
  *  1) succeededThisWeek + lastSuccessAt (latest success in the window)
  *  2) per-day state: SUCCESS > RUNNING > FAILED, no row -> NOT_SCHEDULED
+ *
+ * Pages over dag_registry (keyset by dag_name), so a DAG with zero events
+ * still renders as 7x NOT_SCHEDULED instead of disappearing.
+ *
+ * A manual/backfill success counts as that day's SUCCESS (owner decision):
+ * run_type is stored but never used as an aggregate filter.
  */
 @Service
 public class WeeklyDagStatusService {
@@ -29,24 +35,24 @@ public class WeeklyDagStatusService {
         this.registry = registry;
     }
 
-    public List<DagWeeklyStatus> weeklyStatuses(int page, int size) {
+    /** afterDagName: last dag name of the previous page, null for the first page. */
+    public List<DagWeeklyStatus> weeklyStatuses(String afterDagName, int size) {
         LocalDate firstDay = LocalDate.now(KST).minusDays(6);
         OffsetDateTime windowStart = firstDay.atStartOfDay(KST).toOffsetDateTime();
 
-        List<DagKey> keys = repository.pageDagKeys(windowStart, page, size);
-        Map<DagKey, List<DayStatusRow>> rowsByDag =
-                repository.dayStatuses(keys, windowStart).stream()
-                        .collect(Collectors.groupingBy(DayStatusRow::key));
-        Map<String, String> externalIds =
-                registry.externalIds(keys.stream().map(DagKey::dagId).toList());
+        List<DagCatalogEntry> page = registry.page(afterDagName, size);
+        List<String> names = page.stream().map(DagCatalogEntry::dagName).toList();
+        Map<String, List<DayStatusRow>> rowsByDag =
+                repository.dayStatuses(names, windowStart).stream()
+                        .collect(Collectors.groupingBy(DayStatusRow::dagId));
 
-        return keys.stream()
-                .map(key -> summarize(key, externalIds.get(key.dagId()), firstDay,
-                        rowsByDag.getOrDefault(key, List.of())))
+        return page.stream()
+                .map(entry -> summarize(entry, firstDay,
+                        rowsByDag.getOrDefault(entry.dagName(), List.of())))
                 .toList();
     }
 
-    private static DagWeeklyStatus summarize(DagKey key, String externalId, LocalDate firstDay,
+    private static DagWeeklyStatus summarize(DagCatalogEntry entry, LocalDate firstDay,
             List<DayStatusRow> rows) {
         Map<LocalDate, DayStatusRow> byDay =
                 rows.stream().collect(Collectors.toMap(DayStatusRow::day, row -> row));
@@ -68,7 +74,8 @@ public class WeeklyDagStatusService {
                 .max(Comparator.naturalOrder())
                 .orElse(null);
 
-        return new DagWeeklyStatus(key.namespace(), key.dagId(), externalId,
+        String namespace = rows.isEmpty() ? null : rows.get(0).namespace();
+        return new DagWeeklyStatus(namespace, entry.dagName(), entry.externalId(),
                 lastSuccessAt != null, lastSuccessAt, days);
     }
 }

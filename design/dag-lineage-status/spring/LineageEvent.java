@@ -17,7 +17,13 @@ import java.time.OffsetDateTime;
 public record LineageEvent(String eventType, OffsetDateTime eventTime, Run run, Job job) {
 
     @JsonIgnoreProperties(ignoreUnknown = true)
-    public record Job(String namespace, String name) {}
+    public record Job(String namespace, String name, JobFacets facets) {}
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public record JobFacets(JobTypeFacet jobType) {}
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public record JobTypeFacet(String jobType) {} // "DAG" | "TASK"
 
     @JsonIgnoreProperties(ignoreUnknown = true)
     public record Run(String runId, RunFacets facets) {}
@@ -55,5 +61,17 @@ public record LineageEvent(String eventType, OffsetDateTime eventTime, Run run, 
             return null;
         }
         return run.facets().airflowDagRun().dagRun().runType();
+    }
+
+    /**
+     * Second line of defense behind the transport's DAG-only filter.
+     * A missing jobType facet passes as DAG (older providers may omit it);
+     * only an explicit non-DAG value is dropped.
+     */
+    public boolean isDagEvent() {
+        if (job == null || job.facets() == null || job.facets().jobType() == null) {
+            return true;
+        }
+        return "DAG".equals(job.facets().jobType().jobType());
     }
 }

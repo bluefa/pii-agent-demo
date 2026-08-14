@@ -20,6 +20,7 @@ import org.springframework.stereotype.Component;
  *
  * Ack contract:
  *  - success            -> ack
+ *  - non-DAG jobType    -> ack (task event that slipped past the transport filter)
  *  - unknown eventType  -> ack (deliberate drop, no status change we track)
  *  - anything thrown    -> nack -> redelivery with backoff -> DLQ after
  *                          max delivery attempts (poison messages)
@@ -55,6 +56,11 @@ public class LineageEventSubscriber {
             LineageEvent event = objectMapper.readValue(
                     message.getPubsubMessage().getData().toByteArray(), LineageEvent.class);
 
+            if (!event.isDagEvent()) {
+                // Task event that slipped past the transport filter.
+                message.ack();
+                return;
+            }
             DagRunState state = mapState(event.eventType());
             if (state == null) {
                 // OpenLineage also defines RUNNING/OTHER etc.; they carry no

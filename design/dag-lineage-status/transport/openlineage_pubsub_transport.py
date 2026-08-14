@@ -21,11 +21,21 @@ Written against openlineage-python 1.x. The Transport/Config API and the
 composite transport config shape have moved between versions — pin the
 client version together with the Airflow provider and verify.
 """
+import logging
 from dataclasses import dataclass
 
 from google.cloud import pubsub_v1
 from openlineage.client.serde import Serde
 from openlineage.client.transport import Config, Transport
+
+log = logging.getLogger(__name__)
+
+
+def _log_publish_failure(future) -> None:
+    # Runs on the publisher's background thread; must never raise.
+    exc = future.exception()
+    if exc is not None:
+        log.warning("lineage publish to Pub/Sub failed: %s", exc)
 
 
 @dataclass
@@ -64,7 +74,16 @@ class PubSubTransport(Transport):
         name = getattr(getattr(event, "job", None), "name", None)
         if name is None or not name.startswith(self._prefix):
             return
-        self._publisher.publish(self._topic, Serde.to_json(event).encode("utf-8"))
+        # Fire-and-forget for the scheduler; failures surface in logs so the
+        # ingest-volume alarm has a cause to correlate with.
+        future = self._publisher.publish(self._topic, Serde.to_json(event).encode("utf-8"))
+        future.add_done_callback(_log_publish_failure)
+
+    def close(self, timeout: float = -1) -> bool:
+        # Flush pending batches so the tail of a scheduling burst is not lost
+        # when the scheduler process exits.
+        self._publisher.stop()
+        return True
 
     @staticmethod
     def _is_dag_event(event) -> bool:

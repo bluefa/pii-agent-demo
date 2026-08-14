@@ -23,12 +23,18 @@ record DagRunRow(
         DagRunState state,
         OffsetDateTime eventTime) {}
 
-record DagKey(String namespace, String dagId) {}
+/** One catalog row of dag_registry (dag names are globally unique across environments). */
+record DagCatalogEntry(String dagName, String externalId) {}
 
 /** One (dag, day) aggregate returned by the day-status query. */
-record DayStatusRow(DagKey key, LocalDate day, DayState state, OffsetDateTime successTime) {}
+record DayStatusRow(String dagId, String namespace, LocalDate day, DayState state,
+        OffsetDateTime successTime) {}
 
-/** Weekly board row for one DAG. externalId is null until the reconciler resolves a new DAG. */
+/**
+ * Weekly board row for one DAG. Listed DAGs come from the catalog, so
+ * externalId is always present; namespace is null when the DAG had no events
+ * in the window (nothing ran, so there is no row to read it from).
+ */
 record DagWeeklyStatus(
         String namespace,
         String dagId,

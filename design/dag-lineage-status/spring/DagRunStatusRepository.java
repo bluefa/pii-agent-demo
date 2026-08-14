@@ -39,34 +39,20 @@ public class DagRunStatusRepository {
     }
 
     /**
-     * ponytail: DAG list is derived from events, so a DAG with zero events in
-     * the window disappears entirely instead of showing 7x NOT_SCHEDULED.
-     * Page from a DAG catalog table instead once one exists.
-     */
-    public List<DagKey> pageDagKeys(OffsetDateTime windowStart, int page, int size) {
-        return jdbc.query("""
-                SELECT DISTINCT namespace, dag_id
-                  FROM dag_run_status
-                 WHERE logical_date >= ?
-                 ORDER BY namespace, dag_id
-                 LIMIT ? OFFSET ?
-                """,
-                (rs, i) -> new DagKey(rs.getString("namespace"), rs.getString("dag_id")),
-                windowStart, size, (long) page * size);
-    }
-
-    /**
-     * Day-level fold for one page of DAGs.
+     * Day-level aggregate for one page of DAG names. The page comes from
+     * dag_registry (the catalog decides WHICH DAGs are listed; this query
+     * only fills in their days).
      * Day bucket = logical_date in KST (not event arrival time).
      * Day precedence: SUCCESS > RUNNING > FAILED (min of the rank).
      */
-    public List<DayStatusRow> dayStatuses(List<DagKey> keys, OffsetDateTime windowStart) {
-        if (keys.isEmpty()) {
+    public List<DayStatusRow> dayStatuses(List<String> dagIds, OffsetDateTime windowStart) {
+        if (dagIds.isEmpty()) {
             return List.of();
         }
-        String pairs = keys.stream().map(k -> "(?, ?)").collect(Collectors.joining(", "));
+        String placeholders = dagIds.stream().map(n -> "?").collect(Collectors.joining(", "));
         String sql = """
-                SELECT namespace, dag_id,
+                SELECT dag_id,
+                       max(namespace) AS namespace,
                        (logical_date AT TIME ZONE 'Asia/Seoul')::date AS day,
                        min(CASE status
                              WHEN 'SUCCESS' THEN 1
@@ -75,18 +61,18 @@ public class DagRunStatusRepository {
                            END) AS state_rank,
                        max(event_time) FILTER (WHERE status = 'SUCCESS') AS success_time
                   FROM dag_run_status
-                 WHERE logical_date >= ? AND (namespace, dag_id) IN (%s)
-                 GROUP BY namespace, dag_id, day
-                """.formatted(pairs);
+                 WHERE logical_date >= ? AND dag_id IN (%s)
+                 GROUP BY dag_id, day
+                """.formatted(placeholders);
 
         List<Object> params = new ArrayList<>();
         params.add(windowStart);
-        for (DagKey key : keys) {
-            params.add(key.namespace());
-            params.add(key.dagId());
-        }
+        params.addAll(dagIds);
+        // max(namespace): a DAG lives in exactly one environment; max() is
+        // just the representative pick the GROUP BY requires.
         return jdbc.query(sql, (rs, i) -> new DayStatusRow(
-                        new DagKey(rs.getString("namespace"), rs.getString("dag_id")),
+                        rs.getString("dag_id"),
+                        rs.getString("namespace"),
                         rs.getObject("day", LocalDate.class),
                         rankToState(rs.getInt("state_rank")),
                         rs.getObject("success_time", OffsetDateTime.class)),

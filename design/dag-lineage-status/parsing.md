@@ -8,11 +8,11 @@ Pull 구독이므로 push 구독과 달리 메시지가 base64로 래핑되어 �
 + 이름 prefix 필터를 통과한 이벤트만 도착하지만, 소비 쪽 파싱은 그
 가정에 기대지 않는다(아래 방어 참조).
 
-**외부 DAG ID는 이벤트에 없다** — 파싱 대상이 아니다. 이름→ID
-해석은 수집 흐름과 분리된 reconciler + `dag_registry` 테이블이 담당하고
-(architecture.md 참조), 주간 조회가 join으로 붙인다.
+**외부 DAG ID는 이벤트에 없다** — 파싱 대상이 아니다. 이름→ID는
+수집 흐름과 분리된 카탈로그 sync + `dag_registry` 테이블이 담당하고
+(architecture.md 참조), 주간 조회가 카탈로그 페이지에서 함께 읽는다.
 
-## 추출 필드 (7개)
+## 추출 필드 (8개)
 
 | 필드 | JSON 경로 | 용도 | 필수 | 결측 시 |
 |------|-----------|------|------|---------|
@@ -20,6 +20,7 @@ Pull 구독이므로 push 구독과 달리 메시지가 base64로 래핑되어 �
 | eventTime | `/eventTime` | 상태 갱신 순서 판정 (도착 순서 대신) | ✔ | nack → DLQ |
 | namespace | `/job/namespace` | Composer 환경 식별 | ✔ | nack → DLQ |
 | dag_id | `/job/name` | DAG 식별 | ✔ | nack → DLQ |
+| jobType | `/job/facets/jobType/jobType` | task 이벤트 2차 방어 | — | 없으면 DAG로 간주 |
 | runId | `/run/runId` | run 단위 상태 병합 키 (START·종료 이벤트 동일 UUID) | ✔ | nack → DLQ |
 | logical_date | `/run/facets/airflowDagRun/dagRun/logical_date` | 날짜 버킷 키 | ✔ (fallback 있음) | fallback 후에도 없으면 nack |
 | run_type | `/run/facets/airflowDagRun/dagRun/run_type` | scheduled/manual 구분 | — | null 저장 |
@@ -33,7 +34,7 @@ provider 버전에 따라 facet 구성이 달라서 두 경로를 모두 선언�
 전체 OpenLineage 스키마(또는 `openlineage-java`의 RunEvent)를 매핑하지
 않는다. 이유:
 
-- 쓰는 건 7개 필드뿐인데 전체 스키마와 특정 provider 버전에 결합된다.
+- 쓰는 건 8개 필드뿐인데 전체 스키마와 특정 provider 버전에 결합된다.
 - provider 업그레이드로 facet이 추가·변경돼도, 관심 경로만 선언한
   record + `@JsonIgnoreProperties(ignoreUnknown = true)`는 깨지지
   않는다.
@@ -54,10 +55,12 @@ provider 버전에 따라 facet 구성이 달라서 두 경로를 모두 선언�
 | FAIL, ABORT | FAILED | |
 | 그 외 (RUNNING, OTHER 등 스펙상 존재) | ack 후 무시 | 상태 변화 없음. nack하면 DLQ가 노이즈로 참 |
 
-transport 필터가 뚫려 task 이벤트가 섞여 들어와도(`job.name`이
-`dag_id.task_id` 형태) run_id가 DAG run과 다르므로 별도 행으로
-쌓일 뿐 DAG 상태를 오염시키지는 않는다. 다만 유입량 알람으로
-필터 고장을 감지해야 한다.
+transport 필터가 뚫려 task 이벤트가 섞여 들어오는 경우(`job.name`이
+`dag_id.task_id` 형태)는 소비 쪽에서도 jobType facet으로 한 번 더
+거른다(2차 방어): `DAG`가 아니면 ack 후 버린다. facet이 없으면
+DAG로 간주해 통과시킨다(구버전 provider 호환). 2차 방어가 있어도
+불필요한 볼륨은 그대로 유입되므로, 필터 고장 자체는 유입량 알람으로
+감지해야 한다.
 
 ## 실패 경로
 
@@ -65,6 +68,7 @@ transport 필터가 뚫려 task 이벤트가 섞여 들어와도(`job.name`이
 파싱 불가 / 필수 필드 결측  → 예외 → nack → 재전송(백오프)
                               → max delivery attempts(5) 소진 → DLQ
 DB 일시 장애                → 동일 (재전송이 곧 재시도 큐)
+DAG가 아닌 jobType          → ack (2차 방어, 의도적 무시)
 알 수 없는 eventType        → ack (의도적 무시)
 ```
 
