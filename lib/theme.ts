@@ -2630,34 +2630,57 @@ export const pipelineStyles = {
     /**
      * 두 줄에 걸치는 선두 마크. 슬롯 폭을 고정하는 이유는 `ProviderGlyph` 가
      * UNKNOWN 에서 null 을 돌려주기 때문이다 — 그대로 두면 마크 없는 행만 글자가
-     * 왼쪽으로 당겨져 열이 어긋난다. 글리프 자체는 공용 `provTag.glyph`(14px).
+     * 왼쪽으로 당겨져 열이 어긋난다.
      */
     identityGlyph:
-      'flex-none w-[18px] flex items-center justify-center text-[var(--pl-text-medium)]',
-    identityStack: 'flex min-w-0 flex-col items-start gap-[3px]',
-    identityHead: 'flex items-center gap-2',
+      'flex-none w-5 flex items-center justify-center text-[var(--pl-text-medium)]',
     /**
-     * 1행 — 식별자. 오너: "태그로 약간 강조해도 됨".
-     *
-     * 흰 면 + stroke 는 발명이 아니라 이 셀이 이미 쓰던 모양이다(PR #700, 오너 지시):
-     * 칩 면이 gray-100 이던 시절 행 hover 틴트와 byte-identical 이라 커서가 올라가면
-     * 1.000:1 로 사라졌고, 흰 면 + `--pl-border-strong` 만이 흰 행과 틴트된 행 양쪽에서
-     * 버텼다. 코드 칩이 쓰던 그 판을 이제 식별자 줄 전체가 입는다.
-     *
-     * `py-px` + 1px 테두리로 박스 높이를 유지해 hover 시 2행 스택이 자라지 않는다.
+     * 20×20 (오너 2026-08-14). 공용 `provTag.glyph` 는 14px 인데, 그 값은 **라벨 옆에
+     * 붙는 글리프**의 크기다 — 대문자 높이에 맞춰야 표에서 아이콘이 글자보다 먼저
+     * 읽히지 않기 때문. 여기서는 라벨이 없고 마크가 두 줄 전체를 대표하므로 그 제약이
+     * 적용되지 않아, 공용 토큰을 건드리지 않고 이 셀만 따로 잡는다.
      */
-    identityTag:
-      'inline-flex items-center whitespace-nowrap rounded-md border border-[var(--pl-border-strong)] bg-[var(--pl-bg-card)] px-2 py-px text-[14px] font-semibold text-[var(--pl-text-strong)] [font-family:var(--pl-font-mono)] transition-colors group-hover:border-[var(--pl-info-text)] group-hover:text-[var(--pl-info-text)]',
+    identityGlyphMark: 'w-5 h-5',
+    identityStack: 'flex min-w-0 flex-col items-start gap-[3px]',
     /**
+     * 1행. `items-baseline` 인 이유는 한 줄 안에 두 크기가 서기 때문이다 — 12px 문맥과
+     * 14px 코드 값을 items-center 로 세우면 작은 쪽이 떠서 두 값이 같은 줄로 안 읽힌다.
+     */
+    identityHead: 'flex items-baseline gap-2',
+    /**
+     * Target 번호 — 판을 벗고 12px 로 내려온다 (오너: "태그 디자인이 조금 갑갑하다.
+     * tag 없애봐" · "target 계층을 낮추자"). 이 줄에서 강조를 갖는 것은 코드 값 하나뿐이라,
+     * 번호는 그 값이 어디 속하는지 말하는 문맥이 됐다.
+     *
      * 행에 커서가 올라갔을 때만 링크색으로 (오너). `group-hover` 이지 `hover` 가
      * 아니다: 열리는 건 행 전체이므로 행 어디에 커서가 있든 식별자가 반응해야
-     * "지금 열리는 게 이것"이라고 말한다. 좁은 태그 위에서만 반응하면 그 폭에
+     * "지금 열리는 게 이것"이라고 말한다. 좁은 번호 위에서만 반응하면 그 폭에
      * 커서를 올린 사람만 응답을 본다.
      *
-     * `--pl-info-text` 는 hover 표면(gray-100) 위 5.43:1, 흰 배경 6.28:1 — 두 상태 다
-     * 4.5:1 위. 원색 `--pl-info` 는 3:1 대라 이 크기로는 못 쓴다.
+     * `--pl-info-text` 는 hover 틴트 위 5.47:1, 흰 행 6.28:1 — 두 상태 다 4.5:1 위.
+     * 원색 `--pl-info` 는 3:1 대라 이 크기로는 못 쓴다.
      */
+    identityTarget:
+      'whitespace-nowrap text-[12px] font-medium text-[var(--pl-text-weak)] [font-family:var(--pl-font-mono)] transition-colors group-hover:text-[var(--pl-info-text)]',
+    /**
+     * Target 번호 값 — 14/600 (오너: "1002는 2픽셀 더 키워. 그리고 semi bold").
+     * `코드: IRP` 와 같은 문법이 된다: 라벨은 12px 문맥, 값만 올라선다. 한 줄에 라벨·값
+     * 쌍이 둘 나란히 서므로, 어느 쪽을 읽어도 같은 규칙으로 읽힌다.
+     *
+     * hover 링크색을 **여기에도** 얹는 이유: 부모의 `group-hover` 는 자식이 자기 색을
+     * 선언하는 순간 거기서 끊긴다. 없으면 "Target #" 만 파래지고 번호는 검게 남아,
+     * 정작 식별자인 쪽이 반응하지 않는다.
+     */
+    identityTargetValue:
+      'text-[14px] font-semibold text-[var(--pl-text-strong)] transition-colors group-hover:text-[var(--pl-info-text)]',
+    /** "코드:" 라벨 — 계층은 그대로 둔다 (오너). 값이 무엇인지 부르는 말이지 값이 아니다. */
     identityCode: 'whitespace-nowrap text-[12px] font-medium text-[var(--pl-text-weak)]',
+    /**
+     * 코드 값 — 14/600 (오너: "값 IRP 는 계층 높여"). 셀에서 유일하게 올라선 값이다.
+     * 판 없이 크기·무게 두 레버로만 서므로 `--pl-text-strong` 을 쓴다: weak 나 medium
+     * 이면 12px 문맥과 색까지 같아져 크기 한 칸 차이만 남는다.
+     */
+    identityCodeValue: 'text-[14px] font-semibold text-[var(--pl-text-strong)]',
     /** 2행 — 서비스 이름 (오너: 12px, 회색). 식별자가 아니라 그것이 무엇인지의 설명. */
     identityName:
       'block max-w-[38ch] truncate text-[12px] text-[var(--pl-text-weak)]',
@@ -2671,18 +2694,29 @@ export const pipelineStyles = {
      * 한글 라벨은 공용 `statusKo` 한 벌을 쓴다 — enum 원문은 데이터 표기(정의·계약 탭,
      * 오류 코드)에만 남긴다.
      *
-     * 색은 등급 3개까지 (오너: "색상이 강하지 않게"). 초록·파랑이 빠지고 **유일한
-     * 색상은 실패**다. 나머지는 명도로만 갈린다 — 실행 중은 살아 있으니 medium,
-     * 대기·완료·중단은 지금 할 일이 없으니 weak. 강조를 색상 하나와 명도 두 칸으로
-     * 나눠 주면, 색이 켜져 있는 행이 정확히 손이 필요한 행이 된다.
+     * 색은 **끝난 두 상태에만** — 실패는 빨강, 완료는 초록 (오너 2026-08-14,
+     * "색상이 강하지 않게" 다음에 "완료는 초록색으로 표현해"). 살아 있는 상태들은
+     * 명도로 갈린다: 실행 중은 medium, 대기는 weak.
+     *
+     * 여기의 초록은 세그먼트에서 뺀 초록과 다른 자리다. 세그먼트의 초록은 한 행에
+     * 여러 칸을 칠해 표 면적의 62%를 먹었지만, 이 초록은 **행당 낱말 하나**다 —
+     * 같은 색을 면적이 다른 두 곳에 쓰는 것이라, 하나를 뺐다고 다른 하나가
+     * 따라 빠질 이유는 없다.
+     *
+     * 중단은 색 대신 마크를 받는다(`stop`). 완료와 같은 "끝난 상태"인데 초록을 주면
+     * 성공했다고 말하게 되고, 회색만 주면 대기와 구별되지 않는다 — 낱말 하나에
+     * 색을 더 쓰지 않고 채널을 하나 더 여는 쪽을 택했다.
      */
     statusText: 'text-[13px] font-semibold tracking-[0.02em]',
+    /** 마크를 다는 상태를 위한 줄 — `statusText` 에 display 를 얹지 않으려고 분리했다
+     *  (`cn` 은 단순 join 이라 같은 속성이 두 번 실리면 출력 순서가 승자를 정한다). */
+    statusWrap: 'inline-flex items-center gap-1',
     statusTextTone: {
       PENDING: 'text-[var(--pl-text-weak)]',
       RUNNING: 'text-[var(--pl-text-medium)]',
       IN_PROGRESS: 'text-[var(--pl-text-medium)]',
       READY: 'text-[var(--pl-text-weak)]',
-      DONE: 'text-[var(--pl-text-weak)]',
+      DONE: 'text-[var(--pl-ok-text)]',
       FAILED: 'text-[var(--pl-err-text)]',
       CANCELLED: 'text-[var(--pl-text-weak)]',
       BLOCKED: 'text-[var(--pl-text-weak)]',

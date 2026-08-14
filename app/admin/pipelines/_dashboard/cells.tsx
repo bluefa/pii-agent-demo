@@ -54,12 +54,16 @@ export function TargetCell({
   return (
     <span className={d.identity}>
       <span className={d.identityGlyph} role="img" aria-label={providerLabel(shown)}>
-        <ProviderGlyph provider={shown} className={pipelineStyles.provTag.glyph} />
+        <ProviderGlyph provider={shown} className={d.identityGlyphMark} />
       </span>
       <span className={d.identityStack}>
         <span className={d.identityHead}>
-          <span className={d.identityTag}>TargetSource #{targetId}</span>
-          <span className={d.identityCode}>코드: {code}</span>
+          <span className={d.identityTarget}>
+            Target #<span className={d.identityTargetValue}>{targetId}</span>
+          </span>
+          <span className={d.identityCode}>
+            코드: <span className={d.identityCodeValue}>{code}</span>
+          </span>
         </span>
         <span className={d.identityName}>{name}</span>
       </span>
@@ -72,11 +76,21 @@ export function StatusRail({ status }: { status: PipelineStatus }): ReactElement
   return <td className={cn(d.railCell, status === 'FAILED' && d.railErr)} />;
 }
 
-/** Status with the chip taken off, in the section's shared Korean label set
- *  (`statusKo`: 대기 / 실행 중 / 완료 / 실패 / 중단). Only 실패 keeps a hue — see
- *  `statusTextTone`. */
+/**
+ * Status with the chip taken off, in the section's shared Korean label set
+ * (`statusKo`: 대기 / 실행 중 / 완료 / 실패 / 중단).
+ *
+ * 중단만 마크를 단다 (오너). 완료와 같은 "끝난 상태"인데 초록을 주면 성공했다고
+ * 말하게 되고, 회색만 주면 대기와 구별되지 않는다 — 색을 하나 더 쓰는 대신
+ * 채널을 하나 더 열었다. 마크는 낱말 색을 그대로 물려받는다.
+ */
 export function StatusText({ status }: { status: PipelineStatus }): ReactElement {
-  return <span className={cn(d.statusText, d.statusTextTone[status])}>{statusKo(status)}</span>;
+  return (
+    <span className={cn(d.statusWrap, d.statusText, d.statusTextTone[status])}>
+      {status === 'CANCELLED' && <Icon name="stop" size="sm" />}
+      {statusKo(status)}
+    </span>
+  );
 }
 
 /** Relative time ("3시간 전") with an absolute-time hover tooltip. */
