@@ -172,12 +172,8 @@ export const accessStyles = {
   benchList: 'flex flex-col p-2.5',
   benchRows: 'flex flex-col gap-1.5',
   benchFooter: 'mt-auto pt-2',
-  /** 시트 머리의 40px 타일. `serviceSidebarStyles.tile` 에 크기를 덧씌우지 않고 따로
-   *  선언한다 — `cn` 은 단순 join 이라 h-7 과 h-10 을 같이 주면 Tailwind 출력 순서가
-   *  이긴다. 색만 `serviceTileClass` 에서 가져온다. */
-  benchTile:
-    'flex h-10 w-10 shrink-0 items-center justify-center rounded-[9px] text-[16px] font-semibold leading-none',
-  /** 목록 자리의 스켈레톤 조각 — `skeletonBar` 는 h-3.5 라 타일 자리에 못 쓴다(같은 이유). */
+  /** 목록 자리의 스켈레톤 조각 — `skeletonBar` 는 h-3.5 라 타일 자리에 못 쓴다
+   *  (`cn` 은 단순 join 이라 h-3.5 와 h-7 을 같이 주면 Tailwind 출력 순서가 이긴다). */
   benchSkelTile: 'h-7 w-7 flex-none animate-pulse rounded-[6px] bg-[var(--pl-gray-100)]',
   benchItem:
     'flex w-full cursor-pointer items-center gap-2.5 rounded-[9px] border bg-[var(--pl-bg-card)] px-2.5 py-2 text-left transition-colors',
@@ -200,19 +196,22 @@ export const accessStyles = {
   benchHead: 'flex items-start gap-3',
   /** 시트의 주어는 서비스가 아니라 **요청**이다 — 서비스 이름을 제목으로 쓰면 이 시트가
    *  서비스 상세로 읽히고, 결정할 것(승인·반려)이 무엇에 대한 결정인지 제목이 말하지
-   *  않는다(오너 지시 2026-08-14). 서비스는 이 요청이 가리키는 대상이라 아래 메타 줄로. */
+   *  않는다(오너 지시 2026-08-14). 서비스는 아래 사실 격자의 한 칸으로 내려간다. */
   benchTitle: 'text-[20px] font-bold leading-[1.3] tracking-[-0.02em] text-[var(--pl-text-strong)]',
-  benchMeta: 'mt-1 flex min-w-0 items-center gap-2',
-  benchMetaName: 'min-w-0 truncate text-[14px] font-medium text-[var(--pl-text-medium)]',
-  /** 사실은 나열 문장이 아니라 격자로 — 라벨과 값이 같은 x 에 서야 훑힌다. */
-  benchGrid: 'grid grid-cols-2 gap-x-8 gap-y-4',
+  /** 사실은 나열 문장이 아니라 격자로 — 라벨과 값이 같은 x 에 서야 훑힌다.
+   *  머리 바로 밑에 붙는다(20px): 요청자는 이 시트의 첫 사실이지 한 구역 아래가 아니다. */
+  benchGrid: 'mt-5 grid grid-cols-2 gap-x-8 gap-y-4',
   benchKey: 'text-[12px] font-medium text-[var(--pl-text-weak)]',
   benchVal: 'mt-0.5 text-[14px] font-semibold text-[var(--pl-text-strong)]',
-  /** 요청자 — 승인·반려는 이 사람에 대한 결정이라 남은 사실보다 한 급 위다. */
-  benchValLg: 'mt-0.5 text-[18px] font-semibold leading-[1.4] text-[var(--pl-text-strong)]',
-  /** 값에 딸린 두 번째 표기(요청자의 이메일) — 칸을 따로 주면 사실 셋이 다시 평평해진다. */
-  benchSub: 'mt-0.5 text-[12px] text-[var(--pl-text-weak)]',
-  benchRule: 'my-4 border-t border-[var(--pl-border)]',
+  /** 서비스 코드 라벨 — 면이 아니라 선으로 만든다(오너 지시 2026-08-14). 이 시트엔 회색
+   *  면이 이미 둘(사유 인용·승인 결정)이라 코드까지 면을 가지면 표면만 늘고, 이름 옆에
+   *  붙는 짧은 식별자에는 테두리만으로 라벨이라는 게 충분히 읽힌다. */
+  codeTag:
+    'inline-flex flex-none items-center rounded-[5px] border border-[var(--pl-border-strong)] px-1.5 text-[12px] font-medium leading-[18px] text-[var(--pl-text-medium)]',
+  /** 구역 사이는 선이 아니라 간격이다(오너 지시 2026-08-14). 시트 하나에 구역이 셋인데
+   *  선을 그으면 한 장이 카드 셋으로 갈라지고, 폭도 안 바뀌는 선이라 나누는 일 말고는
+   *  하는 게 없다. 24px 이면 구역 안(4~8px)과 충분히 갈린다. */
+  benchSection: 'mt-6',
   /** 시트 안 구역의 머리 — 승인 결정 블록의 제목과 같은 급이다(14/semibold/strong).
    *  12px weak 이던 때는 라벨이 자기가 이끄는 본문보다 작고 옅어서 구역이 안 보였다. */
   benchLabel: 'mb-2 text-[14px] font-semibold text-[var(--pl-text-strong)]',

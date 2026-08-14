@@ -415,19 +415,12 @@ export default function AccessRequestsPage(): ReactElement {
               </div>
             ) : (
               <>
+                {/* 타일은 없다 — 서비스가 제목에서 내려오면서 이 시트에서 서비스는
+                    메타가 됐는데, 40px 색면은 제목보다 크고 진한 자리를 계속 차지했다.
+                    고른 요청이 무엇인지는 왼쪽 레일의 타일이 이미 말한다. */}
                 <div className={a.benchHead}>
-                  <span
-                    className={cn(a.benchTile, serviceTileClass(detail.serviceCode))}
-                    aria-hidden="true"
-                  >
-                    {detail.serviceName.charAt(0).toUpperCase()}
-                  </span>
                   <div className="min-w-0 flex-1">
                     <h2 className={a.benchTitle}>접근 권한 요청</h2>
-                    <div className={a.benchMeta}>
-                      <span className={a.benchMetaName}>{detail.serviceName}</span>
-                      <span className={cn(a.svcCodeChip, 'flex-none')}>{detail.serviceCode}</span>
-                    </div>
                   </div>
                   {/* 대기 경과는 아직 기다리는 요청만의 사실이다. 처리가 끝난 요청은
                       경과가 아니라 판정을 말해야 한다. */}
@@ -446,18 +439,22 @@ export default function AccessRequestsPage(): ReactElement {
                   )}
                 </div>
 
-                <hr className={a.benchRule} />
-
+                {/* 사실 셋은 다 같은 급이다 — 제목이 "접근 권한 요청"이라 순서가 곧
+                    누구·무엇·언제이고, 크기로 한 번 더 말할 필요가 없다. 서비스도 머리에
+                    붙은 메타가 아니라 이 셋 중 하나다(오너 지시 2026-08-14). */}
                 <div className={a.benchGrid}>
-                  {/* 이메일은 같은 사람의 두 번째 표기라 요청자 값 아래에 붙는다 — 칸을
-                      따로 주면 사실 셋이 같은 급으로 평평해지고, 그러면 결정의 대상인
-                      사람이 요청 일시와 같은 무게로 읽힌다. */}
+                  {/* 요청자는 이메일 하나로 쓴다 — Knox ID 는 이메일의 앞부분이라 둘을
+                      같이 쓰면 같은 사람을 두 줄로 적는 셈이고, 연락은 이메일로 간다. */}
                   <div className="min-w-0">
                     <div className={a.benchKey}>요청자</div>
-                    <div className={cn(a.benchValLg, '[font-family:var(--pl-font-mono)]')}>
-                      {detail.requester.knoxId}
+                    <div className={cn(a.benchVal, 'truncate')}>{detail.requester.email}</div>
+                  </div>
+                  <div className="min-w-0">
+                    <div className={a.benchKey}>서비스</div>
+                    <div className={cn(a.benchVal, 'flex min-w-0 items-center gap-1.5')}>
+                      <span className="min-w-0 truncate">{detail.serviceName}</span>
+                      <span className={a.codeTag}>{detail.serviceCode}</span>
                     </div>
-                    <div className={a.benchSub}>{detail.requester.email}</div>
                   </div>
                   <div className="min-w-0">
                     <div className={a.benchKey}>요청 일시</div>
@@ -467,15 +464,13 @@ export default function AccessRequestsPage(): ReactElement {
                   </div>
                 </div>
 
-                <hr className={a.benchRule} />
-
-                <div className={a.benchLabel}>요청 사유</div>
-                <p className={a.quote}>{detail.reason}</p>
-
-                <hr className={a.benchRule} />
+                <div className={a.benchSection}>
+                  <div className={a.benchLabel}>요청 사유</div>
+                  <p className={a.quote}>{detail.reason}</p>
+                </div>
 
                 {detail.status === 'PENDING' ? (
-                  <div className={a.benchDecide}>
+                  <div className={cn(a.benchSection, a.benchDecide)}>
                     <div className={a.benchDecideTitle}>승인 결정</div>
                     <div className={a.benchDecideDesc}>
                       승인하면 즉시 권한이 부여돼요. 반려에는 사유가 필요해요.
@@ -490,7 +485,7 @@ export default function AccessRequestsPage(): ReactElement {
                     </div>
                   </div>
                 ) : (
-                  <>
+                  <div className={a.benchSection}>
                     <div className={a.benchLabel}>
                       처리 결과
                       <span className={a.benchLabelMeta}>
@@ -501,7 +496,7 @@ export default function AccessRequestsPage(): ReactElement {
                       {detail.processedNote ??
                         (detail.status === 'APPROVED' ? '메시지 없이 승인했어요' : '사유가 없어요')}
                     </p>
-                  </>
+                  </div>
                 )}
               </>
             )}
