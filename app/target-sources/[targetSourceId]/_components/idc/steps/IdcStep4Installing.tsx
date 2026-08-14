@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { AppError } from '@/lib/errors';
 import { bgColors, borderColors, cardStyles, cn, statusColors, textColors } from '@/lib/theme';
 import {
@@ -22,6 +22,14 @@ import {
 import {
   RejectionAlert,
 } from '@/app/target-sources/[targetSourceId]/_components/common';
+import {
+  IdcDbTypeCell,
+  IdcEndpointWithKindCell,
+  IdcSourceIpCell,
+} from '@/app/target-sources/[targetSourceId]/_components/idc/cells';
+import { SourceIpHeader } from '@/app/target-sources/[targetSourceId]/_components/idc/IdcResourceTable';
+import { IDC_SEARCH_PLACEHOLDER } from '@/app/target-sources/[targetSourceId]/_components/idc/steps/step-copy';
+import { IDC_SOURCE_LABEL } from '@/lib/constants/idc';
 import { IdcFirewallModal } from '@/app/target-sources/[targetSourceId]/_components/idc/modals/IdcFirewallModal';
 import type { IdcStepProps } from '@/app/target-sources/[targetSourceId]/_components/idc/types';
 import { InstallCardHeader } from '@/app/components/features/process-status/install-status-detail/InstallCardHeader';
@@ -48,16 +56,16 @@ const toInstallLastCheck = (
 /**
  * IDC Step 4 — Agent 설치 (v15 `data-prov-view="idc"`, L6579~6634).
  *
- * Two-task install pipeline (BDC 리소스 설치 + 방화벽 확인) over the live
+ * Two-task install pipeline (BDC 리소스 설치 + 접근 허용 확인) over the live
  * installation status, plus the read-only 연동 대상 목록 (`src`,`fw` columns)
- * and a click-through 방화벽 확인 모달.
+ * and a click-through 접근 허용 확인 모달.
  *
  * Data sources (ADR-019, data-layer only — design preserved from origin/main):
  *   - install STATUS ← `useIdcInstallationStatus` (installation-status contract;
  *     UNKNOWN → "작업중"/running bucket), driving the two pipeline cards;
  *   - RESOURCE LIST ← confirmed integration (`getIdcConfirmedResources`), fetched
  *     here with its own AbortController + stale-guard so a target switch cannot
- *     leak rows (§DR). Source IP / firewall columns come from the confirmed rows.
+ *     leak rows (§DR). 출발지 / 접근 허용 columns come from the confirmed rows.
  */
 export const IdcStep4Installing = ({
   project,
@@ -121,7 +129,10 @@ export const IdcStep4Installing = ({
     resources.map((r) => [
       r.resourceId,
       {
-        resourceName: r.hosts[0] ?? null,
+        // 화면에 찍히는 값이 아니라 검색 건초더미다 — 정체성 열은 아래 identityColumns 가
+        // 접속 주소로 그리므로, 첫 IP 만 담으면 두 번째 IP 로는 검색이 안 된다.
+        // (IDC steps 2·3 의 useIdcApprovalTable 과 같은 투영)
+        resourceName: r.hosts.join(' '),
         region: null,
         databaseType: r.databaseTypeWire ?? null,
         // IDC has no cloud resource type — the tag never applies here.
@@ -130,8 +141,74 @@ export const IdcStep4Installing = ({
     ]),
   );
 
+  // 앞 열: IDC 는 스캔이 붙인 이름이 없고 resource_id 는 내부 NLB 키다(design-spec §8).
+  // 행을 식별하는 것은 구분·접속 주소·Port·Database Type 이고, 여기에 이 단계가 시키는
+  // 일의 출발지가 붙는다 — steps 2·3 의 IdcResourceTable(`src`)이 쓰는
+  // 그 셀과 그 폭을 그대로 가져온다.
+  const identityColumns = useMemo(() => {
+    const byId = new Map(resources.map((r) => [r.resourceId, r]));
+    // 설치 상태에는 있는데 확정 연동 목록에 없는 행 — 없는 값을 지어내지 않는다.
+    // 커링하지 않는다: 함수를 돌려주는 함수는 lint 가 컴포넌트 팩토리로 읽는다.
+    const cell = (
+      row: { resourceId: string },
+      render: (resource: IdcResourceView) => ReactNode,
+    ): ReactNode => {
+      const resource = byId.get(row.resourceId);
+      return resource ? render(resource) : <span className={textColors.tertiary}>—</span>;
+    };
+    return {
+      searchPlaceholder: IDC_SEARCH_PLACEHOLDER,
+      // Database Type 열이 IDC 라벨(MSSQL)을 찍으므로 필터 옵션도 같은 글자여야 한다 —
+      // 훅의 기본 접근자는 클라우드 라벨 맵이라 같은 값을 SQL Server 라 부른다.
+      dbTypeLabel: (row: { resourceId: string }) => byId.get(row.resourceId)?.databaseTypeLabel ?? '',
+      columns: [
+        {
+          // 이 단계가 시키는 일이 "출발지 → 연동 대상 접근 허용"이라, 출발지가 이 표의
+          // 주어다 — 맨 왼쪽에 서고 혼자 색을 갖는다. 바로 옆이 도착지(접속 주소)라
+          // 한 행이 곧 열어야 할 한 경로로 읽힌다.
+          label: IDC_SOURCE_LABEL,
+          widthClass: 'w-[150px]',
+          head: <SourceIpHeader />,
+          render: (row: { resourceId: string }) =>
+            cell(row, (r) =>
+              // 이 단계의 모든 행은 확정된 연동 대상이라 출발지가 있어야 한다. 빈 칸은
+              // "이 행은 대상이 아니다"라는 다른 단계의 뜻이 되므로 여기선 대시로 말한다.
+              r.sourceIps.length > 0 ? (
+                <IdcSourceIpCell sourceIps={r.sourceIps} emphasis />
+              ) : (
+                <span className={textColors.tertiary}>—</span>
+              ),
+            ),
+        },
+        {
+          label: '접속 주소',
+          // 폭도 셀도 steps 2·3·5·6·7 의 그 열 그대로 — 단계끼리 어긋나지 않게.
+          widthClass: 'w-[200px]',
+          render: (row: { resourceId: string }) =>
+            cell(row, (r) => <IdcEndpointWithKindCell resource={r} />),
+        },
+        {
+          label: 'Port',
+          widthClass: 'w-[80px]',
+          // 0 은 "페이로드에 포트가 없다"는 어댑터 값이지 포트가 아니다.
+          render: (row: { resourceId: string }) =>
+            cell(row, (r) => (
+              <span className={cn('font-mono text-[12px]', textColors.secondary)}>
+                {r.port || <span className={textColors.tertiary}>—</span>}
+              </span>
+            )),
+        },
+        {
+          label: 'Database Type',
+          widthClass: 'w-[172px]',
+          render: (row: { resourceId: string }) => cell(row, (r) => <IdcDbTypeCell resource={r} />),
+        },
+      ],
+    };
+  }, [resources]);
+
   // group 은 **누가 실행하는가**다(AWS/Azure/GCP 와 같은 규칙). IDC 는 두 Terraform
-  // 구간을 BDC 가 돌리고, 서비스 측이 하는 일은 방화벽 오픈·확인 하나뿐이다.
+  // 구간을 BDC 가 돌리고, 서비스 측이 하는 일은 접근 허용·확인 하나뿐이다.
   const steps: InstallTableStep[] = [
     {
       id: 'cx',
@@ -149,11 +226,11 @@ export const IdcStep4Installing = ({
     },
     {
       id: 'firewall',
-      title: '방화벽',
+      title: '접근 허용',
       side: '서비스측 확인',
       group: 'todo',
-      serviceAction: 'Source IP에서 연동 대상으로의 방화벽을 오픈한 뒤 확인해 주세요.',
-      desc: 'Source IP → 연동 대상 방화벽 오픈 여부를 점검하는 단계입니다.',
+      serviceAction: `${IDC_SOURCE_LABEL}에서 연동 대상으로의 접근을 허용한 뒤 확인해 주세요.`,
+      desc: `${IDC_SOURCE_LABEL} → 연동 대상 접근 허용 여부를 점검하는 단계입니다.`,
       action: (
         <button
           type="button"
@@ -165,7 +242,7 @@ export const IdcStep4Installing = ({
             bgColors.mutedHover,
           )}
         >
-          방화벽 확인
+          접근 허용 확인
         </button>
       ),
     },
@@ -177,7 +254,7 @@ export const IdcStep4Installing = ({
         <InstallCardHeader />
         <div className={cardStyles.body}>
           {/* 두 조회(설치 상태 + 확정 연동)가 모두 도착할 때까지 스켈레톤을 유지한다.
-              빈 배열을 그대로 그리면 "전체 리소스 0 · 대기 0/0"에 방화벽 조치 배너까지
+              빈 배열을 그대로 그리면 "전체 리소스 0 · 대기 0/0"에 접근 허용 조치 배너까지
               붙어, 아직 모르는 것을 확정된 사실로 말하게 된다.
 
               게이트는 훅의 loading 이 아니라 `status` 유무로 판정한다 — 재시도는
@@ -203,6 +280,7 @@ export const IdcStep4Installing = ({
                 resources={detailResources}
                 steps={steps}
                 meta={detailMeta}
+                identityColumns={identityColumns}
               />
             </>
           )}

@@ -18,6 +18,7 @@ import { cn, idcStyles, primaryColors, textColors } from '@/lib/theme';
 // above applies to it, and the two surfaces must not drift on what "Multi" looks like.
 import { IdcKindBadge } from '@/app/target-sources/[targetSourceId]/_components/idc/cells';
 import type { IdcKind } from '@/app/lib/api/idc';
+import { IDC_SOURCE_LABEL } from '@/lib/constants/idc';
 
 /**
  * Long host/SID/IP: ellipsis + copy-on-hover + full-value tooltip (res-id-cell pattern).
@@ -175,7 +176,7 @@ export function IdcDbTypeCell({
   );
 }
 
-/** Source IP — one line per address, each with its own tip and copy. */
+/** BDC측 출발지 — one line per address, each with its own tip and copy. */
 export function IdcSourceIpCell({
   sourceIps,
   tone,
@@ -190,7 +191,7 @@ export function IdcSourceIpCell({
   return (
     <span className="flex flex-col gap-0.5">
       {sourceIps.map((ip) => (
-        <HostCell key={ip} value={ip} label="Source IP" tone={tone} maxWidthClass="max-w-[150px]" />
+        <HostCell key={ip} value={ip} label={IDC_SOURCE_LABEL} tone={tone} maxWidthClass="max-w-[150px]" />
       ))}
     </span>
   );

@@ -18,6 +18,7 @@ import {
   type TcRunPhase,
 } from '@/lib/test-connection-summary';
 import { ERROR_MESSAGES } from '@/lib/constants/messages';
+import { IDC_SOURCE_LABEL } from '@/lib/constants/idc';
 import {
   getSecrets,
   updateResourceCredential,
@@ -314,8 +315,8 @@ export const IdcStep5ConnectionTest = ({
             <span className={cardStyles.stepTag}>5단계</span>
             <h2 className={cardStyles.cardTitle}>연결 테스트</h2>
             <p className={cn('mt-2.5', cardStyles.subtitle)}>
-              지정한 Credential로 각 대상에 실제 접속해 자격 증명, 방화벽(Source IP → 대상 IP:Port), Agent 연결을 한
-              번에 확인합니다.
+              지정한 Credential로 각 대상에 실제 접속해 자격 증명, 접근 허용({IDC_SOURCE_LABEL} → 대상 IP:Port),
+              Agent 연결을 한 번에 확인합니다.
             </p>
           </div>
           <div className="flex shrink-0 items-center gap-2">

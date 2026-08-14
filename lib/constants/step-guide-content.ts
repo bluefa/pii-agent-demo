@@ -19,6 +19,7 @@
  */
 
 import type { GuideName } from '@/lib/types/guide';
+import { IDC_ACCESS_DENIED, IDC_SOURCE_LABEL } from '@/lib/constants/idc';
 
 // ---------------------------------------------------------------------------
 // Step 1 — target selection
@@ -114,13 +115,15 @@ const GCP_INSTALLING_HTML =
   '</ul>';
 
 const IDC_INSTALLING_HTML =
-  '<h4>BDC 설치와 방화벽 오픈을 확인해 주세요</h4>' +
-  '<p>BDC망에 수집 모듈이 설치되는 동안, 서비스 측에서는 <strong>Source IP → 연동 대상(IP:Port)</strong> 방화벽을 열어 주셔야 해요.</p>' +
+  '<h4>BDC 설치와 접근 허용을 확인해 주세요</h4>' +
+  `<p>BDC망에 수집 모듈이 설치되는 동안, 서비스 측에서는 <strong>${IDC_SOURCE_LABEL} → 연동 대상(IP:Port)</strong> 접근을 허용해 주셔야 해요.</p>` +
   '<ul>' +
-  '<li><strong>방화벽 확인</strong> 카드를 누르면 대상별 오픈 여부를 볼 수 있어요. 모든 대상이 열려야 다음 단계로 진행돼요.</li>' +
+  // 카드가 아니라 단계 패널 머리의 버튼이다 — 파일 상단 편집 규칙(실제 렌더되는 것만 지칭).
+  '<li><strong>접근 허용 확인</strong> 버튼을 누르면 대상별 허용 여부를 볼 수 있어요. 모든 대상이 허용돼야 다음 단계로 진행돼요.</li>' +
   // Plain quotes only — HTML entities split text nodes differently between
   // linkedom (SSR) and DOMParser (client) and cause hydration mismatches.
-  "<li>'방화벽 오픈되지 않음'으로 표시된 대상은 서비스 측 방화벽에 허용 규칙을 등록해 주세요.</li>" +
+  // 배지 글자를 그대로 인용한다 — 상수를 통해서만.
+  `<li>'${IDC_ACCESS_DENIED}'으로 표시된 대상은 사내 네트워크 담당 부서에 해당 구간 접근 허용을 요청해 주세요.</li>` +
   '<li>진행 상태는 자동 갱신되지 않아요 — 새로고침으로 확인해 주세요.</li>' +
   '</ul>';
 
@@ -142,7 +145,7 @@ const STEP_5_IDC_HTML =
   '<p>표의 <strong>Credential</strong> 값을 눌러 각 연동 대상의 자격 증명을 지정한 뒤 <strong>Run Test</strong>를 눌러 주세요. 모든 대상이 성공이 되면 <strong>완료 승인 요청</strong>으로 다음 단계로 넘어가요.</p>' +
   '<ul>' +
   '<li>자격 증명이 비어 있는 대상이 있으면 Run Test가 비활성화돼요. 표 위 안내에서 <strong>미설정만 보기</strong>로 찾아가면 돼요.</li>' +
-  '<li>테스트 결과는 자동으로 갱신돼요. 실패하면 Credential과 <strong>Source IP → 연동 대상(IP:Port)</strong> 방화벽을 점검한 뒤 다시 실행하면 돼요.</li>' +
+  `<li>테스트 결과는 자동으로 갱신돼요. 실패하면 Credential과 <strong>${IDC_SOURCE_LABEL} → 연동 대상(IP:Port)</strong> 접근 허용을 점검한 뒤 다시 실행하면 돼요.</li>` +
   '<li><strong>연동 논리 DB</strong> 건수를 누르면 모니터링에서 제외할 논리 DB를 정리할 수 있어요.</li>' +
   '</ul>';
 

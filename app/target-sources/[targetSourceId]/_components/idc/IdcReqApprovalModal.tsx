@@ -8,8 +8,7 @@ import { StatTile } from '@/app/target-sources/[targetSourceId]/_components/layo
 import {
   IdcConnStatusCell,
   IdcDbTypeCell,
-  IdcEndpointCell,
-  IdcKindBadge,
+  IdcEndpointWithKindCell,
 } from '@/app/target-sources/[targetSourceId]/_components/idc/cells';
 import type { IdcResourceView } from '@/app/lib/api/idc';
 
@@ -98,7 +97,7 @@ export const IdcReqApprovalModal = ({ isOpen, onClose, resources, onSubmit }: Id
             <table className="w-full">
               <thead className={idcStyles.reqModal.thHeader}>
                 <tr>
-                  <th className={cn(idcStyles.table.headerCell, 'w-[96px]')}>구분</th>
+                  {/* 구분은 열이 아니다 — Domain 행 태그가 주소 위에 얹힌다. */}
                   <th className={idcStyles.table.headerCell}>접속 주소</th>
                   <th className={cn(idcStyles.table.headerCell, 'w-[72px]')}>Port</th>
                   <th className={cn(idcStyles.table.headerCell, 'w-[130px]')}>Database Type</th>
@@ -109,10 +108,7 @@ export const IdcReqApprovalModal = ({ isOpen, onClose, resources, onSubmit }: Id
                 {pageRows.map((r) => (
                   <tr key={r.resourceId} className={idcStyles.table.row}>
                     <td className={idcStyles.table.cell}>
-                      <IdcKindBadge kind={r.kind} />
-                    </td>
-                    <td className={idcStyles.table.cell}>
-                      <IdcEndpointCell resource={r} />
+                      <IdcEndpointWithKindCell resource={r} />
                     </td>
                     <td className={cn(idcStyles.table.cell, 'font-mono text-[12px]', textColors.secondary)}>
                       {r.port}

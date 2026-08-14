@@ -21,6 +21,7 @@ import { Pagination } from '@/app/components/ui/Pagination';
 import { EmptyState } from '@/app/components/ui/state';
 import {
   WaitingApprovalTable,
+  type ApprovalIdentityColumns,
   type WaitingApprovalResource,
 } from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalTable';
 import { WaitingApprovalToolbar } from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalToolbar';
@@ -214,7 +215,13 @@ const FILTER_EMPTY_MESSAGE = '조건에 맞는 결과가 없어요.';
  * install row is a confirmed target, so the search / filter / pagination grammar is the
  * one the user already learned on the earlier steps.
  */
-const StepResourceTable = ({ rows }: { rows: ResourceRow[] }) => {
+const StepResourceTable = ({
+  rows,
+  identityColumns,
+}: {
+  rows: ResourceRow[];
+  identityColumns?: ApprovalIdentityColumns;
+}) => {
   const approvalRows = useMemo<readonly WaitingApprovalResource[]>(
     () =>
       rows.map((row) => ({
@@ -231,7 +238,7 @@ const StepResourceTable = ({ rows }: { rows: ResourceRow[] }) => {
       })),
     [rows],
   );
-  const table = useApprovalTableState(approvalRows);
+  const table = useApprovalTableState(approvalRows, identityColumns?.dbTypeLabel);
 
   if (rows.length === 0) {
     return (
@@ -253,12 +260,14 @@ const StepResourceTable = ({ rows }: { rows: ResourceRow[] }) => {
         onRegionChange={table.onRegionChange}
         dbTypeOptions={table.dbTypeOptions}
         regionOptions={table.regionOptions}
+        searchPlaceholder={identityColumns?.searchPlaceholder}
       />
       <WaitingApprovalTable
         resources={table.visibleResources}
         variant="install"
         connected
         emptyMessage={FILTER_EMPTY_MESSAGE}
+        identityColumns={identityColumns}
       />
       {table.filteredCount > 0 && (
         <Pagination
@@ -474,6 +483,11 @@ export interface InstallStatusDetailProps {
    * 레거시 레일(Azure/GCP/IDC)은 그리지 않으므로 넘겨도 도달할 수 없다.
    */
   reference?: InstallReferenceStep;
+  /**
+   * 리소스 표의 정체성 열을 Resource Name·ID 대신 호출자가 그린다 — IDC 처럼 스캔이 붙인
+   * 이름이 없고 resource_id 를 노출하지 않는 provider 용. see `ApprovalIdentityColumns`.
+   */
+  identityColumns?: ApprovalIdentityColumns;
 }
 
 export const InstallStatusDetail = ({
@@ -483,6 +497,7 @@ export const InstallStatusDetail = ({
   panelSteps = [],
   meta,
   reference,
+  identityColumns,
 }: InstallStatusDetailProps) => {
   // Grouped rail (v2) — on only when EVERY step declares a group (AWS first).
   // A half-migrated adapter (some steps missing `group`) falls back to the
@@ -682,7 +697,7 @@ export const InstallStatusDetail = ({
     />
   ) : (
     // key resets pagination when switching steps
-    <StepResourceTable key={active.id} rows={rows} />
+    <StepResourceTable key={active.id} rows={rows} identityColumns={identityColumns} />
   );
 
   // ---------------------------------------------------------------------------

@@ -8,7 +8,7 @@
  * nothing the value beside it did not already say:
  *   - 구분 — IP-vs-Host is legible from the value itself (an address or a hostname).
  *   - Oracle SID — rides under Database Type; only Oracle rows carry one.
- * Source IP is not one of them: it moved next to NLB 배정 instead, since it is an
+ * The 출발지 is not one of them: it moved next to NLB 배정 instead, since it is an
  * attribute of the assigned NLB, but it keeps a column of its own.
  *
  * resource_id is NEVER rendered — the row identity is 접속 주소 (IP/Host) + Port +
@@ -109,7 +109,7 @@ export function IdcResourceTable({
                 should not cross the table. Stacking them in one cell read worse:
                 two values of different kinds in one column lost the scan down either one.
                 Step 1's own header, imported rather than restated: the column needs the
-                "방화벽 등록 필요" note here too — the admin approving the request is the
+                "접근 허용 필요" note here too — the admin approving the request is the
                 one who has to know the rule the service owner was shown. */}
             <th className={cn(table.approvalHeaderCell, 'w-[160px]')}>
               <SourceIpHeader />

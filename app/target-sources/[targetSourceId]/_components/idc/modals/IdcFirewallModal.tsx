@@ -4,6 +4,7 @@ import { Modal } from '@/app/components/ui/Modal';
 import { Pagination } from '@/app/components/ui/Pagination';
 import { usePagination } from '@/app/hooks/usePagination';
 import { cn, idcStyles, textColors } from '@/lib/theme';
+import { IDC_SOURCE_LABEL } from '@/lib/constants/idc';
 import type { IdcInstallStatus, IdcResourceView } from '@/app/lib/api/idc';
 import {
   IdcEndpointCell,
@@ -25,10 +26,10 @@ interface IdcFirewallModalProps {
 }
 
 /**
- * IDC 방화벽 확인 모달 (v15 L8151~8178, `openIdcFirewallModal` L10333).
+ * IDC 접근 허용 확인 모달 (v15 L8151~8178, `openIdcFirewallModal` L10333).
  *
  * One row per integration target (excluded rows dropped, #39). Each row reads
- * Source IP → 접속 주소 → Port → 오픈 여부. The 오픈 여부 badge is driven by the
+ * BDC측 출발지 → 접속 주소 → Port → 허용 여부. The 허용 여부 badge is driven by the
  * installation-status firewall_check.status of the SAME resource (joined by
  * resource_id); the confirmed-integration rows carry no firewall field.
  */
@@ -48,8 +49,8 @@ export const IdcFirewallModal = ({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="방화벽 확인"
-      subtitle="Source IP → 접속 주소 방화벽 오픈 여부를 확인합니다."
+      title="접근 허용 확인"
+      subtitle={`${IDC_SOURCE_LABEL} → 접속 주소 접근 허용 여부를 확인합니다.`}
       size="2xl"
       chrome="toss"
       footer={<button type="button" className={idcStyles.modalBtn.primary} onClick={onClose}>확인</button>}
@@ -64,11 +65,11 @@ export const IdcFirewallModal = ({
             <table className="w-full">
               <thead className={idcStyles.table.header}>
                 <tr>
-                  <th className={cn(idcStyles.table.headerCell, 'w-[160px]')}>Source IP</th>
+                  <th className={cn(idcStyles.table.headerCell, 'w-[160px]')}>{IDC_SOURCE_LABEL}</th>
                   <th className={cn(idcStyles.table.headerCell, 'w-[30px]')} aria-hidden="true" />
                   <th className={cn(idcStyles.table.headerCell, 'w-[220px]')}>접속 주소</th>
                   <th className={cn(idcStyles.table.headerCell, 'w-[70px]')}>Port</th>
-                  <th className={cn(idcStyles.table.headerCell, 'w-[170px]')}>오픈 여부</th>
+                  <th className={cn(idcStyles.table.headerCell, 'w-[170px]')}>허용 여부</th>
                 </tr>
               </thead>
               <tbody className={idcStyles.table.body}>
