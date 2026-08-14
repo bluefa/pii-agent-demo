@@ -30,8 +30,8 @@ export interface UserPickerModalProps {
   title: string;
   sub: string;
   /**
-   * 후보에서 뺄 사람들의 email. 계약의 `/users/search` 가 `excludeEmails` 를 받으므로
-   * "이미 가진 사람"을 아는 쪽(화면)이 넘긴다 — 서버는 그 맥락을 모른다.
+   * 후보에서 뺄 사람들의 email. "이미 가진 사람"을 아는 쪽은 화면뿐이고, 제외는
+   * 어댑터가 응답에서 직접 수행한다(`searchAccessUsers` 주석의 E4 참고).
    */
   excludeEmails: string[];
   submitLabel: string;

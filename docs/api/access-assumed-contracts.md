@@ -189,18 +189,23 @@ AccessHistoryRow {
 ### 사용자 검색
 
 ```
-GET /users/search?query={q}&excludeEmails={a,b}
+GET /users/search?q={q}
 → 200 { users: UserSummary[] }
 ```
+
+**질의 키는 `q` 다** — swagger 가 `searchUsers` 로 선언한 이름이고, 08-14 노트는 응답
+본문만 바꿨다. 우리가 한때 `query` 로 가정했던 건 근거가 없었고, 실 BFF 에 그대로
+나가면 서버가 조용히 무시해 검색창이 아무 일도 하지 않는 채로 명부 전체가 온다.
 
 **ADMIN 전용이다** (2026-08-14). 임직원 명부(knox_id·email·role)를 돌려주므로 인증만으로
 열어 둘 수 없다는 오너 판단이고, 실제로 부르는 화면도 담당자 피커(관리자 전용) 하나뿐이다.
 
-이름이 없으므로 `knox_id` 와 `email` 로만 매칭한다. "이미 가진 사람"을 아는 쪽은 화면이라
-제외 목록을 화면이 넘긴다 — 그래서 피커는 **현재 페이지가 아니라 전체 목록**을 들고 있어야
-한다(2페이지의 담당자가 후보로 다시 올라오면 안 된다).
+이름이 없으므로 `knox_id` 와 `email` 로만 매칭한다. "이미 가진 사람"을 아는 쪽은 화면이고,
+**제외도 화면이 한다** — swagger 의 `excludeIds` 가 무엇으로 키잉되는지 미확정이고 새
+응답에는 id 가 없어 실을 값이 없다(E4). 그래서 피커는 **현재 페이지가 아니라 전체 목록**을
+들고 있어야 한다(2페이지의 담당자가 후보로 다시 올라오면 안 된다).
 
-**빈 질의는 빈 목록을 돌려준다.** `query` 없이 부르면 사람 디렉터리 전체를 열거하는
+**빈 질의는 빈 목록을 돌려준다.** `q` 없이 부르면 사람 디렉터리 전체를 열거하는
 창구가 되므로, mock 은 빈 질의에 아무도 주지 않고 화면도 검색어가 생긴 뒤에만 부른다.
 **실 BFF 도 같은 규칙이어야 한다** — 화면 쪽 규칙만으로는 다른 호출자가 우회할 수 있다.
 
@@ -265,6 +270,8 @@ GET /user/services/page?query=&page={0}&size={20}
 | E1 | `GET /services/page` 가 `query` 를 받나. 화면에 검색창이 있고 지금은 받는다고 가정한다 |
 | E2 | `owners` 원소가 문자열인가 `UserSummary` 인가. "담당자 표시명"으로 적혀 있어 문자열로 읽는다 — 객체면 `toServicePageRow` 한 곳만 바뀐다 |
 | E3 | `service_abbr_name` 을 실제로 채워 주는 서비스가 어떤 것들인가. 목은 카탈로그에 약어가 없어 전부 `null` 이고, 화면도 아직 그리지 않는다 |
+| **E4** | `GET /users/search` 의 `excludeIds` 는 무엇으로 키잉되나. 새 응답(`UserSummary`)에는 id 가 없어 실을 값이 없다 — **확인 전까지 보내지 않고 화면이 응답에서 거른다** |
+| E5 | swagger 의 `UserSearchResponse`(id·name·email)가 08-14 실구현(knox_id·email·role)과 다르다. `/install/v1/users/search` 를 부르는 기존 라우트(`app/api/v1/users/search`)는 그 stale 스키마로 파싱한다 — 스펙 갱신은 오너 몫 |
 | — | `authorized-users` 가 실구현됐지만 `owners` 와 같은 집합이다. 둘 중 하나는 없어져야 한다 — 프론트는 `/owners` 만 쓴다 |
 
 **닫힌 것** — B4(본인 신청 내역 `/user/permission-access`), C-1(`description` 요청은

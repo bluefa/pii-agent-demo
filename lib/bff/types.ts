@@ -360,7 +360,7 @@ export interface BffClient {
     listMyRequests: (page: number, size: number) => Promise<PermissionRequestDetailPageWire>;
     listUserServices: (query: string | undefined, page: number, size: number) => Promise<UserServicePageWire>;
     listServicesPage: (query: string | undefined, page: number, size: number) => Promise<ServicePageWire>;
-    searchUsers: (query: string | undefined, excludeEmails: string[]) => Promise<AccessUserSearchWire>;
+    searchUsers: (query: string | undefined) => Promise<AccessUserSearchWire>;
   };
 }
 
@@ -535,7 +535,11 @@ export interface AccessHistoryRowWire {
 
 export type AccessHistoryPageWire = AccessPageWire<AccessHistoryRowWire>;
 
-/** `GET /users/search` — 실계약이 excludeEmails + UserSummary 로 바뀐다. */
+/**
+ * `GET /users/search?q=` — 2026-08-14 실구현. 본문은 오너가 `UserSummary`
+ * (knox_id·email·role) 로 확정했다. swagger 의 `UserSearchResponse`(id·name·email)는
+ * 그 확정 이전 모양이라 이 인터페이스와 다르다 — 갱신은 오너 몫.
+ */
 export interface AccessUserSearchWire {
   users: AccessUserWire[];
 }

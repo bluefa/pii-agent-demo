@@ -346,23 +346,25 @@ describe('사용자 검색', () => {
   // 질의 없이 부르면 사람 디렉터리 전체를 열거하는 창구가 된다.
   it('빈 질의는 아무도 돌려주지 않는다', async () => {
     for (const blank of [undefined, '', '   ']) {
-      const found = await body<{ users: unknown[] }>(await mockAccess.searchUsers(blank, []));
+      const found = await body<{ users: unknown[] }>(await mockAccess.searchUsers(blank));
       expect(found.users).toHaveLength(0);
     }
   });
 
-  it('excludeEmails 로 이미 가진 사람을 걸러 낸다', async () => {
+  // 제외는 계약이 아니라 화면 몫이다(`excludeIds` 키잉 미확정 — E4). 목이 몰래 걸러 내면
+  // 어댑터의 제외가 빠져도 테스트가 통과해 버린다. 여기선 **거르지 않는 것**이 계약이다.
+  it('이미 가진 사람도 그대로 돌려준다 — 제외는 서버가 하지 않는다', async () => {
     const held = (await owners('aws')).owners.map((row) => row.email);
     const found = await body<{ users: { email: string }[] }>(
-      await mockAccess.searchUsers('company.com', held),
+      await mockAccess.searchUsers('company.com'),
     );
-    expect(found.users.length).toBeGreaterThan(0);
-    expect(found.users.some((row) => held.includes(row.email))).toBe(false);
+    expect(held.length).toBeGreaterThan(0);
+    expect(found.users.some((row) => held.includes(row.email))).toBe(true);
   });
 
   it('knox_id 로도 찾힌다 (이름은 계약에 없다)', async () => {
     const found = await body<{ users: { knox_id: string }[] }>(
-      await mockAccess.searchUsers('donghyun', []),
+      await mockAccess.searchUsers('donghyun'),
     );
     expect(found.users.map((row) => row.knox_id)).toContain('donghyun.choi');
   });

@@ -508,20 +508,19 @@ export const mockAccess = {
     return NextResponse.json(page(rows, pageNumber, size));
   },
 
-  // GET /users/search?query&excludeEmails — 실계약. 이름이 없으니 knox_id·email 로만 찾는다.
+  // GET /users/search?q= — 실계약. 이름이 없으니 knox_id·email 로만 찾는다.
+  //
+  // 제외 목록은 받지 않는다 — 계약의 `excludeIds` 키잉이 미확정이라 화면이 거른다(E4).
   //
   // 빈 질의는 아무도 돌려주지 않는다. 검색은 "찾는 사람을 아는 사람"을 위한 것이고,
   // 질의 없이 부르면 사람 디렉터리 전체를 열거하는 창구가 된다. 화면도 검색어가 있을
   // 때만 부르지만, 규칙은 서버 쪽에도 있어야 다른 호출자가 우회하지 못한다.
-  searchUsers: async (query: string | undefined, excludeEmails: string[]) => {
+  searchUsers: async (query: string | undefined) => {
     if (!isAdmin(me())) return forbidden('관리자만 사용자를 검색할 수 있어요.');
     const q = (query ?? '').trim().toLowerCase();
     if (!q) return NextResponse.json({ users: [] });
-    const excluded = new Set(emailList(excludeEmails).map((e) => e.trim().toLowerCase()));
     const users = getStore()
-      .users.filter(
-        (user) => !excluded.has(user.email.toLowerCase()) && matches([user.knoxId, user.email], q),
-      )
+      .users.filter((user) => matches([user.knoxId, user.email], q))
       .sort((a, b) => a.knoxId.localeCompare(b.knoxId))
       .slice(0, 50)
       .map((user) => userWire(user.id));

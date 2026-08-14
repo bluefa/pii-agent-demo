@@ -170,8 +170,7 @@ export const mockBff: BffClient = {
       unwrap(await mockAccess.listUserServices(query, page, size)),
     listServicesPage: async (query, page, size) =>
       unwrap(await mockAccess.listServicesPage(query, page, size)),
-    searchUsers: async (query, excludeEmails) =>
-      unwrap(await mockAccess.searchUsers(query, excludeEmails)),
+    searchUsers: async (query) => unwrap(await mockAccess.searchUsers(query)),
   },
 
   // Azure mock returns raw snake wire; the route validates with schemas.X.parse().

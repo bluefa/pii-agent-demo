@@ -367,13 +367,16 @@ export const httpBff: BffClient = {
     listServicesPage: (query, page, size) =>
       getSnakeRaw(`/services/page${buildQuery({ query, page, size })}`),
     // ADMIN 전용으로 좁혀졌다(임직원 명부라서). 요청자 화면은 부르지 않는다.
-    searchUsers: (query, excludeEmails) =>
-      getSnakeRaw(
-        `/users/search${buildQuery({
-          query,
-          excludeEmails: excludeEmails.length ? excludeEmails.join(',') : undefined,
-        })}`,
-      ),
+    //
+    // 질의 키는 swagger 가 선언한 `q` 다(`searchUsers`, install-v1.yaml). 오너의 08-14
+    // 노트는 **응답 본문**만 바꿨다("고정 응답 → 실구현, knoxId·이메일·역할") — 파라미터
+    // 이름은 건드리지 않았으므로 선언된 이름을 그대로 쓴다. 우리가 `query` 로 보내면 실
+    // BFF 는 조용히 무시하고 명부 전체를 돌려준다.
+    //
+    // 제외 목록은 **보내지 않는다.** swagger 의 `excludeIds` 는 무엇으로 키잉되는지 알 수
+    // 없고(사번? knoxId?) 새 응답에는 id 가 아예 없다. 이메일을 id 자리에 실으면 역시
+    // 조용히 무시된다 — 확인 전까지는 화면이 거른다(E4).
+    searchUsers: (query) => getSnakeRaw(`/users/search${buildQuery({ q: query })}`),
   },
 
   // Azure responses are raw snake passthrough — the route validates with

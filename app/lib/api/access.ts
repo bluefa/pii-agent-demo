@@ -386,20 +386,24 @@ export async function getAccessHistory(
   return toPage(wire, toHistoryEntry);
 }
 
-/** 부여 피커용 검색. 이미 가진 사람은 호출자가 `excludeEmails` 로 걸러 낸다. */
+/**
+ * 부여 피커용 검색.
+ *
+ * 이미 가진 사람은 **여기서** 걸러 낸다. 계약의 `excludeIds` 가 무엇으로 키잉되는지
+ * 확인되지 않았고(응답에는 id 가 없다) 틀린 키를 실으면 서버가 조용히 무시해 후보가
+ * 다시 올라온다 — 확인 전까지는 확실한 쪽에서 거른다(E4).
+ */
 export async function searchAccessUsers(
   search: string | undefined,
   excludeEmails: string[],
   opts?: { signal?: AbortSignal },
 ): Promise<AccessUser[]> {
   const wire = await fetchInfraJson<AccessUserSearchWire>(
-    `/access/users?${query({
-      query: search,
-      excludeEmails: excludeEmails.length ? excludeEmails.join(',') : undefined,
-    })}`,
+    `/access/users?${query({ q: search })}`,
     { signal: opts?.signal },
   );
-  return (wire.users ?? []).map(toUser);
+  const excluded = new Set(excludeEmails.map((email) => email.trim().toLowerCase()));
+  return (wire.users ?? []).filter((u) => !excluded.has(u.email.toLowerCase())).map(toUser);
 }
 
 /** 내가 담당인 서비스 목록 — ADMIN 은 전체가 오므로 화면이 `OWNED` 로 한 번 더 거른다. */
@@ -444,7 +448,7 @@ export function createAccessRequest(serviceCode: string, reason: string): Promis
   );
 }
 
-/** 내 요청 내역 (승인·반려 결과 포함) — 계약 갭 B4, 오너가 추가 예정. */
+/** 내 요청 내역 (승인·반려 결과 포함) — `GET /user/permission-access` (2026-08-14 확정). */
 export async function getMyAccessRequests(
   page: number,
   opts?: Opts,
