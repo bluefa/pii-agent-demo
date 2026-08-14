@@ -9,9 +9,18 @@ const getApprovalRequestLatest = vi.fn();
 const getConfirmedIntegration = vi.fn();
 const getApprovalHistory = vi.fn();
 
-vi.mock('@/app/lib/api/task-queue-requests', () => ({
-  getApprovalRequestLatest: (...args: unknown[]) => getApprovalRequestLatest(...args),
-}));
+vi.mock('@/app/lib/api/task-queue-requests', async (importOriginal) => {
+  // Not replaced wholesale: the IDC table derives its 구분 badge through `idcAddressKind`,
+  // which lives in this module. Only the fetches are stubbed — the two NLB reads feed
+  // lookup modals, and an empty answer is a legitimate one the tab must render around.
+  const mod = await importOriginal<typeof import('@/app/lib/api/task-queue-requests')>();
+  return {
+    ...mod,
+    getApprovalRequestLatest: (...args: unknown[]) => getApprovalRequestLatest(...args),
+    getNlbTable: async () => [],
+    getNlbIndexMappings: async () => [],
+  };
+});
 vi.mock('@/app/lib/api', () => ({
   getConfirmedIntegration: (...args: unknown[]) => getConfirmedIntegration(...args),
   getApprovalHistory: (...args: unknown[]) => getApprovalHistory(...args),
@@ -104,8 +113,8 @@ describe('RequestTab 요청 리소스', () => {
   });
 
   /**
-   * `resource_id` is an internal NLB-PUT key for IDC (design-spec §8) — the shared
-   * table has a Resource ID column, so the adapter must not hand it one.
+   * `resource_id` is an internal NLB-PUT key for IDC (design-spec §8) — it keys the row
+   * and is never printed, on this tab as on the queue's own request screen.
    */
   it('never surfaces an IDC resource_id', async () => {
     getApprovalRequestLatest.mockResolvedValue({
@@ -128,19 +137,38 @@ describe('RequestTab 요청 리소스', () => {
   });
 
   /**
-   * The shared table has no Port column, so an IDC row's port would vanish unless it
-   * rides with the host — the endpoint is what the operator has to verify.
+   * An IDC row's facts each have a column of their own here — the tab renders the queue's
+   * IDC table, not the cloud one. Port, Oracle SID and Source IP had no seat in the shared
+   * approval table, and a Resource Name column asked an IDC row for a name it never has.
    */
-  it('keeps an IDC row\'s port on its endpoint', async () => {
+  it('gives an IDC row the columns its facts belong in', async () => {
     getApprovalRequestLatest.mockResolvedValue({
       request: { requestId: 1, status: 'PENDING', requestedBy: 'ops', requestedAt: '2026-07-31T05:00:00Z' },
       resources: [
-        { ...row(0), resourceId: 'idc-r-1', resourceName: null, connectTargets: ['10.20.1.11'], port: 1521 },
+        {
+          ...row(0),
+          resourceId: 'idc-r-1',
+          resourceName: null,
+          connectTargets: ['10.20.1.11'],
+          idcKind: 'IP',
+          port: 1521,
+          databaseType: 'oracle',
+          oracleSid: 'IVTPDB',
+          sourceIps: ['10.20.9.12'],
+        },
       ],
     });
     render(<RequestTab targetSourceId={1031} detail={{ cloud_provider: 'IDC' }} />);
 
-    expect(await screen.findByText('10.20.1.11:1521')).toBeTruthy();
+    expect(await screen.findByText('10.20.1.11')).toBeTruthy();
+    for (const value of ['1521', 'IVTPDB', '10.20.9.12']) {
+      expect(screen.getByText(value)).toBeTruthy();
+    }
+    // The cloud table's headers promise values an IDC row does not have.
+    const headers = screen.getAllByRole('columnheader').map((th) => th.textContent?.trim());
+    expect(headers).not.toContain('Resource Name');
+    expect(headers).not.toContain('Resource ID');
+    expect(headers).not.toContain('Region');
   });
 
   it('filters the table when a tile is picked', async () => {
