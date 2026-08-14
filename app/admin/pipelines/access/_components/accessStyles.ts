@@ -123,6 +123,29 @@ export const accessStyles = {
   tail: 'w-[56px] flex-none text-right',
   chev: 'w-3.5 flex-none text-[var(--pl-text-weak)] group-hover:text-[var(--pl-primary)]',
 
+  /** 이력 피드 — 열이 아니라 줄로 읽는 기록.
+   *
+   *  전체 이력은 사실이 일곱이다(구분·서비스·코드·대상·수행자·사유·일시). 전체 폭에서는
+   *  표가 맞지만 요청 카드와 나란히 서면 고정 폭만 364px 이라 늘어나는 네 열에 38px 씩
+   *  밖에 안 남는다. 열을 지워 사실을 버리는 대신 한 행을 줄로 편다 — 훑는 표가 아니라
+   *  읽는 기록이 되고, 사실은 하나도 안 빠진다. */
+  feedRow: 'flex flex-col gap-1 border-t border-[var(--pl-border)] py-2.5',
+  /** 윗줄 — 무슨 일이(pill) 어느 서비스에(이름·코드), 언제(오른쪽 끝). */
+  feedHead: 'flex items-center gap-2',
+  /** 이름과 코드는 붙는다 — `svcIdent` 와 같은 이유다. 남는 폭은 이 덩어리가 먹고,
+   *  그래야 코드가 일시 옆이 아니라 이름 옆에 선다. */
+  feedIdent: 'flex min-w-0 flex-1 items-center gap-1.5',
+  feedSvc: 'min-w-0 truncate text-[14px] font-medium text-[var(--pl-text-strong)]',
+  feedWhen: 'flex-none text-[12px] tabular-nums text-[var(--pl-text-weak)]',
+  /** 아랫줄 — 누구에게·누가. 라벨을 붙인다: "haneul.kang ← admin.pass" 는 화살표
+   *  방향을 이미 아는 사람만 읽을 수 있다. */
+  feedFacts: 'flex flex-wrap items-center gap-x-5 gap-y-1 text-[14px]',
+  feedLabel: 'mr-1.5 text-[12px] font-medium text-[var(--pl-text-weak)]',
+  feedWho: 'font-medium text-[var(--pl-text-medium)] [font-family:var(--pl-font-mono)]',
+  /** 사유 — 있을 때만 그린다. 없는 값에 '—' 를 찍으면 줄만 늘고 뜻은 안 는다.
+   *  그래서 반려처럼 할 말이 있는 행만 세 줄이 되고, 그게 읽을 행을 먼저 보이게 한다. */
+  feedNote: 'min-w-0 truncate text-[12px] leading-[1.5] text-[var(--pl-text-weak)]',
+
   skeletonBar: 'h-3.5 animate-pulse rounded-[6px] bg-[var(--pl-gray-100)]',
 
   state: 'flex items-center gap-2 py-2.5 text-[14px] text-[var(--pl-text-weak)]',
