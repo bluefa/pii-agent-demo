@@ -1,6 +1,7 @@
 import type { Project, User, ServiceCode, DBCredential, ScanJob, ScanHistory, ProjectHistory, LegacyAwsInstallationStatus, LegacyAwsServiceSettings } from '@/lib/types';
 import type { TestConnectionJob } from '@/lib/mock-test-connection';
 import { buildSeedTestConnectionJobs } from '@/lib/mock-test-connection';
+import { buildSeedProjectHistory } from '@/lib/mock-history';
 import { mockUsers, mockServiceCodes, mockProjects as initialProjects, mockCredentials as initialCredentials, mockAwsInstallations, mockAwsServiceSettings } from '@/lib/mock-data';
 
 type Store = {
@@ -39,8 +40,8 @@ export const getStore = (): Store => {
             // v2 Scan 관련
             scans: [],
             scanHistory: [],
-            // Project History
-            projectHistory: [],
+            // Project History — seeded for the ops demo target only (see mock-history).
+            projectHistory: buildSeedProjectHistory(),
             // Test Connection — per-step seed: Step 5/6/7 targets start with a
             // completed-SUCCESS job so latest_version / latest-results /
             // completion-status are coherent (otherwise those pages 404).

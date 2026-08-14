@@ -54,6 +54,59 @@ export const getProjectHistory = (options: GetProjectHistoryOptions): GetProject
   return { history, total };
 };
 
+// ===== Seed =====
+
+/**
+ * Seeded approval trail for the ops demo target 1583. `projectHistory` starts empty and only a
+ * live 확정→승인 flow writes to it, so the ops 승인 요청 내역 card had nothing to render on any
+ * target — the card, its pager and its 상세 보기 modal were only reachable by first driving the
+ * whole request flow by hand.
+ *
+ * Entries pair up: a TARGET_CONFIRMED opens a request row and the action that follows closes it
+ * (mock confirm.getApprovalHistory), so these six read as three rows — 반려 · 취소 · 승인. The
+ * two ids of a pair share their digits because that number is the request id the detail modal
+ * looks the row up by.
+ *
+ * Timestamps sit inside the window the 상태 변경 이력 card shows next to this one (mock/ops
+ * SEED_TIMES): the first request lands on the step-2 transition and the approval on the step-3
+ * one. The two cards are read side by side, and an approval dated before the target reached
+ * 승인 대기 is the first thing the eye catches.
+ */
+const OPS_DEMO_TARGET_SOURCE_ID = 1583;
+
+const REQUESTER: ProjectHistoryActor = { id: 'user-1', name: '홍길동' };
+const APPROVER: ProjectHistoryActor = { id: 'admin-1', name: '관리자' };
+
+export const buildSeedProjectHistory = (): ProjectHistory[] => {
+  const at = (
+    id: string,
+    type: ProjectHistoryType,
+    actor: ProjectHistoryActor,
+    timestamp: string,
+    details: ProjectHistory['details'] = {},
+  ): ProjectHistory => ({ id, targetSourceId: OPS_DEMO_TARGET_SOURCE_ID, type, actor, timestamp, details });
+
+  return [
+    at('ph-seed-15831-req', 'TARGET_CONFIRMED', REQUESTER, '2026-07-16T10:31:00+09:00', {
+      resourceCount: 2,
+      excludedResourceCount: 1,
+    }),
+    at('ph-seed-15831-res', 'REJECTION', APPROVER, '2026-07-16T15:40:00+09:00', {
+      reason: '대상 3건 중 10.20.4.18(ORACLE)은 대외 구간이라 접근 허용 근거가 필요합니다. 근거 첨부 후 다시 요청해 주세요.',
+    }),
+    at('ph-seed-15832-req', 'TARGET_CONFIRMED', REQUESTER, '2026-07-17T09:12:00+09:00', {
+      resourceCount: 3,
+      excludedResourceCount: 0,
+    }),
+    at('ph-seed-15832-res', 'APPROVAL_CANCELLED', REQUESTER, '2026-07-17T09:58:00+09:00'),
+    at('ph-seed-15833-req', 'TARGET_CONFIRMED', REQUESTER, '2026-07-17T14:20:00+09:00', {
+      resourceCount: 3,
+      excludedResourceCount: 0,
+    }),
+    at('ph-seed-15833-res', 'APPROVAL', APPROVER, '2026-07-17T18:56:00+09:00'),
+  ];
+};
+
 // ===== History Creation =====
 
 export interface AddHistoryOptions {
