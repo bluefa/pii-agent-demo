@@ -5,7 +5,7 @@ import { Pagination } from '@/app/components/ui/Pagination';
 import { usePagination } from '@/app/hooks/usePagination';
 import { ReasonChipInline } from '@/app/components/ui/ReasonChipInline';
 import { cn, idcStyles, textColors, verdictRailClass } from '@/lib/theme';
-import { IDC_SOURCE_IP_TOOLTIP } from '@/lib/constants/idc';
+import { IDC_SOURCE_IP_TOOLTIP, IDC_SOURCE_LABEL } from '@/lib/constants/idc';
 import type { IdcInstallStatus, IdcResourceView } from '@/app/lib/api/idc';
 import {
   IdcDbTypeCell,
@@ -72,11 +72,10 @@ interface IdcResourceTableProps {
 const [TIP_TITLE, ...TIP_REST] = IDC_SOURCE_IP_TOOLTIP.split('\n');
 
 /** Exported so the admin's P3 request table heads the column identically — the
- *  "방화벽 등록 필요" note answers the same question on both surfaces.
- *  `label` 은 step 4 를 위한 것 — 그 화면은 이 열을 'BDC측 출발지'라 부르지만 설명은 같다. */
-export const SourceIpHeader = ({ label = 'Source IP' }: { label?: string }) => (
+ *  "접근 허용 필요" note answers the same question on both surfaces. */
+export const SourceIpHeader = () => (
   <span className="inline-flex items-center gap-1">
-    {label}
+    {IDC_SOURCE_LABEL}
     <InfoTooltip
       // Light `value` box, the same one the 접속 주소 cell tooltip uses — one table should not
       // answer a hover with a dark popover in one column and a light one in another.
@@ -169,7 +168,7 @@ export const IdcResourceTable = ({
                 <th className={skin.headerCell}>제외 사유</th>
               </>
             )}
-            {has('fw') && <th className={skin.headerCell}>방화벽 상태</th>}
+            {has('fw') && <th className={skin.headerCell}>접근 허용 상태</th>}
             {has('cred') && <th className={cn(skin.headerCell, 'w-[180px]')}>Credential</th>}
             {has('logicalro') && (
               <>

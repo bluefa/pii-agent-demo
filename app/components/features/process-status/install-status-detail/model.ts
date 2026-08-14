@@ -97,7 +97,7 @@ export interface InstallTableStep {
    * 이 값의 유무가 요약 화면의 "확인 필요/조치 불필요"를 가른다.
    */
   serviceAction?: string;
-  /** Optional control rendered in the step's panel head (e.g. IDC 방화벽 확인). */
+  /** Optional control rendered in the step's panel head (e.g. IDC 접근 허용 확인). */
   action?: ReactNode;
   /**
    * 설명 아래 보조 한 줄 — 참고 항목으로 보내는 역참조.

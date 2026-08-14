@@ -890,7 +890,7 @@ export const mockProjects: Project[] = [
 // approved-integration, confirmed-integration), whose mocks derive rows from
 // `project.resources` (filter isSelected). So IDC projects carry a seeded
 // resource set — 5 integration targets (idcConfig.sourceIps = the PII-Agent
-// server IPs surfaced in the Source IP column) + 2 excluded — exactly like the
+// server IPs surfaced in the 출발지 column) + 2 excluded — exactly like the
 // cloud demo projects. Step 1 (1020) stays empty (manual input). Installation
 // status still comes from idc installation-status (lib/mock-idc.ts).
 const IDC_DEMO_RESOURCES: MockResource[] = [

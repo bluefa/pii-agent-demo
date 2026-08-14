@@ -111,7 +111,7 @@ const NOTE_WARN =
  * the row via `rowKey`, which is never rendered — without it every IDC row would fall
  * back to its list index and per-row tooltip state would follow a slot.
  *
- * Oracle SID and Source IP have no seat here. That is the gap the 승인 요청 상세 modal
+ * Oracle SID and the 출발지 have no seat here. That is the gap the 승인 요청 상세 modal
  * has always had, and matching the modal is precisely what this tab was asked to do.
  */
 const toApprovalRow = (row: RequestResourceRow, isIdc: boolean): WaitingApprovalResource => ({

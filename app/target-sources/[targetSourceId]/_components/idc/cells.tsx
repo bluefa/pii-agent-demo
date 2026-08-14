@@ -5,6 +5,7 @@ import { CopyButton } from '@/app/components/ui/CopyButton';
 import { IdentifierTip, Tooltip } from '@/app/components/ui/Tooltip';
 import { cn, idcStyles, primaryColors, textColors, verdictText } from '@/lib/theme';
 import { ExcludedIcon } from '@/app/components/ui/icons';
+import { IDC_ACCESS_ALLOWED, IDC_ACCESS_DENIED, IDC_SOURCE_LABEL } from '@/lib/constants/idc';
 import { CELL_LIFT } from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalTable';
 import type {
   IdcHealth,
@@ -143,12 +144,9 @@ export const IdcDbTypeCell = ({ resource }: { resource: IdcResourceView }) => (
 
 export const IdcSourceIpCell = ({
   sourceIps,
-  label = 'Source IP',
   emphasis = false,
 }: {
   sourceIps: string[];
-  /** 툴팁·복사 버튼이 부르는 이름 — 열 머리글과 같은 말이어야 한다. */
-  label?: string;
   /** 이 열이 화면의 주어인 단계(step 4)에서만 켠다. */
   emphasis?: boolean;
 }) => {
@@ -162,7 +160,7 @@ export const IdcSourceIpCell = ({
         <HostCell
           key={ip}
           value={ip}
-          label={label}
+          label={IDC_SOURCE_LABEL}
           maxWidthClass="max-w-[150px]"
           {...(emphasis && {
             // hover 리프트를 같이 건다 — #0064FF 는 흰 바탕 4.92:1 이지만 행 hover 틴트
@@ -180,15 +178,20 @@ export const IdcSourceIpCell = ({
  * `firewall_check.status` of the SAME resource (joined by resource_id).
  * Anything that is not exactly COMPLETED/FAIL/IN_PROGRESS (UNKNOWN, SKIP, a
  * missing join, or an unrecognized value) renders the neutral "BDC측 확인 필요".
+ *
+ * 어휘는 방화벽이 아니라 접근 허용이다 — 이 화면을 읽는 사람은 방화벽을 만지는 사람이
+ * 아니라 "우리 DB에 저 주소가 닿게 해 달라"고 요청하는 사람이다. 문구는
+ * `IDC_ACCESS_*`(lib/constants/idc) 한 곳에서만 나온다: 가이드 본문이 이 배지 글자를
+ * 인용하므로 둘이 갈라지면 안내가 없는 상태를 가리키게 된다.
  */
 export const IdcFirewallBadge = ({ status }: { status: IdcInstallStatus | undefined }) => {
   switch (status) {
     case 'COMPLETED':
-      return <span className={cn(idcStyles.tag.base, idcStyles.tag.green)}>방화벽 오픈</span>;
+      return <span className={cn(idcStyles.tag.base, idcStyles.tag.green)}>{IDC_ACCESS_ALLOWED}</span>;
     case 'FAIL':
-      return <span className={cn(idcStyles.tag.base, idcStyles.tag.red)}>방화벽 오픈되지 않음</span>;
+      return <span className={cn(idcStyles.tag.base, idcStyles.tag.red)}>{IDC_ACCESS_DENIED}</span>;
     case 'IN_PROGRESS':
-      return <span className={cn(idcStyles.tag.base, idcStyles.tag.orange)}>방화벽 확인 중</span>;
+      return <span className={cn(idcStyles.tag.base, idcStyles.tag.orange)}>허용 확인 중</span>;
     default:
       return <span className={cn(idcStyles.tag.base, idcStyles.tag.gray)}>BDC측 확인 필요</span>;
   }

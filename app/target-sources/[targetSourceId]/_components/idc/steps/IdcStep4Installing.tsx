@@ -30,6 +30,7 @@ import {
 } from '@/app/target-sources/[targetSourceId]/_components/idc/cells';
 import { SourceIpHeader } from '@/app/target-sources/[targetSourceId]/_components/idc/IdcResourceTable';
 import { IDC_SEARCH_PLACEHOLDER } from '@/app/target-sources/[targetSourceId]/_components/idc/steps/step-copy';
+import { IDC_SOURCE_LABEL } from '@/lib/constants/idc';
 import { IdcFirewallModal } from '@/app/target-sources/[targetSourceId]/_components/idc/modals/IdcFirewallModal';
 import type { IdcStepProps } from '@/app/target-sources/[targetSourceId]/_components/idc/types';
 import { InstallCardHeader } from '@/app/components/features/process-status/install-status-detail/InstallCardHeader';
@@ -37,14 +38,6 @@ import { InstallCardHeader } from '@/app/components/features/process-status/inst
 const isAbort = (err: unknown): boolean => err instanceof AppError && err.code === 'ABORTED';
 
 const EMPTY_RESOURCES: IdcResourceView[] = [];
-
-/**
- * 이 화면은 Source IP 를 그 정체(누구의 IP인가)로 부른다 — 여기서 사용자가 하는 일은
- * 방화벽에 BDC 를 통과시키는 것이고, 'Source' 는 무엇의 출발지인지 말하지 않는다.
- * 툴팁 설명은 steps 2·3 과 같은 문장을 그대로 쓴다.
- */
-const BDC_SOURCE_LABEL = 'BDC측 출발지';
-const BdcSourceHeader = () => <SourceIpHeader label={BDC_SOURCE_LABEL} />;
 
 // IDC lastCheck status is the shared install enum; the generic detail wants the
 // 3-value LastCheckInfo bucket.
@@ -64,16 +57,16 @@ const toInstallLastCheck = (
 /**
  * IDC Step 4 — Agent 설치 (v15 `data-prov-view="idc"`, L6579~6634).
  *
- * Two-task install pipeline (BDC 리소스 설치 + 방화벽 확인) over the live
+ * Two-task install pipeline (BDC 리소스 설치 + 접근 허용 확인) over the live
  * installation status, plus the read-only 연동 대상 목록 (`src`,`fw` columns)
- * and a click-through 방화벽 확인 모달.
+ * and a click-through 접근 허용 확인 모달.
  *
  * Data sources (ADR-019, data-layer only — design preserved from origin/main):
  *   - install STATUS ← `useIdcInstallationStatus` (installation-status contract;
  *     UNKNOWN → "작업중"/running bucket), driving the two pipeline cards;
  *   - RESOURCE LIST ← confirmed integration (`getIdcConfirmedResources`), fetched
  *     here with its own AbortController + stale-guard so a target switch cannot
- *     leak rows (§DR). Source IP / firewall columns come from the confirmed rows.
+ *     leak rows (§DR). 출발지 / 접근 허용 columns come from the confirmed rows.
  */
 export const IdcStep4Installing = ({
   project,
@@ -151,7 +144,7 @@ export const IdcStep4Installing = ({
 
   // 앞 열: IDC 는 스캔이 붙인 이름이 없고 resource_id 는 내부 NLB 키다(design-spec §8).
   // 행을 식별하는 것은 구분·접속 주소·Port·Database Type 이고, 여기에 이 단계가 시키는
-  // 일의 출발지인 Source IP 가 붙는다 — steps 2·3 의 IdcResourceTable(`src`)이 쓰는
+  // 일의 출발지가 붙는다 — steps 2·3 의 IdcResourceTable(`src`)이 쓰는
   // 그 셀과 그 폭을 그대로 가져온다.
   const identityColumns = useMemo(() => {
     const byId = new Map(resources.map((r) => [r.resourceId, r]));
@@ -171,18 +164,18 @@ export const IdcStep4Installing = ({
       dbTypeLabel: (row: { resourceId: string }) => byId.get(row.resourceId)?.databaseTypeLabel ?? '',
       columns: [
         {
-          // 이 단계가 시키는 일이 "출발지 → 연동 대상 방화벽 오픈"이라, 출발지가 이 표의
+          // 이 단계가 시키는 일이 "출발지 → 연동 대상 접근 허용"이라, 출발지가 이 표의
           // 주어다 — 맨 왼쪽에 서고 혼자 색을 갖는다. 바로 옆이 도착지(접속 주소)라
           // 한 행이 곧 열어야 할 한 경로로 읽힌다.
-          label: BDC_SOURCE_LABEL,
+          label: IDC_SOURCE_LABEL,
           widthClass: 'w-[150px]',
-          head: <BdcSourceHeader />,
+          head: <SourceIpHeader />,
           render: (row: { resourceId: string }) =>
             cell(row, (r) =>
               // 이 단계의 모든 행은 확정된 연동 대상이라 출발지가 있어야 한다. 빈 칸은
               // "이 행은 대상이 아니다"라는 다른 단계의 뜻이 되므로 여기선 대시로 말한다.
               r.sourceIps.length > 0 ? (
-                <IdcSourceIpCell sourceIps={r.sourceIps} label={BDC_SOURCE_LABEL} emphasis />
+                <IdcSourceIpCell sourceIps={r.sourceIps} emphasis />
               ) : (
                 <span className={textColors.tertiary}>—</span>
               ),
@@ -224,7 +217,7 @@ export const IdcStep4Installing = ({
   }, [resources]);
 
   // group 은 **누가 실행하는가**다(AWS/Azure/GCP 와 같은 규칙). IDC 는 두 Terraform
-  // 구간을 BDC 가 돌리고, 서비스 측이 하는 일은 방화벽 오픈·확인 하나뿐이다.
+  // 구간을 BDC 가 돌리고, 서비스 측이 하는 일은 접근 허용·확인 하나뿐이다.
   const steps: InstallTableStep[] = [
     {
       id: 'cx',
@@ -242,11 +235,11 @@ export const IdcStep4Installing = ({
     },
     {
       id: 'firewall',
-      title: '방화벽',
+      title: '접근 허용',
       side: '서비스측 확인',
       group: 'todo',
-      serviceAction: 'Source IP에서 연동 대상으로의 방화벽을 오픈한 뒤 확인해 주세요.',
-      desc: 'Source IP → 연동 대상 방화벽 오픈 여부를 점검하는 단계입니다.',
+      serviceAction: `${IDC_SOURCE_LABEL}에서 연동 대상으로의 접근을 허용한 뒤 확인해 주세요.`,
+      desc: `${IDC_SOURCE_LABEL} → 연동 대상 접근 허용 여부를 점검하는 단계입니다.`,
       action: (
         <button
           type="button"
@@ -258,7 +251,7 @@ export const IdcStep4Installing = ({
             bgColors.mutedHover,
           )}
         >
-          방화벽 확인
+          접근 허용 확인
         </button>
       ),
     },
@@ -270,7 +263,7 @@ export const IdcStep4Installing = ({
         <InstallCardHeader />
         <div className={cardStyles.body}>
           {/* 두 조회(설치 상태 + 확정 연동)가 모두 도착할 때까지 스켈레톤을 유지한다.
-              빈 배열을 그대로 그리면 "전체 리소스 0 · 대기 0/0"에 방화벽 조치 배너까지
+              빈 배열을 그대로 그리면 "전체 리소스 0 · 대기 0/0"에 접근 허용 조치 배너까지
               붙어, 아직 모르는 것을 확정된 사실로 말하게 된다.
 
               게이트는 훅의 loading 이 아니라 `status` 유무로 판정한다 — 재시도는

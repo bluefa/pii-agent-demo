@@ -58,11 +58,26 @@ export const idcDbTypeByWire = (
 export const idcDbTypeLabel = (wire: IdcDatabaseTypeWire): string =>
   DB_TYPE_BY_WIRE.get(wire)?.label ?? wire;
 
-/** Source IP column tooltip (header ⓘ, 결정 #19·40). `\n` splits paragraphs. */
+/**
+ * Display name for the wire's `idc_source_ips`. 'Source IP' never said whose, and the
+ * reader's own address is the one thing it is not — so every surface names the owner.
+ * The wire field and the code identifiers keep the contract's word.
+ */
+export const IDC_SOURCE_LABEL = 'BDC측 출발지';
+
+/**
+ * Step-4 verdict wording. 'Firewall' is the mechanism the service's own infra team
+ * operates; the person on this screen only needs their DB reachable from the address
+ * above. Guide copy quotes these strings verbatim, so both sides read one constant.
+ */
+export const IDC_ACCESS_ALLOWED = '접근 허용됨';
+export const IDC_ACCESS_DENIED = '접근 허용 안 됨';
+
+/** 출발지 column tooltip (header ⓘ, 결정 #19·40). `\n` splits paragraphs. */
 export const IDC_SOURCE_IP_TOOLTIP =
-  '방화벽 등록 필요\n' +
-  'BDC Agent가 DB에 접근할 때 사용하는 출발지 IP예요. 서비스 측 방화벽에서 ' +
-  'Source IP → 연동 대상(IP:Port) 허용 규칙을 등록해야 연결 테스트를 통과할 수 있어요.';
+  '접근 허용 필요\n' +
+  'BDC Agent가 DB에 접근할 때 사용하는 출발지 IP예요. 서비스 측에서 ' +
+  `${IDC_SOURCE_LABEL} → 연동 대상(IP:Port) 접근을 허용해야 연결 테스트를 통과할 수 있어요.`;
 
 // --- validation (v15 validateIdcTargetForm) ---
 
