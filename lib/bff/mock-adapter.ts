@@ -20,6 +20,7 @@ import { mockServices } from '@/lib/bff/mock/services';
 import { mockScan } from '@/lib/bff/mock/scan';
 import { mockAws } from '@/lib/bff/mock/aws';
 import { mockOps, mockServiceJiraTickets } from '@/lib/bff/mock/ops';
+import { mockAccess } from '@/lib/bff/mock/access';
 import { mockAzure } from '@/lib/bff/mock/azure';
 import { mockGcp } from '@/lib/bff/mock/gcp';
 import { mockIdc } from '@/lib/bff/mock/idc';
@@ -134,6 +135,42 @@ export const mockBff: BffClient = {
     putRole: async (id, kind, roleArn) => unwrap(await mockOps.putRole(id, kind, roleArn)),
     getTargetSourceList: async (query, page, size) =>
       unwrap(await mockOps.getTargetSourceList(query, page, size)),
+  },
+
+  // 서비스 접근 권한 — 규칙(승인=부여, 400/멱등, 마지막 관리자)은 mock 모듈에 산다.
+  access: {
+    listServices: async (query, page, size) =>
+      unwrap(await mockAccess.listServices(query, page, size)),
+    listServiceOwners: async (code) => unwrap(await mockAccess.listServiceOwners(code)),
+    addServiceOwners: async (code, emails) =>
+      unwrap(await mockAccess.addServiceOwners(code, emails)),
+    removeServiceOwner: async (code, email) =>
+      unwrap(await mockAccess.removeServiceOwner(code, email)),
+    listAdmins: async () => unwrap(await mockAccess.listAdmins()),
+    addAdmin: async (email) => unwrap(await mockAccess.addAdmin(email)),
+    removeAdmin: async (email) => {
+      await unwrap(await mockAccess.removeAdmin(email));
+    },
+    listRequests: async (status, page, size) =>
+      unwrap(await mockAccess.listRequests(status, page, size)),
+    getRequest: async (requestId) => unwrap(await mockAccess.getRequest(requestId)),
+    approveRequest: async (requestId, message) => {
+      await unwrap(await mockAccess.approveRequest(requestId, message));
+    },
+    rejectRequest: async (requestId, reason) => {
+      await unwrap(await mockAccess.rejectRequest(requestId, reason));
+    },
+    listHistory: async (query, page, size) =>
+      unwrap(await mockAccess.listHistory(query, page, size)),
+    createRequest: async (code, reason) => {
+      await unwrap(await mockAccess.createRequest(code, reason));
+    },
+    listMyRequests: async (page, size) => unwrap(await mockAccess.listMyRequests(page, size)),
+    listUserServices: async (query, page, size) =>
+      unwrap(await mockAccess.listUserServices(query, page, size)),
+    listServicesPage: async (query, page, size) =>
+      unwrap(await mockAccess.listServicesPage(query, page, size)),
+    searchUsers: async (query) => unwrap(await mockAccess.searchUsers(query)),
   },
 
   // Azure mock returns raw snake wire; the route validates with schemas.X.parse().

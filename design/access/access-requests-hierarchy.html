@@ -1,0 +1,687 @@
+<meta charset="utf-8">
+<title>내 권한 요청 강약 진단</title>
+<style>
+:root{
+  --bg:#FFFFFF; --panel:#F8F9FC; --panel2:#F2F4F8; --ink:#191F28; --body:#4E5968; --mute:#8B95A1;
+  --line:#E5E8EB; --accent:#0064FF; --accent-soft:#EBF2FF; --accent-ink:#0050CC;
+  --p0:#D22030; --p0-soft:#FDEBED; --p1:#B54708; --p1-soft:#FDF3E3; --p2:#556170; --p2-soft:#EEF1F4;
+  --ok:#0A7D45; --ok-soft:#E8F6EE; --code:#EFF2F6;
+  --shadow:0 1px 2px rgba(25,31,40,.04),0 8px 24px rgba(25,31,40,.06);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#101419; --panel:#161B22; --panel2:#1C232C; --ink:#E9EDF2; --body:#AAB4C0; --mute:#77828F;
+    --line:#2A323D; --accent:#4D94FF; --accent-soft:#12233D; --accent-ink:#7FB1FF;
+    --p0:#FF7A85; --p0-soft:#3A1A20; --p1:#F0A860; --p1-soft:#382513; --p2:#9AA6B4; --p2-soft:#232B34;
+    --ok:#57C98B; --ok-soft:#12301F; --code:#1D242E;
+    --shadow:0 1px 2px rgba(0,0,0,.3),0 8px 24px rgba(0,0,0,.35);
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#101419; --panel:#161B22; --panel2:#1C232C; --ink:#E9EDF2; --body:#AAB4C0; --mute:#77828F;
+  --line:#2A323D; --accent:#4D94FF; --accent-soft:#12233D; --accent-ink:#7FB1FF;
+  --p0:#FF7A85; --p0-soft:#3A1A20; --p1:#F0A860; --p1-soft:#382513; --p2:#9AA6B4; --p2-soft:#232B34;
+  --ok:#57C98B; --ok-soft:#12301F; --code:#1D242E;
+  --shadow:0 1px 2px rgba(0,0,0,.3),0 8px 24px rgba(0,0,0,.35);
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+@media (prefers-reduced-motion: reduce){html{scroll-behavior:auto}}
+body{margin:0;background:var(--bg);color:var(--ink);
+  font-family:"Pretendard Variable",Pretendard,-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Segoe UI","Malgun Gothic",sans-serif;
+  font-size:16px;line-height:1.65;-webkit-font-smoothing:antialiased}
+a{color:var(--accent-ink);text-decoration:none}
+a:hover{text-decoration:underline}
+a:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:4px}
+.wrap{max-width:1060px;margin:0 auto;padding:0 28px 96px}
+code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.86em;background:var(--code);
+  padding:1px 5px;border-radius:4px;color:var(--ink);word-break:break-all}
+h1,h2,h3,h4{text-wrap:balance;line-height:1.3}
+h2{font-size:24px;font-weight:700;margin:0 0 6px}
+h3{font-size:18px;font-weight:700;margin:34px 0 10px}
+p{margin:8px 0}
+.hero{padding:64px 0 34px;border-bottom:1px solid var(--line)}
+.eyebrow{font-size:12px;font-weight:700;letter-spacing:.14em;color:var(--accent-ink);text-transform:uppercase;margin-bottom:14px}
+.hero h1{font-size:34px;font-weight:800;margin:0 0 14px;letter-spacing:-.02em}
+.hero p{max-width:64ch;color:var(--body);font-size:16px;margin:0}
+.meta{display:flex;gap:18px;flex-wrap:wrap;margin-top:20px;font-size:14px;color:var(--mute)}
+.meta b{color:var(--body);font-weight:600}
+.nav{position:sticky;top:0;z-index:30;background:var(--bg);border-bottom:1px solid var(--line);
+  display:flex;gap:6px;overflow-x:auto;padding:10px 28px;margin:0 -28px}
+.nav a{flex:0 0 auto;font-size:14px;font-weight:600;color:var(--body);padding:6px 12px;border-radius:999px;border:1px solid var(--line)}
+.nav a:hover{background:var(--panel);text-decoration:none}
+section{padding-top:56px}
+.sec-eyebrow{font-size:12px;font-weight:700;letter-spacing:.14em;color:var(--mute);text-transform:uppercase}
+.sec-sub{color:var(--body);max-width:72ch;margin:4px 0 22px}
+.chip{display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:700;padding:2px 9px;border-radius:999px;white-space:nowrap;vertical-align:1px}
+.chip.p0{background:var(--p0-soft);color:var(--p0)}
+.chip.p1{background:var(--p1-soft);color:var(--p1)}
+.chip.p2{background:var(--p2-soft);color:var(--p2)}
+.chip.ok{background:var(--ok-soft);color:var(--ok)}
+.verdict{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin:26px 0 8px}
+@media(max-width:860px){.verdict{grid-template-columns:1fr}}
+.vcard{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:20px 20px 18px}
+.vcard .no{font-size:12px;font-weight:800;color:var(--accent-ink);letter-spacing:.08em}
+.vcard h4{margin:6px 0 8px;font-size:16px}
+.vcard p{margin:0;font-size:14px;color:var(--body)}
+.tblwrap{overflow-x:auto;border:1px solid var(--line);border-radius:12px;margin:14px 0}
+table{border-collapse:collapse;width:100%;font-size:14px;min-width:660px}
+th{background:var(--panel);text-align:left;font-size:12px;letter-spacing:.04em;color:var(--mute);font-weight:700;padding:9px 14px;border-bottom:1px solid var(--line);white-space:nowrap}
+td{padding:9px 14px;border-bottom:1px solid var(--line);vertical-align:top;color:var(--body)}
+tr:last-child td{border-bottom:none}
+td b{color:var(--ink);font-weight:600}
+.callout{border-radius:12px;padding:15px 18px;margin:16px 0;font-size:14px;border:1px solid var(--line);background:var(--panel)}
+.callout.blue{background:var(--accent-soft);border-color:transparent;color:var(--ink)}
+.callout.red{background:var(--p0-soft);border-color:transparent}
+.callout .lbl{display:block;margin-bottom:5px;font-weight:700;font-size:12px;letter-spacing:.06em;color:var(--accent-ink)}
+.callout.red .lbl{color:var(--p0)}
+.alt{border:1px solid var(--line);border-radius:16px;margin:26px 0;overflow:hidden;box-shadow:var(--shadow)}
+.alt.win{border-color:var(--accent)}
+.alt-head{padding:18px 24px 0;display:flex;gap:12px;align-items:baseline;flex-wrap:wrap}
+.alt-key{font-size:14px;font-weight:800;color:var(--accent-ink);background:var(--accent-soft);border-radius:8px;padding:3px 10px}
+.alt-head h4{margin:0;font-size:18px;flex:1}
+.alt-body{padding:14px 24px 22px;font-size:14px;color:var(--body)}
+.alt-body ul{margin:6px 0 12px;padding-left:18px}
+.alt-body li{margin:4px 0}
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:22px}
+@media(max-width:860px){.cols{grid-template-columns:1fr}}
+.lbl{font-weight:700;color:var(--ink);font-size:12px;letter-spacing:.02em}
+.road{border-left:3px solid var(--accent);margin:20px 0 0 6px;padding-left:22px}
+.road .step{margin-bottom:18px}
+.road .step h4{margin:0 0 4px;font-size:16px}
+.road .step p{margin:0;font-size:14px;color:var(--body)}
+footer{margin-top:72px;border-top:1px solid var(--line);padding-top:18px;font-size:12px;color:var(--mute)}
+figcaption{font-size:12px;color:var(--mute);margin-top:8px}
+figure{margin:18px 0}
+
+/* ── 뷰포트 도식 ───────────────────────────────────────────── */
+.vp{border:1px solid var(--line);border-radius:10px;overflow:hidden;font-size:12px;margin:12px 0}
+.vp-bar{display:flex;height:64px}
+.vp-fill{background:var(--accent-soft);color:var(--accent-ink);display:flex;align-items:center;justify-content:center;font-weight:700}
+.vp-void{background:repeating-linear-gradient(135deg,var(--panel2),var(--panel2) 6px,var(--bg) 6px,var(--bg) 12px);
+  color:var(--mute);display:flex;align-items:center;justify-content:center;font-weight:600}
+.vp-cap{padding:7px 12px;border-top:1px solid var(--line);color:var(--mute);background:var(--panel)}
+
+/* ── 제품 UI 목업 (라이트 고정 — 실제 화면을 묘사한다) ───────── */
+.ui{
+  --ink:#101828; --mid:#344054; --weak:#667085; --hair:#E4E7EC; --edge:#D0D5DD;
+  --card:#FFFFFF; --ground:#F4F4FB; --g50:#F9FAFB; --g100:#F2F4F7; --g200:#E4E7EC;
+  --pri:#2563EB; --pri-bg:#EFF4FF; --ok-t:#027A48; --ok-b:#ECFDF3;
+  --er-t:#B42318; --er-b:#FEF3F2; --wa-t:#B54708; --wa-b:#FFFAEB; --blue-t:#1747B5; --blue-b:#E8F1FF;
+  background:var(--ground);color:var(--ink);border:1px solid #D9DCE6;border-radius:12px;
+  padding:20px;font-size:14px;line-height:1.5;letter-spacing:-.014em;overflow-x:auto;
+}
+.ui *{box-sizing:border-box}
+.ui .h1{font-size:22px;font-weight:700;letter-spacing:-.02em;color:var(--ink);margin:0}
+.ui .sub{font-size:14px;color:var(--weak);margin:3px 0 0}
+.ui .big{font-size:28px;font-weight:700;color:var(--pri);line-height:1;vertical-align:-1px;margin:0 3px}
+.ui .metaline{font-size:14px;color:var(--weak);margin:7px 0 0;display:flex;gap:14px;flex-wrap:wrap}
+.ui .metaline b{color:var(--mid);font-weight:600}
+.ui .grid2{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:20px}
+.ui .grid-asym{display:grid;grid-template-columns:1.35fr 1fr;gap:20px;margin-top:20px}
+.ui .card{background:var(--card);border:1px solid var(--edge);border-radius:11px;padding:15px;
+  box-shadow:0 1px 2px rgba(16,24,40,.04),0 4px 12px rgba(16,24,40,.05)}
+.ui .flat{padding:0;margin-top:26px}
+/* 리세스는 표준값 #F2F4F7 이 아니라 한 단 더 깊은 라벤더다 — 이 화면의 바닥이
+   #F4F4FB 라서 표준 리세스는 바닥과 구분되지 않는다(시안 C 리스크 참조). */
+.ui .recess{background:#E9EBF3;border-radius:11px;padding:15px}
+.ui .chead{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.ui .ctitle{font-size:16px;font-weight:600;color:var(--ink);display:flex;align-items:center;gap:7px}
+.ui .ctitle.sm{font-size:14px;font-weight:600;color:var(--mid);letter-spacing:.01em}
+.ui .cbadge{font-size:12px;font-weight:700;border-radius:999px;padding:2px 8px;background:var(--blue-b);color:var(--blue-t)}
+.ui .cbadge.mut{background:var(--g100);color:var(--mid)}
+.ui .cdesc{font-size:12px;color:#475467;margin:5px 0 0}
+.ui .search{margin:10px 0 8px;height:29px;border:1px solid var(--edge);border-radius:7px;background:var(--card);
+  display:flex;align-items:center;padding:0 10px;color:#98A2B3;font-size:12px;gap:6px}
+.ui .colhead{display:flex;gap:10px;padding:6px 0;font-size:12px;font-weight:600;color:var(--weak)}
+.ui .row{display:flex;align-items:center;gap:9px;border-top:1px solid var(--hair);padding:7px 0;font-size:14px;color:var(--mid)}
+.ui .row.tall{padding:6px 0}
+.ui .tile{width:24px;height:24px;flex:none;border-radius:6px;display:flex;align-items:center;justify-content:center;
+  font-size:12px;font-weight:700}
+.ui .t1{background:#E8F1FF;color:#1747B5}.ui .t2{background:#E5F8EE;color:#197A3F}
+.ui .t3{background:#FEF0E1;color:#7A3F0E}.ui .t4{background:#F0EBFE;color:#5B21B6}
+.ui .t5{background:#E6F6FA;color:#0E6478}
+.ui .nm{flex:1;min-width:0;font-size:14px;font-weight:500;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ui .tag{flex:none;min-width:34px;text-align:center;border-radius:5px;background:var(--g200);color:var(--mid);
+  font-family:ui-monospace,Menlo,monospace;font-size:12px;font-weight:500;padding:1px 5px}
+.ui .btn{flex:none;border-radius:7px;font-size:12px;font-weight:600;padding:4px 10px;white-space:nowrap}
+.ui .btn.pri{background:var(--pri);color:#fff}
+.ui .btn.sec{background:var(--card);border:1px solid var(--edge);color:var(--mid)}
+.ui .pill{flex:none;display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:600;border-radius:999px;padding:2px 8px}
+.ui .pill.wait{background:var(--wa-b);color:var(--wa-t)}
+.ui .pill.ok{background:var(--ok-b);color:var(--ok-t)}
+.ui .pill.no{background:var(--er-b);color:var(--er-t)}
+.ui .note{flex:1;min-width:0;font-size:12px;color:var(--weak);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ui .when{flex:none;width:74px;font-size:12px;color:var(--weak);font-variant-numeric:tabular-nums}
+.ui .pager{display:flex;justify-content:center;gap:6px;margin-top:11px;font-size:12px;color:var(--weak)}
+.ui .rail{width:210px;flex:none;display:flex;flex-direction:column}
+.ui .split{display:flex;gap:0;background:#EFF2F3;border-radius:11px;overflow:hidden;margin-top:16px}
+.ui .railitem{display:flex;align-items:center;gap:8px;padding:8px 10px;border-bottom:1px solid #E1E5E8}
+.ui .railitem.on{background:var(--pri-bg);box-shadow:inset 2px 0 0 var(--pri)}
+.ui .railitem.on .nm{color:var(--pri)}
+.ui .sheet{flex:1;min-width:0;margin:12px;background:var(--card);border:1px solid var(--hair);border-radius:11px;padding:16px}
+.ui .eyeb{font-size:12px;font-weight:500;color:var(--weak)}
+.ui .hero2{font-size:22px;font-weight:800;letter-spacing:-.03em;margin:5px 0 0}
+.ui .kv{display:flex;gap:34px;margin-top:12px}
+.ui .kv .k{font-size:12px;font-weight:500;color:var(--weak)}
+.ui .kv .v{font-size:16px;font-weight:600;color:var(--ink);margin-top:3px}
+.ui .rule{border:0;border-top:1px solid var(--hair);margin:14px 0}
+.ui .bucket{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:16px}
+.ui .bcard{background:var(--card);border:1px solid var(--edge);border-radius:11px;padding:13px}
+.ui .bnum{font-size:22px;font-weight:700;margin-top:4px}
+.ui .ann{display:inline-block;background:#D22030;color:#fff;font-size:10px;font-weight:700;
+  border-radius:4px;padding:1px 6px;margin-left:6px;vertical-align:2px;letter-spacing:.02em}
+.ui .ann.g{background:#0A7D45}
+</style>
+
+<div class="wrap">
+
+<div class="hero">
+  <div class="eyebrow">PII Agent · Design Research</div>
+  <h1>내 권한 요청 — 왜 힘이 없는가, 무엇을 강조할 것인가</h1>
+  <p><code>/access-requests</code> 화면이 "강약이 없다 · 좌측에 쏠렸다"는 평가를 받았습니다. 두 지적은 별개 문제이고, 둘 다 원인이 한 줄로 특정됩니다. 제품 안 5개 화면과 이미 검증된 외부 벤치마크 9종의 결론을 근거로 <b>시안 3안 + 기각 1안</b>을 제시합니다.</p>
+  <div class="meta">
+    <span><b>대상</b> /access-requests (내 권한 요청)</span>
+    <span><b>기준 코드</b> feat/access-admin · d59e00be</span>
+    <span><b>작성</b> 2026-08-13</span>
+  </div>
+</div>
+
+<nav class="nav">
+  <a href="#summary">결론</a>
+  <a href="#diag">① 진단</a>
+  <a href="#bench">② 벤치마크</a>
+  <a href="#alts">③ 시안 3안</a>
+  <a href="#reject">기각안</a>
+  <a href="#apply">적용 수치</a>
+</nav>
+
+<!-- ══════════════════ SUMMARY ══════════════════ -->
+<section id="summary">
+  <div class="sec-eyebrow">Executive Summary</div>
+  <h2>결론 먼저</h2>
+  <p class="sec-sub">"평평하다"는 색·굵기의 문제가 아니라 <b>구조</b>의 문제입니다. 같은 바닥에 놓인 형제 카드 2장은 무슨 등급을 매겨도 형제로 읽힙니다. 그리고 좌측 쏠림은 관리자 전용 레이아웃 토큰을 사이드바 없는 화면에서 쓴 결과입니다.</p>
+
+  <div class="verdict">
+    <div class="vcard">
+      <div class="no">결론 1</div>
+      <h4>시선이 처음 닿을 곳이 없다</h4>
+      <p>화면 최대 타입이 h1 <b>24px</b> 하나뿐이고 그 아래는 전부 18/16/14. 같은 제품의 <code>연동 요청</code> 화면은 헤더 문장 안에 <b>32px primary 총계</b>를 심어 "지금 몇 건이 나를 기다리는가"를 먼저 말합니다. 이 화면엔 그 문장이 없습니다.</p>
+    </div>
+    <div class="vcard">
+      <div class="no">결론 2</div>
+      <h4>형제 2장은 등급을 못 만든다</h4>
+      <p>테두리·그림자·크기가 동일한 카드가 <code>1fr 1fr</code>로 나란히 있습니다. 대칭 2열은 "이 둘은 짝"이라는 선언입니다. 08-12 확정 워크벤치에서 <b>채널을 나눠 등급을 줘도 평평했던</b> 것과 같은 실패이며, 해법도 같습니다 — <b>표면 수를 줄인다</b>.</p>
+    </div>
+    <div class="vcard">
+      <div class="no">결론 3</div>
+      <h4>좌측 쏠림은 토큰 오용 1줄</h4>
+      <p><code>layout.content</code>의 <code>max-w-[1440px]</code>에는 <code>mx-auto</code>가 없습니다. 관리자 화면에선 216px 다크 사이드바가 오른쪽으로 밀어 줘서 가운데로 보였을 뿐입니다. 사이드바가 없는 이 화면에선 그대로 왼쪽 벽에 붙습니다.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════ ① 진단 ══════════════════ -->
+<section id="diag">
+  <div class="sec-eyebrow">Diagnosis</div>
+  <h2>① 현재 화면 진단</h2>
+  <p class="sec-sub">지적 두 개를 각각 코드까지 내려가 원인을 특정합니다.</p>
+
+  <h3>1-1. 좌측 쏠림 — <code>flex-1</code>이 아무 일도 하지 않는다</h3>
+  <p><code>app/access-requests/layout.tsx</code>는 관리자 섹션의 콘텐츠 토큰을 빌려 씁니다.</p>
+  <p><code>pipelineStyles.layout.content = 'flex-1 min-w-0 max-w-[1440px] px-8 pt-6 pb-12'</code></p>
+  <p>이 토큰은 <code>/admin/pipelines/**</code> 전용입니다. 거기서는 <code>layout.shell</code>(<code>display:flex</code>) 안에서 <b>216px 다크 사이드바 오른쪽</b>에 놓이므로, 1440 블록이 화면 중앙 쪽으로 밀려 균형이 잡힙니다. <code>/access-requests</code>의 부모는 <code>&lt;body&gt;</code>이고 body는 flex 컨테이너가 아닙니다 — <code>flex-1</code>은 무효, <code>mx-auto</code>는 없음, 결과는 좌측 정렬된 1440 블록입니다.</p>
+
+  <figure>
+    <div class="vp">
+      <div class="vp-bar">
+        <div class="vp-fill" style="flex:1440">콘텐츠 1440px</div>
+        <div class="vp-void" style="flex:1120">빈 공간 1120px</div>
+      </div>
+      <div class="vp-cap">현재 — 2560px 모니터. 우측 44%가 통째로 빈다. 1920px에서도 480px이 빈다.</div>
+    </div>
+    <div class="vp">
+      <div class="vp-bar">
+        <div class="vp-void" style="flex:216">사이드바</div>
+        <div class="vp-fill" style="flex:1440">콘텐츠 1440px</div>
+        <div class="vp-void" style="flex:904">여백</div>
+      </div>
+      <div class="vp-cap">참고 — 같은 토큰이 <code>/admin/pipelines/**</code>에서 보이는 모습. 사이드바가 균형을 만들어 준다.</div>
+    </div>
+    <figcaption>같은 클래스, 다른 부모. 토큰이 틀린 게 아니라 <b>쓰는 자리</b>가 틀렸다.</figcaption>
+  </figure>
+
+  <div class="callout blue">
+    <span class="lbl">교정</span>
+    이 화면 전용 콘텐츠 클래스를 두고 <code>mx-auto</code>를 붙인다. 폭은 1440이 아니라 <b>1200</b>이 맞다 — 사이드바가 빠진 만큼 콘텐츠가 넓어질 이유는 없고, 행 스캔 콘텐츠가 아니라 목록 두 개짜리 화면이다.
+  </div>
+
+  <h3>1-2. 강약 없음 — 원인 네 가지</h3>
+
+  <figure>
+    <div class="ui">
+      <p class="h1">내 권한 요청</p>
+      <p class="sub">권한이 없는 서비스에 접근을 요청하고, 승인·반려 결과를 확인해요<span class="ann">포컬 포인트 없음</span></p>
+      <div class="grid2">
+        <div class="card">
+          <div class="chead">
+            <span class="ctitle">🧭 요청할 수 있는 서비스<span class="ann">18/600</span></span>
+            <span class="cbadge">12건</span>
+          </div>
+          <p class="cdesc">아직 접근 권한이 없는 서비스예요 — 사유를 적어 요청하면 관리자가 검토해요</p>
+          <div class="search">🔍 서비스 코드/이름 검색</div>
+          <div class="row"><span class="tile t1">A</span><span class="nm">AWS</span><span class="tag">aws</span><span class="btn sec">요청</span></div>
+          <div class="row"><span class="tile t2">A</span><span class="nm">Azure</span><span class="tag">azure</span><span class="btn sec">요청</span></div>
+          <div class="row"><span class="tile t3">G</span><span class="nm">GCP</span><span class="tag">gcp</span><span class="btn sec">요청</span></div>
+          <div class="row"><span class="tile t4">S</span><span class="nm">SDU</span><span class="tag">SDU</span><span class="btn sec">요청</span></div>
+          <div class="row"><span class="tile t5">P</span><span class="nm">Payments Core</span><span class="tag">pay</span><span class="btn sec">요청</span></div>
+          <div class="pager">‹ 1 / 3 ›</div>
+        </div>
+        <div class="card">
+          <div class="chead">
+            <span class="ctitle">🕐 내 요청 내역<span class="ann">18/600 — 동일</span></span>
+            <span class="cbadge mut">4건</span>
+          </div>
+          <p class="cdesc">요청한 건의 처리 상태예요 — 반려된 건은 사유를 확인하고 다시 요청할 수 있어요</p>
+          <div class="colhead"><span style="flex:1">서비스</span><span style="width:44px">코드</span><span style="width:52px">상태</span><span style="flex:1">결과 · 사유</span><span style="width:74px">요청 일자</span></div>
+          <div class="row"><span class="nm" style="font-size:14px">IDC</span><span class="tag">idc</span><span class="pill no">반려</span><span class="note">권한 범위가 넓어요</span><span class="when">08-11 14:02</span></div>
+          <div class="row"><span class="nm" style="font-size:14px">AWS</span><span class="tag">aws</span><span class="pill wait">대기</span><span class="note">—</span><span class="when">08-12 09:30</span></div>
+          <div class="row"><span class="nm" style="font-size:14px">Azure</span><span class="tag">azure</span><span class="pill ok">승인</span><span class="note">확인했어요</span><span class="when">08-10 11:20</span></div>
+          <div class="row" style="opacity:.35">&nbsp;</div>
+          <div class="row" style="opacity:.35">&nbsp;</div>
+          <div class="pager">‹ 1 / 1 ›</div>
+        </div>
+      </div>
+    </div>
+    <figcaption>현재 화면 재현(축소). 두 카드는 테두리·그림자·패딩·제목 크기가 <b>완전히 동일</b>하고 폭도 1:1이다.</figcaption>
+  </figure>
+
+  <div class="tblwrap">
+    <table>
+      <thead><tr><th style="width:52px">#</th><th>원인</th><th>근거</th><th style="width:210px">해법</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><b>a</b></td>
+          <td><b>판정이 화면에 없다</b></td>
+          <td>사용자가 이 화면에 오는 이유는 "내 요청 승인됐나?"인데, 그 답은 오른쪽 카드 표 안의 11px pill 하나에만 있다. 헤더는 기능 설명만 한다.</td>
+          <td>판정을 <b>헤더 문장</b>으로 끌어올린다 (32px 총계 + 상태 메타 줄)</td>
+        </tr>
+        <tr>
+          <td><b>b</b></td>
+          <td><b>형제 2장 = 평평</b></td>
+          <td>같은 바닥에 놓인 같은 크롬의 상자 둘. 계층은 <b>포함</b>에서 생기지 등급에서 생기지 않는다(RULE 10). EUI도 형제 패널은 서로 닮아야 한다고 규정한다 — 형제로 놓는 선택 자체가 순위를 포기하는 것.</td>
+          <td>테두리 있는 표면은 <b>1개</b>(조작 대상만). 기록은 바닥에 직접 놓고 헤어라인으로만 나눈다 (RULE 11)</td>
+        </tr>
+        <tr>
+          <td><b>c</b></td>
+          <td><b>타입 램프가 두 칸</b></td>
+          <td>24 → 18 → 16/14 뿐. 두 카드 제목이 같은 18/600이라 "둘 다 1등"이 된다.</td>
+          <td>램프를 <b>세 칸</b>으로: 29~32(판정 수치) → 16/600(작업 면 제목) → 14/600(기록 라벨). RULE 14</td>
+        </tr>
+        <tr>
+          <td><b>d</b></td>
+          <td><b>primary CTA가 0개</b></td>
+          <td>이 화면의 유일한 행동인 [요청]이 <code>variant="secondary" size="sm"</code>. 화면에서 가장 중요한 버튼이 가장 약한 버튼이다.</td>
+          <td>행 CTA를 <b>primary</b>로. 화면당 primary 1종은 유지된다(다른 primary 없음)</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ══════════════════ ② 벤치마크 ══════════════════ -->
+<section id="bench">
+  <div class="sec-eyebrow">Benchmark</div>
+  <h2>② 벤치마크</h2>
+  <p class="sec-sub">먼저 <b>제품 안</b>을 본다 — 같은 코드베이스에 이미 강약이 서 있는 화면이 다섯 개 있고, 그중 셋은 이 기능(접근 권한)이 이미 쓰고 있는 골격이다. 그다음 <b>제품 밖</b> 규칙을 확인한다.</p>
+
+  <h3>2-1. 제품 안 — 이미 있는 답</h3>
+  <div class="tblwrap">
+    <table>
+      <thead><tr><th style="width:190px">화면</th><th style="width:150px">폭 처리</th><th style="width:96px">표면 수</th><th>포컬 포인트</th><th style="width:180px">가져올 것</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><b>연동 요청</b><br><code>queue/requests</code></td>
+          <td>1440 + 사이드바</td>
+          <td>카드 3</td>
+          <td>헤더 문장 안의 <b>32px primary 총계</b> — "확인이 필요한 건이 총 <b>7</b>건 있어요". 두 소스가 모두 도착해야 수를 말한다(로딩 중엔 스켈레톤).</td>
+          <td><b>헤더 판정 문장 문법 전체</b></td>
+        </tr>
+        <tr>
+          <td><b>서비스별 권한</b><br><code>access/services</code></td>
+          <td>풀블리드 <b>레일 296 + 시트</b></td>
+          <td><b>시트 1장</b></td>
+          <td>eyebrow(14) → 서비스명 <b>26px/800</b> → 코드 칩 → statRow(18px 수치 2개). 시트 안엔 카드를 더 얹지 않고 <code>&lt;hr&gt;</code>로만 구역을 나눈다.</td>
+          <td>골격 자체(시안 B) 또는 identity 블록</td>
+        </tr>
+        <tr>
+          <td><b>Service List</b><br><code>/services</code></td>
+          <td>풀블리드 레일 + 콘텐츠</td>
+          <td>레일 1 + 본문</td>
+          <td>레일이 back plane(틴트), 콘텐츠가 front. 폭 낭비가 구조적으로 불가능하다.</td>
+          <td>사이드바 없는 화면의 폭 해법</td>
+        </tr>
+        <tr>
+          <td><b>운영 알림</b><br><code>ops/alerts</code></td>
+          <td>1440 + 사이드바</td>
+          <td>버킷 4</td>
+          <td>버킷 수치. 단 <b>버킷 하나 = 서로 다른 작업 큐</b>라서 성립한 구성이다.</td>
+          <td>(기각 근거로 사용)</td>
+        </tr>
+        <tr>
+          <td><b>Step-flow</b><br>스텝 화면</td>
+          <td>통합 헤더 + 우측 레일</td>
+          <td>시트 1</td>
+          <td>판정을 헤더로 올리고 본문은 하나로 유지. CardActionBar가 CTA를 한 자리에 모은다.</td>
+          <td>"판정은 헤더, 본문은 하나"</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout">
+    <span class="lbl" style="color:var(--mute)">관찰</span>
+    이 제품에서 <b>강약이 서 있는 화면은 전부 표면이 1~2개</b>다. 표면이 3개 이상인 화면(운영 알림)은 각 표면이 <b>서로 다른 목적지</b>를 가질 때만 성립했다. <code>/access-requests</code>의 두 카드는 목적지가 하나(같은 요청 흐름)라 그 조건을 못 채운다.
+  </div>
+
+  <h3>2-2. 제품 밖 — 검증된 규칙 5</h3>
+  <p>08-12 확정 워크벤치 리뷰 때 벤치마크한 9종(Cloudscape details/tabs/split-view/kv-pairs, Ant Descriptions, NN/g Cards, EUI Panel, Linear, GitLab Pajamas)의 결론을 그대로 적용한다. 같은 증상("계층이 전혀 없어 보인다")에 대한 같은 처방이다.</p>
+  <div class="tblwrap">
+    <table>
+      <thead><tr><th style="width:150px">출처</th><th>규칙</th><th style="width:230px">이 화면에 적용하면</th></tr></thead>
+      <tbody>
+        <tr><td><b>AWS Cloudscape</b><br>split view</td><td>컨테이너를 없애고 kv를 패널에 직접 놓아 시각 노이즈를 줄이라고 명시.</td><td>내역 표는 카드에서 꺼내 바닥에 직접</td></tr>
+        <tr><td><b>Elastic EUI</b><br>Panel</td><td>형제 패널끼리는 <b>닮게</b> 유지하라. → 형제로 놓는 순간 순위는 포기된다.</td><td>두 목록을 형제로 두지 않는다</td></tr>
+        <tr><td><b>NN/g</b><br>Cards</td><td>카드 레이아웃은 콘텐츠의 <b>순위를 흐린다</b>. 카드는 둘러보기(browse)용 부품.</td><td>확인·검색 작업 화면에 카드 2장은 부품 선택부터 틀림</td></tr>
+        <tr><td><b>Ant Design</b><br>Descriptions</td><td>사실이 셋을 넘으면 세로 나열이 아니라 <b>열</b>로 접는다(기본 3열).</td><td>대기/승인/반려 3수치는 카드 3장이 아니라 한 줄 메타</td></tr>
+        <tr><td><b>GitLab Pajamas</b></td><td>디스클로저가 3단계를 넘으면 기능이 과복잡하다는 신호.</td><td>목록 → 모달 → 결과 토스트, 2단계 유지. 상세 페이지를 새로 만들지 않는다</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ══════════════════ ③ 시안 ══════════════════ -->
+<section id="alts">
+  <div class="sec-eyebrow">Alternatives</div>
+  <h2>③ 시안 3안</h2>
+  <p class="sec-sub">세 안 모두 <b>폭 교정(mx-auto)</b>과 <b>헤더 판정 문장</b>을 공유한다. 갈리는 지점은 "요청 목록과 내역을 어떤 구조로 놓을 것인가"다.</p>
+
+  <!-- 시안 A -->
+  <div class="alt win">
+    <div class="alt-head">
+      <span class="alt-key">시안 A</span>
+      <h4>판정 헤더 + 작업면 1장 + 바닥 기록 <span class="chip ok">권장</span></h4>
+    </div>
+    <div class="alt-body">
+      <p>표면을 <b>1개</b>로 줄인다. 판정은 헤더 타입으로, 조작 대상(요청할 서비스)만 테두리 있는 카드로, 기록(내 요청 내역)은 바닥에 직접 놓고 헤어라인으로만 나눈다. 세 요소가 <b>세 개의 다른 평면</b>에 있으므로 등급을 매기지 않아도 순위가 생긴다.</p>
+
+      <figure>
+        <div class="ui">
+          <p class="h1">내 권한 요청</p>
+          <p class="sub">요청한 4건 중<span class="big">1</span>건이 관리자 확인을 기다리고 있어요<span class="ann g">판정 수치</span></p>
+          <p class="metaline"><span>승인 <b>2</b></span><span>반려 <b>1</b> · 사유 확인 후 다시 요청할 수 있어요</span></p>
+
+          <div style="margin-top:18px" class="card">
+            <div class="chead">
+              <span class="ctitle">요청할 수 있는 서비스<span class="ann g">유일한 면</span></span>
+              <span class="cbadge">12건</span>
+            </div>
+            <p class="cdesc">사유를 적어 요청하면 관리자가 검토해요</p>
+            <div class="search">🔍 서비스 코드/이름 검색</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 26px">
+              <div class="row"><span class="tile t1">A</span><span class="nm">AWS</span><span class="tag">aws</span><span class="btn pri">권한 요청</span></div>
+              <div class="row"><span class="tile t3">G</span><span class="nm">GCP</span><span class="tag">gcp</span><span class="btn pri">권한 요청</span></div>
+              <div class="row"><span class="tile t2">A</span><span class="nm">Azure</span><span class="tag">azure</span><span class="btn pri">권한 요청</span></div>
+              <div class="row"><span class="tile t4">S</span><span class="nm">SDU</span><span class="tag">SDU</span><span class="btn pri">권한 요청</span></div>
+              <div class="row"><span class="tile t5">P</span><span class="nm">Payments Core</span><span class="tag">pay</span><span class="btn pri">권한 요청</span></div>
+              <div class="row"><span class="tile t1">L</span><span class="nm">Ledger</span><span class="tag">lgr</span><span class="btn pri">권한 요청</span></div>
+            </div>
+            <div class="pager">‹ 1 / 2 ›</div>
+          </div>
+
+          <div class="flat">
+            <div class="chead">
+              <span class="ctitle sm">내 요청 내역<span class="ann g">14/600 · 면 없음</span></span>
+              <span class="cbadge mut">4건</span>
+            </div>
+            <div class="colhead"><span style="flex:1">서비스</span><span style="width:44px">코드</span><span style="width:52px">상태</span><span style="flex:1.6">결과 · 사유</span><span style="width:74px">요청 일자</span></div>
+            <div class="row"><span class="nm" style="font-size:14px">IDC</span><span class="tag">idc</span><span class="pill no">반려</span><span class="note" style="flex:1.6">권한 범위가 넓어요 — 대상을 좁혀 다시 요청해 주세요</span><span class="when">08-11 14:02</span></div>
+            <div class="row"><span class="nm" style="font-size:14px">AWS</span><span class="tag">aws</span><span class="pill wait">대기</span><span class="note" style="flex:1.6">—</span><span class="when">08-12 09:30</span></div>
+            <div class="row"><span class="nm" style="font-size:14px">Azure</span><span class="tag">azure</span><span class="pill ok">승인</span><span class="note" style="flex:1.6">확인했어요</span><span class="when">08-10 11:20</span></div>
+            <div class="pager">‹ 1 / 1 ›</div>
+          </div>
+        </div>
+        <figcaption>축소 렌더. 실제 값: 헤더 총계 32px/700 primary · 카드 제목 18/600 · 기록 라벨 14/600.</figcaption>
+      </figure>
+
+      <div class="cols">
+        <div>
+          <span class="lbl">좋은 점</span>
+          <ul>
+            <li>표면 1개 — RULE 11을 정확히 만족. 세 평면(타입 / 카드 / 바닥)이 곧 세 등급.</li>
+            <li>재방문자의 질문("승인됐나?")에 <b>스크롤 없이</b> 답한다.</li>
+            <li>2열 그리드로 한 화면에 서비스 10개 → 폭이 실제로 일을 한다.</li>
+            <li>기존 부품만 쓴다. <code>PagedCard</code>에 이미 <code>bare</code> prop이 있고(시트용), 기록 쪽이 바로 그 모드다.</li>
+          </ul>
+        </div>
+        <div>
+          <span class="lbl">비용 / 리스크</span>
+          <ul>
+            <li>세로로 길어진다. 1440×900에서 기록 표 하단이 접힘 아래로 내려간다 — 다만 기록은 2순위라 의도된 순서다.</li>
+            <li>요청 0건인 첫 방문자에겐 헤더 수치가 비어 다른 문장이 필요하다(문안 아래 §적용 참고).</li>
+            <li>[권한 요청] primary가 행마다 6개 → 색 면적이 커진다. <b>hover에만 primary, 평상시 secondary</b>로 완화 가능.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 시안 B -->
+  <div class="alt">
+    <div class="alt-head">
+      <span class="alt-key">시안 B</span>
+      <h4>레일 + 시트 — 접근 권한 3화면과 같은 골격</h4>
+    </div>
+    <div class="alt-body">
+      <p>이 기능의 관리자 화면(<code>서비스별 권한</code>)이 이미 쓰는 골격을 그대로 요청자 쪽에 적용한다. 좌측 296px 레일에 서비스(+내 권한 상태), 우측 시트에 선택한 서비스의 내 상태·요청 이력·CTA.</p>
+
+      <figure>
+        <div class="ui">
+          <p class="h1">내 권한 요청</p>
+          <p class="sub">요청한 4건 중<span class="big">1</span>건이 관리자 확인을 기다리고 있어요</p>
+          <div class="split">
+            <div class="rail">
+              <div style="padding:12px 10px 8px;display:flex;align-items:center;gap:7px">
+                <b style="font-size:14px">서비스</b><span class="cbadge mut">20</span>
+              </div>
+              <div style="padding:0 10px 10px"><div class="search" style="margin:0">🔍 검색</div></div>
+              <div class="railitem"><span class="tile t1">A</span><span class="nm" style="font-size:14px">AWS</span><span class="pill wait">대기</span></div>
+              <div class="railitem on"><span class="tile t3">I</span><span class="nm" style="font-size:14px">IDC</span><span class="pill no">반려</span></div>
+              <div class="railitem"><span class="tile t2">A</span><span class="nm" style="font-size:14px">Azure</span><span class="pill ok">승인</span></div>
+              <div class="railitem"><span class="tile t4">S</span><span class="nm" style="font-size:14px">SDU</span><span class="tag">SDU</span></div>
+              <div class="railitem"><span class="tile t5">P</span><span class="nm" style="font-size:14px">Payments</span><span class="tag">pay</span></div>
+              <div style="padding:10px;text-align:center;color:#667085;font-size:12px">‹ 1 / 4 ›</div>
+            </div>
+            <div class="sheet">
+              <div class="eyeb">서비스</div>
+              <div style="display:flex;align-items:center;gap:10px">
+                <p class="hero2">IDC</p><span class="tag" style="padding:2px 8px">idc</span>
+              </div>
+              <div class="kv">
+                <div><div class="k">내 권한</div><div class="v">없음</div></div>
+                <div><div class="k">요청 상태</div><div class="v" style="color:#B42318">반려</div></div>
+                <div><div class="k">최근 요청</div><div class="v">08-11</div></div>
+              </div>
+              <hr class="rule">
+              <div class="ctitle sm">반려 사유</div>
+              <div style="background:#F9FAFB;border-radius:8px;padding:10px 12px;margin-top:7px;font-size:14px;color:#344054">
+                권한 범위가 넓어요 — 대상을 좁혀 다시 요청해 주세요
+              </div>
+              <div style="margin-top:14px"><span class="btn pri" style="padding:7px 14px">권한 다시 요청</span></div>
+              <hr class="rule">
+              <div class="ctitle sm">이 서비스 요청 이력</div>
+              <div class="row"><span class="pill no">반려</span><span class="note">권한 범위가 넓어요</span><span class="when">08-11</span></div>
+              <div class="row"><span class="pill wait">요청</span><span class="note">분기 점검 업무가 배정됐어요</span><span class="when">08-09</span></div>
+            </div>
+          </div>
+        </div>
+        <figcaption>축소 렌더. 레일 폭·타일·코드 태그·시트 문법 전부 <code>서비스별 권한</code>에서 그대로 온다.</figcaption>
+      </figure>
+
+      <div class="cols">
+        <div>
+          <span class="lbl">좋은 점</span>
+          <ul>
+            <li>접근 권한 4개 화면이 <b>하나의 골격</b>으로 통일된다. 관리자↔요청자가 같은 화면 문법을 배운다.</li>
+            <li>풀블리드라 좌측 쏠림이 <b>구조적으로 불가능</b>해진다.</li>
+            <li>서비스 하나를 기준으로 "내 권한 · 요청 상태 · 사유 · 이력"이 한 자리에 모인다.</li>
+          </ul>
+        </div>
+        <div>
+          <span class="lbl">비용 / 리스크</span>
+          <ul>
+            <li><b>전체 내역을 한눈에 못 본다.</b> "내가 뭘 요청했더라"가 서비스별로 흩어진다 — 요구사항 ④(승인 내역 조회)와 정면으로 충돌.</li>
+            <li>첫 방문자는 아무것도 선택되지 않은 <b>빈 시트</b>를 본다. 요청 흐름의 시작이 "고르기"가 아니라 "찾기"인데 레일은 훑기용 부품.</li>
+            <li>요청은 보통 1~2건인데 20행 레일은 과설계. Cloudscape도 split view는 상세 페이지를 대체하지 말라고 한다.</li>
+            <li>구현량이 가장 크다(레일 상태·라우팅·시트 4슬롯).</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 시안 C -->
+  <div class="alt">
+    <div class="alt-head">
+      <span class="alt-key">시안 C</span>
+      <h4>비대칭 2열 — 작업면(1.35fr) + 리세스 기록(1fr)</h4>
+    </div>
+    <div class="alt-body">
+      <p>2열은 유지하되 <b>대칭을 깬다</b>. 왼쪽은 테두리+그림자의 카드(조작 대상), 오른쪽은 면에 파인 홈(리세스, 그림자 없음, 12px 라벨 헤더). 폭도 1.35 : 1 — "짝이 아니다"를 폭으로 먼저 말한다. 리세스 색은 표준 <code>#F2F4F7</code>이 아니라 <code>#E9EBF3</code>이다(이유는 리스크 첫 항목).</p>
+
+      <figure>
+        <div class="ui">
+          <p class="h1">내 권한 요청</p>
+          <p class="sub">요청한 4건 중<span class="big">1</span>건이 관리자 확인을 기다리고 있어요</p>
+          <div class="grid-asym">
+            <div class="card">
+              <div class="chead"><span class="ctitle">요청할 수 있는 서비스</span><span class="cbadge">12건</span></div>
+              <p class="cdesc">사유를 적어 요청하면 관리자가 검토해요</p>
+              <div class="search">🔍 서비스 코드/이름 검색</div>
+              <div class="row"><span class="tile t1">A</span><span class="nm">AWS</span><span class="tag">aws</span><span class="btn pri">권한 요청</span></div>
+              <div class="row"><span class="tile t2">A</span><span class="nm">Azure</span><span class="tag">azure</span><span class="btn pri">권한 요청</span></div>
+              <div class="row"><span class="tile t3">G</span><span class="nm">GCP</span><span class="tag">gcp</span><span class="btn pri">권한 요청</span></div>
+              <div class="row"><span class="tile t4">S</span><span class="nm">SDU</span><span class="tag">SDU</span><span class="btn pri">권한 요청</span></div>
+              <div class="row"><span class="tile t5">P</span><span class="nm">Payments Core</span><span class="tag">pay</span><span class="btn pri">권한 요청</span></div>
+              <div class="pager">‹ 1 / 3 ›</div>
+            </div>
+            <div class="recess">
+              <div class="chead"><span class="ctitle sm" style="color:#475467">내 요청 내역</span><span class="cbadge mut">4건</span></div>
+              <div class="row" style="border-top:1px solid #E4E7EC;margin-top:8px">
+                <span class="pill no">반려</span><span class="nm" style="font-size:14px">IDC</span><span class="when">08-11</span>
+              </div>
+              <div style="font-size:12px;color:#475467;padding:0 0 8px 2px">권한 범위가 넓어요</div>
+              <div class="row"><span class="pill wait">대기</span><span class="nm" style="font-size:14px">AWS</span><span class="when">08-12</span></div>
+              <div class="row"><span class="pill ok">승인</span><span class="nm" style="font-size:14px">Azure</span><span class="when">08-10</span></div>
+              <div class="pager">‹ 1 / 1 ›</div>
+            </div>
+          </div>
+        </div>
+        <figcaption>축소 렌더. 리세스가 <code>#E9EBF3</code>인 이유는 아래 리스크 첫 항목 참조. 리세스 위에서는 잉크를 한 단 진하게(라벨 <code>#475467</code>) — <code>#667085</code>는 그 위에서 AA 경계에 걸린다.</figcaption>
+      </figure>
+
+      <div class="cols">
+        <div>
+          <span class="lbl">좋은 점</span>
+          <ul>
+            <li>세로 길이가 현재와 같다. 두 목록이 <b>한 화면에</b> 남는다.</li>
+            <li>변경량이 가장 작다 — 그리드 비율 + 오른쪽 카드의 크롬 교체.</li>
+            <li>기록이 좁아지며 열이 3개로 줄어 오히려 읽기 쉬워진다(사유는 행 아래 줄로).</li>
+          </ul>
+        </div>
+        <div>
+          <span class="lbl">비용 / 리스크</span>
+          <ul>
+            <li><b>표준 리세스가 이 화면에선 안 먹힌다.</b> 목업을 그려 보고 발견한 것이다 — 리세스 표준값 <code>#F2F4F7</code>은 이 페이지 바닥 <code>#F4F4FB</code>(body 배경)와 사실상 같은 밝기라 홈이 보이지 않는다. 리세스는 <b>흰 시트를 파낼 때</b> 성립하는 장치인데 이 화면엔 팔 시트가 없다. 쓰려면 <code>#E9EBF3</code> 정도로 한 단 더 내려야 하고, 그만큼 그 위 텍스트의 대비 여유가 깎인다.</li>
+            <li>여전히 <b>같은 바닥의 형제 둘</b>이다. 08-12에 "채널을 나눠도 형제면 평평"을 이미 겪었다 — 리세스가 깊이를 만들어 주긴 하지만 A만큼 확실하진 않다.</li>
+            <li>기록의 열이 줄어 "결과·사유" 전문이 잘린다.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════ 기각 ══════════════════ -->
+<section id="reject">
+  <div class="sec-eyebrow">Rejected</div>
+  <h2>기각안 — 상단 요약 버킷 3장</h2>
+  <p class="sec-sub">가장 먼저 떠오르는 안이고, 실제로 이 제품에 선례(운영 알림 4버킷)가 있어서 기각 사유를 남긴다.</p>
+
+  <figure>
+    <div class="ui" style="opacity:.75">
+      <p class="h1">내 권한 요청</p>
+      <div class="bucket">
+        <div class="bcard"><div class="k" style="font-size:12px;color:#667085">대기</div><div class="bnum" style="color:#B54708">1</div></div>
+        <div class="bcard"><div class="k" style="font-size:12px;color:#667085">승인</div><div class="bnum" style="color:#027A48">2</div></div>
+        <div class="bcard"><div class="k" style="font-size:12px;color:#667085">반려</div><div class="bnum" style="color:#B42318">1</div></div>
+      </div>
+      <div class="grid2">
+        <div class="card" style="min-height:90px"><span class="ctitle">요청할 수 있는 서비스</span></div>
+        <div class="card" style="min-height:90px"><span class="ctitle">내 요청 내역</span></div>
+      </div>
+      <div style="text-align:center;margin-top:14px;font-size:12px;color:#B42318;font-weight:700">표면 5개 — 강약을 고치려다 분산을 늘린다</div>
+    </div>
+  </figure>
+
+  <p><b>기각 사유.</b> 운영 알림에서 버킷이 성립한 이유는 <b>버킷 하나가 서로 다른 작업 큐의 진입점</b>이기 때문이다(누르면 다른 목록으로 간다). 여기서는 세 수치가 전부 <b>같은 표 하나</b>를 가리키므로, 버킷은 아래 표가 이미 말하는 사실을 반복하면서 표면 수만 셋 늘린다. 같은 사실을 두 표면에 쓰지 않는다(RULE 8), 사실이 셋을 넘으면 카드가 아니라 열이다(RULE 12) — 그 "열"이 시안 A의 <code>승인 2 · 반려 1</code> 메타 한 줄이다.</p>
+</section>
+
+<!-- ══════════════════ 적용 ══════════════════ -->
+<section id="apply">
+  <div class="sec-eyebrow">Apply</div>
+  <h2>권장안과 적용 수치</h2>
+  <p class="sec-sub"><b>시안 A</b>를 권장한다. 폭 교정은 어느 안을 고르든 동일하게 선행한다.</p>
+
+  <div class="road">
+    <div class="step">
+      <h4>1. 폭 교정 <span class="chip p2">공통</span></h4>
+      <p><code>app/access-requests/layout.tsx</code>에서 <code>pipelineStyles.layout.content</code> 대신 <code>mx-auto w-full max-w-[1200px] px-8 pt-6 pb-12</code>. 관리자 토큰은 사이드바를 전제하므로 이 화면이 빌려 쓰면 안 된다는 주석을 남긴다.</p>
+    </div>
+    <div class="step">
+      <h4>2. 헤더 판정 문장 <span class="chip p0">P0</span></h4>
+      <p><code>queue/requests</code>의 문법을 그대로 옮긴다 — 14px 문장 + <code>text-[32px] font-bold text-[var(--pl-primary)]</code> 인라인 수치 + 도착 전 스켈레톤. 우선순위는 <b>반려 &gt; 대기 &gt; 없음</b>: 반려가 있으면 "반려된 1건이 있어요 — 사유를 확인하고 다시 요청할 수 있어요", 없으면 대기 건수, 요청이 0건이면 "아직 요청한 권한이 없어요. 아래에서 서비스를 골라 요청해 보세요".</p>
+    </div>
+    <div class="step">
+      <h4>3. 표면 1개로 <span class="chip p0">P0</span></h4>
+      <p>내역 카드를 <code>PagedCard bare</code>로 바꿔 바닥에 놓는다(이미 있는 prop, 서비스별 권한 시트가 쓰는 모드). 제목은 18/600 → <code>text-[14px] font-semibold text-[var(--pl-text-medium)]</code>. 요청 카드만 <code>a.card</code> 유지.</p>
+    </div>
+    <div class="step">
+      <h4>4. CTA 승격 <span class="chip p1">P1</span></h4>
+      <p>행 버튼 <code>variant="secondary"</code> → <code>"primary"</code>, 라벨 <code>요청</code> → <code>권한 요청</code>. 화면에 다른 primary가 없어 예산은 1종을 유지한다.</p>
+    </div>
+    <div class="step">
+      <h4>5. 서비스 목록 2열 <span class="chip p2">P2</span></h4>
+      <p>카드 본문을 <code>grid grid-cols-2 gap-x-6</code>, 페이지당 5 → 10행. 1200px 폭에서 한 행이 594px이라 타일+이름+코드+버튼에 적정하다. 이걸 안 할 거면 폭을 1200 → 1000으로 줄이는 편이 낫다.</p>
+    </div>
+  </div>
+
+  <h3>바뀌지 않는 것</h3>
+  <ul>
+    <li>서비스 행 문법(타일 · 이름 · 코드 태그) — 방금 <code>/services</code> 레일과 맞춘 것이라 그대로 둔다.</li>
+    <li>검색(300ms 디바운스, 코드·이름, 서버 질의) — 그대로.</li>
+    <li>요청 모달, 계약, mock — 손대지 않는다. 이 문서의 제안은 전부 <b>레이아웃과 타입</b>이다.</li>
+  </ul>
+
+  <div class="callout blue">
+    <span class="lbl">결정이 필요한 것</span>
+    ① 시안 A / B / C 중 무엇으로 갈지 &nbsp;·&nbsp; ② 헤더 문장의 우선순위를 "반려 우선"으로 할지 "대기 우선"으로 할지 &nbsp;·&nbsp; ③ 서비스 목록 2열 적용 여부(적용 안 하면 폭 1000)
+  </div>
+</section>
+
+<footer>
+  PII Agent · design/access/access-requests-hierarchy.html · 기준 커밋 d59e00be (feat/access-admin) · 2026-08-13<br>
+  적용 규칙 출처: 확정 워크벤치 v4/v4.1 리뷰(2026-08-12)에서 검증된 RULE 7~20 및 벤치마크 9종.
+</footer>
+
+</div>

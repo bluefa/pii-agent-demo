@@ -327,6 +327,41 @@ export interface BffClient {
     ) => Promise<z.infer<typeof schemas.AwsAssumeRoleUpsertResponse>>;
     getTargetSourceList: (query: string | undefined, page: number, size: number) => Promise<OpsTargetSourceListPageWire>;
   };
+
+  /**
+   * 서비스 접근 권한 관리 — ASSUMED contracts (docs/api/access-assumed-contracts.md).
+   * Same deliberate exception as `ops` above: the 접근 권한 menu group needs these
+   * before the BFF ships them. `/admin/access/*` is admin-only; `/access/*` is the
+   * requester's own surface (a user with no permission still has to be able to ask).
+   */
+  access: {
+    // 서비스 (관리자 목록 · 권한 사용자)
+    listServices: (query: string | undefined, page: number, size: number) => Promise<AdminServicePageWire>;
+    listServiceOwners: (serviceCode: string) => Promise<ServiceOwnersWire>;
+    addServiceOwners: (serviceCode: string, emails: string[]) => Promise<ServiceOwnersWire>;
+    removeServiceOwner: (serviceCode: string, email: string) => Promise<ServiceOwnersWire>;
+    // 관리자
+    listAdmins: () => Promise<AdminListWire>;
+    addAdmin: (email: string) => Promise<AccessUserWire>;
+    removeAdmin: (email: string) => Promise<void>;
+    // 접근 권한 요청 — 승인/반려는 204 라 화면이 다시 읽는다.
+    listRequests: (status: string | undefined, page: number, size: number) => Promise<PermissionRequestPageWire>;
+    getRequest: (requestId: number) => Promise<PermissionRequestDetailWire>;
+    approveRequest: (requestId: number, message: string) => Promise<void>;
+    rejectRequest: (requestId: number, reason: string) => Promise<void>;
+    // 이력
+    listHistory: (
+      query: { serviceCode?: string; type?: string },
+      page: number,
+      size: number,
+    ) => Promise<AccessHistoryPageWire>;
+    // 사용자 측 — admin 게이트 밖
+    createRequest: (serviceCode: string, reason: string) => Promise<void>;
+    listMyRequests: (page: number, size: number) => Promise<PermissionRequestDetailPageWire>;
+    listUserServices: (query: string | undefined, page: number, size: number) => Promise<UserServicePageWire>;
+    listServicesPage: (query: string | undefined, page: number, size: number) => Promise<ServicePageWire>;
+    searchUsers: (query: string | undefined) => Promise<AccessUserSearchWire>;
+  };
 }
 
 /** Ops console assumed-contract wire shapes (docs/api/ops-assumed-contracts.md). */
@@ -387,6 +422,171 @@ export interface OpsTargetSourceListPageWire {
   number: number;
   content: OpsTargetSourceListItemWire[];
 }
+
+/**
+ * 서비스 접근 권한 wire shapes (docs/api/access-assumed-contracts.md).
+ *
+ * 이 도메인은 오너가 준 백엔드 초안 스펙을 **그대로** 따른다 — 경로·필드명·상태코드
+ * 전부. 아직 스펙에 없는 것은 두 개뿐이고 문서에 따로 표시해 두었다.
+ * snake_case wire, Spring `Page` 페이지네이션 — install-v1 과 같은 규약.
+ */
+
+/**
+ * `UserSummary` — 계약에 사람 이름이 없다. `knox_id` 가 화면에 찍는 값이고,
+ * `email` 이 모든 쓰기의 식별 키다.
+ */
+export interface AccessUserWire {
+  knox_id: string;
+  email: string;
+  role: string;
+}
+
+/** Spring-Page subset the paged access endpoints return. */
+export interface AccessPageWire<T> {
+  content: T[];
+  totalElements: number;
+  totalPages: number;
+  size: number;
+  number: number;
+}
+
+/** `AdminServiceRow` — 관리자 서비스 목록의 행. 레일의 권한자 수가 여기서 나온다. */
+export interface AdminServiceRowWire {
+  service_code: string;
+  service_name: string;
+  owner_count: number;
+  owners: AccessUserWire[];
+  last_modified_at: string | null;
+}
+
+export type AdminServicePageWire = AccessPageWire<AdminServiceRowWire>;
+
+/**
+ * `ServiceOwnersResponse` — **페이지가 아니다.** 한 서비스의 권한 사용자 전체를 한 번에
+ * 준다. 부여/해제도 같은 모양을 돌려주므로 쓰기 뒤 재조회가 필요 없다.
+ */
+export interface ServiceOwnersWire {
+  service_code: string;
+  service_name: string;
+  owners: AccessUserWire[];
+}
+
+/** `AdminListResponse` — 여기도 페이지가 아니다. */
+export interface AdminListWire {
+  admins: AccessUserWire[];
+}
+
+export type AccessRequestStatusWire = 'PENDING' | 'APPROVED' | 'REJECTED';
+
+/**
+ * `PermissionRequestRow` — 목록의 행.
+ *
+ * 계약 갭(B3): `reason` 과 `status` 가 없다. 요청 사유는 상세에만 있어서 두 카드가
+ * 사유 미리보기를 못 한다. 세 필드(`reason`·`status`·`processed_at`)가 추가되면
+ * 열이 되살아난다 — 그때까지 목록은 사유를 말하지 않는다.
+ */
+export interface PermissionRequestRowWire {
+  request_id: number;
+  service_code: string;
+  service_name: string;
+  requester: AccessUserWire;
+  requested_at: string;
+}
+
+export type PermissionRequestPageWire = AccessPageWire<PermissionRequestRowWire>;
+
+/** `PermissionRequestDetail` — 사유와 판정이 사는 곳. */
+export interface PermissionRequestDetailWire {
+  request_id: number;
+  service_code: string;
+  service_name: string;
+  requester: AccessUserWire;
+  reason: string;
+  status: AccessRequestStatusWire;
+  requested_at: string;
+  processed_at: string | null;
+  processed_by: AccessUserWire | null;
+  /** 승인 메시지 또는 반려 사유. */
+  processed_note: string | null;
+}
+
+export type PermissionRequestDetailPageWire = AccessPageWire<PermissionRequestDetailWire>;
+
+export type AccessHistoryTypeWire =
+  | 'APPROVED'
+  | 'REJECTED'
+  | 'GRANTED'
+  | 'REVOKED'
+  | 'ADMIN_GRANTED'
+  | 'ADMIN_REVOKED';
+
+/** `AccessHistoryRow` — 권한이 움직인 기록. 부여 경로는 `type` 으로만 갈린다. */
+export interface AccessHistoryRowWire {
+  history_id: number;
+  type: AccessHistoryTypeWire;
+  /** null for admin-role entries — they belong to no service. */
+  service_code: string | null;
+  service_name: string | null;
+  target_user: AccessUserWire;
+  actor_user: AccessUserWire;
+  note: string | null;
+  created_at: string;
+}
+
+export type AccessHistoryPageWire = AccessPageWire<AccessHistoryRowWire>;
+
+/**
+ * `GET /users/search?q=` — 2026-08-14 실구현. 본문은 오너가 `UserSummary`
+ * (knox_id·email·role) 로 확정했다. swagger 의 `UserSearchResponse`(id·name·email)는
+ * 그 확정 이전 모양이라 이 인터페이스와 다르다 — 갱신은 오너 몫.
+ */
+export interface AccessUserSearchWire {
+  users: AccessUserWire[];
+}
+
+/**
+ * `access_status` — `/user/services/page` 가 전체 서비스를 돌려주면서 붙는 필드.
+ * 요청 가능한 서비스는 이 값이 NONE 이거나 REJECTED 인 것들이다.
+ */
+export type ServiceAccessStatusWire = 'OWNED' | 'REQUESTED' | 'REJECTED' | 'NONE';
+
+/**
+ * `GET /user/services/page` — **내가 담당인 서비스만** (ADMIN 은 전체).
+ *
+ * 2026-08-14 오너 스펙 변경: 경로 이름과 뜻이 어긋나지 않도록 이 호출은 담당 서비스로
+ * 좁혔고, 전체 목록은 `GET /services/page` 로 갈라졌다. 요청 대상을 고르는 목록은
+ * 그쪽이다 — 이쪽은 "내가 접근할 수 있는 서비스".
+ */
+export interface UserServiceRowWire {
+  service_code: string;
+  service_name: string;
+  access_status: ServiceAccessStatusWire;
+  /** infra 카탈로그의 EOS 값. 미지정은 "EOS 아님"이 아니라 "모름"이다. */
+  is_eos_service: boolean | null;
+}
+
+export type UserServicePageWire = AccessPageWire<UserServiceRowWire>;
+
+/**
+ * `GET /services/page` — 전체 서비스 + 내 접근 상태 + 담당자. 신청 대상 선택용.
+ *
+ * `owners` 는 오너 스펙의 "담당자 표시명"이다 — `UserSummary` 가 아니라 문자열 배열로
+ * 읽는다. 사람 이름 필드가 계약 어디에도 없으므로 목은 Knox ID 를 싣는다(화면이 사람을
+ * 부르는 이름이 그것이다). **실제 원소 모양은 확인 대기** — UserSummary 로 오면
+ * `toServiceRow` 한 곳만 바뀐다.
+ */
+export interface ServicePageRowWire {
+  service_code: string;
+  service_name: string;
+  /** 약어 — infra 카탈로그가 주던 값을 그대로 흘려보낸다. 없으면 null. */
+  service_abbr_name: string | null;
+  access_status: ServiceAccessStatusWire;
+  is_eos_service: boolean | null;
+  owners: string[];
+  owner_count: number;
+}
+
+export type ServicePageWire = AccessPageWire<ServicePageRowWire>;
 
 /**
  * 서비스 운영은 assumed 계약을 쓰지 않는다 — `/admin/ops/services*` 는 install-v1.yaml

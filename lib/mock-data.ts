@@ -106,6 +106,7 @@ const createStatusForProcessStatus = (
 export const mockUsers: User[] = [
   {
     id: 'user-1',
+    knoxId: 'gildong.hong',
     name: '홍길동',
     email: 'hong@company.com',
     role: 'SERVICE_MANAGER',
@@ -113,6 +114,7 @@ export const mockUsers: User[] = [
   },
   {
     id: 'user-2',
+    knoxId: 'chulsoo.kim',
     name: '김철수',
     email: 'kim@company.com',
     role: 'SERVICE_MANAGER',
@@ -120,11 +122,30 @@ export const mockUsers: User[] = [
   },
   {
     id: 'admin-1',
+    knoxId: 'admin.pass',
     name: '관리자',
     email: 'admin@company.com',
     role: 'ADMIN',
-    serviceCodePermissions: [],
+    // ADMIN 은 서비스 검사를 role 로 통과하므로(`role !== 'ADMIN' && !permissions…`)
+    // 이 목록은 다른 화면에 영향이 없다. 접근 권한 화면에서만 읽힌다 — `access_status`
+    // 를 정하는 건 role 이 아니라 이 목록이라서, 승인된 요청(1007·1008)의 서비스가
+    // 여기 없으면 "승인됨"인데 접근 가능 목록엔 없는 상태가 된다.
+    serviceCodePermissions: ['PAY', 'MBR'],
   },
+  // 접근 권한 화면들이 쓸 사용자들 — 표와 페이저에 실을 것이 있어야 하고, 권한이
+  // 없는 사용자(user-6·user-8)가 있어야 "권한 요청" 흐름을 열어 볼 수 있다.
+  // 여기 두는 이유: 현재 사용자(getCurrentUser)는 이 배열에서만 고를 수 있다.
+  // 카탈로그 뒤쪽 서비스들(DLV·CPN·…)의 담당자도 여기서 나온다. `/services/page` 가
+  // 행마다 담당자를 싣기로 하면서(2026-08-14 오너 스펙) 목록 화면이 그 이름을 그리는데,
+  // 담당자가 시드에 없으면 열다섯 줄이 모두 "담당자 없음"이 되어 실제와 다른 화면이
+  // 된다. MKT 한 건만 일부러 비워 둔다 — 담당자 없는 서비스도 볼 수 있어야 한다.
+  { id: 'user-3', knoxId: 'younghee.lee', name: '이영희', email: 'lee@company.com', role: 'SERVICE_MANAGER', serviceCodePermissions: ['aws', 'gcp', 'CPN', 'ORD', 'RVW', 'ADS'] },
+  { id: 'user-4', knoxId: 'minsu.park', name: '박민수', email: 'park@company.com', role: 'SERVICE_MANAGER', serviceCodePermissions: ['azure', 'DLV', 'SEL', 'PRD'] },
+  { id: 'user-5', knoxId: 'sujin.jung', name: '정수진', email: 'jung@company.com', role: 'SERVICE_MANAGER', serviceCodePermissions: ['aws', 'idc', 'SDU', 'DLV', 'IVT', 'NTF', 'LOG'] },
+  { id: 'user-6', knoxId: 'donghyun.choi', name: '최동현', email: 'choi@company.com', role: 'SERVICE_MANAGER', serviceCodePermissions: [] },
+  { id: 'user-7', knoxId: 'haneul.kang', name: '강하늘', email: 'kang@company.com', role: 'SERVICE_MANAGER', serviceCodePermissions: ['gcp'] },
+  { id: 'user-8', knoxId: 'seoyeon.yoon', name: '윤서연', email: 'yoon@company.com', role: 'SERVICE_MANAGER', serviceCodePermissions: [] },
+  { id: 'user-9', knoxId: 'jaehyun.lim', name: '임재현', email: 'lim@company.com', role: 'SERVICE_MANAGER', serviceCodePermissions: ['aws', 'SRC', 'CSC', 'ADS'] },
 ];
 
 // ===== Current User (기본: 관리자) =====

@@ -3,7 +3,7 @@ import { BffError } from '@/lib/bff/errors';
 import { schemas } from '@/lib/generated/install-v1';
 import { extractTargetSourceFromSnake } from '@/lib/target-source-response';
 import { ProjectDetail } from '@/app/target-sources/[targetSourceId]/_components/ProjectDetail';
-import { ErrorState } from '@/app/target-sources/[targetSourceId]/_components/common';
+import { AccessDeniedState, ErrorState } from '@/app/target-sources/[targetSourceId]/_components/common';
 import { classifyTargetSourceLoad } from '@/app/target-sources/[targetSourceId]/load-error';
 import type { JiraTicketState } from '@/app/target-sources/[targetSourceId]/_components/common/GuidePanel';
 
@@ -58,7 +58,8 @@ export default async function ProjectDetailPage({ params }: PageProps) {
       const status = err instanceof BffError ? err.status : '?';
       console.warn(`[target-sources/${targetSourceId}] 상세 조회 ${status} — 안내 화면으로 대체`);
     }
-    return <ErrorState message={failure.message} />;
+    // 권한 없음은 오류 화면이 아니라 요청으로 이어지는 화면을 받는다.
+    return failure.kind === 'forbidden' ? <AccessDeniedState /> : <ErrorState message={failure.message} />;
   }
 
   return <ProjectDetail initialProject={project} jiraTicket={jiraTicket} />;

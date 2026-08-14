@@ -23,7 +23,13 @@ export { TARGET_SOURCE_LOAD_FALLBACK };
  * 추가하는 순간 조용히 어긋난다.
  */
 export interface TargetSourceLoadFailure {
-  /** 사용자가 읽을 한 줄. */
+  /**
+   * 어떤 실패인지. 권한 없음은 **오류가 아니라 상태**라 화면 자체가 다르다
+   * (AccessDeniedState) — 문구만 갈아 끼우면 빨간 X 아래 "권한이 없어요" 가 놓여
+   * 시스템이 고장 난 것처럼 읽힌다.
+   */
+  kind: 'forbidden' | 'other';
+  /** 사용자가 읽을 한 줄. `kind === 'forbidden'` 이면 쓰이지 않는다. */
   message: string;
   /**
    * `false` 면 이 화면이 아는 실패다. 서버 콘솔에 `console.error` 로 남기지 않는다 —
@@ -37,16 +43,15 @@ export const classifyTargetSourceLoad = (error: unknown): TargetSourceLoadFailur
   if (error instanceof BffError) {
     if (error.status === 404) {
       return {
+        kind: 'other',
         message: '요청하신 연동 대상을 찾을 수 없어요. 삭제되었거나 주소가 잘못되었을 수 있어요.',
         unexpected: false,
       };
     }
     if (error.status === 401 || error.status === 403) {
-      return {
-        message: '이 연동 대상을 볼 수 있는 권한이 없어요. 서비스 담당자에게 문의해 주세요.',
-        unexpected: false,
-      };
+      // 문구를 들려 보내지 않는다 — 이 경우의 화면은 한 줄이 아니라 행동(권한 요청)이다.
+      return { kind: 'forbidden', message: '', unexpected: false };
     }
   }
-  return { message: TARGET_SOURCE_LOAD_FALLBACK, unexpected: true };
+  return { kind: 'other', message: TARGET_SOURCE_LOAD_FALLBACK, unexpected: true };
 };

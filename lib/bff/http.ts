@@ -321,6 +321,64 @@ export const httpBff: BffClient = {
       getSnakeRaw(`/admin/ops/target-sources${buildQuery({ query, page, size })}`),
   },
 
+  // 서비스 접근 권한 — 오너가 준 백엔드 초안 스펙 그대로
+  // (docs/api/access-assumed-contracts.md). 관리자 경로의 base 는 `/admin` 으로 잡았다
+  // — 스펙에 base 가 안 적혀 있어 저장소 관례(`/admin/queue/*`, `/admin/ops/*`)를 따랐다.
+  // wire 는 snake 이고 camel 경계는 CSR 어댑터가 갖는다.
+  access: {
+    listServices: (query, page, size) =>
+      getSnakeRaw(`/admin/services${buildQuery({ q: query, page, size })}`),
+    listServiceOwners: (serviceCode) =>
+      getSnakeRaw(`/admin/services/${encodeURIComponent(serviceCode)}/owners`),
+    addServiceOwners: (serviceCode, emails) =>
+      post(`/admin/services/${encodeURIComponent(serviceCode)}/owners`, { emails }),
+    removeServiceOwner: (serviceCode, email) =>
+      post(`/admin/services/${encodeURIComponent(serviceCode)}/owners/remove`, { email }),
+    listAdmins: () => getSnakeRaw('/admin/admins'),
+    addAdmin: (email) => post('/admin/admins', { email }),
+    removeAdmin: (email) => post('/admin/admins/remove', { email }),
+    listRequests: (status, page, size) =>
+      getSnakeRaw(`/admin/permission-access${buildQuery({ status, page, size })}`),
+    getRequest: (requestId) => getSnakeRaw(`/admin/permission-access/${requestId}`),
+    approveRequest: (requestId, message) =>
+      post(`/admin/permission-access/${requestId}/approve`, { message }),
+    rejectRequest: (requestId, reason) =>
+      post(`/admin/permission-access/${requestId}/reject`, { reason }),
+    listHistory: (query, page, size) =>
+      getSnakeRaw(
+        `/admin/history${buildQuery({
+          service_code: query.serviceCode,
+          type: query.type,
+          page,
+          size,
+        })}`,
+      ),
+    // 사용자 측 — admin 게이트 밖. 요청 생성은 멱등이라 재시도가 안전하다.
+    createRequest: (serviceCode, reason) =>
+      post(`/services/${encodeURIComponent(serviceCode)}/permission-access`, { reason }),
+    // 2026-08-14 오너 확정 — 본인 신청 내역은 `/user/permission-access` (갭 B4 해소).
+    // `status` 필터가 생겼지만 화면이 상태별 합을 직접 세므로 전체를 받는다.
+    listMyRequests: (page, size) =>
+      getSnakeRaw(`/user/permission-access${buildQuery({ page, size })}`),
+    // 담당 서비스만 — ADMIN 은 전체를 받는다. "내가 접근할 수 있는 서비스"가 이것이다.
+    listUserServices: (query, page, size) =>
+      getSnakeRaw(`/user/services/page${buildQuery({ query, page, size })}`),
+    // 전체 서비스 + 내 access_status + 담당자 — 신청 대상을 고르는 목록.
+    listServicesPage: (query, page, size) =>
+      getSnakeRaw(`/services/page${buildQuery({ query, page, size })}`),
+    // ADMIN 전용으로 좁혀졌다(임직원 명부라서). 요청자 화면은 부르지 않는다.
+    //
+    // 질의 키는 swagger 가 선언한 `q` 다(`searchUsers`, install-v1.yaml). 오너의 08-14
+    // 노트는 **응답 본문**만 바꿨다("고정 응답 → 실구현, knoxId·이메일·역할") — 파라미터
+    // 이름은 건드리지 않았으므로 선언된 이름을 그대로 쓴다. 우리가 `query` 로 보내면 실
+    // BFF 는 조용히 무시하고 명부 전체를 돌려준다.
+    //
+    // 제외 목록은 **보내지 않는다.** swagger 의 `excludeIds` 는 무엇으로 키잉되는지 알 수
+    // 없고(사번? knoxId?) 새 응답에는 id 가 아예 없다. 이메일을 id 자리에 실으면 역시
+    // 조용히 무시된다 — 확인 전까지는 화면이 거른다(E4).
+    searchUsers: (query) => getSnakeRaw(`/users/search${buildQuery({ q: query })}`),
+  },
+
   // Azure responses are raw snake passthrough — the route validates with
   // schemas.X.parse(raw) and the CSR adapter owns the camel conversion.
   // (AzureHealthCheckResult wire is already camelCase per swagger; getSnakeRaw is a

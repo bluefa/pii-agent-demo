@@ -15,6 +15,7 @@ import { passRoutes } from '@/lib/routes';
 import { PlToastProvider } from '@/app/admin/pipelines/_components/PlToastProvider';
 import { NavCountsRefreshProvider } from '@/app/admin/pipelines/_components/NavCountsRefresh';
 import { getDashboardSummary } from '@/app/lib/api/task-queue';
+import { getAccessRequests } from '@/app/lib/api/access';
 
 const SIDEBAR_GROUPS = [
   {
@@ -41,13 +42,29 @@ const SIDEBAR_GROUPS = [
       // detail breadcrumb links to it — it is simply not a place you start from.
     ],
   },
+  {
+    // 접근 권한 (docs/api/access-assumed-contracts.md).
+    // 내 권한 요청(요청자 본인 화면)은 여기 없다 — `/admin/**` 게이트는 ADMIN 허용
+    // 목록이고, 권한을 요청해야 하는 사람은 정확히 그 게이트가 막는 쪽이다. 그 화면은
+    // `passRoutes.accessRequests` 에 있고 계정 카드(UserChip)에서 연다.
+    title: '접근 권한',
+    items: [
+      { label: '서비스별 권한', href: passRoutes.pipelines.access.services, exact: false },
+      { label: '관리자 권한', href: passRoutes.pipelines.access.admins, exact: true },
+      { label: '권한 요청', href: passRoutes.pipelines.access.requests, exact: false },
+    ],
+  },
 ] as const;
 
+/** Counts the nav badges read. */
+interface NavCounts {
+  pendingApprovals: number;
+  alertCount: number;
+  pendingAccessRequests: number;
+}
+
 /** Which nav items carry a count badge, and what they count. */
-const NAV_BADGES: Record<
-  string,
-  { label: string; count: (c: { pendingApprovals: number; alertCount: number }) => number }
-> = {
+const NAV_BADGES: Record<string, { label: string; count: (c: NavCounts) => number }> = {
   [passRoutes.pipelines.queue.requests]: {
     label: '승인 대기 연동 요청',
     count: (c) => c.pendingApprovals,
@@ -55,6 +72,10 @@ const NAV_BADGES: Record<
   [passRoutes.pipelines.ops.alerts]: {
     label: '조치가 필요한 대상',
     count: (c) => c.alertCount,
+  },
+  [passRoutes.pipelines.access.requests]: {
+    label: '승인 대기 접근 권한 요청',
+    count: (c) => c.pendingAccessRequests,
   },
 };
 
@@ -84,6 +105,7 @@ export default function PipelinesLayout({ children }: { children: ReactNode }) {
   // Best-effort (errors ignored): the nav badge must never break the shell.
   const [pendingApprovals, setPendingApprovals] = useState(0);
   const [alertCount, setAlertCount] = useState(0);
+  const [pendingAccessRequests, setPendingAccessRequests] = useState(0);
   const [nonce, setNonce] = useState(0);
   const refreshCounts = useCallback(() => setNonce((n) => n + 1), []);
   useEffect(() => {
@@ -98,6 +120,15 @@ export default function PipelinesLayout({ children }: { children: ReactNode }) {
             (summary.needTestConnectionCount ?? 0) +
             (summary.needPiiAgentConfirmCount ?? 0),
         );
+      })
+      .catch(() => undefined);
+    // 접근 권한 요청은 dashboard-summary 에 없다 — size=1 로 totalElements 만 읽는다.
+    // 같은 신호(내비게이션 · refreshCounts)를 타므로 승인 직후 목록으로 돌아오면
+    // 배지도 함께 내려간다.
+    getAccessRequests('PENDING', 0, { signal: controller.signal, size: 1 })
+      .then((paged) => {
+        if (controller.signal.aborted) return;
+        setPendingAccessRequests(paged.totalElements);
       })
       .catch(() => undefined);
     return () => controller.abort();
@@ -120,7 +151,11 @@ export default function PipelinesLayout({ children }: { children: ReactNode }) {
   // vertical seam on wide monitors, which is the exact thing the layered
   // treatment exists to remove.
   const isSplit =
-    rest === 'services' || rest.startsWith('services/') || rest.startsWith('ops/services');
+    rest === 'services' ||
+    rest.startsWith('services/') ||
+    rest.startsWith('ops/services') ||
+    // 서비스별 권한 uses the same rail | sheet split, so it needs the same fluid width.
+    rest.startsWith('access/services');
   // Target Source 운영 is fluid for the same reason: its masthead and tab rail are
   // full-bleed (opsStyles.headCard), so under the cap they stop at 1440px while the
   // page ground continues — the seam described above, on the busiest ops screen.
@@ -143,7 +178,9 @@ export default function PipelinesLayout({ children }: { children: ReactNode }) {
                 ? pathname === item.href
                 : pathname === item.href || pathname.startsWith(`${item.href}/`);
               const badge = NAV_BADGES[item.href];
-              const count = badge ? badge.count({ pendingApprovals, alertCount }) : 0;
+              const count = badge
+                ? badge.count({ pendingApprovals, alertCount, pendingAccessRequests })
+                : 0;
               return (
                 <Link
                   key={item.href}
