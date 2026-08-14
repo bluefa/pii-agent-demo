@@ -138,8 +138,9 @@ const DETAIL_CSS = `
 .pl-flow.pl-detail .nd-run-k{flex:none;color:var(--pl-text-weak)}
 .pl-flow.pl-detail .nd-run-v{color:var(--pl-text-medium)}
 .pl-flow.pl-detail .nd-run-el{margin-left:auto;flex:none;font-weight:600;color:var(--pl-text-medium)}
-/* The duration reads one step louder than the timestamps it sits beside — it is
-   the only derived number on the card, and the two dates are context for it. */
+/* Only the digits step up — the unit ("분"/"시간") stays 12px with the label, so
+   the number is what the eye lands on (owner). Baseline alignment comes from
+   .nd-run-row, so the taller digits sit on the same line as the unit. */
 .pl-flow.pl-detail .nd-run-el-v{font-size:14px;font-weight:700}
 `;
 /* nd-meta at text-weak/14px — faint(#98A2B3) measured 2.6:1 on the white node
@@ -213,6 +214,23 @@ export interface TaskFlowProps {
    */
   panel?: ReactNode;
   className?: string;
+}
+
+/** Raise just the digits of a duration ("2시간 5분") — the units stay at the
+ *  label's size (owner). Plain strings need no keys; empty split parts render
+ *  nothing, so `-`-free values and multi-unit values take the same path. */
+function elapsedDigits(elapsed: string): ReactNode[] {
+  return elapsed
+    .split(/(\d+)/)
+    .map((part, i) =>
+      /^\d+$/.test(part) ? (
+        <span key={i} className="nd-run-el-v">
+          {part}
+        </span>
+      ) : (
+        part
+      ),
+    );
 }
 
 /** Center the clicked node in the scrollport (the overlay panel may cover the
@@ -331,9 +349,7 @@ export function TaskFlow({
                     <span className="nd-run-k">완료 시간</span>
                     <span className="nd-run-v">{run.finishedAt}</span>
                     {run.elapsed && (
-                      <span className="nd-run-el">
-                        소요 <span className="nd-run-el-v">{run.elapsed}</span>
-                      </span>
+                      <span className="nd-run-el">소요 {elapsedDigits(run.elapsed)}</span>
                     )}
                   </div>
                 </div>
