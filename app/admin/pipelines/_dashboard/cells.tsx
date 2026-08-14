@@ -82,16 +82,15 @@ export function TargetCell({
  * Status with the chip taken off, in the section's shared Korean label set
  * (`statusKo`: 대기 / 실행 중 / 완료 / 실패 / 중단).
  *
- * 중단만 마크를 단다 (오너). 완료와 같은 "끝난 상태"인데 초록을 주면 성공했다고
- * 말하게 되고, 회색만 주면 대기와 구별되지 않는다 — 색을 하나 더 쓰는 대신
- * 채널을 하나 더 열었다. 마크는 낱말 색을 그대로 물려받는다.
+ * 중단은 노랑을 받는다 (오너 2026-08-15). 이전에는 색 예산을 아끼려고 마크를 달아
+ * 채널을 하나 더 여는 쪽이었는데, 오너가 네 번째 색을 쓰기로 정하면서 그 전제가
+ * 사라졌다 — 색이 그 일을 하면 마크는 같은 말을 두 번 하는 것이라 함께 뺐다.
+ *
+ * 남은 회색은 대기 하나뿐이다. 색이 없다는 것이 이제 "아직 시작하지 않았다"만 뜻한다.
  */
 export function StatusText({ status }: { status: PipelineStatus }): ReactElement {
   return (
-    <span className={cn(d.statusWrap, d.statusText, d.statusTextTone[status])}>
-      {status === 'CANCELLED' && <Icon name="stop" size="sm" />}
-      {statusKo(status)}
-    </span>
+    <span className={cn(d.statusText, d.statusTextTone[status])}>{statusKo(status)}</span>
   );
 }
 

@@ -478,6 +478,10 @@ const TEXT: TextPair[] = [
   { what: 'dashboard 실패 red on the row hover tint', fg: dashStatusTone('FAILED'), on: dashRowHover },
   { what: 'dashboard 실행 중 blue on the white row', fg: dashStatusTone('RUNNING'), on: '#FFFFFF' },
   { what: 'dashboard 실행 중 blue on the row hover tint', fg: dashStatusTone('RUNNING'), on: dashRowHover },
+  // 중단은 마크를 벗고 노랑을 받았다(오너 2026-08-15). `--pl-warn`(#F79009) 은 흰 행에서
+  // 2.35:1 이라 쓸 수 없고, 여기 값은 `--pl-warn-text`(#B54708) 다.
+  { what: 'dashboard 중단 amber on the white row', fg: dashStatusTone('CANCELLED'), on: '#FFFFFF' },
+  { what: 'dashboard 중단 amber on the row hover tint', fg: dashStatusTone('CANCELLED'), on: dashRowHover },
   { what: 'dashboard 대기 on the white row', fg: dashStatusTone('PENDING'), on: '#FFFFFF' },
   { what: 'dashboard 대기 on the row hover tint', fg: dashStatusTone('PENDING'), on: dashRowHover },
   // 빈 상태·페이저·잘림 안내는 12px 로 내려오면서 `--pl-text-faint`(2.58:1) 를 벗었다.

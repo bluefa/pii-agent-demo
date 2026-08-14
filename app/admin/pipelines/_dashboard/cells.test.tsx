@@ -38,43 +38,43 @@ describe('StatusText', () => {
   });
 
   /**
-   * 오너 2026-08-14: 색을 받는 상태는 셋 — 실패 빨강, 완료 초록, 실행 중 파랑.
-   * 색이 없는 것은 아직/이제 아무 일도 일어나지 않는 상태뿐이다(대기·중단).
+   * 색을 받는 상태는 넷이다 — 실패 빨강, 완료 초록, 실행 중 파랑(오너 2026-08-14),
+   * 중단 노랑(오너 2026-08-15). 넷이 서로 다른 토큰을 쓰는지가 이 자리의 요점이다:
+   * 두 상태가 같은 색으로 접히면 열이 그만큼 덜 말한다.
+   *
    * 실행 중의 파랑은 스트립의 진행 칸과 **같은 토큰**이다 — 한 행에서 "지금 여기"를
    * 말하는 두 자리가 서로 다른 파랑을 쓰면 같은 뜻으로 읽히지 않는다.
    */
-  it('colours the three states something is or was happening in', () => {
+  it('gives each of the four non-idle states its own hue', () => {
     expect(status('FAILED')).toContain('--pl-err-text');
     expect(status('DONE')).toContain('--pl-ok-text');
     expect(status('RUNNING')).toContain('--pl-info-text');
+    expect(status('CANCELLED')).toContain('--pl-warn-text');
+
+    const tone = pipelineStyles.dashboard.statusTextTone;
+    const hues = ['FAILED', 'DONE', 'RUNNING', 'CANCELLED'] as const;
+    expect(new Set(hues.map((k) => tone[k])).size).toBe(hues.length);
     // IN_PROGRESS 는 톤 맵에만 있는 키(`PipelineStatus` 밖)라 렌더로 닿지 않는다.
     // 같은 뜻인 두 키가 갈라지는 것이 정확히 이 자리의 버그다.
-    const tone = pipelineStyles.dashboard.statusTextTone;
     expect(tone.IN_PROGRESS).toBe(tone.RUNNING);
   });
 
-  it('leaves the two idle states uncoloured', () => {
-    for (const idle of ['PENDING', 'CANCELLED'] as const) {
-      expect(status(idle)).toContain('--pl-text-weak');
-      expect(status(idle)).not.toContain('--pl-err');
-      expect(status(idle)).not.toContain('--pl-ok');
-      expect(status(idle)).not.toContain('--pl-info');
+  /** 회색은 대기 하나만 남았다 — 색이 없다는 것이 "아직 시작하지 않았다"만 뜻한다. */
+  it('leaves 대기 as the only uncoloured state', () => {
+    const html = status('PENDING');
+    expect(html).toContain('--pl-text-weak');
+    for (const hue of ['--pl-err', '--pl-ok', '--pl-info', '--pl-warn']) {
+      expect(html).not.toContain(hue);
     }
   });
 
   /**
-   * 중단은 완료와 같은 "끝난 상태"라 회색만 주면 대기와 구별되지 않고, 초록을 주면
-   * 성공했다고 말하게 된다. 색을 하나 더 쓰는 대신 마크로 채널을 하나 더 연다.
+   * 중단의 `stop` 마크는 색 예산을 아끼려던 우회로였다(오너 2026-08-15 에 노랑으로 뒤집힘).
+   * 색이 그 일을 하는 지금 마크는 같은 말을 두 번 하는 것이라, 어느 상태에도 글리프가 없다.
    */
-  it('marks 중단 with a stop glyph instead of a third hue', () => {
-    const html = status('CANCELLED');
-    expect(html).toContain('<svg');
-    expect(html).toContain('--pl-text-weak');
-    expect(html).not.toContain('--pl-ok');
-    expect(html).not.toContain('--pl-err');
-    // 그 마크는 중단에만 붙는다 — 붙는 순간 "끝났지만 성공은 아니다"가 되기 때문이다.
-    for (const bare of ['PENDING', 'RUNNING', 'DONE', 'FAILED'] as const) {
-      expect(status(bare)).not.toContain('<svg');
+  it('renders no glyph in any state now that colour carries it', () => {
+    for (const value of ['PENDING', 'RUNNING', 'DONE', 'FAILED', 'CANCELLED'] as const) {
+      expect(status(value), value).not.toContain('<svg');
     }
   });
 });

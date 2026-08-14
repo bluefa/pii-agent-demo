@@ -2701,24 +2701,24 @@ export const pipelineStyles = {
      * 한글 라벨은 공용 `statusKo` 한 벌을 쓴다 — enum 원문은 데이터 표기(정의·계약 탭,
      * 오류 코드)에만 남긴다.
      *
-     * 색을 받는 상태는 셋이다 — 실패 빨강, 완료 초록, **실행 중 파랑**
-     * (오너 2026-08-14, "실행중 -> 파란색으로"). 파랑은 스트립의 진행 칸과 같은
-     * `--pl-info-text` 다: 한 행에서 "지금 여기"를 말하는 두 자리가 같은 색을 쓴다.
-     * 색이 없는 것은 **아직/이제 아무 일도 일어나지 않는** 상태뿐이다 — 대기와 중단.
+     * 색을 받는 상태는 넷이다 — 실패 빨강, 완료 초록, **실행 중 파랑**
+     * (오너 2026-08-14, "실행중 -> 파란색으로"), **중단 노랑**(오너 2026-08-15).
+     * 파랑은 스트립의 진행 칸과 같은 `--pl-info-text` 다: 한 행에서 "지금 여기"를
+     * 말하는 두 자리가 같은 색을 쓴다. 색이 없는 것은 대기 하나다.
      *
      * 여기의 초록은 세그먼트에서 뺀 초록과 다른 자리다. 세그먼트의 초록은 한 행에
      * 여러 칸을 칠해 표 면적의 62%를 먹었지만, 이 초록은 **행당 낱말 하나**다 —
      * 같은 색을 면적이 다른 두 곳에 쓰는 것이라, 하나를 뺐다고 다른 하나가
      * 따라 빠질 이유는 없다.
      *
-     * 중단은 색 대신 마크를 받는다(`stop`). 완료와 같은 "끝난 상태"인데 초록을 주면
-     * 성공했다고 말하게 되고, 회색만 주면 대기와 구별되지 않는다 — 낱말 하나에
-     * 색을 더 쓰지 않고 채널을 하나 더 여는 쪽을 택했다.
+     * 중단은 노랑을 받는다(오너 2026-08-15). 예전에는 색 예산을 아끼려고 마크(`stop`)로
+     * 채널을 하나 더 여는 쪽이었는데, 네 번째 색을 쓰기로 정해지면서 그 전제가 사라졌다 —
+     * 색이 그 일을 하면 마크는 같은 말을 두 번 하는 것이라 함께 뺐다(`statusWrap` 도).
+     * 값은 `--pl-warn-text`(#B54708)다. `--pl-warn`(#F79009)은 흰 행에서 2.35:1 이라 못 쓴다.
+     *
+     * 이로써 회색은 대기 하나만 남는다 — 색이 없다는 것이 이제 "아직 시작하지 않았다"만 뜻한다.
      */
     statusText: 'text-[12px] font-semibold tracking-[0.02em]',
-    /** 마크를 다는 상태를 위한 줄 — `statusText` 에 display 를 얹지 않으려고 분리했다
-     *  (`cn` 은 단순 join 이라 같은 속성이 두 번 실리면 출력 순서가 승자를 정한다). */
-    statusWrap: 'inline-flex items-center gap-1',
     statusTextTone: {
       PENDING: 'text-[var(--pl-text-weak)]',
       RUNNING: 'text-[var(--pl-info-text)]',
@@ -2726,7 +2726,7 @@ export const pipelineStyles = {
       READY: 'text-[var(--pl-text-weak)]',
       DONE: 'text-[var(--pl-ok-text)]',
       FAILED: 'text-[var(--pl-err-text)]',
-      CANCELLED: 'text-[var(--pl-text-weak)]',
+      CANCELLED: 'text-[var(--pl-warn-text)]',
       BLOCKED: 'text-[var(--pl-text-weak)]',
     } as Record<PipelineStatusToneKey, string>,
 
