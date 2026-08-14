@@ -8,11 +8,11 @@
  * 필요로 하는 사람만 골라 막았을 것이다. 진입점은 계정 카드(UserChip)이고, 화면 자체는
  * 접근 권한 관리자 화면들과 같은 부품·같은 계약을 쓴다.
  *
- * 화면은 두 평면으로 읽힌다 (design/access/access-requests-hierarchy.html 시안 A):
+ * 화면은 세 켜로 읽힌다:
  *  1. **판정** — 헤더 문장. 재방문자가 이 화면에 오는 이유("내 요청 어떻게 됐지?")에
  *     스크롤 없이 답한다. 32px 수치가 화면에서 가장 큰 타입이다.
- *  2. **목록** — 요청할 수 있는 서비스 / 내 요청 내역. 둘은 한 카드 안의 **탭**이고,
- *     그 카드가 이 화면에서 유일하게 테두리를 가진 면이다.
+ *  2. **탭** — 이 화면의 목차. 세 목록을 같은 한 자리에 포갠다.
+ *  3. **카드 더미** — 탭이 무엇을 고르든 카드 문법은 같다.
  *
  * 처음에는 목록 둘을 위아래 두 구역으로 놓았다. 같은 바닥의 형제 둘이라 무슨 등급을
  * 매겨도 평평했고, 등급 대신 표면 수를 줄여도 여전히 스크롤 한 번이 두 목록을 갈랐다.
@@ -25,11 +25,22 @@
  * 탭으로 합친 뒤에도 카드 **안**은 평평했다(2차 진단:
  * design/access/access-requests-benchmark-r2.html). 이름 칸 735px 에 든 글자가 41px,
  * 94% 가 빈 폭이었고 카드 안의 타입은 12·14·16 셋뿐이라 훑을 굵은 줄이 없었다.
- * 시안 A — 행을 두 단으로 만든다: 윗단 [이름 코드], 아랫단 설명(12/weak). 코드는
- * 오른쪽 끝에서 이름 옆으로 오고, 목록은 640px 열 안에서 읽는다. 이제 등급이 카드
- * 사이가 아니라 **행 안**에 있다.
+ * 행을 두 단으로 만든 것이 그 답이다: 윗단 [이름 코드], 아랫단 보조 사실(12/weak).
+ * 등급이 카드 사이가 아니라 **행 안**에 있다.
+ *
+ * 마지막으로 표면을 하나 걷어 냈다(승인 워크벤치와 같은 정리). 탭은 카드 밖 화면
+ * 자체로 나오고, 목록을 감싸던 카드는 사라지고, 행 자체가 카드가 된다.
+ *
+ * 워크벤치처럼 캔버스를 새로 깔지는 **않는다**. 저쪽은 어드민 셸이 #F9FAFB 를 칠하고
+ * 있어서 흰 카드가 ΔE00 1.20 — JND 아래라 테두리 혼자 버텼고, 그래서 바닥을 내려야
+ * 4.12 가 됐다. 이 화면은 `/admin/**` 밖이라 body 의 캔버스(#F4F4FB)를 그대로 물려받아
+ * 바닥이 이미 내려가 있다(브라우저 실측 2026-08-14). 그래서 여기서 할 일은 바닥을
+ * 내리는 게 아니라 그 바닥을 덮고 있던 흰 카드를 걷어 내는 것이다.
+ *
+ * 카드끼리는 헤어라인이 아니라 간격으로 끊는다 — 표가 아니라 더미로 읽히도록.
+ * 폭도 하나로 줄였다 — 자세한 이유는 layout.tsx.
  */
-import { useCallback, useEffect, useState, type ReactElement } from 'react';
+import { useCallback, useEffect, useState, type ReactElement, type ReactNode } from 'react';
 import { cn, serviceSidebarStyles } from '@/lib/theme';
 import { useAbortableEffect } from '@/app/hooks/useAbortableEffect';
 import { fmtDateTime } from '@/lib/pipeline/format';
@@ -42,7 +53,6 @@ import {
   PagedCard,
   errorMessage,
   usePagedSection,
-  type Column,
 } from '@/app/admin/pipelines/access/_components/PagedCard';
 import { RequestAccessModal } from '@/app/admin/pipelines/access/_components/AccessModals';
 import { RequestStatusPill } from '@/app/admin/pipelines/access/_components/AccessPills';
@@ -82,15 +92,18 @@ const VERDICT_STATUSES: readonly AccessRequestStatus[] = ['PENDING', 'APPROVED',
 type VerdictCounts = { pending: number; approved: number; rejected: number };
 
 /**
- * 로딩 중 서비스 목록 — 타일 · [이름 코드] · 설명의 크기를 그대로 흉내 낸다. 두 단이
- * 됐으므로 스켈레톤도 두 단이다. 도착했을 때 목록이 튀지 않는 건 이 칸들이 진짜 행과
- * 같기 때문이다.
+ * 로딩 중 목록 — 타일 · [이름 코드] · 둘째 단의 크기를 그대로 흉내 낸다. 세 탭이 같은
+ * 카드 문법을 쓰므로 스켈레톤도 하나다. 도착했을 때 목록이 튀지 않는 건 이 칸들이
+ * 진짜 카드와 같기 때문이다.
+ *
+ * 타일 자리는 `skeletonBar`(h-3.5)로 못 그린다 — `cn` 은 단순 join 이라 h-7 을 덧씌우면
+ * Tailwind 출력 순서가 이긴다. 그래서 크기·색을 여기서 직접 준다.
  */
-const SERVICE_SKELETON = (
-  <div role="rowgroup" aria-busy="true" aria-label="목록을 불러오는 중">
+const CARD_SKELETON = (
+  <div role="rowgroup" aria-busy="true" aria-label="목록을 불러오는 중" className={a.deckRows}>
     {Array.from({ length: ACCESS_PAGE_SIZE }, (_, row) => (
       <div key={row} className={a.svcRow} aria-hidden="true">
-        <span className={cn(serviceSidebarStyles.tile, a.skeletonBar, 'h-7 w-7')} />
+        <span className={cn(serviceSidebarStyles.tile, 'animate-pulse bg-[var(--pl-gray-100)]')} />
         <span className={a.svcStack}>
           <span className={a.svcIdent}>
             <span className={cn(a.skeletonBar, 'h-4 w-[128px]')} />
@@ -105,39 +118,22 @@ const SERVICE_SKELETON = (
 );
 
 /**
- * "처리 결과" 열이 없다. `GET /user/permission-access` 는 여섯 필드
- * (`request_id`·`service_code`·`service_name`·`status`·`reason`·`requested_at`)만 싣는다 —
- * 관리자가 남긴 승인 메시지·반려 사유(`processed_note`)도, 처리 일시도 오지 않는다.
- *
- * 그래서 요청자는 **자기 반려 사유를 볼 길이 없다.** 상태만 '반려'로 뒤집힌다. 열을
- * 남겨 두면 모든 행이 영원히 `—` 인 열이 되므로 지우고, 갭으로 올려 둔다(B5).
- */
-const MINE_COLUMNS: readonly Column[] = [
-  // 코드가 따로 없는 건 서비스 셀이 타일·이름·코드를 한 덩어리로 그리기 때문이다 —
-  // 서비스 탭의 행과 같은 문법이다.
-  { label: '서비스', className: a.svcCell },
-  { label: '상태', className: a.status },
-  { label: '요청 사유', className: a.reason },
-  { label: '요청 일자', className: a.when },
-];
-
-/**
  * 서비스 한 건의 표기 — 타일 · [이름 코드] · 설명. `/services` 레일의 부품을 그대로 쓴다.
  *
  * 두 탭이 같은 이것을 쓴다. 요청할 때 본 서비스와 내역에서 보는 서비스가 다른 모양이면
  * 같은 것으로 읽히지 않는다. 감싸는 칸(`a.svcCell`)이 타일과 덩어리 사이 gap 을 준다.
  *
- * 설명은 서비스 목록에서만 온다 — 내 요청 내역의 행은 이미 상태·사유·일자를 들고
- * 있어서 네 번째 사실을 더 얹을 자리가 아니다(계약에도 없다).
+ * 둘째 단(`sub`)은 탭마다 다르다 — 서비스 목록은 담당자, 내 요청 내역은 내가 쓴 사유.
+ * 담당자는 자르고 사유는 접으므로 스타일까지 여기서 정하지 않고 부르는 쪽이 준다.
  */
 function ServiceIdentity({
   code,
   name,
-  desc,
+  sub,
 }: {
   code: string;
   name: string;
-  desc?: string | null;
+  sub?: ReactNode;
 }): ReactElement {
   return (
     <>
@@ -149,8 +145,8 @@ function ServiceIdentity({
           <span className={cn(sl.name, sl.nameIdle)}>{name}</span>
           <span className={sl.code}>{code}</span>
         </span>
-        {/* 계약 확정 전이라 없을 수 있다 — 없으면 빈 줄을 남기지 않고 한 단으로 돌아간다. */}
-        {desc && <span className={a.svcDesc}>{desc}</span>}
+        {/* 없을 수 있다 — 없으면 빈 줄을 남기지 않고 한 단으로 돌아간다. */}
+        {sub}
       </span>
     </>
   );
@@ -209,9 +205,11 @@ function HeaderVerdict({ counts }: { counts: VerdictCounts | 'error' | null }): 
   const num = cn(a.pageTotal, a.pageTotalTone[featured]);
   const sentence =
     featured === 'REJECTED' ? (
+      // 반려 **사유**는 말하지 않는다 — `GET /user/permission-access` 는 처리 메모를
+      // 싣지 않아서 요청자가 볼 길이 없다(갭 B5). 없는 것을 확인하라고 보내지 않는다.
       <>
-        반려된<strong className={num}>{rejected}</strong>건이 있어요 — 사유를 확인하고 다시 요청할
-        수 있어요
+        반려된<strong className={num}>{rejected}</strong>건이 있어요 — &lsquo;내 요청 내역&rsquo;
+        탭에서 다시 요청할 수 있어요
       </>
     ) : featured === 'PENDING' ? (
       <>
@@ -277,7 +275,10 @@ export default function MyAccessRequestsPage(): ReactElement {
   const fetchOwned = useCallback(
     async (page: number, opts: { signal: AbortSignal }): Promise<AccessPage<UserServiceRow>> => {
       const result = await getUserServices(debounced || undefined, page, opts);
-      return { ...result, content: result.content.filter((row) => row.accessStatus === 'OWNED') };
+      return {
+        ...result,
+        content: result.content.filter((row) => row.accessStatus === 'OWNED'),
+      };
     },
     [debounced],
   );
@@ -312,8 +313,17 @@ export default function MyAccessRequestsPage(): ReactElement {
         }),
     [counted],
   );
-  /** 요청 모달을 연 서비스 — null 이면 닫혀 있다. */
-  const [target, setTarget] = useState<UserServiceRow | null>(null);
+  /**
+   * 요청 모달을 연 서비스 — null 이면 닫혀 있다.
+   *
+   * 행 타입이 아니라 모달이 실제로 읽는 두 필드만 담는다. 반려된 요청에서도 같은
+   * 모달을 여는데, `MyAccessRequest` 를 `UserServiceRow` 로 만들려면 `accessStatus`
+   * 와 `isEosService` 를 지어내야 한다 — 화면이 안 쓰는 값을 지어내지 않는다.
+   */
+  const [target, setTarget] = useState<{
+    serviceCode: string;
+    serviceName: string;
+  } | null>(null);
 
   const submit = async (reason: string): Promise<void> => {
     if (!target) return;
@@ -332,19 +342,25 @@ export default function MyAccessRequestsPage(): ReactElement {
   };
 
   /**
-   * 탭 레일 — 카드들이 번갈아 쓰는 같은 머리 줄.
+   * 탭 레일 — 이 화면의 목차다. 카드 안이 아니라 화면 자체를 가르므로 카드보다 위에
+   * 있고, 한 칸 큰 타입(`tabLg`)을 쓴다.
    *
    * 목록 상태(`usePagedSection`)는 셋 다 이 페이지가 들고 있다. 그래서 탭을 옮겨도
-   * 다시 읽지 않고, 다른 탭에 있는 동안에도 헤더 판정이 셀 내역을 받아 둔다 —
-   * 안 보이는 탭의 수를 탭 자신이 말해야 하므로 어차피 전부 읽어야 한다.
+   * 다시 읽지 않는다.
+   *
+   * 건수는 **내 요청 내역에만** 붙는다. 서비스 두 탭의 `totalElements` 는 서버가 센
+   * 전체 서비스 수고, 목록은 그 장 안에서 `access_status` 로 걸러 그린다 — 그래서
+   * '내가 접근할 수 있는 서비스 20' 옆에 빈 목록이 서는 일이 실제로 생긴다. 걸러진
+   * 수를 서버가 세 주기 전까지는(갭 B6) 수를 말하지 않는다. 틀린 수는 없는 수보다
+   * 나쁘다.
    */
   const tabs: { key: TabKey; label: string; count?: number }[] = [
-    { key: 'services', label: '요청할 수 있는 서비스', count: requestable.paged?.totalElements },
-    { key: 'owned', label: '내가 접근할 수 있는 서비스', count: owned.paged?.totalElements },
+    { key: 'services', label: '요청할 수 있는 서비스' },
+    { key: 'owned', label: '내가 접근할 수 있는 서비스' },
     { key: 'mine', label: '내 요청 내역', count: mine.paged?.totalElements },
   ];
   const tabStrip = (
-    <div className={a.tabStrip} role="tablist" aria-label="내 권한 요청 탭">
+    <div className={a.pageTabStrip} role="tablist" aria-label="내 권한 요청 탭">
       {tabs.map((item) => {
         const active = item.key === tab;
         return (
@@ -354,7 +370,7 @@ export default function MyAccessRequestsPage(): ReactElement {
             role="tab"
             aria-selected={active}
             onClick={() => setTab(item.key)}
-            className={cn(a.tab, active ? a.tabActive : a.tabIdle)}
+            className={cn(a.tab, a.tabLg, active ? a.tabActive : a.tabIdle)}
           >
             {item.label}
             {/* 아직 모르는 수는 쓰지 않는다 — 로딩 중 '0' 은 단언이다. */}
@@ -371,13 +387,19 @@ export default function MyAccessRequestsPage(): ReactElement {
     <div>
       <h1 className={a.pageTitle}>내 권한 요청</h1>
       <HeaderVerdict counts={verdict} />
+      {tabStrip}
 
+      {/* 목록을 감싸는 카드가 없다(`bare`). 이 화면의 바닥은 이미 캔버스라 흰 카드가
+          그 위에서 읽히고, 그러면 목록을 또 한 겹 흰 면으로 감쌀 이유가 없다 — 감싸면
+          카드 안의 카드가 된다. 머리 줄도 없다(`head={null}`) — 제목은 위의 탭이 이미
+          쓰고 있어서 대신 그릴 것조차 없다. */}
       {tab !== 'mine' ? (
         // 서비스 탭 둘은 같은 목록을 다른 축으로 자른 것이라 카드도 하나로 그린다 —
         // 나란히 두 벌을 두면 같은 행 문법이 조용히 갈라진다.
         <PagedCard
-          className="mt-6"
-          head={tabStrip}
+          className="mt-4"
+          bare
+          head={null}
           title={requestTab ? '요청할 수 있는 서비스' : '내가 접근할 수 있는 서비스'}
           desc={
             requestTab
@@ -389,14 +411,14 @@ export default function MyAccessRequestsPage(): ReactElement {
           state={requestTab ? requestable : owned}
           search={
             <SearchBox
-              wrapClassName={cn('block w-full', a.svcColumn)}
+              wrapClassName="block w-full"
               placeholder="서비스 코드/이름 검색"
               aria-label="서비스 코드/이름 검색"
               value={query}
               onChange={(event) => setQuery(event.target.value)}
             />
           }
-          skeleton={SERVICE_SKELETON}
+          skeleton={CARD_SKELETON}
           empty={
             debounced
               ? {
@@ -406,81 +428,103 @@ export default function MyAccessRequestsPage(): ReactElement {
                     : '권한이 있는 서비스 중에는 검색어와 맞는 것이 없어요',
                 }
               : requestTab
-                ? {
-                    title: '요청할 서비스가 없어요',
-                    caption: '모든 서비스에 권한이 있거나, 이미 요청해 두었어요',
-                  }
-                : {
-                    title: '접근할 수 있는 서비스가 없어요',
-                    caption: "'요청할 수 있는 서비스' 탭에서 골라 권한을 요청해 보세요",
-                  }
+              ? {
+                  title: '요청할 서비스가 없어요',
+                  caption: '모든 서비스에 권한이 있거나, 이미 요청해 두었어요',
+                }
+              : {
+                  title: '접근할 수 있는 서비스가 없어요',
+                  caption: "'요청할 수 있는 서비스' 탭에서 골라 권한을 요청해 보세요",
+                }
           }
         >
           {/* 서비스는 `/services` 레일과 같은 모양으로 읽힌다 — 타일 · 이름 · 코드 태그.
-              고를 수 있는 목록이 아니라 요청할 목록이라 행 자체는 버튼이 아니고, 행 끝의
-              [권한 요청] 만 누를 수 있다. 이미 가진 서비스는 그 자리가 비어 있다 —
-              할 일이 없는 행에 회색 버튼을 두면 눌러 보고 나서야 없다는 걸 알게 된다.
+                고를 수 있는 목록이 아니라 요청할 목록이라 카드 자체는 버튼이 아니고, 끝의
+                [권한 요청] 만 누를 수 있다. 이미 가진 서비스는 그 자리가 비어 있다 —
+                할 일이 없는 카드에 회색 버튼을 두면 눌러 보고 나서야 없다는 걸 알게 된다.
 
-              한 줄에 하나다. 2열로 흘려 봤더니 순서가 좌→우→아래로 튀어서 목록의 차례를
-              읽을 수 없었다 — 폭을 쓰자고 훑기를 망치는 거래였다. */}
-          {(rows) =>
-            rows.map((row) => (
-              <div key={row.serviceCode} role="row" className={a.svcRow}>
-                <span role="cell" className={a.svcCell}>
-                  <ServiceIdentity
-                    code={row.serviceCode}
-                    name={row.serviceName}
-                    desc={hasOwners(row) ? ownerLine(row) : null}
-                  />
-                </span>
-                {/* 칸은 두 탭 모두 자리를 지킨다 — 접근 가능 탭에서만 비우면 코드 태그가
-                    탭을 옮길 때마다 68px 씩 튄다. */}
-                <span role="cell" className={a.svcAction}>
-                  {requestTab && (
-                    <button type="button" className={a.svcLink} onClick={() => setTarget(row)}>
-                      권한 요청
-                    </button>
-                  )}
-                </span>
-              </div>
-            ))
-          }
+                한 줄에 하나다. 2열로 흘려 봤더니 순서가 좌→우→아래로 튀어서 목록의 차례를
+                읽을 수 없었다 — 폭을 쓰자고 훑기를 망치는 거래였다. */}
+          {(rows) => (
+            <div role="rowgroup" className={a.deckRows}>
+              {rows.map((row) => (
+                <div key={row.serviceCode} role="row" className={a.svcRow}>
+                  <span role="cell" className={a.svcCell}>
+                    <ServiceIdentity
+                      code={row.serviceCode}
+                      name={row.serviceName}
+                      sub={
+                        hasOwners(row) ? <span className={a.svcDesc}>{ownerLine(row)}</span> : null
+                      }
+                    />
+                  </span>
+                  {/* 칸은 두 탭 모두 자리를 지킨다 — 접근 가능 탭에서만 비우면 코드
+                        태그가 탭을 옮길 때마다 68px 씩 튄다. */}
+                  <span role="cell" className={a.svcAction}>
+                    {requestTab && (
+                      <button type="button" className={a.svcLink} onClick={() => setTarget(row)}>
+                        권한 요청
+                      </button>
+                    )}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
         </PagedCard>
       ) : (
         /* 기록. 설명 줄이 없는 건 반려 안내를 헤더 판정이 이미 말하기 때문이다. */
         <PagedCard
-          className="mt-6"
-          head={tabStrip}
+          className="mt-4"
+          bare
+          head={null}
           title="내 요청 내역"
           icon="clock"
           tone="muted"
           state={mine}
-          columns={MINE_COLUMNS}
+          skeleton={CARD_SKELETON}
           empty={{
             title: '요청한 내역이 없어요',
             caption: "'요청할 수 있는 서비스' 탭에서 골라 권한을 요청해 보세요",
           }}
         >
-          {(rows) =>
-            rows.map((row) => (
-              // items-start — 사유가 접히면 행 높이가 늘어난다. 가운데 정렬이면 서비스명과
-              // 상태가 긴 사유의 세로 한가운데로 떠서 첫 줄끼리 맞지 않는다.
-              <div key={row.requestId} role="row" className={cn(a.row, 'items-start')}>
-                <span role="cell" className={a.svcCell}>
-                  <ServiceIdentity code={row.serviceCode} name={row.serviceName} />
-                </span>
-                <span role="cell" className={a.status}>
-                  <RequestStatusPill status={row.status} />
-                </span>
-                <span role="cell" className={a.reason}>
-                  {row.reason}
-                </span>
-                <span role="cell" className={a.when}>
-                  {fmtDateTime(row.requestedAt)}
-                </span>
-              </div>
-            ))
-          }
+          {(rows) => (
+            <div role="rowgroup" className={a.deckRows}>
+              {rows.map((row) => (
+                // 서비스 카드와 같은 골격에 꼬리만 다르다 — 같은 서비스가 탭 하나
+                // 건너 다른 모양이면 같은 것으로 읽히지 않는다.
+                <div key={row.requestId} role="row" className={a.svcRowTop}>
+                  <span role="cell" className={a.svcCellTop}>
+                    <ServiceIdentity
+                      code={row.serviceCode}
+                      name={row.serviceName}
+                      sub={<span className={a.reqReason}>{row.reason}</span>}
+                    />
+                  </span>
+                  <span role="cell" className={a.reqTail}>
+                    <RequestStatusPill status={row.status} />
+                    <span className={a.reqWhen}>{fmtDateTime(row.requestedAt)}</span>
+                    {/* 액션 칸은 반려가 아닌 카드에서도 자리를 지킨다 — 반려에만 두면
+                        그 카드의 일시만 왼쪽으로 밀려 날짜들이 한 x 에 안 선다.
+                        서비스 탭의 [권한 요청] 칸과 같은 폭이라 두 탭에서 누를 자리도
+                        같다.
+
+                        반려는 이 화면에서 다시 움직여야 하는 유일한 상태다. 예전에는
+                        '요청할 수 있는 서비스' 탭으로 건너가야 했는데, 판정 문장이
+                        가리키는 건이 정작 손댈 수 없는 줄로 서 있었다. 같은 요청 모달을
+                        여기서 연다. */}
+                    <span className={a.svcAction}>
+                      {row.status === 'REJECTED' && (
+                        <button type="button" className={a.svcLink} onClick={() => setTarget(row)}>
+                          다시 요청
+                        </button>
+                      )}
+                    </span>
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
         </PagedCard>
       )}
 

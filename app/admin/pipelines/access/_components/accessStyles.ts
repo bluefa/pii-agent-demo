@@ -10,6 +10,10 @@
  */
 import { serviceSidebarStyles } from '@/lib/theme';
 
+/** 캔버스 위에 서는 카드 한 장의 면 — 세로 정렬만 갈린다(`svcRow` / `svcRowTop`). */
+const CARD_FACE =
+  'gap-2.5 rounded-[9px] border border-[var(--pl-border)] bg-[var(--pl-bg-card)] px-3 py-2.5';
+
 export const accessStyles = {
   pageTitle: 'text-[24px] font-bold leading-[1.2] tracking-[-0.02em] text-[var(--pl-text-strong)]',
   pageDesc: 'mt-1 text-[14px] leading-[1.4] text-[var(--pl-text-weak)]',
@@ -71,18 +75,28 @@ export const accessStyles = {
   headRow: 'mt-3 flex items-center gap-3 py-2 text-[12px] font-medium text-[var(--pl-text-weak)]',
   row: 'group relative flex items-center gap-3 border-t border-[var(--pl-border)] py-2.5 text-[14px] text-[var(--pl-text-medium)] transition-colors',
   rowLink: 'hover:bg-[var(--pl-gray-50)]',
-  /** 서비스 패널 행 — 타일 · 이름 · 코드 태그. `/services` 레일과 같은 문법을 카드
-   *  안에서 쓴다(폭·색·타일 해시는 `serviceListStyles` 에서 그대로 온다). 서비스는
-   *  이 제품 어디서나 같은 모양으로 읽혀야 하므로 여기서 다시 그리지 않는다.
-   *  gap 은 레일의 2.5, py 는 28px 타일에 맞춘 값.
+  /**
+   * 요청자 화면(내 권한 요청)의 카드 더미 — 헤어라인이 아니라 간격으로 끊는다.
+   * 표가 아니라 요청할 것들의 더미로 읽히게 하는 것이 목적이다.
    *
-   *  `max-w` 는 목록이 카드만큼 넓을 이유가 없어서다 — 1710px 화면에서 이름 칸이
-   *  735px 인데 그 안에 든 글자는 41px 이었다(94% 가 빈 폭). 가장 긴 서비스명 실폭
-   *  340 + 코드 태그 + 액션이 640 안에 들어가므로, 남는 폭은 열을 늘리는 대신
-   *  오른쪽 여백으로 둔다. 폭이 넓다고 정보가 늘지는 않는다. */
-  svcRow: 'flex max-w-[640px] items-center gap-2.5 border-t border-[var(--pl-border)] py-2',
-  /** 목록과 같은 폭을 쓰는 것들(검색창) — 목록보다 넓으면 조작이 목록에서 떨어진다. */
-  svcColumn: 'max-w-[640px]',
+   * 승인 워크벤치처럼 캔버스 면을 따로 깔지 **않는다**. `/access-requests` 는
+   * `/admin/**` 밖이라 어드민 셸(`--pl-bg-page` #F9FAFB)을 안 쓰고 body 의 캔버스
+   * (#F4F4FB)를 그대로 물려받는다 — 바닥이 이미 내려가 있어서 흰 카드가 4.12 로
+   * 읽힌다. 여기에 캔버스를 한 겹 더 깔면 같은 색을 같은 색 위에 얹는 것이라 표면만
+   * 하나 는다(브라우저 실측 2026-08-14).
+   */
+  deckRows: 'flex flex-col gap-1.5',
+  /** 서비스 한 건의 카드 — 타일 · 이름 · 코드 태그. `/services` 레일과 같은 문법이라
+   *  서비스는 이 제품 어디서나 같은 모양으로 읽힌다(색·타일 해시는 `serviceListStyles`
+   *  에서 그대로 온다). gap 은 레일의 2.5.
+   *
+   *  폭은 카드가 아니라 화면이 잡는다 — 레이아웃 열이 곧 이 목록의 폭이다. 예전에는
+   *  여기서 640 으로 묶었는데, 그러면 1000 열 안의 828 카드 안에 640 목록이 되어
+   *  폭이 세 겹이었다. */
+  svcRow: `flex items-center ${CARD_FACE}`,
+  /** 둘째 단이 접히는 카드(내 요청 사유) — 타일이 이름 줄과 맞도록 위 정렬. `cn` 으로
+   *  items-center 를 덧씌우지 않고 따로 선언한다 — 단순 join 이라 출력 순서가 이긴다. */
+  svcRowTop: `flex items-start ${CARD_FACE}`,
   /** 행 안의 두 단 — 윗단 이름·코드, 아랫단 설명. 등급이 카드 사이가 아니라 행 안에서
    *  생기는 자리다(Carbon structured list, NN/g "굵은 줄만 따라 읽기"). */
   svcStack: 'flex min-w-0 flex-1 flex-col gap-0.5',
@@ -95,11 +109,10 @@ export const accessStyles = {
   svcDesc: 'min-w-0 truncate text-[12px] leading-[1.5] text-[var(--pl-text-weak)]',
   /** 행 끝 액션 셀 — "권한 요청"이 줄바꿈 없이 들어가는 폭. */
   svcAction: 'w-[68px] flex-none text-right',
-  /** 열이 있는 표(내 요청 내역) 안의 서비스 셀 — `svcRow` 와 같은 타일·이름·코드를
-   *  한 칸 안에 담는다. 같은 서비스가 탭 하나 건너 다른 모양으로 보이면 같은 것으로
-   *  읽히지 않는다. flex-[1.4] 는 사유 두 열보다 조금 넓게 두려는 것(타일이 먼저 폭을
-   *  가져가서, 1 이면 이름이 사유보다 먼저 잘린다). */
-  svcCell: 'flex min-w-0 flex-[1.4] items-center gap-2.5',
+  /** 카드 안의 서비스 칸 — 타일 · [이름 코드] · 둘째 단을 한 덩어리로 담는다. 같은
+   *  서비스가 탭 하나 건너 다른 모양으로 보이면 같은 것으로 읽히지 않는다. */
+  svcCell: 'flex min-w-0 flex-1 items-center gap-2.5',
+  svcCellTop: 'flex min-w-0 flex-1 items-start gap-2.5',
   /** 행마다 반복되는 행위는 글자로 쓴다.
    *
    *  면을 가진 CTA 로 두면 한 장에 파란 버튼이 다섯 개가 되고, 다섯 개가 되면 강조가
@@ -107,6 +120,12 @@ export const accessStyles = {
    *  그 사실을 한 번 더 말할 필요가 없다. */
   svcLink:
     'cursor-pointer whitespace-nowrap text-[14px] font-medium text-[var(--pl-primary)] underline-offset-2 transition-colors hover:text-[var(--pl-primary-hover)] hover:underline',
+  /** 내 요청 카드의 꼬리 — 상태 · 요청 일시 · (반려면) 다시 요청. 서비스 카드의 액션
+   *  칸과 같은 오른쪽 끝이라 탭을 옮겨도 눌 자리가 그대로다. */
+  reqTail: 'flex flex-none items-center gap-3',
+  reqWhen: 'text-[12px] tabular-nums text-[var(--pl-text-weak)]',
+  /** 내가 쓴 요청 사유 — 자르지 않고 접는다. 문장이라 잘라 놓으면 있으나 마나다. */
+  reqReason: 'whitespace-pre-wrap break-words text-[12px] leading-[1.5] text-[var(--pl-text-weak)]',
 
   /** 컬럼 폭 — 같은 골격을 쓰는 카드끼리 격자 간격 너머로 열이 맞도록 공유한다. */
   name: 'min-w-0 flex-1 truncate',
@@ -196,7 +215,8 @@ export const accessStyles = {
   /** 대기 경과 — 기록이 못 하는 말이라 큐만 쓴다. 임계를 넘으면 잉크가 바뀐다. */
   benchWait:
     'flex-none rounded-full bg-[var(--pl-gray-100)] px-2 py-0.5 text-[12px] font-semibold tabular-nums text-[var(--pl-text-medium)]',
-  benchWaitHot: 'flex-none rounded-full bg-[var(--pl-warn-bg)] px-2 py-0.5 text-[12px] font-semibold tabular-nums text-[var(--pl-warn-text)]',
+  benchWaitHot:
+    'flex-none rounded-full bg-[var(--pl-warn-bg)] px-2 py-0.5 text-[12px] font-semibold tabular-nums text-[var(--pl-warn-text)]',
   /** 오른쪽 시트 — 왼쪽 여백이 없다. 목록과 시트 사이는 캔버스가 직접 만든다. */
   benchPane:
     'm-2.5 ml-0 overflow-y-auto rounded-[9px] border border-[var(--pl-border)] bg-[var(--pl-bg-card)] p-5',
