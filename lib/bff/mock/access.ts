@@ -331,7 +331,7 @@ const matches = (haystack: string[], needle: string): boolean =>
 // ── handlers ─────────────────────────────────────────────────────────────────
 
 export const mockAccess = {
-  // GET /admin/services?page&size&q — 코드·이름·담당자로 검색한다(2026-08-14 오너 스펙).
+  // GET /admin/access/services?page&size&q — 코드·이름·담당자로 검색한다(2026-08-14 오너 스펙).
   listServices: async (query: string | undefined, pageNumber: number, size: number) => {
     if (!isAdmin(me())) return forbidden('관리자만 서비스를 조회할 수 있어요.');
     const s = getStore();
@@ -360,13 +360,13 @@ export const mockAccess = {
     return NextResponse.json(page(rows, pageNumber, size));
   },
 
-  // GET /admin/services/{serviceCode}/owners — 페이지가 아니다, 전체를 준다.
+  // GET /admin/access/services/{serviceCode}/owners — 페이지가 아니다, 전체를 준다.
   listServiceOwners: async (serviceCode: string) => {
     if (!isAdmin(me())) return forbidden('관리자만 권한 사용자를 조회할 수 있어요.');
     return NextResponse.json(serviceOwnersWire(serviceCode));
   },
 
-  // POST /admin/services/{serviceCode}/owners — 직접 부여 (일괄, email 키)
+  // POST /admin/access/services/{serviceCode}/owners — 직접 부여 (일괄, email 키)
   addServiceOwners: async (serviceCode: string, emails: string[]) => {
     const caller = me();
     if (!isAdmin(caller) || !caller) return forbidden('관리자만 권한을 부여할 수 있어요.');
@@ -380,7 +380,7 @@ export const mockAccess = {
     return NextResponse.json(serviceOwnersWire(serviceCode));
   },
 
-  // POST /admin/services/{serviceCode}/owners/remove — 해제 (email 키)
+  // POST /admin/access/services/{serviceCode}/owners/remove — 해제 (email 키)
   removeServiceOwner: async (serviceCode: string, email: string) => {
     const caller = me();
     if (!isAdmin(caller) || !caller) return forbidden('관리자만 권한을 해제할 수 있어요.');
@@ -395,13 +395,13 @@ export const mockAccess = {
     return NextResponse.json(serviceOwnersWire(serviceCode));
   },
 
-  // GET /admin/admins — 페이지가 아니다.
+  // GET /admin/access/admins — 페이지가 아니다.
   listAdmins: async () => {
     if (!isAdmin(me())) return forbidden('관리자만 조회할 수 있어요.');
     return NextResponse.json({ admins: getStore().admins.slice().sort(byKnoxId).map(userWire) });
   },
 
-  // POST /admin/admins — 한 명씩(계약이 단수다).
+  // POST /admin/access/admins — 한 명씩(계약이 단수다).
   addAdmin: async (email: string) => {
     const caller = me();
     if (!isAdmin(caller) || !caller) return forbidden('관리자만 관리자 권한을 부여할 수 있어요.');
@@ -416,7 +416,7 @@ export const mockAccess = {
     return NextResponse.json(userWire(user.id));
   },
 
-  // POST /admin/admins/remove — 마지막 관리자면 400.
+  // POST /admin/access/admins/remove — 마지막 관리자면 400.
   removeAdmin: async (email: string) => {
     const caller = me();
     if (!isAdmin(caller) || !caller) return forbidden('관리자만 관리자 권한을 회수할 수 있어요.');
@@ -433,7 +433,7 @@ export const mockAccess = {
     return noContent();
   },
 
-  // GET /admin/permission-access?status&page&size
+  // GET /admin/access/permission-access?status&page&size
   listRequests: async (status: string | undefined, pageNumber: number, size: number) => {
     if (!isAdmin(me())) return forbidden('관리자만 접근 요청을 조회할 수 있어요.');
     const wanted = status ?? 'PENDING';
@@ -451,7 +451,7 @@ export const mockAccess = {
     return NextResponse.json(requestDetailWire(request));
   },
 
-  // POST /admin/permission-access/{id}/approve — 담당자 부여까지 한 트랜잭션, 204.
+  // POST /admin/access/permission-access/{id}/approve — 담당자 부여까지 한 트랜잭션, 204.
   approveRequest: async (requestId: number, message: string) => {
     const caller = me();
     if (!isAdmin(caller) || !caller) return forbidden('관리자만 승인할 수 있어요.');
@@ -473,7 +473,7 @@ export const mockAccess = {
     return noContent();
   },
 
-  // POST /admin/permission-access/{id}/reject — 사유 필수, 204.
+  // POST /admin/access/permission-access/{id}/reject — 사유 필수, 204.
   rejectRequest: async (requestId: number, reason: string) => {
     const caller = me();
     if (!isAdmin(caller) || !caller) return forbidden('관리자만 반려할 수 있어요.');
@@ -496,7 +496,7 @@ export const mockAccess = {
     return noContent();
   },
 
-  // GET /admin/history?service_code&type&page&size — 부여 경로는 여기서만 갈린다.
+  // GET /admin/access/history?service_code&type&page&size — 부여 경로는 여기서만 갈린다.
   listHistory: async (
     query: { serviceCode?: string; type?: string },
     pageNumber: number,

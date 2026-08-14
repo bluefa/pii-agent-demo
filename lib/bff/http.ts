@@ -322,31 +322,36 @@ export const httpBff: BffClient = {
   },
 
   // 서비스 접근 권한 — 오너가 준 백엔드 초안 스펙 그대로
-  // (docs/api/access-assumed-contracts.md). 관리자 경로의 base 는 `/admin` 으로 잡았다
-  // — 스펙에 base 가 안 적혀 있어 저장소 관례(`/admin/queue/*`, `/admin/ops/*`)를 따랐다.
+  // (docs/api/access-assumed-contracts.md).
+  //
+  // 관리자 API 의 base 는 **`/admin/access`** 다 — 2026-08-14 오너 확정(D6 닫힘).
+  // 스펙 표가 base 없이 bare 로 적어 둔 걸 우리가 `/admin` 으로 읽어 `/admin/admins`,
+  // `/admin/services` 로 나가고 있었다. 이제 업스트림 경로가 우리 프록시 경로
+  // (`/api/v1/admin/access/**`)와 같은 모양이다.
+  //
   // wire 는 snake 이고 camel 경계는 CSR 어댑터가 갖는다.
   access: {
     listServices: (query, page, size) =>
-      getSnakeRaw(`/admin/services${buildQuery({ q: query, page, size })}`),
+      getSnakeRaw(`/admin/access/services${buildQuery({ q: query, page, size })}`),
     listServiceOwners: (serviceCode) =>
-      getSnakeRaw(`/admin/services/${encodeURIComponent(serviceCode)}/owners`),
+      getSnakeRaw(`/admin/access/services/${encodeURIComponent(serviceCode)}/owners`),
     addServiceOwners: (serviceCode, emails) =>
-      post(`/admin/services/${encodeURIComponent(serviceCode)}/owners`, { emails }),
+      post(`/admin/access/services/${encodeURIComponent(serviceCode)}/owners`, { emails }),
     removeServiceOwner: (serviceCode, email) =>
-      post(`/admin/services/${encodeURIComponent(serviceCode)}/owners/remove`, { email }),
-    listAdmins: () => getSnakeRaw('/admin/admins'),
-    addAdmin: (email) => post('/admin/admins', { email }),
-    removeAdmin: (email) => post('/admin/admins/remove', { email }),
+      post(`/admin/access/services/${encodeURIComponent(serviceCode)}/owners/remove`, { email }),
+    listAdmins: () => getSnakeRaw('/admin/access/admins'),
+    addAdmin: (email) => post('/admin/access/admins', { email }),
+    removeAdmin: (email) => post('/admin/access/admins/remove', { email }),
     listRequests: (status, page, size) =>
-      getSnakeRaw(`/admin/permission-access${buildQuery({ status, page, size })}`),
-    getRequest: (requestId) => getSnakeRaw(`/admin/permission-access/${requestId}`),
+      getSnakeRaw(`/admin/access/permission-access${buildQuery({ status, page, size })}`),
+    getRequest: (requestId) => getSnakeRaw(`/admin/access/permission-access/${requestId}`),
     approveRequest: (requestId, message) =>
-      post(`/admin/permission-access/${requestId}/approve`, { message }),
+      post(`/admin/access/permission-access/${requestId}/approve`, { message }),
     rejectRequest: (requestId, reason) =>
-      post(`/admin/permission-access/${requestId}/reject`, { reason }),
+      post(`/admin/access/permission-access/${requestId}/reject`, { reason }),
     listHistory: (query, page, size) =>
       getSnakeRaw(
-        `/admin/history${buildQuery({
+        `/admin/access/history${buildQuery({
           service_code: query.serviceCode,
           type: query.type,
           page,
