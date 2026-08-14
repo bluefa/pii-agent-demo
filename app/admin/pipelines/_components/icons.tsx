@@ -28,8 +28,9 @@ export type IconName =
   | 'arrow-ur'
   | 'flow'
   | 'install'
+  | 'package-plus'
   | 'trash'
-  | 'sliders'
+  | 'blocks'
   | 'stop'
   | 'play'
   | 'x-circle'
@@ -134,12 +135,31 @@ const ICON_PATHS: Record<IconName, ReactElement> = {
       <path d="M10.2 11v5.5m3.6-5.5v5.5" />
     </>
   ),
-  sliders: (
+  // Pipeline-type glyphs (오너 2026-08-14, 시안 A). Lucide 1.31.0 verbatim — that
+  // set is 24x24 / stroke 2 / round cap+join, the same grid as this one, so the
+  // path data drops in unchanged.
+  //
+  // `install` (arrow into a tray) is the download idiom, and nothing is downloaded
+  // here — the pipeline provisions infrastructure INTO a customer account, so the
+  // arrow pointed the wrong way. `sliders` is gone entirely: it read as filters
+  // (Lucide tags it exactly that) and was a near-twin of this list's own filter
+  // trigger, three shrinking horizontal rules, in the same band.
+  //
+  // Both replacements are box-shaped, so the type column now reads as one family.
+  'package-plus': (
     <>
-      <path d="M4 7.5h3.2m4.6 0H20" />
-      <circle cx="9.7" cy="7.5" r="2.2" />
-      <path d="M4 16.5h8.2m4.6 0H20" />
-      <circle cx="14.7" cy="16.5" r="2.2" />
+      <path d="M12 22V12" />
+      <path d="M16 17h6" />
+      <path d="M19 14v6" />
+      <path d="M21 10.535V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.729l7 4a2 2 0 0 0 2 .001l1.675-.955" />
+      <path d="M3.29 7 12 12l8.71-5" />
+      <path d="m7.5 4.27 8.997 5.148" />
+    </>
+  ),
+  blocks: (
+    <>
+      <path d="M10 22V7a1 1 0 0 0-1-1H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-5a1 1 0 0 0-1-1H2" />
+      <rect x="14" y="2" width="8" height="8" rx="1" />
     </>
   ),
   stop: <rect x="7" y="7" width="10" height="10" rx="1.6" />,

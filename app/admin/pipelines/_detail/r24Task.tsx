@@ -67,7 +67,7 @@ const TYPE_TONE: Record<PipelineType, { tile: string; ink: string; icon: IconNam
   INSTALL: {
     tile: 'bg-[color-mix(in_srgb,var(--pl-type-install)_10%,transparent)]',
     ink: 'text-[var(--pl-type-install)]',
-    icon: 'install',
+    icon: 'package-plus',
   },
   DELETE: {
     tile: 'bg-[color-mix(in_srgb,var(--pl-type-delete)_10%,transparent)]',
@@ -77,7 +77,7 @@ const TYPE_TONE: Record<PipelineType, { tile: string; ink: string; icon: IconNam
   CUSTOM: {
     tile: 'bg-[color-mix(in_srgb,var(--pl-type-custom)_10%,transparent)]',
     ink: 'text-[var(--pl-type-custom)]',
-    icon: 'sliders',
+    icon: 'blocks',
   },
 };
 
