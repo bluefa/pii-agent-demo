@@ -63,10 +63,21 @@ const fetchRejected = (
   page: number,
   opts: { signal: AbortSignal },
 ): Promise<AccessPage<PermissionRequestRow>> => getAccessRequests('REJECTED', page, opts);
+/**
+ * 이력만 한 장에 8줄이다(다른 목록은 5).
+ *
+ * 이 탭은 고르는 목록이 아니라 읽는 기록이고, 줄 하나가 이벤트 하나라 훑는 단위가
+ * 크다 — 5줄이면 승인·반려·부여·회수가 한 장에 다 못 들어와서 무슨 일이 있었는지
+ * 보려면 페이저부터 눌러야 했다(오너 지시 2026-08-14). 왼쪽 레일이 없는 탭이라
+ * 세로 여유도 여기만 있다.
+ */
+const HISTORY_PAGE_SIZE = 8;
+
 const fetchHistory = (
   page: number,
   opts: { signal: AbortSignal },
-): Promise<AccessPage<AccessHistoryEntry>> => getAccessHistory({}, page, opts);
+): Promise<AccessPage<AccessHistoryEntry>> =>
+  getAccessHistory({}, page, { ...opts, size: HISTORY_PAGE_SIZE });
 
 type RequestTab = 'pending' | 'rejected' | 'history';
 
@@ -166,10 +177,11 @@ export default function AccessRequestsPage(): ReactElement {
     { key: 'history', label: '전체 이력', count: history.paged?.totalElements },
   ];
 
-  /** 이력 스켈레톤 — 열이 없어 기본(컬럼 폭 막대)이 실제 행 모양과 어긋난다. */
+  /** 이력 스켈레톤 — 열이 없어 기본(컬럼 폭 막대)이 실제 행 모양과 어긋난다.
+   *  줄 수는 이 탭의 장 크기를 따른다 — 5줄을 그리고 8줄이 도착하면 목록이 튄다. */
   const historySkeleton: ReactNode = (
     <div role="rowgroup" aria-busy="true" aria-label="이력을 불러오는 중" className="mt-3">
-      {Array.from({ length: ACCESS_PAGE_SIZE }, (_, row) => (
+      {Array.from({ length: HISTORY_PAGE_SIZE }, (_, row) => (
         <div key={row} className={a.feedRow} role="row" aria-hidden="true">
           <span className={cn(a.skeletonBar, 'w-1/2')} />
           <span className={cn(a.skeletonBar, 'w-2/3')} />
