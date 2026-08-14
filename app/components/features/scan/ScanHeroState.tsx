@@ -12,6 +12,8 @@ import type { CloudProvider } from '@/lib/types';
 
 export interface ScanHeroStateProps {
   provider: CloudProvider;
+  /** 계약에 등록된 스캔 주체(Role ARN · SA 이메일 · App ID). 미등록이면 없다. */
+  scanPrincipal?: string;
   permission: ScanPermissionState;
   onCheckPermission: () => void;
   onStartScan: () => void;
@@ -26,6 +28,7 @@ export interface ScanHeroStateProps {
  */
 export const ScanHeroState = ({
   provider,
+  scanPrincipal,
   permission,
   onCheckPermission,
   onStartScan,
@@ -56,11 +59,15 @@ export const ScanHeroState = ({
         <line x1="21" y1="21" x2="16.5" y2="16.5" />
       </svg>
     </div>
+    {/* 제목은 이 카드의 사실 하나를 말한다 — 스캔 기록이 없다. 스트립이 같은
+        상태에 쓰는 문장을 그대로 쓴다(같은 사실이 두 문장을 갖지 않게).
+        "찾아드려요" 같은 서비스 화법은 스캔이 하는 일을 흐린다: 스캔은 계정에
+        등록된 리소스를 조회할 뿐, 숨은 것을 발굴하지 않는다. */}
     <h3 className={cn('text-lg font-bold', textColors.primary)}>
-      인프라 스캔으로 보유 DB를 찾아드려요
+      아직 스캔한 적이 없어요
     </h3>
     <p className={cn('mt-2 text-[13.5px] leading-[1.6]', textColors.tertiary)}>
-      연결된 {provider} 계정에서 DB 리소스를 조회해요. 평균 5분 이내 완료돼요.
+      스캔하면 연결된 {provider} 계정의 DB 리소스를 조회해요. 평균 5분 이내 완료돼요.
     </p>
 
     {/* 권한 프리플라이트 한 줄 — 확인은 시점 있는 관측이라 결과는 세션 안에서만
@@ -77,6 +84,18 @@ export const ScanHeroState = ({
         <div className={cn('mt-0.5 text-[12px]', textColors.tertiary)}>
           {SCAN_CREDENTIAL_LABELS[provider]}
         </div>
+        {/* 자격의 "종류"(Scan Role…) 아래에 그 자격의 "주체"(ARN·SA 이메일·App ID).
+            같은 줄에 붙이면 종류가 폭을 먹어 주체가 프로젝트 ID 자리에서 잘린다 —
+            식별에 쓰이는 건 잘리는 그 꼬리 쪽이라, 주체는 줄 하나를 통째로 쓴다.
+            그래도 넘치면 CSS 가 자르므로 전체 값은 title 로 남긴다. */}
+        {scanPrincipal && (
+          <div
+            className={cn('mt-0.5 truncate text-[12px]', textColors.secondary)}
+            title={scanPrincipal}
+          >
+            {scanPrincipal}
+          </div>
+        )}
       </div>
       {permission.status === 'idle' || permission.status === 'checking' ? (
         <button

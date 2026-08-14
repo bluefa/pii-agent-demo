@@ -8,7 +8,7 @@
  * process_status is no longer carried by the target-source payload — the caller
  * fetches it from the process-status endpoint and passes the raw wire value in.
  */
-import type { TargetSource } from '@/lib/types';
+import type { CloudProvider, TargetSource } from '@/lib/types';
 import { ProcessStatus, isSduProvider, normalizeCloudProvider } from '@/lib/types';
 import type { schemas } from '@/lib/generated/install-v1';
 import type { z } from 'zod';
@@ -37,6 +37,28 @@ export const normalizeTargetSourceProcessStatus = (value: unknown): ProcessStatu
     default:
       return ProcessStatus.WAITING_TARGET_CONFIRMATION;
   }
+};
+
+/**
+ * 계약이 "스캔 주체"를 부르는 이름은 프로바이더마다 다르다 — 세 키가 같은 것을
+ * 말하므로 어느 키를 읽을지는 프로바이더가 정한다(?? 로 이어 붙이면 다른
+ * 프로바이더의 값이 새어 들어온다). 판정을 여기 한 곳에 두어 SSR·CSR 두 어댑터가
+ * 갈라지지 않게 한다.
+ */
+const SCAN_PRINCIPAL_KEYS: Record<CloudProvider, string | null> = {
+  AWS: 'aws_scan_role_arn',
+  GCP: 'gcp_scan_service_account',
+  Azure: 'azure_scan_app_id',
+  IDC: null, // IDC는 클라우드 스캔이 없다 — 주체도 없다.
+};
+
+export const pickScanPrincipal = (
+  metadata: Record<string, unknown> | null,
+  cloudProvider: CloudProvider,
+): string | undefined => {
+  const key = SCAN_PRINCIPAL_KEYS[cloudProvider];
+  const value = key === null ? undefined : metadata?.[key];
+  return typeof value === 'string' && value.trim() !== '' ? value : undefined;
 };
 
 /**
@@ -69,6 +91,8 @@ export const extractTargetSourceFromSnake = (
   const isTerraformExecutionGranted =
     metadata?.grant_service_terraform_execution_permission === true;
   const createdAt = asStr(item.created_at) ?? new Date().toISOString();
+  const cloudProvider = normalizeCloudProvider(asStr(item.cloud_provider));
+  const scanPrincipal = pickScanPrincipal(metadata, cloudProvider);
 
   return {
     id: fallbackCode,
@@ -77,7 +101,7 @@ export const extractTargetSourceFromSnake = (
     serviceCode,
     serviceName: asStr(item.service_name)?.trim() || serviceCode,
     processStatus,
-    cloudProvider: normalizeCloudProvider(asStr(item.cloud_provider)),
+    cloudProvider,
     createdAt,
     updatedAt: asStr(item.updated_at) ?? createdAt,
     name: fallbackCode,
@@ -91,5 +115,6 @@ export const extractTargetSourceFromSnake = (
     ...(awsAccountId ? { awsAccountId } : {}),
     ...(gcpProjectId ? { gcpProjectId } : {}),
     ...(isSduType !== undefined ? { isSduType } : {}),
+    ...(scanPrincipal ? { scanPrincipal } : {}),
   };
 };

@@ -18,6 +18,7 @@ import {
 import type { RecommendFailReason } from '@/lib/types';
 import type { SecretKey } from '@/lib/types';
 import { parseRdsInstanceCandidates, type RdsInstanceCandidate } from '@/lib/rds-instances';
+import { pickScanPrincipal } from '@/lib/target-source-response';
 import { fetchInfraJson } from '@/app/lib/api/infra';
 import type { TargetSourceRequestCloudType } from '@/lib/constants/provider-mapping';
 import type { TargetSourceCloudType } from '@/lib/target-source-creation';
@@ -256,6 +257,8 @@ const toTargetSource = (raw: TargetSourceDetail, processStatusWire: unknown): Ta
   const isTerraformExecutionGranted =
     metadata?.grant_service_terraform_execution_permission === true;
   const createdAt = asStr(item.created_at) ?? new Date().toISOString();
+  const cloudProvider = normalizeCloudProvider(asStr(item.cloud_provider));
+  const scanPrincipal = pickScanPrincipal(metadata, cloudProvider);
 
   return {
     id: fallbackCode,
@@ -264,7 +267,7 @@ const toTargetSource = (raw: TargetSourceDetail, processStatusWire: unknown): Ta
     serviceCode,
     serviceName: asStr(item.service_name)?.trim() || serviceCode,
     processStatus,
-    cloudProvider: normalizeCloudProvider(asStr(item.cloud_provider)),
+    cloudProvider,
     createdAt,
     updatedAt: asStr(item.updated_at) ?? createdAt,
     name: fallbackCode,
@@ -275,6 +278,7 @@ const toTargetSource = (raw: TargetSourceDetail, processStatusWire: unknown): Ta
     ...(awsAccountId ? { awsAccountId } : {}),
     ...(gcpProjectId ? { gcpProjectId } : {}),
     ...(isSduType !== undefined ? { isSduType } : {}),
+    ...(scanPrincipal ? { scanPrincipal } : {}),
     isTerraformExecutionGranted,
   };
 };
