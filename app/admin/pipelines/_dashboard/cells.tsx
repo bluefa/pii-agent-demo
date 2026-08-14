@@ -17,7 +17,6 @@ import {
   elapsedMs,
   fmtDateTime,
   fmtElapsedMs,
-  fmtRelativeTime,
   providerLabel,
   statusKo,
 } from '@/lib/pipeline/format';
@@ -118,14 +117,16 @@ export function ElapsedTime({
   );
 }
 
-/** Relative time ("3시간 전") with an absolute-time hover tooltip. */
-export function RelativeTime({ iso }: { iso: string }): ReactElement {
-  return (
-    <span className={d.timeWrap}>
-      <span className={d.timeText}>{fmtRelativeTime(iso)}</span>
-      <span className={d.timeTip}>{fmtDateTime(iso)}</span>
-    </span>
-  );
+/**
+ * 절대 시각 "YYYY-MM-DD HH:mm" (Asia/Seoul, 오너 2026-08-14).
+ *
+ * 상대시각("3시간 전")과 hover 툴팁이 있던 자리다. 옆에 경과 열이 생기면서 상대시각이
+ * 그 열과 같은 축("얼마나 됐나")을 두 번 말하게 됐고, 정작 "언제"는 hover 해야만
+ * 보였다 — 두 열이 서로 다른 사실을 말하도록 이쪽을 절대 시각으로 고정한다.
+ * 툴팁이 보여 주던 값이 이제 셀 자체라 툴팁도 함께 없앴다.
+ */
+export function Timestamp({ iso }: { iso: string }): ReactElement {
+  return <span className={d.timeText}>{fmtDateTime(iso)}</span>;
 }
 
 /** Hover-reveal dark action button (row hover drives the reveal via the group). */

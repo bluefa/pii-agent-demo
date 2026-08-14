@@ -48,10 +48,10 @@ import { FilterMenu } from '@/app/admin/pipelines/queue/requests/_components/Res
 import {
   DashRow,
   ElapsedTime,
-  RelativeTime,
   RowAction,
   StatusText,
   TargetCell,
+  Timestamp,
 } from '@/app/admin/pipelines/_dashboard/cells';
 import { PipelineTypeTag } from '@/app/admin/pipelines/_components/PipelineTypeTag';
 import { PipelineStepStrip } from '@/app/admin/pipelines/_components/PipelineStepStrip';
@@ -454,7 +454,7 @@ export default function DashboardPage(): ReactElement {
                       />
                     </td>
                     <td className={d.cell}>
-                      <RelativeTime iso={row.created_at} />
+                      <Timestamp iso={row.created_at} />
                     </td>
                     <td className={d.actionCell}>
                       <RowAction />

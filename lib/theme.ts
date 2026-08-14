@@ -2730,13 +2730,11 @@ export const pipelineStyles = {
       BLOCKED: 'text-[var(--pl-text-weak)]',
     } as Record<PipelineStatusToneKey, string>,
 
-    /** Relative-time cell + hover tooltip (named group so only the cell triggers it). */
-    timeWrap: 'group/time relative inline-block',
-    /** 12px (오너 2026-08-14) — 경과 시간은 행을 고르는 근거지 식별자가 아니다.
-     *  14px 일 때는 식별자 태그와 같은 단에 서서 두 값이 같은 등급으로 읽혔다. */
-    timeText: 'text-[12px] text-[var(--pl-text-weak)] cursor-default',
-    timeTip:
-      'absolute bottom-full left-0 mb-1.5 hidden group-hover/time:block z-10 whitespace-nowrap rounded-lg bg-[var(--pl-gray-800)] px-2.5 py-1.5 text-[12px] text-[var(--pl-white)] shadow-[var(--pl-shadow-lg)]',
+    /** 생성시간 — 절대 시각 "YYYY-MM-DD HH:mm" (오너 2026-08-14). 상대시각 + hover 툴팁
+     *  (`timeWrap`/`timeTip`) 이 있던 자리이고, 경과 열이 생기면서 그 둘은 나갔다.
+     *  12px: 행을 고르는 근거지 식별자가 아니다 — 14px 일 때는 식별자 태그와 같은 단에
+     *  서서 두 값이 같은 등급으로 읽혔다. 날짜가 열로 줄서므로 tabular-nums. */
+    timeText: 'text-[12px] text-[var(--pl-text-weak)] tabular-nums whitespace-nowrap',
 
     /** 경과 — 진행도 옆에서 같은 행을 읽는 두 번째 사실이라 진행도보다 조용하다.
      *  숫자가 열로 줄서므로 tabular-nums (`timeText` 를 재쓰지 않는 이유: 저쪽의
