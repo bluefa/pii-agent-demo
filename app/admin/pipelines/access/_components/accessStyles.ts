@@ -198,14 +198,26 @@ export const accessStyles = {
   benchPane:
     'm-2.5 ml-0 overflow-y-auto rounded-[9px] border border-[var(--pl-border)] bg-[var(--pl-bg-card)] p-5',
   benchHead: 'flex items-start gap-3',
-  benchTitle:
-    'mt-0.5 text-[20px] font-bold leading-[1.3] tracking-[-0.02em] text-[var(--pl-text-strong)]',
+  /** 시트의 주어는 서비스가 아니라 **요청**이다 — 서비스 이름을 제목으로 쓰면 이 시트가
+   *  서비스 상세로 읽히고, 결정할 것(승인·반려)이 무엇에 대한 결정인지 제목이 말하지
+   *  않는다(오너 지시 2026-08-14). 서비스는 이 요청이 가리키는 대상이라 아래 메타 줄로. */
+  benchTitle: 'text-[20px] font-bold leading-[1.3] tracking-[-0.02em] text-[var(--pl-text-strong)]',
+  benchMeta: 'mt-1 flex min-w-0 items-center gap-2',
+  benchMetaName: 'min-w-0 truncate text-[14px] font-medium text-[var(--pl-text-medium)]',
   /** 사실은 나열 문장이 아니라 격자로 — 라벨과 값이 같은 x 에 서야 훑힌다. */
   benchGrid: 'grid grid-cols-2 gap-x-8 gap-y-4',
   benchKey: 'text-[12px] font-medium text-[var(--pl-text-weak)]',
   benchVal: 'mt-0.5 text-[14px] font-semibold text-[var(--pl-text-strong)]',
+  /** 요청자 — 승인·반려는 이 사람에 대한 결정이라 남은 사실보다 한 급 위다. */
+  benchValLg: 'mt-0.5 text-[18px] font-semibold leading-[1.4] text-[var(--pl-text-strong)]',
+  /** 값에 딸린 두 번째 표기(요청자의 이메일) — 칸을 따로 주면 사실 셋이 다시 평평해진다. */
+  benchSub: 'mt-0.5 text-[12px] text-[var(--pl-text-weak)]',
   benchRule: 'my-4 border-t border-[var(--pl-border)]',
-  benchLabel: 'mb-1.5 text-[12px] font-semibold text-[var(--pl-text-weak)]',
+  /** 시트 안 구역의 머리 — 승인 결정 블록의 제목과 같은 급이다(14/semibold/strong).
+   *  12px weak 이던 때는 라벨이 자기가 이끄는 본문보다 작고 옅어서 구역이 안 보였다. */
+  benchLabel: 'mb-2 text-[14px] font-semibold text-[var(--pl-text-strong)]',
+  /** 구역 머리에 딸린 사실(누가·언제) — 머리는 강해지되 꼬리는 따라 강해지지 않는다. */
+  benchLabelMeta: 'ml-2 text-[12px] font-medium text-[var(--pl-text-weak)]',
   /** 결정은 구석의 버튼 두 개가 아니라 자기 자리를 가진 블록이다. */
   benchDecide: 'rounded-[9px] bg-[var(--pl-gray-50)] p-4',
   benchDecideTitle: 'text-[14px] font-semibold text-[var(--pl-text-strong)]',
