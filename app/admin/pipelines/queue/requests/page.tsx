@@ -507,7 +507,13 @@ export default function RequestsPage(): ReactElement {
             </div>
           </div>
 
-          <div className={rq.benchPane}>
+          {/* 시트에는 제목이 없다(정체는 레일이 말한다) — 표제가 없는 자리라 랜드마크
+              이름은 여기서 준다. 스크린리더가 "무엇의 상세인지"를 알 곳이 이 한 줄뿐이다. */}
+          <div
+            className={rq.benchPane}
+            role="region"
+            aria-label={current != null ? `${current.serviceName ?? `#${currentId}`} 연동 요청` : '연동 요청 상세'}
+          >
             {currentId == null ? (
               <div className={rq.empty}>
                 <span className={rq.emptyTitle}>고를 요청이 없어요</span>
@@ -522,7 +528,7 @@ export default function RequestsPage(): ReactElement {
                 key={currentId}
                 targetSourceId={currentId}
                 onDecided={onDecided}
-                titleAs="h2"
+                identity={false}
               />
             )}
           </div>

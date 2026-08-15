@@ -89,16 +89,17 @@ export interface RequestDetailProps {
    */
   onDecided: () => void;
   /**
-   * 시트로 얹힐 때는 h2 다 — 목록 화면의 h1 은 '연동 요청'이고, 한 문서에 h1 이 둘이면
-   * 표제 구조가 깨진다. 상세 라우트에서는 이 이름이 그 페이지의 h1 이다.
+   * 요청의 정체(이름 · 코드 · #id · 설명)를 시트가 다시 적을지 — 자세한 이유는
+   * `RequestDetailHeader.identity` 에 있다. 목록의 시트는 레일이 이미 말하므로 `false`,
+   * 상세 라우트는 레일이 없으므로 기본값(`true`).
    */
-  titleAs?: 'h1' | 'h2';
+  identity?: boolean;
 }
 
 export function RequestDetail({
   targetSourceId,
   onDecided,
-  titleAs,
+  identity,
 }: RequestDetailProps): ReactElement {
   const toast = usePlToast();
 
@@ -244,7 +245,7 @@ export function RequestDetail({
   return (
     <>
       <RequestDetailHeader
-        titleAs={titleAs}
+        identity={identity}
         serviceName={serviceName}
         targetSourceId={targetSourceId}
         description={header?.description ?? null}

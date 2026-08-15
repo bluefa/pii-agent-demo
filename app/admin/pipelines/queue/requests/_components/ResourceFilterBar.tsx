@@ -24,7 +24,7 @@ export interface ResourceStatTilesProps {
 /** The three counts ARE the 전체/대상/제외 filter — not a read-only summary above one. */
 export function ResourceStatTiles({ counts, filter, onFilterChange }: ResourceStatTilesProps) {
   return (
-    <div className="grid grid-cols-3 gap-3 mb-[18px]" role="group" aria-label="대상 필터">
+    <div className="grid grid-cols-3 gap-2 mb-3" role="group" aria-label="대상 필터">
       <StatTile label="전체 요청" value={counts.all} active={filter === 'all'} onClick={() => onFilterChange('all')} />
       <StatTile label="연동 요청 대상" value={counts.target} active={filter === 'target'} onClick={() => onFilterChange('target')} />
       <StatTile label="연동 요청 제외대상" value={counts.excluded} active={filter === 'excluded'} onClick={() => onFilterChange('excluded')} />
@@ -32,8 +32,17 @@ export function ResourceStatTiles({ counts, filter, onFilterChange }: ResourceSt
   );
 }
 
-/** Selection speaks only through the boundary — a brand stroke doubled by an inset
- *  ring, so the tile never shifts or changes surface when picked. */
+/**
+ * 한 줄짜리 필터 타일 — 라벨 왼쪽, 수 오른쪽.
+ *
+ * 전에는 세로 2단에 40px 숫자라 한 장이 112px 이었다(오너 지시 2026-08-15: 작게).
+ * 그 크기는 이 블록이 전폭 페이지의 첫 화면을 여는 요약이던 때의 것이고, 지금은 승인
+ * 시트 안에서 표 바로 위에 놓인 **필터**다 — 세 수가 표보다 크게 읽힐 이유가 없다.
+ * 44px 한 줄이라도 313px 폭의 누를 자리는 그대로다.
+ *
+ * 수는 20px, 라벨은 14px — 한 줄 안에서 수가 여전히 이기되 표의 14px 값과 싸우지 않는
+ * 단이다.
+ */
 function StatTile({
   label,
   value,
@@ -51,19 +60,23 @@ function StatTile({
       onClick={onClick}
       aria-pressed={active}
       className={cn(
-        'flex cursor-pointer flex-col items-center gap-1.5 rounded-xl border px-5 py-[18px] text-left transition-colors duration-150',
+        'flex cursor-pointer items-center justify-between gap-2 rounded-[10px] border px-4 py-2.5 text-left transition-colors duration-150',
         'bg-[var(--pl-bg-card)] shadow-[var(--pl-shadow-xs)]',
+        // Selection speaks only through the boundary — a brand stroke doubled by an
+        // inset ring, so the tile never shifts or changes surface when picked.
         active
           ? 'border-[var(--pl-primary)] ring-1 ring-inset ring-[var(--pl-primary)]'
           : 'border-[var(--pl-border)] hover:border-[var(--pl-primary)]',
       )}
     >
-      <span className="text-[14px] font-semibold text-[var(--pl-text-weak)]">{label}</span>
-      <span className="flex items-baseline">
-        <span className="text-[40px] font-bold leading-[1.2] tabular-nums text-[var(--pl-text-strong)]">
+      <span className="min-w-0 truncate text-[14px] font-medium text-[var(--pl-text-weak)]">
+        {label}
+      </span>
+      <span className="flex flex-none items-baseline">
+        <span className="text-[20px] font-bold leading-[1.2] tabular-nums text-[var(--pl-text-strong)]">
           {value}
         </span>
-        <span className="ml-1 text-[13px] font-medium text-[var(--pl-text-weak)]">건</span>
+        <span className="ml-0.5 text-[12px] font-medium text-[var(--pl-text-weak)]">건</span>
       </span>
     </button>
   );
