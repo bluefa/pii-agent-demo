@@ -37,7 +37,9 @@ export const jobStyles = {
   verdictLabel: VERDICT_LABEL,
   verdictTextTone: VERDICT_TEXT_TONE,
   verdictText: 'text-[13px] font-medium',
-  miniBadge: 'inline-flex items-center rounded-full px-[7px] py-[2.5px] text-[10px] font-medium leading-none whitespace-nowrap tracking-[-0.196px]',
+  // 12px is the type set's floor — the verdict these carry is the panel's whole
+  // point, so it does not get to sit below it (design-benchmark 진단 06).
+  miniBadge: 'inline-flex items-center rounded-full px-[7px] py-[2.5px] text-[12px] font-medium leading-none whitespace-nowrap tracking-[-0.196px]',
 
   /** A muted caption line rendered on its own line under a section label
    *  (e.g. the attempt-history "tap a row for detail" hint; owner Figma node 121-74). */
@@ -51,11 +53,19 @@ export const jobStyles = {
    *  push the flow cards out of view; the cap keeps the panel inside one screen. */
   jobList: 'mt-4 flex flex-col max-h-[420px] overflow-y-auto overscroll-contain',
 
-  /** Attempt-history row — a full-width button that drills into the attempt. */
-  attemptRow: 'w-full flex items-center gap-2.5 pt-2.5 pb-[11px] text-left border-b border-[var(--pl-border)] last:border-b-0 hover:bg-[var(--pl-gray-50)] transition-colors',
+  /** Attempt entry — the summary row plus, while open, that attempt's body
+   *  (design-benchmark 시안 C). The hairline moved here off the row so the open
+   *  body sits inside the same entry. */
+  attemptItem: 'flex flex-col border-b border-[var(--pl-border)] last:border-b-0',
+  /** Attempt-history row — a full-width button that folds the attempt open. */
+  attemptRow: 'w-full flex items-center gap-2.5 pt-2.5 pb-[11px] text-left hover:bg-[var(--pl-gray-50)] transition-colors',
   attemptNo: 'flex-none min-w-[26px] text-[14px] font-semibold text-[var(--pl-text-strong)] tabular-nums tracking-[-0.196px]',
-  /** Row CTA — blue "view details" link text, right-aligned. */
-  attemptDetail: 'ml-auto flex-none text-[12px] font-semibold text-[var(--pl-primary)] tracking-[-0.196px]',
+  /** Fold marker — the raw-response fold's grammar (▼ flips up when open); the
+   *  open tone is `primary`, not the fold's `info`, which reads 3.24:1 here. */
+  attemptChev: 'ml-auto flex-none text-[10px] leading-none text-[var(--pl-text-weak)] transition-transform',
+  attemptChevOpen: 'rotate-180 text-[var(--pl-primary)]',
+  /** Open attempt body — the sections that used to be a replaced screen. */
+  attemptBody: 'flex flex-col gap-6 pb-5',
 
   /** Job rollup (design-benchmark 시안 B) — "몇 개 중 몇 개가 실패했나"를 목록
    *  위에서 먼저 답하는 줄. Count takes the verdict's own tone; the total stays
@@ -77,12 +87,6 @@ export const jobStyles = {
   jobId: 'text-[13px] font-bold text-[var(--pl-text-strong)] [font-family:var(--pl-font-mono)] tabular-nums tracking-[-0.196px]',
   /** Log action — blue text button (owner Figma node 121-326), not a bordered btn. */
   logBtn: 'ml-auto flex-none rounded-[8px] px-1 text-[12px] font-semibold text-[var(--pl-primary)] hover:underline transition-colors',
-
-  /** Attempt drill-down header (replaces the tab bar on the sub-view). */
-  subHeader: 'flex items-start gap-2.5 px-6 pt-5 pb-4 border-b border-[var(--pl-border)]',
-  back: 'flex-none inline-flex items-center justify-center w-8 h-8 -ml-1 rounded-lg text-[var(--pl-text-strong)] hover:bg-[var(--pl-bg-card)] transition-colors text-[18px] leading-none',
-  subTitle: 'flex items-center gap-2 text-[16px] font-bold leading-snug text-[var(--pl-text-strong)]',
-  subCrumb: 'mt-1 text-[12px] text-[var(--pl-text-weak)] truncate',
 
   /** Raw-response fold (owner Figma node 121-389) — 16px SemiBold heading led by
    *  a ▼ triangle (gray) that flips up + sky-blue when open; the raw dispatch

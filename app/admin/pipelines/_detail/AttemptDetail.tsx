@@ -1,6 +1,7 @@
 /**
- * Attempt drill-down body: attempt info + this attempt's Job 현황 (JobStatus) +
- * poll summary + the raw response fold. Each job row opens the log/state viewer.
+ * One attempt's body, rendered inside the attempt-history fold (design-benchmark
+ * 시안 C): its run window + Job 현황 + poll summary + the raw response fold. Each
+ * job row opens the log/state viewer.
  *
  * NOTE: `attempt.failure_detail` stays out of the default UI while the attempt
  * has job rows — the per-job rows now carry `last_fail_reason` themselves. The
@@ -11,25 +12,45 @@
  */
 import { type ReactElement } from 'react';
 import { JobStatus } from '@/app/admin/pipelines/_detail/JobStatus';
-import { fmtDateTime } from '@/lib/pipeline/format';
+import { fmtDateTime, fmtElapsedMs } from '@/lib/pipeline/format';
 import {
   d,
   FailureCause,
   j,
   Section,
-  spanLabel,
   type ViewerTarget,
 } from '@/app/admin/pipelines/_detail/taskDrawerShared';
 import type { TaskAttemptView, TaskOperation } from '@/lib/pipeline/types';
 
+/**
+ * The attempt's window on one line — "2026-08-14 17:58 → 18:03 · 5분". The end
+ * repeats its date only when the attempt crosses midnight, and the duration
+ * takes `fmtElapsedMs`, the grammar the card and the exec band already use —
+ * the old `spanLabel` wrote "5m 0s" for the same value one click away.
+ */
+function attemptWindow(attempt: TaskAttemptView): string {
+  const start = fmtDateTime(attempt.started_at);
+  const end = fmtDateTime(attempt.finished_at);
+  const sameDay = start.slice(0, 10) === end.slice(0, 10);
+  const elapsed =
+    attempt.started_at && attempt.finished_at
+      ? fmtElapsedMs(Date.parse(attempt.finished_at) - Date.parse(attempt.started_at))
+      : '-';
+  return `${start} → ${sameDay ? end.slice(11) : end}${elapsed === '-' ? '' : ` · ${elapsed}`}`;
+}
+
 export function AttemptDetail({
   attempt,
   operation,
+  jobsShownAbove = false,
   onOpenViewer,
   onOpenFailure,
 }: {
   attempt: TaskAttemptView;
   operation: TaskOperation | null;
+  /** The root already shows this attempt's Job 현황 (it is the latest one) — then
+   *  the fold does not print the same block a second time on the same screen. */
+  jobsShownAbove?: boolean;
   onOpenViewer: (t: ViewerTarget) => void;
   onOpenFailure: (detail: string) => void;
 }): ReactElement {
@@ -37,32 +58,18 @@ export function AttemptDetail({
 
   return (
     <>
-      <Section label="시도 정보">
-        <div className={d.rowsGap}>
-          <div className={d.kvRow}>
-            <span className={d.kvKey}>Started</span>
-            <span className={d.kvVal}>{fmtDateTime(attempt.started_at)}</span>
-          </div>
-          <div className={d.kvRow}>
-            <span className={d.kvKey}>Finished</span>
-            <span className={d.kvVal}>{fmtDateTime(attempt.finished_at)}</span>
-          </div>
-          {attempt.finished_at && (
-            <div className={d.kvRow}>
-              <span className={d.kvKey}>소요</span>
-              <span className={d.kvVal}>{spanLabel(attempt.started_at, attempt.finished_at) || '—'}</span>
-            </div>
-          )}
-        </div>
-      </Section>
+      <div className={d.kvRow}>
+        <span className={d.kvKey}>실행</span>
+        <span className={d.kvVal}>{attemptWindow(attempt)}</span>
+      </div>
 
-      {hasJobs ? (
+      {hasJobs && !jobsShownAbove ? (
         <JobStatus
           attempt={attempt}
           operation={operation}
           onOpenJob={(jobId) => onOpenViewer({ attemptNumber: attempt.attempt_number, jobId })}
         />
-      ) : attempt.status === 'FAILED' ? (
+      ) : !hasJobs && attempt.status === 'FAILED' ? (
         <FailureCause attempt={attempt} onOpenFailure={onOpenFailure} />
       ) : null}
 
@@ -87,8 +94,10 @@ export function AttemptDetail({
         </Section>
       )}
 
+      {/* Closed by default — inside the attempt fold this is a fold within a fold,
+          and the raw dispatch response is the last thing anyone reads. */}
       {attempt.response && (
-        <details className={j.respFold} open>
+        <details className={j.respFold}>
           <summary className={j.respSummary}>
             <span className={j.respTri} aria-hidden="true">▼</span>Response 원문
           </summary>

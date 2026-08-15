@@ -212,7 +212,9 @@ export const improvedStyles = {
     th: 'text-left px-2 py-2 text-[11px] font-medium text-[var(--pl-text-faint)] bg-[var(--pl-gray-50)] border-b border-[var(--pl-border)] whitespace-nowrap',
     td: 'px-2 py-2.5 align-middle text-[var(--pl-text-strong)] border-b border-[var(--pl-gray-100)] tabular-nums [&:last-child]:whitespace-nowrap',
     tbody: '[&>tr:last-child>td]:border-b-0',
-    miniBadge: 'inline-flex items-center rounded-[10px] px-1.5 py-0.5 text-[10px] font-medium leading-none',
+    // 12px — the type set's floor; the attempt row's verdict does not sit below it
+    // (design-benchmark 진단 06).
+    miniBadge: 'inline-flex items-center rounded-[10px] px-1.5 py-0.5 text-[12px] font-medium leading-none',
     empty: 'text-[13px] text-[var(--pl-text-faint)] py-6 text-center',
 
     /** definition·contract rows — borderless on the panel, hairline dividers,

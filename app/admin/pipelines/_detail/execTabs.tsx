@@ -7,6 +7,7 @@ import { useState, type ReactElement } from 'react';
 import { cn } from '@/lib/theme';
 import { PipelineStatusBadge } from '@/app/admin/pipelines/_detail/PipelineStatusBadge';
 import { fmtDateTime, KIND_POLICY, statusKo } from '@/lib/pipeline/format';
+import { AttemptDetail } from '@/app/admin/pipelines/_detail/AttemptDetail';
 import { JobStatus } from '@/app/admin/pipelines/_detail/JobStatus';
 import type { JobVerdict } from '@/app/admin/pipelines/_detail/jobRows';
 import {
@@ -64,15 +65,16 @@ function Verdict({
 /** Execution info for TERRAFORM_JOB — verdict / job status / attempt history. */
 export function TerraformExec({
   detail,
-  onOpenAttempt,
   onOpenViewer,
   onOpenFailure,
 }: {
   detail: TaskDetail;
-  onOpenAttempt: (n: number) => void;
   onOpenViewer: (t: ViewerTarget) => void;
   onOpenFailure: (attemptNumber: number, cause: string) => void;
 }): ReactElement {
+  // One attempt open at a time — two attempts of 21 jobs each would otherwise
+  // make the panel scroll for the rest of the afternoon (시안 C).
+  const [openAttempt, setOpenAttempt] = useState<number | null>(null);
   // Attempts arrive oldest-first — the root speaks for the latest one.
   const latest = detail.attempts.length > 0 ? detail.attempts[detail.attempts.length - 1] : null;
   const hasJobs = latest
@@ -112,24 +114,42 @@ export function TerraformExec({
         />
       )}
 
-      <Section label="시도 이력" hint="행을 눌러서 Job 로그 상세 정보를 확인하세요.">
+      <Section label="시도 이력" hint="행을 눌러서 그 시도의 Job과 응답을 펼칠 수 있습니다.">
         {detail.attempts.length === 0 ? (
           <div className={d.empty}>아직 시도 없음</div>
         ) : (
         <div className={j.list}>
-          {[...detail.attempts].reverse().map((a) => (
-            <button
-              key={a.attempt_number}
-              type="button"
-              className={j.attemptRow}
-              onClick={() => onOpenAttempt(a.attempt_number)}
-            >
-              <span className={j.attemptNo}>#{a.attempt_number}</span>
-              <PipelineStatusBadge status={a.status} size="mini" />
-              {a.error_code && <MiniPill tone="failed">{a.error_code}</MiniPill>}
-              <span className={j.attemptDetail}>상세정보 보기</span>
-            </button>
-          ))}
+          {[...detail.attempts].reverse().map((a) => {
+            const open = a.attempt_number === openAttempt;
+            return (
+              <div key={a.attempt_number} className={j.attemptItem}>
+                <button
+                  type="button"
+                  className={j.attemptRow}
+                  aria-expanded={open}
+                  onClick={() => setOpenAttempt(open ? null : a.attempt_number)}
+                >
+                  <span className={j.attemptNo}>#{a.attempt_number}</span>
+                  <PipelineStatusBadge status={a.status} size="mini" />
+                  {a.error_code && <MiniPill tone="failed">{a.error_code}</MiniPill>}
+                  <span className={cn(j.attemptChev, open && j.attemptChevOpen)} aria-hidden="true">
+                    ▼
+                  </span>
+                </button>
+                {open && (
+                  <div className={j.attemptBody}>
+                    <AttemptDetail
+                      attempt={a}
+                      operation={detail.operation}
+                      jobsShownAbove={a.attempt_number === latest?.attempt_number && hasJobs}
+                      onOpenViewer={onOpenViewer}
+                      onOpenFailure={(cause) => onOpenFailure(a.attempt_number, cause)}
+                    />
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
         )}
       </Section>

@@ -17,14 +17,6 @@ export const j = jobStyles;
 /** The (attempt, job) pair the log/state viewer is opened for. */
 export type ViewerTarget = { attemptNumber: number; jobId: string };
 
-/** Elapsed between two instants → "Xm Ys" / "Ys"; empty when either is missing. */
-export const spanLabel = (start: string | null, end: string | null): string => {
-  if (!start || !end) return '';
-  const secs = Math.round((new Date(end).getTime() - new Date(start).getTime()) / 1000);
-  if (Number.isNaN(secs) || secs < 0) return '';
-  return secs >= 60 ? `${Math.floor(secs / 60)}m ${secs % 60}s` : `${secs}s`;
-};
-
 /** A CONDITION_CHECK attempt's verdict label + tone. */
 export function conditionVerdict(a: TaskAttemptView): { label: string; tone: JobVerdict } {
   if (a.status === 'DONE') return { label: '충족', tone: 'success' };
