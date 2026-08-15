@@ -38,6 +38,12 @@ export interface RequestDetailHeaderProps {
   serviceCode: string | null;
   requestedBy: string | null;
   requestedAt: string | null;
+  /**
+   * 목록 화면의 워크벤치 시트로 얹힐 때는 h2 다 — 그 화면의 h1 은 '연동 요청'이고,
+   * 한 문서에 h1 이 둘이면 표제 구조가 깨진다. 크기(24px)는 그대로다: 등급이 아니라
+   * 문서 구조만 바뀐다.
+   */
+  titleAs?: 'h1' | 'h2';
   /** Omitted once the request is decided — a settled request has no 승인/반려. */
   onApprove?: () => void;
   onReject?: () => void;
@@ -52,6 +58,7 @@ export function RequestDetailHeader({
   serviceCode,
   requestedBy,
   requestedAt,
+  titleAs: Title = 'h1',
   onApprove,
   onReject,
 }: RequestDetailHeaderProps): ReactElement {
@@ -74,7 +81,7 @@ export function RequestDetailHeader({
             #id drops to 14: it is the same object as the title, so it stays in the h1,
             but at 24px it read as a second title rather than the title's id. */}
         <div className="flex flex-wrap items-baseline gap-2">
-          <h1 className={text.pageTitle}>{serviceName}</h1>
+          <Title className={text.pageTitle}>{serviceName}</Title>
           {serviceCode != null && (
             <span className={cn(tag.base, tag.gray, '[font-family:var(--pl-font-mono)]')}>
               {serviceCode}
