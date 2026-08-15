@@ -179,6 +179,11 @@ export const improvedStyles = {
     /** Section label (progress log / attempt history / attempt info / …) — dark bold
      *  16px heading, the primary hierarchy anchor inside the body (owner Figma node 121-5). */
     sectionLabel: 'text-[16px] font-semibold text-[var(--pl-text-strong)] tracking-[-0.196px]',
+    /** Demoted section label (design-benchmark 2026-08-15 시안 C) — a section that
+     *  supports the verdict rather than competing with it. 시도 이력 held the 16px
+     *  tier while the Job counts sat at 12px; only one of the two is what the
+     *  operator came for. */
+    sectionLabelSub: 'text-[14px] font-semibold text-[var(--pl-text-medium)] tracking-[-0.196px]',
     descText: 'mt-2.5 text-[14px] leading-[1.6] text-[var(--pl-text-strong)] whitespace-pre-line',
     /** Terminal-failure cause block — error-toned descText; shown when a failed attempt has no job rows. */
     failReason: 'mt-2.5 text-[14px] leading-[1.6] text-[var(--pl-err-text)] whitespace-pre-line break-words',

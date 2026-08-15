@@ -12,8 +12,9 @@
  */
 import { type ReactElement } from 'react';
 import { JobStatus } from '@/app/admin/pipelines/_detail/JobStatus';
-import { fmtDateTime, fmtElapsedMs } from '@/lib/pipeline/format';
+import { fmtDateTime } from '@/lib/pipeline/format';
 import {
+  attemptWindow,
   d,
   FailureCause,
   j,
@@ -21,23 +22,6 @@ import {
   type ViewerTarget,
 } from '@/app/admin/pipelines/_detail/taskDrawerShared';
 import type { TaskAttemptView, TaskOperation } from '@/lib/pipeline/types';
-
-/**
- * The attempt's window on one line — "2026-08-14 17:58 → 18:03 · 5분". The end
- * repeats its date only when the attempt crosses midnight, and the duration
- * takes `fmtElapsedMs`, the grammar the card and the exec band already use —
- * the old `spanLabel` wrote "5m 0s" for the same value one click away.
- */
-function attemptWindow(attempt: TaskAttemptView): string {
-  const start = fmtDateTime(attempt.started_at);
-  const end = fmtDateTime(attempt.finished_at);
-  const sameDay = start.slice(0, 10) === end.slice(0, 10);
-  const elapsed =
-    attempt.started_at && attempt.finished_at
-      ? fmtElapsedMs(Date.parse(attempt.finished_at) - Date.parse(attempt.started_at))
-      : '-';
-  return `${start} → ${sameDay ? end.slice(11) : end}${elapsed === '-' ? '' : ` · ${elapsed}`}`;
-}
 
 export function AttemptDetail({
   attempt,

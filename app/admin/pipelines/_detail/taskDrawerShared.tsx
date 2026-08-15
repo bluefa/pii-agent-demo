@@ -6,6 +6,7 @@
  */
 import { type ReactElement, type ReactNode } from 'react';
 import { cn } from '@/lib/theme';
+import { fmtDateTime, fmtElapsedMs } from '@/lib/pipeline/format';
 import { improvedStyles } from '@/app/admin/pipelines/_detail/detailImprovedStyles';
 import { jobStyles } from '@/app/admin/pipelines/_detail/detailJobStyles';
 import type { JobVerdict } from '@/app/admin/pipelines/_detail/jobRows';
@@ -32,14 +33,43 @@ export function MiniPill({ tone, children }: { tone: JobVerdict; children: React
   return <span className={cn(j.miniBadge, j.verdictTone[tone])}>{children}</span>;
 }
 
-export function Section({ label, hint, children }: { label: string; hint?: string; children: ReactNode }): ReactElement {
+export function Section({
+  label,
+  hint,
+  sub = false,
+  children,
+}: {
+  label: string;
+  hint?: string;
+  /** Demoted tier — a section that supports the verdict instead of competing with it. */
+  sub?: boolean;
+  children: ReactNode;
+}): ReactElement {
   return (
     <div>
-      <div className={d.sectionLabel}>{label}</div>
+      <div className={sub ? d.sectionLabelSub : d.sectionLabel}>{label}</div>
       {hint && <div className={j.labelHint}>{hint}</div>}
       {children}
     </div>
   );
+}
+
+/**
+ * One attempt's window on a line — "2026-08-14 17:58 → 18:03 · 5분". The end
+ * repeats its date only when the attempt crosses midnight, and the duration
+ * takes `fmtElapsedMs`, the grammar the card and the exec band already use.
+ * Rendered in the verdict hero for the latest attempt (시안 C) and inside the
+ * attempt fold for older ones.
+ */
+export function attemptWindow(attempt: TaskAttemptView): string {
+  const start = fmtDateTime(attempt.started_at);
+  const end = fmtDateTime(attempt.finished_at);
+  const sameDay = start.slice(0, 10) === end.slice(0, 10);
+  const elapsed =
+    attempt.started_at && attempt.finished_at
+      ? fmtElapsedMs(Date.parse(attempt.finished_at) - Date.parse(attempt.started_at))
+      : '-';
+  return `${start} → ${sameDay ? end.slice(11) : end}${elapsed === '-' ? '' : ` · ${elapsed}`}`;
 }
 
 /**

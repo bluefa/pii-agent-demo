@@ -24,6 +24,17 @@ const VERDICT_LABEL: Record<JobVerdict, string> = {
   none: '기록 없음',
 };
 
+/** Solid 8px status dot per verdict — the Job filter's leading dot and the job
+ *  row's status channel (design-benchmark 2026-08-15 시안 A·B). A dot, not a
+ *  tinted pill: the row now carries the raw `last_state`, so the Korean label
+ *  lives on the filter (Carbon — the label has to exist somewhere on screen). */
+const VERDICT_DOT: Record<JobVerdict, string> = {
+  success: 'bg-[var(--pl-ok)]',
+  failed: 'bg-[var(--pl-err)]',
+  running: 'bg-[var(--pl-info)]',
+  none: 'bg-[var(--pl-gray-400)]',
+};
+
 /** Verdict as colored TEXT (no pill) — condition verdict (owner Figma node 121-493). */
 const VERDICT_TEXT_TONE: Record<JobVerdict, string> = {
   success: 'text-[var(--pl-ok-text)]',
@@ -36,6 +47,7 @@ export const jobStyles = {
   verdictTone: VERDICT_TONE,
   verdictLabel: VERDICT_LABEL,
   verdictTextTone: VERDICT_TEXT_TONE,
+  verdictDot: VERDICT_DOT,
   verdictText: 'text-[13px] font-medium',
   // 12px is the type set's floor — the verdict these carry is the panel's whole
   // point, so it does not get to sit below it (design-benchmark 진단 06).
@@ -67,27 +79,42 @@ export const jobStyles = {
   /** Open attempt body — the sections that used to be a replaced screen. */
   attemptBody: 'flex flex-col gap-6 pb-5',
 
-  /** Job rollup (design-benchmark 시안 B) — "몇 개 중 몇 개가 실패했나"를 목록
-   *  위에서 먼저 답하는 줄. Count takes the verdict's own tone; the total stays
-   *  faint at the right end. */
-  rollup: 'mt-4 flex items-baseline gap-x-4 gap-y-1 flex-wrap',
-  rollupItem: 'text-[12px] text-[var(--pl-text-weak)]',
-  rollupNum: 'mr-1 text-[16px] font-bold tabular-nums',
-  rollupTotal: 'ml-auto text-[12px] font-normal text-[var(--pl-text-weak)] tabular-nums',
+  /** Job status filter (design-benchmark 2026-08-15 시안 A) — the rollup line that
+   *  only *read* "1 실패 · 2 성공", promoted to the control that narrows the list.
+   *  Metrics are `pipelineStyles.seg` (the segmented toggle this page already
+   *  uses): container p1 gap1 r8 on a card face, buttons px3 py1 r6 14px, active
+   *  = gray-900 fill. The count suffix borrows `tqStyles.segLg.count` — but weak,
+   *  not that component's faint, which reads 2.5:1 against this panel. */
+  filter: 'mt-4 inline-flex items-center gap-1 flex-wrap p-1 rounded-lg bg-[var(--pl-bg-card)] border border-[var(--pl-border)]',
+  filterBtn: 'inline-flex items-center gap-1.5 px-3 py-1 rounded-md text-[14px] cursor-pointer transition-colors',
+  filterIdle: 'text-[var(--pl-text-weak)] hover:text-[var(--pl-text-medium)]',
+  filterActive: 'bg-[var(--pl-gray-900)] text-[var(--pl-white)] font-medium',
+  /** 8px leading dot — `tqStyles.segLg.dot`'s metric, verdict tone. */
+  filterDot: 'inline-block w-2 h-2 flex-none rounded-full',
+  filterCount: 'tabular-nums',
+  /** Count tone is picked, never layered — two `text-[…]` classes would both apply
+   *  and stylesheet order, not argument order, would decide the winner. */
+  filterCountTone: {
+    on: 'text-[var(--pl-gray-300)]', // design-exempt: on the gray-900 active face (11:1), never on the card
+    off: 'text-[var(--pl-text-weak)]',
+  },
 
   /** Terraform Job entry — the row plus, for a failed job, its reason line. The
    *  hairline moved here so the reason sits inside the same entry as its row. */
   jobItem: 'flex flex-col border-b border-[var(--pl-border)] last:border-b-0',
-  /** Terraform Job row — verdict + id + meta + log action. */
-  jobRow: 'flex items-center gap-2.5 pt-3 pb-[13px]',
+  /** Terraform Job row (시안 B) — the whole 44px row opens the log viewer; it used
+   *  to be a 51×17px text link at the right end, repeated 21 times. */
+  jobRow: 'w-full flex items-center gap-2.5 pt-3 pb-[13px] text-left hover:bg-[var(--pl-gray-50)] transition-colors',
+  /** What the job last did — `last_state · N회 폴링 · HH:mm`. Three contract fields
+   *  that were parsed and then never rendered; without them 21 rows differ only
+   *  by id and nothing tells the operator which one to open. */
+  jobMeta: 'ml-auto min-w-0 truncate text-[12px] text-[var(--pl-text-weak)] [font-family:var(--pl-font-mono)] tabular-nums',
+  jobChev: 'flex-none text-[var(--pl-text-weak)]',
   /** `last_fail_reason` under a failed job — the cause the panel used to keep
    *  three hops away (attempt row → job row → log viewer). Clamped; the full
    *  text is in the log viewer. */
   jobFailReason: '-mt-1.5 pb-3 text-[14px] leading-[1.6] text-[var(--pl-err-text)] break-words line-clamp-2',
   jobId: 'text-[13px] font-bold text-[var(--pl-text-strong)] [font-family:var(--pl-font-mono)] tabular-nums tracking-[-0.196px]',
-  /** Log action — blue text button (owner Figma node 121-326), not a bordered btn. */
-  logBtn: 'ml-auto flex-none rounded-[8px] px-1 text-[12px] font-semibold text-[var(--pl-primary)] hover:underline transition-colors',
-
   /** Raw-response fold (owner Figma node 121-389) — 16px SemiBold heading led by
    *  a ▼ triangle (gray) that flips up + sky-blue when open; the raw dispatch
    *  response sits in an inset mono code box. Not parsed. */

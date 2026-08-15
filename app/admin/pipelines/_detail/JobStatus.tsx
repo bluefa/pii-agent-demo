@@ -1,28 +1,54 @@
 /**
- * Job 현황 — one attempt's terraform jobs as a rollup line plus failure-first
- * rows (design-benchmark 2026-08-14 시안 B). Rendered at the drawer root for the
+ * Job 현황 — one attempt's terraform jobs as a status filter over failure-first
+ * rows (design-benchmark 2026-08-15 시안 A·B). Rendered at the drawer root for the
  * LATEST attempt, so "which job failed, and why" needs no click; the attempt
  * drill-down reuses it for an older attempt.
  *
- * Successes fold behind a toggle instead of paging: 21 jobs used to scatter over
- * 5 pages (`JOBS_PER_PAGE`), so a single failure could sit four clicks away and
- * no line anywhere said how many of them failed. The fold borrows the
- * poll-history toggle's grammar, leaving the panel a single overflow rule.
+ * The counts used to be a 12px caption that could only be read — the panel's most
+ * wanted number in the type set's smallest tier, with no way to narrow 21 jobs to
+ * the two that are still running. They are now the control: one button per
+ * non-empty verdict, opening on the failures when there are any (the default
+ * Blue Ocean and Buildkite both take). The success fold is gone with it — a list
+ * this size needs one narrowing grammar, not two.
+ *
+ * Rows carry `last_state · N회 폴링 · HH:mm` and are clickable end to end; the log
+ * used to hang off a 51×17px text link repeated once per row.
  */
 import { useState, type ReactElement } from 'react';
 import { cn } from '@/lib/theme';
+import { Icon } from '@/app/admin/pipelines/_components/icons';
 import { jobRows, jobVerdict, type JobRow, type JobVerdict } from '@/app/admin/pipelines/_detail/jobRows';
-import { j, MiniPill, Section } from '@/app/admin/pipelines/_detail/taskDrawerShared';
+import { fmtDateTime } from '@/lib/pipeline/format';
+import { j, Section } from '@/app/admin/pipelines/_detail/taskDrawerShared';
 import type { TaskAttemptView, TaskOperation } from '@/lib/pipeline/types';
 
 /** Failure first, then whatever is still moving, then the settled successes. */
 const VERDICT_RANK: Record<JobVerdict, number> = { failed: 0, running: 1, none: 2, success: 3 };
 
-/** Rollup buckets in reading order; zero-count buckets are dropped. */
-const ROLLUP_ORDER: readonly JobVerdict[] = ['failed', 'running', 'none', 'success'];
+/** Filter buttons in reading order; zero-count verdicts get no button. */
+const FILTER_ORDER: readonly JobVerdict[] = ['failed', 'running', 'none', 'success'];
 
-/** Above this many jobs the successes start folded — the threshold the pager used. */
-const FOLD_ABOVE = 5;
+type JobFilter = JobVerdict | 'all';
+
+/**
+ * What this job last did — `COMPLETED · 2회 폴링 · 07:38`. All three values come
+ * from `TerraformJobStateSummary`, which the panel parsed and then never showed;
+ * without them 21 rows differ only by id. Missing pieces drop out instead of
+ * printing a placeholder, and the time is clock-only because the attempt window
+ * in the verdict hero already carries the date.
+ */
+function jobMeta(row: JobRow): string {
+  const state = row.state;
+  if (!state) return '';
+  const polled = fmtDateTime(state.last_polled_at);
+  return [
+    state.last_state,
+    `${state.poll_count}회 폴링`,
+    polled === '-' ? null : polled.slice(11),
+  ]
+    .filter((part): part is string => Boolean(part))
+    .join(' · ');
+}
 
 function JobItem({
   row,
@@ -34,20 +60,21 @@ function JobItem({
   onOpen: () => void;
 }): ReactElement {
   const reason = row.state?.last_fail_reason ?? row.state?.last_error;
+  const meta = jobMeta(row);
   return (
     <div className={j.jobItem}>
-      <div className={j.jobRow}>
-        <MiniPill tone={verdict}>{j.verdictLabel[verdict]}</MiniPill>
+      <button
+        type="button"
+        className={j.jobRow}
+        onClick={onOpen}
+        aria-label={`TerraformJob ${row.job_id} · ${j.verdictLabel[verdict]} · 로그 열기`}
+      >
+        <span className={cn(j.filterDot, j.verdictDot[verdict])} aria-hidden="true" />
         <span className={j.jobId}>{row.job_id}</span>
-        <button
-          type="button"
-          className={j.logBtn}
-          onClick={onOpen}
-          aria-label={`TerraformJob ${row.job_id} 로그 열기`}
-        >
-          로그 보기
-        </button>
-      </div>
+        {/* The meta owns the right edge; without it the chevron takes the slack. */}
+        {meta ? <span className={j.jobMeta}>{meta}</span> : <span className="ml-auto" />}
+        <Icon name="chev-r" size="sm" className={j.jobChev} />
+      </button>
       {verdict === 'failed' && reason && <p className={j.jobFailReason}>{reason}</p>}
     </div>
   );
@@ -65,7 +92,7 @@ export function JobStatus({
   hint?: string;
   onOpenJob: (jobId: string) => void;
 }): ReactElement | null {
-  const [showAll, setShowAll] = useState(false);
+  const [picked, setPicked] = useState<JobFilter | null>(null);
   const rows = jobRows(attempt);
   if (rows.length === 0) return null;
 
@@ -79,33 +106,47 @@ export function JobStatus({
     },
     { failed: 0, running: 0, none: 0, success: 0 },
   );
-  const foldable = rows.length > FOLD_ABOVE && counts.success > 0;
-  const shown = foldable && !showAll ? sorted.filter((g) => g.verdict !== 'success') : sorted;
+
+  // One verdict means nothing to filter — then the single button is just the
+  // count, and "전체" next to it would say the same number twice.
+  const buckets = FILTER_ORDER.filter((v) => counts[v] > 0);
+  const options: JobFilter[] = buckets.length > 1 ? ['all', ...buckets] : buckets;
+  const auto: JobFilter = counts.failed > 0 ? 'failed' : options[0];
+  // A poll can empty the bucket the operator picked (a running job settles) —
+  // fall back rather than leaving an empty list under a button that is gone.
+  const active = picked !== null && options.includes(picked) ? picked : auto;
+  const shown = active === 'all' ? sorted : sorted.filter((g) => g.verdict === active);
 
   return (
     <Section label="Job 현황" hint={hint}>
-      <div className={j.rollup}>
-        {ROLLUP_ORDER.filter((v) => counts[v] > 0).map((v) => (
-          <span key={v} className={j.rollupItem}>
-            <b className={cn(j.rollupNum, j.verdictTextTone[v])}>{counts[v]}</b>
-            {j.verdictLabel[v]}
-          </span>
-        ))}
-        <span className={j.rollupTotal}>총 {rows.length}개</span>
+      <div className={j.filter} role="group" aria-label="Job 상태 필터">
+        {options.map((option) => {
+          const on = option === active;
+          return (
+            <button
+              key={option}
+              type="button"
+              aria-pressed={on}
+              className={cn(j.filterBtn, on ? j.filterActive : j.filterIdle)}
+              onClick={() => setPicked(option)}
+            >
+              {option !== 'all' && (
+                <span className={cn(j.filterDot, j.verdictDot[option])} aria-hidden="true" />
+              )}
+              {option === 'all' ? '전체' : j.verdictLabel[option]}
+              <span className={cn(j.filterCount, on ? j.filterCountTone.on : j.filterCountTone.off)}>
+                {option === 'all' ? rows.length : counts[option]}
+              </span>
+            </button>
+          );
+        })}
       </div>
-      {/* An all-green attempt folds to nothing — the rollup already answered it,
-          so skip the list wrapper rather than leaving its margin behind. */}
       {shown.length > 0 && (
         <div className={j.jobList}>
           {shown.map((g) => (
             <JobItem key={g.row.job_id} row={g.row} verdict={g.verdict} onOpen={() => onOpenJob(g.row.job_id)} />
           ))}
         </div>
-      )}
-      {foldable && (
-        <button type="button" className={j.moreBtn} onClick={() => setShowAll((x) => !x)}>
-          {showAll ? '접기' : `성공 ${counts.success}개 펼치기`}
-        </button>
       )}
     </Section>
   );

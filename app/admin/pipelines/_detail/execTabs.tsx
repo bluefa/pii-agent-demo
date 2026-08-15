@@ -11,6 +11,7 @@ import { AttemptDetail } from '@/app/admin/pipelines/_detail/AttemptDetail';
 import { JobStatus } from '@/app/admin/pipelines/_detail/JobStatus';
 import type { JobVerdict } from '@/app/admin/pipelines/_detail/jobRows';
 import {
+  attemptWindow,
   conditionVerdict,
   d,
   FailureCause,
@@ -92,6 +93,10 @@ export function TerraformExec({
             {/* Attempts actually made (attempts.length), not the failure count — a
                 task that succeeded on the first run has fail_count 0 but 1 attempt. */}
             시도 {detail.attempts.length}/{detail.effective_max_fail_count}회
+            {/* The LATEST attempt's window (시안 C). Only from the second attempt on:
+                with a single attempt this is the same span the flow card already
+                prints, and the card's values are never repeated here. */}
+            {latest && detail.attempts.length > 1 ? ` · ${attemptWindow(latest)}` : ''}
             {detail.next_check_at ? ` · 다음 확인 ${fmtDateTime(detail.next_check_at)}` : ''}
           </>
         }
@@ -114,7 +119,14 @@ export function TerraformExec({
         />
       )}
 
-      <Section label="시도 이력" hint="행을 눌러서 그 시도의 Job과 응답을 펼칠 수 있습니다.">
+      {/* Demoted to the supporting tier (시안 C): the verdict already said how many
+          attempts there were, and the Job 현황 above is what the operator opened
+          the panel for. The hint only earns its line once there are rows to compare. */}
+      <Section
+        label="시도 이력"
+        sub
+        hint={detail.attempts.length > 1 ? '행을 눌러서 그 시도의 Job과 응답을 펼칠 수 있습니다.' : undefined}
+      >
         {detail.attempts.length === 0 ? (
           <div className={d.empty}>아직 시도 없음</div>
         ) : (

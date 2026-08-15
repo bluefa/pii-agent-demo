@@ -95,39 +95,52 @@ describe('AttemptDetail — run window', () => {
   });
 });
 
-// 시안 B — the job list answers "how many of them failed" before the rows, puts the
-// failures first, and folds the settled successes instead of paging them away.
+// 시안 A·B — the counts ARE the filter (they used to be a caption that could only
+// be read), the list opens on the failures, and every row says what its job last
+// did and opens the log end to end.
 describe('AttemptDetail — Job 현황', () => {
   const ok = (n: number): TerraformJobStateSummary[] =>
     Array.from({ length: n }, (_, i) => jobState({ job_id: `ok-${i + 1}`, last_state: 'COMPLETED' }));
   const bad = jobState({ job_id: 'bad-1', last_state: 'FAILED', last_fail_reason: 'mock forced failure' });
 
-  it('counts every bucket and folds the successes past 5 jobs', () => {
+  it('counts every bucket and opens on the failures', () => {
     const out = html(attempt({ job_states: [...ok(20), bad] }));
-    expect(out).toContain('총 21개');
-    expect(out).toContain('성공 20개 펼치기');
+    expect(out).toContain('aria-label="Job 상태 필터"');
+    // 전체 21 · 실패 1 · 성공 20 — one button per non-empty verdict.
+    expect(out).toContain('>21<');
+    expect(out).toContain('>20<');
     // The failure and its reason are on screen without opening anything…
     expect(out).toContain('>bad-1<');
     expect(out).toContain('mock forced failure');
-    // …and no success row is drawn while folded.
+    // …and the 20 settled successes are not in the way.
     expect(out).not.toContain('>ok-1<');
   });
 
-  it('puts the failure above the successes once unfolded', () => {
-    const out = html(attempt({ job_states: [...ok(3), bad] }));
-    expect(out.indexOf('>bad-1<')).toBeLessThan(out.indexOf('>ok-1<'));
+  it('sorts what is still moving above what has settled', () => {
+    // No failure → the filter opens on 전체, so the ordering is observable.
+    const out = html(attempt({ job_states: [...ok(3), jobState({ job_id: 'run-1' })] }));
+    expect(out.indexOf('>run-1<')).toBeLessThan(out.indexOf('>ok-1<'));
   });
 
-  it('renders every job with no fold at 5 or fewer', () => {
+  it('drops the 전체 button when a single verdict covers every job', () => {
     const out = html(attempt({ job_states: ok(5) }));
     expect(out).toContain('>ok-5<');
-    expect(out).toContain('총 5개');
-    expect(out).not.toContain('펼치기');
+    expect(out).toContain('>5<');
+    expect(out).not.toContain('전체');
   });
 
-  it('offers no fold when there is nothing settled to hide', () => {
-    const out = html(attempt({ job_states: Array.from({ length: 6 }, (_, i) => jobState({ job_id: `run-${i}` })) }));
-    expect(out).toContain('>run-5<');
-    expect(out).not.toContain('펼치기');
+  it('says what each job last did — state, polls, clock', () => {
+    const out = html(
+      attempt({
+        job_states: [jobState({ job_id: 'run-1', poll_count: 6, last_polled_at: '2026-07-13T00:00:00Z' })],
+      }),
+    );
+    expect(out).toContain('RUNNING · 6회 폴링 · 09:00');
+  });
+
+  it('makes the whole row the log entry point', () => {
+    const out = html(attempt({ job_states: ok(1) }));
+    expect(out).toContain('aria-label="TerraformJob ok-1 · 성공 · 로그 열기"');
+    expect(out).not.toContain('로그 보기');
   });
 });

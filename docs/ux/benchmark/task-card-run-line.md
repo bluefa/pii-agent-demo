@@ -241,3 +241,87 @@ F가 시각을 카드로 올린 뒤 패널을 다시 재고, 진단 8건을 새�
   카드에 상태 채널을 늘리는 제안은 재제안 금지(접근 이름은 예외, 위 참고).
 - **제목의 Plan/Apply/Destroy 유지**: 오너 기각 — `JobKindTag` 와 중복. 카드 한정이며
   드로어 제목은 그대로다.
+
+---
+
+# 3차 라운드 — Job 현황 우선순위 (2026-08-15)
+
+오너 지적: **"패널에서 보여지는 정보에 중요도가 잘못 설정된 것 같다. 가장 최근 시도의 결과,
+몇 번의 Job이 있었는지, 최근 시도의 Job 목록의 로그를 쉽게 확인, Job 상태별 필터."**
+
+아티팩트: https://claude.ai/code/artifact/0ce06c75-ace1-4b72-b694-b1d2024f1bb0
+(진단 9 · 레퍼런스 13 · 시안 5). 오너 "그래 한번 적용해봐" → **A + B + C 채택**.
+
+## 실측 진단 (기준 c23b79a6, 뷰포트 861)
+
+| # | 문제 | 등급 | 실측 |
+|---|------|------|------|
+| 01 | 헤더+탭이 패널의 34.5% | 수치 | #130 aside 576 / header 154 / nav 45 · #124 761 / 131 / 45 |
+| 02 | 판정이 태스크를 말하고 최신 시도의 창은 접힘 안 | UX | `attemptWindow`는 시도 이력 펼침 뒤에만 존재 |
+| 03 | 집계 12px, 섹션 라벨 16px — 원하는 수치가 최소 활자 | 수치 | rollupItem/rollupTotal 12px vs sectionLabel 16/600 |
+| 04 | 집계가 span이라 상태로 좁힐 수 없음 | UX | 유일한 button은 `성공 N개 펼치기` |
+| 05 | 완료 태스크는 목록 통째 접힘, 펴면 3중 스크롤 | 수치 | aside 576→1012 · doc 891→1327 · 목록 420/925 · 가시 9행 |
+| 06 | 행에 스캔 단서 없음 | UX | last_state·poll_count·last_polled_at 미사용 |
+| 07 | 로그 진입점 51×17px가 21회 반복 | 수치 | logBtn 51×17 / 12px |
+| 08 | 1회 시도 태스크의 시도 이력은 한 줄짜리 중복 | 제안 | 섹션 111px / 행 1개 |
+| 09 | 실패만 사실을 얻고 성공·진행 중은 칩뿐 | 제안 | — |
+
+## 쓴 레퍼런스 (전부 세션에서 열람)
+
+| 제품 | URL | 가져온 것 |
+|------|-----|-----------|
+| Buildkite Build page | https://buildkite.com/docs/pipelines/build-page | 상태 그룹핑 토글(중요한 것 위로), 실패 순회 |
+| GitHub Actions run logs | https://docs.github.com/actions/managing-workflow-runs/using-workflow-run-logs | 실패 자동 펼침, 목록 상주 |
+| GitLab CI Jobs | https://docs.gitlab.com/ci/jobs/ | 상태를 1급 필터 축으로 |
+| Databricks job runs | https://docs.databricks.com/aws/en/jobs/monitor | 필터+정렬 한 줄, 상태·소요를 스캔 축으로 |
+| Airflow Grid | https://airflow.apache.org/docs/apache-airflow/stable/ui.html | 셀(면)이 클릭 타깃 |
+| Jenkins Blue Ocean | https://www.jenkins.io/doc/book/blueocean/pipeline-run-details/ | 실패가 있으면 기본 포커스를 실패로 |
+| AWS CodePipeline | https://docs.aws.amazon.com/codepipeline/latest/userguide/pipelines-view-console.html | 행에 "언제"를 상시 표기 |
+| Google Cloud Build | https://docs.cloud.google.com/build/docs/view-build-results | 목록↔로그 마스터-디테일 |
+| Vercel build logs | https://vercel.com/docs/deployments/logs | 제거 가능한 필터 pill |
+| Stripe request logs | https://docs.stripe.com/development/dashboard/request-logs | 1급 필터는 인라인, 2급은 More 뒤 |
+| Temporal Web UI | https://docs.temporal.io/web-ui | 요약뷰↔전체뷰 전환 |
+| Cloudscape filter patterns | https://cloudscape.design/patterns/general/filter-patterns/ | 유한값 속성은 선택 필터, 즉시 반영 |
+| Carbon status indicator | https://v10.carbondesignsystem.com/patterns/status-indicator-pattern/ | 버킷 상한, **텍스트 라벨이 주인공** |
+
+## 구현 (A+B+C)
+
+- **A 집계 → 상태 필터**(`j.filter*`): 버킷당 버튼 하나(0건은 버튼 없음),
+  기본 선택은 **실패가 있으면 실패, 없으면 전체**(Blue Ocean·Buildkite 규칙).
+  **성공 접기 토글 삭제** — 목록을 좁히는 문법은 하나. 버킷이 하나뿐이면 `전체`를 렌더하지
+  않는다(같은 숫자를 두 번 말하게 된다). 폴링으로 선택한 버킷이 비면 자동 선택으로 되돌린다.
+  수치 출처: `pipelineStyles.seg`(컨테이너 p1 gap1 r8 · 버튼 px3 py1 r6 14px · active gray-900),
+  카운트 접미는 `tqStyles.segLg.count`의 문법이되 **톤은 weak** — 원본의 faint(#98A2B3)는
+  이 패널에서 2.5:1로 미달이다. 8px 점은 `segLg.dot`.
+- **B 행이 스캔되게**: 행 = 점 + job_id + `last_state · N회 폴링 · HH:mm` + chevron,
+  **행 전체(451×44)가 로그 진입점**. 메타 12px = `j.vSub`(JobViewer 헤더가 같은 Job에 쓰는 부제),
+  시각은 시:분만 — 날짜는 판정 사실줄의 실행 창이 이미 말한다. 칩이 점으로 바뀌면서
+  한국어 판정 라벨은 필터가 짊어진다(Carbon: 라벨은 화면 어딘가에 반드시 남아야 한다) →
+  **A와 B는 함께 가야 한다**.
+- **C 히어로가 최신 시도를 말한다**: 사실줄 = `시도 2/2회 · 2026-08-15 07:40 → 07:50 · 10분`.
+  **시도 2회 이상일 때만** 창을 붙인다 — 1회면 `taskRunLine(task)`와 같은 값이라
+  "카드가 말하는 시각은 되풀이하지 않는다"(2차 결정)를 그대로 지킨다.
+  `시도 이력`은 16px → **14px 보조 라벨**(`d.sectionLabelSub`), 힌트는 시도 2회 이상일 때만.
+  `attemptWindow`는 AttemptDetail에서 `taskDrawerShared`로 이동(두 곳이 같은 문자열을 쓴다).
+
+**실측(적용 후)**: #124 판정 5.96:1 · 필터 idle 4.97:1 · active 카운트 14.24:1 ·
+행 메타 4.51:1 · job_id 16.1:1. 필터 클릭 → 목록 즉시 전환, 행 클릭 → 뷰어,
+Esc는 뷰어만 닫고 드로어는 유지. #124 패널 761→699px, Job 현황 264→190px,
+#130 시도 이력 111→80px.
+
+## 채택안에서 벗어난 것 (1건)
+
+아티팩트의 시안 C는 "시도 1회면 **시도 이력 섹션 자체를 렌더하지 않는다"였지만,
+그 섹션이 단일 시도의 `Response 원문`·`확인 요약`에 이르는 **유일한 경로**라 삭제하면
+접근이 사라진다. 그래서 **강등(14px)까지만** 했다. 회수한 높이는 111→80px.
+
+## 남긴 것
+
+- **시안 E**(헤더 154→84px + 실패 자동 스크롤 + 목록 캡·드로어 높이 정리)가 다음 커밋.
+  진단 01·05의 잔여가 여기 묶여 있다.
+- **접기가 사라져 전부 성공인 태스크는 21행이 항상 펼쳐진다** — #130 패널 576→959px,
+  문서 1274px(뷰포트 861). 420px 목록 상한이 최악은 막지만 **드로어 높이 미고정은 그대로**다.
+  E에서 레이아웃째 다뤄야 한다.
+- **시안 D(인라인 로그 패널) 보류** — 451px 폭에 terraform 로그(120자 줄)는 가로 스크롤이
+  되고, `JobViewer`(720×572 리사이즈·ANSI·복사·상태 탭)와 기능이 겹친다. 드로어 폭·높이가
+  정리된 뒤에 다시 본다.
