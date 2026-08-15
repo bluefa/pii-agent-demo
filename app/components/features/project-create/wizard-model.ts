@@ -3,7 +3,7 @@ import type { CreationCandidatesInput } from '@/app/lib/api';
 import { OTHERS_DB_TYPE, type DbType } from '@/lib/constants/db-types';
 import {
   PROVIDER_CHIP_BY_KEY,
-  isCspChip,
+  hasChinaRegion,
   type ProviderChipKey,
 } from '@/lib/constants/provider-mapping';
 
@@ -41,8 +41,10 @@ export const buildCandidatesInput = (state: WizardFormState): CreationCandidates
   const description = field('description');
   return {
     cloudType: PROVIDER_CHIP_BY_KEY[providerKey].cloudType,
-    // Common required field. IDC/기타 are not asked for a region, so they are never China.
-    isChinaRegion: isCspChip(providerKey) && state.region === 'china',
+    // Common required field. Only the providers that have a China partition can send
+    // true — IDC/기타 are never asked, and GCP has no China region at all, so a China
+    // pick left over from an earlier AWS/Azure selection must not leak onto its wire.
+    isChinaRegion: hasChinaRegion(providerKey) && state.region === 'china',
     dbTypes: [...state.dbTypes, ...(state.othersDb ? [OTHERS_DB_TYPE] : [])],
     ...(providerKey === 'aws'
       ? {
