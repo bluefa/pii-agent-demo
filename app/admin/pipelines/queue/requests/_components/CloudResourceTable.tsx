@@ -37,6 +37,11 @@ import { isRdsCluster, sortRdsInstances } from '@/lib/rds-instances';
 import { isEc2Instance, resolveExclusionReason } from '@/lib/types';
 import type { RequestResourceRow } from '@/app/lib/api/task-queue-requests';
 
+/** 머리 셀 — `approvalHeaderCell` + nowrap. 이유는 IdcResourceTable 의 같은 상수에 적혀
+ *  있다: `w-full` 표가 선언 폭보다 좁은 자리(승인 시트)에 놓이면 열이 비례해서 눌리고,
+ *  그때 라벨이 세로로 접히면 안 된다. 열은 폭을 잃어도 되지만 라벨은 단어로 남아야 한다. */
+const HEAD_CELL = cn(idcStyles.table.approvalHeaderCell, 'whitespace-nowrap');
+
 export interface CloudResourceTableProps {
   rows: RequestResourceRow[];
 }
@@ -73,15 +78,15 @@ export function CloudResourceTable({ rows }: CloudResourceTableProps): ReactElem
             {/* Resource ID's text caps at 300px (resId.text), so its column was sitting
                 on ~150px it could not use. Spent here: names differ in their TAIL
                 (…-cluster-001 / -002), which is exactly what truncation eats first. */}
-            <th className={cn(table.approvalHeaderCell, table.nameCell, 'w-[360px]')}>Resource Name</th>
-            <th className={table.approvalHeaderCell}>Resource ID</th>
-            <th className={cn(table.approvalHeaderCell, 'w-[120px] whitespace-nowrap')}>Database Type</th>
-            <th className={cn(table.approvalHeaderCell, 'w-[130px]')}>Region</th>
+            <th className={cn(HEAD_CELL, table.nameCell, 'w-[360px]')}>Resource Name</th>
+            <th className={HEAD_CELL}>Resource ID</th>
+            <th className={cn(HEAD_CELL, 'w-[120px] whitespace-nowrap')}>Database Type</th>
+            <th className={cn(HEAD_CELL, 'w-[130px]')}>Region</th>
             {/* The IDC table's wording and width for the same question. "연동 대상" named
                 the verdict here while it named the address column there — one table used
                 the word for a row, the other for a cell. 112 is what the pill needs. */}
-            <th className={cn(table.approvalHeaderCell, 'w-[112px] whitespace-nowrap')}>요청 대상 여부</th>
-            <th className={cn(table.approvalHeaderCell, 'w-[240px]')}>제외 사유</th>
+            <th className={cn(HEAD_CELL, 'w-[112px] whitespace-nowrap')}>요청 대상 여부</th>
+            <th className={cn(HEAD_CELL, 'w-[240px]')}>제외 사유</th>
           </tr>
         </thead>
         <tbody className={table.body}>

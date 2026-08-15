@@ -38,6 +38,19 @@ import {
 import { idcAddressKind } from '@/app/lib/api/task-queue-requests';
 import type { RequestResourceRow } from '@/app/lib/api/task-queue-requests';
 
+/**
+ * 머리 셀 — `approvalHeaderCell` 에 nowrap 을 더한 것.
+ *
+ * 표는 `w-full` 이라, 선언한 열 폭의 합보다 좁은 자리에 놓이면 브라우저가 모든 열을
+ * 비례해서 줄인다. 목록 화면의 승인 시트가 그 자리다 — 거기서 사용 서비스(110)가 48
+ * 까지 눌리면서 라벨이 '사/용/서/비/스' 세로 세 줄로 접혔고, 머리 띠 하나가 108px 이
+ * 됐다(오너 지적 2026-08-15). 열은 폭을 잃어도 되지만 라벨은 단어로 남아야 한다.
+ *
+ * 값은 그대로 잘린다 — 고정한 건 라벨뿐이다. nowrap 은 열의 최소 폭만 올리고 최대는
+ * 건드리지 않으므로, 원래 넓던 자리(상세 라우트)의 레이아웃은 그대로다.
+ */
+const HEAD_CELL = cn(idcStyles.table.approvalHeaderCell, 'whitespace-nowrap');
+
 export interface IdcResourceTableProps {
   rows: RequestResourceRow[];
   /** Lock NLB editing — the request is no longer PENDING, so a save would 409.
@@ -83,22 +96,22 @@ export function IdcResourceTable({
                 1512 and ~590px at 1920 (the section carries no card, so there is no
                 px-6 to subtract). 접속 주소 caps its text at 220px — a long FQDN
                 truncates to its tip either way, and the tip carries the full value. */}
-            <th className={cn(table.approvalHeaderCell, 'w-[260px]')}>접속 주소</th>
-            <th className={cn(table.approvalHeaderCell, 'w-[170px]')}>Database Type</th>
+            <th className={cn(HEAD_CELL, 'w-[260px]')}>접속 주소</th>
+            <th className={cn(HEAD_CELL, 'w-[170px]')}>Database Type</th>
             {/* Beside the engine it belongs to: which port a DB answers on is an
                 attribute of the engine, not of the address. */}
-            <th className={cn(table.approvalHeaderCell, 'w-[80px]')}>Port</th>
+            <th className={cn(HEAD_CELL, 'w-[80px]')}>Port</th>
             {/* Back as a real column: with the row's other cells sized to their content
                 there was width to spare, and the verdict is the one thing the admin is
                 actually deciding — worth a header rather than an sr-only aside. */}
             {/* 112 is step 1's own width for this column — the pill, not a text label,
                 is what has to fit. */}
-            <th className={cn(table.approvalHeaderCell, 'w-[112px] whitespace-nowrap')}>요청 대상 여부</th>
+            <th className={cn(HEAD_CELL, 'w-[112px] whitespace-nowrap')}>요청 대상 여부</th>
             {/* NLB 배정 and 제외 사유 stay separate: they never co-occur in a row, but
                 they answer different questions and one shared header could only name
                 both. 110px is what a text button needs — the select it replaced took
                 290. */}
-            <th className={cn(table.approvalHeaderCell, 'w-[110px]')}>NLB 배정</th>
+            <th className={cn(HEAD_CELL, 'w-[110px]')}>NLB 배정</th>
             {/* Adjacent to the assignment, because a source IP is an attribute of the NLB
                 the target was assigned to — reading NLB #3 and the IPs it answers from
                 should not cross the table. Stacking them in one cell read worse:
@@ -106,15 +119,15 @@ export function IdcResourceTable({
                 Step 1's own header, imported rather than restated: the column needs the
                 "방화벽 등록 필요" note here too — the admin approving the request is the
                 one who has to know the rule the service owner was shown. */}
-            <th className={cn(table.approvalHeaderCell, 'w-[160px]')}>
+            <th className={cn(HEAD_CELL, 'w-[160px]')}>
               <SourceIpHeader />
             </th>
             {/* The same 연동 대상 can be consumed by 20–30 services, each on its own NLB
                 — a fan-out no cell can hold. The column carries the way in, not the list.
                 Named for what is behind it (the consuming services), not 배정: that word
                 belongs to the NLB 배정 column, which is the one the admin can change. */}
-            <th className={cn(table.approvalHeaderCell, 'w-[110px]')}>사용 서비스</th>
-            <th className={table.approvalHeaderCell}>제외 사유</th>
+            <th className={cn(HEAD_CELL, 'w-[110px]')}>사용 서비스</th>
+            <th className={HEAD_CELL}>제외 사유</th>
           </tr>
         </thead>
         <tbody className={table.body}>

@@ -134,16 +134,21 @@ const rq = {
    *
    * 높이는 뷰포트까지 — 워크벤치는 카드가 아니라 이 화면의 작업면이다. 282 = 상단 내비
    * 64 + main 상단 여백 24 + 제목·판정 문장·탭 146 + 바닥 48.
+   *
+   * 레일 236 은 권한 요청의 352 가 아니라 서비스별 NLB 배정 모달(ServiceAssignmentModal)
+   * 의 레일 폭이다(오너 지시 2026-08-15). 이 시트가 담는 것이 저쪽과 다르다 — 권한 요청
+   * 시트는 사실 셋과 사유 한 문단이라 폭이 남지만, 여기 시트에는 971px 짜리 연동 대상
+   * 표가 들어간다. 레일에서 덜어낸 116 이 그대로 그 표의 열이 된다.
    */
-  bench: `mt-4 grid min-h-[calc(100vh-282px)] grid-cols-[352px_1fr] overflow-hidden rounded-[12px] ${serviceSidebarStyles.canvas}`,
-  /** 레일은 헤어라인이 아니라 간격으로 끊는다 — 표가 아니라 요청 더미로 읽히게. 왼쪽만
-   *  20 인 것은 캔버스 가장자리가 아무것도 가르지 않기 때문이다(그 폭이 곧 카드에서
-   *  빠지는 폭). 오른쪽 9는 레일과 시트 사이를 혼자 만든다 — 시트는 `ml-0` 이다. */
-  benchList: 'flex flex-col py-9 pl-5 pr-9',
+  bench: `mt-4 grid min-h-[calc(100vh-282px)] grid-cols-[236px_1fr] overflow-hidden rounded-[12px] ${serviceSidebarStyles.canvas}`,
+  /** 레일은 헤어라인이 아니라 간격으로 끊는다 — 표가 아니라 요청 더미로 읽히게. 왼쪽이
+   *  더 좁은 것은 캔버스 가장자리가 아무것도 가르지 않기 때문이다(그 폭이 곧 카드에서
+   *  빠지는 폭). 오른쪽 6은 레일과 시트 사이를 혼자 만든다 — 시트는 `ml-0` 이다. */
+  benchList: 'flex flex-col py-6 pl-4 pr-6',
   benchRows: 'flex flex-col gap-1.5',
   benchFooter: 'mt-auto pt-2',
   benchItem:
-    'flex w-full cursor-pointer items-center gap-3 rounded-[9px] border bg-[var(--pl-bg-card)] px-3.5 py-3 text-left transition-colors',
+    'flex w-full cursor-pointer items-center gap-2.5 rounded-[9px] border bg-[var(--pl-bg-card)] px-3 py-2.5 text-left transition-colors',
   benchItemIdle: 'border-[var(--pl-border)] hover:border-[var(--pl-border-strong)]',
   /** 고른 항목은 테두리와 안쪽 막대 둘 다 — 테두리만으로는 캔버스 위에서 약하다. */
   benchItemActive:
@@ -153,20 +158,27 @@ const rq = {
    *  고르고 나서 읽는 값이다. */
   benchItemName: 'truncate text-[16px] font-semibold text-[var(--pl-text-strong)]',
   benchItemNameActive: 'truncate text-[16px] font-semibold text-[var(--pl-primary)]',
-  benchItemMeta: 'flex min-w-0 items-center gap-2 text-[12px] text-[var(--pl-text-weak)]',
+  /** 코드 · Provider · 대기 경과가 한 줄이다. 236 레일에서 경과를 이름과 같은 줄에 두면
+   *  pill 이 40px 을 가져가고 남는 폭이 이름을 자른다 — 서비스 이름이 이 카드에서 고르는
+   *  것 자체라 잘리면 안 된다. 아랫줄은 12px 셋이라 pill 이 끝에 서도 이름을 안 건드린다. */
+  benchItemMeta: 'flex min-w-0 items-center gap-1.5 text-[12px] text-[var(--pl-text-weak)]',
   benchItemCode: 'truncate [font-family:var(--pl-font-mono)]',
-  /** 대기 경과 — 기록이 못 하는 말이라 큐만 쓴다. 임계를 넘으면 잉크가 바뀐다. */
+  /** 대기 경과 — 기록이 못 하는 말이라 큐만 쓴다. 임계를 넘으면 잉크가 바뀐다.
+   *  `ml-auto` 라 코드·Provider 가 짧든 길든 줄 끝에 선다. */
   benchWait:
-    'flex-none rounded-full bg-[var(--pl-gray-100)] px-2 py-0.5 text-[12px] font-semibold tabular-nums text-[var(--pl-text-medium)]',
+    'ml-auto flex-none rounded-full bg-[var(--pl-gray-100)] px-1.5 py-0.5 text-[12px] font-semibold tabular-nums text-[var(--pl-text-medium)]',
   benchWaitHot:
-    'flex-none rounded-full bg-[var(--pl-warn-bg)] px-2 py-0.5 text-[12px] font-semibold tabular-nums text-[var(--pl-warn-text)]',
+    'ml-auto flex-none rounded-full bg-[var(--pl-warn-bg)] px-1.5 py-0.5 text-[12px] font-semibold tabular-nums text-[var(--pl-warn-text)]',
   /** 목록 자리의 스켈레톤 타일 — `skeletonBar` 는 h-3.5 라 여기 못 쓴다(`cn` 은 단순
    *  join 이라 h-3.5 와 h-7 을 같이 주면 Tailwind 출력 순서가 이긴다). */
   benchSkelTile: 'h-7 w-7 flex-none animate-pulse rounded-[6px] bg-[var(--pl-gray-100)]',
-  /** 오른쪽 시트 — 바깥 36 · 안쪽 32. 둘이 같으면 내용이 면 한가운데 떠 있는 것처럼
-   *  보이고, 안쪽이 더 넓으면 카드가 캔버스를 채운 것처럼 보인다. */
+  /** 오른쪽 시트 — 바깥 24 · 안쪽 세로 24 · 안쪽 가로 20.
+   *
+   *  권한 요청 시트는 36/32 다. 여기는 한 단씩 좁힌다: 이 시트의 가장 넓은 내용이 971px
+   *  고정 표라서, 가로 패딩 1px 이 그대로 표에서 빠지는 1px 이다. 가로만 한 칸 더 좁은
+   *  이유도 그것이다 — 세로는 아무것도 밀어내지 않는다. */
   benchPane:
-    'm-9 ml-0 overflow-y-auto rounded-[9px] border border-[var(--pl-border)] bg-[var(--pl-bg-card)] p-8',
+    'm-6 ml-0 overflow-y-auto rounded-[9px] border border-[var(--pl-border)] bg-[var(--pl-bg-card)] px-5 py-6',
 
   /** 이력 탭 — 레일이 없으니 표 한 장이 탭을 통째로 쓴다. 크롬은 없다: 탭 아래는 이미
    *  한 장이고, 거기에 카드를 얹으면 표면이 두 겹이 된다. */
@@ -340,14 +352,14 @@ export default function RequestsPage(): ReactElement {
               <span className={rq.benchItemMeta}>
                 <span className={rq.benchItemCode}>{code}</span>
                 <ProvTag provider={row.cloudProvider ?? ''} />
+                {/* 대기는 승인 대기 탭에서만 뜻이 있다 — 반려된 요청은 더 안 기다린다. */}
+                {tab === 'pending' && (
+                  <span className={days >= WAIT_WARN_DAYS ? rq.benchWaitHot : rq.benchWait}>
+                    {days}일
+                  </span>
+                )}
               </span>
             </span>
-            {/* 대기는 승인 대기 탭에서만 뜻이 있다 — 반려된 요청은 더 안 기다린다. */}
-            {tab === 'pending' && (
-              <span className={days >= WAIT_WARN_DAYS ? rq.benchWaitHot : rq.benchWait}>
-                {days}일
-              </span>
-            )}
           </button>
         );
       })

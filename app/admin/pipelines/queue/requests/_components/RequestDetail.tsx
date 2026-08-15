@@ -18,7 +18,6 @@ import { useCallback, useState, type ReactElement } from 'react';
 import { useAbortableEffect } from '@/app/hooks/useAbortableEffect';
 
 import { Card } from '@/app/admin/pipelines/_components/Card';
-import { SectionHeader } from '@/app/admin/pipelines/_components/SectionHeader';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
 import { PlEmptyState } from '@/app/admin/pipelines/_components/PlEmptyState';
 import { Icon } from '@/app/admin/pipelines/_components/icons';
@@ -319,26 +318,18 @@ export function RequestDetail({
         </details>
       ) : (
         <>
-          <SectionHeader
-            first
-            title="연동 요청 조회"
-            desc={
-              isIdc ? (
-                <>
-                  서비스 담당자가 요청한 연동 대상을 확인하고 승인해요.{' '}
-                  {/* Primary, because this clause is the one thing on the page that is
-                      still editable and it expires at 승인 — the rest of the sentence
-                      describes what the section shows. The cloud variant gets no
-                      highlight: nothing there can be changed. */}
-                  <span className="font-medium text-[var(--pl-primary)]">
-                    승인 전에는 접속 주소마다 NLB Index를 바꿀 수 있어요.
-                  </span>
-                </>
-              ) : (
-                '서비스 담당자가 요청한 연동 대상을 확인하고 승인해요. 제외된 리소스는 사유와 함께 표시돼요.'
-              )
-            }
-          />
+          {/* '연동 요청 조회' 제목이 있던 자리다. 이 시트 전체가 그 요청이고 바로 위
+              24px 제목이 어느 요청인지 이미 말한다 — 제목과 "요청한 연동 대상을 확인하고
+              승인해요" 한 줄이 표를 88px 아래로 밀고 있었고, 그만큼 리소스가 첫 화면에서
+              밀려났다(오너 지적 2026-08-15).
+              IDC 만 한 줄 남는다: 이 화면에서 아직 바꿀 수 있는 유일한 값이고, 승인과 함께
+              만료되는 사실이라 표를 만나기 전에 읽어야 한다. 클라우드는 남길 게 없다 —
+              거기서는 바꿀 수 있는 것이 없다. */}
+          {isIdc && (
+            <p className="mb-4 text-[14px] font-medium leading-[1.5] text-[var(--pl-primary)]">
+              승인 전에는 접속 주소마다 NLB Index를 바꿀 수 있어요.
+            </p>
+          )}
           {/* No card around it. The tiles are cards and the toolbar·table·pager carry
               their own connected frame, so an outer surface only nested a card in a card
               and spent 48px of table width on doubled padding. */}
