@@ -395,7 +395,11 @@ export default function AccessRequestsPage(): ReactElement {
                   재시도
                 </PlButton>
               </div>
-            ) : current == null ? (
+            ) : list.error != null ? null : list.paged != null && current == null ? (
+              // `current == null` 만으로는 부족하다 — 목록이 도착하기 전에도 고른 것이
+              // 없고, 그때 "없어요"는 아직 모르는 것을 단언하는 말이다. 목록이 실패한
+              // 경우도 마찬가지라 이 자리는 비운다: 오류와 재시도는 왼쪽 레일이 들고 있고,
+              // 실패를 빈 결과로 옮겨 적으면 안 된다.
               <div className={a.empty}>
                 <span className={a.emptyTitle}>고를 요청이 없어요</span>
                 <span className={a.emptyCaption}>
