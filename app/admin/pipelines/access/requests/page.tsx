@@ -92,6 +92,7 @@ const fetchHistory = (
  */
 const HISTORY_COLUMNS: readonly Column[] = [
   { label: '구분', className: a.status },
+  { label: '코드', className: a.code },
   { label: '서비스', className: a.svcCol },
   { label: '대상', className: a.knox },
   { label: '수행자', className: a.knox },
@@ -276,15 +277,9 @@ export default function AccessRequestsPage(): ReactElement {
                 <span role="cell" className={a.status}>
                   <HistoryTypePill type={row.type} />
                 </span>
-                <span role="cell" className={a.svcCol}>
-                  {/* `name`(flex-1)이 아니다 — 이름이 열을 다 먹으면 코드가 열 오른쪽
-                      끝으로 밀려 이름과 갈라선다. 줄어들기만 하면 코드가 따라온다. */}
-                  <span className={cn(a.nameStrong, 'min-w-0 truncate')}>
-                    {row.serviceName ?? '—'}
-                  </span>
-                  {row.serviceCode != null && (
-                    <span className={cn(a.mono, 'flex-none')}>{row.serviceCode}</span>
-                  )}
+                <span role="cell" className={cn(a.code, a.mono)}>{row.serviceCode ?? '—'}</span>
+                <span role="cell" className={cn(a.svcCol, a.nameStrong)}>
+                  {row.serviceName ?? '—'}
                 </span>
                 <span role="cell" className={a.knox}>
                   {row.targetUser.knoxId}

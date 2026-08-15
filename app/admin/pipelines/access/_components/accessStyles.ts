@@ -143,9 +143,9 @@ export const accessStyles = {
   code: 'w-[72px] min-w-0 shrink truncate',
   mono: 'text-[12px] text-[var(--pl-text-strong)] [font-family:var(--pl-font-mono)]',
   note: 'min-w-0 flex-1 truncate pointer-events-none',
-  /** 서비스 열 — 이름과 코드가 한 칸 안에서 붙어 선다(`svcIdent` 와 같은 이유: 사이가
-   *  벌어지면 한 서비스의 두 표기가 아니라 두 열로 읽힌다). */
-  svcCol: 'flex min-w-0 flex-[1.4] items-center gap-1.5',
+  /** 서비스 이름 열 — 코드는 왼쪽 `code` 열이 따로 받는다. 한 칸에 둘을 넣으면 코드가
+   *  이름 길이만큼 밀려 행마다 다른 x 에 서고, 코드로 훑을 수가 없다. */
+  svcCol: 'min-w-0 flex-[1.4] truncate',
   /** 사유 열 — 문장이라 한 칸을 더 받는다. `note` 와 달리 포인터를 죽이지 않는다:
    *  행이 링크가 아니라 가릴 오버레이가 없고, 죽이면 잘린 전문을 줄 title 도 안 뜬다. */
   noteWide: 'min-w-0 flex-[1.6] truncate',
