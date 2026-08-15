@@ -16,7 +16,7 @@ const CARD_FACE =
 
 export const accessStyles = {
   pageTitle: 'text-[24px] font-bold leading-[1.2] tracking-[-0.02em] text-[var(--pl-text-strong)]',
-  pageDesc: 'mt-1 text-[14px] leading-[1.4] text-[var(--pl-text-weak)]',
+  pageDesc: 'mt-1 text-[16px] leading-[1.4] text-[var(--pl-text-weak)]',
   /** 판정 수치 — 연동 요청(queue/requests)의 `contextTotal` 과 같은 크기. 화면에서
    *  가장 큰 타입이 곧 화면이 먼저 말하는 사실이고, 이 페이지의 그 사실은 "내 요청이
    *  지금 어떤 상태인가"다.
