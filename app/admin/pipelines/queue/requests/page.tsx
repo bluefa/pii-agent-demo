@@ -3,18 +3,18 @@
 /**
  * P2 연동 요청 목록 (/admin/pipelines/queue/requests) — design-spec §2.
  *
- * Three sections, ranked by what the operator has to act on: 연동 요청 확인
- * (PENDING) and 연동 요청 반려 확인 (REJECTED) sit side by side above the fold,
- * 전체 History 확인 (approval-history) is the read-only audit log below them.
+ * 탭 셋이 이 화면의 목차다 — 승인 대기·반려는 같은 요청을 상태로 자른 것이고, 전체
+ * History 는 읽기 전용 기록이다. 전에는 카드 세 장이었다: 반폭 두 장이 나란히 서고 그
+ * 아래 전폭 한 장. 셋 다 같은 17px 제목 + 건수 배지 + 설명 + 표라서 손대야 할 요청과
+ * 손댈 필요 없는 기록이 같은 급으로 읽혔다(오너 지적 2026-08-15). 표면을 하나로 줄이면
+ * 등급은 탭 하나가 만든다. 권한 요청(access/requests)이 같은 문제를 같은 방법으로 푼다.
  *
- * Density grammar is the 운영 알림 stage card's (ops/alerts/_components/
- * AlertStageCard): 17px title + 건수 badge inline, one 13px desc line, flex rows
- * at py-2.5, a fixed page of rows, and an always-rendered pager pinned to the
- * card bottom so the two top cards keep the same height whatever they hold.
- * Each section reads its own source and paginates independently (server page
- * param, 0-based). Both action cards' rows navigate to the same request detail
- * — that page carries the full 반려 사유 and the requested resources, so the
- * list only previews them. The history log is a record and is not clickable.
+ * 탭이 제목이자 건수라서 카드 머리 줄이 없다 — 그리면 같은 이름과 같은 수가 한 화면에
+ * 두 번 적힌다. 카드 크롬(테두리·그림자)도 없다: 탭 아래는 이미 한 장이다.
+ *
+ * 각 탭은 자기 소스를 자기 페이지로 읽는다(서버 page 파라미터, 0-based). 승인 대기·반려
+ * 행은 같은 상세로 가고, 반려 사유 전문과 요청 리소스는 그곳에서 읽는다 — 목록은 한 줄
+ * 미리보기만 한다. 기록은 기록이라 클릭되지 않는다.
  */
 import { useState, type ReactElement, type ReactNode } from 'react';
 import { cn } from '@/lib/theme';
@@ -23,7 +23,7 @@ import { fmtDateTime } from '@/lib/pipeline/format';
 import { useAbortableEffect } from '@/app/hooks/useAbortableEffect';
 
 import Link from 'next/link';
-import { Icon, type IconName } from '@/app/admin/pipelines/_components/icons';
+import { Icon } from '@/app/admin/pipelines/_components/icons';
 import { ProvTag } from '@/app/admin/pipelines/_components/ProvTag';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
 import { OpsPagination } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/OpsPagination';
@@ -31,7 +31,7 @@ import { HistoryStatusPill } from '@/app/admin/pipelines/queue/requests/_compone
 import { getApprovalHistory, getRequestList } from '@/app/lib/api/task-queue-requests';
 import type { ApprovalHistoryRow, Paged, RequestListRow } from '@/lib/types/task-queue';
 
-/** 5 rows is the card body height the three sections share (min-h-[360px]). */
+/** 5 rows is the body height the three tabs share (min-h-[360px]). */
 const PAGE_SIZE = 5;
 
 const errorMessage = (err: unknown): string =>
@@ -88,32 +88,37 @@ function usePagedSection<T>(
   return { page, paged, loading, error, setPage, reload: () => setRetry((n) => n + 1) };
 }
 
-/** Visual tone of a section — drives its 건수 badge only; the two action cards
- *  read as primary/danger, the audit log as neutral. */
-type SectionTone = 'primary' | 'danger' | 'muted';
-
-const TONE_BADGE: Record<SectionTone, string> = {
-  primary: 'bg-[var(--pl-tag-blue-bg)] text-[var(--pl-tag-blue-text)]',
-  danger: 'bg-[var(--pl-err-bg)] text-[var(--pl-err-text)]',
-  muted: 'bg-[var(--pl-gray-100)] text-[var(--pl-text-medium)]',
-};
-
 const rq = {
-  context: 'mt-1 text-[14px] leading-[1.4] text-[var(--pl-text-weak)]',
+  /** 16px — 이 문장이 화면이 먼저 말하는 사실이라 본문 급으로 올린다(오너 지시
+   *  2026-08-15). 권한 요청(access)의 `pageDesc` 와 같은 값이다. */
+  context: 'mt-1 text-[16px] leading-[1.4] text-[var(--pl-text-weak)]',
   contextTotal: 'mx-0.5 align-baseline text-[32px] font-bold leading-none text-[var(--pl-primary)]',
-  grid: 'mt-6 grid grid-cols-2 gap-6',
 
-  // shadow-md: 카드가 3장뿐이고 2단으로 붙어 있어 xs/sm 으로는 경계가 배경에
-  // 묻는다. lg 는 모달/툴팁 높이라 얹혀 있는 카드가 떠 보인다.
-  // 외곽선만 border-strong — 내부 행 구분선은 --pl-border 를 유지해야 카드
-  // 경계와 행 경계가 같은 굵기로 읽히지 않는다.
-  card: 'flex min-h-[360px] flex-col rounded-[12px] border border-[var(--pl-border-strong)] bg-[var(--pl-bg-card)] p-4 shadow-[var(--pl-shadow-md)]',
-  head: 'flex items-center justify-between gap-3',
-  titleWrap: 'flex items-center gap-2',
-  titleIcon: 'text-[var(--pl-text-medium)]',
-  title: 'text-[17px] font-semibold leading-[1.5] text-[var(--pl-text-strong)]',
-  badge: 'inline-flex flex-none items-center rounded-full px-2 py-[3px] text-[11px] font-semibold tabular-nums',
-  desc: 'mt-1.5 text-[13px] leading-[1.5] text-[var(--pl-gray-600)]',
+  /**
+   * 화면을 가르는 탭 레일 — 권한 요청(access/requests)의 `pageTabStrip`/`tab*` 과 같은
+   * 값이다. 같은 어드민 안에서 승인 화면이 두 종류로 읽히면 안 된다.
+   *
+   * 16px 이라 카드 안의 line tab 보다 한 칸 크다: 이건 부품이 아니라 이 화면의 목차다.
+   */
+  tabStrip: 'mt-5 flex items-center gap-1 border-b border-[var(--pl-border)]',
+  tab: 'flex cursor-pointer items-center gap-1.5 whitespace-nowrap border-b-2 px-3 py-2.5 text-[16px] transition-colors -mb-px',
+  tabActive: 'font-semibold text-[var(--pl-primary)] border-[var(--pl-primary)]',
+  tabIdle:
+    'font-medium text-[var(--pl-text-weak)] border-transparent hover:text-[var(--pl-text-strong)] hover:border-[var(--pl-border-strong)]',
+  /** 탭이 세는 수 — 탭이 곧 제목이므로 건수도 여기 붙는다(머리 줄엔 없다). */
+  tabCount: 'text-[12px] font-semibold tabular-nums',
+
+  /**
+   * 탭 하나의 본문. 크롬이 없다 — 탭 아래는 이미 한 장이고, 거기에 카드를 얹으면
+   * 표면이 두 겹이 된다.
+   *
+   * min-h 는 카드였을 때의 값을 그대로 쓴다. 탭마다 담기는 줄 수가 다르고(마지막 장은
+   * 다섯 줄이 안 찬다) 안 잡아 두면 탭을 옮길 때마다 페이저가 오르내린다.
+   */
+  section: 'mt-4 flex min-h-[360px] flex-col',
+  /** 14px — 권한 요청의 `a.desc` 와 같은 값. 16px 탭 바로 아래라 한 칸 내려가고,
+   *  아래 12px 컬럼 머리와도 한 칸 벌어진다. */
+  desc: 'text-[14px] leading-[1.5] text-[var(--pl-gray-600)]',
 
   headRow: 'mt-3 flex items-center gap-3 py-2 text-[12px] font-medium text-[var(--pl-text-faint)]',
   row: 'group relative flex items-center gap-3 border-t border-[var(--pl-border)] py-2.5 text-[13px] text-[var(--pl-text-medium)] transition-colors',
@@ -122,20 +127,15 @@ const rq = {
   /**
    * Column widths — shared by a section's header row and its data rows.
    *
-   * The two top cards run the SAME skeleton (service · code · cloud · note ·
-   * when · tail) so their columns line up across the grid gutter. That means the
-   * same COUNT of flex-1 columns too: `service` and `note` both grow, so each
-   * card splits its slack the same way. Give one card an extra flexible column
-   * and its 서비스 이름 silently shrinks to half the other's.
+   * 승인 대기·반려는 SAME skeleton (service · code · cloud · note · when · tail) 을
+   * 쓴다. 이제 둘이 나란히 서지 않고 탭으로 갈리지만 골격은 그대로 공유한다 — 다르면
+   * 같은 요청이 탭 하나 건너 다른 표로 읽히고, 탭을 옮길 때 열이 제자리에 없다.
+   * flex-1 컬럼 수까지 같아야 한다: `service` 와 `note` 가 둘 다 늘어난다.
    *
-   * WIDTH BUDGET — a 2-up card is not a full-width table. At 1440 the card's
-   * inner width is 536 (viewport − 216 sidebar − 64 content padding − 24 gutter,
-   * halved, − 32 card padding), and it drops to 356 at the shell's 1080 floor.
-   * Every fixed column is therefore both TIGHT (sized to its actual values, not
-   * to a round number) and SHRINKABLE — no `flex-none` here, so when the budget
-   * runs out the fixed cells give way instead of painting outside the card.
-   * Target #id is deliberately absent: the row already links to that id's page,
-   * and its 56px bought nothing the 서비스 이름 column could not use.
+   * WIDTH BUDGET — 반폭 카드였을 때(1440 에서 카드 안쪽 536, 셸의 1080 바닥에서 356)
+   * 잡은 예산이라 고정 열이 전부 TIGHT 하고 SHRINKABLE 하다(어디에도 `flex-none` 이
+   * 없다). 전폭이 되면서 예산은 넉넉해질 뿐이라 그대로 둔다. Target #id 가 없는 것도
+   * 그대로다 — 행이 이미 그 id 의 페이지로 가는 링크다.
    */
   service: 'min-w-0 flex-1 truncate',
   serviceName: 'font-medium text-[var(--pl-text-strong)]',
@@ -175,9 +175,8 @@ interface Column {
   className: string;
 }
 
-/** The two action cards share one skeleton — same widths, same flex-1 count —
- *  so their columns line up across the grid gutter. Only the note/date labels
- *  differ. */
+/** 승인 대기·반려는 한 골격을 나눠 쓴다 — 같은 폭, 같은 flex-1 수. 설명/일자 라벨만
+ *  갈린다. */
 const actionColumns = (note: string, when: string): readonly Column[] => [
   { label: '서비스 이름', className: rq.service },
   { label: '서비스 코드', className: rq.code },
@@ -200,51 +199,32 @@ const HISTORY_COLUMNS: readonly Column[] = [
   { label: '일시', className: rq.when },
 ];
 
-interface SectionCardProps<T> {
+interface TabSectionProps<T> {
+  /** 화면에는 탭이 대신 말한다 — 여기 제목은 `aria-label` 로만 남는다. */
   title: string;
   desc: string;
-  icon: IconName;
-  tone: SectionTone;
   state: PagedSection<T>;
   /** Drives BOTH the header row and the loading skeleton, so the two can never
    *  drift from the widths the data rows use. */
   columns: readonly Column[];
   empty: { title: string; caption: string };
   children: (rows: T[]) => ReactNode;
-  className?: string;
 }
 
-/** Section card shell — header (icon + title + 건수) / desc / column head /
- *  body / pager pinned to the bottom. */
-function SectionCard<T>({
+/** 탭 하나의 본문 — 설명 / 컬럼 머리 / 본문 / 바닥에 고정된 페이저. */
+function TabSection<T>({
   title,
   desc,
-  icon,
-  tone,
   state,
   columns,
   empty,
   children,
-  className,
-}: SectionCardProps<T>): ReactElement {
+}: TabSectionProps<T>): ReactElement {
   const { paged, loading, error, page, setPage, reload } = state;
   const rows = paged?.content ?? [];
 
   return (
-    <section className={cn(rq.card, className)} aria-label={title}>
-      <div className={rq.head}>
-        <div className={rq.titleWrap}>
-          <Icon name={icon} size={20} className={rq.titleIcon} />
-          <h2 className={rq.title}>{title}</h2>
-        </div>
-        {/* 로딩 중에는 숨긴다 — 스켈레톤 다섯 줄 옆에서 '0건'은 아직 모르는
-            수를 아는 척 단언하는 것이다. */}
-        {paged != null && (
-          <span className={cn(rq.badge, TONE_BADGE[tone])}>
-            {paged.totalElements.toLocaleString()}건
-          </span>
-        )}
-      </div>
+    <section className={rq.section} aria-label={title}>
       <p className={rq.desc}>{desc}</p>
 
       {/* The rows are flex divs (a <tr> can't host the absolutely positioned
@@ -270,7 +250,7 @@ function SectionCard<T>({
           </div>
         ) : loading ? (
           // Skeleton drawing the table's own footprint (PAGE_SIZE rows in the
-          // real column widths) — the card holds its size through the load.
+          // real column widths) — the section holds its size through the load.
           <div role="rowgroup" aria-busy="true" aria-label="목록을 불러오는 중">
             {Array.from({ length: PAGE_SIZE }, (_, row) => (
               <div key={row} className={rq.row} role="row" aria-hidden="true">
@@ -308,15 +288,27 @@ function SectionCard<T>({
   );
 }
 
+type RequestTab = 'pending' | 'rejected' | 'history';
+
 export default function RequestsPage(): ReactElement {
   const pending = usePagedSection(fetchPending);
   const rejected = usePagedSection(fetchRejected);
   const history = usePagedSection(fetchHistory);
 
+  // 세 목록을 다 읽는다 — 안 보이는 탭의 건수를 탭 자신이 말해야 한다. 탭을 옮겨도
+  // 다시 읽지 않으므로 진입 호출 수는 카드가 셋이던 때와 같다.
+  const [tab, setTab] = useState<RequestTab>('pending');
+
   // 두 섹션이 모두 도착해야 합이 사실이다 — 하나라도 로딩 중이면 수를 말하지
   // 않는다(스켈레톤 옆에서 32px 볼드로 '0건'은 모르는 값을 아는 척하는 것).
   const counted = pending.paged != null && rejected.paged != null;
   const todo = (pending.paged?.totalElements ?? 0) + (rejected.paged?.totalElements ?? 0);
+
+  const tabs: readonly { key: RequestTab; label: string; count: number | undefined }[] = [
+    { key: 'pending', label: '승인 대기', count: pending.paged?.totalElements },
+    { key: 'rejected', label: '반려', count: rejected.paged?.totalElements },
+    { key: 'history', label: '전체 History', count: history.paged?.totalElements },
+  ];
 
   return (
     <div>
@@ -333,15 +325,36 @@ export default function RequestsPage(): ReactElement {
         건 있어요
       </p>
 
-      <div className={rq.grid}>
-        {/* 연동 요청 확인 (승인 대기) — 행 전체가 상세로 가는 링크. */}
-        <SectionCard
-          title="연동 요청 확인"
+      <div className={rq.tabStrip} role="tablist" aria-label="연동 요청 탭">
+        {tabs.map(({ key, label, count }) => {
+          const on = key === tab;
+          return (
+            <button
+              key={key}
+              type="button"
+              role="tab"
+              aria-selected={on}
+              onClick={() => setTab(key)}
+              className={cn(rq.tab, on ? rq.tabActive : rq.tabIdle)}
+            >
+              {label}
+              {/* 아직 모르는 수는 쓰지 않는다. */}
+              {count != null && <span className={rq.tabCount}>{count}</span>}
+            </button>
+          );
+        })}
+      </div>
+
+      {tab === 'pending' && (
+        /* 승인 대기 — 행 전체가 상세로 가는 링크. */
+        <TabSection
+          title="승인 대기"
           desc="승인이 필요한 연동 요청이에요 — 검토 후 승인하거나 반려해 주세요"
-          icon="inbox"
-          tone="primary"
           state={pending}
-          empty={{ title: '승인을 기다리는 요청이 없어요', caption: '새 연동 요청이 들어오면 여기에 표시돼요' }}
+          empty={{
+            title: '승인을 기다리는 요청이 없어요',
+            caption: '새 연동 요청이 들어오면 여기에 표시돼요',
+          }}
           columns={PENDING_COLUMNS}
         >
           {(rows) =>
@@ -385,18 +398,21 @@ export default function RequestsPage(): ReactElement {
               );
             })
           }
-        </SectionCard>
+        </TabSection>
+      )}
 
-        {/* 연동 요청 반려 확인 (반려) — 위 카드와 같은 컬럼 골격. 반려 사유가
-            설명 자리(유일한 두 번째 flex 컬럼)에 들어간다. 행은 위 카드와 같은
-            상세로 가고, 사유 전문과 요청 내역(리소스)은 그곳에서 읽는다. */}
-        <SectionCard
-          title="연동 요청 반려 확인"
+      {tab === 'rejected' && (
+        /* 반려 — 승인 대기와 같은 컬럼 골격. 반려 사유가 설명 자리(유일한 두 번째 flex
+           컬럼)에 들어간다. 행은 같은 상세로 가고, 사유 전문과 요청 내역(리소스)은
+           그곳에서 읽는다. */
+        <TabSection
+          title="반려"
           desc="반려했으나 서비스 측 담당자가 아직 확인하지 않았어요 — 행을 눌러 사유와 요청 내역을 볼 수 있어요"
-          icon="warn-tri"
-          tone="danger"
           state={rejected}
-          empty={{ title: '확인 대기 중인 반려 건이 없어요', caption: '반려 처리한 요청이 여기에 모여요' }}
+          empty={{
+            title: '확인 대기 중인 반려 건이 없어요',
+            caption: '반려 처리한 요청이 여기에 모여요',
+          }}
           columns={REJECTED_COLUMNS}
         >
           {(rows) =>
@@ -440,54 +456,56 @@ export default function RequestsPage(): ReactElement {
               );
             })
           }
-        </SectionCard>
-      </div>
+        </TabSection>
+      )}
 
-      {/* 전체 History 확인 (approval-history) — read-only audit log, 보조 역할이라
-          두 카드 아래 전체 폭 한 장. key 는 historyRecordId (유일). targetSourceId·
-          requestId 는 반복될 수 있어 key 로 못 쓴다. */}
-      <SectionCard
-        className="mt-6"
-        title="전체 History 확인"
-        desc="모든 연동 요청의 승인 처리 이력이에요"
-        icon="clock"
-        tone="muted"
-        state={history}
-        empty={{ title: '표시할 승인 이력이 없어요', caption: '연동 요청이 처리되면 이력이 여기에 쌓여요' }}
-        columns={HISTORY_COLUMNS}
-      >
-        {(rows) =>
-          rows.map((row) => (
-            <div
-              key={row.historyRecordId ?? `${row.targetSourceId}:${row.requestId}`}
-              role="row"
-              className={rq.row}
-            >
-              <span role="cell" className={cn(rq.service, rq.serviceName)}>
-                {row.serviceName ?? '—'}
-              </span>
-              <span role="cell" className={cn(rq.code, rq.mono)}>
-                {row.serviceCode ?? '—'}
-              </span>
-              <span role="cell" className={cn(rq.target, rq.mono)}>
-                {row.targetSourceId != null ? `#${row.targetSourceId}` : '—'}
-              </span>
-              <span role="cell" className={rq.cloud}>
-                <ProvTag provider={row.cloudProvider ?? ''} />
-              </span>
-              <span role="cell" className={rq.status}>
-                <HistoryStatusPill status={row.status} />
-              </span>
-              <span role="cell" className={rq.actor}>
-                {row.actorId ?? '—'}
-              </span>
-              <span role="cell" className={rq.when}>
-                {fmtDateTime(row.createdAt)}
-              </span>
-            </div>
-          ))
-        }
-      </SectionCard>
+      {tab === 'history' && (
+        /* 전체 History (approval-history) — 읽기 전용 감사 로그. key 는
+           historyRecordId (유일). targetSourceId·requestId 는 반복될 수 있어 key 로
+           못 쓴다. */
+        <TabSection
+          title="전체 History"
+          desc="모든 연동 요청의 승인 처리 이력이에요"
+          state={history}
+          empty={{
+            title: '표시할 승인 이력이 없어요',
+            caption: '연동 요청이 처리되면 이력이 여기에 쌓여요',
+          }}
+          columns={HISTORY_COLUMNS}
+        >
+          {(rows) =>
+            rows.map((row) => (
+              <div
+                key={row.historyRecordId ?? `${row.targetSourceId}:${row.requestId}`}
+                role="row"
+                className={rq.row}
+              >
+                <span role="cell" className={cn(rq.service, rq.serviceName)}>
+                  {row.serviceName ?? '—'}
+                </span>
+                <span role="cell" className={cn(rq.code, rq.mono)}>
+                  {row.serviceCode ?? '—'}
+                </span>
+                <span role="cell" className={cn(rq.target, rq.mono)}>
+                  {row.targetSourceId != null ? `#${row.targetSourceId}` : '—'}
+                </span>
+                <span role="cell" className={rq.cloud}>
+                  <ProvTag provider={row.cloudProvider ?? ''} />
+                </span>
+                <span role="cell" className={rq.status}>
+                  <HistoryStatusPill status={row.status} />
+                </span>
+                <span role="cell" className={rq.actor}>
+                  {row.actorId ?? '—'}
+                </span>
+                <span role="cell" className={rq.when}>
+                  {fmtDateTime(row.createdAt)}
+                </span>
+              </div>
+            ))
+          }
+        </TabSection>
+      )}
     </div>
   );
 }
