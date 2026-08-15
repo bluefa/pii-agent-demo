@@ -94,10 +94,10 @@ describe('AdminServiceRail — rows and section label', () => {
     expect(html.split('<button').slice(1)).toHaveLength(2);
   });
 
-  it('names the list by whether a search is active', () => {
-    expect(render({ services })).toContain('전체 서비스');
+  it('labels a search result only — an unfiltered list gets no section line', () => {
+    expect(render({ services })).not.toContain('검색 결과');
     expect(render({ services, searchValue: 'aws' })).toContain('검색 결과');
     // Whitespace is not a search — it would label a full list as a filtered one.
-    expect(render({ services, searchValue: '   ' })).toContain('전체 서비스');
+    expect(render({ services, searchValue: '   ' })).not.toContain('검색 결과');
   });
 });

@@ -1793,20 +1793,68 @@ export const serviceSidebarStyles = {
     'inline-flex shrink-0 min-w-[38px] items-center justify-center rounded-[6px] bg-[#F1F4F5] px-1.5 py-0.5 font-mono text-[12px] font-medium leading-5 text-[#4E5968]',
   /**
    * Row fill under pointer hover or keyboard focus — full-bleed and square, the
-   * way a web list row highlights. White, not a deeper grey: on a tinted rail
-   * the row under the cursor is the one that lifts toward the reader.
+   * way a web list row highlights. Lighter than the rail, so the row under the
+   * cursor lifts toward the reader — but no longer all the way to white.
+   *
+   * A hover is a pointer echo, not a state, so it stays UNDER the selected row's
+   * own step: rail → current tint is ΔL* 3.6, and this is ΔL* 2.7 (1.07:1, ΔE
+   * 3.6 — above the ~2.3 at which two surfaces are seen as different at all).
+   * White was ΔL* 8.6 (1.25:1), more than twice the state it passed over, and
+   * #F6F6F6 was still 5.5.
+   *
+   * The old note here said gray-50 measured 1.03 on this rail and could not be
+   * seen; that number was taken against the LIGHTER rail (#F2F4F6, where it is
+   * 1.06). On today's #E2E7EA gray-50 is 1.19 — the constraint it encoded is
+   * gone, which is what left room to come down this far.
+   *
+   * Neutral, not a pale violet: the violet band belongs to "you are here", and a
+   * hover that borrowed it would read as selecting the row.
    */
-  rowActive: 'hover:bg-white focus-visible:bg-white',
+  rowActive: 'hover:bg-[#EEEEEE] focus-visible:bg-[#EEEEEE]',
   /**
    * The row for the service the page is about — tint + 2px accent bar, the way a
    * desktop rail marks "you are here". It replaced a pinned band above the list:
    * the page header already names the service, so the band only repeated it.
+   *
+   * The bar rides the RIGHT edge, against the content column the row is about —
+   * the same edge the admin console rail marks (`serviceListStyles.itemActive`).
+   *
+   * VIOLET, not the brand blue, and the same violet the target-source card rows
+   * hover to (`tableRowLift.card` #F3EEFF) — one family for "this is the row you
+   * are on", whichever list you are in.
+   *
+   * Levels are the blue pair's, byte for byte — every value keeps its
+   * counterpart's L*, so contrast is unchanged:
+   *
+   *   tint vs rail      1.10 → 1.10      ink #191F28 on tint  14.56 → 14.58
+   *   bar vs tint       4.33 → 4.42      bar vs rail          4.03 (1.4.11 ≥ 3)
+   *
+   * The tint lands ON #F3EEFF exactly — the blue tint already shared that L*.
+   *
+   * CHROMA is NOT carried over from the blue. Violet at blue's chroma reads far
+   * hotter than blue does — a UI blue at C90 is ordinary, a violet at C90 is
+   * neon — and the rail is a back plane, so the whole set sits under the
+   * reference rather than at it: bar C90.5 → 44.7, ink C81.0 → 44.9.
+   *
+   * And the tint carries NO brightness step: L* 91.4, the rail's own level, so
+   * the pair differs on hue alone (chroma 2.3 → 8.0, 3.5×; luminance 1.000:1).
+   * Every lighter value tried — the reference #F3EEFF and the toned #F2EFFA both
+   * sit ΔL* +3.6 up — read as a lit band on a grey rail, brighter than anything
+   * else on the plane including the page's own cards.
+   *
+   * That also sorts the rail's three signals onto their own channels: hover
+   * LIFTS (+2.7 L*, neutral), current is HUE (violet at the rail's level),
+   * pressing a current row goes DOWN (−2.5 L*). None of them is competing on
+   * brightness with the others.
+   *
+   * The reference (#F3EEFF) is still what the hue is FROM; it is a card hover on
+   * white, where the same colour has a brighter ground to spend it against.
    */
   rowCurrent:
-    'relative bg-[#E8F1FF] hover:bg-[#D6E7FF] focus-visible:bg-[#D6E7FF] before:absolute before:inset-y-0 before:left-0 before:w-0.5 before:bg-[#0064FF] before:content-[""]',
-  /** Code tag on the current row — primary pair on the row's tint (see primaryColors.textOnLight). */
+    'relative bg-[#E9E4F3] hover:bg-[#E2DDEE] focus-visible:bg-[#E2DDEE] before:absolute before:inset-y-0 before:right-0 before:w-0.5 before:bg-[#7465B0] before:content-[""]',
+  /** Code tag on the current row — the violet at #0050D6's level (6.71:1 on white), at the bar's chroma. */
   rowCodeCurrent:
-    'inline-flex shrink-0 min-w-[38px] items-center justify-center rounded-[6px] bg-white px-1.5 py-0.5 font-mono text-[12px] font-semibold leading-5 text-[#0050D6]',
+    'inline-flex shrink-0 min-w-[38px] items-center justify-center rounded-[6px] bg-white px-1.5 py-0.5 font-mono text-[12px] font-semibold leading-5 text-[#5F519A]',
   /** Hairline between rows — rows that stretch to fill the rail need a rule to read as a list instead of as floating text. */
   rowDivide: 'divide-y divide-[#D2D8DC]',
   /** Skeleton bar for the rail — a step darker than the surface, or it vanishes into it. */

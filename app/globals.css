@@ -113,6 +113,16 @@
   --pl-primary-hover: #1D4ED8;
   --pl-primary-bg: #EFF4FF;
   --pl-primary-ring: #D1E0FF;
+  /* "you are here" on a list rail — violet, not the primary blue, and the same
+     family the /services rail and the target-source card hover already use for
+     that idea. Levels are the blue pair's, so nothing moves on contrast: the
+     tint keeps #EFF4FF's L* 96.1 (1.06:1 on the page ground) and the ink reads
+     6.08:1 on it, above the blue's own 4.69. Chroma is NOT the blue's — violet
+     at a UI blue's chroma reads neon — so bar and ink hold C ~45 where
+     #2563EB carries 80. */
+  --pl-current-bg: #F6F2FD;
+  --pl-current: #7465B0;
+  --pl-current-ink: #5F519A;
   /* status — ok / err / info / warn / off */
   --pl-ok: #12B76A;
   --pl-ok-text: #027A48;
