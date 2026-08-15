@@ -348,7 +348,7 @@ export function ServiceDetailView({ serviceCode }: ServiceDetailViewProps): Reac
     { provider: JiraCloudProvider; action: JiraTicketAction } | null
   >(null);
   // 목록은 한 번에 다 온다(assumed 계약에 page 파라미터가 없다) — 자르는 건 화면 몫.
-  // 페이지는 0-based. 서비스를 옮기면 부모(ServicesView)가 key={serviceCode} 로 이
+  // 페이지는 0-based. 서비스를 옮기면 부모(page.tsx)가 key={serviceCode} 로 이
   // 컴포넌트를 갈아끼우므로 이 상태는 초기값에서 다시 시작한다.
   const [page, setPage] = useState(0);
 
