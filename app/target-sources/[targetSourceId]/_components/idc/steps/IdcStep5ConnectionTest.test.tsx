@@ -123,7 +123,7 @@ describe('IdcStep5ConnectionTest — pre-test idle strip (regression)', () => {
     renderStep();
 
     expect(
-      await screen.findByText('연결 테스트 대기 중 — Run Test를 실행해 주세요'),
+      await screen.findByText('아직 실행한 연결 테스트가 없습니다'),
     ).toBeTruthy();
     // No run yet: the summary carries no run meta and no % (pct only renders while
     // a run is in flight — an idle screen has nothing to be a percentage OF).

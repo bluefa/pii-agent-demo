@@ -10,6 +10,8 @@ interface StoredCompletion {
   runVersion: number | null;
   refreshKey: number;
   value: CompletionValue;
+  /** logical_database_updated_at — the policy-changed card's "정책 변경 {시각}" meta. */
+  policyChangedAt: string | null;
 }
 
 export interface UseTcCompletionStatusReturn {
@@ -17,8 +19,8 @@ export interface UseTcCompletionStatusReturn {
   completion: CompletionValue;
   /** CTA gate: only LATEST_TEST_CONNECTION_SUCCESS opens 완료 승인 요청. */
   approvalEnabled: boolean;
-  /** 논리 DB가 최신 실행 이후 변경됨 — 재실행해야 반영된다. */
-  needsRerun: boolean;
+  /** When the logical-DB policy last changed — null outside a valid verdict. */
+  policyChangedAt: string | null;
   /** Re-read now (after a logical-DB policy save). */
   refresh: () => void;
 }
@@ -27,7 +29,8 @@ export interface UseTcCompletionStatusReturn {
  * Step 5 completion-status wiring, shared by the cloud and IDC cards. Reads
  * GET …/test-connection/completion-status whenever the run settles SUCCESS
  * (and on demand after a logical-DB save), so the 완료 승인 요청 gate and the
- * 재실행 필요 chip both run on the contract's verdict instead of a local guess.
+ * card's settled verdict states (성공/정책 변경/확인 완료 — foldTcCardState)
+ * all run on the contract's verdict instead of a local guess.
  *
  * The stored verdict carries the identity it was fetched for (target · run
  * version · refresh key); anything else reads as null — a new run never briefly
@@ -53,11 +56,14 @@ export const useTcCompletionStatus = (
             runVersion,
             refreshKey,
             value: status.test_connection_status ?? null,
+            policyChangedAt: status.logical_database_updated_at ?? null,
           });
         }
       })
       .catch(() => {
-        if (active) setStored({ targetSourceId, runVersion, refreshKey, value: null });
+        if (active) {
+          setStored({ targetSourceId, runVersion, refreshKey, value: null, policyChangedAt: null });
+        }
       });
     return () => {
       active = false;
@@ -66,19 +72,18 @@ export const useTcCompletionStatus = (
 
   const refresh = useCallback(() => setRefreshKey((key) => key + 1), []);
 
-  const completion =
+  const valid =
     uiState === 'SUCCESS' &&
     stored !== null &&
     stored.targetSourceId === targetSourceId &&
     stored.runVersion === runVersion &&
-    stored.refreshKey === refreshKey
-      ? stored.value
-      : null;
+    stored.refreshKey === refreshKey;
+  const completion = valid ? stored.value : null;
 
   return {
     completion,
     approvalEnabled: completion === 'LATEST_TEST_CONNECTION_SUCCESS',
-    needsRerun: completion === 'LOGICAL_DATABASE_RECENTLY_UPDATED',
+    policyChangedAt: valid ? stored.policyChangedAt : null,
     refresh,
   };
 };

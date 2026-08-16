@@ -60,9 +60,13 @@ const updateResourceCredentialMock = vi.fn();
 const getSecretsMock = vi.fn(async (..._args: unknown[]) => [{ name: 'Key1' }, { name: 'Key2' }, { name: 'Key3' }]);
 // completion-status now gates 완료 승인 요청 (useTcCompletionStatus) — default to the
 // open verdict so the B2/B3 gate tests keep exercising the poll transition itself.
-const getCompletionStatusMock = vi.fn(async (..._args: unknown[]) => ({
-  test_connection_status: 'LATEST_TEST_CONNECTION_SUCCESS',
-}));
+const getCompletionStatusMock = vi.fn(
+  async (
+    ..._args: unknown[]
+  ): Promise<{ test_connection_status: string; logical_database_updated_at?: string }> => ({
+    test_connection_status: 'LATEST_TEST_CONNECTION_SUCCESS',
+  }),
+);
 vi.mock('@/app/lib/api', () => ({
   updateResourceCredential: (...args: unknown[]) => updateResourceCredentialMock(...args),
   getSecrets: (...args: unknown[]) => getSecretsMock(...args),
@@ -201,33 +205,34 @@ describe('ConnectionTestCard', () => {
   });
 
   /**
-   * `testing` 은 latest_version 이 새 실행을 되돌려준 뒤에야 켜진다. 그 왕복 동안 버튼이
-   * 살아 있으면 두 번째 클릭이 409 를 받아, 사용자가 부른 적 없는 오류 줄이 뜬다.
-   */
-  /**
    * 첫 latest_version 전에는 `testing` 이 false 지만, 그것은 "돌고 있지 않다"가 아니라
-   * "아직 모른다"이다. 이미 서버에서 도는 실행을 모른 채 버튼을 열어 두면 누르는 순간
-   * 409 를 받는다 — 클릭 이후 창만 막고 이 창을 두면 같은 오류가 그대로 남는다.
+   * "아직 모른다"이다. 슬롯 CTA 는 스트립 안에 사니, 스트립이 스켈레톤인 동안은 버튼
+   * 자체가 없다 — 존재하지 않는 버튼은 눌리지도 않고, "진행 중" 주장도 없다.
    */
   it('locks Run Test until the first latest_version answers, without claiming a run is under way', () => {
     pollingState.loading = true;
     pollingState.canRunTest = false;
     renderCard([makeResource({ credentialId: 'Key1' })]);
 
-    const button = screen.getByRole('button', { name: /Run Test/ });
-    expect(button).toHaveProperty('disabled', true);
-    // 라벨은 여전히 Run Test — "진행 중"이라고 적는 것 역시 하지 않은 판단이다.
-    expect(screen.queryByRole('button', { name: /연결 테스트 진행 중/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: /Run Test/ })).toBeNull();
+    expect(document.querySelector('[aria-busy="true"] .animate-pulse')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /진행 중/ })).toBeNull();
   });
 
+  /**
+   * `testing` 은 latest_version 이 새 실행을 되돌려준 뒤에야 켜진다. 그 왕복 동안 버튼이
+   * 살아 있으면 두 번째 클릭이 409 를 받아, 사용자가 부른 적 없는 오류 줄이 뜬다.
+   * 라벨은 여전히 Run Test — 실제로 도는 것을 본 적이 없는데 "진행 중"이라고 적는 것
+   * 역시 하지 않은 판단이라, 그 구간의 슬롯은 Run Test 인 채로 비활성만 된다.
+   */
   it('locks Run Test while the trigger request is still in flight', () => {
     pollingState.triggering = true;
     pollingState.canRunTest = false;
     renderCard([makeResource({ credentialId: 'Key1' })]);
 
-    const button = screen.getByRole('button', { name: /연결 테스트 진행 중/ });
+    const button = screen.getByRole('button', { name: /Run Test/ });
     expect(button).toHaveProperty('disabled', true);
-    expect(screen.queryByRole('button', { name: /Run Test/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: /진행 중/ })).toBeNull();
   });
 
   it('replaces the skeleton with the verdict once the poll lands', () => {
@@ -462,7 +467,40 @@ describe('ConnectionTestCard', () => {
     pollingState.latestJob = makeJob('FAIL', [agentResult('res-1', 'FAIL')]);
     act(() => rerender());
     expect(await screen.findByText('실패')).toBeTruthy();
-    expect(screen.getByRole('button', { name: '완료 승인 요청' })).toHaveProperty('disabled', true);
+    // FAIL 의 정답 행동은 재실행 하나다 — 승인 CTA 는 비활성이 아니라 슬롯에서 아예 빠진다.
+    expect(screen.queryByRole('button', { name: '완료 승인 요청' })).toBeNull();
+    expect(screen.getByRole('button', { name: /다시 실행/ })).toBeTruthy();
+  });
+
+  // 시안 A: SUCCESS 정착이라도 completion 판정이 카드 상태를 가른다 — 정책 변경은
+  // pending 표면 + 재실행 CTA 하나, CONFIRMED 는 봉인(CTA 없음, 이력만).
+  it('folds a policy change into the pending card state with 다시 실행 as the only CTA', async () => {
+    getCompletionStatusMock.mockResolvedValueOnce({
+      test_connection_status: 'LOGICAL_DATABASE_RECENTLY_UPDATED',
+      logical_database_updated_at: '2026-01-25T15:22:00Z',
+    });
+    pollingState.uiState = 'SUCCESS';
+    pollingState.latestJob = makeJob('SUCCESS', [agentResult('res-1', 'SUCCESS')]);
+    renderCard([makeResource({ credentialId: 'Key1' })]);
+
+    expect(await screen.findByText('논리 DB 정책이 마지막 실행 이후 변경됐어요')).toBeTruthy();
+    // 계약의 시각 두 개가 "실행이 뒤처짐"을 구체화한다.
+    expect(screen.getByText(/정책 변경 .* · 마지막 실행 /)).toBeTruthy();
+    expect(screen.queryByRole('button', { name: '완료 승인 요청' })).toBeNull();
+    expect(screen.getByRole('button', { name: /다시 실행/ })).toBeTruthy();
+  });
+
+  it('seals the card on CONFIRMED — no CTA at all, history stays reachable', async () => {
+    getCompletionStatusMock.mockResolvedValueOnce({ test_connection_status: 'CONFIRMED' });
+    pollingState.uiState = 'SUCCESS';
+    pollingState.latestJob = makeJob('SUCCESS', [agentResult('res-1', 'SUCCESS')]);
+    renderCard([makeResource({ credentialId: 'Key1' })]);
+
+    expect(await screen.findByText('연결 테스트 완료 확인됨')).toBeTruthy();
+    expect(screen.getByText('실행 #1 결과 기준')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: '완료 승인 요청' })).toBeNull();
+    expect(screen.queryByRole('button', { name: /다시 실행/ })).toBeNull();
+    expect(screen.getByRole('button', { name: '실행 이력' })).toBeTruthy();
   });
 
   // Step 5 has its own table (not WaitingApprovalTable), so the cluster tag had to be added

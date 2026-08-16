@@ -105,12 +105,30 @@ export function computeTcBuckets(
 export type TcRunPhase = 'idle' | 'running' | 'success' | 'fail';
 
 /**
+ * 시안 A display state: the run phase, refined by the completion-status verdict
+ * once the run settles SUCCESS. The verdict only differentiates within SUCCESS —
+ * while a test runs there is no verdict to consult (조회 보류), and an unsettled
+ * or failed run reads as its phase alone.
+ */
+export type TcCardState = TcRunPhase | 'policy-changed' | 'confirmed';
+
+export function foldTcCardState(
+  phase: TcRunPhase,
+  completion: string | null | undefined,
+): TcCardState {
+  if (phase !== 'success') return phase;
+  if (completion === 'CONFIRMED') return 'confirmed';
+  if (completion === 'LOGICAL_DATABASE_RECENTLY_UPDATED') return 'policy-changed';
+  return 'success';
+}
+
+/**
  * The one-line fact sentence — states what was verified, never a fixed slogan
  * the data can contradict.
  */
-export function tcSummarySentence(phase: TcRunPhase, buckets: TcBuckets): string {
+export function tcSummarySentence(state: TcCardState, buckets: TcBuckets): string {
   const { total, ok, fail, reported } = buckets;
-  switch (phase) {
+  switch (state) {
     case 'running':
       return `연결 테스트 진행 중 — ${reported}/${total} 대상 보고됨`;
     case 'success':
@@ -123,8 +141,13 @@ export function tcSummarySentence(phase: TcRunPhase, buckets: TcBuckets): string
       return fail > 0
         ? `리소스 ${total}개 중 ${ok}개 연결 성공 — 실패 ${fail}건을 점검해 주세요`
         : `연결 테스트가 실패했어요 — 결과를 확인해 주세요`;
+    case 'policy-changed':
+      return '논리 DB 정책이 마지막 실행 이후 변경됐어요';
+    case 'confirmed':
+      return '연결 테스트 완료 확인됨';
     default:
-      return '연결 테스트 대기 중 — Run Test를 실행해 주세요';
+      // 결과 서술("성공 0")이 아니라 실행이 없다는 사실만 — 정답 행동은 옆의 슬롯 CTA가 든다.
+      return '아직 실행한 연결 테스트가 없습니다';
   }
 }
 

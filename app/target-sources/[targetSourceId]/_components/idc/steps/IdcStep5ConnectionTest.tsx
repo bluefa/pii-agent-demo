@@ -15,6 +15,7 @@ import { useTcSettleHold } from '@/app/hooks/useTcSettleHold';
 import {
   computeTcBuckets,
   foldAgentStatuses,
+  foldTcCardState,
   type TcRunPhase,
 } from '@/lib/test-connection-summary';
 import { ERROR_MESSAGES } from '@/lib/constants/messages';
@@ -24,10 +25,7 @@ import {
   updateResourceCredential,
   updateTestConnectionConfirmation,
 } from '@/app/lib/api';
-import {
-  CardActionBar,
-  RejectionAlert,
-} from '@/app/target-sources/[targetSourceId]/_components/common';
+import { RejectionAlert } from '@/app/target-sources/[targetSourceId]/_components/common';
 import { IdcConfirmedResourcesPanel } from '@/app/target-sources/[targetSourceId]/_components/idc/IdcConfirmedResourcesPanel';
 import { CredentialPickModal } from '@/app/target-sources/[targetSourceId]/_components/layout/CredentialPickModal';
 import { IdcReqApprovalModal } from '@/app/target-sources/[targetSourceId]/_components/idc/IdcReqApprovalModal';
@@ -97,7 +95,7 @@ export const IdcStep5ConnectionTest = ({
   // 미설정만 보는 필터. 경고 줄의 링크가 곧 이 값이고, 0건이 되면 함께 풀린다.
   const [credFilterOn, setCredFilterOn] = useState(false);
 
-  const { latestJob, uiState, loading, triggering, canRunTest, retry, trigger, triggerError, fetchError } =
+  const { latestJob, uiState, loading, canRunTest, retry, trigger, triggerError, fetchError } =
     useTestConnectionPolling(targetSourceId);
   const toast = useToast();
   const logicalModal = useModal<LogicalModalTarget>();
@@ -149,10 +147,6 @@ export const IdcStep5ConnectionTest = ({
     [state],
   );
   const testing = uiState === 'PENDING';
-  // 실행 요청이 떠 있는 동안도 잠근다 — `testing` 은 latest_version 이 새 실행을 되돌려준
-  // 뒤에야 켜지므로, 그 왕복 시간만큼 버튼이 "Run Test" 인 채로 살아 있어 두 번째 요청이
-  // 409 를 받았다(클라우드 step 5 와 같은 처리).
-  const busy = testing || triggering;
 
   // Per-resource connection status from the latest poll, keyed by resource_id.
   // The poll streams results as each pipeline settles, so this map is the live
@@ -202,11 +196,12 @@ export const IdcStep5ConnectionTest = ({
     [liveResources, statusByResource],
   );
 
-  // Completion-status gate + 재실행 필요 chip — shared hook with the cloud card. The
-  // CTA only opens on LATEST_TEST_CONNECTION_SUCCESS; a logical-DB save re-reads it.
+  // Completion-status gate + settled verdict states — shared hook with the cloud card.
+  // The CTA only opens on LATEST_TEST_CONNECTION_SUCCESS; a logical-DB save re-reads it.
   const {
+    completion,
     approvalEnabled,
-    needsRerun,
+    policyChangedAt,
     refresh: refreshCompletion,
   } = useTcCompletionStatus(targetSourceId, uiState, latestJob?.test_connection_version ?? null);
   const [historyOpen, setHistoryOpen] = useState(false);
@@ -265,6 +260,10 @@ export const IdcStep5ConnectionTest = ({
       : uiState === 'FAIL'
         ? 'fail'
         : 'idle';
+  // 시안 A: run phase × completion verdict → one card state, one slot CTA — the header
+  // Run Test and the bottom action bar both folded into the strip's slot (cloud step 5
+  // and this card share the fold).
+  const cardState = foldTcCardState(phase, completion);
 
   // Open the per-resource logical-DB modal. IdcLogicalButtonCell gates this to
   // credentialed + SUCCESS rows.
@@ -308,9 +307,8 @@ export const IdcStep5ConnectionTest = ({
 
   return (
     <>
-      {/* No overflow-hidden: it would establish a clip box and kill the sticky CardActionBar. */}
       <section className={cardStyles.base}>
-        <header className={cn(cardStyles.header, 'flex items-center justify-between')}>
+        <header className={cardStyles.header}>
           <div>
             <span className={cardStyles.stepTag}>5단계</span>
             <h2 className={cardStyles.cardTitle}>연결 테스트</h2>
@@ -318,32 +316,6 @@ export const IdcStep5ConnectionTest = ({
               지정한 Credential로 각 대상에 실제 접속해 자격 증명, 접근 허용({IDC_SOURCE_LABEL} → 대상 IP:Port),
               Agent 연결을 한 번에 확인합니다.
             </p>
-          </div>
-          <div className="flex shrink-0 items-center gap-2">
-            {/* C-1: repeatable action demoted to soft — 완료 승인 요청 keeps the only primary. */}
-            <button
-              type="button"
-              onClick={runTest}
-              disabled={runDisabled}
-              className={cn(idcStyles.triggerBtn.soft, 'disabled:cursor-not-allowed disabled:opacity-45')}
-            >
-              {busy ? (
-              '연결 테스트 진행 중...'
-            ) : (
-              <>
-                <svg
-                  className="w-[13px] h-[13px]"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth={2.2}
-                >
-                  <polygon points="5 3 19 12 5 21 5 3" />
-                </svg>
-                Run Test
-              </>
-            )}
-            </button>
           </div>
         </header>
         <div className={cn(cardStyles.body, 'space-y-4')}>
@@ -357,7 +329,7 @@ export const IdcStep5ConnectionTest = ({
                 <TcSummaryCardSkeleton />
               ) : (
               <TcSummaryCard
-                phase={phase}
+                state={cardState}
                 buckets={buckets}
                 run={
                   latestJob
@@ -368,8 +340,12 @@ export const IdcStep5ConnectionTest = ({
                       }
                     : null
                 }
-                needsRerun={needsRerun}
+                policyChangedAt={policyChangedAt}
                 drawCheck={settledLive}
+                onRunTest={() => void runTest()}
+                runDisabled={runDisabled}
+                onRequestApproval={() => setApprovalOpen(true)}
+                approvalDisabled={!canRequestApproval}
                 historyAction={
                   <button
                     type="button"
@@ -480,19 +456,6 @@ export const IdcStep5ConnectionTest = ({
             />
           )}
         </div>
-        {/* C-2 action zone: the step-transition CTA docks (sticky) at the card bottom. */}
-        {ready && (
-          <CardActionBar hint="※ 모든 DB의 연결 테스트가 성공이어야 다음 단계로 진행할 수 있어요.">
-            <button
-              type="button"
-              onClick={() => setApprovalOpen(true)}
-              disabled={!canRequestApproval}
-              className={idcStyles.triggerBtn.primary}
-            >
-              완료 승인 요청
-            </button>
-          </CardActionBar>
-        )}
       </section>
       <RejectionAlert project={project} />
     </>

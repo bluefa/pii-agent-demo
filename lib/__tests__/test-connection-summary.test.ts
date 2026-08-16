@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   computeTcBuckets,
   foldAgentStatuses,
+  foldTcCardState,
   tcElapsedLabel,
   tcSummarySentence,
 } from '@/lib/test-connection-summary';
@@ -84,6 +85,35 @@ describe('tcSummarySentence', () => {
 
   it('reports progress as reported/total while running', () => {
     expect(tcSummarySentence('running', settled)).toBe('연결 테스트 진행 중 — 3/3 대상 보고됨');
+  });
+
+  it('idle states the absence of a run, not a zero-count verdict', () => {
+    expect(tcSummarySentence('idle', computeTcBuckets([], foldAgentStatuses([])))).toBe(
+      '아직 실행한 연결 테스트가 없습니다',
+    );
+  });
+
+  it('the verdict states carry their own sentences', () => {
+    expect(tcSummarySentence('policy-changed', settled)).toBe(
+      '논리 DB 정책이 마지막 실행 이후 변경됐어요',
+    );
+    expect(tcSummarySentence('confirmed', settled)).toBe('연결 테스트 완료 확인됨');
+  });
+});
+
+describe('foldTcCardState', () => {
+  it('refines a settled SUCCESS by the completion verdict', () => {
+    expect(foldTcCardState('success', 'CONFIRMED')).toBe('confirmed');
+    expect(foldTcCardState('success', 'LOGICAL_DATABASE_RECENTLY_UPDATED')).toBe('policy-changed');
+    expect(foldTcCardState('success', 'LATEST_TEST_CONNECTION_SUCCESS')).toBe('success');
+    // 판정을 아직 못 읽은 한 왕복 동안은 success 로 남는다 — 승인 게이트가 따로 닫는다.
+    expect(foldTcCardState('success', null)).toBe('success');
+  });
+
+  it('ignores the verdict outside a settled SUCCESS (조회 보류 규칙)', () => {
+    expect(foldTcCardState('running', 'CONFIRMED')).toBe('running');
+    expect(foldTcCardState('fail', 'LOGICAL_DATABASE_RECENTLY_UPDATED')).toBe('fail');
+    expect(foldTcCardState('idle', 'LATEST_TEST_CONNECTION_SUCCESS')).toBe('idle');
   });
 });
 
