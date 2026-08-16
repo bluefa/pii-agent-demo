@@ -361,6 +361,18 @@ const SEED_APPROVAL_DEMO = new Map<number, ApprovalDemo>([
       //     이 행이 없으면 '인접하면 무조건 경고'와 구별이 안 된다.
       { resource_id: 'idc-r-8f27', resource_name: 'mysql-order-batch', resource_type: 'IDC', selected: true,
         metadata: { provider: 'IDC', database_type: 'MySQL', port: 3306, idc_host_format: 'IP', idc_ips: ['10.20.2.33'], idc_source_ips: ['10.20.9.5'] } },
+      // (4) 8f28~8f2a — .11 .12 .13 이 각각 단독으로 들어온 연쇄. 쌍이 두 개(11-12, 12-13)
+      //     겹치므로 가운데 행이 양쪽에 걸리고, 화면은 이걸 그룹 하나로 묶어야 한다.
+      //     사이에 다른 행을 하나 끼워(8f29 앞의 순서) 기본 목록의 그룹 재배치도 함께 본다.
+      { resource_id: 'idc-r-8f28', resource_name: 'maria-order-node1', resource_type: 'IDC', selected: true,
+        metadata: { provider: 'IDC', database_type: 'MariaDB', port: 3306, idc_host_format: 'IP', idc_ips: ['10.12.123.11'], idc_source_ips: ['10.12.9.1'] } },
+      { resource_id: 'idc-r-8f29', resource_name: 'maria-order-node2', resource_type: 'IDC', selected: true,
+        metadata: { provider: 'IDC', database_type: 'MariaDB', port: 3306, idc_host_format: 'IP', idc_ips: ['10.12.123.12'], idc_source_ips: ['10.12.9.2'] } },
+      // 연쇄 사이에 낀 무관한 행 — 그룹이 다시 붙어 설 때 이 행이 밀려나는지 본다.
+      { resource_id: 'idc-r-8f2b', resource_name: 'pg-order-archive', resource_type: 'IDC', selected: true,
+        metadata: { provider: 'IDC', database_type: 'PostgreSQL', port: 5432, idc_host_format: 'IP', idc_ips: ['10.44.7.90'], idc_source_ips: ['10.44.9.1'] } },
+      { resource_id: 'idc-r-8f2a', resource_name: 'maria-order-node3', resource_type: 'IDC', selected: true,
+        metadata: { provider: 'IDC', database_type: 'MariaDB', port: 3306, idc_host_format: 'IP', idc_ips: ['10.12.123.13'], idc_source_ips: ['10.12.9.3'] } },
     ],
   }],
   [2113, {
