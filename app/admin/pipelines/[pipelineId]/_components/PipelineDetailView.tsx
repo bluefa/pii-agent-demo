@@ -23,7 +23,6 @@ import { useAbortableEffect } from '@/app/hooks/useAbortableEffect';
 import { cn, pipelineStyles } from '@/lib/theme';
 import { passRoutes } from '@/lib/routes';
 import { ProviderLogo } from '@/app/components/features/admin/v7/ProviderLogo';
-import { ProviderGlyph } from '@/app/components/ui/CloudProviderIcon';
 import { normalizeCloudProvider } from '@/lib/types';
 import { Card } from '@/app/admin/pipelines/_components/Card';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
@@ -401,37 +400,25 @@ export function PipelineDetailView(): ReactElement {
           <h1 className={h.pageTitle}>Infra 작업 현황</h1>
         </div>
         <div className={h.main}>
+          {/* The one provider mark on this page (owner 2026-08-16), so it wears
+              the vendor's colours — the tier-1 glyph that briefly sat beside the
+              id was the same mark twice. */}
           <ProviderLogo
             provider={normalizeCloudProvider(detail.cloud_provider)}
             isSdu={detail.is_sdu_type}
             variant="bare"
+            tone="brand"
             className="flex-none self-center"
           />
           <div className={h.body}>
             <div className={h.idRow}>
-              {/* The provider as a glyph only (owner 2026-08-16) — the dashboard's
-                  own mark (ProvTag → the shared ProviderGlyph) at its own 14px,
-                  but in the vendor's colours: with the label gone the shape is
-                  doing the recognizing on its own. SDU keeps its chip — it is a
-                  classification, not a vendor, and has no brand to wear.
-                  The glyph forwards nothing but className, so the accessible name
-                  lives on the wrapper. */}
-              {detail.is_sdu_type ? (
-                <span className={h.sduChip}>SDU</span>
-              ) : (
-                <span
-                  role="img"
-                  aria-label={providerLabel(provider)}
-                  title={providerLabel(provider)}
-                  className="inline-flex items-center"
-                >
-                  <ProviderGlyph
-                    provider={provider}
-                    tone="brand"
-                    className={pipelineStyles.provTag.glyph}
-                  />
-                </span>
-              )}
+              {/* SDU is a classification, not a vendor — the brand mark on the
+                  left cannot say it, so it keeps its chip. Every other provider
+                  is fully drawn by that mark and adds nothing here. */}
+              {detail.is_sdu_type && <span className={h.sduChip}>SDU</span>}
+              {/* Labelled like the tier below it (서비스 이름 / 코드): a bare
+                  "#1003" does not say what it numbers (owner 2026-08-16). */}
+              <span className={h.klabel}>Target</span>
               <span className={h.id}>
                 <span className={h.idHash}>#</span>
                 {detail.target_source_id}
