@@ -11,9 +11,10 @@ import {
   getCompletionStatus,
   setConfirmation,
   testConnectionUnits,
+  TC_CARD_FIXTURE,
 } from '@/lib/mock-test-connection';
 import { getStore, resetStore } from '@/lib/mock-store';
-import type { Project } from '@/lib/types';
+import { ProcessStatus, type Project } from '@/lib/types';
 
 // ===== Fixtures =====
 
@@ -492,6 +493,75 @@ describe('mock-test-connection behavior lock-in', () => {
       for (const region of regions) expect(unitIds).toContain(region);
       // No database-level Athena id survives — every one of them folded.
       for (const db of athena) expect(unitIds).not.toContain(db.resourceId);
+    });
+  });
+
+  // Card-state fixtures (21xx): one target per folded 시안-A card state, seeded so
+  // each state renders without racing the simulator. The outer clock (2026-04-23)
+  // predates the seed dates, so these tests run at a later fixed time.
+  describe('TC card-state fixtures (21xx)', () => {
+    beforeEach(() => {
+      vi.setSystemTime(new Date('2026-06-20T00:00:00.000Z'));
+    });
+
+    it('idle (2101) — no seeded runs at all', () => {
+      expect(getLatestJob(TC_CARD_FIXTURE.idle)).toBeUndefined();
+    });
+
+    it('running (2102) — pinned PENDING with a settled head and a 2099 tail', () => {
+      const job = getLatestJob(TC_CARD_FIXTURE.running);
+      expect(job?.status).toBe('PENDING');
+      expect(job?.completed_at).toBeNull();
+      expect(job?.resource_results).toHaveLength(2);
+      expect(job?.resource_results.every((r) => r.status === 'SUCCESS')).toBe(true);
+
+      const wire = toVersionResultResponse(job!);
+      expect(wire.connection_status).toBe('RUNNING');
+      // Every unit reports: the settled head plus RUNNING/PENDING placeholders.
+      const project = getStore().projects.find(
+        (p) => p.targetSourceId === TC_CARD_FIXTURE.running,
+      );
+      expect(wire.test_connection_agent_results).toHaveLength(
+        testConnectionUnits(project!).length,
+      );
+    });
+
+    it('fail (2103) — latest run settled FAIL with failed results', () => {
+      const job = getLatestJob(TC_CARD_FIXTURE.fail);
+      expect(job?.status).toBe('FAIL');
+      expect(job?.resource_results.filter((r) => r.status === 'FAIL')).toHaveLength(2);
+    });
+
+    it('success (2104) — default seed, approval open', () => {
+      expect(getCompletionStatus(TC_CARD_FIXTURE.success).test_connection_status)
+        .toBe('LATEST_TEST_CONNECTION_SUCCESS');
+    });
+
+    it('policy-changed (2105) — verdict + the policy timestamp, until a re-run postdates it', () => {
+      const completion = getCompletionStatus(TC_CARD_FIXTURE.policyChanged);
+      expect(completion.test_connection_status).toBe('LOGICAL_DATABASE_RECENTLY_UPDATED');
+      expect(completion.logical_database_updated_at).toBe('2026-06-05T14:22:00.000Z');
+
+      // Re-run after the policy change → the verdict falls back to success.
+      vi.spyOn(Math, 'random').mockReturnValue(0);
+      const project = getStore().projects.find(
+        (p) => p.targetSourceId === TC_CARD_FIXTURE.policyChanged,
+      );
+      createTestConnectionJob(project!, TC_CARD_FIXTURE.policyChanged, 'a@example.com');
+      const unitCount = testConnectionUnits(project!).length;
+      vi.setSystemTime(new Date(Date.parse('2026-06-20T00:00:00.000Z') + unitCount * 5000 + 1000));
+      getLatestJob(TC_CARD_FIXTURE.policyChanged); // settle
+      expect(getCompletionStatus(TC_CARD_FIXTURE.policyChanged).test_connection_status)
+        .toBe('LATEST_TEST_CONNECTION_SUCCESS');
+    });
+
+    it('confirmed (2106) — CONFIRMED while the project stays at Step 5', () => {
+      expect(getCompletionStatus(TC_CARD_FIXTURE.confirmed).test_connection_status)
+        .toBe('CONFIRMED');
+      const project = getStore().projects.find(
+        (p) => p.targetSourceId === TC_CARD_FIXTURE.confirmed,
+      );
+      expect(project?.processStatus).toBe(ProcessStatus.WAITING_CONNECTION_TEST);
     });
   });
 });

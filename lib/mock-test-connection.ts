@@ -415,6 +415,33 @@ const TESTED_STEPS: ReadonlySet<ProcessStatus> = new Set([
 const SEED_REQUESTED_AT = '2026-06-01T00:00:00.000Z';
 const SEED_COMPLETED_AT = '2026-06-01T00:04:20.000Z';
 
+// ===== Step 5 TC-card state fixtures (targets 2101~2106, lib/mock-data.ts) =====
+//
+// One target per folded card state (시안 A slot) so every slot variant renders
+// without racing the simulator. The generic per-step seed below gives every
+// step-5/6/7 target a settled-SUCCESS latest run; these ids override that.
+// success (2104) and confirmed (2106) keep the default seed — confirmed's
+// verdict comes from the project's `passedAt`, set in mock-data.
+export const TC_CARD_FIXTURE = {
+  idle: 2101,
+  running: 2102,
+  fail: 2103,
+  success: 2104,
+  policyChanged: 2105,
+  confirmed: 2106,
+} as const;
+
+/**
+ * 2105: when the logical-DB policy "changed" — after SEED_COMPLETED_AT, so the
+ * seeded run reads LOGICAL_DATABASE_RECENTLY_UPDATED. A re-run completes with a
+ * fresh completed_at that postdates this, so the verdict falls back to success —
+ * the same rule the real domain applies.
+ */
+const TC_FIXTURE_POLICY_UPDATED_AT = '2026-06-05T14:22:00.000Z';
+
+/** 2102: schedule tail far enough out that the seeded run never settles. */
+const TC_FIXTURE_RUNNING_TAIL_AT = '2099-01-01T00:00:00.000Z';
+
 /**
  * Runs that precede the latest seeded one, oldest last. They exist so the 수행 기록
  * (execution-history) table has a trail to show instead of a single row; every one
@@ -461,6 +488,10 @@ export const buildSeedTestConnectionJobs = (projects: Project[]): TestConnection
   projects
     .filter((p) => p.targetSourceId !== undefined && TESTED_STEPS.has(p.processStatus))
     .flatMap((project) => {
+      const targetSourceId = project.targetSourceId as number;
+      // Card-state fixture: idle means latest_version 404 — no runs at all.
+      if (targetSourceId === TC_CARD_FIXTURE.idle) return [];
+
       const selected = testConnectionUnits(project);
       const results = (failedIndexes: readonly number[]): TestConnectionResourceResult[] =>
         selected.map((r, index) => {
@@ -475,25 +506,52 @@ export const buildSeedTestConnectionJobs = (projects: Project[]): TestConnection
           };
         });
 
+      const priorRuns = SEED_PRIOR_RUNS.map((run) => ({
+        id: `tc-seed-${targetSourceId}-${run.suffix}`,
+        target_source_id: targetSourceId,
+        status: run.status,
+        requested_at: run.requestedAt,
+        completed_at: run.completedAt,
+        requested_by: 'seed@pii-agent.dev',
+        resource_results: results(run.failedIndexes),
+      }));
+
+      // Card-state fixture: a run pinned mid-flight. The first units settled in the
+      // past (results pre-filled so calculateJobStatus reuses them instead of rolling
+      // Math.random), the tail settles in 2099 — the job stays PENDING forever.
+      if (targetSourceId === TC_CARD_FIXTURE.running) {
+        const settledCount = Math.min(2, selected.length);
+        const running: InternalTestConnectionJob = {
+          id: `tc-seed-${targetSourceId}-running`,
+          target_source_id: targetSourceId,
+          status: 'PENDING',
+          requested_at: SEED_REQUESTED_AT,
+          completed_at: null,
+          requested_by: 'seed@pii-agent.dev',
+          estimated_end_at: TC_FIXTURE_RUNNING_TAIL_AT,
+          resource_results: results([]).slice(0, settledCount),
+          resource_schedule: selected.map((r, index) => ({
+            resource_id: r.resourceId,
+            complete_at: index < settledCount ? SEED_REQUESTED_AT : TC_FIXTURE_RUNNING_TAIL_AT,
+          })),
+        };
+        return [running, ...priorRuns];
+      }
+
+      // Card-state fixture 2103 flips the latest run to FAIL; everyone else seeds
+      // the settled SUCCESS the per-step comment above describes.
+      const failFixture = targetSourceId === TC_CARD_FIXTURE.fail;
       return [
         {
-          id: `tc-seed-${project.targetSourceId}`,
-          target_source_id: project.targetSourceId as number,
-          status: 'SUCCESS' as TestConnectionStatus,
+          id: `tc-seed-${targetSourceId}`,
+          target_source_id: targetSourceId,
+          status: (failFixture ? 'FAIL' : 'SUCCESS') as TestConnectionStatus,
           requested_at: SEED_REQUESTED_AT,
           completed_at: SEED_COMPLETED_AT,
           requested_by: 'seed@pii-agent.dev',
-          resource_results: results([]),
+          resource_results: results(failFixture ? [0, 1] : []),
         },
-        ...SEED_PRIOR_RUNS.map((run) => ({
-          id: `tc-seed-${project.targetSourceId}-${run.suffix}`,
-          target_source_id: project.targetSourceId as number,
-          status: run.status,
-          requested_at: run.requestedAt,
-          completed_at: run.completedAt,
-          requested_by: 'seed@pii-agent.dev',
-          resource_results: results(run.failedIndexes),
-        })),
+        ...priorRuns,
       ];
     });
 
@@ -510,7 +568,9 @@ const findProject = (targetSourceId: number): Project | undefined =>
  *   - no successful job                    → TEST_CONNECTION_REQUIRED       (pre-test)
  *
  * `LOGICAL_DATABASE_RECENTLY_UPDATED` is owned by the excluded-DB (logical-DB)
- * domain — there is no excluded-DB store here yet, so this mock never emits it.
+ * domain — there is no excluded-DB store here, so only the card-state fixture
+ * (TC_CARD_FIXTURE.policyChanged) stands in for it: its policy "changed" at a
+ * fixed timestamp, and any run completed before that reads the verdict.
  */
 export const getCompletionStatus = (targetSourceId: number) => {
   const project = findProject(targetSourceId);
@@ -530,18 +590,34 @@ export const getCompletionStatus = (targetSourceId: number) => {
   // 완료 여부는 완료 승인 요청 PUT(confirmed:true)이 세팅하는 passedAt 으로 판별한다.
   // 테스트 성공만으로는 confirmed 가 아니다(승인 전 = LATEST_TEST_CONNECTION_SUCCESS).
   const confirmed = project?.status.connectionTest.passedAt != null;
+  // 카드 상태 fixture(2105)만 갖는 정책 변경 시각 — 성공한 실행이 이 시각보다 앞서면
+  // 재실행이 필요하다는 판정이 된다(재실행이 끝나면 자연히 success 로 돌아간다).
+  const policyChangedAt =
+    targetSourceId === TC_CARD_FIXTURE.policyChanged ? TC_FIXTURE_POLICY_UPDATED_AT : null;
+  const policyChanged =
+    policyChangedAt !== null &&
+    succeeded &&
+    !confirmed &&
+    Number.isFinite(completedMs) &&
+    completedMs < Date.parse(policyChangedAt);
 
-  const status: 'CONFIRMED' | 'LATEST_TEST_CONNECTION_SUCCESS' | 'TEST_CONNECTION_REQUIRED' =
+  const status:
+    | 'CONFIRMED'
+    | 'LATEST_TEST_CONNECTION_SUCCESS'
+    | 'TEST_CONNECTION_REQUIRED'
+    | 'LOGICAL_DATABASE_RECENTLY_UPDATED' =
     succeeded && confirmed
       ? 'CONFIRMED'
-      : succeeded
-        ? 'LATEST_TEST_CONNECTION_SUCCESS'
-        : 'TEST_CONNECTION_REQUIRED';
+      : policyChanged
+        ? 'LOGICAL_DATABASE_RECENTLY_UPDATED'
+        : succeeded
+          ? 'LATEST_TEST_CONNECTION_SUCCESS'
+          : 'TEST_CONNECTION_REQUIRED';
 
   return {
     target_source_id: targetSourceId,
     latest_test_connection_requested_at: job?.requested_at ?? WIRE_DATE_PLACEHOLDER,
-    logical_database_updated_at: WIRE_DATE_PLACEHOLDER,
+    logical_database_updated_at: policyChangedAt ?? WIRE_DATE_PLACEHOLDER,
     latest_test_connection_success: succeeded,
     test_connection_status: status,
     test_connection_confirmed: confirmed,
