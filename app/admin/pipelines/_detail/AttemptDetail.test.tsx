@@ -30,9 +30,15 @@ const jobState = (over: Partial<TerraformJobStateSummary> = {}): TerraformJobSta
   ...over,
 });
 
-const html = (a: TaskAttemptView): string =>
+const html = (a: TaskAttemptView, runWindow = ''): string =>
   renderToStaticMarkup(
-    <AttemptDetail attempt={a} operation={null} onOpenViewer={noop} onOpenFailure={noop} />,
+    <AttemptDetail
+      attempt={a}
+      operation={null}
+      runWindow={runWindow}
+      onOpenViewer={noop}
+      onOpenFailure={noop}
+    />,
   );
 
 // A terraform dispatch-call failure yields a FAILED attempt with zero job rows: there is no
@@ -97,9 +103,32 @@ describe('attemptWindow — run window', () => {
   });
 
   // The attempt body is always open now, so a single-attempt task would print the
-  // flow card's own timestamps a second time if this line rendered there.
+  // flow card's own timestamps a second time if this line rendered there. The
+  // caller decides (TerraformExec passes '' below the second attempt).
   it('is not printed by the attempt body itself', () => {
     expect(html(attempt())).not.toContain('시작 2026-07-13 09:00');
+  });
+
+  // 시안 C — the window captions the Job list it belongs to, not the hero.
+  it('captions Job 현황 when the caller passes a window', () => {
+    const out = html(attempt({ job_states: [jobState()] }), '시작 2026-07-13 09:00 · 소요 5초');
+    expect(out.indexOf('Job 현황')).toBeLessThan(out.indexOf('시작 2026-07-13 09:00'));
+    expect(out.indexOf('시작 2026-07-13 09:00')).toBeLessThan(out.indexOf('aria-label="Job 상태 필터"'));
+  });
+});
+
+// 시안 B — the raw dispatch body is the JSON the job rows are derived from, so it
+// only earns its fold when there are no rows to derive.
+describe('AttemptDetail — Response 원문', () => {
+  it('is hidden while the attempt has job rows', () => {
+    const out = html(attempt({ response: '{"job_id":"tf-1"}', job_states: [jobState()] }));
+    expect(out).not.toContain('Response 원문');
+  });
+
+  it('is kept when there are no job rows to derive it from', () => {
+    const out = html(attempt({ response: '{"job_id":"tf-1"}' }));
+    expect(out).toContain('Response 원문');
+    expect(out).toContain('tf-1'); // the body itself, HTML-escaped by the renderer
   });
 });
 

@@ -31,11 +31,14 @@ import type { TaskAttemptView, TaskOperation } from '@/lib/pipeline/types';
 export function AttemptDetail({
   attempt,
   operation,
+  runWindow,
   onOpenViewer,
   onOpenFailure,
 }: {
   attempt: TaskAttemptView;
   operation: TaskOperation | null;
+  /** 시작/완료/소요 of this attempt, or '' when it would repeat the flow card. */
+  runWindow: string;
   onOpenViewer: (t: ViewerTarget) => void;
   onOpenFailure: (detail: string) => void;
 }): ReactElement {
@@ -47,6 +50,7 @@ export function AttemptDetail({
         <JobStatus
           attempt={attempt}
           operation={operation}
+          caption={runWindow}
           onOpenJob={(jobId) => onOpenViewer({ attemptNumber: attempt.attempt_number, jobId })}
         />
       ) : !hasJobs && attempt.status === 'FAILED' ? (
@@ -80,8 +84,14 @@ export function AttemptDetail({
         </details>
       )}
 
-      {/* Closed by default — the raw dispatch response is the last thing anyone reads. */}
-      {attempt.response && (
+      {/* Only when the attempt has no job rows (design-benchmark 2026-08-16 시안 B).
+          `response` is the raw dispatch body the job list is derived from — with
+          rows on screen it is the same jobs in JSON, and it was one of the three
+          folds that made the panel scroll. With no rows it is the only record of
+          what the dispatch returned, so it stays for exactly that case (the same
+          exception `failure_detail` takes above). NOTE: the job viewer's 상태 응답
+          tab is NOT a substitute — that is a per-job poll response, not this. */}
+      {attempt.response && !hasJobs && (
         <details className={j.respFold}>
           <summary className={d.foldSummary}>
             <span className={j.respTri} aria-hidden="true">▼</span>Response 원문

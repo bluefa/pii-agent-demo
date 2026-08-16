@@ -35,7 +35,7 @@ type JobFilter = JobVerdict | 'all';
  * from `TerraformJobStateSummary`, which the panel parsed and then never showed;
  * without them 21 rows differ only by id. Missing pieces drop out instead of
  * printing a placeholder, and the time is clock-only because the attempt window
- * in the verdict hero already carries the date.
+ * captioning this section already carries the date.
  */
 function jobMeta(row: JobRow): string {
   const state = row.state;
@@ -83,10 +83,13 @@ function JobItem({
 export function JobStatus({
   attempt,
   operation,
+  caption,
   onOpenJob,
 }: {
   attempt: TaskAttemptView;
   operation: TaskOperation | null;
+  /** The attempt window these jobs ran in; '' when it would repeat the flow card. */
+  caption: string;
   onOpenJob: (jobId: string) => void;
 }): ReactElement | null {
   const [picked, setPicked] = useState<JobFilter | null>(null);
@@ -115,7 +118,7 @@ export function JobStatus({
   const shown = active === 'all' ? sorted : sorted.filter((g) => g.verdict === active);
 
   return (
-    <Section label="Job 현황" grow>
+    <Section label="Job 현황" caption={caption} grow>
       <div className={cn(j.filter, 'mt-4')} role="group" aria-label="Job 상태 필터">
         {options.map((option) => {
           const on = option === active;

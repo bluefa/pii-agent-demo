@@ -6,6 +6,7 @@
 import { useState, type ReactElement, type ReactNode } from 'react';
 import { cn } from '@/lib/theme';
 import { fmtDateTime, KIND_POLICY, statusKo } from '@/lib/pipeline/format';
+import { PlSelect } from '@/app/admin/pipelines/_components/PlSelect';
 import { AttemptDetail } from '@/app/admin/pipelines/_detail/AttemptDetail';
 import type { JobVerdict } from '@/app/admin/pipelines/_detail/jobRows';
 import {
@@ -85,21 +86,21 @@ export function TerraformExec({
   const current = attempts.find((a) => a.attempt_number === picked) ?? attempts[0] ?? null;
   // The SELECTED attempt's window, from the second attempt on: with a single
   // attempt these are the same three values the flow card already prints, and
-  // the card's values are never repeated here (2차 라운드 rule).
-  const facts = [
-    attempts.length > 1 && current ? attemptWindow(current) : '',
-    detail.next_check_at ? `다음 확인 ${fmtDateTime(detail.next_check_at)}` : '',
-  ]
-    .filter(Boolean)
-    .join(' · ');
+  // the card's values are never repeated here (2차 라운드 rule). It captions the
+  // Job list rather than the hero (시안 C) — it is the window those jobs ran in,
+  // and under the hero nothing said which of the two it belonged to.
+  const runWindow = attempts.length > 1 && current ? attemptWindow(current) : '';
   return (
     <>
       <OperatorDescription detail={detail} />
       <Verdict
         tone={STATUS_TONE[detail.status]}
         label={statusKo(detail.status)}
-        code={detail.error_code}
-        facts={facts}
+        // No error code (design-benchmark 2026-08-16 시안 C): JOB_FAILED was
+        // printed four times on one screen. The failure strip states it at the
+        // top of the page and the flow card beside this panel repeats it in
+        // prose ("원인은 JOB_FAILED"), so the hero's chip was the fourth.
+        facts={detail.next_check_at ? `다음 확인 ${fmtDateTime(detail.next_check_at)}` : ''}
         pick={
           <>
             {/* Attempts actually made (attempts.length), not the failure count — a
@@ -107,28 +108,20 @@ export function TerraformExec({
                 It doubles as the picker's label, so the picker needs none. */}
             시도 {attempts.length}/{detail.effective_max_fail_count}회
             {attempts.length > 1 && (
-              /* Same segmented grammar as the Job 상태 필터 below: the dot is the
-                 attempt's own verdict, so which run failed reads without opening. */
-              <span className={j.filter} role="group" aria-label="시도 선택">
-                {attempts.map((a) => {
-                  const on = a.attempt_number === current?.attempt_number;
-                  return (
-                    <button
-                      key={a.attempt_number}
-                      type="button"
-                      aria-pressed={on}
-                      className={cn(j.filterBtn, on ? j.filterActive : j.filterIdle)}
-                      onClick={() => setPicked(a.attempt_number)}
-                    >
-                      <span
-                        className={cn(j.filterDot, j.verdictDot[STATUS_TONE[a.status]])}
-                        aria-hidden="true"
-                      />
-                      #{a.attempt_number}
-                    </button>
-                  );
-                })}
-              </span>
+              /* A dropdown, not one button per attempt (시안 C): the retry budget
+                 runs to 5, and the segments grew the hero's line with it. The dot
+                 the segments carried becomes the option's own verdict word. */
+              <PlSelect
+                aria-label="시도 선택"
+                value={current?.attempt_number ?? ''}
+                onChange={(e) => setPicked(Number(e.target.value))}
+              >
+                {attempts.map((a) => (
+                  <option key={a.attempt_number} value={a.attempt_number}>
+                    시도 #{a.attempt_number} · {statusKo(a.status)}
+                  </option>
+                ))}
+              </PlSelect>
             )}
           </>
         }
@@ -138,6 +131,7 @@ export function TerraformExec({
         <AttemptDetail
           attempt={current}
           operation={detail.operation}
+          runWindow={runWindow}
           onOpenViewer={onOpenViewer}
           onOpenFailure={(cause) => onOpenFailure(current.attempt_number, cause)}
         />

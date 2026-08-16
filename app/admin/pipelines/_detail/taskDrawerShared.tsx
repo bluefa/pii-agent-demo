@@ -35,24 +35,36 @@ export function MiniPill({ tone, children }: { tone: JobVerdict; children: React
 
 export function Section({
   label,
+  caption,
   sub = false,
   grow = false,
   children,
 }: {
   label: string;
+  /** One line under the label naming the frame the content belongs to. */
+  caption?: string;
   /** Demoted tier — a section that supports the verdict instead of competing with it. */
   sub?: boolean;
   /** Takes the drawer body's leftover height so its own list scrolls, not the
    *  panel. The floor is explicit because neither automatic minimum works here:
    *  `min-h-0` let a short body squeeze the whole section to 0px, and `auto`
    *  counts the scrolling list's full content (21 rows), so nothing shrank at
-   *  all. 208px = label 24 + filter 56 + three 43px job rows. */
+   *  all. 226px = label 24 + caption 18 + filter 56 + three 43px job rows: the
+   *  same three rows the 208px floor guaranteed, plus the caption 시안 C added.
+   *
+   *  NOT the 340px the benchmark proposed for 시안 B. Measured on the live panel:
+   *  a floor above 278px makes the DRAWER scroll (340 → 61px of overflow), which
+   *  is the one thing the owner ruled out ("패널 자체의 스크롤을 내리는 일은
+   *  없었으면"). The reclaimed height reaches the list through `flex-1` anyway —
+   *  the section takes 279px here, 165px of it list, up from 138px before the
+   *  정의·계약 fold was evicted. The floor is a floor, not the allocation. */
   grow?: boolean;
   children: ReactNode;
 }): ReactElement {
   return (
-    <div className={cn('flex flex-col', grow && 'flex-1 min-h-[208px]')}>
+    <div className={cn('flex flex-col', grow && 'flex-1 min-h-[226px]')}>
       <div className={sub ? d.sectionLabelSub : d.sectionLabel}>{label}</div>
+      {caption && <div className={d.sectionCaption}>{caption}</div>}
       {children}
     </div>
   );

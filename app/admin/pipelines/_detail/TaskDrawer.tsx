@@ -11,9 +11,10 @@
  * One body, no tabs (owner 2026-08-16). The title / description / 타입 header and
  * the 실행 정보 · 정의·계약 tab bar cost 199px that the Job list needed: the flow
  * card beside the panel already carries the task's name and status, the verdict
- * hero states the judgment, and 정의·계약 is now a fold at the body's last row.
- * A job row opens the viewer, which lazily fetches the job's log (#5a) and state
- * (#5b). Esc layering: viewer → drawer.
+ * hero states the judgment, and 정의·계약 opens as a modal from the body's last
+ * row (design-benchmark 시안 B — as a fold it was 40% of the expanded body, for
+ * values that are the same on every run). A job row opens the viewer, which
+ * lazily fetches the job's log (#5a) and state (#5b). Esc layering: modal → drawer.
  *
  * The task detail (#5) is fetched lazily by the page when this task is opened;
  * `detail` is null (skeleton via `detailLoaded=false`) until it arrives. The
@@ -27,9 +28,10 @@ import { useModal } from '@/app/hooks/useModal';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
 import { Icon } from '@/app/admin/pipelines/_components/icons';
 import { detailStyles } from '@/app/admin/pipelines/_detail/detailStyles';
-import { d, j, type ViewerTarget } from '@/app/admin/pipelines/_detail/taskDrawerShared';
-import { ConditionExec, DefinitionTab, TerraformExec } from '@/app/admin/pipelines/_detail/execTabs';
+import { d, type ViewerTarget } from '@/app/admin/pipelines/_detail/taskDrawerShared';
+import { ConditionExec, TerraformExec } from '@/app/admin/pipelines/_detail/execTabs';
 import { JobViewer } from '@/app/admin/pipelines/_detail/JobViewer';
+import { DefinitionModal } from '@/app/admin/pipelines/_detail/DefinitionModal';
 import { FailureReasonModal } from '@/app/admin/pipelines/_detail/FailureReasonModal';
 import type { TaskDetail } from '@/lib/pipeline/types';
 
@@ -53,19 +55,21 @@ export function TaskDrawer({
 }: TaskDrawerProps): ReactElement {
   const viewerModal = useModal<ViewerTarget>();
   const failModal = useModal<{ detail: string; subtitle: string }>();
+  const defModal = useModal();
 
-  // Esc layering: while a modal is open it owns Esc — the job viewer (ModalShell) closes
-  // itself; the failure-reason modal is mouse-only (Esc disabled) so it simply stays put.
-  // Either way we bail here so Esc never closes the drawer out from under an open modal.
+  // Esc layering: while a modal is open it owns Esc — the job viewer and the
+  // definition modal (ModalShell) close themselves; the failure-reason modal is
+  // mouse-only (Esc disabled) so it simply stays put. Either way we bail here so
+  // Esc never closes the drawer out from under an open modal.
   useEffect(() => {
     const onKeyDown = (event: globalThis.KeyboardEvent): void => {
       if (event.key !== 'Escape') return;
-      if (viewerModal.isOpen || failModal.isOpen) return;
+      if (viewerModal.isOpen || failModal.isOpen || defModal.isOpen) return;
       onClose();
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [onClose, viewerModal.isOpen, failModal.isOpen]);
+  }, [onClose, viewerModal.isOpen, failModal.isOpen, defModal.isOpen]);
 
   return (
     <aside role="complementary" aria-label={`${displayName} 상세`} className={d.root}>
@@ -89,25 +93,22 @@ export function TaskDrawer({
                 }
               />
             )}
-            {/* §8.4 — a restart task links straight to the origin task's attempts
-                and terraform logs (the source of the failure diagnosis). Down here
-                with the other supporting rows now that the top strip is gone. */}
-            {originHref && (
-              <Link href={originHref} className={d.originLink} title="원본 작업의 이 Task 상세로 이동">
-                이전 실행 이력 보기
+            {/* Where the panel points, under a rule: the contract rows (a modal
+                since 시안 B — they were 40% of the expanded body) and, for a
+                restart task, the origin task's attempts and terraform logs (§8.4,
+                the source of the failure diagnosis). */}
+            <div className={d.bodyLinks}>
+              <button type="button" className={d.bodyLink} onClick={() => defModal.open()}>
+                정의·계약 보기
                 <Icon name="arrow-ur" size="sm" />
-              </Link>
-            )}
-            {/* The second sub-tab, folded shut at the bottom: a contract row set
-                nobody opens the panel for should not cost a tab bar. */}
-            <details className={d.defFold}>
-              <summary className={d.foldSummary}>
-                <span className={j.respTri} aria-hidden="true">▼</span>정의·계약
-              </summary>
-              <div className={d.defBody}>
-                <DefinitionTab detail={detail} displayName={displayName} />
-              </div>
-            </details>
+              </button>
+              {originHref && (
+                <Link href={originHref} className={d.bodyLink} title="원본 작업의 이 Task 상세로 이동">
+                  이전 실행 이력 보기
+                  <Icon name="arrow-ur" size="sm" />
+                </Link>
+              )}
+            </div>
           </>
         ) : !detailLoaded ? (
           <div className="flex flex-col gap-4" role="status" aria-label="상세 정보를 불러오는 중">
@@ -136,6 +137,10 @@ export function TaskDrawer({
           jobLabel={displayName}
           onClose={viewerModal.close}
         />
+      )}
+
+      {defModal.isOpen && detail && (
+        <DefinitionModal detail={detail} displayName={displayName} onClose={defModal.close} />
       )}
 
       {failModal.isOpen && failModal.data && (

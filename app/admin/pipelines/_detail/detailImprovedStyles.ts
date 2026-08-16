@@ -143,9 +143,20 @@ export const improvedStyles = {
 
   /** Failure strip (시안 1 — Step Functions error-banner grammar, originStrip
    *  metrics): failed task + cause on the left, the restart-unavailable reason
-   *  (superseded by a newer run) on the right. */
+   *  (superseded by a newer run) on the right.
+   *  `sticky` (design-benchmark 2026-08-16 시안 C의 선행 조건): the page column is
+   *  capped to the viewport, but `.pl-flow`'s 440px floor pushes past that cap on
+   *  a short window and then the DOCUMENT scrolls — measured: the strip left the
+   *  viewport at top -579. The drawer's hero no longer prints the error code, so
+   *  the strip has to survive that scroll.
+   *  Bounded, not absolute: sticky cannot leave its containing block, and `bleed`
+   *  is itself capped at 100vh-64px (the canvas overflows it visibly rather than
+   *  growing it). The same measurement now reads -72 instead of -579 — the strip
+   *  holds for the whole capped column and then goes with it. Full pinning needs
+   *  that column to scroll internally, which is a layout change of its own; the
+   *  flow card beside the drawer states the cause in prose either way. */
   failStrip:
-    'flex items-center gap-2 border-b border-[var(--pl-border)] bg-[var(--pl-err-bg)] px-10 py-2.5 text-[14px] text-[var(--pl-err-text)]',
+    'sticky top-0 z-10 flex items-center gap-2 border-b border-[var(--pl-border)] bg-[var(--pl-err-bg)] px-10 py-2.5 text-[14px] text-[var(--pl-err-text)]',
   failStripRight: 'ml-auto flex items-center gap-1.5 whitespace-nowrap',
   failStripLink: 'font-semibold underline hover:no-underline',
 
@@ -160,11 +171,17 @@ export const improvedStyles = {
      *  the title + description + 타입 row + sub-tabs + that strip used to hold is
      *  the job list's: the flow card beside the panel carries the name and the
      *  status stroke, the verdict carries the judgment, and 정의·계약 (kind
-     *  included) is a fold at the bottom of the one remaining body. */
-    root: 'relative w-[500px] flex-none flex flex-col bg-[var(--pl-flow-panel)] border-l border-[var(--pl-border)] overflow-hidden',
-    /** Restart task → origin task link (§8.4) — a body row now that the strip it
-     *  used to share with the close button is gone. Restart tasks only. */
-    originLink:
+     *  included) opens as a modal from the body's last row.
+     *
+     *  400px (design-benchmark 2026-08-16 시안 B) — a width sweep on the live panel
+     *  found 440 / 400 / 380 all give zero horizontal overflow and an identical
+     *  1,075px body: 500px was never a width the content asked for. 400px is the
+     *  value `detailStyles.flow.panel` already carries for the same role. */
+    root: 'relative w-[400px] flex-none flex flex-col bg-[var(--pl-flow-panel)] border-l border-[var(--pl-border)] overflow-hidden',
+    /** Supporting link at the foot of the body — the restart task's origin link
+     *  (§8.4) and 정의·계약 보기. Both are errands away from this panel, so they
+     *  take one grammar and sit below the content they support. */
+    bodyLink:
       'inline-flex items-center gap-1 text-[12px] font-semibold text-[var(--pl-primary)] hover:underline',
     /** Centered on the verdict head's line (body pt-2 + a 26px line ⇒ centre 21;
      *  this button's 32px box at top-1 ⇒ centre 20). */
@@ -184,16 +201,15 @@ export const improvedStyles = {
      *  the leftover height and scrolls itself (owner: "패널 자체의 스크롤을
      *  내리는 일은 없었으면"), which only works if this column can shrink. */
     body: 'flex-1 min-h-0 overflow-y-auto overscroll-contain px-6 pt-2 pb-6 flex flex-col gap-6',
-    /** Supporting fold summary — 확인 요약 / Response 원문 / 정의·계약. Takes the
-     *  raw-response fold's grammar (jobStyles.respTri) at `sectionLabelSub`'s
-     *  size: everything folded here supports the Job 현황 above it, so none of
-     *  the three gets to hold the 16px section tier. */
+    /** Supporting fold summary — 확인 요약, and Response 원문 on a jobless attempt.
+     *  Takes the raw-response fold's grammar (jobStyles.respTri) at
+     *  `sectionLabelSub`'s size: everything folded here supports the Job 현황
+     *  above it, so neither gets to hold the 16px section tier. */
     foldSummary:
       'flex items-center gap-1.5 cursor-pointer list-none text-[14px] font-semibold text-[var(--pl-text-medium)] tracking-[-0.196px] [&::-webkit-details-marker]:hidden select-none',
-    /** 정의·계약 — the drawer's second sub-tab, demoted to the body's last row
-     *  and ruled off from the attempt content above it. */
-    defFold: 'group border-t border-[var(--pl-border)] pt-4',
-    defBody: 'mt-4 flex flex-col gap-6',
+    /** Rule above the body's closing links (정의·계약 보기 / 이전 실행 이력 보기) —
+     *  what the panel points at, separated from what the panel states. */
+    bodyLinks: 'flex flex-col items-start gap-2.5 border-t border-[var(--pl-border)] pt-4',
 
     /** Section label (progress log / attempt history / attempt info / …) — dark bold
      *  16px heading, the primary hierarchy anchor inside the body (owner Figma node 121-5). */
@@ -203,6 +219,11 @@ export const improvedStyles = {
      *  tier while the Job counts sat at 12px; only one of the two is what the
      *  operator came for. */
     sectionLabelSub: 'text-[14px] font-semibold text-[var(--pl-text-medium)] tracking-[-0.196px]',
+    /** Caption under a section label (design-benchmark 2026-08-16 시안 C) — the
+     *  run window of the attempt the list below belongs to. One tier under
+     *  `verdictFacts`, at the 12px the header's own context row (`subRow`) uses
+     *  for the same job: naming the frame, not stating a fact of its own. */
+    sectionCaption: 'mt-1 text-[12px] leading-[1.5] text-[var(--pl-text-weak)] tabular-nums',
     descText: 'mt-2.5 text-[14px] leading-[1.6] text-[var(--pl-text-strong)] whitespace-pre-line',
     /** Terminal-failure cause block — error-toned descText; shown when a failed attempt has no job rows. */
     failReason: 'mt-2.5 text-[14px] leading-[1.6] text-[var(--pl-err-text)] whitespace-pre-line break-words',
