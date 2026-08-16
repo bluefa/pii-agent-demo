@@ -3,7 +3,7 @@
  * ConditionExec) and Definition/contract (DefinitionTab). Split out of
  * TaskDrawer to keep each unit focused (AP-B1).
  */
-import { useState, type ReactElement } from 'react';
+import { useState, type ReactElement, type ReactNode } from 'react';
 import { cn } from '@/lib/theme';
 import { fmtDateTime, KIND_POLICY, statusKo } from '@/lib/pipeline/format';
 import { AttemptDetail } from '@/app/admin/pipelines/_detail/AttemptDetail';
@@ -40,12 +40,17 @@ function Verdict({
   tone,
   label,
   code,
+  aside,
   facts,
 }: {
   tone: JobVerdict;
   label: string;
   code?: string | null;
-  facts: ReactElement;
+  /** Retry budget + the attempt picker, on the head row's free right half —
+   *  it used to be a row of its own under the facts (owner 2026-08-16: the
+   *  block "너무 많은 공간을 차지"). */
+  aside?: ReactNode;
+  facts?: string;
 }): ReactElement {
   return (
     <div className={d.verdict}>
@@ -53,8 +58,11 @@ function Verdict({
         <span className={d.verdictDot} aria-hidden="true" />
         {label}
         {code && <span className={d.verdictCode}>{code}</span>}
+        {aside && <span className={d.verdictAside}>{aside}</span>}
       </div>
-      <p className={d.verdictFacts}>{facts}</p>
+      {/* No facts, no line — a first-attempt task says nothing here that the
+          flow card has not already said. */}
+      {facts && <p className={d.verdictFacts}>{facts}</p>}
     </div>
   );
 }
@@ -75,6 +83,15 @@ export function TerraformExec({
   const attempts = [...detail.attempts].reverse();
   const [picked, setPicked] = useState<number | null>(null);
   const current = attempts.find((a) => a.attempt_number === picked) ?? attempts[0] ?? null;
+  // The SELECTED attempt's window, from the second attempt on: with a single
+  // attempt these are the same three values the flow card already prints, and
+  // the card's values are never repeated here (2차 라운드 rule).
+  const facts = [
+    attempts.length > 1 && current ? attemptWindow(current) : '',
+    detail.next_check_at ? `다음 확인 ${fmtDateTime(detail.next_check_at)}` : '',
+  ]
+    .filter(Boolean)
+    .join(' · ');
   return (
     <>
       <OperatorDescription detail={detail} />
@@ -82,47 +99,40 @@ export function TerraformExec({
         tone={STATUS_TONE[detail.status]}
         label={statusKo(detail.status)}
         code={detail.error_code}
-        facts={
+        facts={facts}
+        aside={
           <>
             {/* Attempts actually made (attempts.length), not the failure count — a
-                task that succeeded on the first run has fail_count 0 but 1 attempt. */}
+                task that succeeded on the first run has fail_count 0 but 1 attempt.
+                It doubles as the picker's label, so the picker needs none. */}
             시도 {attempts.length}/{detail.effective_max_fail_count}회
-            {/* The SELECTED attempt's window, from the second attempt on: with a
-                single attempt this is the same span the flow card already prints,
-                and the card's values are never repeated here (2차 라운드 rule). */}
-            {attempts.length > 1 && current ? ` · ${attemptWindow(current)}` : ''}
-            {detail.next_check_at ? ` · 다음 확인 ${fmtDateTime(detail.next_check_at)}` : ''}
+            {attempts.length > 1 && (
+              /* Same segmented grammar as the Job 상태 필터 below: the dot is the
+                 attempt's own verdict, so which run failed reads without opening. */
+              <span className={j.filter} role="group" aria-label="시도 선택">
+                {attempts.map((a) => {
+                  const on = a.attempt_number === current?.attempt_number;
+                  return (
+                    <button
+                      key={a.attempt_number}
+                      type="button"
+                      aria-pressed={on}
+                      className={cn(j.filterBtn, on ? j.filterActive : j.filterIdle)}
+                      onClick={() => setPicked(a.attempt_number)}
+                    >
+                      <span
+                        className={cn(j.filterDot, j.verdictDot[STATUS_TONE[a.status]])}
+                        aria-hidden="true"
+                      />
+                      #{a.attempt_number}
+                    </button>
+                  );
+                })}
+              </span>
+            )}
           </>
         }
       />
-
-      {attempts.length > 1 && (
-        <div className="flex items-center gap-2.5">
-          <span className={d.kvKey}>시도</span>
-          {/* Same segmented grammar as the Job 상태 필터 right below it: the dot is
-              the attempt's own verdict, so which run failed reads without opening. */}
-          <div className={j.filter} role="group" aria-label="시도 선택">
-            {attempts.map((a) => {
-              const on = a.attempt_number === current?.attempt_number;
-              return (
-                <button
-                  key={a.attempt_number}
-                  type="button"
-                  aria-pressed={on}
-                  className={cn(j.filterBtn, on ? j.filterActive : j.filterIdle)}
-                  onClick={() => setPicked(a.attempt_number)}
-                >
-                  <span
-                    className={cn(j.filterDot, j.verdictDot[STATUS_TONE[a.status]])}
-                    aria-hidden="true"
-                  />
-                  #{a.attempt_number}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      )}
 
       {current ? (
         <AttemptDetail
@@ -155,13 +165,9 @@ export function ConditionExec({ detail }: { detail: TaskDetail }): ReactElement 
         tone={verdict ? verdict.tone : 'none'}
         label={verdict ? verdict.label : '기록 없음'}
         code={latest?.check?.last_external_status ?? null}
-        facts={
-          <>
-            {/* Attempts actually made (poll count), not the not-met failure count. */}
-            확인 {detail.attempts.length}/{detail.effective_max_fail_count}회
-            {detail.next_check_at ? ` · 다음 확인 ${fmtDateTime(detail.next_check_at)}` : ''}
-          </>
-        }
+        // Attempts actually made (poll count), not the not-met failure count.
+        aside={`확인 ${detail.attempts.length}/${detail.effective_max_fail_count}회`}
+        facts={detail.next_check_at ? `다음 확인 ${fmtDateTime(detail.next_check_at)}` : ''}
       />
 
       <Section label="확인 이력">

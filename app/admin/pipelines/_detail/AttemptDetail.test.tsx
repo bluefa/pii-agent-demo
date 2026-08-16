@@ -77,28 +77,29 @@ describe('AttemptDetail — failure cause when there are no job rows', () => {
 });
 
 // 시안 C — one run line in the card's duration grammar, not a second one ("5m 0s").
-// The line itself moved to the verdict hero (owner 2026-08-16), and only renders
-// there from the second attempt on, so what is left to pin is the grammar.
+// The line moved to the verdict hero (owner 2026-08-16), where every value now
+// carries the card's own label instead of an arrow ("시작/완료/소요를 명확하게").
 describe('attemptWindow — run window', () => {
-  it('drops the repeated date and writes the duration like the card does', () => {
+  it('names each value and writes the duration like the card does', () => {
     // 5s apart — fmtElapsedMs says "5초" where spanLabel used to say "5s".
-    expect(attemptWindow(attempt())).toBe('2026-07-13 09:00 → 09:00 · 5초');
+    expect(attemptWindow(attempt())).toBe('시작 2026-07-13 09:00 · 완료 09:00 · 소요 5초');
   });
 
-  it('keeps the date on the end when the attempt crosses midnight', () => {
+  it('keeps the date on 완료 when the attempt crosses midnight', () => {
     const a = attempt({ started_at: '2026-07-13T14:50:00Z', finished_at: '2026-07-13T15:10:00Z' });
-    expect(attemptWindow(a)).toBe('2026-07-13 23:50 → 2026-07-14 00:10 · 20분');
+    expect(attemptWindow(a)).toBe('시작 2026-07-13 23:50 · 완료 2026-07-14 00:10 · 소요 20분');
   });
 
-  it('states no duration while the attempt is still running', () => {
+  // A dangling "완료 -" reads as a value; the label goes with the missing value.
+  it('says only 시작 while the attempt is still running', () => {
     const a = attempt({ status: 'IN_PROGRESS', error_code: null, finished_at: null });
-    expect(attemptWindow(a)).toBe('2026-07-13 09:00 → -');
+    expect(attemptWindow(a)).toBe('시작 2026-07-13 09:00');
   });
 
   // The attempt body is always open now, so a single-attempt task would print the
-  // flow card's own two timestamps a second time if this line rendered there.
+  // flow card's own timestamps a second time if this line rendered there.
   it('is not printed by the attempt body itself', () => {
-    expect(html(attempt())).not.toContain('2026-07-13 09:00 → 09:00');
+    expect(html(attempt())).not.toContain('시작 2026-07-13 09:00');
   });
 });
 

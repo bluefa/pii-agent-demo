@@ -59,11 +59,12 @@ export function Section({
 }
 
 /**
- * One attempt's window on a line — "2026-08-14 17:58 → 18:03 · 5분". The end
- * repeats its date only when the attempt crosses midnight, and the duration
- * takes `fmtElapsedMs`, the grammar the card and the exec band already use.
- * Rendered in the verdict hero for the latest attempt (시안 C) and inside the
- * attempt fold for older ones.
+ * One attempt's window on a line — "시작 2026-08-14 17:58 · 완료 18:03 · 소요 5분".
+ * Each value is named (owner 2026-08-16: "시작/완료/소요를 명확하게 구분"), in the
+ * flow card's own label set. The end repeats its date only when the attempt
+ * crosses midnight, and the duration takes `fmtElapsedMs`, the grammar the card
+ * and the exec band already use. A value that does not exist yet drops out with
+ * its label rather than printing "완료 -": a running attempt says only 시작.
  */
 export function attemptWindow(attempt: TaskAttemptView): string {
   const start = fmtDateTime(attempt.started_at);
@@ -73,7 +74,10 @@ export function attemptWindow(attempt: TaskAttemptView): string {
     attempt.started_at && attempt.finished_at
       ? fmtElapsedMs(Date.parse(attempt.finished_at) - Date.parse(attempt.started_at))
       : '-';
-  return `${start} → ${sameDay ? end.slice(11) : end}${elapsed === '-' ? '' : ` · ${elapsed}`}`;
+  const parts = [`시작 ${start}`];
+  if (end !== '-') parts.push(`완료 ${sameDay ? end.slice(11) : end}`);
+  if (elapsed !== '-') parts.push(`소요 ${elapsed}`);
+  return parts.join(' · ');
 }
 
 /**

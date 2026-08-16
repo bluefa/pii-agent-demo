@@ -156,7 +156,7 @@ export const improvedStyles = {
      *  list: the flow card beside the panel carries the name and the status
      *  stroke, the verdict hero carries the judgment, and 정의·계약 (kind
      *  included) is a fold at the bottom of the one remaining body. */
-    header: 'flex items-center justify-end gap-3 px-6 pt-3',
+    header: 'flex items-center justify-end gap-3 px-6 pt-2',
     /** Restart task → origin task link in the drawer header (§8.4). */
     originLink:
       'inline-flex items-center gap-1 text-[12px] font-semibold text-[var(--pl-primary)] hover:underline',
@@ -174,7 +174,7 @@ export const improvedStyles = {
     /** The panel's own scroller is now a fallback — the job list inside it takes
      *  the leftover height and scrolls itself (owner: "패널 자체의 스크롤을
      *  내리는 일은 없었으면"), which only works if this column can shrink. */
-    body: 'flex-1 min-h-0 overflow-y-auto overscroll-contain px-6 pt-2 pb-6 flex flex-col gap-6',
+    body: 'flex-1 min-h-0 overflow-y-auto overscroll-contain px-6 pt-1 pb-6 flex flex-col gap-6',
     /** Supporting fold summary — 확인 요약 / Response 원문 / 정의·계약. Takes the
      *  raw-response fold's grammar (jobStyles.respTri) at `sectionLabelSub`'s
      *  size: everything folded here supports the Job 현황 above it, so none of
@@ -206,7 +206,11 @@ export const improvedStyles = {
      *  type size + a dot, never a tinted plate, and the supporting facts drop a
      *  tier under it. Tone comes from `jobStyles.verdictTextTone`. */
     verdict: 'flex flex-col gap-1.5',
-    verdictHead: 'flex items-center gap-2 text-[20px] font-bold tracking-[-0.196px]',
+    verdictHead: 'flex items-center flex-wrap gap-2 text-[20px] font-bold tracking-[-0.196px]',
+    /** Right half of the head row — retry budget + attempt picker. Resets the
+     *  head's 20px/bold so the picker keeps the segmented control's own type. */
+    verdictAside:
+      'ml-auto flex items-center gap-2.5 text-[14px] font-normal tracking-normal text-[var(--pl-text-weak)]',
     verdictDot: 'inline-block h-2 w-2 flex-none rounded-full bg-current',
     /** Error/verdict code chip — white face + stroke, so it reads against both the
      *  panel and the toned head text it sits beside. */

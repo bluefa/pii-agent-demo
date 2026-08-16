@@ -77,9 +77,18 @@ describe('TerraformExec — attempt picker', () => {
   });
 
   it('prints the selected attempt window only when there is more than one attempt', () => {
-    // A single attempt repeats the flow card's own two timestamps — the card owns them.
-    expect(html(detail([attempt(1)]))).not.toContain('2026-07-13 09:00 → 09:00');
-    expect(html(detail([attempt(1), attempt(2)]))).toContain('2026-07-13 09:00 → 09:00 · 5초');
+    // A single attempt repeats the flow card's own timestamps — the card owns them.
+    expect(html(detail([attempt(1)]))).not.toContain('시작 2026-07-13 09:00');
+    expect(html(detail([attempt(1), attempt(2)]))).toContain(
+      '시작 2026-07-13 09:00 · 완료 09:00 · 소요 5초',
+    );
+  });
+
+  // The retry budget labels the picker, so it sits on the verdict row with it —
+  // and still shows for a single attempt, where there is no picker.
+  it('keeps the retry budget on the verdict row either way', () => {
+    expect(html(detail([attempt(1)]))).toContain('시도 1/2회');
+    expect(html(detail([attempt(1), attempt(2)]))).toContain('시도 2/2회');
   });
 
   it('says so instead of rendering an empty body when nothing ran yet', () => {
