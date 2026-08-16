@@ -397,20 +397,7 @@ export function PipelineDetailView(): ReactElement {
           context row; the recipe description is the ⓘ tooltip. */}
       <header className={h.root}>
         <div className={h.titleRow}>
-          <h1 className={text.pageTitle}>Infra 작업 현황</h1>
-          {/* Promoted CTA (owner: "Target 상세 확인 이게 더 중요") — lands on the
-              ops console's 인프라 작업 tab. The header's only blue. */}
-          <Link
-            href={passRoutes.pipelines.ops.targetSource(detail.target_source_id, 'infra')}
-            className={cn(
-              pipelineStyles.button.base,
-              pipelineStyles.button.md,
-              pipelineStyles.button.primary,
-              h.cta,
-            )}
-          >
-            Target 상세 확인 <Icon name="arrow-ur" size="sm" />
-          </Link>
+          <h1 className={h.pageTitle}>Infra 작업 현황</h1>
         </div>
         <div className={h.main}>
           <ProviderLogo
@@ -421,19 +408,25 @@ export function PipelineDetailView(): ReactElement {
           />
           <div className={h.body}>
             <div className={h.idRow}>
-              {/* Same rule as the ops card: SDU is a classification so it gets a
-                  chip, every other provider stays plain — the mark on the left
-                  already says the provider, so no tag doubles it. Order is the
-                  owner's: "GCP #1002" — provider first. */}
+              {/* What the name beside it is (owner 2026-08-16), then the name:
+                  SDU stays a classification chip, every other provider is plain
+                  text — the mark on the left already draws it. */}
+              <span className={h.kindTag}>cloud</span>
               {detail.is_sdu_type ? (
                 <span className={h.sduChip}>SDU</span>
               ) : (
                 <span className={h.prov}>{providerLabel(provider)}</span>
               )}
-              <span className={h.id}>
-                <span className={h.idHash}>#</span>
-                {detail.target_source_id}
-              </span>
+              {/* The target id spelled out as its own errand — it replaces the
+                  bare "#1002" and the header-wide CTA, and lands on the same
+                  place that CTA did (ops console, 인프라 작업 tab). */}
+              <Link
+                href={passRoutes.pipelines.ops.targetSource(detail.target_source_id, 'infra')}
+                className={h.targetLink}
+              >
+                Target #{detail.target_source_id} 상세정보 보기
+                <Icon name="arrow-ur" size="sm" />
+              </Link>
             </div>
             <div className={h.nameRow}>
               <span className={h.klabel}>서비스 이름</span>

@@ -35,20 +35,34 @@ export const improvedStyles = {
   /** Header (design-benchmark round 2, proposal E) — the ops target-card grammar
    *  (ServiceDetailView `tsTable`) transplanted: 64px bare provider mark +
    *  3-tier identity (#target · SDU/provider → service name·code → run-context
-   *  row) with the promoted Target 상세 확인 CTA at right. The subject leads;
-   *  the static page label (h1) and run # are demoted into the context row;
+   *  row); the target link lives in tier 1 since the owner cut the header-wide
+   *  CTA (2026-08-16). The subject leads;
+   *  the static page label (h1, 20px) and run # are demoted into the context row;
    *  the recipe description lives in the ⓘ tooltip (owner: replace with hover).
    *  All tier metrics are copied from the ops card — no new values. */
   header: {
     root: 'bg-[var(--pl-bg-card)] border-b border-[var(--pl-border)] px-10 pt-6 pb-6 flex flex-col gap-3',
-    /** Page title row — "Infra 작업 현황"(h1, text.pageTitle) + CTA at right. */
+    /** Page title row — "Infra 작업 현황"(h1). The CTA that used to sit at its
+     *  right is gone (owner 2026-08-16); the target link moved into tier 1. */
     titleRow: 'flex items-center justify-between gap-6',
+    /** 20px (owner 2026-08-16) — a step under the shared 24px `pageTitle`, since
+     *  the static page label is not what leads this screen; the target is. */
+    pageTitle: 'text-[20px] font-bold leading-[1.2] tracking-[-0.02em] text-[var(--pl-text-strong)]',
     main: 'flex items-center gap-4',
     body: 'flex min-w-0 flex-1 flex-col gap-1',
-    /** Tier 1 — provider first, then target id: "GCP #1002" (owner order). */
+    /** Tier 1 — a `cloud` classifier tag, the provider, then the target as a
+     *  spelled-out link (owner 2026-08-16: "Target #1018 상세정보 보기"), which
+     *  replaces both the bare "#1002" and the promoted CTA that used to sit at
+     *  the far right of the title row. */
     idRow: 'flex items-center gap-2 flex-wrap',
+    /** Bare "#1002" — the ops target-source header (OpsHeader) still leads with
+     *  it; only the pipeline-detail header traded it for the spelled-out link. */
     id: 'text-[12px] font-medium [font-family:var(--pl-font-mono)] text-[var(--pl-primary)] tabular-nums whitespace-nowrap',
     idHash: 'mr-0.5 font-normal',
+    /** 12px classifier before the provider name — says what kind of thing the
+     *  name beside it is, in the neutral chip grammar `typeTag` already uses. */
+    kindTag:
+      'inline-flex items-center whitespace-nowrap rounded-[5px] bg-[var(--pl-gray-100)] px-1.5 py-0.5 text-[12px] font-semibold text-[var(--pl-text-medium)]',
     sduChip:
       'inline-flex items-center whitespace-nowrap rounded px-1.5 py-0.5 text-[12px] font-semibold bg-[var(--pl-primary-bg)] text-[var(--pl-primary)]',
     prov: 'text-[14px] font-medium text-[var(--pl-text-medium)]',
@@ -77,8 +91,11 @@ export const improvedStyles = {
       'block text-[12px] font-semibold [font-family:var(--pl-font-mono)] text-[var(--pl-text-medium)] break-all',
     tipDesc: 'block mt-1.5 text-[12px] leading-[1.6] text-[var(--pl-text-medium)] whitespace-pre-line',
     link: 'text-[12px] font-semibold text-[var(--pl-primary)] hover:underline inline-flex items-center gap-1 whitespace-nowrap',
-    /** CTA — Target 상세 확인, PlButton-primary geometry on a Link. */
-    cta: 'flex-none',
+    /** Tier-1 target link — the page's one blue, at the identity it belongs to
+     *  rather than as a button across the header. 14px: it sits beside the
+     *  provider name, not among the 12px context tags. */
+    targetLink:
+      'text-[14px] font-semibold text-[var(--pl-primary)] hover:underline inline-flex items-center gap-1 whitespace-nowrap tabular-nums',
   },
 
   /** Text-only status badge (header + progress band). */
