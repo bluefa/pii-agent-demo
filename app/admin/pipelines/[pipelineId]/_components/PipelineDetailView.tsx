@@ -23,6 +23,7 @@ import { useAbortableEffect } from '@/app/hooks/useAbortableEffect';
 import { cn, pipelineStyles } from '@/lib/theme';
 import { passRoutes } from '@/lib/routes';
 import { ProviderLogo } from '@/app/components/features/admin/v7/ProviderLogo';
+import { ProviderGlyph } from '@/app/components/ui/CloudProviderIcon';
 import { normalizeCloudProvider } from '@/lib/types';
 import { Card } from '@/app/admin/pipelines/_components/Card';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
@@ -408,23 +409,44 @@ export function PipelineDetailView(): ReactElement {
           />
           <div className={h.body}>
             <div className={h.idRow}>
-              {/* What the name beside it is (owner 2026-08-16), then the name:
-                  SDU stays a classification chip, every other provider is plain
-                  text — the mark on the left already draws it. */}
-              <span className={h.kindTag}>cloud</span>
+              {/* The provider as a glyph only (owner 2026-08-16) — the dashboard's
+                  own mark (ProvTag → the shared ProviderGlyph) at its own 14px,
+                  but in the vendor's colours: with the label gone the shape is
+                  doing the recognizing on its own. SDU keeps its chip — it is a
+                  classification, not a vendor, and has no brand to wear.
+                  The glyph forwards nothing but className, so the accessible name
+                  lives on the wrapper. */}
               {detail.is_sdu_type ? (
                 <span className={h.sduChip}>SDU</span>
               ) : (
-                <span className={h.prov}>{providerLabel(provider)}</span>
+                <span
+                  role="img"
+                  aria-label={providerLabel(provider)}
+                  title={providerLabel(provider)}
+                  className="inline-flex items-center"
+                >
+                  <ProviderGlyph
+                    provider={provider}
+                    tone="brand"
+                    className={pipelineStyles.provTag.glyph}
+                  />
+                </span>
               )}
-              {/* The target id spelled out as its own errand — it replaces the
-                  bare "#1002" and the header-wide CTA, and lands on the same
-                  place that CTA did (ops console, 인프라 작업 tab). */}
+              <span className={h.id}>
+                <span className={h.idHash}>#</span>
+                {detail.target_source_id}
+              </span>
+              {/* The errand the deleted header CTA used to carry, as a text button
+                  next to the id it acts on (ops console, 인프라 작업 tab). */}
               <Link
                 href={passRoutes.pipelines.ops.targetSource(detail.target_source_id, 'infra')}
-                className={h.targetLink}
+                className={cn(
+                  pipelineStyles.button.base,
+                  pipelineStyles.button.sm,
+                  pipelineStyles.button.ghost,
+                )}
               >
-                Target #{detail.target_source_id} 상세정보 보기
+                상세정보 보기
                 <Icon name="arrow-ur" size="sm" />
               </Link>
             </div>

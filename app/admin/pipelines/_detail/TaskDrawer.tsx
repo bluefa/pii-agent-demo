@@ -69,19 +69,11 @@ export function TaskDrawer({
 
   return (
     <aside role="complementary" aria-label={`${displayName} 상세`} className={d.root}>
-      <div className={d.header}>
-        {/* §8.4 — a restart task links straight to the origin task's attempts and
-            terraform logs (the source of the failure diagnosis). */}
-        {originHref && (
-          <Link href={originHref} className={d.originLink} title="원본 작업의 이 Task 상세로 이동">
-            이전 실행 이력 보기
-            <Icon name="arrow-ur" size="sm" />
-          </Link>
-        )}
-        <button type="button" className={d.close} onClick={onClose} aria-label="Task 상세 닫기" title="닫기">
-          <Icon name="chev-r" size="lg" />
-        </button>
-      </div>
+      {/* Shares the verdict's line (owner 2026-08-16) — absolute, so a long
+          status + code wraps under it instead of pushing it off. */}
+      <button type="button" className={d.close} onClick={onClose} aria-label="Task 상세 닫기" title="닫기">
+        <Icon name="chev-r" size="lg" />
+      </button>
 
       <div className={d.body}>
         {detail ? (
@@ -96,6 +88,15 @@ export function TaskDrawer({
                   failModal.open({ detail: cause, subtitle: `${displayName} · 시도 #${n}` })
                 }
               />
+            )}
+            {/* §8.4 — a restart task links straight to the origin task's attempts
+                and terraform logs (the source of the failure diagnosis). Down here
+                with the other supporting rows now that the top strip is gone. */}
+            {originHref && (
+              <Link href={originHref} className={d.originLink} title="원본 작업의 이 Task 상세로 이동">
+                이전 실행 이력 보기
+                <Icon name="arrow-ur" size="sm" />
+              </Link>
             )}
             {/* The second sub-tab, folded shut at the bottom: a contract row set
                 nobody opens the panel for should not cost a tab bar. */}

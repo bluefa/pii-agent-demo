@@ -40,29 +40,29 @@ function Verdict({
   tone,
   label,
   code,
-  aside,
+  pick,
   facts,
 }: {
   tone: JobVerdict;
   label: string;
   code?: string | null;
-  /** Retry budget + the attempt picker, on the head row's free right half —
-   *  it used to be a row of its own under the facts (owner 2026-08-16: the
-   *  block "너무 많은 공간을 차지"). */
-  aside?: ReactNode;
+  /** Retry budget + the attempt picker, on the hero's last line (owner
+   *  2026-08-16) — below the judgment and the times it applies to. */
+  pick?: ReactNode;
   facts?: string;
 }): ReactElement {
   return (
     <div className={d.verdict}>
+      {/* No dot (owner 2026-08-16) — the word IS the verdict here, unlike a job
+          row where the id carries no judgment of its own. */}
       <div className={cn(d.verdictHead, j.verdictTextTone[tone])}>
-        <span className={d.verdictDot} aria-hidden="true" />
         {label}
         {code && <span className={d.verdictCode}>{code}</span>}
-        {aside && <span className={d.verdictAside}>{aside}</span>}
       </div>
       {/* No facts, no line — a first-attempt task says nothing here that the
           flow card has not already said. */}
       {facts && <p className={d.verdictFacts}>{facts}</p>}
+      {pick && <div className={d.verdictPick}>{pick}</div>}
     </div>
   );
 }
@@ -100,7 +100,7 @@ export function TerraformExec({
         label={statusKo(detail.status)}
         code={detail.error_code}
         facts={facts}
-        aside={
+        pick={
           <>
             {/* Attempts actually made (attempts.length), not the failure count — a
                 task that succeeded on the first run has fail_count 0 but 1 attempt.
@@ -166,8 +166,12 @@ export function ConditionExec({ detail }: { detail: TaskDetail }): ReactElement 
         label={verdict ? verdict.label : '기록 없음'}
         code={latest?.check?.last_external_status ?? null}
         // Attempts actually made (poll count), not the not-met failure count.
-        aside={`확인 ${detail.attempts.length}/${detail.effective_max_fail_count}회`}
-        facts={detail.next_check_at ? `다음 확인 ${fmtDateTime(detail.next_check_at)}` : ''}
+        facts={[
+          `확인 ${detail.attempts.length}/${detail.effective_max_fail_count}회`,
+          detail.next_check_at ? `다음 확인 ${fmtDateTime(detail.next_check_at)}` : '',
+        ]
+          .filter(Boolean)
+          .join(' · ')}
       />
 
       <Section label="확인 이력">

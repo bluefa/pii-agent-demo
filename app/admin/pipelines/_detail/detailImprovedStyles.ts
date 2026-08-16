@@ -50,19 +50,12 @@ export const improvedStyles = {
     pageTitle: 'text-[20px] font-bold leading-[1.2] tracking-[-0.02em] text-[var(--pl-text-strong)]',
     main: 'flex items-center gap-4',
     body: 'flex min-w-0 flex-1 flex-col gap-1',
-    /** Tier 1 — a `cloud` classifier tag, the provider, then the target as a
-     *  spelled-out link (owner 2026-08-16: "Target #1018 상세정보 보기"), which
-     *  replaces both the bare "#1002" and the promoted CTA that used to sit at
-     *  the far right of the title row. */
+    /** Tier 1 (owner 2026-08-16) — the provider glyph, the id, and 상세정보 보기
+     *  as a text button. It absorbed the promoted CTA that used to sit at the far
+     *  right of the title row: the errand now stands next to the id it acts on. */
     idRow: 'flex items-center gap-2 flex-wrap',
-    /** Bare "#1002" — the ops target-source header (OpsHeader) still leads with
-     *  it; only the pipeline-detail header traded it for the spelled-out link. */
     id: 'text-[12px] font-medium [font-family:var(--pl-font-mono)] text-[var(--pl-primary)] tabular-nums whitespace-nowrap',
     idHash: 'mr-0.5 font-normal',
-    /** 12px classifier before the provider name — says what kind of thing the
-     *  name beside it is, in the neutral chip grammar `typeTag` already uses. */
-    kindTag:
-      'inline-flex items-center whitespace-nowrap rounded-[5px] bg-[var(--pl-gray-100)] px-1.5 py-0.5 text-[12px] font-semibold text-[var(--pl-text-medium)]',
     sduChip:
       'inline-flex items-center whitespace-nowrap rounded px-1.5 py-0.5 text-[12px] font-semibold bg-[var(--pl-primary-bg)] text-[var(--pl-primary)]',
     prov: 'text-[14px] font-medium text-[var(--pl-text-medium)]',
@@ -91,11 +84,6 @@ export const improvedStyles = {
       'block text-[12px] font-semibold [font-family:var(--pl-font-mono)] text-[var(--pl-text-medium)] break-all',
     tipDesc: 'block mt-1.5 text-[12px] leading-[1.6] text-[var(--pl-text-medium)] whitespace-pre-line',
     link: 'text-[12px] font-semibold text-[var(--pl-primary)] hover:underline inline-flex items-center gap-1 whitespace-nowrap',
-    /** Tier-1 target link — the page's one blue, at the identity it belongs to
-     *  rather than as a button across the header. 14px: it sits beside the
-     *  provider name, not among the 12px context tags. */
-    targetLink:
-      'text-[14px] font-semibold text-[var(--pl-primary)] hover:underline inline-flex items-center gap-1 whitespace-nowrap tabular-nums',
   },
 
   /** Text-only status badge (header + progress band). */
@@ -167,17 +155,21 @@ export const improvedStyles = {
 
   /** Task drawer (node 70:35) — 420px, light gray, docked flush at the canvas edge. */
   drawer: {
-    root: 'w-[500px] flex-none flex flex-col bg-[var(--pl-flow-panel)] border-l border-[var(--pl-border)] overflow-hidden',
-    /** Close-only top strip (owner 2026-08-16). The 199px that the title + task
-     *  description + 타입 row + the two sub-tabs used to hold now goes to the job
-     *  list: the flow card beside the panel carries the name and the status
-     *  stroke, the verdict hero carries the judgment, and 정의·계약 (kind
+    /** `relative` anchors the close control, which sits on the verdict's own line
+     *  now rather than on a strip of its own (owner 2026-08-16). The 243px that
+     *  the title + description + 타입 row + sub-tabs + that strip used to hold is
+     *  the job list's: the flow card beside the panel carries the name and the
+     *  status stroke, the verdict carries the judgment, and 정의·계약 (kind
      *  included) is a fold at the bottom of the one remaining body. */
-    header: 'flex items-center justify-end gap-3 px-6 pt-2',
-    /** Restart task → origin task link in the drawer header (§8.4). */
+    root: 'relative w-[500px] flex-none flex flex-col bg-[var(--pl-flow-panel)] border-l border-[var(--pl-border)] overflow-hidden',
+    /** Restart task → origin task link (§8.4) — a body row now that the strip it
+     *  used to share with the close button is gone. Restart tasks only. */
     originLink:
       'inline-flex items-center gap-1 text-[12px] font-semibold text-[var(--pl-primary)] hover:underline',
-    close: 'flex-none inline-flex items-center justify-center w-8 h-8 -mr-1 rounded-lg text-[var(--pl-text-strong)] hover:bg-[var(--pl-bg-card)] transition-colors',
+    /** Centered on the verdict head's line (body pt-2 + a 26px line ⇒ centre 21;
+     *  this button's 32px box at top-1 ⇒ centre 20). */
+    close:
+      'absolute top-1 right-4 z-10 inline-flex items-center justify-center w-8 h-8 rounded-lg text-[var(--pl-text-strong)] hover:bg-[var(--pl-bg-card)] transition-colors',
     /** Sub-tab nav — the drawer's own 실행 정보 / 정의·계약 pair is gone, but the
      *  job viewer's 로그 / 상태 tabs still take this grammar. */
     nav: 'flex items-stretch border-b border-[var(--pl-border)]',
@@ -191,7 +183,7 @@ export const improvedStyles = {
     /** The panel's own scroller is now a fallback — the job list inside it takes
      *  the leftover height and scrolls itself (owner: "패널 자체의 스크롤을
      *  내리는 일은 없었으면"), which only works if this column can shrink. */
-    body: 'flex-1 min-h-0 overflow-y-auto overscroll-contain px-6 pt-1 pb-6 flex flex-col gap-6',
+    body: 'flex-1 min-h-0 overflow-y-auto overscroll-contain px-6 pt-2 pb-6 flex flex-col gap-6',
     /** Supporting fold summary — 확인 요약 / Response 원문 / 정의·계약. Takes the
      *  raw-response fold's grammar (jobStyles.respTri) at `sectionLabelSub`'s
      *  size: everything folded here supports the Job 현황 above it, so none of
@@ -223,12 +215,13 @@ export const improvedStyles = {
      *  type size + a dot, never a tinted plate, and the supporting facts drop a
      *  tier under it. Tone comes from `jobStyles.verdictTextTone`. */
     verdict: 'flex flex-col gap-1.5',
-    verdictHead: 'flex items-center flex-wrap gap-2 text-[20px] font-bold tracking-[-0.196px]',
-    /** Right half of the head row — retry budget + attempt picker. Resets the
-     *  head's 20px/bold so the picker keeps the segmented control's own type. */
-    verdictAside:
-      'ml-auto flex items-center gap-2.5 text-[14px] font-normal tracking-normal text-[var(--pl-text-weak)]',
-    verdictDot: 'inline-block h-2 w-2 flex-none rounded-full bg-current',
+    /** `pr-9` keeps a long status + code clear of the absolutely-placed close
+     *  control that shares this line. */
+    verdictHead: 'flex items-center flex-wrap gap-2 pr-9 text-[20px] font-bold tracking-[-0.196px]',
+    /** Last line of the hero — retry budget + attempt picker (owner 2026-08-16:
+     *  "시도 2/2회와 2,1은 아래로"). Inside the hero's own 6px rhythm rather than a
+     *  body row of its own, which cost 24px of gap for the same two controls. */
+    verdictPick: 'mt-1 flex items-center flex-wrap gap-2.5 text-[14px] text-[var(--pl-text-weak)]',
     /** Error/verdict code chip — white face + stroke, so it reads against both the
      *  panel and the toned head text it sits beside. */
     verdictCode:
