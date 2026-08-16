@@ -129,7 +129,9 @@ const DETAIL_CSS = `
 .pl-flow.pl-detail .nd-mark.m-cond{color:var(--pl-warn)}
 .pl-flow.pl-detail .nd-mark svg{width:56px;height:56px}
 .pl-flow.pl-detail .nd-body{flex:1;min-width:0;display:flex;flex-direction:column}
-.pl-flow.pl-detail .nd-name{font-size:16px;line-height:1.35;font-weight:700}
+/* 14px (owner 2026-08-16) — the card title stops outranking the page header's
+   own 14px subject line; weight 700 still makes it the card's hero. */
+.pl-flow.pl-detail .nd-name{font-size:14px;line-height:1.35;font-weight:700}
 .pl-flow.pl-detail .nd-meta{font-size:14px;line-height:1.5;margin-top:10px;color:var(--pl-text-weak)}
 .pl-flow.pl-detail .nd-run{padding-top:12px;border-top:1px solid var(--pl-border);display:flex;flex-direction:column;gap:4px;font-size:12px;line-height:1.4;font-variant-numeric:tabular-nums}
 /* nowrap keeps a timestamp whole; wrap lets a rare long 소요 ("12시간 45분") drop to
