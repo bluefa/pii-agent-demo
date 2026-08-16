@@ -24,6 +24,7 @@ import { usePlToast } from '@/app/admin/pipelines/_components/usePlToast';
 
 import { RequestDetailHeader } from '@/app/admin/pipelines/queue/requests/_components/RequestDetailHeader';
 import { RequestVerdictNotice } from '@/app/admin/pipelines/queue/requests/_components/RequestVerdictNotice';
+import { DuplicateAddressNotice } from '@/app/admin/pipelines/queue/requests/_components/DuplicateAddressNotice';
 import { ResourceSection } from '@/app/admin/pipelines/queue/requests/_components/ResourceSection';
 import { NlbListenerModal } from '@/app/admin/pipelines/queue/requests/_components/NlbListenerModal';
 import { NlbAssignModal } from '@/app/admin/pipelines/queue/requests/_components/NlbAssignModal';
@@ -31,6 +32,7 @@ import { ServiceAssignmentModal } from '@/app/admin/pipelines/queue/requests/_co
 import { ApproveModal } from '@/app/admin/pipelines/queue/requests/_components/ApproveModal';
 import { RejectModal } from '@/app/admin/pipelines/queue/requests/_components/RejectModal';
 import { useResourceListState } from '@/app/admin/pipelines/queue/requests/_resourceQuery';
+import { findDuplicateAddressPairs } from '@/app/admin/pipelines/queue/requests/_duplicateAddress';
 import { useNlbAssignment } from '@/app/admin/pipelines/queue/requests/_useNlbAssignment';
 import {
   approveRequest,
@@ -322,6 +324,10 @@ export default function RequestDetailPage(): ReactElement {
                   )
                 }
               />
+              {/* 아직 결정하지 않은 요청에만 세운다 — 이미 승인·반려된 요청에서는
+                  관리자가 할 수 있는 일이 없고, 그 화면의 대상 목록은 worklist 가
+                  아니라 기록이다(위 details 분기). */}
+              <DuplicateAddressNotice pairs={findDuplicateAddressPairs(resources)} />
               {/* No card around it. The tiles are cards and the toolbar·table·pager carry
                   their own connected frame, so an outer surface only nested a card in a card
                   and spent 48px of table width on doubled padding. */}
