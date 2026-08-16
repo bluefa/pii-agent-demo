@@ -119,7 +119,11 @@ export function JobStatus({
 
   return (
     <Section label="Job 현황" caption={caption} grow>
-      <div className={cn(j.filter, 'mt-4')} role="group" aria-label="Job 상태 필터">
+      {/* `self-start` (owner 2026-08-17) — `inline-flex` does not survive being a
+          flex item: the child blockifies and stretches to the column's cross size,
+          so the segmented track ran the panel's full 351px with 123px of empty
+          face to the right of the last button. */}
+      <div className={cn(j.filter, 'mt-4 self-start')} role="group" aria-label="Job 상태 필터">
         {options.map((option) => {
           const on = option === active;
           return (

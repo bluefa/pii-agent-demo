@@ -239,10 +239,28 @@ export const improvedStyles = {
     /** `pr-9` keeps a long status + code clear of the absolutely-placed close
      *  control that shares this line. */
     verdictHead: 'flex items-center flex-wrap gap-2 pr-9 text-[20px] font-bold tracking-[-0.196px]',
-    /** Last line of the hero — retry budget + attempt picker (owner 2026-08-16:
-     *  "시도 2/2회와 2,1은 아래로"). Inside the hero's own 6px rhythm rather than a
-     *  body row of its own, which cost 24px of gap for the same two controls. */
+    /** Last line of the hero — the attempt picker (owner 2026-08-16: "시도 2/2회와
+     *  2,1은 아래로"). Inside the hero's own 6px rhythm rather than a body row of
+     *  its own, which cost 24px of gap for the same control. */
     verdictPick: 'mt-1 flex items-center flex-wrap gap-2.5 text-[14px] text-[var(--pl-text-weak)]',
+
+    /** Attempt picker (owner 2026-08-17) — the repo's dropdown grammar, not a
+     *  native `<select>`: `appearance: auto` let the browser draw both the control
+     *  and its option list, which read as a raw form field in a panel that has no
+     *  other form control. Trigger metrics are the shared select's (h8 / r8 / 14px,
+     *  `pipelineInputBase`); the panel is the menu card `JiraTicketMenu` and the
+     *  request list's `FilterMenu` already wear. */
+    pickTrigger:
+      'inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border border-[var(--pl-border-strong)] bg-[var(--pl-bg-card)] text-[14px] font-medium text-[var(--pl-text-strong)] cursor-pointer transition-colors hover:bg-[var(--pl-gray-50)]',
+    pickChev: 'text-[var(--pl-text-weak)] transition-transform',
+    pickPanel:
+      'absolute left-0 top-[36px] z-20 min-w-full whitespace-nowrap overflow-hidden rounded-[10px] border border-[var(--pl-border)] bg-[var(--pl-bg-card)] py-1 shadow-[var(--pl-shadow-lg)]',
+    pickItem:
+      'flex w-full items-center gap-2 px-3 py-2 text-left text-[14px] text-[var(--pl-text-strong)] transition-colors hover:bg-[var(--pl-gray-50)]',
+    pickItemOn: 'font-semibold',
+    /** The attempt's verdict word — a tier down, since the dot already carries it. */
+    pickItemVerdict: 'text-[12px] text-[var(--pl-text-weak)]',
+    pickCheck: 'ml-auto flex-none text-[var(--pl-primary)]',
     /** Error/verdict code chip — white face + stroke, so it reads against both the
      *  panel and the toned head text it sits beside. */
     verdictCode:

@@ -6,8 +6,8 @@
 import { useState, type ReactElement, type ReactNode } from 'react';
 import { cn } from '@/lib/theme';
 import { fmtDateTime, KIND_POLICY, statusKo } from '@/lib/pipeline/format';
-import { PlSelect } from '@/app/admin/pipelines/_components/PlSelect';
 import { AttemptDetail } from '@/app/admin/pipelines/_detail/AttemptDetail';
+import { AttemptPicker } from '@/app/admin/pipelines/_detail/AttemptPicker';
 import type { JobVerdict } from '@/app/admin/pipelines/_detail/jobRows';
 import {
   attemptWindow,
@@ -101,29 +101,21 @@ export function TerraformExec({
         // top of the page and the flow card beside this panel repeats it in
         // prose ("원인은 JOB_FAILED"), so the hero's chip was the fourth.
         facts={detail.next_check_at ? `다음 확인 ${fmtDateTime(detail.next_check_at)}` : ''}
+        /* A dropdown, not one button per attempt (시안 C): the segments grew the
+           hero's line with the retry budget. The retry budget itself is gone from
+           this line (owner 2026-08-17) — the picker's trigger already names the
+           attempt, the list says how many there were, and while a run is live the
+           exec band prints `재시도 f/m` (`retrySuffix`). The contract value lives
+           in 정의·계약 as `retry_budget`. */
         pick={
-          <>
-            {/* Attempts actually made (attempts.length), not the failure count — a
-                task that succeeded on the first run has fail_count 0 but 1 attempt.
-                It doubles as the picker's label, so the picker needs none. */}
-            시도 {attempts.length}/{detail.effective_max_fail_count}회
-            {attempts.length > 1 && (
-              /* A dropdown, not one button per attempt (시안 C): the retry budget
-                 runs to 5, and the segments grew the hero's line with it. The dot
-                 the segments carried becomes the option's own verdict word. */
-              <PlSelect
-                aria-label="시도 선택"
-                value={current?.attempt_number ?? ''}
-                onChange={(e) => setPicked(Number(e.target.value))}
-              >
-                {attempts.map((a) => (
-                  <option key={a.attempt_number} value={a.attempt_number}>
-                    시도 #{a.attempt_number} · {statusKo(a.status)}
-                  </option>
-                ))}
-              </PlSelect>
-            )}
-          </>
+          attempts.length > 1 && current ? (
+            <AttemptPicker
+              attempts={attempts}
+              current={current}
+              tone={STATUS_TONE}
+              onPick={setPicked}
+            />
+          ) : undefined
         }
       />
 

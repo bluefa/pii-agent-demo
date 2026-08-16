@@ -60,10 +60,14 @@ const html = (d: TaskDetail): string =>
 // jobs used to be two clicks deep (시도 이력 row → fold). The picker puts every
 // attempt one click away and the body always shows one of them.
 describe('TerraformExec — attempt picker', () => {
-  it('offers one button per attempt, newest first, and opens on the newest', () => {
+  it('names the newest attempt on a closed trigger and opens on its jobs', () => {
     const out = html(detail([attempt(1), attempt(2)]));
+    // Closed, the picker is one trigger — the list mounts on click (owner
+    // 2026-08-17: the repo's popover, not a native select that ships every
+    // option into the markup).
     expect(out).toContain('aria-label="시도 선택"');
-    expect(out.indexOf('#2')).toBeLessThan(out.indexOf('#1'));
+    expect(out).toContain('시도 #2');
+    expect(out).not.toContain('시도 #1');
     // The newest attempt's jobs are the ones on screen…
     expect(out).toContain('a2-job');
     // …and the older attempt's are one click away, not rendered twice.
@@ -84,11 +88,13 @@ describe('TerraformExec — attempt picker', () => {
     );
   });
 
-  // The retry budget labels the picker, so it sits on the verdict row with it —
-  // and still shows for a single attempt, where there is no picker.
-  it('keeps the retry budget on the verdict row either way', () => {
-    expect(html(detail([attempt(1)]))).toContain('시도 1/2회');
-    expect(html(detail([attempt(1), attempt(2)]))).toContain('시도 2/2회');
+  // Owner 2026-08-17: the retry budget is off this row. The picker's trigger
+  // names the current attempt and its list counts them; the budget itself is on
+  // the exec band (재시도 f/m) while a run is live, and in 정의·계약 as a contract
+  // value. A settled task has no remaining budget to report.
+  it('prints no retry budget on the verdict row', () => {
+    expect(html(detail([attempt(1)]))).not.toContain('시도 1/2회');
+    expect(html(detail([attempt(1), attempt(2)]))).not.toContain('시도 2/2회');
   });
 
   it('says so instead of rendering an empty body when nothing ran yet', () => {
