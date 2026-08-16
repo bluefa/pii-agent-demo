@@ -151,21 +151,18 @@ export const improvedStyles = {
   /** Task drawer (node 70:35) — 420px, light gray, docked flush at the canvas edge. */
   drawer: {
     root: 'w-[500px] flex-none flex flex-col bg-[var(--pl-flow-panel)] border-l border-[var(--pl-border)] overflow-hidden',
-    header: 'flex items-start justify-between gap-3 px-6 pt-5 pb-4 border-b border-[var(--pl-border)]',
-    /** Title (h3); the status badge is rendered inline after the name so it
-     *  always sits to the right of the title text (node 70:35). */
-    title: 'text-[18px] font-bold leading-snug text-[var(--pl-text-strong)]',
-    titleBadge: 'ml-2.5 align-middle',
-    /** Task description — moved into the header (node 70:35), above the tabs. */
-    headerDesc: 'mt-3 text-[14px] leading-[1.6] text-[var(--pl-text-weak)] whitespace-pre-line',
-    typeRow: 'flex items-center gap-2 mt-3.5 flex-wrap',
+    /** Close-only top strip (owner 2026-08-16). The 199px that the title + task
+     *  description + 타입 row + the two sub-tabs used to hold now goes to the job
+     *  list: the flow card beside the panel carries the name and the status
+     *  stroke, the verdict hero carries the judgment, and 정의·계약 (kind
+     *  included) is a fold at the bottom of the one remaining body. */
+    header: 'flex items-center justify-end gap-3 px-6 pt-3',
     /** Restart task → origin task link in the drawer header (§8.4). */
     originLink:
       'inline-flex items-center gap-1 text-[12px] font-semibold text-[var(--pl-primary)] hover:underline',
-    typeLabel: 'text-[13px] text-[var(--pl-text-weak)]',
-    tag: 'inline-flex items-center rounded-full bg-[var(--pl-bg-card)] border border-[var(--pl-border)] px-2.5 py-0.5 text-[11px] font-semibold text-[var(--pl-text-medium)] [font-family:var(--pl-font-mono)]',
     close: 'flex-none inline-flex items-center justify-center w-8 h-8 -mr-1 rounded-lg text-[var(--pl-text-strong)] hover:bg-[var(--pl-bg-card)] transition-colors',
-    /** Sub-tab nav. */
+    /** Sub-tab nav — the drawer's own 실행 정보 / 정의·계약 pair is gone, but the
+     *  job viewer's 로그 / 상태 tabs still take this grammar. */
     nav: 'flex items-stretch border-b border-[var(--pl-border)]',
     navTab: 'flex-1 flex flex-col items-center justify-center gap-1.5 h-11 text-[14px]',
     // Active tab: blue text + blue underline (owner Figma node 121-406).
@@ -174,7 +171,20 @@ export const improvedStyles = {
     navIdle: 'text-[var(--pl-text-weak)] font-normal',
     navUnderline: 'h-0.5 w-14 rounded-full bg-[var(--pl-primary)]',
     navUnderlineHidden: 'h-0.5 w-14',
-    body: 'flex-1 overflow-y-auto overscroll-contain px-6 py-7 flex flex-col gap-7',
+    /** The panel's own scroller is now a fallback — the job list inside it takes
+     *  the leftover height and scrolls itself (owner: "패널 자체의 스크롤을
+     *  내리는 일은 없었으면"), which only works if this column can shrink. */
+    body: 'flex-1 min-h-0 overflow-y-auto overscroll-contain px-6 pt-2 pb-6 flex flex-col gap-6',
+    /** Supporting fold summary — 확인 요약 / Response 원문 / 정의·계약. Takes the
+     *  raw-response fold's grammar (jobStyles.respTri) at `sectionLabelSub`'s
+     *  size: everything folded here supports the Job 현황 above it, so none of
+     *  the three gets to hold the 16px section tier. */
+    foldSummary:
+      'flex items-center gap-1.5 cursor-pointer list-none text-[14px] font-semibold text-[var(--pl-text-medium)] tracking-[-0.196px] [&::-webkit-details-marker]:hidden select-none',
+    /** 정의·계약 — the drawer's second sub-tab, demoted to the body's last row
+     *  and ruled off from the attempt content above it. */
+    defFold: 'group border-t border-[var(--pl-border)] pt-4',
+    defBody: 'mt-4 flex flex-col gap-6',
 
     /** Section label (progress log / attempt history / attempt info / …) — dark bold
      *  16px heading, the primary hierarchy anchor inside the body (owner Figma node 121-5). */

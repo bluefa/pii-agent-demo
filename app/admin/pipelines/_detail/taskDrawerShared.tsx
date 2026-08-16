@@ -35,20 +35,24 @@ export function MiniPill({ tone, children }: { tone: JobVerdict; children: React
 
 export function Section({
   label,
-  hint,
   sub = false,
+  grow = false,
   children,
 }: {
   label: string;
-  hint?: string;
   /** Demoted tier — a section that supports the verdict instead of competing with it. */
   sub?: boolean;
+  /** Takes the drawer body's leftover height so its own list scrolls, not the
+   *  panel. The floor is explicit because neither automatic minimum works here:
+   *  `min-h-0` let a short body squeeze the whole section to 0px, and `auto`
+   *  counts the scrolling list's full content (21 rows), so nothing shrank at
+   *  all. 208px = label 24 + filter 56 + three 43px job rows. */
+  grow?: boolean;
   children: ReactNode;
 }): ReactElement {
   return (
-    <div>
+    <div className={cn('flex flex-col', grow && 'flex-1 min-h-[208px]')}>
       <div className={sub ? d.sectionLabelSub : d.sectionLabel}>{label}</div>
-      {hint && <div className={j.labelHint}>{hint}</div>}
       {children}
     </div>
   );

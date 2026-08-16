@@ -2144,7 +2144,10 @@ export const pipelineStyles = {
     // Pipeline-detail-only: fluid width AND a full-height flex column so the
     // Task 흐름 canvas can stretch to the bottom (owner: "하단까지 쭉", "우측
     // 빈 공간 제거"). The detail view's bleed root is flex-1 inside this.
-    contentDetail: 'flex-1 min-w-0 flex flex-col px-8 pt-6 pb-12',
+    // The max-height is what makes that "full height" real: `shell` only sets a
+    // MIN height, so without the cap the task drawer's content grew this column
+    // (and the page) instead of scrolling inside the panel (owner 2026-08-16).
+    contentDetail: 'flex-1 min-w-0 min-h-0 max-h-[calc(100vh_-_64px)] flex flex-col px-8 pt-6 pb-12',
   },
 
   /** Card surfaces (§5). */

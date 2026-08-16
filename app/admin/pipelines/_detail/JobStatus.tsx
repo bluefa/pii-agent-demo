@@ -83,13 +83,10 @@ function JobItem({
 export function JobStatus({
   attempt,
   operation,
-  hint,
   onOpenJob,
 }: {
   attempt: TaskAttemptView;
   operation: TaskOperation | null;
-  /** Which attempt these jobs belong to — set when the panel holds more than one. */
-  hint?: string;
   onOpenJob: (jobId: string) => void;
 }): ReactElement | null {
   const [picked, setPicked] = useState<JobFilter | null>(null);
@@ -118,8 +115,8 @@ export function JobStatus({
   const shown = active === 'all' ? sorted : sorted.filter((g) => g.verdict === active);
 
   return (
-    <Section label="Job 현황" hint={hint}>
-      <div className={j.filter} role="group" aria-label="Job 상태 필터">
+    <Section label="Job 현황" grow>
+      <div className={cn(j.filter, 'mt-4')} role="group" aria-label="Job 상태 필터">
         {options.map((option) => {
           const on = option === active;
           return (

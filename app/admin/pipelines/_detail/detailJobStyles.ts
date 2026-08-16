@@ -53,39 +53,23 @@ export const jobStyles = {
   // point, so it does not get to sit below it (design-benchmark 진단 06).
   miniBadge: 'inline-flex items-center rounded-full px-[7px] py-[2.5px] text-[12px] font-medium leading-none whitespace-nowrap tracking-[-0.196px]',
 
-  /** A muted caption line rendered on its own line under a section label
-   *  (e.g. the attempt-history "tap a row for detail" hint; owner Figma node 121-74). */
-  labelHint: 'mt-2 text-[14px] font-normal text-[var(--pl-text-faint)]',
-
-  /** Bare row list on the panel — rows carry their own hairline divider, no card
-   *  wrap (owner Figma nodes 121-74 / 121-311). Top margin clears the heading. */
-  list: 'mt-5 flex flex-col',
-  /** Job list — capped and self-scrolling. The drawer has no bounded height (the
-   *  page grows with it), so 21 unfolded rows would stretch the content row and
-   *  push the flow cards out of view; the cap keeps the panel inside one screen. */
-  jobList: 'mt-4 flex flex-col max-h-[420px] overflow-y-auto overscroll-contain',
-
-  /** Attempt entry — the summary row plus, while open, that attempt's body
-   *  (design-benchmark 시안 C). The hairline moved here off the row so the open
-   *  body sits inside the same entry. */
-  attemptItem: 'flex flex-col border-b border-[var(--pl-border)] last:border-b-0',
-  /** Attempt-history row — a full-width button that folds the attempt open. */
-  attemptRow: 'w-full flex items-center gap-2.5 pt-2.5 pb-[11px] text-left hover:bg-[var(--pl-gray-50)] transition-colors',
-  attemptNo: 'flex-none min-w-[26px] text-[14px] font-semibold text-[var(--pl-text-strong)] tabular-nums tracking-[-0.196px]',
-  /** Fold marker — the raw-response fold's grammar (▼ flips up when open); the
-   *  open tone is `primary`, not the fold's `info`, which reads 3.24:1 here. */
-  attemptChev: 'ml-auto flex-none text-[10px] leading-none text-[var(--pl-text-weak)] transition-transform',
-  attemptChevOpen: 'rotate-180 text-[var(--pl-primary)]',
-  /** Open attempt body — the sections that used to be a replaced screen. */
-  attemptBody: 'flex flex-col gap-6 pb-5',
+  /** Job list — takes the panel's leftover height and scrolls inside itself, so
+   *  the panel never has to (owner 2026-08-16: "패널 자체의 스크롤을 내리는 일은
+   *  없었으면"). Needs a bounded ancestor chain: the drawer body is `min-h-0` and
+   *  the page column is capped to the viewport (`layout.contentDetail`).
+   *  The floor that keeps three rows on screen lives on the section (Section
+   *  `grow`), not here — this box just takes whatever is left of it. */
+  jobList: 'mt-4 flex flex-col flex-1 min-h-0 overflow-y-auto overscroll-contain',
 
   /** Job status filter (design-benchmark 2026-08-15 시안 A) — the rollup line that
    *  only *read* "1 실패 · 2 성공", promoted to the control that narrows the list.
    *  Metrics are `pipelineStyles.seg` (the segmented toggle this page already
    *  uses): container p1 gap1 r8 on a card face, buttons px3 py1 r6 14px, active
    *  = gray-900 fill. The count suffix borrows `tqStyles.segLg.count` — but weak,
-   *  not that component's faint, which reads 2.5:1 against this panel. */
-  filter: 'mt-4 inline-flex items-center gap-1 flex-wrap p-1 rounded-lg bg-[var(--pl-bg-card)] border border-[var(--pl-border)]',
+   *  not that component's faint, which reads 2.5:1 against this panel.
+   *  The attempt picker (owner 2026-08-16) reuses the same three tokens, so the
+   *  top margin belongs to the Job 현황 call site, not to the container. */
+  filter: 'inline-flex items-center gap-1 flex-wrap p-1 rounded-lg bg-[var(--pl-bg-card)] border border-[var(--pl-border)]',
   filterBtn: 'inline-flex items-center gap-1.5 px-3 py-1 rounded-md text-[14px] cursor-pointer transition-colors',
   filterIdle: 'text-[var(--pl-text-weak)] hover:text-[var(--pl-text-medium)]',
   filterActive: 'bg-[var(--pl-gray-900)] text-[var(--pl-white)] font-medium',
@@ -115,11 +99,11 @@ export const jobStyles = {
    *  text is in the log viewer. */
   jobFailReason: '-mt-1.5 pb-3 text-[14px] leading-[1.6] text-[var(--pl-err-text)] break-words line-clamp-2',
   jobId: 'text-[13px] font-bold text-[var(--pl-text-strong)] [font-family:var(--pl-font-mono)] tabular-nums tracking-[-0.196px]',
-  /** Raw-response fold (owner Figma node 121-389) — 16px SemiBold heading led by
-   *  a ▼ triangle (gray) that flips up + sky-blue when open; the raw dispatch
-   *  response sits in an inset mono code box. Not parsed. */
+  /** Raw-response fold (owner Figma node 121-389) — a ▼ triangle (gray) that flips
+   *  up + sky-blue when open; the raw dispatch response sits in an inset mono code
+   *  box. Not parsed. The summary line itself is `drawer.foldSummary`, shared with
+   *  the other two folds in the body. */
   respFold: 'group',
-  respSummary: 'flex items-center gap-1.5 cursor-pointer list-none text-[16px] font-semibold text-[var(--pl-text-strong)] tracking-[-0.196px] [&::-webkit-details-marker]:hidden select-none',
   respTri: 'inline-block text-[10px] leading-none text-[var(--pl-text-weak)] transition-transform group-open:rotate-180 group-open:text-[var(--pl-info)]',
   respPre: 'mt-3 ml-[18px] rounded-[6px] bg-[var(--pl-gray-50)] border border-[var(--pl-border)] px-[15px] py-[13px] text-[11px] leading-[1.4] text-[var(--pl-text-medium)] [font-family:var(--pl-font-mono)] whitespace-pre-wrap break-all',
 

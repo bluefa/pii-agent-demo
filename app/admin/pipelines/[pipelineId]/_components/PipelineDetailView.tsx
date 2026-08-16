@@ -641,7 +641,6 @@ export function PipelineDetailView(): ReactElement {
             <TaskDrawer
               key={selected.task_id}
               onClose={() => setSelected(null)}
-              task={selected}
               detail={selectedDetail}
               detailLoaded={detailMap.has(selected.task_id)}
               displayName={resolveName(selected)}

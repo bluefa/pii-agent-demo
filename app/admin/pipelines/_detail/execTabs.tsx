@@ -5,18 +5,14 @@
  */
 import { useState, type ReactElement } from 'react';
 import { cn } from '@/lib/theme';
-import { PipelineStatusBadge } from '@/app/admin/pipelines/_detail/PipelineStatusBadge';
 import { fmtDateTime, KIND_POLICY, statusKo } from '@/lib/pipeline/format';
 import { AttemptDetail } from '@/app/admin/pipelines/_detail/AttemptDetail';
-import { JobStatus } from '@/app/admin/pipelines/_detail/JobStatus';
 import type { JobVerdict } from '@/app/admin/pipelines/_detail/jobRows';
 import {
   attemptWindow,
   conditionVerdict,
   d,
-  FailureCause,
   j,
-  MiniPill,
   OperatorDescription,
   Section,
   type ViewerTarget,
@@ -73,14 +69,12 @@ export function TerraformExec({
   onOpenViewer: (t: ViewerTarget) => void;
   onOpenFailure: (attemptNumber: number, cause: string) => void;
 }): ReactElement {
-  // One attempt open at a time — two attempts of 21 jobs each would otherwise
-  // make the panel scroll for the rest of the afternoon (시안 C).
-  const [openAttempt, setOpenAttempt] = useState<number | null>(null);
-  // Attempts arrive oldest-first — the root speaks for the latest one.
-  const latest = detail.attempts.length > 0 ? detail.attempts[detail.attempts.length - 1] : null;
-  const hasJobs = latest
-    ? (latest.job_states?.length ?? 0) + (latest.terraform_results?.length ?? 0) > 0
-    : false;
+  // Attempts arrive oldest-first; the panel opens on the newest one and the
+  // picker below switches which one the body belongs to (owner 2026-08-16 —
+  // the older attempts' jobs used to be two clicks deep in a fold nobody found).
+  const attempts = [...detail.attempts].reverse();
+  const [picked, setPicked] = useState<number | null>(null);
+  const current = attempts.find((a) => a.attempt_number === picked) ?? attempts[0] ?? null;
   return (
     <>
       <OperatorDescription detail={detail} />
@@ -92,79 +86,54 @@ export function TerraformExec({
           <>
             {/* Attempts actually made (attempts.length), not the failure count — a
                 task that succeeded on the first run has fail_count 0 but 1 attempt. */}
-            시도 {detail.attempts.length}/{detail.effective_max_fail_count}회
-            {/* The LATEST attempt's window (시안 C). Only from the second attempt on:
-                with a single attempt this is the same span the flow card already
-                prints, and the card's values are never repeated here. */}
-            {latest && detail.attempts.length > 1 ? ` · ${attemptWindow(latest)}` : ''}
+            시도 {attempts.length}/{detail.effective_max_fail_count}회
+            {/* The SELECTED attempt's window, from the second attempt on: with a
+                single attempt this is the same span the flow card already prints,
+                and the card's values are never repeated here (2차 라운드 rule). */}
+            {attempts.length > 1 && current ? ` · ${attemptWindow(current)}` : ''}
             {detail.next_check_at ? ` · 다음 확인 ${fmtDateTime(detail.next_check_at)}` : ''}
           </>
         }
       />
 
-      {latest && hasJobs && (
-        <JobStatus
-          attempt={latest}
-          operation={detail.operation}
-          hint={detail.attempts.length > 1 ? `최신 시도 #${latest.attempt_number} 기준` : undefined}
-          onOpenJob={(jobId) => onOpenViewer({ attemptNumber: latest.attempt_number, jobId })}
-        />
-      )}
-      {/* No job row means no log viewer to reach — then `failure_detail` is the only
-          cause the client has, so it takes the Job 현황 slot instead. */}
-      {latest && !hasJobs && latest.status === 'FAILED' && (
-        <FailureCause
-          attempt={latest}
-          onOpenFailure={(cause) => onOpenFailure(latest.attempt_number, cause)}
-        />
+      {attempts.length > 1 && (
+        <div className="flex items-center gap-2.5">
+          <span className={d.kvKey}>시도</span>
+          {/* Same segmented grammar as the Job 상태 필터 right below it: the dot is
+              the attempt's own verdict, so which run failed reads without opening. */}
+          <div className={j.filter} role="group" aria-label="시도 선택">
+            {attempts.map((a) => {
+              const on = a.attempt_number === current?.attempt_number;
+              return (
+                <button
+                  key={a.attempt_number}
+                  type="button"
+                  aria-pressed={on}
+                  className={cn(j.filterBtn, on ? j.filterActive : j.filterIdle)}
+                  onClick={() => setPicked(a.attempt_number)}
+                >
+                  <span
+                    className={cn(j.filterDot, j.verdictDot[STATUS_TONE[a.status]])}
+                    aria-hidden="true"
+                  />
+                  #{a.attempt_number}
+                </button>
+              );
+            })}
+          </div>
+        </div>
       )}
 
-      {/* Demoted to the supporting tier (시안 C): the verdict already said how many
-          attempts there were, and the Job 현황 above is what the operator opened
-          the panel for. The hint only earns its line once there are rows to compare. */}
-      <Section
-        label="시도 이력"
-        sub
-        hint={detail.attempts.length > 1 ? '행을 눌러서 그 시도의 Job과 응답을 펼칠 수 있습니다.' : undefined}
-      >
-        {detail.attempts.length === 0 ? (
-          <div className={d.empty}>아직 시도 없음</div>
-        ) : (
-        <div className={j.list}>
-          {[...detail.attempts].reverse().map((a) => {
-            const open = a.attempt_number === openAttempt;
-            return (
-              <div key={a.attempt_number} className={j.attemptItem}>
-                <button
-                  type="button"
-                  className={j.attemptRow}
-                  aria-expanded={open}
-                  onClick={() => setOpenAttempt(open ? null : a.attempt_number)}
-                >
-                  <span className={j.attemptNo}>#{a.attempt_number}</span>
-                  <PipelineStatusBadge status={a.status} size="mini" />
-                  {a.error_code && <MiniPill tone="failed">{a.error_code}</MiniPill>}
-                  <span className={cn(j.attemptChev, open && j.attemptChevOpen)} aria-hidden="true">
-                    ▼
-                  </span>
-                </button>
-                {open && (
-                  <div className={j.attemptBody}>
-                    <AttemptDetail
-                      attempt={a}
-                      operation={detail.operation}
-                      jobsShownAbove={a.attempt_number === latest?.attempt_number && hasJobs}
-                      onOpenViewer={onOpenViewer}
-                      onOpenFailure={(cause) => onOpenFailure(a.attempt_number, cause)}
-                    />
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-        )}
-      </Section>
+      {current ? (
+        <AttemptDetail
+          attempt={current}
+          operation={detail.operation}
+          onOpenViewer={onOpenViewer}
+          onOpenFailure={(cause) => onOpenFailure(current.attempt_number, cause)}
+        />
+      ) : (
+        <div className={d.empty}>아직 시도 없음</div>
+      )}
     </>
   );
 }

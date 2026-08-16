@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { AttemptDetail } from '@/app/admin/pipelines/_detail/AttemptDetail';
+import { attemptWindow } from '@/app/admin/pipelines/_detail/taskDrawerShared';
 import type { TaskAttemptView, TerraformJobStateSummary } from '@/lib/pipeline/types';
 
 const noop = vi.fn();
@@ -76,22 +77,28 @@ describe('AttemptDetail — failure cause when there are no job rows', () => {
 });
 
 // 시안 C — one run line in the card's duration grammar, not a second one ("5m 0s").
-describe('AttemptDetail — run window', () => {
+// The line itself moved to the verdict hero (owner 2026-08-16), and only renders
+// there from the second attempt on, so what is left to pin is the grammar.
+describe('attemptWindow — run window', () => {
   it('drops the repeated date and writes the duration like the card does', () => {
     // 5s apart — fmtElapsedMs says "5초" where spanLabel used to say "5s".
-    const out = html(attempt());
-    expect(out).toContain('2026-07-13 09:00 → 09:00 · 5초');
+    expect(attemptWindow(attempt())).toBe('2026-07-13 09:00 → 09:00 · 5초');
   });
 
   it('keeps the date on the end when the attempt crosses midnight', () => {
-    const out = html(attempt({ started_at: '2026-07-13T14:50:00Z', finished_at: '2026-07-13T15:10:00Z' }));
-    expect(out).toContain('2026-07-13 23:50 → 2026-07-14 00:10 · 20분');
+    const a = attempt({ started_at: '2026-07-13T14:50:00Z', finished_at: '2026-07-13T15:10:00Z' });
+    expect(attemptWindow(a)).toBe('2026-07-13 23:50 → 2026-07-14 00:10 · 20분');
   });
 
   it('states no duration while the attempt is still running', () => {
-    const out = html(attempt({ status: 'IN_PROGRESS', error_code: null, finished_at: null }));
-    expect(out).toContain('2026-07-13 09:00 → -');
-    expect(out).not.toContain(' · ');
+    const a = attempt({ status: 'IN_PROGRESS', error_code: null, finished_at: null });
+    expect(attemptWindow(a)).toBe('2026-07-13 09:00 → -');
+  });
+
+  // The attempt body is always open now, so a single-attempt task would print the
+  // flow card's own two timestamps a second time if this line rendered there.
+  it('is not printed by the attempt body itself', () => {
+    expect(html(attempt())).not.toContain('2026-07-13 09:00 → 09:00');
   });
 });
 
