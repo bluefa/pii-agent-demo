@@ -176,6 +176,8 @@ export default function RequestDetailPage(): ReactElement {
   // 부정형(!== 'PENDING')이면 값이 빠졌거나 아직 모르는 상태(RESET 등)가 전부
   // '결정됨'으로 넘어가 승인/반려 CTA 가 사라진 막다른 화면이 된다.
   const decided = detail != null && isDecidedStatus(detail.request.status);
+  // 상단 알림과 표(배지·'확인 필요' 필터)가 같은 목록을 봐야 하므로 한 번만 센다.
+  const duplicatePairs = findDuplicateAddressPairs(resources);
   const backToList = (): void => router.push(passRoutes.pipelines.queue.requests);
 
   // A failed submit keeps the modal open (it resets its own submitting flag) and
@@ -327,7 +329,10 @@ export default function RequestDetailPage(): ReactElement {
               {/* 아직 결정하지 않은 요청에만 세운다 — 이미 승인·반려된 요청에서는
                   관리자가 할 수 있는 일이 없고, 그 화면의 대상 목록은 worklist 가
                   아니라 기록이다(위 details 분기). */}
-              <DuplicateAddressNotice pairs={findDuplicateAddressPairs(resources)} />
+              <DuplicateAddressNotice
+                pairs={duplicatePairs}
+                onShowInTable={() => list.patchQuery({ filter: 'suspect' })}
+              />
               {/* No card around it. The tiles are cards and the toolbar·table·pager carry
                   their own connected frame, so an outer surface only nested a card in a card
                   and spent 48px of table width on doubled padding. */}
@@ -335,6 +340,7 @@ export default function RequestDetailPage(): ReactElement {
                 resources={resources}
                 isIdc={isIdc}
                 list={list}
+                duplicatePairs={duplicatePairs}
                 // decided 는 허용 목록이라 '모르는 상태'는 대기로 떨어진다.
                 // 그 경우 CTA 는 남기되(막다른 화면 방지) NLB 편집은 잠근다 —
                 // 상태를 모르는 요청에 리소스 변경을 열어 줄 이유는 없다.

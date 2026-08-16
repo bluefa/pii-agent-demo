@@ -13,13 +13,20 @@
  * 주소이므로(IdcResourceTable), 이름으로 부르면 관리자가 표에서 찾을 수 없다.
  */
 import type { ReactElement } from 'react';
+import { idcStyles } from '@/lib/theme';
 import type { DuplicateAddressPair } from '@/app/admin/pipelines/queue/requests/_duplicateAddress';
 
 export interface DuplicateAddressNoticeProps {
-  pairs: DuplicateAddressPair[];
+  pairs: readonly DuplicateAddressPair[];
+  /** 표를 '확인 필요'로 좁힌다 — 그 뷰에서만 짝끼리 나란히 서기 때문에, 알림에서 표로
+   *  건너가는 길이 곧 두 행을 한 화면에 모으는 유일한 방법이다. */
+  onShowInTable?: () => void;
 }
 
-export function DuplicateAddressNotice({ pairs }: DuplicateAddressNoticeProps): ReactElement | null {
+export function DuplicateAddressNotice({
+  pairs,
+  onShowInTable,
+}: DuplicateAddressNoticeProps): ReactElement | null {
   if (pairs.length === 0) return null;
   // 주소를 여러 개 등록한 항목이 끼어 있으면 표에서 접혀 있을 수 있다 — 그때만 괄호
   // 숫자의 뜻을 밝힌다. 해당 없는 요청에까지 설명을 달면 읽을 게 하나 늘 뿐이다.
@@ -46,6 +53,8 @@ export function DuplicateAddressNotice({ pairs }: DuplicateAddressNoticeProps): 
               key={`${pair.a.address}|${pair.b.address}|${pair.databaseType}|${pair.port}`}
               className="flex flex-wrap items-baseline gap-x-2 gap-y-1"
             >
+              {/* 표의 두 행에 붙는 것과 같은 이름 — 알림에서 읽은 쌍을 표에서 되찾는 열쇠다. */}
+              <span className={idcStyles.checkBadge}>{pair.label}</span>
               <SuspectAddressText address={pair.a.address} addressCount={pair.a.addressCount} />
               <span className="text-[12px] text-[var(--pl-text-weak)]">↔</span>
               <SuspectAddressText address={pair.b.address} addressCount={pair.b.addressCount} />
@@ -57,12 +66,19 @@ export function DuplicateAddressNotice({ pairs }: DuplicateAddressNoticeProps): 
             </li>
           ))}
         </ul>
+        {onShowInTable && (
+          <button
+            type="button"
+            onClick={onShowInTable}
+            className="mt-3 inline-flex items-center rounded-md border border-[var(--pl-warn)] bg-[var(--pl-bg-card)] px-3 py-1.5 text-[12px] font-semibold text-[var(--pl-warn-text)] transition-colors hover:bg-[var(--pl-warn-bg)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--pl-warn)]"
+          >
+            아래 표에서 나란히 보기
+          </button>
+        )}
         {hasMultiAddressRow && (
           <p className="mt-2 text-[12px] leading-[1.5] text-[var(--pl-text-weak)]">
-            {/* 표의 토글 문구는 'IP 7개 더보기'처럼 개수가 박혀 나오므로 그대로 인용하지
-                않는다 — 없는 라벨을 찾게 만든다. */}
-            괄호 안 숫자는 그 항목이 등록한 접속 주소 개수예요. 아래 표에는 첫 주소만 보이니,
-            접속 주소 칸의 더보기 버튼을 눌러 나머지를 펼쳐 주세요.
+            괄호 안 숫자는 그 항목이 등록한 접속 주소 개수예요. 아래 표에는 그중 첫 주소만
+            보이지만, 위 버튼을 누르면 여기 적힌 주소까지 펼쳐서 짝과 나란히 보여줘요.
           </p>
         )}
       </div>

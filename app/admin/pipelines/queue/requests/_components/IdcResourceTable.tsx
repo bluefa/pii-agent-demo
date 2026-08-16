@@ -17,7 +17,7 @@
  */
 'use client';
 
-import type { ReactElement } from 'react';
+import { Fragment, type ReactElement } from 'react';
 import { cn, idcStyles, textColors, verdictRailClass } from '@/lib/theme';
 import { getDatabaseShortLabel } from '@/app/components/ui/DatabaseIcon';
 import {
@@ -35,6 +35,7 @@ import {
   IdcEndpointCell,
   IdcSourceIpCell,
 } from '@/app/admin/pipelines/queue/requests/_components/idcCells';
+import type { SuspectMark } from '@/app/admin/pipelines/queue/requests/_duplicateAddress';
 import { idcAddressKind } from '@/app/lib/api/task-queue-requests';
 import type { RequestResourceRow } from '@/app/lib/api/task-queue-requests';
 
@@ -47,6 +48,36 @@ export interface IdcResourceTableProps {
   onAssignNlb: (row: RequestResourceRow) => void;
   /** Open ServiceAssignmentModal for this resource. */
   onShowServices: (row: RequestResourceRow) => void;
+  /** 행 → '같은 DB 의심' 표시 (@see _duplicateAddress). 없으면 표시가 서지 않는다. */
+  suspectMarks?: ReadonlyMap<RequestResourceRow, SuspectMark>;
+  /**
+   * 쌍끼리 붙여 세운 목록인가 ('확인 필요'로 좁혀 본 경우). 그때만 쌍 머리글 행을 끼워
+   * 두 행을 하나로 묶는다 — 기본 목록에서는 짝이 서로 옆에 있다는 보장이 없으므로
+   * 머리글이 무엇을 여는지 말할 수 없다.
+   */
+  grouped?: boolean;
+}
+
+/** 이 표의 열 수 — 쌍 머리글이 가로지를 폭. 위 thead 의 `<th>` 개수와 같이 움직인다. */
+const COLUMN_COUNT = 8;
+
+/** 쌍 머리글 — colSpan 으로 표 폭을 가로질러, 아래 두 행이 한 질문임을 연다. */
+function SuspectGroupHead({ label, columns }: { label: string; columns: number }): ReactElement {
+  return (
+    <tr>
+      <td
+        colSpan={columns}
+        className="bg-[var(--pl-warn-bg)] px-[18px] py-2"
+      >
+        <span className="inline-flex items-baseline gap-2">
+          <span className={idcStyles.checkBadge}>확인 필요 {label}</span>
+          <span className="text-[12px] font-medium text-[var(--pl-warn-text)]">
+            아래 두 항목이 같은 데이터베이스일 수 있어요
+          </span>
+        </span>
+      </td>
+    </tr>
+  );
 }
 
 // A text button, not a control cluster: opening the assignment is one act, and the
@@ -62,6 +93,8 @@ export function IdcResourceTable({
   disabled = false,
   onAssignNlb,
   onShowServices,
+  suspectMarks,
+  grouped = false,
 }: IdcResourceTableProps): ReactElement {
   const { table } = idcStyles;
 
@@ -125,10 +158,21 @@ export function IdcResourceTable({
             // unique — one host can carry MySQL:3306 and Oracle:1521 — so the fallback
             // spells out the whole identity, with the index as the last resort for a row
             // that has none (an excluded row carries no connect targets).
+            // `grouped` 를 키에 섞는다: 뷰가 바뀌면 행이 다시 마운트돼야 접속 주소 셀이
+            // '걸린 주소가 접혀 있으면 펼친 채로 연다'를 다시 판단한다. 키가 같으면 그
+            // 판단은 최초 마운트 때 한 번으로 굳는다.
             const rowKey =
-              row.resourceId ??
-              `${row.connectTargets.join('|')}|${row.port ?? ''}|${row.databaseType ?? ''}|${index}`;
+              (grouped ? 'suspect|' : '') +
+              (row.resourceId ??
+                `${row.connectTargets.join('|')}|${row.port ?? ''}|${row.databaseType ?? ''}|${index}`);
             const dbLabel = row.databaseType ? getDatabaseShortLabel(row.databaseType) : '';
+            const mark = suspectMarks?.get(row);
+            // 쌍 머리글은 그 쌍의 첫 행에만 선다. 앞 행의 첫 이름과 다르면 새 쌍이 열린
+            // 것이다 — 목록이 쌍 순서로 세워져 있다는 전제(grouped) 아래에서만 성립한다.
+            const previousLabel =
+              index > 0 ? suspectMarks?.get(rows[index - 1])?.labels[0] : undefined;
+            const groupHead =
+              grouped && mark != null && mark.labels[0] !== previousLabel ? mark.labels[0] : null;
             if (!row.selected) {
               return (
                 <tr key={rowKey} className={cn(ROW_BASE, ROW_EXCLUDED)}>
@@ -187,9 +231,17 @@ export function IdcResourceTable({
 
 
             return (
-              <tr key={rowKey} className={cn(ROW_BASE, ROW_TARGET)}>
+              <Fragment key={rowKey}>
+              {groupHead != null && <SuspectGroupHead label={groupHead} columns={COLUMN_COUNT} />}
+              <tr className={cn(ROW_BASE, ROW_TARGET)}>
                 <td className={table.approvalCell}>
-                  <IdcEndpointCell hosts={row.connectTargets} kind={idcAddressKind(row)} />
+                  <IdcEndpointCell
+                    hosts={row.connectTargets}
+                    kind={idcAddressKind(row)}
+                    suspectLabels={mark?.labels}
+                    suspectAddresses={mark?.addresses}
+                    revealSuspectAddress={grouped}
+                  />
                 </td>
                 <td className={table.approvalCell}>
                   <IdcDbTypeCell label={dbLabel} oracleSid={row.oracleSid} />
@@ -239,6 +291,7 @@ export function IdcResourceTable({
                 {/* 제외 사유 — a target row has none. */}
                 <td className={table.approvalCell} />
               </tr>
+              </Fragment>
             );
           })}
         </tbody>

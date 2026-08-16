@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import type { RequestResourceRow } from '@/app/lib/api/task-queue-requests';
-import { findDuplicateAddressPairs } from '@/app/admin/pipelines/queue/requests/_duplicateAddress';
+import {
+  findDuplicateAddressPairs,
+  suspectMarksByRow,
+  suspectRowsInPairOrder,
+} from '@/app/admin/pipelines/queue/requests/_duplicateAddress';
 
 const row = (over: Partial<RequestResourceRow>): RequestResourceRow => ({
   resourceId: 'idc-r-1',
@@ -130,5 +134,71 @@ describe('findDuplicateAddressPairs', () => {
       row({ resourceId: 'b', port: null, connectTargets: ['10.20.1.12'] }),
     ]);
     expect(pairs).toEqual([]);
+  });
+
+  it('쌍마다 A·B… 이름을 붙인다', () => {
+    const pairs = findDuplicateAddressPairs([
+      row({ resourceId: 'a', connectTargets: ['10.20.1.11'] }),
+      row({ resourceId: 'b', connectTargets: ['10.20.1.12'] }),
+      row({ resourceId: 'c', connectTargets: ['10.20.5.41'] }),
+      row({ resourceId: 'd', connectTargets: ['10.20.5.42'] }),
+    ]);
+    expect(pairs.map((p) => p.label)).toEqual(['A', 'B']);
+  });
+});
+
+describe('suspectMarksByRow', () => {
+  it('두 쌍에 걸친 행은 이름을 둘 다 가진다', () => {
+    const rows = [
+      row({ resourceId: 'a', connectTargets: ['10.20.1.11'] }),
+      row({ resourceId: 'b', connectTargets: ['10.20.1.12'] }),
+      row({ resourceId: 'c', connectTargets: ['10.20.1.13'] }),
+    ];
+    const marks = suspectMarksByRow(findDuplicateAddressPairs(rows));
+    expect(marks.get(rows[0])?.labels).toEqual(['A']);
+    expect(marks.get(rows[1])?.labels).toEqual(['A', 'B']);
+    expect(marks.get(rows[2])?.labels).toEqual(['B']);
+  });
+
+  it('걸린 주소만 짚는다 — IP Set 의 나머지는 아니다', () => {
+    const rows = [
+      row({ resourceId: 'a', connectTargets: ['10.20.1.11', '10.20.1.12', '10.20.1.13'] }),
+      row({ resourceId: 'b', connectTargets: ['10.20.1.14'] }),
+    ];
+    const marks = suspectMarksByRow(findDuplicateAddressPairs(rows));
+    expect(marks.get(rows[0])?.addresses).toEqual(['10.20.1.13']);
+    expect(marks.get(rows[1])?.addresses).toEqual(['10.20.1.14']);
+  });
+
+  it('의심되지 않는 행은 키가 없다', () => {
+    const rows = [
+      row({ resourceId: 'a', connectTargets: ['10.20.1.11'] }),
+      row({ resourceId: 'b', connectTargets: ['10.20.1.12'] }),
+      row({ resourceId: 'c', connectTargets: ['10.20.9.99'] }),
+    ];
+    const marks = suspectMarksByRow(findDuplicateAddressPairs(rows));
+    expect(marks.has(rows[2])).toBe(false);
+  });
+});
+
+describe('suspectRowsInPairOrder', () => {
+  it('쌍끼리 붙여 세우고, 두 쌍에 걸친 행은 한 번만 넣는다', () => {
+    const rows = [
+      row({ resourceId: 'a', connectTargets: ['10.20.1.11'] }),
+      row({ resourceId: 'b', connectTargets: ['10.20.1.12'] }),
+      row({ resourceId: 'c', connectTargets: ['10.20.1.13'] }),
+    ];
+    const ordered = suspectRowsInPairOrder(findDuplicateAddressPairs(rows));
+    expect(ordered).toEqual([rows[0], rows[1], rows[2]]);
+  });
+
+  it('멀리 떨어진 짝을 서로 옆으로 데려온다', () => {
+    const rows = [
+      row({ resourceId: 'a', connectTargets: ['10.20.1.11'] }),
+      row({ resourceId: 'x', databaseType: 'MySQL', port: 3306, connectTargets: ['10.20.7.70'] }),
+      row({ resourceId: 'b', connectTargets: ['10.20.1.12'] }),
+    ];
+    const ordered = suspectRowsInPairOrder(findDuplicateAddressPairs(rows));
+    expect(ordered).toEqual([rows[0], rows[2]]);
   });
 });

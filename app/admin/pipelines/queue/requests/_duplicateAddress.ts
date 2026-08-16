@@ -19,18 +19,31 @@ import type { RequestResourceRow } from '@/app/lib/api/task-queue-requests';
 
 /** 인접 쌍의 한쪽. 표는 행을 이름이 아니라 접속 주소로 가리키므로, 경고도 주소로 가리킨다. */
 export interface SuspectAddress {
+  /** 이 주소를 등록한 행 그 자체. 표에 배지를 다는 쪽이 인덱스로 되찾지 않도록 참조를 들고
+   *  다닌다 — 목록은 필터·정렬·페이지를 거치지만 행 객체는 복제되지 않는다. */
+  row: RequestResourceRow;
   address: string;
   /** 이 주소가 속한 행이 가진 주소 개수. 1보다 크면 표에서 접혀 있을 수 있다. */
   addressCount: number;
 }
 
 export interface DuplicateAddressPair {
+  /**
+   * 쌍의 이름 — 'A', 'B' …. 표에 흩어져 선 두 행이 서로의 짝임을 말하는 유일한 채널이라
+   * (계약 순서대로 서고 10건씩 페이지가 갈리므로 두 행은 붙어 있지 않다) 순수 층에서
+   * 배정한다. 27번째부터는 글자가 없어 번호로 넘어간다.
+   */
+  label: string;
   a: SuspectAddress;
   b: SuspectAddress;
   /** 두 행이 공유하는 값 — 이게 같아서 의심하는 것이므로 경고에 함께 적는다. */
   databaseType: string;
   port: number;
 }
+
+const LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+const pairLabel = (index: number): string =>
+  index < LETTERS.length ? LETTERS[index] : String(index + 1);
 
 interface Ipv4 {
   /** 앞 세 자리 ('10.20.1') — 같은 대역인지 판정하는 키. */
@@ -97,12 +110,68 @@ export function findDuplicateAddressPairs(
       const hit = adjacentPair(left.connectTargets, right.connectTargets);
       if (hit === null) continue;
       pairs.push({
-        a: { address: hit[0], addressCount: left.connectTargets.length },
-        b: { address: hit[1], addressCount: right.connectTargets.length },
+        label: pairLabel(pairs.length),
+        a: { row: left, address: hit[0], addressCount: left.connectTargets.length },
+        b: { row: right, address: hit[1], addressCount: right.connectTargets.length },
         databaseType: left.databaseType ?? '',
         port: left.port ?? 0,
       });
     }
   }
   return pairs;
+}
+
+/** 한 행에 붙는 표시 — 어느 쌍에 속하는지, 그리고 그 쌍을 만든 주소가 어느 것인지. */
+export interface SuspectMark {
+  /** 이 행이 속한 쌍 이름들. 한 행이 두 쌍에 걸릴 수 있다(.18↔.19 와 .19↔.20 이면
+   *  가운데 행은 A 이자 B 다). */
+  labels: string[];
+  /**
+   * 짝과 인접한 주소들. IP Set 행은 주소를 8개까지 들고 그중 하나만 짝에 걸리는데, 표는
+   * 첫 주소만 펼쳐 두므로 걸린 주소가 접혀 있을 수 있다 — 어느 주소를 두고 하는 말인지
+   * 표에서 짚으려면 이 목록이 필요하다.
+   */
+  addresses: string[];
+}
+
+/**
+ * 행 → 표시. 행 객체를 키로 쓴다 — 목록은 필터·페이지를 거치지만 같은 참조가 그대로 흐른다.
+ */
+export function suspectMarksByRow(
+  pairs: readonly DuplicateAddressPair[],
+): Map<RequestResourceRow, SuspectMark> {
+  const marks = new Map<RequestResourceRow, SuspectMark>();
+  for (const pair of pairs) {
+    for (const side of [pair.a, pair.b]) {
+      const mark = marks.get(side.row);
+      if (mark == null) {
+        marks.set(side.row, { labels: [pair.label], addresses: [side.address] });
+        continue;
+      }
+      mark.labels.push(pair.label);
+      if (!mark.addresses.includes(side.address)) mark.addresses.push(side.address);
+    }
+  }
+  return marks;
+}
+
+/**
+ * 의심 행만, 쌍끼리 붙여 세운 순서. '확인 필요'로 좁혀 볼 때 두 행이 나란히 서야
+ * 묶음으로 읽힌다 — 기본 목록의 계약 순서는 건드리지 않고, 이 뷰에서만 다시 세운다.
+ *
+ * 두 쌍에 걸친 행은 먼저 만난 쌍에 선다(한 번만 등장한다).
+ */
+export function suspectRowsInPairOrder(
+  pairs: readonly DuplicateAddressPair[],
+): RequestResourceRow[] {
+  const ordered: RequestResourceRow[] = [];
+  const seen = new Set<RequestResourceRow>();
+  for (const pair of pairs) {
+    for (const side of [pair.a, pair.b]) {
+      if (seen.has(side.row)) continue;
+      seen.add(side.row);
+      ordered.push(side.row);
+    }
+  }
+  return ordered;
 }

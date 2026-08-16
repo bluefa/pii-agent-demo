@@ -24,12 +24,19 @@ import {
   resourceCounts,
   type ResourceListState,
 } from '@/app/admin/pipelines/queue/requests/_resourceQuery';
+import {
+  suspectMarksByRow,
+  suspectRowsInPairOrder,
+  type DuplicateAddressPair,
+} from '@/app/admin/pipelines/queue/requests/_duplicateAddress';
 import type { RequestResourceRow } from '@/app/lib/api/task-queue-requests';
 
 export interface ResourceSectionProps {
   resources: readonly RequestResourceRow[];
   isIdc: boolean;
   list: ResourceListState;
+  /** 같은 DB 를 두 번 등록했을지 모르는 쌍 — 상단 알림과 같은 목록을 표에도 흘린다. */
+  duplicatePairs?: readonly DuplicateAddressPair[];
   /** Lock NLB editing: the request is no longer PENDING, so a save would 409. */
   nlbLocked: boolean;
   /** IDC only — open the NLB assignment modal over one resource. */
@@ -43,6 +50,7 @@ export function ResourceSection({
   resources,
   isIdc,
   list,
+  duplicatePairs = [],
   nlbLocked,
   onAssignNlb,
   onShowServices,
@@ -51,7 +59,14 @@ export function ResourceSection({
   const { query, patchQuery } = list;
   // Counts stay whole-request (the tiles are the split); only the table pages.
   const counts = resourceCounts(resources);
-  const filtered = queryResources(resources, query, isIdc);
+  const marks = suspectMarksByRow(duplicatePairs);
+  // 쌍 순서로 세운 목록 — '확인 필요' 뷰의 기준 배열이자, 그 필터가 통과시킬 집합.
+  const suspectRows = suspectRowsInPairOrder(duplicatePairs);
+  const grouped = query.filter === 'suspect' && suspectRows.length > 0;
+  // 좁혀 볼 때만 계약 순서를 버리고 쌍 순서로 세운다. 검색·Database Type·구분은 그 위에
+  // 그대로 얹힌다 — 필터끼리 서로를 무효로 만들지 않는다.
+  const base = grouped ? suspectRows : resources;
+  const filtered = queryResources(base, query, isIdc, new Set(suspectRows));
   const paged = pageResources(filtered, list.page, list.pageSize);
 
   return (
@@ -62,6 +77,7 @@ export function ResourceSection({
         counts={counts}
         filter={query.filter}
         onFilterChange={(next) => patchQuery({ filter: next })}
+        suspectCount={suspectRows.length}
       />
 
       <ResourceToolbar
@@ -115,6 +131,8 @@ export function ResourceSection({
             disabled={nlbLocked}
             onAssignNlb={onAssignNlb}
             onShowServices={onShowServices}
+            suspectMarks={marks}
+            grouped={grouped}
           />
         ) : (
           <CloudResourceTable rows={paged.rows} />

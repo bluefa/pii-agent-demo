@@ -1109,6 +1109,19 @@ export const idcStyles = {
     multi: `bg-[#FEF0E1] text-[#7A3F0E] ${tableRowLift.chipEdge}`,
     domain: `bg-[#EEF2FF] text-[#4338CA] ${tableRowLift.chipEdge}`,
   },
+  /**
+   * 확인 필요 배지 — 같은 데이터베이스를 두 번 등록했을지 모르는 행에 붙는다.
+   *
+   * 면을 칠하지 않는 유일한 배지다. 바로 옆에 서는 게 kindBadge 이고 그중 `multi` 가
+   * 이미 주황 면(#FEF0E1)이라, 경고를 주황 면으로 그리면 두 칩이 한 덩어리로 읽힌다.
+   * 흰 면 + stroke 는 행 hover 틴트 위에서도 대비를 잃지 않는다(chipEdge 가 푸는 문제를
+   * 애초에 만들지 않는다). 글자색 #B54708 은 --pl-warn-text 와 같은 값 — 상단 알림과
+   * 표가 같은 경고 하나를 말한다.
+   *
+   * 11.5px 은 옆의 kindBadge 와 같은 눈금이다.
+   */
+  checkBadge:
+    'inline-flex items-center gap-1 rounded-md border border-[#F79009] bg-white px-2 py-[3px] text-[11.5px] font-semibold text-[#B54708]', // design-exempt: mirrors idcStyles.kindBadge 11.5px token
   /** Inline color tag — `.tag` (4px 10px / radius 8 / 12px / 600). */
   tag: {
     base: 'inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-[12px] font-semibold tracking-[-0.01em] whitespace-nowrap',
