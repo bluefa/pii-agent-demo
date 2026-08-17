@@ -177,8 +177,8 @@ export const accessStyles = {
   /**
    * 승인 워크벤치 — 왼쪽 대기 목록, 오른쪽 고른 요청 하나.
    *
-   * 바닥이 `serviceSidebarStyles.canvas`(#F4F4FB)인 것이 이 블록의 전부다. 흰 카드는
-   * 이 제품의 기본 바닥(#F9FAFB) 위에서 ΔE00 1.20 — JND 아래라 테두리 혼자 버티고,
+   * 바닥이 `serviceSidebarStyles.canvas` 인 것이 이 블록의 전부다. 흰 카드는 이 제품의
+   * 기본 바닥(`--pl-bg-page`) 위에서 ΔE00 1.20 — JND 아래라 테두리 혼자 버티고,
    * 그게 "흰 바탕에 흰 카드"의 실제 정체다. 같은 흰 면이 캔버스 위에서는 4.12 로
    * 읽힌다(theme.ts `serviceSidebarStyles.canvas` 주석에 측정값이 있다). 카드를 덜
    * 희게 만들 수 없으면 바닥을 내린다.
