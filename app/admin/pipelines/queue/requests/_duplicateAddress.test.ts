@@ -68,6 +68,18 @@ describe('findSuspectGroups', () => {
     expect(groups[0].label).toBe('1');
   });
 
+  it('구성원은 발견 순서가 아니라 목록 순서로 선다', () => {
+    // .11 과 .13 은 서로 인접하지 않고 둘 다 .12 에만 붙는다. 첫 행에서 시작한 너비 우선
+    // 탐색은 .12 를 .13 보다 먼저 발견하므로, 정렬이 없으면 구성원이 a c b 로 나온다.
+    // 목록 순서로 세우는 행이 `found.sort` 이고, 이 입력만이 그걸 실제로 깨뜨린다.
+    const groups = findSuspectGroups([
+      row({ resourceId: 'a', connectTargets: ['10.12.123.11'] }),
+      row({ resourceId: 'b', connectTargets: ['10.12.123.13'] }),
+      row({ resourceId: 'c', connectTargets: ['10.12.123.12'] }),
+    ]);
+    expect(groups[0].members.map((member) => member.row.resourceId)).toEqual(['a', 'b', 'c']);
+  });
+
   it('그룹 번호는 목록 순서를 따라간다', () => {
     const groups = findSuspectGroups([
       row({ resourceId: 'a', connectTargets: ['10.20.1.11'] }),

@@ -594,8 +594,15 @@ const composite = (base: string, alpha: number) => {
   return `#${[r, g, b].map((v) => v.toString(16).padStart(2, '0')).join('')}`;
 };
 
-// Every chip fill that can appear inside a `tableRowLift` row. Palette steps are spelled
-// out because they arrive as `bg-gray-100`-style classes, not as arbitrary values.
+// Every chip fill that can appear inside a `tableRowLift` row AND relies on `chipEdge` to
+// survive the hover tint. Palette steps are spelled out because they arrive as
+// `bg-gray-100`-style classes, not as arbitrary values.
+//
+// `idcStyles.checkBadge` is deliberately absent: it is a row chip, but it carries a solid
+// `border-[#F79009]` instead of `chipEdge`, so the black/15 ring this list composites is not
+// what draws its edge. Registering it here would assert a geometry it does not have. Its own
+// contrast is fixed by that border, and a change to its `bg-white` fill has to be measured
+// against the border, not against the ring.
 const ROW_CHIPS: Array<[string, string]> = [
   ['kind tag', kindTagFill],
   ['RdsMemberChip (gray-100)', '#F3F4F6'],

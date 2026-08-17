@@ -9,7 +9,7 @@
  * editing in useNlbAssignment; this page owns the fetch, the approval actions and the
  * modals. 승인/반려 post to the approval endpoints, then return to the list.
  */
-import { useCallback, useState, type ReactElement } from 'react';
+import { useCallback, useMemo, useState, type ReactElement } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { passRoutes } from '@/lib/routes';
 import { useAbortableEffect } from '@/app/hooks/useAbortableEffect';
@@ -177,7 +177,13 @@ export default function RequestDetailPage(): ReactElement {
   // '결정됨'으로 넘어가 승인/반려 CTA 가 사라진 막다른 화면이 된다.
   const decided = detail != null && isDecidedStatus(detail.request.status);
   // 상단 알림과 표(배지·'확인 필요' 필터)가 같은 목록을 봐야 하므로 한 번만 센다.
-  const suspectGroups = findSuspectGroups(resources);
+  //
+  // 메모 없이는 렌더마다 다시 돈다 — 그리고 검색창은 디바운스가 없어서 한 글자가 곧 한
+  // 렌더다. 이 계산은 행 쌍마다 주소 쌍을 전부 훑으므로(O(행² × 주소²)) 40행 × IP 8개면
+  // 타건당 15ms, 100행이면 98ms 를 페인트 전에 동기로 문다. 중복이 하나도 없는 요청이
+  // 가장 비싸다: adjacentAddresses 는 걸렸을 때만 일찍 빠져나온다.
+  // `detail.resources` 는 setDetail 이 아니면 바뀌지 않는 참조라 이 의존성으로 충분하다.
+  const suspectGroups = useMemo(() => findSuspectGroups(resources), [resources]);
   const backToList = (): void => router.push(passRoutes.pipelines.queue.requests);
 
   // A failed submit keeps the modal open (it resets its own submitting flag) and
