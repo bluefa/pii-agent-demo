@@ -57,6 +57,7 @@ import {
   getMyAccessRequests,
   getServicesPage,
   getUserServices,
+  sliceToPage,
   type AccessPage,
   type AccessRequestStatus,
   type MyAccessRequest,
@@ -67,14 +68,23 @@ import {
 /**
  * 요청 가능한 서비스 = access_status 가 NONE 이거나 REJECTED 인 것.
  *
- * 거르는 일은 화면 몫이다 — 계약에 `access_status` 필터가 없다. 그래서 **서버가 준 장
- * 안에서만** 거른다. 예전에는 전체를 훑어 거른 뒤 다시 나눴는데, 서비스가 2,000 개인
- * 계정에서 그건 목록 하나가 열 몇 번의 왕복이 된다(오너 확인 2026-08-14).
+ * 거르는 일은 화면 몫이다 — 계약에 `access_status` 필터가 없다(갭 B6).
  *
- * 대가는 둘이다: 이미 권한이 있는 서비스만큼 장이 짧아지고, 배지 건수는 서버가 센
- * 전체라 걸러진 행까지 포함한다. 둘 다 서버 필터 하나면 사라지므로 계약에 올려 둔다(B6).
+ * 거른 뒤에 나눈다. 서버가 나눠 준 다섯 줄 안에서 걸렀더니 장마다 남는 수가 달랐다 —
+ * 카탈로그 20 개 기준으로 요청 가능이 3·2·2·2, 접근 가능이 2·3·2·1 이었다. 다섯 줄짜리
+ * 칸에 두세 줄이 서고, 다음 장으로 넘겨도 여전히 두세 줄이다. 한 장은 다섯 줄이어야
+ * 한다(오너 지시 2026-08-18).
+ *
+ * 08-14 에 전체 훑기를 접었던 이유는 **왕복 횟수**였다(서비스 2,059 개에서 열한 번).
+ * 그 전제가 여기서는 성립하지 않는다 — 한 번에 크게 받아 화면에서 나누므로 왕복은
+ * 한 번이다. 관리자 화면 둘(`admins`, `services/[[...code]]`)이 이미 같은 `sliceToPage`
+ * 를 쓴다.
+ *
+ * 천장: 카탈로그가 CATALOG_FETCH_SIZE 를 넘으면 넘는 만큼은 후보에 안 뜬다. 그때 답은
+ * 더 큰 수가 아니라 B6(서버 필터)다.
  */
 const REQUESTABLE = new Set(['NONE', 'REJECTED']);
+const CATALOG_FETCH_SIZE = 500;
 const SEARCH_DEBOUNCE_MS = 300;
 
 /**
@@ -227,14 +237,16 @@ export default function MyAccessRequestsPage(): ReactElement {
     return () => clearTimeout(timer);
   }, [query]);
 
-  // 서버가 나눠 준 장을 그대로 그린다. 거르기는 그 장 안에서만 한다(위 REQUESTABLE 주석).
+  // 검색은 서버가, 상태는 화면이 거른다. 한 번에 크게 받아 거른 뒤 다섯 줄씩 나눈다
+  // (위 REQUESTABLE 주석). `page` 는 걸러진 목록의 장 번호지 서버 장 번호가 아니다.
   const fetchRequestable = useCallback(
     async (page: number, opts: { signal: AbortSignal }): Promise<AccessPage<ServiceRow>> => {
-      const result = await getServicesPage(debounced || undefined, page, opts);
-      return {
-        ...result,
-        content: result.content.filter((row) => REQUESTABLE.has(row.accessStatus)),
-      };
+      const result = await getServicesPage(debounced || undefined, 0, {
+        ...opts,
+        size: CATALOG_FETCH_SIZE,
+      });
+      const rows = result.content.filter((row) => REQUESTABLE.has(row.accessStatus));
+      return sliceToPage(rows, page, ACCESS_PAGE_SIZE);
     },
     [debounced],
   );
@@ -243,11 +255,12 @@ export default function MyAccessRequestsPage(): ReactElement {
   // 전체가 오므로(role 로 통과할 뿐 담당자는 아니다) 여기서 한 번 더 거른다.
   const fetchOwned = useCallback(
     async (page: number, opts: { signal: AbortSignal }): Promise<AccessPage<UserServiceRow>> => {
-      const result = await getUserServices(debounced || undefined, page, opts);
-      return {
-        ...result,
-        content: result.content.filter((row) => row.accessStatus === 'OWNED'),
-      };
+      const result = await getUserServices(debounced || undefined, 0, {
+        ...opts,
+        size: CATALOG_FETCH_SIZE,
+      });
+      const rows = result.content.filter((row) => row.accessStatus === 'OWNED');
+      return sliceToPage(rows, page, ACCESS_PAGE_SIZE);
     },
     [debounced],
   );
@@ -328,11 +341,9 @@ export default function MyAccessRequestsPage(): ReactElement {
    * 목록 상태(`usePagedSection`)는 셋 다 이 페이지가 들고 있다. 그래서 탭을 옮겨도
    * 다시 읽지 않는다.
    *
-   * 건수는 **내 요청 내역에만** 붙는다. 서비스 두 탭의 `totalElements` 는 서버가 센
-   * 전체 서비스 수고, 목록은 그 장 안에서 `access_status` 로 걸러 그린다 — 그래서
-   * '내가 접근할 수 있는 서비스 20' 옆에 빈 목록이 서는 일이 실제로 생긴다. 걸러진
-   * 수를 서버가 세 주기 전까지는(갭 B6) 수를 말하지 않는다. 틀린 수는 없는 수보다
-   * 나쁘다.
+   * 건수는 **내 요청 내역에만** 붙는다. 서비스 두 탭도 이제는 셀 수 있다 — 거른 뒤에
+   * 나누므로 `totalElements` 가 걸러진 수다(전에는 서버가 센 전체라 '내가 접근할 수
+   * 있는 서비스 20' 옆에 빈 목록이 서곤 했다). 다만 붙일지는 별개 판단이라 그대로 둔다.
    */
   const tabs: { key: TabKey; label: string; count?: number }[] = [
     { key: 'services', label: '요청할 수 있는 서비스' },
