@@ -4,6 +4,7 @@ import { ProviderGlyphTile } from '@/app/components/features/project-create/Prov
 import type { OperatingRegion } from '@/app/components/features/project-create/wizard-model';
 import {
   PROVIDER_CHIPS,
+  hasChinaRegion,
   isCspChip,
   type ProviderChipKey,
 } from '@/lib/constants/provider-mapping';
@@ -90,8 +91,11 @@ export const Step1CloudAccount = ({
       </div>
     </fieldset>
 
-    {isCspChip(providerKey) && (
-      <fieldset className="border-0 p-0">
+    {/* GCP has no China partition, so it is never asked — a radio pair whose answer is
+        fixed is not a choice. The 안내 line below stays on every CSP, though: it is
+        about the whole form, not about the region. */}
+    {hasChinaRegion(providerKey) && (
+      <fieldset className="mb-1.5 border-0 p-0">
         <legend className={cn('mb-2 block text-sm font-semibold', textColors.secondary)}>
           운영 리전 <span className={statusColors.error.text}>*</span>
         </legend>
@@ -149,11 +153,14 @@ export const Step1CloudAccount = ({
             );
           })}
         </div>
-        <p className={cn('mt-1.5 max-w-[520px] text-xs', textColors.tertiary)}>
-          입력하신 내용을 바탕으로 알맞은 연동 구성을 안내해 드려요. 「등록 내용 확인」 단계에서 확인할 수
-          있어요.
-        </p>
       </fieldset>
+    )}
+
+    {isCspChip(providerKey) && (
+      <p className={cn('max-w-[520px] text-xs', textColors.tertiary)}>
+        입력하신 내용을 바탕으로 알맞은 연동 구성을 안내해 드려요. 「등록 내용 확인」 단계에서 확인할 수
+        있어요.
+      </p>
     )}
   </div>
 );
