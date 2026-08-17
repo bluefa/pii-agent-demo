@@ -82,9 +82,20 @@ export const accessStyles = {
 
   headRow: 'mt-3 flex items-center gap-3 py-2 text-[12px] font-medium text-[var(--pl-text-weak)]',
   row: 'group relative flex items-center gap-3 border-t border-[var(--pl-border)] py-2.5 text-[14px] text-[var(--pl-text-medium)] transition-colors',
-  /** 접히는 칸이 있는 표의 행 — 사유가 두 줄이 되면 나머지 칸은 첫 줄에 맞춰 선다.
-   *  `cn` 으로 items-start 를 덧씌우지 않고 따로 선언한다(단순 join 이라 출력 순서가 이긴다). */
-  rowTop: 'group relative flex items-start gap-3 border-t border-[var(--pl-border)] py-2.5 text-[14px] text-[var(--pl-text-medium)] transition-colors',
+  /** 접히는 칸이 있는 표의 본문 — 구분선을 행이 아니라 **여기서** 긋는다(오너 지시
+   *  2026-08-17, 리소스 표와 같은 문법: `tableStyles.body`).
+   *
+   *  행마다 `border-t` 를 주면 선이 행의 소유물이 되어 마지막 행 밑이 열린 채로 끝난다.
+   *  `divide-y` 는 행과 행 **사이**에만 긋고, 위아래는 이 상자가 닫는다 — 그래야 다섯
+   *  줄이 각자 자기 띠 안에 들어앉고, 두 줄짜리 사유가 아래 행 자리를 넘보지 않는다. */
+  tableBody: 'divide-y divide-[var(--pl-border)] border-y border-[var(--pl-border)]',
+  /** 그 표의 행 — 사유가 두 줄이 되면 나머지 칸은 첫 줄에 맞춰 선다. `cn` 으로
+   *  items-start 를 덧씌우지 않고 따로 선언한다(단순 join 이라 출력 순서가 이긴다).
+   *
+   *  위아래 16px 은 리소스 표의 셀 값(`tableStyles.cell` 의 py-[16px])을 그대로 쓴다.
+   *  10px 이던 때는 두 줄로 접힌 사유의 아랫줄이 구분선에 거의 닿아서, 선은 그어져 있는데
+   *  글이 다음 띠로 넘어가는 것처럼 읽혔다. */
+  rowTop: 'group relative flex items-start gap-3 py-4 text-[14px] text-[var(--pl-text-medium)] transition-colors',
   rowLink: 'hover:bg-[var(--pl-gray-50)]',
   /**
    * 요청자 화면(내 권한 요청)의 카드 더미 — 헤어라인이 아니라 간격으로 끊는다.
@@ -113,8 +124,6 @@ export const accessStyles = {
    *  이름과 코드가 한 서비스의 두 표기가 아니라 두 열로 읽힌다. `self-start` 라야
    *  덩어리가 글자만큼만 넓어지고, 그래야 코드가 이름을 따라온다. */
   svcIdent: 'flex min-w-0 max-w-full items-center gap-1.5 self-start',
-  /** 설명 줄 — 12/weak. 같은 2단 문법을 쓰는 연동 요청 행의 설명 열과 같은 급이다. */
-  svcDesc: 'min-w-0 truncate text-[12px] leading-[1.5] text-[var(--pl-text-weak)]',
   /** 행 끝 액션 셀 — "권한 요청"이 줄바꿈 없이 들어가는 폭. */
   svcAction: 'w-[68px] flex-none text-right',
   /** 서비스 행의 액션 셀 — 버튼 그룹 한 덩어리가 들어가는 폭. 두 서비스 탭이 같은 폭을
@@ -135,10 +144,6 @@ export const accessStyles = {
    *  없다는 뜻이다) — 라벨을 바꿔 그대로 두고 `disabled:` 로 잉크만 내린다. */
   svcActionBtn:
     'cursor-pointer whitespace-nowrap px-2.5 py-1.5 text-[12px] font-medium text-[var(--pl-text-medium)] transition-colors hover:bg-[var(--pl-gray-50)] hover:text-[var(--pl-text-strong)] disabled:cursor-default disabled:text-[var(--pl-text-weak)] disabled:hover:bg-[var(--pl-bg-card)] disabled:hover:text-[var(--pl-text-weak)]',
-  /** 펼친 상태 — 라벨을 '닫기'로 바꾸면 그룹 폭이 변해 행마다 버튼 자리가 흔들린다.
-   *  이름들이 바로 아래 펼쳐져 있으므로 여기서는 면으로만 말한다. */
-  svcActionBtnOn:
-    'cursor-pointer whitespace-nowrap bg-[var(--pl-gray-100)] px-2.5 py-1.5 text-[12px] font-medium text-[var(--pl-text-strong)] transition-colors',
   /** 이 행의 본 행위 — 그룹 안에서 잉크로만 갈린다. */
   svcActionBtnGo:
     'cursor-pointer whitespace-nowrap px-2.5 py-1.5 text-[12px] font-semibold text-[var(--pl-primary)] transition-colors hover:bg-[var(--pl-primary-bg)]',
@@ -322,6 +327,9 @@ export const accessStyles = {
   pickerName:
     'flex-1 min-w-0 truncate text-[14px] font-medium text-[var(--pl-text-strong)] [font-family:var(--pl-font-mono)]',
   pickerEmail: 'w-[180px] min-w-0 truncate text-[12px] text-[var(--pl-text-weak)]',
+  /** 읽기만 하는 목록의 행(담당자 보기) — `pickerRow` 와 같은 칸이지만 hover 도 커서도
+   *  없다. 고를 수 없는 줄이 눌릴 것처럼 보이면 안 된다. */
+  ownerRow: 'flex items-center gap-3 px-3 py-2.5',
   pickerEmpty: 'px-3 py-8 text-center text-[14px] text-[var(--pl-text-weak)]',
   /** 검색이 실패했을 때 — 빈 결과와 같은 자리지만 재시도가 붙어 가로로 놓인다. */
   pickerError:

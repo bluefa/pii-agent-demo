@@ -40,7 +40,7 @@
  * 카드끼리는 헤어라인이 아니라 간격으로 끊는다 — 표가 아니라 더미로 읽히도록.
  * 폭도 하나로 줄였다 — 자세한 이유는 layout.tsx.
  */
-import { useCallback, useEffect, useState, type ReactElement, type ReactNode } from 'react';
+import { useCallback, useEffect, useState, type ReactElement } from 'react';
 import { cn, serviceSidebarStyles } from '@/lib/theme';
 import { useAbortableEffect } from '@/app/hooks/useAbortableEffect';
 import { fmtDateTime } from '@/lib/pipeline/format';
@@ -55,7 +55,10 @@ import {
   usePagedSection,
   type Column,
 } from '@/app/admin/pipelines/access/_components/PagedCard';
-import { RequestAccessModal } from '@/app/admin/pipelines/access/_components/AccessModals';
+import {
+  OwnersModal,
+  RequestAccessModal,
+} from '@/app/admin/pipelines/access/_components/AccessModals';
 import { RequestStatusPill } from '@/app/admin/pipelines/access/_components/AccessPills';
 import { accessStyles as a } from '@/app/admin/pipelines/access/_components/accessStyles';
 import {
@@ -122,23 +125,13 @@ const CARD_SKELETON = (
 );
 
 /**
- * 서비스 한 건의 표기 — 타일 · [이름 코드] · 설명. `/services` 레일의 부품을 그대로 쓴다.
+ * 서비스 한 건의 표기 — 타일 · [이름 코드]. `/services` 레일의 부품을 그대로 쓴다.
  *
- * 두 탭이 같은 이것을 쓴다. 요청할 때 본 서비스와 내역에서 보는 서비스가 다른 모양이면
- * 같은 것으로 읽히지 않는다. 감싸는 칸(`a.svcCell`)이 타일과 덩어리 사이 gap 을 준다.
- *
- * 둘째 단(`sub`)은 탭마다 다르다 — 서비스 목록은 담당자, 내 요청 내역은 내가 쓴 사유.
- * 담당자는 자르고 사유는 접으므로 스타일까지 여기서 정하지 않고 부르는 쪽이 준다.
+ * 서비스 두 탭이 같은 이것을 쓴다. 요청할 때 본 서비스와 접근 가능 목록에서 보는
+ * 서비스가 다른 모양이면 같은 것으로 읽히지 않는다. 감싸는 칸(`a.svcCell`)이 타일과
+ * 덩어리 사이 gap 을 준다.
  */
-function ServiceIdentity({
-  code,
-  name,
-  sub,
-}: {
-  code: string;
-  name: string;
-  sub?: ReactNode;
-}): ReactElement {
+function ServiceIdentity({ code, name }: { code: string; name: string }): ReactElement {
   return (
     <>
       <span className={cn(serviceSidebarStyles.tile, serviceTileClass(code))} aria-hidden="true">
@@ -149,34 +142,12 @@ function ServiceIdentity({
           <span className={cn(sl.name, sl.nameIdle)}>{name}</span>
           <span className={sl.code}>{code}</span>
         </span>
-        {/* 없을 수 있다 — 없으면 빈 줄을 남기지 않고 한 단으로 돌아간다. */}
-        {sub}
       </span>
     </>
   );
 }
 
-/**
- * 담당자 줄 — 행의 둘째 단. 접혀 있다가 [담당자 보기] 로 펼친다(오너 지시 2026-08-17).
- *
- * `/services/page` 만 담당자를 싣는다(담당 서비스 목록은 싣지 않는다). 신청 화면에서
- * 가장 쓸모 있는 사실이 이것이라 여기 온다 — 내 요청을 볼 사람이 누구인지, 그리고
- * 이름이 비슷한 서비스 둘 중 어느 쪽이 내가 아는 그 서비스인지. 계약에 이 필드가 생긴
- * 이유가 정확히 그 헷갈림이다.
- *
- * 접기 전에는 이 줄이 늘 켜져 있었고, 그래서 다섯 줄이 모두 "담당자 …" 로 시작했다.
- * 헷갈릴 때에만 필요한 사실이 목록의 절반을 차지하고 있던 셈이다. 자리는 그대로다 —
- * 펼치면 이름들이 원래 있던 그 둘째 단에 그대로 선다.
- *
- * 이름은 여기서 자르지 않는다(접힌 줄이 아니라 펼친 답이다). 다만 `owners` 자체가
- * 잘려 올 수 있어서, `ownerCount` 와 어긋나는 만큼은 수로만 말한다.
- */
-function ownerNames(row: ServiceRow): string {
-  const rest = row.ownerCount - row.owners.length;
-  return `${row.owners.join(' · ')}${rest > 0 ? ` 외 ${rest}명` : ''}`;
-}
-
-/** 담당자를 싣는 계약은 한쪽뿐이라 행 타입이 갈린다 — 둘째 단은 이 좁힘 뒤에만 그린다. */
+/** 담당자를 싣는 계약은 한쪽뿐이라 행 타입이 갈린다 — 버튼 그룹은 이 좁힘 뒤에만 그린다. */
 const hasOwners = (row: UserServiceRow): row is ServiceRow => 'owners' in row;
 
 /**
@@ -271,6 +242,26 @@ const MINE_COLUMNS: readonly Column[] = [
   { className: a.svcAction },
 ];
 
+/**
+ * 그 표의 로딩 자리 — `PagedCard` 의 기본 스켈레톤과 같은 막대지만 표의 행 문법으로
+ * 그린다. 기본 스켈레톤은 `row`(위아래 10px)를 쓰는데, 도착한 행은 16px 이라 목록이
+ * 행마다 12px 씩 올라온다.
+ */
+const MINE_SKELETON = (
+  <div role="rowgroup" aria-busy="true" aria-label="목록을 불러오는 중" className={a.tableBody}>
+    {Array.from({ length: ACCESS_PAGE_SIZE }, (_, row) => (
+      <div key={row} className={a.rowTop} aria-hidden="true">
+        {MINE_COLUMNS.map((col, index) => (
+          <span
+            key={col.label ?? `tail-${index}`}
+            className={cn(col.className, col.label != null && a.skeletonBar)}
+          />
+        ))}
+      </div>
+    ))}
+  </div>
+);
+
 type TabKey = 'services' | 'owned' | 'mine';
 
 export default function MyAccessRequestsPage(): ReactElement {
@@ -351,13 +342,15 @@ export default function MyAccessRequestsPage(): ReactElement {
   } | null>(null);
 
   /**
-   * 담당자를 펼친 서비스 — 한 번에 하나다.
+   * 담당자 모달을 연 서비스 — null 이면 닫혀 있다(오너 지시 2026-08-17).
    *
-   * 여럿을 동시에 열어 둘 이유가 없다: 담당자는 "이 서비스가 내가 아는 그 서비스인가"를
-   * 확인하는 값이라 서비스 하나를 두고 읽는다. 여러 줄이 동시에 펼쳐지면 목록은 접기
-   * 전과 같은 높이가 되고, 그러면 접은 의미가 없다.
+   * 행 안에 펼치던 것을 모달로 옮겼다. 행의 둘째 단은 한 줄이라 담당자가 여럿이면
+   * 이름이 잘렸는데, 펼쳐서 본 답이 또 잘리면 펼친 의미가 없다.
+   *
+   * 행 전체를 담는다 — 모달이 코드·이름·담당자·전체 수를 다 쓴다. 새로 조회하지 않는
+   * 이유는 `OwnersModal` 주석에 있다.
    */
-  const [openOwners, setOpenOwners] = useState<string | null>(null);
+  const [owners, setOwners] = useState<ServiceRow | null>(null);
 
   const submit = async (reason: string): Promise<void> => {
     if (!target) return;
@@ -481,55 +474,42 @@ export default function MyAccessRequestsPage(): ReactElement {
                 읽을 수 없었다 — 폭을 쓰자고 훑기를 망치는 거래였다. */}
           {(rows) => (
             <div role="rowgroup" className={a.deckRows}>
-              {rows.map((row) => {
-                const open = openOwners === row.serviceCode;
-                return (
-                  <div key={row.serviceCode} role="row" className={a.svcRow}>
-                    <span role="cell" className={a.svcCell}>
-                      <ServiceIdentity
-                        code={row.serviceCode}
-                        name={row.serviceName}
-                        sub={
-                          hasOwners(row) && open ? (
-                            <span className={a.svcDesc}>담당자 {ownerNames(row)}</span>
-                          ) : null
-                        }
-                      />
-                    </span>
-                    {/* 칸은 두 탭 모두 자리를 지킨다 — 접근 가능 탭에서만 비우면 코드
-                        태그가 탭을 옮길 때마다 이 폭만큼 튄다. */}
-                    <span role="cell" className={a.svcActionCell}>
-                      {requestTab && hasOwners(row) && (
-                        <span className={a.svcActions}>
-                          <button
-                            type="button"
-                            aria-expanded={open}
-                            disabled={row.ownerCount === 0}
-                            className={open ? a.svcActionBtnOn : a.svcActionBtn}
-                            onClick={() => setOpenOwners(open ? null : row.serviceCode)}
-                          >
-                            {row.ownerCount > 0 ? '담당자 보기' : '담당자 없음'}
-                          </button>
-                          <button
-                            type="button"
-                            className={a.svcActionBtnGo}
-                            onClick={() => setTarget(row)}
-                          >
-                            권한 요청
-                          </button>
-                        </span>
-                      )}
-                    </span>
-                  </div>
-                );
-              })}
+              {rows.map((row) => (
+                <div key={row.serviceCode} role="row" className={a.svcRow}>
+                  <span role="cell" className={a.svcCell}>
+                    <ServiceIdentity code={row.serviceCode} name={row.serviceName} />
+                  </span>
+                  {/* 칸은 두 탭 모두 자리를 지킨다 — 접근 가능 탭에서만 비우면 코드
+                      태그가 탭을 옮길 때마다 이 폭만큼 튄다. */}
+                  <span role="cell" className={a.svcActionCell}>
+                    {requestTab && hasOwners(row) && (
+                      <span className={a.svcActions}>
+                        <button
+                          type="button"
+                          aria-haspopup="dialog"
+                          disabled={row.ownerCount === 0}
+                          className={a.svcActionBtn}
+                          onClick={() => setOwners(row)}
+                        >
+                          {row.ownerCount > 0 ? '담당자 보기' : '담당자 없음'}
+                        </button>
+                        <button
+                          type="button"
+                          className={a.svcActionBtnGo}
+                          onClick={() => setTarget(row)}
+                        >
+                          권한 요청
+                        </button>
+                      </span>
+                    )}
+                  </span>
+                </div>
+              ))}
             </div>
           )}
         </PagedCard>
       ) : (
-        /* 기록. 설명 줄이 없는 건 반려 안내를 헤더 판정이 이미 말하기 때문이다.
-           스켈레톤을 주지 않는 것은 컬럼이 있어서다 — `PagedCard` 가 컬럼 폭 그대로
-           막대를 그리므로 머리 줄과 어긋날 수가 없다. */
+        /* 기록. 설명 줄이 없는 건 반려 안내를 헤더 판정이 이미 말하기 때문이다. */
         <PagedCard
           className="mt-4"
           bare
@@ -539,13 +519,14 @@ export default function MyAccessRequestsPage(): ReactElement {
           tone="muted"
           state={mine}
           columns={MINE_COLUMNS}
+          skeleton={MINE_SKELETON}
           empty={{
             title: '요청한 내역이 없어요',
             caption: "'요청할 수 있는 서비스' 탭에서 골라 권한을 요청해 보세요",
           }}
         >
           {(rows) => (
-            <div role="rowgroup">
+            <div role="rowgroup" className={a.tableBody}>
               {rows.map((row) => (
                 // 카드가 아니라 표의 행이다(오너 지시 2026-08-17) — 타일도 없다.
                 // 무엇이 무슨 값인지는 머리 줄이 한 번만 말하고, 행은 그 열을 채운다.
@@ -586,6 +567,14 @@ export default function MyAccessRequestsPage(): ReactElement {
         </PagedCard>
       )}
 
+      <OwnersModal
+        open={owners != null}
+        onClose={() => setOwners(null)}
+        serviceCode={owners?.serviceCode ?? ''}
+        serviceName={owners?.serviceName ?? ''}
+        owners={owners?.owners ?? []}
+        ownerCount={owners?.ownerCount ?? 0}
+      />
       <RequestAccessModal
         open={target != null}
         onClose={() => setTarget(null)}

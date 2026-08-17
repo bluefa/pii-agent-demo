@@ -401,6 +401,64 @@ export function ConfirmDangerModal({
   );
 }
 
+// ── 담당자 보기 (요청자 측, 읽기 전용) ───────────────────────────────────────
+
+export interface OwnersModalProps {
+  open: boolean;
+  onClose: () => void;
+  serviceCode: string;
+  serviceName: string;
+  /** 담당자 표시명 = Knox ID. 계약에 사람 이름이 없다. */
+  owners: string[];
+  /** `owners` 는 잘려 올 수 있고, 이쪽은 언제나 맞는 전체 수다. */
+  ownerCount: number;
+}
+
+/**
+ * 한 서비스의 담당자 — 목록 행의 [담당자 보기] 가 연다(오너 지시 2026-08-17).
+ *
+ * 행 안에 펼치던 것을 모달로 옮겼다. 행의 둘째 단은 한 줄이라 이름이 넘치면 잘렸는데,
+ * 펼쳐서 본 답이 또 잘리면 펼친 의미가 없다. 여기서는 몇 명이든 세로로 선다.
+ *
+ * 읽기만 하는 모달이라 footer 가 없다 — TqModal 은 그때 머리에 X 를 그린다(닫기 하나만
+ * 든 footer 를 두지 않는다).
+ *
+ * 새로 조회하지 않는다. 이 이름들은 목록 행이 이미 싣고 온 값이고(`/services-page` 의
+ * `owners`), 전체를 주는 담당자 조회는 ADMIN 전용이라 요청자는 부를 수 없다.
+ */
+export function OwnersModal({
+  open,
+  onClose,
+  serviceCode,
+  serviceName,
+  owners,
+  ownerCount,
+}: OwnersModalProps): ReactElement {
+  const hidden = ownerCount - owners.length;
+  return (
+    <TqModal
+      open={open}
+      onClose={onClose}
+      eyebrowCtx="담당자"
+      eyebrowId={serviceCode}
+      title={`${serviceName} 담당자`}
+      sub="이 서비스의 접근 권한 요청을 검토하는 사람들이에요."
+    >
+      <div className={a.pickerList}>
+        {owners.map((knoxId) => (
+          <div key={knoxId} className={a.ownerRow}>
+            <span className={a.pickerName}>{knoxId}</span>
+          </div>
+        ))}
+        {/* 서버가 배열을 잘라 보냈을 때 — 이름을 지어내지 않고 수만 말한다. */}
+        {hidden > 0 && (
+          <div className={a.pickerEmpty}>여기 없는 담당자가 {hidden}명 더 있어요</div>
+        )}
+      </div>
+    </TqModal>
+  );
+}
+
 // ── 권한 요청 (요청자 측) ────────────────────────────────────────────────────
 
 export interface RequestAccessModalProps {
