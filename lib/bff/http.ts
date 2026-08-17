@@ -12,7 +12,7 @@
  *   - `getRaw` returns the raw `Response` for non-JSON downloads (terraform zip).
  *   - POST/PUT bodies are raw passthrough (I-3); request casing is per-endpoint (D3).
  */
-import type { BffClient } from '@/lib/bff/types';
+import type { BffClient, ConfirmedResourceProvider } from '@/lib/bff/types';
 import type { z } from 'zod';
 import type { schemas } from '@/lib/generated/install-v1';
 import type { OrchestratorRawResponse } from '@/lib/pipeline/types';
@@ -151,6 +151,17 @@ async function send<T>(
 const post = <T>(path: string, body?: unknown) => send<T>('POST', path, body);
 const put = <T>(path: string, body?: unknown, opts?: { emptyBodyOk?: boolean }) =>
   send<T>('PUT', path, body, opts);
+
+/**
+ * 확정 리소스 쓰기 경로 — swagger 가 CSP 별 path 로 같은 조작을 선언한다
+ * (create/delete{Csp}ConfirmedResource). provider 는 조작이 아니라 path 를 고른다.
+ */
+const CONFIRMED_RESOURCE_PATH: Record<ConfirmedResourceProvider, string> = {
+  AWS: 'aws-resources',
+  GCP: 'gcp-resources',
+  AZURE: 'azure-resources',
+  IDC: 'idc-resources',
+};
 
 const buildQuery = (params: Record<string, string | number | undefined>): string => {
   const search = new URLSearchParams();
@@ -515,6 +526,33 @@ export const httpBff: BffClient = {
     getConfirmedIntegration: (id) =>
       getSnakeRaw<z.infer<typeof schemas.ConfirmedIntegrationResponse>>(
         `/target-sources/${id}/confirmed-integration`,
+      ),
+
+    // 확정 정보 등록/삭제 — 응답 본문이 계약에 선언되지 않아(201/200, 스키마 없음)
+    // 빈 본문을 허용한다. 요청 본문도 `type: object` 라 그대로 흘려보낸다.
+    createConfirmedResources: (id, provider, body, applyNlbSecurityGroup) =>
+      send<unknown>(
+        'POST',
+        // 계약이 이 flag 를 AWS path 에만 둔다. 기본값이 false 라, 켠 경우에만 붙인다.
+        `/target-sources/${id}/${CONFIRMED_RESOURCE_PATH[provider]}${
+          applyNlbSecurityGroup ? '?applyNLBSecurityGroup=true' : ''
+        }`,
+        body,
+        { emptyBodyOk: true },
+      ),
+
+    deleteConfirmedResources: (id, provider) =>
+      send<unknown>(
+        'DELETE',
+        `/target-sources/${id}/${CONFIRMED_RESOURCE_PATH[provider]}`,
+        undefined,
+        { emptyBodyOk: true },
+      ),
+
+    // 추천값 — 등록 본문과 같은 opaque object 다. 재구성하지 않고 그대로 넘긴다.
+    getApprovedRecommendations: (id, provider) =>
+      getSnakeRaw<unknown>(
+        `/target-sources/${id}/${CONFIRMED_RESOURCE_PATH[provider]}/approved-recommendations`,
       ),
 
     getApprovedIntegration: (id) =>

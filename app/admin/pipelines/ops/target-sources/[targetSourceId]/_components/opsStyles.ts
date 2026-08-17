@@ -153,6 +153,8 @@ export const opsStyles = {
 
   /** Loading skeleton block — same grammar as detailStyles.skeleton (task detail). */
   skeleton: 'animate-pulse rounded-[10px] bg-[var(--pl-gray-100)]',
+  /** Skeleton text line — 블록은 `skeleton`, 글줄은 이것 (AlertStageCard 의 bar 관례). */
+  skeletonBar: 'animate-pulse rounded-[6px] bg-[var(--pl-gray-100)]',
 
   /** Figma 4:2 table grammar — plain headers (no fill), divider rows. */
   table: {

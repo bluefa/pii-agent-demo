@@ -14,6 +14,7 @@ export const OPS_TAB_SLUGS = {
   status: '진행 상태',
   scan: '스캔',
   request: '연동 요청 정보',
+  confirm: '확정 정보',
   infra: '인프라 작업',
   tc: 'Test Connection',
   approval: '관리자 승인',

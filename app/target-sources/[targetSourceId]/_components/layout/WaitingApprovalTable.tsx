@@ -127,8 +127,11 @@ export interface WaitingApprovalResource {
  * the Step 5 logical-DB counts — what the user actually reviews before the final approval.
  * `install` (step 4): every row is a confirmed target too, so the pair becomes the per-step
  * install status and its contract guidance — the same last-two-columns slot, install vocabulary.
+ * `plain` (admin ops 확정 정보): identity and attributes only. That slot asks a question ABOUT the
+ * row, and this surface owns no per-row question — the logical-DB counts belong to step 5, the
+ * verdict to steps 2·3 — so it is dropped rather than filled with a value the screen cannot manage.
  */
-type WaitingApprovalTableVariant = 'approval' | 'confirmed' | 'install';
+type WaitingApprovalTableVariant = 'approval' | 'confirmed' | 'install' | 'plain';
 
 export interface ApprovalIdentityCell {
   label: string;
@@ -404,6 +407,7 @@ export const WaitingApprovalTable = memo(
 
     const confirmedVariant = variant === 'confirmed';
     const installVariant = variant === 'install';
+    const plainVariant = variant === 'plain';
 
     // Colorless — each row picks its resting tier (dim vs secondary) at the cell.
     const monoCell = 'whitespace-nowrap font-mono text-[14px]';
@@ -692,7 +696,7 @@ export const WaitingApprovalTable = memo(
               </td>
             </>
           )}
-          {confirmedVariant ? (
+          {plainVariant ? null : confirmedVariant ? (
             /* Athena·DynamoDB have no logical-DB management at all, so both columns answer
                설정 불필요 rather than —. The dash is where a value we do not have goes; on a
                concept that does not exist it reads as missing data and sends the user looking
@@ -888,7 +892,7 @@ export const WaitingApprovalTable = memo(
                     <th className={idcStyles.table.approvalHeaderCell}>{regionLabel}</th>
                   </>
                 )}
-                {confirmedVariant ? (
+                {plainVariant ? null : confirmedVariant ? (
                   <>
                     <th className={idcStyles.table.approvalHeaderCell}>연동 논리 DB</th>
                     <th className={idcStyles.table.approvalHeaderCell}>연동 제외</th>

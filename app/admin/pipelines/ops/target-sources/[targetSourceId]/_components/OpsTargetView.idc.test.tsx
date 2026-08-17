@@ -70,11 +70,12 @@ describe('OpsTargetView — IDC 스캔 탭', () => {
   it('IDC 대상에는 스캔 탭이 없다', async () => {
     getRawTargetSourceDetail.mockResolvedValue(detail());
     render(<OpsTargetView targetSourceId={1583} initialTab="진행 상태" />);
-    // The whole list, not just the absence: only 스캔 leaves, and the other five keep
+    // The whole list, not just the absence: only 스캔 leaves, and the other six keep
     // their order. Asserting absence alone lets a broadened filter pass.
     expect(await tabNames()).toEqual([
       '진행 상태',
       '연동 요청 정보',
+      '확정 정보',
       '인프라 작업',
       'Test Connection',
       '관리자 승인',
