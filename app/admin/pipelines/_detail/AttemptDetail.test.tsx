@@ -1,7 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { AttemptDetail } from '@/app/admin/pipelines/_detail/AttemptDetail';
-import { attemptWindow } from '@/app/admin/pipelines/_detail/taskDrawerShared';
+import { attemptWindow, RunWindow } from '@/app/admin/pipelines/_detail/taskDrawerShared';
+import type { ReactNode } from 'react';
 import type { TaskAttemptView, TerraformJobStateSummary } from '@/lib/pipeline/types';
 
 const noop = vi.fn();
@@ -30,7 +31,7 @@ const jobState = (over: Partial<TerraformJobStateSummary> = {}): TerraformJobSta
   ...over,
 });
 
-const html = (a: TaskAttemptView, runWindow = ''): string =>
+const html = (a: TaskAttemptView, runWindow: ReactNode = null): string =>
   renderToStaticMarkup(
     <AttemptDetail
       attempt={a}
@@ -88,32 +89,45 @@ describe('AttemptDetail — failure cause when there are no job rows', () => {
 describe('attemptWindow — run window', () => {
   it('names each value and writes the duration like the card does', () => {
     // 5s apart — fmtElapsedMs says "5초" where spanLabel used to say "5s".
-    expect(attemptWindow(attempt())).toBe('시작 2026-07-13 09:00 · 완료 09:00 · 소요 5초');
+    expect(attemptWindow(attempt())).toEqual([
+      { k: '시작', v: '2026-07-13 09:00' },
+      { k: '완료', v: '09:00' },
+      { k: '소요', v: '5초' },
+    ]);
   });
 
   it('keeps the date on 완료 when the attempt crosses midnight', () => {
     const a = attempt({ started_at: '2026-07-13T14:50:00Z', finished_at: '2026-07-13T15:10:00Z' });
-    expect(attemptWindow(a)).toBe('시작 2026-07-13 23:50 · 완료 2026-07-14 00:10 · 소요 20분');
+    expect(attemptWindow(a)).toEqual([
+      { k: '시작', v: '2026-07-13 23:50' },
+      { k: '완료', v: '2026-07-14 00:10' },
+      { k: '소요', v: '20분' },
+    ]);
   });
 
   // A dangling "완료 -" reads as a value; the label goes with the missing value.
   it('says only 시작 while the attempt is still running', () => {
     const a = attempt({ status: 'IN_PROGRESS', error_code: null, finished_at: null });
-    expect(attemptWindow(a)).toBe('시작 2026-07-13 09:00');
+    expect(attemptWindow(a)).toEqual([{ k: '시작', v: '2026-07-13 09:00' }]);
   });
 
   // The attempt body is always open now, so a single-attempt task would print the
-  // flow card's own timestamps a second time if this line rendered there. The
-  // caller decides (TerraformExec passes '' below the second attempt).
-  it('is not printed by the attempt body itself', () => {
-    expect(html(attempt())).not.toContain('시작 2026-07-13 09:00');
+  // flow card's own timestamps a second time if this block rendered there. The
+  // caller decides (TerraformExec passes null below the second attempt).
+  it('is not built by the attempt body itself', () => {
+    expect(html(attempt())).not.toContain('2026-07-13 09:00');
   });
 
-  // 시안 C — the window captions the Job list it belongs to, not the hero.
-  it('captions Job 현황 when the caller passes a window', () => {
-    const out = html(attempt({ job_states: [jobState()] }), '시작 2026-07-13 09:00 · 소요 5초');
-    expect(out.indexOf('Job 현황')).toBeLessThan(out.indexOf('시작 2026-07-13 09:00'));
-    expect(out.indexOf('시작 2026-07-13 09:00')).toBeLessThan(out.indexOf('aria-label="Job 상태 필터"'));
+  // 시안 C — the window captions the Job list it belongs to, not the hero, and
+  // owner 2026-08-17: one labelled row per value, not one joined line.
+  it('captions Job 현황 with one row per value', () => {
+    const out = html(attempt({ job_states: [jobState()] }), <RunWindow attempt={attempt()} />);
+    expect(out.indexOf('Job 현황')).toBeLessThan(out.indexOf('시작'));
+    expect(out.indexOf('시작')).toBeLessThan(out.indexOf('aria-label="Job 상태 필터"'));
+    // Each label sits in its own row with its own value — no ' · ' joiner.
+    expect(out).toContain('>시작</span><span class="text-[var(--pl-text-medium)]">2026-07-13 09:00<');
+    expect(out).toContain('>완료</span><span class="text-[var(--pl-text-medium)]">09:00<');
+    expect(out).toContain('>소요</span><span class="text-[var(--pl-text-medium)]">5초<');
   });
 });
 

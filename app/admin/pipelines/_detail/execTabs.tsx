@@ -10,11 +10,11 @@ import { AttemptDetail } from '@/app/admin/pipelines/_detail/AttemptDetail';
 import { AttemptPicker } from '@/app/admin/pipelines/_detail/AttemptPicker';
 import type { JobVerdict } from '@/app/admin/pipelines/_detail/jobRows';
 import {
-  attemptWindow,
   conditionVerdict,
   d,
   j,
   OperatorDescription,
+  RunWindow,
   Section,
   type ViewerTarget,
 } from '@/app/admin/pipelines/_detail/taskDrawerShared';
@@ -92,7 +92,7 @@ export function TerraformExec({
   // the card's values are never repeated here (2차 라운드 rule). It captions the
   // Job list rather than the hero (시안 C) — it is the window those jobs ran in,
   // and under the hero nothing said which of the two it belonged to.
-  const runWindow = attempts.length > 1 && current ? attemptWindow(current) : '';
+  const runWindow = attempts.length > 1 && current ? <RunWindow attempt={current} /> : null;
   return (
     <>
       <OperatorDescription detail={detail} />

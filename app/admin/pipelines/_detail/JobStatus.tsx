@@ -14,7 +14,7 @@
  * Rows carry `last_state · N회 폴링 · HH:mm` and are clickable end to end; the log
  * used to hang off a 51×17px text link repeated once per row.
  */
-import { useState, type ReactElement } from 'react';
+import { useState, type ReactElement, type ReactNode } from 'react';
 import { cn } from '@/lib/theme';
 import { Icon } from '@/app/admin/pipelines/_components/icons';
 import { jobRows, jobVerdict, type JobRow, type JobVerdict } from '@/app/admin/pipelines/_detail/jobRows';
@@ -88,8 +88,8 @@ export function JobStatus({
 }: {
   attempt: TaskAttemptView;
   operation: TaskOperation | null;
-  /** The attempt window these jobs ran in; '' when it would repeat the flow card. */
-  caption: string;
+  /** The attempt window these jobs ran in; null when it would repeat the flow card. */
+  caption: ReactNode;
   onOpenJob: (jobId: string) => void;
 }): ReactElement | null {
   const [picked, setPicked] = useState<JobFilter | null>(null);

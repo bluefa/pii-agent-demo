@@ -36,15 +36,12 @@ export function MiniPill({ tone, children }: { tone: JobVerdict; children: React
 export function Section({
   label,
   caption,
-  sub = false,
   grow = false,
   children,
 }: {
   label: string;
-  /** One line under the label naming the frame the content belongs to. */
-  caption?: string;
-  /** Demoted tier — a section that supports the verdict instead of competing with it. */
-  sub?: boolean;
+  /** Names the frame the content belongs to — the run window, for Job 현황. */
+  caption?: ReactNode;
   /** Takes the drawer body's leftover height so its own list scrolls, not the
    *  panel. The floor is explicit because neither automatic minimum works here:
    *  `min-h-0` let a short body squeeze the whole section to 0px, and `auto`
@@ -66,22 +63,22 @@ export function Section({
 }): ReactElement {
   return (
     <div className={cn('flex flex-col', grow && 'flex-1 min-h-[208px]')}>
-      <div className={sub ? d.sectionLabelSub : d.sectionLabel}>{label}</div>
-      {caption && <div className={d.sectionCaption}>{caption}</div>}
+      <div className={d.sectionLabel}>{label}</div>
+      {caption}
       {children}
     </div>
   );
 }
 
 /**
- * One attempt's window on a line — "시작 2026-08-14 17:58 · 완료 18:03 · 소요 5분".
- * Each value is named (owner 2026-08-16: "시작/완료/소요를 명확하게 구분"), in the
- * flow card's own label set. The end repeats its date only when the attempt
- * crosses midnight, and the duration takes `fmtElapsedMs`, the grammar the card
- * and the exec band already use. A value that does not exist yet drops out with
- * its label rather than printing "완료 -": a running attempt says only 시작.
+ * One attempt's window as labelled rows — 시작 / 완료 / 소요 (owner 2026-08-16:
+ * "시작/완료/소요를 명확하게 구분", 2026-08-17: one row each). The labels are the
+ * flow card's own set. The end repeats its date only when the attempt crosses
+ * midnight, and the duration takes `fmtElapsedMs`, the grammar the card and the
+ * exec band already use. A value that does not exist yet drops its row rather
+ * than printing "완료 -": a running attempt says only 시작.
  */
-export function attemptWindow(attempt: TaskAttemptView): string {
+export function attemptWindow(attempt: TaskAttemptView): Array<{ k: string; v: string }> {
   const start = fmtDateTime(attempt.started_at);
   const end = fmtDateTime(attempt.finished_at);
   const sameDay = start.slice(0, 10) === end.slice(0, 10);
@@ -89,10 +86,24 @@ export function attemptWindow(attempt: TaskAttemptView): string {
     attempt.started_at && attempt.finished_at
       ? fmtElapsedMs(Date.parse(attempt.finished_at) - Date.parse(attempt.started_at))
       : '-';
-  const parts = [`시작 ${start}`];
-  if (end !== '-') parts.push(`완료 ${sameDay ? end.slice(11) : end}`);
-  if (elapsed !== '-') parts.push(`소요 ${elapsed}`);
-  return parts.join(' · ');
+  const rows = [{ k: '시작', v: start }];
+  if (end !== '-') rows.push({ k: '완료', v: sameDay ? end.slice(11) : end });
+  if (elapsed !== '-') rows.push({ k: '소요', v: elapsed });
+  return rows;
+}
+
+/** The rows above, in the flow card's run-block grammar. */
+export function RunWindow({ attempt }: { attempt: TaskAttemptView }): ReactElement {
+  return (
+    <div className={d.runWindow}>
+      {attemptWindow(attempt).map((row) => (
+        <div key={row.k} className={d.runWindowRow}>
+          <span className={d.runWindowKey}>{row.k}</span>
+          <span className={d.runWindowVal}>{row.v}</span>
+        </div>
+      ))}
+    </div>
+  );
 }
 
 /**

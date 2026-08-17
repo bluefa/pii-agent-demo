@@ -4,10 +4,10 @@
  * time, for whichever attempt the picker above it selects (owner 2026-08-16); it
  * used to be folded shut inside an attempt-history row.
  *
- * The run window is NOT here: with the fold gone this block is always on screen,
- * and for a single-attempt task it would print the same two timestamps the flow
- * card does. The verdict hero carries it instead, and only from the second
- * attempt on (2차 라운드 rule — the card's values are never repeated).
+ * The run window is not built here: for a single-attempt task it would print the
+ * same timestamps the flow card does, so the caller decides and passes it down as
+ * `runWindow` (null below the second attempt — 2차 라운드 rule, the card's values
+ * are never repeated). It captions Job 현황, whose rows it is the window for.
  *
  * NOTE: `attempt.failure_detail` stays out of the default UI while the attempt
  * has job rows — the per-job rows now carry `last_fail_reason` themselves. The
@@ -16,7 +16,7 @@
  * `FailureCause` surfaces `failure_detail` — the only cause the client has — in
  * its place.
  */
-import { type ReactElement } from 'react';
+import { type ReactElement, type ReactNode } from 'react';
 import { JobStatus } from '@/app/admin/pipelines/_detail/JobStatus';
 import { fmtDateTime } from '@/lib/pipeline/format';
 import {
@@ -37,8 +37,8 @@ export function AttemptDetail({
 }: {
   attempt: TaskAttemptView;
   operation: TaskOperation | null;
-  /** 시작/완료/소요 of this attempt, or '' when it would repeat the flow card. */
-  runWindow: string;
+  /** 시작/완료/소요 of this attempt, or null when it would repeat the flow card. */
+  runWindow: ReactNode;
   onOpenViewer: (t: ViewerTarget) => void;
   onOpenFailure: (detail: string) => void;
 }): ReactElement {

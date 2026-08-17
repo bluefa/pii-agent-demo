@@ -202,28 +202,31 @@ export const improvedStyles = {
      *  내리는 일은 없었으면"), which only works if this column can shrink. */
     body: 'flex-1 min-h-0 overflow-y-auto overscroll-contain px-6 pt-2 pb-6 flex flex-col gap-6',
     /** Supporting fold summary — 확인 요약, and Response 원문 on a jobless attempt.
-     *  Takes the raw-response fold's grammar (jobStyles.respTri) at
-     *  `sectionLabelSub`'s size: everything folded here supports the Job 현황
-     *  above it, so neither gets to hold the 16px section tier. */
+     *  Takes the raw-response fold's grammar (jobStyles.respTri) at the section
+     *  label's own size: everything folded here supports the Job 현황 above it. */
     foldSummary:
       'flex items-center gap-1.5 cursor-pointer list-none text-[14px] font-semibold text-[var(--pl-text-medium)] tracking-[-0.196px] [&::-webkit-details-marker]:hidden select-none',
     /** Rule above the body's closing links (정의·계약 보기 / 이전 실행 이력 보기) —
      *  what the panel points at, separated from what the panel states. */
     bodyLinks: 'flex flex-col items-start gap-2.5 border-t border-[var(--pl-border)] pt-4',
 
-    /** Section label (progress log / attempt history / attempt info / …) — dark bold
-     *  16px heading, the primary hierarchy anchor inside the body (owner Figma node 121-5). */
-    sectionLabel: 'text-[16px] font-semibold text-[var(--pl-text-strong)] tracking-[-0.196px]',
-    /** Demoted section label (design-benchmark 2026-08-15 시안 C) — a section that
-     *  supports the verdict rather than competing with it. 시도 이력 held the 16px
-     *  tier while the Job counts sat at 12px; only one of the two is what the
-     *  operator came for. */
-    sectionLabelSub: 'text-[14px] font-semibold text-[var(--pl-text-medium)] tracking-[-0.196px]',
-    /** Caption under a section label (design-benchmark 2026-08-16 시안 C) — the
-     *  run window of the attempt the list below belongs to. One tier under
-     *  `verdictFacts`, at the 12px the header's own context row (`subRow`) uses
-     *  for the same job: naming the frame, not stating a fact of its own. */
-    sectionCaption: 'mt-1 text-[12px] leading-[1.5] text-[var(--pl-text-weak)] tabular-nums',
+    /** Section label (Job 현황 / 확인 이력 / 실패 원인 / …) — 14px (owner
+     *  2026-08-17), down from 16. The verdict head came down to 16 when the picker
+     *  joined its line, and a 16px section label beside it left the body with two
+     *  headings at one size. The ramp is now 16 verdict → 14 section → 12 caption.
+     *  (The `sub` tier this used to have a twin for is gone with it — its last
+     *  consumer, 시도 이력, was deleted in the 4차 round.) */
+    sectionLabel: 'text-[14px] font-semibold text-[var(--pl-text-strong)] tracking-[-0.196px]',
+    /** Run-window caption under a section label — 시작/완료/소요, one labelled row
+     *  each (owner 2026-08-17: "개별 행으로 표현하자. 3줄로"). The grammar is the
+     *  flow card's own run block (`.nd-run*`) copied value for value: 12px,
+     *  4px row gap, `text-weak` label on a `flex-none` column, `text-medium` value.
+     *  The card and this caption say the same three things about the same run, so
+     *  they say them the same way. */
+    runWindow: 'mt-2 flex flex-col gap-1 text-[12px] leading-[1.4] tabular-nums',
+    runWindowRow: 'flex items-baseline gap-2',
+    runWindowKey: 'flex-none w-8 text-[var(--pl-text-weak)]',
+    runWindowVal: 'text-[var(--pl-text-medium)]',
     descText: 'mt-2.5 text-[14px] leading-[1.6] text-[var(--pl-text-strong)] whitespace-pre-line',
     /** Terminal-failure cause block — error-toned descText; shown when a failed attempt has no job rows. */
     failReason: 'mt-2.5 text-[14px] leading-[1.6] text-[var(--pl-err-text)] whitespace-pre-line break-words',

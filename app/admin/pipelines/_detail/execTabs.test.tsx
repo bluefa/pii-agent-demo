@@ -82,10 +82,12 @@ describe('TerraformExec — attempt picker', () => {
 
   it('prints the selected attempt window only when there is more than one attempt', () => {
     // A single attempt repeats the flow card's own timestamps — the card owns them.
-    expect(html(detail([attempt(1)]))).not.toContain('시작 2026-07-13 09:00');
-    expect(html(detail([attempt(1), attempt(2)]))).toContain(
-      '시작 2026-07-13 09:00 · 완료 09:00 · 소요 5초',
-    );
+    expect(html(detail([attempt(1)]))).not.toContain('2026-07-13 09:00');
+    // Owner 2026-08-17: one labelled row per value, captioning Job 현황.
+    const out = html(detail([attempt(1), attempt(2)]));
+    expect(out).toContain('>시작</span><span class="text-[var(--pl-text-medium)]">2026-07-13 09:00<');
+    expect(out).toContain('>완료</span><span class="text-[var(--pl-text-medium)]">09:00<');
+    expect(out).toContain('>소요</span><span class="text-[var(--pl-text-medium)]">5초<');
   });
 
   // Owner 2026-08-17: the retry budget is off this row. The picker's trigger
