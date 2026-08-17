@@ -17,7 +17,7 @@
  */
 'use client';
 
-import { Fragment, type ReactElement } from 'react';
+import type { ReactElement } from 'react';
 import { cn, idcStyles, textColors, verdictRailClass } from '@/lib/theme';
 import { getDatabaseShortLabel } from '@/app/components/ui/DatabaseIcon';
 import {
@@ -51,38 +51,12 @@ export interface IdcResourceTableProps {
   /**
    * 행 → '같은 DB 의심' 표시 (@see _duplicateAddress). 없으면 표시가 서지 않는다.
    *
-   * 이 표는 한 그룹의 행들이 이미 붙어 서 있다고 전제한다 (`groupSuspectRows`) — 머리글을
-   * '앞 행과 이름이 다르면 새 그룹'으로 판정하기 때문이다. 흩어진 목록에 그대로 쓰면
-   * 같은 그룹이 여러 번 열린다.
+   * 표시는 행 안에서 끝난다 — 그룹 머리글도, 행 재배치도 없다. 머리글은 열기만 하고 닫지
+   * 않아서(다음 머리글이 나올 때까지 아무 행이나 그 아래 설 수 있다) 그룹의 범위를 관리자가
+   * 배지를 세어 복원해야 했다. 짝의 주소를 행이 직접 들고 있으면 페이지가 갈려도, 정렬이
+   * 바뀌어도 관계가 끊어지지 않는다.
    */
   suspectMarks?: ReadonlyMap<RequestResourceRow, SuspectMark>;
-}
-
-/** 이 표의 열 수 — 그룹 머리글이 가로지를 폭. 위 thead 의 `<th>` 개수와 같이 움직인다. */
-const COLUMN_COUNT = 8;
-
-/** 그룹 머리글 — colSpan 으로 표 폭을 가로질러, 아래 행들이 한 질문임을 연다. */
-function SuspectGroupHead({
-  label,
-  memberCount,
-  columns,
-}: {
-  label: string;
-  memberCount: number;
-  columns: number;
-}): ReactElement {
-  return (
-    <tr>
-      <td colSpan={columns} className="bg-[var(--pl-warn-bg)] px-[18px] py-2">
-        <span className="inline-flex items-baseline gap-2">
-          <span className={idcStyles.checkBadge}>확인 필요 {label}</span>
-          <span className="text-[12px] font-medium text-[var(--pl-warn-text)]">
-            아래 {memberCount}개 항목이 같은 데이터베이스일 수 있어요
-          </span>
-        </span>
-      </td>
-    </tr>
-  );
 }
 
 // A text button, not a control cluster: opening the assignment is one act, and the
@@ -167,14 +141,6 @@ export function IdcResourceTable({
               `${row.connectTargets.join('|')}|${row.port ?? ''}|${row.databaseType ?? ''}|${index}`;
             const dbLabel = row.databaseType ? getDatabaseShortLabel(row.databaseType) : '';
             const mark = suspectMarks?.get(row);
-            // 머리글은 그룹의 첫 행에만 선다 — 앞 행과 이름이 다르면 새 그룹이 열린 것이다.
-            const previousLabel = index > 0 ? suspectMarks?.get(rows[index - 1])?.label : undefined;
-            const opensGroup = mark != null && mark.label !== previousLabel;
-            // 이 페이지에 실린 같은 이름의 행 수. 페이지 경계에서 그룹이 잘리면 잘린 만큼만
-            // 세어야 한다 — 화면에 4개가 있는데 "5개 항목"이라고 하면 하나를 찾아 헤맨다.
-            const memberCount = opensGroup
-              ? rows.filter((other) => suspectMarks?.get(other)?.label === mark.label).length
-              : 0;
             if (!row.selected) {
               return (
                 <tr key={rowKey} className={cn(ROW_BASE, ROW_EXCLUDED)}>
@@ -233,21 +199,12 @@ export function IdcResourceTable({
 
 
             return (
-              <Fragment key={rowKey}>
-              {opensGroup && (
-                <SuspectGroupHead
-                  label={mark.label}
-                  memberCount={memberCount}
-                  columns={COLUMN_COUNT}
-                />
-              )}
-              <tr className={cn(ROW_BASE, ROW_TARGET)}>
+              <tr key={rowKey} className={cn(ROW_BASE, ROW_TARGET)}>
                 <td className={table.approvalCell}>
                   <IdcEndpointCell
                     hosts={row.connectTargets}
                     kind={idcAddressKind(row)}
-                    suspectLabel={mark?.label}
-                    suspectAddresses={mark?.addresses}
+                    suspect={mark}
                   />
                 </td>
                 <td className={table.approvalCell}>
@@ -298,7 +255,6 @@ export function IdcResourceTable({
                 {/* 제외 사유 — a target row has none. */}
                 <td className={table.approvalCell} />
               </tr>
-              </Fragment>
             );
           })}
         </tbody>

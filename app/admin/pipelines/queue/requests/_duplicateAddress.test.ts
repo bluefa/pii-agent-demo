@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import type { RequestResourceRow } from '@/app/lib/api/task-queue-requests';
 import {
   findSuspectGroups,
-  groupSuspectRows,
   suspectMarksByRow,
   suspectRows,
 } from '@/app/admin/pipelines/queue/requests/_duplicateAddress';
@@ -39,8 +38,6 @@ describe('findSuspectGroups', () => {
       row({ resourceId: 'b', connectTargets: ['10.20.1.14'] }),
     ]);
     expect(addressesOf(groups)).toEqual([['10.20.1.13', '10.20.1.14']]);
-    expect(groups[0].members[0].addressCount).toBe(3);
-    expect(groups[0].members[1].addressCount).toBe(1);
   });
 
   it('주소가 하나씩인 행끼리도 잡는다', () => {
@@ -183,35 +180,45 @@ describe('suspectMarksByRow', () => {
     const marks = suspectMarksByRow(findSuspectGroups(rows));
     expect(marks.has(rows[2])).toBe(false);
   });
-});
 
-describe('groupSuspectRows', () => {
-  it('멀리 떨어진 구성원을 첫 구성원 뒤로 데려온다', () => {
+  it('짝의 주소를 들고 있다 — 자기 주소는 빼고', () => {
     const rows = [
-      row({ resourceId: 'a', connectTargets: ['10.20.1.11'] }),
-      row({ resourceId: 'x', databaseType: 'MySQL', port: 3306, connectTargets: ['10.20.7.70'] }),
-      row({ resourceId: 'b', connectTargets: ['10.20.1.12'] }),
+      row({ resourceId: 'a', connectTargets: ['10.20.2.31'] }),
+      row({ resourceId: 'b', connectTargets: ['10.20.2.32'] }),
     ];
-    const ordered = groupSuspectRows(rows, findSuspectGroups(rows));
-    expect(ordered).toEqual([rows[0], rows[2], rows[1]]);
+    const marks = suspectMarksByRow(findSuspectGroups(rows));
+    expect(marks.get(rows[0])?.partners).toEqual(['10.20.2.32']);
+    expect(marks.get(rows[1])?.partners).toEqual(['10.20.2.31']);
   });
 
-  it('의심 행이 없으면 순서를 건드리지 않는다', () => {
+  it('연쇄에서는 직접 인접하지 않은 구성원도 짝으로 적는다 — 질문이 그 단위다', () => {
     const rows = [
-      row({ resourceId: 'a', connectTargets: ['10.20.1.11'] }),
-      row({ resourceId: 'b', connectTargets: ['10.20.9.99'] }),
+      row({ resourceId: 'a', connectTargets: ['10.12.123.11'] }),
+      row({ resourceId: 'b', connectTargets: ['10.12.123.12'] }),
+      row({ resourceId: 'c', connectTargets: ['10.12.123.13'] }),
     ];
-    expect(groupSuspectRows(rows, findSuspectGroups(rows))).toEqual(rows);
+    const marks = suspectMarksByRow(findSuspectGroups(rows));
+    expect(marks.get(rows[0])?.partners).toEqual(['10.12.123.12', '10.12.123.13']);
+    expect(marks.get(rows[1])?.partners).toEqual(['10.12.123.11', '10.12.123.13']);
   });
 
-  it('그룹에 없는 행은 제자리에 남는다', () => {
+  it('IP Set 은 걸린 주소만 짝으로 넘긴다 — 나머지 주소는 아니다', () => {
     const rows = [
-      row({ resourceId: 'keep', databaseType: 'MySQL', port: 3306, connectTargets: ['10.20.7.70'] }),
-      row({ resourceId: 'a', connectTargets: ['10.20.1.11'] }),
-      row({ resourceId: 'b', connectTargets: ['10.20.1.12'] }),
+      row({ resourceId: 'a', connectTargets: ['10.20.1.11', '10.20.1.12', '10.20.1.13'] }),
+      row({ resourceId: 'b', connectTargets: ['10.20.1.14'] }),
     ];
-    const ordered = groupSuspectRows(rows, findSuspectGroups(rows));
-    expect(ordered[0]).toBe(rows[0]);
+    const marks = suspectMarksByRow(findSuspectGroups(rows));
+    expect(marks.get(rows[1])?.partners).toEqual(['10.20.1.13']);
+  });
+
+  it('완전히 같은 주소를 두 번 등록하면 짝을 한 번만 적는다', () => {
+    const rows = [
+      row({ resourceId: 'a', connectTargets: ['10.20.2.31'] }),
+      row({ resourceId: 'b', connectTargets: ['10.20.2.31'] }),
+      row({ resourceId: 'c', connectTargets: ['10.20.2.31'] }),
+    ];
+    const marks = suspectMarksByRow(findSuspectGroups(rows));
+    expect(marks.get(rows[0])?.partners).toEqual(['10.20.2.31']);
   });
 });
 

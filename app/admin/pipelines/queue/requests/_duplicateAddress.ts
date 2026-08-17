@@ -33,20 +33,16 @@ export interface SuspectMember {
    * 표는 첫 주소만 펼쳐 두므로 "어느 주소를 두고 하는 말인가"에 답하려면 이게 필요하다.
    */
   addresses: string[];
-  /** 이 행이 등록한 접속 주소 개수. 1보다 크면 표에서 나머지가 접혀 있다. */
-  addressCount: number;
 }
 
 export interface SuspectGroup {
   /**
-   * 그룹 이름 — '1', '2' …. 표 어디에 서 있든 한 덩어리임을 말하는 채널이라 순수 층에서
-   * 배정한다. 목록 순서를 따라 번호가 올라가므로, 위에서 아래로 읽으면 1·2·3 이 된다.
+   * 그룹 이름 — '1', '2' …. 화면에 그리지 않는다: 행은 자기 짝의 주소를 직접 들고 있고
+   * (`SuspectMark.partners`), 번호를 덧붙이면 관리자가 짝을 찾는 데 쓸 수 없는 이름을
+   * 하나 더 읽게 된다. 목록에서의 키 — 목록 순서를 따라 1·2·3 이 배정된다.
    */
   label: string;
   members: SuspectMember[];
-  /** 구성원 전체가 공유하는 값 — 이게 같아서 의심하는 것이므로 경고에 함께 적는다. */
-  databaseType: string;
-  port: number;
 }
 
 interface Ipv4 {
@@ -168,23 +164,25 @@ export function findSuspectGroups(rows: readonly RequestResourceRow[]): SuspectG
     found.sort((a, b) => (orderOf.get(a) ?? 0) - (orderOf.get(b) ?? 0));
     groups.push({
       label: String(groups.length + 1),
-      members: found.map((member) => ({
-        row: member,
-        addresses: matched.get(member) ?? [],
-        addressCount: member.connectTargets.length,
-      })),
-      // 간선이 Port·Database Type 일치를 요구하므로 구성원 전체가 첫 행과 같은 값을 쓴다.
-      databaseType: found[0].databaseType ?? '',
-      port: found[0].port ?? 0,
+      members: found.map((member) => ({ row: member, addresses: matched.get(member) ?? [] })),
     });
   }
   return groups;
 }
 
-/** 한 행에 붙는 표시 — 어느 그룹인지, 그리고 그 그룹을 만든 주소가 어느 것인지. */
+/** 한 행에 붙는 표시 — 이 행이 걸린 주소가 어느 것인지, 그리고 짝이 어느 주소인지. */
 export interface SuspectMark {
   label: string;
   addresses: string[];
+  /**
+   * 같은 그룹의 다른 행들이 걸린 주소. 표는 이걸 행 안에 적어 짝을 직접 가리킨다 — 관계를
+   * 행 밖(머리글·재정렬)에 그리면 페이지가 갈리거나 정렬이 바뀔 때 끊어지지만, 행이 짝의
+   * 주소를 들고 있으면 그 행이 어디에 서 있든 살아남는다.
+   *
+   * 연쇄(.11-.12-.13)에서는 직접 인접한 행만이 아니라 그룹의 나머지 전부를 적는다. 관리자가
+   * 확인할 질문이 "이 셋이 같은 DB 인가" 하나이므로, 짝도 그 단위로 가리킨다.
+   */
+  partners: string[];
 }
 
 /**
@@ -196,7 +194,15 @@ export function suspectMarksByRow(
   const marks = new Map<RequestResourceRow, SuspectMark>();
   for (const group of groups) {
     for (const member of group.members) {
-      marks.set(member.row, { label: group.label, addresses: member.addresses });
+      const partners = group.members
+        .filter((other) => other.row !== member.row)
+        .flatMap((other) => other.addresses);
+      marks.set(member.row, {
+        label: group.label,
+        addresses: member.addresses,
+        // 두 행이 같은 주소로 걸릴 수 있다 (완전히 같은 주소를 두 번 등록한 경우).
+        partners: [...new Set(partners)],
+      });
     }
   }
   return marks;
@@ -205,35 +211,4 @@ export function suspectMarksByRow(
 /** 의심 행만, 그룹 순서로. '확인 필요'로 좁혀 볼 때의 목록. */
 export function suspectRows(groups: readonly SuspectGroup[]): RequestResourceRow[] {
   return groups.flatMap((group) => group.members.map((member) => member.row));
-}
-
-/**
- * 기본 목록에서도 한 그룹의 행들을 붙여 세운다 (오너 결정 2026-08-16: 요청 목록의 순서는
- * 의미가 없다). 그룹은 첫 구성원이 서 있던 자리에서 열리고 나머지가 그 뒤를 잇는다 —
- * 관련 없는 행은 제자리에 남으므로 목록 전체가 뒤집히지 않는다.
- */
-export function groupSuspectRows(
-  rows: readonly RequestResourceRow[],
-  groups: readonly SuspectGroup[],
-): RequestResourceRow[] {
-  if (groups.length === 0) return [...rows];
-  const groupOf = new Map<RequestResourceRow, SuspectGroup>();
-  for (const group of groups) {
-    for (const member of group.members) groupOf.set(member.row, group);
-  }
-  const emitted = new Set<RequestResourceRow>();
-  const ordered: RequestResourceRow[] = [];
-  for (const row of rows) {
-    const group = groupOf.get(row);
-    if (group == null) {
-      ordered.push(row);
-      continue;
-    }
-    if (emitted.has(row)) continue;
-    for (const member of group.members) {
-      emitted.add(member.row);
-      ordered.push(member.row);
-    }
-  }
-  return ordered;
 }

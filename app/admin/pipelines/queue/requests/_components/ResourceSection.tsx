@@ -25,7 +25,6 @@ import {
   type ResourceListState,
 } from '@/app/admin/pipelines/queue/requests/_resourceQuery';
 import {
-  groupSuspectRows,
   suspectMarksByRow,
   suspectRows,
   type SuspectGroup,
@@ -62,9 +61,10 @@ export function ResourceSection({
   const counts = resourceCounts(resources);
   const marks = suspectMarksByRow(suspectGroups);
   const flagged = suspectRows(suspectGroups);
-  // 기본 목록도 한 그룹의 행들을 붙여 세운다 — 요청 목록의 순서에는 의미가 없고(오너 확인),
-  // 붙어 있어야 표가 그룹 머리글을 그릴 수 있다. '확인 필요'로 좁히면 그 행들만 남는다.
-  const base = query.filter === 'suspect' ? flagged : groupSuspectRows(resources, suspectGroups);
+  // 기본 목록은 요청 순서 그대로다. 의심 행을 붙여 세우던 재배치는 표가 그룹 머리글을 그릴
+  // 수 있게 하려던 것인데, 머리글이 사라지면서 근거도 같이 사라졌다 — 이제 관계는 행 안에
+  // 있어 어디에 서 있든 읽힌다. 나란히 놓고 보려면 '확인 필요'로 좁히면 된다.
+  const base = query.filter === 'suspect' ? flagged : resources;
   const filtered = queryResources(base, query, isIdc, new Set(flagged));
   const paged = pageResources(filtered, list.page, list.pageSize);
 
