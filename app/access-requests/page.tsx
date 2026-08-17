@@ -237,7 +237,12 @@ const MINE_COLUMNS: readonly Column[] = [
   { label: '코드', className: a.code },
   { label: '서비스', className: a.name },
   { label: '요청 사유', className: a.reason },
-  { label: '상태', className: a.status },
+  // 이 열의 머리만 8px 들여 쓴다. 값이 pill 이라 글자가 자기 면 안쪽으로 px-2 만큼
+  // 들어가 있고, 눈이 열을 맞추는 기준은 옅은 면의 가장자리가 아니라 글자다 — 머리를
+  // 상자 왼쪽에 두면 이 열만 8px 어긋나 보인다(실측: 머리 991, pill 글자 999).
+  // 반대로 pill 을 왼쪽으로 당기지 않는 이유는 열 사이 간격이 12px 뿐이라, 8px 을
+  // 당기면 사유 열 글자와 pill 면 사이가 4px 로 붙어 버린다.
+  { label: '상태', className: cn(a.status, 'pl-2') },
   { label: '요청 일시', className: a.when },
   { className: a.svcAction },
 ];
@@ -509,10 +514,15 @@ export default function MyAccessRequestsPage(): ReactElement {
           )}
         </PagedCard>
       ) : (
-        /* 기록. 설명 줄이 없는 건 반려 안내를 헤더 판정이 이미 말하기 때문이다. */
+        /* 기록. 설명 줄이 없는 건 반려 안내를 헤더 판정이 이미 말하기 때문이다.
+           `bare` 가 없는 유일한 목록이다(오너 지시 2026-08-17) — 표는 흰 종이 위에
+           올라간다. 서비스 두 탭은 행 하나하나가 흰 카드라 캔버스가 카드 사이를 갈라
+           주지만, 표의 행에는 면이 없어서 구분선이 캔버스(#F4F4FB) 위에 바로 그어졌고
+           #E4E7EC 대 그 바닥은 1.132:1 — 선이 있어도 안 보인다. 흰 바닥에서는 같은
+           선이 1.239:1 이고, 이게 Azure 콘솔을 비롯한 모든 표가 읽히는 이유다:
+           선을 진하게 하는 게 아니라 종이를 깐다. */
         <PagedCard
           className="mt-4"
-          bare
           head={null}
           title="내 요청 내역"
           icon="clock"
