@@ -19,8 +19,10 @@
  * 계층은 포함에서 생기지 등급에서 생기지 않는다 — 탭은 둘을 같은 한 자리에 포갠다.
  * 서로 배타적인 두 일(요청하러 왔다 / 결과 보러 왔다)이라 동시에 볼 이유도 없다.
  *
- * 첫 탭은 "내가 아직 못 가진 서비스"다 — `/user/services/page` 가 전체 서비스와
- * `access_status` 를 주므로, NONE 이거나 REJECTED 인 것만 걸러 낸 것이다.
+ * 첫 탭은 "내가 지금 가진 것"이다(오너 지시 2026-08-18) — `/user/services/page` 를
+ * `OWNED` 로 거른다. 둘째가 "아직 못 가진 것"으로, `/access/services-page` 의
+ * `access_status` 가 NONE 이거나 REJECTED 인 것이다. 셋이 가진 것 → 가질 수 있는 것 →
+ * 요청의 결과 순이라, 왼쪽에서 오른쪽이 그대로 권한이 생기는 순서다.
  *
  * 셋 다 **머리 줄이 있는 표**다(오너 지시 2026-08-17). 카드 더미였을 때는 한 칸에
  * [타일 이름 코드칩] 이 붙어 다녀서 코드가 행마다 다른 x 에 섰고, 무엇이 무슨 값인지
@@ -225,10 +227,10 @@ const MINE_SKELETON = (
   </div>
 );
 
-type TabKey = 'services' | 'owned' | 'mine';
+type TabKey = 'owned' | 'services' | 'mine';
 
 export default function MyAccessRequestsPage(): ReactElement {
-  const [tab, setTab] = useState<TabKey>('services');
+  const [tab, setTab] = useState<TabKey>('owned');
   const [query, setQuery] = useState('');
   const [debounced, setDebounced] = useState('');
 
@@ -344,10 +346,13 @@ export default function MyAccessRequestsPage(): ReactElement {
    * 건수는 **내 요청 내역에만** 붙는다. 서비스 두 탭도 이제는 셀 수 있다 — 거른 뒤에
    * 나누므로 `totalElements` 가 걸러진 수다(전에는 서버가 센 전체라 '내가 접근할 수
    * 있는 서비스 20' 옆에 빈 목록이 서곤 했다). 다만 붙일지는 별개 판단이라 그대로 둔다.
+   *
+   * 순서는 가진 것 → 가질 수 있는 것 → 요청의 결과다(오너 지시 2026-08-18). 첫 탭이
+   * 기본값이기도 하다.
    */
   const tabs: { key: TabKey; label: string; count?: number }[] = [
-    { key: 'services', label: '요청할 수 있는 서비스' },
     { key: 'owned', label: '내가 접근할 수 있는 서비스' },
+    { key: 'services', label: '요청할 수 있는 서비스' },
     { key: 'mine', label: '내 요청 내역', count: mine.paged?.totalElements },
   ];
   const tabStrip = (
