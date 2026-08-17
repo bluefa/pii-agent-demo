@@ -2526,6 +2526,13 @@ export const pipelineStyles = {
      *  never collides in the join. Replaces `dialog` entirely for variant='app'. */
     dialogApp:
       'max-w-[92vw] max-h-[88vh] overflow-y-auto rounded-[20px] bg-[var(--pl-bg-card)] shadow-[var(--pl-shadow-lg)]',
+    /** 확정 정보 편집기 — 폭은 `xwide` 와 같은 960. 가장 넓은 내용이 삭제 확인의
+     *  리소스 표(원 서식지에서 유동 ~800px)와 mono JSON 한 줄(120자@12px)이라 그 이상은
+     *  근거가 없다(첫 판의 1540 은 diff 두 열 + 참조 레일 치수였다). 높이는 고정 —
+     *  편집 줄 수를 최대로 벌린다. 패딩 0: 머리·바·본문·바닥이 각자 여백을 갖고
+     *  본문만 스크롤한다. `dialog` 를 통째로 대체한다(dialogApp 과 같은 규칙). */
+    dialogEditor:
+      'w-[min(960px,94vw)] h-[min(920px,92vh)] flex flex-col overflow-hidden rounded-[12px] bg-[var(--pl-bg-card)] shadow-[var(--pl-shadow-lg)]',
     title: cn(pipelineText.modalTitle, 'mb-3'),
     desc: 'text-[14px] leading-[1.4] text-[var(--pl-text-medium)] mb-3.5',
     body: 'overflow-y-auto min-h-0 mt-1',

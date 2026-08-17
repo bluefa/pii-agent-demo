@@ -20,6 +20,12 @@
 import type { z } from 'zod';
 import type { schemas } from '@/lib/generated/install-v1';
 import type { OrchestratorRawResponse } from '@/lib/pipeline/types';
+
+/**
+ * 확정 리소스 쓰기 경로가 존재하는 provider — swagger 는 CSP 마다 별도 path 를 두고
+ * (`{aws|gcp|azure|idc}-resources`) 같은 조작을 선언한다. SDU 는 그 path 가 없다.
+ */
+export type ConfirmedResourceProvider = 'AWS' | 'GCP' | 'AZURE' | 'IDC';
 import type { AlertTargetKind } from '@/lib/types/task-queue';
 
 /**
@@ -270,6 +276,35 @@ export interface BffClient {
     getResources: (id: number) => Promise<z.infer<typeof schemas.CloudResourceResponse>>;
     createApprovalRequest: (id: number, body: z.infer<typeof schemas.ApprovalRequestInputDto>) => Promise<unknown>;
     getConfirmedIntegration: (id: number) => Promise<z.infer<typeof schemas.ConfirmedIntegrationResponse>>;
+    /**
+     * 확정 정보 등록 — swagger `create{Csp}ConfirmedResource` (POST …/{csp}-resources, 201).
+     * The four CSP paths differ only in that one segment, so the provider picks the path
+     * rather than the operation. The request body is declared `type: object` with no
+     * properties — OPAQUE by contract, so it rides as `unknown` and nothing reshapes it.
+     */
+    createConfirmedResources: (
+      id: number,
+      provider: ConfirmedResourceProvider,
+      body: unknown,
+      /** AWS only — swagger declares `applyNLBSecurityGroup` (query, default false) on this path. */
+      applyNlbSecurityGroup?: boolean,
+    ) => Promise<unknown>;
+    /** 확정 정보 삭제 — swagger `delete{Csp}ConfirmedResource` (DELETE …/{csp}-resources, 200). */
+    deleteConfirmedResources: (id: number, provider: ConfirmedResourceProvider) => Promise<unknown>;
+    /**
+     * 승인 기반 추천 확정 정보 — swagger `get{Csp}ApprovedRecommendations`
+     * (GET …/{csp}-resources/approved-recommendations, 200).
+     *
+     * The 200 body is declared `type: object` with no properties — OPAQUE, exactly like the
+     * POST body on the same path. That POST carries BOTH the `Resource Recommendations` and
+     * `Confirmed Resources` tags and names the same noun ("the approved agent configuration"),
+     * so the editor opens this response as the draft the POST expects. The contract does not
+     * assert the two objects are identical, so nothing reshapes it: it rides as `unknown`.
+     */
+    getApprovedRecommendations: (
+      id: number,
+      provider: ConfirmedResourceProvider,
+    ) => Promise<unknown>;
     getApprovedIntegration: (id: number) => Promise<z.infer<typeof schemas.ApprovedIntegrationResponseDto>>;
     getApprovalHistory: (id: number, page: number, size: number) => Promise<unknown>;
     getApprovalRequestLatest: (id: number) => Promise<unknown>;

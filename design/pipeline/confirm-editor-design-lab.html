@@ -1,0 +1,496 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<title>확정 정보 편집기 — 디자인 벤치마크 랩</title>
+<style>
+  /* 앱 토큰 그대로. 이 랩은 app/globals.css 를 읽지 못하므로 값만 옮겨 적는다. */
+  :root {
+    --pl-gray-50: #F9FAFB; --pl-gray-100: #F2F4F7; --pl-gray-200: #E4E7EC;
+    --pl-gray-300: #D0D5DD; --pl-gray-400: #98A2B3; --pl-gray-500: #667085;
+    --pl-gray-600: #475467; --pl-gray-700: #344054; --pl-gray-800: #1D2939;
+    --pl-gray-900: #101828;
+    --pl-chrome-item: #B9C0CC;
+    --pl-border: #E4E7EC; --pl-border-strong: #D0D5DD;
+    --pl-text-strong: #101828; --pl-text-medium: #344054; --pl-text-weak: #667085;
+    --pl-primary: #2563EB; --pl-primary-bg: #EFF4FF;
+    --pl-ok: #12B76A; --pl-ok-text: #027A48; --pl-ok-bg: #ECFDF3;
+    --pl-err: #F04438; --pl-err-text: #B42318; --pl-err-bg: #FEF3F2;
+    --pl-warn: #F79009; --pl-warn-text: #B54708; --pl-warn-bg: #FFFAEB;
+    --pl-info: #2E90FA; --pl-info-text: #175CD3; --pl-info-bg: #EFF8FF;
+    --pl-pv-sdu: #7F56D9;
+    --pl-r-badge: 4px; --pl-r-ctl: 8px; --pl-r-card: 10px;
+    --pl-font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+    --pl-shadow-lg: 0 12px 32px -8px rgba(16,24,40,.16), 0 4px 10px -4px rgba(16,24,40,.08);
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--pl-gray-100); color: var(--pl-text-strong);
+         font-family: Pretendard, -apple-system, system-ui, sans-serif; font-size: 14px; }
+  .page { max-width: 1080px; margin: 0 auto; padding: 48px 24px 96px; }
+  h1 { font-size: 28px; letter-spacing: -.02em; margin: 0 0 6px; }
+  .lede { color: var(--pl-text-weak); margin: 0 0 40px; font-size: 14px; line-height: 1.6; }
+  h2 { font-size: 20px; letter-spacing: -.02em; margin: 56px 0 4px; }
+  h2 .n { color: var(--pl-text-weak); font-weight: 400; margin-right: 8px; }
+  .sub { color: var(--pl-text-weak); font-size: 14px; line-height: 1.6; margin: 0 0 20px; max-width: 76ch; }
+
+  table { width: 100%; border-collapse: collapse; background: #FFFFFF; border-radius: var(--pl-r-card);
+          overflow: hidden; box-shadow: 0 1px 2px rgba(16,24,40,.05); }
+  th, td { text-align: left; padding: 10px 14px; font-size: 12px; line-height: 1.5;
+           border-bottom: 1px solid var(--pl-border); vertical-align: top; }
+  th { background: var(--pl-gray-50); color: var(--pl-text-weak); font-weight: 600; white-space: nowrap; }
+  tr:last-child td { border-bottom: 0; }
+  td b { color: var(--pl-text-strong); }
+  .num { font-family: var(--pl-font-mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .bad { color: var(--pl-err-text); font-weight: 600; }
+  .good { color: var(--pl-ok-text); font-weight: 600; }
+  .keep { color: var(--pl-text-weak); }
+
+  /* ── 시안 프레임: 실제 모달 크기(960x745)로 렌더한다 ─────────────────────── */
+  .frame { width: 960px; background: #FFFFFF; border-radius: 12px; overflow: hidden;
+           box-shadow: var(--pl-shadow-lg); margin: 16px 0 8px; }
+  .cap { display: flex; align-items: baseline; gap: 10px; margin: 40px 0 0; }
+  .cap .tag { font-family: var(--pl-font-mono); font-size: 12px; font-weight: 700;
+              padding: 3px 8px; border-radius: var(--pl-r-badge); background: var(--pl-gray-800); color: #FFFFFF; }
+  .cap .ttl { font-size: 18px; font-weight: 700; letter-spacing: -.02em; }
+  .cap .ref { font-size: 12px; color: var(--pl-text-weak); }
+  .note { font-size: 12px; color: var(--pl-text-weak); line-height: 1.7; margin: 8px 0 0; max-width: 88ch; }
+  .note b { color: var(--pl-text-strong); }
+
+  /* 공통 모달 파츠 */
+  .mhead { border-bottom: 1px solid var(--pl-border); padding: 18px 24px 14px; }
+  .mtop { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; }
+  .mtitle { font-size: 18px; font-weight: 700; letter-spacing: -.02em; margin: 0; }
+  .mchip { font-size: 12px; font-weight: 500; color: var(--pl-text-weak); margin-left: 10px; }
+  .mverdict { display: flex; align-items: center; gap: 8px; font-size: 14px; color: var(--pl-text-medium); margin: 4px 0 0; }
+  .dot { width: 8px; height: 8px; border-radius: 999px; flex: none; }
+  .dot.ok { background: var(--pl-ok); } .dot.idle { background: var(--pl-gray-300); }
+  .why { color: var(--pl-text-weak); }
+  .acts { display: flex; gap: 8px; flex: none; }
+  .btn { font-size: 14px; font-weight: 600; padding: 7px 14px; border-radius: var(--pl-r-ctl);
+         border: 1px solid var(--pl-border-strong); background: #FFFFFF; color: var(--pl-text-medium); }
+  .btn.pri { background: var(--pl-primary); color: #FFFFFF; border-color: var(--pl-primary); }
+  .btn.dgr { color: var(--pl-err-text); border-color: var(--pl-err); }
+  .btn.sm { font-size: 12px; padding: 5px 10px; }
+
+  .urlbar { display: flex; align-items: center; gap: 10px; padding: 8px 24px;
+            border-bottom: 1px solid var(--pl-border); background: var(--pl-gray-50); }
+  .method { font-family: var(--pl-font-mono); font-size: 12px; font-weight: 700; letter-spacing: .04em;
+            padding: 3px 8px; border-radius: var(--pl-r-badge); flex: none; }
+  .method.post { background: var(--pl-ok-bg); color: var(--pl-ok-text); }
+  .url { font-family: var(--pl-font-mono); font-size: 12px; color: var(--pl-text-medium);
+         flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .split { display: flex; height: 560px; }
+  .col { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+  .sechead { display: flex; align-items: center; gap: 8px; min-height: 38px; padding: 8px 24px;
+             border-bottom: 1px solid var(--pl-border); }
+  .sectitle { font-size: 12px; font-weight: 700; flex: none; }
+  .secmeta { font-size: 12px; color: var(--pl-text-weak); flex: none; }
+  .secstat { font-size: 12px; color: var(--pl-text-weak); margin-left: auto; }
+  .mono { font-family: var(--pl-font-mono); font-size: 12px; line-height: 20px; }
+
+  /* JSON 신택스 — 어두운 면 (JobViewer logAnsi 와 같은 토큰 선택) */
+  .code { flex: 1; min-height: 0; overflow: auto; padding: 14px 0; margin: 0; }
+  .ln { display: grid; grid-template-columns: 44px 1fr; }
+  .ln > i { font-style: normal; text-align: right; padding-right: 14px; }
+  .ln > span { white-space: pre; }
+  /* design-exempt: dark code surface (--pl-gray-800), WCAG 1.4.3 dark-panel text */
+  .dark { background: var(--pl-gray-800); color: var(--pl-chrome-item); }
+  /* design-exempt: gutter on --pl-gray-800; --pl-gray-400 measures 5.71:1 there */
+  .dark .ln > i { color: var(--pl-gray-400); }
+  /* design-exempt: JSON syntax on --pl-gray-800 — same tokens JobViewer.logAnsi uses on
+     that panel; measured info 4.55:1 / ok 5.61:1 / warn 6.27:1 / base 8.03:1 */
+  .dark .k { color: var(--pl-info); } .dark .s { color: var(--pl-ok); }
+  .dark .n { color: var(--pl-warn); } .dark .p { color: var(--pl-chrome-item); }
+  .light { background: var(--pl-gray-50); color: var(--pl-text-medium); }
+  .light .ln > i { color: var(--pl-gray-400); }
+  .light .k { color: var(--pl-info-text); } .light .s { color: var(--pl-ok-text); }
+  .light .n { color: var(--pl-warn-text); } .light .p { color: var(--pl-text-weak); }
+  .edit { background: #FFFFFF; color: var(--pl-text-strong); }
+  .edit .ln > i { color: var(--pl-gray-300); }
+  .edit .k { color: var(--pl-info-text); } .edit .s { color: var(--pl-ok-text); }
+  .edit .n { color: var(--pl-warn-text); } .edit .p { color: var(--pl-text-weak); }
+
+  /* Parameters — Swagger 식 표 */
+  .params { padding: 10px 24px; border-bottom: 1px solid var(--pl-border); flex: none; }
+  .ptable { width: 100%; border-collapse: collapse; box-shadow: none; border-radius: 0; background: transparent; }
+  .ptable th { background: transparent; padding: 4px 0; font-size: 12px; border-bottom: 1px solid var(--pl-border); }
+  .ptable td { padding: 7px 0; font-size: 12px; border-bottom: 1px solid var(--pl-gray-100); }
+  .ptable tr:last-child td { border-bottom: 0; }
+  .pname { font-family: var(--pl-font-mono); font-weight: 600; width: 200px; }
+  .ptype { font-family: var(--pl-font-mono); color: var(--pl-text-weak); width: 156px; }
+  .pval { font-family: var(--pl-font-mono); }
+  .sw { display: inline-flex; align-items: center; gap: 6px; }
+  .track { width: 30px; height: 18px; border-radius: 999px; background: var(--pl-gray-300); position: relative; }
+  .track.on { background: var(--pl-primary); }
+  .track > span { position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 999px; background: #FFFFFF; }
+  .track.on > span { left: 14px; }
+
+  /* 응답 pane */
+  .rescol { border-left: 1px solid var(--pl-border); }
+  .code-pill { font-family: var(--pl-font-mono); font-size: 12px; font-weight: 700;
+               padding: 2px 6px; border-radius: var(--pl-r-badge); flex: none; }
+  .code-pill.ok { background: var(--pl-ok-bg); color: var(--pl-ok-text); }
+  /* design-exempt: status pill on dark pane head (--pl-gray-800) */
+  .dark .code-pill.ok { background: #05603A; color: #A6F4C5; }
+  .metrics { font-family: var(--pl-font-mono); font-size: 12px; color: var(--pl-text-weak); margin-left: auto; }
+  /* design-exempt: metrics text on dark pane head (--pl-gray-800) */
+  .dark .metrics, .dark .sectitle { color: var(--pl-chrome-item); }
+  .darkhead { border-bottom-color: #344054; }
+
+  /* 선언된 응답 코드 표 (시안 C) — 실행 전 빈 칸을 계약 사실로 채운다 */
+  .decl { flex: 1; min-height: 0; overflow: auto; padding: 4px 24px 16px; }
+  .dtable { width: 100%; border-collapse: collapse; box-shadow: none; border-radius: 0; background: transparent; }
+  .dtable th { background: transparent; border-bottom: 1px solid var(--pl-border); padding: 6px 0; }
+  .dtable td { border-bottom: 1px solid var(--pl-gray-100); padding: 7px 0; font-size: 12px; }
+  .dtable .c { font-family: var(--pl-font-mono); font-weight: 700; width: 64px; }
+  .dtable .c.s2 { color: var(--pl-ok-text); } .dtable .c.s4 { color: var(--pl-err-text); }
+  .dtable .c.s5 { color: var(--pl-warn-text); }
+  .dtable .d { color: var(--pl-text-medium); }
+  .dtable tr.hit td { background: var(--pl-ok-bg); }
+  .empty { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+           gap: 6px; text-align: center; padding: 0 24px; }
+  .empty .h { font-size: 14px; color: var(--pl-text-medium); }
+  .empty .w { font-size: 12px; color: var(--pl-text-weak); }
+  .void { outline: 2px dashed var(--pl-err); outline-offset: -6px; }
+  .voidtag { position: absolute; font-size: 12px; font-weight: 700; color: var(--pl-err-text);
+             background: var(--pl-err-bg); padding: 2px 8px; border-radius: var(--pl-r-badge); margin: 8px; }
+  .rel { position: relative; }
+  .verdictbox { background: #FFFFFF; border: 1px solid var(--pl-border); border-left: 4px solid var(--pl-primary);
+                border-radius: var(--pl-r-card); padding: 18px 22px; margin: 24px 0 0; }
+  .verdictbox h3 { margin: 0 0 10px; font-size: 16px; }
+  .verdictbox ul { margin: 0; padding-left: 20px; }
+  .verdictbox li { font-size: 14px; line-height: 1.75; color: var(--pl-text-medium); }
+  .verdictbox li b { color: var(--pl-text-strong); }
+</style>
+</head>
+<body>
+<div class="page">
+
+<h1>확정 정보 편집기 — 디자인 벤치마크</h1>
+<p class="lede">
+  배치(좌우 분할)는 <code>55c59ddc</code> 에서 세웠다. 이 랩은 그 위의 <b>표면·타이포·밀도</b>만 다룬다.
+  프레임은 모두 실제 모달 크기(960×745)로 렌더했다.
+</p>
+
+<h2><span class="n">1</span>지금 무엇이 별로인가 — 실측</h2>
+<p class="sub">
+  1554×810 뷰포트, 모달 960×745, 두 칸 각 480px. 브라우저에서 잰 값이다.
+</p>
+<table>
+  <thead><tr><th style="width:52px">#</th><th style="width:200px">증상</th><th style="width:120px">실측</th><th>왜 문제인가</th></tr></thead>
+  <tbody>
+    <tr><td class="num">D1</td><td><b>응답 칸이 빈 채로 화면을 먹는다</b></td>
+        <td class="num bad">480×586<br>= 모달의 39%</td>
+        <td>실행 전에는 "아직 실행하지 않았습니다" 두 줄뿐. 모달 면적의 <b>39%</b>가 상시 공백이다. 자리를 지키는 것은 맞지만, 지킬 자리에 아무 사실도 없다.</td></tr>
+    <tr><td class="num">D2</td><td><b>두 pane 이 같은 면</b></td>
+        <td class="num bad">#FFFFFF vs<br>#F9FAFB</td>
+        <td>보낸 JSON 과 받은 JSON 의 표면 차이가 5% 명도뿐. 경계는 1px 선 하나. 레퍼런스는 전부 이 둘을 <b>다른 표면</b>으로 세운다.</td></tr>
+    <tr><td class="num">D3</td><td><b>코드가 코드로 안 보인다</b></td>
+        <td class="num bad">gutter 0<br>색 1종</td>
+        <td>줄 번호 없음, 신택스 색 없음. JSON 200줄에서 "몇 번째 줄이 틀렸다"를 가리킬 수단이 없다. 12px 단색 모노는 로그지 편집기가 아니다.</td></tr>
+    <tr><td class="num">D4</td><td><b>편집기 전에 수평선 6줄</b></td>
+        <td class="num bad">6 rules</td>
+        <td>머리·URL·Parameters·Request body·불러오기 바까지 전부 1px 선으로만 나뉜다. 등급이 없으니 다섯 층이 같은 무게로 읽힌다.</td></tr>
+    <tr><td class="num">D5</td><td><b>Parameters 가 표가 아니다</b></td>
+        <td class="num bad">머리 없음</td>
+        <td>Name / In·Type / Value 열은 정렬돼 있는데 <b>열 머리가 없다</b>. <code>1018</code>·<code>false</code> 가 값인지 라벨인지 구분되지 않는다.</td></tr>
+    <tr><td class="num">D6</td><td><b>실행 버튼이 URL 에서 멀다</b></td>
+        <td class="num">Δ 약 70px</td>
+        <td>URL 은 ②줄, [저장] 은 ①머리 우상단. 레퍼런스는 예외 없이 <code>[METHOD][URL][Send]</code> 한 줄이다.</td></tr>
+    <tr><td class="num">D7</td><td><b>status 가 코드 숫자뿐</b></td>
+        <td class="num">201</td>
+        <td>Postman·Insomnia 는 <code>200 OK · 231 ms · 1.2 KB</code>. 우리는 숫자 하나. 응답이 왔다는 사실 외에 아무 것도 말하지 않는다.</td></tr>
+  </tbody>
+</table>
+
+<h2><span class="n">2</span>레퍼런스 — 시각 규칙만 뽑는다</h2>
+<p class="sub">
+  배치는 지난 라운드에서 끝냈으므로 여기서는 <b>표면을 어떻게 나누고 코드를 어떻게 그리는가</b>만 본다.
+  마지막 두 줄은 <b>이 레포 안의 선례</b>다 — 바깥 레퍼런스보다 이쪽이 먼저다.
+</p>
+<table>
+  <thead><tr><th style="width:168px">레퍼런스</th><th style="width:210px">요청 vs 응답 표면</th><th style="width:150px">코드 표면</th><th>실행 전 응답 칸</th></tr></thead>
+  <tbody>
+    <tr><td><b>Swagger UI</b></td><td>흰 본문 / <b>어두운 코드 블록</b></td><td>어두운 면, 색 있음</td><td><b>선언된 응답 코드 표</b> (Code · Description) — 비워 두지 않는다</td></tr>
+    <tr><td><b>Postman</b></td><td>밝음 / 밝음 + 탭 줄</td><td>gutter + 신택스 색</td><td>안내 + <code>Send</code> 유도</td></tr>
+    <tr><td><b>Insomnia</b></td><td><b>어두움 / 어두움</b>, 알약 status</td><td>gutter + 신택스 색</td><td>빈 상태 일러스트</td></tr>
+    <tr><td><b>Hoppscotch</b></td><td>밝음, <code>[METHOD][URL][Send]</code> 한 줄</td><td>gutter + 신택스 색</td><td>단축키 힌트</td></tr>
+    <tr><td><b>Bruno</b></td><td>밝음 / 밝음, 코드 폴딩</td><td>gutter + 폴딩</td><td>빈 상태</td></tr>
+    <tr><td><b>GraphiQL</b></td><td>좌 쿼리 / 우 결과, 둘 다 컬러</td><td>gutter + 신택스 색</td><td>문서 탐색기</td></tr>
+    <tr><td><b>Stripe API ref</b></td><td>흰 설명 / <b>어두운 코드 패널</b></td><td>어두운 면, 색 있음</td><td>예시 응답 상시 표시</td></tr>
+    <tr style="background:var(--pl-primary-bg)"><td><b>이 레포 · JobViewer</b></td><td>흰 목록 / <b><code>--pl-gray-800</code> 로그 패널</b></td><td><code>--pl-chrome-item</code> + ANSI→토큰 맵</td><td>—</td></tr>
+    <tr style="background:var(--pl-primary-bg)"><td><b>이 레포 · 확정 Raw 렌즈</b></td><td><code>--pl-gray-50</code>, 12px/1.8, <code>px-[22px] py-[18px]</code></td><td>단색</td><td>—</td></tr>
+  </tbody>
+</table>
+<p class="note">
+  <b>읽어 낸 것.</b> ① 응답을 요청과 <b>다른 표면</b>에 두는 것이 다수(Swagger·Stripe·Insomnia)고, 이 레포에도 이미
+  어두운 코드 패널 선례가 있다 — <code>bg-[var(--pl-gray-800)]</code> + <code>text-[var(--pl-chrome-item)]</code>,
+  그 위의 색은 <code>logAnsi</code> 가 이미 <code>--pl-*</code> 로 정해 뒀다. 새 색을 발명할 필요가 없다.
+  ② gutter + 신택스 색은 <b>전 레퍼런스 공통</b>이다. ③ <code>[METHOD][URL][Send]</code> 한 줄도 공통.
+  ④ 그리고 <b>Swagger UI 만 실행 전 칸을 비우지 않는다</b> — 계약이 선언한 응답 코드를 표로 깔아 둔다.
+  우리 계약도 그 표를 갖고 있다(201·400·403·404·409·500·501·502·503).
+</p>
+
+<!-- ─────────────────────────── 현재 ─────────────────────────── -->
+<div class="cap"><span class="tag" style="background:var(--pl-err-text)">현재</span>
+  <span class="ttl">55c59ddc</span><span class="ref">배치는 맞고 표면이 없다</span></div>
+<div class="frame">
+  <div class="mhead"><div class="mtop">
+    <div><h2 class="mtitle">확정 정보<span class="mchip">AWS · Target Source #1018</span></h2>
+      <p class="mverdict"><span class="dot ok"></span>등록된 확정 정보를 고치고 있습니다<span class="why">· 아직 바뀐 내용이 없습니다</span></p></div>
+    <div class="acts"><button class="btn dgr">삭제</button><button class="btn">취소</button><button class="btn pri">저장</button></div>
+  </div></div>
+  <div class="urlbar"><span class="method post">POST</span>
+    <span class="url">/target-sources/1018/confirmed-resources?provider=AWS</span></div>
+  <div class="split" style="height:520px">
+    <div class="col">
+      <div class="params" style="padding:10px 24px">
+        <div class="sectitle">Parameters</div>
+        <div style="margin-top:6px;display:flex;gap:12px;align-items:center;padding:3px 0">
+          <span class="pname mono" style="width:168px">targetSourceId</span>
+          <span class="ptype mono" style="width:148px">path · integer($int64)</span>
+          <span class="pval mono">1018</span></div>
+        <div style="display:flex;gap:12px;align-items:center;padding:3px 0">
+          <span class="pname mono" style="width:168px">applyNLBSecurityGroup</span>
+          <span class="ptype mono" style="width:148px">query · boolean</span>
+          <span class="pval mono"><input type="checkbox" disabled /> false</span></div>
+      </div>
+      <div class="sechead"><span class="sectitle">Request body</span><span class="secmeta">application/json</span>
+        <span class="secstat">JSON 파싱 정상</span></div>
+      <div class="sechead" style="background:var(--pl-gray-50);min-height:46px">
+        <button class="btn sm" disabled>추천값 불러오기</button><span class="secmeta">불러올 추천값이 없습니다</span></div>
+      <pre class="mono code" style="padding:14px 24px;margin:0;color:var(--pl-text-strong)">{
+  "resource_infos": [
+    {
+      "resource_id": "i-0f3c9d21",
+      "resource_type": "EC2",
+      "resource_name": "pii-demo-01",
+      "region": "ap-northeast-2"
+    }
+  ]
+}</pre>
+    </div>
+    <div class="col rescol rel void">
+      <span class="voidtag">480 × 586 — 모달의 39%</span>
+      <div class="sechead"><span class="sectitle">Server response</span></div>
+      <div class="empty"><span class="h">아직 실행하지 않았습니다</span>
+        <span class="w">[저장] 버튼을 누르면 서버 응답이 여기에 표시됩니다</span></div>
+    </div>
+  </div>
+</div>
+<p class="note">D1 이 눈으로 보인다 — 점선 안이 상시 공백이다. 그리고 좌우 표면이 사실상 같은 흰색이라
+  <b>어느 쪽이 보내는 것이고 어느 쪽이 받는 것인지</b>를 색이 말해 주지 않는다.</p>
+
+<!-- ─────────────────────────── 시안 A ─────────────────────────── -->
+<div class="cap"><span class="tag">시안 A</span><span class="ttl">흑백 분할</span>
+  <span class="ref">Swagger UI · Stripe · 이 레포 JobViewer</span></div>
+<div class="frame">
+  <div class="mhead"><div class="mtop">
+    <div><h2 class="mtitle">확정 정보<span class="mchip">AWS · Target Source #1018</span></h2>
+      <p class="mverdict"><span class="dot ok"></span>확정 정보를 저장했습니다<span class="why">· 오른쪽이 서버가 돌려준 응답입니다</span></p></div>
+    <div class="acts"><button class="btn pri">닫기</button></div>
+  </div></div>
+  <div class="urlbar"><span class="method post">POST</span>
+    <span class="url">/target-sources/1018/confirmed-resources?provider=AWS&amp;applyNLBSecurityGroup=true</span>
+    <button class="btn pri sm" style="flex:none">저장</button></div>
+  <div class="split" style="height:520px">
+    <div class="col">
+      <div class="params">
+        <table class="ptable"><thead><tr><th>Name</th><th>In · Type</th><th>Value</th></tr></thead>
+        <tbody>
+          <tr><td class="pname">targetSourceId</td><td class="ptype">path · integer</td><td class="pval">1018</td></tr>
+          <tr><td class="pname">applyNLBSecurityGroup</td><td class="ptype">query · boolean</td>
+              <td class="pval"><span class="sw"><span class="track on"><span></span></span>true</span></td></tr>
+        </tbody></table>
+      </div>
+      <div class="sechead"><span class="sectitle">Request body</span><span class="secmeta">application/json</span>
+        <span class="secstat" style="color:var(--pl-ok-text);font-weight:600">파싱 정상 · 1건</span></div>
+      <div class="code edit mono">
+        <div class="ln"><i>1</i><span><span class="p">{</span></span></div>
+        <div class="ln"><i>2</i><span>  <span class="k">"resource_infos"</span><span class="p">: [</span></span></div>
+        <div class="ln"><i>3</i><span>    <span class="p">{</span></span></div>
+        <div class="ln"><i>4</i><span>      <span class="k">"resource_id"</span><span class="p">: </span><span class="s">"i-0f3c9d21"</span><span class="p">,</span></span></div>
+        <div class="ln"><i>5</i><span>      <span class="k">"resource_type"</span><span class="p">: </span><span class="s">"EC2"</span><span class="p">,</span></span></div>
+        <div class="ln"><i>6</i><span>      <span class="k">"resource_name"</span><span class="p">: </span><span class="s">"pii-demo-01"</span><span class="p">,</span></span></div>
+        <div class="ln"><i>7</i><span>      <span class="k">"region"</span><span class="p">: </span><span class="s">"ap-northeast-2"</span></span></div>
+        <div class="ln"><i>8</i><span>    <span class="p">}</span></span></div>
+        <div class="ln"><i>9</i><span>  <span class="p">]</span></span></div>
+        <div class="ln"><i>10</i><span><span class="p">}</span></span></div>
+      </div>
+    </div>
+    <div class="col rescol dark">
+      <div class="sechead darkhead"><span class="sectitle">Server response</span>
+        <span class="code-pill ok">201</span><span class="metrics">Created · 24 ms · 412 B</span></div>
+      <div class="code dark mono">
+        <div class="ln"><i>1</i><span><span class="p">{</span></span></div>
+        <div class="ln"><i>2</i><span>  <span class="k">"resource_infos"</span><span class="p">: [</span></span></div>
+        <div class="ln"><i>3</i><span>    <span class="p">{</span></span></div>
+        <div class="ln"><i>4</i><span>      <span class="k">"resource_id"</span><span class="p">: </span><span class="s">"i-0f3c9d21"</span><span class="p">,</span></span></div>
+        <div class="ln"><i>5</i><span>      <span class="k">"resource_type"</span><span class="p">: </span><span class="s">"EC2"</span><span class="p">,</span></span></div>
+        <div class="ln"><i>6</i><span>      <span class="k">"resource_name"</span><span class="p">: </span><span class="s">"pii-demo-01"</span><span class="p">,</span></span></div>
+        <div class="ln"><i>7</i><span>      <span class="k">"region"</span><span class="p">: </span><span class="s">"ap-northeast-2"</span><span class="p">,</span></span></div>
+        <div class="ln"><i>8</i><span>      <span class="k">"nlb_security_group"</span><span class="p">: </span><span class="n">true</span></span></div>
+        <div class="ln"><i>9</i><span>    <span class="p">}</span></span></div>
+        <div class="ln"><i>10</i><span>  <span class="p">]</span></span></div>
+        <div class="ln"><i>11</i><span><span class="p">}</span></span></div>
+      </div>
+    </div>
+  </div>
+</div>
+<p class="note">
+  <b>고치는 것.</b> D2(표면) · D3(gutter·색) · D5(표 머리) · D6(Send 를 URL 줄로) · D7(메트릭).
+  <b>남는 것.</b> D1 — 실행 전에는 오른쪽이 여전히 빈 어두운 판이다. 오히려 <b>빈 검은 칸이 더 크게 비어 보인다</b>.
+  <b>비용.</b> 어두운 면 위 텍스트는 design-guard 의 <code>design-exempt:</code> 를 줄마다 달아야 한다(hook 이 명시적으로 허용하는 사유).
+</p>
+
+<!-- ─────────────────────────── 시안 B ─────────────────────────── -->
+<div class="cap"><span class="tag">시안 B</span><span class="ttl">밝은 클라이언트</span>
+  <span class="ref">Postman · Hoppscotch · Bruno</span></div>
+<div class="frame">
+  <div class="mhead"><div class="mtop">
+    <div><h2 class="mtitle">확정 정보<span class="mchip">AWS · Target Source #1018</span></h2>
+      <p class="mverdict"><span class="dot ok"></span>확정 정보를 저장했습니다<span class="why">· 오른쪽이 서버가 돌려준 응답입니다</span></p></div>
+    <div class="acts"><button class="btn pri">닫기</button></div>
+  </div></div>
+  <div class="urlbar"><span class="method post">POST</span>
+    <span class="url">/target-sources/1018/confirmed-resources?provider=AWS&amp;applyNLBSecurityGroup=true</span>
+    <button class="btn pri sm" style="flex:none">저장</button></div>
+  <div class="split" style="height:520px">
+    <div class="col">
+      <div class="params">
+        <table class="ptable"><thead><tr><th>Name</th><th>In · Type</th><th>Value</th></tr></thead>
+        <tbody>
+          <tr><td class="pname">targetSourceId</td><td class="ptype">path · integer</td><td class="pval">1018</td></tr>
+          <tr><td class="pname">applyNLBSecurityGroup</td><td class="ptype">query · boolean</td>
+              <td class="pval"><span class="sw"><span class="track on"><span></span></span>true</span></td></tr>
+        </tbody></table>
+      </div>
+      <div class="sechead"><span class="sectitle">Request body</span><span class="secmeta">application/json</span>
+        <span class="secstat" style="color:var(--pl-ok-text);font-weight:600">파싱 정상 · 1건</span></div>
+      <div class="code edit mono">
+        <div class="ln"><i>1</i><span><span class="p">{</span></span></div>
+        <div class="ln"><i>2</i><span>  <span class="k">"resource_infos"</span><span class="p">: [</span></span></div>
+        <div class="ln"><i>3</i><span>    <span class="p">{</span></span></div>
+        <div class="ln"><i>4</i><span>      <span class="k">"resource_id"</span><span class="p">: </span><span class="s">"i-0f3c9d21"</span><span class="p">,</span></span></div>
+        <div class="ln"><i>5</i><span>      <span class="k">"resource_type"</span><span class="p">: </span><span class="s">"EC2"</span><span class="p">,</span></span></div>
+        <div class="ln"><i>6</i><span>      <span class="k">"resource_name"</span><span class="p">: </span><span class="s">"pii-demo-01"</span><span class="p">,</span></span></div>
+        <div class="ln"><i>7</i><span>      <span class="k">"region"</span><span class="p">: </span><span class="s">"ap-northeast-2"</span></span></div>
+        <div class="ln"><i>8</i><span>    <span class="p">}</span></span></div>
+        <div class="ln"><i>9</i><span>  <span class="p">]</span></span></div>
+        <div class="ln"><i>10</i><span><span class="p">}</span></span></div>
+      </div>
+    </div>
+    <div class="col rescol">
+      <div class="sechead"><span class="sectitle">Server response</span>
+        <span class="code-pill ok">201</span><span class="metrics">Created · 24 ms · 412 B</span></div>
+      <div class="code light mono">
+        <div class="ln"><i>1</i><span><span class="p">{</span></span></div>
+        <div class="ln"><i>2</i><span>  <span class="k">"resource_infos"</span><span class="p">: [</span></span></div>
+        <div class="ln"><i>3</i><span>    <span class="p">{</span></span></div>
+        <div class="ln"><i>4</i><span>      <span class="k">"resource_id"</span><span class="p">: </span><span class="s">"i-0f3c9d21"</span><span class="p">,</span></span></div>
+        <div class="ln"><i>5</i><span>      <span class="k">"resource_type"</span><span class="p">: </span><span class="s">"EC2"</span><span class="p">,</span></span></div>
+        <div class="ln"><i>6</i><span>      <span class="k">"resource_name"</span><span class="p">: </span><span class="s">"pii-demo-01"</span><span class="p">,</span></span></div>
+        <div class="ln"><i>7</i><span>      <span class="k">"region"</span><span class="p">: </span><span class="s">"ap-northeast-2"</span><span class="p">,</span></span></div>
+        <div class="ln"><i>8</i><span>      <span class="k">"nlb_security_group"</span><span class="p">: </span><span class="n">true</span></span></div>
+        <div class="ln"><i>9</i><span>    <span class="p">}</span></span></div>
+        <div class="ln"><i>10</i><span>  <span class="p">]</span></span></div>
+        <div class="ln"><i>11</i><span><span class="p">}</span></span></div>
+      </div>
+    </div>
+  </div>
+</div>
+<p class="note">
+  <b>고치는 것.</b> D3 · D5 · D6 · D7. <b>남는 것.</b> D1, 그리고 D2 — 좌우가 여전히 5% 명도차다.
+  신택스 색이 들어가면서 <b>두 칸의 색이 똑같아져</b> 오히려 요청·응답 구분이 더 흐려진다.
+  <b>이득.</b> <code>design-exempt:</code> 가 한 줄도 필요 없다 — 전부 밝은 면 위 기존 토큰이다.
+</p>
+
+<!-- ─────────────────────────── 시안 C ─────────────────────────── -->
+<div class="cap"><span class="tag">시안 C</span><span class="ttl">계약이 빈 칸을 채운다</span>
+  <span class="ref">Swagger UI 의 Responses 표</span></div>
+<p class="note" style="margin-bottom:0">
+  실행 전 상태다. 오른쪽에 <b>계약이 선언한 응답 코드 9개</b>를 깐다 — 발명이 아니라
+  <code>install-v1.yaml</code> 의 <code>createAwsConfirmedResource.responses</code> 그대로다.
+</p>
+<div class="frame">
+  <div class="mhead"><div class="mtop">
+    <div><h2 class="mtitle">확정 정보<span class="mchip">AWS · Target Source #1018</span></h2>
+      <p class="mverdict"><span class="dot idle"></span>등록된 확정 정보를 고치고 있습니다<span class="why">· 저장하면 1건이 이 초안으로 바뀝니다</span></p></div>
+    <div class="acts"><button class="btn dgr">삭제</button><button class="btn">취소</button></div>
+  </div></div>
+  <div class="urlbar"><span class="method post">POST</span>
+    <span class="url">/target-sources/1018/confirmed-resources?provider=AWS</span>
+    <button class="btn pri sm" style="flex:none">저장</button></div>
+  <div class="split" style="height:520px">
+    <div class="col">
+      <div class="params">
+        <table class="ptable"><thead><tr><th>Name</th><th>In · Type</th><th>Value</th></tr></thead>
+        <tbody>
+          <tr><td class="pname">targetSourceId</td><td class="ptype">path · integer</td><td class="pval">1018</td></tr>
+          <tr><td class="pname">applyNLBSecurityGroup</td><td class="ptype">query · boolean</td>
+              <td class="pval"><span class="sw"><span class="track"><span></span></span>false</span></td></tr>
+        </tbody></table>
+      </div>
+      <div class="sechead"><span class="sectitle">Request body</span><span class="secmeta">application/json</span>
+        <span class="secstat" style="color:var(--pl-ok-text);font-weight:600">파싱 정상 · 1건</span></div>
+      <div class="code edit mono">
+        <div class="ln"><i>1</i><span><span class="p">{</span></span></div>
+        <div class="ln"><i>2</i><span>  <span class="k">"resource_infos"</span><span class="p">: [</span></span></div>
+        <div class="ln"><i>3</i><span>    <span class="p">{</span></span></div>
+        <div class="ln"><i>4</i><span>      <span class="k">"resource_id"</span><span class="p">: </span><span class="s">"i-0f3c9d21"</span><span class="p">,</span></span></div>
+        <div class="ln"><i>5</i><span>      <span class="k">"resource_type"</span><span class="p">: </span><span class="s">"EC2"</span><span class="p">,</span></span></div>
+        <div class="ln"><i>6</i><span>      <span class="k">"resource_name"</span><span class="p">: </span><span class="s">"pii-demo-01"</span><span class="p">,</span></span></div>
+        <div class="ln"><i>7</i><span>      <span class="k">"region"</span><span class="p">: </span><span class="s">"ap-northeast-2"</span></span></div>
+        <div class="ln"><i>8</i><span>    <span class="p">}</span></span></div>
+        <div class="ln"><i>9</i><span>  <span class="p">]</span></span></div>
+        <div class="ln"><i>10</i><span><span class="p">}</span></span></div>
+      </div>
+    </div>
+    <div class="col rescol">
+      <div class="sechead"><span class="sectitle">Server response</span>
+        <span class="secmeta">아직 실행하지 않았습니다</span></div>
+      <div class="decl">
+        <p style="font-size:12px;color:var(--pl-text-weak);margin:10px 0 8px;line-height:1.6">
+          계약이 이 오퍼레이션에 선언한 응답입니다. 저장하면 이 중 하나가 본문과 함께 여기 놓입니다.</p>
+        <table class="dtable"><thead><tr><th style="font-size:12px;color:var(--pl-text-weak)">Code</th>
+          <th style="font-size:12px;color:var(--pl-text-weak)">Description</th></tr></thead>
+        <tbody>
+          <tr><td class="c s2">201</td><td class="d">Created</td></tr>
+          <tr><td class="c s4">400</td><td class="d">Bad Request</td></tr>
+          <tr><td class="c s4">403</td><td class="d">Forbidden</td></tr>
+          <tr><td class="c s4">404</td><td class="d">Not Found</td></tr>
+          <tr><td class="c s4">409</td><td class="d">Conflict</td></tr>
+          <tr><td class="c s5">500</td><td class="d">Internal Server Error</td></tr>
+          <tr><td class="c s5">501</td><td class="d">Not Implemented</td></tr>
+          <tr><td class="c s5">502</td><td class="d">Bad Gateway</td></tr>
+          <tr><td class="c s5">503</td><td class="d">Service Unavailable</td></tr>
+        </tbody></table>
+      </div>
+    </div>
+  </div>
+</div>
+<p class="note">
+  <b>고치는 것.</b> D1 — 39% 공백이 <b>계약 사실 9줄</b>로 바뀐다. 그리고 실행하면 온 코드의 행을 짚어 줄 수 있다.
+  <b>남는 것.</b> D2 — 표면 대비는 그대로다. <b>즉 C 는 A·B 와 경쟁하지 않는다</b>: C 는 빈 칸을, A·B 는 표면을 고친다.
+</p>
+
+<div class="verdictbox">
+  <h3>판정 — A + C</h3>
+  <ul>
+    <li><b>C 는 무조건 넣는다.</b> 세 시안 중 D1(모달의 39%가 상시 공백)을 고치는 것은 C 뿐이고, 채우는 재료가
+      <b>발명이 아니라 계약</b>이다. Swagger UI 가 실행 전 칸을 비우지 않는 이유가 정확히 이것이다.</li>
+    <li><b>표면은 A.</b> B 는 신택스 색을 넣으면서 좌우를 더 닮게 만든다 — 두 JSON 을 대조하는 화면에서
+      요청과 응답이 같은 색이면 대조의 기준이 사라진다. A 는 이 레포에 이미 선례가 있어
+      <b>새 색을 발명하지 않는다</b>(<code>--pl-gray-800</code> + <code>--pl-chrome-item</code> + <code>logAnsi</code>).</li>
+    <li><b>A 의 약점은 C 가 정확히 지운다.</b> "빈 검은 칸이 더 크게 비어 보인다"가 A 의 유일한 실점이고,
+      C 를 얹으면 그 칸은 실행 전에도 비지 않는다. 두 시안이 서로의 결함을 덮는다.</li>
+    <li><b>공통으로 가져오는 것</b> — gutter 라인 넘버(D3), Parameters 표 머리(D5),
+      <code>[METHOD][URL][저장]</code> 한 줄(D6), status 알약 + <code>Created · 24 ms · 412 B</code>(D7).</li>
+    <li><b>안 가져오는 것</b> — 코드 폴딩·드래그 divider·응답 탭(Headers/Cookies). 계약이 opaque object 하나라
+      탭이 나눌 것이 없고, 폴딩은 이 크기의 JSON 에 값하지 않는다.</li>
+  </ul>
+</div>
+
+</div>
+</body>
+</html>

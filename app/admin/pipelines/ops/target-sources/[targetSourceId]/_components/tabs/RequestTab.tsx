@@ -125,8 +125,11 @@ const NOOP = (): void => {};
  *
  * Owns the list's filter/search/page state, so mounting it under a per-request `key` is
  * what resets that state between requests.
+ *
+ * Exported for the 확정 정보 tab's 연동 요청 pane, which shows the same request: one
+ * request, one presentation, wherever an operator opens it.
  */
-function ResourceList({
+export function ResourceList({
   targetSourceId,
   rows,
   isIdc,

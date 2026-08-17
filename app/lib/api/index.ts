@@ -461,6 +461,74 @@ export const getConfirmedIntegration = async (
     options?.signal ? { signal: options.signal } : undefined,
   );
 
+/**
+ * 확정 정보 등록 / 삭제 — swagger `create{Csp}ConfirmedResource` (POST …/{csp}-resources)
+ * 와 `delete{Csp}ConfirmedResource` (DELETE …/{csp}-resources). 네 CSP path 를 내부 route
+ * 하나가 `?provider=` 로 미러한다.
+ *
+ * 요청 본문은 계약이 `type: object` 로만 선언한다 — **opaque**. 그래서 타입도 `unknown`
+ * 이고, 작성자가 준 JSON 을 그대로 보낸다: 모르는 스키마를 지어내 검증하면 계약에 없는
+ * 규칙을 우리가 만드는 것이 된다.
+ *
+ * 성공 응답도 같은 이유로 `unknown` 이다 — 계약은 201/200 을 선언하되 본문을 `type: object`
+ * 로만 적는다. 그래도 **버리지는 않는다**: 편집기가 실행 결과를 응답 그대로 보여 주므로,
+ * 서버가 무엇을 돌려줬는지가 화면까지 살아 있어야 한다.
+ */
+export type ConfirmedResourceProvider = 'AWS' | 'GCP' | 'AZURE' | 'IDC';
+
+/**
+ * 이 오퍼레이션이 실제로 때리는 경로. **편집기가 이 문자열을 그대로 화면에 적으므로**
+ * 보내는 쪽과 보여 주는 쪽이 같은 빌더를 써야 한다 — 손으로 베낀 URL 은 조용히 갈라진다.
+ */
+export const confirmedResourcePath = (
+  targetSourceId: number,
+  provider: ConfirmedResourceProvider,
+  /** AWS 전용 — 계약이 이 path 에만 두는 `applyNLBSecurityGroup` (기본 false). */
+  applyNlbSecurityGroup = false,
+): string =>
+  `${CONFIRM_BASE}/${targetSourceId}/confirmed-resources?provider=${provider}`
+  + (applyNlbSecurityGroup ? '&applyNLBSecurityGroup=true' : '');
+
+export const createConfirmedResources = async (
+  targetSourceId: number,
+  provider: ConfirmedResourceProvider,
+  body: unknown,
+  applyNlbSecurityGroup = false,
+): Promise<unknown> =>
+  fetchInfraJson<unknown>(confirmedResourcePath(targetSourceId, provider, applyNlbSecurityGroup), {
+    method: 'POST',
+    body,
+  });
+
+export const deleteConfirmedResources = async (
+  targetSourceId: number,
+  provider: ConfirmedResourceProvider,
+): Promise<unknown> =>
+  fetchInfraJson<unknown>(confirmedResourcePath(targetSourceId, provider), {
+    method: 'DELETE',
+  });
+
+/**
+ * 승인 기반 추천 확정 정보 — swagger `get{Csp}ApprovedRecommendations`.
+ *
+ * 응답도 `type: object` 로만 선언된다 — 등록 본문과 **같은 선언, 같은 path, 같은 명사**
+ * ("the approved agent configuration")이고, 그 POST 는 `Resource Recommendations` 태그를
+ * 함께 단다. 그래서 편집기는 이 응답을 등록 본문의 초안으로 연다. 계약이 둘을 동일하다고
+ * 단정하지는 않으므로 타입은 `unknown` 이고, 화면은 받은 JSON 을 그대로 보여 준다 —
+ * 숨은 변환이 끼면 무엇을 저장하는지 작성자가 볼 수 없다.
+ *
+ * 404 는 추천할 것이 없다는 뜻이다(부재이지 실패가 아니다).
+ */
+export const getApprovedRecommendations = async (
+  targetSourceId: number,
+  provider: ConfirmedResourceProvider,
+  options?: { signal?: AbortSignal },
+): Promise<unknown> =>
+  fetchInfraJson<unknown>(
+    `${CONFIRM_BASE}/${targetSourceId}/confirmed-resources/recommendations?provider=${provider}`,
+    options?.signal ? { signal: options.signal } : undefined,
+  );
+
 // ADR-019: route emits flat ApprovedIntegrationResponseDto (snake, no envelope).
 // Reshape to the UI shape: wrap in approved_integration, rename resources→resource_infos,
 // excluded fields not in the new schema default to empty.

@@ -920,6 +920,123 @@ export const mockConfirm = {
     } satisfies BffConfirmedIntegration);
   },
 
+  /**
+   * GET …/{csp}-resources/approved-recommendations — 승인 기반 추천 확정 정보
+   * (swagger get{Csp}ApprovedRecommendations, 200).
+   *
+   * 계약은 200 본문을 `type: object` 로만 선언한다 — 같은 path 의 POST 요청 본문과 같은
+   * 선언이고, 그 POST 는 `Resource Recommendations` 태그를 함께 단다. 그래서 목은 **등록
+   * 본문이 읽는 모양 그대로**(`resource_infos`) 돌려준다: 추천을 받아 그대로 등록하는
+   * 경로가 목에서도 성립해야 목이 실계약의 대역 노릇을 한다.
+   *
+   * 추천은 확정 스냅샷과 무관하다 — 이미 등록한 값을 되돌려 주는 것이 아니라 승인에서
+   * 다시 유도한다. 유도할 승인이 없으면 404 다(부재이지 실패가 아니다).
+   */
+  getApprovedRecommendations: async (targetSourceId: string) => {
+    const user = mockData.getCurrentUser();
+    if (!user) {
+      return NextResponse.json(
+        { error: 'UNAUTHORIZED', message: '로그인이 필요합니다.' },
+        { status: 401 },
+      );
+    }
+
+    const project = mockData.getProjectByTargetSourceId(Number(targetSourceId));
+    if (!project) {
+      return NextResponse.json(
+        { error: 'NOT_FOUND', message: '과제를 찾을 수 없습니다.' },
+        { status: 404 },
+      );
+    }
+
+    const approvedIntegration = approvedIntegrationStore.get(project.id);
+    const derived = approvedIntegration
+      ? deriveConfirmedResourceInfos(approvedIntegration, project)
+      : null;
+    const rows =
+      derived ??
+      project.resources
+        .filter((resource) => resource.isSelected)
+        .map((resource) => toConfirmedIntegrationResourceInfo(resource, project));
+
+    if (rows.length === 0) {
+      return NextResponse.json(
+        { error: 'NOT_FOUND', message: '추천할 승인 리소스가 없습니다.' },
+        { status: 404 },
+      );
+    }
+
+    return NextResponse.json({ resource_infos: rows } satisfies BffConfirmedIntegration);
+  },
+
+  /**
+   * POST …/{csp}-resources — 확정 정보 등록 (swagger create{Csp}ConfirmedResource, 201).
+   *
+   * 계약은 요청 본문을 `type: object` 로만 선언한다 — 키가 하나도 없다. 목이 지어낼
+   * 스키마가 없으므로, 확정 조회가 읽는 키(`resource_infos`)와 작성자가 쓸 법한 키
+   * (`resources`) 중 배열인 쪽을 그대로 스냅샷에 넣고 되돌려 준다. 내용 검증은 없다.
+   */
+  createConfirmedResources: async (targetSourceId: string, body: unknown) => {
+    const user = mockData.getCurrentUser();
+    if (!user) {
+      return NextResponse.json(
+        { error: 'UNAUTHORIZED', message: '로그인이 필요합니다.' },
+        { status: 401 },
+      );
+    }
+
+    const project = mockData.getProjectByTargetSourceId(Number(targetSourceId));
+    if (!project) {
+      return NextResponse.json(
+        { error: 'NOT_FOUND', message: '과제를 찾을 수 없습니다.' },
+        { status: 404 },
+      );
+    }
+
+    const payload = (body ?? {}) as Record<string, unknown>;
+    const rows = [payload.resource_infos, payload.resources].find(Array.isArray);
+    if (!rows) {
+      return NextResponse.json(
+        { error: 'BAD_REQUEST', message: 'resource_infos 또는 resources 배열이 필요합니다.' },
+        { status: 400 },
+      );
+    }
+
+    const snapshot = {
+      resource_infos: rows as BffConfirmedIntegration['resource_infos'],
+    } satisfies BffConfirmedIntegration;
+    confirmedIntegrationSnapshotStore.set(project.id, snapshot);
+    return NextResponse.json(snapshot, { status: 201 });
+  },
+
+  /**
+   * DELETE …/{csp}-resources — 확정 정보 삭제 (swagger delete{Csp}ConfirmedResource, 200).
+   *
+   * 항목을 지우지 않고 **빈 스냅샷을 쓴다**: getConfirmedIntegration 은 스냅샷이 없으면
+   * 승인 정보나 selected 리소스에서 확정을 다시 유도하므로(위 경로 3·4), 지우기만 하면
+   * 다음 조회에서 방금 삭제한 목록이 되살아난다.
+   */
+  deleteConfirmedResources: async (targetSourceId: string) => {
+    const user = mockData.getCurrentUser();
+    if (!user) {
+      return NextResponse.json(
+        { error: 'UNAUTHORIZED', message: '로그인이 필요합니다.' },
+        { status: 401 },
+      );
+    }
+
+    const project = mockData.getProjectByTargetSourceId(Number(targetSourceId));
+    if (!project) {
+      return NextResponse.json(
+        { error: 'NOT_FOUND', message: '과제를 찾을 수 없습니다.' },
+        { status: 404 },
+      );
+    }
+
+    confirmedIntegrationSnapshotStore.set(project.id, { resource_infos: [] });
+    return NextResponse.json({ resource_infos: [] } satisfies BffConfirmedIntegration);
+  },
+
   getApprovedIntegration: async (targetSourceId: string) => {
     const user = mockData.getCurrentUser();
     if (!user) {

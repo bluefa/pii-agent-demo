@@ -38,6 +38,7 @@ import { opsStyles } from '@/app/admin/pipelines/ops/target-sources/[targetSourc
 import { SduOpsNotice } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/SduOpsNotice';
 import { ScanTab } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/ScanTab';
 import { RequestTab } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/RequestTab';
+import { ConfirmTab } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/ConfirmTab';
 import { PipelineTab } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/PipelineTab';
 import { TcTab } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/TcTab';
 import { ApprovalTab } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/ApprovalTab';
@@ -222,9 +223,41 @@ export function OpsTargetView({ targetSourceId, initialTab }: OpsTargetViewProps
   }
 
   if (!detail) {
+    // 스켈레톤은 정착 프레임의 컨테이너 클래스를 그대로 쓴다 — 도착 시 마스트헤드·탭
+    // 레일·본문 시작 y 가 움직이지 않게. 데이터에 따라 있고 없는 부분(StepPill·role
+    // 행·탭 구성)은 그리지 않는다. h1 은 고정 텍스트라 실물로 그린다.
     return (
-      <div className={cn(pipelineStyles.empty.base, pipelineStyles.empty.center)} aria-busy>
-        불러오는 중…
+      <div className="relative" aria-busy>
+        <span className="sr-only">불러오는 중</span>
+        <div className={opsStyles.headCard}>
+          <div className={opsStyles.header}>
+            <div className={opsStyles.titleRow}>
+              <div className={opsStyles.titleCol}>
+                <h1 className={pipelineStyles.text.pageTitle}>Target Source 운영</h1>
+                <div className={opsStyles.identityRow}>
+                  <div className={cn(opsStyles.skeleton, 'h-11 w-11 flex-none')} />
+                  <div className="flex flex-col gap-1.5">
+                    <div className={cn(opsStyles.skeletonBar, 'h-5 w-[220px]')} />
+                    <div className={cn(opsStyles.skeletonBar, 'h-[18px] w-[300px]')} />
+                    <div className={cn(opsStyles.skeletonBar, 'h-[18px] w-[260px]')} />
+                  </div>
+                </div>
+              </div>
+              {/* 협업 채널 블록 — 고정 폭 216, 3단 높이 근사. titleRow 가 items-start 라
+                  높이 오차가 왼쪽 열을 밀지 않는다. */}
+              <div className={cn(opsStyles.skeleton, 'h-[104px] w-[216px] flex-none')} />
+            </div>
+          </div>
+          <div className={opsStyles.tabStrip}>
+            {/* 보이지 않는 탭 하나가 레일 높이를 정확히 잡는다 — 탭 구성은 데이터다. */}
+            <span className={cn(opsStyles.tab, 'invisible select-none')} aria-hidden>
+              탭
+            </span>
+          </div>
+        </div>
+        <div className={opsStyles.content}>
+          <div className={cn(opsStyles.skeleton, 'h-[320px]')} />
+        </div>
       </div>
     );
   }
@@ -321,6 +354,14 @@ export function OpsTargetView({ targetSourceId, initialTab }: OpsTargetViewProps
           />
         )}
         {currentTab === '연동 요청 정보' && <RequestTab targetSourceId={targetSourceId} detail={detail} />}
+        {currentTab === '확정 정보' && (
+          <ConfirmTab
+            targetSourceId={targetSourceId}
+            detail={detail}
+            processStatus={processStatus}
+            onOpenInfra={() => selectTab('인프라 작업')}
+          />
+        )}
         {currentTab === '인프라 작업' && (
           <PipelineTab
             targetSourceId={targetSourceId}

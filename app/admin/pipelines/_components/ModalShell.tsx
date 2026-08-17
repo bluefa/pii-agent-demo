@@ -9,8 +9,10 @@
  * `variant='wide'` = 720px (start-pipeline modal); `variant='xwide'` = 960px
  * (Custom builder — drag canvas + docked catalog need the room);
  * `variant='app'` = Task Queue app-modal chrome (r20/p0/88vh scroll — width via
- * className, see TqModal). Pair with the app's useModal() hook for open/close
- * state (self-contained cleanup here).
+ * className, see TqModal); `variant='editor'` = the 확정 정보 편집기 plane
+ * (min(960px,94vw) × min(920px,92vh), p0 — same 960 as xwide, but taller and
+ * padding-less for the full-bleed textarea). Pair with the app's useModal()
+ * hook for open/close state (self-contained cleanup here).
  */
 import { useEffect, useRef, type CSSProperties, type ReactElement, type ReactNode } from 'react';
 import { usePathname } from 'next/navigation';
@@ -19,7 +21,7 @@ import { cn, pipelineStyles } from '@/lib/theme';
 export interface ModalShellProps {
   open: boolean;
   onClose: () => void;
-  variant?: 'default' | 'task' | 'wide' | 'xwide' | 'app';
+  variant?: 'default' | 'task' | 'wide' | 'xwide' | 'app' | 'editor';
   children: ReactNode;
   /** id of the heading element that labels the dialog. */
   labelledBy?: string;
@@ -121,10 +123,12 @@ export function ModalShell({
         tabIndex={-1}
         style={style}
         className={
-          // 'app' swaps the whole dialog chrome (r20/p0/scroll) — the others
-          // layer a width onto the shared `dialog` base.
+          // 'app' and 'editor' swap the whole dialog chrome (p0, own scroll) —
+          // the others layer a width onto the shared `dialog` base.
           variant === 'app'
             ? cn(modal.dialogApp, className)
+            : variant === 'editor'
+            ? cn(modal.dialogEditor, className)
             : cn(
                 modal.dialog,
                 variant === 'task'

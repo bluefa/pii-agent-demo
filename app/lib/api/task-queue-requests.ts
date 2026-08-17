@@ -122,11 +122,18 @@ export interface ApprovalRequestDetail {
   resources: RequestResourceRow[];
   /** null while the request is still pending (the wire omits `result`). */
   verdict: ApprovalVerdict | null;
+  /**
+   * The response exactly as it arrived — for a Raw lens that is asked to show the
+   * PAYLOAD, not our reading of it (ops 확정 정보 tab). Deliberately the only
+   * wire-shaped field here: nothing renders off it, so the domain above stays the
+   * contract every other consumer reads.
+   */
+  wire: ApprovalRequestLatestWire;
 }
 
 // ── Wire aliases + mappers (the ONLY wire↔domain conversion site) ────────────
 
-type ApprovalRequestLatestWire = z.infer<typeof schemas.ApprovalRequestLatestDto>;
+export type ApprovalRequestLatestWire = z.infer<typeof schemas.ApprovalRequestLatestDto>;
 type ResourceItemWire = z.infer<typeof schemas.TargetSourceResourceItemDto>;
 
 const strArray = (value: ReadonlyArray<string | null> | null | undefined): string[] =>
@@ -196,6 +203,7 @@ function toApprovalRequestDetail(wire: ApprovalRequestLatestWire): ApprovalReque
           reason: wire.result.reason ?? null,
         }
       : null,
+    wire,
   };
 }
 

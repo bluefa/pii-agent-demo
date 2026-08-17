@@ -271,6 +271,17 @@ export const mockBff: BffClient = {
         await mockConfirm.getConfirmedIntegration(String(id)),
       ),
 
+    // provider 는 upstream 의 path 만 고른다 — 목의 저장소는 대상 하나에 하나뿐이라
+    // 여기서는 쓰이지 않는다.
+    createConfirmedResources: async (id, _provider, body) =>
+      unwrap<unknown>(await mockConfirm.createConfirmedResources(String(id), body)),
+
+    deleteConfirmedResources: async (id) =>
+      unwrap<unknown>(await mockConfirm.deleteConfirmedResources(String(id))),
+
+    getApprovedRecommendations: async (id) =>
+      unwrap<unknown>(await mockConfirm.getApprovedRecommendations(String(id))),
+
     getApprovedIntegration: async (id) =>
       unwrap<z.infer<typeof schemas.ApprovedIntegrationResponseDto>>(
         await mockConfirm.getApprovedIntegration(String(id)),

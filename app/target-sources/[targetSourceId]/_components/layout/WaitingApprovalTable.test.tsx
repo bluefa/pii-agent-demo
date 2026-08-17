@@ -47,6 +47,20 @@ describe('WaitingApprovalTable', () => {
     ]);
   });
 
+  // 확정 정보 워크벤치가 쓰는 variant. 판정 열 쌍은 행에 대한 질문인데 그 화면은 행마다
+  // 관리하는 값이 없다 — 열이 남아 있으면 그 화면이 답할 수 없는 것을 묻게 된다.
+  it('plain variant drops the trailing pair, keeping identity and attributes', () => {
+    render(<WaitingApprovalTable resources={fixture} variant="plain" />);
+    const headers = screen.getAllByRole('columnheader').map((th) => th.textContent);
+    expect(headers).toEqual(['Resource Name', 'Resource ID', 'Database Type', 'Region']);
+    // Every body row has to match the header count, or the columns shear.
+    for (const row of screen.getAllByRole('row').slice(1)) {
+      expect(within(row).getAllByRole('cell')).toHaveLength(4);
+    }
+    expect(screen.queryByText('대상')).toBeNull();
+    expect(screen.queryByText('연동 논리 DB')).toBeNull();
+  });
+
   it('maps selected boolean to 대상/제외', () => {
     render(<WaitingApprovalTable resources={fixture} />);
     const rows = screen.getAllByRole('row').slice(1);
