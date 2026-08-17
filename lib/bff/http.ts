@@ -251,6 +251,10 @@ export const httpBff: BffClient = {
     // JiraTicketResponse is a camel-cased wire — raw passthrough, route parses.
     getJiraTicket: (id) =>
       getSnakeRaw<z.infer<typeof schemas.JiraTicketResponse>>(`/target-sources/${id}/jira-ticket`),
+    // ASSUMED (docs/api/ops-assumed-contracts.md §8) — 404s against the real BFF
+    // until it ships. Snake body, matching the read side (TargetSourceDetail).
+    putDescription: (id, description) =>
+      put(`/target-sources/${id}/description`, { description }),
   },
 
   // USER/services: raw snake passthrough — routes validate with schemas.X.parse(raw).

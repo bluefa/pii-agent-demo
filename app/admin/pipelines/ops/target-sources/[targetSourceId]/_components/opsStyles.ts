@@ -25,6 +25,26 @@ export const opsStyles = {
       TerraformStatusModal (Figma 49:4/34:4). */
   tag: 'inline-flex items-center rounded px-2 py-1 text-[12px] font-semibold bg-[var(--pl-gray-100)] text-[var(--pl-text-medium)] whitespace-nowrap',
   regionTag: 'inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium bg-[var(--pl-gray-100)] text-[var(--pl-text-weak)]',
+  /**
+   * 실데이터 — `does_support_raw === true` 인 대상에만 붙는다. 두 화면(서비스 운영의
+   * 대상 카드 · 대상 운영 헤더)이 한 정의를 쓴다.
+   *
+   * **색이 아니라 획으로 선다.** 이 줄에서 색 채널은 이미 다 팔렸다: StepPill 하나가
+   * off/warn/primary/ok 네 계열을 상태에 따라 돌아가며 쓰고(TONE_CLASS), 회색은 중국
+   * 태그와 서비스코드 칩이, 파랑은 SDU 칩이 쓴다. 실제로 warn 으로 처음 그렸더니
+   * PENDING 대상(#1013)에서 태그와 단계 알약이 **같은 토큰**(--pl-warn-bg/-text)으로
+   * 나란히 서서 한 덩어리로 읽혔다. 상태에 따라 도는 값 옆에서는 어떤 색을 골라도
+   * 언젠가는 겹친다.
+   *
+   * 그래서 이 줄에서 아무도 안 쓰는 채널을 쓴다 — 나머지 칩은 전부 테두리 없는 면이고,
+   * 이것만 흰 면 + 획이다. 색이 없으니 StepPill 이 어느 계열로 가든 겹치지 않는다.
+   * 투명이 아니라 흰 면인 것도 이유가 있다: 서비스 운영의 카드는 hover 에서 보라
+   * (#F3EEFF)로 물드는데, 투명이면 태그가 그 물을 같이 먹는다.
+   *
+   * 대비 실측: 글자 #101828 on 면 #FFFFFF = 17.85:1. 면은 카드 hover 틴트 위에서
+   * ΔE00 8.92 (tableRowLift.card 주석의 실측치와 같은 쌍).
+   */
+  rawDataTag: 'inline-flex items-center whitespace-nowrap rounded px-1.5 py-0.5 text-[12px] font-semibold border border-[var(--pl-border-strong)] bg-[var(--pl-bg-card)] text-[var(--pl-text-strong)]',
 
   /** Cloud context — tier 3 of the identity stack (계정 · 리전 · 설치모드). */
   cloudRow: 'flex items-center gap-1.5 mt-1 text-[12px] text-[var(--pl-text-weak)]',

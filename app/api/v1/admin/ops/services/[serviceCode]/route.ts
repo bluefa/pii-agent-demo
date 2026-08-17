@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { withV1 } from '@/app/api/_lib/handler';
 import { bff } from '@/lib/bff/client';
 import { schemas } from '@/lib/generated/install-v1';
+import { readDoesSupportRaw } from '@/lib/types';
 import type {
   OpsServiceDetail,
   OpsServiceTargetRow,
@@ -100,6 +101,10 @@ export const GET = withV1(async (_request, { params }) => {
       description: row.description ?? null,
       cloud_provider: row.cloudProvider ?? 'UNKNOWN',
       is_sdu_type: row.metadata?.is_sdu_type === true,
+      // Read off the parsed row, not off a declared field: `does_support_raw` is not in
+      // install-v1.yaml yet, and `PageTargetSourceInfo` is `.passthrough()`, so the key
+      // survives the parse and lands here the day the BFF starts sending it.
+      does_support_raw: readDoesSupportRaw(row),
       last_changed_at: row.updatedAt ?? row.createdAt ?? '',
       metadata: toAccount(row.metadata),
     }))

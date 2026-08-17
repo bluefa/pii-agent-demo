@@ -126,6 +126,21 @@ export const getProjects = async (serviceCode: string): Promise<ProjectSummary[]
     .filter((project): project is ProjectSummary => project !== null);
 };
 
+/**
+ * PUT …/description — ASSUMED contract (docs/api/ops-assumed-contracts.md §8).
+ * Nothing is read back from the response: the caller reloads the list, which is the
+ * one source the row is already drawn from. An empty string clears the description.
+ */
+export const updateTargetSourceDescription = async (
+  targetSourceId: number,
+  description: string,
+): Promise<void> => {
+  await fetchInfraJson(`/target-sources/${targetSourceId}/description`, {
+    method: 'PUT',
+    body: { description },
+  });
+};
+
 /** UI-facing form input for the creation-candidates request (35). */
 export interface CreationCandidatesInput {
   /** Lowercase request `cloud_type` (aws|azure|gcp|idc|others) — the UI owns it verbatim. */

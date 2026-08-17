@@ -4,6 +4,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useReducer, useRef, useState } from 'react';
 
 import { ProjectCreateModal } from '@/app/components/features/ProjectCreateModal';
+import { DescriptionEditModal } from '@/app/services/_components/DescriptionEditModal';
 import { useToast } from '@/app/components/ui/toast';
 import {
   getProjects,
@@ -102,6 +103,10 @@ export const ServiceManagementView = () => {
   // blinking the whole rail to skeleton on every keystroke.
   const [servicesLoaded, setServicesLoaded] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
+  // The row being described, by id — not the row object. The list is reloaded after a
+  // save, so a captured object would be the pre-save copy; an id re-reads the row that
+  // is on screen right now, and resolves to nothing if the row is gone.
+  const [describingId, setDescribingId] = useState<number | null>(null);
   // Keyed to the code it belongs to. Clearing it in an effect instead would still let
   // one render pair the new code with the previous service's name — the effect runs
   // after that paint. Derived at render, the pair can never come apart.
@@ -278,6 +283,9 @@ export const ServiceManagementView = () => {
         case 'view':
           router.push(passRoutes.targetSource(targetSourceId));
           return;
+        case 'editDescription':
+          setDescribingId(targetSourceId);
+          return;
         case 'copyId':
           // Support asks for this id; the owner never needs to read it off the screen.
           // The whole call is inside try/catch: on an insecure origin `navigator
@@ -306,6 +314,21 @@ export const ServiceManagementView = () => {
   const closeCreateModal = useCallback(() => {
     setCreateOpen(false);
   }, []);
+
+  const closeDescribe = useCallback(() => {
+    setDescribingId(null);
+  }, []);
+
+  const handleDescriptionSaved = useCallback(() => {
+    setDescribingId(null);
+    toast.success('설명을 저장했습니다.');
+    void refreshProjects();
+  }, [refreshProjects, toast]);
+
+  // Resolved at render off the list the row is drawn from, so the dialog and the row
+  // can never hold different text. A row that vanished under an open dialog (a reload
+  // that dropped it) resolves to null and the dialog simply is not rendered.
+  const describing = panel?.items?.find((item) => item.targetSourceId === describingId) ?? null;
 
   return (
     // Exact viewport minus the sticky 64px TopNav — `min-h-screen` here stacked a
@@ -434,6 +457,18 @@ export const ServiceManagementView = () => {
           selectedServiceCode={selectedService}
           onClose={closeCreateModal}
           onCreated={refreshProjects}
+        />
+      )}
+
+      {/* Keyed to the target: mounting per row is what makes the textarea start from
+          that row's description without an effect syncing it afterwards. */}
+      {describing && (
+        <DescriptionEditModal
+          key={describing.targetSourceId}
+          targetSourceId={describing.targetSourceId}
+          initialDescription={describing.description ?? ''}
+          onSaved={handleDescriptionSaved}
+          onClose={closeDescribe}
         />
       )}
     </div>

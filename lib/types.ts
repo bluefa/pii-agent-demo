@@ -58,6 +58,29 @@ export const isSduTarget = (target: {
   cloud_provider?: string | null;
 }): boolean => target.is_sdu_type === true || isSduProvider(target.cloud_provider);
 
+/**
+ * 실데이터 여부를 계약에 **아직 없는** 필드에서 읽는다.
+ *
+ * `does_support_raw` 는 TargetSource 에 추가될 예정인 필드다 — 지금은 `install-v1.yaml`
+ * 에도 업스트림 `api-docs.yaml` 에도 없다. 생성 스키마가 `.partial().passthrough()`
+ * 라는 사실을 쓴다: 계약에 없는 키도 `parse()` 를 그대로 통과해 소비자까지 온다.
+ * 그래서 **BFF 가 필드를 싣기 시작하는 날, 코드 변경 없이** 태그가 켜진다
+ * (`readIsEosService` 가 같은 이유로 쓰는 방법이다).
+ *
+ * 두 표기를 함께 보는 것은 방어가 아니라 계약의 사실이다. 이 값을 실어 나를 DTO 가 둘이고
+ * 표기가 갈려 있다 — `TargetSourceDetail` 은 snake, `TargetSourceInfo` 는 camel 섬이다
+ * (그 안에서도 `latest_approval_request` 는 snake라, 어느 쪽으로 실릴지 계약이 정해 주기
+ * 전까지 한쪽만 읽으면 두 화면 중 하나가 조용히 꺼진다).
+ *
+ * `=== true` 는 의도의 표기다 — 세 상태(true / false / 없음) 중 실데이터라고 말할 근거가
+ * 있는 건 하나뿐이고, 나머지 둘은 "모른다"로 접혀 지금과 같은 화면이 된다.
+ */
+export const readDoesSupportRaw = (value: unknown): boolean => {
+  if (typeof value !== 'object' || value === null) return false;
+  const row = value as { does_support_raw?: unknown; doesSupportRaw?: unknown };
+  return row.does_support_raw === true || row.doesSupportRaw === true;
+};
+
 // Internal CloudProvider → wire metadata.provider value. The contract
 // (TargetSourceResourceMetadataDto.provider) is uppercase — AWS | GCP | AZURE | IDC |
 // UNKNOWN — while the internal CloudProvider uses 'Azure'. Never send the internal casing.
@@ -480,6 +503,8 @@ export type Project = BaseTargetSource & {
   isChinaRegion?: boolean;
   isTerraformExecutionGranted?: boolean;
   isSduType?: boolean;
+  /** 시드 전용 — 목이 `does_support_raw` 로 실어 보낸다 (readDoesSupportRaw 참조). */
+  doesSupportRaw?: boolean;
   tenantId?: string;
   subscriptionId?: string;
   gcpProjectId?: string;

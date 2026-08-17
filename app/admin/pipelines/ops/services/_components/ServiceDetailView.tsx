@@ -522,6 +522,12 @@ export function ServiceDetailView({ serviceCode }: ServiceDetailViewProps): Reac
                         식별자가 있든 없든. 중국 리전은 계정의 성질이 아니라 대상의
                         성질이고, 운영자가 먼저 알아야 하는 값이다. */}
                     {china && <span className={opsStyles.regionTag}>중국</span>}
+                    {/* 계약이 명시적으로 true 라고 말할 때만 (readDoesSupportRaw).
+                        1층에 두는 이유는 중국 태그와 같다 — 이 대상이 무엇을 다루는지는
+                        계정보다 먼저 읽혀야 하는 성질이다. */}
+                    {target.does_support_raw && (
+                      <span className={opsStyles.rawDataTag}>실데이터</span>
+                    )}
                   </div>
 
                   {/* 2층·3층은 값이 없어도 사라지지 않는다 — 조건부로 두면 대상마다 카드
