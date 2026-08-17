@@ -347,6 +347,32 @@ const SEED_APPROVAL_DEMO = new Map<number, ApprovalDemo>([
       { resource_id: 'idc-r-8f24', resource_name: 'mysql-order-dev', resource_type: 'IDC', selected: false,
         exclusion_reason: '개발(dev) 인스턴스 — 서비스 오너 제외',
         metadata: { provider: 'IDC', database_type: 'MySQL', port: 3306, idc_host_format: 'HOST', idc_host: 'db-mysql.order.dev.internal' } },
+      // 아래 세 행은 '같은 데이터베이스를 두 번 등록한 것 아닌가' 경고를 위한 것이다.
+      // IDC 는 스캔이 없어 담당자가 주소를 손으로 적으므로, 한 대를 두 줄로 올리는
+      // 일이 실제로 생긴다. 두 건은 걸리고 한 건은 걸리지 않아야 조건이 눈에 보인다.
+      //
+      // (1) 8f25 — 8f21 IP Set 의 마지막 주소(.18) 바로 옆 번지. Oracle·1521 로 같다.
+      { resource_id: 'idc-r-8f25', resource_name: 'oracle-order-prod-svc', resource_type: 'IDC', selected: true,
+        metadata: { provider: 'IDC', database_type: 'Oracle', port: 1521, oracle_service_id: 'ORCLPDB1', idc_host_format: 'IP', idc_ips: ['10.20.1.19'], idc_source_ips: ['10.20.9.1'] } },
+      // (2) 8f26 — 8f23(.31) 옆 번지. 주소가 하나씩인 행끼리도 같은 규칙이 걸린다.
+      { resource_id: 'idc-r-8f26', resource_name: 'pg-order-prod-2', resource_type: 'IDC', selected: true,
+        metadata: { provider: 'IDC', database_type: 'PostgreSQL', port: 5432, idc_host_format: 'IP', idc_ips: ['10.20.2.32'], idc_source_ips: ['10.20.9.4'] } },
+      // (3) 8f27 — .32 바로 옆 번지지만 Database Type 과 Port 가 다르다. 조용해야 한다.
+      //     이 행이 없으면 '인접하면 무조건 경고'와 구별이 안 된다.
+      { resource_id: 'idc-r-8f27', resource_name: 'mysql-order-batch', resource_type: 'IDC', selected: true,
+        metadata: { provider: 'IDC', database_type: 'MySQL', port: 3306, idc_host_format: 'IP', idc_ips: ['10.20.2.33'], idc_source_ips: ['10.20.9.5'] } },
+      // (4) 8f28~8f2a — .11 .12 .13 이 각각 단독으로 들어온 연쇄. 쌍이 두 개(11-12, 12-13)
+      //     겹치므로 가운데 행이 양쪽에 걸리고, 화면은 이걸 그룹 하나로 묶어야 한다.
+      //     사이에 다른 행을 하나 끼워(8f29 앞의 순서) 기본 목록의 그룹 재배치도 함께 본다.
+      { resource_id: 'idc-r-8f28', resource_name: 'maria-order-node1', resource_type: 'IDC', selected: true,
+        metadata: { provider: 'IDC', database_type: 'MariaDB', port: 3306, idc_host_format: 'IP', idc_ips: ['10.12.123.11'], idc_source_ips: ['10.12.9.1'] } },
+      { resource_id: 'idc-r-8f29', resource_name: 'maria-order-node2', resource_type: 'IDC', selected: true,
+        metadata: { provider: 'IDC', database_type: 'MariaDB', port: 3306, idc_host_format: 'IP', idc_ips: ['10.12.123.12'], idc_source_ips: ['10.12.9.2'] } },
+      // 연쇄 사이에 낀 무관한 행 — 그룹이 다시 붙어 설 때 이 행이 밀려나는지 본다.
+      { resource_id: 'idc-r-8f2b', resource_name: 'pg-order-archive', resource_type: 'IDC', selected: true,
+        metadata: { provider: 'IDC', database_type: 'PostgreSQL', port: 5432, idc_host_format: 'IP', idc_ips: ['10.44.7.90'], idc_source_ips: ['10.44.9.1'] } },
+      { resource_id: 'idc-r-8f2a', resource_name: 'maria-order-node3', resource_type: 'IDC', selected: true,
+        metadata: { provider: 'IDC', database_type: 'MariaDB', port: 3306, idc_host_format: 'IP', idc_ips: ['10.12.123.13'], idc_source_ips: ['10.12.9.3'] } },
     ],
   }],
   [2113, {

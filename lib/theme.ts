@@ -1109,6 +1109,50 @@ export const idcStyles = {
     multi: `bg-[#FEF0E1] text-[#7A3F0E] ${tableRowLift.chipEdge}`,
     domain: `bg-[#EEF2FF] text-[#4338CA] ${tableRowLift.chipEdge}`,
   },
+  /**
+   * 확인 필요 배지 — 같은 데이터베이스를 두 번 등록했을지 모르는 행에 붙는다.
+   *
+   * 면을 칠하지 않는 유일한 배지다. 바로 옆에 서는 게 kindBadge 이고 그중 `multi` 가
+   * 이미 주황 면(#FEF0E1)이라, 경고를 주황 면으로 그리면 두 칩이 한 덩어리로 읽힌다.
+   * 흰 면 + stroke 는 행 hover 틴트 위에서도 대비를 잃지 않는다(chipEdge 가 푸는 문제를
+   * 애초에 만들지 않는다). 글자색 #B54708 은 --pl-warn-text 와 같은 값 — 상단 알림과
+   * 표가 같은 경고 하나를 말한다.
+   *
+   * 11.5px 은 옆의 kindBadge 와 같은 눈금이다.
+   */
+  checkBadge:
+    'inline-flex items-center gap-1 rounded-md border border-[#F79009] bg-white px-2 py-[3px] text-[11.5px] font-semibold text-[#B54708]', // design-exempt: mirrors idcStyles.kindBadge 11.5px token
+  /**
+   * 확인 필요 그룹을 잇는 선 (오너, 2026-08-17: RDS Cluster 처럼 가로·세로 선으로 잇자 —
+   * 같은 제안을 앞서 기각했던 결정을 오너가 직접 뒤집었다).
+   *
+   * 4px 레일을 대신한다. 레일은 "이 행들이 같은 성격"까지만 말하고 어디서 시작해 어디서
+   * 끝나는지는 두께가 변하지 않으니 읽는 사람이 색이 끊기는 지점을 찾아야 했다. 트렁크와
+   * 엘보는 그걸 그린다: 첫 구성원의 엘보에서 시작해 마지막 구성원의 엘보에서 끝나므로,
+   * 선 자체가 그룹의 천장과 바닥이다.
+   *
+   * `group.childCell` 과 같은 어휘를 다시 앵커한 것이다 — 표에 트리 선은 하나다. 다른 점은
+   * 부모가 없다는 것: 여기서 묶이는 건 형제들이라 트렁크가 첫 행의 가운데에서 시작한다
+   * (부모-자식 트리는 부모 행에서 내려온다).
+   *
+   * 기하는 `approvalCell` 의 18px 좌패딩 안에서 잡는다:
+   *   8       트렁크   (패딩 안, 표 왼쪽 테두리와 떨어져)
+   *   8..14   엘보     6px
+   *   18      셀 내용  → 4px 여유. 붙이는 건 띄우는 게 아니다.
+   *
+   * 색은 --pl-warn-text 와 같은 #B54708 — 배지·짝 주소와 한 경고를 말한다. 중립 회색
+   * (--rail #C4CEDA)은 부모-자식 트리의 색이고, 이 선이 가리키는 건 구조가 아니라 어느
+   * 행들이 문제인가다. `--pl-warn`(#F79009)은 흰 행에서 2.35:1 이라 이 자리에 못 쓴다.
+   */
+  checkGroup: {
+    /** 그룹 안의 행 — 트렁크가 행 높이를 관통하고 엘보가 내용까지 닿는다. */
+    cell: "relative before:absolute before:bottom-0 before:left-[8px] before:top-0 before:w-px before:bg-[#B54708] before:content-[''] after:absolute after:left-[8px] after:top-1/2 after:h-px after:w-[6px] after:bg-[#B54708] after:content-['']",
+    /** 첫 구성원 — 트렁크가 자기 엘보에서 시작한다. */
+    first: 'before:top-1/2',
+    /** 마지막 구성원 — 트렁크가 자기 엘보에서 끝난다. 잇는 것을 지나쳐 뻗는 선은 아래로
+     *  이어지는 그룹으로 읽힌다. */
+    last: 'before:bottom-1/2',
+  },
   /** Inline color tag — `.tag` (4px 10px / radius 8 / 12px / 600). */
   tag: {
     base: 'inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-[12px] font-semibold tracking-[-0.01em] whitespace-nowrap',

@@ -24,12 +24,20 @@ import {
   resourceCounts,
   type ResourceListState,
 } from '@/app/admin/pipelines/queue/requests/_resourceQuery';
+import {
+  groupSuspectRows,
+  suspectMarksByRow,
+  suspectRows,
+  type SuspectGroup,
+} from '@/app/admin/pipelines/queue/requests/_duplicateAddress';
 import type { RequestResourceRow } from '@/app/lib/api/task-queue-requests';
 
 export interface ResourceSectionProps {
   resources: readonly RequestResourceRow[];
   isIdc: boolean;
   list: ResourceListState;
+  /** 같은 DB 를 두 번 등록했을지 모르는 그룹 — 상단 알림과 같은 목록을 표에도 흘린다. */
+  suspectGroups?: readonly SuspectGroup[];
   /** Lock NLB editing: the request is no longer PENDING, so a save would 409. */
   nlbLocked: boolean;
   /** IDC only — open the NLB assignment modal over one resource. */
@@ -43,6 +51,7 @@ export function ResourceSection({
   resources,
   isIdc,
   list,
+  suspectGroups = [],
   nlbLocked,
   onAssignNlb,
   onShowServices,
@@ -51,7 +60,12 @@ export function ResourceSection({
   const { query, patchQuery } = list;
   // Counts stay whole-request (the tiles are the split); only the table pages.
   const counts = resourceCounts(resources);
-  const filtered = queryResources(resources, query, isIdc);
+  const marks = suspectMarksByRow(suspectGroups);
+  const flagged = suspectRows(suspectGroups);
+  // 기본 목록도 한 그룹의 행들을 붙여 세운다 — 요청 목록의 순서에는 의미가 없고(오너 확인),
+  // 짝의 주소를 행 안에 적어도 두 값을 나란히 놓고 보는 일은 대신하지 못한다.
+  const base = query.filter === 'suspect' ? flagged : groupSuspectRows(resources, suspectGroups);
+  const filtered = queryResources(base, query, isIdc, new Set(flagged));
   const paged = pageResources(filtered, list.page, list.pageSize);
 
   return (
@@ -62,6 +76,7 @@ export function ResourceSection({
         counts={counts}
         filter={query.filter}
         onFilterChange={(next) => patchQuery({ filter: next })}
+        suspectCount={flagged.length}
       />
 
       <ResourceToolbar
@@ -115,6 +130,7 @@ export function ResourceSection({
             disabled={nlbLocked}
             onAssignNlb={onAssignNlb}
             onShowServices={onShowServices}
+            suspectMarks={marks}
           />
         ) : (
           <CloudResourceTable rows={paged.rows} />

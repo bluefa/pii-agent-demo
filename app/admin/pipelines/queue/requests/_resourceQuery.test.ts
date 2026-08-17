@@ -54,6 +54,21 @@ describe('queryResources', () => {
     expect(excluded.map((r) => r.resourceName)).toEqual(['pay-rds-proxy']);
   });
 
+  it('narrows to the rows the suspect set names', () => {
+    const query = { ...EMPTY_RESOURCE_QUERY, filter: 'suspect' as const };
+    expect(queryResources(cloudRows, query, false, new Set([cloudRows[0]]))).toEqual([cloudRows[0]]);
+  });
+
+  /**
+   * 집합 없이 켜면 전부가 아니라 아무것도 통과하지 않는다. 반대로 열어 두면 ResourceSection
+   * 이 집합을 넘기지 않게 된 순간 '확인 필요 0건'이 전체 목록으로 읽히고, 화면은 멀쩡해
+   * 보인다 — 필터가 죽었다는 것을 아무것도 말하지 않는다.
+   */
+  it('passes nothing when the suspect set is missing', () => {
+    const query = { ...EMPTY_RESOURCE_QUERY, filter: 'suspect' as const };
+    expect(queryResources(cloudRows, query, false)).toEqual([]);
+  });
+
   it('searches the cloud identity (name + Resource ID)', () => {
     const hit = queryResources(cloudRows, { ...EMPTY_RESOURCE_QUERY, search: 'ARN:B' }, false);
     expect(hit.map((r) => r.resourceName)).toEqual(['pay-redshift-main']);

@@ -13,7 +13,8 @@ import type { RequestResourceRow } from '@/app/lib/api/task-queue-requests';
 /** Default rows per page; the pager footer lets the admin raise it. */
 export const RESOURCE_PAGE_SIZE = 10;
 
-export type ResourceFilter = 'all' | 'target' | 'excluded';
+/** 'suspect' = 같은 DB 를 두 번 등록했을지 모르는 행만 (@see _duplicateAddress). */
+export type ResourceFilter = 'all' | 'target' | 'excluded' | 'suspect';
 
 export interface ResourceQuery {
   filter: ResourceFilter;
@@ -67,11 +68,16 @@ export function queryResources(
   rows: readonly RequestResourceRow[],
   query: ResourceQuery,
   isIdc: boolean,
+  /** 'suspect' 필터가 통과시킬 행들. 이 필터가 아닐 때는 쓰이지 않는다. */
+  suspects?: ReadonlySet<RequestResourceRow>,
 ): RequestResourceRow[] {
   const search = query.search.trim().toLowerCase();
   return rows.filter((row) => {
     if (query.filter === 'target' && !row.selected) return false;
     if (query.filter === 'excluded' && row.selected) return false;
+    // 집합을 안 받았으면 아무것도 통과시키지 않는다 — 의심 행을 모르는 채로 이 필터를
+    // 켰다는 뜻이고, 그때 전부 보여 주면 '확인 필요 0건'이 전체 목록으로 읽힌다.
+    if (query.filter === 'suspect' && !(suspects?.has(row) ?? false)) return false;
     if (query.databaseType !== '' && row.databaseType !== query.databaseType) return false;
     if (query.axis !== '' && (isIdc ? row.idcKind : row.region) !== query.axis) return false;
     if (search !== '' && !haystack(row, isIdc).includes(search)) return false;

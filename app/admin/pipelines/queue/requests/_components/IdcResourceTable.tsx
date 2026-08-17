@@ -18,7 +18,7 @@
 'use client';
 
 import type { ReactElement } from 'react';
-import { cn, idcStyles, textColors, verdictRailClass } from '@/lib/theme';
+import { cn, idcStyles, textColors, verdictRail } from '@/lib/theme';
 import { getDatabaseShortLabel } from '@/app/components/ui/DatabaseIcon';
 import {
   CELL_LIFT,
@@ -35,6 +35,7 @@ import {
   IdcEndpointCell,
   IdcSourceIpCell,
 } from '@/app/admin/pipelines/queue/requests/_components/idcCells';
+import type { SuspectMark } from '@/app/admin/pipelines/queue/requests/_duplicateAddress';
 import { idcAddressKind } from '@/app/lib/api/task-queue-requests';
 import type { RequestResourceRow } from '@/app/lib/api/task-queue-requests';
 
@@ -47,6 +48,15 @@ export interface IdcResourceTableProps {
   onAssignNlb: (row: RequestResourceRow) => void;
   /** Open ServiceAssignmentModal for this resource. */
   onShowServices: (row: RequestResourceRow) => void;
+  /**
+   * 행 → '같은 DB 의심' 표시 (@see _duplicateAddress). 없으면 표시가 서지 않는다.
+   *
+   * 표시는 행 안에서 끝난다 — 그룹 머리글도, 행 재배치도 없다. 머리글은 열기만 하고 닫지
+   * 않아서(다음 머리글이 나올 때까지 아무 행이나 그 아래 설 수 있다) 그룹의 범위를 관리자가
+   * 배지를 세어 복원해야 했다. 짝의 주소를 행이 직접 들고 있으면 페이지가 갈려도, 정렬이
+   * 바뀌어도 관계가 끊어지지 않는다.
+   */
+  suspectMarks?: ReadonlyMap<RequestResourceRow, SuspectMark>;
 }
 
 // A text button, not a control cluster: opening the assignment is one act, and the
@@ -62,6 +72,7 @@ export function IdcResourceTable({
   disabled = false,
   onAssignNlb,
   onShowServices,
+  suspectMarks,
 }: IdcResourceTableProps): ReactElement {
   const { table } = idcStyles;
 
@@ -129,13 +140,35 @@ export function IdcResourceTable({
               row.resourceId ??
               `${row.connectTargets.join('|')}|${row.port ?? ''}|${row.databaseType ?? ''}|${index}`;
             const dbLabel = row.databaseType ? getDatabaseShortLabel(row.databaseType) : '';
+            const mark = suspectMarks?.get(row);
+            // 그룹의 천장과 바닥 — 한 그룹의 행들은 붙어 서 있으므로(groupSuspectRows) 앞뒤
+            // 행의 이름만 보면 된다. 페이지가 그룹을 자르면 남은 조각이 자기 안에서 다시
+            // 열리고 닫힌다: 여기 없는 구성원까지 선을 뻗으면 없는 행을 가리키게 된다.
+            const label = mark?.label;
+            const opensGroup = label != null && label !== suspectMarks?.get(rows[index - 1])?.label;
+            const closesGroup = label != null && label !== suspectMarks?.get(rows[index + 1])?.label;
+            // 혼자 남은 조각에는 선을 긋지 않는다 — 이을 상대가 이 페이지에 없는데 엘보만
+            // 그리면 아무것도 가리키지 않는 6px 토막이 된다.
+            const connector =
+              label == null || (opensGroup && closesGroup)
+                ? undefined
+                : cn(
+                    idcStyles.checkGroup.cell,
+                    opensGroup && idcStyles.checkGroup.first,
+                    closesGroup && idcStyles.checkGroup.last,
+                  );
             if (!row.selected) {
               return (
                 <tr key={rowKey} className={cn(ROW_BASE, ROW_EXCLUDED)}>
+                  {/* 제외는 자홍 레일을 달지 않는다 (오너, 2026-08-17) — 이 표에서 제외는
+                      '제외' pill 과 제외 사유가 이미 말하고, 왼쪽 레일 자리는 확인 필요
+                      그룹의 선이 쓴다. 연동 불가만 레일을 유지한다: 그건 이 요청 안에서
+                      되돌릴 수 없는 판정이라 제외와 같은 층이 아니다. 다른 화면의
+                      `verdictRail.excluded` 는 그대로다. */}
                   <td
                     className={cn(
                       table.approvalCell,
-                      verdictRailClass(true, row.integrationCategory === 'INSTALL_INELIGIBLE'),
+                      row.integrationCategory === 'INSTALL_INELIGIBLE' && verdictRail.ineligible,
                     )}
                   >
                     <IdcEndpointCell
@@ -188,8 +221,12 @@ export function IdcResourceTable({
 
             return (
               <tr key={rowKey} className={cn(ROW_BASE, ROW_TARGET)}>
-                <td className={table.approvalCell}>
-                  <IdcEndpointCell hosts={row.connectTargets} kind={idcAddressKind(row)} />
+                <td className={cn(table.approvalCell, connector)}>
+                  <IdcEndpointCell
+                    hosts={row.connectTargets}
+                    kind={idcAddressKind(row)}
+                    suspect={mark}
+                  />
                 </td>
                 <td className={table.approvalCell}>
                   <IdcDbTypeCell label={dbLabel} oracleSid={row.oracleSid} />

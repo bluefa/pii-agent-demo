@@ -19,15 +19,39 @@ export interface ResourceStatTilesProps {
   counts: ResourceCounts;
   filter: ResourceFilter;
   onFilterChange: (next: ResourceFilter) => void;
+  /** 같은 DB 의심 행 수. 0 이면 타일 자체가 서지 않는다 — 이 요청에 그런 행이 없다는 것은
+   *  세어 보여 줄 사실이 아니라 그냥 정상이다. */
+  suspectCount?: number;
 }
 
 /** The three counts ARE the 전체/대상/제외 filter — not a read-only summary above one. */
-export function ResourceStatTiles({ counts, filter, onFilterChange }: ResourceStatTilesProps) {
+export function ResourceStatTiles({
+  counts,
+  filter,
+  onFilterChange,
+  suspectCount = 0,
+}: ResourceStatTilesProps) {
+  const hasSuspects = suspectCount > 0;
   return (
-    <div className="grid grid-cols-3 gap-3 mb-[18px]" role="group" aria-label="대상 필터">
+    <div
+      className={cn('grid gap-3 mb-[18px]', hasSuspects ? 'grid-cols-4' : 'grid-cols-3')}
+      role="group"
+      aria-label="대상 필터"
+    >
       <StatTile label="전체 요청" value={counts.all} active={filter === 'all'} onClick={() => onFilterChange('all')} />
       <StatTile label="연동 요청 대상" value={counts.target} active={filter === 'target'} onClick={() => onFilterChange('target')} />
       <StatTile label="연동 요청 제외대상" value={counts.excluded} active={filter === 'excluded'} onClick={() => onFilterChange('excluded')} />
+      {/* 형제 셋과 같은 타일이되 경고 색을 입는다 — 판정(대상/제외)이 아니라 확인해 달라는
+          요청이라 라벨과 숫자만 물들고, 면과 테두리는 형제와 같다. */}
+      {hasSuspects && (
+        <StatTile
+          label="확인 필요"
+          value={suspectCount}
+          active={filter === 'suspect'}
+          onClick={() => onFilterChange('suspect')}
+          warn
+        />
+      )}
     </div>
   );
 }
@@ -39,12 +63,24 @@ function StatTile({
   value,
   active,
   onClick,
+  warn = false,
 }: {
   label: string;
   value: number;
   active: boolean;
   onClick: () => void;
+  /** 경고 타일 — 라벨·숫자·선택 링만 warn 축으로 옮긴다. */
+  warn?: boolean;
 }) {
+  // Tailwind 는 소스 문자열을 스캔하므로 클래스는 리터럴이어야 한다 — 강조색을 변수에
+  // 담아 보간하면 그 유틸리티가 생성되지 않고 조용히 투명해진다.
+  const edge = warn
+    ? active
+      ? 'border-[var(--pl-warn)] ring-1 ring-inset ring-[var(--pl-warn)]'
+      : 'border-[var(--pl-border)] hover:border-[var(--pl-warn)]'
+    : active
+      ? 'border-[var(--pl-primary)] ring-1 ring-inset ring-[var(--pl-primary)]'
+      : 'border-[var(--pl-border)] hover:border-[var(--pl-primary)]';
   return (
     <button
       type="button"
@@ -53,14 +89,24 @@ function StatTile({
       className={cn(
         'flex cursor-pointer flex-col items-center gap-1.5 rounded-xl border px-5 py-[18px] text-left transition-colors duration-150',
         'bg-[var(--pl-bg-card)] shadow-[var(--pl-shadow-xs)]',
-        active
-          ? 'border-[var(--pl-primary)] ring-1 ring-inset ring-[var(--pl-primary)]'
-          : 'border-[var(--pl-border)] hover:border-[var(--pl-primary)]',
+        edge,
       )}
     >
-      <span className="text-[14px] font-semibold text-[var(--pl-text-weak)]">{label}</span>
+      <span
+        className={cn(
+          'text-[14px] font-semibold',
+          warn ? 'text-[var(--pl-warn-text)]' : 'text-[var(--pl-text-weak)]',
+        )}
+      >
+        {label}
+      </span>
       <span className="flex items-baseline">
-        <span className="text-[40px] font-bold leading-[1.2] tabular-nums text-[var(--pl-text-strong)]">
+        <span
+          className={cn(
+            'text-[40px] font-bold leading-[1.2] tabular-nums',
+            warn ? 'text-[var(--pl-warn-text)]' : 'text-[var(--pl-text-strong)]',
+          )}
+        >
           {value}
         </span>
         <span className="ml-1 text-[13px] font-medium text-[var(--pl-text-weak)]">건</span>
