@@ -51,6 +51,19 @@ function jobMeta(row: JobRow): string {
     .join(' · ');
 }
 
+/**
+ * The head clause of a failure reason. A terraform error classifies itself first and
+ * details itself after the colon: `Error acquiring the state lock: Conditional…` wrapped
+ * to three lines in this column and got cut mid-word, while its first clause already said
+ * which kind of failure it was. The whole reason is in the log viewer's header.
+ * A leading `Error: ` is a prefix, not a clause, so it comes off first.
+ */
+export function failHead(reason: string): string {
+  const body = reason.replace(/^Error:\s*/, '');
+  const cut = body.indexOf(': ');
+  return cut > 0 ? body.slice(0, cut) : body;
+}
+
 function JobItem({
   row,
   verdict,
@@ -76,7 +89,7 @@ function JobItem({
         {meta ? <span className={j.jobMeta}>{meta}</span> : <span className="ml-auto" />}
         <Icon name="chev-r" size="sm" className={j.jobChev} />
       </button>
-      {verdict === 'failed' && reason && <p className={j.jobFailReason}>{reason}</p>}
+      {verdict === 'failed' && reason && <p className={j.jobFailReason}>{failHead(reason)}</p>}
     </div>
   );
 }

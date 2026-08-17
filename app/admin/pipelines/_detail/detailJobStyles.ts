@@ -95,12 +95,12 @@ export const jobStyles = {
    *  by id and nothing tells the operator which one to open. */
   jobMeta: 'ml-auto min-w-0 truncate text-[12px] text-[var(--pl-text-weak)] [font-family:var(--pl-font-mono)] tabular-nums',
   jobChev: 'flex-none text-[var(--pl-text-weak)]',
-  /** `last_fail_reason` under a failed job — the cause the panel used to keep
-   *  three hops away (attempt row → job row → log viewer). Clamped; the full
-   *  text is in the log viewer. The bottom gap is a MARGIN, not padding: a
-   *  clamped box paints the clipped next line into its own padding box, so
-   *  `pb-3` here showed a sliced third line under a two-line clamp. */
-  jobFailReason: '-mt-1.5 px-3 mb-3 text-[14px] leading-[1.6] text-[var(--pl-err-text)] break-words line-clamp-2',
+  /** `last_fail_reason`'s head clause under a failed job — the cause the panel used
+   *  to keep three hops away (attempt row → job row → log viewer). ONE line: a
+   *  two-line clamp cut the tail mid-word, and `failHead` already drops the detail
+   *  the log viewer's header carries. The bottom gap is a MARGIN, not padding —
+   *  a clipping box paints the clipped remainder into its own padding box. */
+  jobFailReason: '-mt-1.5 px-3 mb-3 truncate text-[14px] leading-[1.6] text-[var(--pl-err-text)]',
   jobId: 'text-[13px] font-bold text-[var(--pl-text-strong)] [font-family:var(--pl-font-mono)] tabular-nums tracking-[-0.196px]',
   /** Raw-response fold (owner Figma node 121-389) — a ▼ triangle (gray) that flips
    *  up + sky-blue when open; the raw dispatch response sits in an inset mono code
@@ -136,6 +136,10 @@ export const jobStyles = {
   vJid: 'tabular-nums',
   vSub: 'mt-1 text-[12px] text-[var(--pl-text-weak)] truncate',
   vStamp: 'mt-0.5 text-[12px] text-[var(--pl-text-faint)] tabular-nums truncate',
+  /** `last_fail_reason` in full, under the header's verdict badge. Tab-independent,
+   *  like the badge: why the job failed is a property of the job, not of the log.
+   *  Unclamped — this surface is where the reason the list had to cut is read. */
+  vFail: 'mt-2 text-[14px] leading-[1.6] text-[var(--pl-err-text)] break-words',
   vClose: 'flex-none inline-flex items-center justify-center w-8 h-8 -mr-1 rounded-lg text-[var(--pl-text-strong)] hover:bg-[var(--pl-gray-50)] transition-colors',
 
   /** Log/state panel — one flex column that owns the bottom of the viewer. Its

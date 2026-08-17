@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { AttemptDetail } from '@/app/admin/pipelines/_detail/AttemptDetail';
 import { attemptWindow, j, RunWindow } from '@/app/admin/pipelines/_detail/taskDrawerShared';
+import { failHead } from '@/app/admin/pipelines/_detail/JobStatus';
 import type { ReactNode } from 'react';
 import type { TaskAttemptView, TerraformJobStateSummary } from '@/lib/pipeline/types';
 
@@ -153,7 +154,11 @@ describe('AttemptDetail — Response 원문', () => {
 describe('AttemptDetail — Job 현황', () => {
   const ok = (n: number): TerraformJobStateSummary[] =>
     Array.from({ length: n }, (_, i) => jobState({ job_id: `ok-${i + 1}`, last_state: 'COMPLETED' }));
-  const bad = jobState({ job_id: 'bad-1', last_state: 'FAILED', last_fail_reason: 'Error acquiring the state lock' });
+  const bad = jobState({
+    job_id: 'bad-1',
+    last_state: 'FAILED',
+    last_fail_reason: 'Error acquiring the state lock: ConditionalCheckFailedException: The conditional request failed',
+  });
 
   it('states the total, opens on the failures, and keeps the count on the trigger', () => {
     const out = html(attempt({ job_states: [...ok(20), bad] }));
@@ -163,9 +168,11 @@ describe('AttemptDetail — Job 현황', () => {
     expect(out).toContain('실패 1');
     // The other buckets are in the list the trigger opens, not in the markup.
     expect(out).not.toContain('성공 20');
-    // The failure and its reason are on screen without opening anything…
+    // The failure and the KIND of failure are on screen without opening anything —
+    // the detail after the colon belongs to the log viewer's header, not this row.
     expect(out).toContain('>bad-1<');
-    expect(out).toContain('Error acquiring the state lock');
+    expect(out).toContain('>Error acquiring the state lock</p>');
+    expect(out).not.toContain('ConditionalCheckFailedException');
     // …and the 20 settled successes are not in the way.
     expect(out).not.toContain('>ok-1<');
   });
@@ -196,12 +203,23 @@ describe('AttemptDetail — Job 현황', () => {
     expect(out).toContain('RUNNING · 6회 폴링 · 09:00');
   });
 
-  // A clamped box paints the clipped next line into its own padding box: with
-  // `pb-3` a real (three-line) terraform error rendered a sliced third line under
-  // the two-line clamp. The gap has to be a margin.
-  it('keeps the failure reason clamp free of bottom padding', () => {
-    expect(j.jobFailReason).toContain('line-clamp-2');
+  // The reason column is one line. A clipping box also paints the clipped remainder
+  // into its own padding box, so the bottom gap has to be a margin — with `pb-3` a
+  // real three-line terraform error rendered a sliced third line under a two-line clamp.
+  it('keeps the failure reason to one line, with no bottom padding', () => {
+    expect(j.jobFailReason).toContain('truncate');
+    expect(j.jobFailReason).not.toContain('line-clamp');
     expect(j.jobFailReason).not.toMatch(/\bp[by]-/);
+  });
+
+  // A terraform error names its class first and details itself after the colon.
+  it('takes the head clause, and drops a leading Error: prefix', () => {
+    expect(failHead('Error acquiring the state lock: ConditionalCheckFailedException: x')).toBe(
+      'Error acquiring the state lock',
+    );
+    expect(failHead('Error: creating EC2 Instance: InvalidSubnetID.NotFound')).toBe('creating EC2 Instance');
+    // No colon — nothing to cut, and `truncate` is the only bound left.
+    expect(failHead('infra-manager call failed')).toBe('infra-manager call failed');
   });
 
   it('makes the whole row the log entry point', () => {
