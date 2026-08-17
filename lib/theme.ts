@@ -1122,6 +1122,20 @@ export const idcStyles = {
    */
   checkBadge:
     'inline-flex items-center gap-1 rounded-md border border-[#F79009] bg-white px-2 py-[3px] text-[11.5px] font-semibold text-[#B54708]', // design-exempt: mirrors idcStyles.kindBadge 11.5px token
+  /**
+   * 확인 필요 그룹의 레일 — 한 그룹의 행들은 목록에서 붙여 세우므로(groupSuspectRows),
+   * 이 레일이 연속된 행을 하나의 덩어리로 묶는다. `tableRowLift.excluded` 가 같은 이유로
+   * 남겨 둔 장치이며, 기하도 `verdictRail` 과 같은 4px inset 이다 — 표에 레일 어휘는 하나다.
+   *
+   * 틴트가 아니라 레일인 이유는 tableRowLift.excluded 에 적힌 것과 같다: 행 배경은 면적이
+   * 넓어 신호가 될 만큼 진해지면 그 위 글자의 대비를 갉아먹고, 좁은 레일은 같은 일을 대비
+   * 손실 없이 한다. 색은 --pl-warn-text 와 같은 #B54708 (흰 행에서 5.43:1) — 배지·짝 주소와
+   * 한 경고를 말한다. `--pl-warn`(#F79009)은 2.35:1 이라 이 자리에 못 쓴다.
+   *
+   * 제외 행의 `verdictRail.ineligible` 과는 만나지 않는다: 의심 그룹은 selected 행끼리만
+   * 만들어지므로(_duplicateAddress) 한 행이 두 레일을 동시에 달 수 없다.
+   */
+  checkRail: 'shadow-[inset_4px_0_0_0_#B54708]',
   /** Inline color tag — `.tag` (4px 10px / radius 8 / 12px / 600). */
   tag: {
     base: 'inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-[12px] font-semibold tracking-[-0.01em] whitespace-nowrap',

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { RequestResourceRow } from '@/app/lib/api/task-queue-requests';
 import {
   findSuspectGroups,
+  groupSuspectRows,
   suspectMarksByRow,
   suspectRows,
 } from '@/app/admin/pipelines/queue/requests/_duplicateAddress';
@@ -219,6 +220,36 @@ describe('suspectMarksByRow', () => {
     ];
     const marks = suspectMarksByRow(findSuspectGroups(rows));
     expect(marks.get(rows[0])?.partners).toEqual(['10.20.2.31']);
+  });
+});
+
+describe('groupSuspectRows', () => {
+  it('멀리 떨어진 구성원을 첫 구성원 뒤로 데려온다', () => {
+    const rows = [
+      row({ resourceId: 'a', connectTargets: ['10.20.1.11'] }),
+      row({ resourceId: 'x', databaseType: 'MySQL', port: 3306, connectTargets: ['10.20.7.70'] }),
+      row({ resourceId: 'b', connectTargets: ['10.20.1.12'] }),
+    ];
+    const ordered = groupSuspectRows(rows, findSuspectGroups(rows));
+    expect(ordered).toEqual([rows[0], rows[2], rows[1]]);
+  });
+
+  it('의심 행이 없으면 순서를 건드리지 않는다', () => {
+    const rows = [
+      row({ resourceId: 'a', connectTargets: ['10.20.1.11'] }),
+      row({ resourceId: 'b', connectTargets: ['10.20.9.99'] }),
+    ];
+    expect(groupSuspectRows(rows, findSuspectGroups(rows))).toEqual(rows);
+  });
+
+  it('그룹에 없는 행은 제자리에 남는다', () => {
+    const rows = [
+      row({ resourceId: 'keep', databaseType: 'MySQL', port: 3306, connectTargets: ['10.20.7.70'] }),
+      row({ resourceId: 'a', connectTargets: ['10.20.1.11'] }),
+      row({ resourceId: 'b', connectTargets: ['10.20.1.12'] }),
+    ];
+    const ordered = groupSuspectRows(rows, findSuspectGroups(rows));
+    expect(ordered[0]).toBe(rows[0]);
   });
 });
 

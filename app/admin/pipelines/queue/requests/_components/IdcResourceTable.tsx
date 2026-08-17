@@ -200,7 +200,10 @@ export function IdcResourceTable({
 
             return (
               <tr key={rowKey} className={cn(ROW_BASE, ROW_TARGET)}>
-                <td className={table.approvalCell}>
+                {/* 레일은 제외 행과 같은 자리(첫 셀 왼쪽)에 선다. 한 그룹의 행들이 붙어 서
+                    있으므로 레일이 이어지며 덩어리를 그린다 — 머리글과 달리 마지막 행에서
+                    끝나므로 그룹에 바닥이 생긴다. */}
+                <td className={cn(table.approvalCell, mark != null && idcStyles.checkRail)}>
                   <IdcEndpointCell
                     hosts={row.connectTargets}
                     kind={idcAddressKind(row)}

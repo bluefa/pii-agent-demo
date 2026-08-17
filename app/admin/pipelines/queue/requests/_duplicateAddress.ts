@@ -212,3 +212,37 @@ export function suspectMarksByRow(
 export function suspectRows(groups: readonly SuspectGroup[]): RequestResourceRow[] {
   return groups.flatMap((group) => group.members.map((member) => member.row));
 }
+
+/**
+ * 기본 목록에서도 한 그룹의 행들을 붙여 세운다 (오너 결정 2026-08-16: 요청 목록의 순서는
+ * 의미가 없다). 그룹은 첫 구성원이 서 있던 자리에서 열리고 나머지가 그 뒤를 잇는다 —
+ * 관련 없는 행은 제자리에 남으므로 목록 전체가 뒤집히지 않는다.
+ *
+ * 짝의 주소를 행 안에 적어 두어도 이건 필요하다: 관계를 읽을 수 있는 것과 두 값을 나란히
+ * 놓고 비교하는 것은 다른 일이고, 관리자가 하려는 건 후자다.
+ */
+export function groupSuspectRows(
+  rows: readonly RequestResourceRow[],
+  groups: readonly SuspectGroup[],
+): RequestResourceRow[] {
+  if (groups.length === 0) return [...rows];
+  const groupOf = new Map<RequestResourceRow, SuspectGroup>();
+  for (const group of groups) {
+    for (const member of group.members) groupOf.set(member.row, group);
+  }
+  const emitted = new Set<RequestResourceRow>();
+  const ordered: RequestResourceRow[] = [];
+  for (const row of rows) {
+    const group = groupOf.get(row);
+    if (group == null) {
+      ordered.push(row);
+      continue;
+    }
+    if (emitted.has(row)) continue;
+    for (const member of group.members) {
+      emitted.add(member.row);
+      ordered.push(member.row);
+    }
+  }
+  return ordered;
+}
