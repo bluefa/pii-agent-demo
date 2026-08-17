@@ -171,7 +171,7 @@ describe('mockPipeline (in-memory orchestrator)', () => {
     it('returns the raw last_response for a terminal job, null when the last poll errored', () => {
       const failed = state('12401', '2', '1027');
       expect(failed.last_state).toBe('FAILED');
-      expect(failed.last_response).toContain('mock forced failure');
+      expect(failed.last_response).toContain('Error acquiring the state lock');
 
       const errored = state('12401', '1', '1021');
       expect(errored.last_state).toBeNull();

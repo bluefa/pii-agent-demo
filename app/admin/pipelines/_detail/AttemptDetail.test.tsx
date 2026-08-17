@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { AttemptDetail } from '@/app/admin/pipelines/_detail/AttemptDetail';
-import { attemptWindow, RunWindow } from '@/app/admin/pipelines/_detail/taskDrawerShared';
+import { attemptWindow, j, RunWindow } from '@/app/admin/pipelines/_detail/taskDrawerShared';
 import type { ReactNode } from 'react';
 import type { TaskAttemptView, TerraformJobStateSummary } from '@/lib/pipeline/types';
 
@@ -153,7 +153,7 @@ describe('AttemptDetail — Response 원문', () => {
 describe('AttemptDetail — Job 현황', () => {
   const ok = (n: number): TerraformJobStateSummary[] =>
     Array.from({ length: n }, (_, i) => jobState({ job_id: `ok-${i + 1}`, last_state: 'COMPLETED' }));
-  const bad = jobState({ job_id: 'bad-1', last_state: 'FAILED', last_fail_reason: 'mock forced failure' });
+  const bad = jobState({ job_id: 'bad-1', last_state: 'FAILED', last_fail_reason: 'Error acquiring the state lock' });
 
   it('states the total, opens on the failures, and keeps the count on the trigger', () => {
     const out = html(attempt({ job_states: [...ok(20), bad] }));
@@ -165,7 +165,7 @@ describe('AttemptDetail — Job 현황', () => {
     expect(out).not.toContain('성공 20');
     // The failure and its reason are on screen without opening anything…
     expect(out).toContain('>bad-1<');
-    expect(out).toContain('mock forced failure');
+    expect(out).toContain('Error acquiring the state lock');
     // …and the 20 settled successes are not in the way.
     expect(out).not.toContain('>ok-1<');
   });
@@ -194,6 +194,14 @@ describe('AttemptDetail — Job 현황', () => {
       }),
     );
     expect(out).toContain('RUNNING · 6회 폴링 · 09:00');
+  });
+
+  // A clamped box paints the clipped next line into its own padding box: with
+  // `pb-3` a real (three-line) terraform error rendered a sliced third line under
+  // the two-line clamp. The gap has to be a margin.
+  it('keeps the failure reason clamp free of bottom padding', () => {
+    expect(j.jobFailReason).toContain('line-clamp-2');
+    expect(j.jobFailReason).not.toMatch(/\bp[by]-/);
   });
 
   it('makes the whole row the log entry point', () => {

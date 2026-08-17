@@ -694,7 +694,7 @@ function seedPipelines(): MockPipeline[] {
         mkTask(125, 2, 'AWS_SERVICE_DESTROY_V1', 'BLOCKED'),
       ],
     },
-    // ── 124 FAILED (JOB_FAILED, quota exceeded) — Azure target 1003 (red path). ──
+    // ── 124 FAILED (JOB_FAILED, state lock) — Azure target 1003 (red path). ──
     {
       pipeline_id: 124, type: 'INSTALL', target_source_id: '1003', ...resolveService('1003'), cloud_provider: 'AZURE',
       recipe_definition: 'AZURE_INSTALL_V1', status: 'FAILED',
@@ -737,7 +737,7 @@ function seedPipelines(): MockPipeline[] {
                 job_states: [
                   { job_id: '1026', last_state: 'COMPLETED', last_fail_reason: null, last_error: null,
                     poll_count: 6, last_polled_at: ago(3 * 60 - 31) },
-                  { job_id: '1027', last_state: 'FAILED', last_fail_reason: 'mock forced failure', last_error: null,
+                  { job_id: '1027', last_state: 'FAILED', last_fail_reason: LOCK_FAIL_REASON, last_error: null,
                     poll_count: 6, last_polled_at: ago(3 * 60 - 31) },
                   { job_id: '1028', last_state: 'COMPLETED', last_fail_reason: null, last_error: null,
                     poll_count: 6, last_polled_at: ago(3 * 60 - 31) },
@@ -939,6 +939,14 @@ const needsSynth = (a: MockAttempt): boolean =>
 const attemptStamp = (a: MockAttempt): string =>
   a.finished_at ?? a.started_at ?? new Date().toISOString();
 
+/** The failure a synthesized JOB_FAILED job reports — a real terraform apply timeout,
+ *  so the row's reason and LOG_FAIL below tell the same story. */
+const SYNTH_FAIL_REASON = "timeout while waiting for state to become 'available' (last state: 'creating', timeout: 20m0s)";
+
+/** Job 12401:2:1027's failure — the first Error line of its own stored log body, which
+ *  the summary row, the state fixture and the poll response all have to agree on. */
+const LOCK_FAIL_REASON = 'Error acquiring the state lock: ConditionalCheckFailedException: The conditional request failed';
+
 const synthTerraformJobs = (
   taskId: number,
   n: number,
@@ -961,7 +969,10 @@ const synthTerraformJobs = (
       return { results: [rs(j1, true), rs(j2, true)], states: [st(j1, successState), st(j2, successState)] };
     }
     if (status === 'FAILED' && errorCode === 'JOB_FAILED') {
-      return { results: [rs(j1, true), rs(j2, false)], states: [st(j1, successState), st(j2, 'FAILED', 'mock forced failure')] };
+      return {
+        results: [rs(j1, true), rs(j2, false)],
+        states: [st(j1, successState), st(j2, 'FAILED', SYNTH_FAIL_REASON)],
+      };
     }
     if (status === 'IN_PROGRESS' || status === 'READY') {
       return { results: [], states: [st(j1, successState), st(j2, 'RUNNING')] };
@@ -1251,8 +1262,8 @@ const STATE_FIXTURES: Record<string, Omit<TerraformJobStateDetail, 'task_id' | '
     last_response: null, poll_count: 4, last_polled_at: jobAgo(3 * 60 - 14) },
   '12401:2:1026': { last_state: 'COMPLETED', last_fail_reason: null, last_error: null,
     last_response: stateJson('COMPLETED', null), poll_count: 6, last_polled_at: jobAgo(3 * 60 - 31) },
-  '12401:2:1027': { last_state: 'FAILED', last_fail_reason: 'mock forced failure', last_error: null,
-    last_response: stateJson('FAILED', 'mock forced failure'), poll_count: 6, last_polled_at: jobAgo(3 * 60 - 31) },
+  '12401:2:1027': { last_state: 'FAILED', last_fail_reason: LOCK_FAIL_REASON, last_error: null,
+    last_response: stateJson('FAILED', LOCK_FAIL_REASON), poll_count: 6, last_polled_at: jobAgo(3 * 60 - 31) },
   '12401:2:1028': { last_state: 'COMPLETED', last_fail_reason: null, last_error: null,
     last_response: stateJson('COMPLETED', null), poll_count: 6, last_polled_at: jobAgo(3 * 60 - 31) },
   '12804:1:1031': { last_state: 'COMPLETED', last_fail_reason: null, last_error: null,
@@ -1267,9 +1278,10 @@ const STATE_FIXTURES: Record<string, Omit<TerraformJobStateDetail, 'task_id' | '
 const LOG_OK = 'Initializing the backend...\nInitializing provider plugins...\n'
   + `aws_resource.main: Creating...\naws_resource.main: ${green('Creation complete after 3s')}\n\n`
   + green(bold('Apply complete! Resources: 12 added, 0 changed, 0 destroyed.'));
-const LOG_FAIL = 'aws_resource.main: Creating...\n\n'
+const LOG_FAIL = 'aws_resource.main: Creating...\n'
+  + 'aws_resource.main: Still creating... [20m0s elapsed]\n\n'
   + `${red(bold('Error:'))} ${bold('error applying plan')}\n\n  on main.tf line 14:\n\n`
-  + 'resource creation failed: mock forced failure\n\nApply cancelled.';
+  + `${SYNTH_FAIL_REASON}\n\nApply cancelled.`;
 const LOG_RUNNING = 'aws_resource.main: Creating...\n'
   + 'aws_resource.main: Still creating... [30s elapsed]';
 

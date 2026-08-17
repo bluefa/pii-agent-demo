@@ -97,8 +97,10 @@ export const jobStyles = {
   jobChev: 'flex-none text-[var(--pl-text-weak)]',
   /** `last_fail_reason` under a failed job — the cause the panel used to keep
    *  three hops away (attempt row → job row → log viewer). Clamped; the full
-   *  text is in the log viewer. */
-  jobFailReason: '-mt-1.5 px-3 pb-3 text-[14px] leading-[1.6] text-[var(--pl-err-text)] break-words line-clamp-2',
+   *  text is in the log viewer. The bottom gap is a MARGIN, not padding: a
+   *  clamped box paints the clipped next line into its own padding box, so
+   *  `pb-3` here showed a sliced third line under a two-line clamp. */
+  jobFailReason: '-mt-1.5 px-3 mb-3 text-[14px] leading-[1.6] text-[var(--pl-err-text)] break-words line-clamp-2',
   jobId: 'text-[13px] font-bold text-[var(--pl-text-strong)] [font-family:var(--pl-font-mono)] tabular-nums tracking-[-0.196px]',
   /** Raw-response fold (owner Figma node 121-389) — a ▼ triangle (gray) that flips
    *  up + sky-blue when open; the raw dispatch response sits in an inset mono code
