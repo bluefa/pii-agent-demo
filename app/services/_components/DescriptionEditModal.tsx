@@ -52,9 +52,11 @@ export const DescriptionEditModal = ({
       await updateTargetSourceDescription(targetSourceId, trimmed);
       onSaved();
     } catch {
-      // 업스트림 message 를 그대로 싣지 않는다 — 쓰기 실패에 사용자가 할 수 있는 일은
-      // 재시도뿐이고, 게이트웨이 원문은 그 판단에 아무것도 보태지 못한다.
-      setError('설명을 저장하지 못했습니다. 잠시 후 다시 시도해 주세요.');
+      // 업스트림 message 를 그대로 싣지 않는다 — 게이트웨이 원문은 사용자의 판단에
+      // 아무것도 보태지 못한다. "잠시 후 다시" 라고도 하지 않는다: 이 엔드포인트는
+      // 아직 계약이 없어(assumed §8) 실서버에서는 404 가 영구적이고, 그 문구는
+      // 될 리 없는 재시도를 권한다. 재시도는 열어 두되 약속하지는 않는다.
+      setError('설명을 저장하지 못했습니다. 문제가 계속되면 담당자에게 알려 주세요.');
     } finally {
       setSaving(false);
     }

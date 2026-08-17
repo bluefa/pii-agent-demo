@@ -11,6 +11,7 @@ import type { NextResponse } from 'next/server';
 
 import { mockTargetSources } from '@/lib/bff/mock/target-sources';
 import { mockTaskQueue } from '@/lib/bff/mock/task-queue';
+import { schemas } from '@/lib/generated/install-v1';
 import * as mockData from '@/lib/mock-data';
 import { readDoesSupportRaw } from '@/lib/types';
 
@@ -66,6 +67,23 @@ describe('does_support_raw 시드', () => {
     // 근거가 없는 대상에는 키 자체가 없다 — 목이 `false` 를 깔면 계약에 없는 단정이 된다.
     expect(readDoesSupportRaw(plain)).toBe(false);
     expect(plain).not.toHaveProperty('does_support_raw');
+  });
+
+  /**
+   * 두 태그가 전부 이 한 홉에 걸려 있다: 계약에 없는 키라, 생성 스키마가
+   * `.passthrough()` 를 잃고 `.strip()` 로 바뀌면 파스가 조용히 키를 버리고 태그는
+   * 모든 대상에서 꺼진다 — 목도 라우트도 에러를 내지 않으므로 나머지 테스트는 전부
+   * 초록이다. gen:api 재생성이 그 성질을 바꾸면 여기서 걸린다.
+   */
+  it('생성 스키마가 계약에 없는 키를 통과시킨다 (.passthrough)', () => {
+    expect(schemas.TargetSourceInfo.parse({ targetSourceId: 1, doesSupportRaw: true })).toHaveProperty(
+      'doesSupportRaw',
+      true,
+    );
+    expect(schemas.TargetSourceDetail.parse({ targetSourceId: 1, does_support_raw: true })).toHaveProperty(
+      'does_support_raw',
+      true,
+    );
   });
 
   it('TargetSourceInfo (camel wire) 에도 실린다 — /target-sources/page?serviceCode', async () => {

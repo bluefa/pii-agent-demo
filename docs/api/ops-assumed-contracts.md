@@ -1,17 +1,19 @@
 # Ops Console — Assumed Contracts (no backing in install-v1.yaml)
 
-The Target Source ops page (`/admin/pipelines/ops/target-sources/{id}`) renders four
-capabilities that have **no endpoint in `docs/swagger/install-v1.yaml`**. They are
-implemented mock-first behind Next.js routes with the shapes below. When the BFF ships
-real endpoints, replace the mock handlers and delete the corresponding section here.
+Capabilities with **no endpoint in `docs/swagger/install-v1.yaml`**: §1–§5 on the Target
+Source ops page (`/admin/pipelines/ops/target-sources/{id}`), and §8 on the service-owner
+list (`/services`). They are implemented mock-first behind Next.js routes with the shapes
+below. When the BFF ships real endpoints, replace the mock handlers and delete the
+corresponding section here.
 
 Conventions follow install-v1: snake_case wire, Spring `Page` for pagination,
 `ErrorMessage` problem responses.
 
 Sections §6 (서비스 운영) and §7 (운영 알림) are no longer assumed — both now run on
 declared endpoints. They are kept as a record of what was withdrawn and why, so the
-same shapes are not re-invented. §1–§5 are still assumed and still 404 against the
-real BFF.
+same shapes are not re-invented. §1–§5 **and §8** are still assumed and still 404 against
+the real BFF — §8 is the only one whose caller is a service owner rather than an operator,
+so its failure copy does not promise that a retry will work.
 
 ## 1. Status change history
 
