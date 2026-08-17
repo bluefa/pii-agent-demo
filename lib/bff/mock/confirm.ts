@@ -2174,8 +2174,8 @@ export const mockConfirm = {
       content: content.map((job, index) => ({
         target_source_id: job.target_source_id,
         test_connection_version: total - (page * size + index),
-        // PENDING in the job store is the contract's RUNNING.
-        status: job.status === 'PENDING' ? 'RUNNING' : job.status,
+        // Same PENDING(시작 대기)/RUNNING split as the latest-version projection.
+        status: tcFns.toWireTopStatus(job),
         requested_at: job.requested_at,
         completed_at: job.completed_at,
       })),

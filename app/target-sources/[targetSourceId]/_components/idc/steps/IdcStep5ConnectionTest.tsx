@@ -202,6 +202,7 @@ export const IdcStep5ConnectionTest = ({
     completion,
     approvalEnabled,
     policyChangedAt,
+    failed: completionFailed,
     refresh: refreshCompletion,
   } = useTcCompletionStatus(targetSourceId, uiState, latestJob?.test_connection_version ?? null);
   const [historyOpen, setHistoryOpen] = useState(false);
@@ -285,7 +286,7 @@ export const IdcStep5ConnectionTest = ({
     toast.success('논리 DB 제외 정책을 저장했습니다. 연결 테스트를 다시 실행해야 반영됩니다.');
     logicalModal.close();
     // completion-status 가 LOGICAL_DATABASE_RECENTLY_UPDATED 로 넘어갔는지 다시 읽는다 —
-    // 토스트가 사라져도 재실행 필요 칩이 화면에 남는다.
+    // 토스트가 사라져도 카드가 정책 변경 상태로 남는다.
     refreshCompletion();
     const updated = await getProject(targetSourceId);
     onProjectUpdate(updated);
@@ -360,6 +361,20 @@ export const IdcStep5ConnectionTest = ({
                   </button>
                 }
               />
+              )}
+              {/* 실패한 완료 상태 조회는 닫힌 게이트와 같은 픽셀이면 안 된다 — 클라우드
+                  카드와 같은 문법: 한 줄 + 재시도. */}
+              {completionFailed && (
+                <p className={cn('flex items-center gap-2 text-[12px]', idcStyles.tag.red, 'bg-transparent px-0')}>
+                  {ERROR_MESSAGES.TEST_CONNECTION_COMPLETION_FETCH_FAILED}
+                  <button
+                    type="button"
+                    onClick={refreshCompletion}
+                    className={cn(idcStyles.triggerBtn.linkNeutral, 'text-[12px]')}
+                  >
+                    다시 시도
+                  </button>
+                </p>
               )}
               {triggerError && (
                 <p className={cn('text-[12px]', idcStyles.tag.red, 'bg-transparent px-0')}>{triggerError}</p>

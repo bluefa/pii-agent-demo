@@ -12,6 +12,8 @@ interface StoredCompletion {
   value: CompletionValue;
   /** logical_database_updated_at — the policy-changed card's "정책 변경 {시각}" meta. */
   policyChangedAt: string | null;
+  /** The read itself failed — the gate is unknown, not merely closed. */
+  failed: boolean;
 }
 
 export interface UseTcCompletionStatusReturn {
@@ -21,7 +23,9 @@ export interface UseTcCompletionStatusReturn {
   approvalEnabled: boolean;
   /** When the logical-DB policy last changed — null outside a valid verdict. */
   policyChangedAt: string | null;
-  /** Re-read now (after a logical-DB policy save). */
+  /** The completion read failed — approvalEnabled is unknown, not a verdict of "closed". */
+  failed: boolean;
+  /** Re-read now (after a logical-DB policy save, or to retry a failed read). */
   refresh: () => void;
 }
 
@@ -51,18 +55,29 @@ export const useTcCompletionStatus = (
     void getTestConnectionCompletionStatus(targetSourceId)
       .then((status) => {
         if (active) {
+          const changedAt = status.logical_database_updated_at ?? null;
           setStored({
             targetSourceId,
             runVersion,
             refreshKey,
             value: status.test_connection_status ?? null,
-            policyChangedAt: status.logical_database_updated_at ?? null,
+            // The contract sends an epoch placeholder instead of null (see
+            // lib/types/guide.ts) — 1970 must never render as a policy-change time.
+            policyChangedAt: changedAt !== null && Date.parse(changedAt) > 0 ? changedAt : null,
+            failed: false,
           });
         }
       })
       .catch(() => {
         if (active) {
-          setStored({ targetSourceId, runVersion, refreshKey, value: null, policyChangedAt: null });
+          setStored({
+            targetSourceId,
+            runVersion,
+            refreshKey,
+            value: null,
+            policyChangedAt: null,
+            failed: true,
+          });
         }
       });
     return () => {
@@ -84,6 +99,7 @@ export const useTcCompletionStatus = (
     completion,
     approvalEnabled: completion === 'LATEST_TEST_CONNECTION_SUCCESS',
     policyChangedAt: valid ? stored.policyChangedAt : null,
+    failed: valid ? stored.failed : false,
     refresh,
   };
 };

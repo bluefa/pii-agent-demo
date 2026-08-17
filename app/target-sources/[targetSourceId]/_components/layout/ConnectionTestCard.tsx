@@ -274,11 +274,13 @@ export const ConnectionTestCard = ({
   // the poll alone: LOGICAL_DATABASE_RECENTLY_UPDATED keeps it closed until a re-run,
   // exactly as the IDC step already does. The verdict also refines the settled card
   // state (성공/정책 변경/확인 완료 — foldTcCardState below).
-  const { completion, approvalEnabled, policyChangedAt, refresh: refreshCompletion } = useTcCompletionStatus(
-    targetSourceId,
-    uiState,
-    latestJob?.test_connection_version ?? null,
-  );
+  const {
+    completion,
+    approvalEnabled,
+    policyChangedAt,
+    failed: completionFailed,
+    refresh: refreshCompletion,
+  } = useTcCompletionStatus(targetSourceId, uiState, latestJob?.test_connection_version ?? null);
   const [historyOpen, setHistoryOpen] = useState(false);
 
   // Run Test gate (v16 updateConnRunBtn): every row that needs a credential has one.
@@ -313,8 +315,8 @@ export const ConnectionTestCard = ({
 
   // On save the skip policy persists, which flips completion-status
   // (LATEST_TEST_CONNECTION_SUCCESS → LOGICAL_DATABASE_RECENTLY_UPDATED, spec §7);
-  // re-reading it closes the CTA and raises the 재실행 필요 chip — the toast is no
-  // longer the only trace of "you must re-run".
+  // re-reading it closes the CTA and flips the card into the policy-changed
+  // state — the toast is no longer the only trace of "you must re-run".
   const handleSaved = useCallback(() => {
     toast.success('논리 DB 제외 정책을 저장했습니다. 연결 테스트를 다시 실행해야 반영됩니다.');
     logicalModal.close();
@@ -407,6 +409,20 @@ export const ConnectionTestCard = ({
             </button>
           }
         />
+        )}
+        {/* 실패한 완료 상태 조회는 닫힌 게이트와 같은 픽셀이면 안 된다 — 이유 없이 비활성인
+            승인 버튼만 남는다. fetchError 와 같은 문법: 한 줄 + 재시도. */}
+        {completionFailed && (
+          <p className={cn('flex items-center gap-2 text-[12px]', idcStyles.tag.red, 'bg-transparent px-0')}>
+            {ERROR_MESSAGES.TEST_CONNECTION_COMPLETION_FETCH_FAILED}
+            <button
+              type="button"
+              onClick={refreshCompletion}
+              className={cn(idcStyles.triggerBtn.linkNeutral, 'text-[12px]')}
+            >
+              다시 시도
+            </button>
+          </p>
         )}
         {triggerError && (
           <p className={cn('text-[12px]', idcStyles.tag.red, 'bg-transparent px-0')}>{triggerError}</p>

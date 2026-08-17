@@ -73,7 +73,14 @@ export const TcRunHistoryModal = ({ open, targetSourceId, onClose }: TcRunHistor
     const k = `${pageSize}:${page}`;
     void getTestConnectionExecutionHistory(targetSourceId, page, pageSize)
       .then((data) => {
-        if (active) setPages((prev) => ({ ...prev, [k]: data }));
+        if (!active) return;
+        setPages((prev) => ({ ...prev, [k]: data }));
+        // A page past the end (empty rows, positive total) hides the pager with the
+        // rows — clamp back to the real last page instead of stranding the user
+        // (the page number outlives the list, PR #708).
+        if (data.content.length === 0 && data.totalElements > 0) {
+          setPage(Math.max(0, data.totalPages - 1));
+        }
       })
       .catch(() => {
         if (active) setPages((prev) => ({ ...prev, [k]: 'error' }));

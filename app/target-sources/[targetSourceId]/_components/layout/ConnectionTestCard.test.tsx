@@ -190,8 +190,8 @@ describe('ConnectionTestCard', () => {
 
   /**
    * 표의 칸만 고치고 그 위 요약 스트립을 두면, 더 먼저 읽히는 표면이 여전히 판정을 말한다:
-   * "연결 테스트 대기 중 — Run Test를 실행해 주세요 / 성공 0 · 미보고 1" 이 떴다가 응답이
-   * 오면 "모두 성공"으로 뒤집힌다. 같은 게이트를 두 표면이 함께 써야 고친 것이 된다.
+   * "아직 실행한 연결 테스트가 없습니다 / 대상 리소스 1개" 가 떴다가 응답이 오면
+   * "모두 성공"으로 뒤집힌다. 같은 게이트를 두 표면이 함께 써야 고친 것이 된다.
    */
   it('does not let the summary strip claim a phase while the first poll is in flight', () => {
     pollingState.loading = true;
@@ -501,6 +501,40 @@ describe('ConnectionTestCard', () => {
     expect(screen.queryByRole('button', { name: '완료 승인 요청' })).toBeNull();
     expect(screen.queryByRole('button', { name: /다시 실행/ })).toBeNull();
     expect(screen.getByRole('button', { name: '실행 이력' })).toBeTruthy();
+  });
+
+  // 마지막 실행 뒤 확정이 바뀌면 CONFIRMED 인데 현재 유닛 보고가 0건일 수 있다 — 그때
+  // "성공 0 · 실패 0" 은 판정 없음만 반복한다. settled 와 같은 대상 서술로 접는다.
+  it('falls back to the target description when CONFIRMED has no reports on current units', async () => {
+    getCompletionStatusMock.mockResolvedValueOnce({ test_connection_status: 'CONFIRMED' });
+    pollingState.uiState = 'SUCCESS';
+    // The run reported on res-old only; the current unit is res-1.
+    pollingState.latestJob = makeJob('SUCCESS', [agentResult('res-old', 'SUCCESS')]);
+    renderCard([makeResource({ credentialId: 'Key1' })]);
+
+    expect(await screen.findByText('연결 테스트 완료 확인됨')).toBeTruthy();
+    expect(screen.getByText('대상 리소스 1개')).toBeTruthy();
+  });
+
+  // 실패한 완료 상태 조회가 닫힌 게이트와 같은 픽셀이면, 이유 없이 비활성인 승인 버튼만
+  // 남는다 — 실패는 빈 결과가 아니다. 한 줄 + 재시도가 그 구분이다.
+  it('says so when the completion read fails, and 다시 시도 refires it', async () => {
+    getCompletionStatusMock.mockRejectedValueOnce(new Error('500'));
+    pollingState.uiState = 'SUCCESS';
+    pollingState.latestJob = makeJob('SUCCESS', [agentResult('res-1', 'SUCCESS')]);
+    renderCard([makeResource({ credentialId: 'Key1' })]);
+
+    expect(await screen.findByText(/연결 테스트 완료 상태 조회에 실패했습니다/)).toBeTruthy();
+    expect(screen.getByRole('button', { name: '완료 승인 요청' })).toHaveProperty('disabled', true);
+
+    // Retry hits the default open verdict — the line clears and the gate opens.
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: '다시 시도' }));
+    });
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: '완료 승인 요청' })).toHaveProperty('disabled', false),
+    );
+    expect(screen.queryByText(/완료 상태 조회에 실패했습니다/)).toBeNull();
   });
 
   // Step 5 has its own table (not WaitingApprovalTable), so the cluster tag had to be added

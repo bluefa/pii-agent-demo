@@ -295,8 +295,11 @@ export const TcSummaryCard = ({
       <div className={cn('flex items-center justify-between gap-3', showTrack && 'mt-[9px]')}>
         <span className={state === 'policy-changed' ? s.countsWarn : s.counts}>
           {/* 시작 대기도, 보고 0건으로 정착한 실행도 idle 과 같은 대상 서술 — 카운트를
-              그리면 "성공 0 · 실패 0 · 미보고 N"처럼 판정이 없다는 사실만 세 번 반복한다. */}
-          {state === 'idle' || state === 'queued' || (settled && buckets.reported === 0) ? (
+              그리면 "성공 0 · 실패 0 · 미보고 N"처럼 판정이 없다는 사실만 세 번 반복한다.
+              confirmed 도 같은 규칙: 마지막 실행 뒤 확정된 유닛만 남으면 보고가 0건이다. */}
+          {state === 'idle' ||
+          state === 'queued' ||
+          ((settled || state === 'confirmed') && buckets.reported === 0) ? (
             <>대상 리소스 {buckets.total}개</>
           ) : state === 'policy-changed' ? (
             <>연결 테스트를 다시 수행해야 합니다</>

@@ -349,11 +349,20 @@ const isQueued = (job: TestConnectionJob): boolean =>
   (job.target_source_id === TC_CARD_FIXTURE.queued ||
     Date.now() < Date.parse(job.requested_at) + DISPATCH_MS);
 
+/**
+ * Contract-facing top-level status. The store keeps one PENDING for the whole
+ * in-flight window; the contract splits it into PENDING(시작 대기) and RUNNING.
+ * Every projection of a job's status must go through this one rule — a sibling
+ * that maps PENDING straight to RUNNING makes the history modal call a queued
+ * run "진행 중" while the card says 대기.
+ */
+export const toWireTopStatus = (job: TestConnectionJob): WireConnectionStatus =>
+  job.status === 'PENDING' ? (isQueued(job) ? 'PENDING' : 'RUNNING') : job.status;
+
 /** `TestConnectionVersionResult` wire shape (getLatestTestConnectionStatus). */
 export const toVersionResultResponse = (job: TestConnectionJob) => {
   const queued = isQueued(job);
-  const topStatus: WireConnectionStatus =
-    job.status === 'PENDING' ? (queued ? 'PENDING' : 'RUNNING') : job.status;
+  const topStatus = toWireTopStatus(job);
   const settled = job.resource_results.map((r, index) => ({
     agent_id: r.agent_id ?? fallbackAgentId(index),
     gcp_region: '',
