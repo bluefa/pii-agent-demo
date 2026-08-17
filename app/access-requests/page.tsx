@@ -41,14 +41,12 @@
  * 폭도 하나로 줄였다 — 자세한 이유는 layout.tsx.
  */
 import { useCallback, useEffect, useState, type ReactElement } from 'react';
-import { cn, serviceSidebarStyles } from '@/lib/theme';
+import { cn } from '@/lib/theme';
 import { useAbortableEffect } from '@/app/hooks/useAbortableEffect';
 import { fmtDateTime } from '@/lib/pipeline/format';
 
 import { SearchBox } from '@/app/admin/pipelines/_components/SearchBox';
 import { usePlToast } from '@/app/admin/pipelines/_components/usePlToast';
-import { serviceTileClass } from '@/app/components/features/admin/ServiceSidebar/ServiceRow';
-import { serviceListStyles as sl } from '@/app/admin/pipelines/_services/styles';
 import {
   PagedCard,
   errorMessage,
@@ -96,26 +94,30 @@ const VERDICT_STATUSES: readonly AccessRequestStatus[] = ['PENDING', 'APPROVED',
 type VerdictCounts = { pending: number; approved: number; rejected: number };
 
 /**
- * 로딩 중 목록 — 타일 · [이름 코드] · 둘째 단의 크기를 그대로 흉내 낸다. 세 탭이 같은
- * 카드 문법을 쓰므로 스켈레톤도 하나다. 도착했을 때 목록이 튀지 않는 건 이 칸들이
- * 진짜 카드와 같기 때문이다.
+ * 서비스 두 탭의 열 — 코드와 이름을 각자 제 열에 세운다(오너 지시 2026-08-17).
  *
- * 타일 자리는 `skeletonBar`(h-3.5)로 못 그린다 — `cn` 은 단순 join 이라 h-7 을 덧씌우면
- * Tailwind 출력 순서가 이긴다. 그래서 크기·색을 여기서 직접 준다.
+ * 카드 더미였을 때는 한 칸에 [타일 이름 코드칩] 이 붙어 있었다. 그러면 코드가 이름
+ * 길이만큼 밀려 행마다 다른 x 에 서고, 무엇이 이름이고 무엇이 코드인지 머리 줄이
+ * 말해 주지도 않는다. 내 요청 내역과 같은 순서다 — 코드가 왼쪽이라야 코드로 훑힌다.
+ *
+ * 타일은 없다. 타일을 이름 칸에 두면 '서비스' 머리가 이름이 아니라 타일 위에 서서,
+ * 방금 상태 열에서 고친 것과 같은 어긋남이 38px 짜리로 생긴다.
+ *
+ * 마지막 열은 라벨이 없다(꼬리) — 버튼 그룹 자리다.
  */
-const CARD_SKELETON = (
-  <div role="rowgroup" aria-busy="true" aria-label="목록을 불러오는 중" className={a.deckRows}>
+const SERVICE_COLUMNS: readonly Column[] = [
+  { label: '코드', className: a.code },
+  { label: '서비스', className: a.name },
+  { className: a.svcActionCell },
+];
+
+/** 그 표의 로딩 자리 — 꼬리 칸의 막대는 버튼 그룹의 실제 크기(140×32)다. */
+const SERVICE_SKELETON = (
+  <div role="rowgroup" aria-busy="true" aria-label="목록을 불러오는 중" className={a.tableBody}>
     {Array.from({ length: ACCESS_PAGE_SIZE }, (_, row) => (
-      <div key={row} className={a.svcRow} aria-hidden="true">
-        <span className={cn(serviceSidebarStyles.tile, 'animate-pulse bg-[var(--pl-gray-100)]')} />
-        <span className={a.svcStack}>
-          <span className={a.svcIdent}>
-            <span className={cn(a.skeletonBar, 'h-4 w-[128px]')} />
-            <span className={cn(a.skeletonBar, 'h-5 w-[38px]')} />
-          </span>
-        </span>
-        {/* 담당자 줄은 접혀 있으므로 여기도 한 단이다 — 둘째 단을 그려 두면 도착한 목록이
-            행마다 20px 씩 올라온다. 액션 자리는 버튼 그룹의 실제 크기다. */}
+      <div key={row} className={a.rowMid} aria-hidden="true">
+        <span className={cn(a.code, a.skeletonBar)} />
+        <span className={cn(a.name, a.skeletonBar)} />
         <span className={a.svcActionCell}>
           <span className={cn(a.skeletonBar, 'h-8 w-[140px]')} />
         </span>
@@ -123,29 +125,6 @@ const CARD_SKELETON = (
     ))}
   </div>
 );
-
-/**
- * 서비스 한 건의 표기 — 타일 · [이름 코드]. `/services` 레일의 부품을 그대로 쓴다.
- *
- * 서비스 두 탭이 같은 이것을 쓴다. 요청할 때 본 서비스와 접근 가능 목록에서 보는
- * 서비스가 다른 모양이면 같은 것으로 읽히지 않는다. 감싸는 칸(`a.svcCell`)이 타일과
- * 덩어리 사이 gap 을 준다.
- */
-function ServiceIdentity({ code, name }: { code: string; name: string }): ReactElement {
-  return (
-    <>
-      <span className={cn(serviceSidebarStyles.tile, serviceTileClass(code))} aria-hidden="true">
-        {name.charAt(0).toUpperCase()}
-      </span>
-      <span className={a.svcStack}>
-        <span className={a.svcIdent}>
-          <span className={cn(sl.name, sl.nameIdle)}>{name}</span>
-          <span className={sl.code}>{code}</span>
-        </span>
-      </span>
-    </>
-  );
-}
 
 /** 담당자를 싣는 계약은 한쪽뿐이라 행 타입이 갈린다 — 버튼 그룹은 이 좁힘 뒤에만 그린다. */
 const hasOwners = (row: UserServiceRow): row is ServiceRow => 'owners' in row;
@@ -157,18 +136,19 @@ const hasOwners = (row: UserServiceRow): row is ServiceRow => 'owners' in row;
  * 이 문장 하나 때문에 화면이 모든 장을 훑게 된다.
  */
 function HeaderVerdict({ counts }: { counts: VerdictCounts | 'error' | null }): ReactElement | null {
-  // 못 셌으면 아무 문장도 쓰지 않는다 — 틀린 수를 말하느니 말하지 않는다. 실패 자체는
+  // 못 셌으면 아무것도 쓰지 않는다 — 틀린 수를 말하느니 말하지 않는다. 실패 자체는
   // 아래 목록 카드가 재시도와 함께 말한다.
   if (counts === 'error') return null;
   if (counts == null) {
-    // 수를 모르는 동안 문장을 지어내지 않는다 — 어떤 문장이 될지도 아직 모른다.
-    return <span className={cn(a.skeletonBar, 'mt-2 block h-5 w-[340px]')} aria-hidden="true" />;
+    // 수를 모르는 동안 자리만 잡는다 — 로딩 중의 '0' 은 아직 모르는 수를 단언하는 것.
+    return <span className={cn(a.skeletonBar, 'mt-2 block h-7 w-[240px]')} aria-hidden="true" />;
   }
 
   const { pending, approved, rejected } = counts;
   const total = pending + approved + rejected;
 
   if (total === 0) {
+    // 셀 것이 없을 때만 문장이 선다 — 수를 못 쓰는 유일한 경우라서.
     return (
       <p className={a.pageDesc}>
         아직 요청한 권한이 없어요 — 아래 목록에서 서비스를 골라 권한을 요청해 보세요
@@ -176,48 +156,24 @@ function HeaderVerdict({ counts }: { counts: VerdictCounts | 'error' | null }): 
     );
   }
 
-  const featured = rejected > 0 ? 'REJECTED' : pending > 0 ? 'PENDING' : 'APPROVED';
-  const num = cn(a.pageTotal, a.pageTotalTone[featured]);
-  const sentence =
-    featured === 'REJECTED' ? (
-      // 반려 **사유**는 말하지 않는다 — `GET /user/permission-access` 는 처리 메모를
-      // 싣지 않아서 요청자가 볼 길이 없다(갭 B5). 없는 것을 확인하라고 보내지 않는다.
-      <>
-        반려된<strong className={num}>{rejected}</strong>건이 있어요 — &lsquo;내 요청 내역&rsquo;
-        탭에서 다시 요청할 수 있어요
-      </>
-    ) : featured === 'PENDING' ? (
-      <>
-        {/* 전부 대기 중이면 "1건 중 1건"이 된다 — 분모가 분자와 같으면 말하지 않는다. */}
-        요청한 {pending < total && `${total}건 중 `}
-        <strong className={num}>{pending}</strong>건이 관리자 확인을 기다리고 있어요
-      </>
-    ) : (
-      <>
-        요청한<strong className={num}>{total}</strong>건이 모두 승인됐어요
-      </>
-    );
-
-  // 문장이 이미 말한 수는 다시 쓰지 않는다 — 같은 사실을 두 번 쓰면 정보량은 그대로인데
-  // 읽을 것만 늘어난다. 0건인 상태도 굳이 말하지 않는다.
-  const rest: { label: string; value: number }[] = [];
-  if (featured !== 'REJECTED' && rejected > 0) rest.push({ label: '반려', value: rejected });
-  if (featured !== 'PENDING' && pending > 0) rest.push({ label: '대기', value: pending });
-  if (featured !== 'APPROVED' && approved > 0) rest.push({ label: '승인', value: approved });
+  // 판정 문장은 없다(오너 지시 2026-08-17). 문장이 고른 한 상태를 크게 말하고 나머지
+  // 둘을 작게 되풀이하던 자리인데, 같은 세 수를 두 급으로 두 번 쓰는 셈이었다. 이제
+  // 셋이 같은 줄에 같은 급으로 선다 — 급한 순서(반려 → 대기 → 승인)는 그대로다.
+  // 0건인 상태는 쓰지 않는다.
+  const items = [
+    { label: '반려', value: rejected },
+    { label: '대기', value: pending },
+    { label: '승인', value: approved },
+  ].filter((item) => item.value > 0);
 
   return (
-    <>
-      <p className={a.pageDesc}>{sentence}</p>
-      {rest.length > 0 && (
-        <p className={a.pageMeta}>
-          {rest.map((item) => (
-            <span key={item.label}>
-              {item.label} <b className={a.pageMetaVal}>{item.value}</b>
-            </span>
-          ))}
-        </p>
-      )}
-    </>
+    <p className={a.pageMeta}>
+      {items.map((item) => (
+        <span key={item.label}>
+          {item.label} <b className={a.pageMetaVal}>{item.value}</b>
+        </span>
+      ))}
+    </p>
   );
 }
 
@@ -421,16 +377,15 @@ export default function MyAccessRequestsPage(): ReactElement {
       <HeaderVerdict counts={verdict} />
       {tabStrip}
 
-      {/* 목록을 감싸는 카드가 없다(`bare`). 이 화면의 바닥은 이미 캔버스라 흰 카드가
-          그 위에서 읽히고, 그러면 목록을 또 한 겹 흰 면으로 감쌀 이유가 없다 — 감싸면
-          카드 안의 카드가 된다. 머리 줄도 없다(`head={null}`) — 제목은 위의 탭이 이미
-          쓰고 있어서 대신 그릴 것조차 없다. */}
+      {/* 세 탭 모두 흰 종이 위의 표다(오너 지시 2026-08-17). 행에 면이 없는 표는 구분선이
+          캔버스 위에 바로 그어지고, #E4E7EC 대 #F4F4FB 는 1.132:1 — 선이 있어도 안 보인다.
+          흰 바닥에서 같은 선이 1.239:1 이다. 머리 줄은 없다(`head={null}`) — 제목은 위의
+          탭이 이미 쓰고 있어서 대신 그릴 것조차 없다. */}
       {tab !== 'mine' ? (
-        // 서비스 탭 둘은 같은 목록을 다른 축으로 자른 것이라 카드도 하나로 그린다 —
+        // 서비스 탭 둘은 같은 목록을 다른 축으로 자른 것이라 표도 하나로 그린다 —
         // 나란히 두 벌을 두면 같은 행 문법이 조용히 갈라진다.
         <PagedCard
           className="mt-4"
-          bare
           head={null}
           title={requestTab ? '요청할 수 있는 서비스' : '내가 접근할 수 있는 서비스'}
           desc={
@@ -450,7 +405,8 @@ export default function MyAccessRequestsPage(): ReactElement {
               onChange={(event) => setQuery(event.target.value)}
             />
           }
-          skeleton={CARD_SKELETON}
+          columns={SERVICE_COLUMNS}
+          skeleton={SERVICE_SKELETON}
           empty={
             debounced
               ? {
@@ -470,22 +426,21 @@ export default function MyAccessRequestsPage(): ReactElement {
                 }
           }
         >
-          {/* 서비스는 `/services` 레일과 같은 모양으로 읽힌다 — 타일 · 이름 · 코드 태그.
-                고를 수 있는 목록이 아니라 요청할 목록이라 카드 자체는 버튼이 아니고, 끝의
-                [권한 요청] 만 누를 수 있다. 이미 가진 서비스는 그 자리가 비어 있다 —
-                할 일이 없는 카드에 회색 버튼을 두면 눌러 보고 나서야 없다는 걸 알게 된다.
-
-                한 줄에 하나다. 2열로 흘려 봤더니 순서가 좌→우→아래로 튀어서 목록의 차례를
-                읽을 수 없었다 — 폭을 쓰자고 훑기를 망치는 거래였다. */}
+          {/* 행 자체는 버튼이 아니다 — 고르는 목록이 아니라 요청하는 목록이라, 누를 수
+                있는 건 꼬리의 버튼 그룹뿐이다. 이미 가진 서비스는 그 자리가 비어 있다:
+                할 일이 없는 행에 회색 버튼을 두면 눌러 보고 나서야 없다는 걸 알게 된다. */}
           {(rows) => (
-            <div role="rowgroup" className={a.deckRows}>
+            <div role="rowgroup" className={a.tableBody}>
               {rows.map((row) => (
-                <div key={row.serviceCode} role="row" className={a.svcRow}>
-                  <span role="cell" className={a.svcCell}>
-                    <ServiceIdentity code={row.serviceCode} name={row.serviceName} />
+                <div key={row.serviceCode} role="row" className={a.rowMid}>
+                  <span role="cell" className={cn(a.code, a.mono)}>
+                    {row.serviceCode}
                   </span>
-                  {/* 칸은 두 탭 모두 자리를 지킨다 — 접근 가능 탭에서만 비우면 코드
-                      태그가 탭을 옮길 때마다 이 폭만큼 튄다. */}
+                  <span role="cell" className={cn(a.name, a.nameStrong)}>
+                    {row.serviceName}
+                  </span>
+                  {/* 칸은 두 탭 모두 자리를 지킨다 — 접근 가능 탭에서만 비우면 이름이
+                      탭을 옮길 때마다 이 폭만큼 튄다. */}
                   <span role="cell" className={a.svcActionCell}>
                     {requestTab && hasOwners(row) && (
                       <span className={a.svcActions}>

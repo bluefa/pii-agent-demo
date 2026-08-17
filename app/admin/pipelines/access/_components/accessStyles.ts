@@ -10,38 +10,43 @@
  */
 import { serviceSidebarStyles } from '@/lib/theme';
 
-/** 캔버스 위에 서는 카드 한 장의 면 — 서비스 목록의 행이 쓴다(`svcRow`). */
-const CARD_FACE =
-  'gap-2.5 rounded-[9px] border border-[var(--pl-border)] bg-[var(--pl-bg-card)] px-3 py-2.5';
-
 /** 승인 시트의 사실 격자 — 요청 반쪽과 처리 반쪽이 같은 열에 서야 요청자↔처리자,
  *  요청 일시↔처리 일시가 세로로 짝지어 읽힌다. 위 여백만 둘이 다르다. */
 const BENCH_GRID = 'grid grid-cols-3 gap-x-8';
+
+/** 표의 행이 공유하는 것 — 세로 정렬·여백·구분선만 갈린다(`row`/`rowMid`/`rowTop`).
+ *  셋을 각각 완결로 선언하는 이유는 `cn` 이 단순 join 이라서다: 기본 위에 items-* 나
+ *  py-* 를 덧씌우면 이기는 쪽은 호출 순서가 아니라 Tailwind 출력 순서다. */
+const ROW =
+  'group relative flex gap-3 text-[14px] text-[var(--pl-text-medium)] transition-colors';
 
 export const accessStyles = {
   pageTitle: 'text-[24px] font-bold leading-[1.2] tracking-[-0.02em] text-[var(--pl-text-strong)]',
   pageDesc: 'mt-1 text-[16px] leading-[1.4] text-[var(--pl-text-weak)]',
   /** 판정 수치 — 연동 요청(queue/requests)의 `contextTotal` 과 같은 크기. 화면에서
-   *  가장 큰 타입이 곧 화면이 먼저 말하는 사실이고, 이 페이지의 그 사실은 "내 요청이
-   *  지금 어떤 상태인가"다.
+   *  가장 큰 타입이 곧 화면이 먼저 말하는 사실이다. 승인 워크벤치가 쓴다(요청자 화면은
+   *  2026-08-17 에 판정 문장을 걷어 내면서 `pageMeta` 한 줄만 남겼다).
    *
-   *  색은 여기 없다 — 세는 대상에 따라 갈린다. queue/requests 는 언제나 "확인이 필요한
-   *  건"이라 primary 한 색으로 충분하지만, 이 수치는 반려일 수도 승인일 수도 있다.
-   *  반려 건수를 파랑으로 쓰면 수치와 문장이 서로 다른 말을 한다. */
+   *  색은 여기 없다 — 세는 대상에 따라 갈린다. */
   pageTotal: 'mx-0.5 align-baseline text-[32px] font-bold leading-none',
   /** 판정 수치의 색 — 판정이 있는 상태는 표 안의 상태 pill 과 같은 잉크를 쓴다.
    *
    *  대기만 파랑이다(오너 지시 2026-08-14). 대기는 나쁜 소식이 아니라 **할 일**이고,
-   *  주황은 늦었다는 뜻이라 0건이든 6건이든 늘 경고처럼 읽혔다. 늦은 건은 레일의
-   *  `benchWaitHot`(3일 넘은 건)이 따로 말한다 — 경고는 거기 한 군데면 된다. */
+   *  주황은 늦었다는 뜻이라 0건이든 6건이든 늘 경고처럼 읽혔다. */
   pageTotalTone: {
     REJECTED: 'text-[var(--pl-err-text)]',
     PENDING: 'text-[var(--pl-primary)]',
     APPROVED: 'text-[var(--pl-ok-text)]',
   },
-  /** 판정 문장이 다루지 않은 나머지 상태 — 문장이 말한 수는 여기 다시 쓰지 않는다. */
-  pageMeta: 'mt-2 flex items-center gap-4 text-[14px] text-[var(--pl-text-weak)]',
-  pageMetaVal: 'font-semibold text-[var(--pl-text-medium)]',
+  /** 상태별 건수 줄 — 요청자 화면이 먼저 말하는 사실 전부다(오너 지시 2026-08-17).
+   *
+   *  판정 문장이 사라지면서 이 줄이 그 자리를 물려받았다. 그래서 라벨이 14 → 16 이다:
+   *  제목 밑에서 화면을 대신 여는 줄이 본문보다 작을 이유가 없다. */
+  pageMeta: 'mt-2 flex items-baseline gap-4 text-[16px] text-[var(--pl-text-weak)]',
+  /** 그 줄의 수 — 20(오너 지시 2026-08-17). 라벨보다 한 급 위라 훑을 때 수가 먼저 잡히고,
+   *  잉크도 한 단 진하다. 정렬은 `items-baseline` 이 잡는다 — 크기가 다른 둘을 가운데로
+   *  맞추면 숫자가 라벨보다 살짝 떠 보인다. */
+  pageMetaVal: 'text-[20px] font-semibold tabular-nums text-[var(--pl-text-medium)]',
   grid: 'mt-6 grid grid-cols-2 gap-6',
 
   /** 카드 — min-h 로 2단에 나란히 선 카드가 담긴 양과 무관하게 같은 높이를 지킨다. */
@@ -81,7 +86,10 @@ export const accessStyles = {
   tabLg: 'text-[16px]',
 
   headRow: 'mt-3 flex items-center gap-3 py-2 text-[12px] font-medium text-[var(--pl-text-weak)]',
-  row: 'group relative flex items-center gap-3 border-t border-[var(--pl-border)] py-2.5 text-[14px] text-[var(--pl-text-medium)] transition-colors',
+  row: `${ROW} items-center border-t border-[var(--pl-border)] py-2.5`,
+  /** 구분선을 `tableBody` 가 긋는 표의 행 — 한 줄짜리 값들이라 가운데 정렬. 선이 없는
+   *  것 말고는 `row` 와 같다(두 군데서 선을 그으면 줄이 겹쳐 두 배로 진해진다). */
+  rowMid: `${ROW} items-center py-2.5`,
   /** 접히는 칸이 있는 표의 본문 — 구분선을 행이 아니라 **여기서** 긋는다(오너 지시
    *  2026-08-17, 리소스 표와 같은 문법: `tableStyles.body`).
    *
@@ -95,35 +103,8 @@ export const accessStyles = {
    *  위아래 16px 은 리소스 표의 셀 값(`tableStyles.cell` 의 py-[16px])을 그대로 쓴다.
    *  10px 이던 때는 두 줄로 접힌 사유의 아랫줄이 구분선에 거의 닿아서, 선은 그어져 있는데
    *  글이 다음 띠로 넘어가는 것처럼 읽혔다. */
-  rowTop: 'group relative flex items-start gap-3 py-4 text-[14px] text-[var(--pl-text-medium)] transition-colors',
+  rowTop: `${ROW} items-start py-4`,
   rowLink: 'hover:bg-[var(--pl-gray-50)]',
-  /**
-   * 요청자 화면(내 권한 요청)의 카드 더미 — 헤어라인이 아니라 간격으로 끊는다.
-   * 표가 아니라 요청할 것들의 더미로 읽히게 하는 것이 목적이다.
-   *
-   * 승인 워크벤치처럼 캔버스 면을 따로 깔지 **않는다**. `/access-requests` 는
-   * `/admin/**` 밖이라 어드민 셸(`--pl-bg-page` #F9FAFB)을 안 쓰고 body 의 캔버스
-   * (#F4F4FB)를 그대로 물려받는다 — 바닥이 이미 내려가 있어서 흰 카드가 4.12 로
-   * 읽힌다. 여기에 캔버스를 한 겹 더 깔면 같은 색을 같은 색 위에 얹는 것이라 표면만
-   * 하나 는다(브라우저 실측 2026-08-14).
-   */
-  deckRows: 'flex flex-col gap-1.5',
-  /** 서비스 한 건의 카드 — 타일 · 이름 · 코드 태그. `/services` 레일과 같은 문법이라
-   *  서비스는 이 제품 어디서나 같은 모양으로 읽힌다(색·타일 해시는 `serviceListStyles`
-   *  에서 그대로 온다). gap 은 레일의 2.5.
-   *
-   *  폭은 카드가 아니라 화면이 잡는다 — 레이아웃 열이 곧 이 목록의 폭이다. 예전에는
-   *  여기서 640 으로 묶었는데, 그러면 1000 열 안의 828 카드 안에 640 목록이 되어
-   *  폭이 세 겹이었다. */
-  svcRow: `flex items-center ${CARD_FACE}`,
-  /** 행 안의 두 단 — 윗단 이름·코드, 아랫단 설명. 등급이 카드 사이가 아니라 행 안에서
-   *  생기는 자리다(Carbon structured list, NN/g "굵은 줄만 따라 읽기"). */
-  svcStack: 'flex min-w-0 flex-1 flex-col gap-0.5',
-  /** 이름과 코드는 붙는다(gap 6). 레일에서 코드가 오른쪽 끝에 서 있는 건 폭이 좁아
-   *  코드들을 한 x 에 맞추려는 것이고, 여기선 반대가 필요하다 — 사이가 벌어지면
-   *  이름과 코드가 한 서비스의 두 표기가 아니라 두 열로 읽힌다. `self-start` 라야
-   *  덩어리가 글자만큼만 넓어지고, 그래야 코드가 이름을 따라온다. */
-  svcIdent: 'flex min-w-0 max-w-full items-center gap-1.5 self-start',
   /** 행 끝 액션 셀 — "권한 요청"이 줄바꿈 없이 들어가는 폭. */
   svcAction: 'w-[68px] flex-none text-right',
   /** 서비스 행의 액션 셀 — 버튼 그룹 한 덩어리가 들어가는 폭. 두 서비스 탭이 같은 폭을
@@ -147,9 +128,6 @@ export const accessStyles = {
   /** 이 행의 본 행위 — 그룹 안에서 잉크로만 갈린다. */
   svcActionBtnGo:
     'cursor-pointer whitespace-nowrap px-2.5 py-1.5 text-[12px] font-semibold text-[var(--pl-primary)] transition-colors hover:bg-[var(--pl-primary-bg)]',
-  /** 카드 안의 서비스 칸 — 타일 · [이름 코드] · 둘째 단을 한 덩어리로 담는다. 같은
-   *  서비스가 탭 하나 건너 다른 모양으로 보이면 같은 것으로 읽히지 않는다. */
-  svcCell: 'flex min-w-0 flex-1 items-center gap-2.5',
   /** 행마다 반복되는 행위는 글자로 쓴다.
    *
    *  면을 가진 CTA 로 두면 한 장에 파란 버튼이 다섯 개가 되고, 다섯 개가 되면 강조가
