@@ -220,6 +220,11 @@ describe('AttemptDetail — Job 현황', () => {
     expect(failHead('Error: creating EC2 Instance: InvalidSubnetID.NotFound')).toBe('creating EC2 Instance');
     // No colon — nothing to cut, and `truncate` is the only bound left.
     expect(failHead('infra-manager call failed')).toBe('infra-manager call failed');
+    // A parenthetical's colon is not the separator: cutting there left "(last state".
+    expect(failHead("timeout while waiting for state to become 'available' (last state: 'creating', timeout: 20m0s)")).toBe(
+      "timeout while waiting for state to become 'available' (last state: 'creating', timeout: 20m0s)",
+    );
+    expect(failHead('creating Subnet (subnet-a: primary): AccessDenied')).toBe('creating Subnet (subnet-a: primary)');
   });
 
   it('makes the whole row the log entry point', () => {

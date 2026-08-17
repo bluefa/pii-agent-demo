@@ -60,8 +60,17 @@ function jobMeta(row: JobRow): string {
  */
 export function failHead(reason: string): string {
   const body = reason.replace(/^Error:\s*/, '');
-  const cut = body.indexOf(': ');
-  return cut > 0 ? body.slice(0, cut) : body;
+  // Only a top-level colon separates class from detail. A parenthetical carries its
+  // own — `…to become 'available' (last state: 'creating', timeout: 20m0s)` cut to
+  // "…'available' (last state", which reads as nothing at all.
+  let depth = 0;
+  for (let i = 0; i < body.length - 1; i += 1) {
+    const c = body[i];
+    if (c === '(') depth += 1;
+    else if (c === ')') depth = Math.max(0, depth - 1);
+    else if (c === ':' && body[i + 1] === ' ' && depth === 0) return body.slice(0, i);
+  }
+  return body;
 }
 
 function JobItem({
