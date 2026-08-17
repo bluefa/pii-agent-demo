@@ -394,43 +394,45 @@ export function PipelineDetailView(): ReactElement {
           context row; the recipe description is the ⓘ tooltip. */}
       <header className={h.root}>
         <div className={h.titleRow}>
-          <h1 className={text.pageTitle}>Infra 작업 현황</h1>
-          {/* Promoted CTA (owner: "Target 상세 확인 이게 더 중요") — lands on the
-              ops console's 인프라 작업 tab. The header's only blue. */}
-          <Link
-            href={passRoutes.pipelines.ops.targetSource(detail.target_source_id, 'infra')}
-            className={cn(
-              pipelineStyles.button.base,
-              pipelineStyles.button.md,
-              pipelineStyles.button.primary,
-              h.cta,
-            )}
-          >
-            Target 상세 확인 <Icon name="arrow-ur" size="sm" />
-          </Link>
+          <h1 className={h.pageTitle}>Infra 작업 현황</h1>
         </div>
         <div className={h.main}>
+          {/* The one provider mark on this page (owner 2026-08-16), so it wears
+              the vendor's colours — the tier-1 glyph that briefly sat beside the
+              id was the same mark twice. */}
           <ProviderLogo
             provider={normalizeCloudProvider(detail.cloud_provider)}
             isSdu={detail.is_sdu_type}
             variant="bare"
+            tone="brand"
             className="flex-none self-center"
           />
           <div className={h.body}>
             <div className={h.idRow}>
-              {/* Same rule as the ops card: SDU is a classification so it gets a
-                  chip, every other provider stays plain — the mark on the left
-                  already says the provider, so no tag doubles it. Order is the
-                  owner's: "GCP #1002" — provider first. */}
-              {detail.is_sdu_type ? (
-                <span className={h.sduChip}>SDU</span>
-              ) : (
-                <span className={h.prov}>{providerLabel(provider)}</span>
-              )}
+              {/* SDU is a classification, not a vendor — the brand mark on the
+                  left cannot say it, so it keeps its chip. Every other provider
+                  is fully drawn by that mark and adds nothing here. */}
+              {detail.is_sdu_type && <span className={h.sduChip}>SDU</span>}
+              {/* Labelled like the tier below it (서비스 이름 / 코드): a bare
+                  "#1003" does not say what it numbers (owner 2026-08-16). */}
+              <span className={h.klabel}>Target</span>
               <span className={h.id}>
                 <span className={h.idHash}>#</span>
                 {detail.target_source_id}
               </span>
+              {/* The errand the deleted header CTA used to carry, as a text button
+                  next to the id it acts on (ops console, 인프라 작업 tab). */}
+              <Link
+                href={passRoutes.pipelines.ops.targetSource(detail.target_source_id, 'infra')}
+                className={cn(
+                  pipelineStyles.button.base,
+                  pipelineStyles.button.sm,
+                  pipelineStyles.button.ghost,
+                )}
+              >
+                상세정보 보기
+                <Icon name="arrow-ur" size="sm" />
+              </Link>
             </div>
             <div className={h.nameRow}>
               <span className={h.klabel}>서비스 이름</span>
@@ -639,7 +641,6 @@ export function PipelineDetailView(): ReactElement {
             <TaskDrawer
               key={selected.task_id}
               onClose={() => setSelected(null)}
-              task={selected}
               detail={selectedDetail}
               detailLoaded={detailMap.has(selected.task_id)}
               displayName={resolveName(selected)}

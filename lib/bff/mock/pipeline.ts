@@ -505,6 +505,46 @@ function seedPipelines(): MockPipeline[] {
   });
 
   return [
+    // ── 132 FAILED (JOB_FAILED, five of eight jobs) — AWS target 1007. ──
+    //     One attempt where a whole batch failed at once, not a single job: the 실패
+    //     bucket holds five rows, each with a differently-shaped terraform error
+    //     (`BATCH_132`). Exercises the job list's scroll, the filter counts (실패 5 /
+    //     성공 3) and `failHead` against varied text.
+    {
+      pipeline_id: 132, type: 'INSTALL', target_source_id: '1007', ...resolveService('1007'), cloud_provider: 'AWS',
+      recipe_definition: 'AWS_INSTALL_V1', status: 'FAILED',
+      created_at: ago(6 * 60), last_activity_at: ago(BATCH_132_MIN_AGO), next_due_at: null,
+      leased: false, cancel_requested: false, due_lag_millis: 0,
+      tasks: [
+        mkTask(132, 0, 'AWS_SERVICE_PLAN_V1', 'DONE', {
+          started_at: ago(6 * 60), finished_at: ago(6 * 60 - 4),
+          attempts: [attempt(1, 'DONE', null, 6 * 60, '{"job_id":"tf-f00","terraformState":"COMPLETED"}', 6 * 60 - 4)],
+        }),
+        mkTask(132, 1, 'AWS_SERVICE_APPLY_V1', 'FAILED', {
+          fail_count: 1, error_code: 'JOB_FAILED',
+          started_at: ago(6 * 60 - 5), finished_at: ago(BATCH_132_MIN_AGO),
+          attempts: [
+            attempt(1, 'FAILED', 'JOB_FAILED', 6 * 60 - 5,
+              JSON.stringify(BATCH_132.map((b) => b.job)), BATCH_132_MIN_AGO,
+              check(9, 0, 0, 0, 'FAILED', BATCH_132_MIN_AGO), {
+                failure_detail:
+                  `jobs reported FAILED: [${BATCH_132.filter((b) => b.reason).map((b) => b.job).join(', ')}]`,
+                terraform_results: BATCH_132.map((b) => ({
+                  job_id: b.job, succeeded: b.reason === null, truncated: false, has_body: true,
+                  created_at: ago(BATCH_132_MIN_AGO),
+                })),
+                job_states: BATCH_132.map((b) => ({
+                  job_id: b.job, last_state: b.reason === null ? 'COMPLETED' : 'FAILED',
+                  last_fail_reason: b.reason, last_error: null,
+                  poll_count: 9, last_polled_at: ago(BATCH_132_MIN_AGO),
+                })),
+              }),
+          ],
+        }),
+        mkTask(132, 2, 'AWS_BDC_COMMON_PLAN_V1', 'BLOCKED'),
+        mkTask(132, 3, 'AWS_BDC_COMMON_APPLY_V1', 'BLOCKED'),
+      ],
+    },
     // ── 131 FAILED (dispatch call failed — zero jobs) — AWS target 1006 (red path). ──
     //     The terraform execute (dispatch) API itself failed on every attempt, so no job id
     //     ever came back: each attempt carries error_code + failure_detail but NO job rows.
@@ -694,7 +734,7 @@ function seedPipelines(): MockPipeline[] {
         mkTask(125, 2, 'AWS_SERVICE_DESTROY_V1', 'BLOCKED'),
       ],
     },
-    // ── 124 FAILED (JOB_FAILED, quota exceeded) — Azure target 1003 (red path). ──
+    // ── 124 FAILED (JOB_FAILED, state lock) — Azure target 1003 (red path). ──
     {
       pipeline_id: 124, type: 'INSTALL', target_source_id: '1003', ...resolveService('1003'), cloud_provider: 'AZURE',
       recipe_definition: 'AZURE_INSTALL_V1', status: 'FAILED',
@@ -737,7 +777,7 @@ function seedPipelines(): MockPipeline[] {
                 job_states: [
                   { job_id: '1026', last_state: 'COMPLETED', last_fail_reason: null, last_error: null,
                     poll_count: 6, last_polled_at: ago(3 * 60 - 31) },
-                  { job_id: '1027', last_state: 'FAILED', last_fail_reason: 'mock forced failure', last_error: null,
+                  { job_id: '1027', last_state: 'FAILED', last_fail_reason: LOCK_FAIL_REASON, last_error: null,
                     poll_count: 6, last_polled_at: ago(3 * 60 - 31) },
                   { job_id: '1028', last_state: 'COMPLETED', last_fail_reason: null, last_error: null,
                     poll_count: 6, last_polled_at: ago(3 * 60 - 31) },
@@ -939,6 +979,14 @@ const needsSynth = (a: MockAttempt): boolean =>
 const attemptStamp = (a: MockAttempt): string =>
   a.finished_at ?? a.started_at ?? new Date().toISOString();
 
+/** The failure a synthesized JOB_FAILED job reports — a real terraform apply timeout,
+ *  so the row's reason and LOG_FAIL below tell the same story. */
+const SYNTH_FAIL_REASON = "timeout while waiting for state to become 'available' (last state: 'creating', timeout: 20m0s)";
+
+/** Job 12401:2:1027's failure — the first Error line of its own stored log body, which
+ *  the summary row, the state fixture and the poll response all have to agree on. */
+const LOCK_FAIL_REASON = 'Error acquiring the state lock: ConditionalCheckFailedException: The conditional request failed';
+
 const synthTerraformJobs = (
   taskId: number,
   n: number,
@@ -961,7 +1009,10 @@ const synthTerraformJobs = (
       return { results: [rs(j1, true), rs(j2, true)], states: [st(j1, successState), st(j2, successState)] };
     }
     if (status === 'FAILED' && errorCode === 'JOB_FAILED') {
-      return { results: [rs(j1, true), rs(j2, false)], states: [st(j1, successState), st(j2, 'FAILED', 'mock forced failure')] };
+      return {
+        results: [rs(j1, true), rs(j2, false)],
+        states: [st(j1, successState), st(j2, 'FAILED', SYNTH_FAIL_REASON)],
+      };
     }
     if (status === 'IN_PROGRESS' || status === 'READY') {
       return { results: [], states: [st(j1, successState), st(j2, 'RUNNING')] };
@@ -1189,7 +1240,40 @@ const green = (s: string): string => `${E}[32m${s}${E}[0m`;
 const red = (s: string): string => `${E}[31m${s}${E}[0m`;
 const bold = (s: string): string => `${E}[1m${s}${E}[0m`;
 
+/** Pipeline 132 (task 13201, attempt 1) — a whole batch failing at once. Five of eight
+ *  jobs FAILED, each with a real terraform error of a DIFFERENT shape, so the list's
+ *  head clause (`failHead`) is read against varied text instead of one string.
+ *  `reason: null` = the job finished clean. The row, the viewer header and the log body
+ *  all derive from this one list, so they cannot drift apart. */
+const BATCH_132: ReadonlyArray<{ job: string; reason: string | null }> = [
+  { job: '1041', reason: 'Error acquiring the state lock: ConditionalCheckFailedException: The conditional request failed' },
+  { job: '1042', reason: 'Error: creating IAM Role (pii-agent-scan): AccessDenied: User is not authorized to perform iam:CreateRole' },
+  { job: '1043', reason: null },
+  { job: '1044', reason: "timeout while waiting for state to become 'available' (last state: 'creating', timeout: 20m0s)" },
+  { job: '1045', reason: 'Error: creating S3 Bucket (pii-agent-scan-logs-apne2): BucketAlreadyOwnedByYou: Your previous request to create the named bucket succeeded' },
+  { job: '1046', reason: null },
+  { job: '1047', reason: 'InvalidClientTokenId: The security token included in the request is invalid' },
+  { job: '1048', reason: null },
+];
+
+/** When the batch ran — one stamp for the whole attempt, as a real batch would have. */
+const BATCH_132_MIN_AGO = 6 * 60 - 24;
+
+const batch132Log = (reason: string | null): string =>
+  reason === null
+    ? `aws_iam_role.pii_agent_scan: Creating...\naws_iam_role.pii_agent_scan: ${green('Creation complete after 2s')}\n\n`
+      + green(bold('Apply complete! Resources: 18 added, 0 changed, 0 destroyed.'))
+    : `aws_iam_role.pii_agent_scan: Creating...\n\n${red(bold('Error:'))} `
+      + `${bold(reason.replace(/^Error:\s*/, ''))}\n\n  on main.tf line 22\n\nApply cancelled.`;
+
 const RESULT_FIXTURES: Record<string, Omit<TerraformJobResultDetail, 'task_id' | 'attempt_number' | 'job_id'>> = {
+  ...Object.fromEntries(
+    BATCH_132.map(({ job, reason }) => [
+      `13201:1:${job}`,
+      { succeeded: reason === null, truncated: false, source: 'stored', created_at: jobAgo(BATCH_132_MIN_AGO),
+        fetch_error: null, content: batch132Log(reason) },
+    ]),
+  ),
   // task 12401 · attempt 1 — live read-through (no stored rows yet at timeout)
   '12401:1:1019': { succeeded: true, truncated: false, source: 'live', created_at: null, fetch_error: null,
     content: 'aws_glue_catalog_database.service_level: Creating...\n'
@@ -1243,6 +1327,14 @@ const stateJson = (terraformState: string, failReason: string | null): string =>
   JSON.stringify({ terraformState, failReason });
 
 const STATE_FIXTURES: Record<string, Omit<TerraformJobStateDetail, 'task_id' | 'attempt_number' | 'job_id'>> = {
+  ...Object.fromEntries(
+    BATCH_132.map(({ job, reason }) => [
+      `13201:1:${job}`,
+      { last_state: reason === null ? 'COMPLETED' : 'FAILED', last_fail_reason: reason, last_error: null,
+        last_response: stateJson(reason === null ? 'COMPLETED' : 'FAILED', reason),
+        poll_count: 9, last_polled_at: jobAgo(BATCH_132_MIN_AGO) },
+    ]),
+  ),
   '12401:1:1019': { last_state: 'COMPLETED', last_fail_reason: null, last_error: null,
     last_response: stateJson('COMPLETED', null), poll_count: 4, last_polled_at: jobAgo(3 * 60 - 13) },
   '12401:1:1020': { last_state: 'RUNNING', last_fail_reason: null, last_error: null,
@@ -1251,8 +1343,8 @@ const STATE_FIXTURES: Record<string, Omit<TerraformJobStateDetail, 'task_id' | '
     last_response: null, poll_count: 4, last_polled_at: jobAgo(3 * 60 - 14) },
   '12401:2:1026': { last_state: 'COMPLETED', last_fail_reason: null, last_error: null,
     last_response: stateJson('COMPLETED', null), poll_count: 6, last_polled_at: jobAgo(3 * 60 - 31) },
-  '12401:2:1027': { last_state: 'FAILED', last_fail_reason: 'mock forced failure', last_error: null,
-    last_response: stateJson('FAILED', 'mock forced failure'), poll_count: 6, last_polled_at: jobAgo(3 * 60 - 31) },
+  '12401:2:1027': { last_state: 'FAILED', last_fail_reason: LOCK_FAIL_REASON, last_error: null,
+    last_response: stateJson('FAILED', LOCK_FAIL_REASON), poll_count: 6, last_polled_at: jobAgo(3 * 60 - 31) },
   '12401:2:1028': { last_state: 'COMPLETED', last_fail_reason: null, last_error: null,
     last_response: stateJson('COMPLETED', null), poll_count: 6, last_polled_at: jobAgo(3 * 60 - 31) },
   '12804:1:1031': { last_state: 'COMPLETED', last_fail_reason: null, last_error: null,
@@ -1267,9 +1359,10 @@ const STATE_FIXTURES: Record<string, Omit<TerraformJobStateDetail, 'task_id' | '
 const LOG_OK = 'Initializing the backend...\nInitializing provider plugins...\n'
   + `aws_resource.main: Creating...\naws_resource.main: ${green('Creation complete after 3s')}\n\n`
   + green(bold('Apply complete! Resources: 12 added, 0 changed, 0 destroyed.'));
-const LOG_FAIL = 'aws_resource.main: Creating...\n\n'
+const LOG_FAIL = 'aws_resource.main: Creating...\n'
+  + 'aws_resource.main: Still creating... [20m0s elapsed]\n\n'
   + `${red(bold('Error:'))} ${bold('error applying plan')}\n\n  on main.tf line 14:\n\n`
-  + 'resource creation failed: mock forced failure\n\nApply cancelled.';
+  + `${SYNTH_FAIL_REASON}\n\nApply cancelled.`;
 const LOG_RUNNING = 'aws_resource.main: Creating...\n'
   + 'aws_resource.main: Still creating... [30s elapsed]';
 

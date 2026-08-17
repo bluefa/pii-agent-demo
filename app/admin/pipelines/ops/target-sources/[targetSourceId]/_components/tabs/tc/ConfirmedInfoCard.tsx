@@ -35,6 +35,8 @@ import { getDatabaseShortLabel } from '@/app/components/ui/DatabaseIcon';
 import { IdentifierTip, Tooltip } from '@/app/components/ui/Tooltip';
 import { Ec2InstanceTag, RdsClusterTag } from '@/app/components/ui/RdsInstanceChips';
 import { ResourceIdCell } from '@/app/target-sources/[targetSourceId]/_components/shared/ResourceIdCell';
+import { IdcEndpointCell } from '@/app/admin/pipelines/queue/requests/_components/idcCells';
+import { toIdcResourceViewFromConfirmed } from '@/app/lib/api/idc';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
 import { PlSelect } from '@/app/admin/pipelines/_components/PlSelect';
 import { Icon } from '@/app/admin/pipelines/_components/icons';
@@ -173,8 +175,35 @@ function ResourceNameCell({
   );
 }
 
+/**
+ * 접속 주소 — an IDC row's identity, in place of the Resource Name + Resource ID pair.
+ * Neither of those exists for IDC: no scan names an on-prem DB (the service owner types
+ * its address in), and its `resource_id` is an internal key that stays off the screen
+ * (design-spec §8). Same cell the queue's IDC table uses, so 확정 정보 and 연동 요청
+ * name a row the same way.
+ */
+function IdcIdentityCell({
+  row,
+}: {
+  row: ConfirmedIntegrationResourceItem;
+}): ReactElement {
+  const view = toIdcResourceViewFromConfirmed(row);
+  if (view.hosts.length === 0) return <Dash />;
+  return <IdcEndpointCell hosts={view.hosts} kind={view.kind} />;
+}
+
+/** Row label for the two modals — the address for IDC, the name (then id) otherwise. */
+const rowLabel = (row: ConfirmedIntegrationResourceItem): string =>
+  row.resource_name
+  || (row.idc_host_format != null
+    ? toIdcResourceViewFromConfirmed(row).hosts.join(', ')
+    : '')
+  || row.resource_id;
+
 export interface ConfirmedInfoCardProps {
   targetSourceId: number;
+  /** IDC renders one 접속 주소 column instead of Resource Name · Resource ID · Region. */
+  isIdc: boolean;
   /** Confirmed snapshot resources (fetched by TcTab). */
   rows: readonly ConfirmedIntegrationResourceItem[];
   /** Contract credential list (fetched by TcTab). */
@@ -194,6 +223,7 @@ export interface ConfirmedInfoCardProps {
 
 export function ConfirmedInfoCard({
   targetSourceId,
+  isIdc,
   rows,
   secrets,
   tcResults,
@@ -328,7 +358,7 @@ export function ConfirmedInfoCard({
                 setQuery(event.target.value);
                 setPage(0);
               }}
-              placeholder="Resource ID 또는 Resource Name 검색"
+              placeholder={isIdc ? '호스트 · IP 검색' : 'Resource ID 또는 Resource Name 검색'}
               aria-label="확정 리소스 검색"
               className={SEARCH_INPUT}
             />
@@ -347,21 +377,25 @@ export function ConfirmedInfoCard({
                 </option>
               ))}
             </PlSelect>
-            <PlSelect
-              aria-label="Region 필터"
-              value={regionFilter}
-              onChange={(event) => {
-                setRegionFilter(event.target.value);
-                setPage(0);
-              }}
-            >
-              <option value="">Region 전체</option>
-              {regionOptions.map((option) => (
-                <option key={option} value={option}>
-                  {option}
-                </option>
-              ))}
-            </PlSelect>
+            {/* No Region filter for IDC — an on-prem DB has no region, so the control
+                could only ever offer an empty list. */}
+            {!isIdc && (
+              <PlSelect
+                aria-label="Region 필터"
+                value={regionFilter}
+                onChange={(event) => {
+                  setRegionFilter(event.target.value);
+                  setPage(0);
+                }}
+              >
+                <option value="">Region 전체</option>
+                {regionOptions.map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </PlSelect>
+            )}
           </div>
           <div className={TABLE_FRAME}>
             <table className={table.base}>
@@ -370,10 +404,16 @@ export function ConfirmedInfoCard({
                   Credential) trail behind them. */}
               <thead className="bg-[var(--pl-gray-50)]">
                 <tr>
-                  <th className={HEAD_CELL}>Resource Name</th>
-                  <th className={HEAD_CELL}>Resource ID</th>
+                  {isIdc ? (
+                    <th className={HEAD_CELL}>접속 주소</th>
+                  ) : (
+                    <>
+                      <th className={HEAD_CELL}>Resource Name</th>
+                      <th className={HEAD_CELL}>Resource ID</th>
+                    </>
+                  )}
                   <th className={HEAD_CELL}>Database Type</th>
-                  <th className={HEAD_CELL}>Region</th>
+                  {!isIdc && <th className={HEAD_CELL}>Region</th>}
                   <th className={HEAD_CELL}>연동 대상 논리 DB</th>
                   <th className={HEAD_CELL}>연동 제외 논리 DB</th>
                   <th className={HEAD_CELL}>연결 상태</th>
@@ -384,7 +424,7 @@ export function ConfirmedInfoCard({
                 {pageRows.length === 0 && (
                   <tr>
                     <td
-                      colSpan={8}
+                      colSpan={isIdc ? 6 : 8}
                       className={cn(CELL, 'py-10 text-center text-[var(--pl-text-weak)]')}
                     >
                       {FILTER_EMPTY_MESSAGE}
@@ -396,35 +436,45 @@ export function ConfirmedInfoCard({
                   const verdict = verdicts.get(row.resource_id);
                   return (
                     <tr key={`${row.resource_id}-${index}`} className={table.rowHover}>
-                      <td className={CELL}>
-                        <ResourceNameCell
-                          value={row.resource_name || null}
-                          resourceType={row.resource_type}
-                        />
-                      </td>
-                      <td className={CELL}>
-                        {/* Step 1·2·3 grammar: truncated to `Prefix…` like the name
-                            column, tip on hover, copy button on row hover. */}
-                        {row.resource_id ? (
-                          <ResourceIdCell
-                            value={row.resource_id}
-                            label="Resource ID"
-                            maxWidthClass="max-w-[200px]"
-                          />
-                        ) : (
-                          <Dash />
-                        )}
-                      </td>
+                      {isIdc ? (
+                        <td className={CELL}>
+                          <IdcIdentityCell row={row} />
+                        </td>
+                      ) : (
+                        <>
+                          <td className={CELL}>
+                            <ResourceNameCell
+                              value={row.resource_name || null}
+                              resourceType={row.resource_type}
+                            />
+                          </td>
+                          <td className={CELL}>
+                            {/* Step 1·2·3 grammar: truncated to `Prefix…` like the name
+                                column, tip on hover, copy button on row hover. */}
+                            {row.resource_id ? (
+                              <ResourceIdCell
+                                value={row.resource_id}
+                                label="Resource ID"
+                                maxWidthClass="max-w-[200px]"
+                              />
+                            ) : (
+                              <Dash />
+                            )}
+                          </td>
+                        </>
+                      )}
                       <td className={cn(CELL, 'whitespace-nowrap')}>
                         {/* The wire is lowercase (mysql·athena) — labelled the way the
                             user screens label it. A type is a classification, not a
                             status, so it gets no chip. */}
                         {row.database_type ? getDatabaseShortLabel(row.database_type) : <Dash />}
                       </td>
-                      <td className={cn(CELL, 'whitespace-nowrap font-mono')}>
-                        {/* A region is one token — wrapped, 'ap-northeast-' / '2' reads as two. */}
-                        {row.database_region || <Dash />}
-                      </td>
+                      {!isIdc && (
+                        <td className={cn(CELL, 'whitespace-nowrap font-mono')}>
+                          {/* A region is one token — wrapped, 'ap-northeast-' / '2' reads as two. */}
+                          {row.database_region || <Dash />}
+                        </td>
+                      )}
                       <td className={CELL}>
                         <CountCell row={tc} tab="inc" verdict={verdict} onOpen={() => setLdbRow(row)} />
                       </td>
@@ -441,7 +491,7 @@ export function ConfirmedInfoCard({
                             <button
                               type="button"
                               aria-haspopup="dialog"
-                              aria-label={`${row.resource_name || row.resource_id} Credential 수정 — 현재 ${row.credential_id || '연결 안 함'}`}
+                              aria-label={`${rowLabel(row)} Credential 수정 — 현재 ${row.credential_id || '연결 안 함'}`}
                               disabled={savingId === row.resource_id}
                               onClick={() => setCredRow(row)}
                               className={opsStyles.cellAction}
@@ -500,7 +550,7 @@ export function ConfirmedInfoCard({
       {credRow && (
         <CredentialAssignModal
           key={`cred-${credRow.resource_id}`}
-          resourceLabel={credRow.resource_name || credRow.resource_id}
+          resourceLabel={rowLabel(credRow)}
           value={credRow.credential_id ?? ''}
           entries={entries}
           saving={savingId === credRow.resource_id}
@@ -523,7 +573,7 @@ export function ConfirmedInfoCard({
           key={`ldb-${ldbRow.resource_id}`}
           targetSourceId={targetSourceId}
           resourceId={ldbRow.resource_id}
-          resourceLabel={ldbRow.resource_name || ldbRow.resource_id}
+          resourceLabel={rowLabel(ldbRow)}
           databaseType={ldbRow.database_type}
           onClose={() => setLdbRow(null)}
           onSaved={onReload}

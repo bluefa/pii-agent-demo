@@ -40,6 +40,12 @@ const open = () =>
     <ApprovalRequestDetailModal isOpen onClose={() => {}} item={item} targetSourceId={2002} />,
   );
 
+/** Same modal, told its target is IDC — the ops page reads that off the target detail. */
+const openIdc = () =>
+  render(
+    <ApprovalRequestDetailModal isOpen onClose={() => {}} item={item} targetSourceId={2002} isIdc />,
+  );
+
 describe('ApprovalRequestDetailModal', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -56,8 +62,8 @@ describe('ApprovalRequestDetailModal', () => {
     expect(screen.getByRole('button', { name: /연동 요청 대상/ })).toBeTruthy();
     expect(screen.getByRole('button', { name: /연동 요청 제외대상/ })).toBeTruthy();
     // 23 rows, 5 excluded (every 5th) → 18 targets.
-    expect(screen.getByRole('button', { name: /전체 요청 23/ })).toBeTruthy();
-    expect(screen.getByRole('button', { name: /연동 요청 제외대상 5/ })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /전체 요청\s*23/ })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /연동 요청 제외대상\s*5/ })).toBeTruthy();
   });
 
   it('filters the table when a tile is picked', async () => {
@@ -92,25 +98,66 @@ describe('ApprovalRequestDetailModal', () => {
   });
 
   /**
-   * A host-based resource has no region, so reading only `metadata.region` left the
-   * column empty and the endpoint that was actually approved went unrecorded.
+   * The modal rendered every provider through the cloud table, whose first two columns are
+   * Resource Name and Resource ID. An IDC row has neither — and the mock was synthesising a
+   * cloud name for one, so a fabricated value read as a real one. It now renders the queue's
+   * IDC table, where each of the row's facts has a column of its own.
    */
-  it('shows the endpoint as 위치 for a host-based resource', async () => {
+  it('gives an IDC request the columns its facts belong in', async () => {
     getApprovalRequestDetail.mockResolvedValue({
       resources: [
         {
           resource_id: 'idc-1',
-          resource_name: 'oracle-order-prod',
           resource_type: 'IDC',
           selected: true,
-          metadata: { database_type: 'ORACLE', host: '10.20.1.11', port: 1521 },
+          metadata: {
+            database_type: 'ORACLE',
+            idc_host_format: 'IP',
+            idc_ips: ['10.20.1.11'],
+            port: 1521,
+            oracle_service_id: 'IVTPDB',
+            idc_source_ips: ['10.20.9.12'],
+          },
         },
       ],
     });
-    open();
+    openIdc();
 
-    expect(await screen.findByText('10.20.1.11:1521')).toBeTruthy();
-    expect(screen.getByRole('columnheader', { name: '위치' })).toBeTruthy();
+    expect(await screen.findByText('10.20.1.11')).toBeTruthy();
+    for (const value of ['1521', 'IVTPDB', '10.20.9.12']) {
+      expect(screen.getByText(value)).toBeTruthy();
+    }
+    // Headers that promise values an IDC row does not have.
+    const headers = screen.getAllByRole('columnheader').map((th) => th.textContent?.trim());
+    expect(headers).not.toContain('Resource Name');
+    expect(headers).not.toContain('Resource ID');
+    expect(headers).not.toContain('Region');
+    expect(headers).not.toContain('위치');
+  });
+
+  /**
+   * The two lookups the queue's section offers read CURRENT infrastructure, while this
+   * modal reports a request that is already decided — so they are left out rather than
+   * answering a question nobody asked here.
+   */
+  it('offers no live NLB lookups on a decided request', async () => {
+    getApprovalRequestDetail.mockResolvedValue({
+      resources: [
+        {
+          resource_id: 'idc-1',
+          resource_type: 'IDC',
+          selected: true,
+          metadata: { database_type: 'MYSQL', idc_host_format: 'IP', idc_ips: ['10.20.1.11'] },
+        },
+      ],
+    });
+    openIdc();
+
+    await screen.findByText('10.20.1.11');
+    expect(screen.queryByRole('button', { name: 'NLB 리스너 현황' })).toBeNull();
+    expect(screen.queryByRole('button', { name: '조회' })).toBeNull();
+    // Assignment is a write against a PENDING request — never offered here.
+    expect(screen.queryByRole('button', { name: '배정하기' })).toBeNull();
   });
 
   /**
@@ -147,17 +194,17 @@ describe('ApprovalRequestDetailModal', () => {
           selected: true,
           metadata: {
             database_type: 'ORACLE',
-            host: '10.20.1.11',
-            port: 1521,
             idc_host_format: 'IP',
+            idc_ips: ['10.20.1.11'],
+            port: 1521,
           },
         },
       ],
     });
-    open();
+    openIdc();
 
     // The endpoint stands in for the name; the internal id appears nowhere.
-    expect((await screen.findAllByText('10.20.1.11:1521')).length).toBeGreaterThan(0);
+    expect(await screen.findByText('10.20.1.11')).toBeTruthy();
     expect(screen.queryByText('idc-r-8f21')).toBeNull();
   });
 

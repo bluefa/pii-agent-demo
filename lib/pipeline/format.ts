@@ -20,6 +20,7 @@ import type {
   TaskKind,
   TaskStatus,
   TaskSummary,
+  TerraformAction,
 } from '@/lib/pipeline/types';
 
 // ---------------------------------------------------------------------------
@@ -358,6 +359,51 @@ const STATUS_KO: Record<PipelineStatus | TaskStatus, string> = {
 
 export function statusKo(status: PipelineStatus | TaskStatus): string {
   return STATUS_KO[status];
+}
+
+/** 실행 종류 접미사 — 카탈로그 이름이 '… 테라폼 Apply'처럼 끝난다. */
+const ACTION_SUFFIX: Record<TerraformAction, string> = {
+  PLAN: ' plan',
+  APPLY: ' apply',
+  DESTROY: ' destroy',
+};
+
+/**
+ * 카드 제목에서 후행 실행 종류(Plan/Apply/Destroy)를 뗀다 — 바로 위 JobKindTag가
+ * 이미 같은 말을 하고 있어 이름에서는 중복이고, 그 자리를 실행 시각이 쓴다(오너).
+ * 접미사가 없거나(조건 확인 태스크, 다르게 명명된 카탈로그) 떼면 빈 이름이 되는
+ * 경우에는 원문을 그대로 돌려준다.
+ */
+export function stripTerraformAction(name: string, action: TerraformAction | null): string {
+  if (!action) return name;
+  const trimmed = name.trimEnd();
+  const suffix = ACTION_SUFFIX[action];
+  if (!trimmed.toLowerCase().endsWith(suffix)) return name;
+  return trimmed.slice(0, trimmed.length - suffix.length).trimEnd() || name;
+}
+
+/**
+ * 흐름 카드의 실행 요약 — 시작·완료 시각과 소요를 태스크 타임스탬프에서 유도한다
+ * (design-benchmark 2026-08-14 시안 F). 판정은 담지 않는다: 카드 테두리와 코너
+ * 배지가 이미 상태를 말하고 있어 '완료/실행 중'을 글자로 되풀이하지 않는다(오너).
+ * 소요는 양끝이 다 있을 때만 확정된다 — 진행 중인 태스크의 경과는 실행 밴드가
+ * 라이브로 담당하므로 카드에 두 번째 시계를 두지 않는다. 시각은 fmtDateTime이
+ * 그대로 '-'를 돌려주므로 빈 갈래를 따로 두지 않는다.
+ */
+export function taskRunLine(task: TaskSummary): {
+  startedAt: string;
+  finishedAt: string;
+  elapsed: string | null;
+} {
+  const elapsed =
+    task.started_at && task.finished_at
+      ? fmtElapsedMs(Date.parse(task.finished_at) - Date.parse(task.started_at))
+      : '-';
+  return {
+    startedAt: fmtDateTime(task.started_at),
+    finishedAt: fmtDateTime(task.finished_at),
+    elapsed: elapsed === '-' ? null : elapsed,
+  };
 }
 
 /** 한글 작업 유형 라벨 한 벌 (오너 2026-08-15). 상태와 같은 규칙: 사람이 읽는

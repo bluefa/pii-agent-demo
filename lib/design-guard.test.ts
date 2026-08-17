@@ -612,16 +612,15 @@ const ROW_CHIPS: Array<[string, string]> = [
   ['status warning (orange-100)', '#FFEDD5'],
   ['status error (red-100)', '#FEE2E2'],
   ['amber-100', '#FEF3C7'],
-  // idcStyles.kindBadge.* and idcStyles.tag.*, read from the live tokens — which carry
-  // `chipEdge` on each FILL rather than on their shared `base`, because the base line holds
-  // an 11.5px font size the design hook will not let anyone touch.
+  // idcStyles.tag.*, read from the live tokens — which carry `chipEdge` on each FILL rather
+  // than on their shared `base`, because the base line holds an 11.5px font size the design
+  // hook will not let anyone touch. `idcStyles.kindBadge.fill` is deliberately absent: it
+  // references `tagStyles.resourceKind`, so `kind tag` at the top of this list already
+  // measures that exact colour. Adding it would assert the same hex twice.
   //
   // Scoped to their own blocks, not looked up in the whole file: `green`/`red`/`orange`/`gray`
   // are also keys in `tagStyles`, which is declared FIRST, so an unscoped `classOf` silently
   // measures the wrong token (and one that is a palette class `bgOf` cannot even parse).
-  ['kindBadge single', bgOf(classOf(kindBadgeBlock, 'single'))],
-  ['kindBadge multi', bgOf(classOf(kindBadgeBlock, 'multi'))],
-  ['kindBadge domain', bgOf(classOf(kindBadgeBlock, 'domain'))],
   ['tag green', bgOf(classOf(idcTagBlock, 'green'))],
   ['tag red', bgOf(classOf(idcTagBlock, 'red'))],
   ['tag orange', bgOf(classOf(idcTagBlock, 'orange'))],
@@ -654,9 +653,7 @@ const chipBaseDecl = (() => {
 })();
 const CHIP_EDGE_CONSUMERS: Array<[string, string]> = [
   ['RdsInstanceChips CHIP_BASE', chipBaseDecl],
-  ['idcStyles.kindBadge.single', classOf(kindBadgeBlock, 'single')],
-  ['idcStyles.kindBadge.multi', classOf(kindBadgeBlock, 'multi')],
-  ['idcStyles.kindBadge.domain', classOf(kindBadgeBlock, 'domain')],
+  ['idcStyles.kindBadge.fill', classOf(kindBadgeBlock, 'fill')],
   ['idcStyles.tag.blue', classOf(idcTagBlock, 'blue')],
   ['idcStyles.tag.green', classOf(idcTagBlock, 'green')],
   ['idcStyles.tag.red', classOf(idcTagBlock, 'red')],

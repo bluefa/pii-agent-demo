@@ -1,125 +1,64 @@
 /**
- * Attempt drill-down body: attempt info + the Terraform Job list (results ∪
- * states) + poll summary + the raw response fold. Each job row opens the
- * log/state viewer.
+ * One attempt's body — Job 현황 + poll summary + the raw response fold. Each job
+ * row opens the log/state viewer. The exec tab renders exactly one of these at a
+ * time, for whichever attempt the picker above it selects (owner 2026-08-16); it
+ * used to be folded shut inside an attempt-history row.
+ *
+ * The run window is not built here: for a single-attempt task it would print the
+ * same timestamps the flow card does, so the caller decides and passes it down as
+ * `runWindow` (null below the second attempt — 2차 라운드 rule, the card's values
+ * are never repeated). It captions Job 현황, whose rows it is the window for.
  *
  * NOTE: `attempt.failure_detail` stays out of the default UI while the attempt
- * has job rows — failure is conveyed by the compact error_code chip and the
- * cause is reachable through the per-job log viewer. The exception is a FAILED
- * attempt with NO job rows (e.g. the terraform dispatch call itself failed):
- * there is no job row, hence no log-viewer entry point, so the "실패 원인" block
- * below surfaces `failure_detail` — the only cause the client has — in its place.
- * A long cause is clamped to a preview with a "자세히" button that opens the full
- * text in FailureReasonModal (`onOpenFailure`).
+ * has job rows — the per-job rows now carry `last_fail_reason` themselves. The
+ * exception is a FAILED attempt with NO job rows (e.g. the terraform dispatch
+ * call itself failed): there is no job row, hence no log-viewer entry point, so
+ * `FailureCause` surfaces `failure_detail` — the only cause the client has — in
+ * its place.
  */
-import { useState, type ReactElement } from 'react';
-import { PlPagination } from '@/app/admin/pipelines/_components/PlPagination';
-import { jobRows, jobVerdict, type JobRow } from '@/app/admin/pipelines/_detail/jobRows';
+import { type ReactElement, type ReactNode } from 'react';
+import { JobStatus } from '@/app/admin/pipelines/_detail/JobStatus';
 import { fmtDateTime } from '@/lib/pipeline/format';
-import { d, j, MiniPill, Section, spanLabel, type ViewerTarget } from '@/app/admin/pipelines/_detail/taskDrawerShared';
+import { d, FailureCause, j, type ViewerTarget } from '@/app/admin/pipelines/_detail/taskDrawerShared';
 import type { TaskAttemptView, TaskOperation } from '@/lib/pipeline/types';
-
-/** A single attempt can hold 20+ terraform jobs — page the list so the drawer stays scannable. */
-const JOBS_PER_PAGE = 5;
-
-function JobRowItem(
-  { row, operation, onOpen }: { row: JobRow; operation: TaskOperation | null; onOpen: () => void },
-): ReactElement {
-  const verdict = jobVerdict(row, operation);
-  return (
-    <div className={j.jobRow}>
-      <MiniPill tone={verdict}>{j.verdictLabel[verdict]}</MiniPill>
-      <span className={j.jobId}>{row.job_id}</span>
-      <button
-        type="button"
-        className={j.logBtn}
-        onClick={onOpen}
-        aria-label={`TerraformJob ${row.job_id} 로그 열기`}
-      >
-        로그 보기
-      </button>
-    </div>
-  );
-}
 
 export function AttemptDetail({
   attempt,
   operation,
+  runWindow,
   onOpenViewer,
   onOpenFailure,
 }: {
   attempt: TaskAttemptView;
   operation: TaskOperation | null;
+  /** 시작/완료/소요 of this attempt, or null when it would repeat the flow card. */
+  runWindow: ReactNode;
   onOpenViewer: (t: ViewerTarget) => void;
   onOpenFailure: (detail: string) => void;
 }): ReactElement {
-  const rows = jobRows(attempt);
-  const [page, setPage] = useState(1);
-  const pages = Math.max(1, Math.ceil(rows.length / JOBS_PER_PAGE));
-  // Clamp — a poll refresh can shrink the list under the current page.
-  const shownPage = Math.min(page, pages);
-  const shownRows = rows.slice((shownPage - 1) * JOBS_PER_PAGE, shownPage * JOBS_PER_PAGE);
-  const failureCause = attempt.failure_detail ?? attempt.error_code ?? '원인 미기록';
-  // A dispatch-failure detail (Feign message) can run to ~512 chars; clamp the inline
-  // preview and offer the full text in FailureReasonModal.
-  const failureIsLong = (attempt.failure_detail?.length ?? 0) > 120;
+  const hasJobs = (attempt.job_states?.length ?? 0) + (attempt.terraform_results?.length ?? 0) > 0;
 
   return (
     <>
-      <Section label="시도 정보">
-        <div className={d.rowsGap}>
-          <div className={d.kvRow}>
-            <span className={d.kvKey}>Started</span>
-            <span className={d.kvVal}>{fmtDateTime(attempt.started_at)}</span>
-          </div>
-          <div className={d.kvRow}>
-            <span className={d.kvKey}>Finished</span>
-            <span className={d.kvVal}>{fmtDateTime(attempt.finished_at)}</span>
-          </div>
-          {attempt.finished_at && (
-            <div className={d.kvRow}>
-              <span className={d.kvKey}>소요</span>
-              <span className={d.kvVal}>{spanLabel(attempt.started_at, attempt.finished_at) || '—'}</span>
-            </div>
-          )}
-        </div>
-      </Section>
-
-      {rows.length > 0 ? (
-        <Section label="Terraform Job" hint={rows.length > JOBS_PER_PAGE ? `총 ${rows.length}개` : undefined}>
-          <div className={j.listTight}>
-            {shownRows.map((row) => (
-              <JobRowItem
-                key={row.job_id}
-                row={row}
-                operation={operation}
-                onOpen={() => onOpenViewer({ attemptNumber: attempt.attempt_number, jobId: row.job_id })}
-              />
-            ))}
-          </div>
-          {pages > 1 && (
-            <PlPagination
-              page={shownPage}
-              pages={pages}
-              onPrev={() => setPage(shownPage - 1)}
-              onNext={() => setPage(shownPage + 1)}
-              center
-            />
-          )}
-        </Section>
-      ) : attempt.status === 'FAILED' ? (
-        <Section label="실패 원인">
-          <p className={failureIsLong ? d.failReasonClamp : d.failReason}>{failureCause}</p>
-          {failureIsLong && (
-            <button type="button" className={d.failReasonMore} onClick={() => onOpenFailure(failureCause)}>
-              자세히
-            </button>
-          )}
-        </Section>
+      {hasJobs ? (
+        <JobStatus
+          attempt={attempt}
+          operation={operation}
+          caption={runWindow}
+          onOpenJob={(jobId) => onOpenViewer({ attemptNumber: attempt.attempt_number, jobId })}
+        />
+      ) : !hasJobs && attempt.status === 'FAILED' ? (
+        <FailureCause attempt={attempt} onOpenFailure={onOpenFailure} />
       ) : null}
 
+      {/* Folded shut: these are the orchestrator's polling counters for the attempt,
+          and the job rows above already say how many times each job was polled.
+          Open it when a call errored or timed out — not on the way to the failure. */}
       {attempt.check && (
-        <Section label="확인 요약">
+        <details className={j.respFold}>
+          <summary className={d.foldSummary}>
+            <span className={j.respTri} aria-hidden="true">▼</span>확인 요약
+          </summary>
           <div className={d.rowsGap}>
             <div className={d.kvRow}>
               <span className={d.kvKey}>확인 횟수</span>
@@ -136,12 +75,19 @@ export function AttemptDetail({
               <span className={d.kvVal}>{fmtDateTime(attempt.check.last_checked_at)}</span>
             </div>
           </div>
-        </Section>
+        </details>
       )}
 
-      {attempt.response && (
-        <details className={j.respFold} open>
-          <summary className={j.respSummary}>
+      {/* Only when the attempt has no job rows (design-benchmark 2026-08-16 시안 B).
+          `response` is the raw dispatch body the job list is derived from — with
+          rows on screen it is the same jobs in JSON, and it was one of the three
+          folds that made the panel scroll. With no rows it is the only record of
+          what the dispatch returned, so it stays for exactly that case (the same
+          exception `failure_detail` takes above). NOTE: the job viewer's 상태 응답
+          tab is NOT a substitute — that is a per-job poll response, not this. */}
+      {attempt.response && !hasJobs && (
+        <details className={j.respFold}>
+          <summary className={d.foldSummary}>
             <span className={j.respTri} aria-hidden="true">▼</span>Response 원문
           </summary>
           <pre className={j.respPre}>{attempt.response}</pre>

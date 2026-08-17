@@ -103,7 +103,9 @@ export const IdcConfirmedResourcesPanel = ({
           />
           <IdcResourceTable
             resources={visibleResources}
-            cols={onCredentialOpen ? ['src', 'cred', 'logicalro'] : ['src', 'logicalro']}
+            // 출발지가 마지막 — 이 화면들에선 결과(Credential·논리 DB)가 먼저 읽히고
+            // 출발지는 참고값이다. 순서가 곧 자리다(IdcTableCol).
+            cols={onCredentialOpen ? ['cred', 'logicalro', 'src'] : ['logicalro', 'src']}
             logicalDbCounts={logicalDbCounts}
             onLogicalOpen={onLogicalOpen ?? setLogicalTarget}
             credentials={credentials}

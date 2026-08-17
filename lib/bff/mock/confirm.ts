@@ -148,7 +148,15 @@ const DEFAULT_PORT_BY_DB: Record<string, number> = {
   REDIS: 6379,
 };
 
-const demoRegion = (provider: Project['cloudProvider'], resource: MockResource): string => {
+const demoRegion = (
+  provider: Project['cloudProvider'],
+  resource: MockResource,
+): string | null => {
+  // An IDC resource has no region: it is a machine on a floor, addressed by IP or
+  // hostname. Synthesising one made every IDC screen print ap-northeast-1, which is
+  // exactly the value a real BFF omits — so the columns that should have exposed
+  // themselves as meaningless for IDC looked answered instead.
+  if (provider === 'IDC') return null;
   if (provider === 'AWS') return resource.region ?? 'ap-northeast-1';
   if (provider === 'GCP') return 'asia-northeast3';
   return 'ap-northeast-1';
@@ -174,9 +182,16 @@ const stableIndex = (key: string, length: number): number => {
   return Math.abs(hash) % length;
 };
 
-const demoResourceName = (provider: Project['cloudProvider'], resource: MockResource): string => {
+const demoResourceName = (
+  provider: Project['cloudProvider'],
+  resource: MockResource,
+): string | null => {
   // 실 응답 기반 seed 는 이름을 들고 있다 — 합성 이름으로 덮으면 단계마다 이름이 달라진다.
   if (resource.resourceName) return resource.resourceName;
+  // No scan names an IDC resource — the service owner types its address in by hand, and
+  // the address IS the identity (design-spec §8). A synthesised cloud name here reached
+  // every admin surface that prints resource_name and read as a real one.
+  if (provider === 'IDC') return null;
   if (provider === 'GCP') {
     return GCP_RESOURCE_NAMES[stableIndex(resource.id, GCP_RESOURCE_NAMES.length)];
   }
@@ -237,7 +252,11 @@ const resolveHost = (
 ): string | null => {
   // 캡처의 빈 문자열은 그대로 빈 문자열이어야 한다 (?? 는 '' 를 통과시킨다).
   if (isWireSeeded(provider)) return resource.host ?? null;
-  const name = demoResourceName(provider, resource).replace(/[^a-z0-9-]/gi, '-').toLowerCase();
+  // The demo FQDN is built out of the demo name, so a provider that has no name has no
+  // synthetic host either (IDC: the caller already resolved its real endpoint).
+  const demoName = demoResourceName(provider, resource);
+  if (demoName == null) return null;
+  const name = demoName.replace(/[^a-z0-9-]/gi, '-').toLowerCase();
   const suffix =
     provider === 'Azure' ? 'database.azure.com'
       : provider === 'GCP' ? 'cloudsql.gcp.internal'
@@ -293,7 +312,13 @@ function buildMetadata(resource: MockResource, project: Project): Record<string,
         ...vmFields,
       };
     default:
-      return { provider: project.cloudProvider, resource_type: resource.type, region, ...vmFields };
+      // IDC lands here and has no region — omit the key rather than answering null.
+      return {
+        provider: project.cloudProvider,
+        resource_type: resource.type,
+        ...(region ? { region } : {}),
+        ...vmFields,
+      };
   }
 }
 
@@ -339,15 +364,23 @@ function toResourceCatalogItem(
 function toApprovalResourceItems(project: Project): Array<Record<string, unknown>> {
   return project.resources.map((r) => {
     const idc = r.idcConfig;
+    const region = demoRegion(project.cloudProvider, r);
+    const resourceName = demoResourceName(project.cloudProvider, r);
     const metadata: Record<string, unknown> = {
       provider: project.cloudProvider,
       // swagger TargetSourceResourceMetadataDto: region + database_type live here.
-      region: demoRegion(project.cloudProvider, r),
+      // Absent, not null, when the provider has none — an omitted optional is what the
+      // real BFF sends, and `null` would still let a `?? ''` render an empty Region cell
+      // as though the field had been answered.
+      ...(region ? { region } : {}),
       database_type: r.databaseType,
       ...(idc ? { idc_host_format: idc.inputFormat } : {}),
       ...(idc?.inputFormat === 'IP' && idc.ips.length > 0 ? { idc_ips: idc.ips } : {}),
       ...(idc?.inputFormat === 'HOST' && idc.domain ? { idc_host: idc.domain } : {}),
       ...(idc?.sourceIps && idc.sourceIps.length > 0 ? { idc_source_ips: idc.sourceIps } : {}),
+      // NLB 배정 — an admin-set value, so an unassigned target simply omits it and the
+      // column reads 배정하기 (or blank while the request is locked).
+      ...(idc?.nlbIndex != null ? { nlb_index: idc.nlbIndex } : {}),
       // Task Queue P3 table reads port/oracle_service_id (the domain store has
       // no per-resource port, so derive the conventional one per DB engine).
       ...(idc
@@ -363,7 +396,7 @@ function toApprovalResourceItems(project: Project): Array<Record<string, unknown
     };
     return {
       resource_id: r.resourceId,
-      resource_name: demoResourceName(project.cloudProvider, r),
+      ...(resourceName ? { resource_name: resourceName } : {}),
       resource_type: r.type,
       selected: r.isSelected,
       integration_category: r.integrationCategory,

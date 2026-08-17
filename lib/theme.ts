@@ -1100,14 +1100,23 @@ export const tabStyles = {
  * no-raw-color rule. See docs/reports/idc-v15/04-design-verification.md.
  */
 export const idcStyles = {
-  /** Kind badge — `.idc-kind` (11.5px / 600 / 3px 8px / radius 6). */
+  /**
+   * Kind badge — `.idc-kind` (11.5px / 600 / 3px 8px / radius 6).
+   *
+   * 접속 주소의 종류(IP · Domain)는 그 행이 **무엇인가**를 말하는 사실이지 판정이 아니다.
+   * 그래서 EC2·RDS Cluster 태그와 같은 층(`tagStyles.resourceKind`)의 보라 면을 그대로
+   * 쓴다: 한 행에서 사실을 말하는 표시가 전부 한 색 가족이어야, 옆 칸의 진짜 판정
+   * (파랑·주황·빨강)과 섞여 읽히지 않는다. 값은 복사하지 않고 **참조**한다 — 두 벌이 되면
+   * 한쪽만 조정되어 갈라지고, 그 순간 두 태그는 같은 층이 아니게 된다.
+   *
+   * 종류마다 색을 갈랐던 이전 판(파랑 Single · 주황 Multi · 인디고 Domain)은 판정 셋처럼
+   * 읽혔다. 주소가 몇 개인지는 색이 할 말이 아니라 주소 칸의 '더보기'가 하는 말이다.
+   */
   kindBadge: {
     base: 'inline-flex items-center rounded-md px-2 py-[3px] text-[11.5px] font-semibold',
-    // The edge rides each FILL, not `base`: these badges sit in resource rows, and on the
-    // hover tint every one of these three fills goes equiluminant with it (see chipEdge).
-    single: `bg-[#E8F1FF] text-[#1747B5] ${tableRowLift.chipEdge}`,
-    multi: `bg-[#FEF0E1] text-[#7A3F0E] ${tableRowLift.chipEdge}`,
-    domain: `bg-[#EEF2FF] text-[#4338CA] ${tableRowLift.chipEdge}`,
+    // The edge rides the FILL, not `base`: this badge sits in resource rows, and on the
+    // hover tint its fill goes equiluminant with the tint (see chipEdge).
+    fill: `${tagStyles.resourceKind} ${tableRowLift.chipEdge}`,
   },
   /**
    * 확인 필요 배지 — 같은 데이터베이스를 두 번 등록했을지 모르는 행에 붙는다.
@@ -2231,7 +2240,10 @@ export const pipelineStyles = {
     // Pipeline-detail-only: fluid width AND a full-height flex column so the
     // Task 흐름 canvas can stretch to the bottom (owner: "하단까지 쭉", "우측
     // 빈 공간 제거"). The detail view's bleed root is flex-1 inside this.
-    contentDetail: 'flex-1 min-w-0 flex flex-col px-8 pt-6 pb-12',
+    // The max-height is what makes that "full height" real: `shell` only sets a
+    // MIN height, so without the cap the task drawer's content grew this column
+    // (and the page) instead of scrolling inside the panel (owner 2026-08-16).
+    contentDetail: 'flex-1 min-w-0 min-h-0 max-h-[calc(100vh_-_64px)] flex flex-col px-8 pt-6 pb-12',
   },
 
   /** Card surfaces (§5). */

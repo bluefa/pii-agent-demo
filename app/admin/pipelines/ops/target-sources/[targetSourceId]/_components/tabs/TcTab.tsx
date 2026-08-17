@@ -63,6 +63,8 @@ const POLL_MS = 4_000;
 
 export interface TcTabProps {
   targetSourceId: number;
+  /** Picks 확정 정보's identity columns — an IDC row has an address, not a name/region. */
+  isIdc: boolean;
   /** Service acknowledgment row — fetched by the page (관리자 승인 탭이 여기에 게이트). */
   status: TestConnectionStatusRow | null;
   /** 최신 실행 (latest_version) — 실행 이력이 없으면 null. Fetched by the page. */
@@ -79,6 +81,7 @@ export interface TcTabProps {
 
 export function TcTab({
   targetSourceId,
+  isIdc,
   status,
   latest,
   results,
@@ -262,6 +265,7 @@ export function TcTab({
 
       <ConfirmedInfoCard
         targetSourceId={targetSourceId}
+        isIdc={isIdc}
         rows={orderedRows}
         secrets={secrets}
         tcResults={statusLoaded ? results : []}

@@ -13,9 +13,10 @@
  *   - 처리 (처리자 · 처리 일시)     → …/approval-history (latest page item)
  * A missing snapshot (404) is an empty state, not a failure.
  */
-import { useCallback, useEffect, useMemo, useState, type ReactElement, type ReactNode } from 'react';
+import { useCallback, useEffect, useState, type ReactElement, type ReactNode } from 'react';
 import { cn, pipelineStyles } from '@/lib/theme';
 import { AppError, isMissingConfirmedIntegrationError } from '@/lib/errors';
+import { normalizeCloudProvider } from '@/lib/types';
 import { fmtDateTime } from '@/lib/pipeline/format';
 import { getDatabaseShortLabel } from '@/app/components/ui/DatabaseIcon';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
@@ -27,18 +28,18 @@ import {
 } from '@/app/lib/api';
 import {
   getApprovalRequestLatest,
+  getNlbIndexMappings,
+  getNlbTable,
   type ApprovalRequestDetail,
+  type NlbTableRow,
   type RequestResourceRow,
+  type ResourceNlbMappings,
 } from '@/app/lib/api/task-queue-requests';
 import type { RawTargetSourceDetail } from '@/app/lib/api/pipeline-target';
-import { Pagination } from '@/app/components/ui/Pagination';
-import { WaitingApprovalStats } from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalStats';
-import { WaitingApprovalToolbar } from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalToolbar';
-import {
-  WaitingApprovalTable,
-  type WaitingApprovalResource,
-} from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalTable';
-import { useApprovalTableState } from '@/app/target-sources/[targetSourceId]/_components/layout/useApprovalTableState';
+import { ResourceSection } from '@/app/admin/pipelines/queue/requests/_components/ResourceSection';
+import { NlbListenerModal } from '@/app/admin/pipelines/queue/requests/_components/NlbListenerModal';
+import { ServiceAssignmentModal } from '@/app/admin/pipelines/queue/requests/_components/ServiceAssignmentModal';
+import { useResourceListState } from '@/app/admin/pipelines/queue/requests/_resourceQuery';
 import { MetaField } from '@/app/target-sources/[targetSourceId]/_components/shared/MetaField';
 import { opsStyles } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/opsStyles';
 
@@ -89,61 +90,6 @@ const KV_GRID = 'grid grid-cols-[140px_1fr] items-center gap-x-4 gap-y-2.5 mt-3.
 const NOTE_WARN =
   'flex gap-2.5 rounded-lg px-3.5 py-3 mt-4 text-[14px] leading-[1.5] bg-[var(--pl-warn-bg)] text-[var(--pl-warn-text)]';
 
-/**
- * 요청 리소스 → the same list the 승인 요청 상세 modal renders: stat tiles that ARE
- * the filter, search + condition popover, the shared approval table, pager footer.
- * One request, one presentation, wherever an operator opens it — this tab had its
- * own hand-rolled table with a different column order and no filtering at all.
- *
- * Accepted tradeoff: these are the app-side components, so their #0064FF lands next to
- * the console's --pl-primary #2563EB on this page. The queue's P3 list re-states the
- * same grammar on --pl tokens instead (ResourceFilterBar); here the requirement was to
- * match the 승인 요청 상세 modal exactly, and two blues is the price of that.
- *
- * IDC carries no scan-assigned name, so its endpoint takes that seat — as `host:port`,
- * the same shape the queue's IDC table uses, so the port survives a table that has no
- * column of its own for it. IDC has no region either, so 위치 stays blank rather than
- * asserting one.
- *
- * resource_id is NEVER surfaced: the adapter documents it as an internal NLB-PUT key
- * (app/lib/api/task-queue-requests.ts, design-spec §8), so feeding it to a table with a
- * Resource ID column would publish an id the IDC operator has no use for. It still keys
- * the row via `rowKey`, which is never rendered — without it every IDC row would fall
- * back to its list index and per-row tooltip state would follow a slot.
- *
- * Oracle SID and Source IP have no seat here. That is the gap the 승인 요청 상세 modal
- * has always had, and matching the modal is precisely what this tab was asked to do.
- */
-const toApprovalRow = (row: RequestResourceRow, isIdc: boolean): WaitingApprovalResource => ({
-  resourceId: isIdc ? '' : row.resourceId ?? '',
-  rowKey: row.resourceId ?? undefined,
-  resourceType: row.databaseType ?? '',
-  region: isIdc ? '' : row.region ?? '',
-  resourceName: isIdc
-    ? row.connectTargets.map((host) => (row.port == null ? host : `${host}:${row.port}`)).join(' · ')
-    : row.resourceName ?? '',
-  selected: row.selected,
-  displayDbType: row.databaseType ?? undefined,
-  exclusionReason: row.exclusionReason ?? undefined,
-  // The scan's INSTALL_INELIGIBLE verdict is not a user's exclusion. Dropping it made
-  // the table render a system judgement as a revisable 제외 pill.
-  integrationCategory: row.integrationCategory ?? undefined,
-  recommendFailReason: row.recommendFailReason ?? undefined,
-  // An RDS cluster's member instances, read-only: the admin approves the requester's choice,
-  // so this tab has to show WHICH instance was chosen, not just that the cluster was. The
-  // table renders nothing extra for any other resource. IDC rows never reach here as a
-  // cluster — the wire helper's type gate already returned empty for them.
-  declaredResourceType: row.resourceType ?? undefined,
-  ...(row.rdsInstanceCandidates.length > 0
-    ? { rdsInstanceCandidates: row.rdsInstanceCandidates }
-    : {}),
-  ...(row.selectedRdsInstanceResourceId
-    ? { selectedRdsInstanceResourceId: row.selectedRdsInstanceResourceId }
-    : {}),
-});
-
-const FILTER_EMPTY_MESSAGE = '조건에 맞는 결과가 없어요.';
-
 const dash = (): ReactElement => <span className={pipelineStyles.text.muted}>—</span>;
 
 function KvRow({ label, children }: { label: string; children: ReactNode }): ReactElement {
@@ -161,60 +107,79 @@ function StatusTag({ status }: { status: string | null }): ReactElement {
   return <span className={cn(opsStyles.statusTag, tone.fill)}>{status}</span>;
 }
 
-/** 요청 리소스 목록 — owns the list's own filter/search/page state, so mounting it
- *  under a per-request `key` is what resets that state between requests. */
+/** `nlbLocked` hides the assign button, so this never fires — the prop is required. */
+const NOOP = (): void => {};
+
+/**
+ * 요청 리소스 목록 — the queue's own 연동 대상 리소스 section (ResourceSection), rendered
+ * here rather than restated: same stat tiles that ARE the filter, same toolbar, and the
+ * provider's own table. The tab used to map every row into the cloud-shaped approval table,
+ * which has a Resource Name and a Resource ID column — neither of which an IDC row has.
+ * Its endpoint went into the name column and its Port, Oracle SID and Source IP had nowhere
+ * to go at all. The queue table answers all of that, and one component means the two
+ * surfaces cannot drift apart again.
+ *
+ * Read-only: 운영 화면은 요청을 읽기만 한다. NLB 배정은 PENDING 인 요청에서만 유효하고
+ * 그 편집은 연동 요청 화면의 일이라 여기서는 잠근다(값은 그대로 읽힌다). 남는 두 진입점
+ * (NLB 리스너 현황 · 사용 서비스)은 조회라 그대로 둔다.
+ *
+ * Owns the list's filter/search/page state, so mounting it under a per-request `key` is
+ * what resets that state between requests.
+ */
 function ResourceList({
+  targetSourceId,
   rows,
   isIdc,
 }: {
+  targetSourceId: number;
   rows: readonly RequestResourceRow[];
   isIdc: boolean;
 }): ReactElement {
-  const approvalRows = useMemo<readonly WaitingApprovalResource[]>(
-    () => rows.map((row) => toApprovalRow(row, isIdc)),
-    [rows, isIdc],
-  );
-  const table = useApprovalTableState(approvalRows);
-  const showFilterEmpty = approvalRows.length > 0 && table.filteredCount === 0;
+  const list = useResourceListState();
+  const [showingServices, setShowingServices] = useState<RequestResourceRow | null>(null);
+  const [listenersOpen, setListenersOpen] = useState(false);
+  const [nlbTable, setNlbTable] = useState<NlbTableRow[]>([]);
+  // null = the fetch failed, which ServiceAssignmentModal says outright instead of
+  // passing for "배정 없음".
+  const [mappings, setMappings] = useState<ResourceNlbMappings[] | null>(null);
+
+  // IDC only — both feed a lookup modal, so a failure leaves that modal empty rather
+  // than breaking the tab around it.
+  useEffect(() => {
+    if (!isIdc) return;
+    const controller = new AbortController();
+    void getNlbTable({ signal: controller.signal })
+      .then((loaded) => setNlbTable(loaded))
+      .catch(() => {});
+    void getNlbIndexMappings(targetSourceId, { signal: controller.signal })
+      .then((loaded) => setMappings(loaded))
+      .catch(() => setMappings(null));
+    return () => controller.abort();
+  }, [isIdc, targetSourceId]);
 
   return (
     <div className="mt-6">
-      {/* The counts ARE the 전체/대상/제외 filter — the read-only
-          "연동 대상 n개 · 제외 m개" line they replace could not be acted on. */}
-      <WaitingApprovalStats
-        totalCount={table.countsByFilter.all}
-        selectedCount={table.countsByFilter.target}
-        excludedCount={table.countsByFilter.excluded}
-        filter={table.filter}
-        onFilterChange={table.onFilterChange}
+      <ResourceSection
+        resources={rows}
+        isIdc={isIdc}
+        list={list}
+        nlbLocked
+        onAssignNlb={NOOP}
+        onShowServices={setShowingServices}
+        onOpenNlbListeners={() => setListenersOpen(true)}
       />
-      <WaitingApprovalToolbar
-        searchValue={table.searchValue}
-        onSearchChange={table.onSearchChange}
-        dbType={table.dbType}
-        onDbTypeChange={table.onDbTypeChange}
-        region={table.region}
-        onRegionChange={table.onRegionChange}
-        dbTypeOptions={table.dbTypeOptions}
-        regionOptions={table.regionOptions}
-        // The default promises a Resource ID, which an IDC row never shows.
-        searchPlaceholder={isIdc ? '연동 대상 검색' : undefined}
+      <NlbListenerModal
+        open={listenersOpen}
+        onClose={() => setListenersOpen(false)}
+        rows={nlbTable}
       />
-      <WaitingApprovalTable
-        resources={table.visibleResources}
-        connected
-        // Same header as the modal: this tab serves IDC too, whose rows have an
-        // endpoint rather than a region.
-        regionLabel="위치"
-        emptyMessage={showFilterEmpty ? FILTER_EMPTY_MESSAGE : undefined}
-      />
-      {table.filteredCount > 0 && (
-        <Pagination
-          page={table.safePage}
-          pageSize={table.pageSize}
-          totalCount={table.filteredCount}
-          onPageChange={table.onPageChange}
-          onPageSizeChange={table.onPageSizeChange}
+      {showingServices != null && (
+        <ServiceAssignmentModal
+          key={showingServices.resourceId ?? 'services'}
+          open
+          onClose={() => setShowingServices(null)}
+          resource={showingServices}
+          mappings={mappings}
         />
       )}
     </div>
@@ -291,7 +256,9 @@ export function RequestTab({ targetSourceId, detail }: RequestTabProps): ReactEl
     };
   }, [targetSourceId, reloadKey]);
 
-  const isIdc = detail.cloud_provider === 'IDC';
+  // Normalized, like every other read of this field: a raw compare flips on one casing
+  // and would hand IDC rows to the cloud table — the exact defect this tab just fixed.
+  const isIdc = normalizeCloudProvider(detail.cloud_provider) === 'IDC';
 
   const confirmedDbTypes =
     confirmed.state === 'ready' && confirmed.data
@@ -367,6 +334,7 @@ export function RequestTab({ targetSourceId, detail }: RequestTabProps): ReactEl
                  query. */
               <ResourceList
                 key={`${targetSourceId}:${summary.requestId ?? 'latest'}`}
+                targetSourceId={targetSourceId}
                 rows={rows}
                 isIdc={isIdc}
               />

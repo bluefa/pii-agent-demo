@@ -36,9 +36,10 @@ describe('mockPipeline (in-memory orchestrator)', () => {
 
     it('computes period statistics within the window', () => {
       const week = mockPipeline.statistics('7d').body as PipelineStatistics;
-      expect(week.total_count).toBe(9);
+      expect(week.total_count).toBe(10);
       expect(week.done_count).toBe(2);
-      expect(week.failed_count).toBe(2); // 124 (JOB_FAILED) + 131 (dispatch-call failure)
+      // 124 (one job) + 131 (dispatch-call failure) + 132 (five jobs at once)
+      expect(week.failed_count).toBe(3);
       expect(week.cancelled_count).toBe(1);
       expect(week.running_count).toBe(3);
       expect(week.pending_count).toBe(1);
@@ -171,7 +172,7 @@ describe('mockPipeline (in-memory orchestrator)', () => {
     it('returns the raw last_response for a terminal job, null when the last poll errored', () => {
       const failed = state('12401', '2', '1027');
       expect(failed.last_state).toBe('FAILED');
-      expect(failed.last_response).toContain('mock forced failure');
+      expect(failed.last_response).toContain('Error acquiring the state lock');
 
       const errored = state('12401', '1', '1021');
       expect(errored.last_state).toBeNull();

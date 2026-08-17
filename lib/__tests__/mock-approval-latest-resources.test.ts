@@ -86,4 +86,43 @@ describe('mock getApprovalRequestLatest — resources carry Step-2 table fields'
     const excluded = body.resources.find((r: { selected: boolean }) => !r.selected);
     expect(excluded?.exclusion_reason).toBe('StageDB');
   });
+
+  /**
+   * The mirror of the above, and the reason it matters: an IDC resource has NEITHER of
+   * those. No scan names an on-prem DB (its address is its identity) and it sits in no
+   * region. The mock used to synthesise both anyway, so `sea-analytics-prod` /
+   * `ap-northeast-1` reached every admin screen that prints them and read as real values —
+   * a wrong answer is worse than a blank, because nothing on the screen says it is wrong.
+   */
+  it('gives an IDC resource no synthesised resource_name and no region', async () => {
+    const store = getStore();
+    store.projects = store.projects.filter((p) => p.id !== PROJ_ID);
+    store.projects.push({
+      ...makeProject(),
+      cloudProvider: 'IDC',
+      resources: [
+        resource('idc-a', {
+          type: 'IDC_RESOURCE',
+          resourceId: 'idc-r-1',
+          idcConfig: {
+            inputFormat: 'IP',
+            ips: ['10.20.4.11'],
+            domain: '',
+            sourceIps: ['10.20.9.11'],
+            firewallOpen: true,
+          },
+        }),
+      ],
+    });
+
+    const response = await mockConfirm.getApprovalRequestLatest(String(TS_ID));
+    const body = await response.json();
+
+    const [row] = body.resources;
+    expect(row.resource_name).toBeUndefined();
+    expect(row.metadata.region).toBeUndefined();
+    // The facts it DOES have still ride, or the row would have no identity at all.
+    expect(row.metadata.idc_ips).toEqual(['10.20.4.11']);
+    expect(row.metadata.idc_host_format).toBe('IP');
+  });
 });

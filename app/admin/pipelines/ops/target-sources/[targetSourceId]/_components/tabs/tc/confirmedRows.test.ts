@@ -64,6 +64,39 @@ describe('filterConfirmedRows', () => {
     ).toEqual(['arn:aws:rds:us-east-1:1:cluster:payments']);
   });
 
+  /**
+   * An IDC row carries no name, and the table does not print its id — its address is the
+   * only identity on the screen, so a box matching name+id alone could not find any row
+   * the operator was actually looking at.
+   */
+  it('matches an IDC row on the address the table shows', () => {
+    const idcRows = [
+      {
+        resource_id: 'idc-ivt-9a01',
+        resource_name: null,
+        database_type: 'mysql',
+        database_region: null,
+        idc_host_format: 'HOST',
+        idc_host: 'db-mysql.ivt.prod.internal',
+      },
+      {
+        resource_id: 'idc-ivt-9a02',
+        resource_name: null,
+        database_type: 'mysql',
+        database_region: null,
+        idc_host_format: 'IP',
+        idc_ips: ['10.20.4.11'],
+      },
+    ] as unknown as ConfirmedIntegrationResourceItem[];
+
+    expect(ids(filterConfirmedRows(idcRows, { ...none, query: 'db-mysql' }, label))).toEqual([
+      'idc-ivt-9a01',
+    ]);
+    expect(ids(filterConfirmedRows(idcRows, { ...none, query: '10.20.4.11' }, label))).toEqual([
+      'idc-ivt-9a02',
+    ]);
+  });
+
   it('does not mutate the input array', () => {
     filterConfirmedRows(rows, { ...none, query: 'orders' }, label);
     expect(rows).toHaveLength(3);

@@ -13,6 +13,13 @@ interface ProviderLogoProps {
    * says it without a tile to hold it.
    */
   variant?: 'tile' | 'bare';
+  /**
+   * `brand` paints a bare mark in the vendor's own colours. Opt-in, for the one
+   * place a provider appears — a page header — where the reasoning above (five
+   * hues down a list column) does not apply. Ignored by `tile`, which is already
+   * brand-coloured. IDC and SDU are ours and stay on currentColor either way.
+   */
+  tone?: 'mono' | 'brand';
   className?: string;
 }
 
@@ -20,6 +27,7 @@ export const ProviderLogo = ({
   provider,
   isSdu,
   variant = 'tile',
+  tone = 'mono',
   className,
 }: ProviderLogoProps) => {
   const colors = providerColors[isSdu ? 'SDU' : provider];
@@ -36,6 +44,7 @@ export const ProviderLogo = ({
       <ProviderGlyph
         provider={provider}
         isSdu={isSdu}
+        tone={bare ? tone : 'mono'}
         className={bare ? 'w-9 h-9' : 'w-5 h-5'}
       />
     </span>

@@ -1,6 +1,6 @@
 'use client';
 
-import { Fragment, memo, useMemo, useState } from 'react';
+import { Fragment, memo, useMemo, useState, type ReactNode } from 'react';
 import { useClusterFold } from '@/app/hooks/useClusterFold';
 import { useRailHover } from '@/app/hooks/useRailHover';
 import { ReasonChipInline } from '@/app/components/ui/ReasonChipInline';
@@ -130,6 +130,38 @@ export interface WaitingApprovalResource {
  */
 type WaitingApprovalTableVariant = 'approval' | 'confirmed' | 'install';
 
+export interface ApprovalIdentityCell {
+  label: string;
+  render: (resource: WaitingApprovalResource) => ReactNode;
+  /** 헤더 폭 — 호출자의 다른 단계 표에서 그대로 복사해, 단계끼리 열이 어긋나지 않게 한다. */
+  widthClass?: string;
+  /**
+   * 헤더 내용 — 글자 말고 다른 것이 붙는 열에만(출발지 열의 설명 툴팁 등). `label` 은
+   * 그대로 남는다: React key 이자, 여기 없을 때 그리는 기본값이다.
+   */
+  head?: ReactNode;
+}
+
+/**
+ * Replaces the Resource Name + Resource ID pair with the caller's own leading columns.
+ *
+ * For a provider whose rows are named by a scan that pair IS the identity. IDC's is not:
+ * it has no scan-assigned name, and its `resource_id` is an internal NLB key it may not
+ * print (design-spec §8). An IDC row is identified the way steps 2·3·5·6·7 identify it —
+ * 구분 · 접속 주소 · Port · Database Type.
+ */
+export interface ApprovalIdentityColumns {
+  columns: readonly ApprovalIdentityCell[];
+  /** 검색창 placeholder — 표가 보여주지 않는 필드를 약속하지 않도록 같이 바꾼다. */
+  searchPlaceholder?: string;
+  /**
+   * Database Type 필터 옵션을 만드는 접근자. 옵션은 이 표가 실제로 찍는 글자여야 하는데,
+   * 앞 열을 호출자가 그리면 그 글자도 호출자의 것이다 — IDC 는 MSSQL 이라 쓰고 클라우드
+   * 라벨 맵은 SQL Server 라 쓴다. 없으면 훅의 기본 접근자를 그대로 쓴다.
+   */
+  dbTypeLabel?: (resource: WaitingApprovalResource) => string;
+}
+
 interface WaitingApprovalTableProps {
   resources: readonly WaitingApprovalResource[];
   variant?: WaitingApprovalTableVariant;
@@ -163,6 +195,11 @@ interface WaitingApprovalTableProps {
    * shows the user a region that does not visibly contain what they typed.
    */
   expandFolds?: boolean;
+  /**
+   * `install` variant only — see `ApprovalIdentityColumns`. The other two variants group,
+   * fold and cluster on the name/id pair, so the swap is not offered there.
+   */
+  identityColumns?: ApprovalIdentityColumns;
 }
 
 // v16 `.approval-table-wrap` (CSS ~2846): border:0; overflow:hidden; background:#fff — joins flush
@@ -312,6 +349,7 @@ export const WaitingApprovalTable = memo(
     raisedRows = false,
     regionLabel = 'Region',
     expandFolds = false,
+    identityColumns,
   }: WaitingApprovalTableProps) => {
     // Athena arrives as many rows of one catalog family per region; grouping restores the
     // parent it belongs to (LIN-85). Groups start OPEN — the approval table is the "review
@@ -435,6 +473,23 @@ export const WaitingApprovalTable = memo(
           onMouseEnter={rail?.onMouseEnter}
           onMouseLeave={rail?.onMouseLeave}
         >
+          {identityColumns ? (
+            /* 호출자가 앞 열 전체를 그린다. 판정 레일과 26px 들여쓰기는 첫 칸의 몫이고,
+               나머지는 여느 셀과 같다 — 이 표의 다른 열들과 같은 리듬을 유지한다. */
+            identityColumns.columns.map((column, index) => (
+              <td
+                key={column.label}
+                className={cn(
+                  idcStyles.table.approvalCell,
+                  index === 0 && verdictRailClass(excluded),
+                  index === 0 && idcStyles.table.nameCell,
+                )}
+              >
+                {column.render(resource)}
+              </td>
+            ))
+          ) : (
+            <>
           {/* One line, always. Wrapping turned the row's darkest column into a 2–3 line
               block and left row heights ragged (59/69/75px); the full name is in the tip. */}
           <td
@@ -603,6 +658,8 @@ export const WaitingApprovalTable = memo(
               />
             )}
           </td>
+            </>
+          )}
           {/* DB Type is a repeating attribute, not a status — one badge per row (the
               verdict) is enough; a second pill would compete with it.
               Inside a group this column carries what the row IS: the parent says `Athena`,
@@ -802,8 +859,25 @@ export const WaitingApprovalTable = memo(
               {/* Identity (name → id) → attributes (type · region) → decision (verdict → reason).
                   The scan anchor is the human-readable name, not a 3-value category column. */}
               <tr className="whitespace-nowrap">
-                <th className={cn(idcStyles.table.approvalHeaderCell, idcStyles.table.nameCell)}>Resource Name</th>
-                <th className={idcStyles.table.approvalHeaderCell}>Resource ID</th>
+                {identityColumns ? (
+                  identityColumns.columns.map((column, index) => (
+                    <th
+                      key={column.label}
+                      className={cn(
+                        idcStyles.table.approvalHeaderCell,
+                        index === 0 && idcStyles.table.nameCell,
+                        column.widthClass,
+                      )}
+                    >
+                      {column.head ?? column.label}
+                    </th>
+                  ))
+                ) : (
+                  <>
+                    <th className={cn(idcStyles.table.approvalHeaderCell, idcStyles.table.nameCell)}>Resource Name</th>
+                    <th className={idcStyles.table.approvalHeaderCell}>Resource ID</th>
+                  </>
+                )}
                 {/* Step 4 drops the two attribute columns: the engine was settled back on
                     steps 1·2 and the install runs the same either way, and the region is a
                     constant within one target source (and already inside the resource id).

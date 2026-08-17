@@ -3,87 +3,141 @@
  * ConditionExec) and Definition/contract (DefinitionTab). Split out of
  * TaskDrawer to keep each unit focused (AP-B1).
  */
-import { useState, type ReactElement } from 'react';
+import { useState, type ReactElement, type ReactNode } from 'react';
 import { cn } from '@/lib/theme';
-import { PipelineStatusBadge } from '@/app/admin/pipelines/_detail/PipelineStatusBadge';
-import { fmtDateTime, KIND_POLICY } from '@/lib/pipeline/format';
+import { fmtDateTime, KIND_POLICY, statusKo } from '@/lib/pipeline/format';
+import { AttemptDetail } from '@/app/admin/pipelines/_detail/AttemptDetail';
+import { DrawerPicker } from '@/app/admin/pipelines/_detail/DrawerPicker';
+import type { JobVerdict } from '@/app/admin/pipelines/_detail/jobRows';
 import {
   conditionVerdict,
   d,
   j,
-  MiniPill,
   OperatorDescription,
+  RunWindow,
   Section,
+  type ViewerTarget,
 } from '@/app/admin/pipelines/_detail/taskDrawerShared';
-import type { TaskDetail } from '@/lib/pipeline/types';
+import type { TaskDetail, TaskStatus } from '@/lib/pipeline/types';
 
-/** Execution info for TERRAFORM_JOB — progress log / attempt count / attempt history. */
+/** Task status → the verdict tone it is spoken in (jobStyles.verdictTextTone). */
+const STATUS_TONE: Record<TaskStatus, JobVerdict> = {
+  DONE: 'success',
+  FAILED: 'failed',
+  IN_PROGRESS: 'running',
+  READY: 'none',
+  BLOCKED: 'none',
+  CANCELLED: 'none',
+};
+
+/**
+ * The verdict hero (design-benchmark 2026-08-14 시안 A) — how this task ended,
+ * and under which code, before anything else. The progress log that used to open
+ * this tab now sits on the flow card (시안 F), so the space it freed says what
+ * the card deliberately does not: the judgment, in words. No tinted plate — the
+ * tone rides the type and the supporting facts drop a tier (기존 규칙).
+ */
+function Verdict({
+  tone,
+  label,
+  code,
+  pick,
+  facts,
+}: {
+  tone: JobVerdict;
+  label: string;
+  code?: string | null;
+  /** Retry budget + the attempt picker, on the hero's last line (owner
+   *  2026-08-16) — below the judgment and the times it applies to. */
+  pick?: ReactNode;
+  facts?: string;
+}): ReactElement {
+  return (
+    <div className={d.verdict}>
+      {/* No dot (owner 2026-08-16) — the word IS the verdict here, unlike a job
+          row where the id carries no judgment of its own. The tone rides the word
+          alone, not the row: the picker beside it is a control, not a judgment. */}
+      <div className={d.verdictHead}>
+        <span className={j.verdictTextTone[tone]}>{label}</span>
+        {code && <span className={d.verdictCode}>{code}</span>}
+        {/* Beside the verdict, not under it (owner 2026-08-17) — the row had one
+            short word and 300px of empty panel to its right. */}
+        {pick}
+      </div>
+      {/* No facts, no line — a first-attempt task says nothing here that the
+          flow card has not already said. */}
+      {facts && <p className={d.verdictFacts}>{facts}</p>}
+    </div>
+  );
+}
+
+/** Execution info for TERRAFORM_JOB — verdict / job status / attempt history. */
 export function TerraformExec({
   detail,
-  onOpenAttempt,
+  onOpenViewer,
+  onOpenFailure,
 }: {
   detail: TaskDetail;
-  onOpenAttempt: (n: number) => void;
+  onOpenViewer: (t: ViewerTarget) => void;
+  onOpenFailure: (attemptNumber: number, cause: string) => void;
 }): ReactElement {
-  const failed = detail.status === 'FAILED';
+  // Attempts arrive oldest-first; the panel opens on the newest one and the
+  // picker below switches which one the body belongs to (owner 2026-08-16 —
+  // the older attempts' jobs used to be two clicks deep in a fold nobody found).
+  const attempts = [...detail.attempts].reverse();
+  const [picked, setPicked] = useState<number | null>(null);
+  const current = attempts.find((a) => a.attempt_number === picked) ?? attempts[0] ?? null;
+  // The SELECTED attempt's window, from the second attempt on: with a single
+  // attempt these are the same three values the flow card already prints, and
+  // the card's values are never repeated here (2차 라운드 rule). It captions the
+  // Job list rather than the hero (시안 C) — it is the window those jobs ran in,
+  // and under the hero nothing said which of the two it belonged to.
+  const runWindow = attempts.length > 1 && current ? <RunWindow attempt={current} /> : null;
   return (
     <>
       <OperatorDescription detail={detail} />
-      <Section label="진행 기록">
-        <div className={d.rowsGap}>
-          <div className={d.kvRow}>
-            <span className={d.kvKey}>Started</span>
-            <span className={d.kvVal}>{fmtDateTime(detail.started_at)}</span>
-          </div>
-          <div className={d.kvRow}>
-            <span className={d.kvKey}>{failed ? 'Failed' : 'Finished'}</span>
-            <span className={failed ? d.kvValErr : d.kvVal}>{fmtDateTime(detail.finished_at)}</span>
-          </div>
-          {failed && detail.error_code && (
-            <div className={d.kvRow}>
-              <span className={d.kvKey}>실패 코드</span>
-              <span className={cn(d.kvValErr, '[font-family:var(--pl-font-mono)]')}>{detail.error_code}</span>
-            </div>
-          )}
-          {detail.next_check_at && (
-            <div className={d.kvRow}>
-              <span className={d.kvKey}>다음 확인</span>
-              <span className={d.kvVal}>{fmtDateTime(detail.next_check_at)}</span>
-            </div>
-          )}
-        </div>
-      </Section>
+      <Verdict
+        tone={STATUS_TONE[detail.status]}
+        label={statusKo(detail.status)}
+        // No error code (design-benchmark 2026-08-16 시안 C): JOB_FAILED was
+        // printed four times on one screen. The failure strip states it at the
+        // top of the page and the flow card beside this panel repeats it in
+        // prose ("원인은 JOB_FAILED"), so the hero's chip was the fourth.
+        facts={detail.next_check_at ? `다음 확인 ${fmtDateTime(detail.next_check_at)}` : ''}
+        /* A dropdown, not one button per attempt (시안 C): the segments grew the
+           hero's line with the retry budget. The retry budget itself is gone from
+           this line (owner 2026-08-17) — the picker's trigger already names the
+           attempt, the list says how many there were, and while a run is live the
+           exec band prints `재시도 f/m` (`retrySuffix`). The contract value lives
+           in 정의·계약 as `retry_budget`. */
+        pick={
+          attempts.length > 1 && current ? (
+            <DrawerPicker
+              ariaLabel="시도 선택"
+              value={String(current.attempt_number)}
+              options={attempts.map((a) => ({
+                key: String(a.attempt_number),
+                tone: STATUS_TONE[a.status],
+                label: `시도 #${a.attempt_number}`,
+                meta: statusKo(a.status),
+              }))}
+              onPick={(key) => setPicked(Number(key))}
+            />
+          ) : undefined
+        }
+      />
 
-      <div className={d.attemptRow}>
-        <span className={d.sectionLabel}>시도 횟수</span>
-        {/* Attempts actually made (attempts.length), not the failure count —
-            a task that succeeded on the first run has fail_count 0 but 1 attempt. */}
-        <span className={failed ? d.bigValErr : d.bigVal}>
-          {detail.attempts.length} / {detail.effective_max_fail_count}
-        </span>
-      </div>
-
-      <Section label="시도 이력" hint="행을 눌러서 Job 로그 상세 정보를 확인하세요.">
-        {detail.attempts.length === 0 ? (
-          <div className={d.empty}>아직 시도 없음</div>
-        ) : (
-        <div className={j.list}>
-          {[...detail.attempts].reverse().map((a) => (
-            <button
-              key={a.attempt_number}
-              type="button"
-              className={j.attemptRow}
-              onClick={() => onOpenAttempt(a.attempt_number)}
-            >
-              <span className={j.attemptNo}>#{a.attempt_number}</span>
-              <PipelineStatusBadge status={a.status} size="mini" />
-              {a.error_code && <MiniPill tone="failed">{a.error_code}</MiniPill>}
-              <span className={j.attemptDetail}>상세정보 보기</span>
-            </button>
-          ))}
-        </div>
-        )}
-      </Section>
+      {current ? (
+        <AttemptDetail
+          attempt={current}
+          operation={detail.operation}
+          runWindow={runWindow}
+          onOpenViewer={onOpenViewer}
+          onOpenFailure={(cause) => onOpenFailure(current.attempt_number, cause)}
+        />
+      ) : (
+        <div className={d.empty}>아직 시도 없음</div>
+      )}
     </>
   );
 }
@@ -101,44 +155,18 @@ export function ConditionExec({ detail }: { detail: TaskDetail }): ReactElement 
   return (
     <>
       <OperatorDescription detail={detail} />
-      <Section label="진행 기록">
-        <div className={d.rowsGap}>
-          <div className={d.kvRow}>
-            <span className={d.kvKey}>Started</span>
-            <span className={d.kvVal}>{fmtDateTime(detail.started_at)}</span>
-          </div>
-          <div className={d.kvRow}>
-            <span className={d.kvKey}>현재 판정</span>
-            <span className={d.kvVal}>
-              {verdict ? (
-                <span className={cn(j.verdictText, j.verdictTextTone[verdict.tone])}>{verdict.label}</span>
-              ) : (
-                '—'
-              )}
-            </span>
-          </div>
-          <div className={d.kvRow}>
-            <span className={d.kvKey}>외부 상태</span>
-            <span className={cn(d.kvVal, '[font-family:var(--pl-font-mono)]')}>
-              {latest?.check?.last_external_status ?? '—'}
-            </span>
-          </div>
-          {detail.next_check_at && (
-            <div className={d.kvRow}>
-              <span className={d.kvKey}>다음 확인</span>
-              <span className={d.kvVal}>{fmtDateTime(detail.next_check_at)}</span>
-            </div>
-          )}
-        </div>
-      </Section>
-
-      <div className={d.attemptRow}>
-        <span className={d.sectionLabel}>시도 횟수</span>
-        {/* Attempts actually made (poll count), not the not-met failure count. */}
-        <span className={d.bigVal}>
-          {detail.attempts.length} / {detail.effective_max_fail_count}
-        </span>
-      </div>
+      <Verdict
+        tone={verdict ? verdict.tone : 'none'}
+        label={verdict ? verdict.label : '기록 없음'}
+        code={latest?.check?.last_external_status ?? null}
+        // Attempts actually made (poll count), not the not-met failure count.
+        facts={[
+          `확인 ${detail.attempts.length}/${detail.effective_max_fail_count}회`,
+          detail.next_check_at ? `다음 확인 ${fmtDateTime(detail.next_check_at)}` : '',
+        ]
+          .filter(Boolean)
+          .join(' · ')}
+      />
 
       <Section label="확인 이력">
         {detail.attempts.length === 0 ? (

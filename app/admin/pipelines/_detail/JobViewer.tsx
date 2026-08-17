@@ -177,6 +177,10 @@ export function JobViewer({
       <MiniPill tone={succeeded ? 'success' : 'failed'}>{succeeded ? '성공' : '실패'}</MiniPill>
     ) : null;
 
+  // Same source as the list's red line, uncut. `last_error` is our own call failing,
+  // not the job's verdict, so it stays out of this slot.
+  const failReason = state.data?.last_fail_reason ?? null;
+
   let body: ReactElement;
   if (tab === 'log') {
     if (result.phase === 'loading') body = <div className={j.vLoading}>로그를 불러오는 중…</div>;
@@ -252,6 +256,9 @@ export function JobViewer({
             {jobLabel} · 시도 #{attemptNumber}
           </div>
           {stamp && <div className={j.vStamp}>{stamp}</div>}
+          {/* The list can only carry the reason's head clause in one row; the whole
+              of it is read here, without switching to the JSON tab (owner 2026-08-17). */}
+          {failReason && <p className={j.vFail}>{failReason}</p>}
         </div>
         <button type="button" className={j.vClose} onClick={onClose} aria-label="닫기" title="닫기 (Esc)">
           <Icon name="x" size="lg" />

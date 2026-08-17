@@ -8,7 +8,7 @@
  * nothing the value beside it did not already say:
  *   - 구분 — IP-vs-Host is legible from the value itself (an address or a hostname).
  *   - Oracle SID — rides under Database Type; only Oracle rows carry one.
- * Source IP is not one of them: it moved next to NLB 배정 instead, since it is an
+ * The 출발지 is not one of them: it moved next to NLB 배정 instead, since it is an
  * attribute of the assigned NLB, but it keeps a column of its own.
  *
  * resource_id is NEVER rendered — the row identity is 접속 주소 (IP/Host) + Port +
@@ -46,8 +46,13 @@ export interface IdcResourceTableProps {
   disabled?: boolean;
   /** Open NlbAssignModal for this resource. */
   onAssignNlb: (row: RequestResourceRow) => void;
-  /** Open ServiceAssignmentModal for this resource. */
-  onShowServices: (row: RequestResourceRow) => void;
+  /**
+   * Open ServiceAssignmentModal for this resource. Optional: the 승인 요청 상세 modal
+   * reads a PAST request, while this lookup answers about the assignment as it stands
+   * today — a different question. Omitting it drops the column rather than leaving it
+   * empty down every row.
+   */
+  onShowServices?: (row: RequestResourceRow) => void;
   /**
    * 행 → '같은 DB 의심' 표시 (@see _duplicateAddress). 없으면 표시가 서지 않는다.
    *
@@ -115,7 +120,7 @@ export function IdcResourceTable({
                 should not cross the table. Stacking them in one cell read worse:
                 two values of different kinds in one column lost the scan down either one.
                 Step 1's own header, imported rather than restated: the column needs the
-                "방화벽 등록 필요" note here too — the admin approving the request is the
+                "접근 허용 필요" note here too — the admin approving the request is the
                 one who has to know the rule the service owner was shown. */}
             <th className={cn(table.approvalHeaderCell, 'w-[160px]')}>
               <SourceIpHeader />
@@ -124,7 +129,9 @@ export function IdcResourceTable({
                 — a fan-out no cell can hold. The column carries the way in, not the list.
                 Named for what is behind it (the consuming services), not 배정: that word
                 belongs to the NLB 배정 column, which is the one the admin can change. */}
-            <th className={cn(table.approvalHeaderCell, 'w-[110px]')}>사용 서비스</th>
+            {onShowServices && (
+              <th className={cn(table.approvalHeaderCell, 'w-[110px]')}>사용 서비스</th>
+            )}
             <th className={table.approvalHeaderCell}>제외 사유</th>
           </tr>
         </thead>
@@ -210,7 +217,7 @@ export function IdcResourceTable({
                       IPs — blank rather than asserting a missing value. */}
                   <td className={table.approvalCell} />
                   <td className={table.approvalCell} />
-                  <td className={table.approvalCell} />
+                  {onShowServices && <td className={table.approvalCell} />}
                   <td className={cn(table.approvalCell, 'text-sm')}>
                     <ReasonChip row={row} />
                   </td>
@@ -264,15 +271,17 @@ export function IdcResourceTable({
                 <td className={table.approvalCell}>
                   <IdcSourceIpCell sourceIps={row.sourceIps} />
                 </td>
-                <td className={table.approvalCell}>
-                  {/* Same text-button grammar as the assignment beside it — one column,
-                      one way in. A row with no resource_id has nothing to look up. */}
-                  {row.resourceId != null && (
-                    <button type="button" className={NLB_BTN} onClick={() => onShowServices(row)}>
-                      조회
-                    </button>
-                  )}
-                </td>
+                {onShowServices && (
+                  <td className={table.approvalCell}>
+                    {/* Same text-button grammar as the assignment beside it — one column,
+                        one way in. A row with no resource_id has nothing to look up. */}
+                    {row.resourceId != null && (
+                      <button type="button" className={NLB_BTN} onClick={() => onShowServices(row)}>
+                        조회
+                      </button>
+                    )}
+                  </td>
+                )}
                 {/* 제외 사유 — a target row has none. */}
                 <td className={table.approvalCell} />
               </tr>

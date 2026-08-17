@@ -24,6 +24,17 @@ const VERDICT_LABEL: Record<JobVerdict, string> = {
   none: '기록 없음',
 };
 
+/** Solid 8px status dot per verdict — the Job filter's leading dot and the job
+ *  row's status channel (design-benchmark 2026-08-15 시안 A·B). A dot, not a
+ *  tinted pill: the row now carries the raw `last_state`, so the Korean label
+ *  lives on the filter (Carbon — the label has to exist somewhere on screen). */
+const VERDICT_DOT: Record<JobVerdict, string> = {
+  success: 'bg-[var(--pl-ok)]',
+  failed: 'bg-[var(--pl-err)]',
+  running: 'bg-[var(--pl-info)]',
+  none: 'bg-[var(--pl-gray-400)]',
+};
+
 /** Verdict as colored TEXT (no pill) — condition verdict (owner Figma node 121-493). */
 const VERDICT_TEXT_TONE: Record<JobVerdict, string> = {
   success: 'text-[var(--pl-ok-text)]',
@@ -36,41 +47,66 @@ export const jobStyles = {
   verdictTone: VERDICT_TONE,
   verdictLabel: VERDICT_LABEL,
   verdictTextTone: VERDICT_TEXT_TONE,
+  verdictDot: VERDICT_DOT,
   verdictText: 'text-[13px] font-medium',
-  miniBadge: 'inline-flex items-center rounded-full px-[7px] py-[2.5px] text-[10px] font-medium leading-none whitespace-nowrap tracking-[-0.196px]',
+  // 12px is the type set's floor — the verdict these carry is the panel's whole
+  // point, so it does not get to sit below it (design-benchmark 진단 06).
+  miniBadge: 'inline-flex items-center rounded-full px-[7px] py-[2.5px] text-[12px] font-medium leading-none whitespace-nowrap tracking-[-0.196px]',
 
-  /** A muted caption line rendered on its own line under a section label
-   *  (e.g. the attempt-history "tap a row for detail" hint; owner Figma node 121-74). */
-  labelHint: 'mt-2 text-[14px] font-normal text-[var(--pl-text-faint)]',
+  /** Job list — takes the panel's leftover height and scrolls inside itself, so
+   *  the panel never has to (owner 2026-08-16: "패널 자체의 스크롤을 내리는 일은
+   *  없었으면"). Needs a bounded ancestor chain: the drawer body is `min-h-0` and
+   *  the page column is capped to the viewport (`layout.contentDetail`).
+   *  The floor that keeps rows on screen lives on the section (Section `grow`),
+   *  not here — this box just takes whatever is left of it.
+   *  `rounded-b` on the scroller itself: it is a clipping box, so a hovered last
+   *  row cannot square off the card's bottom corners. */
+  jobList: 'flex flex-col flex-1 min-h-0 overflow-y-auto overscroll-contain rounded-b-[8px]',
 
-  /** Bare row list on the panel — rows carry their own hairline divider, no card
-   *  wrap (owner Figma nodes 121-74 / 121-311). Top margin clears the heading. */
-  list: 'mt-5 flex flex-col',
-  listTight: 'mt-4 flex flex-col',
+  /** The job list's own surface (owner 2026-08-17: "그룹화 되었으면") — header bar
+   *  plus rows in one bordered card, so the count, the filter and the rows they
+   *  narrow read as one object instead of three things stacked on the panel
+   *  ground. Takes the drawer's existing card grammar (`drawer.tableWrap`, worn by
+   *  the 확인 이력 table) with a flex column added so the list scrolls inside it.
+   *  NOT `overflow-hidden` — the header's filter opens a popover that has to
+   *  escape this box. */
+  jobCard:
+    'mt-3 flex flex-col flex-1 min-h-0 rounded-[8px] border border-[var(--pl-border)] bg-[var(--pl-bg-card)]',
+  /** Header bar — how many jobs there are, and the control that narrows them. */
+  jobCardHead:
+    'flex items-center justify-between gap-2 rounded-t-[8px] border-b border-[var(--pl-border)] bg-[var(--pl-gray-50)] px-3 py-2',
+  jobCardCount: 'text-[12px] font-medium text-[var(--pl-text-medium)] tabular-nums',
+  /** One bucket means nothing to pick — then the filter is just its own label. */
+  jobCardOne: 'inline-flex items-center gap-1.5 text-[14px] font-medium text-[var(--pl-text-strong)]',
+  /** 8px leading dot — `tqStyles.segLg.dot`'s metric, verdict tone. Worn by the
+   *  job rows and by every option of the drawer's two pickers.
+   *  (The segmented status filter this used to belong to is gone: four buckets
+   *  measured 353px against 351px of panel and wrapped — owner 2026-08-17.) */
+  filterDot: 'inline-block w-2 h-2 flex-none rounded-full',
 
-  /** Attempt-history row — a full-width button that drills into the attempt. */
-  attemptRow: 'w-full flex items-center gap-2.5 pt-2.5 pb-[11px] text-left border-b border-[var(--pl-border)] last:border-b-0 hover:bg-[var(--pl-gray-50)] transition-colors',
-  attemptNo: 'flex-none min-w-[26px] text-[14px] font-semibold text-[var(--pl-text-strong)] tabular-nums tracking-[-0.196px]',
-  /** Row CTA — blue "view details" link text, right-aligned. */
-  attemptDetail: 'ml-auto flex-none text-[12px] font-semibold text-[var(--pl-primary)] tracking-[-0.196px]',
-
-  /** Terraform Job row — verdict + id + meta + log action. */
-  jobRow: 'flex items-center gap-2.5 pt-3 pb-[13px] border-b border-[var(--pl-border)] last:border-b-0',
+  /** Terraform Job entry — the row plus, for a failed job, its reason line. The
+   *  hairline moved here so the reason sits inside the same entry as its row. */
+  jobItem: 'flex flex-col border-b border-[var(--pl-border)] last:border-b-0',
+  /** Terraform Job row (시안 B) — the whole 44px row opens the log viewer; it used
+   *  to be a 51×17px text link at the right end, repeated 21 times. */
+  jobRow: 'w-full flex items-center gap-2.5 px-3 pt-3 pb-[13px] text-left hover:bg-[var(--pl-gray-50)] transition-colors',
+  /** What the job last did — `last_state · N회 폴링 · HH:mm`. Three contract fields
+   *  that were parsed and then never rendered; without them 21 rows differ only
+   *  by id and nothing tells the operator which one to open. */
+  jobMeta: 'ml-auto min-w-0 truncate text-[12px] text-[var(--pl-text-weak)] [font-family:var(--pl-font-mono)] tabular-nums',
+  jobChev: 'flex-none text-[var(--pl-text-weak)]',
+  /** `last_fail_reason`'s head clause under a failed job — the cause the panel used
+   *  to keep three hops away (attempt row → job row → log viewer). ONE line: a
+   *  two-line clamp cut the tail mid-word, and `failHead` already drops the detail
+   *  the log viewer's header carries. The bottom gap is a MARGIN, not padding —
+   *  a clipping box paints the clipped remainder into its own padding box. */
+  jobFailReason: '-mt-1.5 px-3 mb-3 truncate text-[14px] leading-[1.6] text-[var(--pl-err-text)]',
   jobId: 'text-[13px] font-bold text-[var(--pl-text-strong)] [font-family:var(--pl-font-mono)] tabular-nums tracking-[-0.196px]',
-  /** Log action — blue text button (owner Figma node 121-326), not a bordered btn. */
-  logBtn: 'ml-auto flex-none rounded-[8px] px-1 text-[12px] font-semibold text-[var(--pl-primary)] hover:underline transition-colors',
-
-  /** Attempt drill-down header (replaces the tab bar on the sub-view). */
-  subHeader: 'flex items-start gap-2.5 px-6 pt-5 pb-4 border-b border-[var(--pl-border)]',
-  back: 'flex-none inline-flex items-center justify-center w-8 h-8 -ml-1 rounded-lg text-[var(--pl-text-strong)] hover:bg-[var(--pl-bg-card)] transition-colors text-[18px] leading-none',
-  subTitle: 'flex items-center gap-2 text-[16px] font-bold leading-snug text-[var(--pl-text-strong)]',
-  subCrumb: 'mt-1 text-[12px] text-[var(--pl-text-weak)] truncate',
-
-  /** Raw-response fold (owner Figma node 121-389) — 16px SemiBold heading led by
-   *  a ▼ triangle (gray) that flips up + sky-blue when open; the raw dispatch
-   *  response sits in an inset mono code box. Not parsed. */
+  /** Raw-response fold (owner Figma node 121-389) — a ▼ triangle (gray) that flips
+   *  up + sky-blue when open; the raw dispatch response sits in an inset mono code
+   *  box. Not parsed. The summary line itself is `drawer.foldSummary`, shared with
+   *  the other two folds in the body. */
   respFold: 'group',
-  respSummary: 'flex items-center gap-1.5 cursor-pointer list-none text-[16px] font-semibold text-[var(--pl-text-strong)] tracking-[-0.196px] [&::-webkit-details-marker]:hidden select-none',
   respTri: 'inline-block text-[10px] leading-none text-[var(--pl-text-weak)] transition-transform group-open:rotate-180 group-open:text-[var(--pl-info)]',
   respPre: 'mt-3 ml-[18px] rounded-[6px] bg-[var(--pl-gray-50)] border border-[var(--pl-border)] px-[15px] py-[13px] text-[11px] leading-[1.4] text-[var(--pl-text-medium)] [font-family:var(--pl-font-mono)] whitespace-pre-wrap break-all',
 
@@ -100,6 +136,10 @@ export const jobStyles = {
   vJid: 'tabular-nums',
   vSub: 'mt-1 text-[12px] text-[var(--pl-text-weak)] truncate',
   vStamp: 'mt-0.5 text-[12px] text-[var(--pl-text-faint)] tabular-nums truncate',
+  /** `last_fail_reason` in full, under the header's verdict badge. Tab-independent,
+   *  like the badge: why the job failed is a property of the job, not of the log.
+   *  Unclamped — this surface is where the reason the list had to cut is read. */
+  vFail: 'mt-2 text-[14px] leading-[1.6] text-[var(--pl-err-text)] break-words',
   vClose: 'flex-none inline-flex items-center justify-center w-8 h-8 -mr-1 rounded-lg text-[var(--pl-text-strong)] hover:bg-[var(--pl-gray-50)] transition-colors',
 
   /** Log/state panel — one flex column that owns the bottom of the viewer. Its

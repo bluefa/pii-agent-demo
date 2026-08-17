@@ -13,8 +13,7 @@ import {
 } from '@/lib/theme';
 import {
   IdcDbTypeCell,
-  IdcEndpointCell,
-  IdcKindBadge,
+  IdcEndpointWithKindCell,
 } from '@/app/target-sources/[targetSourceId]/_components/idc/cells';
 import {
   clampReason,
@@ -52,7 +51,7 @@ interface IdcTargetListTableProps {
 // because hosts are the unbounded value here.
 const HEADERS: ReadonlyArray<{ label: string; className?: string }> = [
   { label: '', className: 'w-[52px]' },
-  { label: '구분', className: 'w-[110px]' },
+  // 구분은 열이 아니다 — Domain 행에만 붙는 태그가 주소 위에 얹힌다(IdcEndpointWithKindCell).
   { label: '접속 주소' },
   { label: 'Port', className: 'w-[80px]' },
   { label: 'Database Type', className: 'w-[140px]' },
@@ -119,10 +118,7 @@ export const IdcTargetListTable = ({
                     />
                   </td>
                   <td className={idcStyles.table.approvalCell}>
-                    <IdcKindBadge kind={row.kind} />
-                  </td>
-                  <td className={idcStyles.table.approvalCell}>
-                    <IdcEndpointCell resource={row} />
+                    <IdcEndpointWithKindCell resource={row} />
                   </td>
                   <td
                     className={cn(

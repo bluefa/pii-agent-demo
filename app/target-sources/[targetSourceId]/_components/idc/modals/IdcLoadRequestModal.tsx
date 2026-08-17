@@ -19,8 +19,7 @@ import {
 } from '@/lib/theme';
 import {
   IdcDbTypeCell,
-  IdcEndpointCell,
-  IdcKindBadge,
+  IdcEndpointWithKindCell,
   IdcTargetPill,
 } from '@/app/target-sources/[targetSourceId]/_components/idc/cells';
 import {
@@ -35,7 +34,7 @@ import {
 // does not have under that name — it carries the 대상/비대상 verdict the checkbox carries there,
 // which a read-only preview cannot show as a checkbox.
 const HEADERS: ReadonlyArray<{ label: string; className?: string }> = [
-  { label: '구분', className: 'w-[110px]' },
+  // 구분은 열이 아니다 — Domain 행에만 붙는 태그가 주소 위에 얹힌다(IdcEndpointWithKindCell).
   { label: '접속 주소' },
   { label: 'Port', className: 'w-[80px]' },
   { label: 'Database Type', className: 'w-[140px]' },
@@ -164,10 +163,7 @@ export const IdcLoadRequestModal = ({
                       <td
                         className={cn(idcStyles.table.approvalCell, verdictRailClass(r.excluded))}
                       >
-                        <IdcKindBadge kind={r.kind} />
-                      </td>
-                      <td className={idcStyles.table.approvalCell}>
-                        <IdcEndpointCell resource={r} />
+                        <IdcEndpointWithKindCell resource={r} />
                       </td>
                       <td
                         className={cn(

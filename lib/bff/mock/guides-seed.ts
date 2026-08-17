@@ -13,6 +13,7 @@
  */
 
 import type { GuideDetail, GuideName } from '@/lib/types/guide';
+import { IDC_ACCESS_ALLOWED, IDC_SOURCE_LABEL } from '@/lib/constants/idc';
 
 const SEEDED_AT = '2026-04-25T00:00:00Z';
 
@@ -82,8 +83,8 @@ const STEP_7_HTML =
 
 // ---------------------------------------------------------------------------
 // IDC step-keyed HTML — IDC has no Infra Scan, so step 1 is manual input and
-// step 4 is "BDC 측 리소스 설치 → 방화벽 확인" (idc-flow-requirements.md §3.5).
-// Steps 2/3/5/6/7 follow the shared flow but reference IP/Domain/Source IP
+// step 4 is "BDC 측 리소스 설치 → 접근 허용 확인" (idc-flow-requirements.md §3.5).
+// Steps 2/3/5/6/7 follow the shared flow but reference IP/Domain/출발지
 // identifiers instead of cloud resource IDs.
 // ---------------------------------------------------------------------------
 
@@ -112,19 +113,19 @@ const IDC_STEP_3_HTML =
   '</ul>';
 
 const IDC_STEP_4_HTML =
-  '<h4>BDC 리소스 설치와 방화벽을 확인해 주세요</h4>' +
-  '<p>BDC망에 PII Agent 수집 모듈과 네트워크 경로를 구성하고, Source IP에서 연동 대상으로의 방화벽 오픈 여부를 점검합니다. 두 단계가 모두 완료되면 자동으로 다음 단계로 넘어갑니다.</p>' +
+  '<h4>BDC 리소스 설치와 접근 허용을 확인해 주세요</h4>' +
+  `<p>BDC망에 PII Agent 수집 모듈과 네트워크 경로를 구성하고, ${IDC_SOURCE_LABEL}에서 연동 대상으로의 접근 허용 여부를 점검합니다. 두 단계가 모두 완료되면 자동으로 다음 단계로 넘어갑니다.</p>` +
   '<ul>' +
-  '<li>각 연동 대상의 <strong>Source IP → 연동 대상(IP:Port)</strong> 허용 규칙을 서비스 측 방화벽에 등록해 주세요.</li>' +
-  '<li>경로가 여러 개인 경우 모든 경로가 열려야 방화벽 오픈으로 표시됩니다.</li>' +
+  `<li>각 연동 대상의 <strong>${IDC_SOURCE_LABEL} → 연동 대상(IP:Port)</strong> 접근을 서비스 측에서 허용해 주세요.</li>` +
+  `<li>경로가 여러 개인 경우 모든 경로가 열려야 ${IDC_ACCESS_ALLOWED}으로 표시됩니다.</li>` +
   '</ul>';
 
 const IDC_STEP_5_HTML =
   '<h4>Agent와 N-IRP 간 통신을 확인하고 있어요</h4>' +
-  '<p>설치된 Agent가 N-IRP(개인정보 리스크 플랫폼)와 정상적으로 통신하는지 점검합니다. Source IP에서 연동 대상까지의 방화벽 정책이 올바른지 확인해 주세요.</p>' +
+  `<p>설치된 Agent가 N-IRP(개인정보 리스크 플랫폼)와 정상적으로 통신하는지 점검합니다. ${IDC_SOURCE_LABEL}에서 연동 대상까지의 접근이 허용돼 있는지 확인해 주세요.</p>` +
   '<ul>' +
-  '<li>테스트 실패 시 Source IP → 연동 대상(IP:Port) 방화벽 규칙을 우선 점검해 주세요.</li>' +
-  '<li>방화벽 등록 후 <strong>Run Test</strong>를 눌러 다시 시도할 수 있습니다.</li>' +
+  `<li>테스트 실패 시 ${IDC_SOURCE_LABEL} → 연동 대상(IP:Port) 접근 허용을 우선 점검해 주세요.</li>` +
+  '<li>접근 허용 후 <strong>Run Test</strong>를 눌러 다시 시도할 수 있습니다.</li>' +
   '</ul>';
 
 const IDC_STEP_6_HTML =
