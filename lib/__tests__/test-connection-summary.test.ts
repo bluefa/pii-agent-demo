@@ -92,11 +92,11 @@ describe('tcSummarySentence', () => {
     expect(tcSummarySentence('queued', empty)).toBe('연결 테스트 요청됨 — 시작을 기다리고 있어요');
   });
 
-  it('a FAIL with zero reports says the run never reported, not "결과를 확인해 주세요"', () => {
-    // PENDING→FAIL: 확인할 결과가 없는 실패 — 기존 문구는 없는 결과를 보라고 시켰다.
+  it('a FAIL with zero reports folds into the generic fail sentence — no special state', () => {
+    // 오너 결정: "결과가 보고되기 전에 실패" 같은 무보고 서사는 실패와 구분되지 않는다.
     const unreported = computeTcBuckets(['a', 'b'], foldAgentStatuses([], new Set(['a', 'b'])));
     expect(tcSummarySentence('fail', unreported)).toBe(
-      '결과가 보고되기 전에 실패로 끝났어요 — 다시 실행해 주세요',
+      '연결 테스트가 실패했어요 — 다시 수행해 주세요',
     );
   });
 

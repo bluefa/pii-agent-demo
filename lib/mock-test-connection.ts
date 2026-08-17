@@ -565,7 +565,8 @@ export const buildSeedTestConnectionJobs = (projects: Project[]): TestConnection
 
       // Card-state fixture: PENDING→FAIL — the run settled FAIL before any unit
       // reported. No schedule and no results, so the wire carries an empty agent
-      // list: reported 0, everything 미보고, and the card's no-report fail copy.
+      // list: reported 0 — the card folds this into the generic fail copy (no
+      // special no-report state, owner's call).
       if (targetSourceId === TC_CARD_FIXTURE.noReportFail) {
         return [
           {

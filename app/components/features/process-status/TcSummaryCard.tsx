@@ -155,8 +155,9 @@ export const TcSummaryCard = ({
   // 판정 없이 끝난 상태(미실행·정책 변경·확인 완료)엔 바를 긋지 않는다 — 미실행의 빈 바는
   // 0% 라는 결과 서술이고, 정책 변경의 초록 바는 이미 뒤처진 실행의 결과다. 시작 대기도
   // 긋지 않는다: 빈 0% 바는 "멈춤"으로 읽히고, 트랙의 등장 자체가 PENDING→RUNNING 전이의
-  // 표현이다(스핀 시작·문장 교체와 함께).
-  const showTrack = state === 'running' || settled;
+  // 표현이다(스핀 시작·문장 교체와 함께). 보고 0건으로 정착한 실행도 같은 이유 — 채울
+  // 판정이 없다.
+  const showTrack = state === 'running' || (settled && buckets.reported > 0);
 
   const slot = (() => {
     switch (state) {
@@ -293,12 +294,12 @@ export const TcSummaryCard = ({
       )}
       <div className={cn('flex items-center justify-between gap-3', showTrack && 'mt-[9px]')}>
         <span className={state === 'policy-changed' ? s.countsWarn : s.counts}>
-          {/* 시작 대기도 idle 과 같은 대상 서술 — 보고가 0건이라 카운트를 그리면 전부
-              "미보고"가 되고, 그건 정착 실행의 이상 신호 어휘라 여기 쓰면 안 된다. */}
-          {state === 'idle' || state === 'queued' ? (
+          {/* 시작 대기도, 보고 0건으로 정착한 실행도 idle 과 같은 대상 서술 — 카운트를
+              그리면 "성공 0 · 실패 0 · 미보고 N"처럼 판정이 없다는 사실만 세 번 반복한다. */}
+          {state === 'idle' || state === 'queued' || (settled && buckets.reported === 0) ? (
             <>대상 리소스 {buckets.total}개</>
           ) : state === 'policy-changed' ? (
-            <>다시 실행해야 변경이 반영돼요 — 승인 요청은 그때 열려요</>
+            <>연결 테스트를 다시 수행해야 합니다</>
           ) : (
             <>
               {countParts.map((part, index) => (

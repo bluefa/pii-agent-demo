@@ -145,11 +145,9 @@ export function tcSummarySentence(state: TcCardState, buckets: TcBuckets): strin
     case 'fail':
       if (fail > 0)
         return `리소스 ${total}개 중 ${ok}개 연결 성공 — 실패 ${fail}건을 점검해 주세요`;
-      // PENDING→FAIL: 한 건도 보고되기 전에 실패로 정착. "결과를 확인해 주세요"는
-      // 확인할 결과가 없어 거짓말이 된다 — 원인은 계약에 없으므로 사실만 말한다.
-      if (reported === 0)
-        return `결과가 보고되기 전에 실패로 끝났어요 — 다시 실행해 주세요`;
-      return `연결 테스트가 실패했어요 — 결과를 확인해 주세요`;
+      // 유닛 실패 카운트가 없는 실패(무보고 정착·계약 밖 값)도 사용자에겐 같은 실패다 —
+      // 특수 상태를 발명하지 않는다(오너 결정). 원인은 계약에 없으므로 말하지 않는다.
+      return '연결 테스트가 실패했어요 — 다시 수행해 주세요';
     case 'policy-changed':
       return '논리 DB 정책이 마지막 실행 이후 변경됐어요';
     case 'confirmed':

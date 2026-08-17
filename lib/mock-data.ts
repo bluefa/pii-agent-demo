@@ -1207,8 +1207,8 @@ mockProjects.push(
   tcCardStateClone({
     targetSourceId: 2108,
     key: 'noreport',
-    name: 'TC 카드 - 무보고 실패',
-    description: 'Step 5 TC 카드 상태 fixture — 무보고 실패(PENDING→FAIL). 한 건도 보고되기 전에 실패로 정착해 "결과가 보고되기 전에 실패" 문구와 미보고 카운트를 검증합니다.',
+    name: 'TC 카드 - 보고 0건 실패',
+    description: 'Step 5 TC 카드 상태 fixture — 보고 0건 실패(PENDING→FAIL). 한 건도 보고되기 전에 실패로 정착 — 카드는 특수 문구 없이 일반 실패("연결 테스트가 실패했어요")로 접히는 것을 검증합니다.',
   }),
 );
 
