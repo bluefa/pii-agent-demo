@@ -85,7 +85,10 @@ export const accessStyles = {
   /** 화면을 가르는 탭은 카드 안의 탭보다 한 칸 크다 — 이게 이 화면의 목차다. */
   tabLg: 'text-[16px]',
 
-  headRow: 'mt-3 flex items-center gap-3 py-2 text-[12px] font-medium text-[var(--pl-text-weak)]',
+  /** 컬럼 머리 — 값 행과 같은 14/medium 이다(오너 지시 2026-08-17). 12 였을 때는 한 표
+   *  안에 12(머리)·12(코드)·14(이름) 세 급이 섞여서, 급이 뜻을 나누는 게 아니라 그냥
+   *  들쭉날쭉했다. 크기와 굵기를 맞추고 나면 머리와 값을 가르는 건 잉크 하나다. */
+  headRow: 'mt-3 flex items-center gap-3 py-2 text-[14px] font-medium text-[var(--pl-text-weak)]',
   row: `${ROW} items-center border-t border-[var(--pl-border)] py-2.5`,
   /** 구분선을 `tableBody` 가 긋는 표의 행 — 한 줄짜리 값들이라 가운데 정렬. 선이 없는
    *  것 말고는 `row` 와 같다(두 군데서 선을 그으면 줄이 겹쳐 두 배로 진해진다). */
@@ -144,8 +147,15 @@ export const accessStyles = {
   /** Knox ID — 사람 이름이 아니라 식별자다. 서비스 코드와 같이 mono 로 찍는다. */
   knox:
     'min-w-0 flex-1 truncate font-medium text-[var(--pl-text-strong)] [font-family:var(--pl-font-mono)]',
-  code: 'w-[72px] min-w-0 shrink truncate',
+  /** 코드 열 — 폭은 값이 아니라 **머리**가 잡는다. 값('azure')은 14 mono 로 44px 이지만
+   *  머리가 '서비스 코드'(오너 지시 2026-08-17)라 14 에서 76px 이고, 72 였을 때는 머리만
+   *  잘려 "서비스 코…"가 됐다. 열 이름이 잘리면 그 열이 무엇인지 말해 줄 것이 없다. */
+  code: 'w-[88px] min-w-0 shrink truncate',
   mono: 'text-[12px] text-[var(--pl-text-strong)] [font-family:var(--pl-font-mono)]',
+  /** 표 안의 코드 — 값 행이 한 급으로 읽히도록 이름과 같은 14/medium 을 쓴다(오너 지시
+   *  2026-08-17). 식별자라는 것은 크기가 아니라 mono 가 말한다. */
+  monoMd:
+    'text-[14px] font-medium text-[var(--pl-text-strong)] [font-family:var(--pl-font-mono)]',
   note: 'min-w-0 flex-1 truncate pointer-events-none',
   /** 서비스 이름 열 — 코드는 왼쪽 `code` 열이 따로 받는다. 한 칸에 둘을 넣으면 코드가
    *  이름 길이만큼 밀려 행마다 다른 x 에 서고, 코드로 훑을 수가 없다. */

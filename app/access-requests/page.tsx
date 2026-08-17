@@ -9,10 +9,10 @@
  * 접근 권한 관리자 화면들과 같은 부품·같은 계약을 쓴다.
  *
  * 화면은 세 켜로 읽힌다:
- *  1. **판정** — 헤더 문장. 재방문자가 이 화면에 오는 이유("내 요청 어떻게 됐지?")에
- *     스크롤 없이 답한다. 32px 수치가 화면에서 가장 큰 타입이다.
+ *  1. **건수 줄** — 반려·대기·승인. 재방문자가 이 화면에 오는 이유("내 요청 어떻게
+ *     됐지?")에 스크롤 없이 답한다. 판정 문장이 있던 자리다(오너 지시 2026-08-17).
  *  2. **탭** — 이 화면의 목차. 세 목록을 같은 한 자리에 포갠다.
- *  3. **카드 더미** — 탭이 무엇을 고르든 카드 문법은 같다.
+ *  3. **표** — 탭이 무엇을 고르든 열 문법은 같다.
  *
  * 처음에는 목록 둘을 위아래 두 구역으로 놓았다. 같은 바닥의 형제 둘이라 무슨 등급을
  * 매겨도 평평했고, 등급 대신 표면 수를 줄여도 여전히 스크롤 한 번이 두 목록을 갈랐다.
@@ -22,23 +22,15 @@
  * 첫 탭은 "내가 아직 못 가진 서비스"다 — `/user/services/page` 가 전체 서비스와
  * `access_status` 를 주므로, NONE 이거나 REJECTED 인 것만 걸러 낸 것이다.
  *
- * 탭으로 합친 뒤에도 카드 **안**은 평평했다(2차 진단:
- * design/access/access-requests-benchmark-r2.html). 이름 칸 735px 에 든 글자가 41px,
- * 94% 가 빈 폭이었고 카드 안의 타입은 12·14·16 셋뿐이라 훑을 굵은 줄이 없었다.
- * 행을 두 단으로 만든 것이 그 답이다: 윗단 [이름 코드], 아랫단 보조 사실(12/weak).
- * 등급이 카드 사이가 아니라 **행 안**에 있다.
+ * 셋 다 **머리 줄이 있는 표**다(오너 지시 2026-08-17). 카드 더미였을 때는 한 칸에
+ * [타일 이름 코드칩] 이 붙어 다녀서 코드가 행마다 다른 x 에 섰고, 무엇이 무슨 값인지
+ * 말해 주는 것이 아무 데도 없었다. 이제 열 이름이 한 번만 적히고 값은 그 열을 채운다.
  *
- * 마지막으로 표면을 하나 걷어 냈다(승인 워크벤치와 같은 정리). 탭은 카드 밖 화면
- * 자체로 나오고, 목록을 감싸던 카드는 사라지고, 행 자체가 카드가 된다.
+ * 표는 흰 종이 위에 올라간다. 행에 면이 없는 표는 구분선이 캔버스(#F4F4FB) 위에 바로
+ * 그어지는데 #E4E7EC 대 그 바닥은 1.132:1 — 있어도 안 보이는 선이다. 흰 바닥에서 같은
+ * 선이 1.239:1 이고, 그래서 손대는 것은 선이 아니라 바닥이다(브라우저 실측).
  *
- * 워크벤치처럼 캔버스를 새로 깔지는 **않는다**. 저쪽은 어드민 셸이 #F9FAFB 를 칠하고
- * 있어서 흰 카드가 ΔE00 1.20 — JND 아래라 테두리 혼자 버텼고, 그래서 바닥을 내려야
- * 4.12 가 됐다. 이 화면은 `/admin/**` 밖이라 body 의 캔버스(#F4F4FB)를 그대로 물려받아
- * 바닥이 이미 내려가 있다(브라우저 실측 2026-08-14). 그래서 여기서 할 일은 바닥을
- * 내리는 게 아니라 그 바닥을 덮고 있던 흰 카드를 걷어 내는 것이다.
- *
- * 카드끼리는 헤어라인이 아니라 간격으로 끊는다 — 표가 아니라 더미로 읽히도록.
- * 폭도 하나로 줄였다 — 자세한 이유는 layout.tsx.
+ * 폭은 960 이다 — 자세한 이유는 layout.tsx.
  */
 import { useCallback, useEffect, useState, type ReactElement } from 'react';
 import { cn } from '@/lib/theme';
@@ -106,8 +98,8 @@ type VerdictCounts = { pending: number; approved: number; rejected: number };
  * 마지막 열은 라벨이 없다(꼬리) — 버튼 그룹 자리다.
  */
 const SERVICE_COLUMNS: readonly Column[] = [
-  { label: '코드', className: a.code },
-  { label: '서비스', className: a.name },
+  { label: '서비스 코드', className: a.code },
+  { label: '서비스 이름', className: a.name },
   { className: a.svcActionCell },
 ];
 
@@ -190,8 +182,8 @@ function HeaderVerdict({ counts }: { counts: VerdictCounts | 'error' | null }): 
  * 마지막 열은 라벨이 없다(꼬리) — 반려된 요청에만 서는 [다시 요청] 자리다.
  */
 const MINE_COLUMNS: readonly Column[] = [
-  { label: '코드', className: a.code },
-  { label: '서비스', className: a.name },
+  { label: '서비스 코드', className: a.code },
+  { label: '서비스 이름', className: a.name },
   { label: '요청 사유', className: a.reason },
   // 이 열의 머리만 8px 들여 쓴다. 값이 pill 이라 글자가 자기 면 안쪽으로 px-2 만큼
   // 들어가 있고, 눈이 열을 맞추는 기준은 옅은 면의 가장자리가 아니라 글자다 — 머리를
@@ -433,7 +425,7 @@ export default function MyAccessRequestsPage(): ReactElement {
             <div role="rowgroup" className={a.tableBody}>
               {rows.map((row) => (
                 <div key={row.serviceCode} role="row" className={a.rowMid}>
-                  <span role="cell" className={cn(a.code, a.mono)}>
+                  <span role="cell" className={cn(a.code, a.monoMd)}>
                     {row.serviceCode}
                   </span>
                   <span role="cell" className={cn(a.name, a.nameStrong)}>
@@ -496,7 +488,7 @@ export default function MyAccessRequestsPage(): ReactElement {
                 // 카드가 아니라 표의 행이다(오너 지시 2026-08-17) — 타일도 없다.
                 // 무엇이 무슨 값인지는 머리 줄이 한 번만 말하고, 행은 그 열을 채운다.
                 <div key={row.requestId} role="row" className={a.rowTop}>
-                  <span role="cell" className={cn(a.code, a.mono)}>
+                  <span role="cell" className={cn(a.code, a.monoMd)}>
                     {row.serviceCode}
                   </span>
                   <span role="cell" className={cn(a.name, a.nameStrong)}>
