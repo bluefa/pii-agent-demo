@@ -55,15 +55,18 @@ function Verdict({
   return (
     <div className={d.verdict}>
       {/* No dot (owner 2026-08-16) — the word IS the verdict here, unlike a job
-          row where the id carries no judgment of its own. */}
-      <div className={cn(d.verdictHead, j.verdictTextTone[tone])}>
-        {label}
+          row where the id carries no judgment of its own. The tone rides the word
+          alone, not the row: the picker beside it is a control, not a judgment. */}
+      <div className={d.verdictHead}>
+        <span className={j.verdictTextTone[tone]}>{label}</span>
         {code && <span className={d.verdictCode}>{code}</span>}
+        {/* Beside the verdict, not under it (owner 2026-08-17) — the row had one
+            short word and 300px of empty panel to its right. */}
+        {pick}
       </div>
       {/* No facts, no line — a first-attempt task says nothing here that the
           flow card has not already said. */}
       {facts && <p className={d.verdictFacts}>{facts}</p>}
-      {pick && <div className={d.verdictPick}>{pick}</div>}
     </div>
   );
 }

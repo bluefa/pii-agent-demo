@@ -183,10 +183,10 @@ export const improvedStyles = {
      *  take one grammar and sit below the content they support. */
     bodyLink:
       'inline-flex items-center gap-1 text-[12px] font-semibold text-[var(--pl-primary)] hover:underline',
-    /** Centered on the verdict head's line (body pt-2 + a 26px line ⇒ centre 21;
-     *  this button's 32px box at top-1 ⇒ centre 20). */
+    /** Centered on the verdict head's line (body pt-2 + `verdictHead`'s min-h-8
+     *  ⇒ centre 24; this button's 32px box at top-2 ⇒ centre 24). */
     close:
-      'absolute top-1 right-4 z-10 inline-flex items-center justify-center w-8 h-8 rounded-lg text-[var(--pl-text-strong)] hover:bg-[var(--pl-bg-card)] transition-colors',
+      'absolute top-2 right-4 z-10 inline-flex items-center justify-center w-8 h-8 rounded-lg text-[var(--pl-text-strong)] hover:bg-[var(--pl-bg-card)] transition-colors',
     /** Sub-tab nav — the drawer's own 실행 정보 / 정의·계약 pair is gone, but the
      *  job viewer's 로그 / 상태 tabs still take this grammar. */
     nav: 'flex items-stretch border-b border-[var(--pl-border)]',
@@ -236,14 +236,15 @@ export const improvedStyles = {
      *  type size + a dot, never a tinted plate, and the supporting facts drop a
      *  tier under it. Tone comes from `jobStyles.verdictTextTone`. */
     verdict: 'flex flex-col gap-1.5',
-    /** `pr-9` keeps a long status + code clear of the absolutely-placed close
-     *  control that shares this line. */
-    verdictHead: 'flex items-center flex-wrap gap-2 pr-9 text-[20px] font-bold tracking-[-0.196px]',
-    /** Last line of the hero — the attempt picker (owner 2026-08-16: "시도 2/2회와
-     *  2,1은 아래로"). Inside the hero's own 6px rhythm rather than a body row of
-     *  its own, which cost 24px of gap for the same control. */
-    verdictPick: 'mt-1 flex items-center flex-wrap gap-2.5 text-[14px] text-[var(--pl-text-weak)]',
-
+    /** The hero's one line — judgment, code, and the attempt picker beside it
+     *  (owner 2026-08-17). 16px, down from 20: the picker's 32px control now sets
+     *  this row's height, and a 20px verdict beside it outranked the 16px section
+     *  labels below for a word the flow card's stroke already carries.
+     *  `min-h-8` pins the row to the picker's height whether or not one renders,
+     *  so `close` centres on one number. `pr-9` keeps a long status + code clear
+     *  of the absolutely-placed close control that shares this line. */
+    verdictHead:
+      'flex items-center flex-wrap gap-2.5 min-h-8 pr-9 text-[16px] font-bold tracking-[-0.196px]',
     /** Attempt picker (owner 2026-08-17) — the repo's dropdown grammar, not a
      *  native `<select>`: `appearance: auto` let the browser draw both the control
      *  and its option list, which read as a raw form field in a panel that has no
