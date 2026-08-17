@@ -45,9 +45,9 @@ describe('isInProgress', () => {
 });
 
 describe('computeUIState', () => {
-  it('maps RUNNING and PENDING to PENDING (in-progress UI)', () => {
-    expect(computeUIState(makeJob('RUNNING'))).toBe('PENDING');
-    expect(computeUIState(makeJob('PENDING'))).toBe('PENDING');
+  it('splits PENDING(→QUEUED) from RUNNING — 시작 대기와 진행은 다른 프레임', () => {
+    expect(computeUIState(makeJob('PENDING'))).toBe('QUEUED');
+    expect(computeUIState(makeJob('RUNNING'))).toBe('RUNNING');
   });
 
   it('maps SUCCESS/FAIL through; null → IDLE', () => {
@@ -143,9 +143,10 @@ describe('canRunTest', () => {
 
   it('is false while a run reported by the last read is still in progress', async () => {
     const { renderHook, waitFor, latestMock, useTestConnectionPolling } = await setup();
+    // QUEUED(접수만 됨)도 실행이 떠 있는 것 — 여기서 열리면 이중 실행 창이 된다.
     latestMock.mockResolvedValue(makeJob('PENDING'));
     const { result } = renderHook(() => useTestConnectionPolling(1));
-    await waitFor(() => expect(result.current.uiState).toBe('PENDING'));
+    await waitFor(() => expect(result.current.uiState).toBe('QUEUED'));
     expect(result.current.canRunTest).toBe(false);
   });
 

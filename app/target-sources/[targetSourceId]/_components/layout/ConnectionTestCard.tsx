@@ -15,12 +15,14 @@ import { useToast } from '@/app/components/ui/toast';
 import { TcSummaryCard, TcSummaryCardSkeleton } from '@/app/components/features/process-status/TcSummaryCard';
 import { TcRejectionNotice } from '@/app/components/features/process-status/TcRejectionNotice';
 import { TcRunHistoryModal } from '@/app/components/features/process-status/TcRunHistoryModal';
+import { isInFlightUi } from '@/app/hooks/useTestConnectionPolling';
 import type { UseTestConnectionPollingReturn } from '@/app/hooks/useTestConnectionPolling';
 import { useTcCompletionStatus } from '@/app/hooks/useTcCompletionStatus';
 import { useTcSettleHold } from '@/app/hooks/useTcSettleHold';
 import {
   computeTcBuckets,
   foldAgentStatuses,
+  foldTcCardState,
   type TcRunPhase,
 } from '@/lib/test-connection-summary';
 import { ERROR_MESSAGES } from '@/lib/constants/messages';
@@ -28,7 +30,6 @@ import {
   getSecrets,
   updateResourceCredential,
 } from '@/app/lib/api';
-import { CardActionBar } from '@/app/target-sources/[targetSourceId]/_components/common';
 import { CredentialPickModal } from '@/app/target-sources/[targetSourceId]/_components/layout/CredentialPickModal';
 import { LogicalDbModalLoader } from '@/app/target-sources/[targetSourceId]/_components/logical-db/LogicalDbModalLoader';
 import { CloudReqApprovalModal } from '@/app/target-sources/[targetSourceId]/_components/layout/CloudReqApprovalModal';
@@ -147,9 +148,10 @@ interface ConnectionTestCardProps {
  * connection test (`useTestConnectionPolling`); per-unit status is the FAIL-first fold of
  * the latest poll's agent results (lib/test-connection-summary). Once the run settles
  * SUCCESS the completion-status is fetched (useTcCompletionStatus) and the 완료 승인 요청
- * CTA opens only when it reads LATEST_TEST_CONNECTION_SUCCESS; the summary card carries
- * the run's #version/timestamps, the 재실행 필요 chip and the 실행 이력 modal, and the
- * rejection notice surfaces the admin's re-run reason.
+ * CTA opens only when it reads LATEST_TEST_CONNECTION_SUCCESS; the summary card holds the
+ * state-driven CTA slot (시안 A — Run Test / 다시 실행 / 완료 승인 요청 swap with the folded
+ * card state), the run's timestamps and the 실행 이력 modal, and the rejection
+ * notice surfaces the admin's re-run reason.
  */
 export const ConnectionTestCard = ({
   targetSourceId,
@@ -158,7 +160,7 @@ export const ConnectionTestCard = ({
   refreshProject,
   polling,
 }: ConnectionTestCardProps) => {
-  const { latestJob, uiState, loading, triggering, canRunTest, retry, trigger, triggerError, fetchError } = polling;
+  const { latestJob, uiState, loading, canRunTest, retry, trigger, triggerError, fetchError } = polling;
   const [creds, setCreds] = useState<CredMap>(() => seedCreds(confirmed));
   const [approvalOpen, setApprovalOpen] = useState(false);
   // The table, the progress strip and the Run Test gate all run on units — one row per thing
@@ -209,7 +211,7 @@ export const ConnectionTestCard = ({
     setCreds(seedCreds(confirmed));
   }
 
-  const testing = uiState === 'PENDING';
+  const testing = isInFlightUi(uiState);
 
   // Per-unit verdict from the latest poll (hydrates on mount, B3). FAIL-first fold —
   // several agents may report on one unit, and the previous last-write-wins map could
@@ -270,12 +272,15 @@ export const ConnectionTestCard = ({
 
   // Gate the 완료 승인 요청 CTA on completion-status (the contract's verdict), not on
   // the poll alone: LOGICAL_DATABASE_RECENTLY_UPDATED keeps it closed until a re-run,
-  // exactly as the IDC step already does. The docstring promised this; now it's true.
-  const { approvalEnabled, needsRerun, refresh: refreshCompletion } = useTcCompletionStatus(
-    targetSourceId,
-    uiState,
-    latestJob?.test_connection_version ?? null,
-  );
+  // exactly as the IDC step already does. The verdict also refines the settled card
+  // state (성공/정책 변경/확인 완료 — foldTcCardState below).
+  const {
+    completion,
+    approvalEnabled,
+    policyChangedAt,
+    failed: completionFailed,
+    refresh: refreshCompletion,
+  } = useTcCompletionStatus(targetSourceId, uiState, latestJob?.test_connection_version ?? null);
   const [historyOpen, setHistoryOpen] = useState(false);
 
   // Run Test gate (v16 updateConnRunBtn): every row that needs a credential has one.
@@ -283,12 +288,6 @@ export const ConnectionTestCard = ({
   const allCredsSet =
     total > 0 && units.every((u) => !requiresCredential(u.databaseType) || !!unitCred(u));
 
-  // 실행 요청이 떠 있는 동안(`triggering`)도 잠근다. `testing` 은 latest_version 이 새 실행을
-  // 되돌려준 뒤에야 켜지므로, 그 왕복 시간만큼 버튼이 "Run Test" 인 채로 살아 있었다 —
-  // 그 사이 한 번 더 누르면 두 번째 요청이 409 를 받아, 사용자가 부른 적 없는 오류 줄이 뜬다.
-  // 라벨만 이 값이 쥔다 — 실제로 도는 중일 때만 "진행 중"이라고 적는다. 모르는 동안 그렇게
-  // 적는 것 역시 하지 않은 판단이라, 그 구간의 버튼은 "Run Test" 인 채로 비활성만 된다.
-  const busy = testing || triggering;
   // 누를 수 있는지는 훅이 한 사실로 답한다(canRunTest). 여기서 조건을 다시 조립하지 않는다 —
   // 항을 하나 빠뜨리면 그 자리가 곧 "아직 모르는데 누를 수 있는" 창이 된다.
   const runDisabled = !canRunTest || !allCredsSet;
@@ -316,8 +315,8 @@ export const ConnectionTestCard = ({
 
   // On save the skip policy persists, which flips completion-status
   // (LATEST_TEST_CONNECTION_SUCCESS → LOGICAL_DATABASE_RECENTLY_UPDATED, spec §7);
-  // re-reading it closes the CTA and raises the 재실행 필요 chip — the toast is no
-  // longer the only trace of "you must re-run".
+  // re-reading it closes the CTA and flips the card into the policy-changed
+  // state — the toast is no longer the only trace of "you must re-run".
   const handleSaved = useCallback(() => {
     toast.success('논리 DB 제외 정책을 저장했습니다. 연결 테스트를 다시 실행해야 반영됩니다.');
     logicalModal.close();
@@ -343,21 +342,29 @@ export const ConnectionTestCard = ({
   // 프레임이 서서 바가 끝까지 차는 걸 보여준 뒤 판정 프레임으로 넘어간다. Run Test
   // 버튼·승인 게이트는 실 상태(testing/uiState)를 그대로 쓴다.
   const { holding, settledLive } = useTcSettleHold(latestJob);
-  const phase: TcRunPhase = testing || holding
+  // holding 이 QUEUED 보다 앞: 정착 박자 동안은 최종 버킷을 든 running 프레임이 선다.
+  const phase: TcRunPhase = holding
     ? 'running'
-    : uiState === 'SUCCESS'
-      ? 'success'
-      : uiState === 'FAIL'
-        ? 'fail'
-        : 'idle';
+    : uiState === 'QUEUED'
+      ? 'queued'
+      : uiState === 'RUNNING'
+        ? 'running'
+        : uiState === 'SUCCESS'
+          ? 'success'
+          : uiState === 'FAIL'
+            ? 'fail'
+            : 'idle';
+  // 시안 A: run phase × completion verdict → one card state, one slot CTA. The header
+  // Run Test and the bottom action bar both folded into the strip's slot — at any
+  // moment the card shows one primary.
+  const cardState = foldTcCardState(phase, completion);
   // Completion-approval gate: every target connected, no test in flight, and
   // completion-status reads LATEST_TEST_CONNECTION_SUCCESS.
   const canRequestApproval = total > 0 && buckets.ok === total && !testing && approvalEnabled;
 
   return (
-    // No overflow-hidden: it would establish a clip box and kill the sticky CardActionBar.
     <section className={cardStyles.base}>
-      <header className={cn(cardStyles.header, 'flex items-center justify-between')}>
+      <header className={cardStyles.header}>
         <div>
           <span className={cardStyles.stepTag}>5단계</span>
           <h2 className={cardStyles.cardTitle}>연결 테스트</h2>
@@ -366,30 +373,6 @@ export const ConnectionTestCard = ({
             확인합니다.
           </p>
         </div>
-        {/* C-1: repeatable action demoted to soft — 완료 승인 요청 keeps the only primary. */}
-        <button
-          type="button"
-          onClick={runTest}
-          disabled={runDisabled}
-          className={cn(idcStyles.triggerBtn.soft, 'disabled:cursor-not-allowed disabled:opacity-45')}
-        >
-          {busy ? (
-            '연결 테스트 진행 중...'
-          ) : (
-            <>
-              <svg
-                className="w-[13px] h-[13px]"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth={2.2}
-              >
-                <polygon points="5 3 19 12 5 21 5 3" />
-              </svg>
-              Run Test
-            </>
-          )}
-        </button>
       </header>
       <div className={cn(cardStyles.body, 'space-y-4')}>
         <TcRejectionNotice
@@ -400,19 +383,22 @@ export const ConnectionTestCard = ({
           <TcSummaryCardSkeleton />
         ) : (
         <TcSummaryCard
-          phase={phase}
+          state={cardState}
           buckets={buckets}
           run={
             latestJob
               ? {
-                  version: latestJob.test_connection_version ?? null,
                   requestedAt: latestJob.requested_at ?? null,
                   completedAt: latestJob.completed_at ?? null,
                 }
               : null
           }
-          needsRerun={needsRerun}
+          policyChangedAt={policyChangedAt}
           drawCheck={settledLive}
+          onRunTest={() => void runTest()}
+          runDisabled={runDisabled}
+          onRequestApproval={() => setApprovalOpen(true)}
+          approvalDisabled={!canRequestApproval}
           historyAction={
             <button
               type="button"
@@ -423,6 +409,20 @@ export const ConnectionTestCard = ({
             </button>
           }
         />
+        )}
+        {/* 실패한 완료 상태 조회는 닫힌 게이트와 같은 픽셀이면 안 된다 — 이유 없이 비활성인
+            승인 버튼만 남는다. fetchError 와 같은 문법: 한 줄 + 재시도. */}
+        {completionFailed && (
+          <p className={cn('flex items-center gap-2 text-[12px]', idcStyles.tag.red, 'bg-transparent px-0')}>
+            {ERROR_MESSAGES.TEST_CONNECTION_COMPLETION_FETCH_FAILED}
+            <button
+              type="button"
+              onClick={refreshCompletion}
+              className={cn(idcStyles.triggerBtn.linkNeutral, 'text-[12px]')}
+            >
+              다시 시도
+            </button>
+          </p>
         )}
         {triggerError && (
           <p className={cn('text-[12px]', idcStyles.tag.red, 'bg-transparent px-0')}>{triggerError}</p>
@@ -843,22 +843,6 @@ export const ConnectionTestCard = ({
           />
         )}
       </div>
-      {/* C-2 action zone: the step-transition CTA docks (sticky) at the card bottom. */}
-      {/* 실제 게이트만 말한다: canRequestApproval = 모든 대상 Success + 이번 실행이 settled.
-          논리 DB 확인은 이 버튼을 막지 않는데 "완료되어야"라고 적혀 있어, 설정할 것이 없는
-          대상(Athena·DynamoDB)만 남은 화면에서는 끝낼 수 없는 조건처럼 읽혔다. */}
-      <CardActionBar
-        hint="※ 모든 대상의 연결 상태가 성공이어야 완료 승인을 요청할 수 있어요. 논리 DB 확인은 제외할 논리 DB가 있는 대상만 설정하면 돼요."
-      >
-        <button
-          type="button"
-          onClick={() => setApprovalOpen(true)}
-          disabled={!canRequestApproval}
-          className={idcStyles.triggerBtn.primary}
-        >
-          완료 승인 요청
-        </button>
-      </CardActionBar>
     </section>
   );
 };

@@ -11,9 +11,11 @@ import {
   getCompletionStatus,
   setConfirmation,
   testConnectionUnits,
+  TC_CARD_FIXTURE,
 } from '@/lib/mock-test-connection';
 import { getStore, resetStore } from '@/lib/mock-store';
-import type { Project } from '@/lib/types';
+import { mockConfirm } from '@/lib/bff/mock/confirm';
+import { ProcessStatus, type Project } from '@/lib/types';
 
 // ===== Fixtures =====
 
@@ -302,23 +304,32 @@ describe('mock-test-connection behavior lock-in', () => {
   // ===== ADR-019 /install/v1 wire projections =====
 
   describe('toVersionResultResponse', () => {
-    it('PENDING job → connection_status RUNNING + version cursor', () => {
+    it('접수 직후 디스패치 창(4초)은 top-level PENDING, 이후 RUNNING + version cursor', () => {
       const project = getAwsProjectWithSelectedResources();
       const job = createTestConnectionJob(project, AWS_TARGET_SOURCE_ID, 'a@example.com');
+      const selectedCount = project.resources.filter((r) => r.isSelected).length;
 
-      const wire = toVersionResultResponse(job);
-
-      expect(wire.target_source_id).toBe(AWS_TARGET_SOURCE_ID);
-      expect(wire.connection_status).toBe('RUNNING');
-      expect(wire.test_connection_version).toBe(1);
-      expect(wire.requested_at).toBe(FIXED_ISO);
+      // 트리거 직후 프레임 — 접수만 됐고 아무것도 돌지 않는다(시작 대기).
+      const queuedWire = toVersionResultResponse(job);
+      expect(queuedWire.target_source_id).toBe(AWS_TARGET_SOURCE_ID);
+      expect(queuedWire.connection_status).toBe('PENDING');
+      expect(queuedWire.test_connection_version).toBe(1);
+      expect(queuedWire.requested_at).toBe(FIXED_ISO);
       // incomplete job → null (contract is nullable; an epoch placeholder read as
       // "20673일 전" in the header tag's relative timestamp)
-      expect(wire.completed_at).toBeNull();
+      expect(queuedWire.completed_at).toBeNull();
+      const queuedStatuses = queuedWire.test_connection_agent_results.map((r) => r.connection_status);
+      expect(queuedStatuses).toHaveLength(selectedCount);
+      expect(queuedStatuses.every((s) => s === 'PENDING')).toBe(true);
+
+      // 디스패치 창이 지나면 RUNNING — 첫 리소스 정착(5초) 전이라 결과는 여전히 0건.
+      vi.setSystemTime(new Date(FIXED_DATE.getTime() + 4_100));
+      const wire = toVersionResultResponse(getLatestJob(AWS_TARGET_SOURCE_ID)!);
+      expect(wire.connection_status).toBe('RUNNING');
       // 결과가 없는 agent 도 싣는다 — 다음 차례 하나가 RUNNING, 그 뒤는 전부 PENDING.
       // 끝난 것만 실으면 진행 중인 실행에서 "대기 중"과 "정보 없음"이 구분되지 않는다.
       const statuses = wire.test_connection_agent_results.map((r) => r.connection_status);
-      expect(statuses).toHaveLength(project.resources.filter((r) => r.isSelected).length);
+      expect(statuses).toHaveLength(selectedCount);
       expect(statuses[0]).toBe('RUNNING');
       expect(statuses.slice(1).every((s) => s === 'PENDING')).toBe(true);
     });
@@ -492,6 +503,124 @@ describe('mock-test-connection behavior lock-in', () => {
       for (const region of regions) expect(unitIds).toContain(region);
       // No database-level Athena id survives — every one of them folded.
       for (const db of athena) expect(unitIds).not.toContain(db.resourceId);
+    });
+  });
+
+  // Card-state fixtures (21xx): one target per folded 시안-A card state, seeded so
+  // each state renders without racing the simulator. The outer clock (2026-04-23)
+  // predates the seed dates, so these tests run at a later fixed time.
+  describe('TC card-state fixtures (21xx)', () => {
+    beforeEach(() => {
+      vi.setSystemTime(new Date('2026-06-20T00:00:00.000Z'));
+    });
+
+    it('idle (2101) — no seeded runs at all', () => {
+      expect(getLatestJob(TC_CARD_FIXTURE.idle)).toBeUndefined();
+    });
+
+    it('running (2102) — pinned PENDING with a settled head and a 2099 tail', () => {
+      const job = getLatestJob(TC_CARD_FIXTURE.running);
+      expect(job?.status).toBe('PENDING');
+      expect(job?.completed_at).toBeNull();
+      expect(job?.resource_results).toHaveLength(2);
+      expect(job?.resource_results.every((r) => r.status === 'SUCCESS')).toBe(true);
+
+      const wire = toVersionResultResponse(job!);
+      expect(wire.connection_status).toBe('RUNNING');
+      // Every unit reports: the settled head plus RUNNING/PENDING placeholders.
+      const project = getStore().projects.find(
+        (p) => p.targetSourceId === TC_CARD_FIXTURE.running,
+      );
+      expect(wire.test_connection_agent_results).toHaveLength(
+        testConnectionUnits(project!).length,
+      );
+    });
+
+    it('fail (2103) — latest run settled FAIL with failed results', () => {
+      const job = getLatestJob(TC_CARD_FIXTURE.fail);
+      expect(job?.status).toBe('FAIL');
+      expect(job?.resource_results.filter((r) => r.status === 'FAIL')).toHaveLength(2);
+    });
+
+    it('success (2104) — default seed, approval open', () => {
+      expect(getCompletionStatus(TC_CARD_FIXTURE.success).test_connection_status)
+        .toBe('LATEST_TEST_CONNECTION_SUCCESS');
+    });
+
+    it('policy-changed (2105) — verdict + the policy timestamp, until a re-run postdates it', () => {
+      const completion = getCompletionStatus(TC_CARD_FIXTURE.policyChanged);
+      expect(completion.test_connection_status).toBe('LOGICAL_DATABASE_RECENTLY_UPDATED');
+      expect(completion.logical_database_updated_at).toBe('2026-06-05T14:22:00.000Z');
+
+      // Re-run after the policy change → the verdict falls back to success.
+      vi.spyOn(Math, 'random').mockReturnValue(0);
+      const project = getStore().projects.find(
+        (p) => p.targetSourceId === TC_CARD_FIXTURE.policyChanged,
+      );
+      createTestConnectionJob(project!, TC_CARD_FIXTURE.policyChanged, 'a@example.com');
+      const unitCount = testConnectionUnits(project!).length;
+      vi.setSystemTime(new Date(Date.parse('2026-06-20T00:00:00.000Z') + unitCount * 5000 + 1000));
+      getLatestJob(TC_CARD_FIXTURE.policyChanged); // settle
+      expect(getCompletionStatus(TC_CARD_FIXTURE.policyChanged).test_connection_status)
+        .toBe('LATEST_TEST_CONNECTION_SUCCESS');
+    });
+
+    it('confirmed (2106) — CONFIRMED while the project stays at Step 5', () => {
+      expect(getCompletionStatus(TC_CARD_FIXTURE.confirmed).test_connection_status)
+        .toBe('CONFIRMED');
+      const project = getStore().projects.find(
+        (p) => p.targetSourceId === TC_CARD_FIXTURE.confirmed,
+      );
+      expect(project?.processStatus).toBe(ProcessStatus.WAITING_CONNECTION_TEST);
+    });
+
+    it('queued (2107) — top-level PENDING pinned, every agent PENDING, nothing RUNNING', () => {
+      const job = getLatestJob(TC_CARD_FIXTURE.queued);
+      expect(job?.status).toBe('PENDING');
+      expect(job?.completed_at).toBeNull();
+      expect(job?.resource_results).toHaveLength(0);
+
+      const wire = toVersionResultResponse(job!);
+      // requested_at 이 디스패치 창(4초)을 한참 지났어도 fixture id 가 시작 대기를 고정한다.
+      expect(wire.connection_status).toBe('PENDING');
+      const project = getStore().projects.find(
+        (p) => p.targetSourceId === TC_CARD_FIXTURE.queued,
+      );
+      const statuses = wire.test_connection_agent_results.map((r) => r.connection_status);
+      expect(statuses).toHaveLength(testConnectionUnits(project!).length);
+      expect(statuses.every((s) => s === 'PENDING')).toBe(true);
+    });
+
+    it('no-report fail (2108) — settled FAIL with an empty agent list (PENDING→FAIL)', () => {
+      const job = getLatestJob(TC_CARD_FIXTURE.noReportFail);
+      expect(job?.status).toBe('FAIL');
+      expect(job?.completed_at).toBe('2026-06-01T00:00:30.000Z');
+      expect(job?.resource_results).toHaveLength(0);
+
+      const wire = toVersionResultResponse(job!);
+      expect(wire.connection_status).toBe('FAIL');
+      // 스케줄 없는 seed 라 placeholder agent 도 없다 — 화면의 접기가 전부 미보고로 센다.
+      expect(wire.test_connection_agent_results).toHaveLength(0);
+    });
+  });
+
+  // The queued/running split bug lived in the SIBLING projection, not
+  // toVersionResultResponse — the execution-history handler re-inlined
+  // PENDING→RUNNING and the modal called a queued run 진행 중 while the card said
+  // 대기. Pin the handler itself, not just the shared rule.
+  describe('execution-history projection (mockConfirm)', () => {
+    it('keeps the queued fixture PENDING and passes settled rows through', async () => {
+      const res = await mockConfirm.getTestConnectionExecutionHistory(
+        String(TC_CARD_FIXTURE.queued),
+        0,
+        5,
+      );
+      const body = (await res.json()) as { content: { status: string }[] };
+      expect(body.content[0].status).toBe('PENDING');
+      expect(body.content.length).toBeGreaterThan(1);
+      expect(
+        body.content.slice(1).every((r) => r.status === 'SUCCESS' || r.status === 'FAIL'),
+      ).toBe(true);
     });
   });
 });

@@ -8,6 +8,8 @@ export const ERROR_MESSAGES = {
   STATUS_FETCH_FAILED: '상태 조회에 실패했습니다.',
   /** 연결 테스트 최신 결과 조회 실패. ConnectionTestCard/IdcStep5 (2 uses). */
   TEST_CONNECTION_FETCH_FAILED: '연결 테스트 결과 조회에 실패했습니다. 잠시 후 다시 시도해주세요.',
+  /** 완료 상태(completion-status) 조회 실패. ConnectionTestCard/IdcStep5 (2 uses). */
+  TEST_CONNECTION_COMPLETION_FETCH_FAILED: '연결 테스트 완료 상태 조회에 실패했습니다. 잠시 후 다시 시도해주세요.',
 } as const;
 
 export type ErrorMessageKey = keyof typeof ERROR_MESSAGES;

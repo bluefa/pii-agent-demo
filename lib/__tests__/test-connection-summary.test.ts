@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   computeTcBuckets,
   foldAgentStatuses,
+  foldTcCardState,
   tcElapsedLabel,
   tcSummarySentence,
 } from '@/lib/test-connection-summary';
@@ -84,6 +85,49 @@ describe('tcSummarySentence', () => {
 
   it('reports progress as reported/total while running', () => {
     expect(tcSummarySentence('running', settled)).toBe('연결 테스트 진행 중 — 3/3 대상 보고됨');
+  });
+
+  it('queued says 시작 대기, never 진행 중 — top-level PENDING 은 아무것도 돌지 않는다', () => {
+    const empty = computeTcBuckets(['a', 'b'], foldAgentStatuses([], new Set(['a', 'b'])));
+    expect(tcSummarySentence('queued', empty)).toBe('연결 테스트 요청됨 — 시작을 기다리고 있어요');
+  });
+
+  it('a FAIL with zero reports folds into the generic fail sentence — no special state', () => {
+    // 오너 결정: "결과가 보고되기 전에 실패" 같은 무보고 서사는 실패와 구분되지 않는다.
+    const unreported = computeTcBuckets(['a', 'b'], foldAgentStatuses([], new Set(['a', 'b'])));
+    expect(tcSummarySentence('fail', unreported)).toBe(
+      '연결 테스트가 실패했어요 — 다시 수행해 주세요',
+    );
+  });
+
+  it('idle states the absence of a run, not a zero-count verdict', () => {
+    expect(tcSummarySentence('idle', computeTcBuckets([], foldAgentStatuses([])))).toBe(
+      '아직 실행한 연결 테스트가 없습니다',
+    );
+  });
+
+  it('the verdict states carry their own sentences', () => {
+    expect(tcSummarySentence('policy-changed', settled)).toBe(
+      '논리 DB 정책이 마지막 실행 이후 변경됐어요',
+    );
+    expect(tcSummarySentence('confirmed', settled)).toBe('연결 테스트 완료 확인됨');
+  });
+});
+
+describe('foldTcCardState', () => {
+  it('refines a settled SUCCESS by the completion verdict', () => {
+    expect(foldTcCardState('success', 'CONFIRMED')).toBe('confirmed');
+    expect(foldTcCardState('success', 'LOGICAL_DATABASE_RECENTLY_UPDATED')).toBe('policy-changed');
+    expect(foldTcCardState('success', 'LATEST_TEST_CONNECTION_SUCCESS')).toBe('success');
+    // 판정을 아직 못 읽은 한 왕복 동안은 success 로 남는다 — 승인 게이트가 따로 닫는다.
+    expect(foldTcCardState('success', null)).toBe('success');
+  });
+
+  it('ignores the verdict outside a settled SUCCESS (조회 보류 규칙)', () => {
+    expect(foldTcCardState('running', 'CONFIRMED')).toBe('running');
+    expect(foldTcCardState('queued', 'CONFIRMED')).toBe('queued');
+    expect(foldTcCardState('fail', 'LOGICAL_DATABASE_RECENTLY_UPDATED')).toBe('fail');
+    expect(foldTcCardState('idle', 'LATEST_TEST_CONNECTION_SUCCESS')).toBe('idle');
   });
 });
 

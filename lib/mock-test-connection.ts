@@ -335,9 +335,34 @@ const fallbackAgentId = (index: number): string =>
 const versionForTarget = (targetSourceId: number): number =>
   getStore().testConnectionJobs.filter((j) => j.target_source_id === targetSourceId).length;
 
+/**
+ * 접수 후 실제 디스패치까지의 창 — 이 동안 top-level 은 PENDING(시작 대기)으로 나간다.
+ * 예전엔 살아있는 job 을 무조건 RUNNING 으로 투사해 계약의 top-level PENDING 이 목에서
+ * 한 번도 나오지 않았다. 첫 리소스 정착(RESOURCE_INTERVAL_MS 5s)보다 짧아야 한다.
+ */
+const DISPATCH_MS = 4_000;
+
+/** top-level PENDING(시작 대기) 판정 — 결과 0건 + 디스패치 전(또는 고정 fixture 2107). */
+const isQueued = (job: TestConnectionJob): boolean =>
+  job.status === 'PENDING' &&
+  job.resource_results.length === 0 &&
+  (job.target_source_id === TC_CARD_FIXTURE.queued ||
+    Date.now() < Date.parse(job.requested_at) + DISPATCH_MS);
+
+/**
+ * Contract-facing top-level status. The store keeps one PENDING for the whole
+ * in-flight window; the contract splits it into PENDING(시작 대기) and RUNNING.
+ * Every projection of a job's status must go through this one rule — a sibling
+ * that maps PENDING straight to RUNNING makes the history modal call a queued
+ * run "진행 중" while the card says 대기.
+ */
+export const toWireTopStatus = (job: TestConnectionJob): WireConnectionStatus =>
+  job.status === 'PENDING' ? (isQueued(job) ? 'PENDING' : 'RUNNING') : job.status;
+
 /** `TestConnectionVersionResult` wire shape (getLatestTestConnectionStatus). */
 export const toVersionResultResponse = (job: TestConnectionJob) => {
-  const topStatus: WireConnectionStatus = job.status === 'PENDING' ? 'RUNNING' : job.status;
+  const queued = isQueued(job);
+  const topStatus = toWireTopStatus(job);
   const settled = job.resource_results.map((r, index) => ({
     agent_id: r.agent_id ?? fallbackAgentId(index),
     gcp_region: '',
@@ -353,7 +378,7 @@ export const toVersionResultResponse = (job: TestConnectionJob) => {
     // 미완료 실행은 null — 계약(loose codegen)이 nullable 이고, epoch 플레이스홀더를
     // 보내면 헤더 태그가 진행 중인 실행을 "20673일 전"으로 읽는다.
     completed_at: job.completed_at,
-    test_connection_agent_results: [...settled, ...unsettledAgentResults(job, settled.length)],
+    test_connection_agent_results: [...settled, ...unsettledAgentResults(job, settled.length, queued)],
   };
 };
 
@@ -363,9 +388,10 @@ export const toVersionResultResponse = (job: TestConnectionJob) => {
  * 화면이 "대기"와 "정보 없음"을 구분할 수 없었다.
  *
  * 시뮬레이션이 리소스를 한 건씩 차례로 처리하므로, 다음 차례 하나가 RUNNING 이고 그
- * 뒤는 전부 PENDING 이다.
+ * 뒤는 전부 PENDING 이다. 시작 대기(queued) 창에는 아직 아무것도 돌지 않으므로 전부
+ * PENDING 이다.
  */
-const unsettledAgentResults = (job: TestConnectionJob, settledCount: number) => {
+const unsettledAgentResults = (job: TestConnectionJob, settledCount: number, queued: boolean) => {
   const schedule = (job as InternalTestConnectionJob).resource_schedule ?? [];
   const done = new Set(job.resource_results.map((r) => r.resource_id));
   return schedule
@@ -374,7 +400,7 @@ const unsettledAgentResults = (job: TestConnectionJob, settledCount: number) => 
       agent_id: fallbackAgentId(settledCount + offset),
       gcp_region: '',
       resource_id: item.resource_id,
-      connection_status: (offset === 0 ? 'RUNNING' : 'PENDING') as WireConnectionStatus,
+      connection_status: (!queued && offset === 0 ? 'RUNNING' : 'PENDING') as WireConnectionStatus,
       database_uri_list: [] as string[],
     }));
 };
@@ -414,6 +440,41 @@ const TESTED_STEPS: ReadonlySet<ProcessStatus> = new Set([
 // Deterministic timestamps for seeded jobs (no Date.now()).
 const SEED_REQUESTED_AT = '2026-06-01T00:00:00.000Z';
 const SEED_COMPLETED_AT = '2026-06-01T00:04:20.000Z';
+
+// ===== Step 5 TC-card state fixtures (targets 2101~2108, lib/mock-data.ts) =====
+//
+// One target per folded card state (시안 A slot) so every slot variant renders
+// without racing the simulator. The generic per-step seed below gives every
+// step-5/6/7 target a settled-SUCCESS latest run; these ids override that.
+// success (2104) and confirmed (2106) keep the default seed — confirmed's
+// verdict comes from the project's `passedAt`, set in mock-data. 2107(시작
+// 대기)·2108(무보고 실패)은 top-level PENDING 계열 프레임을 고정한다.
+export const TC_CARD_FIXTURE = {
+  idle: 2101,
+  running: 2102,
+  fail: 2103,
+  success: 2104,
+  policyChanged: 2105,
+  confirmed: 2106,
+  /** top-level PENDING 고정 — 접수됐지만 디스패치 전(시작 대기) 프레임. */
+  queued: 2107,
+  /** PENDING→FAIL — 한 건도 보고되기 전에 실패로 정착한 프레임(일반 실패 문구로 접힘). */
+  noReportFail: 2108,
+} as const;
+
+/**
+ * 2105: when the logical-DB policy "changed" — after SEED_COMPLETED_AT, so the
+ * seeded run reads LOGICAL_DATABASE_RECENTLY_UPDATED. A re-run completes with a
+ * fresh completed_at that postdates this, so the verdict falls back to success —
+ * the same rule the real domain applies.
+ */
+const TC_FIXTURE_POLICY_UPDATED_AT = '2026-06-05T14:22:00.000Z';
+
+/** 2102: schedule tail far enough out that the seeded run never settles. */
+const TC_FIXTURE_RUNNING_TAIL_AT = '2099-01-01T00:00:00.000Z';
+
+/** 2108: 무보고 실패의 정착 시각 — 디스패치 실패는 리소스 간격을 다 돌지 않고 끝난다. */
+const TC_FIXTURE_NO_REPORT_FAILED_AT = '2026-06-01T00:00:30.000Z';
 
 /**
  * Runs that precede the latest seeded one, oldest last. They exist so the 수행 기록
@@ -461,6 +522,10 @@ export const buildSeedTestConnectionJobs = (projects: Project[]): TestConnection
   projects
     .filter((p) => p.targetSourceId !== undefined && TESTED_STEPS.has(p.processStatus))
     .flatMap((project) => {
+      const targetSourceId = project.targetSourceId as number;
+      // Card-state fixture: idle means latest_version 404 — no runs at all.
+      if (targetSourceId === TC_CARD_FIXTURE.idle) return [];
+
       const selected = testConnectionUnits(project);
       const results = (failedIndexes: readonly number[]): TestConnectionResourceResult[] =>
         selected.map((r, index) => {
@@ -475,25 +540,93 @@ export const buildSeedTestConnectionJobs = (projects: Project[]): TestConnection
           };
         });
 
+      const priorRuns = SEED_PRIOR_RUNS.map((run) => ({
+        id: `tc-seed-${targetSourceId}-${run.suffix}`,
+        target_source_id: targetSourceId,
+        status: run.status,
+        requested_at: run.requestedAt,
+        completed_at: run.completedAt,
+        requested_by: 'seed@pii-agent.dev',
+        resource_results: results(run.failedIndexes),
+      }));
+
+      // Card-state fixture: accepted but never dispatched — zero results and every
+      // schedule item in 2099. The wire projection reads it queued via the fixture id
+      // (its requested_at is long past the live DISPATCH_MS window), so top-level
+      // PENDING and all-PENDING agents hold forever.
+      if (targetSourceId === TC_CARD_FIXTURE.queued) {
+        const queuedJob: InternalTestConnectionJob = {
+          id: `tc-seed-${targetSourceId}-queued`,
+          target_source_id: targetSourceId,
+          status: 'PENDING',
+          requested_at: SEED_REQUESTED_AT,
+          completed_at: null,
+          requested_by: 'seed@pii-agent.dev',
+          estimated_end_at: TC_FIXTURE_RUNNING_TAIL_AT,
+          resource_results: [],
+          resource_schedule: selected.map((r) => ({
+            resource_id: r.resourceId,
+            complete_at: TC_FIXTURE_RUNNING_TAIL_AT,
+          })),
+        };
+        return [queuedJob, ...priorRuns];
+      }
+
+      // Card-state fixture: PENDING→FAIL — the run settled FAIL before any unit
+      // reported. No schedule and no results, so the wire carries an empty agent
+      // list: reported 0 — the card folds this into the generic fail copy (no
+      // special no-report state, owner's call).
+      if (targetSourceId === TC_CARD_FIXTURE.noReportFail) {
+        return [
+          {
+            id: `tc-seed-${targetSourceId}-noreport`,
+            target_source_id: targetSourceId,
+            status: 'FAIL' as TestConnectionStatus,
+            requested_at: SEED_REQUESTED_AT,
+            completed_at: TC_FIXTURE_NO_REPORT_FAILED_AT,
+            requested_by: 'seed@pii-agent.dev',
+            resource_results: [],
+          },
+          ...priorRuns,
+        ];
+      }
+
+      // Card-state fixture: a run pinned mid-flight. The first units settled in the
+      // past (results pre-filled so calculateJobStatus reuses them instead of rolling
+      // Math.random), the tail settles in 2099 — the job stays PENDING forever.
+      if (targetSourceId === TC_CARD_FIXTURE.running) {
+        const settledCount = Math.min(2, selected.length);
+        const running: InternalTestConnectionJob = {
+          id: `tc-seed-${targetSourceId}-running`,
+          target_source_id: targetSourceId,
+          status: 'PENDING',
+          requested_at: SEED_REQUESTED_AT,
+          completed_at: null,
+          requested_by: 'seed@pii-agent.dev',
+          estimated_end_at: TC_FIXTURE_RUNNING_TAIL_AT,
+          resource_results: results([]).slice(0, settledCount),
+          resource_schedule: selected.map((r, index) => ({
+            resource_id: r.resourceId,
+            complete_at: index < settledCount ? SEED_REQUESTED_AT : TC_FIXTURE_RUNNING_TAIL_AT,
+          })),
+        };
+        return [running, ...priorRuns];
+      }
+
+      // Card-state fixture 2103 flips the latest run to FAIL; everyone else seeds
+      // the settled SUCCESS the per-step comment above describes.
+      const failFixture = targetSourceId === TC_CARD_FIXTURE.fail;
       return [
         {
-          id: `tc-seed-${project.targetSourceId}`,
-          target_source_id: project.targetSourceId as number,
-          status: 'SUCCESS' as TestConnectionStatus,
+          id: `tc-seed-${targetSourceId}`,
+          target_source_id: targetSourceId,
+          status: (failFixture ? 'FAIL' : 'SUCCESS') as TestConnectionStatus,
           requested_at: SEED_REQUESTED_AT,
           completed_at: SEED_COMPLETED_AT,
           requested_by: 'seed@pii-agent.dev',
-          resource_results: results([]),
+          resource_results: results(failFixture ? [0, 1] : []),
         },
-        ...SEED_PRIOR_RUNS.map((run) => ({
-          id: `tc-seed-${project.targetSourceId}-${run.suffix}`,
-          target_source_id: project.targetSourceId as number,
-          status: run.status,
-          requested_at: run.requestedAt,
-          completed_at: run.completedAt,
-          requested_by: 'seed@pii-agent.dev',
-          resource_results: results(run.failedIndexes),
-        })),
+        ...priorRuns,
       ];
     });
 
@@ -510,7 +643,9 @@ const findProject = (targetSourceId: number): Project | undefined =>
  *   - no successful job                    → TEST_CONNECTION_REQUIRED       (pre-test)
  *
  * `LOGICAL_DATABASE_RECENTLY_UPDATED` is owned by the excluded-DB (logical-DB)
- * domain — there is no excluded-DB store here yet, so this mock never emits it.
+ * domain — there is no excluded-DB store here, so only the card-state fixture
+ * (TC_CARD_FIXTURE.policyChanged) stands in for it: its policy "changed" at a
+ * fixed timestamp, and any run completed before that reads the verdict.
  */
 export const getCompletionStatus = (targetSourceId: number) => {
   const project = findProject(targetSourceId);
@@ -530,18 +665,34 @@ export const getCompletionStatus = (targetSourceId: number) => {
   // 완료 여부는 완료 승인 요청 PUT(confirmed:true)이 세팅하는 passedAt 으로 판별한다.
   // 테스트 성공만으로는 confirmed 가 아니다(승인 전 = LATEST_TEST_CONNECTION_SUCCESS).
   const confirmed = project?.status.connectionTest.passedAt != null;
+  // 카드 상태 fixture(2105)만 갖는 정책 변경 시각 — 성공한 실행이 이 시각보다 앞서면
+  // 재실행이 필요하다는 판정이 된다(재실행이 끝나면 자연히 success 로 돌아간다).
+  const policyChangedAt =
+    targetSourceId === TC_CARD_FIXTURE.policyChanged ? TC_FIXTURE_POLICY_UPDATED_AT : null;
+  const policyChanged =
+    policyChangedAt !== null &&
+    succeeded &&
+    !confirmed &&
+    Number.isFinite(completedMs) &&
+    completedMs < Date.parse(policyChangedAt);
 
-  const status: 'CONFIRMED' | 'LATEST_TEST_CONNECTION_SUCCESS' | 'TEST_CONNECTION_REQUIRED' =
+  const status:
+    | 'CONFIRMED'
+    | 'LATEST_TEST_CONNECTION_SUCCESS'
+    | 'TEST_CONNECTION_REQUIRED'
+    | 'LOGICAL_DATABASE_RECENTLY_UPDATED' =
     succeeded && confirmed
       ? 'CONFIRMED'
-      : succeeded
-        ? 'LATEST_TEST_CONNECTION_SUCCESS'
-        : 'TEST_CONNECTION_REQUIRED';
+      : policyChanged
+        ? 'LOGICAL_DATABASE_RECENTLY_UPDATED'
+        : succeeded
+          ? 'LATEST_TEST_CONNECTION_SUCCESS'
+          : 'TEST_CONNECTION_REQUIRED';
 
   return {
     target_source_id: targetSourceId,
     latest_test_connection_requested_at: job?.requested_at ?? WIRE_DATE_PLACEHOLDER,
-    logical_database_updated_at: WIRE_DATE_PLACEHOLDER,
+    logical_database_updated_at: policyChangedAt ?? WIRE_DATE_PLACEHOLDER,
     latest_test_connection_success: succeeded,
     test_connection_status: status,
     test_connection_confirmed: confirmed,

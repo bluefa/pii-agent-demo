@@ -10,6 +10,10 @@ interface StoredCompletion {
   runVersion: number | null;
   refreshKey: number;
   value: CompletionValue;
+  /** logical_database_updated_at — the policy-changed card's "정책 변경 {시각}" meta. */
+  policyChangedAt: string | null;
+  /** The read itself failed — the gate is unknown, not merely closed. */
+  failed: boolean;
 }
 
 export interface UseTcCompletionStatusReturn {
@@ -17,9 +21,11 @@ export interface UseTcCompletionStatusReturn {
   completion: CompletionValue;
   /** CTA gate: only LATEST_TEST_CONNECTION_SUCCESS opens 완료 승인 요청. */
   approvalEnabled: boolean;
-  /** 논리 DB가 최신 실행 이후 변경됨 — 재실행해야 반영된다. */
-  needsRerun: boolean;
-  /** Re-read now (after a logical-DB policy save). */
+  /** When the logical-DB policy last changed — null outside a valid verdict. */
+  policyChangedAt: string | null;
+  /** The completion read failed — approvalEnabled is unknown, not a verdict of "closed". */
+  failed: boolean;
+  /** Re-read now (after a logical-DB policy save, or to retry a failed read). */
   refresh: () => void;
 }
 
@@ -27,7 +33,8 @@ export interface UseTcCompletionStatusReturn {
  * Step 5 completion-status wiring, shared by the cloud and IDC cards. Reads
  * GET …/test-connection/completion-status whenever the run settles SUCCESS
  * (and on demand after a logical-DB save), so the 완료 승인 요청 gate and the
- * 재실행 필요 chip both run on the contract's verdict instead of a local guess.
+ * card's settled verdict states (성공/정책 변경/확인 완료 — foldTcCardState)
+ * all run on the contract's verdict instead of a local guess.
  *
  * The stored verdict carries the identity it was fetched for (target · run
  * version · refresh key); anything else reads as null — a new run never briefly
@@ -48,16 +55,30 @@ export const useTcCompletionStatus = (
     void getTestConnectionCompletionStatus(targetSourceId)
       .then((status) => {
         if (active) {
+          const changedAt = status.logical_database_updated_at ?? null;
           setStored({
             targetSourceId,
             runVersion,
             refreshKey,
             value: status.test_connection_status ?? null,
+            // The contract sends an epoch placeholder instead of null (see
+            // lib/types/guide.ts) — 1970 must never render as a policy-change time.
+            policyChangedAt: changedAt !== null && Date.parse(changedAt) > 0 ? changedAt : null,
+            failed: false,
           });
         }
       })
       .catch(() => {
-        if (active) setStored({ targetSourceId, runVersion, refreshKey, value: null });
+        if (active) {
+          setStored({
+            targetSourceId,
+            runVersion,
+            refreshKey,
+            value: null,
+            policyChangedAt: null,
+            failed: true,
+          });
+        }
       });
     return () => {
       active = false;
@@ -66,19 +87,19 @@ export const useTcCompletionStatus = (
 
   const refresh = useCallback(() => setRefreshKey((key) => key + 1), []);
 
-  const completion =
+  const valid =
     uiState === 'SUCCESS' &&
     stored !== null &&
     stored.targetSourceId === targetSourceId &&
     stored.runVersion === runVersion &&
-    stored.refreshKey === refreshKey
-      ? stored.value
-      : null;
+    stored.refreshKey === refreshKey;
+  const completion = valid ? stored.value : null;
 
   return {
     completion,
     approvalEnabled: completion === 'LATEST_TEST_CONNECTION_SUCCESS',
-    needsRerun: completion === 'LOGICAL_DATABASE_RECENTLY_UPDATED',
+    policyChangedAt: valid ? stored.policyChangedAt : null,
+    failed: valid ? stored.failed : false,
     refresh,
   };
 };

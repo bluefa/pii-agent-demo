@@ -1263,6 +1263,11 @@ export const idcStyles = {
     warnOutline: 'inline-flex h-10 items-center gap-1.5 rounded-xl bg-[#FEF3C7] px-[18px] text-[14px] font-semibold tracking-[-0.01em] text-[#92400E] transition-colors hover:bg-[#FDE68A]',
     /** Small blue ghost — v16 `.btn.sm.ghost` (the in-table "set" action). Disabled = opacity-45. */
     ghostSm: 'inline-flex h-8 items-center justify-center gap-1 rounded-[10px] px-3 text-[13px] font-bold text-[#0064FF] transition-colors hover:bg-[#EFF6FF] disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:bg-transparent',
+    /** `ghostSm` skeleton with the `primary` face — the Step 5 strip's state CTA slot (시안 A).
+     *  In-table action size on purpose: the slot lives inside the summary strip, not the card edge. */
+    primarySm: 'inline-flex h-8 items-center justify-center gap-1 rounded-[10px] bg-[#0064FF] px-3 text-[13px] font-bold text-white transition-colors hover:bg-[#0050D6] disabled:cursor-not-allowed disabled:bg-[#EBEEF2] disabled:text-[#8B95A1]', // design-exempt: recreates the measured ghostSm skeleton (13px)
+    /** `ghostSm` skeleton with the `soft` face — the slot while a test runs (always disabled). */
+    softSm: 'inline-flex h-8 items-center justify-center gap-1 rounded-[10px] bg-[#E8F1FF] px-3 text-[13px] font-bold text-[#0050D6] disabled:cursor-not-allowed disabled:opacity-45', // design-exempt: recreates the measured ghostSm skeleton (13px)
     /** Underlined blue text action docked in a content group's footer (e.g. the rejected-reason
      *  well). border-b, not text-decoration: the underline must run under the trailing icon too,
      *  and text-decoration stops at a flex container's atomic children. */
@@ -1325,8 +1330,15 @@ export const idcStyles = {
     icon: 'inline-grid place-items-center w-[18px] h-[18px] flex-shrink-0',
     meta: 'flex items-center gap-3.5',
     counts: 'text-[12px] font-medium text-[#6B7684] [font-variant-numeric:tabular-nums]',
+    /** `counts` on the pending surface — #6B7684 on #FFF8EC is 4.37:1 (AA fail), so the
+     *  policy-changed meta/guidance lines take the warning voice (orange-800, 6.3:1). */
+    countsWarn: 'text-[12px] font-medium text-orange-800 [font-variant-numeric:tabular-nums]',
     pct: 'min-w-[46px] text-right text-[16px] font-extrabold tracking-[-0.02em] [font-variant-numeric:tabular-nums]',
     track: 'relative h-2 overflow-hidden rounded-full bg-[#E4E7EC]',
+    /** Skeleton bar for this strip — the shared `skeletonBar` (#F3F4F6) sits on white; on the
+     *  idle surface (#F7F8FA) it is brighter than its own ground and vanishes. A step darker,
+     *  the same move as the service rail's skeletonBar. */
+    skeletonBar: 'animate-pulse bg-[#D6DCE0]',
     fill: 'relative h-full rounded-full transition-[width] duration-500',
     fillColor: {
       idle: 'bg-[#0064FF]',

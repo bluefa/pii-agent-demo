@@ -102,15 +102,38 @@ export function computeTcBuckets(
   };
 }
 
-export type TcRunPhase = 'idle' | 'running' | 'success' | 'fail';
+export type TcRunPhase = 'idle' | 'queued' | 'running' | 'success' | 'fail';
+
+/**
+ * 시안 A display state: the run phase, refined by the completion-status verdict
+ * once the run settles SUCCESS. The verdict only differentiates within SUCCESS —
+ * while a test runs there is no verdict to consult (조회 보류), and an unsettled
+ * or failed run reads as its phase alone.
+ */
+export type TcCardState = TcRunPhase | 'policy-changed' | 'confirmed';
+
+export function foldTcCardState(
+  phase: TcRunPhase,
+  completion: string | null | undefined,
+): TcCardState {
+  if (phase !== 'success') return phase;
+  if (completion === 'CONFIRMED') return 'confirmed';
+  if (completion === 'LOGICAL_DATABASE_RECENTLY_UPDATED') return 'policy-changed';
+  return 'success';
+}
 
 /**
  * The one-line fact sentence — states what was verified, never a fixed slogan
  * the data can contradict.
  */
-export function tcSummarySentence(phase: TcRunPhase, buckets: TcBuckets): string {
+export function tcSummarySentence(state: TcCardState, buckets: TcBuckets): string {
   const { total, ok, fail, reported } = buckets;
-  switch (phase) {
+  switch (state) {
+    case 'queued':
+      // top-level PENDING — 접수만 됐고 아무것도 돌지 않는다. "진행 중"이라고 말하면
+      // 0% 빈 바와 함께 멈춘 것처럼 읽힌다(카운트 줄의 "대기"는 유닛 단위 PENDING 이라
+      // 어휘를 "시작 대기"로 가른다).
+      return '연결 테스트 요청됨 — 시작을 기다리고 있어요';
     case 'running':
       return `연결 테스트 진행 중 — ${reported}/${total} 대상 보고됨`;
     case 'success':
@@ -120,11 +143,18 @@ export function tcSummarySentence(phase: TcRunPhase, buckets: TcBuckets): string
         ? `리소스 ${total}개 모두 연결에 성공했어요`
         : `리소스 ${total}개 중 ${ok}개 연결 성공 — 나머지 ${total - ok}건은 결과가 확인되지 않았어요`;
     case 'fail':
-      return fail > 0
-        ? `리소스 ${total}개 중 ${ok}개 연결 성공 — 실패 ${fail}건을 점검해 주세요`
-        : `연결 테스트가 실패했어요 — 결과를 확인해 주세요`;
+      if (fail > 0)
+        return `리소스 ${total}개 중 ${ok}개 연결 성공 — 실패 ${fail}건을 점검해 주세요`;
+      // 유닛 실패 카운트가 없는 실패(무보고 정착·계약 밖 값)도 사용자에겐 같은 실패다 —
+      // 특수 상태를 발명하지 않는다(오너 결정). 원인은 계약에 없으므로 말하지 않는다.
+      return '연결 테스트가 실패했어요 — 다시 수행해 주세요';
+    case 'policy-changed':
+      return '논리 DB 정책이 마지막 실행 이후 변경됐어요';
+    case 'confirmed':
+      return '연결 테스트 완료 확인됨';
     default:
-      return '연결 테스트 대기 중 — Run Test를 실행해 주세요';
+      // 결과 서술("성공 0")이 아니라 실행이 없다는 사실만 — 정답 행동은 옆의 슬롯 CTA가 든다.
+      return '아직 실행한 연결 테스트가 없습니다';
   }
 }
 

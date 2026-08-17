@@ -1116,6 +1116,102 @@ mockProjects.push(
   cloneForStep('gcp-proj-1', { id: 'gcp-proj-complete', targetSourceId: 2012, projectCode: 'GCP-COMPLETE', name: 'GCP PII Agent - 연동 완료', status: ProcessStatus.INSTALLATION_COMPLETE, resources: gcpDemoResources }),
 );
 
+// ===== Step 5 TC 카드 상태 fixture (21xx) =====
+// 시안 A 상태 슬롯의 폴딩(미실행/시작 대기/진행 중/실패/무보고 실패/성공/정책 변경/확인
+// 완료)을 시뮬레이터 타이밍과 경쟁하지 않고 하나씩 열어 보는 전용 대상. 어떤 실행을
+// 시드할지(없음·시작 대기 고정·고정 진행 중·실패·무보고 실패)와 정책 변경 판정은
+// lib/mock-test-connection.ts 의 TC_CARD_FIXTURE 가 같은 id(2101~2108)로 분기한다.
+// Credential 게이트가 슬롯 CTA 를 잠그지 않도록 자격 증명이 필요한 엔진에는 시드
+// Credential 을 배정한다 — 게이트가 잠근 변형은 1010 이 그대로 보여 준다.
+const tcCardFixtureResources: Project['resources'] = awsWireSampleResources.map((r) =>
+  needsCredential(r.databaseType)
+    ? {
+        ...r,
+        selectedCredentialId:
+          r.databaseType.toLowerCase() === 'postgresql'
+            ? 'kimcs-postgres-analytics'
+            : 'hgildong-mysql-prod',
+      }
+    : r,
+);
+
+const tcCardStateClone = (over: {
+  targetSourceId: number;
+  key: string;
+  name: string;
+  description: string;
+}): Project =>
+  cloneForStep('proj-5', {
+    id: `aws-proj-tc-${over.key}`,
+    targetSourceId: over.targetSourceId,
+    projectCode: `TC-${over.key.toUpperCase()}`,
+    name: over.name,
+    description: over.description,
+    status: ProcessStatus.WAITING_CONNECTION_TEST,
+    resources: tcCardFixtureResources,
+  });
+
+const tcCardConfirmedFixture = tcCardStateClone({
+  targetSourceId: 2106,
+  key: 'confirmed',
+  name: 'TC 카드 - 확인 완료',
+  description:
+    'Step 5 TC 카드 상태 fixture — 확인 완료(봉인). 완료 승인이 이미 지나 CTA 없이 실행 이력만 남는 상태를 검증합니다.',
+});
+// CONFIRMED 판정 근거는 passedAt 이다(mock getCompletionStatus). processStatus 는 5단계에
+// 고정해 카드의 봉인 프레임을 화면에서 볼 수 있게 한다 — 실 서비스에선 승인 직후 프로세스
+// 전이가 반영되기 전 창에서 보이는 상태다.
+tcCardConfirmedFixture.status = {
+  ...tcCardConfirmedFixture.status,
+  connectionTest: { status: 'PASSED', passedAt: '2026-06-01T00:10:00.000Z' },
+};
+
+mockProjects.push(
+  tcCardStateClone({
+    targetSourceId: 2101,
+    key: 'idle',
+    name: 'TC 카드 - 미실행',
+    description: 'Step 5 TC 카드 상태 fixture — 미실행. 실행 이력이 없어 슬롯이 Run Test primary 를 드는 상태를 검증합니다.',
+  }),
+  tcCardStateClone({
+    targetSourceId: 2102,
+    key: 'running',
+    name: 'TC 카드 - 진행 중',
+    description: 'Step 5 TC 카드 상태 fixture — 진행 중. 시드 실행이 중간 지점에 고정돼(2099년 완료 예정) 잠긴 슬롯과 진행 트랙을 검증합니다.',
+  }),
+  tcCardStateClone({
+    targetSourceId: 2103,
+    key: 'fail',
+    name: 'TC 카드 - 실패',
+    description: 'Step 5 TC 카드 상태 fixture — 실패 정착. 최신 실행이 FAIL(2건 실패)로 끝나 슬롯이 다시 실행을 드는 상태를 검증합니다.',
+  }),
+  tcCardStateClone({
+    targetSourceId: 2104,
+    key: 'success',
+    name: 'TC 카드 - 성공',
+    description: 'Step 5 TC 카드 상태 fixture — 성공 정착. 다시 실행 링크와 완료 승인 요청 primary 가 동거하는 슬롯을 검증합니다.',
+  }),
+  tcCardStateClone({
+    targetSourceId: 2105,
+    key: 'policy',
+    name: 'TC 카드 - 정책 변경',
+    description: 'Step 5 TC 카드 상태 fixture — 정책 변경. 논리 DB 정책이 마지막 실행 이후 바뀌어 pending 표면 위 다시 실행을 검증합니다. 재실행하면 success 로 돌아갑니다.',
+  }),
+  tcCardConfirmedFixture,
+  tcCardStateClone({
+    targetSourceId: 2107,
+    key: 'queued',
+    name: 'TC 카드 - 시작 대기',
+    description: 'Step 5 TC 카드 상태 fixture — 시작 대기(top-level PENDING). 접수만 되고 디스패치 전이라 스핀·진행 트랙 없이 잠긴 슬롯("시작 대기…")을 검증합니다.',
+  }),
+  tcCardStateClone({
+    targetSourceId: 2108,
+    key: 'noreport',
+    name: 'TC 카드 - 보고 0건 실패',
+    description: 'Step 5 TC 카드 상태 fixture — 보고 0건 실패(PENDING→FAIL). 한 건도 보고되기 전에 실패로 정착 — 카드는 특수 문구 없이 일반 실패("연결 테스트가 실패했어요")로 접히는 것을 검증합니다.',
+  }),
+);
+
 // 데모: SDU 계정 대상 — cloud_provider 는 AWS 지만 metadata.is_sdu_type=true 라
 // 파이프라인 목록·상세·대상 상세 어디서든 하위 CSP 대신 "SDU"로 노출된다.
 mockProjects.push({
