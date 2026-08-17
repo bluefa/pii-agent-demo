@@ -22,7 +22,7 @@ import {
   MetaPair,
 } from '@/app/components/features/admin/v7/RowIdentityText';
 
-export type InfraRowAction = 'view' | 'copyId' | 'delete';
+export type InfraRowAction = 'view' | 'editDescription' | 'copyId' | 'delete';
 
 interface InfraRowProps {
   project: ProjectSummary;
@@ -226,6 +226,7 @@ export const InfraRow = ({ project, onOpenDetail, onManageAction }: InfraRowProp
         <RowMenu
           rowName={rowName}
           onViewDetail={() => onManageAction('view', project.targetSourceId)}
+          onEditDescription={() => onManageAction('editDescription', project.targetSourceId)}
           onCopyId={() => onManageAction('copyId', project.targetSourceId)}
           onDelete={() => onManageAction('delete', project.targetSourceId)}
         />
@@ -247,6 +248,7 @@ interface RowMenuProps {
   /** Distinguishes this row's controls in a screen reader's button list. */
   rowName: string;
   onViewDetail: () => void;
+  onEditDescription: () => void;
   onCopyId: () => void;
   onDelete: () => void;
 }
@@ -262,7 +264,13 @@ interface RowMenuProps {
  * nothing here, because the three items are already tab stops as plain buttons. The
  * roles are dropped rather than half-kept, so what AT is told matches what works.
  */
-const RowMenu = ({ rowName, onViewDetail, onCopyId, onDelete }: RowMenuProps) => {
+const RowMenu = ({
+  rowName,
+  onViewDetail,
+  onEditDescription,
+  onCopyId,
+  onDelete,
+}: RowMenuProps) => {
   const [open, setOpen] = useState(false);
 
   const run = (action: () => void) => () => {
@@ -309,6 +317,17 @@ const RowMenu = ({ rowName, onViewDetail, onCopyId, onDelete }: RowMenuProps) =>
               className={cn(rowMenuStyles.item, textColors.secondary, bgColors.mutedHover)}
             >
               상세 보기
+            </button>
+            {/* The row already shows 설명; this is where it gets written. It sits with
+                상세 보기 rather than next to 계정 삭제 — both edit what the row says,
+                neither removes it, and the divider below keeps the destructive item
+                on its own. */}
+            <button
+              type="button"
+              onClick={run(onEditDescription)}
+              className={cn(rowMenuStyles.item, textColors.secondary, bgColors.mutedHover)}
+            >
+              설명 수정
             </button>
             <button
               type="button"

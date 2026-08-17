@@ -11,10 +11,6 @@ export const opsStyles = {
       and the rail's own border is the single line that closes it. */
   header: 'bg-[var(--pl-bg-card)] px-8 pt-6 pb-5',
 
-  /** Title row — the fixed page label (h1) with the 협업 채널 block docked right. */
-  titleRow: 'flex items-start justify-between gap-7',
-  /** Left column: h1 + the provider mark and identity stack under it. */
-  titleCol: 'min-w-0 flex-1',
   /** h1 + the service-side link on one baseline (GitHub repo-header grammar):
       the quiet 12px link reads as a destination hanging off the title, not as a
       second title. */
@@ -25,6 +21,26 @@ export const opsStyles = {
       TerraformStatusModal (Figma 49:4/34:4). */
   tag: 'inline-flex items-center rounded px-2 py-1 text-[12px] font-semibold bg-[var(--pl-gray-100)] text-[var(--pl-text-medium)] whitespace-nowrap',
   regionTag: 'inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium bg-[var(--pl-gray-100)] text-[var(--pl-text-weak)]',
+  /**
+   * 실데이터 — `does_support_raw === true` 인 대상에만 붙는다. 두 화면(서비스 운영의
+   * 대상 카드 · 대상 운영 헤더)이 한 정의를 쓴다.
+   *
+   * **색이 아니라 획으로 선다.** 이 줄에서 색 채널은 이미 다 팔렸다: StepPill 하나가
+   * off/warn/primary/ok 네 계열을 상태에 따라 돌아가며 쓰고(TONE_CLASS), 회색은 중국
+   * 태그와 서비스코드 칩이, 파랑은 SDU 칩이 쓴다. 실제로 warn 으로 처음 그렸더니
+   * PENDING 대상(#1013)에서 태그와 단계 알약이 **같은 토큰**(--pl-warn-bg/-text)으로
+   * 나란히 서서 한 덩어리로 읽혔다. 상태에 따라 도는 값 옆에서는 어떤 색을 골라도
+   * 언젠가는 겹친다.
+   *
+   * 그래서 이 줄에서 아무도 안 쓰는 채널을 쓴다 — 나머지 칩은 전부 테두리 없는 면이고,
+   * 이것만 흰 면 + 획이다. 색이 없으니 StepPill 이 어느 계열로 가든 겹치지 않는다.
+   * 투명이 아니라 흰 면인 것도 이유가 있다: 서비스 운영의 카드는 hover 에서 보라
+   * (#F3EEFF)로 물드는데, 투명이면 태그가 그 물을 같이 먹는다.
+   *
+   * 대비 실측: 글자 #101828 on 면 #FFFFFF = 17.85:1. 면은 카드 hover 틴트 위에서
+   * ΔE00 8.92 (tableRowLift.card 주석의 실측치와 같은 쌍).
+   */
+  rawDataTag: 'inline-flex items-center whitespace-nowrap rounded px-1.5 py-0.5 text-[12px] font-semibold border border-[var(--pl-border-strong)] bg-[var(--pl-bg-card)] text-[var(--pl-text-strong)]',
 
   /** Cloud context — tier 3 of the identity stack (계정 · 리전 · 설치모드). */
   cloudRow: 'flex items-center gap-1.5 mt-1 text-[12px] text-[var(--pl-text-weak)]',
@@ -43,33 +59,25 @@ export const opsStyles = {
   /** Read-only 주체 값 (GCP SA·Azure App) — roleArn 과 같은 자리, 동작만 없다. */
   roleValue: 'text-[12px] text-[var(--pl-text-medium)] [font-family:var(--pl-font-mono)] break-all',
 
-  /** 협업 채널 — a block docked in the flow, not a popover: the old bubble's tail
-      pointed at nothing and its `absolute` box pinned itself to the content cap.
-      Three tiers mirroring the identity stack on the left — 범위 / 티켓(외부) /
-      관리 위치(내부). Fixed width so a longer issue key never shifts the stack,
-      and the tiers hold their slots while loading so the header height is stable.
-      No blue: the underline carries the affordance (opsStyles.countLink rule) and
-      the only hue is the Jira brand mark. */
-  chan: 'flex-none w-[216px] rounded-[10px] border border-[var(--pl-border)] bg-[var(--pl-bg-card)] px-3.5 pt-2.5 pb-2.5 flex flex-col gap-1',
-  chanLabel: 'text-[11px] font-semibold tracking-[0.03em] text-[var(--pl-text-faint)]',
+  /** 서비스 축의 두 목적지 (Jira 티켓 · 서비스 운영) — 이름·코드 줄 바로 아래 곁줄.
+      라벨 붙은 블록을 화면 오른쪽에 세워 두면 서비스 이야기를 두 군데서 하게 되어,
+      cloudRow 와 같은 12px/weak 곁줄 문법으로 신원 스택에 흡수시켰다. 슬롯 높이를
+      고정(min-h)해 티켓이 늦게 도착해도 헤더가 흔들리지 않는다. 파랑 없음: 밑줄이
+      affordance 를 지고(opsStyles.countLink 규칙) 색은 Jira 마크 하나뿐이다. */
+  chanRow: 'flex flex-wrap items-center gap-x-3 gap-y-1 mt-1 min-h-[20px] text-[12px]',
   /* The mark sits outside the underlined text — text-decoration would otherwise
      strike through the glyph (a child cannot cancel an ancestor's underline). */
-  /* leading-[20px] on all three tier-2 states (link · 없음 · skeleton) so the
-     slot is one height and the block does not resize when the channel lands. */
-  chanRow: 'group self-start inline-flex items-center gap-1.5',
-  chanKey:
-    'text-[14px] leading-[20px] font-semibold text-[var(--pl-text-strong)] underline underline-offset-[3px] decoration-[var(--pl-border-strong)] group-hover:decoration-[var(--pl-text-strong)] cursor-pointer',
+  chanLink: 'group inline-flex items-center gap-1',
+  /** 마크 옆 종류 라벨 — 키만으로는 BDCDIP-1013 이 무엇인지 마크를 알아봐야 안다. */
+  chanKind: 'text-[var(--pl-text-weak)]',
+  chanLinkText:
+    'font-semibold text-[var(--pl-text-medium)] underline underline-offset-2 decoration-[var(--pl-border-strong)] cursor-pointer group-hover:text-[var(--pl-text-strong)] group-hover:decoration-[var(--pl-text-strong)]',
   /** No browseUrl — the key is a value, not a door. Same slot, no affordance. */
-  chanKeyPlain: 'text-[14px] leading-[20px] font-semibold text-[var(--pl-text-medium)]',
-  chanNone: 'text-[13px] leading-[20px] text-[var(--pl-text-faint)]',
-  /** Tier 3 — sits under a hairline so "어디서 관리하는가" reads as a separate fact
-      from the ticket itself, not as a second line of it. */
-  chanGo:
-    'group mt-0.5 pt-[7px] border-t border-[var(--pl-gray-100)] text-[12px] text-[var(--pl-text-weak)] hover:text-[var(--pl-text-medium)]',
-  chanGoName:
-    'font-semibold text-[var(--pl-text-medium)] underline underline-offset-2 decoration-[var(--pl-border-strong)] group-hover:decoration-[var(--pl-text-strong)]',
-  chanGoOff: 'mt-0.5 pt-[7px] border-t border-[var(--pl-gray-100)] text-[12px] text-[var(--pl-text-faint)]',
-  chanArrow: 'text-[var(--pl-text-faint)]',
+  chanPlain: 'font-semibold text-[var(--pl-text-medium)]',
+  /** 없음은 읽히라고 쓰는 문장이라 weak — 곁줄로 내려오면서 라벨이 사라졌으니
+      이 한 줄이 "티켓 자리" 를 혼자 설명한다. */
+  chanNone: 'text-[var(--pl-text-weak)]',
+  chanArrow: 'text-[var(--pl-text-faint)]', // design-exempt: 링크 텍스트에 붙는 방향 글리프(↗), 의미는 옆 텍스트가 진다
 
   /** Tab rail — line tabs (Carbon: the body below is cards on a ground, not a
       panel, so a contained tab's white face had nothing to connect to). The rail

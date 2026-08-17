@@ -75,6 +75,8 @@ export const mockBff: BffClient = {
       unwrap(await mockTargetSources.previewRegistration(serviceCode, body)),
     getSecrets: async (id) => unwrap(await mockProjects.credentials(String(id))),
     getJiraTicket: async (id) => unwrap(await mockTargetSources.getJiraTicket(String(id))),
+    putDescription: async (id, description) =>
+      unwrap(await mockTargetSources.putDescription(id, description)),
   },
 
   users: {

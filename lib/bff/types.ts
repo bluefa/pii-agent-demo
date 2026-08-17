@@ -106,6 +106,12 @@ export interface BffClient {
     getSecrets: (id: number) => Promise<z.infer<typeof schemas.SecretResponse>[]>;
     // GET …/jira-ticket — camel wire (JiraTicketResponse); upstream 404 = no ticket mapped.
     getJiraTicket: (id: number) => Promise<z.infer<typeof schemas.JiraTicketResponse>>;
+    /**
+     * PUT …/description — ASSUMED contract (docs/api/ops-assumed-contracts.md §8).
+     * The read side is `TargetSourceDetail.description`; there was no writer, so the
+     * 연동 대상 계정 목록 could show a description nobody could correct.
+     */
+    putDescription: (id: number, description: string) => Promise<TargetSourceDescriptionWire>;
   };
 
   users: {
@@ -422,6 +428,12 @@ export interface OpsStatusHistoryPageWire {
 export interface OpsInstallationModeWire {
   target_source_id: number;
   grant_service_terraform_execution_permission: boolean;
+}
+
+/** PUT …/description echo (assumed §8) — same shape rule as the sibling above. */
+export interface TargetSourceDescriptionWire {
+  target_source_id: number;
+  description: string;
 }
 
 /**

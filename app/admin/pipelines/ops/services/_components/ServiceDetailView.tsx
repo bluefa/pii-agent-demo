@@ -61,8 +61,9 @@ import {
  *
  * 120px 는 113.59 위의 여유다. 천장이기도 하다: 1층이 줄바꿈할 만큼 좁아지면 넘치는
  * 대신 잘린다(`overflow-hidden`). 섹션 높이를 지키는 것이 이 화면의 요구라, 잘림을
- * 택했다. 1층은 `#번호 · provider · 중국` 셋뿐이고 시트는 900px 대라 실제로 줄바꿈할
- * 폭이 아니지만, 그렇게 되면 잘린다는 것을 여기 적어 둔다.
+ * 택했다. 1층은 `#번호 · provider · 중국 · 실데이터` 넷이고 시트는 900px 대라 실제로
+ * 줄바꿈할 폭이 아니지만, 그렇게 되면 잘린다는 것을 여기 적어 둔다. 1층에 칩을 더
+ * 붙일 때는 이 숫자를 같이 고쳐라 — 예산이 한 칸 모자라 보이면 다음 사람이 잘못 잰다.
  */
 const CARD_H = 'h-[120px]';
 /** 카드 사이 간격 — /pass/services 목록과 같은 14px. */
@@ -522,6 +523,12 @@ export function ServiceDetailView({ serviceCode }: ServiceDetailViewProps): Reac
                         식별자가 있든 없든. 중국 리전은 계정의 성질이 아니라 대상의
                         성질이고, 운영자가 먼저 알아야 하는 값이다. */}
                     {china && <span className={opsStyles.regionTag}>중국</span>}
+                    {/* 계약이 명시적으로 true 라고 말할 때만 (readDoesSupportRaw).
+                        1층에 두는 이유는 중국 태그와 같다 — 이 대상이 무엇을 다루는지는
+                        계정보다 먼저 읽혀야 하는 성질이다. */}
+                    {target.does_support_raw && (
+                      <span className={opsStyles.rawDataTag}>실데이터</span>
+                    )}
                   </div>
 
                   {/* 2층·3층은 값이 없어도 사라지지 않는다 — 조건부로 두면 대상마다 카드

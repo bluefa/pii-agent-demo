@@ -43,6 +43,11 @@ export interface RawTargetSourceDetail {
   cloud_provider?: string;
   created_at?: string;
   metadata?: RawTargetSourceMetadata;
+  /**
+   * 계약에 아직 없는 필드 — 스키마가 `.passthrough()` 라 `parse()` 를 통과해 여기까지
+   * 온다. 판정은 `readDoesSupportRaw` 하나로만 한다 (lib/types.ts 주석 참조).
+   */
+  does_support_raw?: boolean;
 }
 
 /** Fetch the raw target-source detail (reuses the existing target-sources route). */

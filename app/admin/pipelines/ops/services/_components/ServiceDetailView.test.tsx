@@ -74,6 +74,7 @@ const target = (
   cloud_provider: 'AWS',
   is_sdu_type: false,
   description: `설명 ${id}`,
+  does_support_raw: false,
   last_changed_at: '2026-08-01T00:00:00Z',
   metadata: meta({ aws_account_id: `00000000000${id % 10}` }),
   ...over,
@@ -266,6 +267,21 @@ describe('중국 리전 · SDU 표기', () => {
     expect(within(card).getByText('SDU')).toBeTruthy();
     expect(within(card).getByText('서비스 담당자가 데이터를 직접 업로드')).toBeTruthy();
     expect(within(card).queryByText('000000000012')).toBeNull();
+  });
+});
+
+describe('실데이터 태그', () => {
+  it('does_support_raw 가 참인 대상에만 붙는다', async () => {
+    // 한 목록 안에서 갈려야 태그가 의미를 갖는다 — 두 행이 다르게 그려지는지를 본다.
+    await renderWith([
+      target(4120, { does_support_raw: true }),
+      target(4121, { does_support_raw: false }),
+    ]);
+    const cards = screen
+      .getByLabelText('Target Source 목록')
+      .querySelectorAll('div.group');
+    expect(within(cards[0] as HTMLElement).getByText('실데이터')).toBeTruthy();
+    expect(within(cards[1] as HTMLElement).queryByText('실데이터')).toBeNull();
   });
 });
 

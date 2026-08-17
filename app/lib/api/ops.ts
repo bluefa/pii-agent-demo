@@ -159,6 +159,12 @@ export interface OpsServiceTargetRow {
   description: string | null;
   cloud_provider: string;
   is_sdu_type: boolean;
+  /**
+   * 실데이터를 다루는 대상인지. 계약에 아직 없는 필드라 라우트가 `readDoesSupportRaw`
+   * 로 읽어 여기서 boolean 으로 못 박는다 — 3-상태를 화면까지 끌고 가면 판정이 두
+   * 군데로 갈린다. false = "실데이터라고 말할 근거가 없다".
+   */
+  does_support_raw: boolean;
   /** 정렬 키 (updatedAt ?? createdAt). */
   last_changed_at: string;
   metadata: OpsTargetSourceAccount;

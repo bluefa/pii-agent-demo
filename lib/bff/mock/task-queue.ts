@@ -782,6 +782,10 @@ function projectToTargetSourceInfoWire(project: (typeof mockData.mockProjects)[n
         project.cloudProvider === 'AWS'
         && (project.isChinaRegion ?? project.awsRegionType === 'china'),
     },
+    // 계약에 아직 없는 필드. 이 DTO(TargetSourceInfo)는 camel 섬이라 목도 camel 로
+    // 싣는다 — 라우트의 readDoesSupportRaw 가 두 표기를 다 읽으므로, 두 wire 가 서로
+    // 다른 표기를 쓰는 지금 상태가 그 판정이 실제로 도는 유일한 픽스처다.
+    ...(project.doesSupportRaw === true ? { doesSupportRaw: true } : {}),
     updatedAt: project.updatedAt,
     createdAt: project.createdAt,
   };

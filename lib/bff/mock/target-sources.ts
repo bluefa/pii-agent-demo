@@ -4,8 +4,10 @@ import {
   generateId,
   generateTargetSourceId,
   getCurrentUser,
+  getProjectByTargetSourceId,
   getProjectsByServiceCode,
   mockServiceCodes,
+  updateProject,
 } from '@/lib/mock-data';
 import { mockProjects } from '@/lib/bff/mock/projects';
 import { opsInstallModeOverride, opsRoleArnOverride } from '@/lib/bff/mock/ops';
@@ -161,6 +163,10 @@ const toBffTargetSourceDetail = (project: Project) => ({
   process_status: toBffApprovalProcessStatus(project.processStatus),
   cloud_provider: toBffCloudProvider(project.cloudProvider),
   created_at: project.createdAt,
+  // 계약에 아직 없는 필드 — 실을 근거가 있는 대상에만 싣는다. 전부에 `false` 를 깔면
+  // 목이 "이 대상은 실데이터가 아니다"라고 계약에 없는 단정을 하게 되고, 세 상태 중
+  // 하나만 참인 판정(readDoesSupportRaw)이 목에서는 두 상태로 줄어든다.
+  ...(project.doesSupportRaw === true ? { does_support_raw: true } : {}),
   ...(Object.keys(getBffMetadata(project)).length > 0
     ? { metadata: getBffMetadata(project) }
     : {}),
@@ -464,6 +470,21 @@ export const mockTargetSources = {
       cloudProvider: project.cloudProvider.toUpperCase(),
       browseUrl: `https://jira.example.com/browse/BDCDIP-${project.targetSourceId}`,
     });
+  },
+
+  // PUT …/description (assumed §8). Writes to the store, not to the seed array, so
+  // every screen that reads the catalogue — /pass/services, 서비스 운영, 대상 운영 —
+  // sees the edit without a reload.
+  putDescription: async (targetSourceId: number, description: string) => {
+    const project = getProjectByTargetSourceId(targetSourceId);
+    if (!project) {
+      return NextResponse.json(
+        { error: 'NOT_FOUND', message: '타겟 소스를 찾을 수 없습니다.' },
+        { status: 404 },
+      );
+    }
+    updateProject(project.id, { description });
+    return NextResponse.json({ target_source_id: targetSourceId, description });
   },
 
   // createTargetSource (36): body is the selected TargetSourceCreationCandidateResponse

@@ -1,17 +1,19 @@
 # Ops Console — Assumed Contracts (no backing in install-v1.yaml)
 
-The Target Source ops page (`/admin/pipelines/ops/target-sources/{id}`) renders four
-capabilities that have **no endpoint in `docs/swagger/install-v1.yaml`**. They are
-implemented mock-first behind Next.js routes with the shapes below. When the BFF ships
-real endpoints, replace the mock handlers and delete the corresponding section here.
+Capabilities with **no endpoint in `docs/swagger/install-v1.yaml`**: §1–§5 on the Target
+Source ops page (`/admin/pipelines/ops/target-sources/{id}`), and §8 on the service-owner
+list (`/services`). They are implemented mock-first behind Next.js routes with the shapes
+below. When the BFF ships real endpoints, replace the mock handlers and delete the
+corresponding section here.
 
 Conventions follow install-v1: snake_case wire, Spring `Page` for pagination,
 `ErrorMessage` problem responses.
 
 Sections §6 (서비스 운영) and §7 (운영 알림) are no longer assumed — both now run on
 declared endpoints. They are kept as a record of what was withdrawn and why, so the
-same shapes are not re-invented. §1–§5 are still assumed and still 404 against the
-real BFF.
+same shapes are not re-invented. §1–§5 **and §8** are still assumed and still 404 against
+the real BFF — §8 is the only one whose caller is a service owner rather than an operator,
+so its failure copy does not promise that a retry will work.
 
 ## 1. Status change history
 
@@ -196,6 +198,46 @@ alerts to that target's 운영 화면 (`?tab=tc`) — the only place the Test Co
 detail lives. A queue row without a target source is a dangling reference, and the mock
 is built to make that unrepresentable: the queue's demo targets are seeded as real
 projects in `lib/mock-data.ts`, not as a side fixture.
+
+## 8. Target Source description update
+
+The only assumed section whose consumer is NOT the ops console: the writer is the ⋮ menu
+on the service-owner screen `/pass/services?service_code={code}`. It lives here because
+this file is where "endpoints install-v1.yaml does not declare yet" are recorded, and a
+second such file would just split that list in two.
+
+Read side is `TargetSourceDetail.description` (and `TargetSourceInfo.description`), which
+three screens already draw. There was no writer, so a description could be shown and never
+corrected.
+
+```
+PUT /install/v1/target-sources/{targetSourceId}/description
+body     { description: string }              // "" is valid — it clears the description
+→ 200   { target_source_id: number, description: string }
+```
+
+The client reads nothing off the response: it reloads the list it already draws the row
+from, so the row and the dialog cannot disagree. No length cap is enforced anywhere on the
+client — the contract declares none, and inventing one would have the screen state a rule
+the server does not have.
+
+## Field not yet in any contract: `does_support_raw`
+
+Not an endpoint — a field the BFF is going to add to TargetSource. `실데이터` tags on
+`/pass/admin/pipelines/ops/services/{code}` and
+`/pass/admin/pipelines/ops/target-sources/{id}` are keyed to it.
+
+It is read through `readDoesSupportRaw` (`lib/types.ts`) rather than a declared field,
+because the generated schemas are `.partial().passthrough()`: an undeclared key survives
+`parse()` and reaches the consumer, so the tags switch on the day the BFF starts sending
+it — with no code change. The reader accepts **both** `does_support_raw` and
+`doesSupportRaw`, because the two DTOs that would carry it disagree on casing
+(`TargetSourceDetail` is snake, `TargetSourceInfo` is a camel island). When the contract
+lands, keep whichever casing it declares and drop the other.
+
+Only `=== true` renders the tag. Three states exist (true / false / absent) and exactly
+one of them is grounds to say 실데이터; the other two fold into "unknown", which is the
+screen as it is today.
 
 ## Mock implementation
 
