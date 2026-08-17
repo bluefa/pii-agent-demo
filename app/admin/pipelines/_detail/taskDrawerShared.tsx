@@ -49,20 +49,23 @@ export function Section({
    *  panel. The floor is explicit because neither automatic minimum works here:
    *  `min-h-0` let a short body squeeze the whole section to 0px, and `auto`
    *  counts the scrolling list's full content (21 rows), so nothing shrank at
-   *  all. 226px = label 24 + caption 18 + filter 56 + three 43px job rows: the
-   *  same three rows the 208px floor guaranteed, plus the caption 시안 C added.
+   *  all. 208px = label 24 + filter 56 + three 43px job rows.
    *
-   *  NOT the 340px the benchmark proposed for 시안 B. Measured on the live panel:
-   *  a floor above 278px makes the DRAWER scroll (340 → 61px of overflow), which
-   *  is the one thing the owner ruled out ("패널 자체의 스크롤을 내리는 일은
-   *  없었으면"). The reclaimed height reaches the list through `flex-1` anyway —
-   *  the section takes 279px here, 165px of it list, up from 138px before the
-   *  정의·계약 fold was evicted. The floor is a floor, not the allocation. */
+   *  NOT the 340px the benchmark proposed for 시안 B, and not 226 either. This
+   *  floor is what binds on a SHORT window, and there the only thing it can buy
+   *  rows with is the drawer's own scrollbar — the one thing the owner ruled out
+   *  ("패널 자체의 스크롤을 내리는 일은 없었으면"). Measured: at a 738px viewport
+   *  208 → 0px of panel overflow, 226 → 15px, and 340 → 61px even at 861px.
+   *  So the caption 시안 C added is paid for out of the leftover, not the floor:
+   *  where there IS room the section takes 279px (165px of it list, up from 138
+   *  before the 정의·계약 fold was evicted), and where there is not, the list
+   *  gives up its third row rather than the panel giving up its fixed height.
+   *  The floor is a floor, not the allocation. */
   grow?: boolean;
   children: ReactNode;
 }): ReactElement {
   return (
-    <div className={cn('flex flex-col', grow && 'flex-1 min-h-[226px]')}>
+    <div className={cn('flex flex-col', grow && 'flex-1 min-h-[208px]')}>
       <div className={sub ? d.sectionLabelSub : d.sectionLabel}>{label}</div>
       {caption && <div className={d.sectionCaption}>{caption}</div>}
       {children}
