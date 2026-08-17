@@ -3,12 +3,11 @@
 /**
  * 연동 요청 한 건 — 머리(정체 + 승인/반려) · 판정 · 연동 대상 리소스 · 모달들.
  *
- * 두 자리에서 같은 것을 그린다: 목록 화면(queue/requests)의 워크벤치 오른쪽 시트와,
- * 상세 라우트(queue/requests/[targetSourceId]). 관리자는 목록에서 고르고 그 자리에서
- * 결정하지만, 라우트는 그대로 남는다 — 알림·딥링크가 오는 자리다.
+ * 상세 라우트(queue/requests/[targetSourceId])가 유일한 자리다. 목록은 큐 레일 + 표
+ * 한 장이고 행 전체가 이 라우트로 오는 링크다 — 요청 하나를 읽고 결정하는 일은
+ * 971px 짜리 리소스 표를 필요로 해서, 목록 옆 시트에 넣으면 표가 잘린다.
  *
- * 결정 후 무엇을 하는지는 자리마다 다르다(목록은 세 목록을 다시 읽고, 라우트는 목록으로
- * 돌아간다). 그래서 성공 토스트까지만 여기서 띄우고 나머지는 `onDecided` 가 받는다.
+ * 성공 토스트까지만 여기서 띄우고 그 다음(목록으로 돌아가기)은 `onDecided` 가 받는다.
  *
  * 데이터는 P2 wire 에서 온다: 머리 정체는 getRequestHeader, 요청 요약과 리소스는
  * getApprovalRequestLatest. 목록은 ResourceSection 이, IDC NLB 편집은 useNlbAssignment
@@ -88,19 +87,9 @@ export interface RequestDetailProps {
    * 돌아간다. 토스트는 이 컴포넌트가 이미 띄운 뒤다.
    */
   onDecided: () => void;
-  /**
-   * 요청의 정체(이름 · 코드 · #id · 설명)를 시트가 다시 적을지 — 자세한 이유는
-   * `RequestDetailHeader.identity` 에 있다. 목록의 시트는 레일이 이미 말하므로 `false`,
-   * 상세 라우트는 레일이 없으므로 기본값(`true`).
-   */
-  identity?: boolean;
 }
 
-export function RequestDetail({
-  targetSourceId,
-  onDecided,
-  identity,
-}: RequestDetailProps): ReactElement {
+export function RequestDetail({ targetSourceId, onDecided }: RequestDetailProps): ReactElement {
   const toast = usePlToast();
 
   const [header, setHeader] = useState<RequestListRow | null>(null);
@@ -245,7 +234,6 @@ export function RequestDetail({
   return (
     <>
       <RequestDetailHeader
-        identity={identity}
         serviceName={serviceName}
         targetSourceId={targetSourceId}
         description={header?.description ?? null}
