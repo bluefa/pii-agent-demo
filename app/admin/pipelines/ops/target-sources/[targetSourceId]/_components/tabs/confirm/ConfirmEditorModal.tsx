@@ -75,10 +75,21 @@ const BLANK = `{\n  "resource_infos": []\n}`;
 
 const pretty = (value: unknown): string => JSON.stringify(value, null, 2);
 
-/** 계약이 모양을 말하지 않으므로 세어지는 경우에만 센다 — 못 세면 건수 없이 보여 준다. */
-const countOf = (doc: unknown): number | null => {
-  if (typeof doc !== 'object' || doc === null || !('resource_infos' in doc)) return null;
-  const infos: unknown = doc.resource_infos;
+/**
+ * 계약이 모양을 말하지 않으므로 세어지는 경우에만 센다 — 못 세면 건수 없이 보여 준다.
+ *
+ * 두 키를 다 본다. **이 숫자가 0건 저장 게이트의 입력**이고(`emptyDraft`), 목이 받는 키가
+ * `resource_infos` 와 `resources` 둘이라(lib/bff/mock/confirm.ts) 한 키만 세면 다른 키로
+ * 쓴 빈 배열이 게이트를 그냥 통과한다. 실측: 확정 10건인 대상에 `{"resources": []}` 를
+ * 저장하면 201 이 오고 조회가 404 가 된다 — 삭제와 같은 결말인데 삭제의 게이트(대상 id
+ * 입력 + Terraform APPLIED 차단)를 하나도 지나지 않는다.
+ */
+export const countOf = (doc: unknown): number | null => {
+  if (typeof doc !== 'object' || doc === null) return null;
+  const infos: unknown =
+    'resource_infos' in doc ? doc.resource_infos
+      : 'resources' in doc ? doc.resources
+        : undefined;
   return Array.isArray(infos) ? infos.length : null;
 };
 
@@ -569,11 +580,27 @@ export function ConfirmEditorModal({
     setExchange(null);
     setTyped('');
     setArmedSwap(false);
+    // 편집에서 띄워 둔 이탈 확인은 편집의 것이다 — 거두지 않으면 삭제 화면 바닥에
+    // "저장하지 않은 편집이 있습니다 / 계속 편집" 이 남고, 그 버튼이 삭제 화면에서 아무
+    // 것도 하지 않는다.
+    setLeaving(false);
     // 모달이 오래 열려 있을 수 있으므로 게이트만 최신값으로 다시 본다.
     setGate((prev) => ({ ...prev, state: 'loading' }));
     void getTerraformStatus(targetSourceId)
       .then((status) => setGate({ state: 'ready', overallState: status.overall_state ?? null }))
       .catch(() => setGate({ state: 'failed', overallState: null }));
+  };
+
+  /**
+   * 삭제 화면에서 편집으로 — **삭제의 응답을 두고 오지 않는다.** 두고 오면 판정 문장이
+   * "삭제하지 못했습니다 · 다시 실행하세요" 인데 실행 버튼은 POST 저장이라, 문장이 가리키는
+   * 동작과 누를 수 있는 동작이 어긋난다. 보낸 URL 경고도 이걸 못 잡는다 — NLB 를 끈 상태의
+   * DELETE 와 POST 는 URL 이 글자까지 같다.
+   */
+  const backToEdit = (): void => {
+    setMode('edit');
+    setExchange(null);
+    setError(null);
   };
 
   const remove = (): void => {
@@ -694,7 +721,7 @@ export function ConfirmEditorModal({
                     </PlButton>
                   </>
                 ) : (
-                  <PlButton variant="secondary" onClick={() => setMode('edit')} disabled={busy}>
+                  <PlButton variant="secondary" onClick={backToEdit} disabled={busy}>
                     편집으로 돌아가기
                   </PlButton>
                 )}

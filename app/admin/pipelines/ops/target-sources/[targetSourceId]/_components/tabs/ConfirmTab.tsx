@@ -26,6 +26,7 @@ import { useCallback, useEffect, useState, type ReactElement, type ReactNode } f
 import { cn, pipelineStyles } from '@/lib/theme';
 import { AppError, isMissingConfirmedIntegrationError } from '@/lib/errors';
 import { fmtDateTime } from '@/lib/pipeline/format';
+import { normalizeCloudProvider } from '@/lib/types';
 import {
   getConfirmedIntegration,
   getTerraformStatus,
@@ -100,6 +101,58 @@ const TAG_TONE = {
   warn: 'bg-[var(--pl-warn-bg)] text-[var(--pl-warn-text)]',
   off: 'bg-[var(--pl-off-bg)] text-[var(--pl-off-text)]',
 } as const;
+
+/**
+ * 요청 상태 → 이 탭의 어휘. **허용 목록이다** — "반려도 승인도 아니면 대기" 라는 부정형은
+ * 계약 enum 8종 중 절반을 틀리게 말한다(`CANCELLED`·`UNAVAILABLE`·
+ * `UNAVAILABLE_ACKNOWLEDGED`·`RESET` 이 전부 "승인 대기" 로 떨어진다). 라벨은 큐의
+ * `ConfirmStatusPill` 이 같은 enum 에 대해 이미 선언한 것을 그대로 쓴다.
+ *
+ * `closed` = 승인 없이 끝난 요청. 그 경우 확정의 기준이 될 승인이 없다는 것이 판정에서
+ * 유일하게 말할 수 있는 사실이다. `RESET` 은 계약에는 있지만 이 레포에 어휘가 없어서
+ * 목록에 없다 — 모르는 값은 상태 문자열만 중립 톤으로 보여 주고(`RequestVerdictNotice`
+ * 와 같은 규칙) 판정 문장에서는 요청에 대해 아무 말도 하지 않는다.
+ */
+const REQUEST_STATUS: Readonly<
+  Record<string, { label: string; tone: keyof typeof TAG_TONE; closed: boolean }>
+> = {
+  PENDING: { label: '승인 대기', tone: 'warn', closed: false },
+  APPROVED: { label: '승인', tone: 'ok', closed: false },
+  AUTO_APPROVED: { label: '승인', tone: 'ok', closed: false },
+  REJECTED: { label: '반려', tone: 'err', closed: true },
+  CANCELLED: { label: '요청 취소', tone: 'off', closed: true },
+  UNAVAILABLE: { label: '연동 불가', tone: 'off', closed: true },
+  UNAVAILABLE_ACKNOWLEDGED: { label: '연동 불가', tone: 'off', closed: true },
+};
+
+/**
+ * 요청 상태 → 판정 문장의 입력. **순수 함수로 빼 둔 이유는 이 매핑이 한 번 틀렸기 때문이다** —
+ * "반려도 승인도 아니면 대기" 라는 부정형이 계약 enum 8종 중 넷을 "승인 대기" 로 만들었다.
+ *
+ * 규칙은 셋뿐이다: 모르면 `unknown`(로드 전·실패), 계약이 대기라고 한 것만 `pending`,
+ * 승인 없이 끝난 것은 `closed`. 어휘가 없는 값은 `closed` 이면서 label 이 없고, 그러면
+ * 판정 문장이 요청에 대해 아무 말도 하지 않는다.
+ *
+ * 반려는 자기 headline 과 빨강 점을 가지므로 `closed` 와 따로 남긴다.
+ */
+export function requestFacetOf(input: {
+  loaded: boolean;
+  present: boolean;
+  status: string | null;
+  requestId: number | null;
+  selectedCount: number;
+}): RequestFacet {
+  const { loaded, present, status, requestId, selectedCount } = input;
+  if (!loaded) return { kind: 'unknown' };
+  if (!present) return { kind: 'none' };
+  if (status === 'REJECTED') return { kind: 'rejected' };
+  if (status != null && APPROVED_STATUSES.has(status)) {
+    return { kind: 'approved', requestId, count: selectedCount };
+  }
+  const spec = status != null ? REQUEST_STATUS[status] : undefined;
+  if (spec == null) return { kind: 'closed', label: null };
+  return spec.closed ? { kind: 'closed', label: spec.label } : { kind: 'pending', requestId };
+}
 
 /**
  * 'YYYY-MM-DD HH:mm' 에서 'MM-DD' 만 — 밴드 부제는 한 줄이라 날짜만 붙인다.
@@ -242,27 +295,17 @@ export function ConfirmTab({
   const requestVerdict = requestData?.verdict ?? null;
   const requestStatus = requestVerdict?.status ?? requestData?.request.status ?? null;
   const requestApproved = requestStatus != null && APPROVED_STATUSES.has(requestStatus);
+  /** 선언된 상태면 그 어휘, 아니면 `undefined` — 모르는 값을 대기로 읽지 않기 위한 갈림길. */
+  const requestSpec = requestStatus != null ? REQUEST_STATUS[requestStatus] : undefined;
   const selectedCount = requestData?.resources.filter((row) => row.selected).length ?? 0;
 
-  // ── 판정 문장 — 규칙은 verdict.ts 한 곳에 있다. 여기서는 두 입력의 결말만 간추린다.
-  //
-  // 요청 쪽: 반려·대기 중인 요청의 리소스 수를 "승인된 N건" 이라고 부르면 없는 승인을
-  // 있다고 말하는 것이 된다 — `approved` 는 APPROVED/AUTO_APPROVED 일 때만이다.
-  // 로드 전·실패는 `unknown` — 모르는 것을 "요청 없음" 이라고 말하지 않는다.
-  const requestFacet: RequestFacet =
-    request.state !== 'ready'
-      ? { kind: 'unknown' }
-      : requestData == null
-        ? { kind: 'none' }
-        : requestStatus === 'REJECTED'
-          ? { kind: 'rejected' }
-          : requestApproved
-            ? {
-                kind: 'approved',
-                requestId: requestData.request.requestId ?? null,
-                count: selectedCount,
-              }
-            : { kind: 'pending', requestId: requestData.request.requestId ?? null };
+  const requestFacet: RequestFacet = requestFacetOf({
+    loaded: request.state === 'ready',
+    present: requestData != null,
+    status: requestStatus,
+    requestId: requestData?.request.requestId ?? null,
+    selectedCount,
+  });
 
   const installed = processStatus != null && INSTALLED.has(processStatus);
   const hasConfirmed = confirmedRows.length > 0;
@@ -291,9 +334,10 @@ export function ConfirmTab({
   const requestTag: { tone: keyof typeof TAG_TONE; label: string } | null =
     request.state !== 'ready' ? null
       : requestData == null ? { tone: 'off', label: '요청 없음' }
-        : requestStatus === 'REJECTED' ? { tone: 'err', label: '반려' }
-          : requestApproved ? { tone: 'ok', label: '승인' }
-            : { tone: 'warn', label: '승인 대기' };
+        : requestSpec != null ? { tone: requestSpec.tone, label: requestSpec.label }
+          // 계약에 있으나 어휘가 없는 값(`RESET`)은 상태 문자열을 그대로 중립 톤으로 —
+          // 지어낸 라벨보다 원문이 정확하다.
+          : { tone: 'off', label: requestStatus ?? '요청 없음' };
   const requestMeta =
     requestData == null
       ? null
@@ -397,7 +441,10 @@ export function ConfirmTab({
           <RequestPane
             detail={requestData}
             wire={requestData?.wire ?? null}
-            isIdc={detail.cloud_provider === 'IDC'}
+            // 정규화해서 비교한다 — RequestTab·OpsTargetView 와 같은 규칙이다. 이 pane 이
+            // 넘기는 곳이 그 탭과 같은 `ResourceList` 라, 원문 비교가 casing 하나에 뒤집히면
+            // IDC 행이 클라우드용 표로 떨어지고 IDC 전용 NLB 조회가 아예 돌지 않는다.
+            isIdc={normalizeCloudProvider(detail.cloud_provider) === 'IDC'}
             targetSourceId={targetSourceId}
           />
         )}

@@ -533,9 +533,13 @@ export const httpBff: BffClient = {
     createConfirmedResources: (id, provider, body, applyNlbSecurityGroup) =>
       send<unknown>(
         'POST',
-        // 계약이 이 flag 를 AWS path 에만 둔다. 기본값이 false 라, 켠 경우에만 붙인다.
+        // 계약이 이 flag 를 AWS path 에만 둔다. 기본값이 false 라 켠 경우에만 붙이고,
+        // **provider 도 함께 본다** — 게이트가 UI 에만 있으면(체크박스는 AWS 에서만 렌더된다)
+        // 내부 라우트를 직접 부르는 쪽이 `?provider=GCP&applyNLBSecurityGroup=true` 로
+        // 선언되지 않은 파라미터를 gcp path 에 실어 보낼 수 있다. 경로를 만드는 이 자리가
+        // 파라미터가 그 경로에 있는지 아는 유일한 자리다.
         `/target-sources/${id}/${CONFIRMED_RESOURCE_PATH[provider]}${
-          applyNlbSecurityGroup ? '?applyNLBSecurityGroup=true' : ''
+          provider === 'AWS' && applyNlbSecurityGroup ? '?applyNLBSecurityGroup=true' : ''
         }`,
         body,
         { emptyBodyOk: true },

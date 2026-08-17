@@ -19,12 +19,20 @@ export interface ConfirmVerdict {
   sub: string;
 }
 
-/** 최신 연동 요청의 결말 — `unknown` 은 로드 전/실패라 아직 아무것도 단정할 수 없는 상태. */
+/**
+ * 최신 연동 요청의 결말 — `unknown` 은 로드 전/실패라 아직 아무것도 단정할 수 없는 상태.
+ *
+ * `pending` 은 계약이 대기라고 말한 것만이다. 승인 없이 끝난 요청(취소·연동 불가)은
+ * `closed` 다 — 그것을 대기로 부르면 이미 끝난 요청을 아직 처리 중이라고 말하게 된다.
+ * `closed.label` 이 없으면 그 상태의 어휘가 레포에 없다는 뜻이고, 그 때는 요청에 대해
+ * 아무 말도 하지 않는다.
+ */
 export type RequestFacet =
   | { kind: 'unknown' }
   | { kind: 'none' }
   | { kind: 'pending'; requestId: number | null }
   | { kind: 'rejected' }
+  | { kind: 'closed'; label: string | null }
   | { kind: 'approved'; requestId: number | null; count: number };
 
 export function deriveConfirmVerdict(input: {
@@ -72,6 +80,10 @@ export function deriveConfirmVerdict(input: {
             : '요청이 아직 처리되지 않았습니다 — 처리 결과를 기준으로 확정합니다.'
           : request.kind === 'none'
             ? '아직 승인 요청이 없습니다 — 승인된 리소스를 기준으로 등록됩니다.'
-            : '승인된 리소스를 기준으로 확정 정보가 등록됩니다.',
+            : // 승인 없이 끝난 요청 — 반려처럼 빨강으로 올리지는 않는다(취소·연동 불가는
+              // 실패가 아니다). 어휘가 없으면 요청 얘기를 빼고 기본 문장으로 돌아간다.
+              request.kind === 'closed' && request.label != null
+              ? `최신 요청이 ${request.label}로 처리되어 확정할 기준이 없습니다 — 재요청을 기다리거나 직접 등록할 수 있습니다.`
+              : '승인된 리소스를 기준으로 확정 정보가 등록됩니다.',
   };
 }

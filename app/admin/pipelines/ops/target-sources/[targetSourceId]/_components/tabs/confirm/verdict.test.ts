@@ -18,7 +18,7 @@ describe('deriveConfirmVerdict — 문구 전수표의 아홉 행', () => {
     expect(verdict.sub).toContain('8건');
   });
 
-  it('설치 끝 + 확정 수를 모르면 건수 없이 말한다', () => {
+  it('설치 끝 + 확정 0건이면 건수 없이 말한다', () => {
     const verdict = deriveConfirmVerdict({
       installed: true,
       confirmedCount: 0,
@@ -85,6 +85,40 @@ describe('deriveConfirmVerdict — 문구 전수표의 아홉 행', () => {
     });
     expect(verdict.head).toBe('확정 정보가 필요합니다');
     expect(verdict.sub).toBe('아직 승인 요청이 없습니다 — 승인된 리소스를 기준으로 등록됩니다.');
+  });
+
+  it('대기 + 요청 번호가 없으면 번호 없이 같은 전제를 말한다', () => {
+    const verdict = deriveConfirmVerdict({
+      installed: false,
+      confirmedCount: 0,
+      request: { kind: 'pending', requestId: null },
+    });
+    expect(verdict.sub).toBe('요청이 아직 처리되지 않았습니다 — 처리 결과를 기준으로 확정합니다.');
+  });
+
+  it('승인 없이 끝난 요청은 대기라고 말하지 않는다 — 취소·연동 불가', () => {
+    for (const label of ['요청 취소', '연동 불가']) {
+      const verdict = deriveConfirmVerdict({
+        installed: false,
+        confirmedCount: 0,
+        request: { kind: 'closed', label },
+      });
+      // 반려가 아니므로 빨강으로 올리지 않는다.
+      expect(verdict.dot).toBe('idle');
+      expect(verdict.sub).toBe(
+        `최신 요청이 ${label}로 처리되어 확정할 기준이 없습니다 — 재요청을 기다리거나 직접 등록할 수 있습니다.`,
+      );
+      expect(verdict.sub).not.toContain('처리되지 않았습니다');
+    }
+  });
+
+  it('끝난 요청의 어휘가 없으면 요청에 대해 아무 말도 하지 않는다', () => {
+    const verdict = deriveConfirmVerdict({
+      installed: false,
+      confirmedCount: 0,
+      request: { kind: 'closed', label: null },
+    });
+    expect(verdict.sub).toBe('승인된 리소스를 기준으로 확정 정보가 등록됩니다.');
   });
 
   it('요청을 아직 모르면 "요청 없음"이라고 말하지 않는다', () => {
