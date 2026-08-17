@@ -339,7 +339,6 @@ export const IdcStep5ConnectionTest = ({
                 run={
                   latestJob
                     ? {
-                        version: latestJob.test_connection_version ?? null,
                         requestedAt: latestJob.requested_at ?? null,
                         completedAt: latestJob.completed_at ?? null,
                       }

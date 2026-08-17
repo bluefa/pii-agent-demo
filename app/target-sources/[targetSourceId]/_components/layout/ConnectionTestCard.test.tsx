@@ -497,7 +497,7 @@ describe('ConnectionTestCard', () => {
     renderCard([makeResource({ credentialId: 'Key1' })]);
 
     expect(await screen.findByText('연결 테스트 완료 확인됨')).toBeTruthy();
-    expect(screen.getByText('실행 #1 결과 기준')).toBeTruthy();
+    expect(screen.getByText('최근 수행 결과 기준')).toBeTruthy();
     expect(screen.queryByRole('button', { name: '완료 승인 요청' })).toBeNull();
     expect(screen.queryByRole('button', { name: /다시 실행/ })).toBeNull();
     expect(screen.getByRole('button', { name: '실행 이력' })).toBeTruthy();

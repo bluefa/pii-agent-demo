@@ -150,7 +150,7 @@ interface ConnectionTestCardProps {
  * SUCCESS the completion-status is fetched (useTcCompletionStatus) and the 완료 승인 요청
  * CTA opens only when it reads LATEST_TEST_CONNECTION_SUCCESS; the summary card holds the
  * state-driven CTA slot (시안 A — Run Test / 다시 실행 / 완료 승인 요청 swap with the folded
- * card state), the run's #version/timestamps and the 실행 이력 modal, and the rejection
+ * card state), the run's timestamps and the 실행 이력 modal, and the rejection
  * notice surfaces the admin's re-run reason.
  */
 export const ConnectionTestCard = ({
@@ -386,7 +386,6 @@ export const ConnectionTestCard = ({
           run={
             latestJob
               ? {
-                  version: latestJob.test_connection_version ?? null,
                   requestedAt: latestJob.requested_at ?? null,
                   completedAt: latestJob.completed_at ?? null,
                 }

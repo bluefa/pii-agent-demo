@@ -12,7 +12,6 @@ import {
 } from '@/lib/test-connection-summary';
 
 export interface TcSummaryRun {
-  version: number | null;
   requestedAt: string | null;
   completedAt: string | null;
 }
@@ -120,7 +119,7 @@ export const TcSummaryCard = ({
 
   const metaParts: string[] = [];
   if (state === 'confirmed') {
-    if (run && run.version !== null) metaParts.push(`실행 #${run.version} 결과 기준`);
+    if (run) metaParts.push('최근 수행 결과 기준');
   } else if (state === 'policy-changed') {
     // 계약이 짝지은 두 시각으로 "실행이 뒤처짐"을 구체화한다 — 변경이 실행보다 최신이다.
     if (policyChangedAt) metaParts.push(`정책 변경 ${fmtDateTime(policyChangedAt)}`);
