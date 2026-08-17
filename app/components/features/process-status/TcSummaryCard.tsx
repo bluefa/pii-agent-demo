@@ -135,6 +135,10 @@ export const TcSummaryCard = ({
     }
   }
 
+  // 정책 변경의 시각 쌍은 헤드 우측 메타가 아니라 문장 바로 아래 줄 — "변경이 실행보다
+  // 최신"이라는 문장의 근거라, 문장과 짝으로 붙어 있어야 읽힌다.
+  const metaBelowTitle = state === 'policy-changed' && metaParts.length > 0;
+
   // Non-zero buckets only — but on a settled run 미보고/미확인 are anomalies and must
   // surface even though a healthy settle never produces them.
   const countParts: { label: string; value: number; className?: string }[] = [
@@ -236,24 +240,31 @@ export const TcSummaryCard = ({
       {/* flex-wrap + break-keep: 메타 줄(whitespace-nowrap)이 길 때 좁은 카드에서
           문장이 한 글자씩 세로로 부서지던 것을, 메타가 제 줄로 내려가는 것으로 바꾼다. */}
       <div className={cn(s.head, 'flex-wrap')}>
-        <div className={cn(s.title, s.titleColor[surface], 'break-keep')}>
-          <span className={cn(s.icon, s.accent[surface])}>
-            {state === 'success' || state === 'confirmed' ? (
-              <CheckIcon className="h-[15px] w-[15px]" draw={state === 'success' && drawCheck} />
-            ) : state === 'policy-changed' ? (
-              <StatusWarningIcon className="h-[15px] w-[15px]" />
-            ) : (
-              <ClockIcon
-                className={cn(
-                  'h-[15px] w-[15px]',
-                  state === 'running' && 'animate-spin motion-reduce:animate-none',
-                )}
-              />
-            )}
-          </span>
-          {sentence}
+        {/* contents: 서브라인이 없으면 래퍼가 레이아웃에서 사라져 기존 한 줄 구조 그대로. */}
+        <div className={metaBelowTitle ? 'flex min-w-0 flex-col gap-1' : 'contents'}>
+          <div className={cn(s.title, s.titleColor[surface], 'break-keep')}>
+            <span className={cn(s.icon, s.accent[surface])}>
+              {state === 'success' || state === 'confirmed' ? (
+                <CheckIcon className="h-[15px] w-[15px]" draw={state === 'success' && drawCheck} />
+              ) : state === 'policy-changed' ? (
+                <StatusWarningIcon className="h-[15px] w-[15px]" />
+              ) : (
+                <ClockIcon
+                  className={cn(
+                    'h-[15px] w-[15px]',
+                    state === 'running' && 'animate-spin motion-reduce:animate-none',
+                  )}
+                />
+              )}
+            </span>
+            {sentence}
+          </div>
+          {/* pl-[26px] = icon 18px + gap-2 — 서브라인 텍스트를 문장 텍스트와 정렬. */}
+          {metaBelowTitle && (
+            <span className={cn(s.countsWarn, 'pl-[26px]')}>{metaParts.join(' · ')}</span>
+          )}
         </div>
-        {(metaParts.length > 0 || (run && historyAction)) && (
+        {((!metaBelowTitle && metaParts.length > 0) || (run && historyAction)) && (
           <span
             className={cn(
               // pending 표면에서 #6B7684 는 4.37:1 로 AA 미달 — 이 상태의 메타는 경고 판이다.
@@ -261,7 +272,7 @@ export const TcSummaryCard = ({
               'flex items-center gap-2 whitespace-nowrap',
             )}
           >
-            {metaParts.length > 0 && <span>{metaParts.join(' · ')}</span>}
+            {!metaBelowTitle && metaParts.length > 0 && <span>{metaParts.join(' · ')}</span>}
             {run ? historyAction : null}
           </span>
         )}
