@@ -1118,6 +1118,50 @@ export const idcStyles = {
     // hover tint its fill goes equiluminant with the tint (see chipEdge).
     fill: `${tagStyles.resourceKind} ${tableRowLift.chipEdge}`,
   },
+  /**
+   * 확인 필요 배지 — 같은 데이터베이스를 두 번 등록했을지 모르는 행에 붙는다.
+   *
+   * 면을 칠하지 않는 유일한 배지다. 바로 옆에 서는 게 kindBadge 이고 그중 `multi` 가
+   * 이미 주황 면(#FEF0E1)이라, 경고를 주황 면으로 그리면 두 칩이 한 덩어리로 읽힌다.
+   * 흰 면 + stroke 는 행 hover 틴트 위에서도 대비를 잃지 않는다(chipEdge 가 푸는 문제를
+   * 애초에 만들지 않는다). 글자색 #B54708 은 --pl-warn-text 와 같은 값 — 상단 알림과
+   * 표가 같은 경고 하나를 말한다.
+   *
+   * 11.5px 은 옆의 kindBadge 와 같은 눈금이다.
+   */
+  checkBadge:
+    'inline-flex items-center gap-1 rounded-md border border-[#F79009] bg-white px-2 py-[3px] text-[11.5px] font-semibold text-[#B54708]', // design-exempt: mirrors idcStyles.kindBadge 11.5px token
+  /**
+   * 확인 필요 그룹을 잇는 선 (오너, 2026-08-17: RDS Cluster 처럼 가로·세로 선으로 잇자 —
+   * 같은 제안을 앞서 기각했던 결정을 오너가 직접 뒤집었다).
+   *
+   * 4px 레일을 대신한다. 레일은 "이 행들이 같은 성격"까지만 말하고 어디서 시작해 어디서
+   * 끝나는지는 두께가 변하지 않으니 읽는 사람이 색이 끊기는 지점을 찾아야 했다. 트렁크와
+   * 엘보는 그걸 그린다: 첫 구성원의 엘보에서 시작해 마지막 구성원의 엘보에서 끝나므로,
+   * 선 자체가 그룹의 천장과 바닥이다.
+   *
+   * `group.childCell` 과 같은 어휘를 다시 앵커한 것이다 — 표에 트리 선은 하나다. 다른 점은
+   * 부모가 없다는 것: 여기서 묶이는 건 형제들이라 트렁크가 첫 행의 가운데에서 시작한다
+   * (부모-자식 트리는 부모 행에서 내려온다).
+   *
+   * 기하는 `approvalCell` 의 18px 좌패딩 안에서 잡는다:
+   *   8       트렁크   (패딩 안, 표 왼쪽 테두리와 떨어져)
+   *   8..14   엘보     6px
+   *   18      셀 내용  → 4px 여유. 붙이는 건 띄우는 게 아니다.
+   *
+   * 색은 --pl-warn-text 와 같은 #B54708 — 배지·짝 주소와 한 경고를 말한다. 중립 회색
+   * (--rail #C4CEDA)은 부모-자식 트리의 색이고, 이 선이 가리키는 건 구조가 아니라 어느
+   * 행들이 문제인가다. `--pl-warn`(#F79009)은 흰 행에서 2.35:1 이라 이 자리에 못 쓴다.
+   */
+  checkGroup: {
+    /** 그룹 안의 행 — 트렁크가 행 높이를 관통하고 엘보가 내용까지 닿는다. */
+    cell: "relative before:absolute before:bottom-0 before:left-[8px] before:top-0 before:w-px before:bg-[#B54708] before:content-[''] after:absolute after:left-[8px] after:top-1/2 after:h-px after:w-[6px] after:bg-[#B54708] after:content-['']",
+    /** 첫 구성원 — 트렁크가 자기 엘보에서 시작한다. */
+    first: 'before:top-1/2',
+    /** 마지막 구성원 — 트렁크가 자기 엘보에서 끝난다. 잇는 것을 지나쳐 뻗는 선은 아래로
+     *  이어지는 그룹으로 읽힌다. */
+    last: 'before:bottom-1/2',
+  },
   /** Inline color tag — `.tag` (4px 10px / radius 8 / 12px / 600). */
   tag: {
     base: 'inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-[12px] font-semibold tracking-[-0.01em] whitespace-nowrap',
@@ -1802,20 +1846,68 @@ export const serviceSidebarStyles = {
     'inline-flex shrink-0 min-w-[38px] items-center justify-center rounded-[6px] bg-[#F1F4F5] px-1.5 py-0.5 font-mono text-[12px] font-medium leading-5 text-[#4E5968]',
   /**
    * Row fill under pointer hover or keyboard focus — full-bleed and square, the
-   * way a web list row highlights. White, not a deeper grey: on a tinted rail
-   * the row under the cursor is the one that lifts toward the reader.
+   * way a web list row highlights. Lighter than the rail, so the row under the
+   * cursor lifts toward the reader — but no longer all the way to white.
+   *
+   * A hover is a pointer echo, not a state, so it stays UNDER the selected row's
+   * own step: rail → current tint is ΔL* 3.6, and this is ΔL* 2.7 (1.07:1, ΔE
+   * 3.6 — above the ~2.3 at which two surfaces are seen as different at all).
+   * White was ΔL* 8.6 (1.25:1), more than twice the state it passed over, and
+   * #F6F6F6 was still 5.5.
+   *
+   * The old note here said gray-50 measured 1.03 on this rail and could not be
+   * seen; that number was taken against the LIGHTER rail (#F2F4F6, where it is
+   * 1.06). On today's #E2E7EA gray-50 is 1.19 — the constraint it encoded is
+   * gone, which is what left room to come down this far.
+   *
+   * Neutral, not a pale violet: the violet band belongs to "you are here", and a
+   * hover that borrowed it would read as selecting the row.
    */
-  rowActive: 'hover:bg-white focus-visible:bg-white',
+  rowActive: 'hover:bg-[#EEEEEE] focus-visible:bg-[#EEEEEE]',
   /**
    * The row for the service the page is about — tint + 2px accent bar, the way a
    * desktop rail marks "you are here". It replaced a pinned band above the list:
    * the page header already names the service, so the band only repeated it.
+   *
+   * The bar rides the RIGHT edge, against the content column the row is about —
+   * the same edge the admin console rail marks (`serviceListStyles.itemActive`).
+   *
+   * VIOLET, not the brand blue, and the same violet the target-source card rows
+   * hover to (`tableRowLift.card` #F3EEFF) — one family for "this is the row you
+   * are on", whichever list you are in.
+   *
+   * Levels are the blue pair's, byte for byte — every value keeps its
+   * counterpart's L*, so contrast is unchanged:
+   *
+   *   tint vs rail      1.10 → 1.10      ink #191F28 on tint  14.56 → 14.58
+   *   bar vs tint       4.33 → 4.42      bar vs rail          4.03 (1.4.11 ≥ 3)
+   *
+   * The tint lands ON #F3EEFF exactly — the blue tint already shared that L*.
+   *
+   * CHROMA is NOT carried over from the blue. Violet at blue's chroma reads far
+   * hotter than blue does — a UI blue at C90 is ordinary, a violet at C90 is
+   * neon — and the rail is a back plane, so the whole set sits under the
+   * reference rather than at it: bar C90.5 → 44.7, ink C81.0 → 44.9.
+   *
+   * And the tint carries NO brightness step: L* 91.4, the rail's own level, so
+   * the pair differs on hue alone (chroma 2.3 → 8.0, 3.5×; luminance 1.000:1).
+   * Every lighter value tried — the reference #F3EEFF and the toned #F2EFFA both
+   * sit ΔL* +3.6 up — read as a lit band on a grey rail, brighter than anything
+   * else on the plane including the page's own cards.
+   *
+   * That also sorts the rail's three signals onto their own channels: hover
+   * LIFTS (+2.7 L*, neutral), current is HUE (violet at the rail's level),
+   * pressing a current row goes DOWN (−2.5 L*). None of them is competing on
+   * brightness with the others.
+   *
+   * The reference (#F3EEFF) is still what the hue is FROM; it is a card hover on
+   * white, where the same colour has a brighter ground to spend it against.
    */
   rowCurrent:
-    'relative bg-[#E8F1FF] hover:bg-[#D6E7FF] focus-visible:bg-[#D6E7FF] before:absolute before:inset-y-0 before:left-0 before:w-0.5 before:bg-[#0064FF] before:content-[""]',
-  /** Code tag on the current row — primary pair on the row's tint (see primaryColors.textOnLight). */
+    'relative bg-[#E9E4F3] hover:bg-[#E2DDEE] focus-visible:bg-[#E2DDEE] before:absolute before:inset-y-0 before:right-0 before:w-0.5 before:bg-[#7465B0] before:content-[""]',
+  /** Code tag on the current row — the violet at #0050D6's level (6.71:1 on white), at the bar's chroma. */
   rowCodeCurrent:
-    'inline-flex shrink-0 min-w-[38px] items-center justify-center rounded-[6px] bg-white px-1.5 py-0.5 font-mono text-[12px] font-semibold leading-5 text-[#0050D6]',
+    'inline-flex shrink-0 min-w-[38px] items-center justify-center rounded-[6px] bg-white px-1.5 py-0.5 font-mono text-[12px] font-semibold leading-5 text-[#5F519A]',
   /** Hairline between rows — rows that stretch to fill the rail need a rule to read as a list instead of as floating text. */
   rowDivide: 'divide-y divide-[#D2D8DC]',
   /** Skeleton bar for the rail — a step darker than the surface, or it vanishes into it. */
@@ -2058,6 +2150,10 @@ const pipelineText = {
   sidebarTitle: 'text-[12px] font-semibold uppercase tracking-[0.06em] text-[var(--pl-gray-400)]', // design-exempt: gray-400 on the gray-900 sidebar (6.89:1), not on white
 } as const;
 
+/** 유형 키 — theme 은 도메인 타입을 import 하지 않는다(PipelineStatusToneKey 와 같은
+ *  규칙). PipelineType 과 어긋나면 PipelineTypeTag 의 인덱싱에서 컴파일이 깨진다. */
+type PipelineTypeToneKey = 'INSTALL' | 'DELETE' | 'CUSTOM';
+
 /** Semantic status → the four status tokens (bg tint, text, solid dot, border). */
 type PipelineStatusToneKey =
   | 'PENDING'
@@ -2193,18 +2289,31 @@ export const pipelineStyles = {
     tone: PIPELINE_PILL_TONE,
   },
 
-  /** PipelineTypeTag (R18 §1) — icon+color+enum triple encoding; bg-less inline
-   *  tag so it never competes with the filled status pills. Icon carries the
-   *  hue (tone), text stays medium mono. */
   /**
-   * 글리프는 라벨 색을 물려받는다 — 공용 `ProvTag` 와 같은 문법 (오너 2026-08-14:
-   * "색상이 강하지 않게"). 유형별 틴트(파랑·빨강·보라)를 따로 주던 것을 걷었다:
-   * DELETE 의 빨강이 같은 행의 실패 빨강과 같은 가족이라 **한 화면에서 빨강이 두 뜻**을
-   * 가졌고, 아이콘 모양과 enum 원문이 이미 유형을 두 채널로 말하고 있어 색은 셋째
-   * 사본이었다. `--pl-type-*` 토큰 자체는 상세 화면의 타일이 계속 쓴다.
+   * PipelineTypeTag (R18 §1) — bg-less inline tag so it never competes with the
+   * status word one column over.
+   *
+   * 색은 **글리프만** 입는다 (오너 2026-08-15). 2026-08-14 에 유형 틴트를 걷었던
+   * 이유는 "DELETE 빨강이 같은 행 실패 빨강과 한 가족"이었는데, 그때는 틴트가
+   * 글리프와 라벨을 함께 물들여 유형이 색까지 셋째 채널로 말하고 있었다. 지금은
+   * 채널이 갈린다 — **유형은 글리프, 상태는 낱말**. 같은 #B42318 이 한 행에 두 번
+   * 나와도 하나는 20px 도형이고 하나는 12px 낱말이라 서로를 덮지 않는다.
+   * 라벨은 `--pl-text-medium` 고정: 색을 두 곳에 주면 08-14 의 문제로 되돌아간다.
+   *
+   * mono 선언은 뺐다 — 라벨이 wire enum(`INSTALL`)에서 한글(`설치`)로 바뀌면서
+   * 근거가 사라졌다(`--pl-font-mono` 는 이미 sans 별칭이라 픽셀은 그대로).
    */
   typeTag: {
-    base: 'inline-flex items-center gap-1 whitespace-nowrap text-[12px] font-semibold text-[var(--pl-text-medium)] [font-family:var(--pl-font-mono)]',
+    base: 'inline-flex items-center gap-1.5 whitespace-nowrap text-[12px] font-semibold text-[var(--pl-text-medium)]',
+    /** 글리프 전용 틴트. 도형(비텍스트)이라 WCAG 1.4.11 의 3:1 이 기준선 —
+     *  실측 흰 행 / hover(#F6F3FF): install 5.41/4.94 · delete 6.57/6.01 ·
+     *  custom 6.62/6.05. 전부 텍스트 기준(4.5:1)도 넘으므로 라벨과 붙어 서도
+     *  둘 중 하나만 흐려 보이는 일은 없다. */
+    glyphTone: {
+      INSTALL: 'text-[var(--pl-type-install)]',
+      DELETE: 'text-[var(--pl-type-delete)]',
+      CUSTOM: 'text-[var(--pl-type-custom)]',
+    } satisfies Record<PipelineTypeToneKey, string>,
   },
 
   /** JobKindTag — the terraform action (PLAN/APPLY/DESTROY) on a job node.

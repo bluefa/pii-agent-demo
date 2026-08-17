@@ -11,7 +11,7 @@
  * Database Type carries no chip: it is a repeating attribute, not a status.
  */
 import { Fragment, type ReactElement } from 'react';
-import { bgColors, cn, idcStyles, primaryColors, textColors, verdictRailClass } from '@/lib/theme';
+import { bgColors, cn, idcStyles, primaryColors, textColors, verdictRail } from '@/lib/theme';
 import { useClusterFold } from '@/app/hooks/useClusterFold';
 import { ChevronRightIcon } from '@/app/components/ui/icons';
 import { getDatabaseShortLabel } from '@/app/components/ui/DatabaseIcon';
@@ -134,7 +134,11 @@ export function CloudResourceTable({ rows }: CloudResourceTableProps): ReactElem
                     // identity column — it was rendering at the attribute tier.
                     'font-mono text-[14px]',
                     textColors.primary,
-                    verdictRailClass(excluded, excluded && row.integrationCategory === 'INSTALL_INELIGIBLE'),
+                    // 제외는 자홍 레일을 달지 않는다 (오너, 2026-08-17) — IDC 표와 같은
+                    // 결정이다. 이 페이지의 두 표는 같은 승인 화면이므로 함께 움직인다.
+                    excluded &&
+                      row.integrationCategory === 'INSTALL_INELIGIBLE' &&
+                      verdictRail.ineligible,
                     // The row's anchor lifts to brand, marking which cell identifies it.
                     primaryColors.textGroupHover,
                     // The rail's first segment runs from the chevron down into the open band;

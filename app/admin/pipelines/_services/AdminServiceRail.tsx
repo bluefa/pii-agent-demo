@@ -70,10 +70,10 @@ interface AdminServiceRailProps {
  * 구역 라벨은 막대가 아니라 진짜 글자다. 검색 중인지 아닌지는 요청이 끝나기 전에
  * 이미 아는 로컬 상태라, 가리면 갖고 있는 정보를 숨기는 셈이 된다.
  */
-function RailSkeleton({ section, rows }: { section: string; rows: number }): ReactElement {
+function RailSkeleton({ section, rows }: { section: string | null; rows: number }): ReactElement {
   return (
     <>
-      <div className={serviceListStyles.railSection}>{section}</div>
+      {section && <div className={serviceListStyles.railSection}>{section}</div>}
       <div
         className={serviceListStyles.railList}
         style={{ maxHeight: rows * ROW_MAX_PX }}
@@ -100,14 +100,18 @@ function RailBody({
   error,
   section,
   pageSize,
+  emptySlots,
   selectedCode,
   onSelectService,
 }: {
   services: ServiceItem[];
   loading: boolean;
   error?: { message: string; onRetry: () => void } | null;
-  section: string;
+  /** 검색 중일 때만 붙는 구역 라벨 — 목록 전체를 가리키는 라벨은 달지 않는다. */
+  section: string | null;
   pageSize: number;
+  /** 짧은 마지막 장이 비워 두는 칸 수 — 0 이면 목록이 자기 행 수만큼만 차지한다. */
+  emptySlots: number;
   selectedCode: string | null;
   onSelectService: (code: string) => void;
 }): ReactNode {
@@ -142,17 +146,17 @@ function RailBody({
 
   return (
     <>
-      {/* 구역 라벨은 여기서는 남는다. `/services` 레일에서 뺀 이유는 바로 위 h2 가
-          이미 "서비스 목록"이라 같은 말이 두 번 나왔기 때문인데, 이 레일의 h1 은
-          "서비스 운영" · "서비스·대상 검색" 이라 목록의 범위를 말해 주는 건 이
-          줄뿐이다. */}
-      <div className={s.railSection}>{section}</div>
+      {/* 검색 중일 때만. 걸러지지 않은 목록에 "전체 서비스"를 달면 제목·개수 pill
+          바로 밑에서 이미 아는 사실을 한 줄 더 쓰는 셈이고, 레일에서 한 줄은
+          행 하나만큼 비싸다. 검색 결과는 다른 목록이라 그때는 말해 준다 —
+          `/services` 레일과 같은 규칙. */}
+      {section && <div className={s.railSection}>{section}</div>}
       <div
         className={s.railList}
         // 행이 남은 높이를 나눠 가지므로 상한이 없으면 한 장이 짧을 때 행이 레일
-        // 끝까지 늘어난다. 상한을 걸면 남는 높이는 마지막 행과 페이지 표시 사이로
-        // 빠진다 — railFoot 의 mt-auto 가 표시를 바닥에 붙여 두기 때문.
-        style={{ maxHeight: services.length * ROW_MAX_PX }}
+        // 끝까지 늘어난다. 빈 칸까지 세어 상한을 잡는다 — 그래야 짧은 마지막 장의
+        // 행도 꽉 찬 장과 같은 높이다.
+        style={{ maxHeight: (services.length + emptySlots) * ROW_MAX_PX }}
       >
         {/* 계약 스키마가 두 필드 모두 optional 이라(zod 느슨한 codegen) code 가
             없는 행은 이동할 곳이 없다 — 그릴 수 없는 행이라 걸러 낸다. */}
@@ -186,6 +190,11 @@ function RailBody({
             </button>
           );
         })}
+        {/* 빈 칸 몫만큼 늘어나는 스페이서 하나 — 칸마다 요소를 깔면 railList 의
+            divide-y 가 빈 칸마다 줄을 그어 목록이 덜 불러와진 것처럼 읽힌다. */}
+        {emptySlots > 0 && (
+          <div aria-hidden="true" style={{ flex: `${emptySlots} 1 0%` }} />
+        )}
       </div>
     </>
   );
@@ -206,7 +215,17 @@ export function AdminServiceRail({
   onPageChange,
 }: AdminServiceRailProps): ReactElement {
   const s = serviceListStyles;
-  const section = searchValue.trim() ? '검색 결과' : '전체 서비스';
+  const section = searchValue.trim() ? '검색 결과' : null;
+
+  // 20건을 8개씩 나누면 마지막 장은 4행이다. 행이 목록 높이를 나눠 가지므로 그
+  // 4행이 ROW_MAX_PX 까지 부풀어 꽉 찬 장보다 뚱뚱해지고, 그러고도 바닥에 붙은
+  // 페이지 표시와의 사이에 빈 띠가 남았다. 빠진 칸을 잡아 두면 행 높이가 장마다
+  // 같고 페이지 표시도 제자리다. 나뉜 목록에서만 — 검색 두 건은 짧은 목록이지
+  // 구멍 뚫린 장이 아니다.
+  const emptySlots =
+    !loading && !error && services.length > 0 && pageInfo.totalPages > 1
+      ? Math.max(0, pageInfo.size - services.length)
+      : 0;
 
   return (
     // 우측 상세는 표·타일로 길어지므로 레일이 같이 늘어나면 페이지 이동 버튼이
@@ -236,6 +255,7 @@ export function AdminServiceRail({
           error={error}
           section={section}
           pageSize={pageInfo.size}
+          emptySlots={emptySlots}
           selectedCode={selectedCode}
           onSelectService={onSelectService}
         />

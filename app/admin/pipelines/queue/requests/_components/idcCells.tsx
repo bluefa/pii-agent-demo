@@ -96,21 +96,37 @@ export function IdcEndpointCell({
   hosts,
   kind,
   tone,
+  suspect,
 }: {
   hosts: readonly string[];
   /** null for non-IDC rows — the badge is simply omitted. */
   kind?: IdcKind | null;
   tone?: string;
+  /**
+   * '같은 데이터베이스 의심' 표시 (@see _duplicateAddress). 배지는 구분 배지와 같은 줄에,
+   * 짝의 주소는 주소 아래에 선다 — 새 열도 표 머리글도 아니고 행의 정체성에 붙는다.
+   */
+  suspect?: { addresses: readonly string[]; partners: readonly string[] };
 }): ReactElement | null {
   const [expanded, setExpanded] = useState(false);
   if (hosts.length === 0) return null;
   const collapsible = kind === 'MULTIPLE_IP' && hosts.length > 1;
-  const shown = collapsible && !expanded ? hosts.slice(0, 1) : hosts;
+  const marked = new Set(suspect?.addresses ?? []);
+  // 걸린 주소를 맨 앞으로 올린다. 접힌 행은 첫 주소만 보이는데, 그게 근거가 아닌 주소면
+  // (.11 이 보이고 정작 짝과 붙어 있는 건 .18) 옆에 세워 둔 행과 아무 관계없어 보인다.
+  // IP Set 은 순서에 뜻이 없는 묶음이라 앞뒤를 바꿔도 잃는 정보가 없다.
+  const ordered =
+    marked.size > 0 ? [...hosts].sort((a, b) => Number(marked.has(b)) - Number(marked.has(a))) : hosts;
+  const shown = collapsible && !expanded ? ordered.slice(0, 1) : ordered;
   return (
     <span className="flex flex-col items-start gap-1">
       {/* 제외 행이라고 배지를 흐리게 하지 않는다 — 제외는 행 왼쪽 레일이 말하고,
           opacity-50 은 그 배지 위 글자의 대비를 AA 아래로 떨어뜨렸다. */}
-      {kind && <IdcKindBadge kind={kind} />}
+      <span className="inline-flex flex-wrap items-center gap-1">
+        {kind && <IdcKindBadge kind={kind} />}
+        {/* 번호가 붙지 않는다 — 짝은 바로 아래 주소로 가리키므로 이름이 필요 없다. */}
+        {suspect != null && <span className={idcStyles.checkBadge}>확인 필요</span>}
+      </span>
       {/* The addresses keep their own tighter rhythm; gap-1 above separates the caption
           from the block it captions. */}
       <span className="flex flex-col items-start gap-0.5">
@@ -124,7 +140,14 @@ export function IdcEndpointCell({
             <HostCell
               value={host}
               label="접속 주소"
-              tone={cn(tone ?? textColors.primary, primaryColors.textGroupHover)}
+              // 걸린 주소만 경고색으로 짚는다 — 여덟 줄짜리 IP Set 에서 "어느 주소를 두고
+              // 하는 말인가"에 답하는 유일한 채널이다. hover 리프트는 넘기지 않는다:
+              // 이 줄은 이미 자기 색을 들고 있고, 브랜드색으로 들리면 표시가 지워진다.
+              tone={
+                marked.has(host)
+                  ? 'text-[var(--pl-warn-text)] font-medium'
+                  : cn(tone ?? textColors.primary, primaryColors.textGroupHover)
+              }
               textClassName="text-[14px]"
               maxWidthClass="max-w-[200px]"
             />
@@ -134,12 +157,20 @@ export function IdcEndpointCell({
                 onClick={() => setExpanded((v) => !v)}
                 className={cn(idcStyles.epToggle, 'shrink-0 whitespace-nowrap')}
               >
-                {expanded ? '접기 ▴' : `IP ${hosts.length - 1}개 더보기 ▾`}
+                {expanded ? '접기 ▴' : `IP ${ordered.length - 1}개 더보기 ▾`}
               </button>
             )}
           </span>
         ))}
       </span>
+      {/* 짝의 주소. 이게 없으면 "확인 필요" 배지는 근거 없는 주장이다 — .31 과 .32 는 표에서
+          세로로 떨어져 있고, 둘이 인접하다는 사실은 관리자가 숫자를 직접 읽어 알아내야 했다.
+          경고색은 위 주소 줄과 같은 것을 쓴다: 걸린 주소와 그 짝은 한 사실의 양쪽이다. */}
+      {suspect != null && suspect.partners.length > 0 && (
+        <span className="text-[12px] leading-[1.5] text-[var(--pl-warn-text)]">
+          ↔ <span className="font-mono">{suspect.partners.join(' · ')}</span>
+        </span>
+      )}
     </span>
   );
 }

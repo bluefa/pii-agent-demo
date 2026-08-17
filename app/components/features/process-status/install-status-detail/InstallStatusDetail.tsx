@@ -713,7 +713,7 @@ export const InstallStatusDetail = ({
     // 행에서 그룹 헤더로 자리만 옮긴 꼴이다. (0)은 사실이므로 라벨은 그대로 둔다.
     const todoAllDone = todoSteps.every((s) => aggregates.get(s.id)?.kind === 'done');
     // 레일 항목 껍데기 — 단계와 참고 항목이 같은 히트 영역·선택 표현을 쓴다.
-    // 선택은 서비스 목록 rail 의 "현재 위치" 문법(rowCurrent: 파란 틴트 + 좌측 2px 바)
+    // 선택은 서비스 목록 rail 의 "현재 위치" 문법(rowCurrent: 보라 틴트 + 우측 2px 바)
     // 그대로다 — 흰 pill + 헤어라인은 회색 판 위에서 눌린 티가 나지 않았다(오너 지적).
     // 바가 라운드를 뚫지 않도록 overflow-hidden.
     const railItemClass = (isActive: boolean) =>

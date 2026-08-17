@@ -33,6 +33,9 @@ colors:
   provider-sdu:          "#9333EA"
   surface-page:          "#F2F4F6"
   row-hover:             "#F6F3FF"
+  type-install:          "#027A48"
+  type-delete:           "#B42318"
+  type-custom:           "#6941C6"
   text-strong-toss:      "#191F28"
   text-medium-toss:      "#4E5968"
   text-weak-toss:        "#8B95A1"
@@ -178,6 +181,24 @@ The four text tiers are not four ranks of text. `{colors.text-quaternary}` (`#9C
 Each cloud provider has a single brand colour used in icons, the left border of provider-scoped cards, and pill backgrounds at low opacity. Do not introduce gradients or alternative shades per provider here — those belong in `lib/theme.ts`'s `providerColors[*].gradient` if the prototype needs them.
 
 One exception, and it is narrow: a provider's **actual logotype** may carry its vendor's own multi-colour mark (owner, 2026-08-14) — AWS's two-tone wordmark, Azure's three blues, Google's four. That is reproduction of someone else's trademark, not a palette choice, which is also why it is exempt from contrast rules (WCAG 1.4.11 excludes logotypes). It is opt-in per consumer via `ProviderGlyph`'s `tone="brand"`; every other consumer stays monochrome and inherits its column's colour. The single-colour rule above still governs everything that is *ours* — borders, pill fills, tints — and IDC and SDU have no brand, so they have no branded form at all.
+
+### Pipeline type
+
+Three colours name what an infra job *does to* infrastructure. Like `jobKindTag`'s red DESTROY, they deliberately reuse a status hue for a non-status meaning; unlike it, they sit in a dense list directly beside the status word, which is what the rest of this section is about.
+
+| Token | Value | Type |
+|-------|-------|------|
+| `{colors.type-install}` | `#027A48` | INSTALL — adds |
+| `{colors.type-delete}` | `#B42318` | DELETE — removes |
+| `{colors.type-custom}` | `#6941C6` | CUSTOM — operator-composed |
+
+These live in the pipeline console's isolated `--pl-*` palette (`app/globals.css`), and inside it install-green and delete-red are byte-identical to that palette's own `--pl-ok-text` and `--pl-err-text` — the greens and reds the 완료 and 실패 status words wear one column over. That is a collision by construction, and the rule that makes it safe is a **channel split**: type owns the *glyph*, status owns the *word*. A 20px shape and a 12px label do not compete for the same reading even in the same hue, and the pairing operators actually need to distinguish — a delete job that failed — reads as a red trash glyph beside the red word 실패, which is two facts rather than one said twice.
+
+The split is the whole licence, so it is also the limit **wherever a type sits next to a status**. Colouring the type *label* there was tried and pulled (owner, 2026-08-14): with glyph and word both tinted, type spoke on three channels — shape, word, colour — and a screen where red means two things had no second channel left to separate them. On those surfaces, colour goes on the mark, not the text.
+
+One surface is deliberately outside that rule: the run-detail header's combined `AWS 삭제` tag (`detailImprovedStyles.header.typeTagDelete`) tints the **text** red and carries no glyph, because a destructive run must not read neutral in the one place an operator confirms what they are about to stop. It gets away with it for the reason the dashboard could not — the header is not a row in a list, so there is no adjacent status word for the red to be confused with. If that header ever gains a type glyph, the tint moves to it and this exception ends.
+
+Custom's violet sits outside the status ramp on purpose: there is no status hue for "an operator built this by hand", so borrowing one would assert a meaning the value does not have.
 
 ## Typography
 

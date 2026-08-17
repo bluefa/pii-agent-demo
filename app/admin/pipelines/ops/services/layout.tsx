@@ -3,9 +3,13 @@
 /**
  * 서비스 운영 — 좌측 서비스 레일 + 우측 상세 (서비스·대상 검색 /services 와 같은 split
  * 문법). 선택한 서비스는 PATH 에 있어(optional catch-all) 딥링크가 그대로 살아 있다.
- * 레일 상태(검색어·페이지)는 이 컴포넌트가 들고만 있고 URL 에 매어두지 않는다 — 현재
- * App Router 는 세그먼트가 바뀔 때 페이지를 다시 마운트해 처음 상태로 돌아가지만(/services
- * 레일과 같은 동작), 어느 쪽이든 화면이 성립하도록 초기값에 의존하는 로직은 두지 않았다.
+ *
+ * ⛔ 레일은 page 가 아니라 이 LAYOUT 에 있어야 한다. 서비스 선택은 세그먼트를 바꾸는
+ * 내비게이션이고, App Router 는 세그먼트가 바뀌면 page 를 언마운트했다가 다시 마운트한다
+ * — 레일을 page 에 두면 서비스를 고를 때마다 레일 상태(목록·검색어·페이지)가 초기값으로
+ * 돌아가고 `GET /user/services/page` 를 다시 부른다. 방금 읽고 있던 목록이 스켈레톤으로
+ * 되돌아갔다가 (그 요청이 실패하면 "불러오지 못했습니다"로) 다시 서는 것이다. 레이아웃은
+ * 자식 세그먼트가 바뀌어도 React 가 보존하므로, 클릭하면 우측 page 만 갈린다.
  *
  * 레일은 실계약 `GET /user/services/page` 하나로 선다 (서비스·대상 검색 레일과 같은
  * 소스). 검색·페이지가 계약의 `query`/`page`/`size` 파라미터라 자르기는 서버 몫이고,
@@ -14,18 +18,15 @@
  * 상세에서만 읽을 수 있다.
  */
 import { useParams, useRouter } from 'next/navigation';
-import { useCallback, useState, type ReactElement } from 'react';
-import { cn } from '@/lib/theme';
+import { useCallback, useState, type ReactElement, type ReactNode } from 'react';
 import { passRoutes } from '@/lib/routes';
 import { useDebounce } from '@/app/hooks/useDebounce';
 import { holdFor, SKELETON_MIN_MS } from '@/lib/min-duration';
 import { useAbortableEffect } from '@/app/hooks/useAbortableEffect';
 import { SERVICE_RAIL_PAGE_SIZE } from '@/app/components/features/admin/ServiceSidebar';
-import { PlEmptyState } from '@/app/admin/pipelines/_components/PlEmptyState';
 import { AdminServiceRail } from '@/app/admin/pipelines/_services/AdminServiceRail';
 import { serviceListStyles } from '@/app/admin/pipelines/_services/styles';
 import { serviceItemsFrom, type ServiceItem } from '@/app/admin/pipelines/_services/logic';
-import { ServiceDetailView } from '@/app/admin/pipelines/ops/services/_components/ServiceDetailView';
 import { getServicesPage } from '@/app/lib/api';
 
 // The rail pages the same everywhere it appears — see SERVICE_RAIL_PAGE_SIZE.
@@ -34,9 +35,11 @@ const RAIL_PAGE_SIZE = SERVICE_RAIL_PAGE_SIZE;
 /** 서비스·대상 검색 레일과 같은 값 — 두 레일의 검색 감각이 갈리지 않게. */
 const SEARCH_DEBOUNCE_MS = 300;
 
-export function ServicesView(): ReactElement {
+export default function OpsServicesLayout({ children }: { children: ReactNode }): ReactElement {
   const router = useRouter();
   // Optional catch-all: `/ops/services` → 선택 없음, `/ops/services/{code}` → params[0].
+  // 레이아웃에서도 현재 URL 의 params 를 그대로 읽는다 (PathParamsContext 는 라우터
+  // 루트가 URL 단위로 넣는다) — 선택 표시는 레일을 다시 세우지 않고 갱신된다.
   const params = useParams<{ serviceCode?: string[] }>();
   const selectedCode = params.serviceCode?.[0] ?? null;
 
@@ -55,6 +58,7 @@ export function ServicesView(): ReactElement {
 
   // 콜백은 동기로 두고 promise 를 돌려준다 — 서비스·대상 검색 레일과 같은 형태
   // (async 콜백은 useAbortableEffect 의 레이스 가드를 우회할 수 있어 lint 가 막는다).
+  // deps 에 selectedCode 가 없는 것이 이 화면의 요점이다 — 선택은 우측만 바꾼다.
   useAbortableEffect(
     (signal) => {
       // 스켈레톤이 한 번 떴으면 최소 시간을 채운 뒤에 데이터를 반영한다 — 목이 20ms 만에
@@ -133,26 +137,8 @@ export function ServicesView(): ReactElement {
         onPageChange={setPage}
       />
 
-      {/* 우 — 선택한 서비스의 운영 상세. key 로 갈아끼워 이전 서비스 데이터가 남지 않게 한다. */}
-      <section className={s.main}>
-        {selectedCode ? (
-          <ServiceDetailView key={selectedCode} serviceCode={selectedCode} />
-        ) : (
-          // 선택 전에도 같은 시트가 서 있어야 화면의 틀이 흔들리지 않는다. 다음 행동
-          // ("서비스를 고르세요")만 primary 로 키워 시선이 좌측 레일로 가게 한다.
-          <div className={cn(s.sheet, 'items-center justify-center')}>
-            <PlEmptyState
-              icon="cursor"
-              message={
-                <span className="text-[20px] font-bold text-[var(--pl-primary)]">
-                  좌측에서 서비스를 선택해 주세요.
-                </span>
-              }
-              meta={<span className="text-[16px]">서비스 현황을 상세 확인합니다.</span>}
-            />
-          </div>
-        )}
-      </section>
+      {/* 우 — 선택한 서비스의 운영 상세. 세그먼트가 바뀌면 이 자리만 갈린다. */}
+      <section className={s.main}>{children}</section>
     </div>
   );
 }

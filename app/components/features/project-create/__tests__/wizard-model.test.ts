@@ -78,12 +78,18 @@ describe('buildCandidatesInput — creation-candidates request body (35)', () =>
     expect(azureChina.isChinaRegion).toBe(true);
     expect(azureChina.tenantId).toBe('tenant-1');
     expect(azureChina.subscriptionId).toBe('sub-1');
+  });
 
-    const gcpChina = buildCandidatesInput(
+  // GCP has no China partition. The step-1 radio pair is hidden for it, but `region`
+  // is NOT reset when the provider changes — pick AWS → China → switch to GCP and the
+  // state still says china. The wire must stay global anyway.
+  it('never sends China for GCP, even with a China pick left over from another provider', () => {
+    const gcp = buildCandidatesInput(
       baseState({ providerKey: 'gcp', region: 'china', fields: { projectId: 'proj-1' } }),
     );
-    expect(gcpChina.isChinaRegion).toBe(true);
-    expect(gcpChina.gcpProjectId).toBe('proj-1');
+    expect(gcp.cloudType).toBe('gcp');
+    expect(gcp.isChinaRegion).toBe(false);
+    expect(gcp.gcpProjectId).toBe('proj-1');
   });
 
   it('keeps IDC out of the region question even if a region was picked earlier', () => {
