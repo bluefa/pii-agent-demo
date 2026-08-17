@@ -10,7 +10,7 @@
  */
 import { serviceSidebarStyles } from '@/lib/theme';
 
-/** 캔버스 위에 서는 카드 한 장의 면 — 세로 정렬만 갈린다(`svcRow` / `svcRowTop`). */
+/** 캔버스 위에 서는 카드 한 장의 면 — 서비스 목록의 행이 쓴다(`svcRow`). */
 const CARD_FACE =
   'gap-2.5 rounded-[9px] border border-[var(--pl-border)] bg-[var(--pl-bg-card)] px-3 py-2.5';
 
@@ -82,6 +82,9 @@ export const accessStyles = {
 
   headRow: 'mt-3 flex items-center gap-3 py-2 text-[12px] font-medium text-[var(--pl-text-weak)]',
   row: 'group relative flex items-center gap-3 border-t border-[var(--pl-border)] py-2.5 text-[14px] text-[var(--pl-text-medium)] transition-colors',
+  /** 접히는 칸이 있는 표의 행 — 사유가 두 줄이 되면 나머지 칸은 첫 줄에 맞춰 선다.
+   *  `cn` 으로 items-start 를 덧씌우지 않고 따로 선언한다(단순 join 이라 출력 순서가 이긴다). */
+  rowTop: 'group relative flex items-start gap-3 border-t border-[var(--pl-border)] py-2.5 text-[14px] text-[var(--pl-text-medium)] transition-colors',
   rowLink: 'hover:bg-[var(--pl-gray-50)]',
   /**
    * 요청자 화면(내 권한 요청)의 카드 더미 — 헤어라인이 아니라 간격으로 끊는다.
@@ -102,9 +105,6 @@ export const accessStyles = {
    *  여기서 640 으로 묶었는데, 그러면 1000 열 안의 828 카드 안에 640 목록이 되어
    *  폭이 세 겹이었다. */
   svcRow: `flex items-center ${CARD_FACE}`,
-  /** 둘째 단이 접히는 카드(내 요청 사유) — 타일이 이름 줄과 맞도록 위 정렬. `cn` 으로
-   *  items-center 를 덧씌우지 않고 따로 선언한다 — 단순 join 이라 출력 순서가 이긴다. */
-  svcRowTop: `flex items-start ${CARD_FACE}`,
   /** 행 안의 두 단 — 윗단 이름·코드, 아랫단 설명. 등급이 카드 사이가 아니라 행 안에서
    *  생기는 자리다(Carbon structured list, NN/g "굵은 줄만 따라 읽기"). */
   svcStack: 'flex min-w-0 flex-1 flex-col gap-0.5',
@@ -117,10 +117,34 @@ export const accessStyles = {
   svcDesc: 'min-w-0 truncate text-[12px] leading-[1.5] text-[var(--pl-text-weak)]',
   /** 행 끝 액션 셀 — "권한 요청"이 줄바꿈 없이 들어가는 폭. */
   svcAction: 'w-[68px] flex-none text-right',
+  /** 서비스 행의 액션 셀 — 버튼 그룹 한 덩어리가 들어가는 폭. 두 서비스 탭이 같은 폭을
+   *  쓴다: 접근 가능 탭은 이 자리가 비어 있는데, 그때만 좁히면 탭을 옮길 때마다 이름과
+   *  코드가 이 폭만큼 튄다. */
+  svcActionCell: 'flex w-[140px] flex-none justify-end',
+  /** 행 끝 버튼 그룹 — 담당자 보기와 권한 요청을 한 덩어리로 묶는다(오너 지시 2026-08-17).
+   *  둘 다 이 행 하나에 대한 행위라, 하나는 둘째 단의 글줄이고 하나는 오른쪽 끝 링크로
+   *  떨어져 있으면 같은 서비스의 두 행위로 읽히지 않는다. 테두리 하나를 둘이 나눠 쓰고
+   *  사이는 같은 선으로 가른다 — 면을 가진 CTA 를 둘씩 놓으면 한 장에 버튼이 열 개가 되고,
+   *  그러면 강조가 아니라 배경이 된다. */
+  svcActions:
+    'inline-flex items-stretch divide-x divide-[var(--pl-border)] overflow-hidden rounded-[7px] border border-[var(--pl-border)] bg-[var(--pl-bg-card)]',
+  /** 그룹 안의 버튼. 세 잉크를 각각 **완결로** 선언한다 — `cn` 은 단순 join 이라 기본
+   *  토큰 위에 색만 덧씌우면 Tailwind 출력 순서가 이긴다.
+   *
+   *  담당자가 없는 서비스는 누를 것이 없지만 그 사실을 감추지 않는다(신청해도 볼 사람이
+   *  없다는 뜻이다) — 라벨을 바꿔 그대로 두고 `disabled:` 로 잉크만 내린다. */
+  svcActionBtn:
+    'cursor-pointer whitespace-nowrap px-2.5 py-1.5 text-[12px] font-medium text-[var(--pl-text-medium)] transition-colors hover:bg-[var(--pl-gray-50)] hover:text-[var(--pl-text-strong)] disabled:cursor-default disabled:text-[var(--pl-text-weak)] disabled:hover:bg-[var(--pl-bg-card)] disabled:hover:text-[var(--pl-text-weak)]',
+  /** 펼친 상태 — 라벨을 '닫기'로 바꾸면 그룹 폭이 변해 행마다 버튼 자리가 흔들린다.
+   *  이름들이 바로 아래 펼쳐져 있으므로 여기서는 면으로만 말한다. */
+  svcActionBtnOn:
+    'cursor-pointer whitespace-nowrap bg-[var(--pl-gray-100)] px-2.5 py-1.5 text-[12px] font-medium text-[var(--pl-text-strong)] transition-colors',
+  /** 이 행의 본 행위 — 그룹 안에서 잉크로만 갈린다. */
+  svcActionBtnGo:
+    'cursor-pointer whitespace-nowrap px-2.5 py-1.5 text-[12px] font-semibold text-[var(--pl-primary)] transition-colors hover:bg-[var(--pl-primary-bg)]',
   /** 카드 안의 서비스 칸 — 타일 · [이름 코드] · 둘째 단을 한 덩어리로 담는다. 같은
    *  서비스가 탭 하나 건너 다른 모양으로 보이면 같은 것으로 읽히지 않는다. */
   svcCell: 'flex min-w-0 flex-1 items-center gap-2.5',
-  svcCellTop: 'flex min-w-0 flex-1 items-start gap-2.5',
   /** 행마다 반복되는 행위는 글자로 쓴다.
    *
    *  면을 가진 CTA 로 두면 한 장에 파란 버튼이 다섯 개가 되고, 다섯 개가 되면 강조가
@@ -128,13 +152,6 @@ export const accessStyles = {
    *  그 사실을 한 번 더 말할 필요가 없다. */
   svcLink:
     'cursor-pointer whitespace-nowrap text-[14px] font-medium text-[var(--pl-primary)] underline-offset-2 transition-colors hover:text-[var(--pl-primary-hover)] hover:underline',
-  /** 내 요청 카드의 꼬리 — 상태 · 요청 일시 · (반려면) 다시 요청. 서비스 카드의 액션
-   *  칸과 같은 오른쪽 끝이라 탭을 옮겨도 눌 자리가 그대로다. */
-  reqTail: 'flex flex-none items-center gap-3',
-  reqWhen: 'text-[12px] tabular-nums text-[var(--pl-text-weak)]',
-  /** 내가 쓴 요청 사유 — 자르지 않고 접는다. 문장이라 잘라 놓으면 있으나 마나다. */
-  reqReason: 'whitespace-pre-wrap break-words text-[12px] leading-[1.5] text-[var(--pl-text-weak)]',
-
   /** 컬럼 폭 — 같은 골격을 쓰는 카드끼리 격자 간격 너머로 열이 맞도록 공유한다. */
   name: 'min-w-0 flex-1 truncate',
   nameStrong: 'font-medium text-[var(--pl-text-strong)]',
@@ -153,9 +170,11 @@ export const accessStyles = {
   /** 사유 열 — 문장이라 한 칸을 더 받는다. `note` 와 달리 포인터를 죽이지 않는다:
    *  행이 링크가 아니라 가릴 오버레이가 없고, 죽이면 잘린 전문을 줄 title 도 안 뜬다. */
   noteWide: 'min-w-0 flex-[1.6] truncate',
-  /** 사유 열 — 자르지 않고 접는다. 문장이라 잘라 놓으면 있으나 마나이고, 내 요청
-   *  내역은 훑는 표가 아니라 읽는 기록이다(행 높이는 행마다 달라도 된다). */
-  reason: 'min-w-0 flex-1 whitespace-pre-wrap break-words',
+  /** 사유 열 — 자르지 않고 접되 한 칸을 더 받는다(`noteWide` 와 같은 1.6). 문장이라
+   *  잘라 놓으면 있으나 마나인데, 관리자 화면과 달리 요청자에게는 전문을 볼 상세 화면이
+   *  없다 — 여기서 자르면 자기가 쓴 사유를 아무 데서도 다시 읽을 수 없다. 표 안에서도
+   *  행 높이는 행마다 달라도 된다(`rowTop` 이 나머지 칸을 첫 줄에 맞춘다). */
+  reason: 'min-w-0 flex-[1.6] whitespace-pre-wrap break-words',
   status: 'w-[96px] min-w-0 shrink truncate',
   when: 'w-[124px] min-w-0 shrink truncate whitespace-nowrap tabular-nums text-[var(--pl-text-weak)]',
   /** 행 끝 액션 셀 — 해제/회수 버튼이 들어간다. */

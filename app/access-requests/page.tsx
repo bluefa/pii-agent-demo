@@ -53,6 +53,7 @@ import {
   PagedCard,
   errorMessage,
   usePagedSection,
+  type Column,
 } from '@/app/admin/pipelines/access/_components/PagedCard';
 import { RequestAccessModal } from '@/app/admin/pipelines/access/_components/AccessModals';
 import { RequestStatusPill } from '@/app/admin/pipelines/access/_components/AccessPills';
@@ -109,9 +110,12 @@ const CARD_SKELETON = (
             <span className={cn(a.skeletonBar, 'h-4 w-[128px]')} />
             <span className={cn(a.skeletonBar, 'h-5 w-[38px]')} />
           </span>
-          <span className={cn(a.skeletonBar, 'h-3 w-[172px]')} />
         </span>
-        <span className={a.svcAction} />
+        {/* 담당자 줄은 접혀 있으므로 여기도 한 단이다 — 둘째 단을 그려 두면 도착한 목록이
+            행마다 20px 씩 올라온다. 액션 자리는 버튼 그룹의 실제 크기다. */}
+        <span className={a.svcActionCell}>
+          <span className={cn(a.skeletonBar, 'h-8 w-[140px]')} />
+        </span>
       </div>
     ))}
   </div>
@@ -153,23 +157,23 @@ function ServiceIdentity({
 }
 
 /**
- * 담당자 줄 — 행의 둘째 단.
+ * 담당자 줄 — 행의 둘째 단. 접혀 있다가 [담당자 보기] 로 펼친다(오너 지시 2026-08-17).
  *
  * `/services/page` 만 담당자를 싣는다(담당 서비스 목록은 싣지 않는다). 신청 화면에서
  * 가장 쓸모 있는 사실이 이것이라 여기 온다 — 내 요청을 볼 사람이 누구인지, 그리고
  * 이름이 비슷한 서비스 둘 중 어느 쪽이 내가 아는 그 서비스인지. 계약에 이 필드가 생긴
  * 이유가 정확히 그 헷갈림이다.
  *
- * 이름은 둘까지만 쓰고 나머지는 수로 접는다. 담당자가 없으면 그렇게 쓴다 — 신청해도
- * 볼 사람이 없다는 뜻이라 감출 사실이 아니다.
+ * 접기 전에는 이 줄이 늘 켜져 있었고, 그래서 다섯 줄이 모두 "담당자 …" 로 시작했다.
+ * 헷갈릴 때에만 필요한 사실이 목록의 절반을 차지하고 있던 셈이다. 자리는 그대로다 —
+ * 펼치면 이름들이 원래 있던 그 둘째 단에 그대로 선다.
+ *
+ * 이름은 여기서 자르지 않는다(접힌 줄이 아니라 펼친 답이다). 다만 `owners` 자체가
+ * 잘려 올 수 있어서, `ownerCount` 와 어긋나는 만큼은 수로만 말한다.
  */
-function ownerLine(row: ServiceRow): string {
-  const shown = row.owners.slice(0, 2);
-  if (shown.length === 0) {
-    return row.ownerCount > 0 ? `담당자 ${row.ownerCount}명` : '담당자 없음';
-  }
-  const rest = row.ownerCount - shown.length;
-  return `담당자 ${shown.join(' · ')}${rest > 0 ? ` 외 ${rest}명` : ''}`;
+function ownerNames(row: ServiceRow): string {
+  const rest = row.ownerCount - row.owners.length;
+  return `${row.owners.join(' · ')}${rest > 0 ? ` 외 ${rest}명` : ''}`;
 }
 
 /** 담당자를 싣는 계약은 한쪽뿐이라 행 타입이 갈린다 — 둘째 단은 이 좁힘 뒤에만 그린다. */
@@ -245,6 +249,27 @@ function HeaderVerdict({ counts }: { counts: VerdictCounts | 'error' | null }): 
     </>
   );
 }
+
+/**
+ * 내 요청 내역의 열 — 이 탭만 표다(오너 지시 2026-08-17).
+ *
+ * 서비스 두 탭은 고를 것들의 더미지만 이 탭은 **기록**이다. 카드 더미로 그리던 때는
+ * 한 줄에 이름·사유·상태·일시 넷이 라벨 없이 놓여 있어서, 회색 12px 두 개 중 어느
+ * 쪽이 내가 쓴 사유이고 어느 쪽이 일시인지 읽어 봐야 알았다. 표는 그 이름을 머리
+ * 한 줄에 한 번만 적고 열마다 같은 x 를 준다.
+ *
+ * 코드가 서비스 왼쪽 제 열에 서는 것은 관리자 전체 이력과 같은 규칙이다 — 이름 뒤에
+ * 붙이면 코드가 이름 길이만큼 밀려 행마다 다른 x 에 서고, 코드로 훑을 수가 없다.
+ * 마지막 열은 라벨이 없다(꼬리) — 반려된 요청에만 서는 [다시 요청] 자리다.
+ */
+const MINE_COLUMNS: readonly Column[] = [
+  { label: '코드', className: a.code },
+  { label: '서비스', className: a.name },
+  { label: '요청 사유', className: a.reason },
+  { label: '상태', className: a.status },
+  { label: '요청 일시', className: a.when },
+  { className: a.svcAction },
+];
 
 type TabKey = 'services' | 'owned' | 'mine';
 
@@ -324,6 +349,15 @@ export default function MyAccessRequestsPage(): ReactElement {
     serviceCode: string;
     serviceName: string;
   } | null>(null);
+
+  /**
+   * 담당자를 펼친 서비스 — 한 번에 하나다.
+   *
+   * 여럿을 동시에 열어 둘 이유가 없다: 담당자는 "이 서비스가 내가 아는 그 서비스인가"를
+   * 확인하는 값이라 서비스 하나를 두고 읽는다. 여러 줄이 동시에 펼쳐지면 목록은 접기
+   * 전과 같은 높이가 되고, 그러면 접은 의미가 없다.
+   */
+  const [openOwners, setOpenOwners] = useState<string | null>(null);
 
   const submit = async (reason: string): Promise<void> => {
     if (!target) return;
@@ -447,33 +481,55 @@ export default function MyAccessRequestsPage(): ReactElement {
                 읽을 수 없었다 — 폭을 쓰자고 훑기를 망치는 거래였다. */}
           {(rows) => (
             <div role="rowgroup" className={a.deckRows}>
-              {rows.map((row) => (
-                <div key={row.serviceCode} role="row" className={a.svcRow}>
-                  <span role="cell" className={a.svcCell}>
-                    <ServiceIdentity
-                      code={row.serviceCode}
-                      name={row.serviceName}
-                      sub={
-                        hasOwners(row) ? <span className={a.svcDesc}>{ownerLine(row)}</span> : null
-                      }
-                    />
-                  </span>
-                  {/* 칸은 두 탭 모두 자리를 지킨다 — 접근 가능 탭에서만 비우면 코드
-                        태그가 탭을 옮길 때마다 68px 씩 튄다. */}
-                  <span role="cell" className={a.svcAction}>
-                    {requestTab && (
-                      <button type="button" className={a.svcLink} onClick={() => setTarget(row)}>
-                        권한 요청
-                      </button>
-                    )}
-                  </span>
-                </div>
-              ))}
+              {rows.map((row) => {
+                const open = openOwners === row.serviceCode;
+                return (
+                  <div key={row.serviceCode} role="row" className={a.svcRow}>
+                    <span role="cell" className={a.svcCell}>
+                      <ServiceIdentity
+                        code={row.serviceCode}
+                        name={row.serviceName}
+                        sub={
+                          hasOwners(row) && open ? (
+                            <span className={a.svcDesc}>담당자 {ownerNames(row)}</span>
+                          ) : null
+                        }
+                      />
+                    </span>
+                    {/* 칸은 두 탭 모두 자리를 지킨다 — 접근 가능 탭에서만 비우면 코드
+                        태그가 탭을 옮길 때마다 이 폭만큼 튄다. */}
+                    <span role="cell" className={a.svcActionCell}>
+                      {requestTab && hasOwners(row) && (
+                        <span className={a.svcActions}>
+                          <button
+                            type="button"
+                            aria-expanded={open}
+                            disabled={row.ownerCount === 0}
+                            className={open ? a.svcActionBtnOn : a.svcActionBtn}
+                            onClick={() => setOpenOwners(open ? null : row.serviceCode)}
+                          >
+                            {row.ownerCount > 0 ? '담당자 보기' : '담당자 없음'}
+                          </button>
+                          <button
+                            type="button"
+                            className={a.svcActionBtnGo}
+                            onClick={() => setTarget(row)}
+                          >
+                            권한 요청
+                          </button>
+                        </span>
+                      )}
+                    </span>
+                  </div>
+                );
+              })}
             </div>
           )}
         </PagedCard>
       ) : (
-        /* 기록. 설명 줄이 없는 건 반려 안내를 헤더 판정이 이미 말하기 때문이다. */
+        /* 기록. 설명 줄이 없는 건 반려 안내를 헤더 판정이 이미 말하기 때문이다.
+           스켈레톤을 주지 않는 것은 컬럼이 있어서다 — `PagedCard` 가 컬럼 폭 그대로
+           막대를 그리므로 머리 줄과 어긋날 수가 없다. */
         <PagedCard
           className="mt-4"
           bare
@@ -482,44 +538,46 @@ export default function MyAccessRequestsPage(): ReactElement {
           icon="clock"
           tone="muted"
           state={mine}
-          skeleton={CARD_SKELETON}
+          columns={MINE_COLUMNS}
           empty={{
             title: '요청한 내역이 없어요',
             caption: "'요청할 수 있는 서비스' 탭에서 골라 권한을 요청해 보세요",
           }}
         >
           {(rows) => (
-            <div role="rowgroup" className={a.deckRows}>
+            <div role="rowgroup">
               {rows.map((row) => (
-                // 서비스 카드와 같은 골격에 꼬리만 다르다 — 같은 서비스가 탭 하나
-                // 건너 다른 모양이면 같은 것으로 읽히지 않는다.
-                <div key={row.requestId} role="row" className={a.svcRowTop}>
-                  <span role="cell" className={a.svcCellTop}>
-                    <ServiceIdentity
-                      code={row.serviceCode}
-                      name={row.serviceName}
-                      sub={<span className={a.reqReason}>{row.reason}</span>}
-                    />
+                // 카드가 아니라 표의 행이다(오너 지시 2026-08-17) — 타일도 없다.
+                // 무엇이 무슨 값인지는 머리 줄이 한 번만 말하고, 행은 그 열을 채운다.
+                <div key={row.requestId} role="row" className={a.rowTop}>
+                  <span role="cell" className={cn(a.code, a.mono)}>
+                    {row.serviceCode}
                   </span>
-                  <span role="cell" className={a.reqTail}>
+                  <span role="cell" className={cn(a.name, a.nameStrong)}>
+                    {row.serviceName}
+                  </span>
+                  <span role="cell" className={a.reason}>
+                    {row.reason}
+                  </span>
+                  <span role="cell" className={a.status}>
                     <RequestStatusPill status={row.status} />
-                    <span className={a.reqWhen}>{fmtDateTime(row.requestedAt)}</span>
-                    {/* 액션 칸은 반려가 아닌 카드에서도 자리를 지킨다 — 반려에만 두면
-                        그 카드의 일시만 왼쪽으로 밀려 날짜들이 한 x 에 안 선다.
-                        서비스 탭의 [권한 요청] 칸과 같은 폭이라 두 탭에서 누를 자리도
-                        같다.
+                  </span>
+                  <span role="cell" className={a.when}>
+                    {fmtDateTime(row.requestedAt)}
+                  </span>
+                  {/* 꼬리 칸은 반려가 아닌 행에서도 자리를 지킨다 — 반려에만 두면 그
+                      행의 일시만 오른쪽으로 밀려 날짜들이 한 x 에 안 선다.
 
-                        반려는 이 화면에서 다시 움직여야 하는 유일한 상태다. 예전에는
-                        '요청할 수 있는 서비스' 탭으로 건너가야 했는데, 판정 문장이
-                        가리키는 건이 정작 손댈 수 없는 줄로 서 있었다. 같은 요청 모달을
-                        여기서 연다. */}
-                    <span className={a.svcAction}>
-                      {row.status === 'REJECTED' && (
-                        <button type="button" className={a.svcLink} onClick={() => setTarget(row)}>
-                          다시 요청
-                        </button>
-                      )}
-                    </span>
+                      반려는 이 화면에서 다시 움직여야 하는 유일한 상태다. 예전에는
+                      '요청할 수 있는 서비스' 탭으로 건너가야 했는데, 판정 문장이
+                      가리키는 건이 정작 손댈 수 없는 줄로 서 있었다. 같은 요청 모달을
+                      여기서 연다. */}
+                  <span role="cell" className={a.svcAction}>
+                    {row.status === 'REJECTED' && (
+                      <button type="button" className={a.svcLink} onClick={() => setTarget(row)}>
+                        다시 요청
+                      </button>
+                    )}
                   </span>
                 </div>
               ))}

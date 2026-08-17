@@ -219,13 +219,21 @@ describe('요청자 측', () => {
   });
 
   it('ADMIN 은 담당 서비스 목록으로도 전체를 받는다 — 화면이 OWNED 로 다시 거른다', async () => {
-    mockData.setCurrentUser('admin-1'); // PAY·MBR 두 건만 담당
+    mockData.setCurrentUser('admin-1');
+    // 담당 서비스 목록을 여기 베껴 적지 않는다. 그 목록은 화면을 보려고 늘었다 줄었다
+    // 하는 값이고(2026-08-17 에 두 건 → 여덟 건), 이 테스트가 붙잡는 건 그 목록이 아니라
+    // "ADMIN 에게는 전체가 오고, 담당인 것만 OWNED 로 갈린다"다.
+    const declared = mockData.mockUsers.find((u) => u.id === 'admin-1')?.serviceCodePermissions;
     const mine = await body<UserServicePageWire>(
       await mockAccess.listUserServices(undefined, 0, 100),
     );
     expect(mine.content.length).toBe(mockData.mockServiceCodes.length);
-    expect(mine.content.filter((row) => row.access_status === 'OWNED').map((r) => r.service_code))
-      .toEqual(['PAY', 'MBR']);
+    expect(
+      mine.content
+        .filter((row) => row.access_status === 'OWNED')
+        .map((r) => r.service_code)
+        .sort(),
+    ).toEqual([...(declared ?? [])].sort());
   });
 
   it('전체 목록의 행은 담당자를 싣는다 — 없으면 빈 배열과 0', async () => {
