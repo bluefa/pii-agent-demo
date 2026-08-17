@@ -458,7 +458,7 @@ export const TC_CARD_FIXTURE = {
   confirmed: 2106,
   /** top-level PENDING 고정 — 접수됐지만 디스패치 전(시작 대기) 프레임. */
   queued: 2107,
-  /** PENDING→FAIL — 한 건도 보고되기 전에 실패로 정착한 프레임(무보고 실패 문구). */
+  /** PENDING→FAIL — 한 건도 보고되기 전에 실패로 정착한 프레임(일반 실패 문구로 접힘). */
   noReportFail: 2108,
 } as const;
 

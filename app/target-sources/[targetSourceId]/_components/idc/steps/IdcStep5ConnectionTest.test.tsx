@@ -154,7 +154,10 @@ const resetHarness = () => {
   pollingState.triggering = false;
   pollingState.canRunTest = true;
   triggerMock.mockClear();
-  getCompletionStatusMock.mockClear();
+  // mockClear would leave queued mockResolvedValueOnce verdicts to leak into the
+  // next test — reset drains the queue, then restore the default open verdict.
+  getCompletionStatusMock.mockReset();
+  getCompletionStatusMock.mockResolvedValue({ test_connection_status: 'LATEST_TEST_CONNECTION_SUCCESS' });
   updateResourceCredentialMock.mockClear();
 };
 

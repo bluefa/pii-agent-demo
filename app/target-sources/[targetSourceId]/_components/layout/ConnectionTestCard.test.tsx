@@ -141,6 +141,10 @@ describe('ConnectionTestCard', () => {
     triggerMock.mockResolvedValue(true);
     updateResourceCredentialMock.mockReset();
     updateResourceCredentialMock.mockResolvedValue({ success: true });
+    // mockClear would leave queued mockResolvedValueOnce verdicts to leak into the
+    // next test — reset drains the queue, then restore the default open verdict.
+    getCompletionStatusMock.mockReset();
+    getCompletionStatusMock.mockResolvedValue({ test_connection_status: 'LATEST_TEST_CONNECTION_SUCCESS' });
     approvalModalProps.mockClear();
   });
 

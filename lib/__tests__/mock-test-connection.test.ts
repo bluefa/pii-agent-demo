@@ -14,6 +14,7 @@ import {
   TC_CARD_FIXTURE,
 } from '@/lib/mock-test-connection';
 import { getStore, resetStore } from '@/lib/mock-store';
+import { mockConfirm } from '@/lib/bff/mock/confirm';
 import { ProcessStatus, type Project } from '@/lib/types';
 
 // ===== Fixtures =====
@@ -600,6 +601,26 @@ describe('mock-test-connection behavior lock-in', () => {
       expect(wire.connection_status).toBe('FAIL');
       // 스케줄 없는 seed 라 placeholder agent 도 없다 — 화면의 접기가 전부 미보고로 센다.
       expect(wire.test_connection_agent_results).toHaveLength(0);
+    });
+  });
+
+  // The queued/running split bug lived in the SIBLING projection, not
+  // toVersionResultResponse — the execution-history handler re-inlined
+  // PENDING→RUNNING and the modal called a queued run 진행 중 while the card said
+  // 대기. Pin the handler itself, not just the shared rule.
+  describe('execution-history projection (mockConfirm)', () => {
+    it('keeps the queued fixture PENDING and passes settled rows through', async () => {
+      const res = await mockConfirm.getTestConnectionExecutionHistory(
+        String(TC_CARD_FIXTURE.queued),
+        0,
+        5,
+      );
+      const body = (await res.json()) as { content: { status: string }[] };
+      expect(body.content[0].status).toBe('PENDING');
+      expect(body.content.length).toBeGreaterThan(1);
+      expect(
+        body.content.slice(1).every((r) => r.status === 'SUCCESS' || r.status === 'FAIL'),
+      ).toBe(true);
     });
   });
 });
