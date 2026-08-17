@@ -159,10 +159,22 @@ export default function AccessRequestDetailPage(): ReactElement {
 
         {!pending && (
           <>
-            <SectionHeader
-              title="처리 결과"
-              desc={`${request.processedBy?.knoxId ?? '—'} · ${fmtDateTime(request.processedAt)}`}
-            />
+            {/* 워크벤치와 같은 규칙 — 처리 반쪽은 요청 반쪽과 같은 모양으로 읽힌다. 누가·
+                언제는 머리에 딸린 한 줄이 아니라 위와 같은 사실 행이다(가운뎃점으로 이으면
+                구역 제목·사람·시각이 한 문장처럼 붙는다). */}
+            <SectionHeader title="처리 결과" />
+            <div className={a.factRow}>
+              <span className={a.factLabel}>처리자</span>
+              <span className={cn(a.mono, 'text-[var(--pl-text-strong)]')}>
+                {request.processedBy?.knoxId ?? '—'}
+              </span>
+            </div>
+            <div className={a.factRow}>
+              <span className={a.factLabel}>처리 일시</span>
+              <span className="tabular-nums">{fmtDateTime(request.processedAt)}</span>
+            </div>
+
+            <SectionHeader title={request.status === 'APPROVED' ? '승인 메시지' : '반려 사유'} />
             <p className={a.quote}>
               {request.processedNote ??
                 (request.status === 'APPROVED' ? '메시지 없이 승인했어요' : '사유가 없어요')}

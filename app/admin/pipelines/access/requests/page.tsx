@@ -481,18 +481,42 @@ export default function AccessRequestsPage(): ReactElement {
                     </PlButton>
                   </div>
                 ) : (
-                  <div className={a.benchSection}>
-                    <div className={a.benchLabel}>
-                      처리 결과
-                      <span className={a.benchLabelMeta}>
-                        {detail.processedBy?.knoxId ?? '—'} · {fmtDateTime(detail.processedAt)}
-                      </span>
+                  // 처리 반쪽도 요청 반쪽과 같은 모양이다 — 사실은 키·값으로 격자에, 글은
+                  // 라벨 밑 인용으로. 전에는 "처리 결과" 머리 옆에 처리자와 일시를 가운뎃점
+                  // 하나로 이어 붙여서, 구역 제목·사람·시각 셋이 한 줄에서 한 문장처럼
+                  // 읽혔다. 머리는 지웠다: 두 반쪽이 각자 무엇인지 말하고, 판정은 시트
+                  // 머리의 pill 이 이미 말한다.
+                  <>
+                    <div className={a.benchGridNext}>
+                      <div className="min-w-0">
+                        <div className={a.benchKey}>처리자</div>
+                        {/* 요청자와 달리 Knox ID 다 — 전체 이력의 '수행자' 열과 같은 표기라
+                            같은 사람을 두 화면에서 같은 이름으로 읽는다. */}
+                        <div className={cn(a.benchVal, 'truncate')}>
+                          {detail.processedBy?.knoxId ?? '—'}
+                        </div>
+                      </div>
+                      {/* 셋째 칸이다 — 요청 일시 바로 아래에 서야 둘 사이가 얼마나
+                          걸렸는지가 세로로 읽힌다. 가운데 칸은 비운다(처리에는 서비스가 없다). */}
+                      <div className="col-start-3 min-w-0">
+                        <div className={a.benchKey}>처리 일시</div>
+                        <div className={cn(a.benchVal, 'tabular-nums')}>
+                          {fmtDateTime(detail.processedAt)}
+                        </div>
+                      </div>
                     </div>
-                    <p className={a.quote}>
-                      {detail.processedNote ??
-                        (detail.status === 'APPROVED' ? '메시지 없이 승인했어요' : '사유가 없어요')}
-                    </p>
-                  </div>
+                    <div className={a.benchSection}>
+                      <div className={a.benchLabel}>
+                        {detail.status === 'APPROVED' ? '승인 메시지' : '반려 사유'}
+                      </div>
+                      <p className={a.quote}>
+                        {detail.processedNote ??
+                          (detail.status === 'APPROVED'
+                            ? '메시지 없이 승인했어요'
+                            : '사유가 없어요')}
+                      </p>
+                    </div>
+                  </>
                 )}
               </>
             )}

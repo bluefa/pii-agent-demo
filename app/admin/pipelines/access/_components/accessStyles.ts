@@ -14,6 +14,10 @@ import { serviceSidebarStyles } from '@/lib/theme';
 const CARD_FACE =
   'gap-2.5 rounded-[9px] border border-[var(--pl-border)] bg-[var(--pl-bg-card)] px-3 py-2.5';
 
+/** 승인 시트의 사실 격자 — 요청 반쪽과 처리 반쪽이 같은 열에 서야 요청자↔처리자,
+ *  요청 일시↔처리 일시가 세로로 짝지어 읽힌다. 위 여백만 둘이 다르다. */
+const BENCH_GRID = 'grid grid-cols-3 gap-x-8';
+
 export const accessStyles = {
   pageTitle: 'text-[24px] font-bold leading-[1.2] tracking-[-0.02em] text-[var(--pl-text-strong)]',
   pageDesc: 'mt-1 text-[16px] leading-[1.4] text-[var(--pl-text-weak)]',
@@ -226,7 +230,10 @@ export const accessStyles = {
    *
    *  셋이 한 행이다(오너 지시 2026-08-14) — 2열이면 요청 일시 혼자 둘째 줄로 내려가
    *  같은 급의 사실이 두 덩어리로 갈리고, 오른쪽 절반은 그대로 빈다. */
-  benchGrid: 'mt-5 grid grid-cols-3 gap-x-8',
+  benchGrid: `mt-5 ${BENCH_GRID}`,
+  /** 처리 사실 행 — 열 트랙은 위와 같고 위 여백만 크다(36px). 시트는 요청 반쪽과 처리
+   *  반쪽으로 갈리는데, 그 사이가 반쪽 안의 간격(24px)보다 넓어야 두 덩어리로 읽힌다. */
+  benchGridNext: `mt-9 ${BENCH_GRID}`,
   benchKey: 'text-[12px] font-medium text-[var(--pl-text-weak)]',
   benchVal: 'mt-0.5 text-[14px] font-semibold text-[var(--pl-text-strong)]',
   /** 서비스 코드 라벨 — 면이 아니라 선으로 만든다(오너 지시 2026-08-14). 이 시트엔 회색
@@ -241,8 +248,6 @@ export const accessStyles = {
   /** 시트 안 구역의 머리 — 승인 결정 블록의 제목과 같은 급이다(14/semibold/strong).
    *  12px weak 이던 때는 라벨이 자기가 이끄는 본문보다 작고 옅어서 구역이 안 보였다. */
   benchLabel: 'mb-2 text-[14px] font-semibold text-[var(--pl-text-strong)]',
-  /** 구역 머리에 딸린 사실(누가·언제) — 머리는 강해지되 꼬리는 따라 강해지지 않는다. */
-  benchLabelMeta: 'ml-2 text-[12px] font-medium text-[var(--pl-text-weak)]',
   /** 결정은 시트의 마지막 구역이다 — 회색 면도, 제목도, 설명도 없다(오너 지시
    *  2026-08-14). 면을 가진 블록이던 때는 시트에 카드가 한 겹 더 있는 셈이었고, 제목은
    *  버튼 둘이 이미 말하며, 즉시 부여·사유 필수는 각 모달이 누를 때 말한다.
