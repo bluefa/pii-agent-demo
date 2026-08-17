@@ -68,9 +68,11 @@ export function failHead(reason: string): string {
     const c = body[i];
     if (c === '(') depth += 1;
     else if (c === ')') depth = Math.max(0, depth - 1);
-    else if (c === ':' && body[i + 1] === ' ' && depth === 0) return body.slice(0, i);
+    // i > 0: a reason that OPENS with ": " has no class before the colon, and
+    // cutting there would render an empty red line.
+    else if (i > 0 && c === ':' && body[i + 1] === ' ' && depth === 0) return body.slice(0, i);
   }
-  return body;
+  return body || reason;
 }
 
 function JobItem({
@@ -98,7 +100,13 @@ function JobItem({
         {meta ? <span className={j.jobMeta}>{meta}</span> : <span className="ml-auto" />}
         <Icon name="chev-r" size="sm" className={j.jobChev} />
       </button>
-      {verdict === 'failed' && reason && <p className={j.jobFailReason}>{failHead(reason)}</p>}
+      {/* `title` carries what both the clause cut and the CSS ellipsis drop — the
+          whole reason is otherwise only in the viewer this row opens. */}
+      {verdict === 'failed' && reason && (
+        <p className={j.jobFailReason} title={reason}>
+          {failHead(reason)}
+        </p>
+      )}
     </div>
   );
 }
@@ -142,14 +150,19 @@ export function JobStatus({
 
   // The count rides the label so it shows on the closed trigger too — it is the
   // number the operator came for, and a dropdown that hides it would be a step
-  // back from the segments it replaces.
+  // back from the segments it replaces. With ONE bucket there is no trigger and
+  // the header's 총 N건 is already that number, so the word stands alone rather
+  // than printing "총 21건  성공 21".
+  const single = options.length === 1;
   const picks = options.map((option) => ({
     key: option,
     tone: option === 'all' ? undefined : option,
     label:
       option === 'all'
         ? `전체 ${rows.length}`
-        : `${j.verdictLabel[option]} ${counts[option]}`,
+        : single
+          ? j.verdictLabel[option]
+          : `${j.verdictLabel[option]} ${counts[option]}`,
   }));
 
   return (
@@ -162,7 +175,8 @@ export function JobStatus({
               ariaLabel="Job 상태 필터"
               options={picks}
               value={active}
-              onPick={(key) => setPicked(key as JobFilter)}
+              align="right"
+              onPick={setPicked}
             />
           ) : (
             <span className={j.jobCardOne}>
@@ -173,13 +187,11 @@ export function JobStatus({
             </span>
           )}
         </div>
-        {shown.length > 0 && (
-          <div className={j.jobList}>
-            {shown.map((g) => (
-              <JobItem key={g.row.job_id} row={g.row} verdict={g.verdict} onOpen={() => onOpenJob(g.row.job_id)} />
-            ))}
-          </div>
-        )}
+        <div className={j.jobList}>
+          {shown.map((g) => (
+            <JobItem key={g.row.job_id} row={g.row} verdict={g.verdict} onOpen={() => onOpenJob(g.row.job_id)} />
+          ))}
+        </div>
       </div>
     </Section>
   );

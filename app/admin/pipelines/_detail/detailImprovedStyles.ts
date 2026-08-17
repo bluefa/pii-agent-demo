@@ -156,7 +156,7 @@ export const improvedStyles = {
    *  that column to scroll internally, which is a layout change of its own; the
    *  flow card beside the drawer states the cause in prose either way. */
   failStrip:
-    'sticky top-0 z-10 flex items-center gap-2 border-b border-[var(--pl-border)] bg-[var(--pl-err-bg)] px-10 py-2.5 text-[14px] text-[var(--pl-err-text)]',
+    'sticky top-[64px] z-10 flex items-center gap-2 border-b border-[var(--pl-border)] bg-[var(--pl-err-bg)] px-10 py-2.5 text-[14px] text-[var(--pl-err-text)]',
   failStripRight: 'ml-auto flex items-center gap-1.5 whitespace-nowrap',
   failStripLink: 'font-semibold underline hover:no-underline',
 
@@ -254,13 +254,18 @@ export const improvedStyles = {
      *  other form control. Trigger metrics are the shared select's (h8 / r8 / 14px,
      *  `pipelineInputBase`); the panel is the menu card `JiraTicketMenu` and the
      *  request list's `FilterMenu` already wear. */
+    /*  Hover moves the STROKE, not the face. The trigger sits on two surfaces —
+     *  the verdict line (--pl-flow-panel) and the job card's head (--pl-gray-50) —
+     *  and a gray-50 hover face was the head's own colour, so on that surface the
+     *  hover was invisible (ΔE00 0). A white face + a darker stroke reads on both. */
     pickTrigger:
-      'inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border border-[var(--pl-border-strong)] bg-[var(--pl-bg-card)] text-[14px] font-medium text-[var(--pl-text-strong)] cursor-pointer transition-colors hover:bg-[var(--pl-gray-50)]',
+      'inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border border-[var(--pl-border-strong)] bg-[var(--pl-bg-card)] text-[14px] font-medium text-[var(--pl-text-strong)] cursor-pointer transition-colors hover:border-[var(--pl-gray-400)]',
     pickChev: 'text-[var(--pl-text-weak)] transition-transform',
+    /** 34px = the h8 trigger + the 2px gap the sibling menus leave. */
     pickPanel:
-      'absolute left-0 top-[36px] z-20 min-w-full whitespace-nowrap overflow-hidden rounded-[10px] border border-[var(--pl-border)] bg-[var(--pl-bg-card)] py-1 shadow-[var(--pl-shadow-lg)]',
+      'absolute left-0 top-[34px] z-20 min-w-full whitespace-nowrap overflow-hidden rounded-[10px] border border-[var(--pl-border)] bg-[var(--pl-bg-card)] py-1 shadow-[var(--pl-shadow-lg)]',
     pickItem:
-      'flex w-full items-center gap-2 px-3 py-2 text-left text-[14px] text-[var(--pl-text-strong)] transition-colors hover:bg-[var(--pl-gray-50)]',
+      'flex w-full items-center gap-2 px-3 py-2 text-left text-[14px] font-medium text-[var(--pl-text-strong)] transition-colors hover:bg-[var(--pl-gray-50)]',
     pickItemOn: 'font-semibold',
     /** Muted suffix in the list — the attempt's verdict word, say. A tier down,
      *  since the dot beside the label already carries it. */

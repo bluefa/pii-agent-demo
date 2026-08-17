@@ -19,13 +19,7 @@
 import { type ReactElement, type ReactNode } from 'react';
 import { JobStatus } from '@/app/admin/pipelines/_detail/JobStatus';
 import { fmtDateTime } from '@/lib/pipeline/format';
-import {
-  d,
-  FailureCause,
-  j,
-  Section,
-  type ViewerTarget,
-} from '@/app/admin/pipelines/_detail/taskDrawerShared';
+import { d, FailureCause, j, type ViewerTarget } from '@/app/admin/pipelines/_detail/taskDrawerShared';
 import type { TaskAttemptView, TaskOperation } from '@/lib/pipeline/types';
 
 export function AttemptDetail({

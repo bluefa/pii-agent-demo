@@ -65,7 +65,7 @@ describe('TerraformExec — attempt picker', () => {
     // Closed, the picker is one trigger — the list mounts on click (owner
     // 2026-08-17: the repo's popover, not a native select that ships every
     // option into the markup).
-    expect(out).toContain('aria-label="시도 선택"');
+    expect(out).toContain('aria-label="시도 선택: ');
     expect(out).toContain('시도 #2');
     expect(out).not.toContain('시도 #1');
     // The newest attempt's jobs are the ones on screen…
@@ -76,7 +76,7 @@ describe('TerraformExec — attempt picker', () => {
 
   it('drops the picker for a single attempt and still shows its jobs', () => {
     const out = html(detail([attempt(1)]));
-    expect(out).not.toContain('aria-label="시도 선택"');
+    expect(out).not.toContain('aria-label="시도 선택: ');
     expect(out).toContain('a1-job');
   });
 

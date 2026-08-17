@@ -162,7 +162,7 @@ describe('AttemptDetail — Job 현황', () => {
 
   it('states the total, opens on the failures, and keeps the count on the trigger', () => {
     const out = html(attempt({ job_states: [...ok(20), bad] }));
-    expect(out).toContain('aria-label="Job 상태 필터"');
+    expect(out).toContain('aria-label="Job 상태 필터: ');
     // The header states the scale; the closed trigger states the active bucket.
     expect(out).toContain('총 21건');
     expect(out).toContain('실패 1');
@@ -172,7 +172,10 @@ describe('AttemptDetail — Job 현황', () => {
     // the detail after the colon belongs to the log viewer's header, not this row.
     expect(out).toContain('>bad-1<');
     expect(out).toContain('>Error acquiring the state lock</p>');
-    expect(out).not.toContain('ConditionalCheckFailedException');
+    // The detail after the colon is not visible text — it survives only as the
+    // title, so a hover (and a screen reader) still reaches the whole reason.
+    expect(out).toContain('title="Error acquiring the state lock: ConditionalCheckFailedException');
+    expect(out).not.toContain('>Error acquiring the state lock: Conditional');
     // …and the 20 settled successes are not in the way.
     expect(out).not.toContain('>ok-1<');
   });
@@ -189,8 +192,11 @@ describe('AttemptDetail — Job 현황', () => {
     const out = html(attempt({ job_states: ok(5) }));
     expect(out).toContain('>ok-5<');
     expect(out).toContain('총 5건');
-    expect(out).toContain('성공 5');
-    expect(out).not.toContain('aria-label="Job 상태 필터"');
+    // The word alone — the header's 총 5건 is already the count, and printing it
+    // twice on one line ("총 5건  성공 5") was the segmented layout's habit.
+    expect(out).toContain('>성공</span>');
+    expect(out).not.toContain('성공 5');
+    expect(out).not.toContain('aria-label="Job 상태 필터: ');
     expect(out).not.toContain('전체');
   });
 
