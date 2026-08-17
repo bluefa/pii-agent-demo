@@ -239,10 +239,14 @@ export const accessStyles = {
    *  안 든다). 인용이 쓰던 gray-50 은 흰 시트 위에서 1.045:1 이라 이만한 상자로 키우면
    *  테두리만 보이고 면은 안 보인다. gray-100 은 1.102:1 이고, 그 위에서 제일 옅은 잉크인
    *  12px 키가 4.515:1 로 버틴다(흰 바닥에서 4.6, 워시가 먹는 건 0.09 뿐). */
-  benchGroup: 'mt-9 rounded-[8px] border border-[var(--pl-border)] bg-[var(--pl-gray-100)] p-5',
-  /** 묶음의 머리 — 시트 제목(20)과 구역 라벨(14) 사이인 16px(오너 지시 2026-08-17). 안에 든
-   *  '반려 사유' 와 같은 급이면 묶음이 자기 부품 중 하나로 읽힌다. */
-  benchGroupTitle: 'mb-4 text-[16px] font-semibold text-[var(--pl-text-strong)]',
+  benchGroup: 'rounded-[8px] border border-[var(--pl-border)] bg-[var(--pl-gray-100)] p-5',
+  /** 묶음의 머리 — 상자 밖에 선다(오너 지시 2026-08-17). 안에 들어가면 제목도 상자가 담는
+   *  내용 중 하나가 되지만, 밖에 서면 상자 전체를 가리킨다. 위 여백(36px)은 여기 있다:
+   *  머리가 이 묶음의 첫 줄이라 요청 반쪽과의 간격도 머리 앞에서 벌어져야 한다.
+   *
+   *  16px 는 시트 제목(20)과 상자 안 라벨(14) 사이다 — 안에 든 '반려 사유' 와 같은 급이면
+   *  묶음이 자기 부품 중 하나로 읽힌다. */
+  benchGroupTitle: 'mt-9 mb-2 text-[16px] font-semibold text-[var(--pl-text-strong)]',
   /** 묶음 안의 사실 행 — 위 여백은 머리가 들고 있어서 열 트랙만 가져온다. */
   benchGroupGrid: BENCH_GRID,
   /** 묶음 안의 글 — 면이 없다. 상자가 이미 면이라 여기서 또 깔면 면 안에 면이다. */

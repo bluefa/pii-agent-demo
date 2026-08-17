@@ -485,40 +485,42 @@ export default function AccessRequestsPage(): ReactElement {
                   // 하나가 시트 위에 그냥 쌓여 있으면 어디까지가 처리 이야기인지 경계가
                   // 없다. 안쪽 모양은 요청 반쪽과 같다: 사실은 키·값으로 격자에, 글은
                   // 라벨 밑에.
-                  <div className={a.benchGroup}>
+                  <>
                     <div className={a.benchGroupTitle}>
                       {detail.status === 'APPROVED' ? '승인 결과' : '반려 결과'}
                     </div>
-                    <div className={a.benchGroupGrid}>
-                      <div className="min-w-0">
-                        <div className={a.benchKey}>처리자</div>
-                        {/* 요청자와 달리 Knox ID 다 — 전체 이력의 '수행자' 열과 같은 표기라
-                            같은 사람을 두 화면에서 같은 이름으로 읽는다. */}
-                        <div className={cn(a.benchVal, 'truncate')}>
-                          {detail.processedBy?.knoxId ?? '—'}
+                    <div className={a.benchGroup}>
+                      <div className={a.benchGroupGrid}>
+                        <div className="min-w-0">
+                          <div className={a.benchKey}>처리자</div>
+                          {/* 요청자와 달리 Knox ID 다 — 전체 이력의 '수행자' 열과 같은 표기라
+                              같은 사람을 두 화면에서 같은 이름으로 읽는다. */}
+                          <div className={cn(a.benchVal, 'truncate')}>
+                            {detail.processedBy?.knoxId ?? '—'}
+                          </div>
+                        </div>
+                        {/* 셋째 칸이다 — 요청 일시 바로 아래에 서야 둘 사이가 얼마나
+                            걸렸는지가 세로로 읽힌다. 가운데 칸은 비운다(처리에는 서비스가 없다). */}
+                        <div className="col-start-3 min-w-0">
+                          <div className={a.benchKey}>처리 일시</div>
+                          <div className={cn(a.benchVal, 'tabular-nums')}>
+                            {fmtDateTime(detail.processedAt)}
+                          </div>
                         </div>
                       </div>
-                      {/* 셋째 칸이다 — 요청 일시 바로 아래에 서야 둘 사이가 얼마나
-                          걸렸는지가 세로로 읽힌다. 가운데 칸은 비운다(처리에는 서비스가 없다). */}
-                      <div className="col-start-3 min-w-0">
-                        <div className={a.benchKey}>처리 일시</div>
-                        <div className={cn(a.benchVal, 'tabular-nums')}>
-                          {fmtDateTime(detail.processedAt)}
+                      <div className={a.benchSection}>
+                        <div className={a.benchLabel}>
+                          {detail.status === 'APPROVED' ? '승인 메시지' : '반려 사유'}
                         </div>
+                        <p className={a.benchGroupNote}>
+                          {detail.processedNote ??
+                            (detail.status === 'APPROVED'
+                              ? '메시지 없이 승인했어요'
+                              : '사유가 없어요')}
+                        </p>
                       </div>
                     </div>
-                    <div className={a.benchSection}>
-                      <div className={a.benchLabel}>
-                        {detail.status === 'APPROVED' ? '승인 메시지' : '반려 사유'}
-                      </div>
-                      <p className={a.benchGroupNote}>
-                        {detail.processedNote ??
-                          (detail.status === 'APPROVED'
-                            ? '메시지 없이 승인했어요'
-                            : '사유가 없어요')}
-                      </p>
-                    </div>
-                  </div>
+                  </>
                 )}
               </>
             )}

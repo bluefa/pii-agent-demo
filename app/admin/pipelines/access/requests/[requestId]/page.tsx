@@ -162,10 +162,10 @@ export default function AccessRequestDetailPage(): ReactElement {
             {/* 워크벤치와 같은 규칙 — 처리 이야기는 한 장에 담긴다. 누가·언제는 머리에
                 딸린 한 줄이 아니라 위와 같은 사실 행이고, 이 화면의 구역 머리(20)보다 작은
                 16 이지만 상자 안에 든다 — 계층은 등급이 아니라 포함이다. */}
+            <div className={a.benchGroupTitle}>
+              {request.status === 'APPROVED' ? '승인 결과' : '반려 결과'}
+            </div>
             <div className={a.benchGroup}>
-              <div className={a.benchGroupTitle}>
-                {request.status === 'APPROVED' ? '승인 결과' : '반려 결과'}
-              </div>
               <div className={a.factRow}>
                 <span className={a.factLabel}>처리자</span>
                 <span className={cn(a.mono, 'text-[var(--pl-text-strong)]')}>
