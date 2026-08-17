@@ -41,12 +41,27 @@ describe('POST …/confirmed-resources', () => {
     );
 
     expect(response.status).toBe(201);
+    // 편집기가 응답을 그대로 보여 주므로 본문이 살아 나오는지도 잰다 — status 와 호출
+    // 인자만 보면 라우트가 `raw` 를 흘리지 않게 되어도 초록으로 통과한다.
+    expect(await response.json()).toEqual({ ok: true });
     expect(mockedCreate).toHaveBeenCalledWith(
       42,
       'AWS',
       { resource_infos: [{ resource_id: 'arn:x' }] },
       false,
     );
+  });
+
+  it('빈 업스트림 본문은 빈 object 로 내려 보낸다 — 계약이 성공 스키마를 선언하지 않는다', async () => {
+    mockedCreate.mockResolvedValue(undefined);
+
+    const response = await createConfirmed(
+      new Request(url('provider=aws'), { method: 'POST', body: '{}' }),
+      routeParams,
+    );
+
+    expect(response.status).toBe(201);
+    expect(await response.json()).toEqual({});
   });
 
   it('mirrors applyNLBSecurityGroup=true into the call (AWS-only swagger flag)', async () => {
@@ -98,6 +113,9 @@ describe('DELETE …/confirmed-resources', () => {
     );
 
     expect(response.status).toBe(200);
+    // IDC 업스트림은 204(본문 없음)라 `send` 가 undefined 를 준다 — 그것이 빈 object 로
+    // 내려가야 응답 칸이 무언가를 그린다.
+    expect(await response.json()).toEqual({});
     expect(mockedDelete).toHaveBeenCalledWith(42, 'IDC');
   });
 });

@@ -93,6 +93,19 @@ export const countOf = (doc: unknown): number | null => {
   return Array.isArray(infos) ? infos.length : null;
 };
 
+/**
+ * 추천값이 **없는 것**인가(부재) 아니면 **못 본 것**인가(실패). 화면이 이 둘로 갈린다:
+ * 부재는 "불러올 추천값이 없습니다" + 버튼 비활성, 실패는 재시도 버튼.
+ *
+ * 판정은 **status 로** 한다. `code === 'NOT_FOUND'` 로 보면 목에서만 맞는다 — 목이 보내는
+ * `TARGET_SOURCE_NOT_FOUND` 는 `KNOWN_ERROR_CODES` 에 없어서 `statusToCode(404)` 인
+ * `NOT_FOUND` 로 떨어지지만(lib/fetch-json.ts), 업스트림이 허용 목록에 **있는**
+ * `CONFIRMED_INTEGRATION_NOT_FOUND` 를 보내면 그 코드가 보존돼 판정이 뒤집힌다.
+ * 계약이 부재라고 말하는 것은 404 이고, 코드 문자열은 우리 카탈로그의 사정이다.
+ */
+export const isRecommendationAbsent = (error: unknown): boolean =>
+  error instanceof AppError && error.status === 404;
+
 type RecommendationLoad =
   | { state: 'loading' }
   | { state: 'ready'; text: string; count: number | null }
@@ -433,8 +446,7 @@ export function ConfirmEditorModal({
         })
         .catch((loadError: unknown) => {
           if (signal?.aborted) return;
-          const absent = loadError instanceof AppError && loadError.code === 'NOT_FOUND';
-          setRecommendation({ state: absent ? 'absent' : 'failed' });
+          setRecommendation({ state: isRecommendationAbsent(loadError) ? 'absent' : 'failed' });
         }),
     [targetSourceId, provider],
   );
@@ -496,6 +508,11 @@ export function ConfirmEditorModal({
   };
 
   const requestClose = (): void => {
+    // 실행 중에는 닫지 않는다. `ModalShell` 은 ESC·오버레이 클릭을 이 함수로 보내는데,
+    // 그 때 exchange 는 아직 null 이라 `closeAndSync` 가 `onDone` 없이 닫는다 — 응답이
+    // 서버에서 성공해도 탭은 지워진 확정 정보를 계속 보여 준다. 머리의 [취소]는 이미
+    // `disabled={busy}` 이므로, 세 경로를 같은 규칙으로 맞춘다.
+    if (busy) return;
     // 실행이 성공했으면 초안은 이미 서버로 갔다 — 이탈 확인은 보내지 않은 편집에만 묻는다.
     if (mode === 'edit' && dirty && !exchange?.ok) {
       setLeaving(true);
