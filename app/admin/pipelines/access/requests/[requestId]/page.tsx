@@ -159,26 +159,34 @@ export default function AccessRequestDetailPage(): ReactElement {
 
         {!pending && (
           <>
-            {/* 워크벤치와 같은 규칙 — 처리 반쪽은 요청 반쪽과 같은 모양으로 읽힌다. 누가·
-                언제는 머리에 딸린 한 줄이 아니라 위와 같은 사실 행이다(가운뎃점으로 이으면
-                구역 제목·사람·시각이 한 문장처럼 붙는다). */}
-            <SectionHeader title="처리 결과" />
-            <div className={a.factRow}>
-              <span className={a.factLabel}>처리자</span>
-              <span className={cn(a.mono, 'text-[var(--pl-text-strong)]')}>
-                {request.processedBy?.knoxId ?? '—'}
-              </span>
-            </div>
-            <div className={a.factRow}>
-              <span className={a.factLabel}>처리 일시</span>
-              <span className="tabular-nums">{fmtDateTime(request.processedAt)}</span>
-            </div>
+            {/* 워크벤치와 같은 규칙 — 처리 이야기는 한 장에 담긴다. 누가·언제는 머리에
+                딸린 한 줄이 아니라 위와 같은 사실 행이고, 이 화면의 구역 머리(20)보다 작은
+                16 이지만 상자 안에 든다 — 계층은 등급이 아니라 포함이다. */}
+            <div className={a.benchGroup}>
+              <div className={a.benchGroupTitle}>
+                {request.status === 'APPROVED' ? '승인 결과' : '반려 결과'}
+              </div>
+              <div className={a.factRow}>
+                <span className={a.factLabel}>처리자</span>
+                <span className={cn(a.mono, 'text-[var(--pl-text-strong)]')}>
+                  {request.processedBy?.knoxId ?? '—'}
+                </span>
+              </div>
+              <div className={a.factRow}>
+                <span className={a.factLabel}>처리 일시</span>
+                <span className="tabular-nums">{fmtDateTime(request.processedAt)}</span>
+              </div>
 
-            <SectionHeader title={request.status === 'APPROVED' ? '승인 메시지' : '반려 사유'} />
-            <p className={a.quote}>
-              {request.processedNote ??
-                (request.status === 'APPROVED' ? '메시지 없이 승인했어요' : '사유가 없어요')}
-            </p>
+              <div className={a.benchSection}>
+                <div className={a.benchLabel}>
+                  {request.status === 'APPROVED' ? '승인 메시지' : '반려 사유'}
+                </div>
+                <p className={a.benchGroupNote}>
+                  {request.processedNote ??
+                    (request.status === 'APPROVED' ? '메시지 없이 승인했어요' : '사유가 없어요')}
+                </p>
+              </div>
+            </div>
           </>
         )}
       </Card>

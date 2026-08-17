@@ -481,13 +481,15 @@ export default function AccessRequestsPage(): ReactElement {
                     </PlButton>
                   </div>
                 ) : (
-                  // 처리 반쪽도 요청 반쪽과 같은 모양이다 — 사실은 키·값으로 격자에, 글은
-                  // 라벨 밑 인용으로. 전에는 "처리 결과" 머리 옆에 처리자와 일시를 가운뎃점
-                  // 하나로 이어 붙여서, 구역 제목·사람·시각 셋이 한 줄에서 한 문장처럼
-                  // 읽혔다. 머리는 지웠다: 두 반쪽이 각자 무엇인지 말하고, 판정은 시트
-                  // 머리의 pill 이 이미 말한다.
-                  <>
-                    <div className={a.benchGridNext}>
+                  // 처리 이야기는 한 장에 담는다(오너 지시 2026-08-17) — 사실 둘과 글
+                  // 하나가 시트 위에 그냥 쌓여 있으면 어디까지가 처리 이야기인지 경계가
+                  // 없다. 안쪽 모양은 요청 반쪽과 같다: 사실은 키·값으로 격자에, 글은
+                  // 라벨 밑에.
+                  <div className={a.benchGroup}>
+                    <div className={a.benchGroupTitle}>
+                      {detail.status === 'APPROVED' ? '승인 결과' : '반려 결과'}
+                    </div>
+                    <div className={a.benchGroupGrid}>
                       <div className="min-w-0">
                         <div className={a.benchKey}>처리자</div>
                         {/* 요청자와 달리 Knox ID 다 — 전체 이력의 '수행자' 열과 같은 표기라
@@ -509,14 +511,14 @@ export default function AccessRequestsPage(): ReactElement {
                       <div className={a.benchLabel}>
                         {detail.status === 'APPROVED' ? '승인 메시지' : '반려 사유'}
                       </div>
-                      <p className={a.quote}>
+                      <p className={a.benchGroupNote}>
                         {detail.processedNote ??
                           (detail.status === 'APPROVED'
                             ? '메시지 없이 승인했어요'
                             : '사유가 없어요')}
                       </p>
                     </div>
-                  </>
+                  </div>
                 )}
               </>
             )}

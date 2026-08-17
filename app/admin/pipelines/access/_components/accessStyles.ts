@@ -231,9 +231,22 @@ export const accessStyles = {
    *  셋이 한 행이다(오너 지시 2026-08-14) — 2열이면 요청 일시 혼자 둘째 줄로 내려가
    *  같은 급의 사실이 두 덩어리로 갈리고, 오른쪽 절반은 그대로 빈다. */
   benchGrid: `mt-5 ${BENCH_GRID}`,
-  /** 처리 사실 행 — 열 트랙은 위와 같고 위 여백만 크다(36px). 시트는 요청 반쪽과 처리
-   *  반쪽으로 갈리는데, 그 사이가 반쪽 안의 간격(24px)보다 넓어야 두 덩어리로 읽힌다. */
-  benchGridNext: `mt-9 ${BENCH_GRID}`,
+  /** 처리 결과 묶음 — 사실 둘과 글 하나를 한 장에 담는다(오너 지시 2026-08-17). 간격만으로
+   *  나누던 때는 처리자·처리 일시·반려 사유·본문이 시트 위에 그냥 네 줄로 쌓여서, 어디까지가
+   *  처리 이야기인지 경계가 없었다.
+   *
+   *  면은 새로 늘지 않았다 — 회색 판이 인용에서 이 상자로 올라왔다(`benchGroupNote` 는 면을
+   *  안 든다). 인용이 쓰던 gray-50 은 흰 시트 위에서 1.045:1 이라 이만한 상자로 키우면
+   *  테두리만 보이고 면은 안 보인다. gray-100 은 1.102:1 이고, 그 위에서 제일 옅은 잉크인
+   *  12px 키가 4.515:1 로 버틴다(흰 바닥에서 4.6, 워시가 먹는 건 0.09 뿐). */
+  benchGroup: 'mt-9 rounded-[8px] border border-[var(--pl-border)] bg-[var(--pl-gray-100)] p-5',
+  /** 묶음의 머리 — 시트 제목(20)과 구역 라벨(14) 사이인 16px(오너 지시 2026-08-17). 안에 든
+   *  '반려 사유' 와 같은 급이면 묶음이 자기 부품 중 하나로 읽힌다. */
+  benchGroupTitle: 'mb-4 text-[16px] font-semibold text-[var(--pl-text-strong)]',
+  /** 묶음 안의 사실 행 — 위 여백은 머리가 들고 있어서 열 트랙만 가져온다. */
+  benchGroupGrid: BENCH_GRID,
+  /** 묶음 안의 글 — 면이 없다. 상자가 이미 면이라 여기서 또 깔면 면 안에 면이다. */
+  benchGroupNote: 'whitespace-pre-wrap text-[14px] leading-[1.6] text-[var(--pl-text-medium)]',
   benchKey: 'text-[12px] font-medium text-[var(--pl-text-weak)]',
   benchVal: 'mt-0.5 text-[14px] font-semibold text-[var(--pl-text-strong)]',
   /** 서비스 코드 라벨 — 면이 아니라 선으로 만든다(오너 지시 2026-08-14). 이 시트엔 회색
