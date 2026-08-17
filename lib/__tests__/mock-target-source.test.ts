@@ -37,10 +37,11 @@ describe('targetSourceId — seed 데이터', () => {
     expect(new Set(ids).size).toBe(ids.length);
   });
 
-  it('seed 데이터는 51개 프로젝트를 포함한다 (cloud 17 + step-coverage 13 + IDC 데모 8 + SDU 데모 2 + TC 큐 5 + TC 카드 상태 6)', () => {
+  it('seed 데이터는 53개 프로젝트를 포함한다 (cloud 17 + step-coverage 13 + IDC 데모 8 + SDU 데모 2 + TC 큐 5 + TC 카드 상태 8)', () => {
     // cloud 17 = 기존 15 + 중국 리전 AWS 대상 1018 + 권한 확인만 끝난 Step 4 AWS 대상 1009.
-    // TC 카드 상태 6 = 21xx fixture (시안 A 슬롯 폴딩 6종, lib/mock-test-connection.ts TC_CARD_FIXTURE).
-    expect(mockProjects).toHaveLength(51);
+    // TC 카드 상태 8 = 21xx fixture (시안 A 슬롯 폴딩 6종 + 시작 대기 2107 + 무보고 실패
+    // 2108, lib/mock-test-connection.ts TC_CARD_FIXTURE).
+    expect(mockProjects).toHaveLength(53);
   });
 });
 

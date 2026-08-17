@@ -1117,10 +1117,10 @@ mockProjects.push(
 );
 
 // ===== Step 5 TC 카드 상태 fixture (21xx) =====
-// 시안 A 상태 슬롯의 폴딩 6종(미실행/진행 중/실패/성공/정책 변경/확인 완료)을 시뮬레이터
-// 타이밍과 경쟁하지 않고 하나씩 열어 보는 전용 대상. 어떤 실행을 시드할지(없음·고정 진행
-// 중·실패)와 정책 변경 판정은 lib/mock-test-connection.ts 의 TC_CARD_FIXTURE 가 같은
-// id(2101~2106)로 분기한다.
+// 시안 A 상태 슬롯의 폴딩(미실행/시작 대기/진행 중/실패/무보고 실패/성공/정책 변경/확인
+// 완료)을 시뮬레이터 타이밍과 경쟁하지 않고 하나씩 열어 보는 전용 대상. 어떤 실행을
+// 시드할지(없음·시작 대기 고정·고정 진행 중·실패·무보고 실패)와 정책 변경 판정은
+// lib/mock-test-connection.ts 의 TC_CARD_FIXTURE 가 같은 id(2101~2108)로 분기한다.
 // Credential 게이트가 슬롯 CTA 를 잠그지 않도록 자격 증명이 필요한 엔진에는 시드
 // Credential 을 배정한다 — 게이트가 잠근 변형은 1010 이 그대로 보여 준다.
 const tcCardFixtureResources: Project['resources'] = awsWireSampleResources.map((r) =>
@@ -1198,6 +1198,18 @@ mockProjects.push(
     description: 'Step 5 TC 카드 상태 fixture — 정책 변경. 논리 DB 정책이 마지막 실행 이후 바뀌어 pending 표면 위 다시 실행을 검증합니다. 재실행하면 success 로 돌아갑니다.',
   }),
   tcCardConfirmedFixture,
+  tcCardStateClone({
+    targetSourceId: 2107,
+    key: 'queued',
+    name: 'TC 카드 - 시작 대기',
+    description: 'Step 5 TC 카드 상태 fixture — 시작 대기(top-level PENDING). 접수만 되고 디스패치 전이라 스핀·진행 트랙 없이 잠긴 슬롯("시작 대기…")을 검증합니다.',
+  }),
+  tcCardStateClone({
+    targetSourceId: 2108,
+    key: 'noreport',
+    name: 'TC 카드 - 무보고 실패',
+    description: 'Step 5 TC 카드 상태 fixture — 무보고 실패(PENDING→FAIL). 한 건도 보고되기 전에 실패로 정착해 "결과가 보고되기 전에 실패" 문구와 미보고 카운트를 검증합니다.',
+  }),
 );
 
 // 데모: SDU 계정 대상 — cloud_provider 는 AWS 지만 metadata.is_sdu_type=true 라

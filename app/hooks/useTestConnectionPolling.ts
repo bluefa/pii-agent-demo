@@ -7,7 +7,9 @@ import type { TestConnectionVersionResult } from '@/app/lib/api';
 import { AppError } from '@/lib/errors';
 import { usePollingBase } from '@/app/hooks/usePollingBase';
 
-export type TestConnectionUIState = 'IDLE' | 'PENDING' | 'SUCCESS' | 'FAIL';
+// QUEUED(접수됨, 아직 아무것도 안 돎)와 RUNNING(실제 진행)은 다른 프레임이다 — 예전엔
+// 둘을 'PENDING' 하나로 접어서 top-level PENDING 이 "진행 중 0%"로 그려졌다.
+export type TestConnectionUIState = 'IDLE' | 'QUEUED' | 'RUNNING' | 'SUCCESS' | 'FAIL';
 
 export interface UseTestConnectionPollingReturn {
   latestJob: TestConnectionVersionResult | null;
@@ -46,14 +48,21 @@ export const isInProgress = (status: TestConnectionVersionResult['connection_sta
 export const computeUIState = (job: TestConnectionVersionResult | null): TestConnectionUIState => {
   if (!job) return 'IDLE';
   switch (job.connection_status) {
-    case 'PENDING':
-    case 'RUNNING':
-      return 'PENDING';
+    case 'PENDING': return 'QUEUED';
+    case 'RUNNING': return 'RUNNING';
     case 'SUCCESS': return 'SUCCESS';
     case 'FAIL': return 'FAIL';
     default: return 'IDLE';
   }
 };
+
+/**
+ * uiState 기준의 "실행이 떠 있다"(시작 대기 포함) — 카드의 testing 게이트와 이 훅의
+ * canRunTest 가 같은 한 사실을 쓴다. 호출부가 두 값을 직접 비교해 조립하면 QUEUED 를
+ * 빠뜨린 자리가 곧 "대기 중인데 누를 수 있는" 창이 된다.
+ */
+export const isInFlightUi = (uiState: TestConnectionUIState): boolean =>
+  uiState === 'QUEUED' || uiState === 'RUNNING';
 
 // Stop polling once there is no job or it has settled (not PENDING/RUNNING).
 export const shouldStopPolling = (job: TestConnectionVersionResult | null): boolean =>
@@ -172,11 +181,8 @@ export const useTestConnectionPolling = (
      * 참이 되는 조건은 하나뿐이다: 마지막 조회가 성공했고(=지금 상태를 안다), 그 조회가 말한
      * 실행이 끝나 있다.
      */
-    canRunTest: observed && baseError === null && !triggering && !isInProgressUi(uiState),
+    canRunTest: observed && baseError === null && !triggering && !isInFlightUi(uiState),
     retry,
     trigger,
   };
 };
-
-/** uiState 기준의 "아직 도는 중" — PENDING 하나뿐이지만, 판정을 문자열 비교로 흩지 않는다. */
-const isInProgressUi = (uiState: TestConnectionUIState): boolean => uiState === 'PENDING';

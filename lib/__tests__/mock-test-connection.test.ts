@@ -303,23 +303,32 @@ describe('mock-test-connection behavior lock-in', () => {
   // ===== ADR-019 /install/v1 wire projections =====
 
   describe('toVersionResultResponse', () => {
-    it('PENDING job → connection_status RUNNING + version cursor', () => {
+    it('접수 직후 디스패치 창(4초)은 top-level PENDING, 이후 RUNNING + version cursor', () => {
       const project = getAwsProjectWithSelectedResources();
       const job = createTestConnectionJob(project, AWS_TARGET_SOURCE_ID, 'a@example.com');
+      const selectedCount = project.resources.filter((r) => r.isSelected).length;
 
-      const wire = toVersionResultResponse(job);
-
-      expect(wire.target_source_id).toBe(AWS_TARGET_SOURCE_ID);
-      expect(wire.connection_status).toBe('RUNNING');
-      expect(wire.test_connection_version).toBe(1);
-      expect(wire.requested_at).toBe(FIXED_ISO);
+      // 트리거 직후 프레임 — 접수만 됐고 아무것도 돌지 않는다(시작 대기).
+      const queuedWire = toVersionResultResponse(job);
+      expect(queuedWire.target_source_id).toBe(AWS_TARGET_SOURCE_ID);
+      expect(queuedWire.connection_status).toBe('PENDING');
+      expect(queuedWire.test_connection_version).toBe(1);
+      expect(queuedWire.requested_at).toBe(FIXED_ISO);
       // incomplete job → null (contract is nullable; an epoch placeholder read as
       // "20673일 전" in the header tag's relative timestamp)
-      expect(wire.completed_at).toBeNull();
+      expect(queuedWire.completed_at).toBeNull();
+      const queuedStatuses = queuedWire.test_connection_agent_results.map((r) => r.connection_status);
+      expect(queuedStatuses).toHaveLength(selectedCount);
+      expect(queuedStatuses.every((s) => s === 'PENDING')).toBe(true);
+
+      // 디스패치 창이 지나면 RUNNING — 첫 리소스 정착(5초) 전이라 결과는 여전히 0건.
+      vi.setSystemTime(new Date(FIXED_DATE.getTime() + 4_100));
+      const wire = toVersionResultResponse(getLatestJob(AWS_TARGET_SOURCE_ID)!);
+      expect(wire.connection_status).toBe('RUNNING');
       // 결과가 없는 agent 도 싣는다 — 다음 차례 하나가 RUNNING, 그 뒤는 전부 PENDING.
       // 끝난 것만 실으면 진행 중인 실행에서 "대기 중"과 "정보 없음"이 구분되지 않는다.
       const statuses = wire.test_connection_agent_results.map((r) => r.connection_status);
-      expect(statuses).toHaveLength(project.resources.filter((r) => r.isSelected).length);
+      expect(statuses).toHaveLength(selectedCount);
       expect(statuses[0]).toBe('RUNNING');
       expect(statuses.slice(1).every((s) => s === 'PENDING')).toBe(true);
     });
@@ -562,6 +571,35 @@ describe('mock-test-connection behavior lock-in', () => {
         (p) => p.targetSourceId === TC_CARD_FIXTURE.confirmed,
       );
       expect(project?.processStatus).toBe(ProcessStatus.WAITING_CONNECTION_TEST);
+    });
+
+    it('queued (2107) — top-level PENDING pinned, every agent PENDING, nothing RUNNING', () => {
+      const job = getLatestJob(TC_CARD_FIXTURE.queued);
+      expect(job?.status).toBe('PENDING');
+      expect(job?.completed_at).toBeNull();
+      expect(job?.resource_results).toHaveLength(0);
+
+      const wire = toVersionResultResponse(job!);
+      // requested_at 이 디스패치 창(4초)을 한참 지났어도 fixture id 가 시작 대기를 고정한다.
+      expect(wire.connection_status).toBe('PENDING');
+      const project = getStore().projects.find(
+        (p) => p.targetSourceId === TC_CARD_FIXTURE.queued,
+      );
+      const statuses = wire.test_connection_agent_results.map((r) => r.connection_status);
+      expect(statuses).toHaveLength(testConnectionUnits(project!).length);
+      expect(statuses.every((s) => s === 'PENDING')).toBe(true);
+    });
+
+    it('no-report fail (2108) — settled FAIL with an empty agent list (PENDING→FAIL)', () => {
+      const job = getLatestJob(TC_CARD_FIXTURE.noReportFail);
+      expect(job?.status).toBe('FAIL');
+      expect(job?.completed_at).toBe('2026-06-01T00:00:30.000Z');
+      expect(job?.resource_results).toHaveLength(0);
+
+      const wire = toVersionResultResponse(job!);
+      expect(wire.connection_status).toBe('FAIL');
+      // 스케줄 없는 seed 라 placeholder agent 도 없다 — 화면의 접기가 전부 미보고로 센다.
+      expect(wire.test_connection_agent_results).toHaveLength(0);
     });
   });
 });

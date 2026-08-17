@@ -56,3 +56,34 @@
 - 실행 이력 링크는 실행이 있는 모든 상태에서 meta 옆 유지
 - 성공 counts의 논리 DB 집계 줄은 시안 C 소관 — 미포함
 - CONFIRMED 확인 시각은 history API 소관(시안 B 비용) — "실행 #N 결과 기준"만 표기
+
+## 확장 (2026-08-17, 오너 피드백): PENDING(시작 대기) 분리
+
+오너 지적: 실행 라이프사이클은 PENDING → RUNNING → SUCCESS/FAIL 인데 top-level PENDING 이
+표현되지 않았고, PENDING→RUNNING 전이와 PENDING→FAIL(무보고 실패) 경로도 화면에 없었다.
+기존 구현은 `computeUIState` 가 wire PENDING/RUNNING 을 UI 상태 하나로 접어서, 접수만 된
+실행이 "진행 중 — 0/6 보고됨" + 빈 0% 바로 그려졌다(멈춘 인상). 목은 살아있는 job 을 무조건
+RUNNING 으로 투사해 top-level PENDING 프레임이 아예 나오지 않았다.
+
+### 결정
+
+- **uiState 5값 분리**: `IDLE | QUEUED | RUNNING | SUCCESS | FAIL`. 게이트는 `isInFlightUi`
+  (QUEUED+RUNNING) 한 사실로 답한다 — 호출부 조립 금지 규칙 유지.
+- **`TcRunPhase` 에 `queued` 추가**. 카드 표면은 running 과 공유(경고가 아니라 정상 단계) —
+  세 채널이 단계를 가른다: 아이콘 스핀 없음 / 진행 트랙 없음 / 문장 "연결 테스트 요청됨 —
+  시작을 기다리고 있어요". 슬롯은 "시작 대기…" 잠김. counts 줄은 idle 과 같은 "대상 리소스
+  N개" — 보고 0건을 카운트로 그리면 전부 "미보고"(정착 실행의 이상 신호 어휘)가 된다.
+- **전이가 곧 연출**: PENDING→RUNNING 순간 스핀 시작·트랙 등장·문장 교체가 동시에 일어난다.
+  별도 애니메이션 없음(GitHub Actions·Vercel 의 Queued→In progress 문법).
+- **PENDING→FAIL**: fail 문장 분기 추가 — `fail===0 && reported===0` 이면 "결과가 보고되기
+  전에 실패로 끝났어요 — 다시 실행해 주세요". 원인(에이전트 미응답 등)은 계약에 없으므로
+  단정하지 않는다.
+- **어휘 분리**: counts 줄의 "대기 N"은 유닛 단위 PENDING — top-level 은 "시작 대기"로
+  가른다. TcHeaderTag 도 PENDING 을 "테스트 시작 대기"로 분리(기존엔 "테스트 진행 중").
+
+### 목 지원
+
+- 라이브: `DISPATCH_MS` 4초 — 트리거 직후 top-level PENDING + 전 agent PENDING, 창이 지나면
+  RUNNING (첫 리소스 정착 5초보다 짧게).
+- 고정 fixture: **2107** 시작 대기(결과 0건 + 스케줄 전부 2099, fixture id 로 창 고정),
+  **2108** 무보고 실패(FAIL 정착 + agent 목록 빈 배열). TC_CARD_FIXTURE 2101~2108.

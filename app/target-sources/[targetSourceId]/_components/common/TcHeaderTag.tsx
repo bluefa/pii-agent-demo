@@ -63,6 +63,9 @@ export const TcHeaderTag = ({ targetSourceId }: TcHeaderTagProps) => {
     const folded = foldAgentStatuses(job.test_connection_agent_results ?? []);
     const failCount = [...folded.values()].filter((s) => s === 'FAIL').length;
     label = failCount > 0 ? `최근 테스트 실패 ${failCount}건` : '최근 테스트 실패';
+  } else if (status === 'PENDING') {
+    // 접수만 되고 아직 아무것도 돌지 않는다 — 카드의 시작 대기와 같은 어휘.
+    label = '테스트 시작 대기';
   } else {
     // No 최근 on a run that is still going — it is happening now, not recently.
     label = '테스트 진행 중';

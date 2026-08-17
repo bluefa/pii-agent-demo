@@ -15,6 +15,7 @@ import { useToast } from '@/app/components/ui/toast';
 import { TcSummaryCard, TcSummaryCardSkeleton } from '@/app/components/features/process-status/TcSummaryCard';
 import { TcRejectionNotice } from '@/app/components/features/process-status/TcRejectionNotice';
 import { TcRunHistoryModal } from '@/app/components/features/process-status/TcRunHistoryModal';
+import { isInFlightUi } from '@/app/hooks/useTestConnectionPolling';
 import type { UseTestConnectionPollingReturn } from '@/app/hooks/useTestConnectionPolling';
 import { useTcCompletionStatus } from '@/app/hooks/useTcCompletionStatus';
 import { useTcSettleHold } from '@/app/hooks/useTcSettleHold';
@@ -210,7 +211,7 @@ export const ConnectionTestCard = ({
     setCreds(seedCreds(confirmed));
   }
 
-  const testing = uiState === 'PENDING';
+  const testing = isInFlightUi(uiState);
 
   // Per-unit verdict from the latest poll (hydrates on mount, B3). FAIL-first fold —
   // several agents may report on one unit, and the previous last-write-wins map could
@@ -339,13 +340,18 @@ export const ConnectionTestCard = ({
   // 프레임이 서서 바가 끝까지 차는 걸 보여준 뒤 판정 프레임으로 넘어간다. Run Test
   // 버튼·승인 게이트는 실 상태(testing/uiState)를 그대로 쓴다.
   const { holding, settledLive } = useTcSettleHold(latestJob);
-  const phase: TcRunPhase = testing || holding
+  // holding 이 QUEUED 보다 앞: 정착 박자 동안은 최종 버킷을 든 running 프레임이 선다.
+  const phase: TcRunPhase = holding
     ? 'running'
-    : uiState === 'SUCCESS'
-      ? 'success'
-      : uiState === 'FAIL'
-        ? 'fail'
-        : 'idle';
+    : uiState === 'QUEUED'
+      ? 'queued'
+      : uiState === 'RUNNING'
+        ? 'running'
+        : uiState === 'SUCCESS'
+          ? 'success'
+          : uiState === 'FAIL'
+            ? 'fail'
+            : 'idle';
   // 시안 A: run phase × completion verdict → one card state, one slot CTA. The header
   // Run Test and the bottom action bar both folded into the strip's slot — at any
   // moment the card shows one primary.

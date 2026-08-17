@@ -87,6 +87,19 @@ describe('tcSummarySentence', () => {
     expect(tcSummarySentence('running', settled)).toBe('연결 테스트 진행 중 — 3/3 대상 보고됨');
   });
 
+  it('queued says 시작 대기, never 진행 중 — top-level PENDING 은 아무것도 돌지 않는다', () => {
+    const empty = computeTcBuckets(['a', 'b'], foldAgentStatuses([], new Set(['a', 'b'])));
+    expect(tcSummarySentence('queued', empty)).toBe('연결 테스트 요청됨 — 시작을 기다리고 있어요');
+  });
+
+  it('a FAIL with zero reports says the run never reported, not "결과를 확인해 주세요"', () => {
+    // PENDING→FAIL: 확인할 결과가 없는 실패 — 기존 문구는 없는 결과를 보라고 시켰다.
+    const unreported = computeTcBuckets(['a', 'b'], foldAgentStatuses([], new Set(['a', 'b'])));
+    expect(tcSummarySentence('fail', unreported)).toBe(
+      '결과가 보고되기 전에 실패로 끝났어요 — 다시 실행해 주세요',
+    );
+  });
+
   it('idle states the absence of a run, not a zero-count verdict', () => {
     expect(tcSummarySentence('idle', computeTcBuckets([], foldAgentStatuses([])))).toBe(
       '아직 실행한 연결 테스트가 없습니다',
@@ -112,6 +125,7 @@ describe('foldTcCardState', () => {
 
   it('ignores the verdict outside a settled SUCCESS (조회 보류 규칙)', () => {
     expect(foldTcCardState('running', 'CONFIRMED')).toBe('running');
+    expect(foldTcCardState('queued', 'CONFIRMED')).toBe('queued');
     expect(foldTcCardState('fail', 'LOGICAL_DATABASE_RECENTLY_UPDATED')).toBe('fail');
     expect(foldTcCardState('idle', 'LATEST_TEST_CONNECTION_SUCCESS')).toBe('idle');
   });

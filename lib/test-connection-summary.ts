@@ -102,7 +102,7 @@ export function computeTcBuckets(
   };
 }
 
-export type TcRunPhase = 'idle' | 'running' | 'success' | 'fail';
+export type TcRunPhase = 'idle' | 'queued' | 'running' | 'success' | 'fail';
 
 /**
  * 시안 A display state: the run phase, refined by the completion-status verdict
@@ -129,6 +129,11 @@ export function foldTcCardState(
 export function tcSummarySentence(state: TcCardState, buckets: TcBuckets): string {
   const { total, ok, fail, reported } = buckets;
   switch (state) {
+    case 'queued':
+      // top-level PENDING — 접수만 됐고 아무것도 돌지 않는다. "진행 중"이라고 말하면
+      // 0% 빈 바와 함께 멈춘 것처럼 읽힌다(카운트 줄의 "대기"는 유닛 단위 PENDING 이라
+      // 어휘를 "시작 대기"로 가른다).
+      return '연결 테스트 요청됨 — 시작을 기다리고 있어요';
     case 'running':
       return `연결 테스트 진행 중 — ${reported}/${total} 대상 보고됨`;
     case 'success':
@@ -138,9 +143,13 @@ export function tcSummarySentence(state: TcCardState, buckets: TcBuckets): strin
         ? `리소스 ${total}개 모두 연결에 성공했어요`
         : `리소스 ${total}개 중 ${ok}개 연결 성공 — 나머지 ${total - ok}건은 결과가 확인되지 않았어요`;
     case 'fail':
-      return fail > 0
-        ? `리소스 ${total}개 중 ${ok}개 연결 성공 — 실패 ${fail}건을 점검해 주세요`
-        : `연결 테스트가 실패했어요 — 결과를 확인해 주세요`;
+      if (fail > 0)
+        return `리소스 ${total}개 중 ${ok}개 연결 성공 — 실패 ${fail}건을 점검해 주세요`;
+      // PENDING→FAIL: 한 건도 보고되기 전에 실패로 정착. "결과를 확인해 주세요"는
+      // 확인할 결과가 없어 거짓말이 된다 — 원인은 계약에 없으므로 사실만 말한다.
+      if (reported === 0)
+        return `결과가 보고되기 전에 실패로 끝났어요 — 다시 실행해 주세요`;
+      return `연결 테스트가 실패했어요 — 결과를 확인해 주세요`;
     case 'policy-changed':
       return '논리 DB 정책이 마지막 실행 이후 변경됐어요';
     case 'confirmed':

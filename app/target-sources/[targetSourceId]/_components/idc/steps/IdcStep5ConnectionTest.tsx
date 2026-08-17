@@ -9,7 +9,7 @@ import { TcRunHistoryModal } from '@/app/components/features/process-status/TcRu
 import { StatusWarningIcon } from '@/app/components/ui/icons';
 import { useToast } from '@/app/components/ui/toast';
 import { useModal } from '@/app/hooks/useModal';
-import { useTestConnectionPolling } from '@/app/hooks/useTestConnectionPolling';
+import { isInFlightUi, useTestConnectionPolling } from '@/app/hooks/useTestConnectionPolling';
 import { useTcCompletionStatus } from '@/app/hooks/useTcCompletionStatus';
 import { useTcSettleHold } from '@/app/hooks/useTcSettleHold';
 import {
@@ -146,7 +146,7 @@ export const IdcStep5ConnectionTest = ({
     () => (state.status === 'ready' ? state.resources.filter((r) => !r.excluded) : EMPTY_RESOURCES),
     [state],
   );
-  const testing = uiState === 'PENDING';
+  const testing = isInFlightUi(uiState);
 
   // Per-resource connection status from the latest poll, keyed by resource_id.
   // The poll streams results as each pipeline settles, so this map is the live
@@ -253,13 +253,18 @@ export const IdcStep5ConnectionTest = ({
   // `holding` 은 표시 국면만 붙잡는다(정착 400ms 박자, 클라우드 카드와 동일) —
   // Run Test 버튼·승인 게이트는 실 상태(testing/uiState)를 그대로 쓴다.
   const { holding, settledLive } = useTcSettleHold(latestJob);
-  const phase: TcRunPhase = testing || holding
+  // holding 이 QUEUED 보다 앞: 정착 박자 동안은 최종 버킷을 든 running 프레임이 선다.
+  const phase: TcRunPhase = holding
     ? 'running'
-    : uiState === 'SUCCESS'
-      ? 'success'
-      : uiState === 'FAIL'
-        ? 'fail'
-        : 'idle';
+    : uiState === 'QUEUED'
+      ? 'queued'
+      : uiState === 'RUNNING'
+        ? 'running'
+        : uiState === 'SUCCESS'
+          ? 'success'
+          : uiState === 'FAIL'
+            ? 'fail'
+            : 'idle';
   // 시안 A: run phase × completion verdict → one card state, one slot CTA — the header
   // Run Test and the bottom action bar both folded into the strip's slot (cloud step 5
   // and this card share the fold).
