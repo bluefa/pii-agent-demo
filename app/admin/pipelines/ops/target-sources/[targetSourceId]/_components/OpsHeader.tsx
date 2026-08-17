@@ -185,6 +185,7 @@ export function OpsHeader({
                 title="협업 채널 — Jira에서 논의하기"
               >
                 <JiraMark />
+                <span className={opsStyles.chanKind}>Jira Ticket</span>
                 <span className={opsStyles.chanLinkText}>{jiraTicket.issueKey}</span>
                 <span className={opsStyles.chanArrow}>↗</span>
               </a>
@@ -192,6 +193,7 @@ export function OpsHeader({
               /* 열 주소가 없으면 키는 값일 뿐이다 — 링크로 그리지 않는다 (URL 조립 금지). */
               <span className={opsStyles.chanLink}>
                 <JiraMark />
+                <span className={opsStyles.chanKind}>Jira Ticket</span>
                 <span className={opsStyles.chanPlain}>{jiraTicket.issueKey}</span>
               </span>
             )}

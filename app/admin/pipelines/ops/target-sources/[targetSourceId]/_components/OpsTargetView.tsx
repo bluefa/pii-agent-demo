@@ -231,21 +231,16 @@ export function OpsTargetView({ targetSourceId, initialTab }: OpsTargetViewProps
         <span className="sr-only">불러오는 중</span>
         <div className={opsStyles.headCard}>
           <div className={opsStyles.header}>
-            <div className={opsStyles.titleRow}>
-              <div className={opsStyles.titleCol}>
-                <h1 className={pipelineStyles.text.pageTitle}>Target Source 운영</h1>
-                <div className={opsStyles.identityRow}>
-                  <div className={cn(opsStyles.skeleton, 'h-11 w-11 flex-none')} />
-                  <div className="flex flex-col gap-1.5">
-                    <div className={cn(opsStyles.skeletonBar, 'h-5 w-[220px]')} />
-                    <div className={cn(opsStyles.skeletonBar, 'h-[18px] w-[300px]')} />
-                    <div className={cn(opsStyles.skeletonBar, 'h-[18px] w-[260px]')} />
-                  </div>
-                </div>
+            <h1 className={pipelineStyles.text.pageTitle}>Target Source 운영</h1>
+            <div className={opsStyles.identityRow}>
+              <div className={cn(opsStyles.skeleton, 'h-11 w-11 flex-none')} />
+              <div className="flex flex-col gap-1.5">
+                <div className={cn(opsStyles.skeletonBar, 'h-5 w-[220px]')} />
+                <div className={cn(opsStyles.skeletonBar, 'h-[18px] w-[300px]')} />
+                {/* 세 번째 막대는 이제 티켓·서비스 관리 곁줄이다 — 협업 채널이 오른쪽
+                    고정폭 블록에서 신원 스택 안으로 내려오면서 그 자리를 잇는다. */}
+                <div className={cn(opsStyles.skeletonBar, 'h-[18px] w-[260px]')} />
               </div>
-              {/* 협업 채널 블록 — 고정 폭 216, 3단 높이 근사. titleRow 가 items-start 라
-                  높이 오차가 왼쪽 열을 밀지 않는다. */}
-              <div className={cn(opsStyles.skeleton, 'h-[104px] w-[216px] flex-none')} />
             </div>
           </div>
           <div className={opsStyles.tabStrip}>

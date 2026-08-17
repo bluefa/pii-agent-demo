@@ -68,6 +68,8 @@ export const opsStyles = {
   /* The mark sits outside the underlined text — text-decoration would otherwise
      strike through the glyph (a child cannot cancel an ancestor's underline). */
   chanLink: 'group inline-flex items-center gap-1',
+  /** 마크 옆 종류 라벨 — 키만으로는 BDCDIP-1013 이 무엇인지 마크를 알아봐야 안다. */
+  chanKind: 'text-[var(--pl-text-weak)]',
   chanLinkText:
     'font-semibold text-[var(--pl-text-medium)] underline underline-offset-2 decoration-[var(--pl-border-strong)] cursor-pointer group-hover:text-[var(--pl-text-strong)] group-hover:decoration-[var(--pl-text-strong)]',
   /** No browseUrl — the key is a value, not a door. Same slot, no affordance. */
