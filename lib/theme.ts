@@ -1335,6 +1335,10 @@ export const idcStyles = {
     countsWarn: 'text-[12px] font-medium text-orange-800 [font-variant-numeric:tabular-nums]',
     pct: 'min-w-[46px] text-right text-[16px] font-extrabold tracking-[-0.02em] [font-variant-numeric:tabular-nums]',
     track: 'relative h-2 overflow-hidden rounded-full bg-[#E4E7EC]',
+    /** Skeleton bar for this strip — the shared `skeletonBar` (#F3F4F6) sits on white; on the
+     *  idle surface (#F7F8FA) it is brighter than its own ground and vanishes. A step darker,
+     *  the same move as the service rail's skeletonBar. */
+    skeletonBar: 'animate-pulse bg-[#D6DCE0]',
     fill: 'relative h-full rounded-full transition-[width] duration-500',
     fillColor: {
       idle: 'bg-[#0064FF]',

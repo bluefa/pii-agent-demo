@@ -31,13 +31,13 @@ export const TcSummaryCardSkeleton = () => {
   return (
     <div className={cn(s.base, s.state.idle)} aria-busy="true" aria-live="polite">
       <div className={cn(s.head, 'flex-wrap')}>
-        <span className={cn(idcStyles.skeletonBar, 'block h-[15px] w-[210px] rounded')} />
-        <span className={cn(idcStyles.skeletonBar, 'block h-[13px] w-[130px] rounded')} />
+        <span className={cn(s.skeletonBar, 'block h-[15px] w-[210px] rounded')} />
+        <span className={cn(s.skeletonBar, 'block h-[13px] w-[130px] rounded')} />
       </div>
       <div className="flex items-center justify-between gap-3">
-        <span className={cn(idcStyles.skeletonBar, 'block h-[13px] w-[150px] rounded')} />
+        <span className={cn(s.skeletonBar, 'block h-[13px] w-[150px] rounded')} />
         {/* 슬롯 CTA 자리 — idle 로 풀리면 이 자리에 Run Test 가 선다. */}
-        <span className={cn(idcStyles.skeletonBar, 'block h-8 w-[104px] rounded-[10px]')} />
+        <span className={cn(s.skeletonBar, 'block h-8 w-[104px] rounded-[10px]')} />
       </div>
     </div>
   );
