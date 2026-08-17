@@ -1123,19 +1123,36 @@ export const idcStyles = {
   checkBadge:
     'inline-flex items-center gap-1 rounded-md border border-[#F79009] bg-white px-2 py-[3px] text-[11.5px] font-semibold text-[#B54708]', // design-exempt: mirrors idcStyles.kindBadge 11.5px token
   /**
-   * 확인 필요 그룹의 레일 — 한 그룹의 행들은 목록에서 붙여 세우므로(groupSuspectRows),
-   * 이 레일이 연속된 행을 하나의 덩어리로 묶는다. `tableRowLift.excluded` 가 같은 이유로
-   * 남겨 둔 장치이며, 기하도 `verdictRail` 과 같은 4px inset 이다 — 표에 레일 어휘는 하나다.
+   * 확인 필요 그룹을 잇는 선 (오너, 2026-08-17: RDS Cluster 처럼 가로·세로 선으로 잇자 —
+   * 같은 제안을 앞서 기각했던 결정을 오너가 직접 뒤집었다).
    *
-   * 틴트가 아니라 레일인 이유는 tableRowLift.excluded 에 적힌 것과 같다: 행 배경은 면적이
-   * 넓어 신호가 될 만큼 진해지면 그 위 글자의 대비를 갉아먹고, 좁은 레일은 같은 일을 대비
-   * 손실 없이 한다. 색은 --pl-warn-text 와 같은 #B54708 (흰 행에서 5.43:1) — 배지·짝 주소와
-   * 한 경고를 말한다. `--pl-warn`(#F79009)은 2.35:1 이라 이 자리에 못 쓴다.
+   * 4px 레일을 대신한다. 레일은 "이 행들이 같은 성격"까지만 말하고 어디서 시작해 어디서
+   * 끝나는지는 두께가 변하지 않으니 읽는 사람이 색이 끊기는 지점을 찾아야 했다. 트렁크와
+   * 엘보는 그걸 그린다: 첫 구성원의 엘보에서 시작해 마지막 구성원의 엘보에서 끝나므로,
+   * 선 자체가 그룹의 천장과 바닥이다.
    *
-   * 제외 행의 `verdictRail.ineligible` 과는 만나지 않는다: 의심 그룹은 selected 행끼리만
-   * 만들어지므로(_duplicateAddress) 한 행이 두 레일을 동시에 달 수 없다.
+   * `group.childCell` 과 같은 어휘를 다시 앵커한 것이다 — 표에 트리 선은 하나다. 다른 점은
+   * 부모가 없다는 것: 여기서 묶이는 건 형제들이라 트렁크가 첫 행의 가운데에서 시작한다
+   * (부모-자식 트리는 부모 행에서 내려온다).
+   *
+   * 기하는 `approvalCell` 의 18px 좌패딩 안에서 잡는다:
+   *   8       트렁크   (패딩 안, 표 왼쪽 테두리와 떨어져)
+   *   8..14   엘보     6px
+   *   18      셀 내용  → 4px 여유. 붙이는 건 띄우는 게 아니다.
+   *
+   * 색은 --pl-warn-text 와 같은 #B54708 — 배지·짝 주소와 한 경고를 말한다. 중립 회색
+   * (--rail #C4CEDA)은 부모-자식 트리의 색이고, 이 선이 가리키는 건 구조가 아니라 어느
+   * 행들이 문제인가다. `--pl-warn`(#F79009)은 흰 행에서 2.35:1 이라 이 자리에 못 쓴다.
    */
-  checkRail: 'shadow-[inset_4px_0_0_0_#B54708]',
+  checkGroup: {
+    /** 그룹 안의 행 — 트렁크가 행 높이를 관통하고 엘보가 내용까지 닿는다. */
+    cell: "relative before:absolute before:bottom-0 before:left-[8px] before:top-0 before:w-px before:bg-[#B54708] before:content-[''] after:absolute after:left-[8px] after:top-1/2 after:h-px after:w-[6px] after:bg-[#B54708] after:content-['']",
+    /** 첫 구성원 — 트렁크가 자기 엘보에서 시작한다. */
+    first: 'before:top-1/2',
+    /** 마지막 구성원 — 트렁크가 자기 엘보에서 끝난다. 잇는 것을 지나쳐 뻗는 선은 아래로
+     *  이어지는 그룹으로 읽힌다. */
+    last: 'before:bottom-1/2',
+  },
   /** Inline color tag — `.tag` (4px 10px / radius 8 / 12px / 600). */
   tag: {
     base: 'inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-[12px] font-semibold tracking-[-0.01em] whitespace-nowrap',

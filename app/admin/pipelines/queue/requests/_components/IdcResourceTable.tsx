@@ -18,7 +18,7 @@
 'use client';
 
 import type { ReactElement } from 'react';
-import { cn, idcStyles, textColors, verdictRailClass } from '@/lib/theme';
+import { cn, idcStyles, textColors, verdictRail } from '@/lib/theme';
 import { getDatabaseShortLabel } from '@/app/components/ui/DatabaseIcon';
 import {
   CELL_LIFT,
@@ -141,13 +141,34 @@ export function IdcResourceTable({
               `${row.connectTargets.join('|')}|${row.port ?? ''}|${row.databaseType ?? ''}|${index}`;
             const dbLabel = row.databaseType ? getDatabaseShortLabel(row.databaseType) : '';
             const mark = suspectMarks?.get(row);
+            // 그룹의 천장과 바닥 — 한 그룹의 행들은 붙어 서 있으므로(groupSuspectRows) 앞뒤
+            // 행의 이름만 보면 된다. 페이지가 그룹을 자르면 남은 조각이 자기 안에서 다시
+            // 열리고 닫힌다: 여기 없는 구성원까지 선을 뻗으면 없는 행을 가리키게 된다.
+            const label = mark?.label;
+            const opensGroup = label != null && label !== suspectMarks?.get(rows[index - 1])?.label;
+            const closesGroup = label != null && label !== suspectMarks?.get(rows[index + 1])?.label;
+            // 혼자 남은 조각에는 선을 긋지 않는다 — 이을 상대가 이 페이지에 없는데 엘보만
+            // 그리면 아무것도 가리키지 않는 6px 토막이 된다.
+            const connector =
+              label == null || (opensGroup && closesGroup)
+                ? undefined
+                : cn(
+                    idcStyles.checkGroup.cell,
+                    opensGroup && idcStyles.checkGroup.first,
+                    closesGroup && idcStyles.checkGroup.last,
+                  );
             if (!row.selected) {
               return (
                 <tr key={rowKey} className={cn(ROW_BASE, ROW_EXCLUDED)}>
+                  {/* 제외는 자홍 레일을 달지 않는다 (오너, 2026-08-17) — 이 표에서 제외는
+                      '제외' pill 과 제외 사유가 이미 말하고, 왼쪽 레일 자리는 확인 필요
+                      그룹의 선이 쓴다. 연동 불가만 레일을 유지한다: 그건 이 요청 안에서
+                      되돌릴 수 없는 판정이라 제외와 같은 층이 아니다. 다른 화면의
+                      `verdictRail.excluded` 는 그대로다. */}
                   <td
                     className={cn(
                       table.approvalCell,
-                      verdictRailClass(true, row.integrationCategory === 'INSTALL_INELIGIBLE'),
+                      row.integrationCategory === 'INSTALL_INELIGIBLE' && verdictRail.ineligible,
                     )}
                   >
                     <IdcEndpointCell
@@ -200,10 +221,7 @@ export function IdcResourceTable({
 
             return (
               <tr key={rowKey} className={cn(ROW_BASE, ROW_TARGET)}>
-                {/* 레일은 제외 행과 같은 자리(첫 셀 왼쪽)에 선다. 한 그룹의 행들이 붙어 서
-                    있으므로 레일이 이어지며 덩어리를 그린다 — 머리글과 달리 마지막 행에서
-                    끝나므로 그룹에 바닥이 생긴다. */}
-                <td className={cn(table.approvalCell, mark != null && idcStyles.checkRail)}>
+                <td className={cn(table.approvalCell, connector)}>
                   <IdcEndpointCell
                     hosts={row.connectTargets}
                     kind={idcAddressKind(row)}
