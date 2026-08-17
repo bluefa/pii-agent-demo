@@ -262,8 +262,9 @@ export const improvedStyles = {
     pickItem:
       'flex w-full items-center gap-2 px-3 py-2 text-left text-[14px] text-[var(--pl-text-strong)] transition-colors hover:bg-[var(--pl-gray-50)]',
     pickItemOn: 'font-semibold',
-    /** The attempt's verdict word — a tier down, since the dot already carries it. */
-    pickItemVerdict: 'text-[12px] text-[var(--pl-text-weak)]',
+    /** Muted suffix in the list — the attempt's verdict word, say. A tier down,
+     *  since the dot beside the label already carries it. */
+    pickItemMeta: 'text-[12px] font-normal text-[var(--pl-text-weak)]',
     pickCheck: 'ml-auto flex-none text-[var(--pl-primary)]',
     /** Error/verdict code chip — white face + stroke, so it reads against both the
      *  panel and the toned head text it sits beside. */

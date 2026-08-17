@@ -7,7 +7,7 @@ import { useState, type ReactElement, type ReactNode } from 'react';
 import { cn } from '@/lib/theme';
 import { fmtDateTime, KIND_POLICY, statusKo } from '@/lib/pipeline/format';
 import { AttemptDetail } from '@/app/admin/pipelines/_detail/AttemptDetail';
-import { AttemptPicker } from '@/app/admin/pipelines/_detail/AttemptPicker';
+import { DrawerPicker } from '@/app/admin/pipelines/_detail/DrawerPicker';
 import type { JobVerdict } from '@/app/admin/pipelines/_detail/jobRows';
 import {
   conditionVerdict,
@@ -112,11 +112,16 @@ export function TerraformExec({
            in 정의·계약 as `retry_budget`. */
         pick={
           attempts.length > 1 && current ? (
-            <AttemptPicker
-              attempts={attempts}
-              current={current}
-              tone={STATUS_TONE}
-              onPick={setPicked}
+            <DrawerPicker
+              ariaLabel="시도 선택"
+              value={String(current.attempt_number)}
+              options={attempts.map((a) => ({
+                key: String(a.attempt_number),
+                tone: STATUS_TONE[a.status],
+                label: `시도 #${a.attempt_number}`,
+                meta: statusKo(a.status),
+              }))}
+              onPick={(key) => setPicked(Number(key))}
             />
           ) : undefined
         }

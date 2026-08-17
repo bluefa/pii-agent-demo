@@ -123,7 +123,7 @@ describe('attemptWindow — run window', () => {
   it('captions Job 현황 with one row per value', () => {
     const out = html(attempt({ job_states: [jobState()] }), <RunWindow attempt={attempt()} />);
     expect(out.indexOf('Job 현황')).toBeLessThan(out.indexOf('시작'));
-    expect(out.indexOf('시작')).toBeLessThan(out.indexOf('aria-label="Job 상태 필터"'));
+    expect(out.indexOf('시작')).toBeLessThan(out.indexOf('총 1건'));
     // Each label sits in its own row with its own value — no ' · ' joiner.
     expect(out).toContain('>시작</span><span class="text-[var(--pl-text-medium)]">2026-07-13 09:00<');
     expect(out).toContain('>완료</span><span class="text-[var(--pl-text-medium)]">09:00<');
@@ -148,18 +148,21 @@ describe('AttemptDetail — Response 원문', () => {
 
 // 시안 A·B — the counts ARE the filter (they used to be a caption that could only
 // be read), the list opens on the failures, and every row says what its job last
-// did and opens the log end to end.
+// did and opens the log end to end. Owner 2026-08-17: the filter is a dropdown in
+// the list's own header card, because four buckets of segments wrapped.
 describe('AttemptDetail — Job 현황', () => {
   const ok = (n: number): TerraformJobStateSummary[] =>
     Array.from({ length: n }, (_, i) => jobState({ job_id: `ok-${i + 1}`, last_state: 'COMPLETED' }));
   const bad = jobState({ job_id: 'bad-1', last_state: 'FAILED', last_fail_reason: 'mock forced failure' });
 
-  it('counts every bucket and opens on the failures', () => {
+  it('states the total, opens on the failures, and keeps the count on the trigger', () => {
     const out = html(attempt({ job_states: [...ok(20), bad] }));
     expect(out).toContain('aria-label="Job 상태 필터"');
-    // 전체 21 · 실패 1 · 성공 20 — one button per non-empty verdict.
-    expect(out).toContain('>21<');
-    expect(out).toContain('>20<');
+    // The header states the scale; the closed trigger states the active bucket.
+    expect(out).toContain('총 21건');
+    expect(out).toContain('실패 1');
+    // The other buckets are in the list the trigger opens, not in the markup.
+    expect(out).not.toContain('성공 20');
     // The failure and its reason are on screen without opening anything…
     expect(out).toContain('>bad-1<');
     expect(out).toContain('mock forced failure');
@@ -173,10 +176,14 @@ describe('AttemptDetail — Job 현황', () => {
     expect(out.indexOf('>run-1<')).toBeLessThan(out.indexOf('>ok-1<'));
   });
 
-  it('drops the 전체 button when a single verdict covers every job', () => {
+  // One bucket is nothing to pick between — the filter is then its own label, and
+  // 전체 next to it would say the same number twice.
+  it('drops the control entirely when a single verdict covers every job', () => {
     const out = html(attempt({ job_states: ok(5) }));
     expect(out).toContain('>ok-5<');
-    expect(out).toContain('>5<');
+    expect(out).toContain('총 5건');
+    expect(out).toContain('성공 5');
+    expect(out).not.toContain('aria-label="Job 상태 필터"');
     expect(out).not.toContain('전체');
   });
 

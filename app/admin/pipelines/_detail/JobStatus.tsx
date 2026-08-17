@@ -19,6 +19,7 @@ import { cn } from '@/lib/theme';
 import { Icon } from '@/app/admin/pipelines/_components/icons';
 import { jobRows, jobVerdict, type JobRow, type JobVerdict } from '@/app/admin/pipelines/_detail/jobRows';
 import { fmtDateTime } from '@/lib/pipeline/format';
+import { DrawerPicker } from '@/app/admin/pipelines/_detail/DrawerPicker';
 import { j, Section } from '@/app/admin/pipelines/_detail/taskDrawerShared';
 import type { TaskAttemptView, TaskOperation } from '@/lib/pipeline/types';
 
@@ -117,41 +118,47 @@ export function JobStatus({
   const active = picked !== null && options.includes(picked) ? picked : auto;
   const shown = active === 'all' ? sorted : sorted.filter((g) => g.verdict === active);
 
+  // The count rides the label so it shows on the closed trigger too — it is the
+  // number the operator came for, and a dropdown that hides it would be a step
+  // back from the segments it replaces.
+  const picks = options.map((option) => ({
+    key: option,
+    tone: option === 'all' ? undefined : option,
+    label:
+      option === 'all'
+        ? `전체 ${rows.length}`
+        : `${j.verdictLabel[option]} ${counts[option]}`,
+  }));
+
   return (
     <Section label="Job 현황" caption={caption} grow>
-      {/* `self-start` (owner 2026-08-17) — `inline-flex` does not survive being a
-          flex item: the child blockifies and stretches to the column's cross size,
-          so the segmented track ran the panel's full 351px with 123px of empty
-          face to the right of the last button. */}
-      <div className={cn(j.filter, 'mt-4 self-start')} role="group" aria-label="Job 상태 필터">
-        {options.map((option) => {
-          const on = option === active;
-          return (
-            <button
-              key={option}
-              type="button"
-              aria-pressed={on}
-              className={cn(j.filterBtn, on ? j.filterActive : j.filterIdle)}
-              onClick={() => setPicked(option)}
-            >
-              {option !== 'all' && (
-                <span className={cn(j.filterDot, j.verdictDot[option])} aria-hidden="true" />
+      <div className={j.jobCard}>
+        <div className={j.jobCardHead}>
+          <span className={j.jobCardCount}>총 {rows.length}건</span>
+          {picks.length > 1 ? (
+            <DrawerPicker
+              ariaLabel="Job 상태 필터"
+              options={picks}
+              value={active}
+              onPick={(key) => setPicked(key as JobFilter)}
+            />
+          ) : (
+            <span className={j.jobCardOne}>
+              {picks[0].tone && (
+                <span className={cn(j.filterDot, j.verdictDot[picks[0].tone])} aria-hidden="true" />
               )}
-              {option === 'all' ? '전체' : j.verdictLabel[option]}
-              <span className={cn(j.filterCount, on ? j.filterCountTone.on : j.filterCountTone.off)}>
-                {option === 'all' ? rows.length : counts[option]}
-              </span>
-            </button>
-          );
-        })}
-      </div>
-      {shown.length > 0 && (
-        <div className={j.jobList}>
-          {shown.map((g) => (
-            <JobItem key={g.row.job_id} row={g.row} verdict={g.verdict} onOpen={() => onOpenJob(g.row.job_id)} />
-          ))}
+              {picks[0].label}
+            </span>
+          )}
         </div>
-      )}
+        {shown.length > 0 && (
+          <div className={j.jobList}>
+            {shown.map((g) => (
+              <JobItem key={g.row.job_id} row={g.row} verdict={g.verdict} onOpen={() => onOpenJob(g.row.job_id)} />
+            ))}
+          </div>
+        )}
+      </div>
     </Section>
   );
 }

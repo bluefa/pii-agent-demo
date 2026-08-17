@@ -57,38 +57,39 @@ export const jobStyles = {
    *  the panel never has to (owner 2026-08-16: "패널 자체의 스크롤을 내리는 일은
    *  없었으면"). Needs a bounded ancestor chain: the drawer body is `min-h-0` and
    *  the page column is capped to the viewport (`layout.contentDetail`).
-   *  The floor that keeps three rows on screen lives on the section (Section
-   *  `grow`), not here — this box just takes whatever is left of it. */
-  jobList: 'mt-4 flex flex-col flex-1 min-h-0 overflow-y-auto overscroll-contain',
+   *  The floor that keeps rows on screen lives on the section (Section `grow`),
+   *  not here — this box just takes whatever is left of it.
+   *  `rounded-b` on the scroller itself: it is a clipping box, so a hovered last
+   *  row cannot square off the card's bottom corners. */
+  jobList: 'flex flex-col flex-1 min-h-0 overflow-y-auto overscroll-contain rounded-b-[8px]',
 
-  /** Job status filter (design-benchmark 2026-08-15 시안 A) — the rollup line that
-   *  only *read* "1 실패 · 2 성공", promoted to the control that narrows the list.
-   *  Metrics are `pipelineStyles.seg` (the segmented toggle this page already
-   *  uses): container p1 gap1 r8 on a card face, buttons px3 py1 r6 14px, active
-   *  = gray-900 fill. The count suffix borrows `tqStyles.segLg.count` — but weak,
-   *  not that component's faint, which reads 2.5:1 against this panel.
-   *  The attempt picker (owner 2026-08-16) reuses the same three tokens, so the
-   *  top margin belongs to the Job 현황 call site, not to the container. */
-  filter: 'inline-flex items-center gap-1 flex-wrap p-1 rounded-lg bg-[var(--pl-bg-card)] border border-[var(--pl-border)]',
-  filterBtn: 'inline-flex items-center gap-1.5 px-3 py-1 rounded-md text-[14px] cursor-pointer transition-colors',
-  filterIdle: 'text-[var(--pl-text-weak)] hover:text-[var(--pl-text-medium)]',
-  filterActive: 'bg-[var(--pl-gray-900)] text-[var(--pl-white)] font-medium',
-  /** 8px leading dot — `tqStyles.segLg.dot`'s metric, verdict tone. */
+  /** The job list's own surface (owner 2026-08-17: "그룹화 되었으면") — header bar
+   *  plus rows in one bordered card, so the count, the filter and the rows they
+   *  narrow read as one object instead of three things stacked on the panel
+   *  ground. Takes the drawer's existing card grammar (`drawer.tableWrap`, worn by
+   *  the 확인 이력 table) with a flex column added so the list scrolls inside it.
+   *  NOT `overflow-hidden` — the header's filter opens a popover that has to
+   *  escape this box. */
+  jobCard:
+    'mt-3 flex flex-col flex-1 min-h-0 rounded-[8px] border border-[var(--pl-border)] bg-[var(--pl-bg-card)]',
+  /** Header bar — how many jobs there are, and the control that narrows them. */
+  jobCardHead:
+    'flex items-center justify-between gap-2 rounded-t-[8px] border-b border-[var(--pl-border)] bg-[var(--pl-gray-50)] px-3 py-2',
+  jobCardCount: 'text-[12px] font-medium text-[var(--pl-text-medium)] tabular-nums',
+  /** One bucket means nothing to pick — then the filter is just its own label. */
+  jobCardOne: 'inline-flex items-center gap-1.5 text-[14px] font-medium text-[var(--pl-text-strong)]',
+  /** 8px leading dot — `tqStyles.segLg.dot`'s metric, verdict tone. Worn by the
+   *  job rows and by every option of the drawer's two pickers.
+   *  (The segmented status filter this used to belong to is gone: four buckets
+   *  measured 353px against 351px of panel and wrapped — owner 2026-08-17.) */
   filterDot: 'inline-block w-2 h-2 flex-none rounded-full',
-  filterCount: 'tabular-nums',
-  /** Count tone is picked, never layered — two `text-[…]` classes would both apply
-   *  and stylesheet order, not argument order, would decide the winner. */
-  filterCountTone: {
-    on: 'text-[var(--pl-gray-300)]', // design-exempt: on the gray-900 active face (11:1), never on the card
-    off: 'text-[var(--pl-text-weak)]',
-  },
 
   /** Terraform Job entry — the row plus, for a failed job, its reason line. The
    *  hairline moved here so the reason sits inside the same entry as its row. */
   jobItem: 'flex flex-col border-b border-[var(--pl-border)] last:border-b-0',
   /** Terraform Job row (시안 B) — the whole 44px row opens the log viewer; it used
    *  to be a 51×17px text link at the right end, repeated 21 times. */
-  jobRow: 'w-full flex items-center gap-2.5 pt-3 pb-[13px] text-left hover:bg-[var(--pl-gray-50)] transition-colors',
+  jobRow: 'w-full flex items-center gap-2.5 px-3 pt-3 pb-[13px] text-left hover:bg-[var(--pl-gray-50)] transition-colors',
   /** What the job last did — `last_state · N회 폴링 · HH:mm`. Three contract fields
    *  that were parsed and then never rendered; without them 21 rows differ only
    *  by id and nothing tells the operator which one to open. */
@@ -97,7 +98,7 @@ export const jobStyles = {
   /** `last_fail_reason` under a failed job — the cause the panel used to keep
    *  three hops away (attempt row → job row → log viewer). Clamped; the full
    *  text is in the log viewer. */
-  jobFailReason: '-mt-1.5 pb-3 text-[14px] leading-[1.6] text-[var(--pl-err-text)] break-words line-clamp-2',
+  jobFailReason: '-mt-1.5 px-3 pb-3 text-[14px] leading-[1.6] text-[var(--pl-err-text)] break-words line-clamp-2',
   jobId: 'text-[13px] font-bold text-[var(--pl-text-strong)] [font-family:var(--pl-font-mono)] tabular-nums tracking-[-0.196px]',
   /** Raw-response fold (owner Figma node 121-389) — a ▼ triangle (gray) that flips
    *  up + sky-blue when open; the raw dispatch response sits in an inset mono code
