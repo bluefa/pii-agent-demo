@@ -31,7 +31,7 @@ function JiraMark(): ReactElement {
   return (
     <svg
       viewBox="0 0 24 24"
-      className="h-3 w-3 flex-none text-[var(--pl-primary)]"
+      className="h-4 w-4 flex-none text-[var(--pl-primary)]"
       fill="currentColor"
       aria-hidden
     >
