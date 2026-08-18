@@ -48,16 +48,25 @@ export const opsStyles = {
    * 세 상태(포함 / 미포함 / 미확인)를 항상 그린다: 태그가 없는 것과 "미포함"은 서로 다른
    * 말인데, 안 그리면 두 상태가 같은 픽셀이 된다.
    *
-   * 동작 채널은 설치모드 칩(tier 3 의 `modeTag`)과 같다 — 키는 weak, 값은 파랑·밑줄.
-   * 파랑·밑줄 자체는 이 헤더의 일반 표기다(role 등록 버튼 `roleRegister`, 서비스 링크도
-   * 쓴다); 칩의 **값 칸**에 그 표기를 두는 것이 이 둘뿐이라, 값은 `modeTagValue` 를 그대로
-   * 쓴다 — 같은 뜻이면 정의도 하나여야 한쪽만 바뀌어 문법이 갈라지지 않는다.
+   * 키·값 문법은 설치모드 칩(tier 3 의 `modeTag`)에서 가져오되 **값의 파랑은 안 가져온다.**
+   * `modeTag` 가 사는 줄에는 도는 색이 없지만, 이 줄에는 `StepPill` 이 있고 그 primary 계열은
+   * 글자를 `--pl-primary` 로 쓴다(`TONE_CLASS`) — 7 상태 중 3 개(CONFIRMING·CONFIRMED·
+   * INSTALLED)에서 파란 글자 두 개가 나란히 서고, 그러면 파랑이 "누를 수 있다"와 "진행 중"을
+   * 동시에 뜻하게 된다. 같은 줄의 곁줄 링크(`chanLinkText`)가 이미 같은 이유로 파랑을 버렸다:
+   * **밑줄이 affordance 를 지고 색은 상태에 남긴다**(`countLink` 규칙).
+   *
+   * 그래서 hover 도 면이 아니라 획을 움직인다 — 이 칩의 정체성이 획이다. 면만으로 하면
+   * gray-50 은 흰 면 대비 ΔE00 1.2 로 JND 문턱이고, gray-100 까지 올리면 그 위의 키
+   * (`--pl-text-weak`)가 4.51:1 로 AA 턱걸이가 된다. 획은 #D0D5DD→weak 로 확실히 움직이면서
+   * 그 위 글자의 대비를 하나도 건드리지 않는다.
    *
    * 키만 따로 있는 이유: 부모 칩이 `font-semibold` 라, 키를 한 단 내리는 건 여기서만
    * 필요하다 (`modeTag` 는 부모가 굵지 않아 내릴 것이 없다).
    */
-  rawDataToggle: 'gap-1 cursor-pointer hover:bg-[var(--pl-gray-50)]',
+  rawDataToggle:
+    'gap-1 cursor-pointer hover:bg-[var(--pl-gray-50)] hover:border-[var(--pl-text-weak)]',
   rawDataToggleKey: 'font-medium text-[var(--pl-text-weak)]',
+  rawDataToggleValue: 'underline underline-offset-2 decoration-[var(--pl-border-strong)]',
 
   /** Cloud context — tier 3 of the identity stack (계정 · 리전 · 설치모드). */
   cloudRow: 'flex items-center gap-1.5 mt-1 text-[12px] text-[var(--pl-text-weak)]',
