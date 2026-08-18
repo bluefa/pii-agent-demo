@@ -73,7 +73,9 @@ public class LineageEventSubscriber {
             repository.upsert(toRow(event, state));
             message.ack();
         } catch (Exception e) {
-            log.warn("lineage event rejected: {}", e.getMessage());
+            // Log the exception itself, not just the message: for the DB-outage
+            // path the stack is the diagnosis, and getMessage() on an NPE is null.
+            log.warn("lineage event rejected", e);
             message.nack();
         }
     }
@@ -93,7 +95,8 @@ public class LineageEventSubscriber {
     /**
      * Boundary validation: required fields missing -> throw -> DLQ.
      *
-     * databaseUri is required like the rest. The transport only publishes
+     * databaseUri is required like the rest (blank counts as missing — a row
+     * keyed by "" would never be read). The transport only publishes
      * events it could attach one to, so its absence means the contract broke —
      * a facet renamed on one side only, or a transport deployed without the
      * lookup. DLQ
@@ -107,7 +110,8 @@ public class LineageEventSubscriber {
         String databaseUri = event.resolveDatabaseUri();
         OffsetDateTime logicalDate = event.resolveLogicalDate();
 
-        if (runId == null || namespace == null || dagId == null || databaseUri == null
+        if (runId == null || namespace == null || dagId == null
+                || databaseUri == null || databaseUri.isBlank()
                 || event.eventTime() == null || logicalDate == null) {
             throw new IllegalArgumentException("missing required lineage fields");
         }

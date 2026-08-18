@@ -71,8 +71,8 @@ class PubSubTransport(Transport):
 
     def emit(self, event) -> None:
         # Triple allow-list, not deny-list:
-        #  1) only DAG lifecycle events (task events are 12x the count and
-        #     10-25x the bytes — see architecture.md for the volume math)
+        #  1) only DAG lifecycle events (task events are 11x the count and
+        #     2.5-25x the bytes — see architecture.md for the volume math)
         #  2) only DAGs whose name starts with the configured prefix
         #  3) only DAGs whose databaseUri lookup succeeds — an event the
         #     consumer cannot attribute to a logical DB is never published
@@ -119,8 +119,11 @@ class PubSubTransport(Transport):
             log.warning("databaseUri lookup failed for dag %s — event dropped",
                         dag_name, exc_info=True)
             return None
-        if database_uri is None:
+        if not database_uri:
+            # "" counts as no mapping too: a row keyed by an empty string
+            # would never be read by any logical DB.
             log.warning("no databaseUri mapped for dag %s — event dropped", dag_name)
+            return None
         return database_uri
 
     def _fetch_database_uri(self, dag_name):

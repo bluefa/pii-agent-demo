@@ -406,7 +406,9 @@ N개를 불러와서 N개를 조회"하는 부하인데, **멤버십을 저장�
 
 1. **실제 페이로드 캡처**: facet 경로(`airflowDagRun.dagRun.*`)는
    provider 버전 종속. 대상 Composer에서 이벤트 1건을 떠서
-   parsing.md의 경로 표와 대조 후 확정한다.
+   parsing.md의 경로 표와 대조 후 확정한다. jobType facet이 실제로
+   달려 오는지도 같이 확인한다 — 없으면 transport 필터가 전 이벤트를
+   걸러 파이프라인이 조용히 꺼진다(유입량 급감 알람으로만 감지).
 2. **버전 핀**: openlineage-python 클라이언트의 Transport API가
    메이저 간 변경됨. provider·client 버전을 함께 고정. composite
    transport의 `transports` 설정 형식(dict/list)과

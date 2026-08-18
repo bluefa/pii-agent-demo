@@ -427,7 +427,7 @@
     <p class="lede">
       Airflow DAG의 OpenLineage 이벤트를 모아, target source 하나에 속한
       논리 DB들의 최근 7일 실행 상태를 돌려준다. 설계의 중심 결정은 하나다 —
-      <b>databaseUri를 DAG가 직접 실어 보내므로, 매핑도 배경 동기화도 없다.</b>
+      <b>databaseUri를 transport가 발행 시점에 조회해 실어 보내므로, 소비 측엔 매핑도 배경 동기화도 없다.</b>
     </p>
 
     <div class="servers">
@@ -439,7 +439,7 @@
       <div class="server server--up">
         <p class="server__tag">부르지 않음</p>
         <p class="server__name">Pipeline Manager</p>
-        <p class="server__role"><span class="m">dagName → databaseUri</span>를 답할 수 있지만 <b>이 설계는 부르지 않는다</b> — DAG가 자기 databaseUri를 이벤트에 실어 오기 때문.</p>
+        <p class="server__role"><span class="m">dagName → databaseUri</span>를 답할 수 있지만 <b>Monitoring Manager는 부르지 않는다</b> — 이벤트가 databaseUri를 실어 오기 때문. 발송 측 transport가 조회에 쓸 API는 <b>미정</b>이다.</p>
       </div>
       <div class="server server--up">
         <p class="server__tag">상류</p>
@@ -477,7 +477,7 @@
             <span class="step__n">A1</span>
             <div class="step__body">
               <p class="step__t">Composer × N — composite transport</p>
-              <p class="step__d">기존 transport는 그대로 두고 PubSubTransport를 나란히 건다. <b>DAG 수준 + 이름 prefix + databaseUri 有</b>만 통과 (일 240만 → 20만 건). 세 번째 조건에 걸려 버려진 건 로그로 남는다 — 이 설계에서 조용히 샐 수 있는 유일한 지점.</p>
+              <p class="step__d">기존 transport는 그대로 두고 PubSubTransport를 나란히 건다. <b>DAG 수준 + 이름 prefix + databaseUri 조회 성공</b>만 통과 (일 240만 → 20만 건). databaseUri는 transport가 emit 시점에 dagName으로 조회해 facet으로 주입한다 — <b>조회 API 미정(NEED IMPLEMENT)</b>. 조회 실패·미매핑으로 버려진 건 로그로 남는다 — 이 설계에서 조용히 샐 수 있는 유일한 지점.</p>
             </div>
           </li>
           <li class="step">
@@ -539,18 +539,19 @@
     </div>
 
     <div class="callout">
-      <h3>DAG가 이미 아는 값이라, 아무도 물어볼 필요가 없다</h3>
+      <h3>묻는 곳은 발송 측 한 곳뿐이다</h3>
       <div class="arrows">
         <span class="yes">✓ 이벤트가 databaseUri를 싣고 온다</span>
-        <span class="no">✕ 매핑 테이블 · 상류 조회 · 배경 동기화</span>
+        <span class="no">✕ 소비 측 매핑 테이블 · 조회 · 배경 동기화</span>
       </div>
       <p>
-        DAG는 자기가 어느 논리 DB를 처리하는지 알고 있습니다. 그 값을 facet으로 실어 보내면
-        <span class="m">dag_run_status.database_uri</span> 컬럼 하나로 끝나고,
-        <b>Pipeline Manager 의존 자체가 사라집니다</b> — 상류가 Infra Manager 하나로 줄어듭니다.
+        transport가 발행 시점에 dagName으로 databaseUri를 조회해
+        (<b>조회 API 미정 — NEED IMPLEMENT</b>) facet으로 주입합니다. 그 값이
+        <span class="m">dag_run_status.database_uri</span> 컬럼 하나로 저장되고,
+        <b>소비·조회 경로엔 이름 매핑 의존이 없습니다</b> — Monitoring Manager의 상류는 Infra Manager 하나입니다.
       </p>
       <p>
-        <b>databaseUri가 없는 DAG는 아예 발송하지 않습니다</b>(오너 결정).
+        <b>조회가 실패하거나 매핑이 없으면 아예 발송하지 않습니다</b>(오너 결정).
         transport 필터의 세 번째 조건입니다. 덕분에 <span class="m">database_uri</span>는
         NOT NULL이고, 소비 경로에 "uri 없는 이벤트" 분기가 존재하지 않습니다.
       </p>
@@ -562,7 +563,7 @@
       </p>
       <p>
         <b>중요한 건 실패가 관측 가능한 쪽으로 옮겨갔다는 점입니다.</b>
-        databaseUri가 빠진 DAG는 발송 측이 드롭하면서 로그를 남깁니다.
+        databaseUri를 조회하지 못한 DAG는 발송 측이 드롭하면서 로그를 남깁니다.
         이전 설계에서는 이벤트가 안 닿는 DAG를 Monitoring Manager가
         <b>존재조차 알 수 없어</b> 셀 방법이 없었습니다. 지금은 셀 수 있는 곳에서 샙니다.
       </p>
@@ -572,7 +573,7 @@
   <section>
     <div class="sec-head">
       <p class="eyebrow">저장 모델</p>
-      <h2>테이블은 둘뿐이다</h2>
+      <h2>테이블은 하나뿐이다</h2>
     </div>
 
     <div class="schemas">
@@ -602,7 +603,7 @@
           <li><span class="desc">매핑 테이블 <span class="m">dag_database_uri</span> — 삭제</span></li>
           <li><span class="desc">명부 미러링 + 단건 resolve — 삭제</span></li>
           <li><span class="desc"><span class="m">attempts</span> · 재시도 상한 · batch 상한 · 첫 동기화 소요 — 삭제</span></li>
-          <li><span class="desc"><b>Pipeline Manager 의존 자체</b> — 삭제</span></li>
+          <li><span class="desc"><b>소비·조회 경로의 이름 매핑 의존</b> — 삭제 (남는 조회는 발송 측 transport 한 곳)</span></li>
         </ul>
       </div>
     </div>
@@ -655,6 +656,10 @@
             <td class="why"><b>✓ 채택 — 이게 현재 설계다.</b> 아래 "뒤집힌 결정" 참조</td>
           </tr>
           <tr>
+            <td>transport에서 이벤트마다 databaseUri를 <b>API로 조회해</b> 첨부</td>
+            <td class="why"><b>✓ 채택 (뒤집힘 — ⑤).</b> 기각 사유였던 "스케줄러 경로 외부 호출"은 실패=드롭+로그(비블로킹)로 수용됐다. 조회 API는 미정 — NEED IMPLEMENT</td>
+          </tr>
+          <tr>
             <td>이벤트 저장 시점에 databaseUri를 <b>조회</b></td>
             <td class="why">ack가 상류 가용성에 종속되고, 자정 폭주(~330건/s)가 상류로 전파된다. 하루 20만 건의 조회가 통째로 생긴다</td>
           </tr>
@@ -674,16 +679,23 @@
       </table>
     </div>
     <div class="callout">
-      <h3>⛔ 이 축만 네 번 뒤집혔다</h3>
+      <h3>⛔ 이 축만 다섯 번 뒤집혔다</h3>
       <p>
         ① 전체 목록 테이블 + 시간당 sync → ② 이벤트에서 이름 유도 + 미해석분 단건 조회
         → ③ 전체 명부 미러링(②는 맵이 부분집합이라 부재를 해석할 수 없다는 이유로 기각)
-        → ④ <b>facet — 매핑 자체를 없앤다.</b>
+        → ④ facet — 매핑 자체를 없앤다 → ⑤ <b>facet은 유지하되, 값은 DAG가 아니라
+        transport가 발행 시점에 조회해 주입한다.</b>
       </p>
       <p>
         ④를 연 건 두 문장이다: <i>"event 발송 시점에 databaseUri를 같이 실어줄 수 있다"</i> +
         <i>"없으면 안 보내면 된다"</i>. ③이 사려던 "DAG가 있긴 한가"라는 구분은 화면
         요구사항에 없었고, ③이 막으려던 은폐는 발송 측 로그가 더 싸게 막는다.
+      </p>
+      <p>
+        ⑤는 오너 지시다(08-18) — DAG가 직접 선언하는 대신 transport가
+        <span class="m">_fetch_database_uri()</span>로 받아온다(조회 API 미정 — NEED IMPLEMENT).
+        위 기각 표의 "transport 조회 첨부" 행이 <b>전제와 함께 만료</b>된 사례다.
+        "이벤트가 uri를 싣고 온다"는 ④의 소비 측 성질은 그대로다.
       </p>
       <p>
         <b>다시 열려면 확인할 것</b> — 화면에 'DAG 없음'을 '스케줄 안 됨'과 다르게 표시해야
@@ -716,14 +728,14 @@
       <div class="check">
         <span class="check__n">03</span>
         <div class="check__b">
-          <p class="check__t">facet 이름·경로가 아직 안 정해졌다</p>
-          <p class="check__d">설계 전체가 이벤트에 실린 <span class="m">databaseUri</span>에 걸려 있다. 커스텀 job facet으로 잡아뒀지만 <span class="m">tags</span> facet이면 목록에서 꺼내야 한다. 양쪽에 seam을 한 곳씩만 뒀으니 확정되면 메서드 둘만 고친다.</p>
+          <p class="check__t">dagName → databaseUri 조회 API가 아직 안 정해졌다</p>
+          <p class="check__d">설계 전체가 이벤트에 실린 <span class="m">databaseUri</span>에 걸려 있는데, 그 값을 받아올 API가 미정이다 — transport의 <span class="m">_fetch_database_uri()</span>에 <b>NEED IMPLEMENT</b>로 남겼다. facet 경로는 우리 transport가 주입하므로 우리가 정한다. 확정되면 타임아웃·호출량(환경별 DAG당 이벤트 2건/일)을 확인하고, 부담이면 dict 캐시를 더한다(매핑이 1:1 불변이라 안전).</p>
         </div>
       </div>
       <div class="check">
         <span class="check__n">04</span>
         <div class="check__b">
-          <p class="check__t">databaseUri 없는 DAG를 안 보내는 게 맞나</p>
+          <p class="check__t">databaseUri를 조회하지 못한 DAG를 안 보내는 게 맞나</p>
           <p class="check__d">발송을 막는 쪽을 택했다 — 받아서 NULL로 저장하면 어차피 안 읽히는 행만 쌓이고, 발송 측에서 거르면 <b>로그가 남는다</b>. 대신 그 로그가 유일한 신호라 알람을 걸어야 한다.</p>
         </div>
       </div>
@@ -748,8 +760,8 @@
         <p class="open__a">지금은 전부 <b>조회 실패</b>로 반환한다. 404가 "target source 없음"이면 그것만 빈 화면으로 분기해야 한다.</p>
       </div>
       <div class="open">
-        <p class="open__q">facet 누락 드롭에 알람을 걸 것인가</p>
-        <p class="open__a">prefix에 걸리는데 databaseUri가 없는 DAG는 화면에서 영영 안 보인다. 지금은 발송 측 <span class="m">log.warning</span> 한 줄이 유일한 신호다 — 로그 기반 지표로 올릴지 정해야 한다. <b>이 설계에서 조용히 사라질 수 있는 유일한 경로다.</b></p>
+        <p class="open__q">databaseUri 드롭에 알람을 걸 것인가</p>
+        <p class="open__a">prefix에 걸리는데 databaseUri를 조회하지 못한 DAG는 화면에서 영영 안 보인다. 지금은 발송 측 <span class="m">log.warning</span> 한 줄이 유일한 신호다 — 로그 기반 지표로 올릴지 정해야 한다. <b>이 설계에서 조용히 사라질 수 있는 유일한 경로다.</b> 조회 API 전면 장애는 namespace별 유입량 급감 알람에도 함께 걸린다.</p>
       </div>
       <div class="open">
         <p class="open__q">10MB 응답을 실제로 받아봤나</p>

@@ -84,9 +84,14 @@ public record LineageEvent(String eventType, OffsetDateTime eventTime, Run run, 
     }
 
     /**
-     * Second line of defense behind the transport's DAG-only filter.
-     * A missing jobType facet passes as DAG (older providers may omit it);
-     * only an explicit non-DAG value is dropped.
+     * Second line of defense behind the transport's DAG-only filter: an
+     * explicit non-DAG jobType is dropped, a missing facet passes.
+     *
+     * The pass is NOT provider compatibility — a provider that omits the
+     * facet never gets past the transport's strict filter, so its events
+     * cannot reach this code. That failure mode is zero events with no log,
+     * caught only by the per-namespace volume alarm. Passing here just keeps
+     * this defense from nacking events whose only flaw it cannot judge.
      */
     public boolean isDagEvent() {
         if (job == null || job.facets() == null || job.facets().jobType() == null) {
