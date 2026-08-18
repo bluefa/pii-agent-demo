@@ -6,6 +6,7 @@ import { EditorContent, useEditor, useEditorState, type Editor } from '@tiptap/r
 import type { EditorState } from '@tiptap/pm/state';
 import StarterKit from '@tiptap/starter-kit';
 import { PostImage } from '@/app/admin/pipelines/posts/_components/post-image-node';
+import { PostImageBubble } from '@/app/admin/pipelines/posts/_components/PostImageBubble';
 import { PostLinkBubble } from '@/app/admin/pipelines/posts/_components/PostLinkBubble';
 import { PostLinkModal } from '@/app/admin/pipelines/posts/_components/PostLinkModal';
 import { uploadPostImage } from '@/app/lib/api/posts';
@@ -319,6 +320,7 @@ export const PostBodyEditor = ({
             떠다닌다. `shouldShow` 를 false 로 돌리는 걸로는 사라지지 않는다:
             BubbleMenu 는 선택이나 문서가 바뀐 트랜잭션에서만 그걸 다시 부른다. */}
         {!linkModal && <PostLinkBubble editor={editor} onEdit={() => setLinkModal(true)} />}
+        <PostImageBubble editor={editor} />
       </div>
 
       {linkModal && (
