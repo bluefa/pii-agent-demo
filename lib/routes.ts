@@ -44,6 +44,26 @@ export const passRoutes = {
    *  사용자가 들어올 수 있다(그게 이 화면의 대상이다). @see passRoutes.pipelines.access */
   accessRequests: '/access-requests',
   /**
+   * 공지사항 · FAQ. `?type=NOTICE|FAQ` switches the same route from the
+   * side-by-side cards to one full list — the listing is a view of this page,
+   * not a second page with its own copy of the fetching.
+   */
+  notices: '/notices',
+  /**
+   * 게시글 관리 (목록 · 고정 · 숨김 · Category).
+   * `/admin/pipelines/**` 안에 있는 이유는 그 아래가 관리자 콘솔의 셸이기 때문이다
+   * — 사이드바가 거기 붙어 있어서, 밖에 두면 메뉴에서 갈 수는 있어도 도착하는
+   * 순간 메뉴가 사라진다. 같은 이유로 Task Queue · 운영 콘솔도 파이프라인이
+   * 아니면서 이 아래에 있다.
+   */
+  adminPosts: '/admin/pipelines/posts',
+  /**
+   * 등록 · 수정은 모달이 아니라 페이지다 — 언어 탭 두 벌과 본문 에디터,
+   * 이미지 업로드가 한 화면에 들어가서 모달 폭에서는 라벨 열이 무너진다.
+   */
+  adminPostNew: (type: 'NOTICE' | 'FAQ') => `/admin/pipelines/posts/new?type=${type}`,
+  adminPostEdit: (postId: number | string) => `/admin/pipelines/posts/${postId}`,
+  /**
    * LIN-25 Admin Pipeline routes (app/admin/pipelines/**). Page mapping per
    * docs/api/pipeline-orchestrator-bff.md §2. Detail URLs carry the path id ONLY
    * (R20 — no query-param nav-context; pages derive service names from the API).

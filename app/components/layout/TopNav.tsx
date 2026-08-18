@@ -29,15 +29,39 @@ const iconProps = {
 } as const;
 
 // Help/announcement links — live in the top nav so they are reachable from
-// every page. All destinations are still placeholders, so a click shows the
+// every page. An item without an `href` is still a placeholder and shows the
 // same "준비 중" toast as the disabled primary items.
-const UTILITY_ITEMS: Array<{ label: string; icon: React.ReactNode }> = [
-  { label: 'Notice', icon: <BellIcon className="h-3.5 w-3.5" /> },
+const UTILITY_ITEMS: Array<{ label: string; icon: React.ReactNode; href?: string }> = [
+  {
+    label: 'Notice',
+    icon: <BellIcon className="h-3.5 w-3.5" />,
+    href: `${passRoutes.notices}?type=NOTICE`,
+  },
   { label: 'Guide', icon: <BookIcon className="h-3.5 w-3.5" /> },
-  { label: 'FAQ', icon: <QuestionCircleIcon className="h-3.5 w-3.5" /> },
+  {
+    label: 'FAQ',
+    icon: <QuestionCircleIcon className="h-3.5 w-3.5" />,
+    href: `${passRoutes.notices}?type=FAQ`,
+  },
 ];
 
 const NAV_ITEMS: NavItem[] = [
+  {
+    label: 'Home',
+    // `/` 가 아니라 공지사항·FAQ 2카드 화면이다. `/` 는 서비스 목록으로 redirect
+    // 하므로 그리로 걸면 바로 옆 항목과 목적지가 같아지고, 한 화면에 활성 항목이
+    // 둘이 되어 어느 쪽이 지금인지 말하지 못한다. 오른쪽 Notice · FAQ 는 같은
+    // 화면의 한 종류 전체보기(`?type=`)라 여기와 목적지가 겹치지 않는다.
+    href: passRoutes.notices,
+    isActive: (pathname) => pathname === passRoutes.notices,
+    icon: (
+      <svg {...iconProps} aria-hidden="true">
+        <path d="M3 10.5 12 3l9 7.5" />
+        <path d="M5.5 9.5V20a1 1 0 0 0 1 1h11a1 1 0 0 0 1-1V9.5" />
+        <path d="M9.5 21v-6h5v6" />
+      </svg>
+    ),
+  },
   {
     label: '서비스 목록',
     href: passRoutes.services,
@@ -225,26 +249,45 @@ export const TopNav = () => {
         {/* Help/announcement group — now the head of the RIGHT cluster rather than
             a tail on the primary items. */}
         <nav aria-label="도움말" className="flex items-center gap-0.5">
-          {UTILITY_ITEMS.map((item) => (
+          {UTILITY_ITEMS.map((item) => {
             // Below xl these fall back to their icons. The label goes off the screen,
             // not off the element: `aria-label` is unconditional so the accessible
             // name never depends on the window, and `title` gives the same word back
             // to a sighted user on hover.
-            <a
-              key={item.label}
-              href="#"
-              onClick={(e) => handleDisabledClick(e, item.label)}
-              aria-label={item.label}
-              title={item.label}
-              className={cn(
-                'inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-[13px] font-medium whitespace-nowrap transition-colors',
-                navStyles.link.inactive,
-              )}
-            >
-              {item.icon}
-              <span className="hidden xl:inline">{item.label}</span>
-            </a>
-          ))}
+            const className = cn(
+              'inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-[13px] font-medium whitespace-nowrap transition-colors',
+              navStyles.link.inactive,
+            );
+            const content = (
+              <>
+                {item.icon}
+                <span className="hidden xl:inline">{item.label}</span>
+              </>
+            );
+
+            return item.href ? (
+              <Link
+                key={item.label}
+                href={item.href}
+                aria-label={item.label}
+                title={item.label}
+                className={className}
+              >
+                {content}
+              </Link>
+            ) : (
+              <a
+                key={item.label}
+                href="#"
+                onClick={(e) => handleDisabledClick(e, item.label)}
+                aria-label={item.label}
+                title={item.label}
+                className={className}
+              >
+                {content}
+              </a>
+            );
+          })}
         </nav>
 
         {/* Help links and the account are both "right cluster", but they are not the

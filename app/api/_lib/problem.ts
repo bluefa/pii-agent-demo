@@ -19,7 +19,17 @@ export type KnownErrorCode =
   | 'RATE_LIMITED'
   | 'INTERNAL_ERROR'
   | 'GUIDE_NOT_FOUND'
-  | 'GUIDE_CONTENT_INVALID';
+  | 'GUIDE_CONTENT_INVALID'
+  // FAQ & Notices (docs/bff-api/tag-guides/faq-notices.md §7)
+  | 'POST_NOT_FOUND'
+  | 'POST_CONTENT_INVALID'
+  | 'POST_IMAGE_LIMIT_EXCEEDED'
+  | 'POST_SIZE_LIMIT_EXCEEDED'
+  | 'CATEGORY_NOT_FOUND'
+  | 'CATEGORY_IN_USE'
+  | 'CATEGORY_NAME_DUPLICATED'
+  | 'UNSUPPORTED_IMAGE_TYPE'
+  | 'IMAGE_TOO_LARGE';
 
 interface ErrorMeta {
   status: number;
@@ -44,6 +54,16 @@ const ERROR_CATALOG: Record<KnownErrorCode, ErrorMeta> = {
   INTERNAL_ERROR: { status: 500, title: 'Internal Server Error', retriable: false },
   GUIDE_NOT_FOUND: { status: 404, title: 'Guide Not Found', retriable: false },
   GUIDE_CONTENT_INVALID: { status: 400, title: 'Guide Content Invalid', retriable: false },
+  // A hidden post is 404, never 403 — 403 would confirm the post exists (§5 숨김).
+  POST_NOT_FOUND: { status: 404, title: 'Post Not Found', retriable: false },
+  POST_CONTENT_INVALID: { status: 400, title: 'Post Content Invalid', retriable: false },
+  POST_IMAGE_LIMIT_EXCEEDED: { status: 400, title: 'Post Image Limit Exceeded', retriable: false },
+  POST_SIZE_LIMIT_EXCEEDED: { status: 400, title: 'Post Size Limit Exceeded', retriable: false },
+  CATEGORY_NOT_FOUND: { status: 404, title: 'Category Not Found', retriable: false },
+  CATEGORY_IN_USE: { status: 409, title: 'Category In Use', retriable: false },
+  CATEGORY_NAME_DUPLICATED: { status: 409, title: 'Category Name Duplicated', retriable: false },
+  UNSUPPORTED_IMAGE_TYPE: { status: 400, title: 'Unsupported Image Type', retriable: false },
+  IMAGE_TOO_LARGE: { status: 413, title: 'Image Too Large', retriable: false },
 };
 
 // --- ProblemDetails (RFC 9457) ---
@@ -133,6 +153,17 @@ const LEGACY_CODE_MAP: Record<string, KnownErrorCode> = {
   CONFLICT_APPLYING_IN_PROGRESS: 'CONFLICT_APPLYING_IN_PROGRESS',
   CONFLICT_REQUEST_PENDING: 'CONFLICT_REQUEST_PENDING',
   INTERNAL_ERROR: 'INTERNAL_ERROR',
+  // FAQ & Notices — identity entries. Without them the status fallback below
+  // rewrites POST_NOT_FOUND into TARGET_SOURCE_NOT_FOUND (both are 404).
+  POST_NOT_FOUND: 'POST_NOT_FOUND',
+  POST_CONTENT_INVALID: 'POST_CONTENT_INVALID',
+  POST_IMAGE_LIMIT_EXCEEDED: 'POST_IMAGE_LIMIT_EXCEEDED',
+  POST_SIZE_LIMIT_EXCEEDED: 'POST_SIZE_LIMIT_EXCEEDED',
+  CATEGORY_NOT_FOUND: 'CATEGORY_NOT_FOUND',
+  CATEGORY_IN_USE: 'CATEGORY_IN_USE',
+  CATEGORY_NAME_DUPLICATED: 'CATEGORY_NAME_DUPLICATED',
+  UNSUPPORTED_IMAGE_TYPE: 'UNSUPPORTED_IMAGE_TYPE',
+  IMAGE_TOO_LARGE: 'IMAGE_TOO_LARGE',
   // 레거시 코드 (BFF 마이그레이션 전 호환)
   NOT_FOUND: 'TARGET_SOURCE_NOT_FOUND',
   CONFIRMED_INTEGRATION_NOT_FOUND: 'CONFIRMED_INTEGRATION_NOT_FOUND',

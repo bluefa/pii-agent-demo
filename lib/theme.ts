@@ -257,6 +257,8 @@ export const bgColors = {
    */
   panel: 'bg-gray-100',
   mutedHover: 'hover:bg-gray-50',
+  /** `muted` 면 위에 앉은 버튼의 hover — 같은 면 위에서 `mutedHover` 는 보이지 않는다. */
+  panelHover: 'hover:bg-gray-100',
   primary: 'bg-[#0064FF]',
   surface: 'bg-white',
   surfaceHover: 'hover:bg-white',
@@ -2911,6 +2913,355 @@ export const pipelineStyles = {
     /** Loading / error min-height so the card doesn't collapse. */
     stateBox: 'min-h-[240px] flex flex-col items-center justify-center gap-3 text-[12px] text-[var(--pl-text-weak)]',
   },
+} as const;
+
+/**
+ * 공지사항 · FAQ (`design/notice-faq/notice-faq-screens.html`).
+ *
+ * 값의 출처는 전부 그 목업이다. 네 화면(메인 카드 · 전체보기 · Admin · 에디터)이
+ * 같은 행 언어를 쓰므로, 숫자를 컴포넌트마다 두면 화면끼리 어긋난다.
+ * 여기 없는 값이 필요하면 새로 정하지 말고 목업에서 찾아 이리로 옮긴다.
+ */
+export const postStyles = {
+  /** 카드 — 그림자가 아니라 테두리로 면을 만든다(목업 `.list-card`). */
+  card: 'bg-white border border-[#E5E7EB] rounded-xl',
+  cardHeader: 'flex items-center gap-2.5 px-[22px] py-[18px] border-b border-[#E5E7EB]',
+  cardTitle: 'text-[16px] font-bold tracking-[-0.02em] text-[#191F28]',
+  /** 건수 필 — "전체보기"를 누를 이유를 주는 값. */
+  cardCount:
+    'text-[12px] font-bold text-[#0050D6] bg-[#E8F1FF] rounded-full px-2 py-0.5 tabular-nums',
+  /**
+   * 전체보기 — 목록 끝에 둔다. 헤더에 있으면 5행을 다 읽고 나서 눈이 위로 되돌아가야
+   * 하는데, 더 보고 싶어지는 시점은 목록이 끊긴 자리다
+   * (Cloudscape Dashboard items: "View all" element at the end of the list).
+   */
+  cardMore:
+    'flex items-center justify-center px-[22px] py-3 border-t border-[#F3F4F6] text-[12px] font-medium text-[#4E5968] transition-colors hover:bg-[#F9FAFB]',
+
+  /** 행 — `items-stretch` 라야 우측 레일이 행 높이를 다 차지해 날짜↔캐럿이 위아래로 벌어진다. */
+  row: 'flex items-stretch gap-4 px-[22px] py-4 border-b border-[#F3F4F6] last:border-b-0',
+  rowHover: 'transition-colors hover:bg-[#F9FAFB]',
+  rowOpen: 'bg-[#F9FAFB]',
+  /** 숨김 행 — 배지 하나로는 스캔에 안 걸려서 면 전체로 말한다. */
+  rowHidden: 'bg-[repeating-linear-gradient(135deg,#FAFBFC_0_6px,#F5F6F8_6px_12px)]',
+
+  /**
+   * 읽는 쪽 행. Admin 의 `row` 와 갈라 둔다 — 저쪽은 관리 표라 날짜가 열로 있는 게 맞고,
+   * 이쪽은 소식 목록이라 날짜가 글의 머리다.
+   *
+   * 날짜를 오른쪽 끝이 아니라 왼쪽 단으로 뺀다(Vercel Changelog). 제목이 왼쪽 끝이고
+   * 날짜가 1400px 건너편이면 눈이 좌우로 왕복하는데, 그게 표를 읽는 동작이라
+   * 목록 전체가 게시판으로 읽힌다.
+   */
+  entryRow:
+    'group relative flex w-full items-start gap-5 px-[22px] py-[14px] text-left border-b border-[#F3F4F6] last:border-b-0 transition-colors duration-150 hover:bg-[#FAFBFD] motion-reduce:transition-none',
+  entryRowOpen: 'bg-[#F7F9FC]',
+  /**
+   * 왼쪽 지시바 — hover·펼침에 세로로 자란다. 배경 틴트만으로는 "지금 여기"가
+   * 흰 바탕과 1.05:1 이라 거의 안 보인다(`tableRowLift` 에서 받은 같은 지적).
+   * 면을 더 칠하는 대신 3px 짜리 획 하나를 움직인다.
+   */
+  entryRail:
+    'absolute left-0 top-0 bottom-0 w-[3px] origin-center scale-y-0 bg-[#0064FF] transition-transform duration-200 ease-out group-hover:scale-y-100 motion-reduce:transition-none',
+  entryRailOn: 'scale-y-100',
+  /** 고정 글은 상시로 켜 두되 톤을 낮춘다 — 상태지 상호작용이 아니다. */
+  entryRailPinned: 'scale-y-100 bg-[#A9C6F8] group-hover:bg-[#0064FF]',
+  /** 날짜 단 — 폭이 고정이라야 제목 시작선이 모든 행에서 같다. */
+  entryDate:
+    'flex-none w-[92px] pt-[7px] text-[16px] text-[#59647A] tabular-nums leading-[1.4] whitespace-nowrap transition-colors duration-150 group-hover:text-[#0064FF] motion-reduce:transition-none',
+  entryMain: 'flex-1 min-w-0 flex flex-col gap-1.5',
+  /**
+   * 16px — 카드 머리(`cardTitle`)와 같은 값이다. 26px 는 레퍼런스 범위(20~32) 안이긴
+   * 했지만 저쪽은 제목 하나가 화면을 지배하는 전용 목록 페이지고, 여기는 카드 두 장이
+   * 나란한 대시보드라 제목 다섯 줄이 배너와 크기를 다툰다.
+   * `max-w` 는 읽기 폭 — 제목이 1600px 를 가로지르면 다시 표가 된다.
+   */
+  entryTitle:
+    'text-[16px] font-bold tracking-[-0.02em] leading-[1.45] text-[#191F28] max-w-[62ch] transition-colors duration-150 group-hover:text-[#0050D6] motion-reduce:transition-none',
+  entryTitleOpen: 'text-[#0050D6]',
+  /** 캐럿 자리 — hover 에 옅은 원판이 깔려 "누르는 곳"이 손끝보다 먼저 보인다. */
+  entryCaretSlot:
+    'flex-none mt-0.5 w-7 h-7 grid place-items-center rounded-full transition-colors duration-150 group-hover:bg-[#E8F1FF] motion-reduce:transition-none',
+
+  rowMain: 'flex-1 min-w-0 flex flex-col gap-1.5 text-left',
+  rowMeta: 'flex items-center gap-2 flex-wrap',
+  rowTitle: 'text-[14px] font-semibold tracking-[-0.01em] leading-[1.45] text-[#191F28]',
+  rowTitleOpen: 'text-[#0050D6]',
+  rowTitleMuted: 'text-[#6B7280]',
+  /** 우측 레일 — 날짜 위, 캐럿/액션 아래. */
+  rowSide: 'flex-none flex flex-col items-end justify-between gap-2.5',
+  rowDate: 'text-[12px] text-[#6B7280] tabular-nums whitespace-nowrap leading-[1.4]',
+
+  /**
+   * 캐럿 — 접힘 ↓ / 펼침 ↑. 지시자는 헤더 끝쪽(Carbon).
+   * 목업의 #8B95A1 은 흰 바탕에서 3.04:1 로 비텍스트 최소선(3:1)에 겨우 걸친다.
+   * "펼칠 수 있다"를 혼자 말하는 유일한 표시라 같은 레일의 날짜와 같은 톤으로 내렸다.
+   */
+  caret:
+    'w-2 h-2 flex-none mr-[3px] mb-1 border-r-[1.8px] border-b-[1.8px] border-[#6B7280] rotate-45 transition-transform duration-200 motion-reduce:transition-none',
+  caretOpen: '-rotate-[135deg] -translate-x-[3px] -translate-y-[3px] border-[#0050D6]',
+
+  /** 0fr → 1fr — 높이를 재지 않고 편다. */
+  panelGrid:
+    'grid transition-[grid-template-rows] duration-[240ms] ease-out motion-reduce:transition-none',
+  panelBg: 'bg-[#F9FAFB]',
+  /**
+   * 하단이 상단보다 넓다(여백 7원칙 §2). 두 여백이 하는 일이 다르기 때문이다 —
+   * 위는 제목과 그 제목의 본문을 띄우는 같은 덩어리 안의 간격이고, 아래는 이 글의
+   * 끝과 다음 글 사이의 경계다.
+   *
+   * 값은 눈에 보이는 간격으로 맞췄다. 위쪽 실측 간격은 패딩 16 이 아니라 38 인데,
+   * 행의 아래 여백 14 와 첫 줄의 반행간이 함께 얹히기 때문이다. 그래서 42 로는
+   * 아래가 44 밖에 안 돼 둘이 같아 보였다. 64 로 올려 아래를 66 으로 만든다(1.7배).
+   */
+  panelBody: 'px-[22px] pt-4 pb-16 text-[14px] leading-[1.75] text-[#4E5968]',
+  /**
+   * 본문은 높이보다 늦게 도착한다. 칸이 열리는 200ms 동안 글자가 같이 늘어나면
+   * 늘어나는 것처럼 보여서, 칸이 자리를 잡은 뒤 글이 떠오르게 지연을 준다.
+   */
+  panelFade:
+    'transition-[opacity,transform] duration-200 ease-out motion-reduce:transition-none',
+  panelFadeOn: 'opacity-100 translate-y-0 delay-[90ms]',
+  panelFadeOff: 'opacity-0 -translate-y-1',
+  /** 본문 왼쪽 획 — 펼친 칸이 어느 행에 속하는지 눈으로 잇는다. */
+  panelEdge: 'border-l-[3px] border-[#0064FF]',
+
+  /** 배지 3종. */
+  badge:
+    'inline-flex items-center gap-1.5 text-[12px] font-bold px-2 py-[3px] rounded-full whitespace-nowrap',
+  /**
+   * 빨강. 파랑은 이 화면에서 이미 세 가지 일을 한다 — 좌측 지시바, hover 한 제목,
+   * 건수 필. 고정까지 파랑이면 "지금 보는 곳"과 "언제나 맨 위"가 같은 색이 된다.
+   * 값은 `idcStyles.tag.red` 와 같은 쌍이다(#FEECEC 위 #B42318 = 5.77:1).
+   */
+  badgePin: 'bg-[#FEECEC] text-[#B42318]',
+  badgeCat: 'bg-white text-[#4E5968] border border-[#E5E7EB] font-semibold',
+  badgeHidden: 'bg-[#F3F4F6] text-[#4E5968] border border-dashed border-[#D1D5DB]',
+  badgeIcon: 'w-[13px] h-[13px] flex-none',
+
+  /** 필터 아이콘 버튼 + 활성 개수 닷 — 아이콘만으로는 "지금 걸려 있다"를 못 말한다. */
+  iconBtn:
+    'relative w-[30px] h-[30px] flex-none inline-flex items-center justify-center rounded-md border border-[#E5E7EB] bg-white text-[#4E5968] transition-colors hover:bg-[#F9FAFB]',
+  iconBtnOn: 'bg-[#E8F1FF] border-[#E8F1FF] text-[#0050D6]',
+  iconBtnDot:
+    'absolute -top-1 -right-1 min-w-[14px] h-[14px] px-[3px] rounded-full bg-[#0064FF] text-white text-[10px] font-bold leading-[14px] tabular-nums',
+  filterPop:
+    'absolute right-[22px] top-[calc(100%-6px)] z-10 w-[236px] p-3.5 bg-white border border-[#E5E7EB] rounded-[10px] shadow-[0_12px_28px_rgba(15,23,42,0.14)] flex flex-col gap-3.5',
+  filterChip:
+    'text-[12px] font-medium px-2.5 py-[5px] rounded-full border border-[#E5E7EB] bg-white text-[#4E5968] transition-colors hover:bg-[#F9FAFB]',
+  filterChipOn: 'bg-[#E8F1FF] border-[#E8F1FF] text-[#0050D6] font-bold hover:bg-[#E8F1FF]',
+
+  /**
+   * 전체보기 — **회색 패널이 목록을 감싼다.**
+   *
+   * 전에는 흰 카드 안에 회색 레일이 한 칸 들어앉은 구조였다. 그런데 그룹 머리도 같은
+   * 회색이라 레일과 그룹 머리가 이어 붙어 ㄱ자 덩어리로 읽혔고, 레일이 독립한 패널로
+   * 보이지 않았다(받은 지적). 색을 하나 더 만들어 가르는 대신 구조를 뒤집었다 —
+   * 회색이 바깥 틀이 되고, 목록은 그 안에 떠 있는 흰 판이 된다.
+   * 규칙은 그대로 하나다: 회색은 구조, 흰색은 내용.
+   *
+   * `flex-1` 이 `pageFill` 의 남은 높이를 전부 받아 온다. 이게 있어야 회색 면이
+   * Category 개수와 무관하게 바닥에서 끝난다 — 중간에 끊기면 구조물이 아니라 카드 안에
+   * 놓인 상자로 읽힌다. 떼면 751 → 256 으로 돌아간다(확인함).
+   *
+   * 폭 240 은 GitHub Issues 의 필터 목록(실측 239)에서 가져왔다. 앱 내비(256~320)가
+   * 아니라 한 화면 안의 필터라 그쪽이 같은 역할이다.
+   */
+  grouped:
+    'grid grid-cols-[240px_minmax(0,1fr)] gap-3 flex-1 p-3 bg-[#E7ECF5] border border-[#D6DEEC] rounded-xl overflow-hidden',
+  /**
+   * 레일은 이제 자기 면을 갖지 않는다 — 바깥 패널의 회색 위에 바로 놓인다. 선택 항목의
+   * 흰 알약이 그 회색 위로 떠오르는 것도 같은 이유로 그대로 성립한다.
+   *
+   * 여기에 `min-h-0` 은 필요 없다. grid 자식의 자동 최소 크기는 보통 `auto` 지만
+   * **스크롤 컨테이너면 0** 이라, `overflow-y-auto` 자신이 그 일을 이미 한다.
+   * 33개까지 넣어 확인했다 — 붙이나 떼나 결과가 같다. (shadcn `SidebarContent` 는
+   * 스크롤이 없는 경우까지 감당하느라 `min-h-0` 을 함께 쓴다.)
+   */
+  /**
+   * 면을 중립 회색(#F3F4F6, S 8%)에서 푸른 쪽으로 옮긴다. 대비는 이미 맞았는데
+   * 채도가 없어서 바래 보였다 — 회색은 대비를 얻어도 생기를 못 얻는다.
+   */
+  catNav: 'flex flex-col gap-0.5 overflow-y-auto',
+  /**
+   * 레일 머리. 없으면 목록이 "전체"부터 냅다 시작해서, 이 칸이 무엇을 고르는 자리인지
+   * 말하는 데가 없다. Stripe 문서 사이드바가 같은 자리에 구역 라벨을 쓴다
+   * (VERSIONING · ESSENTIALS · TOOLS, 실측). 라틴 문자라 자간을 벌릴 수 있다 —
+   * 한글이면 못 하는 처리다.
+   */
+  catNavHead:
+    'px-3 pt-1.5 pb-2.5 text-[14px] font-extrabold tracking-[0.04em] text-[#141A24]',
+  /**
+   * "전체"와 Category 목록 사이의 선. 전체는 Category 가 아니라 필터를 푸는 자리라
+   * 같은 줄에 세워 두면 4개 중 하나로 읽힌다.
+   */
+  catNavDivide: 'my-1.5 border-t border-[#D6DEEC]',
+  /**
+   * GitHub Issues 사이드바 실측(항목 32 · radius 6 · 14px)에서 시작했지만 그쪽은
+   * 필터가 십수 개인 조밀한 목록이다. 여기는 서너 개가 656px 칸에 놓여 조밀할 이유가
+   * 없어 한 칸씩 올렸다 — 16px · 40px 높이는 앱 좌측 내비가 쓰는 크기다.
+   */
+  catNavItem:
+    'flex items-center gap-2 px-3 py-2 leading-6 rounded-lg text-[16px] font-semibold text-[#3E4C63] transition-colors hover:bg-white/70',
+  /**
+   * 레일이 회색이라 선택 항목은 흰 카드로 떠오른다 — 대비를 반대 방향으로 준다.
+   * 글자를 #0050D6(6.73:1) 에서 앱 Primary #0064FF(4.92:1) 로 올린다. 대비는 한 칸
+   * 내주지만 AA 는 지키고, 채도가 이 화면에서 유일하게 100% 인 자리라 여기가 밝아야 한다.
+   */
+  catNavItemOn:
+    'bg-white text-[#0064FF] font-bold hover:bg-white ring-1 ring-[#C7D9FA] shadow-[0_1px_2px_rgba(15,23,43,0.06)]',
+  catNavCount: 'ml-auto text-[14px] font-normal text-[#54627A] tabular-nums',
+  /**
+   * 그룹 머리 — 카드 안에서 구역을 가르는 띠다.
+   *
+   * 예전엔 레일과 같은 회색을 썼는데, 그러면 레일과 그룹 머리가 이어진 ㄱ자 덩어리로
+   * 읽혀 레일이 독립한 패널로 안 보인다(받은 지적). 이제 회색은 바깥 패널 하나만
+   * 쓴다 — 안쪽은 전부 흰 면이고, 구역은 굵은 글씨와 아래 선이 가른다.
+   *
+   * 목록 칸 위에 붙어 따라온다. 스크롤해서 그룹 머리가 화면 밖으로 나가면 지금 읽는 글이
+   * 어느 Category 인지 사라지는데, 이 목록은 상한이 없어 그 일이 반드시 생긴다.
+   * 아래 글이 비쳐야 "떠 있는 띠"로 읽히므로 면을 반투명으로 두고 뒤를 흐린다 —
+   * 불투명하면 그냥 목록이 잘린 것처럼 보인다.
+   */
+  groupHead:
+    'sticky top-0 z-[1] flex items-baseline gap-2 px-[22px] py-3 bg-white/90 backdrop-blur-[6px] border-b border-[#E5E7EB]',
+  /** 레일 항목(16px)과 같은 이름을 이고 있어 한 칸 위여야 한다 — 저쪽은 고르는 자리고 여기는 구역의 머리다. */
+  groupTitle: 'text-[18px] font-bold tracking-[-0.01em] text-[#141A24]',
+  groupCount: 'text-[12px] text-[#54627A] tabular-nums',
+  /** 그룹 사이의 선 — 첫 그룹은 카드 위 테두리가 대신한다. */
+  groupSection: 'border-t border-[#E5E7EB] first:border-t-0',
+
+  /**
+   * 페이지 골격. 좌우 44 = 셸의 24 + 20. 셸(TopNav 의 `px-6`, 서비스 화면 본문의
+   * `p-6`)에 맞춘 24 로 시작했는데, 이 화면은 카드 두 장이 전폭을 채워서 24 로는
+   * 배너와 카드가 창 끝에 붙어 답답하게 읽혔다. 전체보기(`pageBand`·`pageBody`)도
+   * 같은 값을 쓴다 — 다르면 "전체보기 →" 한 번에 본문이 옆으로 튄다.
+   * 페이지 폭 상한은 여전히 두지 않는다(다른 화면도 상한 없이 전폭이다).
+   */
+  page: 'w-full px-[44px] pt-8 pb-12 flex flex-col gap-6',
+  /**
+   * 같은 골격에서 여백만 뺀 것. 관리자 셸(`pipelineStyles.layout.content`) 안에
+   * 놓이는 게시판 화면용이다 — 셸이 이미 좌우 32 · 위 24 를 주고 있어서 자기
+   * 여백을 또 들고 가면 제목이 옆 메뉴의 화면들보다 8px 왼쪽에 선다.
+   */
+  sectionPage: 'w-full flex flex-col gap-6',
+  /**
+   * 전체보기 골격. 2카드 뷰(`page`)와 규칙이 반대다 — 저쪽은 대시보드라 높이를 내용이
+   * 정하고, 여기는 목록 브라우저라 높이를 화면이 정한다. 고정 높이인데도 글이 잘리지
+   * 않는 건 안쪽 두 칸에 각각 스크롤을 걸기 때문이다(`catNav` · `listPane`).
+   * 64 = TopNav — `/pass/services` 가 쓰는 것과 같은 식이다.
+   *
+   * 여백은 이제 자식이 나눠 갖는다 — 밴드는 전폭이라 부모의 `px-6` 안에 있으면 안 된다.
+   */
+  pageFill: 'w-full h-[calc(100vh-64px)] overflow-hidden flex flex-col',
+  /**
+   * 제목 밴드. 홍보 배너가 아니라 제목이 서는 무대다 — 잰 10곳 중 8곳이 120~270px
+   * 짜리 면 위에 제목을 올린다(NHN 200 중앙 · NCP 130 중앙 · 채널톡 270 그라데이션 ·
+   * GitHub 170 다크 · 네이버웍스 230). 목록이 흰 면 위 흰 면이면 대비할 상대가 없다.
+   *
+   * 면 색은 레일과 같은 값을 쓴다. 이 화면의 규칙이 "회색은 구조, 흰색은 내용" 하나라,
+   * 밴드에 새 회색을 들이면 규칙이 둘이 된다.
+   */
+  pageBand: 'flex-none px-[44px] py-7 bg-[#E7ECF5] border-b border-[#D6DEEC]',
+  /**
+   * 목록 칸. 긴 글을 펼쳐도 페이지가 아니라 이 칸이 흐른다.
+   * 회색 패널 위에 떠 있는 흰 판이다 — 테두리 대신 그림자로 띄운다. 패널 회색과
+   * 카드 테두리는 서로 너무 가까워 선을 그으면 경계가 오히려 흐려진다.
+   */
+  listPane:
+    'overflow-y-auto bg-white rounded-lg shadow-[0_1px_3px_rgba(15,23,43,0.08)]',
+  pageTitle: 'text-[30px] font-extrabold tracking-[-0.03em] leading-[1.2] text-[#191F28]',
+  pageSub: 'text-[14px] text-[#4E5968] mt-1.5',
+  /**
+   * 밴드 위의 제목은 `pageTitle`(30px) 보다 한 칸 크다. 30 은 잰 13곳 중 가장 작았고
+   * (중앙값 48), Admin 화면이 `pageTitle` 을 함께 쓰고 있어 그쪽 값을 건드리는 대신
+   * 이 화면 전용으로 갈랐다.
+   */
+  bandTitle: 'text-[40px] font-extrabold tracking-[-0.03em] leading-[1.15] text-[#191F28]',
+  bandSub: 'text-[14px] text-[#4E5968] mt-2',
+  /**
+   * 밴드 아래 본문 칸. 남은 높이를 전부 받아 `grouped` 에 넘긴다.
+   *
+   * `min-h-0` 은 여기서 반드시 필요하다 — `catNav`·`listPane` 과 달리 이 칸은
+   * 스크롤 컨테이너가 아니라서 자동 최소 크기가 내용 높이다. 떼고 94행을 넣어
+   * 확인했다: 목록 칸이 `656 → 7416px` 로 부풀고, `pageFill` 의 `overflow-hidden`
+   * 이 그걸 잘라 **6760px 가 스크롤로 닿지 않는다.** 글이 몇 건 없을 때는 넘칠 일이
+   * 없어 붙이나 떼나 같아 보인다.
+   */
+  pageBody: 'flex-1 min-h-0 px-[44px] py-6 flex flex-col',
+  /**
+   * 카드 높이는 내용이 정한다 — 화면 아래까지 늘리지 않는다. 테두리는 "여기까지가
+   * 내용"이라는 약속이라, 늘린 카드는 빈 곳을 테두리로 강조하는 셈이 된다
+   * (Cloudscape: "the height of dashboard items are defined by its content").
+   * 남는 자리를 메워야 할 때 늘릴 것은 카드가 아니라 카드 수다.
+   */
+  dual: 'grid grid-cols-2 gap-6 items-start',
+} as const;
+
+/**
+ * 게시글 등록 · 수정 폼 (`design/notice-faq/notice-faq-screens.html` 화면 4).
+ *
+ * 라벨을 200px 열로 세우는 이유: placeholder 는 한 글자 치는 순간 사라지므로
+ * 언어 탭이 있는 화면에서 "지금 어느 언어의 무슨 필드인지"를 말해 줄 수 없다.
+ */
+export const postFormStyles = {
+  card: 'bg-white border border-[#E5E7EB] rounded-xl flex flex-col',
+  section: 'p-[22px] border-b border-[#F3F4F6] last:border-b-0',
+  grid: 'grid grid-cols-[200px_1fr] gap-x-6 gap-y-5 items-start',
+  label: 'text-[12px] font-bold tracking-[0.02em] text-[#4E5968]',
+  required: 'text-[#0064FF] ml-[3px]',
+  input:
+    'w-full border border-[#E5E7EB] rounded-md px-3 py-2.5 text-[14px] text-[#191F28] placeholder:text-[#6B7280] focus:outline-none focus:ring-2 focus:ring-[#0064FF] focus:border-transparent',
+  /** 언어별 작성 상태 — 저장을 눌러야 알 수 있으면 이미 늦다. */
+  langState: 'text-[12px] font-bold rounded-full px-2.5 py-[3px]',
+  langDone: 'bg-[#E7F6ED] text-[#2A7D52]',
+  langTodo: 'bg-[#FFF4EC] text-[#9A3412]',
+  hint: 'text-[12px] text-[#6B7280] mt-2 leading-[1.6]',
+  foot: 'flex items-center gap-3 justify-end px-[22px] py-[18px] border-t border-[#E5E7EB]',
+  footWarn: 'mr-auto text-[12px] text-[#9A3412]',
+} as const;
+
+/**
+ * Pass 소개 배너. 계약 범위 밖의 고정 콘텐츠라 API가 없다 —
+ * 문구를 바꾸려면 배너 컴포넌트를 고친다.
+ */
+export const passBannerStyles = {
+  /**
+   * 넓은 화면에서 그라데이션만으로는 띠 하나로 읽혀서 세 겹으로 면을 세운다:
+   * 안쪽 흰 실선(면의 경계), 보라로 물든 그림자(바닥에서 띄우기), 오른쪽 점 격자
+   * (글이 없는 절반을 채우는 것). 그림자 색을 중립 검정이 아니라 그라데이션의
+   * 어두운 끝(#4C1D95)에서 뽑는다 — 회색 그림자는 보라 면 아래에서 때처럼 읽힌다.
+   */
+  root:
+    'relative isolate overflow-hidden rounded-xl px-12 py-14 text-white flex items-center justify-between gap-10 bg-[linear-gradient(101deg,#6D28D9_0%,#7C3AED_46%,#4F46E5_100%)] ring-1 ring-inset ring-white/20 shadow-[0_20px_44px_-20px_rgba(76,29,149,0.75)]',
+  /** 우상단 광원 — 그라데이션만으로는 면이 평평하게 읽힌다. */
+  glow: 'pointer-events-none absolute -right-[70px] -top-[90px] w-[280px] h-[280px] rounded-full bg-white/10',
+  /** 두 번째 광원. 하나뿐이면 빛의 방향이 아니라 "원이 하나 있다"로 읽힌다. */
+  glowSoft:
+    'pointer-events-none absolute right-[170px] -bottom-[150px] w-[260px] h-[260px] rounded-full bg-[#A78BFA]/25',
+  /**
+   * 점 격자 — 글이 끝나는 지점부터 오른쪽 끝까지. 왼쪽으로 갈수록 사라지는 마스크를
+   * 걸어 본문 대비는 건드리지 않는다(글자 뒤에는 점이 오지 않는다).
+   */
+  dots:
+    'pointer-events-none absolute inset-y-0 right-0 w-[58%] bg-[radial-gradient(circle,rgba(255,255,255,0.20)_1px,transparent_1px)] bg-[length:18px_18px] [mask-image:linear-gradient(to_right,transparent,#000_60%)]',
+  /** 장식이 절대 배치라 본문은 새 층으로 올려야 점 격자 위에 온다. */
+  content: 'relative z-[1] min-w-0',
+  eyebrow: 'text-[12px] font-bold tracking-[0.1em] uppercase text-white/[0.78]',
+  /**
+   * 40 은 이 앱이 이미 쓰는 최대 크기다(다른 5곳). 32 로는 페이지 제목 30 과 두 칸
+   * 차이라 배너가 목록을 이기지 못했다 — 1584px 면 안에서 32px 은 띠에 얹은 글이지
+   * 히어로가 아니다.
+   */
+  title: 'text-[40px] font-extrabold tracking-[-0.03em] leading-[1.2] mt-2',
+  /**
+   * 16 은 읽기 크기이기도 하지만, 여기서는 글 블록의 폭을 정하는 값이다 —
+   * `max-w` 단위가 `ch` 라서 본문 크기가 곧 컬럼 폭이다(14px·60ch 일 때 500px 로
+   * 쪼그라들어 면의 32% 만 썼다).
+   */
+  body: 'text-[16px] text-white/[0.86] leading-[1.7] mt-4 max-w-[58ch]',
+  cta:
+    'relative z-[1] whitespace-nowrap bg-white text-[#5B21B6] text-[16px] font-bold px-7 py-4 rounded-lg shadow-[0_8px_20px_-8px_rgba(23,10,60,0.55)]',
 } as const;
 
 // =============================================================================

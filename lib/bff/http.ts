@@ -151,6 +151,28 @@ async function send<T>(
 }
 
 const post = <T>(path: string, body?: unknown) => send<T>('POST', path, body);
+
+/**
+ * One file, one request. The 5MB per-file cap is what lets this stay a single
+ * `multipart/form-data` POST instead of a resumable/chunked protocol — see
+ * docs/bff-api/tag-guides/faq-notices.md §5 본문 이미지.
+ *
+ * `Content-Type` is deliberately not set: fetch derives it from the FormData
+ * so the multipart boundary matches the body.
+ */
+async function postMultipart<T>(
+  path: string,
+  file: { bytes: Uint8Array<ArrayBuffer>; contentType: string },
+): Promise<T> {
+  const fullPath = `${BFF_URL}${toUpstreamInfraApiPath(path)}`;
+  const form = new FormData();
+  form.append('file', new Blob([file.bytes], { type: file.contentType }));
+  console.log(`[BFF] → POST ${fullPath} (multipart)`);
+  const res = await fetch(fullPath, { method: 'POST', headers: await authHeaders(), body: form });
+  console.log(`[BFF] ← POST ${fullPath} (${res.status})`);
+  if (!res.ok) await throwBffError(res);
+  return await res.json() as T;
+}
 const put = <T>(path: string, body?: unknown, opts?: { emptyBodyOk?: boolean }) =>
   send<T>('PUT', path, body, opts);
 
@@ -667,5 +689,24 @@ export const httpBff: BffClient = {
   guides: {
     get: (name) => getSnakeRaw(`/admin/guides/${encodeURIComponent(name)}`),
     put: (name, body) => put(`/admin/guides/${encodeURIComponent(name)}`, body),
+  },
+
+  // FAQ & Notices — the tag guide authors camelCase throughout, so `get`'s
+  // camelCaseKeys pass is a no-op here rather than a reshape.
+  posts: {
+    list: (type, categoryId) => get(`/posts${buildQuery({ type, categoryId })}`),
+    get: (postId) => get(`/posts/${postId}`),
+    listCategories: (type) => get(`/post-categories${buildQuery({ type })}`),
+    listAdmin: (type, hidden) =>
+      get(`/admin/posts${buildQuery({ type, hidden: hidden === undefined ? undefined : String(hidden) })}`),
+    getAdmin: (postId) => get(`/admin/posts/${postId}`),
+    create: (body) => post('/admin/posts', body),
+    update: (postId, body) => put(`/admin/posts/${postId}`, body),
+    setHidden: (postId, hidden) => put(`/admin/posts/${postId}/hidden`, { hidden }),
+    setPinned: (postId, pinned) => put(`/admin/posts/${postId}/pinned`, { pinned }),
+    uploadImage: (file) => postMultipart('/admin/posts/images', file),
+    listAdminCategories: (type) => get(`/admin/post-categories${buildQuery({ type })}`),
+    createCategory: (body) => post('/admin/post-categories', body),
+    deleteCategory: (categoryId) => send('DELETE', `/admin/post-categories/${categoryId}`),
   },
 };

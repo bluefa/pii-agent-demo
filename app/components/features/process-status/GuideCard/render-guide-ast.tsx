@@ -50,6 +50,26 @@ const renderNode = (node: GuideNode): ReactNode => {
           {node.children.map(renderNode)}
         </a>
       );
+    case 'img':
+      // `loading="lazy"` is not decoration: a collapsed accordion panel keeps
+      // its images in the render tree, so without it opening the page would
+      // fetch every post's images at once.
+      //
+      // `width`/`height` are the upload's intrinsic pixel size and reserve the
+      // box before the bytes arrive; display width stays with CSS. A plain
+      // <img> is deliberate — next/image would need a configured loader for
+      // the storage host and buys nothing for content authored as raw HTML.
+      return (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          key={nextKey()}
+          src={node.src}
+          alt={node.alt}
+          width={node.width}
+          height={node.height}
+          loading="lazy"
+        />
+      );
     default: {
       const _exhaustive: never = node;
       void _exhaustive;

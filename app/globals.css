@@ -420,6 +420,17 @@ body {
   color: var(--color-primary);
 }
 
+/* Body images (FAQ & Notices). The img's own width/height attributes carry the
+   upload's intrinsic size so the box is reserved before the bytes arrive;
+   display width is CSS's job, which is why the allow-list gives an author no
+   style/class to override it with. */
+.prose-guide img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 0.5rem;
+  margin: 0.5rem 0;
+}
+
 .prose-guide code {
   /* inherit, not a mono stack: <code> defaults to the browser monospace face and
      the app is single-family Pretendard. */
@@ -437,27 +448,34 @@ body {
   cursor: text;
 }
 
-/* Anchor display inside the editor — show the URL inline next to the
-   link label so the admin can read both at a glance (similar to
-   markdown's [label](href)). The ::after pseudo-element is not
-   interactive, so it cannot be clicked through to navigate.
+/* Body images in the editor. Position between paragraphs is the ONLY placement
+   control the allow-list gives an author — no align, no resize — so the image
+   has to advertise the one thing it can do. Without these, a selected image and
+   an unselected one are the same pixels, and nothing on screen suggests the
+   picture is draggable at all. */
+.guide-editor-surface .ProseMirror img {
+  cursor: grab;
+}
+.guide-editor-surface .ProseMirror img:active {
+  cursor: grabbing;
+}
+.guide-editor-surface .ProseMirror img.ProseMirror-selectednode {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 3px;
+}
 
-   Note: `pointer-events: none` is intentionally NOT set on the anchor
-   itself — the click → "open link prompt modal" handler in
-   GuideEditorPanel needs the anchor to receive the click event so it
-   can preventDefault and prevent the browser's default navigation. */
+/* Anchors inside the editor.
+
+   The URL used to be printed after every link by an `::after` carrying
+   `attr(href)`, because nothing else on screen could tell an author where a
+   link pointed. PostLinkBubble now says that on the link itself, so the suffix
+   is gone: it was body-looking text that was not in the body, it appeared on
+   every link at once rather than the one being worked on, and a long URL
+   wrapped a sentence onto a second line that the reader would never see. */
 .guide-editor-surface .ProseMirror a {
   color: var(--color-primary);
   text-decoration: underline;
   cursor: pointer;
-}
-.guide-editor-surface .ProseMirror a::after {
-  content: ' (' attr(href) ')';
-  color: var(--fg-3);
-  font-family: inherit;
-  font-size: 11px;
-  font-weight: 400;
-  text-decoration: none;
 }
 
 /* Scrollbar Styling (스크롤바) */
