@@ -8,13 +8,13 @@ Pull 구독이므로 push 구독과 달리 메시지가 base64로 래핑되어 �
 + 이름 prefix 필터를 통과한 이벤트만 도착하지만, 소비 쪽 파싱은 그
 가정에 기대지 않는다(아래 방어 참조).
 
-**논리 DB(`databaseUri`)는 이벤트에 없다** — 파싱 대상이 아니고,
-**소비 경로가 매핑에 일절 관여하지 않는다**. 이름→databaseUri 맵은
-Pipeline Manager의 전체 DAG 이름 목록을 그대로 미러링해서 만든다
-(`DagDatabaseUriSync`). 소비 콜백은 실행 기록만 upsert하고 ack한다
-(architecture.md 참조).
+**논리 DB(`databaseUri`)는 이벤트에 실려 온다** — DAG가 자기가 처리하는
+논리 DB를 알고 있으므로 facet에 넣어 보낸다. 따라서 파싱 대상이고,
+**필수 필드다**. 없으면 발송 측이 걸러내기로 했으므로(오너 결정), 없는
+채로 도착했다는 건 계약이 깨졌다는 뜻이라 DLQ로 보낸다. 상류 조회도
+매핑 테이블도 없다 (architecture.md 참조).
 
-## 추출 필드 (8개)
+## 추출 필드 (9개)
 
 | 필드 | JSON 경로 | 용도 | 필수 | 결측 시 |
 |------|-----------|------|------|---------|
@@ -22,10 +22,17 @@ Pipeline Manager의 전체 DAG 이름 목록을 그대로 미러링해서 만든
 | eventTime | `/eventTime` | 상태 갱신 순서 판정 (도착 순서 대신) | ✔ | nack → DLQ |
 | namespace | `/job/namespace` | Composer 환경 식별 | ✔ | nack → DLQ |
 | dag_id | `/job/name` | DAG 식별 | ✔ | nack → DLQ |
+| databaseUri | `/job/facets/piiMonitoring/databaseUri` | **논리 DB 식별 — 화면 행의 키** | ✔ | nack → DLQ (발송 측이 걸렀어야 함) |
 | jobType | `/job/facets/jobType/jobType` | task 이벤트 2차 방어 | — | 없으면 DAG로 간주 |
 | runId | `/run/runId` | run 단위 상태 병합 키 (START·종료 이벤트 동일 UUID) | ✔ | nack → DLQ |
 | logical_date | `/run/facets/airflowDagRun/dagRun/logical_date` | 날짜 버킷 키 | ✔ (fallback 있음) | fallback 후에도 없으면 nack |
 | run_type | `/run/facets/airflowDagRun/dagRun/run_type` | scheduled/manual 구분 | — | null 저장 |
+
+`databaseUri`의 facet 이름·경로는 **발송 측과 합의해 확정한다.** 위
+경로는 커스텀 job facet을 가정한 것이고, OpenLineage `tags` facet을
+쓴다면 key/value 목록에서 꺼내야 한다. 소비 측은
+`LineageEvent.resolveDatabaseUri()` 한 메서드에만 이 지식을 두었으므로
+확정 시 고칠 곳은 거기 하나다(발송 측은 `_database_uri()`).
 
 `logical_date` fallback 체인:
 `airflowDagRun.dagRun.logical_date` → `nominalTime.nominalStartTime`.
@@ -36,7 +43,7 @@ provider 버전에 따라 facet 구성이 달라서 두 경로를 모두 선언�
 전체 OpenLineage 스키마(또는 `openlineage-java`의 RunEvent)를 매핑하지
 않는다. 이유:
 
-- 쓰는 건 8개 필드뿐인데 전체 스키마와 특정 provider 버전에 결합된다.
+- 쓰는 건 9개 필드뿐인데 전체 스키마와 특정 provider 버전에 결합된다.
 - provider 업그레이드로 facet이 추가·변경돼도, 관심 경로만 선언한
   record + `@JsonIgnoreProperties(ignoreUnknown = true)`는 깨지지
   않는다.

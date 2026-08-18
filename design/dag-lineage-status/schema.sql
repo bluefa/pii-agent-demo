@@ -8,10 +8,20 @@
 --  * utf8mb4_bin collation — Airflow dag_ids are case-sensitive, so "Foo"
 --    and "foo" must not collide on the PK, and keyset order stays bytewise.
 --  * CHECK is enforced from MySQL 8.0.16 (silently ignored before).
+--
+-- There is no mapping table. The emitting DAG puts its own databaseUri on the
+-- event, and a DAG that has no databaseUri does not emit at all (owner
+-- decision), so every row that exists is already attributed to a logical DB.
 CREATE TABLE dag_run_status (
     run_id       VARCHAR(36)  PRIMARY KEY,   -- OpenLineage runId (UUID): same for START and terminal events of one run
     namespace    VARCHAR(250) NOT NULL,      -- Composer environment (AIRFLOW__OPENLINEAGE__NAMESPACE)
     dag_id       VARCHAR(250) NOT NULL,      -- Airflow caps dag_id at 250 chars
+    -- The logical DB this run processed, carried on the event itself.
+    -- ascii, not utf8mb4, on purpose: InnoDB caps an index key at 3072 bytes
+    -- and utf8mb4 reserves 4 bytes per char, so indexing 1024 utf8mb4 chars
+    -- (4096 bytes) is rejected. URIs are ASCII (RFC 3986), so ascii_bin fits in
+    -- 1024 bytes and keeps the comparison case-sensitive.
+    database_uri VARCHAR(1024) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
     logical_date DATETIME(6)  NOT NULL,      -- day-bucket key; deliberately NOT the event arrival time
     run_type     VARCHAR(50),                -- scheduled | manual | ...
     status       VARCHAR(10)  NOT NULL CHECK (status IN ('RUNNING', 'SUCCESS', 'FAILED')),
@@ -22,40 +32,8 @@ CREATE TABLE dag_run_status (
 -- Weekly window scan and the 7-day retention delete (WHERE logical_date < ?)
 CREATE INDEX idx_dag_run_status_window ON dag_run_status (logical_date);
 
--- Day-status lookup for one page of DAGs (dag names are globally unique)
-CREATE INDEX idx_dag_run_status_dag ON dag_run_status (dag_id, logical_date);
-
--- Reverse map: dag name -> databaseUri (the logical DB). 1:1 and immutable.
---
--- Why we store it at all: Pipeline Manager answers ONE direction only
--- (dagName -> databaseUri) and only one name per call — no reverse lookup, no
--- bulk resolve (owner-confirmed). A group read arrives holding databaseUris and
--- has to get back to dag names, so the reverse map has to live here.
---
--- DagDatabaseUriSync mirrors it: the full dag name roster in one call (INSERT
--- IGNORE), then one forward call per still-unresolved name. Mirroring the whole
--- roster is what lets a MISSING row mean something — with a complete map,
--- a databaseUri that is absent genuinely has no DAG. Seeded from consumed
--- events instead, absence would also cover DAGs whose events never arrived, and
--- the board would render an ingest outage as a calm "never scheduled".
---
--- No target_source_id column: group membership is NOT stored. The member list
--- changes (a logical DB can disappear) and Infra Manager is called on every
--- group read anyway, so a stored membership would only be a stale superset.
-CREATE TABLE dag_database_uri (
-    dag_name     VARCHAR(250) PRIMARY KEY,
-    -- ascii, not utf8mb4, on purpose: InnoDB caps an index key at 3072 bytes and
-    -- utf8mb4 reserves 4 bytes per char, so a UNIQUE index on VARCHAR(1024)
-    -- utf8mb4 (4096 bytes) is rejected at CREATE TABLE. URIs are ASCII (RFC 3986),
-    -- so ascii_bin fits in 1024 bytes and keeps the comparison case-sensitive.
-    -- If real URIs turn out to be non-ASCII, move the UNIQUE to a generated
-    -- SHA2 hash column rather than shortening the URI.
-    database_uri VARCHAR(1024) CHARACTER SET ascii COLLATE ascii_bin UNIQUE,  -- NULL until resolved
-    attempts     INT          NOT NULL DEFAULT 0,   -- failed resolve attempts; caps retries for names Pipeline Manager never answers
-    seen_at      DATETIME(6)  NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
-    resolved_at  DATETIME(6)
-) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
-
--- The UNIQUE index above serves both access paths: `database_uri IN (...)` for
--- a group read, and `database_uri IS NULL` for the resolver's work queue
--- (InnoDB indexes NULLs, so IS NULL is a range scan). No second index.
+-- The board's only lookup: one page of databaseUris over the 7-day window.
+-- ponytail: full-width key (1024 + 8 bytes). Real URIs are far shorter than the
+-- declared max, so this is mostly reserved space rather than stored bytes —
+-- switch to a prefix index database_uri(255) if the index size ever bites.
+CREATE INDEX idx_dag_run_status_uri ON dag_run_status (database_uri, logical_date);

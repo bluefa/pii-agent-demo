@@ -68,9 +68,8 @@ public class LineageEventSubscriber {
                 message.ack();
                 return;
             }
-            // Runs only. The name -> databaseUri map is mirrored from Pipeline
-            // Manager's roster (DagDatabaseUriSync), so ingest owns no part of
-            // it and an ack never depends on an upstream being up.
+            // One local write, no upstream call: the event already carries the
+            // databaseUri, so nothing here has to be looked up.
             repository.upsert(toRow(event, state));
             message.ack();
         } catch (Exception e) {
@@ -91,18 +90,27 @@ public class LineageEventSubscriber {
         };
     }
 
-    /** Boundary validation: required fields missing -> throw -> DLQ. */
+    /**
+     * Boundary validation: required fields missing -> throw -> DLQ.
+     *
+     * databaseUri is required like the rest. The transport only emits events
+     * that carry one, so its absence means the contract broke — a renamed facet
+     * after a provider upgrade, or a transport deployed without the filter. DLQ
+     * is the right landing: loud and inspectable. Defaulting it or dropping the
+     * event would turn a wiring bug into rows that quietly never appear.
+     */
     private static DagRunRow toRow(LineageEvent event, DagRunState state) {
         String runId = event.run() != null ? event.run().runId() : null;
         String namespace = event.job() != null ? event.job().namespace() : null;
         String dagId = event.job() != null ? event.job().name() : null;
+        String databaseUri = event.resolveDatabaseUri();
         OffsetDateTime logicalDate = event.resolveLogicalDate();
 
-        if (runId == null || namespace == null || dagId == null
+        if (runId == null || namespace == null || dagId == null || databaseUri == null
                 || event.eventTime() == null || logicalDate == null) {
             throw new IllegalArgumentException("missing required lineage fields");
         }
-        return new DagRunRow(runId, namespace, dagId, logicalDate,
+        return new DagRunRow(runId, namespace, dagId, databaseUri, logicalDate,
                 event.resolveRunType(), state, event.eventTime());
     }
 }

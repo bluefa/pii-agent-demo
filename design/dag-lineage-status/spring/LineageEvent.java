@@ -20,10 +20,14 @@ public record LineageEvent(String eventType, OffsetDateTime eventTime, Run run, 
     public record Job(String namespace, String name, JobFacets facets) {}
 
     @JsonIgnoreProperties(ignoreUnknown = true)
-    public record JobFacets(JobTypeFacet jobType) {}
+    public record JobFacets(JobTypeFacet jobType, PiiMonitoringFacet piiMonitoring) {}
 
     @JsonIgnoreProperties(ignoreUnknown = true)
     public record JobTypeFacet(String jobType) {} // "DAG" | "TASK"
+
+    /** Custom job facet the DAG attaches: the logical DB this pipeline processes. */
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public record PiiMonitoringFacet(String databaseUri) {}
 
     @JsonIgnoreProperties(ignoreUnknown = true)
     public record Run(String runId, RunFacets facets) {}
@@ -53,6 +57,22 @@ public record LineageEvent(String eventType, OffsetDateTime eventTime, Run run, 
         }
         NominalTime nominal = run.facets().nominalTime();
         return nominal != null ? nominal.nominalStartTime() : null;
+    }
+
+    /**
+     * The logical DB this run processed. Absent means the transport's filter
+     * let through something it should have dropped, so the caller treats it as
+     * a malformed event rather than guessing.
+     *
+     * SEAM: this is the only place the facet's shape is known. If the emitter
+     * uses OpenLineage's `tags` facet instead of a custom one, the tag list is
+     * unpacked here and nothing else changes.
+     */
+    public String resolveDatabaseUri() {
+        if (job == null || job.facets() == null || job.facets().piiMonitoring() == null) {
+            return null;
+        }
+        return job.facets().piiMonitoring().databaseUri();
     }
 
     public String resolveRunType() {

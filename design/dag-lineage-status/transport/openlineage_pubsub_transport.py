@@ -65,14 +65,23 @@ class PubSubTransport(Transport):
         self._prefix = config.dag_name_prefix
 
     def emit(self, event) -> None:
-        # Double allow-list, not deny-list:
+        # Triple allow-list, not deny-list:
         #  1) only DAG lifecycle events (task events are 12x the count and
         #     10-25x the bytes — see architecture.md for the volume math)
         #  2) only DAGs whose name starts with the configured prefix
+        #  3) only DAGs that carry a databaseUri
         if not self._is_dag_event(event):
             return
         name = getattr(getattr(event, "job", None), "name", None)
         if name is None or not name.startswith(self._prefix):
+            return
+        if self._database_uri(event) is None:
+            # This is the one drop the consumer can never see: without a
+            # databaseUri the run cannot be attributed to a logical DB, so it is
+            # dropped here and the board renders that DB as "never scheduled".
+            # A prefixed DAG is expected to have one, so log it — this is the
+            # only place the mistake is observable at all.
+            log.warning("no databaseUri facet on prefixed dag %s — event dropped", name)
             return
         # Fire-and-forget for the scheduler; failures surface in logs so the
         # ingest-volume alarm has a cause to correlate with.
@@ -91,3 +100,15 @@ class PubSubTransport(Transport):
         facets = getattr(job, "facets", None) or {}
         job_type = facets.get("jobType")
         return getattr(job_type, "jobType", None) == "DAG"
+
+    @staticmethod
+    def _database_uri(event):
+        """The logical DB the DAG declares it processes.
+
+        SEAM: mirrors LineageEvent.resolveDatabaseUri() on the consumer side.
+        If the DAG publishes this through OpenLineage's `tags` facet rather than
+        a custom one, both ends change here and nowhere else.
+        """
+        job = getattr(event, "job", None)
+        facets = getattr(job, "facets", None) or {}
+        return getattr(facets.get("piiMonitoring"), "databaseUri", None)

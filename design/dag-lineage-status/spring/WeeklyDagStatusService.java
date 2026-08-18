@@ -24,10 +24,12 @@ import org.springframework.stereotype.Service;
  * so it is never persisted; a short in-memory TTL only keeps paging from
  * refetching the same 10k list per page.
  *
- * A databaseUri with no mapped DAG renders as 7x NOT_SCHEDULED, and that is a
- * statement of fact rather than a fallback: the map mirrors Pipeline Manager's
- * complete dag roster, so "unmapped" means "no DAG exists for this logical DB".
- * The one gap left is a DAG created since the last sync cycle.
+ * A databaseUri with no rows renders as 7x NOT_SCHEDULED. There is no mapping
+ * to consult: runs carry their own databaseUri, so "no rows" means "nothing ran
+ * for this logical DB in the window" — which covers a DAG that did not run, a
+ * logical DB with no DAG at all, and a DAG whose events never reached us. The
+ * board does not distinguish them; the third one is caught by watching event
+ * arrival per namespace, not from here.
  *
  * A manual/backfill success counts as that day's SUCCESS (owner decision):
  * run_type is stored but never used as an aggregate filter.
@@ -38,16 +40,14 @@ public class WeeklyDagStatusService {
     private static final ZoneId KST = ZoneId.of("Asia/Seoul");
 
     private final DagRunStatusRepository repository;
-    private final DagDatabaseUriRepository uriRepository;
     private final InfraManagerClient infraManager;
     private final Map<Long, Cached> memberCache = new ConcurrentHashMap<>();
     private final Duration ttl;
 
     public WeeklyDagStatusService(DagRunStatusRepository repository,
-            DagDatabaseUriRepository uriRepository, InfraManagerClient infraManager,
+            InfraManagerClient infraManager,
             @Value("${lineage.members.ttl:PT60S}") Duration ttl) {
         this.repository = repository;
-        this.uriRepository = uriRepository;
         this.infraManager = infraManager;
         this.ttl = ttl;
     }
@@ -62,18 +62,12 @@ public class WeeklyDagStatusService {
         LocalDate firstDay = LocalDate.now(KST).minusDays(6);
         OffsetDateTime windowStart = firstDay.atStartOfDay(KST).toOffsetDateTime();
 
-        Map<String, String> dagNameByUri = uriRepository.findByDatabaseUris(page).stream()
-                .collect(Collectors.toMap(DagDatabaseUri::databaseUri, DagDatabaseUri::dagName));
-        Map<String, List<DayStatusRow>> rowsByDag =
-                repository.dayStatuses(List.copyOf(dagNameByUri.values()), windowStart).stream()
-                        .collect(Collectors.groupingBy(DayStatusRow::dagId));
+        Map<String, List<DayStatusRow>> rowsByUri =
+                repository.dayStatuses(page, windowStart).stream()
+                        .collect(Collectors.groupingBy(DayStatusRow::databaseUri));
 
         return page.stream()
-                .map(uri -> {
-                    String dagName = dagNameByUri.get(uri);
-                    return summarize(uri, dagName, firstDay,
-                            rowsByDag.getOrDefault(dagName, List.of()));
-                })
+                .map(uri -> summarize(uri, firstDay, rowsByUri.getOrDefault(uri, List.of())))
                 .toList();
     }
 
@@ -105,7 +99,7 @@ public class WeeklyDagStatusService {
     // cache if that stops being true.
     private record Cached(List<String> databaseUris, long expiresAt) {}
 
-    private static DagWeeklyStatus summarize(String databaseUri, String dagName, LocalDate firstDay,
+    private static DagWeeklyStatus summarize(String databaseUri, LocalDate firstDay,
             List<DayStatusRow> rows) {
         Map<LocalDate, DayStatusRow> byDay =
                 rows.stream().collect(Collectors.toMap(DayStatusRow::day, row -> row));
@@ -127,6 +121,8 @@ public class WeeklyDagStatusService {
                 .max(Comparator.naturalOrder())
                 .orElse(null);
 
+        // Both read off the run rows, so both are null when nothing ran.
+        String dagName = rows.isEmpty() ? null : rows.get(0).dagId();
         String namespace = rows.isEmpty() ? null : rows.get(0).namespace();
         return new DagWeeklyStatus(databaseUri, dagName, namespace,
                 lastSuccessAt != null, lastSuccessAt, days);

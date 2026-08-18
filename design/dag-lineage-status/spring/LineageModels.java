@@ -13,33 +13,26 @@ enum DagRunState { RUNNING, SUCCESS, FAILED }
 /** Per-day state shown on the weekly board. */
 enum DayState { SUCCESS, RUNNING, FAILED, NOT_SCHEDULED }
 
-/** One folded row of dag_run_status. */
+/** One folded row of dag_run_status. databaseUri comes off the event. */
 record DagRunRow(
         String runId,
         String namespace,
         String dagId,
+        String databaseUri,
         OffsetDateTime logicalDate,
         String runType,
         DagRunState state,
         OffsetDateTime eventTime) {}
 
-/**
- * One row of dag_database_uri (dag names are globally unique across
- * environments). databaseUri is null until DagDatabaseUriSync fills it in;
- * the mapping is 1:1 and immutable, so it is written once.
- */
-record DagDatabaseUri(String dagName, String databaseUri) {}
-
-/** One (dag, day) aggregate returned by the day-status query. */
-record DayStatusRow(String dagId, String namespace, LocalDate day, DayState state,
-        OffsetDateTime successTime) {}
+/** One (databaseUri, day) aggregate returned by the day-status query. */
+record DayStatusRow(String databaseUri, String dagId, String namespace, LocalDate day,
+        DayState state, OffsetDateTime successTime) {}
 
 /**
  * Weekly board row, keyed by databaseUri — the board lists what Infra Manager
- * returned for the target source, so databaseUri is always present. dagName is
- * null when no DAG has been mapped to that databaseUri (it never ran), and
- * namespace is null when the DAG had no events in the window (nothing ran, so
- * there is no row to read it from).
+ * returned for the target source, so databaseUri is always present. dagName and
+ * namespace are null when nothing ran in the window, because both are read off
+ * the run rows and there are none.
  */
 record DagWeeklyStatus(
         String databaseUri,
