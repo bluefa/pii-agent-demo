@@ -4,6 +4,7 @@ import { useCallback, useRef, useState } from 'react';
 import { EditorContent, useEditor, type Editor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import { PostImage } from '@/app/admin/pipelines/posts/_components/post-image-node';
+import { PostLinkBubble } from '@/app/admin/pipelines/posts/_components/PostLinkBubble';
 import { uploadPostImage } from '@/app/lib/api/posts';
 import {
   POST_IMAGE_ACCEPT,
@@ -47,6 +48,7 @@ export const PostBodyEditor = ({
   // how they reach the live instance.
   const editorRef = useRef<Editor | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [linkEditing, setLinkEditing] = useState(false);
 
   /**
    * Rejects at the picker what the server would reject anyway — uploading 5MB
@@ -126,6 +128,15 @@ export const PostBodyEditor = ({
     onUpdate: ({ editor: instance }) => onChange(instance.getHTML()),
     editorProps: {
       attributes: { class: 'prose-guide' },
+      // Cmd/Ctrl+K — 링크를 다루는 자리에서 손이 먼저 가는 키다.
+      handleKeyDown: (_view, event) => {
+        if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
+          event.preventDefault();
+          setLinkEditing(true);
+          return true;
+        }
+        return false;
+      },
       handlePaste: (_view, event) => {
         const file = [...(event.clipboardData?.files ?? [])][0];
         if (!file) return false;
@@ -202,14 +213,9 @@ export const PostBodyEditor = ({
 
         <span className={cn('mx-1 h-4 w-px', bgColors.divider)} />
 
-        {toolButton('링크', editor.isActive('link'), () => {
-          if (editor.isActive('link')) {
-            editor.chain().focus().unsetLink().run();
-            return;
-          }
-          const href = window.prompt('링크 주소 (http, https, mailto, /경로)');
-          if (href) editor.chain().focus().setLink({ href }).run();
-        }, '링크')}
+        {/* 링크 위에서 눌러도 해제가 아니라 편집이다 — 같은 버튼이 두 가지 일을
+            하면 주소를 고치려던 사람이 링크를 잃는다. 해제는 버블 안에 있다. */}
+        {toolButton('링크', editor.isActive('link'), () => setLinkEditing(true), '링크 (⌘K)')}
 
         <span className={cn('mx-1 h-4 w-px', bgColors.divider)} />
 
@@ -245,6 +251,7 @@ export const PostBodyEditor = ({
         )}
       >
         <EditorContent editor={editor} />
+        <PostLinkBubble editor={editor} editing={linkEditing} onEditingChange={setLinkEditing} />
       </div>
 
       {/* Only images are uploadable — `accept` and the server MIME check agree. */}

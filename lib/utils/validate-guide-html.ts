@@ -96,6 +96,33 @@ const ALLOWED_ATTRS: Record<string, Set<string>> = {
  */
 const URL_SCHEME_RE = /^(https?:\/\/|mailto:|\/(?!\/))/;
 
+/**
+ * The same rule, for the editor. Exported so the link UI rejects an href at the
+ * moment it is typed rather than letting the save be the first thing that says
+ * no — a rule enforced in two places is a rule that drifts.
+ */
+export const isAllowedHref = (href: string): boolean => URL_SCHEME_RE.test(href);
+
+/**
+ * The one repair the editor performs before {@link isAllowedHref} judges: a
+ * bare host or a bare mail address gets the scheme a person left off.
+ *
+ * Everything that already declares what it is — a scheme, or a leading `/` —
+ * is returned untouched, and that is the whole safety of this function. Repair
+ * it and the allow-list is bypassed rather than applied: a `javascript:` href
+ * would become `https://javascript:…` and pass, and `//evil.example.com` — the
+ * protocol-relative form `URL_SCHEME_RE` exists to exclude — would become
+ * `https:////evil.example.com` and pass. Both must reach the check and be
+ * refused, so neither is touched here.
+ */
+export const normalizeHref = (raw: string): string => {
+  const value = raw.trim();
+  if (value === '' || isAllowedHref(value)) return value;
+  if (/^[a-z][a-z0-9+.-]*:/i.test(value) || value.startsWith('/')) return value;
+  if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) return `mailto:${value}`;
+  return `https://${value}`;
+};
+
 // DOM node type constants (Node.ELEMENT_NODE etc.) — hard-coded to avoid
 // depending on a runtime Node global that differs between linkedom and the
 // browser.
