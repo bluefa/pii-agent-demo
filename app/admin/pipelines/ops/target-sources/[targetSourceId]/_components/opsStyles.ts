@@ -56,15 +56,17 @@ export const opsStyles = {
    * **밑줄이 affordance 를 지고 색은 상태에 남긴다**(`countLink` 규칙).
    *
    * 그래서 hover 도 면이 아니라 획을 움직인다 — 이 칩의 정체성이 획이다. 면만으로 하면
-   * gray-50 은 흰 면 대비 ΔE00 1.2 로 JND 문턱이고, gray-100 까지 올리면 그 위의 키
-   * (`--pl-text-weak`)가 4.51:1 로 AA 턱걸이가 된다. 획은 #D0D5DD→weak 로 확실히 움직이면서
-   * 그 위 글자의 대비를 하나도 건드리지 않는다.
+   * gray-50 은 흰 면 대비 ΔE00 1.20 으로 JND 문턱이고(globals.css 의 `--pl-row-hover` 주석이
+   * 같은 이유로 이미 기각한 값이다), gray-100 까지 올리면 그 위의 키(`--pl-text-weak`)가
+   * 4.51:1 로 AA 턱걸이가 된다. 획은 `border-strong`(흰 면 대비 1.47:1) → `gray-400`(2.58:1)
+   * 로 1.75 배 움직이면서 그 위 글자의 대비를 하나도 건드리지 않는다 — 흰 면·border-strong
+   * 컨트롤의 hover 로 이 레포가 이미 쓰는 짝이다(`detailImprovedStyles` 헤더 액션).
    *
    * 키만 따로 있는 이유: 부모 칩이 `font-semibold` 라, 키를 한 단 내리는 건 여기서만
    * 필요하다 (`modeTag` 는 부모가 굵지 않아 내릴 것이 없다).
    */
   rawDataToggle:
-    'gap-1 cursor-pointer hover:bg-[var(--pl-gray-50)] hover:border-[var(--pl-text-weak)]',
+    'gap-1 cursor-pointer hover:bg-[var(--pl-gray-50)] hover:border-[var(--pl-gray-400)]',
   rawDataToggleKey: 'font-medium text-[var(--pl-text-weak)]',
   rawDataToggleValue: 'underline underline-offset-2 decoration-[var(--pl-border-strong)]',
 

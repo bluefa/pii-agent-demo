@@ -9,7 +9,8 @@
  *
  * 현재 값이 `undefined`(응답에 필드가 없음)면 아무것도 선택하지 않은 채로 연다 —
  * 모르는 값을 "미포함"에 체크해 두면, 그 화면은 운영자가 확인한 적 없는 값을 이미
- * 확인한 값처럼 보여 주게 된다.
+ * 확인한 값처럼 보여 주게 된다. 안내 문구도 "못 읽었다"가 아니라 "응답에 없다"라고 적는다:
+ * 실패한 것은 없고, 계약이 아직 그 필드를 안 싣는 것뿐이다.
  */
 import { useEffect, useState, type ReactElement } from 'react';
 import { cn, pipelineStyles } from '@/lib/theme';
@@ -21,9 +22,13 @@ const TITLE_ID = 'ops-raw-data-title';
 
 // 설명은 이 화면이 하는 일까지만 말한다 — 어떤 대상이 실데이터인지는 계약도 이 화면도
 // 정하지 않는다 (운영자가 아는 사실을 여기에 적는 것이다).
+//
+// 태그가 붙고 말고 하는 표면은 이제 **서비스 운영의 대상 카드 하나뿐**이다. 이 헤더의 칩은
+// 값을 항상 그리므로(미포함도 칩이다) "운영 헤더에서 태그가 사라진다"고 적으면,
+// 다이얼로그 바로 뒤에서 반증되는 문장이 된다.
 const OPTIONS = [
-  { enabled: true, title: '실데이터 포함', desc: '대상 카드와 운영 헤더에 실데이터 태그가 붙습니다.' },
-  { enabled: false, title: '실데이터 미포함', desc: '실데이터 태그가 붙지 않습니다.' },
+  { enabled: true, title: '실데이터 포함', desc: '서비스 운영의 대상 카드에 실데이터 태그가 붙습니다.' },
+  { enabled: false, title: '실데이터 미포함', desc: '대상 카드에 태그가 붙지 않습니다.' },
 ] as const;
 
 export interface RawDataModalProps {
@@ -73,7 +78,7 @@ export function RawDataModal({
       <h3 id={TITLE_ID} className={pipelineStyles.modal.title}>실데이터 여부 변경</h3>
       {current === undefined && (
         <p className="mt-2 text-[14px] text-[var(--pl-text-weak)]">
-          지금 값을 읽지 못했습니다. 고른 값으로 새로 설정합니다.
+          지금 값이 응답에 없습니다. 고른 값으로 새로 설정합니다.
         </p>
       )}
       <div role="radiogroup" aria-labelledby={TITLE_ID} className="mt-4 flex flex-col gap-3">
