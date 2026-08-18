@@ -29,9 +29,14 @@ public class DagDatabaseUriRepository {
      * Record that this dag name exists, from the event path. Local write only —
      * resolving the name costs an API call and happens later, off the ingest
      * path, so an ack never depends on Pipeline Manager being up.
+     *
+     * Returns true only when the row was newly inserted, i.e. the first event
+     * this DAG has ever emitted. Every later event hits the IGNORE and returns
+     * false, which is what keeps the caller from re-triggering a resolve on
+     * every single event.
      */
-    public void seen(String dagName) {
-        jdbc.update("INSERT IGNORE INTO dag_database_uri (dag_name) VALUES (?)", dagName);
+    public boolean seen(String dagName) {
+        return jdbc.update("INSERT IGNORE INTO dag_database_uri (dag_name) VALUES (?)", dagName) > 0;
     }
 
     /** Resolver work queue: seen names with no databaseUri yet, still under the attempt cap. */

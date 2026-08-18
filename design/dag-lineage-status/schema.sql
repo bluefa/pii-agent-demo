@@ -33,8 +33,10 @@ CREATE INDEX idx_dag_run_status_dag ON dag_run_status (dag_id, logical_date);
 -- get back to dag names, so the reverse map has to live here.
 --
 -- Rows are seeded by the event path (INSERT IGNORE per consumed event — a local
--- write, no API call, so ack never waits on Pipeline Manager) and filled in
--- later by DatabaseUriResolver. A DAG that never emitted an event is simply
+-- write, so ack never waits on Pipeline Manager) and filled in by
+-- DatabaseUriResolver: submitted off-thread the moment the INSERT actually
+-- creates a row, with a slow sweep over `database_uri IS NULL` as the safety
+-- net for anything that submission missed. A DAG that never emitted an event is simply
 -- absent, which is correct: the board is keyed by databaseUri, and a
 -- databaseUri with no mapped DAG has no runs to report.
 --
