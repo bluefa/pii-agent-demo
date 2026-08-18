@@ -291,6 +291,9 @@ export function ConfirmTab({
   const writeProvider = resolveWriteProvider(detail);
   const terraformData = terraform.state === 'ready' ? terraform.data : null;
   const confirmedAt = terraformData?.latest_confirmed_at || null;
+  // 정규화해서 비교한다 — RequestTab·OpsTargetView 와 같은 규칙이다. 원문 비교가 casing
+  // 하나에 뒤집히면 IDC 행이 클라우드용 표로 떨어진다(요청 pane 은 NLB 조회까지 잃는다).
+  const isIdc = normalizeCloudProvider(detail.cloud_provider) === 'IDC';
 
   const requestVerdict = requestData?.verdict ?? null;
   const requestStatus = requestVerdict?.status ?? requestData?.request.status ?? null;
@@ -441,10 +444,7 @@ export function ConfirmTab({
           <RequestPane
             detail={requestData}
             wire={requestData?.wire ?? null}
-            // 정규화해서 비교한다 — RequestTab·OpsTargetView 와 같은 규칙이다. 이 pane 이
-            // 넘기는 곳이 그 탭과 같은 `ResourceList` 라, 원문 비교가 casing 하나에 뒤집히면
-            // IDC 행이 클라우드용 표로 떨어지고 IDC 전용 NLB 조회가 아예 돌지 않는다.
-            isIdc={normalizeCloudProvider(detail.cloud_provider) === 'IDC'}
+            isIdc={isIdc}
             targetSourceId={targetSourceId}
           />
         )}
@@ -452,6 +452,7 @@ export function ConfirmTab({
           <ConfirmPane
             wire={confirmedWire}
             confirmedAt={confirmedAt}
+            isIdc={isIdc}
             onEdit={writeProvider ? editorModal.open : undefined}
           />
         )}

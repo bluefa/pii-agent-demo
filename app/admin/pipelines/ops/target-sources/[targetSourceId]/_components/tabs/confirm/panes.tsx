@@ -24,6 +24,7 @@ import {
 } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/terraformState';
 import { ResourceList } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/RequestTab';
 import { ConfirmedResourceTable } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/confirm/ConfirmedResourceTable';
+import { ConfirmedIdcTable } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/confirm/ConfirmedIdcTable';
 import { confirmedIntegrationToConfirmed } from '@/lib/resource-catalog';
 import type { ConfirmedIntegrationResponse, TerraformStatusResponse } from '@/app/lib/api';
 import type { ApprovalRequestDetail } from '@/app/lib/api/task-queue-requests';
@@ -155,6 +156,8 @@ export interface ConfirmPaneProps {
   wire: ConfirmedIntegrationResponse | null;
   /** terraform-status.latest_confirmed_at — 확정 시각을 말하는 유일한 계약 필드. */
   confirmedAt: string | null;
+  /** IDC 는 확정 리소스의 정체가 이름·id 가 아니라 접속 주소라 표 자체가 다르다. */
+  isIdc: boolean;
   /**
    * 확정 정보 입력·수정·삭제 — 계약이 쓰기 경로를 주는 provider 에서만 내려온다.
    * 삭제는 편집기 안의 영역 교체이므로 pane 에 두 번째 입구를 두지 않는다.
@@ -163,12 +166,13 @@ export interface ConfirmPaneProps {
 }
 
 /**
- * 현재 확정 정보만 보여 준다 — 표는 `ConfirmedResourceTable`, 편집기의 삭제 확인
- * 화면과 같은 표다. 승인 스냅샷과의 비교·Raw 렌즈는 라이브 리뷰에서 제거됐다
+ * 현재 확정 정보만 보여 준다 — 표는 편집기의 삭제 확인 화면과 같은 표이고, provider 로
+ * 갈린다: 클라우드는 Step 6·7 의 `ConfirmedResourceTable`, IDC 는 옆 칸(연동 요청 확인)의
+ * `IdcResourceTable`. 승인 스냅샷과의 비교·Raw 렌즈는 라이브 리뷰에서 제거됐다
  * ("뭘 비교한다는 건지"가 전달되지 않았다). 승인 내역이 필요하면 옆 칸(연동 요청
  * 확인)이 원문까지 가지고 있다.
  */
-export function ConfirmPane({ wire, confirmedAt, onEdit }: ConfirmPaneProps): ReactElement {
+export function ConfirmPane({ wire, confirmedAt, isIdc, onEdit }: ConfirmPaneProps): ReactElement {
   const resources = wire?.resource_infos ?? [];
   const empty = resources.length === 0;
   // Step 6·7 과 같은 표가 도메인 타입을 읽는다 — 같은 응답을 같은 매퍼로 넘긴다.
@@ -205,6 +209,8 @@ export function ConfirmPane({ wire, confirmedAt, onEdit }: ConfirmPaneProps): Re
               : '승인된 리소스를 기준으로 확정 정보가 등록되면 여기에 표시됩니다.'}
           </p>
         </div>
+      ) : isIdc ? (
+        <ConfirmedIdcTable rows={resources} className="mt-6 pb-6" />
       ) : (
         <ConfirmedResourceTable resources={structureRows} className="mt-6 pb-6" />
       )}

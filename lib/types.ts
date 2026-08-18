@@ -1143,6 +1143,8 @@ export interface ConfirmedIntegrationResourceInfo {
   idc_ips?: string[];
   idc_host?: string;
   idc_source_ips?: string[];
+  /** 배정된 NLB 인덱스 (ResourceConfigDto.nlb_index) — 요청 리소스와 같은 이름·같은 값. */
+  nlb_index?: number | null;
 }
 
 export interface ConfirmResourceMetadata {
