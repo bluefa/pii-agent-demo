@@ -17,8 +17,7 @@ const BENCH_GRID = 'grid grid-cols-3 gap-x-8';
 /** 표의 행이 공유하는 것 — 세로 정렬·여백·구분선만 갈린다(`row`/`rowMid`/`rowTop`).
  *  셋을 각각 완결로 선언하는 이유는 `cn` 이 단순 join 이라서다: 기본 위에 items-* 나
  *  py-* 를 덧씌우면 이기는 쪽은 호출 순서가 아니라 Tailwind 출력 순서다. */
-const ROW =
-  'group relative flex gap-3 text-[14px] text-[var(--pl-text-medium)] transition-colors';
+const ROW = 'flex gap-3 text-[14px] text-[var(--pl-text-medium)] transition-colors';
 
 export const accessStyles = {
   pageTitle: 'text-[24px] font-bold leading-[1.2] tracking-[-0.02em] text-[var(--pl-text-strong)]',
@@ -29,15 +28,12 @@ export const accessStyles = {
    *
    *  색은 여기 없다 — 세는 대상에 따라 갈린다. */
   pageTotal: 'mx-0.5 align-baseline text-[32px] font-bold leading-none',
-  /** 판정 수치의 색 — 판정이 있는 상태는 표 안의 상태 pill 과 같은 잉크를 쓴다.
+  /** 판정 수치의 색. 대기만 파랑이다(오너 지시 2026-08-14) — 대기는 나쁜 소식이 아니라
+   *  **할 일**이고, 주황은 늦었다는 뜻이라 0건이든 6건이든 늘 경고처럼 읽혔다.
    *
-   *  대기만 파랑이다(오너 지시 2026-08-14). 대기는 나쁜 소식이 아니라 **할 일**이고,
-   *  주황은 늦었다는 뜻이라 0건이든 6건이든 늘 경고처럼 읽혔다. */
-  pageTotalTone: {
-    REJECTED: 'text-[var(--pl-err-text)]',
-    PENDING: 'text-[var(--pl-primary)]',
-    APPROVED: 'text-[var(--pl-ok-text)]',
-  },
+   *  세는 자리가 하나 남아서(승인 대기) 값도 하나다. 반려·승인 잉크는 요청자 화면이
+   *  판정 문장을 건수 줄로 바꾸면서 쓸 자리가 없어졌다. */
+  pageTotalTone: 'text-[var(--pl-primary)]',
   /** 상태별 건수 줄 — 요청자 화면이 먼저 말하는 사실 전부다(오너 지시 2026-08-17).
    *
    *  판정 문장이 사라지면서 이 줄이 그 자리를 물려받았다. 그래서 라벨이 14 → 16 이다:
@@ -47,9 +43,10 @@ export const accessStyles = {
    *  잉크도 한 단 진하다. 정렬은 `items-baseline` 이 잡는다 — 크기가 다른 둘을 가운데로
    *  맞추면 숫자가 라벨보다 살짝 떠 보인다. */
   pageMetaVal: 'text-[20px] font-semibold tabular-nums text-[var(--pl-text-medium)]',
-  grid: 'mt-6 grid grid-cols-2 gap-6',
 
-  /** 카드 — min-h 로 2단에 나란히 선 카드가 담긴 양과 무관하게 같은 높이를 지킨다. */
+  /** 카드 — min-h 로 담긴 양과 무관하게 같은 높이를 지킨다. 나란히 선 카드 둘의 키를
+   *  맞추려던 것이었는데 2단 배치는 없어졌고, 남은 이유가 더 자주 온다: 마지막 장은
+   *  줄이 모자라고(5줄 표의 2장이 3줄) 그때마다 카드가 줄어들면 페이저가 위로 뛴다. */
   card: 'flex min-h-[360px] flex-col rounded-[12px] border border-[var(--pl-border-strong)] bg-[var(--pl-bg-card)] p-4 shadow-[var(--pl-shadow-md)]',
   /** 크롬 없는 같은 카드 — 이미 시트 한 장 위에 있을 때. 시트 위에 또 카드를 얹으면
    *  표면이 두 겹이 되고, 그러면 한 화면이 여러 섬으로 갈라진다. */
@@ -68,12 +65,6 @@ export const accessStyles = {
    *  목록의 첫 경계선을 검색창에서 떼어 놓는 유일한 것이다. */
   search: 'mt-3 mb-2',
 
-  /** 탭 레일 — 한 카드 안에서 목록 둘을 가른다(운영 화면의 line tab 과 같은 문법).
-   *
-   *  카드 패딩(p-4) 밖으로 빼내 밑줄이 카드 양 끝까지 닿게 한다. 레일이 본문보다
-   *  좁으면 탭이 카드 위에 얹힌 또 하나의 부품처럼 보이고, 그러면 표면을 하나로
-   *  줄이려고 합친 의미가 없어진다. */
-  tabStrip: '-mx-4 -mt-1 mb-1 flex items-center gap-1 border-b border-[var(--pl-border)] px-4',
   tab: 'flex cursor-pointer items-center gap-1.5 whitespace-nowrap border-b-2 px-3 py-2.5 text-[14px] transition-colors -mb-px',
   tabActive: 'font-semibold text-[var(--pl-primary)] border-[var(--pl-primary)]',
   tabIdle:
@@ -107,7 +98,6 @@ export const accessStyles = {
    *  10px 이던 때는 두 줄로 접힌 사유의 아랫줄이 구분선에 거의 닿아서, 선은 그어져 있는데
    *  글이 다음 띠로 넘어가는 것처럼 읽혔다. */
   rowTop: `${ROW} items-start py-4`,
-  rowLink: 'hover:bg-[var(--pl-gray-50)]',
   /** 행 끝 액션 셀 — "권한 요청"이 줄바꿈 없이 들어가는 폭. */
   svcAction: 'w-[68px] flex-none text-right',
   /** 서비스 행의 액션 셀 — 버튼 그룹 한 덩어리가 들어가는 폭. 두 서비스 탭이 같은 폭을
@@ -172,7 +162,6 @@ export const accessStyles = {
   when: 'w-[124px] min-w-0 shrink truncate whitespace-nowrap tabular-nums text-[var(--pl-text-weak)]',
   /** 행 끝 액션 셀 — 해제/회수 버튼이 들어간다. */
   tail: 'w-[56px] flex-none text-right',
-  chev: 'w-3.5 flex-none text-[var(--pl-text-weak)] group-hover:text-[var(--pl-primary)]',
 
   /**
    * 승인 워크벤치 — 왼쪽 대기 목록, 오른쪽 고른 요청 하나.

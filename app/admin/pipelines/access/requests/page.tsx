@@ -180,6 +180,13 @@ export default function AccessRequestsPage(): ReactElement {
         // 처리한 건은 대기에서 빠져 반려·이력으로 옮겨간다. 셋 다 다시 읽고, 나브 배지도
         // 같이 내린다 — 이 화면은 이동을 안 하므로 배지가 스스로 갱신될 기회가 없다.
         setSelectedId(null);
+        // 상세도 같이 다시 읽는다. `reload()` 는 재조회를 걸 뿐 손에 든 목록을 비우지
+        // 않아서, 처리한 건이 레일 첫 줄이었으면 `rows[0]` 이 여전히 그 건이고
+        // `currentId` 가 안 변한다 — 상세 effect 는 `currentId` 로 도는데 값이 그대로라
+        // 돌지 않고, 이미 결정된 요청 위에 승인·반려 버튼이 왕복 내내 남는다. 두 번째
+        // POST 가 가능해지고, 상세 화면이 "두 번 결정할 방법이 없어야 한다"고 적어 둔
+        // 규칙과 어긋난다. 첫 줄이 아니면 `rows[0]` 이 달라져 저절로 다시 읽힌다.
+        setDetailRetry((n) => n + 1);
         reloadPending();
         reloadRejected();
         reloadHistory();
@@ -228,7 +235,7 @@ export default function AccessRequestsPage(): ReactElement {
         ) : (
           <>
             사용자가 보낸 접근 권한 요청 중 승인을 기다리는 건이 총
-            <span className={cn(a.pageTotal, a.pageTotalTone.PENDING)}>{waiting}</span>건 있어요
+            <span className={cn(a.pageTotal, a.pageTotalTone)}>{waiting}</span>건 있어요
           </>
         )}
       </p>
@@ -277,7 +284,7 @@ export default function AccessRequestsPage(): ReactElement {
                 <span role="cell" className={a.status}>
                   <HistoryTypePill type={row.type} />
                 </span>
-                <span role="cell" className={cn(a.code, a.mono)}>{row.serviceCode ?? '—'}</span>
+                <span role="cell" className={cn(a.code, a.monoMd)}>{row.serviceCode ?? '—'}</span>
                 <span role="cell" className={cn(a.svcCol, a.nameStrong)}>
                   {row.serviceName ?? '—'}
                 </span>
