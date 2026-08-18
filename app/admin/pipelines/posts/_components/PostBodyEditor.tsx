@@ -165,7 +165,8 @@ export const PostBodyEditor = ({
         'rounded-md px-2 py-1 text-xs font-medium transition-colors',
         isActive
           ? cn(primaryColors.bgLight, primaryColors.textOnLight)
-          : cn(textColors.secondary, bgColors.mutedHover),
+          // 툴바가 `muted` 면이라 hover 도 한 칸 더 내려가야 보인다.
+          : cn(textColors.secondary, bgColors.panelHover),
       )}
     >
       {label}
@@ -174,10 +175,13 @@ export const PostBodyEditor = ({
 
   return (
     <div className={cn('overflow-hidden rounded-lg border', borderColors.default)}>
+      {/* 툴바는 글 쓰는 면이 아니다 — 면과 테두리로 그렇게 말한다. 투명한 채로
+          두면 첫 줄 위에 글자 몇 개가 떠 있는 것으로 읽힌다. */}
       <div
         className={cn(
-          'flex flex-wrap items-center gap-0.5 border-b px-2 py-1.5',
-          borderColors.light,
+          'flex flex-wrap items-center gap-1 border-b px-2.5 py-2',
+          borderColors.default,
+          bgColors.muted,
         )}
       >
         {toolButton('제목', editor.isActive('heading', { level: 4 }),
@@ -207,17 +211,22 @@ export const PostBodyEditor = ({
           if (href) editor.chain().focus().setLink({ href }).run();
         }, '링크')}
 
-        <span className="flex-1" />
+        <span className={cn('mx-1 h-4 w-px', bgColors.divider)} />
 
+        {/* 툴바 오른쪽 끝으로 밀지 않는다 — 본문 칸이 700px 을 넘으면 나머지
+            서식과 한 화면 거리만큼 떨어져서 같은 줄에 있다는 것만으로는
+            같은 도구로 읽히지 않는다. 흰 면과 테두리가 대신 구분한다. */}
         <button
           type="button"
           onClick={() => fileRef.current?.click()}
           disabled={uploading || imagesFull}
           className={cn(
-            'rounded-md px-2 py-1 text-xs font-medium transition-colors',
+            'rounded-md border px-2 py-1 text-xs font-medium transition-colors',
             'disabled:cursor-not-allowed disabled:opacity-40',
-            textColors.secondary,
-            bgColors.mutedHover,
+            borderColors.default,
+            bgColors.surface,
+            primaryColors.textOnLight,
+            bgColors.panelHover,
           )}
         >
           {uploading ? '업로드 중…' : '이미지'}

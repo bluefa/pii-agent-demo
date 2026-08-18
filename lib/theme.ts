@@ -257,6 +257,8 @@ export const bgColors = {
    */
   panel: 'bg-gray-100',
   mutedHover: 'hover:bg-gray-50',
+  /** `muted` 면 위에 앉은 버튼의 hover — 같은 면 위에서 `mutedHover` 는 보이지 않는다. */
+  panelHover: 'hover:bg-gray-100',
   primary: 'bg-[#0064FF]',
   surface: 'bg-white',
   surfaceHover: 'hover:bg-white',

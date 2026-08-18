@@ -448,6 +448,22 @@ body {
   cursor: text;
 }
 
+/* Body images in the editor. Position between paragraphs is the ONLY placement
+   control the allow-list gives an author — no align, no resize — so the image
+   has to advertise the one thing it can do. Without these, a selected image and
+   an unselected one are the same pixels, and nothing on screen suggests the
+   picture is draggable at all. */
+.guide-editor-surface .ProseMirror img {
+  cursor: grab;
+}
+.guide-editor-surface .ProseMirror img:active {
+  cursor: grabbing;
+}
+.guide-editor-surface .ProseMirror img.ProseMirror-selectednode {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 3px;
+}
+
 /* Anchor display inside the editor — show the URL inline next to the
    link label so the admin can read both at a glance (similar to
    markdown's [label](href)). The ::after pseudo-element is not

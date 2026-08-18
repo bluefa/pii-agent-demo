@@ -143,8 +143,10 @@ export const PostEditorForm = ({ type: initialType, postId }: PostEditorFormProp
             <span className={postFormStyles.label}>
               유형<span className={postFormStyles.required}>*</span>
             </span>
-            {/* 수정에서는 유형을 바꿀 수 없다 — 계약이 type 변경을 지원하지 않는다. */}
-            <div className={segmentedControlStyles.container}>
+            {/* 수정에서는 유형을 바꿀 수 없다 — 계약이 type 변경을 지원하지 않는다.
+                justify-self-start: grid 칸은 기본이 stretch 라 `inline-flex` 컨테이너가
+                열 전체(700px+)로 늘어나고, 버튼 두 개가 그 안 왼쪽 끝에 몰린다. */}
+            <div className={cn(segmentedControlStyles.container, 'justify-self-start')}>
               {(['NOTICE', 'FAQ'] as const).map((value) => (
                 <button
                   key={value}
@@ -167,7 +169,9 @@ export const PostEditorForm = ({ type: initialType, postId }: PostEditorFormProp
               value={categoryId ?? ''}
               onChange={(event) =>
                 setCategoryId(event.target.value ? Number(event.target.value) : null)}
-              className={cn(postFormStyles.input, 'w-60')}
+              // max-w: `w-60` 은 `input` 의 `w-full` 과 같은 속성이라 클래스 순서가
+              // 아니라 생성된 CSS 순서가 이기고, 늘 `w-full` 이 이겼다.
+              className={cn(postFormStyles.input, 'max-w-60')}
             >
               <option value="">미분류</option>
               {categories.map((category) => (
