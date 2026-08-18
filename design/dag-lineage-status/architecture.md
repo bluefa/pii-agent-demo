@@ -76,11 +76,11 @@
 [수집]
 Composer env A ─┐  composite transport = 기존 transport + PubSubTransport
 Composer env B ─┼─▶ Pub/Sub topic ─┬─▶ pull 구독 ─▶ Monitoring Manager (GKE)
-Composer env N ─┘  (DAG-only + prefix│                parse → 멱등 upsert
-                    + databaseUri 有)│                          │
-                                     │                          ▼
-                                     │       dag_run_status (database_uri 포함)
-                                     └─▶ dead-letter topic (max delivery attempts 5)
+Composer env N ─┘  (DAG + prefix    │                parse → 멱등 upsert
+                    + databaseUri)  │                          │
+                                    │                          ▼
+                                    │        dag_run_status (database_uri 포함)
+                                    └─▶ dead-letter topic (max delivery attempts 5)
 
 [조회]  GET(targetSourceId)
           │
@@ -112,11 +112,16 @@ DAG 하나가 1회 실행될 때 provider가 발행하는 이벤트 (task 11개 
 **결정: transport에서 필터한다.** Pub/Sub 요금 자체는 크지 않지만,
 쓰지 않을 트래픽의 92%가 폭주 구간에 구독자와 DB에 직접 부하를
 주고, DLQ 노이즈도 그만큼 커진다. 필터는 transport의 `emit()` 안
-몇 줄이고, **허용 목록 2중 조건**(jobType facet이 `DAG` **AND** DAG
-이름이 설정된 prefix로 시작)만 통과시키므로 새 이벤트 종류나 대상
-외 DAG가 생겨도 의도치 않게 유입되지 않는다. prefix 필터는 요구사항이기도
-하지만, prefix 밖 DAG가 늘어나도 이 파이프라인 볼륨이 불변이라는
-격리 효과도 있다.
+몇 줄이고, **허용 목록 3중 조건**(jobType facet이 `DAG` **AND** DAG
+이름이 설정된 prefix로 시작 **AND** `databaseUri` facet이 있음)만
+통과시키므로 새 이벤트 종류나 대상 외 DAG가 생겨도 의도치 않게 유입되지
+않는다. prefix 필터는 요구사항이기도 하지만, prefix 밖 DAG가 늘어나도
+이 파이프라인 볼륨이 불변이라는 격리 효과도 있다.
+
+세 번째 조건은 볼륨이 아니라 **계약**을 위한 것이다. 여기서 걸러두면
+`database_uri`가 NOT NULL이 되고 소비 경로에 "uri 없는 이벤트" 분기가
+사라진다. 다만 이 드롭만은 화면에서 보이지 않으므로(그 논리 DB가 그냥
+'스케줄 안 됨'으로 나온다) **반드시 로그를 남긴다** — 운영 절 참조.
 
 기각한 대안 — `AIRFLOW__OPENLINEAGE__DISABLED_FOR_OPERATORS`:
 커스텀 코드 없이 task 이벤트를 끌 수 있으나 operator 클래스 목록을
@@ -147,8 +152,11 @@ AIRFLOW__OPENLINEAGE__NAMESPACE='composer-env-a'   # 환경별 유니크
 
 - `continue_on_failure: true` 필수 — 새 Pub/Sub 경로 장애가 기존
   lineage 흐름을 깨면 안 되고, 그 역도 마찬가지.
-- prefix 필터는 새 transport **내부에서만** 적용된다. 기존 transport는
-  지금 받던 이벤트를 그대로 받는다 (기존 동작 불변이 공존의 정의).
+- prefix 필터도 `databaseUri` 필터도 새 transport **내부에서만**
+  적용된다. 기존 transport는 지금 받던 이벤트를 그대로 받는다
+  (기존 동작 불변이 공존의 정의).
+- **`databaseUri` facet은 DAG 쪽에서 붙인다.** transport는 그게 있는지
+  확인만 한다 — 없는 값을 만들어내지 않는다.
 - DAG 수준 이벤트는 스케줄러 프로세스의 listener가 발행하므로,
   환경변수는 Composer 환경 전체에 적용(기본 동작)이어야 한다.
 - publish는 클라이언트의 백그라운드 배칭에 맡기고 future를 기다리지
@@ -190,9 +198,16 @@ AIRFLOW__OPENLINEAGE__NAMESPACE='composer-env-a'   # 환경별 유니크
 
 ### 저장 모델 (schema.sql)
 
-- `dag_run_status`: **run 1건 = 행 1개** (run_id PK). 이벤트 로그를
-  쌓지 않고 최신 상태만 저장한다. 원본은 어디에도 보관하지 않는다
-  (결정 사항).
+- **테이블은 `dag_run_status` 하나뿐이다.** run 1건 = 행 1개
+  (run_id PK). 이벤트 로그를 쌓지 않고 최신 상태만 저장한다. 원본은
+  어디에도 보관하지 않는다 (결정 사항).
+- `database_uri`는 **NOT NULL**이고 이벤트 facet에서 온다. 조회
+  인덱스는 `(database_uri, logical_date)` — 화면의 유일한 접근
+  경로다. 컬럼은 `ascii_bin`으로 선언한다: utf8mb4로 1024자면
+  4096바이트라 InnoDB 인덱스 키 한계(3072)를 넘는다. URI는 ASCII
+  (RFC 3986)라 1024바이트에 들어가고 대소문자 구분도 유지된다.
+- upsert의 UPDATE 목록에 `database_uri`는 **없다** — namespace·dag_id와
+  마찬가지로 run을 식별하는 값이라 START와 종료 이벤트가 항상 같다.
 - 멱등 upsert: MySQL엔 Postgres `ON CONFLICT ... WHERE` 같은 행 단위
   조건이 없으므로, `INSERT ... ON DUPLICATE KEY UPDATE`에 컬럼마다
   `IF(new.event_time > event_time, 새 값, 기존 값)` 가드를 건다.
@@ -308,11 +323,12 @@ N개를 불러와서 N개를 조회"하는 부하인데, **멤버십을 저장�
    "논리 DB 없음"으로 위장하면 안 된다).
 2. **페이지로 자른다** (예: 100) — 이후 단계는 전부 페이지 크기에만
    비례한다. 1만 개를 IN절에 되던지는 단계가 없다.
-3. **이름 역변환** — `dag_database_uri`를 `database_uri IN (…)`으로
-   조회. 페이지에 없는 uri는 애초에 묻지 않는다.
-4. **집계는 기존 주간 조회와 동일 경로** — 그 페이지의 dag 이름으로만
-   `dag_run_status`를 `(dag_id, logical_date)` 인덱스로 읽는다. 그룹
-   전용 집계 테이블이 필요 없다.
+3. **집계 1회** — 그 페이지의 databaseUri로만 `dag_run_status`를
+   `(database_uri, logical_date)` 인덱스로 읽는다. 페이지에 없는 uri는
+   애초에 묻지 않고, 그룹 전용 집계 테이블도 필요 없다.
+
+역변환 단계가 없다는 게 이전 설계와의 차이다. databaseUri가 run 행에
+이미 있으므로 이름으로 바꿨다가 되돌릴 일이 없다.
 
 남는 비용은 **DB가 아니라 Infra Manager 응답 크기**다. **페이징이
 없으므로**(오너 확인) 한 번 부르면 1만 건이 통째로 오고, URI가 최대
@@ -322,13 +338,9 @@ N개를 불러와서 N개를 조회"하는 부하인데, **멤버십을 저장�
 최대 지연이 곧 TTL이고, 무효화 로직은 필요 없다. **실패는 캐시하지
 않는다** — 장애가 stale 목록으로 위장되면 안 된다.
 
-**남는 지연 창은 하나뿐이다**: 지난 sync 주기 이후 새로 만들어진 DAG.
-그 DAG의 논리 DB는 다음 주기까지 '스케줄 안 됨'으로 보인다. 아직 돌지
-않았다면 어차피 보여줄 게 없으므로 무해하고, 도는데도 안 보이는 창을
-줄이려면 주기를 줄이면 된다 — 설정 한 줄이다. 이전 설계처럼 **DAG
-스케줄 주기에 종속되지 않는다**: 이름이 이벤트가 아니라 명부에서
-오므로, 한 번도 안 돈 DAG도 첫 sync에 들어온다. 상한에 걸린 미해결
-건수는 알람 대상이다(운영 절).
+**지연 창은 없다.** 이벤트가 도착하는 순간 그 run은 자기 databaseUri를
+달고 저장되므로, 화면에 나타나기까지 기다릴 해석 단계가 없다. 배경
+동기화가 사라지면서 "아직 안 채워진 구간"이라는 개념 자체가 없어졌다.
 
 이벤트 경로는 그룹을 **모른다** — transport·소비 어느 쪽도
 `targetSourceId`를 알 필요가 없고, 그룹은 읽기 경로에만 존재한다.
