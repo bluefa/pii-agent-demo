@@ -6,6 +6,9 @@ import { ConfirmStepModal } from '@/app/components/ui/ConfirmStepModal';
 import { updateTargetSourceDescription } from '@/app/lib/api';
 import { cn, idcStyles, statusColors, textColors } from '@/lib/theme';
 
+/** ASSUMED contract (docs/api/ops-assumed-contracts.md §8) description 의 maxLength. */
+const DESCRIPTION_MAXLEN = 1000;
+
 interface DescriptionEditModalProps {
   targetSourceId: number;
   /** The row's current 설명 — empty when the target has none yet. */
@@ -23,10 +26,10 @@ interface DescriptionEditModalProps {
  * so it inherits the 480px card, the focus trap and the footer pair rather than growing
  * a second dialog system next to them.
  *
- * No character counter and no maxLength: the contract declares neither, and a cap we
- * invented here would be the screen telling the user a rule the server does not have.
- * The gate is "different from what is already saved" — a fact this screen does own —
- * which also keeps a no-op PUT from being sent.
+ * The 1,000-character cap is the contract's (assumed §8), so the screen states it: `maxLength`
+ * on the textarea plus the same two-tone counter 초기화 사유 uses, and the route guards the
+ * boundary independently. The save gate stays "different from what is already saved", which
+ * also keeps a no-op PUT from being sent.
  *
  * A failure keeps the dialog open with the typed text intact; closing on error would
  * make the user retype what they just lost.
@@ -79,23 +82,40 @@ export const DescriptionEditModal = ({
         <textarea
           ref={textareaRef}
           value={text}
+          maxLength={DESCRIPTION_MAXLEN}
           rows={3}
           onChange={(e) => setText(e.target.value)}
           placeholder="예: Azure SQL, PostgreSQL, MySQL 리소스에 PII Agent 설치"
           className={idcStyles.textarea}
           aria-label="설명"
         />
-        {error ? (
-          <p className={cn('text-[14px]', statusColors.error.textDark)} role="alert">
-            {error}
-          </p>
-        ) : (
-          // 비우고 저장하면 설명이 사라진다는 것을 미리 말한다 — 빈 입력이 유효한 값인
-          // 화면에서, 그 사실은 저장을 누른 뒤에 알게 되면 늦다.
-          <p className={cn('text-[12px]', textColors.tertiary)}>
-            비워 두고 저장하면 설명이 지워집니다.
-          </p>
-        )}
+        <div className="flex items-start justify-between gap-3">
+          {error ? (
+            <p className={cn('text-[14px]', statusColors.error.textDark)} role="alert">
+              {error}
+            </p>
+          ) : (
+            // 비우고 저장하면 설명이 사라진다는 것을 미리 말한다 — 빈 입력이 유효한 값인
+            // 화면에서, 그 사실은 저장을 누른 뒤에 알게 되면 늦다.
+            <p className={cn('text-[12px]', textColors.tertiary)}>
+              비워 두고 저장하면 설명이 지워집니다.
+            </p>
+          )}
+          {/* 두 톤 카운터 (ConfirmRewindModal 과 같은 형태) — 변하는 수만 진하게, 고정
+              분모는 흐리게. 한도에 닿으면 현재 길이가 error 색으로 바뀌어 "왜 더 안
+              쳐지는지"를 말한다. */}
+          <div className="shrink-0 text-right text-[12px] tabular-nums">
+            <span
+              className={cn(
+                'font-semibold',
+                text.length >= DESCRIPTION_MAXLEN ? statusColors.error.text : textColors.secondary,
+              )}
+            >
+              {text.length.toLocaleString()}
+            </span>
+            <span className={textColors.tertiary}> / {DESCRIPTION_MAXLEN.toLocaleString()}자</span>
+          </div>
+        </div>
       </div>
     </ConfirmStepModal>
   );
