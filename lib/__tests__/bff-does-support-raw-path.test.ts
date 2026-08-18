@@ -33,13 +33,13 @@ describe('httpBff.targetSources.setDoesSupportRaw — 값이 경로다', () => {
 
   it('true 는 /enabled 로 PUT 한다', async () => {
     const { path, init } = await requestOf(true);
-    expect(path).toBe('/install/v1/target-sources/1013/does-support-raw/enabled');
+    expect(path).toBe('/install/v1/target-sources/1013/support-raw-data/enabled');
     expect(init.method).toBe('PUT');
   });
 
   it('false 는 /disabled 로 PUT 한다', async () => {
     const { path } = await requestOf(false);
-    expect(path).toBe('/install/v1/target-sources/1013/does-support-raw/disabled');
+    expect(path).toBe('/install/v1/target-sources/1013/support-raw-data/disabled');
   });
 
   it('본문 없이 보낸다', async () => {

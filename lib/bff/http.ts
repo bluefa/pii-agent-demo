@@ -284,7 +284,7 @@ export const httpBff: BffClient = {
     // 성공으로 받는다 (읽는 값이 없다).
     setDoesSupportRaw: (id, enabled) =>
       put<void>(
-        `/target-sources/${id}/does-support-raw/${enabled ? 'enabled' : 'disabled'}`,
+        `/target-sources/${id}/support-raw-data/${enabled ? 'enabled' : 'disabled'}`,
         undefined,
         { emptyBodyOk: true },
       ),

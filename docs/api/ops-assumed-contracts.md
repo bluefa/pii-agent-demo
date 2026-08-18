@@ -232,8 +232,8 @@ receives, before any trim — the dialog's trim is an editorial choice, not the 
 ## 9. Target Source 실데이터 여부 write
 
 ```
-PUT /install/v1/target-sources/{targetSourceId}/does-support-raw/enabled
-PUT /install/v1/target-sources/{targetSourceId}/does-support-raw/disabled
+PUT /install/v1/target-sources/{targetSourceId}/support-raw-data/enabled
+PUT /install/v1/target-sources/{targetSourceId}/support-raw-data/disabled
 body     none                                   // the value is the path, not a payload
 →        no declared response body
 404      TargetSourceNotFoundException (raised by infra, relayed by self-installation-tool)
@@ -242,6 +242,11 @@ body     none                                   // the value is the path, not a 
 Unlike §1–§5 and §8, these two are **implemented upstream** — they are only missing from
 `install-v1.yaml`, so a failure here is not the permanent 404 an unbuilt endpoint gives.
 The dialog's failure copy may invite a retry (§8's may not; see the note below it).
+
+The segment was `does-support-raw` until 2026-08-18, when the owner corrected it to
+`support-raw-data` — the same vocabulary the read field (`supportRawData`) uses. Only the
+two upstream URLs moved: the internal route path and the writer's function names still
+carry the old wording, and are the remaining follow-up.
 
 Both endpoints still carry a BE TODO for an Admin-only permission annotation. Nothing on
 the client stands in for it: the only caller is the ops console, which is already behind
@@ -306,7 +311,7 @@ on the same operation, so the response of that call is the one place where the t
 spellings are hardest to reconcile. It is a strong hint, not a declaration.
 
 Do not read the yaml's silence as evidence either way. The newest upstream dump is
-byte-identical to `install-v1.yaml` but also contains **neither** `PUT …/does-support-raw/…`
+byte-identical to `install-v1.yaml` but also contains **neither** `PUT …/support-raw-data/…`
 **nor** `PUT …/description`, and §9 and §8 record both as shipped upstream. This contract
 under-reports what the server actually serves, which is the whole reason this file exists.
 
@@ -321,9 +326,11 @@ So the conflict is recorded here rather than erased. It takes one live
   the suite still green (the mocks emit whatever the reader reads).
 
 Whichever way it settles, the value keeps **one** name — two names for one fact means no
-screen can say which one the server actually sent. The write path keeps its own
-`does-support-raw` URL segment (§9) because that is the upstream's path, not a field name;
-`readSupportRawData` standing next to `updateTargetSourceDoesSupportRaw` is deliberate.
+screen can say which one the server actually sent. The write path used to be the deliberate
+exception (`does-support-raw` is a URL, not a field name); as of 2026-08-18 its upstream
+segment is `support-raw-data` too (§9), so the read field and the written path now agree.
+What still lags is our own naming — `updateTargetSourceDoesSupportRaw` and the internal
+route path — which no server sees.
 
 The reader returns three states — `true` / `false` / `undefined` (not a boolean on the
 wire, or absent). The two surfaces fold them differently, and on purpose:
