@@ -8,8 +8,8 @@
  * ProblemDetails body a NextResponse round-trip would produce, so the extra
  * wrap/unwrap pair earns nothing here.
  *
- * The store is module-level and seeded lazily — importing this file (which
- * `lib/bff/client.ts` does in every mode) must not build state.
+ * The store hangs off `globalThis` and is seeded lazily — importing this file
+ * (which `lib/bff/client.ts` does in every mode) must not build state.
  */
 
 import { createHash } from 'crypto';
@@ -51,28 +51,63 @@ interface StoredCategory extends PostCategory {
   active: boolean;
 }
 
-const posts = new Map<number, StoredPost>();
-const categories = new Map<number, StoredCategory>();
-/** Uploaded image bytes, keyed by the filename in the returned URL. */
-const images = new Map<string, { bytes: Uint8Array<ArrayBuffer>; contentType: string }>();
-/** sha256 → imageId, so re-uploading identical bytes returns the first URL. */
-const imageIdByDigest = new Map<string, string>();
+interface PostsMockStore {
+  posts: Map<number, StoredPost>;
+  categories: Map<number, StoredCategory>;
+  /** Uploaded image bytes, keyed by the filename in the returned URL. */
+  images: Map<string, { bytes: Uint8Array<ArrayBuffer>; contentType: string }>;
+  /** sha256 → imageId, so re-uploading identical bytes returns the first URL. */
+  imageIdByDigest: Map<string, string>;
+  nextPostId: number;
+  nextCategoryId: number;
+  nextImageId: number;
+  seeded: boolean;
+}
 
-let nextPostId = 1;
-let nextCategoryId = 1;
-let nextImageId = 1;
-let seeded = false;
+declare global {
+  // eslint-disable-next-line no-var
+  var __piiAgentPostsMock: PostsMockStore | undefined;
+}
+
+/**
+ * The store hangs off `globalThis`, not off this module.
+ *
+ * Module-level state is per module *instance*, and a route that imports this
+ * file directly does not get the instance `lib/bff/client.ts` built. The image
+ * round-trip is where that showed: `POST .../images` answered 201 with a URL and
+ * `GET` on that URL answered 404 forever, because the bytes were written into
+ * one copy of `images` and read out of another. Every picture inserted in the
+ * editor was a broken image.
+ *
+ * Counters live here too — split counters hand out ids that already exist.
+ */
+const store = (): PostsMockStore => {
+  globalThis.__piiAgentPostsMock ??= {
+    posts: new Map(),
+    categories: new Map(),
+    images: new Map(),
+    imageIdByDigest: new Map(),
+    nextPostId: 1,
+    nextCategoryId: 1,
+    nextImageId: 1,
+    seeded: false,
+  };
+  return globalThis.__piiAgentPostsMock;
+};
+
+const { posts, categories, images, imageIdByDigest } = store();
 
 const ensureSeeded = (): void => {
-  if (seeded) return;
-  seeded = true;
+  const state = store();
+  if (state.seeded) return;
+  state.seeded = true;
   for (const category of postCategoriesSeed) {
     categories.set(category.id, category);
-    nextCategoryId = Math.max(nextCategoryId, category.id + 1);
+    state.nextCategoryId = Math.max(state.nextCategoryId, category.id + 1);
   }
   for (const post of postsSeed) {
     posts.set(post.id, post);
-    nextPostId = Math.max(nextPostId, post.id + 1);
+    state.nextPostId = Math.max(state.nextPostId, post.id + 1);
   }
 };
 
@@ -212,7 +247,7 @@ export const mockPosts = {
 
     const now = new Date().toISOString();
     const post: StoredPost = {
-      id: nextPostId++,
+      id: store().nextPostId++,
       type: body.type,
       categoryId: body.categoryId ?? null,
       categoryName: categoryName(body.categoryId ?? null),
@@ -305,7 +340,7 @@ export const mockPosts = {
     if (existing) return { url: imageUrl(existing), width: 800, height: 450 };
 
     const extension = file.contentType.split('/')[1];
-    const imageId = `mock-${nextImageId++}.${extension}`;
+    const imageId = `mock-${store().nextImageId++}.${extension}`;
     images.set(imageId, { bytes: file.bytes, contentType: file.contentType });
     imageIdByDigest.set(digest, imageId);
 
@@ -347,7 +382,7 @@ export const mockPosts = {
 
     const siblings = [...categories.values()].filter((category) => category.type === body.type);
     const category: StoredCategory = {
-      id: nextCategoryId++,
+      id: store().nextCategoryId++,
       type: body.type,
       name,
       displayOrder: siblings.length + 1,
