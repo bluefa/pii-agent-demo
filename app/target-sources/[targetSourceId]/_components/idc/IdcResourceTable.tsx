@@ -15,6 +15,8 @@ import {
   IdcSourceIpCell,
 } from '@/app/target-sources/[targetSourceId]/_components/idc/cells';
 import { LogicalDbCountCell } from '@/app/target-sources/[targetSourceId]/_components/logical-db/LogicalDbCountCell';
+import { TcStatusTag } from '@/app/components/features/process-status/TcStatusTag';
+import type { UnitTcStatus } from '@/lib/test-connection-summary';
 import {
   CELL_LIFT,
   CONNECTED_FRAME,
@@ -38,6 +40,8 @@ export type IdcTableCol =
   | 'health'
   /** Step 5 only — the DB Credential, edited in place the way the cloud step 5 edits it. */
   | 'cred'
+  /** Step 5 only — 연결 상태: 최근 실행이 이 리소스에 대해 보고한 판정(클라우드 step 5 와 같은 칸). */
+  | 'conn'
   /** Steps 5·6·7 — the Step 5 logical-DB result as two count columns (연동 논리 DB / 연동 제외). */
   | 'logicalro';
 
@@ -57,6 +61,15 @@ interface IdcResourceTableProps {
    * latest-results. A resource absent from the map renders "—", never a fabricated 0.
    */
   logicalDbCounts?: LogicalDbCountMap;
+  /**
+   * `conn` column only — 최근 실행의 리소스별 판정(`foldAgentStatuses`). **행의
+   * `connection` 이 아니라 이 맵을 읽는다**: 그 필드는 무보고를 PENDING 으로 접어서
+   * "아직 아무 결과도 없다" 와 "agent 가 대기라고 보고했다" 를 같은 픽셀로 만든다.
+   * 맵에 없는 리소스는 `—`(무보고)다.
+   */
+  connectionStatusByResource?: ReadonlyMap<string, UnitTcStatus>;
+  /** `conn` column only — 첫 폴링 응답 전. 판정 대신 스켈레톤을 그린다. */
+  connectionLoading?: boolean;
   /**
    * Render in the CSP approval-table skin (step 6): the borderless frame that joins under a
    * toolbar, the 12px/600 approval header, 18/16 cell padding and the readable row-hover lift.
@@ -105,6 +118,8 @@ export const IdcResourceTable = ({
   credentials,
   onCredentialOpen,
   logicalDbCounts,
+  connectionStatusByResource,
+  connectionLoading = false,
   connected = false,
   firewallStatusByResource,
 }: IdcResourceTableProps) => {
@@ -187,6 +202,9 @@ export const IdcResourceTable = ({
             )}
             {has('fw') && <th className={skin.headerCell}>접근 허용 상태</th>}
             {has('cred') && <th className={cn(skin.headerCell, 'w-[180px]')}>Credential</th>}
+            {/* Credential 다음, 논리 DB 앞 — 클라우드 step 5 의 열 순서 그대로다(자격 증명 →
+                그것으로 접속한 결과 → 그 결과로 여는 논리 DB). */}
+            {has('conn') && <th className={cn(skin.headerCell, 'w-[104px]')}>연결 상태</th>}
             {has('logicalro') && (
               <>
                 <th className={cn(skin.headerCell, 'w-[120px]')}>연동 논리 DB</th>
@@ -257,6 +275,14 @@ export const IdcResourceTable = ({
                         <span className="font-sans">미설정</span>
                       )}
                     </button>
+                  </td>
+                )}
+                {has('conn') && (
+                  <td className={skin.cell}>
+                    <TcStatusTag
+                      status={connectionStatusByResource?.get(r.resourceId)}
+                      loading={connectionLoading}
+                    />
                   </td>
                 )}
                 {has('logicalro') && (

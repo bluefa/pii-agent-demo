@@ -13,6 +13,7 @@ import { usePagination } from '@/app/hooks/usePagination';
 import { useRailHover } from '@/app/hooks/useRailHover';
 import { useToast } from '@/app/components/ui/toast';
 import { TcSummaryCard, TcSummaryCardSkeleton } from '@/app/components/features/process-status/TcSummaryCard';
+import { TcStatusTag } from '@/app/components/features/process-status/TcStatusTag';
 import { TcRejectionNotice } from '@/app/components/features/process-status/TcRejectionNotice';
 import { TcRunHistoryModal } from '@/app/components/features/process-status/TcRunHistoryModal';
 import { isInFlightUi } from '@/app/hooks/useTestConnectionPolling';
@@ -676,35 +677,10 @@ export const ConnectionTestCard = ({
                           </span>
                         )}
                       </td>
-                      {/* 이 칸은 에이전트가 보고한 결과만 말한다. Credential 미설정을 여기에
-                          겹쳐 쓰면 실제로 연결된 대상이 "자격 증명 필요"로 가려졌다 — 그 사실은
-                          바로 왼쪽 DB Credential 칸이 이미 말하고 있고, Run Test 가 막는다. */}
-                      {/* 어휘는 접기 유틸의 판정을 그대로 쓴다 — '대기'는 agent 가 PENDING 을
-                          보고한 행만이고, 보고 자체가 없는 행은 '—', 계약 밖 값은 '미확인'이다.
-                          세 사실을 전부 '대기'로 접던 것이 P4 였다. */}
-                      {/* 첫 폴링이 끝나기 전에는 이 칸에 대한 사실이 아직 없다 — 그 사이에
-                          찍히던 '—'(무보고)와 '대기'는 판정처럼 읽혔고, 응답이 오면 곧바로
-                          성공/실패로 뒤집혀 한 번 읽은 값을 다시 읽게 만들었다. 모르는 동안은
-                          모른다고 말하는 스켈레톤을, 들어설 칩과 같은 크기로 둔다. */}
+                      {/* 어휘·스켈레톤 규칙은 `TcStatusTag` 가 진다 — IDC step 5 의 표가 같은
+                          칸을 그리므로, 두 CSP 가 같은 판정을 다른 말로 하지 않도록 한 곳에 둔다. */}
                       <td className={idcStyles.table.approvalCell}>
-                        {loading ? (
-                          <span
-                            className={cn(idcStyles.skeletonBar, 'block h-[26px] w-[52px] rounded-lg')}
-                            aria-hidden="true"
-                          />
-                        ) : status === 'SUCCESS' ? (
-                          <span className={cn(idcStyles.tag.base, idcStyles.tag.green)}>성공</span>
-                        ) : status === 'FAIL' ? (
-                          <span className={cn(idcStyles.tag.base, idcStyles.tag.red)}>실패</span>
-                        ) : status === 'RUNNING' ? (
-                          <span className={cn(idcStyles.tag.base, idcStyles.tag.orange)}>진행 중</span>
-                        ) : status === 'PENDING' ? (
-                          <span className={cn(idcStyles.tag.base, idcStyles.tag.gray)}>대기</span>
-                        ) : status === 'UNKNOWN' ? (
-                          <span className={cn(idcStyles.tag.base, idcStyles.tag.gray)}>미확인</span>
-                        ) : (
-                          <span className={cn('text-[12px]', textColors.tertiary)}>{PLACEHOLDER}</span>
-                        )}
+                        <TcStatusTag status={status} loading={loading} />
                       </td>
                       {/* Athena·DynamoDB are IAM-based and have no logical-DB management at all,
                           so there is nothing here to configure — the button used to open anyway
