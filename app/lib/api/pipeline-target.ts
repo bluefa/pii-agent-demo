@@ -45,9 +45,10 @@ export interface RawTargetSourceDetail {
   metadata?: RawTargetSourceMetadata;
   /**
    * 계약에 아직 없는 필드 — 스키마가 `.passthrough()` 라 `parse()` 를 통과해 여기까지
-   * 온다. 판정은 `readDoesSupportRaw` 하나로만 한다 (lib/types.ts 주석 참조).
+   * 온다. snake 인 이 DTO 안에서 이 키만 camel 이다 (BE 확인). 판정은
+   * `readDoesSupportRaw` 하나로만 한다 (lib/types.ts 주석 참조).
    */
-  does_support_raw?: boolean;
+  doesSupportRaw?: boolean;
 }
 
 /** Fetch the raw target-source detail (reuses the existing target-sources route). */
@@ -55,3 +56,20 @@ export const getRawTargetSourceDetail = (
   targetSourceId: number | string,
 ): Promise<RawTargetSourceDetail> =>
   fetchInfraJson<RawTargetSourceDetail>(`/target-sources/${encodeURIComponent(String(targetSourceId))}`);
+
+/**
+ * 실데이터 여부 쓰기 (docs/api/ops-assumed-contracts.md §9).
+ *
+ * 업스트림은 본문 없는 두 경로(…/does-support-raw/enabled | /disabled)로 받고 응답
+ * 본문을 선언하지 않는다 — 내부 경로가 boolean 하나로 접고, 여기서도 읽는 값이 없다.
+ * 저장 뒤 화면이 그리는 값의 출처는 여전히 상세 조회다.
+ */
+export const updateTargetSourceDoesSupportRaw = async (
+  targetSourceId: number,
+  enabled: boolean,
+): Promise<void> => {
+  await fetchInfraJson(`/target-sources/${targetSourceId}/does-support-raw`, {
+    method: 'PUT',
+    body: { enabled },
+  });
+};

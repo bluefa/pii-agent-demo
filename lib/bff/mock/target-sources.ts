@@ -163,10 +163,11 @@ const toBffTargetSourceDetail = (project: Project) => ({
   process_status: toBffApprovalProcessStatus(project.processStatus),
   cloud_provider: toBffCloudProvider(project.cloudProvider),
   created_at: project.createdAt,
-  // 계약에 아직 없는 필드 — 실을 근거가 있는 대상에만 싣는다. 전부에 `false` 를 깔면
-  // 목이 "이 대상은 실데이터가 아니다"라고 계약에 없는 단정을 하게 되고, 세 상태 중
-  // 하나만 참인 판정(readDoesSupportRaw)이 목에서는 두 상태로 줄어든다.
-  ...(project.doesSupportRaw === true ? { does_support_raw: true } : {}),
+  // swagger 에는 아직 없지만 BFF 가 싣는 필드 — snake 인 이 DTO 에서 이 키만 camel 이다
+  // (BE 확인). 근거가 있는 대상에만 싣던 것을 전 대상으로 바꾼 이유: 값을 끄는 쓰기
+  // API 가 생겼고, 방금 끈 대상이 키 없이 돌아오면 화면은 "미포함" 이 아니라 "미확인"
+  // 을 그린다. 세 번째 상태는 계약 반영 전 실서버의 상태이지 목이 흉내 낼 상태가 아니다.
+  doesSupportRaw: project.doesSupportRaw === true,
   ...(Object.keys(getBffMetadata(project)).length > 0
     ? { metadata: getBffMetadata(project) }
     : {}),
@@ -485,6 +486,20 @@ export const mockTargetSources = {
     }
     updateProject(project.id, { description });
     return NextResponse.json({ target_source_id: targetSourceId, description });
+  },
+
+  // PUT …/does-support-raw/{enabled|disabled} — 본문 없는 두 경로가 한 값을 뒤집는다.
+  // 응답 본문은 계약에 없다: 호출부가 상세를 다시 읽으므로 204 로 끝낸다.
+  setDoesSupportRaw: async (targetSourceId: number, enabled: boolean) => {
+    const project = getProjectByTargetSourceId(targetSourceId);
+    if (!project) {
+      return NextResponse.json(
+        { error: 'NOT_FOUND', message: '타겟 소스를 찾을 수 없습니다.' },
+        { status: 404 },
+      );
+    }
+    updateProject(project.id, { doesSupportRaw: enabled });
+    return new NextResponse(null, { status: 204 });
   },
 
   // createTargetSource (36): body is the selected TargetSourceCreationCandidateResponse

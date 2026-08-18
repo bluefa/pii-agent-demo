@@ -22,8 +22,8 @@ export const opsStyles = {
   tag: 'inline-flex items-center rounded px-2 py-1 text-[12px] font-semibold bg-[var(--pl-gray-100)] text-[var(--pl-text-medium)] whitespace-nowrap',
   regionTag: 'inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium bg-[var(--pl-gray-100)] text-[var(--pl-text-weak)]',
   /**
-   * 실데이터 — `does_support_raw === true` 인 대상에만 붙는다. 두 화면(서비스 운영의
-   * 대상 카드 · 대상 운영 헤더)이 한 정의를 쓴다.
+   * 실데이터 — `doesSupportRaw === true` 인 대상에만 붙는다 (서비스 운영의 대상 카드).
+   * 대상 운영 헤더는 같은 면에 동작을 얹은 `rawDataToggle` 로 세 상태를 항상 그린다.
    *
    * **색이 아니라 획으로 선다.** 이 줄에서 색 채널은 이미 다 팔렸다: StepPill 하나가
    * off/warn/primary/ok 네 계열을 상태에 따라 돌아가며 쓰고(TONE_CLASS), 회색은 중국
@@ -41,6 +41,19 @@ export const opsStyles = {
    * ΔE00 8.92 (tableRowLift.card 주석의 실측치와 같은 쌍).
    */
   rawDataTag: 'inline-flex items-center whitespace-nowrap rounded px-1.5 py-0.5 text-[12px] font-semibold border border-[var(--pl-border-strong)] bg-[var(--pl-bg-card)] text-[var(--pl-text-strong)]',
+  /**
+   * 대상 운영 헤더의 실데이터 칩 — 같은 면·획 위에 키·값 문법(modeTag)과 동작을 얹는다.
+   *
+   * 서비스 운영 카드는 참인 대상에만 태그를 붙이지만, 이 화면은 값을 **바꾸는** 자리라
+   * 세 상태(포함 / 미포함 / 미확인)를 항상 그린다: 태그가 없는 것과 "미포함"은 서로 다른
+   * 말인데, 안 그리면 두 상태가 같은 픽셀이 된다.
+   *
+   * 동작 채널은 설치모드 칩과 같다 — 값이 파랑·밑줄이고 키는 weak. 이 줄에서 파랑은
+   * 색이 아니라 "누를 수 있는 값"의 표기이고, 그 표기를 쓰는 것은 헤더에서 이 둘뿐이다.
+   */
+  rawDataToggle: 'gap-1 cursor-pointer hover:bg-[var(--pl-gray-50)]',
+  rawDataToggleKey: 'font-medium text-[var(--pl-text-weak)]',
+  rawDataToggleValue: 'text-[var(--pl-primary)] underline',
 
   /** Cloud context — tier 3 of the identity stack (계정 · 리전 · 설치모드). */
   cloudRow: 'flex items-center gap-1.5 mt-1 text-[12px] text-[var(--pl-text-weak)]',

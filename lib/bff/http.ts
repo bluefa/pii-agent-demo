@@ -255,6 +255,15 @@ export const httpBff: BffClient = {
     // until it ships. Snake body, matching the read side (TargetSourceDetail).
     putDescription: (id, description) =>
       put(`/target-sources/${id}/description`, { description }),
+    // 실데이터 여부 (docs/api/ops-assumed-contracts.md §9) — 업스트림은 값을 경로에
+    // 싣고 본문을 받지 않는다. 응답 본문은 선언돼 있지 않으므로 204 도 200 빈 본문도
+    // 성공으로 받는다 (읽는 값이 없다).
+    setDoesSupportRaw: (id, enabled) =>
+      put<void>(
+        `/target-sources/${id}/does-support-raw/${enabled ? 'enabled' : 'disabled'}`,
+        undefined,
+        { emptyBodyOk: true },
+      ),
   },
 
   // USER/services: raw snake passthrough — routes validate with schemas.X.parse(raw).

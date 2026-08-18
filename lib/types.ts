@@ -59,26 +59,25 @@ export const isSduTarget = (target: {
 }): boolean => target.is_sdu_type === true || isSduProvider(target.cloud_provider);
 
 /**
- * 실데이터 여부를 계약에 **아직 없는** 필드에서 읽는다.
+ * 실데이터 여부를 계약에 **아직 없는** 필드에서 읽는다 — 세 상태를 접지 않고 그대로.
  *
- * `does_support_raw` 는 TargetSource 에 추가될 예정인 필드다 — 지금은 `install-v1.yaml`
- * 에도 업스트림 `api-docs.yaml` 에도 없다. 생성 스키마가 `.partial().passthrough()`
- * 라는 사실을 쓴다: 계약에 없는 키도 `parse()` 를 그대로 통과해 소비자까지 온다.
- * 그래서 **BFF 가 필드를 싣기 시작하는 날, 코드 변경 없이** 태그가 켜진다
+ * `doesSupportRaw` 는 BFF 가 TargetSource 조회 응답에 싣는다(BE 확인, camelCase —
+ * snake 인 `TargetSourceDetail` 안에서도 이 키만 camel 섬이다). 아직 `install-v1.yaml`
+ * 에도 업스트림 `api-docs.yaml` 에도 없으므로, 생성 스키마가 `.partial().passthrough()`
+ * 라는 사실을 쓴다: 계약에 없는 키도 `parse()` 를 그대로 통과해 소비자까지 온다
  * (`readIsEosService` 가 같은 이유로 쓰는 방법이다).
  *
- * 두 표기를 함께 보는 것은 방어가 아니라 계약의 사실이다. 이 값을 실어 나를 DTO 가 둘이고
- * 표기가 갈려 있다 — `TargetSourceDetail` 은 snake, `TargetSourceInfo` 는 camel 섬이다
- * (그 안에서도 `latest_approval_request` 는 snake라, 어느 쪽으로 실릴지 계약이 정해 주기
- * 전까지 한쪽만 읽으면 두 화면 중 하나가 조용히 꺼진다).
+ * **`undefined` 를 `false` 로 접지 않는다.** 대상 운영 헤더는 이 값을 항상 문장으로
+ * 그리는데(포함 / 미포함), 못 읽은 값을 "미포함" 으로 쓰면 화면이 근거 없는 단정을
+ * 하게 된다. 태그 하나만 그리는 호출부(서비스 운영 카드)는 `=== true` 로 접어서 쓴다.
  *
- * `=== true` 는 의도의 표기다 — 세 상태(true / false / 없음) 중 실데이터라고 말할 근거가
- * 있는 건 하나뿐이고, 나머지 둘은 "모른다"로 접혀 지금과 같은 화면이 된다.
+ * boolean 이 아닌 값은 전부 "모른다" — 문자열 `"true"` 나 `1` 이 승격되면 오타 하나가
+ * 대상을 실데이터로 만든다.
  */
-export const readDoesSupportRaw = (value: unknown): boolean => {
-  if (typeof value !== 'object' || value === null) return false;
-  const row = value as { does_support_raw?: unknown; doesSupportRaw?: unknown };
-  return row.does_support_raw === true || row.doesSupportRaw === true;
+export const readDoesSupportRaw = (value: unknown): boolean | undefined => {
+  if (typeof value !== 'object' || value === null) return undefined;
+  const raw = (value as { doesSupportRaw?: unknown }).doesSupportRaw;
+  return typeof raw === 'boolean' ? raw : undefined;
 };
 
 // Internal CloudProvider → wire metadata.provider value. The contract
@@ -503,7 +502,7 @@ export type Project = BaseTargetSource & {
   isChinaRegion?: boolean;
   isTerraformExecutionGranted?: boolean;
   isSduType?: boolean;
-  /** 시드 전용 — 목이 `does_support_raw` 로 실어 보낸다 (readDoesSupportRaw 참조). */
+  /** 시드 전용 — 목이 `doesSupportRaw` 로 실어 보낸다 (readDoesSupportRaw 참조). */
   doesSupportRaw?: boolean;
   tenantId?: string;
   subscriptionId?: string;

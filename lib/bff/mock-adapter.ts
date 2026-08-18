@@ -77,6 +77,11 @@ export const mockBff: BffClient = {
     getJiraTicket: async (id) => unwrap(await mockTargetSources.getJiraTicket(String(id))),
     putDescription: async (id, description) =>
       unwrap(await mockTargetSources.putDescription(id, description)),
+    setDoesSupportRaw: async (id, enabled) => {
+      // 204 — unwrap() would choke on the empty body, so only surface errors.
+      const response = await mockTargetSources.setDoesSupportRaw(id, enabled);
+      if (!response.ok) await unwrap(response);
+    },
   },
 
   users: {
