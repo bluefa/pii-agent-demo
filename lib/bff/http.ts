@@ -122,8 +122,10 @@ async function getRaw(path: string): Promise<Response> {
  * `emptyBodyOk` opts into tolerating a 2xx with no body. Scoped to the one
  * endpoint observed violating its own contract — PUT
  * excluded-databases/by-resource-id answers 200 with an empty body although
- * install-v1.yaml declares SkipLogicalDatabaseResponse. Every other caller
- * keeps the strict behaviour so a silent contract break stays visible.
+ * install-v1.yaml declares SkipLogicalDatabaseResponse. It is opt-in per call, not
+ * a default, so a silent contract break stays visible everywhere else. Two reasons
+ * a caller passes it: a declared body that does not arrive (above), or — for the
+ * assumed writers — no declared body at all (`setDoesSupportRaw`, §9).
  */
 async function send<T>(
   method: 'POST' | 'PUT' | 'DELETE',

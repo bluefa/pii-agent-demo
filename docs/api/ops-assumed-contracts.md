@@ -4,7 +4,8 @@ Capabilities with **no endpoint in `docs/swagger/install-v1.yaml`**: §1–§5 a
 Target Source ops page (`/admin/pipelines/ops/target-sources/{id}`), and §8 on the
 service-owner list (`/services`). They are implemented mock-first behind Next.js routes
 with the shapes below. When the BFF ships real endpoints, replace the mock handlers and
-delete the corresponding section here.
+delete the corresponding section here. §9 is the one section whose endpoints already exist
+upstream — what it waits for is the declaration, so it goes when install-v1.yaml names it.
 
 Conventions follow install-v1: snake_case wire, Spring `Page` for pagination,
 `ErrorMessage` problem responses.
@@ -249,9 +250,10 @@ not made yet.
 
 The internal route folds the pair into one boolean — `PUT /pass/api/v1/target-sources/{id}/
 does-support-raw { enabled: boolean }`. Two paths are one value written two ways, and the
-path encoding is the upstream's representation of it, applied in `lib/bff/http.ts` where every other
-upstream path shape is decided. Nothing is read back from either hop: the header reloads
-the value from the detail it already draws.
+path encoding is the upstream's representation of it, applied in `lib/bff/http.ts` where
+every other upstream path shape is decided. Nothing is read back from either hop: on
+success the header keeps the value the operator picked (one piece of local state, the same
+shape 설치 모드 uses), and the next detail load is what re-reads it.
 
 ## The field the tags read: `doesSupportRaw`
 
@@ -275,7 +277,9 @@ wire, or absent). The two surfaces fold them differently, and on purpose:
 
 ## Mock implementation
 
-All sections are served by `app/api/v1/…` route handlers backed by globalThis-guarded
+Sections §1–§5 are served by `app/api/v1/…` route handlers backed by globalThis-guarded
 in-memory stores in `lib/bff/mock/ops.ts` (`__opsConsoleMockStore` for per-target
-state, `__opsConsoleServiceStore` for §6), same pattern as the admin queue mocks.
+state, `__opsConsoleServiceStore` for §6), same pattern as the admin queue mocks. §8 and
+§9 write to the shared project store instead (`lib/bff/mock/target-sources.ts` →
+`updateProject`), because both edit a field every screen already reads off the target.
 Handlers are marked `// ASSUMED CONTRACT — docs/api/ops-assumed-contracts.md`.

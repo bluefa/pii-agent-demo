@@ -163,7 +163,7 @@ export function OpsHeader({
               title="실데이터 여부 변경"
             >
               <span className={opsStyles.rawDataToggleKey}>실데이터</span>
-              <span className={opsStyles.rawDataToggleValue}>{rawDataLabel}</span>
+              <span className={opsStyles.modeTagValue}>{rawDataLabel}</span>
             </button>
           </div>
 

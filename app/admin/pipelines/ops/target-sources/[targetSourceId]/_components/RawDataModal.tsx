@@ -15,7 +15,7 @@ import { useEffect, useState, type ReactElement } from 'react';
 import { cn, pipelineStyles } from '@/lib/theme';
 import { ModalShell } from '@/app/admin/pipelines/_components/ModalShell';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
-import { updateTargetSourceDoesSupportRaw } from '@/app/lib/api/pipeline-target';
+import { updateTargetSourceDoesSupportRaw } from '@/app/lib/api/ops';
 
 const TITLE_ID = 'ops-raw-data-title';
 

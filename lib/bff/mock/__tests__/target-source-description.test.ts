@@ -9,6 +9,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { NextResponse } from 'next/server';
 
+import { mockBff } from '@/lib/bff/mock-adapter';
 import { mockTargetSources } from '@/lib/bff/mock/target-sources';
 import { mockTaskQueue } from '@/lib/bff/mock/task-queue';
 import { schemas } from '@/lib/generated/install-v1';
@@ -81,6 +82,17 @@ describe('mockTargetSources.setDoesSupportRaw', () => {
   it('없는 대상은 404', async () => {
     const response = await mockTargetSources.setDoesSupportRaw(999999, true);
     expect(response.status).toBe(404);
+  });
+
+  /**
+   * 목 어댑터는 이 쓰기의 204 를 `unwrap()` 없이 통과시키므로(빈 본문이라), 실패를
+   * 에러로 바꾸는 건 `if (!response.ok)` 한 줄뿐이다. 그 줄이 빠지면 없는 대상에도
+   * 라우트가 204 를 내고 헤더는 일어나지 않은 쓰기의 값을 그린다 — 목 모드에서는
+   * 그게 쓰기 경로 전체다.
+   */
+  it('어댑터가 404 를 에러로 올린다 — 성공으로 새지 않는다', async () => {
+    await expect(mockBff.targetSources.setDoesSupportRaw(999999, true)).rejects.toThrow();
+    await expect(mockBff.targetSources.setDoesSupportRaw(RAW_TARGET, true)).resolves.toBeUndefined();
   });
 });
 

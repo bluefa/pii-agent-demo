@@ -48,12 +48,16 @@ export const opsStyles = {
    * 세 상태(포함 / 미포함 / 미확인)를 항상 그린다: 태그가 없는 것과 "미포함"은 서로 다른
    * 말인데, 안 그리면 두 상태가 같은 픽셀이 된다.
    *
-   * 동작 채널은 설치모드 칩과 같다 — 값이 파랑·밑줄이고 키는 weak. 이 줄에서 파랑은
-   * 색이 아니라 "누를 수 있는 값"의 표기이고, 그 표기를 쓰는 것은 헤더에서 이 둘뿐이다.
+   * 동작 채널은 설치모드 칩(tier 3 의 `modeTag`)과 같다 — 키는 weak, 값은 파랑·밑줄.
+   * 파랑·밑줄 자체는 이 헤더의 일반 표기다(role 등록 버튼 `roleRegister`, 서비스 링크도
+   * 쓴다); 칩의 **값 칸**에 그 표기를 두는 것이 이 둘뿐이라, 값은 `modeTagValue` 를 그대로
+   * 쓴다 — 같은 뜻이면 정의도 하나여야 한쪽만 바뀌어 문법이 갈라지지 않는다.
+   *
+   * 키만 따로 있는 이유: 부모 칩이 `font-semibold` 라, 키를 한 단 내리는 건 여기서만
+   * 필요하다 (`modeTag` 는 부모가 굵지 않아 내릴 것이 없다).
    */
   rawDataToggle: 'gap-1 cursor-pointer hover:bg-[var(--pl-gray-50)]',
   rawDataToggleKey: 'font-medium text-[var(--pl-text-weak)]',
-  rawDataToggleValue: 'text-[var(--pl-primary)] underline',
 
   /** Cloud context — tier 3 of the identity stack (계정 · 리전 · 설치모드). */
   cloudRow: 'flex items-center gap-1.5 mt-1 text-[12px] text-[var(--pl-text-weak)]',

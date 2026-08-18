@@ -55,6 +55,24 @@ export const updateInstallationMode = (
   });
 
 /**
+ * 실데이터 여부 쓰기 (docs/api/ops-assumed-contracts.md §9).
+ *
+ * 업스트림은 본문 없는 두 경로(…/does-support-raw/enabled | /disabled)로 받고 응답
+ * 본문을 선언하지 않는다 — 내부 경로가 boolean 하나로 접고, 여기서도 읽는 값이 없다.
+ * 저장에 성공하면 화면은 방금 고른 값을 그대로 쓴다(OpsTargetView 의 `doesSupportRaw`
+ * 한 칸); 상세를 다시 읽는 것은 다음 로드다 — 설치 모드와 같은 자리다.
+ */
+export const updateTargetSourceDoesSupportRaw = async (
+  targetSourceId: number,
+  enabled: boolean,
+): Promise<void> => {
+  await fetchInfraJson(`/target-sources/${targetSourceId}/does-support-raw`, {
+    method: 'PUT',
+    body: { enabled },
+  });
+};
+
+/**
  * REAL contract (install-v1 upsert) — the client sends the FULL role ARN
  * (the edit modal composes it from account + partition + name); the response
  * is camel wire (AwsAssumeRoleUpsertResponse).
