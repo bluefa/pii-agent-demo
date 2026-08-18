@@ -213,13 +213,19 @@ corrected.
 ```
 PUT /install/v1/target-sources/{targetSourceId}/description
 body     { description: string }              // "" is valid — it clears the description
+                                              // maxLength 1000
 → 200   { target_source_id: number, description: string }
 ```
 
 The client reads nothing off the response: it reloads the list it already draws the row
-from, so the row and the dialog cannot disagree. No length cap is enforced anywhere on the
-client — the contract declares none, and inventing one would have the screen state a rule
-the server does not have.
+from, so the row and the dialog cannot disagree.
+
+`maxLength` 1000 is the owner's, not this screen's (2026-08-18) — the first draft enforced
+no cap precisely because the contract declared none, and that premise is now gone. It is
+stated twice, as every other 1,000-char field in this repo is: `maxLength` + a counter on
+the textarea (`DescriptionEditModal`, the shape `ConfirmRewindModal` uses), and an
+independent `VALIDATION_FAILED` guard on the route. The route measures the string it
+receives, before any trim — the dialog's trim is an editorial choice, not the contract's.
 
 ## Field not yet in any contract: `does_support_raw`
 

@@ -53,6 +53,23 @@ describe('PUT /pass/api/v1/target-sources/[targetSourceId]/description', () => {
     expect(mockedPut).not.toHaveBeenCalled();
   });
 
+  it('1000자는 통과한다 — 경계값이 한 글자 차이로 막히면 안 된다', async () => {
+    const exact = 'x'.repeat(1000);
+    mockedPut.mockResolvedValue({ target_source_id: 1013, description: exact });
+    const response = await call('1013', { description: exact });
+
+    expect(response.status).toBe(200);
+    expect(mockedPut).toHaveBeenCalledWith(1013, exact);
+  });
+
+  it('1000자를 넘으면 VALIDATION_FAILED — 잘라 보내지 않는다', async () => {
+    const response = await call('1013', { description: 'x'.repeat(1001) });
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toMatchObject({ code: 'VALIDATION_FAILED' });
+    expect(mockedPut).not.toHaveBeenCalled();
+  });
+
   it('잘못된 targetSourceId면 업스트림까지 가지 않는다', async () => {
     const response = await call('abc', { description: 'x' });
 
