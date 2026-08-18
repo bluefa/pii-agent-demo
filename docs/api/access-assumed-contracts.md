@@ -21,6 +21,35 @@ install-v1: snake_case wire, Spring `Page` for the paged reads, `ErrorMessage` p
 | **검색 축 추가** | `GET /services` 를 코드·이름에 더해 **담당자**로도 검색한다 | 목의 매칭과 레일 검색창 라벨을 함께 넓혔다 |
 | **표기 통일** | 관리 화면 응답 DTO 가 snake_case 로 통일 | 이미 snake wire 로 읽고 있어 변경 없음 |
 
+## 2026-08-14 (2차) — 실응답과 대조하고 고친 것
+
+오너가 실제 응답을 보고 세 가지를 잡아 줬다. 셋 다 **목이 실구현보다 후한 값을 주고
+있어서** 화면으로는 드러나지 않던 것들이다.
+
+| | 우리가 적어 뒀던 것 | 실제 | 증상 |
+|---|---|---|---|
+| `/history` 의 `type` | `APPROVED`·`REJECTED`·`GRANTED`·`REVOKED`·`ADMIN_*` | `REQUEST_APPROVED`·`REQUEST_REJECTED`·`OWNER_GRANTED`·`OWNER_REVOKED`·`ADMIN_*` | 배지 넷이 라벨을 못 찾아 enum 원문이 회색으로 찍힌다 (**D4 닫힘**) |
+| `/user/permission-access` 의 행 | `PermissionRequestDetail` (관리자 상세와 같은 shape) | `request_id`·`service_code`·`service_name`·`status`·`reason`·`requested_at` **여섯 개뿐** | `requester.knox_id` 에서 터진다 — 화면이 아예 안 뜬다 |
+| 서비스 목록 필터 | 없음 (화면이 거른다) | 없음 — 확인됨 | 서비스 2,059 개인 계정에서 목록 하나가 `page=0..10` 열한 번의 왕복이 됐다 |
+
+셋째 것이 이 화면의 실제 사고였다. 걸러 내는 축이 계약에 없으니 전체를 받아야 한다고
+보고 `size=200` 으로 끝까지 훑었는데, 서비스가 스무 개인 목에서는 그게 언제나 한 번이라
+**목으로는 절대 안 보였다.**
+
+한동안은 서버가 준 다섯 줄 안에서만 걸렀다. 왕복은 고정됐지만 장마다 남는 줄이
+3·2·2·2 로 들쭉날쭉해서 다섯 줄짜리 칸에 두세 줄이 섰고, 두 탭이 같은 카탈로그를 나눠
+가지므로 한 탭이 남긴 줄은 다른 탭이 버린 줄이었다 — 어느 쪽도 한 장을 채울 수 없다.
+2026-08-18 부터 다시 카탈로그를 끝까지 받아 거른 뒤 화면에서 다섯씩 나눈다. 08-14 의
+반대이되 사유는 남는다: 그때 문제였던 건 훑기 자체가 아니라 **왕복 횟수**였고, 그건 장
+크기에 달렸다. `size=500` 이면 2,059 개가 다섯 번, 흔한 크기는 한 번이다.
+
+중간에 끊고 전체인 척하는 선택지는 버렸다 — 못 받은 서비스는 신청 목록에서 존재하지
+않는 것이 되는데 페이저는 다 보여 준 얼굴을 하고, 목이 한 장에 들어가는 크기라 화면으로는
+안 보인다. 그 회귀는 `access-paging.test.ts` 의 `fetchEveryPage` 가 잡는다.
+
+헤더 판정은 `status` 별 `size=1` 로 `totalElements` 만 읽는다 — 세 번, 요청이 몇 건이든
+고정이다.
+
 이 업데이트로 **`description` 요청(C-1)은 철회한다.** 행이 이름 하나로 끝나던 문제는
 `owners` 가 대신 푼다 — 오너가 그 필드를 붙인 이유("이름이 비슷한 서비스가 많아 어디에
 신청할지 헷갈린다")가 화면이 설명을 달라고 한 이유와 같은 것이었다.
@@ -172,7 +201,8 @@ GET /admin/access/history?service_code={CODE}&type={TYPE}&page={0}&size={20}
 
 AccessHistoryRow {
   history_id:   number
-  type:         "APPROVED" | "REJECTED" | "GRANTED" | "REVOKED" | "ADMIN_GRANTED" | "ADMIN_REVOKED"
+  type:         "REQUEST_APPROVED" | "REQUEST_REJECTED" | "OWNER_GRANTED" | "OWNER_REVOKED"
+              | "ADMIN_GRANTED" | "ADMIN_REVOKED"
   service_code: string | null       // null = 관리자 권한 부여/회수 (서비스와 무관)
   service_name: string | null
   target_user:  UserSummary
@@ -183,8 +213,9 @@ AccessHistoryRow {
 ```
 
 `service_code` 가 요구사항의 "service code 단위 이력 조회" 축이다. 생략하면 전역 로그.
-**`type` enum 값은 아직 확인받지 못했다** — 위 여섯은 화면이 가정한 값이고, 배지 어휘가
-여기서 나온다.
+`type` 여섯은 **확인된 값이다**(D4 닫힘, 08-14) — 배지 어휘가 여기서 나온다. 앞의 네 개는
+한동안 `APPROVED`·`REJECTED`·`GRANTED`·`REVOKED` 로 적혀 있었는데, 그 이름으로 코딩하면
+배지 넷이 라벨을 못 찾아 enum 원문이 회색으로 찍힌다.
 
 ### 사용자 검색
 
@@ -221,11 +252,19 @@ body    { reason: string }          // 필수. 담당자 검사 면제
 
 ```
 GET /user/permission-access?status={PENDING}&page={0}&size={20}
-→ 200 Page<PermissionRequestDetail>  // 호출자 본인 것만, 최신순. 반려 사유 포함
+→ 200 Page<{ request_id, service_code, service_name, status, reason, requested_at }>
+                                     // 호출자 본인 것만, 최신순
 ```
 
-B4 가 이것으로 닫혔다. 화면은 `status` 를 붙이지 않는다 — 헤더 판정이 반려·대기·승인을
-한 문장으로 세므로 상태별로 나눠 받으면 호출이 셋이 된다.
+**관리자 상세와 다른 shape 이다.** 요청자(`requester`)가 없는 건 자연스럽다 — 호출자
+본인 것만 주므로 적을 이유가 없다. 처리 결과 셋(`processed_at`·`processed_by`·
+`processed_note`)이 없는 건 **갭이다(B5)**: 요청자는 자기 요청이 '반려'로 뒤집힌 것만
+보고 왜인지는 볼 수 없다. 그래서 "처리 결과" 열을 지웠다 — 남겨 두면 모든 행이 영원히
+`—` 인 열이 된다. `lib/bff/types.ts` 의 `MyAccessRequestWire` 가 이 여섯 개다.
+
+화면은 `status` 를 **쓴다.** 헤더 판정이 반려·대기·승인 건수를 말하는데, 세는 데 필요한
+건 `totalElements` 뿐이라 상태마다 `size=1` 로 한 줄씩 받는다 — 세 번, 요청이 몇 건이든
+고정이다. 예전에는 전체를 훑어 화면에서 셌다.
 
 ```
 GET /services/page?query=&page={0}&size={20}
@@ -236,8 +275,10 @@ access_status: "OWNED" | "REQUESTED" | "REJECTED" | "NONE"
 owners:        string[]   // 담당자 표시명
 ```
 
-**요청할 수 있는 서비스** 탭이 이 호출이다 — `NONE` 또는 `REJECTED` 만 남긴다. 행의
-둘째 단이 `owners` 다: 내 요청을 볼 사람이 누구인지, 그리고 이름이 비슷한 둘 중 어느
+**요청할 수 있는 서비스** 탭이 이 호출이다 — `NONE` 또는 `REJECTED` 만 남긴다.
+`access_status` 필터가 계약에 없어서(B6) 거르는 일이 화면 몫이고, 그래서 `size=500` 으로
+`totalPages` 까지 읽어 카탈로그를 손에 든 뒤 거르고 다섯씩 나눈다. 건수는 걸러진 수라
+맞지만, 서버가 한 번에 거를 수 있으면 이 왕복도 목록 크기도 다 사라진다. 행의 둘째 단이 `owners` 다: 내 요청을 볼 사람이 누구인지, 그리고 이름이 비슷한 둘 중 어느
 쪽이 내가 아는 그 서비스인지. 이름은 둘까지 쓰고 나머지는 `owner_count` 로 접는다.
 
 ```
@@ -265,7 +306,8 @@ GET /user/services/page?query=&page={0}&size={20}
 | | 내용 |
 |---|---|
 | B3 | 요청 목록 행에 `reason`·`status`·`processed_at` 추가 여부 (08-14 업데이트에도 안 들어왔다) |
-| D4 | `/history` 의 `type` enum 실제 값 |
+| **B5** | `GET /user/permission-access` 에 `processed_note`(반려 사유·승인 메시지)와 `processed_at` 을 실어 줄 수 있나. **지금은 요청자가 자기 반려 사유를 볼 길이 없다** — 관리자는 반려 모달에 사유를 필수로 적는데 그게 요청자에게 닿지 않는다. B4 가 "반려 사유 포함"으로 닫혔지만 실응답에는 없었다 |
+| **B6** | 서비스 목록 둘에 `access_status` 필터를 줄 수 있나. 없어서 화면이 카탈로그를 통째로 받아 거른다 — `size=500` 이라 2,059 개면 왕복 다섯 번이고, **그 훑기가 페이저를 누를 때마다 다시 돈다**(장 번호가 조회의 입력이라 목록을 손에 쥐고 있지 못한다). 서버가 걸러 주면 진입도 페이지 이동도 한 번에 다섯 줄이면 된다. 서버가 준 장 안에서만 거르는 쪽도 해 봤는데 장마다 남는 줄이 3·2·2·2 로 갈려서 되돌렸다(두 탭이 같은 카탈로그를 나눠 가진다) |
 | E1 | `GET /services/page` 가 `query` 를 받나. 화면에 검색창이 있고 지금은 받는다고 가정한다 |
 | E2 | `owners` 원소가 문자열인가 `UserSummary` 인가. "담당자 표시명"으로 적혀 있어 문자열로 읽는다 — 객체면 `toServicePageRow` 한 곳만 바뀐다 |
 | E3 | `service_abbr_name` 을 실제로 채워 주는 서비스가 어떤 것들인가. 목은 카탈로그에 약어가 없어 전부 `null` 이고, 화면도 아직 그리지 않는다 |
@@ -275,5 +317,8 @@ GET /user/services/page?query=&page={0}&size={20}
 | **E7** | 승인 body 의 `message` 가 빈 문자열로 와도 되나. 선택 필드라 화면은 비면 **키째 뺀다** — 빈 문자열을 그대로 저장하는 서버면 상세의 "메시지 없이 승인했어요" 자리가 빈칸이 된다 |
 | — | `authorized-users` 가 실구현됐지만 `owners` 와 같은 집합이다. 둘 중 하나는 없어져야 한다 — 프론트는 `/owners` 만 쓴다 |
 
-**닫힌 것** — B4(본인 신청 내역 `/user/permission-access`), C-1(`description` 요청은
-철회, `owners` 가 대신한다), **D6(관리자 API base 는 `/install/v1/admin/access/**`)**.
+**닫힌 것** — B4(본인 신청 내역 `/user/permission-access` — 다만 반려 사유는 안 와서
+B5 로 다시 열었다), C-1(`description` 요청은 철회, `owners` 가 대신한다),
+**D4(`/history` 의 `type` 은 `OWNER_GRANTED`·`OWNER_REVOKED`·`REQUEST_APPROVED`·
+`REQUEST_REJECTED`·`ADMIN_GRANTED`·`ADMIN_REVOKED` 여섯)**,
+**D6(관리자 API base 는 `/install/v1/admin/access/**`)**.

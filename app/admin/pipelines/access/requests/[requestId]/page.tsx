@@ -153,18 +153,40 @@ export default function AccessRequestDetailPage(): ReactElement {
         </div>
 
         <SectionHeader title="요청 사유" />
-        <p className={a.quote}>{request.reason}</p>
+        {/* 워크벤치와 같은 규칙 — 요청자가 한 말은 파란 면, 우리가 남긴 말은 회색. 같은
+            요청이 딥링크로 열렸다고 사유 면이 달라지면 안 된다. */}
+        <p className={a.quoteAsk}>{request.reason}</p>
 
         {!pending && (
           <>
-            <SectionHeader
-              title="처리 결과"
-              desc={`${request.processedBy?.knoxId ?? '—'} · ${fmtDateTime(request.processedAt)}`}
-            />
-            <p className={a.quote}>
-              {request.processedNote ??
-                (request.status === 'APPROVED' ? '메시지 없이 승인했어요' : '사유가 없어요')}
-            </p>
+            {/* 워크벤치와 같은 규칙 — 처리 이야기는 한 장에 담긴다. 누가·언제는 머리에
+                딸린 한 줄이 아니라 위와 같은 사실 행이고, 이 화면의 구역 머리(20)보다 작은
+                16 이지만 상자 안에 든다 — 계층은 등급이 아니라 포함이다. */}
+            <div className={a.benchGroupTitle}>
+              {request.status === 'APPROVED' ? '승인 결과' : '반려 결과'}
+            </div>
+            <div className={a.benchGroup}>
+              <div className={a.factRow}>
+                <span className={a.factLabel}>처리자</span>
+                <span className={cn(a.mono, 'text-[var(--pl-text-strong)]')}>
+                  {request.processedBy?.knoxId ?? '—'}
+                </span>
+              </div>
+              <div className={a.factRow}>
+                <span className={a.factLabel}>처리 일시</span>
+                <span className="tabular-nums">{fmtDateTime(request.processedAt)}</span>
+              </div>
+
+              <div className={a.benchSection}>
+                <div className={a.benchLabel}>
+                  {request.status === 'APPROVED' ? '승인 메시지' : '반려 사유'}
+                </div>
+                <p className={a.benchGroupNote}>
+                  {request.processedNote ??
+                    (request.status === 'APPROVED' ? '메시지 없이 승인했어요' : '사유가 없어요')}
+                </p>
+              </div>
+            </div>
           </>
         )}
       </Card>

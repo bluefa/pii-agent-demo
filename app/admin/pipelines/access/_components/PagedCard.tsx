@@ -18,10 +18,7 @@ import { Icon, type IconName } from '@/app/admin/pipelines/_components/icons';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
 import { OpsPagination } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/OpsPagination';
 import { accessStyles as a } from '@/app/admin/pipelines/access/_components/accessStyles';
-import type { AccessPage } from '@/app/lib/api/access';
-
-/** 카드 본문 한 장의 행 수 — 모든 카드가 같은 높이를 갖게 하는 값. */
-export const ROWS_PER_PAGE = 5;
+import { ACCESS_PAGE_SIZE, type AccessPage } from '@/app/lib/api/access';
 
 export const errorMessage = (err: unknown): string =>
   err instanceof Error ? err.message : String(err);
@@ -121,8 +118,11 @@ export interface PagedCardProps<T> {
    * 제목과 나란히 놓지 않고 대신하는 이유: 탭이 이미 제목이다. 둘 다 그리면 같은
    * 이름이 한 카드에 두 번 적히고, 건수도 배지와 탭에 각각 붙는다.
    * `title` 은 그래도 받는다 — 화면에는 안 보여도 `aria-label` 은 있어야 한다.
+   *
+   * `null` 은 "머리 줄 없음"이다(생략과 다르다) — 탭이 제목이자 건수까지 이미 말하고
+   * 있어서 대신 그릴 것조차 없는 경우.
    */
-  head?: ReactNode;
+  head?: ReactNode | null;
   /** 이미 시트 위에 있을 때 — 카드 크롬(테두리·그림자·고정 높이)을 벗는다. */
   bare?: boolean;
   children: (rows: T[]) => ReactNode;
@@ -152,7 +152,9 @@ export function PagedCard<T>({
 
   return (
     <section className={cn(bare ? a.section : a.card, className)} aria-label={title}>
-      {head ?? (
+      {/* `??` 가 아니라 undefined 검사인 이유: `null` 은 "머리 줄을 그리지 말라"는 값이고,
+          `??` 로 받으면 그 뜻이 기본 머리 줄로 되돌아간다. */}
+      {head === undefined ? (
         <div className={a.head}>
           <div className={a.titleWrap}>
             <Icon name={icon} size={20} className={a.titleIcon} />
@@ -169,6 +171,8 @@ export function PagedCard<T>({
             )
           )}
         </div>
+      ) : (
+        head
       )}
       {desc != null && <p className={a.desc}>{desc}</p>}
       {search != null && <div className={a.search}>{search}</div>}
@@ -201,7 +205,7 @@ export function PagedCard<T>({
         ) : loading ? (
           skeleton ?? (
             <div role="rowgroup" aria-busy="true" aria-label="목록을 불러오는 중">
-              {Array.from({ length: ROWS_PER_PAGE }, (_, row) => (
+              {Array.from({ length: ACCESS_PAGE_SIZE }, (_, row) => (
                 <div key={row} className={a.row} role="row" aria-hidden="true">
                   {columns.map((col, index) => (
                     <span

@@ -1,35 +1,57 @@
 'use client';
 
 /**
- * 권한 요청 (/admin/pipelines/access/requests).
+ * 권한 요청 (/admin/pipelines/access/requests) — 승인 워크벤치.
  *
- * 연동 요청 목록과 같은 배치: 손이 가야 하는 두 카드(승인 대기 · 반려)가 위에 나란히,
- * 읽기 전용 이력이 그 아래 전체 폭 한 장. 두 카드의 행은 같은 상세로 가고, 사유 전문은
- * 거기서 읽는다 — 목록은 한 줄 미리보기만 한다.
+ * 화면이 목록이 아니라 승인함이다. 왼쪽에서 요청을 고르고 오른쪽에서 사유를 읽고 그
+ * 자리에서 승인·반려한다. 전에는 목록이 상세 페이지로 나가는 링크 다섯 줄이었고, 그래서
+ * 이 화면의 주어(처리해야 할 요청)가 화면 어디에도 크게 적히지 않았다.
  *
- * 서비스 코드 단위 이력은 여기가 아니라 서비스별 권한 화면이 담당한다(같은 이력을
- * service_code 로 필터해 그 서비스 시트 안에 둔다). 여기 이력은 전역 감사 로그다.
+ * 탭 셋이 화면의 목차다 — 승인 대기·반려는 같은 목록을 상태로 자른 것이고 전체 이력은
+ * 읽기 전용 기록이다. 셋이 한 자리에 서면 표면이 하나만 남는다(전에는 카드 두 장이
+ * 나란히 섰고, 손댈 필요 없는 이력 쪽이 18px 제목과 색면 일곱을 가지고 있었다).
+ *
+ * 워크벤치 바닥이 캔버스인 이유는 `accessStyles.bench` 에 적혀 있다 — 흰 면끼리는 이
+ * 제품에서 서로 안 보인다.
+ *
+ * 상세 페이지(`requests/[requestId]`)는 그대로 둔다. 알림·딥링크가 오는 자리다.
  */
-import type { ReactElement } from 'react';
-import Link from 'next/link';
-import { cn } from '@/lib/theme';
-import { passRoutes } from '@/lib/routes';
+import { useCallback, useState, type ReactElement, type ReactNode } from 'react';
+import { cn, serviceSidebarStyles } from '@/lib/theme';
 import { fmtDateTime } from '@/lib/pipeline/format';
+import { useAbortableEffect } from '@/app/hooks/useAbortableEffect';
+import { serviceTileClass } from '@/app/components/features/admin/ServiceSidebar/ServiceRow';
 
-import { Icon } from '@/app/admin/pipelines/_components/icons';
+import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
+import { usePlToast } from '@/app/admin/pipelines/_components/usePlToast';
+import { useNavCountsRefresh } from '@/app/admin/pipelines/_components/NavCountsRefresh';
+import { OpsPagination } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/OpsPagination';
 import {
   PagedCard,
-  ROWS_PER_PAGE,
+  errorMessage,
   usePagedSection,
   type Column,
+  type PagedSection,
 } from '@/app/admin/pipelines/access/_components/PagedCard';
-import { HistoryTypePill } from '@/app/admin/pipelines/access/_components/AccessPills';
+import {
+  ApproveAccessModal,
+  RejectAccessModal,
+} from '@/app/admin/pipelines/access/_components/AccessModals';
+import {
+  HistoryTypePill,
+  RequestStatusPill,
+} from '@/app/admin/pipelines/access/_components/AccessPills';
 import { accessStyles as a } from '@/app/admin/pipelines/access/_components/accessStyles';
 import {
+  ACCESS_PAGE_SIZE,
+  approveAccessRequest,
   getAccessHistory,
+  getAccessRequest,
   getAccessRequests,
+  rejectAccessRequest,
   type AccessHistoryEntry,
   type AccessPage,
+  type PermissionRequestDetail,
   type PermissionRequestRow,
 } from '@/app/lib/api/access';
 
@@ -37,180 +59,494 @@ import {
 const fetchPending = (
   page: number,
   opts: { signal: AbortSignal },
-): Promise<AccessPage<PermissionRequestRow>> =>
-  getAccessRequests('PENDING', page, { ...opts, size: ROWS_PER_PAGE });
+): Promise<AccessPage<PermissionRequestRow>> => getAccessRequests('PENDING', page, opts);
 const fetchRejected = (
   page: number,
   opts: { signal: AbortSignal },
-): Promise<AccessPage<PermissionRequestRow>> =>
-  getAccessRequests('REJECTED', page, { ...opts, size: ROWS_PER_PAGE });
+): Promise<AccessPage<PermissionRequestRow>> => getAccessRequests('REJECTED', page, opts);
+/**
+ * 이력만 한 장에 8줄이다(다른 목록은 5).
+ *
+ * 이 탭은 고르는 목록이 아니라 읽는 기록이고, 줄 하나가 이벤트 하나라 훑는 단위가
+ * 크다 — 5줄이면 승인·반려·부여·회수가 한 장에 다 못 들어와서 무슨 일이 있었는지
+ * 보려면 페이저부터 눌러야 했다(오너 지시 2026-08-14). 왼쪽 레일이 없는 탭이라
+ * 세로 여유도 여기만 있다.
+ */
+const HISTORY_PAGE_SIZE = 8;
+
 const fetchHistory = (
   page: number,
   opts: { signal: AbortSignal },
 ): Promise<AccessPage<AccessHistoryEntry>> =>
-  getAccessHistory({}, page, { ...opts, size: ROWS_PER_PAGE });
+  getAccessHistory({}, page, { ...opts, size: HISTORY_PAGE_SIZE });
 
 /**
- * 두 액션 카드는 같은 골격을 쓴다 — flex-1 컬럼 수까지 같아야 격자 너머로 열이 맞는다.
+ * 이력은 열로 읽는다 — 서비스별 권한 시트의 이력 표에 서비스 열 하나만 더한 것이고,
+ * 그래서 같은 기록이 두 화면에서 같은 모양이다.
  *
- * 사유 열이 없다: `PermissionRequestRow` 가 `reason` 도 `status` 도 싣지 않는다(갭 B3).
- * 사유는 상세에만 있어서, 목록에 미리보기를 그리려면 행마다 상세를 부르는 N+1 이 된다.
- * 계약에 세 필드(`reason`·`status`·`processed_at`)가 붙으면 이 열은 되살아난다.
+ * 전에는 한 행을 두세 줄로 폈다. 요청 카드와 나란히 서던 때는 그럴 이유가 있었지만
+ * (고정 폭만 364px 이라 늘어나는 열에 38px 씩밖에 안 남았다) 지금은 탭 하나를 통째로
+ * 쓴다. 그 폭에서 줄로 펴면 등급이 어긋난다 — 12px 구분 pill 아래에 14px 대상·수행자가
+ * 오고, 세 줄이 다 같은 x 에서 시작해 pill 자리와 '대상' 라벨 자리가 번갈아 선다.
+ * 사실 여섯이 다 같은 모양이면 그건 계층이 아니라 열이다.
  */
-const REQUEST_COLUMNS: readonly Column[] = [
-  { label: '요청자', className: a.knox },
-  { label: '서비스', className: a.name },
-  { label: '코드', className: a.code },
-  { label: '요청 일자', className: a.when },
-  { className: a.chev },
-];
-
 const HISTORY_COLUMNS: readonly Column[] = [
   { label: '구분', className: a.status },
-  { label: '서비스', className: a.name },
   { label: '코드', className: a.code },
+  { label: '서비스', className: a.svcCol },
   { label: '대상', className: a.knox },
   { label: '수행자', className: a.knox },
-  // 반려 사유·승인 메시지 — 감사 로그가 "무엇이" 뿐 아니라 "왜"까지 말하게 한다.
-  // 늘어나는 두 번째 열이기도 해서 서비스 이름이 남는 폭을 혼자 먹지 않는다.
-  { label: '사유', className: a.note },
+  { label: '사유', className: a.noteWide },
   { label: '일시', className: a.when },
 ];
+
+type RequestTab = 'pending' | 'rejected' | 'history';
+
+/**
+ * 며칠부터 "오래 기다린 요청"인가 — 계약에 SLA 가 없으므로 **우리 값**이다.
+ * 넘긴 요청만 잉크가 바뀐다. 전부 바뀌면 아무것도 안 바뀐 것과 같다.
+ */
+const WAIT_WARN_DAYS = 3;
+
+/** 요청이 기다린 일수. */
+function waitedDays(iso: string): number {
+  const then = new Date(iso).getTime();
+  if (Number.isNaN(then)) return 0;
+  return Math.max(0, Math.floor((Date.now() - then) / 86_400_000));
+}
 
 export default function AccessRequestsPage(): ReactElement {
   const pending = usePagedSection(fetchPending);
   const rejected = usePagedSection(fetchRejected);
   const history = usePagedSection(fetchHistory);
+  const toast = usePlToast();
+  const refreshNavCounts = useNavCountsRefresh();
+
+  // 세 목록 다 언제나 읽는다 — 안 보이는 탭의 건수를 탭 자신이 말해야 한다. 탭을 옮겨도
+  // 다시 읽지 않으므로 진입 호출 수는 카드가 둘이던 때와 같다.
+  const [tab, setTab] = useState<RequestTab>('pending');
+  const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [detail, setDetail] = useState<PermissionRequestDetail | null>(null);
+  const [detailError, setDetailError] = useState<unknown>(null);
+  const [detailRetry, setDetailRetry] = useState(0);
+  const [modal, setModal] = useState<'approve' | 'reject' | null>(null);
+
+  const list: PagedSection<PermissionRequestRow> = tab === 'rejected' ? rejected : pending;
+  const rows = list.paged?.content ?? [];
+
+  // 선택은 목록을 따라간다 — 탭 전환·페이지 이동·처리 후 재조회가 전부 목록을 갈아치우고,
+  // 그때 남아 있던 id 는 화면에 없는 요청을 가리킨다. "없으면 첫 줄"이 네 경우를 한 번에
+  // 덮고, 목록이 비면 선택도 저절로 빈다.
+  const current = rows.find((row) => row.requestId === selectedId) ?? rows[0] ?? null;
+  const currentId = current?.requestId ?? null;
+
+  useAbortableEffect(
+    (signal) => {
+      // 이전 요청의 내용을 먼저 지운다 — 안 지우면 새 요청의 머리 밑에 옛 사유가 남는다.
+      setDetail(null);
+      setDetailError(null);
+      if (currentId == null) return;
+      return getAccessRequest(currentId, { signal })
+        .then((result) => {
+          if (signal.aborted) return;
+          setDetail(result);
+        })
+        .catch((err) => {
+          if (signal.aborted) return;
+          setDetailError(err);
+        });
+    },
+    [currentId, detailRetry],
+  );
+
+  const { reload: reloadPending } = pending;
+  const { reload: reloadRejected } = rejected;
+  const { reload: reloadHistory } = history;
+
+  const decide = useCallback(
+    async (kind: 'approve' | 'reject', text: string): Promise<void> => {
+      if (detail == null) return;
+      const subject = `${detail.requester.knoxId}의 ${detail.serviceName} 접근 요청`;
+      try {
+        // 계약이 204 라 응답 본문이 없다 — 문구는 이미 화면이 들고 있는 요청으로 만든다.
+        if (kind === 'approve') await approveAccessRequest(detail.requestId, text);
+        else await rejectAccessRequest(detail.requestId, text);
+        setModal(null);
+        toast.show(
+          kind === 'approve'
+            ? `${subject}을 승인했어요 — 권한이 부여됐어요`
+            : `${subject}을 반려했어요`,
+        );
+        // 처리한 건은 대기에서 빠져 반려·이력으로 옮겨간다. 셋 다 다시 읽고, 나브 배지도
+        // 같이 내린다 — 이 화면은 이동을 안 하므로 배지가 스스로 갱신될 기회가 없다.
+        setSelectedId(null);
+        // 상세도 같이 다시 읽는다. `reload()` 는 재조회를 걸 뿐 손에 든 목록을 비우지
+        // 않아서, 처리한 건이 레일 첫 줄이었으면 `rows[0]` 이 여전히 그 건이고
+        // `currentId` 가 안 변한다 — 상세 effect 는 `currentId` 로 도는데 값이 그대로라
+        // 돌지 않고, 이미 결정된 요청 위에 승인·반려 버튼이 왕복 내내 남는다. 두 번째
+        // POST 가 가능해지고, 상세 화면이 "두 번 결정할 방법이 없어야 한다"고 적어 둔
+        // 규칙과 어긋난다. 첫 줄이 아니면 `rows[0]` 이 달라져 저절로 다시 읽힌다.
+        setDetailRetry((n) => n + 1);
+        reloadPending();
+        reloadRejected();
+        reloadHistory();
+        refreshNavCounts();
+      } catch (err) {
+        // 모달은 열어 둔다 — 실패한 쓰기는 사라지면 안 되고, 사유도 그대로 남아야 한다.
+        toast.show(errorMessage(err));
+      }
+    },
+    [detail, toast, reloadPending, reloadRejected, reloadHistory, refreshNavCounts],
+  );
+
+  const tabs: readonly { key: RequestTab; label: string; count: number | undefined }[] = [
+    { key: 'pending', label: '승인 대기', count: pending.paged?.totalElements },
+    { key: 'rejected', label: '반려', count: rejected.paged?.totalElements },
+    { key: 'history', label: '전체 이력', count: history.paged?.totalElements },
+  ];
+
+  /** 기본 스켈레톤과 모양은 같고 줄 수만 다르다 — 기본은 `ACCESS_PAGE_SIZE`(5) 줄이라
+   *  5줄을 그리고 8줄이 도착하면 목록이 튄다. */
+  const historySkeleton: ReactNode = (
+    <div role="rowgroup" aria-busy="true" aria-label="이력을 불러오는 중">
+      {Array.from({ length: HISTORY_PAGE_SIZE }, (_, row) => (
+        <div key={row} className={a.row} role="row" aria-hidden="true">
+          {HISTORY_COLUMNS.map((col) => (
+            <span key={col.label} role="cell" className={cn(col.className, a.skeletonBar)} />
+          ))}
+        </div>
+      ))}
+    </div>
+  );
+
+  const waiting = pending.paged?.totalElements;
+  const subject = detail
+    ? `${detail.requester.knoxId}의 ${detail.serviceName} 접근 요청`
+    : '요청';
 
   return (
     <div>
       <h1 className={a.pageTitle}>권한 요청</h1>
+      {/* 화면이 먼저 말하는 사실은 "지금 몇 건이 나를 기다리는가"다. 아직 모르는 수는
+          쓰지 않는다 — 로딩 중 '0' 은 단언이다. */}
       <p className={a.pageDesc}>
-        사용자가 보낸 서비스 접근 권한 요청을 검토하고 승인하거나 반려해요
+        {waiting == null ? (
+          '사용자가 보낸 서비스 접근 권한 요청을 검토하고 승인하거나 반려해요'
+        ) : (
+          <>
+            사용자가 보낸 접근 권한 요청 중 승인을 기다리는 건이 총
+            <span className={cn(a.pageTotal, a.pageTotalTone)}>{waiting}</span>건 있어요
+          </>
+        )}
       </p>
 
-      <div className={a.grid}>
-        <PagedCard
-          title="승인 대기"
-          desc="행을 눌러 요청 사유를 확인한 뒤 승인하거나 반려해 주세요 — 승인하면 즉시 권한이 부여돼요"
-          icon="inbox"
-          tone="primary"
-          state={pending}
-          columns={REQUEST_COLUMNS}
-          empty={{
-            title: '승인을 기다리는 요청이 없어요',
-            caption: '새 접근 권한 요청이 들어오면 여기에 표시돼요',
-          }}
-        >
-          {(rows) =>
-            rows.map((row) => (
-              <div key={row.requestId} role="row" className={cn(a.row, a.rowLink)}>
-                {/* 링크는 첫 셀 안에 둔다 — role=row 는 셀만 자식으로 가져야 한다.
-                    absolute inset-0 이라 클릭 면적은 행 전체 그대로다. */}
-                <span role="cell" className={a.knox}>
-                  <Link
-                    href={passRoutes.pipelines.access.request(row.requestId)}
-                    aria-label={`${row.requester.knoxId}의 ${row.serviceName} 접근 요청 상세 보기`}
-                    className="absolute inset-0"
-                  />
-                  {row.requester.knoxId}
-                </span>
-                <span role="cell" className={a.name}>
-                  {row.serviceName}
-                </span>
-                <span role="cell" className={cn(a.code, a.mono)}>
-                  {row.serviceCode}
-                </span>
-                <span role="cell" className={a.when}>
-                  {fmtDateTime(row.requestedAt)}
-                </span>
-                <span role="cell" className={a.chev}>
-                  <Icon name="arrow-up-right" size="sm" />
-                </span>
-              </div>
-            ))
-          }
-        </PagedCard>
-
-        <PagedCard
-          title="반려"
-          desc="반려한 요청이에요 — 사유는 계약상 상세에만 있어서, 행을 눌러 확인해요"
-          icon="warn-tri"
-          tone="danger"
-          state={rejected}
-          columns={REQUEST_COLUMNS}
-          empty={{
-            title: '반려한 요청이 없어요',
-            caption: '반려 처리한 요청이 여기에 모여요',
-          }}
-        >
-          {(rows) =>
-            rows.map((row) => (
-              <div key={row.requestId} role="row" className={cn(a.row, a.rowLink)}>
-                <span role="cell" className={a.knox}>
-                  <Link
-                    href={passRoutes.pipelines.access.request(row.requestId)}
-                    aria-label={`${row.requester.knoxId}의 ${row.serviceName} 반려 내역 상세 보기`}
-                    className="absolute inset-0"
-                  />
-                  {row.requester.knoxId}
-                </span>
-                <span role="cell" className={a.name}>
-                  {row.serviceName}
-                </span>
-                <span role="cell" className={cn(a.code, a.mono)}>
-                  {row.serviceCode}
-                </span>
-                <span role="cell" className={a.when}>
-                  {fmtDateTime(row.requestedAt)}
-                </span>
-                <span role="cell" className={a.chev}>
-                  <Icon name="arrow-up-right" size="sm" />
-                </span>
-              </div>
-            ))
-          }
-        </PagedCard>
+      <div className={a.pageTabStrip} role="tablist" aria-label="권한 요청 탭">
+        {tabs.map(({ key, label, count }) => {
+          const on = key === tab;
+          return (
+            <button
+              key={key}
+              type="button"
+              role="tab"
+              aria-selected={on}
+              onClick={() => setTab(key)}
+              className={cn(a.tab, a.tabLg, on ? a.tabActive : a.tabIdle)}
+            >
+              {label}
+              {/* 아직 모르는 수는 쓰지 않는다. */}
+              {count != null && <span className={a.tabCount}>{count}</span>}
+            </button>
+          );
+        })}
       </div>
 
-      <PagedCard
-        className="mt-6"
-        title="전체 이력"
-        desc="승인·반려는 물론 직접 부여와 해제까지, 권한이 움직인 모든 기록이에요"
-        icon="clock"
-        tone="muted"
-        state={history}
-        columns={HISTORY_COLUMNS}
-        empty={{ title: '표시할 이력이 없어요', caption: '권한이 부여되거나 해제되면 여기에 쌓여요' }}
-      >
-        {(rows) =>
-          rows.map((row) => (
-            <div key={row.historyId} role="row" className={a.row}>
-              <span role="cell" className={a.status}>
-                <HistoryTypePill type={row.type} />
-              </span>
-              <span role="cell" className={a.name}>
-                {row.serviceName ?? '—'}
-              </span>
-              <span role="cell" className={cn(a.code, a.mono)}>
-                {row.serviceCode ?? '—'}
-              </span>
-              <span role="cell" className={a.knox}>
-                {row.targetUser.knoxId}
-              </span>
-              <span role="cell" className={a.knox}>
-                {row.actorUser.knoxId}
-              </span>
-              <span role="cell" className={a.note} title={row.note ?? undefined}>
-                {row.note ?? '—'}
-              </span>
-              <span role="cell" className={a.when}>
-                {fmtDateTime(row.createdAt)}
-              </span>
+      {tab === 'history' ? (
+        <PagedCard
+          className="mt-4"
+          bare
+          // 탭이 이미 "전체 이력 47"이라고 말했다. 머리 줄을 그리면 제목도 건수도 두 번이다.
+          head={null}
+          title="전체 이력"
+          desc="승인·반려는 물론 직접 부여와 해제까지, 권한이 움직인 모든 기록이에요"
+          icon="clock"
+          tone="muted"
+          state={history}
+          columns={HISTORY_COLUMNS}
+          skeleton={historySkeleton}
+          empty={{
+            title: '표시할 이력이 없어요',
+            caption: '권한이 부여되거나 해제되면 여기에 쌓여요',
+          }}
+        >
+          {(entries) =>
+            entries.map((row) => (
+              <div key={row.historyId} role="row" className={a.row}>
+                <span role="cell" className={a.status}>
+                  <HistoryTypePill type={row.type} />
+                </span>
+                <span role="cell" className={cn(a.code, a.monoMd)}>{row.serviceCode ?? '—'}</span>
+                <span role="cell" className={cn(a.svcCol, a.nameStrong)}>
+                  {row.serviceName ?? '—'}
+                </span>
+                <span role="cell" className={a.knox}>
+                  {row.targetUser.knoxId}
+                </span>
+                <span role="cell" className={a.knox}>
+                  {row.actorUser.knoxId}
+                </span>
+                {/* 잘린 문장은 title 로 전문을 준다 — 열 폭이 사유를 없애면 안 된다. */}
+                <span role="cell" className={a.noteWide} title={row.note ?? undefined}>
+                  {row.note ?? '—'}
+                </span>
+                <span role="cell" className={a.when}>
+                  {fmtDateTime(row.createdAt)}
+                </span>
+              </div>
+            ))
+          }
+        </PagedCard>
+      ) : (
+        <div className={a.bench}>
+          {/* 선택 레일 — 카드가 아니라 목록이라 `PagedCard` 를 쓰지 않는다(그쪽은 제목·
+              배지·`role=table` 을 함께 들고 온다). 상태 넷은 여기서 직접 그린다. */}
+          <div className={a.benchList}>
+            <div className={a.benchRows} aria-label={`${tab === 'pending' ? '승인 대기' : '반려'} 요청`}>
+              {list.error != null ? (
+                <div className={a.state}>
+                  <span className="min-w-0 truncate">{errorMessage(list.error)}</span>
+                  <PlButton variant="secondary" size="sm" onClick={list.reload}>
+                    재시도
+                  </PlButton>
+                </div>
+              ) : list.loading ? (
+                Array.from({ length: ACCESS_PAGE_SIZE }, (_, row) => (
+                  <div
+                    key={row}
+                    className={cn(a.benchItem, a.benchItemIdle)}
+                    aria-hidden="true"
+                    aria-busy="true"
+                  >
+                    <span className={a.benchSkelTile} />
+                    <span className={cn(a.skeletonBar, 'flex-1')} />
+                  </div>
+                ))
+              ) : rows.length === 0 ? (
+                <div className={a.empty}>
+                  <span className={a.emptyTitle}>
+                    {tab === 'pending' ? '승인을 기다리는 요청이 없어요' : '반려한 요청이 없어요'}
+                  </span>
+                  <span className={a.emptyCaption}>
+                    {tab === 'pending'
+                      ? '새 접근 권한 요청이 들어오면 여기에 표시돼요'
+                      : '반려 처리한 요청이 여기에 모여요'}
+                  </span>
+                </div>
+              ) : (
+                rows.map((row) => {
+                  const on = row.requestId === currentId;
+                  const days = waitedDays(row.requestedAt);
+                  return (
+                    <button
+                      key={row.requestId}
+                      type="button"
+                      aria-current={on ? 'true' : undefined}
+                      onClick={() => setSelectedId(row.requestId)}
+                      title={`${row.serviceName} (${row.serviceCode})`}
+                      className={cn(a.benchItem, on ? a.benchItemActive : a.benchItemIdle)}
+                    >
+                      <span
+                        className={cn(
+                          serviceSidebarStyles.tile,
+                          serviceTileClass(row.serviceCode),
+                        )}
+                        aria-hidden="true"
+                      >
+                        {row.serviceName.charAt(0).toUpperCase()}
+                      </span>
+                      <span className={a.benchItemStack}>
+                        <span className={on ? a.benchItemNameActive : a.benchItemName}>
+                          {row.serviceName}
+                        </span>
+                        <span className={a.benchItemWho}>{row.requester.email}</span>
+                      </span>
+                      {/* 대기는 승인 대기 탭에서만 뜻이 있다 — 반려된 요청은 더 안 기다린다. */}
+                      {tab === 'pending' && (
+                        <span className={days >= WAIT_WARN_DAYS ? a.benchWaitHot : a.benchWait}>
+                          {days}일
+                        </span>
+                      )}
+                    </button>
+                  );
+                })
+              )}
             </div>
-          ))
-        }
-      </PagedCard>
+            <div className={a.benchFooter}>
+              <OpsPagination
+                page={list.page}
+                totalPages={Math.max(1, list.paged?.totalPages ?? 1)}
+                onChange={list.setPage}
+                always
+              />
+            </div>
+          </div>
+
+          <div className={a.benchPane}>
+            {detailError != null ? (
+              <div className={a.state}>
+                <span className="min-w-0 truncate">{errorMessage(detailError)}</span>
+                <PlButton
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => setDetailRetry((n) => n + 1)}
+                >
+                  재시도
+                </PlButton>
+              </div>
+            ) : list.error != null ? null : list.paged != null && current == null ? (
+              // `current == null` 만으로는 부족하다 — 목록이 도착하기 전에도 고른 것이
+              // 없고, 그때 "없어요"는 아직 모르는 것을 단언하는 말이다. 목록이 실패한
+              // 경우도 마찬가지라 이 자리는 비운다: 오류와 재시도는 왼쪽 레일이 들고 있고,
+              // 실패를 빈 결과로 옮겨 적으면 안 된다.
+              <div className={a.empty}>
+                <span className={a.emptyTitle}>고를 요청이 없어요</span>
+                <span className={a.emptyCaption}>
+                  왼쪽 목록에 요청이 들어오면 여기에서 처리해요
+                </span>
+              </div>
+            ) : detail == null ? (
+              <div aria-busy="true" aria-label="요청을 불러오는 중" className="flex flex-col gap-4">
+                <span className={cn(a.skeletonBar, 'w-1/2')} />
+                <span className={cn(a.skeletonBar, 'w-1/3')} />
+                <span className={cn(a.skeletonBar, 'w-full')} />
+              </div>
+            ) : (
+              <>
+                {/* 타일은 없다 — 서비스가 제목에서 내려오면서 이 시트에서 서비스는
+                    메타가 됐는데, 40px 색면은 제목보다 크고 진한 자리를 계속 차지했다.
+                    고른 요청이 무엇인지는 왼쪽 레일의 타일이 이미 말한다. */}
+                <div className={a.benchHead}>
+                  <div className="min-w-0 flex-1">
+                    <h2 className={a.benchTitle}>접근 권한 요청</h2>
+                  </div>
+                  {/* 대기 경과는 아직 기다리는 요청만의 사실이다. 처리가 끝난 요청은
+                      경과가 아니라 판정을 말해야 한다. */}
+                  {detail.status === 'PENDING' ? (
+                    <span
+                      className={
+                        waitedDays(detail.requestedAt) >= WAIT_WARN_DAYS
+                          ? a.benchWaitHot
+                          : a.benchWait
+                      }
+                    >
+                      {waitedDays(detail.requestedAt)}일 대기
+                    </span>
+                  ) : (
+                    <RequestStatusPill status={detail.status} />
+                  )}
+                </div>
+
+                {/* 사실 셋은 다 같은 급이다 — 제목이 "접근 권한 요청"이라 순서가 곧
+                    누구·무엇·언제이고, 크기로 한 번 더 말할 필요가 없다. 서비스도 머리에
+                    붙은 메타가 아니라 이 셋 중 하나다(오너 지시 2026-08-14). */}
+                <div className={a.benchGrid}>
+                  {/* 요청자는 이메일 하나로 쓴다 — Knox ID 는 이메일의 앞부분이라 둘을
+                      같이 쓰면 같은 사람을 두 줄로 적는 셈이고, 연락은 이메일로 간다. */}
+                  <div className="min-w-0">
+                    <div className={a.benchKey}>요청자</div>
+                    <div className={cn(a.benchVal, 'truncate')}>{detail.requester.email}</div>
+                  </div>
+                  <div className="min-w-0">
+                    <div className={a.benchKey}>서비스</div>
+                    <div className={cn(a.benchVal, 'flex min-w-0 items-center gap-1.5')}>
+                      <span className="min-w-0 truncate">{detail.serviceName}</span>
+                      <span className={a.codeTag}>{detail.serviceCode}</span>
+                    </div>
+                  </div>
+                  <div className="min-w-0">
+                    <div className={a.benchKey}>요청 일시</div>
+                    <div className={cn(a.benchVal, 'tabular-nums')}>
+                      {fmtDateTime(detail.requestedAt)}
+                    </div>
+                  </div>
+                </div>
+
+                <div className={a.benchSection}>
+                  <div className={a.benchLabel}>요청 사유</div>
+                  <p className={a.quoteAsk}>{detail.reason}</p>
+                </div>
+
+                {detail.status === 'PENDING' ? (
+                  // 제목도 설명도 없다 — 버튼 둘이 곧 "승인 결정"이고, 즉시 부여된다는
+                  // 것과 반려에 사유가 필요하다는 것은 각 모달이 누를 때 말한다(둘 다
+                  // `sub`/`label` 에 있다). 누르기 전에 미리 읽힐 필요가 없는 경고다.
+                  <div className={cn(a.benchSection, a.benchDecideActions)}>
+                    <PlButton variant="primary" onClick={() => setModal('approve')}>
+                      승인
+                    </PlButton>
+                    <PlButton variant="danger" onClick={() => setModal('reject')}>
+                      반려
+                    </PlButton>
+                  </div>
+                ) : (
+                  // 처리 이야기는 한 장에 담는다(오너 지시 2026-08-17) — 사실 둘과 글
+                  // 하나가 시트 위에 그냥 쌓여 있으면 어디까지가 처리 이야기인지 경계가
+                  // 없다. 안쪽 모양은 요청 반쪽과 같다: 사실은 키·값으로 격자에, 글은
+                  // 라벨 밑에.
+                  <>
+                    <div className={a.benchGroupTitle}>
+                      {detail.status === 'APPROVED' ? '승인 결과' : '반려 결과'}
+                    </div>
+                    <div className={a.benchGroup}>
+                      <div className={a.benchGroupGrid}>
+                        <div className="min-w-0">
+                          <div className={a.benchKey}>처리자</div>
+                          {/* 요청자와 달리 Knox ID 다 — 전체 이력의 '수행자' 열과 같은 표기라
+                              같은 사람을 두 화면에서 같은 이름으로 읽는다. */}
+                          <div className={cn(a.benchVal, 'truncate')}>
+                            {detail.processedBy?.knoxId ?? '—'}
+                          </div>
+                        </div>
+                        {/* 셋째 칸이다 — 요청 일시 바로 아래에 서야 둘 사이가 얼마나
+                            걸렸는지가 세로로 읽힌다. 가운데 칸은 비운다(처리에는 서비스가 없다). */}
+                        <div className="col-start-3 min-w-0">
+                          <div className={a.benchKey}>처리 일시</div>
+                          <div className={cn(a.benchVal, 'tabular-nums')}>
+                            {fmtDateTime(detail.processedAt)}
+                          </div>
+                        </div>
+                      </div>
+                      <div className={a.benchSection}>
+                        <div className={a.benchLabel}>
+                          {detail.status === 'APPROVED' ? '승인 메시지' : '반려 사유'}
+                        </div>
+                        <p className={a.benchGroupNote}>
+                          {detail.processedNote ??
+                            (detail.status === 'APPROVED'
+                              ? '메시지 없이 승인했어요'
+                              : '사유가 없어요')}
+                        </p>
+                      </div>
+                    </div>
+                  </>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      <ApproveAccessModal
+        open={modal === 'approve'}
+        onClose={() => setModal(null)}
+        subject={subject}
+        onSubmit={(message) => decide('approve', message)}
+      />
+      <RejectAccessModal
+        open={modal === 'reject'}
+        onClose={() => setModal(null)}
+        subject={subject}
+        onSubmit={(reason) => decide('reject', reason)}
+      />
     </div>
   );
 }

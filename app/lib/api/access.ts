@@ -22,7 +22,8 @@ import type {
   AdminListWire,
   AdminServicePageWire,
   AdminServiceRowWire,
-  PermissionRequestDetailPageWire,
+  MyAccessRequestPageWire,
+  MyAccessRequestWire,
   PermissionRequestDetailWire,
   PermissionRequestPageWire,
   PermissionRequestRowWire,
@@ -102,6 +103,23 @@ export interface PermissionRequestDetail {
   processedNote: string | null;
 }
 
+/**
+ * 내 요청 한 줄 — `GET /user/permission-access` 가 싣는 것이 전부다.
+ *
+ * 관리자 상세(`PermissionRequestDetail`)와 이름이 겹치지만 **다른 것이다.** 처리 결과
+ * 셋도 요청자도 오지 않는다. 없는 것을 타입에 적어 두면 화면이 언제나 비어 있는 열을
+ * 그리고, 코드는 오지 않는 필드를 읽는다 — `requester.knox_id` 에서 실제로 터졌다.
+ * 반려 사유가 요청자에게 닿지 않는 건 갭이다(B5).
+ */
+export interface MyAccessRequest {
+  requestId: number;
+  serviceCode: string;
+  serviceName: string;
+  status: AccessRequestStatus;
+  reason: string;
+  requestedAt: string;
+}
+
 export interface AccessHistoryEntry {
   historyId: number;
   type: AccessHistoryType;
@@ -139,6 +157,33 @@ export interface ServiceRow extends UserServiceRow {
 // ── Wire → domain ────────────────────────────────────────────────────────────
 
 /**
+ * 장을 끝까지 읽어 하나로 합친다. 장수는 서버가 말한 `totalPages` 만 따른다.
+ *
+ * 거르는 축(`access_status`)이 계약에 필터로 없어서(갭 B6) 후보 목록은 카탈로그 전체를
+ * 손에 들어야 한다. 첫 장만 받아 놓고 전체인 척하면 그 뒤 서비스들은 **존재하지 않는
+ * 것이 된다** — 신청할 수도 없고 목록에도 안 뜨는데 페이저는 다 보여 준 얼굴을 하고
+ * 있다. 목이 한 장에 다 담기는 크기라 화면으로는 절대 안 보이는 종류의 오류다.
+ *
+ * 08-14 에 이 방식을 접었던 이유는 **왕복 횟수**였다(다섯 줄씩 훑으면 2,059 개에서 열한
+ * 번). 그 전제는 장 크기에 달린 것이라 여기서 뒤집힌다: 부르는 쪽이 `size` 를 크게 잡아
+ * 카탈로그 대부분이 한 장에 담긴다.
+ *
+ * 다만 훑기는 **페이저를 누를 때마다 다시 돈다** — 장 번호가 조회의 입력이라 부르는 쪽이
+ * 목록을 손에 쥐고 있지 못한다. 큰 카탈로그에서는 그 배수가 그대로 비용이고, 지우는
+ * 방법은 캐시가 아니라 서버 필터다(B6).
+ */
+export async function fetchEveryPage<T>(
+  fetchPage: (page: number) => Promise<AccessPage<T>>,
+): Promise<T[]> {
+  const first = await fetchPage(0);
+  const all = [...first.content];
+  for (let page = 1; page < first.totalPages; page += 1) {
+    all.push(...(await fetchPage(page)).content);
+  }
+  return all;
+}
+
+/**
  * 페이지가 아닌 응답(권한 사용자·관리자 전체)을 카드가 쓰는 페이지 모양으로 자른다.
  * 계약이 전체를 주기로 한 이상 나누는 일은 화면 몫이다.
  */
@@ -152,25 +197,6 @@ export function sliceToPage<T>(items: T[], page: number, size: number): AccessPa
     number: page,
     size: safeSize,
   };
-}
-
-/**
- * 페이지를 끝까지 읽어 하나로 합친다.
- *
- * 걸러 내고 세는 축(권한 상태)이 계약에 필터로 없어서 화면이 전체를 들고 있어야 한다.
- * 첫 장만 받아 놓고 전체인 척하면 그 뒤 항목들은 존재하지 않는 것이 되고 — 신청할 수도,
- * 검색으로 찾을 수도 없다 — 헤더가 말하는 건수까지 틀린다. 장수는 서버가 말한
- * `totalPages` 만 따른다.
- */
-export async function fetchEveryPage<T>(
-  fetchPage: (page: number) => Promise<AccessPage<T>>,
-): Promise<T[]> {
-  const first = await fetchPage(0);
-  const all = [...first.content];
-  for (let page = 1; page < first.totalPages; page += 1) {
-    all.push(...(await fetchPage(page)).content);
-  }
-  return all;
 }
 
 const toPage = <W, T>(wire: AccessPageWire<W>, map: (item: W) => T): AccessPage<T> => ({
@@ -219,6 +245,15 @@ const toRequestDetail = (wire: PermissionRequestDetailWire): PermissionRequestDe
   processedNote: wire.processed_note,
 });
 
+const toMyRequest = (wire: MyAccessRequestWire): MyAccessRequest => ({
+  requestId: wire.request_id,
+  serviceCode: wire.service_code,
+  serviceName: wire.service_name,
+  status: wire.status,
+  reason: wire.reason,
+  requestedAt: wire.requested_at,
+});
+
 const toHistoryEntry = (wire: AccessHistoryRowWire): AccessHistoryEntry => ({
   historyId: wire.history_id,
   type: wire.type,
@@ -247,7 +282,13 @@ const toServicePageRow = (wire: ServicePageRowWire): ServiceRow => ({
 
 // ── Client funcs ─────────────────────────────────────────────────────────────
 
-/** 카드 본문 한 장의 행 수 — 화면들이 공유하는 높이. */
+/**
+ * 카드 본문 한 장의 행 수 — 화면들이 공유하는 높이이자 조회의 기본 `size` 다.
+ *
+ * 둘은 같은 수여야 한다. 갈리면 한 장에 열 줄을 받아 다섯 줄짜리 칸에 그리거나,
+ * 스켈레톤이 실제 행보다 짧게 뜬다. 그래서 이름도 하나다 — `PagedCard` 의 스켈레톤과
+ * `sliceToPage` 의 폭까지 전부 여기서 온다.
+ */
 export const ACCESS_PAGE_SIZE = 5;
 
 interface Opts {
@@ -474,14 +515,26 @@ export function createAccessRequest(serviceCode: string, reason: string): Promis
   );
 }
 
-/** 내 요청 내역 (승인·반려 결과 포함) — `GET /user/permission-access` (2026-08-14 확정). */
+/**
+ * 내 요청 내역 — `GET /user/permission-access`.
+ *
+ * `status` 를 주면 그 상태만 온다. 헤더 판정이 상태별 건수를 말해야 하는데 세는 데
+ * 필요한 건 `totalElements` 뿐이라, 목록을 통째로 받아 화면에서 세는 대신 `size=1` 로
+ * 상태마다 한 줄씩 받아 수만 읽는다. 서비스가 2,000 개인 계정에서 전체를 훑으면
+ * 화면 하나가 열 몇 번의 왕복이 된다.
+ */
 export async function getMyAccessRequests(
+  status: AccessRequestStatus | undefined,
   page: number,
   opts?: Opts,
-): Promise<AccessPage<PermissionRequestDetail>> {
-  const wire = await fetchInfraJson<PermissionRequestDetailPageWire>(
-    `/access/permission-access/mine?${query({ page, size: opts?.size ?? ACCESS_PAGE_SIZE })}`,
+): Promise<AccessPage<MyAccessRequest>> {
+  const wire = await fetchInfraJson<MyAccessRequestPageWire>(
+    `/access/permission-access/mine?${query({
+      status,
+      page,
+      size: opts?.size ?? ACCESS_PAGE_SIZE,
+    })}`,
     { signal: opts?.signal },
   );
-  return toPage(wire, toRequestDetail);
+  return toPage(wire, toMyRequest);
 }

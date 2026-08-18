@@ -125,7 +125,7 @@ function seed(): Store {
       grants.push({ serviceCode, userId: user.id });
       history.push({
         historyId: historySeq++,
-        type: n % 3 === 0 ? 'GRANTED' : 'APPROVED',
+        type: n % 3 === 0 ? 'OWNER_GRANTED' : 'REQUEST_APPROVED',
         serviceCode,
         targetUserId: user.id,
         actorUserId: 'admin-1',
@@ -160,19 +160,58 @@ function seed(): Store {
     { requestId: 1011, serviceCode: 'CSC', userId: 'admin-1', reason: '고객센터 상담 이력은 EOS 예정 서비스라 종료 전 스캔 결과를 남겨 두려 합니다.', requestedAt: T(11, 9), status: 'PENDING', processedAt: null, processedBy: null, processedNote: null },
     { requestId: 1012, serviceCode: 'SEL', userId: 'admin-1', reason: '셀러 정산 대상 등록 문의 대응.', requestedAt: T(12, 10), status: 'PENDING', processedAt: null, processedBy: null, processedNote: null },
     { requestId: 1013, serviceCode: 'LOG', userId: 'admin-1', reason: '통합 로그 수집 파이프라인 점검.', requestedAt: T(12, 16), status: 'PENDING', processedAt: null, processedBy: null, processedNote: null },
+
+    // 아래 둘은 이력 첫 장이 여섯 종류를 다 담게 하려고 최근으로 처리해 둔 건이다.
+    // 이력에 REQUEST_* 를 직접 심지 않고 요청 행으로 두는 이유: 반려 탭은 반려된
+    // **요청**을 세므로, 로그에만 반려 이벤트를 넣으면 탭은 4건인데 이력엔 5번
+    // 반려한 것으로 보인다.
+    //
+    // 승인 건의 서비스는 대상자의 권한 목록에 이미 있고(minsu.park ← PRD), 반려 건의
+    // 서비스는 없다(seoyeon.yoon ↛ NTF). 반대로 두면 "승인했는데 권한이 없다"거나
+    // "반려했는데 들어가 있다"가 된다.
+    { requestId: 1014, serviceCode: 'PRD', userId: 'user-4', reason: '상품 마스터 스캔 대상 등록을 맡게 되었습니다.', requestedAt: T(11, 9), status: 'APPROVED', processedAt: T(12, 17), processedBy: 'admin-1', processedNote: '승인했어요.' },
+    { requestId: 1015, serviceCode: 'NTF', userId: 'user-8', reason: '알림 발송 로그의 수신자 정보를 확인하려 합니다.', requestedAt: T(10, 14), status: 'REJECTED', processedAt: T(11, 10), processedBy: 'admin-1', processedNote: '수신자 정보는 마스킹 대상이라 조회 권한을 드리기 어려워요.' },
   ];
 
   for (const request of requests) {
     if (request.status === 'PENDING') continue;
     history.push({
       historyId: historySeq++,
-      type: request.status === 'APPROVED' ? 'APPROVED' : 'REJECTED',
+      type: request.status === 'APPROVED' ? 'REQUEST_APPROVED' : 'REQUEST_REJECTED',
       serviceCode: request.serviceCode,
       targetUserId: request.userId,
       actorUserId: request.processedBy ?? 'admin-1',
       note: request.processedNote,
       createdAt: request.processedAt ?? request.requestedAt,
     });
+  }
+
+  /**
+   * 요청을 거치지 않는 네 종류 — 직접 부여·해제와 관리자 부여·회수. 이 넷은 런타임
+   * 행동으로만 생겨서 seed 직후 이력에는 승인·반려 둘밖에 없었고, 그러면 화면이
+   * 여섯 종류를 어떻게 그리는지 첫 장에서 볼 수가 없다.
+   *
+   * 날짜를 요청 처리분보다 뒤(10~13일)에 두어 위의 REQUEST_* 둘과 함께 이력 첫 장
+   * 8줄 안에 여섯 종류가 다 든다.
+   *
+   * 부여는 대상자가 실제로 그 권한을 갖고 있는 쌍으로, 회수·해제는 갖고 있지 **않은**
+   * 쌍으로 고른다 — 이력과 담당자 목록이 서로 다른 말을 하면 안 된다. 사유는 회수 쪽에만
+   * 있다(피드는 사유가 있을 때만 셋째 줄을 그린다).
+   *
+   * `ADMIN_*` 둘은 서비스가 아니라 **관리자 역할**의 부여·회수다 — `service_code` 는
+   * 계약상 언제나 null 이고(계약서 `AccessHistoryRow`), 이 파일의 런타임 기록부도 그렇게
+   * 쓴다. 한동안 여기 seed 만 'RVW'·'CSC' 를 싣고 있어서, 서비스 이력에 실서버가 만들 수
+   * 없는 줄이 떴다. 둘 다 대상이 `user-6` 인 것도 그래서다: 줬다가(12일) 거둔(13일) 한
+   * 사람이라 최종 상태가 `admins` 와 맞는다.
+   */
+  const directEvents: Omit<HistoryEntry, 'historyId'>[] = [
+    { type: 'ADMIN_REVOKED', serviceCode: null, targetUserId: 'user-6', actorUserId: 'admin-1', note: null, createdAt: T(13, 16) },
+    { type: 'OWNER_GRANTED', serviceCode: 'IVT', targetUserId: 'user-5', actorUserId: 'user-1', note: null, createdAt: T(13, 11) },
+    { type: 'ADMIN_GRANTED', serviceCode: null, targetUserId: 'user-6', actorUserId: 'admin-1', note: null, createdAt: T(12, 13) },
+    { type: 'OWNER_REVOKED', serviceCode: 'DLV', targetUserId: 'user-7', actorUserId: 'user-2', note: '배송 정산 과제가 끝나 해제했어요.', createdAt: T(11, 15) },
+  ];
+  for (const event of directEvents) {
+    history.push({ ...event, historyId: historySeq++ });
   }
 
   return {
@@ -182,7 +221,8 @@ function seed(): Store {
     history,
     admins: users.filter((user) => user.role === 'ADMIN').map((user) => user.id),
     serviceTouchedAt,
-    requestSeq: 1014,
+    /** seed 의 마지막 requestId 다음 값 — 위 배열을 늘리면 여기도 같이 올린다. */
+    requestSeq: 1016,
     historySeq,
   };
 }
@@ -375,7 +415,7 @@ export const mockAccess = {
     for (const email of list) {
       const user = userByEmail(email);
       if (!user || !addGrant(serviceCode, user.id)) continue;
-      log({ type: 'GRANTED', serviceCode, targetUserId: user.id, actorUserId: caller.id, note: null });
+      log({ type: 'OWNER_GRANTED', serviceCode, targetUserId: user.id, actorUserId: caller.id, note: null });
     }
     return NextResponse.json(serviceOwnersWire(serviceCode));
   },
@@ -391,7 +431,7 @@ export const mockAccess = {
     if (index < 0) return notFound('해당 사용자는 이 서비스 권한을 가지고 있지 않아요.');
     s.grants.splice(index, 1);
     user.serviceCodePermissions = user.serviceCodePermissions.filter((c) => c !== serviceCode);
-    log({ type: 'REVOKED', serviceCode, targetUserId: user.id, actorUserId: caller.id, note: null });
+    log({ type: 'OWNER_REVOKED', serviceCode, targetUserId: user.id, actorUserId: caller.id, note: null });
     return NextResponse.json(serviceOwnersWire(serviceCode));
   },
 
@@ -464,7 +504,7 @@ export const mockAccess = {
     request.processedNote = trim(message) || null;
     addGrant(request.serviceCode, request.userId);
     log({
-      type: 'APPROVED',
+      type: 'REQUEST_APPROVED',
       serviceCode: request.serviceCode,
       targetUserId: request.userId,
       actorUserId: caller.id,
@@ -487,7 +527,7 @@ export const mockAccess = {
     request.processedBy = caller.id;
     request.processedNote = text;
     log({
-      type: 'REJECTED',
+      type: 'REQUEST_REJECTED',
       serviceCode: request.serviceCode,
       targetUserId: request.userId,
       actorUserId: caller.id,
@@ -570,19 +610,33 @@ export const mockAccess = {
   },
 
   /**
-   * GET /permission-access/mine?page&size — 사용자 본인의 요청 내역.
+   * GET /permission-access/mine?status&page&size — 사용자 본인의 요청 내역.
    *
    * 업스트림은 `/user/permission-access` — 2026-08-14 실구현으로 갭 B4 가 닫혔다.
-   * 상세와 같은 shape 을 페이지로 준다. `access_status` 만으로는 반려 사유도 처리
-   * 일시도 말할 수 없어서, 이 엔드포인트가 있어야 "승인 내역 조회"가 성립한다.
+   * **상세와 같은 shape 이 아니다**: 실응답은 여섯 필드뿐이라 요청자도 처리 결과도 오지
+   * 않는다(그 shape 을 가정했다가 `requester.knox_id` 에서 터졌다). `access_status`
+   * 만으로는 처리 일시를 말할 수 없어서, 이 엔드포인트가 있어야 "승인 내역 조회"가
+   * 성립한다 — 반려 사유는 아직 못 온다(B5).
+   *
+   * `status` 를 주면 그 상태만. 화면 머리가 상태별 건수를 `size=1` 로 세는 축이다.
    */
-  listMyRequests: async (pageNumber: number, size: number) => {
+  listMyRequests: async (status: string | undefined, pageNumber: number, size: number) => {
     const caller = me();
     if (!caller) return forbidden('로그인이 필요해요.');
     const rows = getStore()
       .requests.filter((r) => r.userId === caller.id)
+      .filter((r) => !status || r.status === status)
       .sort((a, b) => b.requestedAt.localeCompare(a.requestedAt))
-      .map(requestDetailWire);
+      // 실구현이 싣는 여섯 필드만 — 관리자 상세의 shape 을 여기서 흉내 내면 목이
+      // 있지도 않은 처리 결과를 주고, 화면은 실서버에서만 비는 열을 그린다.
+      .map((r) => ({
+        request_id: r.requestId,
+        service_code: r.serviceCode,
+        service_name: serviceName(r.serviceCode),
+        status: r.status,
+        reason: r.reason,
+        requested_at: r.requestedAt,
+      }));
     return NextResponse.json(page(rows, pageNumber, size));
   },
 

@@ -32,7 +32,6 @@ import { serviceListStyles } from '@/app/admin/pipelines/_services/styles';
 
 import {
   PagedCard,
-  ROWS_PER_PAGE,
   errorMessage,
   usePagedSection,
   type Column,
@@ -44,6 +43,7 @@ import {
 import { HistoryTypePill } from '@/app/admin/pipelines/access/_components/AccessPills';
 import { accessStyles as a } from '@/app/admin/pipelines/access/_components/accessStyles';
 import {
+  ACCESS_PAGE_SIZE,
   addServiceOwners,
   getAccessHistory,
   getAdminServices,
@@ -67,7 +67,7 @@ const emptyPage = <T,>(): AccessPage<T> => ({
   totalElements: 0,
   totalPages: 1,
   number: 0,
-  size: ROWS_PER_PAGE,
+  size: ACCESS_PAGE_SIZE,
 });
 
 /**
@@ -144,9 +144,12 @@ export default function AccessServicesPage(): ReactElement {
   const listName = services.find((svc) => svc.serviceCode === selectedCode)?.serviceName ?? null;
 
   // 다른 페이지에 있는 서비스로 바로 들어온 경우에만 이름을 한 번 찾아온다.
+  // 레일이 아직 안 왔으면 기다린다 — `services` 는 빈 배열로 시작하니 그때의 listName
+  // null 은 "레일에 없다"가 아니라 "아직 모른다"다. 그걸 답으로 읽으면 URL 로 들어올
+  // 때마다 같은 목록을 한 번 더 부른다.
   useAbortableEffect(
     (signal) => {
-      if (!selectedCode || listName) return;
+      if (!selectedCode || listName || servicesLoading) return;
       return getAdminServices(selectedCode, 0, { signal, size: SERVICE_PAGE_SIZE })
         .then((page) => {
           if (signal.aborted) return;
@@ -155,7 +158,7 @@ export default function AccessServicesPage(): ReactElement {
         })
         .catch(() => {});
     },
-    [selectedCode, listName],
+    [selectedCode, listName, servicesLoading],
   );
 
   const selectedName =
@@ -177,14 +180,14 @@ export default function AccessServicesPage(): ReactElement {
       }
       const { owners } = await getServiceOwners(selectedCode, opts);
       if (!opts.signal.aborted) setAllOwners(owners);
-      return sliceToPage(owners, page, ROWS_PER_PAGE);
+      return sliceToPage(owners, page, ACCESS_PAGE_SIZE);
     },
     [selectedCode],
   );
   const fetchHistory = useCallback(
     (page: number, opts: { signal: AbortSignal }): Promise<AccessPage<AccessHistoryEntry>> =>
       selectedCode
-        ? getAccessHistory({ serviceCode: selectedCode }, page, { ...opts, size: ROWS_PER_PAGE })
+        ? getAccessHistory({ serviceCode: selectedCode }, page, opts)
         : Promise.resolve(emptyPage<AccessHistoryEntry>()),
     [selectedCode],
   );

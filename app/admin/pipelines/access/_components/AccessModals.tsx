@@ -23,6 +23,13 @@ import { errorMessage } from '@/app/admin/pipelines/access/_components/PagedCard
  * 서버가 상한을 확정하면 그 값으로 맞춘다.
  */
 const MAX_TEXT = 1000;
+/**
+ * 권한 요청 사유만 500 이다(오너 지시 2026-08-14). 이 글은 승인 시트의 고정 높이
+ * 파란 칸에서 읽히는데, 1000자면 그 칸을 세 번 넘게 스크롤해야 끝까지 읽힌다 —
+ * 읽는 자리가 정해져 있으면 쓰는 칸도 거기에 맞춰야 한다. 승인 메시지·반려 사유는
+ * 그대로 1000 이다: 그쪽은 요청자에게 통째로 전달되는 글이라 잘릴 자리가 없다.
+ */
+const MAX_REASON = 500;
 /** 타이핑이 멎고 나서 찾는다. 한 글자마다 쏘면 사람 목록을 훑는 요청이 줄줄이 나간다. */
 const SEARCH_DEBOUNCE_MS = 500;
 
@@ -190,6 +197,104 @@ export function UserPickerModal({
   );
 }
 
+// ── 글 한 칸짜리 모달 (승인 · 반려 · 권한 요청) ──────────────────────────────
+
+/**
+ * 사유·메시지를 한 칸 받아 제출하는 모달. 셋(승인·반려·권한 요청)이 문구만 다르고
+ * 규칙은 같아서 몸통을 하나로 둔다 — 닫을 때 비우기, 제출 중 잠그기, `max` 로 자르기,
+ * 그리고 필수 칸이면 비어 있는 동안 CTA 를 잠그기.
+ *
+ * 셋을 따로 두면 이 규칙 넷이 세 벌로 갈린다. 실제로 갈려 있었다 — 승인만 잘라내기가
+ * 빠져 있었다.
+ */
+interface TextModalProps {
+  open: boolean;
+  onClose: () => void;
+  title: string;
+  sub: string;
+  /** 입력 칸 위 라벨. "· 필수"/"· 선택"까지 여기서 적는다. */
+  label: string;
+  placeholder: string;
+  submitLabel: string;
+  /** 비어 있으면 제출할 수 없는 칸인지. */
+  required?: boolean;
+  /** 되돌릴 수 없는 쪽(반려)의 CTA. */
+  danger?: boolean;
+  /** 입력 상한. 세 모달의 기본은 `MAX_TEXT` 고, 권한 요청 사유만 낮춰 받는다. */
+  max?: number;
+  eyebrowCtx?: string;
+  eyebrowId?: string;
+  onSubmit: (text: string) => Promise<void>;
+}
+
+function TextModal({
+  open,
+  onClose,
+  title,
+  sub,
+  label,
+  placeholder,
+  submitLabel,
+  required,
+  danger,
+  max = MAX_TEXT,
+  eyebrowCtx,
+  eyebrowId,
+  onSubmit,
+}: TextModalProps): ReactElement {
+  const [text, setText] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const { modal } = tqStyles;
+
+  useEffect(() => {
+    if (!open) setText('');
+  }, [open]);
+
+  const submit = async (): Promise<void> => {
+    setSubmitting(true);
+    try {
+      await onSubmit(text.slice(0, max));
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <TqModal
+      open={open}
+      onClose={onClose}
+      eyebrowCtx={eyebrowCtx}
+      eyebrowId={eyebrowId}
+      title={title}
+      sub={sub}
+      footer={
+        <>
+          <PlButton variant="secondary" onClick={onClose} disabled={submitting}>
+            취소
+          </PlButton>
+          <PlButton
+            variant={danger ? 'dangerSolid' : 'primary'}
+            onClick={submit}
+            disabled={submitting || (required === true && text.trim().length === 0)}
+          >
+            {submitLabel}
+          </PlButton>
+        </>
+      }
+    >
+      <div className={modal.label}>{label}</div>
+      <textarea
+        className={modal.textarea}
+        maxLength={max}
+        value={text}
+        onChange={(event) => setText(event.target.value)}
+        placeholder={placeholder}
+      />
+      <CharCount count={text.length} max={max} />
+    </TqModal>
+  );
+}
+
 // ── 승인 / 반려 ──────────────────────────────────────────────────────────────
 
 export interface VerdictModalProps {
@@ -206,50 +311,17 @@ export function ApproveAccessModal({
   subject,
   onSubmit,
 }: VerdictModalProps): ReactElement {
-  const [message, setMessage] = useState('');
-  const [submitting, setSubmitting] = useState(false);
-  const { modal } = tqStyles;
-
-  useEffect(() => {
-    if (!open) setMessage('');
-  }, [open]);
-
-  const submit = async (): Promise<void> => {
-    setSubmitting(true);
-    try {
-      await onSubmit(message);
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
   return (
-    <TqModal
+    <TextModal
       open={open}
       onClose={onClose}
       title="접근 권한 요청 승인"
       sub={`${subject}을 승인해요. 승인하는 즉시 해당 서비스 권한이 부여돼요.`}
-      footer={
-        <>
-          <PlButton variant="secondary" onClick={onClose} disabled={submitting}>
-            취소
-          </PlButton>
-          <PlButton variant="primary" onClick={submit} disabled={submitting}>
-            승인
-          </PlButton>
-        </>
-      }
-    >
-      <div className={modal.label}>승인 메시지 · 선택</div>
-      <textarea
-        className={modal.textarea}
-        maxLength={MAX_TEXT}
-        value={message}
-        onChange={(event) => setMessage(event.target.value)}
-        placeholder="요청자에게 전달할 메시지를 남길 수 있어요"
-      />
-      <CharCount count={message.length} max={MAX_TEXT} />
-    </TqModal>
+      label="승인 메시지 · 선택"
+      placeholder="요청자에게 전달할 메시지를 남길 수 있어요"
+      submitLabel="승인"
+      onSubmit={onSubmit}
+    />
   );
 }
 
@@ -259,54 +331,19 @@ export function RejectAccessModal({
   subject,
   onSubmit,
 }: VerdictModalProps): ReactElement {
-  const [reason, setReason] = useState('');
-  const [submitting, setSubmitting] = useState(false);
-  const { modal } = tqStyles;
-
-  useEffect(() => {
-    if (!open) setReason('');
-  }, [open]);
-
-  const submit = async (): Promise<void> => {
-    setSubmitting(true);
-    try {
-      await onSubmit(reason.slice(0, MAX_TEXT));
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
   return (
-    <TqModal
+    <TextModal
       open={open}
       onClose={onClose}
       title="접근 권한 요청 반려"
       sub={`${subject}을 반려해요. 사유는 요청자에게 그대로 전달돼요.`}
-      footer={
-        <>
-          <PlButton variant="secondary" onClick={onClose} disabled={submitting}>
-            취소
-          </PlButton>
-          <PlButton
-            variant="dangerSolid"
-            onClick={submit}
-            disabled={reason.trim().length === 0 || submitting}
-          >
-            반려
-          </PlButton>
-        </>
-      }
-    >
-      <div className={modal.label}>반려 사유 · 필수</div>
-      <textarea
-        className={modal.textarea}
-        maxLength={MAX_TEXT}
-        value={reason}
-        onChange={(event) => setReason(event.target.value)}
-        placeholder="요청자가 무엇을 보완해 다시 요청해야 하는지 적어 주세요"
-      />
-      <CharCount count={reason.length} max={MAX_TEXT} />
-    </TqModal>
+      label="반려 사유 · 필수"
+      placeholder="요청자가 무엇을 보완해 다시 요청해야 하는지 적어 주세요"
+      submitLabel="반려"
+      required
+      danger
+      onSubmit={onSubmit}
+    />
   );
 }
 
@@ -364,6 +401,64 @@ export function ConfirmDangerModal({
   );
 }
 
+// ── 담당자 보기 (요청자 측, 읽기 전용) ───────────────────────────────────────
+
+export interface OwnersModalProps {
+  open: boolean;
+  onClose: () => void;
+  serviceCode: string;
+  serviceName: string;
+  /** 담당자 표시명 = Knox ID. 계약에 사람 이름이 없다. */
+  owners: string[];
+  /** `owners` 는 잘려 올 수 있고, 이쪽은 언제나 맞는 전체 수다. */
+  ownerCount: number;
+}
+
+/**
+ * 한 서비스의 담당자 — 목록 행의 [담당자 보기] 가 연다(오너 지시 2026-08-17).
+ *
+ * 행 안에 펼치던 것을 모달로 옮겼다. 행의 둘째 단은 한 줄이라 이름이 넘치면 잘렸는데,
+ * 펼쳐서 본 답이 또 잘리면 펼친 의미가 없다. 여기서는 몇 명이든 세로로 선다.
+ *
+ * 읽기만 하는 모달이라 footer 가 없다 — TqModal 은 그때 머리에 X 를 그린다(닫기 하나만
+ * 든 footer 를 두지 않는다).
+ *
+ * 새로 조회하지 않는다. 이 이름들은 목록 행이 이미 싣고 온 값이고(`/services-page` 의
+ * `owners`), 전체를 주는 담당자 조회는 ADMIN 전용이라 요청자는 부를 수 없다.
+ */
+export function OwnersModal({
+  open,
+  onClose,
+  serviceCode,
+  serviceName,
+  owners,
+  ownerCount,
+}: OwnersModalProps): ReactElement {
+  const hidden = ownerCount - owners.length;
+  return (
+    <TqModal
+      open={open}
+      onClose={onClose}
+      eyebrowCtx="담당자"
+      eyebrowId={serviceCode}
+      title={`${serviceName} 담당자`}
+      sub="이 서비스의 접근 권한 요청을 검토하는 사람들이에요."
+    >
+      <div className={a.pickerList}>
+        {owners.map((knoxId) => (
+          <div key={knoxId} className={a.ownerRow}>
+            <span className={a.pickerName}>{knoxId}</span>
+          </div>
+        ))}
+        {/* 서버가 배열을 잘라 보냈을 때 — 이름을 지어내지 않고 수만 말한다. */}
+        {hidden > 0 && (
+          <div className={a.pickerEmpty}>여기 없는 담당자가 {hidden}명 더 있어요</div>
+        )}
+      </div>
+    </TqModal>
+  );
+}
+
 // ── 권한 요청 (요청자 측) ────────────────────────────────────────────────────
 
 export interface RequestAccessModalProps {
@@ -381,55 +476,20 @@ export function RequestAccessModal({
   serviceName,
   onSubmit,
 }: RequestAccessModalProps): ReactElement {
-  const [reason, setReason] = useState('');
-  const [submitting, setSubmitting] = useState(false);
-  const { modal } = tqStyles;
-
-  useEffect(() => {
-    if (!open) setReason('');
-  }, [open]);
-
-  const submit = async (): Promise<void> => {
-    setSubmitting(true);
-    try {
-      await onSubmit(reason.slice(0, MAX_TEXT));
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
   return (
-    <TqModal
+    <TextModal
       open={open}
       onClose={onClose}
       eyebrowCtx="접근 권한 요청"
       eyebrowId={serviceCode}
       title={`${serviceName} 접근 권한 요청`}
       sub="관리자가 검토한 뒤 승인하거나 반려해요. 결과는 내 요청 내역에서 확인할 수 있어요."
-      footer={
-        <>
-          <PlButton variant="secondary" onClick={onClose} disabled={submitting}>
-            취소
-          </PlButton>
-          <PlButton
-            variant="primary"
-            onClick={submit}
-            disabled={reason.trim().length === 0 || submitting}
-          >
-            요청
-          </PlButton>
-        </>
-      }
-    >
-      <div className={modal.label}>요청 사유 · 필수</div>
-      <textarea
-        className={modal.textarea}
-        maxLength={MAX_TEXT}
-        value={reason}
-        onChange={(event) => setReason(event.target.value)}
-        placeholder="어떤 업무 때문에 이 서비스 접근이 필요한지 적어 주세요"
-      />
-      <CharCount count={reason.length} max={MAX_TEXT} />
-    </TqModal>
+      label="요청 사유 · 필수"
+      placeholder="어떤 업무 때문에 이 서비스 접근이 필요한지 적어 주세요"
+      submitLabel="요청"
+      required
+      max={MAX_REASON}
+      onSubmit={onSubmit}
+    />
   );
 }

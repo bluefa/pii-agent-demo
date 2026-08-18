@@ -21,7 +21,7 @@ import * as mockData from '@/lib/mock-data';
 import type {
   AccessHistoryPageWire,
   AdminListWire,
-  PermissionRequestDetailPageWire,
+  MyAccessRequestPageWire,
   PermissionRequestDetailWire,
   PermissionRequestPageWire,
   ServiceOwnersWire,
@@ -76,7 +76,7 @@ describe('승인', () => {
       await mockAccess.listHistory({ serviceCode: 'aws' }, 0, 50),
     );
     const entry = history.content.find(
-      (row) => row.type === 'APPROVED' && row.target_user.email === CHOI,
+      (row) => row.type === 'REQUEST_APPROVED' && row.target_user.email === CHOI,
     );
     expect(entry).toBeDefined();
     expect(entry?.actor_user.email).toBe(ADMIN);
@@ -143,7 +143,7 @@ describe('직접 부여 · 해제', () => {
     const history = await body<AccessHistoryPageWire>(
       await mockAccess.listHistory({ serviceCode: 'gcp' }, 0, 50),
     );
-    expect(history.content[0]?.type).toBe('GRANTED');
+    expect(history.content[0]?.type).toBe('OWNER_GRANTED');
   });
 
   it('service_code 필터는 그 서비스의 이력만 돌려준다', async () => {
@@ -219,13 +219,24 @@ describe('요청자 측', () => {
   });
 
   it('ADMIN 은 담당 서비스 목록으로도 전체를 받는다 — 화면이 OWNED 로 다시 거른다', async () => {
-    mockData.setCurrentUser('admin-1'); // PAY·MBR 두 건만 담당
+    mockData.setCurrentUser('admin-1');
+    // 담당 서비스 목록을 여기 베껴 적지 않는다. 그 목록은 화면을 보려고 늘었다 줄었다
+    // 하는 값이고(2026-08-17 에 두 건 → 여덟 건), 이 테스트가 붙잡는 건 그 목록이 아니라
+    // "ADMIN 에게는 전체가 오고, 담당인 것만 OWNED 로 갈린다"다.
+    // 조회 **뒤에** 읽는다. 스토어는 첫 조회 때 늦게 심기고 그때 이 배열을 다시 잡으므로,
+    // 먼저 읽어 두면 심기 전 값을 붙잡게 된다 — 지금은 admin-1 을 건드리는 테스트가 없어
+    // 같은 값이지만, 하나 생기는 순간 조용히 어긋난다.
     const mine = await body<UserServicePageWire>(
       await mockAccess.listUserServices(undefined, 0, 100),
     );
+    const declared = mockData.mockUsers.find((u) => u.id === 'admin-1')?.serviceCodePermissions;
     expect(mine.content.length).toBe(mockData.mockServiceCodes.length);
-    expect(mine.content.filter((row) => row.access_status === 'OWNED').map((r) => r.service_code))
-      .toEqual(['PAY', 'MBR']);
+    expect(
+      mine.content
+        .filter((row) => row.access_status === 'OWNED')
+        .map((r) => r.service_code)
+        .sort(),
+    ).toEqual([...(declared ?? [])].sort());
   });
 
   it('전체 목록의 행은 담당자를 싣는다 — 없으면 빈 배열과 0', async () => {
@@ -268,8 +279,8 @@ describe('요청자 측', () => {
     expect((await mockAccess.createRequest('gcp', '첫 요청')).status).toBe(200);
     expect((await mockAccess.createRequest('gcp', '두 번째 요청')).status).toBe(200);
 
-    const mine = await body<PermissionRequestDetailPageWire>(
-      await mockAccess.listMyRequests(0, 50),
+    const mine = await body<MyAccessRequestPageWire>(
+      await mockAccess.listMyRequests(undefined, 0, 50),
     );
     expect(mine.content.filter((row) => row.service_code === 'gcp')).toHaveLength(1);
     expect(mine.content.find((row) => row.service_code === 'gcp')?.reason).toBe('첫 요청');
@@ -303,16 +314,46 @@ describe('요청자 측', () => {
     );
   });
 
-  it('내 요청 내역은 내 것만, 반려 사유까지 담는다', async () => {
+  /**
+   * 실구현이 싣는 건 여섯 필드뿐이다 — 요청자도, 처리 결과 셋도 오지 않는다. 목이
+   * 관리자 상세의 shape 을 흉내 내는 동안 화면은 `requester.knox_id` 를 읽었고,
+   * 실서버에서 그 줄이 터졌다. 목이 좁은 채로 남아 있는지를 여기서 지킨다.
+   */
+  it('내 요청 내역은 내 것만, 계약이 싣는 여섯 필드만 준다', async () => {
     mockData.setCurrentUser('user-7');
-    const mine = await body<PermissionRequestDetailPageWire>(
-      await mockAccess.listMyRequests(0, 50),
+    const mine = await body<MyAccessRequestPageWire>(
+      await mockAccess.listMyRequests(undefined, 0, 50),
     );
     expect(mine.content.length).toBeGreaterThan(0);
-    expect(mine.content.every((row) => row.requester.email === 'kang@company.com')).toBe(true);
-    expect(mine.content.find((row) => row.status === 'REJECTED')?.processed_note).toContain(
-      '담당 조직',
-    );
+    expect(Object.keys(mine.content[0] ?? {}).sort()).toEqual([
+      'reason',
+      'request_id',
+      'requested_at',
+      'service_code',
+      'service_name',
+      'status',
+    ]);
+  });
+
+  it('status 를 주면 그 상태만 온다 — 헤더 건수가 이걸로 센다', async () => {
+    // 요청이 한 상태로만 있는 사용자로 재면 필터를 지워도 통과한다. 세 상태가 다 있는
+    // admin-1 로 재고, 각각의 `totalElements` 를 **정확한 수**로 못박는다 — 화면 머리가
+    // 읽는 건 목록이 아니라 이 값이다(`size: 1` 로 한 줄만 받고 수만 읽는다).
+    mockData.setCurrentUser('admin-1');
+    const counts: Record<string, number> = {};
+    for (const status of ['PENDING', 'APPROVED', 'REJECTED'] as const) {
+      const page = await body<MyAccessRequestPageWire>(
+        await mockAccess.listMyRequests(status, 0, 1),
+      );
+      expect(page.content.every((row) => row.status === status)).toBe(true);
+      expect(page.content.length).toBeLessThanOrEqual(1);
+      counts[status] = page.totalElements;
+    }
+    expect(counts).toEqual({ PENDING: 3, APPROVED: 2, REJECTED: 2 });
+
+    // 필터를 안 주면 셋의 합이 온다 — 화면의 탭 배지와 머리 세 수가 여기서 맞물린다.
+    const all = await body<MyAccessRequestPageWire>(await mockAccess.listMyRequests(undefined, 0, 1));
+    expect(all.totalElements).toBe(7);
   });
 
   it('관리자가 아니면 관리자용 목록을 볼 수 없다', async () => {

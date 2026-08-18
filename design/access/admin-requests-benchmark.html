@@ -1,0 +1,787 @@
+<meta charset="utf-8">
+<title>승인 큐 벤치마크</title>
+<style>
+:root{
+  --bg:#FFFFFF; --panel:#F8F9FC; --panel2:#F2F4F8; --ink:#191F28; --body:#4E5968; --mute:#8B95A1;
+  --line:#E5E8EB; --accent:#0064FF; --accent-soft:#EBF2FF; --accent-ink:#0050CC;
+  --p0:#D22030; --p0-soft:#FDEBED; --p1:#B54708; --p1-soft:#FDF3E3; --p2:#556170; --p2-soft:#EEF1F4;
+  --ok:#0A7D45; --ok-soft:#E8F6EE; --code:#EFF2F6;
+  --shadow:0 1px 2px rgba(25,31,40,.04),0 8px 24px rgba(25,31,40,.06);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#101419; --panel:#161B22; --panel2:#1C232C; --ink:#E9EDF2; --body:#AAB4C0; --mute:#77828F;
+    --line:#2A323D; --accent:#4D94FF; --accent-soft:#12233D; --accent-ink:#7FB1FF;
+    --p0:#FF7A85; --p0-soft:#3A1A20; --p1:#F0A860; --p1-soft:#382513; --p2:#9AA6B4; --p2-soft:#232B34;
+    --ok:#57C98B; --ok-soft:#12301F; --code:#1D242E;
+    --shadow:0 1px 2px rgba(0,0,0,.3),0 8px 24px rgba(0,0,0,.35);
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#101419; --panel:#161B22; --panel2:#1C232C; --ink:#E9EDF2; --body:#AAB4C0; --mute:#77828F;
+  --line:#2A323D; --accent:#4D94FF; --accent-soft:#12233D; --accent-ink:#7FB1FF;
+  --p0:#FF7A85; --p0-soft:#3A1A20; --p1:#F0A860; --p1-soft:#382513; --p2:#9AA6B4; --p2-soft:#232B34;
+  --ok:#57C98B; --ok-soft:#12301F; --code:#1D242E;
+  --shadow:0 1px 2px rgba(0,0,0,.3),0 8px 24px rgba(0,0,0,.35);
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+@media (prefers-reduced-motion: reduce){html{scroll-behavior:auto}}
+body{margin:0;background:var(--bg);color:var(--ink);
+  font-family:"Pretendard Variable",Pretendard,-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Segoe UI","Malgun Gothic",sans-serif;
+  font-size:16px;line-height:1.65;-webkit-font-smoothing:antialiased}
+a{color:var(--accent-ink);text-decoration:none}
+a:hover{text-decoration:underline}
+a:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:4px}
+.wrap{max-width:1060px;margin:0 auto;padding:0 28px 96px}
+code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.86em;background:var(--code);
+  padding:1px 5px;border-radius:4px;color:var(--ink);word-break:break-all}
+h1,h2,h3,h4{text-wrap:balance;line-height:1.3}
+h2{font-size:24px;font-weight:700;margin:0 0 6px}
+h3{font-size:18px;font-weight:700;margin:34px 0 10px}
+p{margin:8px 0}
+.hero{padding:64px 0 34px;border-bottom:1px solid var(--line)}
+.eyebrow{font-size:12px;font-weight:700;letter-spacing:.14em;color:var(--accent-ink);text-transform:uppercase;margin-bottom:14px}
+.hero h1{font-size:34px;font-weight:800;margin:0 0 14px;letter-spacing:-.02em}
+.hero p{max-width:64ch;color:var(--body);font-size:16px;margin:0}
+.meta{display:flex;gap:18px;flex-wrap:wrap;margin-top:20px;font-size:14px;color:var(--mute)}
+.meta b{color:var(--body);font-weight:600}
+.nav{position:sticky;top:0;z-index:30;background:var(--bg);border-bottom:1px solid var(--line);
+  display:flex;gap:6px;overflow-x:auto;padding:10px 28px;margin:0 -28px}
+.nav a{flex:0 0 auto;font-size:14px;font-weight:600;color:var(--body);padding:6px 12px;border-radius:999px;border:1px solid var(--line)}
+.nav a:hover{background:var(--panel);text-decoration:none}
+section{padding-top:56px}
+.sec-eyebrow{font-size:12px;font-weight:700;letter-spacing:.14em;color:var(--mute);text-transform:uppercase}
+.sec-sub{color:var(--body);max-width:72ch;margin:4px 0 22px}
+.chip{display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:700;padding:2px 9px;border-radius:999px;white-space:nowrap;vertical-align:1px}
+.chip.p0{background:var(--p0-soft);color:var(--p0)}
+.chip.p1{background:var(--p1-soft);color:var(--p1)}
+.chip.p2{background:var(--p2-soft);color:var(--p2)}
+.chip.ok{background:var(--ok-soft);color:var(--ok)}
+.verdict{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin:26px 0 8px}
+@media(max-width:860px){.verdict{grid-template-columns:1fr}}
+.vcard{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:20px 20px 18px}
+.vcard .no{font-size:12px;font-weight:800;color:var(--accent-ink);letter-spacing:.08em}
+.vcard h4{margin:6px 0 8px;font-size:16px}
+.vcard p{margin:0;font-size:14px;color:var(--body)}
+.tblwrap{overflow-x:auto;border:1px solid var(--line);border-radius:12px;margin:14px 0}
+table{border-collapse:collapse;width:100%;font-size:14px;min-width:660px}
+th{background:var(--panel);text-align:left;font-size:12px;letter-spacing:.04em;color:var(--mute);font-weight:700;padding:9px 14px;border-bottom:1px solid var(--line);white-space:nowrap}
+td{padding:9px 14px;border-bottom:1px solid var(--line);vertical-align:top;color:var(--body)}
+tr:last-child td{border-bottom:none}
+td b{color:var(--ink);font-weight:600}
+.callout{border-radius:12px;padding:15px 18px;margin:16px 0;font-size:14px;border:1px solid var(--line);background:var(--panel)}
+.callout.blue{background:var(--accent-soft);border-color:transparent;color:var(--ink)}
+.callout.red{background:var(--p0-soft);border-color:transparent}
+.callout .lbl{display:block;margin-bottom:5px;font-weight:700;font-size:12px;letter-spacing:.06em;color:var(--accent-ink)}
+.callout.red .lbl{color:var(--p0)}
+.alt{border:1px solid var(--line);border-radius:16px;margin:26px 0;overflow:hidden;box-shadow:var(--shadow)}
+.alt.win{border-color:var(--accent)}
+.alt-head{padding:18px 24px 0;display:flex;gap:12px;align-items:baseline;flex-wrap:wrap}
+.alt-key{font-size:14px;font-weight:800;color:var(--accent-ink);background:var(--accent-soft);border-radius:8px;padding:3px 10px}
+.alt-head h4{margin:0;font-size:18px;flex:1}
+.alt-body{padding:14px 24px 22px;font-size:14px;color:var(--body)}
+.alt-body ul{margin:6px 0 12px;padding-left:18px}
+.alt-body li{margin:4px 0}
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:22px}
+@media(max-width:860px){.cols{grid-template-columns:1fr}}
+.lbl{font-weight:700;color:var(--ink);font-size:12px;letter-spacing:.02em}
+.road{border-left:3px solid var(--accent);margin:20px 0 0 6px;padding-left:22px}
+.road .step{margin-bottom:18px}
+.road .step h4{margin:0 0 4px;font-size:16px}
+.road .step p{margin:0;font-size:14px;color:var(--body)}
+footer{margin-top:72px;border-top:1px solid var(--line);padding-top:18px;font-size:12px;color:var(--mute)}
+figcaption{font-size:12px;color:var(--mute);margin-top:8px}
+figure{margin:18px 0}
+
+/* ── 뷰포트 도식 ───────────────────────────────────────────── */
+.vp{border:1px solid var(--line);border-radius:10px;overflow:hidden;font-size:12px;margin:12px 0}
+.vp-bar{display:flex;height:64px}
+.vp-fill{background:var(--accent-soft);color:var(--accent-ink);display:flex;align-items:center;justify-content:center;font-weight:700}
+.vp-void{background:repeating-linear-gradient(135deg,var(--panel2),var(--panel2) 6px,var(--bg) 6px,var(--bg) 12px);
+  color:var(--mute);display:flex;align-items:center;justify-content:center;font-weight:600}
+.vp-cap{padding:7px 12px;border-top:1px solid var(--line);color:var(--mute);background:var(--panel)}
+
+/* ── 제품 UI 목업 (라이트 고정 — 실제 화면을 묘사한다) ───────── */
+.ui{
+  --ink:#101828; --mid:#344054; --weak:#667085; --hair:#E4E7EC; --edge:#D0D5DD;
+  --card:#FFFFFF; --ground:#F4F4FB; --g50:#F9FAFB; --g100:#F2F4F7; --g200:#E4E7EC;
+  --pri:#2563EB; --pri-bg:#EFF4FF; --ok-t:#027A48; --ok-b:#ECFDF3;
+  --er-t:#B42318; --er-b:#FEF3F2; --wa-t:#B54708; --wa-b:#FFFAEB; --blue-t:#1747B5; --blue-b:#E8F1FF;
+  background:var(--ground);color:var(--ink);border:1px solid #D9DCE6;border-radius:12px;
+  padding:20px;font-size:14px;line-height:1.5;letter-spacing:-.014em;overflow-x:auto;
+}
+.ui *{box-sizing:border-box}
+.ui .h1{font-size:22px;font-weight:700;letter-spacing:-.02em;color:var(--ink);margin:0}
+.ui .sub{font-size:14px;color:var(--weak);margin:3px 0 0}
+.ui .big{font-size:28px;font-weight:700;color:var(--pri);line-height:1;vertical-align:-1px;margin:0 3px}
+.ui .metaline{font-size:14px;color:var(--weak);margin:7px 0 0;display:flex;gap:14px;flex-wrap:wrap}
+.ui .metaline b{color:var(--mid);font-weight:600}
+.ui .grid2{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:20px}
+.ui .grid-asym{display:grid;grid-template-columns:1.35fr 1fr;gap:20px;margin-top:20px}
+.ui .card{background:var(--card);border:1px solid var(--edge);border-radius:11px;padding:15px;
+  box-shadow:0 1px 2px rgba(16,24,40,.04),0 4px 12px rgba(16,24,40,.05)}
+.ui .flat{padding:0;margin-top:26px}
+/* 리세스는 표준값 #F2F4F7 이 아니라 한 단 더 깊은 라벤더다 — 이 화면의 바닥이
+   #F4F4FB 라서 표준 리세스는 바닥과 구분되지 않는다(시안 C 리스크 참조). */
+.ui .recess{background:#E9EBF3;border-radius:11px;padding:15px}
+.ui .chead{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.ui .ctitle{font-size:16px;font-weight:600;color:var(--ink);display:flex;align-items:center;gap:7px}
+.ui .ctitle.sm{font-size:14px;font-weight:600;color:var(--mid);letter-spacing:.01em}
+.ui .cbadge{font-size:12px;font-weight:700;border-radius:999px;padding:2px 8px;background:var(--blue-b);color:var(--blue-t)}
+.ui .cbadge.mut{background:var(--g100);color:var(--mid)}
+.ui .cdesc{font-size:12px;color:#475467;margin:5px 0 0}
+.ui .search{margin:10px 0 8px;height:29px;border:1px solid var(--edge);border-radius:7px;background:var(--card);
+  display:flex;align-items:center;padding:0 10px;color:#98A2B3;font-size:12px;gap:6px}
+.ui .colhead{display:flex;gap:10px;padding:6px 0;font-size:12px;font-weight:600;color:var(--weak)}
+.ui .row{display:flex;align-items:center;gap:9px;border-top:1px solid var(--hair);padding:7px 0;font-size:14px;color:var(--mid)}
+.ui .row.tall{padding:6px 0}
+.ui .tile{width:24px;height:24px;flex:none;border-radius:6px;display:flex;align-items:center;justify-content:center;
+  font-size:12px;font-weight:700}
+.ui .t1{background:#E8F1FF;color:#1747B5}.ui .t2{background:#E5F8EE;color:#197A3F}
+.ui .t3{background:#FEF0E1;color:#7A3F0E}.ui .t4{background:#F0EBFE;color:#5B21B6}
+.ui .t5{background:#E6F6FA;color:#0E6478}
+.ui .nm{flex:1;min-width:0;font-size:14px;font-weight:500;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ui .tag{flex:none;min-width:34px;text-align:center;border-radius:5px;background:var(--g200);color:var(--mid);
+  font-family:ui-monospace,Menlo,monospace;font-size:12px;font-weight:500;padding:1px 5px}
+.ui .btn{flex:none;border-radius:7px;font-size:12px;font-weight:600;padding:4px 10px;white-space:nowrap}
+.ui .btn.pri{background:var(--pri);color:#fff}
+.ui .btn.sec{background:var(--card);border:1px solid var(--edge);color:var(--mid)}
+.ui .pill{flex:none;display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:600;border-radius:999px;padding:2px 8px}
+.ui .pill.wait{background:var(--wa-b);color:var(--wa-t)}
+.ui .pill.ok{background:var(--ok-b);color:var(--ok-t)}
+.ui .pill.no{background:var(--er-b);color:var(--er-t)}
+.ui .note{flex:1;min-width:0;font-size:12px;color:var(--weak);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ui .when{flex:none;width:74px;font-size:12px;color:var(--weak);font-variant-numeric:tabular-nums}
+.ui .pager{display:flex;justify-content:center;gap:6px;margin-top:11px;font-size:12px;color:var(--weak)}
+.ui .rail{width:210px;flex:none;display:flex;flex-direction:column}
+.ui .split{display:flex;gap:0;background:#EFF2F3;border-radius:11px;overflow:hidden;margin-top:16px}
+.ui .railitem{display:flex;align-items:center;gap:8px;padding:8px 10px;border-bottom:1px solid #E1E5E8}
+.ui .railitem.on{background:var(--pri-bg);box-shadow:inset 2px 0 0 var(--pri)}
+.ui .railitem.on .nm{color:var(--pri)}
+.ui .sheet{flex:1;min-width:0;margin:12px;background:var(--card);border:1px solid var(--hair);border-radius:11px;padding:16px}
+.ui .eyeb{font-size:12px;font-weight:500;color:var(--weak)}
+.ui .hero2{font-size:22px;font-weight:800;letter-spacing:-.03em;margin:5px 0 0}
+.ui .kv{display:flex;gap:34px;margin-top:12px}
+.ui .kv .k{font-size:12px;font-weight:500;color:var(--weak)}
+.ui .kv .v{font-size:16px;font-weight:600;color:var(--ink);margin-top:3px}
+.ui .rule{border:0;border-top:1px solid var(--hair);margin:14px 0}
+.ui .bucket{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:16px}
+.ui .bcard{background:var(--card);border:1px solid var(--edge);border-radius:11px;padding:13px}
+.ui .bnum{font-size:22px;font-weight:700;margin-top:4px}
+.ui .ann{display:inline-block;background:#D22030;color:#fff;font-size:10px;font-weight:700;
+  border-radius:4px;padding:1px 6px;margin-left:6px;vertical-align:2px;letter-spacing:.02em}
+.ui .ann.g{background:#0A7D45}
+</style>
+<style>
+/* ── 이 문서에만 있는 부품 ─────────────────────────────────── */
+.ramp{display:flex;align-items:flex-end;gap:10px;margin:12px 0 4px;flex-wrap:wrap}
+.ramp .step{background:var(--panel);border:1px solid var(--line);border-radius:9px;padding:8px 12px;text-align:center;min-width:78px}
+.ramp .step .px{font-weight:800;color:var(--ink);line-height:1.1}
+.ramp .step .who{font-size:12px;color:var(--body);margin-top:4px;font-weight:600}
+.ramp .step.hot{border-color:var(--p0);background:var(--p0-soft)}
+.ramp .step.hot .px{color:var(--p0)}
+.ramp .gap{align-self:center;color:var(--mute);font-size:12px;font-weight:700}
+.dots{display:flex;gap:5px;flex-wrap:wrap;margin:10px 0 2px}
+.dots i{width:16px;height:16px;border-radius:4px;display:block}
+.dots i.log{background:var(--p1)}
+.dots i.act{background:var(--accent)}
+.legend{font-size:12px;color:var(--mute);display:flex;gap:16px;flex-wrap:wrap;margin-top:6px}
+.legend b{color:var(--body)}
+</style>
+
+<div class="wrap">
+
+<header class="hero">
+  <div class="eyebrow">Design Benchmark · 2026-08-14</div>
+  <h1>승인 큐가 감사 로그보다 작다</h1>
+  <p><code>/admin/pipelines/access/requests</code> 가 "너무 심플하다 · 흰 바탕에 흰 카드 · 제일 중요한 승인 대기·반려가 강조되지 않는다"는 평가를 받았습니다. 세 지적은 각각 다른 원인을 가지고 있고, 셋 다 <b>실측값으로 특정됩니다.</b> 제품 안 네 화면과 승인함(approval inbox) 표준 패턴을 근거로 <b>시안 3안 + 나브 통합안 + 기각 1안</b>을 제시합니다.</p>
+  <div class="meta">
+    <span><b>대상</b> 권한 요청 (ADMIN)</span>
+    <span><b>브랜치</b> refactor/access-cleanup · a38a8314</span>
+    <span><b>측정</b> 뷰포트 1710×891 · 실 DOM</span>
+  </div>
+</header>
+
+<nav class="nav" aria-label="문서 내비게이션">
+  <a href="#summary">결론</a>
+  <a href="#diag">진단</a>
+  <a href="#fixed">건드리지 않는 것</a>
+  <a href="#bench">벤치마크</a>
+  <a href="#alts">시안 3안</a>
+  <a href="#admins">관리자 권한 통합</a>
+  <a href="#reject">기각안</a>
+  <a href="#apply">적용</a>
+</nav>
+
+<!-- ══════════════════ 결론 ══════════════════ -->
+<section id="summary">
+  <div class="sec-eyebrow">Executive Summary</div>
+  <h2>결론 먼저 — 세 수치</h2>
+  <p class="sec-sub">인상이 아니라 브라우저에서 잰 값입니다. 셋 다 서로 다른 지적에 하나씩 답합니다.</p>
+
+  <div class="verdict">
+    <div class="vcard">
+      <div class="no">결론 1</div>
+      <h4>면으로는 강조가 안 된다</h4>
+      <p>카드 ↔ 바탕 대비가 <b>1.05:1</b>입니다. 그런데 이 팔레트의 <b>모든</b> 면 토큰이 바닥 대비 1.41:1 안쪽입니다 — gray-100 1.05, primary-bg 1.05, err-bg 1.04, gray-300 1.41. "흰 바탕에 흰 카드"는 정확한 관찰이지만, 원인은 이 카드가 아니라 <b>팔레트에 강조를 실을 면이 없다</b>는 것입니다.</p>
+    </div>
+    <div class="vcard">
+      <div class="no">결론 2</div>
+      <h4>등급이 뒤집혀 있다</h4>
+      <p>요청 카드 안에서 가장 큰 글자는 <b>14px</b>입니다. 읽기만 하는 이력 카드는 <b>18px 제목</b>을 가지고 있습니다. 색면은 화면 전체에 여덟 개인데 <b>일곱이 이력 카드</b>에 있고, 요청 카드가 가진 색면은 페이저의 "1" 하나뿐입니다.</p>
+    </div>
+    <div class="vcard">
+      <div class="no">결론 3</div>
+      <h4>화면이 세로 76%에서 끝난다</h4>
+      <p>카드 바닥 679px, 뷰포트 891px. 스크롤이 <b>0</b>이고 아래 <b>212px</b>가 빈 바닥입니다. <code>min-h-[360px]</code>가 높이를 고정하므로 반려 탭(4행)에서는 카드 안에서도 한 행만큼 더 빕니다.</p>
+    </div>
+  </div>
+
+  <div class="callout blue">
+    <span class="lbl">한 줄 요약</span>
+    이 디자인 시스템은 강조를 <b>면이 아니라 잉크로</b> 줍니다. 면 토큰은 전부 1.41:1 안쪽인데 잉크 토큰은 전부 4.6:1 위입니다(primary 4.95 · warn 5.19 · err 6.29 · text-strong 16.98). 그래서 "카드를 덜 희게"는 이 시스템 안에서 갈 수 없는 길이고, 옆 화면들이 실제로 쓰는 길은 <b>큰 수치 · 의미 있는 잉크 · 폭의 차이</b> 셋입니다.
+  </div>
+</section>
+
+<!-- ══════════════════ 진단 ══════════════════ -->
+<section id="diag">
+  <div class="sec-eyebrow">① Diagnosis</div>
+  <h2>측정값</h2>
+
+  <h3>1-1. 면 — 강조를 실을 표면이 팔레트에 없다</h3>
+  <p>바닥은 <code>--pl-bg-page #F9FAFB</code>입니다. 카드를 포함해 쓸 수 있는 모든 면 토큰을 이 바닥에 대고 재면 이렇게 나옵니다.</p>
+  <div class="tblwrap">
+    <table>
+      <thead><tr><th>토큰</th><th>값</th><th>바닥 대비</th><th>읽는 법</th></tr></thead>
+      <tbody>
+        <tr><td><code>--pl-bg-card</code></td><td>#FFFFFF</td><td><b>1.05:1</b></td><td>지금 카드. 보이는 건 면이 아니라 <code>border-strong</code>(1.41:1) 한 줄이다.</td></tr>
+        <tr><td><code>--pl-gray-100</code></td><td>#F2F4F7</td><td>1.05:1</td><td>운영 대시보드 리세스 타일의 면. <b>카드를 리세스로 바꿔도 같은 1.05다.</b></td></tr>
+        <tr><td><code>--pl-primary-bg</code></td><td>#EFF4FF</td><td>1.05:1</td><td>카드에 파란 틴트를 깔아도 면으로는 안 보인다.</td></tr>
+        <tr><td><code>--pl-err-bg / warn-bg</code></td><td>#FEF3F2 / #FFFAEB</td><td>1.04 / 1.00:1</td><td>반려 카드에 붉은 면을 깔아도 마찬가지.</td></tr>
+        <tr><td><code>--pl-gray-300</code></td><td>#D0D5DD</td><td>1.41:1</td><td>팔레트에서 가장 진한 "면"이자 테두리. 이게 상한선이다.</td></tr>
+        <tr><td colspan="4" style="background:var(--panel)"><b>반대편 —</b> <code>primary</code> 4.95 · <code>warn-text</code> 5.19 · <code>info-text</code> 5.73 · <code>err-text</code> 6.29 · <code>tag-blue-text</code> 7.71 · <code>text-strong</code> 16.98</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>즉 <b>면의 사거리는 1.41이고 잉크의 사거리는 17입니다.</b> 강조를 면에서 찾으면 12배 좁은 채널을 쓰는 셈입니다.</p>
+
+  <h3>1-2. 등급 — 안 눌러도 되는 쪽이 더 크다</h3>
+  <p>두 카드 안에서 실제로 쓰인 글자 크기입니다. <code>head</code> 슬롯으로 탭을 넣으면서 요청 카드는 18px 제목을 잃었고, 그 자리를 14px 탭 라벨이 대신하고 있습니다.</p>
+  <div class="ramp">
+    <div class="step" style="padding:14px 16px"><div class="px" style="font-size:24px">24px</div><div class="who">페이지 제목</div></div>
+    <span class="gap">→</span>
+    <div class="step"><div class="px" style="font-size:18px">18px</div><div class="who">이력 카드 제목<br>(읽기 전용)</div></div>
+    <span class="gap">→</span>
+    <div class="step hot"><div class="px" style="font-size:14px">14px</div><div class="who">요청 카드 최대<br>(탭 라벨)</div></div>
+    <span class="gap">→</span>
+    <div class="step"><div class="px" style="font-size:12px">12px</div><div class="who">탭 건수 · 코드</div></div>
+  </div>
+  <p class="sec-sub" style="margin-top:10px">옆 화면 <b>연동 요청</b>은 같은 자리에 <b>32px</b> 판정 수치를 가지고 있습니다. 그리고 그 토큰(<code>accessStyles.pageTotal</code> · <code>pageTotalTone</code>)은 <b>이미 이 파일에 선언되어 있고 이 화면만 안 쓰고 있습니다</b> — 요청자 화면에서만 쓰입니다.</p>
+
+  <h3>1-3. 색면 여덟 개 중 일곱이 로그에 있다</h3>
+  <p>화면에서 배경색을 가진(=흰색이 아닌) 요소를 전부 세면 여덟입니다.</p>
+  <div class="dots" aria-hidden="true">
+    <i class="act"></i><i class="log"></i><i class="log"></i><i class="log"></i><i class="log"></i><i class="log"></i><i class="log"></i><i class="log"></i>
+  </div>
+  <div class="legend">
+    <span><b style="color:var(--accent)">■</b> 요청 카드 1개 — 페이저의 활성 페이지 "1"</span>
+    <span><b style="color:var(--p1)">■</b> 이력 카드 7개 — 41건 배지 · 요청 승인/반려 pill 5개 · 페이저 "1"</span>
+  </div>
+  <p>요청 카드에는 <b>내용이 만든 색면이 하나도 없습니다.</b> 건수 배지조차 없습니다 — <code>head</code>가 머리 줄을 통째로 대신하면서 배지 슬롯이 사라졌고, 건수는 12px 맨숫자로 탭 옆에 붙어 있습니다. 반면 이력은 행마다 pill을 그리므로, 눈이 화면에 들어오면 <b>색이 있는 오른쪽으로 먼저 갑니다.</b></p>
+
+  <h3>1-4. 세로 — 화면의 4분의 1이 빈 바닥</h3>
+  <div class="vp">
+    <div class="vp-bar">
+      <div class="vp-fill" style="flex:679">머리 164 + 카드 515 = 679px</div>
+      <div class="vp-void" style="flex:212">빈 바닥 212px</div>
+    </div>
+    <div class="vp-cap">뷰포트 891px · <code>scrollHeight === innerHeight</code> — 스크롤이 아예 없다. 반려 탭(4행)은 카드 안에서도 한 행만큼 더 빈다.</div>
+  </div>
+
+  <h3>1-5. 지금 화면</h3>
+  <div class="ui">
+    <p class="h1">권한 요청</p>
+    <p class="sub">사용자가 보낸 서비스 접근 권한 요청을 검토하고 승인하거나 반려해요</p>
+    <div class="grid2">
+      <div class="card">
+        <div style="display:flex;gap:2px;border-bottom:1px solid var(--hair);margin:-15px -15px 8px;padding:0 15px">
+          <div style="padding:9px 11px;font-size:14px;font-weight:600;color:var(--pri);border-bottom:2px solid var(--pri)">승인 대기 <span style="font-size:12px;font-weight:700">6</span></div>
+          <div style="padding:9px 11px;font-size:14px;font-weight:500;color:var(--weak)">반려 <span style="font-size:12px;font-weight:700">4</span></div>
+        </div>
+        <p class="cdesc">행을 눌러 요청 사유를 확인한 뒤 승인하거나 반려해 주세요</p>
+        <div class="colhead"><span style="flex:1">요청자</span><span style="flex:1">서비스</span><span style="width:56px">코드</span><span style="width:96px">요청 일자</span><span style="width:14px"></span></div>
+        <div class="row"><span style="flex:1;font-weight:500;color:var(--ink);font-family:ui-monospace,Menlo,monospace;font-size:12px">admin.pass</span><span style="flex:1">통합 로그 수집</span><span style="width:56px;font-family:ui-monospace,Menlo,monospace;font-size:12px">LOG</span><span class="when" style="width:96px">2026-08-13 01:20</span><span style="width:14px;color:var(--weak)">↗</span></div>
+        <div class="row"><span style="flex:1;font-weight:500;color:var(--ink);font-family:ui-monospace,Menlo,monospace;font-size:12px">admin.pass</span><span style="flex:1">셀러 정산 및 입점 심사</span><span style="width:56px;font-family:ui-monospace,Menlo,monospace;font-size:12px">SEL</span><span class="when" style="width:96px">2026-08-12 19:20</span><span style="width:14px;color:var(--weak)">↗</span></div>
+        <div class="row"><span style="flex:1;font-weight:500;color:var(--ink);font-family:ui-monospace,Menlo,monospace;font-size:12px">minsu.park</span><span style="flex:1">SDU</span><span style="width:56px;font-family:ui-monospace,Menlo,monospace;font-size:12px">SDU</span><span class="when" style="width:96px">2026-08-11 20:20</span><span style="width:14px;color:var(--weak)">↗</span></div>
+        <div style="height:52px"></div>
+        <div class="pager">‹ <b style="background:var(--pri);color:#fff;border-radius:5px;padding:1px 6px">1</b> 2 ›</div>
+      </div>
+      <div class="card">
+        <div class="chead"><span class="ctitle">🕐 전체 이력</span><span class="cbadge mut">41건</span></div>
+        <p class="cdesc">승인·반려는 물론 직접 부여와 해제까지, 권한이 움직인 모든 기록이에요</p>
+        <div style="margin-top:11px">
+          <div style="border-top:1px solid var(--hair);padding:7px 0">
+            <div style="display:flex;align-items:center;gap:7px"><span class="pill no">요청 반려</span><b style="font-size:14px">IDC</b><span style="font-size:12px;color:var(--weak);font-family:ui-monospace,Menlo,monospace">idc</span><span style="flex:1"></span><span class="when" style="width:auto">2026-08-10 03:20</span></div>
+            <div style="font-size:14px;margin-top:3px"><span style="font-size:12px;color:var(--weak);font-weight:500">대상</span> <span style="font-family:ui-monospace,Menlo,monospace;font-weight:500">haneul.kang</span> &nbsp;&nbsp;<span style="font-size:12px;color:var(--weak);font-weight:500">수행자</span> <span style="font-family:ui-monospace,Menlo,monospace;font-weight:500">admin.pass</span></div>
+            <div style="font-size:12px;color:var(--weak);margin-top:2px">담당 조직이 달라 반려했어요. 인프라운영팀을 통해 다시…</div>
+          </div>
+          <div style="border-top:1px solid var(--hair);padding:7px 0">
+            <div style="display:flex;align-items:center;gap:7px"><span class="pill ok">요청 승인</span><b style="font-size:14px">재고 실시간 동기화 관리</b><span style="font-size:12px;color:var(--weak);font-family:ui-monospace,Menlo,monospace">IVT</span><span style="flex:1"></span><span class="when" style="width:auto">2026-08-09 20:20</span></div>
+            <div style="font-size:14px;margin-top:3px"><span style="font-size:12px;color:var(--weak);font-weight:500">대상</span> <span style="font-family:ui-monospace,Menlo,monospace;font-weight:500">sujin.jung</span> &nbsp;&nbsp;<span style="font-size:12px;color:var(--weak);font-weight:500">수행자</span> <span style="font-family:ui-monospace,Menlo,monospace;font-weight:500">admin.pass</span></div>
+          </div>
+          <div style="border-top:1px solid var(--hair);padding:7px 0">
+            <div style="display:flex;align-items:center;gap:7px"><span class="pill ok">요청 승인</span><b style="font-size:14px">광고 노출 및 정산 리포팅</b><span style="font-size:12px;color:var(--weak);font-family:ui-monospace,Menlo,monospace">ADS</span><span style="flex:1"></span><span class="when" style="width:auto">2026-08-09 19:20</span></div>
+            <div style="font-size:14px;margin-top:3px"><span style="font-size:12px;color:var(--weak);font-weight:500">대상</span> <span style="font-family:ui-monospace,Menlo,monospace;font-weight:500">younghee.lee</span> &nbsp;&nbsp;<span style="font-size:12px;color:var(--weak);font-weight:500">수행자</span> <span style="font-family:ui-monospace,Menlo,monospace;font-weight:500">admin.pass</span></div>
+          </div>
+        </div>
+        <div class="pager">‹ <b style="background:var(--pri);color:#fff;border-radius:5px;padding:1px 6px">1</b> 2 3 4 5 ›</div>
+      </div>
+    </div>
+    <div style="height:44px;margin-top:18px;border-radius:8px;background:repeating-linear-gradient(135deg,#E7E9F2,#E7E9F2 7px,transparent 7px,transparent 14px);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;color:#8A93A8">빈 바닥 212px</div>
+  </div>
+  <figcaption>같은 크롬 · 같은 폭 · 같은 높이. 왼쪽이 처리해야 할 큐, 오른쪽이 읽기만 하는 로그인데 화면은 그 차이를 한 곳에서도 말하지 않는다.</figcaption>
+</section>
+
+<!-- ══════════════════ 제약 ══════════════════ -->
+<section id="fixed">
+  <div class="sec-eyebrow">Constraints</div>
+  <h2>건드리지 않는 것</h2>
+  <p class="sec-sub">이미 결정됐거나 기각된 것들입니다. 시안은 전부 이 안에서 움직이고, 벗어나는 안은 그 사실을 명시합니다.</p>
+  <div class="tblwrap">
+    <table>
+      <thead><tr><th>결정</th><th>내용</th><th>시점</th></tr></thead>
+      <tbody>
+        <tr><td><b>수치 타일 금지</b></td><td>대기·반려·승인을 스탯 카드 3~4장으로 세우는 안. "카드는 행위 단위지 정보 단위가 아니다"가 누적 규칙이고, 요청자 화면 벤치마크에서 같은 안이 이미 기각됐다. <a href="#reject">기각안</a>에 이 화면 기준의 사유를 다시 남긴다.</td><td>누적 규칙</td></tr>
+        <tr><td><b>2열 목록 금지</b></td><td>목록을 2열로 흘리면 읽는 차례가 좌→우→아래로 튄다. 타일 그리드도 같은 문제.</td><td>08-13 기각</td></tr>
+        <tr><td><b>이력은 오른쪽</b></td><td>"전체 이력도 오른쪽에 배치하면 좋겠다"는 오너 요청으로 <code>a38a8314</code>에서 옮겼다. <b>시안 C만 이걸 되돌린다</b> — 그래서 시안 C는 다른 둘과 성격이 다르다.</td><td>08-14 요청</td></tr>
+        <tr><td><b>탭 구조 유지</b></td><td>승인 대기·반려는 한 카드 안의 탭이다. 카드 두 장으로 되돌리는 안은 다루지 않는다.</td><td>08-14 결정</td></tr>
+        <tr><td><b>계약 갭 B3</b></td><td><code>PermissionRequestRow</code>에 <code>reason</code>·<code>status</code>·<code>processed_at</code>이 없다. 목록 행에 사유를 그리려면 행마다 상세를 부르는 N+1이 된다. 시안 B가 이 갭을 정면으로 다룬다.</td><td>계약 현실</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ══════════════════ 벤치마크 ══════════════════ -->
+<section id="bench">
+  <div class="sec-eyebrow">② Benchmark</div>
+  <h2>같은 문제를 먼저 푼 곳들</h2>
+
+  <h3>2-1. 제품 안 — 답은 이미 옆 화면 넷에 있다</h3>
+  <p>같은 어드민 셸, 같은 토큰, 같은 바닥색(#F9FAFB)을 쓰는 네 화면입니다. 넷 다 평평하지 않고, <b>넷 다 면이 아니라 다른 채널로</b> 강약을 만듭니다.</p>
+  <div class="tblwrap">
+    <table>
+      <thead><tr><th>화면</th><th>가장 큰 타입</th><th>강약이 어디서 오는가</th><th>가져올 것</th></tr></thead>
+      <tbody>
+        <tr><td><b>연동 요청</b><br><code>queue/requests</code></td><td><b>32px</b> 판정 수치</td><td>페이지 설명 문장 <b>안에</b> 32px 수치를 박는다("확인이 필요한 건이 총 <b>6</b>건 있어요"). 그리고 <b>2-up 위 + full-width 아래</b> — 폭이 다른 블록이 곧 등급이다.</td><td>시안 A · C 둘 다의 뿌리. <b>같은 일을 하는 화면이 이미 이렇게 생겼다.</b></td></tr>
+        <tr><td><b>운영 대시보드</b><br><code>queue</code></td><td><b>32px</b> 버킷 수치</td><td>리세스 타일 넷. 면 대비는 1.05로 없다시피 한데 <b>32px 수치와 의미색</b>이 등급을 만든다 — 타일이 보이는 게 아니라 숫자가 보인다.</td><td>"면이 아니라 잉크" 명제의 증거. 타일 자체는 <a href="#reject">기각</a>.</td></tr>
+        <tr><td><b>인프라 대시보드</b><br><code>pipelines</code></td><td>32px 버킷 수치</td><td>행 왼쪽에 <b>2px 붉은 스트로크</b>로 FAILED만 표시하고, 지연 열은 "1일 3시간"을 붉은 잉크로 쓴다. <b>모든 행이 아니라 문제 있는 행만</b> 색을 갖는다.</td><td>경과 시간을 잉크로 쓰는 법(시안 A). 전 행에 스트로크를 주면 정보가 0이 된다.</td></tr>
+        <tr><td><b>운영 알림</b><br><code>ops/alerts</code></td><td>스테이지 카드 제목</td><td>버킷이 <b>서로 다른 목록으로 가는 진입점</b>이다. 누르면 다른 표가 뜬다.</td><td>버킷이 성립하는 조건. 이 화면은 그 조건을 만족하지 않는다(탭이 이미 그 일을 한다).</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>2-2. 제품 밖 — 승인함(approval inbox)의 공통 규칙 셋</h3>
+  <p>"남이 낸 요청을 승인하거나 반려한다"는 화면은 IAM·ITSM·코드리뷰가 전부 가지고 있는 표준 화면입니다. 세부는 달라도 세 가지가 같습니다.</p>
+  <div class="tblwrap">
+    <table>
+      <thead><tr><th>공통 규칙</th><th>어디서</th><th>이 화면의 현재</th></tr></thead>
+      <tbody>
+        <tr><td><b>① 결정은 목록 안에서 내린다.</b> 사유는 그 자리에서 펼치거나 사이드 패널로 열고, 별도 페이지로 이동하지 않는다.</td><td>Microsoft Entra ID Governance <i>Approvals</i>(행 → 우측 패널) · ServiceNow <i>My Approvals</i>(행 안 Approve/Reject) · GitHub <i>Pull requests</i> 리뷰 큐</td><td><b>미충족.</b> 승인하려면 행을 눌러 상세 페이지로 나가야 한다. 목록은 결정을 돕는 정보를 하나도 싣지 않는다 → <a href="#alt-b">시안 B</a></td></tr>
+        <tr><td><b>② 대기 건수가 화면의 머리 수치다.</b> 처리해야 할 수가 제목 옆이나 문장 안에서 가장 큰 타입으로 나온다.</td><td>Linear <i>Inbox</i> · GitHub <i>Review requested</i> · 그리고 <b>옆 화면 연동 요청</b></td><td><b>미충족.</b> 12px 맨숫자. 토큰은 이미 있는데 안 쓴다 → <a href="#alt-a">시안 A</a></td></tr>
+        <tr><td><b>③ 감사 로그는 동급이 아니다.</b> 다른 탭이거나 아래 구역이며, 큐와 같은 크기·같은 크롬으로 나란히 서지 않는다.</td><td>AWS IAM Access Analyzer(findings ↔ archive) · Entra(Approvals ↔ Request history)</td><td><b>미충족.</b> 50/50 격자에 같은 크롬. 오히려 로그 쪽이 18px 제목과 색면 7개를 가진다 → <a href="#alt-a">시안 A</a> · <a href="#alt-c">C</a></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="callout">
+    <span class="lbl">벤치마크 종합</span>
+    바깥 셋과 안쪽 넷이 같은 말을 합니다 — <b>승인함의 주어는 "지금 몇 건이 나를 기다리는가"이고, 서술어는 "여기서 처리한다"입니다.</b> 지금 화면은 주어를 12px로 쓰고 서술어를 다른 페이지에 두었습니다.
+  </div>
+</section>
+
+<!-- ══════════════════ 시안 ══════════════════ -->
+<section id="alts">
+  <div class="sec-eyebrow">③ Alternatives</div>
+  <h2>시안 3안</h2>
+  <p class="sec-sub">A는 <b>등급</b> 문제, B는 <b>깊이</b> 문제, C는 <b>순서</b> 문제를 답합니다. <b>A와 B는 배타적이지 않고 함께 쓸 때 가장 강합니다.</b> C는 08-14 오너 요청(이력 우측 배치)을 되돌리므로 셋 중 유일하게 결정이 필요합니다.</p>
+
+  <!-- 시안 A -->
+  <div class="alt win" id="alt-a">
+    <div class="alt-head">
+      <span class="alt-key">시안 A</span>
+      <h4>판정 문장을 세우고 등급을 바로 뒤집는다</h4>
+      <span class="chip ok">추천 · 바닥</span>
+    </div>
+    <div class="alt-body">
+      <p>레이아웃은 그대로 두고 <b>무엇이 큰가</b>만 바꿉니다. 옆 화면 연동 요청과 같은 문법이고, 쓰는 토큰은 전부 이미 선언돼 있습니다.</p>
+      <ul>
+        <li><b>판정 문장</b> — 페이지 설명을 "승인을 기다리는 요청이 총 <b>6</b>건 있어요"로 바꾸고 수치에 <code>accessStyles.pageTotal</code>(32px)을 입힌다. 아래 <code>pageMeta</code> 한 줄에 "반려 4건 · 전체 이력 41건" — 두 수치 다 이미 로드된 값이라 추가 호출이 없다.</li>
+        <li><b>격자 2fr : 1fr</b> — 처리하는 쪽이 넓다. 폭 차이가 곧 등급이라는 건 연동 요청이 쓰는 규칙 그대로다.</li>
+        <li><b>이력은 크롬을 벗는다</b> — <code>PagedCard</code>의 <code>bare</code> prop이 이미 있다. 카드 → 섹션, 18px 제목 → 14px, 41건 배지는 위 메타 줄로 올라가 사라진다. <b>표면 2장 → 1장.</b></li>
+        <li><b>탭 라벨 14 → 16px</b>, 활성 탭 건수를 굵게. 카드 안 램프가 12/14/16 세 칸이 된다.</li>
+        <li><b>대기 경과를 잉크로</b> — 요청 일자 열 옆에 "3일 대기"를 붙이고 일정 시간을 넘긴 건만 <code>warn-text</code>. 인프라 대시보드의 지연 열과 같은 문법이고, <code>requestedAt</code>에서 계산되므로 <b>계약 요청이 없다.</b> 큐가 로그는 절대 못 하는 말을 한다.</li>
+      </ul>
+
+      <div class="ui">
+        <p class="h1">권한 요청</p>
+        <p class="sub">사용자가 보낸 접근 권한 요청 중 승인을 기다리는 건이 총<span class="big">6</span>건 있어요</p>
+        <p class="metaline"><span>반려 <b>4건</b></span><span>전체 이력 <b>41건</b></span></p>
+        <div class="grid-asym">
+          <div class="card">
+            <div style="display:flex;gap:2px;border-bottom:1px solid var(--hair);margin:-15px -15px 8px;padding:0 15px">
+              <div style="padding:9px 11px;font-size:16px;font-weight:600;color:var(--pri);border-bottom:2px solid var(--pri)">승인 대기 <span style="font-weight:800">6</span></div>
+              <div style="padding:9px 11px;font-size:16px;font-weight:500;color:var(--weak)">반려 <span style="font-weight:700">4</span></div>
+            </div>
+            <p class="cdesc">행을 눌러 요청 사유를 확인한 뒤 승인하거나 반려해 주세요</p>
+            <div class="colhead"><span style="flex:1">요청자</span><span style="flex:1.2">서비스</span><span style="width:52px">코드</span><span style="width:92px">요청 일자</span><span style="width:62px">대기</span><span style="width:12px"></span></div>
+            <div class="row"><span style="flex:1;font-weight:500;color:var(--ink);font-family:ui-monospace,Menlo,monospace;font-size:12px">admin.pass</span><span style="flex:1.2">통합 로그 수집</span><span style="width:52px;font-family:ui-monospace,Menlo,monospace;font-size:12px">LOG</span><span class="when" style="width:92px">08-13 01:20</span><span style="width:62px;font-size:12px;color:var(--weak)">1일</span><span style="width:12px;color:var(--weak)">↗</span></div>
+            <div class="row"><span style="flex:1;font-weight:500;color:var(--ink);font-family:ui-monospace,Menlo,monospace;font-size:12px">admin.pass</span><span style="flex:1.2">셀러 정산 및 입점 심사</span><span style="width:52px;font-family:ui-monospace,Menlo,monospace;font-size:12px">SEL</span><span class="when" style="width:92px">08-12 19:20</span><span style="width:62px;font-size:12px;color:var(--weak)">2일</span><span style="width:12px;color:var(--weak)">↗</span></div>
+            <div class="row"><span style="flex:1;font-weight:500;color:var(--ink);font-family:ui-monospace,Menlo,monospace;font-size:12px">minsu.park</span><span style="flex:1.2">SDU</span><span style="width:52px;font-family:ui-monospace,Menlo,monospace;font-size:12px">SDU</span><span class="when" style="width:92px">08-11 20:20</span><span style="width:62px;font-size:12px;font-weight:600;color:var(--wa-t)">3일 대기<span class="ann">잉크</span></span><span style="width:12px;color:var(--weak)">↗</span></div>
+            <div class="row"><span style="flex:1;font-weight:500;color:var(--ink);font-family:ui-monospace,Menlo,monospace;font-size:12px">seoyeon.yoon</span><span style="flex:1.2">고객센터 상담 이력</span><span style="width:52px;font-family:ui-monospace,Menlo,monospace;font-size:12px">CSC</span><span class="when" style="width:92px">08-11 18:20</span><span style="width:62px;font-size:12px;font-weight:600;color:var(--wa-t)">3일 대기</span><span style="width:12px;color:var(--weak)">↗</span></div>
+            <div class="row"><span style="flex:1;font-weight:500;color:var(--ink);font-family:ui-monospace,Menlo,monospace;font-size:12px">seoyeon.yoon</span><span style="flex:1.2">GCP</span><span style="width:52px;font-family:ui-monospace,Menlo,monospace;font-size:12px">gcp</span><span class="when" style="width:92px">08-10 23:20</span><span style="width:62px;font-size:12px;font-weight:600;color:var(--wa-t)">4일 대기</span><span style="width:12px;color:var(--weak)">↗</span></div>
+            <div class="pager">‹ <b style="background:var(--pri);color:#fff;border-radius:5px;padding:1px 6px">1</b> 2 ›</div>
+          </div>
+          <div class="flat" style="margin-top:0">
+            <div class="chead"><span class="ctitle sm">전체 이력<span class="ann g">bare</span></span></div>
+            <p class="cdesc">권한이 움직인 모든 기록</p>
+            <div style="margin-top:9px">
+              <div style="border-top:1px solid var(--hair);padding:7px 0">
+                <div style="display:flex;align-items:center;gap:7px"><span class="pill no">요청 반려</span><b style="font-size:14px">IDC</b><span style="flex:1"></span><span class="when" style="width:auto">08-10 03:20</span></div>
+                <div style="font-size:14px;margin-top:3px"><span style="font-size:12px;color:var(--weak)">대상</span> <span style="font-family:ui-monospace,Menlo,monospace;font-weight:500">haneul.kang</span></div>
+                <div style="font-size:12px;color:var(--weak);margin-top:2px">담당 조직이 달라 반려했어요…</div>
+              </div>
+              <div style="border-top:1px solid var(--hair);padding:7px 0">
+                <div style="display:flex;align-items:center;gap:7px"><span class="pill ok">요청 승인</span><b style="font-size:14px">재고 실시간 동기화</b><span style="flex:1"></span><span class="when" style="width:auto">08-09 20:20</span></div>
+                <div style="font-size:14px;margin-top:3px"><span style="font-size:12px;color:var(--weak)">대상</span> <span style="font-family:ui-monospace,Menlo,monospace;font-weight:500">sujin.jung</span></div>
+              </div>
+              <div style="border-top:1px solid var(--hair);padding:7px 0">
+                <div style="display:flex;align-items:center;gap:7px"><span class="pill ok">요청 승인</span><b style="font-size:14px">광고 노출 및 정산</b><span style="flex:1"></span><span class="when" style="width:auto">08-09 19:20</span></div>
+                <div style="font-size:14px;margin-top:3px"><span style="font-size:12px;color:var(--weak)">대상</span> <span style="font-family:ui-monospace,Menlo,monospace;font-weight:500">younghee.lee</span></div>
+              </div>
+              <div style="border-top:1px solid var(--hair);padding:7px 0">
+                <div style="display:flex;align-items:center;gap:7px"><span class="pill ok">요청 승인</span><b style="font-size:14px">GCP</b><span style="flex:1"></span><span class="when" style="width:auto">08-09 18:20</span></div>
+                <div style="font-size:14px;margin-top:3px"><span style="font-size:12px;color:var(--weak)">대상</span> <span style="font-family:ui-monospace,Menlo,monospace;font-weight:500">chulsoo.kim</span></div>
+              </div>
+            </div>
+            <div class="pager">‹ <b style="background:var(--pri);color:#fff;border-radius:5px;padding:1px 6px">1</b> 2 3 4 5 ›</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="pros cols">
+        <div><span class="lbl">얻는 것</span>
+          <ul>
+            <li>화면 최대 타입이 <b>14 → 32px</b>. 그리고 그게 처리해야 할 건수다.</li>
+            <li>표면 <b>2장 → 1장</b>. 카드는 처리하는 쪽에만 남고, 크롬이 곧 "여긴 손을 대는 곳"이라는 뜻이 된다.</li>
+            <li>등급 역전 해소 — 로그의 18px 제목이 14px로 내려간다.</li>
+            <li>큐가 로그에 없는 사실(대기 경과)을 말하기 시작한다.</li>
+            <li><b>계약 요청 0건, 추가 API 호출 0건.</b> 쓰는 토큰이 전부 이미 있다.</li>
+          </ul>
+        </div>
+        <div><span class="lbl">비용 · 리스크</span>
+          <ul>
+            <li>빈 바닥 212px는 <b>그대로 남는다</b>. A는 세로 문제를 풀지 않는다 → B 또는 C 필요.</li>
+            <li>판정 수치 색: 옆 화면 연동 요청은 <b>파랑</b>, <code>pageTotalTone.PENDING</code>은 <b>warn</b>이다. 같은 문장·같은 일이므로 <b>파랑</b>을 권한다(일관성). 결정 필요.</li>
+            <li>"대기 N일"의 임계값(며칠부터 warn인가)은 정책이다. 계약에 SLA가 없으므로 <b>우리 값</b>으로 선언하고 주석에 남긴다.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 시안 B -->
+  <div class="alt" id="alt-b">
+    <div class="alt-head">
+      <span class="alt-key">시안 B</span>
+      <h4>승인·반려를 이 화면에서 한다 — 행 인라인 펼침</h4>
+      <span class="chip p1">가장 큰 변화 · A와 함께</span>
+    </div>
+    <div class="alt-body">
+      <p>"제일 중요한 게 승인 대기·반려인데 강조가 안 된다"의 <b>가장 근본적인 원인은 이 화면이 승인을 하지 않는다는 것</b>입니다. 지금은 목록일 뿐이고 결정은 다른 페이지에서 일어납니다. 행을 펼쳐 그 자리에서 처리하게 하면, 강조를 만들려고 색을 더 쓰지 않아도 화면의 무게중심이 큐로 옮겨옵니다.</p>
+      <ul>
+        <li>행을 누르면 <b>그 행만</b> 펼쳐지고, 펼침 시점에 그 요청의 상세를 <b>한 번</b> 부른다. 목록 로드 때 미리 부르지 않으므로 <b>N+1이 아니다</b> — 실제로 열어 본 행 수만큼만 호출한다(상세 페이지로 나가도 어차피 같은 한 번이다).</li>
+        <li>펼친 자리에 <b>요청 사유 전문</b>(<code>accessStyles.quote</code>, 이미 있다)과 요청 리소스, 그리고 <b>[반려] [승인]</b> 두 버튼. 반려 사유 모달은 <code>AccessModals</code>에 이미 있다.</li>
+        <li>상세 페이지(<code>/requests/[id]</code>)는 <b>남긴다</b> — 딥링크와 나브 배지에서 오는 경로이고, 지우면 알림에서 온 링크가 깨진다.</li>
+        <li>펼침이 세로를 쓰므로 <b>빈 바닥 212px가 채워진다</b>.</li>
+      </ul>
+
+      <div class="ui">
+        <p class="h1">권한 요청</p>
+        <p class="sub">사용자가 보낸 접근 권한 요청 중 승인을 기다리는 건이 총<span class="big">6</span>건 있어요</p>
+        <p class="metaline"><span>반려 <b>4건</b></span><span>전체 이력 <b>41건</b></span></p>
+        <div class="grid-asym">
+          <div class="card">
+            <div style="display:flex;gap:2px;border-bottom:1px solid var(--hair);margin:-15px -15px 8px;padding:0 15px">
+              <div style="padding:9px 11px;font-size:16px;font-weight:600;color:var(--pri);border-bottom:2px solid var(--pri)">승인 대기 <span style="font-weight:800">6</span></div>
+              <div style="padding:9px 11px;font-size:16px;font-weight:500;color:var(--weak)">반려 <span style="font-weight:700">4</span></div>
+            </div>
+            <div class="colhead" style="margin-top:8px"><span style="flex:1">요청자</span><span style="flex:1.2">서비스</span><span style="width:92px">요청 일자</span><span style="width:56px">대기</span><span style="width:12px"></span></div>
+            <div class="row"><span style="flex:1;font-weight:500;color:var(--ink);font-family:ui-monospace,Menlo,monospace;font-size:12px">admin.pass</span><span style="flex:1.2">통합 로그 수집</span><span class="when" style="width:92px">08-13 01:20</span><span style="width:56px;font-size:12px;color:var(--weak)">1일</span><span style="width:12px;color:var(--weak)">⌄</span></div>
+
+            <div style="border-top:1px solid var(--hair);background:var(--g50);margin:0 -15px;padding:9px 15px 12px">
+              <div style="display:flex;align-items:center;gap:9px;font-size:14px"><span style="flex:1;font-weight:600;color:var(--ink);font-family:ui-monospace,Menlo,monospace;font-size:12px">admin.pass</span><span style="flex:1.2;font-weight:600;color:var(--ink)">셀러 정산 및 입점 심사</span><span class="when" style="width:92px">08-12 19:20</span><span style="width:56px;font-size:12px;color:var(--weak)">2일</span><span style="width:12px;color:var(--pri)">⌃</span></div>
+              <div style="background:#fff;border:1px solid var(--hair);border-radius:8px;padding:10px 12px;margin-top:9px;font-size:14px;line-height:1.55;color:var(--mid)">셀러 정산 오류 건 조사를 위해 입점 심사 이력 조회 권한이 필요합니다. 8월 말 정산 마감까지 사용 후 반납하겠습니다.</div>
+              <div style="display:flex;gap:22px;margin-top:9px;font-size:12px"><span><span style="color:var(--weak)">서비스 코드</span> <b style="font-family:ui-monospace,Menlo,monospace">SEL</b></span><span><span style="color:var(--weak)">요청자 이메일</span> <b>admin@company.com</b></span></div>
+              <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:11px"><span class="btn sec">반려</span><span class="btn pri">승인<span class="ann g">여기서</span></span></div>
+            </div>
+
+            <div class="row"><span style="flex:1;font-weight:500;color:var(--ink);font-family:ui-monospace,Menlo,monospace;font-size:12px">minsu.park</span><span style="flex:1.2">SDU</span><span class="when" style="width:92px">08-11 20:20</span><span style="width:56px;font-size:12px;font-weight:600;color:var(--wa-t)">3일</span><span style="width:12px;color:var(--weak)">⌄</span></div>
+            <div class="row"><span style="flex:1;font-weight:500;color:var(--ink);font-family:ui-monospace,Menlo,monospace;font-size:12px">seoyeon.yoon</span><span style="flex:1.2">고객센터 상담 이력</span><span class="when" style="width:92px">08-11 18:20</span><span style="width:56px;font-size:12px;font-weight:600;color:var(--wa-t)">3일</span><span style="width:12px;color:var(--weak)">⌄</span></div>
+            <div class="pager">‹ <b style="background:var(--pri);color:#fff;border-radius:5px;padding:1px 6px">1</b> 2 ›</div>
+          </div>
+          <div class="flat" style="margin-top:0">
+            <div class="chead"><span class="ctitle sm">전체 이력</span></div>
+            <p class="cdesc">권한이 움직인 모든 기록</p>
+            <div style="margin-top:9px">
+              <div style="border-top:1px solid var(--hair);padding:7px 0"><div style="display:flex;align-items:center;gap:7px"><span class="pill no">요청 반려</span><b style="font-size:14px">IDC</b><span style="flex:1"></span><span class="when" style="width:auto">08-10 03:20</span></div><div style="font-size:14px;margin-top:3px"><span style="font-size:12px;color:var(--weak)">대상</span> <span style="font-family:ui-monospace,Menlo,monospace;font-weight:500">haneul.kang</span></div><div style="font-size:12px;color:var(--weak);margin-top:2px">담당 조직이 달라 반려했어요…</div></div>
+              <div style="border-top:1px solid var(--hair);padding:7px 0"><div style="display:flex;align-items:center;gap:7px"><span class="pill ok">요청 승인</span><b style="font-size:14px">재고 실시간 동기화</b><span style="flex:1"></span><span class="when" style="width:auto">08-09 20:20</span></div><div style="font-size:14px;margin-top:3px"><span style="font-size:12px;color:var(--weak)">대상</span> <span style="font-family:ui-monospace,Menlo,monospace;font-weight:500">sujin.jung</span></div></div>
+              <div style="border-top:1px solid var(--hair);padding:7px 0"><div style="display:flex;align-items:center;gap:7px"><span class="pill ok">요청 승인</span><b style="font-size:14px">광고 노출 및 정산</b><span style="flex:1"></span><span class="when" style="width:auto">08-09 19:20</span></div><div style="font-size:14px;margin-top:3px"><span style="font-size:12px;color:var(--weak)">대상</span> <span style="font-family:ui-monospace,Menlo,monospace;font-weight:500">younghee.lee</span></div></div>
+              <div style="border-top:1px solid var(--hair);padding:7px 0"><div style="display:flex;align-items:center;gap:7px"><span class="pill ok">요청 승인</span><b style="font-size:14px">GCP</b><span style="flex:1"></span><span class="when" style="width:auto">08-09 18:20</span></div><div style="font-size:14px;margin-top:3px"><span style="font-size:12px;color:var(--weak)">대상</span> <span style="font-family:ui-monospace,Menlo,monospace;font-weight:500">chulsoo.kim</span></div></div>
+              <div style="border-top:1px solid var(--hair);padding:7px 0"><div style="display:flex;align-items:center;gap:7px"><span class="pill no">요청 반려</span><b style="font-size:14px">Azure</b><span style="flex:1"></span><span class="when" style="width:auto">08-09 02:20</span></div><div style="font-size:14px;margin-top:3px"><span style="font-size:12px;color:var(--weak)">대상</span> <span style="font-family:ui-monospace,Menlo,monospace;font-weight:500">jaehyun.lim</span></div><div style="font-size:12px;color:var(--weak);margin-top:2px">점검 기간이 끝나 접근이 더 필요하지 않아요.</div></div>
+            </div>
+            <div class="pager">‹ <b style="background:var(--pri);color:#fff;border-radius:5px;padding:1px 6px">1</b> 2 3 4 5 ›</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="pros cols">
+        <div><span class="lbl">얻는 것</span>
+          <ul>
+            <li>화면이 <b>실제로 승인함이 된다.</b> 6건 처리에 페이지 이동 6번 → 0번.</li>
+            <li>펼친 행이 카드 안에서 가장 무거운 덩어리가 되고, 그게 곧 강조다 — 색을 더 쓰지 않는다.</li>
+            <li>빈 바닥이 채워지고, 목록이 뷰포트를 쓴다.</li>
+            <li>계약 갭 B3(목록에 사유 없음)을 <b>계약 변경 없이</b> 우회한다.</li>
+          </ul>
+        </div>
+        <div><span class="lbl">비용 · 리스크</span>
+          <ul>
+            <li>구현량이 셋 중 가장 크다 — 펼침 상태, 상세 로딩/에러, 승인·반려 후 목록·나브 배지 갱신.</li>
+            <li>펼친 행과 상세 페이지가 <b>같은 말을 두 곳에서</b> 한다. 승인함 표준(Entra·ServiceNow)이 그렇게 하고 있어 수용 가능하지만, 두 곳의 문구가 갈라지지 않게 부품을 공유해야 한다.</li>
+            <li>행 높이가 들쭉날쭉해지므로 <code>min-h-[360px]</code>의 "두 카드 같은 높이" 전제가 깨진다 — 어차피 시안 A에서 오른쪽이 bare가 되면 같이 풀린다.</li>
+          </ul>
+        </div>
+      </div>
+      <div class="callout blue"><span class="lbl">계약 확인 필요</span>목록 응답에 <code>reason</code>이 붙으면 펼침 없이 두 줄 미리보기가 가능해집니다. 갭 B3은 <b>여전히 올릴 가치가 있고</b>, 시안 B는 그게 안 왔을 때의 답입니다.</div>
+    </div>
+  </div>
+
+  <!-- 시안 C -->
+  <div class="alt" id="alt-c">
+    <div class="alt-head">
+      <span class="alt-key">시안 C</span>
+      <h4>큐를 위로, 이력을 아래로 — 이력이 표로 돌아온다</h4>
+      <span class="chip p1">08-14 결정을 되돌림</span>
+    </div>
+    <div class="alt-body">
+      <p>옆 화면 연동 요청과 <b>같은 골격</b>으로 되돌립니다. 이력이 아래 full-width로 가면 폭이 676 → 1376px가 되고, <b>피드로 편 이유가 사라집니다</b> — 사실 일곱(구분·서비스·코드·대상·수행자·사유·일시)이 다시 열로 정렬됩니다.</p>
+      <ul>
+        <li>위: 요청 카드 full-width. 열이 넓어져 <b>요청 사유 미리보기 열</b>을 넣을 자리가 생긴다(계약 갭 B3이 풀리면).</li>
+        <li>아래: 이력 표. 훑는 표는 훑는 표로 돌아간다 — <b>줄로 편 피드는 스캔이 안 된다.</b></li>
+        <li>세로가 늘어 스크롤이 생기고, 빈 바닥이 사라진다.</li>
+      </ul>
+      <div class="ui">
+        <p class="h1">권한 요청</p>
+        <p class="sub">사용자가 보낸 접근 권한 요청 중 승인을 기다리는 건이 총<span class="big">6</span>건 있어요</p>
+        <div class="card" style="margin-top:16px">
+          <div style="display:flex;gap:2px;border-bottom:1px solid var(--hair);margin:-15px -15px 8px;padding:0 15px">
+            <div style="padding:9px 11px;font-size:16px;font-weight:600;color:var(--pri);border-bottom:2px solid var(--pri)">승인 대기 <span style="font-weight:800">6</span></div>
+            <div style="padding:9px 11px;font-size:16px;font-weight:500;color:var(--weak)">반려 <span style="font-weight:700">4</span></div>
+          </div>
+          <div class="colhead"><span style="width:120px">요청자</span><span style="flex:1">서비스</span><span style="width:52px">코드</span><span style="flex:1.4">요청 사유</span><span style="width:96px">요청 일자</span><span style="width:56px">대기</span></div>
+          <div class="row"><span style="width:120px;font-family:ui-monospace,Menlo,monospace;font-size:12px;font-weight:500;color:var(--ink)">admin.pass</span><span style="flex:1">통합 로그 수집</span><span style="width:52px;font-family:ui-monospace,Menlo,monospace;font-size:12px">LOG</span><span class="note" style="flex:1.4">장애 분석을 위해 통합 로그 조회 권한이…</span><span class="when" style="width:96px">08-13 01:20</span><span style="width:56px;font-size:12px;color:var(--weak)">1일</span></div>
+          <div class="row"><span style="width:120px;font-family:ui-monospace,Menlo,monospace;font-size:12px;font-weight:500;color:var(--ink)">admin.pass</span><span style="flex:1">셀러 정산 및 입점 심사</span><span style="width:52px;font-family:ui-monospace,Menlo,monospace;font-size:12px">SEL</span><span class="note" style="flex:1.4">셀러 정산 오류 건 조사를 위해 입점 심사 이력…</span><span class="when" style="width:96px">08-12 19:20</span><span style="width:56px;font-size:12px;color:var(--weak)">2일</span></div>
+          <div class="row"><span style="width:120px;font-family:ui-monospace,Menlo,monospace;font-size:12px;font-weight:500;color:var(--ink)">minsu.park</span><span style="flex:1">SDU</span><span style="width:52px;font-family:ui-monospace,Menlo,monospace;font-size:12px">SDU</span><span class="note" style="flex:1.4">SDU 연동 대상 점검용 조회 권한이 필요합니다</span><span class="when" style="width:96px">08-11 20:20</span><span style="width:56px;font-size:12px;font-weight:600;color:var(--wa-t)">3일</span></div>
+          <div class="pager">‹ <b style="background:var(--pri);color:#fff;border-radius:5px;padding:1px 6px">1</b> 2 ›</div>
+        </div>
+        <div class="flat">
+          <div class="chead"><span class="ctitle sm">전체 이력</span><span style="font-size:12px;color:var(--weak);font-weight:600">41건</span></div>
+          <p class="cdesc">권한이 움직인 모든 기록이에요</p>
+          <div class="colhead"><span style="width:82px">구분</span><span style="flex:1">서비스</span><span style="width:52px">코드</span><span style="width:110px">대상</span><span style="width:110px">수행자</span><span class="note" style="flex:1.2">사유</span><span style="width:110px">일시</span></div>
+          <div class="row"><span style="width:82px"><span class="pill no">요청 반려</span></span><span style="flex:1">IDC</span><span style="width:52px;font-family:ui-monospace,Menlo,monospace;font-size:12px">idc</span><span style="width:110px;font-family:ui-monospace,Menlo,monospace;font-size:12px">haneul.kang</span><span style="width:110px;font-family:ui-monospace,Menlo,monospace;font-size:12px">admin.pass</span><span class="note" style="flex:1.2">담당 조직이 달라 반려했어요. 인프라운영팀을…</span><span class="when" style="width:110px">08-10 03:20</span></div>
+          <div class="row"><span style="width:82px"><span class="pill ok">요청 승인</span></span><span style="flex:1">재고 실시간 동기화 관리</span><span style="width:52px;font-family:ui-monospace,Menlo,monospace;font-size:12px">IVT</span><span style="width:110px;font-family:ui-monospace,Menlo,monospace;font-size:12px">sujin.jung</span><span style="width:110px;font-family:ui-monospace,Menlo,monospace;font-size:12px">admin.pass</span><span class="note" style="flex:1.2">—</span><span class="when" style="width:110px">08-09 20:20</span></div>
+          <div class="row"><span style="width:82px"><span class="pill ok">요청 승인</span></span><span style="flex:1">광고 노출 및 정산 리포팅</span><span style="width:52px;font-family:ui-monospace,Menlo,monospace;font-size:12px">ADS</span><span style="width:110px;font-family:ui-monospace,Menlo,monospace;font-size:12px">younghee.lee</span><span style="width:110px;font-family:ui-monospace,Menlo,monospace;font-size:12px">admin.pass</span><span class="note" style="flex:1.2">—</span><span class="when" style="width:110px">08-09 19:20</span></div>
+          <div class="row"><span style="width:82px"><span class="pill no">요청 반려</span></span><span style="flex:1">Azure</span><span style="width:52px;font-family:ui-monospace,Menlo,monospace;font-size:12px">azure</span><span style="width:110px;font-family:ui-monospace,Menlo,monospace;font-size:12px">jaehyun.lim</span><span style="width:110px;font-family:ui-monospace,Menlo,monospace;font-size:12px">admin.pass</span><span class="note" style="flex:1.2">점검 기간이 끝나 접근이 더 필요하지 않아요.</span><span class="when" style="width:110px">08-09 02:20</span></div>
+          <div class="pager">‹ <b style="background:var(--pri);color:#fff;border-radius:5px;padding:1px 6px">1</b> 2 3 4 5 ›</div>
+        </div>
+      </div>
+      <div class="pros cols">
+        <div><span class="lbl">얻는 것</span>
+          <ul>
+            <li>이력이 <b>표로 복귀</b> — 일곱 사실이 열로 정렬되고 훑기가 된다. 지금 피드는 세로로만 읽힌다.</li>
+            <li>요청 목록에 <b>사유 열</b>이 들어갈 폭이 생긴다(계약 갭 B3이 풀린다는 전제).</li>
+            <li>세로 문제와 등급 문제가 동시에 풀린다 — 위/아래 순서가 곧 등급이다.</li>
+            <li>옆 화면 연동 요청과 골격이 같아져 두 승인 화면이 한 문법이 된다.</li>
+          </ul>
+        </div>
+        <div><span class="lbl">비용 · 리스크</span>
+          <ul>
+            <li><b>08-14 오너 요청("이력을 오른쪽에")을 되돌립니다.</b> 이건 디자인 판단이 아니라 결정 사항이라 확인이 필요합니다.</li>
+            <li><code>a38a8314</code>의 피드 부품(<code>feedRow</code> 계열)이 쓰이지 않게 된다 — 되돌리면 표 렌더러로 다시 간다.</li>
+            <li>이력이 화면 절반을 세로로 먹는다. "읽기 전용이 크다"는 문제가 폭 대신 <b>높이</b>로 돌아올 수 있어, 이력 페이지 크기를 5행으로 묶어 둬야 한다.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════ 관리자 권한 ══════════════════ -->
+<section id="admins">
+  <div class="sec-eyebrow">④ Information Architecture</div>
+  <h2>관리자 권한도 같이 관리할까</h2>
+  <p class="sec-sub">결론부터 — <b>같이 관리하는 게 맞습니다. 다만 권한 요청이 아니라 서비스별 권한과 합칩니다.</b></p>
+
+  <h3>4-1. 지금 관리자 권한 화면</h3>
+  <div class="ui">
+    <p class="h1">관리자 권한</p>
+    <p class="sub">접근 권한 부여·승인과 운영 콘솔을 쓸 수 있는 관리자를 관리해요</p>
+    <div class="card" style="margin-top:16px">
+      <div class="chead"><span class="ctitle">🛡 관리자</span><span class="btn pri">관리자 추가</span></div>
+      <p class="cdesc">관리자는 모든 서비스의 권한을 조회하고 부여·해제할 수 있어요</p>
+      <div class="colhead"><span style="flex:1">Knox ID</span><span style="flex:1">이메일</span><span style="width:44px"></span></div>
+      <div class="row"><span style="flex:1;font-family:ui-monospace,Menlo,monospace;font-size:12px;font-weight:500;color:var(--ink)">admin.pass</span><span style="flex:1;color:var(--weak)">admin@company.com</span><span style="width:44px;text-align:right;font-size:12px;color:var(--weak)">회수</span></div>
+      <div style="height:120px"></div>
+      <div class="pager">‹ <b style="background:var(--pri);color:#fff;border-radius:5px;padding:1px 6px">1</b> ›</div>
+    </div>
+  </div>
+  <p><b>1710px 폭에 2열, 1행.</b> 나브 항목 하나 · 페이지 하나 · 카드 하나가 이 한 행을 위해 서 있습니다. 관리자 명부는 앞으로도 한 자릿수~십수 명이고, 편집 주기는 분기 단위입니다.</p>
+
+  <h3>4-2. 왜 권한 요청이 아니라 서비스별 권한인가</h3>
+  <div class="tblwrap">
+    <table>
+      <thead><tr><th></th><th>서비스별 권한</th><th>관리자 권한</th><th>권한 요청</th></tr></thead>
+      <tbody>
+        <tr><td><b>무엇인가</b></td><td>서비스 하나의 접근자 <b>명부</b></td><td>전 서비스 접근자 <b>명부</b></td><td>처리 대기 <b>큐</b></td></tr>
+        <tr><td><b>축</b></td><td>서비스별</td><td>"모든 서비스"라는 값 하나</td><td>상태별(대기/반려)</td></tr>
+        <tr><td><b>부품</b></td><td>명단 표 + 추가/해제</td><td><b>명단 표 + 추가/회수</b> — 같다</td><td>큐 + 상세 + 승인/반려</td></tr>
+        <tr><td><b>보는 주기</b></td><td>필요할 때</td><td>분기</td><td><b>매일</b></td></tr>
+        <tr><td><b>건수 배지</b></td><td>없음</td><td>없음</td><td>있음(나브에 6)</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>관리자는 <b>"모든 서비스에 대한 권한을 가진 명부"</b>입니다. 서비스별 권한과 <b>같은 축의 특수한 값 하나</b>이고, 화면 부품도 똑같습니다. 반면 권한 요청은 매일 보는 큐라서, 여기에 관리자 탭을 붙이면 <b>큐의 건수 배지가 명부 탭 옆에서 의미를 잃습니다</b>(하나는 "처리해야 할 6건", 다른 하나는 "그냥 1명"인데 같은 자리에 같은 모양으로 붙는다).</p>
+
+  <h3>4-3. 시안 M1 — 서비스별 권한 레일 맨 위 고정 항목 <span class="chip ok">추천</span></h3>
+  <div class="ui">
+    <p class="h1">서비스별 권한</p>
+    <div class="split">
+      <div class="rail">
+        <div class="railitem on" style="background:#F0EBFE;box-shadow:inset 2px 0 0 #5B21B6"><span class="tile t4">🛡</span><span class="nm" style="color:#5B21B6;font-weight:600">전체 관리자</span><span class="tag">1</span></div>
+        <div style="height:1px;background:#D5D9DD;margin:0 0 0 0"></div>
+        <div class="railitem"><span class="tile t1">A</span><span class="nm">Azure</span><span class="tag">azure</span></div>
+        <div class="railitem"><span class="tile t3">배</span><span class="nm">배송 물류 거점 통합…</span><span class="tag">DLV</span></div>
+        <div class="railitem"><span class="tile t2">셀</span><span class="nm">셀러 정산 및 입점 심사</span><span class="tag">SEL</span></div>
+        <div class="railitem"><span class="tile t5">통</span><span class="nm">통합 로그 수집</span><span class="tag">LOG</span></div>
+      </div>
+      <div class="sheet">
+        <span class="eyeb">접근 권한</span>
+        <p class="hero2">전체 관리자</p>
+        <p class="cdesc" style="font-size:14px">모든 서비스의 권한을 조회하고 부여·해제할 수 있어요. 접근 권한 요청 승인도 관리자만 할 수 있어요.</p>
+        <div class="kv"><div><div class="k">관리자</div><div class="v">1명</div></div><div><div class="k">마지막 변경</div><div class="v">2026-08-09</div></div></div>
+        <hr class="rule">
+        <div class="chead"><span class="ctitle sm">관리자 명단</span><span class="btn pri">관리자 추가</span></div>
+        <div class="colhead"><span style="flex:1">Knox ID</span><span style="flex:1">이메일</span><span style="width:44px"></span></div>
+        <div class="row"><span style="flex:1;font-family:ui-monospace,Menlo,monospace;font-size:12px;font-weight:500;color:var(--ink)">admin.pass</span><span style="flex:1;color:var(--weak)">admin@company.com</span><span style="width:44px;text-align:right;font-size:12px;color:var(--weak)">회수</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="pros cols">
+    <div><span class="lbl">얻는 것</span>
+      <ul>
+        <li>나브 <b>3개 → 2개</b>. "접근 권한" 그룹이 <b>명부</b>와 <b>큐</b> 둘로 정확히 갈린다.</li>
+        <li>관리자를 볼 때 서비스별 명단과 <b>같은 시트·같은 표</b>를 쓴다 — 같은 일이 같은 모양으로 읽힌다.</li>
+        <li>1710px에 1행짜리 페이지가 사라진다. 레일 항목 하나가 그 자리를 대신한다.</li>
+        <li>레일은 이미 <code>serviceListStyles</code>를 쓰고 있어 고정 항목 하나를 얹는 비용이 작다.</li>
+      </ul>
+    </div>
+    <div><span class="lbl">비용 · 리스크</span>
+      <ul>
+        <li>레일의 검색·페이지네이션이 <b>고정 항목을 건너뛰어야</b> 한다 — 검색어를 쳤을 때 "전체 관리자"가 사라지면 안 되고, 페이지 2에서도 남아야 한다.</li>
+        <li>URL 설계: <code>/access/services/__admins</code> 같은 예약어는 서비스 코드와 충돌할 수 있다. <code>/access/admins</code>를 유지하면서 레일만 공유하는 편이 안전하다.</li>
+        <li>"전체 관리자"는 서비스가 아니다 — 시트의 부제·통계 칸이 서비스용 필드를 그대로 못 쓴다.</li>
+      </ul>
+    </div>
+  </div>
+
+  <h3>4-4. 시안 M2 — 권한 요청 화면에 관리자 탭 <span class="chip p0">반대</span></h3>
+  <p>가장 먼저 떠오르는 안이라 사유를 남깁니다. <b>탭은 같은 목록을 다른 기준으로 자른 것일 때만 성립합니다.</b> 승인 대기·반려는 같은 요청 목록을 상태로 자른 것이라 탭이 맞았지만, 관리자 명부는 다른 대상·다른 동사(부여/회수)·다른 주기입니다. 붙이면 (1) 매일 보는 큐가 분기에 한 번 보는 명부와 같은 급이 되고, (2) 나브 배지 "6"이 무엇의 수인지 흐려지고, (3) 관리자 추가 CTA가 승인 큐 위에 서게 됩니다.</p>
+</section>
+
+<!-- ══════════════════ 기각 ══════════════════ -->
+<section id="reject">
+  <div class="sec-eyebrow">Rejected</div>
+  <h2>기각안 — 상단 수치 타일 4장</h2>
+  <p class="sec-sub">"흰 바탕에 흰 카드"에 대한 가장 흔한 처방이고 이 제품에 선례(운영 대시보드·운영 알림)도 있어서, 이 화면 기준의 기각 사유를 남깁니다.</p>
+  <div class="ui">
+    <p class="h1">권한 요청</p>
+    <div class="bucket" style="grid-template-columns:repeat(4,1fr)">
+      <div class="bcard"><div style="font-size:12px;font-weight:600;color:var(--wa-t)">승인 대기</div><div class="bnum" style="color:var(--wa-t)">6</div></div>
+      <div class="bcard"><div style="font-size:12px;font-weight:600;color:var(--er-t)">반려</div><div class="bnum" style="color:var(--er-t)">4</div></div>
+      <div class="bcard"><div style="font-size:12px;font-weight:600;color:var(--weak)">전체 이력</div><div class="bnum" style="color:var(--mid)">41</div></div>
+      <div class="bcard"><div style="font-size:12px;font-weight:600;color:var(--weak)">관리자</div><div class="bnum" style="color:var(--mid)">1</div></div>
+    </div>
+    <div class="card" style="margin-top:16px">
+      <div style="display:flex;gap:2px;border-bottom:1px solid var(--hair);margin:-15px -15px 8px;padding:0 15px">
+        <div style="padding:9px 11px;font-size:14px;font-weight:600;color:var(--pri);border-bottom:2px solid var(--pri)">승인 대기 <span style="font-weight:700">6</span><span class="ann">중복</span></div>
+        <div style="padding:9px 11px;font-size:14px;font-weight:500;color:var(--weak)">반려 <span style="font-weight:700">4</span><span class="ann">중복</span></div>
+      </div>
+      <div class="row"><span style="flex:1">…</span></div>
+    </div>
+  </div>
+  <div class="callout red">
+    <span class="lbl">기각 사유</span>
+    <b>탭이 이미 그 일을 하고 있습니다.</b> 운영 알림에서 버킷이 성립한 이유는 버킷 하나가 <b>서로 다른 목록으로 가는 진입점</b>이기 때문인데, 여기서는 그 진입점이 탭 레일이고 건수도 탭에 이미 붙어 있습니다. 타일을 얹으면 같은 사실이 <b>한 화면에 두 번</b> 적히고 표면 수만 넷 늘어납니다. 게다가 면 대비가 1.05라 타일 자체는 보이지도 않습니다 — 보이는 건 숫자뿐이고, 그 숫자는 <b>시안 A의 판정 문장 한 줄</b>이 표면을 하나도 안 늘리고 더 크게 말합니다.
+  </div>
+</section>
+
+<!-- ══════════════════ 적용 ══════════════════ -->
+<section id="apply">
+  <div class="sec-eyebrow">⑤ Apply</div>
+  <h2>권장안과 순서</h2>
+  <p class="sec-sub"><b>시안 A를 바닥으로 깔고, 그 위에 B를 얹는 것</b>을 권합니다. C는 오너 결정이 필요하고, 관리자 통합(M1)은 이 화면과 독립적으로 진행할 수 있습니다.</p>
+
+  <div class="road">
+    <div class="step">
+      <h4>1. 시안 A — 등급 교정 <span class="chip ok">계약 요청 0 · 호출 0</span></h4>
+      <p>판정 문장(32px) · 격자 2fr:1fr · 이력 <code>bare</code> · 탭 16px · 대기 경과 잉크. 전부 이미 있는 토큰과 prop이라 이 화면 파일 하나와 <code>accessStyles</code>만 건드린다.</p>
+    </div>
+    <div class="step">
+      <h4>2. 시안 B — 인라인 펼침</h4>
+      <p>행 펼침 · 상세 1회 로드 · 승인/반려 인라인. 상세 페이지는 유지. 세로 문제가 여기서 풀린다.</p>
+    </div>
+    <div class="step">
+      <h4>3. 관리자 통합 M1 — 나브 3 → 2</h4>
+      <p>서비스별 권한 레일에 "전체 관리자" 고정 항목. 검색·페이지네이션이 이 항목을 건너뛰게 하는 것이 핵심 작업.</p>
+    </div>
+    <div class="step">
+      <h4>4. 시안 C — 결정 대기</h4>
+      <p>이력을 아래로 되돌릴지. A+B 적용 후에도 이력 피드가 안 읽힌다고 판단되면 그때 올린다.</p>
+    </div>
+  </div>
+
+  <h3>적용 수치</h3>
+  <div class="tblwrap">
+    <table>
+      <thead><tr><th>자리</th><th>지금</th><th>바꾼 뒤</th><th>출처</th></tr></thead>
+      <tbody>
+        <tr><td>판정 수치</td><td>없음</td><td><b>32px / 700</b>, primary</td><td><code>accessStyles.pageTotal</code> — 이미 선언, 이 화면만 미사용</td></tr>
+        <tr><td>메타 줄</td><td>없음</td><td>14px, <code>pageMeta</code> — 반려 · 전체 이력</td><td>이미 로드된 <code>totalElements</code> 두 개</td></tr>
+        <tr><td>격자</td><td><code>grid-cols-2</code></td><td><code>grid-cols-[2fr_1fr]</code></td><td>연동 요청의 폭=등급 규칙</td></tr>
+        <tr><td>이력 크롬</td><td><code>a.card</code></td><td><code>bare</code> → <code>a.section</code></td><td><code>PagedCard.bare</code> — 이미 있음</td></tr>
+        <tr><td>이력 제목</td><td>18px</td><td>14px / 600 / <code>text-medium</code></td><td>요청 카드보다 작아야 한다</td></tr>
+        <tr><td>탭 라벨</td><td>14px</td><td><b>16px</b>(짝수)</td><td>카드 안 램프 12/14/16</td></tr>
+        <tr><td>대기 경과</td><td>없음</td><td>12px, 임계 초과 시 <code>warn-text</code></td><td>인프라 대시보드 지연 열 · <code>requestedAt</code>에서 계산</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>계약 요청</h3>
+  <p><b>C-1.</b> <code>PermissionRequestRow</code>에 <code>reason</code>(미리보기용, 서버 절단 허용)·<code>status</code>·<code>processed_at</code> 추가 — 갭 B3. 붙으면 시안 C의 사유 열과 반려 탭의 처리 일자가 살아나고, 시안 B의 펼침 호출도 줄어듭니다. <b>안 붙어도 A와 B는 그대로 갑니다.</b></p>
+</section>
+
+<footer>
+  권한 요청(ADMIN) 디자인 벤치마크 · 2026-08-14 · 측정 뷰포트 1710×891 · 브랜치 <code>refactor/access-cleanup</code> <code>a38a8314</code><br>
+  대비값은 브라우저에서 계산한 실측치입니다(WCAG 상대휘도). 자매 문서: <code>design/access/access-requests-benchmark-r2.html</code>(요청자 화면), <code>access-requests-hierarchy.html</code>.
+</footer>
+
+</div>

@@ -16,7 +16,6 @@ import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
 import { usePlToast } from '@/app/admin/pipelines/_components/usePlToast';
 import {
   PagedCard,
-  ROWS_PER_PAGE,
   errorMessage,
   usePagedSection,
   type Column,
@@ -27,6 +26,7 @@ import {
 } from '@/app/admin/pipelines/access/_components/AccessModals';
 import { accessStyles as a } from '@/app/admin/pipelines/access/_components/accessStyles';
 import {
+  ACCESS_PAGE_SIZE,
   addAdmin,
   getAdmins,
   removeAdmin,
@@ -34,8 +34,6 @@ import {
   type AccessPage,
   type AccessUser,
 } from '@/app/lib/api/access';
-
-
 
 /** 담당자 표와 같은 이유로 두 열뿐이다 — 계약에 부여 일시·부여자가 없다. */
 const ADMIN_COLUMNS: readonly Column[] = [
@@ -53,7 +51,7 @@ export default function AccessAdminsPage(): ReactElement {
     async (page: number, opts: { signal: AbortSignal }): Promise<AccessPage<AccessUser>> => {
       const all = await getAdmins(opts);
       if (!opts.signal.aborted) setAllAdmins(all);
-      return sliceToPage(all, page, ROWS_PER_PAGE);
+      return sliceToPage(all, page, ACCESS_PAGE_SIZE);
     },
     [],
   );
