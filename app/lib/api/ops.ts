@@ -57,12 +57,12 @@ export const updateInstallationMode = (
 /**
  * 실데이터 여부 쓰기 (docs/api/ops-assumed-contracts.md §9).
  *
- * 업스트림은 본문 없는 두 경로(…/does-support-raw/enabled | /disabled)로 받고 응답
+ * 업스트림은 본문 없는 두 경로(…/support-raw-data/enabled | /disabled)로 받고 응답
  * 본문을 선언하지 않는다 — 내부 경로가 boolean 하나로 접고, 여기서도 읽는 값이 없다.
  *
- * 이름이 읽기 쪽(`readSupportRawData`)과 어긋나는 것은 의도다: 여기 `does-support-raw`
- * 는 업스트림이 정한 **URL 경로**이지 필드명이 아니다. 쓰기는 필드를 아예 싣지 않으므로
- * 바꿀 이름이 없고, 살아 있는 경로를 추측으로 고치면 되던 쓰기가 404 가 된다.
+ * 경로 세그먼트는 읽기 쪽 필드(`supportRawData`)와 같은 어휘다(오너 확인 2026-08-18,
+ * 그 전에는 `does-support-raw` 였다). 함수 이름과 내부 라우트 경로는 아직 옛 어휘를
+ * 쓴다 — 이번 변경이 손댄 것은 **업스트림 URL 두 개**뿐이다.
  * 저장에 성공하면 화면은 방금 고른 값을 그대로 쓴다(OpsTargetView 의 `supportRawData`
  * 한 칸); 상세를 다시 읽는 것은 다음 로드다 — 설치 모드와 같은 자리다.
  */

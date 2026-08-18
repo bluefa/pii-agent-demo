@@ -489,7 +489,7 @@ export const mockTargetSources = {
     return NextResponse.json({ target_source_id: targetSourceId, description });
   },
 
-  // PUT …/does-support-raw/{enabled|disabled} — 본문 없는 두 경로가 한 값을 뒤집는다.
+  // PUT …/support-raw-data/{enabled|disabled} — 본문 없는 두 경로가 한 값을 뒤집는다.
   // 응답 본문은 계약에 없다: 호출부가 상세를 다시 읽으므로 204 로 끝낸다.
   setDoesSupportRaw: async (targetSourceId: number, enabled: boolean) => {
     const project = getProjectByTargetSourceId(targetSourceId);

@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * 실데이터 여부 변경 — PUT …/does-support-raw/{enabled|disabled}
+ * 실데이터 여부 변경 — PUT …/support-raw-data/{enabled|disabled}
  * (docs/api/ops-assumed-contracts.md §9).
  *
  * 같은 헤더의 설치 모드 modal 과 같은 radio-card 한 쌍이다: 한 화면에서 여는 두 값

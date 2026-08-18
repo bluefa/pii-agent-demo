@@ -5,7 +5,7 @@ import { parseTargetSourceId } from '@/app/api/_lib/target-source';
 import { problemResponse, createProblem } from '@/app/api/_lib/problem';
 
 // ASSUMED CONTRACT — docs/api/ops-assumed-contracts.md §9.
-// 업스트림은 값을 경로에 싣는다 (…/does-support-raw/enabled | /disabled). 내부 경로는
+// 업스트림은 값을 경로에 싣는다 (…/support-raw-data/enabled | /disabled). 내부 경로는
 // 한 자리에 boolean 하나로 받는다 — 조작이 둘이 아니라 값이 둘이고, 경로 인코딩은
 // 업스트림의 표현이라 그 변환은 bff 층 한 곳에만 둔다.
 export const PUT = withV1(async (request, { requestId, params }) => {
