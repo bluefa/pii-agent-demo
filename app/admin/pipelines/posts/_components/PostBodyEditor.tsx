@@ -1,10 +1,13 @@
 'use client';
 
 import { useCallback, useRef, useState } from 'react';
-import { EditorContent, useEditor, type Editor } from '@tiptap/react';
+import { getMarkRange } from '@tiptap/core';
+import { EditorContent, useEditor, useEditorState, type Editor } from '@tiptap/react';
+import type { EditorState } from '@tiptap/pm/state';
 import StarterKit from '@tiptap/starter-kit';
 import { PostImage } from '@/app/admin/pipelines/posts/_components/post-image-node';
 import { PostLinkBubble } from '@/app/admin/pipelines/posts/_components/PostLinkBubble';
+import { PostLinkModal } from '@/app/admin/pipelines/posts/_components/PostLinkModal';
 import { uploadPostImage } from '@/app/lib/api/posts';
 import {
   POST_IMAGE_ACCEPT,
@@ -13,6 +16,21 @@ import {
 } from '@/lib/constants/post-images';
 import { bgColors, borderColors, cn, primaryColors, textColors } from '@/lib/theme';
 import type { ImageUploadResponse } from '@/lib/types/post';
+
+/**
+ * 이 편집이 링크 글자를 건드리는가 — 그렇다면 막는다. 링크는 모달에서만 바뀐다.
+ *
+ * 링크 "전체"를 덮는 범위는 통과시킨다. 링크를 포함한 문장을 골라 지우는 것은 링크를
+ * 고치는 게 아니라 버리는 것이고, 그것까지 막으면 지워지지 않는 글자가 생긴다.
+ */
+const editsLinkText = (state: EditorState, from: number, to: number): boolean => {
+  if (from < 0 || to > state.doc.content.size) return false;
+  const range = getMarkRange(state.doc.resolve(from), state.schema.marks.link);
+  if (!range) return false;
+  // 끼워 넣기는 안쪽일 때만 막는다 — 경계(링크 앞/뒤)에 치는 글자는 링크가 아니다.
+  if (from === to) return range.from < from && from < range.to;
+  return range.from <= from && to <= range.to && !(from === range.from && to === range.to);
+};
 
 interface PostBodyEditorProps {
   /** Initial HTML. The parent remounts this component per language. */
@@ -48,7 +66,7 @@ export const PostBodyEditor = ({
   // how they reach the live instance.
   const editorRef = useRef<Editor | null>(null);
   const [uploading, setUploading] = useState(false);
-  const [linkEditing, setLinkEditing] = useState(false);
+  const [linkModal, setLinkModal] = useState(false);
 
   /**
    * Rejects at the picker what the server would reject anyway — uploading 5MB
@@ -120,6 +138,13 @@ export const PostBodyEditor = ({
           openOnClick: false,
           // Matches the href rule: http(s), mailto, and site-relative only.
           protocols: ['http', 'https', 'mailto'],
+          // 자동 링크는 끈다. 두 가지가 걸려 있다. 하나는 눈에 보이는 것 —
+          // 도메인처럼 생긴 글자를 치면 링크가 저절로 생겨서, 모달 밖에서 링크가
+          // 만들어진다. 다른 하나는 안 보이는 쪽인데 이게 더 크다: Link 마크의
+          // `inclusive` 가 이 옵션을 그대로 돌려준다(`inclusive() { return
+          // this.options.autolink }`). 켜져 있으면 마크가 포함형이라 링크 끝에
+          // 이어 친 글자가 링크 안으로 빨려 들어간다.
+          autolink: false,
         },
       }),
       PostImage,
@@ -129,15 +154,29 @@ export const PostBodyEditor = ({
     editorProps: {
       attributes: { class: 'prose-guide' },
       // Cmd/Ctrl+K — 링크를 다루는 자리에서 손이 먼저 가는 키다.
-      handleKeyDown: (_view, event) => {
+      handleKeyDown: (view, event) => {
         if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
           event.preventDefault();
-          setLinkEditing(true);
+          setLinkModal(true);
           return true;
+        }
+        // 지우는 방향에 따라 없어질 글자가 다르다. 캐럿이 링크 바로 뒤에 있을 때의
+        // Backspace 는 링크의 마지막 글자를 먹고, 링크 바로 앞에서의 Delete 는
+        // 첫 글자를 먹는다 — 둘 다 캐럿 자신은 링크 밖에 있다.
+        const { empty, from, to } = view.state.selection;
+        if (event.key === 'Backspace') {
+          return editsLinkText(view.state, empty ? from - 1 : from, to);
+        }
+        if (event.key === 'Delete') {
+          return editsLinkText(view.state, from, empty ? to + 1 : to);
         }
         return false;
       },
-      handlePaste: (_view, event) => {
+      handleTextInput: (view, from, to) => editsLinkText(view.state, from, to),
+      handlePaste: (view, event) => {
+        const { from, to } = view.state.selection;
+        if (editsLinkText(view.state, from, to)) return true;
+
         const file = [...(event.clipboardData?.files ?? [])][0];
         if (!file) return false;
         // A pasted screenshot is the common case — Cmd+Shift+4, Cmd+V.
@@ -162,9 +201,34 @@ export const PostBodyEditor = ({
     },
   });
 
+  /**
+   * 툴바가 켜져 보여야 하는 것들.
+   *
+   * v3 의 `useEditor` 는 트랜잭션마다 다시 그리지 않는다(v2 에서 뒤집힌 기본값). 그래서
+   * `editor.isActive(...)` 를 렌더 중에 그냥 읽으면 마운트 시점의 답이 그대로 굳는다 —
+   * 굵은 글씨 안에 캐럿을 놓아도 B 가 켜지지 않는다. 반대로 `shouldRerenderOnTransaction`
+   * 을 켜면 BubbleMenu 가 렌더마다 위치 갱신 트랜잭션을 날리므로 렌더→디스패치→렌더로
+   * 무한 루프가 난다(실제로 "Maximum update depth exceeded" 로 화면이 죽었다).
+   * 값이 바뀔 때만 다시 그리는 이 구독이 두 함정을 다 피한다.
+   */
+  const active = useEditorState({
+    editor,
+    selector: ({ editor: instance }) => ({
+      heading: instance?.isActive('heading', { level: 4 }) ?? false,
+      bold: instance?.isActive('bold') ?? false,
+      italic: instance?.isActive('italic') ?? false,
+      code: instance?.isActive('code') ?? false,
+      bulletList: instance?.isActive('bulletList') ?? false,
+      orderedList: instance?.isActive('orderedList') ?? false,
+      link: instance?.isActive('link') ?? false,
+    }),
+  });
+
   editorRef.current = editor;
 
-  if (!editor) return <div className={cn('h-[340px] rounded-lg border', borderColors.default)} />;
+  if (!editor || !active) {
+    return <div className={cn('h-[340px] rounded-lg border', borderColors.default)} />;
+  }
 
   const toolButton = (label: string, isActive: boolean, onClick: () => void, title: string) => (
     <button
@@ -195,27 +259,27 @@ export const PostBodyEditor = ({
           bgColors.muted,
         )}
       >
-        {toolButton('제목', editor.isActive('heading', { level: 4 }),
+        {toolButton('제목', active.heading,
           () => editor.chain().focus().toggleHeading({ level: 4 }).run(), '제목 (h4)')}
-        {toolButton('B', editor.isActive('bold'),
+        {toolButton('B', active.bold,
           () => editor.chain().focus().toggleBold().run(), '굵게')}
-        {toolButton('I', editor.isActive('italic'),
+        {toolButton('I', active.italic,
           () => editor.chain().focus().toggleItalic().run(), '기울임')}
-        {toolButton('code', editor.isActive('code'),
+        {toolButton('code', active.code,
           () => editor.chain().focus().toggleCode().run(), '코드')}
 
         <span className={cn('mx-1 h-4 w-px', bgColors.divider)} />
 
-        {toolButton('• 목록', editor.isActive('bulletList'),
+        {toolButton('• 목록', active.bulletList,
           () => editor.chain().focus().toggleBulletList().run(), '글머리 목록')}
-        {toolButton('1. 목록', editor.isActive('orderedList'),
+        {toolButton('1. 목록', active.orderedList,
           () => editor.chain().focus().toggleOrderedList().run(), '번호 목록')}
 
         <span className={cn('mx-1 h-4 w-px', bgColors.divider)} />
 
         {/* 링크 위에서 눌러도 해제가 아니라 편집이다 — 같은 버튼이 두 가지 일을
             하면 주소를 고치려던 사람이 링크를 잃는다. 해제는 버블 안에 있다. */}
-        {toolButton('링크', editor.isActive('link'), () => setLinkEditing(true), '링크 (⌘K)')}
+        {toolButton('링크', active.link, () => setLinkModal(true), '링크 (⌘K)')}
 
         <span className={cn('mx-1 h-4 w-px', bgColors.divider)} />
 
@@ -251,8 +315,25 @@ export const PostBodyEditor = ({
         )}
       >
         <EditorContent editor={editor} />
-        <PostLinkBubble editor={editor} editing={linkEditing} onEditingChange={setLinkEditing} />
+        {/* 모달이 떠 있는 동안은 띠를 걷는다 — 안 그러면 백드롭 뒤에 흐릿하게 남아
+            떠다닌다. `shouldShow` 를 false 로 돌리는 걸로는 사라지지 않는다:
+            BubbleMenu 는 선택이나 문서가 바뀐 트랜잭션에서만 그걸 다시 부른다. */}
+        {!linkModal && <PostLinkBubble editor={editor} onEdit={() => setLinkModal(true)} />}
       </div>
+
+      {linkModal && (
+        <PostLinkModal
+          editor={editor}
+          onClose={() => {
+            setLinkModal(false);
+            // 모달이 떨어져 나가면서 focus 가 body 로 떨어진다 — 링크 하나 넣을 때마다
+            // 본문을 다시 클릭하게 된다. React 가 언마운트를 커밋한 뒤라야 도로
+            // 가져올 수 있어서 매크로태스크로 미룬다. `editor.commands.focus()` 는
+            // `view.hasFocus()` 면 그냥 반환하는데, 그 판정이 이 순간과 엇갈린다.
+            window.setTimeout(() => editor.view.focus(), 0);
+          }}
+        />
+      )}
 
       {/* Only images are uploadable — `accept` and the server MIME check agree. */}
       <input
