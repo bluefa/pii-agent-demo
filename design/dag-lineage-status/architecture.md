@@ -8,8 +8,8 @@
 | 용어 | 뜻 |
 |------|-----|
 | **Monitoring Manager** | 이 문서가 설계하는 서버. 이벤트를 수집·저장하고 주간 상태를 응답한다 |
-| **Infra Manager** | 상류. `targetSourceId` → databaseUri 목록. **유일한 상류다** |
-| **databaseUri** | 논리 DB 식별자. 화면 행의 키. **이벤트가 직접 싣고 온다** |
+| **Infra Manager** | 상류. `targetSourceId` → databaseUri 목록. **조회 경로의 유일한 상류다** |
+| **databaseUri** | 논리 DB 식별자. 화면 행의 키. **transport가 조회해 이벤트에 실어 보낸다** |
 | **target source** | 논리 DB의 묶음. 조회 요청의 키(`targetSourceId`, long) |
 | **dag name** | Airflow의 dag id. 이름 ↔ 논리 DB는 1:1 불변 |
 
@@ -25,11 +25,12 @@
 - **상류 서버는 Infra Manager 하나** (오너 확인): `targetSourceId` → 그
   target source의 databaseUri 목록. 20x일 때만 유효하고, **페이징이
   없어** 1만 건을 한 응답에 준다.
-  - Pipeline Manager(`dagName` → `databaseUri`)도 존재하고 전체 이름
-    목록 조회까지 가능하지만, **이 설계는 부르지 않는다** — DAG가 자기
-    databaseUri를 이벤트에 실어 오기 때문이다.
-- **DAG는 자기 databaseUri를 안다**, 그래서 이벤트 facet으로 싣는다.
-  **없으면 발송하지 않는다** (오너 결정)
+  - Pipeline Manager(`dagName` → `databaseUri`)도 존재하지만
+    **Monitoring Manager는 부르지 않는다** — 이벤트가 databaseUri를
+    실어 오기 때문이다. 발송 측 transport가 조회에 쓸 API는 **미정**이다.
+- **transport가 발행 시점에 dagName → databaseUri를 조회해 facet으로
+  싣는다** (오너 지시). 조회 API는 미정 — 코드에 NEED IMPLEMENT로 남긴다.
+  **조회가 실패하거나 매핑이 없으면 발송하지 않는다** (오너 결정)
 - `databaseUri` 최대 길이 **1024** (가정 확정)
 - 주간 화면:
   1. 최근 7일간 1회 이상 성공 여부 + 성공 시각
@@ -61,23 +62,25 @@
   Manager는 매 요청 호출해야 하므로(20x가 곧 존재 확인), 저장분은
   사라진 논리 DB가 남아 있는 상위집합일 뿐이다. `target_source_id`
   컬럼도, join 테이블도, 그룹별 사전 집계 테이블도 두지 않는다.
-- **`databaseUri`는 이벤트가 싣고 온다** — DAG가 이미 아는 값이므로
-  facet에 넣어 보낸다. 상류 조회도, 매핑 테이블도 없다.
-- **`databaseUri`가 없는 DAG의 이벤트는 발송하지 않는다** — transport
-  필터의 세 번째 조건. 소비 측에서 `database_uri`가 NOT NULL인 근거이고,
-  드롭은 발송 측 로그로 남는다.
+- **`databaseUri`는 이벤트가 싣고 온다** — transport가 발행 시점에
+  dagName으로 조회해(조회 API 미정 — NEED IMPLEMENT) facet으로 주입한다.
+  소비 측엔 상류 조회도, 매핑 테이블도 없다.
+- **조회가 실패하거나 매핑이 없는 DAG의 이벤트는 발송하지 않는다** —
+  transport 필터의 세 번째 조건. 소비 측에서 `database_uri`가 NOT NULL인
+  근거이고, 드롭은 발송 측 로그로 남는다.
 
 ## 전체 구조
 
-수집과 조회가 서로를 기다리지 않는다. 수집은 상류 서버를 전혀
-호출하지 않고, 조회는 Infra Manager 하나만 호출한다. 배경 동기화는 없다.
+수집과 조회가 서로를 기다리지 않는다. 소비(수집) 경로는 상류를 전혀
+호출하지 않고, 조회는 Infra Manager 하나만 호출한다. 이름 매핑 조회는
+발송 측 transport의 dagName → databaseUri 한 곳뿐이다. 배경 동기화는 없다.
 
 ```
 [수집]
 Composer env A ─┐  composite transport = 기존 transport + PubSubTransport
 Composer env B ─┼─▶ Pub/Sub topic ─┬─▶ pull 구독 ─▶ Monitoring Manager (GKE)
 Composer env N ─┘  (DAG + prefix    │                parse → 멱등 upsert
-                    + databaseUri)  │                          │
+                    + uri 조회·주입) │                          │
                                     │                          ▼
                                     │        dag_run_status (database_uri 포함)
                                     └─▶ dead-letter topic (max delivery attempts 5)
@@ -113,15 +116,16 @@ DAG 하나가 1회 실행될 때 provider가 발행하는 이벤트 (task 11개 
 쓰지 않을 트래픽의 92%가 폭주 구간에 구독자와 DB에 직접 부하를
 주고, DLQ 노이즈도 그만큼 커진다. 필터는 transport의 `emit()` 안
 몇 줄이고, **허용 목록 3중 조건**(jobType facet이 `DAG` **AND** DAG
-이름이 설정된 prefix로 시작 **AND** `databaseUri` facet이 있음)만
+이름이 설정된 prefix로 시작 **AND** databaseUri 조회 성공)만
 통과시키므로 새 이벤트 종류나 대상 외 DAG가 생겨도 의도치 않게 유입되지
 않는다. prefix 필터는 요구사항이기도 하지만, prefix 밖 DAG가 늘어나도
 이 파이프라인 볼륨이 불변이라는 격리 효과도 있다.
 
-세 번째 조건은 볼륨이 아니라 **계약**을 위한 것이다. 여기서 걸러두면
-`database_uri`가 NOT NULL이 되고 소비 경로에 "uri 없는 이벤트" 분기가
-사라진다. 다만 이 드롭만은 화면에서 보이지 않으므로(그 논리 DB가 그냥
-'스케줄 안 됨'으로 나온다) **반드시 로그를 남긴다** — 운영 절 참조.
+세 번째 조건은 볼륨이 아니라 **계약**을 위한 것이다. 조회 실패든
+미매핑이든 여기서 걸러두면 `database_uri`가 NOT NULL이 되고 소비 경로에
+"uri 없는 이벤트" 분기가 사라진다. 다만 이 드롭만은 화면에서 보이지
+않으므로(그 논리 DB가 그냥 '스케줄 안 됨'으로 나온다) **반드시 로그를
+남긴다** — 운영 절 참조.
 
 기각한 대안 — `AIRFLOW__OPENLINEAGE__DISABLED_FOR_OPERATORS`:
 커스텀 코드 없이 task 이벤트를 끌 수 있으나 operator 클래스 목록을
@@ -155,8 +159,15 @@ AIRFLOW__OPENLINEAGE__NAMESPACE='composer-env-a'   # 환경별 유니크
 - prefix 필터도 `databaseUri` 필터도 새 transport **내부에서만**
   적용된다. 기존 transport는 지금 받던 이벤트를 그대로 받는다
   (기존 동작 불변이 공존의 정의).
-- **`databaseUri` facet은 DAG 쪽에서 붙인다.** transport는 그게 있는지
-  확인만 한다 — 없는 값을 만들어내지 않는다.
+- **`databaseUri` facet은 transport가 주입한다.** emit 시점에 dagName으로
+  조회해(`_fetch_database_uri()` — 조회 API 미정, NEED IMPLEMENT) 직렬화된
+  JSON 사본에 넣는다. **이벤트 객체는 변형하지 않는다** — composite
+  transport는 같은 이벤트 인스턴스를 모든 transport에 넘기므로, 객체를
+  고치면 기존 transport 출력에 이 facet이 샌다.
+- **조회 실패는 로그만 남기고 드롭한다** (오너 지시). emit()은 스케줄러
+  listener 스레드에서 돌므로 조회 예외가 밖으로 새면 안 된다. 매핑은
+  1:1 불변이라(용어 참조) 호출량이 문제되면 프로세스 내 dict 캐시가
+  안전하다 — 지금은 DAG당 이벤트 2건/일이라 두지 않았다.
 - DAG 수준 이벤트는 스케줄러 프로세스의 listener가 발행하므로,
   환경변수는 Composer 환경 전체에 적용(기본 동작)이어야 한다.
 - publish는 클라이언트의 백그라운드 배칭에 맡기고 future를 기다리지
@@ -233,22 +244,25 @@ AIRFLOW__OPENLINEAGE__NAMESPACE='composer-env-a'   # 환경별 유니크
 
 ### databaseUri는 이벤트가 실어 온다
 
-**매핑 테이블이 없다.** DAG는 자기가 어느 논리 DB를 처리하는지 이미
-알고 있으므로, 그 값을 OpenLineage facet으로 이벤트에 실어 보낸다.
-소비 측은 `dag_run_status.database_uri`에 그대로 저장하고, 조회는 그
-컬럼을 바로 읽는다.
+**소비 측엔 매핑 테이블이 없다.** transport가 발행 시점에 dagName으로
+databaseUri를 조회해(조회 API 미정 — `_fetch_database_uri()`에 NEED
+IMPLEMENT로 남김) OpenLineage job facet으로 이벤트에 주입한다. 소비
+측은 `dag_run_status.database_uri`에 그대로 저장하고, 조회는 그 컬럼을
+바로 읽는다.
 
-**databaseUri가 없는 DAG는 아예 발송하지 않는다** (오너 결정). transport
-필터가 DAG-only · prefix에 이어 세 번째 조건으로 검사한다. 덕분에
-`database_uri`는 NOT NULL이고, 소비 경로에 "uri 없는 이벤트" 분기가
-존재하지 않는다.
+**조회가 실패하거나 매핑이 없으면 아예 발송하지 않는다** (오너 결정).
+transport 필터가 DAG-only · prefix에 이어 세 번째 조건으로 검사한다.
+덕분에 `database_uri`는 NOT NULL이고, 소비 경로에 "uri 없는 이벤트"
+분기가 존재하지 않는다.
 
 이 구조가 없애는 것:
 
 - 매핑 테이블 `dag_database_uri`
 - 명부 미러링 + 단건 resolve (`DagDatabaseUriSync`)
 - `attempts` · 재시도 상한 · batch 상한 · 첫 동기화 소요
-- **Pipeline Manager 의존 자체** — 상류가 Infra Manager 하나로 줄어든다
+- **소비·조회 경로의 이름 매핑 의존** — 남는 조회는 발송 측 transport의
+  dagName → databaseUri 한 곳뿐이고, Monitoring Manager의 상류는 Infra
+  Manager 하나다
 
 읽기 경로도 테이블 2개에서 1개가 된다: Infra Manager 목록 → 페이지 →
 `dag_run_status WHERE database_uri IN (…)` 집계 1회.
@@ -260,8 +274,8 @@ AIRFLOW__OPENLINEAGE__NAMESPACE='composer-env-a'   # 환경별 유니크
 ('스케줄 안 됨'이 이미 정의된 상태다) 셋 다 "이 논리 DB는 7일간 아무
 일도 없었다"로 참이므로, 구분하지 않는 쪽을 택했다.
 
-중요한 건 **실패가 관측 가능한 쪽으로 옮겨갔다**는 점이다. databaseUri가
-빠진 DAG는 발송 측이 드롭하면서 로그를 남긴다. 이전 설계에서는 이벤트가
+중요한 건 **실패가 관측 가능한 쪽으로 옮겨갔다**는 점이다. databaseUri를
+조회하지 못한 DAG는 발송 측이 드롭하면서 로그를 남긴다. 이전 설계에서는 이벤트가
 안 닿는 DAG를 Monitoring Manager가 **존재조차 알 수 없어** 셀 방법이
 없었다. 지금은 셀 수 있는 곳에서 샌다.
 
@@ -272,22 +286,29 @@ AIRFLOW__OPENLINEAGE__NAMESPACE='composer-env-a'   # 환경별 유니크
 
 | 대안 | 기각 사유 |
 |------|----------|
-| 이름↔uri 매핑 테이블 + Pipeline Manager 조회 | facet이 같은 답을 상류 의존·테이블·동기화 없이 준다. 아래 "뒤집힌 결정" 참조 |
-| transport에서 이벤트마다 **API로 조회해** 첨부 | 스케줄러 경로에 외부 호출 삽입, N개 환경 각각 캐시 필요. facet은 조회가 없으므로 해당 없음 |
-| 각 DAG 안에서 매일 자기 ID 조회 | 정적 매핑에 10만 × 365 호출. facet은 이미 아는 값을 싣는 것이라 호출이 0 |
+| 소비 측 이름↔uri 매핑 테이블 + 배경 동기화 | facet이 같은 답을 소비 측 테이블·동기화 없이 준다. 아래 "뒤집힌 결정" 참조 |
+| transport에서 이벤트마다 **API로 조회해** 첨부 | **✓ 채택 (뒤집힘 — ⑤)**. 기각 사유였던 "스케줄러 경로 외부 호출"은 실패=드롭+로그(비블로킹)로 수용됐다 |
+| 각 DAG 안에서 매일 자기 ID 조회 | 조회는 transport 한 곳이면 된다. DAG 10만 개 각각에 조회 코드를 복제할 이유가 없다 |
 | databaseUri 없는 이벤트를 받아서 NULL로 저장 | NULL 행은 어느 논리 DB에도 안 붙어 영영 안 읽힌다. 저장할 이유가 없고, 발송 측에서 거르면 로그가 남는다 |
 | 멤버십을 우리 DB에 저장 | 목록이 변한다(논리 DB 소멸). Infra Manager를 어차피 매 요청 부르므로 저장분은 stale 상위집합 |
 | Spring 소비 콜백에서 인라인 조회 | ack 경로가 상류 가용성에 종속 — 자정 폭주가 상류로 전파되고, 상류 장애가 수집 정체로 역전파 |
 
-> **⛔ 뒤집힌 결정 (이 축만 4번)**: ① `dag_registry`(전체 목록 테이블 +
+> **⛔ 뒤집힌 결정 (이 축만 5번)**: ① `dag_registry`(전체 목록 테이블 +
 > 시간당 sync + `target_source_id`) → ② 이벤트에서 이름 유도 + 미해석분
 > 단건 조회 → ③ 전체 명부 미러링(②는 맵이 부분집합이라 부재를 해석할 수
-> 없다는 이유로 기각) → ④ **facet — 매핑 자체를 없앤다.**
+> 없다는 이유로 기각) → ④ facet — 매핑 자체를 없앤다 → ⑤ **facet은
+> 유지하되, 값은 DAG가 아니라 transport가 발행 시점에 조회해 주입한다.**
 >
 > ④를 연 건 오너의 두 문장이다: *"event 발송 시점에 databaseUri를 같이
 > 실어줄 수 있다"* + *"없으면 안 보내면 된다"*. ③이 사려던 "DAG가 있긴
 > 한가"라는 구분은 화면 요구사항에 없었고, ③이 막으려던 은폐는 발송 측
 > 로그가 더 싸게 막는다.
+>
+> ⑤는 오너 지시다(2026-08-18): DAG가 직접 선언하는 대신 transport가
+> `_fetch_database_uri()`로 받아온다(조회 API 미정 — NEED IMPLEMENT).
+> 기각 표의 "transport 조회 첨부" 행이 **전제와 함께 만료**된 사례 —
+> 기각 사유였던 스케줄러 경로 외부 호출은 실패=드롭+로그로 수용됐다.
+> "이벤트가 uri를 싣고 온다"는 ④의 소비 측 성질은 그대로다.
 >
 > 다시 열려면 확인할 것: **화면에 "DAG 없음"을 '스케줄 안 됨'과 다르게
 > 표시해야 하는가.** 그렇다면 명부가 다시 필요하다.
@@ -363,10 +384,11 @@ N개를 불러와서 N개를 조회"하는 부하인데, **멤버십을 저장�
   감지되지 않은 채 지속되면 그 환경 전체가 "스케줄 안 됨"으로 보인다. namespace별
   이벤트 유입량 급감 알람 + 구독 oldest-unacked-message-age 알람.
 - 파싱 실패는 nack → 재전송(백오프) → DLQ. DLQ 적재량에도 알람.
-- **facet 누락 드롭 알람**: prefix에 걸리는데 `databaseUri`가 없어
-  발송 측에서 버려진 이벤트는 화면에서 조용히 사라진다. transport의
+- **databaseUri 드롭 알람**: prefix에 걸리는데 조회가 실패했거나 매핑이
+  없어 발송 측에서 버려진 이벤트는 화면에서 조용히 사라진다. transport의
   `log.warning`을 로그 기반 지표로 올려 알람을 건다 — **이 설계에서
-  소리 없이 유실될 수 있는 유일한 경로다.**
+  소리 없이 유실될 수 있는 유일한 경로다.** 조회 API 전면 장애는
+  namespace별 유입량 급감 알람에도 함께 걸린다.
 - **DLQ 운영**:
   - dead-letter 발행 주체는 Spring이 아니라 **Pub/Sub 서비스**다.
     소비 코드는 ack/nack까지만 책임진다. 따라서 권한도 Pub/Sub
@@ -394,12 +416,14 @@ N개를 불러와서 N개를 조회"하는 부하인데, **멤버십을 저장�
    config_path)에 따라 composite 설정으로 전환하는 방법이 달라진다.
 4. **prefix 확정**: 값과 단수/복수 여부. 복수가 되면
    `dag_name_prefix`를 리스트로 확장 (transport 코드 한 줄).
-5. **facet 이름·경로 확정**: 이 설계 전체가 이벤트에 실린
-   `databaseUri`에 걸려 있다. 커스텀 job facet(`piiMonitoring.
-   databaseUri`)으로 잡아뒀지만, 발송 측이 OpenLineage `tags` facet을
-   쓴다면 목록에서 꺼내야 한다. **발송·소비 양쪽에 seam을 한 곳씩만
-   두었으니**(`_database_uri()` / `resolveDatabaseUri()`) 확정되면 두
-   메서드만 고친다. 1번의 페이로드 캡처로 같이 확인한다.
+5. **dagName → databaseUri 조회 API 확정**: 이 설계 전체가 이벤트에
+   실린 `databaseUri`에 걸려 있는데, 그 값을 받아올 API가 미정이다
+   (transport의 `_fetch_database_uri()`에 NEED IMPLEMENT로 남김).
+   확정되면 타임아웃과 호출량(환경별 DAG당 이벤트 2건/일)을 확인하고,
+   부담이면 프로세스 내 dict 캐시를 더한다(매핑이 1:1 불변이라 안전).
+   facet 경로(`piiMonitoring.databaseUri`)는 우리 transport가 주입하므로
+   우리가 정한다 — 바꾸면 주입부(`emit()`)와 소비 측
+   `resolveDatabaseUri()` 두 곳만 고친다.
 6. **runId 안정성 실측**: clear 후 재실행이 같은 runId를
    재사용하는지. 같으면 기존 행이 갱신되고, 새 runId면 행이 하나 더
    생기는데 — 날짜 상태 집계는 두 경우 모두 동일하게 나온다
@@ -419,7 +443,7 @@ N개를 불러와서 N개를 조회"하는 부하인데, **멤버십을 저장�
 11. **비-20x 응답의 의미 확정**: 현재 설계는 조회 실패로 반환한다(빈
     목록과 구분). 404가 "target source 없음"을 뜻한다면 그것만 빈
     화면으로 분기할지 정해야 한다.
-12. **facet 누락 드롭의 가시성**: 지금은 발송 측 `log.warning` 한 줄이
-    유일한 신호다. prefix에 걸리는데 databaseUri가 없는 DAG는 화면에서
-    영영 안 보이므로, 이 로그를 Cloud Logging 지표로 올려 알람을 걸지
-    정해야 한다. **이 설계에서 조용히 사라질 수 있는 유일한 경로다.**
+12. **databaseUri 드롭의 가시성**: 지금은 발송 측 `log.warning` 한 줄이
+    유일한 신호다. prefix에 걸리는데 databaseUri를 조회하지 못한 DAG는
+    화면에서 영영 안 보이므로, 이 로그를 Cloud Logging 지표로 올려 알람을
+    걸지 정해야 한다. **이 설계에서 조용히 사라질 수 있는 유일한 경로다.**

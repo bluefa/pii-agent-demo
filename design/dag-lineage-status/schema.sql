@@ -9,9 +9,10 @@
 --    and "foo" must not collide on the PK, and keyset order stays bytewise.
 --  * CHECK is enforced from MySQL 8.0.16 (silently ignored before).
 --
--- There is no mapping table. The emitting DAG puts its own databaseUri on the
--- event, and a DAG that has no databaseUri does not emit at all (owner
--- decision), so every row that exists is already attributed to a logical DB.
+-- There is no mapping table on the consumer side. The transport looks up the
+-- DAG's databaseUri at publish time and puts it on the event; a DAG whose
+-- lookup fails is not emitted at all (owner decision), so every row that
+-- exists is already attributed to a logical DB.
 CREATE TABLE dag_run_status (
     run_id       VARCHAR(36)  PRIMARY KEY,   -- OpenLineage runId (UUID): same for START and terminal events of one run
     namespace    VARCHAR(250) NOT NULL,      -- Composer environment (AIRFLOW__OPENLINEAGE__NAMESPACE)

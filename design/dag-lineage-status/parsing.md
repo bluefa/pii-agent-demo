@@ -8,11 +8,12 @@ Pull 구독이므로 push 구독과 달리 메시지가 base64로 래핑되어 �
 + 이름 prefix 필터를 통과한 이벤트만 도착하지만, 소비 쪽 파싱은 그
 가정에 기대지 않는다(아래 방어 참조).
 
-**논리 DB(`databaseUri`)는 이벤트에 실려 온다** — DAG가 자기가 처리하는
-논리 DB를 알고 있으므로 facet에 넣어 보낸다. 따라서 파싱 대상이고,
-**필수 필드다**. 없으면 발송 측이 걸러내기로 했으므로(오너 결정), 없는
-채로 도착했다는 건 계약이 깨졌다는 뜻이라 DLQ로 보낸다. 상류 조회도
-매핑 테이블도 없다 (architecture.md 참조).
+**논리 DB(`databaseUri`)는 이벤트에 실려 온다** — transport가 발행
+시점에 dagName으로 조회해(조회 API 미정 — NEED IMPLEMENT) facet으로
+주입한다. 따라서 파싱 대상이고, **필수 필드다**. 조회가 실패하면 발송
+측이 로그만 남기고 드롭하기로 했으므로(오너 결정), 없는 채로 도착했다는
+건 계약이 깨졌다는 뜻이라 DLQ로 보낸다. 소비 측엔 상류 조회도 매핑
+테이블도 없다 (architecture.md 참조).
 
 ## 추출 필드 (9개)
 
@@ -28,11 +29,11 @@ Pull 구독이므로 push 구독과 달리 메시지가 base64로 래핑되어 �
 | logical_date | `/run/facets/airflowDagRun/dagRun/logical_date` | 날짜 버킷 키 | ✔ (fallback 있음) | fallback 후에도 없으면 nack |
 | run_type | `/run/facets/airflowDagRun/dagRun/run_type` | scheduled/manual 구분 | — | null 저장 |
 
-`databaseUri`의 facet 이름·경로는 **발송 측과 합의해 확정한다.** 위
-경로는 커스텀 job facet을 가정한 것이고, OpenLineage `tags` facet을
-쓴다면 key/value 목록에서 꺼내야 한다. 소비 측은
-`LineageEvent.resolveDatabaseUri()` 한 메서드에만 이 지식을 두었으므로
-확정 시 고칠 곳은 거기 하나다(발송 측은 `_database_uri()`).
+`databaseUri`의 facet 이름·경로는 **우리 transport가 주입하므로 우리가
+정한다** — provider 버전과 무관하다. 모양을 아는 곳은 발송 측 주입부
+(`emit()`)와 소비 측 `LineageEvent.resolveDatabaseUri()` 두 곳뿐이라,
+바꾸게 되면 그 둘만 고친다. 미정인 것은 경로가 아니라 **조회 API**다
+(architecture.md 확인 필요 5번).
 
 `logical_date` fallback 체인:
 `airflowDagRun.dagRun.logical_date` → `nominalTime.nominalStartTime`.
@@ -101,7 +102,8 @@ ON DUPLICATE KEY UPDATE
 
 ## 착수 전 확인
 
-문서의 facet 경로는 provider 버전 종속이다. 확정 절차:
+문서의 facet 경로는 provider 버전 종속이다 (`databaseUri`는 예외 —
+우리 transport가 주입하므로 우리가 정한다). 확정 절차:
 
 1. 대상 Composer에서 console transport로 DAG 수준 이벤트 1건을
    캡처한다.

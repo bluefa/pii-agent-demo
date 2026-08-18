@@ -17,10 +17,15 @@ exactly what it receives today:
     }'
     AIRFLOW__OPENLINEAGE__NAMESPACE='composer-env-a'   # unique per environment
 
+Before publishing, the transport looks up the DAG's databaseUri (the logical
+DB it processes) and injects it into the event as a job facet — see
+_fetch_database_uri() for the lookup, which is not wired to a concrete API yet.
+
 Written against openlineage-python 1.x. The Transport/Config API and the
 composite transport config shape have moved between versions — pin the
 client version together with the Airflow provider and verify.
 """
+import json
 import logging
 from dataclasses import dataclass
 
@@ -69,23 +74,28 @@ class PubSubTransport(Transport):
         #  1) only DAG lifecycle events (task events are 12x the count and
         #     10-25x the bytes — see architecture.md for the volume math)
         #  2) only DAGs whose name starts with the configured prefix
-        #  3) only DAGs that carry a databaseUri
+        #  3) only DAGs whose databaseUri lookup succeeds — an event the
+        #     consumer cannot attribute to a logical DB is never published
         if not self._is_dag_event(event):
             return
         name = getattr(getattr(event, "job", None), "name", None)
         if name is None or not name.startswith(self._prefix):
             return
-        if self._database_uri(event) is None:
-            # This is the one drop the consumer can never see: without a
-            # databaseUri the run cannot be attributed to a logical DB, so it is
-            # dropped here and the board renders that DB as "never scheduled".
-            # A prefixed DAG is expected to have one, so log it — this is the
-            # only place the mistake is observable at all.
-            log.warning("no databaseUri facet on prefixed dag %s — event dropped", name)
+        database_uri = self._database_uri_or_drop(name)
+        if database_uri is None:
             return
+        # Inject into the serialized JSON, never into the event object: the
+        # composite transport hands the SAME event instance to every transport,
+        # so mutating it would leak this facet into the existing transport's
+        # output ("existing behavior unchanged" is the definition of
+        # coexistence here).
+        payload = json.loads(Serde.to_json(event))
+        payload.setdefault("job", {}).setdefault("facets", {})["piiMonitoring"] = {
+            "databaseUri": database_uri,
+        }
         # Fire-and-forget for the scheduler; failures surface in logs so the
         # ingest-volume alarm has a cause to correlate with.
-        future = self._publisher.publish(self._topic, Serde.to_json(event).encode("utf-8"))
+        future = self._publisher.publish(self._topic, json.dumps(payload).encode("utf-8"))
         future.add_done_callback(_log_publish_failure)
 
     def close(self, timeout: float = -1) -> bool:
@@ -94,21 +104,42 @@ class PubSubTransport(Transport):
         self._publisher.stop()
         return True
 
+    def _database_uri_or_drop(self, dag_name):
+        """The DAG's databaseUri, or None meaning "do not publish".
+
+        Both drops are invisible to the consumer — the board just renders the
+        logical DB as "never scheduled" — so these log lines are the only
+        place either mistake is observable at all. Nothing may escape here:
+        emit() runs on the scheduler's listener thread, and a monitoring
+        lookup must never break scheduling.
+        """
+        try:
+            database_uri = self._fetch_database_uri(dag_name)
+        except Exception:
+            log.warning("databaseUri lookup failed for dag %s — event dropped",
+                        dag_name, exc_info=True)
+            return None
+        if database_uri is None:
+            log.warning("no databaseUri mapped for dag %s — event dropped", dag_name)
+        return database_uri
+
+    def _fetch_database_uri(self, dag_name):
+        """dagName -> databaseUri, from the upstream that owns the mapping.
+
+        NEED IMPLEMENT: which API serves this lookup is not identified yet.
+        When it is, call it here with a short timeout and return None for
+        "no mapping". SEAM: this is the only method that knows where the
+        mapping lives; the consumer never looks anything up (the event
+        carries the value).
+        """
+        # ponytail: no cache — 2 lookups per DAG per day. The mapping is 1:1
+        # and immutable (owner-confirmed), so a plain dict cache of successes
+        # is safe to add here if the API can't take the call volume.
+        raise NotImplementedError("dagName -> databaseUri lookup API is not identified yet")
+
     @staticmethod
     def _is_dag_event(event) -> bool:
         job = getattr(event, "job", None)
         facets = getattr(job, "facets", None) or {}
         job_type = facets.get("jobType")
         return getattr(job_type, "jobType", None) == "DAG"
-
-    @staticmethod
-    def _database_uri(event):
-        """The logical DB the DAG declares it processes.
-
-        SEAM: mirrors LineageEvent.resolveDatabaseUri() on the consumer side.
-        If the DAG publishes this through OpenLineage's `tags` facet rather than
-        a custom one, both ends change here and nowhere else.
-        """
-        job = getattr(event, "job", None)
-        facets = getattr(job, "facets", None) or {}
-        return getattr(facets.get("piiMonitoring"), "databaseUri", None)

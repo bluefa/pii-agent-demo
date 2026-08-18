@@ -93,9 +93,10 @@ public class LineageEventSubscriber {
     /**
      * Boundary validation: required fields missing -> throw -> DLQ.
      *
-     * databaseUri is required like the rest. The transport only emits events
-     * that carry one, so its absence means the contract broke — a renamed facet
-     * after a provider upgrade, or a transport deployed without the filter. DLQ
+     * databaseUri is required like the rest. The transport only publishes
+     * events it could attach one to, so its absence means the contract broke —
+     * a facet renamed on one side only, or a transport deployed without the
+     * lookup. DLQ
      * is the right landing: loud and inspectable. Defaulting it or dropping the
      * event would turn a wiring bug into rows that quietly never appear.
      */

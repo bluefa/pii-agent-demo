@@ -25,7 +25,7 @@ public record LineageEvent(String eventType, OffsetDateTime eventTime, Run run, 
     @JsonIgnoreProperties(ignoreUnknown = true)
     public record JobTypeFacet(String jobType) {} // "DAG" | "TASK"
 
-    /** Custom job facet the DAG attaches: the logical DB this pipeline processes. */
+    /** Custom job facet the transport injects at publish time: the logical DB this pipeline processes. */
     @JsonIgnoreProperties(ignoreUnknown = true)
     public record PiiMonitoringFacet(String databaseUri) {}
 
@@ -60,13 +60,13 @@ public record LineageEvent(String eventType, OffsetDateTime eventTime, Run run, 
     }
 
     /**
-     * The logical DB this run processed. Absent means the transport's filter
-     * let through something it should have dropped, so the caller treats it as
-     * a malformed event rather than guessing.
+     * The logical DB this run processed. Absent means the transport published
+     * something it should have dropped, so the caller treats it as a malformed
+     * event rather than guessing.
      *
-     * SEAM: this is the only place the facet's shape is known. If the emitter
-     * uses OpenLineage's `tags` facet instead of a custom one, the tag list is
-     * unpacked here and nothing else changes.
+     * SEAM: this is the only place on the consumer side that knows the facet's
+     * shape. The transport injects it (openlineage_pubsub_transport.py,
+     * emit()); a rename changes those two sites and nothing else.
      */
     public String resolveDatabaseUri() {
         if (job == null || job.facets() == null || job.facets().piiMonitoring() == null) {
