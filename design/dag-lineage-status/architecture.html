@@ -671,7 +671,11 @@
             <td class="why">목록이 변한다(논리 DB 소멸). Infra Manager를 어차피 매 요청 부르므로 저장분은 stale 상위집합일 뿐</td>
           </tr>
           <tr>
-            <td>이벤트 저장 시점에 databaseUri 조회</td>
+            <td><b>이벤트에 databaseUri를 facet으로 싣기</b></td>
+            <td class="why"><b>검토 중 — 기각 아님.</b> DAG가 이미 아는 값이라 조회가 없다. 채택하면 매핑 테이블·sync·resolve가 통째로 사라진다. 대신 <b>"이 논리 DB에 DAG가 있긴 한가"</b>를 못 답한다 — 명부는 그 구분을 사려고 있는 장치다</td>
+          </tr>
+          <tr>
+            <td>이벤트 저장 시점에 databaseUri를 <b>조회</b></td>
             <td class="why">ack가 상류 가용성에 종속되고, 자정 폭주(~330건/s)가 상류로 전파된다. 하루 20만 건의 조회가 통째로 생긴다</td>
           </tr>
           <tr>
