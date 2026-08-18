@@ -53,8 +53,8 @@ import { ModalShell } from '@/app/admin/pipelines/_components/ModalShell';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
 import { metaOf } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/terraformState';
 import { ConfirmedResourceTable } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/confirm/ConfirmedResourceTable';
+import { ConfirmedIdcTable } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/confirm/ConfirmedIdcTable';
 import { confirmedIntegrationToConfirmed } from '@/lib/resource-catalog';
-import type { ConfirmedResource } from '@/lib/types/resources';
 import {
   confirmedResourcePath,
   createConfirmedResources,
@@ -629,12 +629,6 @@ export function ConfirmEditorModal({
   };
 
   const confirmedCount = current?.resource_infos?.length ?? 0;
-  // 삭제 확인이 그리는 표는 확정 pane 의 구조 렌즈와 같은 것이다 — 같은 응답을 같은
-  // 매퍼로 넘긴다.
-  const deleteRows = useMemo(
-    () => (current ? confirmedIntegrationToConfirmed(current) : []),
-    [current],
-  );
   const applied = gate.overallState === 'APPLIED';
   const deleteReady = !applied && typed.trim() === String(targetSourceId) && gate.state === 'ready';
 
@@ -907,7 +901,8 @@ export function ConfirmEditorModal({
                 <DeletePanel
                   targetSourceId={targetSourceId}
                   count={confirmedCount}
-                  resources={deleteRows}
+                  wire={current}
+                  isIdc={provider === 'IDC'}
                   gate={gate}
                   typed={typed}
                   onTyped={setTyped}
@@ -1052,19 +1047,26 @@ export function ConfirmEditorModal({
 function DeletePanel({
   targetSourceId,
   count,
-  resources,
+  wire,
+  isIdc,
   gate,
   typed,
   onTyped,
 }: {
   targetSourceId: number;
   count: number;
-  /** 지워질 리소스 — 확정 pane 의 구조 렌즈와 **같은 표**로 그린다. */
-  resources: readonly ConfirmedResource[];
+  /** 지워질 확정 정보 — 확정 pane 과 **같은 표**로 그린다(같은 응답, 같은 매퍼). */
+  wire: ConfirmedIntegrationResponse | null;
+  /** IDC 는 접속 주소·Port·출발지 IP·NLB 배정이 정체다 — 표째로 갈린다. */
+  isIdc: boolean;
   gate: GateLoad;
   typed: string;
   onTyped: (next: string) => void;
 }): ReactElement {
+  const structureRows = useMemo(
+    () => (wire ? confirmedIntegrationToConfirmed(wire) : []),
+    [wire],
+  );
   const applied = gate.overallState === 'APPLIED';
 
   return (
@@ -1090,7 +1092,11 @@ function DeletePanel({
       {/* 무엇이 지워지는지는 조회 화면과 같은 문법으로 읽혀야 한다 — 검색·필터·페이지가
           그대로 붙으므로 600건이어도 "내 DB 가 이 목록에 있나" 를 확인할 수 있다. */}
       <div className={styles.delList}>
-        <ConfirmedResourceTable resources={resources} className="mt-5 pb-6" />
+        {isIdc ? (
+          <ConfirmedIdcTable rows={wire?.resource_infos ?? []} className="mt-5 pb-6" />
+        ) : (
+          <ConfirmedResourceTable resources={structureRows} className="mt-5 pb-6" />
+        )}
       </div>
 
       <div className={styles.delConfirm}>

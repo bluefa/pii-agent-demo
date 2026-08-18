@@ -515,6 +515,9 @@ function toConfirmedIntegrationResourceInfo(r: MockResource, project: Project): 
     ...(idc?.inputFormat === 'IP' && idc.ips.length > 0 ? { idc_ips: idc.ips } : {}),
     ...(idc?.inputFormat === 'HOST' && idc.domain ? { idc_host: idc.domain } : {}),
     ...(idc?.sourceIps && idc.sourceIps.length > 0 ? { idc_source_ips: idc.sourceIps } : {}),
+    // NLB 배정 — 승인 요청 payload 와 같은 필드(ResourceConfigDto.nlb_index). 배정이
+    // 없으면 실리지 않는다.
+    ...(idc?.nlbIndex != null ? { nlb_index: idc.nlbIndex } : {}),
   };
 }
 

@@ -11,6 +11,9 @@
  * The 출발지 is not one of them: it moved next to NLB 배정 instead, since it is an
  * attribute of the assigned NLB, but it keeps a column of its own.
  *
+ * 판정 열 쌍(요청 대상 여부 · 제외 사유)은 `showVerdict` 로 내려갈 수 있다 — 확정 정보처럼
+ * 판정이 이미 끝난 목록에서는 두 열이 모든 행에서 같은 값이다.
+ *
  * resource_id is NEVER rendered — the row identity is 접속 주소 (IP/Host) + Port +
  * DB type + SID. Presentational throughout: the NLB cell is a text button that hands
  * the row back to the page, which opens NlbAssignModal over it.
@@ -62,6 +65,12 @@ export interface IdcResourceTableProps {
    * 바뀌어도 관계가 끊어지지 않는다.
    */
   suspectMarks?: ReadonlyMap<RequestResourceRow, SuspectMark>;
+  /**
+   * 요청의 판정 열 쌍(요청 대상 여부 · 제외 사유). 확정 정보처럼 **이미 판정이 끝난**
+   * 목록에서는 두 열이 모든 행에서 같은 값이라(대상 · 빈칸) 통째로 내린다 — 열이 답하는
+   * 질문이 그 화면에 없으면 열도 없다. 기본값은 요청 화면 그대로다.
+   */
+  showVerdict?: boolean;
 }
 
 // A text button, not a control cluster: opening the assignment is one act, and the
@@ -78,6 +87,7 @@ export function IdcResourceTable({
   onAssignNlb,
   onShowServices,
   suspectMarks,
+  showVerdict = true,
 }: IdcResourceTableProps): ReactElement {
   const { table } = idcStyles;
 
@@ -109,7 +119,11 @@ export function IdcResourceTable({
                 actually deciding — worth a header rather than an sr-only aside. */}
             {/* 112 is step 1's own width for this column — the pill, not a text label,
                 is what has to fit. */}
-            <th className={cn(table.approvalHeaderCell, 'w-[112px] whitespace-nowrap')}>요청 대상 여부</th>
+            {showVerdict && (
+              <th className={cn(table.approvalHeaderCell, 'w-[112px] whitespace-nowrap')}>
+                요청 대상 여부
+              </th>
+            )}
             {/* NLB 배정 and 제외 사유 stay separate: they never co-occur in a row, but
                 they answer different questions and one shared header could only name
                 both. 110px is what a text button needs — the select it replaced took
@@ -132,7 +146,7 @@ export function IdcResourceTable({
             {onShowServices && (
               <th className={cn(table.approvalHeaderCell, 'w-[110px]')}>사용 서비스</th>
             )}
-            <th className={table.approvalHeaderCell}>제외 사유</th>
+            {showVerdict && <th className={table.approvalHeaderCell}>제외 사유</th>}
           </tr>
         </thead>
         <tbody className={table.body}>
@@ -206,21 +220,25 @@ export function IdcResourceTable({
                   {/* The pill step 1 uses, not a text label: the verdict is the same fact
                       on both surfaces, and INSTALL_INELIGIBLE must not read as a revisable
                       제외 — TargetPill draws that line. */}
-                  <td className={table.approvalCell}>
-                    <TargetPill
-                      excluded
-                      ineligible={row.integrationCategory === 'INSTALL_INELIGIBLE'}
-                    />
-                  </td>
+                  {showVerdict && (
+                    <td className={table.approvalCell}>
+                      <TargetPill
+                        excluded
+                        ineligible={row.integrationCategory === 'INSTALL_INELIGIBLE'}
+                      />
+                    </td>
+                  )}
                   {/* An excluded row is never assignable, and carries no service fan-out.
                       It also comes from ExcludedResourceInfoDto, which carries no source
                       IPs — blank rather than asserting a missing value. */}
                   <td className={table.approvalCell} />
                   <td className={table.approvalCell} />
                   {onShowServices && <td className={table.approvalCell} />}
-                  <td className={cn(table.approvalCell, 'text-sm')}>
-                    <ReasonChip row={row} />
-                  </td>
+                  {showVerdict && (
+                    <td className={cn(table.approvalCell, 'text-sm')}>
+                      <ReasonChip row={row} />
+                    </td>
+                  )}
                 </tr>
               );
             }
@@ -248,9 +266,11 @@ export function IdcResourceTable({
                 >
                   {row.port || <span className={textColors.tertiary}>—</span>}
                 </td>
-                <td className={table.approvalCell}>
-                  <TargetPill excluded={false} />
-                </td>
+                {showVerdict && (
+                  <td className={table.approvalCell}>
+                    <TargetPill excluded={false} />
+                  </td>
+                )}
                 <td className={table.approvalCell}>
                   {/* The assignment itself is the control — a text button naming the
                       current index, or 배정하기 when there is none. A locked request still
@@ -283,7 +303,7 @@ export function IdcResourceTable({
                   </td>
                 )}
                 {/* 제외 사유 — a target row has none. */}
-                <td className={table.approvalCell} />
+                {showVerdict && <td className={table.approvalCell} />}
               </tr>
             );
           })}
