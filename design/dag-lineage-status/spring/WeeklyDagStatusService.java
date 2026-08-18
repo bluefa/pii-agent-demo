@@ -1,5 +1,6 @@
 package com.example.lineage;
 
+import java.time.Duration;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
@@ -7,8 +8,10 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 /**
@@ -16,9 +19,10 @@ import org.springframework.stereotype.Service;
  *  1) succeededThisWeek + lastSuccessAt (latest success in the window)
  *  2) per-day state: SUCCESS > RUNNING > FAILED, no row -> NOT_SCHEDULED
  *
- * The member list comes from Infra Manager on every request — it is the only
- * moment the target source's databaseUris are known, and it can shrink (a
- * logical DB may disappear), so it is never cached in our schema.
+ * The member list comes from Infra Manager — the only place the target
+ * source's databaseUris are known. It can shrink (a logical DB may disappear),
+ * so it is never persisted; a short in-memory TTL only keeps paging from
+ * refetching the same 10k list per page.
  *
  * A databaseUri with no mapped DAG renders as 7x NOT_SCHEDULED: we only learn
  * dag names from events, so "unmapped" means "never ran", which is the answer
@@ -35,22 +39,21 @@ public class WeeklyDagStatusService {
     private final DagRunStatusRepository repository;
     private final DagDatabaseUriRepository uriRepository;
     private final InfraManagerClient infraManager;
+    private final Map<Long, Cached> memberCache = new ConcurrentHashMap<>();
+    private final Duration ttl;
 
     public WeeklyDagStatusService(DagRunStatusRepository repository,
-            DagDatabaseUriRepository uriRepository, InfraManagerClient infraManager) {
+            DagDatabaseUriRepository uriRepository, InfraManagerClient infraManager,
+            @Value("${lineage.members.ttl:PT60S}") Duration ttl) {
         this.repository = repository;
         this.uriRepository = uriRepository;
         this.infraManager = infraManager;
+        this.ttl = ttl;
     }
 
     /** afterDatabaseUri: last databaseUri of the previous page, null for the first page. */
     public List<DagWeeklyStatus> weeklyStatuses(long targetSourceId, String afterDatabaseUri, int size) {
-        // ponytail: Infra Manager has no paging yet, so the full member list
-        // (up to ~10k) is sorted and sliced here. If paging lands upstream, pass
-        // the cursor through instead; if it does not, cache the list per
-        // targetSourceId with a short TTL so page 2..N skip the refetch.
-        List<String> page = infraManager.databaseUris(targetSourceId).stream()
-                .sorted()
+        List<String> page = members(targetSourceId).stream()
                 .dropWhile(uri -> afterDatabaseUri != null && uri.compareTo(afterDatabaseUri) <= 0)
                 .limit(size)
                 .toList();
@@ -72,6 +75,34 @@ public class WeeklyDagStatusService {
                 })
                 .toList();
     }
+
+    /**
+     * The target source's members, sorted so paging is stable.
+     *
+     * Infra Manager has no paging (owner-confirmed), so one call returns all
+     * ~10k members — up to ~10MB with 1KB URIs. Without a cache, every page of
+     * the board would refetch that whole list. A TTL is the only invalidation
+     * needed: the list changes, but nothing here can observe the change, so
+     * staleness is bounded by the TTL and never by a missed event.
+     *
+     * A failed call is NOT cached and NOT swallowed — an outage must surface as
+     * a failed read, never as an empty or stale group.
+     */
+    private List<String> members(long targetSourceId) {
+        long now = System.nanoTime();
+        Cached hit = memberCache.get(targetSourceId);
+        if (hit != null && hit.expiresAt() > now) {
+            return hit.databaseUris();
+        }
+        List<String> fresh = infraManager.databaseUris(targetSourceId).stream().sorted().toList();
+        memberCache.put(targetSourceId, new Cached(fresh, now + ttl.toNanos()));
+        return fresh;
+    }
+
+    // ponytail: one entry per target source, never evicted except by overwrite.
+    // Fine while target sources number in the hundreds; swap for a size-bounded
+    // cache if that stops being true.
+    private record Cached(List<String> databaseUris, long expiresAt) {}
 
     private static DagWeeklyStatus summarize(String databaseUri, String dagName, LocalDate firstDay,
             List<DayStatusRow> rows) {

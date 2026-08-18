@@ -43,7 +43,13 @@ CREATE INDEX idx_dag_run_status_dag ON dag_run_status (dag_id, logical_date);
 -- group read anyway, so a stored membership would only be a stale superset.
 CREATE TABLE dag_database_uri (
     dag_name     VARCHAR(250) PRIMARY KEY,
-    database_uri VARCHAR(500) UNIQUE,               -- NULL until resolved; length TBD against the real URI format
+    -- ascii, not utf8mb4, on purpose: InnoDB caps an index key at 3072 bytes and
+    -- utf8mb4 reserves 4 bytes per char, so a UNIQUE index on VARCHAR(1024)
+    -- utf8mb4 (4096 bytes) is rejected at CREATE TABLE. URIs are ASCII (RFC 3986),
+    -- so ascii_bin fits in 1024 bytes and keeps the comparison case-sensitive.
+    -- If real URIs turn out to be non-ASCII, move the UNIQUE to a generated
+    -- SHA2 hash column rather than shortening the URI.
+    database_uri VARCHAR(1024) CHARACTER SET ascii COLLATE ascii_bin UNIQUE,  -- NULL until resolved
     attempts     INT          NOT NULL DEFAULT 0,   -- failed resolve attempts; caps retries for names Pipeline Manager never answers
     seen_at      DATETIME(6)  NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
     resolved_at  DATETIME(6)
