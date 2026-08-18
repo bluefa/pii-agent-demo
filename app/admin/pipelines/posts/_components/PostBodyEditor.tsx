@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { getMarkRange } from '@tiptap/core';
 import { EditorContent, useEditor, useEditorState, type Editor } from '@tiptap/react';
 import type { EditorState } from '@tiptap/pm/state';
@@ -15,8 +15,13 @@ import {
   POST_IMAGE_MAX_BYTES,
   POST_IMAGE_MIME_TYPES,
 } from '@/lib/constants/post-images';
+import { AppError } from '@/lib/errors';
+import { POST_MAX_IMAGES } from '@/lib/utils/validate-post-content';
 import { bgColors, borderColors, cn, primaryColors, textColors } from '@/lib/theme';
 import type { ImageUploadResponse } from '@/lib/types/post';
+
+/** 성공이면 올라간 이미지, 아니면 관리자에게 보여 줄 사유 한 줄. */
+type UploadResult = { image: ImageUploadResponse } | { error: string };
 
 /**
  * 이 편집이 링크 글자를 건드리는가 — 그렇다면 막는다. 링크는 모달에서만 바뀐다.
@@ -40,8 +45,14 @@ interface PostBodyEditorProps {
   /** An image finished uploading — the parent tracks its size for the counter. */
   onImageUploaded: (url: string, bytes: number) => void;
   onError: (message: string | null) => void;
-  /** Blocks the image controls once the post is at its image limit. */
-  imagesFull: boolean;
+  /**
+   * 남은 이미지 칸. 0 이면 이미지 컨트롤이 잠긴다.
+   *
+   * 예전에는 `imagesFull: boolean` 이었고 툴바 버튼만 잠갔다 — 붙여넣기와 드롭은
+   * 그대로 통과했다. 한 번에 한 장씩 들어올 때는 저장 시점 검사로 충분했지만,
+   * 이제 12장을 한 번에 떨어뜨릴 수 있어서 넣기 전에 셀 수가 있어야 한다.
+   */
+  remainingImages: number;
 }
 
 /**
@@ -60,7 +71,7 @@ export const PostBodyEditor = ({
   onChange,
   onImageUploaded,
   onError,
-  imagesFull,
+  remainingImages,
 }: PostBodyEditorProps) => {
   const fileRef = useRef<HTMLInputElement>(null);
   // handlePaste/handleDrop are built once, before `editor` exists; the ref is
@@ -70,56 +81,100 @@ export const PostBodyEditor = ({
   const [linkModal, setLinkModal] = useState(false);
 
   /**
+   * 업스트림 문구가 UI 문구인 경우는 파일이 왜 거절됐는지 말할 때뿐이다 —
+   * UNSUPPORTED_IMAGE_TYPE(400) 과 IMAGE_TOO_LARGE(413) 는 관리자가 다른 파일을
+   * 고르면 되는 얘기다. 5xx 는 파일 얘기가 아니므로 우리가 말한다. "HTTP 500" 은
+   * 관리자에게 할 수 있는 일을 알려 주지 않는다.
+   */
+  const failureText = (cause: unknown): string => {
+    if (cause instanceof AppError) {
+      return cause.status >= 500
+        ? '서버 오류로 업로드하지 못했습니다. 잠시 후 다시 시도해 주세요'
+        : cause.message;
+    }
+    return '이미지 업로드에 실패했습니다';
+  };
+
+  /**
    * Rejects at the picker what the server would reject anyway — uploading 5MB
    * to be told no is worse than being stopped before the bytes leave.
-   * Returns the URL, or null when the file did not qualify.
+   *
+   * 사유를 `onError` 로 직접 쓰지 않고 돌려준다. 여러 장을 한 번에 넣을 때 실패가
+   * 여러 개 나올 수 있고, 그때 마지막 것만 남으면 앞의 실패가 조용히 사라진다.
    */
-  const upload = useCallback(async (file: File): Promise<ImageUploadResponse | null> => {
+  const upload = useCallback(async (file: File): Promise<UploadResult> => {
     if (!(POST_IMAGE_MIME_TYPES as readonly string[]).includes(file.type)) {
-      onError('png / jpeg / webp 만 업로드할 수 있습니다');
-      return null;
+      return { error: 'png / jpeg / webp 만 업로드할 수 있습니다' };
     }
     if (file.size > POST_IMAGE_MAX_BYTES) {
-      onError('이미지 1개당 최대 5MB 입니다');
-      return null;
+      return { error: '이미지 1개당 최대 5MB 입니다' };
     }
+    try {
+      return { image: await uploadPostImage(file) };
+    } catch (cause) {
+      return { error: failureText(cause) };
+    }
+  }, []);
 
+  /**
+   * 떨어뜨린 파일 전부를 순서대로 넣는다. 한 번에 여러 장을 끌어다 놓거나 붙여넣는
+   * 것은 흔한데, 예전에는 `[0]` 만 읽어서 나머지가 에러도 없이 사라졌다.
+   *
+   * 병렬로 올리지 않는 이유는 자리다 — 먼저 끝난 것이 먼저 박히므로 놓은 순서가
+   * 뒤집힌다. 앞 그림이 들어가야 다음 그림의 자리가 정해진다.
+   */
+  const insertImages = useCallback(async (files: readonly File[], at?: number) => {
+    if (files.length === 0) return;
     setUploading(true);
     onError(null);
-    try {
-      const uploaded = await uploadPostImage(file);
-      onImageUploaded(uploaded.url, file.size);
-      return uploaded;
-    } catch (cause) {
-      onError(cause instanceof Error ? cause.message : '이미지 업로드에 실패했습니다');
-      return null;
-    } finally {
-      setUploading(false);
+
+    const failures: string[] = [];
+    // 넘치는 분은 올리지 않는다 — 어차피 저장이 막힐 바이트를 보낼 이유가 없다.
+    // 루프 중에는 이 값이 갱신되지 않으므로(prop 이 렌더에 묶여 있다) 시작 시점에
+    // 한 번 자른다. 남은 칸보다 적게 넣을 수는 있어도 넘길 수는 없다.
+    const accepted = files.slice(0, Math.max(0, remainingImages));
+    if (accepted.length < files.length) {
+      failures.push(`이미지는 게시글당 최대 ${POST_MAX_IMAGES}장입니다`);
     }
-  }, [onError, onImageUploaded]);
 
-  const insertImage = useCallback(async (file: File, at?: number) => {
-    const uploaded = await upload(file);
-    const editor = editorRef.current;
-    if (!uploaded || !editor) return;
+    // `at` 은 드롭 지점 — 첫 장만 그 자리를 쓰고, 나머지는 바로 앞 그림 뒤에 붙는다.
+    let position = at;
+    for (const file of accepted) {
+      const result = await upload(file);
+      if ('error' in result) {
+        failures.push(result.error);
+        continue;
+      }
+      onImageUploaded(result.image.url, file.size);
+      const editor = editorRef.current;
+      if (!editor) break;
 
-    const chain = editor.chain().focus();
-    // `at` comes from a drop — the picture lands where it was dropped rather
-    // than wherever the caret happened to be.
-    if (at !== undefined) chain.setTextSelection(at);
-    chain.insertContent({
-      type: 'postImage',
-      // width/height are the upload's intrinsic size. They reserve the box
-      // before the bytes arrive, which is why the reader's list does not jump
-      // as images load; CSS still owns the displayed width.
-      attrs: {
-        src: uploaded.url,
-        alt: file.name,
-        width: uploaded.width,
-        height: uploaded.height,
-      },
-    }).run();
-  }, [upload]);
+      // 자리를 명시해 붙인다. `insertContent` 는 "선택을 대신한다"는 뜻이고, 방금
+      // 넣은 이미지가 선택된 채로 남으므로 그대로 다음 장을 넣으면 앞 장을 덮는다
+      // (3장을 고르면 마지막 1장만 남았다). 두 번째부터는 직전 삽입 뒤를 자리로 쓴다.
+      const at = position ?? editor.state.selection.to;
+      editor.chain().focus().insertContentAt(at, {
+        type: 'postImage',
+        // width/height are the upload's intrinsic size. They reserve the box
+        // before the bytes arrive, which is why the reader's list does not jump
+        // as images load; CSS still owns the displayed width.
+        attrs: {
+          src: result.image.url,
+          alt: file.name,
+          width: result.image.width,
+          height: result.image.height,
+        },
+      }).run();
+      position = editor.state.selection.to;
+    }
+
+    setUploading(false);
+    if (failures.length > 0) {
+      // 같은 사유로 여러 장이 막히는 경우가 대부분이라 사유는 겹쳐서 센다.
+      const reasons = [...new Set(failures)].join(' / ');
+      onError(failures.length === 1 ? reasons : `이미지 ${failures.length}장 실패 — ${reasons}`);
+    }
+  }, [upload, onError, onImageUploaded, remainingImages]);
 
   const editor = useEditor({
     // Next renders this on the server first; without it Tiptap warns and can
@@ -178,11 +233,11 @@ export const PostBodyEditor = ({
         const { from, to } = view.state.selection;
         if (editsLinkText(view.state, from, to)) return true;
 
-        const file = [...(event.clipboardData?.files ?? [])][0];
-        if (!file) return false;
+        const files = [...(event.clipboardData?.files ?? [])];
+        if (files.length === 0) return false;
         // A pasted screenshot is the common case — Cmd+Shift+4, Cmd+V.
         event.preventDefault();
-        void insertImage(file);
+        void insertImages(files);
         return true;
       },
       handleDrop: (view, event, _slice, moved) => {
@@ -191,12 +246,12 @@ export const PostBodyEditor = ({
         // alone. Only an external file drop is an upload.
         if (moved) return false;
         const dragEvent = event as DragEvent;
-        const file = [...(dragEvent.dataTransfer?.files ?? [])][0];
-        if (!file) return false;
+        const files = [...(dragEvent.dataTransfer?.files ?? [])];
+        if (files.length === 0) return false;
 
         event.preventDefault();
         const at = view.posAtCoords({ left: dragEvent.clientX, top: dragEvent.clientY })?.pos;
-        void insertImage(file, at);
+        void insertImages(files, at);
         return true;
       },
     },
@@ -225,7 +280,12 @@ export const PostBodyEditor = ({
     }),
   });
 
-  editorRef.current = editor;
+  // 커밋 뒤에 채운다. 렌더 중 할당은 `react-hooks` 가 막고, 여기서는 굳이 렌더
+  // 시점일 이유도 없다 — 이 ref 를 읽는 것은 paste·drop 핸들러뿐이고, 그 이벤트는
+  // 에디터가 붙은 다음에야 올 수 있다.
+  useEffect(() => {
+    editorRef.current = editor;
+  }, [editor]);
 
   if (!editor || !active) {
     return <div className={cn('h-[340px] rounded-lg border', borderColors.default)} />;
@@ -290,7 +350,7 @@ export const PostBodyEditor = ({
         <button
           type="button"
           onClick={() => fileRef.current?.click()}
-          disabled={uploading || imagesFull}
+          disabled={uploading || remainingImages <= 0}
           className={cn(
             'rounded-md border px-2 py-1 text-xs font-medium transition-colors',
             'disabled:cursor-not-allowed disabled:opacity-40',
@@ -341,10 +401,10 @@ export const PostBodyEditor = ({
       <input
         ref={fileRef}
         type="file"
+        multiple
         accept={POST_IMAGE_ACCEPT}
         onChange={(event) => {
-          const file = event.target.files?.[0];
-          if (file) void insertImage(file);
+          void insertImages([...(event.target.files ?? [])]);
           event.target.value = '';
         }}
         className="hidden"

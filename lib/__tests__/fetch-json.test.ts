@@ -326,3 +326,30 @@ describe('fetchJson — Headers 병합', () => {
     expect(sent.get('content-type')).toBe('application/json');
   });
 });
+
+// 파일 업로드가 이 래퍼를 쓸 수 있어야 타임아웃·네트워크 정규화를 같이 받는다.
+// 그 전에는 raw fetch 로 빠져 있었고, 그래서 BFF 가 죽으면 브라우저의
+// "Failed to fetch" 가 한국어 UI 에 그대로 나왔다.
+describe('fetchJson — FormData 본문', () => {
+  it('Content-Type 을 정하지 않는다 — boundary 는 fetch 가 붙인다', async () => {
+    const spy = mockFetch(200, { url: '/img/1.png' });
+    const form = new FormData();
+    form.append('file', new Blob(['x'], { type: 'image/png' }));
+
+    await fetchJson('/api/v1/admin/posts/images', { method: 'POST', body: form });
+
+    const [, init] = spy.mock.calls[0];
+    expect(new Headers(init?.headers as HeadersInit).get('content-type')).toBeNull();
+  });
+
+  it('직렬화하지 않고 그대로 넘긴다', async () => {
+    const spy = mockFetch(200, { url: '/img/1.png' });
+    const form = new FormData();
+    form.append('file', new Blob(['x'], { type: 'image/png' }));
+
+    await fetchJson('/api/v1/admin/posts/images', { method: 'POST', body: form });
+
+    expect(spy.mock.calls[0][1]?.body).toBe(form);
+  });
+
+});

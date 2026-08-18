@@ -141,9 +141,13 @@ export async function fetchJson<T>(url: string, options: FetchJsonOptions = {}):
     }
   }
 
-  // Headers 병합: Headers 인스턴스/튜플 배열도 안전하게 처리
+  // FormData 는 fetch 가 boundary 를 붙여 Content-Type 을 직접 만든다 — 여기서
+  // 미리 정하면 boundary 가 빠져 서버의 multipart 파싱이 깨진다. 그래서 헤더도
+  // 직렬화도 건너뛴다. 파일 업로드가 이 래퍼를 못 쓰고 raw fetch 로 빠지면
+  // 타임아웃도 네트워크 에러 정규화도 같이 잃는다.
+  const isFormData = body instanceof FormData;
   const headers = new Headers(init.headers);
-  if (body !== undefined) {
+  if (body !== undefined && !isFormData) {
     headers.set('Content-Type', 'application/json');
   }
 
@@ -152,7 +156,7 @@ export async function fetchJson<T>(url: string, options: FetchJsonOptions = {}):
     const res = await fetch(url, {
       ...init,
       headers,
-      body: body !== undefined ? JSON.stringify(body) : undefined,
+      body: body === undefined ? undefined : isFormData ? body : JSON.stringify(body),
       signal: controller.signal,
     });
 

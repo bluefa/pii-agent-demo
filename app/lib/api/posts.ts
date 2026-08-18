@@ -8,8 +8,7 @@
  * screens call it lazily — when a row opens, once per row.
  */
 
-import { fetchInfra, fetchInfraJson } from '@/app/lib/api/infra';
-import { AppError } from '@/lib/errors';
+import { fetchInfraJson } from '@/app/lib/api/infra';
 import type {
   AdminPost,
   AdminPostCategory,
@@ -70,25 +69,24 @@ export const deletePostCategory = async (categoryId: number): Promise<void> => {
 };
 
 /**
- * One file, one request. `fetchInfraJson` would JSON-stringify the body, so
- * this goes through the raw fetch — FormData must reach fetch intact for the
- * multipart boundary to be generated.
+ * One file, one request. Goes through `fetchInfraJson` like every other call —
+ * it now passes FormData to fetch untouched, so the multipart boundary survives.
+ *
+ * Hand-rolling this on raw fetch is what it replaces, and that version was
+ * missing three things the wrapper already owns: the 30s timeout (a hung BFF
+ * left the editor spinning with no way out), the TypeError → NETWORK
+ * translation (a dead BFF surfaced the browser's own "Failed to fetch" in a
+ * Korean UI), and status-derived `retriable` (every failure was stamped
+ * non-retriable BAD_REQUEST, so a 503 read as "this file is bad").
+ *
+ * UNSUPPORTED_IMAGE_TYPE (400) and IMAGE_TOO_LARGE (413) still reach the editor
+ * as their ProblemDetails `detail` — `parseErrorResponse` reads that field.
  */
-export const uploadPostImage = async (file: File): Promise<ImageUploadResponse> => {
+export const uploadPostImage = (file: File): Promise<ImageUploadResponse> => {
   const form = new FormData();
   form.append('file', file);
-
-  const response = await fetchInfra('/admin/posts/images', { method: 'POST', body: form });
-  if (!response.ok) {
-    // UNSUPPORTED_IMAGE_TYPE (400) and IMAGE_TOO_LARGE (413) both mean "this
-    // file is not acceptable", so the detail is what the editor shows.
-    const body = await response.json().catch(() => ({})) as { detail?: unknown };
-    throw new AppError({
-      code: 'BAD_REQUEST',
-      message: typeof body.detail === 'string' ? body.detail : '이미지 업로드에 실패했습니다',
-      status: response.status,
-      retriable: false,
-    });
-  }
-  return await response.json() as ImageUploadResponse;
+  return fetchInfraJson<ImageUploadResponse>('/admin/posts/images', {
+    method: 'POST',
+    body: form,
+  });
 };

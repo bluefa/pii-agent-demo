@@ -246,7 +246,7 @@ export const PostEditorForm = ({ type: initialType, postId }: PostEditorFormProp
                   onChange={setBody}
                   onImageUploaded={trackImage}
                   onError={setError}
-                  imagesFull={check.usage.imageCount >= POST_MAX_IMAGES}
+                  remainingImages={POST_MAX_IMAGES - check.usage.imageCount}
                 />
               )}
               <p className={postFormStyles.hint}>
