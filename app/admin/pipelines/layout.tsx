@@ -181,6 +181,23 @@ export default function PipelinesLayout({ children }: { children: ReactNode }) {
         ? layout.contentDetail
         : layout.content;
 
+  // …and its ground drops to gray-300. Only on this route does a full-bleed white
+  // masthead sit directly on the body, and white-on-#F9FAFB is 1.045:1 — the masthead
+  // and the body cards were literally the same color (1.000:1), with 24px of ground
+  // as the only separator. Darkening the ground (not the masthead) is what buys the
+  // separation: the chrome stays the brightest surface, so the 코드 chip and 설치모드
+  // tag keep their own --pl-gray-100 fills, and the body cards gain the same ratio
+  // against their ground. The masthead's `-mt-6 -mx-8` already covers main's padding
+  // box, so it paints over this fill on its own.
+  //
+  // #D0D5DD (1.474:1) is the last calm step of the neutral ramp. Below it the ramp
+  // jumps to #98A2B3 (2.58:1), which turns the page into a slate canvas that reads as
+  // a different product — and still does not reach 3:1, so the visual cost buys no
+  // compliance. Two surfaces cannot hit 3:1 in a light theme at all (the only gray
+  // that does against white is #959595, a mid-gray page), which is why the 3:1 bar is
+  // carried by the rail's boundary line instead — see opsStyles.tabStrip.
+  const groundClass = isOpsTarget ? 'bg-[var(--pl-gray-300)]' : undefined;
+
   return (
     <div className={layout.shell}>
       <nav className={layout.sidebar} aria-label="작업 내비게이션">
@@ -223,7 +240,7 @@ export default function PipelinesLayout({ children }: { children: ReactNode }) {
           </div>
         ))}
       </nav>
-      <main className={mainClass}>
+      <main className={cn(mainClass, groundClass)}>
         <NavCountsRefreshProvider value={refreshCounts}>
           <PlToastProvider>{children}</PlToastProvider>
         </NavCountsRefreshProvider>

@@ -34,7 +34,13 @@ export function OpsProcessRail({ status }: OpsProcessRailProps): ReactElement {
         const done = index < currentIndex || (index === currentIndex && index === ORDER.length - 1);
         const current = !done && index === currentIndex;
         return (
-          <li key={step} className="relative flex-1 text-center">
+          // The rail is the only thing naming the current step in this card, so
+          // the marker has to be in the tree, not only in the styling.
+          <li
+            key={step}
+            aria-current={current ? 'step' : undefined}
+            className="relative flex-1 text-center"
+          >
             {index > 0 && (
               <span
                 aria-hidden

@@ -110,15 +110,28 @@ export const opsStyles = {
   /** Tab rail — line tabs (Carbon: the body below is cards on a ground, not a
       panel, so a contained tab's white face had nothing to connect to). The rail
       is the masthead's last row: same white face, one border closing both, and
-      the active tab is marked by weight + hue + underline. */
-  tabStrip: 'flex items-center gap-1 px-8 bg-[var(--pl-bg-card)] border-b border-[var(--pl-border)]',
+      the active tab is marked by weight + hue + underline.
+      That one border is where this screen spends its contrast. Two large surfaces
+      cannot reach 3:1 in a light theme — the only gray that does against white is
+      #959595, a mid-gray page — but a 1px rule can and should: gray-500 is 4.97:1
+      on the white masthead and 4.51:1 on the ground below it, so the edge that
+      closes the chrome clears WCAG 1.4.11 with room. Deliberately a ramp token and
+      not --pl-border-strong (#D0D5DD, 1.47:1), which is a hairline between two
+      whites, not a boundary between two regions. */
+  tabStrip: 'flex items-center gap-1 px-8 bg-[var(--pl-bg-card)] border-b border-[var(--pl-gray-500)]',
   tab: 'px-3 py-3 text-[14px] cursor-pointer whitespace-nowrap border-b-2 -mb-px transition-colors',
   tabActive: 'font-semibold text-[var(--pl-primary)] border-[var(--pl-primary)]',
   tabIdle: 'font-medium text-[var(--pl-text-weak)] border-transparent hover:text-[var(--pl-text-strong)] hover:border-[var(--pl-border-strong)]',
   tabDisabled: 'font-medium text-[var(--pl-text-faint)] cursor-not-allowed',
 
-  /** 진행 상태 tab content — 24px below the tab rail (prototype). */
-  content: 'mt-6 flex flex-col gap-4',
+  /** Tab content — 24px below the tab rail (prototype), capped even though the
+      route is fluid. The masthead and rail SHOULD reach the viewport edge (they
+      are chrome, and their content is anchored to both ends), but the body is
+      tables and cards: past ~1440px a 2:1 grid spreads its label and value a
+      hand's width apart and the eye loses the row. Same 1440 as `layout.content`
+      so a capped tab body lines up with every other admin screen; left-aligned,
+      not centered, so the first card's edge sits under the h1. */
+  content: 'mt-6 flex flex-col gap-4 max-w-[1440px]',
   /** Side-by-side cards — grid rows stretch so the pair is always equal height. */
   cardsRow: 'grid grid-cols-2 gap-4',
   /** 20px — at 16px the card title reads the same tier as in-card block headers (ops feedback, scan tab). */

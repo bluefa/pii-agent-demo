@@ -37,10 +37,9 @@ vi.mock('@/app/hooks/useTestConnectionPolling', () => ({ fetchLatestTest: vi.fn(
 vi.mock('@/app/lib/api/aws', () => ({ getAwsRoleVerification: vi.fn(async () => null) }));
 // `getTargetJiraTicket` landed in #677 while this file landed in #676. Git merged both without
 // conflict and left the mock one export short, so the view's own fetch threw on every run here.
-vi.mock('@/app/lib/api/ops', () => ({
-  getCollaborationChannel: vi.fn(async () => null),
-  getTargetJiraTicket: vi.fn(async () => null),
-}));
+// The `getCollaborationChannel` key that repair also carried is gone: #677 deleted that export,
+// so mocking it described a module surface that no longer exists.
+vi.mock('@/app/lib/api/ops', () => ({ getTargetJiraTicket: vi.fn(async () => null) }));
 vi.mock('@/app/lib/api/task-queue-tc', () => ({
   getTestConnectionDetail: vi.fn(async () => null),
   getTestConnectionResults: vi.fn(async () => []),
