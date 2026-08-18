@@ -59,6 +59,7 @@ import {
   createAccessRequest,
   getMyAccessRequests,
   getServicesPage,
+  fetchEveryPage,
   getUserServices,
   sliceToPage,
   type AccessPage,
@@ -78,15 +79,16 @@ import {
  * 칸에 두세 줄이 서고, 다음 장으로 넘겨도 여전히 두세 줄이다. 한 장은 다섯 줄이어야
  * 한다(오너 지시 2026-08-18).
  *
- * 08-14 에 전체 훑기를 접었던 이유는 **왕복 횟수**였다(서비스 2,059 개에서 열한 번).
- * 그 전제가 여기서는 성립하지 않는다 — 한 번에 크게 받아 화면에서 나누므로 왕복은
- * 한 번이다. 관리자 화면 둘(`admins`, `services/[[...code]]`)이 이미 같은 `sliceToPage`
- * 를 쓴다.
+ * 그러려면 카탈로그가 통째로 손에 있어야 해서 `fetchEveryPage` 로 끝까지 읽는다. 08-14
+ * 에 전체 훑기를 접었던 이유는 **왕복 횟수**였는데(다섯 줄씩이면 2,059 개에서 열한 번)
+ * 그 전제는 장 크기에 달린 것이다 — 500 이면 그 카탈로그가 다섯 번, 흔한 크기는 한 번.
+ * 중간에 끊고 전체인 척하지는 않는다: 못 받은 서비스는 신청 목록에서 존재하지 않는 것이
+ * 되는데 페이저는 다 보여 준 얼굴을 하고, 목이 한 장에 들어가 화면으로는 안 보인다.
  *
- * 천장: 카탈로그가 CATALOG_FETCH_SIZE 를 넘으면 넘는 만큼은 후보에 안 뜬다. 그때 답은
- * 더 큰 수가 아니라 B6(서버 필터)다.
+ * 관리자 화면 둘(`admins`, `services/[[...code]]`)이 이미 같은 `sliceToPage` 를 쓴다.
  */
 const REQUESTABLE = new Set(['NONE', 'REJECTED']);
+/** 한 왕복에 받는 줄 수 — 카탈로그를 몇 번에 나눠 받느냐만 정한다(전체는 어차피 받는다). */
 const CATALOG_FETCH_SIZE = 500;
 const SEARCH_DEBOUNCE_MS = 300;
 
@@ -116,15 +118,20 @@ const SERVICE_COLUMNS: readonly Column[] = [
   { className: a.svcActionCell },
 ];
 
-/** 그 표의 로딩 자리 — 꼬리 칸의 막대는 버튼 그룹의 실제 크기(140×32)다. */
-const SERVICE_SKELETON = (
+/**
+ * 그 표의 로딩 자리. 꼬리 칸의 막대는 버튼 그룹의 실제 크기(140×32)라 **요청 탭에만**
+ * 그린다 — 접근 가능 탭의 행은 그 칸이 비어 있어서, 늘 그리면 첫 그림에 다섯 줄 끝마다
+ * 회색 버튼이 섰다가 사라지고 행이 52 → 40 으로 내려앉는다. 진입 탭이라 매 방문 처음
+ * 보는 화면이다. 스켈레톤은 도착할 행의 모양이지 표의 모양이 아니다.
+ */
+const serviceSkeleton = (withAction: boolean): ReactElement => (
   <div role="rowgroup" aria-busy="true" aria-label="목록을 불러오는 중" className={a.tableBody}>
     {Array.from({ length: ACCESS_PAGE_SIZE }, (_, row) => (
-      <div key={row} className={a.rowMid} aria-hidden="true">
-        <span className={cn(a.code, a.skeletonBar)} />
-        <span className={cn(a.name, a.skeletonBar)} />
-        <span className={a.svcActionCell}>
-          <span className={cn(a.skeletonBar, 'h-8 w-[140px]')} />
+      <div key={row} role="row" className={a.rowMid} aria-hidden="true">
+        <span role="cell" className={cn(a.code, a.skeletonBar)} />
+        <span role="cell" className={cn(a.name, a.skeletonBar)} />
+        <span role="cell" className={a.svcActionCell}>
+          {withAction && <span className={cn(a.skeletonBar, 'h-8 w-[140px]')} />}
         </span>
       </div>
     ))}
@@ -154,9 +161,14 @@ function HeaderVerdict({ counts }: { counts: VerdictCounts | 'error' | null }): 
 
   if (total === 0) {
     // 셀 것이 없을 때만 문장이 선다 — 수를 못 쓰는 유일한 경우라서.
+    //
+    // 탭을 이름으로 부른다. '아래 목록'이라고 쓰던 때는 첫 탭이 요청할 수 있는 서비스라
+    // 그 말이 맞았는데, 첫 탭이 접근할 수 있는 서비스로 바뀌면서(오너 지시 2026-08-18)
+    // 바로 아래 목록에는 요청할 것이 없어졌다 — 버튼 그룹은 요청 탭에만 그려진다.
     return (
       <p className={a.pageDesc}>
-        아직 요청한 권한이 없어요 — 아래 목록에서 서비스를 골라 권한을 요청해 보세요
+        아직 요청한 권한이 없어요 — &lsquo;요청할 수 있는 서비스&rsquo; 탭에서 골라 요청해
+        보세요
       </p>
     );
   }
@@ -216,10 +228,11 @@ const MINE_COLUMNS: readonly Column[] = [
 const MINE_SKELETON = (
   <div role="rowgroup" aria-busy="true" aria-label="목록을 불러오는 중" className={a.tableBody}>
     {Array.from({ length: ACCESS_PAGE_SIZE }, (_, row) => (
-      <div key={row} className={a.rowTop} aria-hidden="true">
+      <div key={row} role="row" className={a.rowTop} aria-hidden="true">
         {MINE_COLUMNS.map((col, index) => (
           <span
             key={col.label ?? `tail-${index}`}
+            role="cell"
             className={cn(col.className, col.label != null && a.skeletonBar)}
           />
         ))}
@@ -240,29 +253,28 @@ export default function MyAccessRequestsPage(): ReactElement {
     return () => clearTimeout(timer);
   }, [query]);
 
-  // 검색은 서버가, 상태는 화면이 거른다. 한 번에 크게 받아 거른 뒤 다섯 줄씩 나눈다
-  // (위 REQUESTABLE 주석). `page` 는 걸러진 목록의 장 번호지 서버 장 번호가 아니다.
+  // 검색은 서버가, 상태는 화면이 거른다. 카탈로그를 끝까지 받아 거른 뒤 다섯 줄씩
+  // 나눈다(위 REQUESTABLE 주석). `page` 는 걸러진 목록의 장 번호지 서버 장 번호가 아니다.
   const fetchRequestable = useCallback(
     async (page: number, opts: { signal: AbortSignal }): Promise<AccessPage<ServiceRow>> => {
-      const result = await getServicesPage(debounced || undefined, 0, {
-        ...opts,
-        size: CATALOG_FETCH_SIZE,
-      });
-      const rows = result.content.filter((row) => REQUESTABLE.has(row.accessStatus));
+      const all = await fetchEveryPage((n) =>
+        getServicesPage(debounced || undefined, n, { ...opts, size: CATALOG_FETCH_SIZE }),
+      );
+      const rows = all.filter((row) => REQUESTABLE.has(row.accessStatus));
       return sliceToPage(rows, page, ACCESS_PAGE_SIZE);
     },
     [debounced],
   );
 
   // 다른 호출이다 — `/user/services/page` 는 내가 담당인 것만 준다. 다만 ADMIN 에게는
-  // 전체가 오므로(role 로 통과할 뿐 담당자는 아니다) 여기서 한 번 더 거른다.
+  // 전체가 오므로(role 로 통과할 뿐 담당자는 아니다) 여기서 한 번 더 거른다. 그래서
+  // 관리자에겐 이쪽도 카탈로그 전체가 걸리는 목록이고, 끝까지 읽어야 하는 이유가 같다.
   const fetchOwned = useCallback(
     async (page: number, opts: { signal: AbortSignal }): Promise<AccessPage<UserServiceRow>> => {
-      const result = await getUserServices(debounced || undefined, 0, {
-        ...opts,
-        size: CATALOG_FETCH_SIZE,
-      });
-      const rows = result.content.filter((row) => row.accessStatus === 'OWNED');
+      const all = await fetchEveryPage((n) =>
+        getUserServices(debounced || undefined, n, { ...opts, size: CATALOG_FETCH_SIZE }),
+      );
+      const rows = all.filter((row) => row.accessStatus === 'OWNED');
       return sliceToPage(rows, page, ACCESS_PAGE_SIZE);
     },
     [debounced],
@@ -415,7 +427,7 @@ export default function MyAccessRequestsPage(): ReactElement {
             />
           }
           columns={SERVICE_COLUMNS}
-          skeleton={SERVICE_SKELETON}
+          skeleton={serviceSkeleton(requestTab)}
           empty={
             debounced
               ? {
@@ -465,6 +477,7 @@ export default function MyAccessRequestsPage(): ReactElement {
                         <button
                           type="button"
                           className={a.svcActionBtnGo}
+                          aria-haspopup="dialog"
                           onClick={() => setTarget(row)}
                         >
                           권한 요청
@@ -529,7 +542,12 @@ export default function MyAccessRequestsPage(): ReactElement {
                       여기서 연다. */}
                   <span role="cell" className={a.svcAction}>
                     {row.status === 'REJECTED' && (
-                      <button type="button" className={a.svcLink} onClick={() => setTarget(row)}>
+                      <button
+                        type="button"
+                        className={a.svcLink}
+                        aria-haspopup="dialog"
+                        onClick={() => setTarget(row)}
+                      >
                         다시 요청
                       </button>
                     )}

@@ -157,6 +157,29 @@ export interface ServiceRow extends UserServiceRow {
 // ── Wire → domain ────────────────────────────────────────────────────────────
 
 /**
+ * 장을 끝까지 읽어 하나로 합친다. 장수는 서버가 말한 `totalPages` 만 따른다.
+ *
+ * 거르는 축(`access_status`)이 계약에 필터로 없어서(갭 B6) 후보 목록은 카탈로그 전체를
+ * 손에 들어야 한다. 첫 장만 받아 놓고 전체인 척하면 그 뒤 서비스들은 **존재하지 않는
+ * 것이 된다** — 신청할 수도 없고 목록에도 안 뜨는데 페이저는 다 보여 준 얼굴을 하고
+ * 있다. 목이 한 장에 다 담기는 크기라 화면으로는 절대 안 보이는 종류의 오류다.
+ *
+ * 08-14 에 이 방식을 접었던 이유는 **왕복 횟수**였다(다섯 줄씩 훑으면 2,059 개에서 열한
+ * 번). 그 전제는 장 크기에 달린 것이라 여기서 뒤집힌다: 부르는 쪽이 `size` 를 크게 잡아
+ * 카탈로그 대부분이 한 장에 담긴다.
+ */
+export async function fetchEveryPage<T>(
+  fetchPage: (page: number) => Promise<AccessPage<T>>,
+): Promise<T[]> {
+  const first = await fetchPage(0);
+  const all = [...first.content];
+  for (let page = 1; page < first.totalPages; page += 1) {
+    all.push(...(await fetchPage(page)).content);
+  }
+  return all;
+}
+
+/**
  * 페이지가 아닌 응답(권한 사용자·관리자 전체)을 카드가 쓰는 페이지 모양으로 자른다.
  * 계약이 전체를 주기로 한 이상 나누는 일은 화면 몫이다.
  */
