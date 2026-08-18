@@ -37,6 +37,21 @@ OpenLineage 스펙 쪽도 같다: facet 키 `jobType`, 필드
 거르고, jobType 검사가 하중을 받는 필터다 — emit()에서 jobType을 먼저
 검사하는 현재 순서가 옳다.
 
+## 소비 측 2차 방어 (`LineageEvent.isDagEvent()`)도 일치
+
+발송 측만이 아니라 소비 측 검사도 같은 소스와 대조했다. 세 갈래 모두
+정확하다:
+
+| 갈래 | 검증 결과 |
+|---|---|
+| JSON 경로 바인딩 | provider가 내보내는 JSON은 `/job/facets/jobType/jobType`(바깥은 facet 키, 안쪽은 필드명, 둘 다 camelCase). record 체인 `Job → JobFacets(jobType) → JobTypeFacet(jobType)`의 컴포넌트 이름이 정확히 일치해 `@JsonProperty` 없이 바인딩된다 | ✔ |
+| 값 비교 | `"DAG".equals(...)`는 상수 선행이라 null 안전. task 이벤트(`"TASK"`)는 false → ack 후 폐기. facet 키는 있는데 안쪽 값이 null인 기형도 false로 버려진다 — provider는 `Literal`로 값을 박으므로 실제로는 나올 수 없고, 나와도 버리는 쪽이 안전 | ✔ |
+| facet 결측 시 통과(`return true`) | transport는 결측=드롭(strict), consumer는 통과(lenient)로 **의도된 비대칭**. facet을 안 다는 provider의 이벤트는 발송 측 필터를 못 넘어 여기 도달할 수 없으므로, 판단 불가능한 결함만으로 nack해 DLQ를 채우지 않는다. 결측인 채 통과한 이벤트도 곧바로 `toRow()` 경계 검증(databaseUri 필수)에 걸려 DLQ로 간다 — 조용히 upsert되는 경로는 없다 | ✔ |
+
+provider ≥ 1.6.0에서는 모든 이벤트에 facet이 무조건 달리므로, 결측
+분기는 실제 Composer 이벤트에서는 절대 타지 않는다. 순수하게 "계약이
+깨진 페이로드를 어떻게 다룰 것인가"의 방어선이다.
+
 ## 단서: 버전 하한 provider ≥ 1.6.0
 
 jobType facet은 provider **1.6.0 (2024-03-08, PR #37255)** 부터 붙는다.
