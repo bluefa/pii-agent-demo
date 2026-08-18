@@ -168,8 +168,8 @@ describe('IdcStep5ConnectionTest — pre-test idle strip (regression)', () => {
     renderStep();
 
     // Row1 (host 10.20.30.40) carries a seeded connection_status; step 5 is pre-test, so
-    // nothing may read Success until a run settles. The per-row badge is gone, so the
-    // strip's counts are where this is now visible.
+    // nothing may read Success until a run settles. 연결 상태 칸은 실행이 보고한 것만
+    // 읽으므로(시드값이 아니라) 여기서는 무보고 '—' 다 — 아래 '연결 상태 열' 참고.
     await screen.findByText('10.20.30.40');
     expect(screen.queryByText('Success')).toBeNull();
   });
@@ -308,5 +308,73 @@ describe('IdcStep5ConnectionTest — state-driven slot (시안 A)', () => {
     expect(updateResourceCredentialMock).toHaveBeenCalledWith(1020, 'idc-row-0', 'Key2');
 
     expect(screen.getByRole('button', { name: '완료 승인 요청' })).toHaveProperty('disabled', true);
+  });
+});
+
+/**
+ * 연결 상태 열 — 클라우드 step 5 가 이미 가지고 있던 칸을 IDC 표에도 세운다.
+ * 스트립의 카운트는 실행 전체를 말하지, **어느 대상이** 실패했는지는 말하지 못한다.
+ */
+describe('IdcStep5ConnectionTest — 연결 상태 열', () => {
+  beforeEach(resetHarness);
+
+  /**
+   * 그 행의 연결 상태 칸. **자리로 집는다** — 행에는 '—'를 찍을 수 있는 칸이 여럿이라
+   * (논리 DB 카운트) 글자로 찾으면 어느 칸을 읽었는지 알 수 없다. 5번째 열이라는 것
+   * 자체가 계약이다: 접속 주소 · Port · Database Type · Credential · **연결 상태** ·
+   * 연동 논리 DB · 연동 제외 · 출발지 (클라우드 step 5 의 순서).
+   */
+  const connCell = (host: string): HTMLElement => {
+    const row = screen.getByText(host).closest('tr');
+    if (!row) throw new Error(`row not found: ${host}`);
+    const cell = row.querySelectorAll('td')[4];
+    if (!cell) throw new Error(`연결 상태 cell not found: ${host}`);
+    return cell as HTMLElement;
+  };
+
+  it('행마다 그 리소스의 판정을 적는다 — 보고가 없는 행은 대기가 아니라 —', async () => {
+    pollingState.uiState = 'FAIL';
+    // row1(10.20.31.10)은 결과가 오지 않았다: '대기'로 접으면 agent 가 PENDING 을 보고한
+    // 행과 구분되지 않는다.
+    pollingState.latestJob = makeJob('FAIL', [agentResult('idc-row-0', 'FAIL')]);
+    renderStep();
+
+    await screen.findByText('10.20.30.40');
+    expect(screen.getByText('연결 상태')).toBeTruthy();
+    expect(connCell('10.20.30.40').textContent).toBe('실패');
+    expect(connCell('10.20.31.10').textContent).toBe('—');
+  });
+
+  it('성공한 행만 성공이라고 말한다', async () => {
+    pollingState.uiState = 'SUCCESS';
+    pollingState.latestJob = makeJob('SUCCESS', [
+      agentResult('idc-row-0', 'SUCCESS'),
+      agentResult('idc-row-1', 'PENDING'),
+    ]);
+    renderStep();
+
+    await screen.findByText('10.20.30.40');
+    expect(connCell('10.20.30.40').textContent).toBe('성공');
+    expect(connCell('10.20.31.10').textContent).toBe('대기');
+  });
+
+  it('첫 폴링이 끝나기 전에는 판정 대신 스켈레톤이다', async () => {
+    pollingState.loading = true;
+    pollingState.uiState = 'SUCCESS';
+    pollingState.latestJob = makeJob('SUCCESS', [agentResult('idc-row-0', 'SUCCESS')]);
+    renderStep();
+
+    await screen.findByText('10.20.30.40');
+    // 아직 모르는 값을 판정처럼 찍지 않는다 — 성공도, 무보고 대시도 아니다.
+    expect(connCell('10.20.30.40').textContent).toBe('');
+    expect(connCell('10.20.30.40').querySelector('[aria-hidden="true"]')).toBeTruthy();
+  });
+
+  it('실행 전에는 어느 행도 판정을 말하지 않는다', async () => {
+    renderStep();
+
+    await screen.findByText('10.20.30.40');
+    expect(screen.queryByText('성공')).toBeNull();
+    expect(screen.queryByText('실패')).toBeNull();
   });
 });

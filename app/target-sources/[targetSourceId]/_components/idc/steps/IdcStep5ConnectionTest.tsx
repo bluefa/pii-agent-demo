@@ -62,8 +62,9 @@ const IDC_CONN_STATES: readonly IdcConnState[] = ['PENDING', 'RUNNING', 'SUCCESS
  * The DB Credential is edited in the row, exactly as the cloud step 5 edits it: the value
  * reads as underlined text and the pick commits in CredentialPickModal. A missing one is
  * announced by the conditional warning line above the table and gates Run Test — it is not
- * a separate bulk dialog the run detours through. Connection Status is not a column;
- * per-row status is carried by the progress strip's 성공/실패/대기 counts.
+ * a separate bulk dialog the run detours through. 연결 상태는 **행마다 한 칸**이다 — 요약
+ * 스트립의 성공/실패/대기 카운트는 실행 전체를 말하지, 어느 대상이 실패했는지는 말하지 못한다.
+ * 클라우드 step 5 가 이미 그 칸을 가지고 있었고, 여기만 없었다.
  *
  * Live wiring (ADR-019) — reuses the SHARED connection-test flow exactly like the
  * cloud ConnectionTestCard (no reimplementation): Run Test persists any changed
@@ -437,6 +438,10 @@ export const IdcStep5ConnectionTest = ({
               onLogicalOpen={handleLogicalOpen}
               credentials={creds}
               onCredentialOpen={handleCredOpen}
+              // 접기 맵을 그대로 넘긴다 — 행의 `connection` 은 무보고를 PENDING 으로 접어서
+              // "아직 결과가 없다" 와 "agent 가 대기라고 보고했다" 를 한 픽셀로 만든다(P4).
+              connectionStatus={statusByResource}
+              connectionLoading={loading}
             />
           </div>
           {credModal.data && (

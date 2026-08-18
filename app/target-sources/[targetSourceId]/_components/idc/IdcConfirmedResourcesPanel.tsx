@@ -18,6 +18,7 @@ import {
 } from '@/app/target-sources/[targetSourceId]/_components/confirmed/logical-db-summaries';
 import { getLatestTestConnectionResultSummaries } from '@/app/lib/api';
 import type { IdcResourceView } from '@/app/lib/api/idc';
+import type { UnitTcStatus } from '@/lib/test-connection-summary';
 import type { ResourcesState } from '@/app/hooks/useIdcResources';
 
 const EMPTY_RESOURCES: readonly IdcResourceView[] = [];
@@ -39,6 +40,13 @@ interface IdcConfirmedResourcesPanelProps {
    */
   credentials?: Readonly<Record<string, string>>;
   onCredentialOpen?: (resource: IdcResourceView) => void;
+  /**
+   * Step 5 only — 최근 실행의 리소스별 판정. 넘어오면 연결 상태 열이 선다(클라우드 step 5
+   * 와 같은 자리). 스텝 6·7 은 넘기지 않으므로 열도 없다.
+   */
+  connectionStatus?: ReadonlyMap<string, UnitTcStatus>;
+  /** `connectionStatus` 와 짝 — 첫 폴링 응답 전에는 그 칸이 스켈레톤이다. */
+  connectionLoading?: boolean;
 }
 
 /**
@@ -53,6 +61,8 @@ export const IdcConfirmedResourcesPanel = ({
   onLogicalOpen,
   credentials,
   onCredentialOpen,
+  connectionStatus,
+  connectionLoading = false,
 }: IdcConfirmedResourcesPanelProps) => {
   // Step 5 counts for the whole table in one call; the per-resource lists load only on open.
   const [fetched, setFetched] = useState<{ targetSourceId: number; counts: LogicalDbCountMap }>({
@@ -105,8 +115,16 @@ export const IdcConfirmedResourcesPanel = ({
             resources={visibleResources}
             // 출발지가 마지막 — 이 화면들에선 결과(Credential·논리 DB)가 먼저 읽히고
             // 출발지는 참고값이다. 순서가 곧 자리다(IdcTableCol).
-            cols={onCredentialOpen ? ['cred', 'logicalro', 'src'] : ['logicalro', 'src']}
+            cols={
+              onCredentialOpen
+                ? connectionStatus
+                  ? ['cred', 'conn', 'logicalro', 'src']
+                  : ['cred', 'logicalro', 'src']
+                : ['logicalro', 'src']
+            }
             logicalDbCounts={logicalDbCounts}
+            connectionStatusByResource={connectionStatus}
+            connectionLoading={connectionLoading}
             onLogicalOpen={onLogicalOpen ?? setLogicalTarget}
             credentials={credentials}
             onCredentialOpen={onCredentialOpen}
