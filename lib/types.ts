@@ -59,13 +59,25 @@ export const isSduTarget = (target: {
 }): boolean => target.is_sdu_type === true || isSduProvider(target.cloud_provider);
 
 /**
- * 실데이터 여부를 계약에 **아직 없는** 필드에서 읽는다 — 세 상태를 접지 않고 그대로.
+ * 실데이터 여부를 읽는다 — 세 상태를 접지 않고 그대로.
  *
- * `doesSupportRaw` 는 BFF 가 TargetSource 조회 응답에 싣는다(BE 확인, camelCase —
- * snake 인 `TargetSourceDetail` 안에서도 이 키만 camel 섬이다). 아직 `install-v1.yaml`
- * 에도 업스트림 `api-docs.yaml` 에도 없으므로, 생성 스키마가 `.partial().passthrough()`
- * 라는 사실을 쓴다: 계약에 없는 키도 `parse()` 를 그대로 통과해 소비자까지 온다
+ * 계약이 이 값에 붙인 이름은 `supportRawData` 다. `install-v1.yaml` 이 두 곳에서
+ * `boolean` 으로 선언한다 — `TargetSourceResponse`(GET /target-sources)와
+ * `TargetSourceMetadataResponse`(`GET /process-statuses`·`/process-status-history` 의
+ * `target_source`; 단수 `…/{id}/process-status` 는 다른 DTO 라 이 필드가 없다) —
+ * 목록 두 개의 query 필터 이름도 같다. 다만 **이 화면들이 읽는** 두 스키마(`TargetSourceDetail`,
+ * `TargetSourceInfo`)에는 아직 없으므로, 생성 스키마가 `.partial().passthrough()`
+ * 라는 사실을 쓴다: 선언되지 않은 키도 `parse()` 를 그대로 통과해 소비자까지 온다
  * (`readIsEosService` 가 같은 이유로 쓰는 방법이다).
+ *
+ * 계약 밖의 철자를 만들지 않는다 — 같은 사실에 이름이 둘이면 어느 쪽이 진짜인지
+ * 화면에서 알 수 없다. 읽는 키는 계약이 선언한 `supportRawData` 하나다.
+ *
+ * 미해결로 남은 것: #721 은 같은 값을 `doesSupportRaw` 로 읽었고, 그 철자를 **조회
+ * 응답에 대한 BE 답변**으로 기록했다. 두 yaml 어디에도 없는 철자지만, 위 두 응답이
+ * 어느 쪽도 선언하지 않으므로 계약이 판정해 주지 못한다 — 실 응답 한 번이 정한다.
+ * 틀린 쪽이면 증상이 조용하다: 헤더가 전 대상 "미확인", 카드 태그는 전멸, 목은 리더가
+ * 읽는 키를 그대로 실으므로 테스트는 초록. (docs/api/ops-assumed-contracts.md 필드 노트)
  *
  * **`undefined` 를 `false` 로 접지 않는다.** 대상 운영 헤더는 이 값을 항상 문장으로
  * 그리는데(포함 / 미포함), 못 읽은 값을 "미포함" 으로 쓰면 화면이 근거 없는 단정을
@@ -74,9 +86,9 @@ export const isSduTarget = (target: {
  * boolean 이 아닌 값은 전부 "모른다" — 문자열 `"true"` 나 `1` 이 승격되면 오타 하나가
  * 대상을 실데이터로 만든다.
  */
-export const readDoesSupportRaw = (value: unknown): boolean | undefined => {
+export const readSupportRawData = (value: unknown): boolean | undefined => {
   if (typeof value !== 'object' || value === null) return undefined;
-  const raw = (value as { doesSupportRaw?: unknown }).doesSupportRaw;
+  const raw = (value as { supportRawData?: unknown }).supportRawData;
   return typeof raw === 'boolean' ? raw : undefined;
 };
 
@@ -502,8 +514,8 @@ export type Project = BaseTargetSource & {
   isChinaRegion?: boolean;
   isTerraformExecutionGranted?: boolean;
   isSduType?: boolean;
-  /** 시드 전용 — 목이 `doesSupportRaw` 로 실어 보낸다 (readDoesSupportRaw 참조). */
-  doesSupportRaw?: boolean;
+  /** 시드 전용 — 목이 `supportRawData` 로 실어 보낸다 (readSupportRawData 참조). */
+  supportRawData?: boolean;
   tenantId?: string;
   subscriptionId?: string;
   gcpProjectId?: string;

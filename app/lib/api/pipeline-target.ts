@@ -44,11 +44,13 @@ export interface RawTargetSourceDetail {
   created_at?: string;
   metadata?: RawTargetSourceMetadata;
   /**
-   * 계약에 아직 없는 필드 — 스키마가 `.passthrough()` 라 `parse()` 를 통과해 여기까지
-   * 온다. snake 인 이 DTO 안에서 이 키만 camel 이다 (BE 확인). 판정은
-   * `readDoesSupportRaw` 하나로만 한다 (lib/types.ts 주석 참조).
+   * `TargetSourceDetail` 이 아직 선언하지 않은 필드 — 스키마가 `.passthrough()` 라
+   * `parse()` 를 통과해 여기까지 온다. snake 인 이 DTO 안에서 이 키만 camel 인데,
+   * 계약이 형제 응답들에 선언한 철자가 camel 이다. 판정은 `readSupportRawData`
+   * 하나로만 한다 — #721 이 기록한 `doesSupportRaw` 와의 미해결 충돌까지 lib/types.ts
+   * 주석에 있다.
    */
-  doesSupportRaw?: boolean;
+  supportRawData?: boolean;
 }
 
 /** Fetch the raw target-source detail (reuses the existing target-sources route). */

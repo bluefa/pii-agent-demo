@@ -34,7 +34,7 @@ import { InstallModeModal } from '@/app/admin/pipelines/ops/target-sources/[targ
 import { RoleEditModal } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/RoleEditModal';
 import { RawDataModal } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/RawDataModal';
 import { type RoleKind } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/roleMeta';
-import { isSduTarget, normalizeCloudProvider, readDoesSupportRaw } from '@/lib/types';
+import { isSduTarget, normalizeCloudProvider, readSupportRawData } from '@/lib/types';
 import { opsStyles } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/opsStyles';
 import { SduOpsNotice } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/SduOpsNotice';
 import { ScanTab } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/ScanTab';
@@ -69,7 +69,7 @@ export function OpsTargetView({ targetSourceId, initialTab }: OpsTargetViewProps
   const [grantTfExecution, setGrantTfExecution] = useState(false);
   // 설치 모드와 같은 자리 — 표시값은 상세에서 오고, 저장 직후 한 번만 이 칸이 덮는다.
   // `undefined` 는 "응답에 값이 없다"이고, 헤더는 그것을 미확인으로 그린다.
-  const [doesSupportRaw, setDoesSupportRaw] = useState<boolean | undefined>(undefined);
+  const [supportRawData, setSupportRawData] = useState<boolean | undefined>(undefined);
   const [jiraTicket, setJiraTicket] = useState<TargetJiraTicket | null>(null);
   // 티켓은 detail 과 따로 도착한다 — 도착 전에 "연결된 티켓 없음" 을 그리면 곧바로
   // 티켓으로 뒤집히므로, 그 사이는 없다고 말하지 않고 자리만 비워 둔다.
@@ -191,7 +191,7 @@ export function OpsTargetView({ targetSourceId, initialTab }: OpsTargetViewProps
       setDetailFailed(false);
       setDetail(loaded);
       setGrantTfExecution(loaded.metadata?.grant_service_terraform_execution_permission === true);
-      setDoesSupportRaw(readDoesSupportRaw(loaded));
+      setSupportRawData(readSupportRawData(loaded));
 
       // SDU 는 여기서 멈춘다. 아래 부수 로드는 전부 탭이 그릴 것을 미리 받아 두는
       // 것인데, SDU 는 그 탭들이 통째로 안내 한 장으로 대체되므로 받아도 그릴 곳이
@@ -305,7 +305,7 @@ export function OpsTargetView({ targetSourceId, initialTab }: OpsTargetViewProps
           grantTfExecution={grantTfExecution}
           jiraTicket={jiraTicket}
           ticketLoaded={ticketLoaded}
-          doesSupportRaw={doesSupportRaw}
+          supportRawData={supportRawData}
           onOpenMode={() => setModal({ type: 'mode' })}
           onOpenEdit={(kind) => setModal({ type: 'edit', kind })}
           onOpenRawData={() => setModal({ type: 'raw' })}
@@ -399,8 +399,8 @@ export function OpsTargetView({ targetSourceId, initialTab }: OpsTargetViewProps
         open={modal?.type === 'raw'}
         onClose={() => setModal(null)}
         targetSourceId={targetSourceId}
-        current={doesSupportRaw}
-        onSaved={setDoesSupportRaw}
+        current={supportRawData}
+        onSaved={setSupportRawData}
       />
       <InstallModeModal
         open={modal?.type === 'mode'}

@@ -596,7 +596,7 @@ export const mockProjects: Project[] = [
     processStatus,
     // 1013 만 실데이터 — 1014 는 같은 서비스·같은 provider 이면서 태그가 없는 짝이라,
     // 목록에서 태그가 대상마다 갈리는지(전부 켜지는 게 아닌지)가 눈으로 확인된다.
-    ...(targetSourceId === 1013 ? { doesSupportRaw: true } : {}),
+    ...(targetSourceId === 1013 ? { supportRawData: true } : {}),
     status: createStatusForProcessStatus(processStatus, { selectedCount: 2, excludedCount: 3 }),
     resources: [
       {

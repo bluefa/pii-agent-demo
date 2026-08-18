@@ -56,13 +56,13 @@ beforeEach(() => {
 
 describe('OpsTargetView — 실데이터 칩', () => {
   it('true 는 포함', async () => {
-    getRawTargetSourceDetail.mockResolvedValue(detail({ doesSupportRaw: true }));
+    getRawTargetSourceDetail.mockResolvedValue(detail({ supportRawData: true }));
     render(<OpsTargetView targetSourceId={1013} initialTab="진행 상태" />);
     expect(await chip()).toBe('실데이터포함');
   });
 
   it('false 는 미포함', async () => {
-    getRawTargetSourceDetail.mockResolvedValue(detail({ doesSupportRaw: false }));
+    getRawTargetSourceDetail.mockResolvedValue(detail({ supportRawData: false }));
     render(<OpsTargetView targetSourceId={1013} initialTab="진행 상태" />);
     expect(await chip()).toBe('실데이터미포함');
   });
@@ -76,7 +76,7 @@ describe('OpsTargetView — 실데이터 칩', () => {
   });
 
   it('boolean 이 아닌 값도 미확인이다', async () => {
-    getRawTargetSourceDetail.mockResolvedValue(detail({ doesSupportRaw: 'true' }));
+    getRawTargetSourceDetail.mockResolvedValue(detail({ supportRawData: 'true' }));
     render(<OpsTargetView targetSourceId={1013} initialTab="진행 상태" />);
     expect(await chip()).toBe('실데이터미확인');
   });

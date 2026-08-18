@@ -52,7 +52,7 @@ export interface OpsHeaderProps {
   /** false = 아직 조회 중 — null 을 "티켓 없음" 으로 단정하지 않는다. */
   ticketLoaded: boolean;
   /** 실데이터 여부. `undefined` = 응답에 값이 없다 — "미포함"이 아니라 "미확인". */
-  doesSupportRaw: boolean | undefined;
+  supportRawData: boolean | undefined;
   onOpenMode: () => void;
   onOpenEdit: (kind: RoleKind) => void;
   onOpenRawData: () => void;
@@ -67,7 +67,7 @@ export function OpsHeader({
   grantTfExecution,
   jiraTicket,
   ticketLoaded,
-  doesSupportRaw,
+  supportRawData,
   onOpenMode,
   onOpenEdit,
   onOpenRawData,
@@ -81,7 +81,7 @@ export function OpsHeader({
   // 세 상태를 항상 그린다: 값이 없는 것을 "미포함"으로 적으면 화면이 읽지도 못한 값을
   // 단정하게 되고, 여기는 그 값을 바꾸는 자리라 무엇을 바꾸는지부터 보여야 한다.
   const rawDataLabel =
-    doesSupportRaw === true ? '포함' : doesSupportRaw === false ? '미포함' : '미확인';
+    supportRawData === true ? '포함' : supportRawData === false ? '미포함' : '미확인';
 
   const roleRow = (kind: RoleKind): ReactElement => {
     // 표시값은 detail 과 같이 온다 (v5 metadata 의 등록값) — 별도 조회가 없으니
