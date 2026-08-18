@@ -2971,13 +2971,13 @@ export const postStyles = {
     'flex-none w-[92px] pt-[7px] text-[16px] text-[#59647A] tabular-nums leading-[1.4] whitespace-nowrap transition-colors duration-150 group-hover:text-[#0064FF] motion-reduce:transition-none',
   entryMain: 'flex-1 min-w-0 flex flex-col gap-1.5',
   /**
-   * 26px. 잰 13곳 중 목록 제목이 18px 인 곳은 없었다 — 토스페이먼츠·Stripe 20,
-   * GitHub 월 머리 28, Linear·Vercel 32. 26 은 그 범위 안이고, 밴드 제목 40px 과
-   * 한 칸 이상 벌어져 둘이 같은 등급으로 읽히지 않는다.
+   * 16px — 카드 머리(`cardTitle`)와 같은 값이다. 26px 는 레퍼런스 범위(20~32) 안이긴
+   * 했지만 저쪽은 제목 하나가 화면을 지배하는 전용 목록 페이지고, 여기는 카드 두 장이
+   * 나란한 대시보드라 제목 다섯 줄이 배너와 크기를 다툰다.
    * `max-w` 는 읽기 폭 — 제목이 1600px 를 가로지르면 다시 표가 된다.
    */
   entryTitle:
-    'text-[26px] font-bold tracking-[-0.02em] leading-[1.45] text-[#191F28] max-w-[62ch] transition-colors duration-150 group-hover:text-[#0050D6] motion-reduce:transition-none',
+    'text-[16px] font-bold tracking-[-0.02em] leading-[1.45] text-[#191F28] max-w-[62ch] transition-colors duration-150 group-hover:text-[#0050D6] motion-reduce:transition-none',
   entryTitleOpen: 'text-[#0050D6]',
   /** 캐럿 자리 — hover 에 옅은 원판이 깔려 "누르는 곳"이 손끝보다 먼저 보인다. */
   entryCaretSlot:
@@ -3029,7 +3029,12 @@ export const postStyles = {
   /** 배지 3종. */
   badge:
     'inline-flex items-center gap-1.5 text-[12px] font-bold px-2 py-[3px] rounded-full whitespace-nowrap',
-  badgePin: 'bg-[#E8F1FF] text-[#0050D6]',
+  /**
+   * 빨강. 파랑은 이 화면에서 이미 세 가지 일을 한다 — 좌측 지시바, hover 한 제목,
+   * 건수 필. 고정까지 파랑이면 "지금 보는 곳"과 "언제나 맨 위"가 같은 색이 된다.
+   * 값은 `idcStyles.tag.red` 와 같은 쌍이다(#FEECEC 위 #B42318 = 5.77:1).
+   */
+  badgePin: 'bg-[#FEECEC] text-[#B42318]',
   badgeCat: 'bg-white text-[#4E5968] border border-[#E5E7EB] font-semibold',
   badgeHidden: 'bg-[#F3F4F6] text-[#4E5968] border border-dashed border-[#D1D5DB]',
   badgeIcon: 'w-[13px] h-[13px] flex-none',
