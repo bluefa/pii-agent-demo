@@ -9,10 +9,9 @@ Pull 구독이므로 push 구독과 달리 메시지가 base64로 래핑되어 �
 가정에 기대지 않는다(아래 방어 참조).
 
 **논리 DB(`databaseUri`)는 이벤트에 없다** — 파싱 대상이 아니고,
-**소비 스레드가 API를 기다리지도 않는다**. 소비 콜백이 하는 일은 이름을
-`dag_database_uri`에 `INSERT IGNORE`로 남기는 것까지이고, 그 삽입이
-새 행을 만들었을 때(= 그 DAG의 첫 이벤트)만 resolver에 조회를 제출한다.
-제출은 블로킹이 아니므로 ack가 Pipeline Manager를 기다리지 않는다
+**소비 경로가 매핑에 일절 관여하지 않는다**. 이름→databaseUri 맵은
+Pipeline Manager의 전체 DAG 이름 목록을 그대로 미러링해서 만든다
+(`DagDatabaseUriSync`). 소비 콜백은 실행 기록만 upsert하고 ack한다
 (architecture.md 참조).
 
 ## 추출 필드 (8개)

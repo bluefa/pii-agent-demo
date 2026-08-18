@@ -11,7 +11,7 @@ import org.springframework.stereotype.Repository;
  *
  * Pipeline Manager resolves names forward, one at a time; a group read needs
  * the opposite direction for a whole page at once. This table is that
- * direction, built from names the event path has already seen.
+ * direction, mirrored from Pipeline Manager's full dag name roster.
  */
 @Repository
 public class DagDatabaseUriRepository {
@@ -26,17 +26,17 @@ public class DagDatabaseUriRepository {
     }
 
     /**
-     * Record that this dag name exists, from the event path. Local write only —
-     * resolving the name costs an API call and happens later, off the ingest
-     * path, so an ack never depends on Pipeline Manager being up.
+     * Take in Pipeline Manager's full dag name roster. IGNORE keeps names we
+     * already resolved untouched, so a sync only ever adds — and what it adds
+     * is exactly the DAGs created since the last one.
      *
-     * Returns true only when the row was newly inserted, i.e. the first event
-     * this DAG has ever emitted. Every later event hits the IGNORE and returns
-     * false, which is what keeps the caller from re-triggering a resolve on
-     * every single event.
+     * Deletions are deliberately not mirrored: a dropped DAG's row points at a
+     * databaseUri Infra Manager no longer returns, so it can never reach the
+     * screen. Reaping it would be work with no observable effect.
      */
-    public boolean seen(String dagName) {
-        return jdbc.update("INSERT IGNORE INTO dag_database_uri (dag_name) VALUES (?)", dagName) > 0;
+    public void seenAll(List<String> dagNames) {
+        jdbc.batchUpdate("INSERT IGNORE INTO dag_database_uri (dag_name) VALUES (?)",
+                dagNames.stream().map(name -> new Object[] {name}).toList());
     }
 
     /** Resolver work queue: seen names with no databaseUri yet, still under the attempt cap. */

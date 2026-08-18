@@ -33,22 +33,16 @@ public class LineageEventSubscriber {
     private final PubSubTemplate pubSubTemplate;
     private final ObjectMapper objectMapper;
     private final DagRunStatusRepository repository;
-    private final DagDatabaseUriRepository uriRepository;
-    private final DatabaseUriResolver resolver;
     private final String subscription;
 
     public LineageEventSubscriber(
             PubSubTemplate pubSubTemplate,
             ObjectMapper objectMapper,
             DagRunStatusRepository repository,
-            DagDatabaseUriRepository uriRepository,
-            DatabaseUriResolver resolver,
             @Value("${lineage.subscription}") String subscription) {
         this.pubSubTemplate = pubSubTemplate;
         this.objectMapper = objectMapper;
         this.repository = repository;
-        this.uriRepository = uriRepository;
-        this.resolver = resolver;
         this.subscription = subscription;
     }
 
@@ -74,15 +68,10 @@ public class LineageEventSubscriber {
                 message.ack();
                 return;
             }
-            DagRunRow row = toRow(event, state);
-            repository.upsert(row);
-            // The event is the only place a dag name comes from, and Pipeline
-            // Manager can only be asked forward (name -> databaseUri). Record
-            // the name locally, and on the first sighting kick off the lookup
-            // right away — off this thread, so the ack does not wait on it.
-            if (uriRepository.seen(row.dagId())) {
-                resolver.resolveNow(row.dagId());
-            }
+            // Runs only. The name -> databaseUri map is mirrored from Pipeline
+            // Manager's roster (DagDatabaseUriSync), so ingest owns no part of
+            // it and an ack never depends on an upstream being up.
+            repository.upsert(toRow(event, state));
             message.ack();
         } catch (Exception e) {
             log.warn("lineage event rejected: {}", e.getMessage());

@@ -439,7 +439,7 @@
       <div class="server server--up">
         <p class="server__tag">상류</p>
         <p class="server__name">Pipeline Manager</p>
-        <p class="server__role"><span class="m">dagName → databaseUri</span>. 단건만, 역방향 없음, 벌크 없음. 50 병렬까지 허용.</p>
+        <p class="server__role"><b>전체 DAG 이름 목록</b>을 한 번에. 그리고 <span class="m">dagName → databaseUri</span> — 이쪽은 단건만, 역방향 없음. 50 병렬까지 허용.</p>
       </div>
       <div class="server server--up">
         <p class="server__tag">상류</p>
@@ -494,15 +494,8 @@
               <p class="step__d">run 1건 = 행 1개. 컬럼마다 <code>IF(new.event_time &gt; event_time, …)</code> 가드로 중복·역순 도착을 흡수한다.</p>
             </div>
           </li>
-          <li class="step step--store">
-            <span class="step__n">A4</span>
-            <div class="step__body">
-              <p class="step__t">dag_database_uri ← INSERT IGNORE (이름만)</p>
-              <p class="step__d">DAG 이름을 여기서만 알 수 있으므로 남겨둔다. databaseUri는 아직 NULL. 로컬 쓰기라 API 호출이 아니다. <b>행이 실제로 생겼을 때만</b> resolver에 조회를 제출한다 — 제출은 블로킹이 아니라 ack가 기다리지 않는다.</p>
-            </div>
-          </li>
         </ol>
-        <p class="lane__foot">상류 호출 0 · 이벤트당 로컬 쓰기 2</p>
+        <p class="lane__foot">상류 호출 0 · 이벤트당 로컬 쓰기 1 · 매핑에 관여하지 않는다</p>
       </div>
 
       <div class="lane">
@@ -554,40 +547,44 @@
 
     <div class="bridge">
       <div class="lane__head">
-        <p class="eyebrow">경로 사이 · 비동기</p>
-        <h3>DatabaseUriResolver</h3>
+        <p class="eyebrow">두 경로 밖 · 1시간 주기</p>
+        <h3>DagDatabaseUriSync</h3>
         <p class="lane__claim">
-          수집이 남긴 이름과 조회가 필요로 하는 databaseUri를 잇는 유일한 지점.
-          수집 <b>스레드 밖</b>에 있어서 여기가 막혀도 이벤트는 계속 쌓인다.
+          Pipeline Manager의 <b>전체 DAG 이름 명부</b>를 그대로 미러링한다.
+          수집도 조회도 여기에 걸려 있지 않아서, 막혀도 이벤트는 계속 쌓이고 화면은 계속 뜬다.
         </p>
       </div>
       <ul class="bridge__facts">
-        <li><b>정상 경로</b><span>첫 이벤트가 이름을 만든 <b>그 자리에서</b> 조회를 풀에 제출 — 지연은 상류 호출 1건 길이</span></li>
-        <li><b>스윕 (5분)</b><span>위가 끝내지 못한 것만: <span class="m">database_uri IS NULL AND attempts &lt; 5</span>. 정상 상태에선 <b>아무것도 못 찾는다</b> — 주기가 느린 이유</span></li>
-        <li><b>부르는 것</b><span style="color:var(--hop)">Pipeline Manager 단건 조회 — 벌크가 없어서 <b>50 병렬</b>로. 두 경로가 이 풀 하나를 공유한다</span></li>
-        <li><b>빈도</b><span>매핑이 1:1 불변이라 <b>DAG 하나당 평생 1회</b>. 정상 상태에선 신규 DAG만</span></li>
-        <li><b>실패</b><span><span class="m">attempts</span>를 올리고 스윕이 재시도, 상한에서 정지</span></li>
-        <li><b>도입 시점</b><span>기존 DAG는 <b>각자 다음 실행 때</b> 이름이 도착한다 — 전체가 차는 시간은 resolver가 아니라 <b>DAG 스케줄 주기</b>가 정한다 (하루 1회면 최대 하루)</span></li>
+        <li><b>1단계 · 명부</b><span style="color:var(--hop)">전체 DAG 이름 목록을 <b>1콜</b>로 받아 통째로 <span class="m">INSERT IGNORE</span></span></li>
+        <li><b>2단계 · 해석</b><span style="color:var(--hop)"><span class="m">database_uri IS NULL</span>인 이름만 단건 조회 — 벌크가 없어서 <b>50 병렬</b>, 한 주기 2000건</span></li>
+        <li><b>왜 명부인가</b><span>맵이 <b>완전</b>해야 "매핑 없음"이 "DAG 없음"이라는 <b>사실</b>이 된다. 이벤트에서 이름을 얻으면 맵은 부분집합이고, 부재가 무엇을 뜻하는지 말할 수 없다</span></li>
+        <li><b>빈도</b><span>매핑이 1:1 불변이라 2단계는 <b>DAG 하나당 평생 1회</b>. 새 DAG가 없는 주기는 명부 1콜로 끝</span></li>
+        <li><b>실패</b><span><span class="m">attempts</span>를 올리고 다음 주기 재시도, 상한(5)에서 정지</span></li>
+        <li><b>첫 동기화</b><span>명부 전체가 미해석 — 10만 건이면 (10만/2000) 주기. 이때만 무는 상한이다</span></li>
       </ul>
     </div>
 
     <div class="callout">
-      <h3>매핑에 없는 databaseUri는 Pipeline Manager에 물어볼 수 없다</h3>
+      <h3>역방향이 없으니, 명부를 통째로 들고 있는다</h3>
       <div class="arrows">
         <span class="yes">✓ dagName → databaseUri</span>
         <span class="no">✕ databaseUri → dagName</span>
       </div>
       <p>
-        가장 헷갈리는 지점입니다. 조회 중에 모르는 databaseUri를 만나도 그 자리에서
-        상류에 물어 채우는 <b>lazy 캐시가 될 수 없습니다</b> — 물어볼 방향이 없기 때문입니다.
-        맵은 오직 <b>이벤트가 이름을 알려준 뒤에</b>, 그 이름으로만 채워집니다.
+        조회 중에 모르는 databaseUri를 만나도 그 자리에서 상류에 물어 채우는
+        <b>lazy 캐시가 될 수 없습니다</b> — 물어볼 방향이 없기 때문입니다.
+        그래서 맵은 미리 채워져 있어야 하고, 문제는 <b>무엇으로 채우느냐</b>였습니다.
       </p>
       <p>
-        그래서 매핑에 없는 databaseUri에 대해 우리가 말할 수 있는 건 "실행 이력 없음"뿐입니다.
-        대부분 그게 사실이지만(그 DAG가 한 번도 안 돌았으니 이름을 받은 적이 없다),
-        <b>이벤트는 왔는데 아직 resolve가 안 된 짧은 창</b> 동안에도 같은 화면이 나옵니다.
-        정상 상태에선 그 창이 상류 호출 1건 길이입니다. 길어지는 경우는 둘뿐 —
-        상류 장애, 그리고 도입 시점에 이미 존재하던 DAG가 아직 안 돈 동안입니다.
+        이벤트로 채우면 맵은 <b>실제로 돌았던 DAG만</b> 덮는 부분집합이 됩니다.
+        그러면 "맵에 없다"가 두 가지를 동시에 뜻합니다 — DAG가 없거나,
+        <b>이벤트가 우리에게 닿지 않았거나</b>. 후자는 transport 오설정·prefix 오타·
+        Composer 환경 누락인데, 화면에는 평온한 '스케줄 안 됨'으로 나옵니다.
+        저희 시스템은 그 DAG들이 존재한다는 것조차 모르니 알람도 못 겁니다.
+      </p>
+      <p>
+        <b>전체 이름 명부를 미러링하면 맵이 완전해지고, 그제서야 부재가 사실이 됩니다.</b>
+        남는 창은 지난 주기 이후 새로 만들어진 DAG 하나뿐입니다.
       </p>
     </div>
   </section>
@@ -622,7 +619,7 @@
         </div>
         <ul class="schema__cols">
           <li><code>dag_name</code> <span class="desc">PK · 수집 경로가 INSERT IGNORE로 남긴다</span></li>
-          <li><code>database_uri</code> <span class="desc">UNIQUE · 최대 1024자 · resolver가 채우기 전까지 NULL. utf8mb4면 인덱스 키 3072바이트 한계에 걸려 <b>ascii</b>로 선언</span></li>
+          <li><code>database_uri</code> <span class="desc">UNIQUE · 최대 1024자 · sync가 채우기 전까지 NULL. utf8mb4면 인덱스 키 3072바이트 한계에 걸려 <b>ascii</b>로 선언</span></li>
           <li><code>attempts</code> <span class="desc">해석 실패 횟수. 상한에서 재시도 정지</span></li>
           <li><code>seen_at</code> <span class="desc">이름을 처음 본 시각</span></li>
           <li><code>resolved_at</code> <span class="desc">databaseUri를 채운 시각</span></li>
@@ -636,6 +633,7 @@
         <ul>
           <li><span class="mark">✓</span><span>7일 창의 run 상태<span class="why">화면이 읽는 창이 곧 보존 기간이다</span></span></li>
           <li><span class="mark">✓</span><span>dag 이름 ↔ databaseUri<span class="why">역방향 조회가 없어서 우리가 들고 있어야 한다</span></span></li>
+          <li><span class="mark">✓</span><span>전체 DAG 이름 명부<span class="why">위 맵과 같은 테이블. <b>완전해야</b> 부재가 사실이 된다</span></span></li>
         </ul>
       </div>
       <div class="col col--no">
@@ -643,7 +641,6 @@
         <ul>
           <li><span class="mark">✕</span><span>lineage 이벤트 원본<span class="why">보존 요구 없음. 대가는 과거 재계산 불가 — 수용</span></span></li>
           <li><span class="mark">✕</span><span>그룹 멤버십 (<span class="m">target_source_id</span>)<span class="why">목록이 변한다. 저장하면 사라진 논리 DB가 남는 상위집합</span></span></li>
-          <li><span class="mark">✕</span><span>전체 DAG 목록<span class="why">벌크 목록 API가 없어서 만들 방법 자체가 없다</span></span></li>
           <li><span class="mark">✕</span><span>그룹별 사전 집계<span class="why">페이지 단위 읽기 시점 GROUP BY로 충분</span></span></li>
         </ul>
       </div>
@@ -662,12 +659,12 @@
         </thead>
         <tbody>
           <tr>
-            <td>전체 목록을 주기 sync해 로컬에 유지</td>
-            <td class="why"><b>불가</b> — 벌크·목록 조회가 없다. 단건 조회는 이름을 이미 알아야 쓸 수 있다</td>
+            <td>이벤트에서 이름을 유도해 맵을 만든다</td>
+            <td class="why">맵이 <b>부분집합</b>이 되어 부재를 해석할 수 없다 — DAG 없음과 이벤트 미도달이 같은 픽셀. 전체 목록이 가능해진 이상 택할 이유가 없다 <b>(2회 뒤집힌 결정)</b></td>
           </tr>
           <tr>
             <td>매 조회마다 Pipeline Manager로 역변환</td>
-            <td class="why"><b>불가</b> — 역방향 조회가 없다. 있더라도 단건뿐이라 페이지당 100콜</td>
+            <td class="why">역방향 조회가 없다. 있더라도 비용이 <b>페이지뷰 수에 비례</b>해 영원히 반복되고 사용자 대기 시간에 얹힌다 — 명부 미러링은 DAG당 평생 1회</td>
           </tr>
           <tr>
             <td>멤버십을 우리 DB에 저장</td>
@@ -726,8 +723,8 @@
       <div class="check">
         <span class="check__n">04</span>
         <div class="check__b">
-          <p class="check__t">resolve 대기 중인 DAG를 화면에서 구분해야 하나</p>
-          <p class="check__d">지금은 "실행 이력 없음"과 같은 픽셀로 보인다. 행 단위로는 구분할 방법이 없고(역방향이 없으니), 할 수 있는 건 화면 전체에 "해석 대기 N건" 정도를 붙이는 것뿐이다. 그럴 가치가 있는지.</p>
+          <p class="check__t">sync 주기 1시간이 적당한가</p>
+          <p class="check__d">새로 만들어진 DAG가 명부에 들어오기까지의 창이다. 그 사이 그 DAG가 돌면 화면은 '스케줄 안 됨'으로 보인다. DAG를 얼마나 자주 만드는지에 달렸다.</p>
         </div>
       </div>
       <div class="check">
@@ -751,8 +748,8 @@
         <p class="open__a">지금은 전부 <b>조회 실패</b>로 반환한다. 404가 "target source 없음"이면 그것만 빈 화면으로 분기해야 한다.</p>
       </div>
       <div class="open">
-        <p class="open__q">Pipeline Manager 단건 호출의 지연</p>
-        <p class="open__a">병렬 50은 확정됐지만, 1건이 100ms면 한 주기 2000건이 4초, 1초면 40초다. 실측해서 <span class="m">batch-size</span>와 타임아웃을 확정한다.</p>
+        <p class="open__q">명부 응답 크기와 단건 호출 지연</p>
+        <p class="open__a">명부는 매 주기 받는 유일한 대형 응답이다. 단건은 병렬 50이 확정됐지만 1건이 100ms면 한 주기 2000건이 4초, 1초면 40초 — 첫 동기화 소요를 정한다. <b>명부가 databaseUri까지 같이 준다면 단건 조회는 통째로 사라진다.</b></p>
       </div>
       <div class="open">
         <p class="open__q">10MB 응답을 실제로 받아봤나</p>

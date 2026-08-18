@@ -25,7 +25,7 @@ record DagRunRow(
 
 /**
  * One row of dag_database_uri (dag names are globally unique across
- * environments). databaseUri is null until DatabaseUriResolver fills it in;
+ * environments). databaseUri is null until DagDatabaseUriSync fills it in;
  * the mapping is 1:1 and immutable, so it is written once.
  */
 record DagDatabaseUri(String dagName, String databaseUri) {}

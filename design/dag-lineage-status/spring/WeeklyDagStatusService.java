@@ -24,9 +24,10 @@ import org.springframework.stereotype.Service;
  * so it is never persisted; a short in-memory TTL only keeps paging from
  * refetching the same 10k list per page.
  *
- * A databaseUri with no mapped DAG renders as 7x NOT_SCHEDULED: we only learn
- * dag names from events, so "unmapped" means "never ran", which is the answer
- * anyway.
+ * A databaseUri with no mapped DAG renders as 7x NOT_SCHEDULED, and that is a
+ * statement of fact rather than a fallback: the map mirrors Pipeline Manager's
+ * complete dag roster, so "unmapped" means "no DAG exists for this logical DB".
+ * The one gap left is a DAG created since the last sync cycle.
  *
  * A manual/backfill success counts as that day's SUCCESS (owner decision):
  * run_type is stored but never used as an aggregate filter.

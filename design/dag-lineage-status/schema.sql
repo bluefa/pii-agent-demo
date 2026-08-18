@@ -29,16 +29,15 @@ CREATE INDEX idx_dag_run_status_dag ON dag_run_status (dag_id, logical_date);
 --
 -- Why we store it at all: Pipeline Manager answers ONE direction only
 -- (dagName -> databaseUri) and only one name per call — no reverse lookup, no
--- bulk (owner-confirmed). A group read arrives holding databaseUris and has to
--- get back to dag names, so the reverse map has to live here.
+-- bulk resolve (owner-confirmed). A group read arrives holding databaseUris and
+-- has to get back to dag names, so the reverse map has to live here.
 --
--- Rows are seeded by the event path (INSERT IGNORE per consumed event — a local
--- write, so ack never waits on Pipeline Manager) and filled in by
--- DatabaseUriResolver: submitted off-thread the moment the INSERT actually
--- creates a row, with a slow sweep over `database_uri IS NULL` as the safety
--- net for anything that submission missed. A DAG that never emitted an event is simply
--- absent, which is correct: the board is keyed by databaseUri, and a
--- databaseUri with no mapped DAG has no runs to report.
+-- DagDatabaseUriSync mirrors it: the full dag name roster in one call (INSERT
+-- IGNORE), then one forward call per still-unresolved name. Mirroring the whole
+-- roster is what lets a MISSING row mean something — with a complete map,
+-- a databaseUri that is absent genuinely has no DAG. Seeded from consumed
+-- events instead, absence would also cover DAGs whose events never arrived, and
+-- the board would render an ingest outage as a calm "never scheduled".
 --
 -- No target_source_id column: group membership is NOT stored. The member list
 -- changes (a logical DB can disappear) and Infra Manager is called on every
