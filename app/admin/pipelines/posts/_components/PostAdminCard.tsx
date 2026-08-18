@@ -61,7 +61,9 @@ export const PostAdminCard = ({
     <section className={cn('relative flex min-w-0 flex-col', postStyles.card)}>
       <header className={cn(postStyles.cardHeader, 'relative')}>
         <h2 className={postStyles.cardTitle}>{title}</h2>
-        {posts !== null && <span className={postStyles.cardCount}>{posts.length}</span>}
+        {/* 아래 목록의 건수다 — 전체 건수가 아니라. 필터를 걸면 목록은 1행인데 필이
+            3을 말하고 있어서, 못 본 2건이 어딘가 있는 것처럼 읽혔다. */}
+        {shown !== null && <span className={postStyles.cardCount}>{shown.length}</span>}
         {/* 숨김 건수는 계약 추가 없이 센다 — Admin 목록은 전량을 받는다. */}
         {hiddenCount > 0 && (
           <span className="text-[12px] text-[#6B7280] tabular-nums">숨김 {hiddenCount}</span>
@@ -132,8 +134,12 @@ export const PostAdminCard = ({
               <div className={postStyles.rowSide}>
                 <span className={postStyles.rowDate}>{formatPostDate(post.publishedAt)}</span>
                 <span className="flex gap-1.5">
-                  {action(post.pinned ? '고정 해제' : '고정', () => onTogglePinned(post))}
-                  {action(post.hidden ? '복구' : '숨김', () => onToggleHidden(post))}
+                  {/* 숨긴 글에는 고정을 걸 자리가 없다 — 목록에 없는 글을 그 목록의
+                      맨 위로 올리는 버튼이라, 눌러도 화면에서 아무 일도 안 일어난다.
+                      숨김을 풀면 고정 버튼이 원래 상태 그대로 돌아온다. */}
+                  {!post.hidden &&
+                    action(post.pinned ? '고정 해제' : '고정', () => onTogglePinned(post))}
+                  {action(post.hidden ? '숨김 해제' : '숨김', () => onToggleHidden(post))}
                 </span>
               </div>
             </li>
