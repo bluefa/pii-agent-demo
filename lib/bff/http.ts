@@ -122,8 +122,10 @@ async function getRaw(path: string): Promise<Response> {
  * `emptyBodyOk` opts into tolerating a 2xx with no body. Scoped to the one
  * endpoint observed violating its own contract — PUT
  * excluded-databases/by-resource-id answers 200 with an empty body although
- * install-v1.yaml declares SkipLogicalDatabaseResponse. Every other caller
- * keeps the strict behaviour so a silent contract break stays visible.
+ * install-v1.yaml declares SkipLogicalDatabaseResponse. It is opt-in per call, not
+ * a default, so a silent contract break stays visible everywhere else. Two reasons
+ * a caller passes it: a declared body that does not arrive (above), or — for the
+ * assumed writers — no declared body at all (`setDoesSupportRaw`, §9).
  */
 async function send<T>(
   method: 'POST' | 'PUT' | 'DELETE',
@@ -255,6 +257,15 @@ export const httpBff: BffClient = {
     // until it ships. Snake body, matching the read side (TargetSourceDetail).
     putDescription: (id, description) =>
       put(`/target-sources/${id}/description`, { description }),
+    // 실데이터 여부 (docs/api/ops-assumed-contracts.md §9) — 업스트림은 값을 경로에
+    // 싣고 본문을 받지 않는다. 응답 본문은 선언돼 있지 않으므로 204 도 200 빈 본문도
+    // 성공으로 받는다 (읽는 값이 없다).
+    setDoesSupportRaw: (id, enabled) =>
+      put<void>(
+        `/target-sources/${id}/does-support-raw/${enabled ? 'enabled' : 'disabled'}`,
+        undefined,
+        { emptyBodyOk: true },
+      ),
   },
 
   // USER/services: raw snake passthrough — routes validate with schemas.X.parse(raw).

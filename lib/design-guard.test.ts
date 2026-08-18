@@ -182,6 +182,10 @@ const railBlock = (() => {
   return m[0];
 })();
 const adminSrc = read('app/admin/pipelines/_services/styles.ts');
+// 대상 운영 헤더의 스타일 블록. 이 파일은 지금까지 여기 한 줄도 없었는데, 실데이터 칩이
+// 그 공백의 값을 보여 줬다: 키·값·hover 네 짝을 사람이 손으로 재야 했고, 리뷰 두 번이
+// 각자 다시 쟀다. 새로 만든 짝만 등록한다 — 나머지 선존 짝까지 끌어오는 건 다른 일이다.
+const opsSrc = read('app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/opsStyles.ts');
 // The /admin/pipelines dashboard. Its row is the section's densest stack of tiers —
 // name, code chip, id, provider, step strip and its caption — and all of it stands on
 // a row that swaps to a tint under the cursor, so every pair here has two surfaces.
@@ -383,6 +387,13 @@ const SURFACES: SurfacePair[] = [
 
 type TextPair = { what: string; fg: string; on: string; min?: number };
 const TEXT: TextPair[] = [
+  // 실데이터 칩 — 흰 면 + 획 위의 키·값, 그리고 hover 한 칸(gray-50). hover 는 획이
+  // 움직이지만 면도 한 칸 밝아지므로, 두 글자 짝을 양쪽 면에서 다 잰다. 12px 이라
+  // 큰 글자 예외가 없다: 네 짝 모두 4.5:1 을 넘어야 한다.
+  { what: '실데이터 칩 키 on the chip face', fg: textOf(classOf(opsSrc, 'rawDataToggleKey')), on: bgOf(classOf(opsSrc, 'rawDataTag')) },
+  { what: '실데이터 칩 키 on the chip hover fill', fg: textOf(classOf(opsSrc, 'rawDataToggleKey')), on: hoverBgOf(classOf(opsSrc, 'rawDataToggle')) },
+  { what: '실데이터 칩 값 on the chip face', fg: textOf(classOf(opsSrc, 'rawDataTag')), on: bgOf(classOf(opsSrc, 'rawDataTag')) },
+  { what: '실데이터 칩 값 on the chip hover fill', fg: textOf(classOf(opsSrc, 'rawDataTag')), on: hoverBgOf(classOf(opsSrc, 'rawDataToggle')) },
   { what: 'rail section label on rail', fg: textOf(classOf(railBlock, 'sectionLabel')), on: rail },
   { what: 'rail footer page on rail', fg: textOf(classOf(railBlock, 'footerPage')), on: rail },
   { what: 'rail pager glyph on rail', fg: textOf(classOf(railBlock, 'pagerBtn')), on: rail },

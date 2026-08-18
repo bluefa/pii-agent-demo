@@ -3,32 +3,30 @@ import { readDoesSupportRaw } from '@/lib/types';
 
 /**
  * 계약에 아직 없는 필드를 읽는 코드라 컴파일러가 지켜주지 않는다 — `TargetSourceDetail`
- * 에도 `TargetSourceInfo` 에도 `does_support_raw` 가 없으므로, 키 이름을 잘못 적어도
- * tsc 는 아무 말 하지 않고 두 화면이 조용히 태그를 한 번도 그리지 않는다. 그 조용함이
+ * 에도 `TargetSourceInfo` 에도 `doesSupportRaw` 가 없으므로, 키 이름을 잘못 적어도
+ * tsc 는 아무 말 하지 않고 두 화면이 조용히 값을 한 번도 그리지 않는다. 그 조용함이
  * 이 테스트의 이유다 (`readIsEosService` 와 같은 자리).
  */
 describe('readDoesSupportRaw', () => {
-  it('두 표기를 모두 읽는다', () => {
-    // 이 값을 실어 나를 DTO 가 둘이고 표기가 갈린다 — TargetSourceDetail 은 snake,
-    // TargetSourceInfo 는 camel 섬이다. 한쪽만 읽으면 화면 하나가 조용히 꺼진다.
-    expect(readDoesSupportRaw({ does_support_raw: true })).toBe(true);
+  it('BE 가 확인해 준 표기는 camelCase 하나다', () => {
     expect(readDoesSupportRaw({ doesSupportRaw: true })).toBe(true);
+    expect(readDoesSupportRaw({ doesSupportRaw: false })).toBe(false);
+    // snake 는 더 이상 읽지 않는다 — 읽으면 계약이 두 표기를 허용한다고 말하는 셈이다.
+    expect(readDoesSupportRaw({ does_support_raw: true })).toBeUndefined();
   });
 
-  it('모른다는 실데이터가 아니다', () => {
-    // 필드가 안 온 경우(계약 반영 전) · null(LOOSE 스키마) · 항목 자체가 없는 경우.
-    expect(readDoesSupportRaw({ target_source_id: 1013 })).toBe(false);
-    expect(readDoesSupportRaw({ does_support_raw: null })).toBe(false);
-    expect(readDoesSupportRaw({ does_support_raw: false })).toBe(false);
-    expect(readDoesSupportRaw(undefined)).toBe(false);
-    expect(readDoesSupportRaw(null)).toBe(false);
+  it('없는 값은 false 가 아니라 모른다', () => {
+    // 이 셋을 false 로 접으면 대상 운영 헤더가 읽은 적 없는 값을 "미포함" 으로 단정한다.
+    expect(readDoesSupportRaw({ target_source_id: 1013 })).toBeUndefined();
+    expect(readDoesSupportRaw({ doesSupportRaw: null })).toBeUndefined();
+    expect(readDoesSupportRaw(undefined)).toBeUndefined();
+    expect(readDoesSupportRaw(null)).toBeUndefined();
   });
 
-  it('명시적 true 로만 성립한다', () => {
-    // 문자열 "true" 나 1 이 승격되면, 오타 하나가 대상을 실데이터로 만든다.
+  it('boolean 이 아닌 값은 승격되지 않는다', () => {
+    // 문자열 "true" 나 1 이 참으로 읽히면, 오타 하나가 대상을 실데이터로 만든다.
     for (const truthy of ['true', 1, 'TRUE', {}]) {
-      expect(readDoesSupportRaw({ does_support_raw: truthy })).toBe(false);
-      expect(readDoesSupportRaw({ doesSupportRaw: truthy })).toBe(false);
+      expect(readDoesSupportRaw({ doesSupportRaw: truthy })).toBeUndefined();
     }
   });
 });

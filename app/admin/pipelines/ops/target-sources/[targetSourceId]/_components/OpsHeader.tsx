@@ -15,7 +15,7 @@ import type { ReactElement } from 'react';
 import { cn, pipelineStyles } from '@/lib/theme';
 import { passRoutes } from '@/lib/routes';
 import { displayProvider, providerLabel } from '@/lib/pipeline/format';
-import { normalizeCloudProvider, readDoesSupportRaw } from '@/lib/types';
+import { normalizeCloudProvider } from '@/lib/types';
 import { ProviderLogo } from '@/app/components/features/admin/v7/ProviderLogo';
 import { Icon } from '@/app/admin/pipelines/_components/icons';
 import { improvedStyles } from '@/app/admin/pipelines/_detail/detailImprovedStyles';
@@ -51,8 +51,11 @@ export interface OpsHeaderProps {
   jiraTicket: TargetJiraTicket | null;
   /** false = 아직 조회 중 — null 을 "티켓 없음" 으로 단정하지 않는다. */
   ticketLoaded: boolean;
+  /** 실데이터 여부. `undefined` = 응답에 값이 없다 — "미포함"이 아니라 "미확인". */
+  doesSupportRaw: boolean | undefined;
   onOpenMode: () => void;
   onOpenEdit: (kind: RoleKind) => void;
+  onOpenRawData: () => void;
 }
 
 export function OpsHeader({
@@ -64,16 +67,21 @@ export function OpsHeader({
   grantTfExecution,
   jiraTicket,
   ticketLoaded,
+  doesSupportRaw,
   onOpenMode,
   onOpenEdit,
+  onOpenRawData,
 }: OpsHeaderProps): ReactElement {
   const h = improvedStyles.header;
   const meta = detail.metadata ?? {};
   const isChina = meta.is_china_region === true;
   const provider = providerLabel(displayProvider(detail.cloud_provider, meta.is_sdu_type));
   // 대상의 성질이라 신원 스택 1층 — 단계 알약 옆이다. 계정 줄(3층)에 두면 계정이 없는
-  // provider(IDC·SDU)에서는 줄 자체가 안 그려져 태그가 통째로 사라진다.
-  const supportsRawData = readDoesSupportRaw(detail);
+  // provider(IDC·SDU)에서는 줄 자체가 안 그려져 칩이 통째로 사라진다.
+  // 세 상태를 항상 그린다: 값이 없는 것을 "미포함"으로 적으면 화면이 읽지도 못한 값을
+  // 단정하게 되고, 여기는 그 값을 바꾸는 자리라 무엇을 바꾸는지부터 보여야 한다.
+  const rawDataLabel =
+    doesSupportRaw === true ? '포함' : doesSupportRaw === false ? '미포함' : '미확인';
 
   const roleRow = (kind: RoleKind): ReactElement => {
     // 표시값은 detail 과 같이 온다 (v5 metadata 의 등록값) — 별도 조회가 없으니
@@ -148,9 +156,15 @@ export function OpsHeader({
               {targetSourceId}
             </span>
             {processStatus && <StepPill status={processStatus} className="ml-0.5" />}
-            {supportsRawData && (
-              <span className={cn(opsStyles.rawDataTag, 'ml-0.5')}>실데이터</span>
-            )}
+            <button
+              type="button"
+              className={cn(opsStyles.rawDataTag, opsStyles.rawDataToggle, 'ml-0.5')}
+              onClick={onOpenRawData}
+              title="실데이터 여부 변경"
+            >
+              <span className={opsStyles.rawDataToggleKey}>실데이터</span>
+              <span className={opsStyles.rawDataToggleValue}>{rawDataLabel}</span>
+            </button>
           </div>
 
           <div className={h.nameRow}>

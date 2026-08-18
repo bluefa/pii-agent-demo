@@ -1,14 +1,15 @@
 /**
  * PUT …/description 목의 왕복 (docs/api/ops-assumed-contracts.md §8) 과
- * `does_support_raw` 시드가 두 wire 에 실리는지.
+ * `doesSupportRaw` 시드가 두 wire 에 실리는지, 그리고 §9 쓰기의 왕복.
  *
  * 왕복을 목 단위로 잡는 이유: 목이 시드 배열을 고치고 store 를 안 고치면 라우트는
  * 204/200 을 잘 내면서 다음 GET 이 옛 설명을 그대로 돌려준다 — 화면에서는 "저장은
  * 됐는데 목록이 안 바뀐다"로만 보이고, 단위 테스트는 초록이다.
  */
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { NextResponse } from 'next/server';
 
+import { mockBff } from '@/lib/bff/mock-adapter';
 import { mockTargetSources } from '@/lib/bff/mock/target-sources';
 import { mockTaskQueue } from '@/lib/bff/mock/task-queue';
 import { schemas } from '@/lib/generated/install-v1';
@@ -58,15 +59,52 @@ describe('mockTargetSources.putDescription', () => {
   });
 });
 
-describe('does_support_raw 시드', () => {
-  it('TargetSourceDetail (snake wire) 에 실린다', async () => {
+/**
+ * §9 왕복. 설명 왕복과 같은 이유로 목 단위에서 잡는다 — 헤더는 저장 뒤 상세를 다시
+ * 읽으므로, 목이 store 를 안 고치면 화면은 "바꿨는데 그대로"가 된다.
+ */
+describe('mockTargetSources.setDoesSupportRaw', () => {
+  // store 는 globalThis 에 살아 파일 안의 다음 케이스까지 따라간다 — 시드로 되돌린다.
+  afterEach(() => {
+    const project = mockData.getProjectByTargetSourceId(RAW_TARGET);
+    if (project) mockData.updateProject(project.id, { doesSupportRaw: true });
+  });
+
+  it('끈 값이 다음 GET 에 그대로 보인다', async () => {
+    const off = await mockTargetSources.setDoesSupportRaw(RAW_TARGET, false);
+    expect(off.status).toBe(204);
+    expect(readDoesSupportRaw(await body(await mockTargetSources.get(String(RAW_TARGET))))).toBe(false);
+
+    await mockTargetSources.setDoesSupportRaw(RAW_TARGET, true);
+    expect(readDoesSupportRaw(await body(await mockTargetSources.get(String(RAW_TARGET))))).toBe(true);
+  });
+
+  it('없는 대상은 404', async () => {
+    const response = await mockTargetSources.setDoesSupportRaw(999999, true);
+    expect(response.status).toBe(404);
+  });
+
+  /**
+   * 목 어댑터는 이 쓰기의 204 를 `unwrap()` 없이 통과시키므로(빈 본문이라), 실패를
+   * 에러로 바꾸는 건 `if (!response.ok)` 한 줄뿐이다. 그 줄이 빠지면 없는 대상에도
+   * 라우트가 204 를 내고 헤더는 일어나지 않은 쓰기의 값을 그린다 — 목 모드에서는
+   * 그게 쓰기 경로 전체다.
+   */
+  it('어댑터가 404 를 에러로 올린다 — 성공으로 새지 않는다', async () => {
+    await expect(mockBff.targetSources.setDoesSupportRaw(999999, true)).rejects.toThrow();
+    await expect(mockBff.targetSources.setDoesSupportRaw(RAW_TARGET, true)).resolves.toBeUndefined();
+  });
+});
+
+describe('doesSupportRaw 시드', () => {
+  it('TargetSourceDetail 에 실린다 — 두 상태 모두', async () => {
     const raw = await body<unknown>(await mockTargetSources.get(String(RAW_TARGET)));
     const plain = await body<unknown>(await mockTargetSources.get(String(PLAIN_TARGET)));
 
     expect(readDoesSupportRaw(raw)).toBe(true);
-    // 근거가 없는 대상에는 키 자체가 없다 — 목이 `false` 를 깔면 계약에 없는 단정이 된다.
+    // 근거가 없는 대상도 `false` 로 실린다: 끌 수 있는 값이 된 순간, 키가 없는 것은
+    // "꺼짐" 이 아니라 "못 읽음" 이고 화면이 그 둘을 다르게 그린다.
     expect(readDoesSupportRaw(plain)).toBe(false);
-    expect(plain).not.toHaveProperty('does_support_raw');
   });
 
   /**
@@ -80,8 +118,8 @@ describe('does_support_raw 시드', () => {
       'doesSupportRaw',
       true,
     );
-    expect(schemas.TargetSourceDetail.parse({ targetSourceId: 1, does_support_raw: true })).toHaveProperty(
-      'does_support_raw',
+    expect(schemas.TargetSourceDetail.parse({ targetSourceId: 1, doesSupportRaw: true })).toHaveProperty(
+      'doesSupportRaw',
       true,
     );
   });

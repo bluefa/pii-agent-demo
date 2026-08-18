@@ -101,10 +101,11 @@ export const GET = withV1(async (_request, { params }) => {
       description: row.description ?? null,
       cloud_provider: row.cloudProvider ?? 'UNKNOWN',
       is_sdu_type: row.metadata?.is_sdu_type === true,
-      // Read off the parsed row, not off a declared field: `does_support_raw` is not in
-      // install-v1.yaml yet, and `PageTargetSourceInfo` is `.passthrough()`, so the key
-      // survives the parse and lands here the day the BFF starts sending it.
-      does_support_raw: readDoesSupportRaw(row),
+      // Read off the parsed row, not off a declared field: the wire's `doesSupportRaw`
+      // is not in install-v1.yaml yet, and `PageTargetSourceInfo` is `.passthrough()`,
+      // so the key survives the parse and lands here. Folded to two states on purpose —
+      // this row feeds a tag, and a tag has no shape for "모른다" (see readDoesSupportRaw).
+      does_support_raw: readDoesSupportRaw(row) === true,
       last_changed_at: row.updatedAt ?? row.createdAt ?? '',
       metadata: toAccount(row.metadata),
     }))

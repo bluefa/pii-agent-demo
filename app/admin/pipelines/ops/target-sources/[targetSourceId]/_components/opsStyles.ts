@@ -22,8 +22,8 @@ export const opsStyles = {
   tag: 'inline-flex items-center rounded px-2 py-1 text-[12px] font-semibold bg-[var(--pl-gray-100)] text-[var(--pl-text-medium)] whitespace-nowrap',
   regionTag: 'inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium bg-[var(--pl-gray-100)] text-[var(--pl-text-weak)]',
   /**
-   * 실데이터 — `does_support_raw === true` 인 대상에만 붙는다. 두 화면(서비스 운영의
-   * 대상 카드 · 대상 운영 헤더)이 한 정의를 쓴다.
+   * 실데이터 — `doesSupportRaw === true` 인 대상에만 붙는다 (서비스 운영의 대상 카드).
+   * 대상 운영 헤더는 같은 면에 동작을 얹은 `rawDataToggle` 로 세 상태를 항상 그린다.
    *
    * **색이 아니라 획으로 선다.** 이 줄에서 색 채널은 이미 다 팔렸다: StepPill 하나가
    * off/warn/primary/ok 네 계열을 상태에 따라 돌아가며 쓰고(TONE_CLASS), 회색은 중국
@@ -34,13 +34,41 @@ export const opsStyles = {
    *
    * 그래서 이 줄에서 아무도 안 쓰는 채널을 쓴다 — 나머지 칩은 전부 테두리 없는 면이고,
    * 이것만 흰 면 + 획이다. 색이 없으니 StepPill 이 어느 계열로 가든 겹치지 않는다.
-   * 투명이 아니라 흰 면인 것도 이유가 있다: 서비스 운영의 카드는 hover 에서 보라
-   * (#F3EEFF)로 물드는데, 투명이면 태그가 그 물을 같이 먹는다.
+   * 투명이 아니라 흰 면인 것도 이유가 있다: 서비스 운영의 카드는 hover 에서 보라로
+   * 물드는데(`tableRowLift.card`), 투명이면 태그가 그 물을 같이 먹는다.
    *
-   * 대비 실측: 글자 #101828 on 면 #FFFFFF = 17.85:1. 면은 카드 hover 틴트 위에서
-   * ΔE00 8.92 (tableRowLift.card 주석의 실측치와 같은 쌍).
+   * 대비 실측: 글자(`--pl-text-strong`) on 면(`--pl-bg-card`) = 17.85:1. 면은 카드
+   * hover 틴트 위에서 ΔE00 8.92 (tableRowLift.card 주석의 실측치와 같은 쌍).
    */
   rawDataTag: 'inline-flex items-center whitespace-nowrap rounded px-1.5 py-0.5 text-[12px] font-semibold border border-[var(--pl-border-strong)] bg-[var(--pl-bg-card)] text-[var(--pl-text-strong)]',
+  /**
+   * 대상 운영 헤더의 실데이터 칩 — 같은 면·획 위에 키·값 문법(modeTag)과 동작을 얹는다.
+   *
+   * 서비스 운영 카드는 참인 대상에만 태그를 붙이지만, 이 화면은 값을 **바꾸는** 자리라
+   * 세 상태(포함 / 미포함 / 미확인)를 항상 그린다: 태그가 없는 것과 "미포함"은 서로 다른
+   * 말인데, 안 그리면 두 상태가 같은 픽셀이 된다.
+   *
+   * 키·값 문법은 설치모드 칩(tier 3 의 `modeTag`)에서 가져오되 **값의 파랑은 안 가져온다.**
+   * `modeTag` 가 사는 줄에는 도는 색이 없지만, 이 줄에는 `StepPill` 이 있고 그 primary 계열은
+   * 글자를 `--pl-primary` 로 쓴다(`TONE_CLASS`) — 7 상태 중 3 개(CONFIRMING·CONFIRMED·
+   * INSTALLED)에서 파란 글자 두 개가 나란히 서고, 그러면 파랑이 "누를 수 있다"와 "진행 중"을
+   * 동시에 뜻하게 된다. 같은 줄의 곁줄 링크(`chanLinkText`)가 이미 같은 이유로 파랑을 버렸다:
+   * **밑줄이 affordance 를 지고 색은 상태에 남긴다**(`countLink` 규칙).
+   *
+   * 그래서 hover 도 면이 아니라 획을 움직인다 — 이 칩의 정체성이 획이다. 면만으로 하면
+   * gray-50 은 흰 면 대비 ΔE00 1.20 으로 JND 문턱이고(globals.css 의 `--pl-row-hover` 주석이
+   * 같은 이유로 이미 기각한 값이다), gray-100 까지 올리면 그 위의 키(`--pl-text-weak`)가
+   * 4.51:1 로 AA 턱걸이가 된다. 획은 `border-strong`(흰 면 대비 1.47:1) → `gray-400`(2.58:1)
+   * 로 1.75 배 움직이면서 그 위 글자의 대비를 하나도 건드리지 않는다 — 흰 면·border-strong
+   * 컨트롤의 hover 로 이 레포가 이미 쓰는 짝이다(`detailImprovedStyles` 헤더 액션).
+   *
+   * 키만 따로 있는 이유: 부모 칩이 `font-semibold` 라, 키를 한 단 내리는 건 여기서만
+   * 필요하다 (`modeTag` 는 부모가 굵지 않아 내릴 것이 없다).
+   */
+  rawDataToggle:
+    'gap-1 cursor-pointer hover:bg-[var(--pl-gray-50)] hover:border-[var(--pl-gray-400)]',
+  rawDataToggleKey: 'font-medium text-[var(--pl-text-weak)]',
+  rawDataToggleValue: 'underline underline-offset-2 decoration-[var(--pl-border-strong)]',
 
   /** Cloud context — tier 3 of the identity stack (계정 · 리전 · 설치모드). */
   cloudRow: 'flex items-center gap-1.5 mt-1 text-[12px] text-[var(--pl-text-weak)]',

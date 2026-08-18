@@ -1,10 +1,11 @@
 # Ops Console — Assumed Contracts (no backing in install-v1.yaml)
 
-Capabilities with **no endpoint in `docs/swagger/install-v1.yaml`**: §1–§5 on the Target
-Source ops page (`/admin/pipelines/ops/target-sources/{id}`), and §8 on the service-owner
-list (`/services`). They are implemented mock-first behind Next.js routes with the shapes
-below. When the BFF ships real endpoints, replace the mock handlers and delete the
-corresponding section here.
+Capabilities with **no endpoint in `docs/swagger/install-v1.yaml`**: §1–§5 and §9 on the
+Target Source ops page (`/admin/pipelines/ops/target-sources/{id}`), and §8 on the
+service-owner list (`/services`). They are implemented mock-first behind Next.js routes
+with the shapes below. When the BFF ships real endpoints, replace the mock handlers and
+delete the corresponding section here. §9 is the one section whose endpoints already exist
+upstream — what it waits for is the declaration, so it goes when install-v1.yaml names it.
 
 Conventions follow install-v1: snake_case wire, Spring `Page` for pagination,
 `ErrorMessage` problem responses.
@@ -13,7 +14,8 @@ Sections §6 (서비스 운영) and §7 (운영 알림) are no longer assumed �
 declared endpoints. They are kept as a record of what was withdrawn and why, so the
 same shapes are not re-invented. §1–§5 **and §8** are still assumed and still 404 against
 the real BFF — §8 is the only one whose caller is a service owner rather than an operator,
-so its failure copy does not promise that a retry will work.
+so its failure copy does not promise that a retry will work. §9 is a third case: undeclared
+here but confirmed as implemented upstream, so its copy may invite a retry.
 
 ## 1. Status change history
 
@@ -227,27 +229,57 @@ the textarea (`DescriptionEditModal`, the shape `ConfirmRewindModal` uses), and 
 independent `VALIDATION_FAILED` guard on the route. The route measures the string it
 receives, before any trim — the dialog's trim is an editorial choice, not the contract's.
 
-## Field not yet in any contract: `does_support_raw`
+## 9. Target Source 실데이터 여부 write
 
-Not an endpoint — a field the BFF is going to add to TargetSource. `실데이터` tags on
-`/pass/admin/pipelines/ops/services/{code}` and
-`/pass/admin/pipelines/ops/target-sources/{id}` are keyed to it.
+```
+PUT /install/v1/target-sources/{targetSourceId}/does-support-raw/enabled
+PUT /install/v1/target-sources/{targetSourceId}/does-support-raw/disabled
+body     none                                   // the value is the path, not a payload
+→        no declared response body
+404      TargetSourceNotFoundException (raised by infra, relayed by self-installation-tool)
+```
+
+Unlike §1–§5 and §8, these two are **implemented upstream** — they are only missing from
+`install-v1.yaml`, so a failure here is not the permanent 404 an unbuilt endpoint gives.
+The dialog's failure copy may invite a retry (§8's may not; see the note below it).
+
+Both endpoints still carry a BE TODO for an Admin-only permission annotation. Nothing on
+the client stands in for it: the only caller is the ops console, which is already behind
+the ADMIN gate, and a client-side check would state an authorisation rule the server has
+not made yet.
+
+The internal route folds the pair into one boolean — `PUT /pass/api/v1/target-sources/{id}/
+does-support-raw { enabled: boolean }`. Two paths are one value written two ways, and the
+path encoding is the upstream's representation of it, applied in `lib/bff/http.ts` where
+every other upstream path shape is decided. Nothing is read back from either hop: on
+success the header keeps the value the operator picked (one piece of local state, the same
+shape 설치 모드 uses), and the next detail load is what re-reads it.
+
+## The field the tags read: `doesSupportRaw`
+
+A field the BFF carries on TargetSource that `install-v1.yaml` does not declare yet. The
+`실데이터` tag on `/pass/admin/pipelines/ops/services/{code}` and the 실데이터 chip in the
+header of `/pass/admin/pipelines/ops/target-sources/{id}` are keyed to it.
 
 It is read through `readDoesSupportRaw` (`lib/types.ts`) rather than a declared field,
 because the generated schemas are `.partial().passthrough()`: an undeclared key survives
-`parse()` and reaches the consumer, so the tags switch on the day the BFF starts sending
-it — with no code change. The reader accepts **both** `does_support_raw` and
-`doesSupportRaw`, because the two DTOs that would carry it disagree on casing
-(`TargetSourceDetail` is snake, `TargetSourceInfo` is a camel island). When the contract
-lands, keep whichever casing it declares and drop the other.
+`parse()` and reaches the consumer. The casing is **camelCase in both wires** (BE-confirmed
+— a camel island inside the otherwise snake `TargetSourceDetail`); the earlier reader took
+both casings only because the contract had not said which one, and that branch is gone.
 
-Only `=== true` renders the tag. Three states exist (true / false / absent) and exactly
-one of them is grounds to say 실데이터; the other two fold into "unknown", which is the
-screen as it is today.
+The reader returns three states — `true` / `false` / `undefined` (not a boolean on the
+wire, or absent). The two surfaces fold them differently, and on purpose:
+
+- The service card draws a tag only on `=== true`. A tag has no "off" shape.
+- The ops header always draws the chip, because it is also the control that changes the
+  value: 포함 / 미포함 / 미확인. Writing 미포함 for a value we could not read would have
+  the screen assert something it never received.
 
 ## Mock implementation
 
-All sections are served by `app/api/v1/…` route handlers backed by globalThis-guarded
+Sections §1–§5 are served by `app/api/v1/…` route handlers backed by globalThis-guarded
 in-memory stores in `lib/bff/mock/ops.ts` (`__opsConsoleMockStore` for per-target
-state, `__opsConsoleServiceStore` for §6), same pattern as the admin queue mocks.
+state, `__opsConsoleServiceStore` for §6), same pattern as the admin queue mocks. §8 and
+§9 write to the shared project store instead (`lib/bff/mock/target-sources.ts` →
+`updateProject`), because both edit a field every screen already reads off the target.
 Handlers are marked `// ASSUMED CONTRACT — docs/api/ops-assumed-contracts.md`.

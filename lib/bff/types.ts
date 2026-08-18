@@ -112,6 +112,13 @@ export interface BffClient {
      * 연동 대상 계정 목록 could show a description nobody could correct.
      */
     putDescription: (id: number, description: string) => Promise<TargetSourceDescriptionWire>;
+    /**
+     * PUT …/does-support-raw/{enabled|disabled} — 본문 없는 두 경로가 한 boolean 을
+     * 뒤집는다 (BE 확인, install-v1.yaml 에는 아직 없다 — docs/api/ops-assumed-contracts.md §9).
+     * 경계 위에서는 값 하나다: 값을 경로로 인코딩하는 것은 업스트림의 표현이고, 그
+     * 변환은 http 층이 진다. 응답 본문은 계약에 없어 아무것도 읽지 않는다.
+     */
+    setDoesSupportRaw: (id: number, enabled: boolean) => Promise<void>;
   };
 
   users: {
