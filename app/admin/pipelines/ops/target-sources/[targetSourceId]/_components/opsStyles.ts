@@ -34,11 +34,11 @@ export const opsStyles = {
    *
    * 그래서 이 줄에서 아무도 안 쓰는 채널을 쓴다 — 나머지 칩은 전부 테두리 없는 면이고,
    * 이것만 흰 면 + 획이다. 색이 없으니 StepPill 이 어느 계열로 가든 겹치지 않는다.
-   * 투명이 아니라 흰 면인 것도 이유가 있다: 서비스 운영의 카드는 hover 에서 보라
-   * (#F3EEFF)로 물드는데, 투명이면 태그가 그 물을 같이 먹는다.
+   * 투명이 아니라 흰 면인 것도 이유가 있다: 서비스 운영의 카드는 hover 에서 보라로
+   * 물드는데(`tableRowLift.card`), 투명이면 태그가 그 물을 같이 먹는다.
    *
-   * 대비 실측: 글자 #101828 on 면 #FFFFFF = 17.85:1. 면은 카드 hover 틴트 위에서
-   * ΔE00 8.92 (tableRowLift.card 주석의 실측치와 같은 쌍).
+   * 대비 실측: 글자(`--pl-text-strong`) on 면(`--pl-bg-card`) = 17.85:1. 면은 카드
+   * hover 틴트 위에서 ΔE00 8.92 (tableRowLift.card 주석의 실측치와 같은 쌍).
    */
   rawDataTag: 'inline-flex items-center whitespace-nowrap rounded px-1.5 py-0.5 text-[12px] font-semibold border border-[var(--pl-border-strong)] bg-[var(--pl-bg-card)] text-[var(--pl-text-strong)]',
   /**
