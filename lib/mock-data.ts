@@ -303,7 +303,7 @@ export const mockProjects: Project[] = [
     targetSourceId: 1002,
     projectCode: 'GCP-001',
     name: 'GCP PII Agent - Cloud SQL / BigQuery',
-    description: 'GCP Cloud SQL, BigQuery 리소스에 PII Agent 설치',
+    description: 'Step 1. 연동 대상 확정 — 스캔 후보가 아직 없는 상태입니다. 목록이 비었을 때의 빈 화면과 스캔 실행 진입점을 확인합니다.',
     serviceCode: 'gcp',
     cloudProvider: 'GCP',
     gcpProjectId: 'pii-agent-prod-12345',
@@ -326,7 +326,7 @@ export const mockProjects: Project[] = [
     targetSourceId: 1017,
     projectCode: 'GCP-002',
     name: 'GCP PII Agent - 대상 선택 (설치 불가 포함)',
-    description: '연동 대상 2건, 설치 불가 2건 (공인 IP / 내부 LB 서브넷)',
+    description: 'Step 1. 연동 대상 확정 — Cloud SQL 4건 중 2건이 설치 불가(공인 IP / 내부 LB 서브넷)로 잡힌 상태입니다. 설치 불가 사유 표기와 안내 모달 진입을 확인합니다.',
     serviceCode: 'gcp',
     cloudProvider: 'GCP',
     gcpProjectId: 'pii-agent-prod-12345',
@@ -373,7 +373,7 @@ export const mockProjects: Project[] = [
     targetSourceId: 1003,
     projectCode: 'AZURE-001',
     name: 'Azure PII Agent - DB 연동',
-    description: 'Azure SQL, PostgreSQL, MySQL 리소스에 PII Agent 설치',
+    description: 'Step 4. 설치 진행 — MySQL·PostgreSQL·MSSQL 4건이 설치 중이고 비대상 2건이 사유와 함께 남아 있는 상태입니다. 서비스측/BDC측 설치 현황을 확인합니다.',
     serviceCode: 'azure',
     cloudProvider: 'Azure',
     tenantId: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
@@ -459,7 +459,7 @@ export const mockProjects: Project[] = [
     targetSourceId: 1004,
     projectCode: 'AZURE-002',
     name: 'Azure PII Agent - VM 포함',
-    description: 'Azure DB + VM 리소스에 PII Agent 설치 (Case 2)',
+    description: 'Step 4. 설치 진행 — Synapse 1건과 VM 2대가 섞인 구성입니다. VM 은 설치 대상이 아니라 NIC 만 노출되는데, NIC 3개짜리 행 표기를 확인합니다.',
     serviceCode: 'azure',
     cloudProvider: 'Azure',
     tenantId: 'b2c3d4e5-f6a7-8901-bcde-f12345678901',
@@ -515,7 +515,7 @@ export const mockProjects: Project[] = [
     targetSourceId: 1005,
     projectCode: 'AZURE-003',
     name: 'Azure PII Agent - VM+MySQL 스캔 완료',
-    description: 'VM 1대 + MySQL 1대, 스캔 완료 후 연동 대상 확정 전',
+    description: 'Step 1. 연동 대상 확정 — 스캔에서 VM 1대·MySQL 1대가 후보로 잡히고 VNet 통합 리소스 2건이 설치 불가로 갈린 상태입니다. 확정 전 선택 화면을 확인합니다.',
     serviceCode: 'azure',
     cloudProvider: 'Azure',
     tenantId: 'c3d4e5f6-a7b8-9012-cdef-123456789012',
@@ -581,14 +581,16 @@ export const mockProjects: Project[] = [
   // One project covers all four branches: target / user-excluded (with reason) / ineligible
   // (with an enum reason) / ineligible (without one, as AWS and IDC always are).
   ...([
-    [1013, ProcessStatus.WAITING_APPROVAL, 'AZURE-004', 'Azure PII Agent - 승인 대기 (연동 불가 포함)'],
-    [1014, ProcessStatus.APPLYING_APPROVED, 'AZURE-005', 'Azure PII Agent - 반영 중 (연동 불가 포함)'],
-  ] as const).map(([targetSourceId, processStatus, projectCode, name]): Project => ({
+    [1013, ProcessStatus.WAITING_APPROVAL, 'AZURE-004', 'Azure PII Agent - 승인 대기 (연동 불가 포함)',
+      'Step 2. 관리자 승인 대기 — 연동 대상 2건·사용자 제외 1건·연동 불가 2건이 한 요청에 섞여 올라간 상태입니다. 사유가 있는 연동 불가와 없는 연동 불가가 각각 어떻게 보이는지 확인합니다.'],
+    [1014, ProcessStatus.APPLYING_APPROVED, 'AZURE-005', 'Azure PII Agent - 반영 중 (연동 불가 포함)',
+      'Step 3. 승인 반영 중 — 같은 구성(대상 2 · 제외 1 · 연동 불가 2)이 승인된 뒤 확정 처리를 기다리는 화면입니다. 반영 중에도 비대상 행이 사유와 함께 남는지 확인합니다.'],
+  ] as const).map(([targetSourceId, processStatus, projectCode, name, description]): Project => ({
     id: `azure-proj-${targetSourceId}`,
     targetSourceId,
     projectCode,
     name,
-    description: '연동 대상 2건, 사용자 제외 1건, 연동 불가 2건',
+    description,
     serviceCode: 'azure',
     cloudProvider: 'Azure',
     tenantId: 'c3d4e5f6-a7b8-9012-cdef-123456789012',
@@ -642,14 +644,16 @@ export const mockProjects: Project[] = [
   // one table. They share their first 18 characters, so the reason column's clamp renders
   // them identically — the two rows below are the case that makes that visible.
   ...([
-    [1015, ProcessStatus.WAITING_APPROVAL, 'GCP-004', 'GCP PII Agent - 승인 대기 (연동 불가 포함)'],
-    [1016, ProcessStatus.APPLYING_APPROVED, 'GCP-005', 'GCP PII Agent - 반영 중 (연동 불가 포함)'],
-  ] as const).map(([targetSourceId, processStatus, projectCode, name]): Project => ({
+    [1015, ProcessStatus.WAITING_APPROVAL, 'GCP-004', 'GCP PII Agent - 승인 대기 (연동 불가 포함)',
+      'Step 2. 관리자 승인 대기 — 연동 대상 2건·사용자 제외 1건·연동 불가 2건이 함께 올라간 요청입니다. 두 설치 불가 사유(공인 IP / 내부 LB 서브넷)가 같은 열에서 어떻게 잘리는지 확인합니다.'],
+    [1016, ProcessStatus.APPLYING_APPROVED, 'GCP-005', 'GCP PII Agent - 반영 중 (연동 불가 포함)',
+      'Step 3. 승인 반영 중 — 같은 구성(대상 2 · 제외 1 · 연동 불가 2)이 승인된 뒤 확정 처리를 기다리는 화면입니다. 반영 중에도 비대상 행이 사유와 함께 남는지 확인합니다.'],
+  ] as const).map(([targetSourceId, processStatus, projectCode, name, description]): Project => ({
     id: `gcp-proj-${targetSourceId}`,
     targetSourceId,
     projectCode,
     name,
-    description: '연동 대상 2건, 사용자 제외 1건, 연동 불가 2건 (공인 IP / 내부 LB 서브넷)',
+    description,
     serviceCode: 'gcp',
     cloudProvider: 'GCP',
     gcpProjectId: 'pii-agent-prod-12345',
@@ -947,6 +951,26 @@ const IDC_DEMO_RESOURCES: MockResource[] = [
   },
 ];
 
+// One line per step, so the detail page's 설명 block names the screen each
+// fixture serves the way the AWS fixtures do. ProcessStatus values ARE the step
+// numbers 1~7, so this table is complete by construction.
+const IDC_STEP_DESCRIPTION: Record<ProcessStatus, string> = {
+  [ProcessStatus.WAITING_TARGET_CONFIRMATION]:
+    'Step 1. 연동 대상 입력 — 스캔이 없는 IDC 라 대상 DB 를 직접 입력하는 단계입니다. 빈 목록에서 IP·도메인과 포트, DB 종류를 추가하는 흐름을 확인합니다.',
+  [ProcessStatus.WAITING_APPROVAL]:
+    'Step 2. 관리자 승인 대기 — 직접 입력한 대상 5건(MySQL·Oracle·MongoDB·MSSQL)과 제외 2건이 승인 요청까지 올라간 상태입니다. 방화벽 오픈 여부와 Source IP 표기를 확인합니다.',
+  [ProcessStatus.APPLYING_APPROVED]:
+    'Step 3. 승인 반영 중 — 승인 직후 확정 처리(APPLYING_APPROVED)를 기다리는 화면입니다. 폴링 중 안내 문구와 설치 진입 직전 상태를 확인합니다.',
+  [ProcessStatus.INSTALLING]:
+    'Step 4. 설치 진행 — IDC 설치 단계별 현황을 확인합니다. 클라우드와 달리 방화벽 오픈 같은 담당자 직접 작업이 자동 단계와 나란히 놓입니다.',
+  [ProcessStatus.WAITING_CONNECTION_TEST]:
+    'Step 5. 연결 테스트 — 설치가 끝난 온프레미스 DB 5건에 연결 테스트를 수행하는 화면입니다. 엔진별 Credential 입력과 테스트 결과 표기를 확인합니다.',
+  [ProcessStatus.CONNECTION_VERIFIED]:
+    'Step 6. 완료 승인 대기 — 연결 테스트 검증까지 끝난 뒤 관리자의 완료 승인을 기다리는 화면을 확인합니다.',
+  [ProcessStatus.INSTALLATION_COMPLETE]:
+    'Step 7. 설치 완료 — 연동이 끝나 PII 모니터링이 실행 중인 최종 화면을 확인합니다.',
+};
+
 const makeIdcProject = (
   targetSourceId: number,
   step: ProcessStatus,
@@ -958,7 +982,9 @@ const makeIdcProject = (
   targetSourceId,
   projectCode: `IDC-${String(targetSourceId).slice(-3)}`,
   name,
-  description: 'IDC 온프레미스 DB에 PII Agent 연동',
+  description: unavailableReason
+    ? 'Step 2. 관리자 승인 — 연동 불가로 판정된 상태입니다. 요청한 온프레미스 DB 가 연동 대상 네트워크 대역 밖일 때의 판정과 사유 문구를 확인합니다.'
+    : IDC_STEP_DESCRIPTION[step],
   serviceCode: 'idc',
   cloudProvider: 'IDC',
   processStatus: step,
@@ -1113,20 +1139,20 @@ mockProjects.push(
     resources: [...awsWireSampleResources, rdsClusterApplyingResource],
   }),
   // Azure — fills steps 2/3/5/6/7 (base azure-proj-1 carries full resources)
-  cloneForStep('azure-proj-1', { id: 'azure-proj-approval', targetSourceId: 2002, projectCode: 'AZURE-APPROVAL', name: 'Azure PII Agent - 승인 대기', status: ProcessStatus.WAITING_APPROVAL }),
-  cloneForStep('azure-proj-1', { id: 'azure-proj-applying', targetSourceId: 2003, projectCode: 'AZURE-APPLYING', name: 'Azure PII Agent - 반영 중', status: ProcessStatus.APPLYING_APPROVED }),
-  cloneForStep('azure-proj-1', { id: 'azure-proj-test', targetSourceId: 2004, projectCode: 'AZURE-TEST', name: 'Azure PII Agent - 연결 테스트', status: ProcessStatus.WAITING_CONNECTION_TEST }),
-  cloneForStep('azure-proj-1', { id: 'azure-proj-verified', targetSourceId: 2005, projectCode: 'AZURE-VERIFIED', name: 'Azure PII Agent - 완료 승인 대기', status: ProcessStatus.CONNECTION_VERIFIED }),
-  cloneForStep('azure-proj-1', { id: 'azure-proj-complete', targetSourceId: 2006, projectCode: 'AZURE-COMPLETE', name: 'Azure PII Agent - 연동 완료', status: ProcessStatus.INSTALLATION_COMPLETE }),
+  cloneForStep('azure-proj-1', { id: 'azure-proj-approval', description: 'Step 2. 관리자 승인 대기 — Azure DB 대상이 승인 요청까지 올라간 상태입니다. 승인 정보 카드와 대기 안내 문구를 확인합니다.', targetSourceId: 2002, projectCode: 'AZURE-APPROVAL', name: 'Azure PII Agent - 승인 대기', status: ProcessStatus.WAITING_APPROVAL }),
+  cloneForStep('azure-proj-1', { id: 'azure-proj-applying', description: 'Step 3. 승인 반영 중 — 승인 직후 확정 처리(APPLYING_APPROVED)를 기다리는 화면입니다. 폴링 중 안내 문구와 설치 진입 직전 상태를 확인합니다.', targetSourceId: 2003, projectCode: 'AZURE-APPLYING', name: 'Azure PII Agent - 반영 중', status: ProcessStatus.APPLYING_APPROVED }),
+  cloneForStep('azure-proj-1', { id: 'azure-proj-test', description: 'Step 5. 연결 테스트 — 설치가 끝난 Azure DB 대상에 연결 테스트를 수행하는 화면입니다. 엔진별 Credential 입력과 테스트 결과 표기를 확인합니다.', targetSourceId: 2004, projectCode: 'AZURE-TEST', name: 'Azure PII Agent - 연결 테스트', status: ProcessStatus.WAITING_CONNECTION_TEST }),
+  cloneForStep('azure-proj-1', { id: 'azure-proj-verified', description: 'Step 6. 완료 승인 대기 — 연결 테스트 검증까지 끝난 뒤 관리자의 완료 승인을 기다리는 화면을 확인합니다.', targetSourceId: 2005, projectCode: 'AZURE-VERIFIED', name: 'Azure PII Agent - 완료 승인 대기', status: ProcessStatus.CONNECTION_VERIFIED }),
+  cloneForStep('azure-proj-1', { id: 'azure-proj-complete', description: 'Step 7. 설치 완료 — 연동이 끝나 PII 모니터링이 실행 중인 최종 화면을 확인합니다.', targetSourceId: 2006, projectCode: 'AZURE-COMPLETE', name: 'Azure PII Agent - 연동 완료', status: ProcessStatus.INSTALLATION_COMPLETE }),
   // Step 2, integration-unavailable sub-state — verdict + reason on the cloud approval card.
-  cloneForStep('azure-proj-1', { id: 'azure-proj-unavailable', targetSourceId: 2013, projectCode: 'AZURE-UNAVAIL', name: 'Azure PII Agent - 연동 불가', status: ProcessStatus.WAITING_APPROVAL, unavailableReason: '선택하신 리소스는 현재 지원되지 않는 유형이라 연동할 수 없습니다. 지원 대상 DB만 다시 선택해주세요.' }),
+  cloneForStep('azure-proj-1', { id: 'azure-proj-unavailable', description: 'Step 2. 관리자 승인 — 연동 불가로 판정된 상태입니다. 승인 카드의 판정과 사유 문구, 대상 재선택 안내를 확인합니다.', targetSourceId: 2013, projectCode: 'AZURE-UNAVAIL', name: 'Azure PII Agent - 연동 불가', status: ProcessStatus.WAITING_APPROVAL, unavailableReason: '선택하신 리소스는 현재 지원되지 않는 유형이라 연동할 수 없습니다. 지원 대상 DB만 다시 선택해주세요.' }),
   // GCP — fills steps 2/3/4/5/6/7 (gcp-proj-1 has no resources, so inject a demo set)
-  cloneForStep('gcp-proj-1', { id: 'gcp-proj-approval', targetSourceId: 2007, projectCode: 'GCP-APPROVAL', name: 'GCP PII Agent - 승인 대기', status: ProcessStatus.WAITING_APPROVAL, resources: gcpDemoResources }),
-  cloneForStep('gcp-proj-1', { id: 'gcp-proj-applying', targetSourceId: 2008, projectCode: 'GCP-APPLYING', name: 'GCP PII Agent - 반영 중', status: ProcessStatus.APPLYING_APPROVED, resources: gcpDemoResources }),
-  cloneForStep('gcp-proj-1', { id: 'gcp-proj-installing', targetSourceId: 2009, projectCode: 'GCP-INSTALLING', name: 'GCP PII Agent - 설치 진행', status: ProcessStatus.INSTALLING, resources: gcpDemoResources }),
-  cloneForStep('gcp-proj-1', { id: 'gcp-proj-test', targetSourceId: 2010, projectCode: 'GCP-TEST', name: 'GCP PII Agent - 연결 테스트', status: ProcessStatus.WAITING_CONNECTION_TEST, resources: gcpDemoResources }),
-  cloneForStep('gcp-proj-1', { id: 'gcp-proj-verified', targetSourceId: 2011, projectCode: 'GCP-VERIFIED', name: 'GCP PII Agent - 완료 승인 대기', status: ProcessStatus.CONNECTION_VERIFIED, resources: gcpDemoResources }),
-  cloneForStep('gcp-proj-1', { id: 'gcp-proj-complete', targetSourceId: 2012, projectCode: 'GCP-COMPLETE', name: 'GCP PII Agent - 연동 완료', status: ProcessStatus.INSTALLATION_COMPLETE, resources: gcpDemoResources }),
+  cloneForStep('gcp-proj-1', { id: 'gcp-proj-approval', description: 'Step 2. 관리자 승인 대기 — Cloud SQL 대상이 승인 요청까지 올라간 상태입니다. 승인 정보 카드와 대기 안내 문구를 확인합니다.', targetSourceId: 2007, projectCode: 'GCP-APPROVAL', name: 'GCP PII Agent - 승인 대기', status: ProcessStatus.WAITING_APPROVAL, resources: gcpDemoResources }),
+  cloneForStep('gcp-proj-1', { id: 'gcp-proj-applying', description: 'Step 3. 승인 반영 중 — 승인 직후 확정 처리(APPLYING_APPROVED)를 기다리는 화면입니다. 폴링 중 안내 문구와 설치 진입 직전 상태를 확인합니다.', targetSourceId: 2008, projectCode: 'GCP-APPLYING', name: 'GCP PII Agent - 반영 중', status: ProcessStatus.APPLYING_APPROVED, resources: gcpDemoResources }),
+  cloneForStep('gcp-proj-1', { id: 'gcp-proj-installing', description: 'Step 4. 설치 진행 — GCP 자동 설치의 단계별 현황(서비스측/BDC측)을 확인합니다.', targetSourceId: 2009, projectCode: 'GCP-INSTALLING', name: 'GCP PII Agent - 설치 진행', status: ProcessStatus.INSTALLING, resources: gcpDemoResources }),
+  cloneForStep('gcp-proj-1', { id: 'gcp-proj-test', description: 'Step 5. 연결 테스트 — 설치가 끝난 Cloud SQL 대상에 연결 테스트를 수행하는 화면입니다. 엔진별 Credential 입력과 테스트 결과 표기를 확인합니다.', targetSourceId: 2010, projectCode: 'GCP-TEST', name: 'GCP PII Agent - 연결 테스트', status: ProcessStatus.WAITING_CONNECTION_TEST, resources: gcpDemoResources }),
+  cloneForStep('gcp-proj-1', { id: 'gcp-proj-verified', description: 'Step 6. 완료 승인 대기 — 연결 테스트 검증까지 끝난 뒤 관리자의 완료 승인을 기다리는 화면을 확인합니다.', targetSourceId: 2011, projectCode: 'GCP-VERIFIED', name: 'GCP PII Agent - 완료 승인 대기', status: ProcessStatus.CONNECTION_VERIFIED, resources: gcpDemoResources }),
+  cloneForStep('gcp-proj-1', { id: 'gcp-proj-complete', description: 'Step 7. 설치 완료 — 연동이 끝나 PII 모니터링이 실행 중인 최종 화면을 확인합니다.', targetSourceId: 2012, projectCode: 'GCP-COMPLETE', name: 'GCP PII Agent - 연동 완료', status: ProcessStatus.INSTALLATION_COMPLETE, resources: gcpDemoResources }),
 );
 
 // ===== Step 5 TC 카드 상태 fixture (21xx) =====
