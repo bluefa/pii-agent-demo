@@ -6,6 +6,7 @@
  * verbatim (no camel reshape needed by the consumers).
  */
 import { fetchInfraJson } from '@/app/lib/api/infra';
+import { getProcessStatuses } from '@/app/lib/api/task-queue';
 import type { BffProcessStatus } from '@/app/lib/api';
 import type { z } from 'zod';
 import type { schemas } from '@/lib/generated/install-v1';
@@ -220,6 +221,41 @@ export const getOpsTargetSources = (
 
 export const getOpsService = (serviceCode: string): Promise<OpsServiceDetail> =>
   fetchInfraJson<OpsServiceDetail>(`/admin/ops/services/${encodeURIComponent(serviceCode)}`);
+
+/* ── 연동 완료 사실 (실계약 `getCurrentStatuses`) ── */
+
+/**
+ * 이 대상의 연동이 끝났는지, 끝났다면 언제인지.
+ *
+ * 출처는 `GET /process-statuses?targetSourceId=` (`getCurrentStatuses`) 한 건이다.
+ * `TargetSourceInfo.piiAgentFirstInstalledAt` 이 아니다 — 그 값은 **최초 설치**(4단계를
+ * 처음 지난 때)라 연동이 끝난 시각과 다르고, 되돌아가 다시 설치해도 움직이지 않는다.
+ * 연동 완료 시각은 단계가 `COMPLETED` 로 바뀐 순간, 곧 `status_changed_at` 이다.
+ *
+ * `GET /target-sources/{id}/process-status` 를 쓰지 않는 이유는 계약이 적어 두었다:
+ * "AWS, SDU, IDC TargetSource는 IDLE 상태를 반환합니다". 완료 여부를 그 응답으로 가르면
+ * AWS 대상은 영영 완료로 읽히지 않는다.
+ */
+export interface IntegrationCompletion {
+  /** 계약 enum 이 `COMPLETED` 라고 말할 때만 true (허용 목록 — 나머지 6개는 전부 false). */
+  completed: boolean;
+  /** `COMPLETED` 로 바뀐 시각. 계약이 optional 로 선언한 필드라 없을 수 있다. */
+  completedAt: string | null;
+}
+
+/** 완료를 확인하지 못한 상태 — "완료 아님"이 아니라 "모른다"의 자리이기도 하다. */
+export const NOT_COMPLETED: IntegrationCompletion = { completed: false, completedAt: null };
+
+export const getIntegrationCompletion = async (
+  targetSourceId: number,
+  options?: { signal?: AbortSignal },
+): Promise<IntegrationCompletion> => {
+  // 대상 하나를 묻는 조회라 size=1 — 계약이 대상별 단건 경로를 따로 주지 않는다.
+  const page = await getProcessStatuses({ targetSourceId, size: 1 }, options);
+  const row = page.content[0];
+  if (row?.processStatus !== 'COMPLETED') return NOT_COMPLETED;
+  return { completed: true, completedAt: row.statusChangedAt };
+};
 
 /* ── Jira Ticket 연결 — REAL contract (docs/api/jira-tickets.md §1) ── */
 

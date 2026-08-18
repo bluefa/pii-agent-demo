@@ -60,6 +60,16 @@ export function fmtDateTime(iso: string | null | undefined): string {
 }
 
 /**
+ * ISO-8601 UTC instant → 'YYYY-MM-DD' in Asia/Seoul. `null`/invalid → '-'.
+ * For places that carry a date as a value rather than as a timestamp — the
+ * 연동 완료 도장 is one: it reads at 20px, and a 16-character instant there is a
+ * number to parse, not a date to recognize.
+ */
+export function fmtDate(iso: string | null | undefined): string {
+  return seoulDateTime(iso, false).split(' ')[0];
+}
+
+/**
  * fmtDateTime + seconds ('YYYY-MM-DD HH:mm:ss') — for schedule times whose
  * precision matters at second scale (start-delay is ~15s, so a minute-only
  * 시작 예정 renders identical to "now"; operator feedback asked for seconds).

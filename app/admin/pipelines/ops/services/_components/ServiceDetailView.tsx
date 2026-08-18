@@ -29,6 +29,7 @@ import { ProvTag } from '@/app/admin/pipelines/_components/ProvTag';
 import { ProviderLogo } from '@/app/components/features/admin/v7';
 import type { CloudProvider } from '@/lib/types';
 import { opsStyles } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/opsStyles';
+import { CompletedStampSlot } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/CompletedStamp';
 import { serviceListStyles as s } from '@/app/admin/pipelines/_services/styles';
 import { safeBrowseUrl } from '@/lib/jira-ticket';
 import { JiraTicketMenu } from '@/app/admin/pipelines/ops/services/_components/JiraTicketMenu';
@@ -300,6 +301,9 @@ function DetailSkeleton(): ReactElement {
                 {bar('h-[21px] w-[240px] max-w-full rounded')}
                 {bar('h-[21px] w-[320px] max-w-full rounded')}
               </div>
+              {/* 도장 자리 — 찍힐지 아직 모르므로 막대를 놓지 않는다. 자리만 비워
+                  둬야 "운영 화면 ↗" 의 x 좌표가 데이터 도착 전후로 같다. */}
+              <div className="w-[160px] flex-none" aria-hidden="true" />
               {bar('h-5 w-20 shrink-0 self-center rounded')}
             </div>
           ))}
@@ -571,6 +575,23 @@ export function ServiceDetailView({ serviceCode }: ServiceDetailViewProps): Reac
                     )}
                   </div>
                 </div>
+
+                {/* 연동이 끝난 대상에만 찍힌다 — 이 목록에서 유일하게 큰 글자다.
+                    단계를 그리는 것이 아니다(이 화면은 단계를 보여주지 않는다는 오너
+                    결정은 그대로다): 도장은 7단계 중 마지막 하나가 지나갔다는 사실과
+                    그 시각만 말하고, 나머지 여섯 단계에 대해서는 아무 말도 하지 않는다.
+                    자리는 미리 잡는다 — 도장이 늦게 도착해도 위 두 줄의 폭이 흔들리면
+                    잘리는 값(Azure GUID 두 개)이 바뀐다.
+
+                    가로 예산을 174px(슬롯 160 + gap 14) 쓴다. 913px 카드에서 2층의
+                    여유가 694 → 520px 이 되므로, Azure 처럼 36자 GUID 를 둘 싣는 행은
+                    더 짧게 잘린다(전문은 `title`). 잘림은 이 카드가 이미 택한 거래이고
+                    (높이 고정 = 넘치면 자름), 도장은 그 거래의 대가를 알고 들어온다. */}
+                <CompletedStampSlot
+                  targetSourceId={target.target_source_id}
+                  reserve
+                  className="self-center"
+                />
 
                 {/* The link is this element, not a stretched overlay over the whole
                     card. An overlay is the only positioned child, so it paints above

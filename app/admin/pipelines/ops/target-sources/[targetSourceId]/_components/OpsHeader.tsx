@@ -23,6 +23,7 @@ import type { RawTargetSourceDetail } from '@/app/lib/api/pipeline-target';
 import type { TargetJiraTicket } from '@/app/lib/api/ops';
 import type { ProcessStatus } from '@/app/admin/pipelines/queue/_components/StepStack';
 import { StepPill } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/StepPill';
+import { CompletedStampSlot } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/CompletedStamp';
 import { ROLE_META, type RoleKind } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/roleMeta';
 import { opsStyles } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/opsStyles';
 
@@ -260,6 +261,13 @@ export function OpsHeader({
             <div className="mt-1">{infoRow('Scan App', meta.azure_scan_app_id)}</div>
           )}
         </div>
+
+        {/* 신원 스택 오른쪽은 비어 있던 자리다 — 도장은 거기 선다. 단계 알약(1층)과
+            같은 사실을 두 번 말하는 것처럼 보이지만 층이 다르다: 알약은 "지금 어디"를
+            7단계로 말하고, 도장은 "끝났다 · 언제"를 말한다. 끝나지 않은 대상에서는
+            아무것도 그리지 않으므로 두 표식이 겹치는 상태는 COMPLETED 하나뿐이다.
+            출처도 알약과 다르다 — 근거는 `getIntegrationCompletion` 주석. */}
+        <CompletedStampSlot targetSourceId={targetSourceId} size="lg" className="self-center" />
       </div>
     </div>
   );

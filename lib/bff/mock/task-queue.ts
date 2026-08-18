@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import * as mockData from '@/lib/mock-data';
 import { cloudProviderToWireProvider } from '@/lib/types';
+import { seedCurrentStatus } from '@/lib/bff/mock/ops';
 import type { AlertTargetKind } from '@/lib/types/task-queue';
 
 /**
@@ -683,6 +684,27 @@ function toProcessWire(p: ProcRow) {
 }
 
 /**
+ * 카탈로그(store.projects) 대상을 모니터 행의 모양으로 옮긴다. 단계와 시각은 둘 다
+ * `seedCurrentStatus` 에서 온다 — 같은 대상의 상태 변경 이력을 만드는 바로 그 씨앗이라,
+ * "이력의 마지막 줄"과 "현재 상태의 시각"이 자동으로 같은 값이 된다. delay 는 목이
+ * 계산하지 않는다(계약상 서버 계산값이고, 이 경로를 쓰는 화면은 읽지 않는다).
+ */
+function catalogueProcRow(targetSourceId: number): ProcRow | null {
+  const project = mockData.getProjectByTargetSourceId(targetSourceId);
+  if (!project) return null;
+  const { status, changedAt } = seedCurrentStatus(project.processStatus);
+  return {
+    ts: project.targetSourceId,
+    svc: project.serviceCode,
+    code: project.serviceCode,
+    pv: cloudProviderToWireProvider(project.cloudProvider),
+    st: status,
+    delay: 0,
+    at: changedAt,
+  };
+}
+
+/**
  * 운영 알림 — the process_status that puts a target in each alert bucket.
  * Upstream owns this mapping; the mock reproduces it off the monitor fixture so
  * counts and drill-down lists stay consistent with each other.
@@ -861,7 +883,19 @@ export const mockTaskQueue = {
   getProcessStatuses: async (query: { processStatus?: string; targetSourceId?: number; page: number; size: number }) => {
     let rows = PROC;
     if (query.processStatus) rows = rows.filter((p) => p.st === query.processStatus);
-    if (query.targetSourceId !== undefined) rows = rows.filter((p) => p.ts === query.targetSourceId);
+    if (query.targetSourceId !== undefined) {
+      rows = rows.filter((p) => p.ts === query.targetSourceId);
+      // 대상 하나를 묻는 조회(운영 화면의 연동 완료 표식)는 모니터 픽스처 밖까지
+      // 닿는다 — 목의 대상은 두 명단에 나뉘어 있고(PROC / 카탈로그), 카탈로그 대상은
+      // 여기 한 줄도 없어서 실제로는 완료인 대상이 "완료 아님"으로 답해 왔다.
+      // `getTargetSourcesPage` 가 같은 이유로 이미 두 명단을 합친다.
+      if (rows.length === 0) {
+        const fromCatalogue = catalogueProcRow(query.targetSourceId);
+        if (fromCatalogue && (!query.processStatus || fromCatalogue.st === query.processStatus)) {
+          rows = [fromCatalogue];
+        }
+      }
+    }
     return NextResponse.json(wirePage(rows.map(toProcessWire), query.page, query.size));
   },
 
