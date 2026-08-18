@@ -167,6 +167,10 @@ export interface ServiceRow extends UserServiceRow {
  * 08-14 에 이 방식을 접었던 이유는 **왕복 횟수**였다(다섯 줄씩 훑으면 2,059 개에서 열한
  * 번). 그 전제는 장 크기에 달린 것이라 여기서 뒤집힌다: 부르는 쪽이 `size` 를 크게 잡아
  * 카탈로그 대부분이 한 장에 담긴다.
+ *
+ * 다만 훑기는 **페이저를 누를 때마다 다시 돈다** — 장 번호가 조회의 입력이라 부르는 쪽이
+ * 목록을 손에 쥐고 있지 못한다. 큰 카탈로그에서는 그 배수가 그대로 비용이고, 지우는
+ * 방법은 캐시가 아니라 서버 필터다(B6).
  */
 export async function fetchEveryPage<T>(
   fetchPage: (page: number) => Promise<AccessPage<T>>,

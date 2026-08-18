@@ -223,10 +223,13 @@ describe('요청자 측', () => {
     // 담당 서비스 목록을 여기 베껴 적지 않는다. 그 목록은 화면을 보려고 늘었다 줄었다
     // 하는 값이고(2026-08-17 에 두 건 → 여덟 건), 이 테스트가 붙잡는 건 그 목록이 아니라
     // "ADMIN 에게는 전체가 오고, 담당인 것만 OWNED 로 갈린다"다.
-    const declared = mockData.mockUsers.find((u) => u.id === 'admin-1')?.serviceCodePermissions;
+    // 조회 **뒤에** 읽는다. 스토어는 첫 조회 때 늦게 심기고 그때 이 배열을 다시 잡으므로,
+    // 먼저 읽어 두면 심기 전 값을 붙잡게 된다 — 지금은 admin-1 을 건드리는 테스트가 없어
+    // 같은 값이지만, 하나 생기는 순간 조용히 어긋난다.
     const mine = await body<UserServicePageWire>(
       await mockAccess.listUserServices(undefined, 0, 100),
     );
+    const declared = mockData.mockUsers.find((u) => u.id === 'admin-1')?.serviceCodePermissions;
     expect(mine.content.length).toBe(mockData.mockServiceCodes.length);
     expect(
       mine.content
@@ -333,14 +336,24 @@ describe('요청자 측', () => {
   });
 
   it('status 를 주면 그 상태만 온다 — 헤더 건수가 이걸로 센다', async () => {
-    mockData.setCurrentUser('user-7');
-    const rejected = await body<MyAccessRequestPageWire>(
-      await mockAccess.listMyRequests('REJECTED', 0, 1),
-    );
-    expect(rejected.content.every((row) => row.status === 'REJECTED')).toBe(true);
-    // 한 줄만 받아도 전체 수는 맞아야 한다 — 화면이 읽는 건 이 값이다.
-    expect(rejected.totalElements).toBeGreaterThan(0);
-    expect(rejected.content.length).toBeLessThanOrEqual(1);
+    // 요청이 한 상태로만 있는 사용자로 재면 필터를 지워도 통과한다. 세 상태가 다 있는
+    // admin-1 로 재고, 각각의 `totalElements` 를 **정확한 수**로 못박는다 — 화면 머리가
+    // 읽는 건 목록이 아니라 이 값이다(`size: 1` 로 한 줄만 받고 수만 읽는다).
+    mockData.setCurrentUser('admin-1');
+    const counts: Record<string, number> = {};
+    for (const status of ['PENDING', 'APPROVED', 'REJECTED'] as const) {
+      const page = await body<MyAccessRequestPageWire>(
+        await mockAccess.listMyRequests(status, 0, 1),
+      );
+      expect(page.content.every((row) => row.status === status)).toBe(true);
+      expect(page.content.length).toBeLessThanOrEqual(1);
+      counts[status] = page.totalElements;
+    }
+    expect(counts).toEqual({ PENDING: 3, APPROVED: 2, REJECTED: 2 });
+
+    // 필터를 안 주면 셋의 합이 온다 — 화면의 탭 배지와 머리 세 수가 여기서 맞물린다.
+    const all = await body<MyAccessRequestPageWire>(await mockAccess.listMyRequests(undefined, 0, 1));
+    expect(all.totalElements).toBe(7);
   });
 
   it('관리자가 아니면 관리자용 목록을 볼 수 없다', async () => {

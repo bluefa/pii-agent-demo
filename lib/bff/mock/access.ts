@@ -197,11 +197,17 @@ function seed(): Store {
    * 부여는 대상자가 실제로 그 권한을 갖고 있는 쌍으로, 회수·해제는 갖고 있지 **않은**
    * 쌍으로 고른다 — 이력과 담당자 목록이 서로 다른 말을 하면 안 된다. 사유는 회수 쪽에만
    * 있다(피드는 사유가 있을 때만 셋째 줄을 그린다).
+   *
+   * `ADMIN_*` 둘은 서비스가 아니라 **관리자 역할**의 부여·회수다 — `service_code` 는
+   * 계약상 언제나 null 이고(계약서 `AccessHistoryRow`), 이 파일의 런타임 기록부도 그렇게
+   * 쓴다. 한동안 여기 seed 만 'RVW'·'CSC' 를 싣고 있어서, 서비스 이력에 실서버가 만들 수
+   * 없는 줄이 떴다. 둘 다 대상이 `user-6` 인 것도 그래서다: 줬다가(12일) 거둔(13일) 한
+   * 사람이라 최종 상태가 `admins` 와 맞는다.
    */
   const directEvents: Omit<HistoryEntry, 'historyId'>[] = [
-    { type: 'ADMIN_REVOKED', serviceCode: 'RVW', targetUserId: 'user-6', actorUserId: 'admin-1', note: '리뷰 도메인 담당에서 빠져 회수했어요.', createdAt: T(13, 16) },
+    { type: 'ADMIN_REVOKED', serviceCode: null, targetUserId: 'user-6', actorUserId: 'admin-1', note: null, createdAt: T(13, 16) },
     { type: 'OWNER_GRANTED', serviceCode: 'IVT', targetUserId: 'user-5', actorUserId: 'user-1', note: null, createdAt: T(13, 11) },
-    { type: 'ADMIN_GRANTED', serviceCode: 'CSC', targetUserId: 'user-9', actorUserId: 'admin-1', note: null, createdAt: T(12, 13) },
+    { type: 'ADMIN_GRANTED', serviceCode: null, targetUserId: 'user-6', actorUserId: 'admin-1', note: null, createdAt: T(12, 13) },
     { type: 'OWNER_REVOKED', serviceCode: 'DLV', targetUserId: 'user-7', actorUserId: 'user-2', note: '배송 정산 과제가 끝나 해제했어요.', createdAt: T(11, 15) },
   ];
   for (const event of directEvents) {
@@ -604,11 +610,15 @@ export const mockAccess = {
   },
 
   /**
-   * GET /permission-access/mine?page&size — 사용자 본인의 요청 내역.
+   * GET /permission-access/mine?status&page&size — 사용자 본인의 요청 내역.
    *
    * 업스트림은 `/user/permission-access` — 2026-08-14 실구현으로 갭 B4 가 닫혔다.
-   * 상세와 같은 shape 을 페이지로 준다. `access_status` 만으로는 반려 사유도 처리
-   * 일시도 말할 수 없어서, 이 엔드포인트가 있어야 "승인 내역 조회"가 성립한다.
+   * **상세와 같은 shape 이 아니다**: 실응답은 여섯 필드뿐이라 요청자도 처리 결과도 오지
+   * 않는다(그 shape 을 가정했다가 `requester.knox_id` 에서 터졌다). `access_status`
+   * 만으로는 처리 일시를 말할 수 없어서, 이 엔드포인트가 있어야 "승인 내역 조회"가
+   * 성립한다 — 반려 사유는 아직 못 온다(B5).
+   *
+   * `status` 를 주면 그 상태만. 화면 머리가 상태별 건수를 `size=1` 로 세는 축이다.
    */
   listMyRequests: async (status: string | undefined, pageNumber: number, size: number) => {
     const caller = me();

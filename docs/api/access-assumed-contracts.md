@@ -201,7 +201,8 @@ GET /admin/access/history?service_code={CODE}&type={TYPE}&page={0}&size={20}
 
 AccessHistoryRow {
   history_id:   number
-  type:         "APPROVED" | "REJECTED" | "GRANTED" | "REVOKED" | "ADMIN_GRANTED" | "ADMIN_REVOKED"
+  type:         "REQUEST_APPROVED" | "REQUEST_REJECTED" | "OWNER_GRANTED" | "OWNER_REVOKED"
+              | "ADMIN_GRANTED" | "ADMIN_REVOKED"
   service_code: string | null       // null = 관리자 권한 부여/회수 (서비스와 무관)
   service_name: string | null
   target_user:  UserSummary
@@ -212,8 +213,9 @@ AccessHistoryRow {
 ```
 
 `service_code` 가 요구사항의 "service code 단위 이력 조회" 축이다. 생략하면 전역 로그.
-**`type` enum 값은 아직 확인받지 못했다** — 위 여섯은 화면이 가정한 값이고, 배지 어휘가
-여기서 나온다.
+`type` 여섯은 **확인된 값이다**(D4 닫힘, 08-14) — 배지 어휘가 여기서 나온다. 앞의 네 개는
+한동안 `APPROVED`·`REJECTED`·`GRANTED`·`REVOKED` 로 적혀 있었는데, 그 이름으로 코딩하면
+배지 넷이 라벨을 못 찾아 enum 원문이 회색으로 찍힌다.
 
 ### 사용자 검색
 
@@ -305,7 +307,7 @@ GET /user/services/page?query=&page={0}&size={20}
 |---|---|
 | B3 | 요청 목록 행에 `reason`·`status`·`processed_at` 추가 여부 (08-14 업데이트에도 안 들어왔다) |
 | **B5** | `GET /user/permission-access` 에 `processed_note`(반려 사유·승인 메시지)와 `processed_at` 을 실어 줄 수 있나. **지금은 요청자가 자기 반려 사유를 볼 길이 없다** — 관리자는 반려 모달에 사유를 필수로 적는데 그게 요청자에게 닿지 않는다. B4 가 "반려 사유 포함"으로 닫혔지만 실응답에는 없었다 |
-| **B6** | 서비스 목록 둘에 `access_status` 필터를 줄 수 있나. 없어서 화면이 카탈로그를 통째로 받아 거른다 — `size=500` 이라 2,059 개면 왕복 다섯 번이고, 서버가 걸러 주면 한 번에 다섯 줄이면 된다. 서버가 준 장 안에서만 거르는 쪽도 해 봤는데 장마다 남는 줄이 3·2·2·2 로 갈려서 되돌렸다(두 탭이 같은 카탈로그를 나눠 가진다) |
+| **B6** | 서비스 목록 둘에 `access_status` 필터를 줄 수 있나. 없어서 화면이 카탈로그를 통째로 받아 거른다 — `size=500` 이라 2,059 개면 왕복 다섯 번이고, **그 훑기가 페이저를 누를 때마다 다시 돈다**(장 번호가 조회의 입력이라 목록을 손에 쥐고 있지 못한다). 서버가 걸러 주면 진입도 페이지 이동도 한 번에 다섯 줄이면 된다. 서버가 준 장 안에서만 거르는 쪽도 해 봤는데 장마다 남는 줄이 3·2·2·2 로 갈려서 되돌렸다(두 탭이 같은 카탈로그를 나눠 가진다) |
 | E1 | `GET /services/page` 가 `query` 를 받나. 화면에 검색창이 있고 지금은 받는다고 가정한다 |
 | E2 | `owners` 원소가 문자열인가 `UserSummary` 인가. "담당자 표시명"으로 적혀 있어 문자열로 읽는다 — 객체면 `toServicePageRow` 한 곳만 바뀐다 |
 | E3 | `service_abbr_name` 을 실제로 채워 주는 서비스가 어떤 것들인가. 목은 카탈로그에 약어가 없어 전부 `null` 이고, 화면도 아직 그리지 않는다 |
