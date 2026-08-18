@@ -782,9 +782,9 @@ function projectToTargetSourceInfoWire(project: (typeof mockData.mockProjects)[n
         project.cloudProvider === 'AWS'
         && (project.isChinaRegion ?? project.awsRegionType === 'china'),
     },
-    // 계약(swagger)에는 아직 없는 필드. 두 wire 가 같은 표기로 싣는다 — camelCase
-    // 가 BE 가 확인해 준 이름이고, TargetSourceDetail 쪽도 이 키만 camel 섬이다.
-    doesSupportRaw: project.doesSupportRaw === true,
+    // 이 응답 스키마에는 아직 없는 필드. 두 wire 가 같은 표기로 싣는다 — 계약이
+    // 형제 응답(TargetSourceResponse 등)에 선언한 철자가 이 camelCase 다.
+    supportRawData: project.supportRawData === true,
     updatedAt: project.updatedAt,
     createdAt: project.createdAt,
   };

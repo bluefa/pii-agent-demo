@@ -22,7 +22,7 @@ export const opsStyles = {
   tag: 'inline-flex items-center rounded px-2 py-1 text-[12px] font-semibold bg-[var(--pl-gray-100)] text-[var(--pl-text-medium)] whitespace-nowrap',
   regionTag: 'inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium bg-[var(--pl-gray-100)] text-[var(--pl-text-weak)]',
   /**
-   * 실데이터 — `doesSupportRaw === true` 인 대상에만 붙는다 (서비스 운영의 대상 카드).
+   * 실데이터 — `supportRawData === true` 인 대상에만 붙는다 (서비스 운영의 대상 카드).
    * 대상 운영 헤더는 같은 면에 동작을 얹은 `rawDataToggle` 로 세 상태를 항상 그린다.
    *
    * **색이 아니라 획으로 선다.** 이 줄에서 색 채널은 이미 다 팔렸다: StepPill 하나가

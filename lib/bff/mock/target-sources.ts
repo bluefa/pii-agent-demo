@@ -163,11 +163,12 @@ const toBffTargetSourceDetail = (project: Project) => ({
   process_status: toBffApprovalProcessStatus(project.processStatus),
   cloud_provider: toBffCloudProvider(project.cloudProvider),
   created_at: project.createdAt,
-  // swagger 에는 아직 없지만 BFF 가 싣는 필드 — snake 인 이 DTO 에서 이 키만 camel 이다
-  // (BE 확인). 근거가 있는 대상에만 싣던 것을 전 대상으로 바꾼 이유: 값을 끄는 쓰기
-  // API 가 생겼고, 방금 끈 대상이 키 없이 돌아오면 화면은 "미포함" 이 아니라 "미확인"
-  // 을 그린다. 세 번째 상태는 계약 반영 전 실서버의 상태이지 목이 흉내 낼 상태가 아니다.
-  doesSupportRaw: project.doesSupportRaw === true,
+  // 이 응답 스키마에는 아직 없지만 BFF 가 싣는 필드 — 철자는 계약이 형제 응답에
+  // 선언한 `supportRawData` 다. 근거가 있는 대상에만 싣던 것을 전 대상으로 바꾼 이유:
+  // 값을 끄는 쓰기 API 가 생겼고, 방금 끈 대상이 키 없이 돌아오면 화면은 "미포함" 이
+  // 아니라 "미확인" 을 그린다. 세 번째 상태는 계약 반영 전 실서버의 상태이지 목이
+  // 흉내 낼 상태가 아니다.
+  supportRawData: project.supportRawData === true,
   ...(Object.keys(getBffMetadata(project)).length > 0
     ? { metadata: getBffMetadata(project) }
     : {}),
@@ -498,7 +499,7 @@ export const mockTargetSources = {
         { status: 404 },
       );
     }
-    updateProject(project.id, { doesSupportRaw: enabled });
+    updateProject(project.id, { supportRawData: enabled });
     return new NextResponse(null, { status: 204 });
   },
 

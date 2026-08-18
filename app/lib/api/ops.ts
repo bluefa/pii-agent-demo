@@ -59,7 +59,11 @@ export const updateInstallationMode = (
  *
  * 업스트림은 본문 없는 두 경로(…/does-support-raw/enabled | /disabled)로 받고 응답
  * 본문을 선언하지 않는다 — 내부 경로가 boolean 하나로 접고, 여기서도 읽는 값이 없다.
- * 저장에 성공하면 화면은 방금 고른 값을 그대로 쓴다(OpsTargetView 의 `doesSupportRaw`
+ *
+ * 이름이 읽기 쪽(`readSupportRawData`)과 어긋나는 것은 의도다: 여기 `does-support-raw`
+ * 는 업스트림이 정한 **URL 경로**이지 필드명이 아니다. 쓰기는 필드를 아예 싣지 않으므로
+ * 바꿀 이름이 없고, 살아 있는 경로를 추측으로 고치면 되던 쓰기가 404 가 된다.
+ * 저장에 성공하면 화면은 방금 고른 값을 그대로 쓴다(OpsTargetView 의 `supportRawData`
  * 한 칸); 상세를 다시 읽는 것은 다음 로드다 — 설치 모드와 같은 자리다.
  */
 export const updateTargetSourceDoesSupportRaw = async (
@@ -178,11 +182,11 @@ export interface OpsServiceTargetRow {
   cloud_provider: string;
   is_sdu_type: boolean;
   /**
-   * 실데이터를 다루는 대상인지. 계약에 아직 없는 필드라 라우트가 `readDoesSupportRaw`
-   * 로 읽어 여기서 boolean 으로 못 박는다 — 3-상태를 화면까지 끌고 가면 판정이 두
-   * 군데로 갈린다. false = "실데이터라고 말할 근거가 없다".
+   * 실데이터를 다루는 대상인지. `TargetSourceInfo` 가 아직 선언하지 않은 필드라
+   * 라우트가 `readSupportRawData` 로 읽어 여기서 boolean 으로 못 박는다 — 3-상태를
+   * 화면까지 끌고 가면 판정이 두 군데로 갈린다. false = "실데이터라고 말할 근거가 없다".
    */
-  does_support_raw: boolean;
+  support_raw_data: boolean;
   /** 정렬 키 (updatedAt ?? createdAt). */
   last_changed_at: string;
   metadata: OpsTargetSourceAccount;

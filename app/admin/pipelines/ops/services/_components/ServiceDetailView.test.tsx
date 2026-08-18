@@ -74,7 +74,7 @@ const target = (
   cloud_provider: 'AWS',
   is_sdu_type: false,
   description: `설명 ${id}`,
-  does_support_raw: false,
+  support_raw_data: false,
   last_changed_at: '2026-08-01T00:00:00Z',
   metadata: meta({ aws_account_id: `00000000000${id % 10}` }),
   ...over,
@@ -271,11 +271,11 @@ describe('중국 리전 · SDU 표기', () => {
 });
 
 describe('실데이터 태그', () => {
-  it('does_support_raw 가 참인 대상에만 붙는다', async () => {
+  it('support_raw_data 가 참인 대상에만 붙는다', async () => {
     // 한 목록 안에서 갈려야 태그가 의미를 갖는다 — 두 행이 다르게 그려지는지를 본다.
     await renderWith([
-      target(4120, { does_support_raw: true }),
-      target(4121, { does_support_raw: false }),
+      target(4120, { support_raw_data: true }),
+      target(4121, { support_raw_data: false }),
     ]);
     const cards = screen
       .getByLabelText('Target Source 목록')

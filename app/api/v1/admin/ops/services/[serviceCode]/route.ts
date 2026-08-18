@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { withV1 } from '@/app/api/_lib/handler';
 import { bff } from '@/lib/bff/client';
 import { schemas } from '@/lib/generated/install-v1';
-import { readDoesSupportRaw } from '@/lib/types';
+import { readSupportRawData } from '@/lib/types';
 import type {
   OpsServiceDetail,
   OpsServiceTargetRow,
@@ -101,11 +101,12 @@ export const GET = withV1(async (_request, { params }) => {
       description: row.description ?? null,
       cloud_provider: row.cloudProvider ?? 'UNKNOWN',
       is_sdu_type: row.metadata?.is_sdu_type === true,
-      // Read off the parsed row, not off a declared field: the wire's `doesSupportRaw`
-      // is not in install-v1.yaml yet, and `PageTargetSourceInfo` is `.passthrough()`,
-      // so the key survives the parse and lands here. Folded to two states on purpose —
-      // this row feeds a tag, and a tag has no shape for "모른다" (see readDoesSupportRaw).
-      does_support_raw: readDoesSupportRaw(row) === true,
+      // Read off the parsed row, not off a declared field: `TargetSourceInfo` does not
+      // declare `supportRawData` yet (its sibling responses do), and
+      // `PageTargetSourceInfo` is `.passthrough()`, so the key survives the parse and
+      // lands here. Folded to two states on purpose — this row feeds a tag, and a tag
+      // has no shape for "모른다" (see readSupportRawData).
+      support_raw_data: readSupportRawData(row) === true,
       last_changed_at: row.updatedAt ?? row.createdAt ?? '',
       metadata: toAccount(row.metadata),
     }))

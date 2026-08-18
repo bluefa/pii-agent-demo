@@ -30,13 +30,13 @@ const call = () =>
     params: Promise.resolve({ serviceCode: 'azure' }),
   });
 
-describe('GET …/admin/ops/services/[serviceCode] — does_support_raw 접기', () => {
+describe('GET …/admin/ops/services/[serviceCode] — support_raw_data 접기', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockedPage.mockResolvedValue({
       content: [
-        row(1013, { doesSupportRaw: true }),
-        row(1014, { doesSupportRaw: false }),
+        row(1013, { supportRawData: true }),
+        row(1014, { supportRawData: false }),
         row(1015, {}),
       ],
       totalPages: 1,
@@ -46,9 +46,9 @@ describe('GET …/admin/ops/services/[serviceCode] — does_support_raw 접기',
 
   it('명시적 true 만 참으로 접힌다 — 값이 없는 대상은 태그를 얻지 못한다', async () => {
     const detail = (await (await call()).json()) as {
-      target_sources: { target_source_id: number; does_support_raw: boolean }[];
+      target_sources: { target_source_id: number; support_raw_data: boolean }[];
     };
-    const byId = new Map(detail.target_sources.map((t) => [t.target_source_id, t.does_support_raw]));
+    const byId = new Map(detail.target_sources.map((t) => [t.target_source_id, t.support_raw_data]));
 
     expect(byId.get(1013)).toBe(true);
     expect(byId.get(1014)).toBe(false);

@@ -255,17 +255,75 @@ every other upstream path shape is decided. Nothing is read back from either hop
 success the header keeps the value the operator picked (one piece of local state, the same
 shape 설치 모드 uses), and the next detail load is what re-reads it.
 
-## The field the tags read: `doesSupportRaw`
+## The field the tags read: `supportRawData`
 
-A field the BFF carries on TargetSource that `install-v1.yaml` does not declare yet. The
-`실데이터` tag on `/pass/admin/pipelines/ops/services/{code}` and the 실데이터 chip in the
-header of `/pass/admin/pipelines/ops/target-sources/{id}` are keyed to it.
+`install-v1.yaml` **does** declare this field — as `supportRawData: boolean` on
+`TargetSourceResponse` (`GET /install/v1/target-sources`) and on
+`TargetSourceMetadataResponse` — the `target_source` of `GET /install/v1/process-statuses`
+and `/process-status-history` (**not** the singular `…/{id}/process-status`, which returns
+`ProcessStatusResponseDto` and carries no target source) — and as the `supportRawData`
+query filter on both target-source list endpoints. It is the
+contract's own name for the fact, and the only spelling the **read** path uses for it. The
+write path is a separate matter — see the carve-out below.
 
-It is read through `readDoesSupportRaw` (`lib/types.ts`) rather than a declared field,
-because the generated schemas are `.partial().passthrough()`: an undeclared key survives
-`parse()` and reaches the consumer. The casing is **camelCase in both wires** (BE-confirmed
-— a camel island inside the otherwise snake `TargetSourceDetail`); the earlier reader took
-both casings only because the contract had not said which one, and that branch is gone.
+What is *not* declared is the field on the two responses these screens actually read:
+`TargetSourceDetail` (`GET …/target-sources/{id}`, the ops header) and `TargetSourceInfo`
+(`PageTargetSourceInfo`, the service-ops card). So it is read through `readSupportRawData`
+(`lib/types.ts`) rather than off a declared property, using the fact that the generated
+schemas are `.partial().passthrough()`: an undeclared key survives `parse()` and reaches
+the consumer.
+
+Two ways out, and the cheap-looking one is not the only one:
+
+1. Ask BE to declare `supportRawData` on those two DTOs as well. The name needs no
+   negotiation — it is already the contract's, on the sibling responses.
+2. Read it off a response that already declares it. `GET /install/v1/process-statuses`
+   takes a `targetSourceId` filter and returns `TargetSourceMetadataResponse`, so the ops
+   header could take the fact off a zod-typed property instead of through passthrough — a
+   typo would become a compile error. The call is already wired (`lib/bff/http.ts`, the
+   mock adapter, an internal route); what it needs is the field kept in
+   `toProcessStatusRow`, and the mock's `toProcessWire` joined to the project store so
+   §9's writer stays visible. The service-ops card is **not** cheap this way: the declared
+   `GET /target-sources?serviceCode=` carries no `metadata`, and the card draws the CSP
+   account identifiers and `is_china_region` from it — so it is a join against the existing
+   `/target-sources/page` call, not a swap.
+
+The `실데이터` tag on `/pass/admin/pipelines/ops/services/{code}` and the 실데이터 chip in
+the header of `/pass/admin/pipelines/ops/target-sources/{id}` are keyed to it.
+
+### The unresolved half: what #721 recorded
+
+#721 read this value under the key `doesSupportRaw`, and recorded that spelling as a BE
+answer about the TargetSource **read** — not as a guess. Nothing in either yaml declares
+it, and this repo no longer reads it; but that answer is still the only statement anyone
+has made about what the BFF actually serialises on `TargetSourceDetail`, and the contract
+cannot arbitrate because it declares neither spelling on that response.
+
+One piece of evidence does lean, and it is worth naming: `install-v1.yaml:6829` declares
+`supportRawData` as a **query filter on `/install/v1/target-sources/page`** — the exact
+operation the service-ops card pages through. A filter is named for the field it filters,
+on the same operation, so the response of that call is the one place where the two
+spellings are hardest to reconcile. It is a strong hint, not a declaration.
+
+Do not read the yaml's silence as evidence either way. The newest upstream dump is
+byte-identical to `install-v1.yaml` but also contains **neither** `PUT …/does-support-raw/…`
+**nor** `PUT …/description`, and §9 and §8 record both as shipped upstream. This contract
+under-reports what the server actually serves, which is the whole reason this file exists.
+
+So the conflict is recorded here rather than erased. It takes one live
+`GET /install/v1/target-sources/{id}` to settle:
+
+- the response carries `supportRawData` → the BE answer was a mis-transcription, and this
+  note's opening paragraph is the whole story;
+- the response carries `doesSupportRaw` → the BE answer was right, the read is broken, and
+  the fix is BE renaming its field to the name the contract already publishes. The symptom
+  is silent: 미확인 on every target in the ops header and no 실데이터 tag on any card, with
+  the suite still green (the mocks emit whatever the reader reads).
+
+Whichever way it settles, the value keeps **one** name — two names for one fact means no
+screen can say which one the server actually sent. The write path keeps its own
+`does-support-raw` URL segment (§9) because that is the upstream's path, not a field name;
+`readSupportRawData` standing next to `updateTargetSourceDoesSupportRaw` is deliberate.
 
 The reader returns three states — `true` / `false` / `undefined` (not a boolean on the
 wire, or absent). The two surfaces fold them differently, and on purpose:
