@@ -128,7 +128,7 @@ export function AlertWorklist({
           <tr>
             <th className={cn(d.th, 'w-[38ch]')}>대상</th>
             <th className={d.th}>설명</th>
-            <th className={cn(d.th, 'w-[10ch]')}>지연</th>
+            <th className={d.th}>지연</th>
             <th className={d.th} />
           </tr>
         </thead>
@@ -185,7 +185,12 @@ export function AlertWorklist({
                 </td>
                 <td className={d.cell}>
                   {row.delaySeconds != null ? (
-                    <DelayText delaySeconds={row.delaySeconds} className="text-[12px]" />
+                    // nowrap — the auto table layout sizes the column to the
+                    // duration; without it "1일 8시간" breaks mid-word.
+                    <DelayText
+                      delaySeconds={row.delaySeconds}
+                      className="whitespace-nowrap text-[12px]"
+                    />
                   ) : (
                     <span className={d.elapsed}>—</span>
                   )}
