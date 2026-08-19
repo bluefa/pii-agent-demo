@@ -7,6 +7,7 @@
  */
 import { fetchInfraJson } from '@/app/lib/api/infra';
 import type { BffProcessStatus } from '@/app/lib/api';
+import type { DagStatusResponse } from '@/lib/types/dag-status';
 import type { z } from 'zod';
 import type { schemas } from '@/lib/generated/install-v1';
 
@@ -43,6 +44,19 @@ export const getStatusHistory = (
 ): Promise<StatusHistoryPage> =>
   fetchInfraJson<StatusHistoryPage>(
     `/target-sources/${targetSourceId}/status-history?page=${page}&size=${size}`,
+  );
+
+/**
+ * DAG weekly health status (docs/api/ops-assumed-contracts.md §10) — the
+ * 관리자 승인 gate's second condition. camelCase wire verbatim (no reshape).
+ */
+export const getDagStatus = (
+  targetSourceId: number,
+  init?: { signal?: AbortSignal },
+): Promise<DagStatusResponse> =>
+  fetchInfraJson<DagStatusResponse>(
+    `/install/monitoring/dag-status/target-sources/${targetSourceId}`,
+    init,
   );
 
 export const updateInstallationMode = (

@@ -20,6 +20,7 @@ import { mockServices } from '@/lib/bff/mock/services';
 import { mockScan } from '@/lib/bff/mock/scan';
 import { mockAws } from '@/lib/bff/mock/aws';
 import { mockOps, mockServiceJiraTickets } from '@/lib/bff/mock/ops';
+import { mockMonitoring } from '@/lib/bff/mock/monitoring';
 import { mockAccess } from '@/lib/bff/mock/access';
 import { mockAzure } from '@/lib/bff/mock/azure';
 import { mockGcp } from '@/lib/bff/mock/gcp';
@@ -143,6 +144,7 @@ export const mockBff: BffClient = {
     putRole: async (id, kind, roleArn) => unwrap(await mockOps.putRole(id, kind, roleArn)),
     getTargetSourceList: async (query, page, size) =>
       unwrap(await mockOps.getTargetSourceList(query, page, size)),
+    getDagStatus: async (id) => unwrap(await mockMonitoring.getDagStatus(id)),
   },
 
   // 서비스 접근 권한 — 규칙(승인=부여, 400/멱등, 마지막 관리자)은 mock 모듈에 산다.

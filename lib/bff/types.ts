@@ -27,6 +27,7 @@ import type { OrchestratorRawResponse } from '@/lib/pipeline/types';
  */
 export type ConfirmedResourceProvider = 'AWS' | 'GCP' | 'AZURE' | 'IDC';
 import type { AlertTargetKind } from '@/lib/types/task-queue';
+import type { DagStatusResponse } from '@/lib/types/dag-status';
 import type {
   AdminPost,
   AdminPostCategory,
@@ -411,6 +412,11 @@ export interface BffClient {
       roleArn: string,
     ) => Promise<z.infer<typeof schemas.AwsAssumeRoleUpsertResponse>>;
     getTargetSourceList: (query: string | undefined, page: number, size: number) => Promise<OpsTargetSourceListPageWire>;
+    /**
+     * DAG weekly health status (assumed §10) — the 관리자 승인 gate's second
+     * condition. camelCase wire verbatim, path base /install/monitoring.
+     */
+    getDagStatus: (id: number) => Promise<DagStatusResponse>;
   };
 
   /**
