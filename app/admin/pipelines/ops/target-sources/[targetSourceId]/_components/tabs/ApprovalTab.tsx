@@ -25,7 +25,7 @@
  * The result summary is carried here (counts + 완료 확인 시각) so the decision does
  * not require hopping back to Test Connection to recall what is being approved.
  */
-import { useState, type ReactElement, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactElement, type ReactNode } from 'react';
 import { cn, pipelineStyles } from '@/lib/theme';
 import { fmtDateTimeSec } from '@/lib/pipeline/format';
 import { useApiAction, useApiMutation } from '@/app/hooks/useApiMutation';
@@ -53,6 +53,9 @@ import {
   type DagFetch,
 } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/approvalGate';
 import { HealthSummaryBand } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/HealthSummaryBand';
+import { AgentDagTable } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/AgentDagTable';
+import { DbWeeklyBoard } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/DbWeeklyBoard';
+import type { BoardFilter } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/dagBoard';
 
 type GateRowState = 'ok' | 'err' | 'warn' | 'pending';
 
@@ -147,6 +150,24 @@ export function ApprovalTab({
     [tcCompleted, targetSourceId, dagReload],
   );
   const retryDag = (): void => setDagReload((k) => k + 1);
+
+  // 주간 보드 착지 (시안 E) — 요약 밴드의 실패 칩과 에이전트 표의 "DB 보기"가
+  // 보드를 프리셋으로 리마운트(key=seq)한다. 스크롤은 커밋 이후(effect)여야 한다:
+  // 클릭 시점에 걸면 리마운트로 문서 높이가 바뀌는 것과 경합해 중간에 끊긴다.
+  const boardRef = useRef<HTMLDivElement>(null);
+  const [landing, setLanding] = useState<{
+    seq: number;
+    filter?: BoardFilter;
+    agentId?: string | null;
+  }>({ seq: 0 });
+  const landOnBoard = (preset: { filter?: BoardFilter; agentId?: string }): void =>
+    setLanding((l) => ({ seq: l.seq + 1, filter: preset.filter, agentId: preset.agentId ?? null }));
+  useEffect(() => {
+    if (landing.seq === 0) return; // 진입 시(착지 아님)에는 스크롤하지 않는다.
+    // instant — smooth 는 rAF 기반이라 비포커스 탭에서 한 픽셀도 진행되지 않고,
+    // reduced-motion 사용자에게도 착지는 이동이지 연출이 아니다.
+    boardRef.current?.scrollIntoView({ block: 'start' });
+  }, [landing.seq]);
 
   // On failure the modal stays open and the error surfaces via the section toast.
   const rerun = useApiMutation((reason: string) => rejectTestConnection(targetSourceId, reason), {
@@ -299,9 +320,33 @@ export function ApprovalTab({
         )}
       </section>
 
-      {/* 헬스 요약 밴드 (L1) — 판정의 근거 집계. 응답이 있어야만 층이 생긴다. */}
+      {/* 관측층 — 응답이 있어야만 층이 생긴다. L1 요약 밴드 → L2 에이전트 표
+          (에이전트가 여럿일 때만 — 층은 데이터가 만들 때만) → L3 논리 DB 주간 보드.
+          UNHEALTHY 의 원인 추적: 실패 칩·"DB 보기"가 보드 필터로 착지한다. */}
       {tcCompleted && dag.phase === 'loaded' && (
-        <HealthSummaryBand data={dag.data} fetchedAt={dag.fetchedAt} />
+        <>
+          <HealthSummaryBand
+            data={dag.data}
+            fetchedAt={dag.fetchedAt}
+            onShowFailed={() => landOnBoard({ filter: 'failed' })}
+          />
+          {dag.data.agents.length > 1 && (
+            <AgentDagTable
+              data={dag.data}
+              // "DB 보기"가 약속하는 것은 그 에이전트의 DB 전부다 — 실패 선적용은
+              // UNHEALTHY 진입과 실패 칩 착지의 것.
+              onViewDbs={(agentId) => landOnBoard({ agentId, filter: 'ALL' })}
+            />
+          )}
+          <div ref={boardRef} className="scroll-mt-4">
+            <DbWeeklyBoard
+              key={landing.seq}
+              data={dag.data}
+              initialFilter={landing.filter}
+              initialAgentId={landing.agentId ?? null}
+            />
+          </div>
+        </>
       )}
 
       <TcRerunModal

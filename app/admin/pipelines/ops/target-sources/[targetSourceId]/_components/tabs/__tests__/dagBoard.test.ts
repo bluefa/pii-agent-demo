@@ -1,0 +1,186 @@
+/**
+ * dagBoard 파생 로직 — 보드 행 펼치기·필터·문제 우선 정렬·에이전트 요약·셀 판정.
+ * allowlist 가 계약 밖의 값을 아는 상태로 위장시키지 않는지가 축이다:
+ * 미지의 day status 는 'unknown' 셀(부재 아님), 미지의 connectionStatus 는
+ * '미확인' 라벨(raw 없음 — wire 어휘는 라벨 금지, 툴팁 채널만).
+ */
+import { describe, expect, it } from 'vitest';
+import type { DagDatabaseStatus, DagStatusResponse } from '@/lib/types/dag-status';
+import {
+  agentDisplayName,
+  connPill,
+  countBuckets,
+  dayCellKind,
+  dayCellTip,
+  dayLabel,
+  flattenDagRows,
+  initialBoardFilter,
+  scopeBoardRows,
+  sortBoardRows,
+  summarizeAgents,
+} from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/dagBoard';
+
+const day = (status: string, successTime: string | null = null) => ({
+  day: '2026-08-15',
+  status,
+  successTime,
+});
+
+const db = (
+  uri: string,
+  name: string | null,
+  succeededThisWeek: boolean,
+  dayStatuses: string[],
+): DagDatabaseStatus => ({
+  databaseUri: uri,
+  databaseName: name,
+  schemaName: name,
+  dagName: name ? `pii_scan_${name}` : null,
+  namespace: name ? 'composer-prod' : null,
+  succeededThisWeek,
+  lastSuccessAt: null,
+  days: dayStatuses.map((s) => day(s)),
+});
+
+const RESPONSE: DagStatusResponse = {
+  targetSourceId: 1,
+  connectionStatus: 'SUCCESS',
+  healthStatus: 'UNHEALTHY',
+  timezone: 'KST',
+  agents: [
+    {
+      agentId: 'agent-1',
+      resourceId: 'projects/p/instances/db-1',
+      gcpRegion: 'asia-northeast3',
+      connectionStatus: 'SUCCESS',
+      databaseStatuses: [
+        db('mysql://10.0.0.1:3306/orders', 'orders', true, ['SUCCESS']),
+        db('mysql://10.0.0.1:3306/billing', 'billing', false, ['FAILED']),
+        db('mysql://10.0.0.1:3306/legacy', null, false, ['NOT_SCHEDULED']),
+      ],
+    },
+    {
+      agentId: 'agent-2',
+      resourceId: 'projects/p/instances/db-2',
+      gcpRegion: 'asia-northeast3',
+      connectionStatus: 'FAIL',
+      databaseStatuses: [
+        db('mysql://10.0.0.2:3306/ratings', 'ratings', false, ['RUNNING']),
+        db('mysql://10.0.0.2:3306/weird', 'weird', false, ['SOMETHING_NEW']),
+      ],
+    },
+  ],
+};
+
+describe('flattenDagRows / countBuckets', () => {
+  it('agent 를 가로질러 행을 펼치고 bucket 을 붙인다', () => {
+    const rows = flattenDagRows(RESPONSE);
+    expect(rows).toHaveLength(5);
+    const counts = countBuckets(rows);
+    expect(counts).toEqual({ succeeded: 1, failed: 1, unscheduled: 1, running: 1, other: 1 });
+  });
+});
+
+describe('scopeBoardRows', () => {
+  const rows = flattenDagRows(RESPONSE);
+
+  it('에이전트 스코프가 다른 agent 의 행을 걸러낸다', () => {
+    const scoped = scopeBoardRows(rows, 'agent-2', '');
+    expect(scoped.map((r) => r.agentId)).toEqual(['agent-2', 'agent-2']);
+  });
+
+  it('검색은 uri 와 이름을 대소문자 무시로 함께 본다', () => {
+    expect(scopeBoardRows(rows, null, 'ORDERS')).toHaveLength(1);
+    expect(scopeBoardRows(rows, null, '10.0.0.2')).toHaveLength(2);
+    // 이름이 null 인 행은 uri 로만 잡힌다 — null 접근으로 죽지 않는다.
+    expect(scopeBoardRows(rows, null, 'legacy')).toHaveLength(1);
+  });
+});
+
+describe('sortBoardRows — 문제 우선', () => {
+  it('실패 → 그 외 → 미스케줄 → 진행 중 → 성공 순서로 세운다', () => {
+    const sorted = sortBoardRows(flattenDagRows(RESPONSE));
+    expect(sorted.map((r) => r.bucket)).toEqual([
+      'failed',
+      'other',
+      'unscheduled',
+      'running',
+      'succeeded',
+    ]);
+  });
+});
+
+describe('initialBoardFilter', () => {
+  const counts = { succeeded: 0, failed: 0, unscheduled: 0, running: 0, other: 0 };
+
+  it('UNHEALTHY + 실패>0 → 실패 선적용', () => {
+    expect(initialBoardFilter('UNHEALTHY', { ...counts, failed: 3 })).toBe('failed');
+  });
+
+  it('실패 0건이면 UNHEALTHY 여도 전체 — 빈 보드가 첫 화면이 되지 않는다', () => {
+    expect(initialBoardFilter('UNHEALTHY', { ...counts, unscheduled: 3 })).toBe('ALL');
+  });
+
+  it('HEALTHY 와 미지의 값은 전체', () => {
+    expect(initialBoardFilter('HEALTHY', { ...counts, failed: 3 })).toBe('ALL');
+    expect(initialBoardFilter('DEGRADED', { ...counts, failed: 3 })).toBe('ALL');
+  });
+});
+
+describe('summarizeAgents — 문제 우선 + 분수', () => {
+  it('연결 실패 에이전트가 먼저 서고, 분수 필드가 bucket 합과 맞는다', () => {
+    const agents = summarizeAgents(RESPONSE);
+    expect(agents[0].agentId).toBe('agent-2');
+    expect(agents[0].dbTotal).toBe(2);
+    expect(agents[0].running).toBe(1);
+    // 미지의 day status(SOMETHING_NEW) 행은 rest(부재 몫)로 — 성공으로 위장하지 않는다.
+    expect(agents[0].rest).toBe(1);
+    expect(agents[1]).toMatchObject({ agentId: 'agent-1', succeeded: 1, failed: 1, rest: 1 });
+  });
+});
+
+describe('connPill — allowlist', () => {
+  it('선언된 네 값은 제 라벨을 얻는다', () => {
+    expect(connPill('SUCCESS')).toMatchObject({ tone: 'ok', label: '성공' });
+    expect(connPill('FAIL')).toMatchObject({ tone: 'err', label: '실패' });
+    expect(connPill('RUNNING')).toMatchObject({ tone: 'warn', label: '진행 중' });
+    expect(connPill('PENDING')).toMatchObject({ tone: 'off', label: '대기' });
+  });
+
+  it('미지의 값은 미확인 — 라벨에 raw 를 싣지 않는다 (툴팁 채널만)', () => {
+    const pill = connPill('HALF_OPEN');
+    expect(pill.label).toBe('미확인');
+    expect(pill.label).not.toContain('HALF_OPEN');
+    expect(pill.raw).toBe('HALF_OPEN');
+  });
+});
+
+describe('agentDisplayName', () => {
+  it('경로형은 마지막 / 조각, ARN 은 마지막 : 조각, 평문은 그대로', () => {
+    expect(agentDisplayName('projects/p/instances/review-db-1')).toBe('review-db-1');
+    expect(agentDisplayName('arn:aws:rds:ap-northeast-2:1111:db:cpn-db-1')).toBe('cpn-db-1');
+    expect(agentDisplayName('idc-ivt-9a01')).toBe('idc-ivt-9a01');
+  });
+});
+
+describe('dayCellKind / dayCellTip', () => {
+  it('미지의 day status 는 unknown — 부재(none)로 위장하지 않는다', () => {
+    expect(dayCellKind('NOT_SCHEDULED')).toBe('none');
+    expect(dayCellKind('SOMETHING_NEW')).toBe('unknown');
+  });
+
+  it('성공 셀 툴팁은 날짜·판정·시각, 실패엔 시각이 없다', () => {
+    expect(dayLabel('2026-08-15')).toBe('8월 15일 (토)');
+    expect(dayCellTip(day('SUCCESS', '2026-08-15T07:52:19+09:00'))).toBe(
+      '8월 15일 (토) · 성공 · 07:52:19',
+    );
+    expect(dayCellTip(day('FAILED'))).toBe('8월 15일 (토) · 실패');
+    expect(dayCellTip(day('NOT_SCHEDULED'))).toBe('8월 15일 (토) · 스케줄 없음');
+  });
+
+  it('미지의 값 툴팁은 판정 불가 문장 + raw (툴팁 채널)', () => {
+    expect(dayCellTip(day('SOMETHING_NEW'))).toBe(
+      '8월 15일 (토) · 판정할 수 없는 값 (status: SOMETHING_NEW)',
+    );
+  });
+});

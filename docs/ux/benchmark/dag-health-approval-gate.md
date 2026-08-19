@@ -40,6 +40,39 @@
 - 재실행 요청은 TC 완료 이후 상시 마운트 — UNHEALTHY의 유일한 탈출 CTA. 단 "재실행이 헬스를 고친다"고 말하지 않음(계약이 말하지 않는 인과).
 - 계약은 swagger 미랜딩 → mock-first, `docs/api/ops-assumed-contracts.md` §10 (camelCase wire, `/install/monitoring` base).
 
+## 2차 PR — 시안 C+D+E 구현 (2026-08-19)
+
+관측층 세 개가 요약 밴드 아래에 선다: L2 리소스(에이전트)별 주간 DAG 표(C) →
+L3 논리 DB 주간 보드(D) + 셀 툴팁·필터 착지(E). 파생 로직은 `dagBoard.ts` 한 파일
+(전부 allowlist — 계약 밖 enum 은 'unknown'/'other'/'미확인'으로 떨어지고 아는
+상태로 위장하지 않는다).
+
+원안에서 수정된 결정:
+
+- **확정 리소스 조인 보류 (C).** 원안은 agents[] 를 확정 리소스와 resourceId 로
+  조인해 CSP별 열을 상속하는 것이었으나, 조인이 더할 identity 필드가 전부 미결
+  계약 질문이다 — resource_name 은 확정 스냅샷(§06-5 의 이중 출처 문제), region 은
+  비-GCP 필드명 미확정(§06-4). 이 응답이 스스로 보증하는 정체성은 resourceId 뿐이라
+  이름줄은 표시용 꼬리(`agentDisplayName` — 경로는 '/', ARN 은 ':' 마지막 조각),
+  Region 열은 계약의 gcpRegion 이 있을 때만 값이 선다. BE 가 §06-4·5 에 답하면
+  조인 어댑터가 후속.
+- **행 선택 대신 one-shot 착지 (C→D).** 원안의 "행 선택 = 보드의 에이전트 필터"는
+  두 컴포넌트의 선택 상태 동기화를 만든다. "DB 보기" 는 착지(보드 리마운트 + 스코프
+  칩)로 바꿨다 — 보드가 스코프를 칩으로 보여 주고 스스로 해제하므로 표에는 상태가
+  없다. "DB 보기"의 착지 필터는 전체다(그 에이전트의 DB 전부를 약속하는 문구).
+- **floor 는 pageSize 가 아니라 스코프 상한.** pageSize(20) 그대로 깔면 3행짜리
+  대상에 20행의 빈 벽이 선다. floor = `min(pageSize, scoped.length)` — 어떤 칩을
+  눌러도 pager 가 움직이지 않는 최소값.
+- **착지 스크롤은 커밋 이후 + instant.** 클릭 시점의 smooth 스크롤은 보드
+  리마운트로 문서 높이가 바뀌는 것과 경합해 중간에 끊긴다(실측). effect(seq 변화)
+  에서 instant 로 — smooth 는 rAF 기반이라 비포커스 탭에서 진행되지 않고,
+  reduced-motion 사용자에게 착지는 이동이지 연출이 아니다.
+- **셀 툴팁은 native title (E).** 같은 정보(이번 주·마지막 성공)가 행 열에 이미
+  있어 hover 는 보조 채널 — 스타일드 툴팁은 도입하지 않았다. 미지의 day status 의
+  raw 는 툴팁 채널이므로 실을 수 있다(문장·라벨 금지 규칙과 일관).
+- **UNHEALTHY 진입의 실패 선적용은 실패>0 일 때만.** 전부 미스케줄인 UNHEALTHY 에서
+  실패 필터를 걸면 빈 보드가 첫 화면이 된다.
+
 ## 구현 중 수정된 결정 (2026-08-19, 오너 반려)
 
 진리표 7행(미지 enum)의 최초 문구 "미확인 — healthStatus: DEGRADED"(enum 원문 노출)는 반려됨.

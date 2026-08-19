@@ -44,9 +44,15 @@ export interface HealthSummaryBandProps {
   data: DagStatusResponse;
   /** Client-side fetch time — the response has no timestamp of its own. */
   fetchedAt: string;
+  /** 실패 칩 → 주간 보드의 실패 필터 착지 (시안 E). 실패 0건이면 그릴 것이 없다. */
+  onShowFailed?: () => void;
 }
 
-export function HealthSummaryBand({ data, fetchedAt }: HealthSummaryBandProps): ReactElement {
+export function HealthSummaryBand({
+  data,
+  fetchedAt,
+  onShowFailed,
+}: HealthSummaryBandProps): ReactElement {
   // 1,500+ rows scan once per response, not per render.
   const agg = useMemo(() => aggregateDagStatus(data), [data]);
   const verdict = healthVerdict(data.healthStatus);
@@ -80,9 +86,21 @@ export function HealthSummaryBand({ data, fetchedAt }: HealthSummaryBandProps): 
         <span>
           이번 주 성공 <b className="font-semibold text-[var(--pl-text-strong)]">{n(agg.succeeded)}</b>
         </span>
-        <span className={agg.failed > 0 ? 'text-[var(--pl-err-text)]' : undefined}>
-          실패 <b className="font-semibold">{n(agg.failed)}</b>
-        </span>
+        {onShowFailed && agg.failed > 0 ? (
+          // 밑줄이 affordance 를 지고 색은 상태(err)에 남는다 (countLink 규칙).
+          <button
+            type="button"
+            onClick={onShowFailed}
+            aria-label={`실패 ${n(agg.failed)}건을 주간 보드에서 보기`}
+            className="cursor-pointer text-[var(--pl-err-text)]"
+          >
+            실패 <b className="border-b border-current font-semibold">{n(agg.failed)}</b>
+          </button>
+        ) : (
+          <span className={agg.failed > 0 ? 'text-[var(--pl-err-text)]' : undefined}>
+            실패 <b className="font-semibold">{n(agg.failed)}</b>
+          </span>
+        )}
         <span>
           미스케줄 <b className="font-semibold text-[var(--pl-text-strong)]">{n(agg.unscheduled)}</b>
         </span>
