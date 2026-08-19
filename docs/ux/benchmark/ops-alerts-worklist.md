@@ -3,7 +3,7 @@
 - **일자**: 2026-08-19 (벤치마크 2라운드: 구조 + 디자인)
 - **대상**: `/pass/admin/pipelines/ops/alerts` (AlertsView · 구 AlertStageCard)
 - **아티팩트**: https://claude.ai/code/artifact/5a19c853-2d21-4745-9bd6-1b7fbc1bd35d
-- **구현 PR**: (#TBD — 생성 후 기입)
+- **구현 PR**: [#733](https://github.com/bluefa/pii-agent-demo/pull/733)
 
 ## 문제 요약 (근거 등급)
 
