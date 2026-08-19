@@ -57,7 +57,10 @@ export function ScanDetailModal({ open, job, provider, onClose }: ScanDetailModa
 
           {job.scan_status === 'SUCCESS' && (
             <div className="mt-4">
-              {counts.length === 0 ? (
+              {job.resource_count_by_resource_type == null ? (
+                // 맵이 없는 성공은 0이 아니다 — 이 잡의 이력 행이 쓰는 — 그대로.
+                <p className={pipelineStyles.text.meta}>—</p>
+              ) : counts.length === 0 ? (
                 <p className={pipelineStyles.text.meta}>발견된 리소스가 없습니다.</p>
               ) : (
                 <>

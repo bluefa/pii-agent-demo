@@ -61,7 +61,10 @@ export const ScanDetail = ({ job, provider }: { job: ScanJob; provider: CloudPro
 
       {job.scan_status === 'SUCCESS' && (
         <div className="mt-4">
-          {counts.length === 0 ? (
+          {job.resource_count_by_resource_type == null ? (
+            // 맵이 없는 성공은 0이 아니다 — 이 잡의 이력 행이 쓰는 — 그대로.
+            <p className={cn('text-sm', textColors.tertiary)}>—</p>
+          ) : counts.length === 0 ? (
             <p className={cn('text-sm', textColors.tertiary)}>발견된 리소스가 없어요.</p>
           ) : (
             <>

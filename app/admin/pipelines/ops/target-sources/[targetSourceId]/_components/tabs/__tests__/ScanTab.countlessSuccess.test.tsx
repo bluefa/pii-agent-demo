@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { render, screen, act } from '@testing-library/react';
+import { render, screen, act, fireEvent, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { RawTargetSourceDetail } from '@/app/lib/api/pipeline-target';
 import type { UseScanPollingOptions, UseScanPollingReturn } from '@/app/hooks/useScanPolling';
@@ -89,9 +89,26 @@ describe('ScanTab — 건수 맵 없는 SUCCESS', () => {
     render(<ScanTab targetSourceId={1005} detail={detail} />);
     await act(async () => {});
 
-    // union(현재 ∪ 직전) 로 타일을 만들면 12개의 0짜리 타일이 생기고, 그것들이
-    // "발견된 리소스가 없습니다" 안내를 가려버린다.
+    // union(현재 ∪ 직전) 로 타일을 만들면 12개의 0짜리 타일이 생긴다. 그리고 맵의
+    // 부재는 "없음"이 아니다 — 카드도 이력 행과 같은 — 로 말한다.
     expect(screen.queryByText('SQL_SERVER')).toBeNull();
-    expect(screen.getByText('발견된 리소스가 없습니다.')).toBeTruthy();
+    expect(screen.queryByText('발견된 리소스가 없습니다.')).toBeNull();
+    expect(screen.getAllByText('—').length).toBeGreaterThan(0);
+  });
+
+  it('이력 행을 열어도 건수 없는 성공을 0으로 말하지 않는다', async () => {
+    render(<ScanTab targetSourceId={1005} detail={detail} />);
+    await act(async () => {});
+
+    const row = screen
+      .getAllByRole('row')
+      .find((r) => r.getAttribute('aria-haspopup') === 'dialog');
+    expect(row).toBeTruthy();
+    fireEvent.click(row as HTMLElement);
+
+    const dialog = await screen.findByRole('dialog');
+    expect(within(dialog).queryByText('발견된 리소스가 없습니다.')).toBeNull();
+    expect(within(dialog).queryByText(/개를 발견했어요/)).toBeNull();
+    expect(within(dialog).getByText('—')).toBeTruthy();
   });
 });
