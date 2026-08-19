@@ -8,6 +8,7 @@
 import type { ReactElement } from 'react';
 import { cn, pipelineStyles } from '@/lib/theme';
 import { fmtDateTime } from '@/lib/pipeline/format';
+import { isScanSettled } from '@/app/components/features/scan/scan-labels';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
 import { PlEmptyState } from '@/app/admin/pipelines/_components/PlEmptyState';
 import { Icon } from '@/app/admin/pipelines/_components/icons';
@@ -92,6 +93,7 @@ export function ScanHistoryCard({
             <tbody>
               {rows.map((row, index) => {
                 const rowCounts = sortResourceCounts(row.resource_count_by_resource_type);
+                const settled = isScanSettled(row.scan_status);
                 return (
                   // The whole row is the click target (Enter/Space too) — detail opens
                   // in a modal. Click is the only entry, so keyboard focus/activation
@@ -113,7 +115,11 @@ export function ScanHistoryCard({
                     }}
                   >
                     <td className={cn(table.cell, 'whitespace-nowrap')}>{fmtDateTime(row.created_at)}</td>
-                    <td className={cn(table.cell, 'whitespace-nowrap')}>{fmtDateTime(row.updated_at)}</td>
+                    {/* 완료 일시·소요 시간은 끝난 잡에만 — 저장 중인 행에 이 둘을 적으면
+                        같은 행을 여는 상세가 둘을 감추므로 표와 모달이 서로 다른 말을 한다. */}
+                    <td className={cn(table.cell, 'whitespace-nowrap')}>
+                      {settled ? fmtDateTime(row.updated_at) : <span className="text-[var(--pl-text-faint)]">—</span>}
+                    </td>
                     <td className={table.cell}>
                       <ScanStatusPill status={row.scan_status} />
                     </td>
@@ -127,7 +133,9 @@ export function ScanHistoryCard({
                         <span className="text-[var(--pl-text-faint)]">—</span>
                       )}
                     </td>
-                    <td className={cn(table.cell, 'whitespace-nowrap')}>{fmtDuration(row.duration_seconds)}</td>
+                    <td className={cn(table.cell, 'whitespace-nowrap')}>
+                      {settled ? fmtDuration(row.duration_seconds) : <span className="text-[var(--pl-text-faint)]">—</span>}
+                    </td>
                     <td className={table.cell}>
                       {/* No error = empty cell — even '—' pulls the eye (ops feedback). */}
                       {row.scan_error && (

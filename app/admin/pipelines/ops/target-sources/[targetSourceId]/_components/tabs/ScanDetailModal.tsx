@@ -8,6 +8,7 @@
 import type { ReactElement } from 'react';
 import { cn, pipelineStyles } from '@/lib/theme';
 import { fmtDateTimeSec } from '@/lib/pipeline/format';
+import { isScanSettled } from '@/app/components/features/scan/scan-labels';
 import type { CloudProvider } from '@/lib/types';
 import { ModalShell } from '@/app/admin/pipelines/_components/ModalShell';
 import {
@@ -114,7 +115,7 @@ export function ScanDetailModal({ open, job, provider, onClose }: ScanDetailModa
           <div className="mt-5 flex flex-wrap gap-x-10 gap-y-3 border-t border-[var(--pl-gray-100)] pt-3.5">
             <TimeField label="실행시간">{fmtDateTimeSec(job.created_at)}</TimeField>
             {/* 아직 안 끝난 잡에 완료 시각을 적지 않는다 — 최근 스캔 카드와 같은 규칙. */}
-            {job.scan_status !== 'SAVING' && (
+            {isScanSettled(job.scan_status) && (
               <>
                 <TimeField label="완료시간">{fmtDateTimeSec(job.updated_at)}</TimeField>
                 <TimeField label="소요 시간">{fmtDuration(job.duration_seconds)}</TimeField>

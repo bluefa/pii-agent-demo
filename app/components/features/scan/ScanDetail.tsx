@@ -1,6 +1,6 @@
 'use client';
 
-import { SCAN_ERROR_LABELS } from '@/app/components/features/scan/scan-labels';
+import { SCAN_ERROR_LABELS, isScanSettled } from '@/app/components/features/scan/scan-labels';
 import {
   fmtScanCount,
   scanDurationText,
@@ -130,7 +130,7 @@ export const ScanDetail = ({ job, provider }: { job: ScanJob; provider: CloudPro
       <div className={cn('mt-5 flex flex-wrap gap-x-10 gap-y-3 border-t pt-3.5', borderColors.light)}>
         <TimeField label="실행 시각" value={job.created_at ? formatDate(job.created_at, 'datetime') : ''} />
         {/* 아직 안 끝난 잡에 완료 시각을 적지 않는다. */}
-        {job.scan_status !== 'SAVING' && (
+        {isScanSettled(job.scan_status) && (
           <>
             <TimeField label="완료 시각" value={job.updated_at ? formatDate(job.updated_at, 'datetime') : ''} />
             <TimeField label="소요 시간" value={scanDurationText(job)} />

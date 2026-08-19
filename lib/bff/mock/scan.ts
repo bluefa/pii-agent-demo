@@ -308,7 +308,10 @@ export const mockScan = {
       const last = history[0];
       // SCANNING → SAVING → SUCCESS. For the first seconds after discovery ends the
       // job is writing its results: the status is SAVING, progress sits at 100 (every
-      // resource type is scanned), and the counts and version only land with SUCCESS.
+      // resource type is scanned), and the counts only land with SUCCESS.
+      // scan_version is reported throughout, as it already is for SCANNING — the run
+      // number is known when the run starts. The contract description says the column
+      // is written at SUCCESS; if that matters to a surface, this is the line to change.
       const saving = scanFns.isSavingWindow(last);
       return NextResponse.json({
         id: parseNumericId(last.scanId),

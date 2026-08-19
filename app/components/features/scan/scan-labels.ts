@@ -14,6 +14,14 @@ export const TERMINAL_SCAN_STATUSES: ReadonlySet<string> = new Set([
   'CANCELED',
 ]);
 
+/**
+ * 끝난 스캔인가. 완료 시각·소요 시간은 끝난 잡에만 존재하므로, 그 필드를 그리는
+ * 표면은 전부 이 판정을 쓴다 — `!== 'SAVING'` 같은 부정형은 SCANNING 과 이 빌드가
+ * 어휘를 갖지 못한 상태를 조용히 "끝남"으로 통과시킨다.
+ */
+export const isScanSettled = (scanStatus: string | null | undefined): boolean =>
+  scanStatus != null && TERMINAL_SCAN_STATUSES.has(scanStatus);
+
 /** ScanJobResponse.scan_status → 한국어 표기 (이력 모달·스트립 공용). */
 export const SCAN_STATUS_LABELS: Record<string, string> = {
   SCANNING: '진행 중',

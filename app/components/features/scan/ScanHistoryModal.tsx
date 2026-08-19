@@ -6,6 +6,7 @@ import { Modal } from '@/app/components/ui/Modal';
 import { Pagination } from '@/app/components/ui/Pagination';
 import { ArrowUpRightIcon } from '@/app/components/ui/icons';
 import { ScanDetail } from '@/app/components/features/scan/ScanDetail';
+import { isScanSettled } from '@/app/components/features/scan/scan-labels';
 import {
   scanDurationText,
   scanResultText,
@@ -215,8 +216,9 @@ export const ScanHistoryModal = ({ targetSourceId, provider, onClose }: ScanHist
                             {scanStatusLabel(job)}
                           </span>
                         </td>
+                        {/* 소요 시간은 끝난 잡에만 — 저장 중인 행은 아직 걸린 시간이 없다. */}
                         <td className={cn(BODY_CELL, 'whitespace-nowrap font-mono text-[12px]', textColors.secondary)}>
-                          {scanDurationText(job)}
+                          {isScanSettled(job.scan_status) ? scanDurationText(job) : ''}
                         </td>
                         <td className={cn(BODY_CELL, 'text-[13px]', textColors.secondary)}>
                           {scanResultText(job)}
