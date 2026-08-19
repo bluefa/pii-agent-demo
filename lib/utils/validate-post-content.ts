@@ -68,11 +68,22 @@ export interface PostContentUsage {
 
 export type ValidatePostContentResult =
   | { valid: true; usage: PostContentUsage; asts: Record<PostLanguage, GuideNode[]> }
-  | { valid: false; errors: PostContentError[]; usage: PostContentUsage };
+  /**
+   * The invalid branch still carries the ASTs of the languages that parsed —
+   * the server checks image references (§3.3-3·4) BEFORE it may throw the cap
+   * errors this result also reports (§3.3-5), and that needs the srcs.
+   */
+  | {
+      valid: false;
+      errors: PostContentError[];
+      usage: PostContentUsage;
+      asts: Partial<Record<PostLanguage, GuideNode[]>>;
+    };
 
 const LANGS: readonly PostLanguage[] = ['ko', 'en'];
 
-const collectImageSrcs = (ast: GuideNode[], into: Set<string>): void => {
+/** Exported for the mock BFF, which partitions the srcs into cid/URL refs. */
+export const collectImageSrcs = (ast: GuideNode[], into: Set<string>): void => {
   for (const node of ast) {
     if (node.type === 'img') {
       into.add(node.src);
@@ -133,7 +144,7 @@ export function validatePostContent(
 
   return errors.length === 0
     ? { valid: true, usage, asts }
-    : { valid: false, errors, usage };
+    : { valid: false, errors, usage, asts };
 }
 
 const formatMib = (bytes: number): string => `${(bytes / 1024 / 1024).toFixed(1)}MB`;

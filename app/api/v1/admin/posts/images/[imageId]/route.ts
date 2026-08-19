@@ -5,12 +5,13 @@ import { mockPosts } from '@/lib/bff/mock/posts';
 import { isMock } from '@/lib/env';
 
 /**
- * MOCK ONLY — serves the bytes `POST ../images` kept in memory.
+ * MOCK ONLY — serves the bytes a multipart save kept in memory.
  *
- * This route is not in the tag guide and has no upstream counterpart: a real
- * deployment stores uploads in object storage and `img.src` points there
- * directly. It exists so the mock can round-trip an upload through a URL that
- * passes the `img.src` prefix check, instead of inlining base64 into the body.
+ * This route is not in the contract and has no upstream counterpart: a real
+ * deployment stores a post's images in object storage and `img.src` points
+ * there directly (handoff §3.5). It exists so the mock can round-trip a saved
+ * image through a URL that passes the `img.src` prefix check, instead of
+ * inlining base64 into the body.
  */
 export const GET = withV1(async (_request, ctx) => {
   if (!isMock()) {

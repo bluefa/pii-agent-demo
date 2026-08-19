@@ -48,6 +48,8 @@ const post = (
   hiddenAt: flags.hidden ? publishedAt : null,
   createdBy: 'seed',
   updatedBy: 'seed',
+  // Seed bodies are text-only; a post gains images through the save request.
+  images: [],
 });
 
 export const postsSeed: StoredPost[] = [

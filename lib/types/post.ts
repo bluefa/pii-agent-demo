@@ -62,6 +62,17 @@ export interface AdminPost extends AdminPostSummary {
   contents: LocalizedText;
   createdBy: string;
   updatedBy: string;
+  /**
+   * Every image this post owns. The edit screen's 10MB counter has no other
+   * way to learn an existing image's byte size — the body HTML carries none.
+   */
+  images: PostImageRef[];
+}
+
+/** One body image a post owns (handoff §3.6). */
+export interface PostImageRef {
+  url: string;
+  bytes: number;
 }
 
 export interface PostCategory {
@@ -77,10 +88,21 @@ export interface AdminPostCategory extends PostCategory {
   postCount: number;
 }
 
-export interface ImageUploadResponse {
-  url: string;
-  width: number;
-  height: number;
+/**
+ * A new image riding a save request, browser side. `key` is the multipart
+ * part's filename AND what the body's `cid:<key>` reference points at —
+ * one value, two carriages (handoff §3.2).
+ */
+export interface PostImagePart {
+  key: string;
+  file: File;
+}
+
+/** The same part after the route unwrapped it — what the BFF layer consumes. */
+export interface PostSaveFile {
+  key: string;
+  bytes: Uint8Array<ArrayBuffer>;
+  contentType: string;
 }
 
 export interface PostCreateRequest {

@@ -31,11 +31,11 @@ import type {
   AdminPost,
   AdminPostCategory,
   AdminPostSummary,
-  ImageUploadResponse,
   Post,
   PostCategory,
   PostCategoryCreateRequest,
   PostCreateRequest,
+  PostSaveFile,
   PostSummary,
   PostType,
   PostUpdateRequest,
@@ -195,12 +195,13 @@ export interface BffClient {
     listCategories: (type?: PostType) => Promise<PostCategory[]>;
     listAdmin: (type?: PostType, hidden?: boolean) => Promise<AdminPostSummary[]>;
     getAdmin: (postId: number) => Promise<AdminPost>;
-    create: (body: PostCreateRequest) => Promise<AdminPost>;
-    update: (postId: number, body: PostUpdateRequest) => Promise<AdminPost>;
+    // Saves are multipart (handoff §3.2): the body JSON plus the new images it
+    // cites via `cid:<key>`. There is no standalone upload endpoint.
+    create: (body: PostCreateRequest, files: readonly PostSaveFile[]) => Promise<AdminPost>;
+    update: (postId: number, body: PostUpdateRequest, files: readonly PostSaveFile[])
+      => Promise<AdminPost>;
     setHidden: (postId: number, hidden: boolean) => Promise<AdminPost>;
     setPinned: (postId: number, pinned: boolean) => Promise<AdminPost>;
-    uploadImage: (file: { bytes: Uint8Array<ArrayBuffer>; contentType: string })
-      => Promise<ImageUploadResponse>;
     listAdminCategories: (type?: PostType) => Promise<AdminPostCategory[]>;
     createCategory: (body: PostCategoryCreateRequest) => Promise<AdminPostCategory>;
     deleteCategory: (categoryId: number) => Promise<void>;

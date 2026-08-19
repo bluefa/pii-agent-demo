@@ -26,3 +26,23 @@ export const POST_IMAGE_SRC_PREFIXES: readonly string[] = [
     ? [process.env.NEXT_PUBLIC_POST_IMAGE_BASE_URL]
     : []),
 ];
+
+/**
+ * How a REQUEST body points at an image that has no URL yet (RFC 2392, handoff
+ * §3.2). The server rewrites `cid:<key>` to the real URL while saving, so a
+ * STORED body never contains it — which is why it is not in the list above.
+ */
+export const POST_IMAGE_CID_PREFIX = 'cid:';
+
+/** The cid key format — shared by the body reference and the part filename. */
+export const POST_IMAGE_KEY_PATTERN = /^[a-z0-9]{8,32}$/;
+
+/**
+ * What the EDITOR accepts as an img src. A new image lives as a local blob:
+ * preview until save, when it turns into `cid:` — the render/save paths keep
+ * using POST_IMAGE_SRC_PREFIXES and never see a blob.
+ */
+export const EDITOR_IMAGE_SRC_PREFIXES: readonly string[] = [
+  ...POST_IMAGE_SRC_PREFIXES,
+  'blob:',
+];

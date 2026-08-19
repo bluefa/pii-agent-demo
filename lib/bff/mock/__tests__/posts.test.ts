@@ -2,8 +2,11 @@
  * FAQ & Notices mock store — the rules from the tag guide that a screen
  * cannot check for itself.
  *
- * The store is module-level, so each test re-imports it through
- * `vi.resetModules()` and starts from the seed.
+ * The store hangs off `globalThis` (not the module), so `vi.resetModules()`
+ * alone does NOT reset it — each test also clears the global slot to start
+ * from the seed. The module reset is still needed for its own reason: it
+ * keeps the BffError class identity consistent inside one test (see
+ * `asBffError`).
  */
 
 import { describe, expect, it, vi } from 'vitest';
@@ -12,6 +15,7 @@ type MockPosts = typeof import('@/lib/bff/mock/posts')['mockPosts'];
 
 const freshStore = async (): Promise<MockPosts> => {
   vi.resetModules();
+  globalThis.__piiAgentPostsMock = undefined;
   return (await import('@/lib/bff/mock/posts')).mockPosts;
 };
 
@@ -19,8 +23,9 @@ const freshStore = async (): Promise<MockPosts> => {
 const pngBytes = (size = 64): Uint8Array<ArrayBuffer> => new Uint8Array(new ArrayBuffer(size));
 
 /**
- * A buffer no other `distinctBytes` call produces. Upload dedupes on content,
- * so tests that need N separate files must not hand it N identical buffers.
+ * A buffer no other `distinctBytes` call produces. The save folds identical
+ * bytes into one file, so tests that need N separate files must not hand it
+ * N identical buffers.
  */
 const distinctBytes = (seed: number, size = 64): Uint8Array<ArrayBuffer> => {
   const bytes = pngBytes(size);
@@ -28,6 +33,15 @@ const distinctBytes = (seed: number, size = 64): Uint8Array<ArrayBuffer> => {
   bytes[1] = Math.floor(seed / 256) % 256;
   return bytes;
 };
+
+/** A `files` part as the route hands it to the store: filename is the cid key. */
+const part = (
+  key: string,
+  bytes: Uint8Array<ArrayBuffer> = pngBytes(),
+  contentType = 'image/png',
+) => ({ key, bytes, contentType });
+
+const cidTag = (key: string) => `<p><img src="cid:${key}" alt="i" /></p>`;
 
 /**
  * Asserts the thrown value is a BffError by shape, not by `instanceof`:
@@ -120,7 +134,7 @@ describe('update', () => {
       categoryId: before.categoryId,
       titles: before.titles,
       contents: before.contents,
-    });
+    }, []);
 
     expect(after.publishedAt).toBe(before.publishedAt);
     expect(after.updatedAt >= before.updatedAt).toBe(true);
@@ -131,7 +145,7 @@ describe('update', () => {
     const before = await posts.getAdmin(1);
     expect(before.categoryId).not.toBeNull();
 
-    const after = await posts.update(1, { titles: before.titles, contents: before.contents });
+    const after = await posts.update(1, { titles: before.titles, contents: before.contents }, []);
     expect(after.categoryId).toBeNull();
   });
 
@@ -141,38 +155,87 @@ describe('update', () => {
 
     const error = asBffError(
       await posts
-        .update(1, { titles: before.titles, contents: { ko: before.contents.ko, en: '  ' } })
+        .update(1, { titles: before.titles, contents: { ko: before.contents.ko, en: '  ' } }, [])
         .catch((cause: unknown) => cause),
     );
     expect(error.code).toBe('VALIDATION_FAILED');
   });
 });
 
-describe('body images', () => {
-  it('rejects a file type outside png / jpeg / webp', async () => {
+describe('body images — the save request settles everything (handoff §3.3)', () => {
+  it('stores a cid-referenced part and rewrites the body to its URL', async () => {
     const posts = await freshStore();
+    const before = await posts.getAdmin(1);
+
+    const saved = await posts.update(1, {
+      titles: before.titles,
+      contents: { ko: cidTag('imgkey01'), en: before.contents.en },
+    }, [part('imgkey01')]);
+
+    // The stored body never contains cid: — it left as the real URL.
+    expect(saved.contents.ko).toContain('/pass/api/v1/admin/posts/images/');
+    expect(saved.contents.ko).not.toContain('cid:');
+    expect(saved.images).toEqual([
+      { url: expect.stringContaining('/admin/posts/images/'), bytes: 64 },
+    ]);
+    expect(posts.readImage(saved.images[0].url.split('/').pop()!)).not.toBeNull();
+  });
+
+  it('rejects a cid the parts do not carry — a broken image must not be stored', async () => {
+    const posts = await freshStore();
+    const before = await posts.getAdmin(1);
 
     const error = asBffError(
       await posts
-        .uploadImage({ bytes: pngBytes(), contentType: 'image/gif' })
+        .update(1, {
+          titles: before.titles,
+          contents: { ko: cidTag('imgkey01'), en: before.contents.en },
+        }, [])
         .catch((cause: unknown) => cause),
     );
-    expect(error.code).toBe('UNSUPPORTED_IMAGE_TYPE');
+    expect(error.code).toBe('POST_IMAGE_REF_MISSING');
   });
 
-  it('rejects a file over 5MB', async () => {
+  it('rejects a part no body references — a silent frontend bug otherwise', async () => {
     const posts = await freshStore();
+    const before = await posts.getAdmin(1);
 
     const error = asBffError(
       await posts
-        .uploadImage({ bytes: pngBytes(5 * 1024 * 1024 + 1), contentType: 'image/png' })
+        .update(1, { titles: before.titles, contents: before.contents }, [part('imgkey01')])
         .catch((cause: unknown) => cause),
     );
-    expect(error.status).toBe(413);
-    expect(error.code).toBe('IMAGE_TOO_LARGE');
+    expect(error.code).toBe('POST_IMAGE_UNREFERENCED');
   });
 
-  it('rejects a body image whose src is not an upload URL', async () => {
+  it('rejects a URL this post does not own, and a new post owns nothing (§10.4)', async () => {
+    const posts = await freshStore();
+    const before = await posts.getAdmin(1);
+    const foreign = '<p><img src="/pass/api/v1/admin/posts/images/ghost.png" alt="x" /></p>';
+
+    const updateError = asBffError(
+      await posts
+        .update(1, {
+          titles: before.titles,
+          contents: { ko: foreign, en: before.contents.en },
+        }, [])
+        .catch((cause: unknown) => cause),
+    );
+    expect(updateError.code).toBe('POST_IMAGE_REF_UNKNOWN');
+
+    const createError = asBffError(
+      await posts
+        .create({
+          type: 'FAQ',
+          titles: before.titles,
+          contents: { ko: foreign, en: before.contents.en },
+        }, [])
+        .catch((cause: unknown) => cause),
+    );
+    expect(createError.code).toBe('POST_IMAGE_REF_UNKNOWN');
+  });
+
+  it('rejects a body image whose src passes no allowed prefix', async () => {
     const posts = await freshStore();
     const before = await posts.getAdmin(1);
 
@@ -184,23 +247,49 @@ describe('body images', () => {
             ko: '<p><img src="https://evil.example.com/a.png" alt="x" /></p>',
             en: before.contents.en,
           },
-        })
+        }, [])
         .catch((cause: unknown) => cause),
     );
     expect(error.code).toBe('POST_CONTENT_INVALID');
+  });
+
+  it('rejects a part outside png / jpeg / webp', async () => {
+    const posts = await freshStore();
+    const before = await posts.getAdmin(1);
+
+    const error = asBffError(
+      await posts
+        .update(1, {
+          titles: before.titles,
+          contents: { ko: cidTag('imgkey01'), en: before.contents.en },
+        }, [part('imgkey01', pngBytes(), 'image/gif')])
+        .catch((cause: unknown) => cause),
+    );
+    expect(error.code).toBe('UNSUPPORTED_IMAGE_TYPE');
+  });
+
+  it('rejects a part over 5MB', async () => {
+    const posts = await freshStore();
+    const before = await posts.getAdmin(1);
+
+    const error = asBffError(
+      await posts
+        .update(1, {
+          titles: before.titles,
+          contents: { ko: cidTag('imgkey01'), en: before.contents.en },
+        }, [part('imgkey01', pngBytes(5 * 1024 * 1024 + 1))])
+        .catch((cause: unknown) => cause),
+    );
+    expect(error.status).toBe(413);
+    expect(error.code).toBe('IMAGE_TOO_LARGE');
   });
 
   it('caps a post at 10 images counted across ko and en together', async () => {
     const posts = await freshStore();
     const before = await posts.getAdmin(1);
 
-    const uploads = [];
-    for (let index = 0; index < 11; index += 1) {
-      uploads.push(
-        await posts.uploadImage({ bytes: distinctBytes(index), contentType: 'image/png' }),
-      );
-    }
-    const tag = (url: string) => `<p><img src="${url}" alt="i" /></p>`;
+    const keys = Array.from({ length: 11 }, (_, index) => `imgkey${String(index).padStart(2, '0')}`);
+    const parts = keys.map((key, index) => part(key, distinctBytes(index)));
 
     // 6 in ko + 5 in en = 11 for the post, though neither language alone is over.
     const error = asBffError(
@@ -208,75 +297,142 @@ describe('body images', () => {
         .update(1, {
           titles: before.titles,
           contents: {
-            ko: uploads.slice(0, 6).map((upload) => tag(upload.url)).join(''),
-            en: uploads.slice(6).map((upload) => tag(upload.url)).join(''),
+            ko: keys.slice(0, 6).map(cidTag).join(''),
+            en: keys.slice(6).map(cidTag).join(''),
           },
-        })
+        }, parts)
         .catch((cause: unknown) => cause),
     );
     expect(error.code).toBe('POST_IMAGE_LIMIT_EXCEEDED');
   });
 
-  it('returns the same URL for identical bytes — ko and en share one screenshot', async () => {
-    const posts = await freshStore();
-
-    const first = await posts.uploadImage({ bytes: pngBytes(2048), contentType: 'image/png' });
-    const second = await posts.uploadImage({ bytes: pngBytes(2048), contentType: 'image/png' });
-
-    // Without this the natural bilingual flow — insert into ko, switch tab,
-    // insert into en — spends two slots and twice the bytes on one picture.
-    expect(second.url).toBe(first.url);
-  });
-
-  it('still separates genuinely different files', async () => {
-    const posts = await freshStore();
-
-    const first = await posts.uploadImage({ bytes: distinctBytes(1, 2048), contentType: 'image/png' });
-    const second = await posts.uploadImage({ bytes: distinctBytes(2, 2048), contentType: 'image/png' });
-
-    expect(second.url).not.toBe(first.url);
-  });
-
-  it('counts a URL used in both languages once — storage holds one file', async () => {
+  it('checks references before caps — 11 cids riding 10 parts is a broken ref, not the count cap', async () => {
     const posts = await freshStore();
     const before = await posts.getAdmin(1);
 
-    const uploaded = await posts.uploadImage({ bytes: pngBytes(), contentType: 'image/png' });
-    const tag = `<p><img src="${uploaded.url}" alt="i" /></p>`;
-
-    const saved = await posts.update(1, {
-      titles: before.titles,
-      contents: { ko: tag, en: tag },
-    });
-    expect(saved.contents.ko).toContain(uploaded.url);
-  });
-
-  it('caps a post at 10MB even when every file is under the 5MB per-file cap', async () => {
-    const posts = await freshStore();
-    const before = await posts.getAdmin(1);
-
-    const uploads = [];
-    for (let index = 0; index < 3; index += 1) {
-      uploads.push(
-        await posts.uploadImage({
-          bytes: distinctBytes(index, 4 * 1024 * 1024),
-          contentType: 'image/png',
-        }),
-      );
-    }
+    const keys = Array.from({ length: 11 }, (_, index) => `imgkey${String(index).padStart(2, '0')}`);
+    // The 11th cid has no part — §3.3 step 3 fires before the step-5 count cap.
+    const parts = keys.slice(0, 10).map((key, index) => part(key, distinctBytes(index)));
 
     const error = asBffError(
       await posts
         .update(1, {
           titles: before.titles,
           contents: {
-            ko: uploads.map((upload) => `<p><img src="${upload.url}" alt="i" /></p>`).join(''),
-            en: before.contents.en,
+            ko: keys.slice(0, 6).map(cidTag).join(''),
+            en: keys.slice(6).map(cidTag).join(''),
           },
-        })
+        }, parts)
+        .catch((cause: unknown) => cause),
+    );
+    expect(error.code).toBe('POST_IMAGE_REF_MISSING');
+  });
+
+  it('checks references before per-file rules — an unreferenced gif is the frontend bug, not its MIME', async () => {
+    const posts = await freshStore();
+    const before = await posts.getAdmin(1);
+
+    const error = asBffError(
+      await posts
+        .update(1, {
+          titles: before.titles,
+          contents: { ko: cidTag('imgkey01'), en: before.contents.en },
+        }, [part('imgkey01'), part('imgkey02', pngBytes(), 'image/gif')])
+        .catch((cause: unknown) => cause),
+    );
+    expect(error.code).toBe('POST_IMAGE_UNREFERENCED');
+  });
+
+  it('refuses to store a body the rewrite missed — checks read the AST, the rewrite reads the string', async () => {
+    const posts = await freshStore();
+    const before = await posts.getAdmin(1);
+
+    // DOMParser reads a single-quoted src the same as a double-quoted one, so
+    // every check passes; the rewrite regex covers only the FE's double-quoted
+    // serialization. Storing would keep cid: in the body — die loudly instead.
+    const error = asBffError(
+      await posts
+        .update(1, {
+          titles: before.titles,
+          contents: { ko: "<p><img src='cid:imgkey01' alt=\"i\" /></p>", en: before.contents.en },
+        }, [part('imgkey01')])
+        .catch((cause: unknown) => cause),
+    );
+    expect(error.status).toBe(500);
+    expect(error.code).toBe('INTERNAL_ERROR');
+  });
+
+  it('caps a post at 10MB even when every file is under the 5MB per-file cap', async () => {
+    const posts = await freshStore();
+    const before = await posts.getAdmin(1);
+
+    const keys = ['imgkey01', 'imgkey02', 'imgkey03'];
+    const parts = keys.map((key, index) => part(key, distinctBytes(index, 4 * 1024 * 1024)));
+
+    const error = asBffError(
+      await posts
+        .update(1, {
+          titles: before.titles,
+          contents: { ko: keys.map(cidTag).join(''), en: before.contents.en },
+        }, parts)
         .catch((cause: unknown) => cause),
     );
     expect(error.code).toBe('POST_SIZE_LIMIT_EXCEEDED');
+  });
+
+  it('folds identical bytes into one file — ko and en share one screenshot', async () => {
+    const posts = await freshStore();
+    const before = await posts.getAdmin(1);
+
+    // The bilingual flow inserts the same picture twice under two keys; the
+    // save must not spend two slots or store the bytes twice.
+    const saved = await posts.update(1, {
+      titles: before.titles,
+      contents: { ko: cidTag('imgkey01'), en: cidTag('imgkey02') },
+    }, [part('imgkey01', pngBytes(2048)), part('imgkey02', pngBytes(2048))]);
+
+    expect(saved.images).toHaveLength(1);
+    const url = saved.images[0].url;
+    expect(saved.contents.ko).toContain(url);
+    expect(saved.contents.en).toContain(url);
+  });
+
+  it('deletes an owned file the new body dropped — the save IS the cleanup', async () => {
+    const posts = await freshStore();
+    const before = await posts.getAdmin(1);
+
+    const withImage = await posts.update(1, {
+      titles: before.titles,
+      contents: { ko: cidTag('imgkey01'), en: before.contents.en },
+    }, [part('imgkey01')]);
+    const imageId = withImage.images[0].url.split('/').pop()!;
+    expect(posts.readImage(imageId)).not.toBeNull();
+
+    const without = await posts.update(1, {
+      titles: before.titles,
+      contents: before.contents,
+    }, []);
+    expect(without.images).toEqual([]);
+    expect(posts.readImage(imageId)).toBeNull();
+  });
+
+  it('keeps an owned file the body still references, without resending bytes', async () => {
+    const posts = await freshStore();
+    const before = await posts.getAdmin(1);
+
+    const first = await posts.update(1, {
+      titles: before.titles,
+      contents: { ko: cidTag('imgkey01'), en: before.contents.en },
+    }, [part('imgkey01')]);
+    const url = first.images[0].url;
+
+    // The edit round-trip: the stored body (with the real URL) goes back out.
+    const second = await posts.update(1, {
+      titles: first.titles,
+      contents: first.contents,
+    }, []);
+    expect(second.images).toEqual(first.images);
+    expect(posts.readImage(url.split('/').pop()!)).not.toBeNull();
   });
 });
 

@@ -8,17 +8,16 @@
  * screens call it lazily — when a row opens, once per row.
  */
 
-import { fetchInfra, fetchInfraJson } from '@/app/lib/api/infra';
-import { AppError } from '@/lib/errors';
+import { fetchInfraJson } from '@/app/lib/api/infra';
 import type {
   AdminPost,
   AdminPostCategory,
   AdminPostSummary,
-  ImageUploadResponse,
   Post,
   PostCategory,
   PostCategoryCreateRequest,
   PostCreateRequest,
+  PostImagePart,
   PostSummary,
   PostType,
   PostUpdateRequest,
@@ -46,12 +45,46 @@ export const listAdminPosts = (type?: PostType): Promise<AdminPostSummary[]> =>
 export const getAdminPost = (postId: number): Promise<AdminPost> =>
   fetchInfraJson<AdminPost>(`/admin/posts/${postId}`);
 
-export const createPost = (body: PostCreateRequest): Promise<AdminPost> =>
-  fetchInfraJson<AdminPost>('/admin/posts', { method: 'POST', body });
+/**
+ * The save is the only request that carries image bytes (handoff §3.2): the
+ * body JSON rides the `post` part, each new image rides a `files` part whose
+ * filename is the cid key the body cites. `fetchInfraJson` passes FormData to
+ * fetch untouched, so the multipart boundary survives.
+ */
+const saveForm = (
+  body: PostCreateRequest | PostUpdateRequest,
+  files: readonly PostImagePart[],
+): FormData => {
+  const form = new FormData();
+  form.append('post', new Blob([JSON.stringify(body)], { type: 'application/json' }));
+  for (const { key, file } of files) form.append('files', file, key);
+  return form;
+};
+
+/** A save can carry 10MB of images — the 30s default is sized for JSON. */
+const SAVE_TIMEOUT_MS = 120_000;
+
+export const createPost = (
+  body: PostCreateRequest,
+  files: readonly PostImagePart[] = [],
+): Promise<AdminPost> =>
+  fetchInfraJson<AdminPost>('/admin/posts', {
+    method: 'POST',
+    body: saveForm(body, files),
+    timeout: SAVE_TIMEOUT_MS,
+  });
 
 /** Full replacement — send all four localized values even when one changed. */
-export const updatePost = (postId: number, body: PostUpdateRequest): Promise<AdminPost> =>
-  fetchInfraJson<AdminPost>(`/admin/posts/${postId}`, { method: 'PUT', body });
+export const updatePost = (
+  postId: number,
+  body: PostUpdateRequest,
+  files: readonly PostImagePart[] = [],
+): Promise<AdminPost> =>
+  fetchInfraJson<AdminPost>(`/admin/posts/${postId}`, {
+    method: 'PUT',
+    body: saveForm(body, files),
+    timeout: SAVE_TIMEOUT_MS,
+  });
 
 export const setPostHidden = (postId: number, hidden: boolean): Promise<AdminPost> =>
   fetchInfraJson<AdminPost>(`/admin/posts/${postId}/hidden`, { method: 'PUT', body: { hidden } });
@@ -69,26 +102,3 @@ export const deletePostCategory = async (categoryId: number): Promise<void> => {
   await fetchInfraJson<void>(`/admin/post-categories/${categoryId}`, { method: 'DELETE' });
 };
 
-/**
- * One file, one request. `fetchInfraJson` would JSON-stringify the body, so
- * this goes through the raw fetch — FormData must reach fetch intact for the
- * multipart boundary to be generated.
- */
-export const uploadPostImage = async (file: File): Promise<ImageUploadResponse> => {
-  const form = new FormData();
-  form.append('file', file);
-
-  const response = await fetchInfra('/admin/posts/images', { method: 'POST', body: form });
-  if (!response.ok) {
-    // UNSUPPORTED_IMAGE_TYPE (400) and IMAGE_TOO_LARGE (413) both mean "this
-    // file is not acceptable", so the detail is what the editor shows.
-    const body = await response.json().catch(() => ({})) as { detail?: unknown };
-    throw new AppError({
-      code: 'BAD_REQUEST',
-      message: typeof body.detail === 'string' ? body.detail : '이미지 업로드에 실패했습니다',
-      status: response.status,
-      retriable: false,
-    });
-  }
-  return await response.json() as ImageUploadResponse;
-};
