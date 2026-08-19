@@ -6,45 +6,47 @@
  * (`GET /dashboard/summary` counts + `GET /dashboard/target-sources/{kind}`).
  *
  * The bucketing is the server's: it owns which targets land in which bucket and
- * the exact counts. This view renders one card per bucket — it must NOT
- * re-derive membership from a row's status, because the population is
- * cross-service and one page of it is not the whole truth.
+ * the exact counts. This view must NOT re-derive membership from a row's
+ * status, because the population is cross-service and one page of it is not the
+ * whole truth.
  *
- * Layout: Figma ZL0Y0okL8lReCrbf7JaVAp 1:123 — summary counts on top, then all
- * four buckets side by side (2×2), each with its own page of rows. The summary
- * tiles are selectable one at a time — 선택하면 같은 버킷의 아래 카드까지 함께
- * 강조된다. 강조 표시일 뿐, 카드 목록은 걸러내지 않는다(네 버킷이 이미 모두
- * 화면에 있다).
+ * Layout (decision record: docs/ux/benchmark/ops-alerts-worklist.md, replacing
+ * the 2×2 card grid of Figma ZL0Y0okL8lReCrbf7JaVAp): the summary tiles ARE the
+ * filter — the pipelines dashboard `BucketTile` mechanism — and one worklist
+ * below shows the selected bucket. Exactly one tile is always selected (default:
+ * the first bucket with a count, in process order), so there is no toggle-off.
+ * Counts appear once, on the tiles; the worklist header repeats the label and
+ * description but never the number.
  */
 import { useCallback, useEffect, useState, type ReactElement } from 'react';
 import { cn, pipelineStyles } from '@/lib/theme';
 import { useNavCountsRefresh } from '@/app/admin/pipelines/_components/NavCountsRefresh';
 import { getDashboardSummary } from '@/app/lib/api/task-queue';
 import type { AlertTargetKind, DashboardSummary } from '@/lib/types/task-queue';
-import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
-import { Icon } from '@/app/admin/pipelines/_components/icons';
 import {
-  AlertStageCard,
+  AlertWorklist,
   type AlertStageIcon,
-} from '@/app/admin/pipelines/ops/alerts/_components/AlertStageCard';
+} from '@/app/admin/pipelines/ops/alerts/_components/AlertWorklist';
 
 type AlertCounts = Pick<
   DashboardSummary,
   'confirmingCount' | 'needInstallCount' | 'needTestConnectionCount' | 'needPiiAgentConfirmCount'
 >;
 
-interface AlertCardMeta {
+interface AlertBucketMeta {
   kind: AlertTargetKind;
   label: string;
   /** 필요한 작업 — what the operator has to do next. */
   need: string;
-  /** Who has to act, and on what — the card's own subtitle. */
+  /** Who has to act, and on what — the worklist header's subtitle. */
   description: string;
   icon: AlertStageIcon;
   count: (counts: AlertCounts) => number;
 }
 
-const ALERT_CARDS: readonly AlertCardMeta[] = [
+/** Tile order is the process order (설치 흐름), so the strip reads left→right
+ *  as the pipeline does. Empty buckets stay clickable. */
+const ALERT_BUCKETS: readonly AlertBucketMeta[] = [
   {
     kind: 'confirming',
     label: '리소스 확정 진행 중',
@@ -89,18 +91,25 @@ const alertsView = {
   summaryRow: 'mt-6 grid grid-cols-4 gap-4',
   /**
    * border 는 비활성일 때도 자리를 차지해야 선택 시 타일 크기가 흔들리지 않는다.
-   * 색은 idle/active 를 배타적으로 골라서 준다 — cn 은 단순 join 이라 같은
-   * 속성을 두 번 실으면 Tailwind 출력 순서가 승자를 정해버린다(투명이 이겼다).
+   * border 색과 배경은 idle/active 가 배타적으로 소유한다 — cn 은 단순 join 이라
+   * 같은 속성을 두 번 실으면 Tailwind 출력 순서가 승자를 정해버린다.
    */
   summary:
-    'flex h-[120px] cursor-pointer flex-col items-center justify-center gap-1.5 rounded-[8px] border bg-[var(--pl-gray-100)] transition-colors',
+    'flex h-[120px] cursor-pointer flex-col items-center justify-center gap-1.5 rounded-[8px] border transition-colors',
   /** hover 는 idle 에만 — active 위에 얹으면 hover 가 브랜드 스트로크를 덮는다. */
-  summaryIdle: 'border-transparent hover:border-[var(--pl-gray-300)] hover:bg-[var(--pl-gray-200)]',
-  summaryActive: 'border-[var(--pl-primary)]',
+  summaryIdle:
+    'border-transparent bg-[var(--pl-gray-100)] hover:border-[var(--pl-gray-300)] hover:bg-[var(--pl-gray-200)]',
+  /** Selected = white face + brand stroke + sm shadow — the pipelines dashboard
+   *  `bucketTileActive` levers, so "this tile filters the list" reads the same
+   *  way in both screens. */
+  summaryActive: 'border-[var(--pl-primary)] bg-[var(--pl-bg-card)] shadow-[var(--pl-shadow-sm)]',
   summaryLabel: 'text-[14px] leading-[1.4] text-[var(--pl-text-weak)]',
   summaryValue: 'text-[40px] font-bold leading-[1.2] tracking-[-0.02em] tabular-nums text-[var(--pl-text-strong)]',
-  summaryNeed: 'text-[12px] leading-[1.4] text-[var(--pl-text-faint)]',
-  grid: 'mt-6 grid grid-cols-2 gap-6',
+  summaryNeed: 'text-[12px] leading-[1.4] text-[var(--pl-text-weak)]',
+  worklist: 'mt-6',
+  /** Worklist footprint while the summary decides the default bucket. */
+  worklistGate:
+    'mt-6 h-[320px] animate-pulse rounded-[12px] border border-[var(--pl-border-strong)] bg-[var(--pl-bg-card)]',
 } as const;
 
 const EMPTY_SUMMARY_COUNTS: AlertCounts = {
@@ -114,7 +123,7 @@ export function AlertsView(): ReactElement {
   const [counts, setCounts] = useState(EMPTY_SUMMARY_COUNTS);
   const [selected, setSelected] = useState<AlertTargetKind | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
-  // 사이드바 운영 알림 뱃지는 이 카드들과 같은 summary 를 읽는다. 함께 갱신하지
+  // 사이드바 운영 알림 뱃지는 이 타일들과 같은 summary 를 읽는다. 함께 갱신하지
   // 않으면 새로고침 직후 한 화면에 서로 다른 두 숫자가 남는다.
   const refreshNavCounts = useNavCountsRefresh();
   const reload = useCallback(() => {
@@ -125,17 +134,28 @@ export function AlertsView(): ReactElement {
   useEffect(() => {
     const controller = new AbortController();
     (async () => {
+      let summary = EMPTY_SUMMARY_COUNTS;
       try {
-        const summary = await getDashboardSummary({ signal: controller.signal });
-        if (!controller.signal.aborted) setCounts(summary);
+        summary = await getDashboardSummary({ signal: controller.signal });
       } catch {
-        if (!controller.signal.aborted) setCounts(EMPTY_SUMMARY_COUNTS);
+        // Tiles fall back to 0 — the worklist below reports its own failure.
       }
+      if (controller.signal.aborted) return;
+      setCounts(summary);
+      // Default selection, decided once the counts are known: the first bucket
+      // with work, else the first bucket. A refresh keeps the user's choice.
+      setSelected(
+        (prev) =>
+          prev ??
+          (ALERT_BUCKETS.find((bucket) => bucket.count(summary) > 0)?.kind ??
+            ALERT_BUCKETS[0].kind),
+      );
     })();
     return () => controller.abort();
   }, [reloadKey]);
 
-  const total = ALERT_CARDS.reduce((sum, card) => sum + (card.count(counts) ?? 0), 0);
+  const total = ALERT_BUCKETS.reduce((sum, bucket) => sum + (bucket.count(counts) ?? 0), 0);
+  const selectedBucket = ALERT_BUCKETS.find((bucket) => bucket.kind === selected) ?? null;
 
   return (
     <div>
@@ -147,45 +167,44 @@ export function AlertsView(): ReactElement {
             <strong className={alertsView.contextTotal}>{total}</strong>개 있어요
           </p>
         </div>
-        {/* 새로고침은 상시 노출 도구 CTA — 회색 chrome 대신 브랜드 스트로크(outline)로 낮춘다. */}
-        <PlButton variant="outline" onClick={reload} className="gap-2">
-          <Icon name="refresh" size="md" />
-          새로고침
-        </PlButton>
       </div>
 
-      <div className={alertsView.summaryRow}>
-        {ALERT_CARDS.map((card) => (
+      <div className={alertsView.summaryRow} role="group" aria-label="운영 알림 버킷 필터">
+        {ALERT_BUCKETS.map((bucket) => (
           <button
-            key={card.kind}
+            key={bucket.kind}
             type="button"
-            aria-pressed={selected === card.kind}
-            onClick={() => setSelected((prev) => (prev === card.kind ? null : card.kind))}
+            aria-pressed={selected === bucket.kind}
+            onClick={() => setSelected(bucket.kind)}
             className={cn(
               alertsView.summary,
-              selected === card.kind ? alertsView.summaryActive : alertsView.summaryIdle,
+              selected === bucket.kind ? alertsView.summaryActive : alertsView.summaryIdle,
             )}
           >
-            <span className={alertsView.summaryLabel}>{card.label}</span>
-            <span className={alertsView.summaryValue}>{card.count(counts) ?? 0}</span>
-            <span className={alertsView.summaryNeed}>{card.need}</span>
+            <span className={alertsView.summaryLabel}>{bucket.label}</span>
+            <span className={alertsView.summaryValue}>{bucket.count(counts) ?? 0}</span>
+            <span className={alertsView.summaryNeed}>{bucket.need}</span>
           </button>
         ))}
       </div>
 
-      <div className={alertsView.grid}>
-        {ALERT_CARDS.map((card) => (
-          <AlertStageCard
-            key={card.kind}
-            kind={card.kind}
-            label={card.label}
-            description={card.description}
-            icon={card.icon}
-            active={selected === card.kind}
+      {selectedBucket ? (
+        <div className={alertsView.worklist}>
+          <AlertWorklist
+            // Remount on bucket change so the page index and rows reset with it.
+            key={selectedBucket.kind}
+            kind={selectedBucket.kind}
+            label={selectedBucket.label}
+            description={selectedBucket.description}
+            icon={selectedBucket.icon}
+            count={selectedBucket.count(counts) ?? 0}
             reloadKey={reloadKey}
+            onRefresh={reload}
           />
-        ))}
-      </div>
+        </div>
+      ) : (
+        <div className={alertsView.worklistGate} aria-busy="true" aria-label="운영 알림 목록 준비 중" />
+      )}
     </div>
   );
 }

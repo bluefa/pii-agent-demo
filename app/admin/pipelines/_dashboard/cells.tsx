@@ -1,5 +1,7 @@
 /**
- * Dashboard list cell presenters — page.tsx-exclusive.
+ * Dashboard list cell presenters — born page.tsx-exclusive; `TargetCell`,
+ * `DashRow` and `RowAction` are now also worn by the ops 운영 알림 worklist,
+ * which opens the same Target Source and should read the same way.
  *
  * These used to be deliberate LOCAL copies of the shared row parts: a gray
  * progress bar instead of PipelineProgressBar, plain cloud text instead of

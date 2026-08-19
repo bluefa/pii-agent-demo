@@ -710,6 +710,11 @@ const TS_DESCRIPTION: Record<number, string> = {
   1861: '정산 마감 배치 RDS',
   1027: '쿠폰 발급 이력 RDS — 연동 불가 회신 건',
   1583: '통합 인증 세션 저장소 (IDC)',
+  1980: '회원 프로필·동의 이력 Cloud SQL',
+  1430: '미디어 업로드 메타데이터 Aurora',
+  1520: '추천 피처 스토어 Cloud SQL',
+  1799: '배송 추적 이벤트 Azure SQL',
+  1462: '인증 토큰 발급 이력 Azure SQL',
 };
 
 /**
@@ -852,6 +857,9 @@ export const mockTaskQueue = {
     const content = alertRows(query.kind).map((p) => ({
       targetSourceId: p.ts,
       serviceName: p.svc,
+      // Contract field the worklist renders — unlisted ids stay undefined,
+      // which is the honest shape of an optional description.
+      description: TS_DESCRIPTION[p.ts],
       serviceCode: p.code,
       cloudProvider: p.pv,
       confirmStatus: p.st === 'CONFIRMING' ? 'CONFIRMING' : 'CONFIRMED',
