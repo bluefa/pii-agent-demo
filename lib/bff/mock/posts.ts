@@ -166,19 +166,6 @@ const applyBodyImages = (
   files: readonly PostSaveFile[],
   owned: readonly PostImageRef[],
 ): { contents: LocalizedText; images: PostImageRef[] } => {
-  for (const file of files) {
-    if (!(POST_IMAGE_MIME_TYPES as readonly string[]).includes(file.contentType)) {
-      throw new BffError(
-        400,
-        'UNSUPPORTED_IMAGE_TYPE',
-        `${file.contentType} 은 지원하지 않습니다 (png / jpeg / webp): ${file.key}`,
-      );
-    }
-    if (file.bytes.byteLength > POST_IMAGE_MAX_BYTES) {
-      throw new BffError(413, 'IMAGE_TOO_LARGE', `파일 1개당 최대 5MB 입니다: ${file.key}`);
-    }
-  }
-
   // Allow-list, image count, and total bytes run through the same validator
   // the editor uses — the counter and the rejection cannot disagree. A cid
   // ref weighs what its part weighs; an owned URL weighs what the store holds.
@@ -193,15 +180,17 @@ const applyBodyImages = (
     imageSrcPrefixes: [...POST_IMAGE_SRC_PREFIXES, POST_IMAGE_CID_PREFIX],
     imageBytesByUrl: bytesBySrc,
   });
-  if (!result.valid) {
-    // All three post-content codes are 400; the code carries which rule broke.
-    const [first] = result.errors;
-    throw new BffError(400, first.code, first.message);
-  }
+  // §3.3 is an order: allow-list (2) → references (3·4) → caps and per-file
+  // rules (5). The validator folds allow-list and caps into one pass, so only
+  // the structural error may throw here; cap errors wait until references are
+  // checked — 11 cids riding 10 parts is REF_MISSING, not the count cap.
+  const structural = result.valid
+    ? undefined
+    : result.errors.find((error) => error.code === 'POST_CONTENT_INVALID');
+  if (structural) throw new BffError(400, structural.code, structural.message);
 
   const srcs = new Set<string>();
-  collectImageSrcs(result.asts.ko, srcs);
-  collectImageSrcs(result.asts.en, srcs);
+  for (const ast of Object.values(result.asts)) if (ast) collectImageSrcs(ast, srcs);
 
   // Every reference must resolve, in both directions — a cid without a part
   // is a broken image about to be stored, a part without a reference is a
@@ -237,8 +226,29 @@ const applyBodyImages = (
     }
   }
 
-  // Identical bytes within one save fold into one file — inserting the same
-  // screenshot into ko and then en must not spend two slots.
+  if (!result.valid) {
+    // Only cap errors remain (the structural one threw above). The code
+    // carries which rule broke; both are 400.
+    const [first] = result.errors;
+    throw new BffError(400, first.code, first.message);
+  }
+
+  // Per-file MIME and 5MB share step 5 with the caps — after references.
+  for (const file of files) {
+    if (!(POST_IMAGE_MIME_TYPES as readonly string[]).includes(file.contentType)) {
+      throw new BffError(
+        400,
+        'UNSUPPORTED_IMAGE_TYPE',
+        `${file.contentType} 은 지원하지 않습니다 (png / jpeg / webp): ${file.key}`,
+      );
+    }
+    if (file.bytes.byteLength > POST_IMAGE_MAX_BYTES) {
+      throw new BffError(413, 'IMAGE_TOO_LARGE', `파일 1개당 최대 5MB 입니다: ${file.key}`);
+    }
+  }
+
+  // Identical bytes within one save fold into one stored file (§3.3-6). The
+  // fold is storage-only — the caps above still counted each distinct key.
   const state = store();
   const urlByKey = new Map<string, string>();
   const idByDigest = new Map<string, string>();

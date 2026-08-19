@@ -306,6 +306,43 @@ describe('body images — the save request settles everything (handoff §3.3)', 
     expect(error.code).toBe('POST_IMAGE_LIMIT_EXCEEDED');
   });
 
+  it('checks references before caps — 11 cids riding 10 parts is a broken ref, not the count cap', async () => {
+    const posts = await freshStore();
+    const before = await posts.getAdmin(1);
+
+    const keys = Array.from({ length: 11 }, (_, index) => `imgkey${String(index).padStart(2, '0')}`);
+    // The 11th cid has no part — §3.3 step 3 fires before the step-5 count cap.
+    const parts = keys.slice(0, 10).map((key, index) => part(key, distinctBytes(index)));
+
+    const error = asBffError(
+      await posts
+        .update(1, {
+          titles: before.titles,
+          contents: {
+            ko: keys.slice(0, 6).map(cidTag).join(''),
+            en: keys.slice(6).map(cidTag).join(''),
+          },
+        }, parts)
+        .catch((cause: unknown) => cause),
+    );
+    expect(error.code).toBe('POST_IMAGE_REF_MISSING');
+  });
+
+  it('checks references before per-file rules — an unreferenced gif is the frontend bug, not its MIME', async () => {
+    const posts = await freshStore();
+    const before = await posts.getAdmin(1);
+
+    const error = asBffError(
+      await posts
+        .update(1, {
+          titles: before.titles,
+          contents: { ko: cidTag('imgkey01'), en: before.contents.en },
+        }, [part('imgkey01'), part('imgkey02', pngBytes(), 'image/gif')])
+        .catch((cause: unknown) => cause),
+    );
+    expect(error.code).toBe('POST_IMAGE_UNREFERENCED');
+  });
+
   it('caps a post at 10MB even when every file is under the 5MB per-file cap', async () => {
     const posts = await freshStore();
     const before = await posts.getAdmin(1);

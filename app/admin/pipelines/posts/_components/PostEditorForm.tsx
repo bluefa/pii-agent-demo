@@ -30,7 +30,6 @@ import type {
 } from '@/lib/types/post';
 import {
   POST_MAX_IMAGES,
-  POST_MAX_TOTAL_BYTES,
   validatePostContent,
   type PostLanguage,
 } from '@/lib/utils/validate-post-content';
@@ -100,9 +99,6 @@ export const PostEditorForm = ({ type: initialType, postId }: PostEditorFormProp
     }),
     [contents, imageBytes],
   );
-
-  const overLimit = check.usage.imageCount > POST_MAX_IMAGES
-    || check.usage.totalBytes > POST_MAX_TOTAL_BYTES;
 
   const written = (value: PostLanguage): boolean =>
     titles[value].trim() !== '' && contents[value].replace(/<[^>]*>/g, '').trim() !== '';
@@ -293,7 +289,9 @@ export const PostEditorForm = ({ type: initialType, postId }: PostEditorFormProp
           <Button variant="secondary" onClick={() => router.push(passRoutes.adminPosts)}>
             취소
           </Button>
-          <Button onClick={save} disabled={saving || overLimit}>
+          {/* 상한 초과로 버튼을 잠그지 않는다 — 카운터 문구가 없어진 지금, 잠긴
+              버튼은 이유 없는 막다른 길이 된다. 클릭이 검증 메시지를 보여 준다. */}
+          <Button onClick={save} disabled={saving}>
             {saving ? '저장 중…' : '저장'}
           </Button>
         </div>
