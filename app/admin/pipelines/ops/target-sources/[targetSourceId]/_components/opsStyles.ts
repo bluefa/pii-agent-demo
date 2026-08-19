@@ -3,122 +3,97 @@
  * the --pl-* token system — raw Figma hex values map to their semantic tokens).
  */
 export const opsStyles = {
-  /** Full-bleed masthead over the layout's gray page — escapes layout.contentFluid
-      padding (-mt-6 -mx-8), no card. The route is fluid (layout.tsx `isOpsTarget`)
-      so this bleed reaches the viewport edge instead of stopping at a 1440px cap. */
-  headCard: '-mt-6 -mx-8',
-  /** No bottom border: the masthead and the tab rail below it are one white block,
-      and the rail's own border is the single line that closes it. */
-  header: 'bg-[var(--pl-bg-card)] px-8 pt-6 pb-5',
+  /**
+   * R1 page root (docs/ux/benchmark/ops-detail-ia-redesign.md) — escapes
+   * layout.contentFluid's padding (the dash.bleed escape hatch) so the masthead
+   * wash and the lavender canvas both reach the viewport edges. The canvas is
+   * painted HERE, not on --pl-bg-page: that token is the section's, and every
+   * sibling pipelines screen stands on it.
+   */
+  page: '-mx-8 -mt-6 -mb-12 flex min-h-[calc(100vh_-_64px)] flex-col bg-[var(--pl-bg-canvas)]',
+  /**
+   * Masthead — one gray-100 wash holding breadcrumb + identity line + card tabs.
+   * No closing border: the attached tab shapes mark the boundary, and the wash
+   * separates from the canvas on chroma, not luminance (ΔE00 2.46, guard-pinned).
+   */
+  masthead: 'bg-[var(--pl-gray-100)] px-8 pt-4',
 
-  /** h1 + the service-side link on one baseline (GitHub repo-header grammar):
-      the quiet 12px link reads as a destination hanging off the title, not as a
-      second title. */
-  titleLine: 'flex items-baseline gap-3 flex-wrap',
-  identityRow: 'flex items-center gap-4 mt-3.5',
+  /** Breadcrumb — 서비스 운영 / 서비스 이름 / #id. On the wash, so weak not faint:
+      워시는 램프 한 칸을 잡아먹는다 (faint measures 2.34:1 here). */
+  crumb: 'flex items-center gap-1.5 text-[12px] text-[var(--pl-text-weak)]',
+  crumbLink: 'hover:text-[var(--pl-text-strong)] hover:underline',
+  crumbSep: 'text-[var(--pl-text-faint)]', // design-exempt: decorative path glyph, the labels around it carry the reading
+  crumbHere: 'font-semibold text-[var(--pl-text-strong)]',
+
+  /** Identity line — provider mark + "{provider} #{id}" (h1) + step pill + stamp,
+      the service-side link pushed to the far edge. One line: everything else the
+      old five-tier header stacked here now lives in the meta rail (OpsMetaRail). */
+  idLine: 'mt-1.5 flex flex-wrap items-center gap-3',
+  idTitle: 'whitespace-nowrap text-[20px] font-bold tracking-[-0.02em] text-[var(--pl-text-strong)]',
+  idHash: 'font-normal text-[var(--pl-text-faint)]', // design-exempt: prefix glyph, the id digits beside it carry the reading
 
   /** Neutral tag / region tag — shared with SduOpsNotice·ServiceDetailView·
       TerraformStatusModal (Figma 49:4/34:4). */
   tag: 'inline-flex items-center rounded px-2 py-1 text-[12px] font-semibold bg-[var(--pl-gray-100)] text-[var(--pl-text-medium)] whitespace-nowrap',
   regionTag: 'inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium bg-[var(--pl-gray-100)] text-[var(--pl-text-weak)]',
   /**
-   * 실데이터 — `supportRawData === true` 인 대상에만 붙는다 (서비스 운영의 대상 카드).
-   * 대상 운영 헤더는 같은 면에 동작을 얹은 `rawDataToggle` 로 세 상태를 항상 그린다.
+   * 흰 면 + 획 칩 — the rail's interactive values (실데이터·설치모드), and the
+   * 실데이터 tag on the service-ops target cards (ServiceDetailView).
    *
-   * **색이 아니라 획으로 선다.** 이 줄에서 색 채널은 이미 다 팔렸다: StepPill 하나가
-   * off/warn/primary/ok 네 계열을 상태에 따라 돌아가며 쓰고(TONE_CLASS), 회색은 중국
-   * 태그와 서비스코드 칩이, 파랑은 SDU 칩이 쓴다. 실제로 warn 으로 처음 그렸더니
-   * PENDING 대상(#1013)에서 태그와 단계 알약이 **같은 토큰**(--pl-warn-bg/-text)으로
-   * 나란히 서서 한 덩어리로 읽혔다. 상태에 따라 도는 값 옆에서는 어떤 색을 골라도
-   * 언젠가는 겹친다.
+   * 색이 아니라 획으로 선다. R1′ V-b 레일은 카드 없이 캔버스 위 맨몸이라, 흰 면은
+   * 이 화면에서 "만질 수 있는 값"에만 남는다 — 그 문법을 이 칩이 진다. 값의 밑줄이
+   * affordance 를 지고(countLink 규칙) 색은 상태(StepPill)에 남는다.
    *
-   * 그래서 이 줄에서 아무도 안 쓰는 채널을 쓴다 — 나머지 칩은 전부 테두리 없는 면이고,
-   * 이것만 흰 면 + 획이다. 색이 없으니 StepPill 이 어느 계열로 가든 겹치지 않는다.
-   * 투명이 아니라 흰 면인 것도 이유가 있다: 서비스 운영의 카드는 hover 에서 보라로
-   * 물드는데(`tableRowLift.card`), 투명이면 태그가 그 물을 같이 먹는다.
-   *
-   * 대비 실측: 글자(`--pl-text-strong`) on 면(`--pl-bg-card`) = 17.85:1. 면은 카드
-   * hover 틴트 위에서 ΔE00 8.92 (tableRowLift.card 주석의 실측치와 같은 쌍).
+   * 대비 실측: 글자(--pl-text-strong) on 면(--pl-bg-card) = 17.85:1. 면은 캔버스
+   * (--pl-bg-canvas) 위에서 ΔE00 4.12, 카드 hover 틴트 위에서 8.92 (tableRowLift.card
+   * 주석의 실측치와 같은 쌍). hover 는 면이 아니라 획이 움직인다: border-strong(1.47:1)
+   * → gray-400(2.58:1), 1.75배 — 그 위 글자의 대비는 하나도 건드리지 않는다.
    */
   rawDataTag: 'inline-flex items-center whitespace-nowrap rounded px-1.5 py-0.5 text-[12px] font-semibold border border-[var(--pl-border-strong)] bg-[var(--pl-bg-card)] text-[var(--pl-text-strong)]',
-  /**
-   * 대상 운영 헤더의 실데이터 칩 — 같은 면·획 위에 키·값 문법(modeTag)과 동작을 얹는다.
-   *
-   * 서비스 운영 카드는 참인 대상에만 태그를 붙이지만, 이 화면은 값을 **바꾸는** 자리라
-   * 세 상태(포함 / 미포함 / 미확인)를 항상 그린다: 태그가 없는 것과 "미포함"은 서로 다른
-   * 말인데, 안 그리면 두 상태가 같은 픽셀이 된다.
-   *
-   * 키·값 문법은 설치모드 칩(tier 3 의 `modeTag`)에서 가져오되 **값의 파랑은 안 가져온다.**
-   * `modeTag` 가 사는 줄에는 도는 색이 없지만, 이 줄에는 `StepPill` 이 있고 그 primary 계열은
-   * 글자를 `--pl-primary` 로 쓴다(`TONE_CLASS`) — 7 상태 중 3 개(CONFIRMING·CONFIRMED·
-   * INSTALLED)에서 파란 글자 두 개가 나란히 서고, 그러면 파랑이 "누를 수 있다"와 "진행 중"을
-   * 동시에 뜻하게 된다. 같은 줄의 곁줄 링크(`chanLinkText`)가 이미 같은 이유로 파랑을 버렸다:
-   * **밑줄이 affordance 를 지고 색은 상태에 남긴다**(`countLink` 규칙).
-   *
-   * 그래서 hover 도 면이 아니라 획을 움직인다 — 이 칩의 정체성이 획이다. 면만으로 하면
-   * gray-50 은 흰 면 대비 ΔE00 1.20 으로 JND 문턱이고(globals.css 의 `--pl-row-hover` 주석이
-   * 같은 이유로 이미 기각한 값이다), gray-100 까지 올리면 그 위의 키(`--pl-text-weak`)가
-   * 4.51:1 로 AA 턱걸이가 된다. 획은 `border-strong`(흰 면 대비 1.47:1) → `gray-400`(2.58:1)
-   * 로 1.75 배 움직이면서 그 위 글자의 대비를 하나도 건드리지 않는다 — 흰 면·border-strong
-   * 컨트롤의 hover 로 이 레포가 이미 쓰는 짝이다(`detailImprovedStyles` 헤더 액션).
-   *
-   * 키만 따로 있는 이유: 부모 칩이 `font-semibold` 라, 키를 한 단 내리는 건 여기서만
-   * 필요하다 (`modeTag` 는 부모가 굵지 않아 내릴 것이 없다).
-   */
-  rawDataToggle:
-    'gap-1 cursor-pointer hover:bg-[var(--pl-gray-50)] hover:border-[var(--pl-gray-400)]',
-  rawDataToggleKey: 'font-medium text-[var(--pl-text-weak)]',
+  rawDataToggle: 'cursor-pointer hover:bg-[var(--pl-gray-50)] hover:border-[var(--pl-gray-400)]',
   rawDataToggleValue: 'underline underline-offset-2 decoration-[var(--pl-border-strong)]',
 
-  /** Cloud context — tier 3 of the identity stack (계정 · 리전 · 설치모드). */
-  cloudRow: 'flex items-center gap-1.5 mt-1 text-[12px] text-[var(--pl-text-weak)]',
-  cloudStrong: '[font-family:var(--pl-font-mono)] text-[var(--pl-text-medium)]',
-  cloudSep: 'text-[var(--pl-text-faint)]',
-  modeTag: 'inline-flex items-center gap-1 rounded px-2 py-0.5 text-[12px] bg-[var(--pl-gray-100)] cursor-pointer hover:bg-[var(--pl-gray-200)]',
-  modeTagKey: 'text-[var(--pl-text-weak)]',
-  modeTagValue: 'font-semibold text-[var(--pl-primary)] underline',
+  /**
+   * Card tabs — attached (R1). Idle tabs are quiet text on the wash; the active
+   * tab is a white face with top/side strokes and an OPEN bottom, so the shape
+   * itself says "this pane is open" — the grammar line tabs could not carry once
+   * the masthead and the body stopped sharing one white surface.
+   */
+  tabStrip: 'mt-2.5 flex items-end gap-1 overflow-x-auto',
+  tab: 'cursor-pointer whitespace-nowrap rounded-t-[8px] border border-transparent border-b-0 px-4 py-2 text-[14px]',
+  tabActive: 'bg-[var(--pl-bg-card)] border-[var(--pl-border)] font-semibold text-[var(--pl-text-strong)]',
+  tabIdle: 'font-medium text-[var(--pl-text-weak)] hover:text-[var(--pl-text-strong)]',
+  /** 보기(진행 상태·스캔·연동 요청·확정) | 도구(인프라·연결 테스트·승인) group gap. */
+  tabGap: 'w-3.5 flex-none self-stretch',
 
-  /** Role sub-rows — tier 4, aligned to the identity stack's text column (no
-      indent of their own: `improvedStyles.header.body` already sets that column). */
-  roleRow: 'flex items-center gap-3 mt-1.5',
-  roleLabel: 'w-[72px] flex-none text-[12px] text-[var(--pl-text-weak)]',
-  roleEmpty: 'text-[12px] text-[var(--pl-text-faint)]',
-  roleRegister: 'text-[12px] font-semibold text-[var(--pl-primary)] underline cursor-pointer',
-  /** Read-only 주체 값 (GCP SA·Azure App) — roleArn 과 같은 자리, 동작만 없다. */
-  roleValue: 'text-[12px] text-[var(--pl-text-medium)] [font-family:var(--pl-font-mono)] break-all',
+  /** Body — content column + 236px meta rail, both on the canvas. */
+  body: 'flex flex-1 items-start gap-6 px-8 pt-6 pb-12',
+  content: 'flex min-w-0 flex-1 flex-col gap-4',
 
-  /** 서비스 축의 두 목적지 (Jira 티켓 · 서비스 운영) — 이름·코드 줄 바로 아래 곁줄.
-      라벨 붙은 블록을 화면 오른쪽에 세워 두면 서비스 이야기를 두 군데서 하게 되어,
-      cloudRow 와 같은 12px/weak 곁줄 문법으로 신원 스택에 흡수시켰다. 슬롯 높이를
-      고정(min-h)해 티켓이 늦게 도착해도 헤더가 흔들리지 않는다. 파랑 없음: 밑줄이
-      affordance 를 지고(opsStyles.countLink 규칙) 색은 Jira 마크 하나뿐이다. */
-  chanRow: 'flex flex-wrap items-center gap-x-3 gap-y-1 mt-1 min-h-[20px] text-[12px]',
-  /* The mark sits outside the underlined text — text-decoration would otherwise
-     strike through the glyph (a child cannot cancel an ancestor's underline). */
-  chanLink: 'group inline-flex items-center gap-1',
-  /** 마크 옆 종류 라벨 — 키만으로는 BDCDIP-1013 이 무엇인지 마크를 알아봐야 안다. */
-  chanKind: 'text-[var(--pl-text-weak)]',
-  chanLinkText:
-    'font-semibold text-[var(--pl-text-medium)] underline underline-offset-2 decoration-[var(--pl-border-strong)] cursor-pointer group-hover:text-[var(--pl-text-strong)] group-hover:decoration-[var(--pl-text-strong)]',
-  /** No browseUrl — the key is a value, not a door. Same slot, no affordance. */
-  chanPlain: 'font-semibold text-[var(--pl-text-medium)]',
-  /** 없음은 읽히라고 쓰는 문장이라 weak — 곁줄로 내려오면서 라벨이 사라졌으니
-      이 한 줄이 "티켓 자리" 를 혼자 설명한다. */
-  chanNone: 'text-[var(--pl-text-weak)]',
-  chanArrow: 'text-[var(--pl-text-faint)]', // design-exempt: 링크 텍스트에 붙는 방향 글리프(↗), 의미는 옆 텍스트가 진다
+  /**
+   * Meta rail (R1′ V-b) — bare on the canvas: no card, hairline dividers between
+   * groups, 흰 면은 인터랙티브 칩에만. 흰 카드(종이)는 화면에서 주 콘텐츠 한
+   * 계층에만 허용 — 레일이 흰 카드면 계층 분리는 다시 무너진다 (GitHub PR
+   * sidebar · Notion properties 문법).
+   */
+  rail: 'w-[236px] flex-none',
+  railGroup: 'border-t border-[var(--pl-border)] py-3 first:border-t-0 first:pt-1',
+  railLabel: 'text-[12px] font-bold tracking-[0.06em] text-[var(--pl-text-weak)]',
+  railRow: 'mt-1.5 flex items-baseline justify-between gap-2',
+  railKey: 'flex-none text-[12px] text-[var(--pl-text-weak)]',
+  railValue: 'min-w-0 truncate text-right text-[12px] font-semibold text-[var(--pl-text-medium)]',
+  railMono: '[font-family:var(--pl-font-mono)] font-medium',
+  railLink: 'inline-flex cursor-pointer items-center gap-0.5 whitespace-nowrap text-[12px] font-semibold text-[var(--pl-primary)] underline underline-offset-2 decoration-[var(--pl-primary-ring)] hover:decoration-[var(--pl-primary)]',
+  railNone: 'text-[12px] text-[var(--pl-text-weak)]',
+  /** Rail ARN action — cellAction grammar at the rail's 12px scale: the value IS
+      the trigger; the hint's slot is reserved (opacity) so revealing it never
+      shifts the row, and focus-visible reveals it too. */
+  railAction: 'group inline-flex min-w-0 max-w-full cursor-pointer items-baseline gap-1.5 rounded text-[12px] text-[var(--pl-text-medium)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[3px] focus-visible:outline-[var(--pl-primary)]',
+  railActionHint: 'flex-none text-[12px] font-semibold text-[var(--pl-primary)] opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100',
 
-  /** Tab rail — line tabs (Carbon: the body below is cards on a ground, not a
-      panel, so a contained tab's white face had nothing to connect to). The rail
-      is the masthead's last row: same white face, one border closing both, and
-      the active tab is marked by weight + hue + underline. */
-  tabStrip: 'flex items-center gap-1 px-8 bg-[var(--pl-bg-card)] border-b border-[var(--pl-border)]',
-  tab: 'px-3 py-3 text-[14px] cursor-pointer whitespace-nowrap border-b-2 -mb-px transition-colors',
-  tabActive: 'font-semibold text-[var(--pl-primary)] border-[var(--pl-primary)]',
-  tabIdle: 'font-medium text-[var(--pl-text-weak)] border-transparent hover:text-[var(--pl-text-strong)] hover:border-[var(--pl-border-strong)]',
-  tabDisabled: 'font-medium text-[var(--pl-text-faint)] cursor-not-allowed',
-
-  /** 진행 상태 tab content — 24px below the tab rail (prototype). */
-  content: 'mt-6 flex flex-col gap-4',
+  /** Skeleton bar ON THE WASH — the gray-100 `skeletonBar` vanishes there (same
+      value as the wash), so masthead skeletons step one ramp deeper. */
+  skeletonWash: 'animate-pulse rounded-[6px] bg-[var(--pl-gray-200)]',
   /** Side-by-side cards — grid rows stretch so the pair is always equal height. */
   cardsRow: 'grid grid-cols-2 gap-4',
   /** 20px — at 16px the card title reads the same tier as in-card block headers (ops feedback, scan tab). */

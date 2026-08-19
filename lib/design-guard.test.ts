@@ -342,6 +342,13 @@ const SURFACES: SurfacePair[] = [
   // The PR #624 P1: tinting --pl-bg-page made it byte-identical to --pl-gray-100 and the
   // borderless ops-alerts summary tiles (bg gray-100 straight on the page ground) vanished.
   { what: 'ops-alerts tile (gray-100) on page ground', top: resolve('var(--pl-gray-100)'), under: resolve('var(--pl-bg-page)') },
+  // R1 ops target-source detail — a two-tone chrome: gray-100 masthead wash over the
+  // lavender canvas (--pl-bg-canvas), separated by chroma, not luminance. The white
+  // faces on the canvas are the content cards and the rail's interactive chips; the
+  // active card tab is a white face ON the wash.
+  { what: 'ops masthead wash on the R1 canvas', top: resolve('var(--pl-gray-100)'), under: resolve('var(--pl-bg-canvas)') },
+  { what: 'white card / rail chip on the R1 canvas', top: '#FFFFFF', under: resolve('var(--pl-bg-canvas)') },
+  { what: 'ops active tab face on the masthead wash', top: bgOf(classOf(opsSrc, 'tabActive')), under: resolve('var(--pl-gray-100)') },
   // The card's hover fill is a surface too — it replaces white under the cursor, so it
   // has to separate from the canvas the card sits on or the hovered card dissolves into
   // the page. `bg-gray-50` here measured 1.20 from the card it replaced.
@@ -387,13 +394,19 @@ const SURFACES: SurfacePair[] = [
 
 type TextPair = { what: string; fg: string; on: string; min?: number };
 const TEXT: TextPair[] = [
-  // 실데이터 칩 — 흰 면 + 획 위의 키·값, 그리고 hover 한 칸(gray-50). hover 는 획이
-  // 움직이지만 면도 한 칸 밝아지므로, 두 글자 짝을 양쪽 면에서 다 잰다. 12px 이라
-  // 큰 글자 예외가 없다: 네 짝 모두 4.5:1 을 넘어야 한다.
-  { what: '실데이터 칩 키 on the chip face', fg: textOf(classOf(opsSrc, 'rawDataToggleKey')), on: bgOf(classOf(opsSrc, 'rawDataTag')) },
-  { what: '실데이터 칩 키 on the chip hover fill', fg: textOf(classOf(opsSrc, 'rawDataToggleKey')), on: hoverBgOf(classOf(opsSrc, 'rawDataToggle')) },
-  { what: '실데이터 칩 값 on the chip face', fg: textOf(classOf(opsSrc, 'rawDataTag')), on: bgOf(classOf(opsSrc, 'rawDataTag')) },
-  { what: '실데이터 칩 값 on the chip hover fill', fg: textOf(classOf(opsSrc, 'rawDataTag')), on: hoverBgOf(classOf(opsSrc, 'rawDataToggle')) },
+  // 실데이터·설치모드 칩 — 흰 면 + 획 위의 값, 그리고 hover 한 칸(gray-50). hover 는
+  // 획이 움직이지만 면도 한 칸 밝아지므로 양쪽 면에서 다 잰다. 12px 이라 큰 글자
+  // 예외가 없다. (키는 레일 행이 말하므로 칩 안에는 값만 산다 — R1.)
+  { what: '레일 칩 값 on the chip face', fg: textOf(classOf(opsSrc, 'rawDataTag')), on: bgOf(classOf(opsSrc, 'rawDataTag')) },
+  { what: '레일 칩 값 on the chip hover fill', fg: textOf(classOf(opsSrc, 'rawDataTag')), on: hoverBgOf(classOf(opsSrc, 'rawDataToggle')) },
+  // R1 meta rail — bare on the canvas (no card), so every run of rail text answers to
+  // --pl-bg-canvas directly; the masthead's crumb and idle tabs answer to the wash.
+  { what: 'ops rail group label on the R1 canvas', fg: textOf(classOf(opsSrc, 'railLabel')), on: resolve('var(--pl-bg-canvas)') },
+  { what: 'ops rail key on the R1 canvas', fg: textOf(classOf(opsSrc, 'railKey')), on: resolve('var(--pl-bg-canvas)') },
+  { what: 'ops rail value on the R1 canvas', fg: textOf(classOf(opsSrc, 'railValue')), on: resolve('var(--pl-bg-canvas)') },
+  { what: 'ops rail link on the R1 canvas', fg: textOf(classOf(opsSrc, 'railLink')), on: resolve('var(--pl-bg-canvas)') },
+  { what: 'ops crumb on the masthead wash', fg: textOf(classOf(opsSrc, 'crumb')), on: resolve('var(--pl-gray-100)') },
+  { what: 'ops idle tab on the masthead wash', fg: textOf(classOf(opsSrc, 'tabIdle')), on: resolve('var(--pl-gray-100)') },
   { what: 'rail section label on rail', fg: textOf(classOf(railBlock, 'sectionLabel')), on: rail },
   { what: 'rail footer page on rail', fg: textOf(classOf(railBlock, 'footerPage')), on: rail },
   { what: 'rail pager glyph on rail', fg: textOf(classOf(railBlock, 'pagerBtn')), on: rail },

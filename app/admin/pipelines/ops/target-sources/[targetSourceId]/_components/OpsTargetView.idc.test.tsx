@@ -77,7 +77,7 @@ describe('OpsTargetView — IDC 스캔 탭', () => {
       '연동 요청 정보',
       '확정 정보',
       '인프라 작업',
-      'Test Connection',
+      '연결 테스트',
       '관리자 승인',
     ]);
   });
