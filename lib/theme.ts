@@ -2241,7 +2241,8 @@ export const pipelineStyles = {
     sidebarTitle: cn(pipelineText.sidebarTitle, 'block px-2.5 pt-2 pb-2.5'),
     // Item base carries no text color/weight — idle/active own it (plain `cn` join
     // has no tailwind-merge, so overlapping utilities must never co-occur).
-    sidebarItem: 'block px-2.5 py-[7px] mb-0.5 rounded-md text-[14px] cursor-pointer',
+    // Flex row: 16px glyph · label · right-docked count badge (gap 8, like TopNav).
+    sidebarItem: 'flex items-center gap-2 px-2.5 py-[7px] mb-0.5 rounded-md text-[14px] cursor-pointer',
     sidebarItemIdle: 'font-medium text-[var(--pl-chrome-item)] hover:bg-[var(--pl-gray-800)]',
     sidebarItemActive:
       'bg-[var(--pl-gray-800)] text-[var(--pl-white)] font-semibold shadow-[inset_2px_0_0_var(--pl-primary)]',
