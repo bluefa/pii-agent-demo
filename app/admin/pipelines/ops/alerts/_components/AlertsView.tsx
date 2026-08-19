@@ -20,6 +20,7 @@
  */
 import { useCallback, useEffect, useState, type ReactElement } from 'react';
 import { cn, pipelineStyles } from '@/lib/theme';
+import type { OpsTargetTab } from '@/lib/routes';
 import { useNavCountsRefresh } from '@/app/admin/pipelines/_components/NavCountsRefresh';
 import { getDashboardSummary } from '@/app/lib/api/task-queue';
 import type { AlertTargetKind, DashboardSummary } from '@/lib/types/task-queue';
@@ -41,6 +42,8 @@ interface AlertBucketMeta {
   /** Who has to act, and on what — the worklist header's subtitle. */
   description: string;
   icon: AlertStageIcon;
+  /** The ops-screen tab that answers this bucket's need — rows deep-link to it. */
+  tab: OpsTargetTab;
   count: (counts: AlertCounts) => number;
 }
 
@@ -54,6 +57,7 @@ const ALERT_BUCKETS: readonly AlertBucketMeta[] = [
     description:
       '설치 완료 후 리소스 반영 상태를 확인해야 하는 Target Source입니다. 담당자의 확정 완료 확인이 필요합니다.',
     icon: 'clipboard-check',
+    tab: 'confirm',
     count: (s) => s.confirmingCount,
   },
   {
@@ -62,6 +66,7 @@ const ALERT_BUCKETS: readonly AlertBucketMeta[] = [
     need: 'Agent 설치 수행',
     description: 'Agent 설치가 대기 중인 Target Source입니다. 인프라 담당자가 설치를 수행해야 합니다.',
     icon: 'terraform',
+    tab: 'infra',
     count: (s) => s.needInstallCount,
   },
   {
@@ -71,6 +76,7 @@ const ALERT_BUCKETS: readonly AlertBucketMeta[] = [
     description:
       '설치된 Agent의 연결 상태를 검증해야 하는 Target Source입니다. 테스트 실행 후 결과를 확인하세요.',
     icon: 'link',
+    tab: 'tc',
     count: (s) => s.needTestConnectionCount,
   },
   {
@@ -80,6 +86,7 @@ const ALERT_BUCKETS: readonly AlertBucketMeta[] = [
     description:
       '모든 단계를 완료하고 최종 승인을 대기 중인 Target Source입니다. 관리자 확인 후 완료 처리하세요.',
     icon: 'shield-check',
+    tab: 'approval',
     count: (s) => s.needPiiAgentConfirmCount,
   },
 ];
@@ -197,6 +204,7 @@ export function AlertsView(): ReactElement {
             label={selectedBucket.label}
             description={selectedBucket.description}
             icon={selectedBucket.icon}
+            tab={selectedBucket.tab}
             count={selectedBucket.count(counts) ?? 0}
             reloadKey={reloadKey}
             onRefresh={reload}

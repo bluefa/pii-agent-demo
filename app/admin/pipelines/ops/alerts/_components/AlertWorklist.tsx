@@ -17,7 +17,7 @@
 import { useEffect, useState, type ReactElement } from 'react';
 import { useRouter } from 'next/navigation';
 import { cn, pipelineStyles } from '@/lib/theme';
-import { passRoutes } from '@/lib/routes';
+import { passRoutes, type OpsTargetTab } from '@/lib/routes';
 import { getAlertTargetSources } from '@/app/lib/api/task-queue';
 import type { AlertTargetKind, AlertListRow } from '@/lib/types/task-queue';
 import { Icon, type IconName } from '@/app/admin/pipelines/_components/icons';
@@ -56,6 +56,8 @@ export interface AlertWorklistProps {
   label: string;
   description: string;
   icon: AlertStageIcon;
+  /** Ops-screen tab a row opens — the one that answers this bucket's need. */
+  tab: OpsTargetTab;
   /** The bucket's summary count — sizes the loading skeleton to the real
    *  footprint so the card doesn't collapse when the rows arrive. */
   count: number;
@@ -70,6 +72,7 @@ export function AlertWorklist({
   label,
   description,
   icon,
+  tab,
   count,
   reloadKey,
   onRefresh,
@@ -167,7 +170,7 @@ export function AlertWorklist({
               <DashRow
                 key={row.targetSourceId}
                 onActivate={() =>
-                  router.push(passRoutes.pipelines.ops.targetSource(String(row.targetSourceId)))
+                  router.push(passRoutes.pipelines.ops.targetSource(String(row.targetSourceId), tab))
                 }
               >
                 <td className={d.cell}>

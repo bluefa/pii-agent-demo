@@ -64,6 +64,8 @@
 - 스켈레톤 행수 = min(버킷 건수, 10) — 타일이 이미 아는 값으로 도착 시 시프트 방지.
 - need 캡션 `--pl-text-faint` → `--pl-text-weak` (faint는 밝은 바닥 금지 판례).
 - 버킷 전환은 `key={kind}` 리마운트 — 페이지 인덱스가 목록보다 오래 살지 않게.
+- 행 이동은 버킷이 답하는 탭으로 딥링크 — confirming→`?tab=confirm`(확정 정보),
+  need-install→`infra`, need-test-connection→`tc`, need-pii-agent-confirm→`approval`.
 - 목: `getAlertTargetSources`에 `description` 추가 (계약 필드, 미등재 id는 undefined 유지).
 - 지연 필드는 아래 제안대로 mock-first 선반영 — 표에 `DelayText` 열이 이미 렌더되고,
   계약 랜딩 시 웹 코드 변경 없이 실값이 흐른다.

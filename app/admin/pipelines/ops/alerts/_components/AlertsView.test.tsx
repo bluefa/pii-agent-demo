@@ -95,7 +95,8 @@ describe('AlertsView — 타일이 곧 필터', () => {
     expect(screen.getByText('3일')).toBeDefined();
 
     fireEvent.click(screen.getByText('정산서비스').closest('tr') as HTMLElement);
-    expect(push).toHaveBeenCalledWith(passRoutes.pipelines.ops.targetSource('1861'));
+    // The bucket's tab rides along — need-install rows open 인프라 작업.
+    expect(push).toHaveBeenCalledWith(passRoutes.pipelines.ops.targetSource('1861', 'infra'));
   });
 
   it('다른 타일을 누르면 그 버킷으로 목록이 갈아끼워진다', async () => {
