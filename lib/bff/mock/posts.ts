@@ -266,11 +266,31 @@ const applyBodyImages = (
   }
 
   // The stored body never contains `cid:` — it leaves here as the real URL.
+  // The key rule is the shared constant; the regex covers the serialization
+  // the FE actually emits (tiptap getHTML, double-quoted attributes).
+  const cidSrc = new RegExp(
+    `src="cid:(${POST_IMAGE_KEY_PATTERN.source.replace(/^\^|\$$/g, '')})"`,
+    'g',
+  );
   const rewrite = (html: string): string =>
-    html.replace(
-      /src="cid:([a-z0-9]{8,32})"/g,
-      (_match, key: string) => `src="${urlByKey.get(key)}"`,
-    );
+    html.replace(cidSrc, (_match, key: string) => `src="${urlByKey.get(key)}"`);
+
+  const stored = { ko: rewrite(contents.ko), en: rewrite(contents.en) };
+
+  // Checks ran on the AST, the rewrite on the raw string — a serialization
+  // the regex does not cover (a single-quoted src, say) passes every check
+  // yet keeps its cid:. Re-validate the stored body under STORAGE rules
+  // (cid: is not an allowed prefix) so a miss dies loudly here instead of
+  // persisting a broken image, and take the files this save wrote back out —
+  // a failure response must leave nothing behind (§3.3).
+  const storedCheck = validatePostContent({
+    contents: stored,
+    imageSrcPrefixes: POST_IMAGE_SRC_PREFIXES,
+  });
+  if (!storedCheck.valid) {
+    for (const ref of added) images.delete(ref.url.split('/').pop()!);
+    throw new BffError(500, 'INTERNAL_ERROR', '치환된 본문이 저장 규칙을 통과하지 못했습니다');
+  }
 
   // An owned file the new body no longer references dies with this save.
   const kept = owned.filter((ref) => srcs.has(ref.url));
@@ -278,10 +298,7 @@ const applyBodyImages = (
     if (!srcs.has(ref.url)) images.delete(ref.url.split('/').pop()!);
   }
 
-  return {
-    contents: { ko: rewrite(contents.ko), en: rewrite(contents.en) },
-    images: [...kept, ...added],
-  };
+  return { contents: stored, images: [...kept, ...added] };
 };
 
 const assertCategoryUsable = (categoryId: number | null | undefined, type: PostType): void => {

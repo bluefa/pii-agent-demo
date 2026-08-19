@@ -343,6 +343,25 @@ describe('body images — the save request settles everything (handoff §3.3)', 
     expect(error.code).toBe('POST_IMAGE_UNREFERENCED');
   });
 
+  it('refuses to store a body the rewrite missed — checks read the AST, the rewrite reads the string', async () => {
+    const posts = await freshStore();
+    const before = await posts.getAdmin(1);
+
+    // DOMParser reads a single-quoted src the same as a double-quoted one, so
+    // every check passes; the rewrite regex covers only the FE's double-quoted
+    // serialization. Storing would keep cid: in the body — die loudly instead.
+    const error = asBffError(
+      await posts
+        .update(1, {
+          titles: before.titles,
+          contents: { ko: "<p><img src='cid:imgkey01' alt=\"i\" /></p>", en: before.contents.en },
+        }, [part('imgkey01')])
+        .catch((cause: unknown) => cause),
+    );
+    expect(error.status).toBe(500);
+    expect(error.code).toBe('INTERNAL_ERROR');
+  });
+
   it('caps a post at 10MB even when every file is under the 5MB per-file cap', async () => {
     const posts = await freshStore();
     const before = await posts.getAdmin(1);
