@@ -1489,6 +1489,20 @@ mockProjects.push(
   }),
 );
 
+// ===== 최초 연동 시각 =====
+// 연동을 마친 적 있는 대상에만 찍는다. 여기서 한 번 세워 두면 그 뒤로는 아무도 안
+// 건드린다 — 초기화(mockConfirm.resetTargetSource)는 processStatus·status·resources 만
+// 갈아끼우므로 이 값은 1단계로 되돌아간 대상에도 그대로 남는다. 도장이 검증하는 것이
+// 정확히 그 성질이다: 지금 몇 단계인지와 무관한, 한 번만 일어나는 사실.
+//
+// 값은 그 대상의 마지막 갱신 시각으로 둔다 — 대상마다 다른 그럴듯한 날짜가 나오고,
+// 상태 변경 이력의 '현재 상태가 된 시각'과는 일부러 다른 축이다(두 값이 다른 것이 정상).
+for (const project of mockProjects) {
+  if (project.processStatus === ProcessStatus.INSTALLATION_COMPLETE) {
+    project.piiAgentFirstInstalledAt = project.updatedAt ?? project.createdAt;
+  }
+}
+
 // ===== Helper Functions =====
 
 export const getProjectsByServiceCode = (serviceCode: string): Project[] => {

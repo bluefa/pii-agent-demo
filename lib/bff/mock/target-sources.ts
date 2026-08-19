@@ -163,6 +163,11 @@ const toBffTargetSourceDetail = (project: Project) => ({
   process_status: toBffApprovalProcessStatus(project.processStatus),
   cloud_provider: toBffCloudProvider(project.cloudProvider),
   created_at: project.createdAt,
+  // 계약이 이 DTO 에 선언한 필드(snake). 시드가 안 주면 키를 안 싣는다 — null 로
+  // 채우면 "한 번도 연동을 마친 적 없다"를 목이 단정하게 된다.
+  ...(project.piiAgentFirstInstalledAt
+    ? { pii_agent_first_installed_at: project.piiAgentFirstInstalledAt }
+    : {}),
   // 이 응답 스키마에는 아직 없지만 BFF 가 싣는 필드 — 철자는 계약이 형제 응답에
   // 선언한 `supportRawData` 다. 근거가 있는 대상에만 싣던 것을 전 대상으로 바꾼 이유:
   // 값을 끄는 쓰기 API 가 생겼고, 방금 끈 대상이 키 없이 돌아오면 화면은 "미포함" 이

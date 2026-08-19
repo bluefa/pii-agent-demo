@@ -75,6 +75,8 @@ const target = (
   is_sdu_type: false,
   description: `설명 ${id}`,
   support_raw_data: false,
+  // 기본은 "기록 없음" — 도장은 이 값을 받은 대상에만 찍힌다.
+  pii_agent_first_installed_at: null,
   last_changed_at: '2026-08-01T00:00:00Z',
   metadata: meta({ aws_account_id: `00000000000${id % 10}` }),
   ...over,

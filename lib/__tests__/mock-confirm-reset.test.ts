@@ -52,6 +52,7 @@ const completedProject = (): Project => ({
   isRejected: false,
   piiAgentInstalled: true,
   completionConfirmedAt: '2026-01-03T00:00:00Z',
+  piiAgentFirstInstalledAt: '2026-01-02T09:00:00Z',
 });
 
 const findProject = () => getStore().projects.find((p) => p.id === PROJECT_ID);
@@ -87,6 +88,18 @@ describe('mockConfirm.resetTargetSource', () => {
     expect(project?.completionConfirmedAt).toBeUndefined();
     // 선택과 제외는 이번 연동에서 내린 판단이다 — 초기화가 되돌리는 대상.
     expect(project?.resources.every((r) => !r.isSelected)).toBe(true);
+  });
+
+  /**
+   * 최초 연동 시각은 **이번** 연동의 산물이 아니라 이 대상에 한 번 일어난 일이다.
+   * 초기화가 이 값을 같이 지우면 도장은 현재 단계를 따라다니는 표식이 되고, 그러면
+   * 단계 알약과 같은 말을 두 번 하게 된다 — 도장이 존재할 이유가 사라진다.
+   */
+  it('keeps the first-integration instant — reset rewinds the process, not the history', async () => {
+    await mockConfirm.resetTargetSource(String(TARGET_SOURCE_ID), { reason: 'x' });
+    const project = findProject();
+    expect(project?.processStatus).toBe(ProcessStatus.WAITING_TARGET_CONFIRMATION);
+    expect(project?.piiAgentFirstInstalledAt).toBe('2026-01-02T09:00:00Z');
   });
 
   // 스캔 결과는 승인 상태가 아니라 인프라의 사실이고, 1단계가 고를 목록이 바로 그것이다.

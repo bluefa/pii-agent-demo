@@ -40,9 +40,6 @@ vi.mock('@/app/lib/api/aws', () => ({ getAwsRoleVerification: vi.fn(async () => 
 vi.mock('@/app/lib/api/ops', () => ({
   getCollaborationChannel: vi.fn(async () => null),
   getTargetJiraTicket: vi.fn(async () => null),
-  // 헤더의 연동 완료 도장 — 이 파일의 관심사가 아니라 완료 아님으로 못 박는다.
-  NOT_COMPLETED: { completed: false, completedAt: null },
-  getIntegrationCompletion: vi.fn(async () => ({ completed: false, completedAt: null })),
 }));
 vi.mock('@/app/lib/api/task-queue-tc', () => ({
   getTestConnectionDetail: vi.fn(async () => null),

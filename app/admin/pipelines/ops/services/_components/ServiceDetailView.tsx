@@ -576,19 +576,19 @@ export function ServiceDetailView({ serviceCode }: ServiceDetailViewProps): Reac
                   </div>
                 </div>
 
-                {/* 연동이 끝난 대상에만 찍힌다 — 이 목록에서 유일하게 큰 글자다.
-                    단계를 그리는 것이 아니다(이 화면은 단계를 보여주지 않는다는 오너
-                    결정은 그대로다): 도장은 7단계 중 마지막 하나가 지나갔다는 사실과
-                    그 시각만 말하고, 나머지 여섯 단계에 대해서는 아무 말도 하지 않는다.
-                    자리는 미리 잡는다 — 도장이 늦게 도착해도 위 두 줄의 폭이 흔들리면
-                    잘리는 값(Azure GUID 두 개)이 바뀐다.
+                {/* 최초로 연동을 마친 적 있는 대상에만 찍힌다 — 이 목록에서 유일하게
+                    큰 글자다. 단계를 그리는 것이 아니다(이 화면은 단계를 보여주지 않는다는
+                    오너 결정은 그대로다): 이 값은 초기화로 1단계까지 되돌아가도 움직이지
+                    않으므로 지금 몇 단계인지에 대해서는 아무 말도 하지 않는다.
+                    자리는 미리 잡는다 — 도장이 없는 행에서도 위 두 줄의 폭이 같아야
+                    잘리는 값(Azure GUID 두 개)이 행마다 달라지지 않는다.
 
                     가로 예산을 174px(슬롯 160 + gap 14) 쓴다. 913px 카드에서 2층의
                     여유가 694 → 520px 이 되므로, Azure 처럼 36자 GUID 를 둘 싣는 행은
                     더 짧게 잘린다(전문은 `title`). 잘림은 이 카드가 이미 택한 거래이고
                     (높이 고정 = 넘치면 자름), 도장은 그 거래의 대가를 알고 들어온다. */}
                 <CompletedStampSlot
-                  targetSourceId={target.target_source_id}
+                  firstInstalledAt={target.pii_agent_first_installed_at}
                   reserve
                   className="self-center"
                 />

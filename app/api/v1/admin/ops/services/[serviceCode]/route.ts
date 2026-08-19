@@ -107,6 +107,9 @@ export const GET = withV1(async (_request, { params }) => {
       // lands here. Folded to two states on purpose — this row feeds a tag, and a tag
       // has no shape for "모른다" (see readSupportRawData).
       support_raw_data: readSupportRawData(row) === true,
+      // 최초 연동 시각. 단계와 달리 이 값은 `TargetSourceInfo` 가 직접 선언하므로 이
+      // 응답 하나로 끝난다 — 도장을 그리자고 `/process-statuses` 를 다시 부르지 않는다.
+      pii_agent_first_installed_at: row.piiAgentFirstInstalledAt ?? null,
       last_changed_at: row.updatedAt ?? row.createdAt ?? '',
       metadata: toAccount(row.metadata),
     }))

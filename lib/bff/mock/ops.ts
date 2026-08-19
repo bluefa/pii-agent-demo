@@ -67,21 +67,6 @@ const seedHistory = (processStatus: ProcessStatus): OpsStatusHistoryItemWire[] =
   return rows.reverse();
 };
 
-/**
- * 카탈로그 대상의 "현재 단계 + 그 단계가 된 시각".
- *
- * `/process-statuses` 목(lib/bff/mock/task-queue.ts)이 모니터 픽스처 밖 대상에 답할 때
- * 쓴다. 거기서 따로 만들지 않고 여기서 내보내는 이유는 한 목소리 때문이다 — 같은
- * 대상의 상태 변경 이력(`seedHistory`)과 값이 갈라지면, 이력은 "07-23 에 완료"라고
- * 말하는데 헤더의 연동 완료 도장은 다른 날짜를 찍는다.
- */
-export const seedCurrentStatus = (
-  processStatus: ProcessStatus,
-): { status: OpsStatusHistoryItemWire['to_status']; changedAt: string } => {
-  const index = wireStatusIndex(processStatus);
-  return { status: STATUS_ORDER[index], changedAt: SEED_TIMES[index] };
-};
-
 const getState = (targetSourceId: number, processStatus: ProcessStatus): OpsTargetState => {
   const store = (globalStore.__opsConsoleMockStore ??= new Map());
   let state = store.get(targetSourceId);

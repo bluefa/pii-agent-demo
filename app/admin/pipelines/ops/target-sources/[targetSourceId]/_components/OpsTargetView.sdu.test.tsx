@@ -38,9 +38,6 @@ vi.mock('@/app/lib/api/aws', () => ({
 }));
 vi.mock('@/app/lib/api/ops', () => ({
   getTargetJiraTicket: () => getTargetJiraTicket(),
-  // 헤더의 연동 완료 도장 — SDU 는 헤더 자체를 안 그리므로 여기서는 불리지 않는다.
-  NOT_COMPLETED: { completed: false, completedAt: null },
-  getIntegrationCompletion: vi.fn(async () => ({ completed: false, completedAt: null })),
 }));
 vi.mock('@/app/lib/api/task-queue-tc', () => ({
   getTestConnectionDetail: () => getTestConnectionDetail(),

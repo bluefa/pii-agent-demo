@@ -56,3 +56,34 @@ describe('GET …/admin/ops/services/[serviceCode] — support_raw_data 접기',
     expect(byId.get(1015)).toBe(false);
   });
 });
+
+/**
+ * 최초 연동 시각은 camel 로 와서 snake 로 나간다 — 이 라우트가 유일한 홉이고, 여기서
+ * 이름이 어긋나면 도장은 조용히 한 번도 안 찍힌다(에러도 빈 목록도 없이 그냥 없다).
+ */
+describe('GET …/admin/ops/services/[serviceCode] — 최초 연동 시각', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockedPage.mockResolvedValue({
+      content: [
+        row(1018, { piiAgentFirstInstalledAt: '2024-02-02T15:00:00Z' }),
+        row(1011, {}),
+      ],
+      totalPages: 1,
+      totalElements: 2,
+    } as never);
+  });
+
+  it('camel 원문을 그대로 실어 보낸다', async () => {
+    const detail = (await (await call()).json()) as {
+      target_sources: { target_source_id: number; pii_agent_first_installed_at: string | null }[];
+    };
+    const byId = new Map(
+      detail.target_sources.map((t) => [t.target_source_id, t.pii_agent_first_installed_at]),
+    );
+
+    expect(byId.get(1018)).toBe('2024-02-02T15:00:00Z');
+    // 기록이 없는 대상은 null — 도장은 이 값 하나로 갈린다.
+    expect(byId.get(1011)).toBeNull();
+  });
+});

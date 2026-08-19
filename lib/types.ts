@@ -516,6 +516,12 @@ export type Project = BaseTargetSource & {
   isSduType?: boolean;
   /** 시드 전용 — 목이 `supportRawData` 로 실어 보낸다 (readSupportRawData 참조). */
   supportRawData?: boolean;
+  /**
+   * 시드 전용 — 목이 `piiAgentFirstInstalledAt` 으로 실어 보낸다. **최초로** 연동을
+   * 마친 시각이고, 현재 단계와 무관하다: 초기화된 대상은 1단계로 돌아가 있어도 이
+   * 값을 그대로 갖는다. 없으면 아직 한 번도 마친 적 없는 대상이다.
+   */
+  piiAgentFirstInstalledAt?: string;
   tenantId?: string;
   subscriptionId?: string;
   gcpProjectId?: string;
