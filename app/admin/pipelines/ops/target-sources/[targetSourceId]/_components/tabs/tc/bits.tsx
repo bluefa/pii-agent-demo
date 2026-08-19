@@ -1,8 +1,8 @@
 /**
  * Test Connection 탭 공용 bits — tone palette + the atoms every TC card needs.
  * Tones are the design HTML's `.pill.ok/.warn/.err/.off` pairs resolved through
- * --pl-* tokens; `TcPill` is the dotted pill, the same pairs serve the flat tag
- * (`opsStyles.statusTag`) used by the 이력 table.
+ * --pl-* tokens; `TcPill` is a FLAT tag (면 + 글자, 점 없음 — 오너 지시 2026-08-19,
+ * TcStatusTag 문법), the same pairs serve `opsStyles.statusTag` in the 이력 table.
  */
 import type { ReactElement } from 'react';
 import { cn, pipelineStyles } from '@/lib/theme';
@@ -17,21 +17,9 @@ export const TC_TONE_FILL: Record<TcTone, string> = {
   off: 'bg-[var(--pl-off-bg)] text-[var(--pl-text-weak)]',
 };
 
-const TC_TONE_DOT: Record<TcTone, string> = {
-  ok: 'bg-[var(--pl-ok)]',
-  warn: 'bg-[var(--pl-warn)]',
-  err: 'bg-[var(--pl-err)]',
-  off: 'bg-[var(--pl-off)]',
-};
-
 export function TcPill({ tone, label }: { tone: TcTone; label: string }): ReactElement {
   const { pill } = pipelineStyles;
-  return (
-    <span className={cn(pill.base, pill.md, TC_TONE_FILL[tone])}>
-      <span aria-hidden className={cn('h-1.5 w-1.5 rounded-full', TC_TONE_DOT[tone])} />
-      {label}
-    </span>
-  );
+  return <span className={cn(pill.base, pill.md, 'whitespace-nowrap', TC_TONE_FILL[tone])}>{label}</span>;
 }
 
 /** Absent value — never rendered as 0 or an assumed success. */
@@ -61,14 +49,6 @@ export function resourceIdTail(value: string): string {
   return segments.length > 1 ? segments[segments.length - 1] : value;
 }
 
-/**
- * pod 이름은 job 접두사(tc-…)를 공유해 뒤쪽 난수 조각만이 줄과 줄을 가른다 —
- * resourceIdTail 과 같은 이유로 꼬리를 남긴다. CSS truncate 는 오른쪽을 자르므로
- * 문자열 단계에서 왼쪽을 줄여야 꼬리가 산다. 전체 값은 hover title 로.
- */
-export function podIdTail(value: string, max = 18): string {
-  return value.length <= max ? value : `…${value.slice(1 - max)}`;
-}
 
 /** Mono resource id cell — abbreviated, full value in the native tooltip. */
 export function ResourceId({ value }: { value: string }): ReactElement {

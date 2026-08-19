@@ -6,10 +6,12 @@
  * Rows come from the confirmed snapshot (GET …/confirmed-integration, snake
  * passthrough per ADR-019). Two joins by `resource_id` fill the trailing columns,
  * each from the endpoint whose contract actually declares it —
- *   Connection Status  latest_version.test_connection_agent_results[] (verdicts)
- *   논리 DB 건수        latest-results (logical_database_count / excluded_…)
+ *   연결 상태 · 실패 사유 · Pod 로그  latest_version.test_connection_agent_results[]
+ *                                   (tcFactsByResource — 판정 + fail_reason + pod_id)
+ *   논리 DB 건수                     latest-results (logical_database_count / excluded_…)
  * A resource neither reports on renders — for those columns; nothing is inferred
- * from the snapshot alone (an installed resource is not a tested one).
+ * from the snapshot alone (an installed resource is not a tested one). 무보고(—)는
+ * 대기(PENDING, agent 가 보고한 사실)와 다른 사실이라 서로 다른 픽셀을 받는다.
  *
  * Per-row controls: Credential 배정 (searchable combobox over GET …/secrets — the
  * contract's credential list, whose card sits at the top of the tab) and
@@ -49,12 +51,15 @@ import {
   TC_TONE_FILL,
 } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/bits';
 import { LdbManageModal } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/LdbManageModal';
+import { TcPodLogModal } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/TcPodLogModal';
+import { failReasonView } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/failReason';
 import { TcCredentialModal } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/TcCredentialModal';
 import { CredentialAssignModal } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/CredentialAssignModal';
 import {
   credentialEntries,
   filterConfirmedRows,
   ldbCount,
+  type TcResourceFact,
   type TcVerdict,
 } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/logic';
 
@@ -95,7 +100,70 @@ function ConnCell({ verdict }: { verdict: TcVerdict | undefined }): ReactElement
   if (verdict === 'SUCCESS') return <TcPill tone="ok" label="성공" />;
   if (verdict === 'FAIL') return <TcPill tone="err" label="실패" />;
   if (verdict === 'RUNNING') return <TcPill tone="warn" label="진행 중" />;
-  return <TcPill tone="off" label="알 수 없음" />;
+  if (verdict === 'PENDING') return <TcPill tone="off" label="대기" />;
+  return <TcPill tone="off" label="미확인" />;
+}
+
+/**
+ * 실패 사유 cell — 한국어 라벨 + 원문 enum 2단. Admin 은 원문이 검색·전달용 디버깅
+ * 어휘라 hover 에 숨기지 않고 지면에 둔다. 12종 허용목록 밖의 값은 원문만 중립으로.
+ * 사유는 판정이 아니라 사실이므로 적색을 다시 칠하지 않는다 — 판정은 옆 pill 의 몫.
+ */
+function ReasonCell({ fact }: { fact: TcResourceFact | undefined }): ReactElement {
+  const view = failReasonView(fact?.failReason);
+  if (!view) return <Dash />;
+  if (!view.label) {
+    return (
+      <span className={cn(pipelineStyles.text.mono, 'whitespace-nowrap text-[14px] text-[var(--pl-text-medium)]')}>
+        {view.raw}
+      </span>
+    );
+  }
+  return (
+    <span className="flex flex-col" title={view.desc ?? undefined}>
+      <span className="whitespace-nowrap text-[14px] text-[var(--pl-text-medium)]">{view.label}</span>
+      <span className={cn(pipelineStyles.text.mono, 'whitespace-nowrap text-[12px] text-[var(--pl-text-faint)]')}>
+        {view.raw}
+      </span>
+    </span>
+  );
+}
+
+/**
+ * Pod 로그 cell — pod_id 는 열이 아니라 이 액션의 열쇠다(로그의 입장권). 판정이 나고
+ * pod 가 있으면 로그 조회(countLink 규칙 — 밑줄이 affordance, 색은 중립, hover title 에
+ * pod 이름), 진행 중이면 완료 시점 캡처 전이라 "수집 중 …", 그 외(대기·무보고·pod 없는
+ * 실패 = POD_CREATION_FAILED)는 —.
+ */
+function PodLogCell({
+  fact,
+  onOpen,
+}: {
+  fact: TcResourceFact | undefined;
+  onOpen: () => void;
+}): ReactElement {
+  if (!fact) return <Dash />;
+  if (fact.verdict === 'RUNNING') {
+    return fact.podId ? (
+      <span className="whitespace-nowrap text-[12px] text-[var(--pl-text-faint)]" title={fact.podId}>
+        수집 중 …
+      </span>
+    ) : (
+      <Dash />
+    );
+  }
+  if (fact.verdict === 'PENDING' || !fact.podId) return <Dash />;
+  return (
+    <button
+      type="button"
+      onClick={onOpen}
+      title={fact.podId}
+      aria-label={`Pod 로그 조회 — ${fact.podId}`}
+      className={cn(opsStyles.countLink, 'whitespace-nowrap')}
+    >
+      로그 조회
+    </button>
+  );
 }
 
 /**
@@ -210,8 +278,8 @@ export interface ConfirmedInfoCardProps {
   secrets: readonly SecretKey[];
   /** 논리 DB 건수 rows (latest-results), joined by resource_id. */
   tcResults: readonly TcResultRow[];
-  /** 리소스별 연결 판정 (latest_version), joined by resource_id. */
-  verdicts: ReadonlyMap<string, TcVerdict>;
+  /** 리소스별 연결 사실 — 판정·사유·pod (latest_version), joined by resource_id. */
+  facts: ReadonlyMap<string, TcResourceFact>;
   /** First tab load still in flight. */
   loading: boolean;
   /** Real snapshot fetch failure — a 404 "not confirmed yet" is not one. */
@@ -227,7 +295,7 @@ export function ConfirmedInfoCard({
   rows,
   secrets,
   tcResults,
-  verdicts,
+  facts,
   loading,
   failed,
   secretsFailed,
@@ -237,6 +305,8 @@ export function ConfirmedInfoCard({
   const [savingId, setSavingId] = useState<string | null>(null);
   const [ldbRow, setLdbRow] = useState<ConfirmedIntegrationResourceItem | null>(null);
   const [credRow, setCredRow] = useState<ConfirmedIntegrationResourceItem | null>(null);
+  /** 로그 뷰어 대상 — pod 와 그 pod 가 검사한 리소스의 라벨. */
+  const [podTarget, setPodTarget] = useState<{ podId: string; resourceLabel: string } | null>(null);
   const [credentialsOpen, setCredentialsOpen] = useState(false);
   // Search · filter · page — the same three the Step 6·7 confirmed table carries. Confirmed
   // resources run to dozens, and laying them all out at once made whoever came here to assign
@@ -400,8 +470,9 @@ export function ConfirmedInfoCard({
           <div className={TABLE_FRAME}>
             <table className={table.base}>
               {/* The column order of steps 2·3·6·7: identity (name → id) → attributes
-                  (type · region) → verdict. The two admin-only columns (연결 상태 ·
-                  Credential) trail behind them. */}
+                  (type · region) → verdict. 판정 무리(연결 상태 · 실패 사유 · Pod 로그)가
+                  한 덩어리로 서고, 그 결과로 알게 된 규모(논리 DB)와 Credential 이 뒤를
+                  따른다 (design: 최신 TC 결과 설계 프레임 ①). */}
               <thead className="bg-[var(--pl-gray-50)]">
                 <tr>
                   {isIdc ? (
@@ -414,9 +485,11 @@ export function ConfirmedInfoCard({
                   )}
                   <th className={HEAD_CELL}>Database Type</th>
                   {!isIdc && <th className={HEAD_CELL}>Region</th>}
+                  <th className={HEAD_CELL}>연결 상태</th>
+                  <th className={HEAD_CELL}>실패 사유</th>
+                  <th className={HEAD_CELL}>Pod 로그</th>
                   <th className={HEAD_CELL}>연동 대상 논리 DB</th>
                   <th className={HEAD_CELL}>연동 제외 논리 DB</th>
-                  <th className={HEAD_CELL}>연결 상태</th>
                   <th className={HEAD_CELL}>Credential</th>
                 </tr>
               </thead>
@@ -424,7 +497,7 @@ export function ConfirmedInfoCard({
                 {pageRows.length === 0 && (
                   <tr>
                     <td
-                      colSpan={isIdc ? 6 : 8}
+                      colSpan={isIdc ? 8 : 10}
                       className={cn(CELL, 'py-10 text-center text-[var(--pl-text-weak)]')}
                     >
                       {FILTER_EMPTY_MESSAGE}
@@ -433,7 +506,8 @@ export function ConfirmedInfoCard({
                 )}
                 {pageRows.map((row, index) => {
                   const tc = tcByResourceId.get(row.resource_id);
-                  const verdict = verdicts.get(row.resource_id);
+                  const fact = facts.get(row.resource_id);
+                  const verdict = fact?.verdict;
                   return (
                     <tr key={`${row.resource_id}-${index}`} className={table.rowHover}>
                       {isIdc ? (
@@ -476,13 +550,25 @@ export function ConfirmedInfoCard({
                         </td>
                       )}
                       <td className={CELL}>
+                        <ConnCell verdict={verdict} />
+                      </td>
+                      <td className={CELL}>
+                        <ReasonCell fact={fact} />
+                      </td>
+                      <td className={CELL}>
+                        <PodLogCell
+                          fact={fact}
+                          onOpen={() =>
+                            fact?.podId
+                            && setPodTarget({ podId: fact.podId, resourceLabel: rowLabel(row) })
+                          }
+                        />
+                      </td>
+                      <td className={CELL}>
                         <CountCell row={tc} tab="inc" verdict={verdict} onOpen={() => setLdbRow(row)} />
                       </td>
                       <td className={CELL}>
                         <CountCell row={tc} tab="exc" verdict={verdict} onOpen={() => setLdbRow(row)} />
-                      </td>
-                      <td className={CELL}>
-                        <ConnCell verdict={verdict} />
                       </td>
                       <td className={CELL}>
                         {/* Credential is addressed by resource id — no id, no assignment. */}
@@ -539,10 +625,11 @@ export function ConfirmedInfoCard({
             <OpsPagination page={safePage} totalPages={totalPages} onChange={setPage} />
           </div>
           <p className={cn(pipelineStyles.text.meta, 'mt-3.5')}>
-            연결 상태는 최근 연결 테스트가 리소스별로 보고한 판정이고, 논리 DB 건수는 그중
-            성공한 리소스에만 표기합니다. 실행 결과가 없거나 성공하지 않은 리소스는 —(값 없음)으로
-            두며, 임의로 성공 처리하지 않습니다. 논리 DB 건수를 누르면 대상·제외 정책을 관리할 수
-            있습니다.
+            연결 상태·실패 사유·Pod 로그는 최근 연결 테스트가 리소스별로 보고한 사실이고, 논리 DB
+            건수는 그중 성공한 리소스에만 표기합니다. 보고가 없는 리소스는 —(값 없음)으로 두며,
+            임의로 성공 처리하지 않습니다. Pod 로그는 실행 완료 시점의 캡처본이고, 테스트 Pod 생성
+            실패(POD_CREATION_FAILED)는 pod 가 뜨지 못해 로그가 없습니다. 논리 DB 건수를 누르면
+            대상·제외 정책을 관리할 수 있습니다.
           </p>
         </>
       )}
@@ -565,6 +652,15 @@ export function ConfirmedInfoCard({
           rows={rows}
           failed={secretsFailed}
           onClose={() => setCredentialsOpen(false)}
+        />
+      )}
+
+      {podTarget && (
+        <TcPodLogModal
+          targetSourceId={targetSourceId}
+          podId={podTarget.podId}
+          resourceLabel={podTarget.resourceLabel}
+          onClose={() => setPodTarget(null)}
         />
       )}
 

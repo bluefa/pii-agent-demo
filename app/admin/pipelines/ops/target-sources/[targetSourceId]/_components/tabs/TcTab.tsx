@@ -43,7 +43,6 @@ import {
 import { getApprovalRequestLatest } from '@/app/lib/api/task-queue-requests';
 import type { TestConnectionStatusRow } from '@/lib/types/task-queue';
 import { usePlToast } from '@/app/admin/pipelines/_components/usePlToast';
-import { opsStyles } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/opsStyles';
 import { TcLatestRunCard } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/TcLatestRunCard';
 import {
   TcRunHistoryCard,
@@ -54,8 +53,8 @@ import { TcHistoryModal } from '@/app/admin/pipelines/ops/target-sources/[target
 import {
   isRunOpen,
   orderByRequest,
+  tcFactsByResource,
   tcResultStats,
-  verdictByResource,
 } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/logic';
 
 /** Same cadence as the user-side Step 5 poll (useTestConnectionPolling). */
@@ -238,30 +237,21 @@ export function TcTab({
 
   return (
     <>
-      {/* 실행(좌) ↔ 그 실행의 이력(우) — 같은 대상을 현재/과거로 읽는 한 쌍. */}
-      <div className={opsStyles.cardsRow}>
-        <TcLatestRunCard
-          latest={latest}
-          status={statusLoaded ? status : null}
-          stats={tcResultStats(results, latest)}
-          confirmedResourceCount={orderedRows.length}
-          loading={!statusLoaded}
-          failed={latestFailed}
-          running={running}
-          triggering={triggering}
-          triggerFailed={triggerFailed}
-          onRunTest={() => void runTest()}
-        />
-        <TcRunHistoryCard
-          rows={runRows}
-          page={runPage}
-          totalPages={runTotalPages}
-          loading={runsLoading}
-          failed={runsFailed}
-          onPage={(next) => void loadRuns(next)}
-          onOpenDecisionHistory={() => setHistoryOpen(true)}
-        />
-      </div>
+      {/* 집계는 밴드로, 사실은 표로 — 종합 상태 밴드가 확정 정보 표 바로 위에 서고,
+          리소스별 사실(연결 상태·실패 사유·Pod 로그)은 전부 표의 열이다. 실행 기록은
+          과거 조회라 표 뒤로 내려간다. */}
+      <TcLatestRunCard
+        latest={latest}
+        status={statusLoaded ? status : null}
+        stats={tcResultStats(results, latest)}
+        confirmedResourceCount={orderedRows.length}
+        loading={!statusLoaded}
+        failed={latestFailed}
+        running={running}
+        triggering={triggering}
+        triggerFailed={triggerFailed}
+        onRunTest={() => void runTest()}
+      />
 
       <ConfirmedInfoCard
         targetSourceId={targetSourceId}
@@ -269,11 +259,21 @@ export function TcTab({
         rows={orderedRows}
         secrets={secrets}
         tcResults={statusLoaded ? results : []}
-        verdicts={verdictByResource(statusLoaded ? latest : null)}
+        facts={tcFactsByResource(statusLoaded ? latest : null)}
         loading={!settled}
         failed={confirmedFailed}
         secretsFailed={secretsFailed}
         onReload={reload}
+      />
+
+      <TcRunHistoryCard
+        rows={runRows}
+        page={runPage}
+        totalPages={runTotalPages}
+        loading={runsLoading}
+        failed={runsFailed}
+        onPage={(next) => void loadRuns(next)}
+        onOpenDecisionHistory={() => setHistoryOpen(true)}
       />
 
       {historyOpen && (

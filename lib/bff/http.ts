@@ -675,6 +675,12 @@ export const httpBff: BffClient = {
         `/target-sources/${id}/test-connection/latest_version`,
       ),
 
+    // DRAFT CONTRACT — swagger 미랜딩: 경로는 예고안이고 응답은 원문 그대로 통과한다.
+    getTestConnectionPodLog: (id, podId) =>
+      getSnakeRaw<unknown>(
+        `/target-sources/${id}/test-connection/pod-logs/${encodeURIComponent(podId)}`,
+      ),
+
     getLatestTestConnectionResultSummaries: (id) =>
       getSnakeRaw<z.infer<typeof schemas.TestConnectionLatestResultSummaryResponse>[]>(
         `/target-sources/${id}/test-connection/latest-results`,

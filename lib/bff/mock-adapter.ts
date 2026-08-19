@@ -352,6 +352,9 @@ export const mockBff: BffClient = {
         await mockConfirm.getTestConnectionLatest(String(id)),
       ),
 
+    getTestConnectionPodLog: async (id, podId) =>
+      unwrap<unknown>(await mockConfirm.getTestConnectionPodLog(String(id), podId)),
+
     getLatestTestConnectionResultSummaries: async (id) =>
       unwrap<z.infer<typeof schemas.TestConnectionLatestResultSummaryResponse>[]>(
         await mockConfirm.getLatestTestConnectionResultSummaries(String(id)),

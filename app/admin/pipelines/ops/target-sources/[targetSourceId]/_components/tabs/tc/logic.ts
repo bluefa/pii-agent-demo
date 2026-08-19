@@ -11,158 +11,114 @@ import type {
   TestConnectionVersionResult,
 } from '@/app/lib/api';
 import type { SecretKey } from '@/lib/types';
+import { foldAgentStatuses, type UnitTcStatus } from '@/lib/test-connection-summary';
 
 /**
  * 리소스 한 건의 연결 판정.
  *
  * 출처는 `latest_version` 의 `test_connection_agent_results[]` — 계약이 선언하는
- * 유일한 per-resource 연결 상태다. `latest-results` 의 `connection_status` 는 계약에
- * 없는 passthrough 필드라 여기서 쓰지 않는다.
+ * 유일한 per-resource 연결 상태다. 접기는 사용자 화면 Step 5 와 같은 한 벌
+ * (`foldAgentStatuses`, FAIL 우선: FAIL → UNKNOWN → RUNNING → PENDING → SUCCESS)
+ * 을 그대로 쓴다 — 두 화면이 같은 리소스를 다른 낱말로 부르면 안 된다.
  */
-export type TcVerdict = 'SUCCESS' | 'FAIL' | 'RUNNING' | 'PENDING' | 'UNKNOWN';
+export type TcVerdict = UnitTcStatus;
 
 /**
- * agent 결과를 리소스 단위로 접는다. 한 리소스에 agent 가 여럿일 수 있어 규칙이 필요한데,
- * 부분 성공을 성공으로 올리지 않는 쪽으로 잡았다 —
- *   하나라도 FAIL          → FAIL
- *   아니고 PENDING/RUNNING → RUNNING (아직 판정 전)
- *   아니고 알 수 없는 값    → UNKNOWN (임의로 성공 처리하지 않는다)
- *   전부 SUCCESS           → SUCCESS
- *
- * PENDING 은 여기서 나오지 않는다. 대기와 실행이 섞인 리소스를 "대기"라고 부를 수 없어
- * 둘 다 진행 중으로 접는다 — PENDING/RUNNING 의 구분은 agent 한 건을 볼 때만 성립한다
- * (`runAgentRows`).
+ * 확정 정보 표가 리소스 한 행에 대해 아는 전부 — 판정 + 로그의 열쇠(pod) + 사유.
+ * pod_id/fail_reason 은 DRAFT CONTRACT passthrough (agentPodId 참조).
  */
-export function verdictByResource(
-  latest: TestConnectionVersionResult | null,
-): Map<string, TcVerdict> {
-  const kinds = new Map<string, { fail: number; open: number; unknown: number; ok: number }>();
-  for (const agent of latest?.test_connection_agent_results ?? []) {
-    const id = agent?.resource_id;
-    if (!id) continue;
-    const bucket = kinds.get(id) ?? { fail: 0, open: 0, unknown: 0, ok: 0 };
-    const status = (agent.connection_status ?? '').toUpperCase();
-    if (status === 'FAIL') bucket.fail += 1;
-    else if (status === 'PENDING' || status === 'RUNNING') bucket.open += 1;
-    else if (status === 'SUCCESS') bucket.ok += 1;
-    else bucket.unknown += 1;
-    kinds.set(id, bucket);
-  }
-  const verdicts = new Map<string, TcVerdict>();
-  for (const [id, bucket] of kinds) {
-    verdicts.set(
-      id,
-      bucket.fail > 0 ? 'FAIL'
-        : bucket.open > 0 ? 'RUNNING'
-          : bucket.unknown > 0 || bucket.ok === 0 ? 'UNKNOWN'
-            : 'SUCCESS',
-    );
-  }
-  return verdicts;
-}
-
-/** 실행이 보고한 agent 결과 한 줄 — 접기 전의 원문 순서 그대로. */
-export interface TcAgentRow {
-  resourceId: string;
-  /** 계약상 optional — 응답이 주지 않으면 null. */
-  agentId: string | null;
-  /** 이 agent 가 돈 TC pod (DRAFT CONTRACT) — 디스패치 전이거나 응답이 주지 않으면 null. */
-  podId: string | null;
-  /** 이 agent 한 건의 판정 (리소스 단위 fold 가 아니다). */
+export interface TcResourceFact {
   verdict: TcVerdict;
+  /** 로그 조회의 열쇠 — 디스패치 전(PENDING)이거나 pod 가 못 뜬 실패면 null. */
+  podId: string | null;
+  /** 12종 허용목록 원문 — 실패가 아닌 행은 null. */
+  failReason: string | null;
 }
 
 /**
- * agent 결과를 화면 순서대로 편다. `verdictByResource` 가 접기 전의 원재료 —
- * 한 리소스를 여러 agent 가 나눠 맡을 수 있어서, 어느 agent 가 어디서 걸렸는지는
- * 접힌 판정으로는 알 수 없다.
- *
- * 여기서는 PENDING(아직 시작 안 함)과 RUNNING(붙는 중)을 계약이 나눈 그대로 둔다.
- * 30건짜리 실행에서 "10건이 아직 시작도 안 했다"와 "10건이 붙는 중이다"는 운영자에게
- * 다른 사실이다.
- */
-/**
- * DRAFT CONTRACT — 리소스별 `pod_id` 는 다음 install-v1 swagger 개정에 실리는
- * 필드로, 아직 codegen 타입에 없다(loose codegen 이 passthrough 로만 보존).
- * 계약이 랜딩하면 이 헬퍼는 일반 필드 접근으로 줄인다. 빈 문자열·비문자열은 "pod 없음".
+ * DRAFT CONTRACT — 리소스별 `pod_id`/`fail_reason` 은 다음 install-v1 swagger 개정에
+ * 실리는 필드로, 아직 codegen 타입에 없다(loose codegen 이 passthrough 로만 보존).
+ * 계약이 랜딩하면 이 헬퍼들은 일반 필드 접근으로 줄인다. 빈 문자열·비문자열은 "없음".
  */
 function agentPodId(agent: TestConnectionAgentResult): string | null {
   const raw: unknown = (agent as Record<string, unknown>).pod_id;
   return typeof raw === 'string' && raw !== '' ? raw : null;
 }
 
-export function runAgentRows(latest: TestConnectionVersionResult | null): TcAgentRow[] {
-  return (latest?.test_connection_agent_results ?? [])
-    .filter((agent) => Boolean(agent?.resource_id))
-    .map((agent) => {
-      const status = (agent.connection_status ?? '').toUpperCase();
-      return {
-        resourceId: agent.resource_id ?? '',
-        agentId: agent.agent_id || null,
-        podId: agentPodId(agent),
-        verdict:
-          status === 'SUCCESS' ? 'SUCCESS'
-            : status === 'FAIL' ? 'FAIL'
-              : status === 'RUNNING' ? 'RUNNING'
-                : status === 'PENDING' ? 'PENDING'
-                  : 'UNKNOWN',
-      };
-    });
+function agentFailReason(agent: TestConnectionAgentResult): string | null {
+  const raw: unknown = (agent as Record<string, unknown>).fail_reason;
+  return typeof raw === 'string' && raw !== '' ? raw : null;
 }
 
-/** 조치가 필요한 순서 — 실패가 맨 위, 이미 끝난 성공이 맨 아래. */
-export const AGENT_VERDICT_ORDER: readonly TcVerdict[] = [
-  'FAIL',
-  'RUNNING',
-  'PENDING',
-  'UNKNOWN',
-  'SUCCESS',
-];
+/** 실행(TargetSource) 단위 fail_reason — 밴드 사유 줄의 재료. 같은 passthrough 규칙. */
+export function runFailReason(latest: TestConnectionVersionResult | null): string | null {
+  if (!latest) return null;
+  const raw: unknown = (latest as Record<string, unknown>).fail_reason;
+  return typeof raw === 'string' && raw !== '' ? raw : null;
+}
+
+/** agent 한 건의 상태를 접기 어휘로 — runStatus 와 같은 "enum 밖은 UNKNOWN" 규칙. */
+const agentVerdict = (agent: TestConnectionAgentResult): TcVerdict => {
+  const status = (agent.connection_status ?? '').toUpperCase();
+  return status === 'SUCCESS' || status === 'FAIL' || status === 'RUNNING' || status === 'PENDING'
+    ? status
+    : 'UNKNOWN';
+};
 
 /**
- * 판정 순으로 세운다. wire 순서에는 의미가 없고, 30건 목록에서 실패가 27번째 줄에
- * 있으면 목록이 없는 것과 같다. 같은 판정 안에서는 받은 순서를 지킨다(안정 정렬).
+ * agent 결과를 리소스 단위 사실로 접는다. 판정은 `foldAgentStatuses`(FAIL 우선)이고,
+ * pod·사유는 그 판정을 만든 대표 agent 의 것이다 — 실패로 접힌 리소스의 로그 링크가
+ * 성공한 다른 agent 의 pod 를 열면 운영자는 엉뚱한 로그를 읽는다.
  */
-export function sortAgentRows(rows: readonly TcAgentRow[]): TcAgentRow[] {
-  const rank = new Map(AGENT_VERDICT_ORDER.map((verdict, index) => [verdict, index]));
-  return rows
-    .map((row, index) => ({ row, index }))
-    .sort(
-      (a, b) =>
-        (rank.get(a.row.verdict) ?? 0) - (rank.get(b.row.verdict) ?? 0) || a.index - b.index,
-    )
-    .map((entry) => entry.row);
+export function tcFactsByResource(
+  latest: TestConnectionVersionResult | null,
+): Map<string, TcResourceFact> {
+  const agents = (latest?.test_connection_agent_results ?? []).filter((agent) =>
+    Boolean(agent?.resource_id),
+  );
+  const verdicts = foldAgentStatuses(agents);
+  const facts = new Map<string, TcResourceFact>();
+  for (const [id, verdict] of verdicts) {
+    const own = agents.filter((agent) => agent.resource_id === id);
+    const representative = own.find((agent) => agentVerdict(agent) === verdict) ?? own[0];
+    facts.set(id, {
+      verdict,
+      podId: representative ? agentPodId(representative) : null,
+      failReason: representative ? agentFailReason(representative) : null,
+    });
+  }
+  return facts;
 }
 
-/** 판정별 건수 — 필터 칩이 "몇 건인지"를 눌러보기 전에 말하게 한다. */
-export function countAgentVerdicts(rows: readonly TcAgentRow[]): Record<TcVerdict, number> {
-  const counts: Record<TcVerdict, number> = {
-    FAIL: 0,
-    RUNNING: 0,
-    PENDING: 0,
-    UNKNOWN: 0,
-    SUCCESS: 0,
-  };
-  for (const row of rows) counts[row.verdict] += 1;
-  return counts;
+/** 판정만 필요한 소비자(집계)용 — 접기는 `tcFactsByResource` 한 벌뿐이다. */
+export function verdictByResource(
+  latest: TestConnectionVersionResult | null,
+): Map<string, TcVerdict> {
+  const verdicts = new Map<string, TcVerdict>();
+  for (const [id, fact] of tcFactsByResource(latest)) verdicts.set(id, fact.verdict);
+  return verdicts;
 }
 
 /**
  * 진행 사항 — 판정이 끝난 agent / 전체.
  *
- * 분모를 `rows.length` 로 잡으면 안 된다: 응답은 아직 보고하지 않은 agent 를 아예
- * 빼고 오기 때문에, 3건 중 2건만 끝난 실행이 "2/2 완료"(100%) 로 보인다. 분모는
+ * 분모를 받은 agent 수로 잡으면 안 된다: 응답은 아직 보고하지 않은 agent 를 아예
+ * 빼고 올 수 있어, 3건 중 2건만 끝난 실행이 "2/2 완료"(100%) 로 보인다. 분모는
  * 확정 리소스 수 — 실행이 대상으로 삼는 집합 — 로 잡고, 한 리소스를 여러 agent 가
  * 맡아 행이 그보다 많아지면 그때는 받은 행 수를 쓴다(100% 를 넘지 않도록).
  */
 export function runProgress(
-  rows: readonly TcAgentRow[],
+  latest: TestConnectionVersionResult | null,
   expectedTotal: number,
 ): { done: number; total: number } {
-  return {
-    done: rows.filter((row) => row.verdict === 'SUCCESS' || row.verdict === 'FAIL').length,
-    total: Math.max(expectedTotal, rows.length),
-  };
+  const agents = (latest?.test_connection_agent_results ?? []).filter((agent) =>
+    Boolean(agent?.resource_id),
+  );
+  const done = agents.filter((agent) => {
+    const verdict = agentVerdict(agent);
+    return verdict === 'SUCCESS' || verdict === 'FAIL';
+  }).length;
+  return { done, total: Math.max(expectedTotal, agents.length) };
 }
 
 /**
@@ -224,7 +180,7 @@ export function tcResultStats(
     stats.resourceCount += 1;
     if (verdict === 'SUCCESS') stats.successCount += 1;
     else if (verdict === 'FAIL') stats.failedCount += 1;
-    else if (verdict === 'RUNNING') stats.runningCount += 1;
+    else if (verdict === 'RUNNING' || verdict === 'PENDING') stats.runningCount += 1;
     else stats.unknownCount += 1;
   }
   return stats;

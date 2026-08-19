@@ -16,6 +16,8 @@ export interface TestConnectionResourceResult {
   error_status: TestConnectionErrorStatus | null;
   guide: string | null;
   agent_id: string | null;
+  /** DRAFT CONTRACT — 실패 사유 enum 원문. 시딩되지 않은 FAIL 은 error_status 에서 유도. */
+  fail_reason?: string | null;
 }
 
 interface ResourceScheduleItem {
@@ -31,6 +33,8 @@ export interface TestConnectionJob {
   completed_at: string | null;
   requested_by: string;
   resource_results: TestConnectionResourceResult[];
+  /** DRAFT CONTRACT — 실행(TargetSource) 단위 실패 사유. FAIL 로 닫힌 실행에만 실린다. */
+  fail_reason?: string | null;
 }
 
 /** 내부용: Mock 시뮬레이션에서만 사용하는 확장 타입 */
@@ -316,6 +320,19 @@ export const toJobResponse = (job: TestConnectionJob) => ({
 
 type WireConnectionStatus = 'PENDING' | 'RUNNING' | 'SUCCESS' | 'FAIL';
 
+/** agent 결과 한 행의 wire 꼴 — settled/unsettled 두 빌더가 같은 타입을 쓴다. */
+interface WireAgentRow {
+  agent_id: string;
+  gcp_region: string;
+  resource_id: string;
+  connection_status: WireConnectionStatus;
+  /** DRAFT CONTRACT — 디스패치 전(PENDING)과 pod 없는 실패(POD_CREATION_FAILED)만 비운다. */
+  pod_id?: string;
+  /** DRAFT CONTRACT — FAIL 행에만 실린다. */
+  fail_reason?: string;
+  database_uri_list: string[];
+}
+
 // Deterministic date-time placeholder for wire fields that have no real value
 // yet (swagger types them format:date-time, so '' would be an invalid example).
 // A fixed constant keeps the mock a valid schema example without Date.now()
@@ -360,6 +377,17 @@ export const toWireTopStatus = (job: TestConnectionJob): WireConnectionStatus =>
   job.status === 'PENDING' ? (isQueued(job) ? 'PENDING' : 'RUNNING') : job.status;
 
 /**
+ * DRAFT CONTRACT — 시딩 없이 시뮬레이터가 만든 FAIL 행의 fail_reason. 레거시
+ * error_status 를 새 enum 어휘로 접는다: 인증·권한 거절은 DB 가 실제로 거절한 것
+ * (CLUSTER_TEST_FAILED), 연결 실패는 응답 없이 시간이 초과한 모양이 전형이다.
+ */
+const reasonFromError = (error: TestConnectionErrorStatus | null): string =>
+  error === 'CONNECTION_FAIL' ? 'FUNCTION_INVOCATION_TIMEOUT' : 'CLUSTER_TEST_FAILED';
+
+const resourceFailReason = (r: TestConnectionResourceResult): string | null =>
+  r.status === 'FAIL' ? (r.fail_reason ?? reasonFromError(r.error_status)) : null;
+
+/**
  * DRAFT CONTRACT — 리소스별 `pod_id` 는 다음 install-v1 swagger 개정에 실리는 필드.
  * k8s Job pod 꼴(잡 접두사 + 난수 조각)을 결정적으로 흉내 낸다 — 같은 실행의 같은
  * 리소스는 항상 같은 이름이어야 폴링 프레임마다 pod 열이 흔들리지 않는다.
@@ -375,15 +403,23 @@ export const toVersionResultResponse = (job: TestConnectionJob) => {
   const queued = isQueued(job);
   const topStatus = toWireTopStatus(job);
   const version = versionForTarget(job.target_source_id);
-  const settled = job.resource_results.map((r, index) => ({
-    agent_id: r.agent_id ?? fallbackAgentId(index),
-    gcp_region: '',
-    resource_id: r.resource_id,
-    connection_status: r.status as WireConnectionStatus,
-    // 판정이 난 행은 pod 가 반드시 있었다 (DRAFT CONTRACT: pod_id).
-    pod_id: podIdFor(job.target_source_id, version, r.resource_id),
-    database_uri_list: r.status === 'SUCCESS' ? [`mysql://${r.resource_id}/db`] : [],
-  }));
+  const settled = job.resource_results.map((r, index) => {
+    const failReason = resourceFailReason(r);
+    const wireRow: WireAgentRow = {
+      agent_id: r.agent_id ?? fallbackAgentId(index),
+      gcp_region: '',
+      resource_id: r.resource_id,
+      connection_status: r.status as WireConnectionStatus,
+      database_uri_list: r.status === 'SUCCESS' ? [`mysql://${r.resource_id}/db`] : [],
+    };
+    // 판정이 난 행은 pod 가 반드시 있었다 — 단 하나의 예외가 POD_CREATION_FAILED:
+    // pod 자체가 못 떠서 pod_id 도 로그도 없다.
+    if (failReason !== 'POD_CREATION_FAILED') {
+      wireRow.pod_id = podIdFor(job.target_source_id, version, r.resource_id);
+    }
+    if (failReason) wireRow.fail_reason = failReason;
+    return wireRow;
+  });
   return {
     target_source_id: job.target_source_id,
     test_connection_version: version,
@@ -392,6 +428,17 @@ export const toVersionResultResponse = (job: TestConnectionJob) => {
     // 미완료 실행은 null — 계약(loose codegen)이 nullable 이고, epoch 플레이스홀더를
     // 보내면 헤더 태그가 진행 중인 실행을 "20673일 전"으로 읽는다.
     completed_at: job.completed_at,
+    // DRAFT CONTRACT — 실행 단위 fail_reason. 시딩이 없으면 첫 실패 리소스의 사유로
+    // 유도한다(부분 실패의 run 사유 의미는 계약 랜딩 시 확정 — 값이 없으면 UI 는 줄
+    // 자체를 그리지 않으므로 어느 쪽으로 랜딩해도 안전하다).
+    ...(topStatus === 'FAIL'
+      ? {
+          fail_reason:
+            job.fail_reason
+            ?? job.resource_results.map(resourceFailReason).find(Boolean)
+            ?? null,
+        }
+      : {}),
     test_connection_agent_results: [
       ...settled,
       ...unsettledAgentResults(job, settled.length, queued, version),
@@ -418,16 +465,16 @@ const unsettledAgentResults = (
   const done = new Set(job.resource_results.map((r) => r.resource_id));
   return schedule
     .filter((item) => !done.has(item.resource_id))
-    .map((item, offset) => {
+    .map((item, offset): WireAgentRow => {
       const running = !queued && offset === 0;
       return {
         agent_id: fallbackAgentId(settledCount + offset),
         gcp_region: '',
         resource_id: item.resource_id,
-        connection_status: (running ? 'RUNNING' : 'PENDING') as WireConnectionStatus,
+        connection_status: running ? 'RUNNING' : 'PENDING',
         // pod 는 디스패치 시점에 생긴다 — PENDING 행에는 아직 없다.
         ...(running ? { pod_id: podIdFor(job.target_source_id, version, item.resource_id) } : {}),
-        database_uri_list: [] as string[],
+        database_uri_list: [],
       };
     });
 };
@@ -455,6 +502,104 @@ export const toLatestResultSummaries = (targetSourceId: number) => {
         excluded_logical_database_count: excluded,
       };
     });
+};
+
+// ===== Pod 로그 (DRAFT CONTRACT — StackDriver 캡처본 조회) =====
+
+/** severity + content 한 줄 — StackDriver LogSeverity 어휘를 원문 그대로 쓴다. */
+export interface TestConnectionPodLogEntry {
+  severity: string;
+  content: string;
+}
+
+/**
+ * 정착한 리소스 한 건의 pod 로그 본문. 결정적(랜덤·시각 없음) — 같은 pod 를 두 번
+ * 열어도 같은 캡처본이어야 하고, 실패 행의 로그는 그 행의 fail_reason 이 말하는
+ * 서사를 담아야 화면 문구와 로그가 서로를 반증하지 않는다.
+ */
+const podLogLines = (
+  targetSourceId: number,
+  r: TestConnectionResourceResult,
+): TestConnectionPodLogEntry[] => {
+  const rid = r.resource_id;
+  const secretRef = `secret/db-cred-${targetSourceId}`;
+  const head: TestConnectionPodLogEntry[] = [
+    { severity: 'INFO', content: `Starting connection test · target ${rid} (${r.resource_type})` },
+    { severity: 'INFO', content: `Resolving credential ref ${secretRef} from Secret Manager` },
+  ];
+  if (r.status === 'SUCCESS') {
+    return [
+      ...head,
+      { severity: 'INFO', content: `Credential resolved · connecting to ${rid}` },
+      { severity: 'NOTICE', content: 'TCP handshake established · TLS negotiated' },
+      { severity: 'INFO', content: 'Validated logical databases · marking resource result SUCCESS' },
+      { severity: 'DEBUG', content: 'Pod terminating · exit code 0 · duration 4.2s' },
+    ];
+  }
+  const reason = resourceFailReason(r) ?? 'UNKNOWN';
+  const tail: TestConnectionPodLogEntry[] = [
+    { severity: 'INFO', content: `Marking resource result FAILED · fail_reason=${reason}` },
+    { severity: 'DEBUG', content: 'Pod terminating · exit code 1 · duration 8.4s' },
+  ];
+  if (reason === 'SECRET_NOT_FOUND') {
+    return [
+      ...head,
+      { severity: 'ERROR', content: `Secret not found: ${secretRef} (project pass-prod)` },
+      { severity: 'WARNING', content: 'Retry 1/3 in 2000ms — credential resolution failed' },
+      { severity: 'WARNING', content: 'Retry 2/3 in 4000ms — credential resolution failed' },
+      { severity: 'ERROR', content: 'Giving up after 3 attempts: SECRET_NOT_FOUND' },
+      ...tail,
+    ];
+  }
+  if (reason === 'CLUSTER_TEST_FAILED') {
+    return [
+      ...head,
+      { severity: 'INFO', content: `Credential resolved · connecting to ${rid}` },
+      { severity: 'NOTICE', content: 'TCP handshake established · authenticating' },
+      { severity: 'ERROR', content: "Access denied for user 'pii_agent'@'10.32.0.14' (using password: YES)" },
+      { severity: 'ERROR', content: 'Giving up after 3 attempts: CLUSTER_TEST_FAILED' },
+      ...tail,
+    ];
+  }
+  if (reason === 'FUNCTION_INVOCATION_TIMEOUT') {
+    return [
+      ...head,
+      { severity: 'INFO', content: `Credential resolved · connecting to ${rid}` },
+      { severity: 'WARNING', content: 'No response after 30s — retrying with backoff' },
+      { severity: 'ERROR', content: 'Connection attempt timed out after 120s' },
+      ...tail,
+    ];
+  }
+  return [
+    ...head,
+    { severity: 'ERROR', content: `Connection test failed: ${reason}` },
+    ...tail,
+  ];
+};
+
+/**
+ * DRAFT CONTRACT — pod_id 로 캡처본을 조회한다. 최신 실행의 정착한 리소스만 캡처가
+ * 존재한다: 미정착(RUNNING) pod 는 완료 시점 캡처 전이고(UI 도 "수집 중"으로 막는다),
+ * POD_CREATION_FAILED 는 pod 가 없어 wire 에 pod_id 자체가 실리지 않는다.
+ */
+export const getPodLog = (
+  targetSourceId: number,
+  podId: string,
+): { pod_id: string; captured_at: string | null; entries: TestConnectionPodLogEntry[] } | null => {
+  const job = getLatestJob(targetSourceId);
+  if (!job) return null;
+  const version = versionForTarget(targetSourceId);
+  const settled = job.resource_results.find(
+    (r) =>
+      resourceFailReason(r) !== 'POD_CREATION_FAILED' &&
+      podIdFor(targetSourceId, version, r.resource_id) === podId,
+  );
+  if (!settled) return null;
+  return {
+    pod_id: podId,
+    captured_at: job.completed_at ?? job.requested_at,
+    entries: podLogLines(targetSourceId, settled),
+  };
 };
 
 // Steps that should already have a completed Test Connection result present.
@@ -554,7 +699,10 @@ export const buildSeedTestConnectionJobs = (projects: Project[]): TestConnection
       if (targetSourceId === TC_CARD_FIXTURE.idle) return [];
 
       const selected = testConnectionUnits(project);
-      const results = (failedIndexes: readonly number[]): TestConnectionResourceResult[] =>
+      const results = (
+        failedIndexes: readonly number[],
+        failReasons: Readonly<Record<number, string>> = {},
+      ): TestConnectionResourceResult[] =>
         selected.map((r, index) => {
           const failed = failedIndexes.includes(index);
           return {
@@ -564,6 +712,7 @@ export const buildSeedTestConnectionJobs = (projects: Project[]): TestConnection
             error_status: failed ? 'AUTH_FAIL' : null,
             guide: failed ? ERROR_GUIDES.AUTH_FAIL : null,
             agent_id: fallbackAgentId(index),
+            ...(failed && failReasons[index] ? { fail_reason: failReasons[index] } : {}),
           };
         });
 
@@ -613,6 +762,8 @@ export const buildSeedTestConnectionJobs = (projects: Project[]): TestConnection
             completed_at: TC_FIXTURE_NO_REPORT_FAILED_AT,
             requested_by: 'seed@pii-agent.dev',
             resource_results: [],
+            // 전면 실패 — 리소스에 닿기 전에 닫힌 실행은 run 사유만이 유일한 설명이다.
+            fail_reason: 'TERRAFORM_NOT_APPLIED',
           },
           ...priorRuns,
         ];
@@ -651,7 +802,13 @@ export const buildSeedTestConnectionJobs = (projects: Project[]): TestConnection
           requested_at: SEED_REQUESTED_AT,
           completed_at: SEED_COMPLETED_AT,
           requested_by: 'seed@pii-agent.dev',
-          resource_results: results(failFixture ? [0, 1] : []),
+          // 실패 픽스처는 사유 접기 맵의 두 갈래를 함께 시딩한다 — 로그가 있는 실패
+          // (SECRET_NOT_FOUND)와 유일한 무로그 실패(POD_CREATION_FAILED).
+          resource_results: results(
+            failFixture ? [0, 1] : [],
+            failFixture ? { 0: 'SECRET_NOT_FOUND', 1: 'POD_CREATION_FAILED' } : {},
+          ),
+          ...(failFixture ? { fail_reason: 'CLUSTER_TEST_FAILED' } : {}),
         },
         ...priorRuns,
       ];

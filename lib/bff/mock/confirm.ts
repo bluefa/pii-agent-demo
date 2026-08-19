@@ -2185,6 +2185,27 @@ export const mockConfirm = {
     return NextResponse.json(tcFns.toVersionResultResponse(job));
   },
 
+  // DRAFT CONTRACT — pod 로그 캡처본. 최신 실행의 정착 pod 만 존재한다(getPodLog).
+  getTestConnectionPodLog: async (targetSourceId: string, podId: string) => {
+    const project = mockData.getProjectByTargetSourceId(Number(targetSourceId));
+    if (!project) {
+      return NextResponse.json(
+        { error: { code: 'TARGET_SOURCE_NOT_FOUND', message: '해당 ID의 Target Source가 존재하지 않습니다.' } },
+        { status: 404 },
+      );
+    }
+
+    const log = tcFns.getPodLog(Number(targetSourceId), podId);
+    if (!log) {
+      return NextResponse.json(
+        { error: { code: 'TEST_CONNECTION_NOT_FOUND', message: '해당 pod 의 로그 캡처본이 없습니다.' } },
+        { status: 404 },
+      );
+    }
+
+    return NextResponse.json(log);
+  },
+
   getTestConnectionCompletionStatus: async (targetSourceId: string) => {
     const project = mockData.getProjectByTargetSourceId(Number(targetSourceId));
     if (!project) {
