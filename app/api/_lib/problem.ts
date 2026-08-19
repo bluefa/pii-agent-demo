@@ -20,9 +20,12 @@ export type KnownErrorCode =
   | 'INTERNAL_ERROR'
   | 'GUIDE_NOT_FOUND'
   | 'GUIDE_CONTENT_INVALID'
-  // FAQ & Notices (docs/bff-api/tag-guides/faq-notices.md §7)
+  // FAQ & Notices (docs/bff-api/requests/2026-08-19-faq-notices-be-handoff.md §3.8)
   | 'POST_NOT_FOUND'
   | 'POST_CONTENT_INVALID'
+  | 'POST_IMAGE_REF_MISSING'
+  | 'POST_IMAGE_REF_UNKNOWN'
+  | 'POST_IMAGE_UNREFERENCED'
   | 'POST_IMAGE_LIMIT_EXCEEDED'
   | 'POST_SIZE_LIMIT_EXCEEDED'
   | 'CATEGORY_NOT_FOUND'
@@ -57,6 +60,9 @@ const ERROR_CATALOG: Record<KnownErrorCode, ErrorMeta> = {
   // A hidden post is 404, never 403 — 403 would confirm the post exists (§5 숨김).
   POST_NOT_FOUND: { status: 404, title: 'Post Not Found', retriable: false },
   POST_CONTENT_INVALID: { status: 400, title: 'Post Content Invalid', retriable: false },
+  POST_IMAGE_REF_MISSING: { status: 400, title: 'Post Image Reference Missing', retriable: false },
+  POST_IMAGE_REF_UNKNOWN: { status: 400, title: 'Post Image Reference Unknown', retriable: false },
+  POST_IMAGE_UNREFERENCED: { status: 400, title: 'Post Image Unreferenced', retriable: false },
   POST_IMAGE_LIMIT_EXCEEDED: { status: 400, title: 'Post Image Limit Exceeded', retriable: false },
   POST_SIZE_LIMIT_EXCEEDED: { status: 400, title: 'Post Size Limit Exceeded', retriable: false },
   CATEGORY_NOT_FOUND: { status: 404, title: 'Category Not Found', retriable: false },
@@ -157,6 +163,9 @@ const LEGACY_CODE_MAP: Record<string, KnownErrorCode> = {
   // rewrites POST_NOT_FOUND into TARGET_SOURCE_NOT_FOUND (both are 404).
   POST_NOT_FOUND: 'POST_NOT_FOUND',
   POST_CONTENT_INVALID: 'POST_CONTENT_INVALID',
+  POST_IMAGE_REF_MISSING: 'POST_IMAGE_REF_MISSING',
+  POST_IMAGE_REF_UNKNOWN: 'POST_IMAGE_REF_UNKNOWN',
+  POST_IMAGE_UNREFERENCED: 'POST_IMAGE_UNREFERENCED',
   POST_IMAGE_LIMIT_EXCEEDED: 'POST_IMAGE_LIMIT_EXCEEDED',
   POST_SIZE_LIMIT_EXCEEDED: 'POST_SIZE_LIMIT_EXCEEDED',
   CATEGORY_NOT_FOUND: 'CATEGORY_NOT_FOUND',

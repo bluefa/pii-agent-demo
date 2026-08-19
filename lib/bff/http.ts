@@ -16,6 +16,7 @@ import type { BffClient, ConfirmedResourceProvider } from '@/lib/bff/types';
 import type { z } from 'zod';
 import type { schemas } from '@/lib/generated/install-v1';
 import type { OrchestratorRawResponse } from '@/lib/pipeline/types';
+import type { PostSaveFile } from '@/lib/types/post';
 import { bffErrorFromBody } from '@/app/api/_lib/problem';
 import { OrchestratorUnreachableError } from '@/lib/bff/errors';
 import { toUpstreamInfraApiPath } from '@/lib/infra-api';
@@ -153,23 +154,29 @@ async function send<T>(
 const post = <T>(path: string, body?: unknown) => send<T>('POST', path, body);
 
 /**
- * One file, one request. The 5MB per-file cap is what lets this stay a single
- * `multipart/form-data` POST instead of a resumable/chunked protocol — see
- * docs/bff-api/tag-guides/faq-notices.md §5 본문 이미지.
+ * Post save — one `post` JSON part plus `files` parts whose filename is the
+ * cid key (docs/bff-api/requests/2026-08-19-faq-notices-be-handoff.md §3.2).
+ * The 5MB-per-file / 10MB-per-post caps are what let this stay a single
+ * request instead of a resumable/chunked protocol.
  *
  * `Content-Type` is deliberately not set: fetch derives it from the FormData
  * so the multipart boundary matches the body.
  */
-async function postMultipart<T>(
+async function sendPostSave<T>(
+  method: 'POST' | 'PUT',
   path: string,
-  file: { bytes: Uint8Array<ArrayBuffer>; contentType: string },
+  body: unknown,
+  files: readonly PostSaveFile[],
 ): Promise<T> {
   const fullPath = `${BFF_URL}${toUpstreamInfraApiPath(path)}`;
   const form = new FormData();
-  form.append('file', new Blob([file.bytes], { type: file.contentType }));
-  console.log(`[BFF] → POST ${fullPath} (multipart)`);
-  const res = await fetch(fullPath, { method: 'POST', headers: await authHeaders(), body: form });
-  console.log(`[BFF] ← POST ${fullPath} (${res.status})`);
+  form.append('post', new Blob([JSON.stringify(body)], { type: 'application/json' }));
+  for (const file of files) {
+    form.append('files', new Blob([file.bytes], { type: file.contentType }), file.key);
+  }
+  console.log(`[BFF] → ${method} ${fullPath} (multipart, files: ${files.length})`);
+  const res = await fetch(fullPath, { method, headers: await authHeaders(), body: form });
+  console.log(`[BFF] ← ${method} ${fullPath} (${res.status})`);
   if (!res.ok) await throwBffError(res);
   return await res.json() as T;
 }
@@ -700,11 +707,10 @@ export const httpBff: BffClient = {
     listAdmin: (type, hidden) =>
       get(`/admin/posts${buildQuery({ type, hidden: hidden === undefined ? undefined : String(hidden) })}`),
     getAdmin: (postId) => get(`/admin/posts/${postId}`),
-    create: (body) => post('/admin/posts', body),
-    update: (postId, body) => put(`/admin/posts/${postId}`, body),
+    create: (body, files) => sendPostSave('POST', '/admin/posts', body, files),
+    update: (postId, body, files) => sendPostSave('PUT', `/admin/posts/${postId}`, body, files),
     setHidden: (postId, hidden) => put(`/admin/posts/${postId}/hidden`, { hidden }),
     setPinned: (postId, pinned) => put(`/admin/posts/${postId}/pinned`, { pinned }),
-    uploadImage: (file) => postMultipart('/admin/posts/images', file),
     listAdminCategories: (type) => get(`/admin/post-categories${buildQuery({ type })}`),
     createCategory: (body) => post('/admin/post-categories', body),
     deleteCategory: (categoryId) => send('DELETE', `/admin/post-categories/${categoryId}`),

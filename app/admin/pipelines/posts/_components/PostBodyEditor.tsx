@@ -9,19 +9,29 @@ import { PostImage } from '@/app/admin/pipelines/posts/_components/post-image-no
 import { PostImageBubble } from '@/app/admin/pipelines/posts/_components/PostImageBubble';
 import { PostLinkBubble } from '@/app/admin/pipelines/posts/_components/PostLinkBubble';
 import { PostLinkModal } from '@/app/admin/pipelines/posts/_components/PostLinkModal';
-import { uploadPostImage } from '@/app/lib/api/posts';
 import {
   POST_IMAGE_ACCEPT,
   POST_IMAGE_MAX_BYTES,
   POST_IMAGE_MIME_TYPES,
 } from '@/lib/constants/post-images';
-import { AppError } from '@/lib/errors';
 import { POST_MAX_IMAGES } from '@/lib/utils/validate-post-content';
 import { bgColors, borderColors, cn, primaryColors, textColors } from '@/lib/theme';
-import type { ImageUploadResponse } from '@/lib/types/post';
 
-/** 성공이면 올라간 이미지, 아니면 관리자에게 보여 줄 사유 한 줄. */
-type UploadResult = { image: ImageUploadResponse } | { error: string };
+/**
+ * 방금 문서에 들어간 로컬 이미지. 서버는 저장 때까지 이 파일을 모른다 — 미리보기는
+ * blob: URL 로 그려지고, 저장 직전에 부모가 이 장부로 blob: 을 cid: 로 바꿔 파일을
+ * 함께 싣는다 (handoff §3.2).
+ */
+export interface LocalPostImage {
+  /** 미리보기 src (blob:) — 장부의 키이기도 하다. */
+  url: string;
+  /** 저장 요청에서 이 파일을 가리킬 cid 키. */
+  key: string;
+  file: File;
+}
+
+/** 성공이면 로컬에서 잰 원본 크기, 아니면 관리자에게 보여 줄 사유 한 줄. */
+type DecodeResult = { size: { width: number; height: number } } | { error: string };
 
 /**
  * 이 편집이 링크 글자를 건드리는가 — 그렇다면 막는다. 링크는 모달에서만 바뀐다.
@@ -42,8 +52,8 @@ interface PostBodyEditorProps {
   /** Initial HTML. The parent remounts this component per language. */
   value: string;
   onChange: (html: string) => void;
-  /** An image finished uploading — the parent tracks its size for the counter. */
-  onImageUploaded: (url: string, bytes: number) => void;
+  /** An image entered the document — the parent books it for the save request. */
+  onLocalImage: (image: LocalPostImage) => void;
   onError: (message: string | null) => void;
   /**
    * 남은 이미지 칸. 0 이면 이미지 컨트롤이 잠긴다.
@@ -69,7 +79,7 @@ interface PostBodyEditorProps {
 export const PostBodyEditor = ({
   value,
   onChange,
-  onImageUploaded,
+  onLocalImage,
   onError,
   remainingImages,
 }: PostBodyEditorProps) => {
@@ -77,59 +87,46 @@ export const PostBodyEditor = ({
   // handlePaste/handleDrop are built once, before `editor` exists; the ref is
   // how they reach the live instance.
   const editorRef = useRef<Editor | null>(null);
-  const [uploading, setUploading] = useState(false);
+  const [inserting, setInserting] = useState(false);
   const [linkModal, setLinkModal] = useState(false);
 
   /**
-   * 업스트림 문구가 UI 문구인 경우는 파일이 왜 거절됐는지 말할 때뿐이다 —
-   * UNSUPPORTED_IMAGE_TYPE(400) 과 IMAGE_TOO_LARGE(413) 는 관리자가 다른 파일을
-   * 고르면 되는 얘기다. 5xx 는 파일 얘기가 아니므로 우리가 말한다. "HTTP 500" 은
-   * 관리자에게 할 수 있는 일을 알려 주지 않는다.
-   */
-  const failureText = (cause: unknown): string => {
-    if (cause instanceof AppError) {
-      return cause.status >= 500
-        ? '서버 오류로 업로드하지 못했습니다. 잠시 후 다시 시도해 주세요'
-        : cause.message;
-    }
-    return '이미지 업로드에 실패했습니다';
-  };
-
-  /**
-   * Rejects at the picker what the server would reject anyway — uploading 5MB
-   * to be told no is worse than being stopped before the bytes leave.
+   * Rejects at the picker what the server would reject at save — a 5MB
+   * overage is better caught before the admin finishes writing the post.
    *
    * 사유를 `onError` 로 직접 쓰지 않고 돌려준다. 여러 장을 한 번에 넣을 때 실패가
    * 여러 개 나올 수 있고, 그때 마지막 것만 남으면 앞의 실패가 조용히 사라진다.
    */
-  const upload = useCallback(async (file: File): Promise<UploadResult> => {
+  const decode = useCallback(async (file: File): Promise<DecodeResult> => {
     if (!(POST_IMAGE_MIME_TYPES as readonly string[]).includes(file.type)) {
-      return { error: 'png / jpeg / webp 만 업로드할 수 있습니다' };
+      return { error: 'png / jpeg / webp 만 넣을 수 있습니다' };
     }
     if (file.size > POST_IMAGE_MAX_BYTES) {
       return { error: '이미지 1개당 최대 5MB 입니다' };
     }
     try {
-      return { image: await uploadPostImage(file) };
-    } catch (cause) {
-      return { error: failureText(cause) };
+      // 원본 픽셀 크기는 로컬에서 잰다 — 업로드 응답이 재 주던 값이었지만, 이제
+      // 저장 전까지 서버는 이 파일을 모른다.
+      const bitmap = await createImageBitmap(file);
+      const size = { width: bitmap.width, height: bitmap.height };
+      bitmap.close();
+      return { size };
+    } catch {
+      return { error: `이미지 파일을 읽을 수 없습니다: ${file.name}` };
     }
   }, []);
 
   /**
    * 떨어뜨린 파일 전부를 순서대로 넣는다. 한 번에 여러 장을 끌어다 놓거나 붙여넣는
    * 것은 흔한데, 예전에는 `[0]` 만 읽어서 나머지가 에러도 없이 사라졌다.
-   *
-   * 병렬로 올리지 않는 이유는 자리다 — 먼저 끝난 것이 먼저 박히므로 놓은 순서가
-   * 뒤집힌다. 앞 그림이 들어가야 다음 그림의 자리가 정해진다.
    */
   const insertImages = useCallback(async (files: readonly File[], at?: number) => {
     if (files.length === 0) return;
-    setUploading(true);
+    setInserting(true);
     onError(null);
 
     const failures: string[] = [];
-    // 넘치는 분은 올리지 않는다 — 어차피 저장이 막힐 바이트를 보낼 이유가 없다.
+    // 넘치는 분은 받지 않는다 — 어차피 저장이 막힐 이미지를 넣을 이유가 없다.
     // 루프 중에는 이 값이 갱신되지 않으므로(prop 이 렌더에 묶여 있다) 시작 시점에
     // 한 번 자른다. 남은 칸보다 적게 넣을 수는 있어도 넘길 수는 없다.
     const accepted = files.slice(0, Math.max(0, remainingImages));
@@ -140,14 +137,18 @@ export const PostBodyEditor = ({
     // `at` 은 드롭 지점 — 첫 장만 그 자리를 쓰고, 나머지는 바로 앞 그림 뒤에 붙는다.
     let position = at;
     for (const file of accepted) {
-      const result = await upload(file);
+      const result = await decode(file);
       if ('error' in result) {
         failures.push(result.error);
         continue;
       }
-      onImageUploaded(result.image.url, file.size);
       const editor = editorRef.current;
       if (!editor) break;
+
+      // 업로드는 없다 — 저장 전까지 이미지는 로컬에 산다. 미리보기는 blob: URL,
+      // 파일 자체는 부모의 장부로 가서 저장 요청의 `files` 파트가 된다.
+      const url = URL.createObjectURL(file);
+      onLocalImage({ url, key: crypto.randomUUID().replace(/-/g, ''), file });
 
       // 자리를 명시해 붙인다. `insertContent` 는 "선택을 대신한다"는 뜻이고, 방금
       // 넣은 이미지가 선택된 채로 남으므로 그대로 다음 장을 넣으면 앞 장을 덮는다
@@ -155,26 +156,26 @@ export const PostBodyEditor = ({
       const at = position ?? editor.state.selection.to;
       editor.chain().focus().insertContentAt(at, {
         type: 'postImage',
-        // width/height are the upload's intrinsic size. They reserve the box
-        // before the bytes arrive, which is why the reader's list does not jump
-        // as images load; CSS still owns the displayed width.
+        // width/height are the intrinsic size measured locally. They reserve
+        // the box before the bytes arrive, which is why the reader's list does
+        // not jump as images load; CSS still owns the displayed width.
         attrs: {
-          src: result.image.url,
+          src: url,
           alt: file.name,
-          width: result.image.width,
-          height: result.image.height,
+          width: result.size.width,
+          height: result.size.height,
         },
       }).run();
       position = editor.state.selection.to;
     }
 
-    setUploading(false);
+    setInserting(false);
     if (failures.length > 0) {
       // 같은 사유로 여러 장이 막히는 경우가 대부분이라 사유는 겹쳐서 센다.
       const reasons = [...new Set(failures)].join(' / ');
       onError(failures.length === 1 ? reasons : `이미지 ${failures.length}장 실패 — ${reasons}`);
     }
-  }, [upload, onError, onImageUploaded, remainingImages]);
+  }, [decode, onError, onLocalImage, remainingImages]);
 
   const editor = useEditor({
     // Next renders this on the server first; without it Tiptap warns and can
@@ -350,7 +351,7 @@ export const PostBodyEditor = ({
         <button
           type="button"
           onClick={() => fileRef.current?.click()}
-          disabled={uploading || remainingImages <= 0}
+          disabled={inserting || remainingImages <= 0}
           className={cn(
             'rounded-md border px-2 py-1 text-xs font-medium transition-colors',
             'disabled:cursor-not-allowed disabled:opacity-40',
@@ -360,7 +361,7 @@ export const PostBodyEditor = ({
             bgColors.panelHover,
           )}
         >
-          {uploading ? '업로드 중…' : '이미지'}
+          이미지
         </button>
       </div>
 

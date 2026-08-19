@@ -72,7 +72,8 @@ export type ValidatePostContentResult =
 
 const LANGS: readonly PostLanguage[] = ['ko', 'en'];
 
-const collectImageSrcs = (ast: GuideNode[], into: Set<string>): void => {
+/** Exported for the mock BFF, which partitions the srcs into cid/URL refs. */
+export const collectImageSrcs = (ast: GuideNode[], into: Set<string>): void => {
   for (const node of ast) {
     if (node.type === 'img') {
       into.add(node.src);

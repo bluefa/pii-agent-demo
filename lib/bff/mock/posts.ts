@@ -16,6 +16,8 @@ import { createHash } from 'crypto';
 
 import { BffError } from '@/lib/bff/errors';
 import {
+  POST_IMAGE_CID_PREFIX,
+  POST_IMAGE_KEY_PATTERN,
   POST_IMAGE_MAX_BYTES,
   POST_IMAGE_MIME_TYPES,
   POST_IMAGE_SRC_PREFIXES,
@@ -25,17 +27,18 @@ import {
   type AdminPost,
   type AdminPostCategory,
   type AdminPostSummary,
-  type ImageUploadResponse,
   type LocalizedText,
   type Post,
   type PostCategory,
   type PostCategoryCreateRequest,
   type PostCreateRequest,
+  type PostImageRef,
+  type PostSaveFile,
   type PostSummary,
   type PostType,
   type PostUpdateRequest,
 } from '@/lib/types/post';
-import { validatePostContent } from '@/lib/utils/validate-post-content';
+import { collectImageSrcs, validatePostContent } from '@/lib/utils/validate-post-content';
 import { postsSeed, postCategoriesSeed } from '@/lib/bff/mock/posts-seed';
 
 // ---------------------------------------------------------------------------
@@ -54,10 +57,8 @@ interface StoredCategory extends PostCategory {
 interface PostsMockStore {
   posts: Map<number, StoredPost>;
   categories: Map<number, StoredCategory>;
-  /** Uploaded image bytes, keyed by the filename in the returned URL. */
+  /** Stored image bytes, keyed by the filename in the owning post's URL. */
   images: Map<string, { bytes: Uint8Array<ArrayBuffer>; contentType: string }>;
-  /** sha256 → imageId, so re-uploading identical bytes returns the first URL. */
-  imageIdByDigest: Map<string, string>;
   nextPostId: number;
   nextCategoryId: number;
   nextImageId: number;
@@ -86,7 +87,6 @@ const store = (): PostsMockStore => {
     posts: new Map(),
     categories: new Map(),
     images: new Map(),
-    imageIdByDigest: new Map(),
     nextPostId: 1,
     nextCategoryId: 1,
     nextImageId: 1,
@@ -95,7 +95,7 @@ const store = (): PostsMockStore => {
   return globalThis.__piiAgentPostsMock;
 };
 
-const { posts, categories, images, imageIdByDigest } = store();
+const { posts, categories, images } = store();
 
 const ensureSeeded = (): void => {
   const state = store();
@@ -140,6 +140,7 @@ const toAdminPost = (post: StoredPost): AdminPost => ({
   contents: post.contents,
   createdBy: post.createdBy,
   updatedBy: post.updatedBy,
+  images: post.images,
 });
 
 // ---------------------------------------------------------------------------
@@ -152,26 +153,125 @@ const blank = (text: LocalizedText | undefined): boolean =>
   !text || text.ko.trim() === '' || text.en.trim() === '';
 
 /**
- * Runs the same body checks the BFF would: allow-list, image count, total
- * bytes. `imageBytesByUrl` is what the store actually holds, so the byte cap
- * is measured against real uploads rather than a number the client sent.
+ * One save request settles an image's whole life (handoff §3.3).
+ *
+ * The body references images two ways — `cid:<key>` points at a `files` part
+ * riding this request, a URL points at a file this post already owns. Once
+ * every reference resolves and the caps hold, new files are written, `cid:`
+ * is rewritten to the real URL, and owned files the new body dropped are
+ * deleted. There is no orphan cleanup anywhere else because none can exist.
  */
-const assertContentValid = (contents: LocalizedText): void => {
-  const bytesByUrl = new Map<string, number>();
-  for (const [id, image] of images) {
-    bytesByUrl.set(imageUrl(id), image.bytes.byteLength);
+const applyBodyImages = (
+  contents: LocalizedText,
+  files: readonly PostSaveFile[],
+  owned: readonly PostImageRef[],
+): { contents: LocalizedText; images: PostImageRef[] } => {
+  for (const file of files) {
+    if (!(POST_IMAGE_MIME_TYPES as readonly string[]).includes(file.contentType)) {
+      throw new BffError(
+        400,
+        'UNSUPPORTED_IMAGE_TYPE',
+        `${file.contentType} 은 지원하지 않습니다 (png / jpeg / webp): ${file.key}`,
+      );
+    }
+    if (file.bytes.byteLength > POST_IMAGE_MAX_BYTES) {
+      throw new BffError(413, 'IMAGE_TOO_LARGE', `파일 1개당 최대 5MB 입니다: ${file.key}`);
+    }
   }
+
+  // Allow-list, image count, and total bytes run through the same validator
+  // the editor uses — the counter and the rejection cannot disagree. A cid
+  // ref weighs what its part weighs; an owned URL weighs what the store holds.
+  const bytesBySrc = new Map<string, number>();
+  for (const file of files) {
+    bytesBySrc.set(`${POST_IMAGE_CID_PREFIX}${file.key}`, file.bytes.byteLength);
+  }
+  for (const ref of owned) bytesBySrc.set(ref.url, ref.bytes);
 
   const result = validatePostContent({
     contents,
-    imageSrcPrefixes: POST_IMAGE_SRC_PREFIXES,
-    imageBytesByUrl: bytesByUrl,
+    imageSrcPrefixes: [...POST_IMAGE_SRC_PREFIXES, POST_IMAGE_CID_PREFIX],
+    imageBytesByUrl: bytesBySrc,
   });
-  if (result.valid) return;
+  if (!result.valid) {
+    // All three post-content codes are 400; the code carries which rule broke.
+    const [first] = result.errors;
+    throw new BffError(400, first.code, first.message);
+  }
 
-  // All three post-content codes are 400; the code carries which rule broke.
-  const [first] = result.errors;
-  throw new BffError(400, first.code, first.message);
+  const srcs = new Set<string>();
+  collectImageSrcs(result.asts.ko, srcs);
+  collectImageSrcs(result.asts.en, srcs);
+
+  // Every reference must resolve, in both directions — a cid without a part
+  // is a broken image about to be stored, a part without a reference is a
+  // frontend bug that must not pass silently.
+  const ownedUrls = new Set(owned.map((ref) => ref.url));
+  const referencedKeys = new Set<string>();
+  for (const src of srcs) {
+    if (src.startsWith(POST_IMAGE_CID_PREFIX)) {
+      const key = src.slice(POST_IMAGE_CID_PREFIX.length);
+      if (!POST_IMAGE_KEY_PATTERN.test(key) || !files.some((file) => file.key === key)) {
+        throw new BffError(
+          400,
+          'POST_IMAGE_REF_MISSING',
+          `본문의 cid:${key} 에 대응하는 파일 파트가 없습니다`,
+        );
+      }
+      referencedKeys.add(key);
+    } else if (!ownedUrls.has(src)) {
+      throw new BffError(
+        400,
+        'POST_IMAGE_REF_UNKNOWN',
+        `이 게시글이 소유하지 않은 이미지입니다: ${src}`,
+      );
+    }
+  }
+  for (const file of files) {
+    if (!referencedKeys.has(file.key)) {
+      throw new BffError(
+        400,
+        'POST_IMAGE_UNREFERENCED',
+        `어떤 본문도 참조하지 않는 파일 파트입니다: ${file.key}`,
+      );
+    }
+  }
+
+  // Identical bytes within one save fold into one file — inserting the same
+  // screenshot into ko and then en must not spend two slots.
+  const state = store();
+  const urlByKey = new Map<string, string>();
+  const idByDigest = new Map<string, string>();
+  const added: PostImageRef[] = [];
+  for (const file of files) {
+    const digest = createHash('sha256').update(file.bytes).digest('hex');
+    let imageId = idByDigest.get(digest);
+    if (!imageId) {
+      imageId = `mock-${state.nextImageId++}.${file.contentType.split('/')[1]}`;
+      images.set(imageId, { bytes: file.bytes, contentType: file.contentType });
+      idByDigest.set(digest, imageId);
+      added.push({ url: imageUrl(imageId), bytes: file.bytes.byteLength });
+    }
+    urlByKey.set(file.key, imageUrl(imageId));
+  }
+
+  // The stored body never contains `cid:` — it leaves here as the real URL.
+  const rewrite = (html: string): string =>
+    html.replace(
+      /src="cid:([a-z0-9]{8,32})"/g,
+      (_match, key: string) => `src="${urlByKey.get(key)}"`,
+    );
+
+  // An owned file the new body no longer references dies with this save.
+  const kept = owned.filter((ref) => srcs.has(ref.url));
+  for (const ref of owned) {
+    if (!srcs.has(ref.url)) images.delete(ref.url.split('/').pop()!);
+  }
+
+  return {
+    contents: { ko: rewrite(contents.ko), en: rewrite(contents.en) },
+    images: [...kept, ...added],
+  };
 };
 
 const assertCategoryUsable = (categoryId: number | null | undefined, type: PostType): void => {
@@ -237,13 +337,15 @@ export const mockPosts = {
     return toAdminPost(requirePost(postId));
   },
 
-  create: async (body: PostCreateRequest): Promise<AdminPost> => {
+  create: async (body: PostCreateRequest, files: readonly PostSaveFile[]): Promise<AdminPost> => {
     ensureSeeded();
     if (blank(body.titles) || blank(body.contents)) {
       throw new BffError(400, 'VALIDATION_FAILED', 'titles / contents 의 ko·en 이 모두 필요합니다');
     }
     assertCategoryUsable(body.categoryId, body.type);
-    assertContentValid(body.contents);
+    // A new post owns nothing, so a URL reference is REF_UNKNOWN by
+    // construction (handoff §3.10-③) — `owned` being empty encodes that.
+    const saved = applyBodyImages(body.contents, files, []);
 
     const now = new Date().toISOString();
     const post: StoredPost = {
@@ -252,7 +354,7 @@ export const mockPosts = {
       categoryId: body.categoryId ?? null,
       categoryName: categoryName(body.categoryId ?? null),
       titles: body.titles,
-      contents: body.contents,
+      contents: saved.contents,
       publishedAt: now,
       updatedAt: now,
       pinned: false,
@@ -260,26 +362,32 @@ export const mockPosts = {
       hiddenAt: null,
       createdBy: MOCK_ACTOR,
       updatedBy: MOCK_ACTOR,
+      images: saved.images,
     };
     posts.set(post.id, post);
     return toAdminPost(post);
   },
 
   /** Full replacement. `publishedAt` does not move; only `updatedAt` does. */
-  update: async (postId: number, body: PostUpdateRequest): Promise<AdminPost> => {
+  update: async (
+    postId: number,
+    body: PostUpdateRequest,
+    files: readonly PostSaveFile[],
+  ): Promise<AdminPost> => {
     ensureSeeded();
     const post = requirePost(postId);
     if (blank(body.titles) || blank(body.contents)) {
       throw new BffError(400, 'VALIDATION_FAILED', 'titles / contents 의 ko·en 이 모두 필요합니다');
     }
     assertCategoryUsable(body.categoryId, post.type);
-    assertContentValid(body.contents);
+    const saved = applyBodyImages(body.contents, files, post.images);
 
     const updated: StoredPost = {
       ...post,
       categoryId: body.categoryId ?? null,
       titles: body.titles,
-      contents: body.contents,
+      contents: saved.contents,
+      images: saved.images,
       updatedAt: new Date().toISOString(),
       updatedBy: MOCK_ACTOR,
     };
@@ -315,42 +423,7 @@ export const mockPosts = {
     return toAdminPost(updated);
   },
 
-  uploadImage: async (file: {
-    bytes: Uint8Array<ArrayBuffer>;
-    contentType: string;
-  }): Promise<ImageUploadResponse> => {
-    ensureSeeded();
-    if (!(POST_IMAGE_MIME_TYPES as readonly string[]).includes(file.contentType)) {
-      throw new BffError(
-        400,
-        'UNSUPPORTED_IMAGE_TYPE',
-        `${file.contentType} 은 지원하지 않습니다 (png / jpeg / webp)`,
-      );
-    }
-    if (file.bytes.byteLength > POST_IMAGE_MAX_BYTES) {
-      throw new BffError(413, 'IMAGE_TOO_LARGE', '파일 1개당 최대 5MB 입니다');
-    }
-
-    // Upload is idempotent by content. Writing a bilingual post means inserting
-    // the same screenshot into ko and en, and without this that one picture
-    // spends two of the ten slots and twice its bytes — a 5MB screenshot would
-    // reach the 10MB post cap on its own.
-    const digest = createHash('sha256').update(file.bytes).digest('hex');
-    const existing = imageIdByDigest.get(digest);
-    if (existing) return { url: imageUrl(existing), width: 800, height: 450 };
-
-    const extension = file.contentType.split('/')[1];
-    const imageId = `mock-${store().nextImageId++}.${extension}`;
-    images.set(imageId, { bytes: file.bytes, contentType: file.contentType });
-    imageIdByDigest.set(digest, imageId);
-
-    // The real BFF reads the pixel size off the decoded image. There is no
-    // decoder here, so the mock reports a fixed size — the value only feeds
-    // width/height on the img tag, which CSS overrides anyway.
-    return { url: imageUrl(imageId), width: 800, height: 450 };
-  },
-
-  /** Mock-only: serves what `uploadImage` stored. Real uploads live in storage. */
+  /** Mock-only: serves what a save request stored. Real files live in storage. */
   readImage: (imageId: string): { bytes: Uint8Array<ArrayBuffer>; contentType: string } | null =>
     images.get(imageId) ?? null,
 

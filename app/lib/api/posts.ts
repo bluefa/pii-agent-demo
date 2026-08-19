@@ -13,11 +13,11 @@ import type {
   AdminPost,
   AdminPostCategory,
   AdminPostSummary,
-  ImageUploadResponse,
   Post,
   PostCategory,
   PostCategoryCreateRequest,
   PostCreateRequest,
+  PostImagePart,
   PostSummary,
   PostType,
   PostUpdateRequest,
@@ -45,12 +45,46 @@ export const listAdminPosts = (type?: PostType): Promise<AdminPostSummary[]> =>
 export const getAdminPost = (postId: number): Promise<AdminPost> =>
   fetchInfraJson<AdminPost>(`/admin/posts/${postId}`);
 
-export const createPost = (body: PostCreateRequest): Promise<AdminPost> =>
-  fetchInfraJson<AdminPost>('/admin/posts', { method: 'POST', body });
+/**
+ * The save is the only request that carries image bytes (handoff §3.2): the
+ * body JSON rides the `post` part, each new image rides a `files` part whose
+ * filename is the cid key the body cites. `fetchInfraJson` passes FormData to
+ * fetch untouched, so the multipart boundary survives.
+ */
+const saveForm = (
+  body: PostCreateRequest | PostUpdateRequest,
+  files: readonly PostImagePart[],
+): FormData => {
+  const form = new FormData();
+  form.append('post', new Blob([JSON.stringify(body)], { type: 'application/json' }));
+  for (const { key, file } of files) form.append('files', file, key);
+  return form;
+};
+
+/** A save can carry 10MB of images — the 30s default is sized for JSON. */
+const SAVE_TIMEOUT_MS = 120_000;
+
+export const createPost = (
+  body: PostCreateRequest,
+  files: readonly PostImagePart[] = [],
+): Promise<AdminPost> =>
+  fetchInfraJson<AdminPost>('/admin/posts', {
+    method: 'POST',
+    body: saveForm(body, files),
+    timeout: SAVE_TIMEOUT_MS,
+  });
 
 /** Full replacement — send all four localized values even when one changed. */
-export const updatePost = (postId: number, body: PostUpdateRequest): Promise<AdminPost> =>
-  fetchInfraJson<AdminPost>(`/admin/posts/${postId}`, { method: 'PUT', body });
+export const updatePost = (
+  postId: number,
+  body: PostUpdateRequest,
+  files: readonly PostImagePart[] = [],
+): Promise<AdminPost> =>
+  fetchInfraJson<AdminPost>(`/admin/posts/${postId}`, {
+    method: 'PUT',
+    body: saveForm(body, files),
+    timeout: SAVE_TIMEOUT_MS,
+  });
 
 export const setPostHidden = (postId: number, hidden: boolean): Promise<AdminPost> =>
   fetchInfraJson<AdminPost>(`/admin/posts/${postId}/hidden`, { method: 'PUT', body: { hidden } });
@@ -68,25 +102,3 @@ export const deletePostCategory = async (categoryId: number): Promise<void> => {
   await fetchInfraJson<void>(`/admin/post-categories/${categoryId}`, { method: 'DELETE' });
 };
 
-/**
- * One file, one request. Goes through `fetchInfraJson` like every other call —
- * it now passes FormData to fetch untouched, so the multipart boundary survives.
- *
- * Hand-rolling this on raw fetch is what it replaces, and that version was
- * missing three things the wrapper already owns: the 30s timeout (a hung BFF
- * left the editor spinning with no way out), the TypeError → NETWORK
- * translation (a dead BFF surfaced the browser's own "Failed to fetch" in a
- * Korean UI), and status-derived `retriable` (every failure was stamped
- * non-retriable BAD_REQUEST, so a 503 read as "this file is bad").
- *
- * UNSUPPORTED_IMAGE_TYPE (400) and IMAGE_TOO_LARGE (413) still reach the editor
- * as their ProblemDetails `detail` — `parseErrorResponse` reads that field.
- */
-export const uploadPostImage = (file: File): Promise<ImageUploadResponse> => {
-  const form = new FormData();
-  form.append('file', file);
-  return fetchInfraJson<ImageUploadResponse>('/admin/posts/images', {
-    method: 'POST',
-    body: form,
-  });
-};
