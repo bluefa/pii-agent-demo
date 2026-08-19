@@ -17,26 +17,102 @@ import { NavCountsRefreshProvider } from '@/app/admin/pipelines/_components/NavC
 import { getDashboardSummary } from '@/app/lib/api/task-queue';
 import { getAccessRequests } from '@/app/lib/api/access';
 
+// Item glyphs — the same visual language as TopNav's NAV_ITEMS (16px box,
+// 24 viewBox, 1.8 stroke, currentColor): each glyph inherits its row's
+// idle/active text color. Defined inline like TopNav's, not in ui/icons/ —
+// nav metaphors are this layout's concern, not a shared vocabulary.
+const NAV_ICON_PROPS = {
+  width: 16,
+  height: 16,
+  viewBox: '0 0 24 24',
+  fill: 'none',
+  stroke: 'currentColor',
+  strokeWidth: 1.8,
+  strokeLinecap: 'round',
+  strokeLinejoin: 'round',
+} as const;
+
 const SIDEBAR_GROUPS = [
   {
     title: '인프라 작업',
     items: [
-      { label: '대시보드', href: passRoutes.pipelines.dashboard, exact: true },
-      { label: '서비스·대상 검색', href: passRoutes.pipelines.services, exact: false },
+      {
+        label: '대시보드',
+        icon: (
+          <svg {...NAV_ICON_PROPS} aria-hidden="true">
+            <rect x="3.5" y="3.5" width="7" height="7" rx="1" />
+            <rect x="13.5" y="3.5" width="7" height="7" rx="1" />
+            <rect x="3.5" y="13.5" width="7" height="7" rx="1" />
+            <rect x="13.5" y="13.5" width="7" height="7" rx="1" />
+          </svg>
+        ),
+        href: passRoutes.pipelines.dashboard,
+        exact: true,
+      },
+      {
+        label: '서비스·대상 검색',
+        icon: (
+          <svg {...NAV_ICON_PROPS} aria-hidden="true">
+            <circle cx="11" cy="11" r="5.5" />
+            <path d="M15.2 15.2 20 20" />
+          </svg>
+        ),
+        href: passRoutes.pipelines.services,
+        exact: false,
+      },
     ],
   },
   {
     title: 'Task Queue',
     items: [
-      { label: '운영 대시보드', href: passRoutes.pipelines.queue.dashboard, exact: true },
-      { label: '연동 요청', href: passRoutes.pipelines.queue.requests, exact: false },
+      {
+        label: '운영 대시보드',
+        icon: (
+          <svg {...NAV_ICON_PROPS} aria-hidden="true">
+            <path d="M3 12h4l3-7 4 14 3-7h4" />
+          </svg>
+        ),
+        href: passRoutes.pipelines.queue.dashboard,
+        exact: true,
+      },
+      {
+        label: '연동 요청',
+        icon: (
+          <svg {...NAV_ICON_PROPS} aria-hidden="true">
+            <path d="M22 12v6a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-6" />
+            <path d="M2 12h6l2 3h4l2-3h6" />
+            <path d="M12 3v6M9.5 6.5 12 9l2.5-2.5" />
+          </svg>
+        ),
+        href: passRoutes.pipelines.queue.requests,
+        exact: false,
+      },
     ],
   },
   {
     title: '운영 콘솔',
     items: [
-      { label: '운영 알림', href: passRoutes.pipelines.ops.alerts, exact: false },
-      { label: '서비스 운영', href: passRoutes.pipelines.ops.services, exact: false },
+      {
+        label: '운영 알림',
+        icon: (
+          <svg {...NAV_ICON_PROPS} aria-hidden="true">
+            <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
+            <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
+          </svg>
+        ),
+        href: passRoutes.pipelines.ops.alerts,
+        exact: false,
+      },
+      {
+        label: '서비스 운영',
+        icon: (
+          <svg {...NAV_ICON_PROPS} aria-hidden="true">
+            <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
+          </svg>
+        ),
+        href: passRoutes.pipelines.ops.services,
+        exact: false,
+      },
       // Target Source 운영 is deliberately absent from the nav. The screen still exists and
       // is still routed to — 서비스 운영 sends you there from an infra row, and the pipeline
       // detail breadcrumb links to it — it is simply not a place you start from.
@@ -49,9 +125,39 @@ const SIDEBAR_GROUPS = [
     // `passRoutes.accessRequests` 에 있고 계정 카드(UserChip)에서 연다.
     title: '접근 권한',
     items: [
-      { label: '서비스별 권한', href: passRoutes.pipelines.access.services, exact: false },
-      { label: '관리자 권한', href: passRoutes.pipelines.access.admins, exact: true },
-      { label: '권한 요청', href: passRoutes.pipelines.access.requests, exact: false },
+      {
+        label: '서비스별 권한',
+        icon: (
+          <svg {...NAV_ICON_PROPS} aria-hidden="true">
+            <path d="M12 3l8 3v5.5c0 4.6-3.3 7.8-8 9.5-4.7-1.7-8-4.9-8-9.5V6l8-3z" />
+            <path d="M9 11.5l2 2 4-4" />
+          </svg>
+        ),
+        href: passRoutes.pipelines.access.services,
+        exact: false,
+      },
+      {
+        label: '관리자 권한',
+        icon: (
+          <svg {...NAV_ICON_PROPS} aria-hidden="true">
+            <circle cx="12" cy="8" r="3.8" />
+            <path d="M4.5 20.5c.8-3.6 3.9-5.5 7.5-5.5s6.7 1.9 7.5 5.5" />
+          </svg>
+        ),
+        href: passRoutes.pipelines.access.admins,
+        exact: true,
+      },
+      {
+        label: '권한 요청',
+        icon: (
+          <svg {...NAV_ICON_PROPS} aria-hidden="true">
+            <circle cx="7.5" cy="15.5" r="3.8" />
+            <path d="M10.5 12.5 20 3M16 7l3 3" />
+          </svg>
+        ),
+        href: passRoutes.pipelines.access.requests,
+        exact: false,
+      },
     ],
   },
   {
@@ -59,7 +165,17 @@ const SIDEBAR_GROUPS = [
     items: [
       // 등록·수정(`posts/new`, `posts/{id}`)은 이 목록에서만 들어가는 드릴다운이라
       // 항목을 따로 두지 않는다 — `exact: false` 가 그 화면들에서도 활성을 유지한다.
-      { label: '공지사항 · FAQ', href: passRoutes.adminPosts, exact: false },
+      {
+        label: '공지사항 · FAQ',
+        icon: (
+          <svg {...NAV_ICON_PROPS} aria-hidden="true">
+            <path d="M3 11l17-7v16L3 13v-2z" />
+            <path d="M7.5 13.8V19a1 1 0 0 0 1 1H10v-5.3" />
+          </svg>
+        ),
+        href: passRoutes.adminPosts,
+        exact: false,
+      },
     ],
   },
 ] as const;
@@ -203,11 +319,11 @@ export default function PipelinesLayout({ children }: { children: ReactNode }) {
                   className={cn(
                     layout.sidebarItem,
                     active ? layout.sidebarItemActive : layout.sidebarItemIdle,
-                    // The count badge docks right; every other item stays a plain block.
-                    count > 0 && 'flex items-center justify-between gap-2',
                   )}
                 >
-                  {item.label}
+                  {item.icon}
+                  {/* flex-1 pushes the count badge to the right edge. */}
+                  <span className="flex-1">{item.label}</span>
                   {badge && count > 0 && (
                     <span
                       className={NAV_BADGE_CLASS}
