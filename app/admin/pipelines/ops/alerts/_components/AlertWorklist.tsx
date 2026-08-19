@@ -35,10 +35,14 @@ const worklist = {
   /** Same surface the stage cards wore (r12 · border-strong · shadow-md). */
   card: 'bg-[var(--pl-bg-card)] border border-[var(--pl-border-strong)] rounded-[12px] shadow-[var(--pl-shadow-md)] overflow-hidden',
   /** No bottom border of its own — the table's 2px header rule is the divider. */
-  header: 'flex items-center gap-3 px-5 pt-4 pb-3',
-  titleIcon: 'flex-none text-[var(--pl-text-medium)]',
-  titleText: 'flex-none text-[20px] font-semibold leading-[1.5] text-[var(--pl-text-strong)]',
-  desc: 'min-w-0 flex-1 truncate text-[14px] leading-[1.5] text-[var(--pl-gray-600)]',
+  header: 'flex items-start gap-3 px-5 pt-4 pb-3',
+  /** 2px down-nudge centers the 20px glyph on the 24px title line. */
+  titleIcon: 'mt-0.5 flex-none text-[var(--pl-text-medium)]',
+  titleWrap: 'min-w-0 flex-1',
+  /** Card-head standard (16/600/strong); the description is one tier below
+   *  (14/400/weak) so title and helper text never read as one run-on line. */
+  titleText: 'text-[16px] font-semibold leading-[1.5] text-[var(--pl-text-strong)]',
+  desc: 'mt-0.5 text-[14px] leading-[1.5] text-[var(--pl-text-weak)]',
   descText: 'block max-w-[52ch] truncate text-[14px] text-[var(--pl-text-medium)]',
   state: 'px-5 py-12 text-center text-[12px] text-[var(--pl-text-weak)]',
   /** Skeleton bar — opsStyles.skeleton grammar at one text line's height. */
@@ -105,15 +109,13 @@ export function AlertWorklist({
   return (
     <section className={worklist.card} aria-label={`${label} 대상 목록`}>
       <div className={worklist.header}>
-        {icon === 'terraform' ? (
-          <TerraformLogo size={20} />
-        ) : (
-          <Icon name={icon} size={20} className={worklist.titleIcon} />
-        )}
-        <h2 className={worklist.titleText}>{label}</h2>
-        <p className={worklist.desc} title={description}>
-          {description}
-        </p>
+        <span className={worklist.titleIcon}>
+          {icon === 'terraform' ? <TerraformLogo size={20} /> : <Icon name={icon} size={20} />}
+        </span>
+        <div className={worklist.titleWrap}>
+          <h2 className={worklist.titleText}>{label}</h2>
+          <p className={worklist.desc}>{description}</p>
+        </div>
         <PlButton variant="outline" size="sm" onClick={onRefresh} className="flex-none gap-1.5">
           <Icon name="refresh" size="md" />
           새로고침
