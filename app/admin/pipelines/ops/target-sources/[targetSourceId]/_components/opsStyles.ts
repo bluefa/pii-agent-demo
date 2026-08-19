@@ -32,6 +32,14 @@ export const opsStyles = {
   idTitle: 'whitespace-nowrap text-[20px] font-bold tracking-[-0.02em] text-[var(--pl-text-strong)]',
   idHash: 'font-normal text-[var(--pl-text-faint)]', // design-exempt: prefix glyph, the id digits beside it carry the reading
 
+  /** Meta line — 클라우드 · 설정 + 검증값 on the wash (오너 08-20: the target's own
+      facts came back out of the rail). Key·value pairs in one wrapping 12px flow;
+      white chips and the ARN action are its only interactive islands. */
+  metaRow: 'mt-2 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[12px]',
+  metaPair: 'inline-flex min-w-0 items-baseline gap-1.5',
+  metaKey: 'flex-none text-[12px] text-[var(--pl-text-weak)]',
+  metaValue: 'min-w-0 text-[12px] font-semibold text-[var(--pl-text-medium)]',
+
   /** Neutral tag / region tag — shared with SduOpsNotice·ServiceDetailView·
       TerraformStatusModal (Figma 49:4/34:4). */
   tag: 'inline-flex items-center rounded px-2 py-1 text-[12px] font-semibold bg-[var(--pl-gray-100)] text-[var(--pl-text-medium)] whitespace-nowrap',
@@ -71,10 +79,10 @@ export const opsStyles = {
   content: 'flex min-w-0 flex-1 flex-col gap-4',
 
   /**
-   * Meta rail (R1′ V-b) — bare on the canvas: no card, hairline dividers between
-   * groups, 흰 면은 인터랙티브 칩에만. 흰 카드(종이)는 화면에서 주 콘텐츠 한
-   * 계층에만 허용 — 레일이 흰 카드면 계층 분리는 다시 무너진다 (GitHub PR
-   * sidebar · Notion properties 문법).
+   * Meta rail (R1′ V-b) — bare on the canvas: no card, 흰 면은 인터랙티브에만.
+   * 흰 카드(종이)는 화면에서 주 콘텐츠 한 계층에만 허용 (GitHub PR sidebar ·
+   * Notion properties 문법). 오너 08-20 조정 이후 레일은 서비스 축(이름·코드·
+   * Jira·운영)만 남는다 — 대상 자신의 사실은 마스트헤드 metaRow 로 갔다.
    */
   rail: 'w-[236px] flex-none',
   railGroup: 'border-t border-[var(--pl-border)] py-3 first:border-t-0 first:pt-1',

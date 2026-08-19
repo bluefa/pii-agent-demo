@@ -349,6 +349,7 @@ const SURFACES: SurfacePair[] = [
   { what: 'ops masthead wash on the R1 canvas', top: resolve('var(--pl-gray-100)'), under: resolve('var(--pl-bg-canvas)') },
   { what: 'white card / rail chip on the R1 canvas', top: '#FFFFFF', under: resolve('var(--pl-bg-canvas)') },
   { what: 'ops active tab face on the masthead wash', top: bgOf(classOf(opsSrc, 'tabActive')), under: resolve('var(--pl-gray-100)') },
+  { what: 'ops meta-line chip face on the masthead wash', top: bgOf(classOf(opsSrc, 'rawDataTag')), under: resolve('var(--pl-gray-100)') },
   // The card's hover fill is a surface too — it replaces white under the cursor, so it
   // has to separate from the canvas the card sits on or the hovered card dissolves into
   // the page. `bg-gray-50` here measured 1.20 from the card it replaced.
@@ -407,6 +408,10 @@ const TEXT: TextPair[] = [
   { what: 'ops rail link on the R1 canvas', fg: textOf(classOf(opsSrc, 'railLink')), on: resolve('var(--pl-bg-canvas)') },
   { what: 'ops crumb on the masthead wash', fg: textOf(classOf(opsSrc, 'crumb')), on: resolve('var(--pl-gray-100)') },
   { what: 'ops idle tab on the masthead wash', fg: textOf(classOf(opsSrc, 'tabIdle')), on: resolve('var(--pl-gray-100)') },
+  // 마스트헤드 meta line (오너 08-20: 클라우드·설정 + 검증값이 레일에서 복귀) — 워시 위 키·값.
+  { what: 'ops meta key on the masthead wash', fg: textOf(classOf(opsSrc, 'metaKey')), on: resolve('var(--pl-gray-100)') },
+  { what: 'ops meta value on the masthead wash', fg: textOf(classOf(opsSrc, 'metaValue')), on: resolve('var(--pl-gray-100)') },
+  { what: 'ops ARN edit hint on the masthead wash', fg: textOf(classOf(opsSrc, 'railActionHint')), on: resolve('var(--pl-gray-100)') },
   { what: 'rail section label on rail', fg: textOf(classOf(railBlock, 'sectionLabel')), on: rail },
   { what: 'rail footer page on rail', fg: textOf(classOf(railBlock, 'footerPage')), on: rail },
   { what: 'rail pager glyph on rail', fg: textOf(classOf(railBlock, 'pagerBtn')), on: rail },

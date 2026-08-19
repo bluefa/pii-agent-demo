@@ -298,7 +298,18 @@ export function OpsTargetView({ targetSourceId, initialTab }: OpsTargetViewProps
   return (
     <div className={opsStyles.page}>
       <div className={opsStyles.masthead}>
-        <OpsHeader targetSourceId={targetSourceId} detail={detail} processStatus={processStatus} />
+        <OpsHeader
+          targetSourceId={targetSourceId}
+          detail={detail}
+          processStatus={processStatus}
+          isAws={isAws}
+          savedRoleArns={savedRoleArns}
+          grantTfExecution={grantTfExecution}
+          supportRawData={supportRawData}
+          onOpenMode={() => setModal({ type: 'mode' })}
+          onOpenEdit={(kind) => setModal({ type: 'edit', kind })}
+          onOpenRawData={() => setModal({ type: 'raw' })}
+        />
         <div className={opsStyles.tabStrip} role="tablist" aria-label="Target Source 운영 탭">
           {tabs.map((tab) => {
             const active = tab === currentTab;
@@ -387,18 +398,7 @@ export function OpsTargetView({ targetSourceId, initialTab }: OpsTargetViewProps
           />
         )}
       </div>
-      <OpsMetaRail
-        detail={detail}
-        isAws={isAws}
-        savedRoleArns={savedRoleArns}
-        grantTfExecution={grantTfExecution}
-        jiraTicket={jiraTicket}
-        ticketLoaded={ticketLoaded}
-        supportRawData={supportRawData}
-        onOpenMode={() => setModal({ type: 'mode' })}
-        onOpenEdit={(kind) => setModal({ type: 'edit', kind })}
-        onOpenRawData={() => setModal({ type: 'raw' })}
-      />
+      <OpsMetaRail detail={detail} jiraTicket={jiraTicket} ticketLoaded={ticketLoaded} />
       </div>
 
       <RawDataModal
