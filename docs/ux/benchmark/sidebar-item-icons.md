@@ -3,7 +3,7 @@
 - **날짜**: 2026-08-19
 - **대상**: `/pass/admin/pipelines/**` 공용 사이드바 (`app/admin/pipelines/layout.tsx`)
 - **아티팩트**: <https://claude.ai/code/artifact/307af4ef-3aa8-47c3-b4df-9b3e9732de50>
-- **구현 PR**: feat/sidebar-item-icons (커밋 이력 참조)
+- **구현 PR**: #731
 
 ## 1. 왜 했나
 
