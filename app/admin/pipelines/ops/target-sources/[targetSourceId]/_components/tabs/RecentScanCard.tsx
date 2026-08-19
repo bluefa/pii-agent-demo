@@ -311,7 +311,9 @@ export function RecentScanCard({
                   둔다. 컨테이너 자체에 걸면 타일 그리드가 통째로 낭독된다. */}
               <p className="sr-only" aria-live="polite">
                 {running
-                  ? '스캔을 진행하고 있어요.'
+                  ? finalizing
+                    ? '스캔 결과를 집계하고 있어요.'
+                    : '스캔을 진행하고 있어요.'
                   : confirming
                     ? '스캔이 끝났어요.'
                     : latestJob.scan_status === 'SUCCESS'
@@ -319,7 +321,13 @@ export function RecentScanCard({
                       : ''}
               </p>
               {running ? (
-                <ScanBeat done={false} caption="스캔 완료 후 집계돼요." />
+                // 시제를 단계에 맞춘다 — SAVING 중에 "완료 후 집계돼요"는 이미 벌어지고
+                // 있는 일을 미래로 밀어, 가득 찬 바 아래에서 멈춘 화면처럼 읽힌다.
+                // 문장은 Step 1 히어로와 같은 말을 쓴다(한 순간, 한 문구).
+                <ScanBeat
+                  done={false}
+                  caption={finalizing ? '결과를 집계하고 있어요.' : '스캔 완료 후 집계돼요.'}
+                />
               ) : confirming ? (
                 // admin 은 건수를 이미 손에 쥐고 있어 "정리"할 게 없다 — 히어로가
                 // 현재진행으로, 여기가 과거로 같은 순간을 말하던 시제 충돌도 없앤다.

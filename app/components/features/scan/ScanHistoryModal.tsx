@@ -201,7 +201,11 @@ export const ScanHistoryModal = ({ targetSourceId, provider, onClose }: ScanHist
                         }}
                         // One token drives both pointer hover and keyboard focus, so
                         // the state is not pointer-only.
-                        className={cn('group cursor-pointer outline-none', primaryColors.bgLightActive)}
+                        // `group/row` as well as the bare `group`: chipEdge is scoped
+                        // `group-hover/row:`, and without the name it never fires — the
+                        // status chip's fill is byte-identical to this row's hover tint
+                        // (#E8F1FF), so the chip would vanish under the cursor.
+                        className={cn('group group/row cursor-pointer outline-none', primaryColors.bgLightActive)}
                       >
                         <td className={cn(BODY_CELL, 'whitespace-nowrap text-[13px]', textColors.secondary)}>
                           {scannedAt}

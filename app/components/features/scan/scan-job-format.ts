@@ -17,7 +17,13 @@ export const scanStatusTagClass = (scanStatus: ScanJob['scan_status']): string =
     case 'FAIL':
     case 'TIMEOUT':
       return idcStyles.tag.red;
-    default: // SCANNING · SAVING · CANCELED
+    // Still working. Named rather than left to `default:` — gray is CANCELED's chip,
+    // and a scan that is actively writing its results must not read as abandoned.
+    // Blue matches the tone the same statuses carry on the admin pill.
+    case 'SCANNING':
+    case 'SAVING':
+      return idcStyles.tag.blue;
+    default: // CANCELED, and any status this build has no vocabulary for
       return idcStyles.tag.gray;
   }
 };

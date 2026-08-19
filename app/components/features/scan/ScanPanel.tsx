@@ -74,7 +74,7 @@ export const ScanController = ({ targetSourceId, onScanComplete, children }: Sca
       await minSpinnerDelay;
     },
     {
-      errorMessage: '스캔을 시작할 수 없습니다.',
+      errorMessage: '스캔을 시작하지 못했습니다. 잠시 후 다시 시도해 주세요.',
     }
   );
 
