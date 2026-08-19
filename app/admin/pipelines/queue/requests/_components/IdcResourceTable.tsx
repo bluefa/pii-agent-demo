@@ -71,6 +71,14 @@ export interface IdcResourceTableProps {
    * 질문이 그 화면에 없으면 열도 없다. 기본값은 요청 화면 그대로다.
    */
   showVerdict?: boolean;
+  /**
+   * NLB 점유표가 아직(또는 끝내) 없는 동안 배정 버튼을 이 이유(title)로 잠근다.
+   * `disabled`(잠금: 버튼이 텍스트로 내려간다)와 달리 버튼은 버튼으로 남는다 —
+   * 돌아올 상태다.
+   */
+  assignDisabledReason?: string;
+  /** 사용 서비스 조회도 같은 문법 — 서비스별 배정 fetch 가 도착할 때까지. */
+  servicesDisabledReason?: string;
 }
 
 // A text button, not a control cluster: opening the assignment is one act, and the
@@ -81,6 +89,11 @@ export interface IdcResourceTableProps {
 const NLB_BTN =
   'text-[14px] font-medium text-[var(--pl-primary)] tabular-nums cursor-pointer underline underline-offset-[3px] decoration-[var(--pl-primary)]/40 hover:decoration-[var(--pl-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--pl-primary)] rounded-sm';
 
+// The same text button while its data is in flight — faint and unlined, so it reads
+// "아직" rather than clickable or plain text; the button's title says why.
+const NLB_BTN_HELD =
+  'text-[14px] font-medium text-[var(--pl-text-faint)] tabular-nums cursor-not-allowed rounded-sm'; // design-exempt: disabled control — same faint tier as PlButton's disabled text
+
 export function IdcResourceTable({
   rows,
   disabled = false,
@@ -88,6 +101,8 @@ export function IdcResourceTable({
   onShowServices,
   suspectMarks,
   showVerdict = true,
+  assignDisabledReason,
+  servicesDisabledReason,
 }: IdcResourceTableProps): ReactElement {
   const { table } = idcStyles;
 
@@ -282,7 +297,13 @@ export function IdcResourceTable({
                       </span>
                     )
                   ) : (
-                    <button type="button" className={NLB_BTN} onClick={() => onAssignNlb(row)}>
+                    <button
+                      type="button"
+                      className={assignDisabledReason != null ? NLB_BTN_HELD : NLB_BTN}
+                      disabled={assignDisabledReason != null}
+                      title={assignDisabledReason}
+                      onClick={() => onAssignNlb(row)}
+                    >
                       {row.nlbIndex != null ? `NLB #${row.nlbIndex}` : '배정하기'}
                     </button>
                   )}
@@ -296,7 +317,13 @@ export function IdcResourceTable({
                     {/* Same text-button grammar as the assignment beside it — one column,
                         one way in. A row with no resource_id has nothing to look up. */}
                     {row.resourceId != null && (
-                      <button type="button" className={NLB_BTN} onClick={() => onShowServices(row)}>
+                      <button
+                        type="button"
+                        className={servicesDisabledReason != null ? NLB_BTN_HELD : NLB_BTN}
+                        disabled={servicesDisabledReason != null}
+                        title={servicesDisabledReason}
+                        onClick={() => onShowServices(row)}
+                      >
                         조회
                       </button>
                     )}
