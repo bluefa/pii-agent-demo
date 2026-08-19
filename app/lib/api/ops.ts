@@ -187,6 +187,12 @@ export interface OpsServiceTargetRow {
    * 화면까지 끌고 가면 판정이 두 군데로 갈린다. false = "실데이터라고 말할 근거가 없다".
    */
   support_raw_data: boolean;
+  /**
+   * `TargetSourceInfo.piiAgentFirstInstalledAt` — 이 대상이 **최초로** 연동을 마친 시각.
+   * 한 번 찍히면 움직이지 않는다: 초기화(`resetTargetSource`)로 1단계까지 되돌아가도,
+   * 다시 설치해도 그대로다. 현재 단계와 독립인 사실이라 도장이 이 값을 쓴다.
+   */
+  pii_agent_first_installed_at: string | null;
   /** 정렬 키 (updatedAt ?? createdAt). */
   last_changed_at: string;
   metadata: OpsTargetSourceAccount;

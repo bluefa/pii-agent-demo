@@ -29,6 +29,7 @@ import { ProvTag } from '@/app/admin/pipelines/_components/ProvTag';
 import { ProviderLogo } from '@/app/components/features/admin/v7';
 import type { CloudProvider } from '@/lib/types';
 import { opsStyles } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/opsStyles';
+import { CompletedStampSlot } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/CompletedStamp';
 import { serviceListStyles as s } from '@/app/admin/pipelines/_services/styles';
 import { safeBrowseUrl } from '@/lib/jira-ticket';
 import { JiraTicketMenu } from '@/app/admin/pipelines/ops/services/_components/JiraTicketMenu';
@@ -300,6 +301,9 @@ function DetailSkeleton(): ReactElement {
                 {bar('h-[21px] w-[240px] max-w-full rounded')}
                 {bar('h-[21px] w-[320px] max-w-full rounded')}
               </div>
+              {/* 도장 자리 — 찍힐지 아직 모르므로 막대를 놓지 않는다. 자리만 비워
+                  둬야 "운영 화면 ↗" 의 x 좌표가 데이터 도착 전후로 같다. */}
+              <div className="w-[160px] flex-none" aria-hidden="true" />
               {bar('h-5 w-20 shrink-0 self-center rounded')}
             </div>
           ))}
@@ -541,7 +545,9 @@ export function ServiceDetailView({ serviceCode }: ServiceDetailViewProps): Reac
                     {account && (
                       <span className="flex min-w-0 items-center gap-1.5">
                         <span className={cn(tsTable.metaLabel, 'flex-none')}>{account.label}</span>
-                        <span className={tsTable.account}>{account.value}</span>
+                        <span className={tsTable.account} title={account.value}>
+                          {account.value}
+                        </span>
                       </span>
                     )}
                     {/* Tenant 는 account 바깥에 둔다 — 계약이 두 필드를 각각 optional 로
@@ -551,7 +557,9 @@ export function ServiceDetailView({ serviceCode }: ServiceDetailViewProps): Reac
                     {tenantId && (
                       <span className="flex min-w-0 items-center gap-1.5">
                         <span className={cn(tsTable.metaLabel, 'flex-none')}>Tenant</span>
-                        <span className={tsTable.account}>{tenantId}</span>
+                        <span className={tsTable.account} title={tenantId}>
+                          {tenantId}
+                        </span>
                       </span>
                     )}
                     {/* 둘 다 없을 때만 gloss — 2층은 어떤 경우에도 비지 않는다. */}
@@ -571,6 +579,23 @@ export function ServiceDetailView({ serviceCode }: ServiceDetailViewProps): Reac
                     )}
                   </div>
                 </div>
+
+                {/* 최초로 연동을 마친 적 있는 대상에만 찍힌다 — 이 목록에서 유일하게
+                    큰 글자다. 단계를 그리는 것이 아니다(이 화면은 단계를 보여주지 않는다는
+                    오너 결정은 그대로다): 이 값은 초기화로 1단계까지 되돌아가도 움직이지
+                    않으므로 지금 몇 단계인지에 대해서는 아무 말도 하지 않는다.
+                    자리는 미리 잡는다 — 도장이 없는 행에서도 위 두 줄의 폭이 같아야
+                    잘리는 값(Azure GUID 두 개)이 행마다 달라지지 않는다.
+
+                    가로 예산을 174px(슬롯 160 + gap 14) 쓴다. 913px 카드에서 2층의
+                    여유가 694 → 520px 이 되므로, Azure 처럼 36자 GUID 를 둘 싣는 행은
+                    더 짧게 잘린다(전문은 `title`). 잘림은 이 카드가 이미 택한 거래이고
+                    (높이 고정 = 넘치면 자름), 도장은 그 거래의 대가를 알고 들어온다. */}
+                <CompletedStampSlot
+                  firstInstalledAt={target.pii_agent_first_installed_at}
+                  reserve
+                  className="self-center"
+                />
 
                 {/* The link is this element, not a stretched overlay over the whole
                     card. An overlay is the only positioned child, so it paints above

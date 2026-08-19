@@ -361,6 +361,11 @@ export const mockProjects = {
       completionConfirmedAt: now,
       piiAgentInstalled: true,
       piiAgentConnectedAt: project.piiAgentConnectedAt || now,
+      // 최초 1회만. `confirm.ts` 의 설치 확정과 같은 규칙이다.
+      ...(calculatedProcessStatus === ProcessStatus.INSTALLATION_COMPLETE &&
+      !project.piiAgentFirstInstalledAt
+        ? { piiAgentFirstInstalledAt: now }
+        : {}),
     });
 
     return NextResponse.json({ project: updatedProject });

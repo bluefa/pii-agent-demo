@@ -23,6 +23,7 @@ import type { RawTargetSourceDetail } from '@/app/lib/api/pipeline-target';
 import type { TargetJiraTicket } from '@/app/lib/api/ops';
 import type { ProcessStatus } from '@/app/admin/pipelines/queue/_components/StepStack';
 import { StepPill } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/StepPill';
+import { CompletedStampSlot } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/CompletedStamp';
 import { ROLE_META, type RoleKind } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/roleMeta';
 import { opsStyles } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/opsStyles';
 
@@ -260,6 +261,17 @@ export function OpsHeader({
             <div className="mt-1">{infoRow('Scan App', meta.azure_scan_app_id)}</div>
           )}
         </div>
+
+        {/* 신원 스택 오른쪽은 비어 있던 자리다 — 도장은 거기 선다. 단계 알약(1층)과
+            겹쳐 보이지만 두 표식은 서로 다른 축이다: 알약은 "지금 어디"를 7단계로 말하고,
+            도장은 "최초로 마친 적 있다 · 언제"를 말한다. 초기화된 대상은 알약이 1단계로
+            내려가도 도장은 남는다 — 그 둘이 같이 보이는 것이 이 화면이 말해야 하는
+            사실이다(다시 연동 중이지만 처음이 아니다). 값은 이미 받아 둔 상세에 있다. */}
+        <CompletedStampSlot
+          firstInstalledAt={detail.pii_agent_first_installed_at}
+          size="lg"
+          className="self-center"
+        />
       </div>
     </div>
   );
