@@ -42,6 +42,27 @@ describe('ScanHistoryModal', () => {
     expect(getScanHistory).toHaveBeenCalledWith(7, 0, 5);
   });
 
+  // 건수 맵이 없는 SUCCESS 는 완료지만(오너 확정) 잰 숫자가 없다 — "0개 발견"은
+  // 하지 않은 측정을 주장한다. admin 이력 표가 같은 자리에 쓰는 '—' 와 맞춘다.
+  it('건수 맵이 없는 성공은 0을 주장하지 않는다', async () => {
+    getScanHistory.mockResolvedValueOnce({
+      content: [
+        {
+          id: 12,
+          scan_status: 'SUCCESS',
+          created_at: '2026-08-19T05:00:00Z',
+          duration_seconds: 32,
+          resource_count_by_resource_type: null,
+        },
+      ],
+    });
+    renderModal();
+
+    expect(await screen.findByText('성공')).toBeTruthy();
+    expect(screen.queryByText('0개 발견')).toBeNull();
+    expect(screen.getByText('—')).toBeTruthy();
+  });
+
   // Clicking a row swaps the same modal to that scan's detail; the per-type counts
   // ride along on the history response, so no extra request is made.
   it('opens the per-scan detail in place and returns to the list', async () => {
