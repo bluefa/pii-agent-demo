@@ -12,6 +12,7 @@ import {
   verdictByResource,
 } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/logic';
 import {
+  podIdTail,
   resourceIdTail,
   shortResourceId,
 } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/bits';
@@ -125,6 +126,39 @@ describe('runAgentRows', () => {
 
   it('is empty for no run', () => {
     expect(runAgentRows(null)).toEqual([]);
+  });
+
+  it('reads the DRAFT-CONTRACT pod_id off the passthrough object', () => {
+    const latest = version([['r-1', 'SUCCESS']]);
+    const [agent] = latest.test_connection_agent_results ?? [];
+    const rows = runAgentRows({
+      ...latest,
+      test_connection_agent_results: [{ ...agent, pod_id: 'tc-1-4-ab12z' }],
+    });
+    expect(rows[0]?.podId).toBe('tc-1-4-ab12z');
+  });
+
+  it('treats an absent, empty, or non-string pod_id as no pod', () => {
+    const latest = version([['r-1', 'SUCCESS'], ['r-2', 'FAIL'], ['r-3', 'RUNNING']]);
+    const agents = latest.test_connection_agent_results ?? [];
+    const rows = runAgentRows({
+      ...latest,
+      test_connection_agent_results: [
+        agents[0],
+        { ...agents[1], pod_id: '' },
+        { ...agents[2], pod_id: 7 },
+      ],
+    });
+    expect(rows.map((r) => r.podId)).toEqual([null, null, null]);
+  });
+});
+
+describe('podIdTail', () => {
+  it('keeps a short name whole and left-ellipsizes a long one so the random tail survives', () => {
+    expect(podIdTail('tc-2104-4-ab12z')).toBe('tc-2104-4-ab12z');
+    const long = 'tc-installer-agent-20481-7f9c4d-xk2lp';
+    expect(podIdTail(long)).toBe(`…${long.slice(-17)}`);
+    expect(podIdTail(long)).toHaveLength(18);
   });
 });
 

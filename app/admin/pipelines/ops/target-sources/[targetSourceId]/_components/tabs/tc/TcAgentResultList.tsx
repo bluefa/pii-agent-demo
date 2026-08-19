@@ -25,6 +25,7 @@ import { OpsPagination } from '@/app/admin/pipelines/ops/target-sources/[targetS
 import {
   Dash,
   TcPill,
+  podIdTail,
   resourceIdTail,
 } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/bits';
 import {
@@ -165,6 +166,15 @@ export function TcAgentResultList({
                   이름 쪽 절단 위치가 행마다 흔들리지 않게 한다. */}
               <span className="w-[86px] flex-none truncate text-right font-mono text-[12px] text-[var(--pl-text-faint)]">
                 {row.agentId ?? <Dash />}
+              </span>
+              {/* 이 agent 가 돈 TC pod (DRAFT CONTRACT — 다음 swagger 개정에 실린다).
+                  디스패치 전(PENDING)에는 pod 가 아직 없어 — 로 나온다. 폭은 같은 탭
+                  CredentialAssignModal 의 User ID 열(w-[132px]) 재사용. */}
+              <span
+                className="w-[132px] flex-none truncate text-right font-mono text-[12px] text-[var(--pl-text-faint)]"
+                title={row.podId ?? undefined}
+              >
+                {row.podId ? podIdTail(row.podId) : <Dash />}
               </span>
               {filter === 'ALL' && (
                 <span className="flex w-[72px] flex-none justify-end">

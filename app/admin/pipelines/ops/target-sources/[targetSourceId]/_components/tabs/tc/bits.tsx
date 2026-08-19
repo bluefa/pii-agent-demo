@@ -61,6 +61,15 @@ export function resourceIdTail(value: string): string {
   return segments.length > 1 ? segments[segments.length - 1] : value;
 }
 
+/**
+ * pod 이름은 job 접두사(tc-…)를 공유해 뒤쪽 난수 조각만이 줄과 줄을 가른다 —
+ * resourceIdTail 과 같은 이유로 꼬리를 남긴다. CSS truncate 는 오른쪽을 자르므로
+ * 문자열 단계에서 왼쪽을 줄여야 꼬리가 산다. 전체 값은 hover title 로.
+ */
+export function podIdTail(value: string, max = 18): string {
+  return value.length <= max ? value : `…${value.slice(1 - max)}`;
+}
+
 /** Mono resource id cell — abbreviated, full value in the native tooltip. */
 export function ResourceId({ value }: { value: string }): ReactElement {
   if (!value) return <Dash />;

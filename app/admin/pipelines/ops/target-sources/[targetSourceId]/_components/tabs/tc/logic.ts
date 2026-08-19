@@ -5,7 +5,11 @@
  * in isolation.
  */
 import type { TcExecutionStatus, TcResultRow } from '@/app/lib/api/task-queue-tc';
-import type { ConfirmedIntegrationResourceItem, TestConnectionVersionResult } from '@/app/lib/api';
+import type {
+  ConfirmedIntegrationResourceItem,
+  TestConnectionAgentResult,
+  TestConnectionVersionResult,
+} from '@/app/lib/api';
 import type { SecretKey } from '@/lib/types';
 
 /**
@@ -62,6 +66,8 @@ export interface TcAgentRow {
   resourceId: string;
   /** 계약상 optional — 응답이 주지 않으면 null. */
   agentId: string | null;
+  /** 이 agent 가 돈 TC pod (DRAFT CONTRACT) — 디스패치 전이거나 응답이 주지 않으면 null. */
+  podId: string | null;
   /** 이 agent 한 건의 판정 (리소스 단위 fold 가 아니다). */
   verdict: TcVerdict;
 }
@@ -75,6 +81,16 @@ export interface TcAgentRow {
  * 30건짜리 실행에서 "10건이 아직 시작도 안 했다"와 "10건이 붙는 중이다"는 운영자에게
  * 다른 사실이다.
  */
+/**
+ * DRAFT CONTRACT — 리소스별 `pod_id` 는 다음 install-v1 swagger 개정에 실리는
+ * 필드로, 아직 codegen 타입에 없다(loose codegen 이 passthrough 로만 보존).
+ * 계약이 랜딩하면 이 헬퍼는 일반 필드 접근으로 줄인다. 빈 문자열·비문자열은 "pod 없음".
+ */
+function agentPodId(agent: TestConnectionAgentResult): string | null {
+  const raw: unknown = (agent as Record<string, unknown>).pod_id;
+  return typeof raw === 'string' && raw !== '' ? raw : null;
+}
+
 export function runAgentRows(latest: TestConnectionVersionResult | null): TcAgentRow[] {
   return (latest?.test_connection_agent_results ?? [])
     .filter((agent) => Boolean(agent?.resource_id))
@@ -83,6 +99,7 @@ export function runAgentRows(latest: TestConnectionVersionResult | null): TcAgen
       return {
         resourceId: agent.resource_id ?? '',
         agentId: agent.agent_id || null,
+        podId: agentPodId(agent),
         verdict:
           status === 'SUCCESS' ? 'SUCCESS'
             : status === 'FAIL' ? 'FAIL'

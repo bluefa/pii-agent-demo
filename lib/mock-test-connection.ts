@@ -359,26 +359,43 @@ const isQueued = (job: TestConnectionJob): boolean =>
 export const toWireTopStatus = (job: TestConnectionJob): WireConnectionStatus =>
   job.status === 'PENDING' ? (isQueued(job) ? 'PENDING' : 'RUNNING') : job.status;
 
+/**
+ * DRAFT CONTRACT — 리소스별 `pod_id` 는 다음 install-v1 swagger 개정에 실리는 필드.
+ * k8s Job pod 꼴(잡 접두사 + 난수 조각)을 결정적으로 흉내 낸다 — 같은 실행의 같은
+ * 리소스는 항상 같은 이름이어야 폴링 프레임마다 pod 열이 흔들리지 않는다.
+ */
+const podIdFor = (targetSourceId: number, version: number, resourceId: string): string => {
+  let hash = 0;
+  for (let i = 0; i < resourceId.length; i += 1) hash = (hash * 31 + resourceId.charCodeAt(i)) >>> 0;
+  return `tc-${targetSourceId}-${version}-${hash.toString(36).padStart(5, '0').slice(-5)}`;
+};
+
 /** `TestConnectionVersionResult` wire shape (getLatestTestConnectionStatus). */
 export const toVersionResultResponse = (job: TestConnectionJob) => {
   const queued = isQueued(job);
   const topStatus = toWireTopStatus(job);
+  const version = versionForTarget(job.target_source_id);
   const settled = job.resource_results.map((r, index) => ({
     agent_id: r.agent_id ?? fallbackAgentId(index),
     gcp_region: '',
     resource_id: r.resource_id,
     connection_status: r.status as WireConnectionStatus,
+    // 판정이 난 행은 pod 가 반드시 있었다 (DRAFT CONTRACT: pod_id).
+    pod_id: podIdFor(job.target_source_id, version, r.resource_id),
     database_uri_list: r.status === 'SUCCESS' ? [`mysql://${r.resource_id}/db`] : [],
   }));
   return {
     target_source_id: job.target_source_id,
-    test_connection_version: versionForTarget(job.target_source_id),
+    test_connection_version: version,
     connection_status: topStatus,
     requested_at: job.requested_at,
     // 미완료 실행은 null — 계약(loose codegen)이 nullable 이고, epoch 플레이스홀더를
     // 보내면 헤더 태그가 진행 중인 실행을 "20673일 전"으로 읽는다.
     completed_at: job.completed_at,
-    test_connection_agent_results: [...settled, ...unsettledAgentResults(job, settled.length, queued)],
+    test_connection_agent_results: [
+      ...settled,
+      ...unsettledAgentResults(job, settled.length, queued, version),
+    ],
   };
 };
 
@@ -391,18 +408,28 @@ export const toVersionResultResponse = (job: TestConnectionJob) => {
  * 뒤는 전부 PENDING 이다. 시작 대기(queued) 창에는 아직 아무것도 돌지 않으므로 전부
  * PENDING 이다.
  */
-const unsettledAgentResults = (job: TestConnectionJob, settledCount: number, queued: boolean) => {
+const unsettledAgentResults = (
+  job: TestConnectionJob,
+  settledCount: number,
+  queued: boolean,
+  version: number,
+) => {
   const schedule = (job as InternalTestConnectionJob).resource_schedule ?? [];
   const done = new Set(job.resource_results.map((r) => r.resource_id));
   return schedule
     .filter((item) => !done.has(item.resource_id))
-    .map((item, offset) => ({
-      agent_id: fallbackAgentId(settledCount + offset),
-      gcp_region: '',
-      resource_id: item.resource_id,
-      connection_status: (!queued && offset === 0 ? 'RUNNING' : 'PENDING') as WireConnectionStatus,
-      database_uri_list: [] as string[],
-    }));
+    .map((item, offset) => {
+      const running = !queued && offset === 0;
+      return {
+        agent_id: fallbackAgentId(settledCount + offset),
+        gcp_region: '',
+        resource_id: item.resource_id,
+        connection_status: (running ? 'RUNNING' : 'PENDING') as WireConnectionStatus,
+        // pod 는 디스패치 시점에 생긴다 — PENDING 행에는 아직 없다.
+        ...(running ? { pod_id: podIdFor(job.target_source_id, version, item.resource_id) } : {}),
+        database_uri_list: [] as string[],
+      };
+    });
 };
 
 /**
