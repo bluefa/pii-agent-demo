@@ -1,6 +1,6 @@
 'use client';
 
-import { SCAN_ERROR_LABELS } from '@/app/components/features/scan/scan-labels';
+import { SCAN_ERROR_LABELS, isScanSettled } from '@/app/components/features/scan/scan-labels';
 import {
   fmtScanCount,
   scanDurationText,
@@ -52,9 +52,19 @@ export const ScanDetail = ({ job, provider }: { job: ScanJob; provider: CloudPro
         {scanStatusLabel(job)}
       </span>
 
+      {/* 저장 중인 잡은 결과가 아직 없다 — 설명 없는 빈 자리는 "0건"으로 읽힌다. */}
+      {job.scan_status === 'SAVING' && (
+        <p className={cn('mt-4 text-[14px]', textColors.tertiary)}>
+          결과를 집계하고 있어요. 잠시 후 다시 확인해 주세요.
+        </p>
+      )}
+
       {job.scan_status === 'SUCCESS' && (
         <div className="mt-4">
-          {counts.length === 0 ? (
+          {job.resource_count_by_resource_type == null ? (
+            // 맵이 없는 성공은 0이 아니다 — 이 잡의 이력 행이 쓰는 — 그대로.
+            <p className={cn('text-sm', textColors.tertiary)}>—</p>
+          ) : counts.length === 0 ? (
             <p className={cn('text-sm', textColors.tertiary)}>발견된 리소스가 없어요.</p>
           ) : (
             <>
@@ -122,8 +132,13 @@ export const ScanDetail = ({ job, provider }: { job: ScanJob; provider: CloudPro
 
       <div className={cn('mt-5 flex flex-wrap gap-x-10 gap-y-3 border-t pt-3.5', borderColors.light)}>
         <TimeField label="실행 시각" value={job.created_at ? formatDate(job.created_at, 'datetime') : ''} />
-        <TimeField label="완료 시각" value={job.updated_at ? formatDate(job.updated_at, 'datetime') : ''} />
-        <TimeField label="소요 시간" value={scanDurationText(job)} />
+        {/* 아직 안 끝난 잡에 완료 시각을 적지 않는다. */}
+        {isScanSettled(job.scan_status) && (
+          <>
+            <TimeField label="완료 시각" value={job.updated_at ? formatDate(job.updated_at, 'datetime') : ''} />
+            <TimeField label="소요 시간" value={scanDurationText(job)} />
+          </>
+        )}
       </div>
     </div>
   );

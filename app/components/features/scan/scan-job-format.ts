@@ -17,7 +17,13 @@ export const scanStatusTagClass = (scanStatus: ScanJob['scan_status']): string =
     case 'FAIL':
     case 'TIMEOUT':
       return idcStyles.tag.red;
-    default: // SCANNING · CANCELED
+    // Still working. Named rather than left to `default:` — gray is CANCELED's chip,
+    // and a scan that is actively writing its results must not read as abandoned.
+    // Blue matches the tone the same statuses carry on the admin pill.
+    case 'SCANNING':
+    case 'SAVING':
+      return idcStyles.tag.blue;
+    default: // CANCELED, and any status this build has no vocabulary for
       return idcStyles.tag.gray;
   }
 };
@@ -65,7 +71,15 @@ export const fmtScanCount = (n: number): string => n.toLocaleString('ko-KR');
 
 /** History-row outcome column: what a finished scan produced, or why it did not. */
 export const scanResultText = (job: ScanJob): string => {
-  if (job.scan_status === 'SUCCESS') return `${fmtScanCount(discoveredTotal(job))}개 발견`;
+  if (job.scan_status === 'SUCCESS') {
+    // 건수 맵이 없으면 발견 건수를 말하지 않는다. 없는 맵은 "0건을 쟀다"가 아니라
+    // "재지 않았다"이고, discoveredTotal 은 둘을 같은 0 으로 접는다. admin 이력 표가
+    // 같은 자리에 이미 '—' 를 쓰고 있어, 여기만 0 을 주장하면 한 잡을 두 화면이
+    // 다르게 말한다(ScanHistoryCard 의 rowCounts 분기와 같은 판정).
+    return job.resource_count_by_resource_type == null
+      ? '—'
+      : `${fmtScanCount(discoveredTotal(job))}개 발견`;
+  }
   if (job.scan_error) return SCAN_ERROR_LABELS[job.scan_error] ?? job.scan_error;
   return '';
 };

@@ -38,13 +38,13 @@ export interface UseScanPollingReturn {
 }
 
 /**
- * A SUCCESS job with no count map has not finished: the resource discovery ran,
- * but its totals are not aggregated yet. Reading that job as done makes every
- * surface answer "no resources found" for a scan that has simply not reported
- * its numbers, so it counts as still running until the map arrives.
+ * SAVING: discovery is over and the results are being written. The status is the
+ * whole verdict — a SUCCESS is complete whatever its count map holds, including
+ * null (owner's call, 2026-08-19). The predicate exists so the surfaces that draw
+ * this stage do not each spell the status out.
  */
 export const isScanFinalizing = (job: ScanJob | null): boolean =>
-  job?.scan_status === 'SUCCESS' && job.resource_count_by_resource_type == null;
+  job?.scan_status === 'SAVING';
 
 /** Still working — actively scanning, or scanned and aggregating. */
 const isScanRunning = (job: ScanJob | null): boolean =>
@@ -52,9 +52,9 @@ const isScanRunning = (job: ScanJob | null): boolean =>
 
 const computeUIState = (job: ScanJob | null): ScanUIState => {
   if (!job) return 'IDLE';
-  if (isScanFinalizing(job)) return 'IN_PROGRESS';
   switch (job.scan_status) {
-    case 'SCANNING': return 'IN_PROGRESS';
+    case 'SCANNING':
+    case 'SAVING': return 'IN_PROGRESS';
     case 'SUCCESS': return 'COMPLETED';
     case 'FAIL':
     case 'TIMEOUT': return 'FAILED';
@@ -91,8 +91,8 @@ export const useScanPolling = (
   // partial), so when it is absent we fall back to the SCANNING→terminal edge.
   const notifiedJobIdRef = useRef<number | null>(null);
   // Tracks "was running" rather than the raw status: a job that passed through
-  // SUCCESS-without-counts on its way to a readable SUCCESS never shows a
-  // SCANNING→terminal edge, and the id-less fallback below depends on that edge.
+  // SAVING on its way to SUCCESS never shows a SCANNING→terminal edge, and the
+  // id-less fallback below depends on that edge.
   const prevRunningRef = useRef(false);
   // Armed by expectCompletion() when this client starts a scan — covers a fast
   // no-id scan that is already terminal on the very next observation. When the

@@ -163,7 +163,7 @@ export interface RecentScanCardProps {
   /** Latest-job fetch failed. */
   failed: boolean;
   scanning: boolean;
-  /** SUCCESS but the count map has not landed — scanned, still aggregating. */
+  /** SAVING — discovery is done, the results are still being written. */
   finalizing: boolean;
   /**
    * 완료 확인 전환의 단계. `settling` 동안은 진행 처리를 유지해 바가 100%에 닿는
@@ -217,7 +217,7 @@ export function RecentScanCard({
                 #{latestJob.scan_version}
               </span>
             )}
-            {latestJob && <ScanStatusPill status={finalizing ? 'FINALIZING' : latestJob.scan_status} />}
+            {latestJob && <ScanStatusPill status={latestJob.scan_status} />}
           </h2>
           <p className={opsStyles.cardDesc}>
             클라우드 리소스를 스캔해 연동 가능한 대상 목록을 갱신합니다.
@@ -311,19 +311,32 @@ export function RecentScanCard({
                   둔다. 컨테이너 자체에 걸면 타일 그리드가 통째로 낭독된다. */}
               <p className="sr-only" aria-live="polite">
                 {running
-                  ? '스캔을 진행하고 있어요.'
+                  ? finalizing
+                    ? '스캔 결과를 집계하고 있어요.'
+                    : '스캔을 진행하고 있어요.'
                   : confirming
                     ? '스캔이 끝났어요.'
                     : latestJob.scan_status === 'SUCCESS'
-                      ? `스캔 완료. 총 ${fmtCount(latestTotal)}개를 발견했어요.`
+                      ? latestJob.resource_count_by_resource_type == null
+                        ? '스캔 완료.'
+                        : `스캔 완료. 총 ${fmtCount(latestTotal)}개를 발견했어요.`
                       : ''}
               </p>
               {running ? (
-                <ScanBeat done={false} caption="스캔 완료 후 집계돼요." />
+                // 시제를 단계에 맞춘다 — SAVING 중에 "완료 후 집계돼요"는 이미 벌어지고
+                // 있는 일을 미래로 밀어, 가득 찬 바 아래에서 멈춘 화면처럼 읽힌다.
+                // 문장은 Step 1 히어로와 같은 말을 쓴다(한 순간, 한 문구).
+                <ScanBeat
+                  done={false}
+                  caption={finalizing ? '결과를 집계하고 있어요.' : '스캔 완료 후 집계돼요.'}
+                />
               ) : confirming ? (
                 // admin 은 건수를 이미 손에 쥐고 있어 "정리"할 게 없다 — 히어로가
                 // 현재진행으로, 여기가 과거로 같은 순간을 말하던 시제 충돌도 없앤다.
                 <ScanBeat done caption="스캔이 끝났어요." />
+              ) : latestJob.resource_count_by_resource_type == null ? (
+                // 맵이 없는 성공은 "0건을 쟀다"가 아니다 — 이력 행과 같은 — 로 말한다.
+                <p className={cn(pipelineStyles.text.meta, 'mt-1.5')}>—</p>
               ) : typeEntries.length === 0 ? (
                 <p className={cn(pipelineStyles.text.meta, 'mt-1.5')}>발견된 리소스가 없습니다.</p>
               ) : (

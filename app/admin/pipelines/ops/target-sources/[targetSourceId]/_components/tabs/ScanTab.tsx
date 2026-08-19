@@ -94,8 +94,8 @@ export function ScanTab({
   }, [loadHistory]);
 
   const scanning = latestJob?.scan_status === 'SCANNING';
-  // SUCCESS without a count map is the aggregation tail, not an outcome — the
-  // card keeps its running treatment until the numbers are readable.
+  // SAVING is the writing tail, not an outcome — the card keeps its running
+  // treatment until the job actually settles.
   const finalizing = isScanFinalizing(latestJob);
   const running = scanning || finalizing;
 
@@ -138,8 +138,12 @@ export function ScanTab({
   // Diff vs the previous success — derived from the page-0 snapshot so it is
   // immune to pagination.
   // ponytail: a previous success older than page one (5 rows) omits the diff; go server-derived if that ever matters.
+  // 건수 맵이 없는 잡과는 비교하지 않는다. 없는 맵은 0건이라는 측정이 아니라 측정의
+  // 부재인데, 0 으로 빼면 "직전 스캔보다 96,000개 줄어든" 이라는, 일어나지 않은 소멸을
+  // 단언하게 된다 — 게다가 그 잡은 이미 COMPLETED 라 폴링이 멈춘 뒤여서 화면이 그대로
+  // 굳는다. 완료 판정은 상태가 하고(오너 확정), 숫자는 숫자가 있을 때만 말한다.
   const prevSuccess =
-    latestJob?.scan_status === 'SUCCESS'
+    latestJob?.scan_status === 'SUCCESS' && latestJob.resource_count_by_resource_type != null
       ? firstPageRows.find(
           (row) =>
             row.id !== latestJob.id
