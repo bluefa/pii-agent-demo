@@ -74,21 +74,6 @@ const demoCountMap = (provider: string, version: number | null | undefined): Rec
   return counts;
 };
 
-/**
- * Aggregation tail: for a beat after a scan ends the BFF already answers
- * SUCCESS while resource_count_by_resource_type is still null. The UI reads
- * that combination as "마무리 중" (isScanFinalizing) rather than as a finished
- * scan, so the mock has to reproduce the window or the state is unreachable in
- * demo mode. 3s spans one or two 2s polls — long enough to see, short enough
- * not to feel stuck. Latest-scan only; history rows report their final counts.
- */
-const AGGREGATION_WINDOW_MS = 3_000;
-
-const isAggregating = (completedAt: string): boolean => {
-  const finishedAt = new Date(completedAt).getTime();
-  return Number.isFinite(finishedAt) && Date.now() - finishedAt < AGGREGATION_WINDOW_MS;
-};
-
 export const mockScan = {
   get: async (projectId: string, scanId: string) => {
     const user = await mockData.getCurrentUser();
@@ -173,19 +158,26 @@ export const mockScan = {
       // scan_version comes from the store row — persisted per run so it keeps
       // growing even after retention trims old rows (deriving it from
       // total-offset-index would renumber history whenever rows are purged).
-      content: history.map((h) => ({
-        id: parseNumericId(h.scanId),
-        scan_status: h.status,
-        target_source_id: targetSourceId,
-        created_at: h.startedAt,
-        updated_at: h.completedAt,
-        scan_version: h.version,
-        scan_progress: null,
-        duration_seconds: h.duration,
-        // Failed scans have no aggregation (null) — only successes get demo counts.
-        resource_count_by_resource_type: h.result ? demoCountMap(h.provider, h.version) : null,
-        scan_error: h.error ?? null,
-      })),
+      content: history.map((h) => {
+        // The same row the status endpoint is calling SAVING must read SAVING here
+        // too — the card and this table sit on one screen for the whole window.
+        const saving = scanFns.isSavingWindow(h);
+        return {
+          id: parseNumericId(h.scanId),
+          scan_status: saving ? 'SAVING' : h.status,
+          target_source_id: targetSourceId,
+          created_at: h.startedAt,
+          updated_at: h.completedAt,
+          scan_version: h.version,
+          scan_progress: saving ? 100 : null,
+          duration_seconds: h.duration,
+          // Failed scans have no aggregation (null), and a saving scan has not
+          // written its totals yet — only settled successes get demo counts.
+          resource_count_by_resource_type:
+            h.result && !saving ? demoCountMap(h.provider, h.version) : null,
+          scan_error: h.error ?? null,
+        };
+      }),
       totalElements: total,
       totalPages,
       number,
@@ -314,20 +306,21 @@ export const mockScan = {
     const { history } = scanFns.getScanHistory(targetSourceId, 1, 0);
     if (history.length > 0) {
       const last = history[0];
-      // Withhold the counts for the first seconds after a success — the scan is
-      // over, its totals are not readable yet.
-      const aggregating = last.status === 'SUCCESS' && isAggregating(last.completedAt);
+      // SCANNING → SAVING → SUCCESS. For the first seconds after discovery ends the
+      // job is writing its results: the status is SAVING, progress sits at 100 (every
+      // resource type is scanned), and the counts and version only land with SUCCESS.
+      const saving = scanFns.isSavingWindow(last);
       return NextResponse.json({
         id: parseNumericId(last.scanId),
-        scan_status: last.status,
+        scan_status: saving ? 'SAVING' : last.status,
         target_source_id: targetSourceId,
         created_at: last.startedAt,
         updated_at: last.completedAt,
         scan_version: last.version,
-        scan_progress: null,
+        scan_progress: saving ? 100 : null,
         duration_seconds: last.duration,
         resource_count_by_resource_type:
-          last.result && !aggregating ? demoCountMap(last.provider, last.version) : null,
+          last.result && !saving ? demoCountMap(last.provider, last.version) : null,
         scan_error: last.error ?? null,
       });
     }

@@ -1,10 +1,11 @@
 import type { CloudProvider } from '@/lib/types';
 
 /**
- * 실제로 끝난 스캔의 상태 집합. 계약 enum은 SCANNING/FAIL/CANCELED/SUCCESS/TIMEOUT
- * 이지만 mock BFF는 이력이 없을 때 'NO_SCAN' 센티널 잡을 합성해 돌려준다(loose
- * codegen이라 통과) — 그 잡을 "마지막 스캔 실패"로 그리면 거짓말이 되므로,
- * 스트립·신선도 표기는 이 집합에 든 잡만 결과로 취급한다.
+ * 실제로 끝난 스캔의 상태 집합. 계약 enum은 SCANNING/SAVING/FAIL/CANCELED/SUCCESS/
+ * TIMEOUT 이지만 mock BFF는 이력이 없을 때 'NO_SCAN' 센티널 잡을 합성해 돌려준다
+ * (loose codegen이라 통과) — 그 잡을 "마지막 스캔 실패"로 그리면 거짓말이 되므로,
+ * 스트립·신선도 표기는 이 집합에 든 잡만 결과로 취급한다. SAVING은 결과를 저장하는
+ * 중이라 아직 결과가 아니다: 허용 목록이라 새 상태는 스스로 들어오지 않는다.
  */
 export const TERMINAL_SCAN_STATUSES: ReadonlySet<string> = new Set([
   'SUCCESS',
@@ -16,6 +17,7 @@ export const TERMINAL_SCAN_STATUSES: ReadonlySet<string> = new Set([
 /** ScanJobResponse.scan_status → 한국어 표기 (이력 모달·스트립 공용). */
 export const SCAN_STATUS_LABELS: Record<string, string> = {
   SCANNING: '진행 중',
+  SAVING: '마무리 중',
   SUCCESS: '성공',
   FAIL: '실패',
   TIMEOUT: '시간 초과',

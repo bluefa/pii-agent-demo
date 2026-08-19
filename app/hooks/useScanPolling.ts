@@ -38,13 +38,16 @@ export interface UseScanPollingReturn {
 }
 
 /**
- * A SUCCESS job with no count map has not finished: the resource discovery ran,
- * but its totals are not aggregated yet. Reading that job as done makes every
- * surface answer "no resources found" for a scan that has simply not reported
- * its numbers, so it counts as still running until the map arrives.
+ * The tail between "discovery is over" and "the numbers are readable" — the BFF
+ * names it SAVING. The count-less SUCCESS arm predates that status and stays:
+ * it is the same window seen from outside, and it is what a BFF without SAVING
+ * still answers. Reading either as done makes every surface answer "no resources
+ * found" for a scan that has simply not reported its numbers, so both count as
+ * still running until the map arrives.
  */
 export const isScanFinalizing = (job: ScanJob | null): boolean =>
-  job?.scan_status === 'SUCCESS' && job.resource_count_by_resource_type == null;
+  job?.scan_status === 'SAVING'
+  || (job?.scan_status === 'SUCCESS' && job.resource_count_by_resource_type == null);
 
 /** Still working — actively scanning, or scanned and aggregating. */
 const isScanRunning = (job: ScanJob | null): boolean =>

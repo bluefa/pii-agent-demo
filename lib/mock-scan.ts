@@ -133,6 +133,20 @@ export const validateScanRequest = (
     }
   }
 
+  // 저장 중(SAVING)인 스캔도 진행 중이다 — 결과를 쓰는 동안 새 스캔이 끼어들면 두
+  // 스캔이 같은 target_resource 를 동시에 쓴다. 쿨다운이 0이라 이 창은 실제로 열려
+  // 있고, 막는 쪽은 여기다.
+  const [savingScan] = getScanHistory(project.targetSourceId, 1, 0).history;
+  if (savingScan && isSavingWindow(savingScan)) {
+    return {
+      valid: false,
+      errorCode: 'SCAN_IN_PROGRESS',
+      errorMessage: '이미 스캔이 진행 중입니다.',
+      httpStatus: 409,
+      existingScanId: savingScan.scanId,
+    };
+  }
+
   // 쿨다운 확인 (force가 아닐 때만)
   if (!force) {
     const lastCompletedScan = store.scanHistory
@@ -329,6 +343,21 @@ const addScanHistory = (
   for (const stale of purged) {
     store.scanHistory.splice(store.scanHistory.indexOf(stale), 1);
   }
+};
+
+/**
+ * 저장 구간: 모든 리소스 타입 스캔이 끝나고 결과를 DB에 쓰는 동안 BFF 는 SAVING 을
+ * 답하고 카운트는 아직 null 이다. 목이 이 창을 재현하지 않으면 데모에서 SAVING 에
+ * 도달할 방법이 없다. 3초는 2초 폴링을 한두 번 지나갈 만큼 길고, 멈춘 것처럼
+ * 보이지 않을 만큼 짧다. 대량 스캔일수록 실제 창은 이보다 길어진다.
+ */
+export const SAVING_WINDOW_MS = 3_000;
+
+/** 이 이력 행이 아직 저장 중인가 — 응답 상태와 재실행 차단이 같은 판정을 쓴다. */
+export const isSavingWindow = (history: ScanHistory): boolean => {
+  if (history.status !== 'SUCCESS') return false;
+  const finishedAt = new Date(history.completedAt).getTime();
+  return Number.isFinite(finishedAt) && Date.now() - finishedAt < SAVING_WINDOW_MS;
 };
 
 /** Version the next scan gets once it completes (provisional for SCANNING responses). */

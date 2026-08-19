@@ -17,7 +17,7 @@ export const scanStatusTagClass = (scanStatus: ScanJob['scan_status']): string =
     case 'FAIL':
     case 'TIMEOUT':
       return idcStyles.tag.red;
-    default: // SCANNING · CANCELED
+    default: // SCANNING · SAVING · CANCELED
       return idcStyles.tag.gray;
   }
 };
