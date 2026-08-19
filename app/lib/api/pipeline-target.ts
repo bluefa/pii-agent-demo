@@ -47,7 +47,7 @@ export interface RawTargetSourceDetail {
    * 않는다 — 현재 단계와 독립인 사실이다. 형제 응답(`TargetSourceInfo`)은 같은 값을
    * camel(`piiAgentFirstInstalledAt`)로 싣는다: 이 DTO 는 snake 쪽 철자다.
    */
-  pii_agent_first_installed_at?: string;
+  pii_agent_first_installed_at?: string | null;
   metadata?: RawTargetSourceMetadata;
   /**
    * `TargetSourceDetail` 이 아직 선언하지 않은 필드 — 스키마가 `.passthrough()` 라

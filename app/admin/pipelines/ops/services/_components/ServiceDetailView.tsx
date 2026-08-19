@@ -545,7 +545,9 @@ export function ServiceDetailView({ serviceCode }: ServiceDetailViewProps): Reac
                     {account && (
                       <span className="flex min-w-0 items-center gap-1.5">
                         <span className={cn(tsTable.metaLabel, 'flex-none')}>{account.label}</span>
-                        <span className={tsTable.account}>{account.value}</span>
+                        <span className={tsTable.account} title={account.value}>
+                          {account.value}
+                        </span>
                       </span>
                     )}
                     {/* Tenant 는 account 바깥에 둔다 — 계약이 두 필드를 각각 optional 로
@@ -555,7 +557,9 @@ export function ServiceDetailView({ serviceCode }: ServiceDetailViewProps): Reac
                     {tenantId && (
                       <span className="flex min-w-0 items-center gap-1.5">
                         <span className={cn(tsTable.metaLabel, 'flex-none')}>Tenant</span>
-                        <span className={tsTable.account}>{tenantId}</span>
+                        <span className={tsTable.account} title={tenantId}>
+                          {tenantId}
+                        </span>
                       </span>
                     )}
                     {/* 둘 다 없을 때만 gloss — 2층은 어떤 경우에도 비지 않는다. */}

@@ -2014,6 +2014,13 @@ export const mockConfirm = {
       completionConfirmedAt: now,
       piiAgentInstalled: true,
       piiAgentConnectedAt: project.piiAgentConnectedAt || now,
+      // 최초 1회만 찍고 다시는 건드리지 않는다. 초기화 뒤 다시 확정해도 이미 값이 있으면
+      // 그대로 둔다 — 조건을 빼면 재확정마다 날짜가 움직여, 도장이 단계 알약과 같은 말을
+      // 하게 된다.
+      ...(calculatedProcessStatus === ProcessStatus.INSTALLATION_COMPLETE &&
+      !project.piiAgentFirstInstalledAt
+        ? { piiAgentFirstInstalledAt: now }
+        : {}),
     });
 
     // 설치 확정 시 store 정리 (반영 완료)

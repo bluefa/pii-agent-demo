@@ -183,3 +183,59 @@ describe('mockConfirm.resetTargetSource', () => {
     expect(response.status).toBe(404);
   });
 });
+
+/**
+ * 도장을 **찍는** 쪽. 초기화가 값을 남기는 것만 검사하면 목은 절반만 참이다 — 값을
+ * 만들어 내는 경로가 없으면 도장은 시드된 대상에만 나타나고, 데모에서 설치 확정을
+ * 끝까지 걸어도 영영 안 찍힌다.
+ */
+describe('mockConfirm.confirmInstallation — 최초 연동 시각', () => {
+  /**
+   * 6단계(연결 확인 완료, 아직 확정 전)로 올려 둔다. `confirmInstallation` 은
+   * `processStatus` 가 아니라 `status` 에서 단계를 다시 계산하므로, 초기화가 되돌린
+   * 뒤에는 그 status 를 다시 채워야 실제로 6단계가 된다 — 재연동이 하는 일 그대로다.
+   */
+  const atStepSix = () => {
+    const project = findProject()!;
+    project.status = {
+      ...completedProject().status,
+      connectionTest: {
+        status: 'PASSED',
+        passedAt: '2026-01-02T00:00:00Z',
+        operationConfirmed: false,
+      },
+    };
+    project.processStatus = ProcessStatus.CONNECTION_VERIFIED;
+    return project;
+  };
+
+  it('설치 확정이 처음 도장을 찍는다', async () => {
+    const project = atStepSix();
+    delete project.piiAgentFirstInstalledAt;
+
+    const response = await mockConfirm.confirmInstallation(String(TARGET_SOURCE_ID));
+    expect(response.status).toBe(200);
+
+    const after = findProject();
+    expect(after?.processStatus).toBe(ProcessStatus.INSTALLATION_COMPLETE);
+    expect(after?.piiAgentFirstInstalledAt).toBeTruthy();
+  });
+
+  /**
+   * 이 한 줄이 "최초 1회" 라는 문구를 지탱한다. 재확정 때마다 값이 갱신되면 도장은
+   * 마지막 완료 시각이 되고, 그러면 초기화 뒤 다시 완료한 대상에서 날짜가 움직인다.
+   */
+  it('초기화 뒤 다시 확정해도 날짜가 움직이지 않는다', async () => {
+    const first = findProject()?.piiAgentFirstInstalledAt;
+    expect(first).toBe('2026-01-02T09:00:00Z');
+
+    await mockConfirm.resetTargetSource(String(TARGET_SOURCE_ID), { reason: 'x' });
+    atStepSix();
+    const response = await mockConfirm.confirmInstallation(String(TARGET_SOURCE_ID));
+    expect(response.status).toBe(200);
+
+    const after = findProject();
+    expect(after?.processStatus).toBe(ProcessStatus.INSTALLATION_COMPLETE);
+    expect(after?.piiAgentFirstInstalledAt).toBe(first);
+  });
+});

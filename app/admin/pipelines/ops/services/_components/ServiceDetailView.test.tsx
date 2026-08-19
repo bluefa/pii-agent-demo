@@ -296,3 +296,41 @@ describe('LIN-92 — 걷어낸 컨트롤', () => {
     expect(section.querySelector('select')).toBeNull();
   });
 });
+
+describe('최초 연동 도장', () => {
+  /**
+   * 렌더 지점을 못 박는다. 홉(라우트의 camel→snake 매핑)은 라우트 테스트가 잡지만,
+   * 카드에서 `CompletedStampSlot` 이 통째로 빠지는 변경은 그 테스트를 통과한다 —
+   * 값은 멀쩡히 도착하고 아무도 그리지 않을 뿐이라, 에러도 빈 목록도 안 난다.
+   */
+  it('값을 받은 대상에만 찍히고, 날짜까지 그린다', async () => {
+    await renderWith([
+      target(4130, { pii_agent_first_installed_at: '2026-02-01T05:00:00Z' }),
+      target(4131),
+    ]);
+    const cards = screen
+      .getByLabelText('Target Source 목록')
+      .querySelectorAll('div.group');
+    expect(within(cards[0] as HTMLElement).getByText('최초 1회 연동 완료')).toBeTruthy();
+    expect(within(cards[0] as HTMLElement).getByText('2026-02-01')).toBeTruthy();
+    // 없는 쪽은 침묵한다 — "미완료" 를 대신 쓰지 않는다.
+    expect(within(cards[1] as HTMLElement).queryByText('최초 1회 연동 완료')).toBeNull();
+  });
+
+  it('도장이 좁힌 2층에서, 잘리는 값은 전문을 title 로 남긴다', async () => {
+    // 도장이 2층 예산을 174px 가져가므로 Azure 의 36자 GUID 두 개가 더 짧게 잘린다.
+    // 잘림 자체는 이 카드가 이미 택한 거래지만, 전문이 사라지면 꼬리만 다른 두 구독이
+    // 목록에서 같은 값으로 보인다.
+    const guid = '3f2504e0-4f89-11d3-9a0c-0305e82c3301';
+    const tenant = '7b1e2c44-9f0a-4d21-8c7e-1a2b3c4d5e6f';
+    await renderWith([
+      target(4132, {
+        cloud_provider: 'AZURE',
+        pii_agent_first_installed_at: '2026-02-01T05:00:00Z',
+        metadata: meta({ subscription_id: guid, tenant_id: tenant }),
+      }),
+    ]);
+    expect(screen.getByTitle(guid).textContent).toBe(guid);
+    expect(screen.getByTitle(tenant).textContent).toBe(tenant);
+  });
+});
