@@ -64,4 +64,4 @@
 `lib/design-guard.test.ts`에 신규 쌍 등록: 워시↔캔버스·흰 면↔캔버스·active 탭↔워시
 (표면), 레일 라벨/키/값/링크↔캔버스·crumb/idle 탭↔워시 (텍스트, 전부 AA 이상 실측).
 
-- 구현 PR: #TBD
+- 구현 PR: #735
