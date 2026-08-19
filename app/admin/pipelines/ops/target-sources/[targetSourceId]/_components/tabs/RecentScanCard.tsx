@@ -317,7 +317,9 @@ export function RecentScanCard({
                   : confirming
                     ? '스캔이 끝났어요.'
                     : latestJob.scan_status === 'SUCCESS'
-                      ? `스캔 완료. 총 ${fmtCount(latestTotal)}개를 발견했어요.`
+                      ? latestJob.resource_count_by_resource_type == null
+                        ? '스캔 완료.'
+                        : `스캔 완료. 총 ${fmtCount(latestTotal)}개를 발견했어요.`
                       : ''}
               </p>
               {running ? (
@@ -332,6 +334,9 @@ export function RecentScanCard({
                 // admin 은 건수를 이미 손에 쥐고 있어 "정리"할 게 없다 — 히어로가
                 // 현재진행으로, 여기가 과거로 같은 순간을 말하던 시제 충돌도 없앤다.
                 <ScanBeat done caption="스캔이 끝났어요." />
+              ) : latestJob.resource_count_by_resource_type == null ? (
+                // 맵이 없는 성공은 "0건을 쟀다"가 아니다 — 이력 행과 같은 — 로 말한다.
+                <p className={cn(pipelineStyles.text.meta, 'mt-1.5')}>—</p>
               ) : typeEntries.length === 0 ? (
                 <p className={cn(pipelineStyles.text.meta, 'mt-1.5')}>발견된 리소스가 없습니다.</p>
               ) : (

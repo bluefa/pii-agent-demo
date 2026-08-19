@@ -61,6 +61,14 @@ describe('ScanHistoryModal', () => {
     expect(await screen.findByText('성공')).toBeTruthy();
     expect(screen.queryByText('0개 발견')).toBeNull();
     expect(screen.getByText('—')).toBeTruthy();
+
+    // 행을 열어 본 상세도 같은 말을 해야 한다 — "발견된 리소스가 없어요"는 하지
+    // 않은 측정을 "0건을 쟀다"로 바꿔 말하는 것이다.
+    fireEvent.click(screen.getByRole('button', { name: /스캔 상세 보기/ }));
+    expect(await screen.findByText('목록으로')).toBeTruthy();
+    expect(screen.queryByText('발견된 리소스가 없어요.')).toBeNull();
+    expect(screen.queryByText(/개를 발견했어요/)).toBeNull();
+    expect(screen.getAllByText('—').length).toBeGreaterThan(0);
   });
 
   // Clicking a row swaps the same modal to that scan's detail; the per-type counts
