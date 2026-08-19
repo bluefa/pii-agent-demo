@@ -72,38 +72,41 @@ export function OpsHeader({
   );
 
   /** 표시값은 detail 과 같이 온다 (v5 metadata 의 등록값) — 저장 직후 한 칸만 saved 가 덮는다. */
-  const rolePair = (kind: RoleKind): ReactElement => {
+  const roleRow = (kind: RoleKind): ReactElement => {
     const arn =
       savedRoleArns[kind]
       ?? (kind === 'scan' ? meta.aws_scan_role_arn : meta.aws_terraform_execution_role_arn);
     return (
-      <span className={opsStyles.metaPair}>
+      <div className={opsStyles.metaRow}>
         <span className={opsStyles.metaKey}>{ROLE_META[kind].short}</span>
         {arn ? (
-          // ARN 은 값이자 트리거다 — prefix 가 대상 계정과 일치할 때만 role 이름으로
-          // 줄고, 불일치(교차 계정·파티션)는 그 prefix 가 어긋남의 유일한 증거라
-          // 전체를 남긴다 (awsRoleArnDisplay). 전체값은 항상 title 에 있다.
-          <button type="button" className={opsStyles.railAction} onClick={() => onOpenEdit(kind)}>
-            <span className={cn(opsStyles.cellActionValue, opsStyles.railMono)} title={arn}>
+          <>
+            {/* ARN 은 값이지 동작이 아니다 — 링크로 그리지 않고, 동작(수정)은 옆 버튼이
+                맡는다. prefix 가 대상 계정과 일치할 때만 role 이름으로 줄고, 불일치
+                (교차 계정·파티션)는 그 prefix 가 어긋남의 유일한 증거라 전체를 남긴다
+                (awsRoleArnDisplay). 전체값은 항상 title 에 있다. */}
+            <span className={cn(opsStyles.metaValue, opsStyles.railMono, 'break-all')} title={arn}>
               {awsRoleArnDisplay(arn, meta.aws_account_id ?? '', isChina)}
             </span>
-            <span className={opsStyles.railActionHint}>수정</span>
-          </button>
+            <button type="button" className={opsStyles.railLink} onClick={() => onOpenEdit(kind)}>
+              수정
+            </button>
+          </>
         ) : (
           <>
             <span className={opsStyles.metaKey}>미등록</span>
             <button type="button" className={opsStyles.railLink} onClick={() => onOpenEdit(kind)}>
-              등록
+              등록하기
             </button>
           </>
         )}
-      </span>
+      </div>
     );
   };
 
-  /** Read-only 주체 (GCP SA·Azure App) — 등록/수정 계약이 없어 표시만 한다. */
-  const infoPair = (label: string, value: string | null | undefined): ReactElement => (
-    <span className={opsStyles.metaPair}>
+  /** Read-only 주체 행 (GCP SA·Azure App) — 등록/수정 계약이 없어 표시만 한다. */
+  const infoRow = (label: string, value: string | null | undefined): ReactElement => (
+    <div className={opsStyles.metaRow}>
       <span className={opsStyles.metaKey}>{label}</span>
       {value ? (
         <span className={cn(opsStyles.metaValue, opsStyles.railMono, 'break-all')} title={value}>
@@ -112,7 +115,7 @@ export function OpsHeader({
       ) : (
         <span className={opsStyles.metaKey}>미등록</span>
       )}
-    </span>
+    </div>
   );
 
   return (
@@ -169,41 +172,42 @@ export function OpsHeader({
       </div>
 
       {/* 클라우드 · 설정 + 검증값 — 대상 자신의 사실이라 마스트헤드에 산다 (오너
-          08-20, 레일에서 복귀). 한 줄의 키·값 흐름이고 좁으면 접힌다. */}
-      <div className={opsStyles.metaRow}>
+          08-20, 레일에서 복귀). 한 줄 나열이 아니라 사실 하나에 행 하나 — 기존
+          헤더의 행 문법 (오너 08-20 둘째 조정). */}
+      <div className={opsStyles.metaRows}>
         {isAws && meta.aws_account_id && (
           <>
-            <span className={opsStyles.metaPair}>
+            <div className={opsStyles.metaRow}>
               <span className={opsStyles.metaKey}>계정</span>
               <span className={cn(opsStyles.metaValue, opsStyles.railMono, 'tabular-nums')}>
                 {meta.aws_account_id}
               </span>
-            </span>
-            <span className={opsStyles.metaPair}>
+            </div>
+            <div className={opsStyles.metaRow}>
               <span className={opsStyles.metaKey}>리전</span>
               <span className={opsStyles.metaValue}>{isChina ? 'China' : 'Global'}</span>
-            </span>
-            <span className={opsStyles.metaPair}>
+            </div>
+            <div className={opsStyles.metaRow}>
               <span className={opsStyles.metaKey}>설치모드</span>
               {chip(grantTfExecution ? '자동' : '수동', onOpenMode, '설치모드 변경')}
-            </span>
+            </div>
           </>
         )}
-        <span className={opsStyles.metaPair}>
+        <div className={opsStyles.metaRow}>
           <span className={opsStyles.metaKey}>실데이터</span>
           {chip(rawDataLabel, onOpenRawData, '실데이터 여부 변경')}
-        </span>
-        {isAws && rolePair('scan')}
-        {isAws && grantTfExecution && rolePair('execution')}
-        {/* GCP·Azure scan/terraform 주체 — AWS role 짝과 같은 문법의 read-only 짝.
+        </div>
+        {isAws && roleRow('scan')}
+        {isAws && grantTfExecution && roleRow('execution')}
+        {/* GCP·Azure scan/terraform 주체 — AWS role 행과 같은 문법의 read-only 행.
             수정은 AWS 만 계약이 있다 (scan-role/terraform-execution-role upsert). */}
         {detail.cloud_provider === 'GCP' && (
           <>
-            {infoPair('Scan SA', meta.gcp_scan_service_account)}
-            {infoPair('TF SA', meta.gcp_terraform_service_account)}
+            {infoRow('Scan SA', meta.gcp_scan_service_account)}
+            {infoRow('TF SA', meta.gcp_terraform_service_account)}
           </>
         )}
-        {detail.cloud_provider === 'AZURE' && infoPair('Scan App', meta.azure_scan_app_id)}
+        {detail.cloud_provider === 'AZURE' && infoRow('Scan App', meta.azure_scan_app_id)}
       </div>
     </>
   );

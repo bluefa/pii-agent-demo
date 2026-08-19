@@ -32,12 +32,14 @@ export const opsStyles = {
   idTitle: 'whitespace-nowrap text-[20px] font-bold tracking-[-0.02em] text-[var(--pl-text-strong)]',
   idHash: 'font-normal text-[var(--pl-text-faint)]', // design-exempt: prefix glyph, the id digits beside it carry the reading
 
-  /** Meta line — 클라우드 · 설정 + 검증값 on the wash (오너 08-20: the target's own
-      facts came back out of the rail). Key·value pairs in one wrapping 12px flow;
-      white chips and the ARN action are its only interactive islands. */
-  metaRow: 'mt-2 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[12px]',
-  metaPair: 'inline-flex min-w-0 items-baseline gap-1.5',
-  metaKey: 'flex-none text-[12px] text-[var(--pl-text-weak)]',
+  /** Meta block — 클라우드 · 설정 + 검증값 on the wash (오너 08-20: the target's
+      own facts came back out of the rail; 08-20 둘째 조정: 한 줄 나열이 아니라
+      기존 헤더처럼 행 스택). One key·value row per fact, fixed 72px label column
+      (the old roleRow grammar); white chips and the ARN action are the only
+      interactive islands. */
+  metaRows: 'mt-2.5 flex flex-col gap-1',
+  metaRow: 'flex min-h-[23px] items-center gap-3',
+  metaKey: 'w-[72px] flex-none text-[12px] text-[var(--pl-text-weak)]',
   metaValue: 'min-w-0 text-[12px] font-semibold text-[var(--pl-text-medium)]',
 
   /** Neutral tag / region tag — shared with SduOpsNotice·ServiceDetailView·
@@ -93,12 +95,6 @@ export const opsStyles = {
   railMono: '[font-family:var(--pl-font-mono)] font-medium',
   railLink: 'inline-flex cursor-pointer items-center gap-0.5 whitespace-nowrap text-[12px] font-semibold text-[var(--pl-primary)] underline underline-offset-2 decoration-[var(--pl-primary-ring)] hover:decoration-[var(--pl-primary)]',
   railNone: 'text-[12px] text-[var(--pl-text-weak)]',
-  /** Rail ARN action — cellAction grammar at the rail's 12px scale: the value IS
-      the trigger; the hint's slot is reserved (opacity) so revealing it never
-      shifts the row, and focus-visible reveals it too. */
-  railAction: 'group inline-flex min-w-0 max-w-full cursor-pointer items-baseline gap-1.5 rounded text-[12px] text-[var(--pl-text-medium)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[3px] focus-visible:outline-[var(--pl-primary)]',
-  railActionHint: 'flex-none text-[12px] font-semibold text-[var(--pl-primary)] opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100',
-
   /** Skeleton bar ON THE WASH — the gray-100 `skeletonBar` vanishes there (same
       value as the wash), so masthead skeletons step one ramp deeper. */
   skeletonWash: 'animate-pulse rounded-[6px] bg-[var(--pl-gray-200)]',

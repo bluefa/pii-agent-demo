@@ -411,7 +411,7 @@ const TEXT: TextPair[] = [
   // 마스트헤드 meta line (오너 08-20: 클라우드·설정 + 검증값이 레일에서 복귀) — 워시 위 키·값.
   { what: 'ops meta key on the masthead wash', fg: textOf(classOf(opsSrc, 'metaKey')), on: resolve('var(--pl-gray-100)') },
   { what: 'ops meta value on the masthead wash', fg: textOf(classOf(opsSrc, 'metaValue')), on: resolve('var(--pl-gray-100)') },
-  { what: 'ops ARN edit hint on the masthead wash', fg: textOf(classOf(opsSrc, 'railActionHint')), on: resolve('var(--pl-gray-100)') },
+  { what: 'ops role edit link on the masthead wash', fg: textOf(classOf(opsSrc, 'railLink')), on: resolve('var(--pl-gray-100)') },
   { what: 'rail section label on rail', fg: textOf(classOf(railBlock, 'sectionLabel')), on: rail },
   { what: 'rail footer page on rail', fg: textOf(classOf(railBlock, 'footerPage')), on: rail },
   { what: 'rail pager glyph on rail', fg: textOf(classOf(railBlock, 'pagerBtn')), on: rail },
