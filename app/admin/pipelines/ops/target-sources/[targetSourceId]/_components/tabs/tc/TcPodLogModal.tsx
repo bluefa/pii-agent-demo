@@ -10,8 +10,10 @@
  * 하지 않는다). severity 필터는 클라이언트 — 응답이 리스트로 한 번에 온다.
  *
  * severity 접기 — 9종을 4색으로: ERROR·CRITICAL·ALERT·EMERGENCY → 적색 /
- * WARNING → 호박색 / NOTICE·INFO → 중립 / DEBUG·DEFAULT → faint. 행 틴트는 금지,
- * 색은 severity 라벨 글자에만 (상태색은 점으로 규칙의 로그판 적용).
+ * WARNING → 호박색 / NOTICE·INFO → 중립 / DEBUG·DEFAULT → faint. 라벨 열은 없다 —
+ * 색이 콘텐츠 줄 전체에 실리고(Terraform 로그의 ANSI 문법과 같은 방식), 위의 필터
+ * 칩이 같은 색을 입어 범례를 겸한다(오너 2026-08-19). 같은 색을 나눠 쓰는 severity
+ * (ERROR/CRITICAL 등)의 정확한 낱말은 행 hover title 로 남는다. 행 틴트는 금지.
  */
 import {
   useEffect,
@@ -177,11 +179,12 @@ export function TcPodLogModal({
       <div className={j.logBody} tabIndex={0} role="region" aria-label="Pod 로그">
         <div className={cn(j.logPre, 'flex flex-col gap-1')}>
           {visible.map((entry, index) => (
-            <div key={index} className="flex gap-3">
-              <span className={cn('w-[84px] flex-none', SEVERITY_TONE[entry.severity] ?? j.logAnsi.gray)}>
-                {entry.severity}
-              </span>
-              <span className="min-w-0 flex-1">{entry.content}</span>
+            <div
+              key={index}
+              className={SEVERITY_TONE[entry.severity] ?? j.logAnsi.gray}
+              title={entry.severity}
+            >
+              {entry.content}
             </div>
           ))}
           {visible.length === 0 && (
@@ -219,9 +222,10 @@ export function TcPodLogModal({
 
       <div className={cn(j.panel, dark && j.panelDark)}>
         <div className={j.strip}>
-          {/* severity 필터 — 재조회 없는 클라이언트 거름. 0건 칩은 없다. */}
+          {/* severity 범례 겸 필터 — 칩이 본문 줄과 같은 색을 입어 "이 색 = 이 severity"
+              를 말하고, 누르면 재조회 없이 거른다. 0건 칩은 없다. */}
           {dark && (
-            <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label="severity 필터">
+            <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label="severity 범례·필터">
               <SeverityChip
                 label={`전체 ${entries.length}`}
                 active={filter === null}
@@ -231,6 +235,7 @@ export function TcPodLogModal({
                 <SeverityChip
                   key={key}
                   label={`${key} ${counts.get(key) ?? 0}`}
+                  tone={SEVERITY_TONE[key] ?? j.logAnsi.gray}
                   active={filter === key}
                   onClick={() => setFilter(filter === key ? null : key)}
                 />
@@ -265,13 +270,19 @@ export function TcPodLogModal({
   );
 }
 
-/** 어두운 패널 위의 필터 칩 — 12px, 활성은 밝은 면, 비활성은 윤곽선만. */
+/**
+ * 어두운 패널 위의 필터 칩 — 12px, 활성은 밝은 면, 비활성은 윤곽선만. `tone` 이 있으면
+ * 칩 글자가 본문 줄과 같은 severity 색을 입는다 — 범례가 따로 필요 없도록. 전체 칩은
+ * tone 없이 중립.
+ */
 function SeverityChip({
   label,
+  tone,
   active,
   onClick,
 }: {
   label: string;
+  tone?: string;
   active: boolean;
   onClick: () => void;
 }): ReactElement {
@@ -283,8 +294,9 @@ function SeverityChip({
       className={cn(
         'inline-flex items-center rounded-full px-2 py-0.5 text-[12px] font-medium tabular-nums transition-colors',
         active
-          ? 'bg-[var(--pl-gray-600)] text-[var(--pl-chrome-item)]' // design-exempt: chip on the dark log panel
-          : 'border border-[var(--pl-gray-600)] text-[var(--pl-gray-400)] hover:text-[var(--pl-chrome-item)]', // design-exempt: chip on the dark log panel
+          ? 'bg-[var(--pl-gray-600)]' // design-exempt: chip on the dark log panel
+          : 'border border-[var(--pl-gray-600)] opacity-80 hover:opacity-100', // design-exempt: chip on the dark log panel
+        tone ?? 'text-[var(--pl-chrome-item)]', // design-exempt: chip on the dark log panel
       )}
     >
       {label}
