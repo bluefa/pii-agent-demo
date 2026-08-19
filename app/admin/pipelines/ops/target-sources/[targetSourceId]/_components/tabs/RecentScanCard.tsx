@@ -163,7 +163,7 @@ export interface RecentScanCardProps {
   /** Latest-job fetch failed. */
   failed: boolean;
   scanning: boolean;
-  /** SUCCESS but the count map has not landed — scanned, still aggregating. */
+  /** SAVING — discovery is done, the results are still being written. */
   finalizing: boolean;
   /**
    * 완료 확인 전환의 단계. `settling` 동안은 진행 처리를 유지해 바가 100%에 닿는
@@ -217,7 +217,7 @@ export function RecentScanCard({
                 #{latestJob.scan_version}
               </span>
             )}
-            {latestJob && <ScanStatusPill status={finalizing ? 'FINALIZING' : latestJob.scan_status} />}
+            {latestJob && <ScanStatusPill status={latestJob.scan_status} />}
           </h2>
           <p className={opsStyles.cardDesc}>
             클라우드 리소스를 스캔해 연동 가능한 대상 목록을 갱신합니다.

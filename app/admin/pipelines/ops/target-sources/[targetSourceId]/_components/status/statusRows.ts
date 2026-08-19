@@ -96,15 +96,6 @@ const rejected = (name: string, tab: OpsTargetTabLabel): StatusRow => ({
   failed: true,
 });
 
-/**
- * SUCCESS 인데 건수 맵이 아직 없으면 마무리 중이다 — `useScanPolling.isScanFinalizing`
- * 과 같은 판정. 계약 상태가 아니라 UI 의 이름이라 wire 값 대신 여기서 만든다.
- */
-const scanStateKey = (job: ScanJob): string =>
-  job.scan_status === 'SUCCESS' && job.resource_count_by_resource_type == null
-    ? 'FINALIZING'
-    : (job.scan_status ?? '');
-
 const SCAN_MARK: Record<string, RowMark> = { ok: 'ok', info: 'run', err: 'err', off: 'idle' };
 
 /** 카드 밖에서도 읽는다 — BDC 완료 모달이 「Scan & 확정」 옆에 세우는 문장이 이 판정이다.
@@ -115,8 +106,9 @@ export const scanRow = (scan: Settled<ScanJob | null>): StatusRow => {
   if (!job) {
     return { name: OPS_TAB_SLUGS.scan, tab: OPS_TAB_SLUGS.scan, mark: 'idle', value: '실행 없음', sub: null, failed: false };
   }
-  const key = scanStateKey(job);
-  const state = SCAN_STATE[key];
+  // 마무리 중은 이제 계약 상태(SAVING)다 — UI 가 만들어 내던 유사 상태는 없어졌고,
+  // wire 값을 그대로 어휘에 넣는다.
+  const state = SCAN_STATE[job.scan_status ?? ''];
   // 리소스 합계는 성공한 스캔에만 있다 — 없으면 그 조각이 빠질 뿐 시각은 남는다.
   const counts = job.resource_count_by_resource_type;
   const total = counts ? Object.values(counts).reduce<number>((sum, n) => sum + (n ?? 0), 0) : null;
