@@ -102,8 +102,9 @@ export default function RequestDetailPage(): ReactElement {
   // 네 fetch 가 서로 다른 화면 조각을 먹이므로 게이트도 따로 든다. `undefined` = 아직
   // 조회 중 — 이 공통 문법으로 '아직'과 '없음/실패'가 같은 픽셀을 그리지 않는다.
   //
-  // 헤더 정체성: null = 큐 목록에 없거나 조회 실패. 어느 쪽이든 #id 폴백으로 계속 간다 —
-  // 정체성은 본문이 아니라서 이 fetch 는 페이지를 죽이지 않는다.
+  // 헤더 정체성: null = 큐 목록에 그 행이 없음(정상 miss) — #id 폴백으로 계속 간다.
+  // 조회 '실패'는 여기로 접지 않고 error 로 올린다: 표의 모양(IDC/클라우드)이 이 행의
+  // provider 를 읽어서, 실패를 miss 로 위장하면 잘못된 표가 조용히 선다.
   const [header, setHeader] = useState<RequestListRow | null | undefined>(undefined);
   // 본문 전부(타일·표·판정·승인/반려 활성)의 유일한 게이트. null = 조회 중.
   const [detail, setDetail] = useState<ApprovalRequestDetail | null>(null);
@@ -151,7 +152,8 @@ export default function RequestDetailPage(): ReactElement {
     onSuccess: closeAssign,
   });
 
-  // 헤더 정체성 — 도착하는 대로 head 스켈레톤을 걷는다.
+  // 헤더 정체성 — 도착하는 대로 head 스켈레톤을 걷는다. miss(null 행)는 #id 폴백,
+  // rejection 은 에러 카드다 — null 로 접으면 miss 와 구분이 사라진다(위 state 주석).
   useAbortableEffect(
     (signal) => {
       setHeader(undefined);
@@ -159,8 +161,8 @@ export default function RequestDetailPage(): ReactElement {
         .then((headerRow) => {
           if (!signal.aborted) setHeader(headerRow);
         })
-        .catch(() => {
-          if (!signal.aborted) setHeader(null);
+        .catch((err) => {
+          if (!signal.aborted) setError(err);
         });
     },
     [targetSourceId, retry],
@@ -216,7 +218,8 @@ export default function RequestDetailPage(): ReactElement {
   const isIdc = provider.toUpperCase() === 'IDC';
   // 모달 문장용 라벨. 브레드크럼과 h1 은 이름 유무를 각자 다룬다 — 이름이 없을 때 여기에
   // #id 를 미리 이어 붙이면 그 옆의 #id 와 겹쳐 "#1031 #1031" 이 된다(초기 로딩 중복).
-  const serviceLabel = header?.serviceName ?? `#${targetSourceId}`;
+  // truthiness: loose codegen 이라 '' 도 이름 없음이다.
+  const serviceLabel = header?.serviceName || `#${targetSourceId}`;
   const resources = detail?.resources ?? [];
   const selectedCount =
     detail?.request.resourceSelectedCount ?? resources.filter((r) => r.selected).length;

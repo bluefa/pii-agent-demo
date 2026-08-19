@@ -186,11 +186,13 @@ const SKELETON_BAR_ON_BAND = 'animate-pulse rounded-[6px] bg-[var(--pl-gray-200)
  * px-4 py-[14px] gray-100 band; cells: approvalCell 18px/16px) so nothing shifts when
  * the rows land. Not drawn: the 확인 필요 tile (whether one exists is what's loading),
  * the pager (below everything — nothing sits under it to shift), and real columns
- * (their set depends on the provider and the rows).
+ * (their set depends on the provider and the rows). The shape assumes the common
+ * case (대기 요청의 worklist): a decided request resolves to a collapsed <details>
+ * summary instead, and that collapse is unavoidable — the verdict IS what's loading.
  */
 export function ResourceSectionSkeleton(): ReactElement {
   return (
-    <div aria-busy="true">
+    <div role="status" aria-busy="true" aria-label="연동 대상을 불러오는 중">
       <div className="grid gap-3 mb-[18px] grid-cols-3">
         {['전체 요청', '연동 요청 대상', '연동 요청 제외대상'].map((label) => (
           <div
