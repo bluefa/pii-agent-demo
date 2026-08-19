@@ -6,6 +6,7 @@
  * state the list needs.
  */
 import type { ReactElement } from 'react';
+import { cn } from '@/lib/theme';
 import { getDatabaseShortLabel } from '@/app/components/ui/DatabaseIcon';
 import { Pagination } from '@/app/components/ui/Pagination';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
@@ -49,6 +50,14 @@ export interface ResourceSectionProps {
    */
   onShowServices?: (row: RequestResourceRow) => void;
   onOpenNlbListeners?: () => void;
+  /**
+   * NLB 점유표(getNlbTable)가 아직(또는 끝내) 없는 동안, 그걸 여는 버튼들(리스너 현황 ·
+   * 행 배정)을 이 이유(title)로 잠근다. 페이지는 그 fetch 를 기다리지 않는다 — 버튼만
+   * 기다린다.
+   */
+  nlbDisabledReason?: string;
+  /** 사용 서비스 조회(getNlbIndexMappings)도 같은 문법. */
+  servicesDisabledReason?: string;
 }
 
 export function ResourceSection({
@@ -60,6 +69,8 @@ export function ResourceSection({
   onAssignNlb,
   onShowServices,
   onOpenNlbListeners,
+  nlbDisabledReason,
+  servicesDisabledReason,
 }: ResourceSectionProps): ReactElement {
   const { query, patchQuery } = list;
   // Counts stay whole-request (the tiles are the split); only the table pages.
@@ -111,7 +122,13 @@ export function ResourceSection({
         ]}
         actions={
           isIdc && onOpenNlbListeners ? (
-            <PlButton variant="secondary" size="sm" onClick={onOpenNlbListeners}>
+            <PlButton
+              variant="secondary"
+              size="sm"
+              onClick={onOpenNlbListeners}
+              disabled={nlbDisabledReason != null}
+              title={nlbDisabledReason}
+            >
               NLB 리스너 현황
             </PlButton>
           ) : undefined
@@ -135,6 +152,8 @@ export function ResourceSection({
             onAssignNlb={onAssignNlb}
             onShowServices={onShowServices}
             suspectMarks={marks}
+            assignDisabledReason={nlbDisabledReason}
+            servicesDisabledReason={servicesDisabledReason}
           />
         ) : (
           <CloudResourceTable rows={paged.rows} />
@@ -153,5 +172,65 @@ export function ResourceSection({
         />
       )}
     </>
+  );
+}
+
+const SKELETON_BAR = 'animate-pulse rounded-[6px] bg-[var(--pl-gray-100)]';
+// gray-100 위(타일 안은 white 지만 툴바 밴드는 gray-100)에서는 같은 gray-100 바가
+// 안 보인다 — opsStyles 의 함정 그대로. 밴드 위 바만 한 단 어두운 gray-200.
+const SKELETON_BAR_ON_BAND = 'animate-pulse rounded-[6px] bg-[var(--pl-gray-200)]';
+
+/**
+ * The section while approval-requests/latest is in flight. Containers and paddings are
+ * copied from the real pieces above (tile: px-5 py-[18px] rounded-xl; toolbar:
+ * px-4 py-[14px] gray-100 band; cells: approvalCell 18px/16px) so nothing shifts when
+ * the rows land. Not drawn: the 확인 필요 tile (whether one exists is what's loading),
+ * the pager (below everything — nothing sits under it to shift), and real columns
+ * (their set depends on the provider and the rows). The shape assumes the common
+ * case (대기 요청의 worklist): a decided request resolves to a collapsed <details>
+ * summary instead, and that collapse is unavoidable — the verdict IS what's loading.
+ */
+export function ResourceSectionSkeleton(): ReactElement {
+  return (
+    <div role="status" aria-busy="true" aria-label="연동 대상을 불러오는 중">
+      <div className="grid gap-3 mb-[18px] grid-cols-3">
+        {['전체 요청', '연동 요청 대상', '연동 요청 제외대상'].map((label) => (
+          <div
+            key={label}
+            className="flex flex-col items-center gap-1.5 rounded-xl border border-[var(--pl-border)] bg-[var(--pl-bg-card)] px-5 py-[18px] shadow-[var(--pl-shadow-xs)]"
+          >
+            {/* 라벨은 정적 사실이라 실물로 찍는다 — 기다리는 건 숫자뿐이다. */}
+            <span className="text-[14px] font-semibold text-[var(--pl-text-weak)]">{label}</span>
+            {/* 숫자 줄: 40px bold leading-[1.2] = 48px 라인 박스. */}
+            <span className="flex h-12 items-center">
+              <span className={cn(SKELETON_BAR, 'h-6 w-12')} />
+            </span>
+          </div>
+        ))}
+      </div>
+      <div className="flex items-center gap-[10px] rounded-t-[12px] border border-b-0 border-[var(--pl-border)] bg-[var(--pl-gray-100)] px-4 py-[14px]">
+        {/* SearchBox 자리 — h32, min-w 220. */}
+        <span className={cn(SKELETON_BAR_ON_BAND, 'h-8 w-[260px] rounded-lg')} />
+        <span className={cn(SKELETON_BAR_ON_BAND, 'ml-auto h-8 w-8 rounded-lg')} />
+      </div>
+      <div className="rounded-b-[12px] border border-t-0 border-[var(--pl-border)] bg-[var(--pl-bg-card)]">
+        {/* 헤더 밴드: approvalHeaderChrome(gray-100) + approvalHeaderCell(py-3, 12px). */}
+        <div className="flex items-center gap-10 bg-[var(--pl-gray-100)] px-[18px] py-3">
+          {[112, 88, 64, 96].map((w, i) => (
+            <span key={i} className={cn(SKELETON_BAR_ON_BAND, 'h-[18px]')} style={{ width: w }} />
+          ))}
+        </div>
+        {Array.from({ length: 6 }, (_, i) => (
+          <div key={i} className="flex items-center gap-10 border-t border-[var(--pl-gray-100)] px-[18px] py-4">
+            {/* 본문 셀 줄: 14px 텍스트의 21px 라인 박스 안에 바. */}
+            {[160, 96, 48, 72].map((w, j) => (
+              <span key={j} className="flex h-[21px] items-center">
+                <span className={cn(SKELETON_BAR, 'h-3.5')} style={{ width: w }} />
+              </span>
+            ))}
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }

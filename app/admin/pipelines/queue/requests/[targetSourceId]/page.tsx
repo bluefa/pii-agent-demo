@@ -8,6 +8,11 @@
  * getApprovalRequestLatest. The list itself lives in ResourceSection and the IDC NLB
  * editing in useNlbAssignment; this page owns the fetch, the approval actions and the
  * modals. 승인/반려 post to the approval endpoints, then return to the list.
+ *
+ * The four reads gate SEPARATELY — the slowest call must not hold the whole page:
+ * the head waits only for getRequestHeader, the body only for getApprovalRequestLatest,
+ * and the two NLB reads (occupancy table + per-service mappings) gate nothing but the
+ * buttons that open them. Each zone wears its own skeleton meanwhile.
  */
 import { useCallback, useMemo, useState, type ReactElement } from 'react';
 import { useParams, useRouter } from 'next/navigation';
@@ -22,10 +27,16 @@ import { PlEmptyState } from '@/app/admin/pipelines/_components/PlEmptyState';
 import { Icon } from '@/app/admin/pipelines/_components/icons';
 import { usePlToast } from '@/app/admin/pipelines/_components/usePlToast';
 
-import { RequestDetailHeader } from '@/app/admin/pipelines/queue/requests/_components/RequestDetailHeader';
+import {
+  RequestDetailHeader,
+  RequestDetailHeaderSkeleton,
+} from '@/app/admin/pipelines/queue/requests/_components/RequestDetailHeader';
 import { RequestVerdictNotice } from '@/app/admin/pipelines/queue/requests/_components/RequestVerdictNotice';
 import { DuplicateAddressNotice } from '@/app/admin/pipelines/queue/requests/_components/DuplicateAddressNotice';
-import { ResourceSection } from '@/app/admin/pipelines/queue/requests/_components/ResourceSection';
+import {
+  ResourceSection,
+  ResourceSectionSkeleton,
+} from '@/app/admin/pipelines/queue/requests/_components/ResourceSection';
 import { NlbListenerModal } from '@/app/admin/pipelines/queue/requests/_components/NlbListenerModal';
 import { NlbAssignModal } from '@/app/admin/pipelines/queue/requests/_components/NlbAssignModal';
 import { ServiceAssignmentModal } from '@/app/admin/pipelines/queue/requests/_components/ServiceAssignmentModal';
@@ -88,13 +99,23 @@ export default function RequestDetailPage(): ReactElement {
   const targetSourceId = Number(params.targetSourceId);
   const toast = usePlToast();
 
-  const [header, setHeader] = useState<RequestListRow | null>(null);
+  // 네 fetch 가 서로 다른 화면 조각을 먹이므로 게이트도 따로 든다. `undefined` = 아직
+  // 조회 중 — 이 공통 문법으로 '아직'과 '없음/실패'가 같은 픽셀을 그리지 않는다.
+  //
+  // 헤더 정체성: null = 큐 목록에 그 행이 없음(정상 miss) — #id 폴백으로 계속 간다.
+  // 조회 '실패'는 여기로 접지 않고 error 로 올린다: 표의 모양(IDC/클라우드)이 이 행의
+  // provider 를 읽어서, 실패를 miss 로 위장하면 잘못된 표가 조용히 선다.
+  const [header, setHeader] = useState<RequestListRow | null | undefined>(undefined);
+  // 본문 전부(타일·표·판정·승인/반려 활성)의 유일한 게이트. null = 조회 중.
   const [detail, setDetail] = useState<ApprovalRequestDetail | null>(null);
-  const [nlbTable, setNlbTable] = useState<NlbTableRow[]>([]);
-  // null = the per-service NLB mappings fetch failed, so ServiceAssignmentModal says so
-  // rather than showing a false "배정 없음".
-  const [nlbMappings, setNlbMappings] = useState<ResourceNlbMappings[] | null>(null);
-  const [loading, setLoading] = useState(true);
+  // NLB 점유표: 모달(리스너 현황·배정)만 먹인다. 페이지는 안 기다리고, 그걸 여는 버튼이
+  // 잠긴다(nlbDisabledReason). null = 조회 실패 — 버튼이 이유와 함께 잠긴 채 남는다.
+  const [nlbTable, setNlbTable] = useState<NlbTableRow[] | null | undefined>(undefined);
+  // 서비스별 배정: undefined 동안만 조회 버튼을 잠근다. null(실패)은 ServiceAssignmentModal
+  // 이 직접 말하므로 버튼을 열어 둔다 — 거짓 "배정 없음"을 그리지 않기 위한 구분.
+  const [nlbMappings, setNlbMappings] = useState<ResourceNlbMappings[] | null | undefined>(
+    undefined,
+  );
   const [error, setError] = useState<unknown>(null);
   const [retry, setRetry] = useState(0);
 
@@ -131,41 +152,74 @@ export default function RequestDetailPage(): ReactElement {
     onSuccess: closeAssign,
   });
 
+  // 헤더 정체성 — 도착하는 대로 head 스켈레톤을 걷는다. miss(null 행)는 #id 폴백,
+  // rejection 은 에러 카드다 — null 로 접으면 miss 와 구분이 사라진다(위 state 주석).
   useAbortableEffect(
     (signal) => {
-      setLoading(true);
+      setHeader(undefined);
+      return getRequestHeader(targetSourceId, { signal })
+        .then((headerRow) => {
+          if (!signal.aborted) setHeader(headerRow);
+        })
+        .catch((err) => {
+          if (!signal.aborted) setError(err);
+        });
+    },
+    [targetSourceId, retry],
+  );
+
+  // 본문 — 요청 요약 + 리소스. 전체 에러 화면(재시도)을 세울 수 있는 유일한 fetch.
+  useAbortableEffect(
+    (signal) => {
+      setDetail(null);
       setError(null);
-      return Promise.all([
-        getRequestHeader(targetSourceId, { signal }),
-        getApprovalRequestLatest(targetSourceId, { signal }),
-        getNlbTable({ signal }),
-        // Feeds ServiceAssignmentModal only — its failure must not break the detail, so
-        // it resolves to null on its own.
-        getNlbIndexMappings(targetSourceId, { signal }).catch(() => null),
-      ])
-        .then(([headerRow, detailData, nlbRows, mappings]) => {
+      return getApprovalRequestLatest(targetSourceId, { signal })
+        .then((detailData) => {
           if (signal.aborted) return;
-          setHeader(headerRow);
           setDetail(detailData);
-          setNlbTable(nlbRows);
-          setNlbMappings(mappings);
           setAssigning(null);
           setShowingServices(null);
           resetList();
-          setLoading(false);
         })
         .catch((err) => {
           if (signal.aborted) return;
           setError(err);
-          setLoading(false);
         });
     },
     [targetSourceId, retry, resetList],
   );
 
+  // NLB 점유표 + 서비스별 배정 — 모달 전용. 각자 도착하는 대로 자기 버튼을 연다.
+  useAbortableEffect(
+    (signal) => {
+      setNlbTable(undefined);
+      setNlbMappings(undefined);
+      void getNlbTable({ signal }).then(
+        (nlbRows) => {
+          if (!signal.aborted) setNlbTable(nlbRows);
+        },
+        () => {
+          if (!signal.aborted) setNlbTable(null);
+        },
+      );
+      void getNlbIndexMappings(targetSourceId, { signal }).then(
+        (mappings) => {
+          if (!signal.aborted) setNlbMappings(mappings);
+        },
+        () => {
+          if (!signal.aborted) setNlbMappings(null);
+        },
+      );
+    },
+    [targetSourceId, retry],
+  );
+
   const provider = header?.cloudProvider ?? '';
   const isIdc = provider.toUpperCase() === 'IDC';
-  const serviceName = header?.serviceName ?? `#${targetSourceId}`;
+  // 모달 문장용 라벨. 브레드크럼과 h1 은 이름 유무를 각자 다룬다 — 이름이 없을 때 여기에
+  // #id 를 미리 이어 붙이면 그 옆의 #id 와 겹쳐 "#1031 #1031" 이 된다(초기 로딩 중복).
+  // truthiness: loose codegen 이라 '' 도 이름 없음이다.
+  const serviceLabel = header?.serviceName || `#${targetSourceId}`;
   const resources = detail?.resources ?? [];
   const selectedCount =
     detail?.request.resourceSelectedCount ?? resources.filter((r) => r.selected).length;
@@ -184,6 +238,16 @@ export default function RequestDetailPage(): ReactElement {
   // 가장 비싸다: adjacentAddresses 는 걸렸을 때만 일찍 빠져나온다.
   // `detail.resources` 는 setDetail 이 아니면 바뀌지 않는 참조라 이 의존성으로 충분하다.
   const suspectGroups = useMemo(() => findSuspectGroups(resources), [resources]);
+  // NLB 데이터는 페이지가 아니라 버튼만 기다린다 — undefined(아직)와 null(실패)이
+  // 문구를 가른다. 실패는 빈 결과가 아니므로 활성 버튼 뒤에 숨기지 않는다.
+  const nlbDisabledReason =
+    nlbTable === undefined
+      ? 'NLB 정보를 불러오는 중이에요'
+      : nlbTable === null
+        ? 'NLB 정보를 불러오지 못했어요. 새로고침 후 다시 시도해 주세요.'
+        : undefined;
+  const servicesDisabledReason =
+    nlbMappings === undefined ? '배정 정보를 불러오는 중이에요' : undefined;
   const backToList = (): void => router.push(passRoutes.pipelines.queue.requests);
 
   // A failed submit keeps the modal open (it resets its own submitting flag) and
@@ -218,7 +282,13 @@ export default function RequestDetailPage(): ReactElement {
         crumbs={[
           { label: 'Task Queue', href: passRoutes.pipelines.queue.dashboard },
           { label: '연동 요청', href: passRoutes.pipelines.queue.requests },
-          { label: `${serviceName} #${targetSourceId}` },
+          // 이름이 아직 없으면(조회 중·miss) #id 하나만 — `${이름} #id` 폴백은 이름 자리에
+          // #id 가 들어가 "#1031 #1031" 로 찍힌다.
+          {
+            label: header?.serviceName
+              ? `${header.serviceName} #${targetSourceId}`
+              : `#${targetSourceId}`,
+          },
         ]}
       />
 
@@ -234,173 +304,197 @@ export default function RequestDetailPage(): ReactElement {
             }
           />
         </Card>
-      ) : loading || detail === null ? (
-        <div className="min-h-[320px]" aria-busy="true" />
       ) : (
         <>
-          <RequestDetailHeader
-            serviceName={serviceName}
-            targetSourceId={targetSourceId}
-            description={header?.description ?? null}
-            provider={provider}
-            serviceCode={header?.serviceCode ?? null}
-            requestedBy={detail.request.requestedBy}
-            requestedAt={detail.request.requestedAt}
-            // 결정이 끝난 요청에는 CTA 를 넘기지 않는다 — 아래 verdict 가 상태를
-            // 말하고, 재처리는 계약상 불가능하다.
-            onApprove={decided ? undefined : () => setModal('approve')}
-            onReject={decided ? undefined : () => setModal('reject')}
-          />
+          {/* head 는 헤더 fetch 만 기다린다. 요청 사실(시각·요청자)과 CTA 활성은
+              detail 몫이라, 그때까지 pending — CTA 는 '아직'이 사실이므로 disabled. */}
+          {header === undefined ? (
+            <RequestDetailHeaderSkeleton />
+          ) : (
+            <RequestDetailHeader
+              serviceName={header?.serviceName ?? null}
+              targetSourceId={targetSourceId}
+              description={header?.description ?? null}
+              provider={provider}
+              serviceCode={header?.serviceCode ?? null}
+              requestedBy={detail?.request.requestedBy ?? null}
+              requestedAt={detail?.request.requestedAt ?? null}
+              pending={detail === null}
+              // 결정이 끝난 요청에는 CTA 를 넘기지 않는다 — 아래 verdict 가 상태를
+              // 말하고, 재처리는 계약상 불가능하다.
+              onApprove={detail === null || decided ? undefined : () => setModal('approve')}
+              onReject={detail === null || decided ? undefined : () => setModal('reject')}
+            />
+          )}
 
-          {/* 관리자가 이미 답을 준 요청이면, 서비스 담당자가 Step 2 에서 읽는
-              그 문장을 여기서도 같은 문법(3px 룰 인용)으로 먼저 보여준다.
-              CTA 와 같은 조건(decided)으로 묶는다 — result 만 보고 그리면 이전
-              결정이 남아 있는 재요청 건에서 '반려됐어요' 아래에 살아 있는 승인
-              버튼이 함께 놓인다. */}
-          {decided && detail.verdict != null && <RequestVerdictNotice verdict={detail.verdict} />}
-
-          {/* One title for both providers: what the section holds is the request, and
-              naming its IDC-only parts made the heading grow a clause per provider.
-              The provider split moves to the desc, where a sentence can carry it —
-              only IDC has an NLB Index the admin can still change here. */}
-          {decided ? (
-            /* 결정이 끝난 요청의 대상은 worklist 가 아니라 기록이다 — Step 2 의
-               RejectedTargetRecord 와 같은 판단으로, 판정 아래에 800px 짜리
-               '조작 가능해 보이는' 표를 펼쳐두지 않고 접는다. 상태를 들 필요가
-               없는 native <details>. 요약줄은 어차피 목록에서 확인할 것(몇 건인지)을
-               미리 답한다. */
-            <details className="group border-t border-[var(--pl-border)] pt-4">
-              <summary className="flex cursor-pointer list-none flex-col gap-2.5 [&::-webkit-details-marker]:hidden">
-                <div className="flex items-center justify-between gap-4">
-                  <span className="text-[14px] font-semibold text-[var(--pl-text-medium)]">
-                    이 요청에 포함된 연동 대상
-                  </span>
-                  {/* 12px: 14px 요약 제목보다 한 단 아래. Step 2 는 같은 자리에
-                      13px 를 쓰지만, 이 레포의 design hook 이 새로 추가되는 JSX
-                      폰트 크기를 짝수로 강제해서 한 칸 내렸다. */}
-                  <span className="inline-flex items-center gap-1 text-[12px] font-semibold text-[var(--pl-primary)]">
-                    <span className="group-open:hidden">목록 보기</span>
-                    <span className="hidden group-open:inline">접기</span>
-                    {/* 아래를 가리키는 셰브론 — 아이콘 세트에 chev-d 가 없어 chev-r 을
-                        돌려 쓴다(열리면 위로). */}
-                    <Icon
-                      name="chev-r"
-                      size="sm"
-                      className="rotate-90 transition-transform group-open:-rotate-90"
-                    />
-                  </span>
-                </div>
-                {/* 열면 사라진다 — 아래 타일이 같은 세 숫자를 들고 있어 중복이 된다.
-                    요청 시각·요청자는 헤더가 이미 말하므로 여기서 반복하지 않는다. */}
-                <div className="flex flex-wrap gap-x-5 gap-y-2 group-open:hidden">
-                  <RecordCount label="전체" value={resources.length} />
-                  <RecordCount label="연동 대상" value={selectedCount} />
-                  <RecordCount label="제외" value={resources.length - selectedCount} />
-                </div>
-              </summary>
-              <div className="mt-4">
-                <ResourceSection
-                  resources={resources}
-                  isIdc={isIdc}
-                  list={list}
-                  nlbLocked
-                  onAssignNlb={setAssigning}
-                  onShowServices={setShowingServices}
-                  onOpenNlbListeners={() => setModal('nlb')}
-                />
-              </div>
-            </details>
+          {/* 본문은 detail 과 header 둘 다 기다린다 — 표의 모양(IDC/클라우드 열,
+              검색 문구, NLB 열)이 header 의 provider 를 읽어서, detail 만으로 열면
+              잘못된 표가 섰다가 header 도착에 통째로 갈아치워진다. */}
+          {detail === null || header === undefined ? (
+            <ResourceSectionSkeleton />
           ) : (
             <>
-              <SectionHeader
-                first
-                title="연동 요청 조회"
-                desc={
-                  isIdc ? (
-                    <>
-                      서비스 담당자가 요청한 연동 대상을 확인하고 승인해요.{' '}
-                      {/* Primary, because this clause is the one thing on the page that is
-                          still editable and it expires at 승인 — the rest of the sentence
-                          describes what the section shows. The cloud variant gets no
-                          highlight: nothing there can be changed. */}
-                      <span className="font-medium text-[var(--pl-primary)]">
-                        승인 전에는 접속 주소마다 NLB Index를 바꿀 수 있어요.
+              {/* 관리자가 이미 답을 준 요청이면, 서비스 담당자가 Step 2 에서 읽는
+                  그 문장을 여기서도 같은 문법(3px 룰 인용)으로 먼저 보여준다.
+                  CTA 와 같은 조건(decided)으로 묶는다 — result 만 보고 그리면 이전
+                  결정이 남아 있는 재요청 건에서 '반려됐어요' 아래에 살아 있는 승인
+                  버튼이 함께 놓인다. */}
+              {decided && detail.verdict != null && (
+                <RequestVerdictNotice verdict={detail.verdict} />
+              )}
+
+              {/* One title for both providers: what the section holds is the request, and
+                  naming its IDC-only parts made the heading grow a clause per provider.
+                  The provider split moves to the desc, where a sentence can carry it —
+                  only IDC has an NLB Index the admin can still change here. */}
+              {decided ? (
+                /* 결정이 끝난 요청의 대상은 worklist 가 아니라 기록이다 — Step 2 의
+                   RejectedTargetRecord 와 같은 판단으로, 판정 아래에 800px 짜리
+                   '조작 가능해 보이는' 표를 펼쳐두지 않고 접는다. 상태를 들 필요가
+                   없는 native <details>. 요약줄은 어차피 목록에서 확인할 것(몇 건인지)을
+                   미리 답한다. */
+                <details className="group border-t border-[var(--pl-border)] pt-4">
+                  <summary className="flex cursor-pointer list-none flex-col gap-2.5 [&::-webkit-details-marker]:hidden">
+                    <div className="flex items-center justify-between gap-4">
+                      <span className="text-[14px] font-semibold text-[var(--pl-text-medium)]">
+                        이 요청에 포함된 연동 대상
                       </span>
-                    </>
-                  ) : (
-                    '서비스 담당자가 요청한 연동 대상을 확인하고 승인해요. 제외된 리소스는 사유와 함께 표시돼요.'
-                  )
-                }
+                      {/* 12px: 14px 요약 제목보다 한 단 아래. Step 2 는 같은 자리에
+                          13px 를 쓰지만, 이 레포의 design hook 이 새로 추가되는 JSX
+                          폰트 크기를 짝수로 강제해서 한 칸 내렸다. */}
+                      <span className="inline-flex items-center gap-1 text-[12px] font-semibold text-[var(--pl-primary)]">
+                        <span className="group-open:hidden">목록 보기</span>
+                        <span className="hidden group-open:inline">접기</span>
+                        {/* 아래를 가리키는 셰브론 — 아이콘 세트에 chev-d 가 없어 chev-r 을
+                            돌려 쓴다(열리면 위로). */}
+                        <Icon
+                          name="chev-r"
+                          size="sm"
+                          className="rotate-90 transition-transform group-open:-rotate-90"
+                        />
+                      </span>
+                    </div>
+                    {/* 열면 사라진다 — 아래 타일이 같은 세 숫자를 들고 있어 중복이 된다.
+                        요청 시각·요청자는 헤더가 이미 말하므로 여기서 반복하지 않는다. */}
+                    <div className="flex flex-wrap gap-x-5 gap-y-2 group-open:hidden">
+                      <RecordCount label="전체" value={resources.length} />
+                      <RecordCount label="연동 대상" value={selectedCount} />
+                      <RecordCount label="제외" value={resources.length - selectedCount} />
+                    </div>
+                  </summary>
+                  <div className="mt-4">
+                    <ResourceSection
+                      resources={resources}
+                      isIdc={isIdc}
+                      list={list}
+                      nlbLocked
+                      onAssignNlb={setAssigning}
+                      onShowServices={setShowingServices}
+                      onOpenNlbListeners={() => setModal('nlb')}
+                      nlbDisabledReason={nlbDisabledReason}
+                      servicesDisabledReason={servicesDisabledReason}
+                    />
+                  </div>
+                </details>
+              ) : (
+                <>
+                  <SectionHeader
+                    first
+                    title="연동 요청 조회"
+                    desc={
+                      isIdc ? (
+                        <>
+                          서비스 담당자가 요청한 연동 대상을 확인하고 승인해요.{' '}
+                          {/* Primary, because this clause is the one thing on the page that is
+                              still editable and it expires at 승인 — the rest of the sentence
+                              describes what the section shows. The cloud variant gets no
+                              highlight: nothing there can be changed. */}
+                          <span className="font-medium text-[var(--pl-primary)]">
+                            승인 전에는 접속 주소마다 NLB Index를 바꿀 수 있어요.
+                          </span>
+                        </>
+                      ) : (
+                        '서비스 담당자가 요청한 연동 대상을 확인하고 승인해요. 제외된 리소스는 사유와 함께 표시돼요.'
+                      )
+                    }
+                  />
+                  {/* 아직 결정하지 않은 요청에만 세운다 — 이미 승인·반려된 요청에서는
+                      관리자가 할 수 있는 일이 없고, 그 화면의 대상 목록은 worklist 가
+                      아니라 기록이다(위 details 분기). */}
+                  <DuplicateAddressNotice
+                    groups={suspectGroups}
+                    onShowInTable={() => list.patchQuery({ filter: 'suspect' })}
+                  />
+                  {/* No card around it. The tiles are cards and the toolbar·table·pager carry
+                      their own connected frame, so an outer surface only nested a card in a card
+                      and spent 48px of table width on doubled padding. */}
+                  <ResourceSection
+                    resources={resources}
+                    isIdc={isIdc}
+                    list={list}
+                    suspectGroups={suspectGroups}
+                    // decided 는 허용 목록이라 '모르는 상태'는 대기로 떨어진다.
+                    // 그 경우 CTA 는 남기되(막다른 화면 방지) NLB 편집은 잠근다 —
+                    // 상태를 모르는 요청에 리소스 변경을 열어 줄 이유는 없다.
+                    nlbLocked={detail.request.status !== 'PENDING'}
+                    onAssignNlb={setAssigning}
+                    onShowServices={setShowingServices}
+                    onOpenNlbListeners={() => setModal('nlb')}
+                    nlbDisabledReason={nlbDisabledReason}
+                    servicesDisabledReason={servicesDisabledReason}
+                  />
+                </>
+              )}
+
+              {/* rows 의 `?? []` 는 타입을 위한 것 — 점유표가 없는 동안은 이 모달을
+                  여는 버튼이 전부 잠겨 있어 열릴 수 없다. */}
+              <NlbListenerModal
+                open={modal === 'nlb'}
+                onClose={() => setModal(null)}
+                rows={nlbTable ?? []}
               />
-              {/* 아직 결정하지 않은 요청에만 세운다 — 이미 승인·반려된 요청에서는
-                  관리자가 할 수 있는 일이 없고, 그 화면의 대상 목록은 worklist 가
-                  아니라 기록이다(위 details 분기). */}
-              <DuplicateAddressNotice
-                groups={suspectGroups}
-                onShowInTable={() => list.patchQuery({ filter: 'suspect' })}
+              {assigning != null && (
+                <NlbAssignModal
+                  key={assigning.resourceId ?? 'nlb-assign'}
+                  open
+                  onClose={closeAssign}
+                  resource={assigning}
+                  rows={nlbTable ?? []}
+                  saving={nlb.savingResourceId != null}
+                  onSave={(nlbIndex) =>
+                    assigning.resourceId != null &&
+                    nlb.save(assigning.resourceId, assigning.nlbIndex, nlbIndex)
+                  }
+                />
+              )}
+              {showingServices != null && (
+                <ServiceAssignmentModal
+                  key={showingServices.resourceId ?? 'services'}
+                  open
+                  onClose={() => setShowingServices(null)}
+                  resource={showingServices}
+                  // undefined(조회 중)엔 조회 버튼이 잠겨 있어 여기 못 온다 — null 만
+                  // 실패로 전달된다.
+                  mappings={nlbMappings ?? null}
+                />
+              )}
+              <ApproveModal
+                key={`approve-${modal === 'approve'}`}
+                open={modal === 'approve'}
+                onClose={() => setModal(null)}
+                serviceName={serviceLabel}
+                selectedCount={selectedCount}
+                onSubmit={onApprove}
               />
-              {/* No card around it. The tiles are cards and the toolbar·table·pager carry
-                  their own connected frame, so an outer surface only nested a card in a card
-                  and spent 48px of table width on doubled padding. */}
-              <ResourceSection
-                resources={resources}
-                isIdc={isIdc}
-                list={list}
-                suspectGroups={suspectGroups}
-                // decided 는 허용 목록이라 '모르는 상태'는 대기로 떨어진다.
-                // 그 경우 CTA 는 남기되(막다른 화면 방지) NLB 편집은 잠근다 —
-                // 상태를 모르는 요청에 리소스 변경을 열어 줄 이유는 없다.
-                nlbLocked={detail.request.status !== 'PENDING'}
-                onAssignNlb={setAssigning}
-                onShowServices={setShowingServices}
-                onOpenNlbListeners={() => setModal('nlb')}
+              <RejectModal
+                key={`reject-${modal === 'reject'}`}
+                open={modal === 'reject'}
+                onClose={() => setModal(null)}
+                serviceName={serviceLabel}
+                onSubmit={onReject}
               />
             </>
           )}
-
-          <NlbListenerModal
-            open={modal === 'nlb'}
-            onClose={() => setModal(null)}
-            rows={nlbTable}
-          />
-          {assigning != null && (
-            <NlbAssignModal
-              key={assigning.resourceId ?? 'nlb-assign'}
-              open
-              onClose={closeAssign}
-              resource={assigning}
-              rows={nlbTable}
-              saving={nlb.savingResourceId != null}
-              onSave={(nlbIndex) =>
-                assigning.resourceId != null &&
-                nlb.save(assigning.resourceId, assigning.nlbIndex, nlbIndex)
-              }
-            />
-          )}
-          {showingServices != null && (
-            <ServiceAssignmentModal
-              key={showingServices.resourceId ?? 'services'}
-              open
-              onClose={() => setShowingServices(null)}
-              resource={showingServices}
-              mappings={nlbMappings}
-            />
-          )}
-          <ApproveModal
-            key={`approve-${modal === 'approve'}`}
-            open={modal === 'approve'}
-            onClose={() => setModal(null)}
-            serviceName={serviceName}
-            selectedCount={selectedCount}
-            onSubmit={onApprove}
-          />
-          <RejectModal
-            key={`reject-${modal === 'reject'}`}
-            open={modal === 'reject'}
-            onClose={() => setModal(null)}
-            serviceName={serviceName}
-            onSubmit={onReject}
-          />
         </>
       )}
     </div>
