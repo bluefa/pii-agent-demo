@@ -57,6 +57,11 @@ export const ScanDetail = ({ job, provider }: { job: ScanJob; provider: CloudPro
         {scanStatusLabel(job, t)}
       </span>
 
+      {/* 저장 중인 잡은 결과가 아직 없다 — 설명 없는 빈 자리는 "0건"으로 읽힌다. */}
+      {job.scan_status === 'SAVING' && (
+        <p className={cn('mt-4 text-[14px]', textColors.tertiary)}>{t.detailSaving}</p>
+      )}
+
       {job.scan_status === 'SUCCESS' && (
         <div className="mt-4">
           {counts.length === 0 ? (
@@ -127,8 +132,13 @@ export const ScanDetail = ({ job, provider }: { job: ScanJob; provider: CloudPro
 
       <div className={cn('mt-5 flex flex-wrap gap-x-10 gap-y-3 border-t pt-3.5', borderColors.light)}>
         <TimeField label={t.fieldRunTime} value={job.created_at ? formatDateTimeLocal(job.created_at, locale) : ''} />
-        <TimeField label={t.fieldFinishTime} value={job.updated_at ? formatDateTimeLocal(job.updated_at, locale) : ''} />
-        <TimeField label={t.fieldDuration} value={scanDurationText(job, t)} />
+        {/* 아직 안 끝난 잡에 완료 시각을 적지 않는다. */}
+        {job.scan_status !== 'SAVING' && (
+          <>
+            <TimeField label={t.fieldFinishTime} value={job.updated_at ? formatDateTimeLocal(job.updated_at, locale) : ''} />
+            <TimeField label={t.fieldDuration} value={scanDurationText(job, t)} />
+          </>
+        )}
       </div>
     </div>
   );

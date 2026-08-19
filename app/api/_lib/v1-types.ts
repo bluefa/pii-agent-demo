@@ -29,7 +29,7 @@ export interface UserSearchResponse {
 
 // --- Scan API ---
 
-export type ScanStatus = 'SCANNING' | 'SUCCESS' | 'FAIL' | 'CANCELED' | 'TIMEOUT';
+export type ScanStatus = 'SCANNING' | 'SAVING' | 'SUCCESS' | 'FAIL' | 'CANCELED' | 'TIMEOUT';
 export type ScanErrorCode = 'AUTH_PERMISSION_ERROR' | null;
 
 export interface ScanJob {

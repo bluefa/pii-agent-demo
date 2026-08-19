@@ -104,6 +104,8 @@ const ko = {
   progressLabel: '인프라 스캔 진행률',
 
   // ----- ScanDetail -----
+  /** SAVING: the job has no results yet, and an unexplained blank reads as "0". */
+  detailSaving: '결과를 집계하고 있어요. 잠시 후 다시 확인해 주세요.',
   detailNoResources: '발견된 리소스가 없어요.',
   /** The total is drawn large between these two, so it splits the sentence. */
   detailFoundBefore: '총',
@@ -132,7 +134,7 @@ const ko = {
   permissionInProgress: '자격 검증이 진행 중이에요',
 
   // ----- ScanPanel -----
-  startFailed: '스캔을 시작할 수 없습니다.',
+  startFailed: '스캔을 시작하지 못했습니다. 잠시 후 다시 시도해 주세요.',
 
   // ----- ScanStatusBadge -----
   badgeIdle: '미실행',
@@ -219,6 +221,7 @@ const en: typeof ko = {
   completeDesc: 'The results follow in a moment.',
   progressLabel: 'Infrastructure scan progress',
 
+  detailSaving: 'The results are being tallied. Please check back in a moment.',
   detailNoResources: 'No resources were found.',
   // No counted noun after the total, so one string covers 1 and n alike.
   detailFoundBefore: 'Found',
@@ -244,7 +247,7 @@ const en: typeof ko = {
   permissionVerified: (when: string) => `Permission verified · ${when}`,
   permissionInProgress: 'Credential verification is in progress',
 
-  startFailed: 'The scan could not be started.',
+  startFailed: 'The scan could not be started. Please try again in a moment.',
 
   badgeIdle: 'Not run',
   badgeInProgress: 'Scanning',
