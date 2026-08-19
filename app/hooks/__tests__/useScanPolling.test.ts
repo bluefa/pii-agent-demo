@@ -257,6 +257,36 @@ describe('useScanPolling', () => {
     expect(onScanComplete).toHaveBeenCalledTimes(1);
   });
 
+  // SAVING is the contract's own name for the aggregation tail: discovery is over,
+  // the results are being written. It must behave exactly like the count-less
+  // SUCCESS above — keep polling, stay IN_PROGRESS, and fire nothing.
+  it('keeps a SAVING job in progress until SUCCESS lands', async () => {
+    const onScanComplete = vi.fn();
+    vi.mocked(getLatestScanJob)
+      .mockResolvedValueOnce(scanningJob)
+      .mockResolvedValueOnce({ scan_status: 'SAVING', id: 9, target_source_id: 1, scan_progress: 100 })
+      .mockResolvedValue(successJob(9));
+
+    const { result } = renderHook(() => useScanPolling(1, { interval: 1000, onScanComplete }));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0); // SCANNING
+    });
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1000); // SAVING → still running
+    });
+    expect(result.current.uiState).toBe('IN_PROGRESS');
+    expect(result.current.isPolling).toBe(true);
+    expect(onScanComplete).not.toHaveBeenCalled();
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1000); // SUCCESS with counts → done
+    });
+    expect(result.current.uiState).toBe('COMPLETED');
+    expect(result.current.isPolling).toBe(false);
+    expect(onScanComplete).toHaveBeenCalledTimes(1);
+  });
+
   // The id-less completion fallback watches a running→terminal edge. A job that
   // passes through the finalizing tail shows no SCANNING→terminal edge, so the
   // edge must be tracked as "was running", not as the raw SCANNING status.

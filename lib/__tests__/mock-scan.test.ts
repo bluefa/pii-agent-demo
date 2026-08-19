@@ -109,6 +109,59 @@ describe('mock-scan', () => {
         expect(result.httpStatus).toBe(409);
         expect(result.existingScanId).toBe('scan-1');
       });
+      // 저장 구간(SAVING)은 스캔이 끝났지만 결과를 아직 쓰는 중이다 — 여기서 새 스캔이
+      // 들어오면 두 스캔이 같은 target_resource 를 동시에 쓴다. 쿨다운이 0이라 이 창은
+      // 실제로 열려 있고, 막는 건 이 판정뿐이다.
+      it('저장 중(SAVING)인 스캔이 있으면 스캔 불가 (SCAN_IN_PROGRESS)', () => {
+        const project = createTestProject();
+        const store = getStore();
+
+        store.scanHistory.push({
+          id: 'history-saving',
+          targetSourceId: project.targetSourceId,
+          scanId: 'scan-saving',
+          version: 1,
+          provider: 'AWS',
+          status: 'SUCCESS',
+          startedAt: new Date(Date.now() - 5000).toISOString(),
+          completedAt: new Date(Date.now() - 500).toISOString(), // 저장 창(3초) 안
+          duration: 4.5,
+          result: { totalFound: 1, byResourceType: [] },
+          resourceCountBefore: 0,
+          resourceCountAfter: 1,
+          addedResourceIds: [],
+        });
+
+        const result = validateScanRequest(project);
+        expect(result.valid).toBe(false);
+        expect(result.errorCode).toBe('SCAN_IN_PROGRESS');
+        expect(result.httpStatus).toBe(409);
+        expect(result.existingScanId).toBe('scan-saving');
+      });
+
+      // 실패로 끝난 스캔은 쓸 결과가 없다 — 저장 구간을 갖지 않는다.
+      it('방금 실패한 스캔은 저장 구간이 없으므로 스캔 가능', () => {
+        const project = createTestProject();
+        const store = getStore();
+
+        store.scanHistory.push({
+          id: 'history-fail',
+          targetSourceId: project.targetSourceId,
+          scanId: 'scan-fail',
+          version: 1,
+          provider: 'AWS',
+          status: 'FAIL',
+          startedAt: new Date(Date.now() - 5000).toISOString(),
+          completedAt: new Date(Date.now() - 500).toISOString(),
+          duration: 4.5,
+          result: { totalFound: 0, byResourceType: [] },
+          resourceCountBefore: 0,
+          resourceCountAfter: 0,
+          addedResourceIds: [],
+        });
+
+        expect(validateScanRequest(project).valid).toBe(true);
+      });
     });
 
     describe('쿨다운 검증', () => {
@@ -140,7 +193,8 @@ describe('mock-scan', () => {
         const project = createTestProject();
         const store = getStore();
 
-        // 6분 전 완료된 스캔 이력 추가
+        // 6분 전 완료된 스캔 이력 추가. 쿨다운이 0이라 `- 1000` 은 "1초 전"이 되어
+        // 저장 구간(SAVING) 안에 떨어진다 — 이름대로 실제로 오래된 시각을 준다.
         store.scanHistory.push({
           id: 'history-1',
           targetSourceId: project.targetSourceId,
@@ -149,7 +203,7 @@ describe('mock-scan', () => {
           provider: 'AWS',
           status: 'SUCCESS',
           startedAt: new Date(Date.now() - 400000).toISOString(),
-          completedAt: new Date(Date.now() - SCAN_COOLDOWN_MS - 1000).toISOString(),
+          completedAt: new Date(Date.now() - SCAN_COOLDOWN_MS - 370000).toISOString(),
           duration: 30,
           result: { totalFound: 1, byResourceType: [] },
           resourceCountBefore: 0,

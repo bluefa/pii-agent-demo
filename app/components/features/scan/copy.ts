@@ -37,6 +37,7 @@ const ko = {
 
   // ----- ScanJobResponse.scan_status (scan-labels) -----
   statusScanning: '진행 중',
+  statusSaving: '마무리 중',
   statusSuccess: '성공',
   statusFail: '실패',
   statusTimeout: '시간 초과',
@@ -165,6 +166,7 @@ const en: typeof ko = {
   noScanYet: 'No scan yet',
 
   statusScanning: 'In progress',
+  statusSaving: 'Finishing up',
   statusSuccess: 'Success',
   statusFail: 'Failed',
   statusTimeout: 'Timed out',

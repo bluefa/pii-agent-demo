@@ -12,13 +12,16 @@
 export type ScanTone = 'ok' | 'info' | 'err' | 'off';
 
 /**
- * ScanStatus (app/api/_lib/v1-types.ts) → tone + Korean label. FINALIZING is not a
- * contract status: it is the UI's name for SUCCESS whose count map has not landed
- * yet, and a green 성공 over an empty result would be a lie.
+ * ScanStatus (app/api/_lib/v1-types.ts) → tone + Korean label. SAVING is the
+ * contract's name for the window where discovery is over but the counts are not
+ * written yet; FINALIZING is the UI's own name for that same window seen as a
+ * SUCCESS whose count map has not landed. One label for both — a green 성공 over
+ * an empty result would be a lie either way.
  */
 export const SCAN_STATE: Record<string, { tone: ScanTone; label: string }> = {
   SUCCESS: { tone: 'ok', label: '성공' },
   SCANNING: { tone: 'info', label: '스캔 중' },
+  SAVING: { tone: 'info', label: '마무리 중' },
   FINALIZING: { tone: 'info', label: '마무리 중' },
   FAIL: { tone: 'err', label: '실패' },
   TIMEOUT: { tone: 'err', label: '타임아웃' },
