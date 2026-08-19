@@ -44,8 +44,6 @@ interface PostEditorFormProps {
 
 const EMPTY: LocalizedText = { ko: '', en: '' };
 
-const mib = (bytes: number): string => `${(bytes / 1024 / 1024).toFixed(1)}MB`;
-
 const LANG_LABEL: Record<PostLanguage, string> = { ko: '한국어', en: 'English' };
 
 export const PostEditorForm = ({ type: initialType, postId }: PostEditorFormProps) => {
@@ -286,14 +284,6 @@ export const PostEditorForm = ({ type: initialType, postId }: PostEditorFormProp
                   remainingImages={POST_MAX_IMAGES - check.usage.imageCount}
                 />
               )}
-              <p className={postFormStyles.hint}>
-                png · jpeg · webp / 파일 1개당 5MB 이하. 붙여넣기와 끌어놓기로도 넣을 수
-                있으며, 이미지는 저장할 때 함께 올라갑니다.
-                <br />
-                정렬·크기 조절은 없습니다 — 조정할 수 있는 것은 문단 사이 <b>위치</b>뿐입니다.
-                <br />
-                이미지 {check.usage.imageCount}/{POST_MAX_IMAGES} · {mib(check.usage.totalBytes)}/{mib(POST_MAX_TOTAL_BYTES)}
-              </p>
             </div>
           </div>
         </div>
