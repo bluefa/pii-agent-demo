@@ -19,11 +19,12 @@ import { useRouter } from 'next/navigation';
 import { cn, pipelineStyles } from '@/lib/theme';
 import { passRoutes } from '@/lib/routes';
 import { getAlertTargetSources } from '@/app/lib/api/task-queue';
-import type { AlertTargetKind, RequestListRow } from '@/lib/types/task-queue';
+import type { AlertTargetKind, AlertListRow } from '@/lib/types/task-queue';
 import { Icon, type IconName } from '@/app/admin/pipelines/_components/icons';
 import { TerraformLogo } from '@/app/admin/pipelines/_components/brandMarks';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
 import { DashRow, RowAction, TargetCell } from '@/app/admin/pipelines/_dashboard/cells';
+import { DelayText } from '@/app/admin/pipelines/queue/_components/DelayText';
 import { OpsPagination } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/OpsPagination';
 
 export type AlertStageIcon = IconName | 'terraform';
@@ -74,7 +75,7 @@ export function AlertWorklist({
   onRefresh,
 }: AlertWorklistProps): ReactElement {
   const router = useRouter();
-  const [rows, setRows] = useState<RequestListRow[]>([]);
+  const [rows, setRows] = useState<AlertListRow[]>([]);
   const [totalPages, setTotalPages] = useState(1);
   const [failed, setFailed] = useState(false);
   const [page, setPage] = useState(0);
@@ -127,13 +128,14 @@ export function AlertWorklist({
           <tr>
             <th className={cn(d.th, 'w-[38ch]')}>대상</th>
             <th className={d.th}>설명</th>
+            <th className={cn(d.th, 'w-[10ch]')}>지연</th>
             <th className={d.th} />
           </tr>
         </thead>
         <tbody className={d.body}>
           {failed ? (
             <tr>
-              <td colSpan={3} className={worklist.state}>
+              <td colSpan={4} className={worklist.state}>
                 목록을 불러오지 못했습니다.
               </td>
             </tr>
@@ -148,12 +150,15 @@ export function AlertWorklist({
                 <td className={d.cell}>
                   <span className={worklist.skeletonBar} />
                 </td>
+                <td className={d.cell}>
+                  <span className={worklist.skeletonBar} />
+                </td>
                 <td className={d.actionCell} />
               </tr>
             ))
           ) : rows.length === 0 ? (
             <tr>
-              <td colSpan={3} className={worklist.state}>
+              <td colSpan={4} className={worklist.state}>
                 해당 단계의 대상이 없습니다.
               </td>
             </tr>
@@ -177,6 +182,13 @@ export function AlertWorklist({
                   <span className={worklist.descText} title={row.description ?? undefined}>
                     {row.description ?? '—'}
                   </span>
+                </td>
+                <td className={d.cell}>
+                  {row.delaySeconds != null ? (
+                    <DelayText delaySeconds={row.delaySeconds} className="text-[12px]" />
+                  ) : (
+                    <span className={d.elapsed}>—</span>
+                  )}
                 </td>
                 <td className={d.actionCell}>
                   <RowAction />

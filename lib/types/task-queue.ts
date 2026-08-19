@@ -84,6 +84,18 @@ export interface RequestListRow {
   } | null;
 }
 
+/**
+ * RequestListRow + the proposed delay pair for the 운영 알림 worklist.
+ * `delay_seconds`/`status_changed_at` are NOT in the swagger contract yet —
+ * they mirror the monitor pair on `ProcessStatusCurrentResponse`, proposed for
+ * the alert drill-down and pre-filled mock-first
+ * (docs/ux/benchmark/ops-alerts-worklist.md).
+ */
+export interface AlertListRow extends RequestListRow {
+  delaySeconds: number | null;
+  statusChangedAt: string | null;
+}
+
 export interface TestConnectionStatusRow {
   targetSourceId: number | null;
   status: string | null;
@@ -253,6 +265,23 @@ export function toRequestListPage(
   wire: z.infer<typeof schemas.PageTargetSourceInfo>,
 ): Paged<RequestListRow> {
   return toPaged(wire, toRequestListRow);
+}
+
+/** Tolerant reader for the proposed delay pair — it rides through the generated
+ *  schema's passthrough, so it exists at runtime (mock) but not in its type.
+ *  Absent fields resolve to null, which the worklist renders as '—'. */
+function readAlertDelayDelta(row: object): Pick<AlertListRow, 'delaySeconds' | 'statusChangedAt'> {
+  const rec = row as Record<string, unknown>;
+  return {
+    delaySeconds: typeof rec.delay_seconds === 'number' ? rec.delay_seconds : null,
+    statusChangedAt: typeof rec.status_changed_at === 'string' ? rec.status_changed_at : null,
+  };
+}
+
+export function toAlertListPage(
+  wire: z.infer<typeof schemas.PageTargetSourceInfo>,
+): Paged<AlertListRow> {
+  return toPaged(wire, (row) => ({ ...toRequestListRow(row), ...readAlertDelayDelta(row) }));
 }
 
 export function toTestConnectionStatusRow(

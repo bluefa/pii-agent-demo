@@ -20,7 +20,7 @@ import type {
   DelayFilter,
   Paged,
   ProcessStatusRow,
-  RequestListRow,
+  AlertListRow,
 } from '@/lib/types/task-queue';
 
 /** GET /admin/queue/dashboard-summary — the 4 operator KPI counts (camel domain). */
@@ -73,8 +73,8 @@ export const getAlertTargetSources = (
   page = 0,
   size = 10,
   options?: { signal?: AbortSignal },
-): Promise<Paged<RequestListRow>> =>
-  fetchInfraJson<Paged<RequestListRow>>(
+): Promise<Paged<AlertListRow>> =>
+  fetchInfraJson<Paged<AlertListRow>>(
     `/admin/queue/alert-target-sources?kind=${kind}&page=${page}&size=${size}`,
     options?.signal ? { signal: options.signal } : undefined,
   );

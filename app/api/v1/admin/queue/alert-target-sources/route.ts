@@ -3,7 +3,7 @@ import { withV1 } from '@/app/api/_lib/handler';
 import { bff } from '@/lib/bff/client';
 import { problemResponse, createProblem } from '@/app/api/_lib/problem';
 import { schemas } from '@/lib/generated/install-v1';
-import { ALERT_TARGET_KINDS, isAlertTargetKind, toRequestListPage } from '@/lib/types/task-queue';
+import { ALERT_TARGET_KINDS, isAlertTargetKind, toAlertListPage } from '@/lib/types/task-queue';
 
 // GET /admin/queue/alert-target-sources?kind=&page=&size=
 // 운영 알림 drill-down. Fans out to the four upstream siblings
@@ -28,5 +28,5 @@ export const GET = withV1(async (request, { requestId }) => {
   const raw = schemas.PageTargetSourceInfo.parse(
     await bff.taskQueue.getAlertTargetSources({ kind, page, size }),
   );
-  return NextResponse.json(toRequestListPage(raw));
+  return NextResponse.json(toAlertListPage(raw));
 });

@@ -864,6 +864,12 @@ export const mockTaskQueue = {
       cloudProvider: p.pv,
       confirmStatus: p.st === 'CONFIRMING' ? 'CONFIRMING' : 'CONFIRMED',
       updatedAt: p.at,
+      // Proposed pair (mock-first, not in swagger yet — see
+      // docs/ux/benchmark/ops-alerts-worklist.md): the monitor's
+      // status_changed_at/delay_seconds, reused from the same fixture so the
+      // alert drill-down and /process-statuses never disagree about a delay.
+      status_changed_at: p.at,
+      delay_seconds: p.delay,
     }));
     return NextResponse.json(wirePage(content, query.page, query.size));
   },

@@ -9,7 +9,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import { fireEvent } from '@testing-library/dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import type { DashboardSummary, Paged, RequestListRow } from '@/lib/types/task-queue';
+import type { AlertListRow, DashboardSummary, Paged } from '@/lib/types/task-queue';
 import { passRoutes } from '@/lib/routes';
 
 const push = vi.hoisted(() => vi.fn());
@@ -35,7 +35,7 @@ const SUMMARY: DashboardSummary = {
   evaluatedAt: null,
 };
 
-const ROW: RequestListRow = {
+const ROW: AlertListRow = {
   targetSourceId: 1861,
   serviceName: '정산서비스',
   description: '정산 마감 배치 RDS',
@@ -43,9 +43,11 @@ const ROW: RequestListRow = {
   cloudProvider: 'AWS',
   confirmStatus: 'CONFIRMED',
   latestApprovalRequest: null,
+  delaySeconds: 262000,
+  statusChangedAt: '2026-07-17T18:56:00Z',
 };
 
-const page = (content: RequestListRow[]): Paged<RequestListRow> => ({
+const page = (content: AlertListRow[]): Paged<AlertListRow> => ({
   content,
   totalElements: content.length,
   totalPages: 1,
@@ -89,6 +91,8 @@ describe('AlertsView — 타일이 곧 필터', () => {
     expect(screen.getByText('1861')).toBeDefined();
     expect(screen.getByText('STL')).toBeDefined();
     expect(screen.getByText('정산 마감 배치 RDS')).toBeDefined();
+    // Proposed field delay_seconds, humanized by the monitor's DelayText.
+    expect(screen.getByText('3일')).toBeDefined();
 
     fireEvent.click(screen.getByText('정산서비스').closest('tr') as HTMLElement);
     expect(push).toHaveBeenCalledWith(passRoutes.pipelines.ops.targetSource('1861'));

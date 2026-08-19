@@ -53,8 +53,8 @@
 - **A4 (카드 헤더)**: 표를 카드 한 겹에 넣고 헤더가 버킷명+설명+새로고침 소유(건수는
   안 실음). Q2·Q4 해소.
 - **A3 (행 밀도)**: 대상 셀 = pipelines `TargetCell` 재사용(오너: "pipelines에서처럼
-  대상을 정리"), 설명 열 = 계약 필드 `description`. Q3 해소. 지연 열은 계약 랜딩 전까지
-  자리만 예약(그리지 않음).
+  대상을 정리"), 설명 열 = 계약 필드 `description`. Q3 해소. 지연 열은 아래 필드 제안을
+  mock-first로 선반영해 렌더(필드 부재 시 '—').
 - **기각**: A5 깔때기/분포 바 — 버킷 4개는 독립 대기열이라 모집단 불연속, 연결 시각화가
   없는 흐름을 발명. A2 부착 세그는 세로 공간이 급해질 때의 예비안.
 
@@ -65,5 +65,22 @@
 - need 캡션 `--pl-text-faint` → `--pl-text-weak` (faint는 밝은 바닥 금지 판례).
 - 버킷 전환은 `key={kind}` 리마운트 — 페이지 인덱스가 목록보다 오래 살지 않게.
 - 목: `getAlertTargetSources`에 `description` 추가 (계약 필드, 미등재 id는 undefined 유지).
-- 후속: BE에 `TargetSourceInfo.delay_seconds`(+`status_changed_at`) 노출 요청 —
-  랜딩 시 표 마지막 열에 `DelayText`, 타일에 지연 점(1차 시안 E로 증분 진화).
+- 지연 필드는 아래 제안대로 mock-first 선반영 — 표에 `DelayText` 열이 이미 렌더되고,
+  계약 랜딩 시 웹 코드 변경 없이 실값이 흐른다.
+
+## API response 필드 제안 (BE 요청, mock-first 선반영)
+
+알림 drill-down 4형제(`GET /dashboard/target-sources/{kind}`)의 `TargetSourceInfo`에
+아래 두 필드 추가를 제안한다. 둘 다 **새 발명이 아니라** 같은 모니터 픽스처를 쓰는
+`GET /process-statuses`(`ProcessStatusCurrentResponse`)에 이미 존재하는 어휘다.
+
+| 필드 | 타입 | 의미 | 근거·소비처 |
+|---|---|---|---|
+| `delay_seconds` | integer | 현재 버킷 상태에 **들어온 뒤 경과 초**(서버 계산 — 클라이언트 시계를 믿지 않음) | 큐 모니터와 동일 어휘. 워크리스트 지연 열(`DelayText` 4-tier: <1h weak → ≥1h/≥1d/≥7d 승급)이 렌더 |
+| `status_changed_at` | string (ISO 8601) | 버킷 상태 진입 시각 — `delay_seconds`의 원본이자 정렬 키 | 재조회 없이 지연 재계산 가능. 후속 지연 내림차순 정렬·타일 지연 점(1차 시안 E 증분 진화)의 기반 |
+
+- **선반영 상태**: swagger 미반영. 목이 두 필드를 모니터 픽스처(`ProcRow.delay`/`.at`)
+  그대로 실어 alert drill-down과 `/process-statuses`가 같은 지연을 말한다. 웹은
+  tolerant reader(`toAlertListPage`)로 읽어 필드가 없으면 '—'로 강등 — 실서버가
+  아직 안 줘도 깨지지 않는다.
+- **후속(계약 랜딩 후)**: 지연 내림차순 정렬 파라미터, 타일 지연 점.
