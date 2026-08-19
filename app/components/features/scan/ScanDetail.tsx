@@ -2,7 +2,7 @@
 
 import { useLocale } from '@/app/components/LocaleProvider';
 import { SCAN_COPY } from '@/app/components/features/scan/copy';
-import { scanErrorLabels } from '@/app/components/features/scan/scan-labels';
+import { isScanSettled, scanErrorLabels } from '@/app/components/features/scan/scan-labels';
 import {
   fmtScanCount,
   scanDurationText,
@@ -133,7 +133,7 @@ export const ScanDetail = ({ job, provider }: { job: ScanJob; provider: CloudPro
       <div className={cn('mt-5 flex flex-wrap gap-x-10 gap-y-3 border-t pt-3.5', borderColors.light)}>
         <TimeField label={t.fieldRunTime} value={job.created_at ? formatDateTimeLocal(job.created_at, locale) : ''} />
         {/* 아직 안 끝난 잡에 완료 시각을 적지 않는다. */}
-        {job.scan_status !== 'SAVING' && (
+        {isScanSettled(job.scan_status) && (
           <>
             <TimeField label={t.fieldFinishTime} value={job.updated_at ? formatDateTimeLocal(job.updated_at, locale) : ''} />
             <TimeField label={t.fieldDuration} value={scanDurationText(job, t)} />

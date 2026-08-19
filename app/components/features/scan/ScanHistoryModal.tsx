@@ -8,6 +8,7 @@ import { ArrowUpRightIcon } from '@/app/components/ui/icons';
 import { useLocale } from '@/app/components/LocaleProvider';
 import { SCAN_COPY } from '@/app/components/features/scan/copy';
 import { ScanDetail } from '@/app/components/features/scan/ScanDetail';
+import { isScanSettled } from '@/app/components/features/scan/scan-labels';
 import {
   scanDurationText,
   scanResultText,
@@ -219,8 +220,9 @@ export const ScanHistoryModal = ({ targetSourceId, provider, onClose }: ScanHist
                             {scanStatusLabel(job, t)}
                           </span>
                         </td>
+                        {/* 소요 시간은 끝난 잡에만 — 저장 중인 행은 아직 걸린 시간이 없다. */}
                         <td className={cn(BODY_CELL, 'whitespace-nowrap font-mono text-[12px]', textColors.secondary)}>
-                          {scanDurationText(job, t)}
+                          {isScanSettled(job.scan_status) ? scanDurationText(job, t) : ''}
                         </td>
                         <td className={cn(BODY_CELL, 'text-[13px]', textColors.secondary)}>
                           {scanResultText(job, t)}
