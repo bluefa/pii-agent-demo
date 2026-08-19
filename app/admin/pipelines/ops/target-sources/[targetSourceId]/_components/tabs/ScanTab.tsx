@@ -94,8 +94,8 @@ export function ScanTab({
   }, [loadHistory]);
 
   const scanning = latestJob?.scan_status === 'SCANNING';
-  // SUCCESS without a count map is the aggregation tail, not an outcome — the
-  // card keeps its running treatment until the numbers are readable.
+  // SAVING is the writing tail, not an outcome — the card keeps its running
+  // treatment until the job actually settles.
   const finalizing = isScanFinalizing(latestJob);
   const running = scanning || finalizing;
 

@@ -5,8 +5,7 @@ import { bgColors, cn, primaryColors, scanTransition, statusColors, textColors }
 /**
  * 스캔 히어로 블록의 세 프레임.
  * - `scanning`: 리소스를 찾는 중. 진행률이 오른다.
- * - `finalizing`: 탐색은 끝났고 결과 저장·집계만 남았다(계약의 SAVING, 그리고
- *   SUCCESS인데 건수 맵이 아직 없는 구간).
+ * - `finalizing`: 탐색은 끝났고 결과 저장·집계만 남았다(계약의 SAVING).
  *   바는 이미 가득 차 있으므로 "진행중" 문구를 그대로 두면 멈춘 화면으로 읽힌다.
  * - `complete`: 집계까지 끝난 뒤 결과를 넘겨주기 전의 확인 프레임.
  */
