@@ -7,7 +7,7 @@ import {
   type ScanPermissionState,
 } from '@/app/components/features/scan/scan-permission';
 import { bgColors, borderColors, buttonStyles, cn, primaryColors, statusColors, textColors } from '@/lib/theme';
-import { formatDate, formatRelativeTime } from '@/lib/utils/date';
+import { formatDateTimeLocal, formatRelativeTime } from '@/lib/utils/date';
 import type { ApprovalFilter } from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalToolbar';
 import type { z } from 'zod';
 import type { schemas } from '@/lib/generated/install-v1';
@@ -187,7 +187,7 @@ export const ScanStrip = ({
 
   const metaParts: string[] = [];
   if (job != null) {
-    if (scannedAt) metaParts.push(formatDate(scannedAt, 'datetime'));
+    if (scannedAt) metaParts.push(formatDateTimeLocal(scannedAt));
     if (succeeded) {
       if (typeof job.duration_seconds === 'number') metaParts.push(`${Math.round(job.duration_seconds)}초 소요`);
       // Meta carries the scan's own facts only (time, duration). Counts belong to

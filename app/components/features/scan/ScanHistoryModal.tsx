@@ -15,7 +15,7 @@ import {
 } from '@/app/components/features/scan/scan-job-format';
 import { getScanHistory } from '@/app/lib/api/scan';
 import { borderColors, cn, idcStyles, primaryColors, textColors } from '@/lib/theme';
-import { formatDate } from '@/lib/utils/date';
+import { formatDateTimeLocal } from '@/lib/utils/date';
 import type { AsyncState } from '@/app/target-sources/[targetSourceId]/_components/shared/async-state';
 import type { CloudProvider } from '@/lib/types';
 
@@ -173,7 +173,7 @@ export const ScanHistoryModal = ({ targetSourceId, provider, onClose }: ScanHist
                 <tbody className={idcStyles.table.body}>
                   {state.data.jobs.map((job, index) => {
                     const rowKey = String(job.id ?? index);
-                    const scannedAt = job.created_at ? formatDate(job.created_at, 'datetime') : '';
+                    const scannedAt = job.created_at ? formatDateTimeLocal(job.created_at) : '';
                     return (
                       // Row-as-button (role + Enter/Space), the DashRow pattern the
                       // admin history table already uses.

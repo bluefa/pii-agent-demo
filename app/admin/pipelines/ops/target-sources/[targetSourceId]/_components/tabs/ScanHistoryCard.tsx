@@ -7,7 +7,7 @@
  */
 import type { ReactElement } from 'react';
 import { cn, pipelineStyles } from '@/lib/theme';
-import { fmtDateTime } from '@/lib/pipeline/format';
+import { formatDateTimeLocalDashed } from '@/lib/utils/date';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
 import { PlEmptyState } from '@/app/admin/pipelines/_components/PlEmptyState';
 import { Icon } from '@/app/admin/pipelines/_components/icons';
@@ -112,8 +112,8 @@ export function ScanHistoryCard({
                       }
                     }}
                   >
-                    <td className={cn(table.cell, 'whitespace-nowrap')}>{fmtDateTime(row.created_at)}</td>
-                    <td className={cn(table.cell, 'whitespace-nowrap')}>{fmtDateTime(row.updated_at)}</td>
+                    <td className={cn(table.cell, 'whitespace-nowrap')}>{formatDateTimeLocalDashed(row.created_at)}</td>
+                    <td className={cn(table.cell, 'whitespace-nowrap')}>{formatDateTimeLocalDashed(row.updated_at)}</td>
                     <td className={table.cell}>
                       <ScanStatusPill status={row.scan_status} />
                     </td>
