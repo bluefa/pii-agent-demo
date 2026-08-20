@@ -33,6 +33,8 @@ export const PUT = withV1(async (request, { requestId, params }) => {
     );
   }
 
-  const data = await bff.targetSources.putDescription(parsed.value, description);
-  return NextResponse.json(data);
+  await bff.targetSources.putDescription(parsed.value, description);
+  // 응답 본문은 계약에 없다 — 호출부는 목록을 다시 읽으므로 에코를 지어내지 않는다.
+  // 성공은 status 로만 판정한다 (§9 와 같다).
+  return new NextResponse(null, { status: 204 });
 });

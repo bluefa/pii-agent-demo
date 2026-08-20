@@ -216,11 +216,19 @@ corrected.
 PUT /install/v1/target-sources/{targetSourceId}/description
 body     { description: string }              // "" is valid — it clears the description
                                               // maxLength 1000
-→ 200   { target_source_id: number, description: string }
+→ 2xx                                         // no response body is read — see below
 ```
 
 The client reads nothing off the response: it reloads the list it already draws the row
 from, so the row and the dialog cannot disagree.
+
+Because nothing is read, **success is judged by status alone** (2026-08-20). The earlier
+draft declared a `{ target_source_id, description }` echo and parsed it on both hops; since
+the endpoint is unbuilt, that shape was ours, not the owner's, and an upstream answering
+204 — or 200 with an empty body — would have failed `JSON.parse` and reported a *saved*
+edit as an error. The BFF client now passes `emptyBodyOk` (as §9 does) and the internal
+route answers `204` with no body of its own. The failure half is unchanged: non-2xx still
+parses the upstream body for its code and message.
 
 `maxLength` 1000 is the owner's, not this screen's (2026-08-18) — the first draft enforced
 no cap precisely because the contract declared none, and that premise is now gone. It is

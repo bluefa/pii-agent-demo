@@ -124,8 +124,9 @@ export interface BffClient {
      * PUT …/description — ASSUMED contract (docs/api/ops-assumed-contracts.md §8).
      * The read side is `TargetSourceDetail.description`; there was no writer, so the
      * 연동 대상 계정 목록 could show a description nobody could correct.
+     * 응답 본문은 계약에 없다 — 성공은 status 로만 판정하고 아무것도 읽지 않는다.
      */
-    putDescription: (id: number, description: string) => Promise<TargetSourceDescriptionWire>;
+    putDescription: (id: number, description: string) => Promise<void>;
     /**
      * PUT …/support-raw-data/{enabled|disabled} — 본문 없는 두 경로가 한 boolean 을
      * 뒤집는다 (BE 확인, install-v1.yaml 에는 아직 없다 — docs/api/ops-assumed-contracts.md §9).
@@ -489,12 +490,6 @@ export interface OpsStatusHistoryPageWire {
 export interface OpsInstallationModeWire {
   target_source_id: number;
   grant_service_terraform_execution_permission: boolean;
-}
-
-/** PUT …/description echo (assumed §8) — same shape rule as the sibling above. */
-export interface TargetSourceDescriptionWire {
-  target_source_id: number;
-  description: string;
 }
 
 /**
