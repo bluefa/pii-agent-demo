@@ -49,7 +49,10 @@ export type BoardFilter = DbBucket | 'ALL';
 export const BUCKET_LABEL: Record<DbBucket, string> = {
   failed: '실패',
   unscheduled: '미스케줄',
-  running: '진행 중',
+  // ⛔"진행 중"으로 되돌리지 말 것 — 이 값은 지난 날짜 칸에도 선다. 그날 실행이
+  // 시작됐고 결과가 아직 없다는 사실까지가 응답이 아는 전부이고, "진행 중"은
+  // 지금 돌고 있다는 말까지 해 버린다(연결 상태의 RUNNING 은 진짜 그 뜻이라 그쪽은 유지).
+  running: '실행 시작',
   succeeded: '성공',
   // 계약 밖 day status 가 섞인 행 — 미스케줄로 위장시키지 않는 자리.
   other: '그 외',
@@ -267,7 +270,7 @@ export const dayCellTip = (day: DagDayStatus): string => {
     case 'fail':
       return `${date} · 실패`;
     case 'run':
-      return `${date} · 진행 중`;
+      return `${date} · 실행 시작`;
     case 'none':
       return `${date} · 스케줄 없음`;
     case 'unknown':

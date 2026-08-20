@@ -366,7 +366,7 @@ export function ApprovalTab({
                     </span>
                     {agg.running > 0 && (
                       <span>
-                        진행 중 <b className="font-semibold text-[var(--pl-text-strong)]">{n(agg.running)}</b>
+                        실행 시작 <b className="font-semibold text-[var(--pl-text-strong)]">{n(agg.running)}</b>
                       </span>
                     )}
                     <span>

@@ -16,7 +16,7 @@
  *    개수를, 범례가 색의 의미를 맡는다 (Grafana status history / GitHub 잔디 문법).
  *  - "이번 주" 열은 `succeededThisWeek` 원문 그대로 — 스트립에서 재계산하지 않는다
  *    (한 값 두 계산 함정, 시안 D 경계).
- *  - 정렬은 문제 우선(실패 → 그 외 → 미스케줄 → 진행 중 → 성공), bucket 안에서는
+ *  - 정렬은 문제 우선(실패 → 그 외 → 미스케줄 → 실행 시작 → 성공), bucket 안에서는
  *    wire 순서 유지.
  *  - pager 는 고정 푸터(flex-none border-t) — 카드들의 OpsPagination 을 중앙
  *    정렬 그대로 쓰고, 행수·필터와 무관하게 패널 바닥에 남는다. 그래서 행 영역
@@ -83,7 +83,7 @@ function StripLegend(): ReactElement {
   const items: ReadonlyArray<[keyof typeof CELL_FILL, string]> = [
     ['ok', '성공'],
     ['fail', '실패'],
-    ['run', '진행 중'],
+    ['run', '실행 시작'],
     ['none', '스케줄 없음'],
     ['unknown', '판정 불가'],
   ];

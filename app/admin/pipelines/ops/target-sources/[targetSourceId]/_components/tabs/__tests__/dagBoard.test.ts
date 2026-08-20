@@ -109,7 +109,7 @@ describe('scopeBoardRows', () => {
 });
 
 describe('sortBoardRows — 문제 우선', () => {
-  it('실패 → 그 외 → 미스케줄 → 진행 중 → 성공 순서로 세운다', () => {
+  it('실패 → 그 외 → 미스케줄 → 실행 시작 → 성공 순서로 세운다', () => {
     const sorted = sortBoardRows(flattenDagRows(RESPONSE));
     expect(sorted.map((r) => r.bucket)).toEqual([
       'failed',
@@ -204,6 +204,8 @@ describe('dayCellKind / dayCellTip', () => {
     );
     expect(dayCellTip(day('FAILED'))).toBe('8월 15일 (토) · 실패');
     expect(dayCellTip(day('NOT_SCHEDULED'))).toBe('8월 15일 (토) · 스케줄 없음');
+    // 지난 날짜 칸에도 서는 값이라 "진행 중"이 아니다 — 시작했다는 사실까지만.
+    expect(dayCellTip(day('RUNNING'))).toBe('8월 15일 (토) · 실행 시작');
   });
 
   it('미지의 값 툴팁은 판정 불가 문장 + raw (툴팁 채널)', () => {
