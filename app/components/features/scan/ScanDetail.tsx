@@ -11,7 +11,7 @@ import {
   type ScanJob,
 } from '@/app/components/features/scan/scan-job-format';
 import { borderColors, cn, idcStyles, primaryColors, statusColors, textColors } from '@/lib/theme';
-import { formatDate } from '@/lib/utils/date';
+import { formatDateTimeLocal } from '@/lib/utils/date';
 import type { CloudProvider } from '@/lib/types';
 
 // Card-less list grammar, shared with the history table: the modal body already
@@ -121,8 +121,8 @@ export const ScanDetail = ({ job, provider }: { job: ScanJob; provider: CloudPro
       )}
 
       <div className={cn('mt-5 flex flex-wrap gap-x-10 gap-y-3 border-t pt-3.5', borderColors.light)}>
-        <TimeField label="실행 시각" value={job.created_at ? formatDate(job.created_at, 'datetime') : ''} />
-        <TimeField label="완료 시각" value={job.updated_at ? formatDate(job.updated_at, 'datetime') : ''} />
+        <TimeField label="실행 시각" value={job.created_at ? formatDateTimeLocal(job.created_at) : ''} />
+        <TimeField label="완료 시각" value={job.updated_at ? formatDateTimeLocal(job.updated_at) : ''} />
         <TimeField label="소요 시간" value={scanDurationText(job)} />
       </div>
     </div>

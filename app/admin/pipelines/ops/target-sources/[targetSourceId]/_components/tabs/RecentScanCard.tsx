@@ -7,7 +7,7 @@
  */
 import type { ReactElement } from 'react';
 import { cn, pipelineStyles, scanTransition } from '@/lib/theme';
-import { fmtDateTimeSec } from '@/lib/pipeline/format';
+import { formatDateTimeLocalDashed } from '@/lib/utils/date';
 import type { ScanCompletionStage } from '@/app/hooks/useScanCompletionTransition';
 import type { CloudProvider } from '@/lib/types';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
@@ -379,11 +379,11 @@ export function RecentScanCard({
               (the inner mt-4 keeps the minimum gap). */}
           <div className="mt-auto">
             <div className="mt-4 flex flex-wrap gap-x-10 gap-y-3 border-t border-[var(--pl-gray-100)] pt-3.5">
-              <TimeField label="실행시간">{fmtDateTimeSec(latestJob.created_at)}</TimeField>
+              <TimeField label="실행시간">{formatDateTimeLocalDashed(latestJob.created_at, true)}</TimeField>
               {!running && (
                 <>
                   {/* Same format as start time — the date is never omitted, even on the same day. */}
-                  <TimeField label="완료시간">{fmtDateTimeSec(latestJob.updated_at)}</TimeField>
+                  <TimeField label="완료시간">{formatDateTimeLocalDashed(latestJob.updated_at, true)}</TimeField>
                   <TimeField label="소요 시간">{fmtDuration(latestJob.duration_seconds)}</TimeField>
                 </>
               )}

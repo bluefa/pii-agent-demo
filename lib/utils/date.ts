@@ -91,6 +91,60 @@ export const formatDateTimeKst = (dateString: string): string => {
 };
 
 /**
+ * 뷰어의 로컬 타임존으로 렌더하고 존 오프셋을 덧붙입니다 — 스캔 시각처럼
+ * "내 시간으로 언제였나"가 답이어야 하는 자리용. wire 는 UTC instant(`...Z`)라
+ * 변환은 `Date` 파싱이 맡고, 라벨은 그 숫자가 어느 존의 것인지 못 박습니다.
+ *
+ * 라벨이 `shortOffset` 인 이유: Intl 은 Asia/Seoul 에 'KST' 를 내주지 않고
+ * ('GMT+9'), `short` 는 존마다 약어와 오프셋이 섞여 나옵니다(UTC / EDT / GMT+2).
+ * 오프셋으로 통일해야 어느 존에서 읽어도 문법이 같습니다.
+ *
+ * @example
+ * formatDateTimeLocal('2026-08-20T09:31:31Z') // "2026. 08. 20. 오후 06:31 GMT+9" (Asia/Seoul)
+ */
+export const formatDateTimeLocal = (dateString: string): string => {
+  return new Date(dateString).toLocaleString('ko-KR', {
+    ...FORMAT_OPTIONS.datetime,
+    timeZoneName: 'shortOffset',
+  });
+};
+
+const LOCAL_DASHED = new Intl.DateTimeFormat('en-CA', {
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+  hour: '2-digit',
+  minute: '2-digit',
+  second: '2-digit',
+  hour12: false,
+  timeZoneName: 'shortOffset',
+});
+
+/**
+ * `formatDateTimeLocal` 의 대시 표기 — 'YYYY-MM-DD HH:mm[:ss] GMT±H'. 관리자 표는
+ * 정렬해서 읽는 자리라 24시간 고정폭 표기를 씁니다. `lib/pipeline/format` 의
+ * `fmtDateTime`/`fmtDateTimeSec` 과 모양은 같고 기준만 Asia/Seoul → 뷰어 로컬입니다.
+ *
+ * `formatToParts` 로 조립하는 이유는 엔진마다 'YYYY-MM-DD, HH:mm' 처럼 구분자가
+ * 다르기 때문이고, 자정의 '24' 시는 '00' 으로 정규화합니다. null·invalid → '-'.
+ */
+export const formatDateTimeLocalDashed = (
+  dateString: string | null | undefined,
+  withSeconds = false,
+): string => {
+  if (!dateString) return '-';
+  const date = new Date(dateString);
+  if (Number.isNaN(date.getTime())) return '-';
+  const parts = LOCAL_DASHED.formatToParts(date);
+  const pick = (type: Intl.DateTimeFormatPartTypes): string =>
+    parts.find((part) => part.type === type)?.value ?? '';
+  const hour = pick('hour') === '24' ? '00' : pick('hour');
+  const base = `${pick('year')}-${pick('month')}-${pick('day')} ${hour}:${pick('minute')}`;
+  const time = withSeconds ? `${base}:${pick('second')}` : base;
+  return `${time} ${pick('timeZoneName')}`;
+};
+
+/**
  * 밀리초를 사람이 읽을 수 있는 한국어 소요시간으로 변환합니다.
  *
  * @example

@@ -7,7 +7,7 @@
  */
 import type { ReactElement } from 'react';
 import { pipelineStyles } from '@/lib/theme';
-import { fmtDateTimeSec } from '@/lib/pipeline/format';
+import { formatDateTimeLocalDashed } from '@/lib/utils/date';
 import type { CloudProvider } from '@/lib/types';
 import { ModalShell } from '@/app/admin/pipelines/_components/ModalShell';
 import {
@@ -104,8 +104,8 @@ export function ScanDetailModal({ open, job, provider, onClose }: ScanDetailModa
 
           {/* Time row is the floor — same field grammar as the recent-scan card. */}
           <div className="mt-5 flex flex-wrap gap-x-10 gap-y-3 border-t border-[var(--pl-gray-100)] pt-3.5">
-            <TimeField label="실행시간">{fmtDateTimeSec(job.created_at)}</TimeField>
-            <TimeField label="완료시간">{fmtDateTimeSec(job.updated_at)}</TimeField>
+            <TimeField label="실행시간">{formatDateTimeLocalDashed(job.created_at, true)}</TimeField>
+            <TimeField label="완료시간">{formatDateTimeLocalDashed(job.updated_at, true)}</TimeField>
             <TimeField label="소요 시간">{fmtDuration(job.duration_seconds)}</TimeField>
           </div>
         </>
