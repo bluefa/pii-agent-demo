@@ -19,21 +19,20 @@
  * deliberately does NOT repeat the bucket's count — the number lives on the
  * tile above, once.
  */
-import { useEffect, useState, type ReactElement } from 'react';
+import { useTransition, type ReactElement } from 'react';
 import { useRouter } from 'next/navigation';
 import { cn, pipelineStyles } from '@/lib/theme';
 import { passRoutes, type OpsTargetTab } from '@/lib/routes';
-import { getAlertTargetSources } from '@/app/lib/api/task-queue';
 import type { AlertTargetKind, AlertListRow } from '@/lib/types/task-queue';
-import { Icon, type IconName } from '@/app/admin/pipelines/_components/icons';
+import { useNavCountsRefresh } from '@/app/admin/pipelines/_components/NavCountsRefresh';
+import type { AlertStageIcon } from '@/app/admin/pipelines/ops/alerts/_components/buckets';
+import { Icon } from '@/app/admin/pipelines/_components/icons';
 import { TerraformLogo } from '@/app/admin/pipelines/_components/brandMarks';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
 import { DashRow, RowAction } from '@/app/admin/pipelines/_dashboard/cells';
 import { ProvTag } from '@/app/admin/pipelines/_components/ProvTag';
 import { DelayText } from '@/app/admin/pipelines/queue/_components/DelayText';
 import { OpsPagination } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/OpsPagination';
-
-export type AlertStageIcon = IconName | 'terraform';
 
 /** Contract default page size (`/dashboard/target-sources/{kind}` size=10). */
 const PAGE_SIZE = 10;
@@ -106,55 +105,47 @@ export interface AlertWorklistProps {
   icon: AlertStageIcon;
   /** Ops-screen tab a row opens — the one that answers this bucket's need. */
   tab: OpsTargetTab;
-  /** The bucket's summary count — sizes the loading skeleton to the real
-   *  footprint so the card doesn't collapse when the rows arrive. */
-  count: number;
-  /** Bumped by the parent when the header refresh re-reads the summary. */
-  reloadKey: number;
-  /** Refresh both this list and the parent's summary/nav counts. */
-  onRefresh: () => void;
+  /** 서버가 읽어 온 한 페이지 (`AlertWorklistSection`). 이 컴포넌트는 fetch 하지 않는다. */
+  rows: AlertListRow[];
+  /** 0-based, 계약과 같은 축. 주소의 1-based 는 page.tsx 에서 한 번 변환된다. */
+  page: number;
+  totalPages: number;
+  /** 실패는 빈 목록이 아니다 — 0건과 "못 읽었다"는 다른 문장을 받는다. */
+  failed: boolean;
 }
 
+/**
+ * 표 — 서버가 넘긴 한 페이지를 그리기만 한다.
+ *
+ * 클라이언트인 이유는 셋뿐이다: 행 클릭 이동, 페이지 이동(주소 갱신), 새로고침.
+ * 데이터는 props 로 들어오므로 이 파일에는 fetch 도 로딩 state 도 없다 — 로딩은
+ * 상위 `Suspense` 의 일이 됐다(`AlertWorklistSkeleton`).
+ */
 export function AlertWorklist({
   kind,
   label,
   description,
   icon,
   tab,
-  count,
-  reloadKey,
-  onRefresh,
+  rows,
+  page,
+  totalPages,
+  failed,
 }: AlertWorklistProps): ReactElement {
   const router = useRouter();
-  const [rows, setRows] = useState<AlertListRow[]>([]);
-  const [totalPages, setTotalPages] = useState(1);
-  const [failed, setFailed] = useState(false);
-  const [page, setPage] = useState(0);
+  // 사이드바 운영 알림 뱃지는 이 화면과 같은 summary 를 읽는다. 함께 갱신하지
+  // 않으면 새로고침 직후 한 화면에 서로 다른 두 숫자가 남는다.
+  const refreshNavCounts = useNavCountsRefresh();
+  const [, startTransition] = useTransition();
 
-  const loadKey = `${page}:${reloadKey}`;
-  const [loadedKey, setLoadedKey] = useState<string | null>(null);
-  const loading = loadedKey !== loadKey;
-
-  useEffect(() => {
-    const controller = new AbortController();
-    (async () => {
-      try {
-        const list = await getAlertTargetSources(kind, page, PAGE_SIZE, {
-          signal: controller.signal,
-        });
-        if (controller.signal.aborted) return;
-        setRows(list.content);
-        setTotalPages(Math.max(1, list.totalPages));
-        setFailed(false);
-      } catch {
-        if (controller.signal.aborted) return;
-        setRows([]);
-        setFailed(true);
-      }
-      if (!controller.signal.aborted) setLoadedKey(loadKey);
-    })();
-    return () => controller.abort();
-  }, [kind, page, loadKey]);
+  const goToPage = (next: number) => {
+    startTransition(() => {
+      // 1-based 주소 (page.tsx 의 변환과 짝). 첫 페이지는 파라미터를 아예 빼서
+      // 기본 주소가 `?page=1` 로 지저분해지지 않게 한다.
+      const query = next > 0 ? `?kind=${kind}&page=${next + 1}` : `?kind=${kind}`;
+      router.push(`${passRoutes.pipelines.ops.alerts}${query}`);
+    });
+  };
 
   const d = pipelineStyles.dashboard;
 
@@ -168,7 +159,17 @@ export function AlertWorklist({
           <h2 className={worklist.titleText}>{label}</h2>
           <p className={worklist.desc}>{description}</p>
         </div>
-        <PlButton variant="outline" size="sm" onClick={onRefresh} className="flex-none gap-1.5">
+        <PlButton
+          variant="outline"
+          size="sm"
+          onClick={() => {
+            // 서버 컴포넌트를 다시 돌린다 — 요약(타일)과 목록이 한 번의 왕복으로
+            // 같이 새로 온다. 클라이언트 state 를 흔들던 reloadKey 는 사라졌다.
+            startTransition(() => router.refresh());
+            refreshNavCounts();
+          }}
+          className="flex-none gap-1.5"
+        >
           <Icon name="refresh" size="md" />
           새로고침
         </PlButton>
@@ -201,19 +202,6 @@ export function AlertWorklist({
                 목록을 불러오지 못했습니다.
               </td>
             </tr>
-          ) : loading ? (
-            // Skeleton in the real column widths AND the real row count (the
-            // tile already knows it), so nothing shifts on arrival.
-            Array.from({ length: Math.min(Math.max(count, 1), PAGE_SIZE) }, (_, row) => (
-              <tr key={row} aria-hidden="true">
-                {Array.from({ length: 6 }, (_, col) => (
-                  <td key={col} className={d.cell}>
-                    <span className={worklist.skeletonBar} />
-                  </td>
-                ))}
-                <td className={d.actionCell} />
-              </tr>
-            ))
           ) : rows.length === 0 ? (
             <tr>
               <td colSpan={7} className={worklist.state}>
@@ -269,8 +257,70 @@ export function AlertWorklist({
       </table>
 
       <div className={worklist.footer}>
-        <OpsPagination page={page} totalPages={totalPages} onChange={setPage} always />
+        <OpsPagination page={page} totalPages={totalPages} onChange={goToPage} always />
       </div>
+    </section>
+  );
+}
+
+/**
+ * 로딩 자리 — 상위 `Suspense` 의 fallback. 서버가 다음 버킷·페이지를 읽는 동안
+ * 카드와 표의 골격은 그대로 서 있고 행만 회색 막대가 된다.
+ *
+ * 행 수를 타일의 건수로 잡는 이유는 예전 클라이언트 로딩과 같다 — 도착했을 때
+ * 카드 높이가 뛰지 않아야 한다. 머리글(라벨·설명)은 서버가 이미 알고 있으므로
+ * 스켈레톤에서도 진짜 문장을 그린다: 기다리는 동안에도 어느 버킷을 여는 중인지는
+ * 읽을 수 있어야 한다.
+ */
+export function AlertWorklistSkeleton({
+  label,
+  description,
+  icon,
+  count,
+}: {
+  label: string;
+  description: string;
+  icon: AlertStageIcon;
+  count: number;
+}): ReactElement {
+  const d = pipelineStyles.dashboard;
+  return (
+    <section className={worklist.card} aria-busy="true" aria-label={`${label} 대상 목록 불러오는 중`}>
+      <div className={worklist.header}>
+        <span className={worklist.titleIcon}>
+          {icon === 'terraform' ? <TerraformLogo size={20} /> : <Icon name={icon} size={20} />}
+        </span>
+        <div className={worklist.titleWrap}>
+          <h2 className={worklist.titleText}>{label}</h2>
+          <p className={worklist.desc}>{description}</p>
+        </div>
+      </div>
+      <table className={worklist.table}>
+        <thead>
+          <tr>
+            <th className={cn(worklist.th, 'w-[9%] min-w-[96px]')}>Cloud</th>
+            <th className={cn(worklist.th, 'w-[9%] min-w-[96px]')}>Target</th>
+            <th className={cn(worklist.th, 'w-[10%] min-w-[104px]')}>서비스 코드</th>
+            <th className={cn(worklist.th, 'w-[28%]')}>서비스 이름</th>
+            <th className={cn(worklist.th, 'w-[28%]')}>설명</th>
+            <th className={cn(worklist.th, 'w-[10%] min-w-[104px]')}>지연</th>
+            <th className={cn(worklist.th, 'w-[6%] min-w-[64px]')} />
+          </tr>
+        </thead>
+        <tbody className={worklist.body}>
+          {Array.from({ length: Math.min(Math.max(count, 1), PAGE_SIZE) }, (_, row) => (
+            <tr key={row} aria-hidden="true">
+              {Array.from({ length: 6 }, (_, col) => (
+                <td key={col} className={d.cell}>
+                  <span className={worklist.skeletonBar} />
+                </td>
+              ))}
+              <td className={d.actionCell} />
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <div className={worklist.footer} />
     </section>
   );
 }
