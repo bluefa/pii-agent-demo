@@ -2536,6 +2536,15 @@ export const pipelineStyles = {
      *  본문만 스크롤한다. `dialog` 를 통째로 대체한다(dialogApp 과 같은 규칙). */
     dialogEditor:
       'w-[min(960px,94vw)] h-[min(920px,92vh)] flex flex-col overflow-hidden rounded-[12px] bg-[var(--pl-bg-card)] shadow-[var(--pl-shadow-lg)]',
+    /** 우측 오버레이 패널 (논리 DB 주간 현황) — scrim 계약은 overlay 와 같고 정렬만
+     *  우측 도킹(overlayPanel 이 overlay 를 대체). 폭 960 = dialogXWide 와 같은 등급:
+     *  Database/Schema 2줄 정체성 + 7일 스트립 + 이번 주 + 마지막 성공 + DAG 의
+     *  5열은 720(콘텐츠 664)에서 가로 스크롤이 났다(실측 747 필요). 도킹면이라
+     *  radius 없이 border-l (TaskDrawer 문법), 패딩 0 — 머리(flex-none)와 본문(자기
+     *  스크롤)이 각자 여백을 갖는다. `dialog` 를 통째로 대체한다(dialogApp 과 같은 규칙). */
+    overlayPanel: 'fixed inset-0 z-50 flex justify-end bg-[rgba(16,24,40,0.5)]',
+    dialogPanel:
+      'w-[960px] max-w-[92vw] h-full flex flex-col overflow-hidden border-l border-[var(--pl-border)] bg-[var(--pl-bg-card)] shadow-[var(--pl-shadow-lg)]',
     title: cn(pipelineText.modalTitle, 'mb-3'),
     desc: 'text-[14px] leading-[1.4] text-[var(--pl-text-medium)] mb-3.5',
     body: 'overflow-y-auto min-h-0 mt-1',

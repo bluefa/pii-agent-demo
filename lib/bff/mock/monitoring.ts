@@ -63,6 +63,14 @@ interface DbSpec {
   name: string | null;
   pattern: DbPattern;
   seed: number;
+  /**
+   * 스키마가 데이터베이스 이름과 다른 엔진(postgres 계열)에서만 채운다. MySQL 은
+   * 스키마와 데이터베이스가 같은 객체라 기본값이 이름 그대로다 — 화면의 두 줄이
+   * 정말 서로 다른 필드에 물려 있는지 보려면 다른 값이 나오는 행이 있어야 한다.
+   */
+  schema?: string | null;
+  /** DAG id 직접 지정 — 300자짜리 실제 이름을 픽스처가 만들 수 있어야 한다. */
+  dag?: string;
 }
 
 const buildDb = (spec: DbSpec, days: string[]): DagDatabaseStatus => {
@@ -72,9 +80,12 @@ const buildDb = (spec: DbSpec, days: string[]): DagDatabaseStatus => {
   return {
     databaseUri: spec.uri,
     databaseName: spec.name,
-    schemaName: spec.name,
-    // 매핑 없는 uri = 7일 전부 NOT_SCHEDULED and no DAG reference (PR #707 rule).
-    dagName: spec.pattern === 'unscheduled' ? null : `pii_scan_${spec.name ?? `db_${spec.seed}`}`,
+    schemaName: spec.schema !== undefined ? spec.schema : spec.name,
+    // 스케줄이 없는 행 = 7일 전부 NOT_SCHEDULED and no DAG reference (PR #707 rule).
+    dagName:
+      spec.pattern === 'unscheduled'
+        ? null
+        : (spec.dag ?? `pii_scan_${spec.name ?? `db_${spec.seed}`}`),
     namespace: spec.pattern === 'unscheduled' ? null : 'composer-prod',
     succeededThisWeek: succeeded,
     lastSuccessAt: lastSuccess?.successTime ?? null,
@@ -98,11 +109,18 @@ const agent = (
   databaseStatuses: dbs.map((spec) => buildDb(spec, days)),
 });
 
-const spec = (uri: string, name: string | null, pattern: DbPattern, seed: number): DbSpec => ({
+const spec = (
+  uri: string,
+  name: string | null,
+  pattern: DbPattern,
+  seed: number,
+  schema?: string | null,
+): DbSpec => ({
   uri,
   name,
   pattern,
   seed,
+  ...(schema !== undefined ? { schema } : {}),
 });
 
 /** 1801 물류서비스 — the scale fixture: 30 agents × 52 DBs = 1,560 rows. */
@@ -124,7 +142,7 @@ const buildScaleAgents = (days: string[]): DagAgentStatus[] =>
               : globalIdx % 97 === 0
                 ? 'runningToday'
                 : 'success';
-        const name = pattern === 'unscheduled' ? null : `lgs_${agentIdx + 1}_${dbIdx + 1}`;
+        const name = `lgs_${agentIdx + 1}_${dbIdx + 1}`;
         return spec(
           `mysql://10.31.${agentIdx + 1}.${20 + (dbIdx % 200)}:3306/lgs_db_${agentIdx + 1}_${dbIdx + 1}`,
           name,
@@ -173,7 +191,16 @@ const buildResponse = (targetSourceId: number): DagStatusResponse => {
         agents: [
           agent(1511, 0, 'projects/pii-rvw-prod/instances/review-db-1', 'asia-northeast3', 'SUCCESS', [
             spec('mysql://10.20.4.31:3306/reviews', 'reviews', 'success', 21),
-            spec('mysql://10.20.4.31:3306/review_media', 'review_media', 'failed', 22),
+            // 실제 Composer DAG id 는 300자까지 온다 — 축약이 필요한 최악의 행을
+            // 픽스처가 직접 만든다. 접두사가 길어서 머리만 남기면 다른 행과 구분되지 않는다.
+            {
+              uri: 'mysql://10.20.4.31:3306/review_media',
+              name: 'review_media',
+              pattern: 'failed',
+              seed: 22,
+              // 정확히 300자 — 계약이 말하는 상한을 픽스처가 그대로 만든다.
+              dag: 'pii_scan__gcp__pii_rvw_prod__asia_northeast3__cloudsql__review_db_1__review_media__daily_full_scan__0300_kst__owner_dataplatform_kr__retry_3__sla_6h__partition_by_day__managed_by_infra_manager__generated__do_not_edit__stage_prod__region_kr__tenant_pass__schedule_0_3_star__catchup_false__rev_0142__v3',
+            },
             spec('mysql://10.20.4.31:3306/review_reports', 'review_reports', 'success', 23),
             spec('mysql://10.20.4.31:3306/moderation', 'moderation', 'success', 24),
           ]),
@@ -181,12 +208,15 @@ const buildResponse = (targetSourceId: number): DagStatusResponse => {
             spec('mysql://10.20.4.32:3306/ratings', 'ratings', 'success', 25),
             spec('mysql://10.20.4.32:3306/rating_rollup', 'rating_rollup', 'failed', 26),
             spec('mysql://10.20.4.32:3306/badges', 'badges', 'runningToday', 27),
-            spec('mysql://10.20.4.32:3306/billing_v2', null, 'unscheduled', 28),
+            spec('mysql://10.20.4.32:3306/billing_v2', 'billing_v2', 'unscheduled', 28),
           ]),
+          // Cloud SQL for PostgreSQL — 스키마가 데이터베이스와 갈라지는 유일한
+          // 에이전트다. MySQL 행(위 두 에이전트)에서는 둘이 같은 값으로 남는다.
           agent(1511, 2, 'projects/pii-rvw-prod/instances/review-db-3', 'asia-northeast3', 'FAIL', [
-            spec('mysql://10.20.4.33:3306/comments', 'comments', 'failed', 29),
-            spec('mysql://10.20.4.33:3306/comment_archive', null, 'unscheduled', 30),
-            spec('mysql://10.20.4.33:3306/reactions', 'reactions', 'success', 31),
+            spec('postgres://10.20.4.33:5432/comments', 'comments', 'failed', 29, 'public'),
+            // 스키마만 없는 행 — 보드에서 Schema 줄이 라벨째 접히는지 보는 픽스처.
+            spec('postgres://10.20.4.33:5432/comment_archive', 'comment_archive', 'unscheduled', 30, null),
+            spec('postgres://10.20.4.33:5432/reactions', 'reactions', 'success', 31, 'analytics'),
           ]),
         ],
       };
@@ -241,7 +271,31 @@ const buildResponse = (targetSourceId: number): DagStatusResponse => {
   }
 };
 
+/**
+ * 논리 DB 한 건의 DAG 주소 (assumed §11). 목은 uri 하나만 받으므로 실제 DAG id 를 알
+ * 수 없다 — 주소의 마지막 조각은 데이터베이스 이름이고, 300자짜리 dagName 과 일치하지
+ * 않는다(그 매핑은 업스트림만 안다). rollup 계열은 빈 문자열: "주소 확인 불가" 화면은
+ * 그 사실을 만들 수 있는 목이 없으면 검증되지 않는다.
+ */
+const airflowHost = (databaseUri: string): string => {
+  if (databaseUri.includes('rollup')) return '';
+  const dbName = databaseUri.split('/').pop() || 'unknown';
+  return `https://airflow-prod.pii.internal/dags/pii_scan_${dbName}/grid`;
+};
+
 export const mockMonitoring = {
   // GET /install/monitoring/dag-status/target-sources/{id} (assumed §10).
   getDagStatus: async (targetSourceId: number) => NextResponse.json(buildResponse(targetSourceId)),
+  // GET /pipeline-manager/airflow-host?databaseUri=… (assumed §11) — 문자열 하나.
+  // moderation 계열은 502 로 터진다: 조회 실패는 "주소가 없다"(rollup 의 빈 문자열)와
+  // 다른 사실이고, 화면도 재시도 CTA 로 갈린다 — 목이 두 사실을 다 만들 수 있어야 한다.
+  getAirflowHost: async (databaseUri: string) => {
+    if (databaseUri.includes('moderation')) {
+      return NextResponse.json(
+        { error: 'BAD_GATEWAY', message: 'pipeline-manager 응답 없음' },
+        { status: 502 },
+      );
+    }
+    return NextResponse.json(airflowHost(databaseUri));
+  },
 };

@@ -59,6 +59,19 @@ export const getDagStatus = (
     init,
   );
 
+/**
+ * 논리 DB 한 건의 Airflow DAG 주소 (assumed §11) — 이동 가능한 완성 URL 한 줄.
+ * databaseUri 는 `://` 와 `/` 를 품으므로 쿼리에 실을 때 인코딩이 필수다.
+ */
+export const getAirflowHost = (
+  databaseUri: string,
+  init?: { signal?: AbortSignal },
+): Promise<string> =>
+  fetchInfraJson<string>(
+    `/pipeline-manager/airflow-host?databaseUri=${encodeURIComponent(databaseUri)}`,
+    init,
+  );
+
 export const updateInstallationMode = (
   targetSourceId: number,
   grant: boolean,
