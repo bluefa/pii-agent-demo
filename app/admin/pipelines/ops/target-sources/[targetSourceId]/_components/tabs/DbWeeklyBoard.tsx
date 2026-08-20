@@ -18,8 +18,9 @@
  *    (한 값 두 계산 함정, 시안 D 경계).
  *  - 정렬은 문제 우선(실패 → 그 외 → 미스케줄 → 진행 중 → 성공), bucket 안에서는
  *    wire 순서 유지.
- *  - 행 영역은 pageSize 만큼 floor 를 명시한다 — 마지막 페이지가 3건이라고 표가
- *    줄면 페이지를 넘길 때마다 pager 가 따라 움직인다.
+ *  - pager 는 고정 푸터(flex-none border-t) — 카드들의 OpsPagination 을 중앙
+ *    정렬 그대로 쓰고, 행수·필터와 무관하게 패널 바닥에 남는다. 그래서 행 영역
+ *    floor 가 필요 없다.
  *  - 필터·검색·스코프·페이지 크기가 바뀌면 페이지는 0 으로 — 페이지 번호는 목록보다
  *    오래 살면 안 된다.
  *  - 셀 툴팁은 native title: 날짜·상태·successTime(성공한 날에만). 같은 정보(이번
@@ -58,9 +59,6 @@ import {
 
 const PAGE_SIZE_OPTIONS = [10, 20, 50, 100] as const;
 const DEFAULT_PAGE_SIZE = 20;
-
-/** 2줄 정체성 행의 높이 근사 — floor 는 이 값 × pageSize 로 명시한다. */
-const ROW_H = 59;
 
 /** ConfirmedInfoCard 의 검색 인풋 — 같은 화면의 같은 조작이라 같은 옷. */
 const SEARCH_INPUT =
@@ -252,14 +250,9 @@ export function DbWeeklyBoard({
           <StripLegend />
         </div>
 
-        {/* floor 명시 — 마지막 페이지가 짧아도, 칩을 실패↔전체로 오가도 pager 가 따라
-            움직이지 않는다. 기준은 "이 스코프에서 어떤 칩을 눌러도 나올 수 있는 최대
-            행수"(scoped, pageSize 상한): pageSize 그대로 깔면 3행짜리 대상에 20행의
-            빈 벽이 선다. */}
-        <div
-          className="mt-2 overflow-x-auto"
-          style={{ minHeight: Math.max(3, Math.min(pageSize, scoped.length)) * ROW_H }}
-        >
+        {/* pager 가 고정 푸터로 내려갔으므로 floor 가 필요 없다 — 짧은 페이지는
+            그냥 짧게 끝나고, 푸터는 행수와 무관하게 패널 바닥에 있다. */}
+        <div className="mt-2 overflow-x-auto">
           {pageRows.length === 0 ? (
             <p className="py-10 text-center text-[14px] text-[var(--pl-text-weak)]">
               조건에 맞는 논리 DB가 없어요.
@@ -326,31 +319,33 @@ export function DbWeeklyBoard({
           )}
         </div>
 
-        <div className="flex items-center justify-between gap-3">
-          <p className="text-[12px] tabular-nums text-[var(--pl-text-weak)]">
-            {first.toLocaleString('ko-KR')}–
-            {(safePage * pageSize + pageRows.length).toLocaleString('ko-KR')} /{' '}
-            {visible.length.toLocaleString('ko-KR')}
-          </p>
-          <div className="flex items-center gap-3">
-            <label className="flex items-center gap-1.5 text-[12px] text-[var(--pl-text-weak)]">
-              페이지당
-              <PlSelect
-                value={pageSize}
-                onChange={(e) => changePageSize(Number(e.target.value))}
-                aria-label="페이지당 행 수"
-              >
-                {PAGE_SIZE_OPTIONS.map((size) => (
-                  <option key={size} value={size}>
-                    {size}
-                  </option>
-                ))}
-              </PlSelect>
-            </label>
-            {/* always — 한 페이지짜리 필터에서 pager 가 사라지면 그만큼 표가 준다. */}
-            <OpsPagination page={safePage} totalPages={totalPages} onChange={setPage} always />
-          </div>
-        </div>
+      </div>
+
+      {/* 고정 푸터 — pager 는 이 화면 카드들의 OpsPagination 그대로(중앙 정렬,
+          32px 버튼). 행수·필터가 바뀌어도 이 줄은 패널 바닥에서 움직이지 않는다.
+          mt-4 는 카드 본문용 간격이라 푸터에서는 0 으로 되돌린다. */}
+      <div className="grid flex-none grid-cols-[1fr_auto_1fr] items-center gap-3 border-t border-[var(--pl-border)] px-6 py-3 [&>nav]:mt-0">
+        <p className="text-[12px] tabular-nums text-[var(--pl-text-weak)]">
+          {first.toLocaleString('ko-KR')}–
+          {(safePage * pageSize + pageRows.length).toLocaleString('ko-KR')} /{' '}
+          {visible.length.toLocaleString('ko-KR')}
+        </p>
+        {/* always — 한 페이지짜리 필터에서도 푸터 높이가 흔들리지 않는다. */}
+        <OpsPagination page={safePage} totalPages={totalPages} onChange={setPage} always />
+        <label className="flex items-center justify-self-end gap-1.5 text-[12px] text-[var(--pl-text-weak)]">
+          페이지당
+          <PlSelect
+            value={pageSize}
+            onChange={(e) => changePageSize(Number(e.target.value))}
+            aria-label="페이지당 행 수"
+          >
+            {PAGE_SIZE_OPTIONS.map((size) => (
+              <option key={size} value={size}>
+                {size}
+              </option>
+            ))}
+          </PlSelect>
+        </label>
       </div>
     </section>
   );
