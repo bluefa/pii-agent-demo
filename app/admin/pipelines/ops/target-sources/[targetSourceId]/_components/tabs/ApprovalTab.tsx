@@ -57,7 +57,11 @@ import {
 import { HealthSummaryBand } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/HealthSummaryBand';
 import { AgentDagTable } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/AgentDagTable';
 import { DbWeeklyBoard } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/DbWeeklyBoard';
-import type { BoardFilter } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/dagBoard';
+import { DagDetailModal } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/DagDetailModal';
+import type {
+  BoardFilter,
+  DagDbRow,
+} from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/dagBoard';
 
 const n = (value: number): string => value.toLocaleString('ko-KR');
 
@@ -160,7 +164,13 @@ export function ApprovalTab({
   // 은 닫히면 자식을 언마운트하므로 매 오픈이 새 마운트 — 프리셋은 마운트 1회 소비로
   // 충분하고, 옛 착지(스크롤 이동) 코드는 패널이 대체한다.
   const [board, setBoard] = useState<{ filter: BoardFilter; agentId?: string } | null>(null);
-  const closeBoard = (): void => setBoard(null);
+  // DAG 상세는 보드가 아니라 여기서 연다 — 패널 위에 겹치는 레이어라 Esc 를 누가
+  // 먹을지 결정할 수 있어야 한다. 패널이 닫히면 그 위의 모달도 함께 접는다.
+  const [dagRow, setDagRow] = useState<DagDbRow | null>(null);
+  const closeBoard = (): void => {
+    setDagRow(null);
+    setBoard(null);
+  };
 
   // 요약 라인(보드의 본문 잔류물)이 나르는 버킷 집계 — 밴드와 같은 파생을 응답당 1회.
   const agg = useMemo(
@@ -375,11 +385,15 @@ export function ApprovalTab({
             </section>
           )}
 
+          {/* 패널 + 그 위의 DAG 상세 = 2단 레이어. ModalShell 의 Esc 는 document 에
+              붙으므로, 모달이 떠 있는 동안 패널의 Esc 를 꺼야 한 번에 둘 다 닫히지
+              않는다. */}
           <ModalShell
             open={board !== null}
             onClose={closeBoard}
             variant="panel"
             labelledBy="db-board-title"
+            closeOnEsc={dagRow === null}
           >
             {board !== null && (
               <DbWeeklyBoard
@@ -387,9 +401,12 @@ export function ApprovalTab({
                 initialFilter={board.filter}
                 initialAgentId={board.agentId ?? null}
                 onClose={closeBoard}
+                onOpenDag={setDagRow}
               />
             )}
           </ModalShell>
+
+          <DagDetailModal row={dagRow} timezone={dag.data.timezone} onClose={() => setDagRow(null)} />
         </>
       )}
 

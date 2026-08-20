@@ -391,6 +391,28 @@ Open questions for BE before this graduates (asked 2026-08-19):
 - the region field name for non-GCP agents (`gcpRegion` is the only one sketched)
 - whether `connectionStatus` here and the TC tab's status can disagree, and which wins
 
+## 11. Airflow DAG address (pipeline-manager)
+
+DRAFT CONTRACT — owner sketch (2026-08-20), not yet in any swagger yaml. One 논리 DB's
+DAG address, so the weekly board's DAG cell can open the DAG in Airflow. The board reads
+it per row, on demand — it is not part of the §10 response.
+
+```
+GET /install/v1/pipeline-manager/airflow-host?databaseUri={databaseUri}
+→ 200 string   // the DAG's own URL, ready to navigate to (owner, 2026-08-20:
+               //   a full address, NOT just the Airflow host)
+```
+
+- `databaseUri` carries `://` and `/`, so it MUST be URL-encoded into the query.
+- The body is a single JSON string, not an object — no case boundary applies to it.
+- The address is not always obtainable. The screen folds every such case into
+  "DAG 주소 확인 불가"; only a fetch failure additionally offers 다시 시도, because
+  retrying an answer the upstream already gave changes nothing.
+
+Open questions for BE (asked 2026-08-20):
+- a missing address: 200 with `""`/`null`, or 404?
+- does this path share dag-status' auth, or the standard `/install/v1` one?
+
 ## Mock implementation
 
 Sections §1–§5 are served by `app/api/v1/…` route handlers backed by globalThis-guarded

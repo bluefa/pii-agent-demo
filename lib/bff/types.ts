@@ -417,6 +417,11 @@ export interface BffClient {
      * condition. camelCase wire verbatim, path base /install/monitoring.
      */
     getDagStatus: (id: number) => Promise<DagStatusResponse>;
+    /**
+     * 논리 DB 한 건의 Airflow DAG 주소 (assumed §11) — 이동 가능한 완성 URL 한 줄.
+     * 객체가 아니라 문자열이라 케이스 경계가 없다.
+     */
+    getAirflowHost: (databaseUri: string) => Promise<string>;
   };
 
   /**

@@ -271,7 +271,21 @@ const buildResponse = (targetSourceId: number): DagStatusResponse => {
   }
 };
 
+/**
+ * 논리 DB 한 건의 DAG 주소 (assumed §11). 목은 uri 하나만 받으므로 실제 DAG id 를 알
+ * 수 없다 — 주소의 마지막 조각은 데이터베이스 이름이고, 300자짜리 dagName 과 일치하지
+ * 않는다(그 매핑은 업스트림만 안다). rollup 계열은 빈 문자열: "주소 확인 불가" 화면은
+ * 그 사실을 만들 수 있는 목이 없으면 검증되지 않는다.
+ */
+const airflowHost = (databaseUri: string): string => {
+  if (databaseUri.includes('rollup')) return '';
+  const dbName = databaseUri.split('/').pop() || 'unknown';
+  return `https://airflow-prod.pii.internal/dags/pii_scan_${dbName}/grid`;
+};
+
 export const mockMonitoring = {
   // GET /install/monitoring/dag-status/target-sources/{id} (assumed §10).
   getDagStatus: async (targetSourceId: number) => NextResponse.json(buildResponse(targetSourceId)),
+  // GET /pipeline-manager/airflow-host?databaseUri=… (assumed §11) — 문자열 하나.
+  getAirflowHost: async (databaseUri: string) => NextResponse.json(airflowHost(databaseUri)),
 };

@@ -104,8 +104,9 @@ function StripLegend(): ReactElement {
 }
 
 /** 7일 스트립 — 셀 16px·간격 3px, 오늘(마지막 칸)만 링. 판정은 옆 pill 열이 지고
- *  색은 하루하루의 사실만 나른다. */
-function DayStrip({ row }: { row: DagDbRow }): ReactElement {
+ *  색은 하루하루의 사실만 나른다. DAG 상세 모달도 같은 스트립을 쓴다 — 같은 사실을
+ *  두 벌로 그리지 않는다. */
+export function DayStrip({ row }: { row: DagDbRow }): ReactElement {
   const last = row.db.days.length - 1;
   return (
     <span className="inline-flex items-center gap-[3px]">
@@ -154,6 +155,9 @@ export interface DbWeeklyBoardProps {
   initialAgentId?: string | null;
   /** 패널 머리의 ✕ — scrim·Esc 와 함께 ModalShell 의 onClose 로 모인다. */
   onClose: () => void;
+  /** DAG 이름 클릭 — 상세 모달은 패널 밖(ApprovalTab)에서 열린다: 패널 위에 겹치는
+   *  레이어라 Esc 를 누가 먹을지 부모가 알아야 한다. */
+  onOpenDag: (row: DagDbRow) => void;
 }
 
 export function DbWeeklyBoard({
@@ -161,6 +165,7 @@ export function DbWeeklyBoard({
   initialFilter,
   initialAgentId,
   onClose,
+  onOpenDag,
 }: DbWeeklyBoardProps): ReactElement {
   const allRows = useMemo(() => flattenDagRows(data), [data]);
   const [agentId, setAgentId] = useState<string | null>(initialAgentId ?? null);
@@ -316,12 +321,17 @@ export function DbWeeklyBoard({
                         비었다"까지만 말하고 왜 비었는지를 말하지 않는다. */}
                     <td className={cn(opsStyles.table.cell, 'max-w-[200px]')}>
                       {row.db.dagName ? (
-                        <p
-                          className="truncate font-mono text-[12px] text-[var(--pl-text-weak)]"
+                        // 이름을 누르면 상세(전문 이름·상태·Airflow 주소) — 밑줄이
+                        // affordance 를 지고 색은 그대로다.
+                        <button
+                          type="button"
+                          onClick={() => onOpenDag(row)}
                           title={row.db.dagName}
+                          aria-label="DAG 상세 열기"
+                          className="block w-full cursor-pointer truncate text-left font-mono text-[12px] text-[var(--pl-text-weak)] hover:text-[var(--pl-text-strong)] hover:underline"
                         >
                           {abbrevDagName(row.db.dagName)}
-                        </p>
+                        </button>
                       ) : (
                         <p
                           className="text-[12px] text-[var(--pl-text-weak)]"

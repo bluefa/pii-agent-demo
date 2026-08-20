@@ -380,6 +380,10 @@ export const httpBff: BffClient = {
       if (!res.ok) await throwBffError(res);
       return res.json();
     },
+    // Assumed §11 — this one DOES sit on the /install/v1 base. The body is a bare
+    // string (the DAG's URL), so `raw` keeps camelCaseKeys away from it.
+    getAirflowHost: (databaseUri) =>
+      get(`/pipeline-manager/airflow-host?databaseUri=${enc(databaseUri)}`, { raw: true }),
   },
 
   // 서비스 접근 권한 — 오너가 준 백엔드 초안 스펙 그대로
