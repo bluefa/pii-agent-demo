@@ -8,11 +8,11 @@
  * destination — the Target Source ops screen — so the bucket is a filter over
  * one list, not four containers.
  *
- * 정체성은 한 셀에 쌓지 않고 **열로 나눈다** (오너 2026-08-20): CSP · Target Source
- * ID · 코드 · 서비스 이름이 각자 열을 갖는다. 대시보드의 `TargetCell` 은 그 화면에서
+ * 정체성은 한 셀에 쌓지 않고 **열로 나눈다** (오너 2026-08-20): Cloud · Target ·
+ * 서비스 코드 · 서비스 이름이 각자 열을 갖는다. 대시보드의 `TargetCell` 은 그 화면에서
  * 정체성 열이 진행도·상태·생성시간·경과 사이에 끼어 세 답이 300px 넘게 흩어졌기
  * 때문에 한 셀로 묶은 것인데(theme.ts `dashboard.identity`), 이 표에는 그 사이에
- * 끼어드는 열이 없어 전제가 성립하지 않는다. 대신 값끼리 세로로 줄서므로 CSP 도
+ * 끼어드는 열이 없어 전제가 성립하지 않는다. 대신 값끼리 세로로 줄서므로 Cloud 도
  * 코드도 열 단위로 훑을 수 있다.
  *
  * The card header owns the bucket's description and the refresh action. It
@@ -147,8 +147,10 @@ export function AlertWorklist({
                 가져간다(`w-full`). auto layout 은 여유 폭을 열마다 고르게 나눠 주므로,
                 그대로 두면 네 자리 숫자 한 개짜리 열이 245px 를 차지하고 값들이
                 서로 멀어진다 — 열로 나눈 이유가 그때 사라진다. */}
-            <th className={cn(d.th, 'w-px')}>CSP</th>
-            <th className={cn(d.th, 'w-px')}>Target Source ID</th>
+            {/* 열 이름은 이 섹션이 이미 쓰는 것을 그대로 쓴다 — 대시보드 필터,
+                연동 요청 표, 큐 목록이 모두 `Cloud`/`Target` 이다. */}
+            <th className={cn(d.th, 'w-px')}>Cloud</th>
+            <th className={cn(d.th, 'w-px')}>Target</th>
             <th className={cn(d.th, 'w-px')}>서비스 코드</th>
             <th className={cn(d.th, 'w-px')}>서비스 이름</th>
             <th className={cn(d.th, 'w-full')}>설명</th>
