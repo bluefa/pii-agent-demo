@@ -335,77 +335,77 @@ export function OpsTargetView({ targetSourceId, initialTab }: OpsTargetViewProps
       </div>
 
       <div className={opsStyles.body}>
-      <div className={opsStyles.content}>
-        {currentTab === '진행 상태' && (
-          <>
-            {processStatus ? (
-              <ProcessCard status={processStatus} />
-            ) : (
-              <section className={pipelineStyles.card.base} aria-label="현재 Process">
-                <h2 className={opsStyles.cardTitle}>현재 Process</h2>
-                <p className={cn(pipelineStyles.text.meta, 'mt-3')}>상태 정보를 불러오지 못했습니다.</p>
-              </section>
-            )}
-            <div className={opsStyles.cardsRow}>
-              <ApprovalHistoryCard targetSourceId={targetSourceId} isIdc={isIdc} />
-              <StatusHistoryCard targetSourceId={targetSourceId} />
-            </div>
-          </>
-        )}
-        {currentTab === '스캔' && (
-          <ScanTab
-            targetSourceId={targetSourceId}
-            detail={detail}
-            // This screen owns the modal the permission card's CTA opens. The
-            // register/edit contract is AWS-only, so no other provider gets it.
-            onEditRole={isAws ? (kind) => setModal({ type: 'edit', kind }) : undefined}
-            credentialReloadKey={savedRoleArns.scan}
-          />
-        )}
-        {currentTab === '연동 요청 정보' && <RequestTab targetSourceId={targetSourceId} detail={detail} />}
-        {currentTab === '확정 정보' && (
-          <ConfirmTab
-            targetSourceId={targetSourceId}
-            detail={detail}
-            processStatus={processStatus}
-            onOpenInfra={() => selectTab('인프라 작업')}
-          />
-        )}
-        {currentTab === '인프라 작업' && (
-          <PipelineTab
-            targetSourceId={targetSourceId}
-            detail={detail}
-            onOpenRequest={() => selectTab('연동 요청 정보')}
-          />
-        )}
-        {currentTab === '연결 테스트' && (
-          <TcTab
-            targetSourceId={targetSourceId}
-            isIdc={isIdc}
-            status={tcStatus}
-            latest={tcLatest}
-            results={tcResults}
-            statusLoaded={tcLoaded}
-            latestFailed={tcLatestFailed}
-            onStatusReload={reloadTc}
-          />
-        )}
-        {currentTab === '관리자 승인' && (
-          <ApprovalTab
-            targetSourceId={targetSourceId}
-            detail={detail}
-            status={tcStatus}
-            stats={tcResultStats(tcResults, tcLatest)}
-            onDecided={retry}
-          />
-        )}
-      </div>
-      <OpsMetaRail
-        detail={detail}
-        jiraTicket={jiraTicket}
-        ticketLoaded={ticketLoaded}
-        onEditDescription={() => setModal({ type: 'description' })}
-      />
+        <div className={opsStyles.content}>
+          {currentTab === '진행 상태' && (
+            <>
+              {processStatus ? (
+                <ProcessCard status={processStatus} />
+              ) : (
+                <section className={pipelineStyles.card.base} aria-label="현재 Process">
+                  <h2 className={opsStyles.cardTitle}>현재 Process</h2>
+                  <p className={cn(pipelineStyles.text.meta, 'mt-3')}>상태 정보를 불러오지 못했습니다.</p>
+                </section>
+              )}
+              <div className={opsStyles.cardsRow}>
+                <ApprovalHistoryCard targetSourceId={targetSourceId} isIdc={isIdc} />
+                <StatusHistoryCard targetSourceId={targetSourceId} />
+              </div>
+            </>
+          )}
+          {currentTab === '스캔' && (
+            <ScanTab
+              targetSourceId={targetSourceId}
+              detail={detail}
+              // This screen owns the modal the permission card's CTA opens. The
+              // register/edit contract is AWS-only, so no other provider gets it.
+              onEditRole={isAws ? (kind) => setModal({ type: 'edit', kind }) : undefined}
+              credentialReloadKey={savedRoleArns.scan}
+            />
+          )}
+          {currentTab === '연동 요청 정보' && <RequestTab targetSourceId={targetSourceId} detail={detail} />}
+          {currentTab === '확정 정보' && (
+            <ConfirmTab
+              targetSourceId={targetSourceId}
+              detail={detail}
+              processStatus={processStatus}
+              onOpenInfra={() => selectTab('인프라 작업')}
+            />
+          )}
+          {currentTab === '인프라 작업' && (
+            <PipelineTab
+              targetSourceId={targetSourceId}
+              detail={detail}
+              onOpenRequest={() => selectTab('연동 요청 정보')}
+            />
+          )}
+          {currentTab === '연결 테스트' && (
+            <TcTab
+              targetSourceId={targetSourceId}
+              isIdc={isIdc}
+              status={tcStatus}
+              latest={tcLatest}
+              results={tcResults}
+              statusLoaded={tcLoaded}
+              latestFailed={tcLatestFailed}
+              onStatusReload={reloadTc}
+            />
+          )}
+          {currentTab === '관리자 승인' && (
+            <ApprovalTab
+              targetSourceId={targetSourceId}
+              detail={detail}
+              status={tcStatus}
+              stats={tcResultStats(tcResults, tcLatest)}
+              onDecided={retry}
+            />
+          )}
+        </div>
+        <OpsMetaRail
+          detail={detail}
+          jiraTicket={jiraTicket}
+          ticketLoaded={ticketLoaded}
+          onEditDescription={() => setModal({ type: 'description' })}
+        />
       </div>
 
       {modal?.type === 'description' && (

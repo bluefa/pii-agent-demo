@@ -110,7 +110,7 @@ export function OpsMetaRail({
             type="button"
             className={opsStyles.railLink}
             onClick={onEditDescription}
-            title="설명 수정"
+            title={description ? '설명 수정' : '설명 등록'}
           >
             {description ? '수정' : '등록하기'}
           </button>

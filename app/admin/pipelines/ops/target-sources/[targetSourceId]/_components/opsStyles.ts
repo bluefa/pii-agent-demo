@@ -25,7 +25,7 @@ export const opsStyles = {
   crumbSep: 'text-[var(--pl-text-faint)]', // design-exempt: decorative path glyph, the labels around it carry the reading
   crumbHere: 'font-semibold text-[var(--pl-text-strong)]',
 
-  /** Identity line — provider mark + "{provider} #{id}" (h1) + step pill + stamp,
+  /** Identity line — provider mark + "Target Source 운영 #{id}" (h1) + step pill + stamp,
       the service-side link pushed to the far edge. One line: everything else the
       old five-tier header stacked here now lives in the meta rail (OpsMetaRail). */
   idLine: 'mt-1.5 flex flex-wrap items-center gap-3',
@@ -49,8 +49,9 @@ export const opsStyles = {
   tag: 'inline-flex items-center rounded px-2 py-1 text-[12px] font-semibold bg-[var(--pl-gray-100)] text-[var(--pl-text-medium)] whitespace-nowrap',
   regionTag: 'inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium bg-[var(--pl-gray-100)] text-[var(--pl-text-weak)]',
   /**
-   * 흰 면 + 획 칩 — the rail's interactive values (실데이터·설치모드), and the
-   * 실데이터 tag on the service-ops target cards (ServiceDetailView).
+   * 흰 면 + 획 칩 — the 실데이터 tag on the service-ops target cards
+   * (ServiceDetailView). This screen's own editable values moved to `metaTag`
+   * (오너 08-20 넷째 조정), one notch louder, but they keep this grammar.
    *
    * 색이 아니라 획으로 선다. R1′ V-b 레일은 카드 없이 캔버스 위 맨몸이라, 흰 면은
    * 이 화면에서 "만질 수 있는 값"에만 남는다 — 그 문법을 이 칩이 진다. 값의 밑줄이
@@ -66,8 +67,8 @@ export const opsStyles = {
    * 실데이터) read as emphasized tags and the ACTION moves to a 수정 link beside
    * them, so the tag no longer has to look clickable (no underline, no hover
    * fill). metaTag = white face + strong stroke, one notch louder (px-2) than
-   * rawDataTag; metaTagQuiet = the read-only region tag (China/Global) on the
-   * band's gray-200, so the white face keeps meaning "editable value"
+   * rawDataTag; metaTagQuiet = the read-only region tag (China/Global), filled
+   * with the band's gray-200 so the white face keeps meaning "editable value"
    * (2.94 on the wash, text 8.44:1).
    */
   metaTag: 'inline-flex items-center whitespace-nowrap rounded px-2 py-0.5 text-[12px] font-semibold border border-[var(--pl-border-strong)] bg-[var(--pl-bg-card)] text-[var(--pl-text-strong)]',

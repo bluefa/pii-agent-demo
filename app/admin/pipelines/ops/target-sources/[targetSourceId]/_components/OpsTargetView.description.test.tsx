@@ -11,7 +11,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { OpsTargetView } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/OpsTargetView';
 
 const getRawTargetSourceDetail = vi.fn();
-const updateTargetSourceDescription = vi.fn(async (..._args: unknown[]) => undefined);
+const updateTargetSourceDescription =
+  vi.fn<(id: number, description: string) => Promise<void>>(async () => undefined);
 
 vi.mock('@/app/lib/api/pipeline-target', () => ({
   getRawTargetSourceDetail: (...args: unknown[]) => getRawTargetSourceDetail(...args),
@@ -22,7 +23,8 @@ vi.mock('@/app/lib/api/scan', () => ({
 }));
 vi.mock('@/app/lib/api', () => ({
   getProcessStatus: vi.fn(async () => null),
-  updateTargetSourceDescription: (...args: unknown[]) => updateTargetSourceDescription(...args),
+  updateTargetSourceDescription: (id: number, description: string) =>
+    updateTargetSourceDescription(id, description),
 }));
 vi.mock('@/app/hooks/useTestConnectionPolling', () => ({ fetchLatestTest: vi.fn(async () => null) }));
 vi.mock('@/app/lib/api/aws', () => ({ getAwsRoleVerification: vi.fn(async () => null) }));
@@ -69,7 +71,7 @@ describe('OpsTargetView — 레일 설명 그룹', () => {
     getRawTargetSourceDetail.mockResolvedValue(detail());
     render(<OpsTargetView targetSourceId={1018} initialTab="진행 상태" />);
     // '없음'은 Jira 행에도, '등록하기'는 역할 행에도 있다 — 설명 그룹은 title 로 잡는다.
-    const register = await screen.findByTitle('설명 수정');
+    const register = await screen.findByTitle('설명 등록');
     expect(register.textContent).toBe('등록하기');
     expect(register.closest('section')?.textContent).toContain('없음');
   });
