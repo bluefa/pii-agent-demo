@@ -199,6 +199,16 @@ export function OpsHeader({
             {tagRow('설치모드', grantTfExecution ? '자동' : '수동', onOpenMode, '설치모드 변경')}
           </>
         )}
+        {/* IDC 는 계정·설치모드가 없어 실데이터 한 줄만 남는다 — 줄을 비우는 대신
+            그 대상이 무엇인지 말한다 (ServiceDetailView glossOf 의 어휘 그대로:
+            IDC 는 계정이 없는 게 정상이고, 있는 사실은 사내망이라는 것). */}
+        {normalizeCloudProvider(detail.cloud_provider) === 'IDC' && (
+          <div className={opsStyles.metaRow}>
+            <span className={opsStyles.metaKey}>환경</span>
+            <span className={opsStyles.metaValue}>사내망</span>
+            <span className={opsStyles.metaTagQuiet}>IDC</span>
+          </div>
+        )}
         {tagRow('실데이터', rawDataLabel, onOpenRawData, '실데이터 여부 변경', '실데이터 여부')}
         {isAws && roleRow('scan')}
         {isAws && grantTfExecution && roleRow('execution')}
