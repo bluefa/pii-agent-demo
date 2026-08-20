@@ -15,7 +15,7 @@ import {
   dayCellTip,
   dayLabel,
   flattenDagRows,
-  initialBoardFilter,
+  isTodayKst,
   scopeBoardRows,
   sortBoardRows,
   summarizeAgents,
@@ -121,20 +121,17 @@ describe('sortBoardRows — 문제 우선', () => {
   });
 });
 
-describe('initialBoardFilter', () => {
-  const counts = { succeeded: 0, failed: 0, unscheduled: 0, running: 0, other: 0 };
-
-  it('UNHEALTHY + 실패>0 → 실패 선적용', () => {
-    expect(initialBoardFilter('UNHEALTHY', { ...counts, failed: 3 })).toBe('failed');
+describe('isTodayKst — 오늘 칸은 자리가 아니라 날짜', () => {
+  // 09:00 KST = 00:00 UTC 같은 날, 08:00 KST = 전날 23:00 UTC — 경계 양쪽을 다 본다.
+  it('KST 달력 날짜로 판정한다 — UTC 자정을 넘긴 시각도 같은 KST 날짜', () => {
+    expect(isTodayKst('2026-08-20', new Date('2026-08-19T15:30:00Z'))).toBe(true);
+    expect(isTodayKst('2026-08-19', new Date('2026-08-19T14:30:00Z'))).toBe(true);
   });
 
-  it('실패 0건이면 UNHEALTHY 여도 전체 — 빈 보드가 첫 화면이 되지 않는다', () => {
-    expect(initialBoardFilter('UNHEALTHY', { ...counts, unscheduled: 3 })).toBe('ALL');
-  });
-
-  it('HEALTHY 와 미지의 값은 전체', () => {
-    expect(initialBoardFilter('HEALTHY', { ...counts, failed: 3 })).toBe('ALL');
-    expect(initialBoardFilter('DEGRADED', { ...counts, failed: 3 })).toBe('ALL');
+  it('창이 어제 닫힌 응답에는 오늘 칸이 없다 — 마지막 칸을 오늘로 부르지 않는다', () => {
+    const days = ['2026-08-13', '2026-08-14', '2026-08-15'];
+    const now = new Date('2026-08-20T01:00:00Z');
+    expect(days.filter((d) => isTodayKst(d, now))).toEqual([]);
   });
 });
 

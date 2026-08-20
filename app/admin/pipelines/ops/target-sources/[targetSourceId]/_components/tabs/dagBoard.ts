@@ -6,7 +6,7 @@
  * 문제 우선으로 세우는 순수 함수들이다. 전부 allowlist: 계약 밖의 enum 값은
  * 'unknown'/'other' 로 떨어지지, 아는 상태로 위장하지 않는다.
  */
-import { fmtDateTimeSec } from '@/lib/pipeline/format';
+import { fmtDate, fmtDateTimeSec } from '@/lib/pipeline/format';
 import type {
   DagDatabaseStatus,
   DagDayStatus,
@@ -15,7 +15,6 @@ import type {
 import type { TcTone } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/bits';
 import {
   classifyDb,
-  healthVerdict,
   type DbBucket,
 } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/approvalGate';
 
@@ -124,17 +123,6 @@ const SEVERITY: Record<DbBucket, number> = {
 
 export const sortBoardRows = (rows: readonly DagDbRow[]): DagDbRow[] =>
   [...rows].sort((a, b) => SEVERITY[a.bucket] - SEVERITY[b.bucket]);
-
-/**
- * 보드 진입 필터 — UNHEALTHY 로 들어왔고 실패 행이 실제로 있을 때만 실패를
- * 선적용한다(시안 D "UNHEALTHY 진입: 실패 필터 선적용"). 실패 0건인 UNHEALTHY
- * (전부 미스케줄 등)에서 실패 필터를 걸면 빈 보드가 첫 화면이 된다.
- */
-export const initialBoardFilter = (
-  healthStatus: string,
-  counts: Record<DbBucket, number>,
-): BoardFilter =>
-  healthVerdict(healthStatus).kind === 'unhealthy' && counts.failed > 0 ? 'failed' : 'ALL';
 
 // ---------------------------------------------------------------------------
 // 에이전트 요약 — 시안 C 표의 행
@@ -251,6 +239,15 @@ export const dayLabel = (day: string): string => {
   const weekday = WEEKDAYS[new Date(Date.UTC(Number(y), Number(mo) - 1, Number(d))).getUTCDay()];
   return `${Number(mo)}월 ${Number(d)}일 (${weekday})`;
 };
+
+/**
+ * 오늘 칸 — 배열의 마지막이 아니라 날짜로 정한다. 계약은 "7칸, KST 버킷"까지만
+ * 약속하고 순서도, 창이 오늘로 끝난다는 것도 말하지 않는다. 창이 어제 닫힌 응답에서
+ * 마지막 칸에 링을 씌우면 어제를 오늘이라고 부르게 된다 — 그럴 땐 링이 서지 않는 게
+ * 사실이다. 버킷이 KST 이므로 비교도 KST 달력 날짜로 한다.
+ */
+export const isTodayKst = (day: string, now: Date = new Date()): boolean =>
+  day === fmtDate(now.toISOString());
 
 /** successTime → KST 'HH:mm:ss'. 실패·미스케줄엔 시각이 없다(계약). */
 const timeOf = (iso: string | null): string | null => {

@@ -2,7 +2,7 @@
 
 /**
  * 논리 DB 주간 보드 — 1,500행의 상주지. 우측 오버레이 패널(ModalShell
- * variant='panel', 720px)의 콘텐츠로 산다: 본문에는 요약 라인만 남고, 밴드의 실패
+ * variant='panel', 960px)의 콘텐츠로 산다: 본문에는 요약 라인만 남고, 밴드의 실패
  * 숫자·에이전트 표의 "DB 보기"·요약 라인 버튼이 프리셋과 함께 이 패널을 연다
  * (벤치마크 시안 A — Azure context pane 계열). 머리(제목+스코프 칩+닫기)는
  * flex-none, 본문이 자기 스크롤을 소유한다.
@@ -51,7 +51,7 @@ import {
   dayCellKind,
   dayCellTip,
   flattenDagRows,
-  initialBoardFilter,
+  isTodayKst,
   scopeBoardRows,
   sortBoardRows,
   type BoardFilter,
@@ -103,21 +103,20 @@ function StripLegend(): ReactElement {
   );
 }
 
-/** 7일 스트립 — 셀 16px·간격 3px, 오늘(마지막 칸)만 링. 판정은 옆 pill 열이 지고
- *  색은 하루하루의 사실만 나른다. DAG 상세 모달도 같은 스트립을 쓴다 — 같은 사실을
- *  두 벌로 그리지 않는다. */
+/** 7일 스트립 — 셀 16px·간격 3px, 오늘 칸만 링(자리가 아니라 날짜로 고른다).
+ *  판정은 옆 pill 열이 지고 색은 하루하루의 사실만 나른다. DAG 상세 모달도 같은
+ *  스트립을 쓴다 — 같은 사실을 두 벌로 그리지 않는다. */
 export function DayStrip({ row }: { row: DagDbRow }): ReactElement {
-  const last = row.db.days.length - 1;
   return (
     <span className="inline-flex items-center gap-[3px]">
-      {row.db.days.map((day, i) => (
+      {row.db.days.map((day) => (
         <span
           key={day.day}
           title={dayCellTip(day)}
           className={cn(
             'h-4 w-4 rounded-[3px]',
             CELL_FILL[dayCellKind(day.status)],
-            i === last && TODAY_RING,
+            isTodayKst(day.day) && TODAY_RING,
           )}
         />
       ))}
@@ -150,8 +149,10 @@ function DbIdentity({ db }: { db: DagDbRow['db'] }): ReactElement {
 
 export interface DbWeeklyBoardProps {
   data: DagStatusResponse;
-  /** 진입 프리셋 — 없으면 헬스 판정에서 파생(UNHEALTHY+실패>0 → 실패 선적용). */
-  initialFilter?: BoardFilter;
+  /** 진입 프리셋 — 진입 세 곳이 각자 약속한 것을 명시한다(실패 숫자만 'failed',
+   *  나머지는 'ALL'). 기본값을 두지 않는 것이 규칙이다: 여는 쪽이 무엇을 보여 주기로
+   *  했는지 알지, 보드가 추측할 일이 아니다. */
+  initialFilter: BoardFilter;
   initialAgentId?: string | null;
   /** 패널 머리의 ✕ — scrim·Esc 와 함께 ModalShell 의 onClose 로 모인다. */
   onClose: () => void;
@@ -170,9 +171,7 @@ export function DbWeeklyBoard({
   const allRows = useMemo(() => flattenDagRows(data), [data]);
   const [agentId, setAgentId] = useState<string | null>(initialAgentId ?? null);
   const [query, setQuery] = useState('');
-  const [filter, setFilter] = useState<BoardFilter>(
-    () => initialFilter ?? initialBoardFilter(data.healthStatus, countBuckets(allRows)),
-  );
+  const [filter, setFilter] = useState<BoardFilter>(initialFilter);
   const [page, setPage] = useState(0);
   const [pageSize, setPageSize] = useState<number>(DEFAULT_PAGE_SIZE);
 
@@ -198,7 +197,9 @@ export function DbWeeklyBoard({
       value: bucket as BoardFilter,
       label: `${BUCKET_LABEL[bucket]} ${counts[bucket].toLocaleString('ko-KR')}`,
     })),
-    ...(counts.other > 0
+    // 'other' 는 계약 밖 값이 실제로 왔을 때만 생기는 칩이지만, 걸려 있는 동안에는
+    // 0건이어도 남는다 — 사라지면 보이지 않는 필터가 목록을 비운 채로 남는다.
+    ...(counts.other > 0 || filter === 'other'
       ? [{ value: 'other' as BoardFilter, label: `그 외 ${counts.other.toLocaleString('ko-KR')}` }]
       : []),
     { value: 'ALL' as BoardFilter, label: `전체 ${scoped.length.toLocaleString('ko-KR')}` },
@@ -228,11 +229,10 @@ export function DbWeeklyBoard({
       {/* 패널 머리 — 제목·스코프 칩·닫기(✕·scrim·Esc 가 전부 같은 onClose).
           본문이 스크롤해도 이 줄은 남는다. */}
       <div className="flex flex-none items-center justify-between gap-3 border-b border-[var(--pl-border)] px-6 py-4">
-        <h2 id="db-board-title" className={cn(opsStyles.cardTitle, 'flex items-baseline gap-2')}>
+        {/* 제목에 총계를 달지 않는다 — 스코프가 걸리면 그 숫자만 혼자 전체를 말해서
+            바로 아래 '전체' 칩과 어긋난다. 개수는 칩과 푸터 범위가 진다. */}
+        <h2 id="db-board-title" className={opsStyles.cardTitle}>
           논리 DB 주간 현황
-          <span className="text-[16px] font-medium text-[var(--pl-text-weak)] tabular-nums">
-            {allRows.length.toLocaleString('ko-KR')}
-          </span>
         </h2>
         <div className="flex flex-none items-center gap-3">
           {/* 스코프가 보이지 않는 필터가 되지 않도록 — 걸려 있으면 이 칩이 유일하게 말한다. */}
@@ -325,7 +325,10 @@ export function DbWeeklyBoard({
                         type="button"
                         onClick={() => onOpenDag(row)}
                         title={row.db.dagName ?? '이 논리 DB 를 실행한 DAG 가 응답에 없어요'}
-                        aria-label="DAG 상세 열기"
+                        // 접근 이름에 보이는 이름을 먼저 싣는다 — "DAG 상세 열기" 하나만
+                        // 두면 한 페이지의 스무 버튼이 전부 같은 이름으로 불리고, 보이는
+                        // 이름으로는 부를 수 없게 된다.
+                        aria-label={`${row.db.dagName ? abbrevDagName(row.db.dagName) : '실행 기록 없음'} DAG 상세 열기`}
                         className={cn(
                           'block w-full cursor-pointer truncate text-left text-[12px] text-[var(--pl-text-weak)] hover:text-[var(--pl-text-strong)] hover:underline',
                           row.db.dagName && 'font-mono',
