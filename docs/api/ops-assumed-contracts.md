@@ -359,7 +359,11 @@ DagStatusResponse {
   agents: [{
     agentId:           string                   // assumed string — sketch does not type it
     resourceId:        string
-    gcpRegion:         string                   // GCP vocabulary; other-CSP variant unresolved (open Q)
+    gcpRegion:         string | null             // GCP vocabulary; other-CSP variant unresolved (open Q).
+                                                 // The sketch types it non-null; we read it nullable and
+                                                 // render — when it is absent, since an AWS/Azure agent
+                                                 // has no GCP region to give. Read-side widening, not a
+                                                 // contract change.
     connectionStatus:  TestConnectionStatus
     databaseStatuses: [{
       databaseUri:        string                // row identity; can exceed 1,500 per target
@@ -410,7 +414,10 @@ GET /install/v1/pipeline-manager/airflow-host?databaseUri={databaseUri}
   retrying an answer the upstream already gave changes nothing.
 
 Open questions for BE (asked 2026-08-20):
-- a missing address: 200 with `""`/`null`, or 404?
+- a missing address: 200 with `""`/`null`, or 404? **The answer changes the screen.** A 200
+  with an empty body lands on 확인 불가 with no retry; a 404 throws and lands on the failure
+  branch, which mounts 다시 시도 — the CTA this section says an absent address must not get.
+  If BE answers 404, the modal needs a 404 arm that folds into the empty landing.
 - does this path share dag-status' auth, or the standard `/install/v1` one?
 
 ## Mock implementation

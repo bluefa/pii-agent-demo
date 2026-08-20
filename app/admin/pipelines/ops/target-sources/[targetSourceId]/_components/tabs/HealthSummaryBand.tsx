@@ -18,6 +18,7 @@ import {
   healthVerdict,
   type DagAggregates,
 } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/approvalGate';
+import { connPill } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/dagBoard';
 
 const n = (value: number): string => value.toLocaleString('ko-KR');
 
@@ -69,6 +70,9 @@ export function HealthSummaryBand({
   // 1,500+ rows scan once per response, not per render.
   const agg = useMemo(() => aggregateDagStatus(data), [data]);
   const verdict = healthVerdict(data.healthStatus);
+  // 리소스 표와 같은 fold 를 쓴다 — 한 값이 두 표면에서 다른 말을 하면 안 되고,
+  // enum raw 는 어느 쪽에서도 문장에 서지 않는다(툴팁 채널만).
+  const conn = connPill(data.connectionStatus);
   const { headline, detail } = sentence(data, agg);
   const rest = agg.unscheduled + agg.other;
   const pct = (count: number): string =>
@@ -141,7 +145,10 @@ export function HealthSummaryBand({
           </span>
         )}
         {/* 출처가 라벨에 있다 — TC 탭의 연결 상태와 다른 API 의 값. */}
-        <span>모니터링 연결 상태 <b className="font-semibold text-[var(--pl-text-strong)]">{data.connectionStatus}</b></span>
+        <span title={conn.raw ? `connectionStatus: ${conn.raw}` : undefined}>
+          모니터링 연결 상태{' '}
+          <b className="font-semibold text-[var(--pl-text-strong)]">{conn.label}</b>
+        </span>
       </div>
 
       {agg.dbTotal > 0 && (
