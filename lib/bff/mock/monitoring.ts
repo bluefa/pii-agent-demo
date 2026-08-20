@@ -287,5 +287,15 @@ export const mockMonitoring = {
   // GET /install/monitoring/dag-status/target-sources/{id} (assumed §10).
   getDagStatus: async (targetSourceId: number) => NextResponse.json(buildResponse(targetSourceId)),
   // GET /pipeline-manager/airflow-host?databaseUri=… (assumed §11) — 문자열 하나.
-  getAirflowHost: async (databaseUri: string) => NextResponse.json(airflowHost(databaseUri)),
+  // moderation 계열은 502 로 터진다: 조회 실패는 "주소가 없다"(rollup 의 빈 문자열)와
+  // 다른 사실이고, 화면도 재시도 CTA 로 갈린다 — 목이 두 사실을 다 만들 수 있어야 한다.
+  getAirflowHost: async (databaseUri: string) => {
+    if (databaseUri.includes('moderation')) {
+      return NextResponse.json(
+        { error: 'BAD_GATEWAY', message: 'pipeline-manager 응답 없음' },
+        { status: 502 },
+      );
+    }
+    return NextResponse.json(airflowHost(databaseUri));
+  },
 };

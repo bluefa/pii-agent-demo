@@ -317,29 +317,22 @@ export function DbWeeklyBoard({
                       {row.db.lastSuccessAt ? fmtDateTime(row.db.lastSuccessAt) : <Dash />}
                     </td>
                     {/* DAG 는 행을 실행하는 주체의 이름 — 판정이 아니라 참조라 오른쪽
-                        끝, 흐린 mono. 이름이 없는 행은 대시 대신 말로: 대시는 "칸이
-                        비었다"까지만 말하고 왜 비었는지를 말하지 않는다. */}
+                        끝, 흐린 mono. 이름이 없는 행은 대시 대신 말로(대시는 "칸이
+                        비었다"까지만 말한다), 그리고 그 행도 열린다: 주소 조회의 키는
+                        dagName 이 아니라 databaseUri 라서 물어볼 것이 남아 있다. */}
                     <td className={cn(opsStyles.table.cell, 'max-w-[200px]')}>
-                      {row.db.dagName ? (
-                        // 이름을 누르면 상세(전문 이름·상태·Airflow 주소) — 밑줄이
-                        // affordance 를 지고 색은 그대로다.
-                        <button
-                          type="button"
-                          onClick={() => onOpenDag(row)}
-                          title={row.db.dagName}
-                          aria-label="DAG 상세 열기"
-                          className="block w-full cursor-pointer truncate text-left font-mono text-[12px] text-[var(--pl-text-weak)] hover:text-[var(--pl-text-strong)] hover:underline"
-                        >
-                          {abbrevDagName(row.db.dagName)}
-                        </button>
-                      ) : (
-                        <p
-                          className="text-[12px] text-[var(--pl-text-weak)]"
-                          title="이 논리 DB 를 실행한 DAG 가 응답에 없어요"
-                        >
-                          실행 기록 없음
-                        </p>
-                      )}
+                      <button
+                        type="button"
+                        onClick={() => onOpenDag(row)}
+                        title={row.db.dagName ?? '이 논리 DB 를 실행한 DAG 가 응답에 없어요'}
+                        aria-label="DAG 상세 열기"
+                        className={cn(
+                          'block w-full cursor-pointer truncate text-left text-[12px] text-[var(--pl-text-weak)] hover:text-[var(--pl-text-strong)] hover:underline',
+                          row.db.dagName && 'font-mono',
+                        )}
+                      >
+                        {row.db.dagName ? abbrevDagName(row.db.dagName) : '실행 기록 없음'}
+                      </button>
                     </td>
                   </tr>
                 ))}

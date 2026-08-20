@@ -79,13 +79,18 @@ function DagDetailBody({ row, timezone }: { row: DagDbRow; timezone: string }): 
       </p>
 
       <Field label="이름">
-        <div className="flex items-start gap-1.5">
-          {/* 열에서는 접히는 이름이 여기서는 전문이다 — 300자까지 오므로 줄바꿈. */}
-          <p className="min-w-0 flex-1 break-all font-mono text-[14px] text-[var(--pl-text-strong)]">
-            {db.dagName}
-          </p>
-          {db.dagName && <CopyButton value={db.dagName} label="DAG 이름 복사" className="flex-none" />}
-        </div>
+        {db.dagName ? (
+          <div className="flex items-start gap-1.5">
+            {/* 열에서는 접히는 이름이 여기서는 전문이다 — 300자까지 오므로 줄바꿈. */}
+            <p className="min-w-0 flex-1 break-all font-mono text-[14px] text-[var(--pl-text-strong)]">
+              {db.dagName}
+            </p>
+            <CopyButton value={db.dagName} label="DAG 이름 복사" className="flex-none" />
+          </div>
+        ) : (
+          // 이름이 없어도 열 수 있다 — 주소는 databaseUri 로 묻기 때문이다.
+          <p className="text-[14px] text-[var(--pl-text-weak)]">실행 기록 없음</p>
+        )}
       </Field>
 
       <Field label={`현재 상태 (최근 7일 · ${timezone})`}>
