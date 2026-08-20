@@ -12,9 +12,9 @@ export const opsStyles = {
    */
   page: '-mx-8 -mt-6 -mb-12 flex min-h-[calc(100vh_-_64px)] flex-col bg-[var(--pl-bg-canvas)]',
   /**
-   * Masthead — one gray-100 wash holding breadcrumb + identity line + card tabs.
-   * No closing border: the attached tab shapes mark the boundary, and the wash
-   * separates from the canvas on chroma, not luminance (ΔE00 2.46, guard-pinned).
+   * Masthead — one gray-100 wash holding breadcrumb + identity line, closed by
+   * the tab band (tabStrip). The wash separates from the canvas on chroma, not
+   * luminance (ΔE00 2.46, guard-pinned).
    */
   masthead: 'bg-[var(--pl-gray-100)] px-8 pt-4',
 
@@ -64,15 +64,19 @@ export const opsStyles = {
   rawDataToggleValue: 'underline underline-offset-2 decoration-[var(--pl-border-strong)]',
 
   /**
-   * Card tabs — attached (R1). Idle tabs are quiet text on the wash; the active
-   * tab is a white face with top/side strokes and an OPEN bottom, so the shape
-   * itself says "this pane is open" — the grammar line tabs could not carry once
-   * the masthead and the body stopped sharing one white surface.
+   * Card tabs in a band (R1, 오너 08-20 셋째 조정) — the strip itself is a
+   * gray-200 band one ramp under the wash (ΔE00 2.94 on the wash, 3.53 against
+   * the canvas below), so the tab tier reads as its own layer. The active tab
+   * is a bare white face with an OPEN bottom — no stroke, because --pl-border
+   * IS the band color (ΔE00 0.00): on the darker band the face alone carries
+   * the shape (white on band 5.66, vs 2.78 it managed on the wash).
    */
-  tabStrip: 'mt-2.5 flex items-end gap-1 overflow-x-auto',
-  tab: 'cursor-pointer whitespace-nowrap rounded-t-[8px] border border-transparent border-b-0 px-4 py-2 text-[14px]',
-  tabActive: 'bg-[var(--pl-bg-card)] border-[var(--pl-border)] font-semibold text-[var(--pl-text-strong)]',
-  tabIdle: 'font-medium text-[var(--pl-text-weak)] hover:text-[var(--pl-text-strong)]',
+  tabStrip: 'mt-2.5 -mx-8 flex items-end gap-1 overflow-x-auto bg-[var(--pl-gray-200)] px-8 pt-1.5',
+  tab: 'cursor-pointer whitespace-nowrap rounded-t-[8px] px-4 py-2 text-[14px]',
+  tabActive: 'bg-[var(--pl-bg-card)] font-semibold text-[var(--pl-text-strong)]',
+  /** 워시는 램프 한 칸을 잡아먹는다, and the band eats one more: weak measures
+      4.01:1 on gray-200 (AA fail) — idle steps up to medium (8.44:1). */
+  tabIdle: 'font-medium text-[var(--pl-text-medium)] hover:text-[var(--pl-text-strong)]',
   /** 보기(진행 상태·스캔·연동 요청·확정) | 도구(인프라·연결 테스트·승인) group gap. */
   tabGap: 'w-3.5 flex-none self-stretch',
 

@@ -342,13 +342,15 @@ const SURFACES: SurfacePair[] = [
   // The PR #624 P1: tinting --pl-bg-page made it byte-identical to --pl-gray-100 and the
   // borderless ops-alerts summary tiles (bg gray-100 straight on the page ground) vanished.
   { what: 'ops-alerts tile (gray-100) on page ground', top: resolve('var(--pl-gray-100)'), under: resolve('var(--pl-bg-page)') },
-  // R1 ops target-source detail — a two-tone chrome: gray-100 masthead wash over the
-  // lavender canvas (--pl-bg-canvas), separated by chroma, not luminance. The white
-  // faces on the canvas are the content cards and the rail's interactive chips; the
-  // active card tab is a white face ON the wash.
+  // R1 ops target-source detail — a three-tone chrome: gray-100 masthead wash, a
+  // gray-200 tab band closing it, then the lavender canvas (--pl-bg-canvas); layers
+  // separate on chroma/ramp, not luminance. The white faces are the content cards,
+  // the rail's interactive chips, and the active card tab ON the band.
   { what: 'ops masthead wash on the R1 canvas', top: resolve('var(--pl-gray-100)'), under: resolve('var(--pl-bg-canvas)') },
   { what: 'white card / rail chip on the R1 canvas', top: '#FFFFFF', under: resolve('var(--pl-bg-canvas)') },
-  { what: 'ops active tab face on the masthead wash', top: bgOf(classOf(opsSrc, 'tabActive')), under: resolve('var(--pl-gray-100)') },
+  { what: 'ops tab band on the masthead wash', top: bgOf(classOf(opsSrc, 'tabStrip')), under: resolve('var(--pl-gray-100)') },
+  { what: 'ops tab band against the R1 canvas', top: bgOf(classOf(opsSrc, 'tabStrip')), under: resolve('var(--pl-bg-canvas)') },
+  { what: 'ops active tab face on the tab band', top: bgOf(classOf(opsSrc, 'tabActive')), under: bgOf(classOf(opsSrc, 'tabStrip')) },
   { what: 'ops meta-line chip face on the masthead wash', top: bgOf(classOf(opsSrc, 'rawDataTag')), under: resolve('var(--pl-gray-100)') },
   // The card's hover fill is a surface too — it replaces white under the cursor, so it
   // has to separate from the canvas the card sits on or the hovered card dissolves into
@@ -407,7 +409,7 @@ const TEXT: TextPair[] = [
   { what: 'ops rail value on the R1 canvas', fg: textOf(classOf(opsSrc, 'railValue')), on: resolve('var(--pl-bg-canvas)') },
   { what: 'ops rail link on the R1 canvas', fg: textOf(classOf(opsSrc, 'railLink')), on: resolve('var(--pl-bg-canvas)') },
   { what: 'ops crumb on the masthead wash', fg: textOf(classOf(opsSrc, 'crumb')), on: resolve('var(--pl-gray-100)') },
-  { what: 'ops idle tab on the masthead wash', fg: textOf(classOf(opsSrc, 'tabIdle')), on: resolve('var(--pl-gray-100)') },
+  { what: 'ops idle tab on the tab band', fg: textOf(classOf(opsSrc, 'tabIdle')), on: bgOf(classOf(opsSrc, 'tabStrip')) },
   // 마스트헤드 meta line (오너 08-20: 클라우드·설정 + 검증값이 레일에서 복귀) — 워시 위 키·값.
   { what: 'ops meta key on the masthead wash', fg: textOf(classOf(opsSrc, 'metaKey')), on: resolve('var(--pl-gray-100)') },
   { what: 'ops meta value on the masthead wash', fg: textOf(classOf(opsSrc, 'metaValue')), on: resolve('var(--pl-gray-100)') },
