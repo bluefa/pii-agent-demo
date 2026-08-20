@@ -35,19 +35,12 @@ import {
   type TestConnectionVersionResult,
 } from '@/app/lib/api';
 import type { SecretKey } from '@/lib/types';
-import {
-  getTestConnectionExecutionHistory,
-  type TcExecutionRow,
-  type TcResultRow,
-} from '@/app/lib/api/task-queue-tc';
+import type { TcResultRow } from '@/app/lib/api/task-queue-tc';
 import { getApprovalRequestLatest } from '@/app/lib/api/task-queue-requests';
 import type { TestConnectionStatusRow } from '@/lib/types/task-queue';
 import { usePlToast } from '@/app/admin/pipelines/_components/usePlToast';
 import { TcLatestRunCard } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/TcLatestRunCard';
-import {
-  TcRunHistoryCard,
-  TC_RUN_HISTORY_PAGE_SIZE,
-} from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/TcRunHistoryCard';
+import { TcRunHistoryModal } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/TcRunHistoryModal';
 import { ConfirmedInfoCard } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/ConfirmedInfoCard';
 import { TcHistoryModal } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/TcHistoryModal';
 import {
@@ -91,6 +84,7 @@ export function TcTab({
   const toast = usePlToast();
   const [reloadKey, setReloadKey] = useState(0);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [runHistoryOpen, setRunHistoryOpen] = useState(false);
   const reload = useCallback(() => setReloadKey((key) => key + 1), []);
 
   const [confirmedRows, setConfirmedRows] = useState<ConfirmedIntegrationResourceItem[]>([]);
@@ -146,59 +140,16 @@ export function TcTab({
   const settled = loadedKey !== null;
   const orderedRows = orderByRequest(confirmedRows, requestOrder);
 
-  // --- 실행 기록 (표 전용) ----------------------------------------------------
-  const [runRows, setRunRows] = useState<TcExecutionRow[]>([]);
-  const [runPage, setRunPage] = useState(0);
-  const [runTotalPages, setRunTotalPages] = useState(1);
-  const [runsLoading, setRunsLoading] = useState(true);
-  const [runsFailed, setRunsFailed] = useState(false);
-
-  // Latest-request-wins: rapid pagination can resolve out of order, and a stale
-  // response must not commit page/rows over a newer one.
-  const runSeq = useRef(0);
-  const loadRuns = useCallback(
-    async (nextPage: number, { quiet = false } = {}): Promise<void> => {
-      const seq = ++runSeq.current;
-      if (!quiet) setRunsLoading(true);
-      try {
-        const data = await getTestConnectionExecutionHistory(
-          targetSourceId,
-          nextPage,
-          TC_RUN_HISTORY_PAGE_SIZE,
-        );
-        if (seq !== runSeq.current) return;
-        setRunRows(data.content);
-        setRunTotalPages(Math.max(1, data.totalPages));
-        setRunPage(nextPage);
-        setRunsFailed(false);
-      } catch {
-        if (seq !== runSeq.current) return;
-        setRunsFailed(true);
-      } finally {
-        if (seq === runSeq.current && !quiet) setRunsLoading(false);
-      }
-    },
-    [targetSourceId],
-  );
-
-  useEffect(() => {
-    void loadRuns(0);
-  }, [loadRuns]);
-
   const running = isRunOpen(latest);
 
   // Poll only while the run is unsettled; the interval clears itself the moment
   // connection_status reaches SUCCESS/FAIL, so an idle tab makes no requests.
-  // `quiet` so a poll swaps history rows in place instead of flashing the
-  // skeleton every 4 seconds.
+  // 회차 목록은 열릴 때 스스로 조회하는 모달의 몫이라 여기서 폴링하지 않는다.
   useEffect(() => {
     if (!running) return;
-    const id = setInterval(() => {
-      onStatusReload();
-      void loadRuns(runPage, { quiet: true });
-    }, POLL_MS);
+    const id = setInterval(onStatusReload, POLL_MS);
     return () => clearInterval(id);
-  }, [running, runPage, loadRuns, onStatusReload]);
+  }, [running, onStatusReload]);
 
   // A finished run rewrites the 논리 DB 결과 and can change the confirmed snapshot,
   // so the settle edge reloads both — the poll tick that observed SUCCESS can race
@@ -209,10 +160,9 @@ export function TcTab({
     if (wasRunning.current && !running) {
       reload();
       onStatusReload();
-      void loadRuns(0);
     }
     wasRunning.current = running;
-  }, [running, reload, onStatusReload, loadRuns]);
+  }, [running, reload, onStatusReload]);
 
   const [triggering, setTriggering] = useState(false);
   const [triggerFailed, setTriggerFailed] = useState(false);
@@ -227,19 +177,19 @@ export function TcTab({
       toast.show('연결 테스트 실행을 요청했습니다.');
       // latest_version 이 새 회차를 RUNNING 으로 보고해야 폴링이 시작된다.
       onStatusReload();
-      await loadRuns(0);
     } catch {
       setTriggerFailed(true);
     } finally {
       setTriggering(false);
     }
-  }, [targetSourceId, loadRuns, onStatusReload, toast]);
+  }, [targetSourceId, onStatusReload, toast]);
 
   return (
     <>
       {/* 집계는 밴드로, 사실은 표로 — 종합 상태 밴드가 확정 정보 표 바로 위에 서고,
-          리소스별 사실(연결 상태·실패 사유·Pod 로그)은 전부 표의 열이다. 실행 기록은
-          과거 조회라 표 뒤로 내려간다. */}
+          리소스별 사실(연결 상태·실패 사유·Pod 로그)은 전부 표의 열이다. 지난 회차와
+          결정은 밴드의 링크가 여는 모달로 — 탭의 마지막 절이 "과거"가 되지 않도록
+          (사용자 화면 Step 5 와 같은 배치). */}
       <TcLatestRunCard
         latest={latest}
         status={statusLoaded ? status : null}
@@ -251,6 +201,8 @@ export function TcTab({
         triggering={triggering}
         triggerFailed={triggerFailed}
         onRunTest={() => void runTest()}
+        onOpenRunHistory={() => setRunHistoryOpen(true)}
+        onOpenDecisionHistory={() => setHistoryOpen(true)}
       />
 
       <ConfirmedInfoCard
@@ -266,15 +218,12 @@ export function TcTab({
         onReload={reload}
       />
 
-      <TcRunHistoryCard
-        rows={runRows}
-        page={runPage}
-        totalPages={runTotalPages}
-        loading={runsLoading}
-        failed={runsFailed}
-        onPage={(next) => void loadRuns(next)}
-        onOpenDecisionHistory={() => setHistoryOpen(true)}
-      />
+      {runHistoryOpen && (
+        <TcRunHistoryModal
+          targetSourceId={targetSourceId}
+          onClose={() => setRunHistoryOpen(false)}
+        />
+      )}
 
       {historyOpen && (
         <TcHistoryModal targetSourceId={targetSourceId} onClose={() => setHistoryOpen(false)} />

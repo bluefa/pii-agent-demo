@@ -7,7 +7,14 @@
  * 확정 정보 표와 같은 리소스 명단을 두 번 그리고 agent_id 같은 내부 식별자까지
  * 노출하는 구조라, 리소스별 사실(연결 상태·실패 사유·Pod 로그)은 전부 확정 정보
  * 표의 열로 내리고 여기는 실행 한 건의 집계만 남긴다:
- *   제목행(#N + pill) · 요약 한 줄(성패 건수 / 진행 n/m) · TargetSource 사유 줄.
+ *   제목행(pill) · 요약 한 줄(성패 건수 / 진행 n/m) · TargetSource 사유 줄.
+ *
+ * 회차 번호(#N)는 제목에서 뺐다(오너 2026-08-20) — 제목이 답할 질문은 "지금 붙는가"이지
+ * "몇 번째 회차인가"가 아니고, 회차는 그것을 세는 표(실행 기록)에서 읽는다.
+ *
+ * 지난 회차·결정은 시각 옆 링크 두 개로 연다(실행 기록 · 승인·반려 이력) — 사용자 화면
+ * Step 5 의 문법 그대로다(TcSummaryCard 의 `historyAction`): 지금 상태 옆에 "지난 것"의
+ * 입구가 서고, 과거를 위한 카드를 지면 맨 아래에 따로 세우지 않는다.
  *
  * 사유 줄은 신규 TargetSource 단위 `fail_reason`(DRAFT CONTRACT) — FAIL 로 닫힌
  * 실행에서 값이 있을 때만 그려진다. 전면 실패(리소스별 결과 0건)에서는 표가 전행
@@ -39,6 +46,13 @@ import {
   type TcResultStats,
 } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/logic';
 
+/**
+ * 시각 아래 이력 링크 — countLink 규칙을 meta 크기로: 밑줄이 affordance 를 지고 색은
+ * 중립이다. 이 줄에서 색을 쓸 수 있는 것은 판정(pill)과 실행 CTA 뿐이다.
+ */
+const META_LINK =
+  'cursor-pointer border-b border-current pb-px text-[12px] font-medium text-[var(--pl-text-weak)] transition-colors hover:text-[var(--pl-text-strong)]';
+
 const COMPLETED = 'TEST_CONNECTION_COMPLETED';
 const REJECTED = 'TEST_CONNECTION_REJECTED';
 
@@ -59,6 +73,10 @@ export interface TcLatestRunCardProps {
   triggering: boolean;
   triggerFailed: boolean;
   onRunTest: () => void;
+  /** 실행 기록 modal — 회차 목록. */
+  onOpenRunHistory: () => void;
+  /** 승인·반려 이력 modal — 서비스 측 완료 확인·재실행 요청 trail. */
+  onOpenDecisionHistory: () => void;
 }
 
 /**
@@ -100,6 +118,8 @@ export function TcLatestRunCard({
   triggering,
   triggerFailed,
   onRunTest,
+  onOpenRunHistory,
+  onOpenDecisionHistory,
 }: TcLatestRunCardProps): ReactElement {
   const isCompleted = status?.status === COMPLETED;
   const isRejected = status?.status === REJECTED;
@@ -132,12 +152,6 @@ export function TcLatestRunCard({
           <h2 className={cn(opsStyles.cardTitle, 'flex items-center gap-2')}>
             <Icon name="flow" size={18} className="text-[var(--pl-primary)]" />
             최근 연결 테스트
-            {/* Identifier (#N) first, verdict pill after — the scan card's order. */}
-            {latest?.test_connection_version != null && (
-              <span className="text-[12px] font-medium text-[var(--pl-text-weak)]">
-                #{latest.test_connection_version}
-              </span>
-            )}
             {latest && <TcRunPill status={state} />}
           </h2>
           <p className={opsStyles.cardDesc}>
@@ -146,11 +160,25 @@ export function TcLatestRunCard({
           </p>
         </div>
         <div className="flex flex-none items-center gap-4">
-          {timeText && (
-            <span className="whitespace-nowrap text-[12px] tabular-nums text-[var(--pl-text-weak)]">
-              {timeText}
-            </span>
-          )}
+          <div className="flex flex-col items-end gap-1.5">
+            {timeText && (
+              <span className="whitespace-nowrap text-[12px] tabular-nums text-[var(--pl-text-weak)]">
+                {timeText}
+              </span>
+            )}
+            {/* 실행이 한 번도 없으면 열어 볼 회차도 결정도 없다 — 빈 모달로 가는 입구는
+                세우지 않는다(Step 5 의 `run ? historyAction : null` 과 같은 게이트). */}
+            {latest && (
+              <span className="flex items-center gap-3">
+                <button type="button" onClick={onOpenRunHistory} className={META_LINK}>
+                  실행 기록
+                </button>
+                <button type="button" onClick={onOpenDecisionHistory} className={META_LINK}>
+                  승인·반려 이력
+                </button>
+              </span>
+            )}
+          </div>
           {/* primary — with 관리자 처리 moved to the rail, running the test is the
               loudest thing this tab still does. */}
           <PlButton variant="primary" disabled={running || triggering} onClick={onRunTest}>

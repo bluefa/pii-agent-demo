@@ -70,3 +70,12 @@ IAM 이다). 자식 = 데이터베이스(Database Type 열이 `Database`), 나�
 칸 자체가 빠진다(자리만 잡고 '-' 를 세우지 않는다). 복사 텍스트는 시각·severity·본문.
 DRAFT 계약에 `entries[].timestamp` 추가 — Cloud Logging `LogEntry.timestamp` 그대로,
 목은 캡처 시각에서 800ms 간격으로 거슬러 결정적으로 찍는다.
+
+**같은 날 이어서 — 탭 배치를 Step 5 문법으로.** 제목의 회차 번호(#N) 제거: 제목이 답할
+질문은 "지금 붙는가"이고, 회차는 그것을 세는 표에서 읽는다. 지면 맨 아래 있던 **실행 기록
+카드를 모달로** 내렸다(TcRunHistoryModal, ModalShell task + appTable + PlPagination 5행 —
+형제 TcHistoryModal 문법). 입구는 밴드 우측 시각 아래 링크 두 개(실행 기록 · 승인·반려 이력),
+사용자 화면 Step 5 의 `historyAction` 자리와 같다. 이유: 카드로 두면 탭의 마지막 절이
+"과거"가 되어, 이 탭에 온 이유(지금 무엇이 실패했나)가 지면에서 가장 멀어진다. 실행이
+한 번도 없으면 링크 자체가 없다(빈 모달로 가는 입구를 세우지 않는다). 회차 목록 폴링도
+같이 사라졌다 — 모달이 열릴 때 스스로 조회한다.
