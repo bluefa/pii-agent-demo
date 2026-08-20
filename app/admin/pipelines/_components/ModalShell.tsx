@@ -11,7 +11,9 @@
  * `variant='app'` = Task Queue app-modal chrome (r20/p0/88vh scroll — width via
  * className, see TqModal); `variant='editor'` = the 확정 정보 편집기 plane
  * (min(960px,94vw) × min(920px,92vh), p0 — same 960 as xwide, but taller and
- * padding-less for the full-bleed textarea). Pair with the app's useModal()
+ * padding-less for the full-bleed textarea); `variant='panel'` = right-docked
+ * overlay panel (960px full-height, p0 — DB weekly board; same scrim/focus/Esc
+ * contract, only the alignment changes). Pair with the app's useModal()
  * hook for open/close state (self-contained cleanup here).
  */
 import { useEffect, useRef, type CSSProperties, type ReactElement, type ReactNode } from 'react';
@@ -21,7 +23,7 @@ import { cn, pipelineStyles } from '@/lib/theme';
 export interface ModalShellProps {
   open: boolean;
   onClose: () => void;
-  variant?: 'default' | 'task' | 'wide' | 'xwide' | 'app' | 'editor';
+  variant?: 'default' | 'task' | 'wide' | 'xwide' | 'app' | 'editor' | 'panel';
   children: ReactNode;
   /** id of the heading element that labels the dialog. */
   labelledBy?: string;
@@ -107,7 +109,7 @@ export function ModalShell({
   const { modal } = pipelineStyles;
   return (
     <div
-      className={modal.overlay}
+      className={variant === 'panel' ? modal.overlayPanel : modal.overlay}
       onMouseDown={(event) => {
         pressedOverlay.current = event.target === event.currentTarget;
       }}
@@ -123,12 +125,14 @@ export function ModalShell({
         tabIndex={-1}
         style={style}
         className={
-          // 'app' and 'editor' swap the whole dialog chrome (p0, own scroll) —
-          // the others layer a width onto the shared `dialog` base.
+          // 'app', 'editor' and 'panel' swap the whole dialog chrome (p0, own
+          // scroll) — the others layer a width onto the shared `dialog` base.
           variant === 'app'
             ? cn(modal.dialogApp, className)
             : variant === 'editor'
             ? cn(modal.dialogEditor, className)
+            : variant === 'panel'
+            ? cn(modal.dialogPanel, className)
             : cn(
                 modal.dialog,
                 variant === 'task'

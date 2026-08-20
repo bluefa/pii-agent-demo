@@ -25,7 +25,7 @@
  * The result summary is carried here (counts + 완료 확인 시각) so the decision does
  * not require hopping back to Test Connection to recall what is being approved.
  */
-import { useState, type ReactElement, type ReactNode } from 'react';
+import { useMemo, useState, type ReactElement, type ReactNode } from 'react';
 import { cn, pipelineStyles } from '@/lib/theme';
 import { fmtDateTimeSec } from '@/lib/pipeline/format';
 import { useApiAction, useApiMutation } from '@/app/hooks/useApiMutation';
@@ -35,6 +35,7 @@ import { getDagStatus } from '@/app/lib/api/ops';
 import type { RawTargetSourceDetail } from '@/app/lib/api/pipeline-target';
 import type { TestConnectionStatusRow } from '@/lib/types/task-queue';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
+import { ModalShell } from '@/app/admin/pipelines/_components/ModalShell';
 import { Icon } from '@/app/admin/pipelines/_components/icons';
 import { usePlToast } from '@/app/admin/pipelines/_components/usePlToast';
 import { opsStyles } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/opsStyles';
@@ -48,11 +49,21 @@ import type { TcResultStats } from '@/app/admin/pipelines/ops/target-sources/[ta
 import {
   TC_COMPLETED,
   TC_REJECTED,
+  aggregateDagStatus,
   foldApprovalHead,
   healthVerdict,
   type DagFetch,
 } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/approvalGate';
 import { HealthSummaryBand } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/HealthSummaryBand';
+import { AgentDagTable } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/AgentDagTable';
+import { DbWeeklyBoard } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/DbWeeklyBoard';
+import { DagDetailModal } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/DagDetailModal';
+import type {
+  BoardFilter,
+  DagDbRow,
+} from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/dagBoard';
+
+const n = (value: number): string => value.toLocaleString('ko-KR');
 
 type GateRowState = 'ok' | 'err' | 'warn' | 'pending';
 
@@ -147,6 +158,25 @@ export function ApprovalTab({
     [tcCompleted, targetSourceId, dagReload],
   );
   const retryDag = (): void => setDagReload((k) => k + 1);
+
+  // 논리 DB 주간 보드 — 우측 오버레이 패널(벤치마크 시안 A). 진입 3곳(밴드의 실패
+  // 숫자 · 에이전트 표의 "DB 보기" · 요약 라인 버튼)이 프리셋과 함께 연다. ModalShell
+  // 은 닫히면 자식을 언마운트하므로 매 오픈이 새 마운트 — 프리셋은 마운트 1회 소비로
+  // 충분하고, 옛 착지(스크롤 이동) 코드는 패널이 대체한다.
+  const [board, setBoard] = useState<{ filter: BoardFilter; agentId?: string } | null>(null);
+  // DAG 상세는 보드가 아니라 여기서 연다 — 패널 위에 겹치는 레이어라 Esc 를 누가
+  // 먹을지 결정할 수 있어야 한다. 패널이 닫히면 그 위의 모달도 함께 접는다.
+  const [dagRow, setDagRow] = useState<DagDbRow | null>(null);
+  const closeBoard = (): void => {
+    setDagRow(null);
+    setBoard(null);
+  };
+
+  // 요약 라인(보드의 본문 잔류물)이 나르는 버킷 집계 — 밴드와 같은 파생을 응답당 1회.
+  const agg = useMemo(
+    () => (dag.phase === 'loaded' ? aggregateDagStatus(dag.data) : null),
+    [dag],
+  );
 
   // On failure the modal stays open and the error surfaces via the section toast.
   const rerun = useApiMutation((reason: string) => rejectTestConnection(targetSourceId, reason), {
@@ -299,9 +329,85 @@ export function ApprovalTab({
         )}
       </section>
 
-      {/* 헬스 요약 밴드 (L1) — 판정의 근거 집계. 응답이 있어야만 층이 생긴다. */}
+      {/* 관측층 — 응답이 있어야만 층이 생긴다. L1 요약 밴드 → L2 에이전트 표
+          (에이전트가 여럿일 때만 — 층은 데이터가 만들 때만) → L3 요약 라인. 1,500행
+          보드 자체는 우측 오버레이 패널의 것(시안 A): 실패 숫자·"DB 보기"·현황 보기
+          가 프리셋과 함께 연다. */}
       {tcCompleted && dag.phase === 'loaded' && (
-        <HealthSummaryBand data={dag.data} fetchedAt={dag.fetchedAt} />
+        <>
+          <HealthSummaryBand
+            data={dag.data}
+            fetchedAt={dag.fetchedAt}
+            onShowFailed={() => setBoard({ filter: 'failed' })}
+          />
+          {dag.data.agents.length > 1 && (
+            <AgentDagTable
+              data={dag.data}
+              // "DB 보기"가 약속하는 것은 그 에이전트의 DB 전부다 — 실패 선적용은
+              // 실패 숫자 진입의 것.
+              onViewDbs={(agentId) => setBoard({ agentId, filter: 'ALL' })}
+            />
+          )}
+          {agg && (
+            // 보드의 본문 잔류물 — 문패 한 줄: 버킷 요약 + 진입 버튼. 표는 패널에.
+            <section className={pipelineStyles.card.base} aria-label="논리 DB 주간 현황 요약">
+              <div className="flex items-center justify-between gap-4">
+                <div className="min-w-0">
+                  <h2 className={opsStyles.cardTitle}>논리 DB 주간 현황</h2>
+                  <p className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-[12px] text-[var(--pl-text-weak)]">
+                    <span>
+                      논리 DB <b className="font-semibold text-[var(--pl-text-strong)]">{n(agg.dbTotal)}</b>
+                    </span>
+                    <span className={agg.failed > 0 ? 'text-[var(--pl-err-text)]' : undefined}>
+                      실패 <b className="font-semibold">{n(agg.failed)}</b>
+                    </span>
+                    <span>
+                      미스케줄 <b className="font-semibold text-[var(--pl-text-strong)]">{n(agg.unscheduled)}</b>
+                    </span>
+                    {agg.running > 0 && (
+                      <span>
+                        실행 시작 <b className="font-semibold text-[var(--pl-text-strong)]">{n(agg.running)}</b>
+                      </span>
+                    )}
+                    <span>
+                      이번 주 성공 <b className="font-semibold text-[var(--pl-text-strong)]">{n(agg.succeeded)}</b>
+                    </span>
+                  </p>
+                </div>
+                <PlButton
+                  variant="secondary"
+                  className="flex-none"
+                  onClick={() => setBoard({ filter: 'ALL' })}
+                >
+                  현황 보기
+                </PlButton>
+              </div>
+            </section>
+          )}
+
+          {/* 패널 + 그 위의 DAG 상세 = 2단 레이어. ModalShell 의 Esc 는 document 에
+              붙으므로, 모달이 떠 있는 동안 패널의 Esc 를 꺼야 한 번에 둘 다 닫히지
+              않는다. */}
+          <ModalShell
+            open={board !== null}
+            onClose={closeBoard}
+            variant="panel"
+            labelledBy="db-board-title"
+            closeOnEsc={dagRow === null}
+          >
+            {board !== null && (
+              <DbWeeklyBoard
+                data={dag.data}
+                initialFilter={board.filter}
+                initialAgentId={board.agentId ?? null}
+                onClose={closeBoard}
+                onOpenDag={setDagRow}
+              />
+            )}
+          </ModalShell>
+
+          <DagDetailModal row={dagRow} timezone={dag.data.timezone} onClose={() => setDagRow(null)} />
+        </>
       )}
 
       <TcRerunModal
