@@ -50,7 +50,19 @@ const worklist = {
    *  (14/400/weak) so title and helper text never read as one run-on line. */
   titleText: 'text-[16px] font-semibold leading-[1.5] text-[var(--pl-text-strong)]',
   desc: 'mt-0.5 text-[14px] leading-[1.5] text-[var(--pl-text-weak)]',
-  descText: 'block max-w-[52ch] truncate text-[14px] text-[var(--pl-text-weak)]',
+  /**
+   * 이름과 설명은 셀 폭까지 쓰고 거기서 자른다 (오너 2026-08-20: "서비스 이름이 충분히
+   * 길 수 있어 … 설명이랑 거의 반반 … 길면 짤라서").
+   *
+   * `max-w-[NNch]` 로 잡던 상한을 버린 이유: ch 상한은 열 폭과 무관해서, 열이 넓어도
+   * 거기서 먼저 잘리고 열이 좁아지면 상한 전에 셀이 터진다. 열 폭 자체가 상한이어야
+   * 하고, 그러려면 표가 `table-fixed` 여야 한다 — auto layout 은 열 폭을 내용이
+   * 정하므로 긴 이름 한 줄이 다른 모든 열을 밀어낸다.
+   *
+   * 잘린 값은 `title` 로 전문을 남긴다 — 자르는 것은 표의 사정이지 값의 사정이 아니다.
+   */
+  table: 'w-full table-fixed',
+  descText: 'block truncate text-[14px] text-[var(--pl-text-weak)]',
   /**
    * 값 계층 — 한 행에서 네 값이 순서를 갖도록 **채널을 나눠서** 준다 (오너 2026-08-20:
    * "값 계층이 없다"). 처음에는 Target 과 코드가 둘 다 14/600 strong 이고 이름과 설명이
@@ -67,7 +79,7 @@ const worklist = {
   idValue:
     'text-[14px] font-semibold tabular-nums text-[var(--pl-text-strong)] [font-family:var(--pl-font-mono)] transition-colors group-hover:text-[var(--pl-info-text)]',
   codeText: 'text-[14px] font-medium text-[var(--pl-text-medium)] [font-family:var(--pl-font-mono)]',
-  nameText: 'block max-w-[22ch] truncate text-[14px] text-[var(--pl-text-strong)]',
+  nameText: 'block truncate text-[14px] text-[var(--pl-text-strong)]',
   /**
    * 머리 (오너 2026-08-20: "표면·구분선이 약하다").
    *
@@ -162,22 +174,24 @@ export function AlertWorklist({
         </PlButton>
       </div>
 
-      <table className={d.table}>
+      <table className={worklist.table}>
         <thead>
           <tr>
-            {/* 식별 열은 제 내용만큼만(`w-px` + nowrap), 남는 폭은 설명이 전부
-                가져간다(`w-full`). auto layout 은 여유 폭을 열마다 고르게 나눠 주므로,
-                그대로 두면 네 자리 숫자 한 개짜리 열이 245px 를 차지하고 값들이
-                서로 멀어진다 — 열로 나눈 이유가 그때 사라진다. */}
-            {/* 열 이름은 이 섹션이 이미 쓰는 것을 그대로 쓴다 — 대시보드 필터,
+            {/* 열 폭은 백분율로 못박는다(`table-fixed`). 식별·지연 열은 제 값이
+                들어갈 만큼만 갖고, 남는 폭은 **이름과 설명이 반씩** 나눠 갖는다
+                (오너 2026-08-20). 두 열은 길이를 예측할 수 없는 유이한 값이라,
+                한쪽에만 여유를 주면 다른 쪽이 항상 먼저 잘린다.
+                min-w 는 좁은 창에서의 바닥이다 — 백분율만 두면 "8시간 48분"이나
+                "서비스 코드" 머리글이 제 칸을 넘는다.
+                열 이름은 이 섹션이 이미 쓰는 것을 그대로 쓴다 — 대시보드 필터,
                 연동 요청 표, 큐 목록이 모두 `Cloud`/`Target` 이다. */}
-            <th className={cn(worklist.th, 'w-px')}>Cloud</th>
-            <th className={cn(worklist.th, 'w-px')}>Target</th>
-            <th className={cn(worklist.th, 'w-px')}>서비스 코드</th>
-            <th className={cn(worklist.th, 'w-px')}>서비스 이름</th>
-            <th className={cn(worklist.th, 'w-full')}>설명</th>
-            <th className={cn(worklist.th, 'w-px')}>지연</th>
-            <th className={cn(worklist.th, 'w-px')} />
+            <th className={cn(worklist.th, 'w-[9%] min-w-[96px]')}>Cloud</th>
+            <th className={cn(worklist.th, 'w-[9%] min-w-[96px]')}>Target</th>
+            <th className={cn(worklist.th, 'w-[10%] min-w-[104px]')}>서비스 코드</th>
+            <th className={cn(worklist.th, 'w-[28%]')}>서비스 이름</th>
+            <th className={cn(worklist.th, 'w-[28%]')}>설명</th>
+            <th className={cn(worklist.th, 'w-[10%] min-w-[104px]')}>지연</th>
+            <th className={cn(worklist.th, 'w-[6%] min-w-[64px]')} />
           </tr>
         </thead>
         <tbody className={worklist.body}>
