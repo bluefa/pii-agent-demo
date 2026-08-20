@@ -73,6 +73,12 @@
   남아 마스트헤드가 휑했다. 줄을 비우는 대신 그 대상이 무엇인지 말한다:
   `환경  사내망 [IDC]` (ServiceDetailView glossOf 의 사내망 어휘 + 계정 행의
   값·태그 문법 그대로).
+- **레일에 설명 그룹** (여섯째 조정) — TargetSource 설명(free text)이 레일의
+  둘째 그룹으로. 표시는 100자에서 접고(말줄임표, 전문은 title), 계약의 1000자
+  한도는 수정 다이얼로그가 진다. 쓰기는 PR #719 의 `DescriptionEditModal`
+  (assumed §8 `PUT …/description`, 빈 값=지우기)을 그대로 재사용 — onSaved 가
+  저장값을 돌려주도록 시그니처만 넓혀 로컬 detail 1칸 갱신(설치모드 수법).
+  없으면 `없음 + 등록하기`.
 
 ### 기각/보류
 

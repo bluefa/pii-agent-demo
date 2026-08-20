@@ -13,8 +13,9 @@ interface DescriptionEditModalProps {
   targetSourceId: number;
   /** The row's current 설명 — empty when the target has none yet. */
   initialDescription: string;
-  /** Saved — the parent reloads the list, which is where the row's text comes from. */
-  onSaved: () => void;
+  /** Saved — receives the value that was written, so a caller holding local state
+      (ops rail) can update in place; the /pass/services caller reloads instead. */
+  onSaved: (saved: string) => void;
   onClose: () => void;
 }
 
@@ -53,7 +54,7 @@ export const DescriptionEditModal = ({
     setError(null);
     try {
       await updateTargetSourceDescription(targetSourceId, trimmed);
-      onSaved();
+      onSaved(trimmed);
     } catch {
       // 업스트림 message 를 그대로 싣지 않는다 — 게이트웨이 원문은 사용자의 판단에
       // 아무것도 보태지 못한다. "잠시 후 다시" 라고도 하지 않는다: 이 엔드포인트는

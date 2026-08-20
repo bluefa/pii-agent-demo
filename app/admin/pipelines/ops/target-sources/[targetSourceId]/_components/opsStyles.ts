@@ -109,6 +109,9 @@ export const opsStyles = {
   railMono: '[font-family:var(--pl-font-mono)] font-medium',
   railLink: 'inline-flex cursor-pointer items-center gap-0.5 whitespace-nowrap text-[12px] font-semibold text-[var(--pl-primary)] underline underline-offset-2 decoration-[var(--pl-primary-ring)] hover:decoration-[var(--pl-primary)]',
   railNone: 'text-[12px] text-[var(--pl-text-weak)]',
+  /** 설명 본문 — 레일의 유일한 문단. 표시만 100자에서 접고(전문은 title), 계약의
+      1000자 한도는 수정 다이얼로그가 진다. */
+  railProse: 'mt-1.5 break-words text-[12px] leading-[18px] text-[var(--pl-text-medium)]',
   /** Skeleton bar ON THE WASH — the gray-100 `skeletonBar` vanishes there (same
       value as the wash), so masthead skeletons step one ramp deeper. */
   skeletonWash: 'animate-pulse rounded-[6px] bg-[var(--pl-gray-200)]',

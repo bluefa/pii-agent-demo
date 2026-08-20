@@ -10,6 +10,10 @@
  *
  * Surface rule (R1′): the rail is NOT a card. It stands bare on the canvas;
  * white faces stay reserved for interactive values — 흰 섬 = 터치 대상.
+ *
+ * 오너 08-20 여섯째 조정: the target's free-text 설명 joins the rail as its own
+ * group — display folds at 100 chars (full text in title); the write goes
+ * through the existing DescriptionEditModal (assumed §8 PUT …/description).
  */
 import Link from 'next/link';
 import type { ReactElement, ReactNode } from 'react';
@@ -24,7 +28,11 @@ export interface OpsMetaRailProps {
   jiraTicket: TargetJiraTicket | null;
   /** false = 아직 조회 중 — null 을 "티켓 없음" 으로 단정하지 않는다. */
   ticketLoaded: boolean;
+  onEditDescription: () => void;
 }
+
+/** 표시 접기 — 100자 넘는 설명은 자르고 말줄임표로 알린다. 전문은 title 로. */
+const DESCRIPTION_FOLD = 100;
 
 function Row({ label, children }: { label: string; children: ReactNode }): ReactElement {
   return (
@@ -35,9 +43,19 @@ function Row({ label, children }: { label: string; children: ReactNode }): React
   );
 }
 
-export function OpsMetaRail({ detail, jiraTicket, ticketLoaded }: OpsMetaRailProps): ReactElement {
+export function OpsMetaRail({
+  detail,
+  jiraTicket,
+  ticketLoaded,
+  onEditDescription,
+}: OpsMetaRailProps): ReactElement {
+  const description = (detail.description ?? '').trim();
+  const folded =
+    description.length > DESCRIPTION_FOLD
+      ? `${description.slice(0, DESCRIPTION_FOLD)}…`
+      : description;
   return (
-    <aside className={opsStyles.rail} aria-label="서비스 정보">
+    <aside className={opsStyles.rail} aria-label="서비스 · 설명">
       <section className={opsStyles.railGroup}>
         <h2 className={opsStyles.railLabel}>서비스</h2>
         <Row label="이름">
@@ -83,6 +101,29 @@ export function OpsMetaRail({ detail, jiraTicket, ticketLoaded }: OpsMetaRailPro
               서비스 관리 ↗
             </Link>
           </Row>
+        )}
+      </section>
+      <section className={opsStyles.railGroup}>
+        <div className="flex items-baseline justify-between gap-2">
+          <h2 className={opsStyles.railLabel}>설명</h2>
+          <button
+            type="button"
+            className={opsStyles.railLink}
+            onClick={onEditDescription}
+            title="설명 수정"
+          >
+            {description ? '수정' : '등록하기'}
+          </button>
+        </div>
+        {description ? (
+          <p
+            className={opsStyles.railProse}
+            title={description.length > DESCRIPTION_FOLD ? description : undefined}
+          >
+            {folded}
+          </p>
+        ) : (
+          <p className={cn('mt-1.5', opsStyles.railNone)}>없음</p>
         )}
       </section>
     </aside>

@@ -35,6 +35,7 @@ import { StatusHistoryCard } from '@/app/admin/pipelines/ops/target-sources/[tar
 import { InstallModeModal } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/InstallModeModal';
 import { RoleEditModal } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/RoleEditModal';
 import { RawDataModal } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/RawDataModal';
+import { DescriptionEditModal } from '@/app/services/_components/DescriptionEditModal';
 import { type RoleKind } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/roleMeta';
 import { isSduTarget, normalizeCloudProvider, readSupportRawData } from '@/lib/types';
 import { opsStyles } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/opsStyles';
@@ -53,6 +54,7 @@ type ModalState =
   | { type: 'mode' }
   | { type: 'edit'; kind: RoleKind }
   | { type: 'raw' }
+  | { type: 'description' }
   | null;
 
 export interface OpsTargetViewProps {
@@ -398,9 +400,26 @@ export function OpsTargetView({ targetSourceId, initialTab }: OpsTargetViewProps
           />
         )}
       </div>
-      <OpsMetaRail detail={detail} jiraTicket={jiraTicket} ticketLoaded={ticketLoaded} />
+      <OpsMetaRail
+        detail={detail}
+        jiraTicket={jiraTicket}
+        ticketLoaded={ticketLoaded}
+        onEditDescription={() => setModal({ type: 'description' })}
+      />
       </div>
 
+      {modal?.type === 'description' && (
+        <DescriptionEditModal
+          targetSourceId={targetSourceId}
+          initialDescription={detail.description ?? ''}
+          // 저장값으로 detail 한 칸만 갱신 — 설치모드·실데이터와 같은 로컬 1칸 수법.
+          onSaved={(saved) => {
+            setDetail((d) => (d ? { ...d, description: saved } : d));
+            setModal(null);
+          }}
+          onClose={() => setModal(null)}
+        />
+      )}
       <RawDataModal
         open={modal?.type === 'raw'}
         onClose={() => setModal(null)}

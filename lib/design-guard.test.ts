@@ -409,6 +409,7 @@ const TEXT: TextPair[] = [
   { what: 'ops rail key on the R1 canvas', fg: textOf(classOf(opsSrc, 'railKey')), on: resolve('var(--pl-bg-canvas)') },
   { what: 'ops rail value on the R1 canvas', fg: textOf(classOf(opsSrc, 'railValue')), on: resolve('var(--pl-bg-canvas)') },
   { what: 'ops rail link on the R1 canvas', fg: textOf(classOf(opsSrc, 'railLink')), on: resolve('var(--pl-bg-canvas)') },
+  { what: 'ops rail description prose on the R1 canvas', fg: textOf(classOf(opsSrc, 'railProse')), on: resolve('var(--pl-bg-canvas)') },
   { what: 'ops crumb on the masthead wash', fg: textOf(classOf(opsSrc, 'crumb')), on: resolve('var(--pl-gray-100)') },
   { what: 'ops idle tab on the tab band', fg: textOf(classOf(opsSrc, 'tabIdle')), on: bgOf(classOf(opsSrc, 'tabStrip')) },
   // 마스트헤드 meta line (오너 08-20: 클라우드·설정 + 검증값이 레일에서 복귀) — 워시 위 키·값.
