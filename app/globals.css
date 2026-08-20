@@ -99,6 +99,11 @@
   /* surfaces & text */
   --pl-bg-page: #F9FAFB;
   --pl-bg-card: #FFFFFF;
+  /* R1 ops-target canvas — the v16 body lavender promoted to a token so the ops
+     target-source route can paint it as its route-scoped ground (opsStyles.page).
+     Chroma, not luminance, separates it from the white cards on it (ΔE00 4.12)
+     and from the gray-100 masthead wash above it (ΔE00 2.46). */
+  --pl-bg-canvas: #F4F4FB;
   --pl-bg-inner: #F9FAFB;
   --pl-border: #E4E7EC;
   --pl-border-strong: #D0D5DD;

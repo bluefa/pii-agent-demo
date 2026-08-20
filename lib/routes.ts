@@ -16,7 +16,7 @@ export const OPS_TAB_SLUGS = {
   request: '연동 요청 정보',
   confirm: '확정 정보',
   infra: '인프라 작업',
-  tc: 'Test Connection',
+  tc: '연결 테스트',
   approval: '관리자 승인',
 } as const;
 

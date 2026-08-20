@@ -284,9 +284,9 @@ export default function PipelinesLayout({ children }: { children: ReactNode }) {
     rest.startsWith('ops/services') ||
     // 서비스별 권한 uses the same rail | sheet split, so it needs the same fluid width.
     rest.startsWith('access/services');
-  // Target Source 운영 is fluid for the same reason: its masthead and tab rail are
-  // full-bleed (opsStyles.headCard), so under the cap they stop at 1440px while the
-  // page ground continues — the seam described above, on the busiest ops screen.
+  // Target Source 운영 is fluid for the same reason: its masthead, tab row and
+  // lavender canvas are full-bleed (opsStyles.page), so under the cap they stop at
+  // 1440px while the page ground continues — the seam above, on the busiest ops screen.
   const isOpsTarget = rest.startsWith('ops/target-sources');
   // 게시판은 `content` 기본값을 그대로 쓴다 — 화면 쪽이 `postStyles.sectionPage`
   // 로 자기 여백을 비워 두어서, 제목이 옆 메뉴의 화면들과 같은 x 에 선다.

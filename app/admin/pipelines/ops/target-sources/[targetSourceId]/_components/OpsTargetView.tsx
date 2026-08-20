@@ -1,11 +1,12 @@
 'use client';
 
 /**
- * Target Source 운영 상세 (Figma pYCA7zTWcZysYOpYykuYAN 4:2) — header + tab
- * shell + 진행 상태 tab. Other tabs are visible but disabled until their
- * contents ship (design/pipeline/ops-target-source-app-plan.md §1).
+ * Target Source 운영 상세 (design-benchmark `ops-detail-ia-redesign.md`, R1) —
+ * masthead wash + attached card tabs over a lavender canvas, with the tab
+ * content beside a fixed 236px meta rail (OpsMetaRail) that shows the target's
+ * metadata in the same place on every tab.
  */
-import { useCallback, useEffect, useRef, useState, type ReactElement } from 'react';
+import { Fragment, useCallback, useEffect, useRef, useState, type ReactElement } from 'react';
 import { cn, pipelineStyles } from '@/lib/theme';
 import {
   OPS_TAB_SLUGS,
@@ -27,12 +28,14 @@ import { tcResultStats } from '@/app/admin/pipelines/ops/target-sources/[targetS
 import type { ProcessStatus } from '@/app/admin/pipelines/queue/_components/StepStack';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
 import { OpsHeader } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/OpsHeader';
+import { OpsMetaRail } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/OpsMetaRail';
 import { ProcessCard } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/ProcessCard';
 import { ApprovalHistoryCard } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/ApprovalHistoryCard';
 import { StatusHistoryCard } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/StatusHistoryCard';
 import { InstallModeModal } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/InstallModeModal';
 import { RoleEditModal } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/RoleEditModal';
 import { RawDataModal } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/RawDataModal';
+import { DescriptionEditModal } from '@/app/services/_components/DescriptionEditModal';
 import { type RoleKind } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/roleMeta';
 import { isSduTarget, normalizeCloudProvider, readSupportRawData } from '@/lib/types';
 import { opsStyles } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/opsStyles';
@@ -51,6 +54,7 @@ type ModalState =
   | { type: 'mode' }
   | { type: 'edit'; kind: RoleKind }
   | { type: 'raw' }
+  | { type: 'description' }
   | null;
 
 export interface OpsTargetViewProps {
@@ -233,21 +237,16 @@ export function OpsTargetView({ targetSourceId, initialTab }: OpsTargetViewProps
     // 레일·본문 시작 y 가 움직이지 않게. 데이터에 따라 있고 없는 부분(StepPill·role
     // 행·탭 구성)은 그리지 않는다. h1 은 고정 텍스트라 실물로 그린다.
     return (
-      <div className="relative" aria-busy>
+      <div className={opsStyles.page} aria-busy>
         <span className="sr-only">불러오는 중</span>
-        <div className={opsStyles.headCard}>
-          <div className={opsStyles.header}>
-            <h1 className={pipelineStyles.text.pageTitle}>Target Source 운영</h1>
-            <div className={opsStyles.identityRow}>
-              <div className={cn(opsStyles.skeleton, 'h-11 w-11 flex-none')} />
-              <div className="flex flex-col gap-1.5">
-                <div className={cn(opsStyles.skeletonBar, 'h-5 w-[220px]')} />
-                <div className={cn(opsStyles.skeletonBar, 'h-[18px] w-[300px]')} />
-                {/* 세 번째 막대는 이제 티켓·서비스 관리 곁줄이다 — 협업 채널이 오른쪽
-                    고정폭 블록에서 신원 스택 안으로 내려오면서 그 자리를 잇는다. */}
-                <div className={cn(opsStyles.skeletonBar, 'h-[18px] w-[260px]')} />
-              </div>
-            </div>
+        <div className={opsStyles.masthead}>
+          {/* 정착 프레임의 컨테이너 클래스를 그대로 쓴다 — 도착 시 마스트헤드·탭·
+              본문 시작 y 가 움직이지 않게. 데이터에 따라 있고 없는 부분(StepPill·
+              도장·탭 구성·레일 행)은 그리지 않는다. */}
+          <div className={cn(opsStyles.skeletonWash, 'h-[18px] w-[220px]')} />
+          <div className={opsStyles.idLine}>
+            <div className={cn(opsStyles.skeletonWash, 'h-6 w-6 flex-none rounded-md')} />
+            <div className={cn(opsStyles.skeletonWash, 'h-6 w-[160px]')} />
           </div>
           <div className={opsStyles.tabStrip}>
             {/* 보이지 않는 탭 하나가 레일 높이를 정확히 잡는다 — 탭 구성은 데이터다. */}
@@ -256,8 +255,13 @@ export function OpsTargetView({ targetSourceId, initialTab }: OpsTargetViewProps
             </span>
           </div>
         </div>
-        <div className={opsStyles.content}>
-          <div className={cn(opsStyles.skeleton, 'h-[320px]')} />
+        <div className={opsStyles.body}>
+          <div className={opsStyles.content}>
+            <div className={cn(opsStyles.skeleton, 'h-[320px]')} />
+          </div>
+          <div className={opsStyles.rail}>
+            <div className={cn(opsStyles.skeleton, 'h-[220px]')} />
+          </div>
         </div>
       </div>
     );
@@ -294,8 +298,8 @@ export function OpsTargetView({ targetSourceId, initialTab }: OpsTargetViewProps
   const activeRole = modal?.type === 'edit' ? modal.kind : null;
 
   return (
-    <div>
-      <div className={opsStyles.headCard}>
+    <div className={opsStyles.page}>
+      <div className={opsStyles.masthead}>
         <OpsHeader
           targetSourceId={targetSourceId}
           detail={detail}
@@ -303,8 +307,6 @@ export function OpsTargetView({ targetSourceId, initialTab }: OpsTargetViewProps
           isAws={isAws}
           savedRoleArns={savedRoleArns}
           grantTfExecution={grantTfExecution}
-          jiraTicket={jiraTicket}
-          ticketLoaded={ticketLoaded}
           supportRawData={supportRawData}
           onOpenMode={() => setModal({ type: 'mode' })}
           onOpenEdit={(kind) => setModal({ type: 'edit', kind })}
@@ -314,87 +316,110 @@ export function OpsTargetView({ targetSourceId, initialTab }: OpsTargetViewProps
           {tabs.map((tab) => {
             const active = tab === currentTab;
             return (
-              <button
-                key={tab}
-                type="button"
-                role="tab"
-                aria-selected={active}
-                onClick={() => selectTab(tab)}
-                className={cn(opsStyles.tab, active ? opsStyles.tabActive : opsStyles.tabIdle)}
-              >
-                {tab}
-              </button>
+              <Fragment key={tab}>
+                {/* 보기(읽는 탭)와 도구(작업 탭) 사이 한 칸 — 인프라 작업부터 도구다. */}
+                {tab === OPS_TAB_SLUGS.infra && <span className={opsStyles.tabGap} aria-hidden />}
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={active}
+                  onClick={() => selectTab(tab)}
+                  className={cn(opsStyles.tab, active ? opsStyles.tabActive : opsStyles.tabIdle)}
+                >
+                  {tab}
+                </button>
+              </Fragment>
             );
           })}
         </div>
       </div>
 
-      <div className={opsStyles.content}>
-        {currentTab === '진행 상태' && (
-          <>
-            {processStatus ? (
-              <ProcessCard status={processStatus} />
-            ) : (
-              <section className={pipelineStyles.card.base} aria-label="현재 Process">
-                <h2 className={opsStyles.cardTitle}>현재 Process</h2>
-                <p className={cn(pipelineStyles.text.meta, 'mt-3')}>상태 정보를 불러오지 못했습니다.</p>
-              </section>
-            )}
-            <div className={opsStyles.cardsRow}>
-              <ApprovalHistoryCard targetSourceId={targetSourceId} isIdc={isIdc} />
-              <StatusHistoryCard targetSourceId={targetSourceId} />
-            </div>
-          </>
-        )}
-        {currentTab === '스캔' && (
-          <ScanTab
-            targetSourceId={targetSourceId}
-            detail={detail}
-            // This screen owns the modal the permission card's CTA opens. The
-            // register/edit contract is AWS-only, so no other provider gets it.
-            onEditRole={isAws ? (kind) => setModal({ type: 'edit', kind }) : undefined}
-            credentialReloadKey={savedRoleArns.scan}
-          />
-        )}
-        {currentTab === '연동 요청 정보' && <RequestTab targetSourceId={targetSourceId} detail={detail} />}
-        {currentTab === '확정 정보' && (
-          <ConfirmTab
-            targetSourceId={targetSourceId}
-            detail={detail}
-            processStatus={processStatus}
-            onOpenInfra={() => selectTab('인프라 작업')}
-          />
-        )}
-        {currentTab === '인프라 작업' && (
-          <PipelineTab
-            targetSourceId={targetSourceId}
-            detail={detail}
-            onOpenRequest={() => selectTab('연동 요청 정보')}
-          />
-        )}
-        {currentTab === 'Test Connection' && (
-          <TcTab
-            targetSourceId={targetSourceId}
-            isIdc={isIdc}
-            status={tcStatus}
-            latest={tcLatest}
-            results={tcResults}
-            statusLoaded={tcLoaded}
-            latestFailed={tcLatestFailed}
-            onStatusReload={reloadTc}
-          />
-        )}
-        {currentTab === '관리자 승인' && (
-          <ApprovalTab
-            targetSourceId={targetSourceId}
-            detail={detail}
-            status={tcStatus}
-            stats={tcResultStats(tcResults, tcLatest)}
-            onDecided={retry}
-          />
-        )}
+      <div className={opsStyles.body}>
+        <div className={opsStyles.content}>
+          {currentTab === '진행 상태' && (
+            <>
+              {processStatus ? (
+                <ProcessCard status={processStatus} />
+              ) : (
+                <section className={pipelineStyles.card.base} aria-label="현재 Process">
+                  <h2 className={opsStyles.cardTitle}>현재 Process</h2>
+                  <p className={cn(pipelineStyles.text.meta, 'mt-3')}>상태 정보를 불러오지 못했습니다.</p>
+                </section>
+              )}
+              <div className={opsStyles.cardsRow}>
+                <ApprovalHistoryCard targetSourceId={targetSourceId} isIdc={isIdc} />
+                <StatusHistoryCard targetSourceId={targetSourceId} />
+              </div>
+            </>
+          )}
+          {currentTab === '스캔' && (
+            <ScanTab
+              targetSourceId={targetSourceId}
+              detail={detail}
+              // This screen owns the modal the permission card's CTA opens. The
+              // register/edit contract is AWS-only, so no other provider gets it.
+              onEditRole={isAws ? (kind) => setModal({ type: 'edit', kind }) : undefined}
+              credentialReloadKey={savedRoleArns.scan}
+            />
+          )}
+          {currentTab === '연동 요청 정보' && <RequestTab targetSourceId={targetSourceId} detail={detail} />}
+          {currentTab === '확정 정보' && (
+            <ConfirmTab
+              targetSourceId={targetSourceId}
+              detail={detail}
+              processStatus={processStatus}
+              onOpenInfra={() => selectTab('인프라 작업')}
+            />
+          )}
+          {currentTab === '인프라 작업' && (
+            <PipelineTab
+              targetSourceId={targetSourceId}
+              detail={detail}
+              onOpenRequest={() => selectTab('연동 요청 정보')}
+            />
+          )}
+          {currentTab === '연결 테스트' && (
+            <TcTab
+              targetSourceId={targetSourceId}
+              isIdc={isIdc}
+              status={tcStatus}
+              latest={tcLatest}
+              results={tcResults}
+              statusLoaded={tcLoaded}
+              latestFailed={tcLatestFailed}
+              onStatusReload={reloadTc}
+            />
+          )}
+          {currentTab === '관리자 승인' && (
+            <ApprovalTab
+              targetSourceId={targetSourceId}
+              detail={detail}
+              status={tcStatus}
+              stats={tcResultStats(tcResults, tcLatest)}
+              onDecided={retry}
+            />
+          )}
+        </div>
+        <OpsMetaRail
+          detail={detail}
+          jiraTicket={jiraTicket}
+          ticketLoaded={ticketLoaded}
+          onEditDescription={() => setModal({ type: 'description' })}
+        />
       </div>
 
+      {modal?.type === 'description' && (
+        <DescriptionEditModal
+          targetSourceId={targetSourceId}
+          initialDescription={detail.description ?? ''}
+          // 저장값으로 detail 한 칸만 갱신 — 설치모드·실데이터와 같은 로컬 1칸 수법.
+          onSaved={(saved) => {
+            setDetail((d) => (d ? { ...d, description: saved } : d));
+            setModal(null);
+          }}
+          onClose={() => setModal(null)}
+        />
+      )}
       <RawDataModal
         open={modal?.type === 'raw'}
         onClose={() => setModal(null)}

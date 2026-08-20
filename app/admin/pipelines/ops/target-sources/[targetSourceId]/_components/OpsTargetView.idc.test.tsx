@@ -77,9 +77,18 @@ describe('OpsTargetView — IDC 스캔 탭', () => {
       '연동 요청 정보',
       '확정 정보',
       '인프라 작업',
-      'Test Connection',
+      '연결 테스트',
       '관리자 승인',
     ]);
+  });
+
+  it('IDC 마스트헤드는 환경 행(사내망 · IDC 태그)을 말한다', async () => {
+    getRawTargetSourceDetail.mockResolvedValue(detail({ cloud_provider: 'IDC' }));
+    render(<OpsTargetView targetSourceId={1026} initialTab="진행 상태" />);
+    const env = await screen.findByText('사내망');
+    // 한 행이 셋 다 든다: 키(환경) · 값(사내망) · 태그(IDC).
+    expect(env.parentElement?.textContent).toContain('환경');
+    expect(env.parentElement?.textContent).toContain('IDC');
   });
 
   it('IDC 가 아니면 스캔 탭은 그대로 있다', async () => {

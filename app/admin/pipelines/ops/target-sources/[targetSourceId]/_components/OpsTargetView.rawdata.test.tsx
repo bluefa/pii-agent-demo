@@ -44,9 +44,10 @@ const detail = (over: Record<string, unknown> = {}) => ({
 });
 
 const chip = async (): Promise<string> => {
-  const button = await screen.findByTitle('실데이터 여부 변경');
-  await waitFor(() => expect(button.textContent).toBeTruthy());
-  return button.textContent ?? '';
+  // 값 태그와 수정 버튼이 분리됐다 (넷째 조정) — 값은 태그(title=실데이터 여부)가 든다.
+  const tag = await screen.findByTitle('실데이터 여부');
+  await waitFor(() => expect(tag.textContent).toBeTruthy());
+  return tag.textContent ?? '';
 };
 
 beforeEach(() => {
@@ -58,13 +59,13 @@ describe('OpsTargetView — 실데이터 칩', () => {
   it('true 는 포함', async () => {
     getRawTargetSourceDetail.mockResolvedValue(detail({ supportRawData: true }));
     render(<OpsTargetView targetSourceId={1013} initialTab="진행 상태" />);
-    expect(await chip()).toBe('실데이터포함');
+    expect(await chip()).toBe('포함');
   });
 
   it('false 는 미포함', async () => {
     getRawTargetSourceDetail.mockResolvedValue(detail({ supportRawData: false }));
     render(<OpsTargetView targetSourceId={1013} initialTab="진행 상태" />);
-    expect(await chip()).toBe('실데이터미포함');
+    expect(await chip()).toBe('미포함');
   });
 
   it('값이 없으면 미확인 — 미포함이 아니다', async () => {
@@ -72,12 +73,12 @@ describe('OpsTargetView — 실데이터 칩', () => {
     // 사실을 말하는 것이고, 운영자는 그걸 확인된 값으로 읽는다.
     getRawTargetSourceDetail.mockResolvedValue(detail());
     render(<OpsTargetView targetSourceId={1013} initialTab="진행 상태" />);
-    expect(await chip()).toBe('실데이터미확인');
+    expect(await chip()).toBe('미확인');
   });
 
   it('boolean 이 아닌 값도 미확인이다', async () => {
     getRawTargetSourceDetail.mockResolvedValue(detail({ supportRawData: 'true' }));
     render(<OpsTargetView targetSourceId={1013} initialTab="진행 상태" />);
-    expect(await chip()).toBe('실데이터미확인');
+    expect(await chip()).toBe('미확인');
   });
 });

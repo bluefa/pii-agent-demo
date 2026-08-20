@@ -342,6 +342,17 @@ const SURFACES: SurfacePair[] = [
   // The PR #624 P1: tinting --pl-bg-page made it byte-identical to --pl-gray-100 and the
   // borderless ops-alerts summary tiles (bg gray-100 straight on the page ground) vanished.
   { what: 'ops-alerts tile (gray-100) on page ground', top: resolve('var(--pl-gray-100)'), under: resolve('var(--pl-bg-page)') },
+  // R1 ops target-source detail — a three-tone chrome: gray-100 masthead wash, a
+  // gray-200 tab band closing it, then the lavender canvas (--pl-bg-canvas); layers
+  // separate on chroma/ramp, not luminance. The white faces are the content cards,
+  // the rail's interactive chips, and the active card tab ON the band.
+  { what: 'ops masthead wash on the R1 canvas', top: resolve('var(--pl-gray-100)'), under: resolve('var(--pl-bg-canvas)') },
+  { what: 'white card / rail chip on the R1 canvas', top: '#FFFFFF', under: resolve('var(--pl-bg-canvas)') },
+  { what: 'ops tab band on the masthead wash', top: bgOf(classOf(opsSrc, 'tabStrip')), under: resolve('var(--pl-gray-100)') },
+  { what: 'ops tab band against the R1 canvas', top: bgOf(classOf(opsSrc, 'tabStrip')), under: resolve('var(--pl-bg-canvas)') },
+  { what: 'ops active tab face on the tab band', top: bgOf(classOf(opsSrc, 'tabActive')), under: bgOf(classOf(opsSrc, 'tabStrip')) },
+  { what: 'ops meta editable tag face on the masthead wash', top: bgOf(classOf(opsSrc, 'metaTag')), under: resolve('var(--pl-gray-100)') },
+  { what: 'ops region tag on the masthead wash', top: bgOf(classOf(opsSrc, 'metaTagQuiet')), under: resolve('var(--pl-gray-100)') },
   // The card's hover fill is a surface too — it replaces white under the cursor, so it
   // has to separate from the canvas the card sits on or the hovered card dissolves into
   // the page. `bg-gray-50` here measured 1.20 from the card it replaced.
@@ -387,13 +398,24 @@ const SURFACES: SurfacePair[] = [
 
 type TextPair = { what: string; fg: string; on: string; min?: number };
 const TEXT: TextPair[] = [
-  // 실데이터 칩 — 흰 면 + 획 위의 키·값, 그리고 hover 한 칸(gray-50). hover 는 획이
-  // 움직이지만 면도 한 칸 밝아지므로, 두 글자 짝을 양쪽 면에서 다 잰다. 12px 이라
-  // 큰 글자 예외가 없다: 네 짝 모두 4.5:1 을 넘어야 한다.
-  { what: '실데이터 칩 키 on the chip face', fg: textOf(classOf(opsSrc, 'rawDataToggleKey')), on: bgOf(classOf(opsSrc, 'rawDataTag')) },
-  { what: '실데이터 칩 키 on the chip hover fill', fg: textOf(classOf(opsSrc, 'rawDataToggleKey')), on: hoverBgOf(classOf(opsSrc, 'rawDataToggle')) },
-  { what: '실데이터 칩 값 on the chip face', fg: textOf(classOf(opsSrc, 'rawDataTag')), on: bgOf(classOf(opsSrc, 'rawDataTag')) },
-  { what: '실데이터 칩 값 on the chip hover fill', fg: textOf(classOf(opsSrc, 'rawDataTag')), on: hoverBgOf(classOf(opsSrc, 'rawDataToggle')) },
+  // 실데이터·설치모드 태그 — 흰 면 + 획 위의 값. 동작은 옆의 수정 링크가 지므로
+  // (오너 08-20 넷째 조정) 태그에는 hover 채움이 없다. 12px 이라 큰 글자 예외가
+  // 없다. (키는 행이 말하므로 태그 안에는 값만 산다 — R1.)
+  { what: '메타 태그 값 on the tag face', fg: textOf(classOf(opsSrc, 'metaTag')), on: bgOf(classOf(opsSrc, 'metaTag')) },
+  { what: '리전 태그 값 on the gray-200 tag', fg: textOf(classOf(opsSrc, 'metaTagQuiet')), on: bgOf(classOf(opsSrc, 'metaTagQuiet')) },
+  // R1 meta rail — bare on the canvas (no card), so every run of rail text answers to
+  // --pl-bg-canvas directly; the masthead's crumb and idle tabs answer to the wash.
+  { what: 'ops rail group label on the R1 canvas', fg: textOf(classOf(opsSrc, 'railLabel')), on: resolve('var(--pl-bg-canvas)') },
+  { what: 'ops rail key on the R1 canvas', fg: textOf(classOf(opsSrc, 'railKey')), on: resolve('var(--pl-bg-canvas)') },
+  { what: 'ops rail value on the R1 canvas', fg: textOf(classOf(opsSrc, 'railValue')), on: resolve('var(--pl-bg-canvas)') },
+  { what: 'ops rail link on the R1 canvas', fg: textOf(classOf(opsSrc, 'railLink')), on: resolve('var(--pl-bg-canvas)') },
+  { what: 'ops rail description prose on the R1 canvas', fg: textOf(classOf(opsSrc, 'railProse')), on: resolve('var(--pl-bg-canvas)') },
+  { what: 'ops crumb on the masthead wash', fg: textOf(classOf(opsSrc, 'crumb')), on: resolve('var(--pl-gray-100)') },
+  { what: 'ops idle tab on the tab band', fg: textOf(classOf(opsSrc, 'tabIdle')), on: bgOf(classOf(opsSrc, 'tabStrip')) },
+  // 마스트헤드 meta line (오너 08-20: 클라우드·설정 + 검증값이 레일에서 복귀) — 워시 위 키·값.
+  { what: 'ops meta key on the masthead wash', fg: textOf(classOf(opsSrc, 'metaKey')), on: resolve('var(--pl-gray-100)') },
+  { what: 'ops meta value on the masthead wash', fg: textOf(classOf(opsSrc, 'metaValue')), on: resolve('var(--pl-gray-100)') },
+  { what: 'ops role edit link on the masthead wash', fg: textOf(classOf(opsSrc, 'railLink')), on: resolve('var(--pl-gray-100)') },
   { what: 'rail section label on rail', fg: textOf(classOf(railBlock, 'sectionLabel')), on: rail },
   { what: 'rail footer page on rail', fg: textOf(classOf(railBlock, 'footerPage')), on: rail },
   { what: 'rail pager glyph on rail', fg: textOf(classOf(railBlock, 'pagerBtn')), on: rail },
