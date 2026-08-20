@@ -5,7 +5,7 @@ import { parseTargetSourceId } from '@/app/api/_lib/target-source';
 import { problemResponse } from '@/app/api/_lib/problem';
 
 // ASSUMED CONTRACT — docs/api/ops-assumed-contracts.md §10.
-// GET /install/monitoring/dag-status/target-sources/{id} → DagStatusResponse
+// GET /install/v1/target-sources/{id}/dag-status → DagStatusResponse
 // (camelCase wire verbatim — no case boundary, no generated schema yet).
 export const GET = withV1(async (_request, { requestId, params }) => {
   const parsed = parseTargetSourceId(params.targetSourceId, requestId);

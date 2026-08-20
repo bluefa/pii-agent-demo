@@ -38,7 +38,7 @@
 핵심 구현 결정:
 - 활성화는 허용 목록으로만: `healthStatus === 'HEALTHY'`. 로딩·실패·미지 enum 전부 잠금 (진리표 7상태, `approvalGate.ts` + 테스트 11개).
 - 재실행 요청은 TC 완료 이후 상시 마운트 — UNHEALTHY의 유일한 탈출 CTA. 단 "재실행이 헬스를 고친다"고 말하지 않음(계약이 말하지 않는 인과).
-- 계약은 swagger 미랜딩 → mock-first, `docs/api/ops-assumed-contracts.md` §10 (camelCase wire, `/install/monitoring` base).
+- 계약은 swagger 미랜딩 → mock-first, `docs/api/ops-assumed-contracts.md` §10 (camelCase wire, 표준 `/install/v1` base — 최초 스케치의 `/install/monitoring` 경로는 2026-08-20 오너 정정).
 
 ## 2차 PR — 시안 C+D+E 구현 (2026-08-19)
 

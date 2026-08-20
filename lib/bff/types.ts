@@ -415,7 +415,8 @@ export interface BffClient {
     getTargetSourceList: (query: string | undefined, page: number, size: number) => Promise<OpsTargetSourceListPageWire>;
     /**
      * DAG weekly health status (assumed §10) — the 관리자 승인 gate's second
-     * condition. camelCase wire verbatim, path base /install/monitoring.
+     * condition. camelCase wire verbatim; standard /install/v1 base, nested
+     * under the target source.
      */
     getDagStatus: (id: number) => Promise<DagStatusResponse>;
     /**

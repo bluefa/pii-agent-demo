@@ -374,19 +374,10 @@ export const httpBff: BffClient = {
       }),
     getTargetSourceList: (query, page, size) =>
       getSnakeRaw(`/admin/ops/target-sources${buildQuery({ query, page, size })}`),
-    // Assumed §10 — the one endpoint outside the /install/v1 base (path is
-    // /install/monitoring per the owner sketch), so it cannot go through
-    // toUpstreamInfraApiPath. Wire is camelCase verbatim: no case boundary.
-    getDagStatus: async (id) => {
-      const fullPath = `${BFF_URL}/install/monitoring/dag-status/target-sources/${id}`;
-      console.log(`[BFF] → GET ${fullPath}`);
-      const res = await fetch(fullPath, {
-        headers: { Accept: 'application/json', ...(await authHeaders()) },
-      });
-      console.log(`[BFF] ← GET ${fullPath} (${res.status})`);
-      if (!res.ok) await throwBffError(res);
-      return res.json();
-    },
+    // Assumed §10 — standard /install/v1 base, nested under its target source like
+    // every sibling. `raw` because the wire is camelCase verbatim: there is no case
+    // boundary on this path, so camelCaseKeys has nothing to do.
+    getDagStatus: (id) => get(`/target-sources/${id}/dag-status`, { raw: true }),
     // Assumed §11 — this one DOES sit on the /install/v1 base. The body is a bare
     // string (the DAG's URL), so `raw` keeps camelCaseKeys away from it.
     getAirflowHost: (databaseUri) =>

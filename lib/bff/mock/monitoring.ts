@@ -284,7 +284,7 @@ const airflowHost = (databaseUri: string): string => {
 };
 
 export const mockMonitoring = {
-  // GET /install/monitoring/dag-status/target-sources/{id} (assumed §10).
+  // GET /install/v1/target-sources/{id}/dag-status (assumed §10).
   getDagStatus: async (targetSourceId: number) => NextResponse.json(buildResponse(targetSourceId)),
   // GET /pipeline-manager/airflow-host?databaseUri=… (assumed §11) — 문자열 하나.
   // moderation 계열은 502 로 터진다: 조회 실패는 "주소가 없다"(rollup 의 빈 문자열)와
