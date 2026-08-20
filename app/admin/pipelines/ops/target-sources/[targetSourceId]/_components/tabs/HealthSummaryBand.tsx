@@ -44,7 +44,7 @@ export interface HealthSummaryBandProps {
   data: DagStatusResponse;
   /** Client-side fetch time — the response has no timestamp of its own. */
   fetchedAt: string;
-  /** 실패 칩 → 주간 보드의 실패 필터 착지 (시안 E). 실패 0건이면 그릴 것이 없다. */
+  /** 실패 숫자 → 주간 보드 패널을 실패 필터로 연다. 실패 0건이면 그릴 것이 없다. */
   onShowFailed?: () => void;
 }
 

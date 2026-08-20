@@ -12,13 +12,13 @@
  * 연결 상태는 이 API(모니터링)의 값이라 열 이름이 출처를 밝힌다 — Test Connection
  * 탭의 최신 판정과 출처가 다르다(§06-5).
  *
- * "DB 보기"는 지속 선택이 아니라 one-shot 착지다: 아래 주간 보드를 그 에이전트로
- * 스코프해서 스크롤한다. 보드가 스코프를 칩으로 보여 주고 스스로 해제할 수 있으므로,
+ * "DB 보기"는 지속 선택이 아니라 one-shot 진입이다: 주간 보드 패널을 그 에이전트로
+ * 스코프해서 연다. 보드가 스코프를 칩으로 보여 주고 스스로 해제할 수 있으므로,
  * 이 표는 선택 상태를 들고 있지 않는다(두 컴포넌트의 상태 동기화를 만들지 않는 값싼 쪽).
  *
  * 에이전트가 1개뿐인 대상에선 이 층을 그리지 않는다 — 층은 데이터가 만들 때만
  * (마운트 판단은 ApprovalTab). 30개 규모(1801)를 위해 페이지 10; floor 를 명시해
- * 마지막 페이지가 짧아도 아래 보드가 따라 오르지 않는다.
+ * 마지막 페이지가 짧아도 아래 요약 라인이 따라 오르지 않는다.
  */
 import { useMemo, useState, type ReactElement } from 'react';
 import { cn, pipelineStyles } from '@/lib/theme';
@@ -73,7 +73,7 @@ function WeeklyCell({ agent }: { agent: DagAgentSummary }): ReactElement {
 
 export interface AgentDagTableProps {
   data: DagStatusResponse;
-  /** 아래 주간 보드를 이 에이전트로 스코프해 착지시킨다. */
+  /** 주간 보드 패널을 이 에이전트로 스코프해 연다. */
   onViewDbs: (agentId: string) => void;
 }
 

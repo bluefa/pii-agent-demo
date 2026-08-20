@@ -25,7 +25,7 @@
  * The result summary is carried here (counts + 완료 확인 시각) so the decision does
  * not require hopping back to Test Connection to recall what is being approved.
  */
-import { useEffect, useRef, useState, type ReactElement, type ReactNode } from 'react';
+import { useMemo, useState, type ReactElement, type ReactNode } from 'react';
 import { cn, pipelineStyles } from '@/lib/theme';
 import { fmtDateTimeSec } from '@/lib/pipeline/format';
 import { useApiAction, useApiMutation } from '@/app/hooks/useApiMutation';
@@ -35,6 +35,7 @@ import { getDagStatus } from '@/app/lib/api/ops';
 import type { RawTargetSourceDetail } from '@/app/lib/api/pipeline-target';
 import type { TestConnectionStatusRow } from '@/lib/types/task-queue';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
+import { ModalShell } from '@/app/admin/pipelines/_components/ModalShell';
 import { Icon } from '@/app/admin/pipelines/_components/icons';
 import { usePlToast } from '@/app/admin/pipelines/_components/usePlToast';
 import { opsStyles } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/opsStyles';
@@ -48,6 +49,7 @@ import type { TcResultStats } from '@/app/admin/pipelines/ops/target-sources/[ta
 import {
   TC_COMPLETED,
   TC_REJECTED,
+  aggregateDagStatus,
   foldApprovalHead,
   healthVerdict,
   type DagFetch,
@@ -56,6 +58,8 @@ import { HealthSummaryBand } from '@/app/admin/pipelines/ops/target-sources/[tar
 import { AgentDagTable } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/AgentDagTable';
 import { DbWeeklyBoard } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/DbWeeklyBoard';
 import type { BoardFilter } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/dagBoard';
+
+const n = (value: number): string => value.toLocaleString('ko-KR');
 
 type GateRowState = 'ok' | 'err' | 'warn' | 'pending';
 
@@ -151,23 +155,18 @@ export function ApprovalTab({
   );
   const retryDag = (): void => setDagReload((k) => k + 1);
 
-  // 주간 보드 착지 (시안 E) — 요약 밴드의 실패 칩과 에이전트 표의 "DB 보기"가
-  // 보드를 프리셋으로 리마운트(key=seq)한다. 스크롤은 커밋 이후(effect)여야 한다:
-  // 클릭 시점에 걸면 리마운트로 문서 높이가 바뀌는 것과 경합해 중간에 끊긴다.
-  const boardRef = useRef<HTMLDivElement>(null);
-  const [landing, setLanding] = useState<{
-    seq: number;
-    filter?: BoardFilter;
-    agentId?: string | null;
-  }>({ seq: 0 });
-  const landOnBoard = (preset: { filter?: BoardFilter; agentId?: string }): void =>
-    setLanding((l) => ({ seq: l.seq + 1, filter: preset.filter, agentId: preset.agentId ?? null }));
-  useEffect(() => {
-    if (landing.seq === 0) return; // 진입 시(착지 아님)에는 스크롤하지 않는다.
-    // instant — smooth 는 rAF 기반이라 비포커스 탭에서 한 픽셀도 진행되지 않고,
-    // reduced-motion 사용자에게도 착지는 이동이지 연출이 아니다.
-    boardRef.current?.scrollIntoView({ block: 'start' });
-  }, [landing.seq]);
+  // 논리 DB 주간 보드 — 우측 오버레이 패널(벤치마크 시안 A). 진입 3곳(밴드의 실패
+  // 숫자 · 에이전트 표의 "DB 보기" · 요약 라인 버튼)이 프리셋과 함께 연다. ModalShell
+  // 은 닫히면 자식을 언마운트하므로 매 오픈이 새 마운트 — 프리셋은 마운트 1회 소비로
+  // 충분하고, 옛 착지(스크롤 이동) 코드는 패널이 대체한다.
+  const [board, setBoard] = useState<{ filter: BoardFilter; agentId?: string } | null>(null);
+  const closeBoard = (): void => setBoard(null);
+
+  // 요약 라인(보드의 본문 잔류물)이 나르는 버킷 집계 — 밴드와 같은 파생을 응답당 1회.
+  const agg = useMemo(
+    () => (dag.phase === 'loaded' ? aggregateDagStatus(dag.data) : null),
+    [dag],
+  );
 
   // On failure the modal stays open and the error surfaces via the section toast.
   const rerun = useApiMutation((reason: string) => rejectTestConnection(targetSourceId, reason), {
@@ -321,31 +320,76 @@ export function ApprovalTab({
       </section>
 
       {/* 관측층 — 응답이 있어야만 층이 생긴다. L1 요약 밴드 → L2 에이전트 표
-          (에이전트가 여럿일 때만 — 층은 데이터가 만들 때만) → L3 논리 DB 주간 보드.
-          UNHEALTHY 의 원인 추적: 실패 칩·"DB 보기"가 보드 필터로 착지한다. */}
+          (에이전트가 여럿일 때만 — 층은 데이터가 만들 때만) → L3 요약 라인. 1,500행
+          보드 자체는 우측 오버레이 패널의 것(시안 A): 실패 숫자·"DB 보기"·현황 보기
+          가 프리셋과 함께 연다. */}
       {tcCompleted && dag.phase === 'loaded' && (
         <>
           <HealthSummaryBand
             data={dag.data}
             fetchedAt={dag.fetchedAt}
-            onShowFailed={() => landOnBoard({ filter: 'failed' })}
+            onShowFailed={() => setBoard({ filter: 'failed' })}
           />
           {dag.data.agents.length > 1 && (
             <AgentDagTable
               data={dag.data}
               // "DB 보기"가 약속하는 것은 그 에이전트의 DB 전부다 — 실패 선적용은
-              // UNHEALTHY 진입과 실패 칩 착지의 것.
-              onViewDbs={(agentId) => landOnBoard({ agentId, filter: 'ALL' })}
+              // 실패 숫자 진입의 것.
+              onViewDbs={(agentId) => setBoard({ agentId, filter: 'ALL' })}
             />
           )}
-          <div ref={boardRef} className="scroll-mt-4">
-            <DbWeeklyBoard
-              key={landing.seq}
-              data={dag.data}
-              initialFilter={landing.filter}
-              initialAgentId={landing.agentId ?? null}
-            />
-          </div>
+          {agg && (
+            // 보드의 본문 잔류물 — 문패 한 줄: 버킷 요약 + 진입 버튼. 표는 패널에.
+            <section className={pipelineStyles.card.base} aria-label="논리 DB 주간 현황 요약">
+              <div className="flex items-center justify-between gap-4">
+                <div className="min-w-0">
+                  <h2 className={opsStyles.cardTitle}>논리 DB 주간 현황</h2>
+                  <p className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-[12px] text-[var(--pl-text-weak)]">
+                    <span>
+                      논리 DB <b className="font-semibold text-[var(--pl-text-strong)]">{n(agg.dbTotal)}</b>
+                    </span>
+                    <span className={agg.failed > 0 ? 'text-[var(--pl-err-text)]' : undefined}>
+                      실패 <b className="font-semibold">{n(agg.failed)}</b>
+                    </span>
+                    <span>
+                      미스케줄 <b className="font-semibold text-[var(--pl-text-strong)]">{n(agg.unscheduled)}</b>
+                    </span>
+                    {agg.running > 0 && (
+                      <span>
+                        진행 중 <b className="font-semibold text-[var(--pl-text-strong)]">{n(agg.running)}</b>
+                      </span>
+                    )}
+                    <span>
+                      이번 주 성공 <b className="font-semibold text-[var(--pl-text-strong)]">{n(agg.succeeded)}</b>
+                    </span>
+                  </p>
+                </div>
+                <PlButton
+                  variant="secondary"
+                  className="flex-none"
+                  onClick={() => setBoard({ filter: 'ALL' })}
+                >
+                  현황 보기
+                </PlButton>
+              </div>
+            </section>
+          )}
+
+          <ModalShell
+            open={board !== null}
+            onClose={closeBoard}
+            variant="panel"
+            labelledBy="db-board-title"
+          >
+            {board !== null && (
+              <DbWeeklyBoard
+                data={dag.data}
+                initialFilter={board.filter}
+                initialAgentId={board.agentId ?? null}
+                onClose={closeBoard}
+              />
+            )}
+          </ModalShell>
         </>
       )}
 
