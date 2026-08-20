@@ -12,6 +12,7 @@ import type {
 } from '@/app/lib/api';
 import type { SecretKey } from '@/lib/types';
 import { foldAgentStatuses, type UnitTcStatus } from '@/lib/test-connection-summary';
+import { resultUnitId } from '@/lib/resource-grouping';
 
 /**
  * 리소스 한 건의 연결 판정.
@@ -326,4 +327,51 @@ export function ldbCount(
 ): number | null {
   if (!row || verdict !== 'SUCCESS') return null;
   return tab === 'inc' ? row.includedCount : row.excludedCount;
+}
+
+/**
+ * 표 한 행 = 연결 테스트가 실제로 보고하는 단위.
+ *
+ * Athena 는 Step 4 부터 리전이 곧 리소스다 — 판정도 논리 DB 건수도
+ * `athena_region_resource_id`(`athena:<acct>:<region>/<catalog>`) 로만 오고,
+ * 데이터베이스별로는 오지 않는다. 확정 스냅샷은 DB 단위라 DB 의 자기 id 로 조회하면
+ * 어느 결과에도 닿지 못한다 — 연결 상태·실패 사유·Pod 로그가 전부 무보고(—)로 보이고,
+ * 같은 리전이 여러 행을 차지해 "테스트가 4번 돌았다"고 읽힌다.
+ *
+ * 사용자 화면 Step 5(ConnectionTestCard)·Step 6·7(ConfirmedIntegrationTable)이 이미
+ * 같은 키로 접는다. 키는 계약 필드 그대로 쓰고(`resultUnitId`), 아무것도 파싱하지 않는다.
+ */
+export interface ConfirmedUnit {
+  /** 판정·논리 DB 를 조회하는 키 — Athena 는 리전 id, 그 외는 리소스 자신의 id. */
+  unitId: string;
+  /** 이 단위가 덮는 확정 행 — 한 건, 또는 한 리전의 데이터베이스 전부. */
+  members: ConfirmedIntegrationResourceItem[];
+  /** 리전을 대표하는 행인가 — 자식(데이터베이스) 목록을 접었다 펴는 행. */
+  folded: boolean;
+}
+
+export function toConfirmedUnits(
+  rows: readonly ConfirmedIntegrationResourceItem[],
+): ConfirmedUnit[] {
+  const units: ConfirmedUnit[] = [];
+  const byUnitId = new Map<string, ConfirmedUnit>();
+  for (const row of rows) {
+    const unitId = resultUnitId({
+      resourceId: row.resource_id,
+      athenaRegionResourceId: row.athena_region_resource_id,
+    });
+    const existing = byUnitId.get(unitId);
+    if (existing) {
+      existing.members.push(row);
+      continue;
+    }
+    const unit: ConfirmedUnit = {
+      unitId,
+      members: [row],
+      folded: !!row.athena_region_resource_id,
+    };
+    byUnitId.set(unitId, unit);
+    units.push(unit);
+  }
+  return units;
 }

@@ -24,13 +24,14 @@
  * fetch failure adds a 다시 시도 affordance to that same empty state so the two are
  * never confused with "확정된 리소스가 0건".
  */
-import { useMemo, useState, type ReactElement } from 'react';
+import { Fragment, useMemo, useState, type ReactElement } from 'react';
 import { cn, idcStyles, pipelineStyles } from '@/lib/theme';
 import {
   updateResourceCredential,
   type ConfirmedIntegrationResourceItem,
 } from '@/app/lib/api';
 import { isEc2Instance, type SecretKey } from '@/lib/types';
+import { GROUPED_CHILD_KIND_LABEL } from '@/lib/resource-grouping';
 import { isRdsCluster } from '@/lib/rds-instances';
 import type { TcResultRow } from '@/app/lib/api/task-queue-tc';
 import { getDatabaseShortLabel } from '@/app/components/ui/DatabaseIcon';
@@ -59,6 +60,7 @@ import {
   credentialEntries,
   filterConfirmedRows,
   ldbCount,
+  toConfirmedUnits,
   type TcResourceFact,
   type TcVerdict,
 } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/logic';
@@ -315,6 +317,12 @@ export function ConfirmedInfoCard({
   const [dbTypeFilter, setDbTypeFilter] = useState('');
   const [regionFilter, setRegionFilter] = useState('');
   const [page, setPage] = useState(0);
+  /** 펼쳐 둔 리전 단위 — 닫힘이 기본값이다(표는 단위 목록이지 데이터베이스 목록이 아니다). */
+  const [expanded, setExpanded] = useState<readonly string[]>([]);
+  const toggleUnit = (unitId: string): void =>
+    setExpanded((prev) =>
+      prev.includes(unitId) ? prev.filter((id) => id !== unitId) : [...prev, unitId],
+    );
 
   const tcByResourceId = new Map(tcResults.map((row) => [row.resourceId, row]));
 
@@ -334,11 +342,15 @@ export function ConfirmedInfoCard({
     [rows, query, dbTypeFilter, regionFilter],
   );
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  // 페이지도 카운트도 행이 아니라 단위로 센다 — 접힌 Athena 리전은 데이터베이스를 몇 개
+  // 담든 한 단위이고, 행으로 자르면 한 리전이 페이지 경계에서 갈려 부모 행이 두 번 그려진다.
+  const units = useMemo(() => toConfirmedUnits(filtered), [filtered]);
+  const totalUnits = useMemo(() => toConfirmedUnits(rows).length, [rows]);
+  const totalPages = Math.max(1, Math.ceil(units.length / PAGE_SIZE));
   // Narrowing the filter can push the current page past the end — used as-is it renders empty.
   const safePage = Math.min(page, totalPages - 1);
-  const pageRows = filtered.slice(safePage * PAGE_SIZE, safePage * PAGE_SIZE + PAGE_SIZE);
-  const firstIndex = filtered.length === 0 ? 0 : safePage * PAGE_SIZE + 1;
+  const pageUnits = units.slice(safePage * PAGE_SIZE, safePage * PAGE_SIZE + PAGE_SIZE);
+  const firstIndex = units.length === 0 ? 0 : safePage * PAGE_SIZE + 1;
 
   // 생성 시각 + 배정 건수 ride along in the assign modal: with 20+ credentials the
   // name alone rarely settles "which one is this", and those are the only other
@@ -494,7 +506,7 @@ export function ConfirmedInfoCard({
                 </tr>
               </thead>
               <tbody className="[&>tr:last-child>td]:border-b-0">
-                {pageRows.length === 0 && (
+                {pageUnits.length === 0 && (
                   <tr>
                     <td
                       colSpan={isIdc ? 8 : 10}
@@ -504,12 +516,21 @@ export function ConfirmedInfoCard({
                     </td>
                   </tr>
                 )}
-                {pageRows.map((row, index) => {
-                  const tc = tcByResourceId.get(row.resource_id);
-                  const fact = facts.get(row.resource_id);
+                {pageUnits.map((unit, index) => {
+                  // 판정·논리 DB 는 단위 id 로 조회한다 — Athena 는 그 id 가 리전이고,
+                  // 데이터베이스 자기 id 로는 어느 결과에도 닿지 못한다(toConfirmedUnits).
+                  const [row] = unit.members;
+                  const tc = tcByResourceId.get(unit.unitId);
+                  const fact = facts.get(unit.unitId);
                   const verdict = fact?.verdict;
+                  const open = expanded.includes(unit.unitId);
+                  // 건수가 온 키로 관리 화면도 연다 — 리전 단위 건수를 눌러 그 리전의
+                  // 데이터베이스 한 건을 여는 일이 없도록.
+                  const openLdb = (): void =>
+                    setLdbRow(unit.folded ? { ...row, resource_id: unit.unitId } : row);
                   return (
-                    <tr key={`${row.resource_id}-${index}`} className={table.rowHover}>
+                    <Fragment key={`${unit.unitId}-${index}`}>
+                    <tr className={table.rowHover}>
                       {isIdc ? (
                         <td className={CELL}>
                           <IdcIdentityCell row={row} />
@@ -517,17 +538,43 @@ export function ConfirmedInfoCard({
                       ) : (
                         <>
                           <td className={CELL}>
-                            <ResourceNameCell
-                              value={row.resource_name || null}
-                              resourceType={row.resource_type}
-                            />
+                            {/* 접힌 행은 리전을 가리킨다 — 리전에는 Resource Name 이 없으므로
+                                이 칸이 펼침 손잡이와 엔진 이름을 대신 든다. 사용자 화면
+                                Step 5 와 같은 문법이다. */}
+                            {unit.folded ? (
+                              <button
+                                type="button"
+                                aria-expanded={open}
+                                aria-label={`${row.database_region ?? ''} 데이터베이스 목록 ${open ? '접기' : '펼치기'}`}
+                                onClick={() => toggleUnit(unit.unitId)}
+                                className="inline-flex items-center gap-1.5 rounded text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--pl-primary)]"
+                              >
+                                <Icon
+                                  name="chev-r"
+                                  size="sm"
+                                  className={cn(
+                                    'flex-none text-[var(--pl-text-weak)] transition-transform',
+                                    open && 'rotate-90',
+                                  )}
+                                />
+                                <span className="font-mono text-[14px]">
+                                  {row.database_type ? getDatabaseShortLabel(row.database_type) : '—'}
+                                </span>
+                              </button>
+                            ) : (
+                              <ResourceNameCell
+                                value={row.resource_name || null}
+                                resourceType={row.resource_type}
+                              />
+                            )}
                           </td>
                           <td className={CELL}>
                             {/* Step 1·2·3 grammar: truncated to `Prefix…` like the name
-                                column, tip on hover, copy button on row hover. */}
-                            {row.resource_id ? (
+                                column, tip on hover, copy button on row hover.
+                                접힌 행이 다는 것은 결과가 실제로 키로 쓰는 id — 리전 id 다. */}
+                            {unit.unitId ? (
                               <ResourceIdCell
-                                value={row.resource_id}
+                                value={unit.unitId}
                                 label="Resource ID"
                                 maxWidthClass="max-w-[200px]"
                               />
@@ -565,14 +612,20 @@ export function ConfirmedInfoCard({
                         />
                       </td>
                       <td className={CELL}>
-                        <CountCell row={tc} tab="inc" verdict={verdict} onOpen={() => setLdbRow(row)} />
+                        <CountCell row={tc} tab="inc" verdict={verdict} onOpen={openLdb} />
                       </td>
                       <td className={CELL}>
-                        <CountCell row={tc} tab="exc" verdict={verdict} onOpen={() => setLdbRow(row)} />
+                        <CountCell row={tc} tab="exc" verdict={verdict} onOpen={openLdb} />
                       </td>
                       <td className={CELL}>
-                        {/* Credential is addressed by resource id — no id, no assignment. */}
-                        {row.resource_id ? (
+                        {/* Credential is addressed by resource id — no id, no assignment.
+                            접힌 행은 리전이라 배정할 리소스가 하나로 정해지지 않고, 애초에
+                            Athena 는 IAM 으로 붙어 Credential 이 필요 없다(Step 5 와 같은 말). */}
+                        {unit.folded ? (
+                          <span className="whitespace-nowrap text-[12px] text-[var(--pl-text-weak)]">
+                            불필요
+                          </span>
+                        ) : row.resource_id ? (
                           <div className="w-[190px]">
                             <button
                               type="button"
@@ -611,6 +664,36 @@ export function ConfirmedInfoCard({
                         )}
                       </td>
                     </tr>
+                    {/* 데이터베이스 목록 — 이름과, 그 이름이 무엇인지(Database Type 열이
+                        Athena → Database 로 읽힌다). 나머지 칸은 비운다: 리전 행이 이미
+                        답했고 데이터베이스마다 달라지는 값이 아니다. */}
+                    {unit.folded
+                      && open
+                      && unit.members.map((db) => (
+                        <tr key={db.resource_id} className={table.rowHover}>
+                          <td className={cn(CELL, 'pl-[58px]')}>
+                            {db.resource_name ? (
+                              <span className="block truncate font-mono text-[14px]">
+                                {db.resource_name}
+                              </span>
+                            ) : (
+                              <Dash />
+                            )}
+                          </td>
+                          <td className={CELL}>
+                            <ResourceIdCell
+                              value={db.resource_id}
+                              label="Resource ID"
+                              maxWidthClass="max-w-[200px]"
+                            />
+                          </td>
+                          <td className={cn(CELL, 'whitespace-nowrap text-[var(--pl-text-weak)]')}>
+                            {GROUPED_CHILD_KIND_LABEL}
+                          </td>
+                          <td className={CELL} colSpan={7} />
+                        </tr>
+                      ))}
+                    </Fragment>
                   );
                 })}
               </tbody>
@@ -619,8 +702,8 @@ export function ConfirmedInfoCard({
           {/* Range and pager share a line — the grammar the Agent별 결과 list above uses. */}
           <div className="mt-3 flex items-center justify-between gap-3">
             <p className="text-[12px] tabular-nums text-[var(--pl-text-weak)]">
-              {firstIndex}–{safePage * PAGE_SIZE + pageRows.length} / {filtered.length}
-              {filtered.length !== rows.length && ` (전체 ${rows.length})`}
+              {firstIndex}–{safePage * PAGE_SIZE + pageUnits.length} / {units.length}
+              {units.length !== totalUnits && ` (전체 ${totalUnits})`}
             </p>
             <OpsPagination page={safePage} totalPages={totalPages} onChange={setPage} />
           </div>
