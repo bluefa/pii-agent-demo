@@ -45,6 +45,7 @@ import {
 import {
   BUCKET_LABEL,
   FIXED_BOARD_FILTERS,
+  abbrevDagName,
   agentDisplayName,
   countBuckets,
   dayCellKind,
@@ -320,17 +321,23 @@ export function DbWeeklyBoard({
                       {row.db.lastSuccessAt ? fmtDateTime(row.db.lastSuccessAt) : <Dash />}
                     </td>
                     {/* DAG 는 행을 실행하는 주체의 이름 — 판정이 아니라 참조라 오른쪽
-                        끝, 흐린 mono. 스케줄이 없는 행에는 가리킬 DAG 자체가 없다. */}
+                        끝, 흐린 mono. 이름이 없는 행은 대시 대신 말로: 대시는 "칸이
+                        비었다"까지만 말하고 왜 비었는지를 말하지 않는다. */}
                     <td className={cn(opsStyles.table.cell, 'max-w-[200px]')}>
                       {row.db.dagName ? (
                         <p
                           className="truncate font-mono text-[12px] text-[var(--pl-text-weak)]"
                           title={row.db.dagName}
                         >
-                          {row.db.dagName}
+                          {abbrevDagName(row.db.dagName)}
                         </p>
                       ) : (
-                        <Dash />
+                        <p
+                          className="text-[12px] text-[var(--pl-text-weak)]"
+                          title="이 논리 DB 를 실행한 DAG 가 응답에 없어요"
+                        >
+                          실행 기록 없음
+                        </p>
                       )}
                     </td>
                   </tr>

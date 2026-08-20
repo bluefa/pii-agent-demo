@@ -69,6 +69,8 @@ interface DbSpec {
    * 정말 서로 다른 필드에 물려 있는지 보려면 다른 값이 나오는 행이 있어야 한다.
    */
   schema?: string | null;
+  /** DAG id 직접 지정 — 300자짜리 실제 이름을 픽스처가 만들 수 있어야 한다. */
+  dag?: string;
 }
 
 const buildDb = (spec: DbSpec, days: string[]): DagDatabaseStatus => {
@@ -80,7 +82,10 @@ const buildDb = (spec: DbSpec, days: string[]): DagDatabaseStatus => {
     databaseName: spec.name,
     schemaName: spec.schema !== undefined ? spec.schema : spec.name,
     // 매핑 없는 uri = 7일 전부 NOT_SCHEDULED and no DAG reference (PR #707 rule).
-    dagName: spec.pattern === 'unscheduled' ? null : `pii_scan_${spec.name ?? `db_${spec.seed}`}`,
+    dagName:
+      spec.pattern === 'unscheduled'
+        ? null
+        : (spec.dag ?? `pii_scan_${spec.name ?? `db_${spec.seed}`}`),
     namespace: spec.pattern === 'unscheduled' ? null : 'composer-prod',
     succeededThisWeek: succeeded,
     lastSuccessAt: lastSuccess?.successTime ?? null,
@@ -186,7 +191,15 @@ const buildResponse = (targetSourceId: number): DagStatusResponse => {
         agents: [
           agent(1511, 0, 'projects/pii-rvw-prod/instances/review-db-1', 'asia-northeast3', 'SUCCESS', [
             spec('mysql://10.20.4.31:3306/reviews', 'reviews', 'success', 21),
-            spec('mysql://10.20.4.31:3306/review_media', 'review_media', 'failed', 22),
+            // 실제 Composer DAG id 는 300자까지 온다 — 축약이 필요한 최악의 행을
+            // 픽스처가 직접 만든다. 접두사가 길어서 머리만 남기면 다른 행과 구분되지 않는다.
+            {
+              uri: 'mysql://10.20.4.31:3306/review_media',
+              name: 'review_media',
+              pattern: 'failed',
+              seed: 22,
+              dag: 'pii_scan__gcp__pii_rvw_prod__asia_northeast3__cloudsql__review_db_1__review_media__daily_full_scan__0300_kst__owner_dataplatform_kr__retry_3__sla_6h__partition_by_day__managed_by_infra_manager__generated__do_not_edit__stage_prod__region_kr__tenant_pass__rev_0142__v3',
+            },
             spec('mysql://10.20.4.31:3306/review_reports', 'review_reports', 'success', 23),
             spec('mysql://10.20.4.31:3306/moderation', 'moderation', 'success', 24),
           ]),

@@ -21,16 +21,29 @@ import {
 
 const n = (value: number): string => value.toLocaleString('ko-KR');
 
-const sentence = (data: DagStatusResponse, agg: DagAggregates): string => {
+/** 판정(제목)과 그 근거(보조 설명)는 서로 다른 층이라 한 문장에 붙이지 않는다. */
+interface Verdict {
+  headline: string;
+  detail: string | null;
+}
+
+const sentence = (data: DagStatusResponse, agg: DagAggregates): Verdict => {
   const verdict = healthVerdict(data.healthStatus);
   switch (verdict.kind) {
     case 'healthy':
-      return `모니터링 HEALTHY — 논리 DB ${n(agg.dbTotal)}개 중 ${n(agg.succeeded)}개가 이번 주 성공했어요`;
+      return {
+        headline: '모니터링 HEALTHY',
+        detail: `논리 DB ${n(agg.dbTotal)}개 중 ${n(agg.succeeded)}개가 이번 주 성공했어요`,
+      };
     case 'unhealthy':
-      return `모니터링 UNHEALTHY — 논리 DB ${n(agg.noSuccess)}개가 이번 주 성공 기록이 없어요`;
+      return {
+        headline: '모니터링 UNHEALTHY',
+        detail: `논리 DB ${n(agg.noSuccess)}개가 이번 주 성공 기록이 없어요`,
+      };
     case 'unknown':
       // Wire vocabulary stays out of the copy — the raw value is in the tooltip.
-      return '모니터링 상태를 판정할 수 없어요';
+      // 판정이 안 되면 근거로 댈 숫자도 없다 — 보조 줄을 비운다.
+      return { headline: '모니터링 상태를 판정할 수 없어요', detail: null };
   }
 };
 
@@ -56,20 +69,33 @@ export function HealthSummaryBand({
   // 1,500+ rows scan once per response, not per render.
   const agg = useMemo(() => aggregateDagStatus(data), [data]);
   const verdict = healthVerdict(data.healthStatus);
+  const { headline, detail } = sentence(data, agg);
   const rest = agg.unscheduled + agg.other;
   const pct = (count: number): string =>
     agg.dbTotal === 0 ? '0%' : `${(count / agg.dbTotal) * 100}%`;
 
   return (
     <section className={pipelineStyles.card.base} aria-label="모니터링 헬스 요약">
-      <div className="flex items-center gap-2.5">
-        <span aria-hidden className={cn('h-2.5 w-2.5 flex-none rounded-full', DOT[verdict.kind])} />
-        <p
-          className="text-[16px] font-semibold text-[var(--pl-text-strong)]"
-          title={verdict.kind === 'unknown' ? `healthStatus: ${verdict.raw}` : undefined}
-        >
-          {sentence(data, agg)}
-        </p>
+      {/* 판정만 제목 층에 세우고, 그 근거인 논리 DB 문장은 한 단 아래로 — 크기·굵기·
+          색 세 채널을 함께 낮춰야 두 줄이 같은 층으로 읽히지 않는다. */}
+      <div className="flex items-start gap-2.5">
+        <span
+          aria-hidden
+          // 제목 줄(16px/22.4)의 중앙에 맞춘 오프셋 — items-center 로 두면 두 줄
+          // 전체의 중앙으로 내려가 판정 점이 근거 줄을 가리킨다.
+          className={cn('mt-[6px] h-2.5 w-2.5 flex-none rounded-full', DOT[verdict.kind])}
+        />
+        <div className="min-w-0">
+          <p
+            className="text-[16px] font-semibold text-[var(--pl-text-strong)]"
+            title={verdict.kind === 'unknown' ? `healthStatus: ${verdict.raw}` : undefined}
+          >
+            {headline}
+          </p>
+          {detail && (
+            <p className="mt-0.5 text-[14px] text-[var(--pl-text-medium)]">{detail}</p>
+          )}
+        </div>
       </div>
       <p className="mt-1 text-[12px] text-[var(--pl-text-weak)]">
         최근 7일 DAG 실행 기준 · {data.timezone} · 조회 {fmtDateTimeSec(fetchedAt)}

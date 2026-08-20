@@ -83,6 +83,20 @@ export const scopeBoardRows = (
   });
 };
 
+/**
+ * DAG 이름 축약 — 이름은 300자까지 온다. 한 타깃의 DAG 들은 접두사를 공유하므로
+ * 머리만 남기는 CSS ellipsis 로는 여러 행이 같은 문자열로 보인다: 꼬리가 정체성이라
+ * 가운데를 접는다(논리 DB 모달 `abbrevMiddle` 과 같은 문법). 전체 이름은 셀 title.
+ * 23자 예산은 DAG 열 176px(200 − 좌우 패딩 24) ÷ 12px mono 글자폭 기준.
+ */
+const DAG_HEAD = 12;
+const DAG_TAIL = 10;
+
+export const abbrevDagName = (name: string): string =>
+  name.length > DAG_HEAD + DAG_TAIL + 1
+    ? `${name.slice(0, DAG_HEAD)}…${name.slice(-DAG_TAIL)}`
+    : name;
+
 export const countBuckets = (rows: readonly DagDbRow[]): Record<DbBucket, number> => {
   const counts: Record<DbBucket, number> = {
     failed: 0,

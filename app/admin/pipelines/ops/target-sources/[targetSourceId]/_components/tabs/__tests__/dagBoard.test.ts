@@ -7,6 +7,7 @@
 import { describe, expect, it } from 'vitest';
 import type { DagDatabaseStatus, DagStatusResponse } from '@/lib/types/dag-status';
 import {
+  abbrevDagName,
   agentDisplayName,
   connPill,
   countBuckets,
@@ -170,6 +171,23 @@ describe('agentDisplayName', () => {
     expect(agentDisplayName('projects/p/instances/review-db-1')).toBe('review-db-1');
     expect(agentDisplayName('arn:aws:rds:ap-northeast-2:1111:db:cpn-db-1')).toBe('cpn-db-1');
     expect(agentDisplayName('idc-ivt-9a01')).toBe('idc-ivt-9a01');
+  });
+});
+
+describe('abbrevDagName', () => {
+  it('짧은 이름은 그대로 둔다', () => {
+    expect(abbrevDagName('pii_scan_orders')).toBe('pii_scan_orders');
+  });
+
+  it('긴 이름은 가운데를 접어 꼬리를 남긴다 — 접두사만 남으면 행이 구분되지 않는다', () => {
+    const prefix = 'pii_scan__gcp__prod__cloudsql__review_db_1__';
+    const a = abbrevDagName(`${prefix}review_media`);
+    const b = abbrevDagName(`${prefix}review_reports`);
+    expect(a).not.toBe(b);
+    expect(a.endsWith('eview_media')).toBe(false);
+    expect(a.endsWith('view_media')).toBe(true);
+    expect(a.startsWith('pii_scan__gc')).toBe(true);
+    expect(a).toHaveLength(23);
   });
 });
 
