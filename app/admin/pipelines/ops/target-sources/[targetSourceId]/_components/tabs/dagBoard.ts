@@ -64,7 +64,9 @@ export const FIXED_BOARD_FILTERS: readonly DbBucket[] = [
   'succeeded',
 ];
 
-/** 에이전트 스코프 + 검색(uri·이름, 대소문자 무시)까지 좁힌 행 — 칩 카운트의 분모. */
+/** 에이전트 스코프 + 검색까지 좁힌 행 — 칩 카운트의 분모. 검색은 행에 보이는
+ *  정체성 전부(이름·스키마·DAG)와 주소를 훑는다: 열로 세운 값은 찾을 수도 있어야
+ *  한다. 대소문자는 무시. */
 export const scopeBoardRows = (
   rows: readonly DagDbRow[],
   agentId: string | null,
@@ -74,9 +76,9 @@ export const scopeBoardRows = (
   return rows.filter((row) => {
     if (agentId && row.agentId !== agentId) return false;
     if (!q) return true;
-    return (
-      row.db.databaseUri.toLowerCase().includes(q) ||
-      (row.db.databaseName?.toLowerCase().includes(q) ?? false)
+    const { databaseUri, databaseName, schemaName, dagName } = row.db;
+    return [databaseUri, databaseName, schemaName, dagName].some(
+      (value) => value?.toLowerCase().includes(q) ?? false,
     );
   });
 };

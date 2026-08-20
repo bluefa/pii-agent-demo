@@ -7,8 +7,8 @@
  * (벤치마크 시안 A — Azure context pane 계열). 머리(제목+스코프 칩+닫기)는
  * flex-none, 본문이 자기 스크롤을 소유한다.
  *
- * 행 = databaseUri(이름은 있을 때만 윗줄 — URI 가 1급 정체성, P6), 7일 스트립,
- * 이번 주 판정, 마지막 성공. 진입은 filter-first: 검색 + 상태 칩(고정 슬롯,
+ * 행 = 정체성(Database·Schema 라벨 2줄, 이름이 없으면 주소가 1급으로 올라선다 — P6),
+ * 7일 스트립, 이번 주 판정, 마지막 성공, DAG. 진입은 filter-first: 검색 + 상태 칩(고정 슬롯,
  * TcAgentResultList 문법) 이 먼저 서고, 렌더는 페이지 단위(기본 20)라 1,500행이
  * DOM 에 한 번에 서지 않는다(P4).
  *
@@ -119,6 +119,38 @@ function DayStrip({ row }: { row: DagDbRow }): ReactElement {
           )}
         />
       ))}
+    </span>
+  );
+}
+
+/** 행 정체성 — Database 와 Schema 를 각자 라벨을 달고 선다. MySQL 처럼 둘이
+ *  같은 값인 엔진이 있어서(스키마=데이터베이스) 라벨 없이 두 줄을 쌓으면 같은 값이
+ *  두 번 찍힌 것처럼 읽힌다. 주소(databaseUri)는 서버를 아는 유일한 값이라 버리지
+ *  않고 툴팁으로 내린다 — 검색은 그대로 주소도 훑는다. */
+function DbIdentity({ db }: { db: DagDbRow['db'] }): ReactElement {
+  // 이름이 아직 없으면 주소가 1급 정체성으로 올라선다 (P6).
+  if (!db.databaseName) {
+    return (
+      <>
+        <p className="truncate font-mono text-[14px] text-[var(--pl-text-strong)]" title={db.databaseUri}>
+          {db.databaseUri}
+        </p>
+        <p className="text-[12px] text-[var(--pl-text-weak)]">이름 미확인 — Infra Manager 재배포 전</p>
+      </>
+    );
+  }
+  return (
+    <span className="grid grid-cols-[auto_minmax(0,1fr)] items-baseline gap-x-2" title={db.databaseUri}>
+      <span className="text-[12px] text-[var(--pl-text-weak)]">Database</span>
+      <span className="truncate text-[14px] font-medium text-[var(--pl-text-strong)]">
+        {db.databaseName}
+      </span>
+      <span className="text-[12px] text-[var(--pl-text-weak)]">Schema</span>
+      {db.schemaName ? (
+        <span className="truncate text-[12px] text-[var(--pl-text-medium)]">{db.schemaName}</span>
+      ) : (
+        <Dash />
+      )}
     </span>
   );
 }
@@ -242,7 +274,7 @@ export function DbWeeklyBoard({
             type="search"
             value={query}
             onChange={(e) => changeQuery(e.target.value)}
-            placeholder="databaseUri · 이름 검색"
+            placeholder="이름 · 스키마 · DAG · 주소 검색"
             aria-label="논리 DB 검색"
             className={SEARCH_INPUT}
           />
@@ -265,39 +297,14 @@ export function DbWeeklyBoard({
                   <th className={opsStyles.table.headCell}>최근 7일 ({data.timezone})</th>
                   <th className={opsStyles.table.headCell}>이번 주</th>
                   <th className={opsStyles.table.headCell}>마지막 성공</th>
+                  <th className={opsStyles.table.headCell}>DAG</th>
                 </tr>
               </thead>
               <tbody>
                 {pageRows.map((row) => (
                   <tr key={`${row.agentId}:${row.db.databaseUri}`}>
-                    {/* 720px 패널에서의 재배치 — 인라인(1,286px)의 420 은 과분하다. */}
-                    <td className={cn(opsStyles.table.cell, 'max-w-[332px]')}>
-                      {row.db.databaseName ? (
-                        <>
-                          <p className="truncate text-[14px] font-medium text-[var(--pl-text-strong)]">
-                            {row.db.databaseName}
-                          </p>
-                          <p
-                            className="truncate font-mono text-[12px] text-[var(--pl-text-weak)]"
-                            title={row.db.databaseUri}
-                          >
-                            {row.db.databaseUri}
-                          </p>
-                        </>
-                      ) : (
-                        <>
-                          {/* 이름이 아직 없으면 URI 가 1급 정체성으로 올라선다 (P6). */}
-                          <p
-                            className="truncate font-mono text-[14px] text-[var(--pl-text-strong)]"
-                            title={row.db.databaseUri}
-                          >
-                            {row.db.databaseUri}
-                          </p>
-                          <p className="text-[12px] text-[var(--pl-text-weak)]">
-                            이름 미확인 — Infra Manager 재배포 전
-                          </p>
-                        </>
-                      )}
+                    <td className={cn(opsStyles.table.cell, 'max-w-[280px]')}>
+                      <DbIdentity db={row.db} />
                     </td>
                     <td className={opsStyles.table.cell}>
                       <DayStrip row={row} />
@@ -311,6 +318,20 @@ export function DbWeeklyBoard({
                     </td>
                     <td className={cn(opsStyles.table.cell, 'whitespace-nowrap font-mono text-[12px] tabular-nums')}>
                       {row.db.lastSuccessAt ? fmtDateTime(row.db.lastSuccessAt) : <Dash />}
+                    </td>
+                    {/* DAG 는 행을 실행하는 주체의 이름 — 판정이 아니라 참조라 오른쪽
+                        끝, 흐린 mono. 스케줄이 없는 행에는 가리킬 DAG 자체가 없다. */}
+                    <td className={cn(opsStyles.table.cell, 'max-w-[200px]')}>
+                      {row.db.dagName ? (
+                        <p
+                          className="truncate font-mono text-[12px] text-[var(--pl-text-weak)]"
+                          title={row.db.dagName}
+                        >
+                          {row.db.dagName}
+                        </p>
+                      ) : (
+                        <Dash />
+                      )}
                     </td>
                   </tr>
                 ))}

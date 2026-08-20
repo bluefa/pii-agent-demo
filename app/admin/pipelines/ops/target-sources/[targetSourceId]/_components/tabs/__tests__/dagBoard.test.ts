@@ -31,10 +31,12 @@ const db = (
   name: string | null,
   succeededThisWeek: boolean,
   dayStatuses: string[],
+  // 이름과 다른 값이어야 검색이 정말 schemaName 을 보는지 알 수 있다.
+  schema?: string | null,
 ): DagDatabaseStatus => ({
   databaseUri: uri,
   databaseName: name,
-  schemaName: name,
+  schemaName: schema !== undefined ? schema : name,
   dagName: name ? `pii_scan_${name}` : null,
   namespace: name ? 'composer-prod' : null,
   succeededThisWeek,
@@ -54,7 +56,7 @@ const RESPONSE: DagStatusResponse = {
       gcpRegion: 'asia-northeast3',
       connectionStatus: 'SUCCESS',
       databaseStatuses: [
-        db('mysql://10.0.0.1:3306/orders', 'orders', true, ['SUCCESS']),
+        db('mysql://10.0.0.1:3306/orders', 'orders', true, ['SUCCESS'], 'analytics'),
         db('mysql://10.0.0.1:3306/billing', 'billing', false, ['FAILED']),
         db('mysql://10.0.0.1:3306/legacy', null, false, ['NOT_SCHEDULED']),
       ],
@@ -94,6 +96,14 @@ describe('scopeBoardRows', () => {
     expect(scopeBoardRows(rows, null, '10.0.0.2')).toHaveLength(2);
     // 이름이 null 인 행은 uri 로만 잡힌다 — null 접근으로 죽지 않는다.
     expect(scopeBoardRows(rows, null, 'legacy')).toHaveLength(1);
+  });
+
+  it('행에 보이는 스키마·DAG 로도 찾을 수 있다', () => {
+    // 이름(orders)과 다른 값이라 schemaName 을 보지 않으면 잡히지 않는다.
+    const bySchema = scopeBoardRows(rows, null, 'ANALYTICS');
+    expect(bySchema.map((r) => r.db.databaseName)).toEqual(['orders']);
+    const byDag = scopeBoardRows(rows, null, 'pii_scan_billing');
+    expect(byDag.map((r) => r.db.databaseName)).toEqual(['billing']);
   });
 });
 

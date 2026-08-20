@@ -63,6 +63,12 @@ interface DbSpec {
   name: string | null;
   pattern: DbPattern;
   seed: number;
+  /**
+   * 스키마가 데이터베이스 이름과 다른 엔진(postgres 계열)에서만 채운다. MySQL 은
+   * 스키마와 데이터베이스가 같은 객체라 기본값이 이름 그대로다 — 화면의 두 줄이
+   * 정말 서로 다른 필드에 물려 있는지 보려면 다른 값이 나오는 행이 있어야 한다.
+   */
+  schema?: string | null;
 }
 
 const buildDb = (spec: DbSpec, days: string[]): DagDatabaseStatus => {
@@ -72,7 +78,7 @@ const buildDb = (spec: DbSpec, days: string[]): DagDatabaseStatus => {
   return {
     databaseUri: spec.uri,
     databaseName: spec.name,
-    schemaName: spec.name,
+    schemaName: spec.schema !== undefined ? spec.schema : spec.name,
     // 매핑 없는 uri = 7일 전부 NOT_SCHEDULED and no DAG reference (PR #707 rule).
     dagName: spec.pattern === 'unscheduled' ? null : `pii_scan_${spec.name ?? `db_${spec.seed}`}`,
     namespace: spec.pattern === 'unscheduled' ? null : 'composer-prod',
@@ -98,11 +104,18 @@ const agent = (
   databaseStatuses: dbs.map((spec) => buildDb(spec, days)),
 });
 
-const spec = (uri: string, name: string | null, pattern: DbPattern, seed: number): DbSpec => ({
+const spec = (
+  uri: string,
+  name: string | null,
+  pattern: DbPattern,
+  seed: number,
+  schema?: string | null,
+): DbSpec => ({
   uri,
   name,
   pattern,
   seed,
+  ...(schema !== undefined ? { schema } : {}),
 });
 
 /** 1801 물류서비스 — the scale fixture: 30 agents × 52 DBs = 1,560 rows. */
@@ -183,10 +196,12 @@ const buildResponse = (targetSourceId: number): DagStatusResponse => {
             spec('mysql://10.20.4.32:3306/badges', 'badges', 'runningToday', 27),
             spec('mysql://10.20.4.32:3306/billing_v2', null, 'unscheduled', 28),
           ]),
+          // Cloud SQL for PostgreSQL — 스키마가 데이터베이스와 갈라지는 유일한
+          // 에이전트다. MySQL 행(위 두 에이전트)에서는 둘이 같은 값으로 남는다.
           agent(1511, 2, 'projects/pii-rvw-prod/instances/review-db-3', 'asia-northeast3', 'FAIL', [
-            spec('mysql://10.20.4.33:3306/comments', 'comments', 'failed', 29),
-            spec('mysql://10.20.4.33:3306/comment_archive', null, 'unscheduled', 30),
-            spec('mysql://10.20.4.33:3306/reactions', 'reactions', 'success', 31),
+            spec('postgres://10.20.4.33:5432/comments', 'comments', 'failed', 29, 'public'),
+            spec('postgres://10.20.4.33:5432/comment_archive', null, 'unscheduled', 30, null),
+            spec('postgres://10.20.4.33:5432/reactions', 'reactions', 'success', 31, 'analytics'),
           ]),
         ],
       };
