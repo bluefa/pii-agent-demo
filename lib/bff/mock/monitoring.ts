@@ -198,7 +198,8 @@ const buildResponse = (targetSourceId: number): DagStatusResponse => {
               name: 'review_media',
               pattern: 'failed',
               seed: 22,
-              dag: 'pii_scan__gcp__pii_rvw_prod__asia_northeast3__cloudsql__review_db_1__review_media__daily_full_scan__0300_kst__owner_dataplatform_kr__retry_3__sla_6h__partition_by_day__managed_by_infra_manager__generated__do_not_edit__stage_prod__region_kr__tenant_pass__rev_0142__v3',
+              // 정확히 300자 — 계약이 말하는 상한을 픽스처가 그대로 만든다.
+              dag: 'pii_scan__gcp__pii_rvw_prod__asia_northeast3__cloudsql__review_db_1__review_media__daily_full_scan__0300_kst__owner_dataplatform_kr__retry_3__sla_6h__partition_by_day__managed_by_infra_manager__generated__do_not_edit__stage_prod__region_kr__tenant_pass__schedule_0_3_star__catchup_false__rev_0142__v3',
             },
             spec('mysql://10.20.4.31:3306/review_reports', 'review_reports', 'success', 23),
             spec('mysql://10.20.4.31:3306/moderation', 'moderation', 'success', 24),

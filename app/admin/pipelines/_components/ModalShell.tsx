@@ -12,7 +12,7 @@
  * className, see TqModal); `variant='editor'` = the 확정 정보 편집기 plane
  * (min(960px,94vw) × min(920px,92vh), p0 — same 960 as xwide, but taller and
  * padding-less for the full-bleed textarea); `variant='panel'` = right-docked
- * overlay panel (720px full-height, p0 — DB weekly board; same scrim/focus/Esc
+ * overlay panel (960px full-height, p0 — DB weekly board; same scrim/focus/Esc
  * contract, only the alignment changes). Pair with the app's useModal()
  * hook for open/close state (self-contained cleanup here).
  */
