@@ -340,6 +340,57 @@ wire, or absent). The two surfaces fold them differently, and on purpose:
   value: 포함 / 미포함 / 미확인. Writing 미포함 for a value we could not read would have
   the screen assert something it never received.
 
+## 10. DAG weekly health status (관리자 승인 gate)
+
+DRAFT CONTRACT — transcribed verbatim from the owner's sketch (2026-08-19), not yet in
+any swagger yaml. The 관리자 승인 tab reads it to decide whether PII Agent 설치 완료 may
+be offered: the approve CTA mounts only on `healthStatus === 'HEALTHY'` (allowlist —
+loading, fetch failure, and unknown enum values all lock).
+
+```
+GET /install/monitoring/dag-status/target-sources/{targetSourceId}
+→ 200 DagStatusResponse
+
+DagStatusResponse {
+  targetSourceId:    number
+  connectionStatus:  TestConnectionStatus       // monitoring's own reading — NOT the TC tab's source
+  healthStatus:      "HEALTHY" | "UNHEALTHY"    // read tolerantly as string; UI gates by allowlist
+  timezone:          "KST"
+  agents: [{
+    agentId:           string                   // assumed string — sketch does not type it
+    resourceId:        string
+    gcpRegion:         string                   // GCP vocabulary; other-CSP variant unresolved (open Q)
+    connectionStatus:  TestConnectionStatus
+    databaseStatuses: [{
+      databaseUri:        string                // row identity; can exceed 1,500 per target
+      databaseName:       string | null         // null until Infra Manager redeploy
+      schemaName:         string | null
+      dagName:            string | null
+      namespace:          string | null
+      succeededThisWeek:  boolean
+      lastSuccessAt:      string | null
+      days: [{                                  // exactly 7, KST buckets
+        day:         string                     // YYYY-MM-DD
+        status:      "SUCCESS" | "RUNNING" | "FAILED" | "NOT_SCHEDULED"
+        successTime: string | null              // only on SUCCESS days
+      }]
+    }]
+  }]
+}
+```
+
+Two deliberate deviations from this doc's conventions, both because the sketch is the
+closest thing to the contract: the wire is **camelCase verbatim** (not snake), and the
+path base is **`/install/monitoring`** (not `/install/v1` — `lib/bff/http.ts` targets it
+with its own fetch instead of `toUpstreamInfraApiPath`).
+
+Open questions for BE before this graduates (asked 2026-08-19):
+- response paging — the sketch has no page params, but a 10k-row target measured ~10MB
+  in the backend design (PR #707); single-response + client pagination until answered
+- the `healthStatus` formula (UI copy stops at "최근 7일 DAG 실행 기준" until then)
+- the region field name for non-GCP agents (`gcpRegion` is the only one sketched)
+- whether `connectionStatus` here and the TC tab's status can disagree, and which wins
+
 ## Mock implementation
 
 Sections §1–§5 are served by `app/api/v1/…` route handlers backed by globalThis-guarded

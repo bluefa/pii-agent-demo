@@ -1,0 +1,247 @@
+import { NextResponse } from 'next/server';
+import type { DagAgentStatus, DagDatabaseStatus, DagDayStatus, DagStatusResponse } from '@/lib/types/dag-status';
+
+/**
+ * DAG weekly health status mock — ASSUMED CONTRACT
+ * (docs/api/ops-assumed-contracts.md §10). Read-only and stateless, so no
+ * globalThis store: every call regenerates deterministically from the
+ * targetSourceId (only the 7-day window follows the clock).
+ *
+ * Profiles are pinned to the SEED_TC targets that actually reach the approval
+ * tab (lib/bff/mock/task-queue.ts):
+ *   1642 AWS   — HEALTHY, approve enabled            (truth row 5)
+ *   1511 GCP   — UNHEALTHY, 5 DBs without a success  (truth row 6)
+ *   1801 AZURE — UNHEALTHY at scale: 1,560 DBs       (truth row 6 + 1,500-row demo)
+ *   1799 AZURE — HEALTHY, single agent
+ * Any other id gets a small HEALTHY default so the gate works on targets the
+ * demo flips to TEST_CONNECTION_COMPLETED at runtime. Every seed stays inside
+ * the declared healthStatus enum — the unknown-value lock (truth row 7) is
+ * covered by unit tests, not by a fixture asserting a value the contract says
+ * cannot exist.
+ */
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
+
+/** Last 7 KST dates (oldest first), YYYY-MM-DD. */
+const kstDays = (): string[] => {
+  const nowKst = new Date(Date.now() + KST_OFFSET_MS);
+  return Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(nowKst.getTime() - (6 - i) * DAY_MS);
+    return d.toISOString().slice(0, 10);
+  });
+};
+
+type DbPattern = 'success' | 'runningToday' | 'failed' | 'unscheduled';
+
+/** Deterministic per-row jitter so success times differ without Math.random. */
+const jitter = (seed: number, mod: number): number => (seed * 7919 + 104729) % mod;
+
+const buildDays = (pattern: DbPattern, days: string[], seed: number): DagDayStatus[] =>
+  days.map((day, i) => {
+    const isToday = i === days.length - 1;
+    const successTime = `${day}T07:${String(40 + jitter(seed + i, 19)).padStart(2, '0')}:${String(jitter(seed + i, 59)).padStart(2, '0')}+09:00`;
+    switch (pattern) {
+      case 'success':
+        return { day, status: 'SUCCESS', successTime };
+      case 'runningToday':
+        return isToday
+          ? { day, status: 'RUNNING', successTime: null }
+          : { day, status: 'SUCCESS', successTime };
+      case 'failed':
+        // No success anywhere in the window — the row 판정 is "성공 없음".
+        return jitter(seed + i, 5) === 0
+          ? { day, status: 'NOT_SCHEDULED', successTime: null }
+          : { day, status: 'FAILED', successTime: null };
+      case 'unscheduled':
+        return { day, status: 'NOT_SCHEDULED', successTime: null };
+    }
+  });
+
+interface DbSpec {
+  uri: string;
+  name: string | null;
+  pattern: DbPattern;
+  seed: number;
+}
+
+const buildDb = (spec: DbSpec, days: string[]): DagDatabaseStatus => {
+  const built = buildDays(spec.pattern, days, spec.seed);
+  const lastSuccess = [...built].reverse().find((d) => d.status === 'SUCCESS');
+  const succeeded = spec.pattern === 'success' || spec.pattern === 'runningToday';
+  return {
+    databaseUri: spec.uri,
+    databaseName: spec.name,
+    schemaName: spec.name,
+    // 매핑 없는 uri = 7일 전부 NOT_SCHEDULED and no DAG reference (PR #707 rule).
+    dagName: spec.pattern === 'unscheduled' ? null : `pii_scan_${spec.name ?? `db_${spec.seed}`}`,
+    namespace: spec.pattern === 'unscheduled' ? null : 'composer-prod',
+    succeededThisWeek: succeeded,
+    lastSuccessAt: lastSuccess?.successTime ?? null,
+    days: built,
+  };
+};
+
+const agent = (
+  ts: number,
+  idx: number,
+  resourceId: string,
+  gcpRegion: string | null,
+  connectionStatus: string,
+  dbs: DbSpec[],
+  days: string[] = kstDays(),
+): DagAgentStatus => ({
+  agentId: `agent-${ts}-${idx + 1}`,
+  resourceId,
+  gcpRegion,
+  connectionStatus,
+  databaseStatuses: dbs.map((spec) => buildDb(spec, days)),
+});
+
+const spec = (uri: string, name: string | null, pattern: DbPattern, seed: number): DbSpec => ({
+  uri,
+  name,
+  pattern,
+  seed,
+});
+
+/** 1801 물류서비스 — the scale fixture: 30 agents × 52 DBs = 1,560 rows. */
+const buildScaleAgents = (days: string[]): DagAgentStatus[] =>
+  Array.from({ length: 30 }, (_, agentIdx) =>
+    agent(
+      1801,
+      agentIdx,
+      `/subscriptions/5f1a2b3c/resourceGroups/rg-lgs-prod/providers/Microsoft.DBforMySQL/servers/lgs-mysql-${String(agentIdx + 1).padStart(2, '0')}`,
+      null,
+      'SUCCESS',
+      Array.from({ length: 52 }, (_, dbIdx) => {
+        const globalIdx = agentIdx * 52 + dbIdx;
+        const pattern: DbPattern =
+          globalIdx < 14
+            ? 'failed'
+            : globalIdx < 18
+              ? 'unscheduled'
+              : globalIdx % 97 === 0
+                ? 'runningToday'
+                : 'success';
+        const name = pattern === 'unscheduled' ? null : `lgs_${agentIdx + 1}_${dbIdx + 1}`;
+        return spec(
+          `mysql://10.31.${agentIdx + 1}.${20 + (dbIdx % 200)}:3306/lgs_db_${agentIdx + 1}_${dbIdx + 1}`,
+          name,
+          pattern,
+          globalIdx,
+        );
+      }),
+      days,
+    ),
+  );
+
+const buildResponse = (targetSourceId: number): DagStatusResponse => {
+  const days = kstDays();
+  switch (targetSourceId) {
+    case 1642: // 쿠폰서비스 AWS — everything green: the approve CTA mounts.
+      return {
+        targetSourceId,
+        connectionStatus: 'SUCCESS',
+        healthStatus: 'HEALTHY',
+        timezone: 'KST',
+        agents: [
+          agent(1642, 0, 'arn:aws:rds:ap-northeast-2:111122223333:db:cpn-db-1', null, 'SUCCESS', [
+            spec('mysql://cpn-db-1.cluster-abc.ap-northeast-2.rds.amazonaws.com:3306/coupon', 'coupon', 'success', 1),
+            spec('mysql://cpn-db-1.cluster-abc.ap-northeast-2.rds.amazonaws.com:3306/coupon_history', 'coupon_history', 'runningToday', 2),
+            spec('mysql://cpn-db-1.cluster-abc.ap-northeast-2.rds.amazonaws.com:3306/promotion', 'promotion', 'success', 3),
+            spec('mysql://cpn-db-1.cluster-abc.ap-northeast-2.rds.amazonaws.com:3306/segment', 'segment', 'success', 4),
+            spec('mysql://cpn-db-1.cluster-abc.ap-northeast-2.rds.amazonaws.com:3306/issuance', 'issuance', 'success', 5),
+            spec('mysql://cpn-db-1.cluster-abc.ap-northeast-2.rds.amazonaws.com:3306/budget', 'budget', 'success', 6),
+          ]),
+          agent(1642, 1, 'arn:aws:rds:ap-northeast-2:111122223333:db:cpn-db-2', null, 'SUCCESS', [
+            spec('mysql://cpn-db-2.cluster-abc.ap-northeast-2.rds.amazonaws.com:3306/settlement', 'settlement', 'success', 7),
+            spec('mysql://cpn-db-2.cluster-abc.ap-northeast-2.rds.amazonaws.com:3306/partner', 'partner', 'success', 8),
+            spec('mysql://cpn-db-2.cluster-abc.ap-northeast-2.rds.amazonaws.com:3306/ledger', 'ledger', 'runningToday', 9),
+            spec('mysql://cpn-db-2.cluster-abc.ap-northeast-2.rds.amazonaws.com:3306/audit', 'audit', 'success', 10),
+            spec('mysql://cpn-db-2.cluster-abc.ap-northeast-2.rds.amazonaws.com:3306/notify', 'notify', 'success', 11),
+            spec('mysql://cpn-db-2.cluster-abc.ap-northeast-2.rds.amazonaws.com:3306/stats', 'stats', 'success', 12),
+          ]),
+        ],
+      };
+    case 1511: // 리뷰서비스 GCP — 5 DBs without a success this week: approve locked.
+      return {
+        targetSourceId,
+        connectionStatus: 'SUCCESS',
+        healthStatus: 'UNHEALTHY',
+        timezone: 'KST',
+        agents: [
+          agent(1511, 0, 'projects/pii-rvw-prod/instances/review-db-1', 'asia-northeast3', 'SUCCESS', [
+            spec('mysql://10.20.4.31:3306/reviews', 'reviews', 'success', 21),
+            spec('mysql://10.20.4.31:3306/review_media', 'review_media', 'failed', 22),
+            spec('mysql://10.20.4.31:3306/review_reports', 'review_reports', 'success', 23),
+            spec('mysql://10.20.4.31:3306/moderation', 'moderation', 'success', 24),
+          ]),
+          agent(1511, 1, 'projects/pii-rvw-prod/instances/review-db-2', 'asia-northeast3', 'SUCCESS', [
+            spec('mysql://10.20.4.32:3306/ratings', 'ratings', 'success', 25),
+            spec('mysql://10.20.4.32:3306/rating_rollup', 'rating_rollup', 'failed', 26),
+            spec('mysql://10.20.4.32:3306/badges', 'badges', 'runningToday', 27),
+            spec('mysql://10.20.4.32:3306/billing_v2', null, 'unscheduled', 28),
+          ]),
+          agent(1511, 2, 'projects/pii-rvw-prod/instances/review-db-3', 'asia-northeast3', 'FAIL', [
+            spec('mysql://10.20.4.33:3306/comments', 'comments', 'failed', 29),
+            spec('mysql://10.20.4.33:3306/comment_archive', null, 'unscheduled', 30),
+            spec('mysql://10.20.4.33:3306/reactions', 'reactions', 'success', 31),
+          ]),
+        ],
+      };
+    case 1801: { // 물류서비스 AZURE — the 1,500+ row scale target.
+      const agents = buildScaleAgents(days);
+      return {
+        targetSourceId,
+        connectionStatus: 'SUCCESS',
+        healthStatus: 'UNHEALTHY',
+        timezone: 'KST',
+        agents,
+      };
+    }
+    case 1799: // 배송서비스 AZURE — single-agent all-green fixture.
+      return {
+        targetSourceId,
+        connectionStatus: 'SUCCESS',
+        healthStatus: 'HEALTHY',
+        timezone: 'KST',
+        agents: [
+          agent(
+            1799,
+            0,
+            '/subscriptions/9d8c7b6a/resourceGroups/rg-dlv-prod/providers/Microsoft.DBforMySQL/servers/dlv-mysql-1',
+            null,
+            'SUCCESS',
+            Array.from({ length: 8 }, (_, i) =>
+              spec(`mysql://10.28.1.${10 + i}:3306/dlv_db_${i + 1}`, `dlv_db_${i + 1}`, 'success', 40 + i),
+            ),
+          ),
+        ],
+      };
+    default: // Targets flipped to COMPLETED at runtime still get a working gate.
+      return {
+        targetSourceId,
+        connectionStatus: 'SUCCESS',
+        healthStatus: 'HEALTHY',
+        timezone: 'KST',
+        agents: [
+          agent(
+            targetSourceId,
+            0,
+            `mock-agent-${targetSourceId}`,
+            null,
+            'SUCCESS',
+            Array.from({ length: 6 }, (_, i) =>
+              spec(`mysql://10.99.0.${10 + i}:3306/db_${targetSourceId}_${i + 1}`, `db_${i + 1}`, 'success', 60 + i),
+            ),
+          ),
+        ],
+      };
+  }
+};
+
+export const mockMonitoring = {
+  // GET /install/monitoring/dag-status/target-sources/{id} (assumed §10).
+  getDagStatus: async (targetSourceId: number) => NextResponse.json(buildResponse(targetSourceId)),
+};
