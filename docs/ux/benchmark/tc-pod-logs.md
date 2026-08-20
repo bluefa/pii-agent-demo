@@ -47,3 +47,26 @@
 swagger 미랜딩 — 목(mock-test-connection.ts)이 DRAFT CONTRACT 로 시딩하고 읽기는
 passthrough. 열린 결정: 부분 실패에서 run fail_reason 의 의미(값이 없으면 UI 는 줄
 자체를 그리지 않으므로 어느 쪽으로 랜딩해도 안전), pod-logs 엔드포인트 경로 확정.
+
+## 2026-08-20 — 행 단위 두 건 (오너 지시)
+
+**표: 한 행 = 결과가 보고되는 단위.** Athena 는 Step 4 부터 리전이 곧 리소스라
+판정·pod·논리 DB 가 `athena_region_resource_id` 로만 온다. 확정 스냅샷은 DB 단위라
+DB 의 자기 id 로 조회하던 이 표는 Athena 행 전부가 무보고(—)였고, 같은 리전이 4행을
+차지해 "테스트가 4번 돌았다"로 읽혔다. `toConfirmedUnits`(= `resultUnitId`)로 접는다 —
+사용자 화면 Step 5(ConnectionTestCard)·Step 6·7(ConfirmedIntegrationTable)이 이미 쓰는
+같은 키다. 접힌 행: Resource Name 칸이 손잡이+엔진 이름, Resource ID 칸은 **결과가 키로
+쓰는 리전 id**, Credential 은 '불필요'(배정할 리소스가 하나로 정해지지 않고 Athena 는
+IAM 이다). 자식 = 데이터베이스(Database Type 열이 `Database`), 나머지 칸은 비운다.
+페이지도 단위로 센다(리전이 페이지 경계에서 갈리지 않게).
+⚠️ 운영 콘솔 **연동 확정 탭은 접지 않는다** — 그 표는 확정 응답 그 자체를 보여 준다
+(ConfirmedResourceTable 주석). 접는 것은 step 4+ 결과를 조인하는 표뿐이다.
+
+**로그 뷰어: StackDriver 행 문법.** 바닥(어두운 패널)과 줄 전체 severity 색은 그대로 두고
+앞의 두 칸만 가져왔다 — **글리프 · 시각 · 본문**. 글리프는 4색 접기와 같은 갈래
+(적색 `x-circle` / 호박 `warn-tri` / 중립 `info` / DEBUG·DEFAULT·미지 = 점), 색은 줄에서
+물려받는다. 시각은 `fmtTimeMs` — Asia/Seoul 고정, `HH:mm:ss.SSS`(같은 초에 여러 줄이
+찍힌다), 날짜는 헤더 캡처 도장이 이미 말하므로 뺀다. 캡처본이 시각을 하나도 안 주면
+칸 자체가 빠진다(자리만 잡고 '-' 를 세우지 않는다). 복사 텍스트는 시각·severity·본문.
+DRAFT 계약에 `entries[].timestamp` 추가 — Cloud Logging `LogEntry.timestamp` 그대로,
+목은 캡처 시각에서 800ms 간격으로 거슬러 결정적으로 찍는다.

@@ -14,6 +14,12 @@
  * 색이 콘텐츠 줄 전체에 실리고(Terraform 로그의 ANSI 문법과 같은 방식), 위의 필터
  * 칩이 같은 색을 입어 범례를 겸한다(오너 2026-08-19). 같은 색을 나눠 쓰는 severity
  * (ERROR/CRITICAL 등)의 정확한 낱말은 행 hover title 로 남는다. 행 틴트는 금지.
+ *
+ * 행 문법은 StackDriver 그대로 — 글리프 · 시각 · 본문 (오너 2026-08-20). 바닥과 줄 색은
+ * 위 그대로 두고 앞의 두 칸만 가져온 것이다: 로그를 읽는 사람은 "몇 시에 무엇이"를 왼쪽에서
+ * 세로로 훑고, 그 뒤에야 문장을 읽는다. 시각은 밀리초까지(같은 초에 여러 줄이 찍힌다),
+ * 날짜는 헤더의 캡처 도장이 이미 말하므로 줄에서 뺀다. 캡처본이 시각을 안 주면 그 칸은
+ * 통째로 빠진다 — 자리만 잡고 '-' 를 세우지 않는다.
  */
 import {
   useEffect,
@@ -25,8 +31,8 @@ import { cn } from '@/lib/theme';
 import { AppError } from '@/lib/errors';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
 import { ModalShell } from '@/app/admin/pipelines/_components/ModalShell';
-import { Icon } from '@/app/admin/pipelines/_components/icons';
-import { fmtDateTime } from '@/lib/pipeline/format';
+import { Icon, type IconName } from '@/app/admin/pipelines/_components/icons';
+import { fmtDateTime, fmtTimeMs } from '@/lib/pipeline/format';
 import { j } from '@/app/admin/pipelines/_detail/taskDrawerShared';
 import {
   resizeFromDrag,
@@ -52,6 +58,25 @@ const SEVERITY_TONE: Readonly<Record<string, string>> = {
   DEBUG: j.logAnsi.gray,
   DEFAULT: j.logAnsi.gray,
 };
+
+/**
+ * 행 맨 앞 글리프 — 4색 접기와 같은 갈래. 색은 줄이 이미 입고 있으므로 여기서는 모양만
+ * 고른다(글리프는 currentColor). DEBUG·DEFAULT 는 아이콘 없이 점 — Cloud Logging 도
+ * 기본 severity 에는 표식을 세우지 않는다.
+ */
+const SEVERITY_GLYPH: Readonly<Record<string, IconName>> = {
+  EMERGENCY: 'x-circle',
+  ALERT: 'x-circle',
+  CRITICAL: 'x-circle',
+  ERROR: 'x-circle',
+  WARNING: 'warn-tri',
+  NOTICE: 'info',
+  INFO: 'info',
+};
+
+/** 한 줄 — 글리프·시각·본문이 한 줄에 서고, 가리키면 그 줄만 밝아진다(StackDriver 행). */
+const LOG_ROW =
+  'flex items-start gap-2 -mx-2 rounded-[4px] px-2 py-[3px] hover:bg-[var(--pl-gray-700)]';
 
 /** 필터 칩의 정렬 순서 — 심한 쪽 먼저. 0건 severity 칩은 그리지 않는다. */
 const SEVERITY_ORDER: readonly string[] = [
@@ -140,7 +165,15 @@ export function TcPodLogModal({
   const visible: TcPodLogEntry[] = filter ? entries.filter((e) => e.severity === filter) : entries;
 
   const dark = phase === 'ok' && entries.length > 0;
-  const copyText = visible.map((entry) => `${entry.severity}\t${entry.content}`).join('\n');
+  // 캡처본이 시각을 하나도 안 주면 시각 칸 자체를 세우지 않는다(빈 칸 = 없는 사실).
+  const hasTime = entries.some((entry) => entry.timestamp);
+  const copyText = visible
+    .map((entry) =>
+      [entry.timestamp ? fmtTimeMs(entry.timestamp) : null, entry.severity, entry.content]
+        .filter(Boolean)
+        .join('\t'),
+    )
+    .join('\n');
 
   let body: ReactElement;
   if (phase === 'loading') {
@@ -177,14 +210,20 @@ export function TcPodLogModal({
   } else {
     body = (
       <div className={j.logBody} tabIndex={0} role="region" aria-label="Pod 로그">
-        <div className={cn(j.logPre, 'flex flex-col gap-1')}>
+        <div className={cn(j.logPre, 'flex flex-col')}>
           {visible.map((entry, index) => (
             <div
               key={index}
-              className={SEVERITY_TONE[entry.severity] ?? j.logAnsi.gray}
+              className={cn(LOG_ROW, SEVERITY_TONE[entry.severity] ?? j.logAnsi.gray)}
               title={entry.severity}
             >
-              {entry.content}
+              <SeverityGlyph severity={entry.severity} />
+              {hasTime && (
+                <span className="flex-none tabular-nums opacity-70">
+                  {fmtTimeMs(entry.timestamp)}
+                </span>
+              )}
+              <span className="min-w-0 flex-1">{entry.content}</span>
             </div>
           ))}
           {visible.length === 0 && (
@@ -268,6 +307,23 @@ export function TcPodLogModal({
       </div>
     </ModalShell>
   );
+}
+
+/**
+ * severity 글리프 — 아이콘은 severity 갈래를, 색은 줄에서 물려받는다. 목록 밖(DEBUG·
+ * DEFAULT·미지)은 점 하나로, 자리는 지키되 눈을 끌지 않는다.
+ */
+function SeverityGlyph({ severity }: { severity: string }): ReactElement {
+  const name = SEVERITY_GLYPH[severity];
+  if (!name) {
+    return (
+      <span
+        className="mt-[7px] h-[3px] w-[3px] flex-none rounded-full bg-current opacity-70"
+        aria-hidden
+      />
+    );
+  }
+  return <Icon name={name} size={14} className="mt-[2px] flex-none" />;
 }
 
 /**

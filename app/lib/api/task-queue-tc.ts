@@ -252,6 +252,8 @@ export const getTestConnectionHistory = async (
 export interface TcPodLogEntry {
   severity: string;
   content: string;
+  /** 줄이 찍힌 시각(StackDriver `LogEntry.timestamp`). 캡처본이 안 주면 null — 시각 열이 빠진다. */
+  timestamp: string | null;
 }
 
 export interface TcPodLog {
@@ -264,7 +266,13 @@ export interface TcPodLog {
 interface TcPodLogWire {
   pod_id?: string | null;
   captured_at?: string | null;
-  entries?: readonly { severity?: string | null; content?: string | null }[] | null;
+  entries?:
+    | readonly {
+        severity?: string | null;
+        content?: string | null;
+        timestamp?: string | null;
+      }[]
+    | null;
 }
 
 /**
@@ -287,6 +295,7 @@ export const getTestConnectionPodLog = async (
       .map((entry) => ({
         severity: (entry.severity ?? '').toUpperCase() || 'DEFAULT',
         content: entry.content ?? '',
+        timestamp: entry.timestamp || null,
       })),
   };
 };

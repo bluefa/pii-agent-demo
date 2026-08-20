@@ -78,6 +78,33 @@ export function fmtDateTimeSec(iso: string | null | undefined): string {
   return seoulDateTime(iso, true);
 }
 
+const SEOUL_TIME_MS = new Intl.DateTimeFormat('en-GB', {
+  timeZone: 'Asia/Seoul',
+  hour: '2-digit',
+  minute: '2-digit',
+  second: '2-digit',
+  fractionalSecondDigits: 3,
+  hour12: false,
+});
+
+/**
+ * ISO-8601 instant → 'HH:mm:ss.SSS' (Asia/Seoul). `null`/invalid → '-'.
+ *
+ * 로그 한 줄의 시각 — 날짜는 뷰어 헤더의 캡처 도장이 이미 말하므로 줄에는 시각만 남는다
+ * (StackDriver 로그 행 문법). 밀리초까지 찍는 이유도 같다: 한 pod 의 줄들은 같은 초 안에
+ * 여러 개 찍히고, 초 단위로 자르면 순서가 시각으로 설명되지 않는다.
+ */
+export function fmtTimeMs(iso: string | null | undefined): string {
+  if (!iso) return '-';
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return '-';
+  const parts = SEOUL_TIME_MS.formatToParts(date);
+  const pick = (type: Intl.DateTimeFormatPartTypes): string =>
+    parts.find((part) => part.type === type)?.value ?? '';
+  const hour = pick('hour') === '24' ? '00' : pick('hour');
+  return `${hour}:${pick('minute')}:${pick('second')}.${pick('fractionalSecond')}`;
+}
+
 /**
  * ISO-8601 UTC instant → Korean relative time from `now` (default Date.now()):
  * '방금 전' (<1m), 'N분 전' (<1h), 'N시간 전' (<1d), else 'N일 전'.

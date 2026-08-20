@@ -510,6 +510,8 @@ export const toLatestResultSummaries = (targetSourceId: number) => {
 export interface TestConnectionPodLogEntry {
   severity: string;
   content: string;
+  /** StackDriver `LogEntry.timestamp` — 이 줄이 찍힌 시각. 캡처 시점에 붙는다. */
+  timestamp?: string;
 }
 
 /**
@@ -578,6 +580,25 @@ const podLogLines = (
 };
 
 /**
+ * 줄 시각 — 캡처본은 pod 가 끝난 순간까지의 tail 이라 마지막 줄이 곧 캡처 시각이고,
+ * 그 앞은 일정 간격으로 거슬러 올라간다. 결정적이어야 한다(랜덤·현재 시각 금지):
+ * 같은 pod 를 두 번 열면 같은 시각이 나와야 화면이 캡처본이라고 말할 수 있다.
+ */
+const LOG_LINE_GAP_MS = 800;
+
+const stampLines = (
+  capturedAt: string | null,
+  lines: readonly TestConnectionPodLogEntry[],
+): TestConnectionPodLogEntry[] => {
+  const end = capturedAt ? new Date(capturedAt).getTime() : Number.NaN;
+  if (Number.isNaN(end)) return [...lines];
+  return lines.map((line, index) => ({
+    ...line,
+    timestamp: new Date(end - (lines.length - 1 - index) * LOG_LINE_GAP_MS).toISOString(),
+  }));
+};
+
+/**
  * DRAFT CONTRACT — pod_id 로 캡처본을 조회한다. 최신 실행의 정착한 리소스만 캡처가
  * 존재한다: 미정착(RUNNING) pod 는 완료 시점 캡처 전이고(UI 도 "수집 중"으로 막는다),
  * POD_CREATION_FAILED 는 pod 가 없어 wire 에 pod_id 자체가 실리지 않는다.
@@ -595,10 +616,11 @@ export const getPodLog = (
       podIdFor(targetSourceId, version, r.resource_id) === podId,
   );
   if (!settled) return null;
+  const capturedAt = job.completed_at ?? job.requested_at;
   return {
     pod_id: podId,
-    captured_at: job.completed_at ?? job.requested_at,
-    entries: podLogLines(targetSourceId, settled),
+    captured_at: capturedAt,
+    entries: stampLines(capturedAt, podLogLines(targetSourceId, settled)),
   };
 };
 
