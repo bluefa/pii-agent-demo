@@ -29,8 +29,10 @@ export const opsStyles = {
       the service-side link pushed to the far edge. One line: everything else the
       old five-tier header stacked here now lives in the meta rail (OpsMetaRail). */
   idLine: 'mt-1.5 flex flex-wrap items-center gap-3',
-  idTitle: 'whitespace-nowrap text-[20px] font-bold tracking-[-0.02em] text-[var(--pl-text-strong)]',
-  idHash: 'font-normal text-[var(--pl-text-faint)]', // design-exempt: prefix glyph, the id digits beside it carry the reading
+  idTitle: 'whitespace-nowrap text-[16px] font-bold tracking-[-0.02em] text-[var(--pl-text-strong)]',
+  /** 오너 08-20: 제목 16px, id 부분은 한 단 아래 14px. */
+  idNum: 'text-[14px] tabular-nums',
+  idHash: 'text-[14px] font-normal text-[var(--pl-text-faint)]', // design-exempt: prefix glyph, the id digits beside it carry the reading
 
   /** Meta block — 클라우드 · 설정 + 검증값 on the wash (오너 08-20: the target's
       own facts came back out of the rail; 08-20 둘째 조정: 한 줄 나열이 아니라
@@ -56,12 +58,20 @@ export const opsStyles = {
    *
    * 대비 실측: 글자(--pl-text-strong) on 면(--pl-bg-card) = 17.85:1. 면은 캔버스
    * (--pl-bg-canvas) 위에서 ΔE00 4.12, 카드 hover 틴트 위에서 8.92 (tableRowLift.card
-   * 주석의 실측치와 같은 쌍). hover 는 면이 아니라 획이 움직인다: border-strong(1.47:1)
-   * → gray-400(2.58:1), 1.75배 — 그 위 글자의 대비는 하나도 건드리지 않는다.
+   * 주석의 실측치와 같은 쌍).
    */
   rawDataTag: 'inline-flex items-center whitespace-nowrap rounded px-1.5 py-0.5 text-[12px] font-semibold border border-[var(--pl-border-strong)] bg-[var(--pl-bg-card)] text-[var(--pl-text-strong)]',
-  rawDataToggle: 'cursor-pointer hover:bg-[var(--pl-gray-50)] hover:border-[var(--pl-gray-400)]',
-  rawDataToggleValue: 'underline underline-offset-2 decoration-[var(--pl-border-strong)]',
+  /**
+   * Masthead meta tags (오너 08-20 넷째 조정) — the editable values (설치모드·
+   * 실데이터) read as emphasized tags and the ACTION moves to a 수정 link beside
+   * them, so the tag no longer has to look clickable (no underline, no hover
+   * fill). metaTag = white face + strong stroke, one notch louder (px-2) than
+   * rawDataTag; metaTagQuiet = the read-only region tag (China/Global) on the
+   * band's gray-200, so the white face keeps meaning "editable value"
+   * (2.94 on the wash, text 8.44:1).
+   */
+  metaTag: 'inline-flex items-center whitespace-nowrap rounded px-2 py-0.5 text-[12px] font-semibold border border-[var(--pl-border-strong)] bg-[var(--pl-bg-card)] text-[var(--pl-text-strong)]',
+  metaTagQuiet: 'inline-flex items-center whitespace-nowrap rounded px-1.5 py-0.5 text-[12px] font-medium bg-[var(--pl-gray-200)] text-[var(--pl-text-medium)]',
 
   /**
    * Card tabs in a band (R1, 오너 08-20 셋째 조정) — the strip itself is a

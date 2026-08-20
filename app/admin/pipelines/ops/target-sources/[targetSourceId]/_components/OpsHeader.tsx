@@ -5,9 +5,10 @@
  * adjustment 08-20) — three lines on one gray-100 wash: breadcrumb (서비스
  * 운영 / 서비스 이름 / #id), the identity line ("Target Source 운영 #{id}" h1 +
  * step pill + first-install stamp + service-side link), and a quiet meta line
- * holding the cloud settings and verification values (account · region ·
- * 설치모드 · 실데이터 · Scan/TF role) — the owner pulled these back out of the
- * rail: they are the target's own facts, and the rail keeps the service axis.
+ * holding the cloud settings and verification values (account with its region
+ * tag · 설치모드 · 실데이터 · Scan/TF role) — the owner pulled these back out of
+ * the rail: they are the target's own facts, and the rail keeps the service
+ * axis. Editable values render as tags with a 수정 link beside them.
  */
 import Link from 'next/link';
 import type { ReactElement } from 'react';
@@ -59,16 +60,24 @@ export function OpsHeader({
   const rawDataLabel =
     supportRawData === true ? '포함' : supportRawData === false ? '미포함' : '미확인';
 
-  /** 흰 면 + 획 칩 — 워시 위의 인터랙티브 값. 밑줄이 affordance 를 진다. */
-  const chip = (label: string, onClick: () => void, title: string): ReactElement => (
-    <button
-      type="button"
-      className={cn(opsStyles.rawDataTag, opsStyles.rawDataToggle)}
-      onClick={onClick}
-      title={title}
-    >
-      <span className={opsStyles.rawDataToggleValue}>{label}</span>
-    </button>
+  /** 수정 가능한 값의 행 (오너 08-20 넷째 조정) — 값은 강조 태그로, 동작은 옆의
+      수정 링크로. 태그가 클릭 대상 행세를 하지 않으니 밑줄·hover 채움이 없다. */
+  const tagRow = (
+    key: string,
+    label: string,
+    onEdit: () => void,
+    editTitle: string,
+    tagTitle?: string,
+  ): ReactElement => (
+    <div className={opsStyles.metaRow}>
+      <span className={opsStyles.metaKey}>{key}</span>
+      <span className={opsStyles.metaTag} title={tagTitle}>
+        {label}
+      </span>
+      <button type="button" className={opsStyles.railLink} onClick={onEdit} title={editTitle}>
+        수정
+      </button>
+    </div>
   );
 
   /** 표시값은 detail 과 같이 온다 (v5 metadata 의 등록값) — 저장 직후 한 칸만 saved 가 덮는다. */
@@ -153,7 +162,7 @@ export function OpsHeader({
             이미 말하므로 제목이 반복하지 않는다. */}
         <h1 className={opsStyles.idTitle}>
           Target Source 운영 <span className={opsStyles.idHash}>#</span>
-          <span className="tabular-nums">{targetSourceId}</span>
+          <span className={opsStyles.idNum}>{targetSourceId}</span>
         </h1>
         {processStatus && <StepPill status={processStatus} />}
         {/* 도장과 알약은 다른 축이다: 알약은 "지금 어디", 도장은 "최초로 마친 적
@@ -182,21 +191,15 @@ export function OpsHeader({
               <span className={cn(opsStyles.metaValue, opsStyles.railMono, 'tabular-nums')}>
                 {meta.aws_account_id}
               </span>
+              {/* 리전은 계정의 속성이라 제 행 대신 계정 옆 태그로 (오너 08-20).
+                  읽기 전용이라 흰 면이 아니라 gray-200 — 흰 면은 수정 가능한 값의
+                  것으로 남는다. */}
+              <span className={opsStyles.metaTagQuiet}>{isChina ? 'China' : 'Global'}</span>
             </div>
-            <div className={opsStyles.metaRow}>
-              <span className={opsStyles.metaKey}>리전</span>
-              <span className={opsStyles.metaValue}>{isChina ? 'China' : 'Global'}</span>
-            </div>
-            <div className={opsStyles.metaRow}>
-              <span className={opsStyles.metaKey}>설치모드</span>
-              {chip(grantTfExecution ? '자동' : '수동', onOpenMode, '설치모드 변경')}
-            </div>
+            {tagRow('설치모드', grantTfExecution ? '자동' : '수동', onOpenMode, '설치모드 변경')}
           </>
         )}
-        <div className={opsStyles.metaRow}>
-          <span className={opsStyles.metaKey}>실데이터</span>
-          {chip(rawDataLabel, onOpenRawData, '실데이터 여부 변경')}
-        </div>
+        {tagRow('실데이터', rawDataLabel, onOpenRawData, '실데이터 여부 변경', '실데이터 여부')}
         {isAws && roleRow('scan')}
         {isAws && grantTfExecution && roleRow('execution')}
         {/* GCP·Azure scan/terraform 주체 — AWS role 행과 같은 문법의 read-only 행.

@@ -44,9 +44,10 @@ const detail = (over: Record<string, unknown> = {}) => ({
 });
 
 const chip = async (): Promise<string> => {
-  const button = await screen.findByTitle('실데이터 여부 변경');
-  await waitFor(() => expect(button.textContent).toBeTruthy());
-  return button.textContent ?? '';
+  // 값 태그와 수정 버튼이 분리됐다 (넷째 조정) — 값은 태그(title=실데이터 여부)가 든다.
+  const tag = await screen.findByTitle('실데이터 여부');
+  await waitFor(() => expect(tag.textContent).toBeTruthy());
+  return tag.textContent ?? '';
 };
 
 beforeEach(() => {
