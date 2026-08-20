@@ -2,7 +2,7 @@
  * DAG weekly health status — ASSUMED CONTRACT
  * (docs/api/ops-assumed-contracts.md §10, owner sketch 2026-08-19).
  *
- * GET /install/monitoring/dag-status/target-sources/{targetSourceId}
+ * GET /install/v1/target-sources/{targetSourceId}/dag-status
  *
  * Wire is camelCase VERBATIM per the sketch — the one ops-assumed endpoint that
  * does not speak snake. No case boundary anywhere on this path.

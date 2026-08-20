@@ -348,7 +348,7 @@ be offered: the approve CTA mounts only on `healthStatus === 'HEALTHY'` (allowli
 loading, fetch failure, and unknown enum values all lock).
 
 ```
-GET /install/monitoring/dag-status/target-sources/{targetSourceId}
+GET /install/v1/target-sources/{targetSourceId}/dag-status
 → 200 DagStatusResponse
 
 DagStatusResponse {
@@ -383,10 +383,15 @@ DagStatusResponse {
 }
 ```
 
-Two deliberate deviations from this doc's conventions, both because the sketch is the
-closest thing to the contract: the wire is **camelCase verbatim** (not snake), and the
-path base is **`/install/monitoring`** (not `/install/v1` — `lib/bff/http.ts` targets it
-with its own fetch instead of `toUpstreamInfraApiPath`).
+One deliberate deviation from this doc's conventions, because the sketch is the closest
+thing to the contract: the wire is **camelCase verbatim** (not snake), so `lib/bff/http.ts`
+fetches it with `raw` — there is no case boundary on this path.
+
+**Path corrected 2026-08-20 (owner).** The original sketch read
+`GET /install/monitoring/dag-status/target-sources/{targetSourceId}` and was transcribed
+verbatim, which is why the client carried a hand-rolled fetch outside `toUpstreamInfraApiPath`.
+The real path is the standard `/install/v1` base nested under its target source, like every
+sibling on this page, so that special case is gone.
 
 Open questions for BE before this graduates (asked 2026-08-19):
 - response paging — the sketch has no page params, but a 10k-row target measured ~10MB

@@ -54,10 +54,7 @@ export const getDagStatus = (
   targetSourceId: number,
   init?: { signal?: AbortSignal },
 ): Promise<DagStatusResponse> =>
-  fetchInfraJson<DagStatusResponse>(
-    `/install/monitoring/dag-status/target-sources/${targetSourceId}`,
-    init,
-  );
+  fetchInfraJson<DagStatusResponse>(`/target-sources/${targetSourceId}/dag-status`, init);
 
 /**
  * 논리 DB 한 건의 Airflow DAG 주소 (assumed §11) — 이동 가능한 완성 URL 한 줄.
