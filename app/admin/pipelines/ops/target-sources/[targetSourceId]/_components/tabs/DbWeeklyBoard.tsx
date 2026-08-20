@@ -7,7 +7,7 @@
  * (벤치마크 시안 A — Azure context pane 계열). 머리(제목+스코프 칩+닫기)는
  * flex-none, 본문이 자기 스크롤을 소유한다.
  *
- * 행 = 정체성(Database·Schema 라벨 2줄, 이름이 없으면 주소가 1급으로 올라선다 — P6),
+ * 행 = 정체성(Database·Schema 라벨 2줄 — 스키마가 없는 행은 라벨째 접힌다),
  * 7일 스트립, 이번 주 판정, 마지막 성공, DAG. 진입은 filter-first: 검색 + 상태 칩(고정 슬롯,
  * TcAgentResultList 문법) 이 먼저 서고, 렌더는 페이지 단위(기본 20)라 1,500행이
  * DOM 에 한 번에 서지 않는다(P4).
@@ -129,28 +129,19 @@ function DayStrip({ row }: { row: DagDbRow }): ReactElement {
  *  두 번 찍힌 것처럼 읽힌다. 주소(databaseUri)는 서버를 아는 유일한 값이라 버리지
  *  않고 툴팁으로 내린다 — 검색은 그대로 주소도 훑는다. */
 function DbIdentity({ db }: { db: DagDbRow['db'] }): ReactElement {
-  // 이름이 아직 없으면 주소가 1급 정체성으로 올라선다 (P6).
-  if (!db.databaseName) {
-    return (
-      <>
-        <p className="truncate font-mono text-[14px] text-[var(--pl-text-strong)]" title={db.databaseUri}>
-          {db.databaseUri}
-        </p>
-        <p className="text-[12px] text-[var(--pl-text-weak)]">이름 미확인 — Infra Manager 재배포 전</p>
-      </>
-    );
-  }
   return (
     <span className="grid grid-cols-[auto_minmax(0,1fr)] items-baseline gap-x-2" title={db.databaseUri}>
       <span className="text-[12px] text-[var(--pl-text-weak)]">Database</span>
       <span className="truncate text-[14px] font-medium text-[var(--pl-text-strong)]">
-        {db.databaseName}
+        {db.databaseName ?? <Dash />}
       </span>
-      <span className="text-[12px] text-[var(--pl-text-weak)]">Schema</span>
-      {db.schemaName ? (
-        <span className="truncate text-[12px] text-[var(--pl-text-medium)]">{db.schemaName}</span>
-      ) : (
-        <Dash />
+      {/* 스키마가 없으면 라벨째 접는다 — 빈 자리를 대시로 채우면 없는 값이 행마다
+          한 줄씩 자리를 차지한다. */}
+      {db.schemaName && (
+        <>
+          <span className="text-[12px] text-[var(--pl-text-weak)]">Schema</span>
+          <span className="truncate text-[12px] text-[var(--pl-text-medium)]">{db.schemaName}</span>
+        </>
       )}
     </span>
   );

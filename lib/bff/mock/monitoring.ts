@@ -81,7 +81,7 @@ const buildDb = (spec: DbSpec, days: string[]): DagDatabaseStatus => {
     databaseUri: spec.uri,
     databaseName: spec.name,
     schemaName: spec.schema !== undefined ? spec.schema : spec.name,
-    // 매핑 없는 uri = 7일 전부 NOT_SCHEDULED and no DAG reference (PR #707 rule).
+    // 스케줄이 없는 행 = 7일 전부 NOT_SCHEDULED and no DAG reference (PR #707 rule).
     dagName:
       spec.pattern === 'unscheduled'
         ? null
@@ -142,7 +142,7 @@ const buildScaleAgents = (days: string[]): DagAgentStatus[] =>
               : globalIdx % 97 === 0
                 ? 'runningToday'
                 : 'success';
-        const name = pattern === 'unscheduled' ? null : `lgs_${agentIdx + 1}_${dbIdx + 1}`;
+        const name = `lgs_${agentIdx + 1}_${dbIdx + 1}`;
         return spec(
           `mysql://10.31.${agentIdx + 1}.${20 + (dbIdx % 200)}:3306/lgs_db_${agentIdx + 1}_${dbIdx + 1}`,
           name,
@@ -207,13 +207,14 @@ const buildResponse = (targetSourceId: number): DagStatusResponse => {
             spec('mysql://10.20.4.32:3306/ratings', 'ratings', 'success', 25),
             spec('mysql://10.20.4.32:3306/rating_rollup', 'rating_rollup', 'failed', 26),
             spec('mysql://10.20.4.32:3306/badges', 'badges', 'runningToday', 27),
-            spec('mysql://10.20.4.32:3306/billing_v2', null, 'unscheduled', 28),
+            spec('mysql://10.20.4.32:3306/billing_v2', 'billing_v2', 'unscheduled', 28),
           ]),
           // Cloud SQL for PostgreSQL — 스키마가 데이터베이스와 갈라지는 유일한
           // 에이전트다. MySQL 행(위 두 에이전트)에서는 둘이 같은 값으로 남는다.
           agent(1511, 2, 'projects/pii-rvw-prod/instances/review-db-3', 'asia-northeast3', 'FAIL', [
             spec('postgres://10.20.4.33:5432/comments', 'comments', 'failed', 29, 'public'),
-            spec('postgres://10.20.4.33:5432/comment_archive', null, 'unscheduled', 30, null),
+            // 스키마만 없는 행 — 보드에서 Schema 줄이 라벨째 접히는지 보는 픽스처.
+            spec('postgres://10.20.4.33:5432/comment_archive', 'comment_archive', 'unscheduled', 30, null),
             spec('postgres://10.20.4.33:5432/reactions', 'reactions', 'success', 31, 'analytics'),
           ]),
         ],
