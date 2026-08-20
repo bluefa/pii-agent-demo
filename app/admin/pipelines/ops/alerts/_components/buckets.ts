@@ -22,10 +22,20 @@ export type AlertCounts = Pick<
 export interface AlertBucketMeta {
   kind: AlertTargetKind;
   label: string;
-  /** 필요한 작업 — what the operator has to do next. */
+  /** 필요한 작업 — what the operator has to do next. 타일 캡션이 이것만 말한다. */
   need: string;
-  /** Who has to act, and on what — the worklist header's subtitle. */
-  description: string;
+  /**
+   * 이 버킷을 움직여야 하는 사람. 목록 메타 줄이 이 값 하나만 싣는다.
+   *
+   * 문단이던 시절의 설명에서 **새 정보는 이 한 조각뿐**이었다("인프라 담당자가 설치를
+   * 수행해야 합니다"의 앞부분). 나머지는 버킷 이름과 타일 캡션이 이미 한 말이라
+   * 문장으로 남길 이유가 없었다.
+   *
+   * null 은 모른다는 뜻이다 — 연결 테스트 버킷의 원래 문구는 행위자를 부르지 않았고,
+   * 이 화면이 admin 전용이라는 사실만으로 "관리자"라고 적으면 네 버킷이 전부 관리자가
+   * 되어 조각이 아무것도 가르지 못한다. 없으면 뺀다.
+   */
+  owner: string | null;
   icon: AlertStageIcon;
   /** The ops-screen tab that answers this bucket's need — rows deep-link to it. */
   tab: OpsTargetTab;
@@ -39,8 +49,7 @@ export const ALERT_BUCKETS: readonly AlertBucketMeta[] = [
     kind: 'confirming',
     label: '리소스 확정 진행 중',
     need: '확정 완료 여부 확인',
-    description:
-      '설치 완료 후 리소스 반영 상태를 확인해야 하는 Target Source입니다. 담당자의 확정 완료 확인이 필요합니다.',
+    owner: '서비스 담당',
     icon: 'clipboard-check',
     tab: 'confirm',
     count: (s) => s.confirmingCount,
@@ -49,7 +58,7 @@ export const ALERT_BUCKETS: readonly AlertBucketMeta[] = [
     kind: 'need-install',
     label: '설치 필요',
     need: 'Agent 설치 수행',
-    description: 'Agent 설치가 대기 중인 Target Source입니다. 인프라 담당자가 설치를 수행해야 합니다.',
+    owner: '인프라 담당',
     icon: 'terraform',
     tab: 'infra',
     count: (s) => s.needInstallCount,
@@ -58,8 +67,8 @@ export const ALERT_BUCKETS: readonly AlertBucketMeta[] = [
     kind: 'need-test-connection',
     label: '연결 테스트 필요',
     need: '연결 테스트 실행',
-    description:
-      '설치된 Agent의 연결 상태를 검증해야 하는 Target Source입니다. 테스트 실행 후 결과를 확인하세요.',
+    // 원래 문구가 행위자를 부르지 않은 유일한 버킷이다.
+    owner: null,
     icon: 'link',
     tab: 'tc',
     count: (s) => s.needTestConnectionCount,
@@ -68,8 +77,7 @@ export const ALERT_BUCKETS: readonly AlertBucketMeta[] = [
     kind: 'need-pii-agent-confirm',
     label: 'PII Agent 확인 필요',
     need: '완료 승인',
-    description:
-      '모든 단계를 완료하고 최종 승인을 대기 중인 Target Source입니다. 관리자 확인 후 완료 처리하세요.',
+    owner: '관리자',
     icon: 'shield-check',
     tab: 'approval',
     count: (s) => s.needPiiAgentConfirmCount,

@@ -42,7 +42,8 @@ const worklist = (props: Partial<Parameters<typeof AlertWorklist>[0]> = {}) => (
   <AlertWorklist
     kind="need-install"
     label="설치 필요"
-    description="Agent 설치가 대기 중인 Target Source입니다."
+    owner="인프라 담당"
+    count={3}
     icon="terraform"
     tab="infra"
     rows={[ROW]}
@@ -91,6 +92,23 @@ describe('AlertsHeader — 타일은 주소를 바꾸는 링크다', () => {
 });
 
 describe('AlertWorklist — 서버가 준 한 페이지를 그린다', () => {
+  it('표 위에는 제목이 아니라 메타 한 줄이 온다 — 이름 · 건수 · 담당', () => {
+    const { container } = render(worklist());
+
+    // 카드 제목(h2)이 없어야 한다: 같은 이름을 타일이 이미 말한다.
+    expect(container.querySelector('h2')).toBeNull();
+    // 건수는 요약이 준 값이지 행 수가 아니다 — 한 페이지는 최대 10건이다.
+    expect(screen.getByText('3')).toBeDefined();
+    expect(screen.getByText('인프라 담당')).toBeDefined();
+  });
+
+  it('담당이 없는 버킷은 그 조각을 아예 빼고 그린다', () => {
+    render(worklist({ label: '연결 테스트 필요', owner: null }));
+    expect(screen.getByText('연결 테스트 필요')).toBeDefined();
+    // 담당이 없으면 구분점도 함께 빠진다 — 조각 없는 구분자는 남지 않는다.
+    expect(screen.queryByText('·')).toBeNull();
+  });
+
   it('행을 그리고, 활성화하면 그 버킷의 탭으로 간다', () => {
     render(worklist());
 

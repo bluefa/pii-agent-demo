@@ -20,10 +20,14 @@ export async function AlertWorklistSection({
   kind,
   pageIndex,
   size,
+  count,
 }: {
   kind: AlertTargetKind;
   pageIndex: number;
   size: number;
+  /** 요약이 말한 이 버킷의 건수 — 메타 줄이 싣는다. 목록 한 페이지는 최대 10건이라
+   *  행을 세어서는 전체 건수를 알 수 없다. */
+  count: number;
 }): Promise<ReactElement> {
   const bucket = alertBucket(kind);
 
@@ -47,7 +51,8 @@ export async function AlertWorklistSection({
     <AlertWorklist
       kind={kind}
       label={bucket.label}
-      description={bucket.description}
+      owner={bucket.owner}
+      count={count}
       icon={bucket.icon}
       tab={bucket.tab}
       rows={rows}

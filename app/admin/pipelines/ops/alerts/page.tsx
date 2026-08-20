@@ -90,13 +90,18 @@ export default async function OpsAlertsPage({
           fallback={
             <AlertWorklistSkeleton
               label={bucket.label}
-              description={bucket.description}
+              owner={bucket.owner}
               icon={bucket.icon}
               count={bucket.count(counts) ?? 0}
             />
           }
         >
-          <AlertWorklistSection kind={kind} pageIndex={pageIndex} size={PAGE_SIZE} />
+          <AlertWorklistSection
+            kind={kind}
+            pageIndex={pageIndex}
+            size={PAGE_SIZE}
+            count={bucket.count(counts) ?? 0}
+          />
         </Suspense>
       </div>
     </div>

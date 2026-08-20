@@ -15,10 +15,9 @@
  * 끼어드는 열이 없어 전제가 성립하지 않는다. 대신 값끼리 세로로 줄서므로 Cloud 도
  * 코드도 열 단위로 훑을 수 있다.
  *
- * The card header carries the bucket's label and description. It deliberately
- * does NOT repeat the bucket's count — the number lives on the tile above, once —
- * and it carries no refresh button: the tiles already re-render the screen from
- * the server on every click (오너 2026-08-20: "새로고침 이런 쓸데없는 버튼 좀 빼봐").
+ * 카드와 카드 제목은 없다 (벤치마크 시안 B+C, 2026-08-20). 표 위에 남은 것은 12px
+ * 메타 한 줄 — 버킷 이름 · 건수 · 담당 — 이고, 표는 페이지 바닥에 직접 선다.
+ * 새로고침 버튼도 없다: 타일과 페이지 링크가 이미 서버에서 화면을 다시 그린다.
  */
 import { useTransition, type ReactElement } from 'react';
 import { useRouter } from 'next/navigation';
@@ -37,17 +36,43 @@ import { OpsPagination } from '@/app/admin/pipelines/ops/target-sources/[targetS
 const PAGE_SIZE = 10;
 
 const worklist = {
-  /** Same surface the stage cards wore (r12 · border-strong · shadow-md). */
-  card: 'bg-[var(--pl-bg-card)] border border-[var(--pl-border-strong)] rounded-[12px] shadow-[var(--pl-shadow-md)] overflow-hidden',
-  /** No bottom border of its own — the table's 2px header rule is the divider. */
-  header: 'flex items-start gap-3 px-5 pt-4 pb-3',
-  /** 2px down-nudge centers the 20px glyph on the 24px title line. */
-  titleIcon: 'mt-0.5 flex-none text-[var(--pl-text-medium)]',
-  titleWrap: 'min-w-0 flex-1',
-  /** Card-head standard (16/600/strong); the description is one tier below
-   *  (14/400/weak) so title and helper text never read as one run-on line. */
-  titleText: 'text-[16px] font-semibold leading-[1.5] text-[var(--pl-text-strong)]',
-  desc: 'mt-0.5 text-[14px] leading-[1.5] text-[var(--pl-text-weak)]',
+  /**
+   * 카드가 없다 (시안 C, 벤치마크 아티팩트 2026-08-20).
+   *
+   * 타일은 면 없이 페이지 바닥에 서는데 표만 흰 카드 + 그림자였다 — 한 화면에 재질이
+   * 둘이라 표가 위와 겉돌았다. 파이프라인 대시보드가 같은 판단을 먼저 했고
+   * (`dashboard.bleed`), 거기서도 남긴 것은 표 머리의 2px 룰 하나다.
+   *
+   * `-mx-5` 는 그 대시보드의 `listBlock` 과 같은 이유다: 셀 패딩이 px-5 라 카드를
+   * 벗기면 첫 열이 제목·타일보다 20px 안쪽으로 들어간다. 블록을 그만큼 밖으로 당겨
+   * 페이지 그리드에 세우고, 행 hover 틴트는 글자보다 넓게 남는다.
+   */
+  block: '-mx-5',
+  /**
+   * 목록 메타 — 카드 제목(16/600) + 설명 문단(14/400) 두 줄이 있던 자리 (시안 B).
+   *
+   * 두 줄을 지운 이유는 중복이다: 버킷 이름은 바로 위 타일이 선택 상태로 이미 말하고
+   * 있었고, 설명 두 문장 중 첫 문장은 그 이름의 되풀이, 두 번째 문장의 유일한 새 정보는
+   * 행위자 하나였다. 남는 것은 **이름 · 건수 · 행위자** 세 조각이고, 조각이 넷을 넘으면
+   * 다시 문단이 되므로 그것이 상한이다.
+   *
+   * 건수는 타일에도 있다 — 의도한 중복이다. 표까지 시선이 내려온 뒤에는 "지금 몇 건을
+   * 보는 중인가"를 말해 주는 것이 없었고, Cloudscape(표 머리의 counter)와 엔터프라이즈
+   * 필터링 분석("목록 위에 결과 수를 보여라")이 같은 자리를 요구한다. 지운 것은
+   * 중복이 아니라 **제목 계층**이다.
+   *
+   * 12px 은 이 표가 이미 쓰는 보조 정보 크기(`d.elapsed`·지연 열)다. 위 타일과는
+   * 24px(page.tsx `mt-6`), 아래 표와는 12px — 가까운 쪽이 자기 표다.
+   */
+  meta: 'flex items-center gap-2 px-5 pb-3 text-[12px] leading-[1.5] text-[var(--pl-text-weak)]',
+  /** 14px 글리프 — 라벨 옆에 붙는 마크의 공용 크기(`provTag.glyph`). 20px 은 16px 제목이
+   *  곁에 있을 때의 값이었고, 그 제목이 사라졌다. */
+  metaIcon: 'flex-none text-[var(--pl-text-medium)]',
+  metaLabel: 'font-semibold text-[var(--pl-text-strong)]',
+  metaCount: 'font-semibold tabular-nums text-[var(--pl-text-strong)]',
+  /** 구분점은 줄의 기본색(weak, 4.97:1)을 그대로 쓴다. faint(2.58:1)로 한 칸 더 내리면
+   *  design-guard 의 대비 바닥을 뚫는다 — 글리프라도 글자로 그린 이상 같은 자다. */
+  metaSep: 'select-none',
   /**
    * 이름과 설명은 셀 폭까지 쓰고 거기서 자른다 (오너 2026-08-20: "서비스 이름이 충분히
    * 길 수 있어 … 설명이랑 거의 반반 … 길면 짤라서").
@@ -100,7 +125,10 @@ const worklist = {
 export interface AlertWorklistProps {
   kind: AlertTargetKind;
   label: string;
-  description: string;
+  /** 이 버킷을 움직여야 하는 사람. 없는 버킷은 메타 줄에서 조각이 빠진다. */
+  owner: string | null;
+  /** 이 버킷의 요약 건수 — 메타 줄이 싣는 값이자 스켈레톤 행 수의 근거. */
+  count: number;
   icon: AlertStageIcon;
   /** Ops-screen tab a row opens — the one that answers this bucket's need. */
   tab: OpsTargetTab;
@@ -123,7 +151,8 @@ export interface AlertWorklistProps {
 export function AlertWorklist({
   kind,
   label,
-  description,
+  owner,
+  count,
   icon,
   tab,
   rows,
@@ -146,16 +175,24 @@ export function AlertWorklist({
   const d = pipelineStyles.dashboard;
 
   return (
-    <section className={worklist.card} aria-label={`${label} 대상 목록`}>
-      <div className={worklist.header}>
-        <span className={worklist.titleIcon}>
-          {icon === 'terraform' ? <TerraformLogo size={20} /> : <Icon name={icon} size={20} />}
+    <section className={worklist.block} aria-label={`${label} 대상 목록`}>
+      <p className={worklist.meta}>
+        <span className={worklist.metaIcon}>
+          {icon === 'terraform' ? <TerraformLogo size={14} /> : <Icon name={icon} size={14} />}
         </span>
-        <div className={worklist.titleWrap}>
-          <h2 className={worklist.titleText}>{label}</h2>
-          <p className={worklist.desc}>{description}</p>
-        </div>
-      </div>
+        <span className={worklist.metaLabel}>{label}</span>
+        <span>
+          <span className={worklist.metaCount}>{count}</span>건
+        </span>
+        {owner ? (
+          <>
+            <span className={worklist.metaSep} aria-hidden="true">
+              ·
+            </span>
+            <span>{owner}</span>
+          </>
+        ) : null}
+      </p>
 
       <table className={worklist.table}>
         <thead>
@@ -256,27 +293,37 @@ export function AlertWorklist({
  */
 export function AlertWorklistSkeleton({
   label,
-  description,
+  owner,
   icon,
   count,
 }: {
   label: string;
-  description: string;
+  owner: string | null;
   icon: AlertStageIcon;
   count: number;
 }): ReactElement {
   const d = pipelineStyles.dashboard;
   return (
-    <section className={worklist.card} aria-busy="true" aria-label={`${label} 대상 목록 불러오는 중`}>
-      <div className={worklist.header}>
-        <span className={worklist.titleIcon}>
-          {icon === 'terraform' ? <TerraformLogo size={20} /> : <Icon name={icon} size={20} />}
+    <section className={worklist.block} aria-busy="true" aria-label={`${label} 대상 목록 불러오는 중`}>
+      {/* 메타 줄은 진짜 값을 그린다 — 서버가 이미 라벨·건수·담당을 알고 있고,
+          기다리는 동안에도 어느 버킷을 여는 중인지는 읽을 수 있어야 한다. */}
+      <p className={worklist.meta}>
+        <span className={worklist.metaIcon}>
+          {icon === 'terraform' ? <TerraformLogo size={14} /> : <Icon name={icon} size={14} />}
         </span>
-        <div className={worklist.titleWrap}>
-          <h2 className={worklist.titleText}>{label}</h2>
-          <p className={worklist.desc}>{description}</p>
-        </div>
-      </div>
+        <span className={worklist.metaLabel}>{label}</span>
+        <span>
+          <span className={worklist.metaCount}>{count}</span>건
+        </span>
+        {owner ? (
+          <>
+            <span className={worklist.metaSep} aria-hidden="true">
+              ·
+            </span>
+            <span>{owner}</span>
+          </>
+        ) : null}
+      </p>
       <table className={worklist.table}>
         <thead>
           <tr>
