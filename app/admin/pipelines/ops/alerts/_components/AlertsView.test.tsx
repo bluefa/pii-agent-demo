@@ -87,7 +87,8 @@ describe('AlertsView — 타일이 곧 필터', () => {
   it('행은 pipelines 대상 문법으로 그려지고, 활성화하면 운영 화면으로 간다', async () => {
     render(<AlertsView />);
     await waitFor(() => expect(screen.getByText('정산서비스')).toBeDefined());
-    // TargetCell: Target 번호 · 코드 값 · 서비스 이름, 그리고 설명 열.
+    // 정체성은 열로 나뉜다: CSP · Target Source ID · 코드 · 이름, 그리고 설명 열.
+    expect(screen.getByText('AWS')).toBeDefined();
     expect(screen.getByText('1861')).toBeDefined();
     expect(screen.getByText('STL')).toBeDefined();
     expect(screen.getByText('정산 마감 배치 RDS')).toBeDefined();

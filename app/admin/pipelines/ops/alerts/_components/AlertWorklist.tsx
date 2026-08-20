@@ -6,9 +6,14 @@
  * Replaces the 2×2 AlertStageCard grid (decision record:
  * docs/ux/benchmark/ops-alerts-worklist.md). Every row navigates to the same
  * destination — the Target Source ops screen — so the bucket is a filter over
- * one list, not four containers. The 대상 cell borrows the pipelines dashboard
- * identity grammar (`TargetCell`) verbatim, so the two screens that open the
- * same Target Source read the same way.
+ * one list, not four containers.
+ *
+ * 정체성은 한 셀에 쌓지 않고 **열로 나눈다** (오너 2026-08-20): CSP · Target Source
+ * ID · 코드 · 서비스 이름이 각자 열을 갖는다. 대시보드의 `TargetCell` 은 그 화면에서
+ * 정체성 열이 진행도·상태·생성시간·경과 사이에 끼어 세 답이 300px 넘게 흩어졌기
+ * 때문에 한 셀로 묶은 것인데(theme.ts `dashboard.identity`), 이 표에는 그 사이에
+ * 끼어드는 열이 없어 전제가 성립하지 않는다. 대신 값끼리 세로로 줄서므로 CSP 도
+ * 코드도 열 단위로 훑을 수 있다.
  *
  * The card header owns the bucket's description and the refresh action. It
  * deliberately does NOT repeat the bucket's count — the number lives on the
@@ -23,7 +28,8 @@ import type { AlertTargetKind, AlertListRow } from '@/lib/types/task-queue';
 import { Icon, type IconName } from '@/app/admin/pipelines/_components/icons';
 import { TerraformLogo } from '@/app/admin/pipelines/_components/brandMarks';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
-import { DashRow, RowAction, TargetCell } from '@/app/admin/pipelines/_dashboard/cells';
+import { DashRow, RowAction } from '@/app/admin/pipelines/_dashboard/cells';
+import { ProvTag } from '@/app/admin/pipelines/_components/ProvTag';
 import { DelayText } from '@/app/admin/pipelines/queue/_components/DelayText';
 import { OpsPagination } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/OpsPagination';
 
@@ -45,6 +51,14 @@ const worklist = {
   titleText: 'text-[16px] font-semibold leading-[1.5] text-[var(--pl-text-strong)]',
   desc: 'mt-0.5 text-[14px] leading-[1.5] text-[var(--pl-text-weak)]',
   descText: 'block max-w-[52ch] truncate text-[14px] text-[var(--pl-text-medium)]',
+  /** Target Source ID — 행을 여는 키라 이 표에서 가장 강한 값이고, 대시보드
+   *  `identityTargetValue` 와 같은 14/600 + group-hover 링크색을 유지한다.
+   *  mono·tabular 는 열로 줄선 숫자를 자릿수로 훑기 위한 것. */
+  idValue:
+    'text-[14px] font-semibold tabular-nums text-[var(--pl-text-strong)] [font-family:var(--pl-font-mono)] transition-colors group-hover:text-[var(--pl-info-text)]',
+  /** 서비스 이름 — 식별자가 아니라 그것이 무엇인지의 설명이라 무게를 내려놓는다.
+   *  설명 열과 같은 14/400 medium: 두 열은 같은 성질의 값이다. */
+  nameText: 'block max-w-[22ch] truncate text-[14px] text-[var(--pl-text-medium)]',
   state: 'px-5 py-12 text-center text-[12px] text-[var(--pl-text-weak)]',
   /** Skeleton bar — opsStyles.skeleton grammar at one text line's height. */
   skeletonBar: 'block h-3.5 animate-pulse rounded-[6px] bg-[var(--pl-gray-100)]',
@@ -129,16 +143,23 @@ export function AlertWorklist({
       <table className={d.table}>
         <thead>
           <tr>
-            <th className={cn(d.th, 'w-[38ch]')}>대상</th>
-            <th className={d.th}>설명</th>
-            <th className={d.th}>지연</th>
-            <th className={d.th} />
+            {/* 식별 열은 제 내용만큼만(`w-px` + nowrap), 남는 폭은 설명이 전부
+                가져간다(`w-full`). auto layout 은 여유 폭을 열마다 고르게 나눠 주므로,
+                그대로 두면 네 자리 숫자 한 개짜리 열이 245px 를 차지하고 값들이
+                서로 멀어진다 — 열로 나눈 이유가 그때 사라진다. */}
+            <th className={cn(d.th, 'w-px')}>CSP</th>
+            <th className={cn(d.th, 'w-px')}>Target Source ID</th>
+            <th className={cn(d.th, 'w-px')}>서비스 코드</th>
+            <th className={cn(d.th, 'w-px')}>서비스 이름</th>
+            <th className={cn(d.th, 'w-full')}>설명</th>
+            <th className={cn(d.th, 'w-px')}>지연</th>
+            <th className={cn(d.th, 'w-px')} />
           </tr>
         </thead>
         <tbody className={d.body}>
           {failed ? (
             <tr>
-              <td colSpan={4} className={worklist.state}>
+              <td colSpan={7} className={worklist.state}>
                 목록을 불러오지 못했습니다.
               </td>
             </tr>
@@ -147,21 +168,17 @@ export function AlertWorklist({
             // tile already knows it), so nothing shifts on arrival.
             Array.from({ length: Math.min(Math.max(count, 1), PAGE_SIZE) }, (_, row) => (
               <tr key={row} aria-hidden="true">
-                <td className={d.cell}>
-                  <span className={worklist.skeletonBar} />
-                </td>
-                <td className={d.cell}>
-                  <span className={worklist.skeletonBar} />
-                </td>
-                <td className={d.cell}>
-                  <span className={worklist.skeletonBar} />
-                </td>
+                {Array.from({ length: 6 }, (_, col) => (
+                  <td key={col} className={d.cell}>
+                    <span className={worklist.skeletonBar} />
+                  </td>
+                ))}
                 <td className={d.actionCell} />
               </tr>
             ))
           ) : rows.length === 0 ? (
             <tr>
-              <td colSpan={4} className={worklist.state}>
+              <td colSpan={7} className={worklist.state}>
                 해당 단계의 대상이 없습니다.
               </td>
             </tr>
@@ -173,13 +190,19 @@ export function AlertWorklist({
                   router.push(passRoutes.pipelines.ops.targetSource(String(row.targetSourceId), tab))
                 }
               >
+                <td className={cn(d.cell, 'whitespace-nowrap')}>
+                  <ProvTag provider={row.cloudProvider ?? ''} />
+                </td>
                 <td className={d.cell}>
-                  <TargetCell
-                    name={row.serviceName ?? '—'}
-                    code={row.serviceCode ?? '—'}
-                    targetId={String(row.targetSourceId ?? '—')}
-                    provider={row.cloudProvider ?? ''}
-                  />
+                  <span className={worklist.idValue}>{row.targetSourceId ?? '—'}</span>
+                </td>
+                <td className={cn(d.cell, 'whitespace-nowrap')}>
+                  <span className={d.identityCodeValue}>{row.serviceCode ?? '—'}</span>
+                </td>
+                <td className={d.cell}>
+                  <span className={worklist.nameText} title={row.serviceName ?? undefined}>
+                    {row.serviceName ?? '—'}
+                  </span>
                 </td>
                 <td className={d.cell}>
                   <span className={worklist.descText} title={row.description ?? undefined}>
