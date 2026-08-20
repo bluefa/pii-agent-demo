@@ -15,20 +15,19 @@
  * 끼어드는 열이 없어 전제가 성립하지 않는다. 대신 값끼리 세로로 줄서므로 Cloud 도
  * 코드도 열 단위로 훑을 수 있다.
  *
- * The card header owns the bucket's description and the refresh action. It
- * deliberately does NOT repeat the bucket's count — the number lives on the
- * tile above, once.
+ * The card header carries the bucket's label and description. It deliberately
+ * does NOT repeat the bucket's count — the number lives on the tile above, once —
+ * and it carries no refresh button: the tiles already re-render the screen from
+ * the server on every click (오너 2026-08-20: "새로고침 이런 쓸데없는 버튼 좀 빼봐").
  */
 import { useTransition, type ReactElement } from 'react';
 import { useRouter } from 'next/navigation';
 import { cn, pipelineStyles } from '@/lib/theme';
 import { passRoutes, type OpsTargetTab } from '@/lib/routes';
 import type { AlertTargetKind, AlertListRow } from '@/lib/types/task-queue';
-import { useNavCountsRefresh } from '@/app/admin/pipelines/_components/NavCountsRefresh';
 import type { AlertStageIcon } from '@/app/admin/pipelines/ops/alerts/_components/buckets';
 import { Icon } from '@/app/admin/pipelines/_components/icons';
 import { TerraformLogo } from '@/app/admin/pipelines/_components/brandMarks';
-import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
 import { DashRow, RowAction } from '@/app/admin/pipelines/_dashboard/cells';
 import { ProvTag } from '@/app/admin/pipelines/_components/ProvTag';
 import { DelayText } from '@/app/admin/pipelines/queue/_components/DelayText';
@@ -117,7 +116,7 @@ export interface AlertWorklistProps {
 /**
  * 표 — 서버가 넘긴 한 페이지를 그리기만 한다.
  *
- * 클라이언트인 이유는 셋뿐이다: 행 클릭 이동, 페이지 이동(주소 갱신), 새로고침.
+ * 클라이언트인 이유는 둘뿐이다: 행 클릭 이동, 페이지 이동(주소 갱신).
  * 데이터는 props 로 들어오므로 이 파일에는 fetch 도 로딩 state 도 없다 — 로딩은
  * 상위 `Suspense` 의 일이 됐다(`AlertWorklistSkeleton`).
  */
@@ -133,9 +132,6 @@ export function AlertWorklist({
   failed,
 }: AlertWorklistProps): ReactElement {
   const router = useRouter();
-  // 사이드바 운영 알림 뱃지는 이 화면과 같은 summary 를 읽는다. 함께 갱신하지
-  // 않으면 새로고침 직후 한 화면에 서로 다른 두 숫자가 남는다.
-  const refreshNavCounts = useNavCountsRefresh();
   const [, startTransition] = useTransition();
 
   const goToPage = (next: number) => {
@@ -159,20 +155,6 @@ export function AlertWorklist({
           <h2 className={worklist.titleText}>{label}</h2>
           <p className={worklist.desc}>{description}</p>
         </div>
-        <PlButton
-          variant="outline"
-          size="sm"
-          onClick={() => {
-            // 서버 컴포넌트를 다시 돌린다 — 요약(타일)과 목록이 한 번의 왕복으로
-            // 같이 새로 온다. 클라이언트 state 를 흔들던 reloadKey 는 사라졌다.
-            startTransition(() => router.refresh());
-            refreshNavCounts();
-          }}
-          className="flex-none gap-1.5"
-        >
-          <Icon name="refresh" size="md" />
-          새로고침
-        </PlButton>
       </div>
 
       <table className={worklist.table}>
