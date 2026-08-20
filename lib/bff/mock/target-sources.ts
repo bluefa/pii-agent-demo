@@ -481,7 +481,7 @@ export const mockTargetSources = {
 
   // PUT …/description (assumed §8). Writes to the store, not to the seed array, so
   // every screen that reads the catalogue — /pass/services, 서비스 운영, 대상 운영 —
-  // sees the edit without a reload.
+  // sees the edit without a reload. 응답 본문은 계약에 없어 204 로 끝낸다.
   putDescription: async (targetSourceId: number, description: string) => {
     const project = getProjectByTargetSourceId(targetSourceId);
     if (!project) {
@@ -491,7 +491,7 @@ export const mockTargetSources = {
       );
     }
     updateProject(project.id, { description });
-    return NextResponse.json({ target_source_id: targetSourceId, description });
+    return new NextResponse(null, { status: 204 });
   },
 
   // PUT …/support-raw-data/{enabled|disabled} — 본문 없는 두 경로가 한 값을 뒤집는다.

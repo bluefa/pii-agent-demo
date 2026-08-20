@@ -57,6 +57,16 @@ describe('mockTargetSources.putDescription', () => {
     const response = await mockTargetSources.putDescription(999999, 'x');
     expect(response.status).toBe(404);
   });
+
+  /**
+   * 성공이 본문 없는 204 가 된 뒤로, 목 어댑터는 §9 처럼 `unwrap()` 없이 통과시킨다 —
+   * 실패를 에러로 바꾸는 건 `if (!response.ok)` 한 줄뿐이고, 그 줄이 빠지면 없는 대상에도
+   * 라우트가 204 를 내고 다이얼로그는 일어나지 않은 저장을 성공으로 닫는다.
+   */
+  it('어댑터가 404 를 에러로 올린다 — 성공으로 새지 않는다', async () => {
+    await expect(mockBff.targetSources.putDescription(999999, 'x')).rejects.toThrow();
+    await expect(mockBff.targetSources.putDescription(RAW_TARGET, 'x')).resolves.toBeUndefined();
+  });
 });
 
 /**

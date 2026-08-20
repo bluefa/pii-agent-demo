@@ -26,22 +26,22 @@ const call = (id: string, body: unknown) =>
 describe('PUT /pass/api/v1/target-sources/[targetSourceId]/description', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockedPut.mockResolvedValue({ target_source_id: 1013, description: '수정된 설명' });
+    mockedPut.mockResolvedValue(undefined);
   });
 
-  it('description 을 그대로 실어 보낸다', async () => {
+  it('description 을 그대로 실어 보낸다 — 성공은 본문 없는 204 다', async () => {
     const response = await call('1013', { description: '수정된 설명' });
 
-    expect(response.status).toBe(200);
-    await expect(response.json()).resolves.toMatchObject({ description: '수정된 설명' });
+    expect(response.status).toBe(204);
+    // 에코를 지어내면 계약에 없는 모양을 화면이 믿게 된다.
+    await expect(response.text()).resolves.toBe('');
     expect(mockedPut).toHaveBeenCalledWith(1013, '수정된 설명');
   });
 
   it('빈 문자열은 유효한 값이다 — 설명 지우기가 400 이 되면 안 된다', async () => {
-    mockedPut.mockResolvedValue({ target_source_id: 1013, description: '' });
     const response = await call('1013', { description: '' });
 
-    expect(response.status).toBe(200);
+    expect(response.status).toBe(204);
     expect(mockedPut).toHaveBeenCalledWith(1013, '');
   });
 
@@ -55,10 +55,9 @@ describe('PUT /pass/api/v1/target-sources/[targetSourceId]/description', () => {
 
   it('1000자는 통과한다 — 경계값이 한 글자 차이로 막히면 안 된다', async () => {
     const exact = 'x'.repeat(1000);
-    mockedPut.mockResolvedValue({ target_source_id: 1013, description: exact });
     const response = await call('1013', { description: exact });
 
-    expect(response.status).toBe(200);
+    expect(response.status).toBe(204);
     expect(mockedPut).toHaveBeenCalledWith(1013, exact);
   });
 
