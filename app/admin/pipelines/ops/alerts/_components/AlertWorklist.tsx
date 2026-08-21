@@ -207,9 +207,15 @@ export function AlertWorklist({
         </tbody>
       </table>
 
-      <div className={worklist.footer}>
-        <OpsPagination page={page} totalPages={totalPages} onChange={goToPage} always />
-      </div>
+      {/* 못 읽은 목록에는 페이저를 달지 않는다. 실패하면 `totalPages` 는 기본값 1 로
+          떨어지는데 주소의 page 는 그대로라, `?page=99` 가 깨진 경우 "이전" 이 살아
+          있는 1 페이지짜리 페이저가 뜬다 — 누르면 또 다른 잘못된 주소를 민다. 셀 자체가
+          없는 상태에서 넘길 페이지도 없다. */}
+      {failed ? null : (
+        <div className={worklist.footer}>
+          <OpsPagination page={page} totalPages={totalPages} onChange={goToPage} always />
+        </div>
+      )}
     </section>
   );
 }

@@ -134,13 +134,17 @@ describe('AlertWorklistSection — 서버가 한 페이지를 읽는다', () => 
     expect(redirect).not.toHaveBeenCalled();
   });
 
-  it('조회 실패에는 되돌리기를 걸지 않는다 — 페이지 수를 모르는 상태다', async () => {
+  it('조회 실패에는 되돌리기도 페이저도 없다 — 넘길 페이지를 모르는 상태다', async () => {
     getAlertTargetSources.mockRejectedValue(new Error('upstream 503'));
     vi.spyOn(console, 'error').mockImplementation(() => {});
 
     render(await section(98));
 
     expect(redirect).not.toHaveBeenCalled();
+    // 실패하면 totalPages 는 1 로 떨어지는데 주소의 page 는 98 그대로다. 페이저를
+    // 그대로 두면 "이전" 이 살아 있어 또 다른 잘못된 주소를 밀게 된다.
+    expect(screen.queryByLabelText('이전 페이지')).toBeNull();
+    expect(screen.queryByLabelText('다음 페이지')).toBeNull();
   });
 
   it('요약을 못 읽었으면(count=null) 건수 조각이 빠진다 — 0 이라 적지 않는다', async () => {
