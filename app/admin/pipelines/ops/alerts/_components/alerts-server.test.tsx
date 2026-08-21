@@ -12,6 +12,7 @@
  *  ② 범위 밖 페이지는 빈 목록이 아니라 마지막 페이지로 되돌아간다
  *  ③ 요약 실패는 0 건이 아니다 — 건수 자리가 사라지지 값이 지어지지 않는다
  */
+import { isValidElement, type ReactNode } from 'react';
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 
@@ -59,6 +60,27 @@ const ROW = {
 const section = (pageIndex: number, count: number | null = 3) =>
   AlertWorklistSection({ kind: 'need-install', pageIndex, size: 10, count });
 
+/**
+ * `page.tsx` 가 Suspense 안에 매달아 둔 서버 컴포넌트를 찾아 실제로 실행한다.
+ *
+ * render() 만으로는 그 자식이 안 돈다 — Suspense 는 fallback 을 그리고 멈춘다. 그래서
+ * page.tsx 가 계산한 props(여기서는 변환된 페이지 인덱스)가 계약까지 갔는지 보려면
+ * 트리에서 그 element 를 찾아 직접 호출해야 한다.
+ */
+const resolveSuspendedChild = async (node: ReactNode): Promise<void> => {
+  if (Array.isArray(node)) {
+    for (const child of node) await resolveSuspendedChild(child);
+    return;
+  }
+  if (!isValidElement(node)) return;
+  if (node.type === AlertWorklistSection) {
+    await AlertWorklistSection(node.props as Parameters<typeof AlertWorklistSection>[0]);
+    return;
+  }
+  const { children } = node.props as { children?: ReactNode };
+  await resolveSuspendedChild(children);
+};
+
 beforeEach(() => {
   vi.clearAllMocks();
 });
@@ -94,6 +116,22 @@ describe('AlertWorklistSection — 서버가 한 페이지를 읽는다', () => 
 
     expect(redirect).not.toHaveBeenCalled();
     expect(screen.getByText('해당 단계의 대상이 없습니다.')).toBeDefined();
+  });
+
+  it.each([
+    ['content 가 없는 봉투', { number: 0, totalPages: 2 }],
+    ['totalPages 가 없는 봉투', { content: [ROW], number: 0 }],
+  ])('%s 는 실패다 — 빈 목록으로도 1 페이지로도 접지 않는다', async (_label, envelope) => {
+    // LOOSE 스키마라 이런 응답도 parse 를 통과한다. 접으면 화면은 "대상이 없습니다"를
+    // 말하거나 2 페이지를 1 페이지로 되돌린다 — 둘 다 못 읽은 것을 읽은 척하는 문장이다.
+    getAlertTargetSources.mockResolvedValue(envelope);
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    render(await section(0));
+
+    expect(screen.getByText('목록을 불러오지 못했습니다.')).toBeDefined();
+    expect(screen.queryByText('해당 단계의 대상이 없습니다.')).toBeNull();
+    expect(redirect).not.toHaveBeenCalled();
   });
 
   it('조회 실패에는 되돌리기를 걸지 않는다 — 페이지 수를 모르는 상태다', async () => {
@@ -172,6 +210,24 @@ describe('page.tsx — 주소와 요약이 props 가 되기까지', () => {
 
     expect(screen.getByText('11')).toBeDefined(); // 2 + 3 + 3 + 3
     expect(screen.queryByText(/건수를 불러오지 못했어요/)).toBeNull();
+  });
+
+  it('주소의 1-based page 가 계약의 0-based 로 요청에 실린다', async () => {
+    getDashboardSummary.mockResolvedValue(FULL_SUMMARY);
+    getAlertTargetSources.mockResolvedValue(wirePage([ROW], 1, 2));
+
+    // 페이지는 Suspense 안에서 스트리밍되므로 render 만으로는 요청이 안 나간다 —
+    // 그 자식을 직접 await 해서 변환된 값이 계약에 도착하는지 본다.
+    const tree = await OpsAlertsPage({
+      searchParams: Promise.resolve({ kind: 'need-install', page: '2' }),
+    });
+    await resolveSuspendedChild(tree);
+
+    expect(getAlertTargetSources).toHaveBeenCalledWith({
+      kind: 'need-install',
+      page: 1,
+      size: 10,
+    });
   });
 });
 

@@ -37,11 +37,22 @@ export async function AlertWorklistSection({
   let totalPages = 1;
   let failed = false;
   try {
-    const list = toAlertListPage(
-      schemas.PageTargetSourceInfo.parse(
-        await bff.taskQueue.getAlertTargetSources({ kind, page: pageIndex, size }),
-      ),
+    const wire = schemas.PageTargetSourceInfo.parse(
+      await bff.taskQueue.getAlertTargetSources({ kind, page: pageIndex, size }),
     );
+
+    // 봉투가 성하지 않으면 실패다. 생성 스키마는 ADR-019 LOOSE 라 `content` 나
+    // `totalPages` 가 통째로 빠져도 parse 를 통과하고, 공용 `toPaged` 가 그것을
+    // `[]` 와 `1` 로 접는다 — 그 상태로 그리면 화면은 "대상이 없습니다"라고 말하거나
+    // (`content` 부재) 2 페이지를 1 페이지로 되돌린다(`totalPages` 부재). 둘 다 못 읽은
+    // 것을 읽은 척하는 문장이라, 여기서 catch 로 넘겨 자기 실패를 말하게 한다.
+    if (!Array.isArray(wire.content) || typeof wire.totalPages !== 'number') {
+      throw new Error(
+        `alert list envelope incomplete (content=${typeof wire.content}, totalPages=${typeof wire.totalPages})`,
+      );
+    }
+
+    const list = toAlertListPage(wire);
     rows = list.content;
     totalPages = Math.max(1, list.totalPages);
   } catch (err) {
