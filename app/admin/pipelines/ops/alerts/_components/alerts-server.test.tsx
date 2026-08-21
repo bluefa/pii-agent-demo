@@ -18,6 +18,7 @@ import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { passRoutes } from '@/lib/routes';
 
 const getAlertTargetSources = vi.hoisted(() => vi.fn());
+const getDashboardSummary = vi.hoisted(() => vi.fn());
 const redirect = vi.hoisted(() =>
   vi.fn((url: string) => {
     // 진짜 redirect 처럼 흐름을 끊는다 — 이어서 렌더되면 이동이 안 일어난 것이다.
@@ -25,11 +26,15 @@ const redirect = vi.hoisted(() =>
   }),
 );
 
-vi.mock('@/lib/bff/client', () => ({ bff: { taskQueue: { getAlertTargetSources } } }));
+vi.mock('@/lib/bff/client', () => ({
+  bff: { taskQueue: { getAlertTargetSources, getDashboardSummary } },
+}));
 vi.mock('next/navigation', () => ({ redirect, useRouter: () => ({ push: vi.fn() }) }));
 
 import { AlertWorklistSection } from '@/app/admin/pipelines/ops/alerts/_components/AlertWorklistSection';
 import { AlertsHeader } from '@/app/admin/pipelines/ops/alerts/_components/AlertsHeader';
+import { pageIndexFromParam } from '@/app/admin/pipelines/ops/alerts/_components/buckets';
+import OpsAlertsPage from '@/app/admin/pipelines/ops/alerts/page';
 
 const wirePage = (content: unknown[], number: number, totalPages: number) => ({
   content,
@@ -121,5 +126,65 @@ describe('AlertsHeader — 요약 실패는 0 건이 아니다', () => {
     // 네 타일 모두 값 대신 '—' 를 든다.
     expect(screen.getAllByText('—')).toHaveLength(4);
     expect(screen.queryByText('0')).toBeNull();
+  });
+});
+
+describe('page.tsx — 주소와 요약이 props 가 되기까지', () => {
+  const FULL_SUMMARY = {
+    confirming_count: 2,
+    need_install_count: 3,
+    need_test_connection_count: 3,
+    need_pii_agent_confirm_count: 3,
+  };
+
+  /** 페이지는 목록을 Suspense 안에서 스트리밍한다. 여기서 보는 것은 머리글(타일)이고,
+   *  표 자리에는 스켈레톤이 든다 — 요약이 props 가 되는 경로만 보면 되므로 충분하다. */
+  const renderPage = async (params: { kind?: string; page?: string }) =>
+    render(await OpsAlertsPage({ searchParams: Promise.resolve(params) }));
+
+  it('요약 조회가 깨지면 타일은 0 이 아니라 모른다고 그린다', async () => {
+    getDashboardSummary.mockRejectedValue(new Error('upstream 503'));
+    getAlertTargetSources.mockResolvedValue(wirePage([ROW], 0, 1));
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    await renderPage({ kind: 'need-install' });
+
+    expect(screen.getByText(/건수를 불러오지 못했어요/)).toBeDefined();
+    expect(screen.getAllByText('—')).toHaveLength(4);
+  });
+
+  it('200 이어도 건수 하나가 비면 모른다 — LOOSE 스키마는 빠진 필드를 통과시킨다', async () => {
+    getDashboardSummary.mockResolvedValue({ ...FULL_SUMMARY, need_install_count: null });
+    getAlertTargetSources.mockResolvedValue(wirePage([ROW], 0, 1));
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    await renderPage({ kind: 'need-install' });
+
+    // 빠진 건수가 '0' 으로 접히면 이 줄이 안 뜬다.
+    expect(screen.getByText(/건수를 불러오지 못했어요/)).toBeDefined();
+  });
+
+  it('요약이 온전하면 총계와 타일 값을 그대로 싣는다', async () => {
+    getDashboardSummary.mockResolvedValue(FULL_SUMMARY);
+    getAlertTargetSources.mockResolvedValue(wirePage([ROW], 0, 1));
+
+    await renderPage({ kind: 'need-install' });
+
+    expect(screen.getByText('11')).toBeDefined(); // 2 + 3 + 3 + 3
+    expect(screen.queryByText(/건수를 불러오지 못했어요/)).toBeNull();
+  });
+});
+
+describe('pageIndexFromParam — 주소는 1-based, 계약은 0-based', () => {
+  it('1-based 주소를 계약 인덱스로 한 번만 내린다', () => {
+    expect(pageIndexFromParam('2')).toBe(1);
+    expect(pageIndexFromParam('99')).toBe(98);
+  });
+
+  it('없거나 말이 안 되는 값은 첫 페이지다', () => {
+    // '0' 과 음수는 1-based 주소에 존재하지 않는 자리고, 소수·문자는 페이지가 아니다.
+    for (const raw of [undefined, '', '1', '0', '-3', '1.5', 'abc']) {
+      expect(pageIndexFromParam(raw)).toBe(0);
+    }
   });
 });

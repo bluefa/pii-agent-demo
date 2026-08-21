@@ -52,9 +52,25 @@ const PAGE_SIZE = 10;
  */
 const loadCounts = async (): Promise<AlertCounts | null> => {
   try {
-    return toDashboardSummary(
-      schemas.DashboardSummaryResponse.parse(await bff.taskQueue.getDashboardSummary()),
+    const wire = schemas.DashboardSummaryResponse.parse(
+      await bff.taskQueue.getDashboardSummary(),
     );
+
+    // 200 이 왔다고 네 건수가 다 온 것은 아니다. 생성 스키마는 ADR-019 LOOSE 라 모든
+    // 필드가 optional·nullable 이고, `toDashboardSummary` 는 빠진 값을 `?? 0` 으로
+    // 접는다 — 그 함수는 요약 route 와 공유하므로 여기서 고칠 자리가 아니고, 대신
+    // 접히기 **전에** 판정한다. 빠진 건수는 0 건이 아니라 모르는 건수다.
+    if (
+      typeof wire.confirming_count !== 'number' ||
+      typeof wire.need_install_count !== 'number' ||
+      typeof wire.need_test_connection_count !== 'number' ||
+      typeof wire.need_pii_agent_confirm_count !== 'number'
+    ) {
+      console.warn('[ops/alerts] 요약에 빠진 건수가 있다 — 건수는 모른다고 그린다', wire);
+      return null;
+    }
+
+    return toDashboardSummary(wire);
   } catch (err) {
     console.warn('[ops/alerts] 요약 조회 실패 — 건수는 모른다고 그린다', err);
     return null;
