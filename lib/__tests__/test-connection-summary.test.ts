@@ -62,8 +62,11 @@ describe('tcSummarySentence', () => {
     foldAgentStatuses([agent('a', 'SUCCESS'), agent('b', 'SUCCESS'), agent('c', 'FAIL')], new Set(['a', 'b', 'c'])),
   );
 
-  it('states the fail count on a failed run', () => {
-    expect(tcSummarySentence('fail', settled)).toBe('리소스 3개 중 2개 연결 성공 — 실패 1건을 점검해 주세요');
+  /** 판정만 — 개수는 카운트 줄이 나른다. 문장이 다시 세면 한 계층 위에서 축이 둘이 된다. */
+  it('states the verdict on a failed run without counting anything', () => {
+    const sentence = tcSummarySentence('fail', settled);
+    expect(sentence).toBe('연결에 실패한 리소스가 있어요');
+    expect(sentence).not.toMatch(/\d/);
   });
 
   it('a SUCCESS run never claims 모두 when the counts disagree (unit missing from results)', () => {
@@ -71,14 +74,18 @@ describe('tcSummarySentence', () => {
       ['a', 'b', 'c'],
       foldAgentStatuses([agent('a', 'SUCCESS'), agent('b', 'SUCCESS')], new Set(['a', 'b', 'c'])),
     );
-    expect(tcSummarySentence('success', diverged)).toBe(
-      '리소스 3개 중 2개 연결 성공 — 나머지 1건은 결과가 확인되지 않았어요',
-    );
+    expect(tcSummarySentence('success', diverged)).toBe('일부 리소스는 연결 결과가 확인되지 않았어요');
     const clean = computeTcBuckets(
       ['a', 'b'],
       foldAgentStatuses([agent('a', 'SUCCESS'), agent('b', 'SUCCESS')], new Set(['a', 'b'])),
     );
-    expect(tcSummarySentence('success', clean)).toBe('리소스 2개 모두 연결에 성공했어요');
+    expect(tcSummarySentence('success', clean)).toBe('모든 리소스가 연결에 성공했어요');
+  });
+
+  /** 하나도 확인되지 않은 정착을 "일부"라고 부르면 실제보다 나아 보인다. */
+  it('does not call a zero-confirmed settle 일부', () => {
+    const none = computeTcBuckets(['a', 'b'], foldAgentStatuses([], new Set(['a', 'b'])));
+    expect(tcSummarySentence('success', none)).toBe('연결 결과가 확인된 리소스가 없어요');
   });
 
   it('keeps the running sentence to the state — the quantity lives in the counts row', () => {
@@ -87,15 +94,13 @@ describe('tcSummarySentence', () => {
 
   it('queued says 시작 대기, never 진행 중 — top-level PENDING 은 아무것도 돌지 않는다', () => {
     const empty = computeTcBuckets(['a', 'b'], foldAgentStatuses([], new Set(['a', 'b'])));
-    expect(tcSummarySentence('queued', empty)).toBe('연결 테스트 요청됨 — 시작을 기다리고 있어요');
+    expect(tcSummarySentence('queued', empty)).toBe('연결 테스트 시작을 기다리고 있어요');
   });
 
   it('a FAIL with zero reports folds into the generic fail sentence — no special state', () => {
     // 오너 결정: "결과가 보고되기 전에 실패" 같은 무보고 서사는 실패와 구분되지 않는다.
     const unreported = computeTcBuckets(['a', 'b'], foldAgentStatuses([], new Set(['a', 'b'])));
-    expect(tcSummarySentence('fail', unreported)).toBe(
-      '연결 테스트가 실패했어요 — 다시 수행해 주세요',
-    );
+    expect(tcSummarySentence('fail', unreported)).toBe('연결 테스트가 실패했어요');
   });
 
   it('idle states the absence of a run, not a zero-count verdict', () => {

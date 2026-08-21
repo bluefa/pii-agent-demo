@@ -121,6 +121,12 @@ export const scanTransition = {
 } as const;
 
 /**
+ * Step 5 진행 중 글리프의 신호 행진 — ActivityIcon 의 밝은 마디에만 건다.
+ * 트랙 path 는 애니메이션 없이 깔려 있어 모션이 꺼져도 파형이 남는다.
+ */
+export const tcActivityMarch = 'motion-safe:animate-[tc-activity-march_1400ms_linear_infinite]';
+
+/**
  * 상태 색상 (CLAUDE.md 규칙 준수)
  * - success (#45CB85): 연결됨, 완료
  * - error (red-500): 끊김, 에러
