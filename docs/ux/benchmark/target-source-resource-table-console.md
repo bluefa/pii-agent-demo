@@ -5,7 +5,7 @@
   (`InstallationCompleteStep` → `ConfirmedIntegrationTable` → `WaitingApprovalTable variant="confirmed"`)
 - 벤치마크 아티팩트: https://claude.ai/code/artifact/a134c751-bf2c-40c0-be0e-ad8e8f6708fd (레퍼런스 15 · 시안 7)
 - 동작 프로토타입: https://claude.ai/code/artifact/7451957c-6636-4638-a9cc-f230281c0192 (열 너비 드래그 리사이즈)
-- 구현 PR: #TBD
+- 구현 PR: #749
 
 ## 문제 (라운드 1 진단 + 라운드 3 판정)
 
