@@ -9,6 +9,7 @@ import type { DagDatabaseStatus, DagStatusResponse } from '@/lib/types/dag-statu
 import {
   abbrevDagName,
   agentDisplayName,
+  agentVerdict,
   connPill,
   countBuckets,
   dayCellKind,
@@ -209,5 +210,42 @@ describe('dayCellKind / dayCellTip', () => {
     expect(dayCellTip(day('SOMETHING_NEW'))).toBe(
       '8월 15일 (토) · 판정할 수 없는 값 (status: SOMETHING_NEW)',
     );
+  });
+});
+
+describe('agentVerdict — 행의 종합 상태 (모든 행에 알약)', () => {
+  const base = {
+    agentId: 'a1',
+    resourceId: 'projects/p/instances/db-1',
+    gcpRegion: null,
+    connectionStatus: 'SUCCESS',
+    dbTotal: 4,
+    succeeded: 4,
+    failed: 0,
+    running: 0,
+    rest: 0,
+  };
+
+  it('연결이 SUCCESS 가 아니면 연결 사실이 판정을 이긴다 — raw 는 hint 로만', () => {
+    const v = agentVerdict({ ...base, connectionStatus: 'FAIL', succeeded: 4 });
+    expect(v).toMatchObject({ tone: 'err', label: '연결 실패' });
+    expect(v.hint).toContain('FAIL');
+  });
+
+  it('연결 정상 + 전부 최근 7일 성공 → 정상(ok)', () => {
+    expect(agentVerdict(base)).toMatchObject({ tone: 'ok', label: '정상' });
+  });
+
+  it('연결 정상이어도 성공 기록 없는 DB 가 있으면 이상(err) — 2/4 는 정상이 아니다', () => {
+    const v = agentVerdict({ ...base, succeeded: 2, failed: 1, rest: 1 });
+    expect(v).toMatchObject({ tone: 'err', label: '이상' });
+    expect(v.hint).toContain('2개');
+  });
+
+  it('관측 DB 0개는 판정 없이 부재만 — DAG 없음(off)', () => {
+    expect(agentVerdict({ ...base, dbTotal: 0, succeeded: 0 })).toMatchObject({
+      tone: 'off',
+      label: 'DAG 없음',
+    });
   });
 });

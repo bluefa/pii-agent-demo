@@ -24,7 +24,6 @@ import {
   type TcResultRow,
 } from '@/app/lib/api/task-queue-tc';
 import type { TestConnectionStatusRow } from '@/lib/types/task-queue';
-import { tcResultStats } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/logic';
 import type { ProcessStatus } from '@/app/admin/pipelines/queue/_components/StepStack';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
 import { OpsHeader } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/OpsHeader';
@@ -395,8 +394,11 @@ export function OpsTargetView({ targetSourceId, initialTab }: OpsTargetViewProps
               targetSourceId={targetSourceId}
               detail={detail}
               status={tcStatus}
-              stats={tcResultStats(tcResults, tcLatest)}
+              latest={tcLatest}
+              latestFailed={tcLatestFailed}
+              results={tcResults}
               onDecided={retry}
+              onOpenTcTab={() => selectTab('연결 테스트')}
             />
           )}
         </div>

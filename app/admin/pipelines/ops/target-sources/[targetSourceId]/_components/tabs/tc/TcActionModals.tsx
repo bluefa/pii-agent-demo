@@ -9,6 +9,7 @@
 import { useState, type ReactElement } from 'react';
 import { TqModal } from '@/app/admin/pipelines/queue/_components/TqModal';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
+import { Icon } from '@/app/admin/pipelines/_components/icons';
 import { CharCount } from '@/app/admin/pipelines/queue/_components/bits';
 import { tqStyles } from '@/app/admin/pipelines/queue/_components/tqStyles';
 import type { TcResultStats } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/logic';
@@ -57,6 +58,19 @@ export function TcRerunModal({
         </>
       }
     >
+      {/* 무슨 일이 벌어지는지 먼저 (오너 08-21) — 이 요청은 되돌림이다. 단계가 뒤로
+          가는 사실은 접수 뒤가 아니라 누르기 전에 알아야 한다. */}
+      <div className={modal.note}>
+        <Icon name="warn-tri" size={16} className={modal.noteIcon} />
+        <span>
+          요청하면 이 대상은{' '}
+          <b className="font-semibold text-[var(--pl-text-strong)]">
+            5단계(연결 테스트)로 되돌아가요
+          </b>
+          . 서비스 담당자가 연결 테스트를 다시 실행하고 완료 승인을 다시 요청해야 승인
+          절차가 이어져요.
+        </span>
+      </div>
       <label className={modal.label} htmlFor="tc-rerun-reason">
         요청 사유 · 필수
       </label>
