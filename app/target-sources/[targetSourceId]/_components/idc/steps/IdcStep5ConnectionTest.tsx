@@ -325,9 +325,11 @@ export const IdcStep5ConnectionTest = ({
             </p>
           </div>
         </header>
-        <div className={cn(cardStyles.body, 'space-y-4')}>
+        {/* Two groups, not one even stack: distance carries ownership (proposal A). Inside a
+            group rows sit 8px apart; the verdict group and the table group are 24px apart. */}
+        <div className={cn(cardStyles.body, 'space-y-6')}>
           {ready && (
-            <>
+            <div className="space-y-2">
               <TcRejectionNotice
                 targetSourceId={targetSourceId}
                 runVersion={latestJob?.test_connection_version ?? null}
@@ -393,7 +395,7 @@ export const IdcStep5ConnectionTest = ({
                   </button>
                 </p>
               )}
-            </>
+            </div>
           )}
           {/* 미설정 0 이 정상 상태다 — 그때는 아무것도 그리지 않는다. 조치가 필요할 때만 한 줄이
               생기고, 그 줄의 링크가 곧 필터라 요약과 도달 수단이 한 물건이다. */}
@@ -402,15 +404,11 @@ export const IdcStep5ConnectionTest = ({
               연동 대상이 없어 연결 테스트를 실행할 수 없어요. 2단계에서 대상을 확정해 주세요.
             </p>
           )}
+          <div className="space-y-2">
+          {/* Bare row in the table group — the table's own missing-value notice sits 8px above
+              the stack it filters instead of boxing itself (proposal A). */}
           {ready && missingCount > 0 && (
-            <div
-              className={cn(
-                'flex items-center gap-2 rounded-lg border px-3 py-2.5 text-[14px]',
-                statusColors.warning.bgSoft,
-                statusColors.warning.border,
-                statusColors.warning.textDark,
-              )}
-            >
+            <div className={cn('flex items-center gap-2 text-[14px]', statusColors.warning.textDark)}>
               <StatusWarningIcon className="h-4 w-4 shrink-0" />
               <span className="break-keep">
                 Credential 미설정 <strong className="font-bold">{missingCount}건</strong> — 지정해야 연결 테스트를
@@ -429,7 +427,7 @@ export const IdcStep5ConnectionTest = ({
               </button>
             </div>
           )}
-          {/* Toolbar, table and pagination are one card, so the section's space-y-4 must not
+          {/* Toolbar, table and pagination are one card, so the group's space-y must not
               get between them — the wrapper absorbs it. */}
           <div>
             <IdcConfirmedResourcesPanel
@@ -443,6 +441,7 @@ export const IdcStep5ConnectionTest = ({
               connectionStatus={statusByResource}
               connectionLoading={loading}
             />
+          </div>
           </div>
           {credModal.data && (
             <CredentialPickModal

@@ -375,7 +375,10 @@ export const ConnectionTestCard = ({
           </p>
         </div>
       </header>
-      <div className={cn(cardStyles.body, 'space-y-4')}>
+      {/* Two groups, not one even stack: distance carries ownership (proposal A). Inside a
+          group rows sit 8px apart; the verdict group and the table group are 24px apart. */}
+      <div className={cn(cardStyles.body, 'space-y-6')}>
+        <div className="space-y-2">
         <TcRejectionNotice
           targetSourceId={targetSourceId}
           runVersion={latestJob?.test_connection_version ?? null}
@@ -442,27 +445,24 @@ export const ConnectionTestCard = ({
             </button>
           </p>
         )}
+        </div>
+        <div className="space-y-2">
         {/* Table + pagination are ONE stack, exactly as steps 2·3 and 6·7 compose them: the
             table itself carries no border or shadow, and the pagination bar below supplies the
             only stroke and the bottom radius. The framed `table.frame` this used to sit in drew
             a second box inside the card — a card inside a card, at a heavier weight than any
             border on those steps.
-            Those steps cap the stack with the filter toolbar (top-rounded, #F7F8FA); here the
-            header row — same fill — is the cap and takes the radius. */}
+            Those steps cap the stack with the filter toolbar (top-rounded, the approvalHeader
+            fill); here the header row — same fill — is the cap and takes the radius. */}
         {/* 미등록이 0 인 것이 정상 상태다. 그 사실을 말하려고 상시 카드 세 장을 두었더니, 아무 할
             일이 없다는 말이 화면의 90px 을 차지했고 (전체 = 지정 + 미등록) 도 성립하지 않았다 —
             Athena·DynamoDB 처럼 Credential 이 "불필요" 한 행은 어느 카드에도 안 잡히기 때문이다.
             조치가 필요할 때만 한 줄이 생긴다. 그 줄의 링크가 곧 필터이므로 요약과 도달 수단이 한
             물건이고, 분류를 세지 않으니 합계가 어긋날 수도 없다. */}
+        {/* Bare row in the table group — this is the table's own missing-value notice, so
+            it sits 8px above the stack it filters instead of boxing itself (proposal A). */}
         {missingCount > 0 && (
-          <div
-            className={cn(
-              'flex items-center gap-2 rounded-lg border px-3 py-2.5 text-[14px]',
-              statusColors.warning.bgSoft,
-              statusColors.warning.border,
-              statusColors.warning.textDark,
-            )}
-          >
+          <div className={cn('flex items-center gap-2 text-[14px]', statusColors.warning.textDark)}>
             {/* 경고를 색만으로 말하지 않는다(WCAG 1.4.1) — 마크가 색 없이도 같은 뜻을 진다. */}
             <StatusWarningIcon className="h-4 w-4 shrink-0" />
             {/* IDC step 5 와 같은 어휘(미설정) — 같은 스텝이 CSP 마다 다른 말을 쓰지 않는다. */}
@@ -520,7 +520,7 @@ export const ConnectionTestCard = ({
                         variant="value"
                         size="lg"
                         content={
-                          <span className="block text-[12px] leading-[1.6] text-[#4E5968]">
+                          <span className={idcStyles.table.headerTipBody}>
                             해당 DB에 접속할 때 사용할 계정 정보예요. Credentials 메뉴에서 등록한 것 중에서 고르고,
                             불필요로 표시된 대상은 이 단계에서 지정하지 않아요.
                           </span>
@@ -782,6 +782,7 @@ export const ConnectionTestCard = ({
               pageSizeOptions={[10, 20, 50, 100]}
             />
           )}
+        </div>
         </div>
         <CloudReqApprovalModal
           isOpen={approvalOpen}

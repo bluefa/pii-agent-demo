@@ -1375,6 +1375,8 @@ export const idcStyles = {
      * which measures 2.86:1 here — see `tableStyles.header` for the full reasoning.
      */
     approvalHeader: 'bg-[#F7F8FA] text-left text-[12px] font-semibold text-[#4E5968]',
+    /** Body text of a header (i) tooltip — the value-variant Tooltip's white surface. */
+    headerTipBody: 'block text-[12px] leading-[1.6] text-[#4E5968]',
     /**
      * Approval-table header, chrome variant — admin P3 only (both provider tables).
      *
