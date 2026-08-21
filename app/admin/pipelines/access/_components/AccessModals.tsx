@@ -431,10 +431,14 @@ const OWNER_SEARCH_MIN = 24;
  * 안이 표였던 것을 칩 흐름으로 바꿨다(오너 시안 A, 2026-08-21). 한 줄에 값이 하나뿐인
  * 목록은 표가 아니다 — 자세한 수치는 `accessStyles.ownerFlow` 에 적혀 있다.
  *
- * 머리도 같은 이유로 줄였다. `담당자 · AWS` 위에 `AWS 담당자` 가 서 있어서 두 단어가
- * 각각 두 번씩 나왔고, 크롬 136.5px 가 내용 210.4px 의 65% 였다. 이제 eyebrow 는
- * **어느 서비스인지**만 말하고 제목이 **무엇을 몇 명** 을 말한다 — 인원수가 제목에
- * 있으면 스크롤하지 않고도 규모를 안다.
+ * 머리는 **고정 제목 + 서비스 줄** 이다(오너 지시 2026-08-21). eyebrow(`담당자 · AWS`)를
+ * 걷어 낸 건 바로 아래 제목이 같은 두 단어를 다시 말하고 있어서고, 제목에서 서비스
+ * 이름을 뺀 건 그 자리가 24/700 이라 이름이 길어질수록 제목이 두 줄·세 줄로 자라기
+ * 때문이다. 이제 제목은 이 모달이 하는 일 하나(`담당자 확인`)만 말하고, 서비스는
+ * `이름 (코드)` 로 자기 줄에서 감긴다 — 잘리지 않는다(`ownerMeta`).
+ *
+ * 인원수는 제목을 떠나 칩 흐름 바로 위 줄로 갔다. 거기서는 검색이 걸러 낸 수를 그대로
+ * 말할 수 있다 — 제목에 있었으면 31 을 말하면서 7개를 그리고 있었을 것이다.
  *
  * 읽기만 하는 모달이라 footer 가 없다 — TqModal 은 그때 머리에 X 를 그린다(닫기 하나만
  * 든 footer 를 두지 않는다).
@@ -474,22 +478,29 @@ export function OwnersModal({
     <TqModal
       open={open}
       onClose={onClose}
-      eyebrowCtx="서비스"
-      eyebrowId={serviceCode}
-      title={`${serviceName} 담당자 ${ownerCount}명`}
+      title="담당자 확인"
+      meta={
+        <p className={a.ownerMeta}>
+          {serviceName} <span className={a.ownerMetaCode}>({serviceCode})</span>
+        </p>
+      }
       sub="이 서비스의 접근 권한 요청을 검토하는 사람들이에요."
     >
-      {searchable && (
-        <div className={a.pickerSearch}>
-          <SearchBox
-            wrapClassName="block w-full"
-            placeholder="Knox ID 검색"
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            aria-label="담당자 검색"
-          />
-        </div>
-      )}
+      {/* 인원수는 지금 그려진 수다 — 걸러 낸 상태에서 전체를 말하면 화면과 어긋난다. */}
+      <div className={a.ownerBar}>
+        <span className={a.ownerCount}>{q ? shown.length : ownerCount}명</span>
+        {searchable && (
+          <div className={a.ownerSearch}>
+            <SearchBox
+              wrapClassName="block w-full"
+              placeholder="Knox ID 검색"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              aria-label="담당자 검색"
+            />
+          </div>
+        )}
+      </div>
       {shown.length === 0 ? (
         <div className={a.pickerEmpty}>‘{query}’와 일치하는 담당자가 없습니다</div>
       ) : (

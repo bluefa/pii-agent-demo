@@ -326,6 +326,25 @@ export const accessStyles = {
    */
   ownerChip:
     'inline-flex max-w-full items-center truncate rounded-[6px] bg-[var(--pl-gray-100)] px-2 py-1 text-[13px] font-medium text-[var(--pl-text-strong)] [font-family:var(--pl-font-mono)]',
+  /**
+   * 모달 머리의 서비스 줄 — `담당자 확인` 아래에 `이름 (코드)` 로 선다.
+   *
+   * 제목이 가변 텍스트를 물면(`AWS 담당자 5명`) 이름이 길어질수록 24/700 이 두 줄, 세
+   * 줄로 자란다. 제목은 이 모달이 하는 일 하나만 말하게 고정하고, 서비스는 그 아래
+   * 자기 줄에서 필요한 만큼 감긴다 — 잘라 내지 않는다. 이 줄이 이 모달의 신원이라,
+   * 감기는 건 괜찮아도 사라지는 건 안 된다.
+   *
+   * `break-keep` 은 한글이 낱말 한가운데서 끊기는 기본 규칙을 막는다.
+   */
+  ownerMeta:
+    'min-w-0 text-[16px] font-semibold leading-[1.4] text-[var(--pl-text-strong)] break-keep',
+  /** 그 줄의 코드. 식별자라 mono 고, 이름에 딸린 값이라 한 단 여리다. */
+  ownerMetaCode: 'font-medium text-[var(--pl-text-weak)] [font-family:var(--pl-font-mono)]',
+  /** 칩 흐름 위 한 줄 — 왼쪽 인원수, 오른쪽 검색(24명 초과일 때만). */
+  ownerBar: 'mb-3 flex items-center justify-between gap-3',
+  ownerCount: 'text-[13px] font-medium tabular-nums text-[var(--pl-text-weak)]',
+  /** 검색 상자는 이 줄의 절반까지만 — 인원수 라벨이 오른쪽으로 밀려나면 안 된다. */
+  ownerSearch: 'w-[260px] flex-none',
   /** 서버가 배열을 잘라 보냈을 때의 각주 — 흐름 밖, 상자 아래. */
   ownerNote: 'mt-3 text-[12px] text-[var(--pl-text-weak)]',
   pickerEmpty: 'px-3 py-8 text-center text-[14px] text-[var(--pl-text-weak)]',
