@@ -9,6 +9,7 @@ import {
   toVersionResultResponse,
   toLatestResultSummaries,
   getCompletionStatus,
+  getPodLog,
   setConfirmation,
   testConnectionUnits,
   TC_CARD_FIXTURE,
@@ -621,6 +622,62 @@ describe('mock-test-connection behavior lock-in', () => {
       expect(
         body.content.slice(1).every((r) => r.status === 'SUCCESS' || r.status === 'FAIL'),
       ).toBe(true);
+    });
+  });
+  // ===== fail_reason / pod 로그 (DRAFT CONTRACT) =====
+
+  describe('fail_reason 시딩과 pod 로그 캡처본', () => {
+    it('실패 픽스처(2103)는 리소스 사유 두 갈래 + run 사유를 함께 싣는다', () => {
+      const job = getLatestJob(TC_CARD_FIXTURE.fail);
+      const wire = toVersionResultResponse(job!);
+      expect(wire.fail_reason).toBe('CLUSTER_TEST_FAILED');
+
+      const failed = wire.test_connection_agent_results.filter(
+        (agent) => agent.connection_status === 'FAIL',
+      );
+      expect(failed.map((agent) => agent.fail_reason)).toEqual([
+        'SECRET_NOT_FOUND',
+        'POD_CREATION_FAILED',
+      ]);
+      // POD_CREATION_FAILED 는 pod 자체가 못 떴다 — pod_id 도 로그도 없는 유일한 실패.
+      expect(failed[0].pod_id).toBeTruthy();
+      expect(failed[1].pod_id).toBeUndefined();
+    });
+
+    it('전면 실패 픽스처(2108)는 run 사유만 싣는다 — 표는 전행 무보고', () => {
+      const wire = toVersionResultResponse(getLatestJob(TC_CARD_FIXTURE.noReportFail)!);
+      expect(wire.connection_status).toBe('FAIL');
+      expect(wire.fail_reason).toBe('TERRAFORM_NOT_APPLIED');
+      expect(wire.test_connection_agent_results).toHaveLength(0);
+    });
+
+    it('성공 행에는 fail_reason 이 실리지 않는다', () => {
+      const wire = toVersionResultResponse(getLatestJob(TC_CARD_FIXTURE.fail)!);
+      const ok = wire.test_connection_agent_results.filter(
+        (agent) => agent.connection_status === 'SUCCESS',
+      );
+      expect(ok.length).toBeGreaterThan(0);
+      expect(ok.every((agent) => agent.fail_reason === undefined)).toBe(true);
+    });
+
+    it('getPodLog 는 최신 실행의 정착 pod 만 캡처본을 준다', () => {
+      const wire = toVersionResultResponse(getLatestJob(TC_CARD_FIXTURE.fail)!);
+      const withPod = wire.test_connection_agent_results.find(
+        (agent) => agent.connection_status === 'FAIL' && agent.pod_id,
+      );
+      expect(withPod).toBeDefined();
+      const log = getPodLog(TC_CARD_FIXTURE.fail, withPod!.pod_id as string);
+      expect(log?.pod_id).toBe(withPod!.pod_id);
+      expect(log?.captured_at).toBeTruthy();
+      // 실패 행의 캡처본은 그 행의 fail_reason 서사를 담는다 — 화면 문구와 로그가
+      // 서로를 반증하지 않는다.
+      expect(log?.entries.some((entry) => entry.content.includes('SECRET_NOT_FOUND'))).toBe(true);
+      // 같은 pod 를 두 번 열어도 같은 캡처본 (결정적).
+      expect(getPodLog(TC_CARD_FIXTURE.fail, withPod!.pod_id as string)).toEqual(log);
+    });
+
+    it('모르는 pod 는 null — 라우트가 404 로 접는다', () => {
+      expect(getPodLog(TC_CARD_FIXTURE.fail, 'tc-unknown-pod')).toBeNull();
     });
   });
 });

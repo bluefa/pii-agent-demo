@@ -20,7 +20,7 @@ const RUN_META: Record<TcExecutionStatus, { tone: TcTone; label: string }> = {
   FAIL: { tone: 'err', label: '실패' },
   RUNNING: { tone: 'warn', label: '진행 중' },
   PENDING: { tone: 'warn', label: '대기' },
-  UNKNOWN: { tone: 'off', label: 'Unknown' },
+  UNKNOWN: { tone: 'off', label: '미확인' },
 };
 
 export function TcRunPill({ status }: { status: TcExecutionStatus }): ReactElement {

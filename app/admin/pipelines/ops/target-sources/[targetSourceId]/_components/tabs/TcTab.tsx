@@ -3,9 +3,9 @@
 /**
  * Test Connection 탭 — the scan tab's hierarchy applied to connection testing.
  *
- * Reading order (top to bottom): 이 대상이 쓰는 자격 증명 / 최근 실행이 통과했는가
- * → 리소스별 상세 → 회차 이력. The pair on top shares one row so "credential 이
- * 배정돼 있는가" and "그래서 붙었는가" are read side by side.
+ * Reading order (top to bottom): 최근 실행이 통과했는가 → 리소스별 상세. 지난 회차와
+ * 결정은 밴드의 링크가 여는 모달이다 — 지면의 마지막 절이 "과거"가 되면 이 탭에 온
+ * 이유(지금 무엇이 실패했나)가 화면에서 가장 멀어진다.
  *
  * 관리자 처리 is NOT here — it is a process branch (Step 6 → 7 / → 5), so it lives
  * on the tab rail (TcDecisionActions) where it is visible from every tab instead
@@ -15,11 +15,11 @@
  * every card is a pure view. TC status/results/latest come from the page, which
  * needs the same three for the 관리자 승인 tab.
  *
- * 두 개의 실행 엔드포인트를 각자 선언한 것만 쓴다 —
- *   latest_version      최신 실행(회차·상태·시각) + 리소스별 판정. 404 = 실행 없음.
- *   execution-history   회차 목록(표). 여기서 "최신"을 유추하지 않는다.
- * 폴링도 latest_version 의 connection_status 로 판단한다: 그것이 계약이 말하는
- * "진행 중"이고, 실행 기록 표의 첫 행을 최신으로 추정하는 것보다 정확하다.
+ * 이 파일이 읽는 실행 엔드포인트는 latest_version 하나다 — 최신 실행(회차·상태·시각)과
+ * 리소스별 판정, 404 = 실행 없음. 회차 목록(execution-history)은 열릴 때 스스로 조회하는
+ * TcRunHistoryModal 의 몫이라 여기서 "최신"을 유추하지 않는다. 폴링도 latest_version 의
+ * connection_status 로 판단한다: 그것이 계약이 말하는 "진행 중"이고, 실행 기록 표의 첫
+ * 행을 최신으로 추정하는 것보다 정확하다.
  *
  * `reloadKey` refreshes the confirmed snapshot + credential list after a write in
  * the tab (논리 DB 정책 / Credential 배정). The 승인·반려 이력 modal mounts per open,
@@ -35,27 +35,20 @@ import {
   type TestConnectionVersionResult,
 } from '@/app/lib/api';
 import type { SecretKey } from '@/lib/types';
-import {
-  getTestConnectionExecutionHistory,
-  type TcExecutionRow,
-  type TcResultRow,
-} from '@/app/lib/api/task-queue-tc';
+import type { TcResultRow } from '@/app/lib/api/task-queue-tc';
 import { getApprovalRequestLatest } from '@/app/lib/api/task-queue-requests';
 import type { TestConnectionStatusRow } from '@/lib/types/task-queue';
 import { usePlToast } from '@/app/admin/pipelines/_components/usePlToast';
-import { opsStyles } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/opsStyles';
 import { TcLatestRunCard } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/TcLatestRunCard';
-import {
-  TcRunHistoryCard,
-  TC_RUN_HISTORY_PAGE_SIZE,
-} from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/TcRunHistoryCard';
+import { TcRunHistoryModal } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/TcRunHistoryModal';
 import { ConfirmedInfoCard } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/ConfirmedInfoCard';
 import { TcHistoryModal } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/TcHistoryModal';
 import {
   isRunOpen,
   orderByRequest,
+  tcFactsByResource,
   tcResultStats,
-  verdictByResource,
+  toConfirmedUnits,
 } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/logic';
 
 /** Same cadence as the user-side Step 5 poll (useTestConnectionPolling). */
@@ -92,6 +85,7 @@ export function TcTab({
   const toast = usePlToast();
   const [reloadKey, setReloadKey] = useState(0);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [runHistoryOpen, setRunHistoryOpen] = useState(false);
   const reload = useCallback(() => setReloadKey((key) => key + 1), []);
 
   const [confirmedRows, setConfirmedRows] = useState<ConfirmedIntegrationResourceItem[]>([]);
@@ -146,60 +140,22 @@ export function TcTab({
   // blanking every card until the refetch lands.
   const settled = loadedKey !== null;
   const orderedRows = orderByRequest(confirmedRows, requestOrder);
-
-  // --- 실행 기록 (표 전용) ----------------------------------------------------
-  const [runRows, setRunRows] = useState<TcExecutionRow[]>([]);
-  const [runPage, setRunPage] = useState(0);
-  const [runTotalPages, setRunTotalPages] = useState(1);
-  const [runsLoading, setRunsLoading] = useState(true);
-  const [runsFailed, setRunsFailed] = useState(false);
-
-  // Latest-request-wins: rapid pagination can resolve out of order, and a stale
-  // response must not commit page/rows over a newer one.
-  const runSeq = useRef(0);
-  const loadRuns = useCallback(
-    async (nextPage: number, { quiet = false } = {}): Promise<void> => {
-      const seq = ++runSeq.current;
-      if (!quiet) setRunsLoading(true);
-      try {
-        const data = await getTestConnectionExecutionHistory(
-          targetSourceId,
-          nextPage,
-          TC_RUN_HISTORY_PAGE_SIZE,
-        );
-        if (seq !== runSeq.current) return;
-        setRunRows(data.content);
-        setRunTotalPages(Math.max(1, data.totalPages));
-        setRunPage(nextPage);
-        setRunsFailed(false);
-      } catch {
-        if (seq !== runSeq.current) return;
-        setRunsFailed(true);
-      } finally {
-        if (seq === runSeq.current && !quiet) setRunsLoading(false);
-      }
-    },
-    [targetSourceId],
-  );
-
-  useEffect(() => {
-    void loadRuns(0);
-  }, [loadRuns]);
+  // The progress denominator counts what the test reports on, not what the table lists:
+  // one Athena region is one result no matter how many databases it holds. Counting rows
+  // here would print 진행 5/7 on a run that only ever produces five results — the same
+  // miscount the user-side Step 5 card documents (ConnectionTestCard's TestUnit).
+  const unitCount = toConfirmedUnits(orderedRows).length;
 
   const running = isRunOpen(latest);
 
   // Poll only while the run is unsettled; the interval clears itself the moment
   // connection_status reaches SUCCESS/FAIL, so an idle tab makes no requests.
-  // `quiet` so a poll swaps history rows in place instead of flashing the
-  // skeleton every 4 seconds.
+  // 회차 목록은 열릴 때 스스로 조회하는 모달의 몫이라 여기서 폴링하지 않는다.
   useEffect(() => {
     if (!running) return;
-    const id = setInterval(() => {
-      onStatusReload();
-      void loadRuns(runPage, { quiet: true });
-    }, POLL_MS);
+    const id = setInterval(onStatusReload, POLL_MS);
     return () => clearInterval(id);
-  }, [running, runPage, loadRuns, onStatusReload]);
+  }, [running, onStatusReload]);
 
   // A finished run rewrites the 논리 DB 결과 and can change the confirmed snapshot,
   // so the settle edge reloads both — the poll tick that observed SUCCESS can race
@@ -210,10 +166,9 @@ export function TcTab({
     if (wasRunning.current && !running) {
       reload();
       onStatusReload();
-      void loadRuns(0);
     }
     wasRunning.current = running;
-  }, [running, reload, onStatusReload, loadRuns]);
+  }, [running, reload, onStatusReload]);
 
   const [triggering, setTriggering] = useState(false);
   const [triggerFailed, setTriggerFailed] = useState(false);
@@ -228,40 +183,33 @@ export function TcTab({
       toast.show('연결 테스트 실행을 요청했습니다.');
       // latest_version 이 새 회차를 RUNNING 으로 보고해야 폴링이 시작된다.
       onStatusReload();
-      await loadRuns(0);
     } catch {
       setTriggerFailed(true);
     } finally {
       setTriggering(false);
     }
-  }, [targetSourceId, loadRuns, onStatusReload, toast]);
+  }, [targetSourceId, onStatusReload, toast]);
 
   return (
     <>
-      {/* 실행(좌) ↔ 그 실행의 이력(우) — 같은 대상을 현재/과거로 읽는 한 쌍. */}
-      <div className={opsStyles.cardsRow}>
-        <TcLatestRunCard
-          latest={latest}
-          status={statusLoaded ? status : null}
-          stats={tcResultStats(results, latest)}
-          confirmedResourceCount={orderedRows.length}
-          loading={!statusLoaded}
-          failed={latestFailed}
-          running={running}
-          triggering={triggering}
-          triggerFailed={triggerFailed}
-          onRunTest={() => void runTest()}
-        />
-        <TcRunHistoryCard
-          rows={runRows}
-          page={runPage}
-          totalPages={runTotalPages}
-          loading={runsLoading}
-          failed={runsFailed}
-          onPage={(next) => void loadRuns(next)}
-          onOpenDecisionHistory={() => setHistoryOpen(true)}
-        />
-      </div>
+      {/* 집계는 밴드로, 사실은 표로 — 종합 상태 밴드가 확정 정보 표 바로 위에 서고,
+          리소스별 사실(연결 상태·실패 사유·Pod 로그)은 전부 표의 열이다. 지난 회차와
+          결정은 밴드의 링크가 여는 모달로 — 탭의 마지막 절이 "과거"가 되지 않도록
+          (사용자 화면 Step 5 와 같은 배치). */}
+      <TcLatestRunCard
+        latest={latest}
+        status={statusLoaded ? status : null}
+        stats={tcResultStats(results, latest)}
+        confirmedResourceCount={unitCount}
+        loading={!statusLoaded}
+        failed={latestFailed}
+        running={running}
+        triggering={triggering}
+        triggerFailed={triggerFailed}
+        onRunTest={() => void runTest()}
+        onOpenRunHistory={() => setRunHistoryOpen(true)}
+        onOpenDecisionHistory={() => setHistoryOpen(true)}
+      />
 
       <ConfirmedInfoCard
         targetSourceId={targetSourceId}
@@ -269,12 +217,19 @@ export function TcTab({
         rows={orderedRows}
         secrets={secrets}
         tcResults={statusLoaded ? results : []}
-        verdicts={verdictByResource(statusLoaded ? latest : null)}
+        facts={tcFactsByResource(statusLoaded ? latest : null)}
         loading={!settled}
         failed={confirmedFailed}
         secretsFailed={secretsFailed}
         onReload={reload}
       />
+
+      {runHistoryOpen && (
+        <TcRunHistoryModal
+          targetSourceId={targetSourceId}
+          onClose={() => setRunHistoryOpen(false)}
+        />
+      )}
 
       {historyOpen && (
         <TcHistoryModal targetSourceId={targetSourceId} onClose={() => setHistoryOpen(false)} />

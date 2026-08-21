@@ -243,3 +243,59 @@ export const getTestConnectionHistory = async (
     })),
   };
 };
+
+// ---------------------------------------------------------------------------
+// Pod 로그 — TC pod 의 StackDriver 캡처본 (DRAFT CONTRACT, swagger 미랜딩).
+// ---------------------------------------------------------------------------
+
+/** severity + content 한 줄 — StackDriver LogSeverity 원문 어휘. */
+export interface TcPodLogEntry {
+  severity: string;
+  content: string;
+  /** 줄이 찍힌 시각(StackDriver `LogEntry.timestamp`). 캡처본이 안 주면 null — 시각 열이 빠진다. */
+  timestamp: string | null;
+}
+
+export interface TcPodLog {
+  podId: string;
+  /** 완료 시점 캡처 도장 — 뷰어 헤더의 "…에 캡처". */
+  capturedAt: string | null;
+  entries: TcPodLogEntry[];
+}
+
+interface TcPodLogWire {
+  pod_id?: string | null;
+  captured_at?: string | null;
+  entries?:
+    | readonly {
+        severity?: string | null;
+        content?: string | null;
+        timestamp?: string | null;
+      }[]
+    | null;
+}
+
+/**
+ * GET …/{id}/test-connection/pod-logs/{podId} — 캡처본 조회. 404 = 캡처 없음
+ * (실행 이력이 없거나, pod 가 최신 실행의 것이 아니거나, 아직 정착 전).
+ * DRAFT 라 스키마 검증이 없으므로 이 어댑터가 방어적으로 접는다.
+ */
+export const getTestConnectionPodLog = async (
+  targetSourceId: number,
+  podId: string,
+): Promise<TcPodLog> => {
+  const raw = await fetchInfraJson<TcPodLogWire>(
+    `/target-sources/${targetSourceId}/test-connection/pod-logs/${encodeURIComponent(podId)}`,
+  );
+  return {
+    podId: raw.pod_id || podId,
+    capturedAt: raw.captured_at ?? null,
+    entries: (raw.entries ?? [])
+      .filter((entry) => Boolean(entry?.content))
+      .map((entry) => ({
+        severity: (entry.severity ?? '').toUpperCase() || 'DEFAULT',
+        content: entry.content ?? '',
+        timestamp: entry.timestamp || null,
+      })),
+  };
+};

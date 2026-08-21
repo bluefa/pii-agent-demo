@@ -1,8 +1,8 @@
 /**
  * Test Connection 탭 공용 bits — tone palette + the atoms every TC card needs.
  * Tones are the design HTML's `.pill.ok/.warn/.err/.off` pairs resolved through
- * --pl-* tokens; `TcPill` is the dotted pill, the same pairs serve the flat tag
- * (`opsStyles.statusTag`) used by the 이력 table.
+ * --pl-* tokens; `TcPill` is a FLAT tag (면 + 글자, 점 없음 — 오너 지시 2026-08-19,
+ * TcStatusTag 문법), the same pairs serve `opsStyles.statusTag` in the 이력 table.
  */
 import type { ReactElement } from 'react';
 import { cn, pipelineStyles } from '@/lib/theme';
@@ -17,21 +17,9 @@ export const TC_TONE_FILL: Record<TcTone, string> = {
   off: 'bg-[var(--pl-off-bg)] text-[var(--pl-text-weak)]',
 };
 
-const TC_TONE_DOT: Record<TcTone, string> = {
-  ok: 'bg-[var(--pl-ok)]',
-  warn: 'bg-[var(--pl-warn)]',
-  err: 'bg-[var(--pl-err)]',
-  off: 'bg-[var(--pl-off)]',
-};
-
 export function TcPill({ tone, label }: { tone: TcTone; label: string }): ReactElement {
   const { pill } = pipelineStyles;
-  return (
-    <span className={cn(pill.base, pill.md, TC_TONE_FILL[tone])}>
-      <span aria-hidden className={cn('h-1.5 w-1.5 rounded-full', TC_TONE_DOT[tone])} />
-      {label}
-    </span>
-  );
+  return <span className={cn(pill.base, pill.md, 'whitespace-nowrap', TC_TONE_FILL[tone])}>{label}</span>;
 }
 
 /** Absent value — never rendered as 0 or an assumed success. */

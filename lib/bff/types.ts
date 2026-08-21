@@ -378,6 +378,8 @@ export interface BffClient {
     updateResourceCredential: (id: number, body: unknown) => Promise<unknown>;
     testConnection: (id: number, collectorImageTag?: string) => Promise<z.infer<typeof schemas.TestConnectionTriggerResponse>>;
     getTestConnectionLatest: (id: number) => Promise<z.infer<typeof schemas.TestConnectionVersionResult>>;
+    /** DRAFT CONTRACT — pod 로그 캡처본 (swagger 미랜딩, 원문 그대로 통과). */
+    getTestConnectionPodLog: (id: number, podId: string) => Promise<unknown>;
     getLatestTestConnectionResultSummaries: (id: number) => Promise<z.infer<typeof schemas.TestConnectionLatestResultSummaryResponse>[]>;
     getTestConnectionCompletionStatus: (id: number) => Promise<z.infer<typeof schemas.TestConnectionCompletionStatusResponse>>;
     updateTestConnectionConfirmation: (

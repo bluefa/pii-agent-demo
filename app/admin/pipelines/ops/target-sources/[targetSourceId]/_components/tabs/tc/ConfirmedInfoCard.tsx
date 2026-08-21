@@ -6,10 +6,12 @@
  * Rows come from the confirmed snapshot (GET …/confirmed-integration, snake
  * passthrough per ADR-019). Two joins by `resource_id` fill the trailing columns,
  * each from the endpoint whose contract actually declares it —
- *   Connection Status  latest_version.test_connection_agent_results[] (verdicts)
- *   논리 DB 건수        latest-results (logical_database_count / excluded_…)
+ *   연결 상태 · 실패 사유 · Pod 로그  latest_version.test_connection_agent_results[]
+ *                                   (tcFactsByResource — 판정 + fail_reason + pod_id)
+ *   논리 DB 건수                     latest-results (logical_database_count / excluded_…)
  * A resource neither reports on renders — for those columns; nothing is inferred
- * from the snapshot alone (an installed resource is not a tested one).
+ * from the snapshot alone (an installed resource is not a tested one). 무보고(—)는
+ * 대기(PENDING, agent 가 보고한 사실)와 다른 사실이라 서로 다른 픽셀을 받는다.
  *
  * Per-row controls: Credential 배정 (searchable combobox over GET …/secrets — the
  * contract's credential list, whose card sits at the top of the tab) and
@@ -22,13 +24,14 @@
  * fetch failure adds a 다시 시도 affordance to that same empty state so the two are
  * never confused with "확정된 리소스가 0건".
  */
-import { useMemo, useState, type ReactElement } from 'react';
-import { cn, idcStyles, pipelineStyles } from '@/lib/theme';
+import { Fragment, useMemo, useState, type ReactElement } from 'react';
+import { cn, pipelineStyles } from '@/lib/theme';
 import {
   updateResourceCredential,
   type ConfirmedIntegrationResourceItem,
 } from '@/app/lib/api';
 import { isEc2Instance, type SecretKey } from '@/lib/types';
+import { GROUPED_CHILD_KIND_LABEL } from '@/lib/resource-grouping';
 import { isRdsCluster } from '@/lib/rds-instances';
 import type { TcResultRow } from '@/app/lib/api/task-queue-tc';
 import { getDatabaseShortLabel } from '@/app/components/ui/DatabaseIcon';
@@ -49,12 +52,17 @@ import {
   TC_TONE_FILL,
 } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/bits';
 import { LdbManageModal } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/LdbManageModal';
+import { TcPodLogModal } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/TcPodLogModal';
+import { failReasonView } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/failReason';
 import { TcCredentialModal } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/TcCredentialModal';
 import { CredentialAssignModal } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/CredentialAssignModal';
 import {
   credentialEntries,
   filterConfirmedRows,
   ldbCount,
+  podLogState,
+  toConfirmedUnits,
+  type TcResourceFact,
   type TcVerdict,
 } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/logic';
 
@@ -85,59 +93,214 @@ const HEAD_CELL =
 const CELL =
   'border-b border-[var(--pl-gray-100)] px-[18px] py-4 align-middle text-[14px] text-[var(--pl-text-strong)]';
 
-/**
- * 연결 상태 cell — the run's own verdict for this resource, or — if it had none.
- * 네 값 중 하나만 한국어였다(Success / Failed / 진행 중 / Unknown): 같은 열이 같은 질문에
- * 두 언어로 답하고 있었으므로, 사용자 화면 Step 5 가 쓰는 말로 맞춘다.
- */
-function ConnCell({ verdict }: { verdict: TcVerdict | undefined }): ReactElement {
-  if (!verdict) return <Dash />;
+/** 네 값 중 하나만 한국어였다(Success / Failed / 진행 중 / Unknown): 같은 칸이 같은
+ *  질문에 두 언어로 답하고 있었으므로, 사용자 화면 Step 5 가 쓰는 말로 맞춘다. */
+function verdictPill(verdict: TcVerdict): ReactElement {
   if (verdict === 'SUCCESS') return <TcPill tone="ok" label="성공" />;
   if (verdict === 'FAIL') return <TcPill tone="err" label="실패" />;
   if (verdict === 'RUNNING') return <TcPill tone="warn" label="진행 중" />;
-  return <TcPill tone="off" label="알 수 없음" />;
+  if (verdict === 'PENDING') return <TcPill tone="off" label="대기" />;
+  return <TcPill tone="off" label="미확인" />;
 }
 
 /**
- * Contract-declared count — absent (no TC row / not a success) renders —, never 0.
- * A non-zero count opens the 논리 DB 관리 modal, so it renders as the underlined
- * in-cell link the app uses at Step 6/7 (LogicalDbCountCell): the underline
- * carries the affordance, which lets the row drop its trailing 관리 link entirely.
- * A reported 0 has nothing to open and stays plain text.
+ * 연결 상태 cell — 판정 알약 위, 실패 사유 아래. 한 칸이다.
+ *
+ * 사유는 제 열을 갖고 있었는데, 그 열은 여섯 행 중 두 행만 채우면서 174px 를 상시
+ * 점유했다(사유는 실패한 행에만 있다). 사유는 판정과 나란한 사실이 아니라 판정에
+ * 딸린 부연이므로, 열을 하나 더 쓰는 대신 판정 밑 한 단으로 내려온다.
+ *
+ * 한국어 라벨 + 원문 enum 2단은 그대로다 — admin 에서 원문은 검색·전달용 디버깅
+ * 어휘라 hover 에 숨기지 않는다. 12종 허용목록 밖의 값은 원문만 중립으로.
+ * 사유에 적색을 다시 칠하지 않는 것도 그대로: 판정은 바로 위 알약이 이미 말했다.
  */
-function CountCell({
+function VerdictCell({
+  verdict,
+  fact,
+}: {
+  verdict: TcVerdict | undefined;
+  fact: TcResourceFact | undefined;
+}): ReactElement {
+  if (!verdict) return <Dash />;
+  const view = failReasonView(fact?.failReason);
+  const raw = (
+    <span
+      className={cn(
+        pipelineStyles.text.mono,
+        'whitespace-nowrap text-[12px] text-[var(--pl-text-weak)]',
+      )}
+    >
+      {view?.raw}
+    </span>
+  );
+  return (
+    <span className="flex flex-col items-start gap-1.5">
+      {verdictPill(verdict)}
+      {view
+        && (view.label ? (
+          <span className="flex flex-col" title={view.desc ?? undefined}>
+            <span className="whitespace-nowrap text-[14px] text-[var(--pl-text-medium)]">
+              {view.label}
+            </span>
+            {raw}
+          </span>
+        ) : (
+          raw
+        ))}
+    </span>
+  );
+}
+
+/**
+ * Database Type · Region — 한 칸 두 단. 둘 다 리소스의 분류지 상태가 아니라 칩을 달지
+ * 않는다. 리전은 한 토큰이라 줄바꿈하지 않는다('ap-northeast-' / '2' 는 둘로 읽힌다).
+ * IDC 는 리전이 없어(온프렘) 타입 한 줄로 끝난다.
+ */
+function TypeRegionCell({
+  type,
+  region,
+}: {
+  type: string | null | undefined;
+  region: string | null;
+}): ReactElement {
+  return (
+    <span className="flex flex-col items-start">
+      {/* The wire is lowercase (mysql·athena) — labelled the way the user screens label it. */}
+      <span className="whitespace-nowrap text-[14px]">
+        {type ? getDatabaseShortLabel(type) : <Dash />}
+      </span>
+      {region && (
+        <span
+          className={cn(
+            pipelineStyles.text.mono,
+            'whitespace-nowrap text-[12px] text-[var(--pl-text-weak)]',
+          )}
+        >
+          {region}
+        </span>
+      )}
+    </span>
+  );
+}
+
+/** pod_id 는 캡처본을 조회하는 열쇠라 액션 바로 아래 그대로 적는다(오너 2026-08-21) —
+ *  운영자가 클러스터에서 같은 이름을 찾는 값이므로 hover 에만 두지 않는다. */
+function PodIdLine({ podId }: { podId: string }): ReactElement {
+  return (
+    <span
+      className={cn(
+        pipelineStyles.text.mono,
+        'block truncate text-[12px] text-[var(--pl-text-weak)]',
+      )}
+      title={podId}
+    >
+      {podId}
+    </span>
+  );
+}
+
+/**
+ * Pod 로그 cell — pod_id 와, 그 pod 의 로그를 여는 입구.
+ *
+ * 다섯 마디 중 어느 것을 할지는 `podLogState` 가 정한다(그 규칙과 근거는 거기에 적혀 있고,
+ * 여기서는 문장과 픽셀만 고른다). 요지는 "pod 가 없다"는 계약이 POD_CREATION_FAILED 라고
+ * 말해 줄 때만 하는 말이고, 나머지 빈칸은 "없음"이 아니라 "모름"이라는 것.
+ *
+ * 로그는 실행이 끝나는 시점에 캡처되므로 진행 중에는 열 것이 없다("수집 중 …").
+ * 링크는 countLink 규칙 — 밑줄이 affordance 를 지고 색은 중립이다.
+ */
+const PodNote = ({ children }: { children: string }): ReactElement => (
+  <span className="whitespace-nowrap text-[14px] text-[var(--pl-text-weak)]">{children}</span>
+);
+
+function PodLogCell({
+  fact,
+  onOpen,
+}: {
+  fact: TcResourceFact | undefined;
+  onOpen: () => void;
+}): ReactElement {
+  const state = podLogState(fact);
+  if (state === 'UNREPORTED') return <Dash />;
+  if (state === 'BEFORE_POD') return <PodNote>Pod 생성 전</PodNote>;
+  if (state === 'NO_POD') return <PodNote>Pod 없음</PodNote>;
+  const podId = fact?.podId ?? '';
+  return (
+    <span className="flex max-w-[180px] flex-col items-start gap-1">
+      {state === 'LOG' ? (
+        <button
+          type="button"
+          onClick={onOpen}
+          aria-label={`Pod 로그 조회 — ${podId}`}
+          className={cn(opsStyles.countLink, 'whitespace-nowrap')}
+        >
+          로그 조회
+        </button>
+      ) : (
+        <PodNote>수집 중 …</PodNote>
+      )}
+      <PodIdLine podId={podId} />
+    </span>
+  );
+}
+
+/**
+ * 연동 논리 DB cell — 대상 건수 위, 제외 건수 아래. 두 열이던 것을 한 칸으로 합쳤다.
+ *
+ * 두 값은 같은 응답의 같은 게이트에서 온다(최신 실행이 SUCCESS 일 때만). 그래서 나란한 두
+ * 열은 같은 사실을 두 번 넓게 벌려 놓은 것이었다. 다만 게이트가 같다고 두 필드가 늘 함께
+ * 오는 것은 아니다 — 계약에서 둘 다 optional 이라 한쪽만 실린 행을 한 칸이 삼키면 안 된다.
+ *
+ * Contract-declared count — absent (no TC row / not a success) renders —, never 0.
+ * 건수 링크 하나가 관리 모달을 연다(모달이 대상·제외 탭을 스스로 든다). 링크는 Step 6/7
+ * 의 LogicalDbCountCell 규칙 — 밑줄이 affordance 를 지므로 행 끝에 관리 링크를 따로 달지
+ * 않는다. 보고된 0 은 열 것이 없어 글자로 남는다.
+ */
+function LdbCell({
   row,
-  tab,
   verdict,
   onOpen,
 }: {
   row: TcResultRow | undefined;
-  tab: 'inc' | 'exc';
   verdict: TcVerdict | undefined;
   onOpen: () => void;
 }): ReactElement {
-  const count = ldbCount(row, tab, verdict);
-  if (count == null) return <Dash />;
-  if (count === 0) return <span className={opsStyles.countZero}>0개</span>;
+  const included = ldbCount(row, 'inc', verdict);
+  const excluded = ldbCount(row, 'exc', verdict);
+  if (included == null && excluded == null) return <Dash />;
   return (
-    <button
-      type="button"
-      onClick={onOpen}
-      aria-label={`${tab === 'inc' ? '연동 대상' : '연동 제외'} 논리 DB ${count}개 보기`}
-      className={opsStyles.countLink}
-    >
-      {count}
-      <span className="text-[12px] font-medium">개</span>
-    </button>
+    <span className="flex flex-col items-start">
+      {included == null ? null : included === 0 ? (
+        <span className={opsStyles.countZero}>0개</span>
+      ) : (
+        <button
+          type="button"
+          onClick={onOpen}
+          aria-label={`연동 논리 DB ${included}개 보기`}
+          className={opsStyles.countLink}
+        >
+          {included}
+          <span className="text-[12px] font-medium">개</span>
+        </button>
+      )}
+      {excluded != null && (
+        <span className="whitespace-nowrap text-[12px] tabular-nums text-[var(--pl-text-weak)]">
+          제외 {excluded}개
+        </span>
+      )}
+    </span>
   );
 }
 
 /**
  * Resource Name — the Step 6·7 confirmed table's identity stack: a cluster or EC2 row
  * says WHAT it is in a tag above the name, and the name itself is truncated to one line
- * with the full value in a tip (which only appears once it is actually cut). Only tagged
- * rows run two lines, so only those are lifted, keeping the name on the row's alignment
- * line with its neighbouring columns.
+ * with the full value in a tip (which only appears once it is actually cut).
+ *
+ * `stackedIdentityLift`(PR #663) 는 여기서 쓰지 않는다 — 그 보정은 **한 줄짜리 이웃 칸**과
+ * 이름을 같은 선에 두려고 스택을 12px 끌어올리는 장치인데, 이 표는 Resource ID 를 이름
+ * 아래로 접으면서 모든 칸이 스택이 됐다. 이웃이 전부 여러 줄이면 `align-middle` 이 알아서
+ * 같은 중심선을 만들고, 거기서 한쪽만 끌어올리면 오히려 어긋난다.
  */
 function ResourceNameCell({
   value,
@@ -163,12 +326,7 @@ function ResourceNameCell({
   );
   if (!cluster && !ec2) return name;
   return (
-    <span
-      className={cn(
-        'flex min-w-0 flex-col items-start gap-1',
-        idcStyles.table.stackedIdentityLift,
-      )}
-    >
+    <span className="flex min-w-0 flex-col items-start gap-1">
       {cluster ? <RdsClusterTag /> : <Ec2InstanceTag />}
       {name}
     </span>
@@ -210,8 +368,8 @@ export interface ConfirmedInfoCardProps {
   secrets: readonly SecretKey[];
   /** 논리 DB 건수 rows (latest-results), joined by resource_id. */
   tcResults: readonly TcResultRow[];
-  /** 리소스별 연결 판정 (latest_version), joined by resource_id. */
-  verdicts: ReadonlyMap<string, TcVerdict>;
+  /** 리소스별 연결 사실 — 판정·사유·pod (latest_version), joined by resource_id. */
+  facts: ReadonlyMap<string, TcResourceFact>;
   /** First tab load still in flight. */
   loading: boolean;
   /** Real snapshot fetch failure — a 404 "not confirmed yet" is not one. */
@@ -227,7 +385,7 @@ export function ConfirmedInfoCard({
   rows,
   secrets,
   tcResults,
-  verdicts,
+  facts,
   loading,
   failed,
   secretsFailed,
@@ -237,6 +395,8 @@ export function ConfirmedInfoCard({
   const [savingId, setSavingId] = useState<string | null>(null);
   const [ldbRow, setLdbRow] = useState<ConfirmedIntegrationResourceItem | null>(null);
   const [credRow, setCredRow] = useState<ConfirmedIntegrationResourceItem | null>(null);
+  /** 로그 뷰어 대상 — pod 와 그 pod 가 검사한 리소스의 라벨. */
+  const [podTarget, setPodTarget] = useState<{ podId: string; resourceLabel: string } | null>(null);
   const [credentialsOpen, setCredentialsOpen] = useState(false);
   // Search · filter · page — the same three the Step 6·7 confirmed table carries. Confirmed
   // resources run to dozens, and laying them all out at once made whoever came here to assign
@@ -245,6 +405,12 @@ export function ConfirmedInfoCard({
   const [dbTypeFilter, setDbTypeFilter] = useState('');
   const [regionFilter, setRegionFilter] = useState('');
   const [page, setPage] = useState(0);
+  /** 펼쳐 둔 리전 단위 — 닫힘이 기본값이다(표는 단위 목록이지 데이터베이스 목록이 아니다). */
+  const [expanded, setExpanded] = useState<readonly string[]>([]);
+  const toggleUnit = (unitId: string): void =>
+    setExpanded((prev) =>
+      prev.includes(unitId) ? prev.filter((id) => id !== unitId) : [...prev, unitId],
+    );
 
   const tcByResourceId = new Map(tcResults.map((row) => [row.resourceId, row]));
 
@@ -264,11 +430,15 @@ export function ConfirmedInfoCard({
     [rows, query, dbTypeFilter, regionFilter],
   );
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  // 페이지도 카운트도 행이 아니라 단위로 센다 — 접힌 Athena 리전은 데이터베이스를 몇 개
+  // 담든 한 단위이고, 행으로 자르면 한 리전이 페이지 경계에서 갈려 부모 행이 두 번 그려진다.
+  const units = useMemo(() => toConfirmedUnits(filtered), [filtered]);
+  const totalUnits = useMemo(() => toConfirmedUnits(rows).length, [rows]);
+  const totalPages = Math.max(1, Math.ceil(units.length / PAGE_SIZE));
   // Narrowing the filter can push the current page past the end — used as-is it renders empty.
   const safePage = Math.min(page, totalPages - 1);
-  const pageRows = filtered.slice(safePage * PAGE_SIZE, safePage * PAGE_SIZE + PAGE_SIZE);
-  const firstIndex = filtered.length === 0 ? 0 : safePage * PAGE_SIZE + 1;
+  const pageUnits = units.slice(safePage * PAGE_SIZE, safePage * PAGE_SIZE + PAGE_SIZE);
+  const firstIndex = units.length === 0 ? 0 : safePage * PAGE_SIZE + 1;
 
   // 생성 시각 + 배정 건수 ride along in the assign modal: with 20+ credentials the
   // name alone rarely settles "which one is this", and those are the only other
@@ -399,94 +569,143 @@ export function ConfirmedInfoCard({
           </div>
           <div className={TABLE_FRAME}>
             <table className={table.base}>
-              {/* The column order of steps 2·3·6·7: identity (name → id) → attributes
-                  (type · region) → verdict. The two admin-only columns (연결 상태 ·
-                  Credential) trail behind them. */}
+              {/* The column order of steps 2·3·6·7: identity → attributes → verdict →
+                  그 결과로 알게 된 규모(논리 DB) → Credential (design: 최신 TC 결과 설계
+                  프레임 ①).
+
+                  열 10개가 프레임(1370px)보다 152px 넓어 Credential 이 접힌 채 열렸다.
+                  같은 질문에 답하는 값끼리 한 칸에 포개 6개로 줄인다 —
+                  정체(이름+ID) · 속성(타입+리전) · 판정(상태+사유) · 로그(입구+pod_id) ·
+                  규모(대상+제외). 열을 지운 게 아니라 겹친 것이라 사라진 사실은 없다
+                  (docs/ux/benchmark/tc-confirmed-columns.md). */}
               <thead className="bg-[var(--pl-gray-50)]">
                 <tr>
-                  {isIdc ? (
-                    <th className={HEAD_CELL}>접속 주소</th>
-                  ) : (
-                    <>
-                      <th className={HEAD_CELL}>Resource Name</th>
-                      <th className={HEAD_CELL}>Resource ID</th>
-                    </>
-                  )}
-                  <th className={HEAD_CELL}>Database Type</th>
-                  {!isIdc && <th className={HEAD_CELL}>Region</th>}
-                  <th className={HEAD_CELL}>연동 대상 논리 DB</th>
-                  <th className={HEAD_CELL}>연동 제외 논리 DB</th>
+                  <th className={HEAD_CELL}>{isIdc ? '접속 주소' : 'Resource Name'}</th>
+                  <th className={HEAD_CELL}>
+                    {isIdc ? 'Database Type' : 'Database Type · Region'}
+                  </th>
                   <th className={HEAD_CELL}>연결 상태</th>
+                  <th className={HEAD_CELL}>Pod 로그</th>
+                  <th className={HEAD_CELL}>연동 논리 DB</th>
                   <th className={HEAD_CELL}>Credential</th>
                 </tr>
               </thead>
               <tbody className="[&>tr:last-child>td]:border-b-0">
-                {pageRows.length === 0 && (
+                {pageUnits.length === 0 && (
                   <tr>
                     <td
-                      colSpan={isIdc ? 6 : 8}
+                      colSpan={6}
                       className={cn(CELL, 'py-10 text-center text-[var(--pl-text-weak)]')}
                     >
                       {FILTER_EMPTY_MESSAGE}
                     </td>
                   </tr>
                 )}
-                {pageRows.map((row, index) => {
-                  const tc = tcByResourceId.get(row.resource_id);
-                  const verdict = verdicts.get(row.resource_id);
+                {pageUnits.map((unit) => {
+                  // 판정·논리 DB 는 단위 id 로 조회한다 — Athena 는 그 id 가 리전이고,
+                  // 데이터베이스 자기 id 로는 어느 결과에도 닿지 못한다(toConfirmedUnits).
+                  const [row] = unit.members;
+                  const tc = tcByResourceId.get(unit.unitId);
+                  const fact = facts.get(unit.unitId);
+                  const verdict = fact?.verdict;
+                  const open = expanded.includes(unit.unitId);
+                  // 건수가 온 키로 관리 화면도 연다 — 리전 단위 건수를 눌러 그 리전의
+                  // 데이터베이스 한 건을 여는 일이 없도록. 이름표도 같이 리전으로 바꾼다:
+                  // 리전 전체의 정책을 바꾸는 모달이 첫 데이터베이스의 이름을 달면, 화면이
+                  // 말하는 범위와 저장이 바꾸는 범위가 어긋난다.
+                  const openLdb = (): void =>
+                    setLdbRow(
+                      unit.folded
+                        ? { ...row, resource_id: unit.unitId, resource_name: unit.unitId }
+                        : row,
+                    );
                   return (
-                    <tr key={`${row.resource_id}-${index}`} className={table.rowHover}>
-                      {isIdc ? (
-                        <td className={CELL}>
+                    <Fragment key={unit.unitId}>
+                    <tr className={table.rowHover}>
+                      <td className={CELL}>
+                        {isIdc ? (
                           <IdcIdentityCell row={row} />
-                        </td>
-                      ) : (
-                        <>
-                          <td className={CELL}>
-                            <ResourceNameCell
-                              value={row.resource_name || null}
-                              resourceType={row.resource_type}
-                            />
-                          </td>
-                          <td className={CELL}>
-                            {/* Step 1·2·3 grammar: truncated to `Prefix…` like the name
-                                column, tip on hover, copy button on row hover. */}
-                            {row.resource_id ? (
-                              <ResourceIdCell
-                                value={row.resource_id}
-                                label="Resource ID"
-                                maxWidthClass="max-w-[200px]"
-                              />
+                        ) : (
+                          /* 이름 위, Resource ID 아래 — 열 하나가 아니라 한 칸 두 단이다.
+                             ID 는 지우지 않는다: ARN 이 같은 이름을 리전·계정으로 가르는
+                             유일한 값이라, 열을 접어도 정체는 남아야 한다. */
+                          <span className="flex min-w-0 flex-col items-start gap-1">
+                            {/* 접힌 행은 리전을 가리킨다 — 리전에는 Resource Name 이 없으므로
+                                이 칸이 펼침 손잡이와 엔진 이름을 대신 든다. 사용자 화면
+                                Step 5 와 같은 문법이다. */}
+                            {unit.folded ? (
+                              <button
+                                type="button"
+                                aria-expanded={open}
+                                aria-label={`${row.database_region ?? ''} 데이터베이스 목록 ${open ? '접기' : '펼치기'}`}
+                                onClick={() => toggleUnit(unit.unitId)}
+                                className="inline-flex items-center gap-1.5 rounded text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--pl-primary)]"
+                              >
+                                <Icon
+                                  name="chev-r"
+                                  size="sm"
+                                  className={cn(
+                                    'flex-none text-[var(--pl-text-weak)] transition-transform',
+                                    open && 'rotate-90',
+                                  )}
+                                />
+                                <span className="font-mono text-[14px]">
+                                  {row.database_type ? getDatabaseShortLabel(row.database_type) : '—'}
+                                </span>
+                              </button>
                             ) : (
-                              <Dash />
+                              <ResourceNameCell
+                                value={row.resource_name || null}
+                                resourceType={row.resource_type}
+                              />
                             )}
-                          </td>
-                        </>
-                      )}
-                      <td className={cn(CELL, 'whitespace-nowrap')}>
-                        {/* The wire is lowercase (mysql·athena) — labelled the way the
-                            user screens label it. A type is a classification, not a
-                            status, so it gets no chip. */}
-                        {row.database_type ? getDatabaseShortLabel(row.database_type) : <Dash />}
-                      </td>
-                      {!isIdc && (
-                        <td className={cn(CELL, 'whitespace-nowrap font-mono')}>
-                          {/* A region is one token — wrapped, 'ap-northeast-' / '2' reads as two. */}
-                          {row.database_region || <Dash />}
-                        </td>
-                      )}
-                      <td className={CELL}>
-                        <CountCell row={tc} tab="inc" verdict={verdict} onOpen={() => setLdbRow(row)} />
+                            {/* Step 1·2·3 grammar: truncated to `Prefix…` like the name
+                                above it, tip on hover, copy button on row hover.
+                                접힌 행이 다는 것은 결과가 실제로 키로 쓰는 id — 리전 id 다. */}
+                            {unit.unitId && (
+                              <ResourceIdCell
+                                value={unit.unitId}
+                                label="Resource ID"
+                                maxWidthClass="max-w-[240px]"
+                              />
+                            )}
+                          </span>
+                        )}
                       </td>
                       <td className={CELL}>
-                        <CountCell row={tc} tab="exc" verdict={verdict} onOpen={() => setLdbRow(row)} />
+                        <TypeRegionCell
+                          type={row.database_type}
+                          region={isIdc ? null : row.database_region || null}
+                        />
                       </td>
                       <td className={CELL}>
-                        <ConnCell verdict={verdict} />
+                        <VerdictCell verdict={verdict} fact={fact} />
                       </td>
                       <td className={CELL}>
-                        {/* Credential is addressed by resource id — no id, no assignment. */}
-                        {row.resource_id ? (
+                        <PodLogCell
+                          fact={fact}
+                          onOpen={() =>
+                            fact?.podId
+                            && setPodTarget({
+                              podId: fact.podId,
+                              // 접힌 행의 pod 는 리전의 pod 다 — 뷰어 부제도 리전을 말해야 한다.
+                              resourceLabel: unit.folded ? unit.unitId : rowLabel(row),
+                            })
+                          }
+                        />
+                      </td>
+                      <td className={CELL}>
+                        <LdbCell row={tc} verdict={verdict} onOpen={openLdb} />
+                      </td>
+                      <td className={CELL}>
+                        {/* Credential is addressed by resource id — no id, no assignment.
+                            접힌 행은 리전이라 배정할 리소스가 하나로 정해지지 않고, 애초에
+                            Athena 는 IAM 으로 붙어 Credential 이 필요 없다(Step 5 와 같은 말). */}
+                        {unit.folded ? (
+                          <span className="whitespace-nowrap text-[12px] text-[var(--pl-text-weak)]">
+                            불필요
+                          </span>
+                        ) : row.resource_id ? (
                           <div className="w-[190px]">
                             <button
                               type="button"
@@ -525,6 +744,36 @@ export function ConfirmedInfoCard({
                         )}
                       </td>
                     </tr>
+                    {/* 데이터베이스 목록 — 이름과, 그 이름이 무엇인지(Database Type 열이
+                        Athena → Database 로 읽힌다). 나머지 칸은 비운다: 리전 행이 이미
+                        답했고 데이터베이스마다 달라지는 값이 아니다. */}
+                    {unit.folded
+                      && open
+                      && unit.members.map((db) => (
+                        <tr key={db.resource_id} className={table.rowHover}>
+                          <td className={cn(CELL, 'pl-[58px]')}>
+                            <span className="flex min-w-0 flex-col items-start gap-1">
+                              {db.resource_name ? (
+                                <span className="block truncate font-mono text-[14px]">
+                                  {db.resource_name}
+                                </span>
+                              ) : (
+                                <Dash />
+                              )}
+                              <ResourceIdCell
+                                value={db.resource_id}
+                                label="Resource ID"
+                                maxWidthClass="max-w-[240px]"
+                              />
+                            </span>
+                          </td>
+                          <td className={cn(CELL, 'whitespace-nowrap text-[var(--pl-text-weak)]')}>
+                            {GROUPED_CHILD_KIND_LABEL}
+                          </td>
+                          <td className={CELL} colSpan={4} />
+                        </tr>
+                      ))}
+                    </Fragment>
                   );
                 })}
               </tbody>
@@ -533,16 +782,17 @@ export function ConfirmedInfoCard({
           {/* Range and pager share a line — the grammar the Agent별 결과 list above uses. */}
           <div className="mt-3 flex items-center justify-between gap-3">
             <p className="text-[12px] tabular-nums text-[var(--pl-text-weak)]">
-              {firstIndex}–{safePage * PAGE_SIZE + pageRows.length} / {filtered.length}
-              {filtered.length !== rows.length && ` (전체 ${rows.length})`}
+              {firstIndex}–{safePage * PAGE_SIZE + pageUnits.length} / {units.length}
+              {units.length !== totalUnits && ` (전체 ${totalUnits})`}
             </p>
             <OpsPagination page={safePage} totalPages={totalPages} onChange={setPage} />
           </div>
           <p className={cn(pipelineStyles.text.meta, 'mt-3.5')}>
-            연결 상태는 최근 연결 테스트가 리소스별로 보고한 판정이고, 논리 DB 건수는 그중
-            성공한 리소스에만 표기합니다. 실행 결과가 없거나 성공하지 않은 리소스는 —(값 없음)으로
-            두며, 임의로 성공 처리하지 않습니다. 논리 DB 건수를 누르면 대상·제외 정책을 관리할 수
-            있습니다.
+            연결 상태(실패 사유 포함)·Pod 로그는 최근 연결 테스트가 리소스별로 보고한 사실이고,
+            논리 DB 건수는 그중 성공한 리소스에만 표기합니다. 보고가 없는 리소스는 —(값 없음)으로
+            두며, 임의로 성공 처리하지 않습니다. Pod 로그는 실행 완료 시점의 캡처본이고, 테스트 Pod
+            생성 실패(POD_CREATION_FAILED)는 pod 가 뜨지 못해 로그가 없습니다. 논리 DB 건수를
+            누르면 대상·제외 정책을 관리할 수 있습니다.
           </p>
         </>
       )}
@@ -565,6 +815,15 @@ export function ConfirmedInfoCard({
           rows={rows}
           failed={secretsFailed}
           onClose={() => setCredentialsOpen(false)}
+        />
+      )}
+
+      {podTarget && (
+        <TcPodLogModal
+          targetSourceId={targetSourceId}
+          podId={podTarget.podId}
+          resourceLabel={podTarget.resourceLabel}
+          onClose={() => setPodTarget(null)}
         />
       )}
 

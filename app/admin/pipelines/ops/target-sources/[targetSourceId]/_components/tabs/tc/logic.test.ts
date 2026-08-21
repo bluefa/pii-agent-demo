@@ -4,12 +4,16 @@ import type { TestConnectionVersionResult } from '@/app/lib/api';
 import {
   isRunOpen,
   ldbCount,
-  runAgentRows,
   runDurationSeconds,
+  runFailReason,
   runProgress,
   runStatus,
+  tcFactsByResource,
+  podLogState,
   tcResultStats,
+  toConfirmedUnits,
   verdictByResource,
+  type TcResourceFact,
 } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/logic';
 import {
   resourceIdTail,
@@ -78,13 +82,19 @@ describe('verdictByResource', () => {
     ).toBe('FAIL');
   });
 
-  it('reports RUNNING while any agent is still open, but FAIL still wins', () => {
-    expect(
-      verdictByResource(version([['r-1', 'SUCCESS'], ['r-1', 'PENDING']])).get('r-1'),
-    ).toBe('RUNNING');
+  it('folds with the shared FAIL-first priority — Step 5 와 같은 한 벌 (foldAgentStatuses)', () => {
+    // FAIL → UNKNOWN → RUNNING → PENDING → SUCCESS.
     expect(
       verdictByResource(version([['r-1', 'RUNNING'], ['r-1', 'FAIL']])).get('r-1'),
     ).toBe('FAIL');
+    expect(
+      verdictByResource(version([['r-1', 'SUCCESS'], ['r-1', 'RUNNING']])).get('r-1'),
+    ).toBe('RUNNING');
+    // 대기는 agent 가 보고한 사실 — 표의 연결 상태 열이 "대기"로 그린다.
+    expect(
+      verdictByResource(version([['r-1', 'SUCCESS'], ['r-1', 'PENDING']])).get('r-1'),
+    ).toBe('PENDING');
+    expect(verdictByResource(version([['r-1', 'PENDING']])).get('r-1')).toBe('PENDING');
   });
 
   it('maps a value outside the contract enum to UNKNOWN, never to success', () => {
@@ -104,46 +114,115 @@ describe('verdictByResource', () => {
   });
 });
 
-describe('runAgentRows', () => {
-  it('keeps one row per agent in wire order — folding hides which agent failed', () => {
-    const rows = runAgentRows(
-      version([['r-1', 'SUCCESS'], ['r-1', 'FAIL'], ['r-2', 'RUNNING']]),
-    );
-    expect(rows.map((r) => [r.resourceId, r.agentId, r.verdict])).toEqual([
-      ['r-1', 'agent-r-1', 'SUCCESS'],
-      ['r-1', 'agent-r-1', 'FAIL'],
-      ['r-2', 'agent-r-2', 'RUNNING'],
+describe('tcFactsByResource', () => {
+  it('reads the DRAFT-CONTRACT pod_id/fail_reason off the passthrough object', () => {
+    const latest = version([['r-1', 'FAIL']]);
+    const [agent] = latest.test_connection_agent_results ?? [];
+    const facts = tcFactsByResource({
+      ...latest,
+      test_connection_agent_results: [
+        { ...agent, pod_id: 'tc-1-4-ab12z', fail_reason: 'SECRET_NOT_FOUND' },
+      ],
+    });
+    expect(facts.get('r-1')).toEqual({
+      verdict: 'FAIL',
+      podId: 'tc-1-4-ab12z',
+      failReason: 'SECRET_NOT_FOUND',
+    });
+  });
+
+  it('treats an absent, empty, or non-string pod_id/fail_reason as 없음', () => {
+    const latest = version([['r-1', 'SUCCESS'], ['r-2', 'FAIL'], ['r-3', 'RUNNING']]);
+    const agents = latest.test_connection_agent_results ?? [];
+    const facts = tcFactsByResource({
+      ...latest,
+      test_connection_agent_results: [
+        agents[0],
+        { ...agents[1], pod_id: '', fail_reason: '' },
+        { ...agents[2], pod_id: 7, fail_reason: 9 },
+      ],
+    });
+    expect([...facts.values()].map((f) => [f.podId, f.failReason])).toEqual([
+      [null, null],
+      [null, null],
+      [null, null],
     ]);
   });
 
-  it('carries a missing agent_id through as null rather than an empty string', () => {
-    const latest = version([['r-1', 'SUCCESS']]);
-    const [agent] = latest.test_connection_agent_results ?? [];
-    expect(runAgentRows({ ...latest, test_connection_agent_results: [{ ...agent, agent_id: '' }] })[0]
-      ?.agentId).toBeNull();
+  it('takes pod and reason from the agent that made the verdict — 실패 행의 로그 링크는 실패한 pod 를 연다', () => {
+    const latest = version([['r-1', 'SUCCESS'], ['r-1', 'FAIL']]);
+    const [ok, fail] = latest.test_connection_agent_results ?? [];
+    const facts = tcFactsByResource({
+      ...latest,
+      test_connection_agent_results: [
+        { ...ok, pod_id: 'tc-ok' },
+        { ...fail, pod_id: 'tc-fail', fail_reason: 'CLUSTER_TEST_FAILED' },
+      ],
+    });
+    expect(facts.get('r-1')).toEqual({
+      verdict: 'FAIL',
+      podId: 'tc-fail',
+      failReason: 'CLUSTER_TEST_FAILED',
+    });
   });
 
   it('is empty for no run', () => {
-    expect(runAgentRows(null)).toEqual([]);
+    expect(tcFactsByResource(null).size).toBe(0);
+  });
+});
+
+describe('runFailReason', () => {
+  it('reads the DRAFT-CONTRACT run-level fail_reason off the passthrough object', () => {
+    const latest = version([], { connection_status: 'FAIL' });
+    expect(runFailReason({ ...latest, fail_reason: 'TERRAFORM_NOT_APPLIED' })).toBe(
+      'TERRAFORM_NOT_APPLIED',
+    );
+  });
+
+  it('is null for no run, an absent value, or an empty string — 사유 줄 자체가 없다', () => {
+    expect(runFailReason(null)).toBeNull();
+    expect(runFailReason(version([]))).toBeNull();
+    expect(runFailReason({ ...version([]), fail_reason: '' })).toBeNull();
   });
 });
 
 describe('runProgress', () => {
-  const rows = runAgentRows(version([['r-1', 'SUCCESS'], ['r-2', 'FAIL']]));
+  const latest = version([['r-1', 'SUCCESS'], ['r-2', 'FAIL']]);
 
   it('counts settled agents against the confirmed resource count, not the rows received', () => {
-    // 3건짜리 실행에서 2건만 보고된 상태 — 분모가 rows.length 면 "2/2 완료"(100%)가 된다.
-    expect(runProgress(rows, 3)).toEqual({ done: 2, total: 3 });
+    // 3건짜리 실행에서 2건만 보고된 상태 — 분모가 받은 행 수면 "2/2 완료"(100%)가 된다.
+    expect(runProgress(latest, 3)).toEqual({ done: 2, total: 3 });
   });
 
   it('never lets the denominator fall below the rows already received', () => {
     // 한 리소스를 여러 agent 가 맡으면 행이 확정 리소스 수보다 많아진다.
-    expect(runProgress(rows, 1)).toEqual({ done: 2, total: 2 });
+    expect(runProgress(latest, 1)).toEqual({ done: 2, total: 2 });
   });
 
   it('does not count an unsettled agent as done', () => {
-    const open = runAgentRows(version([['r-1', 'RUNNING'], ['r-2', 'SUCCESS']]));
-    expect(runProgress(open, 2).done).toBe(1);
+    expect(runProgress(version([['r-1', 'RUNNING'], ['r-2', 'SUCCESS']]), 2).done).toBe(1);
+  });
+
+  // TcTab 이 분모로 넘기는 값은 확정 행 수가 아니라 결과 단위 수다. Athena 리전 하나에
+  // 데이터베이스가 셋 있으면 결과는 한 건뿐인데 행으로 세면 영영 1/3 에서 멈춘다 —
+  // 사용자 화면 Step 5 카드(ConnectionTestCard)가 이미 겪고 고친 오산이다.
+  it('folds an Athena region into one unit before it becomes the denominator', () => {
+    const region = 'athena:1:ap-northeast-1/AwsDataCatalog';
+    const confirmed = ['sampledb', 'integration', 'logs'].map(
+      (db) =>
+        ({
+          resource_id: `athena:1:ap-northeast-1:AwsDataCatalog/${db}`,
+          resource_name: db,
+          database_type: 'athena',
+          database_region: 'ap-northeast-1',
+          athena_region_resource_id: region,
+        }) as Parameters<typeof toConfirmedUnits>[0][number],
+    );
+    const run = version([[region, 'SUCCESS']]);
+
+    expect(runProgress(run, toConfirmedUnits(confirmed).length)).toEqual({ done: 1, total: 1 });
+    // 행 수를 그대로 넘겼을 때의 오답 — 이 줄이 위와 같아지면 접기가 사라진 것이다.
+    expect(runProgress(run, confirmed.length)).toEqual({ done: 1, total: 3 });
   });
 });
 
@@ -207,13 +286,15 @@ describe('tcResultStats', () => {
         ['r-2', 'FAIL'],
         ['r-3', 'RUNNING'],
         ['r-4', 'WEIRD'],
+        ['r-5', 'PENDING'],
       ]),
     );
     expect(stats).toMatchObject({
-      resourceCount: 4,
+      resourceCount: 5,
       successCount: 1,
       failedCount: 1,
-      runningCount: 1,
+      // RUNNING 과 PENDING 은 둘 다 "아직 판정 전" — 카드 요약의 같은 통에 든다.
+      runningCount: 2,
       unknownCount: 1,
     });
   });
@@ -319,5 +400,47 @@ describe('shortResourceId', () => {
     expect(short).toContain('…');
     expect(short.length).toBeLessThan(value.length);
     expect(short.endsWith(value.slice(-16))).toBe(true);
+  });
+});
+
+/**
+ * pod 부재를 어떻게 읽을 것인가. `pod_id` 는 아직 랜딩 전 필드라 실계약 응답에는 실리지
+ * 않는다 — 값이 없다는 것만 보고 "Pod 없음"을 찍으면 정상적으로 끝난 모든 행이 "pod 가
+ * 안 떴다"고 말하게 되고, 표 각주가 그 문구를 POD_CREATION_FAILED 에 묶어 두었으니
+ * 운영자는 그대로 읽는다.
+ */
+describe('podLogState', () => {
+  const fact = (over: Partial<TcResourceFact> = {}): TcResourceFact => ({
+    verdict: 'SUCCESS',
+    podId: 'tc-1-2-abc',
+    failReason: null,
+    ...over,
+  });
+
+  it('보고가 없는 행은 무보고 — pod 가 없다는 사실과 다르다', () => {
+    expect(podLogState(undefined)).toBe('UNREPORTED');
+  });
+
+  it('계약이 pod_id 를 주지 않은 정착 행은 "없음"이 아니라 "모름"이다', () => {
+    // 계약 랜딩 전의 실응답 모양: 판정은 오는데 pod_id 가 통째로 없다.
+    expect(podLogState(fact({ podId: null }))).toBe('UNREPORTED');
+    expect(podLogState(fact({ verdict: 'FAIL', podId: null, failReason: 'SECRET_NOT_FOUND' })))
+      .toBe('UNREPORTED');
+  });
+
+  it('영영 없다는 말은 POD_CREATION_FAILED 가 말해 줄 때만 한다', () => {
+    expect(podLogState(fact({ verdict: 'FAIL', podId: null, failReason: 'POD_CREATION_FAILED' })))
+      .toBe('NO_POD');
+  });
+
+  it('실행이 열려 있으면 아직 안 생긴 것 — 끝난 실패에게 기다리라고 하지 않는다', () => {
+    expect(podLogState(fact({ verdict: 'PENDING', podId: null }))).toBe('BEFORE_POD');
+    expect(podLogState(fact({ verdict: 'RUNNING', podId: null }))).toBe('BEFORE_POD');
+  });
+
+  it('캡처는 실행이 끝나야 뜬다 — pod 가 있어도 진행 중이면 수집 중이다', () => {
+    expect(podLogState(fact({ verdict: 'RUNNING' }))).toBe('COLLECTING');
+    expect(podLogState(fact())).toBe('LOG');
+    expect(podLogState(fact({ verdict: 'FAIL', failReason: 'CLUSTER_TEST_FAILED' }))).toBe('LOG');
   });
 });
