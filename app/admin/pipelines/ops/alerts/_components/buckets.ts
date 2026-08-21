@@ -103,3 +103,16 @@ export const defaultAlertKind = (counts: AlertCounts): AlertTargetKind =>
 
 export const alertBucket = (kind: AlertTargetKind): AlertBucketMeta =>
   ALERT_BUCKETS.find((bucket) => bucket.kind === kind) ?? ALERT_BUCKETS[0];
+
+/**
+ * URL 의 page 는 1-based 다 — 주소창은 사람이 읽는 자리고, `?page=0` 이 첫 페이지인
+ * 주소는 공유받은 쪽에서 오해를 만든다. 계약은 0-based 라 변환은 **여기 한 곳**에서만
+ * 일어난다.
+ *
+ * 위쪽 상한은 여기서 못 잡는다 — 몇 페이지가 있는지는 응답이 와야 안다. 목록을 받은
+ * 뒤 `AlertWorklistSection` 이 마지막 페이지로 되돌린다.
+ */
+export const pageIndexFromParam = (raw: string | undefined): number => {
+  const parsed = Number(raw);
+  return Number.isInteger(parsed) && parsed > 1 ? parsed - 1 : 0;
+};

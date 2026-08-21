@@ -33,14 +33,51 @@ import { DelayText } from '@/app/admin/pipelines/queue/_components/DelayText';
 import { OpsPagination } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/OpsPagination';
 import { PAGE_SIZE, worklist } from '@/app/admin/pipelines/ops/alerts/_components/worklistStyles';
 
-export interface AlertWorklistProps {
-  kind: AlertTargetKind;
+interface WorklistMetaProps {
   label: string;
   /** 이 버킷을 움직여야 하는 사람. 없는 버킷은 메타 줄에서 조각이 빠진다. */
   owner: string | null;
-  /** 이 버킷의 요약 건수 — 메타 줄이 싣는 값이자 스켈레톤 행 수의 근거. */
-  count: number;
+  /**
+   * 이 버킷의 요약 건수 — 메타 줄이 싣는 값이자 스켈레톤 행 수의 근거.
+   *
+   * null 은 요약을 못 읽었다는 뜻이고, **0 건과 다르다**. 없는 값을 0 으로 적으면
+   * 행이 3 줄 그려진 표 위에서 "0건"이라고 말하게 된다. 담당이 없을 때와 같은
+   * 처리 — 조각과 그 구분점이 함께 빠진다.
+   */
+  count: number | null;
   icon: AlertStageIcon;
+}
+
+/** 표와 스켈레톤이 같은 메타 줄을 그린다 — 기다리는 동안 줄이 바뀌면 도착할 때 흔들린다. */
+function WorklistMeta({ label, owner, count, icon }: WorklistMetaProps): ReactElement {
+  const sep = (
+    <span className={worklist.metaSep} aria-hidden="true">
+      ·
+    </span>
+  );
+  return (
+    <p className={worklist.meta}>
+      <span className={worklist.metaIcon}>
+        {icon === 'terraform' ? <TerraformLogo size={14} /> : <Icon name={icon} size={14} />}
+      </span>
+      <span className={worklist.metaLabel}>{label}</span>
+      {count !== null ? (
+        <span>
+          <span className={worklist.metaCount}>{count}</span>건
+        </span>
+      ) : null}
+      {owner ? (
+        <>
+          {sep}
+          <span>{owner}</span>
+        </>
+      ) : null}
+    </p>
+  );
+}
+
+export interface AlertWorklistProps extends WorklistMetaProps {
+  kind: AlertTargetKind;
   /** Ops-screen tab a row opens — the one that answers this bucket's need. */
   tab: OpsTargetTab;
   /** 서버가 읽어 온 한 페이지 (`AlertWorklistSection`). 이 컴포넌트는 fetch 하지 않는다. */
@@ -87,23 +124,7 @@ export function AlertWorklist({
 
   return (
     <section className={worklist.block} aria-label={`${label} 대상 목록`}>
-      <p className={worklist.meta}>
-        <span className={worklist.metaIcon}>
-          {icon === 'terraform' ? <TerraformLogo size={14} /> : <Icon name={icon} size={14} />}
-        </span>
-        <span className={worklist.metaLabel}>{label}</span>
-        <span>
-          <span className={worklist.metaCount}>{count}</span>건
-        </span>
-        {owner ? (
-          <>
-            <span className={worklist.metaSep} aria-hidden="true">
-              ·
-            </span>
-            <span>{owner}</span>
-          </>
-        ) : null}
-      </p>
+      <WorklistMeta label={label} owner={owner} count={count} icon={icon} />
 
       <table className={worklist.table}>
         <thead>
@@ -207,34 +228,13 @@ export function AlertWorklistSkeleton({
   owner,
   icon,
   count,
-}: {
-  label: string;
-  owner: string | null;
-  icon: AlertStageIcon;
-  count: number;
-}): ReactElement {
+}: WorklistMetaProps): ReactElement {
   const d = pipelineStyles.dashboard;
   return (
     <section className={worklist.block} aria-busy="true" aria-label={`${label} 대상 목록 불러오는 중`}>
       {/* 메타 줄은 진짜 값을 그린다 — 서버가 이미 라벨·건수·담당을 알고 있고,
           기다리는 동안에도 어느 버킷을 여는 중인지는 읽을 수 있어야 한다. */}
-      <p className={worklist.meta}>
-        <span className={worklist.metaIcon}>
-          {icon === 'terraform' ? <TerraformLogo size={14} /> : <Icon name={icon} size={14} />}
-        </span>
-        <span className={worklist.metaLabel}>{label}</span>
-        <span>
-          <span className={worklist.metaCount}>{count}</span>건
-        </span>
-        {owner ? (
-          <>
-            <span className={worklist.metaSep} aria-hidden="true">
-              ·
-            </span>
-            <span>{owner}</span>
-          </>
-        ) : null}
-      </p>
+      <WorklistMeta label={label} owner={owner} count={count} icon={icon} />
       <table className={worklist.table}>
         <thead>
           <tr>
@@ -248,7 +248,9 @@ export function AlertWorklistSkeleton({
           </tr>
         </thead>
         <tbody className={worklist.body}>
-          {Array.from({ length: Math.min(Math.max(count, 1), PAGE_SIZE) }, (_, row) => (
+          {/* 건수를 모르면 한 페이지 높이로 잡는다 — 아는 척 1행만 그렸다가 10행이
+              도착하면 그 시프트가 스켈레톤이 막으려던 바로 그 흔들림이다. */}
+          {Array.from({ length: Math.min(Math.max(count ?? PAGE_SIZE, 1), PAGE_SIZE) }, (_, row) => (
             <tr key={row} aria-hidden="true">
               {Array.from({ length: 6 }, (_, col) => (
                 <td key={col} className={d.cell}>

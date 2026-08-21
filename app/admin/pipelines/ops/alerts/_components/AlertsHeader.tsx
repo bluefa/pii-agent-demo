@@ -63,14 +63,15 @@ function TileFace({
   need,
 }: {
   label: string;
-  count: number;
+  /** null = 요약 실패. 자리는 지키되 값은 지어내지 않는다. */
+  count: number | null;
   need: string;
 }): ReactElement {
   const { pending } = useLinkStatus();
   return (
     <span className={cn(alertsHeader.face, pending && alertsHeader.pending)}>
       <span className={alertsHeader.summaryLabel}>{label}</span>
-      <span className={alertsHeader.summaryValue}>{count}</span>
+      <span className={alertsHeader.summaryValue}>{count ?? '—'}</span>
       <span className={alertsHeader.summaryNeed}>{need}</span>
     </span>
   );
@@ -81,8 +82,9 @@ export function AlertsHeader({
   counts,
   selected,
 }: {
-  total: number;
-  counts: AlertCounts;
+  /** null = 요약을 못 읽었다. 0 건이 아니라 **모른다**는 뜻이라 문장 자체가 바뀐다. */
+  total: number | null;
+  counts: AlertCounts | null;
   selected: AlertTargetKind;
 }): ReactElement {
   return (
@@ -90,10 +92,16 @@ export function AlertsHeader({
       <div className={alertsHeader.head}>
         <div>
           <h1 className={pipelineStyles.text.pageTitle}>운영 알림</h1>
-          <p className={alertsHeader.context}>
-            PII Agent 설치 운영 인력이 확인해야 될 사항이 총
-            <strong className={alertsHeader.contextTotal}>{total}</strong>개 있어요
-          </p>
+          {total === null ? (
+            <p className={alertsHeader.context}>
+              확인해야 될 사항의 건수를 불러오지 못했어요. 아래 목록은 그대로 볼 수 있어요.
+            </p>
+          ) : (
+            <p className={alertsHeader.context}>
+              PII Agent 설치 운영 인력이 확인해야 될 사항이 총
+              <strong className={alertsHeader.contextTotal}>{total}</strong>개 있어요
+            </p>
+          )}
         </div>
       </div>
 
@@ -114,7 +122,7 @@ export function AlertsHeader({
             >
               <TileFace
                 label={bucket.label}
-                count={bucket.count(counts) ?? 0}
+                count={counts ? (bucket.count(counts) ?? 0) : null}
                 need={bucket.need}
               />
             </Link>

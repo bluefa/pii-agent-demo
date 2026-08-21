@@ -26,6 +26,7 @@ import {
   EMPTY_ALERT_COUNTS,
   alertBucket,
   defaultAlertKind,
+  pageIndexFromParam,
   type AlertCounts,
 } from '@/app/admin/pipelines/ops/alerts/_components/buckets';
 import { AlertsHeader } from '@/app/admin/pipelines/ops/alerts/_components/AlertsHeader';
@@ -39,25 +40,24 @@ export const dynamic = 'force-dynamic';
 const PAGE_SIZE = 10;
 
 /**
- * URL 의 page 는 1-based 다 — 주소창은 사람이 읽는 자리고, `?page=0` 이 첫 페이지인
- * 주소는 공유받은 쪽에서 오해를 만든다. 계약은 0-based 라 변환은 **여기 한 곳**에서만
- * 일어난다.
+ * 요약을 못 읽으면 **null 이지 0 이 아니다**.
+ *
+ * 처음에는 실패를 `EMPTY_ALERT_COUNTS` 로 접었는데, 그러면 목록만 성공한 경우에 3 행이
+ * 그려진 표 위에서 타일과 메타 줄이 나란히 "0"을 말한다 — 실패를 사실로 바꿔 말하는
+ * 것이다. 실패는 빈 결과가 아니다: 모르면 모른다고 그리고(`—`), 건수 조각은 담당이
+ * 없을 때처럼 그냥 빠진다.
+ *
+ * 요약 하나가 화면 전체를 내리지는 않는다 (ADR-008) — 아래 목록은 자기 실패를 따로
+ * 말하고, 여기서 throw 하지 않는 이유도 그것이다.
  */
-const pageIndexFromParam = (raw: string | undefined): number => {
-  const parsed = Number(raw);
-  return Number.isInteger(parsed) && parsed > 1 ? parsed - 1 : 0;
-};
-
-const loadCounts = async (): Promise<AlertCounts> => {
+const loadCounts = async (): Promise<AlertCounts | null> => {
   try {
     return toDashboardSummary(
       schemas.DashboardSummaryResponse.parse(await bff.taskQueue.getDashboardSummary()),
     );
   } catch (err) {
-    // 타일은 0 으로 떨어지고, 아래 목록은 자기 실패를 따로 말한다. 요약 하나가
-    // 화면 전체를 내리지는 않는다 (ADR-008).
-    console.warn('[ops/alerts] 요약 조회 실패 — 타일은 0 으로 그린다', err);
-    return EMPTY_ALERT_COUNTS;
+    console.warn('[ops/alerts] 요약 조회 실패 — 건수는 모른다고 그린다', err);
+    return null;
   }
 };
 
@@ -72,11 +72,18 @@ export default async function OpsAlertsPage({
   ]);
 
   // 주소의 kind 가 계약 밖이면 기본 버킷으로 조용히 떨어진다 — 잘못된 링크는
-  // 에러 화면이 아니라 기본 화면을 보여 주는 편이 운영자에게 낫다.
-  const kind = kindParam && isAlertTargetKind(kindParam) ? kindParam : defaultAlertKind(counts);
+  // 에러 화면이 아니라 기본 화면을 보여 주는 편이 운영자에게 낫다. 요약이 없으면
+  // 고를 근거도 없으니 첫 버킷으로 간다.
+  const kind =
+    kindParam && isAlertTargetKind(kindParam)
+      ? kindParam
+      : defaultAlertKind(counts ?? EMPTY_ALERT_COUNTS);
   const pageIndex = pageIndexFromParam(pageParam);
   const bucket = alertBucket(kind);
-  const total = ALERT_BUCKETS.reduce((sum, item) => sum + (item.count(counts) ?? 0), 0);
+  const total = counts
+    ? ALERT_BUCKETS.reduce((sum, item) => sum + (item.count(counts) ?? 0), 0)
+    : null;
+  const bucketCount = counts ? (bucket.count(counts) ?? 0) : null;
 
   return (
     <div>
@@ -92,7 +99,7 @@ export default async function OpsAlertsPage({
               label={bucket.label}
               owner={bucket.owner}
               icon={bucket.icon}
-              count={bucket.count(counts) ?? 0}
+              count={bucketCount}
             />
           }
         >
@@ -100,7 +107,7 @@ export default async function OpsAlertsPage({
             kind={kind}
             pageIndex={pageIndex}
             size={PAGE_SIZE}
-            count={bucket.count(counts) ?? 0}
+            count={bucketCount}
           />
         </Suspense>
       </div>
