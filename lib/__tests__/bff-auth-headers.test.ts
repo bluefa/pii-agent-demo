@@ -21,7 +21,7 @@ describe('BFF auth header passthrough (AD SSO)', () => {
     process.env.BFF_API_URL = 'https://bff.example.com';
     inbound.current = new Map([
       ['authorization', 'Bearer sso-token'],
-      ['cookie', 'SESSION=ad-sso-session'],
+      ['cookie', 'pass-adsso-token=ad-sso-session'],
       // Retired IAP headers must no longer be forwarded (BFF PR #8646).
       ['x-goog-iap-jwt-assertion', 'iap-jwt'],
       ['x-goog-authenticated-user-email', 'accounts.google.com:user@company.com'],
@@ -43,7 +43,7 @@ describe('BFF auth header passthrough (AD SSO)', () => {
       headers: {
         Accept: 'application/json',
         authorization: 'Bearer sso-token',
-        cookie: 'SESSION=ad-sso-session',
+        cookie: 'pass-adsso-token=ad-sso-session',
       },
     });
   });

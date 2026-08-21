@@ -1,8 +1,8 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { isMock } from '@/lib/env';
 
-// TODO: confirm the session cookie name issued by BFF PR #8646.
-const SESSION_COOKIE = 'SESSION';
+// Session cookie issued by the BFF on the AD SSO callback (PR #8646).
+const SESSION_COOKIE = 'pass-adsso-token';
 
 /**
  * AD SSO gate: page loads without a session cookie are sent to /sso/login,

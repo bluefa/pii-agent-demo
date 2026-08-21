@@ -93,7 +93,7 @@ describe('POST /sso/adssoLogin', () => {
         status: 302,
         headers: [
           ['location', '/pass/services'],
-          ['set-cookie', 'SESSION=abc; Path=/; HttpOnly; Secure'],
+          ['set-cookie', 'pass-adsso-token=abc; Path=/; HttpOnly; Secure'],
           ['set-cookie', 'AD_SSO_TMP=; Path=/; Max-Age=0'],
         ],
       }),
@@ -125,7 +125,7 @@ describe('POST /sso/adssoLogin', () => {
     expect(res.headers.get('location')).toBe('/pass/services');
     // Two entries — a comma-folded single header would corrupt both cookies.
     expect(res.headers.getSetCookie()).toEqual([
-      'SESSION=abc; Path=/; HttpOnly; Secure',
+      'pass-adsso-token=abc; Path=/; HttpOnly; Secure',
       'AD_SSO_TMP=; Path=/; Max-Age=0',
     ]);
   });
@@ -166,7 +166,7 @@ describe('proxy (auth gate)', () => {
     const { proxy } = await import('@/proxy');
     const res = proxy(
       new NextRequest('http://localhost:3000/services', {
-        headers: { cookie: 'SESSION=abc' },
+        headers: { cookie: 'pass-adsso-token=abc' },
       }),
     );
 
