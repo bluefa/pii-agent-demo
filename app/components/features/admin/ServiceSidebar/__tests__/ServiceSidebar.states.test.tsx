@@ -37,6 +37,9 @@ const mount = (props: Partial<Parameters<typeof ServiceSidebar>[0]>) =>
       onSearchChange={vi.fn()}
       pageInfo={pageInfo(0)}
       onPageChange={vi.fn()}
+      // 힌트는 opt-in 이다. 이 헬퍼가 켜 두는 건 아래 케이스들이 지키려는 게 "켜면 모든
+      // 상태에서 선다" 이기 때문이고, 꺼졌을 때 안 선다는 쪽은 자기 테스트가 따로 잡는다.
+      showAccessHint
       {...props}
     />,
   );
@@ -60,6 +63,16 @@ describe('ServiceSidebar 바닥의 상시 힌트', () => {
     // 목록이 답을 못 주는 순간이 정확히 이 줄이 필요한 순간이다 — 로딩 중에도 붙박이다.
     expect(hint(container).text).toContain(STANDING_HINT);
     expect(hint(container).href).toBe(passRoutes.accessRequests);
+    unmount();
+  });
+
+  it('기본값은 꺼짐이다 — 설치 마법사 레일이 이 링크를 물려받으면 안 된다', () => {
+    // 같은 레일의 둘째 host(`ServiceListPanel`)에서 이건 서비스 전환기다. 거기서
+    // 내 권한 요청 으로 나가는 링크는 진행 중인 마법사 밖으로 걸어 나가는 길이 된다.
+    // opt-in 이라, 새 host 는 물려받는 게 아니라 정하게 된다. (오너 판단 2026-08-21)
+    const { container, unmount } = mount({ showAccessHint: undefined });
+    expect(container.textContent).not.toContain(STANDING_HINT);
+    expect(container.querySelectorAll(`a[href="${passRoutes.accessRequests}"]`).length).toBe(0);
     unmount();
   });
 });

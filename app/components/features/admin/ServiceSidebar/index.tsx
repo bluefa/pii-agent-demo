@@ -68,6 +68,20 @@ interface ServiceSidebarProps {
   onPageChange: (page: number) => void;
   /** While true, the list body shows skeleton rows — header/search/footer stay static. */
   loading?: boolean;
+  /**
+   * Whether the rail's foot offers 권한 요청하기. **Opt-in, and deliberately so.**
+   *
+   * This rail has two hosts and they ask different questions of it. On `/services`
+   * it is the whole screen's list, so "my service is not here" really is a
+   * permissions question and the hint answers it. Inside the install wizard
+   * (`ServiceListPanel`) the same rail is a *switcher* between services the user
+   * already has, and a link to 내 권한 요청 there walks them out of a flow they are
+   * partway through.
+   *
+   * Defaulting to off means a future host has to decide rather than inherit a
+   * navigation away from its own screen (owner's call, 2026-08-21).
+   */
+  showAccessHint?: boolean;
 }
 
 /**
@@ -98,6 +112,7 @@ export const ServiceSidebar = ({
   pageInfo,
   onPageChange,
   loading = false,
+  showAccessHint = false,
 }: ServiceSidebarProps) => {
   const { totalElements } = pageInfo;
 
@@ -311,17 +326,23 @@ export const ServiceSidebar = ({
               during loading, and the full-bleed hairline is what closes the list above
               it (a page of eight rows carries no rule of its own at the bottom).
 
-              It stands under every state, the empty one included — the rail never
-              has to decide whether the content column is already saying this. */}
-          <div
-            className={cn(
-              'flex flex-col items-center gap-1 border-t px-3 py-3 text-center',
-              serviceSidebarStyles.divider,
-            )}
-          >
-            <p className={serviceSidebarStyles.hintText}>담당 시스템/서비스가 조회되지 않나요?</p>
-            <RequestAccessLink />
-          </div>
+              Where it is shown it stands under every state, the empty one included —
+              the rail never has to decide whether the content column is already
+              saying this. Whether it is shown at all belongs to the host, which is
+              what `showAccessHint` is for. */}
+          {showAccessHint && (
+            <div
+              className={cn(
+                'flex flex-col items-center gap-1 border-t px-3 py-3 text-center',
+                serviceSidebarStyles.divider,
+              )}
+            >
+              <p className={serviceSidebarStyles.hintText}>
+                담당 시스템/서비스가 조회되지 않나요?
+              </p>
+              <RequestAccessLink />
+            </div>
+          )}
         </div>
       </div>
     </aside>

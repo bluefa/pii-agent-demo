@@ -456,6 +456,9 @@ export const ServiceManagementView = () => {
         <ServiceSidebar
           services={services}
           loading={!servicesLoaded}
+          // 이 화면에서는 이 목록이 곧 전부라, "내 서비스가 여기 없다"가 실제로 권한
+          // 질문이다. 설치 마법사의 같은 레일은 전환기라 이 링크를 받지 않는다.
+          showAccessHint
           currentService={selectedService ? { code: selectedService, name: selectedName } : null}
           onSelectService={handleSelectService}
           searchQuery={serviceQuery}
