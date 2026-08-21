@@ -269,12 +269,18 @@ export function toRequestListPage(
 
 /** Tolerant reader for the proposed delay pair — it rides through the generated
  *  schema's passthrough, so it exists at runtime (mock) but not in its type.
- *  Absent fields resolve to null, which the worklist renders as '—'. */
-function readAlertDelayDelta(row: object): Pick<AlertListRow, 'delaySeconds' | 'statusChangedAt'> {
-  const rec = row as Record<string, unknown>;
+ *  Narrowed with `in` rather than asserted: this is external wire data, so the
+ *  shape gets checked, not declared (anti-patterns A2). Absent fields resolve to
+ *  null, which the worklist renders as '—'. */
+function readAlertDelayDelta(row: unknown): Pick<AlertListRow, 'delaySeconds' | 'statusChangedAt'> {
+  if (row === null || typeof row !== 'object') {
+    return { delaySeconds: null, statusChangedAt: null };
+  }
+  const delay = 'delay_seconds' in row ? row.delay_seconds : null;
+  const changedAt = 'status_changed_at' in row ? row.status_changed_at : null;
   return {
-    delaySeconds: typeof rec.delay_seconds === 'number' ? rec.delay_seconds : null,
-    statusChangedAt: typeof rec.status_changed_at === 'string' ? rec.status_changed_at : null,
+    delaySeconds: typeof delay === 'number' ? delay : null,
+    statusChangedAt: typeof changedAt === 'string' ? changedAt : null,
   };
 }
 

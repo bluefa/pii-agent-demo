@@ -11,12 +11,12 @@
  * 주소가 바뀌는 것은 버튼이 아니라 링크의 일이고, 가운데 클릭으로 새 탭에 여는
  * 것까지 공짜로 따라온다.
  *
- * 이 파일이 클라이언트인 것은 `useTransition`(전환 중 흐리게) 하나 때문이다. 서버
+ * 이 파일이 클라이언트인 것은 `useLinkStatus`(전환 중 흐리게) 하나 때문이다. 서버
  * 왕복이 끼는 이상 누른 타일이 아무 반응도 없는 구간이 생기는데, 표만 스켈레톤이
  * 되면 "내가 누른 게 먹혔나"는 답이 안 된다.
  */
-import Link from 'next/link';
-import { useTransition, type ReactElement } from 'react';
+import Link, { useLinkStatus } from 'next/link';
+import type { ReactElement } from 'react';
 
 import { cn, pipelineStyles } from '@/lib/theme';
 import { passRoutes } from '@/lib/routes';
@@ -33,8 +33,9 @@ const alertsHeader = {
    * border 색과 배경은 idle/active 가 배타적으로 소유한다 — cn 은 단순 join 이라
    * 같은 속성을 두 번 실으면 Tailwind 출력 순서가 승자를 정해버린다.
    */
-  summary:
-    'flex h-[120px] cursor-pointer flex-col items-center justify-center gap-1.5 rounded-[8px] border transition-colors',
+  summary: 'flex h-[120px] cursor-pointer rounded-[8px] border transition-colors',
+  /** 타일 얼굴 — 링크가 테두리·높이를 갖고, 얼굴이 내용과 전환 중 불투명도를 갖는다. */
+  face: 'flex flex-1 flex-col items-center justify-center gap-1.5 transition-opacity',
   /** hover 는 idle 에만 — active 위에 얹으면 hover 가 브랜드 스트로크를 덮는다. */
   summaryIdle:
     'border-transparent bg-[var(--pl-gray-100)] hover:border-[var(--pl-gray-300)] hover:bg-[var(--pl-gray-200)]',
@@ -48,8 +49,32 @@ const alertsHeader = {
   summaryNeed: 'text-[12px] leading-[1.4] text-[var(--pl-text-weak)]',
   /** 전환 중 — 타일은 계속 누를 수 있게 두고 불투명도만 내린다. 막아 버리면
    *  잘못 누른 버킷을 되돌리려고 두 번째로 누르는 것이 막힌다. */
-  pending: 'opacity-60 transition-opacity',
+  pending: 'opacity-60',
 } as const;
+
+/**
+ * 누른 타일 하나만 흐려진다. `useLinkStatus` 는 **그 Link 의** 이동이 실제로 진행 중인
+ * 동안에만 pending 이라, 아무것도 스케줄하지 않는 빈 transition 과 달리 서버 왕복을
+ * 끝까지 따라간다. 값은 Link 의 자식에서만 나오므로 얼굴이 별도 컴포넌트다.
+ */
+function TileFace({
+  label,
+  count,
+  need,
+}: {
+  label: string;
+  count: number;
+  need: string;
+}): ReactElement {
+  const { pending } = useLinkStatus();
+  return (
+    <span className={cn(alertsHeader.face, pending && alertsHeader.pending)}>
+      <span className={alertsHeader.summaryLabel}>{label}</span>
+      <span className={alertsHeader.summaryValue}>{count}</span>
+      <span className={alertsHeader.summaryNeed}>{need}</span>
+    </span>
+  );
+}
 
 export function AlertsHeader({
   total,
@@ -60,10 +85,8 @@ export function AlertsHeader({
   counts: AlertCounts;
   selected: AlertTargetKind;
 }): ReactElement {
-  const [isPending, startTransition] = useTransition();
-
   return (
-    <div className={isPending ? alertsHeader.pending : undefined}>
+    <>
       <div className={alertsHeader.head}>
         <div>
           <h1 className={pipelineStyles.text.pageTitle}>운영 알림</h1>
@@ -84,19 +107,20 @@ export function AlertsHeader({
               // 이전 버킷의 페이지 번호를 가져가면 남의 자리를 가리킨다.
               href={`${passRoutes.pipelines.ops.alerts}?kind=${bucket.kind}`}
               aria-current={active ? 'true' : undefined}
-              onClick={() => startTransition(() => {})}
               className={cn(
                 alertsHeader.summary,
                 active ? alertsHeader.summaryActive : alertsHeader.summaryIdle,
               )}
             >
-              <span className={alertsHeader.summaryLabel}>{bucket.label}</span>
-              <span className={alertsHeader.summaryValue}>{bucket.count(counts) ?? 0}</span>
-              <span className={alertsHeader.summaryNeed}>{bucket.need}</span>
+              <TileFace
+                label={bucket.label}
+                count={bucket.count(counts) ?? 0}
+                need={bucket.need}
+              />
             </Link>
           );
         })}
       </div>
-    </div>
+    </>
   );
 }

@@ -86,3 +86,25 @@
   tolerant reader(`toAlertListPage`)로 읽어 필드가 없으면 '—'로 강등 — 실서버가
   아직 안 줘도 깨지지 않는다.
 - **후속(계약 랜딩 후)**: 지연 내림차순 정렬 파라미터, 타일 지연 점.
+
+### `contract-check` 는 이 PR 에서 빨간불이다 (의도된 것)
+
+`bash scripts/contract-check.sh --mode diff --base origin/main --head HEAD` 가 실패한다:
+
+```
+[contract-check] FAIL: API/runtime files changed without Swagger update.
+[contract-check] Hint: update docs/swagger/*.yaml or document why contract is unchanged.
+```
+
+이 스크립트는 `app/api/*`·`app/lib/api/*`·`lib/types/*` 중 하나라도 바뀌었는데
+`docs/swagger/*.yaml` 이 안 바뀌면 실패하는 **경로 휴리스틱**이다. 이 PR 은 셋을 모두
+건드렸다 — SSR 이동으로 라우트와 CSR 헬퍼를 지웠고, `lib/types` 에 `AlertListRow` 를
+더했다.
+
+힌트가 주는 두 길 중 **뒤쪽**을 택했다: 계약은 실제로 안 변했고, 이 절이 그 사유다.
+앞쪽(swagger 에 두 필드 추가)은 업스트림이 주지 않는 필드를 계약이 준다고 적는 일이라
+계약 자체를 거짓말로 만든다. 웹은 tolerant reader 로 읽어 필드가 없으면 '—' 로
+강등되므로 실서버에서 깨지지 않는다.
+
+스크립트에는 이 예외를 표현할 장치가 없다. 계약이 랜딩되면 swagger 를 올리고 게이트는
+저절로 초록이 된다.
