@@ -63,6 +63,27 @@ describe('GET /sso/login', () => {
       expect.anything(),
     );
   });
+
+  it('rejects a non-local returnTo (open-redirect guard)', async () => {
+    const fetchSpy = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValue(new Response(null, { status: 302, headers: { location: 'x' } }));
+
+    const { GET } = await import('@/app/sso/login/route');
+    for (const evil of [
+      'https://evil.example/phish',
+      '//evil.example/phish',
+      '/services', // local but missing the /pass prefix — would 404 after login
+    ]) {
+      await GET(
+        new Request(`http://localhost:3000/pass/sso/login?returnTo=${encodeURIComponent(evil)}`),
+      );
+      expect(fetchSpy).toHaveBeenLastCalledWith(
+        `${BFF}/install/v1/auth/ad-sso/login?returnTo=%2Fpass`,
+        expect.anything(),
+      );
+    }
+  });
 });
 
 describe('POST /sso/adssoLogin', () => {
@@ -169,6 +190,15 @@ describe('proxy (auth gate)', () => {
     expect('/admin/pipelines').toMatch(pattern);
     expect('/').toMatch(pattern);
 
+    // Dotted page URLs must stay gated — a bare "contains a dot" exclusion
+    // let any dynamic-segment URL with a dot bypass the auth gate entirely
+    // (found by cross-review on PR #744).
+    expect('/target-sources/1.2').toMatch(pattern);
+    expect('/target-sources/1.').toMatch(pattern);
+    expect('/services.').toMatch(pattern);
+    expect('/swagger/aws.yaml').toMatch(pattern);
+    expect('/access-requests/x.y').toMatch(pattern);
+
     // Exclusions — a match here would loop the login redirect or break assets.
     expect('/sso/login').not.toMatch(pattern);
     expect('/sso/adssoLogin').not.toMatch(pattern);
@@ -176,5 +206,6 @@ describe('proxy (auth gate)', () => {
     expect('/_next/static/chunk.js').not.toMatch(pattern);
     expect('/favicon.ico').not.toMatch(pattern);
     expect('/fonts/Pretendard.woff2').not.toMatch(pattern);
+    expect('/next.svg').not.toMatch(pattern);
   });
 });

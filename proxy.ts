@@ -17,9 +17,9 @@ export function proxy(request: NextRequest) {
   if (request.cookies.has(SESSION_COOKIE)) return NextResponse.next();
 
   // nextUrl.pathname has basePath stripped (`/services`). The redirect URL
-  // gets `/pass` re-attached by NextURL itself, but returnTo travels as a
-  // literal query value, so it must carry the `/pass` prefix explicitly or
-  // the post-login redirect lands on a 404 (docs/adr/024).
+  // gets the basePath re-attached by NextURL itself, but returnTo travels as
+  // a literal query value, so it must carry the `/pass` prefix explicitly or
+  // the post-login redirect lands on a 404 (basePath, next.config.ts).
   const url = request.nextUrl.clone();
   const returnTo = `/pass${request.nextUrl.pathname}${request.nextUrl.search}`;
   url.pathname = '/sso/login';
@@ -28,7 +28,12 @@ export function proxy(request: NextRequest) {
 }
 
 // sso/ and api/ must stay excluded or the login redirect recurses (the BFF
-// proxy answers its own 401s); `.*\..*` skips static files (svg/ico/fonts).
+// proxy answers its own 401s). Static files are excluded by an allowlist of
+// asset extensions anchored to the end of the path — a bare "contains a dot"
+// exclusion would let any dotted URL (e.g. /target-sources/1.2,
+// /swagger/aws.yaml) bypass the gate entirely.
 export const config = {
-  matcher: ['/((?!sso/|api/|_next/|.*\\..*).*)'],
+  matcher: [
+    '/((?!sso/|api/|_next/|.*\\.(?:ico|svg|png|jpe?g|gif|webp|woff2?|ttf|css|js|map|json|txt|xml)$).*)',
+  ],
 };
