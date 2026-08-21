@@ -76,6 +76,36 @@ function WorklistMeta({ label, owner, count, icon }: WorklistMetaProps): ReactEl
   );
 }
 
+/**
+ * 열 스펙은 한 벌만 존재한다 — 표와 스켈레톤이 서로 다른 폭을 들면, 도착하는 순간
+ * 열이 뛴다. 스켈레톤이 막으려던 것이 바로 그 흔들림이라 두 벌로 두면 자기 목적을
+ * 배신한다.
+ *
+ * 폭은 백분율로 못박는다(`table-fixed`). 식별·지연 열은 제 값이 들어갈 만큼만 갖고,
+ * 남는 폭은 **이름과 설명이 반씩** 나눠 갖는다 (오너 2026-08-20). 두 열은 길이를
+ * 예측할 수 없는 유이한 값이라, 한쪽에만 여유를 주면 다른 쪽이 항상 먼저 잘린다.
+ * min-w 는 좁은 창에서의 바닥이다 — 백분율만 두면 "8시간 48분"이나 "서비스 코드"
+ * 머리글이 제 칸을 넘는다.
+ *
+ * 열 이름은 이 섹션이 이미 쓰는 것을 그대로 쓴다 — 대시보드 필터, 연동 요청 표,
+ * 큐 목록이 모두 `Cloud`/`Target` 이다.
+ */
+function WorklistHead(): ReactElement {
+  return (
+    <thead>
+      <tr>
+        <th className={cn(worklist.th, 'w-[9%] min-w-[96px]')}>Cloud</th>
+        <th className={cn(worklist.th, 'w-[9%] min-w-[96px]')}>Target</th>
+        <th className={cn(worklist.th, 'w-[10%] min-w-[104px]')}>서비스 코드</th>
+        <th className={cn(worklist.th, 'w-[28%]')}>서비스 이름</th>
+        <th className={cn(worklist.th, 'w-[28%]')}>설명</th>
+        <th className={cn(worklist.th, 'w-[10%] min-w-[104px]')}>지연</th>
+        <th className={cn(worklist.th, 'w-[6%] min-w-[64px]')} />
+      </tr>
+    </thead>
+  );
+}
+
 export interface AlertWorklistProps extends WorklistMetaProps {
   kind: AlertTargetKind;
   /** Ops-screen tab a row opens — the one that answers this bucket's need. */
@@ -127,25 +157,7 @@ export function AlertWorklist({
       <WorklistMeta label={label} owner={owner} count={count} icon={icon} />
 
       <table className={worklist.table}>
-        <thead>
-          <tr>
-            {/* 열 폭은 백분율로 못박는다(`table-fixed`). 식별·지연 열은 제 값이
-                들어갈 만큼만 갖고, 남는 폭은 **이름과 설명이 반씩** 나눠 갖는다
-                (오너 2026-08-20). 두 열은 길이를 예측할 수 없는 유이한 값이라,
-                한쪽에만 여유를 주면 다른 쪽이 항상 먼저 잘린다.
-                min-w 는 좁은 창에서의 바닥이다 — 백분율만 두면 "8시간 48분"이나
-                "서비스 코드" 머리글이 제 칸을 넘는다.
-                열 이름은 이 섹션이 이미 쓰는 것을 그대로 쓴다 — 대시보드 필터,
-                연동 요청 표, 큐 목록이 모두 `Cloud`/`Target` 이다. */}
-            <th className={cn(worklist.th, 'w-[9%] min-w-[96px]')}>Cloud</th>
-            <th className={cn(worklist.th, 'w-[9%] min-w-[96px]')}>Target</th>
-            <th className={cn(worklist.th, 'w-[10%] min-w-[104px]')}>서비스 코드</th>
-            <th className={cn(worklist.th, 'w-[28%]')}>서비스 이름</th>
-            <th className={cn(worklist.th, 'w-[28%]')}>설명</th>
-            <th className={cn(worklist.th, 'w-[10%] min-w-[104px]')}>지연</th>
-            <th className={cn(worklist.th, 'w-[6%] min-w-[64px]')} />
-          </tr>
-        </thead>
+        <WorklistHead />
         <tbody className={worklist.body}>
           {failed ? (
             <tr>
@@ -210,6 +222,10 @@ export function AlertWorklist({
               ) : (
                 <DashRow
                   key={id}
+                  // 접근명을 명시하지 않으면 `role="button"` 이 여섯 셀을 이어 붙여
+                  // 읽는다 — 설명 열은 길이 상한이 없어서 한 행이 수백 자 문장이 된다.
+                  // 행을 여는 데 필요한 것은 어느 대상인지 하나뿐이다.
+                  label={`${row.serviceName ?? '이름 없음'} (Target ${id}) 상세 열기`}
                   onActivate={() =>
                     router.push(passRoutes.pipelines.ops.targetSource(String(id), tab))
                   }
@@ -257,17 +273,7 @@ export function AlertWorklistSkeleton({
           기다리는 동안에도 어느 버킷을 여는 중인지는 읽을 수 있어야 한다. */}
       <WorklistMeta label={label} owner={owner} count={count} icon={icon} />
       <table className={worklist.table}>
-        <thead>
-          <tr>
-            <th className={cn(worklist.th, 'w-[9%] min-w-[96px]')}>Cloud</th>
-            <th className={cn(worklist.th, 'w-[9%] min-w-[96px]')}>Target</th>
-            <th className={cn(worklist.th, 'w-[10%] min-w-[104px]')}>서비스 코드</th>
-            <th className={cn(worklist.th, 'w-[28%]')}>서비스 이름</th>
-            <th className={cn(worklist.th, 'w-[28%]')}>설명</th>
-            <th className={cn(worklist.th, 'w-[10%] min-w-[104px]')}>지연</th>
-            <th className={cn(worklist.th, 'w-[6%] min-w-[64px]')} />
-          </tr>
-        </thead>
+        <WorklistHead />
         <tbody className={worklist.body}>
           {/* 건수를 모르면 한 페이지 높이로 잡는다 — 아는 척 1행만 그렸다가 10행이
               도착하면 그 시프트가 스켈레톤이 막으려던 바로 그 흔들림이다. */}

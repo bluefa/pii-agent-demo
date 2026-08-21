@@ -1556,6 +1556,12 @@ mockProjects.push(
       resources: alertDrilldownResources(serviceCode, provider),
       // 설명은 알림 목록이 쓰는 문장과 같아야 한다 — 목록과 상세가 한 대상을 두고
       // 다른 말을 하면, 이동이 맞게 됐는지 확인할 근거가 사라진다.
+      //
+      // 예외는 1388 하나다. 알림 응답에서만 이름·설명을 상한 밖 길이로 덮어써 절단을
+      // 보기 때문에(`lib/bff/mock/task-queue.ts` ALERT_OVERFLOW_FIXTURE), 그 행만
+      // 목록과 상세가 다른 문장을 든다. 절단을 보려면 어딘가는 계약을 벗어나야 하고,
+      // 벗어나는 자리를 한 행·한 응답으로 가둔 결과다 — 그 행의 이동이 맞는지는
+      // 설명이 아니라 Target 번호로 확인한다.
       extra: { description },
     }),
   ),

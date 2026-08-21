@@ -80,7 +80,7 @@ describe('AlertsHeader — 타일은 주소를 바꾸는 링크다', () => {
     expect(selected.getAttribute('href')).toBe(
       `${passRoutes.pipelines.ops.alerts}?kind=need-install`,
     );
-    expect(selected.getAttribute('aria-current')).toBe('true');
+    expect(selected.getAttribute('aria-current')).toBe('page');
 
     const other = screen.getByRole('link', { name: /리소스 확정 진행 중/ });
     expect(other.getAttribute('href')).toBe(`${passRoutes.pipelines.ops.alerts}?kind=confirming`);

@@ -114,7 +114,7 @@ export function AlertsHeader({
               // page 는 싣지 않는다 — 버킷을 바꾸는 것은 다른 목록을 여는 일이라
               // 이전 버킷의 페이지 번호를 가져가면 남의 자리를 가리킨다.
               href={`${passRoutes.pipelines.ops.alerts}?kind=${bucket.kind}`}
-              aria-current={active ? 'true' : undefined}
+              aria-current={active ? 'page' : undefined}
               className={cn(
                 alertsHeader.summary,
                 active ? alertsHeader.summaryActive : alertsHeader.summaryIdle,
