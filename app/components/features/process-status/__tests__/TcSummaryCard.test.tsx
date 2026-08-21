@@ -39,8 +39,9 @@ const countsRow = (state: TcCardState, over: Partial<TcBuckets>): string => {
 describe('TcSummaryCard counts row', () => {
   /**
    * 진행 중엔 진행 중·대기·미보고가 독자에게 한 사실(아직 답이 없다)이라 `남음`으로
-   * 접힌다. 접고 나면 성공+실패+남음 = 총계라, 집계였던 `보고됨 N/M` 은 불필요해져
-   * 사라진다 — 같은 숫자가 한 줄에 두 번 나오던 원인이 이것이었다.
+   * 접힌다. 접고 나면 줄의 합이 총계와 같아져(미확인이 있으면 그것까지) 집계였던
+   * `보고됨 N/M` 은 불필요해져 사라진다 — 같은 숫자가 한 줄에 두 번 나오던 원인이
+   * 이것이었다.
    */
   it('folds running/waiting/unreported into 남음 and drops the aggregate while running', () => {
     const row = countsRow('running', { ok: 2, running: 1, waiting: 2, unreported: 1 });

@@ -1347,17 +1347,23 @@ export const idcStyles = {
     countSeg: 'flex items-center gap-1.5',
     /** The value, two steps above its 12px label — the number is what the row is for. */
     countValue: 'text-[14px] font-bold [font-variant-numeric:tabular-nums]',
-    /** 범례 점 — 값은 `track`의 `fillColor`와 같은 색이라 카운트 줄이 바의 범례를 겸한다.
-     *  중립(남음·진행 중·대기)은 판정이 아니므로 채도를 주지 않는다. */
+    /** 범례 점 — 판정 둘은 `fillColor.success`/`fail` 을 그대로 써서 카운트 줄이 바의 범례를 겸한다
+     *  (#21A157 3.07:1, #E5483D 3.63:1 on running).
+     *
+     *  중립(남음·진행 중·대기)이 가리키는 건 채움이 아니라 바의 빈 트랙(#E4E7EC)인데, 그 색을 8px 점에
+     *  쓰면 스트립 네 표면 전부에서 1.13~1.17:1 로 사라진다. 같은 계열의 기존 중립 #8B95A1 로 한 단계
+     *  내려 2.76~2.88:1 (브라우저 실측). 3:1 에는 못 미치지만 의도한 선택이다: 점 옆에 언제나 단어와
+     *  숫자가 서 있어 이 점은 "내용을 이해하는 데 필요한 그래픽"이 아니고(WCAG 1.4.11 대상 밖),
+     *  3:1 을 맞추려 더 어둡게 가면 가장 덜 중요한 버킷이 판정 둘보다 무거운 점을 갖게 되어
+     *  계층이 뒤집힌다. 단어를 지우려거든 이 값부터 다시 재라. */
     countDot: 'h-2 w-2 rounded-full flex-shrink-0',
     countDotColor: {
       ok: 'bg-[#21A157]',
       fail: 'bg-[#E5483D]',
-      rest: 'bg-[#C6CBD3]',
+      rest: 'bg-[#8B95A1]',
     },
     /** 미보고·미확인 — "값이 없다"는 사실은 색이 아니라 형태(빈 파선 링)가 말한다. */
     countDotMissing: 'h-2.5 w-2.5 rounded-full border-2 border-dashed border-orange-700 flex-shrink-0',
-    pct: 'min-w-[46px] text-right text-[16px] font-extrabold tracking-[-0.02em] [font-variant-numeric:tabular-nums]',
     track: 'relative h-2 overflow-hidden rounded-full bg-[#E4E7EC]',
     /** Skeleton bar for this strip — the shared `skeletonBar` (#F3F4F6) sits on white; on the
      *  idle surface (#F7F8FA) it is brighter than its own ground and vanishes. A step darker,

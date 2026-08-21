@@ -85,8 +85,11 @@ Q3도 함께 닫힌다 — 남은 몫이 보이면 "실패 0"은 부분값으로
 
 - 새 토큰: `connProgress.countList/countSeg/countValue/countDot/countDotColor/countDotMissing`. 점 색은 `fillColor`와 같은 값이라
   줄과 바가 항상 같이 움직인다 — 한쪽만 바꾸면 범례가 거짓말이 된다.
-- `ActivityIcon`의 모션은 `@keyframes tc-activity-march`(globals.css) + `tcActivityMarch` 토큰. dasharray `9 26`은 path 길이 ≈35 기준이라,
-  파형 `d`를 바꾸면 dasharray와 keyframe의 35도 같이 재야 한다.
+- `ActivityIcon`의 모션은 `@keyframes tc-activity-march`(globals.css) + `tcActivityMarch` 토큰. path 에 `pathLength={100}` 을 걸어
+  길이를 정규화했으므로 dasharray(`26 74`)와 keyframe(100→0)이 `d` 와 무관하게 맞는다 — 실측 길이(34.65)를 상수로 박으면
+  주기가 길이를 나누지 못해 한 바퀴마다 마디가 사라지는 프레임이 생긴다.
+- 중립 점만 트랙 색(#E4E7EC)이 아니라 #8B95A1 이다. 8px 점에 트랙색을 쓰면 스트립 네 표면 전부에서 1.13~1.17:1 로 사라진다
+  (브라우저 실측). #8B95A1 은 이 앱에서 가장 많이 쓰는 기존 중립이고 2.76~2.88:1. 판정 둘(#21A157/#E5483D)은 `fillColor` 그대로다.
 - `ConnectionTestCard.test.tsx`의 FAIL 케이스는 `실패` 조회를 표 안으로 좁혔다. 카운트 줄 범례가 그 단어를 제 텍스트 노드로 갖게 됐기 때문.
 - 후속(범위 밖): admin `StatusPill`의 `loader`는 **트랙 없는 270° 아크**다. 트랙과 270°를 짝지은 디자인 시스템은 한 곳도 없고,
   이 앱에서 정지 가독성이 가장 나쁜 글리프로 남는다.

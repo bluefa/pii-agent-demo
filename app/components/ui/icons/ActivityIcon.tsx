@@ -30,7 +30,10 @@ export const ActivityIcon = ({ className, ...rest }: IconProps) => (
     {...rest}
   >
     <path d={WAVE} strokeOpacity={0.25} />
-    {/* 9 on / 26 off ≈ path 길이 35 — 마디 하나만 살아 움직인다. */}
-    <path d={WAVE} strokeDasharray="9 26" className={tcActivityMarch} />
+    {/* pathLength 로 길이를 100 으로 정규화한다 — 26 on / 74 off 한 주기가 path 를 정확히
+        한 번 덮고, keyframe 의 이동량 100 과도 맞아 마디가 끊기지 않는다. 실측 길이(34.65)를
+        상수로 쓰면 `d` 를 바꿀 때마다 어긋나고, 주기가 길이를 나누지 못해 한 바퀴마다 마디가
+        사라지는 프레임이 생긴다. */}
+    <path d={WAVE} pathLength={100} strokeDasharray="26 74" className={tcActivityMarch} />
   </svg>
 );

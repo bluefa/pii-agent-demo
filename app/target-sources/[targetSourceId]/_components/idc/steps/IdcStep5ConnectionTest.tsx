@@ -405,43 +405,45 @@ export const IdcStep5ConnectionTest = ({
             </p>
           )}
           <div className="space-y-2">
-          {/* Bare row in the table group — the table's own missing-value notice sits 8px above
-              the stack it filters instead of boxing itself (proposal A). */}
-          {ready && missingCount > 0 && (
-            <div className={cn('flex items-center gap-2 text-[14px]', statusColors.warning.textDark)}>
-              <StatusWarningIcon className="h-4 w-4 shrink-0" />
-              <span className="break-keep">
-                Credential 미설정 <strong className="font-bold">{missingCount}건</strong> — 지정해야 연결 테스트를
-                실행할 수 있어요
-              </span>
-              <button
-                type="button"
-                onClick={() => setCredFilterOn((on) => !on)}
-              aria-pressed={credFilterOn}
-                className={cn(
-                  'ml-auto shrink-0 whitespace-nowrap font-semibold underline underline-offset-2',
-                  primaryColors.focusRing,
-                )}
+            {/* Bare row in the table group — the table's own missing-value notice sits 8px
+                above the stack it filters instead of boxing itself (proposal A). */}
+            {ready && missingCount > 0 && (
+              <div
+                className={cn('flex items-center gap-2 text-[14px]', statusColors.warning.textDark)}
               >
-                {credFilterOn ? '전체 보기' : '미설정만 보기'}
-              </button>
+                <StatusWarningIcon className="h-4 w-4 shrink-0" />
+                <span className="break-keep">
+                  Credential 미설정 <strong className="font-bold">{missingCount}건</strong> — 지정해야 연결
+                  테스트를 실행할 수 있어요
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setCredFilterOn((on) => !on)}
+                  aria-pressed={credFilterOn}
+                  className={cn(
+                    'ml-auto shrink-0 whitespace-nowrap font-semibold underline underline-offset-2',
+                    primaryColors.focusRing,
+                  )}
+                >
+                  {credFilterOn ? '전체 보기' : '미설정만 보기'}
+                </button>
+              </div>
+            )}
+            {/* Toolbar, table and pagination are one card, so the group's space-y must not
+                get between them — the wrapper absorbs it. */}
+            <div>
+              <IdcConfirmedResourcesPanel
+                targetSourceId={targetSourceId}
+                state={panelState}
+                onLogicalOpen={handleLogicalOpen}
+                credentials={creds}
+                onCredentialOpen={handleCredOpen}
+                // 접기 맵을 그대로 넘긴다 — 행의 `connection` 은 무보고를 PENDING 으로 접어서
+                // "아직 결과가 없다" 와 "agent 가 대기라고 보고했다" 를 한 픽셀로 만든다(P4).
+                connectionStatus={statusByResource}
+                connectionLoading={loading}
+              />
             </div>
-          )}
-          {/* Toolbar, table and pagination are one card, so the group's space-y must not
-              get between them — the wrapper absorbs it. */}
-          <div>
-            <IdcConfirmedResourcesPanel
-              targetSourceId={targetSourceId}
-              state={panelState}
-              onLogicalOpen={handleLogicalOpen}
-              credentials={creds}
-              onCredentialOpen={handleCredOpen}
-              // 접기 맵을 그대로 넘긴다 — 행의 `connection` 은 무보고를 PENDING 으로 접어서
-              // "아직 결과가 없다" 와 "agent 가 대기라고 보고했다" 를 한 픽셀로 만든다(P4).
-              connectionStatus={statusByResource}
-              connectionLoading={loading}
-            />
-          </div>
           </div>
           {credModal.data && (
             <CredentialPickModal
