@@ -41,7 +41,9 @@ const SEARCH_DEBOUNCE_MS = 500;
  * 말하게 고정하고, 서비스는 여기서 필요한 만큼 감긴다 — 잘라 내지 않는다. 이 줄이
  * 모달의 신원이라, 감기는 건 괜찮아도 사라지는 건 안 된다.
  *
- * 코드가 eyebrow 로 따로 올라가 있으면 신원이 두 줄로 갈린다. 한 줄에 붙여 둔다.
+ * 코드가 eyebrow 로 따로 올라가 있으면 신원이 두 줄로 갈린다. 한 줄에 붙여 둔다 —
+ * 괄호가 아니라 태그다(오너 지시 2026-08-21). 괄호는 곁말로 읽히는데 이건 다른 화면에서
+ * 그대로 쓰이는 식별자다. 이름이 감기면 태그는 마지막 줄 끝에 따라붙는다.
  */
 function ServiceLine({
   serviceCode,
@@ -52,7 +54,7 @@ function ServiceLine({
 }): ReactElement {
   return (
     <p className={a.serviceMeta}>
-      {serviceName} <span className={a.serviceMetaCode}>({serviceCode})</span>
+      {serviceName} <span className={a.codeTag}>{serviceCode}</span>
     </p>
   );
 }

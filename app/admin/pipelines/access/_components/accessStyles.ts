@@ -256,9 +256,14 @@ export const accessStyles = {
   benchVal: 'mt-0.5 text-[14px] font-semibold text-[var(--pl-text-strong)]',
   /** 서비스 코드 라벨 — 면이 아니라 선으로 만든다(오너 지시 2026-08-14). 이 시트엔 회색
    *  면이 이미 둘(사유 인용·승인 결정)이라 코드까지 면을 가지면 표면만 늘고, 이름 옆에
-   *  붙는 짧은 식별자에는 테두리만으로 라벨이라는 게 충분히 읽힌다. */
+   *  붙는 짧은 식별자에는 테두리만으로 라벨이라는 게 충분히 읽힌다.
+   *
+   *  모달 머리의 서비스 줄도 이걸 쓴다(오너 지시 2026-08-21). 면이 없다는 게 거기서 더
+   *  중요하다 — 담당자 모달은 바로 아래에 `ownerChip`(회색 면) 들이 깔려서, 코드가 같은
+   *  면을 가지면 `CPN` 이 담당자 하나처럼 읽힌다. `align-middle` 은 12px 태그를 16px
+   *  이름의 줄 한가운데 세운다(flex 부모인 승인 시트에서는 아무 일도 하지 않는다). */
   codeTag:
-    'inline-flex flex-none items-center rounded-[5px] border border-[var(--pl-border-strong)] px-1.5 text-[12px] font-medium leading-[18px] text-[var(--pl-text-medium)]',
+    'inline-flex flex-none items-center rounded-[5px] border border-[var(--pl-border-strong)] px-1.5 align-middle text-[12px] font-medium leading-[18px] text-[var(--pl-text-medium)]',
   /** 구역 사이는 선이 아니라 간격이다(오너 지시 2026-08-14). 시트 하나에 구역이 셋인데
    *  선을 그으면 한 장이 카드 셋으로 갈라지고, 폭도 안 바뀌는 선이라 나누는 일 말고는
    *  하는 게 없다. 24px 이면 구역 안(4~8px)과 충분히 갈린다. */
@@ -344,8 +349,6 @@ export const accessStyles = {
    */
   serviceMeta:
     'min-w-0 text-[16px] font-semibold leading-[1.4] text-[var(--pl-primary)] break-keep',
-  /** 그 줄의 코드. 식별자라 mono 고, 이름에 딸린 값이라 한 단 여리다. */
-  serviceMetaCode: 'font-medium text-[var(--pl-text-weak)] [font-family:var(--pl-font-mono)]',
   /** 칩 흐름 위 한 줄 — 왼쪽 인원수, 오른쪽 검색(24명 초과일 때만). */
   ownerBar: 'mb-3 flex items-center justify-between gap-3',
   ownerCount: 'text-[13px] font-medium tabular-nums text-[var(--pl-text-weak)]',

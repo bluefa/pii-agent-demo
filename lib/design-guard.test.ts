@@ -380,6 +380,8 @@ const SURFACES: SurfacePair[] = [
   // The list has no card any more, so the page ground under it IS white — the tiles and
   // the step strip separate from that ground on their stroke and their fill alone.
   { what: 'dashboard bucket tile stroke on the white screen', top: borderOf(classOf(pipelineBlock, 'bucketTileIdle')), under: '#FFFFFF' },
+  // 코드 태그는 면이 없다 — 선 하나가 이 태그의 전부라 흰 모달 바닥에서 그것만 잰다.
+  { what: '서비스 코드 태그 stroke on the white modal body', top: borderOf(classOf(accessSrc, 'codeTag')), under: '#FFFFFF' },
   { what: 'dashboard step-strip track on the row hover tint', top: bgOf(classOf(pipelineBlock, 'stripRest')), under: dashRowHover },
   { what: 'dashboard finished step against the untouched track', top: bgOf(classOf(pipelineBlock, 'stripOk')), under: bgOf(classOf(pipelineBlock, 'stripRest')) },
   // The wizard groups by surface and draws no rule between its two columns, so this
@@ -438,6 +440,7 @@ const TEXT: TextPair[] = [
   // 모달 머리의 서비스 줄(담당자 확인 · 접근 권한 요청) — 파랑이 신원을 나른다.
   // 16px/600 이라 large text 가 아니다.
   { what: '모달 머리 서비스 이름 on the white modal body', fg: textOf(classOf(accessSrc, 'serviceMeta')), on: '#FFFFFF' },
+  { what: '서비스 코드 태그 label on the white modal body', fg: textOf(classOf(accessSrc, 'codeTag')), on: '#FFFFFF' },
   { what: 'rail standing hint on rail', fg: textOf(classOf(railBlock, 'hintText')), on: rail },
   // /services 의 무권한 안내판. 레일 밖이라 잉크가 페이지 것이고, 흰 면이 아니라 **캔버스**
   // 위에 선다 — `textColors` 주석의 수치(흰 면 4.83, gray-50 4.63)는 여기서 통하지 않는다.
