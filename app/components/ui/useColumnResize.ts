@@ -15,6 +15,14 @@ import { idcStyles } from '@/lib/theme';
 /** 값이 아니라 말줄임표만 남기 시작하는 폭 — 이보다 좁아지면 열이 있으나 마나다. */
 const MIN_COLUMN_WIDTH = 56;
 
+/**
+ * Marks the header cell's LABEL element for the floor probe below. A `<th>` whose label
+ * carries this attribute gets a per-column minimum — the width at which the label is still
+ * fully readable — instead of the global 56px. Opt-in by markup so the modal consumers,
+ * which never wrap their labels, keep their exact current behaviour.
+ */
+export const RESIZE_LABEL_ATTR = 'data-resize-label';
+
 /** 키보드 한 번에 움직이는 폭. 한 글자보다는 크고, 한 번에 열이 사라지지는 않는 정도. */
 const KEY_STEP = 16;
 
@@ -69,6 +77,23 @@ const contentCap = (th: HTMLTableCellElement): number => {
     needed = Math.max(needed, cell.offsetWidth + hidden + (hidden > 0 ? 1 : 0));
   }
   return needed;
+};
+
+/**
+ * The narrowest width at which the header label is fully readable (round 4, owner:
+ * "행이 좁혀진다고 하더라도 헤더 행간의 overwrite는 안 되게"). The label span clips
+ * itself, so the header can never paint over its neighbour — but a drag should stop
+ * where the label would START to clip, not push into an unreadable header and rely on
+ * the clip to hide the damage. scrollWidth still reports the full text of a clipped
+ * element, so the floor holds whatever width the column currently has.
+ */
+const headerFloor = (th: HTMLTableCellElement): number => {
+  const label = th.querySelector(`[${RESIZE_LABEL_ATTR}]`);
+  if (!(label instanceof HTMLElement)) return MIN_COLUMN_WIDTH;
+  const style = window.getComputedStyle(th);
+  const padding = (parseFloat(style.paddingLeft) || 0) + (parseFloat(style.paddingRight) || 0);
+  // +1 absorbs sub-pixel rounding — the same slack contentCap gives a clipped cell.
+  return Math.max(MIN_COLUMN_WIDTH, Math.ceil(label.scrollWidth + padding) + 1);
 };
 
 /**
@@ -136,12 +161,12 @@ export const useColumnResize = (options?: ColumnResizeOptions): ColumnResize => 
   // Memoized so a memo()'d table taking this as a prop only re-renders when a width
   // actually changes, not on every render of the hook's host.
   return useMemo<ColumnResize>(() => {
-    const resize = (key: string, from: number, delta: number, cap?: number) =>
+    const resize = (key: string, from: number, delta: number, cap?: number, floor?: number) =>
       setWidths((prev) => ({
         ...prev,
         [key]: Math.min(
           cap ?? Number.POSITIVE_INFINITY,
-          Math.max(MIN_COLUMN_WIDTH, from + delta),
+          Math.max(floor ?? MIN_COLUMN_WIDTH, from + delta),
         ),
       }));
 
@@ -158,9 +183,12 @@ export const useColumnResize = (options?: ColumnResizeOptions): ColumnResize => 
       const th = ownerTh(event.currentTarget);
       if (!th) return;
       const from = th.offsetWidth;
-      // The cap is priced once, at gesture start — reading every cell on every
-      // pointermove would pay the DOM walk at 60Hz for a value that cannot change mid-drag.
-      const cap = clampToContent ? contentCap(th) : undefined;
+      // Both bounds are priced once, at gesture start — reading every cell on every
+      // pointermove would pay the DOM walk at 60Hz for values that cannot change mid-drag.
+      // The cap never undercuts the floor: a column whose longest VALUE is shorter than
+      // its header label still has to be able to show that label.
+      const floor = headerFloor(th);
+      const cap = clampToContent ? Math.max(contentCap(th), floor) : undefined;
       const startX = event.clientX;
       const pointerId = event.pointerId;
 
@@ -168,7 +196,7 @@ export const useColumnResize = (options?: ColumnResizeOptions): ColumnResize => 
       // 걸면 폭 8px 를 벗어나는 순간 이벤트가 끊긴다.
       const move = (moveEvent: PointerEvent) => {
         if (moveEvent.pointerId !== pointerId) return;
-        resize(key, from, moveEvent.clientX - startX, cap);
+        resize(key, from, moveEvent.clientX - startX, cap, floor);
       };
       // pointercancel 도 끝이다 — 브라우저가 제스처를 가져가면 pointerup 은 오지 않고,
       // 그때 떼지 않으면 move 리스너가 영영 window 에 남아 다음 클릭마다 폭을 움직인다.
@@ -191,14 +219,21 @@ export const useColumnResize = (options?: ColumnResizeOptions): ColumnResize => 
       event.preventDefault();
       const th = ownerTh(event.currentTarget);
       if (!th) return;
-      resize(key, th.offsetWidth, step, clampToContent ? contentCap(th) : undefined);
+      const floor = headerFloor(th);
+      resize(
+        key,
+        th.offsetWidth,
+        step,
+        clampToContent ? Math.max(contentCap(th), floor) : undefined,
+        floor,
+      );
     };
 
     /** Double-click = jump to the cap: the one-gesture "uncover this column" move. */
     const onDoubleClick = (key: string) => (event: ReactMouseEvent<HTMLSpanElement>) => {
       const th = ownerTh(event.currentTarget);
       if (!th) return;
-      resize(key, contentCap(th), 0);
+      resize(key, Math.max(contentCap(th), headerFloor(th)), 0);
     };
 
     return {

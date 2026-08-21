@@ -26,7 +26,7 @@ import {
   RdsClusterTag,
 } from '@/app/components/ui/RdsInstanceChips';
 import { RdsInstancePanel } from '@/app/target-sources/[targetSourceId]/_components/shared/RdsInstancePanel';
-import type { ColumnResize } from '@/app/components/ui/useColumnResize';
+import { RESIZE_LABEL_ATTR, type ColumnResize } from '@/app/components/ui/useColumnResize';
 import { hasLogicalDatabases, isEc2Instance, resolveExclusionReason } from '@/lib/types';
 import {
   INSTALL_STATUS_LABEL,
@@ -352,28 +352,61 @@ const ReasonCell = ({ resource }: { resource: WaitingApprovalResource }) => {
 };
 
 /**
+ * Confirmed-column defaults, px — the screen's own measured columns (1745px audit:
+ * 162·312·142·156·118·96; 종류 = chip 82px + approvalCell padding 36px + slack).
+ * A RECORD, not width classes, because the `<table>` must carry width = Σ(columns)
+ * (round 4): under `w-full` the fixed algorithm redistributes any slack across the
+ * fixed columns, so below the container width every column silently stretched past
+ * its stated width — a 16px keyboard step moved ~3px on screen, and the min/max
+ * bounds the drag enforces were not the widths being rendered.
+ */
+const CONFIRMED_COLUMN_WIDTHS = {
+  kind: 128,
+  name: 162,
+  id: 312,
+  dbType: 142,
+  region: 156,
+  logicalDb: 118,
+  excluded: 96,
+} as const;
+
+type ConfirmedColumnKey = keyof typeof CONFIRMED_COLUMN_WIDTHS;
+
+/** One column's rendered width: the dragged width if the user set one, else the default. */
+const confirmedColumnWidth = (key: ConfirmedColumnKey, columns?: ColumnResize): number =>
+  columns?.widthOf(key)?.width ?? CONFIRMED_COLUMN_WIDTHS[key];
+
+/**
  * Confirmed-table header cell — width-declared and drag-resizable (round 3). `relative`
- * seats the handle at the cell's right edge (useColumnResize contract); the width class
- * is the default the hook leaves alone until the user drags.
+ * seats the handle at the cell's right edge (useColumnResize contract); the width is a
+ * style either way (default or dragged), so server and client always agree on it.
  */
 const ResizableTh = ({
   columns,
   columnKey,
   label,
-  widthClass,
   className,
 }: {
   columns?: ColumnResize;
-  columnKey: string;
+  columnKey: ConfirmedColumnKey;
   label: string;
-  widthClass: string;
   className?: string;
 }) => (
   <th
-    className={cn(idcStyles.table.approvalHeaderCell, 'relative', widthClass, className)}
-    style={columns?.widthOf(columnKey)}
+    className={cn(idcStyles.table.approvalHeaderCell, 'relative', className)}
+    style={{ width: confirmedColumnWidth(columnKey, columns) }}
   >
-    {label}
+    {/* The label clips ITSELF (round 4): a bare text node in a hard-shrunk `<th>` paints
+        over the neighbouring header. The attribute doubles as the hook's floor probe —
+        drags stop at the width where this label would start to clip, so post-drag the
+        ellipsis only ever shows for widths restored from an older storage version.
+        inline-block, NOT block: the probe reads scrollWidth, and a block span's
+        scrollWidth is its box (the th's width), which froze every column at its current
+        width. A shrink-to-fit box reports the TEXT in both states — its own width while
+        the label fits, the full text while clipped. max-w-full is what lets it clip. */}
+    <span {...{ [RESIZE_LABEL_ATTR]: '' }} className="inline-block max-w-full truncate align-bottom">
+      {label}
+    </span>
     {columns && <span {...columns.handleProps(columnKey, label)} />}
   </th>
 );
@@ -461,6 +494,16 @@ export const WaitingApprovalTable = memo(
     // Colorless — each row picks its resting tier (dim vs secondary) at the cell.
     const monoCell = 'whitespace-nowrap font-mono text-[14px]';
 
+    // Round 4 covered-clip (owner: "왼쪽 부분이 오른쪽에 덮인 느낌"): every confirmed cell
+    // clips at its own edge so an overlong value runs through the cell's right padding and
+    // cuts mid-letter exactly at the column stroke — the Azure grammar where the next column
+    // COVERS the value and dragging the divider uncovers it. Overflow clips at the padding
+    // box, so the cut lands on the border line, not 18px short of it. An ellipsis would say
+    // "shortened here" instead of "continues underneath", so the …-drawing `truncate` is off
+    // in this variant. nowrap on the td keeps chips and plain-text cells to the single 52px
+    // line without each child declaring it.
+    const coveredCell = confirmedVariant ? 'overflow-hidden whitespace-nowrap' : undefined;
+
     // `grouped` only indents the identity cell — every other cell is identical whether the row
     // stands alone or hangs under a parent, so a group never changes what a row says.
     const renderRow = (
@@ -544,10 +587,11 @@ export const WaitingApprovalTable = memo(
           ) : (
             <>
           {/* Round 3 — the chip's own column. Rows without a kind stay blank: an em-dash
-              would claim "no kind" as a fact this table does not have. overflow-hidden so a
-              hard-shrunk column clips its chip instead of painting it over the name. */}
+              would claim "no kind" as a fact this table does not have. coveredCell so a
+              hard-shrunk column clips its chip at the stroke instead of painting it over
+              the name. */}
           {confirmedKindColumn && (
-            <td className={cn(idcStyles.table.approvalCell, 'overflow-hidden')}>
+            <td className={cn(idcStyles.table.approvalCell, coveredCell)}>
               {isCluster ? <RdsClusterTag /> : isEc2 ? <Ec2InstanceTag /> : null}
             </td>
           )}
@@ -556,6 +600,7 @@ export const WaitingApprovalTable = memo(
           <td
             className={cn(
               idcStyles.table.approvalCell,
+              coveredCell,
               'font-mono text-[14px]',
               textColors.primary,
               NAME_LIFT,
@@ -699,7 +744,16 @@ export const WaitingApprovalTable = memo(
                 triggerClassName={confirmedVariant ? 'min-w-0 w-full' : 'min-w-0 max-w-[200px] block'}
                 truncatedOnly
               >
-                <span className="block min-w-0 truncate">{resource.resourceName || PLACEHOLDER}</span>
+                {/* Confirmed: no self-truncation — the overflow runs on and the TD's own
+                    covered-clip cuts it at the column stroke (round 4). */}
+                <span
+                  className={cn(
+                    'block min-w-0',
+                    confirmedVariant ? 'whitespace-nowrap' : 'truncate',
+                  )}
+                >
+                  {resource.resourceName || PLACEHOLDER}
+                </span>
               </Tooltip>
             )}
           </td>
@@ -710,7 +764,7 @@ export const WaitingApprovalTable = memo(
               guard, copying the region id also opened the fold. The chevron above stops its
               own propagation for the same reason. */}
           <td
-            className={idcStyles.table.approvalCell}
+            className={cn(idcStyles.table.approvalCell, coveredCell)}
             onClick={foldToggleable ? (event) => event.stopPropagation() : undefined}
           >
             {/* An absent id renders nothing rather than a bare control: a consumer that
@@ -720,12 +774,15 @@ export const WaitingApprovalTable = memo(
               // 260px (the cell default) plus a non-wrapping Region overran the card.
               // Confirmed tables let the COLUMN own the truncation point instead (round 3):
               // the cell fills its fixed column, and the drag handle is the way to see more.
+              // hardClip joins the round-4 covered grammar: the ARN cuts mid-letter rather
+              // than ellipsizing, saying "continues underneath" like every other cell here.
               <ResourceIdCell
                 value={resource.resourceId}
                 label="Resource ID"
                 maxWidthClass={confirmedVariant ? 'w-full max-w-full' : 'max-w-[220px]'}
                 sizeClass="text-[14px]"
                 textClassName={cn(textColors.secondary, CELL_LIFT)}
+                hardClip={confirmedVariant}
               />
             )}
           </td>
@@ -742,6 +799,7 @@ export const WaitingApprovalTable = memo(
               <td
                 className={cn(
                   idcStyles.table.approvalCell,
+                  coveredCell,
                   'text-[14px]',
                   textColors.secondary,
                   CELL_LIFT,
@@ -754,6 +812,7 @@ export const WaitingApprovalTable = memo(
               <td
                 className={cn(
                   idcStyles.table.approvalCell,
+                  coveredCell,
                   monoCell,
                   textColors.secondary,
                   CELL_LIFT,
@@ -779,7 +838,7 @@ export const WaitingApprovalTable = memo(
                  one resource id. Opening the region id would answer with a list that cannot
                  match the number it was clicked from, so the aggregate is text, not a link. */
               <>
-                <td className={idcStyles.table.approvalCell}>
+                <td className={cn(idcStyles.table.approvalCell, coveredCell)}>
                   <LogicalDbCountCell
                     count={resource.logicalDbCount}
                     label={`${resource.resourceName || resource.resourceId} 연동 논리 DB 목록 보기`}
@@ -791,7 +850,7 @@ export const WaitingApprovalTable = memo(
                     }
                   />
                 </td>
-                <td className={idcStyles.table.approvalCell}>
+                <td className={cn(idcStyles.table.approvalCell, coveredCell)}>
                   <LogicalDbCountCell
                     count={resource.excludedLogicalDbCount}
                     label={`${resource.resourceName || resource.resourceId} 연동 제외 대상 보기`}
@@ -806,10 +865,10 @@ export const WaitingApprovalTable = memo(
               </>
             ) : (
               <>
-                <td className={idcStyles.table.approvalCell}>
+                <td className={cn(idcStyles.table.approvalCell, coveredCell)}>
                   <NoLogicalDbCell />
                 </td>
-                <td className={idcStyles.table.approvalCell}>
+                <td className={cn(idcStyles.table.approvalCell, coveredCell)}>
                   <NoLogicalDbCell />
                 </td>
               </>
@@ -896,10 +955,11 @@ export const WaitingApprovalTable = memo(
                 onMouseLeave={rail?.onMouseLeave}
               >
                 {/* Round 3 — the fold's members keep column registration with the 종류 column. */}
-                {confirmedKindColumn && <td className={idcStyles.table.approvalCell} />}
+                {confirmedKindColumn && <td className={cn(idcStyles.table.approvalCell, coveredCell)} />}
                 <td
                   className={cn(
                     idcStyles.table.approvalCell,
+                    coveredCell,
                     'font-mono text-[14px]',
                     textColors.primary,
                     idcStyles.table.group.childCell,
@@ -908,15 +968,15 @@ export const WaitingApprovalTable = memo(
                 >
                   {member.resourceName || PLACEHOLDER}
                 </td>
-                <td className={idcStyles.table.approvalCell} />
-                <td className={cn(idcStyles.table.approvalCell, 'text-[14px]', textColors.secondary)}>
+                <td className={cn(idcStyles.table.approvalCell, coveredCell)} />
+                <td className={cn(idcStyles.table.approvalCell, coveredCell, 'text-[14px]', textColors.secondary)}>
                   {GROUPED_CHILD_KIND_LABEL}
                 </td>
-                <td className={cn(idcStyles.table.approvalCell, monoCell, textColors.secondary)}>
+                <td className={cn(idcStyles.table.approvalCell, coveredCell, monoCell, textColors.secondary)}>
                   {resource.region || PLACEHOLDER}
                 </td>
-                <td className={idcStyles.table.approvalCell} />
-                <td className={idcStyles.table.approvalCell} />
+                <td className={cn(idcStyles.table.approvalCell, coveredCell)} />
+                <td className={cn(idcStyles.table.approvalCell, coveredCell)} />
               </tr>
             ))}
         </Fragment>
@@ -932,14 +992,25 @@ export const WaitingApprovalTable = memo(
               tds zero their own padding) out of the override — see CandidateResourceTable. */}
           <table
             className={cn(
-              'w-full',
               // Round 3: fixed layout is what lets the resize handles rule — in auto layout
               // nowrap content dictates the column and dragging changes nothing visible.
-              confirmedVariant && 'table-fixed',
+              // Round 4: consoleGrid draws the boundary the covered-clip cells cut against,
+              // and the table's width IS the column sum (style below) instead of w-full —
+              // see CONFIRMED_COLUMN_WIDTHS for what w-full did to the stated widths.
+              confirmedVariant ? cn('table-fixed', idcStyles.table.consoleGrid) : 'w-full',
               raisedRows && '[&_td:not([colspan])]:py-5',
               // A group is three tbodies, and `body`'s divide-y stops at each tbody's edge.
               idcStyles.table.tbodySeam,
             )}
+            style={
+              confirmedVariant
+                ? {
+                    width: (Object.keys(CONFIRMED_COLUMN_WIDTHS) as ConfirmedColumnKey[])
+                      .filter((key) => key !== 'kind' || confirmedKindColumn)
+                      .reduce((sum, key) => sum + confirmedColumnWidth(key, columns), 0),
+                  }
+                : undefined
+            }
           >
             <thead
               className={
@@ -950,25 +1021,23 @@ export const WaitingApprovalTable = memo(
                   The scan anchor is the human-readable name, not a 3-value category column. */}
               <tr className="whitespace-nowrap">
                 {confirmedVariant ? (
-                  /* Round 3 console header — every column declared and resizable. Defaults are
-                     the screen's own measured columns (1745px audit: 162·312·142·156·118·96);
-                     종류 = chip 82px + approvalCell padding 36px + slack. */
+                  /* Round 3 console header — every column declared and resizable; the
+                     defaults live in CONFIRMED_COLUMN_WIDTHS. */
                   <>
                     {confirmedKindColumn && (
-                      <ResizableTh columns={columns} columnKey="kind" label="종류" widthClass="w-[128px]" />
+                      <ResizableTh columns={columns} columnKey="kind" label="종류" />
                     )}
                     <ResizableTh
                       columns={columns}
                       columnKey="name"
                       label="Resource Name"
-                      widthClass="w-[162px]"
                       className={idcStyles.table.nameCell}
                     />
-                    <ResizableTh columns={columns} columnKey="id" label="Resource ID" widthClass="w-[312px]" />
-                    <ResizableTh columns={columns} columnKey="dbType" label="Database Type" widthClass="w-[142px]" />
-                    <ResizableTh columns={columns} columnKey="region" label={regionLabel} widthClass="w-[156px]" />
-                    <ResizableTh columns={columns} columnKey="logicalDb" label="연동 논리 DB" widthClass="w-[118px]" />
-                    <ResizableTh columns={columns} columnKey="excluded" label="연동 제외" widthClass="w-[96px]" />
+                    <ResizableTh columns={columns} columnKey="id" label="Resource ID" />
+                    <ResizableTh columns={columns} columnKey="dbType" label="Database Type" />
+                    <ResizableTh columns={columns} columnKey="region" label={regionLabel} />
+                    <ResizableTh columns={columns} columnKey="logicalDb" label="연동 논리 DB" />
+                    <ResizableTh columns={columns} columnKey="excluded" label="연동 제외" />
                   </>
                 ) : identityColumns ? (
                   identityColumns.columns.map((column, index) => (

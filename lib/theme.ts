@@ -1532,6 +1532,18 @@ export const idcStyles = {
      */
     bodyStrong: 'divide-y divide-[#D1D5DB]',
     /**
+     * Round 4 (owner): a permanent stroke on every column boundary, header and body.
+     * The confirmed tables clip cell values mid-letter at the cell edge (the Azure
+     * "covered by the next column" grammar), and a cut with no visible edge reads as
+     * two values running together — "경계선은 Stroke를 줘야 될듯. 안 그러면 구분이
+     * 안 될 것 같음". Same #D1D5DB as `bodyStrong`: the boundary that CLIPS content
+     * gets the strongest sanctioned separator, not a taste-based lighter step (the
+     * row hairline "was never seen at all" — same lesson). Lives on the `<table>`;
+     * the modal resize tables keep the strokeless grammar described on `resizeHandle`.
+     */
+    consoleGrid:
+      '[&_th+th]:border-l [&_td+td]:border-l [&_th+th]:border-[#D1D5DB] [&_td+td]:border-[#D1D5DB]',
+    /**
      * 열 폭 조절 손잡이 (useColumnResize) — 헤더 셀 안쪽 오른쪽 끝 8px. 밖으로 내밀면
      * 마지막 열에서 표가 가로로 넘친다. 선은 평소 보이지 않는다: 표에 세로줄을 하나 더 그으면
      * 열 구분이 두 문법이 된다. 잡을 수 있다는 사실은 커서가 말하고, 잡는 동안에만 선이 그

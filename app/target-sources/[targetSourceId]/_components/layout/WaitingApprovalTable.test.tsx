@@ -742,4 +742,49 @@ describe('WaitingApprovalTable', () => {
       expect(screen.queryByText('RDS Cluster')).toBeNull();
     });
   });
+
+  // Round 4 — the covered-clip console grammar. jsdom does no layout, so these assert the
+  // MECHANISM is wired (which element clips, which element measures), not the pixels; the
+  // pixel behaviour is the browser check in the decision record.
+  describe('covered clip (round 4, confirmed variant)', () => {
+    const row = (): WaitingApprovalResource => ({
+      resourceId: 'arn:aws:rds:ap-northeast-2:804656952396:db:covered',
+      resourceType: 'MYSQL',
+      region: 'ap-northeast-2',
+      resourceName: 'covered-name',
+      selected: true,
+      displayDbType: 'MYSQL',
+    });
+
+    // The hook's per-column floor probes `[data-resize-label]`; unwrap the label and the
+    // floor silently degrades to the global 56px AND a shrunk header paints over its
+    // neighbour again. Every confirmed header must carry the self-clipping probe span.
+    it('wraps every confirmed header label in the clipping floor probe', () => {
+      render(<WaitingApprovalTable variant="confirmed" resources={[row()]} />);
+      for (const header of screen.getAllByRole('columnheader')) {
+        const label = header.querySelector('[data-resize-label]');
+        expect(label).toBeTruthy();
+        expect(label?.classList.contains('truncate')).toBe(true);
+      }
+    });
+
+    it('clips at the cell and lets the value run — no self-ellipsis in confirmed cells', () => {
+      render(<WaitingApprovalTable variant="confirmed" resources={[row()]} />);
+      const nameSpan = screen.getByText('covered-name');
+      const nameCell = nameSpan.closest('td');
+      // The TD owns the cut (overflow at the padding box = the column stroke)…
+      expect(nameCell?.classList.contains('overflow-hidden')).toBe(true);
+      expect(nameCell?.classList.contains('whitespace-nowrap')).toBe(true);
+      // …so the value itself must NOT ellipsize first: `truncate` would move the cut to the
+      // content box, 18px short of the stroke, and draw the "shortened" … instead of the cut.
+      expect(nameSpan.classList.contains('truncate')).toBe(false);
+    });
+
+    it('keeps the approval variant on the ellipsis grammar', () => {
+      render(<WaitingApprovalTable variant="approval" resources={[row()]} />);
+      const nameSpan = screen.getByText('covered-name');
+      expect(nameSpan.classList.contains('truncate')).toBe(true);
+      expect(nameSpan.closest('td')?.classList.contains('overflow-hidden')).toBe(false);
+    });
+  });
 });

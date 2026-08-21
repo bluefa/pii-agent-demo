@@ -17,6 +17,10 @@ interface ResourceIdCellProps {
    *  resource row reads at one size. Kept out of `textClassName` because `cn` is a plain
    *  join — a size stacked on the default would leave the winner to CSS order. */
   sizeClass?: string;
+  /** Covered-clip grammar (confirmed tables, round 4): cut the id mid-letter at the box edge
+   *  instead of drawing an ellipsis. The … says "shortened here"; the cut says "continues
+   *  underneath", matching cells whose overflow the column stroke visibly covers. */
+  hardClip?: boolean;
 }
 
 /**
@@ -30,6 +34,7 @@ export const ResourceIdCell = ({
   maxWidthClass = 'max-w-[260px]',
   textClassName,
   sizeClass = 'text-[12px]',
+  hardClip = false,
 }: ResourceIdCellProps) => (
   <span className={cn('group/resid inline-flex items-center gap-1.5 min-w-0', maxWidthClass)}>
     {/* Long ids are the norm here, but short ones exist — no tooltip when the value already fits. */}
@@ -49,7 +54,10 @@ export const ResourceIdCell = ({
           wrapper gets an inherited grey `…` detached from the mono id. */}
       <span
         className={cn(
-          'block min-w-0 truncate text-left font-mono',
+          'block min-w-0 text-left font-mono',
+          // hardClip leaves the clipping to the overflow-hidden trigger above, which cuts
+          // with no ellipsis — the round-4 covered grammar.
+          hardClip ? 'whitespace-nowrap' : 'truncate',
           sizeClass,
           textClassName ?? textColors.secondary,
         )}
