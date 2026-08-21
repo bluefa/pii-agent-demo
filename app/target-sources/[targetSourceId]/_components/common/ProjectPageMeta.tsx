@@ -3,7 +3,7 @@
 import { Fragment, useState } from 'react';
 import type { CloudProvider, TargetSource } from '@/lib/types';
 import { AwsIcon, AzureIcon, GcpIcon, IdcIcon } from '@/app/components/ui/CloudProviderIcon';
-import { CopyIcon, StatusSuccessIcon } from '@/app/components/ui/icons';
+import { ChevronDownIcon, CopyIcon, StatusSuccessIcon } from '@/app/components/ui/icons';
 import { InstallationProcessProgressBar } from '@/app/components/features/process-status';
 import { TIMINGS } from '@/lib/constants/timings';
 import {
@@ -14,6 +14,9 @@ import {
 } from '@/lib/theme';
 import type { ProjectIdentity } from '@/app/target-sources/[targetSourceId]/_components/common/project-identity';
 import { TcHeaderTag } from '@/app/target-sources/[targetSourceId]/_components/common/TcHeaderTag';
+
+/** Ties the disclosure button to the block it opens (`aria-controls`). */
+const META_BLOCK_ID = 'target-source-meta';
 
 interface ProjectPageMetaProps {
   project: TargetSource;
@@ -102,8 +105,18 @@ const CopyButton = ({ value, label }: { value: string; label: string }) => {
  * label grammar throughout (12px eyebrow above 14px content), grouping by
  * distance instead of rules, and the quiet install stepper as the single
  * statement of step position. Body cards below keep the only card chrome.
+ *
+ * 개선안 D: three tiers at rest — the title, the 설치 대상 summary, the progress
+ * band. The meta blocks fold into that summary, because the header ran 333px
+ * before the first card and only those tiers answer anything a reader needs
+ * before starting work. Everything else is reference: true all day, read once.
+ *
+ * The summary line is the disclosure's own head, not a control parked beside it:
+ * 설치 대상 · 서비스명 · 코드칩 are exactly the facts that identify what the block
+ * details, so they state the folded content instead of hiding it (오너 3차 지시).
  */
 export const ProjectPageMeta = ({ project, identity, action }: ProjectPageMetaProps) => {
+  const [metaOpen, setMetaOpen] = useState(false);
   // SDU wins over the underlying CSP (metadata.is_sdu_type, owner call) — the
   // account has no CSP identifiers, so identifier rows drop out on their own.
   const display = project.isSduType ? SDU_DISPLAY : PROVIDER_DISPLAY[identity.cloudProvider];
@@ -130,97 +143,120 @@ export const ProjectPageMeta = ({ project, identity, action }: ProjectPageMetaPr
         {action && <div className="flex flex-wrap items-center justify-end gap-2">{action}</div>}
       </div>
 
-      {/* Demoted service identity — 12px eyebrow + 14px name + the code chip,
-          the same facts the old title carried, one hierarchy level down. */}
-      <div className={h.targetRow}>
-        <span className={h.kvLabel}>설치 대상</span>
-        <span className={h.providerName}>{serviceTitle}</span>
-        <span className={h.codeChip}>
-          <span className={h.codeChipLabel}>서비스 코드</span>
-          <span className={h.codeChipValue}>{project.serviceCode}</span>
-        </span>
-      </div>
-
-      {description !== '' && (
-        <div className={h.block}>
-          <div className={h.blockLabel}>설명</div>
-          <p className={h.descText}>{description}</p>
-        </div>
-      )}
-
-      <div className={h.block}>
-        {/* The group eyebrow is the provider's own label, not a line above the
-            row — that keeps 클라우드 정보 level with Project ID, and the provider
-            name level with the identifier it names. */}
-        <div className={h.groupRow}>
-          <span className={h.providerStack}>
-            <span className={h.blockLabel}>{display.group}</span>
-            <span className={h.provider}>
-              <span className={h.providerIcon} aria-hidden="true">
-                <Icon className="h-4 w-4" />
-              </span>
-              <span className={h.providerName}>
-                {display.name}
-                {display.gloss && (
-                  <>
-                    <span className={h.providerGlossBar} aria-hidden="true">
-                      |
-                    </span>
-                    <span className={h.providerGloss}>{display.gloss}</span>
-                  </>
-                )}
-              </span>
+      <div className={h.targetGroup}>
+        {/* Demoted service identity — 12px eyebrow + 14px name + the code chip,
+            the same facts the old title carried, one hierarchy level down. They
+            double as this disclosure's summary: the head names the target, the
+            body details it, so the press belongs to the whole bar. */}
+        <button
+          type="button"
+          onClick={() => setMetaOpen((open) => !open)}
+          aria-expanded={metaOpen}
+          aria-controls={META_BLOCK_ID}
+          className={cn(h.targetSummary, metaOpen && h.targetSummaryOpen)}
+        >
+          <span className={h.targetSummaryFacts}>
+            <span className={h.kvLabel}>설치 대상</span>
+            <span className={h.providerName}>{serviceTitle}</span>
+            <span className={h.codeChip}>
+              <span className={h.codeChipLabel}>서비스 코드</span>
+              <span className={h.codeChipValue}>{project.serviceCode}</span>
             </span>
           </span>
+          <span className={h.metaCue}>
+            설치 대상 정보
+            <ChevronDownIcon
+              className={cn(h.metaToggleIcon, metaOpen && h.metaToggleIconOpen)}
+              aria-hidden="true"
+            />
+          </span>
+        </button>
 
-          {project.isSduType && (
-            <>
-              <span className={h.divider} aria-hidden="true" />
-              <span className={h.kv}>
-                <span className={h.kvLabel}>연동 방식</span>
-                <span className={h.kvValue}>고객사가 데이터를 직접 업로드</span>
-              </span>
-            </>
-          )}
+        {metaOpen && (
+          <div id={META_BLOCK_ID} className={h.targetBody}>
+            {description !== '' && (
+              <div className={h.block}>
+                <div className={h.blockLabel}>설명</div>
+                <p className={h.descText}>{description}</p>
+              </div>
+            )}
 
-          {identifierRows.map((id) => (
-            <Fragment key={id.label}>
-              <span className={h.divider} aria-hidden="true" />
-              <span className={h.kv}>
-                <span className={h.kvLabel}>{id.label}</span>
-                <span className={cn(h.kvValue, id.mono && h.kvValueMono)}>
-                  <span className="min-w-0 truncate">{id.value}</span>
-                  {id.mono && <CopyButton value={id.value} label={`${id.label} 복사`} />}
-                </span>
-              </span>
-            </Fragment>
-          ))}
-
-          {identity.installMode && (
-            <>
-              <span className={h.divider} aria-hidden="true" />
-              <span className={h.kv}>
-                <span className={h.kvLabel}>설치 모드</span>
-                <span className={h.kvValue}>
-                  <span
-                    className={
-                      identity.installMode === 'auto' ? h.modeChipAuto : h.modeChipManual
-                    }
-                  >
-                    {identity.installMode === 'auto' ? '자동 설치' : '수동 설치'}
-                  </span>
-                  {/* What the mode MEANS stays on-screen — a hover tooltip would
-                      hide information the user needs to know. */}
-                  <span className={h.modeNote}>
-                    {identity.installMode === 'auto'
-                      ? 'Terraform 권한 위임'
-                      : '설치 스크립트 직접 실행'}
+            <div className={h.block}>
+              {/* The group eyebrow is the provider's own label, not a line above the
+                  row — that keeps 클라우드 정보 level with Project ID, and the provider
+                  name level with the identifier it names. */}
+              <div className={h.groupRow}>
+                <span className={h.providerStack}>
+                  <span className={h.blockLabel}>{display.group}</span>
+                  <span className={h.provider}>
+                    <span className={h.providerIcon} aria-hidden="true">
+                      <Icon className="h-4 w-4" />
+                    </span>
+                    <span className={h.providerName}>
+                      {display.name}
+                      {display.gloss && (
+                        <>
+                          <span className={h.providerGlossBar} aria-hidden="true">
+                            |
+                          </span>
+                          <span className={h.providerGloss}>{display.gloss}</span>
+                        </>
+                      )}
+                    </span>
                   </span>
                 </span>
-              </span>
-            </>
-          )}
-        </div>
+  
+                {project.isSduType && (
+                  <>
+                    <span className={h.divider} aria-hidden="true" />
+                    <span className={h.kv}>
+                      <span className={h.kvLabel}>연동 방식</span>
+                      <span className={h.kvValue}>고객사가 데이터를 직접 업로드</span>
+                    </span>
+                  </>
+                )}
+  
+                {identifierRows.map((id) => (
+                  <Fragment key={id.label}>
+                    <span className={h.divider} aria-hidden="true" />
+                    <span className={h.kv}>
+                      <span className={h.kvLabel}>{id.label}</span>
+                      <span className={cn(h.kvValue, id.mono && h.kvValueMono)}>
+                        <span className="min-w-0 truncate">{id.value}</span>
+                        {id.mono && <CopyButton value={id.value} label={`${id.label} 복사`} />}
+                      </span>
+                    </span>
+                  </Fragment>
+                ))}
+  
+                {identity.installMode && (
+                  <>
+                    <span className={h.divider} aria-hidden="true" />
+                    <span className={h.kv}>
+                      <span className={h.kvLabel}>설치 모드</span>
+                      <span className={h.kvValue}>
+                        <span
+                          className={
+                            identity.installMode === 'auto' ? h.modeChipAuto : h.modeChipManual
+                          }
+                        >
+                          {identity.installMode === 'auto' ? '자동 설치' : '수동 설치'}
+                        </span>
+                        {/* What the mode MEANS stays on-screen — a hover tooltip would
+                            hide information the user needs to know. */}
+                        <span className={h.modeNote}>
+                          {identity.installMode === 'auto'
+                            ? 'Terraform 권한 위임'
+                            : '설치 스크립트 직접 실행'}
+                        </span>
+                      </span>
+                    </span>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* #661 P5: the latest connection-test verdict rides its own step, not the

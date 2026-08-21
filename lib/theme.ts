@@ -664,8 +664,16 @@ export const projectHeaderStyles = {
   inner: 'px-10 pt-[18px]',
   titleRow: 'flex items-start justify-between gap-4',
   titleGroup: 'flex min-w-0 flex-wrap items-baseline gap-2.5',
-  /** 시안 2 (P2): task-first H1 — the service identity demotes to this line. */
-  targetRow: 'mt-2 flex flex-wrap items-center gap-2',
+  /**
+   * 시안 2 (P2): task-first H1 — the service identity demotes to this line, and
+   * that line is now the disclosure itself: the facts on it ARE the summary of
+   * the block it opens, so head and body read as one object instead of a control
+   * standing beside the thing it controls (오너 3차 지시).
+   *
+   * A stroke on the wash, not a white plane — the step cards below own the card
+   * chrome, and this is header furniture that happens to be pressable.
+   */
+  targetGroup: 'mt-2 rounded-[10px] border border-[#E1E4EB]',
   /**
    * Service-code chip — slate, not primary: in this palette blue means
    * "clickable" and amber/green mean state; an identifier gets the neutral
@@ -738,6 +746,32 @@ export const projectHeaderStyles = {
   /** …manual keeps the amber outline: the customer must run the script themselves. */
   modeChipManual: 'inline-flex items-center rounded-[6px] border border-amber-200 bg-amber-50 px-2 py-0.5 text-[12px] font-semibold text-amber-800',
   modeNote: 'ml-2 whitespace-nowrap text-[12px] font-medium text-[#4E5968]',
+  /**
+   * 「설치 대상 정보」 disclosure (개선안 D). The meta blocks behind it are reference —
+   * read once at the start, checked occasionally after — while the header they sat
+   * in is the thing standing between the reader and the work. Folded, the header
+   * runs 195px instead of 333px and the first card starts at y=291 instead of 429.
+   *
+   * The head is the whole bar, not a word at the end of it: every fact on the
+   * summary line is inert text, so there is nothing to compete with the press and
+   * the target itself becomes the hit area. White on hover, because on the #F4F4FB
+   * wash a faint tint has nowhere to go — lighter is the only direction left.
+   */
+  targetSummary:
+    'flex w-full items-center justify-between gap-3 rounded-[9px] px-3 py-2 transition-colors hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0050D6]/40',
+  /** Open, the head's bottom corners belong to the body it now sits on. */
+  targetSummaryOpen: 'rounded-b-none',
+  targetSummaryFacts: 'flex min-w-0 flex-wrap items-center gap-2',
+  /**
+   * Blue, because in this palette blue is the one colour that means "clickable"
+   * (see `codeChip`, which is deliberately slate for exactly that reason) — and
+   * it names what opens, which the chevron alone cannot.
+   */
+  metaCue: 'flex flex-none items-center gap-1 text-[12px] font-semibold text-[#0050D6]',
+  metaToggleIcon: 'h-3.5 w-3.5 transition-transform motion-reduce:transition-none',
+  metaToggleIconOpen: 'rotate-180',
+  /** Hairline, not a gap: the body is the same object as the head above it. */
+  targetBody: 'border-t border-[#E1E4EB] px-3 pb-4',
 } as const;
 
 /**

@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import { ProcessStatus, type TargetSource } from '@/lib/types';
 
@@ -40,6 +40,60 @@ const idcIdentity: ProjectIdentity = {
   identifiers: [],
 };
 
+/**
+ * The meta blocks live behind the 「설치 대상 정보」 disclosure and the header opens
+ * folded, so every assertion about their content has to open it first — a bare
+ * `render` sees a two-tier header and nothing else.
+ */
+const renderOpen = (props: Parameters<typeof ProjectPageMeta>[0]) => {
+  const result = render(<ProjectPageMeta {...props} />);
+  fireEvent.click(screen.getByRole('button', { name: /설치 대상 정보/ }));
+  return result;
+};
+
+describe('ProjectPageMeta — 설치 대상 정보 disclosure', () => {
+  it('folds the meta away by default — the header is title + progress band', () => {
+    render(<ProjectPageMeta project={projectFixture} identity={awsIdentity} />);
+    expect(screen.queryByText('클라우드 정보')).toBeNull();
+    expect(screen.queryByText('Account ID')).toBeNull();
+    expect(screen.queryByText('설명')).toBeNull();
+    // The two tiers that survive the fold.
+    expect(screen.getByRole('heading', { name: 'PII Agent 설치' })).toBeTruthy();
+    expect(screen.getByTestId('process-progress-bar')).toBeTruthy();
+  });
+
+  it('makes the whole 설치 대상 line the control, facts included', () => {
+    render(<ProjectPageMeta project={projectFixture} identity={awsIdentity} />);
+    const toggle = screen.getByRole('button', { name: /설치 대상 정보/ });
+    // The summary IS the head of the disclosure — the facts on it are inert text
+    // inside the press, not a row the press sits beside.
+    for (const fact of ['설치 대상', 'Service A', '서비스 코드', 'SERVICE-A']) {
+      expect(toggle.contains(screen.getByText(fact))).toBe(true);
+    }
+    // …and nothing inside it steals the click.
+    expect(toggle.querySelector('button, a, input')).toBeNull();
+  });
+
+  it('opens and closes on the toggle, reporting state to assistive tech', () => {
+    render(<ProjectPageMeta project={projectFixture} identity={awsIdentity} />);
+    const toggle = screen.getByRole('button', { name: /설치 대상 정보/ });
+    expect(toggle.getAttribute('aria-expanded')).toBe('false');
+
+    fireEvent.click(toggle);
+    expect(toggle.getAttribute('aria-expanded')).toBe('true');
+    // aria-controls has to name a box that exists, or the association is a lie.
+    const body = document.getElementById(toggle.getAttribute('aria-controls') ?? '');
+    expect(body).toBeTruthy();
+    // Head and body are one object: the body opens inside the group, not after it.
+    expect(toggle.parentElement?.contains(body as Node)).toBe(true);
+    expect(screen.getByText('클라우드 정보')).toBeTruthy();
+
+    fireEvent.click(toggle);
+    expect(toggle.getAttribute('aria-expanded')).toBe('false');
+    expect(screen.queryByText('클라우드 정보')).toBeNull();
+  });
+});
+
 describe('ProjectPageMeta — title row', () => {
   it('titles the page by its job and demotes the service to the 설치 대상 line', () => {
     render(<ProjectPageMeta project={projectFixture} identity={awsIdentity} />);
@@ -64,22 +118,20 @@ describe('ProjectPageMeta — title row', () => {
 
 describe('ProjectPageMeta — description block', () => {
   it('renders the 설명 block when the target source has a description', () => {
-    render(<ProjectPageMeta project={projectFixture} identity={awsIdentity} />);
+    renderOpen({ project: projectFixture, identity: awsIdentity });
     expect(screen.getByText('설명')).toBeTruthy();
     expect(screen.getByText('desc')).toBeTruthy();
   });
 
   it('skips the block entirely (label included) when the description is empty', () => {
-    render(
-      <ProjectPageMeta project={{ ...projectFixture, description: '  ' }} identity={awsIdentity} />,
-    );
+    renderOpen({ project: { ...projectFixture, description: '  ' }, identity: awsIdentity });
     expect(screen.queryByText('설명')).toBeNull();
   });
 });
 
 describe('ProjectPageMeta — provider group', () => {
   it('shows "AWS Cloud" with its account id and install mode under 클라우드 정보', () => {
-    render(<ProjectPageMeta project={projectFixture} identity={awsIdentity} />);
+    renderOpen({ project: projectFixture, identity: awsIdentity });
     expect(screen.getByText('클라우드 정보')).toBeTruthy();
     expect(screen.getByText('AWS Cloud')).toBeTruthy();
     expect(screen.getByText('482915736204')).toBeTruthy();
@@ -89,44 +141,36 @@ describe('ProjectPageMeta — provider group', () => {
   });
 
   it('renders manual mode with its own explanation', () => {
-    render(
-      <ProjectPageMeta
-        project={projectFixture}
-        identity={{ ...awsIdentity, installMode: 'manual' }}
-      />,
-    );
+    renderOpen({
+      project: projectFixture,
+      identity: { ...awsIdentity, installMode: 'manual' },
+    });
     expect(screen.getByText('수동 설치')).toBeTruthy();
     expect(screen.getByText('설치 스크립트 직접 실행')).toBeTruthy();
   });
 
   it('hides the install-mode row when the identity carries none', () => {
-    render(
-      <ProjectPageMeta
-        project={projectFixture}
-        identity={{ ...awsIdentity, installMode: undefined }}
-      />,
-    );
+    renderOpen({
+      project: projectFixture,
+      identity: { ...awsIdentity, installMode: undefined },
+    });
     expect(screen.queryByText('설치 모드')).toBeNull();
   });
 
   it('drops identifier rows whose value is absent instead of rendering "-"', () => {
-    render(
-      <ProjectPageMeta
-        project={projectFixture}
-        identity={{
-          cloudProvider: 'AWS',
-          identifiers: [{ label: 'Account ID', value: null, mono: true }],
-        }}
-      />,
-    );
+    renderOpen({
+      project: projectFixture,
+      identity: {
+        cloudProvider: 'AWS',
+        identifiers: [{ label: 'Account ID', value: null, mono: true }],
+      },
+    });
     expect(screen.queryByText('Account ID')).toBeNull();
     expect(screen.queryByText('-')).toBeNull();
   });
 
   it('IDC reads 인프라 정보 with the 사내망 gloss and no identifiers', () => {
-    render(
-      <ProjectPageMeta project={{ ...projectFixture, cloudProvider: 'IDC' }} identity={idcIdentity} />,
-    );
+    renderOpen({ project: { ...projectFixture, cloudProvider: 'IDC' }, identity: idcIdentity });
     expect(screen.getByText('인프라 정보')).toBeTruthy();
     expect(screen.getByText('IDC')).toBeTruthy();
     expect(screen.getByText('사내망')).toBeTruthy();
@@ -134,9 +178,7 @@ describe('ProjectPageMeta — provider group', () => {
   });
 
   it('an SDU account reads 데이터 제공 · direct upload, over its underlying CSP', () => {
-    render(
-      <ProjectPageMeta project={{ ...projectFixture, isSduType: true }} identity={awsIdentity} />,
-    );
+    renderOpen({ project: { ...projectFixture, isSduType: true }, identity: awsIdentity });
     expect(screen.getByText('데이터 제공')).toBeTruthy();
     expect(screen.getByText('SDU')).toBeTruthy();
     expect(screen.getByText('연동 방식')).toBeTruthy();
@@ -164,7 +206,7 @@ const utilityOn = (start: Element | null, prefix: string): string | null => {
 
 describe('ProjectPageMeta — one line per tier', () => {
   it('gives the provider name and the identifier value one shared line box', () => {
-    render(<ProjectPageMeta project={projectFixture} identity={awsIdentity} />);
+    renderOpen({ project: projectFixture, identity: awsIdentity });
     const provider = screen.getByText('AWS Cloud');
     const value = screen.getByText('482915736204');
 
@@ -180,7 +222,7 @@ describe('ProjectPageMeta — one line per tier', () => {
   });
 
   it('binds both label stacks to their value at the same gap', () => {
-    render(<ProjectPageMeta project={projectFixture} identity={awsIdentity} />);
+    renderOpen({ project: projectFixture, identity: awsIdentity });
 
     // The group eyebrow rides on the kv label line. It only stays there while the
     // two stacks push their value down by the same amount.
