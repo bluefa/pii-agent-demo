@@ -9,7 +9,7 @@ vi.mock('next/headers', () => ({
   }),
 }));
 
-describe('BFF auth header passthrough (IAP/SSO)', () => {
+describe('BFF auth header passthrough (AD SSO)', () => {
   afterEach(() => {
     vi.restoreAllMocks();
     vi.resetModules();
@@ -21,7 +21,8 @@ describe('BFF auth header passthrough (IAP/SSO)', () => {
     process.env.BFF_API_URL = 'https://bff.example.com';
     inbound.current = new Map([
       ['authorization', 'Bearer sso-token'],
-      ['cookie', 'GCP_IAAP_AUTH_TOKEN=iap-cookie'],
+      ['cookie', 'pass-adsso-token=ad-sso-session'],
+      // Retired IAP headers must no longer be forwarded (BFF PR #8646).
       ['x-goog-iap-jwt-assertion', 'iap-jwt'],
       ['x-goog-authenticated-user-email', 'accounts.google.com:user@company.com'],
       ['x-forwarded-for', '10.0.0.1'],
@@ -42,9 +43,7 @@ describe('BFF auth header passthrough (IAP/SSO)', () => {
       headers: {
         Accept: 'application/json',
         authorization: 'Bearer sso-token',
-        cookie: 'GCP_IAAP_AUTH_TOKEN=iap-cookie',
-        'x-goog-iap-jwt-assertion': 'iap-jwt',
-        'x-goog-authenticated-user-email': 'accounts.google.com:user@company.com',
+        cookie: 'pass-adsso-token=ad-sso-session',
       },
     });
   });
