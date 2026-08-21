@@ -375,414 +375,415 @@ export const ConnectionTestCard = ({
           </p>
         </div>
       </header>
-      <div className={cn(cardStyles.body, 'space-y-4')}>
-        <TcRejectionNotice
-          targetSourceId={targetSourceId}
-          runVersion={latestJob?.test_connection_version ?? null}
-        />
-        {loading ? (
-          <TcSummaryCardSkeleton />
-        ) : (
-        <TcSummaryCard
-          state={cardState}
-          buckets={buckets}
-          run={
-            latestJob
-              ? {
-                  requestedAt: latestJob.requested_at ?? null,
-                  completedAt: latestJob.completed_at ?? null,
-                }
-              : null
-          }
-          policyChangedAt={policyChangedAt}
-          drawCheck={settledLive}
-          onRunTest={() => void runTest()}
-          runDisabled={runDisabled}
-          onRequestApproval={() => setApprovalOpen(true)}
-          approvalDisabled={!canRequestApproval}
-          historyAction={
-            <button
-              type="button"
-              onClick={() => setHistoryOpen(true)}
-              className={cn(idcStyles.triggerBtn.linkNeutral, 'whitespace-nowrap text-[12px]')}
-            >
-              실행 이력
-            </button>
-          }
-        />
-        )}
-        {/* 실패한 완료 상태 조회는 닫힌 게이트와 같은 픽셀이면 안 된다 — 이유 없이 비활성인
-            승인 버튼만 남는다. fetchError 와 같은 문법: 한 줄 + 재시도. */}
-        {completionFailed && (
-          <p className={cn('flex items-center gap-2 text-[12px]', idcStyles.tag.red, 'bg-transparent px-0')}>
-            {ERROR_MESSAGES.TEST_CONNECTION_COMPLETION_FETCH_FAILED}
-            <button
-              type="button"
-              onClick={refreshCompletion}
-              className={cn(idcStyles.triggerBtn.linkNeutral, 'text-[12px]')}
-            >
-              다시 시도
-            </button>
-          </p>
-        )}
-        {triggerError && (
-          <p className={cn('text-[12px]', idcStyles.tag.red, 'bg-transparent px-0')}>{triggerError}</p>
-        )}
-        {/* 조회가 실패하면 Run Test 는 잠긴 채로 남는다(무엇이 도는지 모르므로). 그 잠금을 푸는
-            길은 조회 성공뿐이라, 폴링이 포기한 뒤에는 이 버튼이 유일한 출구다. */}
-        {fetchError && (
-          <p className={cn('flex items-center gap-2 text-[12px]', idcStyles.tag.red, 'bg-transparent px-0')}>
-            {ERROR_MESSAGES.TEST_CONNECTION_FETCH_FAILED}
-            <button
-              type="button"
-              onClick={() => void retry()}
-              className={cn(idcStyles.triggerBtn.linkNeutral, 'text-[12px]')}
-            >
-              다시 시도
-            </button>
-          </p>
-        )}
-        {/* Table + pagination are ONE stack, exactly as steps 2·3 and 6·7 compose them: the
-            table itself carries no border or shadow, and the pagination bar below supplies the
-            only stroke and the bottom radius. The framed `table.frame` this used to sit in drew
-            a second box inside the card — a card inside a card, at a heavier weight than any
-            border on those steps.
-            Those steps cap the stack with the filter toolbar (top-rounded, #F7F8FA); here the
-            header row — same fill — is the cap and takes the radius. */}
-        {/* 미등록이 0 인 것이 정상 상태다. 그 사실을 말하려고 상시 카드 세 장을 두었더니, 아무 할
-            일이 없다는 말이 화면의 90px 을 차지했고 (전체 = 지정 + 미등록) 도 성립하지 않았다 —
-            Athena·DynamoDB 처럼 Credential 이 "불필요" 한 행은 어느 카드에도 안 잡히기 때문이다.
-            조치가 필요할 때만 한 줄이 생긴다. 그 줄의 링크가 곧 필터이므로 요약과 도달 수단이 한
-            물건이고, 분류를 세지 않으니 합계가 어긋날 수도 없다. */}
-        {missingCount > 0 && (
-          <div
-            className={cn(
-              'flex items-center gap-2 rounded-lg border px-3 py-2.5 text-[14px]',
-              statusColors.warning.bgSoft,
-              statusColors.warning.border,
-              statusColors.warning.textDark,
-            )}
-          >
-            {/* 경고를 색만으로 말하지 않는다(WCAG 1.4.1) — 마크가 색 없이도 같은 뜻을 진다. */}
-            <StatusWarningIcon className="h-4 w-4 shrink-0" />
-            {/* IDC step 5 와 같은 어휘(미설정) — 같은 스텝이 CSP 마다 다른 말을 쓰지 않는다. */}
-            <span className="break-keep">
-              Credential 미설정 <strong className="font-bold">{missingCount}건</strong> — 지정해야 연결
-              테스트를 실행할 수 있어요
-            </span>
-            <button
-              type="button"
-              onClick={() => handleCredFilter(credFilter === 'missing' ? 'all' : 'missing')}
-              aria-pressed={credFilter === 'missing'}
-              className={cn(
-                'ml-auto shrink-0 whitespace-nowrap font-semibold underline underline-offset-2',
-                primaryColors.focusRing,
-              )}
-            >
-              {credFilter === 'missing' ? '전체 보기' : '미설정만 보기'}
-            </button>
+      {/* Two groups, not one even stack: distance carries ownership (proposal A). Inside a
+          group rows sit 8px apart; the verdict group and the table group are 24px apart. */}
+      <div className={cn(cardStyles.body, 'space-y-6')}>
+        <div className="space-y-2">
+          <TcRejectionNotice
+            targetSourceId={targetSourceId}
+            runVersion={latestJob?.test_connection_version ?? null}
+          />
+          {loading ? (
+            <TcSummaryCardSkeleton />
+          ) : (
+          <TcSummaryCard
+            state={cardState}
+            buckets={buckets}
+            run={
+              latestJob
+                ? {
+                    requestedAt: latestJob.requested_at ?? null,
+                    completedAt: latestJob.completed_at ?? null,
+                  }
+                : null
+            }
+            policyChangedAt={policyChangedAt}
+            drawCheck={settledLive}
+            onRunTest={() => void runTest()}
+            runDisabled={runDisabled}
+            onRequestApproval={() => setApprovalOpen(true)}
+            approvalDisabled={!canRequestApproval}
+            historyAction={
+              <button
+                type="button"
+                onClick={() => setHistoryOpen(true)}
+                className={cn(idcStyles.triggerBtn.linkNeutral, 'whitespace-nowrap text-[12px]')}
+              >
+                실행 이력
+              </button>
+            }
+          />
+          )}
+          {/* 실패한 완료 상태 조회는 닫힌 게이트와 같은 픽셀이면 안 된다 — 이유 없이 비활성인
+              승인 버튼만 남는다. fetchError 와 같은 문법: 한 줄 + 재시도. */}
+          {completionFailed && (
+            <p className={cn('flex items-center gap-2 text-[12px]', idcStyles.tag.red, 'bg-transparent px-0')}>
+              {ERROR_MESSAGES.TEST_CONNECTION_COMPLETION_FETCH_FAILED}
+              <button
+                type="button"
+                onClick={refreshCompletion}
+                className={cn(idcStyles.triggerBtn.linkNeutral, 'text-[12px]')}
+              >
+                다시 시도
+              </button>
+            </p>
+          )}
+          {triggerError && (
+            <p className={cn('text-[12px]', idcStyles.tag.red, 'bg-transparent px-0')}>{triggerError}</p>
+          )}
+          {/* 조회가 실패하면 Run Test 는 잠긴 채로 남는다(무엇이 도는지 모르므로). 그 잠금을 푸는
+              길은 조회 성공뿐이라, 폴링이 포기한 뒤에는 이 버튼이 유일한 출구다. */}
+          {fetchError && (
+            <p className={cn('flex items-center gap-2 text-[12px]', idcStyles.tag.red, 'bg-transparent px-0')}>
+              {ERROR_MESSAGES.TEST_CONNECTION_FETCH_FAILED}
+              <button
+                type="button"
+                onClick={() => void retry()}
+                className={cn(idcStyles.triggerBtn.linkNeutral, 'text-[12px]')}
+              >
+                다시 시도
+              </button>
+            </p>
+          )}
           </div>
-        )}
-        <div>
-          {/* CONNECTED_FRAME's own `overflow-hidden` and an `overflow-x-auto` would be two
-              values of one property on one element, and `cn` is a plain join — which of them
-              wins would be decided by Tailwind's emit order. Separate elements: the frame clips
-              to the radius, the inner box scrolls. */}
-          <div className={cn(CONNECTED_FRAME, 'rounded-t-[12px]')}>
-            <div className="overflow-x-auto">
-            {/* 연결 상태 칸이 스켈레톤인 동안은 표가 아직 채워지는 중이다 — 보조기술에도 그렇게 말한다. */}
-            <table className="w-full" aria-busy={loading}>
-              <thead className={idcStyles.table.approvalHeader}>
-                {/* Steps 1·2·3 order, verbatim: identity (name → id) → attributes (type ·
-                    region) → what this step asks of the row. A user arrives here having read
-                    the same rows three times already; leading with Database Type made them
-                    re-find the anchor they had been scanning by. */}
-                {/* Resource ID is the one column steps 1·2·3 carry that this step drops. Seven
-                    columns at the approval table's 18px gutters want 1160px in a 948px card, so
-                    one had to go, and this is the only one nothing here is decided by: the row is
-                    already named, typed and located by the three columns around it, while every
-                    other column is either that anchor or an action. Step 4 drops the same class of
-                    column for the same reason. */}
-                <tr className="whitespace-nowrap">
-                  <th className={cn(idcStyles.table.approvalHeaderCell, idcStyles.table.nameCell)}>Resource Name</th>
-                  <th className={idcStyles.table.approvalHeaderCell}>Database Type</th>
-                  <th className={idcStyles.table.approvalHeaderCell}>Region</th>
-                  <th className={idcStyles.table.approvalHeaderCell}>
-                    {/* "DB" 는 표 전체가 이미 DB 얘기라 붙일 필요가 없었다. 대신 이 열이 무엇을
-                        고르는 것인지는 이름만으로 안 읽히므로 (i) 로 한 번 설명한다. 밝은 variant:
-                        흰 표 위의 검은 상자는 다른 시스템의 UI 처럼 보인다. */}
-                    <span className="inline-flex items-center gap-1">
-                      Credential
-                      {/* 엔진을 열거하지 않는다 — 목록(lib/types.ts NO_CREDENTIAL_ENGINES)은 엔진이
-                          늘 때마다 바뀌고, 여기 적은 예시는 같이 안 바뀐다. 표가 이미 찍은 값을
-                          가리키는 편이 언제나 참이다. */}
-                      <Tooltip
-                        variant="value"
-                        size="lg"
-                        content={
-                          <span className="block text-[12px] leading-[1.6] text-[#4E5968]">
-                            해당 DB에 접속할 때 사용할 계정 정보예요. Credentials 메뉴에서 등록한 것 중에서 고르고,
-                            불필요로 표시된 대상은 이 단계에서 지정하지 않아요.
-                          </span>
-                        }
+        <div className="space-y-2">
+          {/* Table + pagination are ONE stack, exactly as steps 2·3 and 6·7 compose them: the
+              table itself carries no border or shadow, and the pagination bar below supplies the
+              only stroke and the bottom radius. The framed `table.frame` this used to sit in drew
+              a second box inside the card — a card inside a card, at a heavier weight than any
+              border on those steps.
+              Those steps cap the stack with the filter toolbar (top-rounded, the approvalHeader
+              fill); here the header row — same fill — is the cap and takes the radius. */}
+          {/* 미등록이 0 인 것이 정상 상태다. 그 사실을 말하려고 상시 카드 세 장을 두었더니, 아무 할
+              일이 없다는 말이 화면의 90px 을 차지했고 (전체 = 지정 + 미등록) 도 성립하지 않았다 —
+              Athena·DynamoDB 처럼 Credential 이 "불필요" 한 행은 어느 카드에도 안 잡히기 때문이다.
+              조치가 필요할 때만 한 줄이 생긴다. 그 줄의 링크가 곧 필터이므로 요약과 도달 수단이 한
+              물건이고, 분류를 세지 않으니 합계가 어긋날 수도 없다. */}
+          {/* Bare row in the table group — this is the table's own missing-value notice, so
+              it sits 8px above the stack it filters instead of boxing itself (proposal A). */}
+          {missingCount > 0 && (
+            <div className={cn('flex items-center gap-2 text-[14px]', statusColors.warning.textDark)}>
+              {/* 경고를 색만으로 말하지 않는다(WCAG 1.4.1) — 마크가 색 없이도 같은 뜻을 진다. */}
+              <StatusWarningIcon className="h-4 w-4 shrink-0" />
+              {/* IDC step 5 와 같은 어휘(미설정) — 같은 스텝이 CSP 마다 다른 말을 쓰지 않는다. */}
+              <span className="break-keep">
+                Credential 미설정 <strong className="font-bold">{missingCount}건</strong> — 지정해야 연결
+                테스트를 실행할 수 있어요
+              </span>
+              <button
+                type="button"
+                onClick={() => handleCredFilter(credFilter === 'missing' ? 'all' : 'missing')}
+                aria-pressed={credFilter === 'missing'}
+                className={cn(
+                  'ml-auto shrink-0 whitespace-nowrap font-semibold underline underline-offset-2',
+                  primaryColors.focusRing,
+                )}
+              >
+                {credFilter === 'missing' ? '전체 보기' : '미설정만 보기'}
+              </button>
+            </div>
+          )}
+          <div>
+            {/* CONNECTED_FRAME's own `overflow-hidden` and an `overflow-x-auto` would be two
+                values of one property on one element, and `cn` is a plain join — which of them
+                wins would be decided by Tailwind's emit order. Separate elements: the frame clips
+                to the radius, the inner box scrolls. */}
+            <div className={cn(CONNECTED_FRAME, 'rounded-t-[12px]')}>
+              <div className="overflow-x-auto">
+              {/* 연결 상태 칸이 스켈레톤인 동안은 표가 아직 채워지는 중이다 — 보조기술에도 그렇게 말한다. */}
+              <table className="w-full" aria-busy={loading}>
+                <thead className={idcStyles.table.approvalHeader}>
+                  {/* Steps 1·2·3 order, verbatim: identity (name → id) → attributes (type ·
+                      region) → what this step asks of the row. A user arrives here having read
+                      the same rows three times already; leading with Database Type made them
+                      re-find the anchor they had been scanning by. */}
+                  {/* Resource ID is the one column steps 1·2·3 carry that this step drops. Seven
+                      columns at the approval table's 18px gutters want 1160px in a 948px card, so
+                      one had to go, and this is the only one nothing here is decided by: the row is
+                      already named, typed and located by the three columns around it, while every
+                      other column is either that anchor or an action. Step 4 drops the same class of
+                      column for the same reason. */}
+                  <tr className="whitespace-nowrap">
+                    <th className={cn(idcStyles.table.approvalHeaderCell, idcStyles.table.nameCell)}>Resource Name</th>
+                    <th className={idcStyles.table.approvalHeaderCell}>Database Type</th>
+                    <th className={idcStyles.table.approvalHeaderCell}>Region</th>
+                    <th className={idcStyles.table.approvalHeaderCell}>
+                      {/* "DB" 는 표 전체가 이미 DB 얘기라 붙일 필요가 없었다. 대신 이 열이 무엇을
+                          고르는 것인지는 이름만으로 안 읽히므로 (i) 로 한 번 설명한다. 밝은 variant:
+                          흰 표 위의 검은 상자는 다른 시스템의 UI 처럼 보인다. */}
+                      <span className="inline-flex items-center gap-1">
+                        Credential
+                        {/* 엔진을 열거하지 않는다 — 목록(lib/types.ts NO_CREDENTIAL_ENGINES)은 엔진이
+                            늘 때마다 바뀌고, 여기 적은 예시는 같이 안 바뀐다. 표가 이미 찍은 값을
+                            가리키는 편이 언제나 참이다. */}
+                        <Tooltip
+                          variant="value"
+                          size="lg"
+                          content={
+                            <span className={idcStyles.table.headerTipBody}>
+                              해당 DB에 접속할 때 사용할 계정 정보예요. Credentials 메뉴에서 등록한 것 중에서 고르고,
+                              불필요로 표시된 대상은 이 단계에서 지정하지 않아요.
+                            </span>
+                          }
+                        >
+                          <InfoCircleIcon className={cn('h-3.5 w-3.5', textColors.tertiary)} aria-label="Credential 설명" />
+                        </Tooltip>
+                      </span>
+                    </th>
+                    <th className={idcStyles.table.approvalHeaderCell}>연결 상태</th>
+                    <th className={idcStyles.table.approvalHeaderCell}>논리 DB 확인</th>
+                  </tr>
+                </thead>
+                <tbody className={idcStyles.table.body}>
+                  {pageRows.map((unit) => {
+                    const cred = unitCred(unit);
+                    const status = statusByResource.get(unit.unitId);
+                    const connected = rowConnected(unit);
+                    const credRequired = requiresCredential(unit.databaseType);
+                    const [first] = unit.members;
+                    const open = expanded.has(unit.unitId);
+                    // Only a folded region draws a rail; a flat unit gets no handlers so a
+                    // pointer move down the list does not re-render the table for nothing.
+                    const rail = unit.folded ? railRow(unit.unitId) : undefined;
+                    // Only a tagged row is two lines — an untagged one is already on the middle.
+                    const stackedIdentity =
+                      isRdsCluster(unit.resourceType ?? '') || isEc2Instance(unit.resourceType);
+                    return (
+                      <Fragment key={unit.unitId}>
+                      <tr
+                        className={cn(ROW_BASE, ROW_TARGET, unit.folded && 'cursor-pointer', rail?.className)}
+                        onClick={unit.folded ? () => toggleUnit(unit.unitId) : undefined}
+                        onMouseEnter={rail?.onMouseEnter}
+                        onMouseLeave={rail?.onMouseLeave}
                       >
-                        <InfoCircleIcon className={cn('h-3.5 w-3.5', textColors.tertiary)} aria-label="Credential 설명" />
-                      </Tooltip>
-                    </span>
-                  </th>
-                  <th className={idcStyles.table.approvalHeaderCell}>연결 상태</th>
-                  <th className={idcStyles.table.approvalHeaderCell}>논리 DB 확인</th>
-                </tr>
-              </thead>
-              <tbody className={idcStyles.table.body}>
-                {pageRows.map((unit) => {
-                  const cred = unitCred(unit);
-                  const status = statusByResource.get(unit.unitId);
-                  const connected = rowConnected(unit);
-                  const credRequired = requiresCredential(unit.databaseType);
-                  const [first] = unit.members;
-                  const open = expanded.has(unit.unitId);
-                  // Only a folded region draws a rail; a flat unit gets no handlers so a
-                  // pointer move down the list does not re-render the table for nothing.
-                  const rail = unit.folded ? railRow(unit.unitId) : undefined;
-                  // Only a tagged row is two lines — an untagged one is already on the middle.
-                  const stackedIdentity =
-                    isRdsCluster(unit.resourceType ?? '') || isEc2Instance(unit.resourceType);
-                  return (
-                    <Fragment key={unit.unitId}>
-                    <tr
-                      className={cn(ROW_BASE, ROW_TARGET, unit.folded && 'cursor-pointer', rail?.className)}
-                      onClick={unit.folded ? () => toggleUnit(unit.unitId) : undefined}
-                      onMouseEnter={rail?.onMouseEnter}
-                      onMouseLeave={rail?.onMouseLeave}
-                    >
-                      {/* A folded row stands for a REGION, which has no resource name, so this
-                          cell carries the disclosure and the engine's label instead. Opening it
-                          lists the databases below, in the column their names belong to.
-                          The label reads in the SAME type as every other name in this column,
-                          not in the steps 1·2·3 group-parent weight: there a heavier parent
-                          separates itself from the children right under it, here the row's
-                          neighbours are ordinary resources and a bolder one would just shout. */}
-                      <td
-                        className={cn(
-                          idcStyles.table.approvalCell,
-                          idcStyles.table.nameCell,
-                          'font-mono text-[14px]',
-                          textColors.primary,
-                          NAME_LIFT,
-                          unit.folded && open && idcStyles.table.group.parentCell,
-                        )}
-                      >
-                        {unit.folded ? (
-                          <span className={idcStyles.table.group.lead}>
+                        {/* A folded row stands for a REGION, which has no resource name, so this
+                            cell carries the disclosure and the engine's label instead. Opening it
+                            lists the databases below, in the column their names belong to.
+                            The label reads in the SAME type as every other name in this column,
+                            not in the steps 1·2·3 group-parent weight: there a heavier parent
+                            separates itself from the children right under it, here the row's
+                            neighbours are ordinary resources and a bolder one would just shout. */}
+                        <td
+                          className={cn(
+                            idcStyles.table.approvalCell,
+                            idcStyles.table.nameCell,
+                            'font-mono text-[14px]',
+                            textColors.primary,
+                            NAME_LIFT,
+                            unit.folded && open && idcStyles.table.group.parentCell,
+                          )}
+                        >
+                          {unit.folded ? (
+                            <span className={idcStyles.table.group.lead}>
+                              <button
+                                type="button"
+                                aria-expanded={open}
+                                aria-label={`${unit.region ?? ''} 데이터베이스 목록 ${open ? '접기' : '펼치기'}`}
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  toggleUnit(unit.unitId);
+                                }}
+                                className={cn(
+                                  idcStyles.table.group.toggle,
+                                  open
+                                    ? idcStyles.table.group.toggleOpen
+                                    : idcStyles.table.group.toggleClosed,
+                                  primaryColors.focusRing,
+                                )}
+                              >
+                                <ChevronRightIcon className="h-3.5 w-3.5" />
+                              </button>
+                              <span className="whitespace-nowrap">
+                                {getDatabaseShortLabel(unit.databaseType ?? '')}
+                              </span>
+                            </span>
+                          ) : (
+                            // One line, always — the widest names here ran to four lines and left
+                            // row heights ragged. Full value in the tip, as on steps 1·2·3.
+                            // A cluster stacks the RDS Cluster tag above the name, the same
+                            // two-line identity steps 1·2·3·4·6·7 use.
+                            <span className={cn(
+                              'flex min-w-0 flex-col items-start gap-1',
+                              stackedIdentity && idcStyles.table.stackedIdentityLift,
+                            )}>
+                              {isRdsCluster(unit.resourceType ?? '') && <RdsClusterTag />}
+                              {isEc2Instance(unit.resourceType) && <Ec2InstanceTag />}
+                              <Tooltip
+                                content={
+                                  <IdentifierTip label="Resource Name" value={first.resourceName ?? ''} />
+                                }
+                                variant="value"
+                                size="md"
+                                triggerClassName="min-w-0 max-w-[200px] block"
+                                truncatedOnly
+                              >
+                                <span className="block truncate">
+                                  {first.resourceName || PLACEHOLDER}
+                                </span>
+                              </Tooltip>
+                            </span>
+                          )}
+                        </td>
+                        <td
+                          className={cn(
+                            idcStyles.table.approvalCell,
+                            'text-[12px]',
+                            textColors.secondary,
+                            CELL_LIFT,
+                          )}
+                        >
+                          {unit.databaseType ? getDatabaseShortLabel(unit.databaseType) : PLACEHOLDER}
+                        </td>
+                        <td
+                          className={cn(
+                            idcStyles.table.approvalCell,
+                            MONO_CELL,
+                            textColors.secondary,
+                            CELL_LIFT,
+                          )}
+                        >
+                          {unit.region || PLACEHOLDER}
+                        </td>
+                        {/* 값은 밑줄 텍스트로 읽고 수정은 모달에서 — 관리자 화면의 Credential
+                            배정과 같은 문법이다. 행마다 select 를 놓으면 표가 컨트롤 판이 되고,
+                            고르는 순간 저장돼 두 후보를 비교할 수도 없었다.
+                            Athena·DynamoDB 처럼 Credential 없이 연결하는 엔진은 고칠 것이 없으므로
+                            버튼이 아니라 평문이다. */}
+                        <td className={idcStyles.table.approvalCell}>
+                          {credRequired ? (
                             <button
                               type="button"
-                              aria-expanded={open}
-                              aria-label={`${unit.region ?? ''} 데이터베이스 목록 ${open ? '접기' : '펼치기'}`}
-                              onClick={(event) => {
-                                event.stopPropagation();
-                                toggleUnit(unit.unitId);
-                              }}
+                              onClick={() =>
+                                credModal.open({
+                                  resourceId: first.resourceId,
+                                  current: cred,
+                                })
+                              }
+                              aria-label={`${first.resourceName ?? first.resourceId} Credential 수정 — 현재 ${cred || '미설정'}`}
+                              title={cred || undefined}
+                              className={cn(idcStyles.triggerBtn.linkNeutral, 'max-w-[160px]')}
+                            >
+                              {cred ? (
+                                <span className="min-w-0 truncate font-mono">{cred}</span>
+                              ) : (
+                                <span className="font-sans">미설정</span>
+                              )}
+                            </button>
+                          ) : (
+                            <span
+                              className={cn('whitespace-nowrap text-[12px]', textColors.tertiary)}
+                            >
+                              불필요
+                            </span>
+                          )}
+                        </td>
+                        {/* 어휘·스켈레톤 규칙은 `TcStatusTag` 가 진다 — IDC step 5 의 표가 같은
+                            칸을 그리므로, 두 CSP 가 같은 판정을 다른 말로 하지 않도록 한 곳에 둔다. */}
+                        <td className={idcStyles.table.approvalCell}>
+                          <TcStatusTag status={status} loading={loading} />
+                        </td>
+                        {/* Athena·DynamoDB are IAM-based and have no logical-DB management at all,
+                            so there is nothing here to configure — the button used to open anyway
+                            (it was gated on `connected` alone) onto a screen for a concept that
+                            does not exist. Keyed on the engine, not on the Athena fold: DynamoDB
+                            has no region fold to read off. */}
+                        <td className={idcStyles.table.approvalCell}>
+                          {!hasLogicalDatabases(unit.databaseType) ? (
+                            <span
+                              className={cn('whitespace-nowrap text-[12px]', textColors.tertiary)}
+                            >
+                              {NO_LOGICAL_DB_TEXT}
+                            </span>
+                          ) : (
+                            <button
+                              type="button"
+                              disabled={!connected}
+                              onClick={() =>
+                                logicalModal.open({
+                                  resourceId: first.resourceId,
+                                  resourceName: first.resourceName ?? first.resourceId,
+                                })
+                              }
+                              className={cn(idcStyles.triggerBtn.ghostSm, 'whitespace-nowrap')}
+                            >
+                              설정
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                      {/* Database list. The name, and what the name IS — read down the tree the
+                          Database Type column says Athena → Database, exactly as on steps 1·2·3.
+                          Without it `default` is just a string. Every other cell stays empty: the
+                          region row above already answers them and none of it varies per database. */}
+                      {unit.folded &&
+                        open &&
+                        unit.members.map((db, index) => (
+                          <tr
+                            key={db.resourceId}
+                            className={cn(ROW_BASE, rail?.className)}
+                            onMouseEnter={rail?.onMouseEnter}
+                            onMouseLeave={rail?.onMouseLeave}
+                          >
+                            <td
                               className={cn(
-                                idcStyles.table.group.toggle,
-                                open
-                                  ? idcStyles.table.group.toggleOpen
-                                  : idcStyles.table.group.toggleClosed,
-                                primaryColors.focusRing,
+                                idcStyles.table.approvalCell,
+                                'font-mono text-[14px]',
+                                textColors.primary,
+                                idcStyles.table.group.childCell,
+                                index === unit.members.length - 1 &&
+                                  idcStyles.table.group.childCellLast,
                               )}
                             >
-                              <ChevronRightIcon className="h-3.5 w-3.5" />
-                            </button>
-                            <span className="whitespace-nowrap">
-                              {getDatabaseShortLabel(unit.databaseType ?? '')}
-                            </span>
-                          </span>
-                        ) : (
-                          // One line, always — the widest names here ran to four lines and left
-                          // row heights ragged. Full value in the tip, as on steps 1·2·3.
-                          // A cluster stacks the RDS Cluster tag above the name, the same
-                          // two-line identity steps 1·2·3·4·6·7 use.
-                          <span className={cn(
-                            'flex min-w-0 flex-col items-start gap-1',
-                            stackedIdentity && idcStyles.table.stackedIdentityLift,
-                          )}>
-                            {isRdsCluster(unit.resourceType ?? '') && <RdsClusterTag />}
-                            {isEc2Instance(unit.resourceType) && <Ec2InstanceTag />}
-                            <Tooltip
-                              content={
-                                <IdentifierTip label="Resource Name" value={first.resourceName ?? ''} />
-                              }
-                              variant="value"
-                              size="md"
-                              triggerClassName="min-w-0 max-w-[200px] block"
-                              truncatedOnly
+                              {db.resourceName ?? db.resourceId}
+                            </td>
+                            <td
+                              className={cn(
+                                idcStyles.table.approvalCell,
+                                'text-[12px]',
+                                textColors.secondary,
+                              )}
                             >
-                              <span className="block truncate">
-                                {first.resourceName || PLACEHOLDER}
-                              </span>
-                            </Tooltip>
-                          </span>
-                        )}
-                      </td>
+                              {GROUPED_CHILD_KIND_LABEL}
+                            </td>
+                            <td className={idcStyles.table.approvalCell} />
+                            <td className={idcStyles.table.approvalCell} />
+                            <td className={idcStyles.table.approvalCell} />
+                            <td className={idcStyles.table.approvalCell} />
+                          </tr>
+                        ))}
+                      </Fragment>
+                    );
+                  })}
+                  {pageRows.length === 0 && (
+                    <tr>
                       <td
+                        colSpan={6}
                         className={cn(
                           idcStyles.table.approvalCell,
-                          'text-[12px]',
-                          textColors.secondary,
-                          CELL_LIFT,
+                          'py-8 text-center text-[12px]',
+                          textColors.tertiary,
                         )}
                       >
-                        {unit.databaseType ? getDatabaseShortLabel(unit.databaseType) : PLACEHOLDER}
-                      </td>
-                      <td
-                        className={cn(
-                          idcStyles.table.approvalCell,
-                          MONO_CELL,
-                          textColors.secondary,
-                          CELL_LIFT,
-                        )}
-                      >
-                        {unit.region || PLACEHOLDER}
-                      </td>
-                      {/* 값은 밑줄 텍스트로 읽고 수정은 모달에서 — 관리자 화면의 Credential
-                          배정과 같은 문법이다. 행마다 select 를 놓으면 표가 컨트롤 판이 되고,
-                          고르는 순간 저장돼 두 후보를 비교할 수도 없었다.
-                          Athena·DynamoDB 처럼 Credential 없이 연결하는 엔진은 고칠 것이 없으므로
-                          버튼이 아니라 평문이다. */}
-                      <td className={idcStyles.table.approvalCell}>
-                        {credRequired ? (
-                          <button
-                            type="button"
-                            onClick={() =>
-                              credModal.open({
-                                resourceId: first.resourceId,
-                                current: cred,
-                              })
-                            }
-                            aria-label={`${first.resourceName ?? first.resourceId} Credential 수정 — 현재 ${cred || '미설정'}`}
-                            title={cred || undefined}
-                            className={cn(idcStyles.triggerBtn.linkNeutral, 'max-w-[160px]')}
-                          >
-                            {cred ? (
-                              <span className="min-w-0 truncate font-mono">{cred}</span>
-                            ) : (
-                              <span className="font-sans">미설정</span>
-                            )}
-                          </button>
-                        ) : (
-                          <span
-                            className={cn('whitespace-nowrap text-[12px]', textColors.tertiary)}
-                          >
-                            불필요
-                          </span>
-                        )}
-                      </td>
-                      {/* 어휘·스켈레톤 규칙은 `TcStatusTag` 가 진다 — IDC step 5 의 표가 같은
-                          칸을 그리므로, 두 CSP 가 같은 판정을 다른 말로 하지 않도록 한 곳에 둔다. */}
-                      <td className={idcStyles.table.approvalCell}>
-                        <TcStatusTag status={status} loading={loading} />
-                      </td>
-                      {/* Athena·DynamoDB are IAM-based and have no logical-DB management at all,
-                          so there is nothing here to configure — the button used to open anyway
-                          (it was gated on `connected` alone) onto a screen for a concept that
-                          does not exist. Keyed on the engine, not on the Athena fold: DynamoDB
-                          has no region fold to read off. */}
-                      <td className={idcStyles.table.approvalCell}>
-                        {!hasLogicalDatabases(unit.databaseType) ? (
-                          <span
-                            className={cn('whitespace-nowrap text-[12px]', textColors.tertiary)}
-                          >
-                            {NO_LOGICAL_DB_TEXT}
-                          </span>
-                        ) : (
-                          <button
-                            type="button"
-                            disabled={!connected}
-                            onClick={() =>
-                              logicalModal.open({
-                                resourceId: first.resourceId,
-                                resourceName: first.resourceName ?? first.resourceId,
-                              })
-                            }
-                            className={cn(idcStyles.triggerBtn.ghostSm, 'whitespace-nowrap')}
-                          >
-                            설정
-                          </button>
-                        )}
+                        조건에 맞는 결과가 없어요.
                       </td>
                     </tr>
-                    {/* Database list. The name, and what the name IS — read down the tree the
-                        Database Type column says Athena → Database, exactly as on steps 1·2·3.
-                        Without it `default` is just a string. Every other cell stays empty: the
-                        region row above already answers them and none of it varies per database. */}
-                    {unit.folded &&
-                      open &&
-                      unit.members.map((db, index) => (
-                        <tr
-                          key={db.resourceId}
-                          className={cn(ROW_BASE, rail?.className)}
-                          onMouseEnter={rail?.onMouseEnter}
-                          onMouseLeave={rail?.onMouseLeave}
-                        >
-                          <td
-                            className={cn(
-                              idcStyles.table.approvalCell,
-                              'font-mono text-[14px]',
-                              textColors.primary,
-                              idcStyles.table.group.childCell,
-                              index === unit.members.length - 1 &&
-                                idcStyles.table.group.childCellLast,
-                            )}
-                          >
-                            {db.resourceName ?? db.resourceId}
-                          </td>
-                          <td
-                            className={cn(
-                              idcStyles.table.approvalCell,
-                              'text-[12px]',
-                              textColors.secondary,
-                            )}
-                          >
-                            {GROUPED_CHILD_KIND_LABEL}
-                          </td>
-                          <td className={idcStyles.table.approvalCell} />
-                          <td className={idcStyles.table.approvalCell} />
-                          <td className={idcStyles.table.approvalCell} />
-                          <td className={idcStyles.table.approvalCell} />
-                        </tr>
-                      ))}
-                    </Fragment>
-                  );
-                })}
-                {pageRows.length === 0 && (
-                  <tr>
-                    <td
-                      colSpan={6}
-                      className={cn(
-                        idcStyles.table.approvalCell,
-                        'py-8 text-center text-[12px]',
-                        textColors.tertiary,
-                      )}
-                    >
-                      조건에 맞는 결과가 없어요.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-              </table>
+                  )}
+                </tbody>
+                </table>
+              </div>
             </div>
+            {filteredUnits.length > 0 && (
+              <Pagination
+                page={page}
+                pageSize={pageSize}
+                totalCount={filteredUnits.length}
+                onPageChange={setPage}
+                onPageSizeChange={setPageSize}
+                pageSizeOptions={[10, 20, 50, 100]}
+              />
+            )}
           </div>
-          {filteredUnits.length > 0 && (
-            <Pagination
-              page={page}
-              pageSize={pageSize}
-              totalCount={filteredUnits.length}
-              onPageChange={setPage}
-              onPageSizeChange={setPageSize}
-              pageSizeOptions={[10, 20, 50, 100]}
-            />
-          )}
-        </div>
+          </div>
         <CloudReqApprovalModal
           isOpen={approvalOpen}
           onClose={() => setApprovalOpen(false)}

@@ -203,7 +203,7 @@ describe('ConnectionTestCard', () => {
     renderCard([makeResource({ credentialId: 'Key1' })]);
 
     expect(screen.queryByText(/Run Test를 실행해 주세요/)).toBeNull();
-    expect(screen.queryByText(/모두 연결에 성공했어요/)).toBeNull();
+    expect(screen.queryByText(/연결에 성공했어요/)).toBeNull();
     expect(screen.queryByText('미보고')).toBeNull();
     expect(document.querySelector('[aria-busy="true"] .animate-pulse')).toBeTruthy();
   });
@@ -339,9 +339,9 @@ describe('ConnectionTestCard', () => {
     pollingState.uiState = 'SUCCESS';
     pollingState.latestJob = makeJob('SUCCESS', [agentResult('res-1', 'SUCCESS')]);
     renderCard([makeResource({ resourceId: 'res-1', credentialId: null })]);
-    // Row tag and the summary count both say 성공; the sentence states the fact.
+    // Row tag and the summary count both say 성공; the sentence states the verdict.
     expect(screen.getAllByText('성공').length).toBeGreaterThan(0);
-    expect(screen.getByText(/리소스 1개 모두 연결에 성공했어요/)).toBeTruthy();
+    expect(screen.getByText('모든 리소스가 연결에 성공했어요')).toBeTruthy();
   });
 
   it('Run Test triggers the async test (no local credential change → no credential PUT)', async () => {
@@ -470,7 +470,8 @@ describe('ConnectionTestCard', () => {
     pollingState.uiState = 'FAIL';
     pollingState.latestJob = makeJob('FAIL', [agentResult('res-1', 'FAIL')]);
     act(() => rerender());
-    expect(await screen.findByText('실패')).toBeTruthy();
+    // 표 안으로 좁힌다 — 카운트 줄의 범례도 '실패'를 제 텍스트 노드로 갖는다.
+    expect(within(await screen.findByRole('table')).getByText('실패')).toBeTruthy();
     // FAIL 의 정답 행동은 재실행 하나다 — 승인 CTA 는 비활성이 아니라 슬롯에서 아예 빠진다.
     expect(screen.queryByRole('button', { name: '완료 승인 요청' })).toBeNull();
     expect(screen.getByRole('button', { name: /다시 실행/ })).toBeTruthy();

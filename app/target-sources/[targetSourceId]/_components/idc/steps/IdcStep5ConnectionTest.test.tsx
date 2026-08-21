@@ -243,7 +243,8 @@ describe('IdcStep5ConnectionTest — state-driven slot (시안 A)', () => {
     ]);
     renderStep();
 
-    expect(await screen.findByText(/실패 2건을 점검해 주세요/)).toBeTruthy();
+    // 판정은 문장이, 개수(실패 2)는 그 아래 카운트 줄이 나른다.
+    expect(await screen.findByText('연결에 실패한 리소스가 있어요')).toBeTruthy();
     expect(screen.queryByRole('button', { name: '완료 승인 요청' })).toBeNull();
     expect(screen.getByRole('button', { name: /다시 실행/ })).toBeTruthy();
   });

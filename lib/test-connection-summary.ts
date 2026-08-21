@@ -63,8 +63,6 @@ export interface TcBuckets {
   unknown: number;
   /** ok+fail+unknown — what has actually been answered. */
   reported: number;
-  /** reported/total — 100% only when every unit has answered. */
-  pct: number;
 }
 
 export function computeTcBuckets(
@@ -98,7 +96,6 @@ export function computeTcBuckets(
     unreported,
     unknown,
     reported,
-    pct: total > 0 ? Math.round((reported / total) * 100) : 0,
   };
 }
 
@@ -123,31 +120,37 @@ export function foldTcCardState(
 }
 
 /**
- * The one-line fact sentence — states what was verified, never a fixed slogan
- * the data can contradict.
+ * The one-line verdict — states what was verified, never a fixed slogan the data
+ * can contradict.
+ *
+ * 판정만 말하고 수를 세지 않는다. 개수는 바로 아래 카운트 줄이 점 범례와 함께 이미
+ * 나르므로, 문장이 같은 숫자를 다시 쓰면 한 계층 위에서 축이 둘로 늘어난다 —
+ * "리소스 4개 중 3개 연결 성공 — 실패 1건" 이 정확히 그 형태였다. "A — B" 로 이어
+ * 붙이던 구조도 같이 걷는다: 사실을 나열하지 말고 계층으로 가른다.
  */
 export function tcSummarySentence(state: TcCardState, buckets: TcBuckets): string {
-  const { total, ok, fail, reported } = buckets;
+  const { total, ok, fail } = buckets;
   switch (state) {
     case 'queued':
       // top-level PENDING — 접수만 됐고 아무것도 돌지 않는다. "진행 중"이라고 말하면
       // 0% 빈 바와 함께 멈춘 것처럼 읽힌다(카운트 줄의 "대기"는 유닛 단위 PENDING 이라
       // 어휘를 "시작 대기"로 가른다).
-      return '연결 테스트 요청됨 — 시작을 기다리고 있어요';
+      return '연결 테스트 시작을 기다리고 있어요';
     case 'running':
-      return `연결 테스트 진행 중 — ${reported}/${total} 대상 보고됨`;
+      return '연결 테스트 진행 중';
     case 'success':
       // 실행 판정(SUCCESS)과 유닛 접기가 어긋날 수 있다 — 마지막 실행 뒤 확정된
       // 리소스, 결과에 없는 유닛 id. "모두"는 카운트가 실제로 그럴 때만 말한다.
-      return ok === total
-        ? `리소스 ${total}개 모두 연결에 성공했어요`
-        : `리소스 ${total}개 중 ${ok}개 연결 성공 — 나머지 ${total - ok}건은 결과가 확인되지 않았어요`;
+      if (ok === total) return '모든 리소스가 연결에 성공했어요';
+      // 하나도 확인되지 않은 정착을 "일부"라고 부르면 실제보다 나아 보인다.
+      return ok === 0
+        ? '연결 결과가 확인된 리소스가 없어요'
+        : '일부 리소스는 연결 결과가 확인되지 않았어요';
     case 'fail':
-      if (fail > 0)
-        return `리소스 ${total}개 중 ${ok}개 연결 성공 — 실패 ${fail}건을 점검해 주세요`;
+      if (fail > 0) return '연결에 실패한 리소스가 있어요';
       // 유닛 실패 카운트가 없는 실패(무보고 정착·계약 밖 값)도 사용자에겐 같은 실패다 —
       // 특수 상태를 발명하지 않는다(오너 결정). 원인은 계약에 없으므로 말하지 않는다.
-      return '연결 테스트가 실패했어요 — 다시 수행해 주세요';
+      return '연결 테스트가 실패했어요';
     case 'policy-changed':
       return '논리 DB 정책이 마지막 실행 이후 변경됐어요';
     case 'confirmed':

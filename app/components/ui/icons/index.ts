@@ -1,6 +1,7 @@
 export type { IconProps } from '@/app/components/ui/icons/types';
 
 // sorted alphabetically; group by concern if the list grows
+export { ActivityIcon } from '@/app/components/ui/icons/ActivityIcon';
 export { ArrowUpRightIcon } from '@/app/components/ui/icons/ArrowUpRightIcon';
 export { BellIcon } from '@/app/components/ui/icons/BellIcon';
 export { BookIcon } from '@/app/components/ui/icons/BookIcon';

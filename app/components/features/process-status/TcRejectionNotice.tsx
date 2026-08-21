@@ -62,24 +62,19 @@ export const TcRejectionNotice = ({ targetSourceId, runVersion }: TcRejectionNot
   if (!info) return null;
 
   return (
-    <div
-      className={cn(
-        'flex items-start gap-2 rounded-lg border px-3 py-2.5',
-        statusColors.warning.bgSoft,
-        statusColors.warning.border,
-      )}
-    >
-      <StatusWarningIcon className={cn('mt-0.5 h-4 w-4 shrink-0', statusColors.warning.textDark)} />
-      <div className="min-w-0 text-[14px]">
-        <p className={cn('font-bold', statusColors.warning.textDark)}>
+    // Bare row, not a banner box — the summary strip right below is the card's only
+    // bordered surface; icon + bold + warning ink keep the severity channels the box
+    // used to carry (tc-card surface benchmark, proposal A).
+    <div className={cn('flex items-start gap-2 text-[14px]', statusColors.warning.textDark)}>
+      <StatusWarningIcon className="mt-0.5 h-4 w-4 shrink-0" />
+      <div className="min-w-0">
+        <p className="font-bold">
           관리자가 연결 테스트 재실행을 요청했어요
           {info.rejectedAt && (
             <span className="ml-2 text-[12px] font-medium opacity-80">{fmtDateTime(info.rejectedAt)}</span>
           )}
         </p>
-        {info.reason && (
-          <p className={cn('mt-0.5 break-keep', statusColors.warning.textDark)}>{info.reason}</p>
-        )}
+        {info.reason && <p className="mt-0.5 break-keep">{info.reason}</p>}
       </div>
     </div>
   );
