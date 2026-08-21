@@ -311,7 +311,16 @@ export const TcSummaryCard = ({
                   {part.label} <b className={cn('font-bold', part.className)}>{part.value}</b>
                 </span>
               ))}
-              {state === 'running' && <span> · {buckets.pct}%</span>}
+              {/* The progress quantity moved down from the headline — this row is where
+                  counts live, and 보고됨 N/M pairs with the 미보고 vocabulary. */}
+              {state === 'running' && (
+                <span>
+                  {' · 보고됨 '}
+                  <b className="font-bold">
+                    {buckets.reported}/{buckets.total}
+                  </b>
+                </span>
+              )}
             </>
           )}
         </span>

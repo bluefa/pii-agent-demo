@@ -41,20 +41,18 @@ describe('foldAgentStatuses', () => {
 });
 
 describe('computeTcBuckets', () => {
-  it('counts 미보고 separately from PENDING and caps % at reported/total', () => {
+  it('counts 미보고 separately from PENDING', () => {
     const statuses = foldAgentStatuses(
       [agent('a', 'SUCCESS'), agent('b', 'FAIL'), agent('c', 'PENDING')],
       new Set(['a', 'b', 'c', 'd']),
     );
     const buckets = computeTcBuckets(['a', 'b', 'c', 'd'], statuses);
     expect(buckets).toMatchObject({ ok: 1, fail: 1, waiting: 1, unreported: 1, reported: 2, total: 4 });
-    // 2/4 answered — the old total-based math would have said 50% even with 0 reports pending.
-    expect(buckets.pct).toBe(50);
   });
 
-  it('an unfinished run can no longer read 100%', () => {
+  it('an unfinished run reports only what has answered', () => {
     const statuses = foldAgentStatuses([agent('a', 'SUCCESS')], new Set(['a', 'b']));
-    expect(computeTcBuckets(['a', 'b'], statuses).pct).toBe(50);
+    expect(computeTcBuckets(['a', 'b'], statuses)).toMatchObject({ reported: 1, total: 2 });
   });
 });
 
@@ -83,8 +81,8 @@ describe('tcSummarySentence', () => {
     expect(tcSummarySentence('success', clean)).toBe('리소스 2개 모두 연결에 성공했어요');
   });
 
-  it('reports progress as reported/total while running', () => {
-    expect(tcSummarySentence('running', settled)).toBe('연결 테스트 진행 중 — 3/3 대상 보고됨');
+  it('keeps the running sentence to the state — the quantity lives in the counts row', () => {
+    expect(tcSummarySentence('running', settled)).toBe('연결 테스트 진행 중');
   });
 
   it('queued says 시작 대기, never 진행 중 — top-level PENDING 은 아무것도 돌지 않는다', () => {

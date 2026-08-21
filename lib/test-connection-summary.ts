@@ -63,8 +63,6 @@ export interface TcBuckets {
   unknown: number;
   /** ok+fail+unknown — what has actually been answered. */
   reported: number;
-  /** reported/total — 100% only when every unit has answered. */
-  pct: number;
 }
 
 export function computeTcBuckets(
@@ -98,7 +96,6 @@ export function computeTcBuckets(
     unreported,
     unknown,
     reported,
-    pct: total > 0 ? Math.round((reported / total) * 100) : 0,
   };
 }
 
@@ -127,7 +124,7 @@ export function foldTcCardState(
  * the data can contradict.
  */
 export function tcSummarySentence(state: TcCardState, buckets: TcBuckets): string {
-  const { total, ok, fail, reported } = buckets;
+  const { total, ok, fail } = buckets;
   switch (state) {
     case 'queued':
       // top-level PENDING — 접수만 됐고 아무것도 돌지 않는다. "진행 중"이라고 말하면
@@ -135,7 +132,9 @@ export function tcSummarySentence(state: TcCardState, buckets: TcBuckets): strin
       // 어휘를 "시작 대기"로 가른다).
       return '연결 테스트 요청됨 — 시작을 기다리고 있어요';
     case 'running':
-      return `연결 테스트 진행 중 — ${reported}/${total} 대상 보고됨`;
+      // State only — the reported/total quantity is a count, so it lives one tier
+      // below, in the counts row beside the other buckets.
+      return '연결 테스트 진행 중';
     case 'success':
       // 실행 판정(SUCCESS)과 유닛 접기가 어긋날 수 있다 — 마지막 실행 뒤 확정된
       // 리소스, 결과에 없는 유닛 id. "모두"는 카운트가 실제로 그럴 때만 말한다.
