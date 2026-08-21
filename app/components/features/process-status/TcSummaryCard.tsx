@@ -4,6 +4,7 @@ import type { ReactNode } from 'react';
 import { cn, idcStyles, statusColors } from '@/lib/theme';
 import { ActivityIcon, CheckIcon, ClockIcon, StatusWarningIcon } from '@/app/components/ui/icons';
 import { fmtDateTime, fmtRelativeTime } from '@/lib/pipeline/format';
+import { useNowTick } from '@/app/hooks/useNowTick';
 import {
   tcElapsedLabel,
   tcSummarySentence,
@@ -130,6 +131,14 @@ export const TcSummaryCard = ({
   const elapsed = tcElapsedLabel(run?.requestedAt, run?.completedAt);
   const settled = state === 'success' || state === 'fail';
 
+  // 시안 B — 아직 끝나지 않은 실행의 경과는 브라우저의 지금으로 잰다. 계약에 진행률도
+  // 예상 소요도 없으므로(install-v1 TestConnectionVersionResult 는 requested_at /
+  // completed_at 뿐) 이 카드가 정직하게 셀 수 있는 유일한 수다. 정착한 실행은 계약이
+  // 준 completed_at 을 그대로 쓰고 시계는 멈춘다.
+  const inFlight = state === 'running' || state === 'queued';
+  const now = useNowTick(inFlight && !!run?.requestedAt);
+  const runningElapsed = tcElapsedLabel(run?.requestedAt, now);
+
   const metaParts: string[] = [];
   if (state === 'confirmed') {
     if (run) metaParts.push('최근 수행 결과 기준');
@@ -143,8 +152,13 @@ export const TcSummaryCard = ({
     if (settled && run?.completedAt) {
       metaParts.push(`${fmtDateTime(run.completedAt)} 완료 (${fmtRelativeTime(run.completedAt)})`);
       if (elapsed) metaParts.push(`소요 ${elapsed}`);
-    } else if ((state === 'running' || state === 'queued') && run?.requestedAt) {
+    } else if (inFlight && run?.requestedAt) {
       metaParts.push(`${fmtDateTime(run.requestedAt)} 요청`);
+      // 폴 사이 4초 동안 카드에서 유일하게 스스로 변하는 값. 애니메이션이 "돌고 있다"를
+      // 연출하는 것과 달리 이 수는 사실을 하나 더 말한다 — 얼마나 기다렸는지는 계속
+      // 기다릴지 판단하는 유일한 근거고, 끝을 모르는 대기에서 사용자가 물어보는 것이
+      // 그것뿐이다(NN/g, Designing for Long Waits).
+      if (runningElapsed) metaParts.push(`${runningElapsed} 경과`);
     }
   }
 
@@ -307,6 +321,11 @@ export const TcSummaryCard = ({
       </div>
       {showTrack && (
         <div className={s.track}>
+          {/* 시안 A — 채움 아래 깔리는 행진 무늬. 위의 불투명한 판정 채움이 덮고 남은
+              구간, 즉 아직 답이 오지 않은 만큼만 드러나 왼쪽으로 흐른다. 시작 직후엔
+              트랙 전체가 흐르고(폭 0 의 빈 회색 바가 사라진다), 모두 보고되면 남는
+              구간이 없어 저절로 멈춘다 — 그 프레임은 문장이 받는다(시안 E). */}
+          {state === 'running' && <div className={s.trackMarch} aria-hidden="true" />}
           {/* Segmented, not single-color: the bar carries the verdict split itself. */}
           {/* 250ms — settle 홀드(400ms, useTcSettleHold)보다 짧아야 한다. 폴 사이의 값
               점프를 굴리는 것도 이 transition 이다 (ScanRunningState 의 진행바와 동일). */}

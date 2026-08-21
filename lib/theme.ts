@@ -1365,6 +1365,24 @@ export const idcStyles = {
     /** 미보고·미확인 — "값이 없다"는 사실은 색이 아니라 형태(빈 파선 링)가 말한다. */
     countDotMissing: 'h-2.5 w-2.5 rounded-full border-2 border-dashed border-orange-700 flex-shrink-0',
     track: 'relative h-2 overflow-hidden rounded-full bg-[#E4E7EC]',
+    /** 시안 A — 아직 판정이 오지 않은 구간의 행진 무늬(진행 중에만).
+     *
+     *  채움 **아래** 트랙 전체에 깔린다: 불투명한 성공·실패 채움이 그 위를 덮으므로
+     *  남은 구간만 저절로 드러나고, 폭을 따로 계산하거나 채움의 250ms transition 과
+     *  좌표를 맞출 일이 없다. 모두 보고되면(시안 E) 무늬가 저절로 사라지는 것도 같은
+     *  기하 덕이다 — 행진할 구간이 남지 않는다.
+     *
+     *  #BAC4D1 은 트랙(#E4E7EC) 대비 1.42:1 (브라우저 실측) — 판정 두 색(#21A157
+     *  3.07:1 · #E5483D 3.63:1)보다 반드시 약해야 한다. 8px 높이에서 한 단계 위
+     *  #8B95A1(중립 점과 같은 값)까지 올리면 남은 구간이 채워진 세 번째 띠로 읽혀
+     *  카운트 줄의 점 범례가 가리키는 축이 셋이 되고, 한 단계 아래 #CDD5DE(1.20:1)는
+     *  등배에서 질감이 사라져 모션이 보이지 않는다. 넷을 나란히 놓고 1:1 로 고른 값이다.
+     *
+     *  8px 타일 · 45° 는 Bootstrap `.progress-bar-striped` 의 기하 그대로다(퍼센트
+     *  정지점이라 타일 경계에 이음매가 없다). 모션이 꺼지면 무늬만 정지한 채 남아
+     *  "미판정" 은 여전히 형태로 읽힌다(Primer: 정보를 애니메이션만으로 전달하지 말 것). */
+    trackMarch:
+      'absolute inset-0 bg-[length:8px_8px] bg-[linear-gradient(45deg,#BAC4D1_25%,transparent_25%,transparent_50%,#BAC4D1_50%,#BAC4D1_75%,transparent_75%,transparent)] motion-safe:animate-[tc-track-march_1400ms_linear_infinite]',
     /** Skeleton bar for this strip — the shared `skeletonBar` (#F3F4F6) sits on white; on the
      *  idle surface (#F7F8FA) it is brighter than its own ground and vanishes. A step darker,
      *  the same move as the service rail's skeletonBar. */

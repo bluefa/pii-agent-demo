@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { render } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import { TcSummaryCard } from '@/app/components/features/process-status/TcSummaryCard';
+import { TcSummaryCard, type TcSummaryRun } from '@/app/components/features/process-status/TcSummaryCard';
 import type { TcBuckets, TcCardState } from '@/lib/test-connection-summary';
 
 const buckets = (over: Partial<TcBuckets>): TcBuckets => {
@@ -19,18 +19,21 @@ const buckets = (over: Partial<TcBuckets>): TcBuckets => {
   return { ...merged, reported: merged.ok + merged.fail + merged.unknown };
 };
 
-const countsRow = (state: TcCardState, over: Partial<TcBuckets>): string => {
-  const { container } = render(
+const renderCard = (state: TcCardState, over: Partial<TcBuckets>, run?: TcSummaryRun) =>
+  render(
     <TcSummaryCard
       state={state}
       buckets={buckets(over)}
-      run={{ requestedAt: '2026-06-01T00:00:00Z', completedAt: null }}
+      run={run ?? { requestedAt: '2026-06-01T00:00:00Z', completedAt: null }}
       onRunTest={() => {}}
       runDisabled
       onRequestApproval={() => {}}
       approvalDisabled
     />,
   );
+
+const countsRow = (state: TcCardState, over: Partial<TcBuckets>): string => {
+  const { container } = renderCard(state, over);
   // The meta subline shares the tabular-nums class, so pick the counts row by content.
   const rows = [...container.querySelectorAll('.\\[font-variant-numeric\\:tabular-nums\\]')];
   return rows.find((row) => row.textContent?.includes('성공'))?.textContent ?? '';
@@ -65,5 +68,59 @@ describe('TcSummaryCard counts row', () => {
     const row = countsRow('running', { ok: 1, unknown: 1, waiting: 4 });
     expect(row).toContain('미확인1');
     expect(row).toContain('남음4');
+  });
+});
+
+/**
+ * 진행 중 카드가 실제로 움직이는 두 채널. 폴이 4초라 값이 바뀌는 순간은 유닛이 정착할
+ * 때뿐이고, 그 사이를 이 둘이 메운다 — 스스로 세는 경과(시안 B)와 미판정 구간의 행진
+ * 무늬(시안 A).
+ */
+describe('TcSummaryCard liveness while running', () => {
+  const metaLine = (container: HTMLElement): string => {
+    const rows = [...container.querySelectorAll('.\\[font-variant-numeric\\:tabular-nums\\]')];
+    return rows.find((row) => row.textContent?.includes('요청'))?.textContent ?? '';
+  };
+
+  it('counts elapsed time off the browser clock while a run is in flight', () => {
+    const { container } = renderCard(
+      'running',
+      { ok: 2, waiting: 4 },
+      { requestedAt: new Date(Date.now() - 72_000).toISOString(), completedAt: null },
+    );
+    expect(metaLine(container)).toMatch(/1분 1[12]초 경과/);
+  });
+
+  /** 시작 대기도 같은 질문을 받는다 — 트랙조차 없어 이 수가 유일하게 변하는 값이다. */
+  it('counts elapsed while queued too', () => {
+    const { container } = renderCard(
+      'queued',
+      { waiting: 6 },
+      { requestedAt: new Date(Date.now() - 8_000).toISOString(), completedAt: null },
+    );
+    expect(metaLine(container)).toMatch(/[78]초 경과/);
+  });
+
+  /** 정착하면 계약이 준 completed_at 을 쓰고 시계는 멈춘다 — 소요이지 경과가 아니다. */
+  it('a settled run states 소요 from the contract, never a live 경과', () => {
+    const { container } = renderCard(
+      'success',
+      { ok: 6 },
+      { requestedAt: '2026-06-01T00:00:00Z', completedAt: '2026-06-01T00:00:58Z' },
+    );
+    const meta = container.textContent ?? '';
+    expect(meta).toContain('소요 58초');
+    expect(meta).not.toContain('경과');
+  });
+
+  it('marches the unadjudicated remainder of the track while running', () => {
+    const { container } = renderCard('running', { ok: 2, waiting: 4 });
+    expect(container.querySelector('[class*="tc-track-march"]')).not.toBeNull();
+  });
+
+  /** 정착한 바는 전부 판정이다 — 행진할 미판정 구간이 없다. */
+  it('drops the march once the run settles', () => {
+    const { container } = renderCard('fail', { ok: 4, fail: 2 });
+    expect(container.querySelector('[class*="tc-track-march"]')).toBeNull();
   });
 });
