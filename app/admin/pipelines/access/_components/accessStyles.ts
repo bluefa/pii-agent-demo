@@ -327,7 +327,8 @@ export const accessStyles = {
   ownerChip:
     'inline-flex max-w-full items-center truncate rounded-[6px] bg-[var(--pl-gray-100)] px-2 py-1 text-[13px] font-medium text-[var(--pl-text-strong)] [font-family:var(--pl-font-mono)]',
   /**
-   * 모달 머리의 서비스 줄 — `담당자 확인` 아래에 `이름 (코드)` 로 선다.
+   * 모달 머리의 서비스 줄 — 고정 제목(`담당자 확인`·`접근 권한 요청`) 아래에
+   * `이름 (코드)` 로 선다.
    *
    * 제목이 가변 텍스트를 물면(`AWS 담당자 5명`) 이름이 길어질수록 24/700 이 두 줄, 세
    * 줄로 자란다. 제목은 이 모달이 하는 일 하나만 말하게 고정하고, 서비스는 그 아래
@@ -341,10 +342,10 @@ export const accessStyles = {
    * 그 줄을 먼저 읽게 만드는 유일한 채널이다. 괄호 속 코드는 이름에 딸린 값이라
    * 따라오지 않는다.
    */
-  ownerMeta:
+  serviceMeta:
     'min-w-0 text-[16px] font-semibold leading-[1.4] text-[var(--pl-primary)] break-keep',
   /** 그 줄의 코드. 식별자라 mono 고, 이름에 딸린 값이라 한 단 여리다. */
-  ownerMetaCode: 'font-medium text-[var(--pl-text-weak)] [font-family:var(--pl-font-mono)]',
+  serviceMetaCode: 'font-medium text-[var(--pl-text-weak)] [font-family:var(--pl-font-mono)]',
   /** 칩 흐름 위 한 줄 — 왼쪽 인원수, 오른쪽 검색(24명 초과일 때만). */
   ownerBar: 'mb-3 flex items-center justify-between gap-3',
   ownerCount: 'text-[13px] font-medium tabular-nums text-[var(--pl-text-weak)]',

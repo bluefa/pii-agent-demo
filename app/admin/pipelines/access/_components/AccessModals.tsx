@@ -33,6 +33,30 @@ const MAX_REASON = 500;
 /** 타이핑이 멎고 나서 찾는다. 한 글자마다 쏘면 사람 목록을 훑는 요청이 줄줄이 나간다. */
 const SEARCH_DEBOUNCE_MS = 500;
 
+/**
+ * 서비스 하나를 다루는 모달의 머리 둘째 줄 — `이름 (코드)`.
+ *
+ * 제목이 가변 텍스트를 물면(`AWS 담당자`, `쿠폰·프로모션 발급 정산 접근 권한 요청`)
+ * 이름이 길어질수록 24/700 이 두 줄, 세 줄로 자란다. 제목은 이 모달이 하는 일 하나만
+ * 말하게 고정하고, 서비스는 여기서 필요한 만큼 감긴다 — 잘라 내지 않는다. 이 줄이
+ * 모달의 신원이라, 감기는 건 괜찮아도 사라지는 건 안 된다.
+ *
+ * 코드가 eyebrow 로 따로 올라가 있으면 신원이 두 줄로 갈린다. 한 줄에 붙여 둔다.
+ */
+function ServiceLine({
+  serviceCode,
+  serviceName,
+}: {
+  serviceCode: string;
+  serviceName: string;
+}): ReactElement {
+  return (
+    <p className={a.serviceMeta}>
+      {serviceName} <span className={a.serviceMetaCode}>({serviceCode})</span>
+    </p>
+  );
+}
+
 // ── 사용자 피커 (서비스 권한 부여 / 관리자 권한 부여) ─────────────────────────
 
 export interface UserPickerModalProps {
@@ -222,8 +246,8 @@ interface TextModalProps {
   danger?: boolean;
   /** 입력 상한. 세 모달의 기본은 `MAX_TEXT` 고, 권한 요청 사유만 낮춰 받는다. */
   max?: number;
-  eyebrowCtx?: string;
-  eyebrowId?: string;
+  /** 제목 아래 한 줄(`ServiceLine`). 제목이 고정 문구인 모달만 싣는다. */
+  meta?: ReactNode;
   onSubmit: (text: string) => Promise<void>;
 }
 
@@ -238,8 +262,7 @@ function TextModal({
   required,
   danger,
   max = MAX_TEXT,
-  eyebrowCtx,
-  eyebrowId,
+  meta,
   onSubmit,
 }: TextModalProps): ReactElement {
   const [text, setText] = useState('');
@@ -263,9 +286,8 @@ function TextModal({
     <TqModal
       open={open}
       onClose={onClose}
-      eyebrowCtx={eyebrowCtx}
-      eyebrowId={eyebrowId}
       title={title}
+      meta={meta}
       sub={sub}
       footer={
         <>
@@ -435,7 +457,7 @@ const OWNER_SEARCH_MIN = 24;
  * 걷어 낸 건 바로 아래 제목이 같은 두 단어를 다시 말하고 있어서고, 제목에서 서비스
  * 이름을 뺀 건 그 자리가 24/700 이라 이름이 길어질수록 제목이 두 줄·세 줄로 자라기
  * 때문이다. 이제 제목은 이 모달이 하는 일 하나(`담당자 확인`)만 말하고, 서비스는
- * `이름 (코드)` 로 자기 줄에서 감긴다 — 잘리지 않는다(`ownerMeta`).
+ * `이름 (코드)` 로 자기 줄에서 감긴다 — 잘리지 않는다(`ServiceLine`).
  *
  * 인원수는 제목을 떠나 칩 흐름 바로 위 줄로 갔다. 거기서는 검색이 걸러 낸 수를 그대로
  * 말할 수 있다 — 제목에 있었으면 31 을 말하면서 7개를 그리고 있었을 것이다.
@@ -479,11 +501,7 @@ export function OwnersModal({
       open={open}
       onClose={onClose}
       title="담당자 확인"
-      meta={
-        <p className={a.ownerMeta}>
-          {serviceName} <span className={a.ownerMetaCode}>({serviceCode})</span>
-        </p>
-      }
+      meta={<ServiceLine serviceCode={serviceCode} serviceName={serviceName} />}
       sub="이 서비스의 접근 권한 요청을 검토하는 사람들이에요."
     >
       {/* 인원수는 지금 그려진 수다 — 걸러 낸 상태에서 전체를 말하면 화면과 어긋난다. */}
@@ -540,9 +558,8 @@ export function RequestAccessModal({
     <TextModal
       open={open}
       onClose={onClose}
-      eyebrowCtx="접근 권한 요청"
-      eyebrowId={serviceCode}
-      title={`${serviceName} 접근 권한 요청`}
+      title="접근 권한 요청"
+      meta={<ServiceLine serviceCode={serviceCode} serviceName={serviceName} />}
       sub="관리자가 검토한 뒤 승인하거나 반려해요. 결과는 내 요청 내역에서 확인할 수 있어요."
       label="요청 사유 · 필수"
       placeholder="어떤 업무 때문에 이 서비스 접근이 필요한지 적어 주세요"
