@@ -186,6 +186,11 @@ const adminSrc = read('app/admin/pipelines/_services/styles.ts');
 // 그 공백의 값을 보여 줬다: 키·값·hover 네 짝을 사람이 손으로 재야 했고, 리뷰 두 번이
 // 각자 다시 쟀다. 새로 만든 짝만 등록한다 — 나머지 선존 짝까지 끌어오는 건 다른 일이다.
 const opsSrc = read('app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/opsStyles.ts');
+// 접근 권한 모달들의 스타일. 담당자 보기가 표에서 칩 흐름으로 바뀌면서 칩 면이 생겼고,
+// 흰 모달 바닥 위에 서는 면은 이 파일이 재 줘야 한다 — `--pl-gray-50` 이 흰 면에서
+// ΔE00 1.20 이라는 것이 이 줄이 없었으면 눈으로만 잡혔을 사실이다. opsStyles 와 같은
+// 규칙으로 **새로 만든 짝만** 등록한다.
+const accessSrc = read('app/admin/pipelines/access/_components/accessStyles.ts');
 // The /admin/pipelines dashboard. Its row is the section's densest stack of tiers —
 // name, code chip, id, provider, step strip and its caption — and all of it stands on
 // a row that swaps to a tint under the cursor, so every pair here has two surfaces.
@@ -366,6 +371,8 @@ const SURFACES: SurfacePair[] = [
   { what: 'kind tag fill on the row hover tint', top: kindTagFill, under: rowHover },
   { what: 'kind tag fill on the excluded-row hover tint', top: kindTagFill, under: rowHoverExcluded },
   { what: 'kind tag fill on the card hover tint', top: kindTagFill, under: hoverBgOf(classOf(liftBlock, 'card')) },
+  // 담당자 칩 면 — TqModal 바닥은 흰색이다.
+  { what: '담당자 칩 on the white modal body', top: bgOf(classOf(accessSrc, 'ownerChip')), under: '#FFFFFF' },
   // The rail's skeleton is reused on the admin ground — a second surface it must clear.
   { what: 'skeleton bar on admin ground', top: bgOf(classOf(railBlock, 'skeletonBar')), under: plGround },
   // /services 콘텐츠 열의 로딩 프레임. 레일 바가 아니라 캔버스용 바를 쓰는 이유가 이 줄이다.
@@ -427,6 +434,7 @@ const TEXT: TextPair[] = [
   // (`textColors.tertiary` 3.88:1, `primaryColors.text` 3.95:1) through one retint.
   { what: 'rail empty-state text on rail', fg: textOf(classOf(railBlock, 'emptyText')), on: rail },
   { what: 'rail empty-state action on rail', fg: textOf(classOf(railBlock, 'emptyAction')), on: rail },
+  { what: '담당자 칩 label on its chip', fg: textOf(classOf(accessSrc, 'ownerChip')), on: bgOf(classOf(accessSrc, 'ownerChip')) },
   { what: 'rail standing hint on rail', fg: textOf(classOf(railBlock, 'hintText')), on: rail },
   // /services 의 무권한 안내판. 레일 밖이라 잉크가 페이지 것이고, 흰 면이 아니라 **캔버스**
   // 위에 선다 — `textColors` 주석의 수치(흰 면 4.83, gray-50 4.63)는 여기서 통하지 않는다.

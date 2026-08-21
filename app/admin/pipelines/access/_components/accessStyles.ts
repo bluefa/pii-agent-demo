@@ -304,9 +304,30 @@ export const accessStyles = {
   pickerName:
     'flex-1 min-w-0 truncate text-[14px] font-medium text-[var(--pl-text-strong)] [font-family:var(--pl-font-mono)]',
   pickerEmail: 'w-[180px] min-w-0 truncate text-[12px] text-[var(--pl-text-weak)]',
-  /** 읽기만 하는 목록의 행(담당자 보기) — `pickerRow` 와 같은 칸이지만 hover 도 커서도
-   *  없다. 고를 수 없는 줄이 눌릴 것처럼 보이면 안 된다. */
-  ownerRow: 'flex items-center gap-3 px-3 py-2.5',
+  /**
+   * 담당자 보기의 칩 흐름.
+   *
+   * 한 줄에 값이 하나뿐인 목록은 표가 아니다. 행으로 세웠을 때 638px 짜리 줄에 잉크가
+   * 73px(88.5% 가 빈 폭)이었고, 나눌 열이 없는데 구분선만 다섯 줄 그어져 있었다.
+   * 칩으로 흘리면 5명이 2줄, 20명이 4줄, 50명이 9줄에 선다 — 스크롤이 7명에서
+   * 30명으로 밀린다.
+   *
+   * 캡은 항상 걸어 둔다(짧은 목록에는 아무 일도 하지 않는다). 잘린 인원 안내는 이
+   * 상자 **밖**에 산다 — 목록이 불완전하다는 사실을 끝까지 스크롤해야 알게 되면
+   * 안내가 아니다.
+   */
+  ownerFlow: 'flex flex-wrap gap-1.5 max-h-[280px] overflow-y-auto',
+  /**
+   * 칩 하나 = Knox ID 하나. 식별자라 mono 다(`pickerName` 과 같은 이유).
+   *
+   * 면은 `--pl-gray-100`(#F2F4F7) 이다. `--pl-gray-50` 은 흰 모달 바닥에서 ΔE00 1.20 —
+   * 식별 한계 바로 위라 칩이 면으로 읽히지 않는다. gray-100 은 2.78 이고, 그 위의
+   * `--pl-text-strong` 은 16.4:1 이다.
+   */
+  ownerChip:
+    'inline-flex max-w-full items-center truncate rounded-[6px] bg-[var(--pl-gray-100)] px-2 py-1 text-[13px] font-medium text-[var(--pl-text-strong)] [font-family:var(--pl-font-mono)]',
+  /** 서버가 배열을 잘라 보냈을 때의 각주 — 흐름 밖, 상자 아래. */
+  ownerNote: 'mt-3 text-[12px] text-[var(--pl-text-weak)]',
   pickerEmpty: 'px-3 py-8 text-center text-[14px] text-[var(--pl-text-weak)]',
   /** 검색이 실패했을 때 — 빈 결과와 같은 자리지만 재시도가 붙어 가로로 놓인다. */
   pickerError:

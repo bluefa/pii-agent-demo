@@ -415,10 +415,26 @@ export interface OwnersModalProps {
 }
 
 /**
+ * 담당자가 이보다 많아지면 검색 상자가 붙는다.
+ *
+ * 24 는 720px 모달에서 칩이 네 줄을 채우는 수다 — 그 아래로는 전부 한눈에 들어와서
+ * 상자가 훑기를 돕는 게 아니라 한 줄을 더 먹기만 한다.
+ */
+const OWNER_SEARCH_MIN = 24;
+
+/**
  * 한 서비스의 담당자 — 목록 행의 [담당자 보기] 가 연다(오너 지시 2026-08-17).
  *
  * 행 안에 펼치던 것을 모달로 옮겼다. 행의 둘째 단은 한 줄이라 이름이 넘치면 잘렸는데,
- * 펼쳐서 본 답이 또 잘리면 펼친 의미가 없다. 여기서는 몇 명이든 세로로 선다.
+ * 펼쳐서 본 답이 또 잘리면 펼친 의미가 없다.
+ *
+ * 안이 표였던 것을 칩 흐름으로 바꿨다(오너 시안 A, 2026-08-21). 한 줄에 값이 하나뿐인
+ * 목록은 표가 아니다 — 자세한 수치는 `accessStyles.ownerFlow` 에 적혀 있다.
+ *
+ * 머리도 같은 이유로 줄였다. `담당자 · AWS` 위에 `AWS 담당자` 가 서 있어서 두 단어가
+ * 각각 두 번씩 나왔고, 크롬 136.5px 가 내용 210.4px 의 65% 였다. 이제 eyebrow 는
+ * **어느 서비스인지**만 말하고 제목이 **무엇을 몇 명** 을 말한다 — 인원수가 제목에
+ * 있으면 스크롤하지 않고도 규모를 안다.
  *
  * 읽기만 하는 모달이라 footer 가 없다 — TqModal 은 그때 머리에 X 를 그린다(닫기 하나만
  * 든 footer 를 두지 않는다).
@@ -434,27 +450,60 @@ export function OwnersModal({
   owners,
   ownerCount,
 }: OwnersModalProps): ReactElement {
+  const [query, setQuery] = useState('');
+
+  // 닫힌 모달이 검색어를 들고 있으면 다음에 열릴 때 걸러진 목록으로 열린다. effect 가
+  // 아니라 **렌더 중 조정**인 이유는 `query` 가 바로 아래에서 목록을 거르는 값이기
+  // 때문이다 — effect 로 지우면 걸러진 목록을 한 번 그리고 나서 전체 목록으로 다시
+  // 그린다. `TextModal` 이 effect 를 쓰는 건 그쪽 값이 렌더 출력에 실리지 않아서다.
+  const [wasOpen, setWasOpen] = useState(open);
+  if (wasOpen !== open) {
+    setWasOpen(open);
+    setQuery('');
+  }
+
+  // 계약은 순서를 약속하지 않는다. 이름을 훑는 목록이라 정렬은 화면이 쥔다 — 값을
+  // 만들어 내는 게 아니라 같은 값을 늘 같은 자리에 두는 일이다.
+  const sorted = [...owners].sort((x, y) => x.localeCompare(y));
+  const searchable = sorted.length > OWNER_SEARCH_MIN;
+  const q = query.trim().toLowerCase();
+  const shown = q ? sorted.filter((knoxId) => knoxId.toLowerCase().includes(q)) : sorted;
   const hidden = ownerCount - owners.length;
+
   return (
     <TqModal
       open={open}
       onClose={onClose}
-      eyebrowCtx="담당자"
+      eyebrowCtx="서비스"
       eyebrowId={serviceCode}
-      title={`${serviceName} 담당자`}
+      title={`${serviceName} 담당자 ${ownerCount}명`}
       sub="이 서비스의 접근 권한 요청을 검토하는 사람들이에요."
     >
-      <div className={a.pickerList}>
-        {owners.map((knoxId) => (
-          <div key={knoxId} className={a.ownerRow}>
-            <span className={a.pickerName}>{knoxId}</span>
-          </div>
-        ))}
-        {/* 서버가 배열을 잘라 보냈을 때 — 이름을 지어내지 않고 수만 말한다. */}
-        {hidden > 0 && (
-          <div className={a.pickerEmpty}>여기 없는 담당자가 {hidden}명 더 있어요</div>
-        )}
-      </div>
+      {searchable && (
+        <div className={a.pickerSearch}>
+          <SearchBox
+            wrapClassName="block w-full"
+            placeholder="Knox ID 검색"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            aria-label="담당자 검색"
+          />
+        </div>
+      )}
+      {shown.length === 0 ? (
+        <div className={a.pickerEmpty}>‘{query}’와 일치하는 담당자가 없습니다</div>
+      ) : (
+        <div className={a.ownerFlow}>
+          {shown.map((knoxId) => (
+            <span key={knoxId} className={a.ownerChip}>
+              {knoxId}
+            </span>
+          ))}
+        </div>
+      )}
+      {/* 서버가 배열을 잘라 보냈을 때 — 이름을 지어내지 않고 수만 말한다. 흐름 상자
+          밖이라 목록이 길어도 첫 화면에서 보인다. */}
+      {hidden > 0 && <p className={a.ownerNote}>여기 없는 담당자가 {hidden}명 더 있어요</p>}
     </TqModal>
   );
 }
