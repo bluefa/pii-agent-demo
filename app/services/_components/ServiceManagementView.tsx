@@ -78,23 +78,26 @@ export const readIsEosService = (item: unknown): boolean | undefined => {
  */
 const NoServiceAccessState = () => (
   <div className="h-full flex items-center justify-center">
-    {/* 560px 이하로 좁히면 24px 제목이 두 줄로 갈린다(실측 481px). `break-keep` 은 그
-        갈림이 일어나는 자리를 어절 경계로 묶는 안전망이다 — 한글은 기본 규칙에서
-        "없습니/다" 처럼 낱말 한가운데가 끊긴다. */}
+    {/* `break-keep` 은 제목이 갈리는 자리를 어절 경계로 묶는 안전망이다 — 한글은 기본
+        규칙에서 "없습니/다" 처럼 낱말 한가운데가 끊긴다. 24px 시절 이 판이 실제로 그렇게
+        갈렸다. */}
     <div className="max-w-[560px] px-6 text-center">
       <ShieldIcon className={cn('w-12 h-12 mx-auto mb-4', textColors.tertiary)} />
-      <p className={cn('text-[24px] leading-8 break-keep', textColors.primary)}>
+      {/* 20 / 16 두 단(오너 지시). 제목만 semibold 라 계층이 크기와 무게 두 채널에
+          실린다 — 4px 차이 하나로는 두 줄이 같은 단으로 읽힌다. */}
+      <p className={cn('text-[20px] font-semibold leading-7 break-keep', textColors.primary)}>
         아직 접근 권한이 있는 서비스가 없습니다
       </p>
-      <p className={cn('mt-3 text-[14px] leading-6', textColors.secondary)}>
+      <p className={cn('mt-3 text-[16px] leading-6', textColors.secondary)}>
         담당하시는 서비스가 있다면 권한 요청을 해주세요.
         <br />
         관리자가 확인 후 승인해드립니다.
       </p>
+      {/* 행동은 사유보다 작지 않다 — 본문과 같은 16px 에 둔다. */}
       <Link
         href={passRoutes.accessRequests}
         className={cn(
-          'mt-5 inline-flex items-center gap-0.5 text-[14px] hover:underline',
+          'mt-5 inline-flex items-center gap-0.5 text-[16px] hover:underline',
           primaryColors.textOnLight,
         )}
       >
