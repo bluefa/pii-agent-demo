@@ -230,6 +230,9 @@ export const CONNECTED_FRAME = 'overflow-hidden bg-white';
 // Why the tints lean blue (and what that reserves): see tableRowLift in lib/theme.ts.
 export const ROW_BASE = tableRowLift.base;
 export const ROW_TARGET = tableRowLift.target;
+// Confirmed/console rows hover on the prototype's quiet neutral instead — the console
+// grid's rails survive that tint and wash out under ROW_TARGET's. See tableRowLift.console.
+export const ROW_TARGET_CONSOLE = tableRowLift.console;
 export const ROW_EXCLUDED = tableRowLift.excluded;
 
 // Background alone marks position; it does not make a row easier to READ. Each column lifts on
@@ -561,7 +564,13 @@ export const WaitingApprovalTable = memo(
             // the two sharing one tint with nothing between them is what makes the pair read as
             // one block that opened rather than as a row with a panel underneath it — the same
             // override step 1's cluster row makes.
-            instancesOpen ? bgColors.panel : excluded ? ROW_EXCLUDED : ROW_TARGET,
+            instancesOpen
+              ? bgColors.panel
+              : excluded
+                ? ROW_EXCLUDED
+                : confirmedVariant
+                  ? ROW_TARGET_CONSOLE
+                  : ROW_TARGET,
             foldToggleable && 'cursor-pointer',
             rail?.className,
           )}

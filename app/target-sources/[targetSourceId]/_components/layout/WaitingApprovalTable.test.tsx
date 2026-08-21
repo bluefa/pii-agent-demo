@@ -6,6 +6,7 @@ import {
   type WaitingApprovalResource,
 } from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalTable';
 import { rdsInstanceBandLabel } from '@/app/target-sources/[targetSourceId]/_components/shared/RdsInstancePanel';
+import { useColumnResize } from '@/app/components/ui/useColumnResize';
 import { required } from '@/lib/test-dom';
 import { textColors, verdictRail } from '@/lib/theme';
 
@@ -785,6 +786,39 @@ describe('WaitingApprovalTable', () => {
       const nameSpan = screen.getByText('covered-name');
       expect(nameSpan.classList.contains('truncate')).toBe(true);
       expect(nameSpan.closest('td')?.classList.contains('overflow-hidden')).toBe(false);
+    });
+
+    // Round 5: the console grid dropped its rails to border-default, and that step only
+    // survives the row hover if the hover is the prototype's quiet #F7F9FB — under the
+    // approval tint (#EAEEF7) the rails wash to 1.08:1. Wiring only; ratios are measured
+    // in the browser (docs/ux/benchmark/target-source-resource-table-console.md).
+    it('hovers confirmed rows on the console tint, approval rows on the blue lift', () => {
+      const { rerender } = render(
+        <WaitingApprovalTable variant="confirmed" resources={[row()]} />,
+      );
+      const confirmedTr = screen.getByText('covered-name').closest('tr');
+      expect(confirmedTr?.className).toContain('hover:bg-[#F7F9FB]');
+      expect(confirmedTr?.className).not.toContain('hover:bg-[#EAEEF7]');
+
+      rerender(<WaitingApprovalTable variant="approval" resources={[row()]} />);
+      const approvalTr = screen.getByText('covered-name').closest('tr');
+      expect(approvalTr?.className).toContain('hover:bg-[#EAEEF7]');
+    });
+
+    it('lands the resize guide flush on the column rail', () => {
+      // Handles only render when a resize instance is wired in, and the flush guide is
+      // keyed off clampToContent — the console-table mode — inside the hook itself.
+      const Harness = () => {
+        const columns = useColumnResize({ clampToContent: true });
+        return <WaitingApprovalTable variant="confirmed" resources={[row()]} columns={columns} />;
+      };
+      render(<Harness />);
+      const handle = screen.getAllByRole('separator')[0];
+      // Flush (right-0), 2px — the guide covers the permanent rail instead of lighting
+      // a second line 3px beside it.
+      expect(handle.className).toContain('after:right-0');
+      expect(handle.className).toContain('after:w-0.5');
+      expect(handle.className).not.toContain('after:right-[3px]');
     });
   });
 });

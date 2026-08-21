@@ -248,7 +248,11 @@ export const useColumnResize = (options?: ColumnResizeOptions): ColumnResize => 
         onClick: (event) => event.stopPropagation(),
         onKeyDown: onKeyDown(key),
         ...(clampToContent ? { onDoubleClick: onDoubleClick(key) } : {}),
-        className: idcStyles.table.resizeHandle,
+        // clampToContent IS the console-table mode, and those tables stroke every column
+        // boundary — the guide must land ON that rail, not 3px beside it (see the token).
+        className: clampToContent
+          ? idcStyles.table.resizeHandleOnGrid
+          : idcStyles.table.resizeHandle,
       }),
       reset: () => {
         setWidths({});

@@ -441,6 +441,14 @@ export const tableRowLift = {
   // only way to say that — a bare `group-hover:` answers to any `.group` ancestor anywhere.
   base: 'group group/row transition-colors duration-150 motion-reduce:transition-none',
   target: 'hover:bg-[#EAEEF7] focus-within:bg-[#EAEEF7]',
+  /**
+   * Confirmed/console tables (round 5). The prototype the owner approved hovers at
+   * #F7F9FB, not the approval tables' #EAEEF7 — and the quieter value is load-bearing
+   * now: the console grid's border-default rails hold 1.19:1 under this tint but wash
+   * to 1.08:1 under #EAEEF7, and the covered-clip cut needs its boundary exactly while
+   * the row is being read. `cellText` still applies — #191F28 only gains contrast here.
+   */
+  console: 'hover:bg-[#F7F9FB] focus-within:bg-[#F7F9FB]',
   // 틴트가 아니라 `verdictRail` 이 제외를 표시한다 — #F9FAFB 는 흰 바탕과 1.05:1 이라
   // WCAG 1.4.11 의 3:1 근처에도 못 가서, 행 단위 신호로는 처음부터 작동한 적이 없다.
   // 진하게 올리는 대신 오히려 낮췄다: 배경은 면적이 넓어 신호가 될 만큼 진해지면 그 위
@@ -1536,13 +1544,22 @@ export const idcStyles = {
      * The confirmed tables clip cell values mid-letter at the cell edge (the Azure
      * "covered by the next column" grammar), and a cut with no visible edge reads as
      * two values running together — "경계선은 Stroke를 줘야 될듯. 안 그러면 구분이
-     * 안 될 것 같음". Same #D1D5DB as `bodyStrong`: the boundary that CLIPS content
-     * gets the strongest sanctioned separator, not a taste-based lighter step (the
-     * row hairline "was never seen at all" — same lesson). Lives on the `<table>`;
-     * the modal resize tables keep the strokeless grammar described on `resizeHandle`.
+     * 안 될 것 같음". Lives on the `<table>`; the modal resize tables keep the
+     * strokeless grammar described on `resizeHandle`.
+     *
+     * Round 5 (owner): border-strong rails made the grid darker than the consoles it
+     * quotes — "Azure나 AWS는 조금 자연스럽던데.. 너무 선이 진한거 아닌가요?". The
+     * benchmark's measurements put console interior lines in the hairline band: AWS
+     * live-demo row rule 0.8px #EBEBF0 (1.19:1), Fluent colorNeutralStroke2 #E0E0E0
+     * (1.32:1). border-default (1.25:1) sits inside that measured band, so the rails
+     * drop ONE ramp step while the ROW dividers keep border-strong — the round-3
+     * "아예 보지도 못 한다" verdict was about rows, and strong rows over quiet rails
+     * is the consoles' own hierarchy. Pairs with `tableRowLift.console`: under the
+     * approval hover (#EAEEF7) these rails wash to 1.08:1 — the tint would eat the
+     * very step the rails just dropped to.
      */
     consoleGrid:
-      '[&_th+th]:border-l [&_td+td]:border-l [&_th+th]:border-[#D1D5DB] [&_td+td]:border-[#D1D5DB]',
+      '[&_th+th]:border-l [&_td+td]:border-l [&_th+th]:border-[#E5E7EB] [&_td+td]:border-[#E5E7EB]',
     /**
      * 열 폭 조절 손잡이 (useColumnResize) — 헤더 셀 안쪽 오른쪽 끝 8px. 밖으로 내밀면
      * 마지막 열에서 표가 가로로 넘친다. 선은 평소 보이지 않는다: 표에 세로줄을 하나 더 그으면
@@ -1551,6 +1568,16 @@ export const idcStyles = {
      */
     resizeHandle:
       'absolute inset-y-0 right-0 z-20 w-2 cursor-col-resize touch-none after:absolute after:inset-y-1.5 after:right-[3px] after:w-px after:bg-transparent hover:after:bg-[#0064FF] focus-visible:after:bg-[#0064FF] focus:outline-none',
+    /**
+     * `resizeHandle` for the console tables (round 5) — their grid draws a permanent
+     * rail ON the boundary, and the 3px-inset guide lit up BESIDE it (guide at
+     * edge−4..−3, rail astride the edge): two parallel lines reading as misregistration
+     * — "미묘하게 구분선과 hover가 일치하지 않네요". Flush and 2px wide, the guide
+     * covers the rail exactly like the prototype's straddling guide line did. The
+     * modal tables stay on `resizeHandle`: no rail there to disagree with.
+     */
+    resizeHandleOnGrid:
+      'absolute inset-y-0 right-0 z-20 w-2 cursor-col-resize touch-none after:absolute after:inset-y-1.5 after:right-0 after:w-0.5 after:bg-transparent hover:after:bg-[#0064FF] focus-visible:after:bg-[#0064FF] focus:outline-none',
     /**
      * Two-line identity stack — kind tag ABOVE, resource name below (RDS Cluster · EC2 · a
      * member instance's Reader/Writer chip). Lifts the stack by half its tag line so the
