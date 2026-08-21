@@ -106,10 +106,16 @@ const PaneLoadingFrame = () => (
  * "verified", the opposite of an empty permission list.
  *
  * Inks are the page's, not the rail's, and they are measured against this canvas
- * (#F4F4FB) rather than white: `textColors.tertiary` is 4.42:1 here — fine for the
- * glyph (1.4.11 asks 3:1) and under AA for the sentence, which is why the reason
- * line uses `secondary` (9.41:1). The link is `textOnLight`, not `primaryColors.text`:
- * #0064FF lands on 4.4951:1 against this wash, i.e. just under.
+ * (#F4F4FB) rather than white. The reason line uses `secondary` (9.41:1) because
+ * `textColors.tertiary` is only 4.42:1 here, under AA. The link is `textOnLight`,
+ * not `primaryColors.text`: #0064FF lands on 4.4951:1 against this wash, i.e. just
+ * under the 4.5 it needs as text.
+ *
+ * The shield IS `primaryColors.text` (오너 지시). The same #0064FF that the link
+ * cannot use is fine on the mark — 1.4.11 asks 3:1 of a glyph, not 4.5 — and this
+ * is the one place on the screen where the brand blue is the subject rather than a
+ * control. The two blues are a tier apart on purpose: the mark carries the hue, the
+ * link carries the darker value it needs to be read at 16px.
  */
 const NoServiceAccessState = () => (
   <div className="h-full flex items-center justify-center">
@@ -117,7 +123,7 @@ const NoServiceAccessState = () => (
         규칙에서 "없습니/다" 처럼 낱말 한가운데가 끊긴다. 24px 시절 이 판이 실제로 그렇게
         갈렸다. */}
     <div className="max-w-[560px] px-6 text-center">
-      <ShieldIcon className={cn('w-12 h-12 mx-auto mb-4', textColors.tertiary)} />
+      <ShieldIcon className={cn('w-12 h-12 mx-auto mb-4', primaryColors.text)} />
       {/* 20 / 16 두 단(오너 지시). 제목만 semibold 라 계층이 크기와 무게 두 채널에
           실린다 — 4px 차이 하나로는 두 줄이 같은 단으로 읽힌다. */}
       <p className={cn('text-[20px] font-semibold leading-7 break-keep', textColors.primary)}>

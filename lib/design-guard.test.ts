@@ -430,8 +430,9 @@ const TEXT: TextPair[] = [
   { what: 'rail standing hint on rail', fg: textOf(classOf(railBlock, 'hintText')), on: rail },
   // /services 의 무권한 안내판. 레일 밖이라 잉크가 페이지 것이고, 흰 면이 아니라 **캔버스**
   // 위에 선다 — `textColors` 주석의 수치(흰 면 4.83, gray-50 4.63)는 여기서 통하지 않는다.
-  // tertiary 는 이 워시에서 4.42:1 이라 문장에는 못 쓰고 글리프에만 쓴다(1.4.11 은 3:1).
-  { what: '무권한 안내 방패 on the page wash', fg: twGray(classOf(textTokens, 'tertiary'), 'text'), on: canvas, min: 3.0 },
+  // 방패는 브랜드 파랑(오너 지시): 글리프라 1.4.11 의 3:1 이 기준이고, 같은 #0064FF 를
+  // 아래 링크는 못 쓴다(텍스트 4.5 에 4.4951 로 못 미침) — 두 짝이 나란히 재진다.
+  { what: '무권한 안내 방패 on the page wash', fg: textOf(classOf(blockOf('primaryColors'), 'text')), on: canvas, min: 3.0 },
   { what: '무권한 안내 제목 on the page wash', fg: twGray(classOf(textTokens, 'primary'), 'text'), on: canvas },
   { what: '무권한 안내 사유 on the page wash', fg: twGray(classOf(textTokens, 'secondary'), 'text'), on: canvas },
   { what: 'rail count pill label on its pill', fg: textOf(classOf(railBlock, 'count')), on: bgOf(classOf(railBlock, 'count')) },
