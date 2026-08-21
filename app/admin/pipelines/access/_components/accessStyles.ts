@@ -327,10 +327,13 @@ export const accessStyles = {
    *
    * 면은 `--pl-gray-100`(#F2F4F7) 이다. `--pl-gray-50` 은 흰 모달 바닥에서 ΔE00 1.20 —
    * 식별 한계 바로 위라 칩이 면으로 읽히지 않는다. gray-100 은 2.78 이고, 그 위의
-   * `--pl-text-strong` 은 16.4:1 이다.
+   * `--pl-text-strong` 은 16.1:1 이다.
+   *
+   * 14px 인 건 이 모달의 본문이 이 칩들이어서다 — 크기는 짝수로만 간다(FONT-EVEN,
+   * `.claude/hooks/post-edit-design.mjs`). 인원수(12px)는 아래 각주와 같은 급이다.
    */
   ownerChip:
-    'inline-flex max-w-full items-center truncate rounded-[6px] bg-[var(--pl-gray-100)] px-2 py-1 text-[13px] font-medium text-[var(--pl-text-strong)] [font-family:var(--pl-font-mono)]',
+    'inline-flex max-w-full items-center truncate rounded-[6px] bg-[var(--pl-gray-100)] px-2 py-1 text-[14px] font-medium text-[var(--pl-text-strong)] [font-family:var(--pl-font-mono)]',
   /**
    * 모달 머리의 서비스 줄 — 고정 제목(`담당자 확인`·`접근 권한 요청`) 아래에
    * `이름 (코드)` 로 선다.
@@ -351,7 +354,7 @@ export const accessStyles = {
     'min-w-0 text-[16px] font-semibold leading-[1.4] text-[var(--pl-primary)] break-keep',
   /** 칩 흐름 위 한 줄 — 왼쪽 인원수, 오른쪽 검색(24명 초과일 때만). */
   ownerBar: 'mb-3 flex items-center justify-between gap-3',
-  ownerCount: 'text-[13px] font-medium tabular-nums text-[var(--pl-text-weak)]',
+  ownerCount: 'text-[12px] font-medium tabular-nums text-[var(--pl-text-weak)]',
   /** 검색 상자는 이 줄의 절반까지만 — 인원수 라벨이 오른쪽으로 밀려나면 안 된다. */
   ownerSearch: 'w-[260px] flex-none',
   /** 서버가 배열을 잘라 보냈을 때의 각주 — 흐름 밖, 상자 아래. */

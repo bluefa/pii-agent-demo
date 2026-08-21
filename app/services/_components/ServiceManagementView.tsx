@@ -80,8 +80,16 @@ export const readIsEosService = (item: unknown): boolean | undefined => {
  * both times, promises neither outcome.
  */
 const PaneLoadingFrame = () => (
-  <div className="h-full flex items-center justify-center" aria-busy="true" aria-hidden="true">
-    <div className="px-6">
+  // aria-busy has to sit on an element that is still IN the tree — announcing the wait
+  // is the whole point, and aria-hidden on the same node deletes the announcement with
+  // it. The shapes below are what is decorative, so that is where the hiding belongs.
+  <div
+    role="status"
+    aria-busy="true"
+    aria-label="서비스 정보를 불러오는 중"
+    className="h-full flex items-center justify-center"
+  >
+    <div className="px-6" aria-hidden="true">
       <div
         className={cn(
           'w-12 h-12 mx-auto mb-4 rounded-[10px]',

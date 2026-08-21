@@ -122,7 +122,6 @@ export const ServiceSidebar = ({
   // Rows the ul will actually lay out — drives the height cap below.
   const rowCount = loading ? SKELETON_ROWS : listed.length + emptySlots;
 
-
   return (
     // v16 `.sidebar` — fixed 296px width (measured), shrink-0 so the main column owns the rest.
     //

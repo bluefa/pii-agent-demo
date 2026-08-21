@@ -372,7 +372,9 @@ const SURFACES: SurfacePair[] = [
   { what: 'kind tag fill on the excluded-row hover tint', top: kindTagFill, under: rowHoverExcluded },
   { what: 'kind tag fill on the card hover tint', top: kindTagFill, under: hoverBgOf(classOf(liftBlock, 'card')) },
   // 담당자 칩 면 — TqModal 바닥은 흰색이다.
-  { what: '담당자 칩 on the white modal body', top: bgOf(classOf(accessSrc, 'ownerChip')), under: '#FFFFFF' },
+  // min 1.5, not the 1.0 floor: ownerChip's own comment rules OUT --pl-gray-50 at 1.20,
+  // and an entry that still passes the value its rationale rejected defends nothing.
+  { what: '담당자 칩 on the white modal body', top: bgOf(classOf(accessSrc, 'ownerChip')), under: '#FFFFFF', min: 1.5 },
   // The rail's skeleton is reused on the admin ground — a second surface it must clear.
   { what: 'skeleton bar on admin ground', top: bgOf(classOf(railBlock, 'skeletonBar')), under: plGround },
   // /services 콘텐츠 열의 로딩 프레임. 레일 바가 아니라 캔버스용 바를 쓰는 이유가 이 줄이다.
@@ -435,7 +437,7 @@ const TEXT: TextPair[] = [
   // this sentence and its recovery link. Both were left on white-measured page tokens
   // (`textColors.tertiary` 3.88:1, `primaryColors.text` 3.95:1) through one retint.
   { what: 'rail empty-state text on rail', fg: textOf(classOf(railBlock, 'emptyText')), on: rail },
-  { what: 'rail empty-state action on rail', fg: textOf(classOf(railBlock, 'emptyAction')), on: rail },
+  { what: 'rail access link (empty state + standing hint) on rail', fg: textOf(classOf(railBlock, 'emptyAction')), on: rail },
   { what: '담당자 칩 label on its chip', fg: textOf(classOf(accessSrc, 'ownerChip')), on: bgOf(classOf(accessSrc, 'ownerChip')) },
   // 모달 머리의 서비스 줄(담당자 확인 · 접근 권한 요청) — 파랑이 신원을 나른다.
   // 16px/600 이라 large text 가 아니다.

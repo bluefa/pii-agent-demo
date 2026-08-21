@@ -51,13 +51,19 @@ export function TqModal({
   children,
 }: TqModalProps): ReactElement | null {
   const titleId = useId();
+  const metaId = useId();
   const { modal } = tqStyles;
   return (
     <ModalShell
       open={open}
       onClose={onClose}
       variant="app"
-      labelledBy={titleId}
+      // The meta row joins the name when it is there. A fixed title (담당자 확인,
+      // 접근 권한 요청, NLB 배정) says what the modal does but not what it acts on —
+      // labelling by the title alone announces two dialogs for two different services
+      // under one identical name. aria-labelledby takes an id list, so the visual
+      // split (fixed title, subject on its own line) survives intact.
+      labelledBy={meta != null ? `${titleId} ${metaId}` : titleId}
       className={wide ? modal.widthWide : modal.width}
     >
       <div className={cn(modal.header, footer == null && 'relative')}>
@@ -88,7 +94,11 @@ export function TqModal({
         <h3 id={titleId} className={modal.title}>
           {title}
         </h3>
-        {meta != null && <div className={modal.meta}>{meta}</div>}
+        {meta != null && (
+          <div id={metaId} className={modal.meta}>
+            {meta}
+          </div>
+        )}
         {sub != null && <p className={modal.sub}>{sub}</p>}
       </div>
       {/* modal.body is pb-0 — the footer's own pb-5 is what closes the modal. With no
