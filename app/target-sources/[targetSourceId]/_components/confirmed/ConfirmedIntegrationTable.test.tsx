@@ -112,8 +112,22 @@ describe('ConfirmedIntegrationTable', () => {
       expect(cellTexts[5]).toBe('—');
     });
 
-    it('renders the search + filter toolbar shared with steps 2·3', () => {
+    // Round 3 (시안 D via F): search/filter appear only past Cloudscape's ">5 items" line —
+    // at one row the counter band already says everything they could.
+    it('hides search + filter at ≤5 rows and always shows the counter band', () => {
       render(<ConfirmedIntegrationTable confirmed={[makeResource()]} targetSourceId={42} />);
+      expect(screen.queryByRole('textbox', { name: '리소스 검색' })).toBeNull();
+      expect(screen.queryByRole('button', { name: '필터' })).toBeNull();
+      expect(screen.getByText('연동 리소스')).toBeTruthy();
+      expect(screen.getByText('· 1건')).toBeTruthy();
+      expect(screen.getByRole('button', { name: '열 너비 초기화' })).toBeTruthy();
+    });
+
+    it('shows search + filter once the list passes five rows', () => {
+      const six = Array.from({ length: 6 }, (_, i) =>
+        makeResource({ resourceId: `res-${i}`, resourceName: `db-${i}` }),
+      );
+      render(<ConfirmedIntegrationTable confirmed={six} targetSourceId={42} />);
       expect(screen.getByRole('textbox', { name: '리소스 검색' })).toBeTruthy();
       expect(screen.getByRole('button', { name: '필터' })).toBeTruthy();
     });

@@ -697,18 +697,30 @@ describe('WaitingApprovalTable', () => {
       ...overrides,
     });
 
-    it.each([['confirmed'], ['install']] as const)(
-      'tags the cluster row on the %s variant, above the name and with no instances',
-      (variant) => {
-        render(<WaitingApprovalTable variant={variant} resources={[clusterRow()]} />);
-        const nameCell = screen.getByText('RDS Cluster').closest('td');
-        expect(nameCell?.textContent?.indexOf('RDS Cluster')).toBeLessThan(
-          nameCell?.textContent?.indexOf('demo-cluster') ?? -1,
-        );
-        expect(screen.queryByText('선택됨')).toBeNull();
-        expect(screen.queryByText(/인스턴스 /)).toBeNull();
-      },
-    );
+    it('tags the cluster row on the install variant, above the name and with no instances', () => {
+      render(<WaitingApprovalTable variant="install" resources={[clusterRow()]} />);
+      const nameCell = screen.getByText('RDS Cluster').closest('td');
+      expect(nameCell?.textContent?.indexOf('RDS Cluster')).toBeLessThan(
+        nameCell?.textContent?.indexOf('demo-cluster') ?? -1,
+      );
+      expect(screen.queryByText('선택됨')).toBeNull();
+      expect(screen.queryByText(/인스턴스 /)).toBeNull();
+    });
+
+    // Round 3 (시안 F): on the confirmed variant the tag leaves the identity stack for its
+    // own leading 종류 column, taking the row back to one line.
+    it('moves the cluster tag into the 종류 column on the confirmed variant', () => {
+      render(<WaitingApprovalTable variant="confirmed" resources={[clusterRow()]} />);
+      expect(screen.getByRole('columnheader', { name: '종류' })).toBeTruthy();
+      const tagCell = screen.getByText('RDS Cluster').closest('td');
+      const row = tagCell?.closest('tr');
+      expect(row?.cells[0]).toBe(tagCell);
+      // The tag is the cell's whole content — the name lives in its own cell now.
+      expect(tagCell?.textContent).toBe('RDS Cluster');
+      expect(screen.getByText('demo-cluster').closest('td')).not.toBe(tagCell);
+      expect(screen.queryByText('선택됨')).toBeNull();
+      expect(screen.queryByText(/인스턴스 /)).toBeNull();
+    });
 
     it('keeps printing the engine in the type column', () => {
       render(<WaitingApprovalTable variant="confirmed" resources={[clusterRow()]} />);

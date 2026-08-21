@@ -26,6 +26,7 @@ import {
   RdsClusterTag,
 } from '@/app/components/ui/RdsInstanceChips';
 import { RdsInstancePanel } from '@/app/target-sources/[targetSourceId]/_components/shared/RdsInstancePanel';
+import type { ColumnResize } from '@/app/components/ui/useColumnResize';
 import { hasLogicalDatabases, isEc2Instance, resolveExclusionReason } from '@/lib/types';
 import {
   INSTALL_STATUS_LABEL,
@@ -203,6 +204,14 @@ interface WaitingApprovalTableProps {
    * fold and cluster on the name/id pair, so the swap is not offered there.
    */
   identityColumns?: ApprovalIdentityColumns;
+  /**
+   * `confirmed` variant only — drag-resizable column widths (useColumnResize with
+   * `clampToContent`): the table goes `table-fixed`, every header cell takes a width and
+   * a handle, and truncated values are uncovered by dragging the divider (round 3).
+   * Instantiated by the CALLER, not here, so the 「열 너비 초기화」 button in the counter
+   * band can reach `reset()`.
+   */
+  columns?: ColumnResize;
 }
 
 // v16 `.approval-table-wrap` (CSS ~2846): border:0; overflow:hidden; background:#fff — joins flush
@@ -342,6 +351,33 @@ const ReasonCell = ({ resource }: { resource: WaitingApprovalResource }) => {
   );
 };
 
+/**
+ * Confirmed-table header cell — width-declared and drag-resizable (round 3). `relative`
+ * seats the handle at the cell's right edge (useColumnResize contract); the width class
+ * is the default the hook leaves alone until the user drags.
+ */
+const ResizableTh = ({
+  columns,
+  columnKey,
+  label,
+  widthClass,
+  className,
+}: {
+  columns?: ColumnResize;
+  columnKey: string;
+  label: string;
+  widthClass: string;
+  className?: string;
+}) => (
+  <th
+    className={cn(idcStyles.table.approvalHeaderCell, 'relative', widthClass, className)}
+    style={columns?.widthOf(columnKey)}
+  >
+    {label}
+    {columns && <span {...columns.handleProps(columnKey, label)} />}
+  </th>
+);
+
 export const WaitingApprovalTable = memo(
   ({
     resources,
@@ -353,6 +389,7 @@ export const WaitingApprovalTable = memo(
     regionLabel = 'Region',
     expandFolds = false,
     identityColumns,
+    columns,
   }: WaitingApprovalTableProps) => {
     // Athena arrives as many rows of one catalog family per region; grouping restores the
     // parent it belongs to (LIN-85). Groups start OPEN — the approval table is the "review
@@ -408,6 +445,18 @@ export const WaitingApprovalTable = memo(
     const confirmedVariant = variant === 'confirmed';
     const installVariant = variant === 'install';
     const plainVariant = variant === 'plain';
+
+    // Round 3 (시안 F): the kind chip leaves the two-line identity stack and becomes its own
+    // leading column, taking the row to one line (py-4 + 20px = 52px). Only worth a column
+    // when at least one visible row would put a chip in it — Azure/GCP rows carry no kind
+    // tag today, and a permanently blank leading column is dead space, not a colour anchor.
+    const confirmedKindColumn =
+      confirmedVariant &&
+      resources.some(
+        (resource) =>
+          isRdsCluster(resource.declaredResourceType ?? '') ||
+          isEc2Instance(resource.declaredResourceType),
+      );
 
     // Colorless — each row picks its resting tier (dim vs secondary) at the cell.
     const monoCell = 'whitespace-nowrap font-mono text-[14px]';
@@ -494,6 +543,14 @@ export const WaitingApprovalTable = memo(
             ))
           ) : (
             <>
+          {/* Round 3 — the chip's own column. Rows without a kind stay blank: an em-dash
+              would claim "no kind" as a fact this table does not have. overflow-hidden so a
+              hard-shrunk column clips its chip instead of painting it over the name. */}
+          {confirmedKindColumn && (
+            <td className={cn(idcStyles.table.approvalCell, 'overflow-hidden')}>
+              {isCluster ? <RdsClusterTag /> : isEc2 ? <Ec2InstanceTag /> : null}
+            </td>
+          )}
           {/* One line, always. Wrapping turned the row's darkest column into a 2–3 line
               block and left row heights ragged (59/69/75px); the full name is in the tip. */}
           <td
@@ -608,12 +665,14 @@ export const WaitingApprovalTable = memo(
                     chevron with nothing beside it. */}
                 <span className="whitespace-nowrap">{foldLabel}</span>
               </span>
-            ) : isCluster || isEc2 ? (
-              // Steps 4·6·7: the tag alone. Those steps list what is being installed and
+            ) : (isCluster || isEc2) && !confirmedVariant ? (
+              // Step 4: the tag alone. Those steps list what is being installed and
               // connected, not what is being chosen, so the member instances stay a steps 1–3
               // concern — but the row still has to say it is a cluster, in the same stack.
               // EC2 rides the same branch: it has no members to fold, so the tag is all it needs,
               // and steps 2·3 reach it here too (the branch above is cluster-with-instances only).
+              // The confirmed tables (steps 6·7) left this stack in round 3: their chip lives in
+              // the 종류 column, so they fall through to the one-line name below.
               <span className={cn('flex min-w-0 flex-col items-start gap-1', idcStyles.table.stackedIdentityLift)}>
                 {isCluster ? <RdsClusterTag /> : <Ec2InstanceTag />}
                 <Tooltip
@@ -631,10 +690,16 @@ export const WaitingApprovalTable = memo(
                 content={<IdentifierTip label="Resource Name" value={resource.resourceName} />}
                 variant="value"
                 size="md"
-                triggerClassName="min-w-0 max-w-[200px] block"
+                // In the fixed-layout confirmed table the COLUMN owns the truncation point —
+                // a per-cell 200px clamp would make dragging the column wider reveal nothing.
+                // `w-full` because the trigger is an inline-flex box: left to shrink-to-fit it
+                // sizes to the nowrap name and paints over the next column (the 200px cap was
+                // what contained it before). The child needs min-w-0 to shrink inside it —
+                // the same recipe ResourceIdCell already uses.
+                triggerClassName={confirmedVariant ? 'min-w-0 w-full' : 'min-w-0 max-w-[200px] block'}
                 truncatedOnly
               >
-                <span className="block truncate">{resource.resourceName || PLACEHOLDER}</span>
+                <span className="block min-w-0 truncate">{resource.resourceName || PLACEHOLDER}</span>
               </Tooltip>
             )}
           </td>
@@ -653,10 +718,12 @@ export const WaitingApprovalTable = memo(
                 focusable "Resource ID 복사" on every row, copying ''. */}
             {grouped || !resource.resourceId ? null : (
               // 260px (the cell default) plus a non-wrapping Region overran the card.
+              // Confirmed tables let the COLUMN own the truncation point instead (round 3):
+              // the cell fills its fixed column, and the drag handle is the way to see more.
               <ResourceIdCell
                 value={resource.resourceId}
                 label="Resource ID"
-                maxWidthClass="max-w-[220px]"
+                maxWidthClass={confirmedVariant ? 'w-full max-w-full' : 'max-w-[220px]'}
                 sizeClass="text-[14px]"
                 textClassName={cn(textColors.secondary, CELL_LIFT)}
               />
@@ -828,6 +895,8 @@ export const WaitingApprovalTable = memo(
                 onMouseEnter={rail?.onMouseEnter}
                 onMouseLeave={rail?.onMouseLeave}
               >
+                {/* Round 3 — the fold's members keep column registration with the 종류 column. */}
+                {confirmedKindColumn && <td className={idcStyles.table.approvalCell} />}
                 <td
                   className={cn(
                     idcStyles.table.approvalCell,
@@ -864,16 +933,44 @@ export const WaitingApprovalTable = memo(
           <table
             className={cn(
               'w-full',
+              // Round 3: fixed layout is what lets the resize handles rule — in auto layout
+              // nowrap content dictates the column and dragging changes nothing visible.
+              confirmedVariant && 'table-fixed',
               raisedRows && '[&_td:not([colspan])]:py-5',
               // A group is three tbodies, and `body`'s divide-y stops at each tbody's edge.
               idcStyles.table.tbodySeam,
             )}
           >
-            <thead className={idcStyles.table.approvalHeader}>
+            <thead
+              className={
+                confirmedVariant ? idcStyles.table.approvalHeaderFlat : idcStyles.table.approvalHeader
+              }
+            >
               {/* Identity (name → id) → attributes (type · region) → decision (verdict → reason).
                   The scan anchor is the human-readable name, not a 3-value category column. */}
               <tr className="whitespace-nowrap">
-                {identityColumns ? (
+                {confirmedVariant ? (
+                  /* Round 3 console header — every column declared and resizable. Defaults are
+                     the screen's own measured columns (1745px audit: 162·312·142·156·118·96);
+                     종류 = chip 82px + approvalCell padding 36px + slack. */
+                  <>
+                    {confirmedKindColumn && (
+                      <ResizableTh columns={columns} columnKey="kind" label="종류" widthClass="w-[128px]" />
+                    )}
+                    <ResizableTh
+                      columns={columns}
+                      columnKey="name"
+                      label="Resource Name"
+                      widthClass="w-[162px]"
+                      className={idcStyles.table.nameCell}
+                    />
+                    <ResizableTh columns={columns} columnKey="id" label="Resource ID" widthClass="w-[312px]" />
+                    <ResizableTh columns={columns} columnKey="dbType" label="Database Type" widthClass="w-[142px]" />
+                    <ResizableTh columns={columns} columnKey="region" label={regionLabel} widthClass="w-[156px]" />
+                    <ResizableTh columns={columns} columnKey="logicalDb" label="연동 논리 DB" widthClass="w-[118px]" />
+                    <ResizableTh columns={columns} columnKey="excluded" label="연동 제외" widthClass="w-[96px]" />
+                  </>
+                ) : identityColumns ? (
                   identityColumns.columns.map((column, index) => (
                     <th
                       key={column.label}
@@ -895,19 +992,15 @@ export const WaitingApprovalTable = memo(
                 {/* Step 4 drops the two attribute columns: the engine was settled back on
                     steps 1·2 and the install runs the same either way, and the region is a
                     constant within one target source (and already inside the resource id).
-                    What they cost — 250px — is what 상태/안내 need to stay on screen. */}
-                {!installVariant && (
+                    What they cost — 250px — is what 상태/안내 need to stay on screen.
+                    The confirmed variant already declared its whole header above. */}
+                {!installVariant && !confirmedVariant && (
                   <>
                     <th className={idcStyles.table.approvalHeaderCell}>Database Type</th>
                     <th className={idcStyles.table.approvalHeaderCell}>{regionLabel}</th>
                   </>
                 )}
-                {plainVariant ? null : confirmedVariant ? (
-                  <>
-                    <th className={idcStyles.table.approvalHeaderCell}>연동 논리 DB</th>
-                    <th className={idcStyles.table.approvalHeaderCell}>연동 제외</th>
-                  </>
-                ) : installVariant ? (
+                {plainVariant || confirmedVariant ? null : installVariant ? (
                   <>
                     <th className={idcStyles.table.approvalHeaderCell}>상태</th>
                     <th className={idcStyles.table.approvalHeaderCell}>안내</th>
@@ -924,7 +1017,12 @@ export const WaitingApprovalTable = memo(
             {sections.map((section) => {
               if (section.kind === 'rows') {
                 return (
-                  <tbody key={section.key} className={idcStyles.table.body}>
+                  <tbody
+                    key={section.key}
+                    // Round 3: the confirmed tables promote the row divider to border-strong —
+                    // the hairline "was never seen at all" (owner). See bodyStrong.
+                    className={confirmedVariant ? idcStyles.table.bodyStrong : idcStyles.table.body}
+                  >
                     {section.rows.map((resource) => renderRow(resource))}
                   </tbody>
                 );

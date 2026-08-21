@@ -99,7 +99,9 @@ export interface FilterGroup {
 
 // Filter trigger + popover. The trigger stays tinted while any condition is set, so the state
 // survives the popover being closed.
-const FilterMenu = ({
+// Exported for the confirmed tables' flat counter band (round 3), which composes the same
+// search + filter pair without this file's grey toolbar shell.
+export const FilterMenu = ({
   groups: allGroups,
   pinRight = true,
 }: {
@@ -230,7 +232,8 @@ interface SearchBoxProps {
 }
 
 // .tt-search — relative wrapper, flex 1 1 260px, min 220 / max 360 (v15 lines 2592–2611).
-const SearchBox = ({
+// Exported alongside FilterMenu for the confirmed tables' flat counter band.
+export const SearchBox = ({
   value,
   onChange,
   placeholder = 'Resource ID 또는 Resource Name 검색',

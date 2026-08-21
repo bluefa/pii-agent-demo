@@ -2,13 +2,17 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { Pagination } from '@/app/components/ui/Pagination';
-import { cn, textColors } from '@/lib/theme';
+import { useColumnResize } from '@/app/components/ui/useColumnResize';
+import { buttonStyles, cn, textColors } from '@/lib/theme';
 import type { ConfirmedResource } from '@/lib/types/resources';
 import {
   WaitingApprovalTable,
   type WaitingApprovalResource,
 } from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalTable';
-import { WaitingApprovalToolbar } from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalToolbar';
+import {
+  FilterMenu,
+  SearchBox,
+} from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalToolbar';
 import { useApprovalTableState } from '@/app/target-sources/[targetSourceId]/_components/layout/useApprovalTableState';
 import { LogicalDbSummaryModal } from '@/app/target-sources/[targetSourceId]/_components/logical-db/LogicalDbSummaryModal';
 import { getLatestTestConnectionResultSummaries } from '@/app/lib/api';
@@ -132,6 +136,20 @@ export const ConfirmedIntegrationTable = ({
   // The resource whose logical-DB list is open. null = closed.
   const [logicalDbTarget, setLogicalDbTarget] = useState<WaitingApprovalResource | null>(null);
 
+  // Round 3 — drag-resizable columns, capped at each column's longest value, widths kept
+  // across sessions. Lives here rather than in the table so the reset button can sit in
+  // the counter band (Azure "Reset to defaults" grammar).
+  const columns = useColumnResize({
+    clampToContent: true,
+    storageKey: 'pii:colw:v1:confirmed-resources',
+  });
+
+  // 시안 D (via F): search and filters appear only past Cloudscape's own ">5 items" line —
+  // below it the counter says everything they could. An active condition keeps its control
+  // visible even if the list shrinks under the line, mirroring FilterMenu's own rule.
+  const showChrome =
+    approvalRows.length > 5 || !!table.searchValue || !!table.dbType || !!table.region;
+
   if (confirmed.length === 0) {
     return (
       <div className={cn('px-6 py-12 text-sm text-center', textColors.tertiary)}>
@@ -140,21 +158,58 @@ export const ConfirmedIntegrationTable = ({
     );
   }
 
-  // Toolbar (top-rounded) + table + pagination join as one card, same as steps 2·3.
-  // No margin of its own — the card body's top padding (cardStyles.body) is the gap, so the
-  // table's left edge lines up with the header copy above it.
+  // Round 3 console band + naked table. The grey toolbar shell is gone — the counter title
+  // carries the total, chrome scales with the count, and the table starts at its own thead.
   return (
     <div>
-      <WaitingApprovalToolbar
-        searchValue={table.searchValue}
-        onSearchChange={table.onSearchChange}
-        dbType={table.dbType}
-        onDbTypeChange={table.onDbTypeChange}
-        region={table.region}
-        onRegionChange={table.onRegionChange}
-        dbTypeOptions={table.dbTypeOptions}
-        regionOptions={table.regionOptions}
-      />
+      <div className="flex flex-wrap items-center gap-[10px] pb-3">
+        <div className="flex items-baseline gap-1.5">
+          <h3 className={cn('text-[18px] font-extrabold tracking-[-0.01em]', textColors.primary)}>
+            연동 리소스
+          </h3>
+          <span className={cn('text-[14px] font-semibold', textColors.tertiary)}>
+            · {approvalRows.length}건
+          </span>
+        </div>
+        <div className="ml-auto flex items-center gap-[10px]">
+          {showChrome && (
+            <>
+              <SearchBox value={table.searchValue} onChange={table.onSearchChange} />
+              <FilterMenu
+                pinRight={false}
+                groups={[
+                  {
+                    key: 'dbType',
+                    label: 'Database Type',
+                    value: table.dbType,
+                    onChange: table.onDbTypeChange,
+                    options: table.dbTypeOptions,
+                  },
+                  {
+                    key: 'region',
+                    label: 'Region',
+                    value: table.region,
+                    onChange: table.onRegionChange,
+                    options: table.regionOptions,
+                  },
+                ]}
+              />
+            </>
+          )}
+          {/* The resize escape hatch — Azure "Reset to defaults". Ghost: it corrects
+              chrome, not data, so it must not compete with row-level actions. */}
+          <button
+            type="button"
+            onClick={columns.reset}
+            className={cn(
+              'h-8 shrink-0 rounded-[8px] px-3 text-[12px] font-semibold',
+              buttonStyles.variants.ghost,
+            )}
+          >
+            열 너비 초기화
+          </button>
+        </div>
+      </div>
       <WaitingApprovalTable
         resources={table.visibleResources}
         variant="confirmed"
@@ -164,8 +219,10 @@ export const ConfirmedIntegrationTable = ({
         // While the list is narrowed, a region may be here because of a database inside its
         // fold. Leaving it shut shows a row that does not visibly contain what was typed.
         expandFolds={!!table.searchValue.trim() || !!table.dbType || !!table.region}
+        columns={columns}
       />
-      {table.filteredCount > 0 && (
+      {/* 시안 D: pagination earns its row only when there is a second page to reach. */}
+      {table.filteredCount > table.pageSize && (
         <Pagination
           page={table.safePage}
           pageSize={table.pageSize}

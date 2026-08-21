@@ -1488,6 +1488,13 @@ export const idcStyles = {
     /** Body text of a header (i) tooltip — the value-variant Tooltip's white surface. */
     headerTipBody: 'block text-[12px] leading-[1.6] text-[#4E5968]',
     /**
+     * Console-grammar header (confirmed tables, 시안 F round 3) — no band, just an
+     * underline. The AWS full-page table starts at the thead rule; a grey band on a
+     * flat white surface would reintroduce the frame the redesign removed. The rule
+     * is #D1D5DB (DESIGN.md border-strong) to match `bodyStrong` below.
+     */
+    approvalHeaderFlat: 'text-left text-[12px] font-semibold text-[#4E5968] border-b border-[#D1D5DB]',
+    /**
      * Approval-table header, chrome variant — admin P3 only (both provider tables).
      *
      * Takes --pl-gray-100 from the filter toolbar directly above it, so the two read
@@ -1516,6 +1523,14 @@ export const idcStyles = {
     approvalHeaderCell: 'px-[18px] py-3',
     /** Approval-table body cell padding — v16 `.approval-table tbody td` 16px V / 18px H. */
     approvalCell: 'px-[18px] py-4',
+    /**
+     * Row dividers one step up from `body`'s #EBEEF2 hairline (1.16:1) — owner verdict,
+     * round 3: "안 그러면 사람들은 아예 보지도 못 할듯". #D1D5DB is DESIGN.md's
+     * border-strong, the strongest of the three separation weights; border-emphasis is
+     * barred from separating (DESIGN.md: only where the border IS the state). Scoped to
+     * the confirmed/console tables — the approval tables keep the shared hairline.
+     */
+    bodyStrong: 'divide-y divide-[#D1D5DB]',
     /**
      * 열 폭 조절 손잡이 (useColumnResize) — 헤더 셀 안쪽 오른쪽 끝 8px. 밖으로 내밀면
      * 마지막 열에서 표가 가로로 넘친다. 선은 평소 보이지 않는다: 표에 세로줄을 하나 더 그으면
