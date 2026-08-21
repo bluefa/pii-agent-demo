@@ -1,20 +1,21 @@
 // @vitest-environment jsdom
 
 /**
- * The rail's three list states, and the one line that stands under all of them.
+ * What the rail says when it has nothing to list, and the one line that stands
+ * under every state.
  *
- * The states are three different sentences about the same zero: the list is
- * loading, the search missed, or this account has access to nothing. Only the
- * last is a fact about permission, and it is the only one allowed to say so —
- * a rail that says "권한이 없습니다" while the first page is still in flight is
- * telling the user something the response has not said yet.
+ * The rail deliberately does NOT explain permission. An unfiltered empty page
+ * does mean this account has access to nothing, but saying so is the content
+ * column's job (`ServiceManagementView`) — it is the surface that would
+ * otherwise be telling the user to pick from this empty list. Here the fact gets
+ * one line, and the way out lives at the foot where it is reachable from every
+ * state, search misses included.
  */
 import { describe, expect, it, vi } from 'vitest';
 import { render } from '@testing-library/react';
 import { passRoutes } from '@/lib/routes';
 import { ServiceSidebar } from '@/app/components/features/admin/ServiceSidebar';
 
-const NO_ACCESS = '아직 접근 권한이 있는 서비스가 없습니다';
 const STANDING_HINT = '담당 시스템/서비스가 조회되지 않나요?';
 
 const pageInfo = (totalElements: number) => ({
@@ -40,44 +41,49 @@ const mount = (props: Partial<Parameters<typeof ServiceSidebar>[0]>) =>
     />,
   );
 
-describe('ServiceSidebar 의 빈 목록 세 갈래', () => {
-  it('검색 없이 0건이면 무권한 안내와 권한 요청 링크를 낸다', () => {
+const hint = (container: HTMLElement) => {
+  const zone = container.querySelector('div.border-t');
+  return {
+    text: zone?.textContent ?? '',
+    href: zone?.querySelector('a')?.getAttribute('href'),
+  };
+};
+
+describe('ServiceSidebar 바닥의 상시 힌트', () => {
+  it.each([
+    ['목록이 있을 때', { services: [{ service_code: 'AAA', service_name: '가나다' }], pageInfo: pageInfo(1) }],
+    ['목록이 비었을 때', {}],
+    ['검색 결과가 없을 때', { searchQuery: 'zzz' }],
+    ['아직 로딩 중일 때', { loading: true }],
+  ])('%s 도 권한 요청으로 나가는 길을 남긴다', (_label, props) => {
+    const { container, unmount } = mount(props);
+    // 목록이 답을 못 주는 순간이 정확히 이 줄이 필요한 순간이다 — 로딩 중에도 붙박이다.
+    expect(hint(container).text).toContain(STANDING_HINT);
+    expect(hint(container).href).toBe(passRoutes.accessRequests);
+    unmount();
+  });
+});
+
+describe('ServiceSidebar 의 빈 목록', () => {
+  it('검색 없이 0건이면 사실만 말하고 권한을 판정하지 않는다', () => {
     const { container, unmount } = mount({});
-    expect(container.textContent).toContain(NO_ACCESS);
-    const cta = container.querySelector(`a[href="${passRoutes.accessRequests}"]`);
-    expect(cta?.textContent).toContain('권한 요청하기');
-    // 같은 문장·같은 링크가 바로 아래에 또 서면 296px 레일에 CTA 가 둘이 된다.
-    expect(container.textContent).not.toContain(STANDING_HINT);
+    expect(container.textContent).toContain('서비스가 없습니다');
+    // 무권한이라는 판정과 그 해결책은 콘텐츠 열이 갖는다. 296px 레일에 같은 CTA 가
+    // 둘이 서지 않도록, 여기 있는 링크는 바닥 힌트 하나뿐이다.
+    expect(container.querySelectorAll(`a[href="${passRoutes.accessRequests}"]`).length).toBe(1);
     unmount();
   });
 
-  it('검색 결과가 0건인 것은 무권한이 아니다', () => {
-    const { container, unmount } = mount({ searchQuery: 'zzz', pageInfo: pageInfo(0) });
+  it('검색 결과 0건은 검색 문장으로 갈린다', () => {
+    const { container, unmount } = mount({ searchQuery: 'zzz' });
     expect(container.textContent).toContain('‘zzz’와 일치하는 서비스가 없습니다');
-    expect(container.textContent).not.toContain(NO_ACCESS);
-    // 찾던 서비스가 안 보이는 사람에게는 이 줄이 여기서도 답이다.
-    expect(container.textContent).toContain(STANDING_HINT);
     unmount();
   });
 
-  it('아직 응답이 없을 때는 권한에 대해 아무 말도 하지 않는다', () => {
+  it('로딩 중에는 빈 문장 대신 스켈레톤을 세운다', () => {
     const { container, unmount } = mount({ loading: true });
-    expect(container.textContent).not.toContain(NO_ACCESS);
+    expect(container.textContent).not.toContain('서비스가 없습니다');
     expect(container.querySelectorAll('li[aria-hidden="true"]').length).toBe(8);
-    // 힌트는 데이터가 아니라 레일의 붙박이다. `noAccess` 가 loading 을 보지 않으면
-    // 로딩 중 0건이 무권한으로 읽혀 이 줄이 사라지고, 도착과 함께 다시 나타난다.
-    expect(container.textContent).toContain(STANDING_HINT);
-    unmount();
-  });
-
-  it('목록이 있으면 상시 힌트만 남는다', () => {
-    const { container, unmount } = mount({
-      services: [{ service_code: 'AAA', service_name: '가나다' }],
-      pageInfo: pageInfo(1),
-    });
-    expect(container.textContent).toContain('가나다');
-    expect(container.textContent).not.toContain(NO_ACCESS);
-    expect(container.textContent).toContain(STANDING_HINT);
     unmount();
   });
 });

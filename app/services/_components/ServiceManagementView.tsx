@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useReducer, useRef, useState } from 'react';
 
@@ -13,7 +14,8 @@ import {
 import { AppError } from '@/lib/errors';
 import type { ProjectSummary } from '@/lib/types';
 import { passRoutes } from '@/lib/routes';
-import { cn, serviceSidebarStyles, textColors } from '@/lib/theme';
+import { cn, primaryColors, serviceSidebarStyles, textColors } from '@/lib/theme';
+import { ChevronRightIcon, ShieldIcon } from '@/app/components/ui/icons';
 import {
   ServiceSidebar,
   SERVICE_RAIL_PAGE_SIZE,
@@ -55,6 +57,53 @@ export const readIsEosService = (item: unknown): boolean | undefined => {
   const value = (item as { is_eos_service?: unknown }).is_eos_service;
   return value === true ? true : value === false ? false : undefined;
 };
+
+/**
+ * The content pane when the account has access to no service at all.
+ *
+ * It stands where 서비스를 선택하세요 stands, because that sentence is an instruction
+ * with nothing to follow: the rail beside it is empty, and telling someone to pick
+ * from an empty list is the loudest thing on the screen saying the least. The rail
+ * states the fact in one line; naming the reason and offering the way out belongs
+ * here, on the surface with room for it.
+ *
+ * The shield is `ShieldCheckIcon` minus the tick — a shield with a check in it says
+ * "verified", the opposite of an empty permission list.
+ *
+ * Inks are the page's, not the rail's, and they are measured against this canvas
+ * (#F4F4FB) rather than white: `textColors.tertiary` is 4.42:1 here — fine for the
+ * glyph (1.4.11 asks 3:1) and under AA for the sentence, which is why the reason
+ * line uses `secondary` (9.41:1). The link is `textOnLight`, not `primaryColors.text`:
+ * #0064FF lands on 4.4951:1 against this wash, i.e. just under.
+ */
+const NoServiceAccessState = () => (
+  <div className="h-full flex items-center justify-center">
+    {/* 560px 이하로 좁히면 24px 제목이 두 줄로 갈린다(실측 481px). `break-keep` 은 그
+        갈림이 일어나는 자리를 어절 경계로 묶는 안전망이다 — 한글은 기본 규칙에서
+        "없습니/다" 처럼 낱말 한가운데가 끊긴다. */}
+    <div className="max-w-[560px] px-6 text-center">
+      <ShieldIcon className={cn('w-12 h-12 mx-auto mb-4', textColors.tertiary)} />
+      <p className={cn('text-[24px] leading-8 break-keep', textColors.primary)}>
+        아직 접근 권한이 있는 서비스가 없습니다
+      </p>
+      <p className={cn('mt-3 text-[14px] leading-6', textColors.secondary)}>
+        담당하시는 서비스가 있다면 권한 요청을 해주세요.
+        <br />
+        관리자가 확인 후 승인해드립니다.
+      </p>
+      <Link
+        href={passRoutes.accessRequests}
+        className={cn(
+          'mt-5 inline-flex items-center gap-0.5 text-[14px] hover:underline',
+          primaryColors.textOnLight,
+        )}
+      >
+        권한 요청하기
+        <ChevronRightIcon className="h-4 w-4" />
+      </Link>
+    </div>
+  </div>
+);
 
 /**
  * A resolved panel and the service it resolved for. Exactly one of `items`/`error`
@@ -102,6 +151,11 @@ export const ServiceManagementView = () => {
   // Only the first page counts: later searches keep the rows on screen rather than
   // blinking the whole rail to skeleton on every keystroke.
   const [servicesLoaded, setServicesLoaded] = useState(false);
+  // 이 계정이 접근할 수 있는 서비스가 하나도 없다 — 목록이 비었다가 아니라.
+  // 근거가 되는 건 **검색어 없는 응답뿐**이다: 걸러진 0건은 부분집합이라 권한에 대해
+  // 아무 말도 못 한다. 초기 조회가 항상 무필터(page 0, query 없음)라 값은 첫 응답에서
+  // 정해지고, 뒤이은 검색이 그 판정을 뒤집지 않는다.
+  const [noAccess, setNoAccess] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   // The row being described, by id — not the row object. The list is reloaded after a
   // save, so a captured object would be the pre-save copy; an id re-reads the row that
@@ -134,6 +188,7 @@ export const ServiceManagementView = () => {
         signal: controller.signal,
       });
       if (controller.signal.aborted) return;
+      if (!searchQuery) setNoAccess((data.totalElements ?? 0) === 0);
       dispatch({
         type: 'SET_SERVICES',
         services: data.content ?? [],
@@ -364,7 +419,9 @@ export const ServiceManagementView = () => {
             serviceSidebarStyles.canvas,
           )}
         >
-          {!selectedService ? (
+          {!selectedService && noAccess ? (
+            <NoServiceAccessState />
+          ) : !selectedService ? (
             <div className="h-full flex items-center justify-center">
               <div className="text-center">
                 {/* The layout this page IS: rail on the left with rows in it,
