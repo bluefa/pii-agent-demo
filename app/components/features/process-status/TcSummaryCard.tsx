@@ -2,7 +2,7 @@
 
 import type { ReactNode } from 'react';
 import { cn, idcStyles, statusColors } from '@/lib/theme';
-import { CheckIcon, ClockIcon, StatusWarningIcon } from '@/app/components/ui/icons';
+import { ActivityIcon, CheckIcon, ClockIcon, StatusWarningIcon } from '@/app/components/ui/icons';
 import { fmtDateTime, fmtRelativeTime } from '@/lib/pipeline/format';
 import {
   tcElapsedLabel,
@@ -30,7 +30,7 @@ export const TcSummaryCardSkeleton = () => {
   return (
     <div className={cn(s.base, s.state.idle)} aria-busy="true" aria-live="polite">
       <div className={cn(s.head, 'flex-wrap')}>
-        <span className={cn(s.skeletonBar, 'block h-[15px] w-[210px] rounded')} />
+        <span className={cn(s.skeletonBar, 'block h-[17px] w-[210px] rounded')} />
         <span className={cn(s.skeletonBar, 'block h-[13px] w-[130px] rounded')} />
       </div>
       <div className="flex items-center justify-between gap-3">
@@ -45,7 +45,7 @@ export const TcSummaryCardSkeleton = () => {
 /**
  * 카드 상태 → connProgress 표면. pending 표면은 정책 변경 상태가 처음 쓴다.
  * queued 는 running 과 같은 in-flight 표면을 공유한다 — 경고(amber)가 아니라 정상
- * 단계라, 표면 대신 아이콘 스핀·진행 트랙·문장이 두 단계를 가른다.
+ * 단계라, 표면 대신 글리프(시계 vs 파형)·진행 트랙·문장이 두 단계를 가른다.
  */
 const SURFACE: Record<TcCardState, 'idle' | 'running' | 'pending' | 'success' | 'fail'> = {
   idle: 'idle',
@@ -141,14 +141,27 @@ export const TcSummaryCard = ({
 
   // Non-zero buckets only — but on a settled run 미보고/미확인 are anomalies and must
   // surface even though a healthy settle never produces them.
-  const countParts: { label: string; value: number; className?: string }[] = [
-    { label: '성공', value: buckets.ok, className: statusColors.success.textDark },
-    { label: '실패', value: buckets.fail, className: statusColors.error.textDark },
+  const countParts: { label: string; value: number; dot: string; className?: string }[] = [
+    { label: '성공', value: buckets.ok, dot: s.countDotColor.ok, className: statusColors.success.textDark },
+    { label: '실패', value: buckets.fail, dot: s.countDotColor.fail, className: statusColors.error.textDark },
   ];
-  if (buckets.running > 0) countParts.push({ label: '진행 중', value: buckets.running });
-  if (buckets.waiting > 0) countParts.push({ label: '대기', value: buckets.waiting });
-  if (buckets.unreported > 0) countParts.push({ label: '미보고', value: buckets.unreported });
-  if (buckets.unknown > 0) countParts.push({ label: '미확인', value: buckets.unknown });
+  if (state === 'running') {
+    // 진행 중·대기·미보고는 이 국면의 독자에게 같은 한 사실이다 — 아직 답이 없다.
+    // 접고 나면 줄은 성공+실패+남음=총계인 한 축이 되어, 집계(보고됨 N/M)가 불필요해져
+    // 사라진다. 셋의 구분은 표의 행 상태 칸에 그대로 남는다 — 카드가 순위를 매기지
+    // 않을 뿐이다. 정착한 실행에서는 접지 않는다: 그때 미보고는 실제 이상신호다.
+    const rest = buckets.running + buckets.waiting + buckets.unreported;
+    if (rest > 0) countParts.push({ label: '남음', value: rest, dot: s.countDotColor.rest });
+  } else {
+    if (buckets.running > 0)
+      countParts.push({ label: '진행 중', value: buckets.running, dot: s.countDotColor.rest });
+    if (buckets.waiting > 0)
+      countParts.push({ label: '대기', value: buckets.waiting, dot: s.countDotColor.rest });
+    if (buckets.unreported > 0)
+      countParts.push({ label: '미보고', value: buckets.unreported, dot: 'missing' });
+  }
+  // 계약 밖 값은 어느 국면에서도 접지 않는다 — 보고는 됐는데 읽을 수 없다는 뜻이다.
+  if (buckets.unknown > 0) countParts.push({ label: '미확인', value: buckets.unknown, dot: 'missing' });
 
   const okPct = buckets.total > 0 ? (buckets.ok / buckets.total) * 100 : 0;
   const failPct = buckets.total > 0 ? (buckets.fail / buckets.total) * 100 : 0;
@@ -249,26 +262,31 @@ export const TcSummaryCard = ({
                 <CheckIcon className="h-[15px] w-[15px]" draw={state === 'success' && drawCheck} />
               ) : state === 'policy-changed' ? (
                 <StatusWarningIcon className="h-[15px] w-[15px]" />
+              ) : state === 'running' ? (
+                // 파형 — 도는 시계를 대신한다. 시계는 회전 대칭이라 돌아도 화면이 변하지
+                // 않았고, queued 가 같은 글리프를 쓰는 탓에 애니메이션이 두 상태의 유일한
+                // 차이였다. Cloudscape 는 in-progress 를 정적 아이콘으로 규정한다 —
+                // 모션이 상태의 유일한 채널이 되지 않도록 여기서도 돌리지 않는다.
+                <ActivityIcon className="h-[15px] w-[15px]" />
               ) : (
-                <ClockIcon
-                  className={cn(
-                    'h-[15px] w-[15px]',
-                    state === 'running' && 'animate-spin motion-reduce:animate-none',
-                  )}
-                />
+                <ClockIcon className="h-[15px] w-[15px]" />
               )}
             </span>
             {sentence}
           </div>
-          {/* pl-[26px] = icon 18px + gap-2 — 서브라인 텍스트를 문장 텍스트와 정렬. */}
+          {/* The subline reuses the title's 18px icon slot so its clock and text align with
+              the title's icon and text columns (text starts at 18px + gap-2 = 26px). */}
           {metaBelowTitle && (
             <span
               className={cn(
                 // pending 표면에서 #6B7684 는 4.37:1 로 AA 미달 — 정책 변경의 메타는 경고 판이다.
                 state === 'policy-changed' ? s.countsWarn : s.counts,
-                'pl-[26px]',
+                'flex items-center gap-2',
               )}
             >
+              <span className={s.icon}>
+                <ClockIcon className="h-3 w-3" />
+              </span>
               {metaParts.join(' · ')}
             </span>
           )}
@@ -304,24 +322,17 @@ export const TcSummaryCard = ({
           ) : state === 'policy-changed' ? (
             <>연결 테스트를 다시 수행해야 합니다</>
           ) : (
-            <>
-              {countParts.map((part, index) => (
-                <span key={part.label}>
-                  {index > 0 && ' · '}
-                  {part.label} <b className={cn('font-bold', part.className)}>{part.value}</b>
+            /* 시안 C: 가운뎃점 대신 범례 점. 점 색이 위 트랙의 세그먼트 색과 같아
+               카운트 줄이 바의 범례를 겸한다. 색만으로 말하지 않도록 단어는 남긴다. */
+            <span className={s.countList}>
+              {countParts.map((part) => (
+                <span key={part.label} className={s.countSeg}>
+                  <span className={part.dot === 'missing' ? s.countDotMissing : cn(s.countDot, part.dot)} />
+                  {part.label}
+                  <b className={cn(s.countValue, part.className)}>{part.value}</b>
                 </span>
               ))}
-              {/* The progress quantity moved down from the headline — this row is where
-                  counts live, and 보고됨 N/M pairs with the 미보고 vocabulary. */}
-              {state === 'running' && (
-                <span>
-                  {' · 보고됨 '}
-                  <b className="font-bold">
-                    {buckets.reported}/{buckets.total}
-                  </b>
-                </span>
-              )}
-            </>
+            </span>
           )}
         </span>
         {slot}

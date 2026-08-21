@@ -470,7 +470,8 @@ describe('ConnectionTestCard', () => {
     pollingState.uiState = 'FAIL';
     pollingState.latestJob = makeJob('FAIL', [agentResult('res-1', 'FAIL')]);
     act(() => rerender());
-    expect(await screen.findByText('실패')).toBeTruthy();
+    // 표 안으로 좁힌다 — 카운트 줄의 범례도 '실패'를 제 텍스트 노드로 갖는다.
+    expect(within(await screen.findByRole('table')).getByText('실패')).toBeTruthy();
     // FAIL 의 정답 행동은 재실행 하나다 — 승인 CTA 는 비활성이 아니라 슬롯에서 아예 빠진다.
     expect(screen.queryByRole('button', { name: '완료 승인 요청' })).toBeNull();
     expect(screen.getByRole('button', { name: /다시 실행/ })).toBeTruthy();

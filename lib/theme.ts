@@ -1314,7 +1314,7 @@ export const idcStyles = {
       fail: 'bg-[#FEF1F1] border-[#F8D2D0]',
     },
     head: 'flex items-center justify-between gap-3 mb-[11px]',
-    title: 'flex items-center gap-2 text-[13.5px] font-bold tracking-[-0.01em]',
+    title: 'flex items-center gap-2 text-[16px] font-bold tracking-[-0.01em]',
     titleColor: {
       idle: 'text-[#191F28]',
       running: 'text-[#191F28]',
@@ -1335,6 +1335,22 @@ export const idcStyles = {
     /** `counts` on the pending surface — #6B7684 on #FFF8EC is 4.37:1 (AA fail), so the
      *  policy-changed meta/guidance lines take the warning voice (orange-800, 6.3:1). */
     countsWarn: 'text-[12px] font-medium text-orange-800 [font-variant-numeric:tabular-nums]',
+    /** The bucket list inside `counts` — dots replace the 가운뎃점 separators, so the
+     *  segments need their own gap (12px between, 6px inside a segment). */
+    countList: 'flex items-center gap-3',
+    countSeg: 'flex items-center gap-1.5',
+    /** The value, two steps above its 12px label — the number is what the row is for. */
+    countValue: 'text-[14px] font-bold [font-variant-numeric:tabular-nums]',
+    /** 범례 점 — 값은 `track`의 `fillColor`와 같은 색이라 카운트 줄이 바의 범례를 겸한다.
+     *  중립(남음·진행 중·대기)은 판정이 아니므로 채도를 주지 않는다. */
+    countDot: 'h-2 w-2 rounded-full flex-shrink-0',
+    countDotColor: {
+      ok: 'bg-[#21A157]',
+      fail: 'bg-[#E5483D]',
+      rest: 'bg-[#C6CBD3]',
+    },
+    /** 미보고·미확인 — "값이 없다"는 사실은 색이 아니라 형태(빈 파선 링)가 말한다. */
+    countDotMissing: 'h-2.5 w-2.5 rounded-full border-2 border-dashed border-orange-700 flex-shrink-0',
     pct: 'min-w-[46px] text-right text-[16px] font-extrabold tracking-[-0.02em] [font-variant-numeric:tabular-nums]',
     track: 'relative h-2 overflow-hidden rounded-full bg-[#E4E7EC]',
     /** Skeleton bar for this strip — the shared `skeletonBar` (#F3F4F6) sits on white; on the
