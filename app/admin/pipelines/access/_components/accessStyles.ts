@@ -256,9 +256,14 @@ export const accessStyles = {
   benchVal: 'mt-0.5 text-[14px] font-semibold text-[var(--pl-text-strong)]',
   /** 서비스 코드 라벨 — 면이 아니라 선으로 만든다(오너 지시 2026-08-14). 이 시트엔 회색
    *  면이 이미 둘(사유 인용·승인 결정)이라 코드까지 면을 가지면 표면만 늘고, 이름 옆에
-   *  붙는 짧은 식별자에는 테두리만으로 라벨이라는 게 충분히 읽힌다. */
+   *  붙는 짧은 식별자에는 테두리만으로 라벨이라는 게 충분히 읽힌다.
+   *
+   *  모달 머리의 서비스 줄도 이걸 쓴다(오너 지시 2026-08-21). 면이 없다는 게 거기서 더
+   *  중요하다 — 담당자 모달은 바로 아래에 `ownerChip`(회색 면) 들이 깔려서, 코드가 같은
+   *  면을 가지면 `CPN` 이 담당자 하나처럼 읽힌다. `align-middle` 은 12px 태그를 16px
+   *  이름의 줄 한가운데 세운다(flex 부모인 승인 시트에서는 아무 일도 하지 않는다). */
   codeTag:
-    'inline-flex flex-none items-center rounded-[5px] border border-[var(--pl-border-strong)] px-1.5 text-[12px] font-medium leading-[18px] text-[var(--pl-text-medium)]',
+    'inline-flex flex-none items-center rounded-[5px] border border-[var(--pl-border-strong)] px-1.5 align-middle text-[12px] font-medium leading-[18px] text-[var(--pl-text-medium)]',
   /** 구역 사이는 선이 아니라 간격이다(오너 지시 2026-08-14). 시트 하나에 구역이 셋인데
    *  선을 그으면 한 장이 카드 셋으로 갈라지고, 폭도 안 바뀌는 선이라 나누는 일 말고는
    *  하는 게 없다. 24px 이면 구역 안(4~8px)과 충분히 갈린다. */
@@ -304,9 +309,56 @@ export const accessStyles = {
   pickerName:
     'flex-1 min-w-0 truncate text-[14px] font-medium text-[var(--pl-text-strong)] [font-family:var(--pl-font-mono)]',
   pickerEmail: 'w-[180px] min-w-0 truncate text-[12px] text-[var(--pl-text-weak)]',
-  /** 읽기만 하는 목록의 행(담당자 보기) — `pickerRow` 와 같은 칸이지만 hover 도 커서도
-   *  없다. 고를 수 없는 줄이 눌릴 것처럼 보이면 안 된다. */
-  ownerRow: 'flex items-center gap-3 px-3 py-2.5',
+  /**
+   * 담당자 보기의 칩 흐름.
+   *
+   * 한 줄에 값이 하나뿐인 목록은 표가 아니다. 행으로 세웠을 때 638px 짜리 줄에 잉크가
+   * 73px(88.5% 가 빈 폭)이었고, 나눌 열이 없는데 구분선만 다섯 줄 그어져 있었다.
+   * 칩으로 흘리면 5명이 2줄, 20명이 4줄, 50명이 9줄에 선다 — 스크롤이 7명에서
+   * 30명으로 밀린다.
+   *
+   * 캡은 항상 걸어 둔다(짧은 목록에는 아무 일도 하지 않는다). 잘린 인원 안내는 이
+   * 상자 **밖**에 산다 — 목록이 불완전하다는 사실을 끝까지 스크롤해야 알게 되면
+   * 안내가 아니다.
+   */
+  ownerFlow: 'flex flex-wrap gap-1.5 max-h-[280px] overflow-y-auto',
+  /**
+   * 칩 하나 = Knox ID 하나. 식별자라 mono 다(`pickerName` 과 같은 이유).
+   *
+   * 면은 `--pl-gray-100`(#F2F4F7) 이다. `--pl-gray-50` 은 흰 모달 바닥에서 ΔE00 1.20 —
+   * 식별 한계 바로 위라 칩이 면으로 읽히지 않는다. gray-100 은 2.78 이고, 그 위의
+   * `--pl-text-strong` 은 16.1:1 이다.
+   *
+   * 14px 인 건 이 모달의 본문이 이 칩들이어서다 — 크기는 짝수로만 간다(FONT-EVEN,
+   * `.claude/hooks/post-edit-design.mjs`). 인원수(12px)는 아래 각주와 같은 급이다.
+   */
+  ownerChip:
+    'inline-flex max-w-full items-center truncate rounded-[6px] bg-[var(--pl-gray-100)] px-2 py-1 text-[14px] font-medium text-[var(--pl-text-strong)] [font-family:var(--pl-font-mono)]',
+  /**
+   * 모달 머리의 서비스 줄 — 고정 제목(`담당자 확인`·`접근 권한 요청`) 아래에
+   * `이름 (코드)` 로 선다.
+   *
+   * 제목이 가변 텍스트를 물면(`AWS 담당자 5명`) 이름이 길어질수록 24/700 이 두 줄, 세
+   * 줄로 자란다. 제목은 이 모달이 하는 일 하나만 말하게 고정하고, 서비스는 그 아래
+   * 자기 줄에서 필요한 만큼 감긴다 — 잘라 내지 않는다. 이 줄이 이 모달의 신원이라,
+   * 감기는 건 괜찮아도 사라지는 건 안 된다.
+   *
+   * `break-keep` 은 한글이 낱말 한가운데서 끊기는 기본 규칙을 막는다.
+   *
+   * 색은 `--pl-primary` 다(흰 바닥 5.17:1). 제목이 고정 문구가 된 뒤로 이 줄만이 이
+   * 모달이 어느 서비스 것인지 말한다 — 굵기는 이미 `ownerChip` 과 같은 편이라, 색이
+   * 그 줄을 먼저 읽게 만드는 유일한 채널이다. 괄호 속 코드는 이름에 딸린 값이라
+   * 따라오지 않는다.
+   */
+  serviceMeta:
+    'min-w-0 text-[16px] font-semibold leading-[1.4] text-[var(--pl-primary)] break-keep',
+  /** 칩 흐름 위 한 줄 — 왼쪽 인원수, 오른쪽 검색(24명 초과일 때만). */
+  ownerBar: 'mb-3 flex items-center justify-between gap-3',
+  ownerCount: 'text-[12px] font-medium tabular-nums text-[var(--pl-text-weak)]',
+  /** 검색 상자는 이 줄의 절반까지만 — 인원수 라벨이 오른쪽으로 밀려나면 안 된다. */
+  ownerSearch: 'w-[260px] flex-none',
+  /** 서버가 배열을 잘라 보냈을 때의 각주 — 흐름 밖, 상자 아래. */
+  ownerNote: 'mt-3 text-[12px] text-[var(--pl-text-weak)]',
   pickerEmpty: 'px-3 py-8 text-center text-[14px] text-[var(--pl-text-weak)]',
   /** 검색이 실패했을 때 — 빈 결과와 같은 자리지만 재시도가 붙어 가로로 놓인다. */
   pickerError:

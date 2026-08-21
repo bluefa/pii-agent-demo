@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useReducer, useRef, useState } from 'react';
 
@@ -13,7 +14,8 @@ import {
 import { AppError } from '@/lib/errors';
 import type { ProjectSummary } from '@/lib/types';
 import { passRoutes } from '@/lib/routes';
-import { cn, serviceSidebarStyles, textColors } from '@/lib/theme';
+import { cn, primaryColors, serviceSidebarStyles, textColors } from '@/lib/theme';
+import { ChevronRightIcon, ShieldIcon } from '@/app/components/ui/icons';
 import {
   ServiceSidebar,
   SERVICE_RAIL_PAGE_SIZE,
@@ -55,6 +57,105 @@ export const readIsEosService = (item: unknown): boolean | undefined => {
   const value = (item as { is_eos_service?: unknown }).is_eos_service;
   return value === true ? true : value === false ? false : undefined;
 };
+
+/**
+ * The content pane while the first services page is still in flight.
+ *
+ * Not 서비스를 선택하세요 held up as a placeholder: that sentence is a settled
+ * answer, and rendering it before the response arrives makes the pane say the
+ * wrong thing and then swap — 서비스를 선택하세요 → 아직 접근 권한이 있는 …, which
+ * is the flicker this replaces. The rail beside it was already showing a skeleton
+ * for exactly the same wait; now both halves of the screen are one loading frame.
+ *
+ * It draws only what BOTH settled states have — a 48px mark and one line of type
+ * under it, at the mark's own `w-12 h-12 mx-auto mb-4`. The reason lines and the
+ * link are NOT drawn: they exist in one outcome and not the other, and a skeleton
+ * that promises them is a prediction, not a placeholder.
+ * The bar is 20px, the smaller of the two headings (20/28 here, 24/32 there).
+ *
+ * Both frames are centred, so the mark travels on settle — measured 56px up into
+ * the no-access block (84px of skeleton → 196px of content) and 6px into
+ * 서비스를 선택하세요 (96px). Reserving the taller height instead would zero one of
+ * those two and double the other; a skeleton that grows into its content, centred
+ * both times, promises neither outcome.
+ */
+const PaneLoadingFrame = () => (
+  // aria-busy has to sit on an element that is still IN the tree — announcing the wait
+  // is the whole point, and aria-hidden on the same node deletes the announcement with
+  // it. The shapes below are what is decorative, so that is where the hiding belongs.
+  <div
+    role="status"
+    aria-busy="true"
+    aria-label="서비스 정보를 불러오는 중"
+    className="h-full flex items-center justify-center"
+  >
+    <div className="px-6" aria-hidden="true">
+      <div
+        className={cn(
+          'w-12 h-12 mx-auto mb-4 rounded-[10px]',
+          serviceSidebarStyles.canvasSkeletonBar,
+        )}
+      />
+      <div className={cn('h-5 w-64 rounded', serviceSidebarStyles.canvasSkeletonBar)} />
+    </div>
+  </div>
+);
+
+/**
+ * The content pane when the account has access to no service at all.
+ *
+ * It stands where 서비스를 선택하세요 stands, because that sentence is an instruction
+ * with nothing to follow: the rail beside it is empty, and telling someone to pick
+ * from an empty list is the loudest thing on the screen saying the least. The rail
+ * states the fact in one line; naming the reason and offering the way out belongs
+ * here, on the surface with room for it.
+ *
+ * The shield is `ShieldCheckIcon` minus the tick — a shield with a check in it says
+ * "verified", the opposite of an empty permission list.
+ *
+ * Inks are the page's, not the rail's, and they are measured against this canvas
+ * (#F4F4FB) rather than white. The reason line uses `secondary` (9.41:1) because
+ * `textColors.tertiary` is only 4.42:1 here, under AA. The link is `textOnLight`,
+ * not `primaryColors.text`: #0064FF lands on 4.4951:1 against this wash, i.e. just
+ * under the 4.5 it needs as text.
+ *
+ * The shield IS `primaryColors.text` (오너 지시). The same #0064FF that the link
+ * cannot use is fine on the mark — 1.4.11 asks 3:1 of a glyph, not 4.5 — and this
+ * is the one place on the screen where the brand blue is the subject rather than a
+ * control. The two blues are a tier apart on purpose: the mark carries the hue, the
+ * link carries the darker value it needs to be read at 16px.
+ */
+const NoServiceAccessState = () => (
+  <div className="h-full flex items-center justify-center">
+    {/* `break-keep` 은 제목이 갈리는 자리를 어절 경계로 묶는 안전망이다 — 한글은 기본
+        규칙에서 "없습니/다" 처럼 낱말 한가운데가 끊긴다. 24px 시절 이 판이 실제로 그렇게
+        갈렸다. */}
+    <div className="max-w-[560px] px-6 text-center">
+      <ShieldIcon className={cn('w-12 h-12 mx-auto mb-4', primaryColors.text)} />
+      {/* 20 / 16 두 단(오너 지시). 제목만 semibold 라 계층이 크기와 무게 두 채널에
+          실린다 — 4px 차이 하나로는 두 줄이 같은 단으로 읽힌다. */}
+      <p className={cn('text-[20px] font-semibold leading-7 break-keep', textColors.primary)}>
+        아직 접근 권한이 있는 서비스가 없습니다
+      </p>
+      <p className={cn('mt-3 text-[16px] leading-6', textColors.secondary)}>
+        담당하시는 서비스가 있다면 권한 요청을 해주세요.
+        <br />
+        관리자가 확인 후 승인해드립니다.
+      </p>
+      {/* 행동은 사유보다 작지 않다 — 본문과 같은 16px 에 둔다. */}
+      <Link
+        href={passRoutes.accessRequests}
+        className={cn(
+          'mt-5 inline-flex items-center gap-0.5 text-[16px] hover:underline',
+          primaryColors.textOnLight,
+        )}
+      >
+        권한 요청하기
+        <ChevronRightIcon className="h-4 w-4" />
+      </Link>
+    </div>
+  </div>
+);
 
 /**
  * A resolved panel and the service it resolved for. Exactly one of `items`/`error`
@@ -102,6 +203,11 @@ export const ServiceManagementView = () => {
   // Only the first page counts: later searches keep the rows on screen rather than
   // blinking the whole rail to skeleton on every keystroke.
   const [servicesLoaded, setServicesLoaded] = useState(false);
+  // 이 계정이 접근할 수 있는 서비스가 하나도 없다 — 목록이 비었다가 아니라.
+  // 근거가 되는 건 **검색어 없는 응답뿐**이다: 걸러진 0건은 부분집합이라 권한에 대해
+  // 아무 말도 못 한다. 초기 조회가 항상 무필터(page 0, query 없음)라 값은 첫 응답에서
+  // 정해지고, 뒤이은 검색이 그 판정을 뒤집지 않는다.
+  const [noAccess, setNoAccess] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   // The row being described, by id — not the row object. The list is reloaded after a
   // save, so a captured object would be the pre-save copy; an id re-reads the row that
@@ -134,6 +240,7 @@ export const ServiceManagementView = () => {
         signal: controller.signal,
       });
       if (controller.signal.aborted) return;
+      if (!searchQuery) setNoAccess((data.totalElements ?? 0) === 0);
       dispatch({
         type: 'SET_SERVICES',
         services: data.content ?? [],
@@ -364,7 +471,13 @@ export const ServiceManagementView = () => {
             serviceSidebarStyles.canvas,
           )}
         >
-          {!selectedService ? (
+          {!selectedService && !servicesLoaded ? (
+            // 도착하기 전에는 어느 쪽도 말하지 않는다. 이 게이트가 레일 스켈레톤과
+            // 같은 플래그를 쓰므로 화면 양쪽이 같은 순간에 갈린다.
+            <PaneLoadingFrame />
+          ) : !selectedService && noAccess ? (
+            <NoServiceAccessState />
+          ) : !selectedService ? (
             <div className="h-full flex items-center justify-center">
               <div className="text-center">
                 {/* The layout this page IS: rail on the left with rows in it,

@@ -33,6 +33,32 @@ const MAX_REASON = 500;
 /** 타이핑이 멎고 나서 찾는다. 한 글자마다 쏘면 사람 목록을 훑는 요청이 줄줄이 나간다. */
 const SEARCH_DEBOUNCE_MS = 500;
 
+/**
+ * 서비스 하나를 다루는 모달의 머리 둘째 줄 — `이름 (코드)`.
+ *
+ * 제목이 가변 텍스트를 물면(`AWS 담당자`, `쿠폰·프로모션 발급 정산 접근 권한 요청`)
+ * 이름이 길어질수록 24/700 이 두 줄, 세 줄로 자란다. 제목은 이 모달이 하는 일 하나만
+ * 말하게 고정하고, 서비스는 여기서 필요한 만큼 감긴다 — 잘라 내지 않는다. 이 줄이
+ * 모달의 신원이라, 감기는 건 괜찮아도 사라지는 건 안 된다.
+ *
+ * 코드가 eyebrow 로 따로 올라가 있으면 신원이 두 줄로 갈린다. 한 줄에 붙여 둔다 —
+ * 괄호가 아니라 태그다(오너 지시 2026-08-21). 괄호는 곁말로 읽히는데 이건 다른 화면에서
+ * 그대로 쓰이는 식별자다. 이름이 감기면 태그는 마지막 줄 끝에 따라붙는다.
+ */
+function ServiceLine({
+  serviceCode,
+  serviceName,
+}: {
+  serviceCode: string;
+  serviceName: string;
+}): ReactElement {
+  return (
+    <p className={a.serviceMeta}>
+      {serviceName} <span className={a.codeTag}>{serviceCode}</span>
+    </p>
+  );
+}
+
 // ── 사용자 피커 (서비스 권한 부여 / 관리자 권한 부여) ─────────────────────────
 
 export interface UserPickerModalProps {
@@ -222,8 +248,8 @@ interface TextModalProps {
   danger?: boolean;
   /** 입력 상한. 세 모달의 기본은 `MAX_TEXT` 고, 권한 요청 사유만 낮춰 받는다. */
   max?: number;
-  eyebrowCtx?: string;
-  eyebrowId?: string;
+  /** 제목 아래 한 줄(`ServiceLine`). 제목이 고정 문구인 모달만 싣는다. */
+  meta?: ReactNode;
   onSubmit: (text: string) => Promise<void>;
 }
 
@@ -238,8 +264,7 @@ function TextModal({
   required,
   danger,
   max = MAX_TEXT,
-  eyebrowCtx,
-  eyebrowId,
+  meta,
   onSubmit,
 }: TextModalProps): ReactElement {
   const [text, setText] = useState('');
@@ -263,9 +288,8 @@ function TextModal({
     <TqModal
       open={open}
       onClose={onClose}
-      eyebrowCtx={eyebrowCtx}
-      eyebrowId={eyebrowId}
       title={title}
+      meta={meta}
       sub={sub}
       footer={
         <>
@@ -415,10 +439,30 @@ export interface OwnersModalProps {
 }
 
 /**
+ * 담당자가 이보다 많아지면 검색 상자가 붙는다.
+ *
+ * 24 는 720px 모달에서 칩이 네 줄을 채우는 수다 — 그 아래로는 전부 한눈에 들어와서
+ * 상자가 훑기를 돕는 게 아니라 한 줄을 더 먹기만 한다.
+ */
+const OWNER_SEARCH_MIN = 24;
+
+/**
  * 한 서비스의 담당자 — 목록 행의 [담당자 보기] 가 연다(오너 지시 2026-08-17).
  *
  * 행 안에 펼치던 것을 모달로 옮겼다. 행의 둘째 단은 한 줄이라 이름이 넘치면 잘렸는데,
- * 펼쳐서 본 답이 또 잘리면 펼친 의미가 없다. 여기서는 몇 명이든 세로로 선다.
+ * 펼쳐서 본 답이 또 잘리면 펼친 의미가 없다.
+ *
+ * 안이 표였던 것을 칩 흐름으로 바꿨다(오너 시안 A, 2026-08-21). 한 줄에 값이 하나뿐인
+ * 목록은 표가 아니다 — 자세한 수치는 `accessStyles.ownerFlow` 에 적혀 있다.
+ *
+ * 머리는 **고정 제목 + 서비스 줄** 이다(오너 지시 2026-08-21). eyebrow(`담당자 · AWS`)를
+ * 걷어 낸 건 바로 아래 제목이 같은 두 단어를 다시 말하고 있어서고, 제목에서 서비스
+ * 이름을 뺀 건 그 자리가 24/700 이라 이름이 길어질수록 제목이 두 줄·세 줄로 자라기
+ * 때문이다. 이제 제목은 이 모달이 하는 일 하나(`담당자 확인`)만 말하고, 서비스는
+ * `이름 (코드)` 로 자기 줄에서 감긴다 — 잘리지 않는다(`ServiceLine`).
+ *
+ * 인원수는 제목을 떠나 칩 흐름 바로 위 줄로 갔다. 거기서는 검색이 걸러 낸 수를 그대로
+ * 말할 수 있다 — 제목에 있었으면 31 을 말하면서 7개를 그리고 있었을 것이다.
  *
  * 읽기만 하는 모달이라 footer 가 없다 — TqModal 은 그때 머리에 X 를 그린다(닫기 하나만
  * 든 footer 를 두지 않는다).
@@ -434,27 +478,63 @@ export function OwnersModal({
   owners,
   ownerCount,
 }: OwnersModalProps): ReactElement {
+  const [query, setQuery] = useState('');
+
+  // 닫힌 모달이 검색어를 들고 있으면 다음에 열릴 때 걸러진 목록으로 열린다. effect 가
+  // 아니라 **렌더 중 조정**인 이유는 `query` 가 바로 아래에서 목록을 거르는 값이기
+  // 때문이다 — effect 로 지우면 걸러진 목록을 한 번 그리고 나서 전체 목록으로 다시
+  // 그린다. `TextModal` 이 effect 를 쓰는 건 그쪽 값이 렌더 출력에 실리지 않아서다.
+  const [wasOpen, setWasOpen] = useState(open);
+  if (wasOpen !== open) {
+    setWasOpen(open);
+    setQuery('');
+  }
+
+  // 계약은 순서를 약속하지 않는다. 이름을 훑는 목록이라 정렬은 화면이 쥔다 — 값을
+  // 만들어 내는 게 아니라 같은 값을 늘 같은 자리에 두는 일이다.
+  const sorted = [...owners].sort((x, y) => x.localeCompare(y));
+  const searchable = sorted.length > OWNER_SEARCH_MIN;
+  const q = query.trim().toLowerCase();
+  const shown = q ? sorted.filter((knoxId) => knoxId.toLowerCase().includes(q)) : sorted;
   const hidden = ownerCount - owners.length;
+
   return (
     <TqModal
       open={open}
       onClose={onClose}
-      eyebrowCtx="담당자"
-      eyebrowId={serviceCode}
-      title={`${serviceName} 담당자`}
+      title="담당자 확인"
+      meta={<ServiceLine serviceCode={serviceCode} serviceName={serviceName} />}
       sub="이 서비스의 접근 권한 요청을 검토하는 사람들이에요."
     >
-      <div className={a.pickerList}>
-        {owners.map((knoxId) => (
-          <div key={knoxId} className={a.ownerRow}>
-            <span className={a.pickerName}>{knoxId}</span>
+      {/* 인원수는 지금 그려진 수다 — 걸러 낸 상태에서 전체를 말하면 화면과 어긋난다. */}
+      <div className={a.ownerBar}>
+        <span className={a.ownerCount}>{q ? shown.length : ownerCount}명</span>
+        {searchable && (
+          <div className={a.ownerSearch}>
+            <SearchBox
+              wrapClassName="block w-full"
+              placeholder="Knox ID 검색"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              aria-label="담당자 검색"
+            />
           </div>
-        ))}
-        {/* 서버가 배열을 잘라 보냈을 때 — 이름을 지어내지 않고 수만 말한다. */}
-        {hidden > 0 && (
-          <div className={a.pickerEmpty}>여기 없는 담당자가 {hidden}명 더 있어요</div>
         )}
       </div>
+      {shown.length === 0 ? (
+        <div className={a.pickerEmpty}>‘{query}’와 일치하는 담당자가 없습니다</div>
+      ) : (
+        <div className={a.ownerFlow}>
+          {shown.map((knoxId) => (
+            <span key={knoxId} className={a.ownerChip}>
+              {knoxId}
+            </span>
+          ))}
+        </div>
+      )}
+      {/* 서버가 배열을 잘라 보냈을 때 — 이름을 지어내지 않고 수만 말한다. 흐름 상자
+          밖이라 목록이 길어도 첫 화면에서 보인다. */}
+      {hidden > 0 && <p className={a.ownerNote}>여기 없는 담당자가 {hidden}명 더 있어요</p>}
     </TqModal>
   );
 }
@@ -480,9 +560,8 @@ export function RequestAccessModal({
     <TextModal
       open={open}
       onClose={onClose}
-      eyebrowCtx="접근 권한 요청"
-      eyebrowId={serviceCode}
-      title={`${serviceName} 접근 권한 요청`}
+      title="접근 권한 요청"
+      meta={<ServiceLine serviceCode={serviceCode} serviceName={serviceName} />}
       sub="관리자가 검토한 뒤 승인하거나 반려해요. 결과는 내 요청 내역에서 확인할 수 있어요."
       label="요청 사유 · 필수"
       placeholder="어떤 업무 때문에 이 서비스 접근이 필요한지 적어 주세요"

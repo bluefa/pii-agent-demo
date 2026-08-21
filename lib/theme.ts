@@ -1956,6 +1956,17 @@ export const serviceSidebarStyles = {
   rowDivide: 'divide-y divide-[#D2D8DC]',
   /** Skeleton bar for the rail — a step darker than the surface, or it vanishes into it. */
   skeletonBar: 'animate-pulse bg-[#D6DCE0]',
+  /**
+   * The same bar for the CONTENT column, which stands on `canvas` (#F4F4FB) and not
+   * on the rail. The rail's #D6DCE0 is ΔE00 6.63 there — more than twice its own
+   * 2.55 against the rail, so the two loading frames on one screen would not read as
+   * one frame. #E5E7EB measures 3.50: a shade louder than the rail's bar, which is
+   * what two shapes on a wide empty column need next to eight stacked rows.
+   *
+   * `idcStyles.skeletonBar` (#F3F4F6) is the white-plane version and lands on 2.67
+   * here — usable, but it belongs to another screen's block.
+   */
+  canvasSkeletonBar: 'animate-pulse bg-[#E5E7EB]',
   /** 28px square icon tile — the row's scan anchor, sized up for the taller row. */
   tile: 'flex h-7 w-7 shrink-0 items-center justify-center rounded-[6px] text-[12px] font-semibold leading-none',
   /** Tinted tile pairs, picked by a stable code hash so a service keeps its color across pages. */
@@ -1989,6 +2000,12 @@ export const serviceSidebarStyles = {
    * #0050D6 is 5.40:1 — the same substitution `rowCodeCurrent` already makes.
    */
   emptyAction: 'text-[12px] cursor-pointer text-[#0050D6] hover:text-[#003FA8]',
+  /**
+   * The standing hint at the rail's foot. Prose, so it does not borrow
+   * `sectionLabel`'s nav tracking. #4E5968 is the rail's body ink at 5.71:1 —
+   * `textColors.tertiary` is 3.88:1 on this surface.
+   */
+  hintText: 'text-[12px] leading-[18px] text-[#4E5968]',
   /** "1 / 2 페이지" — tabular so the digits do not jitter as pages change. */
   footerPage: 'px-1.5 text-[14px] font-medium tabular-nums text-[#4E5968]',
   /**
