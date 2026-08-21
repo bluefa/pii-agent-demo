@@ -335,9 +335,14 @@ export const accessStyles = {
    * 감기는 건 괜찮아도 사라지는 건 안 된다.
    *
    * `break-keep` 은 한글이 낱말 한가운데서 끊기는 기본 규칙을 막는다.
+   *
+   * 색은 `--pl-primary` 다(흰 바닥 5.17:1). 제목이 고정 문구가 된 뒤로 이 줄만이 이
+   * 모달이 어느 서비스 것인지 말한다 — 굵기는 이미 `ownerChip` 과 같은 편이라, 색이
+   * 그 줄을 먼저 읽게 만드는 유일한 채널이다. 괄호 속 코드는 이름에 딸린 값이라
+   * 따라오지 않는다.
    */
   ownerMeta:
-    'min-w-0 text-[16px] font-semibold leading-[1.4] text-[var(--pl-text-strong)] break-keep',
+    'min-w-0 text-[16px] font-semibold leading-[1.4] text-[var(--pl-primary)] break-keep',
   /** 그 줄의 코드. 식별자라 mono 고, 이름에 딸린 값이라 한 단 여리다. */
   ownerMetaCode: 'font-medium text-[var(--pl-text-weak)] [font-family:var(--pl-font-mono)]',
   /** 칩 흐름 위 한 줄 — 왼쪽 인원수, 오른쪽 검색(24명 초과일 때만). */

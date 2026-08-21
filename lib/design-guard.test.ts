@@ -435,6 +435,8 @@ const TEXT: TextPair[] = [
   { what: 'rail empty-state text on rail', fg: textOf(classOf(railBlock, 'emptyText')), on: rail },
   { what: 'rail empty-state action on rail', fg: textOf(classOf(railBlock, 'emptyAction')), on: rail },
   { what: '담당자 칩 label on its chip', fg: textOf(classOf(accessSrc, 'ownerChip')), on: bgOf(classOf(accessSrc, 'ownerChip')) },
+  // 모달 머리의 서비스 줄 — 파랑이 신원을 나른다. 16px/600 이라 large text 가 아니다.
+  { what: '담당자 모달 서비스 이름 on the white modal body', fg: textOf(classOf(accessSrc, 'ownerMeta')), on: '#FFFFFF' },
   { what: 'rail standing hint on rail', fg: textOf(classOf(railBlock, 'hintText')), on: rail },
   // /services 의 무권한 안내판. 레일 밖이라 잉크가 페이지 것이고, 흰 면이 아니라 **캔버스**
   // 위에 선다 — `textColors` 주석의 수치(흰 면 4.83, gray-50 4.63)는 여기서 통하지 않는다.
