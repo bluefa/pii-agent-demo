@@ -32,6 +32,7 @@ export { PlusIcon } from '@/app/components/ui/icons/PlusIcon';
 export { QuestionCircleIcon } from '@/app/components/ui/icons/QuestionCircleIcon';
 export { ReloadIcon } from '@/app/components/ui/icons/ReloadIcon';
 export { SearchIcon } from '@/app/components/ui/icons/SearchIcon';
+export { ShieldIcon } from '@/app/components/ui/icons/ShieldIcon';
 export { ShieldCheckIcon } from '@/app/components/ui/icons/ShieldCheckIcon';
 export { StatusErrorIcon } from '@/app/components/ui/icons/StatusErrorIcon';
 export { StatusInfoIcon } from '@/app/components/ui/icons/StatusInfoIcon';

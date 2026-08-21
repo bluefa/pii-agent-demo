@@ -425,6 +425,12 @@ const TEXT: TextPair[] = [
   // (`textColors.tertiary` 3.88:1, `primaryColors.text` 3.95:1) through one retint.
   { what: 'rail empty-state text on rail', fg: textOf(classOf(railBlock, 'emptyText')), on: rail },
   { what: 'rail empty-state action on rail', fg: textOf(classOf(railBlock, 'emptyAction')), on: rail },
+  // The rail's OTHER empty state — no search, no access. Three tiers this time
+  // (heading, reason, link), so each one is measured against the rail rather than
+  // inheriting the single line above's clearance. The shield is a glyph: 1.4.11.
+  { what: 'rail no-access title on rail', fg: textOf(classOf(railBlock, 'emptyTitle')), on: rail },
+  { what: 'rail hint prose on rail', fg: textOf(classOf(railBlock, 'hintText')), on: rail },
+  { what: 'rail no-access shield on rail', fg: textOf(classOf(railBlock, 'emptyIcon')), on: rail, min: 3.0 },
   { what: 'rail count pill label on its pill', fg: textOf(classOf(railBlock, 'count')), on: bgOf(classOf(railBlock, 'count')) },
   { what: 'rail row code label on its plate', fg: textOf(classOf(railBlock, 'rowCode')), on: bgOf(classOf(railBlock, 'rowCode')) },
   // The page subtitle's product name sits on the canvas, not on white — #0064FF is

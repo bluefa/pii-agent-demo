@@ -1,9 +1,12 @@
 'use client';
 
+import Link from 'next/link';
+
 import { ServiceRow } from '@/app/components/features/admin/ServiceSidebar/ServiceRow';
 import { SidebarPagination } from '@/app/components/features/admin/ServiceSidebar/SidebarPagination';
-import { CloseIcon, SearchIcon } from '@/app/components/ui/icons';
+import { ChevronRightIcon, CloseIcon, SearchIcon, ShieldIcon } from '@/app/components/ui/icons';
 import type { PageServiceItem } from '@/app/lib/api';
+import { passRoutes } from '@/lib/routes';
 import {
   borderColors,
   bgColors,
@@ -67,6 +70,25 @@ interface ServiceSidebarProps {
   loading?: boolean;
 }
 
+/**
+ * The rail's one way out of "my service is not in this list". Both places that
+ * say it — the no-access empty state and the standing hint at the rail's foot —
+ * point at the same screen, so it is one control rendered twice rather than two
+ * links that can drift apart.
+ *
+ * "권한 요청", not "권한 신청": the screen it opens is titled 내 권한 요청 and the
+ * modal on it is 접근 권한 요청, so the action keeps one noun end to end.
+ */
+const RequestAccessLink = () => (
+  <Link
+    href={passRoutes.accessRequests}
+    className={cn('inline-flex items-center gap-0.5', serviceSidebarStyles.emptyAction)}
+  >
+    권한 요청하기
+    <ChevronRightIcon className="h-3.5 w-3.5" />
+  </Link>
+);
+
 export const ServiceSidebar = ({
   services,
   currentService,
@@ -99,6 +121,12 @@ export const ServiceSidebar = ({
 
   // Rows the ul will actually lay out — drives the height cap below.
   const rowCount = loading ? SKELETON_ROWS : listed.length + emptySlots;
+
+  // Zero rows with NO search term. `/user/services/page` returns exactly the
+  // services this user may see, so an unfiltered empty page is a complete set:
+  // it says this account has access to nothing, which is a different fact from a
+  // search that missed — and the only one of the two the rail can be sure of.
+  const noAccess = !loading && !searchQuery && listed.length === 0;
 
   return (
     // v16 `.sidebar` — fixed 296px width (measured), shrink-0 so the main column owns the rest.
@@ -218,12 +246,32 @@ export const ServiceSidebar = ({
                 <div className={cn(serviceSidebarStyles.skeletonBar, 'h-5 w-10 shrink-0 rounded-[6px]')} />
               </li>
             ))
+          ) : noAccess ? (
+            // No search term and no rows: the account has access to nothing yet.
+            // Kept apart from the search miss below because the two are different
+            // facts — one is "the list does not contain that", the other is "there
+            // is no list". This one names the reason and gives the way out of it;
+            // without the link the rail and the target-source access screen would
+            // be two dead ends pointing at each other.
+            <li className="flex flex-1 flex-col items-center justify-center gap-1.5 px-4 py-10 text-center">
+              <ShieldIcon className={cn('mb-1 h-10 w-10', serviceSidebarStyles.emptyIcon)} />
+              <p className={serviceSidebarStyles.emptyTitle}>
+                아직 접근 권한이 있는 서비스가 없습니다
+              </p>
+              <p className={serviceSidebarStyles.hintText}>
+                담당하시는 서비스가 있다면 권한 요청을 해주세요.
+                <br />
+                관리자가 확인 후 승인해드립니다.
+              </p>
+              <div className="mt-2">
+                <RequestAccessLink />
+              </div>
+            </li>
           ) : listed.length === 0 ? (
-            // Keyed off `listed`, not `services` — a page holding nothing but the current
-            // service filters down to empty. Each reason gets its own sentence: only quote
-            // a search term when there is one, only say "other services" when there is a
-            // current service to be other than, and keep that sentence page-scoped, since
-            // the filter is.
+            // A search that matched nothing. Keyed off `listed`, not `services` — a page
+            // holding nothing but the current service filters down to empty. Only quote a
+            // search term when there is one, and keep the sentence page-scoped, since the
+            // filter is.
             <li className="flex flex-1 flex-col items-center justify-center px-4 py-10 text-center">
               {/* Rail-scoped tokens, not the page-wide `tertiary`/`primary` pair: both of
                   those are measured against white and read 3.88:1 / 3.95:1 on this rail. */}
@@ -267,9 +315,37 @@ export const ServiceSidebar = ({
           )}
         </ul>
 
-        {/* The component decides: it renders nothing at one page, so an empty result
-            (which the API still reports as one page) shows no control either. */}
-        <SidebarPagination pageInfo={pageInfo} onPageChange={onPageChange} />
+        {/* The rail's foot. `mt-auto` moved from the pager onto this wrapper — inside
+            it the pager's own `mt-auto` resolves to 0 (block flow), so the pair keeps
+            sitting on the bottom edge whether or not the pager is there to render.
+            Without it a single-page list would leave the hint floating under the last
+            row with the rest of the rail empty below it. */}
+        <div className="mt-auto shrink-0">
+          {/* The component decides: it renders nothing at one page, so an empty result
+              (which the API still reports as one page) shows no control either. */}
+          <SidebarPagination pageInfo={pageInfo} onPageChange={onPageChange} />
+
+          {/* The standing version of the same offer. Someone whose list is short —
+              or who searched and missed — is looking at a list that cannot tell them
+              whether the service is missing or their access is; the rail should not
+              make them go find that out somewhere else. It is chrome, so it stays up
+              during loading, and the full-bleed hairline is what closes the list above
+              it (a page of eight rows carries no rule of its own at the bottom).
+
+              Suppressed only under the no-access state, which is already the same
+              sentence and the same link one screen-height above it. */}
+          {!noAccess && (
+            <div
+              className={cn(
+                'flex flex-col items-start gap-1 border-t px-3 py-3',
+                serviceSidebarStyles.divider,
+              )}
+            >
+              <p className={serviceSidebarStyles.hintText}>담당 시스템/서비스가 조회되지 않나요?</p>
+              <RequestAccessLink />
+            </div>
+          )}
+        </div>
       </div>
     </aside>
   );

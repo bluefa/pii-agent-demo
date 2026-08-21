@@ -1989,6 +1989,27 @@ export const serviceSidebarStyles = {
    * #0050D6 is 5.40:1 — the same substitution `rowCodeCurrent` already makes.
    */
   emptyAction: 'text-[12px] cursor-pointer text-[#0050D6] hover:text-[#003FA8]',
+  /**
+   * The rail's OTHER empty result — no search, no rows. `/user/services/page`
+   * returns exactly the services this user may see, so an unfiltered zero is a
+   * complete set: it means no access, not a lookup that came up short. That is a
+   * heading-sized fact with a reason and an exit under it, which is why it does
+   * not reuse `emptyText`'s single quiet line. #191F28 reads 13.29:1 here.
+   */
+  emptyTitle: 'text-[14px] font-semibold leading-[22px] text-[#191F28]',
+  /**
+   * The sentence under that heading, and the standing hint at the rail's foot.
+   * Prose, so it does not borrow `sectionLabel`'s nav tracking. #4E5968 is the
+   * rail's body ink at 5.71:1 — `textColors.tertiary` is 3.88:1 on this surface.
+   */
+  hintText: 'text-[12px] leading-[18px] text-[#4E5968]',
+  /**
+   * The empty state's shield. A glyph, so WCAG asks 3:1 (1.4.11) rather than
+   * 4.5:1, and #6B7684 spends that slack to sit a tier under the text it marks:
+   * 3.70:1 against the rail, where the body ink is 5.71:1. The greys below it
+   * are not available — #8B95A1 is 2.44:1 here, under the glyph threshold too.
+   */
+  emptyIcon: 'text-[#6B7684]',
   /** "1 / 2 페이지" — tabular so the digits do not jitter as pages change. */
   footerPage: 'px-1.5 text-[14px] font-medium tabular-nums text-[#4E5968]',
   /**
