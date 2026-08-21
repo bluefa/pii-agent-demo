@@ -96,9 +96,9 @@ function DagDetailBody({ row, timezone }: { row: DagDbRow; timezone: string }): 
       <Field label={`현재 상태 (최근 7일 · ${timezone})`}>
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
           {db.succeededThisWeek ? (
-            <TcPill tone="ok" label="이번 주 성공" />
+            <TcPill tone="ok" label="최근 7일 성공" />
           ) : (
-            <TcPill tone="err" label="이번 주 성공 없음" />
+            <TcPill tone="err" label="최근 7일 성공 없음" />
           )}
           <DayStrip row={row} />
           <span className="text-[12px] text-[var(--pl-text-weak)]">

@@ -30,8 +30,14 @@ import { cn, pipelineStyles } from '@/lib/theme';
 import { fmtDateTimeSec } from '@/lib/pipeline/format';
 import { useApiAction, useApiMutation } from '@/app/hooks/useApiMutation';
 import { useAbortableEffect } from '@/app/hooks/useAbortableEffect';
+import { normalizeCloudProvider } from '@/lib/types';
 import { rejectTestConnection, confirmInstallation } from '@/app/lib/api/task-queue-tc';
+import { getConfirmedIntegration } from '@/app/lib/api';
 import { getDagStatus } from '@/app/lib/api/ops';
+import {
+  indexConfirmedResources,
+  type ConfirmedIndex,
+} from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/agentFacts';
 import type { RawTargetSourceDetail } from '@/app/lib/api/pipeline-target';
 import type { TestConnectionStatusRow } from '@/lib/types/task-queue';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
@@ -67,7 +73,13 @@ const n = (value: number): string => value.toLocaleString('ko-KR');
 
 type GateRowState = 'ok' | 'err' | 'warn' | 'pending';
 
-/** One 승인 조건 row — icon + 완료형 서술문 + (있으면) 근거 시각 + 보조 CTA. */
+/**
+ * One 승인 조건 row — 판정문 한 줄, 그 아래 근거 한 줄, 오른쪽에 보조 CTA.
+ *
+ * 근거와 조회 시각이 판정문과 한 줄에 있으면 셋이 이어진 한 문장으로 읽힌다. 크기만
+ * 줄여서는 갈라지지 않아서 — 줄을 나누고 크기·굵기·색 세 채널을 함께 내린다. 아래 줄에는
+ * 성격이 같은 것끼리(무엇을 보고 판정했나 · 언제 봤나) 모인다.
+ */
 function GateRow({
   state,
   text,
@@ -95,16 +107,23 @@ function GateRow({
       <span aria-hidden className="block h-4 w-4 rounded-full border-2 border-[var(--pl-border-strong)]" />
     );
   return (
-    <div className="flex items-center gap-2.5 px-4 py-3">
-      <span className="flex-none">{icon}</span>
-      <span className="min-w-0 flex-1 text-[14px] text-[var(--pl-text-strong)]" title={titleHint}>
-        {text}
-        {suffix && <span className="text-[12px] text-[var(--pl-text-weak)]"> {suffix}</span>}
-      </span>
-      {meta && (
-        <span className="flex-none text-[12px] tabular-nums text-[var(--pl-text-weak)]">{meta}</span>
-      )}
-      {action}
+    <div className="flex items-start gap-2.5 px-4 py-3">
+      {/* 아이콘은 판정문 줄에 붙는다 — 두 줄 블록의 가운데로 내려오면 어느 줄을
+          판정하는 것인지 흐려진다. */}
+      <span className="mt-0.5 flex-none">{icon}</span>
+      <div className="min-w-0 flex-1">
+        <p className="text-[14px] font-medium text-[var(--pl-text-strong)]" title={titleHint}>
+          {text}
+        </p>
+        {(suffix || meta) && (
+          <p className="mt-1 text-[12px] text-[var(--pl-text-weak)]">
+            {suffix}
+            {suffix && meta && ' · '}
+            {meta && <span className="tabular-nums">{meta}</span>}
+          </p>
+        )}
+      </div>
+      {action && <div className="flex-none self-center">{action}</div>}
     </div>
   );
 }
@@ -158,6 +177,28 @@ export function ApprovalTab({
     [tcCompleted, targetSourceId, dagReload],
   );
   const retryDag = (): void => setDagReload((k) => k + 1);
+
+  // 확정 정보 조인 — 리소스 표가 §10 밖에서 빌려 오는 사실(리전·DatabaseType·IDC 접속
+  // 주소)의 출처. 게이트에는 아무 영향이 없다: 실패하면 그 칸들만 대시로 서고 표는 그대로
+  // 뜬다. 그래서 실패 상태를 따로 들고 있지 않고 null 하나로 접는다.
+  const [confirmed, setConfirmed] = useState<ConfirmedIndex | null>(null);
+  useAbortableEffect(
+    (signal) => {
+      if (!tcCompleted) return;
+      setConfirmed(null);
+      return getConfirmedIntegration(targetSourceId, { signal })
+        .then((data) => {
+          if (signal.aborted) return;
+          setConfirmed(indexConfirmedResources(data.resource_infos ?? []));
+        })
+        .catch(() => {
+          // 조인은 부가 정보다 — 못 얻어도 화면은 자기 응답이 보증하는 것만으로 선다.
+        });
+    },
+    [tcCompleted, targetSourceId],
+  );
+
+  const isIdc = normalizeCloudProvider(detail.cloud_provider) === 'IDC';
 
   // 논리 DB 주간 보드 — 우측 오버레이 패널(벤치마크 시안 A). 진입 3곳(밴드의 실패
   // 숫자 · 에이전트 표의 "DB 보기" · 요약 라인 버튼)이 프리셋과 함께 연다. ModalShell
@@ -213,22 +254,22 @@ export function ApprovalTab({
     meta?: string;
     action?: ReactNode;
   } => {
-    if (!tcCompleted) return { state: 'pending', suffix: '— 완료 확인 후 점검합니다' };
+    if (!tcCompleted) return { state: 'pending', suffix: '완료 확인 후 점검합니다' };
     switch (dag.phase) {
       case 'loading':
-        return { state: 'pending', suffix: '— 확인 중…' };
+        return { state: 'pending', suffix: '확인 중…' };
       case 'failed':
-        return { state: 'err', suffix: '— 확인하지 못했습니다', action: retryAction };
+        return { state: 'err', suffix: '확인하지 못했습니다', action: retryAction };
       case 'loaded': {
         const verdict = healthVerdict(dag.data.healthStatus);
         const meta = `조회 ${fmtDateTimeSec(dag.fetchedAt)}`;
         switch (verdict.kind) {
           case 'healthy':
-            return { state: 'ok', suffix: '— 최근 7일 DAG 실행 기준', meta };
+            return { state: 'ok', suffix: '최근 7일 DAG 실행 기준', meta };
           case 'unhealthy':
             return {
               state: 'err',
-              suffix: '— 현재 UNHEALTHY · 최근 7일 DAG 실행 기준',
+              suffix: '현재 UNHEALTHY · 최근 7일 DAG 실행 기준',
               meta,
               action: retryAction,
             };
@@ -236,7 +277,7 @@ export function ApprovalTab({
             // Raw enum value stays in the tooltip channel — not in the copy.
             return {
               state: 'warn',
-              suffix: '— 판정할 수 없는 값',
+              suffix: '판정할 수 없는 값',
               titleHint: `healthStatus: ${verdict.raw}`,
               meta,
               action: retryAction,
@@ -329,10 +370,13 @@ export function ApprovalTab({
         )}
       </section>
 
-      {/* 관측층 — 응답이 있어야만 층이 생긴다. L1 요약 밴드 → L2 에이전트 표
-          (에이전트가 여럿일 때만 — 층은 데이터가 만들 때만) → L3 요약 라인. 1,500행
-          보드 자체는 우측 오버레이 패널의 것(시안 A): 실패 숫자·"DB 보기"·현황 보기
-          가 프리셋과 함께 연다. */}
+      {/* 관측층 — 응답이 있어야만 층이 생긴다. L1 요약 밴드 → L2 에이전트 표 →
+          L3 요약 라인. 1,500행 보드 자체는 우측 오버레이 패널의 것(시안 A): 실패
+          숫자·"DB 보기"·현황 보기가 프리셋과 함께 연다.
+          에이전트 표는 **하나뿐이어도 그린다**: 한 행이 요약의 반복일 거라는 최초
+          판단이 실물 응답에서 깨졌다 — 밴드는 리소스가 무엇인지(resourceId·Region·
+          그 리소스의 연결 상태)를 말하지 않는다. 표를 접으면 화면이 끝까지 어느
+          리소스 얘긴지 말하지 못하고, 에이전트 스코프 진입("DB 보기")도 사라진다. */}
       {tcCompleted && dag.phase === 'loaded' && (
         <>
           <HealthSummaryBand
@@ -340,20 +384,22 @@ export function ApprovalTab({
             fetchedAt={dag.fetchedAt}
             onShowFailed={() => setBoard({ filter: 'failed' })}
           />
-          {dag.data.agents.length > 1 && (
+          {dag.data.agents.length > 0 && (
             <AgentDagTable
               data={dag.data}
               // "DB 보기"가 약속하는 것은 그 에이전트의 DB 전부다 — 실패 선적용은
               // 실패 숫자 진입의 것.
               onViewDbs={(agentId) => setBoard({ agentId, filter: 'ALL' })}
+              confirmed={confirmed}
+              isIdc={isIdc}
             />
           )}
           {agg && (
             // 보드의 본문 잔류물 — 문패 한 줄: 버킷 요약 + 진입 버튼. 표는 패널에.
-            <section className={pipelineStyles.card.base} aria-label="논리 DB 주간 현황 요약">
+            <section className={pipelineStyles.card.base} aria-label="논리 DB 최근 7일 현황 요약">
               <div className="flex items-center justify-between gap-4">
                 <div className="min-w-0">
-                  <h2 className={opsStyles.cardTitle}>논리 DB 주간 현황</h2>
+                  <h2 className={opsStyles.cardTitle}>논리 DB 최근 7일 현황</h2>
                   <p className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-[12px] text-[var(--pl-text-weak)]">
                     <span>
                       논리 DB <b className="font-semibold text-[var(--pl-text-strong)]">{n(agg.dbTotal)}</b>
@@ -370,7 +416,7 @@ export function ApprovalTab({
                       </span>
                     )}
                     <span>
-                      이번 주 성공 <b className="font-semibold text-[var(--pl-text-strong)]">{n(agg.succeeded)}</b>
+                      최근 7일 성공 <b className="font-semibold text-[var(--pl-text-strong)]">{n(agg.succeeded)}</b>
                     </span>
                   </p>
                 </div>

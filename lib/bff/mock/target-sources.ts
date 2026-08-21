@@ -140,6 +140,9 @@ const getBffMetadata = (project: Project) => {
       : {}),
     ...(project.gcpProjectId
       ? {
+          // 프로젝트 id 는 AWS 의 계정 id 와 같은 자리의 사실이다. 이걸 싣지 않으면 화면이
+          // 그것을 SA 주소에서 되짚어야 하고, 주소를 줄일 근거도 사라진다.
+          gcp_project_id: project.gcpProjectId,
           gcp_scan_service_account: `pii-agent-scan@${project.gcpProjectId}.iam.gserviceaccount.com`,
           gcp_terraform_service_account: `pii-agent-terraform@${project.gcpProjectId}.iam.gserviceaccount.com`,
         }

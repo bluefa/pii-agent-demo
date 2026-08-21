@@ -34,12 +34,12 @@ const sentence = (data: DagStatusResponse, agg: DagAggregates): Verdict => {
     case 'healthy':
       return {
         headline: '모니터링 HEALTHY',
-        detail: `논리 DB ${n(agg.dbTotal)}개 중 ${n(agg.succeeded)}개가 이번 주 성공했어요`,
+        detail: `논리 DB ${n(agg.dbTotal)}개 중 ${n(agg.succeeded)}개가 최근 7일 안에 성공했어요`,
       };
     case 'unhealthy':
       return {
         headline: '모니터링 UNHEALTHY',
-        detail: `논리 DB ${n(agg.noSuccess)}개가 이번 주 성공 기록이 없어요`,
+        detail: `논리 DB ${n(agg.noSuccess)}개가 최근 7일 성공 기록이 없어요`,
       };
     case 'unknown':
       // Wire vocabulary stays out of the copy — the raw value is in the tooltip.
@@ -114,14 +114,14 @@ export function HealthSummaryBand({
           논리 DB <b className="font-semibold text-[var(--pl-text-strong)]">{n(agg.dbTotal)}</b>
         </span>
         <span>
-          이번 주 성공 <b className="font-semibold text-[var(--pl-text-strong)]">{n(agg.succeeded)}</b>
+          최근 7일 성공 <b className="font-semibold text-[var(--pl-text-strong)]">{n(agg.succeeded)}</b>
         </span>
         {onShowFailed && agg.failed > 0 ? (
           // 밑줄이 affordance 를 지고 색은 상태(err)에 남는다 (countLink 규칙).
           <button
             type="button"
             onClick={onShowFailed}
-            aria-label={`실패 ${n(agg.failed)}건을 주간 보드에서 보기`}
+            aria-label={`실패 ${n(agg.failed)}건을 최근 7일 현황에서 보기`}
             className="cursor-pointer text-[var(--pl-err-text)]"
           >
             실패 <b className="border-b border-current font-semibold">{n(agg.failed)}</b>

@@ -421,7 +421,16 @@ GET /install/v1/pipeline-manager/airflow-host?databaseUri={databaseUri}
 ```
 
 - `databaseUri` carries `://` and `/`, so it MUST be URL-encoded into the query.
-- The body is a single JSON string, not an object — no case boundary applies to it.
+- The body is a single string, not an object — no case boundary applies to it. **It arrives
+  in either of two shapes** and the adapter accepts both (`parseAirflowHostBody`,
+  `lib/bff/http.ts`): `"https://…"` (JSON string) or `https://…` (text/plain — what
+  Spring's `StringHttpMessageConverter` produces for a `String` return value). Reading the
+  body with `res.json()` throws on the second shape, and the screen then shows
+  "DAG 주소 확인 불가" — a parse failure wearing the mask of a missing address. The request
+  sends `Accept: */*` for the same reason: a text/plain endpoint must not 406 on us.
+- The address is rendered as an `<a href>`, so the adapter passes only `http(s)://` values
+  through; anything else (an HTML error page served with 200, a `javascript:` scheme) folds
+  to the same empty landing as "no address".
 - The address is not always obtainable. The screen folds every such case into
   "DAG 주소 확인 불가"; only a fetch failure additionally offers 다시 시도, because
   retrying an answer the upstream already gave changes nothing.

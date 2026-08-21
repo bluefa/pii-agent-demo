@@ -1419,6 +1419,40 @@ const lgsResources: MockResource[] = (
   }),
 );
 
+/**
+ * 쿠폰서비스(1642)의 AWS 계정. 리소스 id 와 `extra.awsAccountId` 가 같은 계정을 말해야
+ * Athena·클러스터 id 가 화면에서 서로 다른 계정처럼 읽히지 않는다.
+ */
+export const CPN_ACCOUNT = '481920374655';
+export const CPN_CLUSTER_ARN = `arn:aws:rds:ap-northeast-2:${CPN_ACCOUNT}:cluster:cpn-aurora-order`;
+const CPN_CLUSTER_INSTANCE_ARN = `arn:aws:rds:ap-northeast-2:${CPN_ACCOUNT}:db:cpn-aurora-order`;
+
+/** Athena 리전 단위 id — 확정 정보의 DB 단위 행들이 접혀 붙는 그 키. */
+export const cpnAthenaRegionId = (region: string): string =>
+  `athena:${CPN_ACCOUNT}:${region}/AwsDataCatalog`;
+
+/**
+ * Athena 확정 정보 행 — 계약은 DB 단위로 답하고(`…:AwsDataCatalog/<db>`), 4단계 이후의
+ * 결과(연결 테스트·설치 상태·DAG)는 리전 단위로 답한다. ap-northeast-2 에 DB 를 둘 둔 것은
+ * 의도적이다: 그 둘이 한 단위로 접히는지는 리전에 DB 가 하나뿐이면 화면에서 확인되지 않는다.
+ */
+const cpnAthenaResource = (id: string, region: string, database: string): MockResource => ({
+  id,
+  type: 'AWS_ATHENA_DATABASE',
+  awsType: 'ATHENA',
+  resourceId: `athena:${CPN_ACCOUNT}:${region}:AwsDataCatalog/${database}`,
+  resourceName: database,
+  databaseType: 'ATHENA',
+  athenaRegionResourceId: cpnAthenaRegionId(region),
+  connectionStatus: 'CONNECTED',
+  isSelected: true,
+  region,
+  integrationCategory: 'TARGET',
+  // Athena 는 접속 주소가 없다 — 캡처도 host·port 를 비워 보낸다.
+  host: null,
+  port: null,
+});
+
 mockProjects.push(
   makeTcQueueProject({
     targetSourceId: 1799,
@@ -1444,10 +1478,34 @@ mockProjects.push(
     cloudProvider: 'AWS',
     processStatus: ProcessStatus.CONNECTION_VERIFIED,
     updatedAt: '2026-07-20T06:23:00Z',
-    extra: { awsAccountId: '481920374655', awsRegionType: 'global' },
+    extra: { awsAccountId: CPN_ACCOUNT, awsRegionType: 'global' },
     resources: [
       { id: 'cpn-res-1', type: 'RDS', resourceId: 'rds-cpn-main', databaseType: 'MYSQL', selectedCredentialId: 'hgildong-mysql-prod', connectionStatus: 'CONNECTED', isSelected: true, awsType: 'RDS', region: 'ap-northeast-2', vpcId: 'vpc-cpn-001', integrationCategory: 'TARGET' },
       { id: 'cpn-res-2', type: 'DYNAMODB', resourceId: 'ddb-cpn-issue', databaseType: 'DYNAMODB', selectedCredentialId: 'kimcs-redshift-dw', connectionStatus: 'CONNECTED', isSelected: true, awsType: 'DYNAMODB', region: 'ap-northeast-2', integrationCategory: 'TARGET' },
+      // RDS 클러스터 — id 가 ARN 이라 이름줄과 mono 줄이 서로 다른 말을 하는 유일한 AWS 행이다.
+      {
+        id: 'cpn-res-3',
+        type: 'AWS_DB_CLUSTER',
+        awsType: 'RDS_CLUSTER',
+        resourceId: CPN_CLUSTER_ARN,
+        resourceName: 'cpn-aurora-order',
+        databaseType: 'MYSQL',
+        selectedCredentialId: 'hgildong-mysql-prod',
+        connectionStatus: 'CONNECTED',
+        isSelected: true,
+        region: 'ap-northeast-2',
+        integrationCategory: 'TARGET',
+        host: null,
+        port: null,
+        rdsInstanceCandidates: [
+          { resource_id: `${CPN_CLUSTER_INSTANCE_ARN}-1`, resource_name: 'cpn-aurora-order-1', host: 'cpn-aurora-order-1.cluster-cpnabc.ap-northeast-2.rds.amazonaws.com', port: 3306, availability_zone: 'ap-northeast-2a', cluster_member_role: 'WRITER' },
+          { resource_id: `${CPN_CLUSTER_INSTANCE_ARN}-2`, resource_name: 'cpn-aurora-order-2', host: 'cpn-aurora-order-2.cluster-ro-cpnabc.ap-northeast-2.rds.amazonaws.com', port: 3306, availability_zone: 'ap-northeast-2c', cluster_member_role: 'READER' },
+        ],
+        selectedRdsInstanceResourceId: `${CPN_CLUSTER_INSTANCE_ARN}-2`,
+      },
+      cpnAthenaResource('cpn-res-4', 'ap-northeast-2', 'cpn_events'),
+      cpnAthenaResource('cpn-res-5', 'ap-northeast-2', 'cpn_logs'),
+      cpnAthenaResource('cpn-res-6', 'us-east-1', 'cpn_archive'),
     ],
   }),
   makeTcQueueProject({

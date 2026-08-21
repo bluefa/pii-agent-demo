@@ -16,6 +16,7 @@ import { cn, pipelineStyles } from '@/lib/theme';
 import { passRoutes } from '@/lib/routes';
 import { normalizeCloudProvider } from '@/lib/types';
 import { awsRoleArnDisplay } from '@/lib/constants/aws-role';
+import { gcpServiceAccountDisplay } from '@/lib/constants/gcp-service-account';
 import { ProviderGlyph } from '@/app/components/ui/CloudProviderIcon';
 import { Icon } from '@/app/admin/pipelines/_components/icons';
 import type { RawTargetSourceDetail } from '@/app/lib/api/pipeline-target';
@@ -113,12 +114,22 @@ export function OpsHeader({
     );
   };
 
-  /** Read-only 주체 행 (GCP SA·Azure App) — 등록/수정 계약이 없어 표시만 한다. */
-  const infoRow = (label: string, value: string | null | undefined): ReactElement => (
+  /**
+   * Read-only 주체 행 (GCP 프로젝트·SA·Azure App) — 등록/수정 계약이 없어 표시만 한다.
+   * `full` 은 줄인 값을 그릴 때의 원본 — 툴팁은 언제나 자르지 않은 값을 쥔다.
+   */
+  const infoRow = (
+    label: string,
+    value: string | null | undefined,
+    full?: string | null,
+  ): ReactElement => (
     <div className={opsStyles.metaRow}>
       <span className={opsStyles.metaKey}>{label}</span>
       {value ? (
-        <span className={cn(opsStyles.metaValue, opsStyles.railMono, 'break-all')} title={value}>
+        <span
+          className={cn(opsStyles.metaValue, opsStyles.railMono, 'break-all')}
+          title={full ?? value}
+        >
           {value}
         </span>
       ) : (
@@ -126,6 +137,16 @@ export function OpsHeader({
       )}
     </div>
   );
+
+  // GCP 는 계정 자리에 프로젝트가 온다. SA 주소는 그 프로젝트 아래일 때만 이름으로 줄고,
+  // 다른 프로젝트에서 빌려 온 계정은 주소를 통째로 남긴다 (AWS role ARN 과 같은 규칙).
+  const gcpProjectId = meta.gcp_project_id ?? '';
+  const gcpSaRow = (label: string, serviceAccount: string | null | undefined): ReactElement =>
+    infoRow(
+      label,
+      serviceAccount ? gcpServiceAccountDisplay(serviceAccount, gcpProjectId) : serviceAccount,
+      serviceAccount,
+    );
 
   return (
     <>
@@ -213,11 +234,18 @@ export function OpsHeader({
         {isAws && roleRow('scan')}
         {isAws && grantTfExecution && roleRow('execution')}
         {/* GCP·Azure scan/terraform 주체 — AWS role 행과 같은 문법의 read-only 행.
-            수정은 AWS 만 계약이 있다 (scan-role/terraform-execution-role upsert). */}
+            수정은 AWS 만 계약이 있다 (scan-role/terraform-execution-role upsert).
+
+            프로젝트 행이 먼저 선다: AWS 가 계정을 말하고 role 이름을 그 아래 두는 것과
+            같은 순서다. 이 행이 없던 동안 GCP 헤더는 주체를 두 번 말하면서 정작 어느
+            프로젝트인지는 SA 주소 안에만 숨겨 두고 있었다 (오너 08-20). 그리고 프로젝트가
+            서고 나서야 주소를 접을 수 있다 — 접미사를 지우려면 무엇과 비교했는지가
+            화면에 있어야 한다. */}
         {detail.cloud_provider === 'GCP' && (
           <>
-            {infoRow('Scan SA', meta.gcp_scan_service_account)}
-            {infoRow('TF SA', meta.gcp_terraform_service_account)}
+            {infoRow('프로젝트', gcpProjectId)}
+            {gcpSaRow('Scan SA', meta.gcp_scan_service_account)}
+            {gcpSaRow('TF SA', meta.gcp_terraform_service_account)}
           </>
         )}
         {detail.cloud_provider === 'AZURE' && infoRow('Scan App', meta.azure_scan_app_id)}

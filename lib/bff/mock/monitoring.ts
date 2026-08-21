@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { CPN_CLUSTER_ARN, cpnAthenaRegionId } from '@/lib/mock-data';
 import type { DagAgentStatus, DagDatabaseStatus, DagDayStatus, DagStatusResponse } from '@/lib/types/dag-status';
 
 /**
@@ -10,6 +11,7 @@ import type { DagAgentStatus, DagDatabaseStatus, DagDayStatus, DagStatusResponse
  * Profiles are pinned to the SEED_TC targets that actually reach the approval
  * tab (lib/bff/mock/task-queue.ts):
  *   1642 AWS   — HEALTHY, approve enabled            (truth row 5)
+ *                RDS 인스턴스 · RDS 클러스터 · Athena 리전 2개를 한 대상에 모아 둔다
  *   1511 GCP   — UNHEALTHY, 5 DBs without a success  (truth row 6)
  *   1801 AZURE — UNHEALTHY at scale: 1,560 DBs       (truth row 6 + 1,500-row demo)
  *   1799 AZURE — HEALTHY, single agent
@@ -157,29 +159,47 @@ const buildScaleAgents = (days: string[]): DagAgentStatus[] =>
 const buildResponse = (targetSourceId: number): DagStatusResponse => {
   const days = kstDays();
   switch (targetSourceId) {
-    case 1642: // 쿠폰서비스 AWS — everything green: the approve CTA mounts.
+    // 쿠폰서비스 AWS — everything green: the approve CTA mounts. AWS 형태를 한 대상에
+    // 다 모아 둔 픽스처이기도 하다: RDS 단일 인스턴스 · RDS 클러스터 · Athena 리전 2개.
+    //
+    // resourceId 는 확정 정보가 부르는 이름과 글자 단위로 같아야 한다 — 표의 Region·DB 열은
+    // 그 값으로 조인해서 채워지고, 어긋나면 열이 통째로 대시가 된다(그러고도 화면은 멀쩡해
+    // 보인다). 그래서 세 id 를 mock-data 에서 그대로 가져온다.
+    case 1642:
       return {
         targetSourceId,
         connectionStatus: 'SUCCESS',
         healthStatus: 'HEALTHY',
         timezone: 'KST',
         agents: [
-          agent(1642, 0, 'arn:aws:rds:ap-northeast-2:111122223333:db:cpn-db-1', null, 'SUCCESS', [
-            spec('mysql://cpn-db-1.cluster-abc.ap-northeast-2.rds.amazonaws.com:3306/coupon', 'coupon', 'success', 1),
-            spec('mysql://cpn-db-1.cluster-abc.ap-northeast-2.rds.amazonaws.com:3306/coupon_history', 'coupon_history', 'runningToday', 2),
-            spec('mysql://cpn-db-1.cluster-abc.ap-northeast-2.rds.amazonaws.com:3306/promotion', 'promotion', 'success', 3),
-            spec('mysql://cpn-db-1.cluster-abc.ap-northeast-2.rds.amazonaws.com:3306/segment', 'segment', 'success', 4),
-            spec('mysql://cpn-db-1.cluster-abc.ap-northeast-2.rds.amazonaws.com:3306/issuance', 'issuance', 'success', 5),
-            spec('mysql://cpn-db-1.cluster-abc.ap-northeast-2.rds.amazonaws.com:3306/budget', 'budget', 'success', 6),
+          agent(1642, 0, 'rds-cpn-main', null, 'SUCCESS', [
+            spec('mysql://rds-cpn-main.ap-northeast-2.rds.amazonaws.com:3306/coupon', 'coupon', 'success', 1),
+            spec('mysql://rds-cpn-main.ap-northeast-2.rds.amazonaws.com:3306/coupon_history', 'coupon_history', 'runningToday', 2),
+            spec('mysql://rds-cpn-main.ap-northeast-2.rds.amazonaws.com:3306/promotion', 'promotion', 'success', 3),
+            spec('mysql://rds-cpn-main.ap-northeast-2.rds.amazonaws.com:3306/segment', 'segment', 'success', 4),
+            spec('mysql://rds-cpn-main.ap-northeast-2.rds.amazonaws.com:3306/issuance', 'issuance', 'success', 5),
+            spec('mysql://rds-cpn-main.ap-northeast-2.rds.amazonaws.com:3306/budget', 'budget', 'success', 6),
           ]),
-          agent(1642, 1, 'arn:aws:rds:ap-northeast-2:111122223333:db:cpn-db-2', null, 'SUCCESS', [
-            spec('mysql://cpn-db-2.cluster-abc.ap-northeast-2.rds.amazonaws.com:3306/settlement', 'settlement', 'success', 7),
-            spec('mysql://cpn-db-2.cluster-abc.ap-northeast-2.rds.amazonaws.com:3306/partner', 'partner', 'success', 8),
-            spec('mysql://cpn-db-2.cluster-abc.ap-northeast-2.rds.amazonaws.com:3306/ledger', 'ledger', 'runningToday', 9),
-            spec('mysql://cpn-db-2.cluster-abc.ap-northeast-2.rds.amazonaws.com:3306/audit', 'audit', 'success', 10),
-            spec('mysql://cpn-db-2.cluster-abc.ap-northeast-2.rds.amazonaws.com:3306/notify', 'notify', 'success', 11),
-            spec('mysql://cpn-db-2.cluster-abc.ap-northeast-2.rds.amazonaws.com:3306/stats', 'stats', 'success', 12),
+          agent(1642, 1, CPN_CLUSTER_ARN, null, 'SUCCESS', [
+            spec('mysql://cpn-aurora-order.cluster-cpnabc.ap-northeast-2.rds.amazonaws.com:3306/settlement', 'settlement', 'success', 7),
+            spec('mysql://cpn-aurora-order.cluster-cpnabc.ap-northeast-2.rds.amazonaws.com:3306/partner', 'partner', 'success', 8),
+            spec('mysql://cpn-aurora-order.cluster-cpnabc.ap-northeast-2.rds.amazonaws.com:3306/ledger', 'ledger', 'runningToday', 9),
+            spec('mysql://cpn-aurora-order.cluster-cpnabc.ap-northeast-2.rds.amazonaws.com:3306/audit', 'audit', 'success', 10),
+            spec('mysql://cpn-aurora-order.cluster-cpnabc.ap-northeast-2.rds.amazonaws.com:3306/notify', 'notify', 'success', 11),
+            spec('mysql://cpn-aurora-order.cluster-cpnabc.ap-northeast-2.rds.amazonaws.com:3306/stats', 'stats', 'success', 12),
           ]),
+          // Athena 는 리전 하나가 한 에이전트다. 확정 정보에 ap-northeast-2 DB 가 둘 있어도
+          // 여기 오는 논리 DB 는 하나 — 카탈로그 단위로 한 번 도는 DAG 다.
+          agent(1642, 2, cpnAthenaRegionId('ap-northeast-2'), null, 'SUCCESS', [
+            spec('athena://ap-northeast-2/AwsDataCatalog', 'AwsDataCatalog', 'success', 13),
+          ]),
+          agent(1642, 3, cpnAthenaRegionId('us-east-1'), null, 'SUCCESS', [
+            spec('athena://us-east-1/AwsDataCatalog', 'AwsDataCatalog', 'runningToday', 14),
+          ]),
+          // 논리 DB 가 하나도 없는 에이전트 — 설치는 됐는데 아직 걸린 DAG 가 없는 리소스다.
+          // 0 은 조회 실패와 다른 사실이고 화면도 갈린다("DAG 없음" + 진입 링크 없음),
+          // 그러니 목이 그 사실을 만들 수 있어야 한다.
+          agent(1642, 4, 'ddb-cpn-issue', null, 'SUCCESS', []),
         ],
       };
     case 1511: // 리뷰서비스 GCP — 5 DBs without a success this week: approve locked.
