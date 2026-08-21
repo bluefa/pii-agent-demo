@@ -316,7 +316,7 @@ export const ServiceSidebar = ({
               has to decide whether the content column is already saying this. */}
           <div
             className={cn(
-              'flex flex-col items-start gap-1 border-t px-3 py-3',
+              'flex flex-col items-center gap-1 border-t px-3 py-3 text-center',
               serviceSidebarStyles.divider,
             )}
           >

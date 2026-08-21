@@ -59,6 +59,41 @@ export const readIsEosService = (item: unknown): boolean | undefined => {
 };
 
 /**
+ * The content pane while the first services page is still in flight.
+ *
+ * Not 서비스를 선택하세요 held up as a placeholder: that sentence is a settled
+ * answer, and rendering it before the response arrives makes the pane say the
+ * wrong thing and then swap — 서비스를 선택하세요 → 아직 접근 권한이 있는 …, which
+ * is the flicker this replaces. The rail beside it was already showing a skeleton
+ * for exactly the same wait; now both halves of the screen are one loading frame.
+ *
+ * It draws only what BOTH settled states have — a 48px mark and one line of type
+ * under it, at the mark's own `w-12 h-12 mx-auto mb-4`. The reason lines and the
+ * link are NOT drawn: they exist in one outcome and not the other, and a skeleton
+ * that promises them is a prediction, not a placeholder.
+ * The bar is 20px, the smaller of the two headings (20/28 here, 24/32 there).
+ *
+ * Both frames are centred, so the mark travels on settle — measured 56px up into
+ * the no-access block (84px of skeleton → 196px of content) and 6px into
+ * 서비스를 선택하세요 (96px). Reserving the taller height instead would zero one of
+ * those two and double the other; a skeleton that grows into its content, centred
+ * both times, promises neither outcome.
+ */
+const PaneLoadingFrame = () => (
+  <div className="h-full flex items-center justify-center" aria-busy="true" aria-hidden="true">
+    <div className="px-6">
+      <div
+        className={cn(
+          'w-12 h-12 mx-auto mb-4 rounded-[10px]',
+          serviceSidebarStyles.canvasSkeletonBar,
+        )}
+      />
+      <div className={cn('h-5 w-64 rounded', serviceSidebarStyles.canvasSkeletonBar)} />
+    </div>
+  </div>
+);
+
+/**
  * The content pane when the account has access to no service at all.
  *
  * It stands where 서비스를 선택하세요 stands, because that sentence is an instruction
@@ -422,7 +457,11 @@ export const ServiceManagementView = () => {
             serviceSidebarStyles.canvas,
           )}
         >
-          {!selectedService && noAccess ? (
+          {!selectedService && !servicesLoaded ? (
+            // 도착하기 전에는 어느 쪽도 말하지 않는다. 이 게이트가 레일 스켈레톤과
+            // 같은 플래그를 쓰므로 화면 양쪽이 같은 순간에 갈린다.
+            <PaneLoadingFrame />
+          ) : !selectedService && noAccess ? (
             <NoServiceAccessState />
           ) : !selectedService ? (
             <div className="h-full flex items-center justify-center">

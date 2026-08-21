@@ -368,6 +368,8 @@ const SURFACES: SurfacePair[] = [
   { what: 'kind tag fill on the card hover tint', top: kindTagFill, under: hoverBgOf(classOf(liftBlock, 'card')) },
   // The rail's skeleton is reused on the admin ground — a second surface it must clear.
   { what: 'skeleton bar on admin ground', top: bgOf(classOf(railBlock, 'skeletonBar')), under: plGround },
+  // /services 콘텐츠 열의 로딩 프레임. 레일 바가 아니라 캔버스용 바를 쓰는 이유가 이 줄이다.
+  { what: 'content-column skeleton bar on the page wash', top: bgOf(classOf(railBlock, 'canvasSkeletonBar')), under: canvas },
   // The list has no card any more, so the page ground under it IS white — the tiles and
   // the step strip separate from that ground on their stroke and their fill alone.
   { what: 'dashboard bucket tile stroke on the white screen', top: borderOf(classOf(pipelineBlock, 'bucketTileIdle')), under: '#FFFFFF' },
