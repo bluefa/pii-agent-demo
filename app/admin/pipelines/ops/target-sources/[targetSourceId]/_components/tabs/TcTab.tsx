@@ -3,9 +3,9 @@
 /**
  * Test Connection 탭 — the scan tab's hierarchy applied to connection testing.
  *
- * Reading order (top to bottom): 이 대상이 쓰는 자격 증명 / 최근 실행이 통과했는가
- * → 리소스별 상세 → 회차 이력. The pair on top shares one row so "credential 이
- * 배정돼 있는가" and "그래서 붙었는가" are read side by side.
+ * Reading order (top to bottom): 최근 실행이 통과했는가 → 리소스별 상세. 지난 회차와
+ * 결정은 밴드의 링크가 여는 모달이다 — 지면의 마지막 절이 "과거"가 되면 이 탭에 온
+ * 이유(지금 무엇이 실패했나)가 화면에서 가장 멀어진다.
  *
  * 관리자 처리 is NOT here — it is a process branch (Step 6 → 7 / → 5), so it lives
  * on the tab rail (TcDecisionActions) where it is visible from every tab instead
@@ -15,11 +15,11 @@
  * every card is a pure view. TC status/results/latest come from the page, which
  * needs the same three for the 관리자 승인 tab.
  *
- * 두 개의 실행 엔드포인트를 각자 선언한 것만 쓴다 —
- *   latest_version      최신 실행(회차·상태·시각) + 리소스별 판정. 404 = 실행 없음.
- *   execution-history   회차 목록(표). 여기서 "최신"을 유추하지 않는다.
- * 폴링도 latest_version 의 connection_status 로 판단한다: 그것이 계약이 말하는
- * "진행 중"이고, 실행 기록 표의 첫 행을 최신으로 추정하는 것보다 정확하다.
+ * 이 파일이 읽는 실행 엔드포인트는 latest_version 하나다 — 최신 실행(회차·상태·시각)과
+ * 리소스별 판정, 404 = 실행 없음. 회차 목록(execution-history)은 열릴 때 스스로 조회하는
+ * TcRunHistoryModal 의 몫이라 여기서 "최신"을 유추하지 않는다. 폴링도 latest_version 의
+ * connection_status 로 판단한다: 그것이 계약이 말하는 "진행 중"이고, 실행 기록 표의 첫
+ * 행을 최신으로 추정하는 것보다 정확하다.
  *
  * `reloadKey` refreshes the confirmed snapshot + credential list after a write in
  * the tab (논리 DB 정책 / Credential 배정). The 승인·반려 이력 modal mounts per open,
@@ -48,6 +48,7 @@ import {
   orderByRequest,
   tcFactsByResource,
   tcResultStats,
+  toConfirmedUnits,
 } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/logic';
 
 /** Same cadence as the user-side Step 5 poll (useTestConnectionPolling). */
@@ -139,6 +140,11 @@ export function TcTab({
   // blanking every card until the refetch lands.
   const settled = loadedKey !== null;
   const orderedRows = orderByRequest(confirmedRows, requestOrder);
+  // The progress denominator counts what the test reports on, not what the table lists:
+  // one Athena region is one result no matter how many databases it holds. Counting rows
+  // here would print 진행 5/7 on a run that only ever produces five results — the same
+  // miscount the user-side Step 5 card documents (ConnectionTestCard's TestUnit).
+  const unitCount = toConfirmedUnits(orderedRows).length;
 
   const running = isRunOpen(latest);
 
@@ -194,7 +200,7 @@ export function TcTab({
         latest={latest}
         status={statusLoaded ? status : null}
         stats={tcResultStats(results, latest)}
-        confirmedResourceCount={orderedRows.length}
+        confirmedResourceCount={unitCount}
         loading={!statusLoaded}
         failed={latestFailed}
         running={running}

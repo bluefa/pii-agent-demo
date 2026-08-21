@@ -53,8 +53,8 @@ const SEVERITY_TONE: Readonly<Record<string, string>> = {
   CRITICAL: j.logAnsi.red,
   ERROR: j.logAnsi.red,
   WARNING: j.logAnsi.yellow,
-  NOTICE: 'text-[var(--pl-chrome-item)]',
-  INFO: 'text-[var(--pl-chrome-item)]',
+  NOTICE: 'text-[var(--pl-chrome-item)]', // design-exempt: line on the dark log panel
+  INFO: 'text-[var(--pl-chrome-item)]', // design-exempt: line on the dark log panel
   DEBUG: j.logAnsi.gray,
   DEFAULT: j.logAnsi.gray,
 };

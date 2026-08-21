@@ -49,7 +49,6 @@ export function resourceIdTail(value: string): string {
   return segments.length > 1 ? segments[segments.length - 1] : value;
 }
 
-
 /** Mono resource id cell — abbreviated, full value in the native tooltip. */
 export function ResourceId({ value }: { value: string }): ReactElement {
   if (!value) return <Dash />;

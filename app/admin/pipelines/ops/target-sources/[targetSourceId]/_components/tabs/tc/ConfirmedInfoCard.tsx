@@ -60,6 +60,7 @@ import {
   credentialEntries,
   filterConfirmedRows,
   ldbCount,
+  podLogState,
   toConfirmedUnits,
   type TcResourceFact,
   type TcVerdict,
@@ -201,16 +202,17 @@ function PodIdLine({ podId }: { podId: string }): ReactElement {
 /**
  * Pod 로그 cell — pod_id 와, 그 pod 의 로그를 여는 입구.
  *
- * pod 가 없을 때 하는 말이 두 가지인 이유: 실행이 아직 열려 있으면(대기·진행 중) pod 는
- * **아직** 안 생긴 것이고, 실행이 끝났는데 없으면(POD_CREATION_FAILED) **영영** 안 생긴
- * 것이다. 한 문장으로 합치면 이미 끝난 실패에게 기다리라고 말하게 된다.
- *
- * 보고 자체가 없는 행은 그대로 — 다. pod 가 없다는 사실과 아무 보고도 없다는 사실은
- * 다르고, 그 둘을 같은 픽셀로 그리면 무보고가 사라진다.
+ * 다섯 마디 중 어느 것을 할지는 `podLogState` 가 정한다(그 규칙과 근거는 거기에 적혀 있고,
+ * 여기서는 문장과 픽셀만 고른다). 요지는 "pod 가 없다"는 계약이 POD_CREATION_FAILED 라고
+ * 말해 줄 때만 하는 말이고, 나머지 빈칸은 "없음"이 아니라 "모름"이라는 것.
  *
  * 로그는 실행이 끝나는 시점에 캡처되므로 진행 중에는 열 것이 없다("수집 중 …").
  * 링크는 countLink 규칙 — 밑줄이 affordance 를 지고 색은 중립이다.
  */
+const PodNote = ({ children }: { children: string }): ReactElement => (
+  <span className="whitespace-nowrap text-[14px] text-[var(--pl-text-weak)]">{children}</span>
+);
+
 function PodLogCell({
   fact,
   onOpen,
@@ -218,31 +220,26 @@ function PodLogCell({
   fact: TcResourceFact | undefined;
   onOpen: () => void;
 }): ReactElement {
-  if (!fact) return <Dash />;
-  if (!fact.podId) {
-    const open = fact.verdict === 'PENDING' || fact.verdict === 'RUNNING';
-    return (
-      <span className="whitespace-nowrap text-[14px] text-[var(--pl-text-weak)]">
-        {open ? 'Pod 생성 전' : 'Pod 없음'}
-      </span>
-    );
-  }
-  const settled = fact.verdict === 'SUCCESS' || fact.verdict === 'FAIL';
+  const state = podLogState(fact);
+  if (state === 'UNREPORTED') return <Dash />;
+  if (state === 'BEFORE_POD') return <PodNote>Pod 생성 전</PodNote>;
+  if (state === 'NO_POD') return <PodNote>Pod 없음</PodNote>;
+  const podId = fact?.podId ?? '';
   return (
     <span className="flex max-w-[180px] flex-col items-start gap-1">
-      {settled ? (
+      {state === 'LOG' ? (
         <button
           type="button"
           onClick={onOpen}
-          aria-label={`Pod 로그 조회 — ${fact.podId}`}
+          aria-label={`Pod 로그 조회 — ${podId}`}
           className={cn(opsStyles.countLink, 'whitespace-nowrap')}
         >
           로그 조회
         </button>
       ) : (
-        <span className="whitespace-nowrap text-[14px] text-[var(--pl-text-weak)]">수집 중 …</span>
+        <PodNote>수집 중 …</PodNote>
       )}
-      <PodIdLine podId={fact.podId} />
+      <PodIdLine podId={podId} />
     </span>
   );
 }
@@ -250,8 +247,9 @@ function PodLogCell({
 /**
  * 연동 논리 DB cell — 대상 건수 위, 제외 건수 아래. 두 열이던 것을 한 칸으로 합쳤다.
  *
- * 두 값은 같은 응답의 같은 게이트에서 온다(최신 실행이 SUCCESS 일 때만). 그래서 한쪽만
- * 채워지는 행이 없고, 나란한 두 열은 같은 사실을 두 번 넓게 벌려 놓은 것이었다.
+ * 두 값은 같은 응답의 같은 게이트에서 온다(최신 실행이 SUCCESS 일 때만). 그래서 나란한 두
+ * 열은 같은 사실을 두 번 넓게 벌려 놓은 것이었다. 다만 게이트가 같다고 두 필드가 늘 함께
+ * 오는 것은 아니다 — 계약에서 둘 다 optional 이라 한쪽만 실린 행을 한 칸이 삼키면 안 된다.
  *
  * Contract-declared count — absent (no TC row / not a success) renders —, never 0.
  * 건수 링크 하나가 관리 모달을 연다(모달이 대상·제외 탭을 스스로 든다). 링크는 Step 6/7
@@ -269,10 +267,10 @@ function LdbCell({
 }): ReactElement {
   const included = ldbCount(row, 'inc', verdict);
   const excluded = ldbCount(row, 'exc', verdict);
-  if (included == null) return <Dash />;
+  if (included == null && excluded == null) return <Dash />;
   return (
     <span className="flex flex-col items-start">
-      {included === 0 ? (
+      {included == null ? null : included === 0 ? (
         <span className={opsStyles.countZero}>0개</span>
       ) : (
         <button
@@ -603,7 +601,7 @@ export function ConfirmedInfoCard({
                     </td>
                   </tr>
                 )}
-                {pageUnits.map((unit, index) => {
+                {pageUnits.map((unit) => {
                   // 판정·논리 DB 는 단위 id 로 조회한다 — Athena 는 그 id 가 리전이고,
                   // 데이터베이스 자기 id 로는 어느 결과에도 닿지 못한다(toConfirmedUnits).
                   const [row] = unit.members;
@@ -612,11 +610,17 @@ export function ConfirmedInfoCard({
                   const verdict = fact?.verdict;
                   const open = expanded.includes(unit.unitId);
                   // 건수가 온 키로 관리 화면도 연다 — 리전 단위 건수를 눌러 그 리전의
-                  // 데이터베이스 한 건을 여는 일이 없도록.
+                  // 데이터베이스 한 건을 여는 일이 없도록. 이름표도 같이 리전으로 바꾼다:
+                  // 리전 전체의 정책을 바꾸는 모달이 첫 데이터베이스의 이름을 달면, 화면이
+                  // 말하는 범위와 저장이 바꾸는 범위가 어긋난다.
                   const openLdb = (): void =>
-                    setLdbRow(unit.folded ? { ...row, resource_id: unit.unitId } : row);
+                    setLdbRow(
+                      unit.folded
+                        ? { ...row, resource_id: unit.unitId, resource_name: unit.unitId }
+                        : row,
+                    );
                   return (
-                    <Fragment key={`${unit.unitId}-${index}`}>
+                    <Fragment key={unit.unitId}>
                     <tr className={table.rowHover}>
                       <td className={CELL}>
                         {isIdc ? (
@@ -682,7 +686,11 @@ export function ConfirmedInfoCard({
                           fact={fact}
                           onOpen={() =>
                             fact?.podId
-                            && setPodTarget({ podId: fact.podId, resourceLabel: rowLabel(row) })
+                            && setPodTarget({
+                              podId: fact.podId,
+                              // 접힌 행의 pod 는 리전의 pod 다 — 뷰어 부제도 리전을 말해야 한다.
+                              resourceLabel: unit.folded ? unit.unitId : rowLabel(row),
+                            })
                           }
                         />
                       </td>
@@ -780,11 +788,11 @@ export function ConfirmedInfoCard({
             <OpsPagination page={safePage} totalPages={totalPages} onChange={setPage} />
           </div>
           <p className={cn(pipelineStyles.text.meta, 'mt-3.5')}>
-            연결 상태·실패 사유·Pod 로그는 최근 연결 테스트가 리소스별로 보고한 사실이고, 논리 DB
-            건수는 그중 성공한 리소스에만 표기합니다. 보고가 없는 리소스는 —(값 없음)으로 두며,
-            임의로 성공 처리하지 않습니다. Pod 로그는 실행 완료 시점의 캡처본이고, 테스트 Pod 생성
-            실패(POD_CREATION_FAILED)는 pod 가 뜨지 못해 로그가 없습니다. 논리 DB 건수를 누르면
-            대상·제외 정책을 관리할 수 있습니다.
+            연결 상태(실패 사유 포함)·Pod 로그는 최근 연결 테스트가 리소스별로 보고한 사실이고,
+            논리 DB 건수는 그중 성공한 리소스에만 표기합니다. 보고가 없는 리소스는 —(값 없음)으로
+            두며, 임의로 성공 처리하지 않습니다. Pod 로그는 실행 완료 시점의 캡처본이고, 테스트 Pod
+            생성 실패(POD_CREATION_FAILED)는 pod 가 뜨지 못해 로그가 없습니다. 논리 DB 건수를
+            누르면 대상·제외 정책을 관리할 수 있습니다.
           </p>
         </>
       )}

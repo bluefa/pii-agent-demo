@@ -65,6 +65,12 @@ export const TC_FAIL_REASONS: Readonly<Record<string, TcFailReasonInfo>> = {
   },
 };
 
+/**
+ * 유일하게 pod 가 없는 실패 — pod_id 부재를 "pod 가 안 떴다"로 읽어도 되는 단 하나의 사유다.
+ * 표의 Pod 로그 칸이 이 값과 대조해서 "Pod 없음"과 "모름"을 가른다(PodLogCell).
+ */
+export const POD_CREATION_FAILED = 'POD_CREATION_FAILED';
+
 /** 접기 결과 — 목록 밖의 값은 label/desc 없이 원문만 남는다(중립 렌더). */
 export interface TcFailReasonView {
   raw: string;

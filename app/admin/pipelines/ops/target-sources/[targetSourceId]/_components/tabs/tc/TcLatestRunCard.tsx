@@ -63,7 +63,7 @@ export interface TcLatestRunCardProps {
   status: TestConnectionStatusRow | null;
   /** Per-resource verdict counts (리소스 단위 접기 결과). */
   stats: TcResultStats;
-  /** 확정 리소스 수 — 실행 중 진행률의 분모 (아직 모르면 0). */
+  /** 결과 단위 수 — 실행 중 진행률의 분모. Athena 는 리전 하나가 한 단위다 (아직 모르면 0). */
   confirmedResourceCount: number;
   /** latest_version fetch still in flight. */
   loading: boolean;
@@ -88,13 +88,13 @@ function RunReasonLine({ raw }: { raw: string }): ReactElement | null {
   if (!view) return null;
   return (
     <div className="mt-2 flex flex-wrap items-baseline gap-x-2 gap-y-1">
-      <span className="text-[12px] font-semibold text-[var(--pl-text-faint)]">사유</span>
+      <span className="text-[12px] font-semibold text-[var(--pl-text-weak)]">사유</span>
       {view.label ? (
         <>
           <span className="text-[14px] font-medium text-[var(--pl-text-medium)]" title={view.desc ?? undefined}>
             {view.label}
           </span>
-          <span className={cn(pipelineStyles.text.mono, 'text-[12px] text-[var(--pl-text-faint)]')}>
+          <span className={cn(pipelineStyles.text.mono, 'text-[12px] text-[var(--pl-text-weak)]')}>
             {view.raw}
           </span>
         </>
@@ -156,7 +156,7 @@ export function TcLatestRunCard({
           </h2>
           <p className={opsStyles.cardDesc}>
             확정된 리소스에 실제로 접속해 연동 가능 여부를 검증합니다. 리소스별 결과는 아래
-            확정 정보 표의 연결 상태·실패 사유·Pod 로그 열에서 확인합니다.
+            확정 정보 표의 연결 상태·Pod 로그 열에서 확인합니다.
           </p>
         </div>
         <div className="flex flex-none items-center gap-4">

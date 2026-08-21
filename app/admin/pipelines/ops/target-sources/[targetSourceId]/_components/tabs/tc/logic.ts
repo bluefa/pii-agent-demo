@@ -13,6 +13,7 @@ import type {
 import type { SecretKey } from '@/lib/types';
 import { foldAgentStatuses, type UnitTcStatus } from '@/lib/test-connection-summary';
 import { resultUnitId } from '@/lib/resource-grouping';
+import { POD_CREATION_FAILED } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/failReason';
 
 /**
  * 리소스 한 건의 연결 판정.
@@ -89,6 +90,31 @@ export function tcFactsByResource(
     });
   }
   return facts;
+}
+
+/** Pod 로그 칸이 할 수 있는 다섯 마디 — 표는 이 중 하나만 그린다. */
+export type PodLogState = 'LOG' | 'COLLECTING' | 'BEFORE_POD' | 'NO_POD' | 'UNREPORTED';
+
+/**
+ * pod 가 없다는 말을 언제 해도 되는가.
+ *
+ * `pod_id` 는 아직 랜딩 전 필드다(DRAFT). 실계약 응답에는 실리지 않으므로 "값이 없다"를
+ * 곧바로 "pod 가 안 떴다"로 읽으면, 멀쩡히 성공한 행까지 전부 `Pod 없음`을 달게 된다.
+ * 그래서 영영 없다는 말은 사유가 POD_CREATION_FAILED 라고 말해 줄 때만 한다 — 그 값이
+ * 이 계약에서 pod 없는 실패를 뜻하는 유일한 사유다. 사유가 말하지 않으면 우리도 모른다.
+ *
+ * 실행이 아직 열려 있으면(대기·진행 중) pod 는 **아직** 안 생긴 것이라 문장이 다르다.
+ * 보고 자체가 없는 행(fact 없음)은 pod 부재와 다른 사실이라 또 따로 둔다.
+ */
+export function podLogState(fact: TcResourceFact | undefined): PodLogState {
+  if (!fact) return 'UNREPORTED';
+  const open = fact.verdict === 'PENDING' || fact.verdict === 'RUNNING';
+  if (!fact.podId) {
+    if (open) return 'BEFORE_POD';
+    return fact.failReason === POD_CREATION_FAILED ? 'NO_POD' : 'UNREPORTED';
+  }
+  // 캡처는 실행이 끝나는 시점에 뜬다 — 열려 있는 동안에는 열 로그가 아직 없다.
+  return open ? 'COLLECTING' : 'LOG';
 }
 
 /** 판정만 필요한 소비자(집계)용 — 접기는 `tcFactsByResource` 한 벌뿐이다. */
@@ -304,6 +330,10 @@ export function filterConfirmedRows(
     return (
       row.resource_id.toLowerCase().includes(needle)
       || (row.resource_name ?? '').toLowerCase().includes(needle)
+      // 접힌 Athena 행이 화면에 다는 id 는 리전 id 이고, 데이터베이스 자기 id 의 부분
+      // 문자열이 아니다(`…:region/catalog` vs `…:region:catalog/db`). 그 행에서 복사한
+      // 값이 바로 위 검색창에서 0건이 되지 않도록 여기서도 받는다.
+      || (row.athena_region_resource_id ?? '').toLowerCase().includes(needle)
       // An IDC row has no name and does not print its id — its address is the only
       // identity on the screen, so it has to be what the box matches.
       || (row.idc_host ?? '').toLowerCase().includes(needle)

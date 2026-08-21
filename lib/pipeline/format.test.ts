@@ -9,6 +9,7 @@ import {
   fmtDuration,
   fmtElapsedMs,
   fmtRelativeTime,
+  fmtTimeMs,
   KIND_POLICY,
   progressCount,
   progressPhrase,
@@ -559,5 +560,26 @@ describe('elapsedMs — 기준점은 상태가 정한다', () => {
     const skewed = Date.parse('2026-08-14T00:59:00Z');
     expect(elapsedMs('RUNNING', created, stampedAtCreate, skewed)).toBeLessThan(0);
     expect(fmtElapsedMs(elapsedMs('RUNNING', created, stampedAtCreate, skewed))).toBe('-');
+  });
+});
+
+/**
+ * 로그 줄의 시각 — 뷰어가 KST 로 읽는다는 것과, 자정을 '24'로 주는 ICU 빌드에서도
+ * '00'으로 넘어간다는 것 두 가지를 고정한다(fmtDateTimeSec 의 자정 규칙과 같은 짝).
+ */
+describe('fmtTimeMs', () => {
+  it('UTC instant 를 Asia/Seoul 시각으로 밀리초까지 찍는다', () => {
+    expect(fmtTimeMs('2026-08-20T04:05:06.078Z')).toBe('13:05:06.078');
+  });
+
+  it('KST 자정은 24 시가 아니라 00 시다', () => {
+    // 15:00Z = 다음 날 00:00 KST — hour12:false 를 '24'로 주는 ICU 빌드가 있다.
+    expect(fmtTimeMs('2026-08-20T15:00:00.000Z').slice(0, 2)).toBe('00');
+  });
+
+  it('없거나 해석 불가한 값은 —(하이픈)', () => {
+    expect(fmtTimeMs(null)).toBe('-');
+    expect(fmtTimeMs('')).toBe('-');
+    expect(fmtTimeMs('not-a-date')).toBe('-');
   });
 });
