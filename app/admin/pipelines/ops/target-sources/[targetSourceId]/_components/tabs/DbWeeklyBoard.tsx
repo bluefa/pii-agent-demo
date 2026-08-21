@@ -225,14 +225,14 @@ export function DbWeeklyBoard({
   const scopeAgent = agentId ? data.agents.find((a) => a.agentId === agentId) : undefined;
 
   return (
-    <section className="flex min-h-0 flex-1 flex-col" aria-label="논리 DB 주간 현황">
+    <section className="flex min-h-0 flex-1 flex-col" aria-label="논리 DB 최근 7일 현황">
       {/* 패널 머리 — 제목·스코프 칩·닫기(✕·scrim·Esc 가 전부 같은 onClose).
           본문이 스크롤해도 이 줄은 남는다. */}
       <div className="flex flex-none items-center justify-between gap-3 border-b border-[var(--pl-border)] px-6 py-4">
         {/* 제목에 총계를 달지 않는다 — 스코프가 걸리면 그 숫자만 혼자 전체를 말해서
             바로 아래 '전체' 칩과 어긋난다. 개수는 칩과 푸터 범위가 진다. */}
         <h2 id="db-board-title" className={opsStyles.cardTitle}>
-          논리 DB 주간 현황
+          논리 DB 최근 7일 현황
         </h2>
         <div className="flex flex-none items-center gap-3">
           {/* 스코프가 보이지 않는 필터가 되지 않도록 — 걸려 있으면 이 칩이 유일하게 말한다. */}
@@ -275,7 +275,7 @@ export function DbWeeklyBoard({
             aria-label="논리 DB 검색"
             className={SEARCH_INPUT}
           />
-          <SegControl ariaLabel="주간 판정 필터" options={options} value={filter} onChange={changeFilter} />
+          <SegControl ariaLabel="최근 7일 판정 필터" options={options} value={filter} onChange={changeFilter} />
           <StripLegend />
         </div>
 
@@ -292,7 +292,7 @@ export function DbWeeklyBoard({
                 <tr>
                   <th className={opsStyles.table.headCell}>논리 DB</th>
                   <th className={opsStyles.table.headCell}>최근 7일 ({data.timezone})</th>
-                  <th className={opsStyles.table.headCell}>이번 주</th>
+                  <th className={opsStyles.table.headCell}>최근 7일</th>
                   <th className={opsStyles.table.headCell}>마지막 성공</th>
                   <th className={opsStyles.table.headCell}>DAG</th>
                 </tr>

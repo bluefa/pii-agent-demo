@@ -83,6 +83,32 @@ async function pipelineRequest(
 const withQuery = (path: string, query: string): string => (query ? `${path}?${query}` : path);
 const enc = (value: string): string => encodeURIComponent(value);
 
+/**
+ * §11 airflow-host 의 본문 한 줄 → 주소. 업스트림이 String 하나를 돌려주는 엔드포인트는
+ * 두 모양 중 하나로 나간다: `"https://…"`(JSON 문자열) 또는 `https://…`(text/plain —
+ * Spring 의 StringHttpMessageConverter 가 String 반환에 붙이는 기본값). `res.json()` 은
+ * 뒤쪽에서 던지고, 화면은 그걸 "DAG 주소 확인 불가"로 읽는다 — 파싱 실패가 주소 없음의
+ * 탈을 쓴다. 두 모양 다 같은 주소를 싣고 있으므로 둘 다 받는다.
+ *
+ * 스킴은 확인하고 넘긴다: 이 값은 화면에서 `<a href>` 가 되므로, 업스트림이 흔들려
+ * HTML 한 덩이나 `javascript:` 를 돌려줘도 주소인 척 링크가 되지 않게 한다. 읽어낼 수
+ * 없으면 빈 문자열 — "주소 없음"과 같은 자리로 접힌다.
+ */
+export const parseAirflowHostBody = (body: string): string => {
+  const text = body.trim();
+  if (!text) return '';
+  let address = text;
+  if (text.startsWith('"')) {
+    try {
+      const parsed: unknown = JSON.parse(text);
+      address = typeof parsed === 'string' ? parsed.trim() : '';
+    } catch {
+      return '';
+    }
+  }
+  return /^https?:\/\//i.test(address) ? address : '';
+};
+
 async function throwBffError(res: Response): Promise<never> {
   const body = await res.json().catch(() => ({}));
   throw bffErrorFromBody(res.status, body);
@@ -380,10 +406,19 @@ export const httpBff: BffClient = {
     // every sibling. `raw` because the wire is camelCase verbatim: there is no case
     // boundary on this path, so camelCaseKeys has nothing to do.
     getDagStatus: (id) => get(`/target-sources/${id}/dag-status`, { raw: true }),
-    // Assumed §11 — this one DOES sit on the /install/v1 base. The body is a bare
-    // string (the DAG's URL), so `raw` keeps camelCaseKeys away from it.
-    getAirflowHost: (databaseUri) =>
-      get(`/pipeline-manager/airflow-host?databaseUri=${enc(databaseUri)}`, { raw: true }),
+    // Assumed §11 — one bare string (the DAG's URL) on the /install/v1 base.
+    //
+    // Read as TEXT, not JSON. An endpoint that returns a String hands it over in one
+    // of two shapes: `"https://…"` (JSON string) or `https://…` (text/plain, which is
+    // what Spring's StringHttpMessageConverter produces when a controller returns
+    // String). `res.json()` throws on the second one, and the screen then reports
+    // "DAG 주소 확인 불가 + 다시 시도" — a parse failure wearing the mask of a missing
+    // address. Both shapes carry the same address, so both are accepted here.
+    // `getRaw` also sends `Accept: */*`, so a text/plain endpoint cannot 406 on us.
+    getAirflowHost: async (databaseUri) => {
+      const res = await getRaw(`/pipeline-manager/airflow-host?databaseUri=${enc(databaseUri)}`);
+      return parseAirflowHostBody(await res.text());
+    },
   },
 
   // 서비스 접근 권한 — 오너가 준 백엔드 초안 스펙 그대로
