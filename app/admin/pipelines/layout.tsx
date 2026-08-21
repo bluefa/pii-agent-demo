@@ -225,7 +225,12 @@ export default function PipelinesLayout({ children }: { children: ReactNode }) {
   // `[]` dep would freeze the counts for the whole session — 승인 → router.push
   // back to the list would leave the badge contradicting the list beside it.
   // `nonce` covers what navigation cannot: a screen that refreshes in place
-  // (운영 알림's 새로고침) reads the same summary, so it signals us too.
+  // reads the same summary, so it signals us too. 운영 알림 used to be that
+  // screen; it went SSR (PR #733) and its refresh button went with it, so it
+  // no longer signals — its bucket clicks are real navigations that the server
+  // re-reads, while this badge only re-reads on a pathname change and
+  // `usePathname()` drops the query. The badge and that screen can disagree
+  // between bucket clicks. No caller is left; the hook stays for the next one.
   // Best-effort (errors ignored): the nav badge must never break the shell.
   const [pendingApprovals, setPendingApprovals] = useState(0);
   const [alertCount, setAlertCount] = useState(0);

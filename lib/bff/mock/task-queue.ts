@@ -710,6 +710,35 @@ const TS_DESCRIPTION: Record<number, string> = {
   1861: '정산 마감 배치 RDS',
   1027: '쿠폰 발급 이력 RDS — 연동 불가 회신 건',
   1583: '통합 인증 세션 저장소 (IDC)',
+  1980: '회원 프로필·동의 이력 Cloud SQL',
+  1430: '미디어 업로드 메타데이터 Aurora',
+  1520: '추천 피처 스토어 Cloud SQL',
+  1799: '배송 추적 이벤트 Azure SQL',
+  1462: '인증 토큰 발급 이력 Azure SQL',
+  // 운영 알림 네 버킷을 채우는 나머지 — 설명 열이 '—' 로 비면 그 행이 무엇인지
+  // Target 번호로만 판단해야 한다.
+  1388: '과금 청구 원장·수납 이력 RDS',
+  1322: '예약 이력·좌석 배정 Azure SQL',
+  1255: '메일 발송 수신자 목록 RDS',
+  1642: '쿠폰 발급·사용 이력 RDS',
+};
+
+/**
+ * 절단 확인용 과장 길이 — **운영 알림 응답에서만** 덮어쓴다 (오너 2026-08-20:
+ * "길어지는 상황에서 어떻게 표현되는지 한번 보자").
+ *
+ * PROC / TS_DESCRIPTION 을 직접 늘리면 같은 픽스처를 읽는 파이프라인 모니터
+ * (`/process-statuses`) 와 타깃 조회까지 99자 이름을 받는다 — 확인하려던 화면은
+ * 알림 표 하나인데 목 전체가 바뀌는 것이라, 오버라이드를 여기 한 곳에 가둔다.
+ * 계약상 상한은 30자라 두 값 모두 상한 밖 입력이다.
+ */
+const ALERT_OVERFLOW_FIXTURE: Record<number, { serviceName: string; description: string }> = {
+  1388: {
+    serviceName:
+      '과금 청구·수납·정산 원장 통합 관리 및 미납 채권 회수 자동화 플랫폼 (구독형 요금제·후불 정산·세금계산서 발행·카드 자동이체 재시도·연체 이자 산정 포함) 통합 운영계 서비스',
+    description:
+      '과금 청구 원장과 수납 이력을 담는 RDS. 구독형 요금제의 월 청구 스냅샷, 후불 정산 대상의 미납 채권 잔액, 세금계산서 발행 이력, 카드·계좌 자동이체 결과 코드가 모두 한 스키마에 있고, 청구서 수신자 이름·이메일·연락처와 사업자등록번호가 컬럼으로 남아 있어 개인정보 스캔 대상이다. 월 마감 배치가 새벽에 돌며 전월 데이터를 재집계하고, 정산 마감 이후에는 회계 시스템으로 일 단위 전송된다. 연체 30일 초과 건은 별도 채권 테이블로 이관되며, 회수 위탁 이력과 상담 메모가 함께 적재되어 보존 기간 정책의 적용 대상이 된다.',
+  },
 };
 
 /**
@@ -851,11 +880,20 @@ export const mockTaskQueue = {
   getAlertTargetSources: async (query: { kind: AlertTargetKind; page: number; size: number }) => {
     const content = alertRows(query.kind).map((p) => ({
       targetSourceId: p.ts,
-      serviceName: p.svc,
+      serviceName: ALERT_OVERFLOW_FIXTURE[p.ts]?.serviceName ?? p.svc,
+      // Contract field the worklist renders — unlisted ids stay undefined,
+      // which is the honest shape of an optional description.
+      description: ALERT_OVERFLOW_FIXTURE[p.ts]?.description ?? TS_DESCRIPTION[p.ts],
       serviceCode: p.code,
       cloudProvider: p.pv,
       confirmStatus: p.st === 'CONFIRMING' ? 'CONFIRMING' : 'CONFIRMED',
       updatedAt: p.at,
+      // Proposed pair (mock-first, not in swagger yet — see
+      // docs/ux/benchmark/ops-alerts-worklist.md): the monitor's
+      // status_changed_at/delay_seconds, reused from the same fixture so the
+      // alert drill-down and /process-statuses never disagree about a delay.
+      status_changed_at: p.at,
+      delay_seconds: p.delay,
     }));
     return NextResponse.json(wirePage(content, query.page, query.size));
   },

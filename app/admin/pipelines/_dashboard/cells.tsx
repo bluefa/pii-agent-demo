@@ -1,5 +1,7 @@
 /**
- * Dashboard list cell presenters — page.tsx-exclusive.
+ * Dashboard list cell presenters — born page.tsx-exclusive; `TargetCell`,
+ * `DashRow` and `RowAction` are now also worn by the ops 운영 알림 worklist,
+ * which opens the same Target Source and should read the same way.
  *
  * These used to be deliberate LOCAL copies of the shared row parts: a gray
  * progress bar instead of PipelineProgressBar, plain cloud text instead of
@@ -140,15 +142,23 @@ export function RowAction(): ReactElement {
 /** Keyboard-activatable table row (role=button, Enter/Space) — mirrors PlRow. */
 export function DashRow({
   onActivate,
+  label,
   children,
 }: {
   onActivate: () => void;
+  /**
+   * 행 버튼의 접근명. 없으면 `role="button"` 이 셀 전부를 이어 붙여 읽는다 — 설명처럼
+   * 길이를 예측할 수 없는 열을 가진 표에서는 한 행이 수백 자짜리 announcement 가 된다.
+   * 대시보드는 셀이 다 짧아 생략하고, 긴 열을 가진 표가 이 자리를 채운다.
+   */
+  label?: string;
   children: ReactNode;
 }): ReactElement {
   return (
     <tr
       className={d.row}
       role="button"
+      aria-label={label}
       tabIndex={0}
       onClick={onActivate}
       onKeyDown={(event) => {

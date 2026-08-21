@@ -204,6 +204,15 @@ export const mockServiceCodes: ServiceCode[] = [
   { code: 'CPN', name: '쿠폰·프로모션 발급 정산', description: '쿠폰/프로모션 도메인 PII Agent 연동' },
   { code: 'RVW', name: '고객 리뷰 및 평점 운영', description: '리뷰 도메인 PII Agent 연동' },
   { code: 'IVT', name: '재고 실시간 동기화 관리', description: '재고 도메인 PII Agent 연동' },
+  // 운영 알림 드릴다운 대상의 서비스. 이 코드들이 카탈로그에 없으면 Target Source 운영
+  // 헤더가 서비스 이름 자리에 코드를 그대로 적는다 ("서비스 이름 MDA · 코드 MDA").
+  { code: 'MDA', name: '미디어 업로드 및 트랜스코딩', description: '미디어 도메인 PII Agent 연동' },
+  { code: 'STL', name: '정산 마감 및 대사', description: '정산 도메인 PII Agent 연동' },
+  { code: 'RCM', name: '개인화 추천 피처', description: '추천 도메인 PII Agent 연동' },
+  { code: 'BIL', name: '과금 청구 및 수납', description: '과금 도메인 PII Agent 연동' },
+  { code: 'RSV', name: '예약 및 좌석 배정', description: '예약 도메인 PII Agent 연동' },
+  { code: 'ATH', name: '통합 인증 토큰 발급', description: '인증 도메인 PII Agent 연동' },
+  { code: 'MAI', name: '메일 발송 허브', description: '메일 도메인 PII Agent 연동' },
   // 레일이 한 화면에 여러 서비스를 담았을 때를 보기 위한 카탈로그 — 연동 과제
   // (mockProjects)는 없고 서비스 목록·검색·페이지네이션에만 등장한다.
   // 코드는 실제 계약과 같이 3글자로 맞춘다.
@@ -1487,6 +1496,75 @@ mockProjects.push(
       { id: 'ivt-res-3', type: 'IDC_RESOURCE', resourceId: 'idc-ivt-9a03', databaseType: 'ORACLE', selectedCredentialId: 'kimcs-redshift-dw', connectionStatus: 'DISCONNECTED', isSelected: true, integrationCategory: 'TARGET', idcConfig: { inputFormat: 'IP', ips: ['10.20.4.18'], domain: '', oracleSid: 'IVTPDB', sourceIps: ['10.20.9.12'], firewallOpen: false } },
     ],
   }),
+);
+
+/**
+ * 운영 알림 4버킷의 드릴다운 대상.
+ *
+ * 알림 목록은 모니터 픽스처(`lib/bff/mock/task-queue.ts` PROC)에서 나오는데, 그 명단
+ * 11건 중 카탈로그에 있던 것은 셋(1799 · 1583 · 1642)뿐이었다. 나머지 여덟은 행을
+ * 눌러도 `/target-sources/{id}` 가 404 라, 목이 "행을 누르면 그 대상이 열린다"는
+ * 사실 자체를 만들지 못했다 — 화면 버그처럼 보이지만 픽스처의 공백이다.
+ *
+ * `processStatus` 는 그 대상을 그 버킷에 넣은 단계와 같은 것을 고른다. 알림이
+ * "설치 필요"라고 불러 놓고 상세가 연결 확인 완료를 그리면, 이동이 되는지는 봐도
+ * 이동한 곳이 맞는지는 못 본다.
+ */
+const alertDrilldownResources = (code: string, provider: CloudProvider): MockResource[] => {
+  const key = code.toLowerCase();
+  const common = {
+    id: `${key}-res-1`,
+    connectionStatus: 'CONNECTED' as const,
+    isSelected: true,
+    integrationCategory: 'TARGET' as const,
+    selectedCredentialId: 'hgildong-mysql-prod',
+    databaseType: 'MYSQL' as const,
+  };
+  if (provider === 'GCP') {
+    return [{ ...common, type: 'GCP_SQL', resourceId: `projects/sea-${key}-prd/instances/cloudsql-${key}-main` }];
+  }
+  if (provider === 'Azure') {
+    return [{ ...common, type: 'AZURE_MYSQL', resourceId: `/subscriptions/2867a4f9-1e3a-4c8f-bf0a-91c5dd7e2188/resourceGroups/rg-${key}-prod/providers/Microsoft.DBforMySQL/servers/mysql-${key}-01`, azureNetworkingMode: 'VNET_INTEGRATION' as const }];
+  }
+  return [{ ...common, type: 'RDS', resourceId: `rds-${key}-main`, awsType: 'RDS' as const, region: 'ap-northeast-2' as const, vpcId: `vpc-${key}-001` }];
+};
+
+mockProjects.push(
+  ...(
+    [
+      // 리소스 확정 진행 중 → 확정 탭
+      [1980, 'MBR', '회원서비스', 'GCP', ProcessStatus.WAITING_TARGET_CONFIRMATION, '회원 프로필·동의 이력 Cloud SQL', '2026-07-20T19:21:00Z'],
+      [1430, 'MDA', '미디어서비스', 'AWS', ProcessStatus.WAITING_TARGET_CONFIRMATION, '미디어 업로드 메타데이터 Aurora', '2026-07-20T19:02:00Z'],
+      // 설치 필요 → 인프라 작업 탭
+      [1861, 'STL', '정산서비스', 'AWS', ProcessStatus.APPLYING_APPROVED, '정산 마감 배치 RDS', '2026-07-17T18:56:00Z'],
+      [1520, 'RCM', '추천서비스', 'GCP', ProcessStatus.APPLYING_APPROVED, '추천 피처 스토어 Cloud SQL', '2026-07-20T10:52:00Z'],
+      [1388, 'BIL', '과금서비스', 'AWS', ProcessStatus.APPLYING_APPROVED, '과금 청구·정산 원장 RDS', '2026-07-19T10:53:00Z'],
+      // 연결 테스트 필요 → 연결 테스트 탭
+      [1322, 'RSV', '예약서비스', 'Azure', ProcessStatus.WAITING_CONNECTION_TEST, '예약 이력·좌석 배정 Azure SQL', '2026-07-20T15:17:00Z'],
+      // PII Agent 확인 필요 → 승인 탭
+      [1462, 'ATH', '인증서비스', 'Azure', ProcessStatus.CONNECTION_VERIFIED, '인증 토큰 발급 이력 Azure SQL', '2026-07-20T01:22:00Z'],
+      [1255, 'MAI', '메일서비스', 'AWS', ProcessStatus.CONNECTION_VERIFIED, '메일 발송 수신자 목록 RDS', '2026-07-20T05:11:00Z'],
+    ] as const
+  ).map(([targetSourceId, serviceCode, serviceName, provider, processStatus, description, updatedAt]) =>
+    makeTcQueueProject({
+      targetSourceId,
+      serviceCode,
+      name: `${serviceName} PII Agent`,
+      cloudProvider: provider,
+      processStatus,
+      updatedAt,
+      resources: alertDrilldownResources(serviceCode, provider),
+      // 설명은 알림 목록이 쓰는 문장과 같아야 한다 — 목록과 상세가 한 대상을 두고
+      // 다른 말을 하면, 이동이 맞게 됐는지 확인할 근거가 사라진다.
+      //
+      // 예외는 1388 하나다. 알림 응답에서만 이름·설명을 상한 밖 길이로 덮어써 절단을
+      // 보기 때문에(`lib/bff/mock/task-queue.ts` ALERT_OVERFLOW_FIXTURE), 그 행만
+      // 목록과 상세가 다른 문장을 든다. 절단을 보려면 어딘가는 계약을 벗어나야 하고,
+      // 벗어나는 자리를 한 행·한 응답으로 가둔 결과다 — 그 행의 이동이 맞는지는
+      // 설명이 아니라 Target 번호로 확인한다.
+      extra: { description },
+    }),
+  ),
 );
 
 // ===== 최초 연동 시각 =====

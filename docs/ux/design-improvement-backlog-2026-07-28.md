@@ -127,14 +127,14 @@
 ### B-5. [P1] 200건 하드캡 3곳 — 무성 데이터 손실
 
 - **대시보드**: `page.tsx:150` `DASH_FETCH_SIZE = 200` 한 창을 받아 클라이언트에서 5건씩 페이징 + 클라 검색. 201번째 run은 검색해도 없는 것처럼 보이고 총 건수 미표기. → 서버 페이지네이션 + `q` 파라미터(service_code/name/TS-id). 임시로 "최근 200건 내 검색" 고지.
-- **운영 알림**: `ops/alerts/_components/AlertsView.tsx:26` `FETCH_CAP = 200` + 전량 클라 정렬/집계. **상단 KPI 타일 숫자 자체가 조용히 틀려지는 것**이 가장 위험. → 서버 집계/정렬. **필요 API**: `process_status_in`, `stale_over_seconds`, `sort` + 카운트 응답.
+- ~~**운영 알림**: `ops/alerts/_components/AlertsView.tsx:26` `FETCH_CAP = 200` + 전량 클라 정렬/집계. **상단 KPI 타일 숫자 자체가 조용히 틀려지는 것**이 가장 위험.~~ → **해소 (PR #733)**. `AlertsView` 는 SSR 워크리스트로 대체되어 `FETCH_CAP` 과 클라 집계가 사라졌다. 타일 건수는 서버 요약이 주고, 요약이 없거나 불완전하면 숫자를 지어내는 대신 '—' 로 떨어진다. 남은 갭은 **정렬** 하나 — 지연 내림차순은 `delay_seconds` 계약 랜딩 후다(`docs/ux/benchmark/ops-alerts-worklist.md`).
 - **지연 필터**: 업스트림에 쿼리 파라미터가 없어 우리 라우트가 여러 페이지를 긁어모아 클라 필터링(계약 갭 G1). → `process-statuses`에 `min_delay_seconds`.
 
 ### B-6. [P1] Process Status 모니터에서 대상으로 진입할 수 없다
 
 - **현상**: `queue/page.tsx:254-306` — 필터는 상태+지연 2종뿐, 행에 상세 링크 컬럼 없음.
 - **시나리오**: "1일↑ 지연 대상을 찾았다 → 왜 막혔는지 본다"의 두 번째 단계가 끊겨 사이드바로 되돌아가야 한다.
-- **제안**: 행 전체 stretched-link(AlertsView 패턴 재사용) + 서비스코드/TS-id 검색. **필요 API**: `q` 파라미터.
+- **제안**: 행 전체 stretched-link(운영 알림 워크리스트 `AlertWorklist` 의 `DashRow` 패턴 재사용 — 구 `AlertsView` 는 PR #733 에서 대체됐다) + 서비스코드/TS-id 검색. **필요 API**: `q` 파라미터.
 
 ### B-7. [P1] TaskFlow 가로 트랙 — 노드 30개면 1만px 스크롤
 

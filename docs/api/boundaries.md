@@ -89,10 +89,23 @@ Server Components and route handlers share the same `bff` import. There is no se
 ## Which pipeline should I use?
 
 ```
-Is the file marked "use client" or under app/**/_components/?           ──▶ Pipeline 1 (CSR)
+Is the file marked "use client"?                                        ──▶ Pipeline 1 (CSR)
 Is it a plain async function in app/ that returns JSX?                  ──▶ Pipeline 2 (SSR)
 Is it a file under app/integration/api/v1/**/route.ts?                  ──▶ Route handler — use @/lib/bff/client
+Otherwise, an unmarked component under app/**/_components/              ──▶ CSR by convention
 ```
+
+`_components/` is a folder convention, not a boundary — the boundary is the
+`'use client'` directive, and `import 'server-only'` in `lib/bff/client.ts` is
+what enforces it. A Server Component may live under `_components/` when it
+exists to be composed into a page rather than routed to:
+`app/admin/pipelines/ops/alerts/_components/AlertWorklistSection.tsx` is one.
+It sits beside the client table it feeds so the page's `Suspense` boundary can
+wrap exactly one fetch, and it is an SSR file by line 2 of the flowchart, so it
+imports `@/lib/bff/client`.
+
+The ESLint scope in the table below covers `app/integration/**/_components/**`,
+not `app/admin/**`; under `app/admin/` the `server-only` import is the guard.
 
 ## Forbidden imports
 
