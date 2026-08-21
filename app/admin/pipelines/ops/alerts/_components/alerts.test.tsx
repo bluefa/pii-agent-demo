@@ -123,6 +123,25 @@ describe('AlertWorklist — 서버가 준 한 페이지를 그린다', () => {
     expect(push).toHaveBeenCalledWith(passRoutes.pipelines.ops.targetSource('1861', 'infra'));
   });
 
+  it('id 없는 행은 열지 않는다 — 목적지도 key 도 그 값에서 나온다', () => {
+    push.mockClear();
+    const keyWarn = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const noId = (serviceName: string): AlertListRow => ({
+      ...ROW,
+      targetSourceId: null,
+      serviceName,
+    });
+
+    render(worklist({ rows: [noId('가서비스'), noId('나서비스')] }));
+
+    // 눌러도 `/target-sources/null` 로 가지 않는다.
+    fireEvent.click(screen.getByText('가서비스').closest('tr') as HTMLElement);
+    expect(push).not.toHaveBeenCalled();
+    // 두 행이 같은 null 을 key 로 쓰면 React 가 중복 key 를 경고한다.
+    expect(keyWarn.mock.calls.filter((call) => String(call[0]).includes('key'))).toHaveLength(0);
+    keyWarn.mockRestore();
+  });
+
   it('실패와 0건은 다른 문장을 받는다', () => {
     const { unmount } = render(worklist({ rows: [], failed: true }));
     expect(screen.getByText('목록을 불러오지 못했습니다.')).toBeDefined();

@@ -32,12 +32,11 @@ import {
 import { AlertsHeader } from '@/app/admin/pipelines/ops/alerts/_components/AlertsHeader';
 import { AlertWorklistSection } from '@/app/admin/pipelines/ops/alerts/_components/AlertWorklistSection';
 import { AlertWorklistSkeleton } from '@/app/admin/pipelines/ops/alerts/_components/AlertWorklist';
+// 한 곳에서만 산다 — 스켈레톤이 그리는 행 수와 여기서 요청하는 크기는 같은 사실이다.
+import { PAGE_SIZE } from '@/app/admin/pipelines/ops/alerts/_components/worklistStyles';
 
 /** 요약도 목록도 사용자마다·시점마다 다르다. 빌드 타임에 구울 것이 없다. */
 export const dynamic = 'force-dynamic';
-
-/** Contract default page size (`/dashboard/target-sources/{kind}` size=10). */
-const PAGE_SIZE = 10;
 
 /**
  * 요약을 못 읽으면 **null 이지 0 이 아니다**.

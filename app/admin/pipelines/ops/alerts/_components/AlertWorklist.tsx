@@ -160,49 +160,64 @@ export function AlertWorklist({
               </td>
             </tr>
           ) : (
-            rows.map((row) => (
-              <DashRow
-                key={row.targetSourceId}
-                onActivate={() =>
-                  router.push(passRoutes.pipelines.ops.targetSource(String(row.targetSourceId), tab))
-                }
-              >
-                <td className={cn(d.cell, 'whitespace-nowrap')}>
-                  <ProvTag provider={row.cloudProvider ?? ''} />
-                </td>
-                <td className={d.cell}>
-                  <span className={worklist.idValue}>{row.targetSourceId ?? '—'}</span>
-                </td>
-                <td className={cn(d.cell, 'whitespace-nowrap')}>
-                  <span className={worklist.codeText}>{row.serviceCode ?? '—'}</span>
-                </td>
-                <td className={d.cell}>
-                  <span className={worklist.nameText} title={row.serviceName ?? undefined}>
-                    {row.serviceName ?? '—'}
-                  </span>
-                </td>
-                <td className={d.cell}>
-                  <span className={worklist.descText} title={row.description ?? undefined}>
-                    {row.description ?? '—'}
-                  </span>
-                </td>
-                <td className={d.cell}>
-                  {row.delaySeconds != null ? (
-                    // nowrap — the auto table layout sizes the column to the
-                    // duration; without it "1일 8시간" breaks mid-word.
-                    <DelayText
-                      delaySeconds={row.delaySeconds}
-                      className="whitespace-nowrap text-[12px]"
-                    />
-                  ) : (
-                    <span className={d.elapsed}>—</span>
-                  )}
-                </td>
-                <td className={d.actionCell}>
-                  <RowAction />
-                </td>
-              </DashRow>
-            ))
+            rows.map((row, index) => {
+              const id = row.targetSourceId;
+              const cells = (
+                <>
+                  <td className={cn(d.cell, 'whitespace-nowrap')}>
+                    <ProvTag provider={row.cloudProvider ?? ''} />
+                  </td>
+                  <td className={d.cell}>
+                    <span className={worklist.idValue}>{id ?? '—'}</span>
+                  </td>
+                  <td className={cn(d.cell, 'whitespace-nowrap')}>
+                    <span className={worklist.codeText}>{row.serviceCode ?? '—'}</span>
+                  </td>
+                  <td className={d.cell}>
+                    <span className={worklist.nameText} title={row.serviceName ?? undefined}>
+                      {row.serviceName ?? '—'}
+                    </span>
+                  </td>
+                  <td className={d.cell}>
+                    <span className={worklist.descText} title={row.description ?? undefined}>
+                      {row.description ?? '—'}
+                    </span>
+                  </td>
+                  <td className={d.cell}>
+                    {row.delaySeconds != null ? (
+                      // nowrap — 열 폭은 `table-fixed` 가 정하므로 값이 칸보다 길면
+                      // 줄바꿈이 먼저 일어난다. 없으면 "1일 8시간" 이 단어 중간에서 끊긴다.
+                      <DelayText
+                        delaySeconds={row.delaySeconds}
+                        className="whitespace-nowrap text-[12px]"
+                      />
+                    ) : (
+                      <span className={d.elapsed}>—</span>
+                    )}
+                  </td>
+                  <td className={d.actionCell}>{id != null ? <RowAction /> : null}</td>
+                </>
+              );
+
+              // id 없는 행은 열지 않는다. id 는 이 행의 목적지이자 key 인데 계약상
+              // null 이 올 수 있고(LOOSE 스키마), 그대로 쓰면 목적지가
+              // `/target-sources/null` 이 되고 그런 행이 둘이면 key 까지 부딪친다.
+              // 값 자리에는 이미 '—' 를 그리고 있었으니 행 전체가 그 판단을 따라간다:
+              // 커서도 화살표도 빼서 누를 수 있는 척하지 않는다. 같은 콘솔의 큐 목록이
+              // 같은 자리에서 같은 판단을 한다 (queue/page.tsx).
+              return id == null ? (
+                <tr key={`no-id:${row.serviceCode ?? ''}:${index}`}>{cells}</tr>
+              ) : (
+                <DashRow
+                  key={id}
+                  onActivate={() =>
+                    router.push(passRoutes.pipelines.ops.targetSource(String(id), tab))
+                  }
+                >
+                  {cells}
+                </DashRow>
+              );
+            })
           )}
         </tbody>
       </table>
