@@ -832,5 +832,54 @@ describe('WaitingApprovalTable', () => {
       expect(tbody?.className).toContain('divide-[#EBEEF2]');
       expect(tbody?.className).not.toContain('#D1D5DB');
     });
+
+    it('drops the resting body rails for the covered-sheet shadow', () => {
+      // Round 7: at rest the boundary is the covering column's cast shadow (a
+      // right-edge gradient in every non-last cell) — permanent td rails are gone,
+      // while the header keeps its rails ("Header는 진해도 상관없어").
+      render(<WaitingApprovalTable variant="confirmed" resources={[row()]} />);
+      const table = screen.getByText('covered-name').closest('table');
+      expect(table?.className).toContain('linear-gradient(to_left');
+      expect(table?.className).not.toContain('td+td');
+      expect(table?.className).toContain('[&_th+th]:border-l');
+    });
+
+    it('materializes the nearest seam line only inside its 8px zone', () => {
+      const { container } = render(
+        <WaitingApprovalTable variant="confirmed" resources={[row()]} />,
+      );
+      const wrap = required(
+        container.querySelector<HTMLDivElement>('.overflow-x-auto'),
+        'the scroll container hosting the seam tracer',
+      );
+      const tracer = required(
+        container.querySelector<HTMLDivElement>('[data-seam-tracer]'),
+        'the seam tracer line',
+      );
+      expect(tracer.className).toContain('opacity-0');
+      // JSDOM has no layout — pin the column boundaries by hand at x = 100, 200, …
+      const ths = wrap.querySelectorAll('th');
+      ths.forEach((th, index) => {
+        th.getBoundingClientRect = () => ({ right: (index + 1) * 100 }) as unknown as DOMRect;
+      });
+      fireEvent.mouseMove(wrap, { clientX: 104 });
+      expect(tracer.style.opacity).toBe('1');
+      expect(tracer.style.transform).toBe('translateX(99.5px)');
+      // Between seams — and at the table's outer right edge, which is not a seam.
+      fireEvent.mouseMove(wrap, { clientX: 150 });
+      expect(tracer.style.opacity).toBe('0');
+      fireEvent.mouseMove(wrap, { clientX: ths.length * 100 });
+      expect(tracer.style.opacity).toBe('0');
+      fireEvent.mouseMove(wrap, { clientX: 104 });
+      fireEvent.mouseLeave(wrap);
+      expect(tracer.style.opacity).toBe('0');
+    });
+
+    it('skips the seam tracer for approval tables', () => {
+      const { container } = render(
+        <WaitingApprovalTable variant="approval" resources={[row()]} />,
+      );
+      expect(container.querySelector('[data-seam-tracer]')).toBeNull();
+    });
   });
 });

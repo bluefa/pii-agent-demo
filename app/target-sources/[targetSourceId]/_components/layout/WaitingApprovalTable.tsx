@@ -1,6 +1,14 @@
 'use client';
 
-import { Fragment, memo, useMemo, useState, type ReactNode } from 'react';
+import {
+  Fragment,
+  memo,
+  useMemo,
+  useRef,
+  useState,
+  type MouseEvent as ReactMouseEvent,
+  type ReactNode,
+} from 'react';
 import { useClusterFold } from '@/app/hooks/useClusterFold';
 import { useRailHover } from '@/app/hooks/useRailHover';
 import { ReasonChipInline } from '@/app/components/ui/ReasonChipInline';
@@ -384,6 +392,24 @@ const confirmedColumnWidth = (key: ConfirmedColumnKey, columns?: ColumnResize): 
  * seats the handle at the cell's right edge (useColumnResize contract); the width is a
  * style either way (default or dragged), so server and client always agree on it.
  */
+/** The seam zone: within this many px of a column boundary the tracer line shows —
+ *  the same 8px the header resize handles occupy, one grammar for "at the boundary". */
+export const SEAM_ZONE_PX = 8;
+
+/** Nearest interior column boundary within SEAM_ZONE_PX of clientX, or null. The last
+ *  th's right edge is the table's outer edge, not a seam between sheets — skipped. */
+export const nearestSeamX = (clientX: number, ths: ArrayLike<Element>): number | null => {
+  let best: number | null = null;
+  for (let i = 0; i < ths.length - 1; i += 1) {
+    const edge = ths[i].getBoundingClientRect().right;
+    const closer = best === null || Math.abs(edge - clientX) < Math.abs(best - clientX);
+    if (Math.abs(edge - clientX) <= SEAM_ZONE_PX && closer) {
+      best = edge;
+    }
+  }
+  return best;
+};
+
 const ResizableTh = ({
   columns,
   columnKey,
@@ -457,6 +483,15 @@ export const WaitingApprovalTable = memo(
     // Tree rails: hovering any row of a group / cluster / folded region lights the whole rail.
     const railRow = useRailHover();
 
+    // Round 7: the resting body grid has no rails (consoleGrid's covered-sheet shadow
+    // took their place) — the nearest column seam materializes as a line only while
+    // the pointer is inside its 8px zone. Imperative style writes on purpose: a
+    // mousemove-frequency setState would re-render the whole table for a 1px tracer.
+    // Hooks live ABOVE the empty-state return: a filter emptying the list must not
+    // change the hook count.
+    const seamWrapRef = useRef<HTMLDivElement>(null);
+    const seamTracerRef = useRef<HTMLDivElement>(null);
+
     const toggleGroup = (key: string) =>
       setCollapsedGroups((previous) => {
         const next = new Set(previous);
@@ -506,6 +541,25 @@ export const WaitingApprovalTable = memo(
     // in this variant. nowrap on the td keeps chips and plain-text cells to the single 52px
     // line without each child declaring it.
     const coveredCell = confirmedVariant ? 'overflow-hidden whitespace-nowrap' : undefined;
+
+    const handleSeamMove = (event: ReactMouseEvent<HTMLDivElement>) => {
+      const wrap = seamWrapRef.current;
+      const tracer = seamTracerRef.current;
+      if (!wrap || !tracer) return;
+      const seamX = nearestSeamX(event.clientX, wrap.querySelectorAll('thead th'));
+      if (seamX === null) {
+        tracer.style.opacity = '0';
+        return;
+      }
+      // clientX-space seam → scroll-content x; −0.5 centres the 1px line on the
+      // collapsed boundary, which itself straddles the edge half a px each side.
+      const x = seamX - wrap.getBoundingClientRect().left + wrap.scrollLeft - 0.5;
+      tracer.style.transform = `translateX(${x}px)`;
+      tracer.style.opacity = '1';
+    };
+    const hideSeamTracer = () => {
+      if (seamTracerRef.current) seamTracerRef.current.style.opacity = '0';
+    };
 
     // `grouped` only indents the identity cell — every other cell is identical whether the row
     // stands alone or hangs under a parent, so a group never changes what a row says.
@@ -994,7 +1048,12 @@ export const WaitingApprovalTable = memo(
 
     return (
       <div className={connected ? CONNECTED_FRAME : idcStyles.table.frame}>
-        <div className="overflow-x-auto">
+        <div
+          ref={seamWrapRef}
+          className={cn('overflow-x-auto', confirmedVariant && 'relative')}
+          onMouseMove={confirmedVariant ? handleSeamMove : undefined}
+          onMouseLeave={confirmedVariant ? hideSeamTracer : undefined}
+        >
           {/* approval rows raised one step over approvalCell's py-4 (owner request, step-1
               table matches). Variant-scoped: the install/confirmed tables (steps 4·6) keep
               the shared token's rhythm. :not([colspan]) keeps spanning cells (panel-style
@@ -1147,6 +1206,14 @@ export const WaitingApprovalTable = memo(
               );
             })}
           </table>
+          {confirmedVariant && (
+            <div
+              ref={seamTracerRef}
+              data-seam-tracer=""
+              aria-hidden
+              className={idcStyles.table.seamTracer}
+            />
+          )}
         </div>
       </div>
     );

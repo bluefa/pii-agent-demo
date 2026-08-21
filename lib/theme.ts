@@ -1551,9 +1551,34 @@ export const idcStyles = {
      * WaitingApprovalTable.) Pairs with `tableRowLift.console`: under the
      * approval hover (#EAEEF7) these rails wash to 1.08:1 — the tint would eat the
      * very step the rails just dropped to.
+     *
+     * Round 7 (owner): "평소에는 구분선 없이도 경계를 표현이 필요. 왼쪽이 오른쪽에
+     * 덮인 느낌 … blur나 shadow같은 효과를 줘서 깊이감을 줄 필요는 있어보임". The
+     * BODY rails go entirely: the covered-clip cut exists because the next column
+     * lies ON TOP of this one, so the boundary is now that sheet's cast shadow — a
+     * 10px right-edge gradient inside every non-last cell, darkest AT the cut and
+     * fading left. rgba(15,23,42,0.09) composites to ≈#E9EAEC at the peak (1.18:1 on
+     * white — the consoles' own line weight, spent on a feather instead of a stroke;
+     * 0.06 was measured live and read as subliminal). A background gradient, not
+     * box-shadow: a shadow blurs past each cell's corners and stipples every row
+     * seam, while backgrounds tile seamlessly down the column (box-shadow on
+     * collapsed-border cells also renders unreliably). Header rails and the thead
+     * rule stay — "Header는 진해도 상관없어". The on-demand line for "경계면 근처"
+     * hover is `seamTracer` below.
      */
     consoleGrid:
-      '[&_th+th]:border-l [&_td+td]:border-l [&_th+th]:border-[#E5E7EB] [&_td+td]:border-[#E5E7EB]',
+      '[&_th+th]:border-l [&_th+th]:border-[#E5E7EB] [&_td:not(:last-child)]:[background:linear-gradient(to_left,rgba(15,23,42,0.09),transparent)_right/10px_100%_no-repeat]',
+    /**
+     * Round 7 (owner): "경계면 근처에 마우스를 올려둘때만 진하게 표현되면 좋겠음" —
+     * with the resting rails gone (see consoleGrid), this is the on-demand boundary:
+     * ONE absolutely positioned line in the confirmed table's scroll container, moved
+     * imperatively to the nearest column seam while the pointer is inside its zone
+     * (SEAM_ZONE_PX in WaitingApprovalTable — the header handles' own 8px grammar).
+     * #D1D5DB is the weight the owner reads as "진하게"; blue stays reserved for the
+     * grabbable header guide, whose z-20 beats this z-10 where they overlap.
+     */
+    seamTracer:
+      'pointer-events-none absolute inset-y-0 left-0 z-10 w-px bg-[#D1D5DB] opacity-0 transition-opacity duration-100 motion-reduce:transition-none',
     /**
      * 열 폭 조절 손잡이 (useColumnResize) — 헤더 셀 안쪽 오른쪽 끝 8px. 밖으로 내밀면
      * 마지막 열에서 표가 가로로 넘친다. 선은 평소 보이지 않는다: 표에 세로줄을 하나 더 그으면
