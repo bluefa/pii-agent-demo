@@ -522,7 +522,15 @@ export function OwnersModal({
         )}
       </div>
       {shown.length === 0 ? (
-        <div className={a.pickerEmpty}>‘{query}’와 일치하는 담당자가 없습니다</div>
+        // 빈 목록에는 두 가지 이유가 있고, 검색 miss 는 그중 하나일 뿐이다. 계약상
+        // `owners` 는 잘려 올 수 있고 `ownerCount` 만 언제나 맞는 값이라, 이름이 하나도
+        // 안 온 채로 수는 5 인 응답이 가능하다 — 그때 검색어 없이 ‘’와 일치하는 담당자가
+        // 없습니다 를 그리면 하지도 않은 검색이 실패한 것처럼 읽힌다. 수만 말한다.
+        <div className={a.pickerEmpty}>
+          {q
+            ? `‘${query}’와 일치하는 담당자가 없습니다`
+            : `담당자 ${ownerCount}명이 있지만 이름이 오지 않았어요`}
+        </div>
       ) : (
         <div className={a.ownerFlow}>
           {shown.map((knoxId) => (
@@ -533,8 +541,11 @@ export function OwnersModal({
         </div>
       )}
       {/* 서버가 배열을 잘라 보냈을 때 — 이름을 지어내지 않고 수만 말한다. 흐름 상자
-          밖이라 목록이 길어도 첫 화면에서 보인다. */}
-      {hidden > 0 && <p className={a.ownerNote}>여기 없는 담당자가 {hidden}명 더 있어요</p>}
+          밖이라 목록이 길어도 첫 화면에서 보인다. `여기` 가 비어 있으면 이 문장은 가리킬
+          곳이 없다 — 그 경우는 위의 빈 상태가 수를 통째로 들고 간다. */}
+      {hidden > 0 && sorted.length > 0 && (
+        <p className={a.ownerNote}>여기 없는 담당자가 {hidden}명 더 있어요</p>
+      )}
     </TqModal>
   );
 }
