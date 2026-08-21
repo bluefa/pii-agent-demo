@@ -1097,9 +1097,15 @@ export const WaitingApprovalTable = memo(
                 return (
                   <tbody
                     key={section.key}
-                    // Round 3: the confirmed tables promote the row divider to border-strong —
-                    // the hairline "was never seen at all" (owner). See bodyStrong.
-                    className={confirmedVariant ? idcStyles.table.bodyStrong : idcStyles.table.body}
+                    // Round 6 undoes round 3's border-strong promotion for the confirmed tables:
+                    // back then the hairline "was never seen at all" because rows were the grid's
+                    // ONLY lines — once the permanent rails landed (round 4) the same #D1D5DB read
+                    // darker than the consoles it quotes ("여전히 행 레벨에서의 구분선들도 너무
+                    // 선명"). The consoles' own row rules sit AT the hairline (AWS live #EBEBF0,
+                    // the benchmark's Azure reconstruction #EDEBE9 — both 1.19:1): resting rules
+                    // whisper, and the hover TINT — not the border — is what reveals a row as a
+                    // block, which is the behaviour the owner remembered as Azure's.
+                    className={idcStyles.table.body}
                   >
                     {section.rows.map((resource) => renderRow(resource))}
                   </tbody>

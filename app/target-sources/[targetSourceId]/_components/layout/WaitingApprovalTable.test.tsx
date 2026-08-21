@@ -805,20 +805,32 @@ describe('WaitingApprovalTable', () => {
       expect(approvalTr?.className).toContain('hover:bg-[#EAEEF7]');
     });
 
-    it('lands the resize guide flush on the column rail', () => {
-      // Handles only render when a resize instance is wired in, and the flush guide is
-      // keyed off clampToContent — the console-table mode — inside the hook itself.
+    it('covers the column rail with the resize guide, full header height', () => {
+      // Handles only render when a resize instance is wired in, and the covering guide
+      // is keyed off clampToContent — the console-table mode — inside the hook itself.
       const Harness = () => {
         const columns = useColumnResize({ clampToContent: true });
         return <WaitingApprovalTable variant="confirmed" resources={[row()]} columns={columns} />;
       };
       render(<Harness />);
       const handle = screen.getAllByRole('separator')[0];
-      // Flush (right-0), 2px — the guide covers the permanent rail instead of lighting
-      // a second line 3px beside it.
-      expect(handle.className).toContain('after:right-0');
+      // Straddling (-right-px, 2px) and full-height: the rail is the NEXT th's
+      // border-l, so a flush-inside guide left the grey pixel showing beside the blue
+      // (round 6 — "Header의 구분선은 확실히 가리는게 좋을 것 같아").
+      expect(handle.className).toContain('after:-right-px');
+      expect(handle.className).toContain('after:inset-y-0');
       expect(handle.className).toContain('after:w-0.5');
       expect(handle.className).not.toContain('after:right-[3px]');
+    });
+
+    it('divides confirmed rows on the shared hairline, not border-strong', () => {
+      // Round 6: with permanent rails sharing the separation work, border-strong rows
+      // overshot the consoles (their row rules measure ≈1.19:1) — rows return to the
+      // app-wide #EBEEF2 hairline and the hover tint is what blocks a row out.
+      render(<WaitingApprovalTable variant="confirmed" resources={[row()]} />);
+      const tbody = screen.getByText('covered-name').closest('tbody');
+      expect(tbody?.className).toContain('divide-[#EBEEF2]');
+      expect(tbody?.className).not.toContain('#D1D5DB');
     });
   });
 });

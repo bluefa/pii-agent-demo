@@ -1499,7 +1499,9 @@ export const idcStyles = {
      * Console-grammar header (confirmed tables, 시안 F round 3) — no band, just an
      * underline. The AWS full-page table starts at the thead rule; a grey band on a
      * flat white surface would reintroduce the frame the redesign removed. The rule
-     * is #D1D5DB (DESIGN.md border-strong) to match `bodyStrong` below.
+     * stays #D1D5DB (DESIGN.md border-strong) now that the interior grid is hairline
+     * (round 6): it is the one strong line left — the "table starts here" anchor,
+     * which is also the consoles' pattern (only the thead rule outweighs the grid).
      */
     approvalHeaderFlat: 'text-left text-[12px] font-semibold text-[#4E5968] border-b border-[#D1D5DB]',
     /**
@@ -1532,14 +1534,6 @@ export const idcStyles = {
     /** Approval-table body cell padding — v16 `.approval-table tbody td` 16px V / 18px H. */
     approvalCell: 'px-[18px] py-4',
     /**
-     * Row dividers one step up from `body`'s #EBEEF2 hairline (1.16:1) — owner verdict,
-     * round 3: "안 그러면 사람들은 아예 보지도 못 할듯". #D1D5DB is DESIGN.md's
-     * border-strong, the strongest of the three separation weights; border-emphasis is
-     * barred from separating (DESIGN.md: only where the border IS the state). Scoped to
-     * the confirmed/console tables — the approval tables keep the shared hairline.
-     */
-    bodyStrong: 'divide-y divide-[#D1D5DB]',
-    /**
      * Round 4 (owner): a permanent stroke on every column boundary, header and body.
      * The confirmed tables clip cell values mid-letter at the cell edge (the Azure
      * "covered by the next column" grammar), and a cut with no visible edge reads as
@@ -1552,9 +1546,9 @@ export const idcStyles = {
      * benchmark's measurements put console interior lines in the hairline band: AWS
      * live-demo row rule 0.8px #EBEBF0 (1.19:1), Fluent colorNeutralStroke2 #E0E0E0
      * (1.32:1). border-default (1.25:1) sits inside that measured band, so the rails
-     * drop ONE ramp step while the ROW dividers keep border-strong — the round-3
-     * "아예 보지도 못 한다" verdict was about rows, and strong rows over quiet rails
-     * is the consoles' own hierarchy. Pairs with `tableRowLift.console`: under the
+     * drop ONE ramp step. (The ROW dividers kept border-strong one more round; round 6
+     * returned them to the shared `body` hairline — see the tbody in
+     * WaitingApprovalTable.) Pairs with `tableRowLift.console`: under the
      * approval hover (#EAEEF7) these rails wash to 1.08:1 — the tint would eat the
      * very step the rails just dropped to.
      */
@@ -1572,12 +1566,18 @@ export const idcStyles = {
      * `resizeHandle` for the console tables (round 5) — their grid draws a permanent
      * rail ON the boundary, and the 3px-inset guide lit up BESIDE it (guide at
      * edge−4..−3, rail astride the edge): two parallel lines reading as misregistration
-     * — "미묘하게 구분선과 hover가 일치하지 않네요". Flush and 2px wide, the guide
-     * covers the rail exactly like the prototype's straddling guide line did. The
-     * modal tables stay on `resizeHandle`: no rail there to disagree with.
+     * — "미묘하게 구분선과 hover가 일치하지 않네요". The modal tables stay on
+     * `resizeHandle`: no rail there to disagree with.
+     *
+     * Round 6 (owner): "Header의 구분선은 확실히 가리는게 좋을 것 같아". Flush-INSIDE
+     * (right-0) still left the rail showing: the rail is the NEXT th's border-l, one
+     * pixel past this th's edge, and the 6px vertical insets left grey stubs above and
+     * below the guide. Straddling (-right-px, 2px) and full-height, the guide owns the
+     * whole boundary while it shows. Depends on the th not clipping (labels
+     * self-truncate instead) — an overflow-hidden th would cut the straddle's outer px.
      */
     resizeHandleOnGrid:
-      'absolute inset-y-0 right-0 z-20 w-2 cursor-col-resize touch-none after:absolute after:inset-y-1.5 after:right-0 after:w-0.5 after:bg-transparent hover:after:bg-[#0064FF] focus-visible:after:bg-[#0064FF] focus:outline-none',
+      'absolute inset-y-0 right-0 z-20 w-2 cursor-col-resize touch-none after:absolute after:inset-y-0 after:-right-px after:w-0.5 after:bg-transparent hover:after:bg-[#0064FF] focus-visible:after:bg-[#0064FF] focus:outline-none',
     /**
      * Two-line identity stack — kind tag ABOVE, resource name below (RDS Cluster · EC2 · a
      * member instance's Reader/Writer chip). Lifts the stack by half its tag line so the
