@@ -240,7 +240,14 @@ export const ServiceManagementView = () => {
         signal: controller.signal,
       });
       if (controller.signal.aborted) return;
-      if (!searchQuery) setNoAccess((data.totalElements ?? 0) === 0);
+      // 두 필드가 **둘 다** 0 이라고 말해야 판정한다. `totalElements ?? 0` 하나로는
+      // "서버가 총계를 안 보냈다"가 "권한이 없다"로 접힌다 — 계약상 이 필드는 선택이라
+      // (`PageServiceItem` 은 `.partial()`) 부재가 실제로 가능하고, 그때 레일은 방금 온
+      // `content` 로 서비스를 그리면서 판은 그 서비스에 접근할 수 없다고 말한다.
+      // 모르면 판정하지 않는다. [[feedback_absence_needs_a_complete_set]]
+      if (!searchQuery) {
+        setNoAccess((data.content?.length ?? 0) === 0 && data.totalElements === 0);
+      }
       dispatch({
         type: 'SET_SERVICES',
         services: data.content ?? [],

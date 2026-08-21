@@ -92,6 +92,20 @@ describe('무권한 안내는 무필터 응답에서만 나온다', () => {
     unmount();
   });
 
+  it('totalElements 가 안 왔으면 판정하지 않는다 — 부재는 사실이 아니다', async () => {
+    // 계약상 이 필드는 선택이다(`PageServiceItem` 은 `.partial()`). 안 왔는데 0 으로
+    // 접으면, 레일이 `content` 로 서비스를 그리는 동안 판은 그 서비스에 접근할 수
+    // 없다고 말한다 — 한 화면의 두 쪽이 서로를 부정한다.
+    const { totalElements: _dropped, ...withoutTotal } = page([service(1, 'AAA')]);
+    getServicesPage.mockResolvedValue(withoutTotal);
+
+    const { container, unmount } = render(<ServiceManagementView />);
+    await waitFor(() => expect(getServicesPage).toHaveBeenCalled());
+    await waitFor(() => expect(container.textContent).toContain('AAA'));
+    expect(container.textContent).not.toContain(NO_ACCESS);
+    unmount();
+  });
+
   it('첫 응답이 오기 전에는 어느 쪽도 말하지 않는다', () => {
     getServicesPage.mockReturnValue(new Promise(() => {}));
 
