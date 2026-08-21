@@ -17,6 +17,12 @@ export const TC_TONE_FILL: Record<TcTone, string> = {
   off: 'bg-[var(--pl-off-bg)] text-[var(--pl-text-weak)]',
 };
 
+/**
+ * 알약은 색을 두 번 말하지 않는다 — 틴트 면과 글자색이 이미 계열을 말하고 있어서,
+ * 그 안의 색 점은 같은 사실의 세 번째 사본이었다 (오너 08-20). 점은 면이 없는 자리,
+ * 판정 헤드라인처럼 색을 실을 곳이 점뿐인 데서만 쓴다. nowrap 은 #729 — 반폭 카드의
+ * 실행 표에서 두 음절 라벨이 알약 안에서 줄바꿈되던 것.
+ */
 export function TcPill({ tone, label }: { tone: TcTone; label: string }): ReactElement {
   const { pill } = pipelineStyles;
   return <span className={cn(pill.base, pill.md, 'whitespace-nowrap', TC_TONE_FILL[tone])}>{label}</span>;

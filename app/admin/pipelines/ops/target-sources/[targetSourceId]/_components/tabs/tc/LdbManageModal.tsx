@@ -46,7 +46,9 @@ const signature = (items: readonly ExcludedLogicalDatabase[]): string =>
     .sort()
     .join(',');
 
-const panel = {
+/** Shared with the approval tab's read-only viewer (LdbViewModal) — one grammar,
+ *  two modes, so 검토 화면과 편집 화면이 같은 목록을 같은 옷으로 그린다. */
+export const ldbPanel = {
   wrap: 'flex min-h-[280px] flex-col rounded-lg border border-[var(--pl-border)]',
   head: 'flex items-center justify-between gap-2 border-b border-[var(--pl-border)] px-3.5 py-2.5',
   title: 'text-[14px] font-semibold text-[var(--pl-text-strong)]',
@@ -58,6 +60,8 @@ const panel = {
   remove: 'text-[12px] font-semibold text-[var(--pl-err-text)] hover:underline whitespace-nowrap',
   placeholder: 'py-6 text-center text-[14px] text-[var(--pl-text-faint)]',
 } as const;
+
+const panel = ldbPanel;
 
 export interface LdbManageModalProps {
   targetSourceId: number;

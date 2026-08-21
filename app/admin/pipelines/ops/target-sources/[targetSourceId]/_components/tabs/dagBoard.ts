@@ -177,6 +177,39 @@ export const summarizeAgents = (data: DagStatusResponse): DagAgentSummary[] =>
  * 모니터링 연결 상태 pill — allowlist fold. 계약 밖의 값은 '미확인'으로 접고
  * raw 는 label 에 싣지 않는다(wire 어휘는 문장·라벨 금지 — 툴팁 채널은 호출부 몫).
  */
+/**
+ * 행의 종합 상태 (오너 08-21) — 연결과 주간 DAG 를 알약 하나로 접어 **모든 행**에
+ * 세운다. 비정상만 표시하던 예외 방식은 "왜 이 행만 알약이지?"로 읽혔고, 연결
+ * 성공이어도 2/4 성공인 행을 아무것도 경고하지 않았다.
+ * 우선순위: 연결이 SUCCESS 가 아니면 그 사실이 판정이다(관측 자체를 못 믿는 행).
+ * 연결이 정상이면 관측 결과로 판정한다 — 관측 논리 DB 전부가 최근 7일 성공이어야
+ * 정상, 하나라도 성공 기록이 없으면 이상(대상 UNHEALTHY 와 같은 기준의 행 축소판).
+ * raw enum 은 hint(툴팁 채널)로만 나른다.
+ */
+export const agentVerdict = (
+  agent: DagAgentSummary,
+): { tone: TcTone; label: string; hint?: string } => {
+  if (agent.connectionStatus !== 'SUCCESS') {
+    const conn = connPill(agent.connectionStatus);
+    return {
+      tone: conn.tone,
+      label: `연결 ${conn.label}`,
+      hint: `connectionStatus: ${conn.raw ?? agent.connectionStatus}`,
+    };
+  }
+  // 0 은 조회 실패가 아니라 걸린 DAG 가 없다는 확정된 사실 — 판정 없이 부재만 말한다.
+  if (agent.dbTotal === 0) return { tone: 'off', label: 'DAG 없음' };
+  const noSuccess = agent.dbTotal - agent.succeeded;
+  if (noSuccess === 0) {
+    return { tone: 'ok', label: '정상', hint: '관측 논리 DB 전부 최근 7일 성공' };
+  }
+  return {
+    tone: 'err',
+    label: '이상',
+    hint: `논리 DB ${noSuccess}개가 최근 7일 성공 기록이 없어요`,
+  };
+};
+
 export const connPill = (
   connectionStatus: string,
 ): { tone: TcTone; label: string; raw?: string } => {

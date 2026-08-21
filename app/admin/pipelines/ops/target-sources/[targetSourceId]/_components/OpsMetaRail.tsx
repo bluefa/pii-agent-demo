@@ -14,6 +14,11 @@
  * 오너 08-20 여섯째 조정: the target's free-text 설명 joins the rail as its own
  * group — display folds at 100 chars (full text in title); the write goes
  * through the existing DescriptionEditModal (assumed §8 PUT …/description).
+ *
+ * 오너 08-21: GCP 의 scan/terraform service account 는 마스트헤드에서 레일로
+ * 내려온다 — 마스트헤드의 한 줄 행은 주소를 프로젝트 기준으로 접어야 했는데,
+ * 이 값은 접힌 이름이 아니라 **주소 전체**가 정보다(복사해 GCP 콘솔에서 찾는
+ * 값). 레일 그룹은 제목 아래로 값을 펼 수 있어 자르지 않고 다 보여 준다.
  */
 import Link from 'next/link';
 import type { ReactElement, ReactNode } from 'react';
@@ -40,6 +45,20 @@ function Row({ label, children }: { label: string; children: ReactNode }): React
       <span className={opsStyles.railKey}>{label}</span>
       {children}
     </div>
+  );
+}
+
+/** GCP SA 그룹 — 주소는 접지 않는다: 전체 문자열이 정보라 mono 로 줄바꿈해 다 편다. */
+function SaGroup({ label, value }: { label: string; value: string | null | undefined }): ReactElement {
+  return (
+    <section className={opsStyles.railGroup}>
+      <h2 className={opsStyles.railLabel}>{label}</h2>
+      {value ? (
+        <p className={cn(opsStyles.railProse, opsStyles.railMono, 'break-all')}>{value}</p>
+      ) : (
+        <p className={cn('mt-1.5', opsStyles.railNone)}>미등록</p>
+      )}
+    </section>
   );
 }
 
@@ -126,6 +145,18 @@ export function OpsMetaRail({
           <p className={cn('mt-1.5', opsStyles.railNone)}>없음</p>
         )}
       </section>
+      {detail.cloud_provider === 'GCP' && (
+        <>
+          <SaGroup
+            label="Scan Service Account"
+            value={detail.metadata?.gcp_scan_service_account}
+          />
+          <SaGroup
+            label="Terraform Service Account"
+            value={detail.metadata?.gcp_terraform_service_account}
+          />
+        </>
+      )}
     </aside>
   );
 }

@@ -1,7 +1,9 @@
 'use client';
 
 /**
- * 리소스(에이전트)별 최근 7일 DAG 표 (L2, 시안 C) — UNHEALTHY 원인 추적의 중간층.
+ * 리소스(에이전트)별 최근 7일 DAG 표 — 모니터링 근거 행을 펼치면 그 자리에 서는
+ * 관측층이다(시안 C 근거 리포트 행). 카드가 아니라 맨 표: 감싸는 근거 행이 제목과
+ * 판정(알약)을 이미 말했다.
  *
  * 행 = dag-status 응답의 agent 하나. §10 이 리소스에 대해 보증하는 것은 resourceId 와
  * gcpRegion 뿐이라, 리전(비-GCP)·DatabaseType 은 확정 정보와 resourceId 로 조인해서
@@ -11,23 +13,28 @@
  * 엔진 이름은 같은 `getDatabaseShortLabel` 로 쓴다. 한 화면 안에서 같은 사실이 자리마다
  * 다른 옷을 입으면 다른 사실처럼 읽힌다 (오너 08-20).
  *
- * 연결 상태는 이 API(모니터링)의 값이라 열 이름이 출처를 밝힌다 — Test Connection
- * 탭의 최신 판정과 출처가 다르다(§06-5).
+ * 연결 상태 열은 최근 7일 DAG 열에 접혔고 (오너 08-20), 그 자리에는 이제 **종합
+ * 상태 알약이 모든 행에** 선다 (오너 08-21, agentVerdict): 비정상만 표시하던 예외
+ * 방식은 연결 성공 + 2/4 성공인 행을 아무것도 경고하지 않았다. 연결이 우선하고,
+ * 연결이 정상이면 주간 관측으로 정상/이상을 판정한다. TC 탭의 판정과 출처가 다른
+ * 값이라 (§06-5) raw 는 툴팁이 나른다.
  *
- * "DB 보기"는 지속 선택이 아니라 one-shot 진입이다: 주간 보드 패널을 그 에이전트로
+ * "DAG 상태 조회"(오너 08-21, "DB 보기"에서 rename)는 지속 선택이 아니라 one-shot
+ * 진입이다: 주간 보드 패널을 그 에이전트로
  * 스코프해서 연다. 보드가 스코프를 칩으로 보여 주고 스스로 해제할 수 있으므로,
  * 이 표는 선택 상태를 들고 있지 않는다(두 컴포넌트의 상태 동기화를 만들지 않는 값싼 쪽).
  *
- * 에이전트가 1개뿐이어도 그린다 (2026-08-20 정정): 한 행이 요약 밴드의 반복일 거라는
- * 최초 판단이 실물 응답에서 깨졌다 — 밴드는 resourceId·Region·그 리소스의 연결 상태를
+ * 에이전트가 1개뿐이어도 그린다 (2026-08-20 정정): 한 행이 요약의 반복일 거라는
+ * 최초 판단이 실물 응답에서 깨졌다 — 요약은 resourceId·Region·그 리소스의 연결 상태를
  * 말하지 않아서, 표를 접으면 화면이 끝까지 어느 리소스 얘긴지 말하지 못한다.
  * 30개 규모(1801)를 위해 페이지 10; floor 를 명시해 마지막 페이지가 짧아도 아래
- * 요약 라인이 따라 오르지 않는다.
+ * 내용이 따라 오르지 않는다.
  */
 import { useMemo, useState, type ReactElement } from 'react';
-import { cn, pipelineStyles } from '@/lib/theme';
+import { cn } from '@/lib/theme';
 import { getDatabaseShortLabel } from '@/app/components/ui/DatabaseIcon';
 import type { DagStatusResponse } from '@/lib/types/dag-status';
+import { SegControl, type SegOption } from '@/app/admin/pipelines/_components/SegControl';
 import { OpsPagination } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/OpsPagination';
 import { opsStyles } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/opsStyles';
 import {
@@ -37,7 +44,7 @@ import {
 } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/bits';
 import {
   agentDisplayName,
-  connPill,
+  agentVerdict,
   summarizeAgents,
   type DagAgentSummary,
 } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/dagBoard';
@@ -51,36 +58,63 @@ const PAGE_SIZE = 10;
 /** 행 높이 근사(2줄 정체성) × PAGE_SIZE — floor 명시용. */
 const ROW_H = 65;
 
-/** 최근 7일 요약 셀 — 분수 + 미니 분포 바 (요약 밴드 스택바의 셀 번역, 같은 채움 문법). */
+/**
+ * 종합 상태 필터 (오너 08-21) — TcAgentResultList·DbWeeklyBoard 와 같은 문법:
+ * SegControl, 전체가 먼저, 칩마다 개수, '그 외'는 있을 때만. 버킷은 알약(agentVerdict)의
+ * tone 을 접은 것이라 칩과 알약이 다른 판정을 말할 수 없다 — 성공=정상(ok),
+ * 실패=이상·연결 실패(err), 그 외=진행 중·대기·미확인·DAG 없음.
+ */
+type AgentFilter = 'ALL' | 'ok' | 'err' | 'other';
+
+const FILTER_LABEL: Record<Exclude<AgentFilter, 'ALL'>, string> = {
+  ok: '성공',
+  err: '실패',
+  other: '그 외',
+};
+
+const filterBucket = (agent: DagAgentSummary): Exclude<AgentFilter, 'ALL'> => {
+  const { tone } = agentVerdict(agent);
+  return tone === 'ok' ? 'ok' : tone === 'err' ? 'err' : 'other';
+};
+
+/**
+ * 최근 7일 요약 셀 — 종합 상태 알약(agentVerdict, 모든 행) + 분수 + 미니 분포 바
+ * (요약 스택바의 셀 번역, 같은 채움 문법). 판정 근거는 알약의 title(툴팁)이 말한다.
+ */
 function WeeklyCell({ agent }: { agent: DagAgentSummary }): ReactElement {
   const pct = (count: number): string =>
     agent.dbTotal === 0 ? '0%' : `${(count / agent.dbTotal) * 100}%`;
-  // 논리 DB 가 하나도 없는 리소스 — 대시로 두면 "값을 못 읽었다"로 읽힌다. 여기서
-  // 0 은 조회 실패가 아니라 **걸린 DAG 가 없다**는 확정된 사실이라 문장으로 말한다.
-  if (agent.dbTotal === 0) {
-    // 12px — 이 열의 본문(`6/6 성공`)이 12px 라 같은 단에 선다.
-    return <span className="text-[12px] text-[var(--pl-text-weak)]">DAG 없음</span>;
-  }
+  const verdict = agentVerdict(agent);
+  // 관측 DB 가 0개면 분수도 바도 없다 — 알약('DAG 없음')이 이미 부재를 말했다.
+  const weekly =
+    agent.dbTotal === 0 ? null : (
+      <span className="inline-flex items-center gap-2.5">
+        <span className="whitespace-nowrap font-mono text-[12px] tabular-nums text-[var(--pl-text-strong)]">
+          <b className="font-semibold">{agent.succeeded.toLocaleString('ko-KR')}</b>/
+          {agent.dbTotal.toLocaleString('ko-KR')} 성공
+        </span>
+        <span className="flex h-1.5 w-16 flex-none overflow-hidden rounded-full" aria-hidden>
+          <span style={{ width: pct(agent.succeeded) }} className="bg-[var(--pl-ok)]" />
+          <span style={{ width: pct(agent.failed) }} className="bg-[var(--pl-err)]" />
+          {agent.running > 0 && (
+            <span style={{ width: pct(agent.running) }} className="bg-[var(--pl-warn)]" />
+          )}
+          {/* 미스케줄(+미지 값)은 부재 — 요약 스택바와 같은 점선. */}
+          {agent.rest > 0 && (
+            <span
+              style={{ width: pct(agent.rest) }}
+              className="self-center border-t-2 border-dashed border-[var(--pl-border-strong)]"
+            />
+          )}
+        </span>
+      </span>
+    );
   return (
-    <span className="inline-flex items-center gap-2.5">
-      <span className="whitespace-nowrap font-mono text-[12px] tabular-nums text-[var(--pl-text-strong)]">
-        <b className="font-semibold">{agent.succeeded.toLocaleString('ko-KR')}</b>/
-        {agent.dbTotal.toLocaleString('ko-KR')} 성공
+    <span className="inline-flex flex-wrap items-center gap-2">
+      <span title={verdict.hint}>
+        <TcPill tone={verdict.tone} label={verdict.label} />
       </span>
-      <span className="flex h-1.5 w-16 flex-none overflow-hidden rounded-full" aria-hidden>
-        <span style={{ width: pct(agent.succeeded) }} className="bg-[var(--pl-ok)]" />
-        <span style={{ width: pct(agent.failed) }} className="bg-[var(--pl-err)]" />
-        {agent.running > 0 && (
-          <span style={{ width: pct(agent.running) }} className="bg-[var(--pl-warn)]" />
-        )}
-        {/* 미스케줄(+미지 값)은 부재 — 요약 밴드와 같은 점선. */}
-        {agent.rest > 0 && (
-          <span
-            style={{ width: pct(agent.rest) }}
-            className="self-center border-t-2 border-dashed border-[var(--pl-border-strong)]"
-          />
-        )}
-      </span>
+      {weekly}
     </span>
   );
 }
@@ -107,41 +141,75 @@ export function AgentDagTable({
 }: AgentDagTableProps): ReactElement {
   const agents = useMemo(() => summarizeAgents(data), [data]);
   const [page, setPage] = useState(0);
+  const [filter, setFilter] = useState<AgentFilter>('ALL');
 
-  const totalPages = Math.max(1, Math.ceil(agents.length / PAGE_SIZE));
+  const counts = useMemo(() => {
+    const acc = { ok: 0, err: 0, other: 0 };
+    for (const agent of agents) acc[filterBucket(agent)] += 1;
+    return acc;
+  }, [agents]);
+
+  const options: SegOption<AgentFilter>[] = [
+    { value: 'ALL', label: `전체 ${agents.length}` },
+    { value: 'ok', label: `성공 ${counts.ok}` },
+    { value: 'err', label: `실패 ${counts.err}` },
+    // 활성인 동안은 개수가 0이 돼도 남는다 — 서 있던 칩이 발밑에서 사라지지 않게.
+    ...(counts.other > 0 || filter === 'other'
+      ? [{ value: 'other' as const, label: `그 외 ${counts.other}` }]
+      : []),
+  ];
+
+  const changeFilter = (next: AgentFilter): void => {
+    setFilter(next);
+    setPage(0);
+  };
+
+  const visible = filter === 'ALL' ? agents : agents.filter((agent) => filterBucket(agent) === filter);
+  const totalPages = Math.max(1, Math.ceil(visible.length / PAGE_SIZE));
   const safePage = Math.min(page, totalPages - 1);
-  const pageRows = agents.slice(safePage * PAGE_SIZE, safePage * PAGE_SIZE + PAGE_SIZE);
-  const paged = totalPages > 1;
+  const pageRows = visible.slice(safePage * PAGE_SIZE, safePage * PAGE_SIZE + PAGE_SIZE);
+  // floor 는 필터 무관 전체 기준 — 칩을 누를 때마다 아래 내용이 오르내리면 안 된다.
+  const floor = agents.length > PAGE_SIZE;
 
   return (
-    <section className={pipelineStyles.card.base} aria-label="리소스별 최근 7일 DAG">
-      <div className="flex items-baseline justify-between gap-3">
-        <h2 className={cn(opsStyles.cardTitle, 'flex items-baseline gap-2')}>
-          리소스별 최근 7일 DAG
-          <span className="text-[16px] font-medium text-[var(--pl-text-weak)] tabular-nums">
-            {agents.length.toLocaleString('ko-KR')}
-          </span>
-        </h2>
-      </div>
-
+    <section aria-label="리소스별 최근 7일 DAG">
+      <SegControl
+        className="mb-2.5"
+        ariaLabel="종합 상태 필터"
+        options={options}
+        value={filter}
+        onChange={changeFilter}
+      />
       <div
-        className="mt-2 overflow-x-auto"
-        style={paged ? { minHeight: PAGE_SIZE * ROW_H } : undefined}
+        className="overflow-x-auto"
+        style={floor ? { minHeight: PAGE_SIZE * ROW_H } : undefined}
       >
         <table className={opsStyles.table.base}>
           <thead>
             <tr>
               <th className={opsStyles.table.headCell}>리소스</th>
               <th className={opsStyles.table.headCell}>{isIdc ? '접속 주소' : 'Region'}</th>
-              <th className={opsStyles.table.headCell}>DB</th>
-              <th className={opsStyles.table.headCell}>연결 상태 (모니터링)</th>
+              {/* 엔진 열은 IDC 에만 선다 (오너 08-21): 접속 주소는 엔진을 말하지 않지만,
+                  클라우드 리소스는 이름·리전으로 이미 정체성이 서고 엔진은 검토 표가
+                  말한다. 상태를 나르지 않는 열이 분수의 분모(논리 DB 수) 옆에 "DB"로
+                  서 있으면 그 개수 얘기처럼 오독된다. */}
+              {isIdc && <th className={opsStyles.table.headCell}>Database Type</th>}
               <th className={opsStyles.table.headCell}>최근 7일 DAG</th>
               <th className={opsStyles.table.headCell} aria-label="동작" />
             </tr>
           </thead>
           <tbody>
+            {pageRows.length === 0 && filter !== 'ALL' && (
+              <tr>
+                <td
+                  colSpan={isIdc ? 5 : 4}
+                  className="py-6 text-center text-[12px] text-[var(--pl-text-weak)]"
+                >
+                  {FILTER_LABEL[filter]} 상태인 리소스가 없습니다.
+                </td>
+              </tr>
+            )}
             {pageRows.map((agent) => {
-              const pill = connPill(agent.connectionStatus);
               const facts = agentResourceFacts(agent.resourceId, confirmed);
               return (
                 <tr key={agent.agentId}>
@@ -195,23 +263,19 @@ export function AgentDagTable({
                       <Dash />
                     )}
                   </td>
-                  <td className={opsStyles.table.cell}>
-                    {/* 엔진 이름은 확정 정보 표와 같은 함수로 쓴다 — 한 화면에서 같은
-                        리소스가 MYSQL 과 MySQL 로 갈라져 읽히면 다른 것처럼 보인다. */}
-                    {facts.databaseType ? (
-                      <span title="확정 정보 기준">
-                        {getDatabaseShortLabel(facts.databaseType)}
-                      </span>
-                    ) : (
-                      <Dash />
-                    )}
-                  </td>
-                  <td className={opsStyles.table.cell}>
-                    {/* 미지의 enum 은 '미확인'으로 접고 raw 는 툴팁 채널에만. */}
-                    <span title={pill.raw ? `connectionStatus: ${pill.raw}` : undefined}>
-                      <TcPill tone={pill.tone} label={pill.label} />
-                    </span>
-                  </td>
+                  {isIdc && (
+                    <td className={opsStyles.table.cell}>
+                      {/* 엔진 이름은 확정 정보 표와 같은 함수로 쓴다 — 한 화면에서 같은
+                          리소스가 MYSQL 과 MySQL 로 갈라져 읽히면 다른 것처럼 보인다. */}
+                      {facts.databaseType ? (
+                        <span title="확정 정보 기준">
+                          {getDatabaseShortLabel(facts.databaseType)}
+                        </span>
+                      ) : (
+                        <Dash />
+                      )}
+                    </td>
+                  )}
                   <td className={opsStyles.table.cell}>
                     <WeeklyCell agent={agent} />
                   </td>
@@ -223,7 +287,7 @@ export function AgentDagTable({
                         onClick={() => onViewDbs(agent.agentId)}
                         className={opsStyles.detailLink}
                       >
-                        DB 보기
+                        DAG 상태 조회
                       </button>
                     )}
                   </td>
@@ -234,16 +298,10 @@ export function AgentDagTable({
         </table>
       </div>
 
-      {paged && (
-        <div className="flex items-center justify-between gap-3">
-          <p className="text-[12px] tabular-nums text-[var(--pl-text-weak)]">
-            {(safePage * PAGE_SIZE + 1).toLocaleString('ko-KR')}–
-            {(safePage * PAGE_SIZE + pageRows.length).toLocaleString('ko-KR')} /{' '}
-            {agents.length.toLocaleString('ko-KR')}
-          </p>
-          <OpsPagination page={safePage} totalPages={totalPages} onChange={setPage} always />
-        </div>
-      )}
+      {/* footer 는 항상 선다 (오너 08-21) — 표준 페이저 단독, 가운데 (다른 모든
+          OpsPagination 사용처와 같은 문법). "1–3 / 3" 범위 텍스트는 기각됐다:
+          개수는 위 kv 줄이 이미 말하고, 분수 표기는 고장처럼 읽힌다. */}
+      <OpsPagination page={safePage} totalPages={totalPages} onChange={setPage} always />
     </section>
   );
 }
