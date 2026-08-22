@@ -389,6 +389,14 @@ const CONFIRMED_COLUMN_WIDTHS = {
   excluded: 96,
 } as const;
 
+/**
+ * Which confirmed column absorbs the table's slack. Exported because the caller owns the
+ * resize instance and has to name this column there too — its width is session-only
+ * (`ephemeralKeys`), since a stored width would take the column out of `flex` and strand
+ * the table at one screen size for good.
+ */
+export const CONFIRMED_FLEX_KEY = 'id';
+
 /** The confirmed table's column spec. `kind` only exists when a visible row can fill it —
  *  Azure/GCP rows carry no kind today, and a permanently blank column is dead space. */
 const confirmedColumns = (regionLabel: string, withKind: boolean): ConsoleTableColumn[] => [
@@ -401,7 +409,7 @@ const confirmedColumns = (regionLabel: string, withKind: boolean): ConsoleTableC
   // The slack sink. Its values are ARNs — the longest thing in the row and the only column
   // whose cut costs the reader something — so a wider screen spends its extra pixels here
   // instead of padding all seven columns out. Six sized columns keep their declared px.
-  { key: 'id', label: 'Resource ID', width: CONFIRMED_COLUMN_WIDTHS.id, flex: true },
+  { key: CONFIRMED_FLEX_KEY, label: 'Resource ID', width: CONFIRMED_COLUMN_WIDTHS.id, flex: true },
   // Round 9 (owner): "종류를 resource id 오른쪽으로" — the kind leaves the leading anchor
   // slot and files in with the other attributes, after the identity pair (name → id).
   ...(withKind ? [{ key: 'kind', label: '종류', width: CONFIRMED_COLUMN_WIDTHS.kind }] : []),
