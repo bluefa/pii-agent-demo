@@ -98,6 +98,26 @@ describe('ProjectPageMeta — 설치 대상 정보 disclosure', () => {
     expect(card.queryByText('서비스 코드')).toBeNull();
   });
 
+  it('lets a branded logo be the provider name, and keeps that name readable aloud', () => {
+    // 오너 8차 지시 — the AWS mark IS the wordmark, so 「AWS Cloud」 beside it printed
+    // the name twice. It goes off the SCREEN, not out of the document: a logo
+    // announces nothing, so dropping the text outright would leave the three branded
+    // clouds unnamed for anyone not looking at it.
+    render(<ProjectPageMeta project={projectFixture} identity={awsIdentity} />);
+    expect(within(summaryCard()).getByText('AWS Cloud').className).toBe('sr-only');
+  });
+
+  // The other half of the same rule. A server rack and an upload arrow are ours, not a
+  // vendor's, and name nothing on their own; hiding these two would delete the provider
+  // from the card rather than de-duplicate it.
+  it.each([
+    ['IDC', { cloudProvider: 'IDC' as const }, 'IDC'],
+    ['SDU', { isSduType: true }, 'SDU'],
+  ])('still prints the %s name in ink — its glyph is a generic outline', (_, patch, name) => {
+    render(<ProjectPageMeta project={{ ...projectFixture, ...patch }} identity={idcIdentity} />);
+    expect(within(summaryCard()).getByText(name).className).not.toContain('sr-only');
+  });
+
   it('stacks every identifier on its own row, aligned in one label column', () => {
     // 오너 6차 지시 — Azure's two IDs read as a list, not as a line that ran out of
     // room, and that only holds while the rows come from grid structure. A wrapping
@@ -302,9 +322,14 @@ const utilityOn = (start: Element | null, prefix: string): string | null => {
 
 describe('ProjectPageMeta — one line per tier', () => {
   it('gives the provider name and the account one shared line box on the card', () => {
-    render(<ProjectPageMeta project={projectFixture} identity={awsIdentity} />);
+    // SDU, because the branded clouds no longer print a name to align (오너 8차 지시) —
+    // an inked provider name beside an identifier value is now only reachable through
+    // IDC or SDU, and neither ships one today (IDC carries no identifier; an SDU target
+    // never reaches this header). So this guards the token agreement, not a live pixel:
+    // it is what the next provider to print a name will land on.
+    render(<ProjectPageMeta project={{ ...projectFixture, isSduType: true }} identity={awsIdentity} />);
     const card = within(summaryCard());
-    const provider = card.getByText('AWS Cloud');
+    const provider = card.getByText('SDU');
     const value = card.getByText('482915736204');
 
     // Same size, or one of them sets the row's content height alone. The size sits

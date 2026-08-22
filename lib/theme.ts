@@ -726,7 +726,9 @@ export const projectHeaderStyles = {
   block: 'mt-[18px]',
   /** Description body — 2-line clamp; the whole block is skipped when empty. */
   descText: 'mt-1.5 max-w-[82ch] text-[14px] font-medium leading-[1.5] text-[#4E5968] line-clamp-2',
-  /** leading is explicit on BOTH line boxes — see summaryValue. */
+  /** The provider's name in ink — IDC and SDU only, now that the branded clouds let
+      their logo say it (오너 8차 지시). leading is explicit on BOTH line boxes — see
+      summaryValue. */
   providerName: 'text-[14px] font-medium leading-[1.5] tracking-[-0.01em] text-[#191F28]',
   /** Plain-language gloss after a bare token (IDC → 사내망). */
   providerGloss: 'text-[#4E5968]',
@@ -760,10 +762,11 @@ export const projectHeaderStyles = {
    */
   summaryRow: 'flex items-start gap-3 px-4 pb-3 pt-1.5',
   /**
-   * The provider cell — its label bound to its glyph at the house's 6px. Explicit
-   * `flex-none` at the call site, never baked in: `flex: none` pins flex-shrink to
-   * 0, which is right here and silently fatal on the identifier column, where it
-   * would defeat the truncation and let the row overflow the card instead.
+   * The provider cell — a bare mark for the branded clouds, mark plus name at the
+   * house's 6px for IDC and SDU. Explicit `flex-none` at the call site, never baked
+   * in: `flex: none` pins flex-shrink to 0, which is right here and silently fatal on
+   * the identifier column, where it would defeat the truncation and let the row
+   * overflow the card instead.
    */
   summaryFact: 'flex items-center gap-1.5',
   /**
@@ -778,11 +781,17 @@ export const projectHeaderStyles = {
    * blocks' 1:3 because these rows are one field repeated, not distinct groups.
    */
   summaryIds: 'grid min-w-0 grid-cols-[auto_1fr] items-center gap-x-1.5 gap-y-1',
-  /** The same 20px brand mark the ops dashboard identity cell uses (`ProviderGlyph`
-      tone="brand", 오너 지시) — one provider looks the same everywhere in the product.
-      Bare, no plate: brand colour is the emphasis, and a grey tile only muted it.
-      IDC and SDU have no brand and fall back to this `currentColor`. */
-  summaryGlyph: 'h-5 w-5 flex-none text-[#4E5968]',
+  /** The brand mark (`ProviderGlyph` tone="brand", 오너 지시) — one provider looks the
+      same everywhere in the product. Bare, no plate: brand colour is the emphasis,
+      and a grey tile only muted it. IDC and SDU have no brand and fall back to this
+      `currentColor`.
+
+      28px, up from the 20px the ops dashboard identity cell uses (오너 8차 지시) —
+      `CloudProviderIcon`'s own `lg` rung, not a number picked here. The step pays for
+      itself because the mark is now the ONLY thing naming the branded clouds on this
+      card: AWS's logo is a wordmark whose letters print at 0.32x the slot, so 20px
+      left them 6px tall — below the size at which a word is read rather than guessed. */
+  summaryGlyph: 'h-7 w-7 flex-none text-[#4E5968]',
   /** An identifier's value cell — the one thing on the card allowed to shrink, and
       the reason it can carry Azure's 293px Subscription UUID at all: the value
       prints in full where the column has room and ellipses where it does not. A

@@ -21,7 +21,15 @@ interface ProjectPageMetaProps {
 }
 
 interface ProviderDisplay {
+  /** Always the mark's accessible name; printed in ink only when `brandMark` is unset. */
   name: string;
+  /**
+   * The vendor's own logo already names the provider, so printing the name beside it
+   * is the name twice (오너 8차 지시 — 「AWS Cloud」 came off for exactly that). AWS's
+   * brand mark IS the wordmark; Azure's and Google Cloud's are the symbols everyone
+   * reads as those clouds.
+   */
+  brandMark?: true;
   /** Plain-language gloss after a bare token (IDC → 사내망) for first-time readers. */
   gloss?: string;
 }
@@ -29,10 +37,14 @@ interface ProviderDisplay {
 // The mark itself comes from `ProviderGlyph`, the same source the ops dashboard
 // identity cell draws from, so one provider looks the same across the product.
 // No group eyebrow any more — the fold has no 클라우드 정보 group to label.
+//
+// `brandMark` tracks BRAND_BY_KEY in CloudProviderIcon: IDC and SDU are ours and have
+// no brand, so their glyphs are generic outlines — a server rack and an upload arrow,
+// which name nothing on their own. Those two keep their name in ink.
 const PROVIDER_DISPLAY: Record<CloudProvider, ProviderDisplay> = {
-  AWS: { name: 'AWS Cloud' },
-  Azure: { name: 'Azure Cloud' },
-  GCP: { name: 'Google Cloud' },
+  AWS: { name: 'AWS Cloud', brandMark: true },
+  Azure: { name: 'Azure Cloud', brandMark: true },
+  GCP: { name: 'Google Cloud', brandMark: true },
   IDC: { name: 'IDC', gloss: '사내망' },
 };
 
@@ -162,8 +174,9 @@ export const ProjectPageMeta = ({ project, identity, action }: ProjectPageMetaPr
             the sake of the copy buttons, and those live here instead. */}
         <div className={h.summaryRow}>
           <span className={cn(h.summaryFact, 'flex-none')}>
-            {/* The glyph takes no accessible name of its own — the provider name
-                is right beside it, and ProviderGlyph has no aria prop to pass. */}
+            {/* The glyph takes no accessible name of its own — ProviderGlyph has no
+                aria prop to pass, so the name below carries the reading whether it is
+                printed or not. */}
             <span aria-hidden="true" className="flex">
               <ProviderGlyph
                 provider={identity.cloudProvider}
@@ -172,7 +185,9 @@ export const ProjectPageMeta = ({ project, identity, action }: ProjectPageMetaPr
                 className={h.summaryGlyph}
               />
             </span>
-            <span className={h.providerName}>
+            {/* Hidden, not dropped: a logo announces nothing, so removing 「AWS Cloud」
+                from the screen must not remove it from the accessible name too. */}
+            <span className={display.brandMark ? 'sr-only' : h.providerName}>
               {display.name}
               {display.gloss && (
                 <>
