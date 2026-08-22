@@ -3,7 +3,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, within } from '@testing-library/react';
 import { ProcessStatus } from '@/lib/types';
-import { installStepperStyles, projectHeaderStyles } from '@/lib/theme';
+import { cardStyles, installStepperStyles, primaryColors } from '@/lib/theme';
 import { InstallationProcessProgressBar } from '@/app/components/features/process-status/InstallationProcessProgressBar';
 
 vi.stubGlobal('matchMedia', () => ({
@@ -89,11 +89,24 @@ describe('InstallationProcessProgressBar — 설치 진행 전체 7단계 중 [4
 
   it('marks where you are in blue, not in the path’s slate (오너 14차 지시)', () => {
     // The row now carries the block's name too, so the step has to be the thing the
-    // eye lands on — and it must not be mistaken for the cue beside it, which is the
-    // one blue on this row that is actually pressable.
+    // eye lands on. Slate is the path's tag vocabulary one tier above.
     expect(installStepperStyles.stepTag).toContain('bg-[#E8F1FF]');
-    expect(installStepperStyles.stepTag).toContain('text-[#1747B5]');
-    expect(projectHeaderStyles.metaCue).toContain('text-[#0050D6]');
+    expect(installStepperStyles.stepTag).toContain('text-[#0050D6]');
+    expect(installStepperStyles.stepTag).not.toContain('#EAEEF7'); // the path's slate
+  });
+
+  it('wears the same plate as the 「N단계」 tag over the step card', () => {
+    // Same fact rendered twice, both on screen at once: this row says 「4단계 Agent
+    // 설치」 and the card below titles itself 「4단계 / Agent 설치」. One fill in two
+    // tints reads as two meanings — this shipped as #1747B5 for a round because the
+    // ink was reasoned against `metaCue` and never against the card tag.
+    const inkOf = (cls: string) => cls.match(/text-\[(#[0-9A-Fa-f]{6})\]/)?.[1];
+    const fillOf = (cls: string) => cls.match(/bg-\[(#[0-9A-Fa-f]{6})\]/)?.[1];
+    // cardStyles.stepTag builds its pair from primaryColors, so resolve through those.
+    expect(fillOf(installStepperStyles.stepTag)).toBe(fillOf(primaryColors.bgLight));
+    expect(inkOf(installStepperStyles.stepTag)).toBe(inkOf(primaryColors.textOnLight));
+    expect(cardStyles.stepTag).toContain(primaryColors.bgLight);
+    expect(cardStyles.stepTag).toContain(primaryColors.textOnLight);
   });
 
   it('drops the position row on a status outside the seven', () => {
@@ -153,10 +166,18 @@ describe('InstallationProcessProgressBar — 전체 단계 disclosure', () => {
     expect(dots.filter((c) => c.includes(installStepperStyles.dotPending)).length).toBe(3);
   });
 
-  it('wires the cue to the road it opens', () => {
-    const el = block(ProcessStatus.INSTALLING);
+  it('wires the cue to everything that press reveals, not just the road', () => {
+    // `aria-controls` is an ID list. The verdict is the second thing this press
+    // reveals and it lives up on the head row — outside the <ol> and before it in the
+    // DOM — so a single-id attribute leaves it with no tie to the control.
+    const el = block(ProcessStatus.WAITING_CONNECTION_TEST, <span id="x">v</span>);
     fireEvent.click(cue(el));
-    expect(el.querySelector('ol')?.id).toBe(cue(el).getAttribute('aria-controls'));
+    const controlled = cue(el).getAttribute('aria-controls')?.split(' ');
+    expect(controlled).toEqual(['install-progress-steps', 'install-progress-verdict']);
+    expect(el.querySelector('ol')?.id).toBe(controlled?.[0]);
+    expect(el.querySelector(`#${controlled?.[1]}`)?.className).toBe(
+      installStepperStyles.tagSlot,
+    );
   });
 
   it('closes again on a second press', () => {

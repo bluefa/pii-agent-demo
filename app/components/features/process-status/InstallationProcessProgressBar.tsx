@@ -24,13 +24,21 @@ const TEST_INDEX = INSTALL_STEPS.findIndex(
 const PROGRESS_LABEL_ID = 'install-progress-label';
 /** Ties the disclosure button to the road it opens (`aria-controls`). */
 const STEPS_BLOCK_ID = 'install-progress-steps';
+/**
+ * The verdict is the second thing that press reveals, and it lives up on the head row
+ * — outside the road and BEFORE it in the DOM. `aria-controls` takes an ID list, so
+ * both go in it; a reader who expands is otherwise pointed at the road alone and the
+ * freshest fact on the header arrives with no tie to the control that produced it.
+ */
+const VERDICT_SLOT_ID = 'install-progress-verdict';
 
 interface InstallationProcessProgressBarProps {
   currentStep: ProcessStatus;
   /**
-   * The latest connection-test verdict. It rides the position row, not a step of the
-   * road — the road folds away and the verdict must not fold with it. Renders nothing
-   * when absent, and nothing before the target reaches that step (see below).
+   * The latest connection-test verdict. It rides the position row rather than a step
+   * of the road — but it folds WITH the road (오너 14차 지시 후속), so the press that
+   * names the steps is also what reveals it. Renders nothing when absent, nothing
+   * before the target reaches 연결 테스트, and nothing while the road is shut.
    */
   tcTag?: ReactNode;
 }
@@ -89,7 +97,9 @@ export const InstallationProcessProgressBar = ({
                   Neither gate merely hides the tag: `TcHeaderTag` fetches
                   latest_version on mount, so not rendering it is also not fetching. */}
               {stepsOpen && currentIndex >= TEST_INDEX && tcTag && (
-                <span className={s.tagSlot}>{tcTag}</span>
+                <span id={VERDICT_SLOT_ID} className={s.tagSlot}>
+                  {tcTag}
+                </span>
               )}
             </p>
           )}
@@ -98,7 +108,7 @@ export const InstallationProcessProgressBar = ({
           type="button"
           onClick={() => setStepsOpen((open) => !open)}
           aria-expanded={stepsOpen}
-          aria-controls={STEPS_BLOCK_ID}
+          aria-controls={`${STEPS_BLOCK_ID} ${VERDICT_SLOT_ID}`}
           className={projectHeaderStyles.metaCue}
         >
           전체 단계

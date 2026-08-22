@@ -940,16 +940,24 @@ export const installStepperStyles = {
    * row that now also carries the block's name the step needed to be the thing the
    * eye lands on.
    *
-   * `#1747B5` on `#E8F1FF`, not the `#0050D6` the cue beside it uses — the house's
-   * pale-blue plate (`servicesStyles.tilePalette[0]`) with its own ink, so the two
-   * blues on this row separate by shape AND by tint: a filled navy tag states, an
-   * unfilled brand-blue chevron acts. 7.09:1.
+   * ⛔ Fill AND ink must stay equal to `cardStyles.stepTag` — the 「N단계」 tag over
+   * every step-card title, which is the SAME fact rendered a second time and is on
+   * screen at the same moment. This shipped for one review round as `#1747B5` on the
+   * same `#E8F1FF`, reasoned only against `metaCue` and never against the card tag;
+   * one fill carrying one fact in two tints reads as two meanings.
+   * `primaryColors.bgLight`/`textOnLight` are written out as literals because
+   * `design-guard.test.ts` parses these strings as source and cannot follow a `${}` —
+   * a test pins the two tokens equal instead. 5.92:1.
+   *
+   * The cue at the other end of the row wears the same `#0050D6`, and that is
+   * survivable where the card clash was not: the cue has no fill, carries a chevron,
+   * sits at the opposite edge, and is not the same fact.
    *
    * `items-baseline`, so the 14px count and the 12px name sit on one line inside the
    * tag and the tag itself lands on the sentence's baseline.
    */
   stepTag:
-    'inline-flex items-baseline gap-1.5 rounded-[6px] bg-[#E8F1FF] px-2 py-[3px] text-[12px] font-semibold text-[#1747B5]',
+    'inline-flex items-baseline gap-1.5 rounded-[6px] bg-[#E8F1FF] px-2 py-[3px] text-[12px] font-semibold text-[#0050D6]',
   /** The step number inside the tag — same 14px tier as `count`, but it takes the
       tag's ink rather than the sentence's near-black, which would read as a second
       colour inside a two-word plate. */
