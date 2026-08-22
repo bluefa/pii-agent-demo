@@ -955,12 +955,16 @@ export const installStepperStyles = {
       colour inside a two-word plate. */
   tagCount: 'text-[14px] font-semibold tabular-nums',
   /**
-   * Verdict slot for 연결 테스트. In flow, following the step tag on the head row.
-   * ⛔ Never `absolute` again: it used to hang from `top-full` under the 연결 테스트
+   * Verdict slot for 연결 테스트 — in flow, following the step tag on the head row,
+   * and only while the road is open (오너 14차 지시 후속). It is detail about one step,
+   * so it comes with the press that names the steps rather than standing on the
+   * always-visible row.
+   *
+   * ⛔ Never `absolute` again. It used to hang from `top-full` under the 연결 테스트
    * dot, so it reflowed nothing and would silently overlap the first card if the
    * body's `pt-8` ever tightened — only a human looking at the screen would have
-   * caught it. It stays on the head row even when the road below is open, so the
-   * verdict has one home in both states.
+   * caught it. Hanging it back on the step is the obvious way to fold it with the
+   * road, and it is the way that brings the bug back; gating the row slot is not.
    */
   tagSlot: 'inline-flex items-center',
   /** Left-anchored, capped width — 7 steps don't need the full column; ~120px

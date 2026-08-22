@@ -178,62 +178,76 @@ describe('InstallationProcessProgressBar — 전체 단계 disclosure', () => {
 });
 
 /**
- * The verdict tag only appears once the target has REACHED 연결 테스트 (step 5).
- * Before that the agent is not installed, so any surviving verdict describes a
- * previous cycle — drawing it tells the user the connection is fine about a
- * configuration that has never been tested.
+ * Two gates on the verdict tag, and both must hold.
+ *
+ * 1. The target has REACHED 연결 테스트 (step 5). Before that the agent is not
+ *    installed, so any surviving verdict describes a previous cycle — drawing it
+ *    tells the user the connection is fine about a configuration never tested.
+ * 2. The road is open (오너 14차 지시 후속). The verdict is detail about one step, so
+ *    it comes with the press that names the steps.
  */
 describe('InstallationProcessProgressBar — 연결 테스트 verdict tag', () => {
   const TAG = <span data-testid="tc-tag">최근 테스트 성공</span>;
+
+  /** The block with the road already open — the only state that can show a verdict. */
+  const opened = (step: ProcessStatus) => {
+    const el = block(step, TAG);
+    fireEvent.click(cue(el));
+    return el;
+  };
 
   it.each([
     ['WAITING_TARGET_CONFIRMATION', ProcessStatus.WAITING_TARGET_CONFIRMATION],
     ['WAITING_APPROVAL', ProcessStatus.WAITING_APPROVAL],
     ['APPLYING_APPROVED', ProcessStatus.APPLYING_APPROVED],
     ['INSTALLING', ProcessStatus.INSTALLING],
-  ])('hides the tag at %s (step 5 not reached)', (_name, step) => {
-    expect(within(block(step, TAG)).queryByTestId('tc-tag')).toBeNull();
+  ])('hides the tag at %s even with the road open (step 5 not reached)', (_name, step) => {
+    expect(within(opened(step)).queryByTestId('tc-tag')).toBeNull();
   });
 
   it.each([
     ['WAITING_CONNECTION_TEST', ProcessStatus.WAITING_CONNECTION_TEST],
     ['CONNECTION_VERIFIED', ProcessStatus.CONNECTION_VERIFIED],
     ['INSTALLATION_COMPLETE', ProcessStatus.INSTALLATION_COMPLETE],
-  ])('shows the tag at %s', (_name, step) => {
-    expect(within(block(step, TAG)).getByTestId('tc-tag')).toBeTruthy();
+  ])('shows the tag at %s once the road is open', (_name, step) => {
+    expect(within(opened(step)).getByTestId('tc-tag')).toBeTruthy();
+  });
+
+  it('folds the verdict away with the road (오너 14차 지시 후속)', () => {
+    const el = block(ProcessStatus.WAITING_CONNECTION_TEST, TAG);
+    expect(within(el).queryByTestId('tc-tag')).toBeNull();
+    fireEvent.click(cue(el));
+    expect(within(el).getByTestId('tc-tag')).toBeTruthy();
+    fireEvent.click(cue(el));
+    expect(within(el).queryByTestId('tc-tag')).toBeNull();
+  });
+
+  it('keeps the verdict on the row, not inside the road it opens with', () => {
+    // Hanging it back on the 연결 테스트 step is the obvious way to fold it with the
+    // road — and it is the way that brings back the absolute-positioning bug below.
+    const el = opened(ProcessStatus.WAITING_CONNECTION_TEST);
+    expect(el.querySelector('ol')?.contains(within(el).getByTestId('tc-tag'))).toBe(false);
   });
 
   /**
-   * The gate must not render the tag's element on the hidden steps — the tag fetches
-   * latest_version on mount, so a slot that merely hid it would keep the request.
-   * Asserting on the SLOT (not the tag) pins that `tagSlot` is what the guard wraps.
+   * Neither gate may merely hide the tag — `TcHeaderTag` fetches latest_version on
+   * mount, so a slot that rendered and hid it would keep the request. Asserting on
+   * the SLOT (not the tag) pins that `tagSlot` is what both guards wrap.
    */
-  it('renders no tag slot at all before the step is reached', () => {
-    const slots = (step: ProcessStatus) =>
-      [...block(step, TAG).querySelectorAll('span')].filter(
-        (el) => el.className === installStepperStyles.tagSlot,
+  it('renders no tag slot at all while either gate is shut', () => {
+    const slots = (el: HTMLElement) =>
+      [...el.querySelectorAll('span')].filter(
+        (s) => s.className === installStepperStyles.tagSlot,
       ).length;
-    expect(slots(ProcessStatus.INSTALLING)).toBe(0);
-    expect(slots(ProcessStatus.WAITING_CONNECTION_TEST)).toBe(1);
+    expect(slots(block(ProcessStatus.WAITING_CONNECTION_TEST, TAG))).toBe(0); // road shut
+    expect(slots(opened(ProcessStatus.INSTALLING))).toBe(0); // step not reached
+    expect(slots(opened(ProcessStatus.WAITING_CONNECTION_TEST))).toBe(1);
   });
 
   it('still draws nothing at step 5 when no test has run', () => {
-    expect(
-      within(block(ProcessStatus.WAITING_CONNECTION_TEST)).queryByTestId('tc-tag'),
-    ).toBeNull();
-  });
-
-  /**
-   * The verdict rides the head row, so folding the road away must not fold it with
-   * them: it is the freshest fact on this header and the road is reference material.
-   */
-  it('keeps the verdict on the row whether the road is open or shut', () => {
-    const el = block(ProcessStatus.WAITING_CONNECTION_TEST, TAG);
-    expect(within(el).getByTestId('tc-tag')).toBeTruthy();
+    const el = block(ProcessStatus.WAITING_CONNECTION_TEST);
     fireEvent.click(cue(el));
-    expect(within(el).getByTestId('tc-tag')).toBeTruthy();
-    // …and on the row, not inside the road that just opened.
-    expect(el.querySelector('ol')?.contains(within(el).getByTestId('tc-tag'))).toBe(false);
+    expect(within(el).queryByTestId('tc-tag')).toBeNull();
   });
 
   /**

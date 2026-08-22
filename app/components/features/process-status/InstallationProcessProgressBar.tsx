@@ -78,13 +78,19 @@ export const InstallationProcessProgressBar = ({
                 </span>
                 <span>{current.label}</span>
               </span>
-              {/* Gated on having REACHED the step. A verdict that survives on a
-                  target sitting at step 1–4 belongs to a previous cycle — the agent
-                  is not installed yet, so nothing can have tested this configuration
-                  — and drawing it says the connection is fine about a setup that has
-                  never been tested. Not rendering it also spares those steps the
-                  tag's latest_version fetch. */}
-              {currentIndex >= TEST_INDEX && tcTag && <span className={s.tagSlot}>{tcTag}</span>}
+              {/* Two gates, both of which must hold.
+                  1. The target has REACHED 연결 테스트. A verdict that survives on a
+                     target sitting at step 1–4 belongs to a previous cycle — the agent
+                     is not installed yet, so nothing can have tested this
+                     configuration — and drawing it says the connection is fine about a
+                     setup that has never been tested.
+                  2. The road is open (오너 14차 지시 후속). The verdict is detail about
+                     one step, so it belongs to the same press that names the steps.
+                  Neither gate merely hides the tag: `TcHeaderTag` fetches
+                  latest_version on mount, so not rendering it is also not fetching. */}
+              {stepsOpen && currentIndex >= TEST_INDEX && tcTag && (
+                <span className={s.tagSlot}>{tcTag}</span>
+              )}
             </p>
           )}
         </div>
