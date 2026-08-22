@@ -51,7 +51,6 @@ export interface StatTileProps {
    */
   value: number | null;
   unit: string;
-  swatch?: 'target' | 'exclude';
   /**
    * 숫자 크기. `page`(기본) 40px — 페이지 폭의 카드 위에 놓인 표시 숫자다.
    * `dialog` 24px — 확인 모달 안에서는 26px 제목이 위계의 꼭대기라, 40px 는 그 위로 올라선다.
@@ -67,7 +66,6 @@ export const StatTile = ({
   label,
   value,
   unit,
-  swatch,
   scale = 'page',
   onClick,
   active,
@@ -96,14 +94,7 @@ export const StatTile = ({
   >
     {/* The label is a peer of the value, so it stays darker and bolder than the unit suffix.
         The submit-modal tile ramp (14 semibold, quiet tier). */}
-    <div className={cn('flex items-center gap-1.5 text-[14px] font-semibold', textColors.tertiary)}>
-      {swatch && (
-        <span
-          className={cn('h-2 w-2 rounded-[2px]', swatch === 'target' ? 'bg-[#10B981]' : 'bg-[#D1D5DB]')}
-        />
-      )}
-      {label}
-    </div>
+    <div className={cn('text-[14px] font-semibold', textColors.tertiary)}>{label}</div>
     <div className="flex items-baseline">
       <span
         className={cn(

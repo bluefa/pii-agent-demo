@@ -113,8 +113,8 @@ export const IdcReqApprovalModal = ({
     >
       <div className="grid grid-cols-3 gap-3">
         <StatTile label="연동 대상" value={total} unit="건" scale="dialog" />
-        <StatTile label="연결 성공" value={ok} unit="건" swatch="target" scale="dialog" />
-        <StatTile label="연결 대기" value={waiting} unit="건" swatch="exclude" scale="dialog" />
+        <StatTile label="연결 성공" value={ok} unit="건" scale="dialog" />
+        <StatTile label="연결 대기" value={waiting} unit="건" scale="dialog" />
       </div>
 
       <div className="mt-4">

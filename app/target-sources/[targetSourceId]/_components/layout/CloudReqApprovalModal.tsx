@@ -169,8 +169,8 @@ export const CloudReqApprovalModal = ({
     >
       <div className="grid grid-cols-3 gap-3">
         <StatTile label="연동 대상" value={units.length} unit="건" scale="dialog" />
-        <StatTile label="연동 논리 DB" value={totals.target} unit="개" swatch="target" scale="dialog" />
-        <StatTile label="제외한 논리 DB" value={totals.excluded} unit="개" swatch="exclude" scale="dialog" />
+        <StatTile label="연동 논리 DB" value={totals.target} unit="개" scale="dialog" />
+        <StatTile label="제외한 논리 DB" value={totals.excluded} unit="개" scale="dialog" />
       </div>
 
       <div className="mt-4">
