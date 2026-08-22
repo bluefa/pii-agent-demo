@@ -5,7 +5,9 @@ import type { IconProps } from '@/app/components/ui/icons/types';
  *
  * 시계와 가르는 것이 이 글리프의 일이다. `idle`(실행 자체가 없음)이 시계를 쓰므로,
  * 대기가 같은 시계를 달면 "실행이 없다"와 "실행을 기다린다"가 한 그림이 된다.
- * 위아래 대칭이라 회전으로 오해될 여지도 없다 — 대기는 움직이지 않는다.
+ * 세 path 는 (12,12) 기준 180° 회전 대칭이다. 이 대칭이 이 글리프의 모션을 정한다 —
+ * 반 바퀴 뒤집으면 제자리로 돌아오므로 `tcHourglassFlip`(theme.ts)이 되감기 없이 돈다.
+ * ⛔ 이 대칭을 깨는 기하 변경(모래 알갱이, 한쪽만 채우기)은 그 토큰을 같이 깬다.
  *
  * 기하는 Lucide `hourglass` 그대로다(Figma H2kRxFxOqqeTrPceFU4zMM 의 queued 프레임이
  * 쓰는 바로 그 아이콘 — 18px 렌더의 잉크 맵으로 대조했다). 같은 슬롯의 ClockIcon 도

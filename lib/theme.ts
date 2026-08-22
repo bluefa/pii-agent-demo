@@ -127,6 +127,13 @@ export const scanTransition = {
 export const tcActivityMarch = 'motion-safe:animate-[tc-activity-march_1400ms_linear_infinite]';
 
 /**
+ * Step 5 시작 대기 글리프의 뒤집기 — HourglassIcon 에만 건다.
+ * 모션이 꺼지면 정지한 모래시계가 그대로 남는다(글리프 자체가 이미 국면을 말한다).
+ */
+export const tcHourglassFlip =
+  'motion-safe:animate-[tc-hourglass-flip_2800ms_ease-in-out_infinite]';
+
+/**
  * 상태 색상 (CLAUDE.md 규칙 준수)
  * - success (#45CB85): 연결됨, 완료
  * - error (red-500): 끊김, 에러

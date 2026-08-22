@@ -280,6 +280,16 @@ describe('TcSummaryCard title glyph', () => {
     expect(queued).not.toContain(CLOCK);
   });
 
+  /**
+   * 이 국면엔 트랙도 카운트도 서지 않아, 뒤집기가 빠지면 카드에서 스스로 변하는 것이
+   * 메타 줄의 경과 초 하나뿐이다 — 실 환경의 대기가 길면 멈춘 화면으로 읽힌다.
+   * 클래스가 svg 엘리먼트에 붙으므로 innerHTML 을 읽는 glyph() 로는 안 잡힌다.
+   */
+  it('queued hourglass carries the flip', () => {
+    const svg = renderCard('queued', { waiting: 6 }).container.querySelector('.inline-grid svg');
+    expect(svg?.getAttribute('class')).toContain('tc-hourglass-flip');
+  });
+
   /** 폴백에 남는 상태는 idle 하나 — 실행이 없다는 사실만 말하므로 시계가 맞다. */
   it('idle keeps the clock', () => {
     expect(glyph('idle', {})).toContain(CLOCK);

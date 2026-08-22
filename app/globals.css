@@ -298,6 +298,20 @@
   to { background-position-x: 0; }
 }
 
+/* Step 5 시작 대기 글리프의 뒤집기 — 모래시계는 도는 게 아니라 모래가 다 떨어지면
+   뒤집힌다. 그래서 회전이 아니라 대부분 정지(78%)하고 한 번에 반 바퀴 넘어간다.
+   180° 로 끝나는 것이 핵심이다: HourglassIcon 의 세 path 는 (12,12) 기준 180° 회전
+   대칭이라 마지막 프레임이 첫 프레임과 화소 단위로 같고, 그래서 infinite 루프가
+   0° 로 되감기는 순간이 보이지 않는다 — 360° 로 돌리면 중간에 위아래가 뒤집힌
+   모래시계가 아니라 한 바퀴 도는 스피너가 된다.
+   2800ms = tcActivityMarch(1400ms)의 정확히 두 배 — 같은 카드의 두 모션이 어긋난
+   박자로 뛰지 않게 한다.
+   Consumed via lib/theme.ts tcHourglassFlip, motion-safe at the call site. */
+@keyframes tc-hourglass-flip {
+  0%, 78% { transform: rotate(0deg); }
+  100% { transform: rotate(180deg); }
+}
+
 /* R18 §7-3 — inline task-detail panel slide-in (motion-safe only via the
    consuming class in detailStyles.flowCard.panel). */
 @keyframes pl-panel-in {
