@@ -63,29 +63,25 @@ export const HourglassIcon = ({ className, ...rest }: IconProps) => {
         ⚠️ 빈 상태는 CSS 가 아니라 SVG `transform` 속성이 든다 — 그래야 motion-reduce 로
         애니메이션이 죽어도 "위가 찬 모래시계"라는 정지 그림이 남는다(애니메이션이 상태의
         유일한 채널이 되면 안 된다). CSS 애니메이션은 속성보다 우선하므로 켜지면 덮는다.
-        0.42 — 윤곽(currentColor 전량)과 같은 잉크를 쓰되 벽으로 읽히지 않는 농도.
+        잉크는 유리와 갈라진다 — 이유와 ⛔ 는 theme.ts `tcHourglass.sand` 에.
       */}
       <g clipPath={`url(#${topClip})`}>
         <rect
-          className={tcHourglass.drain}
+          className={cn(tcHourglass.drain, tcHourglass.sand)}
           x="6"
           y="1"
           width="12"
           height="11"
-          fill="currentColor"
-          fillOpacity={0.42}
           stroke="none"
         />
       </g>
       <g clipPath={`url(#${bottomClip})`}>
         <rect
-          className={tcHourglass.fill}
+          className={cn(tcHourglass.fill, tcHourglass.sand)}
           x="6"
           y="11"
           width="12"
           height="11"
-          fill="currentColor"
-          fillOpacity={0.42}
           stroke="none"
           transform="translate(0 11)"
         />

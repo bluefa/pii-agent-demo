@@ -141,6 +141,19 @@ export const tcHourglass = {
   drain: 'motion-safe:animate-[tc-hourglass-drain_1400ms_linear_infinite]',
   /** 아래 벌브 — 같은 박자로 쌓인다. */
   fill: 'motion-safe:animate-[tc-hourglass-fill_1400ms_linear_infinite]',
+  /**
+   * 모래. 유리(currentColor = `accent.running` #0064FF)와 갈라지는 유일한 잉크다.
+   *
+   * ⛔ 이 카드에서 amber 는 임자가 있다 — `connProgress` 의 pending 표면(정책 변경)이
+   * 점 #E8A03A · 잉크 #B45309 로 경고를 말하고, `SURFACE` 주석은 queued 를 그 계열에서
+   * **일부러 빼 놓았다**("경고(amber)가 아니라 정상 단계라"). 그래서 모래는 그 둘 중
+   * 어느 값도 쓰면 안 된다. #E8A03A 는 색상각 33°(주황)이고 이 값은 45°(노랑)라, 같은
+   * 화면에 서도 «경고 점»이 아니라 «모래»로 갈린다. 더 주황으로 끌면 그 구분이 없어진다.
+   *
+   * 재료색이지 상태색이 아니다 — 국면은 문장·글리프 형태가 말하고, 이 잉크는 모래가
+   * 모래라는 것만 말한다. 그래서 표면따라 바뀌지 않고 고정이다.
+   */
+  sand: 'fill-[#DDB13C]',
 } as const;
 
 /**
