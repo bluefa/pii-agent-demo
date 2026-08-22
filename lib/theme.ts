@@ -704,9 +704,11 @@ export const projectHeaderStyles = {
    * The same shell as `codeChip` below, minus the value — one slate vocabulary for the
    * whole line. Slate, not blue: in this palette blue means "clickable" and nothing on
    * this heading is.
+   *
+   * Both path tags carry `tagStroke` (오너 15차 지시). See that token for the value.
    */
   crumbKind:
-    'inline-flex flex-none items-center rounded-[6px] bg-[#EAEEF7] px-2 py-[3px] text-[12px] font-medium text-[#55617A]',
+    'inline-flex flex-none items-center rounded-[6px] border border-[#D7DBE3] bg-[#EAEEF7] px-2 py-[3px] text-[12px] font-medium text-[#55617A]',
   /**
    * The service code as a tag, carrying its own label (오너 12차 지시). Restored from
    * the token this file held until `dddad0da`, when the code moved into the path's
@@ -720,8 +722,22 @@ export const projectHeaderStyles = {
    *
    * `items-baseline`, so the 12px label and the mono value sit on one line however
    * the mono face's metrics differ from the body face.
+   *
+   * `#D7DBE3` is a **stroke on black**, two rungs down from the fill (오너 15차 지시).
+   * It is literally `rgba(0,0,0,.08)` over `#EAEEF7`, baked opaque — the border box
+   * paints over the fill anyway, so the two render identically, and only the hex form
+   * is measurable by `design-guard.test.ts`. Black rather than a darker slate: the
+   * fill already carries the blue cast, and a second blue rung would have made the
+   * edge read as more chip rather than as an edge.
+   *
+   * "Two rungs" is measured, not chosen. From this fill, the repo's own strokes sit at
+   * ΔE00 2.31 (`blockHead`'s hairline) and 4.29 (the card stroke that used to house
+   * this header); `#D7DBE3` is **4.20** — the second rung, and 5.89 from the page wash,
+   * so the tag keeps a silhouette on both sides of its edge. ⛔ Don't reach for the
+   * third rung (`#C6CCD6`, ΔE 7.84): these tags sit in a 12px path, not on a card.
    */
-  codeChip: 'inline-flex flex-none items-baseline gap-1.5 rounded-[6px] bg-[#EAEEF7] px-2 py-[3px]',
+  codeChip:
+    'inline-flex flex-none items-baseline gap-1.5 rounded-[6px] border border-[#D7DBE3] bg-[#EAEEF7] px-2 py-[3px]',
   codeChipLabel: 'text-[12px] font-medium text-[#55617A]',
   codeChipValue: 'font-mono text-[12px] font-semibold text-[#2C3A55]',
   /**

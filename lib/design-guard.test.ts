@@ -412,6 +412,12 @@ const SURFACES: SurfacePair[] = [
   // a future re-tint of either token has to keep clearing it there too.
   { what: 'header path kind tag on the page wash', top: bgOf(classOf(headerBlock, 'crumbKind')), under: canvas },
   { what: 'header service-code tag on the page wash', top: bgOf(classOf(headerBlock, 'codeChip')), under: canvas },
+  // Their stroke (오너 15차 지시) — black at 8% over the fill, baked opaque. Pinned on the
+  // FILL, which is the pair deciding whether the edge reads at all; it clears the wash by
+  // more (5.89) simply by being darker, so that side needs no pin of its own. Two tokens,
+  // two pairs: they share a value today and nothing stops them diverging.
+  { what: 'header path kind tag stroke on its own fill', top: borderOf(classOf(headerBlock, 'crumbKind')), under: bgOf(classOf(headerBlock, 'crumbKind')) },
+  { what: 'header service-code tag stroke on its own fill', top: borderOf(classOf(headerBlock, 'codeChip')), under: bgOf(classOf(headerBlock, 'codeChip')) },
   // 설치 진행's step tag, on the house's pale blue rather than the path's slate
   // (오너 14차 지시). It is the one plate on this header that is NOT the shared slate,
   // which is the whole point — so it has to keep clearing the wash on its own.

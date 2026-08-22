@@ -226,6 +226,29 @@ describe('ProjectPageMeta — path heading', () => {
     // The code chip holds its own label, so the two live in ONE tag, not two.
     expect(codeLabel.parentElement).toBe(code.parentElement);
     expect(code.className).toContain('font-mono');
+    // …and both close on a stroke (오너 15차 지시), the same one.
+    expect(kind.className).toContain('border border-[#D7DBE3]');
+    expect(codeLabel.parentElement?.className).toContain('border border-[#D7DBE3]');
+  });
+
+  it('strokes the path tags two rungs down, on black (오너 15차 지시)', () => {
+    // "Two rungs" is a measurement, not a taste: from the tags' own #EAEEF7 fill, this
+    // repo's existing strokes sit at ΔE00 2.31 (blockHead's hairline) and 4.29 (the card
+    // stroke this header used to have). #D7DBE3 is 4.20 — the second one.
+    //
+    // Black, not a darker slate. It is exactly rgba(0,0,0,.08) over the fill, baked
+    // opaque because the border box paints over the background anyway and only a hex is
+    // measurable by design-guard. A hex that is NOT the fill scaled by a constant would
+    // be a new hue on a line whose whole point is one vocabulary — so pin the arithmetic.
+    const FILL = [0xea, 0xee, 0xf7];
+    const stroke = projectHeaderStyles.crumbKind.match(/border-\[#([0-9A-F]{6})\]/)?.[1];
+    expect(stroke).toBeTruthy();
+    const rgb = [0, 2, 4].map((i) => parseInt(stroke!.slice(i, i + 2), 16));
+    for (const [i, channel] of rgb.entries()) {
+      expect(channel).toBe(Math.round(FILL[i] * 0.92));
+    }
+    // Both tags wear the one stroke — they are one vocabulary or they are noise.
+    expect(projectHeaderStyles.codeChip).toContain(`border-[#${stroke}]`);
   });
 
   it('keeps the path outside the 설치 대상 block — it is page chrome (개선안 ㄷ)', () => {
