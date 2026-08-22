@@ -471,7 +471,7 @@ export function ApprovalTab({
                       연결 테스트가 성공해도 이 조건은 자동으로 충족되지 않습니다. 서비스
                       담당자가{' '}
                       <b className="font-semibold text-[var(--pl-text-strong)]">
-                        5단계 연결 테스트에서 완료 승인 요청
+                        5단계 연결 테스트에서 승인 요청
                       </b>
                       을 눌러야 합니다.
                     </>

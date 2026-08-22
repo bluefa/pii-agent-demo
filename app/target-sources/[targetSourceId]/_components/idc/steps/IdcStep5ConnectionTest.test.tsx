@@ -61,7 +61,7 @@ vi.mock('@/app/hooks/useTestConnectionPolling', async () => {
   };
 });
 
-// completion-status gates 완료 승인 요청 (useTcCompletionStatus) — default to the open
+// completion-status gates 승인 요청 (useTcCompletionStatus) — default to the open
 // verdict so each test only overrides the verdict it is about.
 const getCompletionStatusMock = vi.fn(
   async (
@@ -198,14 +198,14 @@ describe('IdcStep5ConnectionTest — pre-test idle strip (regression)', () => {
     expect(screen.queryByText(/^실행 #/)).toBeNull();
   });
 
-  it('blocks Run Test while a live row lacks a credential, and says so above the table', async () => {
+  it('blocks the run CTA while a live row lacks a credential, and says so above the table', async () => {
     renderStep();
 
     await screen.findByText('10.20.30.40');
     // Row2 has no credential. The warning line names the count and the row's own cell is
-    // where it gets fixed — Run Test does not detour through a bulk dialog.
+    // where it gets fixed — the run CTA does not detour through a bulk dialog.
     expect((await screen.findByText(/Credential 미설정/)).textContent).toContain('1건');
-    expect(screen.getByRole('button', { name: /Run Test/ })).toHaveProperty('disabled', true);
+    expect(screen.getByRole('button', { name: '실행' })).toHaveProperty('disabled', true);
     expect(screen.getByRole('button', { name: '미설정만 보기' })).toBeTruthy();
   });
 });
@@ -235,7 +235,7 @@ const makeJob = (
 describe('IdcStep5ConnectionTest — state-driven slot (시안 A)', () => {
   beforeEach(resetHarness);
 
-  it('shows Fail with 다시 실행 as the only CTA — no 완료 승인 요청', async () => {
+  it('shows Fail with 다시 실행 as the only CTA — no 승인 요청', async () => {
     pollingState.uiState = 'FAIL';
     pollingState.latestJob = makeJob('FAIL', [
       agentResult('idc-row-0', 'FAIL'),
@@ -245,7 +245,7 @@ describe('IdcStep5ConnectionTest — state-driven slot (시안 A)', () => {
 
     // 판정은 문장이, 개수(실패 2)는 그 아래 카운트 줄이 나른다.
     expect(await screen.findByText('연결에 실패한 리소스가 있어요')).toBeTruthy();
-    expect(screen.queryByRole('button', { name: '완료 승인 요청' })).toBeNull();
+    expect(screen.queryByRole('button', { name: '승인 요청' })).toBeNull();
     expect(screen.getByRole('button', { name: /다시 실행/ })).toBeTruthy();
   });
 
@@ -263,7 +263,7 @@ describe('IdcStep5ConnectionTest — state-driven slot (시안 A)', () => {
 
     expect(await screen.findByText('논리 DB 정책이 마지막 실행 이후 변경됐어요')).toBeTruthy();
     expect(screen.getByText('연결 테스트를 다시 수행해야 합니다')).toBeTruthy();
-    expect(screen.queryByRole('button', { name: '완료 승인 요청' })).toBeNull();
+    expect(screen.queryByRole('button', { name: '승인 요청' })).toBeNull();
     expect(screen.getByRole('button', { name: /다시 실행/ })).toBeTruthy();
   });
 
@@ -278,14 +278,14 @@ describe('IdcStep5ConnectionTest — state-driven slot (시안 A)', () => {
 
     expect(await screen.findByText('연결 테스트 완료 확인됨')).toBeTruthy();
     expect(screen.getByText('최근 수행 결과 기준')).toBeTruthy();
-    expect(screen.queryByRole('button', { name: '완료 승인 요청' })).toBeNull();
+    expect(screen.queryByRole('button', { name: '승인 요청' })).toBeNull();
     expect(screen.queryByRole('button', { name: /다시 실행/ })).toBeNull();
     expect(screen.getByRole('button', { name: '실행 이력' })).toBeTruthy();
   });
 
   // The IDC-only gate: a credential edited AFTER the run is unverified — the open
   // completion verdict belongs to the old credential, so 승인 stays closed until a re-run.
-  it('closes 완료 승인 요청 when a credential changes after the run (credsDirty)', async () => {
+  it('closes 승인 요청 when a credential changes after the run (credsDirty)', async () => {
     pollingState.uiState = 'SUCCESS';
     pollingState.latestJob = makeJob('SUCCESS', [
       agentResult('idc-row-0', 'SUCCESS'),
@@ -294,7 +294,7 @@ describe('IdcStep5ConnectionTest — state-driven slot (시안 A)', () => {
     renderStep();
 
     await waitFor(() =>
-      expect(screen.getByRole('button', { name: '완료 승인 요청' })).toHaveProperty('disabled', false),
+      expect(screen.getByRole('button', { name: '승인 요청' })).toHaveProperty('disabled', false),
     );
 
     // Edit row1's credential through the picker — the PUT succeeds.
@@ -308,7 +308,7 @@ describe('IdcStep5ConnectionTest — state-driven slot (시안 A)', () => {
     });
     expect(updateResourceCredentialMock).toHaveBeenCalledWith(1020, 'idc-row-0', 'Key2');
 
-    expect(screen.getByRole('button', { name: '완료 승인 요청' })).toHaveProperty('disabled', true);
+    expect(screen.getByRole('button', { name: '승인 요청' })).toHaveProperty('disabled', true);
   });
 });
 

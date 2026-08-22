@@ -150,7 +150,7 @@ interface ConnectionTestCardProps {
  * the latest poll's agent results (lib/test-connection-summary). Once the run settles
  * SUCCESS the completion-status is fetched (useTcCompletionStatus) and the 완료 승인 요청
  * CTA opens only when it reads LATEST_TEST_CONNECTION_SUCCESS; the summary card holds the
- * state-driven CTA slot (시안 A — Run Test / 다시 실행 / 완료 승인 요청 swap with the folded
+ * state-driven CTA slot (시안 A — 실행 / 다시 실행 / 완료 승인 요청 swap with the folded
  * card state), the run's timestamps and the 실행 이력 modal, and the rejection
  * notice surfaces the admin's re-run reason.
  */
@@ -431,7 +431,7 @@ export const ConnectionTestCard = ({
           {triggerError && (
             <p className={cn('text-[12px]', idcStyles.tag.red, 'bg-transparent px-0')}>{triggerError}</p>
           )}
-          {/* 조회가 실패하면 Run Test 는 잠긴 채로 남는다(무엇이 도는지 모르므로). 그 잠금을 푸는
+          {/* 조회가 실패하면 실행 CTA 는 잠긴 채로 남는다(무엇이 도는지 모르므로). 그 잠금을 푸는
               길은 조회 성공뿐이라, 폴링이 포기한 뒤에는 이 버튼이 유일한 출구다. */}
           {fetchError && (
             <p className={cn('flex items-center gap-2 text-[12px]', idcStyles.tag.red, 'bg-transparent px-0')}>

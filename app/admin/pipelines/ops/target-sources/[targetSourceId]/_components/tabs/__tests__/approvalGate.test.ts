@@ -58,7 +58,7 @@ describe('foldApprovalHead', () => {
     const head = foldApprovalHead(null, { phase: 'loading' });
     expect(head).toMatchObject({ canApprove: false, canRerun: false });
     expect(head.pill).toEqual({ tone: 'off', label: '완료 승인 대기' });
-    // Step 5 CTA 의 실제 라벨은 "완료 승인 요청" — 화면에 없는 이름을 안내하지 않는다.
+    // Step 5 CTA 의 실제 라벨은 "승인 요청" — 화면에 없는 이름을 안내하지 않는다.
     expect(head.desc).toContain('완료 승인');
     expect(head.desc).toContain('5단계');
   });

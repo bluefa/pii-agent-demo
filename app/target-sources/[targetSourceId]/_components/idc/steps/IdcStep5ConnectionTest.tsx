@@ -382,7 +382,7 @@ export const IdcStep5ConnectionTest = ({
               {triggerError && (
                 <p className={cn('text-[12px]', idcStyles.tag.red, 'bg-transparent px-0')}>{triggerError}</p>
               )}
-              {/* 클라우드 step 5 와 같은 출구 — 조회 실패로 잠긴 Run Test 를 되살리는 유일한 길. */}
+              {/* 클라우드 step 5 와 같은 출구 — 조회 실패로 잠긴 실행 CTA 를 되살리는 유일한 길. */}
               {fetchError && (
                 <p className={cn('flex items-center gap-2 text-[12px]', idcStyles.tag.red, 'bg-transparent px-0')}>
                   {ERROR_MESSAGES.TEST_CONNECTION_FETCH_FAILED}

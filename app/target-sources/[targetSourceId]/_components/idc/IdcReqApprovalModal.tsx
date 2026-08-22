@@ -61,7 +61,7 @@ export const IdcReqApprovalModal = ({ isOpen, onClose, resources, onSubmit }: Id
         className={cn('mx-4 w-full max-w-[820px] overflow-hidden bg-white', modalStyles.toss.container)}
         role="dialog"
         aria-modal="true"
-        aria-label="완료 승인 요청"
+        aria-label="승인 요청"
       >
         <div className={cn(modalStyles.toss.header, 'flex items-start justify-between')}>
           <div>
@@ -69,7 +69,7 @@ export const IdcReqApprovalModal = ({ isOpen, onClose, resources, onSubmit }: Id
               <span className={idcStyles.reqModal.eyebrowDot} />
               Step 5 · IDC 연결 테스트
             </span>
-            <h2 className={idcStyles.reqModal.title}>완료 승인 요청</h2>
+            <h2 className={idcStyles.reqModal.title}>승인 요청</h2>
             <p className={idcStyles.reqModal.sub}>
               수동 등록한 연동 대상에 대해 완료 승인을 요청합니다. 모든 대상의 자격 증명이 등록되고 연결 상태가
               정상이어야 요청할 수 있어요. 요청 후 관리자 검토가 시작됩니다.
@@ -135,7 +135,7 @@ export const IdcReqApprovalModal = ({ isOpen, onClose, resources, onSubmit }: Id
           )}
           {blocked && (
             <div className={idcStyles.reqModal.warn}>
-              연결 미완료 {waiting}건이 있어요 — 자격 증명을 선택하고 Run Test를 실행해 모든 대상이 Success가 되어야
+              연결 미완료 {waiting}건이 있어요 — 자격 증명을 선택하고 실행해 모든 대상이 성공이 되어야
               요청할 수 있어요.
             </div>
           )}

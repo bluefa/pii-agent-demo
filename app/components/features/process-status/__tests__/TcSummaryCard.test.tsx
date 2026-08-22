@@ -164,6 +164,58 @@ describe('TcSummaryCard liveness while running', () => {
 });
 
 /**
+ * 슬롯 CTA 의 어휘. 첫 회차와 재실행은 같은 버튼·같은 글리프·같은 핸들러라 언어가 갈릴 이유가
+ * 없다 — 앱의 나머지도 이 동작을 `실행` 하나로 부른다(토스트 `연결 테스트 실행을 요청했습니다`).
+ */
+describe('TcSummaryCard CTA vocabulary', () => {
+  const buttons = (state: TcCardState, over: Partial<TcBuckets>): string[] => {
+    const { container } = renderCard(state, over);
+    return [...container.querySelectorAll('button')].map((b) => b.textContent?.trim() ?? '');
+  };
+
+  it('names the first run 실행 — the verb 다시 실행 already uses', () => {
+    expect(buttons('idle', {})).toEqual(['실행']);
+    expect(buttons('fail', { ok: 5, fail: 1 })).toEqual(['다시 실행']);
+  });
+
+  /** 관리자 화면(ApprovalTab)이 이 라벨을 그대로 인용한다 — 둘이 어긋나면 서로 다른 버튼을 찾는다. */
+  it('asks for 승인 요청, not 완료 승인 요청', () => {
+    expect(buttons('success', { ok: 6 })).toEqual(['다시 실행', '승인 요청']);
+  });
+});
+
+/**
+ * 성공 정착에만 서는 안내 줄. 이 국면만 다음 행동이 열려 있어서다 — 나머지는 제목이 곧 다음
+ * 행동이다(실패=고쳐서 다시, 정책 변경=다시 실행, 확정=끝).
+ */
+describe('TcSummaryCard success guidance', () => {
+  const line = (state: TcCardState, over: Partial<TcBuckets>): string | null => {
+    const { container } = renderCard(state, over);
+    return container.querySelector('[class*="pl-[26px]"]')?.textContent ?? null;
+  };
+
+  it('tells the success card what to do next, and in which order', () => {
+    const text = line('success', { ok: 6 }) ?? '';
+    expect(text).toContain('관리자에게 승인을 요청하면');
+    // 순서가 빠지면 승인 요청이 헛걸음이 된다 — 논리 DB 제외를 저장하는 순간 그 실행은
+    // 뒤처진 것이 되어 카드가 policy-changed 로 넘어가고 테스트를 다시 돌려야 한다.
+    expect(text).toContain('요청 전에 정리해');
+  });
+
+  it('leaves every other phase to its own title', () => {
+    const others: { state: TcCardState; over: Partial<TcBuckets> }[] = [
+      { state: 'idle', over: {} },
+      { state: 'queued', over: { waiting: 6 } },
+      { state: 'running', over: { ok: 2, waiting: 4 } },
+      { state: 'fail', over: { ok: 5, fail: 1 } },
+      { state: 'policy-changed', over: { ok: 6 } },
+      { state: 'confirmed', over: { ok: 6 } },
+    ];
+    for (const { state, over } of others) expect(line(state, over), state).toBeNull();
+  });
+});
+
+/**
  * 문장 왼쪽 글리프. 삼항의 마지막 가지는 **폴백이지 기본값이 아니다** — `fail` 이 거기로
  * 떨어져 실패 카드가 미실행·시작 대기와 같은 시계를 달고 있었고, 표면과 문장만 붉을 뿐
  * 글리프는 아무 판정도 하지 않았다. Figma(H2kRxFxOqqeTrPceFU4zMM)가 지정한 대로 가른다.

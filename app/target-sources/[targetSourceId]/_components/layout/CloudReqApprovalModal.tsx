@@ -66,7 +66,7 @@ export const CloudReqApprovalModal = ({
       await updateTestConnectionConfirmation(targetSourceId, true);
       onSubmit();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : '완료 승인 요청에 실패했습니다.');
+      toast.error(err instanceof Error ? err.message : '승인 요청에 실패했습니다.');
     } finally {
       setSubmitting(false);
     }
@@ -118,7 +118,7 @@ export const CloudReqApprovalModal = ({
         className={cn('mx-4 w-full max-w-[760px] overflow-hidden bg-white', modalStyles.toss.container)}
         role="dialog"
         aria-modal="true"
-        aria-label="완료 승인 요청"
+        aria-label="승인 요청"
       >
         <div className={cn(modalStyles.toss.header, 'flex items-start justify-between')}>
           <div>
@@ -126,7 +126,7 @@ export const CloudReqApprovalModal = ({
               <span className={idcStyles.reqModal.eyebrowDot} />
               Step 5 · {providerLabel} 연결 테스트
             </span>
-            <h2 className={idcStyles.reqModal.title}>완료 승인 요청</h2>
+            <h2 className={idcStyles.reqModal.title}>승인 요청</h2>
             <p className={idcStyles.reqModal.sub}>
               아래 리소스에 대해 연동 완료 승인을 요청합니다. 각 리소스의 논리 DB 구성을 확인한 뒤 요청해
               주세요. 요청 후 관리자 검토가 시작되며, 변경이 필요하면 요청을 취소하고 다시 제출해야 해요.

@@ -43,7 +43,7 @@ export const TcSummaryCardSkeleton = () => {
       </div>
       <div className="flex items-center justify-between gap-3">
         <span className={cn(s.skeletonBar, 'block h-[13px] w-[150px] rounded')} />
-        {/* 슬롯 CTA 자리 — idle 로 풀리면 이 자리에 Run Test 가 선다. */}
+        {/* 슬롯 CTA 자리 — idle 로 풀리면 이 자리에 실행 CTA 가 선다. */}
         <span className={cn(s.skeletonBar, 'block h-8 w-[104px] rounded-[10px]')} />
       </div>
     </div>
@@ -104,10 +104,10 @@ interface TcSummaryCardProps {
    * 드로우의 유일한 트리거 — 마운트 시 발견한 예전 SUCCESS 에는 연출이 없다.
    */
   drawCheck?: boolean;
-  /** 슬롯의 실행 CTA (Run Test / 다시 실행) — disabled 는 카드의 runDisabled 게이트 그대로. */
+  /** 슬롯의 실행 CTA (실행 / 다시 실행) — disabled 는 카드의 runDisabled 게이트 그대로. */
   onRunTest: () => void;
   runDisabled: boolean;
-  /** 슬롯의 전이 CTA (완료 승인 요청) — success 상태에서만 선다. */
+  /** 슬롯의 전이 CTA (승인 요청) — success 상태에서만 선다. */
   onRequestApproval: () => void;
   approvalDisabled: boolean;
 }
@@ -172,6 +172,18 @@ export const TcSummaryCard = ({
   // 시각 메타는 헤드 우측이 아니라 문장 바로 아래 줄 — 언제의 실행·요청·변경인지는 문장의
   // 근거라, 문장과 짝으로 붙어 있어야 읽힌다. 헤드 우측엔 실행 이력 링크만 남는다.
   const metaBelowTitle = metaParts.length > 0;
+
+  // 성공 정착에서만 선다. 이 카드에서 유일하게 열려 있는 질문이 "그래서 이제 뭘 하지"라서다 —
+  // 다른 국면은 제목이 곧 다음 행동이다(실패=고쳐서 다시, 정책 변경=다시 실행, 확정=끝).
+  //
+  // 순서를 함께 적는 이유: 논리 DB 제외를 저장하면 그 실행은 뒤처진 것이 되어 카드가
+  // policy-changed 로 넘어가고 테스트를 다시 돌려야 한다(저장 토스트도 같은 말을 한다 —
+  // "논리 DB 제외 정책을 저장했습니다. 연결 테스트를 다시 실행해야 반영됩니다"). 승인을 먼저
+  // 요청하면 그 요청이 헛걸음이 되므로, 둘은 나란한 선택지가 아니라 순서가 있는 두 일이다.
+  const guidance =
+    state === 'success'
+      ? '관리자에게 승인을 요청하면 다음 단계로 넘어가요. 모니터링에서 제외할 논리 DB는 요청 전에 정리해 주세요.'
+      : null;
 
   // 판정이 하나도 없는 국면: 미실행·시작 대기, 그리고 보고 0건으로 정착·확정된 실행.
   // "성공 0 · 실패 0 · 미보고 N" 을 그리면 판정이 없다는 사실만 세 번 반복하므로 세지 않는다.
@@ -239,7 +251,10 @@ export const TcSummaryCard = ({
             className={cn(idcStyles.triggerBtn.primarySm, 'shrink-0 whitespace-nowrap')}
           >
             <RunGlyph />
-            Run Test
+            {/* `다시 실행` 과 같은 버튼·같은 글리프·같은 핸들러다 — 첫 회차라고 해서 다른
+                언어를 쓸 이유가 없다. 앱의 나머지도 이 동작을 `실행` 하나로 부른다:
+                토스트 `연결 테스트 실행을 요청했습니다`, 상태 `연결 테스트 재실행`. */}
+            실행
           </button>
         );
       case 'queued':
@@ -295,7 +310,7 @@ export const TcSummaryCard = ({
               disabled={approvalDisabled}
               className={cn(idcStyles.triggerBtn.primarySm, 'whitespace-nowrap')}
             >
-              완료 승인 요청
+              승인 요청
             </button>
           </span>
         );
@@ -310,8 +325,10 @@ export const TcSummaryCard = ({
       {/* flex-wrap + break-keep: 좁은 카드에서 문장이 한 글자씩 세로로 부서지는 대신
           우측 이력 링크가 제 줄로 내려간다. */}
       <div className={cn(s.head, 'flex-wrap')}>
-        {/* contents: 서브라인이 없으면 래퍼가 레이아웃에서 사라져 기존 한 줄 구조 그대로. */}
-        <div className={metaBelowTitle ? 'flex min-w-0 flex-col gap-1' : 'contents'}>
+        {/* contents: 아래 줄이 하나도 없으면 래퍼가 레이아웃에서 사라져 기존 한 줄 구조 그대로.
+            안내 줄도 조건에 넣는다 — completedAt 없이 정착한 실행은 메타가 비어서, 안내만
+            남으면 이 래퍼가 `contents` 로 접히고 안내가 head 의 flex row 로 튀어나온다. */}
+        <div className={metaBelowTitle || guidance ? 'flex min-w-0 flex-col gap-1' : 'contents'}>
           <div className={cn(s.title, s.titleColor[surface], 'break-keep')}>
             <span className={cn(s.icon, s.accent[surface])}>
               {state === 'success' || state === 'confirmed' ? (
@@ -360,6 +377,9 @@ export const TcSummaryCard = ({
               {metaParts.join(' · ')}
             </span>
           )}
+          {/* 글리프 없이 들여쓰기(pl-[26px])만으로 제목·메타의 글 열에 맞춘다 — 시각 메타의
+              시계처럼 자기 아이콘을 가지면 안내가 또 하나의 사실처럼 읽힌다. */}
+          {guidance && <span className={s.guidance}>{guidance}</span>}
         </div>
         {run ? historyAction : null}
       </div>
