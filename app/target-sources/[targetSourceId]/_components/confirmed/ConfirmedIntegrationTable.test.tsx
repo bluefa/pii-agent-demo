@@ -114,16 +114,17 @@ describe('ConfirmedIntegrationTable', () => {
 
     // Round 3 (시안 D via F): search/filter appear only past Cloudscape's ">5 items" line.
     // Round 15 (owner): the total moved from a counter band above the table to the footer
-    // below it, and the footer is always mounted — at one page it is the count alone, with
-    // no size select and no page buttons to reach a page that does not exist.
-    it('hides search + filter at ≤5 rows and states the total in the footer', () => {
+    // below it. The footer is mounted whole — count AND controls — even at one row: a
+    // footer whose controls appear only past a page reads as no footer at all
+    // ("pagination은 왜 없음?"). Search/filter still obey the ">5 items" line above.
+    it('hides search + filter at ≤5 rows and keeps the whole footer', () => {
       render(<ConfirmedIntegrationTable confirmed={[makeResource()]} targetSourceId={42} />);
       expect(screen.queryByRole('textbox', { name: '리소스 검색' })).toBeNull();
       expect(screen.queryByRole('button', { name: '필터' })).toBeNull();
       expect(screen.queryByText('연동 리소스')).toBeNull();
-      expect(screen.getByText('전체 1건')).toBeTruthy();
-      expect(screen.queryByRole('combobox', { name: '페이지당 표시 건수' })).toBeNull();
-      expect(screen.queryByRole('button', { name: '다음 페이지' })).toBeNull();
+      expect(screen.getByText('1–1 / 전체 1건')).toBeTruthy();
+      expect(screen.getByRole('combobox', { name: '페이지당 표시 건수' })).toBeTruthy();
+      expect(screen.getByRole('button', { name: '다음 페이지' })).toBeTruthy();
     });
 
     it('shows search + filter once the list passes five rows', () => {

@@ -22,9 +22,12 @@ interface PaginationProps {
    * 12px. `console` is the 시안 F footer (round 15, owner: "pagination footer를 아래에
    * 달아놔줘. 14 픽셀로 설정하고 회색으로 선언해. 해당 부분에 리소스 개수를 footer에
    * 표현해"): flat, because the console table has no frame of its own and a bordered bar
-   * would draw one back; 14px grey; and the count line is the footer's CONSTANT while the
-   * paging controls appear only past one page — so the table always states its total even
-   * when there is nothing to page through.
+   * would draw one back; 14px grey; count and controls always present.
+   *
+   * ⛔ Do not gate the controls on `totalPages > 1`. That was tried and the owner's
+   * answer was "pagination은 왜 없음?" — a footer whose controls come and go reads as a
+   * missing footer, and 시안 D's "pagination earns its row" was about the ROW, which the
+   * count now occupies unconditionally.
    */
   variant?: 'bar' | 'console';
 }
@@ -78,9 +81,6 @@ export const Pagination = ({
   const start = totalCount === 0 ? 0 : page * pageSize + 1;
   const end = Math.min(totalCount, (page + 1) * pageSize);
   const visible = buildVisiblePages(page, totalPages);
-  // The console footer keeps only the count on a single page: a size select and a lone
-  // "1" button offer nothing to reach, and 시안 D already ruled that unearned chrome out.
-  const paging = variant === 'bar' || totalPages > 1;
 
   return (
     <div
@@ -91,33 +91,30 @@ export const Pagination = ({
           : 'px-[14px] py-[10px] border border-[#E5E7EB] border-t-0 rounded-b-[10px] bg-[#FCFCFD] text-[12px] text-[#6B7280]',
       )}
     >
-      {paging && (
-        <div className="inline-flex items-center gap-1.5">
-          <span>표시</span>
-          <select
-            value={pageSize}
-            onChange={(e) => onPageSizeChange(Number(e.target.value))}
-            className={cn(
-              'h-[26px] rounded-[6px] border border-[#E5E7EB] pr-[22px] pl-[8px] text-[12px] text-[#111827] cursor-pointer appearance-none',
-              SELECT_CHEVRON_BG,
-            )}
-            aria-label="페이지당 표시 건수"
-          >
-            {options.map((opt) => (
-              <option key={opt} value={opt}>
-                {opt}
-              </option>
-            ))}
-          </select>
-          <span>건씩</span>
-        </div>
-      )}
+      <div className="inline-flex items-center gap-1.5">
+        <span>표시</span>
+        <select
+          value={pageSize}
+          onChange={(e) => onPageSizeChange(Number(e.target.value))}
+          className={cn(
+            'h-[26px] rounded-[6px] border border-[#E5E7EB] pr-[22px] pl-[8px] text-[12px] text-[#111827] cursor-pointer appearance-none',
+            SELECT_CHEVRON_BG,
+          )}
+          aria-label="페이지당 표시 건수"
+        >
+          {options.map((opt) => (
+            <option key={opt} value={opt}>
+              {opt}
+            </option>
+          ))}
+        </select>
+        <span>건씩</span>
+      </div>
       {variant === 'console' ? (
         /* One grey line, no near-black strongs: the footer states the total, it does not
-           rank against the rows above it. The range prefix earns its place only while
-           there is a page the reader is NOT looking at. */
-        <span className={cn(paging && 'ml-[16px]', numericFeatures.tabular)}>
-          {paging && `${start}–${end} / `}전체 {totalCount}건
+           rank against the rows above it. */
+        <span className={cn('ml-[16px]', numericFeatures.tabular)}>
+          {start}–{end} / 전체 {totalCount}건
         </span>
       ) : (
         <span className={cn('ml-[16px] text-[#374151]', numericFeatures.tabular)}>
@@ -129,7 +126,6 @@ export const Pagination = ({
         </span>
       )}
       <div className="flex-1" />
-      {paging && (
       <div className="inline-flex gap-0.5">
         {/* first/prev/next/last kept for usability (v15 mockup shows numbers only).
             IDC step tables pass controls="prevNext" to drop the first/last
@@ -171,7 +167,6 @@ export const Pagination = ({
           </PageBtn>
         )}
       </div>
-      )}
     </div>
   );
 };

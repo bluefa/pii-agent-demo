@@ -198,8 +198,8 @@ export const ConfirmedIntegrationTable = ({
         expandFolds={!!table.searchValue.trim() || !!table.dbType || !!table.region}
         columns={columns}
       />
-      {/* Round 15 (owner): the footer is always mounted and carries the count — 시안 D's
-          "pagination earns its row" now governs the CONTROLS inside it, not the row. */}
+      {/* Round 15 (owner): the footer is always mounted — count and paging controls
+          alike. 시안 D's "pagination earns its row" is retired for this table. */}
       <Pagination
         variant="console"
         page={table.safePage}
