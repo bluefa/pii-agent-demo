@@ -137,8 +137,10 @@ export const IdcResourceTable = ({
 
   // Display-only pagination; per-step gating runs over the full list in the step
   // components, so slicing the view here is safe.
+  // 5 는 승인 모달의 크기다. `connected` 호출자는 목록을 스스로 잘라 이 페이저를 건너뛰므로
+  // (아래 `pageRows`), 이 값이 닿는 곳은 non-connected 갈래 = 그 모달 하나뿐이다.
   const { page, pageSize, setPage, setPageSize, pageItems: paged } = usePagination(rows, {
-    initialPageSize: 10,
+    initialPageSize: 5,
   });
   // `connected` callers slice the list themselves (their toolbar owns the filter state), so the
   // internal pager is bypassed rather than rendered twice.
@@ -332,6 +334,8 @@ export const IdcResourceTable = ({
         </tbody>
       </table>
     </div>
+    {/* 클라우드 승인 모달과 같은 페이저다 — 이 갈래의 소비자가 그 모달의 IDC 짝뿐이라,
+        같은 상자가 같은 질문을 하면서 페이지를 다르게 넘길 이유가 없다. */}
     {!connected && (
     <Pagination
       page={page}
@@ -339,8 +343,7 @@ export const IdcResourceTable = ({
       totalCount={rows.length}
       onPageChange={setPage}
       onPageSizeChange={setPageSize}
-      pageSizeOptions={[10, 20, 50, 100]}
-      controls="prevNext"
+      pageSizeOptions={[5, 10]}
     />
     )}
     </>

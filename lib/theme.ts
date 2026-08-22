@@ -1308,6 +1308,17 @@ export const idcStyles = {
      *  whose job is to wait; the header already says which column is which, so the underline
      *  carries the affordance and color goes back to meaning state. #4E5968 is 7.5:1 on white. */
     linkNeutral: 'inline-flex cursor-pointer items-center gap-1 border-b border-current pb-0.5 text-[13px] font-semibold text-[#4E5968] transition-colors hover:text-[#191F28]',
+    /**
+     * `linkNeutral` at 14px — `LogicalDbCountCell` 전용.
+     *
+     * 그 셀은 한 열 안에서 두 갈래(평문 / 드릴다운 링크)를 그린다. 평문만 14px 로 올리면 같은
+     * 열에서 접힌 행은 14, 그 옆 링크는 13 이 되어 열이 두 눈금으로 갈린다. 13 은 v16 에서
+     * 넘어온 홀수라 디자인 가드가 지금은 받지 않는 값이기도 하다.
+     *
+     * `linkNeutral` 자체는 그대로 둔다 — 5·6단계 카드의 `실행 이력`·`다시 실행` 도 그 토큰을
+     * 들고 있고, 그 링크들의 크기는 이 열과 상관없다.
+     */
+    linkNeutralMd: 'inline-flex cursor-pointer items-center gap-1 border-b border-current pb-0.5 text-[14px] font-semibold text-[#4E5968] transition-colors hover:text-[#191F28]',
   },
   /** Toss form input — `.field input/select` (52px / borderless #F7F8FA fill / radius 12 / 15px). */
   input: 'w-full h-[52px] rounded-xl border-0 bg-[#F7F8FA] px-3.5 text-[15px] font-medium text-[#191F28] placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#0064FF]',

@@ -33,9 +33,8 @@ export const LogicalDbCountCell = ({
     // readable — which is what a number nobody can click should be.
     //
     // 14px — 이 셀이 앉는 행의 눈금이다. 13px 은 v16 에서 넘어온 홀수 값이라 디자인 가드가
-    // 지금은 받지 않고, 확인 모달의 14px 행 안에서 이 열만 한 칸 작았다. 드릴다운되는 쪽은
-    // 공용 `triggerBtn.linkNeutral`(13px)을 그대로 쓴다 — 그 토큰은 카드의 링크들도 함께
-    // 든다. 승인 모달은 두 열 다 평문이라 이 갈래만 지난다.
+    // 지금은 받지 않고, 확인 모달의 14px 행 안에서 이 열만 한 칸 작았다. 아래 드릴다운
+    // 갈래도 같은 14px(`linkNeutralMd`) 이다 — 한 열이 두 눈금으로 갈리면 안 된다.
     return (
       <span className={cn('text-[14px] font-medium', numericFeatures.tabular, textColors.tertiary)}>
         {count}
@@ -48,7 +47,7 @@ export const LogicalDbCountCell = ({
       type="button"
       onClick={onOpen}
       aria-label={label}
-      className={cn(idcStyles.triggerBtn.linkNeutral, numericFeatures.tabular)}
+      className={cn(idcStyles.triggerBtn.linkNeutralMd, numericFeatures.tabular)}
     >
       {count}
       <span className="text-[12px] font-medium">개</span>

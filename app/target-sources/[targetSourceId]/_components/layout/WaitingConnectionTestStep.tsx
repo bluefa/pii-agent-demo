@@ -17,9 +17,13 @@ import {
   type UseTestConnectionPollingReturn,
 } from '@/app/hooks/useTestConnectionPolling';
 
+/**
+ * `providerLabel` 은 받지 않는다 — 유일한 소비자가 없어진 eyebrow 였다. 레이아웃은 일곱 단계에
+ * 같은 객체를 `{...props}` 로 뿌리므로(CloudTargetSourceLayout), 여기서 선언하지 않아도
+ * 넘어오는 것은 막히지 않는다. 안 쓰는 값을 required 로 적어 두면 계약이 거짓말을 한다.
+ */
 interface WaitingConnectionTestStepProps {
   project: CloudTargetSource;
-  providerLabel: string;
   onProjectUpdate: (project: CloudTargetSource) => void;
 }
 

@@ -72,18 +72,9 @@ describe('IdcReqApprovalModal', () => {
     expect(screen.queryByText('10.20.30.99')).toBeNull();
   });
 
-  // 카드의 CTA 가 이미 막지만, 열려 있는 사이에 바뀌면 카드의 게이트는 다음 렌더에나
-  // 반영된다 — 확정을 커밋하는 버튼은 스스로도 막는다.
-  it('locks 요청하기 while any live target is still waiting', () => {
-    renderModal({
-      resources: [target('10.20.30.40'), target('10.20.31.10', { connection: 'PENDING' })],
-    });
-
-    expect(tile('연결 대기')).toBe('연결 대기1건');
-    expect(screen.getByRole('button', { name: '요청하기' }).hasAttribute('disabled')).toBe(true);
-  });
-
-  it('opens 요청하기 once every live target has passed', () => {
+  // 대기 행을 들고 열리는 경우는 없다 — 카드 CTA 가 `buckets.ok === liveResources.length` 로,
+  // 자격 증명 변경은 `credsDirty` 로 잠근다. 그래서 이 모달은 대기 건수를 **세기만** 한다.
+  it('counts the waiting targets without gating on them', () => {
     renderModal();
 
     expect(tile('연결 대기')).toBe('연결 대기0건');

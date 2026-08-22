@@ -80,7 +80,6 @@ describe('WaitingConnectionTestStep', () => {
     render(
       <WaitingConnectionTestStep
         project={azureWaitingConnectionTestFixture}
-        providerLabel="Azure Infrastructure"
         onProjectUpdate={() => {}}
       />,
     );

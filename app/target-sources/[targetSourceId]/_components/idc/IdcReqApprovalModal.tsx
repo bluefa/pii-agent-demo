@@ -88,9 +88,11 @@ export const IdcReqApprovalModal = ({
       onClose={onClose}
       onConfirm={onSubmit}
       isPending={pending}
-      // 카드의 CTA 가 이미 막지만, 모달이 스스로도 막는다 — 열려 있는 사이에 자격 증명이
-      // 바뀌면 카드의 게이트는 다음 렌더에나 반영된다.
-      confirmDisabled={waiting > 0}
+      // `confirmDisabled` 는 두지 않는다. 카드 CTA 가 `buckets.ok === liveResources.length` 로
+      // 잠그고 자격 증명이 바뀌면 `credsDirty` 가 다시 잠그므로, 이 모달이 열려 있는 동안
+      // 대기 행은 존재할 수 없다 — 클라우드 모달에도 같은 게이트가 없다. 도달하지 못하는
+      // 경우를 막는 코드는 두지 않고(CLAUDE.md §2), 특히 이유를 말하지 않는 잠긴 버튼은
+      // 두지 않는다: 그 상태에 빠진 사용자는 무엇을 고쳐야 하는지 알 길이 없다.
       result={
         phase === 'success'
           ? RESULTS.success
