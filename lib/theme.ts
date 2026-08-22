@@ -824,7 +824,7 @@ export const modalStyles = {
     container: 'rounded-[24px]',
     header: 'px-10 pt-9 pb-1.5 flex items-start justify-between',
     title: 'text-[26px] font-extrabold tracking-[-0.03em] leading-[1.25] text-[#191F28]',
-    /* mt-4 = the 16px title→subtitle gap every step-flow modal shares (reqModal.sub, ConfirmRewind).
+    /* mt-4 = the 16px title→subtitle gap every step-flow modal shares (ConfirmRewind 외).
        #6B7280, not #8B95A1: the description is normal-size text (14px) so AA needs 4.5:1 —
        #8B95A1 measured 3.04:1 on white and read as washed out; #6B7280 is 4.83:1 on the
        same quiet tier. */
@@ -1312,21 +1312,6 @@ export const idcStyles = {
   /** Toss form input — `.field input/select` (52px / borderless #F7F8FA fill / radius 12 / 15px). */
   input: 'w-full h-[52px] rounded-xl border-0 bg-[#F7F8FA] px-3.5 text-[15px] font-medium text-[#191F28] placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#0064FF]',
   /** `.idc-cred-select` unselected/placeholder state — non-mono, muted. */
-  /** Completion-approval modal (`.req-modal`) header + warn — v16 2647–2698 / 8202. */
-  reqModal: {
-    eyebrow: 'inline-flex items-center gap-1.5 font-mono text-[11px] font-semibold uppercase tracking-[0.09em] text-[#0064FF]',
-    eyebrowDot: 'h-1.5 w-1.5 rounded-full bg-[#0064FF]',
-    /* 26px aligns with modalStyles.toss.title — every step-flow modal shares one title size. */
-    title: 'mt-2 text-[26px] font-extrabold leading-[1.25] tracking-[-0.03em] text-[#191F28]',
-    sub: 'mt-4 max-w-[60ch] text-[13px] font-medium leading-[1.6] text-[#6B7280]',
-    warn: 'mt-3 rounded-[10px] border border-[#F8D2D0] bg-[#FEF1F1] px-3.5 py-[11px] text-[12.5px] leading-[1.5] text-[#B42318]',
-    /** `.req-modal .db-list-table th` override — 11px uppercase #9CA3AF (v16 2682). */
-    thHeader: 'bg-[#FAFBFC] text-left text-[12px] font-bold uppercase tracking-[0.05em] text-[#6B7280]',
-    /** `.req-modal .approval-stat .lbl` — 11.5px (v16 req override). */
-    statLabel: 'text-[11.5px]',
-    /** `.rm-num` excluded logical-DB count — amber (v16 raRender exclCell #B45309). */
-    exclNum: 'font-semibold text-[#B45309]',
-  },
   /** `.conn-progress` step-5 progress strip — v16 2552–2645 (5 data-states). */
   connProgress: {
     base: 'rounded-xl border px-4 pt-[13px] pb-3.5 mb-3.5 transition-colors',
@@ -1508,6 +1493,14 @@ export const idcStyles = {
      */
     approvalHeaderChrome:
       'bg-[var(--pl-gray-100)] text-left text-[12px] font-semibold text-[#4E5968]',
+    /**
+     * `approvalHeader` inside a confirm dialog — 14px, and the body cells go with it.
+     *
+     * 페이지의 표는 위아래로 툴바·필터·다른 카드에 둘러싸여 있어 12px 머리글이 제 자리를
+     * 지키지만, 확인 모달 안에서는 표가 본문의 전부다. 26px 제목과 24px 타일 아래에서
+     * 12px 은 각주처럼 읽혀, 승인의 근거인 표가 곁다리가 된다.
+     */
+    approvalHeaderDialog: 'bg-[#F7F8FA] text-left text-[14px] font-semibold text-[#4E5968]',
     /** Approval-table header cell padding — v16 12px V / 18px H. */
     approvalHeaderCell: 'px-[18px] py-3',
     /** Approval-table body cell padding — v16 `.approval-table tbody td` 16px V / 18px H. */

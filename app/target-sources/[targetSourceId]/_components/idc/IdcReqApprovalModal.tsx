@@ -103,7 +103,7 @@ export const IdcReqApprovalModal = ({
       description={
         <>
           <span className={primaryColors.text}>
-            수동 등록한 연동 대상 {total}건의 연결 테스트 결과로 완료 승인을 요청해요
+            연동 대상 {total}건의 연결 테스트 결과로 완료 승인을 요청해요
           </span>
           . 요청 후에는 관리자 검토가 시작되고, 변경하려면 요청을 취소하고 다시 제출해야 해요.
         </>

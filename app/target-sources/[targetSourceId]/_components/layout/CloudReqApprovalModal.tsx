@@ -29,7 +29,8 @@ import {
   type LogicalDbCountMap,
 } from '@/app/target-sources/[targetSourceId]/_components/confirmed/logical-db-summaries';
 
-const MONO_CELL = 'whitespace-nowrap font-mono text-[12px]';
+/** 이름 셀과 같은 14px — 모달 안의 표는 머리글부터 한 눈금으로 읽는다. */
+const MONO_CELL = 'whitespace-nowrap font-mono text-[14px]';
 const PLACEHOLDER = '—';
 
 interface CloudReqApprovalModalProps {
@@ -178,7 +179,7 @@ export const CloudReqApprovalModal = ({
         <div className={idcStyles.table.framePaged}>
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className={idcStyles.table.approvalHeader}>
+              <thead className={idcStyles.table.approvalHeaderDialog}>
                 {/* 5단계 카드와 같은 순서 — 정체성(이름) → 속성(종류·리전) → 이 화면이 묻는 것. */}
                 <tr className="whitespace-nowrap">
                   <th className={cn(idcStyles.table.approvalHeaderCell, idcStyles.table.nameCell)}>
@@ -264,7 +265,7 @@ export const CloudReqApprovalModal = ({
                       <td
                         className={cn(
                           idcStyles.table.approvalCell,
-                          'text-[12px]',
+                          'text-[14px]',
                           textColors.secondary,
                           CELL_LIFT,
                         )}

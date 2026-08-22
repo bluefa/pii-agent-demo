@@ -150,13 +150,20 @@ export const IdcResourceTable = ({
         header: idcStyles.table.approvalHeader,
         headerCell: idcStyles.table.approvalHeaderCell,
         cell: idcStyles.table.approvalCell,
+        text: '',
       }
     : {
         // 이 갈래는 아래에 항상 페이지 바를 단다 — 바가 닫아 주는 표의 프레임이다.
+        // 프로덕션 소비자는 IDC 완료 승인 모달 하나뿐이라, 눈금도 그 모달의 것이다:
+        // 클라우드 쪽 모달과 같은 14px 머리글.
         frame: idcStyles.table.framePaged,
-        header: idcStyles.table.header,
+        header: idcStyles.table.approvalHeaderDialog,
         headerCell: idcStyles.table.headerCell,
         cell: idcStyles.table.cell,
+        // 셀은 제 크기를 정하지 않아 문서 기본값 16px 을 물려받고 있었다. 크기는 표에 한 번만
+        // 얹는다 — 셀 토큰에 얹으면 제 크기를 가진 칸(Port 12px, `text-sm`)과 유틸리티가
+        // 겹쳐서, 어느 쪽이 이길지 cn 이 아니라 Tailwind 의 emit 순서가 정하게 된다.
+        text: 'text-[14px]',
       };
 
   // 출발지는 steps 5·6·7 에서 맨 오른쪽으로 간다: 그 화면들의 주어는 이미 확정된 대상이고
@@ -186,7 +193,7 @@ export const IdcResourceTable = ({
   return (
     <>
     <div className={skin.frame}>
-      <table className="w-full">
+      <table className={cn('w-full', skin.text)}>
         <thead className={skin.header}>
           <tr>
             {/* 구분은 제 열을 갖지 않는다 — 배지가 주소 위에 얹힌다(IdcEndpointWithKindCell).
