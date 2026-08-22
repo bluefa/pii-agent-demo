@@ -129,7 +129,7 @@ export function foldTcCardState(
  * 붙이던 구조도 같이 걷는다: 사실을 나열하지 말고 계층으로 가른다.
  */
 export function tcSummarySentence(state: TcCardState, buckets: TcBuckets): string {
-  const { total, ok, fail } = buckets;
+  const { total, ok, fail, reported } = buckets;
   switch (state) {
     case 'queued':
       // top-level PENDING — 접수만 됐고 아무것도 돌지 않는다. "진행 중"이라고 말하면
@@ -137,7 +137,13 @@ export function tcSummarySentence(state: TcCardState, buckets: TcBuckets): strin
       // 어휘를 "시작 대기"로 가른다).
       return '연결 테스트 시작을 기다리고 있어요';
     case 'running':
-      return '연결 테스트 진행 중';
+      // 시안 E — 모든 유닛이 답을 냈는데 실행은 아직 정착하지 않은 구간. 바는 가득 차
+      // 있고 카운트 줄의 `남음` 도 사라진 뒤라, 문장까지 "진행 중" 이면 화면 전체가
+      // 멈춘 것을 말한다. 스캔의 finalizing 프레임이 같은 자리에서 이미 쓰는 어휘다
+      // (ScanRunningState: "리소스 탐색은 끝났고 결과를 집계하고 있어요").
+      return total > 0 && reported === total
+        ? '결과를 집계하고 있어요'
+        : '연결 테스트 진행 중';
     case 'success':
       // 실행 판정(SUCCESS)과 유닛 접기가 어긋날 수 있다 — 마지막 실행 뒤 확정된
       // 리소스, 결과에 없는 유닛 id. "모두"는 카운트가 실제로 그럴 때만 말한다.
@@ -161,14 +167,20 @@ export function tcSummarySentence(state: TcCardState, buckets: TcBuckets): strin
   }
 }
 
-/** requested→completed elapsed, Korean short form ('58초', '1분 12초'). Either side missing → null. */
+/**
+ * requested→end elapsed, Korean short form ('58초', '1분 12초'). Either side missing → null.
+ *
+ * `end` 는 계약의 completed_at 이거나, 아직 끝나지 않은 실행을 재는 브라우저의 지금
+ * (ms epoch)이다 — 진행 중 카드가 후자를 쓴다(시안 B). 서버 시각과 브라우저 시계가
+ * 어긋나 end < start 로 읽히면 null 이라, 음수 경과가 화면에 서는 일은 없다.
+ */
 export function tcElapsedLabel(
   requestedAt: string | null | undefined,
-  completedAt: string | null | undefined,
+  completedAt: string | number | null | undefined,
 ): string | null {
   if (!requestedAt || !completedAt) return null;
   const start = new Date(requestedAt).getTime();
-  const end = new Date(completedAt).getTime();
+  const end = typeof completedAt === 'number' ? completedAt : new Date(completedAt).getTime();
   if (Number.isNaN(start) || Number.isNaN(end) || end < start) return null;
   const totalSeconds = Math.round((end - start) / 1000);
   const minutes = Math.floor(totalSeconds / 60);

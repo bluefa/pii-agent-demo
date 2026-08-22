@@ -56,7 +56,7 @@ export function foldApprovalHead(tcStatus: string | null | undefined, dag: DagFe
     };
   }
   if (tcStatus !== TC_COMPLETED) {
-    // 서비스 쪽 실제 버튼 이름(완료 승인 요청, Step 5 카드)으로 말한다 — 화면에 없는
+    // 서비스 쪽 실제 버튼 이름(승인 요청, Step 5 카드)으로 말한다 — 화면에 없는
     // 이름을 안내하면 관리자가 서비스에 전달할 때 서로 다른 버튼을 찾게 된다.
     return {
       pill: { tone: 'off', label: '완료 승인 대기' },

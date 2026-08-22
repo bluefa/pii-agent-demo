@@ -1171,12 +1171,30 @@ export const idcStyles = {
     last: 'before:bottom-1/2',
   },
   /** Inline color tag — `.tag` (4px 10px / radius 8 / 12px / 600). */
+  /**
+   * 상태 태그. `connProgress.state` 와 같은 규칙 — **채도만 낮추고 명도는 고정**, 한 계열에
+   * 한 채도(C=0.018).
+   *
+   * 원래 C 0.0196~0.0250 으로 카드 표면(0.0136~0.0181)보다 진했다. 알약은 한 열에 세로로
+   * 쌓여서 표가 색 띠를 하나 갖는 것처럼 읽혔고, 22px 짜리 칩이 795px 짜리 판보다 화소당
+   * 더 크게 튀었다. 판보다는 진해야 맞다(작은 표식이라 찾을 수 있어야 한다) — 그 순서는
+   * 유지한 채 둘 다 내렸다(처음엔 0.014, 한 단계 되올려 지금 값).
+   *
+   * 칩이 표면(0.012)보다 1.5배 진한 이 관계가 값 자체보다 중요하다. 되돌려 잡을 일이
+   * 생기면 `connByStatus` 계열과 같은 배로 움직여서 순서를 지켜라.
+   *
+   * ⚠️ L 은 절대 옮기지 말 것. `chipEdge` 의 근거가 "칩 어휘 전체가 L* 88.7~96.2 에 모여
+   * 있고 hover 틴트 둘이 그 안에 앉는다"는 관측이라, 명도를 건드리면 그 분석이 통째로
+   * 무효가 된다. 실측으로 흰 행 1.11~1.14:1 · hover 1.02~1.05:1 이 그대로이고, 글자 대비도
+   * 4.87/5.76/7.38/7.10 으로 전부 보존된다.
+   */
   tag: {
     base: 'inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-[12px] font-semibold tracking-[-0.01em] whitespace-nowrap',
-    blue: `bg-[#E8F1FF] text-[#1747B5] ${tableRowLift.chipEdge}`,
-    green: `bg-[#E5F8EE] text-[#197A3F] ${tableRowLift.chipEdge}`,
-    red: `bg-[#FEECEC] text-[#B42318] ${tableRowLift.chipEdge}`,
-    orange: `bg-[#FEF0E1] text-[#7A3F0E] ${tableRowLift.chipEdge}`,
+    blue: `bg-[#E9F1FD] text-[#1747B5] ${tableRowLift.chipEdge}`,
+    green: `bg-[#E9F7EF] text-[#197A3F] ${tableRowLift.chipEdge}`,
+    red: `bg-[#FDECEC] text-[#B42318] ${tableRowLift.chipEdge}`,
+    orange: `bg-[#FBF1E6] text-[#7A3F0E] ${tableRowLift.chipEdge}`,
+    /** 중립은 이미 C 0.0029 라 내릴 것이 없다 — 색 없는 태그가 이 열의 바닥이다. */
     gray: `bg-[#F7F8FA] text-[#4E5968] ${tableRowLift.chipEdge}`,
   },
   /** Health/connection status — `.status` (bare text + dot, 12.5px / 500 / dot 8px; NO bg/pad/radius). */
@@ -1312,12 +1330,35 @@ export const idcStyles = {
   /** `.conn-progress` step-5 progress strip — v16 2552–2645 (5 data-states). */
   connProgress: {
     base: 'rounded-xl border px-4 pt-[13px] pb-3.5 mb-3.5 transition-colors',
+    /**
+     * 판정 표면. **채도만 낮추고 명도는 고정한다** — 한 계열에 한 채도.
+     *
+     * 원래 값은 면 C 0.0136~0.0181, 테두리 C 0.0395~0.0558 (OKLCH, 브라우저 실측)로,
+     * 중립면(#F7F8FA, C 0.0029)의 5~6배·7~9배였다. 카드는 판을 통째로 칠하는 자리라
+     * 그 채도가 화면에서 가장 큰 색 덩어리가 됐다 — 판정을 말하는 것은 문장·글리프·
+     * 바의 채움이고, 면은 그것들을 묶기만 하면 된다.
+     *
+     * 면 C=0.012 / 테두리 C=0.030 으로 통일했다. 계열마다 달랐던 탓에 success(C 0.0181)가
+     * fail(C 0.0140)보다 29% 진해 차분한 상태가 경보 상태보다 색이 셌는데, 한 값으로
+     * 맞추면 세기가 아니라 색조만 의미를 나른다.
+     *
+     * 처음 통일한 값은 0.009 / 0.022 였고, 한 단계 되올린 것이 지금 값이다(둘 다 ×1.33 —
+     * 계열 사이 비율은 그대로다). 테두리/면 = 2.5 를 유지하는 것이 요점이다: 원래는
+     * 테두리가 제 면보다 3배 진해 1px 선이 판 전체보다 색이 셌고, 면만 만지면 그 역전이
+     * 되살아난다. 다시 조절하게 되면 두 값을 같은 배로 움직여라.
+     *
+     * L 을 건드리지 않은 이유는 둘이다. (1) 이 면들은 이미 흰 판과 1.06~1.10:1 이라
+     * 더 밝히면 사라지고, 어둡게 하면 오히려 더 눈에 띈다 — 명도엔 여유가 없다.
+     * (2) L 고정이면 그 위 모든 대비비가 그대로 보존된다: 제목 4.75~15.27, counts
+     * 4.19~4.36, 바 채움 3.03/3.58~3.16/3.73, 중립 점 2.76~2.88 — 전부 ±0.02 안이다.
+     * 명도를 옮기려거든 이 네 줄을 다시 재라.
+     */
     state: {
       idle: 'bg-[#F7F8FA] border-[#EBEEF2]',
-      running: 'bg-[#F0F6FF] border-[#D5E5FF]',
-      pending: 'bg-[#FFF8EC] border-[#FBE6BF]',
-      success: 'bg-[#ECFAF2] border-[#C7EED9]',
-      fail: 'bg-[#FEF1F1] border-[#F8D2D0]',
+      running: 'bg-[#F1F6FE] border-[#D9E5F9]',
+      pending: 'bg-[#FDF8F0] border-[#F3E8D3]',
+      success: 'bg-[#EFF9F3] border-[#D2EADD]',
+      fail: 'bg-[#FDF1F1] border-[#F0D5D4]',
     },
     head: 'flex items-center justify-between gap-3 mb-[11px]',
     title: 'flex items-center gap-2 text-[16px] font-bold tracking-[-0.01em]',
@@ -1341,6 +1382,16 @@ export const idcStyles = {
     /** `counts` on the pending surface — #6B7684 on #FFF8EC is 4.37:1 (AA fail), so the
      *  policy-changed meta/guidance lines take the warning voice (orange-800, 6.3:1). */
     countsWarn: 'text-[12px] font-medium text-orange-800 [font-variant-numeric:tabular-nums]',
+    /**
+     * 성공 정착 카드의 다음 행동 안내. 제목의 아이콘 슬롯(18px) + `title` 의 gap-2 만큼
+     * 들여써서 제목·메타와 한 열에 선다.
+     *
+     * 색은 `counts` 의 #6B7684 가 아니라 한 단계 진한 #4E5968 이다. success 판(#EFF9F3)
+     * 에서 #6B7684 는 **4.33:1** 로 12px AA(4.5:1) 에 못 미치고(pending 판의 4.37:1 과 같은
+     * 사정 — `countsWarn` 이 존재하는 이유다), #4E5968 은 **6.67:1** 이다. 겸사겸사 계층도
+     * 맞는다: 무엇을 하면 되는지는 언제 끝났는지보다 위다.
+     */
+    guidance: 'pl-[26px] text-[12px] font-medium leading-[1.5] text-[#4E5968] break-keep',
     /** The bucket list inside `counts` — dots replace the 가운뎃점 separators, so the
      *  segments need their own gap (12px between, 6px inside a segment). */
     countList: 'flex items-center gap-3',
@@ -1365,6 +1416,28 @@ export const idcStyles = {
     /** 미보고·미확인 — "값이 없다"는 사실은 색이 아니라 형태(빈 파선 링)가 말한다. */
     countDotMissing: 'h-2.5 w-2.5 rounded-full border-2 border-dashed border-orange-700 flex-shrink-0',
     track: 'relative h-2 overflow-hidden rounded-full bg-[#E4E7EC]',
+    /** 시안 A — 아직 판정이 오지 않은 구간의 행진 무늬(진행 중에만).
+     *
+     *  채움 **아래** 트랙 전체에 깔린다: 불투명한 성공·실패 채움이 그 위를 덮으므로
+     *  남은 구간만 저절로 드러나고, 폭을 따로 계산하거나 채움의 250ms transition 과
+     *  좌표를 맞출 일이 없다.
+     *
+     *  ⚠️ "모두 보고되면 채움이 다 덮으니 무늬도 저절로 사라진다"는 성립하지 않는다 —
+     *  채움은 ok·fail 뿐인데 `reported` 에는 `unknown` 도 들어서, 계약 밖 값으로만
+     *  보고된 구간은 덮이지 않은 채 계속 흐른다. 그래서 무늬를 그리는 쪽(TcSummaryCard)
+     *  이 `reported < total` 로 명시적으로 잠근다. 이 토큰만 보고 기하에 기대지 말 것.
+     *
+     *  #BAC4D1 은 트랙(#E4E7EC) 대비 1.42:1 (브라우저 실측) — 판정 두 색(#21A157
+     *  3.07:1 · #E5483D 3.63:1)보다 반드시 약해야 한다. 8px 높이에서 한 단계 위
+     *  #8B95A1(중립 점과 같은 값)까지 올리면 남은 구간이 채워진 세 번째 띠로 읽혀
+     *  카운트 줄의 점 범례가 가리키는 축이 셋이 되고, 한 단계 아래 #CDD5DE(1.20:1)는
+     *  등배에서 질감이 사라져 모션이 보이지 않는다. 넷을 나란히 놓고 1:1 로 고른 값이다.
+     *
+     *  8px 타일 · 45° 는 Bootstrap `.progress-bar-striped` 의 기하 그대로다(퍼센트
+     *  정지점이라 타일 경계에 이음매가 없다). 모션이 꺼지면 무늬만 정지한 채 남아
+     *  "미판정" 은 여전히 형태로 읽힌다(Primer: 정보를 애니메이션만으로 전달하지 말 것). */
+    trackMarch:
+      'absolute inset-0 bg-[length:8px_8px] bg-[linear-gradient(45deg,#BAC4D1_25%,transparent_25%,transparent_50%,#BAC4D1_50%,#BAC4D1_75%,transparent_75%,transparent)] motion-safe:animate-[tc-track-march_1400ms_linear_infinite]',
     /** Skeleton bar for this strip — the shared `skeletonBar` (#F3F4F6) sits on white; on the
      *  idle surface (#F7F8FA) it is brighter than its own ground and vanishes. A step darker,
      *  the same move as the service rail's skeletonBar. */

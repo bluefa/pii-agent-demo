@@ -2,6 +2,7 @@
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { ConfirmedResource } from '@/lib/types/resources';
+import { AppError } from '@/lib/errors';
 import type {
   TestConnectionVersionResult,
   TestConnectionStatus,
@@ -42,7 +43,15 @@ const pollingState: {
   triggering: boolean;
   /** 실행을 시작해도 되는가 — 화면이 보는 단일 사실. */
   canRunTest: boolean;
-} = { uiState: 'IDLE', latestJob: null, loading: false, triggering: false, canRunTest: true };
+  fetchError: AppError | null;
+} = {
+  uiState: 'IDLE',
+  latestJob: null,
+  loading: false,
+  triggering: false,
+  canRunTest: true,
+  fetchError: null,
+};
 
 const makePolling = (): UseTestConnectionPollingReturn => ({
   latestJob: pollingState.latestJob,
@@ -51,14 +60,14 @@ const makePolling = (): UseTestConnectionPollingReturn => ({
   triggering: pollingState.triggering,
   canRunTest: pollingState.canRunTest,
   retry: async () => {},
-  fetchError: null,
+  fetchError: pollingState.fetchError,
   triggerError: null,
   trigger: triggerMock,
 });
 
 const updateResourceCredentialMock = vi.fn();
 const getSecretsMock = vi.fn(async (..._args: unknown[]) => [{ name: 'Key1' }, { name: 'Key2' }, { name: 'Key3' }]);
-// completion-status now gates 완료 승인 요청 (useTcCompletionStatus) — default to the
+// completion-status now gates 승인 요청 (useTcCompletionStatus) — default to the
 // open verdict so the B2/B3 gate tests keep exercising the poll transition itself.
 const getCompletionStatusMock = vi.fn(
   async (
@@ -137,6 +146,7 @@ describe('ConnectionTestCard', () => {
     pollingState.loading = false;
     pollingState.triggering = false;
     pollingState.canRunTest = true;
+    pollingState.fetchError = null;
     triggerMock.mockReset();
     triggerMock.mockResolvedValue(true);
     updateResourceCredentialMock.mockReset();
@@ -165,7 +175,7 @@ describe('ConnectionTestCard', () => {
     ]);
   });
 
-  it('opens every credentialed row unreported (—), not a claimed 대기 (step5 is pre-test)', () => {
+  it('opens every credentialed row 미실행, not a claimed 대기 (step5 is pre-test)', () => {
     renderCard([makeResource({ credentialId: 'Key1' })]);
     // No agent has reported: the cell says nothing ('—') instead of folding the
     // absence into 대기 — 대기 is reserved for an agent-reported PENDING. (The summary
@@ -178,6 +188,47 @@ describe('ConnectionTestCard', () => {
   // 확정 목록(confirmed-integration)이 latest_version 보다 먼저 도착하면 표는 폴링 결과 없이
   // 한 번 그려진다 — 그 사이 찍히던 '—'/'대기'는 판정처럼 읽혔고, 응답이 오면 곧바로 성공으로
   // 뒤집혀 같은 칸을 두 번 읽게 만들었다. 모르는 동안에는 스켈레톤만 있어야 한다.
+  /**
+   * 조회를 못 한 것과 회차가 없는 것은 정반대의 답을 요구한다. 첫 조회가 실패하면 latestJob 은
+   * null 인 채 loading 도 꺼지므로(무한 스피너를 피하려고), `!!latestJob` 만 보면 표 전체가
+   * '미실행' 이라고 **단정**한다 — 실패는 빈 결과가 아니다.
+   */
+  it('never claims 미실행 when the fetch is what failed', () => {
+    pollingState.fetchError = new AppError({
+      status: 503,
+      code: 'INTERNAL_ERROR',
+      message: '503',
+      retriable: true,
+    });
+    renderCard([makeResource({ credentialId: 'Key1' })]);
+
+    const table = screen.getByRole('table');
+    expect(within(table).getByText('조회 실패')).toBeTruthy();
+    expect(within(table).queryByText('미실행')).toBeNull();
+  });
+
+  /**
+   * 반대쪽 경계. 폴이 한 번이라도 성공했으면 usePollingBase 는 에러가 나도 그 스냅샷을 비우지
+   * 않는다. 스냅샷이 손에 있으면 '읽지 못했다'가 아니라 '그 회차가 이 행을 언급하지 않았다'가
+   * 참이고, 카드 카운트 줄도 같은 순간 그 행을 미보고로 센다 — 표만 다른 말을 하면 한 화면이
+   * 두 말을 한다.
+   */
+  it('keeps saying 미보고 when a refresh blips but the snapshot is still in hand', () => {
+    pollingState.latestJob = makeJob('SUCCESS', [agentResult('res-1', 'SUCCESS')]);
+    pollingState.fetchError = new AppError({
+      status: 503,
+      code: 'INTERNAL_ERROR',
+      message: '503',
+      retriable: true,
+    });
+    renderCard([makeResource({ credentialId: 'Key1' }), makeResource({ resourceId: 'res-2', credentialId: 'Key1' })]);
+
+    const table = screen.getByRole('table');
+    expect(within(table).getByText('성공')).toBeTruthy();
+    expect(within(table).getByText('미보고')).toBeTruthy();
+    expect(within(table).queryByText('조회 실패')).toBeNull();
+  });
+
   it('draws a skeleton in 연결 상태 while the first latest_version is still in flight', () => {
     pollingState.loading = true;
     pollingState.latestJob = makeJob('SUCCESS', [agentResult('res-1', 'SUCCESS')]);
@@ -188,7 +239,9 @@ describe('ConnectionTestCard', () => {
     // 결과가 이미 손에 있어도 로딩 중이면 말하지 않는다 — 게이트는 latestJob 이 아니라 loading.
     expect(within(table).queryByText('성공')).toBeNull();
     expect(within(table).queryByText('대기')).toBeNull();
-    expect(within(table).queryByText('—')).toBeNull();
+    // 판정 없음을 말하는 두 태그도 아직 서면 안 된다 — 모르는 동안은 스켈레톤뿐이다.
+    expect(within(table).queryByText('미보고')).toBeNull();
+    expect(within(table).queryByText('미실행')).toBeNull();
     expect(table.querySelectorAll('tbody .animate-pulse').length).toBe(1);
   });
 
@@ -202,7 +255,7 @@ describe('ConnectionTestCard', () => {
     pollingState.latestJob = makeJob('SUCCESS', [agentResult('res-1', 'SUCCESS')]);
     renderCard([makeResource({ credentialId: 'Key1' })]);
 
-    expect(screen.queryByText(/Run Test를 실행해 주세요/)).toBeNull();
+    expect(screen.queryByText(/연결 테스트를 실행해 주세요/)).toBeNull();
     expect(screen.queryByText(/연결에 성공했어요/)).toBeNull();
     expect(screen.queryByText('미보고')).toBeNull();
     expect(document.querySelector('[aria-busy="true"] .animate-pulse')).toBeTruthy();
@@ -213,12 +266,12 @@ describe('ConnectionTestCard', () => {
    * "아직 모른다"이다. 슬롯 CTA 는 스트립 안에 사니, 스트립이 스켈레톤인 동안은 버튼
    * 자체가 없다 — 존재하지 않는 버튼은 눌리지도 않고, "진행 중" 주장도 없다.
    */
-  it('locks Run Test until the first latest_version answers, without claiming a run is under way', () => {
+  it('locks the run CTA until the first latest_version answers, without claiming a run is under way', () => {
     pollingState.loading = true;
     pollingState.canRunTest = false;
     renderCard([makeResource({ credentialId: 'Key1' })]);
 
-    expect(screen.queryByRole('button', { name: /Run Test/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: '실행' })).toBeNull();
     expect(document.querySelector('[aria-busy="true"] .animate-pulse')).toBeTruthy();
     expect(screen.queryByRole('button', { name: /진행 중/ })).toBeNull();
   });
@@ -226,15 +279,15 @@ describe('ConnectionTestCard', () => {
   /**
    * `testing` 은 latest_version 이 새 실행을 되돌려준 뒤에야 켜진다. 그 왕복 동안 버튼이
    * 살아 있으면 두 번째 클릭이 409 를 받아, 사용자가 부른 적 없는 오류 줄이 뜬다.
-   * 라벨은 여전히 Run Test — 실제로 도는 것을 본 적이 없는데 "진행 중"이라고 적는 것
-   * 역시 하지 않은 판단이라, 그 구간의 슬롯은 Run Test 인 채로 비활성만 된다.
+   * 라벨은 여전히 실행 — 실제로 도는 것을 본 적이 없는데 "진행 중"이라고 적는 것
+   * 역시 하지 않은 판단이라, 그 구간의 슬롯은 실행 인 채로 비활성만 된다.
    */
-  it('locks Run Test while the trigger request is still in flight', () => {
+  it('locks the run CTA while the trigger request is still in flight', () => {
     pollingState.triggering = true;
     pollingState.canRunTest = false;
     renderCard([makeResource({ credentialId: 'Key1' })]);
 
-    const button = screen.getByRole('button', { name: /Run Test/ });
+    const button = screen.getByRole('button', { name: '실행' });
     expect(button).toHaveProperty('disabled', true);
     expect(screen.queryByRole('button', { name: /진행 중/ })).toBeNull();
   });
@@ -252,18 +305,18 @@ describe('ConnectionTestCard', () => {
     expect(within(table).getByText('성공')).toBeTruthy();
   });
 
-  it('disables Run Test when a row has no credential, without touching Connection Status', () => {
+  it('disables the run CTA when a row has no credential, without touching Connection Status', () => {
     renderCard([makeResource({ credentialId: null })]);
     // Connection Status only ever says what the agent reported — nothing ran, so no verdict.
     expect(within(screen.getByRole('table')).queryByText('성공')).toBeNull();
     expect(screen.queryByText('자격 증명 필요')).toBeNull();
-    expect(screen.getByRole('button', { name: /Run Test/ })).toHaveProperty('disabled', true);
+    expect(screen.getByRole('button', { name: '실행' })).toHaveProperty('disabled', true);
     expect(screen.getByRole('button', { name: '설정' })).toHaveProperty('disabled', true);
   });
 
-  it('enables Run Test when every row has a credential selected', () => {
+  it('enables the run CTA when every row has a credential selected', () => {
     renderCard([makeResource({ credentialId: 'Key1' }), makeResource({ resourceId: 'res-2', credentialId: 'Key2' })]);
-    expect(screen.getByRole('button', { name: /Run Test/ })).toHaveProperty('disabled', false);
+    expect(screen.getByRole('button', { name: '실행' })).toHaveProperty('disabled', false);
   });
 
   it('does not require a credential for engines that connect without one (Athena)', () => {
@@ -272,18 +325,18 @@ describe('ConnectionTestCard', () => {
     ]);
     expect(screen.getByText('불필요')).toBeTruthy();
     expect(screen.queryByText('자격 증명 필요')).toBeNull();
-    expect(screen.getByRole('button', { name: /Run Test/ })).toHaveProperty('disabled', false);
+    expect(screen.getByRole('button', { name: '실행' })).toHaveProperty('disabled', false);
   });
 
   // 판정이 mysql·postgresql·redshift 허용 목록이던 동안 이 엔진들은 "불필요"로 찍혔다 —
   // 실제로는 계정이 있어야 붙고, IDC step 5 는 같은 엔진에 이미 요구하고 있었다.
   it.each(['mssql', 'oracle', 'mongodb', 'mariadb'])(
-    'requires a credential for %s, and blocks Run Test until one is set',
+    'requires a credential for %s, and blocks the run CTA until one is set',
     (databaseType) => {
       renderCard([makeResource({ resourceId: `${databaseType}-1`, databaseType, credentialId: null })]);
       expect(screen.queryByText('불필요')).toBeNull();
       expect(screen.getByRole('button', { name: /Credential 수정 — 현재 미설정/ })).toBeTruthy();
-      expect(screen.getByRole('button', { name: /Run Test/ })).toHaveProperty('disabled', true);
+      expect(screen.getByRole('button', { name: '실행' })).toHaveProperty('disabled', true);
     },
   );
 
@@ -334,7 +387,7 @@ describe('ConnectionTestCard', () => {
 
   // Regression: a healthy target used to read 대기 / 0% purely because no credential was
   // picked locally, so a fully passed run showed "성공 0 · 대기 1 · 0%". The strip counts
-  // the reported result; the credential gates Run Test, not the verdict.
+  // the reported result; the credential gates the run CTA, not the verdict.
   it('reports a SUCCESS unit as connected even with no credential selected', () => {
     pollingState.uiState = 'SUCCESS';
     pollingState.latestJob = makeJob('SUCCESS', [agentResult('res-1', 'SUCCESS')]);
@@ -344,10 +397,10 @@ describe('ConnectionTestCard', () => {
     expect(screen.getByText('모든 리소스가 연결에 성공했어요')).toBeTruthy();
   });
 
-  it('Run Test triggers the async test (no local credential change → no credential PUT)', async () => {
+  it('the run CTA triggers the async test (no local credential change → no credential PUT)', async () => {
     renderCard([makeResource({ credentialId: 'Key1' })]);
     await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: /Run Test/ }));
+      fireEvent.click(screen.getByRole('button', { name: '실행' }));
     });
     expect(triggerMock).toHaveBeenCalledTimes(1);
     expect(updateResourceCredentialMock).not.toHaveBeenCalled();
@@ -376,9 +429,9 @@ describe('ConnectionTestCard', () => {
     });
     expect(updateResourceCredentialMock).toHaveBeenCalledWith(1, 'res-9', 'Key2');
 
-    // Run Test then triggers the test without a second PUT.
+    // The run CTA then triggers the test without a second PUT.
     await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: /Run Test/ }));
+      fireEvent.click(screen.getByRole('button', { name: '실행' }));
     });
     expect(updateResourceCredentialMock).toHaveBeenCalledTimes(1);
     expect(triggerMock).toHaveBeenCalledTimes(1);
@@ -429,27 +482,27 @@ describe('ConnectionTestCard', () => {
     return () => rerender(element());
   };
 
-  it('hydrates row statuses from latest_version on mount without Run Test click (B3)', async () => {
+  it('hydrates row statuses from latest_version on mount without a run-CTA click (B3)', async () => {
     // Simulate a prior SUCCESS result already in the mock on cold load.
     pollingState.uiState = 'SUCCESS';
     pollingState.latestJob = makeJob('SUCCESS', [agentResult('res-1', 'SUCCESS')]);
     const confirmed = [makeResource({ resourceId: 'res-1', credentialId: 'Key1' })];
     renderCard(confirmed);
-    // Row must show Success and CTA must be enabled — no Run Test click.
+    // Row must show Success and CTA must be enabled — no run-CTA click.
     expect((await screen.findAllByText('성공')).length).toBeGreaterThan(0);
     await waitFor(() =>
-      expect(screen.getByRole('button', { name: '완료 승인 요청' })).toHaveProperty('disabled', false),
+      expect(screen.getByRole('button', { name: '승인 요청' })).toHaveProperty('disabled', false),
     );
     expect(triggerMock).not.toHaveBeenCalled();
   });
 
-  it('enables 완료 승인 요청 when latest_version.connectionStatus is SUCCESS (B2)', async () => {
+  it('enables 승인 요청 when latest_version.connectionStatus is SUCCESS (B2)', async () => {
     const confirmed = [makeResource({ resourceId: 'res-1', credentialId: 'Key1' })];
     const rerender = renderStable(confirmed);
 
-    // Poll settles SUCCESS after Run Test — approval gate reads uiState directly.
+    // Poll settles SUCCESS after the run — approval gate reads uiState directly.
     await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: /Run Test/ }));
+      fireEvent.click(screen.getByRole('button', { name: '실행' }));
     });
     pollingState.uiState = 'SUCCESS';
     pollingState.latestJob = makeJob('SUCCESS', [agentResult('res-1', 'SUCCESS')]);
@@ -457,15 +510,15 @@ describe('ConnectionTestCard', () => {
 
     expect((await screen.findAllByText('성공')).length).toBeGreaterThan(0);
     await waitFor(() =>
-      expect(screen.getByRole('button', { name: '완료 승인 요청' })).toHaveProperty('disabled', false),
+      expect(screen.getByRole('button', { name: '승인 요청' })).toHaveProperty('disabled', false),
     );
   });
 
-  it('shows Fail and keeps 완료 승인 요청 disabled when latest_version.connectionStatus is FAIL', async () => {
+  it('shows Fail and keeps 승인 요청 disabled when latest_version.connectionStatus is FAIL', async () => {
     const confirmed = [makeResource({ resourceId: 'res-1', credentialId: 'Key1' })];
     const rerender = renderStable(confirmed);
     await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: /Run Test/ }));
+      fireEvent.click(screen.getByRole('button', { name: '실행' }));
     });
     pollingState.uiState = 'FAIL';
     pollingState.latestJob = makeJob('FAIL', [agentResult('res-1', 'FAIL')]);
@@ -473,7 +526,7 @@ describe('ConnectionTestCard', () => {
     // 표 안으로 좁힌다 — 카운트 줄의 범례도 '실패'를 제 텍스트 노드로 갖는다.
     expect(within(await screen.findByRole('table')).getByText('실패')).toBeTruthy();
     // FAIL 의 정답 행동은 재실행 하나다 — 승인 CTA 는 비활성이 아니라 슬롯에서 아예 빠진다.
-    expect(screen.queryByRole('button', { name: '완료 승인 요청' })).toBeNull();
+    expect(screen.queryByRole('button', { name: '승인 요청' })).toBeNull();
     expect(screen.getByRole('button', { name: /다시 실행/ })).toBeTruthy();
   });
 
@@ -491,7 +544,7 @@ describe('ConnectionTestCard', () => {
     expect(await screen.findByText('논리 DB 정책이 마지막 실행 이후 변경됐어요')).toBeTruthy();
     // 계약의 시각 두 개가 "실행이 뒤처짐"을 구체화한다.
     expect(screen.getByText(/정책 변경 .* · 마지막 실행 /)).toBeTruthy();
-    expect(screen.queryByRole('button', { name: '완료 승인 요청' })).toBeNull();
+    expect(screen.queryByRole('button', { name: '승인 요청' })).toBeNull();
     expect(screen.getByRole('button', { name: /다시 실행/ })).toBeTruthy();
   });
 
@@ -503,7 +556,7 @@ describe('ConnectionTestCard', () => {
 
     expect(await screen.findByText('연결 테스트 완료 확인됨')).toBeTruthy();
     expect(screen.getByText('최근 수행 결과 기준')).toBeTruthy();
-    expect(screen.queryByRole('button', { name: '완료 승인 요청' })).toBeNull();
+    expect(screen.queryByRole('button', { name: '승인 요청' })).toBeNull();
     expect(screen.queryByRole('button', { name: /다시 실행/ })).toBeNull();
     expect(screen.getByRole('button', { name: '실행 이력' })).toBeTruthy();
   });
@@ -518,7 +571,8 @@ describe('ConnectionTestCard', () => {
     renderCard([makeResource({ credentialId: 'Key1' })]);
 
     expect(await screen.findByText('연결 테스트 완료 확인됨')).toBeTruthy();
-    expect(screen.getByText('대상 리소스 1개')).toBeTruthy();
+    // 세그먼트 하나짜리 카운트 줄 — 판정이 없어도 줄의 문법은 다른 국면과 같다.
+    expect(screen.getByText('대상 리소스').textContent).toBe('대상 리소스1');
   });
 
   // 실패한 완료 상태 조회가 닫힌 게이트와 같은 픽셀이면, 이유 없이 비활성인 승인 버튼만
@@ -530,14 +584,14 @@ describe('ConnectionTestCard', () => {
     renderCard([makeResource({ credentialId: 'Key1' })]);
 
     expect(await screen.findByText(/연결 테스트 완료 상태 조회에 실패했습니다/)).toBeTruthy();
-    expect(screen.getByRole('button', { name: '완료 승인 요청' })).toHaveProperty('disabled', true);
+    expect(screen.getByRole('button', { name: '승인 요청' })).toHaveProperty('disabled', true);
 
     // Retry hits the default open verdict — the line clears and the gate opens.
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: '다시 시도' }));
     });
     await waitFor(() =>
-      expect(screen.getByRole('button', { name: '완료 승인 요청' })).toHaveProperty('disabled', false),
+      expect(screen.getByRole('button', { name: '승인 요청' })).toHaveProperty('disabled', false),
     );
     expect(screen.queryByText(/완료 상태 조회에 실패했습니다/)).toBeNull();
   });

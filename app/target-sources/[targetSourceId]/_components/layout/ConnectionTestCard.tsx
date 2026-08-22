@@ -150,7 +150,7 @@ interface ConnectionTestCardProps {
  * the latest poll's agent results (lib/test-connection-summary). Once the run settles
  * SUCCESS the completion-status is fetched (useTcCompletionStatus) and the 완료 승인 요청
  * CTA opens only when it reads LATEST_TEST_CONNECTION_SUCCESS; the summary card holds the
- * state-driven CTA slot (시안 A — Run Test / 다시 실행 / 완료 승인 요청 swap with the folded
+ * state-driven CTA slot (시안 A — 실행 / 다시 실행 / 승인 요청 swap with the folded
  * card state), the run's timestamps and the 실행 이력 modal, and the rejection
  * notice surfaces the admin's re-run reason.
  */
@@ -431,7 +431,7 @@ export const ConnectionTestCard = ({
           {triggerError && (
             <p className={cn('text-[12px]', idcStyles.tag.red, 'bg-transparent px-0')}>{triggerError}</p>
           )}
-          {/* 조회가 실패하면 Run Test 는 잠긴 채로 남는다(무엇이 도는지 모르므로). 그 잠금을 푸는
+          {/* 조회가 실패하면 실행 CTA 는 잠긴 채로 남는다(무엇이 도는지 모르므로). 그 잠금을 푸는
               길은 조회 성공뿐이라, 폴링이 포기한 뒤에는 이 버튼이 유일한 출구다. */}
           {fetchError && (
             <p className={cn('flex items-center gap-2 text-[12px]', idcStyles.tag.red, 'bg-transparent px-0')}>
@@ -680,7 +680,15 @@ export const ConnectionTestCard = ({
                         {/* 어휘·스켈레톤 규칙은 `TcStatusTag` 가 진다 — IDC step 5 의 표가 같은
                             칸을 그리므로, 두 CSP 가 같은 판정을 다른 말로 하지 않도록 한 곳에 둔다. */}
                         <td className={idcStyles.table.approvalCell}>
-                          <TcStatusTag status={status} loading={loading} />
+                          <TcStatusTag
+                            status={status}
+                            // 조회를 못 했으면 회차가 없다고 단정하지 않는다 — 실패는 빈 결과가 아니다.
+                            // 스냅샷이 있으면 '읽지 못했다'가 아니다 — 그 회차가 이 행을 언급하지 않았을 뿐이라
+                            // 미보고가 참이고, 카드 카운트 줄도 같은 순간 미보고로 센다.
+                            // null 은 스냅샷 자체가 없을 때만(usePollingBase 는 에러 때 data 를 비우지 않는다).
+                            hasRun={fetchError && !latestJob ? null : !!latestJob}
+                            loading={loading}
+                          />
                         </td>
                         {/* Athena·DynamoDB are IAM-based and have no logical-DB management at all,
                             so there is nothing here to configure — the button used to open anyway

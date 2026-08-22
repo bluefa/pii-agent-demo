@@ -47,6 +47,8 @@ interface IdcConfirmedResourcesPanelProps {
   connectionStatus?: ReadonlyMap<string, UnitTcStatus>;
   /** `connectionStatus` 와 짝 — 첫 폴링 응답 전에는 그 칸이 스켈레톤이다. */
   connectionLoading?: boolean;
+  /** `connectionStatus` 와 짝 — 보고가 없는 행이 '미보고'인지 '미실행'인지 가른다. */
+  connectionHasRun?: boolean | null;
 }
 
 /**
@@ -63,6 +65,7 @@ export const IdcConfirmedResourcesPanel = ({
   onCredentialOpen,
   connectionStatus,
   connectionLoading = false,
+  connectionHasRun = false,
 }: IdcConfirmedResourcesPanelProps) => {
   // Step 5 counts for the whole table in one call; the per-resource lists load only on open.
   const [fetched, setFetched] = useState<{ targetSourceId: number; counts: LogicalDbCountMap }>({
@@ -125,6 +128,7 @@ export const IdcConfirmedResourcesPanel = ({
             logicalDbCounts={logicalDbCounts}
             connectionStatusByResource={connectionStatus}
             connectionLoading={connectionLoading}
+            connectionHasRun={connectionHasRun}
             onLogicalOpen={onLogicalOpen ?? setLogicalTarget}
             credentials={credentials}
             onCredentialOpen={onCredentialOpen}

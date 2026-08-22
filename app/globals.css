@@ -284,6 +284,20 @@
   to { stroke-dashoffset: 0; }
 }
 
+/* Step 5 진행 트랙에서 아직 판정이 오지 않은 구간의 행진 무늬(시안 A). 폴이 4초라
+   트랙의 값이 바뀌는 순간은 유닛이 정착할 때뿐이고 — 리소스 6개짜리 실행이면 40초에
+   여섯 번, 각 250ms — 그 사이 바는 완전히 정지한다. 아직 답이 없는 구간이 스스로
+   흘러 그 정지를 메운다.
+   오른쪽에서 왼쪽, 즉 진행 방향의 역행이다 (Harrison et al., UIST '07: 역행 파동이
+   같은 길이의 대기를 더 짧게 느끼게 한다).
+   8px 은 배경 타일 한 변이고 한 사이클의 이동량과 반드시 같아야 무늬가 이어진다 —
+   background-size 를 바꾸면 이 값도 같이 바꿀 것.
+   Consumed via lib/theme.ts connProgress.trackMarch, motion-safe at the call site. */
+@keyframes tc-track-march {
+  from { background-position-x: 8px; }
+  to { background-position-x: 0; }
+}
+
 /* R18 §7-3 — inline task-detail panel slide-in (motion-safe only via the
    consuming class in detailStyles.flowCard.panel). */
 @keyframes pl-panel-in {

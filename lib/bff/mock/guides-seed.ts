@@ -125,7 +125,7 @@ const IDC_STEP_5_HTML =
   `<p>설치된 Agent가 N-IRP(개인정보 리스크 플랫폼)와 정상적으로 통신하는지 점검합니다. ${IDC_SOURCE_LABEL}에서 연동 대상까지의 접근이 허용돼 있는지 확인해 주세요.</p>` +
   '<ul>' +
   `<li>테스트 실패 시 ${IDC_SOURCE_LABEL} → 연동 대상(IP:Port) 접근 허용을 우선 점검해 주세요.</li>` +
-  '<li>접근 허용 후 <strong>Run Test</strong>를 눌러 다시 시도할 수 있습니다.</li>' +
+  '<li>접근 허용 후 <strong>다시 실행</strong>으로 재시도할 수 있습니다.</li>' +
   '</ul>';
 
 const IDC_STEP_6_HTML =

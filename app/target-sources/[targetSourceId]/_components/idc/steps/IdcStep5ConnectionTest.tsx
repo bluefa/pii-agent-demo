@@ -382,7 +382,7 @@ export const IdcStep5ConnectionTest = ({
               {triggerError && (
                 <p className={cn('text-[12px]', idcStyles.tag.red, 'bg-transparent px-0')}>{triggerError}</p>
               )}
-              {/* 클라우드 step 5 와 같은 출구 — 조회 실패로 잠긴 Run Test 를 되살리는 유일한 길. */}
+              {/* 클라우드 step 5 와 같은 출구 — 조회 실패로 잠긴 실행 CTA 를 되살리는 유일한 길. */}
               {fetchError && (
                 <p className={cn('flex items-center gap-2 text-[12px]', idcStyles.tag.red, 'bg-transparent px-0')}>
                   {ERROR_MESSAGES.TEST_CONNECTION_FETCH_FAILED}
@@ -442,6 +442,10 @@ export const IdcStep5ConnectionTest = ({
                 // "아직 결과가 없다" 와 "agent 가 대기라고 보고했다" 를 한 픽셀로 만든다(P4).
                 connectionStatus={statusByResource}
                 connectionLoading={loading}
+                // 조회를 못 했으면 회차가 없다고 단정하지 않는다 — 실패는 빈 결과가 아니다.
+                // 단 스냅샷이 있으면 '읽지 못했다'가 아니다 — 그 회차가 이 행을 언급하지
+                // 않았을 뿐이라 미보고가 참이고, 카드도 같은 순간 미보고로 센다.
+                connectionHasRun={fetchError && !latestJob ? null : !!latestJob}
               />
             </div>
           </div>

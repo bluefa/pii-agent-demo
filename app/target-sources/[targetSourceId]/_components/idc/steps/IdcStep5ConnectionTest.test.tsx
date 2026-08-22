@@ -6,6 +6,7 @@ import type { ProjectIdentity } from '@/app/target-sources/[targetSourceId]/_com
 import type { TestConnectionVersionResult, TestConnectionStatus } from '@/app/lib/api';
 import type { TestConnectionUIState } from '@/app/hooks/useTestConnectionPolling';
 import { toIdcResourceView, type IdcResourceView } from '@/app/lib/api/idc';
+import { AppError } from '@/lib/errors';
 
 // Stub the heavy chrome so only the connection-test card (strip + resource panel) renders.
 vi.mock('@/app/target-sources/[targetSourceId]/_components/common', () => ({
@@ -40,7 +41,15 @@ const pollingState: {
   loading: boolean;
   triggering: boolean;
   canRunTest: boolean;
-} = { uiState: 'IDLE', latestJob: null, loading: false, triggering: false, canRunTest: true };
+  fetchError: AppError | null;
+} = {
+  uiState: 'IDLE',
+  latestJob: null,
+  loading: false,
+  triggering: false,
+  canRunTest: true,
+  fetchError: null,
+};
 vi.mock('@/app/hooks/useTestConnectionPolling', async () => {
   const actual = await vi.importActual<typeof import('@/app/hooks/useTestConnectionPolling')>(
     '@/app/hooks/useTestConnectionPolling',
@@ -54,14 +63,14 @@ vi.mock('@/app/hooks/useTestConnectionPolling', async () => {
       triggering: pollingState.triggering,
       canRunTest: pollingState.canRunTest,
       retry: async () => {},
-      fetchError: null,
+      fetchError: pollingState.fetchError,
       triggerError: null,
       trigger: triggerMock,
     }),
   };
 });
 
-// completion-status gates 완료 승인 요청 (useTcCompletionStatus) — default to the open
+// completion-status gates 승인 요청 (useTcCompletionStatus) — default to the open
 // verdict so each test only overrides the verdict it is about.
 const getCompletionStatusMock = vi.fn(
   async (
@@ -153,6 +162,7 @@ const resetHarness = () => {
   pollingState.loading = false;
   pollingState.triggering = false;
   pollingState.canRunTest = true;
+  pollingState.fetchError = null;
   triggerMock.mockClear();
   // mockClear would leave queued mockResolvedValueOnce verdicts to leak into the
   // next test — reset drains the queue, then restore the default open verdict.
@@ -169,7 +179,7 @@ describe('IdcStep5ConnectionTest — pre-test idle strip (regression)', () => {
 
     // Row1 (host 10.20.30.40) carries a seeded connection_status; step 5 is pre-test, so
     // nothing may read Success until a run settles. 연결 상태 칸은 실행이 보고한 것만
-    // 읽으므로(시드값이 아니라) 여기서는 무보고 '—' 다 — 아래 '연결 상태 열' 참고.
+    // 읽으므로(시드값이 아니라) 여기서는 '미실행' 이다 — 아래 '연결 상태 열' 참고.
     await screen.findByText('10.20.30.40');
     expect(screen.queryByText('Success')).toBeNull();
   });
@@ -198,14 +208,14 @@ describe('IdcStep5ConnectionTest — pre-test idle strip (regression)', () => {
     expect(screen.queryByText(/^실행 #/)).toBeNull();
   });
 
-  it('blocks Run Test while a live row lacks a credential, and says so above the table', async () => {
+  it('blocks the run CTA while a live row lacks a credential, and says so above the table', async () => {
     renderStep();
 
     await screen.findByText('10.20.30.40');
     // Row2 has no credential. The warning line names the count and the row's own cell is
-    // where it gets fixed — Run Test does not detour through a bulk dialog.
+    // where it gets fixed — the run CTA does not detour through a bulk dialog.
     expect((await screen.findByText(/Credential 미설정/)).textContent).toContain('1건');
-    expect(screen.getByRole('button', { name: /Run Test/ })).toHaveProperty('disabled', true);
+    expect(screen.getByRole('button', { name: '실행' })).toHaveProperty('disabled', true);
     expect(screen.getByRole('button', { name: '미설정만 보기' })).toBeTruthy();
   });
 });
@@ -235,7 +245,7 @@ const makeJob = (
 describe('IdcStep5ConnectionTest — state-driven slot (시안 A)', () => {
   beforeEach(resetHarness);
 
-  it('shows Fail with 다시 실행 as the only CTA — no 완료 승인 요청', async () => {
+  it('shows Fail with 다시 실행 as the only CTA — no 승인 요청', async () => {
     pollingState.uiState = 'FAIL';
     pollingState.latestJob = makeJob('FAIL', [
       agentResult('idc-row-0', 'FAIL'),
@@ -245,7 +255,7 @@ describe('IdcStep5ConnectionTest — state-driven slot (시안 A)', () => {
 
     // 판정은 문장이, 개수(실패 2)는 그 아래 카운트 줄이 나른다.
     expect(await screen.findByText('연결에 실패한 리소스가 있어요')).toBeTruthy();
-    expect(screen.queryByRole('button', { name: '완료 승인 요청' })).toBeNull();
+    expect(screen.queryByRole('button', { name: '승인 요청' })).toBeNull();
     expect(screen.getByRole('button', { name: /다시 실행/ })).toBeTruthy();
   });
 
@@ -263,7 +273,7 @@ describe('IdcStep5ConnectionTest — state-driven slot (시안 A)', () => {
 
     expect(await screen.findByText('논리 DB 정책이 마지막 실행 이후 변경됐어요')).toBeTruthy();
     expect(screen.getByText('연결 테스트를 다시 수행해야 합니다')).toBeTruthy();
-    expect(screen.queryByRole('button', { name: '완료 승인 요청' })).toBeNull();
+    expect(screen.queryByRole('button', { name: '승인 요청' })).toBeNull();
     expect(screen.getByRole('button', { name: /다시 실행/ })).toBeTruthy();
   });
 
@@ -278,14 +288,14 @@ describe('IdcStep5ConnectionTest — state-driven slot (시안 A)', () => {
 
     expect(await screen.findByText('연결 테스트 완료 확인됨')).toBeTruthy();
     expect(screen.getByText('최근 수행 결과 기준')).toBeTruthy();
-    expect(screen.queryByRole('button', { name: '완료 승인 요청' })).toBeNull();
+    expect(screen.queryByRole('button', { name: '승인 요청' })).toBeNull();
     expect(screen.queryByRole('button', { name: /다시 실행/ })).toBeNull();
     expect(screen.getByRole('button', { name: '실행 이력' })).toBeTruthy();
   });
 
   // The IDC-only gate: a credential edited AFTER the run is unverified — the open
   // completion verdict belongs to the old credential, so 승인 stays closed until a re-run.
-  it('closes 완료 승인 요청 when a credential changes after the run (credsDirty)', async () => {
+  it('closes 승인 요청 when a credential changes after the run (credsDirty)', async () => {
     pollingState.uiState = 'SUCCESS';
     pollingState.latestJob = makeJob('SUCCESS', [
       agentResult('idc-row-0', 'SUCCESS'),
@@ -294,7 +304,7 @@ describe('IdcStep5ConnectionTest — state-driven slot (시안 A)', () => {
     renderStep();
 
     await waitFor(() =>
-      expect(screen.getByRole('button', { name: '완료 승인 요청' })).toHaveProperty('disabled', false),
+      expect(screen.getByRole('button', { name: '승인 요청' })).toHaveProperty('disabled', false),
     );
 
     // Edit row1's credential through the picker — the PUT succeeds.
@@ -308,7 +318,7 @@ describe('IdcStep5ConnectionTest — state-driven slot (시안 A)', () => {
     });
     expect(updateResourceCredentialMock).toHaveBeenCalledWith(1020, 'idc-row-0', 'Key2');
 
-    expect(screen.getByRole('button', { name: '완료 승인 요청' })).toHaveProperty('disabled', true);
+    expect(screen.getByRole('button', { name: '승인 요청' })).toHaveProperty('disabled', true);
   });
 });
 
@@ -333,17 +343,43 @@ describe('IdcStep5ConnectionTest — 연결 상태 열', () => {
     return cell as HTMLElement;
   };
 
-  it('행마다 그 리소스의 판정을 적는다 — 보고가 없는 행은 대기가 아니라 —', async () => {
+  it('행마다 그 리소스의 판정을 적는다 — 보고가 없는 행은 대기가 아니라 미보고', async () => {
     pollingState.uiState = 'FAIL';
     // row1(10.20.31.10)은 결과가 오지 않았다: '대기'로 접으면 agent 가 PENDING 을 보고한
-    // 행과 구분되지 않는다.
+    // 행과 구분되지 않는다. 실행 자체는 있었으므로 '미실행'도 아니다.
     pollingState.latestJob = makeJob('FAIL', [agentResult('idc-row-0', 'FAIL')]);
     renderStep();
 
     await screen.findByText('10.20.30.40');
     expect(screen.getByText('연결 상태')).toBeTruthy();
     expect(connCell('10.20.30.40').textContent).toBe('실패');
-    expect(connCell('10.20.31.10').textContent).toBe('—');
+    expect(connCell('10.20.31.10').textContent).toBe('미보고');
+    // 이 열은 전부 태그다 — 판정 없는 행만 맨 글자로 서면 "값이 없다" 가 아니라 "이 행은
+    // 다른 종류다" 로 읽힌다.
+    expect(connCell('10.20.31.10').querySelector('span')).not.toBeNull();
+  });
+
+  /**
+   * 같은 규칙의 반대편. 조회가 실패하면 `latestJob` 은 null 인 채 loading 도 꺼지므로
+   * (무한 스피너를 피하려고), `!!latestJob` 만 보면 표 전체가 '미실행' 이라고 **단정**한다.
+   * 실패는 빈 결과가 아니다 — 읽지 못한 것과 없는 것은 정반대의 답을 요구한다.
+   */
+  it('조회가 실패하면 미실행이라 단정하지 않는다', async () => {
+    pollingState.fetchError = new AppError({ status: 503, code: 'INTERNAL_ERROR', message: '503', retriable: true });
+    renderStep();
+
+    await screen.findByText('10.20.30.40');
+    expect(connCell('10.20.30.40').textContent).toBe('조회 실패');
+    expect(connCell('10.20.31.10').textContent).toBe('조회 실패');
+  });
+
+  /** 실행이 없으면 보고 의무도 없었다 — 없는 사실을 만들지 않는다. */
+  it('회차가 하나도 없으면 미보고가 아니라 미실행', async () => {
+    renderStep();
+
+    await screen.findByText('10.20.30.40');
+    expect(connCell('10.20.30.40').textContent).toBe('미실행');
+    expect(connCell('10.20.31.10').textContent).toBe('미실행');
   });
 
   it('성공한 행만 성공이라고 말한다', async () => {

@@ -89,7 +89,37 @@ describe('tcSummarySentence', () => {
   });
 
   it('keeps the running sentence to the state — the quantity lives in the counts row', () => {
-    expect(tcSummarySentence('running', settled)).toBe('연결 테스트 진행 중');
+    const midRun = computeTcBuckets(
+      ['a', 'b', 'c'],
+      foldAgentStatuses([agent('a', 'SUCCESS')], new Set(['a', 'b', 'c'])),
+    );
+    const sentence = tcSummarySentence('running', midRun);
+    expect(sentence).toBe('연결 테스트 진행 중');
+    expect(sentence).not.toMatch(/\d/);
+  });
+
+  /**
+   * 시안 E — 모두 답했는데 실행은 아직 정착하지 않은 구간. 바는 가득 찼고 카운트 줄의
+   * `남음` 도 사라진 뒤라, 문장까지 "진행 중" 이면 화면 전체가 멈춘 것을 말한다.
+   */
+  it('says 집계 중 once every unit has answered but the run has not settled', () => {
+    expect(tcSummarySentence('running', settled)).toBe('결과를 집계하고 있어요');
+  });
+
+  /** 미확인도 답이다 — 읽을 수 없을 뿐 보고는 됐으므로 행진할 구간이 남지 않는다. */
+  it('counts 미확인 as answered when deciding the 집계 중 frame', () => {
+    const withUnknown = computeTcBuckets(
+      ['a', 'b'],
+      foldAgentStatuses([agent('a', 'SUCCESS'), agent('b', 'WEIRD')], new Set(['a', 'b'])),
+    );
+    expect(tcSummarySentence('running', withUnknown)).toBe('결과를 집계하고 있어요');
+  });
+
+  /** 대상이 0 이면 `reported === total` 이 저절로 성립한다 — 그것은 집계가 아니다. */
+  it('does not read a zero-unit run as 집계 중', () => {
+    expect(tcSummarySentence('running', computeTcBuckets([], foldAgentStatuses([])))).toBe(
+      '연결 테스트 진행 중',
+    );
   });
 
   it('queued says 시작 대기, never 진행 중 — top-level PENDING 은 아무것도 돌지 않는다', () => {
@@ -140,5 +170,16 @@ describe('tcElapsedLabel', () => {
     expect(tcElapsedLabel('2026-08-06T05:02:00Z', '2026-08-06T05:04:12Z')).toBe('2분 12초');
     expect(tcElapsedLabel('2026-08-06T05:04:00Z', '2026-08-06T05:02:00Z')).toBeNull();
     expect(tcElapsedLabel(null, '2026-08-06T05:02:00Z')).toBeNull();
+  });
+
+  /**
+   * 시안 B — 진행 중 카드는 계약의 completed_at 대신 브라우저의 지금(ms)을 끝으로 준다.
+   * 서버 시각이 브라우저보다 앞서 있으면 음수가 나오는데, 그때는 경과를 아예 말하지
+   * 않는다(같은 역전 규칙).
+   */
+  it('takes an ms epoch as the end, for a run that has not finished', () => {
+    const start = '2026-08-06T05:02:11Z';
+    expect(tcElapsedLabel(start, Date.parse(start) + 72_000)).toBe('1분 12초');
+    expect(tcElapsedLabel(start, Date.parse(start) - 5_000)).toBeNull();
   });
 });

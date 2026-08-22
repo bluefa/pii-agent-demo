@@ -1219,7 +1219,7 @@ mockProjects.push(
     targetSourceId: 2101,
     key: 'idle',
     name: 'TC 카드 - 미실행',
-    description: 'Step 5 TC 카드 상태 fixture — 미실행. 실행 이력이 없어 슬롯이 Run Test primary 를 드는 상태를 검증합니다.',
+    description: 'Step 5 TC 카드 상태 fixture — 미실행. 실행 이력이 없어 슬롯이 실행 primary CTA 를 드는 상태를 검증합니다.',
   }),
   tcCardStateClone({
     targetSourceId: 2102,
@@ -1237,7 +1237,7 @@ mockProjects.push(
     targetSourceId: 2104,
     key: 'success',
     name: 'TC 카드 - 성공',
-    description: 'Step 5 TC 카드 상태 fixture — 성공 정착. 다시 실행 링크와 완료 승인 요청 primary 가 동거하는 슬롯을 검증합니다.',
+    description: 'Step 5 TC 카드 상태 fixture — 성공 정착. 다시 실행 링크와 승인 요청 primary 가 동거하는 슬롯을 검증합니다.',
   }),
   tcCardStateClone({
     targetSourceId: 2105,
