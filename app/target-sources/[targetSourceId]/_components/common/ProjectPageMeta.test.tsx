@@ -35,6 +35,17 @@ const awsIdentity: ProjectIdentity = {
   installMode: 'auto',
 };
 
+/** The only provider with two identifiers, and so the only one that exercises the
+ *  card's second row — and its UUIDs are the widest value the column ever holds. */
+const azureIdentity: ProjectIdentity = {
+  cloudProvider: 'Azure',
+  identifiers: [
+    { label: 'Subscription ID', value: '12345678-abcd-ef01-2345-6789abcdef01', mono: true },
+    { label: 'Tenant ID', value: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890', mono: true },
+  ],
+  installMode: 'auto',
+};
+
 const idcIdentity: ProjectIdentity = {
   cloudProvider: 'IDC',
   identifiers: [],
@@ -54,10 +65,11 @@ const renderOpen = (props: Parameters<typeof ProjectPageMeta>[0]) => {
 const summaryBar = () => screen.getByRole('button', { name: /설치 대상 정보/ });
 
 /**
- * 시안 C put the provider and the account on the summary bar, and the block below
- * still details them — a head summarising its own body. So the two now name some
- * of the same facts, and every open-state assertion has to say which one it means.
+ * The disclosure cue rides the card's title row, so the card is two levels up from
+ * it — the scope below carries copy buttons and therefore cannot be the press.
  */
+const summaryCard = () => summaryBar().closest('[class*="bg-white"]') as HTMLElement;
+
 const metaBlock = () => {
   const body = document.getElementById(summaryBar().getAttribute('aria-controls') ?? '');
   if (!body) throw new Error('meta block is closed');
@@ -74,36 +86,54 @@ describe('ProjectPageMeta — 설치 대상 정보 disclosure', () => {
     expect(screen.getByTestId('process-progress-bar')).toBeTruthy();
   });
 
-  it('keeps the provider and the account on the folded bar (오너 4차 지시)', () => {
+  it('keeps the provider and every identifier on the folded card (오너 4·6차 지시)', () => {
     render(<ProjectPageMeta project={projectFixture} identity={awsIdentity} />);
-    const toggle = summaryBar();
-    // The summary IS the head of the disclosure — the facts on it are inert text
-    // inside the press, not a row the press sits beside. Which facts changed with
-    // 시안 C: the scope (provider · account · code), never the name.
-    for (const fact of ['AWS Cloud', 'Account ID', '482915736204', '서비스 코드', 'SERVICE-A']) {
-      expect(within(toggle).getByText(fact)).toBeTruthy();
+    const card = within(summaryCard());
+    // The card states the SCOPE and the whole of it — that completeness is what
+    // let the fold drop its 클라우드 정보 group. Neither the service name nor the
+    // code is down here: the path above carries both.
+    for (const fact of ['AWS Cloud', 'Account ID', '482915736204']) {
+      expect(card.getByText(fact)).toBeTruthy();
     }
-    // …and nothing inside it steals the click.
-    expect(toggle.querySelector('button, a, input')).toBeNull();
+    expect(card.queryByText('서비스 코드')).toBeNull();
   });
 
-  it('holds the scope to one line — the account is the only slot that may shrink', () => {
+  it('stacks every identifier on its own row, aligned in one label column', () => {
+    // 오너 6차 지시 — Azure's two IDs read as a list, not as a line that ran out of
+    // room, and that only holds while the rows come from grid structure. A wrapping
+    // flex row would put Tenant ID under whatever column the viewport left it.
+    render(<ProjectPageMeta project={projectFixture} identity={azureIdentity} />);
+    const ids = within(summaryCard()).getByText('Subscription ID').parentElement as HTMLElement;
+    expect(ids.className).toContain('grid');
+    expect(ids.className).toContain('grid-cols-[auto_1fr]');
+    expect(within(ids).getByText('Tenant ID')).toBeTruthy();
+    // Same grid, so both labels share a column and both values start on one x.
+    expect(within(ids).getByText('Tenant ID').parentElement).toBe(ids);
+  });
+
+  it('lets the value shrink and nothing else — the card must not overflow', () => {
+    render(<ProjectPageMeta project={projectFixture} identity={azureIdentity} />);
+    const subscription = '12345678-abcd-ef01-2345-6789abcdef01';
+    const value = within(summaryCard()).getByText(subscription);
+    expect(value.className).toContain('min-w-0');
+    expect(value.className).toContain('truncate');
+    // `flex-none` on the wrapper would pin flex-shrink to 0 and this truncation
+    // would never fire — the row overflowed the card instead. Keep it off.
+    expect(value.parentElement?.className).not.toContain('flex-none');
+    expect(value.parentElement?.getAttribute('title')).toBe(subscription);
+  });
+
+  it('copies an identifier from the card itself, not from a second copy of it', () => {
+    // The reason the cue is a small control instead of the whole row: a copy button
+    // inside a <button> is invalid, and dropping copy would have been the price of
+    // keeping the big hit area once the 클라우드 정보 group went away.
     render(<ProjectPageMeta project={projectFixture} identity={awsIdentity} />);
-    const toggle = summaryBar();
-    // Wrapping is the failure 시안 C exists to remove: a long service name used to
-    // take this bar from 40px to 69px, and the facts get 542px at the 1360 column.
-    const facts = within(toggle).getByText('AWS Cloud').parentElement as HTMLElement;
-    expect(facts.className).toContain('flex-nowrap');
-    // Which only holds while overflow has exactly one place to go.
-    const account = within(toggle).getByText('482915736204');
-    expect(account.className).toContain('min-w-0');
-    expect(account.className).toContain('truncate');
-    expect(account.getAttribute('title')).toBe('482915736204');
+    expect(within(summaryCard()).getByRole('button', { name: 'Account ID 복사' })).toBeTruthy();
   });
 
   it('opens and closes on the toggle, reporting state to assistive tech', () => {
     render(<ProjectPageMeta project={projectFixture} identity={awsIdentity} />);
-    const toggle = screen.getByRole('button', { name: /설치 대상 정보/ });
+    const toggle = summaryBar();
     expect(toggle.getAttribute('aria-expanded')).toBe('false');
 
     fireEvent.click(toggle);
@@ -111,13 +141,13 @@ describe('ProjectPageMeta — 설치 대상 정보 disclosure', () => {
     // aria-controls has to name a box that exists, or the association is a lie.
     const body = document.getElementById(toggle.getAttribute('aria-controls') ?? '');
     expect(body).toBeTruthy();
-    // Head and body are one object: the body opens inside the group, not after it.
-    expect(toggle.parentElement?.contains(body as Node)).toBe(true);
-    expect(screen.getByText('클라우드 정보')).toBeTruthy();
+    // Head and body are one object: the body opens inside the card, not after it.
+    expect(summaryCard().contains(body as Node)).toBe(true);
+    expect(screen.getByText('설명')).toBeTruthy();
 
     fireEvent.click(toggle);
     expect(toggle.getAttribute('aria-expanded')).toBe('false');
-    expect(screen.queryByText('클라우드 정보')).toBeNull();
+    expect(screen.queryByText('설명')).toBeNull();
   });
 });
 
@@ -125,7 +155,19 @@ describe('ProjectPageMeta — path heading', () => {
   it('states the job at the weight of a location, not a 24px title', () => {
     render(<ProjectPageMeta project={projectFixture} identity={awsIdentity} />);
     const heading = screen.getByRole('heading', { level: 1 });
-    expect(heading.textContent).toBe('PII Agent 설치/Service A/#1008');
+    // The path closes on the service code, not the target-source id (오너 5차 지시):
+    // #1008 is a database key, and it was holding the most emphatic slot on the line.
+    expect(heading.textContent).toBe('PII Agent 설치/Service A/SERVICE-A');
+    expect(heading.textContent).not.toContain('1008');
+  });
+
+  it('houses the path inside the summary card, not bare on the wash', () => {
+    // The card is what makes this read as a summary rather than a filter bar, and it
+    // only has two tiers to summarise while the path lives inside it. Floating the
+    // path back out is the regression this pins — the fill, stroke and shadow are
+    // pinned separately in lib/design-guard.test.ts.
+    render(<ProjectPageMeta project={projectFixture} identity={awsIdentity} />);
+    expect(summaryCard().contains(screen.getByRole('heading', { level: 1 }))).toBe(true);
   });
 
   it('clamps the service name — no contract maximum backs it', () => {
@@ -164,17 +206,31 @@ describe('ProjectPageMeta — description block', () => {
 });
 
 describe('ProjectPageMeta — provider group', () => {
-  it('records the account id and install mode under 클라우드 정보', () => {
+  it('keeps 설치 모드 on the card — it decides whether there is work to do', () => {
+    // 오너 7차 지시: 자동/수동 is not reference material, so it does not go behind
+    // the fold. It is the card's last row, under the identifiers.
+    render(<ProjectPageMeta project={projectFixture} identity={awsIdentity} />);
+    const card = within(summaryCard());
+    expect(card.getByText('설치 모드')).toBeTruthy();
+    expect(card.getByText('자동 설치')).toBeTruthy();
+    // The mode's meaning stays on-screen, not behind a tooltip.
+    expect(card.getByText('Terraform 권한 위임')).toBeTruthy();
+    // Same grid as the identifiers, so its label shares their column.
+    expect(card.getByText('설치 모드').parentElement).toBe(card.getByText('Account ID').parentElement);
+  });
+
+  it('leaves the fold only what the card cannot say in a line (오너 6·7차 지시)', () => {
     renderOpen({ project: projectFixture, identity: awsIdentity });
     const block = metaBlock();
-    expect(block.getByText('클라우드 정보')).toBeTruthy();
-    expect(block.getByText('482915736204')).toBeTruthy();
-    expect(block.getByText('자동 설치')).toBeTruthy();
-    // The mode's meaning stays on-screen, not behind a tooltip.
-    expect(block.getByText('Terraform 권한 위임')).toBeTruthy();
-    // The provider is stated once, on the bar. Repeating it here put the same
-    // glyph and name 60px apart the moment the block opened.
+    expect(block.getByText('설명')).toBeTruthy();
+    // Every cloud fact is stated once, on the card. The group that used to repeat
+    // them is gone: with the identifiers, their copy buttons and the mode all moved
+    // up, it was printing the same values 60px lower under its own eyebrow.
+    expect(block.queryByText('클라우드 정보')).toBeNull();
     expect(block.queryByText('AWS Cloud')).toBeNull();
+    expect(block.queryByText('482915736204')).toBeNull();
+    expect(block.queryByText('Account ID')).toBeNull();
+    expect(block.queryByText('설치 모드')).toBeNull();
   });
 
   it('renders manual mode with its own explanation', () => {
@@ -206,22 +262,21 @@ describe('ProjectPageMeta — provider group', () => {
     expect(screen.queryByText('-')).toBeNull();
   });
 
-  it('IDC carries its 사내망 gloss on the bar and drops the group whole', () => {
+  it('IDC carries its 사내망 gloss on the card and lists no identifier at all', () => {
     renderOpen({ project: { ...projectFixture, cloudProvider: 'IDC' }, identity: idcIdentity });
-    const bar = within(summaryBar());
-    expect(bar.getByText('IDC')).toBeTruthy();
-    expect(bar.getByText('사내망')).toBeTruthy();
-    // No account and no install mode: a labelled group with nothing under it
-    // states less than no group at all.
-    expect(screen.queryByText('인프라 정보')).toBeNull();
-    expect(screen.queryByText('Cloud Provider')).toBeNull();
+    const card = within(summaryCard());
+    expect(card.getByText('IDC')).toBeTruthy();
+    expect(card.getByText('사내망')).toBeTruthy();
+    // No account, so no divider and no identifier column — an empty slot is the
+    // truthful rendering, not a dash (결정 #49).
+    expect(card.queryByText('Cloud Provider')).toBeNull();
+    expect(screen.queryByText('-')).toBeNull();
   });
 
-  it('an SDU account reads 데이터 제공 · direct upload, over its underlying CSP', () => {
+  it('an SDU account reads SDU over its underlying CSP, direct upload in the fold', () => {
     renderOpen({ project: { ...projectFixture, isSduType: true }, identity: awsIdentity });
+    expect(within(summaryCard()).getByText('SDU')).toBeTruthy();
     const block = metaBlock();
-    expect(within(summaryBar()).getByText('SDU')).toBeTruthy();
-    expect(block.getByText('데이터 제공')).toBeTruthy();
     expect(block.getByText('연동 방식')).toBeTruthy();
     expect(block.getByText('고객사가 데이터를 직접 업로드')).toBeTruthy();
     expect(screen.queryByText('AWS Cloud')).toBeNull();
@@ -246,15 +301,16 @@ const utilityOn = (start: Element | null, prefix: string): string | null => {
 };
 
 describe('ProjectPageMeta — one line per tier', () => {
-  it('gives the provider name and the account one shared line box on the bar', () => {
+  it('gives the provider name and the account one shared line box on the card', () => {
     render(<ProjectPageMeta project={projectFixture} identity={awsIdentity} />);
-    const bar = within(summaryBar());
-    const provider = bar.getByText('AWS Cloud');
-    const value = bar.getByText('482915736204');
+    const card = within(summaryCard());
+    const provider = card.getByText('AWS Cloud');
+    const value = card.getByText('482915736204');
 
-    // Same size, or one of them sets the bar's 24px content height alone.
-    expect(provider.className).toContain('text-[14px]');
-    expect(value.className).toContain('text-[14px]');
+    // Same size, or one of them sets the row's content height alone. The size sits
+    // on the value's wrapper, not on the truncating span, so walk up for both.
+    expect(utilityOn(provider, 'text-[')).toBe('text-[14px]');
+    expect(utilityOn(value, 'text-[')).toBe('text-[14px]');
 
     // Same size is not the same baseline. Both line boxes must also declare the
     // same leading, or the glyphs sit ~1px apart on a line 24px tall.

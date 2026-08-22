@@ -642,40 +642,49 @@ export const numericFeatures = {
  * meta card (rounded-20 + shadow) so only step content keeps card chrome.
  *
  * Rules this group encodes:
- * - Backgroundless (C3, owner pick 2026-08-09): the header paints NO surface of
- *   its own — it sits directly on the route layout's #F4F4FB wash, the boundary
- *   to the body is distance only, and white + shadow stay exclusive to cards.
+ * - The header itself paints no surface (C3, owner pick 2026-08-09) — it sits on
+ *   the route layout's #F4F4FB wash and the boundary to the body is distance.
+ *   The ONE exception is the 설치 대상 summary card below, which the owner asked
+ *   to read as a summary rather than a strip (2026-08-22); see `targetGroup`.
  * - Grouping is distance-only (no rules inside the header): labels bind to
  *   their content at 6px, blocks separate at 18px — the 1:3 ratio reads as
  *   grouping without lines.
- * - Weight ceiling is 600. The 24px page title is the header's only 800; a
- *   provider name and its sibling values share one weight (500) — hierarchy
- *   comes from size (12→14px) and color (#4E5968→#191F28) only.
- * - The wash costs one ramp step. Every quiet tier here is measured against
- *   #F4F4FB, not white: #6B7684 holds 4.62:1 on white but drops to 4.22:1 on
- *   the wash, so a label that would be grey600 inside a card is grey700 here.
- *   Going backgroundless (C3) is what made this a header-wide rule, and
- *   lib/design-guard.test.ts pins every pair so the next re-tint re-measures.
+ * - Weight ceiling is 600. Nothing here is a display size any more: the page's
+ *   identity is a 12px path, so hierarchy comes from size (12→14px) and color
+ *   (#4E5968→#191F28) only.
+ * - Contrast is measured on the card's white, not on the wash, now that the card
+ *   holds every run of text in this group. The old wash rule (#6B7684 is 4.62:1
+ *   on white but 4.22:1 on #F4F4FB) survives only as the reason these tints run
+ *   a step darker than white alone would need — do not read the extra headroom
+ *   as licence to lighten them. lib/design-guard.test.ts pins every pair.
  */
 export const projectHeaderStyles = {
   /** Kept as a named seam for future re-tints — C3 renders no plane at all. */
   surface: '',
   /** Horizontal padding tracks the step-card column (px-10) so edges align. */
   inner: 'px-10 pt-[18px]',
-  titleRow: 'flex items-start justify-between gap-4',
+  /** Inside the summary card now, as its top tier — see `targetGroup`. */
+  titleRow: 'flex items-start justify-between gap-4 px-4',
   /**
    * 시안 C — the page's identity is a PATH, not a title. 「PII Agent 설치」 keeps its
    * place as the first segment instead of a 24px heading: it is true all day and is
    * never the reason anyone opened this screen, so it reads at the weight of a
    * location, and the service name it used to crowd gets the whole middle.
    *
-   * Same grammar as the ops side of the same target (`opsStyles.crumb`): 12px on
-   * the wash, a 280px clamp on the name, `#id` closing the path as "you are here".
+   * Same grammar as the ops side of the same target (`opsStyles.crumb`): 12px, a
+   * 280px clamp on the name, the last segment closing the path as "you are here".
    * Nothing here links, so this is a heading SHAPED like a path, not a breadcrumb.
    */
   crumb: 'flex min-w-0 items-center gap-1.5 text-[12px] leading-[1.5] text-[#4E5968]',
   crumbSep: 'flex-none text-[#A6ADBB]', // design-exempt: decorative path glyph, the labels around it carry the reading
   crumbName: 'max-w-[280px] truncate',
+  /**
+   * The service code, not the target-source id (오너 5차 지시). Both identify the
+   * row, but only one of them is the identifier the service owner already knows —
+   * `#1008` is a database key that appears nowhere in their world, and it was
+   * costing the path's most emphatic position. Moving it here also empties the
+   * fact row's third slot, which is why the summary line lost its code chip.
+   */
   crumbHere: 'flex-none font-semibold text-[#191F28]',
   /**
    * 시안 2 (P2): task-first H1 — the service identity demotes to this line, and
@@ -683,65 +692,54 @@ export const projectHeaderStyles = {
    * the block it opens, so head and body read as one object instead of a control
    * standing beside the thing it controls (오너 3차 지시).
    *
-   * A stroke on the wash, not a white plane — the step cards below own the card
-   * chrome, and this is header furniture that happens to be pressable.
-   */
-  targetGroup: 'mt-2 rounded-[10px] border border-[#E1E4EB]',
-  /**
-   * Service-code chip — slate, not primary: in this palette blue means
-   * "clickable" and amber/green mean state; an identifier gets the neutral
-   * that still reads as chosen (blue-leaning, hue-matched to the surface).
-   */
-  codeChip: 'inline-flex flex-none items-baseline gap-1.5 rounded-[6px] bg-[#E9EEF9] px-2 py-[3px]',
-  codeChipLabel: 'text-[12px] font-medium text-[#55617A]',
-  codeChipValue: 'font-mono text-[12px] font-semibold text-[#2C3A55]',
-  /**
-   * Block eyebrow (설명 / 클라우드 정보 / 설치 진행) — small but darker than kv
-   * labels. 설명 and 설치 진행 keep it on a line of its own; the provider group puts
-   * it ON the kv label line, and there the extra weight is what stops a GROUP name
-   * from reading as one more FIELD name beside Account ID. Re-tinting it touches
-   * both roles. `whitespace-nowrap` exists for the second one — it now shares a
-   * flex column with `min-w-0`, where its peers already carry it.
+   * A real plane, not a stroke on the wash (오너 5차 지시: 요약본처럼 보이게).
+   * The stroke-only version was an empty rectangle drawn on the same colour it
+   * stood on, so it read as a filter toolbar; what says "summary" is a surface
+   * carrying two tiers — the path naming the target, the facts naming the scope
+   * it installs into. Pulling the path INSIDE the card is what bought those two
+   * tiers for +5px: it was already sitting 8px above on the wash, unhoused.
    *
-   * Muted lavender, not a light one. On the #F4F4FB wash a genuinely light purple
-   * cannot clear AA — #9B8FD1 is 2.65:1 and Tailwind purple-500 is 3.61:1; the
-   * lightest purple that passes sits around #7C5CC4 at 4.58:1. So this pair buys
-   * its purple from saturation, not lightness: 8.34:1 here against 5.26:1 on
-   * `kvLabel`. That 1.59x step IS the label hierarchy (group name vs field name)
-   * — keep it on any re-tint, and re-measure on the wash, never on white.
+   * Stroke and shadow are each one rung up from the first cut (오너 지시), taken
+   * off the ladders this repo already owns rather than eyeballed: #E1E4EB →
+   * #D6DEEC on the blue-leaning neutral ramp, none → `tossShadow.sm` — the same
+   * elevation as the step cards below, which the 10px radius and the stroke keep
+   * it distinct from (they run 20px and borderless). Hover takes the shadow to
+   * `tossShadow.md` and nothing else: a fill would put every tier here on a new
+   * surface and every pinned contrast pair would have to be re-measured.
    */
-  blockLabel: 'whitespace-nowrap text-[12px] font-semibold tracking-[0.02em] text-[#4C3F7A]',
+  targetGroup:
+    'rounded-[10px] border border-[#D6DEEC] bg-white pt-3 shadow-[0_1px_2px_rgba(17,24,39,0.04),0_4px_16px_-8px_rgba(17,24,39,0.06)] transition-shadow duration-150 hover:shadow-[0_1px_3px_rgba(17,24,39,0.06),0_8px_20px_-8px_rgba(17,24,39,0.12)] motion-reduce:transition-none',
+  /**
+   * Block eyebrow (설명 / 설치 진행) — the stronger of the two label tiers, always
+   * on a line of its own above the content it names.
+   *
+   * Neutral, not lavender (오너 7차 지시). The old pair bought its hierarchy from
+   * hue, so two labels differed by colour FAMILY rather than by rank; on the
+   * card's white the plain ramp says the same thing in tones this product already
+   * speaks. 7.11:1 here against 4.62:1 on `kvLabel` — a 1.54x step, near enough
+   * the 1.59x the lavender carried, with the quieter one deliberately closest to
+   * the AA floor. A re-tint keeps BOTH the step and the floor, measured on white,
+   * which is what the card is. The 0.02em tracking is the second signal, and it
+   * matters more now that hue is not one.
+   */
+  blockLabel: 'whitespace-nowrap text-[12px] font-semibold tracking-[0.02em] text-[#4E5968]',
   block: 'mt-[18px]',
   /** Description body — 2-line clamp; the whole block is skipped when empty. */
   descText: 'mt-1.5 max-w-[82ch] text-[14px] font-medium leading-[1.5] text-[#4E5968] line-clamp-2',
-  /**
-   * The group eyebrow rides INSIDE this row rather than on a line above it, so
-   * every label in the block sits on one line and every value on the next.
-   */
-  groupRow: 'mt-1.5 flex flex-wrap items-start gap-x-5 gap-y-2',
-  /** leading is explicit on BOTH line boxes — see kvValue. */
+  /** leading is explicit on BOTH line boxes — see summaryValue. */
   providerName: 'text-[14px] font-medium leading-[1.5] tracking-[-0.01em] text-[#191F28]',
   /** Plain-language gloss after a bare token (IDC → 사내망). */
   providerGloss: 'text-[#4E5968]',
   providerGlossBar: 'mx-1.5 text-[#C6CCD6]', // design-exempt: decorative separator glyph, not text
   divider: 'w-px flex-none self-stretch bg-[#E4E5EE]',
-  /** 6px label→content binding, the same gap the 설명/설치 진행 blocks use. */
-  kv: 'group/kv flex min-w-0 flex-col gap-1.5',
-  /** Field name — every CSP's identifier row runs through here: 설치 대상, AWS
-      Account ID, GCP Project ID, Azure Subscription/Tenant ID, 설치 모드, 연동 방식.
-      The quieter of the two label tiers at 5.26:1 on the wash; see blockLabel for
-      why it is muted. Semibold like blockLabel, so the two tiers now separate on
-      color and tracking alone — weight is no longer part of that signal. */
-  kvLabel: 'whitespace-nowrap text-[12px] font-semibold text-[#6B5E93]',
-  /**
-   * Two invariants keep this line and the provider's on one line:
-   * `min-h-[30px]` (the icon badge's height) makes the two boxes share a centre,
-   * and the leading must equal `providerName`'s or the baselines sit ~1px apart.
-   * 1.5 is a ratio, not a frozen 21px — providerName inherits 1.5 from Preflight's
-   * `html`, so a font-size change moves both together instead of splitting them.
-   */
-  kvValue: 'flex min-h-[30px] items-center text-[14px] font-medium leading-[1.5] text-[#191F28]',
-  kvValueMono: 'font-mono tracking-[-0.02em] tabular-nums',
+  /** Field name — every row of the card's fact column runs through here: AWS
+      Account ID, GCP Project ID, Azure Subscription/Tenant ID, 설치 모드. The
+      quieter of the two label tiers at 4.62:1 on the card, and the one sitting
+      nearest the AA floor; see blockLabel for the pair. Semibold like blockLabel,
+      so the two tiers separate on colour and tracking, never on weight. */
+  kvLabel: 'whitespace-nowrap text-[12px] font-semibold text-[#6B7684]',
+  /** The 설치 모드 value — chip and its gloss on one baseline, in a grid cell. */
+  modeRow: 'flex items-center',
   /** Copy affordance — hover/focus reveal, so idle rows show only the value. */
   copyReveal: 'opacity-0 transition-opacity duration-[120ms] group-hover/kv:opacity-100 focus-visible:opacity-100 motion-reduce:transition-none',
   /** 설치 모드 값 칩 — auto is the quiet default (no action needed)… */
@@ -755,44 +753,59 @@ export const projectHeaderStyles = {
    * in is the thing standing between the reader and the work. Folded, the header
    * runs 195px instead of 333px and the first card starts at y=291 instead of 429.
    *
-   * The head is the whole bar, not a word at the end of it: every fact on the
-   * summary line is inert text, so there is nothing to compete with the press and
-   * the target itself becomes the hit area. White on hover, because on the #F4F4FB
-   * wash a faint tint has nowhere to go — lighter is the only direction left.
+   * The card's whole scope area: the provider on the left as the subject, every
+   * identifier it owns listed to its right. Plain content, not a press — the
+   * identifiers carry copy buttons and nothing interactive may sit inside a
+   * `<button>`, so the disclosure is the cue up on the title row instead.
    */
-  targetSummary:
-    'flex w-full items-center justify-between gap-3 rounded-[9px] px-3 py-2 transition-colors hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0050D6]/40',
-  /** Open, the head's bottom corners belong to the body it now sits on. */
-  targetSummaryOpen: 'rounded-b-none',
+  summaryRow: 'flex items-start gap-3 px-4 pb-3 pt-1.5',
   /**
-   * 시안 C — the bar carries the SCOPE (provider · account · service code); the
-   * name moved up to the path. `flex-nowrap` on purpose: wrapping is how this line
-   * failed before — a 43-char service name took it from 40px to 69px at the 1360px
-   * breakpoint, where the facts have only 542px. Everything here is `flex-none`
-   * except the account slot, so overflow ellipses in one place instead of folding.
+   * The provider cell — its label bound to its glyph at the house's 6px. Explicit
+   * `flex-none` at the call site, never baked in: `flex: none` pins flex-shrink to
+   * 0, which is right here and silently fatal on the identifier column, where it
+   * would defeat the truncation and let the row overflow the card instead.
    */
-  targetSummaryFacts: 'flex min-w-0 flex-nowrap items-center gap-2',
+  summaryFact: 'flex items-center gap-1.5',
+  /**
+   * Every identifier the target owns, one per row (오너 6차 지시: Azure 는 sub·tenant
+   * 를 2줄로). A grid, not a wrapping flex row: `auto` sizes the label column to the
+   * longest label so 「Subscription ID」 and 「Tenant ID」 start their values on the
+   * same x, which is the whole reason two lines read as a list rather than as a
+   * line that ran out of room. Rows are structural, so the second one appears
+   * because a second identifier exists — never because the viewport shrank.
+   *
+   * 6px binds a label to its value, 4px separates two identifiers: tighter than the
+   * blocks' 1:3 because these rows are one field repeated, not distinct groups.
+   */
+  summaryIds: 'grid min-w-0 grid-cols-[auto_1fr] items-center gap-x-1.5 gap-y-1',
   /** The same 20px brand mark the ops dashboard identity cell uses (`ProviderGlyph`
       tone="brand", 오너 지시) — one provider looks the same everywhere in the product.
       Bare, no plate: brand colour is the emphasis, and a grey tile only muted it.
       IDC and SDU have no brand and fall back to this `currentColor`. */
   summaryGlyph: 'h-5 w-5 flex-none text-[#4E5968]',
-  /** The one item allowed to shrink, and the reason the bar can carry an account at
-      all: Azure's Subscription UUID is 293px of mono, so it prints in full where the
-      column has the room and ellipses where it does not — a fixed cap would have
-      clipped it on a 1710px screen too. Whole value stays in a native `title`. */
-  summaryMono:
-    'min-w-0 truncate font-mono text-[14px] font-medium leading-[1.5] tracking-[-0.02em] tabular-nums text-[#191F28]',
+  /** An identifier's value cell — the one thing on the card allowed to shrink, and
+      the reason it can carry Azure's 293px Subscription UUID at all: the value
+      prints in full where the column has room and ellipses where it does not. A
+      fixed cap would have clipped it on a 1710px screen too. `group/kv` drives the
+      copy reveal; the whole value also stays in a native `title`. */
+  summaryValue:
+    'group/kv flex min-w-0 items-center gap-1 text-[14px] font-medium leading-[1.5] text-[#191F28]',
+  summaryValueText: 'min-w-0 truncate',
+  summaryValueMono: 'font-mono tracking-[-0.02em] tabular-nums',
   /**
-   * Blue, because in this palette blue is the one colour that means "clickable"
-   * (see `codeChip`, which is deliberately slate for exactly that reason) — and
-   * it names what opens, which the chevron alone cannot.
+   * Blue, because in this palette blue is the one colour that means "clickable" —
+   * and it names what opens, which the chevron alone cannot. It rides the title
+   * row now: the scope below it holds copy buttons, so the scope cannot itself be
+   * the press, and a card's one control belongs beside the card's title anyway.
    */
-  metaCue: 'flex flex-none items-center gap-1 text-[12px] font-semibold text-[#0050D6]',
+  metaCue:
+    'flex flex-none items-center gap-1 rounded-[6px] text-[12px] font-semibold text-[#0050D6] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0050D6]/40',
   metaToggleIcon: 'h-3.5 w-3.5 transition-transform motion-reduce:transition-none',
   metaToggleIconOpen: 'rotate-180',
-  /** Hairline, not a gap: the body is the same object as the head above it. */
-  targetBody: 'border-t border-[#E1E4EB] px-3 pb-4',
+  /** Hairline, not a gap: the body is the same object as the head above it. Left
+      a rung below the card's own stroke — matched, the edge and the inner rule
+      read as two stacked boxes instead of one card with a fold in it. */
+  targetBody: 'border-t border-[#E1E4EB] px-4 pb-4',
 } as const;
 
 /**

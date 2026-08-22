@@ -309,10 +309,16 @@ const kindBadgeBlock = nestedBlockOf(idcBlock, 'kindBadge');
 const idcTagBlock = nestedBlockOf(idcBlock, 'tag');
 const idcTableBlock = nestedBlockOf(idcBlock, 'table');
 
-// The target-source detail header went backgroundless (C3): it paints no plane of
-// its own, so every run of text and every chip in it stands on the canvas wash.
-// That move silently dropped four tiers under AA — the per-line hook cannot see it,
+// The target-source detail header went backgroundless (C3): it painted no plane of
+// its own, so every run of text and every chip in it stood on the canvas wash. That
+// move silently dropped four tiers under AA — the per-line hook cannot see it,
 // because the surface is declared by an ancestor route layout, not on the line.
+//
+// On 2026-08-22 the 설치 대상 summary took a white fill (owner: it has to read as a
+// summary, not a strip) and it now holds every one of those tiers, so the pairs below
+// measure on this and not on `canvas`. Same trap, opposite direction: the tints did
+// not move, so they read a step heavier here than they were drawn to.
+const headerCard = '#FFFFFF';
 const headerBlock = blockOf('projectHeaderStyles');
 const stepperBlock = blockOf('installStepperStyles');
 
@@ -390,10 +396,14 @@ const SURFACES: SurfacePair[] = [
   // pair IS the separation — re-tint `panel` toward white and the card dissolves with
   // nothing else left to mark where it starts.
   { what: 'wizard content card on the dialog panel', top: '#FFFFFF', under: wizardPanel },
-  // The backgroundless header's chips and plates have only the wash behind them.
-  { what: 'header service-code chip on the page wash', top: bgOf(classOf(headerBlock, 'codeChip')), under: canvas },
-  { what: 'header 설치 모드 chip on the page wash', top: bgOf(classOf(headerBlock, 'modeChipAuto')), under: canvas },
-  { what: 'header kv divider on the page wash', top: bgOf(classOf(headerBlock, 'divider')), under: canvas },
+  // The header's one plane, and the two marks that stand on it. The card's own stroke
+  // is pinned because a white card on a #F4F4FB wash is a 3-point separation at best —
+  // the stroke is what actually draws the edge, and it was raised a rung for exactly
+  // that reason (오너 지시), so the next re-tint has to keep clearing the wash.
+  { what: 'header summary card on the page wash', top: headerCard, under: canvas },
+  { what: 'header summary card stroke on the page wash', top: borderOf(classOf(headerBlock, 'targetGroup')), under: canvas },
+  { what: 'header 설치 모드 chip on the summary card', top: bgOf(classOf(headerBlock, 'modeChipAuto')), under: headerCard },
+  { what: 'header kv divider on the summary card', top: bgOf(classOf(headerBlock, 'divider')), under: headerCard },
   // The road ahead is decoration — the labels and dots already name every remaining
   // step — so it answers to the JND and nothing more. The road WALKED carries progress,
   // so it is measured as a non-text mark in TEXT below instead.
@@ -469,25 +479,27 @@ const TEXT: TextPair[] = [
     fg: textOf(classOf(themeSrc, 'resourceKind')),
     on: bgOf(classOf(themeSrc, 'resourceKind')),
   },
-  // Every tier of the backgroundless header, measured on the wash it actually sits on.
-  // #6B7684 clears AA on white (4.62:1) and fails here (4.22:1), which is precisely the
-  // trap C3 set: the same token, one surface later, is a different decision.
-  { what: 'header block eyebrow on the page wash', fg: textOf(classOf(headerBlock, 'blockLabel')), on: canvas },
-  { what: 'header kv label on the page wash', fg: textOf(classOf(headerBlock, 'kvLabel')), on: canvas },
-  { what: 'header kv value on the page wash', fg: textOf(classOf(headerBlock, 'kvValue')), on: canvas },
-  { what: 'header description on the page wash', fg: textOf(classOf(headerBlock, 'descText')), on: canvas },
-  { what: 'header provider name on the page wash', fg: textOf(classOf(headerBlock, 'providerName')), on: canvas },
-  { what: 'header provider gloss on the page wash', fg: textOf(classOf(headerBlock, 'providerGloss')), on: canvas },
-  { what: 'header install-mode note on the page wash', fg: textOf(classOf(headerBlock, 'modeNote')), on: canvas },
-  { what: 'header code-chip label on its chip', fg: textOf(classOf(headerBlock, 'codeChipLabel')), on: bgOf(classOf(headerBlock, 'codeChip')) },
-  { what: 'header code-chip value on its chip', fg: textOf(classOf(headerBlock, 'codeChipValue')), on: bgOf(classOf(headerBlock, 'codeChip')) },
+  // Every tier of the header, measured on the summary card's white — the card took
+  // every run of text in this block off the wash on 2026-08-22. The tints did not
+  // move with it, so each pair here now clears AA with room to spare; that headroom
+  // is history, not licence. Re-point these to `headerCard` (not to a lighter grey)
+  // if the card ever loses its fill, because C3's trap was exactly this: the same
+  // token, one surface later, is a different decision (#6B7684 is 4.62:1 on white
+  // and 4.22:1 on the wash).
+  { what: 'header block eyebrow on the summary card', fg: textOf(classOf(headerBlock, 'blockLabel')), on: headerCard },
+  { what: 'header kv label on the summary card', fg: textOf(classOf(headerBlock, 'kvLabel')), on: headerCard },
+  { what: 'header identifier value on the summary card', fg: textOf(classOf(headerBlock, 'summaryValue')), on: headerCard },
+  { what: 'header description on the summary card', fg: textOf(classOf(headerBlock, 'descText')), on: headerCard },
+  { what: 'header provider name on the summary card', fg: textOf(classOf(headerBlock, 'providerName')), on: headerCard },
+  { what: 'header provider gloss on the summary card', fg: textOf(classOf(headerBlock, 'providerGloss')), on: headerCard },
+  { what: 'header install-mode note on the summary card', fg: textOf(classOf(headerBlock, 'modeNote')), on: headerCard },
   { what: 'header 설치 모드 chip label on its chip', fg: textOf(classOf(headerBlock, 'modeChipAuto')), on: bgOf(classOf(headerBlock, 'modeChipAuto')) },
   // 시안 C's two new tiers. The path replaced a 24px heading, so it is the smallest
-  // type on the wash that still has to be read — the one place a quiet grey is a
+  // type on the card that still has to be read — the one place a quiet grey is a
   // real decision rather than a default. (crumbSep is decorative; see its comment.)
-  { what: 'header path heading on the page wash', fg: textOf(classOf(headerBlock, 'crumb')), on: canvas },
-  { what: 'header path "you are here" on the page wash', fg: textOf(classOf(headerBlock, 'crumbHere')), on: canvas },
-  { what: 'header summary account on the page wash', fg: textOf(classOf(headerBlock, 'summaryMono')), on: canvas },
+  { what: 'header path heading on the summary card', fg: textOf(classOf(headerBlock, 'crumb')), on: headerCard },
+  { what: 'header path "you are here" on the summary card', fg: textOf(classOf(headerBlock, 'crumbHere')), on: headerCard },
+  { what: 'header disclosure cue on the summary card', fg: textOf(classOf(headerBlock, 'metaCue')), on: headerCard },
   // `summaryGlyph` is not pinned: it is a brand logotype (ProviderGlyph tone="brand"),
   // which 1.4.11 exempts, and its neutral only applies to IDC·SDU, which have no brand.
   // Stepper labels are text; the dots are the state markers, i.e. non-text per 1.4.11.

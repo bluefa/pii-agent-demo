@@ -24,20 +24,19 @@ interface ProviderDisplay {
   name: string;
   /** Plain-language gloss after a bare token (IDC → 사내망) for first-time readers. */
   gloss?: string;
-  /** Group eyebrow — follows what the provider IS: cloud / on-prem / direct upload. */
-  group: string;
 }
 
 // The mark itself comes from `ProviderGlyph`, the same source the ops dashboard
 // identity cell draws from, so one provider looks the same across the product.
+// No group eyebrow any more — the fold has no 클라우드 정보 group to label.
 const PROVIDER_DISPLAY: Record<CloudProvider, ProviderDisplay> = {
-  AWS: { name: 'AWS Cloud', group: '클라우드 정보' },
-  Azure: { name: 'Azure Cloud', group: '클라우드 정보' },
-  GCP: { name: 'Google Cloud', group: '클라우드 정보' },
-  IDC: { name: 'IDC', gloss: '사내망', group: '인프라 정보' },
+  AWS: { name: 'AWS Cloud' },
+  Azure: { name: 'Azure Cloud' },
+  GCP: { name: 'Google Cloud' },
+  IDC: { name: 'IDC', gloss: '사내망' },
 };
 
-const SDU_DISPLAY: ProviderDisplay = { name: 'SDU', group: '데이터 제공' };
+const SDU_DISPLAY: ProviderDisplay = { name: 'SDU' };
 
 /** Copy affordance on mono identifiers — hover-reveal (TargetSourceIdentifier.mono spec). */
 const CopyButton = ({ value, label }: { value: string; label: string }) => {
@@ -70,10 +69,15 @@ const CopyButton = ({ value, label }: { value: string; label: string }) => {
 };
 
 /**
- * Flat page header for the target-source detail — chrome, not a card. One
- * label grammar throughout (12px eyebrow above 14px content), grouping by
- * distance instead of rules, and the quiet install stepper as the single
- * statement of step position. Body cards below keep the only card chrome.
+ * Page header for the target-source detail. One label grammar throughout (12px
+ * eyebrow above 14px content), grouping by distance instead of rules, and the
+ * quiet install stepper as the single statement of step position.
+ *
+ * The header itself is still chrome — it paints no plane. Its one card is the
+ * 설치 대상 summary, which earns the surface because it is the only object here
+ * rather than furniture: it names the target and folds the whole meta block
+ * behind it (오너 5차 지시). The step cards below stay distinct on radius (20 vs
+ * 10) and on having no stroke at all.
  *
  * 개선안 D: three tiers at rest — the heading, the 설치 대상 summary, the progress
  * band. The meta blocks fold into that summary, because the header ran 333px
@@ -104,92 +108,63 @@ export const ProjectPageMeta = ({ project, identity, action }: ProjectPageMetaPr
   const identifierRows = identity.identifiers.filter(
     (id): id is typeof id & { value: string } => !!id.value && id.value.trim() !== '',
   );
-  // The account rides the folded bar (오너 4차 지시). The first identifier IS the
-  // account everywhere: AWS Account ID, Azure Subscription ID, GCP Project ID —
-  // Azure's second (Tenant ID) stays in the block, and IDC·SDU have none at all.
-  const account = identifierRows[0];
-
-  // What the block still holds after the bar took the provider and the account:
-  // the copy affordance, any second identifier, and how the install runs. A list,
-  // so the group can disappear whole — IDC has no account and no mode, and a
-  // labelled group with nothing under it says less than no group at all.
-  const cloudFacts: React.ReactElement[] = [];
-  if (project.isSduType) {
-    cloudFacts.push(
-      <span key="연동 방식" className={h.kv}>
-        <span className={h.kvLabel}>연동 방식</span>
-        <span className={h.kvValue}>고객사가 데이터를 직접 업로드</span>
-      </span>,
-    );
-  }
-  for (const id of identifierRows) {
-    cloudFacts.push(
-      <span key={id.label} className={h.kv}>
-        <span className={h.kvLabel}>{id.label}</span>
-        <span className={cn(h.kvValue, id.mono && h.kvValueMono)}>
-          <span className="min-w-0 truncate">{id.value}</span>
-          {id.mono && <CopyButton value={id.value} label={`${id.label} 복사`} />}
-        </span>
-      </span>,
-    );
-  }
-  if (identity.installMode) {
-    const auto = identity.installMode === 'auto';
-    cloudFacts.push(
-      <span key="설치 모드" className={h.kv}>
-        <span className={h.kvLabel}>설치 모드</span>
-        <span className={h.kvValue}>
-          <span className={auto ? h.modeChipAuto : h.modeChipManual}>
-            {auto ? '자동 설치' : '수동 설치'}
-          </span>
-          {/* What the mode MEANS stays on-screen — a hover tooltip would hide
-              information the user needs to know. */}
-          <span className={h.modeNote}>
-            {auto ? 'Terraform 권한 위임' : '설치 스크립트 직접 실행'}
-          </span>
-        </span>
-      </span>,
-    );
-  }
+  const autoInstall = identity.installMode === 'auto';
 
   return (
     <header className={cn(h.surface, h.inner)}>
-      <div className={h.titleRow}>
-        {/* 시안 C: the heading is the path. 「PII Agent 설치」 states the page's job at
-            the weight of a location instead of a 24px title, and the service name
-            gets the width it needs — clamped, because there is no contract maximum
-            on it (swagger `service_name` has no maxLength). */}
-        <h1 className={h.crumb}>
-          PII Agent 설치
-          <span className={h.crumbSep} aria-hidden="true">
-            /
-          </span>
-          <span className={h.crumbName} title={serviceTitle}>
-            {serviceTitle}
-          </span>
-          <span className={h.crumbSep} aria-hidden="true">
-            /
-          </span>
-          <span className={h.crumbHere}>#{project.targetSourceId}</span>
-        </h1>
-        {action && <div className="flex flex-wrap items-center justify-end gap-2">{action}</div>}
-      </div>
-
+      {/* One card holding both tiers of the target's identity: the path says WHICH
+          target, the row under it says WHAT SCOPE the install runs in. They were
+          already stacked 8px apart — the path floating bare on the wash, the scope
+          in a strokes-only rectangle — so housing them costs 5px and is what makes
+          this read as a summary instead of a toolbar (오너 5차 지시). */}
       <div className={h.targetGroup}>
-        {/* The bar states the SCOPE the install runs in — which provider, which
-            account, which service code. Those are the facts the owner asked to keep
-            visible while folded, and they are also exactly what the block details,
-            so the head summarises its own body and the press belongs to the whole
-            bar. The name is not here: the path above already said it. */}
-        <button
-          type="button"
-          onClick={() => setMetaOpen((open) => !open)}
-          aria-expanded={metaOpen}
-          aria-controls={META_BLOCK_ID}
-          className={cn(h.targetSummary, metaOpen && h.targetSummaryOpen)}
-        >
-          <span className={h.targetSummaryFacts}>
-            <span aria-hidden="true" className="flex flex-none items-center">
+        <div className={h.titleRow}>
+          {/* 시안 C: the heading is the path. 「PII Agent 설치」 states the page's job at
+              the weight of a location instead of a 24px title, and the service name
+              gets the width it needs — clamped, because there is no contract maximum
+              on it (swagger `service_name` has no maxLength). The last segment is the
+              service code, the identifier the reader actually recognises. */}
+          <h1 className={h.crumb}>
+            PII Agent 설치
+            <span className={h.crumbSep} aria-hidden="true">
+              /
+            </span>
+            <span className={h.crumbName} title={serviceTitle}>
+              {serviceTitle}
+            </span>
+            <span className={h.crumbSep} aria-hidden="true">
+              /
+            </span>
+            <span className={h.crumbHere}>{project.serviceCode}</span>
+          </h1>
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            {action}
+            <button
+              type="button"
+              onClick={() => setMetaOpen((open) => !open)}
+              aria-expanded={metaOpen}
+              aria-controls={META_BLOCK_ID}
+              className={h.metaCue}
+            >
+              설치 대상 정보
+              <ChevronDownIcon
+                className={cn(h.metaToggleIcon, metaOpen && h.metaToggleIconOpen)}
+                aria-hidden="true"
+              />
+            </button>
+          </div>
+        </div>
+
+        {/* The scope the install runs in: the provider as the subject, every
+            identifier it owns listed against it — Azure's two on two rows (오너 6차
+            지시). This is the whole cloud record now, which is what let the fold drop
+            its 클라우드 정보 group: it was repeating these same values 60px lower for
+            the sake of the copy buttons, and those live here instead. */}
+        <div className={h.summaryRow}>
+          <span className={cn(h.summaryFact, 'flex-none')}>
+            {/* The glyph takes no accessible name of its own — the provider name
+                is right beside it, and ProviderGlyph has no aria prop to pass. */}
+            <span aria-hidden="true" className="flex">
               <ProviderGlyph
                 provider={identity.cloudProvider}
                 isSdu={project.isSduType}
@@ -197,7 +172,7 @@ export const ProjectPageMeta = ({ project, identity, action }: ProjectPageMetaPr
                 className={h.summaryGlyph}
               />
             </span>
-            <span className={cn(h.providerName, 'flex-none')}>
+            <span className={h.providerName}>
               {display.name}
               {display.gloss && (
                 <>
@@ -208,28 +183,45 @@ export const ProjectPageMeta = ({ project, identity, action }: ProjectPageMetaPr
                 </>
               )}
             </span>
-            {account && (
-              <>
-                <span className={h.divider} aria-hidden="true" />
-                <span className={h.kvLabel}>{account.label}</span>
-                <span className={h.summaryMono} title={account.value}>
-                  {account.value}
-                </span>
-              </>
-            )}
-            <span className={h.codeChip}>
-              <span className={h.codeChipLabel}>서비스 코드</span>
-              <span className={h.codeChipValue}>{project.serviceCode}</span>
-            </span>
           </span>
-          <span className={h.metaCue}>
-            설치 대상 정보
-            <ChevronDownIcon
-              className={cn(h.metaToggleIcon, metaOpen && h.metaToggleIconOpen)}
-              aria-hidden="true"
-            />
-          </span>
-        </button>
+          {(identifierRows.length > 0 || identity.installMode) && (
+            <>
+              <span className={h.divider} aria-hidden="true" />
+              <div className={h.summaryIds}>
+                {identifierRows.map((id) => (
+                  <Fragment key={id.label}>
+                    <span className={h.kvLabel}>{id.label}</span>
+                    <span className={h.summaryValue} title={id.value}>
+                      <span className={cn(h.summaryValueText, id.mono && h.summaryValueMono)}>
+                        {id.value}
+                      </span>
+                      {id.mono && <CopyButton value={id.value} label={`${id.label} 복사`} />}
+                    </span>
+                  </Fragment>
+                ))}
+                {/* 자동/수동 is not reference material — it decides whether the reader
+                    has anything to do on this screen (오너 7차 지시), so it belongs
+                    where the scope is, not behind a fold. Last row: the identifiers
+                    say WHAT this is, the mode says how it runs. */}
+                {identity.installMode && (
+                  <>
+                    <span className={h.kvLabel}>설치 모드</span>
+                    <span className={h.modeRow}>
+                      <span className={autoInstall ? h.modeChipAuto : h.modeChipManual}>
+                        {autoInstall ? '자동 설치' : '수동 설치'}
+                      </span>
+                      {/* What the mode MEANS stays on-screen — a hover tooltip would
+                          hide information the user needs to know. */}
+                      <span className={h.modeNote}>
+                        {autoInstall ? 'Terraform 권한 위임' : '설치 스크립트 직접 실행'}
+                      </span>
+                    </span>
+                  </>
+                )}
+              </div>
+            </>
+          )}
+        </div>
 
         {metaOpen && (
           <div id={META_BLOCK_ID} className={h.targetBody}>
@@ -240,23 +232,15 @@ export const ProjectPageMeta = ({ project, identity, action }: ProjectPageMetaPr
               </div>
             )}
 
-            {cloudFacts.length > 0 && (
+            {/* No 클라우드 정보 group any more (오너 6·7차 지시): the identifiers, their
+                copy buttons and the install mode are all on the card, so the group
+                had become a second printing of the same facts. What is left behind
+                the fold is what the card cannot say on a line — the description, and
+                SDU's one-sentence 연동 방식. */}
+            {project.isSduType && (
               <div className={h.block}>
-                {/* The bar above already names the provider, so this group is the
-                    record behind it, not a second statement of it: every identifier
-                    with the copy affordance the bar cannot carry (nothing inside the
-                    press may steal the click), plus how the install runs. The eyebrow
-                    rides the kv label line, which keeps 클라우드 정보 level with
-                    Account ID rather than floating above the row. */}
-                <div className={h.groupRow}>
-                  <span className={h.blockLabel}>{display.group}</span>
-                  {cloudFacts.map((fact) => (
-                    <Fragment key={fact.key}>
-                      <span className={h.divider} aria-hidden="true" />
-                      {fact}
-                    </Fragment>
-                  ))}
-                </div>
+                <div className={h.blockLabel}>연동 방식</div>
+                <p className={h.descText}>고객사가 데이터를 직접 업로드</p>
               </div>
             )}
           </div>
