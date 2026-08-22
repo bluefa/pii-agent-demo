@@ -22,7 +22,9 @@ interface PaginationProps {
    * 12px. `console` is the 시안 F footer (round 15, owner: "pagination footer를 아래에
    * 달아놔줘. 14 픽셀로 설정하고 회색으로 선언해. 해당 부분에 리소스 개수를 footer에
    * 표현해"): flat, because the console table has no frame of its own and a bordered bar
-   * would draw one back; 14px grey; count and controls always present.
+   * would draw one back; 14px grey — the size reaches the select and the page buttons
+   * too, so the line holds one size; centred as one group, since with no border there
+   * are no ends for a left/right split to sit on; count and controls always present.
    *
    * ⛔ Do not gate the controls on `totalPages > 1`. That was tried and the owner's
    * answer was "pagination은 왜 없음?" — a footer whose controls come and go reads as a
@@ -81,13 +83,21 @@ export const Pagination = ({
   const start = totalCount === 0 ? 0 : page * pageSize + 1;
   const end = Math.min(totalCount, (page + 1) * pageSize);
   const visible = buildVisiblePages(page, totalPages);
+  const isConsole = variant === 'console';
+  // 14px reaches the CONTROLS too, not just the footer's own text: the select and the
+  // page buttons carry their own size, so leaving them at 12 would put three sizes in
+  // one centred line.
+  const controlText = isConsole ? 'text-[14px]' : 'text-[12px]';
 
   return (
     <div
       className={cn(
         'flex items-center',
-        variant === 'console'
-          ? cn('py-[10px] text-[14px]', textColors.tertiary)
+        isConsole
+          ? // Centred as ONE group (owner): with no border to align against, a
+            // left/right split reads as two footers. The bar variant keeps its
+            // split — its border gives the two ends something to sit on.
+            cn('justify-center gap-[16px] py-[10px] text-[14px]', textColors.tertiary)
           : 'px-[14px] py-[10px] border border-[#E5E7EB] border-t-0 rounded-b-[10px] bg-[#FCFCFD] text-[12px] text-[#6B7280]',
       )}
     >
@@ -97,7 +107,8 @@ export const Pagination = ({
           value={pageSize}
           onChange={(e) => onPageSizeChange(Number(e.target.value))}
           className={cn(
-            'h-[26px] rounded-[6px] border border-[#E5E7EB] pr-[22px] pl-[8px] text-[12px] text-[#111827] cursor-pointer appearance-none',
+            'h-[26px] rounded-[6px] border border-[#E5E7EB] pr-[22px] pl-[8px] text-[#111827] cursor-pointer appearance-none',
+            controlText,
             SELECT_CHEVRON_BG,
           )}
           aria-label="페이지당 표시 건수"
@@ -110,10 +121,10 @@ export const Pagination = ({
         </select>
         <span>건씩</span>
       </div>
-      {variant === 'console' ? (
+      {isConsole ? (
         /* One grey line, no near-black strongs: the footer states the total, it does not
            rank against the rows above it. */
-        <span className={cn('ml-[16px]', numericFeatures.tabular)}>
+        <span className={numericFeatures.tabular}>
           {start}–{end} / 전체 {totalCount}건
         </span>
       ) : (
@@ -125,8 +136,9 @@ export const Pagination = ({
           <strong className="font-semibold text-[#111827]">{totalCount}</strong>건
         </span>
       )}
-      <div className="flex-1" />
-      <div className="inline-flex gap-0.5">
+      {!isConsole && <div className="flex-1" />}
+      {/* The row owns the control size so PageBtn and the ellipsis inherit one value. */}
+      <div className={cn('inline-flex gap-0.5', controlText)}>
         {/* first/prev/next/last kept for usability (v15 mockup shows numbers only).
             IDC step tables pass controls="prevNext" to drop the first/last
             double-chevrons (v16 IDC pager is 이전 / [1] / 다음). */}
@@ -142,7 +154,7 @@ export const Pagination = ({
           entry === '…' ? (
             <span
               key={`ellipsis-${index}`}
-              className="inline-flex min-w-[20px] items-center justify-center self-center text-center text-[12px] text-[#6B7280]"
+              className="inline-flex min-w-[20px] items-center justify-center self-center text-center text-[#6B7280]"
               aria-hidden="true"
             >
               …
@@ -183,6 +195,9 @@ interface PageBtnProps {
  * v15 `.pg-pages button` (05-tables.md §7g–7h): 28×28, radius 6, 0/8 padding,
  * transparent border + bg, #374151 text. Hover → #F9FAFB / #111827. Active
  * (`.current`) → #0064FF / #fff / 600. Disabled → opacity 0.35.
+ *
+ * Font size is INHERITED from the pager row, not set here — the console variant runs
+ * at 14px and a size declared on the button would pin every variant to 12.
  */
 const PageBtn = ({ active, onClick, ariaLabel, children, disabled }: PageBtnProps) => (
   <button
@@ -192,7 +207,7 @@ const PageBtn = ({ active, onClick, ariaLabel, children, disabled }: PageBtnProp
     disabled={disabled}
     onClick={onClick}
     className={cn(
-      'inline-grid min-w-[28px] h-[28px] place-items-center rounded-[6px] border px-[8px] text-[12px] transition-colors disabled:opacity-35 disabled:cursor-not-allowed',
+      'inline-grid min-w-[28px] h-[28px] place-items-center rounded-[6px] border px-[8px] transition-colors disabled:opacity-35 disabled:cursor-not-allowed',
       numericFeatures.tabular,
       active
         ? 'border-transparent bg-[#0064FF] text-white font-semibold'
