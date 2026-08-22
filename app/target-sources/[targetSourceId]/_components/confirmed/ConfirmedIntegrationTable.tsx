@@ -6,6 +6,7 @@ import { useColumnResize } from '@/app/components/ui/useColumnResize';
 import { cn, textColors } from '@/lib/theme';
 import type { ConfirmedResource } from '@/lib/types/resources';
 import {
+  hasKindColumn,
   WaitingApprovalTable,
   type WaitingApprovalResource,
 } from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalTable';
@@ -190,6 +191,9 @@ export const ConfirmedIntegrationTable = ({
       <WaitingApprovalTable
         resources={table.visibleResources}
         variant="confirmed"
+        // Asked of the whole roster, not of `visibleResources` — otherwise the column, and
+        // 128px of table width, appear and disappear as the user pages or filters.
+        kindColumn={hasKindColumn(approvalRows)}
         onLogicalDbOpen={setLogicalDbTarget}
         connected
         emptyMessage={FILTER_EMPTY_MESSAGE}

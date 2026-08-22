@@ -2,6 +2,7 @@
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, it, expect } from 'vitest';
 import {
+  hasKindColumn,
   WaitingApprovalTable,
   type WaitingApprovalResource,
 } from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalTable';
@@ -712,7 +713,16 @@ describe('WaitingApprovalTable', () => {
     // own 종류 column. Round 9 (owner): the column sits right of Resource ID and the value
     // is plain text — the chip form is retired.
     it('seats the kind after Resource ID as plain text on the confirmed variant', () => {
-      render(<WaitingApprovalTable variant="confirmed" resources={[clusterRow()]} />);
+      // Wired the way the caller wires it: the predicate runs over the roster and the answer
+      // comes IN, so this covers `hasKindColumn` and the column's placement in one pass.
+      const rows = [clusterRow()];
+      render(
+        <WaitingApprovalTable
+          variant="confirmed"
+          resources={rows}
+          kindColumn={hasKindColumn(rows)}
+        />,
+      );
       expect(screen.getByRole('columnheader', { name: '종류' })).toBeTruthy();
       const kindCell = screen.getByText('RDS Cluster').closest('td');
       const row = kindCell?.closest('tr');
@@ -881,16 +891,22 @@ describe('WaitingApprovalTable', () => {
       // Round 13: the grid, the resizable header and the seam's two states moved into
       // ConsoleTable, which owns their tests. What belongs HERE is the wiring: that this
       // variant is on the shell at all, and with the columns this table declares.
+      const rows = [row()];
       const { container } = render(
-        <WaitingApprovalTable variant="confirmed" resources={[row()]} />,
+        <WaitingApprovalTable
+          variant="confirmed"
+          resources={rows}
+          kindColumn={hasKindColumn(rows)}
+        />,
       );
       const table = required(container.querySelector('table'), 'the confirmed table');
       expect(table.className).toContain('table-fixed');
       expect(table.className).toContain('linear-gradient(to_left');
       expect(container.querySelector('[data-seam-tracer]')).toBeTruthy();
       // Σ(162 name + 312 id + 142 dbType + 156 region + 118 논리DB + 96 제외) = 986. No
-      // 종류 column: this fixture is neither an RDS cluster nor an EC2 instance, and
-      // leaving the column OUT of the spec is how "no row could fill it" is expressed.
+      // 종류 column: this fixture is neither an RDS cluster nor an EC2 instance, so
+      // `hasKindColumn` says no — and leaving the column OUT of the spec is how
+      // "nothing in the roster could fill it" is expressed.
       expect((table as HTMLElement).style.width).toBe('986px');
     });
 

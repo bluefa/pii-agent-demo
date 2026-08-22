@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { ConfirmedResource } from '@/lib/types/resources';
 import { required } from '@/lib/test-dom';
@@ -137,6 +137,31 @@ describe('ConfirmedIntegrationTable', () => {
       // whole control set back rather than a variant of it.
       expect(screen.getByRole('button', { name: '처음 페이지' })).toBeTruthy();
       expect(screen.getByRole('button', { name: '끝 페이지' })).toBeTruthy();
+    });
+
+    // The 종류 column is a fact about the roster, not about the page. Deriving it from the
+    // rows this table happens to be showing made it — and 128px of table width — come and go
+    // as the user searched or paged, reseating every dragged column boundary. Filter the one
+    // row that fills the column out of view: the column must stay.
+    it('keeps the 종류 column when the filter hides the only row that fills it', () => {
+      const six = [
+        makeResource({ resourceId: 'res-c', resourceName: 'cluster-one', type: 'AWS_DB_CLUSTER' }),
+        ...Array.from({ length: 5 }, (_, i) =>
+          makeResource({ resourceId: `res-${i}`, resourceName: `plain-${i}`, type: 'AWS_DB_INSTANCE' }),
+        ),
+      ];
+      const { container } = render(<ConfirmedIntegrationTable confirmed={six} targetSourceId={42} />);
+      const headersOf = () =>
+        Array.from(container.querySelectorAll('thead th')).map((th) => th.textContent);
+      expect(headersOf()).toContain('종류');
+
+      fireEvent.change(screen.getByRole('textbox', { name: '리소스 검색' }), {
+        target: { value: 'plain' },
+      });
+      // The cluster row is gone from the body …
+      expect(screen.queryByText('cluster-one')).toBeNull();
+      // … but the column it justified is not.
+      expect(headersOf()).toContain('종류');
     });
 
     it('shows search + filter once the list passes five rows', () => {

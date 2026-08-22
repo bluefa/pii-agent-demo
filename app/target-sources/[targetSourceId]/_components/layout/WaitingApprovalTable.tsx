@@ -215,6 +215,12 @@ interface WaitingApprovalTableProps {
    * Instantiated by the CALLER, not here: the storage key names one screen's table.
    */
   columns?: ColumnResize;
+  /**
+   * `confirmed` variant only — whether the 종류 column exists. Computed by the caller with
+   * `hasKindColumn` over the FULL roster; this table only ever receives one page, so it
+   * cannot answer for the list (see that helper). Omitted = no kind column.
+   */
+  kindColumn?: boolean;
 }
 
 // v16 `.approval-table-wrap` (CSS ~2846): border:0; overflow:hidden; background:#fff — joins flush
@@ -396,6 +402,22 @@ const confirmedColumns = (regionLabel: string, withKind: boolean): ConsoleTableC
   { key: 'excluded', label: '연동 제외', width: CONFIRMED_COLUMN_WIDTHS.excluded },
 ];
 
+/**
+ * Does this roster put anything in the 종류 column? Azure/GCP rows carry no kind today, and a
+ * permanently blank column is dead space — but "permanently" is a fact about the whole LIST,
+ * which this table never sees: it is handed one page at a time. Asking the page turned the
+ * column into a paging artifact (searching `athena` on mock 1012 took the table 7 → 6 columns
+ * and 1225 → 1097px, exactly the 128px kind column, reseating every dragged width to the left).
+ * So the rule lives here — the table is what knows what a kind is — and the SCOPE belongs to
+ * the caller, who holds the full roster and answers once.
+ */
+export const hasKindColumn = (resources: readonly WaitingApprovalResource[]): boolean =>
+  resources.some(
+    (resource) =>
+      isRdsCluster(resource.declaredResourceType ?? '') ||
+      isEc2Instance(resource.declaredResourceType),
+  );
+
 export const WaitingApprovalTable = memo(
   ({
     resources,
@@ -408,6 +430,7 @@ export const WaitingApprovalTable = memo(
     expandFolds = false,
     identityColumns,
     columns,
+    kindColumn = false,
   }: WaitingApprovalTableProps) => {
     // Athena arrives as many rows of one catalog family per region; grouping restores the
     // parent it belongs to (LIN-85). Groups start OPEN — the approval table is the "review
@@ -466,16 +489,9 @@ export const WaitingApprovalTable = memo(
 
     // Round 3 (시안 F): the kind leaves the two-line identity stack and becomes its own
     // column, taking the row to one line (py-4 + 20px = 52px). Round 9 reseated it after
-    // Resource ID as plain text (chip retired). Only worth a column when at least one
-    // visible row would put a value in it — Azure/GCP rows carry no kind today, and a
-    // permanently blank column is dead space.
-    const confirmedKindColumn =
-      confirmedVariant &&
-      resources.some(
-        (resource) =>
-          isRdsCluster(resource.declaredResourceType ?? '') ||
-          isEc2Instance(resource.declaredResourceType),
-      );
+    // Resource ID as plain text (chip retired). Whether it exists at all is the caller's
+    // answer, not this page's — see `hasKindColumn`.
+    const confirmedKindColumn = confirmedVariant && kindColumn;
 
     // Colorless — each row picks its resting tier (dim vs secondary) at the cell.
     const monoCell = 'whitespace-nowrap font-mono text-[14px]';
