@@ -293,27 +293,27 @@ export const TcSummaryCard = ({
           <div className={cn(s.title, s.titleColor[surface], 'break-keep')}>
             <span className={cn(s.icon, s.accent[surface])}>
               {state === 'success' || state === 'confirmed' ? (
-                <CheckIcon className="h-[15px] w-[15px]" draw={state === 'success' && drawCheck} />
+                <CheckIcon className="h-[18px] w-[18px]" draw={state === 'success' && drawCheck} />
               ) : state === 'policy-changed' ? (
-                <StatusWarningIcon className="h-[15px] w-[15px]" />
+                <StatusWarningIcon className="h-[18px] w-[18px]" />
               ) : state === 'fail' ? (
                 // 실패는 판정이지 시각이 아니다. 이 자리가 비어 있어 시계로 떨어지던 탓에
                 // 실패 카드가 미실행·시작 대기와 같은 글리프를 달고 있었다 — 표면과 문장만
                 // 붉을 뿐, 글리프는 아무 판정도 하지 않았다.
-                <StatusErrorIcon className="h-[15px] w-[15px]" />
+                <StatusErrorIcon className="h-[18px] w-[18px]" />
               ) : state === 'queued' ? (
                 // 시작 대기는 모래시계. 시계는 `idle`(실행 자체가 없음)의 글리프라, 대기가
                 // 같은 시계를 쓰면 "실행이 없다"와 "실행을 기다린다"가 한 그림이 된다.
-                <HourglassIcon className="h-[15px] w-[15px]" />
+                <HourglassIcon className="h-[18px] w-[18px]" />
               ) : state === 'running' ? (
                 // 파형 — 도는 시계를 대신한다. 시계는 회전 대칭이라 돌아도 화면이 변하지
                 // 않았다. 파형은 형태부터 다르고, 모션이 꺼져도 트랙이 남는다.
-                <ActivityIcon className="h-[15px] w-[15px]" />
+                <ActivityIcon className="h-[18px] w-[18px]" />
               ) : (
                 // 남는 것은 `idle` 하나뿐이다 — 실행이 없다는 사실만 말하므로 시계가 맞다.
                 // ⚠️ 이 자리는 폴백이지 기본값이 아니다. 상태를 추가하면 위에 분기를 세울 것:
                 //    `fail` 이 여기로 떨어져 실패 카드가 미실행과 같은 글리프를 달고 있었다.
-                <ClockIcon className="h-[15px] w-[15px]" />
+                <ClockIcon className="h-[18px] w-[18px]" />
               )}
             </span>
             {sentence}
