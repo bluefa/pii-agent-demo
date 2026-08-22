@@ -127,11 +127,21 @@ export const scanTransition = {
 export const tcActivityMarch = 'motion-safe:animate-[tc-activity-march_1400ms_linear_infinite]';
 
 /**
- * Step 5 시작 대기 글리프의 뒤집기 — HourglassIcon 에만 건다.
- * 모션이 꺼지면 정지한 모래시계가 그대로 남는다(글리프 자체가 이미 국면을 말한다).
+ * Step 5 시작 대기 글리프의 모래 — HourglassIcon 에만 건다. 셋이 한 기계라 세 클래스를
+ * 함께 걸어야 뜻이 성립한다: 유리만 돌면 모래가 중간에 멈춘 채 뒤집히고, 모래만 흐르면
+ * 다 떨어진 유리가 그대로 서 있다. 그래서 호출부에 흩지 않고 아이콘 안에서 셋을 건다.
+ * duration 이 셋 다 같아야 이음매(72%)가 맞는다 — app/globals.css 의 ⛔ 주석 참조.
+ *
+ * 모션이 꺼지면 위가 찬 정지 모래시계가 남는다(빈 상태는 SVG transform 속성이 들고,
+ * CSS 애니메이션이 그 위를 덮는 구조라 motion-reduce 에서 저절로 시작 프레임이 된다).
  */
-export const tcHourglassFlip =
-  'motion-safe:animate-[tc-hourglass-flip_1400ms_ease-in-out_infinite]';
+export const tcHourglass = {
+  glass: 'motion-safe:animate-[tc-hourglass-flip_1400ms_ease-in-out_infinite]',
+  /** 위 벌브 — 수위가 목으로 내려간다. */
+  drain: 'motion-safe:animate-[tc-hourglass-drain_1400ms_linear_infinite]',
+  /** 아래 벌브 — 같은 박자로 쌓인다. */
+  fill: 'motion-safe:animate-[tc-hourglass-fill_1400ms_linear_infinite]',
+} as const;
 
 /**
  * 상태 색상 (CLAUDE.md 규칙 준수)

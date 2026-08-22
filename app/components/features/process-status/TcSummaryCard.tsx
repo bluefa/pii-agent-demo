@@ -1,7 +1,7 @@
 'use client';
 
 import type { ReactNode } from 'react';
-import { cn, idcStyles, statusColors, tcHourglassFlip } from '@/lib/theme';
+import { cn, idcStyles, statusColors } from '@/lib/theme';
 import {
   ActivityIcon,
   CheckIcon,
@@ -355,8 +355,8 @@ export const TcSummaryCard = ({
                 //
                 // 이 국면은 카드에서 스스로 변하는 것이 메타 줄의 경과 초 하나뿐이라 —
                 // 트랙도 카운트도 서지 않는다 — 실 환경의 대기가 길면 멈춘 화면으로 읽힌다.
-                // 뒤집기가 그 자리를 맡는다: 회전이 아니라 뒤집기인 이유는 keyframe 주석에.
-                <HourglassIcon className={cn('h-[18px] w-[18px]', tcHourglassFlip)} />
+                // 모래가 그 자리를 맡는다. 모션은 글리프에 내장이라 여기선 크기만 준다.
+                <HourglassIcon className="h-[18px] w-[18px]" />
               ) : state === 'running' ? (
                 // 파형 — 도는 시계를 대신한다. 시계는 회전 대칭이라 돌아도 화면이 변하지
                 // 않았다. 파형은 형태부터 다르고, 모션이 꺼져도 트랙이 남는다.

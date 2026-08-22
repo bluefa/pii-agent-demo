@@ -298,20 +298,43 @@
   to { background-position-x: 0; }
 }
 
-/* Step 5 시작 대기 글리프의 뒤집기 — 모래시계는 도는 게 아니라 모래가 다 떨어지면
-   뒤집힌다. 그래서 회전이 아니라 대부분 정지(78%)하고 한 번에 반 바퀴 넘어간다.
-   180° 로 끝나는 것이 핵심이다: HourglassIcon 의 세 path 는 (12,12) 기준 180° 회전
-   대칭이라 마지막 프레임이 첫 프레임과 화소 단위로 같고, 그래서 infinite 루프가
-   0° 로 되감기는 순간이 보이지 않는다 — 360° 로 돌리면 중간에 위아래가 뒤집힌
-   모래시계가 아니라 한 바퀴 도는 스피너가 된다.
-   1400ms = tcActivityMarch 와 같은 값 — 같은 카드의 두 모션이 어긋난 박자로 뛰지 않게
-   한다(둘이 한 화면에 같이 서지는 않지만, queued→running 은 연달아 지나가는 두 프레임이라
-   박자가 바뀌면 국면 전환이 아니라 화면이 튄 것으로 읽힌다).
-   78% 정지는 duration 에 비례하므로 여기선 약 1.1초 정지 + 0.3초 뒤집기다.
-   Consumed via lib/theme.ts tcHourglassFlip, motion-safe at the call site. */
+/* Step 5 시작 대기 글리프 — 모래가 떨어지고, 다 떨어지면 유리가 뒤집힌다.
+   세 애니메이션이 한 duration 을 공유하며 한 기계로 맞물린다(lib/theme.ts tcHourglass).
+
+   ⛔ 72% 는 셋이 공유하는 이음매다. 하나만 옮기면 기계가 어긋난다 — 모래가 아직
+   떨어지는 중에 유리가 돌거나, 빈 유리가 멈춰 선 프레임이 생긴다.
+
+   ⛔ 루프의 seam 이 안 보이는 이유(이 글리프 설계의 전부):
+   t=100% 는 [180° 회전 · 위 비었고 아래 참] 이고 t=0% 는 [0° · 위 찼고 아래 빔] 인데,
+   HourglassIcon 의 기하가 (12,12) 기준 180° 회전 대칭이라 이 둘이 화소 단위로 같은
+   그림이다. 즉 되감기가 뒤집기 안에 숨는다. 모래시계는 "다 찼다"는 완료 프레임을
+   가지는데, 그게 보이면 2분짜리 대기에서 "끝났다→처음부터" 를 85번 반복하는 꼴이
+   된다. 대칭이 그 완료를 지운다 — 그래서 이건 연출이 아니라 계약이다.
+   ⛔ 360° 로 돌리면 대칭이 무의미해지고 그냥 스피너가 된다(ClockIcon=idle 과 가르려고
+   고른 글리프인데 그 정체성을 버리는 것).
+
+   1400ms = tcActivityMarch 와 같은 값 — queued→running 은 연달아 지나가는 두 프레임이라
+   박자가 바뀌면 국면 전환이 아니라 화면이 튄 것으로 읽힌다.
+   여기선 약 1.0초 낙사 + 0.4초 뒤집기다. */
 @keyframes tc-hourglass-flip {
-  0%, 78% { transform: rotate(0deg); }
+  0%, 72% { transform: rotate(0deg); }
   100% { transform: rotate(180deg); }
+}
+
+/* 위 벌브의 수위가 목으로 내려간다. 모래 사각형을 벌브 모양으로 clip 해 두고 통째로
+   내리면, 벌브 밖으로 나간 부분이 잘려 나가 수위가 내려가는 것으로 보인다 — 폭을
+   계산할 필요도 path 를 다시 그릴 필요도 없다.
+   11 = 벌브 높이(viewBox 기준 y 2→12 에 위아래 여유 1). 두 벌브가 같은 값을 쓴다.
+   72% 이후 유지: 뒤집기가 도는 동안 모래가 움직이면 물이 된다. */
+@keyframes tc-hourglass-drain {
+  0% { transform: translateY(0); }
+  72%, 100% { transform: translateY(11px); }
+}
+
+/* 아래 벌브에 모래가 쌓인다 — drain 과 정확히 반대 방향, 같은 이음매. */
+@keyframes tc-hourglass-fill {
+  0% { transform: translateY(11px); }
+  72%, 100% { transform: translateY(0); }
 }
 
 /* R18 §7-3 — inline task-detail panel slide-in (motion-safe only via the
