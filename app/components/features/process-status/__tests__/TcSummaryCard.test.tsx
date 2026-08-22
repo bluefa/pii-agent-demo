@@ -63,6 +63,26 @@ describe('TcSummaryCard counts row', () => {
     expect(row).not.toContain('남음');
   });
 
+  /**
+   * 판정이 하나도 없는 국면도 줄의 문법은 같다. 평문 `대상 리소스 6개` 는 점도 굵은 수도
+   * 없어서 같은 자리에 다른 종족이 서고, 국면이 바뀔 때마다 줄이 통째로 갈아끼워지는 것처럼
+   * 읽혔다. 중립 점은 `남음` 의 선례 — 판정이 아니라 "아직 답이 없다" 를 가리키는 자리다.
+   */
+  it('counts the targets in the same segment grammar when nothing is adjudicated', () => {
+    const noVerdict: { state: TcCardState; over: Partial<TcBuckets> }[] = [
+      { state: 'idle', over: {} },
+      { state: 'queued', over: { waiting: 6 } },
+      { state: 'success', over: { unreported: 6 } },
+      { state: 'confirmed', over: {} },
+    ];
+    for (const { state, over } of noVerdict) {
+      const { container } = renderCard(state, over);
+      // 중립 점(`countDotColor.rest`)의 부모가 세그먼트 — 점이 없으면 평문으로 되돌아간 것이다.
+      const seg = container.querySelector('[class*="bg-[#8B95A1]"]')?.parentElement;
+      expect(seg?.textContent, state).toBe('대상 리소스6');
+    }
+  });
+
   /** 계약 밖 값은 보고는 됐는데 읽을 수 없다는 뜻이라, 진행 중에도 접지 않는다. */
   it('never folds 미확인, not even mid-run', () => {
     const row = countsRow('running', { ok: 1, unknown: 1, waiting: 4 });

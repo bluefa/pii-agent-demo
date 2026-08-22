@@ -27,7 +27,7 @@ export interface TcSummaryRun {
 /**
  * 첫 latest_version 응답 전의 자리 — 문장도 숫자도 아직 없다.
  *
- * 이 자리에 idle 스트립을 그리면 "아직 실행한 연결 테스트가 없습니다 / 대상 리소스 6개" 가
+ * 이 자리에 idle 스트립을 그리면 "아직 실행한 연결 테스트가 없습니다 / 대상 리소스 6" 이
  * 떴다가 응답이 오면 "리소스 6개 모두 연결에 성공했어요 / 성공 6" 으로 뒤집힌다.
  * 표의 연결 상태 칸이 같은 이유로 스켈레톤을 그리는데, 그보다 먼저 읽히는 이 표면만 판단을
  * 말하고 있으면 고친 의미가 없다. 상자 크기는 idle 스트립과 같아 응답이 와도 레이아웃이
@@ -173,29 +173,47 @@ export const TcSummaryCard = ({
   // 근거라, 문장과 짝으로 붙어 있어야 읽힌다. 헤드 우측엔 실행 이력 링크만 남는다.
   const metaBelowTitle = metaParts.length > 0;
 
+  // 판정이 하나도 없는 국면: 미실행·시작 대기, 그리고 보고 0건으로 정착·확정된 실행.
+  // "성공 0 · 실패 0 · 미보고 N" 을 그리면 판정이 없다는 사실만 세 번 반복하므로 세지 않는다.
+  const noVerdict =
+    state === 'idle' ||
+    state === 'queued' ||
+    ((settled || state === 'confirmed') && buckets.reported === 0);
+
   // Non-zero buckets only — but on a settled run 미보고/미확인 are anomalies and must
   // surface even though a healthy settle never produces them.
-  const countParts: { label: string; value: number; tone: CountTone; className?: string }[] = [
-    { label: '성공', value: buckets.ok, tone: 'ok', className: statusColors.success.textDark },
-    { label: '실패', value: buckets.fail, tone: 'fail', className: statusColors.error.textDark },
-  ];
-  if (state === 'running') {
-    // 진행 중·대기·미보고는 이 국면의 독자에게 같은 한 사실이다 — 아직 답이 없다.
-    // 접고 나면 줄의 합이 총계와 같아져(성공+실패+남음, 미확인이 있으면 그것까지) 한 축이
-    // 되고, 그래서 집계(보고됨 N/M)가 불필요해져 사라진다. 셋의 구분은 표의 행 상태 칸에
-    // 그대로 남는다 — 카드가 순위를 매기지 않을 뿐이다. 정착한 실행에서는 접지 않는다:
-    // 그때 미보고는 실제 이상신호다.
-    const rest = buckets.running + buckets.waiting + buckets.unreported;
-    if (rest > 0) countParts.push({ label: '남음', value: rest, tone: 'rest' });
+  const countParts: { label: string; value: number; tone: CountTone; className?: string }[] = [];
+  if (noVerdict) {
+    // 셀 수 있는 것이 대상뿐일 때도 줄의 문법은 같다 — 세그먼트 하나. 평문 "대상 리소스 6개"
+    // 로 두면 점도 굵은 수도 없어 같은 자리에 다른 종족이 서고, 국면이 바뀔 때마다 줄이
+    // 통째로 갈아끼워지는 것처럼 읽힌다. 중립 점은 `남음` 의 선례를 그대로 쓴다: 판정이
+    // 아니라 "아직 답이 없다" 를 가리키는 자리이고, 여기선 그게 전부에 해당한다.
+    countParts.push({ label: '대상 리소스', value: buckets.total, tone: 'rest' });
   } else {
-    if (buckets.running > 0)
-      countParts.push({ label: '진행 중', value: buckets.running, tone: 'rest' });
-    if (buckets.waiting > 0) countParts.push({ label: '대기', value: buckets.waiting, tone: 'rest' });
-    if (buckets.unreported > 0)
-      countParts.push({ label: '미보고', value: buckets.unreported, tone: 'missing' });
+    countParts.push(
+      { label: '성공', value: buckets.ok, tone: 'ok', className: statusColors.success.textDark },
+      { label: '실패', value: buckets.fail, tone: 'fail', className: statusColors.error.textDark },
+    );
+    if (state === 'running') {
+      // 진행 중·대기·미보고는 이 국면의 독자에게 같은 한 사실이다 — 아직 답이 없다.
+      // 접고 나면 줄의 합이 총계와 같아져(성공+실패+남음, 미확인이 있으면 그것까지) 한 축이
+      // 되고, 그래서 집계(보고됨 N/M)가 불필요해져 사라진다. 셋의 구분은 표의 행 상태 칸에
+      // 그대로 남는다 — 카드가 순위를 매기지 않을 뿐이다. 정착한 실행에서는 접지 않는다:
+      // 그때 미보고는 실제 이상신호다.
+      const rest = buckets.running + buckets.waiting + buckets.unreported;
+      if (rest > 0) countParts.push({ label: '남음', value: rest, tone: 'rest' });
+    } else {
+      if (buckets.running > 0)
+        countParts.push({ label: '진행 중', value: buckets.running, tone: 'rest' });
+      if (buckets.waiting > 0)
+        countParts.push({ label: '대기', value: buckets.waiting, tone: 'rest' });
+      if (buckets.unreported > 0)
+        countParts.push({ label: '미보고', value: buckets.unreported, tone: 'missing' });
+    }
+    // 계약 밖 값은 어느 국면에서도 접지 않는다 — 보고는 됐는데 읽을 수 없다는 뜻이다.
+    if (buckets.unknown > 0)
+      countParts.push({ label: '미확인', value: buckets.unknown, tone: 'missing' });
   }
-  // 계약 밖 값은 어느 국면에서도 접지 않는다 — 보고는 됐는데 읽을 수 없다는 뜻이다.
-  if (buckets.unknown > 0) countParts.push({ label: '미확인', value: buckets.unknown, tone: 'missing' });
 
   const okPct = buckets.total > 0 ? (buckets.ok / buckets.total) * 100 : 0;
   const failPct = buckets.total > 0 ? (buckets.fail / buckets.total) * 100 : 0;
@@ -369,14 +387,9 @@ export const TcSummaryCard = ({
       )}
       <div className={cn('flex items-center justify-between gap-3', showTrack && 'mt-[9px]')}>
         <span className={state === 'policy-changed' ? s.countsWarn : s.counts}>
-          {/* 시작 대기도, 보고 0건으로 정착한 실행도 idle 과 같은 대상 서술 — 카운트를
-              그리면 "성공 0 · 실패 0 · 미보고 N"처럼 판정이 없다는 사실만 세 번 반복한다.
-              confirmed 도 같은 규칙: 마지막 실행 뒤 확정된 유닛만 남으면 보고가 0건이다. */}
-          {state === 'idle' ||
-          state === 'queued' ||
-          ((settled || state === 'confirmed') && buckets.reported === 0) ? (
-            <>대상 리소스 {buckets.total}개</>
-          ) : state === 'policy-changed' ? (
+          {/* 정책 변경만 수가 아니라 지시를 싣는다 — 셀 대상이 아니라 할 일이 답이라서다.
+              나머지 국면은 판정이 있든 없든 전부 아래 세그먼트 문법 하나로 간다. */}
+          {state === 'policy-changed' ? (
             <>연결 테스트를 다시 수행해야 합니다</>
           ) : (
             /* 시안 C: 가운뎃점 대신 범례 점. 판정 둘은 트랙의 채움 색을 그대로 쓴다 — 바가

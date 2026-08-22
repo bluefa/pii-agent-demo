@@ -520,7 +520,8 @@ describe('ConnectionTestCard', () => {
     renderCard([makeResource({ credentialId: 'Key1' })]);
 
     expect(await screen.findByText('연결 테스트 완료 확인됨')).toBeTruthy();
-    expect(screen.getByText('대상 리소스 1개')).toBeTruthy();
+    // 세그먼트 하나짜리 카운트 줄 — 판정이 없어도 줄의 문법은 다른 국면과 같다.
+    expect(screen.getByText('대상 리소스').textContent).toBe('대상 리소스1');
   });
 
   // 실패한 완료 상태 조회가 닫힌 게이트와 같은 픽셀이면, 이유 없이 비활성인 승인 버튼만
