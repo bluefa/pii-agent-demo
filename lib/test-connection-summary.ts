@@ -168,7 +168,8 @@ export function tcSummarySentence(state: TcCardState, buckets: TcBuckets): strin
 }
 
 /**
- * requested→end elapsed, Korean short form ('58초', '1분 12초'). Either side missing → null.
+ * requested→end elapsed, Korean short form — '58초', '1분 12초', '1시간 30분'. Two units at
+ * most, and the hour form drops seconds. Either side missing → null.
  *
  * `end` 는 계약의 completed_at 이거나, 아직 끝나지 않은 실행을 재는 브라우저의 지금
  * (ms epoch)이다 — 진행 중 카드가 후자를 쓴다(시안 B). 서버 시각과 브라우저 시계가
@@ -183,8 +184,13 @@ export function tcElapsedLabel(
   const end = typeof completedAt === 'number' ? completedAt : new Date(completedAt).getTime();
   if (Number.isNaN(start) || Number.isNaN(end) || end < start) return null;
   const totalSeconds = Math.round((end - start) / 1000);
-  const minutes = Math.floor(totalSeconds / 60);
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor(totalSeconds / 60) % 60;
   const seconds = totalSeconds % 60;
+  // 시간 단위가 서면 초는 버린다. 한 자리 아래만 남기는 규칙이 이 함수의 전부다 —
+  // `90분 12초` 는 읽는 사람이 시간으로 환산해야 하고, `1시간 30분 12초` 는 12초가
+  // 아무 판단도 바꾸지 못하는 자리에서 줄을 길게만 만든다.
+  if (hours > 0) return minutes === 0 ? `${hours}시간` : `${hours}시간 ${minutes}분`;
   if (minutes === 0) return `${seconds}초`;
   return seconds === 0 ? `${minutes}분` : `${minutes}분 ${seconds}초`;
 }

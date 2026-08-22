@@ -127,6 +127,36 @@ export const scanTransition = {
 export const tcActivityMarch = 'motion-safe:animate-[tc-activity-march_1400ms_linear_infinite]';
 
 /**
+ * Step 5 시작 대기 글리프의 모래 — HourglassIcon 에만 건다. 셋이 한 기계라 세 클래스를
+ * 함께 걸어야 뜻이 성립한다: 유리만 돌면 모래가 중간에 멈춘 채 뒤집히고, 모래만 흐르면
+ * 다 떨어진 유리가 그대로 서 있다. 그래서 호출부에 흩지 않고 아이콘 안에서 셋을 건다.
+ * duration 이 셋 다 같아야 이음매(72%)가 맞는다 — app/globals.css 의 ⛔ 주석 참조.
+ *
+ * 모션이 꺼지면 위가 찬 정지 모래시계가 남는다(빈 상태는 SVG transform 속성이 들고,
+ * CSS 애니메이션이 그 위를 덮는 구조라 motion-reduce 에서 저절로 시작 프레임이 된다).
+ */
+export const tcHourglass = {
+  glass: 'motion-safe:animate-[tc-hourglass-flip_1400ms_ease-in-out_infinite]',
+  /** 위 벌브 — 수위가 목으로 내려간다. */
+  drain: 'motion-safe:animate-[tc-hourglass-drain_1400ms_linear_infinite]',
+  /** 아래 벌브 — 같은 박자로 쌓인다. */
+  fill: 'motion-safe:animate-[tc-hourglass-fill_1400ms_linear_infinite]',
+  /**
+   * 모래. 유리(currentColor = `accent.running` #0064FF)와 갈라지는 유일한 잉크다.
+   *
+   * ⛔ 이 카드에서 amber 는 임자가 있다 — `connProgress` 의 pending 표면(정책 변경)이
+   * 점 #E8A03A · 잉크 #B45309 로 경고를 말하고, `SURFACE` 주석은 queued 를 그 계열에서
+   * **일부러 빼 놓았다**("경고(amber)가 아니라 정상 단계라"). 그래서 모래는 그 둘 중
+   * 어느 값도 쓰면 안 된다. #E8A03A 는 색상각 35°(주황)이고 이 값은 44°(노랑)라, 같은
+   * 화면에 서도 «경고 점»이 아니라 «모래»로 갈린다. 더 주황으로 끌면 그 구분이 없어진다.
+   *
+   * 재료색이지 상태색이 아니다 — 국면은 문장·글리프 형태가 말하고, 이 잉크는 모래가
+   * 모래라는 것만 말한다. 그래서 표면따라 바뀌지 않고 고정이다.
+   */
+  sand: 'fill-[#DDB13C]',
+} as const;
+
+/**
  * 상태 색상 (CLAUDE.md 규칙 준수)
  * - success (#45CB85): 연결됨, 완료
  * - error (red-500): 끊김, 에러

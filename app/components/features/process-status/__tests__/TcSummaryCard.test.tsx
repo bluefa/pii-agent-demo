@@ -280,6 +280,34 @@ describe('TcSummaryCard title glyph', () => {
     expect(queued).not.toContain(CLOCK);
   });
 
+  /**
+   * 이 국면엔 트랙도 카운트도 서지 않아, 모래가 빠지면 카드에서 스스로 변하는 것이
+   * 메타 줄의 경과 초 하나뿐이다 — 실 환경의 대기가 길면 멈춘 화면으로 읽힌다.
+   *
+   * 셋을 함께 재는 이유: 하나만 남으면 깨진 그림이 된다(유리만 돌면 모래가 공중에서
+   * 멈춘 채 뒤집히고, 모래만 흐르면 다 떨어진 유리가 그대로 서 있다). 유리의 클래스는
+   * svg 엘리먼트에 붙어 innerHTML 을 읽는 glyph() 로는 안 잡히므로 따로 본다.
+   */
+  it('queued hourglass runs all three of glass, drain and fill', () => {
+    const svg = renderCard('queued', { waiting: 6 }).container.querySelector('.inline-grid svg');
+    expect(svg?.getAttribute('class')).toContain('tc-hourglass-flip');
+    expect(svg?.innerHTML).toContain('tc-hourglass-drain');
+    expect(svg?.innerHTML).toContain('tc-hourglass-fill');
+  });
+
+  /**
+   * 모션이 꺼져도 남아야 하는 정지 그림 — 아래 벌브의 빈 상태는 SVG transform 속성이
+   * 들고 CSS 가 그 위를 덮는다. 속성이 빠지면 motion-reduce 에서 위아래가 모두 찬,
+   * 어느 국면도 아닌 모래시계가 선다.
+   */
+  it('keeps the empty bottom bulb as an attribute so motion-reduce still reads', () => {
+    const svg = renderCard('queued', { waiting: 6 }).container.querySelector('.inline-grid svg');
+    const bottom = Array.from(svg?.querySelectorAll('rect') ?? []).find((r) =>
+      r.getAttribute('class')?.includes('tc-hourglass-fill'),
+    );
+    expect(bottom?.getAttribute('transform')).toBe('translate(0 11)');
+  });
+
   /** 폴백에 남는 상태는 idle 하나 — 실행이 없다는 사실만 말하므로 시계가 맞다. */
   it('idle keeps the clock', () => {
     expect(glyph('idle', {})).toContain(CLOCK);
