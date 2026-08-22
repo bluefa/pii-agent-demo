@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { getProcessStatus, type ProcessStatusResponse } from '@/app/lib/api';
 import { useConfirmSubmit } from '@/app/hooks/useConfirmSubmit';
 import { AppError } from '@/lib/errors';
+import { ProcessStatus } from '@/lib/types';
 
 // getProcessStatus 만 갈아끼운다 — 재시도 판정은 normalizeTargetSourceProcessStatus 의
 // 진짜 규칙을 통과해야 의미가 있다(그 규칙이 판정의 절반이다).
@@ -25,7 +26,12 @@ const statusOf = (process_status: string): ProcessStatusResponse => ({
 const setup = (request: () => Promise<void>) => {
   const settle = vi.fn();
   const hook = renderHook(() =>
-    useConfirmSubmit({ targetSourceId: TARGET_SOURCE_ID, request, settle }),
+    useConfirmSubmit({
+      targetSourceId: TARGET_SOURCE_ID,
+      pendingStatus: ProcessStatus.WAITING_TARGET_CONFIRMATION,
+      request,
+      settle,
+    }),
   );
   return { ...hook, settle };
 };

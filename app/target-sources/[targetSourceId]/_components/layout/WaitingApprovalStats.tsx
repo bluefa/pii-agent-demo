@@ -44,11 +44,18 @@ export const WaitingApprovalStats = ({
 
 export interface StatTileProps {
   label: string;
-  value: number;
+  /**
+   * `null` = 아직 읽지 못한 값. 0 으로 접으면 못 읽은 것이 "0건"이라는 사실이 된다 —
+   * 완료 승인 모달이 응답을 기다리는 동안 "제외한 논리 DB 0개"라고 단정하던 자리다.
+   * 모르는 수에는 단위도 붙이지 않는다.
+   */
+  value: number | null;
   unit: string;
-  swatch?: 'target' | 'exclude';
-  /** `card` (default, centered, 32px num) vs `modal` (v16 req-modal override, left, 30px num). */
-  variant?: 'card' | 'modal';
+  /**
+   * 숫자 크기. `page`(기본) 40px — 페이지 폭의 카드 위에 놓인 표시 숫자다.
+   * `dialog` 24px — 확인 모달 안에서는 26px 제목이 위계의 꼭대기라, 40px 는 그 위로 올라선다.
+   */
+  scale?: 'page' | 'dialog';
   /** Set on the filter tiles only — renders a button with a selected state. */
   onClick?: () => void;
   active?: boolean;
@@ -59,8 +66,7 @@ export const StatTile = ({
   label,
   value,
   unit,
-  swatch,
-  variant = 'card',
+  scale = 'page',
   onClick,
   active,
 }: StatTileProps) => {
@@ -71,67 +77,46 @@ export const StatTile = ({
     onClick={onClick}
     aria-pressed={onClick ? active : undefined}
     className={cn(
-      'flex flex-col gap-1.5 rounded-xl px-5 py-[18px] transition-colors duration-150',
-      variant === 'card' && 'items-center',
-      // card = the step-1 submit-modal tile grammar (white card + gray-200 stroke +
-      // toss lg shadow) so the two stats rows read as one design. Selection speaks
+      'flex flex-col items-center gap-1.5 rounded-xl px-5 py-[18px] transition-colors duration-150',
+      // The step-1 submit-modal tile grammar (white card + gray-200 stroke + toss lg
+      // shadow) so every stats row in the flow reads as one design. Selection speaks
       // ONLY through the boundary: the 1px stroke turns brand and an inset ring
       // doubles it to a 2px edge — same surface, same shadow, no layout shift.
       // Unselected tiles preview that grammar on hover (1px brand stroke), which is
       // what keeps three identical white cards reading as a filter, not static stats.
-      // modal = the legacy gray well, untouched (CloudReq/IdcReq approval modals).
-      variant === 'card'
-        ? cn(
-            'border bg-white',
-            tossShadow.lg,
-            active
-              ? 'border-[#0064FF] ring-1 ring-inset ring-[#0064FF]'
-              : cn(borderColors.default, primaryColors.borderHoverBase),
-          )
-        : active
-          ? 'bg-white ring-2 ring-inset ring-[#191F28]'
-          : 'bg-[#F7F8FA] hover:bg-[#ECEEF1]',
+      'border bg-white',
+      tossShadow.lg,
+      active
+        ? 'border-[#0064FF] ring-1 ring-inset ring-[#0064FF]'
+        : cn(borderColors.default, primaryColors.borderHoverBase),
       onClick && 'cursor-pointer text-left',
     )}
   >
     {/* The label is a peer of the value, so it stays darker and bolder than the unit suffix.
-        card = the submit-modal tile ramp (14 semibold, quiet tier). */}
-    <div
-      className={cn(
-        'flex items-center gap-1.5',
-        variant === 'modal'
-          ? 'text-[12px] font-semibold text-[#6B7684]'
-          : cn('text-[14px] font-semibold', textColors.tertiary),
-      )}
-    >
-      {swatch && (
-        <span
-          className={cn('h-2 w-2 rounded-[2px]', swatch === 'target' ? 'bg-[#10B981]' : 'bg-[#D1D5DB]')}
-        />
-      )}
-      {label}
-    </div>
+        The submit-modal tile ramp (14 semibold, quiet tier). */}
+    <div className={cn('text-[14px] font-semibold', textColors.tertiary)}>{label}</div>
     <div className="flex items-baseline">
       <span
         className={cn(
-          variant === 'modal'
-            ? 'font-extrabold leading-[1.1] text-[#191F28] text-[30px] tracking-[-0.035em]'
-            : cn('text-[40px] font-bold leading-[1.2]', textColors.primary),
+          // 한 조건에 한 문자열 — 두 갈래가 같은 속성을 겹쳐 쓰면 어느 쪽이 이길지
+          // cn 이 아니라 Tailwind 가 CSS 에 찍는 순서가 정한다.
+          scale === 'dialog' ? 'text-[24px]' : 'text-[40px]',
+          'font-bold leading-[1.2]',
+          value == null ? textColors.tertiary : textColors.primary,
           numericFeatures.tabular,
         )}
       >
-        {value}
+        {value ?? '—'}
       </span>
-      {/* The unit is a suffix of the value — lighter than the label so it reads one tier down. */}
-      <span
-        className={cn(
-          'ml-1',
-          textColors.tertiary,
-          variant === 'modal' ? 'text-[12px] font-semibold' : 'text-[13px] font-medium',
-        )}
-      >
-        {unit}
-      </span>
+      {/* The unit is a suffix of the value — lighter than the label so it reads one tier down.
+          A value we could not read has no unit: "— 개" would still be claiming the kind of
+          thing we counted, and we counted nothing. */}
+      {/* 12px, not the 13 this line carried before the variant fold: the design guard
+          only admits even sizes, and 12 is the tier the removed `modal` variant already
+          used for this very suffix. */}
+      {value != null && (
+        <span className={cn('ml-1 text-[12px] font-medium', textColors.tertiary)}>{unit}</span>
+      )}
     </div>
   </Tag>
   );

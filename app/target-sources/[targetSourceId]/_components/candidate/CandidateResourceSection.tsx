@@ -31,6 +31,7 @@ import {
   statusColors,
   textColors,
 } from '@/lib/theme';
+import { ProcessStatus } from '@/lib/types';
 import type { CloudProvider } from '@/lib/types';
 import type { CandidateDraftState, CandidateResource, EndpointConfigDraft } from '@/lib/types/resources';
 import { CardActionBar } from '@/app/target-sources/[targetSourceId]/_components/common';
@@ -287,6 +288,7 @@ export const CandidateResourceSection = ({
 
   const approval = useConfirmSubmit({
     targetSourceId,
+    pendingStatus: ProcessStatus.WAITING_TARGET_CONFIRMATION,
     request: async () => {
       const input = toApprovalRequestInput(allCandidates, selectedIds, drafts, exclusionReasons);
       await createApprovalRequest(targetSourceId, input);

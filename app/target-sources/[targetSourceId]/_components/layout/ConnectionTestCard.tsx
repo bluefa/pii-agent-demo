@@ -20,6 +20,7 @@ import { isInFlightUi } from '@/app/hooks/useTestConnectionPolling';
 import type { UseTestConnectionPollingReturn } from '@/app/hooks/useTestConnectionPolling';
 import { useTcCompletionStatus } from '@/app/hooks/useTcCompletionStatus';
 import { useTcSettleHold } from '@/app/hooks/useTcSettleHold';
+import { useConfirmSubmit } from '@/app/hooks/useConfirmSubmit';
 import {
   computeTcBuckets,
   foldAgentStatuses,
@@ -30,6 +31,7 @@ import { ERROR_MESSAGES } from '@/lib/constants/messages';
 import {
   getSecrets,
   updateResourceCredential,
+  updateTestConnectionConfirmation,
 } from '@/app/lib/api';
 import { CredentialPickModal } from '@/app/target-sources/[targetSourceId]/_components/layout/CredentialPickModal';
 import { LogicalDbModalLoader } from '@/app/target-sources/[targetSourceId]/_components/logical-db/LogicalDbModalLoader';
@@ -46,8 +48,18 @@ import {
   ROW_TARGET,
 } from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalTable';
 import type { ConfirmedResource } from '@/lib/types/resources';
-import { hasLogicalDatabases, isEc2Instance, needsCredential, type SecretKey } from '@/lib/types';
-import { GROUPED_CHILD_KIND_LABEL, resultUnitId } from '@/lib/resource-grouping';
+import {
+  hasLogicalDatabases,
+  isEc2Instance,
+  needsCredential,
+  ProcessStatus,
+  type SecretKey,
+} from '@/lib/types';
+import {
+  GROUPED_CHILD_KIND_LABEL,
+  toTestUnits,
+  type TestUnit,
+} from '@/lib/resource-grouping';
 
 interface LogicalModalTarget {
   resourceId: string;
@@ -83,56 +95,9 @@ const seedCreds = (confirmed: readonly ConfirmedResource[]): CredMap =>
 const requiresCredential = (databaseType: string | null): boolean =>
   !!databaseType && needsCredential(databaseType);
 
-/**
- * One row of this table = one thing the connection test actually reports on.
- *
- * For Athena that is the REGION, not the database: the result comes back keyed on
- * `athena_region_resource_id` (`athena:<acct>:<region>/<catalog>`), so every database of one
- * region shares a single verdict. Listing them separately printed that one verdict four times,
- * implied four tests had run, and counted four units in the progress strip — and each of those
- * rows looked its status up by its own database id, which no result is ever keyed on.
- */
-interface TestUnit {
-  /** The id the result is keyed on — see `resultUnitId`. */
-  unitId: string;
-  region: string | null;
-  databaseType: string | null;
-  /** Top-level resource type of the unit's first row — drives the RDS-cluster tag only. */
-  resourceType: string | null;
-  /** The confirmed rows this unit covers: one, or every database of an Athena region. */
-  members: ConfirmedResource[];
-  /** True when this row stands for a region rather than for a single resource. */
-  folded: boolean;
-}
-
-const toTestUnits = (confirmed: readonly ConfirmedResource[]): TestUnit[] => {
-  const units: TestUnit[] = [];
-  const byUnitId = new Map<string, TestUnit>();
-  for (const resource of confirmed) {
-    const unitId = resultUnitId(resource);
-    const existing = byUnitId.get(unitId);
-    if (existing) {
-      existing.members.push(resource);
-      continue;
-    }
-    const unit: TestUnit = {
-      unitId,
-      region: resource.region ?? null,
-      databaseType: resource.databaseType ?? null,
-      resourceType: resource.type ?? null,
-      members: [resource],
-      folded: !!resource.athenaRegionResourceId,
-    };
-    byUnitId.set(unitId, unit);
-    units.push(unit);
-  }
-  return units;
-};
-
 interface ConnectionTestCardProps {
   targetSourceId: number;
   confirmed: readonly ConfirmedResource[];
-  providerLabel: string;
   /** Refetch the project — advances to step 6 when the process status flips. */
   refreshProject: () => void;
   /** Step 이 소유한 폴링 — 헤더 태그(ProjectPageMeta)와 같은 관찰을 나눠 받는다. */
@@ -157,7 +122,6 @@ interface ConnectionTestCardProps {
 export const ConnectionTestCard = ({
   targetSourceId,
   confirmed,
-  providerLabel,
   refreshProject,
   polling,
 }: ConnectionTestCardProps) => {
@@ -329,10 +293,29 @@ export const ConnectionTestCard = ({
     toast.error('논리 DB 제외 정책 저장에 실패했습니다.');
   }, [toast]);
 
-  const handleSubmitApproval = useCallback(() => {
-    setApprovalOpen(false);
-    refreshProject();
-  }, [refreshProject]);
+  // 요청 → 확인 프레임 → 전환. 1단계 승인 요청과 같은 훅이다: PUT 이 성공해도 화면을
+  // 곧바로 갱신하지 않는다 — refreshProject() 가 상태를 CONNECTION_VERIFIED 로 바꾸는
+  // 순간 이 카드가 통째로 교체되고, 안에 있던 모달은 확인 프레임을 보여주기도 전에
+  // 언마운트된다. 갱신은 홀드가 끝난 뒤 settle 에서 부른다.
+  //
+  // PUT 이 여기로 올라온 것도 그래서다. 전에는 모달이 스스로 보내고 실패하면 toast 를
+  // 띄웠는데, 그 toast 의 문구는 서버가 쓴 message 였다(ADR-008/ADR-013 위반).
+  const approval = useConfirmSubmit({
+    targetSourceId,
+    pendingStatus: ProcessStatus.WAITING_CONNECTION_TEST,
+    request: async () => {
+      await updateTestConnectionConfirmation(targetSourceId, true);
+    },
+    settle: () => {
+      refreshProject();
+      setApprovalOpen(false);
+    },
+  });
+  const openApproval = useCallback(() => {
+    // 지난 실패 프레임이 다시 뜨지 않도록 열기 전에 되돌린다.
+    approval.reset();
+    setApprovalOpen(true);
+  }, [approval]);
 
   // Phase-aware buckets (shared rule): 미보고 is its own fact, never folded into 대기,
   // and % counts reported units only — an unfinished run can no longer read "100%".
@@ -401,7 +384,7 @@ export const ConnectionTestCard = ({
             drawCheck={settledLive}
             onRunTest={() => void runTest()}
             runDisabled={runDisabled}
-            onRequestApproval={() => setApprovalOpen(true)}
+            onRequestApproval={openApproval}
             approvalDisabled={!canRequestApproval}
             historyAction={
               <button
@@ -796,9 +779,12 @@ export const ConnectionTestCard = ({
           isOpen={approvalOpen}
           onClose={() => setApprovalOpen(false)}
           resources={confirmed}
-          providerLabel={providerLabel}
           targetSourceId={targetSourceId}
-          onSubmit={handleSubmitApproval}
+          phase={approval.phase}
+          pending={approval.pending}
+          errorCode={approval.errorCode}
+          onSubmit={approval.submit}
+          onRetry={approval.retry}
         />
         {credModal.data && (
           <CredentialPickModal

@@ -23,6 +23,7 @@
  * that field rather than adding a second region-ish input.
  */
 import { normalizeResourceType } from '@/lib/types';
+import type { ConfirmedResource } from '@/lib/types/resources';
 
 /**
  * Resource types read as one parent unit per region. Athena only — everything else is
@@ -63,6 +64,56 @@ export const resultUnitId = (resource: {
   resourceId: string;
   athenaRegionResourceId?: string | null;
 }): string => resource.athenaRegionResourceId || resource.resourceId;
+
+/**
+ * One row of a step-5 table = one thing the connection test actually reports on.
+ *
+ * For Athena that is the REGION, not the database: the result comes back keyed on
+ * `athena_region_resource_id` (`athena:<acct>:<region>/<catalog>`), so every database of one
+ * region shares a single verdict. Listing them separately printed that one verdict four times,
+ * implied four tests had run, and counted four units in the progress strip — and each of those
+ * rows looked its status up by its own database id, which no result is ever keyed on.
+ *
+ * It lives here rather than in the card because the approval modal draws the same row set from
+ * the same `confirmed` list: two folds computed separately drifted apart, and the screen ended
+ * up saying 6 in the card and 8 in the modal for one target source.
+ */
+export interface TestUnit {
+  /** The id the result is keyed on — see `resultUnitId`. */
+  unitId: string;
+  region: string | null;
+  databaseType: string | null;
+  /** Top-level resource type of the unit's first row — drives the RDS-cluster tag only. */
+  resourceType: string | null;
+  /** The confirmed rows this unit covers: one, or every database of an Athena region. */
+  members: ConfirmedResource[];
+  /** True when this row stands for a region rather than for a single resource. */
+  folded: boolean;
+}
+
+export const toTestUnits = (confirmed: readonly ConfirmedResource[]): TestUnit[] => {
+  const units: TestUnit[] = [];
+  const byUnitId = new Map<string, TestUnit>();
+  for (const resource of confirmed) {
+    const unitId = resultUnitId(resource);
+    const existing = byUnitId.get(unitId);
+    if (existing) {
+      existing.members.push(resource);
+      continue;
+    }
+    const unit: TestUnit = {
+      unitId,
+      region: resource.region ?? null,
+      databaseType: resource.databaseType ?? null,
+      resourceType: resource.type ?? null,
+      members: [resource],
+      folded: !!resource.athenaRegionResourceId,
+    };
+    byUnitId.set(unitId, unit);
+    units.push(unit);
+  }
+  return units;
+};
 
 export const isGroupedResourceType = (type: string | null | undefined): boolean => {
   const normalized = normalizeResourceType(type);

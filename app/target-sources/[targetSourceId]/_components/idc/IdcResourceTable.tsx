@@ -137,8 +137,10 @@ export const IdcResourceTable = ({
 
   // Display-only pagination; per-step gating runs over the full list in the step
   // components, so slicing the view here is safe.
+  // 5 는 승인 모달의 크기다. `connected` 호출자는 목록을 스스로 잘라 이 페이저를 건너뛰므로
+  // (아래 `pageRows`), 이 값이 닿는 곳은 non-connected 갈래 = 그 모달 하나뿐이다.
   const { page, pageSize, setPage, setPageSize, pageItems: paged } = usePagination(rows, {
-    initialPageSize: 10,
+    initialPageSize: 5,
   });
   // `connected` callers slice the list themselves (their toolbar owns the filter state), so the
   // internal pager is bypassed rather than rendered twice.
@@ -150,12 +152,20 @@ export const IdcResourceTable = ({
         header: idcStyles.table.approvalHeader,
         headerCell: idcStyles.table.approvalHeaderCell,
         cell: idcStyles.table.approvalCell,
+        text: '',
       }
     : {
-        frame: idcStyles.table.frame,
-        header: idcStyles.table.header,
+        // 이 갈래는 아래에 항상 페이지 바를 단다 — 바가 닫아 주는 표의 프레임이다.
+        // 프로덕션 소비자는 IDC 완료 승인 모달 하나뿐이라, 눈금도 그 모달의 것이다:
+        // 클라우드 쪽 모달과 같은 14px 머리글.
+        frame: idcStyles.table.framePaged,
+        header: idcStyles.table.approvalHeaderDialog,
         headerCell: idcStyles.table.headerCell,
         cell: idcStyles.table.cell,
+        // 셀은 제 크기를 정하지 않아 문서 기본값 16px 을 물려받고 있었다. 크기는 표에 한 번만
+        // 얹는다 — 셀 토큰에 얹으면 제 크기를 가진 칸(Port 12px, `text-sm`)과 유틸리티가
+        // 겹쳐서, 어느 쪽이 이길지 cn 이 아니라 Tailwind 의 emit 순서가 정하게 된다.
+        text: 'text-[14px]',
       };
 
   // 출발지는 steps 5·6·7 에서 맨 오른쪽으로 간다: 그 화면들의 주어는 이미 확정된 대상이고
@@ -185,7 +195,7 @@ export const IdcResourceTable = ({
   return (
     <>
     <div className={skin.frame}>
-      <table className="w-full">
+      <table className={cn('w-full', skin.text)}>
         <thead className={skin.header}>
           <tr>
             {/* 구분은 제 열을 갖지 않는다 — 배지가 주소 위에 얹힌다(IdcEndpointWithKindCell).
@@ -296,18 +306,22 @@ export const IdcResourceTable = ({
                 )}
                 {has('logicalro') && (
                   <>
+                    {/* `onLogicalOpen` 이 없으면 셀에 onOpen 을 **주지 않는다**. `() => x?.(r)`
+                        는 언제나 truthy 라, 열 곳이 없는 화면(확인 모달)에서도 숫자가 눌리는
+                        버튼으로 그려졌다 — LogicalDbCountCell 이 "아무 일도 안 하는 컨트롤
+                        대신 평문" 이라고 정해 둔 바로 그 상태다. */}
                     <td className={skin.cell}>
                       <LogicalDbCountCell
                         count={logicalDbCounts?.get(r.resourceId)?.target ?? null}
                         label={`${r.hosts[0] ?? r.resourceId} 연동 논리 DB 목록 보기`}
-                        onOpen={() => onLogicalOpen?.(r)}
+                        onOpen={onLogicalOpen ? () => onLogicalOpen(r) : undefined}
                       />
                     </td>
                     <td className={skin.cell}>
                       <LogicalDbCountCell
                         count={logicalDbCounts?.get(r.resourceId)?.excluded ?? null}
                         label={`${r.hosts[0] ?? r.resourceId} 연동 제외 대상 보기`}
-                        onOpen={() => onLogicalOpen?.(r)}
+                        onOpen={onLogicalOpen ? () => onLogicalOpen(r) : undefined}
                       />
                     </td>
                   </>
@@ -320,6 +334,8 @@ export const IdcResourceTable = ({
         </tbody>
       </table>
     </div>
+    {/* 클라우드 승인 모달과 같은 페이저다 — 이 갈래의 소비자가 그 모달의 IDC 짝뿐이라,
+        같은 상자가 같은 질문을 하면서 페이지를 다르게 넘길 이유가 없다. */}
     {!connected && (
     <Pagination
       page={page}
@@ -327,8 +343,7 @@ export const IdcResourceTable = ({
       totalCount={rows.length}
       onPageChange={setPage}
       onPageSizeChange={setPageSize}
-      pageSizeOptions={[10, 20, 50, 100]}
-      controls="prevNext"
+      pageSizeOptions={[5, 10]}
     />
     )}
     </>

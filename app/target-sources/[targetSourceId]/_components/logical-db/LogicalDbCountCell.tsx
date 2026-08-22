@@ -29,10 +29,14 @@ export const LogicalDbCountCell = ({
   if (count == null) return <span className={textColors.tertiary}>—</span>;
   if (count === 0 || !onOpen) {
     // tertiary, not the quaternary used for the — placeholder: a reported count is content, and
-    // 13px normal text needs 4.5:1 (gray-400 is 2.8:1 on white). Quieter than a link, still
+    // normal text needs 4.5:1 (gray-400 is 2.8:1 on white). Quieter than a link, still
     // readable — which is what a number nobody can click should be.
+    //
+    // 14px — 이 셀이 앉는 행의 눈금이다. 13px 은 v16 에서 넘어온 홀수 값이라 디자인 가드가
+    // 지금은 받지 않고, 확인 모달의 14px 행 안에서 이 열만 한 칸 작았다. 아래 드릴다운
+    // 갈래도 같은 14px(`linkNeutralMd`) 이다 — 한 열이 두 눈금으로 갈리면 안 된다.
     return (
-      <span className={cn('text-[13px] font-medium', numericFeatures.tabular, textColors.tertiary)}>
+      <span className={cn('text-[14px] font-medium', numericFeatures.tabular, textColors.tertiary)}>
         {count}
         <span className="ml-px text-[12px]">개</span>
       </span>
@@ -43,7 +47,7 @@ export const LogicalDbCountCell = ({
       type="button"
       onClick={onOpen}
       aria-label={label}
-      className={cn(idcStyles.triggerBtn.linkNeutral, numericFeatures.tabular)}
+      className={cn(idcStyles.triggerBtn.linkNeutralMd, numericFeatures.tabular)}
     >
       {count}
       <span className="text-[12px] font-medium">개</span>

@@ -24,6 +24,13 @@ const HOLD_MS = 1000;
 
 interface UseConfirmSubmitOptions {
   targetSourceId: number;
+  /**
+   * 요청을 보내기 **전** 단계의 진행 상태. 재요청 직전 조회에서 이 상태가 아니면 요청은
+   * 이미 접수된 것으로 본다(아래 `retry` 참고). 화면마다 다르므로 기본값을 두지 않는다 —
+   * 1단계는 WAITING_TARGET_CONFIRMATION, 5단계 완료 승인은 WAITING_CONNECTION_TEST 이고,
+   * 남의 단계 상태로 판정하면 이미 접수된 요청을 한 번 더 보낸다.
+   */
+  pendingStatus: ProcessStatus;
   /** 요청 전송 자체. reject 하면 실패 프레임으로 간다. */
   request: () => Promise<void>;
   /** 확인 프레임이 끝난 뒤 — 화면 갱신(refreshProject)과 모달 정리. */
@@ -54,6 +61,7 @@ export interface UseConfirmSubmitReturn {
  */
 export const useConfirmSubmit = ({
   targetSourceId,
+  pendingStatus,
   request,
   settle,
 }: UseConfirmSubmitOptions): UseConfirmSubmitReturn => {
@@ -106,14 +114,11 @@ export const useConfirmSubmit = ({
     () =>
       run(async () => {
         // 응답만 실패하고 요청은 이미 접수됐을 수 있다(타임아웃·게이트웨이). 그대로 다시
-        // 보내면 승인 요청이 두 건 생기므로, 진행 상태를 먼저 다시 읽는다. 이미 1단계를
-        // 벗어나 있으면 재요청 없이 확인 프레임 → 화면 갱신으로 넘긴다.
+        // 보내면 승인 요청이 두 건 생기므로, 진행 상태를 먼저 다시 읽는다. 이미 요청 전
+        // 단계를 벗어나 있으면 재요청 없이 확인 프레임 → 화면 갱신으로 넘긴다.
         try {
           const status = await getProcessStatus(targetSourceId);
-          if (
-            normalizeTargetSourceProcessStatus(status.process_status)
-            !== ProcessStatus.WAITING_TARGET_CONFIRMATION
-          ) {
+          if (normalizeTargetSourceProcessStatus(status.process_status) !== pendingStatus) {
             succeed();
             return;
           }
@@ -124,7 +129,7 @@ export const useConfirmSubmit = ({
         }
         await send();
       }),
-    [run, targetSourceId, send, succeed],
+    [run, targetSourceId, pendingStatus, send, succeed],
   );
 
   const reset = useCallback(() => {

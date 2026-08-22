@@ -489,15 +489,39 @@ const unsettledAgentResults = (
 export const toLatestResultSummaries = (targetSourceId: number) => {
   const job = getLatestJob(targetSourceId);
   if (!job || job.status !== 'SUCCESS') return [];
+
+  // Athena 리전 하나가 덮는 데이터베이스 수. Athena 는 데이터베이스가 곧 논리 DB 라
+  // (그 안에 다시 나눌 하위 단위가 없다) 연동 대상 수 = 데이터베이스 수, 제외는 0 이다.
+  // 자리표 공식(`8 + seed % 8`)을 그대로 두면 데이터베이스 3개짜리 리전이 8개라고 보고해,
+  // 같은 행이 왼쪽에서는 3, 오른쪽에서는 8 이라고 말한다.
+  const athenaDatabases = new Map<string, number>();
+  for (const resource of findProject(targetSourceId)?.resources ?? []) {
+    if (!resource.isSelected) continue;
+    const unitId = resultUnitId(resource);
+    // 접히는 타입은 Athena 뿐 — 나머지는 unitId 가 곧 제 resourceId 다.
+    if (unitId === resource.resourceId) continue;
+    athenaDatabases.set(unitId, (athenaDatabases.get(unitId) ?? 0) + 1);
+  }
+
   return job.resource_results
     .filter((r) => r.status === 'SUCCESS')
     .map((r, index) => {
+      const agent_id = r.agent_id ?? fallbackAgentId(index);
+      const databases = athenaDatabases.get(r.resource_id);
+      if (databases != null) {
+        return {
+          resource_id: r.resource_id,
+          agent_id,
+          logical_database_count: databases,
+          excluded_logical_database_count: 0,
+        };
+      }
       const seed = r.resource_id.length;
       const total = 8 + (seed % 8);
       const excluded = seed % 4;
       return {
         resource_id: r.resource_id,
-        agent_id: r.agent_id ?? fallbackAgentId(index),
+        agent_id,
         logical_database_count: total - excluded,
         excluded_logical_database_count: excluded,
       };

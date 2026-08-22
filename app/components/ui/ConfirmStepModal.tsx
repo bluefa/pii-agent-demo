@@ -19,6 +19,14 @@ export interface ConfirmStepResult {
   reason?: string;
 }
 
+export type ConfirmStepSize = 'sm' | 'md' | 'lg';
+
+const SIZES: Record<ConfirmStepSize, string> = {
+  sm: 'w-[480px]',
+  md: 'w-[560px]',
+  lg: 'w-[760px]',
+};
+
 export interface ConfirmStepModalProps {
   open: boolean;
   onClose: () => void;
@@ -33,8 +41,12 @@ export interface ConfirmStepModalProps {
    * submit stats). Text-only confirms omit it and keep the compact two-line shape.
    */
   children?: ReactNode;
-  /** 560px instead of 480px — for confirms that carry a body block. */
-  wide?: boolean;
+  /**
+   * How much room the body needs — nothing else changes with it. The chrome, the footer pair
+   * and the result frame are identical at every width; only the card is wider.
+   * `sm` two lines of text · `md` a stat block · `lg` a table.
+   */
+  size?: ConfirmStepSize;
   /** Gates the confirm button beyond isPending (e.g. required input still empty). */
   confirmDisabled?: boolean;
   /** Where focus lands on open — input-carrying confirms point at their field; default is 취소. */
@@ -63,8 +75,8 @@ export interface ConfirmStepModalProps {
  *  It carries no background either: the card is already white, and an opaque footer painted
  *  over the shadow of whatever the body ends with (the approval stat tiles), chopping it into
  *  a hard full-width edge — the very divider this footer set out not to draw. */
-const confirmHeader = 'px-6 pt-6 pb-1.5 flex items-start justify-between';
-const confirmFooter = 'px-6 pt-5 pb-6 flex justify-end gap-2.5';
+const confirmHeader = 'shrink-0 px-6 pt-6 pb-1.5 flex items-start justify-between';
+const confirmFooter = 'shrink-0 px-6 pt-5 pb-6 flex justify-end gap-2.5';
 
 /** Footer pair on the in-card `.btn` scale (h40 / radius12 / 14px) — the 52px modalBtn tier
  *  belongs to the tall approval modals and overwhelmed a two-line dialog.
@@ -96,6 +108,7 @@ const confirmWarningBtn = cn(
  *  focus is programmatic containment, not keyboard navigation. */
 const resultFrame =
   'flex flex-1 flex-col items-center justify-center px-10 py-10 text-center outline-none';
+
 const resultTile = 'mb-5 grid h-16 w-16 place-items-center rounded-2xl';
 const resultTitle = 'text-[20px] font-bold tracking-[-0.02em] leading-[1.3] text-[#191F28]';
 /** Same quiet tier as `modalStyles.toss.subtitle`, one step down in size — the frame is short. */
@@ -105,6 +118,23 @@ const resultDesc = 'mt-2 text-[13.5px] font-medium leading-[1.6] text-[#6B7280]'
  *  result this is; the colour alone carries the rest. Same token tier as that tile: two
  *  adjacent reds a shade apart read as a mistake, not a hierarchy. */
 const resultReason = cn('mt-2.5 max-w-[420px] text-[13px] leading-[1.5]', statusColors.error.textDark);
+
+/**
+ * `lg` 의 결과 프레임은 한 칸 위 눈금으로 선다.
+ *
+ * `sm`/`md` 는 두어 줄짜리 확인창이라 64px 타일과 20px 제목이 상자를 채우지만, `lg` 는 표를
+ * 담느라 760×740 이다. 거기에 같은 눈금을 놓으면 큰 판 한가운데 붙인 작은 쪽지가 된다 —
+ * 결과는 이 상자에 남은 유일한 내용인데 화면에서 가장 작은 글자가 되는 셈이다.
+ * 확인 프레임의 26px 제목은 넘지 않는다: 같은 상자가 묻고 답하는 것이지, 답이 더 큰 사건이
+ * 되는 것은 아니다.
+ *
+ * 위 상수들과 짝을 이루되 **완전한 문자열**로 둔다 — `cn` 은 단순 join 이라 같은 속성을 두 번
+ * 얹으면 어느 쪽이 이길지 클래스 순서가 아니라 Tailwind 가 CSS 에 찍는 순서가 정한다.
+ */
+const resultTileLg = 'mb-6 grid h-20 w-20 place-items-center rounded-[20px]';
+const resultTitleLg = 'text-[24px] font-bold tracking-[-0.02em] leading-[1.3] text-[#191F28]';
+const resultDescLg = 'mt-3 text-[16px] font-medium leading-[1.6] text-[#6B7280]';
+const resultReasonLg = cn('mt-3 max-w-[520px] text-[14px] leading-[1.5]', statusColors.error.textDark);
 
 export const ConfirmStepModal = ({
   open,
@@ -116,7 +146,7 @@ export const ConfirmStepModal = ({
   cancelLabel = '머무르기',
   isPending = false,
   children,
-  wide = false,
+  size = 'sm',
   confirmDisabled = false,
   initialFocus,
   tone = 'default',
@@ -131,6 +161,8 @@ export const ConfirmStepModal = ({
   const dialogRef = useRef<HTMLDivElement>(null);
   const resultKind = result?.kind ?? null;
   const locked = isPending || resultKind === 'success';
+  /** 결과 프레임의 눈금 — 표를 담는 `lg` 상자에서만 한 칸 위(resultTileLg 참고). */
+  const roomy = size === 'lg';
 
   useEffect(() => {
     // Pin the height the card has while it is still the confirm, so the result frame
@@ -233,8 +265,13 @@ export const ConfirmStepModal = ({
         className={cn(
           modalStyles.container,
           modalStyles.toss.container,
-          wide ? 'w-[560px]' : 'w-[480px]',
-          'max-w-[calc(100vw-2rem)] flex flex-col',
+          SIZES[size],
+          // A body tall enough to outgrow the viewport used to push the footer off screen —
+          // measured at 834px in an 810px window, with 요청하기 unreachable and no way to
+          // scroll to it (the overlay centres, it does not scroll). The card stops at the
+          // window and the body scrolls inside it instead; 86vh is the ceiling
+          // `pipelineStyles.modal.dialogTask` already uses for the same reason.
+          'max-w-[calc(100vw-2rem)] max-h-[86vh] flex flex-col',
         )}
       >
         {result ? (
@@ -250,7 +287,7 @@ export const ConfirmStepModal = ({
           >
             <div
               className={cn(
-                resultTile,
+                roomy ? resultTileLg : resultTile,
                 // Both tiles take the dark text tier. `statusColors.error.text` (red-500)
                 // measures ~3.3:1 on its own red-100 — at the WCAG 1.4.11 floor for a mark
                 // that is carrying the result, while the success side's #2A7D52 has room to
@@ -262,7 +299,7 @@ export const ConfirmStepModal = ({
             >
               {result.kind === 'success' ? (
                 <svg
-                  className="h-8 w-8"
+                  className={roomy ? 'h-10 w-10' : 'h-8 w-8'}
                   viewBox="0 0 24 24"
                   fill="none"
                   stroke="currentColor"
@@ -277,7 +314,7 @@ export const ConfirmStepModal = ({
                 </svg>
               ) : (
                 <svg
-                  className="h-[30px] w-[30px]"
+                  className={roomy ? 'h-[38px] w-[38px]' : 'h-[30px] w-[30px]'}
                   viewBox="0 0 24 24"
                   fill="none"
                   stroke="currentColor"
@@ -292,15 +329,17 @@ export const ConfirmStepModal = ({
                 </svg>
               )}
             </div>
-            <h2 id="confirm-step-modal-title" className={resultTitle}>
+            <h2 id="confirm-step-modal-title" className={roomy ? resultTitleLg : resultTitle}>
               {result.title}
             </h2>
-            <p id="confirm-step-modal-desc" className={resultDesc}>
+            <p id="confirm-step-modal-desc" className={roomy ? resultDescLg : resultDesc}>
               {result.description}
             </p>
-            {result.reason && <p className={resultReason}>{result.reason}</p>}
+            {result.reason && (
+              <p className={roomy ? resultReasonLg : resultReason}>{result.reason}</p>
+            )}
             {result.kind === 'error' && (
-              <div className="mt-6 flex gap-2.5">
+              <div className={cn('flex gap-2.5', roomy ? 'mt-8' : 'mt-6')}>
                 <button
                   type="button"
                   className={confirmCancelBtn}
@@ -342,7 +381,10 @@ export const ConfirmStepModal = ({
               </div>
             </div>
 
-            {children && <div className="px-6 pt-4">{children}</div>}
+            {/* The only part that gives when the card hits the viewport ceiling: `min-h-0`
+                lets it shrink past its content (a flex item's default floor is its content),
+                and the header and footer hold their size so the footer pair stays reachable. */}
+            {children && <div className="min-h-0 overflow-y-auto px-6 pt-4">{children}</div>}
 
             <div className={confirmFooter}>
               <button

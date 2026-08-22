@@ -1,204 +1,296 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { cn, idcStyles, interactiveColors, modalStyles, textColors } from '@/lib/theme';
+import { cn, idcStyles, primaryColors, textColors } from '@/lib/theme';
+import { ConfirmStepModal, type ConfirmStepResult } from '@/app/components/ui/ConfirmStepModal';
+import { approvalFailureCopy } from '@/app/components/ui/confirm-failures';
 import { getDatabaseShortLabel } from '@/app/components/ui/DatabaseIcon';
+import { Ec2InstanceTag, RdsClusterTag } from '@/app/components/ui/RdsInstanceChips';
+import { IdentifierTip, Tooltip } from '@/app/components/ui/Tooltip';
 import { Pagination } from '@/app/components/ui/Pagination';
+import { LogicalDbCountCell } from '@/app/target-sources/[targetSourceId]/_components/logical-db/LogicalDbCountCell';
 import { usePagination } from '@/app/hooks/usePagination';
-import { useToast } from '@/app/components/ui/toast';
-import { LoadingSpinner } from '@/app/components/ui/LoadingSpinner';
-import { getLatestTestConnectionResultSummaries, updateTestConnectionConfirmation } from '@/app/lib/api';
+import type { ConfirmSubmitPhase } from '@/app/hooks/useConfirmSubmit';
+import { getLatestTestConnectionResultSummaries } from '@/app/lib/api';
 import { StatTile } from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalStats';
+import {
+  CELL_LIFT,
+  NAME_LIFT,
+  ROW_BASE,
+  ROW_TARGET,
+} from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalTable';
+import { isRdsCluster } from '@/lib/rds-instances';
+import { toTestUnits, type TestUnit } from '@/lib/resource-grouping';
+import { isEc2Instance } from '@/lib/types';
+import type { AppErrorCode } from '@/lib/errors';
 import type { ConfirmedResource } from '@/lib/types/resources';
 import {
   buildLogicalDbCountMap,
   type LogicalDbCountMap,
 } from '@/app/target-sources/[targetSourceId]/_components/confirmed/logical-db-summaries';
 
+/** 이름 셀과 같은 14px — 모달 안의 표는 머리글부터 한 눈금으로 읽는다. */
+const MONO_CELL = 'whitespace-nowrap font-mono text-[14px]';
+const PLACEHOLDER = '—';
+
 interface CloudReqApprovalModalProps {
   isOpen: boolean;
-  onClose: () => void;
   resources: readonly ConfirmedResource[];
-  providerLabel: string;
   targetSourceId: number;
+  /** 지금 그릴 프레임 (useConfirmSubmit). */
+  phase: ConfirmSubmitPhase;
+  /** 요청이 날아가 있는 동안 — 프레임은 그대로, 버튼만 잠긴다. */
+  pending: boolean;
+  errorCode?: AppErrorCode;
   onSubmit: () => void;
+  /** 다시 요청하기 — 재요청 전에 진행 상태를 다시 읽는다(useConfirmSubmit). */
+  onRetry: () => void;
+  onClose: () => void;
 }
 
 /**
- * Cloud completion-approval modal — v16 `#reqApprovalModal` (760px). Logical-DB
- * summary stats + a read-only resource table. 요청하기 PUTs the completion
- * acknowledgment (confirmed:true) then advances the step via refetch (onSubmit),
- * matching v16 `submitReqApproval` → `setStep(6)`. The card gates which targets reach
- * this modal, so the request itself is only acknowledgment + refetch.
+ * 프레임별 결과 문구. 확인 프레임은 건수를 다시 말하지 않는다 — 방금 그 숫자를 보고 누른
+ * 사용자에게 같은 수를 되돌려주는 대신, 다음에 무슨 일이 일어나는지만 말한다.
+ */
+const RESULTS: Record<'success' | 'error', ConfirmStepResult> = {
+  success: {
+    kind: 'success',
+    title: '승인 요청을 보냈어요',
+    description: '잠시 후 관리자 승인 대기 단계로 이동해요.',
+  },
+  error: {
+    kind: 'error',
+    title: '승인 요청을 보내지 못했어요',
+    // 실패가 지운 것이 없다는 말이 먼저다 — 다시 실행해야 하는 줄 알면 사용자는 통과한
+    // 회차를 버리고 처음부터 다시 돌린다.
+    description: '연결 테스트 결과와 논리 DB 설정은 그대로 남아 있어요.',
+  },
+};
+
+/**
+ * 한 행(= 한 테스트 단위)이 커버하는 논리 DB 수.
+ *
+ * **단위의 id 로 찾는다**(`TestUnit.unitId` = `resultUnitId`). Athena 는 4단계부터 리전이
+ * 리소스라 결과가 `athena_region_resource_id` 한 줄로 달려 오고, 데이터베이스 각자의 id 로는
+ * 어떤 결과도 키가 잡히지 않는다. 멤버별로 찾던 동안 접힌 Athena 행은 실행이 그 리전의 수를
+ * 보고했는데도 늘 `—` 였다. 다른 타입은 `unitId === resourceId` 라 달라지는 게 없다.
+ *
+ * 없는 값은 0 이 아니다 — 이번 실행이 이 단위를 말하지 않았으면 null 로 남겨 `—` 를 찍는다.
+ */
+const unitCounts = (unit: TestUnit, counts: LogicalDbCountMap) =>
+  counts.get(unit.unitId) ?? { target: null, excluded: null };
+
+/**
+ * 완료 승인 요청 확인 모달 — 1단계 승인 요청과 같은 확인 문법(ConfirmStepModal)이다:
+ * 질문형 제목, 원인→결과 한 문장, 통계 타일, 그리고 요청 → 확인 프레임 → 전환.
+ *
+ * 표는 5단계 카드의 표와 **같은 행 집합**을 그린다(`toTestUnits`). 각자 접으면 한 화면에서
+ * 카드가 6건, 모달이 8건이라고 말한다 — 실제로 그랬다. 열만 이 모달의 것이다: 카드가
+ * 묻는 것은 "연결됐나"이고, 여기서 묻는 것은 "어떤 논리 DB 구성으로 확정할 것인가"다.
  */
 export const CloudReqApprovalModal = ({
   isOpen,
-  onClose,
   resources,
-  providerLabel,
   targetSourceId,
+  phase,
+  pending,
+  errorCode,
   onSubmit,
+  onRetry,
+  onClose,
 }: CloudReqApprovalModalProps) => {
-  const toast = useToast();
-  const [submitting, setSubmitting] = useState(false);
-
-  // Real per-resource logical-DB counts (연동 / 제외) from the latest test-connection
-  // run. A resource with no summary entry renders "—" rather than a fabricated value.
-  const [logicalDbCounts, setLogicalDbCounts] = useState<LogicalDbCountMap>(new Map());
+  // 최신 실행의 리소스별 논리 DB 수(연동 / 제외). 비어 있다는 것은 **아직 못 읽었거나
+  // 이번 실행이 말하지 않았다**는 뜻이고, 둘 다 0 이 아니다 — 합계가 0 에서 시작하던
+  // 시절 이 모달은 응답을 기다리는 2초 동안 "제외한 논리 DB 0개"라고 단정했다.
+  const [counts, setCounts] = useState<LogicalDbCountMap>(() => new Map());
   useEffect(() => {
     if (!isOpen) return;
     const controller = new AbortController();
     void getLatestTestConnectionResultSummaries(targetSourceId, { signal: controller.signal })
       .then((summaries) => {
         if (controller.signal.aborted) return;
-        setLogicalDbCounts(buildLogicalDbCountMap(summaries));
+        setCounts(buildLogicalDbCountMap(summaries));
       })
       .catch(() => {
-        // No summaries available → leave the map empty so cells render "—".
+        // 조회 실패는 빈 결과가 아니다 — 맵을 비운 채 둬서 모든 수가 `—` 로 남는다.
       });
     return () => controller.abort();
   }, [isOpen, targetSourceId]);
 
-  const handleSubmit = async () => {
-    if (submitting) return;
-    setSubmitting(true);
-    try {
-      await updateTestConnectionConfirmation(targetSourceId, true);
-      onSubmit();
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : '승인 요청에 실패했습니다.');
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  useEffect(() => {
-    if (!isOpen) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-    };
-    document.addEventListener('keydown', onKey);
-    document.body.style.overflow = 'hidden';
-    return () => {
-      document.removeEventListener('keydown', onKey);
-      document.body.style.overflow = '';
-    };
-  }, [isOpen, onClose]);
-
-  const { page, pageSize, setPage, setPageSize, pageItems: pageRows } = usePagination(resources, {
+  const units = toTestUnits(resources);
+  const { page, pageSize, setPage, setPageSize, pageItems: pageRows } = usePagination(units, {
     initialPageSize: 5,
   });
 
-  if (!isOpen) return null;
-
-  const totalRes = resources.length;
-  const totals = resources.reduce(
-    (acc, r) => {
-      const counts = logicalDbCounts.get(r.resourceId);
-      if (!counts) return acc;
-      // A count the API did not report contributes nothing to the total (it is not a zero).
+  // 합계는 읽은 것에서만 나온다 — **0 이 아니라 null 에서 시작한다.** 0 에서 시작하면
+  // 아직 아무것도 안 읽은 상태가 "0개" 라는 사실이 되고, 그게 이 모달의 원래 버그였다.
+  const totals = units.reduce<{ target: number | null; excluded: number | null }>(
+    (acc, unit) => {
+      const c = unitCounts(unit, counts);
       return {
-        target: acc.target + (counts.target ?? 0),
-        excluded: acc.excluded + (counts.excluded ?? 0),
+        target: c.target == null ? acc.target : (acc.target ?? 0) + c.target,
+        excluded: c.excluded == null ? acc.excluded : (acc.excluded ?? 0) + c.excluded,
       };
     },
-    { target: 0, excluded: 0 },
+    { target: null, excluded: null },
   );
-  const totalTarget = totals.target;
-  const totalExcl = totals.excluded;
+
+  const failure = approvalFailureCopy(errorCode);
 
   return (
-    <div
-      className={modalStyles.overlay}
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
+    <ConfirmStepModal
+      open={isOpen}
+      onClose={onClose}
+      onConfirm={onSubmit}
+      isPending={pending}
+      result={
+        phase === 'success'
+          ? RESULTS.success
+          : phase === 'error'
+            ? { ...RESULTS.error, reason: failure.reason }
+            : null
+      }
+      onRetry={failure.retry ? onRetry : undefined}
+      title="연동 완료 승인을 요청할까요?"
+      description={
+        <>
+          <span className={primaryColors.text}>
+            연동 대상 {units.length}건의 연결 테스트 결과로 완료 승인을 요청해요
+          </span>
+          . 요청 후에는 관리자 검토가 시작되고, 변경하려면 요청을 취소하고 다시 제출해야 해요.
+        </>
+      }
+      confirmLabel="요청하기"
+      size="lg"
     >
-      <div
-        className={cn('mx-4 w-full max-w-[760px] overflow-hidden bg-white', modalStyles.toss.container)}
-        role="dialog"
-        aria-modal="true"
-        aria-label="승인 요청"
-      >
-        <div className={cn(modalStyles.toss.header, 'flex items-start justify-between')}>
-          <div>
-            <span className={idcStyles.reqModal.eyebrow}>
-              <span className={idcStyles.reqModal.eyebrowDot} />
-              Step 5 · {providerLabel} 연결 테스트
-            </span>
-            <h2 className={idcStyles.reqModal.title}>승인 요청</h2>
-            <p className={idcStyles.reqModal.sub}>
-              아래 리소스에 대해 연동 완료 승인을 요청합니다. 각 리소스의 논리 DB 구성을 확인한 뒤 요청해
-              주세요. 요청 후 관리자 검토가 시작되며, 변경이 필요하면 요청을 취소하고 다시 제출해야 해요.
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="닫기"
-            className={cn('rounded-lg p-2 transition-colors', interactiveColors.closeButton)}
-          >
-            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
+      <div className="grid grid-cols-3 gap-3">
+        <StatTile label="연동 대상" value={units.length} unit="건" scale="dialog" />
+        <StatTile label="연동 논리 DB" value={totals.target} unit="개" scale="dialog" />
+        <StatTile label="제외한 논리 DB" value={totals.excluded} unit="개" scale="dialog" />
+      </div>
 
-        <div className={modalStyles.toss.body}>
-          <div className="mb-[18px] grid grid-cols-3 gap-3">
-            <StatTile label="전체 리소스" value={totalRes} unit="건" variant="modal" />
-            <StatTile label="연동 논리 DB" value={totalTarget} unit="개" swatch="target" variant="modal" />
-            <StatTile label="제외한 논리 DB" value={totalExcl} unit="개" swatch="exclude" variant="modal" />
-          </div>
-          <div className={idcStyles.table.frame}>
+      <div className="mt-4">
+        {/* 카드 안의 표는 카드가 이미 테두리를 주므로 CONNECTED_FRAME 을 쓰지만, 여기서는
+            표가 스스로 판이다 — 단, 아래를 페이지 바가 닫으므로 `frame` 이 아니라
+            `framePaged` 다. `frame` 은 제 12px 라운드로 아래를 닫고 그림자를 바 위에
+            드리워, 바가 이어진 게 아니라 끝난 카드 밑에 매달린 것처럼 보였다.
+            overflow-hidden 과 안쪽의 overflow-x-auto 는 서로 다른 요소에 둔다: 한 요소에
+            두 값을 쓰면 어느 쪽이 이길지 Tailwind 의 emit 순서가 정한다. */}
+        <div className={idcStyles.table.framePaged}>
+          <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className={idcStyles.reqModal.thHeader}>
-                <tr>
-                  <th className={cn(idcStyles.table.headerCell, 'w-[120px]')}>Database Type</th>
-                  <th className={idcStyles.table.headerCell}>Resource Name</th>
-                  <th className={cn(idcStyles.table.headerCell, 'w-[140px]')}>Region</th>
-                  <th className={cn(idcStyles.table.headerCell, 'w-[104px] text-right')}>논리 DB 개수</th>
-                  <th className={cn(idcStyles.table.headerCell, 'w-[120px] text-right')}>제외한 논리 DB</th>
+              <thead className={idcStyles.table.approvalHeaderDialog}>
+                {/* 5단계 카드와 같은 순서 — 정체성(이름) → 속성(종류·리전) → 이 화면이 묻는 것. */}
+                <tr className="whitespace-nowrap">
+                  <th className={cn(idcStyles.table.approvalHeaderCell, idcStyles.table.nameCell)}>
+                    Resource Name
+                  </th>
+                  <th className={idcStyles.table.approvalHeaderCell}>Database Type</th>
+                  <th className={idcStyles.table.approvalHeaderCell}>Region</th>
+                  {/* 6·7단계 표(WaitingApprovalTable · IdcResourceTable)와 같은 어휘다.
+                      전에는 앞 열이 `논리 DB 개수` 라는 이름으로 연동 + 제외의 **합**을
+                      찍었는데, 위의 타일은 같은 이름으로 연동만 세고 있어서 한 모달이 두
+                      수를 말했다. deny 모델에서 제외 목록은 정책이지 스캔의 부분집합이
+                      아니라, 그 합은 애초에 무엇의 개수도 아니다. */}
+                  <th className={cn(idcStyles.table.approvalHeaderCell, 'text-right')}>연동 논리 DB</th>
+                  <th className={cn(idcStyles.table.approvalHeaderCell, 'text-right')}>연동 제외</th>
                 </tr>
               </thead>
               <tbody className={idcStyles.table.body}>
-                {pageRows.map((r) => {
-                  const counts = logicalDbCounts.get(r.resourceId);
+                {pageRows.map((unit) => {
+                  const [first] = unit.members;
+                  const c = unitCounts(unit, counts);
+                  // 태그가 붙는 행만 두 줄이다 — 안 붙는 행은 이미 가운데에 있다.
+                  const stackedIdentity =
+                    isRdsCluster(unit.resourceType ?? '') || isEc2Instance(unit.resourceType);
                   return (
-                    <tr key={r.resourceId} className={idcStyles.table.row}>
-                      <td className={idcStyles.table.cell}>
-                        {r.databaseType ? (
-                          <span className={cn('text-[12px]', textColors.secondary)}>
-                            {getDatabaseShortLabel(r.databaseType)}
+                    <tr key={unit.unitId} className={cn(ROW_BASE, ROW_TARGET)}>
+                      <td
+                        className={cn(
+                          idcStyles.table.approvalCell,
+                          idcStyles.table.nameCell,
+                          'font-mono text-[14px]',
+                          textColors.primary,
+                          NAME_LIFT,
+                        )}
+                      >
+                        {unit.folded ? (
+                          // 접힌 행은 리전을 가리키므로 리소스 이름이 없다. 엔진 이름을 쓰되
+                          // 몇 개를 덮고 있는지 같이 말한다 — 카드에서는 펼쳐 볼 수 있지만
+                          // 여기서는 없으므로, 말해 주지 않으면 데이터베이스가 조용히 사라진다.
+                          <span className="flex min-w-0 flex-col items-start gap-1">
+                            <span className="whitespace-nowrap">
+                              {getDatabaseShortLabel(unit.databaseType ?? '')}
+                            </span>
+                            {/* 한 개짜리 리전에는 붙이지 않는다 — 접힌 것이 없으므로 알릴
+                                것도 없고, 없는 알림 때문에 행만 두 줄이 된다. */}
+                            {unit.members.length > 1 && (
+                              <span
+                                className={cn(
+                                  'whitespace-nowrap font-sans text-[12px] font-medium',
+                                  textColors.tertiary,
+                                )}
+                              >
+                                데이터베이스 {unit.members.length}개
+                              </span>
+                            )}
                           </span>
                         ) : (
-                          '-'
+                          // 한 줄 고정 — 가장 긴 이름은 네 줄까지 감겨 행 높이를 들쭉날쭉하게
+                          // 만들었다. 전체 값은 툴팁에, 1·2·3단계와 같은 처리다.
+                          <span
+                            className={cn(
+                              'flex min-w-0 flex-col items-start gap-1',
+                              stackedIdentity && idcStyles.table.stackedIdentityLift,
+                            )}
+                          >
+                            {isRdsCluster(unit.resourceType ?? '') && <RdsClusterTag />}
+                            {isEc2Instance(unit.resourceType) && <Ec2InstanceTag />}
+                            <Tooltip
+                              content={
+                                <IdentifierTip label="Resource Name" value={first.resourceName ?? ''} />
+                              }
+                              variant="value"
+                              size="md"
+                              triggerClassName="min-w-0 max-w-[200px] block"
+                              truncatedOnly
+                            >
+                              <span className="block truncate">
+                                {first.resourceName || PLACEHOLDER}
+                              </span>
+                            </Tooltip>
+                          </span>
                         )}
                       </td>
-                      <td className={cn(idcStyles.table.cell, 'font-medium', textColors.primary)}>
-                        {r.resourceName ?? '-'}
-                      </td>
-                      <td className={cn(idcStyles.table.cell, 'font-mono text-[12px]', textColors.secondary)}>
-                        {r.region ?? '-'}
-                      </td>
-                      <td className={cn(idcStyles.table.cell, 'text-right font-semibold', textColors.secondary)}>
-                        {/* Behaviour preserved — this column has always shown target + excluded.
-                            Whether that sum means anything under the deny model (the excluded
-                            list is a policy, not a subset of the scan) is a separate question
-                            from this PR; the only change is that an unreported count no longer
-                            folds in as 0. */}
-                        {counts == null || (counts.target == null && counts.excluded == null)
-                          ? '—'
-                          : (counts.target ?? 0) + (counts.excluded ?? 0)}
-                      </td>
-                      <td className={cn(idcStyles.table.cell, 'text-right')}>
-                        {counts?.excluded == null ? (
-                          <span className={cn('font-medium', textColors.tertiary)}>—</span>
-                        ) : counts.excluded > 0 ? (
-                          <span className={idcStyles.reqModal.exclNum}>{counts.excluded}</span>
-                        ) : (
-                          <span className={cn('font-medium', textColors.tertiary)}>0</span>
+                      <td
+                        className={cn(
+                          idcStyles.table.approvalCell,
+                          'text-[14px]',
+                          textColors.secondary,
+                          CELL_LIFT,
                         )}
+                      >
+                        {unit.databaseType ? getDatabaseShortLabel(unit.databaseType) : PLACEHOLDER}
+                      </td>
+                      <td
+                        className={cn(
+                          idcStyles.table.approvalCell,
+                          MONO_CELL,
+                          textColors.secondary,
+                          CELL_LIFT,
+                        )}
+                      >
+                        {unit.region || PLACEHOLDER}
+                      </td>
+                      {/* 6·7단계 표가 이 두 열에 쓰는 셀 그대로다. 보고되지 않은 수는 0 이
+                          아니라 — 로 나가고(그 리소스에 논리 DB 가 없다는 뜻이 아니라 이번
+                          실행이 그 수를 말하지 않았다는 뜻이다), 두 열 다 중립색이다 —
+                          어느 쪽이 연동이고 어느 쪽이 제외인지는 머리글이 이미 말했다. */}
+                      <td className={cn(idcStyles.table.approvalCell, 'text-right')}>
+                        <LogicalDbCountCell count={c.target} label="연동 논리 DB" />
+                      </td>
+                      <td className={cn(idcStyles.table.approvalCell, 'text-right')}>
+                        <LogicalDbCountCell count={c.excluded} label="연동 제외 논리 DB" />
                       </td>
                     </tr>
                   );
@@ -206,32 +298,21 @@ export const CloudReqApprovalModal = ({
               </tbody>
             </table>
           </div>
-          {totalRes > 0 && (
-            <Pagination
-              page={page}
-              pageSize={pageSize}
-              totalCount={totalRes}
-              onPageChange={setPage}
-              onPageSizeChange={setPageSize}
-            />
-          )}
         </div>
-
-        <div className={modalStyles.toss.footer}>
-          <button type="button" onClick={onClose} disabled={submitting} className={idcStyles.modalBtn.gray}>
-            취소
-          </button>
-          <button
-            type="button"
-            onClick={handleSubmit}
-            disabled={submitting}
-            className={cn(idcStyles.modalBtn.primary, 'flex items-center gap-2')}
-          >
-            {submitting && <LoadingSpinner />}
-            요청하기
-          </button>
-        </div>
+        {units.length > 0 && (
+          <Pagination
+            page={page}
+            pageSize={pageSize}
+            totalCount={units.length}
+            onPageChange={setPage}
+            onPageSizeChange={setPageSize}
+            // 기본 옵션은 10 부터라 5 는 목록에 없었다 — select 가 실제 페이지 크기를
+            // 고를 수 없으니 첫 옵션을 그렸고, 바는 "표시 10 건씩 · 1–5 / 전체 6건"
+            // 이라고 스스로를 반박했다. 모달 크기의 목록은 ScanHistoryModal 과 같은 [5, 10].
+            pageSizeOptions={[5, 10]}
+          />
+        )}
       </div>
-    </div>
+    </ConfirmStepModal>
   );
 };

@@ -824,7 +824,7 @@ export const modalStyles = {
     container: 'rounded-[24px]',
     header: 'px-10 pt-9 pb-1.5 flex items-start justify-between',
     title: 'text-[26px] font-extrabold tracking-[-0.03em] leading-[1.25] text-[#191F28]',
-    /* mt-4 = the 16px title→subtitle gap every step-flow modal shares (reqModal.sub, ConfirmRewind).
+    /* mt-4 = the 16px title→subtitle gap every step-flow modal shares (ConfirmRewind 외).
        #6B7280, not #8B95A1: the description is normal-size text (14px) so AA needs 4.5:1 —
        #8B95A1 measured 3.04:1 on white and read as washed out; #6B7280 is 4.83:1 on the
        same quiet tier. */
@@ -1308,25 +1308,21 @@ export const idcStyles = {
      *  whose job is to wait; the header already says which column is which, so the underline
      *  carries the affordance and color goes back to meaning state. #4E5968 is 7.5:1 on white. */
     linkNeutral: 'inline-flex cursor-pointer items-center gap-1 border-b border-current pb-0.5 text-[13px] font-semibold text-[#4E5968] transition-colors hover:text-[#191F28]',
+    /**
+     * `linkNeutral` at 14px — `LogicalDbCountCell` 전용.
+     *
+     * 그 셀은 한 열 안에서 두 갈래(평문 / 드릴다운 링크)를 그린다. 평문만 14px 로 올리면 같은
+     * 열에서 접힌 행은 14, 그 옆 링크는 13 이 되어 열이 두 눈금으로 갈린다. 13 은 v16 에서
+     * 넘어온 홀수라 디자인 가드가 지금은 받지 않는 값이기도 하다.
+     *
+     * `linkNeutral` 자체는 그대로 둔다 — 5·6단계 카드의 `실행 이력`·`다시 실행` 도 그 토큰을
+     * 들고 있고, 그 링크들의 크기는 이 열과 상관없다.
+     */
+    linkNeutralMd: 'inline-flex cursor-pointer items-center gap-1 border-b border-current pb-0.5 text-[14px] font-semibold text-[#4E5968] transition-colors hover:text-[#191F28]',
   },
   /** Toss form input — `.field input/select` (52px / borderless #F7F8FA fill / radius 12 / 15px). */
   input: 'w-full h-[52px] rounded-xl border-0 bg-[#F7F8FA] px-3.5 text-[15px] font-medium text-[#191F28] placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#0064FF]',
   /** `.idc-cred-select` unselected/placeholder state — non-mono, muted. */
-  /** Completion-approval modal (`.req-modal`) header + warn — v16 2647–2698 / 8202. */
-  reqModal: {
-    eyebrow: 'inline-flex items-center gap-1.5 font-mono text-[11px] font-semibold uppercase tracking-[0.09em] text-[#0064FF]',
-    eyebrowDot: 'h-1.5 w-1.5 rounded-full bg-[#0064FF]',
-    /* 26px aligns with modalStyles.toss.title — every step-flow modal shares one title size. */
-    title: 'mt-2 text-[26px] font-extrabold leading-[1.25] tracking-[-0.03em] text-[#191F28]',
-    sub: 'mt-4 max-w-[60ch] text-[13px] font-medium leading-[1.6] text-[#6B7280]',
-    warn: 'mt-3 rounded-[10px] border border-[#F8D2D0] bg-[#FEF1F1] px-3.5 py-[11px] text-[12.5px] leading-[1.5] text-[#B42318]',
-    /** `.req-modal .db-list-table th` override — 11px uppercase #9CA3AF (v16 2682). */
-    thHeader: 'bg-[#FAFBFC] text-left text-[12px] font-bold uppercase tracking-[0.05em] text-[#6B7280]',
-    /** `.req-modal .approval-stat .lbl` — 11.5px (v16 req override). */
-    statLabel: 'text-[11.5px]',
-    /** `.rm-num` excluded logical-DB count — amber (v16 raRender exclCell #B45309). */
-    exclNum: 'font-semibold text-[#B45309]',
-  },
   /** `.conn-progress` step-5 progress strip — v16 2552–2645 (5 data-states). */
   connProgress: {
     base: 'rounded-xl border px-4 pt-[13px] pb-3.5 mb-3.5 transition-colors',
@@ -1386,12 +1382,16 @@ export const idcStyles = {
      * 성공 정착 카드의 다음 행동 안내. 제목의 아이콘 슬롯(18px) + `title` 의 gap-2 만큼
      * 들여써서 제목·메타와 한 열에 선다.
      *
-     * 색은 `counts` 의 #6B7684 가 아니라 한 단계 진한 #4E5968 이다. success 판(#EFF9F3)
-     * 에서 #6B7684 는 **4.33:1** 로 12px AA(4.5:1) 에 못 미치고(pending 판의 4.37:1 과 같은
-     * 사정 — `countsWarn` 이 존재하는 이유다), #4E5968 은 **6.67:1** 이다. 겸사겸사 계층도
-     * 맞는다: 무엇을 하면 되는지는 언제 끝났는지보다 위다.
+     * 14px — 바로 위 시각 메타(`counts`)와 같은 12px 였을 때 두 줄이 한 계층으로 읽혔다.
+     * 색만 한 칸 진하게 두는 것(#6B7684 → #4E5968)으로는 갈라지지 않는다: 크기가 같으면
+     * 눈은 두 줄을 같은 종족으로 묶는다. 이제 16(제목) / 14(안내) / 12(메타) 로 한 칸씩
+     * 내려가고, 무엇을 하면 되는지가 언제 끝났는지보다 위에 선다.
+     *
+     * 색은 그대로 #4E5968 이다. success 판(#EFF9F3)에서 #6B7684 는 **4.33:1** 로 AA(4.5:1)
+     * 에 못 미치고(pending 판의 4.37:1 과 같은 사정 — `countsWarn` 이 존재하는 이유다),
+     * #4E5968 은 **6.67:1** 이다. 14px 는 아직 large text 가 아니라 기준은 4.5:1 그대로다.
      */
-    guidance: 'pl-[26px] text-[12px] font-medium leading-[1.5] text-[#4E5968] break-keep',
+    guidance: 'pl-[26px] text-[14px] font-medium leading-[1.5] text-[#4E5968] break-keep',
     /** The bucket list inside `counts` — dots replace the 가운뎃점 separators, so the
      *  segments need their own gap (12px between, 6px inside a segment). */
     countList: 'flex items-center gap-3',
@@ -1468,6 +1468,15 @@ export const idcStyles = {
     /** Table wrapper — `.db-list-table` border + radius + shadow (v16 1850–1869). */
     frame:
       'overflow-hidden rounded-xl border border-[#EBEEF2] bg-white shadow-[0_1px_2px_rgba(17,24,39,0.04),0_6px_16px_-8px_rgba(17,24,39,0.08),inset_0_1px_0_rgba(255,255,255,0.6)]',
+    /**
+     * `frame` for a table that a `Pagination` bar closes from underneath. The bar draws its
+     * own sides and the 10px bottom radius, so the two read as one box only if the table
+     * stops at a straight bottom edge and carries the bar's radius and border colour
+     * (#E5E7EB, `Pagination`'s own). `frame` instead closed with its own 12px round and
+     * cast a shadow onto the bar, which left the bar hanging under a finished card rather
+     * than continuing it. The bar's `border-t-0` still relies on the bottom border here.
+     */
+    framePaged: 'overflow-hidden rounded-t-[10px] border border-[#E5E7EB] bg-white',
     /** Excluded-row tint — v16 `.approval-table tr.row-excluded`. */
     rowExcluded: 'bg-[#F9FAFB]',
     /**
@@ -1495,6 +1504,14 @@ export const idcStyles = {
      */
     approvalHeaderChrome:
       'bg-[var(--pl-gray-100)] text-left text-[12px] font-semibold text-[#4E5968]',
+    /**
+     * `approvalHeader` inside a confirm dialog — 14px, and the body cells go with it.
+     *
+     * 페이지의 표는 위아래로 툴바·필터·다른 카드에 둘러싸여 있어 12px 머리글이 제 자리를
+     * 지키지만, 확인 모달 안에서는 표가 본문의 전부다. 26px 제목과 24px 타일 아래에서
+     * 12px 은 각주처럼 읽혀, 승인의 근거인 표가 곁다리가 된다.
+     */
+    approvalHeaderDialog: 'bg-[#F7F8FA] text-left text-[14px] font-semibold text-[#4E5968]',
     /** Approval-table header cell padding — v16 12px V / 18px H. */
     approvalHeaderCell: 'px-[18px] py-3',
     /** Approval-table body cell padding — v16 `.approval-table tbody td` 16px V / 18px H. */

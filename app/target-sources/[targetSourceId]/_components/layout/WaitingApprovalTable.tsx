@@ -716,14 +716,24 @@ export const WaitingApprovalTable = memo(
                   <LogicalDbCountCell
                     count={resource.logicalDbCount}
                     label={`${resource.resourceName || resource.resourceId} 연동 논리 DB 목록 보기`}
-                    onOpen={folded ? undefined : () => onLogicalDbOpen?.(resource)}
+                    onOpen={
+                      // 화살표 함수는 언제나 truthy 다 — `onLogicalDbOpen` 을 안 준 호출자(5개 중
+                      // 4개)는 눌러도 아무 일 없는 버튼을 얻는다. IDC 쪽 쌍둥이는 0dc43bd7 에서
+                      // 고쳤고, 이건 그 나머지 절반이다.
+                      folded || !onLogicalDbOpen ? undefined : () => onLogicalDbOpen(resource)
+                    }
                   />
                 </td>
                 <td className={idcStyles.table.approvalCell}>
                   <LogicalDbCountCell
                     count={resource.excludedLogicalDbCount}
                     label={`${resource.resourceName || resource.resourceId} 연동 제외 대상 보기`}
-                    onOpen={folded ? undefined : () => onLogicalDbOpen?.(resource)}
+                    onOpen={
+                      // 화살표 함수는 언제나 truthy 다 — `onLogicalDbOpen` 을 안 준 호출자(5개 중
+                      // 4개)는 눌러도 아무 일 없는 버튼을 얻는다. IDC 쪽 쌍둥이는 0dc43bd7 에서
+                      // 고쳤고, 이건 그 나머지 절반이다.
+                      folded || !onLogicalDbOpen ? undefined : () => onLogicalDbOpen(resource)
+                    }
                   />
                 </td>
               </>

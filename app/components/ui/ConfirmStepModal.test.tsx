@@ -133,13 +133,34 @@ describe('ConfirmStepModal', () => {
   // between the description and the footer, and widen to 560px.
   it('renders body children and the wide width when provided', () => {
     render(
-      <ConfirmStepModal {...baseProps} open wide>
+      <ConfirmStepModal {...baseProps} open size="md">
         <div data-testid="confirm-body">stats</div>
       </ConfirmStepModal>,
     );
     expect(screen.getByTestId('confirm-body')).toBeTruthy();
     const dialog = screen.getByRole('dialog');
     expect(dialog.className).toContain('w-[560px]');
+  });
+
+  // 760px hosts a table. The card also stops at the viewport and lets the body scroll —
+  // without it a table long enough to outgrow the window pushed the footer pair off
+  // screen, and the overlay centres rather than scrolls, so 요청하기 was unreachable.
+  it('caps the card at the viewport and scrolls the body, not the footer', () => {
+    render(
+      <ConfirmStepModal {...baseProps} open size="lg">
+        <div data-testid="confirm-body">table</div>
+      </ConfirmStepModal>,
+    );
+    const dialog = screen.getByRole('dialog');
+    expect(dialog.className).toContain('w-[760px]');
+    expect(dialog.className).toContain('max-h-[86vh]');
+    const body = screen.getByTestId('confirm-body').parentElement;
+    expect(body?.className).toContain('overflow-y-auto');
+    // Without min-h-0 a flex item cannot shrink below its content, so the body would
+    // never scroll and the overflow would be pushed onto the footer instead.
+    expect(body?.className).toContain('min-h-0');
+    const confirm = screen.getByRole('button', { name: '확인' });
+    expect(confirm.parentElement?.className).toContain('shrink-0');
   });
 
   // The result frame takes over the body AND the footer — nothing from the question

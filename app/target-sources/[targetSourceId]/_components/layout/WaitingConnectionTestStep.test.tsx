@@ -17,7 +17,7 @@ vi.mock(
 
 const connectionTestCardProps = vi.fn();
 vi.mock('@/app/target-sources/[targetSourceId]/_components/layout/ConnectionTestCard', () => ({
-  ConnectionTestCard: (props: { confirmed: unknown[]; providerLabel: string }) => {
+  ConnectionTestCard: (props: { confirmed: unknown[]; targetSourceId: number }) => {
     connectionTestCardProps(props);
     return <div data-testid="connection-test-card" data-count={props.confirmed.length} />;
   },
@@ -80,15 +80,17 @@ describe('WaitingConnectionTestStep', () => {
     render(
       <WaitingConnectionTestStep
         project={azureWaitingConnectionTestFixture}
-        providerLabel="Azure Infrastructure"
         onProjectUpdate={() => {}}
       />,
     );
 
     const card = screen.getByTestId('connection-test-card');
     expect(card.getAttribute('data-count')).toBe('1');
+    // 카드가 그리는 행이 컨텍스트에서 온 그 행인지 — 개수만으로는 다른 목록도 통과한다.
+    // providerLabel 은 승인 모달의 eyebrow 하나만 쓰던 값이라, 모달이 공용 확인 문법으로
+    // 옮겨가며 함께 사라졌다.
     expect(connectionTestCardProps).toHaveBeenCalledWith(
-      expect.objectContaining({ providerLabel: 'Azure Infrastructure' }),
+      expect.objectContaining({ confirmed: [{ resourceId: 'res-1' }] }),
     );
   });
 

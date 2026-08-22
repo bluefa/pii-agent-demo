@@ -206,6 +206,19 @@ describe('WaitingApprovalTable', () => {
       expect(screen.getByText('sea-live-space-prod')).toBeTruthy();
     });
 
+    // 5개 호출자 중 4개는 `onLogicalDbOpen` 을 주지 않는다(admin ops 확정 표, 설치 상태 상세,
+    // 반영중 카드, 승인 대기 카드). 화살표 함수는 언제나 truthy 라, 핸들러 없이도 수가 버튼으로
+    // 그려져 그 네 화면에서는 눌러도 아무 일이 없었다 — `LogicalDbCountCell` 이 "아무 일도 안
+    // 하는 컨트롤 대신 평문" 이라고 못 박아 둔 바로 그 상태다.
+    it('renders the counts as text where no drill-in handler was given', () => {
+      render(<WaitingApprovalTable variant="confirmed" resources={[athena('db_a', 'ap-northeast-1', true, [8, 2])]} />);
+
+      expect(screen.queryByRole('button', { name: /연동 논리 DB 목록 보기/ })).toBeNull();
+      expect(screen.queryByRole('button', { name: /연동 제외 대상 보기/ })).toBeNull();
+      const cells = within(screen.getAllByRole('row')[1]).getAllByRole('cell');
+      expect(cells.slice(-2).map((td) => td.textContent)).toEqual(['8개', '2개']);
+    });
+
     // Steps 6·7 never build a TREE. The spec makes the region the resource from step 4 on, so
     // those steps FOLD instead — one row per region, its databases behind a disclosure — and the
     // caller builds that fold off `athena_region_resource_id`, passing `foldedMembers` (below).
@@ -214,6 +227,9 @@ describe('WaitingApprovalTable', () => {
       render(
         <WaitingApprovalTable
           variant="confirmed"
+          // 이 variant 의 실제 호출자(ConfirmedIntegrationTable)가 주는 핸들러다. 안 주면 수는
+          // 평문으로 그려져 아래 버튼 조회가 못 찾는다 — 그게 이 셀의 계약이다.
+          onLogicalDbOpen={() => {}}
           resources={[
             athena('db_a', 'ap-northeast-1', true, [8, 2]),
             athena('db_b', 'ap-northeast-1', true, [12, 1]),
@@ -271,6 +287,7 @@ describe('WaitingApprovalTable', () => {
       render(
         <WaitingApprovalTable
           variant="confirmed"
+          onLogicalDbOpen={() => {}}
           resources={[
             {
               ...athena('db_a', 'ap-northeast-1', true, [3, 0]),
