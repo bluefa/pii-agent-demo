@@ -10,6 +10,14 @@ const COLUMNS: ConsoleTableColumn[] = [
   { key: 'region', label: 'Region', width: 60 },
 ];
 
+/** `COLUMNS` with the middle one absorbing the slack — same sum, so the floor is the 360
+ *  the other spec uses as its width, which keeps the two modes directly comparable. */
+const FLEX_COLUMNS: ConsoleTableColumn[] = [
+  COLUMNS[0],
+  { ...COLUMNS[1], flex: true },
+  COLUMNS[2],
+];
+
 const rows = (
   <tbody>
     <tr>
@@ -70,12 +78,64 @@ describe('ConsoleTable — columns', () => {
       '200px',
       '60px',
     ]);
-    // The table's width IS the column sum, never w-full: under w-full the fixed layout
-    // redistributes slack and every column silently renders wider than it declares.
+    // With every column sized the table's width IS the column sum, never w-full: under
+    // w-full the fixed layout redistributes the slack across all of them and every column
+    // silently renders wider than it declares. (A flex column changes this — see below.)
     const table = required(container.querySelector('table'), 'the table');
     expect((table as HTMLElement).style.width).toBe('360px');
     expect(table.className).toContain('table-fixed');
     expect(table.className).not.toContain('w-full');
+  });
+
+  it('gives the slack to a flex column, and its width becomes the table floor', () => {
+    const { container } = render(
+      <ConsoleTable columns={FLEX_COLUMNS}>{rows}</ConsoleTable>,
+    );
+    const ths = container.querySelectorAll('thead th');
+    // Only the flex column goes auto. The sized ones must keep their declared px — that is
+    // the whole point: a wider screen shows more Resource ID, not a wider everything.
+    expect([...ths].map((th) => (th as HTMLElement).style.width)).toEqual([
+      '100px',
+      'auto',
+      '60px',
+    ]);
+    const table = required(container.querySelector('table'), 'the table');
+    expect(table.className).toContain('w-full');
+    expect((table as HTMLElement).style.width).toBe('');
+    expect((table as HTMLElement).style.minWidth).toBe('360px');
+  });
+
+  it('drops back to the sum once the user has dragged the flex column', () => {
+    // Their width is the truth from then on, so the table stops taking the container —
+    // leaving it at w-full with no auto column left is exactly the redistribution bug the
+    // first test guards.
+    const { container } = render(
+      <ConsoleTable columns={FLEX_COLUMNS} resize={resize({ id: 500 })}>
+        {rows}
+      </ConsoleTable>,
+    );
+    const ths = container.querySelectorAll('thead th');
+    expect((ths[1] as HTMLElement).style.width).toBe('500px');
+    const table = required(container.querySelector('table'), 'the table');
+    expect(table.className).not.toContain('w-full');
+    expect((table as HTMLElement).style.width).toBe('660px');
+    expect((table as HTMLElement).style.minWidth).toBe('');
+  });
+
+  it('keeps a grab handle on the flex column', () => {
+    // Its right edge is a seam like any other, and the tracer lights there — a boundary
+    // that lights up but cannot be grabbed reads as a gap in the grammar.
+    const { container } = render(
+      <ConsoleTable columns={FLEX_COLUMNS} resize={resize()}>
+        {rows}
+      </ConsoleTable>,
+    );
+    const ths = container.querySelectorAll('thead th');
+    expect([...ths].map((th) => !!th.querySelector('[role="separator"]'))).toEqual([
+      true,
+      true,
+      true,
+    ]);
   });
 
   it('lets a dragged width override the default, in the cell and in the sum', () => {
