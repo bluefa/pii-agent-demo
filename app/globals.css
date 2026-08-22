@@ -304,8 +304,10 @@
    대칭이라 마지막 프레임이 첫 프레임과 화소 단위로 같고, 그래서 infinite 루프가
    0° 로 되감기는 순간이 보이지 않는다 — 360° 로 돌리면 중간에 위아래가 뒤집힌
    모래시계가 아니라 한 바퀴 도는 스피너가 된다.
-   2800ms = tcActivityMarch(1400ms)의 정확히 두 배 — 같은 카드의 두 모션이 어긋난
-   박자로 뛰지 않게 한다.
+   1400ms = tcActivityMarch 와 같은 값 — 같은 카드의 두 모션이 어긋난 박자로 뛰지 않게
+   한다(둘이 한 화면에 같이 서지는 않지만, queued→running 은 연달아 지나가는 두 프레임이라
+   박자가 바뀌면 국면 전환이 아니라 화면이 튄 것으로 읽힌다).
+   78% 정지는 duration 에 비례하므로 여기선 약 1.1초 정지 + 0.3초 뒤집기다.
    Consumed via lib/theme.ts tcHourglassFlip, motion-safe at the call site. */
 @keyframes tc-hourglass-flip {
   0%, 78% { transform: rotate(0deg); }

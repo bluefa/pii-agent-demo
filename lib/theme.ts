@@ -131,7 +131,7 @@ export const tcActivityMarch = 'motion-safe:animate-[tc-activity-march_1400ms_li
  * 모션이 꺼지면 정지한 모래시계가 그대로 남는다(글리프 자체가 이미 국면을 말한다).
  */
 export const tcHourglassFlip =
-  'motion-safe:animate-[tc-hourglass-flip_2800ms_ease-in-out_infinite]';
+  'motion-safe:animate-[tc-hourglass-flip_1400ms_ease-in-out_infinite]';
 
 /**
  * 상태 색상 (CLAUDE.md 규칙 준수)

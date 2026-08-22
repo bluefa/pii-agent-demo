@@ -173,6 +173,19 @@ describe('tcElapsedLabel', () => {
   });
 
   /**
+   * 한 시간을 넘으면 시간이 큰 단위가 된다 — `90분 12초` 는 읽는 사람이 환산해야 하고,
+   * 그 자리의 12초는 아무 판단도 바꾸지 못한다. 항상 두 단위까지만.
+   */
+  it('folds past an hour into 시간/분 and drops the seconds', () => {
+    const start = '2026-08-06T05:00:00Z';
+    expect(tcElapsedLabel(start, '2026-08-06T06:30:12Z')).toBe('1시간 30분');
+    // 정각은 분을 떨어뜨린다 — `분` 이 0 초를 떨어뜨리는 것과 같은 규칙이다.
+    expect(tcElapsedLabel(start, '2026-08-06T07:00:00Z')).toBe('2시간');
+    // 경계 바로 아래는 아직 분이다 — 59분 59초가 `0시간` 으로 접히면 안 된다.
+    expect(tcElapsedLabel(start, '2026-08-06T05:59:59Z')).toBe('59분 59초');
+  });
+
+  /**
    * 시안 B — 진행 중 카드는 계약의 completed_at 대신 브라우저의 지금(ms)을 끝으로 준다.
    * 서버 시각이 브라우저보다 앞서 있으면 음수가 나오는데, 그때는 경과를 아예 말하지
    * 않는다(같은 역전 규칙).
