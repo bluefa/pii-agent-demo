@@ -412,10 +412,16 @@ const SURFACES: SurfacePair[] = [
   // a future re-tint of either token has to keep clearing it there too.
   { what: 'header path kind tag on the page wash', top: bgOf(classOf(headerBlock, 'crumbKind')), under: canvas },
   { what: 'header service-code tag on the page wash', top: bgOf(classOf(headerBlock, 'codeChip')), under: canvas },
-  // The road, its dots and its two label tiers went with 오너 13차 지시 — 설치 진행 is
-  // one sentence now, so position is carried by text and there is no non-text mark
-  // left in the block. What remains is the step's name, on the path's own tag fill.
+  // 설치 진행's step tag, on the house's pale blue rather than the path's slate
+  // (오너 14차 지시). It is the one plate on this header that is NOT the shared slate,
+  // which is the whole point — so it has to keep clearing the wash on its own.
   { what: 'stepper step tag on the page wash', top: bgOf(classOf(stepperBlock, 'stepTag')), under: canvas },
+  // The road is back behind 「전체 단계」 (오너 14차 지시), and with it the two pairs that
+  // only it needs. The road ahead is decoration — the labels and dots already name
+  // every remaining step — so it answers to the JND and nothing more. The road WALKED
+  // carries progress, so it is measured as a non-text mark in TEXT below instead.
+  { what: 'stepper road-ahead on the page wash', top: bgOf(classOf(stepperBlock, 'line')), under: canvas },
+  { what: 'stepper road-walked against road-ahead', top: bgOf(classOf(stepperBlock, 'lineDone')), under: bgOf(classOf(stepperBlock, 'line')) },
   // The tinted service tiles are the rail's most numerous plates and its palest ones —
   // #F7F8FA was ΔE00 0.99 from the rail before the retint, i.e. invisible.
   ...serviceTilePalette.map((fill, i) => ({
@@ -513,13 +519,24 @@ const TEXT: TextPair[] = [
   // `summaryGlyph` is not pinned: it is a brand logotype (ProviderGlyph tone="brand"),
   // which 1.4.11 exempts, and its neutral only applies to IDC·SDU, which have no brand.
   //
-  // 설치 진행 is all text now (오너 13차 지시) — the dots and the road that used to carry
-  // position under 1.4.11 are gone, and the sentence carries it instead. The counts are
-  // the only tier that steps up a size, so they are the pair most likely to be
-  // "quietened" later by someone who reads them as decoration.
+  // 설치 진행 states position twice now (오너 14차 지시): as text on the head row, always,
+  // and as the road behind 「전체 단계」. The counts are the only tier on the row that
+  // steps up a size, so they are the pair most likely to be "quietened" later by
+  // someone who reads them as decoration. `tagCount` is not pinned — it takes the
+  // tag's own ink, which the pair below measures.
   { what: 'stepper position sentence on the page wash', fg: textOf(classOf(stepperBlock, 'summary')), on: canvas },
   { what: 'stepper step count on the page wash', fg: textOf(classOf(stepperBlock, 'count')), on: canvas },
   { what: 'stepper step tag on its own fill', fg: textOf(classOf(stepperBlock, 'stepTag')), on: bgOf(classOf(stepperBlock, 'stepTag')) },
+  // Stepper labels are text; the dots are the state markers, i.e. non-text per 1.4.11.
+  { what: 'stepper rest label on the page wash', fg: textOf(classOf(stepperBlock, 'labelRest')), on: canvas },
+  { what: 'stepper current label on the page wash', fg: textOf(classOf(stepperBlock, 'labelCurrent')), on: canvas },
+  { what: 'stepper pending dot on the page wash', fg: bgOf(classOf(stepperBlock, 'dotPending')), on: canvas, min: 3.0 },
+  { what: 'stepper done dot on the page wash', fg: bgOf(classOf(stepperBlock, 'dotDone')), on: canvas, min: 3.0 },
+  { what: 'stepper current dot on the page wash', fg: bgOf(classOf(stepperBlock, 'dotCurrent')), on: canvas, min: 3.0 },
+  // The walked road says how far you got, so it is a non-text mark, not decoration.
+  // Its predecessor #CFE0FF scored ΔE00 10.72 against the wash and 1.22:1 — hue distance
+  // is not visibility for a 2px line, which is why this pair uses the contrast rule.
+  { what: 'stepper walked road on the page wash', fg: bgOf(classOf(stepperBlock, 'lineDone')), on: canvas, min: 3.0 },
   { what: 'admin section label on ground', fg: textOf(classOf(adminSrc, 'railSection')), on: plGround },
   // /admin/pipelines. Three tiers that shipped under AA because each was measured
   // against a surface it does not sit on:

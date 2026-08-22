@@ -1,6 +1,9 @@
-import type { ReactNode } from 'react';
+'use client';
+
+import { useState, type ReactNode } from 'react';
 import { ProcessStatus } from '@/lib/types';
-import { installStepperStyles as s, projectHeaderStyles } from '@/lib/theme';
+import { ChevronDownIcon } from '@/app/components/ui/icons';
+import { cn, installStepperStyles as s, projectHeaderStyles } from '@/lib/theme';
 
 const INSTALL_STEPS = [
   { step: ProcessStatus.WAITING_TARGET_CONFIRMATION, label: '연동 대상 DB 선택' },
@@ -19,38 +22,37 @@ const TEST_INDEX = INSTALL_STEPS.findIndex(
 
 /** Names the 설치 진행 region (`aria-labelledby`), like 설치 대상 above it. */
 const PROGRESS_LABEL_ID = 'install-progress-label';
+/** Ties the disclosure button to the road it opens (`aria-controls`). */
+const STEPS_BLOCK_ID = 'install-progress-steps';
 
 interface InstallationProcessProgressBarProps {
   currentStep: ProcessStatus;
   /**
-   * The latest connection-test verdict. It rides the position line now that the road
-   * is gone — there is no 연결 테스트 step to hang it under any more. Renders nothing
+   * The latest connection-test verdict. It rides the position row, not a step of the
+   * road — the road folds away and the verdict must not fold with it. Renders nothing
    * when absent, and nothing before the target reaches that step (see below).
    */
   tcTag?: ReactNode;
 }
 
 /**
- * 설치 진행 — one sentence: 전체 7단계 중 N단계, then the step's name as a tag
- * (오너 13차 지시).
+ * 설치 진행 — one row at rest, the seven-step road behind 「전체 단계」 (오너 14차 지시).
  *
- * It used to be a seven-dot road with every step named, so that a first-time reader
- * could see the whole route. That is worth showing once and cost ~60px of header on
- * every visit after; a reader who is mid-install wants one fact, which is where they
- * are. The route itself is still on the page — the step cards below walk it.
+ * The row states the one fact a mid-install reader came for: 전체 7단계 중, then where
+ * they are as a tag. The road that names all seven is what a first-time reader wants
+ * exactly once, so it opens on request instead of charging every visit ~60px of
+ * header for it.
  *
- * Position is carried by the NUMBERS, so they are the only thing that steps up a
- * size: 14px in a 12px sentence, the same 12/14 pair the block labels and their
- * values already use.
- *
- * Same head as 설치 대상 above (`blockHead`): the header is two named blocks in one
- * grammar, and a rule under only one of them would make them look like two different
- * kinds of thing.
+ * Same three parts as 설치 대상 one block above — `blockHead` carrying the name and
+ * one cue, the body underneath — because the header is two named blocks in one
+ * grammar, and a block that folded differently from its sibling would read as a
+ * different kind of thing.
  */
 export const InstallationProcessProgressBar = ({
   currentStep,
   tcTag,
 }: InstallationProcessProgressBarProps) => {
+  const [stepsOpen, setStepsOpen] = useState(false);
   const currentIndex = INSTALL_STEPS.findIndex((it) => it.step === currentStep);
   // ProcessStatus is exactly these seven, but the value arrives over the wire —
   // an unknown one drops the position line rather than printing 「0단계」.
@@ -59,27 +61,107 @@ export const InstallationProcessProgressBar = ({
   return (
     <section aria-labelledby={PROGRESS_LABEL_ID} className={s.wrap}>
       <div className={projectHeaderStyles.blockHead}>
-        <span id={PROGRESS_LABEL_ID} className={projectHeaderStyles.blockLabel}>
-          설치 진행
-        </span>
-      </div>
-      {current && (
-        <p className={s.summary}>
-          {/* One span, so the 14px counts baseline-align inside the sentence instead
-              of becoming flex items that have to be aligned against it. */}
-          <span>
-            전체 <b className={s.count}>{INSTALL_STEPS.length}</b>단계 중{' '}
-            <b className={s.count}>{currentIndex + 1}</b>단계
+        <div className={s.head}>
+          <span id={PROGRESS_LABEL_ID} className={projectHeaderStyles.blockLabel}>
+            설치 진행
           </span>
-          <span className={s.stepTag}>{current.label}</span>
-          {/* Gated on having REACHED the step. A verdict that survives on a target
-              sitting at step 1–4 belongs to a previous cycle — the agent is not
-              installed yet, so nothing can have tested this configuration — and
-              drawing it says the connection is fine about a setup that has never
-              been tested. Not rendering it also spares those steps the tag's
-              latest_version fetch. */}
-          {currentIndex >= TEST_INDEX && tcTag && <span className={s.tagSlot}>{tcTag}</span>}
-        </p>
+          {current && (
+            <p className={s.summary}>
+              {/* One span, so the 14px count baseline-aligns inside the sentence
+                  instead of becoming a flex item that has to be aligned against it. */}
+              <span>
+                전체 <b className={s.count}>{INSTALL_STEPS.length}</b>단계 중
+              </span>
+              <span className={s.stepTag}>
+                <span>
+                  <b className={s.tagCount}>{currentIndex + 1}</b>단계
+                </span>
+                <span>{current.label}</span>
+              </span>
+              {/* Gated on having REACHED the step. A verdict that survives on a
+                  target sitting at step 1–4 belongs to a previous cycle — the agent
+                  is not installed yet, so nothing can have tested this configuration
+                  — and drawing it says the connection is fine about a setup that has
+                  never been tested. Not rendering it also spares those steps the
+                  tag's latest_version fetch. */}
+              {currentIndex >= TEST_INDEX && tcTag && <span className={s.tagSlot}>{tcTag}</span>}
+            </p>
+          )}
+        </div>
+        <button
+          type="button"
+          onClick={() => setStepsOpen((open) => !open)}
+          aria-expanded={stepsOpen}
+          aria-controls={STEPS_BLOCK_ID}
+          className={projectHeaderStyles.metaCue}
+        >
+          전체 단계
+          <ChevronDownIcon
+            className={cn(
+              projectHeaderStyles.metaToggleIcon,
+              stepsOpen && projectHeaderStyles.metaToggleIconOpen,
+            )}
+            aria-hidden="true"
+          />
+        </button>
+      </div>
+      {stepsOpen && (
+        <ol
+          id={STEPS_BLOCK_ID}
+          role="list"
+          className={s.list}
+          style={{ gridTemplateColumns: `repeat(${INSTALL_STEPS.length}, minmax(0, 1fr))` }}
+        >
+          {INSTALL_STEPS.map((it, index) => {
+            const isLast = index === INSTALL_STEPS.length - 1;
+            const isCurrent = index === currentIndex;
+            const isCompleted = currentIndex > index;
+            // A segment is "walked" when it leads INTO a step the user has
+            // reached — the connector into the current step tints, the one
+            // leaving it stays gray.
+            const leftWalked = index > 0 && index <= currentIndex;
+            const rightWalked = index < currentIndex;
+            return (
+              <li key={it.step} aria-current={isCurrent ? 'step' : undefined} className={s.item}>
+                <span className={s.track}>
+                  {index > 0 && (
+                    <span
+                      aria-hidden="true"
+                      className={cn(
+                        s.lineBase,
+                        'left-0 right-1/2',
+                        leftWalked ? s.lineDone : s.line,
+                      )}
+                    />
+                  )}
+                  {!isLast && (
+                    <span
+                      aria-hidden="true"
+                      className={cn(
+                        s.lineBase,
+                        'left-1/2 right-0',
+                        rightWalked ? s.lineDone : s.line,
+                      )}
+                    />
+                  )}
+                  <i
+                    aria-hidden="true"
+                    className={cn(
+                      s.dotBase,
+                      isCurrent ? s.dotCurrent : isCompleted ? s.dotDone : s.dotPending,
+                    )}
+                  />
+                </span>
+                <span
+                  className={cn(s.labelBase, isCurrent ? s.labelCurrent : s.labelRest)}
+                  style={{ wordBreak: 'keep-all' }}
+                >
+                  {it.label}
+                </span>
+              </li>
+            );
+          })}
+        </ol>
       )}
     </section>
   );

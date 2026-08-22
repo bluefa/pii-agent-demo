@@ -897,39 +897,93 @@ export const projectHeaderStyles = {
 } as const;
 
 /**
- * 설치 진행 — one sentence, not a road (오너 13차 지시). The seven-dot stepper named
- * every step so a first-time reader could see the whole route, and paid ~60px of
- * header for it on every visit after the first. A reader who is mid-install wants
- * one fact: where am I. The sentence says it, the route lives in the step cards
- * below, and the whole dot/line/label palette went with the road.
+ * 설치 진행 — one row at rest, the seven-step road behind a disclosure (오너 14차 지시).
  *
- * Position is carried by the NUMBERS, which is why they are the only thing that
- * steps up a size: 14px in a 12px sentence, on the same 12/14 pair the block labels
- * and values already use. The step's name rides the header's one tag vocabulary.
+ * The road named every step so a first-time reader could see the whole route, and
+ * charged ~60px of header for it on every visit after the first. 오너 13차 지시 cut it
+ * to a sentence on its own line under the block name; this round folds that sentence
+ * up ONTO the block name — 설치 진행 · 전체 7단계 중 [4단계 Agent 설치] — and gives the
+ * road back to the reader who wants it, on the same 「name + cue + body」 grammar
+ * 설치 대상 uses one block above. Nothing was deleted this time, only ranked: the one
+ * fact a mid-install reader needs is always on screen, and the route is one click.
+ *
+ * Position is carried by the NUMBERS, which is why they are the only thing that steps
+ * up a size: 14px in a 12px row, on the same 12/14 pair the block labels and values
+ * already use.
  */
 export const installStepperStyles = {
   wrap: 'mt-[18px] pb-[18px]',
+  /**
+   * The block's name and its position line on ONE row (오너 14차 지시), as the left
+   * half of the shared `blockHead` — the cue takes the right half.
+   *
+   * A container of its own rather than pouring the label into `summary`: `blockHead`
+   * is `justify-between`, so three children would push the sentence into the middle
+   * of the row instead of leaving it beside the name it belongs to. The 12px here
+   * against `summary`'s 8px inside is what stops 「설치 진행 전체 7단계 중」 reading as
+   * one run-on phrase — the two share a colour and nearly a weight, so distance is
+   * the only separator left.
+   */
+  head: 'flex min-w-0 flex-wrap items-baseline gap-x-3 gap-y-1',
   /**
    * `items-baseline`, because the counts run 14px inside a 12px sentence and a
    * centred row would leave them sitting a pixel high. Wraps rather than truncates —
    * the 연결 테스트 verdict rides this line now, and at 520px the two do not fit.
    */
-  summary: 'mt-2 flex flex-wrap items-baseline gap-x-2 gap-y-1 text-[12px] font-medium text-[#4E5968]',
-  /** 전체 **7**단계 중 **4**단계 — tabular, so the digits do not shift the line as the
-      target advances through the steps. */
+  summary: 'flex flex-wrap items-baseline gap-x-2 gap-y-1 text-[12px] font-medium text-[#4E5968]',
+  /** 전체 **7**단계 중 — tabular, so the digits do not shift the line as the target
+      advances through the steps. */
   count: 'text-[14px] font-semibold tabular-nums text-[#191F28]',
-  /** The step's name, in the same slate the path's tags use — one tag vocabulary per
-      header. Not blue: blue means "clickable" here, and this is a statement. */
-  stepTag:
-    'inline-flex items-center rounded-[6px] bg-[#EAEEF7] px-2 py-[3px] text-[12px] font-semibold text-[#2C3A55]',
   /**
-   * Verdict slot for 연결 테스트. In flow now — with no road there is no step to hang
-   * it under, so it simply follows the step tag on the same line. That deletes the
-   * whole absolute-positioning problem it used to have: an out-of-flow box reflowed
-   * nothing, so it could silently overlap the first card if the body's `pt-8` ever
-   * tightened, and only a human looking at the screen would have caught it.
+   * 「4단계 Agent 설치」 — where you are, as one tag (오너 14차 지시). Blue, on the
+   * owner's call: the slate this used to wear is the path's tag vocabulary, and on a
+   * row that now also carries the block's name the step needed to be the thing the
+   * eye lands on.
+   *
+   * `#1747B5` on `#E8F1FF`, not the `#0050D6` the cue beside it uses — the house's
+   * pale-blue plate (`servicesStyles.tilePalette[0]`) with its own ink, so the two
+   * blues on this row separate by shape AND by tint: a filled navy tag states, an
+   * unfilled brand-blue chevron acts. 7.09:1.
+   *
+   * `items-baseline`, so the 14px count and the 12px name sit on one line inside the
+   * tag and the tag itself lands on the sentence's baseline.
+   */
+  stepTag:
+    'inline-flex items-baseline gap-1.5 rounded-[6px] bg-[#E8F1FF] px-2 py-[3px] text-[12px] font-semibold text-[#1747B5]',
+  /** The step number inside the tag — same 14px tier as `count`, but it takes the
+      tag's ink rather than the sentence's near-black, which would read as a second
+      colour inside a two-word plate. */
+  tagCount: 'text-[14px] font-semibold tabular-nums',
+  /**
+   * Verdict slot for 연결 테스트. In flow, following the step tag on the head row.
+   * ⛔ Never `absolute` again: it used to hang from `top-full` under the 연결 테스트
+   * dot, so it reflowed nothing and would silently overlap the first card if the
+   * body's `pt-8` ever tightened — only a human looking at the screen would have
+   * caught it. It stays on the head row even when the road below is open, so the
+   * verdict has one home in both states.
    */
   tagSlot: 'inline-flex items-center',
+  /** Left-anchored, capped width — 7 steps don't need the full column; ~120px
+      per step keeps the road compact while the longest label still fits.
+      10px under the block rule: the name is no longer touching the road. */
+  list: 'mt-2.5 grid w-full max-w-[860px] list-none p-0',
+  item: 'flex min-w-0 flex-col items-center gap-1.5',
+  track: 'relative flex h-[10px] w-full items-center justify-center',
+  lineBase: 'absolute top-1/2 -mt-px h-[2px]',
+  /** Road ahead — a 2px surface, so it answers to ΔE00 (14.9 from the wash), not 4.5:1. */
+  line: 'bg-[#B0B8C1]',
+  /** Road walked — the primary itself; the dots' wash ring punches it into beads. */
+  lineDone: 'bg-[#0050D6]',
+  dotBase: 'relative z-[1] flex-none rounded-full ring-[3px] ring-[#F4F4FB]',
+  /** Exactly one of the three applies — `cn` has no tailwind-merge, so each carries its own size. */
+  dotPending: 'h-2 w-2 bg-[#6B7684]',
+  dotDone: 'h-2 w-2 bg-[#0050D6]',
+  /** 10px, not 8: "you are here" should read before color does. */
+  dotCurrent: 'h-2.5 w-2.5 bg-[#0050D6]',
+  labelBase: 'px-1 text-center text-[12px] leading-[1.35]',
+  /** Walked and unwalked steps share one label color — the dots already say which is which. */
+  labelRest: 'font-medium text-[#4E5968]',
+  labelCurrent: 'font-semibold text-[#0050D6]',
 } as const;
 
 /**
