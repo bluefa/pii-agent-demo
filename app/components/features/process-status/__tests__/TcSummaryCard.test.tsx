@@ -124,3 +124,46 @@ describe('TcSummaryCard liveness while running', () => {
     expect(container.querySelector('[class*="tc-track-march"]')).toBeNull();
   });
 });
+
+/**
+ * 문장 왼쪽 글리프. 삼항의 마지막 가지는 **폴백이지 기본값이 아니다** — `fail` 이 거기로
+ * 떨어져 실패 카드가 미실행·시작 대기와 같은 시계를 달고 있었고, 표면과 문장만 붉을 뿐
+ * 글리프는 아무 판정도 하지 않았다. Figma(H2kRxFxOqqeTrPceFU4zMM)가 지정한 대로 가른다.
+ */
+describe('TcSummaryCard title glyph', () => {
+  // title 의 아이콘 슬롯이 카드에서 첫 `s.icon` — 메타 서브라인의 시계는 그 뒤에 온다.
+  const glyph = (state: TcCardState, over: Partial<TcBuckets>): string =>
+    renderCard(state, over).container.querySelector('.inline-grid svg')?.innerHTML ?? '';
+
+  const CLOCK = 'polyline';
+  const X_CIRCLE = 'M10 14l2-2';
+  const HOURGLASS = 'M5 2h14M5 22h14';
+
+  it('fail carries the x-circle, not the clock it used to fall through to', () => {
+    const fail = glyph('fail', { ok: 5, fail: 1 });
+    expect(fail).toContain(X_CIRCLE);
+    expect(fail).not.toContain(CLOCK);
+  });
+
+  it('queued carries the hourglass — waiting to start is not the absence of a run', () => {
+    const queued = glyph('queued', { waiting: 6 });
+    expect(queued).toContain(HOURGLASS);
+    expect(queued).not.toContain(CLOCK);
+  });
+
+  /** 폴백에 남는 상태는 idle 하나 — 실행이 없다는 사실만 말하므로 시계가 맞다. */
+  it('idle keeps the clock', () => {
+    expect(glyph('idle', {})).toContain(CLOCK);
+  });
+
+  /** 네 국면이 서로 다른 그림이어야 색 없이도 갈린다(WCAG 1.4.1). */
+  it('gives idle, queued, running and fail four different glyphs', () => {
+    const seen = [
+      glyph('idle', {}),
+      glyph('queued', { waiting: 6 }),
+      glyph('running', { ok: 1, waiting: 5 }),
+      glyph('fail', { ok: 5, fail: 1 }),
+    ];
+    expect(new Set(seen).size).toBe(4);
+  });
+});

@@ -21,6 +21,7 @@ export { DownloadIcon } from '@/app/components/ui/icons/DownloadIcon';
 export { EditIcon } from '@/app/components/ui/icons/EditIcon';
 export { EmptyBoxIcon } from '@/app/components/ui/icons/EmptyBoxIcon';
 export { ExcludedIcon } from '@/app/components/ui/icons/ExcludedIcon';
+export { HourglassIcon } from '@/app/components/ui/icons/HourglassIcon';
 export { ExpandIcon } from '@/app/components/ui/icons/ExpandIcon';
 export { FilterIcon } from '@/app/components/ui/icons/FilterIcon';
 export { GuideIcon } from '@/app/components/ui/icons/GuideIcon';
