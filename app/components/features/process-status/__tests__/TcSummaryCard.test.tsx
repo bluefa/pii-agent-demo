@@ -113,15 +113,33 @@ describe('TcSummaryCard liveness while running', () => {
     expect(meta).not.toContain('경과');
   });
 
+  /** 트랙의 빈 바닥 — 채움도 행진 무늬도 이 위에 올라간다. */
+  const TRACK = '[class*="bg-[#E4E7EC]"]';
+
   it('marches the unadjudicated remainder of the track while running', () => {
     const { container } = renderCard('running', { ok: 2, waiting: 4 });
+    // 트랙부터 잰다. 무늬만 재면 셀렉터가 틀려도 아래 정착 케이스가 통과해 버린다.
+    expect(container.querySelector(TRACK)).not.toBeNull();
     expect(container.querySelector('[class*="tc-track-march"]')).not.toBeNull();
   });
 
-  /** 정착한 바는 전부 판정이다 — 행진할 미판정 구간이 없다. */
-  it('drops the march once the run settles', () => {
-    const { container } = renderCard('fail', { ok: 4, fail: 2 });
-    expect(container.querySelector('[class*="tc-track-march"]')).toBeNull();
+  /**
+   * 바는 진행이지 결과가 아니다 — 정착하면 무늬만이 아니라 트랙째 물러난다. 판정 둘은
+   * 9px 아래 카운트 줄이 이미 수로 말하고 있어서, 꽉 찬 두 색 띠는 같은 두 값을 형태로
+   * 한 번 더 그리는 것뿐이다. Figma(H2kRxFxOqqeTrPceFU4zMM)의 정착 프레임 넷이 전부
+   * track 을 hidden 으로 둔 것이 이 규칙이다.
+   */
+  it('retires the whole track once the run settles, not just the march', () => {
+    const settled: { state: TcCardState; over: Partial<TcBuckets> }[] = [
+      { state: 'success', over: { ok: 6 } },
+      { state: 'success', over: { ok: 4, unreported: 2 } },
+      { state: 'fail', over: { ok: 5, fail: 1 } },
+      { state: 'fail', over: { ok: 3, fail: 2, unknown: 1 } },
+    ];
+    for (const { state, over } of settled) {
+      const { container } = renderCard(state, over);
+      expect(container.querySelector(TRACK), `${state} ${JSON.stringify(over)}`).toBeNull();
+    }
   });
 });
 

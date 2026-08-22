@@ -199,12 +199,16 @@ export const TcSummaryCard = ({
 
   const okPct = buckets.total > 0 ? (buckets.ok / buckets.total) * 100 : 0;
   const failPct = buckets.total > 0 ? (buckets.fail / buckets.total) * 100 : 0;
-  // 판정 없이 끝난 상태(미실행·정책 변경·확인 완료)엔 바를 긋지 않는다 — 미실행의 빈 바는
-  // 0% 라는 결과 서술이고, 정책 변경의 초록 바는 이미 뒤처진 실행의 결과다. 시작 대기도
-  // 긋지 않는다: 빈 0% 바는 "멈춤"으로 읽히고, 트랙의 등장 자체가 PENDING→RUNNING 전이의
-  // 표현이다(스핀 시작·문장 교체와 함께). 보고 0건으로 정착한 실행도 같은 이유 — 채울
-  // 판정이 없다.
-  const showTrack = state === 'running' || (settled && buckets.reported > 0);
+  // 바는 진행이지 결과가 아니다 — 진행 중에만 긋는다. 정착하면 그릴 진행이 남지 않고,
+  // 100% 로 꽉 찬 두 색 띠는 9px 아래 카운트 줄이 이미 수로 말한 두 값을 형태로 한 번 더
+  // 그리는 것뿐이다. Figma(H2kRxFxOqqeTrPceFU4zMM)도 정착 프레임 넷(card/success-all·
+  // success-partial·fail·fail-unknown) 모두 track 을 hidden 으로 두고 bottom 을 49→32 로
+  // 접었다. 판정 없이 끝난 상태(미실행·시작 대기·정책 변경·확인 완료)엔 애초에 채울 것이
+  // 없다: 빈 0% 바는 "0%"라는 결과 서술이거나 "멈춤"으로 읽힌다.
+  //
+  // 바가 최종 분할까지 굴러가는 건 settle 홀드(400ms, useTcSettleHold)가 running 프레임을
+  // 붙잡아 주는 동안이다 — 다 차는 걸 보여 준 뒤에 물러난다.
+  const showTrack = state === 'running';
 
   const slot = (() => {
     switch (state) {
@@ -347,7 +351,7 @@ export const TcSummaryCard = ({
               구간, 즉 아직 답이 오지 않은 만큼만 드러나 왼쪽으로 흐른다. 시작 직후엔
               트랙 전체가 흐르고(폭 0 의 빈 회색 바가 사라진다), 모두 보고되면 남는
               구간이 없어 저절로 멈춘다 — 그 프레임은 문장이 받는다(시안 E). */}
-          {state === 'running' && <div className={s.trackMarch} aria-hidden="true" />}
+          <div className={s.trackMarch} aria-hidden="true" />
           {/* Segmented, not single-color: the bar carries the verdict split itself. */}
           {/* 250ms — settle 홀드(400ms, useTcSettleHold)보다 짧아야 한다. 폴 사이의 값
               점프를 굴리는 것도 이 transition 이다 (ScanRunningState 의 진행바와 동일). */}
@@ -375,8 +379,9 @@ export const TcSummaryCard = ({
           ) : state === 'policy-changed' ? (
             <>연결 테스트를 다시 수행해야 합니다</>
           ) : (
-            /* 시안 C: 가운뎃점 대신 범례 점. 판정 둘은 위 트랙의 채움 색을 그대로 써서
-               카운트 줄이 바의 범례를 겸한다. 색만으로 말하지 않도록 단어는 남긴다. */
+            /* 시안 C: 가운뎃점 대신 범례 점. 판정 둘은 트랙의 채움 색을 그대로 쓴다 — 바가
+               서 있는 진행 중엔 이 줄이 그 범례를 겸하고, 바가 물러난 정착 뒤에도 같은 두
+               색이 같은 두 판정을 계속 가리킨다. 색만으로 말하지 않도록 단어는 남긴다. */
             <span className={s.countList}>
               {countParts.map((part) => (
                 <span key={part.label} className={s.countSeg}>
