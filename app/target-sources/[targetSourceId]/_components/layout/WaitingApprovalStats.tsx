@@ -52,6 +52,11 @@ export interface StatTileProps {
   value: number | null;
   unit: string;
   swatch?: 'target' | 'exclude';
+  /**
+   * 숫자 크기. `page`(기본) 40px — 페이지 폭의 카드 위에 놓인 표시 숫자다.
+   * `dialog` 24px — 확인 모달 안에서는 26px 제목이 위계의 꼭대기라, 40px 는 그 위로 올라선다.
+   */
+  scale?: 'page' | 'dialog';
   /** Set on the filter tiles only — renders a button with a selected state. */
   onClick?: () => void;
   active?: boolean;
@@ -63,6 +68,7 @@ export const StatTile = ({
   value,
   unit,
   swatch,
+  scale = 'page',
   onClick,
   active,
 }: StatTileProps) => {
@@ -101,7 +107,10 @@ export const StatTile = ({
     <div className="flex items-baseline">
       <span
         className={cn(
-          'text-[40px] font-bold leading-[1.2]',
+          // 한 조건에 한 문자열 — 두 갈래가 같은 속성을 겹쳐 쓰면 어느 쪽이 이길지
+          // cn 이 아니라 Tailwind 가 CSS 에 찍는 순서가 정한다.
+          scale === 'dialog' ? 'text-[24px]' : 'text-[40px]',
+          'font-bold leading-[1.2]',
           value == null ? textColors.tertiary : textColors.primary,
           numericFeatures.tabular,
         )}

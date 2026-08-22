@@ -140,6 +140,16 @@ describe('CloudReqApprovalModal', () => {
     expect(cells.at(-2)).toBe('—');
   });
 
+  // 페이지 바가 스스로를 반박하던 자리 — 표는 5줄인데 "표시 10 건씩" 이라고 말했다.
+  // 실제 페이지 크기가 옵션에 없으면 select 는 그 값을 고를 수 없어 값이 비어 버린다.
+  it('lists the page size it is actually paging by', async () => {
+    renderModal();
+    await waitFor(() => expect(getSummariesMock).toHaveBeenCalled());
+
+    const select = screen.getByLabelText('페이지당 표시 건수') as HTMLSelectElement;
+    expect(select.value).toBe('5');
+  });
+
   // 요청이 끝나면 확인 프레임이 같은 상자를 차지한다 — 1단계 승인 요청과 같은 전환.
   it('replaces the body with the result frame once the request settles', async () => {
     renderModal({ phase: 'success' });

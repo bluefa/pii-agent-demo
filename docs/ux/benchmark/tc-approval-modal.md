@@ -121,6 +121,33 @@ truthy 라, `onLogicalOpen` 없이 쓰면 **눌러도 아무 일 없는 버튼**
   뮤테이션으로 확인: 초기값을 `{0, 0}` 으로 되돌리면 해당 테스트가 깨진다.
 - 조회가 실패하면 맵을 비운 채 둬서 모든 수가 `—` 로 남는다.
 
+### 3.6 페이지 바와 숫자 크기 (2차 피드백)
+
+**바가 스스로를 반박했다.** 클라우드 모달은 `initialPageSize: 5` 로 페이징하면서
+`pageSizeOptions` 는 기본값(`[10, 20, 50, 100]`)을 그대로 썼다. 5가 목록에 없으니 select
+는 그 값을 고를 수 없어 첫 옵션을 그렸고, 한 줄 안에서 **"표시 10 건씩 · 1–5 / 전체 6건"**
+이 됐다. 모달 크기의 목록은 `ScanHistoryModal` 과 같은 `[5, 10]`.
+
+**바가 표에 붙지 않았다.** 표는 `idcStyles.table.frame`(12px 라운드 + 그림자), 바는
+`rounded-b-[10px]` + `border-t-0` + `#E5E7EB`. 표가 제 라운드로 아래를 **닫고** 그림자를
+바 위에 드리워, 바는 이어진 게 아니라 끝난 카드 밑에 매달렸다(모서리에서 눈에 보인다).
+`framePaged` 를 만들어 — `rounded-t-[10px]` · 바와 같은 테두리색 · 그림자 없음 — 표가
+아래를 열어 두고 바가 닫는다. 실측: 표 `10px 10px 0 0` / 바 `0 0 10px 10px`, 두 요소 모두
+704px, 테두리 `rgb(229,231,235)` 로 일치, 이음매는 직선 하나.
+
+앱 전체에서 `Pagination` 을 이는 다른 표는 모두 테두리 없는 연결 스킨이라 이 문제가 없었다.
+같은 짝을 쓰는 곳은 `IdcResourceTable` 의 non-connected 갈래뿐이고, 그 갈래는 **항상**
+아래에 바를 단다 — 그래서 `framePaged` 로 바꿨다(그 갈래의 프로덕션 소비자는 IDC 승인
+모달 하나뿐이다. `IdcStep4Installing` 은 `SourceIpHeader` 만 가져다 쓴다).
+
+**숫자 40px → 24px** (`StatTile.scale: 'page' | 'dialog'`). 제목이 26px 인 상자 안에서
+40px 숫자가 위계의 꼭대기를 가져갔다. 기본값 `page` 는 그대로 40px — 2단계 카드의 필터
+타일은 페이지 폭 위의 표시 숫자다. 두 완료 승인 모달만 `dialog`.
+
+**제목 26px 은 그대로.** `modalStyles.toss.title` 은 `Modal chrome="toss"` 를 쓰는 모든
+단계 모달의 제목이다(26/800/-0.03em). 브라우저 실측도 26px — 이 모달은 이미 다른 모달과
+같은 크기였다. `toss-compact` 의 20px 는 푸터 없는 읽기 전용 알림용이라 여기 해당 없음.
+
 ## 4. 뮤테이션으로 고정한 것
 
 | 결함 | 뮤테이션 | 결과 |
@@ -128,6 +155,7 @@ truthy 라, `onLogicalOpen` 없이 쓰면 **눌러도 아무 일 없는 버튼**
 | D3 Athena 미접힘 | `toTestUnits(resources.map(r => ({...r, athenaRegionResourceId: null})))` | 해당 테스트 실패 ✓ |
 | D2 조작된 0 | 합계 초기값 `{target: 0, excluded: 0}` | 해당 테스트 실패 ✓ |
 | §3.4 죽은 버튼 | `onOpen={() => onLogicalOpen?.(r)}` (되돌리기) | 해당 테스트 실패 ✓ |
+| §3.6 반박하는 바 | `pageSizeOptions` 제거 | 해당 테스트 실패 ✓ (select 값이 빈 문자열) |
 
 첫 시도에서 `LogicalDbCountMap | null` 로 "아직 못 읽음"과 "읽었는데 없음"을 갈랐는데,
 뮤테이션이 안 걸렸다 — 두 경우가 화면에서 구별되지 않아 상태가 아무 일도 하지 않았다.
@@ -161,6 +189,6 @@ truthy 라, `onLogicalOpen` 없이 쓰면 **눌러도 아무 일 없는 버튼**
 
 - `npx tsc --noEmit` 통과
 - `npm run lint` 0 errors
-- 전체 테스트 290 files / 2668 tests 통과
+- 전체 테스트 290 files / 2669 tests 통과
 - 브라우저 실측(fixture 2104 클라우드, 1024 IDC): 넘침 없음, 6줄 = 카드 6줄, 확인 프레임 →
   6단계 전환, 500 응답 스텁으로 실패 프레임 + `다시 요청하기` 확인

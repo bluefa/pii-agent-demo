@@ -152,7 +152,8 @@ export const IdcResourceTable = ({
         cell: idcStyles.table.approvalCell,
       }
     : {
-        frame: idcStyles.table.frame,
+        // 이 갈래는 아래에 항상 페이지 바를 단다 — 바가 닫아 주는 표의 프레임이다.
+        frame: idcStyles.table.framePaged,
         header: idcStyles.table.header,
         headerCell: idcStyles.table.headerCell,
         cell: idcStyles.table.cell,

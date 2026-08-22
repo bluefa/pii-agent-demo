@@ -1468,6 +1468,15 @@ export const idcStyles = {
     /** Table wrapper — `.db-list-table` border + radius + shadow (v16 1850–1869). */
     frame:
       'overflow-hidden rounded-xl border border-[#EBEEF2] bg-white shadow-[0_1px_2px_rgba(17,24,39,0.04),0_6px_16px_-8px_rgba(17,24,39,0.08),inset_0_1px_0_rgba(255,255,255,0.6)]',
+    /**
+     * `frame` for a table that a `Pagination` bar closes from underneath. The bar draws its
+     * own sides and the 10px bottom radius, so the two read as one box only if the table
+     * stops at a straight bottom edge and carries the bar's radius and border colour
+     * (#E5E7EB, `Pagination`'s own). `frame` instead closed with its own 12px round and
+     * cast a shadow onto the bar, which left the bar hanging under a finished card rather
+     * than continuing it. The bar's `border-t-0` still relies on the bottom border here.
+     */
+    framePaged: 'overflow-hidden rounded-t-[10px] border border-[#E5E7EB] bg-white',
     /** Excluded-row tint — v16 `.approval-table tr.row-excluded`. */
     rowExcluded: 'bg-[#F9FAFB]',
     /**

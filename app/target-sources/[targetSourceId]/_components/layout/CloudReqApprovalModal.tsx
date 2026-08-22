@@ -168,18 +168,19 @@ export const CloudReqApprovalModal = ({
       size="lg"
     >
       <div className="grid grid-cols-3 gap-3">
-        <StatTile label="연동 대상" value={units.length} unit="건" />
-        <StatTile label="연동 논리 DB" value={totals.target} unit="개" swatch="target" />
-        <StatTile label="제외한 논리 DB" value={totals.excluded} unit="개" swatch="exclude" />
+        <StatTile label="연동 대상" value={units.length} unit="건" scale="dialog" />
+        <StatTile label="연동 논리 DB" value={totals.target} unit="개" swatch="target" scale="dialog" />
+        <StatTile label="제외한 논리 DB" value={totals.excluded} unit="개" swatch="exclude" scale="dialog" />
       </div>
 
       <div className="mt-4">
-        {/* 표를 감싸는 테두리는 이 모달이 원래 쓰던 것 그대로(`table.frame`) — 카드 안의
-            표는 카드가 이미 테두리를 주므로 CONNECTED_FRAME 을 쓰지만, 여기서는 표가
-            스스로 판이다. `frame` 의 overflow-hidden 과 안쪽의 overflow-x-auto 는 서로
-            다른 요소에 둔다: 한 요소에 두 값을 쓰면 어느 쪽이 이길지 Tailwind 의 emit
-            순서가 정한다. */}
-        <div className={idcStyles.table.frame}>
+        {/* 카드 안의 표는 카드가 이미 테두리를 주므로 CONNECTED_FRAME 을 쓰지만, 여기서는
+            표가 스스로 판이다 — 단, 아래를 페이지 바가 닫으므로 `frame` 이 아니라
+            `framePaged` 다. `frame` 은 제 12px 라운드로 아래를 닫고 그림자를 바 위에
+            드리워, 바가 이어진 게 아니라 끝난 카드 밑에 매달린 것처럼 보였다.
+            overflow-hidden 과 안쪽의 overflow-x-auto 는 서로 다른 요소에 둔다: 한 요소에
+            두 값을 쓰면 어느 쪽이 이길지 Tailwind 의 emit 순서가 정한다. */}
+        <div className={idcStyles.table.framePaged}>
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead className={idcStyles.table.approvalHeader}>
@@ -309,6 +310,10 @@ export const CloudReqApprovalModal = ({
             totalCount={units.length}
             onPageChange={setPage}
             onPageSizeChange={setPageSize}
+            // 기본 옵션은 10 부터라 5 는 목록에 없었다 — select 가 실제 페이지 크기를
+            // 고를 수 없으니 첫 옵션을 그렸고, 바는 "표시 10 건씩 · 1–5 / 전체 6건"
+            // 이라고 스스로를 반박했다. 모달 크기의 목록은 ScanHistoryModal 과 같은 [5, 10].
+            pageSizeOptions={[5, 10]}
           />
         )}
       </div>
