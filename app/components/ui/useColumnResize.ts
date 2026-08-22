@@ -125,6 +125,10 @@ export const useColumnResize = (options?: ColumnResizeOptions): ColumnResize => 
   const hydratedRef = useRef(false);
   useEffect(() => {
     if (!storageKey) return;
+    // Re-arm the gate for THIS key. A second key is a second table, and the write-back below
+    // runs on the same commit as this effect — left open, it would stamp the previous key's
+    // widths onto the new one before the new one has been read, and then keep them.
+    hydratedRef.current = false;
     const timer = window.setTimeout(() => {
       hydratedRef.current = true;
       try {
