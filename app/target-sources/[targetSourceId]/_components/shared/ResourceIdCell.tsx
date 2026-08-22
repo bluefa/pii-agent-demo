@@ -23,9 +23,9 @@ interface ResourceIdCellProps {
    *  Round 11: this mode also re-seats the copy button as a hover OVERLAY. The flex row
    *  reserved tail space for it, which made the id's cut land ~46px before the boundary
    *  while every other covered cell cuts AT it — the next column read as covering the id
-   *  deeper than its neighbours. Now the TD owns the cut (like the Resource Name cell),
-   *  the button anchors to the boundary, and the tail yields under it via
-   *  `hardClipCopyFade` instead of via layout. */
+   *  deeper than its neighbours. Now the TD owns the cut (like the Resource Name cell)
+   *  and the button anchors to the boundary, carrying its own opaque chip so it covers
+   *  the tail instead of fading it (round 15 — the fade read as the id degrading). */
   hardClip?: boolean;
 }
 
@@ -72,9 +72,7 @@ export const ResourceIdCell = ({
       <span
         className={cn(
           'block min-w-0 text-left font-mono',
-          hardClip
-            ? cn('whitespace-nowrap', idcStyles.table.hardClipCopyFade)
-            : 'truncate',
+          hardClip ? 'whitespace-nowrap' : 'truncate',
           sizeClass,
           textClassName ?? textColors.secondary,
         )}
@@ -88,7 +86,11 @@ export const ResourceIdCell = ({
       className={cn(
         'opacity-0 group-hover/resid:opacity-100',
         // right-2 keeps the 22px button clear of the seam's ±8px resize/tracer zone.
-        hardClip ? 'absolute right-2 top-1/2 -translate-y-1/2' : 'shrink-0',
+        // The chip's own surface is what covers the tail underneath it — round 15
+        // removed the mask that used to fade the id instead (see the token).
+        hardClip
+          ? cn('absolute right-2 top-1/2 -translate-y-1/2', idcStyles.table.copyOverlayChip)
+          : 'shrink-0',
       )}
     />
   </span>

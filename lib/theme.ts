@@ -1496,14 +1496,25 @@ export const idcStyles = {
     /** Body text of a header (i) tooltip — the value-variant Tooltip's white surface. */
     headerTipBody: 'block text-[12px] leading-[1.6] text-[#4E5968]',
     /**
-     * Console-grammar header (confirmed tables, 시안 F round 3) — no band, just an
-     * underline. The AWS full-page table starts at the thead rule; a grey band on a
-     * flat white surface would reintroduce the frame the redesign removed. The rule
-     * stays #D1D5DB (DESIGN.md border-strong) now that the interior grid is hairline
+     * Console-grammar header (confirmed tables, 시안 F round 3) — the rule stays
+     * #D1D5DB (DESIGN.md border-strong) now that the interior grid is hairline
      * (round 6): it is the one strong line left — the "table starts here" anchor,
      * which is also the consoles' pattern (only the thead rule outweighs the grid).
+     *
+     * Round 15 (owner): "리소스 테이블 Header 색상을 약간 파란색으로 … 헤더는 그래도
+     * 보여야되는 정보같음". Round 3 argued a header band would reintroduce the frame
+     * the redesign removed — that held while the only candidate was a GREY band, which
+     * reads as chrome. A blue wash reads as the app's own interaction hue instead, so
+     * the band labels the columns rather than boxing them. #F1F6FE is the pipeline
+     * running tile's fill (1.09:1 on white); the header text keeps #4E5968 at 6.55:1.
+     *
+     * ⚠️ A wash costs a ramp step: the #EBEEF2 header rails fall from 1.16 to 1.07 on
+     * this fill — invisible. `consoleGrid` moves the TH rail to #D9E5F9 (1.17 here),
+     * this fill's own partner border elsewhere in the file. The #D1D5DB rule keeps
+     * 1.36 and stays the strongest line in the table.
      */
-    approvalHeaderFlat: 'text-left text-[12px] font-semibold text-[#4E5968] border-b border-[#D1D5DB]',
+    approvalHeaderFlat:
+      'bg-[#F1F6FE] text-left text-[12px] font-semibold text-[#4E5968] border-b border-[#D1D5DB]',
     /**
      * Approval-table header, chrome variant — admin P3 only (both provider tables).
      *
@@ -1581,8 +1592,12 @@ export const idcStyles = {
      * rule stay — "Header는 진해도 상관없어". The on-demand line for "경계면 근처"
      * hover is `seamTracer` below.
      */
+    // Round 15: the TH rail moved #EBEEF2 → #D9E5F9 when the header took its blue wash.
+    // #EBEEF2 held 1.16:1 on white but only 1.07:1 on #F1F6FE — a wash costs a ramp step,
+    // and #D9E5F9 (this fill's own partner border) restores it at 1.17:1. The BODY ramp is
+    // unchanged: it sits on white/hover rows, which the header band does not touch.
     consoleGrid:
-      '[&_th+th]:border-l [&_th+th]:border-[#EBEEF2] [&_td:not(:last-child)]:[background:linear-gradient(to_left,rgba(15,23,42,0.03),transparent)_right/10px_100%_no-repeat]',
+      '[&_th+th]:border-l [&_th+th]:border-[#D9E5F9] [&_td:not(:last-child)]:[background:linear-gradient(to_left,rgba(15,23,42,0.03),transparent)_right/10px_100%_no-repeat]',
     /**
      * Body cell of a `ConsoleTable` — the covered-clip grammar (round 4, owner: "왼쪽
      * 부분이 오른쪽에 덮인 느낌"). The CELL clips, so an overlong value runs through its
@@ -1630,18 +1645,22 @@ export const idcStyles = {
      * cell padding + 22px button + 6px gap), so under the covered grammar the next
      * column read as lying deeper over the id than over any other cell. The reserve is
      * gone: the id runs to the boundary and cuts mid-letter like every covered cell,
-     * and the button OVERLAYS the tail on hover instead. This mask is what keeps that
-     * overlay legible: while the pointer is inside the id cell (ResourceIdCell's own
-     * `group/resid`), the tail ramps to transparent under the button, so the icon sits
-     * on quiet ground on ANY row surface (rest white, console hover tint, excluded
-     * tint) — alpha, not a backdrop color that would have to match each of them. The
-     * stops frame the 22px button parked 8px off the boundary (clear of the seam's
-     * ±8px tracer zone). The wrapper must itself END at the boundary (the caller's
-     * w-[calc(100%+18px)]): a mask covers only its element's border box, and ink
-     * overflowing past the box would vanish on hover instead of fading.
+     * and the button OVERLAYS the tail on hover instead.
+     *
+     * ⛔ Round 15 (owner): "resourceId에 hover로 blur처리를 했니??? 이런거 하지마." Round 11
+     * kept that overlay legible with an alpha mask that ramped the tail to transparent
+     * under the button — chosen because alpha works on any row surface. It reads as the
+     * VALUE degrading on hover, which is exactly what an identifier must never do. The
+     * button now carries its own opaque surface instead: the id stays fully inked and
+     * the control simply sits on top of it, the way a control should.
+     *
+     * White + a hairline is what survives all three row surfaces (rest white, console
+     * hover #F7F9FB, excluded hover #E3E8F2) — a fill matched to one of them would be a
+     * visible patch on the other two, so the chip reads as a floating control rather
+     * than as background. Parked 8px off the boundary by the caller, clear of the
+     * seam's ±8px tracer zone.
      */
-    hardClipCopyFade:
-      'group-hover/resid:[mask-image:linear-gradient(to_right,black_calc(100%_-_58px),transparent_calc(100%_-_30px))]',
+    copyOverlayChip: 'border border-[#E5E7EB] bg-white',
     /**
      * 열 폭 조절 손잡이 (useColumnResize) — 헤더 셀 안쪽 오른쪽 끝 8px. 밖으로 내밀면
      * 마지막 열에서 표가 가로로 넘친다. 선은 평소 보이지 않는다: 표에 세로줄을 하나 더 그으면

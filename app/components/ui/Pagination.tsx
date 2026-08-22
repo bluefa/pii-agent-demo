@@ -1,7 +1,7 @@
 'use client';
 
 import type { ReactNode } from 'react';
-import { cn, numericFeatures } from '@/lib/theme';
+import { cn, numericFeatures, textColors } from '@/lib/theme';
 
 interface PaginationProps {
   /** 0-based page index */
@@ -17,6 +17,16 @@ interface PaginationProps {
    * (`이전 / [1] / 다음`, no first/last double-chevrons).
    */
   controls?: 'full' | 'prevNext';
+  /**
+   * Surface. `bar` (default) is the v15 bordered footer — #FCFCFD fill, bottom radius,
+   * 12px. `console` is the 시안 F footer (round 15, owner: "pagination footer를 아래에
+   * 달아놔줘. 14 픽셀로 설정하고 회색으로 선언해. 해당 부분에 리소스 개수를 footer에
+   * 표현해"): flat, because the console table has no frame of its own and a bordered bar
+   * would draw one back; 14px grey; and the count line is the footer's CONSTANT while the
+   * paging controls appear only past one page — so the table always states its total even
+   * when there is nothing to page through.
+   */
+  variant?: 'bar' | 'console';
 }
 
 const DEFAULT_PAGE_SIZE_OPTIONS = [10, 20, 50, 100] as const;
@@ -61,42 +71,65 @@ export const Pagination = ({
   onPageSizeChange,
   pageSizeOptions,
   controls = 'full',
+  variant = 'bar',
 }: PaginationProps) => {
   const options = pageSizeOptions ?? DEFAULT_PAGE_SIZE_OPTIONS;
   const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
   const start = totalCount === 0 ? 0 : page * pageSize + 1;
   const end = Math.min(totalCount, (page + 1) * pageSize);
   const visible = buildVisiblePages(page, totalPages);
+  // The console footer keeps only the count on a single page: a size select and a lone
+  // "1" button offer nothing to reach, and 시안 D already ruled that unearned chrome out.
+  const paging = variant === 'bar' || totalPages > 1;
 
   return (
-    <div className="flex items-center px-[14px] py-[10px] border border-[#E5E7EB] border-t-0 rounded-b-[10px] bg-[#FCFCFD] text-[12px] text-[#6B7280]">
-      <div className="inline-flex items-center gap-1.5">
-        <span>표시</span>
-        <select
-          value={pageSize}
-          onChange={(e) => onPageSizeChange(Number(e.target.value))}
-          className={cn(
-            'h-[26px] rounded-[6px] border border-[#E5E7EB] pr-[22px] pl-[8px] text-[12px] text-[#111827] cursor-pointer appearance-none',
-            SELECT_CHEVRON_BG,
-          )}
-          aria-label="페이지당 표시 건수"
-        >
-          {options.map((opt) => (
-            <option key={opt} value={opt}>
-              {opt}
-            </option>
-          ))}
-        </select>
-        <span>건씩</span>
-      </div>
-      <span className={cn('ml-[16px] text-[#374151]', numericFeatures.tabular)}>
-        <strong className="font-semibold text-[#111827]">
-          {start}–{end}
-        </strong>{' '}
-        / 전체{' '}
-        <strong className="font-semibold text-[#111827]">{totalCount}</strong>건
-      </span>
+    <div
+      className={cn(
+        'flex items-center',
+        variant === 'console'
+          ? cn('py-[10px] text-[14px]', textColors.tertiary)
+          : 'px-[14px] py-[10px] border border-[#E5E7EB] border-t-0 rounded-b-[10px] bg-[#FCFCFD] text-[12px] text-[#6B7280]',
+      )}
+    >
+      {paging && (
+        <div className="inline-flex items-center gap-1.5">
+          <span>표시</span>
+          <select
+            value={pageSize}
+            onChange={(e) => onPageSizeChange(Number(e.target.value))}
+            className={cn(
+              'h-[26px] rounded-[6px] border border-[#E5E7EB] pr-[22px] pl-[8px] text-[12px] text-[#111827] cursor-pointer appearance-none',
+              SELECT_CHEVRON_BG,
+            )}
+            aria-label="페이지당 표시 건수"
+          >
+            {options.map((opt) => (
+              <option key={opt} value={opt}>
+                {opt}
+              </option>
+            ))}
+          </select>
+          <span>건씩</span>
+        </div>
+      )}
+      {variant === 'console' ? (
+        /* One grey line, no near-black strongs: the footer states the total, it does not
+           rank against the rows above it. The range prefix earns its place only while
+           there is a page the reader is NOT looking at. */
+        <span className={cn(paging && 'ml-[16px]', numericFeatures.tabular)}>
+          {paging && `${start}–${end} / `}전체 {totalCount}건
+        </span>
+      ) : (
+        <span className={cn('ml-[16px] text-[#374151]', numericFeatures.tabular)}>
+          <strong className="font-semibold text-[#111827]">
+            {start}–{end}
+          </strong>{' '}
+          / 전체{' '}
+          <strong className="font-semibold text-[#111827]">{totalCount}</strong>건
+        </span>
+      )}
       <div className="flex-1" />
+      {paging && (
       <div className="inline-flex gap-0.5">
         {/* first/prev/next/last kept for usability (v15 mockup shows numbers only).
             IDC step tables pass controls="prevNext" to drop the first/last
@@ -138,6 +171,7 @@ export const Pagination = ({
           </PageBtn>
         )}
       </div>
+      )}
     </div>
   );
 };

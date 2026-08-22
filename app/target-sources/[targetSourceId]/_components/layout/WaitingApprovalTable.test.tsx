@@ -795,19 +795,23 @@ describe('WaitingApprovalTable', () => {
     // in-flow tail reserve made the id's cut land ~46px before the boundary while every
     // other covered cell cuts AT it, so the next column read as covering the id deeper.
     // The reserve is gone: the wrapper runs to the boundary (+18px = the cell's own right
-    // padding), the button overlays on hover, and the tail yields under it via the
-    // `hardClipCopyFade` mask instead of via layout.
+    // padding) and the button overlays on hover.
+    // ⛔ Round 15 (owner): "resourceId에 hover로 blur처리를 했니??? 이런거 하지마." The
+    // overlay used to stay legible by masking the id's tail to transparent; the id now
+    // keeps every pixel of ink and the button covers it with its own opaque chip. The
+    // absence of `mask-image` is the assertion — a fade would be a regression.
     it('runs the id to the boundary and overlays the copy button (round 11)', () => {
       const { rerender } = render(
         <WaitingApprovalTable variant="confirmed" resources={[row()]} />,
       );
       const copy = screen.getByRole('button', { name: 'Resource ID 복사' });
       expect(copy.className).toContain('absolute');
+      expect(copy.className).toContain('bg-white');
       expect(copy.parentElement?.className).toContain('w-[calc(100%+18px)]');
       expect(copy.parentElement?.className).not.toContain('inline-flex');
       expect(
         screen.getByText('arn:aws:rds:ap-northeast-2:804656952396:db:covered').className,
-      ).toContain('mask-image');
+      ).not.toContain('mask-image');
 
       // The approval variant keeps the in-flow button — the overlay belongs to the
       // covered grammar only.

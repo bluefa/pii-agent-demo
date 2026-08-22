@@ -158,46 +158,35 @@ export const ConfirmedIntegrationTable = ({
     );
   }
 
-  // Round 3 console band + naked table. The grey toolbar shell is gone — the counter title
-  // carries the total, chrome scales with the count, and the table starts at its own thead.
+  // Round 3 console band + naked table; round 15 moved the total OUT of the band and into
+  // the footer (owner), so the band is now search/filter only and renders nothing at all
+  // below the ">5 items" line — the table starts at its own thead.
   return (
     <div>
-      <div className="flex flex-wrap items-center gap-[10px] pb-3">
-        <div className="flex items-baseline gap-1.5">
-          <h3 className={cn('text-[16px] font-extrabold tracking-[-0.01em]', textColors.primary)}>
-            연동 리소스
-          </h3>
-          <span className={cn('text-[14px] font-semibold', textColors.tertiary)}>
-            · {approvalRows.length}건
-          </span>
+      {showChrome && (
+        <div className="flex flex-wrap items-center justify-end gap-[10px] pb-3">
+          <SearchBox value={table.searchValue} onChange={table.onSearchChange} />
+          <FilterMenu
+            pinRight={false}
+            groups={[
+              {
+                key: 'dbType',
+                label: 'Database Type',
+                value: table.dbType,
+                onChange: table.onDbTypeChange,
+                options: table.dbTypeOptions,
+              },
+              {
+                key: 'region',
+                label: 'Region',
+                value: table.region,
+                onChange: table.onRegionChange,
+                options: table.regionOptions,
+              },
+            ]}
+          />
         </div>
-        <div className="ml-auto flex items-center gap-[10px]">
-          {showChrome && (
-            <>
-              <SearchBox value={table.searchValue} onChange={table.onSearchChange} />
-              <FilterMenu
-                pinRight={false}
-                groups={[
-                  {
-                    key: 'dbType',
-                    label: 'Database Type',
-                    value: table.dbType,
-                    onChange: table.onDbTypeChange,
-                    options: table.dbTypeOptions,
-                  },
-                  {
-                    key: 'region',
-                    label: 'Region',
-                    value: table.region,
-                    onChange: table.onRegionChange,
-                    options: table.regionOptions,
-                  },
-                ]}
-              />
-            </>
-          )}
-        </div>
-      </div>
+      )}
       <WaitingApprovalTable
         resources={table.visibleResources}
         variant="confirmed"
@@ -209,17 +198,17 @@ export const ConfirmedIntegrationTable = ({
         expandFolds={!!table.searchValue.trim() || !!table.dbType || !!table.region}
         columns={columns}
       />
-      {/* 시안 D: pagination earns its row only when there is a second page to reach. */}
-      {table.filteredCount > table.pageSize && (
-        <Pagination
-          page={table.safePage}
-          pageSize={table.pageSize}
-          totalCount={table.filteredCount}
-          onPageChange={table.onPageChange}
-          onPageSizeChange={table.onPageSizeChange}
-          pageSizeOptions={[10, 20, 50, 100]}
-        />
-      )}
+      {/* Round 15 (owner): the footer is always mounted and carries the count — 시안 D's
+          "pagination earns its row" now governs the CONTROLS inside it, not the row. */}
+      <Pagination
+        variant="console"
+        page={table.safePage}
+        pageSize={table.pageSize}
+        totalCount={table.filteredCount}
+        onPageChange={table.onPageChange}
+        onPageSizeChange={table.onPageSizeChange}
+        pageSizeOptions={[10, 20, 50, 100]}
+      />
       {/* Mounted only while open so the hook fetches on open and drops its state on close. */}
       {logicalDbTarget && (
         <LogicalDbSummaryModal
