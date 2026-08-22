@@ -1173,12 +1173,15 @@ export const idcStyles = {
   /** Inline color tag — `.tag` (4px 10px / radius 8 / 12px / 600). */
   /**
    * 상태 태그. `connProgress.state` 와 같은 규칙 — **채도만 낮추고 명도는 고정**, 한 계열에
-   * 한 채도(C=0.014).
+   * 한 채도(C=0.018).
    *
    * 원래 C 0.0196~0.0250 으로 카드 표면(0.0136~0.0181)보다 진했다. 알약은 한 열에 세로로
    * 쌓여서 표가 색 띠를 하나 갖는 것처럼 읽혔고, 22px 짜리 칩이 795px 짜리 판보다 화소당
    * 더 크게 튀었다. 판보다는 진해야 맞다(작은 표식이라 찾을 수 있어야 한다) — 그 순서는
-   * 유지한 채 둘 다 내렸다.
+   * 유지한 채 둘 다 내렸다(처음엔 0.014, 한 단계 되올려 지금 값).
+   *
+   * 칩이 표면(0.012)보다 1.5배 진한 이 관계가 값 자체보다 중요하다. 되돌려 잡을 일이
+   * 생기면 `connByStatus` 계열과 같은 배로 움직여서 순서를 지켜라.
    *
    * ⚠️ L 은 절대 옮기지 말 것. `chipEdge` 의 근거가 "칩 어휘 전체가 L* 88.7~96.2 에 모여
    * 있고 hover 틴트 둘이 그 안에 앉는다"는 관측이라, 명도를 건드리면 그 분석이 통째로
@@ -1187,10 +1190,10 @@ export const idcStyles = {
    */
   tag: {
     base: 'inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-[12px] font-semibold tracking-[-0.01em] whitespace-nowrap',
-    blue: `bg-[#EBF1FA] text-[#1747B5] ${tableRowLift.chipEdge}`,
-    green: `bg-[#EBF6F0] text-[#197A3F] ${tableRowLift.chipEdge}`,
-    red: `bg-[#FAEDED] text-[#B42318] ${tableRowLift.chipEdge}`,
-    orange: `bg-[#F9F1E9] text-[#7A3F0E] ${tableRowLift.chipEdge}`,
+    blue: `bg-[#E9F1FD] text-[#1747B5] ${tableRowLift.chipEdge}`,
+    green: `bg-[#E9F7EF] text-[#197A3F] ${tableRowLift.chipEdge}`,
+    red: `bg-[#FDECEC] text-[#B42318] ${tableRowLift.chipEdge}`,
+    orange: `bg-[#FBF1E6] text-[#7A3F0E] ${tableRowLift.chipEdge}`,
     /** 중립은 이미 C 0.0029 라 내릴 것이 없다 — 색 없는 태그가 이 열의 바닥이다. */
     gray: `bg-[#F7F8FA] text-[#4E5968] ${tableRowLift.chipEdge}`,
   },
@@ -1335,9 +1338,14 @@ export const idcStyles = {
      * 그 채도가 화면에서 가장 큰 색 덩어리가 됐다 — 판정을 말하는 것은 문장·글리프·
      * 바의 채움이고, 면은 그것들을 묶기만 하면 된다.
      *
-     * 면 C=0.009 / 테두리 C=0.022 로 통일했다. 계열마다 달랐던 탓에 success(C 0.0181)가
+     * 면 C=0.012 / 테두리 C=0.030 으로 통일했다. 계열마다 달랐던 탓에 success(C 0.0181)가
      * fail(C 0.0140)보다 29% 진해 차분한 상태가 경보 상태보다 색이 셌는데, 한 값으로
      * 맞추면 세기가 아니라 색조만 의미를 나른다.
+     *
+     * 처음 통일한 값은 0.009 / 0.022 였고, 한 단계 되올린 것이 지금 값이다(둘 다 ×1.33 —
+     * 계열 사이 비율은 그대로다). 테두리/면 = 2.5 를 유지하는 것이 요점이다: 원래는
+     * 테두리가 제 면보다 3배 진해 1px 선이 판 전체보다 색이 셌고, 면만 만지면 그 역전이
+     * 되살아난다. 다시 조절하게 되면 두 값을 같은 배로 움직여라.
      *
      * L 을 건드리지 않은 이유는 둘이다. (1) 이 면들은 이미 흰 판과 1.06~1.10:1 이라
      * 더 밝히면 사라지고, 어둡게 하면 오히려 더 눈에 띈다 — 명도엔 여유가 없다.
@@ -1347,10 +1355,10 @@ export const idcStyles = {
      */
     state: {
       idle: 'bg-[#F7F8FA] border-[#EBEEF2]',
-      running: 'bg-[#F2F6FC] border-[#DCE5F3]',
-      pending: 'bg-[#FCF8F2] border-[#F0E8D9]',
-      success: 'bg-[#F1F8F4] border-[#D7E8DF]',
-      fail: 'bg-[#FBF2F2] border-[#EBD7D6]',
+      running: 'bg-[#F1F6FE] border-[#D9E5F9]',
+      pending: 'bg-[#FDF8F0] border-[#F3E8D3]',
+      success: 'bg-[#EFF9F3] border-[#D2EADD]',
+      fail: 'bg-[#FDF1F1] border-[#F0D5D4]',
     },
     head: 'flex items-center justify-between gap-3 mb-[11px]',
     title: 'flex items-center gap-2 text-[16px] font-bold tracking-[-0.01em]',
@@ -1378,7 +1386,7 @@ export const idcStyles = {
      * 성공 정착 카드의 다음 행동 안내. 제목의 아이콘 슬롯(18px) + `title` 의 gap-2 만큼
      * 들여써서 제목·메타와 한 열에 선다.
      *
-     * 색은 `counts` 의 #6B7684 가 아니라 한 단계 진한 #4E5968 이다. success 판(#F1F8F4)
+     * 색은 `counts` 의 #6B7684 가 아니라 한 단계 진한 #4E5968 이다. success 판(#EFF9F3)
      * 에서 #6B7684 는 **4.33:1** 로 12px AA(4.5:1) 에 못 미치고(pending 판의 4.37:1 과 같은
      * 사정 — `countsWarn` 이 존재하는 이유다), #4E5968 은 **6.67:1** 이다. 겸사겸사 계층도
      * 맞는다: 무엇을 하면 되는지는 언제 끝났는지보다 위다.
