@@ -6,7 +6,7 @@ import {
   type WaitingApprovalResource,
 } from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalTable';
 import { rdsInstanceBandLabel } from '@/app/target-sources/[targetSourceId]/_components/shared/RdsInstancePanel';
-import { useColumnResize, type ColumnResize } from '@/app/components/ui/useColumnResize';
+import { useColumnResize } from '@/app/components/ui/useColumnResize';
 import { required } from '@/lib/test-dom';
 import { textColors, verdictRail } from '@/lib/theme';
 

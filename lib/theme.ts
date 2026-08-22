@@ -1598,11 +1598,11 @@ export const idcStyles = {
      * with the resting rails gone (see consoleGrid), this is the on-demand boundary:
      * ONE absolutely positioned line in the confirmed table's scroll container, moved
      * imperatively to the nearest column seam while the pointer is inside its zone
-     * (SEAM_ZONE_PX in WaitingApprovalTable — the header handles' own 8px grammar).
+     * (SEAM_ZONE_PX in ConsoleTable — the header handles' own 8px grammar).
      * Round 8 (owner): "너비 조절시에 잔상이 남는 효과는 삭제해봐" — the 100ms fade-out
      * lingered as an afterimage around resize gestures, so the line now cuts on/off
-     * instantly. WaitingApprovalTable additionally keeps it dark while any pointer
-     * button is held and, after a width change, until the pointer leaves the seam zone.
+     * instantly. ConsoleTable additionally keeps it dark while any pointer button is
+     * held and, after a width change, until the pointer leaves the seam zone.
      *
      * Round 10 (owner): "경계면 활성화시에 색상만 파란색 계열로 수정하면 딱 좋을듯" —
      * the activated boundary joins the app's one interaction blue (#0064FF, the header
@@ -1614,7 +1614,7 @@ export const idcStyles = {
      * 차라리 그림자가 조금 더 짙어지고 색상이 파란색으로 표현되는게 더 좋을듯" — the
      * tracer stops being a line at all. It is now the resting shadow's own hover
      * state: the same 10px right-edge ramp consoleGrid casts (right edge ON the
-     * seam — WaitingApprovalTable translates it by seam − 10px), in #0064FF at
+     * seam — ConsoleTable translates it by seam − SEAM_BAND_PX), in #0064FF at
      * α 0.12 over the resting 0.03 slate (peak ≈#DAE6F9, ~1.25:1 on white — present
      * on approach, nowhere near the solid line's 3.7:1 pop). Body only: the class
      * anchors the bottom and the mousemove pins `top` to the thead's bottom edge,

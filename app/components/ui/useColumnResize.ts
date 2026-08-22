@@ -168,7 +168,7 @@ export const useColumnResize = (options?: ColumnResizeOptions): ColumnResize => 
         ),
       }));
 
-    /** 손잡이가 속한 열. */
+    /** The column this handle belongs to. */
     const ownerTh = (target: HTMLElement): HTMLTableCellElement | null => target.closest('th');
 
     const onPointerDown = (key: string) => (event: ReactPointerEvent<HTMLSpanElement>) => {
@@ -253,5 +253,5 @@ export const useColumnResize = (options?: ColumnResizeOptions): ColumnResize => 
           : idcStyles.table.resizeHandle,
       }),
     };
-  }, [widths, clampToContent, storageKey]);
+  }, [widths, clampToContent]);
 };

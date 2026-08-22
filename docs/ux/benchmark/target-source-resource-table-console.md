@@ -22,7 +22,7 @@
 | 레퍼런스 | URL | 차용 요소 |
 |---|---|---|
 | AWS Cloudscape Table (라이브 데모 DOM 실측 + 문서) | https://cloudscape.design/components/table/ | 카드 0겹 full-page 문법 · 행 밀도 · "resize the column width by **dragging the divider on the right of a column header**" · `resizableColumns` · 최소폭 클램프(기본 120px) · `onColumnWidthsChange`(폭 저장) · ">5 items" 크롬 규칙 |
-| Azure Portal Manage view 문서 | https://learn.microsoft.com/azure/azure-portal/manage-filter-resource-views | 「Reset to defaults」 → 「열 너비 초기화」 버튼 · 뷰(열 구성)는 사용자 소유물 |
+| Azure Portal Manage view 문서 | https://learn.microsoft.com/azure/azure-portal/manage-filter-resource-views | 「Reset to defaults」 → 「열 너비 초기화」 버튼(**R14에서 폐지**) · 뷰(열 구성)는 사용자 소유물 |
 | Fluent 2 react-table 소스 | https://github.com/microsoft/fluentui | 행높이 눈금(24/34/44) — 밀도 근거 |
 | A List Apart zebra 실험 ①② | https://alistapart.com/article/zebrastripingdoesithelp/ | zebra 배제 근거(컴팩트 표에서 무효과) |
 | NN/g 데이터 테이블 4과업 | https://www.nngroup.com/articles/data-tables/ | 1건 화면 크롬 제거(시안 D)의 과업 논거 |
@@ -43,16 +43,20 @@
 
 ## 구현 내용 (이 PR)
 
+> 아래는 **라운드 3 시점의 스냅샷**이다. 이후 라운드가 뒤집은 항목은 각 줄에
+> 표시했고, 최종 상태는 라운드 4~14 절이 갖는다.
+
 - `useColumnResize` 확장: `clampToContent`(상한=열 값 최장폭 + 더블클릭 맞춤) ·
-  `storageKey`(localStorage 지속, `pii:colw:v1:confirmed-resources`) · `reset()`.
+  `storageKey`(localStorage 지속, `pii:colw:v1:confirmed-resources`) · ~~`reset()`~~(**R14 폐지**).
   기존 소비처(모달 2곳)는 무옵션 호출이라 동작 불변.
 - `WaitingApprovalTable` confirmed variant: 종류 칩 열 승격(행 77→52px, 칩 있는 행이 있을
   때만 열 생성) · `table-fixed` + 열별 기본폭(기존 실측 162·312·142·156·118·96 재사용) ·
   전 열 리사이즈 핸들 · 행 구분선 `bodyStrong` · 플랫 헤더(`approvalHeaderFlat`).
 - `ConfirmedIntegrationTable`: 회색 툴바 셸 → "연동 리소스 · N건" 카운터 밴드 +
-  검색·필터(5건 초과 시) + 「열 너비 초기화」 + 페이지네이션(페이지 크기 초과 시) — 시안 D 내장.
+  검색·필터(5건 초과 시) + ~~「열 너비 초기화」~~(**R14 폐지**) + 페이지네이션(페이지 크기
+  초과 시) — 시안 D 내장.
 - `InstallationCompleteStep`: 카드 → 풀블리드 플랫 흰 표면(콘솔 문법). 스텝 1~6 카드는 유지 —
-  완료 시점의 장르 전환은 의도.
+  완료 시점의 장르 전환은 의도. (**R13에서 카드로 복귀** — 전제 만료.)
 
 ## 라운드 4 (2026-08-21, 발주 3건)
 
@@ -249,7 +253,7 @@ padding-box에 앉음) · 존 밖 mousemove로 즉시 소등, 폭 하이드레�
 | # | 결정 | 메커니즘 |
 |---|------|---------|
 | R13-1 | **7단계 카드 복원** | 라운드 3의 풀블리드 콘솔 면(`-mx-10 -mt-8` + surface)을 되돌려 `cardStyles.base/header/body`로. CardActionBar의 `-mx-[28px]` 보정도 함께 폐지(카드 시절 28px 인셋이 다시 맞는 값). **기각된 전제**: "완료 화면은 운영 열람이니 콘솔 면이 native"라는 라운드 3 논리 — 7단계는 여전히 같은 7단계 흐름의 한 칸이고, 옆의 6단계는 카드인데 7단계만 장르가 바뀌면 그게 더 큰 불일치다. 콘솔 문법은 **표의 문법**(그리드·덮임 컷·시임 그림자)이지 페이지 바닥이 필요한 게 아니다 |
-| R13-2 | **`ConsoleTable` 추출 — 재사용 단위는 표가 아니라 문법** | `app/components/ui/ConsoleTable.tsx`. 소유: 스크롤 박스 · `table-fixed`+**폭=Σ열폭** · `consoleGrid` · 리사이즈 가능한 헤더(`ConsoleTableColumn[]` 스펙 + 라벨 self-truncate 겸 드래그 하한 프로브) · 시임의 두 상태(휴지 그림자/hover 밴드)와 라운드 8 래치. 비소유: 프레임·카운터 밴드·검색·페이지네이션·행. 셀은 `idcStyles.table.consoleCell`(덮임 컷)을 쓰면 된다. 리사이즈 인스턴스는 **호출자 소유** — 「열 너비 초기화」가 카운터 밴드에 있기 때문. 선택 열은 스펙에서 **빼는 것**으로 표현(레코드+필터 폐지) |
+| R13-2 | **`ConsoleTable` 추출 — 재사용 단위는 표가 아니라 문법** | `app/components/ui/ConsoleTable.tsx`. 소유: 스크롤 박스 · `table-fixed`+**폭=Σ열폭** · `consoleGrid` · 리사이즈 가능한 헤더(`ConsoleTableColumn[]` 스펙 + 라벨 self-truncate 겸 드래그 하한 프로브) · 시임의 두 상태(휴지 그림자/hover 밴드)와 라운드 8 래치. 비소유: 프레임·카운터 밴드·검색·페이지네이션·행. 셀은 `idcStyles.table.consoleCell`(덮임 컷)을 쓰면 된다. 리사이즈 인스턴스는 **호출자 소유** — 저장 키가 한 화면의 표 이름이기 때문(R13 당시 근거였던 「열 너비 초기화」는 R14에서 폐지). 선택 열은 스펙에서 **빼는 것**으로 표현(레코드+필터 폐지) |
 | R13-3 | 소비처 배선 | `WaitingApprovalTable`의 confirmed 분기가 셸을 쓰고, 나머지 3개 변형은 기존 `w-full` 표 그대로. 시임 훅 3개·`ResizableTh`·폭 합 계산이 컴포넌트에서 빠지며 1273→1180줄. 테스트도 이관: 문법 세부(밴드 기하·래치·핸들·하한 프로브)는 `ConsoleTable.test.tsx` 7건이 소유하고, 소비처에는 배선 1건(셸 마운트 + 폭 합 986px)만 남긴다 |
 
 인벤토리(서브에이전트 조사): 리소스 표는 **11개 화면 ~4,300줄**. 전부를 한
@@ -264,3 +268,54 @@ confirmed 변형뿐), 다음 채택 후보는 IDC 6·7단계
 헤더 7열·선언폭 162/312/128/142/156/118/96·표폭 1114px·핸들 7개·밴드 우변이
 시임에 서브픽셀 일치·top=thead 하변 · 전체 vitest 통과(신규 `ConsoleTable`
 7건, 소비처 46건).
+
+## 라운드 14 (2026-08-22) — 크롬 축소 + 외부 교차 리뷰
+
+> "「열 너비 초기화」 버튼 삭제. "연동 리소스" -> 16 픽셀"
+
+| # | 결정 | 메커니즘 |
+|---|------|---------|
+| R14-1 | **「열 너비 초기화」 폐지** | 버튼이 `useColumnResize().reset()`의 유일한 호출처였고 둘 다 이 PR에서 같이 들어왔으므로 메서드도 함께 제거(안 그러면 PR이 죽은 코드를 싣는다). Azure 「Reset to defaults」 차용은 여기서 종료 — 크롬은 카운터·검색·필터·페이지네이션만 남는다 |
+| R14-2 | 카운터 제목 18px → **16px** | `· N건`은 14px 유지. 두 단의 구분은 굵기(800/600)와 색(primary/tertiary)이 이미 지고 있어 크기 차만 좁힌다 |
+
+**교차 리뷰(gpt-5.6-terra xhigh + Claude Opus).** 두 모델이 공통으로 짚었고 실측으로
+확인된 결함 1건, Opus 단독 1건이 열려 있다. 둘 다 이번 라운드가 만든 것이 아니라
+라운드 3이 남긴 것이며, 폐지된 버튼이 가리고 있던 것이다.
+
+1. **재수화된 열 너비가 아무 상한도 받지 않는다 (열림).** 하이드레이션은
+   `Math.max(MIN_COLUMN_WIDTH, …)`만 걸고 `headerFloor`·`contentCap`·활성 열 집합을
+   전혀 보지 않는다(`useColumnResize.ts:125-157`). **실측**: `localStorage`에
+   `{"id":900}`을 심고 새로고침하면 id 열 900px·표 1702px로 스크롤 박스를 넘고,
+   손잡이 **더블클릭은 919px로 더 키운다**(`contentCap`은 "안 잘렸으면 현재 폭"을
+   돌려주므로 줄이는 제스처가 존재하지 않는다). 없어진 열의 유령 키도 병합돼 다시
+   저장된다. 키에 target-source id 가 없어(`pii:colw:v1:confirmed-resources`) 한 번
+   벌어진 폭이 모든 대상·6·7단계로 따라다닌다. 되돌리는 길은 수동 드래그뿐
+   (하한은 라벨 폭이라 복구 자체는 가능). **⛔ 버튼 복구는 오너 지시와 충돌** —
+   고치려면 하이드레이션에서 활성 열 기준으로 정규화하는 쪽.
+2. **`종류` 열의 존재를 현재 페이지로 판정한다 (열림).** 술어가 `resources` prop
+   (= `visibleResources`, `units.slice(…)`)을 읽는다(`WaitingApprovalTable.tsx:472-478`).
+   **실측**(목 1012): 검색 `athena` 하나로 7열 → 6열, 표폭 1225.29 → 1097.29px(정확히
+   −128px = 종류 열폭). 페이지를 넘기거나 필터를 걸 때마다 Resource ID 오른쪽 경계가
+   전부 128px 점프하고 방금 드래그한 폭이 다른 자리에 앉는다. 전체 명부
+   (`approvalRows`)는 호출자에 있는데 참조되지 않는다. R9-2의 "클러스터/EC2 행 존재 시"가
+   *데이터셋에* 인지 *이 페이지에* 인지 모호했고 코드는 후자를 골랐다.
+
+**기각된 리뷰 지적**: `as` 단언이 Critical(경계 바로 위에 `typeof` 가드가 있다) ·
+신규 한국어 주석이 CLAUDE.md 위반(지적된 줄은 origin/main 에 이미 있던 것 —
+파일 재구성으로 diff 에 `+` 로 잡혔다. 순수 한국어 신규 1줄만 영어로 교체).
+
+**`ConsoleTable` 재사용성 — "수정 필요".** API 자체는 소비처 이름을 담고 있지
+않지만, 지목된 두 채택 후보 모두 지금 그대로는 못 쓴다:
+- `ConsoleTableColumn.label`이 `string`이라 IDC 표의 `SourceIpHeader`
+  (`InfoTooltip` 포함, `IdcResourceTable.tsx:100`)를 헤더에 못 싣는다 →
+  `header?: ReactNode` + 접근성용 `resizeLabel: string`로 분리하면 풀린다.
+- `width`가 필수 `number`이고 표폭=Σ열폭이라 **가변 열이 없다**. IDC 표는 `제외 사유`
+  ·`접근 허용 상태`·`연동 제외`·`Status`가 남는 폭을 흡수하는 구조
+  (`IdcResourceTable.tsx:208·211·219·222`)라 7개 선택 열을 먼저 px 로 고정해야 한다.
+- 헤더와 본문이 **손으로 맞추는 두 목록**이다(셸은 `<thead>`만 그린다). `colgroup`도
+  개발 경고도 없어 열 개수가 어긋나면 `table-fixed` 아래에서 조용히 밀린다.
+- admin ops 확정 정보 표는 `variant="plain"`이라 셸 분기 자체에 도달하지 못한다
+  (`WaitingApprovalTable.tsx:1037` 등이 전부 `confirmedVariant` 게이트).
+
+실측(목 1012, dev 3001): 카운터 제목 16px/800 · 초기화 버튼 0개 · 핸들 7개 정상 ·
+변경 파일 eslint 0건 · tsc 통과 · 전체 vitest 2673/2673.
