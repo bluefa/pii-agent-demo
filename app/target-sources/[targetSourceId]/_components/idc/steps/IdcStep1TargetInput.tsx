@@ -3,7 +3,7 @@
 import { useCallback, useRef, useState } from 'react';
 import type { z } from 'zod';
 import type { schemas } from '@/lib/generated/install-v1';
-import { toWireDatabaseType } from '@/lib/types';
+import { ProcessStatus, toWireDatabaseType } from '@/lib/types';
 import { createApprovalRequest, getProject } from '@/app/lib/api';
 import { useConfirmSubmit } from '@/app/hooks/useConfirmSubmit';
 import { useToast } from '@/app/components/ui/toast';
@@ -142,6 +142,7 @@ export const IdcStep1TargetInput = ({
 
   const submit = useConfirmSubmit({
     targetSourceId,
+    pendingStatus: ProcessStatus.WAITING_TARGET_CONFIRMATION,
     request: async () => {
       // Step 1 is manual input held in UI state — there is no IDC `/resources`
       // PUT in the contract; submission rides createApprovalRequest, which routes

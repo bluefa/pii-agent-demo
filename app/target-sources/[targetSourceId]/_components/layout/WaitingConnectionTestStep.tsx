@@ -25,11 +25,9 @@ interface WaitingConnectionTestStepProps {
 
 // Reads the shared confirmed-integration context — must render inside the provider.
 const ConnectionTestSection = ({
-  providerLabel,
   refreshProject,
   polling,
 }: {
-  providerLabel: string;
   refreshProject: () => void;
   polling: UseTestConnectionPollingReturn;
 }) => {
@@ -40,7 +38,6 @@ const ConnectionTestSection = ({
     <ConnectionTestCard
       targetSourceId={targetSourceId}
       confirmed={state.data}
-      providerLabel={providerLabel}
       refreshProject={refreshProject}
       polling={polling}
     />
@@ -55,7 +52,6 @@ const ConnectionTestSection = ({
  */
 export const WaitingConnectionTestStep = ({
   project,
-  providerLabel,
   onProjectUpdate,
 }: WaitingConnectionTestStepProps) => {
 
@@ -73,7 +69,6 @@ export const WaitingConnectionTestStep = ({
   return (
     <ConfirmedIntegrationDataProvider targetSourceId={project.targetSourceId}>
       <ConnectionTestSection
-        providerLabel={providerLabel}
         refreshProject={refreshProject}
         polling={polling}
       />

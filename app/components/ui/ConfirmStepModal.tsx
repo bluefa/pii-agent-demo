@@ -19,6 +19,14 @@ export interface ConfirmStepResult {
   reason?: string;
 }
 
+export type ConfirmStepSize = 'sm' | 'md' | 'lg';
+
+const SIZES: Record<ConfirmStepSize, string> = {
+  sm: 'w-[480px]',
+  md: 'w-[560px]',
+  lg: 'w-[760px]',
+};
+
 export interface ConfirmStepModalProps {
   open: boolean;
   onClose: () => void;
@@ -33,8 +41,12 @@ export interface ConfirmStepModalProps {
    * submit stats). Text-only confirms omit it and keep the compact two-line shape.
    */
   children?: ReactNode;
-  /** 560px instead of 480px — for confirms that carry a body block. */
-  wide?: boolean;
+  /**
+   * How much room the body needs — nothing else changes with it. The chrome, the footer pair
+   * and the result frame are identical at every width; only the card is wider.
+   * `sm` two lines of text · `md` a stat block · `lg` a table.
+   */
+  size?: ConfirmStepSize;
   /** Gates the confirm button beyond isPending (e.g. required input still empty). */
   confirmDisabled?: boolean;
   /** Where focus lands on open — input-carrying confirms point at their field; default is 취소. */
@@ -63,8 +75,8 @@ export interface ConfirmStepModalProps {
  *  It carries no background either: the card is already white, and an opaque footer painted
  *  over the shadow of whatever the body ends with (the approval stat tiles), chopping it into
  *  a hard full-width edge — the very divider this footer set out not to draw. */
-const confirmHeader = 'px-6 pt-6 pb-1.5 flex items-start justify-between';
-const confirmFooter = 'px-6 pt-5 pb-6 flex justify-end gap-2.5';
+const confirmHeader = 'shrink-0 px-6 pt-6 pb-1.5 flex items-start justify-between';
+const confirmFooter = 'shrink-0 px-6 pt-5 pb-6 flex justify-end gap-2.5';
 
 /** Footer pair on the in-card `.btn` scale (h40 / radius12 / 14px) — the 52px modalBtn tier
  *  belongs to the tall approval modals and overwhelmed a two-line dialog.
@@ -116,7 +128,7 @@ export const ConfirmStepModal = ({
   cancelLabel = '머무르기',
   isPending = false,
   children,
-  wide = false,
+  size = 'sm',
   confirmDisabled = false,
   initialFocus,
   tone = 'default',
@@ -233,8 +245,13 @@ export const ConfirmStepModal = ({
         className={cn(
           modalStyles.container,
           modalStyles.toss.container,
-          wide ? 'w-[560px]' : 'w-[480px]',
-          'max-w-[calc(100vw-2rem)] flex flex-col',
+          SIZES[size],
+          // A body tall enough to outgrow the viewport used to push the footer off screen —
+          // measured at 834px in an 810px window, with 요청하기 unreachable and no way to
+          // scroll to it (the overlay centres, it does not scroll). The card stops at the
+          // window and the body scrolls inside it instead; 86vh is the ceiling
+          // `pipelineStyles.modal.dialogTask` already uses for the same reason.
+          'max-w-[calc(100vw-2rem)] max-h-[86vh] flex flex-col',
         )}
       >
         {result ? (
@@ -342,7 +359,10 @@ export const ConfirmStepModal = ({
               </div>
             </div>
 
-            {children && <div className="px-6 pt-4">{children}</div>}
+            {/* The only part that gives when the card hits the viewport ceiling: `min-h-0`
+                lets it shrink past its content (a flex item's default floor is its content),
+                and the header and footer hold their size so the footer pair stays reachable. */}
+            {children && <div className="min-h-0 overflow-y-auto px-6 pt-4">{children}</div>}
 
             <div className={confirmFooter}>
               <button

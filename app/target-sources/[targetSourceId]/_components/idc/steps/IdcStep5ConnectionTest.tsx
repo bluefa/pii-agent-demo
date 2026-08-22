@@ -12,6 +12,7 @@ import { useModal } from '@/app/hooks/useModal';
 import { isInFlightUi, useTestConnectionPolling } from '@/app/hooks/useTestConnectionPolling';
 import { useTcCompletionStatus } from '@/app/hooks/useTcCompletionStatus';
 import { useTcSettleHold } from '@/app/hooks/useTcSettleHold';
+import { useConfirmSubmit } from '@/app/hooks/useConfirmSubmit';
 import {
   computeTcBuckets,
   foldAgentStatuses,
@@ -34,7 +35,7 @@ import type { IdcStepProps } from '@/app/target-sources/[targetSourceId]/_compon
 import { getProject } from '@/app/lib/api';
 import { getIdcConfirmedResources, type IdcConnState, type IdcResourceView } from '@/app/lib/api/idc';
 import type { ResourcesState } from '@/app/hooks/useIdcResources';
-import type { SecretKey } from '@/lib/types';
+import { ProcessStatus, type SecretKey } from '@/lib/types';
 
 const EMPTY_RESOURCES: readonly IdcResourceView[] = [];
 
@@ -305,12 +306,32 @@ export const IdcStep5ConnectionTest = ({
     !credsDirty;
   // 완료 승인 요청: acknowledge (confirmed:true) → the mock sets passedAt → Step 6,
   // then the refetch advances the screen. (Without the PUT the project never changes.)
-  const handleSubmitApproval = useCallback(async () => {
-    setApprovalOpen(false);
-    await updateTestConnectionConfirmation(targetSourceId, true);
-    const updated = await getProject(targetSourceId);
-    onProjectUpdate(updated);
-  }, [onProjectUpdate, targetSourceId]);
+  //
+  // 갱신은 확인 프레임이 선 뒤(settle)다 — onProjectUpdate 가 상태를 CONNECTION_VERIFIED 로
+  // 바꾸는 순간 이 5단계 컴포넌트가 통째로 교체되고, 안에 있던 모달은 프레임을 보여주기도
+  // 전에 언마운트된다. 실패 경로도 훅이 가진다: 전에는 이 async 함수에 catch 가 없어
+  // 실패가 unhandled rejection 으로 조용히 사라졌다.
+  const approval = useConfirmSubmit({
+    targetSourceId,
+    pendingStatus: ProcessStatus.WAITING_CONNECTION_TEST,
+    request: async () => {
+      await updateTestConnectionConfirmation(targetSourceId, true);
+    },
+    settle: async () => {
+      try {
+        const updated = await getProject(targetSourceId);
+        onProjectUpdate(updated);
+      } finally {
+        // 확인 프레임에는 빠져나갈 길이 없다 — 갱신이 던져도 모달은 닫는다.
+        setApprovalOpen(false);
+      }
+    },
+  });
+  const openApproval = useCallback(() => {
+    // 지난 실패 프레임이 다시 뜨지 않도록 열기 전에 되돌린다.
+    approval.reset();
+    setApprovalOpen(true);
+  }, [approval]);
 
   return (
     <>
@@ -352,7 +373,7 @@ export const IdcStep5ConnectionTest = ({
                 drawCheck={settledLive}
                 onRunTest={() => void runTest()}
                 runDisabled={runDisabled}
-                onRequestApproval={() => setApprovalOpen(true)}
+                onRequestApproval={openApproval}
                 approvalDisabled={!canRequestApproval}
                 historyAction={
                   <button
@@ -465,7 +486,14 @@ export const IdcStep5ConnectionTest = ({
               isOpen={approvalOpen}
               onClose={() => setApprovalOpen(false)}
               resources={viewResources}
-              onSubmit={handleSubmitApproval}
+              connectionStatus={statusByResource}
+              connectionLoading={loading}
+              connectionHasRun={fetchError && !latestJob ? null : !!latestJob}
+              phase={approval.phase}
+              pending={approval.pending}
+              errorCode={approval.errorCode}
+              onSubmit={approval.submit}
+              onRetry={approval.retry}
             />
           )}
           <TcRunHistoryModal

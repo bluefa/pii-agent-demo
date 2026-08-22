@@ -133,7 +133,6 @@ const renderCard = (confirmed: ConfirmedResource[]) =>
     <ConnectionTestCard
       targetSourceId={1}
       confirmed={confirmed}
-      providerLabel="Azure Infrastructure"
       refreshProject={() => {}}
       polling={makePolling()}
     />,
@@ -473,8 +472,7 @@ describe('ConnectionTestCard', () => {
       <ConnectionTestCard
         targetSourceId={1}
         confirmed={confirmed}
-        providerLabel="Azure Infrastructure"
-        refreshProject={() => {}}
+          refreshProject={() => {}}
         polling={makePolling()}
       />
     );
