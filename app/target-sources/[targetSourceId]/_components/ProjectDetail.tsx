@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import type { TargetSource } from '@/lib/types';
-import { providerAccent, providerAccentDefault } from '@/lib/theme';
 import {
   ErrorState,
   GuidePanel,
@@ -34,12 +33,6 @@ interface ProjectDetailProps {
 
 export const ProjectDetail = ({ initialProject, jiraTicket }: ProjectDetailProps) => {
   const [project, setProject] = useState<TargetSource>(initialProject);
-
-  // Same semantics as the per-provider identity strips had: SDU accounts are
-  // monitored via SDU, everything else via the provider agent.
-  const monitoringLabel = project.isSduType ? 'SDU' : `${project.cloudProvider} Agent`;
-  const monitoringAccent =
-    providerAccent[project.cloudProvider.toLowerCase()] ?? providerAccentDefault;
 
   // Right column wrapper is a <div> (not <main>) — provider pages already
   // render their own <main>, and nesting two <main> elements is invalid.
@@ -97,8 +90,6 @@ export const ProjectDetail = ({ initialProject, jiraTicket }: ProjectDetailProps
       <GuidePanel
         slotKey={resolveProjectStepSlot(project)}
         jiraTicket={jiraTicket}
-        monitoringLabel={monitoringLabel}
-        monitoringAccent={monitoringAccent}
       />
     </div>
   );

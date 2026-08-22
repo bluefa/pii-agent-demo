@@ -617,37 +617,17 @@ export const deleteInfraButtonStyle =
  * Page-meta horizontal kv strip (Toss display variant).
  * See ADR-014 D1; consumer rollout starts in Wave 1.
  */
-/**
- * Per-provider brand accent for the v15 `.identity-bar` `--ib-accent` local var
- * (00-tokens.md `--color-provider-*`). Consumed via inline `style` so the
- * accent-derived `color-mix(...)` backgrounds + stripe recolor per provider.
- * Keyed by lowercased CloudProvider; falls back to the Azure default (v15 line 753).
- */
-export const providerAccent: Record<string, string> = {
-  aws: '#FF9900',
-  azure: '#0078D4',
-  gcp: '#4285F4',
-  idc: '#374151',
-  sdu: '#9333EA',
-};
-export const providerAccentDefault = providerAccent.azure;
 
 /**
  * What survives of the v15 `.identity-bar` (01-chrome.md 752–855): the copy
- * affordance, now on the flat page header's mono identifiers, and the agent
- * pill, now in the guide rail. The bar itself is gone — the target-source
- * detail header replaced it. The per-provider accent is still injected as the
- * `--ib-accent` CSS var via inline `style` on the pill (GuidePanel), so no raw
- * provider hex lives here.
+ * affordance, now on the flat page header's mono identifiers. The bar itself
+ * is gone — the target-source detail header replaced it.
  */
 export const identityBarStyles = {
   copyBase:
     'inline-grid place-items-center w-6 h-6 rounded-md border-0 bg-transparent cursor-pointer transition-[background-color,color] duration-[120ms]',
   copyIdle: 'text-[#6B7684] hover:bg-[#F7F8FA] hover:text-[#191F28]',
   copyCopied: 'text-[#2A7D52]',
-  agent:
-    'inline-flex items-center gap-[7px] flex-shrink-0 px-[13px] py-[7px] rounded-full leading-none text-[13px] font-bold tracking-[-0.005em] bg-[color-mix(in_srgb,var(--ib-accent)_10%,transparent)] text-[var(--ib-accent)]',
-  agentIcon: 'w-[13px] h-[13px]',
 } as const;
 
 /**

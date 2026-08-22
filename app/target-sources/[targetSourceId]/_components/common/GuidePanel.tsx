@@ -1,15 +1,14 @@
 'use client';
 
-import { useState, type CSSProperties } from 'react';
+import { useState } from 'react';
 
 import { GuideCardContainer } from '@/app/components/features/process-status/GuideCard/GuideCardContainer';
-import { ChatIcon, OpenExternalIcon, ShieldCheckIcon } from '@/app/components/ui/icons';
+import { ChatIcon, OpenExternalIcon } from '@/app/components/ui/icons';
 import { DeleteInfrastructureButton } from '@/app/target-sources/[targetSourceId]/_components/common/DeleteInfrastructureButton';
 import {
   bgColors,
   borderColors,
   cn,
-  identityBarStyles,
   interactiveColors,
   primaryColors,
   segmentedControlStyles,
@@ -177,10 +176,6 @@ const HistoryTimeline = ({ items }: { items: typeof MOCK_HISTORY }) => (
 interface GuidePanelProps {
   slotKey: GuideSlotKey | null;
   jiraTicket: JiraTicketState;
-  /** Monitoring-method pill in the management footer (e.g. "AWS Agent", "SDU"). */
-  monitoringLabel: string;
-  /** Provider accent hex driving the pill tint (see `providerAccent`). */
-  monitoringAccent: string;
 }
 
 /**
@@ -193,8 +188,6 @@ interface GuidePanelProps {
 export const GuidePanel = ({
   slotKey,
   jiraTicket,
-  monitoringLabel,
-  monitoringAccent,
 }: GuidePanelProps) => {
   const [tab, setTab] = useState<PanelTab>('guide');
   const [page, setPage] = useState(0);
@@ -232,24 +225,6 @@ export const GuidePanel = ({
         bgColors.surface,
       )}
     >
-      {/* Monitoring method leads the rail (owner ask) — identity-level fact,
-          read before any step work. */}
-      <div
-        className={cn(
-          'flex shrink-0 items-center justify-between gap-2 border-b px-4 py-3',
-          borderColors.light,
-        )}
-      >
-        <span className={cn('text-[12px] font-medium', textColors.tertiary)}>모니터링</span>
-        <span
-          className={identityBarStyles.agent}
-          style={{ ['--ib-accent']: monitoringAccent } as CSSProperties}
-        >
-          <ShieldCheckIcon className={identityBarStyles.agentIcon} />
-          {monitoringLabel}
-        </span>
-      </div>
-
       {/* Jira ticket next — the collab channel is the escape hatch for every
           step, so it stays above the fold. */}
       <div className={cn('shrink-0 border-b p-4', borderColors.light)}>

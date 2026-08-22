@@ -16,13 +16,9 @@ vi.mock(
 );
 
 import { GuidePanel } from '@/app/target-sources/[targetSourceId]/_components/common/GuidePanel';
-import { providerAccent } from '@/lib/theme';
 
 const baseProps = {
   slotKey: null,
-  monitoringLabel: 'AWS Agent',
-  // 실제 호출부(ProjectDetail)와 같은 소스 — 픽스처에 hex 를 직접 적지 않는다.
-  monitoringAccent: providerAccent.aws,
 } as const;
 
 describe('GuidePanel — collab-channel card states', () => {
@@ -60,15 +56,14 @@ describe('GuidePanel — collab-channel card states', () => {
   });
 });
 
-describe('GuidePanel — monitoring header and danger footer', () => {
-  it('renders the monitoring pill at the top and the delete action pinned at the bottom', () => {
+describe('GuidePanel — danger footer', () => {
+  it('renders the collab card at the top and the delete action pinned at the bottom', () => {
     render(<GuidePanel {...baseProps} jiraTicket={null} />);
-    const monitoring = screen.getByText('모니터링');
+    const collabCard = screen.getByText('도움이 필요하신가요?');
     const deleteButton = screen.getByRole('button', { name: '인프라 삭제' });
-    expect(screen.getByText('AWS Agent')).toBeTruthy();
-    // top strip precedes the delete footer in document order
+    // top card precedes the delete footer in document order
     expect(
-      monitoring.compareDocumentPosition(deleteButton) & Node.DOCUMENT_POSITION_FOLLOWING,
+      collabCard.compareDocumentPosition(deleteButton) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
   });
 });
