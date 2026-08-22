@@ -43,7 +43,7 @@ const row = (el: HTMLElement) => tag(el)?.textContent?.replace(/\s+/g, ' ').trim
 
 const cue = (el: HTMLElement) => within(el).getByRole('button', { name: /전체 단계/ });
 
-describe('InstallationProcessProgressBar — 설치 진행 [7단계 중 4단계 Agent 설치]', () => {
+describe('InstallationProcessProgressBar — 설치 진행 [7단계 중 4단계 · Agent 설치]', () => {
   it('states name and position on one row (오너 14차 지시)', () => {
     const el = block(ProcessStatus.INSTALLING);
     // The block name and the position plate share the head row: the name's parent is
@@ -51,9 +51,21 @@ describe('InstallationProcessProgressBar — 설치 진행 [7단계 중 4단계 
     const head = within(el).getByText('설치 진행').parentElement;
     expect(head?.className).toBe(installStepperStyles.head);
     expect(tag(el)?.parentElement).toBe(head);
-    // No space between 4단계 and Agent 설치: that gap is layout, not text — the digits
-    // and the step's name are separate elements inside the plate.
-    expect(row(el)).toBe('7단계 중 4단계Agent 설치');
+    // No space around the middot: the spacing is layout, the dot is the text — the
+    // digits, the separator and the step's name are three elements inside the plate.
+    expect(row(el)).toBe('7단계 중 4단계·Agent 설치');
+  });
+
+  it('breaks the position off the step name with a middot (오너 19차 지시)', () => {
+    // Inside a plate this small a 6px gap read as spacing rather than a break, so the
+    // position and the label ran together. The dot is the seam, and it is decoration:
+    // it carries no class of its own and is hidden from the accessible name.
+    const dot = [...block(ProcessStatus.INSTALLING).querySelectorAll('span')].find(
+      (s) => s.textContent === '·',
+    );
+    expect(dot?.getAttribute('aria-hidden')).toBe('true');
+    // ⛔ No class — a separator in a second tint would be a mark that means something.
+    expect(dot?.className).toBe('');
   });
 
   it.each([

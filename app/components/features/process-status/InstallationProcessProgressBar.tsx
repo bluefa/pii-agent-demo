@@ -94,6 +94,15 @@ export const InstallationProcessProgressBar = ({
                   <b className={s.tagCount}>{INSTALL_STEPS.length}</b>단계 중{' '}
                   <b className={s.tagCount}>{currentIndex + 1}</b>단계
                 </span>
+                {/* The gap alone had to carry the seam between the position and the
+                    step's name (오너 19차 지시). Inside one small plate a 6px gap reads
+                    as spacing, not as a break — so the two halves ran together. The
+                    middot is the break, drawn.
+                    No class: it takes the plate's own 12px `#0050D6`, and a separator
+                    in a second tint would be a mark that means something. `aria-hidden`
+                    because it is punctuation for the eye — a reader hears
+                    「7단계 중 4단계 Agent 설치」 either way. */}
+                <span aria-hidden="true">·</span>
                 <span>{current.label}</span>
               </span>
             ))}
