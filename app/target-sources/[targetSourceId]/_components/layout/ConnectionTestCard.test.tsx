@@ -2,6 +2,7 @@
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { ConfirmedResource } from '@/lib/types/resources';
+import { AppError } from '@/lib/errors';
 import type {
   TestConnectionVersionResult,
   TestConnectionStatus,
@@ -42,7 +43,15 @@ const pollingState: {
   triggering: boolean;
   /** 실행을 시작해도 되는가 — 화면이 보는 단일 사실. */
   canRunTest: boolean;
-} = { uiState: 'IDLE', latestJob: null, loading: false, triggering: false, canRunTest: true };
+  fetchError: AppError | null;
+} = {
+  uiState: 'IDLE',
+  latestJob: null,
+  loading: false,
+  triggering: false,
+  canRunTest: true,
+  fetchError: null,
+};
 
 const makePolling = (): UseTestConnectionPollingReturn => ({
   latestJob: pollingState.latestJob,
@@ -51,7 +60,7 @@ const makePolling = (): UseTestConnectionPollingReturn => ({
   triggering: pollingState.triggering,
   canRunTest: pollingState.canRunTest,
   retry: async () => {},
-  fetchError: null,
+  fetchError: pollingState.fetchError,
   triggerError: null,
   trigger: triggerMock,
 });
@@ -137,6 +146,7 @@ describe('ConnectionTestCard', () => {
     pollingState.loading = false;
     pollingState.triggering = false;
     pollingState.canRunTest = true;
+    pollingState.fetchError = null;
     triggerMock.mockReset();
     triggerMock.mockResolvedValue(true);
     updateResourceCredentialMock.mockReset();
@@ -165,7 +175,7 @@ describe('ConnectionTestCard', () => {
     ]);
   });
 
-  it('opens every credentialed row unreported (—), not a claimed 대기 (step5 is pre-test)', () => {
+  it('opens every credentialed row 미실행, not a claimed 대기 (step5 is pre-test)', () => {
     renderCard([makeResource({ credentialId: 'Key1' })]);
     // No agent has reported: the cell says nothing ('—') instead of folding the
     // absence into 대기 — 대기 is reserved for an agent-reported PENDING. (The summary
@@ -178,6 +188,47 @@ describe('ConnectionTestCard', () => {
   // 확정 목록(confirmed-integration)이 latest_version 보다 먼저 도착하면 표는 폴링 결과 없이
   // 한 번 그려진다 — 그 사이 찍히던 '—'/'대기'는 판정처럼 읽혔고, 응답이 오면 곧바로 성공으로
   // 뒤집혀 같은 칸을 두 번 읽게 만들었다. 모르는 동안에는 스켈레톤만 있어야 한다.
+  /**
+   * 조회를 못 한 것과 회차가 없는 것은 정반대의 답을 요구한다. 첫 조회가 실패하면 latestJob 은
+   * null 인 채 loading 도 꺼지므로(무한 스피너를 피하려고), `!!latestJob` 만 보면 표 전체가
+   * '미실행' 이라고 **단정**한다 — 실패는 빈 결과가 아니다.
+   */
+  it('never claims 미실행 when the fetch is what failed', () => {
+    pollingState.fetchError = new AppError({
+      status: 503,
+      code: 'INTERNAL_ERROR',
+      message: '503',
+      retriable: true,
+    });
+    renderCard([makeResource({ credentialId: 'Key1' })]);
+
+    const table = screen.getByRole('table');
+    expect(within(table).getByText('조회 실패')).toBeTruthy();
+    expect(within(table).queryByText('미실행')).toBeNull();
+  });
+
+  /**
+   * 반대쪽 경계. 폴이 한 번이라도 성공했으면 usePollingBase 는 에러가 나도 그 스냅샷을 비우지
+   * 않는다. 스냅샷이 손에 있으면 '읽지 못했다'가 아니라 '그 회차가 이 행을 언급하지 않았다'가
+   * 참이고, 카드 카운트 줄도 같은 순간 그 행을 미보고로 센다 — 표만 다른 말을 하면 한 화면이
+   * 두 말을 한다.
+   */
+  it('keeps saying 미보고 when a refresh blips but the snapshot is still in hand', () => {
+    pollingState.latestJob = makeJob('SUCCESS', [agentResult('res-1', 'SUCCESS')]);
+    pollingState.fetchError = new AppError({
+      status: 503,
+      code: 'INTERNAL_ERROR',
+      message: '503',
+      retriable: true,
+    });
+    renderCard([makeResource({ credentialId: 'Key1' }), makeResource({ resourceId: 'res-2', credentialId: 'Key1' })]);
+
+    const table = screen.getByRole('table');
+    expect(within(table).getByText('성공')).toBeTruthy();
+    expect(within(table).getByText('미보고')).toBeTruthy();
+    expect(within(table).queryByText('조회 실패')).toBeNull();
+  });
+
   it('draws a skeleton in 연결 상태 while the first latest_version is still in flight', () => {
     pollingState.loading = true;
     pollingState.latestJob = makeJob('SUCCESS', [agentResult('res-1', 'SUCCESS')]);

@@ -443,7 +443,9 @@ export const IdcStep5ConnectionTest = ({
                 connectionStatus={statusByResource}
                 connectionLoading={loading}
                 // 조회를 못 했으면 회차가 없다고 단정하지 않는다 — 실패는 빈 결과가 아니다.
-                connectionHasRun={fetchError ? null : !!latestJob}
+                // 단 스냅샷이 있으면 '읽지 못했다'가 아니다 — 그 회차가 이 행을 언급하지
+                // 않았을 뿐이라 미보고가 참이고, 카드도 같은 순간 미보고로 센다.
+                connectionHasRun={fetchError && !latestJob ? null : !!latestJob}
               />
             </div>
           </div>

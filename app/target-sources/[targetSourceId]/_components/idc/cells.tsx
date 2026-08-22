@@ -255,8 +255,9 @@ export const IdcTargetPill = ({ excluded }: { excluded: boolean }) =>
   );
 
 /** Credential-aware connection status — reflects the live test-connection result:
- *  no cred -> credential-required; SUCCESS -> green; FAIL -> red; RUNNING -> orange;
- *  else Pending (gray). */
+ *  no cred -> 자격 증명 필요; SUCCESS -> 성공; FAIL -> 실패; RUNNING -> 진행 중;
+ *  else 대기 (gray). 어휘는 `TcStatusTag` 와 같아야 한다 — 이 셀은 승인 요청 모달의
+ *  표에 서고, 같은 모달의 경고문과 그 뒤 step 5 표가 모두 그 어휘로 말한다. */
 export const IdcConnStatusCell = ({ resource }: { resource: IdcResourceView }) => {
   if (!resource.credentialId) {
     return <span className={cn(idcStyles.tag.base, idcStyles.tag.gray)}>자격 증명 필요</span>;
