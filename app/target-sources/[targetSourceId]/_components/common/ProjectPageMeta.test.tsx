@@ -54,8 +54,12 @@ const idcIdentity: ProjectIdentity = {
   identifiers: [],
 };
 
-/** The cue is named for exactly what it opens now (오너 11차 지시) — one paragraph. */
-const foldCue = () => screen.getByRole('button', { name: /설명/ });
+/**
+ * The cue is named for exactly what it opens now (오너 11차 지시) — one paragraph.
+ * Exact name, not `/설명/`: the mode chip carries a 「자동 설치 설명」 tip button since
+ * 오너 17차 지시, and a substring match picks up both.
+ */
+const foldCue = () => screen.getByRole('button', { name: '설명' });
 
 /**
  * The description lives behind the 「설명」 disclosure and the header opens folded, so
@@ -192,7 +196,10 @@ describe('ProjectPageMeta — 설명 disclosure', () => {
     render(
       <ProjectPageMeta project={{ ...projectFixture, description: '  ' }} identity={awsIdentity} />,
     );
-    expect(screen.queryByRole('button', { name: /설명/ })).toBeNull();
+    // Exact name again — the mode chip's own 「자동 설치 설명」 tip stays, and must:
+    // an empty description says nothing about what the install mode means.
+    expect(screen.queryByRole('button', { name: '설명' })).toBeNull();
+    expect(screen.getByRole('button', { name: '자동 설치 설명' })).toBeTruthy();
     expect(within(scopeBlock()).getByText('Account ID')).toBeTruthy();
   });
 });
@@ -206,6 +213,23 @@ describe('ProjectPageMeta — path heading', () => {
     // Both identifying segments now say what KIND they are (오너 12차 지시).
     expect(heading.textContent).toBe('PII Agent 설치/서비스Service A/서비스 코드SERVICE-A');
     expect(heading.textContent).not.toContain('1008');
+  });
+
+  it('sets the header’s three names one rung above what they name (오너 16차 지시)', () => {
+    // 「PII Agent 설치」, 「설치 대상」, 「설치 진행」 are the only things in this header that
+    // NAME something; every value, tag and gloss under them is 12px. At 12px the names
+    // were a tier by position alone. 14 is the ramp's existing upper rung — the same one
+    // the step digits use — so this introduces no new size, it just stops the names from
+    // sharing one with their own contents.
+    for (const token of [projectHeaderStyles.crumbRoot, projectHeaderStyles.blockLabel]) {
+      expect(token).toContain('text-[14px]');
+      expect(token).toContain('font-semibold');
+    }
+    // ⛔ The rest of the path stays 12px. `crumbRoot` overrides its parent, so raising
+    // `crumb` instead would drag the service name and both kind tags up with it, and the
+    // root would stop being the one segment that introduces the others.
+    expect(projectHeaderStyles.crumb).toContain('text-[12px]');
+    expect(projectHeaderStyles.crumbKind).toContain('text-[12px]');
   });
 
   it('tags both service segments with their kind — a path cannot say what a token is', () => {
@@ -342,8 +366,10 @@ describe('ProjectPageMeta — provider group', () => {
     const card = within(scopeBlock());
     expect(card.getByText('설치 모드')).toBeTruthy();
     expect(card.getByText('자동 설치')).toBeTruthy();
-    // The mode's meaning stays on-screen, not behind a tooltip.
-    expect(card.getByText('Terraform 권한 위임')).toBeTruthy();
+    // 오너 17차 지시 replaced the four-word gloss with a press-to-open tip inside the
+    // chip. Closed at rest, so the meaning is a press away and not on the row.
+    expect(card.queryByText(/Terraform 권한 위임/)).toBeNull();
+    expect(card.getByRole('button', { name: '자동 설치 설명' })).toBeTruthy();
     // Same grid as the identifiers, so its label shares their column.
     expect(card.getByText('설치 모드').parentElement).toBe(card.getByText('Account ID').parentElement);
   });
@@ -362,13 +388,56 @@ describe('ProjectPageMeta — provider group', () => {
     expect(block.queryByText('설치 모드')).toBeNull();
   });
 
-  it('renders manual mode with its own explanation', () => {
+  it('explains either mode from a press inside its own chip (오너 17차 지시)', () => {
+    // The gloss used to sit beside the chip in ink. It is now a tip ON the chip: the
+    // trigger is a real button (touch and keyboard reach it, hover alone does not),
+    // and the copy it opens is a sentence rather than four words.
     renderOpen({
       project: projectFixture,
       identity: { ...awsIdentity, installMode: 'manual' },
     });
     expect(screen.getByText('수동 설치')).toBeTruthy();
-    expect(screen.getByText('설치 스크립트 직접 실행')).toBeTruthy();
+    expect(screen.queryByText(/설치 스크립트 직접 실행/)).toBeNull();
+
+    const tip = screen.getByRole('button', { name: '수동 설치 설명' });
+    fireEvent.click(tip);
+    expect(screen.getByText(/설치 스크립트를 받아 직접 실행해야 해요/)).toBeTruthy();
+    // Press again and it closes — a hover tip has no way back once it is pinned open.
+    fireEvent.click(tip);
+    expect(screen.queryByText(/설치 스크립트를 받아 직접 실행해야 해요/)).toBeNull();
+  });
+
+  it('opens the same tip on hover, and the press only pins it (오너 18차 지시)', () => {
+    renderOpen({
+      project: projectFixture,
+      identity: { ...awsIdentity, installMode: 'manual' },
+    });
+    // The wrapper carries the pointer handlers; the button is what the reader aims at.
+    const wrapper = screen.getByRole('button', { name: '수동 설치 설명' }).parentElement!;
+
+    fireEvent.mouseEnter(wrapper);
+    expect(screen.getByText(/설치 스크립트를 받아 직접 실행해야 해요/)).toBeTruthy();
+    // Unpinned, so leaving closes it — hover costs the reader nothing to dismiss.
+    fireEvent.mouseLeave(wrapper);
+    expect(screen.queryByText(/설치 스크립트를 받아 직접 실행해야 해요/)).toBeNull();
+
+    // Hover then press: the pin has to survive the pointer leaving the 14px target,
+    // which is the whole reason the press exists alongside hover.
+    fireEvent.mouseEnter(wrapper);
+    fireEvent.click(wrapper);
+    fireEvent.mouseLeave(wrapper);
+    expect(screen.getByText(/설치 스크립트를 받아 직접 실행해야 해요/)).toBeTruthy();
+  });
+
+  it('says only what the mode costs at the install step (오너 18차 지시)', () => {
+    // The first half restated the chip's own name (「Agent 를 직접 설치하고 구성해요」).
+    // What the reader cannot see from the chip is what it means for THEM at step 4.
+    renderOpen({ project: projectFixture, identity: awsIdentity });
+    fireEvent.click(screen.getByRole('button', { name: '자동 설치 설명' }));
+    expect(
+      screen.getByText('설치 단계에서 BDC 측에 Terraform 수행 권한을 위임해요.'),
+    ).toBeTruthy();
+    expect(screen.queryByText(/Agent 를 설치하고 구성해요/)).toBeNull();
   });
 
   it('hides the install-mode row when the identity carries none', () => {

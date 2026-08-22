@@ -65,6 +65,7 @@ export const InstallationProcessProgressBar = ({
   // ProcessStatus is exactly these seven, but the value arrives over the wire —
   // an unknown one drops the position line rather than printing 「0단계」.
   const current = INSTALL_STEPS[currentIndex];
+  const done = currentIndex === INSTALL_STEPS.length - 1;
 
   return (
     <section aria-labelledby={PROGRESS_LABEL_ID} className={s.wrap}>
@@ -73,35 +74,43 @@ export const InstallationProcessProgressBar = ({
           <span id={PROGRESS_LABEL_ID} className={projectHeaderStyles.blockLabel}>
             설치 진행
           </span>
-          {current && (
-            <p className={s.summary}>
-              {/* One span, so the 14px count baseline-aligns inside the sentence
-                  instead of becoming a flex item that has to be aligned against it. */}
-              <span>
-                전체 <b className={s.count}>{INSTALL_STEPS.length}</b>단계 중
-              </span>
+          {current &&
+            (done ? (
+              /* 「7단계 중 7단계 완료」 said the same thing three times (오너 18차 지시).
+                 Every other label names work in progress, so the fraction answers「how
+                 far」— but at the end there is no position left to report, only the
+                 sequence that is now behind the reader. 모두 carries that, and the total
+                 stays because it is what was completed. */
               <span className={s.stepTag}>
                 <span>
+                  <b className={s.tagCount}>{INSTALL_STEPS.length}</b>단계 모두 완료
+                </span>
+              </span>
+            ) : (
+              <span className={s.stepTag}>
+                {/* One span, so both 14px digits baseline-align inside the phrase rather
+                    than becoming flex items that have to be aligned against it. */}
+                <span>
+                  <b className={s.tagCount}>{INSTALL_STEPS.length}</b>단계 중{' '}
                   <b className={s.tagCount}>{currentIndex + 1}</b>단계
                 </span>
                 <span>{current.label}</span>
               </span>
-              {/* Two gates, both of which must hold.
-                  1. The target has REACHED 연결 테스트. A verdict that survives on a
-                     target sitting at step 1–4 belongs to a previous cycle — the agent
-                     is not installed yet, so nothing can have tested this
-                     configuration — and drawing it says the connection is fine about a
-                     setup that has never been tested.
-                  2. The road is open (오너 14차 지시 후속). The verdict is detail about
-                     one step, so it belongs to the same press that names the steps.
-                  Neither gate merely hides the tag: `TcHeaderTag` fetches
-                  latest_version on mount, so not rendering it is also not fetching. */}
-              {stepsOpen && currentIndex >= TEST_INDEX && tcTag && (
-                <span id={VERDICT_SLOT_ID} className={s.tagSlot}>
-                  {tcTag}
-                </span>
-              )}
-            </p>
+            ))}
+          {/* Two gates, both of which must hold.
+              1. The target has REACHED 연결 테스트. A verdict that survives on a target
+                 sitting at step 1–4 belongs to a previous cycle — the agent is not
+                 installed yet, so nothing can have tested this configuration — and
+                 drawing it says the connection is fine about a setup that has never
+                 been tested.
+              2. The road is open (오너 14차 지시 후속). The verdict is detail about one
+                 step, so it belongs to the same press that names the steps.
+              Neither gate merely hides the tag: `TcHeaderTag` fetches latest_version on
+              mount, so not rendering it is also not fetching. */}
+          {stepsOpen && currentIndex >= TEST_INDEX && tcTag && (
+            <span id={VERDICT_SLOT_ID} className={s.tagSlot}>
+              {tcTag}
+            </span>
           )}
         </div>
         <button

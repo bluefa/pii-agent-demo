@@ -510,7 +510,8 @@ const TEXT: TextPair[] = [
   { what: 'header description on the page wash', fg: textOf(classOf(headerBlock, 'descText')), on: canvas },
   { what: 'header provider name on the page wash', fg: textOf(classOf(headerBlock, 'providerName')), on: canvas },
   { what: 'header provider gloss on the page wash', fg: textOf(classOf(headerBlock, 'providerGloss')), on: canvas },
-  { what: 'header install-mode note on the page wash', fg: textOf(classOf(headerBlock, 'modeNote')), on: canvas },
+  // The install-mode gloss left the wash for a click-tip inside the chip (오너 17차 지시);
+  // its icon takes `currentColor`, i.e. the chip ink both plates already pin above.
   { what: 'header 설치 모드 chip label on its chip', fg: textOf(classOf(headerBlock, 'modeChipAuto')), on: bgOf(classOf(headerBlock, 'modeChipAuto')) },
   // 시안 C's path, and the two kind tags 오너 12차 지시 put on it. The path replaced a
   // 24px heading, so it is the smallest type here that still has to be read — the one
@@ -525,13 +526,12 @@ const TEXT: TextPair[] = [
   // `summaryGlyph` is not pinned: it is a brand logotype (ProviderGlyph tone="brand"),
   // which 1.4.11 exempts, and its neutral only applies to IDC·SDU, which have no brand.
   //
-  // 설치 진행 states position twice now (오너 14차 지시): as text on the head row, always,
-  // and as the road behind 「전체 단계」. The counts are the only tier on the row that
-  // steps up a size, so they are the pair most likely to be "quietened" later by
-  // someone who reads them as decoration. `tagCount` is not pinned — it takes the
-  // tag's own ink, which the pair below measures.
-  { what: 'stepper position sentence on the page wash', fg: textOf(classOf(stepperBlock, 'summary')), on: canvas },
-  { what: 'stepper step count on the page wash', fg: textOf(classOf(stepperBlock, 'count')), on: canvas },
+  // 설치 진행 states position twice (오너 14차 지시): on the head row, always, and as the
+  // road behind 「전체 단계」. The row carries no loose text any more (오너 16차 지시) —
+  // 「전체 7단계 중」 was deleted and both digits moved inside the plate — so its only ink
+  // pairs are the block name, pinned above with the other `blockLabel` uses, and this
+  // tag. `tagCount` is not pinned separately: it inherits the tag's ink, which is
+  // exactly what this pair measures.
   { what: 'stepper step tag on its own fill', fg: textOf(classOf(stepperBlock, 'stepTag')), on: bgOf(classOf(stepperBlock, 'stepTag')) },
   // Stepper labels are text; the dots are the state markers, i.e. non-text per 1.4.11.
   { what: 'stepper rest label on the page wash', fg: textOf(classOf(stepperBlock, 'labelRest')), on: canvas },
