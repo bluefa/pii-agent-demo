@@ -6,11 +6,8 @@ import { bff } from '@/lib/bff/client';
  * render — every layout's TopNav chip and the `/admin` gate — and `cache`
  * collapses them into a single upstream call.
  *
- * This supersedes the CSR path: `getCurrentUser` in `app/lib/api` and the
- * `/pass/api/v1/user/me` proxy route behind it now have no caller. They are
- * left in place because deleting them touches `app/lib/api/**` and `app/api/**`,
- * which contract-check reads as a contract change and fails without a swagger
- * diff — they go in a pass that can clear that gate.
+ * This is the only path to `/user/me`. The CSR one it replaced — `getCurrentUser`
+ * plus the `/pass/api/v1/user/me` proxy route behind it — is gone.
  */
 export const getMe = cache(() => bff.users.me());
 

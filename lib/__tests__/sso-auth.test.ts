@@ -202,7 +202,7 @@ describe('proxy (auth gate)', () => {
     // Exclusions — a match here would loop the login redirect or break assets.
     expect('/sso/login').not.toMatch(pattern);
     expect('/sso/adssoLogin').not.toMatch(pattern);
-    expect('/api/v1/user/me').not.toMatch(pattern);
+    expect('/api/v1/users/search').not.toMatch(pattern);
     expect('/_next/static/chunk.js').not.toMatch(pattern);
     expect('/favicon.ico').not.toMatch(pattern);
     expect('/fonts/Pretendard.woff2').not.toMatch(pattern);
