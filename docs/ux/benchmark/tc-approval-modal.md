@@ -153,6 +153,23 @@ truthy 라, `onLogicalOpen` 없이 쓰면 **눌러도 아무 일 없는 버튼**
 단계 모달의 제목이다(26/800/-0.03em). 브라우저 실측도 26px — 이 모달은 이미 다른 모달과
 같은 크기였다. `toss-compact` 의 20px 는 푸터 없는 읽기 전용 알림용이라 여기 해당 없음.
 
+### 3.7 Athena 행이 늘 `—` 였다 (3차 피드백)
+
+오너: **"Athena는 연동 대상 DB는 DB 개수와 동일해. 제외 DB는 0"**.
+
+접힌 Athena 두 행이 두 열 다 `—` 를 찍고 있었다. **키가 어긋났다**: 4단계부터 Athena 는
+리전이 리소스라 결과가 `athena_region_resource_id` 한 줄로 오는데(`resultUnitId` 가 존재하는
+이유이고 `TestUnit.unitId` 가 이미 그 키다), `unitCounts` 는 `unit.members` 를 돌며 데이터베이스
+각자의 id 로 찾고 있었다 — 어떤 결과도 그 키로는 잡히지 않는다. 실행은 그 리전의 수를 보고
+하고 있었는데 화면만 못 읽었다. `counts.get(unit.unitId)` 한 줄로 줄었다(다른 타입은
+`unitId === resourceId` 라 동작 불변).
+
+목도 같이 고쳤다. `toLatestResultSummaries` 의 자리표 공식(`8 + seed % 8`)이 Athena 리전에도
+걸려, 데이터베이스 3개짜리 리전이 논리 DB 8개라고 보고했다 — 키를 고치면 같은 행이 왼쪽에서
+"데이터베이스 3개", 오른쪽에서 "8개"라고 말하게 된다. Athena 는 데이터베이스가 곧 논리 DB
+이므로(그 안에 다시 나눌 하위 단위가 없다) 리전 결과는 **덮는 데이터베이스 수 / 제외 0** 을
+보고한다. 실측: us-east-1 `1개 / 0개`, ap-northeast-1 `3개 / 0개`.
+
 ## 4. 뮤테이션으로 고정한 것
 
 | 결함 | 뮤테이션 | 결과 |
@@ -161,6 +178,7 @@ truthy 라, `onLogicalOpen` 없이 쓰면 **눌러도 아무 일 없는 버튼**
 | D2 조작된 0 | 합계 초기값 `{target: 0, excluded: 0}` | 해당 테스트 실패 ✓ |
 | §3.4 죽은 버튼 | `onOpen={() => onLogicalOpen?.(r)}` (되돌리기) | 해당 테스트 실패 ✓ |
 | §3.6 반박하는 바 | `pageSizeOptions` 제거 | 해당 테스트 실패 ✓ (select 값이 빈 문자열) |
+| §3.7 Athena 가 `—` | `counts.get(unit.members[0].resourceId)` (멤버 키로 되돌리기) | 해당 테스트 실패 ✓ |
 
 첫 시도에서 `LogicalDbCountMap | null` 로 "아직 못 읽음"과 "읽었는데 없음"을 갈랐는데,
 뮤테이션이 안 걸렸다 — 두 경우가 화면에서 구별되지 않아 상태가 아무 일도 하지 않았다.

@@ -129,6 +129,24 @@ describe('CloudReqApprovalModal', () => {
     expect(tile('제외한 논리 DB')).toBe('제외한 논리 DB3개');
   });
 
+  // Athena 결과는 리전 하나에 달려 온다 — 데이터베이스 각자의 id 로는 아무 결과도 키가
+  // 잡히지 않으므로, 멤버로 찾으면 실행이 보고한 리전을 두고도 접힌 행이 `—` 가 된다.
+  it('reads a folded Athena row by its region key, not by its databases', async () => {
+    getSummariesMock.mockResolvedValue([summary('athena:1:ap-northeast-1/AwsDataCatalog', 3, 0)]);
+    renderModal({
+      resources: [
+        athena('sampledb', 'ap-northeast-1'),
+        athena('integration', 'ap-northeast-1'),
+        athena('6lb_fulldump', 'ap-northeast-1'),
+      ],
+    });
+    await waitFor(() => expect(tile('연동 논리 DB')).toBe('연동 논리 DB3개'));
+
+    const cells = [...document.querySelectorAll('tbody td')].map((c) => c.textContent);
+    expect(cells.at(-2)).toBe('3개');
+    expect(cells.at(-1)).toBe('0개');
+  });
+
   // 보고되지 않은 행은 0 이 아니라 —. 응답은 왔지만 이 행을 언급하지 않은 경우다.
   it('renders — for a row the run did not report on', async () => {
     getSummariesMock.mockResolvedValue([summary('other', 9, 1)]);
