@@ -1,4 +1,5 @@
 import { TopNav } from '@/app/components/layout/TopNav';
+import { getMeOrNull } from '@/lib/bff/current-user';
 import { PlToastProvider } from '@/app/admin/pipelines/_components/PlToastProvider';
 
 /**
@@ -42,10 +43,10 @@ const CONTENT = 'mx-auto w-full max-w-[960px] px-8 pt-6 pb-12';
  * inventing its own: the page is built from the same parts as the 접근 권한
  * screens, and `usePlToast` renders nothing at all without a provider above it.
  */
-export default function AccessRequestsLayout({ children }: { children: React.ReactNode }) {
+export default async function AccessRequestsLayout({ children }: { children: React.ReactNode }) {
   return (
     <>
-      <TopNav />
+      <TopNav user={await getMeOrNull()} />
       <main className={CONTENT}>
         <PlToastProvider>{children}</PlToastProvider>
       </main>

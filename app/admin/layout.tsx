@@ -1,13 +1,14 @@
 import { TopNav } from '@/app/components/layout/TopNav';
 import { LockIcon, StatusWarningIcon } from '@/app/components/ui/icons';
-import { bff } from '@/lib/bff/client';
+import { getMe } from '@/lib/bff/current-user';
 import { isAdminRole } from '@/lib/roles';
 import { cn, textColors } from '@/lib/theme';
 
 /**
- * Admin-only gate for `/admin/**`. `role` is read from the same `/user/me` the
- * TopNav chip uses, but server-side — non-admin users never receive the admin
- * markup, and there is no flash of gated content.
+ * Admin-only gate for `/admin/**`. `role` is read server-side, so non-admin
+ * users never receive the admin markup and there is no flash of gated content.
+ * `getMe` is request-scoped, so the chip this layout hands `me` to costs no
+ * second call.
  *
  * Allowlist: only ADMIN opens the section. `USER` is the contract's other
  * declared value, and a role added later must be opted in deliberately rather
@@ -53,10 +54,10 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   // `reachable` is the discriminator: `me` is null both when the call failed and
   // when the BFF legitimately answered with an empty body, and those two mean
   // opposite things to the person reading the screen.
-  let me: Awaited<ReturnType<typeof bff.users.me>> | null = null;
+  let me: Awaited<ReturnType<typeof getMe>> | null = null;
   let reachable = true;
   try {
-    me = await bff.users.me();
+    me = await getMe();
   } catch {
     reachable = false;
   }
@@ -64,7 +65,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   if (!reachable) {
     return (
       <>
-        <TopNav />
+        <TopNav user={null} />
         <FullPageNotice
           icon={<StatusWarningIcon className={cn('mb-4 h-12 w-12', textColors.tertiary)} />}
           title="권한을 확인하지 못했어요"
@@ -80,7 +81,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
 
   return (
     <>
-      <TopNav />
+      <TopNav user={me} />
       {isAdmin ? (
         children
       ) : (

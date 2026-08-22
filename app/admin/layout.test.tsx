@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const { meMock } = vi.hoisted(() => ({ meMock: vi.fn() }));
 
-vi.mock('@/lib/bff/client', () => ({ bff: { users: { me: meMock } } }));
+vi.mock('@/lib/bff/current-user', () => ({ getMe: meMock }));
 // Rendered, not stubbed to null: TopNav is the denied user's only way off this
 // page (the notice carries no link of its own), so its presence is an assertion.
 vi.mock('@/app/components/layout/TopNav', () => ({ TopNav: () => <nav>topnav</nav> }));

@@ -55,9 +55,6 @@ export type TargetSourceCreationCandidateResponse = z.infer<typeof schemas.Targe
 export type TargetSourceDetail = z.infer<typeof schemas.TargetSourceDetail>;
 export type TargetSourceInfoWire = z.infer<typeof schemas.TargetSourceInfo>;
 
-export const getCurrentUser = (): Promise<UserMeResponse> =>
-  fetchInfraJson<UserMeResponse>('/user/me');
-
 export const getServicesPage = (
   page = 0,
   size = 10,

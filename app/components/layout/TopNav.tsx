@@ -7,6 +7,7 @@ import { cn, navStyles, textColors } from '@/lib/theme';
 import { passRoutes } from '@/lib/routes';
 import { BellIcon, BookIcon, QuestionCircleIcon } from '@/app/components/ui/icons';
 import { UserChip } from '@/app/components/layout/UserChip';
+import type { UserMeResponse } from '@/app/lib/api';
 import { PassLogo } from '@/app/components/layout/PassLogo';
 
 type NavItem = {
@@ -122,7 +123,7 @@ const NAV_ITEMS: NavItem[] = [
   },
 ];
 
-export const TopNav = () => {
+export const TopNav = ({ user }: { user: UserMeResponse | null }) => {
   const pathname = usePathname() ?? '';
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
@@ -296,7 +297,7 @@ export const TopNav = () => {
             header's gap: at -mx-4 on a gap-4 bar the two groups would touch. */}
         <span aria-hidden="true" className={cn(navStyles.divider, '-mx-2 xl:-mx-4')} />
 
-        <UserChip />
+        <UserChip user={user} />
       </header>
 
       {toastMessage && (
