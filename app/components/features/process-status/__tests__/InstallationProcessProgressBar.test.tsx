@@ -3,7 +3,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, within } from '@testing-library/react';
 import { ProcessStatus } from '@/lib/types';
-import { cardStyles, installStepperStyles, primaryColors } from '@/lib/theme';
+import { cardStyles, installStepperStyles, primaryColors, projectHeaderStyles } from '@/lib/theme';
 import { InstallationProcessProgressBar } from '@/app/components/features/process-status/InstallationProcessProgressBar';
 
 vi.stubGlobal('matchMedia', () => ({
@@ -29,32 +29,51 @@ const block = (currentStep: ProcessStatus, tcTag?: React.ReactNode) => {
   return within(container).getByRole('region', { name: '설치 진행' });
 };
 
-/** The position row, whitespace-collapsed — it is built from several text nodes. */
-const row = (el: HTMLElement) => el.querySelector('p')?.textContent?.replace(/\s+/g, ' ').trim();
+/**
+ * The position plate. Matched by exact token equality rather than by tag name: after
+ * 오너 16차 지시 the whole statement lives on this one span, so there is no longer a
+ * `<p>` of prose to read, and an equality check against the same token the component
+ * renders cannot drift the way a structural selector can.
+ */
+const tag = (el: HTMLElement) =>
+  [...el.querySelectorAll('span')].find((s) => s.className === installStepperStyles.stepTag);
+
+/** The plate's text, whitespace-collapsed — it is built from several text nodes. */
+const row = (el: HTMLElement) => tag(el)?.textContent?.replace(/\s+/g, ' ').trim();
 
 const cue = (el: HTMLElement) => within(el).getByRole('button', { name: /전체 단계/ });
 
-describe('InstallationProcessProgressBar — 설치 진행 전체 7단계 중 [4단계 Agent 설치]', () => {
+describe('InstallationProcessProgressBar — 설치 진행 [7단계 중 4단계 Agent 설치]', () => {
   it('states name and position on one row (오너 14차 지시)', () => {
     const el = block(ProcessStatus.INSTALLING);
-    // The block name and the position line share the head row: the name's parent is
-    // the row container, and the sentence is its sibling — not a line below it.
+    // The block name and the position plate share the head row: the name's parent is
+    // the row container, and the plate is its sibling — not a line below it.
     const head = within(el).getByText('설치 진행').parentElement;
     expect(head?.className).toBe(installStepperStyles.head);
-    expect(head?.querySelector('p')?.className).toBe(installStepperStyles.summary);
-    // No spaces between 중/4단계/Agent 설치: the gaps are layout, not text — the count
-    // and the step's name are separate elements inside the tag.
-    expect(row(el)).toBe('전체 7단계 중4단계Agent 설치');
+    expect(tag(el)?.parentElement).toBe(head);
+    // No space between 4단계 and Agent 설치: that gap is layout, not text — the digits
+    // and the step's name are separate elements inside the plate.
+    expect(row(el)).toBe('7단계 중 4단계Agent 설치');
   });
 
   it.each([
     [ProcessStatus.WAITING_TARGET_CONFIRMATION, '1단계', '연동 대상 DB 선택'],
     [ProcessStatus.WAITING_CONNECTION_TEST, '5단계', '연결 테스트'],
-    [ProcessStatus.INSTALLATION_COMPLETE, '7단계', '완료'],
   ])('counts %s as %s and tags it %s', (step, position, label) => {
     const el = block(step);
-    expect(row(el)).toContain(`중${position}`);
+    // 「N단계 중 」 — the space is real text (`{' '}`), unlike the gap before the label.
+    expect(row(el)).toContain(`중 ${position}`);
     expect(within(el).getByText(label)).toBeTruthy();
+  });
+
+  it('drops the position once there is none left to report (오너 18차 지시)', () => {
+    // 「7단계 중 7단계 완료」 stated completion three ways. The last step is the one whose
+    // label is not work — so the plate reports the sequence, not a place inside it.
+    const el = block(ProcessStatus.INSTALLATION_COMPLETE);
+    expect(row(el)).toBe('7단계 모두 완료');
+    expect(row(el)).not.toContain('중');
+    // The total survives because it is what got completed; the position does not.
+    expect([...el.querySelectorAll('b')].map((c) => c.textContent)).toEqual(['7']);
   });
 
   it('names only the step it is on while the road is folded', () => {
@@ -63,28 +82,35 @@ describe('InstallationProcessProgressBar — 설치 진행 전체 7단계 중 [4
     expect(within(el).queryByText('Agent 설치')).toBeNull();
   });
 
-  it('gives both counts the emphasis tier, and nothing else on the row', () => {
-    // Position is the one fact this block exists to state, so the digits are what
-    // steps up a size (14px in a 12px row). Quieten them and the block says nothing
-    // at a glance that the step card below does not already say louder.
+  it('puts both digits on the one plate, in the plate’s own ink (오너 16차 지시)', () => {
+    // The total used to stand outside the tag as 12px prose (「전체 7단계 중」) with its
+    // digit in near-black. The owner deleted that line, so the plate states total AND
+    // position and the row has no running text left between the name and the tags.
     const el = block(ProcessStatus.INSTALLING);
     const counts = [...el.querySelectorAll('b')];
     expect(counts.map((c) => c.textContent)).toEqual(['7', '4']);
-    // The 4 lives inside the tag, so it wears the tag's ink — same size tier, no
-    // second colour inside a two-word plate.
-    expect(counts.map((c) => c.className)).toEqual([
-      installStepperStyles.count,
-      installStepperStyles.tagCount,
-    ]);
-    for (const token of [installStepperStyles.count, installStepperStyles.tagCount]) {
-      expect(token).toContain('text-[14px]');
-    }
-    expect(installStepperStyles.summary).toContain('text-[12px]');
+    expect(counts.every((c) => c.className === installStepperStyles.tagCount)).toBe(true);
+    expect(installStepperStyles.tagCount).toContain('text-[14px]');
+    // ⛔ No ink of its own: a near-black digit on this fill would be a second colour
+    // inside what is now a single statement.
+    expect(installStepperStyles.tagCount).not.toMatch(/text-\[#/);
     // Different sizes on one line only sit right if the row aligns on the baseline —
-    // and the tag is itself a line of two sizes, so it needs the same.
-    expect(installStepperStyles.summary).toContain('items-baseline');
+    // and the plate is itself a line of two sizes, so it needs the same.
     expect(installStepperStyles.head).toContain('items-baseline');
     expect(installStepperStyles.stepTag).toContain('items-baseline');
+  });
+
+  it('keeps the 14px name and the 14px digits apart by plate, not by size', () => {
+    // 오너 16차 지시 raised 설치 진행 to the digits' own tier, so size no longer separates
+    // the block's NAME from the position it introduces. What separates them now is the
+    // plate: slate on the page wash versus blue on a blue fill. ⛔ Never give the name
+    // the tag's ink — that is the only remaining channel.
+    expect(projectHeaderStyles.blockLabel).toContain('text-[14px]');
+    expect(installStepperStyles.tagCount).toContain('text-[14px]');
+    expect(projectHeaderStyles.blockLabel).toContain('text-[#4E5968]');
+    expect(installStepperStyles.stepTag).toContain('text-[#0050D6]');
+    expect(installStepperStyles.stepTag).toContain('bg-[#E8F1FF]');
+    expect(projectHeaderStyles.blockLabel).not.toMatch(/bg-\[/);
   });
 
   it('marks where you are in blue, not in the path’s slate (오너 14차 지시)', () => {

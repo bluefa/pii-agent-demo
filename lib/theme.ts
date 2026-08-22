@@ -718,10 +718,13 @@ export const projectHeaderStyles = {
    * Nothing here links, so this is a heading SHAPED like a path, not a breadcrumb.
    */
   crumb: 'flex min-w-0 flex-wrap items-center gap-1.5 text-[12px] leading-[1.5] text-[#4E5968]',
-  /** 「PII Agent 설치」 — semibold (오너 13차 지시). Weight only, not colour: it is still
-      a location, and darkening it as well would put it in competition with the
-      service name that follows instead of introducing it. */
-  crumbRoot: 'flex-none font-semibold',
+  /** 「PII Agent 설치」 — semibold (오너 13차 지시), 14px (오너 16차 지시). Size and weight,
+      not colour: it is still a location, and darkening it as well would put it in
+      competition with the service name that follows instead of introducing it.
+      14 is the ramp's other rung (see the header comment) — the three things this
+      header NAMES (this root and the two `blockLabel` blocks) now sit one step above
+      everything they name, where before every name shared 12px with the values. */
+  crumbRoot: 'flex-none text-[14px] font-semibold',
   crumbSep: 'flex-none text-[#A6ADBB]', // design-exempt: decorative path glyph, the labels around it carry the reading
   crumbName: 'max-w-[280px] truncate',
   /**
@@ -830,8 +833,13 @@ export const projectHeaderStyles = {
    * This token names 「설치 대상」 as well as 「설명」 and 「설치 진행」 — the block name
    * that replaced the card is the same tier as the block names beside it, which is
    * the whole reason the header now reads as named blocks (오너 11차 지시).
+   *
+   * 14px (오너 16차 지시), with `crumbRoot`. A name that shares its size with the values
+   * under it is only a name by position; this header has exactly three things that NAME
+   * something — the path's root and these two blocks — and they now stand one rung above
+   * everything they introduce. 14 is the ramp's existing upper rung, not a new value.
    */
-  blockLabel: 'whitespace-nowrap text-[12px] font-semibold tracking-[0.02em] text-[#4E5968]',
+  blockLabel: 'whitespace-nowrap text-[14px] font-semibold tracking-[0.02em] text-[#4E5968]',
   block: 'mt-[18px]',
   /** Description body — 2-line clamp; the whole block is skipped when empty. */
   descText: 'mt-1.5 max-w-[82ch] text-[14px] font-medium leading-[1.5] text-[#4E5968] line-clamp-2',
@@ -857,15 +865,33 @@ export const projectHeaderStyles = {
       separate on, and 0.01 of AA headroom buys 0.06 of that step. ⛔ Do not lighten:
       there is no room under it. */
   kvLabel: 'whitespace-nowrap text-[12px] font-semibold text-[#68717F]',
-  /** The 설치 모드 value — chip and its gloss on one baseline, in a grid cell. */
+  /** The 설치 모드 value — the chip alone in its grid cell now that the gloss moved
+      inside it (오너 17차 지시). `items-center`, because the chip is a box, not a line. */
   modeRow: 'flex items-center',
   /** Copy affordance — hover/focus reveal, so idle rows show only the value. */
   copyReveal: 'opacity-0 transition-opacity duration-[120ms] group-hover/kv:opacity-100 focus-visible:opacity-100 motion-reduce:transition-none',
   /** 설치 모드 값 칩 — auto is the quiet default (no action needed)… */
-  modeChipAuto: 'inline-flex items-center rounded-[6px] bg-[#EAEEF7] px-2 py-0.5 text-[12px] font-semibold text-[#4B6284]',
+  modeChipAuto: 'inline-flex items-center gap-1 rounded-[6px] bg-[#EAEEF7] px-2 py-0.5 text-[12px] font-semibold text-[#4B6284]',
   /** …manual keeps the amber outline: the customer must run the script themselves. */
-  modeChipManual: 'inline-flex items-center rounded-[6px] border border-amber-200 bg-amber-50 px-2 py-0.5 text-[12px] font-semibold text-amber-800',
-  modeNote: 'ml-2 whitespace-nowrap text-[12px] font-medium text-[#4E5968]',
+  modeChipManual: 'inline-flex items-center gap-1 rounded-[6px] border border-amber-200 bg-amber-50 px-2 py-0.5 text-[12px] font-semibold text-amber-800',
+  /**
+   * The explanation affordance INSIDE the mode chip (오너 17차 지시). 14px, the size the
+   * repo's other inline explanation icons already use (`ConnectionTestCard`'s Credential
+   * header tip).
+   *
+   * No colour of its own: `currentColor` makes it the chip's own ink, so it stays
+   * readable on both plates — slate on `#EAEEF7`, amber-800 on amber-50 — without
+   * adding a pair for either. ⛔ Do not give it a tint; that would be a second colour
+   * inside a two-part chip, and the chip is one statement.
+   *
+   * `-mr-0.5` claws back half the chip's right padding: an icon reads as inset from an
+   * edge at less distance than a glyph does, so the optical gap matches the left.
+   */
+  modeTipButton:
+    'inline-flex -mr-0.5 items-center rounded-[3px] opacity-70 transition-opacity hover:opacity-100 focus-visible:opacity-100 focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-1 focus-visible:outline-current motion-reduce:transition-none',
+  /** Body copy inside the mode tip — the dark v15 popover sets its own size, this
+      only carries leading and the block box. Mirrors `idcStyles.table.headerTipBody`. */
+  modeTipBody: 'block leading-[1.6]',
   /**
    * The block's whole scope area: the provider on the left as the subject, every
    * identifier it owns listed to its right. Plain content, not a press — the
@@ -960,31 +986,28 @@ export const projectHeaderStyles = {
 export const installStepperStyles = {
   wrap: 'mt-[18px] pb-[18px]',
   /**
-   * The block's name and its position line on ONE row (오너 14차 지시), as the left
-   * half of the shared `blockHead` — the cue takes the right half.
+   * The block's name and its position, on ONE row (오너 14차 지시), as the left half of
+   * the shared `blockHead` — the cue takes the right half.
    *
-   * A container of its own rather than pouring the label into `summary`: `blockHead`
-   * is `justify-between`, so three children would push the sentence into the middle
-   * of the row instead of leaving it beside the name it belongs to. The 12px here
-   * against `summary`'s 8px inside is what stops 「설치 진행 전체 7단계 중」 reading as
-   * one run-on phrase — the two share a colour and nearly a weight, so distance is
-   * the only separator left.
+   * A container of its own rather than hanging the children off `blockHead`: that row
+   * is `justify-between`, so a third child would be pushed into the middle of the row
+   * instead of staying beside the name it belongs to.
+   *
+   * There is no loose prose left here to separate (오너 16차 지시) — name, then plate,
+   * then the verdict plate. `items-baseline` still, so the 14px name sits on the same
+   * line as the tags' text; wraps rather than truncates, because the 연결 테스트 verdict
+   * rides this row too and at 520px the two do not fit.
    */
   head: 'flex min-w-0 flex-wrap items-baseline gap-x-3 gap-y-1',
   /**
-   * `items-baseline`, because the counts run 14px inside a 12px sentence and a
-   * centred row would leave them sitting a pixel high. Wraps rather than truncates —
-   * the 연결 테스트 verdict rides this line now, and at 520px the two do not fit.
-   */
-  summary: 'flex flex-wrap items-baseline gap-x-2 gap-y-1 text-[12px] font-medium text-[#4E5968]',
-  /** 전체 **7**단계 중 — tabular, so the digits do not shift the line as the target
-      advances through the steps. */
-  count: 'text-[14px] font-semibold tabular-nums text-[#191F28]',
-  /**
-   * 「4단계 Agent 설치」 — where you are, as one tag (오너 14차 지시). Blue, on the
-   * owner's call: the slate this used to wear is the path's tag vocabulary, and on a
-   * row that now also carries the block's name the step needed to be the thing the
-   * eye lands on.
+   * 「7단계 중 1단계 연동 대상 DB 선택」 — the whole position statement, as one tag
+   * (오너 16차 지시). The total used to stand outside it as loose 12px prose
+   * (「전체 7단계 중」); the owner deleted that, so the plate now carries the complete
+   * sentence and the row is a name followed by tags with no running text between them.
+   *
+   * Blue, on the owner's call: the slate this used to wear is the path's tag
+   * vocabulary, and on a row that also carries the block's name the step needed to be
+   * the thing the eye lands on.
    *
    * ⛔ Fill AND ink must stay equal to `cardStyles.stepTag` — the 「N단계」 tag over
    * every step-card title, which is the SAME fact rendered a second time and is on
@@ -999,14 +1022,14 @@ export const installStepperStyles = {
    * survivable where the card clash was not: the cue has no fill, carries a chevron,
    * sits at the opposite edge, and is not the same fact.
    *
-   * `items-baseline`, so the 14px count and the 12px name sit on one line inside the
-   * tag and the tag itself lands on the sentence's baseline.
+   * `items-baseline`, so the 14px digits and the 12px words sit on one line inside the
+   * tag and the tag itself lands on the block name's baseline.
    */
   stepTag:
     'inline-flex items-baseline gap-1.5 rounded-[6px] bg-[#E8F1FF] px-2 py-[3px] text-[12px] font-semibold text-[#0050D6]',
-  /** The step number inside the tag — same 14px tier as `count`, but it takes the
-      tag's ink rather than the sentence's near-black, which would read as a second
-      colour inside a two-word plate. */
+  /** Both digits inside the tag — the total and the position. They take the tag's own
+      ink: a near-black here would be a second colour inside the plate, and the plate is
+      one statement. `tabular-nums` so the line does not shift as the target advances. */
   tagCount: 'text-[14px] font-semibold tabular-nums',
   /**
    * Verdict slot for 연결 테스트 — in flow, following the step tag on the head row,

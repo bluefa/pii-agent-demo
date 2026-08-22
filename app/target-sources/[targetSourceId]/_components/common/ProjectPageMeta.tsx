@@ -3,8 +3,9 @@
 import { Fragment, useState } from 'react';
 import type { CloudProvider, TargetSource } from '@/lib/types';
 import { ProviderGlyph } from '@/app/components/ui/CloudProviderIcon';
-import { ChevronDownIcon, CopyIcon, StatusSuccessIcon } from '@/app/components/ui/icons';
+import { ChevronDownIcon, CopyIcon, InfoCircleIcon, StatusSuccessIcon } from '@/app/components/ui/icons';
 import { InstallationProcessProgressBar } from '@/app/components/features/process-status';
+import { Tooltip } from '@/app/components/ui/Tooltip';
 import { TIMINGS } from '@/lib/constants/timings';
 import { cn, identityBarStyles, projectHeaderStyles as h } from '@/lib/theme';
 import type { ProjectIdentity } from '@/app/target-sources/[targetSourceId]/_components/common/project-identity';
@@ -247,11 +248,39 @@ export const ProjectPageMeta = ({ project, identity, action }: ProjectPageMetaPr
                     <span className={h.modeRow}>
                       <span className={autoInstall ? h.modeChipAuto : h.modeChipManual}>
                         {autoInstall ? '자동 설치' : '수동 설치'}
-                      </span>
-                      {/* What the mode MEANS stays on-screen — a hover tooltip would
-                          hide information the user needs to know. */}
-                      <span className={h.modeNote}>
-                        {autoInstall ? 'Terraform 권한 위임' : '설치 스크립트 직접 실행'}
+                        {/* The gloss that used to sit beside the chip (「Terraform 권한
+                            위임」/「설치 스크립트 직접 실행」) is now behind this icon
+                            (오너 17차 지시). It reverses the earlier note here that a
+                            tooltip would hide something the reader needs — four words
+                            never said what the mode MEANT anyway, and a tip has room
+                            for the sentence that does.
+                            One sentence, and it is the one the reader is standing in:
+                            what the mode costs them AT THE INSTALL STEP (오너 18차 지시).
+                            The half that restated the mode's own name is gone — the chip
+                            beside it already said that.
+                            `openOn="click"` is the pin, not the only way in: hover and
+                            keyboard focus reveal it, and a press keeps it up for a reader
+                            whose pointer drifts off the 14px target. */}
+                        <Tooltip
+                          openOn="click"
+                          variant="value"
+                          position="bottom"
+                          content={
+                            <span className={h.modeTipBody}>
+                              {autoInstall
+                                ? '설치 단계에서 BDC 측에 Terraform 수행 권한을 위임해요.'
+                                : '설치 단계에서 제공되는 설치 스크립트를 받아 직접 실행해야 해요.'}
+                            </span>
+                          }
+                        >
+                          <button
+                            type="button"
+                            className={h.modeTipButton}
+                            aria-label={`${autoInstall ? '자동 설치' : '수동 설치'} 설명`}
+                          >
+                            <InfoCircleIcon className="h-3.5 w-3.5" aria-hidden="true" />
+                          </button>
+                        </Tooltip>
                       </span>
                     </span>
                   </>

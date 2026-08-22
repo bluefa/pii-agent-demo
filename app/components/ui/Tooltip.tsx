@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useLayoutEffect } from 'react';
+import { useState, useRef, useEffect, useLayoutEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { cn, primaryColors } from '@/lib/theme';
 
@@ -36,6 +36,20 @@ interface TooltipProps {
    * a ResizeObserver per cell in a paginated table.
    */
   truncatedOnly?: boolean;
+  /**
+   * `hover` (default) — reveal on pointer-over or keyboard focus, close on leave/blur.
+   * Every existing caller uses this and is unchanged.
+   *
+   * `click` — hover and focus still reveal the tip; a press PINS it, so it stays up
+   * until pressed again, pressed outside, or dismissed with Escape. Hover alone is
+   * enough to glance at a short sentence, but it dies the instant the pointer drifts
+   * off a small trigger — the pin is for the reader who needs longer than that.
+   *
+   * ⛔ In click mode the child must be a real `<button>`. The toggle lives on the
+   * wrapper so the child's click bubbles into it, but the wrapper is a `<div>` — it is
+   * the child that has to carry the role, the focus ring and Enter/Space.
+   */
+  openOn?: 'hover' | 'click';
 }
 
 // True when the element (or the child it clips) overflows its box. The 1px slack absorbs
@@ -110,8 +124,14 @@ export const Tooltip = ({
   variant = 'status',
   triggerClassName,
   truncatedOnly = false,
+  openOn = 'hover',
 }: TooltipProps) => {
   const [isVisible, setIsVisible] = useState(false);
+  const byClick = openOn === 'click';
+  // Click mode only: the reader pressed the trigger, so pointer-leave and blur stop
+  // closing the tip. Without this the pin would be unreachable — the press that sets it
+  // is immediately followed by the pointer moving away from a 14px target.
+  const [pinned, setPinned] = useState(false);
   // `actualPosition` is the resolved top/bottom placement after viewport flip.
   // left/right requests collapse onto the top/bottom axis since the floating tip
   // is centered on the trigger horizontally.
@@ -191,6 +211,31 @@ export const Tooltip = ({
     });
   }, [isVisible, position]);
 
+  // Click mode has no pointer-leave to close it, so it needs the two exits every
+  // dismissible overlay owes the reader. `pointerdown`, not `click`: the trigger's own
+  // click bubbles to the wrapper toggle, and a document `click` listener would race it
+  // and re-close what the press just opened. pointerdown fires first and the
+  // `contains` check lets the trigger's own press through to the toggle.
+  useEffect(() => {
+    if (!byClick || !isVisible) return;
+    const close = () => {
+      setPinned(false);
+      setIsVisible(false);
+    };
+    const onPointerDown = (event: PointerEvent) => {
+      if (!containerRef.current?.contains(event.target as Node)) close();
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') close();
+    };
+    document.addEventListener('pointerdown', onPointerDown);
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown);
+      document.removeEventListener('keydown', onKeyDown);
+    };
+  }, [byClick, isVisible]);
+
   const box = variantStyles[variant];
 
   const getTooltipStyle = (): React.CSSProperties => ({
@@ -248,10 +293,23 @@ export const Tooltip = ({
     <div
       ref={containerRef}
       className={cn('relative inline-flex', triggerClassName)}
+      // Hover and focus reveal in BOTH modes (오너 18차 지시) — click mode adds the pin
+      // rather than replacing the reveal, so the tip costs nothing to glance at and the
+      // press is only needed by a reader who wants it to stay.
       onMouseEnter={() => setIsVisible(!truncatedOnly || isClipped(containerRef.current))}
-      onMouseLeave={() => setIsVisible(false)}
+      onMouseLeave={() => !pinned && setIsVisible(false)}
       onFocus={() => setIsVisible(!truncatedOnly || isClipped(containerRef.current))}
-      onBlur={() => setIsVisible(false)}
+      onBlur={() => !pinned && setIsVisible(false)}
+      // Reads `pinned` from this render, not an updater: the two setters have to agree,
+      // and a click always lands after the hover that preceded it.
+      onClick={
+        byClick
+          ? () => {
+              setPinned(!pinned);
+              setIsVisible(!pinned);
+            }
+          : undefined
+      }
     >
       {children}
       {isVisible &&
