@@ -708,17 +708,20 @@ describe('WaitingApprovalTable', () => {
       expect(screen.queryByText(/인스턴스 /)).toBeNull();
     });
 
-    // Round 3 (시안 F): on the confirmed variant the tag leaves the identity stack for its
-    // own leading 종류 column, taking the row back to one line.
-    it('moves the cluster tag into the 종류 column on the confirmed variant', () => {
+    // Round 3 (시안 F): on the confirmed variant the kind leaves the identity stack for its
+    // own 종류 column. Round 9 (owner): the column sits right of Resource ID and the value
+    // is plain text — the chip form is retired.
+    it('seats the kind after Resource ID as plain text on the confirmed variant', () => {
       render(<WaitingApprovalTable variant="confirmed" resources={[clusterRow()]} />);
       expect(screen.getByRole('columnheader', { name: '종류' })).toBeTruthy();
-      const tagCell = screen.getByText('RDS Cluster').closest('td');
-      const row = tagCell?.closest('tr');
-      expect(row?.cells[0]).toBe(tagCell);
-      // The tag is the cell's whole content — the name lives in its own cell now.
-      expect(tagCell?.textContent).toBe('RDS Cluster');
-      expect(screen.getByText('demo-cluster').closest('td')).not.toBe(tagCell);
+      const kindCell = screen.getByText('RDS Cluster').closest('td');
+      const row = kindCell?.closest('tr');
+      // name → id → kind: third cell, not the leading anchor slot.
+      expect(row?.cells[2]).toBe(kindCell);
+      // Bare text in the cell — no chip element wraps the value any more.
+      expect(kindCell?.textContent).toBe('RDS Cluster');
+      expect(kindCell?.children).toHaveLength(0);
+      expect(screen.getByText('demo-cluster').closest('td')).not.toBe(kindCell);
       expect(screen.queryByText('선택됨')).toBeNull();
       expect(screen.queryByText(/인스턴스 /)).toBeNull();
     });

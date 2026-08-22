@@ -365,7 +365,9 @@ const ReasonCell = ({ resource }: { resource: WaitingApprovalResource }) => {
 
 /**
  * Confirmed-column defaults, px — the screen's own measured columns (1745px audit:
- * 162·312·142·156·118·96; 종류 = chip 82px + approvalCell padding 36px + slack).
+ * 162·312·142·156·118·96; 종류 kept its round-3 width — 82px content + approvalCell
+ * padding 36px + slack — through the round-9 move behind Resource ID and the chip →
+ * plain-text change, since the text runs the same length the chip did).
  * A RECORD, not width classes, because the `<table>` must carry width = Σ(columns)
  * (round 4): under `w-full` the fixed algorithm redistributes any slack across the
  * fixed columns, so below the container width every column silently stretched past
@@ -373,9 +375,9 @@ const ReasonCell = ({ resource }: { resource: WaitingApprovalResource }) => {
  * bounds the drag enforces were not the widths being rendered.
  */
 const CONFIRMED_COLUMN_WIDTHS = {
-  kind: 128,
   name: 162,
   id: 312,
+  kind: 128,
   dbType: 142,
   region: 156,
   logicalDb: 118,
@@ -532,10 +534,11 @@ export const WaitingApprovalTable = memo(
     const installVariant = variant === 'install';
     const plainVariant = variant === 'plain';
 
-    // Round 3 (시안 F): the kind chip leaves the two-line identity stack and becomes its own
-    // leading column, taking the row to one line (py-4 + 20px = 52px). Only worth a column
-    // when at least one visible row would put a chip in it — Azure/GCP rows carry no kind
-    // tag today, and a permanently blank leading column is dead space, not a colour anchor.
+    // Round 3 (시안 F): the kind leaves the two-line identity stack and becomes its own
+    // column, taking the row to one line (py-4 + 20px = 52px). Round 9 reseated it after
+    // Resource ID as plain text (chip retired). Only worth a column when at least one
+    // visible row would put a value in it — Azure/GCP rows carry no kind today, and a
+    // permanently blank column is dead space.
     const confirmedKindColumn =
       confirmedVariant &&
       resources.some(
@@ -676,15 +679,6 @@ export const WaitingApprovalTable = memo(
             ))
           ) : (
             <>
-          {/* Round 3 — the chip's own column. Rows without a kind stay blank: an em-dash
-              would claim "no kind" as a fact this table does not have. coveredCell so a
-              hard-shrunk column clips its chip at the stroke instead of painting it over
-              the name. */}
-          {confirmedKindColumn && (
-            <td className={cn(idcStyles.table.approvalCell, coveredCell)}>
-              {isCluster ? <RdsClusterTag /> : isEc2 ? <Ec2InstanceTag /> : null}
-            </td>
-          )}
           {/* One line, always. Wrapping turned the row's darkest column into a 2–3 line
               block and left row heights ragged (59/69/75px); the full name is in the tip. */}
           <td
@@ -806,8 +800,9 @@ export const WaitingApprovalTable = memo(
               // concern — but the row still has to say it is a cluster, in the same stack.
               // EC2 rides the same branch: it has no members to fold, so the tag is all it needs,
               // and steps 2·3 reach it here too (the branch above is cluster-with-instances only).
-              // The confirmed tables (steps 6·7) left this stack in round 3: their chip lives in
-              // the 종류 column, so they fall through to the one-line name below.
+              // The confirmed tables (steps 6·7) left this stack in round 3: their kind lives in
+              // the 종류 column (plain text since round 9), so they fall through to the
+              // one-line name below.
               <span className={cn('flex min-w-0 flex-col items-start gap-1', idcStyles.table.stackedIdentityLift)}>
                 {isCluster ? <RdsClusterTag /> : <Ec2InstanceTag />}
                 <Tooltip
@@ -876,6 +871,25 @@ export const WaitingApprovalTable = memo(
               />
             )}
           </td>
+          {/* Round 9 (owner): "종류를 resource id 오른쪽으로 위치시켜봐. 그리고 태그는 이제
+              없애" — the kind follows the identity pair as PLAIN TEXT in the attribute
+              tier's own dress (same as Database Type beside it): filed among attributes,
+              a pill was the loudest mark on the row for a repeating category. Rows
+              without a kind stay blank: an em-dash would claim "no kind" as a fact this
+              table does not have. */}
+          {confirmedKindColumn && (
+            <td
+              className={cn(
+                idcStyles.table.approvalCell,
+                coveredCell,
+                'text-[14px]',
+                textColors.secondary,
+                CELL_LIFT,
+              )}
+            >
+              {isCluster ? 'RDS Cluster' : isEc2 ? 'EC2' : null}
+            </td>
+          )}
             </>
           )}
           {/* DB Type is a repeating attribute, not a status — one badge per row (the
@@ -1044,8 +1058,6 @@ export const WaitingApprovalTable = memo(
                 onMouseEnter={rail?.onMouseEnter}
                 onMouseLeave={rail?.onMouseLeave}
               >
-                {/* Round 3 — the fold's members keep column registration with the 종류 column. */}
-                {confirmedKindColumn && <td className={cn(idcStyles.table.approvalCell, coveredCell)} />}
                 <td
                   className={cn(
                     idcStyles.table.approvalCell,
@@ -1059,6 +1071,9 @@ export const WaitingApprovalTable = memo(
                   {member.resourceName || PLACEHOLDER}
                 </td>
                 <td className={cn(idcStyles.table.approvalCell, coveredCell)} />
+                {/* Round 3 — the fold's members keep column registration with the 종류
+                    column (round 9 seats it after Resource ID). */}
+                {confirmedKindColumn && <td className={cn(idcStyles.table.approvalCell, coveredCell)} />}
                 <td className={cn(idcStyles.table.approvalCell, coveredCell, 'text-[14px]', textColors.secondary)}>
                   {GROUPED_CHILD_KIND_LABEL}
                 </td>
@@ -1119,9 +1134,6 @@ export const WaitingApprovalTable = memo(
                   /* Round 3 console header — every column declared and resizable; the
                      defaults live in CONFIRMED_COLUMN_WIDTHS. */
                   <>
-                    {confirmedKindColumn && (
-                      <ResizableTh columns={columns} columnKey="kind" label="종류" />
-                    )}
                     <ResizableTh
                       columns={columns}
                       columnKey="name"
@@ -1129,6 +1141,12 @@ export const WaitingApprovalTable = memo(
                       className={idcStyles.table.nameCell}
                     />
                     <ResizableTh columns={columns} columnKey="id" label="Resource ID" />
+                    {/* Round 9 (owner): "종류를 resource id 오른쪽으로" — the kind leaves the
+                        leading anchor slot and files in with the other attributes, after the
+                        identity pair (name → id). */}
+                    {confirmedKindColumn && (
+                      <ResizableTh columns={columns} columnKey="kind" label="종류" />
+                    )}
                     <ResizableTh columns={columns} columnKey="dbType" label="Database Type" />
                     <ResizableTh columns={columns} columnKey="region" label={regionLabel} />
                     <ResizableTh columns={columns} columnKey="logicalDb" label="연동 논리 DB" />

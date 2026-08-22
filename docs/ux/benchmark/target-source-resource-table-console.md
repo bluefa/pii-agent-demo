@@ -161,3 +161,17 @@ transition 0s · 존 안 점등 1(라운드 7 계약 유지) · buttons=1 mousem
 실드래그(pointerdown→+24px→pointerup, 폭 +24 확인) 중 0 · 릴리즈 후 새 경계에
 주차한 mousemove에서 0(래치) · 존 이탈 후 복귀에서 1, transform 407.5==407.5
 서브픽셀 일치 · 「열 너비 초기화」 후에도 소등 유지 · 전체 vitest 2638/2638(신규 2).
+
+## 라운드 9 (2026-08-22)
+
+> "종류를 resource id 오른쪽으로 위치시켜봐. 그리고 태그는 이제 없애"
+
+| # | 결정 | 메커니즘 |
+|---|------|---------|
+| R9-1 | **종류 열을 Resource ID 오른쪽으로** | 열 순서 Resource Name → Resource ID → **종류** → Database Type → Region → 연동 논리 DB → 연동 제외. 종류가 선두 색 앵커 자리를 떠나 정체성 쌍(name→id) 뒤 속성층에 합류 — 헤더·본문 행·Athena 폴드 멤버 행(빈 등록 셀)까지 세 곳 모두 이동. 부수 효과: 제외 행의 좌측 verdict 레일이 이제 표의 진짜 왼쪽 모서리(이름 셀)에 앉는다 |
+| R9-2 | **칩 폐지 → 평문** | `RdsClusterTag`/`Ec2InstanceTag` 대신 텍스트 "RDS Cluster"/"EC2"를 옆 Database Type과 같은 옷(14px·secondary·CELL_LIFT)으로. 속성층에 앉는 순간 필(pill)은 행에서 가장 시끄러운 표식이었다 — 반복 카테고리는 평문이 콘솔 문법. 종류 없는 행은 빈 칸 유지(—는 "종류 없음"을 사실로 주장), 열 생성 조건(클러스터/EC2 행 존재 시)·폭 128px(칩 82+패딩 36 실측값, 평문도 같은 길이)·리사이즈 전부 불변. 태그 컴포넌트는 승인·설치 변형(1~4단계 스택 정체성)에 그대로 남는다 |
+
+실측(목 1012, dev 3457): 헤더 순서 [Resource Name, Resource ID, 종류, Database
+Type, Region, 연동 논리 DB, 연동 제외] · 종류 셀 cellIndex 2·자식 요소 0(맨
+텍스트)·Pretendard 14px·색이 옆 Database Type 셀과 lab 동일 · tbody 칩 0개 ·
+그림자 10px×100% 우변 앵커 유지 · 전체 vitest 2638/2638.
