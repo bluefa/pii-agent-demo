@@ -1564,7 +1564,17 @@ export const idcStyles = {
      * (~1.13:1 on white), UNDER the row hairline (#EBEEF2, 1.16:1) and every measured
      * console band (AWS #EBEBF0 1.19:1, Fluent #E0E0E0 1.32:1). Round 7 graded 0.06
      * "subliminal at a glance", but the owner judged 0.09 too loud at rest — the
-     * resting weight for THIS mark sits below the console norm. A background gradient, not
+     * resting weight for THIS mark sits below the console norm.
+     *
+     * Round 10 (owner): "비활성 시에 경계면의 shadow나 stroke 등등을 한 단계 약하게" —
+     * both resting ingredients drop one more rung. Shadow α 0.06 → 0.03 (peak ≈#F8F8F9,
+     * ~1.06:1 — at the edge of perception, which is the point: the cut and the seam
+     * tracer carry the boundary now). Header rails #E5E7EB → #EBEEF2, one step down the
+     * repo's grey ramp to the shared hairline. The round-7 header exemption ("Header는
+     * 진해도 상관없어") expired with this order naming "stroke" — the only resting
+     * stroke on a column boundary IS the header rail. The thead bottom rule stays
+     * #D1D5DB: it is a horizontal "table starts here" anchor, not a column boundary.
+     * A background gradient, not
      * box-shadow: a shadow blurs past each cell's corners and stipples every row
      * seam, while backgrounds tile seamlessly down the column (box-shadow on
      * collapsed-border cells also renders unreliably). Header rails and the thead
@@ -1572,23 +1582,28 @@ export const idcStyles = {
      * hover is `seamTracer` below.
      */
     consoleGrid:
-      '[&_th+th]:border-l [&_th+th]:border-[#E5E7EB] [&_td:not(:last-child)]:[background:linear-gradient(to_left,rgba(15,23,42,0.06),transparent)_right/10px_100%_no-repeat]',
+      '[&_th+th]:border-l [&_th+th]:border-[#EBEEF2] [&_td:not(:last-child)]:[background:linear-gradient(to_left,rgba(15,23,42,0.03),transparent)_right/10px_100%_no-repeat]',
     /**
      * Round 7 (owner): "경계면 근처에 마우스를 올려둘때만 진하게 표현되면 좋겠음" —
      * with the resting rails gone (see consoleGrid), this is the on-demand boundary:
      * ONE absolutely positioned line in the confirmed table's scroll container, moved
      * imperatively to the nearest column seam while the pointer is inside its zone
      * (SEAM_ZONE_PX in WaitingApprovalTable — the header handles' own 8px grammar).
-     * #D1D5DB is the weight the owner reads as "진하게"; blue stays reserved for the
-     * grabbable header guide, whose z-20 beats this z-10 where they overlap.
-     *
      * Round 8 (owner): "너비 조절시에 잔상이 남는 효과는 삭제해봐" — the 100ms fade-out
      * lingered as an afterimage around resize gestures, so the line now cuts on/off
      * instantly. WaitingApprovalTable additionally keeps it dark while any pointer
      * button is held and, after a width change, until the pointer leaves the seam zone.
+     *
+     * Round 10 (owner): "경계면 활성화시에 색상만 파란색 계열로 수정하면 딱 좋을듯" —
+     * the activated boundary joins the app's one interaction blue (#0064FF, the header
+     * guide's own color), so approach and grab read as one grammar: the 1px tracer
+     * below meets the 2px guide above in the same hue where they overlap (guide z-20
+     * over tracer z-10). Color only — width, zone, and the round-8 latches unchanged.
+     * Grey #D1D5DB (rounds 7–9) read as a STRUCTURAL line that was "더욱 강한" than
+     * the resting boundary it stood on; blue says "interactive" instead of "wall".
      */
     seamTracer:
-      'pointer-events-none absolute inset-y-0 left-0 z-10 w-px bg-[#D1D5DB] opacity-0',
+      'pointer-events-none absolute inset-y-0 left-0 z-10 w-px bg-[#0064FF] opacity-0',
     /**
      * 열 폭 조절 손잡이 (useColumnResize) — 헤더 셀 안쪽 오른쪽 끝 8px. 밖으로 내밀면
      * 마지막 열에서 표가 가로로 넘친다. 선은 평소 보이지 않는다: 표에 세로줄을 하나 더 그으면
