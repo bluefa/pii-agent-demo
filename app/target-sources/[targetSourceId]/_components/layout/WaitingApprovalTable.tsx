@@ -390,12 +390,17 @@ const CONFIRMED_COLUMN_WIDTHS = {
 } as const;
 
 /**
- * Which confirmed column absorbs the table's slack. Exported because the caller owns the
- * resize instance and has to name this column there too — its width is session-only
- * (`ephemeralKeys`), since a stored width would take the column out of `flex` and strand
- * the table at one screen size for good.
+ * Which confirmed columns fill the table, in declaration order — the last unpinned one is
+ * the slack sink (see `ConsoleTable`). Exported because the caller owns the resize instance
+ * and has to name them there too: their widths are session-only (`ephemeralKeys`), so a
+ * table can never be found already stuck at one screen size on arrival.
+ *
+ * Just these two. They are the only columns whose values run to arbitrary length — an ARN
+ * and a resource name — so they are the only ones a wider screen should spend pixels on;
+ * the other five hold a tag, an engine name, a region and two counts, and padding those out
+ * buys nothing.
  */
-export const CONFIRMED_FLEX_KEY = 'id';
+export const CONFIRMED_FLEX_KEYS = ['name', 'id'] as const;
 
 /** The confirmed table's column spec. `kind` only exists when a visible row can fill it —
  *  Azure/GCP rows carry no kind today, and a permanently blank column is dead space. */
@@ -404,12 +409,16 @@ const confirmedColumns = (regionLabel: string, withKind: boolean): ConsoleTableC
     key: 'name',
     label: 'Resource Name',
     width: CONFIRMED_COLUMN_WIDTHS.name,
+    // Grows as a share of the table, and becomes the sink itself if the user pins the id
+    // column — which is what keeps the table filling the container either way.
+    flex: true,
     headClassName: idcStyles.table.nameCell,
   },
-  // The slack sink. Its values are ARNs — the longest thing in the row and the only column
-  // whose cut costs the reader something — so a wider screen spends its extra pixels here
-  // instead of padding all seven columns out. Six sized columns keep their declared px.
-  { key: CONFIRMED_FLEX_KEY, label: 'Resource ID', width: CONFIRMED_COLUMN_WIDTHS.id, flex: true },
+  // The slack sink: last flex column in this list, so it takes what the others leave. Its
+  // values are ARNs — the longest thing in the row and the only column whose cut costs the
+  // reader something — so a wider screen spends most of its extra pixels here instead of
+  // padding all seven columns out. The five sized columns keep their declared px.
+  { key: 'id', label: 'Resource ID', width: CONFIRMED_COLUMN_WIDTHS.id, flex: true },
   // Round 9 (owner): "종류를 resource id 오른쪽으로" — the kind leaves the leading anchor
   // slot and files in with the other attributes, after the identity pair (name → id).
   ...(withKind ? [{ key: 'kind', label: '종류', width: CONFIRMED_COLUMN_WIDTHS.kind }] : []),

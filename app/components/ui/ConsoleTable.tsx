@@ -39,13 +39,13 @@ export interface ConsoleTableColumn {
    *  is the FLOOR, not the width — see `flex`. */
   width: number;
   /**
-   * This column absorbs the table's slack: it renders `auto` and the table takes the
-   * container's width, so a wider screen shows MORE of this column's values instead of
-   * padding every column out (see `ConsoleTable`). At most one per spec — a second `auto`
-   * column would split the slack equally between them, which is not what any caller means.
+   * This column takes part in filling the table, so a wider screen shows MORE of its values
+   * instead of padding every column out. Declare it on the columns whose values actually run
+   * long — an ARN, a host, a free-text reason — and leave the rest sized.
    *
-   * Give it to the column with the longest values (an ARN, a host, a free-text reason):
-   * that is the one a bigger screen should spend its extra pixels on.
+   * DECLARATION ORDER MATTERS. The last flex column the user has not dragged is the sink and
+   * renders `auto`; the others render a percentage. See `ConsoleTable` for why that split
+   * exists and what happens when the sink is dragged.
    */
   flex?: boolean;
   /** Extra header-cell classes — e.g. the leading identity column's deeper inset. */
@@ -56,19 +56,47 @@ export interface ConsoleTableColumn {
 export const consoleColumnWidth = (column: ConsoleTableColumn, resize?: ColumnResize): number =>
   resize?.widthOf(column.key)?.width ?? column.width;
 
+/** The `flex` columns the user has not pinned by dragging, in declaration order. */
+const flexingColumns = (
+  columns: readonly ConsoleTableColumn[],
+  resize?: ColumnResize,
+): ConsoleTableColumn[] => columns.filter((column) => column.flex && !resize?.widthOf(column.key));
+
 /**
- * Is this column currently the slack sink? A `flex` column stops being one the moment the
- * user drags it: from then on the width they chose is the truth, and the table goes back to
- * being exactly as wide as its columns.
+ * One column's declared width.
+ *
+ * The SINK renders `auto` and takes whatever the others leave. A flexing column that is not
+ * the sink renders a PERCENTAGE — its own floor's share of the floor sum — so at the floor
+ * sum it lands exactly on its declared px and above it grows in proportion. Everything else
+ * renders px, and under `table-fixed` an `auto` sibling is what keeps those exact.
+ *
+ * ⛔ The percentage cannot be `calc(floor + share of slack)`: measured in Chrome, a
+ * `table-fixed` column width containing a percentage inside `calc()`, `min()`, `max()` or
+ * `clamp()` is discarded and the column falls back to `auto`. Bare px, bare %, and `auto`
+ * are the whole vocabulary here.
  */
-const isFlexing = (column: ConsoleTableColumn, resize?: ColumnResize): boolean =>
-  !!column.flex && !resize?.widthOf(column.key);
+const consoleThWidth = (
+  column: ConsoleTableColumn,
+  columnSum: number,
+  sinkKey: string | null,
+  resize?: ColumnResize,
+): string | number => {
+  if (column.key === sinkKey) return 'auto';
+  if (column.flex && !resize?.widthOf(column.key)) {
+    return `${((column.width / columnSum) * 100).toFixed(4)}%`;
+  }
+  return consoleColumnWidth(column, resize);
+};
 
 const ConsoleTh = ({
   column,
+  columnSum,
+  sinkKey,
   resize,
 }: {
   column: ConsoleTableColumn;
+  columnSum: number;
+  sinkKey: string | null;
   resize?: ColumnResize;
 }) => (
   <th
@@ -79,10 +107,9 @@ const ConsoleTh = ({
     // walked. (⛔ Do not "simplify" this away as duplicating the visible label.)
     aria-label={column.label}
     className={cn(idcStyles.table.approvalHeaderCell, 'relative', column.headClassName)}
-    // `auto` while this column is the slack sink — under `table-fixed` an auto column takes
-    // whatever the sized columns leave, and they keep their declared px exactly. Its own
-    // floor lives on the table's `min-width`, not here.
-    style={{ width: isFlexing(column, resize) ? 'auto' : consoleColumnWidth(column, resize) }}
+    // Floors live on the table's `min-width`, never here — a `table-fixed` cell ignores
+    // `min-width`, so the only way to hold one is to keep the whole table above the sum.
+    style={{ width: consoleThWidth(column, columnSum, sinkKey, resize) }}
   >
     {/* The label clips ITSELF: a bare text node in a hard-shrunk `<th>` paints over the
         neighbouring header. The attribute doubles as the hook's floor probe — drags stop
@@ -122,15 +149,25 @@ interface ConsoleTableProps {
  * The grammar, and why each piece is here rather than in the caller:
  * - `table-fixed`: fixed layout is what lets a drag rule the column at all (in auto layout
  *   nowrap content dictates it and dragging changes nothing).
- * - The table's width, in two modes. With a `flex` column the table is `w-full` over a
- *   `min-width` floor: the auto column eats the slack and every SIZED column still renders
- *   its declared px, so one screen shows more of the long values while the rest of the
- *   table stays where it was on the last screen. With no flex column — none declared, or
- *   the user has dragged the flex one and their width is now the truth — the width is the
- *   column SUM. It must not be `w-full` in THAT mode: with every column sized, the fixed
- *   algorithm redistributes slack proportionally across all of them, so each renders wider
- *   than it declares and a 16px keyboard step moves ~3px on screen. (Round 4 read that as
- *   "never w-full"; the premise was that every column is sized. One auto column retires it.)
+ * - The table's width, in two modes. While any `flex` column is unpinned the table is
+ *   `w-full` over a `min-width` floor, so it follows the container. With none left — none
+ *   declared, or the user has dragged every one of them and their widths are now the truth —
+ *   the width is the column SUM. It must not be `w-full` in THAT mode: with every column
+ *   sized, the fixed algorithm redistributes slack proportionally across all of them, so
+ *   each renders wider than it declares and a 16px keyboard step moves ~3px on screen.
+ *   (Round 4 read that as "never w-full"; the premise was that every column is sized. One
+ *   auto column retires it.)
+ * - THE SINK IS A POSITION, NOT A COLUMN: the last `flex` column the user has not dragged.
+ *   Drag it and the role hands off to the flex column before it, so the table keeps filling
+ *   the container instead of stranding itself at one screen size. Round 19 tied the role to
+ *   one column's identity, and a single drag left nobody absorbing — the table went fixed,
+ *   for that visit and (before `ephemeralKeys`) every visit after. Cloudscape, whose table
+ *   this grammar comes from, defines the same role positionally: `isLastColumn &&
+ *   container > total → width: 'auto'`. Fluent's DetailsList made our mistake instead and
+ *   has had it open since 2017 (microsoft/fluentui#517). Non-sink flex columns take a
+ *   percentage share so a wide screen spreads the slack over every long-valued column
+ *   rather than pouring all of it into one. See
+ *   docs/ux/benchmark/console-table-slack-ownership.md.
  * - `consoleGrid`: header rails plus, in the body, the covering sheet's cast shadow —
  *   the boundary at rest.
  * - the seam tracer: the boundary on approach. One absolutely positioned band moved
@@ -143,7 +180,8 @@ interface ConsoleTableProps {
 export const ConsoleTable = ({ columns, resize, children }: ConsoleTableProps) => {
   const wrapRef = useRef<HTMLDivElement>(null);
   const tracerRef = useRef<HTMLDivElement>(null);
-  const flexing = columns.some((column) => isFlexing(column, resize));
+  const flexing = flexingColumns(columns, resize);
+  const sinkKey = flexing.length > 0 ? flexing[flexing.length - 1].key : null;
   const columnSum = columns.reduce((sum, column) => sum + consoleColumnWidth(column, resize), 0);
   // Any width change — drag step, arrow key, double-click, reset, storage hydration —
   // douses the tracer and latches it dark until the pointer is next seen OUTSIDE a seam
@@ -206,19 +244,26 @@ export const ConsoleTable = ({ columns, resize, children }: ConsoleTableProps) =
       <table
         className={cn(
           'table-fixed',
-          flexing && 'w-full',
+          sinkKey !== null && 'w-full',
           idcStyles.table.consoleGrid,
           idcStyles.table.tbodySeam,
         )}
         // Both modes measure the same sum; what differs is whether it is the width or the
         // floor. A flex column contributes its `width` here either way — that is what the
-        // field means for it.
-        style={flexing ? { minWidth: columnSum } : { width: columnSum }}
+        // field means for it. A PINNED flex column contributes the width the user chose, so
+        // the floor grows with the drag and the table scrolls rather than crushing the sink.
+        style={sinkKey !== null ? { minWidth: columnSum } : { width: columnSum }}
       >
         <thead className={idcStyles.table.approvalHeaderFlat}>
           <tr className="whitespace-nowrap">
             {columns.map((column) => (
-              <ConsoleTh key={column.key} column={column} resize={resize} />
+              <ConsoleTh
+                key={column.key}
+                column={column}
+                columnSum={columnSum}
+                sinkKey={sinkKey}
+                resize={resize}
+              />
             ))}
           </tr>
         </thead>

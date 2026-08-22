@@ -914,18 +914,19 @@ describe('WaitingApprovalTable', () => {
       expect(table.className).toContain('linear-gradient(to_left');
       expect(container.querySelector('[data-seam-tracer]')).toBeTruthy();
       // Σ(162 name + 186 id + 142 dbType + 156 region + 118 논리DB + 96 제외) = 860, and it
-      // is the FLOOR, not the width: Resource ID is the flex column, so the table takes the
-      // container and that column absorbs whatever the six sized ones leave. No 종류 column:
+      // is the FLOOR, not the width: name and Resource ID both flex, so the table takes the
+      // container and those two spend the slack the four sized ones leave. No 종류 column:
       // this fixture is neither an RDS cluster nor an EC2 instance, so `hasKindColumn` says
       // no — and leaving the column OUT of the spec is how "nothing in the roster could
       // fill it" is expressed.
       expect((table as HTMLElement).style.minWidth).toBe('860px');
       expect((table as HTMLElement).style.width).toBe('');
       expect(table.className).toContain('w-full');
-      // Six declared px, and `auto` on the one that absorbs. Asserted here rather than in
-      // ConsoleTable.test because WHICH column flexes is this table's decision.
+      // Four declared px, a share for name (162/860), and `auto` on the sink. Asserted here
+      // rather than in ConsoleTable.test because WHICH columns flex is this table's decision
+      // — and the ORDER is load-bearing: Resource ID is last, so it is the sink.
       expect([...table.querySelectorAll('thead th')].map((th) => (th as HTMLElement).style.width))
-        .toEqual(['162px', 'auto', '142px', '156px', '118px', '96px']);
+        .toEqual(['18.8372%', 'auto', '142px', '156px', '118px', '96px']);
     });
 
     it('skips the seam tracer for approval tables', () => {
