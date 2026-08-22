@@ -296,18 +296,22 @@ export const IdcResourceTable = ({
                 )}
                 {has('logicalro') && (
                   <>
+                    {/* `onLogicalOpen` 이 없으면 셀에 onOpen 을 **주지 않는다**. `() => x?.(r)`
+                        는 언제나 truthy 라, 열 곳이 없는 화면(확인 모달)에서도 숫자가 눌리는
+                        버튼으로 그려졌다 — LogicalDbCountCell 이 "아무 일도 안 하는 컨트롤
+                        대신 평문" 이라고 정해 둔 바로 그 상태다. */}
                     <td className={skin.cell}>
                       <LogicalDbCountCell
                         count={logicalDbCounts?.get(r.resourceId)?.target ?? null}
                         label={`${r.hosts[0] ?? r.resourceId} 연동 논리 DB 목록 보기`}
-                        onOpen={() => onLogicalOpen?.(r)}
+                        onOpen={onLogicalOpen ? () => onLogicalOpen(r) : undefined}
                       />
                     </td>
                     <td className={skin.cell}>
                       <LogicalDbCountCell
                         count={logicalDbCounts?.get(r.resourceId)?.excluded ?? null}
                         label={`${r.hosts[0] ?? r.resourceId} 연동 제외 대상 보기`}
-                        onOpen={() => onLogicalOpen?.(r)}
+                        onOpen={onLogicalOpen ? () => onLogicalOpen(r) : undefined}
                       />
                     </td>
                   </>

@@ -484,11 +484,9 @@ export const IdcStep5ConnectionTest = ({
           {ready && (
             <IdcReqApprovalModal
               isOpen={approvalOpen}
+              targetSourceId={targetSourceId}
               onClose={() => setApprovalOpen(false)}
               resources={viewResources}
-              connectionStatus={statusByResource}
-              connectionLoading={loading}
-              connectionHasRun={fetchError && !latestJob ? null : !!latestJob}
               phase={approval.phase}
               pending={approval.pending}
               errorCode={approval.errorCode}
