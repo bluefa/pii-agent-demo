@@ -48,7 +48,7 @@ interface IdcConfirmedResourcesPanelProps {
   /** `connectionStatus` 와 짝 — 첫 폴링 응답 전에는 그 칸이 스켈레톤이다. */
   connectionLoading?: boolean;
   /** `connectionStatus` 와 짝 — 보고가 없는 행이 '미보고'인지 '미실행'인지 가른다. */
-  connectionHasRun?: boolean;
+  connectionHasRun?: boolean | null;
 }
 
 /**

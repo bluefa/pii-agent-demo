@@ -263,12 +263,12 @@ export const IdcConnStatusCell = ({ resource }: { resource: IdcResourceView }) =
   }
   switch (resource.connection) {
     case 'SUCCESS':
-      return <span className={cn(idcStyles.tag.base, idcStyles.tag.green)}>Success</span>;
+      return <span className={cn(idcStyles.tag.base, idcStyles.tag.green)}>성공</span>;
     case 'FAIL':
-      return <span className={cn(idcStyles.tag.base, idcStyles.tag.red)}>Fail</span>;
+      return <span className={cn(idcStyles.tag.base, idcStyles.tag.red)}>실패</span>;
     case 'RUNNING':
-      return <span className={cn(idcStyles.tag.base, idcStyles.tag.orange)}>Running</span>;
+      return <span className={cn(idcStyles.tag.base, idcStyles.tag.orange)}>진행 중</span>;
     default:
-      return <span className={cn(idcStyles.tag.base, idcStyles.tag.gray)}>Pending</span>;
+      return <span className={cn(idcStyles.tag.base, idcStyles.tag.gray)}>대기</span>;
   }
 };

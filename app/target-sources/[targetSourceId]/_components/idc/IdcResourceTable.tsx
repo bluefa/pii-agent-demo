@@ -72,10 +72,11 @@ interface IdcResourceTableProps {
   connectionLoading?: boolean;
   /**
    * `conn` column only — 실행 회차가 하나라도 있는가. 맵이 비었다는 사실만으로는 가를 수
-   * 없다: 한 건도 보고하지 못하고 끝난 실행도 빈 맵을 남긴다(mock fixture 2108). 기본값이
-   * `false` 인 건 이 열이 opt-in 이라서다 — 열을 세우는 쪽이 답을 같이 준다.
+   * 없다: 한 건도 보고하지 못하고 끝난 실행도 빈 맵을 남긴다(mock fixture 2108).
+   * `null` 은 조회 자체를 못 했다는 뜻이라 '없다' 와 다르다 — TcStatusTag 참고.
+   * 기본값이 `false` 인 건 이 열이 opt-in 이라서다 — 열을 세우는 쪽이 답을 같이 준다.
    */
-  connectionHasRun?: boolean;
+  connectionHasRun?: boolean | null;
   /**
    * Render in the CSP approval-table skin (step 6): the borderless frame that joins under a
    * toolbar, the 12px/600 approval header, 18/16 cell padding and the readable row-hover lift.

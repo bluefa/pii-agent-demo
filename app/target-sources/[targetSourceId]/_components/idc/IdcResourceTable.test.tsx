@@ -36,13 +36,15 @@ const view = (over: Partial<IdcResourceView>): IdcResourceView => ({
  * question per row, so the cell keeps its own coverage.
  */
 describe('IdcConnStatusCell — credential-aware status', () => {
-  it('renders Success for a credentialed row whose test passed', () => {
+  /** 어휘는 `TcStatusTag` 와 같아야 한다 — 같은 판정을 같은 화면에서 두 언어로 부르지 않는다. */
+  it('renders 성공 for a credentialed row whose test passed', () => {
     render(
       <IdcConnStatusCell
         resource={view({ resourceId: 'with-cred', credentialId: 'idc_svc_mysql', connection: 'SUCCESS' })}
       />,
     );
-    expect(screen.getByText('Success')).toBeTruthy();
+    expect(screen.getByText('성공')).toBeTruthy();
+    expect(screen.queryByText('Success')).toBeNull();
   });
 
   it("shows '자격 증명 필요' for a live row with no credential", () => {
@@ -52,7 +54,7 @@ describe('IdcConnStatusCell — credential-aware status', () => {
       />,
     );
     expect(screen.getByText('자격 증명 필요')).toBeTruthy();
-    expect(screen.queryByText('Pending')).toBeNull();
+    expect(screen.queryByText('대기')).toBeNull();
   });
 });
 

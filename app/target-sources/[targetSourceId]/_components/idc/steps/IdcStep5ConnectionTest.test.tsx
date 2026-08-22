@@ -6,6 +6,7 @@ import type { ProjectIdentity } from '@/app/target-sources/[targetSourceId]/_com
 import type { TestConnectionVersionResult, TestConnectionStatus } from '@/app/lib/api';
 import type { TestConnectionUIState } from '@/app/hooks/useTestConnectionPolling';
 import { toIdcResourceView, type IdcResourceView } from '@/app/lib/api/idc';
+import { AppError } from '@/lib/errors';
 
 // Stub the heavy chrome so only the connection-test card (strip + resource panel) renders.
 vi.mock('@/app/target-sources/[targetSourceId]/_components/common', () => ({
@@ -40,7 +41,15 @@ const pollingState: {
   loading: boolean;
   triggering: boolean;
   canRunTest: boolean;
-} = { uiState: 'IDLE', latestJob: null, loading: false, triggering: false, canRunTest: true };
+  fetchError: AppError | null;
+} = {
+  uiState: 'IDLE',
+  latestJob: null,
+  loading: false,
+  triggering: false,
+  canRunTest: true,
+  fetchError: null,
+};
 vi.mock('@/app/hooks/useTestConnectionPolling', async () => {
   const actual = await vi.importActual<typeof import('@/app/hooks/useTestConnectionPolling')>(
     '@/app/hooks/useTestConnectionPolling',
@@ -54,7 +63,7 @@ vi.mock('@/app/hooks/useTestConnectionPolling', async () => {
       triggering: pollingState.triggering,
       canRunTest: pollingState.canRunTest,
       retry: async () => {},
-      fetchError: null,
+      fetchError: pollingState.fetchError,
       triggerError: null,
       trigger: triggerMock,
     }),
@@ -153,6 +162,7 @@ const resetHarness = () => {
   pollingState.loading = false;
   pollingState.triggering = false;
   pollingState.canRunTest = true;
+  pollingState.fetchError = null;
   triggerMock.mockClear();
   // mockClear would leave queued mockResolvedValueOnce verdicts to leak into the
   // next test — reset drains the queue, then restore the default open verdict.
@@ -347,6 +357,20 @@ describe('IdcStep5ConnectionTest — 연결 상태 열', () => {
     // 이 열은 전부 태그다 — 판정 없는 행만 맨 글자로 서면 "값이 없다" 가 아니라 "이 행은
     // 다른 종류다" 로 읽힌다.
     expect(connCell('10.20.31.10').querySelector('span')).not.toBeNull();
+  });
+
+  /**
+   * 같은 규칙의 반대편. 조회가 실패하면 `latestJob` 은 null 인 채 loading 도 꺼지므로
+   * (무한 스피너를 피하려고), `!!latestJob` 만 보면 표 전체가 '미실행' 이라고 **단정**한다.
+   * 실패는 빈 결과가 아니다 — 읽지 못한 것과 없는 것은 정반대의 답을 요구한다.
+   */
+  it('조회가 실패하면 미실행이라 단정하지 않는다', async () => {
+    pollingState.fetchError = new AppError({ status: 503, code: 'INTERNAL_ERROR', message: '503', retriable: true });
+    renderStep();
+
+    await screen.findByText('10.20.30.40');
+    expect(connCell('10.20.30.40').textContent).toBe('조회 실패');
+    expect(connCell('10.20.31.10').textContent).toBe('조회 실패');
   });
 
   /** 실행이 없으면 보고 의무도 없었다 — 없는 사실을 만들지 않는다. */

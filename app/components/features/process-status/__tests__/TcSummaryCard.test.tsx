@@ -19,7 +19,12 @@ const buckets = (over: Partial<TcBuckets>): TcBuckets => {
   return { ...merged, reported: merged.ok + merged.fail + merged.unknown };
 };
 
-const renderCard = (state: TcCardState, over: Partial<TcBuckets>, run?: TcSummaryRun) =>
+const renderCard = (
+  state: TcCardState,
+  over: Partial<TcBuckets>,
+  run?: TcSummaryRun,
+  approvalDisabled = true,
+) =>
   render(
     <TcSummaryCard
       state={state}
@@ -28,7 +33,7 @@ const renderCard = (state: TcCardState, over: Partial<TcBuckets>, run?: TcSummar
       onRunTest={() => {}}
       runDisabled
       onRequestApproval={() => {}}
-      approvalDisabled
+      approvalDisabled={approvalDisabled}
     />,
   );
 
@@ -207,8 +212,12 @@ describe('TcSummaryCard CTA vocabulary', () => {
  * 행동이다(실패=고쳐서 다시, 정책 변경=다시 실행, 확정=끝).
  */
 describe('TcSummaryCard success guidance', () => {
-  const line = (state: TcCardState, over: Partial<TcBuckets>): string | null => {
-    const { container } = renderCard(state, over);
+  const line = (
+    state: TcCardState,
+    over: Partial<TcBuckets>,
+    approvalDisabled = false,
+  ): string | null => {
+    const { container } = renderCard(state, over, undefined, approvalDisabled);
     return container.querySelector('[class*="pl-[26px]"]')?.textContent ?? null;
   };
 
@@ -218,6 +227,16 @@ describe('TcSummaryCard success guidance', () => {
     // 순서가 빠지면 승인 요청이 헛걸음이 된다 — 논리 DB 제외를 저장하는 순간 그 실행은
     // 뒤처진 것이 되어 카드가 policy-changed 로 넘어가고 테스트를 다시 돌려야 한다.
     expect(text).toContain('요청 전에 정리해');
+  });
+
+  /**
+   * success 는 세 변형을 함께 든다(전부 성공·일부 미확인·보고 0건). 승인 게이트가
+   * `ok === total` 을 요구하므로 뒤의 둘에서는 버튼이 잠기는데, 그때도 안내가 서면 카드가
+   * 닫힌 문을 가리킨다 — ok===0 변형은 제목이 "확인된 리소스가 없어요" 라고 말한 직후다.
+   */
+  it('says nothing about approval while the approval CTA is gated shut', () => {
+    expect(line('success', { ok: 4, unreported: 2 }, true)).toBeNull();
+    expect(line('success', { unreported: 6 }, true)).toBeNull();
   });
 
   it('leaves every other phase to its own title', () => {
