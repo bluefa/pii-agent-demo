@@ -2,6 +2,7 @@
 import { render, screen, waitFor, within } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { ConfirmedResource } from '@/lib/types/resources';
+import { required } from '@/lib/test-dom';
 
 const getSummariesMock = vi.fn();
 vi.mock('@/app/lib/api', () => ({
@@ -117,14 +118,23 @@ describe('ConfirmedIntegrationTable', () => {
     // below it. The footer is mounted whole — count AND controls — even at one row: a
     // footer whose controls appear only past a page reads as no footer at all
     // ("pagination은 왜 없음?"). Search/filter still obey the ">5 items" line above.
+    //
+    // Round 16 (benchmark 시안 A): the range is a `<strong>` of its own so the two facts
+    // sit on different tones — matching the whole string as one node would pass again if
+    // that split were flattened, which is the thing worth guarding.
     it('hides search + filter at ≤5 rows and keeps the whole footer', () => {
       render(<ConfirmedIntegrationTable confirmed={[makeResource()]} targetSourceId={42} />);
       expect(screen.queryByRole('textbox', { name: '리소스 검색' })).toBeNull();
       expect(screen.queryByRole('button', { name: '필터' })).toBeNull();
       expect(screen.queryByText('연동 리소스')).toBeNull();
-      expect(screen.getByText('1–1 / 전체 1건')).toBeTruthy();
+      const range = screen.getByText('1–1');
+      expect(range.tagName).toBe('STRONG');
+      expect(required(range.parentElement, '카운트 줄').textContent).toContain('/ 전체 1건');
       expect(screen.getByRole('combobox', { name: '페이지당 표시 건수' })).toBeTruthy();
       expect(screen.getByRole('button', { name: '다음 페이지' })).toBeTruthy();
+      // 시안 A drops the first/last jumps on the console variant (MUI default).
+      expect(screen.queryByRole('button', { name: '처음 페이지' })).toBeNull();
+      expect(screen.queryByRole('button', { name: '끝 페이지' })).toBeNull();
     });
 
     it('shows search + filter once the list passes five rows', () => {

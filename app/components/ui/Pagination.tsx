@@ -75,7 +75,7 @@ export const Pagination = ({
   onPageChange,
   onPageSizeChange,
   pageSizeOptions,
-  controls = 'full',
+  controls,
   variant = 'bar',
 }: PaginationProps) => {
   const options = pageSizeOptions ?? DEFAULT_PAGE_SIZE_OPTIONS;
@@ -86,63 +86,65 @@ export const Pagination = ({
   const isConsole = variant === 'console';
   // 14px reaches the CONTROLS too, not just the footer's own text: the select and the
   // page buttons carry their own size, so leaving them at 12 would put three sizes in
-  // one centred line.
+  // one line.
   const controlText = isConsole ? 'text-[14px]' : 'text-[12px]';
+  // Benchmark 확정 (MUI: showFirstButton/showLastButton default false) — the console
+  // footer drops the ‹‹ ›› jumps. On a short list they were two more dead controls.
+  const edgeControls = controls ?? (isConsole ? 'prevNext' : 'full');
 
-  return (
-    <div
-      className={cn(
-        'flex items-center',
-        isConsole
-          ? // Centred as ONE group (owner): with no border to align against, a
-            // left/right split reads as two footers. The bar variant keeps its
-            // split — its border gives the two ends something to sit on.
-            cn('justify-center gap-[16px] py-[10px] text-[14px]', textColors.tertiary)
-          : 'px-[14px] py-[10px] border border-[#E5E7EB] border-t-0 rounded-b-[10px] bg-[#FCFCFD] text-[12px] text-[#6B7280]',
-      )}
-    >
-      <div className="inline-flex items-center gap-1.5">
-        <span>표시</span>
-        <select
-          value={pageSize}
-          onChange={(e) => onPageSizeChange(Number(e.target.value))}
-          className={cn(
-            'h-[26px] rounded-[6px] border border-[#E5E7EB] pr-[22px] pl-[8px] text-[#111827] cursor-pointer appearance-none',
-            controlText,
-            SELECT_CHEVRON_BG,
-          )}
-          aria-label="페이지당 표시 건수"
-        >
-          {options.map((opt) => (
-            <option key={opt} value={opt}>
-              {opt}
-            </option>
-          ))}
-        </select>
-        <span>건씩</span>
-      </div>
-      {isConsole ? (
-        /* One grey line, no near-black strongs: the footer states the total, it does not
-           rank against the rows above it. */
-        <span className={numericFeatures.tabular}>
-          {start}–{end} / 전체 {totalCount}건
-        </span>
-      ) : (
-        <span className={cn('ml-[16px] text-[#374151]', numericFeatures.tabular)}>
-          <strong className="font-semibold text-[#111827]">
-            {start}–{end}
-          </strong>{' '}
-          / 전체{' '}
-          <strong className="font-semibold text-[#111827]">{totalCount}</strong>건
-        </span>
-      )}
-      {!isConsole && <div className="flex-1" />}
-      {/* The row owns the control size so PageBtn and the ellipsis inherit one value. */}
-      <div className={cn('inline-flex gap-0.5', controlText)}>
-        {/* first/prev/next/last kept for usability (v15 mockup shows numbers only).
-            IDC step tables pass controls="prevNext" to drop the first/last
-            double-chevrons (v16 IDC pager is 이전 / [1] / 다음). */}
-        {controls === 'full' && (
+  const sizePicker = (
+    <div className="inline-flex items-center gap-1.5">
+      <span>표시</span>
+      <select
+        value={pageSize}
+        onChange={(e) => onPageSizeChange(Number(e.target.value))}
+        className={cn(
+          'rounded-[6px] border border-[#E5E7EB] pr-[22px] pl-[8px] text-[#111827] cursor-pointer appearance-none',
+          // design-guide: 버튼=셀렉트=인풋 동일 높이. The console pager's page buttons
+          // are 28px, so its select is too; the bar variant keeps v15's 26px.
+          isConsole ? 'h-[28px]' : 'h-[26px]',
+          controlText,
+          SELECT_CHEVRON_BG,
+        )}
+        aria-label="페이지당 표시 건수"
+      >
+        {options.map((opt) => (
+          <option key={opt} value={opt}>
+            {opt}
+          </option>
+        ))}
+      </select>
+      <span>건씩</span>
+    </div>
+  );
+
+  const countLabel = isConsole ? (
+    /* Two tones, per Carbon: the range is what you read, the total is context. One tone
+       for both left the line with zero hierarchy levers. */
+    <span className={numericFeatures.tabular}>
+      <strong className={cn('font-semibold', textColors.secondary)}>
+        {start}–{end}
+      </strong>{' '}
+      / 전체 {totalCount}건
+    </span>
+  ) : (
+    <span className={cn('ml-[16px] text-[#374151]', numericFeatures.tabular)}>
+      <strong className="font-semibold text-[#111827]">
+        {start}–{end}
+      </strong>{' '}
+      / 전체{' '}
+      <strong className="font-semibold text-[#111827]">{totalCount}</strong>건
+    </span>
+  );
+
+  const pageButtons = (
+    /* The row owns the control size so PageBtn and the ellipsis inherit one value. */
+    <div className={cn('inline-flex gap-0.5', controlText)}>
+      {/* first/prev/next/last kept for usability (v15 mockup shows numbers only).
+          IDC step tables pass controls="prevNext" to drop the first/last
+          double-chevrons (v16 IDC pager is 이전 / [1] / 다음), and the console
+          variant defaults to it. */}
+      {edgeControls === 'full' && (
           <PageBtn active={false} disabled={page <= 0} onClick={() => onPageChange(0)} ariaLabel="처음 페이지">
             ‹‹
           </PageBtn>
@@ -173,12 +175,45 @@ export const Pagination = ({
         <PageBtn active={false} disabled={page >= totalPages - 1} onClick={() => onPageChange(page + 1)} ariaLabel="다음 페이지">
           ›
         </PageBtn>
-        {controls === 'full' && (
+        {edgeControls === 'full' && (
           <PageBtn active={false} disabled={page >= totalPages - 1} onClick={() => onPageChange(totalPages - 1)} ariaLabel="끝 페이지">
             ››
           </PageBtn>
         )}
-      </div>
+    </div>
+  );
+
+  return (
+    <div
+      className={cn(
+        'flex items-center',
+        isConsole
+          ? // 시안 A (benchmark e80b4de6): a split, not a centred cluster. Every reference
+            // carrying a page-size selector anchors its pager to an edge (Carbon's two
+            // halves, MUI right-packed, AntD bottomEnd); only Polaris centres, and only
+            // because it has no selector to anchor. Left = how much, right = where am I.
+            // The hairline is the table's own row divider — flat + zero gap + no rule made
+            // the footer read as one more row. Padding is asymmetric (여백 7원칙 ②).
+            cn(
+              'justify-between gap-4 border-t border-[#EBEEF2] pt-3 pb-6 text-[14px]',
+              textColors.tertiary,
+            )
+          : 'px-[14px] py-[10px] border border-[#E5E7EB] border-t-0 rounded-b-[10px] bg-[#FCFCFD] text-[12px] text-[#6B7280]',
+      )}
+    >
+      {sizePicker}
+      {isConsole ? (
+        <div className="inline-flex items-center gap-3">
+          {countLabel}
+          {pageButtons}
+        </div>
+      ) : (
+        <>
+          {countLabel}
+          <div className="flex-1" />
+          {pageButtons}
+        </>
+      )}
     </div>
   );
 };

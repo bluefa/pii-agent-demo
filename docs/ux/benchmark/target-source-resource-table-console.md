@@ -343,3 +343,51 @@ confirmed 변형뿐), 다음 채택 후보는 IDC 6·7단계
 rgb(209,213,219) · 헤더 글자 rgb(78,89,104) · h3 0개 · 푸터 "전체 6건" 14px
 (단일 페이지라 크기 셀렉트·페이지 버튼 없음) · id 텍스트 `mask-image: none` ·
 복사 칩 22×22 흰 면 + #E5E7EB 테두리 · 전체 vitest 2673/2673.
+
+## 라운드 16 (2026-08-22) — 푸터 벤치마크 → 시안 A 채택
+
+> "footer desgin은 bench mark 필요할듯" → "시안 A 방향으로 가고, 14 픽셀"
+
+아티팩트: https://claude.ai/code/artifact/e80b4de6-83ee-45e9-86f2-c5f86b2ebb9f
+(진단 7건 실측 + 검증 레퍼런스 8건 + 시안 5 + 비교표)
+
+**진단(실측).** 표 1310px / 스크롤 뷰포트 950px → 푸터가 **뷰포트** 기준 가운데라
+가로 스크롤하면 열과의 관계가 계속 변함(D1). 콘텐츠 374px, 좌우 288px씩 빔.
+셀렉트 26 vs 버튼 28(D5, 「버튼=셀렉트=인풋 동일 높이」 위반) · 패딩 10/10
+(세트에 없는 값 + 대칭, 여백 7원칙 ② 위반) · `border-top:0`+투명 배경+마지막 행
+`border-bottom:0` → 푸터가 **7번째 행**으로 읽힘(D3) · 푸터 전부 14px/gray-500이라
+계층 레버 **0개**(D4) · 호출부 21곳 중 20곳이 `bar`인데 콘솔만 갈라짐(D7).
+
+**레퍼런스에서 나온 규칙.** 페이지 크기 셀렉터를 **가진** 페이저는 예외 없이
+가장자리에 붙는다 — Carbon 좌우 분할 · MUI 우측 팩 · AntD `placement` 기본
+`bottomEnd`(`bottomCenter`가 있는데도 기본이 아님). 가운데 정렬하는 유일한 사례인
+Polaris는 **셀렉터가 없어서** 가능하다(`type='table'` → `InlineStack align="center"`,
+`‹ | 1-50 of 8,450 orders | ›`). 즉 **"가운데 + 셀렉터 유지"는 8개 레퍼런스 어디에도 없다.**
+
+| # | 결정 | 메커니즘 |
+|---|------|---------|
+| R16-1 | **가운데 → 좌우 분할** (`justify-between`) | 좌=얼마나(표시 N건씩) / 우=어디에(범위+컨트롤). 실측 좌·우 여백 **0/0** — 표 양 끝(`x=364,w=950`)에 정확히 앵커. 검색 줄·스크롤러와 같은 기준선 |
+| R16-2 | **상단 헤어라인 `#EBEEF2`** | 표의 **행 구분선과 같은 값**. Carbon "표와 페이저 사이 패딩 0"은 **테두리 있는 바** 전제 — 평면이면 선이 그 일을 대신해야 한다 |
+| R16-3 | 패딩 **12 / 24** 비대칭 | 여백 7원칙 ②(그룹 하단 > 상단). ⛔아티팩트 초안의 14/20은 간격 세트(4/8/12/16/24)에 없어 폐기 — 같은 문서의 "8의 배수로 간다" 확정 항목과 모순이었다 |
+| R16-4 | 셀렉트 **26→28px** | 페이지 버튼과 동일 높이. `bar` 변형은 v15 실측 26px 유지 |
+| R16-5 | 카운트 **2톤** | `1–6`=`textColors.secondary`+600 / `/ 전체 6건`=`tertiary`. Carbon이 범위를 `$text-secondary`, 숫자를 `$text-primary`로 나누는 문법. 레버 2개(색·굵기) |
+| R16-6 | **`‹‹ ››` 폐지** | MUI `showFirstButton`/`showLastButton` 기본 `false`. 콘솔 변형은 `controls`를 안 주면 `prevNext`로 떨어진다 |
+| R16-7 | 전부 **14px** | 셀렉트·페이지 버튼까지. 크기는 페이저 행이 소유하고 `PageBtn`은 상속 — `bar`는 같은 자리에서 12px |
+
+**⛔ 1페이지 노출은 건드리지 않았다.** 오너 지시가 레퍼런스와 일치한다:
+AWS Cloudscape *"Display the pagination even if the resources set fits in one page."*
+(Table view §H) · AntD `hideOnSinglePage` **기본 `false`** · Carbon·MUI·Polaris는
+숨기는 장치조차 없음.
+
+**미채택 시안**: B(Cloudscape 정석 — 총계는 제목 옆 카운터로, 크기는 Preferences
+톱니로) 는 비용 높고 "연동 리소스 N건 없애고" 지시와 충돌 · C(Polaris 세그먼트로
+가운데 유지) 는 셀렉터를 버려야 성립 · D(우측 정렬만) 는 D3~D6 미해결 ·
+E(수치만 교정) 는 D1·D2 본체를 남김. ⚠️**B의 논거는 살아 있다** — Cloudscape
+`Header.counter`("commonly used to display resource counters in table and cards")
+기준으로 **총계는 제목 옆, 범위는 푸터**가 분업이고, 우리는 R15에서 둘을 한 줄로
+합쳤다. 1페이지에서 `1–6 / 전체 6건`이 같은 말을 두 번 하는 건 그 때문.
+
+실측(목 1012): `justify-content: space-between` · 좌/우 여백 0/0 · `border-top`
+rgb(235,238,242) · 패딩 12/24 · 셀렉트·버튼 모두 28px · 폰트 전부 14px ·
+`1–6` weight 600 gray-700 vs 컨테이너 gray-500 · 버튼 3개(이전/1/다음) ·
+전체 vitest 2673/2673.
