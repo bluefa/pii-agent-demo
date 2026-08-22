@@ -35,8 +35,19 @@ export interface ConsoleTableColumn {
    *  `RESIZE_LABEL_ATTR`, as the drag's own floor: a column cannot be dragged narrower
    *  than its label. */
   label: string;
-  /** Default width in px, used until the user drags this column. */
+  /** Default width in px, used until the user drags this column. For a `flex` column this
+   *  is the FLOOR, not the width — see `flex`. */
   width: number;
+  /**
+   * This column absorbs the table's slack: it renders `auto` and the table takes the
+   * container's width, so a wider screen shows MORE of this column's values instead of
+   * padding every column out (see `ConsoleTable`). At most one per spec — a second `auto`
+   * column would split the slack equally between them, which is not what any caller means.
+   *
+   * Give it to the column with the longest values (an ARN, a host, a free-text reason):
+   * that is the one a bigger screen should spend its extra pixels on.
+   */
+  flex?: boolean;
   /** Extra header-cell classes — e.g. the leading identity column's deeper inset. */
   headClassName?: string;
 }
@@ -44,6 +55,14 @@ export interface ConsoleTableColumn {
 /** One column's rendered width: the dragged width if the user set one, else the default. */
 export const consoleColumnWidth = (column: ConsoleTableColumn, resize?: ColumnResize): number =>
   resize?.widthOf(column.key)?.width ?? column.width;
+
+/**
+ * Is this column currently the slack sink? A `flex` column stops being one the moment the
+ * user drags it: from then on the width they chose is the truth, and the table goes back to
+ * being exactly as wide as its columns.
+ */
+const isFlexing = (column: ConsoleTableColumn, resize?: ColumnResize): boolean =>
+  !!column.flex && !resize?.widthOf(column.key);
 
 const ConsoleTh = ({
   column,
@@ -60,7 +79,10 @@ const ConsoleTh = ({
     // walked. (⛔ Do not "simplify" this away as duplicating the visible label.)
     aria-label={column.label}
     className={cn(idcStyles.table.approvalHeaderCell, 'relative', column.headClassName)}
-    style={{ width: consoleColumnWidth(column, resize) }}
+    // `auto` while this column is the slack sink — under `table-fixed` an auto column takes
+    // whatever the sized columns leave, and they keep their declared px exactly. Its own
+    // floor lives on the table's `min-width`, not here.
+    style={{ width: isFlexing(column, resize) ? 'auto' : consoleColumnWidth(column, resize) }}
   >
     {/* The label clips ITSELF: a bare text node in a hard-shrunk `<th>` paints over the
         neighbouring header. The attribute doubles as the hook's floor probe — drags stop
@@ -98,11 +120,17 @@ interface ConsoleTableProps {
  * the boundary instead of drawing an ellipsis.
  *
  * The grammar, and why each piece is here rather than in the caller:
- * - `table-fixed` + width = Σ(columns): fixed layout is what lets a drag rule the column
- *   at all (in auto layout nowrap content dictates it and dragging changes nothing).
- *   The table's width must be the column SUM, not `w-full`: under `w-full` the fixed
- *   algorithm redistributes slack across the fixed columns, so every column silently
- *   renders wider than it declares and a 16px keyboard step moves ~3px on screen.
+ * - `table-fixed`: fixed layout is what lets a drag rule the column at all (in auto layout
+ *   nowrap content dictates it and dragging changes nothing).
+ * - The table's width, in two modes. With a `flex` column the table is `w-full` over a
+ *   `min-width` floor: the auto column eats the slack and every SIZED column still renders
+ *   its declared px, so one screen shows more of the long values while the rest of the
+ *   table stays where it was on the last screen. With no flex column — none declared, or
+ *   the user has dragged the flex one and their width is now the truth — the width is the
+ *   column SUM. It must not be `w-full` in THAT mode: with every column sized, the fixed
+ *   algorithm redistributes slack proportionally across all of them, so each renders wider
+ *   than it declares and a 16px keyboard step moves ~3px on screen. (Round 4 read that as
+ *   "never w-full"; the premise was that every column is sized. One auto column retires it.)
  * - `consoleGrid`: header rails plus, in the body, the covering sheet's cast shadow —
  *   the boundary at rest.
  * - the seam tracer: the boundary on approach. One absolutely positioned band moved
@@ -115,6 +143,8 @@ interface ConsoleTableProps {
 export const ConsoleTable = ({ columns, resize, children }: ConsoleTableProps) => {
   const wrapRef = useRef<HTMLDivElement>(null);
   const tracerRef = useRef<HTMLDivElement>(null);
+  const flexing = columns.some((column) => isFlexing(column, resize));
+  const columnSum = columns.reduce((sum, column) => sum + consoleColumnWidth(column, resize), 0);
   // Any width change — drag step, arrow key, double-click, reset, storage hydration —
   // douses the tracer and latches it dark until the pointer is next seen OUTSIDE a seam
   // zone; without the latch the band reappears under the parked cursor the moment a drag
@@ -174,10 +204,16 @@ export const ConsoleTable = ({ columns, resize, children }: ConsoleTableProps) =
       onMouseLeave={hideSeamTracer}
     >
       <table
-        className={cn('table-fixed', idcStyles.table.consoleGrid, idcStyles.table.tbodySeam)}
-        style={{
-          width: columns.reduce((sum, column) => sum + consoleColumnWidth(column, resize), 0),
-        }}
+        className={cn(
+          'table-fixed',
+          flexing && 'w-full',
+          idcStyles.table.consoleGrid,
+          idcStyles.table.tbodySeam,
+        )}
+        // Both modes measure the same sum; what differs is whether it is the width or the
+        // floor. A flex column contributes its `width` here either way — that is what the
+        // field means for it.
+        style={flexing ? { minWidth: columnSum } : { width: columnSum }}
       >
         <thead className={idcStyles.table.approvalHeaderFlat}>
           <tr className="whitespace-nowrap">

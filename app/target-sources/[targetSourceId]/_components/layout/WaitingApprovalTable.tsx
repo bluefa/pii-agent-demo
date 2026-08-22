@@ -372,10 +372,16 @@ const ReasonCell = ({ resource }: { resource: WaitingApprovalResource }) => {
  * Round 13: this list IS the column spec `ConsoleTable` renders from, so an optional
  * column is expressed by leaving it out (see `confirmedColumns`) rather than by a
  * filter over a record.
+ *
+ * `id` is the FLOOR of the flex column, not its width — see `confirmedColumns`. It reads
+ * 186 rather than the audit's 312 because the other six sum to 802 and the table has to
+ * fit a 990px content column (measured: 1710px browser minus the two rails' 720px). 312
+ * put the table at 1114 and hid 연동 제외 outright on that screen; as a floor, 186 keeps
+ * every column on screen there and still renders past 1000px wherever there is room.
  */
 const CONFIRMED_COLUMN_WIDTHS = {
   name: 162,
-  id: 312,
+  id: 186,
   kind: 128,
   dbType: 142,
   region: 156,
@@ -392,7 +398,10 @@ const confirmedColumns = (regionLabel: string, withKind: boolean): ConsoleTableC
     width: CONFIRMED_COLUMN_WIDTHS.name,
     headClassName: idcStyles.table.nameCell,
   },
-  { key: 'id', label: 'Resource ID', width: CONFIRMED_COLUMN_WIDTHS.id },
+  // The slack sink. Its values are ARNs — the longest thing in the row and the only column
+  // whose cut costs the reader something — so a wider screen spends its extra pixels here
+  // instead of padding all seven columns out. Six sized columns keep their declared px.
+  { key: 'id', label: 'Resource ID', width: CONFIRMED_COLUMN_WIDTHS.id, flex: true },
   // Round 9 (owner): "종류를 resource id 오른쪽으로" — the kind leaves the leading anchor
   // slot and files in with the other attributes, after the identity pair (name → id).
   ...(withKind ? [{ key: 'kind', label: '종류', width: CONFIRMED_COLUMN_WIDTHS.kind }] : []),
