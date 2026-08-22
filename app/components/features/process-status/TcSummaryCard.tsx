@@ -5,9 +5,9 @@ import { cn, idcStyles, statusColors } from '@/lib/theme';
 import {
   ActivityIcon,
   CheckIcon,
+  CircleXIcon,
   ClockIcon,
   HourglassIcon,
-  StatusErrorIcon,
   StatusWarningIcon,
 } from '@/app/components/ui/icons';
 import { fmtDateTime, fmtRelativeTime } from '@/lib/pipeline/format';
@@ -300,7 +300,11 @@ export const TcSummaryCard = ({
                 // 실패는 판정이지 시각이 아니다. 이 자리가 비어 있어 시계로 떨어지던 탓에
                 // 실패 카드가 미실행·시작 대기와 같은 글리프를 달고 있었다 — 표면과 문장만
                 // 붉을 뿐, 글리프는 아무 판정도 하지 않았다.
-                <StatusErrorIcon className="h-[18px] w-[18px]" />
+                //
+                // Heroicons 인 `StatusErrorIcon`(r=9) 대신 Lucide `circle-x`(r=10) — 이 슬롯의
+                // 나머지 Lucide 글리프와 18px 에서 1.5px 어긋나던 것을 없앤다. Toast·ErrorState
+                // 의 에러 글리프는 그대로 `StatusErrorIcon` 이다.
+                <CircleXIcon className="h-[18px] w-[18px]" />
               ) : state === 'queued' ? (
                 // 시작 대기는 모래시계. 시계는 `idle`(실행 자체가 없음)의 글리프라, 대기가
                 // 같은 시계를 쓰면 "실행이 없다"와 "실행을 기다린다"가 한 그림이 된다.

@@ -71,7 +71,7 @@ Figma(`H2kRxFxOqqeTrPceFU4zMM`)가 지정한 대로 가른다. 18px 렌더의 �
 
 | 상태 | 전 | 후 | 근거 |
 |---|---|---|---|
-| `fail` | 시계 | **x-circle** (`StatusErrorIcon`) | Figma `card/fail` 의 `x-circle` 프레임. 새 아이콘을 만들지 않고 앱이 이미 쓰는 에러 글리프(Toast·ErrorState)를 그대로 — 실패 카드가 앱의 에러 어휘를 말한다 |
+| `fail` | 시계 | **x-circle** (`CircleXIcon`, 신규) | Figma `card/fail` 의 `x-circle` 프레임. 기하는 Lucide `circle-x` 그대로 |
 | `queued` | 시계 | **모래시계** (`HourglassIcon`, 신규) | Figma `card/queued` 의 `hourglass` 프레임. 세트에 모래시계가 없어 새로 만들었고, 기하는 Lucide `hourglass` 그대로 — 같은 슬롯의 `ClockIcon` 도 Lucide라 획과 여백이 맞는다 |
 
 폴백에 남는 것은 `idle` 하나다 — 실행이 없다는 사실만 말하므로 시계가 맞다. 이제 네 국면(미실행·시작
@@ -83,10 +83,16 @@ Figma 의 `title/icon-slot` 도 18×18 이다. 슬롯 크기가 그대로라 카
 134.8). 메타 서브라인의 시계는 12px 그대로 둔다 — 같은 18px 슬롯을 공유해 열은 맞되, 시각 표식은
 판정 글리프가 아니다(Figma `meta/icon-slot` 안의 프레임도 12×12).
 
-⚠️ `StatusErrorIcon` 은 Heroicons 계열이라 원 반지름이 9(박스의 83%)이고, Figma 의 Lucide `circle-x` 는
-10(92%)이다. 18px 박스에서 잉크 지름 **15.0px 대 16.5px — 약 1.5px 차**(브라우저 실측). 새 아이콘을
-만드는 대신 앱의 기존 에러 글리프를 재사용한 결과이며, 이 슬롯의 글리프들은 이미 68~92% 범위에
-흩어져 있다. 정확히 맞추려면 `circle-x` 를 따로 들여야 한다.
+`fail` 은 처음엔 앱이 이미 쓰는 에러 글리프 `StatusErrorIcon` 을 재사용했다. 그런데 그건 Heroicons
+계열이라 원 반지름이 9(박스의 83%)여서, 같은 슬롯에 서는 Lucide 글리프들(시계·모래시계, 둘 다
+r=10 = 92%)과 어긋난다 — 15px 에선 1.25px 차라 넘어갔지만 **18px 로 키우자 1.5px 로 드러났다**(잉크
+지름 15.0px 대 16.5px, 브라우저 실측). 그래서 `CircleXIcon` 을 따로 들였고, 이제 **16.5px 대 16.5px**
+로 정확히 맞는다.
+
+⚠️ Toast·ErrorState 의 에러 글리프는 여전히 `StatusErrorIcon` 이다. 이 카드가 앱의 에러 어휘를
+말하는 것보다 Figma 가 지정한 기하를 따르는 쪽을 골랐다는 뜻이고, 두 아이콘이 한 화면에 나란히
+서는 자리는 없다. 체크·경고는 Figma 가 기하를 지정하지 않아 그대로 둔다 — 이 슬롯의 글리프가
+68~92% 로 흩어져 있는 건 그 때문이다.
 
 ## 남는 것
 

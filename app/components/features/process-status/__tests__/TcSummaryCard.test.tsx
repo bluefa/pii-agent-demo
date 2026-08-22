@@ -136,7 +136,9 @@ describe('TcSummaryCard title glyph', () => {
     renderCard(state, over).container.querySelector('.inline-grid svg')?.innerHTML ?? '';
 
   const CLOCK = 'polyline';
-  const X_CIRCLE = 'M10 14l2-2';
+  // Lucide `circle-x` 의 획 하나. Heroicons `StatusErrorIcon` 은 한 path 로 원과 X 를 함께
+  // 그리므로 이 마디가 없다 — 기하가 되돌아가면 여기서 걸린다.
+  const X_CIRCLE = 'm15 9-6 6';
   const HOURGLASS = 'M5 2h14M5 22h14';
 
   it('fail carries the x-circle, not the clock it used to fall through to', () => {
