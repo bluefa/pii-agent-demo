@@ -1,15 +1,6 @@
 'use client';
 
-import {
-  Fragment,
-  memo,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type MouseEvent as ReactMouseEvent,
-  type ReactNode,
-} from 'react';
+import { Fragment, memo, useMemo, useState, type ReactNode } from 'react';
 import { useClusterFold } from '@/app/hooks/useClusterFold';
 import { useRailHover } from '@/app/hooks/useRailHover';
 import { ReasonChipInline } from '@/app/components/ui/ReasonChipInline';
@@ -35,7 +26,11 @@ import {
   RdsClusterTag,
 } from '@/app/components/ui/RdsInstanceChips';
 import { RdsInstancePanel } from '@/app/target-sources/[targetSourceId]/_components/shared/RdsInstancePanel';
-import { RESIZE_LABEL_ATTR, type ColumnResize } from '@/app/components/ui/useColumnResize';
+import { type ColumnResize } from '@/app/components/ui/useColumnResize';
+import {
+  ConsoleTable,
+  type ConsoleTableColumn,
+} from '@/app/components/ui/ConsoleTable';
 import { hasLogicalDatabases, isEc2Instance, resolveExclusionReason } from '@/lib/types';
 import {
   INSTALL_STATUS_LABEL,
@@ -368,11 +363,10 @@ const ReasonCell = ({ resource }: { resource: WaitingApprovalResource }) => {
  * 162·312·142·156·118·96; 종류 kept its round-3 width — 82px content + approvalCell
  * padding 36px + slack — through the round-9 move behind Resource ID and the chip →
  * plain-text change, since the text runs the same length the chip did).
- * A RECORD, not width classes, because the `<table>` must carry width = Σ(columns)
- * (round 4): under `w-full` the fixed algorithm redistributes any slack across the
- * fixed columns, so below the container width every column silently stretched past
- * its stated width — a 16px keyboard step moved ~3px on screen, and the min/max
- * bounds the drag enforces were not the widths being rendered.
+ *
+ * Round 13: this list IS the column spec `ConsoleTable` renders from, so an optional
+ * column is expressed by leaving it out (see `confirmedColumns`) rather than by a
+ * filter over a record.
  */
 const CONFIRMED_COLUMN_WIDTHS = {
   name: 162,
@@ -384,69 +378,24 @@ const CONFIRMED_COLUMN_WIDTHS = {
   excluded: 96,
 } as const;
 
-type ConfirmedColumnKey = keyof typeof CONFIRMED_COLUMN_WIDTHS;
-
-/** One column's rendered width: the dragged width if the user set one, else the default. */
-const confirmedColumnWidth = (key: ConfirmedColumnKey, columns?: ColumnResize): number =>
-  columns?.widthOf(key)?.width ?? CONFIRMED_COLUMN_WIDTHS[key];
-
-/**
- * Confirmed-table header cell — width-declared and drag-resizable (round 3). `relative`
- * seats the handle at the cell's right edge (useColumnResize contract); the width is a
- * style either way (default or dragged), so server and client always agree on it.
- */
-/** The seam zone: within this many px of a column boundary the tracer shows —
- *  the same 8px the header resize handles occupy, one grammar for "at the boundary". */
-export const SEAM_ZONE_PX = 8;
-
-/** The tracer band's width — the same 10px ramp consoleGrid casts at rest (round 12:
- *  the hover is that shadow deepening in place, not a new element), so the tracer's
- *  RIGHT edge must land on the seam: translateX(seam − band). */
-export const SEAM_BAND_PX = 10;
-
-/** Nearest interior column boundary within SEAM_ZONE_PX of clientX, or null. The last
- *  th's right edge is the table's outer edge, not a seam between sheets — skipped. */
-export const nearestSeamX = (clientX: number, ths: ArrayLike<Element>): number | null => {
-  let best: number | null = null;
-  for (let i = 0; i < ths.length - 1; i += 1) {
-    const edge = ths[i].getBoundingClientRect().right;
-    const closer = best === null || Math.abs(edge - clientX) < Math.abs(best - clientX);
-    if (Math.abs(edge - clientX) <= SEAM_ZONE_PX && closer) {
-      best = edge;
-    }
-  }
-  return best;
-};
-
-const ResizableTh = ({
-  columns,
-  columnKey,
-  label,
-  className,
-}: {
-  columns?: ColumnResize;
-  columnKey: ConfirmedColumnKey;
-  label: string;
-  className?: string;
-}) => (
-  <th
-    className={cn(idcStyles.table.approvalHeaderCell, 'relative', className)}
-    style={{ width: confirmedColumnWidth(columnKey, columns) }}
-  >
-    {/* The label clips ITSELF (round 4): a bare text node in a hard-shrunk `<th>` paints
-        over the neighbouring header. The attribute doubles as the hook's floor probe —
-        drags stop at the width where this label would start to clip, so post-drag the
-        ellipsis only ever shows for widths restored from an older storage version.
-        inline-block, NOT block: the probe reads scrollWidth, and a block span's
-        scrollWidth is its box (the th's width), which froze every column at its current
-        width. A shrink-to-fit box reports the TEXT in both states — its own width while
-        the label fits, the full text while clipped. max-w-full is what lets it clip. */}
-    <span {...{ [RESIZE_LABEL_ATTR]: '' }} className="inline-block max-w-full truncate align-bottom">
-      {label}
-    </span>
-    {columns && <span {...columns.handleProps(columnKey, label)} />}
-  </th>
-);
+/** The confirmed table's column spec. `kind` only exists when a visible row can fill it —
+ *  Azure/GCP rows carry no kind today, and a permanently blank column is dead space. */
+const confirmedColumns = (regionLabel: string, withKind: boolean): ConsoleTableColumn[] => [
+  {
+    key: 'name',
+    label: 'Resource Name',
+    width: CONFIRMED_COLUMN_WIDTHS.name,
+    headClassName: idcStyles.table.nameCell,
+  },
+  { key: 'id', label: 'Resource ID', width: CONFIRMED_COLUMN_WIDTHS.id },
+  // Round 9 (owner): "종류를 resource id 오른쪽으로" — the kind leaves the leading anchor
+  // slot and files in with the other attributes, after the identity pair (name → id).
+  ...(withKind ? [{ key: 'kind', label: '종류', width: CONFIRMED_COLUMN_WIDTHS.kind }] : []),
+  { key: 'dbType', label: 'Database Type', width: CONFIRMED_COLUMN_WIDTHS.dbType },
+  { key: 'region', label: regionLabel, width: CONFIRMED_COLUMN_WIDTHS.region },
+  { key: 'logicalDb', label: '연동 논리 DB', width: CONFIRMED_COLUMN_WIDTHS.logicalDb },
+  { key: 'excluded', label: '연동 제외', width: CONFIRMED_COLUMN_WIDTHS.excluded },
+];
 
 export const WaitingApprovalTable = memo(
   ({
@@ -491,30 +440,6 @@ export const WaitingApprovalTable = memo(
     // Tree rails: hovering any row of a group / cluster / folded region lights the whole rail.
     const railRow = useRailHover();
 
-    // Round 7: the resting body grid has no rails (consoleGrid's covered-sheet shadow
-    // took their place) — the nearest column seam materializes only while the pointer
-    // is inside its 8px zone (a 1px line through round 11; since round 12 the resting
-    // shadow itself deepening blue). Imperative style writes on purpose: a
-    // mousemove-frequency setState would re-render the whole table for one tracer.
-    // Hooks live ABOVE the empty-state return: a filter emptying the list must not
-    // change the hook count.
-    const seamWrapRef = useRef<HTMLDivElement>(null);
-    const seamTracerRef = useRef<HTMLDivElement>(null);
-    // Round 8 (owner): "너비 조절시에 잔상이 남는 효과는 삭제해봐". Any width change —
-    // drag step, arrow key, double-click, reset, storage hydration — douses the tracer
-    // and latches it dark until the pointer is next seen OUTSIDE a seam zone; without
-    // the latch the line reappears under the parked cursor the moment a drag ends.
-    // `columns` is memoized on the widths record, so its identity IS the width signal;
-    // mount is not a width change, so the first pass only records the identity.
-    const seamSuppressRef = useRef(false);
-    const seamColumnsRef = useRef(columns);
-    useEffect(() => {
-      if (seamColumnsRef.current === columns) return;
-      seamColumnsRef.current = columns;
-      seamSuppressRef.current = true;
-      if (seamTracerRef.current) seamTracerRef.current.style.opacity = '0';
-    }, [columns]);
-
     const toggleGroup = (key: string) =>
       setCollapsedGroups((previous) => {
         const next = new Set(previous);
@@ -556,51 +481,9 @@ export const WaitingApprovalTable = memo(
     // Colorless — each row picks its resting tier (dim vs secondary) at the cell.
     const monoCell = 'whitespace-nowrap font-mono text-[14px]';
 
-    // Round 4 covered-clip (owner: "왼쪽 부분이 오른쪽에 덮인 느낌"): every confirmed cell
-    // clips at its own edge so an overlong value runs through the cell's right padding and
-    // cuts mid-letter exactly at the column stroke — the Azure grammar where the next column
-    // COVERS the value and dragging the divider uncovers it. Overflow clips at the padding
-    // box, so the cut lands on the border line, not 18px short of it. An ellipsis would say
-    // "shortened here" instead of "continues underneath", so the …-drawing `truncate` is off
-    // in this variant. nowrap on the td keeps chips and plain-text cells to the single 52px
-    // line without each child declaring it.
-    const coveredCell = confirmedVariant ? 'overflow-hidden whitespace-nowrap' : undefined;
-
-    const handleSeamMove = (event: ReactMouseEvent<HTMLDivElement>) => {
-      const wrap = seamWrapRef.current;
-      const tracer = seamTracerRef.current;
-      if (!wrap || !tracer) return;
-      // Mid-gesture (a button held) the pointer is dragging a boundary or a selection —
-      // the discovery line must not trail the gesture as a ghost (round 8). This also
-      // covers the drag's first moves, before the width-change effect above has run.
-      if (event.buttons !== 0) {
-        tracer.style.opacity = '0';
-        return;
-      }
-      const ths = wrap.querySelectorAll('thead th');
-      const seamX = nearestSeamX(event.clientX, ths);
-      if (seamX === null) {
-        seamSuppressRef.current = false;
-        tracer.style.opacity = '0';
-        return;
-      }
-      if (seamSuppressRef.current) return;
-      const wrapRect = wrap.getBoundingClientRect();
-      // clientX-space seam → scroll-content x; the band hangs LEFT of the seam with
-      // its right edge ON it, registering over the resting ramp it deepens (round 12).
-      const x = seamX - wrapRect.left + wrap.scrollLeft - SEAM_BAND_PX;
-      // Body only: the header keeps its line grammar (rails + the grab guide), so the
-      // band starts under the thead rule instead of washing over the header labels.
-      tracer.style.top = `${ths[0].getBoundingClientRect().bottom - wrapRect.top}px`;
-      tracer.style.transform = `translateX(${x}px)`;
-      tracer.style.opacity = '1';
-    };
-    const hideSeamTracer = () => {
-      // Leaving the container re-arms discovery: the latch is about the residue of a
-      // just-finished resize, not about a fresh visit to the table.
-      seamSuppressRef.current = false;
-      if (seamTracerRef.current) seamTracerRef.current.style.opacity = '0';
-    };
+    // The covered-clip cell (round 4) — `ConsoleTable`'s cell grammar, applied per td so
+    // the other variants keep their ellipsis. See the token for why the CELL clips.
+    const coveredCell = confirmedVariant ? idcStyles.table.consoleCell : undefined;
 
     // `grouped` only indents the identity cell — every other cell is identical whether the row
     // stands alone or hangs under a parent, so a group never changes what a row says.
@@ -1103,71 +986,95 @@ export const WaitingApprovalTable = memo(
       );
     };
 
+    // The row blocks, shared by both shells below: one tbody per block, because a group
+    // renders parent and children as separate bodies (`tbodySeam` keeps the rhythm).
+    const bodies = sections.map((section) => {
+      if (section.kind === 'rows') {
+        return (
+          <tbody
+            key={section.key}
+            // Round 6 undoes round 3's border-strong promotion for the confirmed tables:
+            // back then the hairline "was never seen at all" because rows were the grid's
+            // ONLY lines — once the permanent rails landed (round 4) the same #D1D5DB read
+            // darker than the consoles it quotes ("여전히 행 레벨에서의 구분선들도 너무
+            // 선명"). The consoles' own row rules sit AT the hairline (AWS live #EBEBF0,
+            // the benchmark's Azure reconstruction #EDEBE9 — both 1.19:1): resting rules
+            // whisper, and the hover TINT — not the border — is what reveals a row as a
+            // block, which is the behaviour the owner remembered as Azure's.
+            className={idcStyles.table.body}
+          >
+            {section.rows.map((resource) => renderRow(resource))}
+          </tbody>
+        );
+      }
+
+      const { group } = section;
+      const rowsId = `approval-group-${group.key.replace('|', '-')}`;
+      const collapsed = collapsedGroups.has(group.key);
+      return (
+        <Fragment key={group.key}>
+          <tbody className={idcStyles.table.body}>
+            <ResourceGroupRow
+              type={group.type}
+              region={group.region}
+              expanded={!collapsed}
+              onToggle={() => toggleGroup(group.key)}
+              controls={rowsId}
+              rail={railRow(group.key)}
+              inlineMeta={
+                <ResourceGroupCount
+                  targetCount={group.targetCount}
+                  excludedCount={group.excludedCount}
+                />
+              }
+              // Resource Name · Resource ID · Database Type · Region · 요청 대상 여부 ·
+              // 제외 사유 — the parent had a value for none of them once the identity
+              // took its type, region and counts (owner, 2026-08-12).
+              colSpan={6}
+            />
+          </tbody>
+          {/* Kept mounted while collapsed so `aria-controls` always resolves. */}
+          <tbody id={rowsId} hidden={collapsed} className={idcStyles.table.body}>
+            {group.rows.map((resource, index) =>
+              renderRow(resource, true, index === group.rows.length - 1, group.key),
+            )}
+          </tbody>
+        </Fragment>
+      );
+    });
+
     return (
       <div className={connected ? CONNECTED_FRAME : idcStyles.table.frame}>
-        <div
-          ref={seamWrapRef}
-          className={cn('overflow-x-auto', confirmedVariant && 'relative')}
-          onMouseMove={confirmedVariant ? handleSeamMove : undefined}
-          onMouseLeave={confirmedVariant ? hideSeamTracer : undefined}
-        >
-          {/* approval rows raised one step over approvalCell's py-4 (owner request, step-1
-              table matches). Variant-scoped: the install/confirmed tables (steps 4·6) keep
-              the shared token's rhythm. :not([colspan]) keeps spanning cells (panel-style
-              tds zero their own padding) out of the override — see CandidateResourceTable. */}
-          <table
-            className={cn(
-              // Round 3: fixed layout is what lets the resize handles rule — in auto layout
-              // nowrap content dictates the column and dragging changes nothing visible.
-              // Round 4: consoleGrid draws the boundary the covered-clip cells cut against,
-              // and the table's width IS the column sum (style below) instead of w-full —
-              // see CONFIRMED_COLUMN_WIDTHS for what w-full did to the stated widths.
-              confirmedVariant ? cn('table-fixed', idcStyles.table.consoleGrid) : 'w-full',
-              raisedRows && '[&_td:not([colspan])]:py-5',
-              // A group is three tbodies, and `body`'s divide-y stops at each tbody's edge.
-              idcStyles.table.tbodySeam,
-            )}
-            style={
-              confirmedVariant
-                ? {
-                    width: (Object.keys(CONFIRMED_COLUMN_WIDTHS) as ConfirmedColumnKey[])
-                      .filter((key) => key !== 'kind' || confirmedKindColumn)
-                      .reduce((sum, key) => sum + confirmedColumnWidth(key, columns), 0),
-                  }
-                : undefined
-            }
+        {confirmedVariant ? (
+          /* Round 13: the console grammar moved into `ConsoleTable` — the shell owns the
+             grid, the resizable header and the boundary's two states, this table owns its
+             columns and rows. `columns` (the resize instance) is created by the caller so
+             the 「열 너비 초기화」 button can reach reset(). */
+          <ConsoleTable
+            columns={confirmedColumns(regionLabel, confirmedKindColumn)}
+            resize={columns}
           >
-            <thead
-              className={
-                confirmedVariant ? idcStyles.table.approvalHeaderFlat : idcStyles.table.approvalHeader
-              }
+            {bodies}
+          </ConsoleTable>
+        ) : (
+          <div className="overflow-x-auto">
+            {/* approval rows raised one step over approvalCell's py-4 (owner request, step-1
+                table matches). Variant-scoped: the install table (step 4) keeps the shared
+                token's rhythm. :not([colspan]) keeps spanning cells (panel-style tds zero
+                their own padding) out of the override — see CandidateResourceTable. */}
+            <table
+              className={cn(
+                'w-full',
+                raisedRows && '[&_td:not([colspan])]:py-5',
+                // A group is three tbodies, and `body`'s divide-y stops at each tbody's edge.
+                idcStyles.table.tbodySeam,
+              )}
             >
+              <thead className={idcStyles.table.approvalHeader}>
               {/* Identity (name → id) → attributes (type · region) → decision (verdict → reason).
                   The scan anchor is the human-readable name, not a 3-value category column. */}
               <tr className="whitespace-nowrap">
-                {confirmedVariant ? (
-                  /* Round 3 console header — every column declared and resizable; the
-                     defaults live in CONFIRMED_COLUMN_WIDTHS. */
-                  <>
-                    <ResizableTh
-                      columns={columns}
-                      columnKey="name"
-                      label="Resource Name"
-                      className={idcStyles.table.nameCell}
-                    />
-                    <ResizableTh columns={columns} columnKey="id" label="Resource ID" />
-                    {/* Round 9 (owner): "종류를 resource id 오른쪽으로" — the kind leaves the
-                        leading anchor slot and files in with the other attributes, after the
-                        identity pair (name → id). */}
-                    {confirmedKindColumn && (
-                      <ResizableTh columns={columns} columnKey="kind" label="종류" />
-                    )}
-                    <ResizableTh columns={columns} columnKey="dbType" label="Database Type" />
-                    <ResizableTh columns={columns} columnKey="region" label={regionLabel} />
-                    <ResizableTh columns={columns} columnKey="logicalDb" label="연동 논리 DB" />
-                    <ResizableTh columns={columns} columnKey="excluded" label="연동 제외" />
-                  </>
-                ) : identityColumns ? (
+                {identityColumns ? (
                   identityColumns.columns.map((column, index) => (
                     <th
                       key={column.label}
@@ -1189,15 +1096,14 @@ export const WaitingApprovalTable = memo(
                 {/* Step 4 drops the two attribute columns: the engine was settled back on
                     steps 1·2 and the install runs the same either way, and the region is a
                     constant within one target source (and already inside the resource id).
-                    What they cost — 250px — is what 상태/안내 need to stay on screen.
-                    The confirmed variant already declared its whole header above. */}
-                {!installVariant && !confirmedVariant && (
+                    What they cost — 250px — is what 상태/안내 need to stay on screen. */}
+                {!installVariant && (
                   <>
                     <th className={idcStyles.table.approvalHeaderCell}>Database Type</th>
                     <th className={idcStyles.table.approvalHeaderCell}>{regionLabel}</th>
                   </>
                 )}
-                {plainVariant || confirmedVariant ? null : installVariant ? (
+                {plainVariant ? null : installVariant ? (
                   <>
                     <th className={idcStyles.table.approvalHeaderCell}>상태</th>
                     <th className={idcStyles.table.approvalHeaderCell}>안내</th>
@@ -1211,70 +1117,10 @@ export const WaitingApprovalTable = memo(
                 )}
               </tr>
             </thead>
-            {sections.map((section) => {
-              if (section.kind === 'rows') {
-                return (
-                  <tbody
-                    key={section.key}
-                    // Round 6 undoes round 3's border-strong promotion for the confirmed tables:
-                    // back then the hairline "was never seen at all" because rows were the grid's
-                    // ONLY lines — once the permanent rails landed (round 4) the same #D1D5DB read
-                    // darker than the consoles it quotes ("여전히 행 레벨에서의 구분선들도 너무
-                    // 선명"). The consoles' own row rules sit AT the hairline (AWS live #EBEBF0,
-                    // the benchmark's Azure reconstruction #EDEBE9 — both 1.19:1): resting rules
-                    // whisper, and the hover TINT — not the border — is what reveals a row as a
-                    // block, which is the behaviour the owner remembered as Azure's.
-                    className={idcStyles.table.body}
-                  >
-                    {section.rows.map((resource) => renderRow(resource))}
-                  </tbody>
-                );
-              }
-
-              const { group } = section;
-              const rowsId = `approval-group-${group.key.replace('|', '-')}`;
-              const collapsed = collapsedGroups.has(group.key);
-              return (
-                <Fragment key={group.key}>
-                  <tbody className={idcStyles.table.body}>
-                    <ResourceGroupRow
-                      type={group.type}
-                      region={group.region}
-                      expanded={!collapsed}
-                      onToggle={() => toggleGroup(group.key)}
-                      controls={rowsId}
-                      rail={railRow(group.key)}
-                      inlineMeta={
-                        <ResourceGroupCount
-                          targetCount={group.targetCount}
-                          excludedCount={group.excludedCount}
-                        />
-                      }
-                      // Resource Name · Resource ID · Database Type · Region · 요청 대상 여부 ·
-                      // 제외 사유 — the parent had a value for none of them once the identity
-                      // took its type, region and counts (owner, 2026-08-12).
-                      colSpan={6}
-                    />
-                  </tbody>
-                  {/* Kept mounted while collapsed so `aria-controls` always resolves. */}
-                  <tbody id={rowsId} hidden={collapsed} className={idcStyles.table.body}>
-                    {group.rows.map((resource, index) =>
-                      renderRow(resource, true, index === group.rows.length - 1, group.key),
-                    )}
-                  </tbody>
-                </Fragment>
-              );
-            })}
-          </table>
-          {confirmedVariant && (
-            <div
-              ref={seamTracerRef}
-              data-seam-tracer=""
-              aria-hidden
-              className={idcStyles.table.seamTracer}
-            />
-          )}
-        </div>
+              {bodies}
+            </table>
+          </div>
+        )}
       </div>
     );
   },

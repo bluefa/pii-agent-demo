@@ -2,7 +2,7 @@
 
 import type { CloudTargetSource } from '@/lib/types';
 import { EditIcon, ReloadIcon } from '@/app/components/ui/icons';
-import { bgColors, cardStyles, cn, primaryColors, statusColors, textColors } from '@/lib/theme';
+import { cardStyles, cn, primaryColors, statusColors, textColors } from '@/lib/theme';
 import {
   CardActionBar,
   RejectionAlert,
@@ -87,15 +87,15 @@ export const InstallationCompleteStep = ({
   return (
     <ConfirmedIntegrationDataProvider targetSourceId={project.targetSourceId}>
       {/* No overflow-hidden: it would establish a clip box and kill the sticky CardActionBar. */}
-      {/* Round 3 (시안 F): the completed screen trades the floating card for a console
-          surface — a full-bleed white band (negative margins swallow the layout's 40/32
-          padding) with the table sitting directly on it. The card frame was one of the
-          three stacked surfaces the benchmark measured around every row; after install
-          this screen's job is operational reading, and the console grammar is that job's
-          native surface. Steps 1–6 keep their cards: there the card marks a task in
-          progress, and the genre shift at completion is deliberate. */}
-      <section className={cn('-mx-10 -mt-8 px-10 pt-8', bgColors.surface)}>
-        <header className="pb-[12px]">
+      {/* Round 13 (owner): "기존 카드 디자인은 좀 유지해주는건 어때용? 갑자기 리소스
+          테이블을 바닥에 깔아버려서요" — the card is back. Round 3 had traded it for a
+          full-bleed console band on the theory that a completed screen is for operational
+          reading; but this screen is still one step of the same seven-step flow, and
+          dropping its frame made step 7 a different genre from step 6 beside it. The
+          console grammar is the TABLE's (grid, covered clip, seam shadow) — it does not
+          need the page floor. */}
+      <section className={cardStyles.base}>
+        <header className={cardStyles.header}>
           <span className={cardStyles.stepTag}>7단계</span>
           <div className="flex items-center gap-2">
             <h2 className={cardStyles.cardTitle}>PII 모니터링 모듈 연동</h2>
@@ -125,18 +125,14 @@ export const InstallationCompleteStep = ({
             을 눌러주세요.
           </p>
         </header>
-        <div className="pt-[16px] pb-[28px]">
+        <div className={cardStyles.body}>
           <ConfirmedResourcesSlot bare />
         </div>
-        {/* C-2 action zone: the rewind CTAs dock (sticky) at the surface bottom. The
-            -mx-[28px] cancels the bar's own card-era 28px inset against the section's
-            40px, so its buttons stay flush with the table's right edge (both at 40). */}
-        <div className="-mx-[28px]">
-          <InstallationCompleteActionBar
-            targetSourceId={project.targetSourceId}
-            onProjectUpdate={onProjectUpdate}
-          />
-        </div>
+        {/* C-2 action zone: the rewind CTAs dock (sticky) at the card bottom. */}
+        <InstallationCompleteActionBar
+          targetSourceId={project.targetSourceId}
+          onProjectUpdate={onProjectUpdate}
+        />
       </section>
       <RejectionAlert project={project} />
     </ConfirmedIntegrationDataProvider>

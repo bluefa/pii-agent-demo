@@ -873,109 +873,21 @@ describe('WaitingApprovalTable', () => {
       expect(table?.className).toContain('[&_th+th]:border-l');
     });
 
-    it('deepens the nearest seam shadow only inside its 8px zone', () => {
+    it('mounts the console shell for the confirmed variant', () => {
+      // Round 13: the grid, the resizable header and the seam's two states moved into
+      // ConsoleTable, which owns their tests. What belongs HERE is the wiring: that this
+      // variant is on the shell at all, and with the columns this table declares.
       const { container } = render(
         <WaitingApprovalTable variant="confirmed" resources={[row()]} />,
       );
-      const wrap = required(
-        container.querySelector<HTMLDivElement>('.overflow-x-auto'),
-        'the scroll container hosting the seam tracer',
-      );
-      const tracer = required(
-        container.querySelector<HTMLDivElement>('[data-seam-tracer]'),
-        'the seam tracer band',
-      );
-      expect(tracer.className).toContain('opacity-0');
-      // Round 12: not a line — the resting 10px ramp deepened blue, right edge ON the
-      // seam, body only (top pinned to the thead's bottom so the header keeps lines).
-      expect(tracer.className).toContain('w-[10px]');
-      expect(tracer.className).toContain('linear-gradient(to_left');
-      expect(tracer.className).not.toContain('w-px');
-      // JSDOM has no layout — pin the column boundaries by hand at x = 100, 200, …
-      const ths = wrap.querySelectorAll('th');
-      ths.forEach((th, index) => {
-        th.getBoundingClientRect = () =>
-          ({ right: (index + 1) * 100, bottom: 40 }) as unknown as DOMRect;
-      });
-      fireEvent.mouseMove(wrap, { clientX: 104 });
-      expect(tracer.style.opacity).toBe('1');
-      expect(tracer.style.transform).toBe('translateX(90px)');
-      expect(tracer.style.top).toBe('40px');
-      // Between seams — and at the table's outer right edge, which is not a seam.
-      fireEvent.mouseMove(wrap, { clientX: 150 });
-      expect(tracer.style.opacity).toBe('0');
-      fireEvent.mouseMove(wrap, { clientX: ths.length * 100 });
-      expect(tracer.style.opacity).toBe('0');
-      fireEvent.mouseMove(wrap, { clientX: 104 });
-      fireEvent.mouseLeave(wrap);
-      expect(tracer.style.opacity).toBe('0');
-    });
-
-    it('douses the seam band while a button is held — a drag must not trail its ghost', () => {
-      // Round 8: "너비 조절시에 잔상이 남는 효과는 삭제해봐". During a resize drag the
-      // compat mousemoves arrive with buttons=1 and stale layout — repositioning then
-      // paints a tracer trailing the moving boundary.
-      const { container } = render(
-        <WaitingApprovalTable variant="confirmed" resources={[row()]} />,
-      );
-      const wrap = required(
-        container.querySelector<HTMLDivElement>('.overflow-x-auto'),
-        'the scroll container hosting the seam tracer',
-      );
-      const tracer = required(
-        container.querySelector<HTMLDivElement>('[data-seam-tracer]'),
-        'the seam tracer band',
-      );
-      const ths = wrap.querySelectorAll('th');
-      ths.forEach((th, index) => {
-        th.getBoundingClientRect = () =>
-          ({ right: (index + 1) * 100, bottom: 40 }) as unknown as DOMRect;
-      });
-      fireEvent.mouseMove(wrap, { clientX: 104 });
-      expect(tracer.style.opacity).toBe('1');
-      fireEvent.mouseMove(wrap, { clientX: 104, buttons: 1 });
-      expect(tracer.style.opacity).toBe('0');
-    });
-
-    it('douses the band on a width change, until the pointer leaves the seam zone', () => {
-      // Round 8, the other afterimage: after a drag ends (or an arrow-key resize) the
-      // cursor is parked AT the boundary — without the latch the tracer relights there
-      // immediately and reads as residue of the gesture. A new `columns` identity is
-      // exactly what every width change produces (the hook memoizes on the widths map).
-      const resize = (): ColumnResize => ({
-        widthOf: () => undefined,
-        handleProps: () => ({}),
-        reset: () => {},
-      });
-      const { container, rerender } = render(
-        <WaitingApprovalTable variant="confirmed" resources={[row()]} columns={resize()} />,
-      );
-      const wrap = required(
-        container.querySelector<HTMLDivElement>('.overflow-x-auto'),
-        'the scroll container hosting the seam tracer',
-      );
-      const tracer = required(
-        container.querySelector<HTMLDivElement>('[data-seam-tracer]'),
-        'the seam tracer band',
-      );
-      const ths = wrap.querySelectorAll('th');
-      ths.forEach((th, index) => {
-        th.getBoundingClientRect = () =>
-          ({ right: (index + 1) * 100, bottom: 40 }) as unknown as DOMRect;
-      });
-      fireEvent.mouseMove(wrap, { clientX: 104 });
-      expect(tracer.style.opacity).toBe('1');
-      rerender(
-        <WaitingApprovalTable variant="confirmed" resources={[row()]} columns={resize()} />,
-      );
-      expect(tracer.style.opacity).toBe('0');
-      // Still parked in the zone: latched dark.
-      fireEvent.mouseMove(wrap, { clientX: 104 });
-      expect(tracer.style.opacity).toBe('0');
-      // Leaving the zone once re-arms discovery.
-      fireEvent.mouseMove(wrap, { clientX: 150 });
-      fireEvent.mouseMove(wrap, { clientX: 104 });
-      expect(tracer.style.opacity).toBe('1');
+      const table = required(container.querySelector('table'), 'the confirmed table');
+      expect(table.className).toContain('table-fixed');
+      expect(table.className).toContain('linear-gradient(to_left');
+      expect(container.querySelector('[data-seam-tracer]')).toBeTruthy();
+      // Σ(162 name + 312 id + 142 dbType + 156 region + 118 논리DB + 96 제외) = 986. No
+      // 종류 column: this fixture is neither an RDS cluster nor an EC2 instance, and
+      // leaving the column OUT of the spec is how "no row could fill it" is expressed.
+      expect((table as HTMLElement).style.width).toBe('986px');
     });
 
     it('skips the seam tracer for approval tables', () => {

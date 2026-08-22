@@ -1584,6 +1584,16 @@ export const idcStyles = {
     consoleGrid:
       '[&_th+th]:border-l [&_th+th]:border-[#EBEEF2] [&_td:not(:last-child)]:[background:linear-gradient(to_left,rgba(15,23,42,0.03),transparent)_right/10px_100%_no-repeat]',
     /**
+     * Body cell of a `ConsoleTable` — the covered-clip grammar (round 4, owner: "왼쪽
+     * 부분이 오른쪽에 덮인 느낌"). The CELL clips, so an overlong value runs through its
+     * own right padding and cuts mid-letter exactly on the column stroke (overflow clips
+     * at the padding box), the Azure grammar where the next column COVERS the value and
+     * dragging the divider uncovers it. Children must therefore NOT self-truncate: an
+     * ellipsis says "shortened here" instead of "continues underneath". nowrap keeps
+     * chips and plain-text cells on the single row line without each child declaring it.
+     */
+    consoleCell: 'overflow-hidden whitespace-nowrap',
+    /**
      * Round 7 (owner): "경계면 근처에 마우스를 올려둘때만 진하게 표현되면 좋겠음" —
      * with the resting rails gone (see consoleGrid), this is the on-demand boundary:
      * ONE absolutely positioned line in the confirmed table's scroll container, moved
