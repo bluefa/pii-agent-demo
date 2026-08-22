@@ -212,8 +212,7 @@ interface WaitingApprovalTableProps {
    * `confirmed` variant only — drag-resizable column widths (useColumnResize with
    * `clampToContent`): the table goes `table-fixed`, every header cell takes a width and
    * a handle, and truncated values are uncovered by dragging the divider (round 3).
-   * Instantiated by the CALLER, not here, so the 「열 너비 초기화」 button in the counter
-   * band can reach `reset()`.
+   * Instantiated by the CALLER, not here: the storage key names one screen's table.
    */
   columns?: ColumnResize;
 }
@@ -1048,8 +1047,7 @@ export const WaitingApprovalTable = memo(
         {confirmedVariant ? (
           /* Round 13: the console grammar moved into `ConsoleTable` — the shell owns the
              grid, the resizable header and the boundary's two states, this table owns its
-             columns and rows. `columns` (the resize instance) is created by the caller so
-             the 「열 너비 초기화」 button can reach reset(). */
+             columns and rows. `columns` (the resize instance) is created by the caller. */
           <ConsoleTable
             columns={confirmedColumns(regionLabel, confirmedKindColumn)}
             resize={columns}

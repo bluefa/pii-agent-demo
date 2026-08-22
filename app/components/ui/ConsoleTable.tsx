@@ -75,9 +75,9 @@ interface ConsoleTableProps {
   /** Every column, in render order. A column the caller omits simply does not exist —
    *  that is how an optional column (one only some rows can fill) is expressed. */
   columns: readonly ConsoleTableColumn[];
-  /** Drag-resize instance. Owned by the CALLER, not by this shell, because the
-   *  「열 너비 초기화」 escape hatch belongs to the surrounding chrome — see
-   *  ConfirmedIntegrationTable's counter band. Omit it for a fixed-width console table. */
+  /** Drag-resize instance. Owned by the CALLER, not by this shell: its storage key and
+   *  content cap belong to one screen's table, while this shell is shared. Omit it for
+   *  a fixed-width console table. */
   resize?: ColumnResize;
   /** The `<tbody>` elements. One per row block: a tree renders parent and children as
    *  separate bodies, and `tbodySeam` keeps the hairline rhythm across them. */

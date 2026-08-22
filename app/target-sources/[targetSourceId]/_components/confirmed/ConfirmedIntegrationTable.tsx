@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Pagination } from '@/app/components/ui/Pagination';
 import { useColumnResize } from '@/app/components/ui/useColumnResize';
-import { buttonStyles, cn, textColors } from '@/lib/theme';
+import { cn, textColors } from '@/lib/theme';
 import type { ConfirmedResource } from '@/lib/types/resources';
 import {
   WaitingApprovalTable,
@@ -137,8 +137,8 @@ export const ConfirmedIntegrationTable = ({
   const [logicalDbTarget, setLogicalDbTarget] = useState<WaitingApprovalResource | null>(null);
 
   // Round 3 — drag-resizable columns, capped at each column's longest value, widths kept
-  // across sessions. Lives here rather than in the table so the reset button can sit in
-  // the counter band (Azure "Reset to defaults" grammar).
+  // across sessions. Lives here rather than in the table because the storage key names
+  // THIS screen's table; the shell only consumes the instance.
   const columns = useColumnResize({
     clampToContent: true,
     storageKey: 'pii:colw:v1:confirmed-resources',
@@ -164,7 +164,7 @@ export const ConfirmedIntegrationTable = ({
     <div>
       <div className="flex flex-wrap items-center gap-[10px] pb-3">
         <div className="flex items-baseline gap-1.5">
-          <h3 className={cn('text-[18px] font-extrabold tracking-[-0.01em]', textColors.primary)}>
+          <h3 className={cn('text-[16px] font-extrabold tracking-[-0.01em]', textColors.primary)}>
             연동 리소스
           </h3>
           <span className={cn('text-[14px] font-semibold', textColors.tertiary)}>
@@ -196,18 +196,6 @@ export const ConfirmedIntegrationTable = ({
               />
             </>
           )}
-          {/* The resize escape hatch — Azure "Reset to defaults". Ghost: it corrects
-              chrome, not data, so it must not compete with row-level actions. */}
-          <button
-            type="button"
-            onClick={columns.reset}
-            className={cn(
-              'h-8 shrink-0 rounded-[8px] px-3 text-[12px] font-semibold',
-              buttonStyles.variants.ghost,
-            )}
-          >
-            열 너비 초기화
-          </button>
         </div>
       </div>
       <WaitingApprovalTable

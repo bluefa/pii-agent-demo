@@ -120,7 +120,6 @@ describe('ConfirmedIntegrationTable', () => {
       expect(screen.queryByRole('button', { name: '필터' })).toBeNull();
       expect(screen.getByText('연동 리소스')).toBeTruthy();
       expect(screen.getByText('· 1건')).toBeTruthy();
-      expect(screen.getByRole('button', { name: '열 너비 초기화' })).toBeTruthy();
     });
 
     it('shows search + filter once the list passes five rows', () => {

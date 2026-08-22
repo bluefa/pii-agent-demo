@@ -30,7 +30,6 @@ const required = <T,>(value: T | null | undefined, what: string): T => {
 const resize = (widths: Record<string, number> = {}): ColumnResize => ({
   widthOf: (key) => (widths[key] === undefined ? undefined : { width: widths[key] }),
   handleProps: (key, label) => ({ role: 'separator', 'aria-label': `${label} 너비 조절` }),
-  reset: () => {},
 });
 
 /** JSDOM has no layout — pin the column boundaries at x = 100, 200, … and the thead

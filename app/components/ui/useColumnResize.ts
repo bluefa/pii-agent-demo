@@ -38,8 +38,8 @@ export interface ColumnResizeOptions {
   /**
    * Versioned localStorage key (e.g. `pii:colw:v1:confirmed-resources`). Widths
    * hydrate after mount — a lazy initializer would make server and client markup
-   * disagree on every sized `<th>` — and each change is written back; `reset()`
-   * clears both. Omit for modal tables whose widths may die with the modal.
+   * disagree on every sized `<th>` — and each change is written back. Omit for
+   * modal tables whose widths may die with the modal.
    */
   storageKey?: string;
 }
@@ -49,8 +49,6 @@ export interface ColumnResize {
   widthOf: (key: string) => { width: number } | undefined;
   /** 헤더 오른쪽 끝 손잡이의 props. 감싸는 `<th>` 는 `relative` 나 `sticky` 여야 한다. */
   handleProps: (key: string, label: string) => HTMLAttributes<HTMLSpanElement>;
-  /** Back to the class-owned defaults; clears the stored widths too. */
-  reset: () => void;
 }
 
 /**
@@ -254,16 +252,6 @@ export const useColumnResize = (options?: ColumnResizeOptions): ColumnResize => 
           ? idcStyles.table.resizeHandleOnGrid
           : idcStyles.table.resizeHandle,
       }),
-      reset: () => {
-        setWidths({});
-        if (storageKey) {
-          try {
-            localStorage.removeItem(storageKey);
-          } catch {
-            // Nothing to clear is fine.
-          }
-        }
-      },
     };
   }, [widths, clampToContent, storageKey]);
 };
