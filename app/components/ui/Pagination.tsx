@@ -1,7 +1,7 @@
 'use client';
 
 import type { ReactNode } from 'react';
-import { cn, numericFeatures, textColors } from '@/lib/theme';
+import { cn, numericFeatures } from '@/lib/theme';
 
 interface PaginationProps {
   /** 0-based page index */
@@ -18,20 +18,20 @@ interface PaginationProps {
    */
   controls?: 'full' | 'prevNext';
   /**
-   * Surface. `bar` (default) is the v15 bordered footer — #FCFCFD fill, bottom radius,
-   * 12px. `console` is the 시안 F footer (round 15, owner: "pagination footer를 아래에
-   * 달아놔줘. 14 픽셀로 설정하고 회색으로 선언해. 해당 부분에 리소스 개수를 footer에
-   * 표현해"): flat, because the console table has no frame of its own and a bordered bar
-   * would draw one back; 14px grey — the size reaches the select and the page buttons
-   * too, so the line holds one size; centred as one group, since with no border there
-   * are no ends for a left/right split to sit on; count and controls always present.
+   * Text scale. `sm` (default) is v15's 12px. `md` is 14px, for the console tables
+   * (round 17, owner: "target-sources/1006 에서 보여지는 pagination footer 디자인 차용"
+   * + a standing 14px instruction) — the size reaches the select and the page buttons
+   * too, so the bar holds ONE size.
+   *
+   * There is deliberately no surface variant. Round 15 gave the console table a flat,
+   * centred footer of its own; round 17 retired it because the owner picked THIS bar —
+   * the one 20 other tables already use — leaving size as the only difference.
    *
    * ⛔ Do not gate the controls on `totalPages > 1`. That was tried and the owner's
    * answer was "pagination은 왜 없음?" — a footer whose controls come and go reads as a
-   * missing footer, and 시안 D's "pagination earns its row" was about the ROW, which the
-   * count now occupies unconditionally.
+   * missing footer, and 시안 D's "pagination earns its row" was about the ROW.
    */
-  variant?: 'bar' | 'console';
+  size?: 'sm' | 'md';
 }
 
 const DEFAULT_PAGE_SIZE_OPTIONS = [10, 20, 50, 100] as const;
@@ -75,22 +75,18 @@ export const Pagination = ({
   onPageChange,
   onPageSizeChange,
   pageSizeOptions,
-  controls,
-  variant = 'bar',
+  controls = 'full',
+  size = 'sm',
 }: PaginationProps) => {
   const options = pageSizeOptions ?? DEFAULT_PAGE_SIZE_OPTIONS;
   const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
   const start = totalCount === 0 ? 0 : page * pageSize + 1;
   const end = Math.min(totalCount, (page + 1) * pageSize);
   const visible = buildVisiblePages(page, totalPages);
-  const isConsole = variant === 'console';
-  // 14px reaches the CONTROLS too, not just the footer's own text: the select and the
-  // page buttons carry their own size, so leaving them at 12 would put three sizes in
-  // one line.
-  const controlText = isConsole ? 'text-[14px]' : 'text-[12px]';
-  // Benchmark 확정 (MUI: showFirstButton/showLastButton default false) — the console
-  // footer drops the ‹‹ ›› jumps. On a short list they were two more dead controls.
-  const edgeControls = controls ?? (isConsole ? 'prevNext' : 'full');
+  const md = size === 'md';
+  // The size reaches the CONTROLS too: the select and the page buttons carry their own,
+  // so leaving them at 12 would put two sizes in one bar.
+  const controlText = md ? 'text-[14px]' : 'text-[12px]';
 
   const sizePicker = (
     <div className="inline-flex items-center gap-1.5">
@@ -100,9 +96,9 @@ export const Pagination = ({
         onChange={(e) => onPageSizeChange(Number(e.target.value))}
         className={cn(
           'rounded-[6px] border border-[#E5E7EB] pr-[22px] pl-[8px] text-[#111827] cursor-pointer appearance-none',
-          // design-guide: 버튼=셀렉트=인풋 동일 높이. The console pager's page buttons
-          // are 28px, so its select is too; the bar variant keeps v15's 26px.
-          isConsole ? 'h-[28px]' : 'h-[26px]',
+          // design-guide: 버튼=셀렉트=인풋 동일 높이. md matches the 28px page buttons;
+          // sm keeps v15's 26px so the 20 screens already on this bar do not shift.
+          md ? 'h-[28px]' : 'h-[26px]',
           controlText,
           SELECT_CHEVRON_BG,
         )}
@@ -118,16 +114,7 @@ export const Pagination = ({
     </div>
   );
 
-  const countLabel = isConsole ? (
-    /* Two tones, per Carbon: the range is what you read, the total is context. One tone
-       for both left the line with zero hierarchy levers. */
-    <span className={numericFeatures.tabular}>
-      <strong className={cn('font-semibold', textColors.secondary)}>
-        {start}–{end}
-      </strong>{' '}
-      / 전체 {totalCount}건
-    </span>
-  ) : (
+  const countLabel = (
     <span className={cn('ml-[16px] text-[#374151]', numericFeatures.tabular)}>
       <strong className="font-semibold text-[#111827]">
         {start}–{end}
@@ -142,9 +129,8 @@ export const Pagination = ({
     <div className={cn('inline-flex gap-0.5', controlText)}>
       {/* first/prev/next/last kept for usability (v15 mockup shows numbers only).
           IDC step tables pass controls="prevNext" to drop the first/last
-          double-chevrons (v16 IDC pager is 이전 / [1] / 다음), and the console
-          variant defaults to it. */}
-      {edgeControls === 'full' && (
+          double-chevrons (v16 IDC pager is 이전 / [1] / 다음). */}
+      {controls === 'full' && (
           <PageBtn active={false} disabled={page <= 0} onClick={() => onPageChange(0)} ariaLabel="처음 페이지">
             ‹‹
           </PageBtn>
@@ -175,7 +161,7 @@ export const Pagination = ({
         <PageBtn active={false} disabled={page >= totalPages - 1} onClick={() => onPageChange(page + 1)} ariaLabel="다음 페이지">
           ›
         </PageBtn>
-        {edgeControls === 'full' && (
+        {controls === 'full' && (
           <PageBtn active={false} disabled={page >= totalPages - 1} onClick={() => onPageChange(totalPages - 1)} ariaLabel="끝 페이지">
             ››
           </PageBtn>
@@ -184,36 +170,20 @@ export const Pagination = ({
   );
 
   return (
+    /* One surface for every table (round 17). Left = how much (size + range), right =
+       where am I — Carbon's split, which this bar has had since v15. The border with no
+       top edge and the bottom radius are what attach it to the table above; the console
+       tables get the same box, only bigger text. */
     <div
       className={cn(
-        'flex items-center',
-        isConsole
-          ? // 시안 A (benchmark e80b4de6): a split, not a centred cluster. Every reference
-            // carrying a page-size selector anchors its pager to an edge (Carbon's two
-            // halves, MUI right-packed, AntD bottomEnd); only Polaris centres, and only
-            // because it has no selector to anchor. Left = how much, right = where am I.
-            // The hairline is the table's own row divider — flat + zero gap + no rule made
-            // the footer read as one more row. Padding is asymmetric (여백 7원칙 ②).
-            cn(
-              'justify-between gap-4 border-t border-[#EBEEF2] pt-3 pb-6 text-[14px]',
-              textColors.tertiary,
-            )
-          : 'px-[14px] py-[10px] border border-[#E5E7EB] border-t-0 rounded-b-[10px] bg-[#FCFCFD] text-[12px] text-[#6B7280]',
+        'flex items-center px-[14px] border border-[#E5E7EB] border-t-0 rounded-b-[10px] bg-[#FCFCFD] text-[#6B7280]',
+        md ? 'py-3 text-[14px]' : 'py-[10px] text-[12px]',
       )}
     >
       {sizePicker}
-      {isConsole ? (
-        <div className="inline-flex items-center gap-3">
-          {countLabel}
-          {pageButtons}
-        </div>
-      ) : (
-        <>
-          {countLabel}
-          <div className="flex-1" />
-          {pageButtons}
-        </>
-      )}
+      {countLabel}
+      <div className="flex-1" />
+      {pageButtons}
     </div>
   );
 };

@@ -132,9 +132,11 @@ describe('ConfirmedIntegrationTable', () => {
       expect(required(range.parentElement, '카운트 줄').textContent).toContain('/ 전체 1건');
       expect(screen.getByRole('combobox', { name: '페이지당 표시 건수' })).toBeTruthy();
       expect(screen.getByRole('button', { name: '다음 페이지' })).toBeTruthy();
-      // 시안 A drops the first/last jumps on the console variant (MUI default).
-      expect(screen.queryByRole('button', { name: '처음 페이지' })).toBeNull();
-      expect(screen.queryByRole('button', { name: '끝 페이지' })).toBeNull();
+      // Round 17: this table now uses the same bar as 1006, first/last jumps included.
+      // 시안 A had dropped them on MUI's precedent; adopting 1006's design brings the
+      // whole control set back rather than a variant of it.
+      expect(screen.getByRole('button', { name: '처음 페이지' })).toBeTruthy();
+      expect(screen.getByRole('button', { name: '끝 페이지' })).toBeTruthy();
     });
 
     it('shows search + filter once the list passes five rows', () => {

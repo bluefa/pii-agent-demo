@@ -198,10 +198,11 @@ export const ConfirmedIntegrationTable = ({
         expandFolds={!!table.searchValue.trim() || !!table.dbType || !!table.region}
         columns={columns}
       />
-      {/* Round 15 (owner): the footer is always mounted — count and paging controls
-          alike. 시안 D's "pagination earns its row" is retired for this table. */}
+      {/* Round 17 (owner): "target-sources/1006 에서 보여지는 pagination footer 디자인
+          차용" — the v15 bar the other 20 tables use, at 14px. Always mounted, count and
+          controls alike; 시안 D's "pagination earns its row" is retired for this table. */}
       <Pagination
-        variant="console"
+        size="md"
         page={table.safePage}
         pageSize={table.pageSize}
         totalCount={table.filteredCount}
