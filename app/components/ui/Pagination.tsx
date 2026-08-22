@@ -17,6 +17,21 @@ interface PaginationProps {
    * (`이전 / [1] / 다음`, no first/last double-chevrons).
    */
   controls?: 'full' | 'prevNext';
+  /**
+   * Text scale. `sm` (default) is v15's 12px. `md` is 14px, for the console tables
+   * (round 17, owner: "target-sources/1006 에서 보여지는 pagination footer 디자인 차용"
+   * + a standing 14px instruction) — the size reaches the select and the page buttons
+   * too, so the bar holds ONE size.
+   *
+   * There is deliberately no surface variant. Round 15 gave the console table a flat,
+   * centred footer of its own; round 17 retired it because the owner picked THIS bar —
+   * the one 20 other tables already use — leaving size as the only difference.
+   *
+   * ⛔ Do not gate the controls on `totalPages > 1`. That was tried and the owner's
+   * answer was "pagination은 왜 없음?" — a footer whose controls come and go reads as a
+   * missing footer, and 시안 D's "pagination earns its row" was about the ROW.
+   */
+  size?: 'sm' | 'md';
 }
 
 const DEFAULT_PAGE_SIZE_OPTIONS = [10, 20, 50, 100] as const;
@@ -61,47 +76,61 @@ export const Pagination = ({
   onPageSizeChange,
   pageSizeOptions,
   controls = 'full',
+  size = 'sm',
 }: PaginationProps) => {
   const options = pageSizeOptions ?? DEFAULT_PAGE_SIZE_OPTIONS;
   const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
   const start = totalCount === 0 ? 0 : page * pageSize + 1;
   const end = Math.min(totalCount, (page + 1) * pageSize);
   const visible = buildVisiblePages(page, totalPages);
+  const md = size === 'md';
+  // The size reaches the CONTROLS too: the select and the page buttons carry their own,
+  // so leaving them at 12 would put two sizes in one bar.
+  const controlText = md ? 'text-[14px]' : 'text-[12px]';
 
-  return (
-    <div className="flex items-center px-[14px] py-[10px] border border-[#E5E7EB] border-t-0 rounded-b-[10px] bg-[#FCFCFD] text-[12px] text-[#6B7280]">
-      <div className="inline-flex items-center gap-1.5">
-        <span>표시</span>
-        <select
-          value={pageSize}
-          onChange={(e) => onPageSizeChange(Number(e.target.value))}
-          className={cn(
-            'h-[26px] rounded-[6px] border border-[#E5E7EB] pr-[22px] pl-[8px] text-[12px] text-[#111827] cursor-pointer appearance-none',
-            SELECT_CHEVRON_BG,
-          )}
-          aria-label="페이지당 표시 건수"
-        >
-          {options.map((opt) => (
-            <option key={opt} value={opt}>
-              {opt}
-            </option>
-          ))}
-        </select>
-        <span>건씩</span>
-      </div>
-      <span className={cn('ml-[16px] text-[#374151]', numericFeatures.tabular)}>
-        <strong className="font-semibold text-[#111827]">
-          {start}–{end}
-        </strong>{' '}
-        / 전체{' '}
-        <strong className="font-semibold text-[#111827]">{totalCount}</strong>건
-      </span>
-      <div className="flex-1" />
-      <div className="inline-flex gap-0.5">
-        {/* first/prev/next/last kept for usability (v15 mockup shows numbers only).
-            IDC step tables pass controls="prevNext" to drop the first/last
-            double-chevrons (v16 IDC pager is 이전 / [1] / 다음). */}
-        {controls === 'full' && (
+  const sizePicker = (
+    <div className="inline-flex items-center gap-1.5">
+      <span>표시</span>
+      <select
+        value={pageSize}
+        onChange={(e) => onPageSizeChange(Number(e.target.value))}
+        className={cn(
+          'rounded-[6px] border border-[#E5E7EB] pr-[22px] pl-[8px] text-[#111827] cursor-pointer appearance-none',
+          // design-guide: 버튼=셀렉트=인풋 동일 높이. md matches the 28px page buttons;
+          // sm keeps v15's 26px so the 20 screens already on this bar do not shift.
+          md ? 'h-[28px]' : 'h-[26px]',
+          controlText,
+          SELECT_CHEVRON_BG,
+        )}
+        aria-label="페이지당 표시 건수"
+      >
+        {options.map((opt) => (
+          <option key={opt} value={opt}>
+            {opt}
+          </option>
+        ))}
+      </select>
+      <span>건씩</span>
+    </div>
+  );
+
+  const countLabel = (
+    <span className={cn('ml-[16px] text-[#374151]', numericFeatures.tabular)}>
+      <strong className="font-semibold text-[#111827]">
+        {start}–{end}
+      </strong>{' '}
+      / 전체{' '}
+      <strong className="font-semibold text-[#111827]">{totalCount}</strong>건
+    </span>
+  );
+
+  const pageButtons = (
+    /* The row owns the control size so PageBtn and the ellipsis inherit one value. */
+    <div className={cn('inline-flex gap-0.5', controlText)}>
+      {/* first/prev/next/last kept for usability (v15 mockup shows numbers only).
+          IDC step tables pass controls="prevNext" to drop the first/last
+          double-chevrons (v16 IDC pager is 이전 / [1] / 다음). */}
+      {controls === 'full' && (
           <PageBtn active={false} disabled={page <= 0} onClick={() => onPageChange(0)} ariaLabel="처음 페이지">
             ‹‹
           </PageBtn>
@@ -113,7 +142,7 @@ export const Pagination = ({
           entry === '…' ? (
             <span
               key={`ellipsis-${index}`}
-              className="inline-flex min-w-[20px] items-center justify-center self-center text-center text-[12px] text-[#6B7280]"
+              className="inline-flex min-w-[20px] items-center justify-center self-center text-center text-[#6B7280]"
               aria-hidden="true"
             >
               …
@@ -137,7 +166,24 @@ export const Pagination = ({
             ››
           </PageBtn>
         )}
-      </div>
+    </div>
+  );
+
+  return (
+    /* One surface for every table (round 17). Left = how much (size + range), right =
+       where am I — Carbon's split, which this bar has had since v15. The border with no
+       top edge and the bottom radius are what attach it to the table above; the console
+       tables get the same box, only bigger text. */
+    <div
+      className={cn(
+        'flex items-center px-[14px] border border-[#E5E7EB] border-t-0 rounded-b-[10px] bg-[#FCFCFD] text-[#6B7280]',
+        md ? 'py-3 text-[14px]' : 'py-[10px] text-[12px]',
+      )}
+    >
+      {sizePicker}
+      {countLabel}
+      <div className="flex-1" />
+      {pageButtons}
     </div>
   );
 };
@@ -154,6 +200,9 @@ interface PageBtnProps {
  * v15 `.pg-pages button` (05-tables.md §7g–7h): 28×28, radius 6, 0/8 padding,
  * transparent border + bg, #374151 text. Hover → #F9FAFB / #111827. Active
  * (`.current`) → #0064FF / #fff / 600. Disabled → opacity 0.35.
+ *
+ * Font size is INHERITED from the pager row, not set here — the console variant runs
+ * at 14px and a size declared on the button would pin every variant to 12.
  */
 const PageBtn = ({ active, onClick, ariaLabel, children, disabled }: PageBtnProps) => (
   <button
@@ -163,7 +212,7 @@ const PageBtn = ({ active, onClick, ariaLabel, children, disabled }: PageBtnProp
     disabled={disabled}
     onClick={onClick}
     className={cn(
-      'inline-grid min-w-[28px] h-[28px] place-items-center rounded-[6px] border px-[8px] text-[12px] transition-colors disabled:opacity-35 disabled:cursor-not-allowed',
+      'inline-grid min-w-[28px] h-[28px] place-items-center rounded-[6px] border px-[8px] transition-colors disabled:opacity-35 disabled:cursor-not-allowed',
       numericFeatures.tabular,
       active
         ? 'border-transparent bg-[#0064FF] text-white font-semibold'

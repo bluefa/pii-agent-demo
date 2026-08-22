@@ -26,6 +26,11 @@ import {
   RdsClusterTag,
 } from '@/app/components/ui/RdsInstanceChips';
 import { RdsInstancePanel } from '@/app/target-sources/[targetSourceId]/_components/shared/RdsInstancePanel';
+import { type ColumnResize } from '@/app/components/ui/useColumnResize';
+import {
+  ConsoleTable,
+  type ConsoleTableColumn,
+} from '@/app/components/ui/ConsoleTable';
 import { hasLogicalDatabases, isEc2Instance, resolveExclusionReason } from '@/lib/types';
 import {
   INSTALL_STATUS_LABEL,
@@ -203,6 +208,19 @@ interface WaitingApprovalTableProps {
    * fold and cluster on the name/id pair, so the swap is not offered there.
    */
   identityColumns?: ApprovalIdentityColumns;
+  /**
+   * `confirmed` variant only — drag-resizable column widths (useColumnResize with
+   * `clampToContent`): the table goes `table-fixed`, every header cell takes a width and
+   * a handle, and truncated values are uncovered by dragging the divider (round 3).
+   * Instantiated by the CALLER, not here: the storage key names one screen's table.
+   */
+  columns?: ColumnResize;
+  /**
+   * `confirmed` variant only — whether the 종류 column exists. Computed by the caller with
+   * `hasKindColumn` over the FULL roster; this table only ever receives one page, so it
+   * cannot answer for the list (see that helper). Omitted = no kind column.
+   */
+  kindColumn?: boolean;
 }
 
 // v16 `.approval-table-wrap` (CSS ~2846): border:0; overflow:hidden; background:#fff — joins flush
@@ -221,6 +239,9 @@ export const CONNECTED_FRAME = 'overflow-hidden bg-white';
 // Why the tints lean blue (and what that reserves): see tableRowLift in lib/theme.ts.
 export const ROW_BASE = tableRowLift.base;
 export const ROW_TARGET = tableRowLift.target;
+// Confirmed/console rows hover on the prototype's quiet neutral instead — the console
+// grid's rails survive that tint and wash out under ROW_TARGET's. See tableRowLift.console.
+export const ROW_TARGET_CONSOLE = tableRowLift.console;
 export const ROW_EXCLUDED = tableRowLift.excluded;
 
 // Background alone marks position; it does not make a row easier to READ. Each column lifts on
@@ -342,6 +363,61 @@ const ReasonCell = ({ resource }: { resource: WaitingApprovalResource }) => {
   );
 };
 
+/**
+ * Confirmed-column defaults, px — the screen's own measured columns (1745px audit:
+ * 162·312·142·156·118·96; 종류 kept its round-3 width — 82px content + approvalCell
+ * padding 36px + slack — through the round-9 move behind Resource ID and the chip →
+ * plain-text change, since the text runs the same length the chip did).
+ *
+ * Round 13: this list IS the column spec `ConsoleTable` renders from, so an optional
+ * column is expressed by leaving it out (see `confirmedColumns`) rather than by a
+ * filter over a record.
+ */
+const CONFIRMED_COLUMN_WIDTHS = {
+  name: 162,
+  id: 312,
+  kind: 128,
+  dbType: 142,
+  region: 156,
+  logicalDb: 118,
+  excluded: 96,
+} as const;
+
+/** The confirmed table's column spec. `kind` only exists when a visible row can fill it —
+ *  Azure/GCP rows carry no kind today, and a permanently blank column is dead space. */
+const confirmedColumns = (regionLabel: string, withKind: boolean): ConsoleTableColumn[] => [
+  {
+    key: 'name',
+    label: 'Resource Name',
+    width: CONFIRMED_COLUMN_WIDTHS.name,
+    headClassName: idcStyles.table.nameCell,
+  },
+  { key: 'id', label: 'Resource ID', width: CONFIRMED_COLUMN_WIDTHS.id },
+  // Round 9 (owner): "종류를 resource id 오른쪽으로" — the kind leaves the leading anchor
+  // slot and files in with the other attributes, after the identity pair (name → id).
+  ...(withKind ? [{ key: 'kind', label: '종류', width: CONFIRMED_COLUMN_WIDTHS.kind }] : []),
+  { key: 'dbType', label: 'Database Type', width: CONFIRMED_COLUMN_WIDTHS.dbType },
+  { key: 'region', label: regionLabel, width: CONFIRMED_COLUMN_WIDTHS.region },
+  { key: 'logicalDb', label: '연동 논리 DB', width: CONFIRMED_COLUMN_WIDTHS.logicalDb },
+  { key: 'excluded', label: '연동 제외', width: CONFIRMED_COLUMN_WIDTHS.excluded },
+];
+
+/**
+ * Does this roster put anything in the 종류 column? Azure/GCP rows carry no kind today, and a
+ * permanently blank column is dead space — but "permanently" is a fact about the whole LIST,
+ * which this table never sees: it is handed one page at a time. Asking the page turned the
+ * column into a paging artifact (searching `athena` on mock 1012 took the table 7 → 6 columns
+ * and 1225 → 1097px, exactly the 128px kind column, reseating every dragged width to the left).
+ * So the rule lives here — the table is what knows what a kind is — and the SCOPE belongs to
+ * the caller, who holds the full roster and answers once.
+ */
+export const hasKindColumn = (resources: readonly WaitingApprovalResource[]): boolean =>
+  resources.some(
+    (resource) =>
+      isRdsCluster(resource.declaredResourceType ?? '') ||
+      isEc2Instance(resource.declaredResourceType),
+  );
+
 export const WaitingApprovalTable = memo(
   ({
     resources,
@@ -353,6 +429,8 @@ export const WaitingApprovalTable = memo(
     regionLabel = 'Region',
     expandFolds = false,
     identityColumns,
+    columns,
+    kindColumn = false,
   }: WaitingApprovalTableProps) => {
     // Athena arrives as many rows of one catalog family per region; grouping restores the
     // parent it belongs to (LIN-85). Groups start OPEN — the approval table is the "review
@@ -409,8 +487,18 @@ export const WaitingApprovalTable = memo(
     const installVariant = variant === 'install';
     const plainVariant = variant === 'plain';
 
+    // Round 3 (시안 F): the kind leaves the two-line identity stack and becomes its own
+    // column, taking the row to one line (py-4 + 20px = 52px). Round 9 reseated it after
+    // Resource ID as plain text (chip retired). Whether it exists at all is the caller's
+    // answer, not this page's — see `hasKindColumn`.
+    const confirmedKindColumn = confirmedVariant && kindColumn;
+
     // Colorless — each row picks its resting tier (dim vs secondary) at the cell.
     const monoCell = 'whitespace-nowrap font-mono text-[14px]';
+
+    // The covered-clip cell (round 4) — `ConsoleTable`'s cell grammar, applied per td so
+    // the other variants keep their ellipsis. See the token for why the CELL clips.
+    const coveredCell = confirmedVariant ? idcStyles.table.consoleCell : undefined;
 
     // `grouped` only indents the identity cell — every other cell is identical whether the row
     // stands alone or hangs under a parent, so a group never changes what a row says.
@@ -469,7 +557,13 @@ export const WaitingApprovalTable = memo(
             // the two sharing one tint with nothing between them is what makes the pair read as
             // one block that opened rather than as a row with a panel underneath it — the same
             // override step 1's cluster row makes.
-            instancesOpen ? bgColors.panel : excluded ? ROW_EXCLUDED : ROW_TARGET,
+            instancesOpen
+              ? bgColors.panel
+              : excluded
+                ? ROW_EXCLUDED
+                : confirmedVariant
+                  ? ROW_TARGET_CONSOLE
+                  : ROW_TARGET,
             foldToggleable && 'cursor-pointer',
             rail?.className,
           )}
@@ -499,6 +593,7 @@ export const WaitingApprovalTable = memo(
           <td
             className={cn(
               idcStyles.table.approvalCell,
+              coveredCell,
               'font-mono text-[14px]',
               textColors.primary,
               NAME_LIFT,
@@ -608,12 +703,15 @@ export const WaitingApprovalTable = memo(
                     chevron with nothing beside it. */}
                 <span className="whitespace-nowrap">{foldLabel}</span>
               </span>
-            ) : isCluster || isEc2 ? (
-              // Steps 4·6·7: the tag alone. Those steps list what is being installed and
+            ) : (isCluster || isEc2) && !confirmedVariant ? (
+              // Step 4: the tag alone. Those steps list what is being installed and
               // connected, not what is being chosen, so the member instances stay a steps 1–3
               // concern — but the row still has to say it is a cluster, in the same stack.
               // EC2 rides the same branch: it has no members to fold, so the tag is all it needs,
               // and steps 2·3 reach it here too (the branch above is cluster-with-instances only).
+              // The confirmed tables (steps 6·7) left this stack in round 3: their kind lives in
+              // the 종류 column (plain text since round 9), so they fall through to the
+              // one-line name below.
               <span className={cn('flex min-w-0 flex-col items-start gap-1', idcStyles.table.stackedIdentityLift)}>
                 {isCluster ? <RdsClusterTag /> : <Ec2InstanceTag />}
                 <Tooltip
@@ -631,10 +729,25 @@ export const WaitingApprovalTable = memo(
                 content={<IdentifierTip label="Resource Name" value={resource.resourceName} />}
                 variant="value"
                 size="md"
-                triggerClassName="min-w-0 max-w-[200px] block"
+                // In the fixed-layout confirmed table the COLUMN owns the truncation point —
+                // a per-cell 200px clamp would make dragging the column wider reveal nothing.
+                // `w-full` because the trigger is an inline-flex box: left to shrink-to-fit it
+                // sizes to the nowrap name and paints over the next column (the 200px cap was
+                // what contained it before). The child needs min-w-0 to shrink inside it —
+                // the same recipe ResourceIdCell already uses.
+                triggerClassName={confirmedVariant ? 'min-w-0 w-full' : 'min-w-0 max-w-[200px] block'}
                 truncatedOnly
               >
-                <span className="block truncate">{resource.resourceName || PLACEHOLDER}</span>
+                {/* Confirmed: no self-truncation — the overflow runs on and the TD's own
+                    covered-clip cuts it at the column stroke (round 4). */}
+                <span
+                  className={cn(
+                    'block min-w-0',
+                    confirmedVariant ? 'whitespace-nowrap' : 'truncate',
+                  )}
+                >
+                  {resource.resourceName || PLACEHOLDER}
+                </span>
               </Tooltip>
             )}
           </td>
@@ -645,7 +758,7 @@ export const WaitingApprovalTable = memo(
               guard, copying the region id also opened the fold. The chevron above stops its
               own propagation for the same reason. */}
           <td
-            className={idcStyles.table.approvalCell}
+            className={cn(idcStyles.table.approvalCell, coveredCell)}
             onClick={foldToggleable ? (event) => event.stopPropagation() : undefined}
           >
             {/* An absent id renders nothing rather than a bare control: a consumer that
@@ -653,15 +766,43 @@ export const WaitingApprovalTable = memo(
                 focusable "Resource ID 복사" on every row, copying ''. */}
             {grouped || !resource.resourceId ? null : (
               // 260px (the cell default) plus a non-wrapping Region overran the card.
+              // Confirmed tables let the COLUMN own the truncation point instead (round 3):
+              // the cell fills its fixed column, and the drag handle is the way to see more.
+              // hardClip joins the round-4 covered grammar: the ARN cuts mid-letter rather
+              // than ellipsizing, saying "continues underneath" like every other cell here.
+              // +18px = this cell's own right padding (approvalCell px-[18px]): the wrapper
+              // must END at the column boundary, so the round-11 tail mask covers every
+              // visible glyph (a mask stops at its element's box) and the overlay copy
+              // button anchors to the boundary rather than to a tail reserve.
               <ResourceIdCell
                 value={resource.resourceId}
                 label="Resource ID"
-                maxWidthClass="max-w-[220px]"
+                maxWidthClass={confirmedVariant ? 'w-[calc(100%+18px)]' : 'max-w-[220px]'}
                 sizeClass="text-[14px]"
                 textClassName={cn(textColors.secondary, CELL_LIFT)}
+                hardClip={confirmedVariant}
               />
             )}
           </td>
+          {/* Round 9 (owner): "종류를 resource id 오른쪽으로 위치시켜봐. 그리고 태그는 이제
+              없애" — the kind follows the identity pair as PLAIN TEXT in the attribute
+              tier's own dress (same as Database Type beside it): filed among attributes,
+              a pill was the loudest mark on the row for a repeating category. Rows
+              without a kind stay blank: an em-dash would claim "no kind" as a fact this
+              table does not have. */}
+          {confirmedKindColumn && (
+            <td
+              className={cn(
+                idcStyles.table.approvalCell,
+                coveredCell,
+                'text-[14px]',
+                textColors.secondary,
+                CELL_LIFT,
+              )}
+            >
+              {isCluster ? 'RDS Cluster' : isEc2 ? 'EC2' : null}
+            </td>
+          )}
             </>
           )}
           {/* DB Type is a repeating attribute, not a status — one badge per row (the
@@ -675,6 +816,7 @@ export const WaitingApprovalTable = memo(
               <td
                 className={cn(
                   idcStyles.table.approvalCell,
+                  coveredCell,
                   'text-[14px]',
                   textColors.secondary,
                   CELL_LIFT,
@@ -687,6 +829,7 @@ export const WaitingApprovalTable = memo(
               <td
                 className={cn(
                   idcStyles.table.approvalCell,
+                  coveredCell,
                   monoCell,
                   textColors.secondary,
                   CELL_LIFT,
@@ -712,7 +855,7 @@ export const WaitingApprovalTable = memo(
                  one resource id. Opening the region id would answer with a list that cannot
                  match the number it was clicked from, so the aggregate is text, not a link. */
               <>
-                <td className={idcStyles.table.approvalCell}>
+                <td className={cn(idcStyles.table.approvalCell, coveredCell)}>
                   <LogicalDbCountCell
                     count={resource.logicalDbCount}
                     label={`${resource.resourceName || resource.resourceId} 연동 논리 DB 목록 보기`}
@@ -724,7 +867,7 @@ export const WaitingApprovalTable = memo(
                     }
                   />
                 </td>
-                <td className={idcStyles.table.approvalCell}>
+                <td className={cn(idcStyles.table.approvalCell, coveredCell)}>
                   <LogicalDbCountCell
                     count={resource.excludedLogicalDbCount}
                     label={`${resource.resourceName || resource.resourceId} 연동 제외 대상 보기`}
@@ -739,10 +882,10 @@ export const WaitingApprovalTable = memo(
               </>
             ) : (
               <>
-                <td className={idcStyles.table.approvalCell}>
+                <td className={cn(idcStyles.table.approvalCell, coveredCell)}>
                   <NoLogicalDbCell />
                 </td>
-                <td className={idcStyles.table.approvalCell}>
+                <td className={cn(idcStyles.table.approvalCell, coveredCell)}>
                   <NoLogicalDbCell />
                 </td>
               </>
@@ -831,6 +974,7 @@ export const WaitingApprovalTable = memo(
                 <td
                   className={cn(
                     idcStyles.table.approvalCell,
+                    coveredCell,
                     'font-mono text-[14px]',
                     textColors.primary,
                     idcStyles.table.group.childCell,
@@ -839,37 +983,108 @@ export const WaitingApprovalTable = memo(
                 >
                   {member.resourceName || PLACEHOLDER}
                 </td>
-                <td className={idcStyles.table.approvalCell} />
-                <td className={cn(idcStyles.table.approvalCell, 'text-[14px]', textColors.secondary)}>
+                <td className={cn(idcStyles.table.approvalCell, coveredCell)} />
+                {/* Round 3 — the fold's members keep column registration with the 종류
+                    column (round 9 seats it after Resource ID). */}
+                {confirmedKindColumn && <td className={cn(idcStyles.table.approvalCell, coveredCell)} />}
+                <td className={cn(idcStyles.table.approvalCell, coveredCell, 'text-[14px]', textColors.secondary)}>
                   {GROUPED_CHILD_KIND_LABEL}
                 </td>
-                <td className={cn(idcStyles.table.approvalCell, monoCell, textColors.secondary)}>
+                <td className={cn(idcStyles.table.approvalCell, coveredCell, monoCell, textColors.secondary)}>
                   {resource.region || PLACEHOLDER}
                 </td>
-                <td className={idcStyles.table.approvalCell} />
-                <td className={idcStyles.table.approvalCell} />
+                <td className={cn(idcStyles.table.approvalCell, coveredCell)} />
+                <td className={cn(idcStyles.table.approvalCell, coveredCell)} />
               </tr>
             ))}
         </Fragment>
       );
     };
 
+    // The row blocks, shared by both shells below: one tbody per block, because a group
+    // renders parent and children as separate bodies (`tbodySeam` keeps the rhythm).
+    const bodies = sections.map((section) => {
+      if (section.kind === 'rows') {
+        return (
+          <tbody
+            key={section.key}
+            // Round 6 undoes round 3's border-strong promotion for the confirmed tables:
+            // back then the hairline "was never seen at all" because rows were the grid's
+            // ONLY lines — once the permanent rails landed (round 4) the same #D1D5DB read
+            // darker than the consoles it quotes ("여전히 행 레벨에서의 구분선들도 너무
+            // 선명"). The consoles' own row rules sit AT the hairline (AWS live #EBEBF0,
+            // the benchmark's Azure reconstruction #EDEBE9 — both 1.19:1): resting rules
+            // whisper, and the hover TINT — not the border — is what reveals a row as a
+            // block, which is the behaviour the owner remembered as Azure's.
+            className={idcStyles.table.body}
+          >
+            {section.rows.map((resource) => renderRow(resource))}
+          </tbody>
+        );
+      }
+
+      const { group } = section;
+      const rowsId = `approval-group-${group.key.replace('|', '-')}`;
+      const collapsed = collapsedGroups.has(group.key);
+      return (
+        <Fragment key={group.key}>
+          <tbody className={idcStyles.table.body}>
+            <ResourceGroupRow
+              type={group.type}
+              region={group.region}
+              expanded={!collapsed}
+              onToggle={() => toggleGroup(group.key)}
+              controls={rowsId}
+              rail={railRow(group.key)}
+              inlineMeta={
+                <ResourceGroupCount
+                  targetCount={group.targetCount}
+                  excludedCount={group.excludedCount}
+                />
+              }
+              // Resource Name · Resource ID · Database Type · Region · 요청 대상 여부 ·
+              // 제외 사유 — the parent had a value for none of them once the identity
+              // took its type, region and counts (owner, 2026-08-12).
+              colSpan={6}
+            />
+          </tbody>
+          {/* Kept mounted while collapsed so `aria-controls` always resolves. */}
+          <tbody id={rowsId} hidden={collapsed} className={idcStyles.table.body}>
+            {group.rows.map((resource, index) =>
+              renderRow(resource, true, index === group.rows.length - 1, group.key),
+            )}
+          </tbody>
+        </Fragment>
+      );
+    });
+
     return (
       <div className={connected ? CONNECTED_FRAME : idcStyles.table.frame}>
-        <div className="overflow-x-auto">
-          {/* approval rows raised one step over approvalCell's py-4 (owner request, step-1
-              table matches). Variant-scoped: the install/confirmed tables (steps 4·6) keep
-              the shared token's rhythm. :not([colspan]) keeps spanning cells (panel-style
-              tds zero their own padding) out of the override — see CandidateResourceTable. */}
-          <table
-            className={cn(
-              'w-full',
-              raisedRows && '[&_td:not([colspan])]:py-5',
-              // A group is three tbodies, and `body`'s divide-y stops at each tbody's edge.
-              idcStyles.table.tbodySeam,
-            )}
+        {confirmedVariant ? (
+          /* Round 13: the console grammar moved into `ConsoleTable` — the shell owns the
+             grid, the resizable header and the boundary's two states, this table owns its
+             columns and rows. `columns` (the resize instance) is created by the caller. */
+          <ConsoleTable
+            columns={confirmedColumns(regionLabel, confirmedKindColumn)}
+            resize={columns}
           >
-            <thead className={idcStyles.table.approvalHeader}>
+            {bodies}
+          </ConsoleTable>
+        ) : (
+          <div className="overflow-x-auto">
+            {/* approval rows raised one step over approvalCell's py-4 (owner request, step-1
+                table matches). Variant-scoped: the install table (step 4) keeps the shared
+                token's rhythm. :not([colspan]) keeps spanning cells (panel-style tds zero
+                their own padding) out of the override — see CandidateResourceTable. */}
+            <table
+              className={cn(
+                'w-full',
+                raisedRows && '[&_td:not([colspan])]:py-5',
+                // A group is three tbodies, and `body`'s divide-y stops at each tbody's edge.
+                idcStyles.table.tbodySeam,
+              )}
+            >
+              <thead className={idcStyles.table.approvalHeader}>
               {/* Identity (name → id) → attributes (type · region) → decision (verdict → reason).
                   The scan anchor is the human-readable name, not a 3-value category column. */}
               <tr className="whitespace-nowrap">
@@ -902,12 +1117,7 @@ export const WaitingApprovalTable = memo(
                     <th className={idcStyles.table.approvalHeaderCell}>{regionLabel}</th>
                   </>
                 )}
-                {plainVariant ? null : confirmedVariant ? (
-                  <>
-                    <th className={idcStyles.table.approvalHeaderCell}>연동 논리 DB</th>
-                    <th className={idcStyles.table.approvalHeaderCell}>연동 제외</th>
-                  </>
-                ) : installVariant ? (
+                {plainVariant ? null : installVariant ? (
                   <>
                     <th className={idcStyles.table.approvalHeaderCell}>상태</th>
                     <th className={idcStyles.table.approvalHeaderCell}>안내</th>
@@ -921,51 +1131,10 @@ export const WaitingApprovalTable = memo(
                 )}
               </tr>
             </thead>
-            {sections.map((section) => {
-              if (section.kind === 'rows') {
-                return (
-                  <tbody key={section.key} className={idcStyles.table.body}>
-                    {section.rows.map((resource) => renderRow(resource))}
-                  </tbody>
-                );
-              }
-
-              const { group } = section;
-              const rowsId = `approval-group-${group.key.replace('|', '-')}`;
-              const collapsed = collapsedGroups.has(group.key);
-              return (
-                <Fragment key={group.key}>
-                  <tbody className={idcStyles.table.body}>
-                    <ResourceGroupRow
-                      type={group.type}
-                      region={group.region}
-                      expanded={!collapsed}
-                      onToggle={() => toggleGroup(group.key)}
-                      controls={rowsId}
-                      rail={railRow(group.key)}
-                      inlineMeta={
-                        <ResourceGroupCount
-                          targetCount={group.targetCount}
-                          excludedCount={group.excludedCount}
-                        />
-                      }
-                      // Resource Name · Resource ID · Database Type · Region · 요청 대상 여부 ·
-                      // 제외 사유 — the parent had a value for none of them once the identity
-                      // took its type, region and counts (owner, 2026-08-12).
-                      colSpan={6}
-                    />
-                  </tbody>
-                  {/* Kept mounted while collapsed so `aria-controls` always resolves. */}
-                  <tbody id={rowsId} hidden={collapsed} className={idcStyles.table.body}>
-                    {group.rows.map((resource, index) =>
-                      renderRow(resource, true, index === group.rows.length - 1, group.key),
-                    )}
-                  </tbody>
-                </Fragment>
-              );
-            })}
-          </table>
-        </div>
+              {bodies}
+            </table>
+          </div>
+        )}
       </div>
     );
   },

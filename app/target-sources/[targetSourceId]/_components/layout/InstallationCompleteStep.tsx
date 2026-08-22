@@ -87,6 +87,13 @@ export const InstallationCompleteStep = ({
   return (
     <ConfirmedIntegrationDataProvider targetSourceId={project.targetSourceId}>
       {/* No overflow-hidden: it would establish a clip box and kill the sticky CardActionBar. */}
+      {/* Round 13 (owner): "기존 카드 디자인은 좀 유지해주는건 어때용? 갑자기 리소스
+          테이블을 바닥에 깔아버려서요" — the card is back. Round 3 had traded it for a
+          full-bleed console band on the theory that a completed screen is for operational
+          reading; but this screen is still one step of the same seven-step flow, and
+          dropping its frame made step 7 a different genre from step 6 beside it. The
+          console grammar is the TABLE's (grid, covered clip, seam shadow) — it does not
+          need the page floor. */}
       <section className={cardStyles.base}>
         <header className={cardStyles.header}>
           <span className={cardStyles.stepTag}>7단계</span>

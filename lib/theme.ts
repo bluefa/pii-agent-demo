@@ -441,6 +441,14 @@ export const tableRowLift = {
   // only way to say that — a bare `group-hover:` answers to any `.group` ancestor anywhere.
   base: 'group group/row transition-colors duration-150 motion-reduce:transition-none',
   target: 'hover:bg-[#EAEEF7] focus-within:bg-[#EAEEF7]',
+  /**
+   * Confirmed/console tables (round 5). The prototype the owner approved hovers at
+   * #F7F9FB, not the approval tables' #EAEEF7 — and the quieter value is load-bearing
+   * now: the console grid's border-default rails hold 1.19:1 under this tint but wash
+   * to 1.08:1 under #EAEEF7, and the covered-clip cut needs its boundary exactly while
+   * the row is being read. `cellText` still applies — #191F28 only gains contrast here.
+   */
+  console: 'hover:bg-[#F7F9FB] focus-within:bg-[#F7F9FB]',
   // 틴트가 아니라 `verdictRail` 이 제외를 표시한다 — #F9FAFB 는 흰 바탕과 1.05:1 이라
   // WCAG 1.4.11 의 3:1 근처에도 못 가서, 행 단위 신호로는 처음부터 작동한 적이 없다.
   // 진하게 올리는 대신 오히려 낮췄다: 배경은 면적이 넓어 신호가 될 만큼 진해지면 그 위
@@ -1488,6 +1496,26 @@ export const idcStyles = {
     /** Body text of a header (i) tooltip — the value-variant Tooltip's white surface. */
     headerTipBody: 'block text-[12px] leading-[1.6] text-[#4E5968]',
     /**
+     * Console-grammar header (confirmed tables, 시안 F round 3) — the rule stays
+     * #D1D5DB (DESIGN.md border-strong) now that the interior grid is hairline
+     * (round 6): it is the one strong line left — the "table starts here" anchor,
+     * which is also the consoles' pattern (only the thead rule outweighs the grid).
+     *
+     * Round 15 (owner): "리소스 테이블 Header 색상을 약간 파란색으로 … 헤더는 그래도
+     * 보여야되는 정보같음". Round 3 argued a header band would reintroduce the frame
+     * the redesign removed — that held while the only candidate was a GREY band, which
+     * reads as chrome. A blue wash reads as the app's own interaction hue instead, so
+     * the band labels the columns rather than boxing them. #F1F6FE is the pipeline
+     * running tile's fill (1.09:1 on white); the header text keeps #4E5968 at 6.55:1.
+     *
+     * ⚠️ A wash costs a ramp step: the #EBEEF2 header rails fall from 1.16 to 1.07 on
+     * this fill — invisible. `consoleGrid` moves the TH rail to #D9E5F9 (1.17 here),
+     * this fill's own partner border elsewhere in the file. The #D1D5DB rule keeps
+     * 1.36 and stays the strongest line in the table.
+     */
+    approvalHeaderFlat:
+      'bg-[#F1F6FE] text-left text-[12px] font-semibold text-[#4E5968] border-b border-[#D1D5DB]',
+    /**
      * Approval-table header, chrome variant — admin P3 only (both provider tables).
      *
      * Takes --pl-gray-100 from the filter toolbar directly above it, so the two read
@@ -1517,6 +1545,123 @@ export const idcStyles = {
     /** Approval-table body cell padding — v16 `.approval-table tbody td` 16px V / 18px H. */
     approvalCell: 'px-[18px] py-4',
     /**
+     * Round 4 (owner): a permanent stroke on every column boundary, header and body.
+     * The confirmed tables clip cell values mid-letter at the cell edge (the Azure
+     * "covered by the next column" grammar), and a cut with no visible edge reads as
+     * two values running together — "경계선은 Stroke를 줘야 될듯. 안 그러면 구분이
+     * 안 될 것 같음". Lives on the `<table>`; the modal resize tables keep the
+     * strokeless grammar described on `resizeHandle`.
+     *
+     * Round 5 (owner): border-strong rails made the grid darker than the consoles it
+     * quotes — "Azure나 AWS는 조금 자연스럽던데.. 너무 선이 진한거 아닌가요?". The
+     * benchmark's measurements put console interior lines in the hairline band: AWS
+     * live-demo row rule 0.8px #EBEBF0 (1.19:1), Fluent colorNeutralStroke2 #E0E0E0
+     * (1.32:1). border-default (1.25:1) sits inside that measured band, so the rails
+     * drop ONE ramp step. (The ROW dividers kept border-strong one more round; round 6
+     * returned them to the shared `body` hairline — see the tbody in
+     * WaitingApprovalTable.) Pairs with `tableRowLift.console`: under the
+     * approval hover (#EAEEF7) these rails wash to 1.08:1 — the tint would eat the
+     * very step the rails just dropped to.
+     *
+     * Round 7 (owner): "평소에는 구분선 없이도 경계를 표현이 필요. 왼쪽이 오른쪽에
+     * 덮인 느낌 … blur나 shadow같은 효과를 줘서 깊이감을 줄 필요는 있어보임". The
+     * BODY rails go entirely: the covered-clip cut exists because the next column
+     * lies ON TOP of this one, so the boundary is now that sheet's cast shadow — a
+     * 10px right-edge gradient inside every non-last cell, darkest AT the cut and
+     * fading left.
+     *
+     * Round 8 (owner): "경계가 너무 눈에 띈다. 한 단계씩만 낮춰봐" — one rung down the
+     * round-7 A/B ladder, α 0.09 → 0.06. The peak now composites to ≈#F1F1F2
+     * (~1.13:1 on white), UNDER the row hairline (#EBEEF2, 1.16:1) and every measured
+     * console band (AWS #EBEBF0 1.19:1, Fluent #E0E0E0 1.32:1). Round 7 graded 0.06
+     * "subliminal at a glance", but the owner judged 0.09 too loud at rest — the
+     * resting weight for THIS mark sits below the console norm.
+     *
+     * Round 10 (owner): "비활성 시에 경계면의 shadow나 stroke 등등을 한 단계 약하게" —
+     * both resting ingredients drop one more rung. Shadow α 0.06 → 0.03 (peak ≈#F8F8F9,
+     * ~1.06:1 — at the edge of perception, which is the point: the cut and the seam
+     * tracer carry the boundary now). Header rails #E5E7EB → #EBEEF2, one step down the
+     * repo's grey ramp to the shared hairline. The round-7 header exemption ("Header는
+     * 진해도 상관없어") expired with this order naming "stroke" — the only resting
+     * stroke on a column boundary IS the header rail. The thead bottom rule stays
+     * #D1D5DB: it is a horizontal "table starts here" anchor, not a column boundary.
+     * A background gradient, not
+     * box-shadow: a shadow blurs past each cell's corners and stipples every row
+     * seam, while backgrounds tile seamlessly down the column (box-shadow on
+     * collapsed-border cells also renders unreliably). Header rails and the thead
+     * rule stay — "Header는 진해도 상관없어". The on-demand line for "경계면 근처"
+     * hover is `seamTracer` below.
+     */
+    // Round 15: the TH rail moved #EBEEF2 → #D9E5F9 when the header took its blue wash.
+    // #EBEEF2 held 1.16:1 on white but only 1.07:1 on #F1F6FE — a wash costs a ramp step,
+    // and #D9E5F9 (this fill's own partner border) restores it at 1.17:1. The BODY ramp is
+    // unchanged: it sits on white/hover rows, which the header band does not touch.
+    consoleGrid:
+      '[&_th+th]:border-l [&_th+th]:border-[#D9E5F9] [&_td:not(:last-child)]:[background:linear-gradient(to_left,rgba(15,23,42,0.03),transparent)_right/10px_100%_no-repeat]',
+    /**
+     * Body cell of a `ConsoleTable` — the covered-clip grammar (round 4, owner: "왼쪽
+     * 부분이 오른쪽에 덮인 느낌"). The CELL clips, so an overlong value runs through its
+     * own right padding and cuts mid-letter exactly on the column stroke (overflow clips
+     * at the padding box), the Azure grammar where the next column COVERS the value and
+     * dragging the divider uncovers it. Children must therefore NOT self-truncate: an
+     * ellipsis says "shortened here" instead of "continues underneath". nowrap keeps
+     * chips and plain-text cells on the single row line without each child declaring it.
+     */
+    consoleCell: 'overflow-hidden whitespace-nowrap',
+    /**
+     * Round 7 (owner): "경계면 근처에 마우스를 올려둘때만 진하게 표현되면 좋겠음" —
+     * with the resting rails gone (see consoleGrid), this is the on-demand boundary:
+     * ONE absolutely positioned line in the confirmed table's scroll container, moved
+     * imperatively to the nearest column seam while the pointer is inside its zone
+     * (SEAM_ZONE_PX in ConsoleTable — the header handles' own 8px grammar).
+     * Round 8 (owner): "너비 조절시에 잔상이 남는 효과는 삭제해봐" — the 100ms fade-out
+     * lingered as an afterimage around resize gestures, so the line now cuts on/off
+     * instantly. ConsoleTable additionally keeps it dark while any pointer button is
+     * held and, after a width change, until the pointer leaves the seam zone.
+     *
+     * Round 10 (owner): "경계면 활성화시에 색상만 파란색 계열로 수정하면 딱 좋을듯" —
+     * the activated boundary joins the app's one interaction blue (#0064FF, the header
+     * guide's own color), so approach and grab read as one grammar. Grey #D1D5DB
+     * (rounds 7–9) read as a STRUCTURAL line that was "더욱 강한" than the resting
+     * boundary it stood on; blue says "interactive" instead of "wall".
+     *
+     * Round 12 (owner): "그냥 찐한 색의 선이 갑자기 생기는 hover잖아?? … 본문 부분은
+     * 차라리 그림자가 조금 더 짙어지고 색상이 파란색으로 표현되는게 더 좋을듯" — the
+     * tracer stops being a line at all. It is now the resting shadow's own hover
+     * state: the same 10px right-edge ramp consoleGrid casts (right edge ON the
+     * seam — ConsoleTable translates it by seam − SEAM_BAND_PX), in #0064FF at
+     * α 0.12 over the resting 0.03 slate (peak ≈#DAE6F9, ~1.25:1 on white — present
+     * on approach, nowhere near the solid line's 3.7:1 pop). Body only: the class
+     * anchors the bottom and the mousemove pins `top` to the thead's bottom edge,
+     * because the header keeps its LINE grammar (rails + the 2px grab guide —
+     * "header는 뭐 봐줄만해요") and a shadow crossing it would mix the two. Zone
+     * (±8px) and the round-8 latches are unchanged.
+     */
+    seamTracer:
+      'pointer-events-none absolute bottom-0 left-0 z-10 w-[10px] bg-[linear-gradient(to_left,rgba(0,100,255,0.12),transparent)] opacity-0',
+    /**
+     * Round 11 (owner): "ResourceId가 종류 행에 의해서 더 많이 가려져" — the id column's
+     * copy button used to RESERVE its tail (the ARN cut 46px before the boundary: 18px
+     * cell padding + 22px button + 6px gap), so under the covered grammar the next
+     * column read as lying deeper over the id than over any other cell. The reserve is
+     * gone: the id runs to the boundary and cuts mid-letter like every covered cell,
+     * and the button OVERLAYS the tail on hover instead.
+     *
+     * ⛔ Round 15 (owner): "resourceId에 hover로 blur처리를 했니??? 이런거 하지마." Round 11
+     * kept that overlay legible with an alpha mask that ramped the tail to transparent
+     * under the button — chosen because alpha works on any row surface. It reads as the
+     * VALUE degrading on hover, which is exactly what an identifier must never do. The
+     * button now carries its own opaque surface instead: the id stays fully inked and
+     * the control simply sits on top of it, the way a control should.
+     *
+     * White + a hairline is what survives all three row surfaces (rest white, console
+     * hover #F7F9FB, excluded hover #E3E8F2) — a fill matched to one of them would be a
+     * visible patch on the other two, so the chip reads as a floating control rather
+     * than as background. Parked 8px off the boundary by the caller, clear of the
+     * seam's ±8px tracer zone.
+     */
+    copyOverlayChip: 'border border-[#E5E7EB] bg-white',
+    /**
      * 열 폭 조절 손잡이 (useColumnResize) — 헤더 셀 안쪽 오른쪽 끝 8px. 밖으로 내밀면
      * 마지막 열에서 표가 가로로 넘친다. 선은 평소 보이지 않는다: 표에 세로줄을 하나 더 그으면
      * 열 구분이 두 문법이 된다. 잡을 수 있다는 사실은 커서가 말하고, 잡는 동안에만 선이 그
@@ -1524,6 +1669,22 @@ export const idcStyles = {
      */
     resizeHandle:
       'absolute inset-y-0 right-0 z-20 w-2 cursor-col-resize touch-none after:absolute after:inset-y-1.5 after:right-[3px] after:w-px after:bg-transparent hover:after:bg-[#0064FF] focus-visible:after:bg-[#0064FF] focus:outline-none',
+    /**
+     * `resizeHandle` for the console tables (round 5) — their grid draws a permanent
+     * rail ON the boundary, and the 3px-inset guide lit up BESIDE it (guide at
+     * edge−4..−3, rail astride the edge): two parallel lines reading as misregistration
+     * — "미묘하게 구분선과 hover가 일치하지 않네요". The modal tables stay on
+     * `resizeHandle`: no rail there to disagree with.
+     *
+     * Round 6 (owner): "Header의 구분선은 확실히 가리는게 좋을 것 같아". Flush-INSIDE
+     * (right-0) still left the rail showing: the rail is the NEXT th's border-l, one
+     * pixel past this th's edge, and the 6px vertical insets left grey stubs above and
+     * below the guide. Straddling (-right-px, 2px) and full-height, the guide owns the
+     * whole boundary while it shows. Depends on the th not clipping (labels
+     * self-truncate instead) — an overflow-hidden th would cut the straddle's outer px.
+     */
+    resizeHandleOnGrid:
+      'absolute inset-y-0 right-0 z-20 w-2 cursor-col-resize touch-none after:absolute after:inset-y-0 after:-right-px after:w-0.5 after:bg-transparent hover:after:bg-[#0064FF] focus-visible:after:bg-[#0064FF] focus:outline-none',
     /**
      * Two-line identity stack — kind tag ABOVE, resource name below (RDS Cluster · EC2 · a
      * member instance's Reader/Writer chip). Lifts the stack by half its tag line so the

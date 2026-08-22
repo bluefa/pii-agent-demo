@@ -2,10 +2,12 @@
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, it, expect } from 'vitest';
 import {
+  hasKindColumn,
   WaitingApprovalTable,
   type WaitingApprovalResource,
 } from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalTable';
 import { rdsInstanceBandLabel } from '@/app/target-sources/[targetSourceId]/_components/shared/RdsInstancePanel';
+import { useColumnResize } from '@/app/components/ui/useColumnResize';
 import { required } from '@/lib/test-dom';
 import { textColors, verdictRail } from '@/lib/theme';
 
@@ -697,18 +699,52 @@ describe('WaitingApprovalTable', () => {
       ...overrides,
     });
 
-    it.each([['confirmed'], ['install']] as const)(
-      'tags the cluster row on the %s variant, above the name and with no instances',
-      (variant) => {
-        render(<WaitingApprovalTable variant={variant} resources={[clusterRow()]} />);
-        const nameCell = screen.getByText('RDS Cluster').closest('td');
-        expect(nameCell?.textContent?.indexOf('RDS Cluster')).toBeLessThan(
-          nameCell?.textContent?.indexOf('demo-cluster') ?? -1,
+    it('tags the cluster row on the install variant, above the name and with no instances', () => {
+      render(<WaitingApprovalTable variant="install" resources={[clusterRow()]} />);
+      const nameCell = screen.getByText('RDS Cluster').closest('td');
+      expect(nameCell?.textContent?.indexOf('RDS Cluster')).toBeLessThan(
+        nameCell?.textContent?.indexOf('demo-cluster') ?? -1,
+      );
+      expect(screen.queryByText('선택됨')).toBeNull();
+      expect(screen.queryByText(/인스턴스 /)).toBeNull();
+    });
+
+    // Round 3 (시안 F): on the confirmed variant the kind leaves the identity stack for its
+    // own 종류 column. Round 9 (owner): the column sits right of Resource ID and the value
+    // is plain text — the chip form is retired.
+    it('seats the kind after Resource ID as plain text on the confirmed variant', () => {
+      // Wired the way the caller wires it — predicate over the roster, answer passed IN, and
+      // a REAL resize instance. The resize instance is what makes the name assertion mean
+      // anything: the handle is a child of the `<th>` and carries its own aria-label, so
+      // without it this query passed on a header that production never renders
+      // ("종류종류 열 너비 조절"). `ConsoleTh` names the cell explicitly to stop that.
+      const rows = [clusterRow()];
+      const Harness = () => {
+        const columns = useColumnResize({ clampToContent: true });
+        return (
+          <WaitingApprovalTable
+            variant="confirmed"
+            resources={rows}
+            kindColumn={hasKindColumn(rows)}
+            columns={columns}
+          />
         );
-        expect(screen.queryByText('선택됨')).toBeNull();
-        expect(screen.queryByText(/인스턴스 /)).toBeNull();
-      },
-    );
+      };
+      render(<Harness />);
+      expect(screen.getAllByRole('separator').length).toBeGreaterThan(0);
+      expect(screen.getByRole('columnheader', { name: '종류' })).toBeTruthy();
+      expect(screen.getByRole('columnheader', { name: 'Resource ID' })).toBeTruthy();
+      const kindCell = screen.getByText('RDS Cluster').closest('td');
+      const row = kindCell?.closest('tr');
+      // name → id → kind: third cell, not the leading anchor slot.
+      expect(row?.cells[2]).toBe(kindCell);
+      // Bare text in the cell — no chip element wraps the value any more.
+      expect(kindCell?.textContent).toBe('RDS Cluster');
+      expect(kindCell?.children).toHaveLength(0);
+      expect(screen.getByText('demo-cluster').closest('td')).not.toBe(kindCell);
+      expect(screen.queryByText('선택됨')).toBeNull();
+      expect(screen.queryByText(/인스턴스 /)).toBeNull();
+    });
 
     it('keeps printing the engine in the type column', () => {
       render(<WaitingApprovalTable variant="confirmed" resources={[clusterRow()]} />);
@@ -728,6 +764,167 @@ describe('WaitingApprovalTable', () => {
         />,
       );
       expect(screen.queryByText('RDS Cluster')).toBeNull();
+    });
+  });
+
+  // Round 4 — the covered-clip console grammar. jsdom does no layout, so these assert the
+  // MECHANISM is wired (which element clips, which element measures), not the pixels; the
+  // pixel behaviour is the browser check in the decision record.
+  describe('covered clip (round 4, confirmed variant)', () => {
+    const row = (): WaitingApprovalResource => ({
+      resourceId: 'arn:aws:rds:ap-northeast-2:804656952396:db:covered',
+      resourceType: 'MYSQL',
+      region: 'ap-northeast-2',
+      resourceName: 'covered-name',
+      selected: true,
+      displayDbType: 'MYSQL',
+    });
+
+    // The hook's per-column floor probes `[data-resize-label]`; unwrap the label and the
+    // floor silently degrades to the global 56px AND a shrunk header paints over its
+    // neighbour again. Every confirmed header must carry the self-clipping probe span.
+    it('wraps every confirmed header label in the clipping floor probe', () => {
+      render(<WaitingApprovalTable variant="confirmed" resources={[row()]} />);
+      for (const header of screen.getAllByRole('columnheader')) {
+        const label = header.querySelector('[data-resize-label]');
+        expect(label).toBeTruthy();
+        expect(label?.classList.contains('truncate')).toBe(true);
+      }
+    });
+
+    it('clips at the cell and lets the value run — no self-ellipsis in confirmed cells', () => {
+      render(<WaitingApprovalTable variant="confirmed" resources={[row()]} />);
+      const nameSpan = screen.getByText('covered-name');
+      const nameCell = nameSpan.closest('td');
+      // The TD owns the cut (overflow at the padding box = the column stroke)…
+      expect(nameCell?.classList.contains('overflow-hidden')).toBe(true);
+      expect(nameCell?.classList.contains('whitespace-nowrap')).toBe(true);
+      // …so the value itself must NOT ellipsize first: `truncate` would move the cut to the
+      // content box, 18px short of the stroke, and draw the "shortened" … instead of the cut.
+      expect(nameSpan.classList.contains('truncate')).toBe(false);
+    });
+
+    it('keeps the approval variant on the ellipsis grammar', () => {
+      render(<WaitingApprovalTable variant="approval" resources={[row()]} />);
+      const nameSpan = screen.getByText('covered-name');
+      expect(nameSpan.classList.contains('truncate')).toBe(true);
+      expect(nameSpan.closest('td')?.classList.contains('overflow-hidden')).toBe(false);
+    });
+
+    // Round 11 (owner): "ResourceId가 종류 행에 의해서 더 많이 가려져" — the copy button's
+    // in-flow tail reserve made the id's cut land ~46px before the boundary while every
+    // other covered cell cuts AT it, so the next column read as covering the id deeper.
+    // The reserve is gone: the wrapper runs to the boundary (+18px = the cell's own right
+    // padding) and the button overlays on hover.
+    // ⛔ Round 15 (owner): "resourceId에 hover로 blur처리를 했니??? 이런거 하지마." The
+    // overlay used to stay legible by masking the id's tail to transparent; the id now
+    // keeps every pixel of ink and the button covers it with its own opaque chip. The
+    // absence of `mask-image` is the assertion — a fade would be a regression.
+    it('runs the id to the boundary and overlays the copy button (round 11)', () => {
+      const { rerender } = render(
+        <WaitingApprovalTable variant="confirmed" resources={[row()]} />,
+      );
+      const copy = screen.getByRole('button', { name: 'Resource ID 복사' });
+      expect(copy.className).toContain('absolute');
+      expect(copy.className).toContain('bg-white');
+      expect(copy.parentElement?.className).toContain('w-[calc(100%+18px)]');
+      expect(copy.parentElement?.className).not.toContain('inline-flex');
+      expect(
+        screen.getByText('arn:aws:rds:ap-northeast-2:804656952396:db:covered').className,
+      ).not.toContain('mask-image');
+
+      // The approval variant keeps the in-flow button — the overlay belongs to the
+      // covered grammar only.
+      rerender(<WaitingApprovalTable variant="approval" resources={[row()]} />);
+      const approvalCopy = screen.getByRole('button', { name: 'Resource ID 복사' });
+      expect(approvalCopy.className).not.toContain('absolute');
+      expect(approvalCopy.className).toContain('shrink-0');
+    });
+
+    // Round 5: the console grid dropped its rails to border-default, and that step only
+    // survives the row hover if the hover is the prototype's quiet #F7F9FB — under the
+    // approval tint (#EAEEF7) the rails wash to 1.08:1. Wiring only; ratios are measured
+    // in the browser (docs/ux/benchmark/target-source-resource-table-console.md).
+    it('hovers confirmed rows on the console tint, approval rows on the blue lift', () => {
+      const { rerender } = render(
+        <WaitingApprovalTable variant="confirmed" resources={[row()]} />,
+      );
+      const confirmedTr = screen.getByText('covered-name').closest('tr');
+      expect(confirmedTr?.className).toContain('hover:bg-[#F7F9FB]');
+      expect(confirmedTr?.className).not.toContain('hover:bg-[#EAEEF7]');
+
+      rerender(<WaitingApprovalTable variant="approval" resources={[row()]} />);
+      const approvalTr = screen.getByText('covered-name').closest('tr');
+      expect(approvalTr?.className).toContain('hover:bg-[#EAEEF7]');
+    });
+
+    it('covers the column rail with the resize guide, full header height', () => {
+      // Handles only render when a resize instance is wired in, and the covering guide
+      // is keyed off clampToContent — the console-table mode — inside the hook itself.
+      const Harness = () => {
+        const columns = useColumnResize({ clampToContent: true });
+        return <WaitingApprovalTable variant="confirmed" resources={[row()]} columns={columns} />;
+      };
+      render(<Harness />);
+      const handle = screen.getAllByRole('separator')[0];
+      // Straddling (-right-px, 2px) and full-height: the rail is the NEXT th's
+      // border-l, so a flush-inside guide left the grey pixel showing beside the blue
+      // (round 6 — "Header의 구분선은 확실히 가리는게 좋을 것 같아").
+      expect(handle.className).toContain('after:-right-px');
+      expect(handle.className).toContain('after:inset-y-0');
+      expect(handle.className).toContain('after:w-0.5');
+      expect(handle.className).not.toContain('after:right-[3px]');
+    });
+
+    it('divides confirmed rows on the shared hairline, not border-strong', () => {
+      // Round 6: with permanent rails sharing the separation work, border-strong rows
+      // overshot the consoles (their row rules measure ≈1.19:1) — rows return to the
+      // app-wide #EBEEF2 hairline and the hover tint is what blocks a row out.
+      render(<WaitingApprovalTable variant="confirmed" resources={[row()]} />);
+      const tbody = screen.getByText('covered-name').closest('tbody');
+      expect(tbody?.className).toContain('divide-[#EBEEF2]');
+      expect(tbody?.className).not.toContain('#D1D5DB');
+    });
+
+    it('drops the resting body rails for the covered-sheet shadow', () => {
+      // Round 7: at rest the boundary is the covering column's cast shadow (a
+      // right-edge gradient in every non-last cell) — permanent td rails are gone,
+      // while the header keeps its rails ("Header는 진해도 상관없어").
+      render(<WaitingApprovalTable variant="confirmed" resources={[row()]} />);
+      const table = screen.getByText('covered-name').closest('table');
+      expect(table?.className).toContain('linear-gradient(to_left');
+      expect(table?.className).not.toContain('td+td');
+      expect(table?.className).toContain('[&_th+th]:border-l');
+    });
+
+    it('mounts the console shell for the confirmed variant', () => {
+      // Round 13: the grid, the resizable header and the seam's two states moved into
+      // ConsoleTable, which owns their tests. What belongs HERE is the wiring: that this
+      // variant is on the shell at all, and with the columns this table declares.
+      const rows = [row()];
+      const { container } = render(
+        <WaitingApprovalTable
+          variant="confirmed"
+          resources={rows}
+          kindColumn={hasKindColumn(rows)}
+        />,
+      );
+      const table = required(container.querySelector('table'), 'the confirmed table');
+      expect(table.className).toContain('table-fixed');
+      expect(table.className).toContain('linear-gradient(to_left');
+      expect(container.querySelector('[data-seam-tracer]')).toBeTruthy();
+      // Σ(162 name + 312 id + 142 dbType + 156 region + 118 논리DB + 96 제외) = 986. No
+      // 종류 column: this fixture is neither an RDS cluster nor an EC2 instance, so
+      // `hasKindColumn` says no — and leaving the column OUT of the spec is how
+      // "nothing in the roster could fill it" is expressed.
+      expect((table as HTMLElement).style.width).toBe('986px');
+    });
+
+    it('skips the seam tracer for approval tables', () => {
+      const { container } = render(
+        <WaitingApprovalTable variant="approval" resources={[row()]} />,
+      );
+      expect(container.querySelector('[data-seam-tracer]')).toBeNull();
     });
   });
 });
