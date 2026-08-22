@@ -18,6 +18,14 @@ const FLEX_COLUMNS: ConsoleTableColumn[] = [
   COLUMNS[2],
 ];
 
+/** Two flex columns — the shape every real caller uses. The LAST one is the sink; the
+ *  first takes a percentage share and stands ready to inherit the role. */
+const TWO_FLEX_COLUMNS: ConsoleTableColumn[] = [
+  { ...COLUMNS[0], flex: true },
+  { ...COLUMNS[1], flex: true },
+  COLUMNS[2],
+];
+
 const rows = (
   <tbody>
     <tr>
@@ -105,10 +113,52 @@ describe('ConsoleTable — columns', () => {
     expect((table as HTMLElement).style.minWidth).toBe('360px');
   });
 
-  it('drops back to the sum once the user has dragged the flex column', () => {
-    // Their width is the truth from then on, so the table stops taking the container —
-    // leaving it at w-full with no auto column left is exactly the redistribution bug the
-    // first test guards.
+  it('splits the fill between flex columns — a share each, auto for the last', () => {
+    // Round 19 had one absorber, so a wide screen poured 100% of the slack into it and the
+    // column ballooned while its neighbours sat at their declared px. A share spreads the
+    // growth over every column whose values actually run long.
+    const { container } = render(
+      <ConsoleTable columns={TWO_FLEX_COLUMNS}>{rows}</ConsoleTable>,
+    );
+    const ths = container.querySelectorAll('thead th');
+    expect([...ths].map((th) => (th as HTMLElement).style.width)).toEqual([
+      // 100 / 360 — its own floor's share of the floor sum, so at the floor the column
+      // lands exactly on 100px and above it grows in proportion.
+      '27.7778%',
+      'auto',
+      '60px',
+    ]);
+    const table = required(container.querySelector('table'), 'the table');
+    expect(table.className).toContain('w-full');
+    expect((table as HTMLElement).style.minWidth).toBe('360px');
+  });
+
+  it('hands the sink to the previous flex column when the last one is dragged', () => {
+    // THE round-19 defect. The sink is a position, not a column: pinning the last flex
+    // column must move the role rather than delete it, or the table stops following the
+    // container for the rest of the visit with nothing on screen saying why.
+    const { container } = render(
+      <ConsoleTable columns={TWO_FLEX_COLUMNS} resize={resize({ id: 500 })}>
+        {rows}
+      </ConsoleTable>,
+    );
+    const ths = container.querySelectorAll('thead th');
+    expect([...ths].map((th) => (th as HTMLElement).style.width)).toEqual([
+      'auto', // name inherits the sink
+      '500px', // exactly what the user dragged — no redistribution
+      '60px',
+    ]);
+    const table = required(container.querySelector('table'), 'the table');
+    expect(table.className).toContain('w-full');
+    // The pinned width raises the floor, so the table scrolls instead of crushing the sink.
+    expect((table as HTMLElement).style.minWidth).toBe('660px');
+    expect((table as HTMLElement).style.width).toBe('');
+  });
+
+  it('drops back to the sum only once EVERY flex column has been dragged', () => {
+    // With no unpinned flex column left there is nobody to absorb, and leaving the table at
+    // w-full is exactly the redistribution bug the first test guards. `FLEX_COLUMNS` has a
+    // single flex column, so one drag is already "every".
     const { container } = render(
       <ConsoleTable columns={FLEX_COLUMNS} resize={resize({ id: 500 })}>
         {rows}
