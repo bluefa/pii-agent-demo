@@ -43,10 +43,13 @@ export const IdcTargetSourceLayout = (props: IdcStepProps) => {
       {/* Flat page header (chrome) spans the column edge-to-edge above the padded
           body — the layout owns it; steps render cards only (cloud layout parity). */}
       <ProjectPageMeta project={props.project} identity={props.identity} action={props.action} />
-      {/* v16 `.main` — full-width flex column, padding 32px 40px 80px (top/x/bottom). The 40px
-          left padding sits flush against the 296px sidebar so content begins at 336px, matching v16.
+      {/* v16 `.main` — full-width flex column, padding 32px 20px 80px (top/x/bottom).
+          The gutter was v16's 40px until 오너 13차 지시 took both target-source layouts
+          to 20px. `projectHeaderStyles.inner` carries the same 20 plus the step card's
+          own 28px keyline, so the header's type stands on the cards' type — change one
+          without the other and the header's left edge drifts off them.
           The step guide lives in the full-height right rail (GuidePanel, ProjectDetail). */}
-      <div className="px-10 pt-8 pb-20 space-y-6">{step}</div>
+      <div className="px-5 pt-8 pb-20 space-y-6">{step}</div>
     </main>
   );
 };

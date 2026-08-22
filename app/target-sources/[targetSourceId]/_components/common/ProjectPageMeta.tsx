@@ -146,7 +146,7 @@ export const ProjectPageMeta = ({ project, identity, action }: ProjectPageMetaPr
             service code from anything else in a path, and `/ DLV` gave them nothing
             to go on; the tag says what the token is before they have to guess. */}
         <h1 className={h.crumb}>
-          PII Agent 설치
+          <span className={h.crumbRoot}>PII Agent 설치</span>
           <span className={h.crumbSep} aria-hidden="true">
             /
           </span>

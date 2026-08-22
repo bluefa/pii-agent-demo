@@ -1,7 +1,10 @@
 // @vitest-environment jsdom
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import { ProcessStatus, type TargetSource } from '@/lib/types';
+import { cardStyles, projectHeaderStyles } from '@/lib/theme';
 
 // The flat header mounts the quiet stepper; stub it and surface the step it receives.
 vi.mock('@/app/components/features/process-status', () => ({
@@ -241,6 +244,33 @@ describe('ProjectPageMeta — path heading', () => {
     const block = scopeBlock();
     expect(block.tagName).toBe('SECTION');
     expect(within(block).getByText('설치 대상').id).toBe(block.getAttribute('aria-labelledby'));
+  });
+
+  /**
+   * `inner` is the body gutter plus the step card's own keyline, and nothing computes
+   * that sum — so the two halves can drift apart in silence. Change the layouts'
+   * `px-5` alone and the header's type slides off the cards' type with every test
+   * still green, which is exactly the wobble 오너 10차 지시 was about (11px, then).
+   *
+   * A source-string pin, not a measurement: jsdom computes no geometry. It fires when
+   * any of the three values is EDITED and equally when one is merely moved into a
+   * token — that false positive is the price. Re-derive the sum and update the test.
+   */
+  it('keeps the header keyline equal to the body gutter plus the card inset', () => {
+    const GUTTER = 20; // the layouts' px-5, 오너 13차 지시
+    expect(cardStyles.header).toContain('px-[28px]');
+    expect(projectHeaderStyles.inner).toContain(`px-[${GUTTER + 28}px]`);
+
+    const root = path.resolve(__dirname, '../../../../..');
+    for (const layout of [
+      'app/target-sources/[targetSourceId]/_components/layout/CloudTargetSourceLayout.tsx',
+      'app/target-sources/[targetSourceId]/_components/idc/IdcTargetSourceLayout.tsx',
+    ]) {
+      const src = readFileSync(path.join(root, layout), 'utf8');
+      expect(src, `${layout}: its gutter is the other half of inner`).toContain(
+        `px-${GUTTER / 4} pt-8 pb-20`,
+      );
+    }
   });
 
   it('clamps the service name — no contract maximum backs it', () => {

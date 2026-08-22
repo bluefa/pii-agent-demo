@@ -56,10 +56,13 @@ export const CloudTargetSourceLayout = (props: CloudTargetSourceLayoutProps) => 
           body, so the lavender wash starts where content cards do. The layout owns
           it — steps render cards only, matching IdcTargetSourceLayout. */}
       <ProjectPageMeta project={props.project} identity={props.identity} action={props.action} />
-      {/* v16 `.main`: full-width, padding 32/40/80 (top/x/bottom), flush to the 296px
-          sidebar so content begins at 336px — matches IdcTargetSourceLayout.
+      {/* v16 `.main`: full-width, padding 32/20/80 (top/x/bottom) — matches
+          IdcTargetSourceLayout. The gutter was v16's 40px until 오너 13차 지시 took both
+          target-source layouts to 20px. `projectHeaderStyles.inner` carries the same 20
+          plus the step card's own 28px keyline, so the header's type stands on the
+          cards' type — change one without the other and the header's left edge drifts.
           The step guide lives in the full-height right rail (GuidePanel, ProjectDetail). */}
-      <div className="px-10 pt-8 pb-20 space-y-6">{step}</div>
+      <div className="px-5 pt-8 pb-20 space-y-6">{step}</div>
     </main>
   );
 };

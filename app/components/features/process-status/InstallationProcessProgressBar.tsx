@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { ProcessStatus } from '@/lib/types';
-import { cn, installStepperStyles as s, projectHeaderStyles } from '@/lib/theme';
+import { installStepperStyles as s, projectHeaderStyles } from '@/lib/theme';
 
 const INSTALL_STEPS = [
   { step: ProcessStatus.WAITING_TARGET_CONFIRMATION, label: '연동 대상 DB 선택' },
@@ -12,104 +12,75 @@ const INSTALL_STEPS = [
   { step: ProcessStatus.INSTALLATION_COMPLETE, label: '완료' },
 ] as const;
 
+/** The step from which a connection-test verdict can describe THIS configuration. */
+const TEST_INDEX = INSTALL_STEPS.findIndex(
+  (it) => it.step === ProcessStatus.WAITING_CONNECTION_TEST,
+);
+
+/** Names the 설치 진행 region (`aria-labelledby`), like 설치 대상 above it. */
+const PROGRESS_LABEL_ID = 'install-progress-label';
+
 interface InstallationProcessProgressBarProps {
   currentStep: ProcessStatus;
   /**
-   * The latest connection-test verdict, hung under the 연결 테스트 step. The verdict
-   * belongs to that step, so it sits under that step — beside the page title you had
-   * to scan the stepper to learn what it was about. Renders nothing when absent, and
-   * nothing before the target reaches that step (see the render site).
+   * The latest connection-test verdict. It rides the position line now that the road
+   * is gone — there is no 연결 테스트 step to hang it under any more. Renders nothing
+   * when absent, and nothing before the target reaches that step (see below).
    */
   tcTag?: ReactNode;
 }
 
 /**
- * 설치 진행 — the flat page header's quiet stepper. Every step stays visible by
- * name (a first-time reader must see the whole road), and state is carried by
- * the dots + the walked road; labels only separate "here" from "not here".
+ * 설치 진행 — one sentence: 전체 7단계 중 N단계, then the step's name as a tag
+ * (오너 13차 지시).
+ *
+ * It used to be a seven-dot road with every step named, so that a first-time reader
+ * could see the whole route. That is worth showing once and cost ~60px of header on
+ * every visit after; a reader who is mid-install wants one fact, which is where they
+ * are. The route itself is still on the page — the step cards below walk it.
+ *
+ * Position is carried by the NUMBERS, so they are the only thing that steps up a
+ * size: 14px in a 12px sentence, the same 12/14 pair the block labels and their
+ * values already use.
+ *
+ * Same head as 설치 대상 above (`blockHead`): the header is two named blocks in one
+ * grammar, and a rule under only one of them would make them look like two different
+ * kinds of thing.
  */
 export const InstallationProcessProgressBar = ({
   currentStep,
   tcTag,
 }: InstallationProcessProgressBarProps) => {
   const currentIndex = INSTALL_STEPS.findIndex((it) => it.step === currentStep);
+  // ProcessStatus is exactly these seven, but the value arrives over the wire —
+  // an unknown one drops the position line rather than printing 「0단계」.
+  const current = INSTALL_STEPS[currentIndex];
 
   return (
-    <nav aria-label="설치 진행 단계" className={s.wrap}>
-      {/* The same head as 설치 대상 above (개선안 ㄷ): the header is two named blocks in
-          one grammar, and a rule under only one of them would make them look like two
-          different kinds of thing. */}
+    <section aria-labelledby={PROGRESS_LABEL_ID} className={s.wrap}>
       <div className={projectHeaderStyles.blockHead}>
-        <span className={projectHeaderStyles.blockLabel}>설치 진행</span>
+        <span id={PROGRESS_LABEL_ID} className={projectHeaderStyles.blockLabel}>
+          설치 진행
+        </span>
       </div>
-      <ol
-        role="list"
-        className={s.list}
-        style={{ gridTemplateColumns: `repeat(${INSTALL_STEPS.length}, minmax(0, 1fr))` }}
-      >
-        {INSTALL_STEPS.map((it, index) => {
-          const isLast = index === INSTALL_STEPS.length - 1;
-          const isCurrent = index === currentIndex;
-          const isCompleted = currentIndex > index;
-          // A segment is "walked" when it leads INTO a step the user has
-          // reached — the connector into the current step tints, the one
-          // leaving it stays gray.
-          const leftWalked = index > 0 && index <= currentIndex;
-          const rightWalked = index < currentIndex;
-          return (
-            <li
-              key={it.step}
-              aria-current={isCurrent ? 'step' : undefined}
-              className={s.item}
-            >
-              <span className={s.track}>
-                {index > 0 && (
-                  <span
-                    aria-hidden="true"
-                    className={cn(s.lineBase, 'left-0 right-1/2', leftWalked ? s.lineDone : s.line)}
-                  />
-                )}
-                {!isLast && (
-                  <span
-                    aria-hidden="true"
-                    className={cn(s.lineBase, 'left-1/2 right-0', rightWalked ? s.lineDone : s.line)}
-                  />
-                )}
-                <i
-                  aria-hidden="true"
-                  className={cn(
-                    s.dotBase,
-                    isCurrent ? s.dotCurrent : isCompleted ? s.dotDone : s.dotPending,
-                  )}
-                />
-              </span>
-              <span
-                className={cn(s.labelBase, isCurrent ? s.labelCurrent : s.labelRest)}
-                style={{ wordBreak: 'keep-all' }}
-              >
-                {it.label}
-              </span>
-              {/* Absolute, anchored to the BOTTOM of the grid row. In flow the
-                  tag is a nowrap box in a ~100px cell, so it spilled sideways
-                  into whatever sat beside it: at 960px the neighbouring label
-                  wraps to two lines and the two overlapped (codex, 30x10px).
-                  Out of flow at `top-full` it clears every label — the row
-                  stretches to the tallest one — and it costs no height, so a
-                  target that never ran a test gets no dead space either.
-
-                  Gated on having REACHED the step. A verdict that survives on a
-                  target sitting at step 1–4 belongs to a previous cycle — the
-                  agent is not installed yet, so nothing can have tested this
-                  configuration — and drawing it says the connection is fine
-                  about a setup that has never been tested. Not rendering it also
-                  spares those four steps the tag's latest_version fetch. */}
-              {it.step === ProcessStatus.WAITING_CONNECTION_TEST && (isCurrent || isCompleted) && (
-                <span className={s.tagSlot}>{tcTag}</span>
-              )}
-            </li>
-          );
-        })}
-      </ol>
-    </nav>
+      {current && (
+        <p className={s.summary}>
+          {/* One span, so the 14px counts baseline-align inside the sentence instead
+              of becoming flex items that have to be aligned against it. */}
+          <span>
+            전체 <b className={s.count}>{INSTALL_STEPS.length}</b>단계 중{' '}
+            <b className={s.count}>{currentIndex + 1}</b>단계
+          </span>
+          <span className={s.stepTag}>{current.label}</span>
+          {/* Gated on having REACHED the step. A verdict that survives on a target
+              sitting at step 1–4 belongs to a previous cycle — the agent is not
+              installed yet, so nothing can have tested this configuration — and
+              drawing it says the connection is fine about a setup that has never
+              been tested. Not rendering it also spares those steps the tag's
+              latest_version fetch. */}
+          {currentIndex >= TEST_INDEX && tcTag && <span className={s.tagSlot}>{tcTag}</span>}
+        </p>
+      )}
+    </section>
   );
 };

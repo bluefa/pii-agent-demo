@@ -400,3 +400,39 @@ Azure 1003 254px · IDC 1026 230px. 열 931·782·620·520px 전부 넘침 0.
   `serviceName ... || serviceCode` 로 폴백하므로 두 행이 같은 값을 찍을 수 있다.
 - **`document.title` 은 여전히 루트 레이아웃의 "PII Agent" 고정값** — 이 경로엔
   `generateMetadata` 가 없다. 대상별 탭 제목이 필요하면 `PipelineDetailView.tsx:252` 방식이 선례.
+
+### 후속 (지시 13) — 거터 20, 진행은 한 줄, 경로 머리는 semibold
+
+세 지시가 같은 방향이라 한 커밋으로 묶었다: **헤더를 더 줄인다.**
+
+**1. 페이지 거터 40 → 20.** `CloudTargetSourceLayout`·`IdcTargetSourceLayout` 의
+`px-10` → `px-5`, 그리고 `projectHeaderStyles.inner` 는 `px-[68px]` → **`px-[48px]`**(20 + 28).
+v16 `.main` 의 40px 에서 벗어나는 값이지만 두 레이아웃에만 적용된다.
+⛔ **둘은 반드시 같이 움직인다** — 가터만 바꾸면 헤더 글자가 카드 글자에서 미끄러지고
+테스트는 전부 초록이다(지시 10 의 불평이 정확히 그 11px 이었다).
+`ProjectPageMeta.test.tsx` 에 소스 문자열 트립와이어를 달았다:
+`cardStyles.header` 의 28 + 가터 20 = `inner` 의 48, 그리고 두 레이아웃 파일의 `px-5 pt-8 pb-20`.
+
+실측: 스텝 카드 상자 **316..1362**, 헤더 본문·헤어라인 두 줄 **전부 344..1334**,
+경로 x = 스텝 카드 글 x = **344**. 단일 축 유지.
+
+**2. 「설치 진행」 을 한 줄로.** 7점 도로가 사라지고 `전체 **7**단계 중 **4**단계 [Agent 설치]`
+한 문장이 됐다. 7과 N 만 **14px**(문장은 12px) — 위치가 이 블록의 유일한 존재 이유이므로
+숫자만 크기 계단을 올라간다. `items-baseline` 필수.
+
+- **삭제된 토큰 8개**: `list`·`item`·`track`·`lineBase`·`line`·`lineDone`·`dotBase`·
+  `dotPending`·`dotDone`·`dotCurrent`·`labelBase`·`labelRest`·`labelCurrent`.
+  design-guard 에서 도로·점·라벨 핀 8개가 빠지고 문장·숫자·태그 핀 3개가 들어왔다(171 → 167).
+- **`tagSlot` 이 흐름 안으로 들어왔다** — 도로가 없으니 매달 스텝이 없다. 그래서
+  `absolute top-full` 이 만들던 문제(바깥 흐름이라 아무것도 밀지 않아, 본문 `pt-8` 이
+  좁아지면 **첫 카드를 조용히 덮었다**)가 통째로 사라졌다. 그 자리를 지키던 소스 문자열 핀도 삭제.
+  대신 "다시는 흐름 밖으로 나가지 않는다"를 핀으로 남겼다.
+- `<nav aria-label="설치 진행 단계">` → `<section aria-labelledby>` — 목록이 없으면
+  내비게이션이 아니다. 설치 대상과 같은 문법이 됐다.
+- 알 수 없는 `ProcessStatus` 는 위치 줄을 **통째로 안 그린다**(「0단계」 금지).
+
+**3. 「PII Agent 설치」 semibold.** `crumbRoot: 'flex-none font-semibold'` — 무게만,
+색은 그대로. 어둡게까지 하면 뒤따르는 서비스 이름과 경쟁한다.
+
+**높이**: 카드 시절 216px → 개선안 ㄷ 252px → **242px**(첫 카드 y 312 → 338).
+한 줄 진행이 12px 을 돌려받았다. 남은 +26px 은 이름 두 개와 태그 값이다.

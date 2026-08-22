@@ -663,16 +663,18 @@ export const projectHeaderStyles = {
   /** Kept as a named seam for future re-tints — C3 renders no plane at all. */
   surface: '',
   /**
-   * 40 + 28: the column edge, then the keyline the step cards below already type to
-   * (`px-[28px]` inside a card that starts at this column's x).
+   * 20 + 28: the page gutter, then the keyline the step cards below already type to
+   * (`px-[28px]` inside a card that starts at the gutter). ⛔ The 20 is the layouts'
+   * `px-5` (CloudTargetSourceLayout / IdcTargetSourceLayout, 오너 13차 지시) — move that
+   * gutter and this number moves with it, or the header's type slides off the cards'.
    *
    * One number where there were three (오너 10차 지시). The header used to put its box
-   * at x=336, the card's text at 353 (px-4 + the card's own border) and the stepper's
-   * text at 336 with no inset at all, while every step card below typed at 364 — so
-   * the eye read a wobble down the left edge of the page. Nothing in this header
-   * carries its own horizontal padding any more; the column provides it once.
+   * at x=336, the card's text at 353 (px-4 plus the card's own border) and the
+   * stepper's text at 336 with no inset at all, while every step card below typed at
+   * 364 — so the eye read a wobble down the left edge of the page. Nothing in this
+   * header carries its own horizontal padding any more; the column provides it once.
    */
-  inner: 'px-[68px] pt-[18px]',
+  inner: 'px-[48px] pt-[18px]',
   /** The path and any page action. No plane under it — see `targetGroup`. */
   titleRow: 'flex items-start justify-between gap-4',
   /**
@@ -685,7 +687,11 @@ export const projectHeaderStyles = {
    * 280px clamp on the name, the last segment closing the path as "you are here".
    * Nothing here links, so this is a heading SHAPED like a path, not a breadcrumb.
    */
-  crumb: 'flex min-w-0 items-center gap-1.5 text-[12px] leading-[1.5] text-[#4E5968]',
+  crumb: 'flex min-w-0 flex-wrap items-center gap-1.5 text-[12px] leading-[1.5] text-[#4E5968]',
+  /** 「PII Agent 설치」 — semibold (오너 13차 지시). Weight only, not colour: it is still
+      a location, and darkening it as well would put it in competition with the
+      service name that follows instead of introducing it. */
+  crumbRoot: 'flex-none font-semibold',
   crumbSep: 'flex-none text-[#A6ADBB]', // design-exempt: decorative path glyph, the labels around it carry the reading
   crumbName: 'max-w-[280px] truncate',
   /**
@@ -748,11 +754,12 @@ export const projectHeaderStyles = {
    * accessible name, which is more than the card ever had.
    *
    * 18px from the path above — the block separation this file already uses, and the
-   * `18 : 6` ratio is now the only thing grouping these tiers. Capped at the stepper's
-   * own 860px so both blocks close on one right edge; wider, the rule ran 950px to
-   * hold a 12px cue and read as a table header rather than a named block.
+   * `18 : 6` ratio is now the only thing grouping these tiers. No width cap: `inner`
+   * already lands the content box on the step card's own text column (364..1314 at
+   * 1710px), and an 860px cap stopped the rules 118px short of it, which read as the
+   * header having a right margin nothing else on the page had.
    */
-  targetGroup: 'mt-[18px] max-w-[860px]',
+  targetGroup: 'mt-[18px]',
   /**
    * The block's name and its one control, on the line the hairline closes. The rule
    * lives on this row rather than on a divider of its own: one line, drawn once,
@@ -890,48 +897,39 @@ export const projectHeaderStyles = {
 } as const;
 
 /**
- * Quiet install stepper inside the flat header — every step named, none loud.
- * The dots ring in the page wash color (#F4F4FB — the header is backgroundless,
- * so the wash IS its surface) so the connector reads as passing behind them.
+ * 설치 진행 — one sentence, not a road (오너 13차 지시). The seven-dot stepper named
+ * every step so a first-time reader could see the whole route, and paid ~60px of
+ * header for it on every visit after the first. A reader who is mid-install wants
+ * one fact: where am I. The sentence says it, the route lives in the step cards
+ * below, and the whole dot/line/label palette went with the road.
  *
- * State lives in the DOTS, not in three shades of grey label. The first cut
- * spread it across six tints and four of them were invisible on the wash
- * (pending label 2.78:1, done label 4.22:1, both dots and both connectors under
- * 1.6:1) — the owner read the whole row as washed out, which is exactly what
- * those numbers say. So: two label tiers (current vs the rest), three dots
- * (grey ahead / primary behind / primary + a size step for here), one road.
+ * Position is carried by the NUMBERS, which is why they are the only thing that
+ * steps up a size: 14px in a 12px sentence, on the same 12/14 pair the block labels
+ * and values already use. The step's name rides the header's one tag vocabulary.
  */
 export const installStepperStyles = {
-  /** Capped where the road is, so this block and 설치 대상 close on one right edge. */
-  wrap: 'mt-[18px] max-w-[860px] pb-[18px]',
-  /** Left-anchored, capped width — 7 steps don't need the full column; ~120px
-      per step keeps the road compact while the longest label still fits.
-      10px under the block rule: the name is no longer touching the road. */
-  list: 'mt-2.5 grid w-full max-w-[860px] list-none p-0',
-  item: 'relative flex min-w-0 flex-col items-center gap-1.5',
-  track: 'relative flex h-[10px] w-full items-center justify-center',
-  lineBase: 'absolute top-1/2 -mt-px h-[2px]',
-  /** Road ahead — a 2px surface, so it answers to ΔE00 (14.9 from the wash), not 4.5:1. */
-  line: 'bg-[#B0B8C1]',
-  /** Road walked — the primary itself; the dots' wash ring punches it into beads. */
-  lineDone: 'bg-[#0050D6]',
-  dotBase: 'relative z-[1] flex-none rounded-full ring-[3px] ring-[#F4F4FB]',
-  /** Exactly one of the three applies — `cn` has no tailwind-merge, so each carries its own size. */
-  dotPending: 'h-2 w-2 bg-[#6B7684]',
-  dotDone: 'h-2 w-2 bg-[#0050D6]',
-  /** 10px, not 8: "you are here" should read before color does. */
-  dotCurrent: 'h-2.5 w-2.5 bg-[#0050D6]',
-  labelBase: 'px-1 text-center text-[12px] leading-[1.35]',
-  /** Walked and unwalked steps share one label color — the dots already say which is which. */
-  labelRest: 'font-medium text-[#4E5968]',
-  labelCurrent: 'font-semibold text-[#0050D6]',
+  wrap: 'mt-[18px] pb-[18px]',
   /**
-   * Verdict slot under 연결 테스트 — out of flow, hung from the bottom of the grid
-   * row so it clears labels that wrap at narrow widths and adds no height when the
-   * target never ran a test. It lands in the 18+32px gap the header already leaves
-   * above the first card, so nothing below moves either.
+   * `items-baseline`, because the counts run 14px inside a 12px sentence and a
+   * centred row would leave them sitting a pixel high. Wraps rather than truncates —
+   * the 연결 테스트 verdict rides this line now, and at 520px the two do not fit.
    */
-  tagSlot: 'absolute top-full left-1/2 mt-1.5 -translate-x-1/2 whitespace-nowrap',
+  summary: 'mt-2 flex flex-wrap items-baseline gap-x-2 gap-y-1 text-[12px] font-medium text-[#4E5968]',
+  /** 전체 **7**단계 중 **4**단계 — tabular, so the digits do not shift the line as the
+      target advances through the steps. */
+  count: 'text-[14px] font-semibold tabular-nums text-[#191F28]',
+  /** The step's name, in the same slate the path's tags use — one tag vocabulary per
+      header. Not blue: blue means "clickable" here, and this is a statement. */
+  stepTag:
+    'inline-flex items-center rounded-[6px] bg-[#EAEEF7] px-2 py-[3px] text-[12px] font-semibold text-[#2C3A55]',
+  /**
+   * Verdict slot for 연결 테스트. In flow now — with no road there is no step to hang
+   * it under, so it simply follows the step tag on the same line. That deletes the
+   * whole absolute-positioning problem it used to have: an out-of-flow box reflowed
+   * nothing, so it could silently overlap the first card if the body's `pt-8` ever
+   * tightened, and only a human looking at the screen would have caught it.
+   */
+  tagSlot: 'inline-flex items-center',
 } as const;
 
 /**
