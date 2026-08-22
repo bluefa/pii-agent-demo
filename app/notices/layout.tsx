@@ -1,9 +1,10 @@
 import { TopNav } from '@/app/components/layout/TopNav';
+import { getMeOrNull } from '@/lib/bff/current-user';
 
-export default function NoticesLayout({ children }: { children: React.ReactNode }) {
+export default async function NoticesLayout({ children }: { children: React.ReactNode }) {
   return (
     <>
-      <TopNav />
+      <TopNav user={await getMeOrNull()} />
       {children}
     </>
   );

@@ -5,13 +5,15 @@ import { useEffect, useRef, useState } from 'react';
 import { cn, navStyles } from '@/lib/theme';
 import { passRoutes } from '@/lib/routes';
 import { isAdminRole } from '@/lib/roles';
-import { getCurrentUser, type UserMeResponse } from '@/app/lib/api';
+import type { UserMeResponse } from '@/app/lib/api';
 
 /**
  * Current-user avatar in the TopNav (Google account-chip pattern):
  * a circular initial badge; clicking it opens a small card with name + email.
- * Renders nothing until /user/me resolves — auth itself is owned by the
- * IAP/SSO layer in front of the app, so a failed fetch just hides the chip.
+ * `user` is resolved on the server (TopNav) and handed down, so the chip is in
+ * the first paint instead of popping in. `null` means /user/me did not answer —
+ * auth itself is owned by the IAP/SSO layer in front of the app, so the chip
+ * just stays hidden.
  *
  * The card is also where 관리자 lives. It used to be a top-bar nav item shown to
  * everyone, which offered every non-admin a destination that only ever denied
@@ -19,24 +21,9 @@ import { getCurrentUser, type UserMeResponse } from '@/app/lib/api';
  * the visibility rule is `isAdminRole`, the same predicate the server gate in
  * `app/admin/layout.tsx` uses, so the menu can never offer what the gate blocks.
  */
-export const UserChip = () => {
-  const [user, setUser] = useState<UserMeResponse | null>(null);
+export const UserChip = ({ user }: { user: UserMeResponse | null }) => {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    getCurrentUser()
-      .then((me) => {
-        if (!cancelled) setUser(me);
-      })
-      .catch(() => {
-        // Unauthenticated / BFF error — keep the chip hidden.
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   useEffect(() => {
     if (!open) return;
