@@ -36,7 +36,12 @@ export const InstallationProcessProgressBar = ({
 
   return (
     <nav aria-label="설치 진행 단계" className={s.wrap}>
-      <span className={projectHeaderStyles.blockLabel}>설치 진행</span>
+      {/* The same head as 설치 대상 above (개선안 ㄷ): the header is two named blocks in
+          one grammar, and a rule under only one of them would make them look like two
+          different kinds of thing. */}
+      <div className={projectHeaderStyles.blockHead}>
+        <span className={projectHeaderStyles.blockLabel}>설치 진행</span>
+      </div>
       <ol
         role="list"
         className={s.list}

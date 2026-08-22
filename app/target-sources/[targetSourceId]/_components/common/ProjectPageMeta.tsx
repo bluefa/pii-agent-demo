@@ -12,6 +12,8 @@ import { TcHeaderTag } from '@/app/target-sources/[targetSourceId]/_components/c
 
 /** Ties the disclosure button to the block it opens (`aria-controls`). */
 const META_BLOCK_ID = 'target-source-meta';
+/** Names the 설치 대상 region (`aria-labelledby`) — the card never had a name. */
+const TARGET_LABEL_ID = 'target-source-scope-label';
 
 interface ProjectPageMetaProps {
   project: TargetSource;
@@ -85,25 +87,28 @@ const CopyButton = ({ value, label }: { value: string; label: string }) => {
  * eyebrow above 14px content), grouping by distance instead of rules, and the
  * quiet install stepper as the single statement of step position.
  *
- * The header itself is still chrome — it paints no plane. Its one card is the
- * 설치 대상 summary, which earns the surface because it is the only object here
- * rather than furniture: it names the target and folds the whole meta block
- * behind it (오너 5차 지시). The step cards below stay distinct on radius (20 vs
- * 10) and on having no stroke at all.
+ * The header paints no plane at all — 개선안 ㄷ (오너 11차 지시,
+ * `docs/ux/benchmark/target-source-summary-line.md`). It is two NAMED blocks under
+ * a path: 설치 대상, then 설치 진행. Both names run through `blockLabel`, both are
+ * closed by one hairline, and the grouping comes from that plus the 6/18px distance
+ * ratio the tokens already carried — no box, no fill, no shadow.
  *
- * 개선안 D: three tiers at rest — the heading, the 설치 대상 summary, the progress
- * band. The meta blocks fold into that summary, because the header ran 333px
- * before the first card and only those tiers answer anything a reader needs
- * before starting work. Everything else is reference: true all day, read once.
+ * The block that is gone was a card, and the card was the reason this never read as
+ * a summary. It declared three things where one was wanted (group, object,
+ * elevation), it covered 91% of the column it sat in, and it matched the step card's
+ * x, width and shadow — so the page's subject looked like one of the page's items.
+ * The owner's original complaint (오너 5차 지시, 「요약본처럼 보이게」) was asking for a
+ * NAME; three rounds of stronger surface never delivered one.
  *
- * The summary line is the disclosure's own head, not a control parked beside it:
- * the facts on it are exactly what identifies the block below, so they state the
- * folded content instead of hiding it (오너 3차 지시).
+ * 개선안 D: three tiers at rest — the path, the 설치 대상 block, the progress band.
+ * Reference material folds behind 설명, because the header ran 333px before the
+ * first card and only those tiers answer anything a reader needs before starting
+ * work. Everything else is true all day and read once.
  *
- * 시안 C splits WHERE from WHAT (오너 4차 지시, `docs/ux/benchmark/target-source-summary-line.md`):
- * the path names the target, the bar names the scope it installs into. That is
- * what let the provider and the account onto the folded line at all — the name
- * had been spending the bar's whole 542px budget, and a 50-char one wrapped it.
+ * 시안 C splits WHERE from WHAT (오너 4차 지시): the path names the target, the scope
+ * row names what it installs into. The path's own segments now carry kind tags
+ * (오너 12차 지시) — `/ DLV` identified nothing to anyone seeing this screen for the
+ * first time, and a path has no grammar for saying what kind of thing a segment is.
  */
 export const ProjectPageMeta = ({ project, identity, action }: ProjectPageMetaProps) => {
   const [metaOpen, setMetaOpen] = useState(false);
@@ -121,36 +126,54 @@ export const ProjectPageMeta = ({ project, identity, action }: ProjectPageMetaPr
     (id): id is typeof id & { value: string } => !!id.value && id.value.trim() !== '',
   );
   const autoInstall = identity.installMode === 'auto';
+  // Gate the cue on there being something behind it. Renaming it 「설명」 made the
+  // promise exact, and an exact promise over an empty box is worse than no cue at
+  // all. (SDU adds 연동 방식, though no SDU target reaches this header today.)
+  const hasFold = description !== '' || project.isSduType;
 
   return (
     <header className={cn(h.surface, h.inner)}>
-      {/* One card holding both tiers of the target's identity: the path says WHICH
-          target, the row under it says WHAT SCOPE the install runs in. They were
-          already stacked 8px apart — the path floating bare on the wash, the scope
-          in a strokes-only rectangle — so housing them costs 5px and is what makes
-          this read as a summary instead of a toolbar (오너 5차 지시). */}
-      <div className={h.targetGroup}>
-        <div className={h.titleRow}>
-          {/* 시안 C: the heading is the path. 「PII Agent 설치」 states the page's job at
-              the weight of a location instead of a 24px title, and the service name
-              gets the width it needs — clamped, because there is no contract maximum
-              on it (swagger `service_name` has no maxLength). The last segment is the
-              service code, the identifier the reader actually recognises. */}
-          <h1 className={h.crumb}>
-            PII Agent 설치
-            <span className={h.crumbSep} aria-hidden="true">
-              /
-            </span>
-            <span className={h.crumbName} title={serviceTitle}>
-              {serviceTitle}
-            </span>
-            <span className={h.crumbSep} aria-hidden="true">
-              /
-            </span>
-            <span className={h.crumbHere}>{project.serviceCode}</span>
-          </h1>
-          <div className="flex flex-wrap items-center justify-end gap-2">
-            {action}
+      {/* Page chrome: the job, and which service it is being done for. WHAT it is
+          being installed into is the named block below, not part of this line. */}
+      <div className={h.titleRow}>
+        {/* 시안 C: the heading is the path. 「PII Agent 설치」 states the page's job at
+            the weight of a location instead of a 24px title, and the service name
+            gets the width it needs — clamped, because there is no contract maximum
+            on it (swagger `service_name` has no maxLength).
+
+            Both of the segments that identify the service now name their own kind
+            (오너 12차 지시). A reader who has never seen this screen cannot tell a
+            service code from anything else in a path, and `/ DLV` gave them nothing
+            to go on; the tag says what the token is before they have to guess. */}
+        <h1 className={h.crumb}>
+          PII Agent 설치
+          <span className={h.crumbSep} aria-hidden="true">
+            /
+          </span>
+          <span className={h.crumbKind}>서비스</span>
+          <span className={h.crumbName} title={serviceTitle}>
+            {serviceTitle}
+          </span>
+          <span className={h.crumbSep} aria-hidden="true">
+            /
+          </span>
+          <span className={h.codeChip}>
+            <span className={h.codeChipLabel}>서비스 코드</span>
+            <span className={h.codeChipValue}>{project.serviceCode}</span>
+          </span>
+        </h1>
+        {action}
+      </div>
+
+      {/* 설치 대상 — a named region, which is the whole of 개선안 ㄷ. The card it
+          replaces grouped these facts visually and named them nowhere, so nothing
+          but position said what they were. */}
+      <section aria-labelledby={TARGET_LABEL_ID} className={h.targetGroup}>
+        <div className={h.blockHead}>
+          <span id={TARGET_LABEL_ID} className={h.blockLabel}>
+            설치 대상
+          </span>
+          {hasFold && (
             <button
               type="button"
               onClick={() => setMetaOpen((open) => !open)}
@@ -158,13 +181,13 @@ export const ProjectPageMeta = ({ project, identity, action }: ProjectPageMetaPr
               aria-controls={META_BLOCK_ID}
               className={h.metaCue}
             >
-              설치 대상 정보
+              설명
               <ChevronDownIcon
                 className={cn(h.metaToggleIcon, metaOpen && h.metaToggleIconOpen)}
                 aria-hidden="true"
               />
             </button>
-          </div>
+          )}
         </div>
 
         {/* The scope the install runs in: the provider as the subject, every
@@ -238,19 +261,20 @@ export const ProjectPageMeta = ({ project, identity, action }: ProjectPageMetaPr
           )}
         </div>
 
-        {metaOpen && (
+        {metaOpen && hasFold && (
           <div id={META_BLOCK_ID} className={h.targetBody}>
+            {/* No 설명 eyebrow: the cue that opened this box is the word 설명, and a
+                body does not re-title itself. */}
             {description !== '' && (
               <div className={h.block}>
-                <div className={h.blockLabel}>설명</div>
                 <p className={h.descText}>{description}</p>
               </div>
             )}
 
             {/* No 클라우드 정보 group any more (오너 6·7차 지시): the identifiers, their
-                copy buttons and the install mode are all on the card, so the group
-                had become a second printing of the same facts. What is left behind
-                the fold is what the card cannot say on a line — the description, and
+                copy buttons and the install mode are all on the scope row, so the
+                group had become a second printing of the same facts. What is left
+                behind the fold is what a line cannot say — the description, and
                 SDU's one-sentence 연동 방식. */}
             {project.isSduType && (
               <div className={h.block}>
@@ -260,7 +284,7 @@ export const ProjectPageMeta = ({ project, identity, action }: ProjectPageMetaPr
             )}
           </div>
         )}
-      </div>
+      </section>
 
       {/* #661 P5: the latest connection-test verdict rides its own step, not the
           page title. */}

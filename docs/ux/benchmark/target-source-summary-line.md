@@ -276,3 +276,127 @@ AWS 브랜드 마크는 심볼이 아니라 **워드마크**다 — 그림에 �
 - **P7(가이드 레일 Agent 알약 AA 미달)** 미수정 — 이 PR 범위 밖, 별도 지시 필요.
 - **`ProjectPageMeta` 의 SDU 분기는 여전히 도달 불가** — `ProjectDetail` 이 `SduUnsupportedNotice` 로
   먼저 가른다. 테스트만 그 경로를 지킨다.
+
+---
+
+## 4차 라운드 — 벽 없는 그룹 (2026-08-22, 개선안 ㄷ)
+
+대상: `/pass/target-sources/{id}` 헤더 전체. 오너 지시 10·11·12.
+아티팩트: [흔들리는 축](https://claude.ai/code/artifact/912cc12a-c2c4-41d9-9e46-271279a040c1) ·
+[벽 없는 그룹](https://claude.ai/code/artifact/a0b1ce7f-d44b-4964-b4f3-08416dd4eeb1) · PR #747.
+
+### 발주 경위
+
+지시 10 *"카드 밑 「설치 진행」 글자가 카드 안 글자보다 왼쪽이라 불안하다 + 카드가 Summary 느낌이 약하다"*
+→ 1차 벤치마크에서 개선안 A~E 도출, 오너가 **A·D·E** 를 지시.
+착수 직전 지시 11 *"Summary를 카드로 선언할 필요가 있어? Layout으로 바닥에 뿌리면 안 되나?"* 로 재발주.
+**지시 11 이 A·E 를 대체한다** — 둘 다 카드가 남는 전제였다. **D(단일 축)만 그대로 살아남았다.**
+
+### 진단 (실측, Chrome innerWidth 1710, AWS #1008)
+
+| # | 발견 | 근거 등급 |
+|---|---|---|
+| F1 | 카드 851px / 헤더 열 931px = **91%**. 담는 뷰만큼 커진 상자는 분리를 못 말한다(Apple HIG) | 수치 위반 |
+| F2 | 한 화면에 판 방언 **4종** — r10+선+그림자 / r20+그림자 / r12+선 / r12+면+선. 뒤 둘은 카드 안의 카드 | 수치 위반 |
+| F3 | 요약 카드와 스텝 카드가 **같은 x(336)·같은 폭(851)·같은 그림자**. 반경만 다르다 = 형제로 읽힌다 | UX 원칙 |
+| F4 | NN/g 정의(트럼프 카드 크기 + **링크됨**)로 이 판은 카드가 아니다 | UX 원칙 |
+| F5 | 사실 잉크 281px / 안쪽 폭 817px → **536px(66%) 빈칸**. 판이 아니라 내용량 문제 | 수치 위반 |
+| F6 | 판을 지우면 텍스트 10종 중 **`kvLabel` 하나만** AA 미달 | 수치 위반 |
+| F7 | 카드 안 `<button>` 2개는 사실의 어포던스이지 카드의 행위가 아니다 | 제안 |
+| F8 | 축 3개: 상자 336 / 카드 글 353 / 스텝 카드 글 364 | 수치 위반 |
+
+### ★ 카드는 대비를 떠받치고 있었다 (F6)
+
+| 토큰 | 색 | 흰 면 | 워시 `#F4F4FB` |
+|---|---|---|---|
+| `crumb` · `blockLabel` · `modeNote` · `descText` | `#4E5968` | 7.11 | 6.50 |
+| `crumbHere` · `summaryValue` | `#191F28` | 16.56 | 15.13 |
+| `metaCue` | `#0050D6` | 6.73 | 6.15 |
+| **`kvLabel`** | `#6B7684` | 4.62 | **4.22 미달** |
+
+교체 후보 실측: `#68717F` 4.51 · `#667085` 4.54 · `#656E7C` 4.71.
+**`#68717F` 채택** — AA 를 넘기는 최소 어두워짐이고 `blockLabel` 과의 계층 간격을 가장 많이 남긴다
+(6.50:4.51 = 1.44배). ⛔ 더 밝게 갈 곳이 없다.
+
+### 채택: 개선안 ㄷ — 이름표 + 헤어라인
+
+5차 지시(「요약본처럼 보이게」)가 기각한 것은 **이름 없는 선**이었지 **이름 있는 무테**가 아니었다.
+필요한 건 벽이 아니라 **이름**이었고, 헤더엔 이미 같은 문법의 이름(`blockLabel` 「설치 진행」)이 있었다.
+→ [[feedback_rejection_expires_with_its_premise]]
+
+- `targetGroup` 에서 `bg-white`·`border-[#D6DEEC]`·`rounded-[10px]`·`tossShadow` 전부 제거.
+  남은 것은 `mt-[18px] max-w-[860px]`.
+- 「설치 대상」 을 `blockLabel` 로 세우고 `blockHead`(이름 + 큐 + 하단 1px `#E1E4EB`) 신설.
+  **`InstallationProcessProgressBar` 의 「설치 진행」 도 같은 `blockHead` 를 쓴다** —
+  한쪽에만 선이 있으면 두 블록이 다른 종류로 읽힌다.
+- `<section aria-labelledby>` — **카드에는 없던 접근성 이름**. 테스트가
+  `getByRole('region', { name: '설치 대상' })` 로 조회한다(예전엔 `[class*="bg-white"]`).
+- 큐 이름 「설치 대상 정보」 → **「설명」**, 그리고 설명이 비면 **큐 자체가 사라진다**.
+  접힘 안의 「설명」 라벨은 삭제 — 큐가 이미 그 이름이다.
+- **단일 축**: `inner` 를 `px-10` → **`px-[68px]`**(40 열 + 28 스텝 카드 키라인).
+  블록들의 자체 가로 패딩은 전부 제거. 실측 결과 경로·설치 대상·설치 진행·스텝 카드 글이 **전부 x=364**.
+- 두 블록 모두 `max-w-[860px]`(스테퍼 도로의 기존 캡) → 헤어라인 두 줄이 **x=1224 에서 같이 끝난다**.
+
+### 경로 문법 — 마디마다 종류를 말한다 (지시 12)
+
+`PII Agent 설치 / [서비스] {이름} / [서비스 코드 {코드}]`
+
+- 경로는 값만 말하고 **그 값이 무슨 종류인지 말할 문법이 없다**. `/ DLV` 는 처음 보는 사람에게 아무것도
+  아니었다. 태그가 그걸 한다.
+- `codeChip`/`codeChipLabel`/`codeChipValue` 는 **`dddad0da` 에서 지웠던 토큰을 복원**한 것 —
+  라벨+값 한 칩이라는 모양 그대로다. `crumbKind` 는 같은 껍데기의 라벨 전용 변형.
+- ⛔ **복원하지 않은 값 하나**: `codeChip` 의 원래 fill `#E9EEF9` 는 현행 `modeChipAuto` 의 `#EAEEF7` 과
+  **ΔE 1.08**(둘 다 L* 94.0) — 눈으로 구분 불가능한 색을 토큰 두 개로 들일 이유가 없다.
+  껍데기는 `#EAEEF7` 하나, 두 칩은 **값의 mono** 로 갈린다.
+- `crumbHere` 삭제(코드가 칩이 되면서 고아).
+
+### 레퍼런스 (13건 전부 이 세션에서 확인)
+
+| # | 출처 | 빌린 것 |
+|---|---|---|
+| 01 | [Cloudscape Container](https://cloudscape.design/components/container/) | *"Don't use containers simply for page hierarchy or for general page-layout purposes."* — 그리고 반대편 인용도 같은 페이지에 |
+| 02 | [Apple HIG Boxes](https://developer.apple.com/design/human-interface-guidelines/boxes) | 상자/담는 뷰 **비율**로 판정 (F1) |
+| 03 | [GitLab Pajamas Border](https://design.gitlab.com/product-foundations/border/) | *"boxes within boxes"* 금지 + **반복·보편 요소는 무테** (F2) |
+| 04 | [Atlassian Elevation](https://atlassian.design/foundations/elevation) | 여백 < 테두리 < 그림자 비용 사다리 |
+| 05 | [NN/g Cards](https://www.nngroup.com/articles/cards-component/) | 카드 자격 = 크기 + **링크** (F4) |
+| 06 | [NN/g Common Region](https://www.nngroup.com/articles/common-region/) | 경계는 근접을 **이긴다** — 그래서 6/18px 리듬이 안 읽혔다 |
+| 07 | [NN/g Proximity](https://www.nngroup.com/articles/gestalt-proximity/) | 이미 보유한 1:3 거리비를 그룹 경계로 |
+| 08 | [Cloudscape Layout](https://cloudscape.design/foundation/visual-foundation/layout/) | *"…or directly laying the content on the background of the page."* — 오너 제안이 정식 선택지 |
+| 09 | [Material 3 Layout](https://m3.material.io/foundations/layout/understanding-layout/parts-of-layout) | 그리드 자체가 그룹화 장치 |
+| 10 | [USWDS Card](https://designsystem.digital.gov/components/card/) | *"Standalone content. Consider an `aside`…"* |
+| 11 | [Cloudscape Details page](https://cloudscape.design/patterns/resource-management/details/details-page/) | **반증** — 요약 컨테이너 필수 + 이름 필수. 다만 거기서도 **경로는 컨테이너 밖** |
+| 12 | [Cloudscape Key-value pairs](https://cloudscape.design/components/key-value-pairs/) | **반증** — 속성 목록은 레이아웃이지만 예제는 늘 컨테이너 안. 1~4열 규칙은 F5 용 |
+| 13 | [Primer Card](https://primer.style/product/components/card/) | **반증** — 카드가 링크일 필요 없음. "카드는 행위 단위" 는 우리 저장소의 선택이지 업계 합의가 아니다 |
+
+### 실측 (innerWidth 1710, AWS #1008, 접힘)
+
+| | 헤더 높이 | 첫 카드 y |
+|---|---|---|
+| 이전 (카드) | 216px | 312 |
+| 이후 (개선안 ㄷ) | **252px** | **348** |
+
+**+36px**. 내역: 경로 칩 라인박스 +6 · 「설치 대상」 머리(라벨 18 + pb 6 + 선 1) +25 ·
+「설치 진행」 머리 pb+선 +7 · `targetGroup` mt 12→18 +6 · 스테퍼 `list` mt 6→10 +4 ·
+카드 `pt-3`·`pb-3` 제거 −12. **이름과 태그의 값이다** — 줄이고 싶으면 레버는 헤어라인 한 줄을 빼는 것.
+
+Azure 1003 254px · IDC 1026 230px. 열 931·782·620·520px 전부 넘침 0.
+
+### 뮤테이션 검증
+
+| 되돌린 것 | 실패 |
+|---|---|
+| `kvLabel` → `#6B7684` | design-guard 1건 (워시 쌍) |
+| 경로를 section 안으로 | 5건 (개선안 ㄷ 핀 포함) |
+| `aria-labelledby` 제거 | 16건 |
+
+### 남은 것
+
+- **F5(66% 빈칸) 미해소** — 다섯 안 모두 못 푼다. 내용량 문제라 ref 12 의 2열 배치나
+  1차 라운드 개선안 C(접힘 몸통 채우기)로만 풀린다. 별도 발주.
+- ⛔ **침강면(시안 ㅁ) 재제안 금지** — 세 번째 배경을 들이면 `design-guard.test.ts` 171쌍이
+  통째로 다시 열린다. 지금 관리 중인 바닥은 흰 면과 워시 둘뿐.
+- 서비스명·코드를 블록 안으로 내리는 안은 지시 12 로 **취소**됨(경로 유지 + 태그).
+  내릴 경우 필요했던 가드는 기록해 둔다: `target-source-response.ts:78` 이
+  `serviceName ... || serviceCode` 로 폴백하므로 두 행이 같은 값을 찍을 수 있다.
+- **`document.title` 은 여전히 루트 레이아웃의 "PII Agent" 고정값** — 이 경로엔
+  `generateMetadata` 가 없다. 대상별 탭 제목이 필요하면 `PipelineDetailView.tsx:252` 방식이 선례.

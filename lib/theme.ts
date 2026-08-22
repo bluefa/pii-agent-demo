@@ -652,19 +652,29 @@ export const numericFeatures = {
  * - Weight ceiling is 600. Nothing here is a display size any more: the page's
  *   identity is a 12px path, so hierarchy comes from size (12→14px) and color
  *   (#4E5968→#191F28) only.
- * - Contrast is measured on the card's white, not on the wash, now that the card
- *   holds every run of text in this group. The old wash rule (#6B7684 is 4.62:1
- *   on white but 4.22:1 on #F4F4FB) survives only as the reason these tints run
- *   a step darker than white alone would need — do not read the extra headroom
- *   as licence to lighten them. lib/design-guard.test.ts pins every pair.
+ * - Contrast is measured on the page wash (#F4F4FB) again — the card that briefly
+ *   put this whole group on white is gone (see `targetGroup`). Re-measuring all ten
+ *   tints across the move found exactly ONE that could not follow: `kvLabel` at
+ *   #6B7684 is 4.62:1 on white and 4.22:1 on the wash, so the card had quietly been
+ *   load-bearing for it. Everything else cleared AA on both.
+ *   lib/design-guard.test.ts pins every pair, on the wash.
  */
 export const projectHeaderStyles = {
   /** Kept as a named seam for future re-tints — C3 renders no plane at all. */
   surface: '',
-  /** Horizontal padding tracks the step-card column (px-10) so edges align. */
-  inner: 'px-10 pt-[18px]',
-  /** Inside the summary card now, as its top tier — see `targetGroup`. */
-  titleRow: 'flex items-start justify-between gap-4 px-4',
+  /**
+   * 40 + 28: the column edge, then the keyline the step cards below already type to
+   * (`px-[28px]` inside a card that starts at this column's x).
+   *
+   * One number where there were three (오너 10차 지시). The header used to put its box
+   * at x=336, the card's text at 353 (px-4 + the card's own border) and the stepper's
+   * text at 336 with no inset at all, while every step card below typed at 364 — so
+   * the eye read a wobble down the left edge of the page. Nothing in this header
+   * carries its own horizontal padding any more; the column provides it once.
+   */
+  inner: 'px-[68px] pt-[18px]',
+  /** The path and any page action. No plane under it — see `targetGroup`. */
+  titleRow: 'flex items-start justify-between gap-4',
   /**
    * 시안 C — the page's identity is a PATH, not a title. 「PII Agent 설치」 keeps its
    * place as the first segment instead of a 24px heading: it is true all day and is
@@ -679,13 +689,35 @@ export const projectHeaderStyles = {
   crumbSep: 'flex-none text-[#A6ADBB]', // design-exempt: decorative path glyph, the labels around it carry the reading
   crumbName: 'max-w-[280px] truncate',
   /**
-   * The service code, not the target-source id (오너 5차 지시). Both identify the
-   * row, but only one of them is the identifier the service owner already knows —
-   * `#1008` is a database key that appears nowhere in their world, and it was
-   * costing the path's most emphatic position. Moving it here also empties the
-   * fact row's third slot, which is why the summary line lost its code chip.
+   * 「서비스」 — the kind marker in front of the name (오너 12차 지시). A path segment
+   * states a value and says nothing about what KIND of value it is, which is fine for
+   * a location a reader recognises and useless for one they do not: `/ DLV` told a
+   * first-time reader nothing at all. Naming the kind is the one thing a breadcrumb
+   * cannot do and a tag can.
+   *
+   * The same shell as `codeChip` below, minus the value — one slate vocabulary for the
+   * whole line. Slate, not blue: in this palette blue means "clickable" and nothing on
+   * this heading is.
    */
-  crumbHere: 'flex-none font-semibold text-[#191F28]',
+  crumbKind:
+    'inline-flex flex-none items-center rounded-[6px] bg-[#EAEEF7] px-2 py-[3px] text-[12px] font-medium text-[#55617A]',
+  /**
+   * The service code as a tag, carrying its own label (오너 12차 지시). Restored from
+   * the token this file held until `dddad0da`, when the code moved into the path's
+   * last segment and emptied the slot — same radius, same padding, same label and
+   * value tints, so this is the old chip and not a new one.
+   *
+   * The one thing that did NOT come back is its own fill. `#E9EEF9` measures ΔE 1.08
+   * from `modeChipAuto`'s `#EAEEF7` and both sit at L* 94.0 — restoring it would have
+   * put two indistinguishable slates on one header behind two tokens. The two chips
+   * separate on the value's mono, which is the difference that carries meaning.
+   *
+   * `items-baseline`, so the 12px label and the mono value sit on one line however
+   * the mono face's metrics differ from the body face.
+   */
+  codeChip: 'inline-flex flex-none items-baseline gap-1.5 rounded-[6px] bg-[#EAEEF7] px-2 py-[3px]',
+  codeChipLabel: 'text-[12px] font-medium text-[#55617A]',
+  codeChipValue: 'font-mono text-[12px] font-semibold text-[#2C3A55]',
   /**
    * 시안 2 (P2): task-first H1 — the service identity demotes to this line, and
    * that line is now the disclosure itself: the facts on it ARE the summary of
@@ -699,28 +731,52 @@ export const projectHeaderStyles = {
    * it installs into. Pulling the path INSIDE the card is what bought those two
    * tiers for +5px: it was already sitting 8px above on the wash, unhoused.
    *
-   * Stroke and shadow are each one rung up from the first cut (오너 지시), taken
-   * off the ladders this repo already owns rather than eyeballed: #E1E4EB →
-   * #D6DEEC on the blue-leaning neutral ramp, none → `tossShadow.sm` — the same
-   * elevation as the step cards below, which the 10px radius and the stroke keep
-   * it distinct from (they run 20px and borderless). Hover takes the shadow to
-   * `tossShadow.md` and nothing else: a fill would put every tier here on a new
-   * surface and every pinned contrast pair would have to be re-measured.
+   * 개선안 ㄷ — the plane is gone (오너 11차 지시). A card declares three things at
+   * once: this is a group, this is an object, this is above the ground. Only the
+   * first was ever wanted here, and the other two were doing damage. At 851px in a
+   * 931px column the box covered 91% of what contained it, which is the size at
+   * which a box stops separating anything (Apple HIG); and it shared the step card's
+   * x, its width and its shadow, differing only on radius — so the page's SUBJECT
+   * read as one of the page's ITEMS. That is why three rounds of raising the stroke,
+   * the shadow and the fill never made it read as a summary: the surface was not too
+   * weak, it was saying the wrong thing.
+   *
+   * What the owner's original complaint actually wanted was a NAME, and the header
+   * already had one in this exact grammar — 「설치 진행」. So this block gets its
+   * sibling: `blockLabel` above, one hairline under it, and the 6/18px distance ratio
+   * these tokens already carried doing the grouping. It is a `<section>` with an
+   * accessible name, which is more than the card ever had.
+   *
+   * 18px from the path above — the block separation this file already uses, and the
+   * `18 : 6` ratio is now the only thing grouping these tiers. Capped at the stepper's
+   * own 860px so both blocks close on one right edge; wider, the rule ran 950px to
+   * hold a 12px cue and read as a table header rather than a named block.
    */
-  targetGroup:
-    'rounded-[10px] border border-[#D6DEEC] bg-white pt-3 shadow-[0_1px_2px_rgba(17,24,39,0.04),0_4px_16px_-8px_rgba(17,24,39,0.06)] transition-shadow duration-150 hover:shadow-[0_1px_3px_rgba(17,24,39,0.06),0_8px_20px_-8px_rgba(17,24,39,0.12)] motion-reduce:transition-none',
+  targetGroup: 'mt-[18px] max-w-[860px]',
+  /**
+   * The block's name and its one control, on the line the hairline closes. The rule
+   * lives on this row rather than on a divider of its own: one line, drawn once,
+   * marking where the named block starts — not a second box.
+   *
+   * Shared with 설치 진행 (`InstallationProcessProgressBar`), which is the point: the
+   * header is two blocks in one grammar, and a rule under only one of them would make
+   * them look like different kinds of thing.
+   */
+  blockHead: 'flex items-center justify-between gap-4 border-b border-[#E1E4EB] pb-1.5',
   /**
    * Block eyebrow (설명 / 설치 진행) — the stronger of the two label tiers, always
    * on a line of its own above the content it names.
    *
    * Neutral, not lavender (오너 7차 지시). The old pair bought its hierarchy from
-   * hue, so two labels differed by colour FAMILY rather than by rank; on the
-   * card's white the plain ramp says the same thing in tones this product already
-   * speaks. 7.11:1 here against 4.62:1 on `kvLabel` — a 1.54x step, near enough
-   * the 1.59x the lavender carried, with the quieter one deliberately closest to
-   * the AA floor. A re-tint keeps BOTH the step and the floor, measured on white,
-   * which is what the card is. The 0.02em tracking is the second signal, and it
-   * matters more now that hue is not one.
+   * hue, so two labels differed by colour FAMILY rather than by rank; the plain ramp
+   * says the same thing in tones this product already speaks. 6.50:1 here against
+   * 4.51:1 on `kvLabel` — a 1.44x step, measured on the wash, which is what this
+   * block stands on again. A re-tint keeps BOTH the step and the floor. The 0.02em
+   * tracking is the second signal, and it matters more now that hue is not one.
+   *
+   * This token names 「설치 대상」 as well as 「설명」 and 「설치 진행」 — the block name
+   * that replaced the card is the same tier as the block names beside it, which is
+   * the whole reason the header now reads as named blocks (오너 11차 지시).
    */
   blockLabel: 'whitespace-nowrap text-[12px] font-semibold tracking-[0.02em] text-[#4E5968]',
   block: 'mt-[18px]',
@@ -734,12 +790,20 @@ export const projectHeaderStyles = {
   providerGloss: 'text-[#4E5968]',
   providerGlossBar: 'mx-1.5 text-[#C6CCD6]', // design-exempt: decorative separator glyph, not text
   divider: 'w-px flex-none self-stretch bg-[#E4E5EE]',
-  /** Field name — every row of the card's fact column runs through here: AWS
-      Account ID, GCP Project ID, Azure Subscription/Tenant ID, 설치 모드. The
-      quieter of the two label tiers at 4.62:1 on the card, and the one sitting
-      nearest the AA floor; see blockLabel for the pair. Semibold like blockLabel,
-      so the two tiers separate on colour and tracking, never on weight. */
-  kvLabel: 'whitespace-nowrap text-[12px] font-semibold text-[#6B7684]',
+  /** Field name — every row of the fact column runs through here: AWS Account ID,
+      GCP Project ID, Azure Subscription/Tenant ID, 설치 모드. The quieter of the two
+      label tiers and the one sitting nearest the AA floor; see blockLabel for the
+      pair. Semibold like blockLabel, so the two tiers separate on colour and
+      tracking, never on weight.
+
+      #6B7684 → #68717F is the whole price of dropping the card (오너 11차 지시): the
+      old tint was 4.62:1 on the card's white and **4.22:1 on the wash**, the one
+      token of ten that could not make the move. This is the smallest darkening that
+      clears AA (4.51:1), chosen over the safer #656E7C because it keeps the widest
+      step from blockLabel — the two tiers have only colour and tracking left to
+      separate on, and 0.01 of AA headroom buys 0.06 of that step. ⛔ Do not lighten:
+      there is no room under it. */
+  kvLabel: 'whitespace-nowrap text-[12px] font-semibold text-[#68717F]',
   /** The 설치 모드 value — chip and its gloss on one baseline, in a grid cell. */
   modeRow: 'flex items-center',
   /** Copy affordance — hover/focus reveal, so idle rows show only the value. */
@@ -750,23 +814,20 @@ export const projectHeaderStyles = {
   modeChipManual: 'inline-flex items-center rounded-[6px] border border-amber-200 bg-amber-50 px-2 py-0.5 text-[12px] font-semibold text-amber-800',
   modeNote: 'ml-2 whitespace-nowrap text-[12px] font-medium text-[#4E5968]',
   /**
-   * 「설치 대상 정보」 disclosure (개선안 D). The meta blocks behind it are reference —
-   * read once at the start, checked occasionally after — while the header they sat
-   * in is the thing standing between the reader and the work. Folded, the header
-   * runs 195px instead of 333px and the first card starts at y=291 instead of 429.
-   *
-   * The card's whole scope area: the provider on the left as the subject, every
+   * The block's whole scope area: the provider on the left as the subject, every
    * identifier it owns listed to its right. Plain content, not a press — the
    * identifiers carry copy buttons and nothing interactive may sit inside a
-   * `<button>`, so the disclosure is the cue up on the title row instead.
+   * `<button>`, so the disclosure is the cue up on the block head instead.
    *
    * Centered, not top-aligned (오너 9차 지시): the mark is the subject of the whole
    * fact block, not a bullet on its first line, and `items-start` was reading it as
    * the latter — 28px pinned to the top of a 50px stack left it 11px high. The
    * divider opts out with `self-stretch`, and the stack is the tallest item, so this
    * moves the mark and nothing else.
+   *
+   * No horizontal padding of its own any more — `inner` owns the one keyline.
    */
-  summaryRow: 'flex items-center gap-3 px-4 pb-3 pt-1.5',
+  summaryRow: 'flex items-center gap-3 pb-1 pt-2.5',
   /**
    * The provider cell — a bare mark for the branded clouds, mark plus name at the
    * house's 6px for IDC and SDU. Explicit `flex-none` at the call site, never baked
@@ -809,18 +870,23 @@ export const projectHeaderStyles = {
   summaryValueMono: 'font-mono tracking-[-0.02em] tabular-nums',
   /**
    * Blue, because in this palette blue is the one colour that means "clickable" —
-   * and it names what opens, which the chevron alone cannot. It rides the title
-   * row now: the scope below it holds copy buttons, so the scope cannot itself be
-   * the press, and a card's one control belongs beside the card's title anyway.
+   * and it names what opens, which the chevron alone cannot. It rides the block
+   * head: the scope below it holds copy buttons, so the scope cannot itself be the
+   * press, and a named block's one control belongs beside the name.
+   *
+   * The name is 「설명」, not 「설치 대상 정보」 (오너 11차 지시). Three rounds of moving
+   * essentials onto the face emptied the fold down to a single paragraph, and a cue
+   * that promises 「정보」 over one paragraph is a cue that overstates its body. It is
+   * also gated now: no description, no cue — an empty disclosure is worse than none.
    */
   metaCue:
     'flex flex-none items-center gap-1 rounded-[6px] text-[12px] font-semibold text-[#0050D6] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0050D6]/40',
   metaToggleIcon: 'h-3.5 w-3.5 transition-transform motion-reduce:transition-none',
   metaToggleIconOpen: 'rotate-180',
-  /** Hairline, not a gap: the body is the same object as the head above it. Left
-      a rung below the card's own stroke — matched, the edge and the inner rule
-      read as two stacked boxes instead of one card with a fold in it. */
-  targetBody: 'border-t border-[#E1E4EB] px-4 pb-4',
+  /** Distance, not a second rule: the block already draws one line under its name,
+      and a rule here would put the fold in a box of its own — which is the habit
+      this whole round was about. `block` inside supplies the 18px. */
+  targetBody: 'pb-1',
 } as const;
 
 /**
@@ -836,10 +902,12 @@ export const projectHeaderStyles = {
  * (grey ahead / primary behind / primary + a size step for here), one road.
  */
 export const installStepperStyles = {
-  wrap: 'mt-[18px] pb-[18px]',
+  /** Capped where the road is, so this block and 설치 대상 close on one right edge. */
+  wrap: 'mt-[18px] max-w-[860px] pb-[18px]',
   /** Left-anchored, capped width — 7 steps don't need the full column; ~120px
-      per step keeps the road compact while the longest label still fits. */
-  list: 'mt-1.5 grid w-full max-w-[860px] list-none p-0',
+      per step keeps the road compact while the longest label still fits.
+      10px under the block rule: the name is no longer touching the road. */
+  list: 'mt-2.5 grid w-full max-w-[860px] list-none p-0',
   item: 'relative flex min-w-0 flex-col items-center gap-1.5',
   track: 'relative flex h-[10px] w-full items-center justify-center',
   lineBase: 'absolute top-1/2 -mt-px h-[2px]',
