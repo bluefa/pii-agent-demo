@@ -53,6 +53,12 @@ const ConsoleTh = ({
   resize?: ColumnResize;
 }) => (
   <th
+    // The handle below is a CHILD of this cell and carries its own aria-label, which the
+    // accessible-name computation folds into the header's name — measured:
+    // "종류" becomes "종류종류 열 너비 조절", and every cell in the column is announced
+    // with that as its header. Naming the cell explicitly stops the subtree from being
+    // walked. (⛔ Do not "simplify" this away as duplicating the visible label.)
+    aria-label={column.label}
     className={cn(idcStyles.table.approvalHeaderCell, 'relative', column.headClassName)}
     style={{ width: consoleColumnWidth(column, resize) }}
   >

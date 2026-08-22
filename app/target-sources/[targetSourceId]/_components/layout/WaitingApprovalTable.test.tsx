@@ -713,17 +713,27 @@ describe('WaitingApprovalTable', () => {
     // own 종류 column. Round 9 (owner): the column sits right of Resource ID and the value
     // is plain text — the chip form is retired.
     it('seats the kind after Resource ID as plain text on the confirmed variant', () => {
-      // Wired the way the caller wires it: the predicate runs over the roster and the answer
-      // comes IN, so this covers `hasKindColumn` and the column's placement in one pass.
+      // Wired the way the caller wires it — predicate over the roster, answer passed IN, and
+      // a REAL resize instance. The resize instance is what makes the name assertion mean
+      // anything: the handle is a child of the `<th>` and carries its own aria-label, so
+      // without it this query passed on a header that production never renders
+      // ("종류종류 열 너비 조절"). `ConsoleTh` names the cell explicitly to stop that.
       const rows = [clusterRow()];
-      render(
-        <WaitingApprovalTable
-          variant="confirmed"
-          resources={rows}
-          kindColumn={hasKindColumn(rows)}
-        />,
-      );
+      const Harness = () => {
+        const columns = useColumnResize({ clampToContent: true });
+        return (
+          <WaitingApprovalTable
+            variant="confirmed"
+            resources={rows}
+            kindColumn={hasKindColumn(rows)}
+            columns={columns}
+          />
+        );
+      };
+      render(<Harness />);
+      expect(screen.getAllByRole('separator').length).toBeGreaterThan(0);
       expect(screen.getByRole('columnheader', { name: '종류' })).toBeTruthy();
+      expect(screen.getByRole('columnheader', { name: 'Resource ID' })).toBeTruthy();
       const kindCell = screen.getByText('RDS Cluster').closest('td');
       const row = kindCell?.closest('tr');
       // name → id → kind: third cell, not the leading anchor slot.
