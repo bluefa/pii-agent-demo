@@ -2,7 +2,7 @@
 
 import { CopyButton } from '@/app/components/ui/CopyButton';
 import { IdentifierTip, Tooltip } from '@/app/components/ui/Tooltip';
-import { cn, textColors } from '@/lib/theme';
+import { cn, idcStyles, textColors } from '@/lib/theme';
 
 interface ResourceIdCellProps {
   value: string;
@@ -19,7 +19,13 @@ interface ResourceIdCellProps {
   sizeClass?: string;
   /** Covered-clip grammar (confirmed tables, round 4): cut the id mid-letter at the box edge
    *  instead of drawing an ellipsis. The … says "shortened here"; the cut says "continues
-   *  underneath", matching cells whose overflow the column stroke visibly covers. */
+   *  underneath", matching cells whose overflow the column stroke visibly covers.
+   *  Round 11: this mode also re-seats the copy button as a hover OVERLAY. The flex row
+   *  reserved tail space for it, which made the id's cut land ~46px before the boundary
+   *  while every other covered cell cuts AT it — the next column read as covering the id
+   *  deeper than its neighbours. Now the TD owns the cut (like the Resource Name cell),
+   *  the button anchors to the boundary, and the tail yields under it via
+   *  `hardClipCopyFade` instead of via layout. */
   hardClip?: boolean;
 }
 
@@ -36,13 +42,24 @@ export const ResourceIdCell = ({
   sizeClass = 'text-[12px]',
   hardClip = false,
 }: ResourceIdCellProps) => (
-  <span className={cn('group/resid inline-flex items-center gap-1.5 min-w-0', maxWidthClass)}>
+  <span
+    className={cn(
+      'group/resid min-w-0',
+      // hardClip: block + relative, no gap column — the text owns the full run to the
+      // boundary and the button positions against the boundary, not against a reserve.
+      hardClip ? 'relative block' : 'inline-flex items-center gap-1.5',
+      maxWidthClass,
+    )}
+  >
     {/* Long ids are the norm here, but short ones exist — no tooltip when the value already fits. */}
     <Tooltip
       content={<IdentifierTip label={label} value={value} />}
       variant="value"
       size="md"
-      triggerClassName="min-w-0 overflow-hidden"
+      // hardClip: the TD is the clipper (round 4) — the trigger only bounds the
+      // truncation probe, the same recipe as the Resource Name cell beside it. An
+      // overflow-hidden trigger here would move the cut back to the content box.
+      triggerClassName={hardClip ? 'min-w-0 w-full' : 'min-w-0 overflow-hidden'}
       truncatedOnly
     >
       {/* Truncates from the RIGHT, like the Resource Name cell beside it: one
@@ -55,9 +72,9 @@ export const ResourceIdCell = ({
       <span
         className={cn(
           'block min-w-0 text-left font-mono',
-          // hardClip leaves the clipping to the overflow-hidden trigger above, which cuts
-          // with no ellipsis — the round-4 covered grammar.
-          hardClip ? 'whitespace-nowrap' : 'truncate',
+          hardClip
+            ? cn('whitespace-nowrap', idcStyles.table.hardClipCopyFade)
+            : 'truncate',
           sizeClass,
           textClassName ?? textColors.secondary,
         )}
@@ -68,7 +85,11 @@ export const ResourceIdCell = ({
     <CopyButton
       value={value}
       label={`${label} 복사`}
-      className="shrink-0 opacity-0 group-hover/resid:opacity-100"
+      className={cn(
+        'opacity-0 group-hover/resid:opacity-100',
+        // right-2 keeps the 22px button clear of the seam's ±8px resize/tracer zone.
+        hardClip ? 'absolute right-2 top-1/2 -translate-y-1/2' : 'shrink-0',
+      )}
     />
   </span>
 );

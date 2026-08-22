@@ -861,10 +861,14 @@ export const WaitingApprovalTable = memo(
               // the cell fills its fixed column, and the drag handle is the way to see more.
               // hardClip joins the round-4 covered grammar: the ARN cuts mid-letter rather
               // than ellipsizing, saying "continues underneath" like every other cell here.
+              // +18px = this cell's own right padding (approvalCell px-[18px]): the wrapper
+              // must END at the column boundary, so the round-11 tail mask covers every
+              // visible glyph (a mask stops at its element's box) and the overlay copy
+              // button anchors to the boundary rather than to a tail reserve.
               <ResourceIdCell
                 value={resource.resourceId}
                 label="Resource ID"
-                maxWidthClass={confirmedVariant ? 'w-full max-w-full' : 'max-w-[220px]'}
+                maxWidthClass={confirmedVariant ? 'w-[calc(100%+18px)]' : 'max-w-[220px]'}
                 sizeClass="text-[14px]"
                 textClassName={cn(textColors.secondary, CELL_LIFT)}
                 hardClip={confirmedVariant}

@@ -1605,6 +1605,24 @@ export const idcStyles = {
     seamTracer:
       'pointer-events-none absolute inset-y-0 left-0 z-10 w-px bg-[#0064FF] opacity-0',
     /**
+     * Round 11 (owner): "ResourceId가 종류 행에 의해서 더 많이 가려져" — the id column's
+     * copy button used to RESERVE its tail (the ARN cut 46px before the boundary: 18px
+     * cell padding + 22px button + 6px gap), so under the covered grammar the next
+     * column read as lying deeper over the id than over any other cell. The reserve is
+     * gone: the id runs to the boundary and cuts mid-letter like every covered cell,
+     * and the button OVERLAYS the tail on hover instead. This mask is what keeps that
+     * overlay legible: while the pointer is inside the id cell (ResourceIdCell's own
+     * `group/resid`), the tail ramps to transparent under the button, so the icon sits
+     * on quiet ground on ANY row surface (rest white, console hover tint, excluded
+     * tint) — alpha, not a backdrop color that would have to match each of them. The
+     * stops frame the 22px button parked 8px off the boundary (clear of the seam's
+     * ±8px tracer zone). The wrapper must itself END at the boundary (the caller's
+     * w-[calc(100%+18px)]): a mask covers only its element's border box, and ink
+     * overflowing past the box would vanish on hover instead of fading.
+     */
+    hardClipCopyFade:
+      'group-hover/resid:[mask-image:linear-gradient(to_right,black_calc(100%_-_58px),transparent_calc(100%_-_30px))]',
+    /**
      * 열 폭 조절 손잡이 (useColumnResize) — 헤더 셀 안쪽 오른쪽 끝 8px. 밖으로 내밀면
      * 마지막 열에서 표가 가로로 넘친다. 선은 평소 보이지 않는다: 표에 세로줄을 하나 더 그으면
      * 열 구분이 두 문법이 된다. 잡을 수 있다는 사실은 커서가 말하고, 잡는 동안에만 선이 그

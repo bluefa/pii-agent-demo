@@ -791,6 +791,32 @@ describe('WaitingApprovalTable', () => {
       expect(nameSpan.closest('td')?.classList.contains('overflow-hidden')).toBe(false);
     });
 
+    // Round 11 (owner): "ResourceId가 종류 행에 의해서 더 많이 가려져" — the copy button's
+    // in-flow tail reserve made the id's cut land ~46px before the boundary while every
+    // other covered cell cuts AT it, so the next column read as covering the id deeper.
+    // The reserve is gone: the wrapper runs to the boundary (+18px = the cell's own right
+    // padding), the button overlays on hover, and the tail yields under it via the
+    // `hardClipCopyFade` mask instead of via layout.
+    it('runs the id to the boundary and overlays the copy button (round 11)', () => {
+      const { rerender } = render(
+        <WaitingApprovalTable variant="confirmed" resources={[row()]} />,
+      );
+      const copy = screen.getByRole('button', { name: 'Resource ID 복사' });
+      expect(copy.className).toContain('absolute');
+      expect(copy.parentElement?.className).toContain('w-[calc(100%+18px)]');
+      expect(copy.parentElement?.className).not.toContain('inline-flex');
+      expect(
+        screen.getByText('arn:aws:rds:ap-northeast-2:804656952396:db:covered').className,
+      ).toContain('mask-image');
+
+      // The approval variant keeps the in-flow button — the overlay belongs to the
+      // covered grammar only.
+      rerender(<WaitingApprovalTable variant="approval" resources={[row()]} />);
+      const approvalCopy = screen.getByRole('button', { name: 'Resource ID 복사' });
+      expect(approvalCopy.className).not.toContain('absolute');
+      expect(approvalCopy.className).toContain('shrink-0');
+    });
+
     // Round 5: the console grid dropped its rails to border-default, and that step only
     // survives the row hover if the hover is the prototype's quiet #F7F9FB — under the
     // approval tint (#EAEEF7) the rails wash to 1.08:1. Wiring only; ratios are measured
