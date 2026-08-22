@@ -642,95 +642,193 @@ export const numericFeatures = {
  * meta card (rounded-20 + shadow) so only step content keeps card chrome.
  *
  * Rules this group encodes:
- * - Backgroundless (C3, owner pick 2026-08-09): the header paints NO surface of
- *   its own — it sits directly on the route layout's #F4F4FB wash, the boundary
- *   to the body is distance only, and white + shadow stay exclusive to cards.
+ * - The header itself paints no surface (C3, owner pick 2026-08-09) — it sits on
+ *   the route layout's #F4F4FB wash and the boundary to the body is distance.
+ *   The ONE exception is the 설치 대상 summary card below, which the owner asked
+ *   to read as a summary rather than a strip (2026-08-22); see `targetGroup`.
  * - Grouping is distance-only (no rules inside the header): labels bind to
  *   their content at 6px, blocks separate at 18px — the 1:3 ratio reads as
  *   grouping without lines.
- * - Weight ceiling is 600. The 24px page title is the header's only 800; a
- *   provider name and its sibling values share one weight (500) — hierarchy
- *   comes from size (12→14px) and color (#4E5968→#191F28) only.
- * - The wash costs one ramp step. Every quiet tier here is measured against
- *   #F4F4FB, not white: #6B7684 holds 4.62:1 on white but drops to 4.22:1 on
- *   the wash, so a label that would be grey600 inside a card is grey700 here.
- *   Going backgroundless (C3) is what made this a header-wide rule, and
- *   lib/design-guard.test.ts pins every pair so the next re-tint re-measures.
+ * - Weight ceiling is 600. Nothing here is a display size any more: the page's
+ *   identity is a 12px path, so hierarchy comes from size (12→14px) and color
+ *   (#4E5968→#191F28) only.
+ * - Contrast is measured on the page wash (#F4F4FB) again — the card that briefly
+ *   put this whole group on white is gone (see `targetGroup`). Re-measuring all ten
+ *   tints across the move found exactly ONE that could not follow: `kvLabel` at
+ *   #6B7684 is 4.62:1 on white and 4.22:1 on the wash, so the card had quietly been
+ *   load-bearing for it. Everything else cleared AA on both.
+ *   lib/design-guard.test.ts pins every pair, on the wash.
  */
 export const projectHeaderStyles = {
   /** Kept as a named seam for future re-tints — C3 renders no plane at all. */
   surface: '',
-  /** Horizontal padding tracks the step-card column (px-10) so edges align. */
-  inner: 'px-10 pt-[18px]',
-  titleRow: 'flex items-start justify-between gap-4',
-  titleGroup: 'flex min-w-0 flex-wrap items-baseline gap-2.5',
-  /** 시안 2 (P2): task-first H1 — the service identity demotes to this line. */
-  targetRow: 'mt-2 flex flex-wrap items-center gap-2',
   /**
-   * Service-code chip — slate, not primary: in this palette blue means
-   * "clickable" and amber/green mean state; an identifier gets the neutral
-   * that still reads as chosen (blue-leaning, hue-matched to the surface).
+   * 20 + 28: the page gutter, then the keyline the step cards below already type to
+   * (`px-[28px]` inside a card that starts at the gutter). ⛔ The 20 is the layouts'
+   * `px-5` (CloudTargetSourceLayout / IdcTargetSourceLayout, 오너 13차 지시) — move that
+   * gutter and this number moves with it, or the header's type slides off the cards'.
+   *
+   * One number where there were three (오너 10차 지시). The header used to put its box
+   * at x=336, the card's text at 353 (px-4 plus the card's own border) and the
+   * stepper's text at 336 with no inset at all, while every step card below typed at
+   * 364 — so the eye read a wobble down the left edge of the page. Nothing in this
+   * header carries its own horizontal padding any more; the column provides it once.
    */
-  codeChip: 'inline-flex flex-none items-baseline gap-1.5 rounded-[6px] bg-[#E9EEF9] px-2 py-[3px]',
+  inner: 'px-[48px] pt-[18px]',
+  /** The path and any page action. No plane under it — see `targetGroup`. */
+  titleRow: 'flex items-start justify-between gap-4',
+  /**
+   * 시안 C — the page's identity is a PATH, not a title. 「PII Agent 설치」 keeps its
+   * place as the first segment instead of a 24px heading: it is true all day and is
+   * never the reason anyone opened this screen, so it reads at the weight of a
+   * location, and the service name it used to crowd gets the whole middle.
+   *
+   * Same grammar as the ops side of the same target (`opsStyles.crumb`): 12px, a
+   * 280px clamp on the name, the last segment closing the path as "you are here".
+   * Nothing here links, so this is a heading SHAPED like a path, not a breadcrumb.
+   */
+  crumb: 'flex min-w-0 flex-wrap items-center gap-1.5 text-[12px] leading-[1.5] text-[#4E5968]',
+  /** 「PII Agent 설치」 — semibold (오너 13차 지시). Weight only, not colour: it is still
+      a location, and darkening it as well would put it in competition with the
+      service name that follows instead of introducing it. */
+  crumbRoot: 'flex-none font-semibold',
+  crumbSep: 'flex-none text-[#A6ADBB]', // design-exempt: decorative path glyph, the labels around it carry the reading
+  crumbName: 'max-w-[280px] truncate',
+  /**
+   * 「서비스」 — the kind marker in front of the name (오너 12차 지시). A path segment
+   * states a value and says nothing about what KIND of value it is, which is fine for
+   * a location a reader recognises and useless for one they do not: `/ DLV` told a
+   * first-time reader nothing at all. Naming the kind is the one thing a breadcrumb
+   * cannot do and a tag can.
+   *
+   * The same shell as `codeChip` below, minus the value — one slate vocabulary for the
+   * whole line. Slate, not blue: in this palette blue means "clickable" and nothing on
+   * this heading is.
+   *
+   * Both path tags carry `tagStroke` (오너 15차 지시). See that token for the value.
+   */
+  crumbKind:
+    'inline-flex flex-none items-center rounded-[6px] border border-[#D7DBE3] bg-[#EAEEF7] px-2 py-[3px] text-[12px] font-medium text-[#55617A]',
+  /**
+   * The service code as a tag, carrying its own label (오너 12차 지시). Restored from
+   * the token this file held until `dddad0da`, when the code moved into the path's
+   * last segment and emptied the slot — same radius, same padding, same label and
+   * value tints, so this is the old chip and not a new one.
+   *
+   * The one thing that did NOT come back is its own fill. `#E9EEF9` measures ΔE 1.08
+   * from `modeChipAuto`'s `#EAEEF7` and both sit at L* 94.0 — restoring it would have
+   * put two indistinguishable slates on one header behind two tokens. The two chips
+   * separate on the value's mono, which is the difference that carries meaning.
+   *
+   * `items-baseline`, so the 12px label and the mono value sit on one line however
+   * the mono face's metrics differ from the body face.
+   *
+   * `#D7DBE3` is a **stroke on black**, two rungs down from the fill (오너 15차 지시).
+   * It is literally `rgba(0,0,0,.08)` over `#EAEEF7`, baked opaque — the border box
+   * paints over the fill anyway, so the two render identically, and only the hex form
+   * is measurable by `design-guard.test.ts`. Black rather than a darker slate: the
+   * fill already carries the blue cast, and a second blue rung would have made the
+   * edge read as more chip rather than as an edge.
+   *
+   * "Two rungs" is measured, not chosen. From this fill, the repo's own strokes sit at
+   * ΔE00 2.31 (`blockHead`'s hairline) and 4.29 (the card stroke that used to house
+   * this header); `#D7DBE3` is **4.20** — the second rung, and 5.89 from the page wash,
+   * so the tag keeps a silhouette on both sides of its edge. ⛔ Don't reach for the
+   * third rung (`#C6CCD6`, ΔE 7.84): these tags sit in a 12px path, not on a card.
+   */
+  codeChip:
+    'inline-flex flex-none items-baseline gap-1.5 rounded-[6px] border border-[#D7DBE3] bg-[#EAEEF7] px-2 py-[3px]',
   codeChipLabel: 'text-[12px] font-medium text-[#55617A]',
   codeChipValue: 'font-mono text-[12px] font-semibold text-[#2C3A55]',
   /**
-   * Block eyebrow (설명 / 클라우드 정보 / 설치 진행) — small but darker than kv
-   * labels. 설명 and 설치 진행 keep it on a line of its own; the provider group puts
-   * it ON the kv label line, and there the extra weight is what stops a GROUP name
-   * from reading as one more FIELD name beside Account ID. Re-tinting it touches
-   * both roles. `whitespace-nowrap` exists for the second one — it now shares a
-   * flex column with `min-w-0`, where its peers already carry it.
+   * 시안 2 (P2): task-first H1 — the service identity demotes to this line, and
+   * that line is now the disclosure itself: the facts on it ARE the summary of
+   * the block it opens, so head and body read as one object instead of a control
+   * standing beside the thing it controls (오너 3차 지시).
    *
-   * Muted lavender, not a light one. On the #F4F4FB wash a genuinely light purple
-   * cannot clear AA — #9B8FD1 is 2.65:1 and Tailwind purple-500 is 3.61:1; the
-   * lightest purple that passes sits around #7C5CC4 at 4.58:1. So this pair buys
-   * its purple from saturation, not lightness: 8.34:1 here against 5.26:1 on
-   * `kvLabel`. That 1.59x step IS the label hierarchy (group name vs field name)
-   * — keep it on any re-tint, and re-measure on the wash, never on white.
+   * A real plane, not a stroke on the wash (오너 5차 지시: 요약본처럼 보이게).
+   * The stroke-only version was an empty rectangle drawn on the same colour it
+   * stood on, so it read as a filter toolbar; what says "summary" is a surface
+   * carrying two tiers — the path naming the target, the facts naming the scope
+   * it installs into. Pulling the path INSIDE the card is what bought those two
+   * tiers for +5px: it was already sitting 8px above on the wash, unhoused.
+   *
+   * 개선안 ㄷ — the plane is gone (오너 11차 지시). A card declares three things at
+   * once: this is a group, this is an object, this is above the ground. Only the
+   * first was ever wanted here, and the other two were doing damage. At 851px in a
+   * 931px column the box covered 91% of what contained it, which is the size at
+   * which a box stops separating anything (Apple HIG); and it shared the step card's
+   * x, its width and its shadow, differing only on radius — so the page's SUBJECT
+   * read as one of the page's ITEMS. That is why three rounds of raising the stroke,
+   * the shadow and the fill never made it read as a summary: the surface was not too
+   * weak, it was saying the wrong thing.
+   *
+   * What the owner's original complaint actually wanted was a NAME, and the header
+   * already had one in this exact grammar — 「설치 진행」. So this block gets its
+   * sibling: `blockLabel` above, one hairline under it, and the 6/18px distance ratio
+   * these tokens already carried doing the grouping. It is a `<section>` with an
+   * accessible name, which is more than the card ever had.
+   *
+   * 18px from the path above — the block separation this file already uses, and the
+   * `18 : 6` ratio is now the only thing grouping these tiers. No width cap: `inner`
+   * already lands the content box on the step card's own text column (364..1314 at
+   * 1710px), and an 860px cap stopped the rules 118px short of it, which read as the
+   * header having a right margin nothing else on the page had.
    */
-  blockLabel: 'whitespace-nowrap text-[12px] font-semibold tracking-[0.02em] text-[#4C3F7A]',
+  targetGroup: 'mt-[18px]',
+  /**
+   * The block's name and its one control, on the line the hairline closes. The rule
+   * lives on this row rather than on a divider of its own: one line, drawn once,
+   * marking where the named block starts — not a second box.
+   *
+   * Shared with 설치 진행 (`InstallationProcessProgressBar`), which is the point: the
+   * header is two blocks in one grammar, and a rule under only one of them would make
+   * them look like different kinds of thing.
+   */
+  blockHead: 'flex items-center justify-between gap-4 border-b border-[#E1E4EB] pb-1.5',
+  /**
+   * Block eyebrow (설명 / 설치 진행) — the stronger of the two label tiers, always
+   * on a line of its own above the content it names.
+   *
+   * Neutral, not lavender (오너 7차 지시). The old pair bought its hierarchy from
+   * hue, so two labels differed by colour FAMILY rather than by rank; the plain ramp
+   * says the same thing in tones this product already speaks. 6.50:1 here against
+   * 4.51:1 on `kvLabel` — a 1.44x step, measured on the wash, which is what this
+   * block stands on again. A re-tint keeps BOTH the step and the floor. The 0.02em
+   * tracking is the second signal, and it matters more now that hue is not one.
+   *
+   * This token names 「설치 대상」 as well as 「설명」 and 「설치 진행」 — the block name
+   * that replaced the card is the same tier as the block names beside it, which is
+   * the whole reason the header now reads as named blocks (오너 11차 지시).
+   */
+  blockLabel: 'whitespace-nowrap text-[12px] font-semibold tracking-[0.02em] text-[#4E5968]',
   block: 'mt-[18px]',
   /** Description body — 2-line clamp; the whole block is skipped when empty. */
   descText: 'mt-1.5 max-w-[82ch] text-[14px] font-medium leading-[1.5] text-[#4E5968] line-clamp-2',
-  /**
-   * The group eyebrow rides INSIDE this row as the provider stack's own label,
-   * so every label in the block sits on one line and every value on the next.
-   * Centering each stack (items-stretch + justify-center) put the provider name
-   * between the neighbour's label and value — 10px off the identifier it names.
-   */
-  groupRow: 'mt-1.5 flex flex-wrap items-start gap-x-5 gap-y-2',
-  /**
-   * The provider's own label+value stack. Not `kv`: it must never shrink (the
-   * brand line has nothing to truncate), and it carries no copy button, so the
-   * `group/kv` hover scope would be dead weight.
-   */
-  providerStack: 'flex flex-none flex-col gap-1.5',
-  provider: 'flex min-h-[30px] flex-none items-center gap-2 pr-1',
-  providerIcon: 'grid h-[30px] w-[30px] flex-none place-items-center rounded-[8px] bg-[#ECEDF4] text-[#4E5968]',
-  /** leading is explicit on BOTH line boxes — see kvValue. */
+  /** The provider's name in ink — IDC and SDU only, now that the branded clouds let
+      their logo say it (오너 8차 지시). leading is explicit on BOTH line boxes — see
+      summaryValue. */
   providerName: 'text-[14px] font-medium leading-[1.5] tracking-[-0.01em] text-[#191F28]',
   /** Plain-language gloss after a bare token (IDC → 사내망). */
   providerGloss: 'text-[#4E5968]',
   providerGlossBar: 'mx-1.5 text-[#C6CCD6]', // design-exempt: decorative separator glyph, not text
   divider: 'w-px flex-none self-stretch bg-[#E4E5EE]',
-  /** 6px label→content binding, the same gap the 설명/설치 진행 blocks use. */
-  kv: 'group/kv flex min-w-0 flex-col gap-1.5',
-  /** Field name — every CSP's identifier row runs through here: 설치 대상, AWS
-      Account ID, GCP Project ID, Azure Subscription/Tenant ID, 설치 모드, 연동 방식.
-      The quieter of the two label tiers at 5.26:1 on the wash; see blockLabel for
-      why it is muted. Semibold like blockLabel, so the two tiers now separate on
-      color and tracking alone — weight is no longer part of that signal. */
-  kvLabel: 'whitespace-nowrap text-[12px] font-semibold text-[#6B5E93]',
-  /**
-   * Two invariants keep this line and the provider's on one line:
-   * `min-h-[30px]` (the icon badge's height) makes the two boxes share a centre,
-   * and the leading must equal `providerName`'s or the baselines sit ~1px apart.
-   * 1.5 is a ratio, not a frozen 21px — providerName inherits 1.5 from Preflight's
-   * `html`, so a font-size change moves both together instead of splitting them.
-   */
-  kvValue: 'flex min-h-[30px] items-center text-[14px] font-medium leading-[1.5] text-[#191F28]',
-  kvValueMono: 'font-mono tracking-[-0.02em] tabular-nums',
+  /** Field name — every row of the fact column runs through here: AWS Account ID,
+      GCP Project ID, Azure Subscription/Tenant ID, 설치 모드. The quieter of the two
+      label tiers and the one sitting nearest the AA floor; see blockLabel for the
+      pair. Semibold like blockLabel, so the two tiers separate on colour and
+      tracking, never on weight.
+
+      #6B7684 → #68717F is the whole price of dropping the card (오너 11차 지시): the
+      old tint was 4.62:1 on the card's white and **4.22:1 on the wash**, the one
+      token of ten that could not make the move. This is the smallest darkening that
+      clears AA (4.51:1), chosen over the safer #656E7C because it keeps the widest
+      step from blockLabel — the two tiers have only colour and tracking left to
+      separate on, and 0.01 of AA headroom buys 0.06 of that step. ⛔ Do not lighten:
+      there is no room under it. */
+  kvLabel: 'whitespace-nowrap text-[12px] font-semibold text-[#68717F]',
+  /** The 설치 모드 value — chip and its gloss on one baseline, in a grid cell. */
+  modeRow: 'flex items-center',
   /** Copy affordance — hover/focus reveal, so idle rows show only the value. */
   copyReveal: 'opacity-0 transition-opacity duration-[120ms] group-hover/kv:opacity-100 focus-visible:opacity-100 motion-reduce:transition-none',
   /** 설치 모드 값 칩 — auto is the quiet default (no action needed)… */
@@ -738,26 +836,166 @@ export const projectHeaderStyles = {
   /** …manual keeps the amber outline: the customer must run the script themselves. */
   modeChipManual: 'inline-flex items-center rounded-[6px] border border-amber-200 bg-amber-50 px-2 py-0.5 text-[12px] font-semibold text-amber-800',
   modeNote: 'ml-2 whitespace-nowrap text-[12px] font-medium text-[#4E5968]',
+  /**
+   * The block's whole scope area: the provider on the left as the subject, every
+   * identifier it owns listed to its right. Plain content, not a press — the
+   * identifiers carry copy buttons and nothing interactive may sit inside a
+   * `<button>`, so the disclosure is the cue up on the block head instead.
+   *
+   * Centered, not top-aligned (오너 9차 지시): the mark is the subject of the whole
+   * fact block, not a bullet on its first line, and `items-start` was reading it as
+   * the latter — 28px pinned to the top of a 50px stack left it 11px high. The
+   * divider opts out with `self-stretch`, and the stack is the tallest item, so this
+   * moves the mark and nothing else.
+   *
+   * No horizontal padding of its own any more — `inner` owns the one keyline.
+   */
+  summaryRow: 'flex items-center gap-3 pb-1 pt-2.5',
+  /**
+   * The provider cell — a bare mark for the branded clouds, mark plus name at the
+   * house's 6px for IDC and SDU. Explicit `flex-none` at the call site, never baked
+   * in: `flex: none` pins flex-shrink to 0, which is right here and silently fatal on
+   * the identifier column, where it would defeat the truncation and let the row
+   * overflow the card instead.
+   */
+  summaryFact: 'flex items-center gap-1.5',
+  /**
+   * Every identifier the target owns, one per row (오너 6차 지시: Azure 는 sub·tenant
+   * 를 2줄로). A grid, not a wrapping flex row: `auto` sizes the label column to the
+   * longest label so 「Subscription ID」 and 「Tenant ID」 start their values on the
+   * same x, which is the whole reason two lines read as a list rather than as a
+   * line that ran out of room. Rows are structural, so the second one appears
+   * because a second identifier exists — never because the viewport shrank.
+   *
+   * 6px binds a label to its value, 4px separates two identifiers: tighter than the
+   * blocks' 1:3 because these rows are one field repeated, not distinct groups.
+   */
+  summaryIds: 'grid min-w-0 grid-cols-[auto_1fr] items-center gap-x-1.5 gap-y-1',
+  /** The brand mark (`ProviderGlyph` tone="brand", 오너 지시) — one provider looks the
+      same everywhere in the product. Bare, no plate: brand colour is the emphasis,
+      and a grey tile only muted it. IDC and SDU have no brand and fall back to this
+      `currentColor`.
+
+      28px, up from the 20px the ops dashboard identity cell uses (오너 8차 지시) —
+      `CloudProviderIcon`'s own `lg` rung, not a number picked here. The step pays for
+      itself because the mark is now the ONLY thing naming the branded clouds on this
+      card: AWS's logo is a wordmark whose letters print at 0.32x the slot, so 20px
+      left them 6px tall — below the size at which a word is read rather than guessed. */
+  summaryGlyph: 'h-7 w-7 flex-none text-[#4E5968]',
+  /** An identifier's value cell — the one thing on the card allowed to shrink, and
+      the reason it can carry Azure's 293px Subscription UUID at all: the value
+      prints in full where the column has room and ellipses where it does not. A
+      fixed cap would have clipped it on a 1710px screen too. `group/kv` drives the
+      copy reveal; the whole value also stays in a native `title`. */
+  summaryValue:
+    'group/kv flex min-w-0 items-center gap-1 text-[14px] font-medium leading-[1.5] text-[#191F28]',
+  summaryValueText: 'min-w-0 truncate',
+  summaryValueMono: 'font-mono tracking-[-0.02em] tabular-nums',
+  /**
+   * Blue, because in this palette blue is the one colour that means "clickable" —
+   * and it names what opens, which the chevron alone cannot. It rides the block
+   * head: the scope below it holds copy buttons, so the scope cannot itself be the
+   * press, and a named block's one control belongs beside the name.
+   *
+   * The name is 「설명」, not 「설치 대상 정보」 (오너 11차 지시). Three rounds of moving
+   * essentials onto the face emptied the fold down to a single paragraph, and a cue
+   * that promises 「정보」 over one paragraph is a cue that overstates its body. It is
+   * also gated now: no description, no cue — an empty disclosure is worse than none.
+   */
+  metaCue:
+    'flex flex-none items-center gap-1 rounded-[6px] text-[12px] font-semibold text-[#0050D6] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0050D6]/40',
+  metaToggleIcon: 'h-3.5 w-3.5 transition-transform motion-reduce:transition-none',
+  metaToggleIconOpen: 'rotate-180',
+  /** Distance, not a second rule: the block already draws one line under its name,
+      and a rule here would put the fold in a box of its own — which is the habit
+      this whole round was about. `block` inside supplies the 18px. */
+  targetBody: 'pb-1',
 } as const;
 
 /**
- * Quiet install stepper inside the flat header — every step named, none loud.
- * The dots ring in the page wash color (#F4F4FB — the header is backgroundless,
- * so the wash IS its surface) so the connector reads as passing behind them.
+ * 설치 진행 — one row at rest, the seven-step road behind a disclosure (오너 14차 지시).
  *
- * State lives in the DOTS, not in three shades of grey label. The first cut
- * spread it across six tints and four of them were invisible on the wash
- * (pending label 2.78:1, done label 4.22:1, both dots and both connectors under
- * 1.6:1) — the owner read the whole row as washed out, which is exactly what
- * those numbers say. So: two label tiers (current vs the rest), three dots
- * (grey ahead / primary behind / primary + a size step for here), one road.
+ * The road named every step so a first-time reader could see the whole route, and
+ * charged ~60px of header for it on every visit after the first. 오너 13차 지시 cut it
+ * to a sentence on its own line under the block name; this round folds that sentence
+ * up ONTO the block name — 설치 진행 · 전체 7단계 중 [4단계 Agent 설치] — and gives the
+ * road back to the reader who wants it, on the same 「name + cue + body」 grammar
+ * 설치 대상 uses one block above. Nothing was deleted this time, only ranked: the one
+ * fact a mid-install reader needs is always on screen, and the route is one click.
+ *
+ * Position is carried by the NUMBERS, which is why they are the only thing that steps
+ * up a size: 14px in a 12px row, on the same 12/14 pair the block labels and values
+ * already use.
  */
 export const installStepperStyles = {
   wrap: 'mt-[18px] pb-[18px]',
+  /**
+   * The block's name and its position line on ONE row (오너 14차 지시), as the left
+   * half of the shared `blockHead` — the cue takes the right half.
+   *
+   * A container of its own rather than pouring the label into `summary`: `blockHead`
+   * is `justify-between`, so three children would push the sentence into the middle
+   * of the row instead of leaving it beside the name it belongs to. The 12px here
+   * against `summary`'s 8px inside is what stops 「설치 진행 전체 7단계 중」 reading as
+   * one run-on phrase — the two share a colour and nearly a weight, so distance is
+   * the only separator left.
+   */
+  head: 'flex min-w-0 flex-wrap items-baseline gap-x-3 gap-y-1',
+  /**
+   * `items-baseline`, because the counts run 14px inside a 12px sentence and a
+   * centred row would leave them sitting a pixel high. Wraps rather than truncates —
+   * the 연결 테스트 verdict rides this line now, and at 520px the two do not fit.
+   */
+  summary: 'flex flex-wrap items-baseline gap-x-2 gap-y-1 text-[12px] font-medium text-[#4E5968]',
+  /** 전체 **7**단계 중 — tabular, so the digits do not shift the line as the target
+      advances through the steps. */
+  count: 'text-[14px] font-semibold tabular-nums text-[#191F28]',
+  /**
+   * 「4단계 Agent 설치」 — where you are, as one tag (오너 14차 지시). Blue, on the
+   * owner's call: the slate this used to wear is the path's tag vocabulary, and on a
+   * row that now also carries the block's name the step needed to be the thing the
+   * eye lands on.
+   *
+   * ⛔ Fill AND ink must stay equal to `cardStyles.stepTag` — the 「N단계」 tag over
+   * every step-card title, which is the SAME fact rendered a second time and is on
+   * screen at the same moment. This shipped for one review round as `#1747B5` on the
+   * same `#E8F1FF`, reasoned only against `metaCue` and never against the card tag;
+   * one fill carrying one fact in two tints reads as two meanings.
+   * `primaryColors.bgLight`/`textOnLight` are written out as literals because
+   * `design-guard.test.ts` parses these strings as source and cannot follow a `${}` —
+   * a test pins the two tokens equal instead. 5.92:1.
+   *
+   * The cue at the other end of the row wears the same `#0050D6`, and that is
+   * survivable where the card clash was not: the cue has no fill, carries a chevron,
+   * sits at the opposite edge, and is not the same fact.
+   *
+   * `items-baseline`, so the 14px count and the 12px name sit on one line inside the
+   * tag and the tag itself lands on the sentence's baseline.
+   */
+  stepTag:
+    'inline-flex items-baseline gap-1.5 rounded-[6px] bg-[#E8F1FF] px-2 py-[3px] text-[12px] font-semibold text-[#0050D6]',
+  /** The step number inside the tag — same 14px tier as `count`, but it takes the
+      tag's ink rather than the sentence's near-black, which would read as a second
+      colour inside a two-word plate. */
+  tagCount: 'text-[14px] font-semibold tabular-nums',
+  /**
+   * Verdict slot for 연결 테스트 — in flow, following the step tag on the head row,
+   * and only while the road is open (오너 14차 지시 후속). It is detail about one step,
+   * so it comes with the press that names the steps rather than standing on the
+   * always-visible row.
+   *
+   * ⛔ Never `absolute` again. It used to hang from `top-full` under the 연결 테스트
+   * dot, so it reflowed nothing and would silently overlap the first card if the
+   * body's `pt-8` ever tightened — only a human looking at the screen would have
+   * caught it. Hanging it back on the step is the obvious way to fold it with the
+   * road, and it is the way that brings the bug back; gating the row slot is not.
+   */
+  tagSlot: 'inline-flex items-center',
   /** Left-anchored, capped width — 7 steps don't need the full column; ~120px
-      per step keeps the road compact while the longest label still fits. */
-  list: 'mt-1.5 grid w-full max-w-[860px] list-none p-0',
-  item: 'relative flex min-w-0 flex-col items-center gap-1.5',
+      per step keeps the road compact while the longest label still fits.
+      10px under the block rule: the name is no longer touching the road. */
+  list: 'mt-2.5 grid w-full max-w-[860px] list-none p-0',
+  item: 'flex min-w-0 flex-col items-center gap-1.5',
   track: 'relative flex h-[10px] w-full items-center justify-center',
   lineBase: 'absolute top-1/2 -mt-px h-[2px]',
   /** Road ahead — a 2px surface, so it answers to ΔE00 (14.9 from the wash), not 4.5:1. */
@@ -774,13 +1012,6 @@ export const installStepperStyles = {
   /** Walked and unwalked steps share one label color — the dots already say which is which. */
   labelRest: 'font-medium text-[#4E5968]',
   labelCurrent: 'font-semibold text-[#0050D6]',
-  /**
-   * Verdict slot under 연결 테스트 — out of flow, hung from the bottom of the grid
-   * row so it clears labels that wrap at narrow widths and adds no height when the
-   * target never ran a test. It lands in the 18+32px gap the header already leaves
-   * above the first card, so nothing below moves either.
-   */
-  tagSlot: 'absolute top-full left-1/2 mt-1.5 -translate-x-1/2 whitespace-nowrap',
 } as const;
 
 /**

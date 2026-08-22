@@ -11,7 +11,8 @@
 ## 1. 현재 구조 요약
 
 Step 1~7은 URL 라우팅 위저드가 아니라 **단일 URL + `processStatus` 상태 머신**이다.
-`CloudTargetSourceLayout.tsx:52` / `IdcTargetSourceLayout.tsx:43`의 `px-10 pt-8 pb-20 space-y-6` 래퍼가
+`CloudTargetSourceLayout.tsx` / `IdcTargetSourceLayout.tsx`의 `px-5 pt-8 pb-20 space-y-6` 래퍼가
+(거터는 PR #747 에서 40 → 20px. `projectHeaderStyles.inner` 의 48 = 20 + 28 과 짝이라 같이 움직인다.)
 모든 스텝에서 아래 **고정 4겹 세로 스택**을 쌓는다.
 
 ```

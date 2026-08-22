@@ -1,11 +1,9 @@
 // @vitest-environment jsdom
 
-import { readFileSync } from 'node:fs';
-import path from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
-import { render } from '@testing-library/react';
+import { fireEvent, render, within } from '@testing-library/react';
 import { ProcessStatus } from '@/lib/types';
-import { installStepperStyles } from '@/lib/theme';
+import { cardStyles, installStepperStyles, primaryColors } from '@/lib/theme';
 import { InstallationProcessProgressBar } from '@/app/components/features/process-status/InstallationProcessProgressBar';
 
 vi.stubGlobal('matchMedia', () => ({
@@ -19,160 +17,268 @@ vi.stubGlobal('matchMedia', () => ({
   dispatchEvent: () => false,
 }));
 
-describe('InstallationProcessProgressBar', () => {
-  it('renders 7 steps for any ProcessStatus', () => {
-    const { container } = render(
-      <InstallationProcessProgressBar
-        currentStep={ProcessStatus.INSTALLING}
-      />,
-    );
-    const items = container.querySelectorAll('li');
-    expect(items.length).toBe(7);
+/**
+ * The whole block, found the way a screen reader finds it (오너 11차 지시). Scoped to
+ * this render's own container, not to `screen` — some tests below mount the component
+ * twice to compare states, and a document-wide query matches both.
+ */
+const block = (currentStep: ProcessStatus, tcTag?: React.ReactNode) => {
+  const { container } = render(
+    <InstallationProcessProgressBar currentStep={currentStep} tcTag={tcTag} />,
+  );
+  return within(container).getByRole('region', { name: '설치 진행' });
+};
+
+/** The position row, whitespace-collapsed — it is built from several text nodes. */
+const row = (el: HTMLElement) => el.querySelector('p')?.textContent?.replace(/\s+/g, ' ').trim();
+
+const cue = (el: HTMLElement) => within(el).getByRole('button', { name: /전체 단계/ });
+
+describe('InstallationProcessProgressBar — 설치 진행 전체 7단계 중 [4단계 Agent 설치]', () => {
+  it('states name and position on one row (오너 14차 지시)', () => {
+    const el = block(ProcessStatus.INSTALLING);
+    // The block name and the position line share the head row: the name's parent is
+    // the row container, and the sentence is its sibling — not a line below it.
+    const head = within(el).getByText('설치 진행').parentElement;
+    expect(head?.className).toBe(installStepperStyles.head);
+    expect(head?.querySelector('p')?.className).toBe(installStepperStyles.summary);
+    // No spaces between 중/4단계/Agent 설치: the gaps are layout, not text — the count
+    // and the step's name are separate elements inside the tag.
+    expect(row(el)).toBe('전체 7단계 중4단계Agent 설치');
   });
 
-  it('marks the current ProcessStatus step as aria-current', () => {
-    const { container } = render(
-      <InstallationProcessProgressBar
-        currentStep={ProcessStatus.INSTALLING}
-      />,
-    );
-    const currentLi = container.querySelector('li[aria-current="step"]');
-    expect(currentLi).not.toBeNull();
-    // INSTALLING is index 3 (0-based) — 4th step
-    const items = container.querySelectorAll('li');
-    expect(items[3]).toBe(currentLi);
+  it.each([
+    [ProcessStatus.WAITING_TARGET_CONFIRMATION, '1단계', '연동 대상 DB 선택'],
+    [ProcessStatus.WAITING_CONNECTION_TEST, '5단계', '연결 테스트'],
+    [ProcessStatus.INSTALLATION_COMPLETE, '7단계', '완료'],
+  ])('counts %s as %s and tags it %s', (step, position, label) => {
+    const el = block(step);
+    expect(row(el)).toContain(`중${position}`);
+    expect(within(el).getByText(label)).toBeTruthy();
   });
 
-  it('keeps final INSTALLATION_COMPLETE as the current step', () => {
-    const { container } = render(
-      <InstallationProcessProgressBar
-        currentStep={ProcessStatus.INSTALLATION_COMPLETE}
-      />,
-    );
-    const items = container.querySelectorAll('li');
-    expect(container.querySelector('li[aria-current="step"]')).toBe(items[6]);
+  it('names only the step it is on while the road is folded', () => {
+    const el = block(ProcessStatus.WAITING_TARGET_CONFIRMATION);
+    expect(within(el).queryByText('완료')).toBeNull();
+    expect(within(el).queryByText('Agent 설치')).toBeNull();
   });
 
-  it('shows the 설치 진행 block label without a position count', () => {
-    const { getByText, queryByText } = render(
-      <InstallationProcessProgressBar currentStep={ProcessStatus.WAITING_APPROVAL} />,
-    );
-    expect(getByText('설치 진행')).toBeTruthy();
-    expect(queryByText('/ 7 단계')).toBeNull();
-  });
-
-  it('renders Korean install labels', () => {
-    const { getByText } = render(
-      <InstallationProcessProgressBar
-        currentStep={ProcessStatus.WAITING_TARGET_CONFIRMATION}
-      />,
-    );
-    expect(getByText('연동 대상 DB 선택')).toBeTruthy();
-    expect(getByText('완료')).toBeTruthy();
-  });
-
-  /**
-   * The 연결 테스트 verdict tag is absolutely positioned, so it hangs into space the
-   * step LAYOUTS own, not this component. Measured live at 1010: the stepper's own
-   * `pb-[18px]` plus the body column's `pt-8` give 50px below the last label, the tag
-   * takes 34px of it (`mt-1.5` + a 28px-tall chip), and 16px of clearance is left to
-   * the first card.
-   *
-   * Nothing else catches a change here. Tighten `pt-8` to `pt-2` and the tag OVERLAPS
-   * the card instead of pushing it — out-of-flow boxes reflow nothing — so the page
-   * still renders, every test still passes, and only a human looking at the screen
-   * would notice.
-   *
-   * This is a source-string pin, not a layout measurement: jsdom computes no
-   * geometry, so it fails when one of the four inputs is EDITED, and equally when
-   * one is merely reordered or moved into a token. That false-positive is the price
-   * of the tripwire — it fires, you re-derive the 50px, you update the string. What
-   * it cannot catch is the tag growing taller from a longer label or a bigger font.
-   */
-  it('pins the four values the absolute tag slot clearance is made of', () => {
-    expect(installStepperStyles.tagSlot).toContain('absolute');
-    expect(installStepperStyles.tagSlot).toContain('top-full');
-    expect(installStepperStyles.tagSlot).toContain('mt-1.5');
-    expect(installStepperStyles.wrap).toContain('pb-[18px]');
-
-    const root = path.resolve(__dirname, '../../../../..');
-    for (const layout of [
-      'app/target-sources/[targetSourceId]/_components/layout/CloudTargetSourceLayout.tsx',
-      'app/target-sources/[targetSourceId]/_components/idc/IdcTargetSourceLayout.tsx',
-    ]) {
-      const src = readFileSync(path.join(root, layout), 'utf8');
-      expect(src, `${layout}: body top padding feeds the tag's clearance`).toContain(
-        'px-10 pt-8 pb-20',
-      );
+  it('gives both counts the emphasis tier, and nothing else on the row', () => {
+    // Position is the one fact this block exists to state, so the digits are what
+    // steps up a size (14px in a 12px row). Quieten them and the block says nothing
+    // at a glance that the step card below does not already say louder.
+    const el = block(ProcessStatus.INSTALLING);
+    const counts = [...el.querySelectorAll('b')];
+    expect(counts.map((c) => c.textContent)).toEqual(['7', '4']);
+    // The 4 lives inside the tag, so it wears the tag's ink — same size tier, no
+    // second colour inside a two-word plate.
+    expect(counts.map((c) => c.className)).toEqual([
+      installStepperStyles.count,
+      installStepperStyles.tagCount,
+    ]);
+    for (const token of [installStepperStyles.count, installStepperStyles.tagCount]) {
+      expect(token).toContain('text-[14px]');
     }
+    expect(installStepperStyles.summary).toContain('text-[12px]');
+    // Different sizes on one line only sit right if the row aligns on the baseline —
+    // and the tag is itself a line of two sizes, so it needs the same.
+    expect(installStepperStyles.summary).toContain('items-baseline');
+    expect(installStepperStyles.head).toContain('items-baseline');
+    expect(installStepperStyles.stepTag).toContain('items-baseline');
+  });
+
+  it('marks where you are in blue, not in the path’s slate (오너 14차 지시)', () => {
+    // The row now carries the block's name too, so the step has to be the thing the
+    // eye lands on. Slate is the path's tag vocabulary one tier above.
+    expect(installStepperStyles.stepTag).toContain('bg-[#E8F1FF]');
+    expect(installStepperStyles.stepTag).toContain('text-[#0050D6]');
+    expect(installStepperStyles.stepTag).not.toContain('#EAEEF7'); // the path's slate
+  });
+
+  it('wears the same plate as the 「N단계」 tag over the step card', () => {
+    // Same fact rendered twice, both on screen at once: this row says 「4단계 Agent
+    // 설치」 and the card below titles itself 「4단계 / Agent 설치」. One fill in two
+    // tints reads as two meanings — this shipped as #1747B5 for a round because the
+    // ink was reasoned against `metaCue` and never against the card tag.
+    const inkOf = (cls: string) => cls.match(/text-\[(#[0-9A-Fa-f]{6})\]/)?.[1];
+    const fillOf = (cls: string) => cls.match(/bg-\[(#[0-9A-Fa-f]{6})\]/)?.[1];
+    // cardStyles.stepTag builds its pair from primaryColors, so resolve through those.
+    expect(fillOf(installStepperStyles.stepTag)).toBe(fillOf(primaryColors.bgLight));
+    expect(inkOf(installStepperStyles.stepTag)).toBe(inkOf(primaryColors.textOnLight));
+    expect(cardStyles.stepTag).toContain(primaryColors.bgLight);
+    expect(cardStyles.stepTag).toContain(primaryColors.textOnLight);
+  });
+
+  it('drops the position row on a status outside the seven', () => {
+    // ProcessStatus is exactly these seven, but the value arrives over the wire —
+    // an unknown one must not print 「0단계」 or crash on an undefined label.
+    const el = block(99 as ProcessStatus);
+    expect(row(el)).toBeUndefined();
+    expect(within(el).getByText('설치 진행')).toBeTruthy();
+  });
+});
+
+/**
+ * 전체 단계 — the seven-step road, folded by default and opened on request
+ * (오너 14차 지시). Same 「name + cue + body」 grammar as 설치 대상 one block above.
+ */
+describe('InstallationProcessProgressBar — 전체 단계 disclosure', () => {
+  it('folds the road away at rest — the row is the whole block', () => {
+    const el = block(ProcessStatus.INSTALLING);
+    expect(el.querySelector('ol')).toBeNull();
+    expect(el.querySelectorAll('li').length).toBe(0);
+    expect(cue(el).getAttribute('aria-expanded')).toBe('false');
+  });
+
+  it('names all seven steps once opened', () => {
+    const el = block(ProcessStatus.INSTALLING);
+    fireEvent.click(cue(el));
+    expect(cue(el).getAttribute('aria-expanded')).toBe('true');
+    const steps = [...el.querySelectorAll('li')];
+    expect(steps.map((li) => li.textContent)).toEqual([
+      '연동 대상 DB 선택',
+      '연동 대상 승인 대기',
+      '연동 대상 반영중',
+      'Agent 설치',
+      '연결 테스트',
+      '관리자 승인 대기',
+      '완료',
+    ]);
+  });
+
+  it('marks the current step, and only that one, as where you are', () => {
+    const el = block(ProcessStatus.INSTALLING);
+    fireEvent.click(cue(el));
+    const steps = [...el.querySelectorAll('li')];
+    expect(steps.filter((li) => li.getAttribute('aria-current') === 'step').length).toBe(1);
+    expect(steps[3].getAttribute('aria-current')).toBe('step');
+    // The label tiers say the same thing visually — one current, six rest.
+    const labels = steps.map((li) => li.lastElementChild?.className);
+    expect(labels.filter((c) => c?.includes(installStepperStyles.labelCurrent)).length).toBe(1);
+  });
+
+  it('walks the road only up to the current step', () => {
+    const el = block(ProcessStatus.INSTALLING);
+    fireEvent.click(cue(el));
+    const dots = [...el.querySelectorAll('i')].map((i) => i.className);
+    expect(dots.filter((c) => c.includes(installStepperStyles.dotDone)).length).toBe(3);
+    expect(dots.filter((c) => c.includes(installStepperStyles.dotCurrent)).length).toBe(1);
+    expect(dots.filter((c) => c.includes(installStepperStyles.dotPending)).length).toBe(3);
+  });
+
+  it('wires the cue to everything that press reveals, not just the road', () => {
+    // `aria-controls` is an ID list. The verdict is the second thing this press
+    // reveals and it lives up on the head row — outside the <ol> and before it in the
+    // DOM — so a single-id attribute leaves it with no tie to the control.
+    const el = block(ProcessStatus.WAITING_CONNECTION_TEST, <span id="x">v</span>);
+    fireEvent.click(cue(el));
+    const controlled = cue(el).getAttribute('aria-controls')?.split(' ');
+    expect(controlled).toEqual(['install-progress-steps', 'install-progress-verdict']);
+    expect(el.querySelector('ol')?.id).toBe(controlled?.[0]);
+    expect(el.querySelector(`#${controlled?.[1]}`)?.className).toBe(
+      installStepperStyles.tagSlot,
+    );
+  });
+
+  it('closes again on a second press', () => {
+    const el = block(ProcessStatus.INSTALLING);
+    fireEvent.click(cue(el));
+    fireEvent.click(cue(el));
+    expect(el.querySelector('ol')).toBeNull();
+  });
+
+  it('still opens the road on a status outside the seven, with nothing current', () => {
+    // The route is a fact about the product, not about this target — an unknown
+    // status must not take the reader's ability to see it.
+    const el = block(99 as ProcessStatus);
+    fireEvent.click(cue(el));
+    const steps = [...el.querySelectorAll('li')];
+    expect(steps.length).toBe(7);
+    expect(steps.some((li) => li.getAttribute('aria-current') === 'step')).toBe(false);
+  });
+});
+
+/**
+ * Two gates on the verdict tag, and both must hold.
+ *
+ * 1. The target has REACHED 연결 테스트 (step 5). Before that the agent is not
+ *    installed, so any surviving verdict describes a previous cycle — drawing it
+ *    tells the user the connection is fine about a configuration never tested.
+ * 2. The road is open (오너 14차 지시 후속). The verdict is detail about one step, so
+ *    it comes with the press that names the steps.
+ */
+describe('InstallationProcessProgressBar — 연결 테스트 verdict tag', () => {
+  const TAG = <span data-testid="tc-tag">최근 테스트 성공</span>;
+
+  /** The block with the road already open — the only state that can show a verdict. */
+  const opened = (step: ProcessStatus) => {
+    const el = block(step, TAG);
+    fireEvent.click(cue(el));
+    return el;
+  };
+
+  it.each([
+    ['WAITING_TARGET_CONFIRMATION', ProcessStatus.WAITING_TARGET_CONFIRMATION],
+    ['WAITING_APPROVAL', ProcessStatus.WAITING_APPROVAL],
+    ['APPLYING_APPROVED', ProcessStatus.APPLYING_APPROVED],
+    ['INSTALLING', ProcessStatus.INSTALLING],
+  ])('hides the tag at %s even with the road open (step 5 not reached)', (_name, step) => {
+    expect(within(opened(step)).queryByTestId('tc-tag')).toBeNull();
+  });
+
+  it.each([
+    ['WAITING_CONNECTION_TEST', ProcessStatus.WAITING_CONNECTION_TEST],
+    ['CONNECTION_VERIFIED', ProcessStatus.CONNECTION_VERIFIED],
+    ['INSTALLATION_COMPLETE', ProcessStatus.INSTALLATION_COMPLETE],
+  ])('shows the tag at %s once the road is open', (_name, step) => {
+    expect(within(opened(step)).getByTestId('tc-tag')).toBeTruthy();
+  });
+
+  it('folds the verdict away with the road (오너 14차 지시 후속)', () => {
+    const el = block(ProcessStatus.WAITING_CONNECTION_TEST, TAG);
+    expect(within(el).queryByTestId('tc-tag')).toBeNull();
+    fireEvent.click(cue(el));
+    expect(within(el).getByTestId('tc-tag')).toBeTruthy();
+    fireEvent.click(cue(el));
+    expect(within(el).queryByTestId('tc-tag')).toBeNull();
+  });
+
+  it('keeps the verdict on the row, not inside the road it opens with', () => {
+    // Hanging it back on the 연결 테스트 step is the obvious way to fold it with the
+    // road — and it is the way that brings back the absolute-positioning bug below.
+    const el = opened(ProcessStatus.WAITING_CONNECTION_TEST);
+    expect(el.querySelector('ol')?.contains(within(el).getByTestId('tc-tag'))).toBe(false);
   });
 
   /**
-   * The verdict tag only appears once the target has REACHED 연결 테스트 (step 5).
-   * Before that the agent is not installed, so any surviving verdict describes a
-   * previous cycle — drawing it tells the user the connection is fine about a
-   * configuration that has never been tested.
+   * Neither gate may merely hide the tag — `TcHeaderTag` fetches latest_version on
+   * mount, so a slot that rendered and hid it would keep the request. Asserting on
+   * the SLOT (not the tag) pins that `tagSlot` is what both guards wrap.
    */
-  describe('연결 테스트 verdict tag', () => {
-    const TAG = <span data-testid="tc-tag">최근 테스트 성공</span>;
-
-    it.each([
-      ['WAITING_TARGET_CONFIRMATION', ProcessStatus.WAITING_TARGET_CONFIRMATION],
-      ['WAITING_APPROVAL', ProcessStatus.WAITING_APPROVAL],
-      ['APPLYING_APPROVED', ProcessStatus.APPLYING_APPROVED],
-      ['INSTALLING', ProcessStatus.INSTALLING],
-    ])('hides the tag at %s (step 5 not reached)', (_name, step) => {
-      const { queryByTestId } = render(
-        <InstallationProcessProgressBar currentStep={step} tcTag={TAG} />,
-      );
-      expect(queryByTestId('tc-tag')).toBeNull();
-    });
-
-    it.each([
-      ['WAITING_CONNECTION_TEST', ProcessStatus.WAITING_CONNECTION_TEST],
-      ['CONNECTION_VERIFIED', ProcessStatus.CONNECTION_VERIFIED],
-      ['INSTALLATION_COMPLETE', ProcessStatus.INSTALLATION_COMPLETE],
-    ])('shows the tag at %s', (_name, step) => {
-      const { queryByTestId } = render(
-        <InstallationProcessProgressBar currentStep={step} tcTag={TAG} />,
-      );
-      expect(queryByTestId('tc-tag')).not.toBeNull();
-    });
-
-    /**
-     * The gate must not render the tag's element on the hidden steps — the tag
-     * fetches latest_version on mount, so a slot that merely hides it visually
-     * would keep the request. Asserting on the SLOT (not the tag) pins that:
-     * `tagSlot` is what the guard wraps.
-     */
-    it('renders no tag slot at all before the step is reached', () => {
-      const slotCount = (step: ProcessStatus) => {
-        const { container } = render(
-          <InstallationProcessProgressBar currentStep={step} tcTag={TAG} />,
-        );
-        return [...container.querySelectorAll('span')].filter(
-          (el) => el.className === installStepperStyles.tagSlot,
-        ).length;
-      };
-      expect(slotCount(ProcessStatus.INSTALLING)).toBe(0);
-      expect(slotCount(ProcessStatus.WAITING_CONNECTION_TEST)).toBe(1);
-    });
-
-    it('still draws nothing at step 5 when no test has run', () => {
-      const { container } = render(
-        <InstallationProcessProgressBar currentStep={ProcessStatus.WAITING_CONNECTION_TEST} />,
-      );
-      expect(container.querySelector('[data-testid="tc-tag"]')).toBeNull();
-    });
+  it('renders no tag slot at all while either gate is shut', () => {
+    const slots = (el: HTMLElement) =>
+      [...el.querySelectorAll('span')].filter(
+        (s) => s.className === installStepperStyles.tagSlot,
+      ).length;
+    expect(slots(block(ProcessStatus.WAITING_CONNECTION_TEST, TAG))).toBe(0); // road shut
+    expect(slots(opened(ProcessStatus.INSTALLING))).toBe(0); // step not reached
+    expect(slots(opened(ProcessStatus.WAITING_CONNECTION_TEST))).toBe(1);
   });
 
-  it('exposes the install ariaLabel on nav', () => {
-    const { container } = render(
-      <InstallationProcessProgressBar
-        currentStep={ProcessStatus.INSTALLING}
-      />,
-    );
-    const nav = container.querySelector('nav');
-    expect(nav?.getAttribute('aria-label')).toBe('설치 진행 단계');
+  it('still draws nothing at step 5 when no test has run', () => {
+    const el = block(ProcessStatus.WAITING_CONNECTION_TEST);
+    fireEvent.click(cue(el));
+    expect(within(el).queryByTestId('tc-tag')).toBeNull();
+  });
+
+  /**
+   * The slot used to be `absolute top-full` under the 연결 테스트 dot, which reflowed
+   * nothing — tighten the body's `pt-8` and it would silently overlap the first card,
+   * so a source-string pin had to stand in for the geometry. Now it simply follows
+   * the step tag in flow. This pins the property that fix rests on.
+   */
+  it('keeps the verdict in flow, so it can never overlap the card below', () => {
+    expect(installStepperStyles.tagSlot).not.toContain('absolute');
+    expect(installStepperStyles.tagSlot).not.toContain('top-full');
   });
 });

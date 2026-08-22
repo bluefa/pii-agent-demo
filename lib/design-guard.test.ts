@@ -309,10 +309,21 @@ const kindBadgeBlock = nestedBlockOf(idcBlock, 'kindBadge');
 const idcTagBlock = nestedBlockOf(idcBlock, 'tag');
 const idcTableBlock = nestedBlockOf(idcBlock, 'table');
 
-// The target-source detail header went backgroundless (C3): it paints no plane of
-// its own, so every run of text and every chip in it stands on the canvas wash.
-// That move silently dropped four tiers under AA — the per-line hook cannot see it,
+// The target-source detail header went backgroundless (C3): it painted no plane of
+// its own, so every run of text and every chip in it stood on the canvas wash. That
+// move silently dropped four tiers under AA — the per-line hook cannot see it,
 // because the surface is declared by an ancestor route layout, not on the line.
+//
+// On 2026-08-22 the 설치 대상 summary took a white fill (owner: it has to read as a
+// summary, not a strip) — and later the same day it gave the fill back (개선안 ㄷ):
+// the card grouped these facts and named them nowhere, which is what "not a summary"
+// had actually been about. A `blockLabel` name and one hairline replaced it, so every
+// pair below measures on `canvas` again.
+//
+// Going back cost exactly one tint. `kvLabel` #6B7684 is 4.62:1 on white and 4.22:1
+// on the wash — the card had been quietly load-bearing for it — so it moved to
+// #68717F (4.51:1). The other nine tints cleared AA on both surfaces and did not
+// move. That asymmetry is the reason these pairs name their surface explicitly.
 const headerBlock = blockOf('projectHeaderStyles');
 const stepperBlock = blockOf('installStepperStyles');
 
@@ -390,14 +401,31 @@ const SURFACES: SurfacePair[] = [
   // pair IS the separation — re-tint `panel` toward white and the card dissolves with
   // nothing else left to mark where it starts.
   { what: 'wizard content card on the dialog panel', top: '#FFFFFF', under: wizardPanel },
-  // The backgroundless header's chips and plates have only the wash behind them.
-  { what: 'header service-code chip on the page wash', top: bgOf(classOf(headerBlock, 'codeChip')), under: canvas },
-  { what: 'header provider icon plate on the page wash', top: bgOf(classOf(headerBlock, 'providerIcon')), under: canvas },
+  // The marks the header draws on the bare wash, now that it draws no plane. The
+  // hairline under 설치 대상 is the load-bearing one: it is the only thing left marking
+  // where the named block starts, so a re-tint toward the wash dissolves the block.
+  { what: 'header block rule on the page wash', top: borderOf(classOf(headerBlock, 'blockHead')), under: canvas },
   { what: 'header 설치 모드 chip on the page wash', top: bgOf(classOf(headerBlock, 'modeChipAuto')), under: canvas },
   { what: 'header kv divider on the page wash', top: bgOf(classOf(headerBlock, 'divider')), under: canvas },
-  // The road ahead is decoration — the labels and dots already name every remaining
-  // step — so it answers to the JND and nothing more. The road WALKED carries progress,
-  // so it is measured as a non-text mark in TEXT below instead.
+  // The path's two kind tags share one fill with the 설치 모드 chip above — pinned
+  // separately because they stand on the wash rather than inside a block, and because
+  // a future re-tint of either token has to keep clearing it there too.
+  { what: 'header path kind tag on the page wash', top: bgOf(classOf(headerBlock, 'crumbKind')), under: canvas },
+  { what: 'header service-code tag on the page wash', top: bgOf(classOf(headerBlock, 'codeChip')), under: canvas },
+  // Their stroke (오너 15차 지시) — black at 8% over the fill, baked opaque. Pinned on the
+  // FILL, which is the pair deciding whether the edge reads at all; it clears the wash by
+  // more (5.89) simply by being darker, so that side needs no pin of its own. Two tokens,
+  // two pairs: they share a value today and nothing stops them diverging.
+  { what: 'header path kind tag stroke on its own fill', top: borderOf(classOf(headerBlock, 'crumbKind')), under: bgOf(classOf(headerBlock, 'crumbKind')) },
+  { what: 'header service-code tag stroke on its own fill', top: borderOf(classOf(headerBlock, 'codeChip')), under: bgOf(classOf(headerBlock, 'codeChip')) },
+  // 설치 진행's step tag, on the house's pale blue rather than the path's slate
+  // (오너 14차 지시). It is the one plate on this header that is NOT the shared slate,
+  // which is the whole point — so it has to keep clearing the wash on its own.
+  { what: 'stepper step tag on the page wash', top: bgOf(classOf(stepperBlock, 'stepTag')), under: canvas },
+  // The road is back behind 「전체 단계」 (오너 14차 지시), and with it the two pairs that
+  // only it needs. The road ahead is decoration — the labels and dots already name
+  // every remaining step — so it answers to the JND and nothing more. The road WALKED
+  // carries progress, so it is measured as a non-text mark in TEXT below instead.
   { what: 'stepper road-ahead on the page wash', top: bgOf(classOf(stepperBlock, 'line')), under: canvas },
   { what: 'stepper road-walked against road-ahead', top: bgOf(classOf(stepperBlock, 'lineDone')), under: bgOf(classOf(stepperBlock, 'line')) },
   // The tinted service tiles are the rail's most numerous plates and its palest ones —
@@ -470,20 +498,41 @@ const TEXT: TextPair[] = [
     fg: textOf(classOf(themeSrc, 'resourceKind')),
     on: bgOf(classOf(themeSrc, 'resourceKind')),
   },
-  // Every tier of the backgroundless header, measured on the wash it actually sits on.
-  // #6B7684 clears AA on white (4.62:1) and fails here (4.22:1), which is precisely the
-  // trap C3 set: the same token, one surface later, is a different decision.
-  { what: 'header block eyebrow on the page wash', fg: textOf(classOf(headerBlock, 'blockLabel')), on: canvas },
+  // Every tier of the header, measured on the page wash — where 개선안 ㄷ put them
+  // back. This is C3's trap in both directions: the same token, one surface later, is
+  // a different decision. Nine of these ten cleared AA on white AND on the wash and
+  // so did not move; `kvLabel` did not, and its comment in theme.ts carries the two
+  // numbers. ⛔ Never re-point a header pair to '#FFFFFF' without also re-tinting —
+  // the extra headroom white gives is not licence to lighten.
+  { what: 'header block name on the page wash', fg: textOf(classOf(headerBlock, 'blockLabel')), on: canvas },
   { what: 'header kv label on the page wash', fg: textOf(classOf(headerBlock, 'kvLabel')), on: canvas },
-  { what: 'header kv value on the page wash', fg: textOf(classOf(headerBlock, 'kvValue')), on: canvas },
+  { what: 'header identifier value on the page wash', fg: textOf(classOf(headerBlock, 'summaryValue')), on: canvas },
   { what: 'header description on the page wash', fg: textOf(classOf(headerBlock, 'descText')), on: canvas },
   { what: 'header provider name on the page wash', fg: textOf(classOf(headerBlock, 'providerName')), on: canvas },
   { what: 'header provider gloss on the page wash', fg: textOf(classOf(headerBlock, 'providerGloss')), on: canvas },
   { what: 'header install-mode note on the page wash', fg: textOf(classOf(headerBlock, 'modeNote')), on: canvas },
-  { what: 'header code-chip label on its chip', fg: textOf(classOf(headerBlock, 'codeChipLabel')), on: bgOf(classOf(headerBlock, 'codeChip')) },
-  { what: 'header code-chip value on its chip', fg: textOf(classOf(headerBlock, 'codeChipValue')), on: bgOf(classOf(headerBlock, 'codeChip')) },
   { what: 'header 설치 모드 chip label on its chip', fg: textOf(classOf(headerBlock, 'modeChipAuto')), on: bgOf(classOf(headerBlock, 'modeChipAuto')) },
-  { what: 'header provider glyph on its plate', fg: textOf(classOf(headerBlock, 'providerIcon')), on: bgOf(classOf(headerBlock, 'providerIcon')), min: 3.0 },
+  // 시안 C's path, and the two kind tags 오너 12차 지시 put on it. The path replaced a
+  // 24px heading, so it is the smallest type here that still has to be read — the one
+  // place a quiet grey is a real decision rather than a default. The tags carry their
+  // own fill, so they answer to it and not to the wash. (crumbSep is decorative; see
+  // its comment.)
+  { what: 'header path heading on the page wash', fg: textOf(classOf(headerBlock, 'crumb')), on: canvas },
+  { what: 'header path kind tag on its own fill', fg: textOf(classOf(headerBlock, 'crumbKind')), on: bgOf(classOf(headerBlock, 'crumbKind')) },
+  { what: 'header service-code tag label on its own fill', fg: textOf(classOf(headerBlock, 'codeChipLabel')), on: bgOf(classOf(headerBlock, 'codeChip')) },
+  { what: 'header service-code tag value on its own fill', fg: textOf(classOf(headerBlock, 'codeChipValue')), on: bgOf(classOf(headerBlock, 'codeChip')) },
+  { what: 'header disclosure cue on the page wash', fg: textOf(classOf(headerBlock, 'metaCue')), on: canvas },
+  // `summaryGlyph` is not pinned: it is a brand logotype (ProviderGlyph tone="brand"),
+  // which 1.4.11 exempts, and its neutral only applies to IDC·SDU, which have no brand.
+  //
+  // 설치 진행 states position twice now (오너 14차 지시): as text on the head row, always,
+  // and as the road behind 「전체 단계」. The counts are the only tier on the row that
+  // steps up a size, so they are the pair most likely to be "quietened" later by
+  // someone who reads them as decoration. `tagCount` is not pinned — it takes the
+  // tag's own ink, which the pair below measures.
+  { what: 'stepper position sentence on the page wash', fg: textOf(classOf(stepperBlock, 'summary')), on: canvas },
+  { what: 'stepper step count on the page wash', fg: textOf(classOf(stepperBlock, 'count')), on: canvas },
+  { what: 'stepper step tag on its own fill', fg: textOf(classOf(stepperBlock, 'stepTag')), on: bgOf(classOf(stepperBlock, 'stepTag')) },
   // Stepper labels are text; the dots are the state markers, i.e. non-text per 1.4.11.
   { what: 'stepper rest label on the page wash', fg: textOf(classOf(stepperBlock, 'labelRest')), on: canvas },
   { what: 'stepper current label on the page wash', fg: textOf(classOf(stepperBlock, 'labelCurrent')), on: canvas },
