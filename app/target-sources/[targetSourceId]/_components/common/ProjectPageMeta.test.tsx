@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import { ProcessStatus, type TargetSource } from '@/lib/types';
 
@@ -51,27 +51,54 @@ const renderOpen = (props: Parameters<typeof ProjectPageMeta>[0]) => {
   return result;
 };
 
+const summaryBar = () => screen.getByRole('button', { name: /설치 대상 정보/ });
+
+/**
+ * 시안 C put the provider and the account on the summary bar, and the block below
+ * still details them — a head summarising its own body. So the two now name some
+ * of the same facts, and every open-state assertion has to say which one it means.
+ */
+const metaBlock = () => {
+  const body = document.getElementById(summaryBar().getAttribute('aria-controls') ?? '');
+  if (!body) throw new Error('meta block is closed');
+  return within(body);
+};
+
 describe('ProjectPageMeta — 설치 대상 정보 disclosure', () => {
-  it('folds the meta away by default — the header is title + progress band', () => {
+  it('folds the meta away by default — the header is path + scope bar + progress band', () => {
     render(<ProjectPageMeta project={projectFixture} identity={awsIdentity} />);
     expect(screen.queryByText('클라우드 정보')).toBeNull();
-    expect(screen.queryByText('Account ID')).toBeNull();
     expect(screen.queryByText('설명')).toBeNull();
-    // The two tiers that survive the fold.
-    expect(screen.getByRole('heading', { name: 'PII Agent 설치' })).toBeTruthy();
+    // The tiers that survive the fold.
+    expect(screen.getByRole('heading', { level: 1 })).toBeTruthy();
     expect(screen.getByTestId('process-progress-bar')).toBeTruthy();
   });
 
-  it('makes the whole 설치 대상 line the control, facts included', () => {
+  it('keeps the provider and the account on the folded bar (오너 4차 지시)', () => {
     render(<ProjectPageMeta project={projectFixture} identity={awsIdentity} />);
-    const toggle = screen.getByRole('button', { name: /설치 대상 정보/ });
+    const toggle = summaryBar();
     // The summary IS the head of the disclosure — the facts on it are inert text
-    // inside the press, not a row the press sits beside.
-    for (const fact of ['설치 대상', 'Service A', '서비스 코드', 'SERVICE-A']) {
-      expect(toggle.contains(screen.getByText(fact))).toBe(true);
+    // inside the press, not a row the press sits beside. Which facts changed with
+    // 시안 C: the scope (provider · account · code), never the name.
+    for (const fact of ['AWS Cloud', 'Account ID', '482915736204', '서비스 코드', 'SERVICE-A']) {
+      expect(within(toggle).getByText(fact)).toBeTruthy();
     }
     // …and nothing inside it steals the click.
     expect(toggle.querySelector('button, a, input')).toBeNull();
+  });
+
+  it('holds the scope to one line — the account is the only slot that may shrink', () => {
+    render(<ProjectPageMeta project={projectFixture} identity={awsIdentity} />);
+    const toggle = summaryBar();
+    // Wrapping is the failure 시안 C exists to remove: a long service name used to
+    // take this bar from 40px to 69px, and the facts get 542px at the 1360 column.
+    const facts = within(toggle).getByText('AWS Cloud').parentElement as HTMLElement;
+    expect(facts.className).toContain('flex-nowrap');
+    // Which only holds while overflow has exactly one place to go.
+    const account = within(toggle).getByText('482915736204');
+    expect(account.className).toContain('min-w-0');
+    expect(account.className).toContain('truncate');
+    expect(account.getAttribute('title')).toBe('482915736204');
   });
 
   it('opens and closes on the toggle, reporting state to assistive tech', () => {
@@ -94,14 +121,21 @@ describe('ProjectPageMeta — 설치 대상 정보 disclosure', () => {
   });
 });
 
-describe('ProjectPageMeta — title row', () => {
-  it('titles the page by its job and demotes the service to the 설치 대상 line', () => {
+describe('ProjectPageMeta — path heading', () => {
+  it('states the job at the weight of a location, not a 24px title', () => {
     render(<ProjectPageMeta project={projectFixture} identity={awsIdentity} />);
-    expect(screen.getByRole('heading', { name: 'PII Agent 설치' })).toBeTruthy();
-    expect(screen.getByText('설치 대상')).toBeTruthy();
-    expect(screen.getByText('Service A')).toBeTruthy();
-    expect(screen.getByText('서비스 코드')).toBeTruthy();
-    expect(screen.getByText('SERVICE-A')).toBeTruthy();
+    const heading = screen.getByRole('heading', { level: 1 });
+    expect(heading.textContent).toBe('PII Agent 설치/Service A/#1008');
+  });
+
+  it('clamps the service name — no contract maximum backs it', () => {
+    // swagger `service_name` declares no maxLength, so the only guarantee this
+    // line can make about width is the one it enforces itself.
+    render(<ProjectPageMeta project={projectFixture} identity={awsIdentity} />);
+    const name = within(screen.getByRole('heading', { level: 1 })).getByText('Service A');
+    expect(name.className).toContain('truncate');
+    expect(name.className).toContain('max-w-[280px]');
+    expect(name.getAttribute('title')).toBe('Service A');
   });
 
   it('renders the page action', () => {
@@ -130,14 +164,17 @@ describe('ProjectPageMeta — description block', () => {
 });
 
 describe('ProjectPageMeta — provider group', () => {
-  it('shows "AWS Cloud" with its account id and install mode under 클라우드 정보', () => {
+  it('records the account id and install mode under 클라우드 정보', () => {
     renderOpen({ project: projectFixture, identity: awsIdentity });
-    expect(screen.getByText('클라우드 정보')).toBeTruthy();
-    expect(screen.getByText('AWS Cloud')).toBeTruthy();
-    expect(screen.getByText('482915736204')).toBeTruthy();
-    expect(screen.getByText('자동 설치')).toBeTruthy();
+    const block = metaBlock();
+    expect(block.getByText('클라우드 정보')).toBeTruthy();
+    expect(block.getByText('482915736204')).toBeTruthy();
+    expect(block.getByText('자동 설치')).toBeTruthy();
     // The mode's meaning stays on-screen, not behind a tooltip.
-    expect(screen.getByText('Terraform 권한 위임')).toBeTruthy();
+    expect(block.getByText('Terraform 권한 위임')).toBeTruthy();
+    // The provider is stated once, on the bar. Repeating it here put the same
+    // glyph and name 60px apart the moment the block opened.
+    expect(block.queryByText('AWS Cloud')).toBeNull();
   });
 
   it('renders manual mode with its own explanation', () => {
@@ -169,20 +206,24 @@ describe('ProjectPageMeta — provider group', () => {
     expect(screen.queryByText('-')).toBeNull();
   });
 
-  it('IDC reads 인프라 정보 with the 사내망 gloss and no identifiers', () => {
+  it('IDC carries its 사내망 gloss on the bar and drops the group whole', () => {
     renderOpen({ project: { ...projectFixture, cloudProvider: 'IDC' }, identity: idcIdentity });
-    expect(screen.getByText('인프라 정보')).toBeTruthy();
-    expect(screen.getByText('IDC')).toBeTruthy();
-    expect(screen.getByText('사내망')).toBeTruthy();
+    const bar = within(summaryBar());
+    expect(bar.getByText('IDC')).toBeTruthy();
+    expect(bar.getByText('사내망')).toBeTruthy();
+    // No account and no install mode: a labelled group with nothing under it
+    // states less than no group at all.
+    expect(screen.queryByText('인프라 정보')).toBeNull();
     expect(screen.queryByText('Cloud Provider')).toBeNull();
   });
 
   it('an SDU account reads 데이터 제공 · direct upload, over its underlying CSP', () => {
     renderOpen({ project: { ...projectFixture, isSduType: true }, identity: awsIdentity });
-    expect(screen.getByText('데이터 제공')).toBeTruthy();
-    expect(screen.getByText('SDU')).toBeTruthy();
-    expect(screen.getByText('연동 방식')).toBeTruthy();
-    expect(screen.getByText('고객사가 데이터를 직접 업로드')).toBeTruthy();
+    const block = metaBlock();
+    expect(within(summaryBar()).getByText('SDU')).toBeTruthy();
+    expect(block.getByText('데이터 제공')).toBeTruthy();
+    expect(block.getByText('연동 방식')).toBeTruthy();
+    expect(block.getByText('고객사가 데이터를 직접 업로드')).toBeTruthy();
     expect(screen.queryByText('AWS Cloud')).toBeNull();
   });
 });
@@ -205,30 +246,20 @@ const utilityOn = (start: Element | null, prefix: string): string | null => {
 };
 
 describe('ProjectPageMeta — one line per tier', () => {
-  it('gives the provider name and the identifier value one shared line box', () => {
-    renderOpen({ project: projectFixture, identity: awsIdentity });
-    const provider = screen.getByText('AWS Cloud');
-    const value = screen.getByText('482915736204');
+  it('gives the provider name and the account one shared line box on the bar', () => {
+    render(<ProjectPageMeta project={projectFixture} identity={awsIdentity} />);
+    const bar = within(summaryBar());
+    const provider = bar.getByText('AWS Cloud');
+    const value = bar.getByText('482915736204');
 
-    // Equal box height → equal centre. The provider's box is sized by its 30px
-    // icon badge; a shorter value box centres higher and the two lines split.
-    expect(utilityOn(provider, 'min-h-')).toBe('min-h-[30px]');
-    expect(utilityOn(value, 'min-h-')).toBe('min-h-[30px]');
+    // Same size, or one of them sets the bar's 24px content height alone.
+    expect(provider.className).toContain('text-[14px]');
+    expect(value.className).toContain('text-[14px]');
 
-    // Equal centre is not equal baseline. Both line boxes must also declare the
-    // same leading, or the glyphs sit ~1px apart inside matching boxes.
+    // Same size is not the same baseline. Both line boxes must also declare the
+    // same leading, or the glyphs sit ~1px apart on a line 24px tall.
     expect(utilityOn(provider, 'leading-')).toBe(utilityOn(value, 'leading-'));
     expect(utilityOn(provider, 'leading-')).not.toBeNull();
-  });
-
-  it('binds both label stacks to their value at the same gap', () => {
-    renderOpen({ project: projectFixture, identity: awsIdentity });
-
-    // The group eyebrow rides on the kv label line. It only stays there while the
-    // two stacks push their value down by the same amount.
-    expect(utilityOn(screen.getByText('클라우드 정보'), 'gap-')).toBe(
-      utilityOn(screen.getByText('Account ID'), 'gap-'),
-    );
   });
 });
 

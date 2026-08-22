@@ -663,7 +663,20 @@ export const projectHeaderStyles = {
   /** Horizontal padding tracks the step-card column (px-10) so edges align. */
   inner: 'px-10 pt-[18px]',
   titleRow: 'flex items-start justify-between gap-4',
-  titleGroup: 'flex min-w-0 flex-wrap items-baseline gap-2.5',
+  /**
+   * 시안 C — the page's identity is a PATH, not a title. 「PII Agent 설치」 keeps its
+   * place as the first segment instead of a 24px heading: it is true all day and is
+   * never the reason anyone opened this screen, so it reads at the weight of a
+   * location, and the service name it used to crowd gets the whole middle.
+   *
+   * Same grammar as the ops side of the same target (`opsStyles.crumb`): 12px on
+   * the wash, a 280px clamp on the name, `#id` closing the path as "you are here".
+   * Nothing here links, so this is a heading SHAPED like a path, not a breadcrumb.
+   */
+  crumb: 'flex min-w-0 items-center gap-1.5 text-[12px] leading-[1.5] text-[#4E5968]',
+  crumbSep: 'flex-none text-[#A6ADBB]', // design-exempt: decorative path glyph, the labels around it carry the reading
+  crumbName: 'max-w-[280px] truncate',
+  crumbHere: 'flex-none font-semibold text-[#191F28]',
   /**
    * 시안 2 (P2): task-first H1 — the service identity demotes to this line, and
    * that line is now the disclosure itself: the facts on it ARE the summary of
@@ -702,20 +715,10 @@ export const projectHeaderStyles = {
   /** Description body — 2-line clamp; the whole block is skipped when empty. */
   descText: 'mt-1.5 max-w-[82ch] text-[14px] font-medium leading-[1.5] text-[#4E5968] line-clamp-2',
   /**
-   * The group eyebrow rides INSIDE this row as the provider stack's own label,
-   * so every label in the block sits on one line and every value on the next.
-   * Centering each stack (items-stretch + justify-center) put the provider name
-   * between the neighbour's label and value — 10px off the identifier it names.
+   * The group eyebrow rides INSIDE this row rather than on a line above it, so
+   * every label in the block sits on one line and every value on the next.
    */
   groupRow: 'mt-1.5 flex flex-wrap items-start gap-x-5 gap-y-2',
-  /**
-   * The provider's own label+value stack. Not `kv`: it must never shrink (the
-   * brand line has nothing to truncate), and it carries no copy button, so the
-   * `group/kv` hover scope would be dead weight.
-   */
-  providerStack: 'flex flex-none flex-col gap-1.5',
-  provider: 'flex min-h-[30px] flex-none items-center gap-2 pr-1',
-  providerIcon: 'grid h-[30px] w-[30px] flex-none place-items-center rounded-[8px] bg-[#ECEDF4] text-[#4E5968]',
   /** leading is explicit on BOTH line boxes — see kvValue. */
   providerName: 'text-[14px] font-medium leading-[1.5] tracking-[-0.01em] text-[#191F28]',
   /** Plain-language gloss after a bare token (IDC → 사내망). */
@@ -761,7 +764,25 @@ export const projectHeaderStyles = {
     'flex w-full items-center justify-between gap-3 rounded-[9px] px-3 py-2 transition-colors hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0050D6]/40',
   /** Open, the head's bottom corners belong to the body it now sits on. */
   targetSummaryOpen: 'rounded-b-none',
-  targetSummaryFacts: 'flex min-w-0 flex-wrap items-center gap-2',
+  /**
+   * 시안 C — the bar carries the SCOPE (provider · account · service code); the
+   * name moved up to the path. `flex-nowrap` on purpose: wrapping is how this line
+   * failed before — a 43-char service name took it from 40px to 69px at the 1360px
+   * breakpoint, where the facts have only 542px. Everything here is `flex-none`
+   * except the account slot, so overflow ellipses in one place instead of folding.
+   */
+  targetSummaryFacts: 'flex min-w-0 flex-nowrap items-center gap-2',
+  /** The same 20px brand mark the ops dashboard identity cell uses (`ProviderGlyph`
+      tone="brand", 오너 지시) — one provider looks the same everywhere in the product.
+      Bare, no plate: brand colour is the emphasis, and a grey tile only muted it.
+      IDC and SDU have no brand and fall back to this `currentColor`. */
+  summaryGlyph: 'h-5 w-5 flex-none text-[#4E5968]',
+  /** The one item allowed to shrink, and the reason the bar can carry an account at
+      all: Azure's Subscription UUID is 293px of mono, so it prints in full where the
+      column has the room and ellipses where it does not — a fixed cap would have
+      clipped it on a 1710px screen too. Whole value stays in a native `title`. */
+  summaryMono:
+    'min-w-0 truncate font-mono text-[14px] font-medium leading-[1.5] tracking-[-0.02em] tabular-nums text-[#191F28]',
   /**
    * Blue, because in this palette blue is the one colour that means "clickable"
    * (see `codeChip`, which is deliberately slate for exactly that reason) — and

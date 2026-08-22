@@ -392,7 +392,6 @@ const SURFACES: SurfacePair[] = [
   { what: 'wizard content card on the dialog panel', top: '#FFFFFF', under: wizardPanel },
   // The backgroundless header's chips and plates have only the wash behind them.
   { what: 'header service-code chip on the page wash', top: bgOf(classOf(headerBlock, 'codeChip')), under: canvas },
-  { what: 'header provider icon plate on the page wash', top: bgOf(classOf(headerBlock, 'providerIcon')), under: canvas },
   { what: 'header 설치 모드 chip on the page wash', top: bgOf(classOf(headerBlock, 'modeChipAuto')), under: canvas },
   { what: 'header kv divider on the page wash', top: bgOf(classOf(headerBlock, 'divider')), under: canvas },
   // The road ahead is decoration — the labels and dots already name every remaining
@@ -483,7 +482,14 @@ const TEXT: TextPair[] = [
   { what: 'header code-chip label on its chip', fg: textOf(classOf(headerBlock, 'codeChipLabel')), on: bgOf(classOf(headerBlock, 'codeChip')) },
   { what: 'header code-chip value on its chip', fg: textOf(classOf(headerBlock, 'codeChipValue')), on: bgOf(classOf(headerBlock, 'codeChip')) },
   { what: 'header 설치 모드 chip label on its chip', fg: textOf(classOf(headerBlock, 'modeChipAuto')), on: bgOf(classOf(headerBlock, 'modeChipAuto')) },
-  { what: 'header provider glyph on its plate', fg: textOf(classOf(headerBlock, 'providerIcon')), on: bgOf(classOf(headerBlock, 'providerIcon')), min: 3.0 },
+  // 시안 C's two new tiers. The path replaced a 24px heading, so it is the smallest
+  // type on the wash that still has to be read — the one place a quiet grey is a
+  // real decision rather than a default. (crumbSep is decorative; see its comment.)
+  { what: 'header path heading on the page wash', fg: textOf(classOf(headerBlock, 'crumb')), on: canvas },
+  { what: 'header path "you are here" on the page wash', fg: textOf(classOf(headerBlock, 'crumbHere')), on: canvas },
+  { what: 'header summary account on the page wash', fg: textOf(classOf(headerBlock, 'summaryMono')), on: canvas },
+  // `summaryGlyph` is not pinned: it is a brand logotype (ProviderGlyph tone="brand"),
+  // which 1.4.11 exempts, and its neutral only applies to IDC·SDU, which have no brand.
   // Stepper labels are text; the dots are the state markers, i.e. non-text per 1.4.11.
   { what: 'stepper rest label on the page wash', fg: textOf(classOf(stepperBlock, 'labelRest')), on: canvas },
   { what: 'stepper current label on the page wash', fg: textOf(classOf(stepperBlock, 'labelCurrent')), on: canvas },
