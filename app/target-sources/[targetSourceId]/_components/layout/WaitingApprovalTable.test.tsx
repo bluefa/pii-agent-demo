@@ -6,7 +6,7 @@ import {
   type WaitingApprovalResource,
 } from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalTable';
 import { rdsInstanceBandLabel } from '@/app/target-sources/[targetSourceId]/_components/shared/RdsInstancePanel';
-import { useColumnResize } from '@/app/components/ui/useColumnResize';
+import { useColumnResize, type ColumnResize } from '@/app/components/ui/useColumnResize';
 import { required } from '@/lib/test-dom';
 import { textColors, verdictRail } from '@/lib/theme';
 
@@ -873,6 +873,71 @@ describe('WaitingApprovalTable', () => {
       fireEvent.mouseMove(wrap, { clientX: 104 });
       fireEvent.mouseLeave(wrap);
       expect(tracer.style.opacity).toBe('0');
+    });
+
+    it('keeps the seam line dark while a button is held — a drag must not trail its ghost', () => {
+      // Round 8: "너비 조절시에 잔상이 남는 효과는 삭제해봐". During a resize drag the
+      // compat mousemoves arrive with buttons=1 and stale layout — repositioning then
+      // paints a line trailing the moving boundary.
+      const { container } = render(
+        <WaitingApprovalTable variant="confirmed" resources={[row()]} />,
+      );
+      const wrap = required(
+        container.querySelector<HTMLDivElement>('.overflow-x-auto'),
+        'the scroll container hosting the seam tracer',
+      );
+      const tracer = required(
+        container.querySelector<HTMLDivElement>('[data-seam-tracer]'),
+        'the seam tracer line',
+      );
+      const ths = wrap.querySelectorAll('th');
+      ths.forEach((th, index) => {
+        th.getBoundingClientRect = () => ({ right: (index + 1) * 100 }) as unknown as DOMRect;
+      });
+      fireEvent.mouseMove(wrap, { clientX: 104 });
+      expect(tracer.style.opacity).toBe('1');
+      fireEvent.mouseMove(wrap, { clientX: 104, buttons: 1 });
+      expect(tracer.style.opacity).toBe('0');
+    });
+
+    it('douses the line on a width change, until the pointer leaves the seam zone', () => {
+      // Round 8, the other afterimage: after a drag ends (or an arrow-key resize) the
+      // cursor is parked AT the boundary — without the latch the line relights there
+      // immediately and reads as residue of the gesture. A new `columns` identity is
+      // exactly what every width change produces (the hook memoizes on the widths map).
+      const resize = (): ColumnResize => ({
+        widthOf: () => undefined,
+        handleProps: () => ({}),
+        reset: () => {},
+      });
+      const { container, rerender } = render(
+        <WaitingApprovalTable variant="confirmed" resources={[row()]} columns={resize()} />,
+      );
+      const wrap = required(
+        container.querySelector<HTMLDivElement>('.overflow-x-auto'),
+        'the scroll container hosting the seam tracer',
+      );
+      const tracer = required(
+        container.querySelector<HTMLDivElement>('[data-seam-tracer]'),
+        'the seam tracer line',
+      );
+      const ths = wrap.querySelectorAll('th');
+      ths.forEach((th, index) => {
+        th.getBoundingClientRect = () => ({ right: (index + 1) * 100 }) as unknown as DOMRect;
+      });
+      fireEvent.mouseMove(wrap, { clientX: 104 });
+      expect(tracer.style.opacity).toBe('1');
+      rerender(
+        <WaitingApprovalTable variant="confirmed" resources={[row()]} columns={resize()} />,
+      );
+      expect(tracer.style.opacity).toBe('0');
+      // Still parked in the zone: latched dark.
+      fireEvent.mouseMove(wrap, { clientX: 104 });
+      expect(tracer.style.opacity).toBe('0');
+      // Leaving the zone once re-arms discovery.
+      fireEvent.mouseMove(wrap, { clientX: 150 });
+      fireEvent.mouseMove(wrap, { clientX: 104 });
+      expect(tracer.style.opacity).toBe('1');
     });
 
     it('skips the seam tracer for approval tables', () => {

@@ -3,6 +3,7 @@
 import {
   Fragment,
   memo,
+  useEffect,
   useMemo,
   useRef,
   useState,
@@ -491,6 +492,20 @@ export const WaitingApprovalTable = memo(
     // change the hook count.
     const seamWrapRef = useRef<HTMLDivElement>(null);
     const seamTracerRef = useRef<HTMLDivElement>(null);
+    // Round 8 (owner): "너비 조절시에 잔상이 남는 효과는 삭제해봐". Any width change —
+    // drag step, arrow key, double-click, reset, storage hydration — douses the tracer
+    // and latches it dark until the pointer is next seen OUTSIDE a seam zone; without
+    // the latch the line reappears under the parked cursor the moment a drag ends.
+    // `columns` is memoized on the widths record, so its identity IS the width signal;
+    // mount is not a width change, so the first pass only records the identity.
+    const seamSuppressRef = useRef(false);
+    const seamColumnsRef = useRef(columns);
+    useEffect(() => {
+      if (seamColumnsRef.current === columns) return;
+      seamColumnsRef.current = columns;
+      seamSuppressRef.current = true;
+      if (seamTracerRef.current) seamTracerRef.current.style.opacity = '0';
+    }, [columns]);
 
     const toggleGroup = (key: string) =>
       setCollapsedGroups((previous) => {
@@ -546,11 +561,20 @@ export const WaitingApprovalTable = memo(
       const wrap = seamWrapRef.current;
       const tracer = seamTracerRef.current;
       if (!wrap || !tracer) return;
-      const seamX = nearestSeamX(event.clientX, wrap.querySelectorAll('thead th'));
-      if (seamX === null) {
+      // Mid-gesture (a button held) the pointer is dragging a boundary or a selection —
+      // the discovery line must not trail the gesture as a ghost (round 8). This also
+      // covers the drag's first moves, before the width-change effect above has run.
+      if (event.buttons !== 0) {
         tracer.style.opacity = '0';
         return;
       }
+      const seamX = nearestSeamX(event.clientX, wrap.querySelectorAll('thead th'));
+      if (seamX === null) {
+        seamSuppressRef.current = false;
+        tracer.style.opacity = '0';
+        return;
+      }
+      if (seamSuppressRef.current) return;
       // clientX-space seam → scroll-content x; −0.5 centres the 1px line on the
       // collapsed boundary, which itself straddles the edge half a px each side.
       const x = seamX - wrap.getBoundingClientRect().left + wrap.scrollLeft - 0.5;
@@ -558,6 +582,9 @@ export const WaitingApprovalTable = memo(
       tracer.style.opacity = '1';
     };
     const hideSeamTracer = () => {
+      // Leaving the container re-arms discovery: the latch is about the residue of a
+      // just-finished resize, not about a fresh visit to the table.
+      seamSuppressRef.current = false;
       if (seamTracerRef.current) seamTracerRef.current.style.opacity = '0';
     };
 

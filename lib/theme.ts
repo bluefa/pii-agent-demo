@@ -1557,9 +1557,14 @@ export const idcStyles = {
      * BODY rails go entirely: the covered-clip cut exists because the next column
      * lies ON TOP of this one, so the boundary is now that sheet's cast shadow — a
      * 10px right-edge gradient inside every non-last cell, darkest AT the cut and
-     * fading left. rgba(15,23,42,0.09) composites to ≈#E9EAEC at the peak (1.18:1 on
-     * white — the consoles' own line weight, spent on a feather instead of a stroke;
-     * 0.06 was measured live and read as subliminal). A background gradient, not
+     * fading left.
+     *
+     * Round 8 (owner): "경계가 너무 눈에 띈다. 한 단계씩만 낮춰봐" — one rung down the
+     * round-7 A/B ladder, α 0.09 → 0.06. The peak now composites to ≈#F1F1F2
+     * (~1.13:1 on white), UNDER the row hairline (#EBEEF2, 1.16:1) and every measured
+     * console band (AWS #EBEBF0 1.19:1, Fluent #E0E0E0 1.32:1). Round 7 graded 0.06
+     * "subliminal at a glance", but the owner judged 0.09 too loud at rest — the
+     * resting weight for THIS mark sits below the console norm. A background gradient, not
      * box-shadow: a shadow blurs past each cell's corners and stipples every row
      * seam, while backgrounds tile seamlessly down the column (box-shadow on
      * collapsed-border cells also renders unreliably). Header rails and the thead
@@ -1567,7 +1572,7 @@ export const idcStyles = {
      * hover is `seamTracer` below.
      */
     consoleGrid:
-      '[&_th+th]:border-l [&_th+th]:border-[#E5E7EB] [&_td:not(:last-child)]:[background:linear-gradient(to_left,rgba(15,23,42,0.09),transparent)_right/10px_100%_no-repeat]',
+      '[&_th+th]:border-l [&_th+th]:border-[#E5E7EB] [&_td:not(:last-child)]:[background:linear-gradient(to_left,rgba(15,23,42,0.06),transparent)_right/10px_100%_no-repeat]',
     /**
      * Round 7 (owner): "경계면 근처에 마우스를 올려둘때만 진하게 표현되면 좋겠음" —
      * with the resting rails gone (see consoleGrid), this is the on-demand boundary:
@@ -1576,9 +1581,14 @@ export const idcStyles = {
      * (SEAM_ZONE_PX in WaitingApprovalTable — the header handles' own 8px grammar).
      * #D1D5DB is the weight the owner reads as "진하게"; blue stays reserved for the
      * grabbable header guide, whose z-20 beats this z-10 where they overlap.
+     *
+     * Round 8 (owner): "너비 조절시에 잔상이 남는 효과는 삭제해봐" — the 100ms fade-out
+     * lingered as an afterimage around resize gestures, so the line now cuts on/off
+     * instantly. WaitingApprovalTable additionally keeps it dark while any pointer
+     * button is held and, after a width change, until the pointer leaves the seam zone.
      */
     seamTracer:
-      'pointer-events-none absolute inset-y-0 left-0 z-10 w-px bg-[#D1D5DB] opacity-0 transition-opacity duration-100 motion-reduce:transition-none',
+      'pointer-events-none absolute inset-y-0 left-0 z-10 w-px bg-[#D1D5DB] opacity-0',
     /**
      * 열 폭 조절 손잡이 (useColumnResize) — 헤더 셀 안쪽 오른쪽 끝 8px. 밖으로 내밀면
      * 마지막 열에서 표가 가로로 넘친다. 선은 평소 보이지 않는다: 표에 세로줄을 하나 더 그으면
