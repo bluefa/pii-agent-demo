@@ -873,7 +873,7 @@ describe('WaitingApprovalTable', () => {
       expect(table?.className).toContain('[&_th+th]:border-l');
     });
 
-    it('materializes the nearest seam line only inside its 8px zone', () => {
+    it('deepens the nearest seam shadow only inside its 8px zone', () => {
       const { container } = render(
         <WaitingApprovalTable variant="confirmed" resources={[row()]} />,
       );
@@ -883,17 +883,24 @@ describe('WaitingApprovalTable', () => {
       );
       const tracer = required(
         container.querySelector<HTMLDivElement>('[data-seam-tracer]'),
-        'the seam tracer line',
+        'the seam tracer band',
       );
       expect(tracer.className).toContain('opacity-0');
+      // Round 12: not a line — the resting 10px ramp deepened blue, right edge ON the
+      // seam, body only (top pinned to the thead's bottom so the header keeps lines).
+      expect(tracer.className).toContain('w-[10px]');
+      expect(tracer.className).toContain('linear-gradient(to_left');
+      expect(tracer.className).not.toContain('w-px');
       // JSDOM has no layout — pin the column boundaries by hand at x = 100, 200, …
       const ths = wrap.querySelectorAll('th');
       ths.forEach((th, index) => {
-        th.getBoundingClientRect = () => ({ right: (index + 1) * 100 }) as unknown as DOMRect;
+        th.getBoundingClientRect = () =>
+          ({ right: (index + 1) * 100, bottom: 40 }) as unknown as DOMRect;
       });
       fireEvent.mouseMove(wrap, { clientX: 104 });
       expect(tracer.style.opacity).toBe('1');
-      expect(tracer.style.transform).toBe('translateX(99.5px)');
+      expect(tracer.style.transform).toBe('translateX(90px)');
+      expect(tracer.style.top).toBe('40px');
       // Between seams — and at the table's outer right edge, which is not a seam.
       fireEvent.mouseMove(wrap, { clientX: 150 });
       expect(tracer.style.opacity).toBe('0');
@@ -904,10 +911,10 @@ describe('WaitingApprovalTable', () => {
       expect(tracer.style.opacity).toBe('0');
     });
 
-    it('keeps the seam line dark while a button is held — a drag must not trail its ghost', () => {
+    it('douses the seam band while a button is held — a drag must not trail its ghost', () => {
       // Round 8: "너비 조절시에 잔상이 남는 효과는 삭제해봐". During a resize drag the
       // compat mousemoves arrive with buttons=1 and stale layout — repositioning then
-      // paints a line trailing the moving boundary.
+      // paints a tracer trailing the moving boundary.
       const { container } = render(
         <WaitingApprovalTable variant="confirmed" resources={[row()]} />,
       );
@@ -917,11 +924,12 @@ describe('WaitingApprovalTable', () => {
       );
       const tracer = required(
         container.querySelector<HTMLDivElement>('[data-seam-tracer]'),
-        'the seam tracer line',
+        'the seam tracer band',
       );
       const ths = wrap.querySelectorAll('th');
       ths.forEach((th, index) => {
-        th.getBoundingClientRect = () => ({ right: (index + 1) * 100 }) as unknown as DOMRect;
+        th.getBoundingClientRect = () =>
+          ({ right: (index + 1) * 100, bottom: 40 }) as unknown as DOMRect;
       });
       fireEvent.mouseMove(wrap, { clientX: 104 });
       expect(tracer.style.opacity).toBe('1');
@@ -929,9 +937,9 @@ describe('WaitingApprovalTable', () => {
       expect(tracer.style.opacity).toBe('0');
     });
 
-    it('douses the line on a width change, until the pointer leaves the seam zone', () => {
+    it('douses the band on a width change, until the pointer leaves the seam zone', () => {
       // Round 8, the other afterimage: after a drag ends (or an arrow-key resize) the
-      // cursor is parked AT the boundary — without the latch the line relights there
+      // cursor is parked AT the boundary — without the latch the tracer relights there
       // immediately and reads as residue of the gesture. A new `columns` identity is
       // exactly what every width change produces (the hook memoizes on the widths map).
       const resize = (): ColumnResize => ({
@@ -948,11 +956,12 @@ describe('WaitingApprovalTable', () => {
       );
       const tracer = required(
         container.querySelector<HTMLDivElement>('[data-seam-tracer]'),
-        'the seam tracer line',
+        'the seam tracer band',
       );
       const ths = wrap.querySelectorAll('th');
       ths.forEach((th, index) => {
-        th.getBoundingClientRect = () => ({ right: (index + 1) * 100 }) as unknown as DOMRect;
+        th.getBoundingClientRect = () =>
+          ({ right: (index + 1) * 100, bottom: 40 }) as unknown as DOMRect;
       });
       fireEvent.mouseMove(wrap, { clientX: 104 });
       expect(tracer.style.opacity).toBe('1');

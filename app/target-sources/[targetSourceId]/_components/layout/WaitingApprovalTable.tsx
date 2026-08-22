@@ -395,9 +395,14 @@ const confirmedColumnWidth = (key: ConfirmedColumnKey, columns?: ColumnResize): 
  * seats the handle at the cell's right edge (useColumnResize contract); the width is a
  * style either way (default or dragged), so server and client always agree on it.
  */
-/** The seam zone: within this many px of a column boundary the tracer line shows —
+/** The seam zone: within this many px of a column boundary the tracer shows —
  *  the same 8px the header resize handles occupy, one grammar for "at the boundary". */
 export const SEAM_ZONE_PX = 8;
+
+/** The tracer band's width — the same 10px ramp consoleGrid casts at rest (round 12:
+ *  the hover is that shadow deepening in place, not a new element), so the tracer's
+ *  RIGHT edge must land on the seam: translateX(seam − band). */
+export const SEAM_BAND_PX = 10;
 
 /** Nearest interior column boundary within SEAM_ZONE_PX of clientX, or null. The last
  *  th's right edge is the table's outer edge, not a seam between sheets — skipped. */
@@ -487,9 +492,10 @@ export const WaitingApprovalTable = memo(
     const railRow = useRailHover();
 
     // Round 7: the resting body grid has no rails (consoleGrid's covered-sheet shadow
-    // took their place) — the nearest column seam materializes as a line only while
-    // the pointer is inside its 8px zone. Imperative style writes on purpose: a
-    // mousemove-frequency setState would re-render the whole table for a 1px tracer.
+    // took their place) — the nearest column seam materializes only while the pointer
+    // is inside its 8px zone (a 1px line through round 11; since round 12 the resting
+    // shadow itself deepening blue). Imperative style writes on purpose: a
+    // mousemove-frequency setState would re-render the whole table for one tracer.
     // Hooks live ABOVE the empty-state return: a filter emptying the list must not
     // change the hook count.
     const seamWrapRef = useRef<HTMLDivElement>(null);
@@ -571,16 +577,21 @@ export const WaitingApprovalTable = memo(
         tracer.style.opacity = '0';
         return;
       }
-      const seamX = nearestSeamX(event.clientX, wrap.querySelectorAll('thead th'));
+      const ths = wrap.querySelectorAll('thead th');
+      const seamX = nearestSeamX(event.clientX, ths);
       if (seamX === null) {
         seamSuppressRef.current = false;
         tracer.style.opacity = '0';
         return;
       }
       if (seamSuppressRef.current) return;
-      // clientX-space seam → scroll-content x; −0.5 centres the 1px line on the
-      // collapsed boundary, which itself straddles the edge half a px each side.
-      const x = seamX - wrap.getBoundingClientRect().left + wrap.scrollLeft - 0.5;
+      const wrapRect = wrap.getBoundingClientRect();
+      // clientX-space seam → scroll-content x; the band hangs LEFT of the seam with
+      // its right edge ON it, registering over the resting ramp it deepens (round 12).
+      const x = seamX - wrapRect.left + wrap.scrollLeft - SEAM_BAND_PX;
+      // Body only: the header keeps its line grammar (rails + the grab guide), so the
+      // band starts under the thead rule instead of washing over the header labels.
+      tracer.style.top = `${ths[0].getBoundingClientRect().bottom - wrapRect.top}px`;
       tracer.style.transform = `translateX(${x}px)`;
       tracer.style.opacity = '1';
     };

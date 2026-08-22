@@ -1596,14 +1596,24 @@ export const idcStyles = {
      *
      * Round 10 (owner): "경계면 활성화시에 색상만 파란색 계열로 수정하면 딱 좋을듯" —
      * the activated boundary joins the app's one interaction blue (#0064FF, the header
-     * guide's own color), so approach and grab read as one grammar: the 1px tracer
-     * below meets the 2px guide above in the same hue where they overlap (guide z-20
-     * over tracer z-10). Color only — width, zone, and the round-8 latches unchanged.
-     * Grey #D1D5DB (rounds 7–9) read as a STRUCTURAL line that was "더욱 강한" than
-     * the resting boundary it stood on; blue says "interactive" instead of "wall".
+     * guide's own color), so approach and grab read as one grammar. Grey #D1D5DB
+     * (rounds 7–9) read as a STRUCTURAL line that was "더욱 강한" than the resting
+     * boundary it stood on; blue says "interactive" instead of "wall".
+     *
+     * Round 12 (owner): "그냥 찐한 색의 선이 갑자기 생기는 hover잖아?? … 본문 부분은
+     * 차라리 그림자가 조금 더 짙어지고 색상이 파란색으로 표현되는게 더 좋을듯" — the
+     * tracer stops being a line at all. It is now the resting shadow's own hover
+     * state: the same 10px right-edge ramp consoleGrid casts (right edge ON the
+     * seam — WaitingApprovalTable translates it by seam − 10px), in #0064FF at
+     * α 0.12 over the resting 0.03 slate (peak ≈#DAE6F9, ~1.25:1 on white — present
+     * on approach, nowhere near the solid line's 3.7:1 pop). Body only: the class
+     * anchors the bottom and the mousemove pins `top` to the thead's bottom edge,
+     * because the header keeps its LINE grammar (rails + the 2px grab guide —
+     * "header는 뭐 봐줄만해요") and a shadow crossing it would mix the two. Zone
+     * (±8px) and the round-8 latches are unchanged.
      */
     seamTracer:
-      'pointer-events-none absolute inset-y-0 left-0 z-10 w-px bg-[#0064FF] opacity-0',
+      'pointer-events-none absolute bottom-0 left-0 z-10 w-[10px] bg-[linear-gradient(to_left,rgba(0,100,255,0.12),transparent)] opacity-0',
     /**
      * Round 11 (owner): "ResourceId가 종류 행에 의해서 더 많이 가려져" — the id column's
      * copy button used to RESERVE its tail (the ARN cut 46px before the boundary: 18px
