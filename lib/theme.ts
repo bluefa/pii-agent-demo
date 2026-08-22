@@ -759,8 +759,14 @@ export const projectHeaderStyles = {
    * identifier it owns listed to its right. Plain content, not a press — the
    * identifiers carry copy buttons and nothing interactive may sit inside a
    * `<button>`, so the disclosure is the cue up on the title row instead.
+   *
+   * Centered, not top-aligned (오너 9차 지시): the mark is the subject of the whole
+   * fact block, not a bullet on its first line, and `items-start` was reading it as
+   * the latter — 28px pinned to the top of a 50px stack left it 11px high. The
+   * divider opts out with `self-stretch`, and the stack is the tallest item, so this
+   * moves the mark and nothing else.
    */
-  summaryRow: 'flex items-start gap-3 px-4 pb-3 pt-1.5',
+  summaryRow: 'flex items-center gap-3 px-4 pb-3 pt-1.5',
   /**
    * The provider cell — a bare mark for the branded clouds, mark plus name at the
    * house's 6px for IDC and SDU. Explicit `flex-none` at the call site, never baked
