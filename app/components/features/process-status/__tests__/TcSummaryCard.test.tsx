@@ -144,6 +144,24 @@ describe('TcSummaryCard liveness while running', () => {
   });
 
   /**
+   * 무늬는 "아직 답이 없다"만 말한다. 채움이 덮어 주기를 기대할 수 없는 이유는 채움이
+   * ok·fail 뿐인데 `reported` 에는 `unknown` 도 들기 때문 — 계약 밖 값으로만 보고된
+   * 실행이면 문장은 `결과를 집계하고 있어요` 인데 트랙은 전부 흐르는, 한 카드가 두 말을
+   * 하는 상태가 된다. 미확인은 답이 없는 게 아니라 읽을 수 없는 답이다.
+   */
+  it('stops marching once everything has reported, even when the answers are unreadable', () => {
+    const { container } = renderCard('running', { unknown: 6 });
+    expect(container.querySelector(TRACK)).not.toBeNull();
+    expect(container.querySelector('[class*="tc-track-march"]')).toBeNull();
+  });
+
+  /** 반대쪽 — 미확인이 섞여도 아직 답을 못 받은 유닛이 남아 있으면 흐른다. */
+  it('keeps marching while any unit still owes an answer', () => {
+    const { container } = renderCard('running', { ok: 2, unknown: 1, waiting: 3 });
+    expect(container.querySelector('[class*="tc-track-march"]')).not.toBeNull();
+  });
+
+  /**
    * 바는 진행이지 결과가 아니다 — 정착하면 무늬만이 아니라 트랙째 물러난다. 판정 둘은
    * 9px 아래 카운트 줄이 이미 수로 말하고 있어서, 꽉 찬 두 색 띠는 같은 두 값을 형태로
    * 한 번 더 그리는 것뿐이다. Figma(H2kRxFxOqqeTrPceFU4zMM)의 정착 프레임 넷이 전부

@@ -387,9 +387,16 @@ export const TcSummaryCard = ({
         <div className={s.track}>
           {/* 시안 A — 채움 아래 깔리는 행진 무늬. 위의 불투명한 판정 채움이 덮고 남은
               구간, 즉 아직 답이 오지 않은 만큼만 드러나 왼쪽으로 흐른다. 시작 직후엔
-              트랙 전체가 흐르고(폭 0 의 빈 회색 바가 사라진다), 모두 보고되면 남는
-              구간이 없어 저절로 멈춘다 — 그 프레임은 문장이 받는다(시안 E). */}
-          <div className={s.trackMarch} aria-hidden="true" />
+              트랙 전체가 흐른다(폭 0 의 빈 회색 바가 사라진다).
+              모두 보고되면 멈춘다 — 그 프레임은 문장이 받는다(시안 E). 채움이 저절로
+              덮어 주기를 기대할 수는 없다: 채움은 ok·fail 뿐인데 `reported` 에는
+              `unknown` 도 든다(`computeTcBuckets`). 계약 밖 값만 6건 돌아온 실행이면
+              문장은 "결과를 집계하고 있어요"인데 트랙은 전부 흐르는, 한 카드가 두 말을
+              하는 상태가 된다. 미확인은 답이 없는 게 아니라 읽을 수 없는 답이므로,
+              무늬 대신 맨 트랙이 그 구간을 맡는다. */}
+          {buckets.reported < buckets.total && (
+            <div className={s.trackMarch} aria-hidden="true" />
+          )}
           {/* Segmented, not single-color: the bar carries the verdict split itself. */}
           {/* 250ms — settle 홀드(400ms, useTcSettleHold)보다 짧아야 한다. 폴 사이의 값
               점프를 굴리는 것도 이 transition 이다 (ScanRunningState 의 진행바와 동일). */}
