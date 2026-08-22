@@ -169,7 +169,7 @@ describe('IdcStep5ConnectionTest — pre-test idle strip (regression)', () => {
 
     // Row1 (host 10.20.30.40) carries a seeded connection_status; step 5 is pre-test, so
     // nothing may read Success until a run settles. 연결 상태 칸은 실행이 보고한 것만
-    // 읽으므로(시드값이 아니라) 여기서는 무보고 '—' 다 — 아래 '연결 상태 열' 참고.
+    // 읽으므로(시드값이 아니라) 여기서는 '미실행' 이다 — 아래 '연결 상태 열' 참고.
     await screen.findByText('10.20.30.40');
     expect(screen.queryByText('Success')).toBeNull();
   });
@@ -333,17 +333,29 @@ describe('IdcStep5ConnectionTest — 연결 상태 열', () => {
     return cell as HTMLElement;
   };
 
-  it('행마다 그 리소스의 판정을 적는다 — 보고가 없는 행은 대기가 아니라 —', async () => {
+  it('행마다 그 리소스의 판정을 적는다 — 보고가 없는 행은 대기가 아니라 미보고', async () => {
     pollingState.uiState = 'FAIL';
     // row1(10.20.31.10)은 결과가 오지 않았다: '대기'로 접으면 agent 가 PENDING 을 보고한
-    // 행과 구분되지 않는다.
+    // 행과 구분되지 않는다. 실행 자체는 있었으므로 '미실행'도 아니다.
     pollingState.latestJob = makeJob('FAIL', [agentResult('idc-row-0', 'FAIL')]);
     renderStep();
 
     await screen.findByText('10.20.30.40');
     expect(screen.getByText('연결 상태')).toBeTruthy();
     expect(connCell('10.20.30.40').textContent).toBe('실패');
-    expect(connCell('10.20.31.10').textContent).toBe('—');
+    expect(connCell('10.20.31.10').textContent).toBe('미보고');
+    // 이 열은 전부 태그다 — 판정 없는 행만 맨 글자로 서면 "값이 없다" 가 아니라 "이 행은
+    // 다른 종류다" 로 읽힌다.
+    expect(connCell('10.20.31.10').querySelector('span')).not.toBeNull();
+  });
+
+  /** 실행이 없으면 보고 의무도 없었다 — 없는 사실을 만들지 않는다. */
+  it('회차가 하나도 없으면 미보고가 아니라 미실행', async () => {
+    renderStep();
+
+    await screen.findByText('10.20.30.40');
+    expect(connCell('10.20.30.40').textContent).toBe('미실행');
+    expect(connCell('10.20.31.10').textContent).toBe('미실행');
   });
 
   it('성공한 행만 성공이라고 말한다', async () => {

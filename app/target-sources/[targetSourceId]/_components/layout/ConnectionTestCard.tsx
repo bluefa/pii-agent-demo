@@ -680,7 +680,7 @@ export const ConnectionTestCard = ({
                         {/* 어휘·스켈레톤 규칙은 `TcStatusTag` 가 진다 — IDC step 5 의 표가 같은
                             칸을 그리므로, 두 CSP 가 같은 판정을 다른 말로 하지 않도록 한 곳에 둔다. */}
                         <td className={idcStyles.table.approvalCell}>
-                          <TcStatusTag status={status} loading={loading} />
+                          <TcStatusTag status={status} hasRun={!!latestJob} loading={loading} />
                         </td>
                         {/* Athena·DynamoDB are IAM-based and have no logical-DB management at all,
                             so there is nothing here to configure — the button used to open anyway

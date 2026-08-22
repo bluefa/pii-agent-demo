@@ -1171,12 +1171,27 @@ export const idcStyles = {
     last: 'before:bottom-1/2',
   },
   /** Inline color tag — `.tag` (4px 10px / radius 8 / 12px / 600). */
+  /**
+   * 상태 태그. `connProgress.state` 와 같은 규칙 — **채도만 낮추고 명도는 고정**, 한 계열에
+   * 한 채도(C=0.014).
+   *
+   * 원래 C 0.0196~0.0250 으로 카드 표면(0.0136~0.0181)보다 진했다. 알약은 한 열에 세로로
+   * 쌓여서 표가 색 띠를 하나 갖는 것처럼 읽혔고, 22px 짜리 칩이 795px 짜리 판보다 화소당
+   * 더 크게 튀었다. 판보다는 진해야 맞다(작은 표식이라 찾을 수 있어야 한다) — 그 순서는
+   * 유지한 채 둘 다 내렸다.
+   *
+   * ⚠️ L 은 절대 옮기지 말 것. `chipEdge` 의 근거가 "칩 어휘 전체가 L* 88.7~96.2 에 모여
+   * 있고 hover 틴트 둘이 그 안에 앉는다"는 관측이라, 명도를 건드리면 그 분석이 통째로
+   * 무효가 된다. 실측으로 흰 행 1.11~1.14:1 · hover 1.02~1.05:1 이 그대로이고, 글자 대비도
+   * 4.87/5.76/7.38/7.10 으로 전부 보존된다.
+   */
   tag: {
     base: 'inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-[12px] font-semibold tracking-[-0.01em] whitespace-nowrap',
-    blue: `bg-[#E8F1FF] text-[#1747B5] ${tableRowLift.chipEdge}`,
-    green: `bg-[#E5F8EE] text-[#197A3F] ${tableRowLift.chipEdge}`,
-    red: `bg-[#FEECEC] text-[#B42318] ${tableRowLift.chipEdge}`,
-    orange: `bg-[#FEF0E1] text-[#7A3F0E] ${tableRowLift.chipEdge}`,
+    blue: `bg-[#EBF1FA] text-[#1747B5] ${tableRowLift.chipEdge}`,
+    green: `bg-[#EBF6F0] text-[#197A3F] ${tableRowLift.chipEdge}`,
+    red: `bg-[#FAEDED] text-[#B42318] ${tableRowLift.chipEdge}`,
+    orange: `bg-[#F9F1E9] text-[#7A3F0E] ${tableRowLift.chipEdge}`,
+    /** 중립은 이미 C 0.0029 라 내릴 것이 없다 — 색 없는 태그가 이 열의 바닥이다. */
     gray: `bg-[#F7F8FA] text-[#4E5968] ${tableRowLift.chipEdge}`,
   },
   /** Health/connection status — `.status` (bare text + dot, 12.5px / 500 / dot 8px; NO bg/pad/radius). */
@@ -1312,12 +1327,30 @@ export const idcStyles = {
   /** `.conn-progress` step-5 progress strip — v16 2552–2645 (5 data-states). */
   connProgress: {
     base: 'rounded-xl border px-4 pt-[13px] pb-3.5 mb-3.5 transition-colors',
+    /**
+     * 판정 표면. **채도만 낮추고 명도는 고정한다** — 한 계열에 한 채도.
+     *
+     * 원래 값은 면 C 0.0136~0.0181, 테두리 C 0.0395~0.0558 (OKLCH, 브라우저 실측)로,
+     * 중립면(#F7F8FA, C 0.0029)의 5~6배·7~9배였다. 카드는 판을 통째로 칠하는 자리라
+     * 그 채도가 화면에서 가장 큰 색 덩어리가 됐다 — 판정을 말하는 것은 문장·글리프·
+     * 바의 채움이고, 면은 그것들을 묶기만 하면 된다.
+     *
+     * 면 C=0.009 / 테두리 C=0.022 로 통일했다. 계열마다 달랐던 탓에 success(C 0.0181)가
+     * fail(C 0.0140)보다 29% 진해 차분한 상태가 경보 상태보다 색이 셌는데, 한 값으로
+     * 맞추면 세기가 아니라 색조만 의미를 나른다.
+     *
+     * L 을 건드리지 않은 이유는 둘이다. (1) 이 면들은 이미 흰 판과 1.06~1.10:1 이라
+     * 더 밝히면 사라지고, 어둡게 하면 오히려 더 눈에 띈다 — 명도엔 여유가 없다.
+     * (2) L 고정이면 그 위 모든 대비비가 그대로 보존된다: 제목 4.75~15.27, counts
+     * 4.19~4.36, 바 채움 3.03/3.58~3.16/3.73, 중립 점 2.76~2.88 — 전부 ±0.02 안이다.
+     * 명도를 옮기려거든 이 네 줄을 다시 재라.
+     */
     state: {
       idle: 'bg-[#F7F8FA] border-[#EBEEF2]',
-      running: 'bg-[#F0F6FF] border-[#D5E5FF]',
-      pending: 'bg-[#FFF8EC] border-[#FBE6BF]',
-      success: 'bg-[#ECFAF2] border-[#C7EED9]',
-      fail: 'bg-[#FEF1F1] border-[#F8D2D0]',
+      running: 'bg-[#F2F6FC] border-[#DCE5F3]',
+      pending: 'bg-[#FCF8F2] border-[#F0E8D9]',
+      success: 'bg-[#F1F8F4] border-[#D7E8DF]',
+      fail: 'bg-[#FBF2F2] border-[#EBD7D6]',
     },
     head: 'flex items-center justify-between gap-3 mb-[11px]',
     title: 'flex items-center gap-2 text-[16px] font-bold tracking-[-0.01em]',

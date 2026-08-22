@@ -442,6 +442,7 @@ export const IdcStep5ConnectionTest = ({
                 // "아직 결과가 없다" 와 "agent 가 대기라고 보고했다" 를 한 픽셀로 만든다(P4).
                 connectionStatus={statusByResource}
                 connectionLoading={loading}
+                connectionHasRun={!!latestJob}
               />
             </div>
           </div>

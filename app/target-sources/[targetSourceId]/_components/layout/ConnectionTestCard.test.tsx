@@ -188,7 +188,9 @@ describe('ConnectionTestCard', () => {
     // 결과가 이미 손에 있어도 로딩 중이면 말하지 않는다 — 게이트는 latestJob 이 아니라 loading.
     expect(within(table).queryByText('성공')).toBeNull();
     expect(within(table).queryByText('대기')).toBeNull();
-    expect(within(table).queryByText('—')).toBeNull();
+    // 판정 없음을 말하는 두 태그도 아직 서면 안 된다 — 모르는 동안은 스켈레톤뿐이다.
+    expect(within(table).queryByText('미보고')).toBeNull();
+    expect(within(table).queryByText('미실행')).toBeNull();
     expect(table.querySelectorAll('tbody .animate-pulse').length).toBe(1);
   });
 

@@ -65,11 +65,17 @@ interface IdcResourceTableProps {
    * `conn` column only — 최근 실행의 리소스별 판정(`foldAgentStatuses`). **행의
    * `connection` 이 아니라 이 맵을 읽는다**: 그 필드는 무보고를 PENDING 으로 접어서
    * "아직 아무 결과도 없다" 와 "agent 가 대기라고 보고했다" 를 같은 픽셀로 만든다.
-   * 맵에 없는 리소스는 `—`(무보고)다.
+   * 맵에 없는 리소스는 무보고다.
    */
   connectionStatusByResource?: ReadonlyMap<string, UnitTcStatus>;
   /** `conn` column only — 첫 폴링 응답 전. 판정 대신 스켈레톤을 그린다. */
   connectionLoading?: boolean;
+  /**
+   * `conn` column only — 실행 회차가 하나라도 있는가. 맵이 비었다는 사실만으로는 가를 수
+   * 없다: 한 건도 보고하지 못하고 끝난 실행도 빈 맵을 남긴다(mock fixture 2108). 기본값이
+   * `false` 인 건 이 열이 opt-in 이라서다 — 열을 세우는 쪽이 답을 같이 준다.
+   */
+  connectionHasRun?: boolean;
   /**
    * Render in the CSP approval-table skin (step 6): the borderless frame that joins under a
    * toolbar, the 12px/600 approval header, 18/16 cell padding and the readable row-hover lift.
@@ -120,6 +126,7 @@ export const IdcResourceTable = ({
   logicalDbCounts,
   connectionStatusByResource,
   connectionLoading = false,
+  connectionHasRun = false,
   connected = false,
   firewallStatusByResource,
 }: IdcResourceTableProps) => {
@@ -281,6 +288,7 @@ export const IdcResourceTable = ({
                   <td className={skin.cell}>
                     <TcStatusTag
                       status={connectionStatusByResource?.get(r.resourceId)}
+                      hasRun={connectionHasRun}
                       loading={connectionLoading}
                     />
                   </td>
