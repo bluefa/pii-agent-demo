@@ -1386,12 +1386,16 @@ export const idcStyles = {
      * 성공 정착 카드의 다음 행동 안내. 제목의 아이콘 슬롯(18px) + `title` 의 gap-2 만큼
      * 들여써서 제목·메타와 한 열에 선다.
      *
-     * 색은 `counts` 의 #6B7684 가 아니라 한 단계 진한 #4E5968 이다. success 판(#EFF9F3)
-     * 에서 #6B7684 는 **4.33:1** 로 12px AA(4.5:1) 에 못 미치고(pending 판의 4.37:1 과 같은
-     * 사정 — `countsWarn` 이 존재하는 이유다), #4E5968 은 **6.67:1** 이다. 겸사겸사 계층도
-     * 맞는다: 무엇을 하면 되는지는 언제 끝났는지보다 위다.
+     * 14px — 바로 위 시각 메타(`counts`)와 같은 12px 였을 때 두 줄이 한 계층으로 읽혔다.
+     * 색만 한 칸 진하게 두는 것(#6B7684 → #4E5968)으로는 갈라지지 않는다: 크기가 같으면
+     * 눈은 두 줄을 같은 종족으로 묶는다. 이제 16(제목) / 14(안내) / 12(메타) 로 한 칸씩
+     * 내려가고, 무엇을 하면 되는지가 언제 끝났는지보다 위에 선다.
+     *
+     * 색은 그대로 #4E5968 이다. success 판(#EFF9F3)에서 #6B7684 는 **4.33:1** 로 AA(4.5:1)
+     * 에 못 미치고(pending 판의 4.37:1 과 같은 사정 — `countsWarn` 이 존재하는 이유다),
+     * #4E5968 은 **6.67:1** 이다. 14px 는 아직 large text 가 아니라 기준은 4.5:1 그대로다.
      */
-    guidance: 'pl-[26px] text-[12px] font-medium leading-[1.5] text-[#4E5968] break-keep',
+    guidance: 'pl-[26px] text-[14px] font-medium leading-[1.5] text-[#4E5968] break-keep',
     /** The bucket list inside `counts` — dots replace the 가운뎃점 separators, so the
      *  segments need their own gap (12px between, 6px inside a segment). */
     countList: 'flex items-center gap-3',
