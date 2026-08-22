@@ -42,6 +42,20 @@ export interface ColumnResizeOptions {
    * modal tables whose widths may die with the modal.
    */
   storageKey?: string;
+  /**
+   * Column keys whose width lives for the session only — dragged, kept while the user is
+   * here, gone on the next load. Give this to the `flex` column of a `ConsoleTable`.
+   *
+   * Persisting it would be a trap: a stored width turns that column from the table's slack
+   * sink into a sized column, so the table stops following the container — permanently, with
+   * no control that says so and no way back (round 14 retired 「열 너비 초기화」). One stray
+   * drag would silently cost the reader every screen size but the one they are on. A drag is
+   * "let me see this ARN", not a setting; the responsive default has to come back.
+   *
+   * Only the sink is ephemeral. Every sized column persists as before — those widths are
+   * genuinely the user's layout, and losing THEM is the loss the storage exists to prevent.
+   */
+  ephemeralKeys?: readonly string[];
 }
 
 export interface ColumnResize {
@@ -100,13 +114,23 @@ const headerFloor = (th: HTMLTableCellElement): number => {
  * 비교하려면 그 행 수만큼 hover 해야 한다. 폭 자체를 넓히면 비교가 눈으로 한 번에 끝난다.
  *
  * `table-fixed` 표 전용이다: 폭을 지정한 열은 그 값에 고정되고, 폭이 없는 열이 남는 공간을
- * 흡수한다 — 그래서 손잡이는 고정폭 열에만 달고, 흡수하는 열에는 달지 않는다.
+ * 흡수한다.
+ *
+ * 흡수하는 열(`ConsoleTableColumn.flex`)에도 손잡이는 단다. 손잡이는 th 의 오른쪽 경계에
+ * 있고 그 경계는 시임 트레이서가 이미 점등하는 자리라, 거기만 손잡이가 없으면 경계 문법이
+ * 한 칸 비는 것으로 읽힌다. 대신 그 열을 끄는 순간 사용자가 고른 폭이 진실이 되고 표는
+ * 폭=Σ열폭 으로 돌아간다(`ConsoleTable`) — 시작 폭이 아래처럼 실제 렌더 폭이라 그 전환에
+ * 점프가 없다.
  *
  * 시작 폭은 상태가 아니라 pointerdown 시점의 실제 렌더 폭(offsetWidth)에서 읽는다. 훅은
  * 기본값을 알 필요가 없고(클래스가 소유), 사용자가 건드린 열만 기억한다.
  */
 export const useColumnResize = (options?: ColumnResizeOptions): ColumnResize => {
-  const { clampToContent = false, storageKey } = options ?? {};
+  const { clampToContent = false, storageKey, ephemeralKeys } = options ?? {};
+  // Joined, not the array: callers write it inline (`[CONFIRMED_FLEX_KEY]`), so a fresh
+  // identity arrives on every render and an array in a dep list would re-run the effects
+  // — including the hydration one, which re-arms its gate.
+  const ephemeralIds = ephemeralKeys?.join(',') ?? '';
   const [widths, setWidths] = useState<Readonly<Record<string, number>>>({});
   /**
    * 진행 중인 드래그를 끝내는 함수. window 리스너는 이 훅 밖에서 살아 있으므로, 드래그
@@ -136,9 +160,13 @@ export const useColumnResize = (options?: ColumnResizeOptions): ColumnResize => 
         if (!raw) return;
         const parsed: unknown = JSON.parse(raw);
         if (!parsed || typeof parsed !== 'object') return;
+        // Ephemeral keys are dropped on the way IN as well. Filtering only the write-back
+        // would leave a value stored before this rule existed — or by an older build —
+        // suppressing the flex column for one more load each time it is read back.
+        const ephemeral = new Set(ephemeralIds ? ephemeralIds.split(',') : []);
         const entries = Object.entries(parsed as Record<string, unknown>).flatMap(
           ([key, value]) =>
-            typeof value === 'number' && Number.isFinite(value)
+            typeof value === 'number' && Number.isFinite(value) && !ephemeral.has(key)
               ? [[key, Math.max(MIN_COLUMN_WIDTH, Math.round(value))] as [string, number]]
               : [],
         );
@@ -150,15 +178,21 @@ export const useColumnResize = (options?: ColumnResizeOptions): ColumnResize => 
       }
     }, 0);
     return () => window.clearTimeout(timer);
-  }, [storageKey]);
+  }, [storageKey, ephemeralIds]);
   useEffect(() => {
     if (!storageKey || !hydratedRef.current) return;
+    // Filtered on the way OUT, not at drag time: `widths` stays the whole truth for this
+    // session, so an ephemeral column behaves exactly like any other until the page reloads.
+    const ephemeral = new Set(ephemeralIds ? ephemeralIds.split(',') : []);
+    const kept = Object.fromEntries(
+      Object.entries(widths).filter(([key]) => !ephemeral.has(key)),
+    );
     try {
-      localStorage.setItem(storageKey, JSON.stringify(widths));
+      localStorage.setItem(storageKey, JSON.stringify(kept));
     } catch {
       // Best effort — resizing still works for the session.
     }
-  }, [widths, storageKey]);
+  }, [widths, storageKey, ephemeralIds]);
 
   // Memoized so a memo()'d table taking this as a prop only re-renders when a width
   // actually changes, not on every render of the hook's host.

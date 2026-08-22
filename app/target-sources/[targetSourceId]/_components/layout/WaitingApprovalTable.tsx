@@ -372,16 +372,35 @@ const ReasonCell = ({ resource }: { resource: WaitingApprovalResource }) => {
  * Round 13: this list IS the column spec `ConsoleTable` renders from, so an optional
  * column is expressed by leaving it out (see `confirmedColumns`) rather than by a
  * filter over a record.
+ *
+ * `id` is the FLOOR of the flex column, not its width — see `confirmedColumns`. It reads
+ * 186 rather than the audit's 312 because the other six sum to 802 and the table has to
+ * fit a 990px content column (measured: 1710px browser minus the two rails' 720px). 312
+ * put the table at 1114 and hid 연동 제외 outright on that screen; as a floor, 186 keeps
+ * every column on screen there and still renders past 1000px wherever there is room.
  */
 const CONFIRMED_COLUMN_WIDTHS = {
   name: 162,
-  id: 312,
+  id: 186,
   kind: 128,
   dbType: 142,
   region: 156,
   logicalDb: 118,
   excluded: 96,
 } as const;
+
+/**
+ * Which confirmed columns fill the table, in declaration order — the last unpinned one is
+ * the slack sink (see `ConsoleTable`). Exported because the caller owns the resize instance
+ * and has to name them there too: their widths are session-only (`ephemeralKeys`), so a
+ * table can never be found already stuck at one screen size on arrival.
+ *
+ * Just these two. They are the only columns whose values run to arbitrary length — an ARN
+ * and a resource name — so they are the only ones a wider screen should spend pixels on;
+ * the other five hold a tag, an engine name, a region and two counts, and padding those out
+ * buys nothing.
+ */
+export const CONFIRMED_FLEX_KEYS = ['name', 'id'] as const;
 
 /** The confirmed table's column spec. `kind` only exists when a visible row can fill it —
  *  Azure/GCP rows carry no kind today, and a permanently blank column is dead space. */
@@ -390,9 +409,16 @@ const confirmedColumns = (regionLabel: string, withKind: boolean): ConsoleTableC
     key: 'name',
     label: 'Resource Name',
     width: CONFIRMED_COLUMN_WIDTHS.name,
+    // Grows as a share of the table, and becomes the sink itself if the user pins the id
+    // column — which is what keeps the table filling the container either way.
+    flex: true,
     headClassName: idcStyles.table.nameCell,
   },
-  { key: 'id', label: 'Resource ID', width: CONFIRMED_COLUMN_WIDTHS.id },
+  // The slack sink: last flex column in this list, so it takes what the others leave. Its
+  // values are ARNs — the longest thing in the row and the only column whose cut costs the
+  // reader something — so a wider screen spends most of its extra pixels here instead of
+  // padding all seven columns out. The five sized columns keep their declared px.
+  { key: 'id', label: 'Resource ID', width: CONFIRMED_COLUMN_WIDTHS.id, flex: true },
   // Round 9 (owner): "종류를 resource id 오른쪽으로" — the kind leaves the leading anchor
   // slot and files in with the other attributes, after the identity pair (name → id).
   ...(withKind ? [{ key: 'kind', label: '종류', width: CONFIRMED_COLUMN_WIDTHS.kind }] : []),

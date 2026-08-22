@@ -10,6 +10,22 @@ const COLUMNS: ConsoleTableColumn[] = [
   { key: 'region', label: 'Region', width: 60 },
 ];
 
+/** `COLUMNS` with the middle one absorbing the slack — same sum, so the floor is the 360
+ *  the other spec uses as its width, which keeps the two modes directly comparable. */
+const FLEX_COLUMNS: ConsoleTableColumn[] = [
+  COLUMNS[0],
+  { ...COLUMNS[1], flex: true },
+  COLUMNS[2],
+];
+
+/** Two flex columns — the shape every real caller uses. The LAST one is the sink; the
+ *  first takes a percentage share and stands ready to inherit the role. */
+const TWO_FLEX_COLUMNS: ConsoleTableColumn[] = [
+  { ...COLUMNS[0], flex: true },
+  { ...COLUMNS[1], flex: true },
+  COLUMNS[2],
+];
+
 const rows = (
   <tbody>
     <tr>
@@ -70,12 +86,106 @@ describe('ConsoleTable — columns', () => {
       '200px',
       '60px',
     ]);
-    // The table's width IS the column sum, never w-full: under w-full the fixed layout
-    // redistributes slack and every column silently renders wider than it declares.
+    // With every column sized the table's width IS the column sum, never w-full: under
+    // w-full the fixed layout redistributes the slack across all of them and every column
+    // silently renders wider than it declares. (A flex column changes this — see below.)
     const table = required(container.querySelector('table'), 'the table');
     expect((table as HTMLElement).style.width).toBe('360px');
     expect(table.className).toContain('table-fixed');
     expect(table.className).not.toContain('w-full');
+  });
+
+  it('gives the slack to a flex column, and its width becomes the table floor', () => {
+    const { container } = render(
+      <ConsoleTable columns={FLEX_COLUMNS}>{rows}</ConsoleTable>,
+    );
+    const ths = container.querySelectorAll('thead th');
+    // Only the flex column goes auto. The sized ones must keep their declared px — that is
+    // the whole point: a wider screen shows more Resource ID, not a wider everything.
+    expect([...ths].map((th) => (th as HTMLElement).style.width)).toEqual([
+      '100px',
+      'auto',
+      '60px',
+    ]);
+    const table = required(container.querySelector('table'), 'the table');
+    expect(table.className).toContain('w-full');
+    expect((table as HTMLElement).style.width).toBe('');
+    expect((table as HTMLElement).style.minWidth).toBe('360px');
+  });
+
+  it('splits the fill between flex columns — a share each, auto for the last', () => {
+    // Round 19 had one absorber, so a wide screen poured 100% of the slack into it and the
+    // column ballooned while its neighbours sat at their declared px. A share spreads the
+    // growth over every column whose values actually run long.
+    const { container } = render(
+      <ConsoleTable columns={TWO_FLEX_COLUMNS}>{rows}</ConsoleTable>,
+    );
+    const ths = container.querySelectorAll('thead th');
+    expect([...ths].map((th) => (th as HTMLElement).style.width)).toEqual([
+      // 100 / 360 — its own floor's share of the floor sum, so at the floor the column
+      // lands exactly on 100px and above it grows in proportion.
+      '27.7778%',
+      'auto',
+      '60px',
+    ]);
+    const table = required(container.querySelector('table'), 'the table');
+    expect(table.className).toContain('w-full');
+    expect((table as HTMLElement).style.minWidth).toBe('360px');
+  });
+
+  it('hands the sink to the previous flex column when the last one is dragged', () => {
+    // THE round-19 defect. The sink is a position, not a column: pinning the last flex
+    // column must move the role rather than delete it, or the table stops following the
+    // container for the rest of the visit with nothing on screen saying why.
+    const { container } = render(
+      <ConsoleTable columns={TWO_FLEX_COLUMNS} resize={resize({ id: 500 })}>
+        {rows}
+      </ConsoleTable>,
+    );
+    const ths = container.querySelectorAll('thead th');
+    expect([...ths].map((th) => (th as HTMLElement).style.width)).toEqual([
+      'auto', // name inherits the sink
+      '500px', // exactly what the user dragged — no redistribution
+      '60px',
+    ]);
+    const table = required(container.querySelector('table'), 'the table');
+    expect(table.className).toContain('w-full');
+    // The pinned width raises the floor, so the table scrolls instead of crushing the sink.
+    expect((table as HTMLElement).style.minWidth).toBe('660px');
+    expect((table as HTMLElement).style.width).toBe('');
+  });
+
+  it('drops back to the sum only once EVERY flex column has been dragged', () => {
+    // With no unpinned flex column left there is nobody to absorb, and leaving the table at
+    // w-full is exactly the redistribution bug the first test guards. `FLEX_COLUMNS` has a
+    // single flex column, so one drag is already "every".
+    const { container } = render(
+      <ConsoleTable columns={FLEX_COLUMNS} resize={resize({ id: 500 })}>
+        {rows}
+      </ConsoleTable>,
+    );
+    const ths = container.querySelectorAll('thead th');
+    expect((ths[1] as HTMLElement).style.width).toBe('500px');
+    const table = required(container.querySelector('table'), 'the table');
+    expect(table.className).not.toContain('w-full');
+    expect((table as HTMLElement).style.width).toBe('660px');
+    expect((table as HTMLElement).style.minWidth).toBe('');
+  });
+
+  it('keeps a grab handle on the flex column', () => {
+    // Its right edge is a seam like any other, and the tracer lights there — a boundary
+    // that lights up but cannot be grabbed reads as a gap in the grammar.
+    const { container } = render(
+      <ConsoleTable columns={FLEX_COLUMNS} resize={resize()}>
+        {rows}
+      </ConsoleTable>,
+    );
+    const ths = container.querySelectorAll('thead th');
+    expect([...ths].map((th) => !!th.querySelector('[role="separator"]'))).toEqual([
+      true,
+      true,
+      true,
+    ]);
   });
 
   it('lets a dragged width override the default, in the cell and in the sum', () => {
