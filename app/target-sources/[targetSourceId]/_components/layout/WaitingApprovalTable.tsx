@@ -297,10 +297,13 @@ export const NAME_LIFT = primaryColors.textGroupHover;
  *
  * (The `legacy` halves of these pairs — self-ellipsis for the auto-layout shells — left with
  * the legacy shell itself: LIN-97 put the last two variants on `ConsoleTable`.)
+ *
+ * Exported for the step-1 candidate table (LIN-98), whose name column renders the same three
+ * branches inside the same console grammar — the token is the sync, as with `CELL_LIFT`.
  */
-const NAME_TRIGGER = 'min-w-0 w-full';
+export const NAME_TRIGGER = 'min-w-0 w-full';
 
-const NAME_TEXT = 'block whitespace-nowrap';
+export const NAME_TEXT = 'block whitespace-nowrap';
 
 // 제외 행을 한 단 흐리게 하던 처리(gray-500)는 없앴다.
 //
@@ -1266,10 +1269,10 @@ export const WaitingApprovalTable = memo(
             key={section.key}
             // Round 6 undoes round 3's border-strong promotion for the confirmed tables:
             // back then the hairline "was never seen at all" because rows were the grid's
-            // ONLY lines — once the permanent rails landed (round 4) the same #D1D5DB read
+            // ONLY lines — once the permanent rails landed (round 4) the same D1D5DB read
             // darker than the consoles it quotes ("여전히 행 레벨에서의 구분선들도 너무
-            // 선명"). The consoles' own row rules sit AT the hairline (AWS live #EBEBF0,
-            // the benchmark's Azure reconstruction #EDEBE9 — both 1.19:1): resting rules
+            // 선명"). The consoles' own row rules sit AT the hairline (AWS live EBEBF0,
+            // the benchmark's Azure reconstruction EDEBE9 — both 1.19:1): resting rules
             // whisper, and the hover TINT — not the border — is what reveals a row as a
             // block, which is the behaviour the owner remembered as Azure's.
             className={bodyClass}

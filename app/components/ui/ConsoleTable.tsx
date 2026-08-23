@@ -18,6 +18,9 @@ export const SEAM_BAND_PX = 10;
 export const nearestSeamX = (clientX: number, ths: ArrayLike<Element>): number | null => {
   let best: number | null = null;
   for (let i = 0; i < ths.length - 1; i += 1) {
+    // A non-resizable column's right edge is a boundary with no gesture on it (see
+    // `ConsoleTableColumn.resizable`) — the tracer must not advertise one.
+    if ((ths[i] as HTMLElement).hasAttribute('data-static-col')) continue;
     const edge = ths[i].getBoundingClientRect().right;
     const closer = best === null || Math.abs(edge - clientX) < Math.abs(best - clientX);
     if (Math.abs(edge - clientX) <= SEAM_ZONE_PX && closer) {
@@ -59,6 +62,13 @@ export interface ConsoleTableColumn {
   flex?: boolean;
   /** Extra header-cell classes — e.g. the leading identity column's deeper inset. */
   headClassName?: string;
+  /**
+   * Set `false` for a structural gutter — a checkbox or chevron column whose width is a
+   * layout constant, not a reader decision. It renders no resize handle, and the seam
+   * tracer skips its right edge: showing the discovery band on a boundary that cannot be
+   * dragged would advertise a gesture that does nothing. Data columns leave this unset.
+   */
+  resizable?: boolean;
 }
 
 /** One column's rendered width: the dragged width if the user set one, else the default. */
@@ -141,6 +151,7 @@ const ConsoleTh = ({
     // Floors live on the table's `min-width`, never here — a `table-fixed` cell ignores
     // `min-width`, so the only way to hold one is to keep the whole table above the sum.
     style={{ width: consoleThWidth(column, columnSum, sinkKey, resize) }}
+    {...(column.resizable === false ? { 'data-static-col': '' } : {})}
   >
     {/* The label clips ITSELF: a bare text node in a hard-shrunk `<th>` paints over the
         neighbouring header. The attribute doubles as the hook's floor probe — drags stop
@@ -153,7 +164,9 @@ const ConsoleTh = ({
     <span {...{ [RESIZE_LABEL_ATTR]: '' }} className="inline-block max-w-full truncate align-bottom">
       {column.head ?? column.label}
     </span>
-    {resize && <span {...resize.handleProps(column.key, column.label)} />}
+    {resize && column.resizable !== false && (
+      <span {...resize.handleProps(column.key, column.label)} />
+    )}
   </th>
 );
 

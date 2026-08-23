@@ -23,6 +23,12 @@ interface PaginationProps {
    * + a standing 14px instruction) — the size reaches the select and the page buttons
    * too, so the bar holds ONE size.
    *
+   * The 14px order was given a SECOND time (08-23, "2번 말하게 하지마") after four
+   * console-table mounts shipped on the `sm` default — a docblock alone did not hold
+   * the rule. `Pagination.mounts.test.ts` now fails any console-table caller that
+   * mounts this bar without `size="md"`; if it fails you, pass the prop, do not
+   * loosen the scan.
+   *
    * There is deliberately no surface variant. Round 15 gave the console table a flat,
    * centred footer of its own; round 17 retired it because the owner picked THIS bar —
    * the one 20 other tables already use — leaving size as the only difference.

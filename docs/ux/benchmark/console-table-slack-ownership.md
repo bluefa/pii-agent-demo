@@ -366,9 +366,8 @@ Step 6 과 admin ops 확정 정보도 지나간다. 그 둘은 판정 쌍 대신
 
 ### 남은 Step
 
-Step 1(`CandidateResourceTable`)·Step 5(`ConnectionTestCard`)는 별도 컴포넌트라 각자
-스펙이 필요하다(LIN-98·LIN-99). IDC 공유 표(`IdcResourceTable`)는 LIN-100.
-Step 4 와 admin `plain` 은 §10 에서 랜딩했다.
+Step 5(`ConnectionTestCard`)는 LIN-99, IDC 공유 표(`IdcResourceTable`)는 LIN-100.
+Step 4 와 admin `plain` 은 §10, Step 1(`CandidateResourceTable`)은 §11 에서 랜딩했다.
 
 ## 10. 하한 원장 (LIN-96, 오너 승인 2026-08-23) — 과 Step 4·plain 랜딩
 
@@ -405,8 +404,60 @@ Step 4 와 admin `plain` 은 §10 에서 랜딩했다.
 - 레거시(자동 레이아웃) 셸은 이 랜딩으로 **삭제** — `WaitingApprovalTable` 의 네 variant
   전부가 `ConsoleTable` 스펙을 넘긴다.
 
+## 11. Step 1 랜딩 (LIN-98, 2026-08-23)
+
+`CandidateResourceTable` — 체크박스로 **고르는** 화면이라 다른 단계에 없는 열 둘
+(선택 거터·편집형 제외 사유)이 붙는다. 하한은 원장 §1 인용, `설치 구분`만 이 티켓의
+[실측] 몫이었다.
+
+| 표면 | 열 (하한) | flex | sink | Σ |
+| -- | -- | -- | -- | -- |
+| Step 1 편집 | cb 52 · name 250 · id 186 · dbType 142 · region 156 · 설치구분 112 · 사유 160 | name+id | id | **1058** |
+| Step 1 읽기 | name 250 · id 186 · dbType 142 · region 156 · 설치구분 112 | name+id | id | **846** |
+
+- **설치 구분 112** — 어휘는 닫혀 있다(`CATEGORY_LABELS` 3어 + 설치 불가 안내 버튼).
+  실측(TS 1006): 최장 멤버 = 설치 불가 버튼 68.3px(14px semibold + 아이콘 + gap),
+  헤더(단어+도움 아이콘) 62.5px. 68 + 셀 패딩 36 + slack = **112** — 요청 대상 여부와
+  같은 값 계급(짧은 판정 단어).
+- **체크박스 52 = 실측 교정 (첫 랜딩 40 은 결함)** — 40 은 옛 `w-10` **선언** 재사용이었는데,
+  auto 레이아웃에서 그 선언은 지켜진 적이 없다(열의 실제 렌더 = min-content 52 = 패딩 18 +
+  박스 16 + 18). 절대 px 계층 가족이 전부 실측 52 위에 서 있다: `RdsInstancePanel`
+  pl-[106px] = 52+30+24, 인스턴스 밴드 트렁크 −38px = 체브런 중심 52+16. 40 으로 지으면
+  거터 오른쪽 전체가 12px 왼쪽으로 끌려가 펼친 클러스터의 트리 선이 체브런을 빗나간다
+  (사용자 보고 재현: RDS 패널 트렁크가 체브런보다 12px 오른쪽). **방법 (b) 선언 재사용은
+  선언이 실제로 지배했던 경우에만 유효** — 지배한 적 없는 선언은 (a) 실측으로 되돌린다.
+- **체크박스 열 처리 (티켓의 결정 항목)** — `ConsoleTable` 열 스펙에 **포함**하되
+  `resizable: false` 를 신설해 구조 거터로 선언했다: 핸들 없음, `data-static-col` 로
+  seam tracer 도 그 경계를 건너뛴다(끌 수 없는 경계에 발견 밴드를 세우면 없는 제스처를
+  광고한다). 헤더는 시각적으로 빈 채(`head: <></>`) `label: '선택'` 이 보조기기와
+  스토리지 키를 맡는다. leadingCell 분리안은 기각 — thead 가 열 스펙에서만 나오는 셸
+  계약을 깨고 colSum 산술이 두 갈래가 된다.
+- **거터는 경계 문법 전체에서 빠진다 (지시: "CheckBox와 ResourceName 사이에 구분선이 …
+  좋아보이지 않습니다")** — `consoleGrid` 가 `data-static-col` 뒤 th 의 헤더 레일과
+  `data-static-col` td 의 본문 그림자 밴드를 제외한다(본문 td 는 호출자가 같은 마커를
+  찍는다 — 체크박스 td·그룹 leadingCell). 한 어휘로: 정적 열 = 핸들 ×·tracer ×·레일 ×·
+  밴드 ×. 거터는 비교 축이 아니라 행의 도입부다.
+- **셀 자체 클램프 3종 제거** — 이름 3분기 `max-w-[200px]` → `NAME_TRIGGER`/`NAME_TEXT`
+  (LIN-97 이 export), id `max-w-[220px]` → `hardClip + w-[calc(100%+18px)]` 콘솔 레시피,
+  사유 칩 `REASON_CLAMP` 150px → `max-w-full`. 전부 HostCell P2 와 같은 판정: 잘림
+  지점은 열이 소유한다.
+- **expandFolds 이식** — 재현(TS 1006): 'test_raw'(유일한 Athena 자식) 검색 시 접힌
+  그룹 부모 한 줄만 남고 일치 행이 화면에 없었다. 검색·dbType·region·깔때기 타일 중
+  하나라도 목록을 좁히면 그룹 전부 열림 + 체브론은 지시자(steps 2·3·6·7 계약 그대로).
+  유도 접힘(승인 CTA 차단 행)은 무필터 상태의 규칙으로 유지.
+- 판 990 에서 편집 Σ1058 은 ~68px 스크롤한다(`ConsoleTable` overflow-x-auto). 드래그
+  실측: name 250→303 고정 시 sink(id)는 auto 유지, minWidth 1058→1111(=Σ−250+303),
+  flex 쌍은 ephemeral 이라 스토리지 `{}` 유지.
+- **핸들 히트박스는 경계 양쪽 4px (`resizeHandleOnGrid`)** — 실포인터 재현: 옛
+  히트박스(right-0 w-2, 경계 왼쪽 8px)는 경계선 **위/오른쪽 1px** 을 누르면 다음 th 를
+  잡아 텍스트 선택이 시작됐다 — 사용자에겐 "끌어도 안 늘어남". 선이 조준점이므로
+  히트박스가 선을 가운데 두고 걸친다: span w-1 + 투명 `before:` 스트립이 경계 너머
+  4px(의사요소는 소유자로 히트테스트된다) — 총 8px 유지, 점등 `after:` 가이드는 리터럴
+  그대로(라운드 6 기록·플레인 핸들과의 구분 마커 불변).
+
 ---
 
 측정 환경: Chrome, 창 1710×, dPR 2, dev 서버 `/pass/target-sources/1012`,
 판 폭 990px (브라우저 1710 − 좌우 레일 720). §10 실측은 `/pass/target-sources/1008`(AWS
-Step 4, 판 716)·`1023`(IDC Step 4)·admin ops `1008?tab=confirm`(판 1116).
+Step 4, 판 716)·`1023`(IDC Step 4)·admin ops `1008?tab=confirm`(판 1116). §11 실측은
+`/pass/target-sources/1006`(AWS Step 1, 판 990).
