@@ -128,8 +128,8 @@ function BucketTile({
 /**
  * The four tiles, in scan order: what needs you, what is moving, what is over,
  * and the way back out. Marks come from the section's own icon set in the role
- * each glyph already plays there — `loader` is the arc StatusPill spins on
- * RUNNING, so a tile and the rows under it say "진행 중" with the same shape.
+ * each glyph already plays there — 진행 중 wears the bolt Step 5 already spends
+ * on WAITING_CONNECTION_TEST, so the same shape means "moving" in both places.
  */
 const BUCKETS: ReadonlyArray<{
   key: DashBucket;
@@ -138,7 +138,7 @@ const BUCKETS: ReadonlyArray<{
   tone?: 'alert' | 'running' | 'done' | 'muted';
 }> = [
   { key: 'attention', label: '확인 필요', icon: 'warn-tri', tone: 'alert' },
-  { key: 'active', label: '진행 중', icon: 'loader', tone: 'running' },
+  { key: 'active', label: '진행 중', icon: 'bolt', tone: 'running' },
   { key: 'closed', label: '종료', icon: 'check-circle', tone: 'done' },
   { key: 'all', label: '전체', icon: 'table', tone: 'muted' },
 ];
