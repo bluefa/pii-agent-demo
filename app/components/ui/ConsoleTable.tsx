@@ -134,11 +134,14 @@ const ConsoleTh = ({
   columnSum,
   sinkKey,
   resize,
+  isLast,
 }: {
   column: ConsoleTableColumn;
   columnSum: number;
   sinkKey: string | null;
   resize?: ColumnResize;
+  /** Last column: its right edge is the table's OUTER edge, not an interior seam. */
+  isLast?: boolean;
 }) => (
   <th
     // The handle below is a CHILD of this cell and carries its own aria-label, which the
@@ -164,9 +167,26 @@ const ConsoleTh = ({
     <span {...{ [RESIZE_LABEL_ATTR]: '' }} className="inline-block max-w-full truncate align-bottom">
       {column.head ?? column.label}
     </span>
-    {resize && column.resizable !== false && (
-      <span {...resize.handleProps(column.key, column.label)} />
-    )}
+    {resize &&
+      column.resizable !== false &&
+      (() => {
+        const handle = resize.handleProps(column.key, column.label);
+        return (
+          <span
+            {...handle}
+            // The straddle strip (`before:-right-1`) serves INTERIOR seams, where users aim
+            // at the line from either side. On the last column it pokes 4px past the table's
+            // outer edge, and that phantom 4px is real content to the overflow-x-auto wrap —
+            // every console table grew a 4px horizontal wiggle (found in LIN-100's
+            // 판폭==표폭 audit: scrollWidth 994 vs clientWidth 990). Inside-half only there —
+            // and the lit guide (`after:-right-px`, 2px wide) pokes 1px out the same way, so
+            // it gets pinned to the edge. `!` because the token's own offset class targets
+            // the same property and Tailwind's emit order, not cn order, would pick the
+            // winner (the contrast-hook lesson: override by certainty, not by position).
+            className={cn(handle.className, isLast && 'before:hidden after:!right-0')}
+          />
+        );
+      })()}
   </th>
 );
 
@@ -298,13 +318,14 @@ export const ConsoleTable = ({ columns, resize, children }: ConsoleTableProps) =
       >
         <thead className={idcStyles.table.approvalHeaderFlat}>
           <tr className="whitespace-nowrap">
-            {columns.map((column) => (
+            {columns.map((column, index) => (
               <ConsoleTh
                 key={column.key}
                 column={column}
                 columnSum={columnSum}
                 sinkKey={sinkKey}
                 resize={resize}
+                isLast={index === columns.length - 1}
               />
             ))}
           </tr>

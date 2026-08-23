@@ -8,7 +8,6 @@ import { ExcludedIcon } from '@/app/components/ui/icons';
 import { IDC_ACCESS_ALLOWED, IDC_ACCESS_DENIED, IDC_SOURCE_LABEL } from '@/lib/constants/idc';
 import { CELL_LIFT } from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalTable';
 import type {
-  IdcHealth,
   IdcInstallStatus,
   IdcKind,
   IdcResourceView,
@@ -156,7 +155,16 @@ export const IdcEndpointWithKindCell = ({
   );
 };
 
-export const IdcDbTypeCell = ({ resource }: { resource: IdcResourceView }) => (
+export const IdcDbTypeCell = ({
+  resource,
+  sidMaxWidthClass = 'max-w-[170px]',
+}: {
+  resource: IdcResourceView;
+  /** SID line cap — the same two width modes as HostCell's `maxWidthClass`: the px default
+   *  is the column-width control in legacy auto tables, and console (`table-fixed`) callers
+   *  pass `max-w-full` so the COLUMN owns the truncation point. */
+  sidMaxWidthClass?: string;
+}) => (
   <div className="flex flex-col items-start gap-1">
     {/* Plain text, matching the CSP approval table: the engine name is an attribute,
         not a state, so a chip per row spends emphasis on the least decisive column. */}
@@ -166,7 +174,7 @@ export const IdcDbTypeCell = ({ resource }: { resource: IdcResourceView }) => (
       {resource.databaseTypeLabel}
     </span>
     {resource.oracleSid ? (
-      <span className="group/sid inline-flex items-center gap-1 min-w-0 max-w-[170px]">
+      <span className={cn('group/sid inline-flex items-center gap-1 min-w-0', sidMaxWidthClass)}>
         <span className={idcStyles.sidKey}>SID</span>
         <Tooltip
           content={<IdentifierTip label="Oracle SID" value={resource.oracleSid} />}
@@ -218,7 +226,7 @@ export const IdcSourceIpCell = ({
           label={IDC_SOURCE_LABEL}
           maxWidthClass={maxWidthClass}
           {...(emphasis && {
-            // hover 리프트를 같이 건다 — #0064FF 는 흰 바탕 4.92:1 이지만 행 hover 틴트
+            // hover 리프트를 같이 건다 — 0064FF 는 흰 바탕 4.92:1 이지만 행 hover 틴트
             // 위에서 4.46:1 로 AA 아래다 (primaryColors.textGroupHover 주석 참조).
             textClassName: cn('font-semibold', primaryColors.text, primaryColors.textGroupHover),
           })}
@@ -250,23 +258,6 @@ export const IdcFirewallBadge = ({ status }: { status: IdcInstallStatus | undefi
     default:
       return <span className={cn(idcStyles.tag.base, idcStyles.tag.gray)}>BDC측 확인 필요</span>;
   }
-};
-
-/**
- * Per-resource health badge. There is no per-resource health API source
- * (`health` is null), so a null value renders a neutral em-dash placeholder
- * instead of a fabricated Healthy/Unhealthy state.
- */
-export const IdcHealthBadge = ({ health }: { health: IdcHealth | null }) => {
-  if (health === null) return <span className={textColors.tertiary}>—</span>;
-  const healthy = health !== 'UNHEALTHY';
-  const tone = healthy ? idcStyles.status.healthy : idcStyles.status.unhealthy;
-  return (
-    <span className={cn(idcStyles.status.base, tone.text)}>
-      <span className={cn(idcStyles.status.dot, tone.dot)} />
-      {healthy ? 'Healthy' : 'Unhealthy'}
-    </span>
-  );
 };
 
 /**

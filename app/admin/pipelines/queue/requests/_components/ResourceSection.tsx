@@ -164,6 +164,7 @@ export function ResourceSection({
           bottom-rounded (step 1's composition). */}
       {filtered.length > 0 && (
         <Pagination
+          size="md"
           page={paged.page}
           pageSize={list.pageSize}
           totalCount={filtered.length}

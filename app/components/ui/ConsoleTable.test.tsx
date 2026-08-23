@@ -259,6 +259,29 @@ describe('ConsoleTable — columns', () => {
     expect(container.querySelectorAll('[role="separator"]').length).toBe(3);
   });
 
+  // The straddle strip (`before:-right-1`) exists for INTERIOR seams. On the last column
+  // it would poke 4px past the table's outer edge, which the overflow-x-auto wrap counts
+  // as content — every console table grew a 4px horizontal wiggle (LIN-100 판폭==표폭
+  // audit: scrollWidth 994 vs clientWidth 990). The last handle keeps only its inside half.
+  it('clips the LAST handle to the table edge — no straddle past the outer boundary', () => {
+    const { container } = render(
+      <ConsoleTable columns={COLUMNS} resize={resize()}>
+        {rows}
+      </ConsoleTable>,
+    );
+    const handles = Array.from(container.querySelectorAll('[role="separator"]'));
+    expect(handles.length).toBe(3);
+    expect(handles[handles.length - 1].className).toContain('before:hidden');
+    // The lit guide overhangs 1px the same way — pinned to the edge, with `!` because
+    // the token's own `after:-right-px` targets the same property and stylesheet order,
+    // not cn order, decides between them.
+    expect(handles[handles.length - 1].className).toContain('after:!right-0');
+    for (const inner of handles.slice(0, -1)) {
+      expect(inner.className).not.toContain('before:hidden');
+      expect(inner.className).not.toContain('after:!right-0');
+    }
+  });
+
   it('gives the drag its floor probe — a shrink-to-fit label box, not a block one', () => {
     // The hook reads this span's scrollWidth. A block span reports the th's width, which
     // froze every column at its current width — an actual bug, so it gets a test.

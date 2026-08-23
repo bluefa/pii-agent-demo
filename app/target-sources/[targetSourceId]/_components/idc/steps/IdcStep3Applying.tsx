@@ -109,6 +109,7 @@ export const IdcStep3Applying = ({
               />
               {table.filteredCount > 0 && (
                 <Pagination
+                  size="md"
                   page={table.safePage}
                   pageSize={table.pageSize}
                   totalCount={table.filteredCount}

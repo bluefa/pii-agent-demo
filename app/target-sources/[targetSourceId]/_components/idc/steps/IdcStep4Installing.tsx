@@ -221,7 +221,8 @@ export const IdcStep4Installing = ({
           key: 'dbType',
           label: 'Database Type',
           width: 172,
-          render: (row: { resourceId: string }) => cell(row, (r) => <IdcDbTypeCell resource={r} />),
+          render: (row: { resourceId: string }) =>
+            cell(row, (r) => <IdcDbTypeCell resource={r} sidMaxWidthClass="max-w-full" />),
         },
       ],
     };

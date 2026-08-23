@@ -118,13 +118,10 @@ export const IdcConfirmedResourcesPanel = ({
             resources={visibleResources}
             // 출발지가 마지막 — 이 화면들에선 결과(Credential·논리 DB)가 먼저 읽히고
             // 출발지는 참고값이다. 순서가 곧 자리다(IdcTableCol).
-            cols={
-              onCredentialOpen
-                ? connectionStatus
-                  ? ['cred', 'conn', 'logicalro', 'src']
-                  : ['cred', 'logicalro', 'src']
-                : ['logicalro', 'src']
-            }
+            // Step 5 passes `onCredentialOpen` and `connectionStatus` together (their prop
+            // docs pair them), so the cred-without-conn middle branch was unreachable —
+            // deleted on the owner's order with the fw/health columns (LIN-96 §3.7).
+            cols={onCredentialOpen ? ['cred', 'conn', 'logicalro', 'src'] : ['logicalro', 'src']}
             logicalDbCounts={logicalDbCounts}
             connectionStatusByResource={connectionStatus}
             connectionLoading={connectionLoading}
@@ -137,6 +134,7 @@ export const IdcConfirmedResourcesPanel = ({
           />
           {table.filteredCount > 0 && (
             <Pagination
+              size="md"
               page={table.safePage}
               pageSize={table.pageSize}
               totalCount={table.filteredCount}
