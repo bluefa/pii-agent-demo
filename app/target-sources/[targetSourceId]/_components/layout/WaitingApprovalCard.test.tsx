@@ -18,7 +18,7 @@ vi.mock('@/app/lib/api', () => ({
 }));
 
 import { WaitingApprovalCard } from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalCard';
-import { primaryColors, verdictText } from '@/lib/theme';
+import { numericFeatures, primaryColors, verdictText } from '@/lib/theme';
 
 interface ResourceOpts {
   selected: boolean;
@@ -404,11 +404,17 @@ describe('WaitingApprovalCard', () => {
     expect(meta.getByText('전체').nextElementSibling?.textContent).toBe('2건');
     expect(meta.getByText('연동 대상').nextElementSibling?.textContent).toBe('1건');
     expect(meta.getByText('제외').nextElementSibling?.textContent).toBe('1건');
-    // The digit at 14, the 건 beside it at 12 — 건 is a word, not a number.
+    // The digit at 14, the 건 beside it at 12, the label at 12 — 건 and the label are words, not
+    // numbers. All three pinned: leaving the label unpinned lets a mutation raise it to 14 and
+    // still go green, which is the whole distinction this change is about.
     for (const label of ['전체', '연동 대상', '제외']) {
-      const value = meta.getByText(label).nextElementSibling;
+      const labelEl = meta.getByText(label);
+      const value = labelEl.nextElementSibling;
+      expect(labelEl.className).toContain('text-[12px]');
       expect(value?.className).toContain('text-[12px]');
+      // Tabular figures, so three counts in a row do not jitter as they change.
       expect(value?.firstElementChild?.className).toContain('text-[14px]');
+      expect(value?.firstElementChild?.className).toContain(numericFeatures.tabular);
     }
     // ⛔ 제외 wears the verdict's own colour, so this 1 and the 제외 rows it counts read as one
     // magenta. Asserted on the PAIR — the label goes with it, and the label/value tiers survive

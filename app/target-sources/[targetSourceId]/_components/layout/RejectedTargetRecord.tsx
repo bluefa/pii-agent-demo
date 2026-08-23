@@ -34,7 +34,10 @@ const CountField = ({
   count: number;
   excluded?: boolean;
 }) => (
-  <div className={cn('flex min-w-0 items-baseline gap-1.5', excluded && verdictText.excluded)}>
+  // `items-baseline` carries the size mix: the 14px digit and the 12px 건 share one baseline, and
+  // the label aligns to the digit rather than to the box. No `min-w-0` — MetaField needs it
+  // because its value truncates; nothing here can shrink, so it would be a dead token.
+  <div className={cn('flex items-baseline gap-1.5', excluded && verdictText.excluded)}>
     <span
       className={cn(
         'shrink-0 whitespace-nowrap text-[12px] font-normal',
@@ -83,8 +86,9 @@ export const RejectedTargetRecord = ({
   // that 4px, but this block opens with plain text directly under the header's, so the two text
   // edges have to line up.
   <details className={cn('group mx-1 mt-4 border-t pt-4', borderColors.light)}>
-    {/* Three tiers, one per line: what this block is (14/600), the reference facts (MetaField, 12),
-        and the way in (brand blue). */}
+    {/* Three tiers, one per line: what this block is (14/600), the reference facts, and the way
+        in (brand blue). The middle tier holds two kinds — three counts (`CountField`, 12 with the
+        digit at 14) and two request-meta pairs (`MetaField`, 12 throughout). */}
     <summary className="flex cursor-pointer list-none flex-col gap-2.5 [&::-webkit-details-marker]:hidden">
       <div className="flex items-center justify-between gap-4">
         <span className={cn('text-[14px] font-semibold', textColors.secondary)}>
@@ -106,6 +110,10 @@ export const RejectedTargetRecord = ({
       {/* Inline pairs, not stacked: five stacked label-over-value columns in one row read as a run —
           "요청자 / 관리자 / 요청일시 / …" binds the wrong way. Beside its value, each label owns
           exactly one thing. The two kinds are then split by a rule rather than by gap alone. */}
+      {/* ⛔ `items-center`, not `items-baseline`. The counts block is 19px tall against the meta
+          block's 18 (the 14px digit), so their text sits 0.5px apart — measured, not estimated.
+          Baseline alignment would close that and drop the bare `h-3` divider between them, which
+          has no text to align by. Half a pixel on a 12px label is not worth a visible rule. */}
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
         {/* Dropped once open: the stat tiles below carry the same three numbers, and showing them
             twice is what made the old screen read as duplicated. */}
