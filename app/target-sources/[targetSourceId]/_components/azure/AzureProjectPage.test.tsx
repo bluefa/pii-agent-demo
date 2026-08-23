@@ -10,19 +10,6 @@ vi.mock(
   }),
 );
 
-vi.mock(
-  '@/app/target-sources/[targetSourceId]/_components/common',
-  async (importOriginal) => {
-    const mod = await importOriginal<
-      typeof import('@/app/target-sources/[targetSourceId]/_components/common')
-    >();
-    return {
-      ...mod,
-      DeleteInfrastructureButton: () => null,
-    };
-  },
-);
-
 import { AzureProjectPage } from '@/app/target-sources/[targetSourceId]/_components/azure/AzureProjectPage';
 
 const azureBaseFixture: CloudTargetSource = {

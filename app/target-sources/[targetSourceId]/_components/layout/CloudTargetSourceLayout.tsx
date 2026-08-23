@@ -3,7 +3,6 @@
 import type { ReactNode } from 'react';
 import { ProcessStatus, type CloudTargetSource } from '@/lib/types';
 import {
-  InfraDangerZone,
   ProjectPageMeta,
   type ProjectIdentity,
 } from '@/app/target-sources/[targetSourceId]/_components/common';
@@ -63,13 +62,7 @@ export const CloudTargetSourceLayout = (props: CloudTargetSourceLayoutProps) => 
           plus the step card's own 28px keyline, so the header's type stands on the
           cards' type — change one without the other and the header's left edge drifts.
           The step guide lives in the full-height right rail (GuidePanel, ProjectDetail). */}
-      <div className="px-5 pt-8 pb-20 space-y-6">
-        {step}
-        {/* 인프라 삭제 used to hang off the guide rail's bottom edge. The rail folds now
-            — and disappeared below 1360px before that — so the only copy of an
-            irreversible action cannot live on it. Same isolation, always on screen. */}
-        <InfraDangerZone />
-      </div>
+      <div className="px-5 pt-8 pb-20 space-y-6">{step}</div>
     </main>
   );
 };

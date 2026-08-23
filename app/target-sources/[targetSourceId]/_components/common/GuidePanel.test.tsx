@@ -93,8 +93,8 @@ describe('GuidePanel — collab-channel card states', () => {
 describe('GuidePanel — the rail folds, it does not vanish', () => {
   // The defect this replaces: `hidden … min-[1360px]:flex` meant the viewport decided
   // whether the rail EXISTED, and this file is the only render site for the guide, the
-  // history, the Jira channel and (formerly) 인프라 삭제. `hidden` is `display:none`, so
-  // below 1360px all of them left the accessibility tree with no way back.
+  // history and the Jira channel. `hidden` is `display:none`, so below 1360px all three
+  // left the accessibility tree with no way back.
   it('mounts at a narrow viewport instead of being display:none', async () => {
     setViewportWidth(1280);
     const { container } = render(<GuidePanel {...baseProps} jiraTicket={null} />);
@@ -151,17 +151,5 @@ describe('GuidePanel — the rail folds, it does not vanish', () => {
     render(<GuidePanel {...baseProps} jiraTicket={null} />);
     await settled();
     expect(screen.getByRole('button', { name: '가이드 접기' })).toBeTruthy();
-  });
-});
-
-describe('GuidePanel — 인프라 삭제 is not on the rail', () => {
-  it('holds no destructive action, so folding cannot take one off the screen', async () => {
-    render(<GuidePanel {...baseProps} jiraTicket={null} />);
-    await settled();
-    // ⛔ Putting it back here fails this. The rail folds and used to disappear entirely;
-    // the only copy of an irreversible action cannot live on a surface that can go away.
-    // It renders at the foot of the content column instead — see
-    // CloudTargetSourceLayout.coverage.test.tsx.
-    expect(screen.queryByRole('button', { name: '인프라 삭제' })).toBeNull();
   });
 });

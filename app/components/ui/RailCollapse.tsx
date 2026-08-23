@@ -10,8 +10,8 @@ import { cn, railStyles } from '@/lib/theme';
  * This is the number `GuidePanel` used to DISAPPEAR at, now doing a different job: it
  * picks a DEFAULT, and a default is something a press can overrule. Before, the viewport
  * decided whether the rail existed at all — and that rail is the only render site in the
- * app for 단계 가이드, 진행 내역, the Jira collab channel and 인프라 삭제, so below 1360
- * all four were unreachable rather than merely hidden: Tailwind's `hidden` is
+ * app for 단계 가이드, 진행 내역 and the Jira collab channel, so below 1360
+ * all three were unreachable rather than merely hidden: Tailwind's `hidden` is
  * `display:none`, which also takes them out of the accessibility tree and the tab order,
  * and no second entry point existed for any of them.
  */

@@ -199,16 +199,14 @@ interface GuidePanelProps {
  *
  * The rail FOLDS; it no longer vanishes. It used to be `hidden … min-[1360px]:flex`,
  * which made the viewport decide whether it existed — and since this file was the only
- * render site for the guide, the history, the Jira channel and 인프라 삭제, all four
- * were unreachable below 1360px, out of the accessibility tree and out of the tab
+ * render site for the guide, the history and the Jira channel, all three were
+ * unreachable below 1360px, out of the accessibility tree and out of the tab
  * order, with no control anywhere that brought them back. 1360 survives as the
  * DEFAULT (`RAIL_OPEN_MIN_WIDTH`), and a press outranks it at every width.
  *
- * ⛔ 인프라 삭제 does not live here any more. It is the screen's one destructive
- * action and this is an auxiliary panel; a foldable rail holding the only copy of it
- * would re-create the same defect the moment someone folded the rail. It sits at the
- * foot of the content column instead (CloudTargetSourceLayout / IdcTargetSourceLayout),
- * which keeps the isolation the rail footer was giving it and adds reachability.
+ * ⛔ Nothing destructive belongs on this rail. It is an auxiliary panel that folds
+ * away on request, so the only copy of an irreversible action placed here would go
+ * with it — exactly the defect above. Keep such an action on the content column.
  */
 export const GuidePanel = ({
   slotKey,
