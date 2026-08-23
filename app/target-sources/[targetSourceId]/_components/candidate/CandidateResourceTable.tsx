@@ -13,10 +13,7 @@ import {
 } from '@/app/target-sources/[targetSourceId]/_components/candidate/CandidateResourceRow';
 import { useRailHover, type RailRowProps } from '@/app/hooks/useRailHover';
 import { TableEmptyState } from '@/app/target-sources/[targetSourceId]/_components/shared/TableEmptyState';
-import {
-  ResourceGroupCount,
-  ResourceGroupRow,
-} from '@/app/target-sources/[targetSourceId]/_components/shared/ResourceGroupRow';
+import { ResourceGroupRow } from '@/app/target-sources/[targetSourceId]/_components/shared/ResourceGroupRow';
 
 // 설치 구분 = 스캔이 판정한 시스템 사실(사용자 변경 불가). 값의 뜻만이 아니라
 // 각 값이 선택에 거는 규칙(대상 제외 시 사유 필수, 불가는 선택 자체 불가)까지가
@@ -157,7 +154,12 @@ export const CandidateResourceTable = ({
                   />
                 </span>
               </th>
-              {showCheckboxColumn && <th className={idcStyles.table.approvalHeaderCell}>제외 사유</th>}
+              {/* 사유 열은 폭을 고정한다 — auto 레이아웃에서 남는 폭을 나눠 가지면 12자짜리
+                  칩이 Resource Name·ID 보다 넓은 칸을 차지한다. 행을 식별하는 것은 이름과
+                  id 이고, 사유 전문은 칩의 팁이 갖는다. */}
+              {showCheckboxColumn && (
+                <th className={cn(idcStyles.table.approvalHeaderCell, 'w-[160px]')}>제외 사유</th>
+              )}
             </tr>
           </thead>
           {sections.map((section) => {
@@ -225,15 +227,6 @@ export const CandidateResourceTable = ({
                     onToggle={fold.toggle}
                     controls={rowsId}
                     rail={rail}
-                    // The aggregate rides the identity, next to the region it counts within
-                    // (owner, 2026-08-12) — a column at the far end of the row put the numbers a
-                    // screen-width away from the group they belong to.
-                    inlineMeta={
-                      <ResourceGroupCount
-                        targetCount={group.targetCount}
-                        excludedCount={group.excludedCount}
-                      />
-                    }
                     leadingCell={
                       showCheckboxColumn ? (
                         // No group-level checkbox: selecting a whole Athena family is a bulk

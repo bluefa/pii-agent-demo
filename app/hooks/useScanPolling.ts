@@ -46,6 +46,18 @@ export interface UseScanPollingReturn {
 export const isScanFinalizing = (job: ScanJob | null): boolean =>
   job?.scan_status === 'SUCCESS' && job.resource_count_by_resource_type == null;
 
+/**
+ * 읽을 수 있는 스캔 결과가 있는가 — 결과 목록 조회를 여는 유일한 조건.
+ *
+ * 리소스 응답(`CloudResourceResponse`)에는 어느 스캔에서 나온 행인지 말해 주는 칸이
+ * 없다(계약에 `scan_version`·`scanned_at` 없음). 그래서 "표를 그려도 되는가"는 표가
+ * 아니라 스캔 잡이 답해야 한다: 성공한 스캔이 없는 화면의 표는 무엇의 결과인지
+ * 말할 수 없다. 집계 꼬리(SUCCESS인데 counts 미도착)는 `isScanFinalizing` 이 아직
+ * 진행 중으로 보므로 여기서도 빠진다 — 그 구간의 조회는 빈 목록을 받는다.
+ */
+export const hasScanResults = (job: ScanJob | null): boolean =>
+  job?.scan_status === 'SUCCESS' && !isScanFinalizing(job);
+
 /** Still working — actively scanning, or scanned and aggregating. */
 const isScanRunning = (job: ScanJob | null): boolean =>
   job?.scan_status === 'SCANNING' || isScanFinalizing(job);
@@ -63,7 +75,8 @@ const computeUIState = (job: ScanJob | null): ScanUIState => {
   }
 };
 
-const fetchLatestScan = async (targetSourceId: number): Promise<ScanJob | null> => {
+/** 404(스캔 이력 없음)는 결과가 아니라 부재다 — null 로 접어 호출부가 상태로 다룬다. */
+export const fetchLatestScan = async (targetSourceId: number): Promise<ScanJob | null> => {
   try {
     return await getLatestScanJob(targetSourceId);
   } catch (err) {

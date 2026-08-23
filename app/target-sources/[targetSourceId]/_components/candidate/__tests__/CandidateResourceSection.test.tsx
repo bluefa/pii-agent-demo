@@ -12,6 +12,23 @@ vi.mock('@/app/lib/api', () => ({
   createApprovalRequest: vi.fn().mockResolvedValue(undefined),
 }));
 
+// 결과 조회의 게이트 — 목록을 다루는 이 파일의 테스트들은 전부 성공한 스캔 위에 선다.
+// (게이트 자체는 아래 '스캔 게이트' describe 가 본다.)
+const { getLatestScanJob } = vi.hoisted(() => ({ getLatestScanJob: vi.fn() }));
+
+vi.mock('@/app/lib/api/scan', () => ({
+  getLatestScanJob,
+  startScan: vi.fn(),
+  getScanHistory: vi.fn(),
+}));
+
+const SUCCESS_JOB = {
+  id: 7,
+  scan_status: 'SUCCESS',
+  target_source_id: 1,
+  resource_count_by_resource_type: { AWS_DB_INSTANCE: 2 },
+};
+
 // Two candidates → the EMPTY-scan fixture below lands in the 'list' phase, which
 // mounts the lifted approval CardActionBar (C-2). c-1 seeds as selected; c-2 is an
 // unselected TARGET without a reason, so the approval CTA rests disabled.
@@ -130,6 +147,8 @@ describe('CandidateResourceSection', () => {
   beforeEach(() => {
     getConfirmResources.mockReset();
     getConfirmResources.mockResolvedValue({ resources: [] });
+    getLatestScanJob.mockReset();
+    getLatestScanJob.mockResolvedValue(SUCCESS_JOB);
   });
 
   it('renders the card title with the cardTitle token', async () => {
@@ -389,6 +408,8 @@ describe('CandidateResourceSection — 수동 EC2 행', () => {
   beforeEach(() => {
     getConfirmResources.mockReset();
     getConfirmResources.mockResolvedValue({ resources: [] });
+    getLatestScanJob.mockReset();
+    getLatestScanJob.mockResolvedValue(SUCCESS_JOB);
     capturedRowActions = undefined;
     capturedEc2Add = undefined;
   });
@@ -472,5 +493,69 @@ describe('CandidateResourceSection — 수동 EC2 행', () => {
     act(() => capturedEc2Add?.(INSTANCE, { ...CONFIG, port: 3307 }));
     expect(screen.getByTestId('table').getAttribute('data-count')).toBe('3');
     expect(hint()).toContain('1건 선택됨');
+  });
+});
+
+// 결과 테이블은 성공한 스캔의 산출물이다. 응답에는 어느 스캔에서 나온 행인지 말해 주는
+// 칸이 없으므로(계약에 scan_version 없음), "표를 그려도 되는가"는 스캔 잡만 답할 수 있다.
+describe('CandidateResourceSection — 스캔 게이트', () => {
+  beforeEach(() => {
+    getConfirmResources.mockReset();
+    getConfirmResources.mockResolvedValue({ resources: [] });
+    getLatestScanJob.mockReset();
+  });
+
+  const renderSection = () =>
+    render(
+      <CandidateResourceSection
+        targetSourceId={1}
+        provider="AWS"
+        readonly={false}
+        refreshProject={async () => {}}
+      />,
+    );
+
+  const settle = async () => {
+    await screen.findByRole('heading', { level: 2, name: '연동 대상 DB 선택' });
+    await act(async () => {});
+  };
+
+  it('성공한 스캔이 있으면 조회한다 — 대조군', async () => {
+    getLatestScanJob.mockResolvedValue(SUCCESS_JOB);
+    renderSection();
+    await settle();
+    expect(getConfirmResources).toHaveBeenCalledTimes(1);
+  });
+
+  it('스캔 이력이 없으면(404) 조회하지 않는다', async () => {
+    getLatestScanJob.mockRejectedValue(Object.assign(new Error('not found'), { code: 'NOT_FOUND' }));
+    renderSection();
+    await settle();
+    expect(getConfirmResources).not.toHaveBeenCalled();
+  });
+
+  it('마지막 스캔이 실패면 조회하지 않는다', async () => {
+    getLatestScanJob.mockResolvedValue({ ...SUCCESS_JOB, scan_status: 'FAIL' });
+    renderSection();
+    await settle();
+    expect(getConfirmResources).not.toHaveBeenCalled();
+  });
+
+  // 집계 꼬리 — SUCCESS 인데 건수 맵이 아직 없다. 화면은 이 구간을 진행 중으로 그리고
+  // (#635), 조회도 같은 판정을 따른다. 결과는 완료를 관찰한 뒤 재조회로 들어온다.
+  it('집계 중인 SUCCESS 는 아직 결과가 아니다', async () => {
+    getLatestScanJob.mockResolvedValue({ ...SUCCESS_JOB, resource_count_by_resource_type: null });
+    renderSection();
+    await settle();
+    expect(getConfirmResources).not.toHaveBeenCalled();
+  });
+
+  // 잡을 못 읽은 것은 "성공을 확인하지 못한" 것이다 — 확인되지 않은 성공 위에 표를
+  // 세우지 않는다.
+  it('스캔 잡 조회가 실패하면 닫힌 쪽으로 판정한다', async () => {
+    getLatestScanJob.mockRejectedValue(new Error('boom'));
+    renderSection();
+    await settle();
+    expect(getConfirmResources).not.toHaveBeenCalled();
   });
 });

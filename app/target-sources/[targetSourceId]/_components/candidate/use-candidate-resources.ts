@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { getConfirmResources } from '@/app/lib/api';
 import { catalogToCandidates } from '@/lib/resource-catalog';
 import { AppError } from '@/lib/errors';
+import { fetchLatestScan, hasScanResults } from '@/app/hooks/useScanPolling';
 import { IDC_EXCL_PRESETS } from '@/lib/constants/idc';
 import type { CandidateResource } from '@/lib/types/resources';
 import type { AsyncState } from '@/app/target-sources/[targetSourceId]/_components/shared/async-state';
@@ -56,15 +57,26 @@ export const useCandidateResources = (targetSourceId: number) => {
         );
       });
 
-    void fetchResourcesWithRetry(
-      () =>
-        getConfirmResources(targetSourceId, { signal: controller.signal }).then((response) =>
-          catalogToCandidates(response.resources),
-        ),
-      maxAttempts,
-      delayBeforeRetry,
-      isTransientError,
-    )
+    // 게이트: 성공한 스캔이 있을 때만 결과를 조회한다. 스캔 잡을 못 읽으면 SUCCESS 를
+    // 확인하지 못한 것이므로 닫힌 쪽으로 판정한다 — 확인되지 않은 성공을 근거로 표를
+    // 세우지 않는다. 잡은 ScanController 도 폴링하지만 그 값은 렌더 트리 안에서만 살아
+    // 있어 이 훅이 볼 수 없다: 진입당 한 번의 읽기를 더 하는 대신, 조회를 여는 판정이
+    // 조회 바로 옆에 있다.
+    const load = async (): Promise<CandidateResource[]> => {
+      const job = await fetchLatestScan(targetSourceId).catch(() => null);
+      if (controller.signal.aborted || !hasScanResults(job)) return EMPTY_CANDIDATES;
+      return fetchResourcesWithRetry(
+        () =>
+          getConfirmResources(targetSourceId, { signal: controller.signal }).then((response) =>
+            catalogToCandidates(response.resources),
+          ),
+        maxAttempts,
+        delayBeforeRetry,
+        isTransientError,
+      );
+    };
+
+    void load()
       .then((data) => {
         if (controller.signal.aborted) return;
         setState({ status: 'ready', data });
