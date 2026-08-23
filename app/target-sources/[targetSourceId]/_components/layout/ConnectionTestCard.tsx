@@ -110,9 +110,9 @@ const requiresCredential = (databaseType: string | null): boolean =>
  *
  * Floors are the LIN-96 ledger with one owner-ordered correction (2026-08-23):
  * name 162 · dbType 142 · region 156 · cred 264 · conn 104 · logical 118 — Σ **946**,
- * inside the 948px card. cred was 180, sized in the Key1/Key2 synthetic-name era; real
- * store names run to `kimcs-postgres-analytics-readonly` = 220px measured at 14px
- * Pretendard, so 264 = 220 + 36 padding + 8 slack shows every seeded name whole
+ * inside the 990px pane. cred was 180, sized in the Key1/Key2 synthetic-name era; real
+ * store names run to `kimcs-postgres-analytics-readonly` = 203px measured at 13px/600
+ * Pretendard, so 264 = 203 + 36 padding + 25 slack shows every seeded name whole
  * (owner: credential names must not render abbreviated). Resource Name stays the
  * SINGLE flex (ledger footnote ³, closed the same way as LIN-100's IDC table): it is the
  * only column whose values run arbitrarily long on every row, and a forced second flex

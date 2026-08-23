@@ -616,7 +616,7 @@ describe('ConnectionTestCard', () => {
  * Console shape (LIN-99) — the LIN-96 ledger, pinned: name 162(flex/sink) · dbType 142 ·
  * region 156 · cred 264 · conn 104 · logical 118, Σ 946 on the table's minWidth. Resource
  * Name is the single flex so it renders `auto`; every other column renders its ledger px.
- * cred 264 is the owner-ordered correction (real store names, longest 220px measured,
+ * cred 264 is the owner-ordered correction (real store names, longest 203px measured,
  * must render whole — 180 was sized for the retired Key1/Key2 synthetic names).
  */
 describe('ConnectionTestCard — console column spec', () => {
