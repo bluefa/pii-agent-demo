@@ -84,9 +84,9 @@ describe('GuidePanel — collab-channel card states', () => {
 
 describe('GuidePanel — the rail folds, it does not vanish', () => {
   // The defect this replaces: `hidden … min-[1360px]:flex` meant the viewport decided
-  // whether the rail EXISTED, and this file is the only render site for the guide, the
-  // history and the Jira channel. `hidden` is `display:none`, so below 1360px all three
-  // left the accessibility tree with no way back.
+  // whether the rail EXISTED, and this file is the only render site for the guide and
+  // the Jira channel. `hidden` is `display:none`, so below 1360px both left the
+  // accessibility tree with no way back.
   it('mounts at a narrow viewport instead of being display:none', async () => {
     setViewportWidth(1280);
     const { container } = render(<GuidePanel {...baseProps} jiraTicket={null} />);
@@ -299,21 +299,16 @@ describe('GuidePanel — the folded strip says what it is', () => {
     await waitFor(() => expect(screen.queryByRole('link', { name: /협업 채널 링크/ })).toBeNull());
   });
 
-  it('unfolds onto 가이드 when 가이드 is pressed, even if 진행 내역 was the open tab', async () => {
-    render(<GuidePanel {...baseProps} jiraTicket={null} />);
-    await settled();
+  it('shows the guide alone — no 가이드/진행 내역 tabs to choose between', () => {
+    render(<GuidePanel {...baseProps} jiraTicket={null} initialCollapsed={false} />);
 
-    fireEvent.click(screen.getByRole('tab', { name: '진행 내역' }));
-    expect(screen.getByText('관리자 승인 완료')).toBeTruthy();
-
-    fireEvent.click(screen.getByRole('button', { name: '가이드 접기' }));
-    await waitFor(() => expect(screen.getByText('가이드')).toBeTruthy());
-
-    // The strip's one word promises 가이드 — unfolding back onto 진행 내역 would be a lie.
-    fireEvent.click(screen.getByRole('button', { name: /^가이드 — / }));
-    await waitFor(() =>
-      expect(screen.getByText('이 단계에는 표시할 가이드가 없습니다.')).toBeTruthy(),
-    );
+    // ⛔ The split is gone (오너 지시 2026-08-23). 진행 내역 was twelve hardcoded rows behind
+    // a tab that promised a second thing worth choosing; putting either back fails here.
+    expect(screen.queryAllByRole('tab')).toHaveLength(0);
+    expect(screen.queryByText('진행 내역')).toBeNull();
     expect(screen.queryByText('관리자 승인 완료')).toBeNull();
+
+    // …and the guide itself is still the body.
+    expect(screen.getByText('이 단계에는 표시할 가이드가 없습니다.')).toBeTruthy();
   });
 });

@@ -93,7 +93,7 @@ export const ProjectDetail = ({
       <div className={SCROLL_COLUMN}>
         {renderProvider()}
       </div>
-      {/* Full-height right rail (가이드/진행 내역) — mirrors the left ServiceListPanel. */}
+      {/* Full-height right rail (가이드) — mirrors the left ServiceListPanel. */}
       <GuidePanel
         slotKey={resolveProjectStepSlot(project)}
         jiraTicket={jiraTicket}
