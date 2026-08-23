@@ -42,6 +42,20 @@ export interface ColumnResizeOptions {
    * modal tables whose widths may die with the modal.
    */
   storageKey?: string;
+  /**
+   * Column keys whose width lives for the session only — dragged, kept while the user is
+   * here, gone on the next load. Give this to the `flex` column of a `ConsoleTable`.
+   *
+   * Persisting it would be a trap: a stored width turns that column from the table's slack
+   * sink into a sized column, so the table stops following the container — permanently, with
+   * no control that says so and no way back (round 14 retired 「열 너비 초기화」). One stray
+   * drag would silently cost the reader every screen size but the one they are on. A drag is
+   * "let me see this ARN", not a setting; the responsive default has to come back.
+   *
+   * Only the sink is ephemeral. Every sized column persists as before — those widths are
+   * genuinely the user's layout, and losing THEM is the loss the storage exists to prevent.
+   */
+  ephemeralKeys?: readonly string[];
 }
 
 export interface ColumnResize {
@@ -49,6 +63,13 @@ export interface ColumnResize {
   widthOf: (key: string) => { width: number } | undefined;
   /** 헤더 오른쪽 끝 손잡이의 props. 감싸는 `<th>` 는 `relative` 나 `sticky` 여야 한다. */
   handleProps: (key: string, label: string) => HTMLAttributes<HTMLSpanElement>;
+  /**
+   * The column the user adjusted most recently, or null until they touch one. `ConsoleTable`
+   * keeps THIS column out of the slack-sink role: a sink is filled, not sized, so dragging
+   * one moves nothing until the table's floor passes the container. Restoring a width from
+   * storage does not count as touching — nobody was pointing at anything.
+   */
+  lastResizedKey: string | null;
 }
 
 /**
@@ -100,14 +121,28 @@ const headerFloor = (th: HTMLTableCellElement): number => {
  * 비교하려면 그 행 수만큼 hover 해야 한다. 폭 자체를 넓히면 비교가 눈으로 한 번에 끝난다.
  *
  * `table-fixed` 표 전용이다: 폭을 지정한 열은 그 값에 고정되고, 폭이 없는 열이 남는 공간을
- * 흡수한다 — 그래서 손잡이는 고정폭 열에만 달고, 흡수하는 열에는 달지 않는다.
+ * 흡수한다.
+ *
+ * 흡수하는 열(`ConsoleTableColumn.flex`)에도 손잡이는 단다. 손잡이는 th 의 오른쪽 경계에
+ * 있고 그 경계는 시임 트레이서가 이미 점등하는 자리라, 거기만 손잡이가 없으면 경계 문법이
+ * 한 칸 비는 것으로 읽힌다. 그 열을 끄는 순간 흡수 역할은 다른 flex 열로 넘어가고 — 끌고
+ * 있는 열은 흡수자가 될 수 없다(`lastResizedKey`) — 폭은 포인터를 그대로 따라온다. 시작
+ * 폭이 아래처럼 실제 렌더 폭이라 그 전환에 점프도 없다.
  *
  * 시작 폭은 상태가 아니라 pointerdown 시점의 실제 렌더 폭(offsetWidth)에서 읽는다. 훅은
  * 기본값을 알 필요가 없고(클래스가 소유), 사용자가 건드린 열만 기억한다.
  */
 export const useColumnResize = (options?: ColumnResizeOptions): ColumnResize => {
-  const { clampToContent = false, storageKey } = options ?? {};
+  const { clampToContent = false, storageKey, ephemeralKeys } = options ?? {};
+  // Joined, not the array: callers write it inline (`[CONFIRMED_FLEX_KEY]`), so a fresh
+  // identity arrives on every render and an array in a dep list would re-run the effects
+  // — including the hydration one, which re-arms its gate.
+  const ephemeralIds = ephemeralKeys?.join(',') ?? '';
   const [widths, setWidths] = useState<Readonly<Record<string, number>>>({});
+  // Which column the pointer is on, so the shell can keep it out of the sink role. Set from
+  // `resize` below — every gesture (drag, arrow key, double-click) goes through it — and
+  // NOT from hydration, which sets widths without anyone having aimed at a column.
+  const [lastResizedKey, setLastResizedKey] = useState<string | null>(null);
   /**
    * 진행 중인 드래그를 끝내는 함수. window 리스너는 이 훅 밖에서 살아 있으므로, 드래그
    * 도중에 표가 사라지면(모달을 닫으면) 아무도 그것을 떼어 주지 않는다 — 언마운트가
@@ -136,9 +171,13 @@ export const useColumnResize = (options?: ColumnResizeOptions): ColumnResize => 
         if (!raw) return;
         const parsed: unknown = JSON.parse(raw);
         if (!parsed || typeof parsed !== 'object') return;
+        // Ephemeral keys are dropped on the way IN as well. Filtering only the write-back
+        // would leave a value stored before this rule existed — or by an older build —
+        // suppressing the flex column for one more load each time it is read back.
+        const ephemeral = new Set(ephemeralIds ? ephemeralIds.split(',') : []);
         const entries = Object.entries(parsed as Record<string, unknown>).flatMap(
           ([key, value]) =>
-            typeof value === 'number' && Number.isFinite(value)
+            typeof value === 'number' && Number.isFinite(value) && !ephemeral.has(key)
               ? [[key, Math.max(MIN_COLUMN_WIDTH, Math.round(value))] as [string, number]]
               : [],
         );
@@ -150,20 +189,29 @@ export const useColumnResize = (options?: ColumnResizeOptions): ColumnResize => 
       }
     }, 0);
     return () => window.clearTimeout(timer);
-  }, [storageKey]);
+  }, [storageKey, ephemeralIds]);
   useEffect(() => {
     if (!storageKey || !hydratedRef.current) return;
+    // Filtered on the way OUT, not at drag time: `widths` stays the whole truth for this
+    // session, so an ephemeral column behaves exactly like any other until the page reloads.
+    const ephemeral = new Set(ephemeralIds ? ephemeralIds.split(',') : []);
+    const kept = Object.fromEntries(
+      Object.entries(widths).filter(([key]) => !ephemeral.has(key)),
+    );
     try {
-      localStorage.setItem(storageKey, JSON.stringify(widths));
+      localStorage.setItem(storageKey, JSON.stringify(kept));
     } catch {
       // Best effort — resizing still works for the session.
     }
-  }, [widths, storageKey]);
+  }, [widths, storageKey, ephemeralIds]);
 
   // Memoized so a memo()'d table taking this as a prop only re-renders when a width
   // actually changes, not on every render of the hook's host.
   return useMemo<ColumnResize>(() => {
-    const resize = (key: string, from: number, delta: number, cap?: number, floor?: number) =>
+    const resize = (key: string, from: number, delta: number, cap?: number, floor?: number) => {
+      // Called at pointermove frequency; React bails out on an unchanged value, so this
+      // re-renders once per gesture rather than once per frame.
+      setLastResizedKey(key);
       setWidths((prev) => ({
         ...prev,
         [key]: Math.min(
@@ -171,6 +219,7 @@ export const useColumnResize = (options?: ColumnResizeOptions): ColumnResize => 
           Math.max(floor ?? MIN_COLUMN_WIDTH, from + delta),
         ),
       }));
+    };
 
     /** The column this handle belongs to. */
     const ownerTh = (target: HTMLElement): HTMLTableCellElement | null => target.closest('th');
@@ -239,6 +288,7 @@ export const useColumnResize = (options?: ColumnResizeOptions): ColumnResize => 
     };
 
     return {
+      lastResizedKey,
       widthOf: (key) => (widths[key] === undefined ? undefined : { width: widths[key] }),
       handleProps: (key, label) => ({
         role: 'separator',
@@ -257,5 +307,5 @@ export const useColumnResize = (options?: ColumnResizeOptions): ColumnResize => 
           : idcStyles.table.resizeHandle,
       }),
     };
-  }, [widths, clampToContent]);
+  }, [widths, lastResizedKey, clampToContent]);
 };

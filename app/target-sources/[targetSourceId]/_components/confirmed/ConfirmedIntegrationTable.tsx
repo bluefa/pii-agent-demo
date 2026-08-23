@@ -6,6 +6,7 @@ import { useColumnResize } from '@/app/components/ui/useColumnResize';
 import { cn, textColors } from '@/lib/theme';
 import type { ConfirmedResource } from '@/lib/types/resources';
 import {
+  CONFIRMED_FLEX_KEYS,
   hasKindColumn,
   WaitingApprovalTable,
   type WaitingApprovalResource,
@@ -143,6 +144,11 @@ export const ConfirmedIntegrationTable = ({
   const columns = useColumnResize({
     clampToContent: true,
     storageKey: 'pii:colw:v1:confirmed-resources',
+    // …except the flex columns: a stored width there pins the column, and pinning every one
+    // of them leaves nobody absorbing, so the table stops following the container with
+    // nothing on screen saying why and no control to undo it (round 19). Drag them, keep the
+    // width for the session, get the responsive default back on reload.
+    ephemeralKeys: CONFIRMED_FLEX_KEYS,
   });
 
   // 시안 D (via F): search and filters appear only past Cloudscape's own ">5 items" line —
