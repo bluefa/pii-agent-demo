@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { ServiceRow } from '@/app/components/features/admin/ServiceSidebar/ServiceRow';
 import { SidebarPagination } from '@/app/components/features/admin/ServiceSidebar/SidebarPagination';
 import { ChevronRightIcon, CloseIcon, SearchIcon } from '@/app/components/ui/icons';
+import { RailToggle } from '@/app/components/ui/RailCollapse';
 import type { PageServiceItem } from '@/app/lib/api';
 import { passRoutes } from '@/lib/routes';
 import {
@@ -82,6 +83,14 @@ interface ServiceSidebarProps {
    * navigation away from its own screen (owner's call, 2026-08-21).
    */
   showAccessHint?: boolean;
+  /**
+   * Renders the fold control in the title row. Opt-in for the same reason as the hint
+   * above: only the install screen (`ServiceListPanel`) sits this rail beside a SECOND
+   * rail and a table wider than what the two leave, so only there is handing the column
+   * back worth a control. On `/services` this rail is the screen, and folding it would
+   * be folding the page. The host owns the state; this prop is only the button.
+   */
+  onCollapse?: () => void;
 }
 
 /**
@@ -113,6 +122,7 @@ export const ServiceSidebar = ({
   onPageChange,
   loading = false,
   showAccessHint = false,
+  onCollapse,
 }: ServiceSidebarProps) => {
   const { totalElements } = pageInfo;
 
@@ -162,6 +172,19 @@ export const ServiceSidebar = ({
         <h2 className={serviceSidebarStyles.title}>서비스 목록</h2>
         {!loading && totalElements > 0 && (
           <span className={serviceSidebarStyles.count}>{totalElements}</span>
+        )}
+        {/* Trailing edge of the title row — the rail's own edge, which is the direction
+            the press moves it. `ml-auto` rather than `justify-between`: the count has to
+            stay beside the name it counts. */}
+        {onCollapse && (
+          <span className="ml-auto -mr-1">
+            <RailToggle
+              direction="left"
+              label="서비스 목록 접기"
+              plane="tint"
+              onClick={onCollapse}
+            />
+          </span>
         )}
       </div>
 

@@ -2,7 +2,10 @@
 
 import type { ReactNode } from 'react';
 import { ProcessStatus, type CloudTargetSource } from '@/lib/types';
-import { ProjectPageMeta } from '@/app/target-sources/[targetSourceId]/_components/common';
+import {
+  InfraDangerZone,
+  ProjectPageMeta,
+} from '@/app/target-sources/[targetSourceId]/_components/common';
 import type { IdcStepProps } from '@/app/target-sources/[targetSourceId]/_components/idc/types';
 import { IdcStep1TargetInput } from '@/app/target-sources/[targetSourceId]/_components/idc/steps/IdcStep1TargetInput';
 import { IdcStep2WaitingApproval } from '@/app/target-sources/[targetSourceId]/_components/idc/steps/IdcStep2WaitingApproval';
@@ -49,7 +52,12 @@ export const IdcTargetSourceLayout = (props: IdcStepProps) => {
           own 28px keyline, so the header's type stands on the cards' type — change one
           without the other and the header's left edge drifts off them.
           The step guide lives in the full-height right rail (GuidePanel, ProjectDetail). */}
-      <div className="px-5 pt-8 pb-20 space-y-6">{step}</div>
+      <div className="px-5 pt-8 pb-20 space-y-6">
+        {step}
+        {/* See CloudTargetSourceLayout: the destructive action moved off the foldable
+            guide rail and onto the column, which is always on screen. */}
+        <InfraDangerZone />
+      </div>
     </main>
   );
 };

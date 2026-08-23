@@ -2319,6 +2319,57 @@ export const rowMenuStyles = {
 } as const;
 
 /**
+ * Fold chrome for the two full-height rails on the target-source screen —
+ * `ServiceListPanel` on the left, `GuidePanel` on the right. Shared so the two
+ * fold into the SAME object rather than into two things that both happen to get
+ * narrow: they are subtracted from one content column, and a reader who learns
+ * the gesture on one rail must not have to learn it again on the other.
+ *
+ * No colour of its own. A collapsed rail is the same surface at a different
+ * width, not a new surface, so the strip keeps whatever plane its rail already
+ * paints and the button borrows the neutrals the quiet controls here already use.
+ */
+export const railStyles = {
+  /**
+   * 48px. A 32px hit target with 8px either side — the narrowest strip that still
+   * reads as a rail rather than as a thick border.
+   *
+   * ⛔ Keep it a multiple of 4. Both rail widths come out of the same content
+   * column, and the step cards' 20px gutter plus their own 28px keyline assume
+   * whole pixels; an odd rail puts that keyline on a half-pixel.
+   */
+  collapsedWidth: 'w-12',
+  /**
+   * The strip's own layout — the fold control at the top, centred. The caller supplies
+   * `flex` or `hidden`, because on the right rail that choice is a media query.
+   *
+   * `pt-2` centres the 32px button at x=8, y=8 inside the 48px strip, which is exactly
+   * where the `p-2` header row puts the button on the OPEN rail. Folding and unfolding
+   * then happen under a stationary pointer instead of moving the target.
+   */
+  strip: 'flex-col items-center pt-2',
+  /**
+   * The fold control, in both states and on both rails. Glyph-only, so every call
+   * site owes it an `aria-label` that says what the press DOES ("가이드 접기"),
+   * not what the rail currently is.
+   *
+   * `text-gray-700`, not `-500`: the left rail is tinted, and gray-500 measures
+   * 4.37:1 there — under AA. gray-700 holds on the tint, on white and on the
+   * canvas, so one ink covers both rails.
+   */
+  toggleBase:
+    'flex h-8 w-8 items-center justify-center rounded-md text-gray-700 transition-colors',
+  /**
+   * Hover for the button sitting on the LEFT rail's tint. White, because gray-50
+   * and gray-100 measure ~1.03 against that tint and simply do not appear — the
+   * same lesson `ServiceListPanel`'s retry button already carries.
+   */
+  toggleOnTint: 'hover:bg-white',
+  /** Hover for the button on the RIGHT rail's white plane, where white IS the plane. */
+  toggleOnSurface: 'hover:bg-gray-100',
+} as const;
+
+/**
  * ServiceListPanel / ServiceSidebar — the target-source left rail.
  *
  * The rail is the page's BACK plane: a tinted, flush surface with full-bleed

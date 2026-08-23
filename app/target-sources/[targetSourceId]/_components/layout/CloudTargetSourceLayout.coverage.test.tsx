@@ -2,6 +2,7 @@
 import { render, screen } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import { ProcessStatus, type CloudTargetSource } from '@/lib/types';
+import { ToastProvider } from '@/app/components/ui/toast';
 import type { ProjectIdentity } from '@/app/target-sources/[targetSourceId]/_components/common';
 
 vi.mock(
@@ -88,15 +89,20 @@ const STATUS_TO_SENTINEL: Record<ProcessStatus, string> = {
   [ProcessStatus.INSTALLATION_COMPLETE]: 'step-installation-complete',
 };
 
+// The layout's own foot renders 인프라 삭제, which reads the toast context — not a
+// detail of status routing, but the real component tree, so it gets the real provider
+// rather than a mock that would let the danger zone rot unnoticed.
 const renderForStatus = (status: ProcessStatus) =>
   render(
-    <CloudTargetSourceLayout
-      project={{ ...baseFixture, processStatus: status }}
-      identity={identityFixture}
-      providerLabel="Azure Infrastructure"
-      action={null}
-      onProjectUpdate={() => {}}
-    />,
+    <ToastProvider>
+      <CloudTargetSourceLayout
+        project={{ ...baseFixture, processStatus: status }}
+        identity={identityFixture}
+        providerLabel="Azure Infrastructure"
+        action={null}
+        onProjectUpdate={() => {}}
+      />
+    </ToastProvider>,
   );
 
 const ENUM_VALUES = Object.values(ProcessStatus).filter(
@@ -111,6 +117,18 @@ describe('CloudTargetSourceLayout process-status coverage', () => {
       expect(screen.getByTestId(sentinel)).toBeTruthy();
     },
   );
+
+  // 인프라 삭제 lived on the guide rail until this change. That rail disappeared below
+  // 1360px and folds on request now, so the layout — which is always on screen — is what
+  // has to carry the screen's one irreversible action. ⛔ Moving it back onto a foldable
+  // surface fails here.
+  it('keeps 인프라 삭제 on the column at every step, off the foldable rail', () => {
+    for (const status of ENUM_VALUES) {
+      const { unmount } = renderForStatus(status);
+      expect(screen.getByRole('button', { name: '인프라 삭제' })).toBeTruthy();
+      unmount();
+    }
+  });
 
   it('maps every ProcessStatus enum value to a step sentinel (no silent default)', () => {
     for (const status of ENUM_VALUES) {

@@ -4,13 +4,18 @@ import { useState } from 'react';
 
 import { GuideCardContainer } from '@/app/components/features/process-status/GuideCard/GuideCardContainer';
 import { ChatIcon, OpenExternalIcon } from '@/app/components/ui/icons';
-import { DeleteInfrastructureButton } from '@/app/target-sources/[targetSourceId]/_components/common/DeleteInfrastructureButton';
+import {
+  RailToggle,
+  RAIL_OPEN_MIN_WIDTH,
+  useRailCollapse,
+} from '@/app/components/ui/RailCollapse';
 import {
   bgColors,
   borderColors,
   cn,
   interactiveColors,
   primaryColors,
+  railStyles,
   segmentedControlStyles,
   statusColors,
   textColors,
@@ -20,6 +25,13 @@ import type { GuideSlotKey } from '@/lib/constants/guide-registry';
 import { safeBrowseUrl } from '@/lib/jira-ticket';
 
 type PanelTab = 'guide' | 'history';
+
+/**
+ * Versioned, and NOT keyed by target source: how much of the screen a reader wants
+ * spent on help is a workspace preference, not a fact about one resource. Bump the
+ * version if the stored shape ever stops being `'1' | '0'`.
+ */
+const GUIDE_RAIL_STORAGE_KEY = 'pii:rail:v1:guide';
 
 /**
  * Collab-channel ticket state for the rail card, resolved server-side
@@ -184,6 +196,19 @@ interface GuidePanelProps {
  * bottom pager on the history tab. Deliberately quiet (auxiliary) chrome so the
  * working column keeps the visual weight. Replaces the inline amber guide card
  * (UX report P2/P3).
+ *
+ * The rail FOLDS; it no longer vanishes. It used to be `hidden … min-[1360px]:flex`,
+ * which made the viewport decide whether it existed — and since this file was the only
+ * render site for the guide, the history, the Jira channel and 인프라 삭제, all four
+ * were unreachable below 1360px, out of the accessibility tree and out of the tab
+ * order, with no control anywhere that brought them back. 1360 survives as the
+ * DEFAULT (`RAIL_OPEN_MIN_WIDTH`), and a press outranks it at every width.
+ *
+ * ⛔ 인프라 삭제 does not live here any more. It is the screen's one destructive
+ * action and this is an auxiliary panel; a foldable rail holding the only copy of it
+ * would re-create the same defect the moment someone folded the rail. It sits at the
+ * foot of the content column instead (CloudTargetSourceLayout / IdcTargetSourceLayout),
+ * which keeps the isolation the rail footer was giving it and adds reachability.
  */
 export const GuidePanel = ({
   slotKey,
@@ -203,6 +228,26 @@ export const GuidePanel = ({
     setPage(0);
   };
 
+  const { collapsed, toggle } = useRailCollapse(GUIDE_RAIL_STORAGE_KEY, {
+    openMinWidth: RAIL_OPEN_MIN_WIDTH,
+  });
+
+  // While `collapsed` is null the media query paints the default — the same markup the
+  // server sent — so the first frame does not jump on the way to the stored preference.
+  // Once it resolves the state owns the rail and the breakpoint stops mattering.
+  const railWidth =
+    collapsed === null
+      ? cn(railStyles.collapsedWidth, 'min-[1360px]:w-[320px]')
+      : collapsed
+        ? railStyles.collapsedWidth
+        : 'w-[320px]';
+  // Both halves mount only while the answer is still `null` — that is the one frame the
+  // media query has to arbitrate. Once it resolves, the losing half UNMOUNTS rather than
+  // being class-hidden: a `hidden` sibling still holds a focusable fold button, so two
+  // controls for the same gesture would sit in the tab order with one of them invisible.
+  const stripShown = collapsed === null ? 'flex min-[1360px]:hidden' : 'flex';
+  const bodyShown = collapsed === null ? 'hidden min-[1360px]:flex' : 'flex';
+
   const tabClass = (active: boolean) =>
     cn(
       segmentedControlStyles.item,
@@ -220,89 +265,112 @@ export const GuidePanel = ({
     <aside
       aria-label="단계 가이드 및 진행 내역"
       className={cn(
-        'hidden w-[320px] shrink-0 flex-col border-l min-[1360px]:flex',
+        railWidth,
+        'flex shrink-0 flex-col border-l',
         borderColors.light,
         bgColors.surface,
       )}
     >
-      {/* Jira ticket next — the collab channel is the escape hatch for every
-          step, so it stays above the fold. */}
-      <div className={cn('shrink-0 border-b p-4', borderColors.light)}>
-        <CollabChannelCard jiraTicket={jiraTicket} />
-      </div>
-
-      <div className={cn('shrink-0 border-b p-3', borderColors.light)}>
-        <div role="tablist" className={cn(segmentedControlStyles.container, 'w-full')}>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={tab === 'guide'}
-            onClick={() => selectTab('guide')}
-            className={tabClass(tab === 'guide')}
-          >
-            가이드
-          </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={tab === 'history'}
-            onClick={() => selectTab('history')}
-            className={tabClass(tab === 'history')}
-          >
-            진행 내역
-          </button>
-        </div>
-      </div>
-
-      <div role="tabpanel" className="min-h-0 flex-1 overflow-y-auto p-5">
-        {tab === 'guide' ? (
-          slotKey ? (
-            <GuideCardContainer slotKey={slotKey} bare />
-          ) : (
-            <p className={cn('py-4 text-center text-[12.5px]', textColors.tertiary)}>
-              이 단계에는 표시할 가이드가 없습니다.
-            </p>
-          )
-        ) : (
-          <HistoryTimeline items={pageItems} />
-        )}
-      </div>
-
-      {tab === 'history' && pageCount > 1 && (
-        <div
-          className={cn(
-            'flex shrink-0 items-center justify-between border-t px-4 py-2.5',
-            borderColors.light,
-          )}
-        >
-          <button
-            type="button"
-            className={pagerBtnClass}
-            disabled={page === 0}
-            onClick={() => setPage((p) => p - 1)}
-          >
-            ‹ 이전
-          </button>
-          <span className={cn('text-[11.5px] tabular-nums', textColors.tertiary)}>
-            {page + 1} / {pageCount}
-          </span>
-          <button
-            type="button"
-            className={pagerBtnClass}
-            disabled={page === pageCount - 1}
-            onClick={() => setPage((p) => p + 1)}
-          >
-            다음 ›
-          </button>
+      {/* Folded. The strip IS the rail, and the control that brings it back is the only
+          thing on it — a fold the reader cannot see their way out of is not a fold. */}
+      {collapsed !== false && (
+        <div className={cn(stripShown, railStyles.strip)}>
+          <RailToggle
+            direction="left"
+            label="가이드 펼치기"
+            plane="surface"
+            onClick={toggle}
+          />
         </div>
       )}
 
-      {/* Danger zone — the destructive infra action stays pinned to the rail's
-          bottom edge across both tabs: one predictable, visually isolated spot
-          instead of competing with the page header's primary CTA. */}
-      <div className={cn('shrink-0 border-t p-4', borderColors.light)}>
-        <DeleteInfrastructureButton className="w-full justify-center" />
-      </div>
+      {/* Open. A flex column of its own, so every zone below still measures against the
+          rail's height exactly as it did when these were the aside's own children. */}
+      {collapsed !== true && (
+        <div className={cn(bodyShown, 'min-h-0 flex-1 flex-col')}>
+          {/* The fold control sits on the rail's INNER edge at the top — the same x and y
+              the strip's button occupies, so the pointer does not have to move between the
+              two states. */}
+          <div className={cn('flex shrink-0 items-center border-b p-2', borderColors.light)}>
+            <RailToggle direction="right" label="가이드 접기" plane="surface" onClick={toggle} />
+          </div>
+
+        {/* Jira ticket next — the collab channel is the escape hatch for every
+            step, so it stays above the fold. */}
+        <div className={cn('shrink-0 border-b p-4', borderColors.light)}>
+          <CollabChannelCard jiraTicket={jiraTicket} />
+        </div>
+
+        <div className={cn('shrink-0 border-b p-3', borderColors.light)}>
+          <div role="tablist" className={cn(segmentedControlStyles.container, 'w-full')}>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={tab === 'guide'}
+              onClick={() => selectTab('guide')}
+              className={tabClass(tab === 'guide')}
+            >
+              가이드
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={tab === 'history'}
+              onClick={() => selectTab('history')}
+              className={tabClass(tab === 'history')}
+            >
+              진행 내역
+            </button>
+          </div>
+        </div>
+
+        <div role="tabpanel" className="min-h-0 flex-1 overflow-y-auto p-5">
+          {tab === 'guide' ? (
+            slotKey ? (
+              <GuideCardContainer slotKey={slotKey} bare />
+            ) : (
+              /* 12, not 12.5 — the even-px rule. Only touched because wrapping the rail
+                 body re-indented this line and the design hook judges changed lines. */
+              <p className={cn('py-4 text-center text-[12px]', textColors.tertiary)}>
+                이 단계에는 표시할 가이드가 없습니다.
+              </p>
+            )
+          ) : (
+            <HistoryTimeline items={pageItems} />
+          )}
+        </div>
+
+        {tab === 'history' && pageCount > 1 && (
+          <div
+            className={cn(
+              'flex shrink-0 items-center justify-between border-t px-4 py-2.5',
+              borderColors.light,
+            )}
+          >
+            <button
+              type="button"
+              className={pagerBtnClass}
+              disabled={page === 0}
+              onClick={() => setPage((p) => p - 1)}
+            >
+              ‹ 이전
+            </button>
+            {/* 12, not 11.5 — same reason as the empty-state line above. */}
+            <span className={cn('text-[12px] tabular-nums', textColors.tertiary)}>
+              {page + 1} / {pageCount}
+            </span>
+            <button
+              type="button"
+              className={pagerBtnClass}
+              disabled={page === pageCount - 1}
+              onClick={() => setPage((p) => p + 1)}
+            >
+              다음 ›
+            </button>
+          </div>
+        )}
+        </div>
+      )}
     </aside>
   );
 };
