@@ -74,6 +74,7 @@ The PR body must include all sections below.
 ## What Changed
 - Main files/modules touched
 - Behavior changes
+- Design/guide docs (`docs/ux/**`, `docs/design/**`, `design/**`): one line, not a change summary
 
 ## Validation
 - Commands/checks executed and their results
@@ -106,4 +107,5 @@ git diff origin/main...HEAD --stat
 - Do not split one change across multiple branches.
 - Do not create a PR when validation fails.
 - Do not omit the PR description or submit a one-line body.
+- Never reference a design artifact URL or an image in the PR description. Collapse `docs/ux/**`, `docs/design/**`, and `design/**` entries to a single line: `<path> — guide updated per the owner's instruction.`
 - Never use `--merge-approved` in this skill. Use `/pr-merge` for merge.
