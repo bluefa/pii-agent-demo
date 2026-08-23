@@ -301,12 +301,14 @@ export const GuidePanel = ({
               Padding is split so the scrollbar still runs at the rail's edge while the
               prose keeps the same 20px column as the zone above. */}
           <div className="flex min-h-0 flex-1 flex-col">
-            {/* The mark is plated here and bare on the strip — the plate is the Figma
-                node's own 28px container, and the strip has no room for it. */}
+            {/* ⛔ One mark, and the FOLDED one is the standard (오너 지시 2026-08-23): a bare
+                20px 전구, same size and no plate, in both states. The Figma node's 28px
+                #FFF8E1 container was rendered here for one commit and is gone — the strip
+                had no room for it, and a mark that changes shape when you fold the rail is
+                two marks. Dropping it also puts the 안내박스 back to being the rail's only
+                fill, which is the whole of 시안 E. */}
             <div className="flex shrink-0 items-center gap-2 px-5 pb-2 pt-3">
-              <span className={railStyles.zoneMarkPlate}>
-                <GuideIcon className={cn('h-3.5 w-3.5', railStyles.zoneMark)} />
-              </span>
+              <GuideIcon className={cn('h-5 w-5 shrink-0', railStyles.zoneMark)} />
               <span className={railStyles.zoneLabel}>{guideZoneLabel}</span>
             </div>
             <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-5">

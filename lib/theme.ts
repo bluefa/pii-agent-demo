@@ -2391,31 +2391,25 @@ export const railStyles = {
    * Value is the owner's Figma node (`slrqFgziqlHznBZ1VMPtcq`, `6:11`), not a pick of
    * ours. It replaced #CA8A04, this file's own attempt at the same brief.
    *
-   * ⚠️ #F59E0B is 2.15:1 on white and 2.02:1 on its own plate — under 1.4.11's 3:1, and
-   * no saturated yellow-amber clears that: at H 38° you reach 3:1 only by darkening past
-   * the point where the hue stops being yellow. Legal here because the glyph is
-   * DECORATIVE — 「N단계 가이드」 sits beside it and the strip entry's `aria-label` repeats
-   * it. ⛔ Do not reuse this token where the glyph is the only channel.
+   * ⛔ Bare, at 20px, in BOTH fold states — the folded strip's mark is the standard
+   * (오너 지시 2026-08-23). The Figma node also carries a 28×28 #FFF8E1 plate; it was
+   * rendered on the open zone head for one commit and then removed. The strip has no room
+   * for it beside a 14px label, and a mark that changes shape when the rail folds is two
+   * marks. ⛔ Do not bring the plate back on one side only. Its absence is also what keeps
+   * the 안내박스 the rail's single fill, which is the whole of 시안 E.
    *
-   * ⛔ Nor is it a warning — and it is now CLOSER to one than #CA8A04 was. `connProgress`
-   * owns amber for warnings (#E8A03A dot, #B45309 ink), and #E8A03A is H 35° to this
-   * H 38°. Hue will not separate them; the silhouette and the place have to — a 전구 on a
-   * rail zone head, never a status dot.
+   * ⚠️ #F59E0B is 2.15:1 on white — under 1.4.11's 3:1, and no saturated yellow-amber
+   * clears that: at H 38° you reach 3:1 only by darkening past the point where the hue
+   * stops being yellow. Legal here because the glyph is DECORATIVE — 「N단계 가이드」 sits
+   * beside it and the strip entry's `aria-label` repeats it. ⛔ Do not reuse this token
+   * where the glyph is the only channel.
+   *
+   * ⛔ Nor is it a warning — and it is CLOSER to one than #CA8A04 was. `connProgress` owns
+   * amber for warnings (#E8A03A dot, #B45309 ink), and #E8A03A is H 35° to this H 38°.
+   * Hue will not separate them; the silhouette and the place have to — a 전구 on a rail
+   * zone head, never a status dot.
    */
   zoneMark: 'text-[#F59E0B]', // design-exempt: 장식 글리프 — 뜻은 옆의 「N단계 가이드」와 스트립 aria-label 이 전부 싣는다. 텍스트 4.5:1 도, 1.4.11 의 3:1 도 대상이 아님
-  /**
-   * The plate under that mark on the OPEN rail's zone head — 28px, radius 8, #FFF8E1,
-   * off the same Figma node.
-   *
-   * ⚠️ This is a fill, and 시안 E's rule is that the rail carries none. The rule is about
-   * zone-sized surfaces: a 28px plate is a mark, not a plane, and at 1.06:1 against white
-   * it does not compete with the 안내박스 for "the tinted block that means something".
-   * ⛔ It stays 28px. Grown into a band it is the #E8F1FF mistake again in a new hue.
-   *
-   * ⛔ Strip-side the mark goes bare. The folded rail's grammar is "20px glyph over a
-   * label" for both entries, and plating one of the pair breaks it.
-   */
-  zoneMarkPlate: 'flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-[#FFF8E1]',
   /** Hairline between the size control and the entries — half the strip, so it reads as a seam. */
   divider: 'my-2 h-px w-8 bg-gray-100',
   /**

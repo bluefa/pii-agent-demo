@@ -147,26 +147,21 @@ describe('GuidePanel — the rail folds, it does not vanish', () => {
     expect(channel.contains(toggle)).toBe(true);
   });
 
-  // 시안 E (오너 지시 2026-08-23): 무채색 + 잉크만. ⛔ Neither ZONE may carry a fill — the
-  // hairline and the label are what separate them, which is why both are load-bearing.
-  // Marks may: the guide's 28px #FFF8E1 plate is a mark, not a plane. The rule is about
-  // zone-sized surfaces, and the one tinted BLOCK stays the guide's own 안내박스.
-  it('paints no fill on either zone, and names them both', async () => {
+  // 시안 E (오너 지시 2026-08-23): 무채색 + 잉크만. The zones are told apart by a hairline
+  // and a label, so ⛔ NO element in the open rail may carry a fill. The guide's own
+  // 안내박스 is the single exception and it renders inside the mocked guide card here, so
+  // this assertion sees an empty list.
+  it('paints no fill anywhere in the open rail, and names each zone', async () => {
     const { container } = render(<GuidePanel {...baseProps} jiraTicket={null} />);
     await settled();
 
-    const zones = Array.from(container.querySelector('aside > div')?.children ?? []);
-    expect(zones).toHaveLength(2);
-    for (const zone of zones) {
-      expect(zone.className).not.toMatch(/(^|\s)bg-(?!transparent)/);
-    }
+    const filled = Array.from(container.querySelectorAll<HTMLElement>('aside *')).filter((el) =>
+      /(^|\s)bg-(?!transparent)/.test(el.className),
+    );
+    expect(filled.map((el) => el.className)).toEqual([]);
 
-    // ⛔ And no fill may grow past a mark. 28px is the plate; anything wider is the
-    // #E8F1FF band coming back in a different hue.
-    const plate = container.querySelector('aside .bg-\\[\\#FFF8E1\\]');
-    expect(plate?.className).toContain('h-7');
-    expect(plate?.className).toContain('w-7');
-
+    // The labels are load-bearing: with no fill and no card they are the only thing that
+    // says where one zone ends and the next begins.
     expect(screen.getByText('협업 채널')).toBeTruthy();
     expect(screen.getByText('가이드')).toBeTruthy();
   });
@@ -186,12 +181,20 @@ describe('GuidePanel — the rail folds, it does not vanish', () => {
     expect(open?.getAttribute('stroke')).toBe('currentColor');
     expect(open?.getAttribute('fill')).toBe('none');
 
+    // ⛔ ONE mark, and the folded one is the standard: same 20px, bare, both states. The
+    // Figma node's 28px #FFF8E1 plate was on the open head for one commit and is gone —
+    // a mark that changes shape when the rail folds is two marks.
+    // `getAttribute`, not `.className` — on an SVGElement that is an SVGAnimatedString.
+    expect(open?.getAttribute('class')).toContain('h-5');
+    expect(container.querySelector('aside .bg-\\[\\#FFF8E1\\]')).toBeNull();
+
     fireEvent.click(screen.getByRole('button', { name: '가이드 접기' }));
-    await waitFor(() =>
-      expect(container.querySelector('aside svg.text-\\[\\#F59E0B\\]')).toBeTruthy(),
-    );
-    // Bare on the strip — the plate is the open zone head's, and 28px does not fit a
-    // 56px rail beside a 14px label.
+    const folded = await waitFor(() => {
+      const el = container.querySelector('aside svg.text-\\[\\#F59E0B\\]');
+      expect(el).toBeTruthy();
+      return el as SVGElement;
+    });
+    expect(folded.getAttribute('class')).toContain('h-5');
     expect(container.querySelector('aside .bg-\\[\\#FFF8E1\\]')).toBeNull();
   });
 

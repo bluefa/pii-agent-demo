@@ -14,8 +14,11 @@ import type { IconProps } from '@/app/components/ui/icons/types';
  *
  * Stroked, not filled — it was briefly a Heroicons solid bulb, and the Figma spec that
  * replaced it is an outline. `currentColor`, so the caller owns the ink: both call sites
- * take it from `railStyles.zoneMark`, and the open rail's zone head additionally sets it
- * on `railStyles.zoneMarkPlate`.
+ * take it from `railStyles.zoneMark`, at the same 20px.
+ *
+ * ⛔ The Figma node also has a 28×28 #FFF8E1 plate behind this. It is deliberately not
+ * rendered — the folded strip's bare mark is the standard (오너 지시 2026-08-23), and a
+ * mark that changes shape when the rail folds is two marks.
  */
 export const GuideIcon = ({ className, ...rest }: IconProps) => (
   <svg
