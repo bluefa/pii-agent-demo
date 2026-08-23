@@ -2325,23 +2325,36 @@ export const rowMenuStyles = {
  */
 export const railStyles = {
   /**
-   * 48px. A 32px hit target with 8px either side — the narrowest strip that still
-   * reads as a rail rather than as a thick border.
+   * 56px. It was 48 — a 32px hit target and nothing else — and a strip that holds only
+   * a direction chevron does not say WHICH panel it puts back. 56 buys a 12px label
+   * under a 20px glyph, and 12px is the design guide's floor, not a value to shave.
    *
-   * ⛔ Keep it a multiple of 4. The rail's width comes out of the same content
-   * column the step cards stand in, and their 20px gutter plus their own 28px
-   * keyline assume whole pixels; an odd rail puts that keyline on a half-pixel.
+   * ⛔ Keep it a multiple of 4, and ⛔ do NOT take it to 64. This rail is subtracted
+   * from the very column the confirmed table stands in, and that table floors at 988px
+   * (`#754`). Available = viewport − 296 (service rail) − rail − 40 (page gutter) − 56
+   * (card keyline), so the table needs `viewport ≥ 1380 + rail`:
+   *
+   *   56 → 1436   1440 laptops clear it by 4px
+   *   64 → 1444   1440 laptops MISS it by 4px and get a horizontal scrollbar
+   *
+   * The 8px between those two is not a taste question. It decides whether the most
+   * common laptop width can show the table without scrolling sideways.
    */
-  collapsedWidth: 'w-12',
+  collapsedWidth: 'w-14',
   /**
-   * The strip's own layout — the fold control at the top, centred. The caller supplies
-   * `flex` or `hidden`, because on the right rail that choice is a media query.
+   * The strip's own layout — chevron, then the entries, top-anchored and centred. The
+   * caller supplies `flex` or `hidden`, because on this rail that choice is a media
+   * query. `flex-1` so the strip owns the rail's full height.
    *
-   * `pt-2` centres the 32px button at x=8, y=8 inside the 48px strip, which is exactly
-   * where the `p-2` header row puts the button on the OPEN rail. Folding and unfolding
-   * then happen under a stationary pointer instead of moving the target.
+   * `px-1` insets the entries 4px, so an entry's hover fill stops short of the rail's
+   * edges instead of bleeding into the border.
+   *
+   * ⚠️ The chevron sits at x=12 here and at x=8 on the open rail — but both are measured
+   * from the RAIL's left edge, and the rail is right-anchored, so its left edge itself
+   * moves 264px when the fold happens. The pointer travels either way; there is no
+   * stationary-target invariant to preserve. (An earlier comment here claimed one.)
    */
-  strip: 'flex-col items-center pt-2',
+  strip: 'flex-1 flex-col items-center px-1 py-2',
   /**
    * The fold control, in both of the rail's states. Glyph-only, so the call site owes
    * it an `aria-label` that says what the press DOES ("가이드 접기"), not what the
@@ -2353,6 +2366,37 @@ export const railStyles = {
    */
   toggle:
     'flex h-8 w-8 items-center justify-center rounded-md text-gray-700 transition-colors hover:bg-gray-100',
+  /** Hairline between the size control and the entries — half the strip, so it reads as a seam. */
+  divider: 'my-2 h-px w-8 bg-gray-100',
+  /**
+   * One fold entry: a 20px glyph over a 12px label, the whole block a single button.
+   *
+   * 20px, not the toggle's 16 — the chevron is chrome that only has to be hittable,
+   * while these carry the panel's identity and are the first thing read on the strip.
+   * It is the size the target-source header's provider mark used before 오너 지시 took
+   * it to 28.
+   *
+   * `text-gray-700` is 9.06:1 on this rail's white plane, which the 12px label needs;
+   * gray-500 would be 4.83 and legal but the label is the whole point of widening the rail.
+   */
+  entry:
+    'flex w-full flex-col items-center gap-1 rounded-md py-2 text-gray-700 transition-colors hover:bg-gray-100',
+  /**
+   * ⛔ 12px is the floor, not a starting point — do not shave it to fit a longer word.
+   * If a label will not fit, shorten the WORD (JetBrains' stripe rule: two words max,
+   * abbreviate when the stripe shows the name). `leading-[1.2]` is the guide's one-line
+   * step; `whitespace-nowrap` because a wrapped label in a 56px rail is a paragraph.
+   */
+  entryLabel: 'text-[12px] font-medium leading-[1.2] whitespace-nowrap',
+  /**
+   * State dot on an entry's glyph — 8px, the same one `HistoryTimeline` uses, with a
+   * white ring so it reads as ON the glyph rather than beside it. The caller supplies
+   * the fill from `statusColors[tone].dot`.
+   *
+   * ⛔ The dot is `aria-hidden`; the entry's `aria-label` has to say the state in words,
+   * or the whole channel status is invisible to anyone not looking at colour.
+   */
+  entryDot: 'absolute -right-1 -top-0.5 h-2 w-2 rounded-full ring-2 ring-white',
 } as const;
 
 /**

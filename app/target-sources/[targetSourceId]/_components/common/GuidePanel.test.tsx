@@ -153,3 +153,86 @@ describe('GuidePanel — the rail folds, it does not vanish', () => {
     expect(screen.getByRole('button', { name: '가이드 접기' })).toBeTruthy();
   });
 });
+
+/**
+ * Folds the rail and waits for the strip. Every test below starts here.
+ *
+ * The `clear()` is load-bearing: folding WRITES the preference, so a second call inside
+ * one test would mount already-collapsed and find no 「가이드 접기」 to press.
+ */
+const folded = async (jiraTicket: Parameters<typeof GuidePanel>[0]['jiraTicket']) => {
+  localStorage.clear();
+  const view = render(<GuidePanel {...baseProps} jiraTicket={jiraTicket} />);
+  await settled();
+  fireEvent.click(screen.getByRole('button', { name: '가이드 접기' }));
+  await waitFor(() => expect(screen.getByRole('button', { name: '가이드 펼치기' })).toBeTruthy());
+  return view;
+};
+
+describe('GuidePanel — the folded strip says what it is', () => {
+  it('names the panel in words, not just a direction chevron', async () => {
+    await folded(null);
+    // ⛔ Deleting either label puts the strip back to "one chevron, no idea what it opens".
+    expect(screen.getByText('가이드')).toBeTruthy();
+    expect(screen.getByText('채널')).toBeTruthy();
+  });
+
+  it('is 56px wide — not 48, and ⛔ not 64', async () => {
+    // 64 would push the confirmed table's fit threshold to 1444px and cost 1440px
+    // laptops a horizontal scrollbar by 4px. This is the tripwire on that arithmetic.
+    const { container } = await folded(null);
+    const classes = container.querySelector('aside')?.className.split(/\s+/) ?? [];
+    expect(classes).toContain('w-14');
+    expect(classes).not.toContain('w-16');
+  });
+
+  it('carries the collab channel through the fold — all three states, in words', async () => {
+    const linked = await folded({ issueKey: 'BDCDIP-1353', browseUrl: 'https://jira.example.com/browse/BDCDIP-1353' });
+    // The ticket key survives folding. It used to disappear with the whole card.
+    expect(screen.getByRole('button', { name: '협업 채널 — BDCDIP-1353' })).toBeTruthy();
+    linked.unmount();
+
+    const none = await folded(null);
+    expect(screen.getByRole('button', { name: '협업 채널 — 아직 연결되지 않았어요' })).toBeTruthy();
+    none.unmount();
+
+    // ⛔ A failed fetch must not read as "no channel" on the strip either.
+    await folded('error');
+    expect(screen.getByRole('button', { name: '협업 채널 — 정보를 불러오지 못했어요' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /아직 연결되지 않았어요/ })).toBeNull();
+  });
+
+  it('gives each channel state its own dot fill, so colour is not dead weight', async () => {
+    const dotOf = (container: HTMLElement) =>
+      container.querySelector('aside span[aria-hidden].rounded-full')?.className ?? '';
+
+    const linked = await folded({ issueKey: 'PII-1', browseUrl: null });
+    const okFill = dotOf(linked.container as HTMLElement);
+    linked.unmount();
+
+    const failed = await folded('error');
+    const errFill = dotOf(failed.container as HTMLElement);
+
+    expect(okFill).not.toBe('');
+    expect(errFill).not.toBe('');
+    expect(okFill).not.toBe(errFill);
+  });
+
+  it('unfolds onto 가이드 when 가이드 is pressed, even if 진행 내역 was the open tab', async () => {
+    render(<GuidePanel {...baseProps} jiraTicket={null} />);
+    await settled();
+
+    fireEvent.click(screen.getByRole('tab', { name: '진행 내역' }));
+    expect(screen.getByText('관리자 승인 완료')).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: '가이드 접기' }));
+    await waitFor(() => expect(screen.getByText('가이드')).toBeTruthy());
+
+    // The strip's one word promises 가이드 — unfolding back onto 진행 내역 would be a lie.
+    fireEvent.click(screen.getByRole('button', { name: /^가이드 — / }));
+    await waitFor(() =>
+      expect(screen.getByText('이 단계에는 표시할 가이드가 없습니다.')).toBeTruthy(),
+    );
+    expect(screen.queryByText('관리자 승인 완료')).toBeNull();
+  });
+});

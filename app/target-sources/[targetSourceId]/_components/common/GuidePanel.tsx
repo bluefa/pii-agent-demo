@@ -3,8 +3,9 @@
 import { useState } from 'react';
 
 import { GuideCardContainer } from '@/app/components/features/process-status/GuideCard/GuideCardContainer';
-import { ChatIcon, OpenExternalIcon } from '@/app/components/ui/icons';
+import { ChatIcon, GuideIcon, OpenExternalIcon } from '@/app/components/ui/icons';
 import {
+  RailEntry,
   RailToggle,
   RAIL_OPEN_MIN_WIDTH,
   useRailCollapse,
@@ -228,6 +229,28 @@ export const GuidePanel = ({
 
   const { collapsed, toggle } = useRailCollapse(GUIDE_RAIL_STORAGE_KEY, RAIL_OPEN_MIN_WIDTH);
 
+  /**
+   * What the folded rail says about the collab channel. The card itself is the escape
+   * hatch for every step, and folding used to take it off the screen entirely — dot and
+   * all three of its states, including the one where the fetch failed. The dot carries
+   * the state in colour and `hint` carries the same thing in words, because the dot is
+   * `aria-hidden` and colour alone is not a channel.
+   */
+  const collab =
+    jiraTicket === 'error'
+      ? { dot: statusColors.error.dot, hint: '협업 채널 — 정보를 불러오지 못했어요' }
+      : jiraTicket === null
+        ? { dot: statusColors.pending.dot, hint: '협업 채널 — 아직 연결되지 않았어요' }
+        : { dot: statusColors.success.dot, hint: `협업 채널 — ${jiraTicket.issueKey}` };
+
+  // The label promises 가이드, so the press has to deliver 가이드 — unfolding straight
+  // back onto 진행 내역 because that is where the reader happened to be when they folded
+  // would make the strip's one word a lie.
+  const openGuide = () => {
+    selectTab('guide');
+    toggle();
+  };
+
   // While `collapsed` is null the media query paints the default — the same markup the
   // server sent — so the first frame does not jump on the way to the stored preference.
   // Once it resolves the state owns the rail and the breakpoint stops mattering.
@@ -259,7 +282,10 @@ export const GuidePanel = ({
 
   return (
     <aside
-      aria-label="단계 가이드 및 진행 내역"
+      /* One name for the panel, and it is the one on the strip. It used to be called
+         three things — this label, 「가이드 펼치기」 on the button, and 「가이드 / 진행
+         내역」 on the tabs — which is fine until the folded rail has to carry ONE word. */
+      aria-label="가이드"
       className={cn(
         railWidth,
         'flex shrink-0 flex-col border-l',
@@ -267,11 +293,27 @@ export const GuidePanel = ({
         bgColors.surface,
       )}
     >
-      {/* Folded. The strip IS the rail, and the control that brings it back is the only
-          thing on it — a fold the reader cannot see their way out of is not a fold. */}
+      {/* Folded. The strip IS the rail, so it has to answer two questions a chevron alone
+          cannot: what panel is this, and is the collab channel still there. Chevron first
+          (the size control), hairline, then the entries — the guide at the top, which is
+          the order Cloudscape fixes for its own trigger bar: help always first. */}
       {collapsed !== false && (
         <div className={cn(stripShown, railStyles.strip)}>
           <RailToggle direction="left" label="가이드 펼치기" onClick={toggle} />
+          <span aria-hidden className={railStyles.divider} />
+          <RailEntry
+            icon={<GuideIcon className="h-5 w-5" />}
+            label="가이드"
+            hint="가이드 — 단계 가이드와 진행 내역 펼치기"
+            onClick={openGuide}
+          />
+          <RailEntry
+            icon={<ChatIcon className="h-5 w-5" />}
+            label="채널"
+            hint={collab.hint}
+            dot={collab.dot}
+            onClick={toggle}
+          />
         </div>
       )}
 

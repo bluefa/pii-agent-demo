@@ -1,8 +1,9 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { ChevronLeftIcon, ChevronRightIcon } from '@/app/components/ui/icons';
-import { railStyles } from '@/lib/theme';
+import { Tooltip } from '@/app/components/ui/Tooltip';
+import { cn, railStyles } from '@/lib/theme';
 
 /**
  * The width at or above which the guide rail starts open.
@@ -126,3 +127,43 @@ export const RailToggle = ({ direction, label, onClick }: RailToggleProps) => {
     </button>
   );
 };
+
+interface RailEntryProps {
+  /** 20px glyph. Reuse the icon that already means this thing elsewhere in the app. */
+  icon: ReactNode;
+  /**
+   * Shown under the glyph. ⛔ One short word — the strip is 56px and the label may not
+   * wrap or shrink. Abbreviate rather than shave the type.
+   */
+  label: string;
+  /**
+   * The entry's full name AND its state, in words: "협업 채널 — BDCDIP-1353".
+   * It is the tooltip, and it is the accessible name, so it must CONTAIN `label`
+   * (WCAG 2.5.3) and it must carry whatever the dot says in colour.
+   */
+  hint: string;
+  /** Fill class for the state dot, from `statusColors[tone].dot`. Omit for no dot. */
+  dot?: string;
+  onClick: () => void;
+}
+
+/**
+ * A named entry on the folded rail.
+ *
+ * A folded rail that shows only a direction chevron does not say what it puts back —
+ * AWS Cloudscape says as much about its own icon-only trigger bar, that identifying
+ * which icon opens which panel is a cognitive load that grows with every panel. So the
+ * name is on the strip in words, the way JetBrains lets a tool window show its name
+ * under the stripe icon, and the tooltip carries what the one-word label had to drop.
+ */
+export const RailEntry = ({ icon, label, hint, dot, onClick }: RailEntryProps) => (
+  <Tooltip content={hint} position="left" triggerClassName="w-full">
+    <button type="button" onClick={onClick} aria-label={hint} className={railStyles.entry}>
+      <span className="relative flex">
+        {icon}
+        {dot && <span aria-hidden className={cn(railStyles.entryDot, dot)} />}
+      </span>
+      <span className={railStyles.entryLabel}>{label}</span>
+    </button>
+  </Tooltip>
+);
