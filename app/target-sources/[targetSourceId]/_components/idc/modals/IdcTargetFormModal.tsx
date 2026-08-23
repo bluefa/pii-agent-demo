@@ -180,6 +180,9 @@ export const IdcTargetFormModal = ({ isOpen, initial, onSubmit, onClose }: IdcTa
       subtitle="PII 모니터링 모듈 연동이 필요한 IDC DB의 접속 정보를 입력해주세요."
       size="2xl"
       chrome="toss"
+      // 닫는 길은 푸터의 취소가 이미 갖고 있다 — 헤더 ✕ 는 같은 말을 두 번(IdcLoadRequestModal 과 같은 규칙).
+      closeButton={false}
+      footerDivider={false}
       footer={
         <>
           <button type="button" className={idcStyles.modalBtn.outline} onClick={onClose}>
