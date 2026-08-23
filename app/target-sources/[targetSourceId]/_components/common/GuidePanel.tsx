@@ -84,9 +84,10 @@ const CollabChannelCard = ({ jiraTicket }: { jiraTicket: JiraTicketState }) => {
         진행 중 막히는 부분은 협업 채널에서 바로 문의할 수 있어요.
       </p>
       {/* The two empty states are back on `tertiary`. They were moved up to `secondary`
-          only because a #E8F1FF band stood under them, where gray-500 is 4.25:1; 시안 E
-          took that band away and on white it is 4.83:1 again. Quiet is the right register
-          for a placeholder — it must not out-weigh the real link. */}
+          only because a #E8F1FF band stood under them, where gray-500 is 4.25:1. No band
+          survives here: 시안 A puts this row inside the zone's white card, where it is
+          4.83:1 again. Quiet is the right register for a placeholder — it must not
+          out-weigh the real link. */}
       {jiraTicket === 'error' ? (
         <div className={cn(rowBase, 'font-medium', textColors.tertiary)}>
           협업 채널 정보를 불러오지 못했어요
