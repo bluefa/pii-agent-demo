@@ -39,6 +39,14 @@ export interface ConsoleTableColumn {
    *  is the FLOOR, not the width — see `flex`. */
   width: number;
   /**
+   * Rendered header content, when it is more than the label's text — e.g. IDC's 출발지
+   * header, which carries an explainer tooltip beside the word. `label` stays required
+   * and keeps every non-display job: the accessible name, the handle's name, the storage
+   * key's stable-ish anchor. The probe span wraps whichever one renders, so the drag
+   * floor is the width of what the reader actually sees.
+   */
+  head?: ReactNode;
+  /**
    * This column takes part in filling the table, so a wider screen shows MORE of its values
    * instead of padding every column out. Declare it on the columns whose values actually run
    * long — an ARN, a host, a free-text reason — and leave the rest sized.
@@ -143,7 +151,7 @@ const ConsoleTh = ({
         width. A shrink-to-fit box reports the TEXT in both states — its own width while
         the label fits, the full text while clipped. max-w-full is what lets it clip. */}
     <span {...{ [RESIZE_LABEL_ATTR]: '' }} className="inline-block max-w-full truncate align-bottom">
-      {column.label}
+      {column.head ?? column.label}
     </span>
     {resize && <span {...resize.handleProps(column.key, column.label)} />}
   </th>

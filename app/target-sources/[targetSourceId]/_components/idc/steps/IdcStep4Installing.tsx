@@ -161,35 +161,54 @@ export const IdcStep4Installing = ({
       // Database Type 열이 IDC 라벨(MSSQL)을 찍으므로 필터 옵션도 같은 글자여야 한다 —
       // 훅의 기본 접근자는 클라우드 라벨 맵이라 같은 값을 SQL Server 라 부른다.
       dbTypeLabel: (row: { resourceId: string }) => byId.get(row.resourceId)?.databaseTypeLabel ?? '',
+      // 폭은 LIN-96 원장 §1 의 그 열 값 — 이 티켓에서 새로 정하지 않는다. flex 는 앞의
+      // 정체성 쌍(출발지·접속 주소)이 진다: 클라우드의 name·id 와 같은 자리 규칙이고,
+      // 선언 순서 마지막 flex 인 접속 주소가 sink 다 — 이 표에서 임의 길이로 자라는
+      // 값(호스트)이 사는 유일한 열이라, 남는 픽셀이 값을 하는 곳도 거기다.
       columns: [
         {
           // 이 단계가 시키는 일이 "출발지 → 연동 대상 접근 허용"이라, 출발지가 이 표의
           // 주어다 — 맨 왼쪽에 서고 혼자 색을 갖는다. 바로 옆이 도착지(접속 주소)라
           // 한 행이 곧 열어야 할 한 경로로 읽힌다.
+          key: 'src',
           label: IDC_SOURCE_LABEL,
-          widthClass: 'w-[150px]',
+          // 150 이 아니다 — 공유 표(IdcResourceTable)의 144 를 "그대로 가져온다"는 것이
+          // 원래 의도였고, 6px 는 드리프트였다 (LIN-96 원장 §3-1 교정).
+          width: 144,
+          flex: true,
           head: <SourceIpHeader />,
           render: (row: { resourceId: string }) =>
             cell(row, (r) =>
               // 이 단계의 모든 행은 확정된 연동 대상이라 출발지가 있어야 한다. 빈 칸은
               // "이 행은 대상이 아니다"라는 다른 단계의 뜻이 되므로 여기선 대시로 말한다.
+              //
+              // max-w-full: 이 표는 콘솔 문법(table-fixed)이라 잘림 지점은 열이 소유한다 —
+              // 셀의 150px 자체 클램프는 auto 레이아웃(steps 2·3·5·6·7)의 열 폭 통제
+              // 수단이고, 여기 남기면 열을 넓혀도 값이 안 드러난다. LIN-100 이관 전까지
+              // 두 모드가 공존한다 (HostCell 문서).
               r.sourceIps.length > 0 ? (
-                <IdcSourceIpCell sourceIps={r.sourceIps} emphasis />
+                <IdcSourceIpCell sourceIps={r.sourceIps} emphasis maxWidthClass="max-w-full" />
               ) : (
                 <span className={textColors.tertiary}>—</span>
               ),
             ),
         },
         {
+          key: 'endpoint',
           label: '접속 주소',
           // 폭도 셀도 steps 2·3·5·6·7 의 그 열 그대로 — 단계끼리 어긋나지 않게.
-          widthClass: 'w-[200px]',
+          // max-w-full 만 다르다: sink 인 이 열의 존재 이유가 남는 픽셀로 호스트를
+          // 드러내는 것이라, 셀의 200px 자체 클램프(auto 레이아웃의 열 폭 통제)를
+          // 여기서는 열의 잘림 지점으로 바꾼다 — 출발지 열과 같은 규칙.
+          width: 200,
+          flex: true,
           render: (row: { resourceId: string }) =>
-            cell(row, (r) => <IdcEndpointWithKindCell resource={r} />),
+            cell(row, (r) => <IdcEndpointWithKindCell resource={r} maxWidthClass="max-w-full" />),
         },
         {
+          key: 'port',
           label: 'Port',
-          widthClass: 'w-[80px]',
+          width: 80,
           // 0 은 "페이로드에 포트가 없다"는 어댑터 값이지 포트가 아니다.
           render: (row: { resourceId: string }) =>
             cell(row, (r) => (
@@ -199,8 +218,9 @@ export const IdcStep4Installing = ({
             )),
         },
         {
+          key: 'dbType',
           label: 'Database Type',
-          widthClass: 'w-[172px]',
+          width: 172,
           render: (row: { resourceId: string }) => cell(row, (r) => <IdcDbTypeCell resource={r} />),
         },
       ],

@@ -366,12 +366,47 @@ Step 6 과 admin ops 확정 정보도 지나간다. 그 둘은 판정 쌍 대신
 
 ### 남은 Step
 
-`install`(Step 4)은 `identityColumns` 를 호출자가 주입하고 그 폭이 Tailwind 클래스라
-(`table-fixed` 가 못 읽는다) 아직 레거시 셸이다 — 그 필드에 숫자 폭을 주는 것이 Step 4 작업의
-시작점이다. Step 1(`CandidateResourceTable`)·Step 5(`ConnectionTestCard`)는 별도 컴포넌트라
-각자 스펙이 필요하다.
+Step 1(`CandidateResourceTable`)·Step 5(`ConnectionTestCard`)는 별도 컴포넌트라 각자
+스펙이 필요하다(LIN-98·LIN-99). IDC 공유 표(`IdcResourceTable`)는 LIN-100.
+Step 4 와 admin `plain` 은 §10 에서 랜딩했다.
+
+## 10. 하한 원장 (LIN-96, 오너 승인 2026-08-23) — 과 Step 4·plain 랜딩
+
+**원장의 원본은 Linear LIN-96 본문이다.** 여기에는 승인된 결정과, 그 첫 적용(LIN-97:
+`install`·`plain` 이관)이 실제로 굳힌 수치만 남긴다.
+
+원칙: **단계 간 같은 열은 같은 하한.** 하한의 근거는 (a) 실측 완료치, (b) 미이관 표면의
+기존 선언 폭 재사용이고, 콘텐츠 최대폭 실측은 각 구현 티켓의 1단계 검증이다 — 콘솔
+문법에서 하한은 값을 영구히 숨기지 않는다(sink·드래그·툴팁이 꼬리를 받는다).
+
+이 PR 이 굳힌 표면 둘 (실측: Chrome 1710×, dev 서버, 2026-08-23):
+
+| 표면 | 열 (하한) | flex | sink | Σ |
+| -- | -- | -- | -- | -- |
+| Step 4 클라우드 | name 162 · id 186 · 상태 200 · 안내 142 | name+id | id | **690** |
+| Step 4 IDC | 출발지 144 · 접속 200 · Port 80 · dbType 172 · 상태 200 · 안내 142 | 출발지+접속 | 접속 | **938** |
+| admin plain (확정 정보) | name 162 · id 186 · dbType 142 · region 156 | name+id | id | **646** |
+
+- **상태 200** = 'Azure Portal에서 승인 필요' 실측 154px + 셀 패딩 36 + slack — 종류 열
+  (콘텐츠 82→128)과 같은 처방. 상태 어휘는 여섯 `INSTALL_STATUS_LABEL` 단어에 **어댑터
+  라벨 오버라이드**(`InstallStepCell.label`, 현재 Azure PE 단계의 `PE_LABELS`)를 더한
+  집합이다 — 최초 랜딩의 128 은 오버라이드를 어휘에서 빠뜨린 값이었고(Opus 리뷰 P2,
+  Azure 1003 에서 61.7px 잘림 재현), 셀은 overflow-hidden 에 줄임표·툴팁이 없어 잘리면
+  소리 없이 사라지므로 하한이 최장 단어를 덮어야 한다. **안내 142** = 제외 사유 재사용
+  (같은 `ReasonChipInline`, 같은 `clampReason(15)`).
+- **출발지 144** — step 4 의 150 은 공유 표의 144 를 "그대로 가져온다"던 주석과 어긋난
+  드리프트였고, 원장 §3-1 교정으로 144 에 정렬했다(admin 사본 160 은 LIN-100 몫).
+- IDC 표면의 flex 는 정체성 쌍(출발지·접속 주소)이 진다 — 클라우드 name·id 와 같은 자리
+  규칙, sink 는 임의 길이 값(호스트)이 사는 접속 주소. 판(716px)보다 Σ(938)가 크면
+  `ConsoleTable` 의 overflow-x-auto 가 스크롤을 연다(실측 scrollLeft 동작 확인).
+- `approvalConsole` 은 이제 variant 술어다 — install·plain 이 콘솔에 들어오는 순간 옛
+  `콘솔 − confirmed` 표현이 semibold 를 Step 4·admin 으로 새게 했을 것이므로(§9 의 ⛔ 그
+  사례), 트립와이어 테스트가 세 variant 에서 이를 고정한다.
+- 레거시(자동 레이아웃) 셸은 이 랜딩으로 **삭제** — `WaitingApprovalTable` 의 네 variant
+  전부가 `ConsoleTable` 스펙을 넘긴다.
 
 ---
 
 측정 환경: Chrome, 창 1710×, dPR 2, dev 서버 `/pass/target-sources/1012`,
-판 폭 990px (브라우저 1710 − 좌우 레일 720).
+판 폭 990px (브라우저 1710 − 좌우 레일 720). §10 실측은 `/pass/target-sources/1008`(AWS
+Step 4, 판 716)·`1023`(IDC Step 4)·admin ops `1008?tab=confirm`(판 1116).
