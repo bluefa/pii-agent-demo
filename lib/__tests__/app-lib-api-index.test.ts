@@ -8,7 +8,6 @@ import {
   getConfirmedIntegration,
   getCreationCandidates,
   getProcessStatus,
-  getCurrentUser,
   getProject,
   getProjects,
   searchUsers,
@@ -58,30 +57,6 @@ describe('app/lib/api/index', () => {
     await searchUsers('');
 
     expect(fetchSpy.mock.calls[0]?.[0]).toBe('/pass/api/v1/users/search');
-  });
-
-  it('getCurrentUser는 flat user/me 응답을 그대로 읽는다', async () => {
-    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      new Response(
-        JSON.stringify({
-          id: 'user-1',
-          name: '홍길동',
-          email: 'hong@company.com',
-        }),
-        {
-          status: 200,
-          headers: { 'content-type': 'application/json' },
-        },
-      ),
-    );
-
-    const user = await getCurrentUser();
-
-    expect(user).toEqual({
-      id: 'user-1',
-      name: '홍길동',
-      email: 'hong@company.com',
-    });
   });
 
   it('getConfirmedIntegration은 flat confirmed integration 응답을 그대로 사용한다', async () => {
