@@ -3,13 +3,14 @@ import { fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, it, expect } from 'vitest';
 import {
   hasKindColumn,
+  NAME_LIFT,
   WaitingApprovalTable,
   type WaitingApprovalResource,
 } from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalTable';
 import { rdsInstanceBandLabel } from '@/app/target-sources/[targetSourceId]/_components/shared/RdsInstancePanel';
 import { useColumnResize } from '@/app/components/ui/useColumnResize';
 import { required } from '@/lib/test-dom';
-import { textColors, verdictRail } from '@/lib/theme';
+import { tableRowLift, textColors, verdictRail } from '@/lib/theme';
 
 const fixture: WaitingApprovalResource[] = [
   {
@@ -144,14 +145,43 @@ describe('WaitingApprovalTable', () => {
       ...(counts ? { logicalDbCount: counts[0], excludedLogicalDbCount: counts[1] } : {}),
     });
 
-    /** The aggregate rides the identity cell, beside the region it counts within. */
-    const aggregateOf = (region: string) => {
+    // The owner's call was about the approval screens. Steps 6·7 and the admin ops 확정 정보 tab
+    // reach the same `<td>` and were NOT in it: they replace the verdict pair with logical-DB
+    // counts, so "colour already means verdict here" — the reason weight won — does not hold.
+    it('ranks the name by weight on steps 2·3 only, leaving the hover blue on confirmed', () => {
+      // Ungrouped rows on purpose: a group parent's own cell is a different element.
+      const rows = [fixture[0]];
+      const nameCell = () =>
+        required(
+          required(screen.getByText('sea-live-space-prod').closest('td'), 'the name cell'),
+          'the name cell',
+        ).className;
+
+      // Matched against the TOKEN, not the `group-hover:text-` prefix: the day this cell also
+      // carries CELL_LIFT (another group-hover colour) a prefix test would pass for the wrong
+      // reason on confirmed and fail spuriously on approval.
+      const { rerender } = render(<WaitingApprovalTable resources={rows} />);
+      expect(nameCell()).toContain('font-semibold');
+      expect(nameCell()).not.toContain(NAME_LIFT);
+
+      rerender(<WaitingApprovalTable variant="confirmed" resources={rows} />);
+      expect(nameCell()).toContain(NAME_LIFT);
+      expect(nameCell()).not.toContain('font-semibold');
+
+      // `plain` is the other screen the unscoped version reached (admin ops 확정 정보).
+      rerender(<WaitingApprovalTable variant="plain" resources={rows} />);
+      expect(nameCell()).toContain(NAME_LIFT);
+      expect(nameCell()).not.toContain('font-semibold');
+    });
+
+    /** The group row's identity cell — type, region, and what the group holds. */
+    const identityOf = (region: string) => {
       const toggle = screen.getByRole('button', { name: new RegExp(`Athena ${region} 그룹`) });
       const row = required(toggle.closest('tr'), 'the group row holding the toggle');
-      return within(row).getAllByRole('cell')[0].textContent;
+      return within(row).getAllByRole('cell')[0].textContent ?? '';
     };
 
-    it('renders one parent row per region with the target/excluded aggregate', () => {
+    it('renders one parent row per region, and states the total minus the exclusions', () => {
       render(
         <WaitingApprovalTable
           resources={[
@@ -164,11 +194,48 @@ describe('WaitingApprovalTable', () => {
 
       const toggles = screen.getAllByRole('button', { name: /그룹 (펼치기|접기)$/ });
       expect(toggles).toHaveLength(2);
+      // ⛔ Owner, 2026-08-23: groups start CLOSED. The identity line below already says how many
+      // databases are inside and how many are excluded, so the rows are what you open to check
+      // that claim. Pressing the chevron is the only thing that opens one.
+      expect(toggles[0].getAttribute('aria-expanded')).toBe('false');
+      fireEvent.click(toggles[0]);
       expect(toggles[0].getAttribute('aria-expanded')).toBe('true');
-      // The counts are split across spans (the numbers sit a size up), so `getByText` — which
-      // matches an element's OWN text nodes — cannot see the phrase. Read the cell instead.
-      expect(aggregateOf('ap-northeast-1')).toContain('데이터베이스 · 대상 1 · 제외 1');
-      expect(aggregateOf('us-east-1')).toContain('데이터베이스 · 대상 1 · 제외 0');
+      // Asserted on the WHOLE cell text, not `getByText`: the counts are their own spans (they
+      // sit 2px above the words), so the phrase exists only as the concatenation and no single
+      // element owns it as its own text nodes.
+      expect(identityOf('ap-northeast-1')).toContain('ap-northeast-1');
+      expect(identityOf('ap-northeast-1')).toContain('Database 총 2개 중 1개 제외');
+      // ⛔ Owner, 2026-08-23: the total stands ALONE when nothing is excluded. "0개 제외" would
+      // print the verdict colour on a group that has no verdict to report.
+      expect(identityOf('us-east-1')).toContain('Database 총 1개');
+      expect(identityOf('us-east-1')).not.toContain('제외');
+      // The old two-count line ("데이터베이스 · 대상 N · 제외 N") belongs to step 1 now.
+      expect(identityOf('ap-northeast-1')).not.toContain('대상');
+    });
+
+    // The failure `expandFolds` was built for, one disclosure over. A search matching only a
+    // database INSIDE a group used to be safe because groups were open; once they closed by
+    // default, the same search drew a shut "Database 총 1개" and the typed string nowhere.
+    it('opens every group while the list is narrowed, with no toggle to press', () => {
+      const rows = [athena('db_a', 'ap-northeast-1', true), athena('db_c', 'us-east-1', true)];
+      // `hidden`, not absence: the children tbody stays MOUNTED while shut so `aria-controls`
+      // always resolves, and a text query would find `db_a` either way.
+      const childrenHidden = () =>
+        required(
+          required(screen.getByText('db_a').closest('tbody'), "the children's tbody"),
+          "the children's tbody",
+        ).hasAttribute('hidden');
+
+      const { rerender } = render(<WaitingApprovalTable resources={rows} />);
+      expect(childrenHidden()).toBe(true);
+
+      // ONE variable: same rows, `expandFolds` flipped. Narrowing `resources` at the same time
+      // would leave it open which of the two moved the fold.
+      rerender(<WaitingApprovalTable resources={rows} expandFolds />);
+      expect(childrenHidden()).toBe(false);
+      // Indicator, not control: a press here would be recorded as a COLLAPSE against state the
+      // filter owns, and clearing the filter would then shut a group nobody closed.
+      expect(screen.queryByRole('button', { name: /그룹 (펼치기|접기)$/ })).toBeNull();
     });
 
     // The parent's type and region live in its identity cell, not in the two columns keyed on
@@ -543,13 +610,23 @@ describe('WaitingApprovalTable', () => {
         .filter((text) => /^demo-\d$/.test(text));
     };
 
+    /**
+     * Open the member band. EVERY cluster starts folded now (owner, 2026-08-23) — being part of
+     * the request no longer opens one — so a test that reads the members has to press the
+     * chevron first, the same way the excluded-cluster test below always had to.
+     */
+    const openBand = () =>
+      fireEvent.click(screen.getByRole('button', { name: 'demo-cluster 인스턴스 목록 펼치기' }));
+
     it('lists instances Reader-first then by ARN, regardless of wire order', () => {
       render(<WaitingApprovalTable resources={[cluster()]} />);
+      openBand();
       expect(instanceNames()).toEqual(['demo-2', 'demo-3', 'demo-1']);
     });
 
     it('marks only the chosen instance 선택됨, and never offers a radio', () => {
       render(<WaitingApprovalTable resources={[cluster()]} />);
+      openBand();
       expect(screen.getAllByText('선택됨')).toHaveLength(1);
       expect(screen.queryAllByRole('radio')).toHaveLength(0);
       // The chip rides the chosen instance's own LINE inside the band.
@@ -561,6 +638,7 @@ describe('WaitingApprovalTable', () => {
     // names this exact failure mode as the reason a separate verdict column was rejected.
     it('spans the band across every column of this table', () => {
       render(<WaitingApprovalTable resources={[cluster()]} />);
+      openBand();
       const band = required(
         screen.getByRole('table', { name: rdsInstanceBandLabel('demo-cluster') }).closest('td'),
         "the band's spanning cell",
@@ -572,6 +650,7 @@ describe('WaitingApprovalTable', () => {
 
     it('shows the member role on every instance line', () => {
       render(<WaitingApprovalTable resources={[cluster()]} />);
+      openBand();
       const band = within(screen.getByRole('table', { name: rdsInstanceBandLabel('demo-cluster') }));
       expect(band.getAllByText('Reader')).toHaveLength(2);
       expect(band.getAllByText('Writer')).toHaveLength(1);
@@ -585,6 +664,7 @@ describe('WaitingApprovalTable', () => {
     // other thing a reviewer compares — had nowhere to go.
     it('gives each instance its own labelled AZ and endpoint columns', () => {
       render(<WaitingApprovalTable resources={[cluster()]} />);
+      openBand();
       expect(screen.getByText('가용 영역')).toBeTruthy();
       expect(screen.getByText('엔드포인트')).toBeTruthy();
       // The table's Region column stays the CLUSTER's region — one row, one value.
@@ -608,6 +688,51 @@ describe('WaitingApprovalTable', () => {
       expect(screen.queryByText('3개 인스턴스')).toBeNull();
     });
 
+    // Three branches render the Resource Name and all three are the same column, so all three
+    // have to drop the per-cell cap under the console shell. The migration switched only the
+    // plain one-liner; a cluster row's name stayed clamped at 200px while its column flexed
+    // past 600, and dragging the divider revealed nothing.
+    it('lets the name fill the column on EVERY branch, cluster rows included', () => {
+      render(
+        <WaitingApprovalTable
+          resources={[
+            // Branch 1 — a cluster WITH members.
+            cluster(),
+            // Branch 2 — the tag stack. Two ways to miss it, both silent:
+            // ⛔ the field is `declaredResourceType`, not `resourceType` (`isEc2` reads the
+            //    declared one), and
+            // ⛔ the value must normalise to EC2 — `AWS_EC2_INSTANCE` is the wire spelling the
+            //    alias map carries; a plausible-looking `AWS_EC2` does not resolve.
+            // Either slip drops the row into branch 3 and leaves branch 2 — one of the two that
+            // carried the bug — untested. A mutation check cannot catch that: reverting the fix
+            // reddens branch 1 regardless, so the test still goes red for the wrong reason.
+            { ...cluster(), rowKey: 'ec2', resourceId: 'i-1', resourceType: 'AWS_EC2_INSTANCE',
+              declaredResourceType: 'AWS_EC2_INSTANCE', resourceName: 'ec2-box',
+              rdsInstanceCandidates: undefined },
+            // Branch 3 — the plain one-liner.
+            { ...cluster(), rowKey: 'plain', resourceId: 'db-1', resourceType: 'MYSQL',
+              declaredResourceType: undefined, resourceName: 'plain-db',
+              rdsInstanceCandidates: undefined },
+          ]}
+        />,
+      );
+
+      // Branch 2 really is branch 2: only it prints the kind tag beside the name.
+      expect(screen.getByText('EC2')).toBeTruthy();
+
+      const nameTriggers = ['demo-cluster', 'ec2-box', 'plain-db'].map((name) =>
+        required(screen.getByText(name).parentElement, `${name}'s tooltip trigger`),
+      );
+      for (const trigger of nameTriggers) {
+        expect(trigger.className).toContain('w-full');
+        expect(trigger.className).not.toContain('max-w-[200px]');
+      }
+      // The column clips; the cell must not do it a second time.
+      for (const name of ['demo-cluster', 'ec2-box', 'plain-db']) {
+        expect(screen.getByText(name).className).not.toContain('truncate');
+      }
+    });
+
     it('tags the cluster row RDS Cluster, before the name', () => {
       render(<WaitingApprovalTable resources={[cluster()]} />);
       const nameCell = screen.getByText('RDS Cluster').closest('td');
@@ -618,19 +743,24 @@ describe('WaitingApprovalTable', () => {
       expect(screen.getAllByText('RDS Cluster')).toHaveLength(1);
     });
 
-    it('starts expanded and collapses from the chevron', () => {
+    // ⛔ Owner, 2026-08-23: a SELECTED cluster no longer starts expanded. `useClusterFold`'s
+    // policy opened every cluster in the request, which was most of them — three member rows
+    // under each, and the fold stopped being a fold. The band is now opt-in on both sides.
+    it('starts folded and opens from the chevron', () => {
       render(<WaitingApprovalTable resources={[cluster()]} />);
-      expect(instanceNames()).toHaveLength(3);
-
-      fireEvent.click(screen.getByRole('button', { name: 'demo-cluster 인스턴스 목록 접기' }));
       expect(instanceNames()).toHaveLength(0);
-      // Folding hides the comparison, never the choice: the tag and the chosen member survive.
+      // Folded hides the comparison, never the choice: the tag and the chosen member survive.
       expect(screen.getByText('RDS Cluster')).toBeTruthy();
       const clusterCell = required(
         screen.getByText('demo-cluster').closest('td'),
         "the cluster's identity cell",
       );
       expect(clusterCell.textContent).toContain('demo-2');
+
+      openBand();
+      expect(instanceNames()).toHaveLength(3);
+      fireEvent.click(screen.getByRole('button', { name: 'demo-cluster 인스턴스 목록 접기' }));
+      expect(instanceNames()).toHaveLength(0);
     });
 
     // An excluded PARENT never dims its members' text — exclusion is what the rail says. The band sits
@@ -642,8 +772,8 @@ describe('WaitingApprovalTable', () => {
           resources={[cluster({ selected: false, selectedRdsInstanceResourceId: undefined })]}
         />,
       );
-      // An excluded cluster starts folded (useClusterFold) — open it to read the lines.
-      fireEvent.click(screen.getByRole('button', { name: 'demo-cluster 인스턴스 목록 펼치기' }));
+      // Every cluster starts folded — open it to read the lines.
+      openBand();
       const band = screen.getByRole('table', { name: rdsInstanceBandLabel('demo-cluster') });
       expect(instanceNames()).toHaveLength(3);
       expect(band.innerHTML).not.toContain(textColors.tertiary);
@@ -804,8 +934,20 @@ describe('WaitingApprovalTable', () => {
       expect(nameSpan.classList.contains('truncate')).toBe(false);
     });
 
-    it('keeps the approval variant on the ellipsis grammar', () => {
+    it('gives steps 2·3 the same clip — the grammar follows the shell, not the variant', () => {
+      // The approval variant joined the console shell, so it must join its CELL grammar too:
+      // a cell that clips while its value still ellipsizes draws both cuts, 18px apart.
       render(<WaitingApprovalTable variant="approval" resources={[row()]} />);
+      const nameSpan = screen.getByText('covered-name');
+      expect(nameSpan.closest('td')?.classList.contains('overflow-hidden')).toBe(true);
+      expect(nameSpan.classList.contains('truncate')).toBe(false);
+    });
+
+    it('keeps the install variant on the ellipsis grammar', () => {
+      // Still on the legacy shell (its identity columns are injected by the caller and
+      // measured in a Tailwind class, which `table-fixed` cannot read) — so it must keep the
+      // self-ellipsis, whose job is to stop a value painting over the next column.
+      render(<WaitingApprovalTable variant="install" resources={[row()]} />);
       const nameSpan = screen.getByText('covered-name');
       expect(nameSpan.classList.contains('truncate')).toBe(true);
       expect(nameSpan.closest('td')?.classList.contains('overflow-hidden')).toBe(false);
@@ -833,29 +975,46 @@ describe('WaitingApprovalTable', () => {
         screen.getByText('arn:aws:rds:ap-northeast-2:804656952396:db:covered').className,
       ).not.toContain('mask-image');
 
-      // The approval variant keeps the in-flow button — the overlay belongs to the
-      // covered grammar only.
+      // Steps 2·3 joined the covered grammar, so they get the overlay too.
       rerender(<WaitingApprovalTable variant="approval" resources={[row()]} />);
-      const approvalCopy = screen.getByRole('button', { name: 'Resource ID 복사' });
-      expect(approvalCopy.className).not.toContain('absolute');
-      expect(approvalCopy.className).toContain('shrink-0');
+      expect(screen.getByRole('button', { name: 'Resource ID 복사' }).className).toContain(
+        'absolute',
+      );
+
+      // The legacy shell keeps the in-flow button — the overlay belongs to the covered
+      // grammar, and without the clip there is nothing for it to sit on.
+      rerender(<WaitingApprovalTable variant="install" resources={[row()]} />);
+      const installCopy = screen.getByRole('button', { name: 'Resource ID 복사' });
+      expect(installCopy.className).not.toContain('absolute');
+      expect(installCopy.className).toContain('shrink-0');
     });
 
     // Round 5: the console grid dropped its rails to border-default, and that step only
     // survives the row hover if the hover is the prototype's quiet #F7F9FB — under the
     // approval tint (#EAEEF7) the rails wash to 1.08:1. Wiring only; ratios are measured
     // in the browser (docs/ux/benchmark/target-source-resource-table-console.md).
-    it('hovers confirmed rows on the console tint, approval rows on the blue lift', () => {
+    it('hovers console rows on the console tint, legacy rows on the blue lift', () => {
+      // The tint belongs to the SHELL: on the console grid the rails are the quiet step, and
+      // only the console tint leaves them visible under a hovered row (round 5; the measured
+      // ratios live on tableRowLift.console's docblock). Steps 2·3 moved onto that grid, so
+      // they moved onto its tint. Asserted through the token, like NAME_LIFT above — the
+      // value itself is theme.ts's to spell.
       const { rerender } = render(
         <WaitingApprovalTable variant="confirmed" resources={[row()]} />,
       );
       const confirmedTr = screen.getByText('covered-name').closest('tr');
-      expect(confirmedTr?.className).toContain('hover:bg-[#F7F9FB]');
-      expect(confirmedTr?.className).not.toContain('hover:bg-[#EAEEF7]');
+      expect(confirmedTr?.className).toContain(tableRowLift.console);
+      expect(confirmedTr?.className).not.toContain(tableRowLift.target);
 
       rerender(<WaitingApprovalTable variant="approval" resources={[row()]} />);
-      const approvalTr = screen.getByText('covered-name').closest('tr');
-      expect(approvalTr?.className).toContain('hover:bg-[#EAEEF7]');
+      expect(screen.getByText('covered-name').closest('tr')?.className).toContain(
+        tableRowLift.console,
+      );
+
+      rerender(<WaitingApprovalTable variant="install" resources={[row()]} />);
+      expect(screen.getByText('covered-name').closest('tr')?.className).toContain(
+        tableRowLift.target,
+      );
     });
 
     it('covers the column rail with the resize guide, full header height', () => {
@@ -929,11 +1088,32 @@ describe('WaitingApprovalTable', () => {
         .toEqual(['18.8372%', 'auto', '142px', '156px', '118px', '96px']);
     });
 
-    it('skips the seam tracer for approval tables', () => {
+    it('skips the seam tracer for the variants still on the legacy shell', () => {
+      for (const variant of ['install', 'plain'] as const) {
+        const { container, unmount } = render(
+          <WaitingApprovalTable variant={variant} resources={[row()]} />,
+        );
+        expect(container.querySelector('[data-seam-tracer]')).toBeNull();
+        unmount();
+      }
+    });
+
+    it('gives steps 2·3 the console shell, with the identity pair absorbing', () => {
+      // The spec's own decision, so it is asserted here rather than in ConsoleTable.test:
+      // six columns summing to 988 (the confirmed table's floor WITH its 종류 column; without
+      // it confirmed is 860), with flex on the identity pair — Resource ID last, so IT is the sink.
+      // ⛔ 제외 사유 must stay sized: it is blank on every 대상 row and clamped on the rest, so
+      // as the sink it would hold 1099px of a 2700px table — 41% — on a mostly-empty column.
       const { container } = render(
         <WaitingApprovalTable variant="approval" resources={[row()]} />,
       );
-      expect(container.querySelector('[data-seam-tracer]')).toBeNull();
+      const table = required(container.querySelector('table'), 'the table');
+      expect(container.querySelector('[data-seam-tracer]')).not.toBeNull();
+      expect(table.className).toContain('table-fixed');
+      expect(table.className).toContain('w-full');
+      expect((table as HTMLElement).style.minWidth).toBe('988px');
+      expect([...table.querySelectorAll('thead th')].map((th) => (th as HTMLElement).style.width))
+        .toEqual(['25.3036%', 'auto', '142px', '156px', '112px', '142px']);
     });
   });
 });

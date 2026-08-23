@@ -2,7 +2,60 @@ import type { ReactNode } from 'react';
 import { formatDate } from '@/lib/utils/date';
 import { ChevronDownIcon } from '@/app/components/ui/icons';
 import { MetaField } from '@/app/target-sources/[targetSourceId]/_components/shared/MetaField';
-import { bgColors, borderColors, cn, primaryColors, textColors } from '@/lib/theme';
+import {
+  bgColors,
+  borderColors,
+  cn,
+  numericFeatures,
+  primaryColors,
+  textColors,
+  verdictText,
+} from '@/lib/theme';
+
+/**
+ * One count in the summary row — NOT a `MetaField`.
+ *
+ * The pairs beside it (요청일시 / 요청자) are label-and-text, and MetaField sets both tiers at
+ * 12px because a timestamp reads as a phrase. A count is a number, and this repo already ranks
+ * numbers by lifting the digit one step over the words around it — the same 12 → 14 the Athena
+ * group's 「총 N개 중 M개 제외」 line uses (owner, 2026-08-23, applied here the same day). The
+ * unit stays at 12: 건 is a word, not a number.
+ *
+ * `excluded` paints the whole pair in the verdict's own colour, so the 8 here and the 제외 rows
+ * it counts are one magenta. The label/value tiers survive that on weight and size alone, which
+ * is what they were already carrying — colour was never doing the ranking inside a pair.
+ */
+const CountField = ({
+  label,
+  count,
+  excluded = false,
+}: {
+  label: string;
+  count: number;
+  excluded?: boolean;
+}) => (
+  // `items-baseline` carries the size mix: the 14px digit and the 12px 건 share one baseline, and
+  // the label aligns to the digit rather than to the box. No `min-w-0` — MetaField needs it
+  // because its value truncates; nothing here can shrink, so it would be a dead token.
+  <div className={cn('flex items-baseline gap-1.5', excluded && verdictText.excluded)}>
+    <span
+      className={cn(
+        'shrink-0 whitespace-nowrap text-[12px] font-normal',
+        !excluded && textColors.tertiary,
+      )}
+    >
+      {label}
+    </span>
+    <span
+      className={cn(
+        'whitespace-nowrap text-[12px] font-semibold leading-[1.3]',
+        !excluded && textColors.secondary,
+      )}
+    >
+      <span className={cn('text-[14px]', numericFeatures.tabular)}>{count}</span>건
+    </span>
+  </div>
+);
 
 interface RejectedTargetRecordProps {
   totalCount: number;
@@ -33,8 +86,9 @@ export const RejectedTargetRecord = ({
   // that 4px, but this block opens with plain text directly under the header's, so the two text
   // edges have to line up.
   <details className={cn('group mx-1 mt-4 border-t pt-4', borderColors.light)}>
-    {/* Three tiers, one per line: what this block is (14/600), the reference facts (MetaField, 12),
-        and the way in (brand blue). */}
+    {/* Three tiers, one per line: what this block is (14/600), the reference facts, and the way
+        in (brand blue). The middle tier holds two kinds — three counts (`CountField`, 12 with the
+        digit at 14) and two request-meta pairs (`MetaField`, 12 throughout). */}
     <summary className="flex cursor-pointer list-none flex-col gap-2.5 [&::-webkit-details-marker]:hidden">
       <div className="flex items-center justify-between gap-4">
         <span className={cn('text-[14px] font-semibold', textColors.secondary)}>
@@ -56,13 +110,17 @@ export const RejectedTargetRecord = ({
       {/* Inline pairs, not stacked: five stacked label-over-value columns in one row read as a run —
           "요청자 / 관리자 / 요청일시 / …" binds the wrong way. Beside its value, each label owns
           exactly one thing. The two kinds are then split by a rule rather than by gap alone. */}
+      {/* ⛔ `items-center`, not `items-baseline`. The counts block is 19px tall against the meta
+          block's 18 (the 14px digit), so their text sits 0.5px apart — measured, not estimated.
+          Baseline alignment would close that and drop the bare `h-3` divider between them, which
+          has no text to align by. Half a pixel on a 12px label is not worth a visible rule. */}
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
         {/* Dropped once open: the stat tiles below carry the same three numbers, and showing them
             twice is what made the old screen read as duplicated. */}
         <div className="flex flex-wrap gap-x-5 gap-y-2 group-open:hidden">
-          <MetaField inline label="전체" value={`${totalCount}건`} />
-          <MetaField inline label="연동 대상" value={`${selectedCount}건`} />
-          <MetaField inline label="제외" value={`${excludedCount}건`} />
+          <CountField label="전체" count={totalCount} />
+          <CountField label="연동 대상" count={selectedCount} />
+          <CountField label="제외" count={excludedCount} excluded />
         </div>
         {request && (
           <>

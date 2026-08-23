@@ -9,18 +9,27 @@ export interface ClusterFold {
 }
 
 /**
- * RDS cluster member lists — the fold policy every surface shares.
+ * A per-key fold with a CALLER-SUPPLIED default, and a press that overrides it.
  *
- * A cluster that IS part of the request opens: which instance the agent connects through is
- * part of reviewing it. A cluster left OUT of the request starts folded — its members are not
- * being installed, so the list is reference, not review, and three rows of it push the rows
- * that still need a decision down the page. Pressing the chevron wins over both: an override
- * is per cluster and survives the selection changing under it.
+ * The default is the caller's because each surface derives it differently, and they no longer
+ * agree — the name is historical:
  *
- * Call once per table, then per cluster row:
+ *   WaitingApprovalTable   `false`. Every cluster starts folded on steps 2·3·4·6·7 (owner,
+ *                          2026-08-23); "open it if it is in the request" opened most of the
+ *                          page, three member rows at a time.
+ *   CloudResourceTable     `row.selected` — the original policy, kept for the admin queue.
+ *   CandidateResourceTable Athena GROUPS, not clusters: open when a selection exists and some
+ *                          selected row still owes an exclusion reason, so the CTA never names
+ *                          a resource behind a shut disclosure.
+ *
+ * Each call site gets its own `useState`, so nothing is shared between them but the shape.
+ * Pressing the chevron wins over whatever default was passed, per key, and survives that
+ * default changing underneath.
+ *
+ * Call once per table, then per row:
  *
  *   const clusterFold = useClusterFold();
- *   const fold = clusterFold(rowKey, resource.selected);
+ *   const fold = clusterFold(rowKey, false);
  *   <button aria-expanded={fold.open} onClick={fold.toggle} … />
  */
 export const useClusterFold = () => {

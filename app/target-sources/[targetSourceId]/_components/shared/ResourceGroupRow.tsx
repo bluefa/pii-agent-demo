@@ -4,7 +4,8 @@ import type { ReactNode } from 'react';
 import { ResourceKindTag } from '@/app/components/ui/RdsInstanceChips';
 import { ChevronRightIcon } from '@/app/components/ui/icons';
 import { getDatabaseShortLabel } from '@/app/components/ui/DatabaseIcon';
-import { cn, idcStyles, primaryColors } from '@/lib/theme';
+import { GROUPED_CHILD_KIND_LABEL } from '@/lib/resource-grouping';
+import { cn, idcStyles, primaryColors, verdictText } from '@/lib/theme';
 import type { RailRowProps } from '@/app/hooks/useRailHover';
 
 interface ResourceGroupRowProps {
@@ -15,6 +16,13 @@ interface ResourceGroupRowProps {
   onToggle: () => void;
   /** Id of the element the chevron controls, so screen readers follow the parent/child pair. */
   controls: string;
+  /**
+   * Whether the group can be folded right now. Pass `false` while a search or filter owns the
+   * open state: the chevron becomes an indicator (`toggleStatic`), matching what a folded region
+   * row does under the same condition. Left as a live toggle it does nothing visible AND records
+   * the press as a COLLAPSE, so clearing the filter shuts a group the user just opened.
+   */
+  toggleable?: boolean;
   /** Leading spacer cell — pass the checkbox column's `<td>` when the table has one. */
   leadingCell?: ReactNode;
   /** Third identity line — see `ResourceGroupCount` for what it says and why it sits there. */
@@ -58,12 +66,13 @@ export const ResourceGroupRow = ({
   inlineMeta,
   rail,
   colSpan,
+  toggleable = true,
 }: ResourceGroupRowProps) => {
   const label = getDatabaseShortLabel(type);
   return (
     <tr
-      className={cn(idcStyles.table.group.row, 'cursor-pointer', rail?.className)}
-      onClick={onToggle}
+      className={cn(idcStyles.table.group.row, toggleable && 'cursor-pointer', rail?.className)}
+      onClick={toggleable ? onToggle : undefined}
       onMouseEnter={rail?.onMouseEnter}
       onMouseLeave={rail?.onMouseLeave}
     >
@@ -95,28 +104,42 @@ export const ResourceGroupRow = ({
             The chevron hangs off this box (`toggle` is absolute against it) and centres on the
             stack's middle line, which is the name — same as the cluster row. */}
         <span className={idcStyles.table.group.lead}>
-          <button
-            type="button"
-            aria-expanded={expanded}
-            aria-controls={controls}
-            aria-label={`${label} ${region} 그룹 ${expanded ? '접기' : '펼치기'}`}
-            onClick={(event) => {
-              event.stopPropagation();
-              onToggle();
-            }}
-            className={cn(
-              idcStyles.table.group.toggle,
-              // `toggle` centres on the stack's BOX, which works while the stack has three lines
-              // (the name is then the middle one). Without `inlineMeta` the box's centre falls in
-              // the gap between tag and name, and the chevron reads as hanging off the tag —
-              // measured 12px above the line it points at. Push it back onto the name.
-              inlineMeta == null && 'top-[calc(50%_+_12px)]',
-              expanded ? idcStyles.table.group.toggleOpen : idcStyles.table.group.toggleClosed,
-              primaryColors.focusRing,
-            )}
-          >
-            <ChevronRightIcon className="h-3.5 w-3.5" />
-          </button>
+          {toggleable ? (
+            <button
+              type="button"
+              aria-expanded={expanded}
+              aria-controls={controls}
+              aria-label={`${label} ${region} 그룹 ${expanded ? '접기' : '펼치기'}`}
+              onClick={(event) => {
+                event.stopPropagation();
+                onToggle();
+              }}
+              className={cn(
+                idcStyles.table.group.toggle,
+                // `toggle` centres on the stack's BOX, which works while the stack has three lines
+                // (the name is then the middle one). Without `inlineMeta` the box's centre falls in
+                // the gap between tag and name, and the chevron reads as hanging off the tag —
+                // measured 12px above the line it points at. Push it back onto the name.
+                inlineMeta == null && 'top-[calc(50%_+_12px)]',
+                expanded ? idcStyles.table.group.toggleOpen : idcStyles.table.group.toggleClosed,
+                primaryColors.focusRing,
+              )}
+            >
+              <ChevronRightIcon className="h-3.5 w-3.5" />
+            </button>
+          ) : (
+            <span
+              aria-hidden
+              className={cn(
+                idcStyles.table.group.toggle,
+                // Same centering as the live toggle above — both wear the absolute `toggle` box.
+                inlineMeta == null && 'top-[calc(50%_+_12px)]',
+                idcStyles.table.group.toggleStatic,
+              )}
+            >
+              <ChevronRightIcon className="h-3.5 w-3.5" />
+            </span>
+          )}
           <span className="flex w-full min-w-0 flex-col items-start gap-1">
             <ResourceKindTag>{label}</ResourceKindTag>
             <span className={idcStyles.table.group.label}>{region}</span>
@@ -152,5 +175,46 @@ export const ResourceGroupCount = ({
   <span className={idcStyles.table.group.meta}>
     데이터베이스 · 대상 <span className={idcStyles.table.group.metaValue}>{targetCount}</span> ·
     제외 <span className={idcStyles.table.group.metaValue}>{excludedCount}</span>
+  </span>
+);
+
+/**
+ * The same third line, framed as a subtraction — "Database 총 N개 중 M개 제외" (owner, 2026-08-23).
+ *
+ * `ResourceGroupCount` above prints two parallel counts, which leaves the reader to ADD them to
+ * learn how big the group is. Here the total comes first and the exception is taken off it, so
+ * the size is stated rather than derived and the exclusion — the only reason to read this line at
+ * all — is what the sentence ends on. The unit is named for the same reason it is named above: an
+ * Athena group's children are databases, so `GROUPED_CHILD_KIND_LABEL` says what was counted.
+ *
+ * The exclusion clause wears the verdict's own colour, so the M here and the 제외 rows it
+ * summarises are one magenta rather than two ways of saying the same verdict. A group with
+ * nothing excluded prints the total alone — no clause, no colour, matching `verdictRail.target`:
+ * 침묵이 곧 정상이다. "0개 제외" would spend the page's only alarm colour on a non-event.
+ *
+ * Both counts sit one step above the words beside them (12 → 14px, `metaValue`) — the same
+ * two-pixel lift `ResourceGroupCount` uses, so a number reads as a number in either line.
+ *
+ * Steps 2·3 only. Step 1 keeps `ResourceGroupCount`: there the group is being CHOSEN, and 대상 is
+ * the number the reader is actively moving.
+ */
+export const GroupExclusionCount = ({
+  totalCount,
+  excludedCount,
+}: {
+  totalCount: number;
+  excludedCount: number;
+}) => (
+  <span className={idcStyles.table.group.meta}>
+    {`${GROUPED_CHILD_KIND_LABEL} 총 `}
+    <span className={idcStyles.table.group.metaValue}>{totalCount}</span>개
+    {excludedCount > 0 && (
+      <>
+        {' 중 '}
+        <span className={verdictText.excluded}>
+          <span className={idcStyles.table.group.metaValue}>{excludedCount}</span>개 제외
+        </span>
+      </>
+    )}
   </span>
 );

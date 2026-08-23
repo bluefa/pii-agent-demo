@@ -11,6 +11,7 @@ import { readRdsInstanceMetadata } from '@/lib/rds-instances';
 import { formatDate } from '@/lib/utils/date';
 import { Pagination } from '@/app/components/ui/Pagination';
 import {
+  useApprovalColumnResize,
   WaitingApprovalTable,
   type WaitingApprovalResource,
 } from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalTable';
@@ -142,6 +143,8 @@ export const ApplyingApprovedCard = ({ targetSourceId }: ApplyingApprovedCardPro
   const resources = useMemo<readonly WaitingApprovalResource[]>(() => view.resources, [view]);
 
   const table = useApprovalTableState(resources);
+  // Drag-resizable column widths, shared with step 2's waiting card — see the hook.
+  const columns = useApprovalColumnResize();
 
   const loaded = state.status === 'ready';
   const showFilterEmpty = loaded && resources.length > 0 && table.filteredCount === 0;
@@ -223,6 +226,15 @@ export const ApplyingApprovedCard = ({ targetSourceId }: ApplyingApprovedCardPro
               connected
               raisedRows
               emptyMessage={showFilterEmpty ? FILTER_EMPTY_MESSAGE : undefined}
+              // Same as step 2 — see WaitingApprovalCard: closed groups must not swallow what a
+              // filter narrowed to, and the group's count line describes the filtered set.
+              expandFolds={
+                !!table.searchValue.trim()
+                || !!table.dbType
+                || !!table.region
+                || table.filter !== 'all'
+              }
+              columns={columns}
             />
             {table.filteredCount > 0 && (
               <Pagination

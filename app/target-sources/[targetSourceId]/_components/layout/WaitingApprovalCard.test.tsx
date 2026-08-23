@@ -18,7 +18,7 @@ vi.mock('@/app/lib/api', () => ({
 }));
 
 import { WaitingApprovalCard } from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalCard';
-import { primaryColors } from '@/lib/theme';
+import { numericFeatures, primaryColors, verdictText } from '@/lib/theme';
 
 interface ResourceOpts {
   selected: boolean;
@@ -394,14 +394,33 @@ describe('WaitingApprovalCard', () => {
     expect(record?.open).toBe(false);
     // Its summary line answers what the list would have been scanned for: how many, from whom,
     // when — so the submission meta moves here instead of a header row of its own.
-    // Counts and request meta share the pending header's MetaField grammar — label over value,
-    // one row — rather than an inline "a · b · c" sentence at its own tier.
+    // Request meta keeps the pending header's MetaField grammar — label beside value, one row —
+    // rather than an inline "a · b · c" sentence at its own tier. The three COUNTS are their own
+    // `CountField`: a timestamp is a phrase and reads at one size, a count is a number and gets
+    // its digit lifted a step (owner, 2026-08-23).
     const summary = screen.getByText('이 요청에 포함된 연동 대상').closest('summary');
     if (!summary) throw new Error('record summary not rendered');
     const meta = within(summary);
     expect(meta.getByText('전체').nextElementSibling?.textContent).toBe('2건');
     expect(meta.getByText('연동 대상').nextElementSibling?.textContent).toBe('1건');
     expect(meta.getByText('제외').nextElementSibling?.textContent).toBe('1건');
+    // The digit at 14, the 건 beside it at 12, the label at 12 — 건 and the label are words, not
+    // numbers. All three pinned: leaving the label unpinned lets a mutation raise it to 14 and
+    // still go green, which is the whole distinction this change is about.
+    for (const label of ['전체', '연동 대상', '제외']) {
+      const labelEl = meta.getByText(label);
+      const value = labelEl.nextElementSibling;
+      expect(labelEl.className).toContain('text-[12px]');
+      expect(value?.className).toContain('text-[12px]');
+      // Tabular figures, so three counts in a row do not jitter as they change.
+      expect(value?.firstElementChild?.className).toContain('text-[14px]');
+      expect(value?.firstElementChild?.className).toContain(numericFeatures.tabular);
+    }
+    // ⛔ 제외 wears the verdict's own colour, so this 1 and the 제외 rows it counts read as one
+    // magenta. Asserted on the PAIR — the label goes with it, and the label/value tiers survive
+    // on weight and size, which is what was ranking them inside a pair all along.
+    expect(meta.getByText('제외').parentElement?.className).toContain(verdictText.excluded);
+    expect(meta.getByText('전체').parentElement?.className).not.toContain(verdictText.excluded);
     expect(meta.getByText('요청자').nextElementSibling?.textContent).toBe('tester');
     expect(meta.getByText('요청일시').nextElementSibling?.textContent).toMatch(/^2026\. 04\. 29\./);
     // 일시 → 사람, the same order as 반려일시/처리자 above and the pending header's meta row.
