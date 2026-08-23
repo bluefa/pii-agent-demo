@@ -24,6 +24,18 @@ export type GuideNode =
    * `p:has(+ ul)`), would have boxed the opening paragraph of every other guide.
    */
   | { type: 'h4' | 'p' | 'blockquote'; children: GuideNode[] }
+  /**
+   * The two shapes the step-guide source draws that prose tags cannot say:
+   *
+   * - `details` — 참고 가이드 바, a filled accent row pointing at another document. It holds
+   *   nothing but its `summary`; there is no panel behind it in the source either, so the
+   *   renderer emits a static row rather than a working disclosure.
+   * - `mark` — 작업 이름표, the small pill that labels a block of work.
+   *
+   * Both are opt-in (`allowGuideShapes`) for the same reason `blockquote` is: a post editor
+   * cannot produce them, but a paste can carry them, and the validator is the gate there.
+   */
+  | { type: 'details' | 'summary' | 'mark'; children: GuideNode[] }
   | { type: 'br' }
   | { type: 'ul' | 'ol'; children: GuideNode[] }
   | { type: 'li'; children: GuideNode[] }
@@ -73,6 +85,12 @@ export interface ValidateGuideHtmlOptions {
    * Guides are authored in code or by an admin, so the risk is not the same.
    */
   allowNoteBox?: boolean;
+  /**
+   * Permit `<details>`/`<summary>` (참고 가이드 바) and `<mark>` (작업 이름표) — the step
+   * guides' own grammar. Off by default, and separate from {@link allowNoteBox} so that
+   * widening one shape never quietly widens the other.
+   */
+  allowGuideShapes?: boolean;
 }
 
 /**
@@ -80,7 +98,13 @@ export interface ValidateGuideHtmlOptions {
  * guide call sites — the renderer, the emptiness probe, the admin CMS write and the
  * migration script — cannot drift apart on what validates.
  */
-export const GUIDE_VALIDATE_OPTIONS: ValidateGuideHtmlOptions = { allowNoteBox: true };
+export const GUIDE_VALIDATE_OPTIONS: ValidateGuideHtmlOptions = {
+  allowNoteBox: true,
+  allowGuideShapes: true,
+};
+
+/** The tags {@link ValidateGuideHtmlOptions.allowGuideShapes} adds. */
+const GUIDE_SHAPE_TAGS = new Set(['details', 'summary', 'mark']);
 
 // ---------------------------------------------------------------------------
 // Allow-list
@@ -317,7 +341,8 @@ const visitChildren = (
     const tagAllowed =
       ALLOWED_TAGS.has(tag) ||
       (tag === 'img' && ctx.options.allowImages === true) ||
-      (tag === 'blockquote' && ctx.options.allowNoteBox === true);
+      (tag === 'blockquote' && ctx.options.allowNoteBox === true) ||
+      (GUIDE_SHAPE_TAGS.has(tag) && ctx.options.allowGuideShapes === true);
     if (!tagAllowed) {
       errors.push({
         code: 'DISALLOWED_TAG',
@@ -357,6 +382,16 @@ const visitChildren = (
         code: 'INVALID_NESTING',
         message: `<${ctx.parent}>의 직계 자식은 <li>만 허용됩니다`,
         tagName: tag,
+        path: childPath,
+      });
+    }
+    // The bar IS its summary — a `<summary>` anywhere else has no row to label, and a
+    // `<details>` without one would render an empty accent bar.
+    if (tag === 'summary' && ctx.parent !== 'details') {
+      errors.push({
+        code: 'INVALID_NESTING',
+        message: '<summary>는 <details> 내부에서만 사용할 수 있습니다',
+        tagName: 'summary',
         path: childPath,
       });
     }
@@ -409,6 +444,10 @@ const toAstNode = (
     case 'strong':
     case 'em':
     case 'code':
+      return { type: tag, children };
+    case 'details':
+    case 'summary':
+    case 'mark':
       return { type: tag, children };
     case 'a': {
       const href = node.getAttribute?.('href') ?? '';

@@ -23,21 +23,41 @@
  * - No step tells the reader to refresh. These pages still do not poll; the
  *   instruction is dropped on the owner's authority, not by oversight.
  *
- * Four shapes in the source have no equivalent in the guide allow-list
- * (h4/p/br/ul/ol/li/strong/em/code/a, plus blockquote via `allowNoteBox`):
- * - `.callout` → `<blockquote>`, the 안내 박스.
- * - `.tag` / `.path__pill` → a `<strong>` lead-in on the paragraph it labels.
- * - accordions and external links → the source renders them with no body and
- *   no href, so they ship as plain list items carrying their label. ⛔ Not
- *   `<details>`, which would be an empty container, and ⛔ not `<a>`, which
- *   would be a placeholder link.
- * - `<hr>` → dropped; the numbered list after it already separates.
+ * ## The source's shapes, and the tag each one is written with
  *
- * Markup must satisfy `validateGuideHtml` — asserted by
- * `__tests__/step-guide-content.test.ts`.
+ * The guide is not prose with a few bold runs — the source draws a small visual
+ * grammar, and flattening it into bullets (which the first pass did) loses the
+ * screen even when every sentence survives. The renderer styles by TAG
+ * (`render-guide-ast.tsx` → `guideStyles`), so the markup here stays plain HTML:
+ *
+ * | source            | written as                        | renders as |
+ * |-------------------|-----------------------------------|------------|
+ * | `.callout`        | `<blockquote>`                    | 안내 박스 |
+ * | `.accordion`      | `<details><summary>…</summary>`   | 참고 가이드 바 (accent fill, ▶) |
+ * | `.tag`/`.path__pill` | `<mark>`                       | 작업 이름표 pill |
+ * | `.extlinks li`    | `<em>… ↗</em>`                    | accent text with the ↗ the source appends |
+ * | `.s-title`        | `<strong>` opening an `<li>`      | 600-weight step title |
+ *
+ * Two source shapes are deliberately NOT ported, because they need width this
+ * panel does not have (320px against the source's 64ch):
+ * - `.branch__grid` — two branch cards side by side with 「또는」 between them.
+ *   Each slot here carries one branch already, so there is no pair to place.
+ * - `.path` — the card drawn around a branch. With one branch per slot it would
+ *   be a box around the whole body.
+ *
+ * `<hr>` is dropped too; the numbered list after it already separates.
+ *
+ * Markup must satisfy `validateGuideHtml` under `GUIDE_VALIDATE_OPTIONS` —
+ * asserted by `__tests__/step-guide-content.test.ts`.
  */
 
 import type { GuideName } from '@/lib/types/guide';
+
+/** 참고 가이드 바 — the source's `.accordion`, which carries a label and no body. */
+const refBar = (label: string): string => `<details><summary>${label}</summary></details>`;
+
+/** An `.extlinks` row. The ↗ is the source's, appended by CSS there and by hand here. */
+const extLink = (label: string): string => `<li><em>${label} ↗</em></li>`;
 
 // ---------------------------------------------------------------------------
 // Step 1 — target selection
@@ -55,9 +75,10 @@ import type { GuideName } from '@/lib/types/guide';
 const step1Cloud = ({ vmRows }: { vmRows: boolean }): string =>
   '<h4>연동 대상 DB 선택</h4>' +
   '<ol>' +
-  "<li><strong>'스캔 시작'</strong>을 눌러 인프라 스캔을 진행해주세요." +
-  '<ul><li>Infra Scan 권한 설정 가이드(스캔 불가 시 수행)</li></ul></li>' +
-  '<li>스캔된 DB 중 연동이 불필요한 DB는 제외해주세요. (PRD DB만 제출해주세요)' +
+  "<li><strong>'스캔 시작'을 눌러 인프라 스캔을 진행해주세요.</strong>" +
+  refBar('Infra Scan 권한 설정 가이드(스캔 불가 시 수행)') +
+  '</li>' +
+  '<li><strong>스캔된 DB 중 연동이 불필요한 DB는 제외해주세요. (PRD DB만 제출해주세요)</strong>' +
   '<ul>' +
   '<li>체크박스 해제 후 연동 비대상 사유를 입력해주세요.</li>' +
   '<li>Dev DB / Stg DB / Temp DB / 타 시스템 사용 DB / 기타 (직접 입력)</li>' +
@@ -66,7 +87,7 @@ const step1Cloud = ({ vmRows }: { vmRows: boolean }): string =>
       "<strong>'VM DB 등록'</strong>을 통해 연동 대상 DB를 직접 등록해주세요.</li>"
     : '') +
   '</ul></li>' +
-  "<li>연동 대상 DB 선택을 완료하였다면 '연동 대상 승인 요청'을 통해 제출해주세요.</li>" +
+  "<li><strong>연동 대상 DB 선택을 완료하였다면 '연동 대상 승인 요청'을 통해 제출해주세요.</strong></li>" +
   '</ol>';
 
 const IDC_TARGET_INPUT_HTML =
@@ -74,16 +95,17 @@ const IDC_TARGET_INPUT_HTML =
   "<blockquote>이전에 요청한 적이 있다면 '기존 연동 요청 정보 불러오기'를 통해 " +
   '입력값을 불러올 수 있어요.</blockquote>' +
   '<ol>' +
-  "<li>'+ 연동 대상 추가' 클릭</li>" +
-  '<li>DB 접속 정보 타입 선택(IP, Domain)' +
+  "<li><strong>'+ 연동 대상 추가' 클릭</strong></li>" +
+  '<li><strong>DB 접속 정보 타입 선택(IP, Domain)</strong>' +
   '<ul>' +
   '<li><strong>Domain</strong>: DB endpoint link (CX망에 위치한 Cloud DB만 연동 가능)</li>' +
   "<li>Cluster로 구성되어 있다면 <strong>'IP 추가'</strong>를 통해 IP 정보를 추가 입력할 수 있어요.</li>" +
   '</ul></li>' +
-  '<li>DB Type 및 Port 정보 입력' +
+  '<li><strong>DB Type 및 Port 정보 입력</strong>' +
   '<ul><li>Oracle/Tibero의 경우, DB 접근을 위한 SID(Service ID)를 함께 입력해주세요.</li></ul></li>' +
-  '<li>입력한 DB 중 dev/stg/임시 DB가 있다면, 체크박스를 해제하여 연동 대상에서 제외해주세요.</li>' +
-  "<li>연동 대상 DB 선택을 완료하였다면 '연동 대상 승인 요청'을 통해 제출해주세요.</li>" +
+  '<li><strong>입력한 DB 중 dev/stg/임시 DB가 있다면, 체크박스를 해제하여 연동 대상에서 ' +
+  '제외해주세요.</strong></li>' +
+  "<li><strong>연동 대상 DB 선택을 완료하였다면 '연동 대상 승인 요청'을 통해 제출해주세요.</strong></li>" +
   '</ol>';
 
 // ---------------------------------------------------------------------------
@@ -120,77 +142,62 @@ const STEP_3_HTML =
 // Step 4 — install (per provider)
 // ---------------------------------------------------------------------------
 
-/**
- * AWS 자동 설치 / 수동 설치.
- *
- * The source draws both branches side by side in one card under the lead
- * 「아래 두 갈래 중 선택하신 설치 방식 하나만 수행합니다」. The app already knows which
- * branch the reader is on — AWS_AUTO_INSTALLING and AWS_MANUAL_INSTALLING are
- * separate slots — so each slot carries only its own branch and that lead is
- * dropped: with one branch on screen, 「아래 두 갈래 중」 would be pointing at
- * something the reader cannot see. The pill that named the branch survives as
- * the `<strong>` lead-in.
- */
 const AWS_INSTALL_HEAD =
   '<h4>선택하신 설치 방식에 따라 진행해야 할 작업이 달라요.</h4>' +
   '<blockquote>설치 방식(자동 설치/수동 설치) 전환이 필요하다면, ' +
   '상단 Jira 티켓 내 코멘트를 통해 변경을 요청해주세요.</blockquote>';
 
 /**
- * The bullets the source prints BELOW the branch grid — they belong to both
- * branches, and they are items rather than a list so each branch can open one
- * list with its own guide entry. Two adjacent `<ul>`s would render as one list
- * anyway, with a seam only the markup knows about.
+ * The bullets the source prints BELOW the branch grid — they belong to both branches,
+ * and they are items rather than a list so each branch can close its own list with them.
+ * Two adjacent `<ul>`s would render as one list anyway, with a seam only the markup knows.
  */
 const AWS_INSTALL_TAIL_ITEMS =
   '<li>BDC 측 리소스 생성까지 평균 2일 소요됩니다. (주말·공휴일 제외)</li>' +
   '<li>3일 이상 지연 시 <strong>협업 채널</strong>을 통해 문의를 남겨주세요.</li>' +
   '<li>별도 조치가 필요한 경우, 담당자가 개별 연락드릴 예정입니다.</li>' +
-  '<li>Agent 설치가 완료되면 다음 단계로 넘어가요.</li>' +
-  '<li>이 단계에서 어떤 작업이 진행되나요</li>';
+  '<li>Agent 설치가 완료되면 다음 단계로 넘어가요.</li>';
 
 const AWS_AUTO_INSTALLING_HTML =
   AWS_INSTALL_HEAD +
-  '<p><strong>자동 설치</strong> — 가이드를 참고하여 Terraform 실행 권한을 부여해주세요.</p>' +
+  '<p><mark>자동 설치</mark><br />가이드를 참고하여 Terraform 실행 권한을 부여해주세요.</p>' +
   '<p>Terraform 실행 권한 부여(IAM Role 생성)</p>' +
-  '<ul>' +
-  '<li>실행 권한 부여 가이드</li>' +
-  AWS_INSTALL_TAIL_ITEMS +
-  '</ul>';
+  refBar('실행 권한 부여 가이드') +
+  `<ul>${AWS_INSTALL_TAIL_ITEMS}</ul>` +
+  refBar('이 단계에서 어떤 작업이 진행되나요');
 
 const AWS_MANUAL_INSTALLING_HTML =
   AWS_INSTALL_HEAD +
-  '<p><strong>수동 설치</strong> — 가이드를 참고하여 Terraform을 직접 실행해주세요.</p>' +
+  '<p><mark>수동 설치</mark><br />가이드를 참고하여 Terraform을 직접 실행해주세요.</p>' +
   '<p>서비스 계정 리소스 생성(첨부된 Terraform을 통해 리소스 생성)</p>' +
-  '<ul>' +
-  '<li>아래 가이드를 참고하여 직접 script를 실행해주세요.</li>' +
-  '<li>Terraform Script 실행 가이드</li>' +
-  AWS_INSTALL_TAIL_ITEMS +
-  '</ul>';
+  '<ul><li>아래 가이드를 참고하여 직접 script를 실행해주세요.</li></ul>' +
+  refBar('Terraform Script 실행 가이드') +
+  `<ul>${AWS_INSTALL_TAIL_ITEMS}</ul>` +
+  refBar('이 단계에서 어떤 작업이 진행되나요');
 
 const AZURE_INSTALLING_HTML =
   '<h4>VM DB 연동 여부에 따라 필요한 설치 작업이 달라집니다.</h4>' +
   '<p>VM DB를 사용하는 경우, Private Networking에 필요한 리소스(Subnet, NSG 등) 생성을 위해 ' +
   '아래 절차를 수행해주셔야 해요.</p>' +
   '<blockquote>VM DB가 없는 경우, 이 절차는 Skip됩니다.</blockquote>' +
-  '<ul><li>VM Subnet 생성을 위한 권한 부여 설정</li></ul>' +
-  '<p><strong>Private Endpoint 승인</strong><br />Azure Portal에서 BDC가 요청한 ' +
+  refBar('VM Subnet 생성을 위한 권한 부여 설정') +
+  '<p><mark>Private Endpoint 승인</mark><br />Azure Portal에서 BDC가 요청한 ' +
   'Private Endpoint 연결 요청을 승인해주시는 단계입니다.</p>' +
-  '<ul><li>Private Endpoint 승인 가이드</li></ul>';
+  refBar('Private Endpoint 승인 가이드');
 
 const GCP_INSTALLING_HTML =
   '<h4>DB Type에 따라 필요한 설치 작업이 달라집니다.</h4>' +
   '<p>아래 3가지 작업 중 일부만 필요하거나, 전혀 필요하지 않을 수 있어요.</p>' +
-  '<p><strong>Service Side Subnet 생성</strong><br />상대측 GCP Project에 ' +
+  '<p><mark>Service Side Subnet 생성</mark><br />상대측 GCP Project에 ' +
   'Regional Managed Proxy Subnet이 존재하는지 확인하는 작업입니다.</p>' +
-  '<p><strong>Service Side Terraform</strong><br />상대측 GCP Project에 PSC 및 관련 리소스를 ' +
+  '<p><mark>Service Side Terraform</mark><br />상대측 GCP Project에 PSC 및 관련 리소스를 ' +
   '생성(BIGQUERY의 경우 IAM 권한 부여)하는 작업입니다.</p>' +
   '<blockquote><strong>PSC 연동(PRIVATE_IP_MODE · PSC_MODE)의 경우</strong>, 이 단계에서 상대측 ' +
   'Service Attachment의 <code>consumerAcceptLists</code>에 BDC 프로젝트를 미리 등록해두면 ' +
   '승인 절차 없이 자동으로 연결돼요. 등록되어 있지 않으면 상대측 담당자의 수동 승인이 한 번 더 필요해요.' +
   '</blockquote>' +
-  '<ul><li>Service Side Terraform 실행 가이드</li></ul>' +
-  '<p><strong>BDC Side Terraform</strong><br />우리측 GCP Project에 PSC Connection ' +
+  refBar('Service Side Terraform 실행 가이드') +
+  '<p><mark>BDC Side Terraform</mark><br />우리측 GCP Project에 PSC Connection ' +
   '생성(BIGQUERY의 경우 bigquery.user 권한 부여)하는 작업입니다.</p>' +
   '<blockquote><strong>PSC 연동(PRIVATE_IP_MODE · PSC_MODE)의 경우</strong>, 연결 상태가 ' +
   '<strong>Pending</strong>이면 상대측 담당자의 승인이 필요해요. (Service Side Terraform 단계의 ' +
@@ -226,24 +233,25 @@ const STEP_5_HTML =
   '<h4>DB에 접근하기 위한 DB Credential을 직접 등록해주시고 DB 별로 정상 접근이 가능한지 ' +
   '확인하는 단계입니다.</h4>' +
   '<ol>' +
-  '<li>DB Credential 등록' +
+  '<li><strong>DB Credential 등록</strong>' +
   '<ul>' +
   '<li>가이드를 참고하여 DB user 생성 및 권한 부여 후 DB Credential 등록을 진행해주세요.</li>' +
-  '<li>DB Type별 user 생성 가이드</li>' +
-  '<li>DB Credential 등록 페이지</li>' +
-  '<li>DB Credential 등록 페이지 가이드</li>' +
-  '</ul></li>' +
-  '<li>DB별 Credential Key 입력' +
+  extLink('DB Type별 user 생성 가이드') +
+  extLink('DB Credential 등록 페이지') +
+  '</ul>' +
+  refBar('DB Credential 등록 페이지 가이드') +
+  '</li>' +
+  '<li><strong>DB별 Credential Key 입력</strong>' +
   '<ul>' +
   '<li>좌측 DB Credential 필드에서 등록해주신 DB credential을 선택해주세요.</li>' +
   '<li>등록해주신 DB Account Name으로 표시됩니다.</li>' +
   '</ul></li>' +
-  '<li>연결 테스트 진행' +
+  '<li><strong>연결 테스트 진행</strong>' +
   '<ul>' +
   '<li>입력/선택해주신 Key로 DB 접근이 정상적으로 이뤄지는지 확인해요.</li>' +
   '<li>Connection Status를 통해 성공/실패 여부를 확인할 수 있어요.</li>' +
   '</ul></li>' +
-  '<li>논리 DB 연동 설정' +
+  '<li><strong>논리 DB 연동 설정</strong>' +
   '<ul>' +
   "<li>Connection Status가 Success인 경우, <strong>'연동 논리 DB'</strong> 열의 건수를 눌러 " +
   '연동이 불필요한 논리 DB를 제외할 수 있어요.</li>' +
@@ -281,21 +289,21 @@ const STEP_7_HTML =
   '<ul><li>운영 중인 DB라면 재연동 조치가 필요해요.</li></ul></li>' +
   '</ul>' +
   '<ol>' +
-  '<li>DB Credential Key가 변경된 경우' +
+  '<li><strong>DB Credential Key가 변경된 경우</strong>' +
   '<ul>' +
   "<li>DB Credential Key를 변경해야 하는 경우, <strong>'연결 테스트 재실행'</strong> 버튼을 통해 " +
   "<strong>'연결 테스트'</strong> 단계로 돌아가 재등록할 수 있어요.</li>" +
   "<li>등록된 Key의 Password가 변경된 경우, <strong>'DB Credential'</strong>에서 등록된 Key 값을 " +
   '업데이트해주세요.</li>' +
-  '<li>DB Credential 페이지</li>' +
+  extLink('DB Credential 페이지') +
   '</ul></li>' +
-  '<li>Agent가 설치된 DB 내 논리 DB 연동 추가/삭제가 필요한 경우' +
+  '<li><strong>Agent가 설치된 DB 내 논리 DB 연동 추가/삭제가 필요한 경우</strong>' +
   '<ul>' +
   "<li><strong>'연결 테스트 재실행'</strong>을 통해 <strong>'연결 테스트'</strong> 단계로 돌아가 " +
   '논리 DB를 재설정할 수 있어요.</li>' +
   '<li>연동 후 생성된 논리 DB가 있다면 이 절차를 통해 재연동해주세요.</li>' +
   '</ul></li>' +
-  '<li>연동 후 추가/삭제된 DB가 있는 경우' +
+  '<li><strong>연동 후 추가/삭제된 DB가 있는 경우</strong>' +
   '<ul>' +
   "<li><strong>'인프라 변경'</strong>을 통해 <strong>'연동 대상 DB 선택'</strong> 단계로 돌아가 " +
   '인프라 스캔부터 다시 수행해주세요.</li>' +

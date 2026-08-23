@@ -14,6 +14,7 @@ import { GUIDE_NAMES } from '@/lib/types/guide';
 import { GUIDE_VALIDATE_OPTIONS, validateGuideHtml } from '@/lib/utils/validate-guide-html';
 
 import type { GuideSlotKey } from '@/lib/constants/guide-registry';
+import type { GuideNode } from '@/lib/utils/validate-guide-html';
 
 describe('STEP_GUIDE_HTML', () => {
   it.each(GUIDE_NAMES)('%s passes validateGuideHtml', (name) => {
@@ -76,11 +77,11 @@ const SHARED_STEPS: { step: SharedStep; lines: string[]; bullets?: number }[] = 
     step: '5',
     lines: [
       'DB에 접근하기 위한 DB Credential을 직접 등록해주시고',
-      '<li>DB Credential 등록',
-      '<li>DB Type별 user 생성 가이드</li>',
-      '<li>DB별 Credential Key 입력',
-      '<li>연결 테스트 진행',
-      '<li>논리 DB 연동 설정',
+      '<li><strong>DB Credential 등록</strong>',
+      '<li><em>DB Type별 user 생성 가이드 ↗</em></li>',
+      '<li><strong>DB별 Credential Key 입력</strong>',
+      '<li><strong>연결 테스트 진행</strong>',
+      '<li><strong>논리 DB 연동 설정</strong>',
       "<strong>'연동 논리 DB'</strong> 열의 건수를 눌러",
       "<strong>'다시 실행'</strong>으로 연결 테스트를 재수행한 후 <strong>'승인 요청'</strong>",
     ],
@@ -103,9 +104,9 @@ const SHARED_STEPS: { step: SharedStep; lines: string[]; bullets?: number }[] = 
       '<h4>PII Agent 연동이 완료되었어요.</h4>',
       '<li><strong>Healthy</strong>: 정상 동작 중</li>',
       '<strong>Unhealthy</strong>: 3일 이상 meta/sample data 수집 실패',
-      '<li>DB Credential Key가 변경된 경우',
-      '<li>Agent가 설치된 DB 내 논리 DB 연동 추가/삭제가 필요한 경우',
-      '<li>연동 후 추가/삭제된 DB가 있는 경우',
+      '<li><strong>DB Credential Key가 변경된 경우</strong>',
+      '<li><strong>Agent가 설치된 DB 내 논리 DB 연동 추가/삭제가 필요한 경우</strong>',
+      '<li><strong>연동 후 추가/삭제된 DB가 있는 경우</strong>',
       "<strong>'인프라 변경'</strong>을 통해 <strong>'연동 대상 DB 선택'</strong> 단계로 돌아가",
     ],
   },
@@ -246,7 +247,6 @@ describe('the source nests, and so does the copy', () => {
    * assertion rather than a sibling one.
    */
   it.each([
-    ['process.aws.auto.1', '<ul><li>Infra Scan 권한 설정 가이드(스캔 불가 시 수행)</li></ul></li>'],
     ['process.idc.4', '<ul><li>SDS에서 운영하는 DB인 경우, DC Manager를 통해 접근 허용 등</li></ul></li>'],
     ['process.gcp.5', '<ul><li>DEV DB, STG DB, Temp DB, 타 시스템 사용 DB</li></ul></li>'],
     ['process.azure.7', '<ul><li>운영 중인 DB라면 재연동 조치가 필요해요.</li></ul></li>'],
@@ -298,12 +298,12 @@ describe('step 4 — each AWS slot carries one branch', () => {
   const manual = bodyFor('process.aws.manual.4');
 
   it('shows its own branch and never the other', () => {
-    expect(auto).toContain('<strong>자동 설치</strong>');
-    expect(auto).toContain('<li>실행 권한 부여 가이드</li>');
+    expect(auto).toContain('<mark>자동 설치</mark>');
+    expect(auto).toContain('<summary>실행 권한 부여 가이드</summary>');
     expect(auto).not.toContain('Terraform Script 실행 가이드');
 
-    expect(manual).toContain('<strong>수동 설치</strong>');
-    expect(manual).toContain('<li>Terraform Script 실행 가이드</li>');
+    expect(manual).toContain('<mark>수동 설치</mark>');
+    expect(manual).toContain('<summary>Terraform Script 실행 가이드</summary>');
     expect(manual).not.toContain('실행 권한 부여 가이드');
   });
 
@@ -315,7 +315,99 @@ describe('step 4 — each AWS slot carries one branch', () => {
     for (const html of [auto, manual]) {
       expect(html).toContain('<h4>선택하신 설치 방식에 따라 진행해야 할 작업이 달라요.</h4>');
       expect(html).toContain('<li>BDC 측 리소스 생성까지 평균 2일 소요됩니다. (주말·공휴일 제외)</li>');
-      expect(html).toContain('<li>이 단계에서 어떤 작업이 진행되나요</li>');
+      expect(html).toContain('<summary>이 단계에서 어떤 작업이 진행되나요</summary>');
     }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// The source's visual grammar
+// ---------------------------------------------------------------------------
+
+/**
+ * The first pass ported every sentence and none of the shapes: accordions, external links
+ * and pills all came out as plain bullets, and the rail stopped looking like the document
+ * it was transcribed from. Words alone are not the deliverable, so the shapes are pinned
+ * as hard as the words — a regression here is silent in a copy diff.
+ */
+describe('the source draws shapes, not only sentences', () => {
+  /** Every `.accordion` in the source, and the body it belongs to. */
+  const REF_BARS: [GuideSlotKey, string][] = [
+    ['process.aws.auto.1', 'Infra Scan 권한 설정 가이드(스캔 불가 시 수행)'],
+    ['process.gcp.1', 'Infra Scan 권한 설정 가이드(스캔 불가 시 수행)'],
+    ['process.aws.auto.4', '실행 권한 부여 가이드'],
+    ['process.aws.auto.4', '이 단계에서 어떤 작업이 진행되나요'],
+    ['process.aws.manual.4', 'Terraform Script 실행 가이드'],
+    ['process.azure.4', 'VM Subnet 생성을 위한 권한 부여 설정'],
+    ['process.azure.4', 'Private Endpoint 승인 가이드'],
+    ['process.gcp.4', 'Service Side Terraform 실행 가이드'],
+    ['process.aws.auto.5', 'DB Credential 등록 페이지 가이드'],
+  ];
+
+  it.each(REF_BARS)('%s draws 「%s」 as a 참고 가이드 바', (key, label) => {
+    // ⛔ Not `<li>${label}</li>`. `guideStyles.refBar` is attached to `<details>` by the
+    // renderer; as a bullet the label keeps its words and loses the accent bar the source
+    // makes the loudest thing on the card.
+    expect(bodyFor(key)).toContain(`<details><summary>${label}</summary></details>`);
+  });
+
+  it('gives every 참고 가이드 바 a label and no body', () => {
+    // The source's bars have nothing behind them, and an empty accent bar is worse than
+    // no bar. `<details>` with anything other than one `<summary>` means someone started
+    // writing a panel this renderer will not draw.
+    for (const [name, html] of EVERY_BODY) {
+      for (const bar of html.match(/<details>.*?<\/details>/g) ?? []) {
+        expect(bar, name).toMatch(/^<details><summary>[^<]+<\/summary><\/details>$/);
+      }
+    }
+  });
+
+  /** Every `.extlinks` row — the source appends ↗ to each in CSS. */
+  it.each([
+    ['process.aws.auto.5', 'DB Type별 user 생성 가이드'],
+    ['process.aws.auto.5', 'DB Credential 등록 페이지'],
+    ['process.aws.auto.7', 'DB Credential 페이지'],
+  ] as [GuideSlotKey, string][])('%s marks 「%s」 as somewhere to go', (key, label) => {
+    expect(bodyFor(key)).toContain(`<li><em>${label} ↗</em></li>`);
+  });
+
+  /** Every `.tag` / `.path__pill` — the small label above a block of work. */
+  it.each([
+    ['process.gcp.4', 'Service Side Subnet 생성'],
+    ['process.gcp.4', 'Service Side Terraform'],
+    ['process.gcp.4', 'BDC Side Terraform'],
+    ['process.azure.4', 'Private Endpoint 승인'],
+    ['process.aws.auto.4', '자동 설치'],
+    ['process.aws.manual.4', '수동 설치'],
+  ] as [GuideSlotKey, string][])('%s names its block with 「%s」 as a pill', (key, label) => {
+    expect(bodyFor(key)).toContain(`<mark>${label}</mark>`);
+  });
+
+  /**
+   * `.s-title` is the source's own weight on the first line of every numbered step;
+   * without it a four-step procedure reads as one undifferentiated run of sentences.
+   *
+   * Walked over the AST rather than matched with a regex. A pattern like `<li>(?!<strong>)`
+   * cannot tell a step apart from the bullets nested inside it — the first version of this
+   * test did exactly that and reported a defect that was not there.
+   */
+  const untitledSteps = (nodes: GuideNode[], inOrderedList = false): number => {
+    let count = 0;
+    for (const node of nodes) {
+      if (node.type === 'text' || node.type === 'br' || node.type === 'img') continue;
+      if (node.type === 'li' && inOrderedList) {
+        const first = node.children.find((child) => child.type !== 'text' || child.value.trim());
+        if (!first || first.type !== 'strong') count += 1;
+      }
+      count += untitledSteps(node.children, node.type === 'ol');
+    }
+    return count;
+  };
+
+  it.each(GUIDE_NAMES)('%s opens every numbered step with a 600-weight title', (name) => {
+    const result = validateGuideHtml(STEP_GUIDE_HTML[name], GUIDE_VALIDATE_OPTIONS);
+    expect(result.valid).toBe(true);
+    if (!result.valid) return;
+    expect(untitledSteps(result.ast)).toBe(0);
   });
 });

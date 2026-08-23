@@ -58,6 +58,26 @@ const renderNode = (node: GuideNode): ReactNode => {
       );
     case 'code':
       return <code key={nextKey()}>{node.children.map(renderNode)}</code>;
+    // 참고 가이드 바. A `<div>`, not a `<details>`: the source draws an accent row with
+    // `cursor: default` and nothing behind it, so a real disclosure would offer to open a
+    // panel that does not exist. The ▶ comes from `refBar`'s ::after — decoration, not a
+    // state indicator, which is why it never flips.
+    case 'details':
+      return (
+        <div key={nextKey()} className={guideStyles.refBar}>
+          {node.children.map(renderNode)}
+        </div>
+      );
+    // The bar's label. It carries no box of its own — the bar above is the box.
+    case 'summary':
+      return <span key={nextKey()}>{node.children.map(renderNode)}</span>;
+    // 작업 이름표 — see `guideStyles.pill`.
+    case 'mark':
+      return (
+        <mark key={nextKey()} className={guideStyles.pill}>
+          {node.children.map(renderNode)}
+        </mark>
+      );
     case 'a':
       return (
         <a key={nextKey()} href={node.href} target={node.target} rel={node.rel}>
