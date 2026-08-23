@@ -113,6 +113,24 @@ describe('RDS cluster metadata round trip (step 1 → steps 2·3)', () => {
     setCurrentUser('admin-1');
     _resetApprovedIntegrationStore();
     store.projects.push(createTestProject());
+    // 스캔 결과가 존재하려면 성공한 스캔이 있어야 한다 — 목이 상류를 따라 무스캔에 404 로
+    // 답하게 된 뒤로(docs/redesign/step1-scan-funnel.md §10) 1단계 읽기는 그 전제 위에 선다.
+    store.scanHistory = store.scanHistory.filter((row) => row.targetSourceId !== TARGET_SOURCE_ID);
+    store.scanHistory.push({
+      id: `h-${TARGET_SOURCE_ID}`,
+      targetSourceId: TARGET_SOURCE_ID,
+      scanId: `scan-${TARGET_SOURCE_ID}`,
+      version: 1,
+      provider: 'AWS',
+      status: 'SUCCESS',
+      startedAt: '2026-03-01T00:00:00Z',
+      completedAt: '2026-03-01T00:01:00Z',
+      duration: 60,
+      result: null,
+      resourceCountBefore: 0,
+      resourceCountAfter: 0,
+      addedResourceIds: [],
+    });
   });
 
   it('echoes the posted instance choice back on approval-requests/latest', async () => {

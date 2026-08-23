@@ -552,6 +552,22 @@ describe('CandidateResourceSection — 스캔 게이트', () => {
 
   // 잡을 못 읽은 것은 "성공을 확인하지 못한" 것이다 — 확인되지 않은 성공 위에 표를
   // 세우지 않는다.
+  // 게이트를 통과했는데 조회가 실패했다는 건 SUCCESS 잡은 있는데 결과가 사라졌다는 뜻이다
+  // (보관은 최근 10개 버전뿐이고, 상류는 그때 404 로 답한다). "다시 시도"는 같은 404 를 다시
+  // 받으므로, 그 화면에서 실제로 할 수 있는 일은 재스캔뿐이다 — 입구가 남아 있어야 한다.
+  it('조회가 실패한 화면에도 재스캔 입구가 남는다', async () => {
+    getLatestScanJob.mockResolvedValue(SUCCESS_JOB);
+    getConfirmResources.mockRejectedValue(new Error('결과를 찾을 수 없습니다.'));
+    scanRenderProps.latestJob = { ...SUCCESS_JOB, updated_at: new Date().toISOString() };
+    try {
+      renderSection();
+      await settle();
+      expect(screen.getByRole('button', { name: '다시 스캔' })).toBeTruthy();
+    } finally {
+      scanRenderProps.latestJob = null;
+    }
+  });
+
   it('스캔 잡 조회가 실패하면 닫힌 쪽으로 판정한다', async () => {
     getLatestScanJob.mockRejectedValue(new Error('boom'));
     renderSection();

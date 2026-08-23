@@ -504,7 +504,12 @@ export const CandidateResourceSection = ({
           // 스트립은 본문이 스캔 결과 위에 서 있을 때만 — scanning 은 러닝 화면이
           // 스스로 말하고, fetch 상태는 프레임 전체를 소유한다. list 에서는 잡이
           // 없어도(목 시드·이력 유실) 렌더한다: 스캔 진입점이 스트립뿐이므로.
+          // fetchError 도 스트립을 갖는다: 조회는 성공한 스캔 뒤에만 열리므로(게이트) 이
+          // 프레임에 닿았다는 건 SUCCESS 잡은 있는데 결과가 사라졌다는 뜻이고 — 보관은 최근
+          // 10개 버전뿐이다 — 상류는 그때 404 로 답한다. 스트립이 없으면 그 화면의 유일한
+          // 행동인 재스캔에 닿을 길이 없다("다시 시도"는 같은 404 를 다시 받는다).
           const showStrip = phase === 'list'
+            || phase === 'fetchError'
             || (finishedJob != null && (phase === 'empty' || phase === 'scanFailed'));
           const scanDisabled = initialLoading || !canStart || readonly;
           // AWS 전용 입구, 그리고 스캔 결과 위에 서 있을 때만 — 검색이 조회하는 것은

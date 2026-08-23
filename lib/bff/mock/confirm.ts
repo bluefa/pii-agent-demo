@@ -3,6 +3,7 @@ import * as mockData from '@/lib/mock-data';
 import * as mockHistory from '@/lib/mock-history';
 import * as tcFns from '@/lib/mock-test-connection';
 import * as mockInstallation from '@/lib/mock-installation';
+import * as scanFns from '@/lib/mock-scan';
 import { getStore } from '@/lib/mock-store';
 import { ProcessStatus, cloudProviderToWireProvider } from '@/lib/types';
 import { createInitialProjectStatus, getCurrentStep } from '@/lib/process';
@@ -560,6 +561,18 @@ export const mockConfirm = {
     if (!project) {
       return NextResponse.json(
         { error: 'NOT_FOUND', message: '과제를 찾을 수 없습니다.' },
+        { status: 404 },
+      );
+    }
+
+    // 스캔 결과가 없는 타겟소스에 실 BFF 는 404 로 답한다(오너 확인 2026-08-23). 목이 시드
+    // 리소스를 무조건 돌려주던 동안에는 데모에서 스캔 없이 표가 섰고, 그래서 1단계의 스캔
+    // 게이트가 실제로 무엇을 막는지 화면으로 확인할 수 없었다. 성공한 스캔이 한 번이라도
+    // 있어야 결과가 존재한다 — 마지막 스캔이 실패여도 직전 성공의 결과는 남아 있다.
+    const { history } = scanFns.getScanHistory(Number(targetSourceId), 100, 0);
+    if (!history.some((entry) => entry.status === 'SUCCESS')) {
+      return NextResponse.json(
+        { error: 'NOT_FOUND', message: '스캔 결과가 없습니다.' },
         { status: 404 },
       );
     }
