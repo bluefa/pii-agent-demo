@@ -7,6 +7,7 @@ vi.mock('@/app/components/features/process-status/GuideCard/GuideCardContainer',
 }));
 
 import { GuidePanel } from '@/app/target-sources/[targetSourceId]/_components/common/GuidePanel';
+import { railStyles } from '@/lib/theme';
 
 /**
  * The channel zone's first line, and the marker the fold tests use for "this zone
@@ -361,6 +362,47 @@ describe('GuidePanel — the folded strip says what it is', () => {
     expect(screen.queryByRole('button', { name: /아직 연결되지 않았어요/ })).toBeNull();
   });
 
+  // 오너 지시 2026-08-23: 「접었을 때의 채널 아이콘이 펼쳐졌을 때도 그대로」 — the rule the
+  // 가이드 전구 already follows. Comparing the path data, not just "an svg is present":
+  // the point is that it is the SAME glyph, and only the geometry proves that.
+  it('shows the folded strip’s ChatIcon on the open zone head too — same glyph, same 20px', async () => {
+    // ChatIcon is the only 24-viewBox glyph at h-5 in this rail: GuideIcon is a 14 box and
+    // the fold chevron is h-4.
+    const chatIn = (root: HTMLElement) =>
+      [...root.querySelectorAll('aside svg')].find(
+        (s) =>
+          s.getAttribute('viewBox') === '0 0 24 24' &&
+          (s.getAttribute('class') ?? '').includes('h-5'),
+      );
+
+    const open = render(<GuidePanel {...baseProps} jiraTicket={null} />);
+    await settled();
+    const onHead = chatIn(open.container as HTMLElement);
+    expect(onHead).toBeTruthy();
+    open.unmount();
+
+    const { container } = await folded(null);
+    const onStrip = chatIn(container as HTMLElement);
+    expect(onStrip).toBeTruthy();
+
+    expect(onHead?.querySelector('path')?.getAttribute('d')).toBe(
+      onStrip?.querySelector('path')?.getAttribute('d'),
+    );
+  });
+
+  // ⛔ The head's glyph DISPLACES the row's — the same bubble twice inside one card, at
+  // two sizes ~56px apart, is a mistake and not a rhyme.
+  it('takes the ChatIcon off the link row once the zone head carries it', async () => {
+    render(
+      <GuidePanel
+        {...baseProps}
+        jiraTicket={{ issueKey: 'PII-42', browseUrl: 'https://jira.example.com/browse/PII-42' }}
+      />,
+    );
+    await settled();
+    expect(screen.getByTitle('협업 채널 — Jira에서 논의하기').querySelector('svg')).toBeNull();
+  });
+
   it('gives each channel state its own dot fill, so colour is not dead weight', async () => {
     const dotOf = (container: HTMLElement) =>
       container.querySelector('aside span[aria-hidden].rounded-full')?.className ?? '';
@@ -375,6 +417,37 @@ describe('GuidePanel — the folded strip says what it is', () => {
     expect(okFill).not.toBe('');
     expect(errFill).not.toBe('');
     expect(okFill).not.toBe(errFill);
+  });
+
+  // 오너 지시 2026-08-23: 「JiraTicket 없는 경우엔 접었을 때 적절히 다른 표현으로」. The three
+  // states used to differ by dot fill alone, so the zone with nothing behind it advertised
+  // itself exactly like the one you can reach.
+  it('withdraws the channel entry’s promise when no ticket is mapped', async () => {
+    const channelBtn = () => screen.getByRole('button', { name: /^협업 채널/ });
+    const dotIn = (btn: HTMLElement) => btn.querySelector('span[aria-hidden].rounded-full');
+
+    // The two token pairs have to actually differ, or every assertion below passes on a
+    // distinction that is not being drawn.
+    expect(railStyles.entryQuiet).not.toBe(railStyles.entry);
+    expect(railStyles.entryLabelQuiet).not.toBe(railStyles.entryLabel);
+
+    const none = await folded(null);
+    const quiet = channelBtn();
+    expect(quiet.className).toBe(railStyles.entryQuiet);
+    // Blue promises somewhere to go. #4E5968 withdraws that and still clears AA on the
+    // rail plane (5.71) — ⛔ gray-400 (1.9) and gray-500 (3.88) do not.
+    expect(screen.getByText('채널').className).toContain('text-[#4E5968]');
+    // ⛔ No dot. Green means reachable and red means broken; absence is neither.
+    expect(dotIn(quiet)).toBeNull();
+    none.unmount();
+
+    // ⛔ A failed fetch is NOT an empty channel — it keeps full ink and its dot, or the
+    // strip says "there is nothing here" about something it simply could not read.
+    await folded('error');
+    const loud = channelBtn();
+    expect(loud.className).toBe(railStyles.entry);
+    expect(screen.getByText('채널').className).toContain('text-[#0050D6]');
+    expect(dotIn(loud)).toBeTruthy();
   });
 
   it('puts 채널 above 가이드 — the order the open rail already teaches', async () => {

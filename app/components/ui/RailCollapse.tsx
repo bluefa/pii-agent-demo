@@ -121,6 +121,15 @@ interface RailEntryProps {
   /** Fill class for the state dot, from `statusColors[tone].dot`. Omit for no dot. */
   dot?: string;
   /**
+   * The entry's zone has nothing behind it — no channel mapped, nothing to reach. Drops
+   * the ink from `entryLabel`'s blue to a neutral, because blue on a strip entry reads as
+   * "there is somewhere to go".
+   *
+   * ⛔ Not for failure. A fetch that broke is not an empty zone: it keeps full ink and its
+   * red dot, so "we could not tell you" never renders as "there is nothing".
+   */
+  quiet?: boolean;
+  /**
    * What the press does. Omit when `tip` carries the whole answer — then the press is
    * the pin, and the button is still a real button so Enter/Space reach it.
    */
@@ -136,7 +145,7 @@ interface RailEntryProps {
  * name is on the strip in words, the way JetBrains lets a tool window show its name
  * under the stripe icon, and the tooltip carries what the one-word label had to drop.
  */
-export const RailEntry = ({ icon, label, hint, tip, dot, onClick }: RailEntryProps) => (
+export const RailEntry = ({ icon, label, hint, tip, dot, onClick, quiet }: RailEntryProps) => (
   <Tooltip
     content={tip ?? hint}
     // `value`, not the dark `status` box: this tip carries a zone of the panel, and the
@@ -149,12 +158,19 @@ export const RailEntry = ({ icon, label, hint, tip, dot, onClick }: RailEntryPro
     openOn={tip ? 'click' : 'hover'}
     triggerClassName="w-full"
   >
-    <button type="button" onClick={onClick} aria-label={hint} className={railStyles.entry}>
+    {/* Picked, not appended — `cn` is a plain join, so two `text-*` utilities would both
+        land on the element and the cascade, not the intent, would decide. */}
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={hint}
+      className={quiet ? railStyles.entryQuiet : railStyles.entry}
+    >
       <span className="relative flex">
         {icon}
         {dot && <span aria-hidden className={cn(railStyles.entryDot, dot)} />}
       </span>
-      <span className={railStyles.entryLabel}>{label}</span>
+      <span className={quiet ? railStyles.entryLabelQuiet : railStyles.entryLabel}>{label}</span>
     </button>
   </Tooltip>
 );

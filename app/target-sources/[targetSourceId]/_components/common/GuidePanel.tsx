@@ -45,15 +45,20 @@ const CollabChannelCard = ({ jiraTicket }: { jiraTicket: JiraTicketState }) => {
    * ⛔ Do not give the row back the white fill it used to have. That surface is also
    * what broke it: the tip is a fixed 280px box, so 280 − 2 border − 28 padding = 250,
    * and the row's own border and padding spent 26 of that before the old card's 34 —
-   * leaving 190. The glyph and its 8px gap take 32, so 158 remained for a 68px label
-   * beside an 85px key — 161 with the gap between them — and 한글 wrapped mid-phrase.
+   * leaving 190 for a 68px label beside an 85px key, and 한글 wrapped mid-phrase.
    *
    * ⛔ No trailing ↗ on the link row (오너 지시 2026-08-23). What says "link" is the key
    * itself: blue, underlined, with `title` naming the destination. The 11px glyph at 50%
    * opacity was the only new-tab cue, so re-adding it is an owner's call, not a tidy-up.
    *
-   * The tiers stay stacked even though one line now fits (161 inside 218): the key is
-   * user data and a longer one puts the collision straight back.
+   * ⛔ And no ChatIcon on the rows any more. The zone head took it (`zoneMarkChannel` —
+   * the folded strip's own 20px glyph, 오너 지시 2026-08-23), and the same bubble twice
+   * inside one card, 24px on the row and 20px on the head some 56px apart, reads as a
+   * mistake rather than a rhyme. Every row is a plain text stack now, so `rowBase` has
+   * stopped laying out a glyph.
+   *
+   * The tiers stay stacked even though one line now fits: the key is user data and a
+   * longer one puts the collision straight back.
    */
   // One leading for everything the rail sets itself: 1.5. It was 1.55 / 1.45 / 1.35 on
   // three lines that sit 4px apart, and line-height is half-leading on BOTH sides of a
@@ -62,8 +67,7 @@ const CollabChannelCard = ({ jiraTicket }: { jiraTicket: JiraTicketState }) => {
   // the column look even; matching the leading is what makes the numbers mean anything.
   // ⛔ The guide body keeps its own 1.72 — `.prose-guide` is shared with the admin post
   // editor, and rendered markdown is allowed its own rhythm.
-  const rowBase = 'mt-3 flex items-center gap-2 text-[12px]';
-  const channelMark = 'h-6 w-6 shrink-0';
+  const rowBase = 'mt-3 block text-[12px]';
   const channelLabel = 'block text-[12px] font-semibold leading-[1.5]';
   const channelKey = 'block font-mono text-[14px] leading-[1.5]';
   const href =
@@ -84,12 +88,10 @@ const CollabChannelCard = ({ jiraTicket }: { jiraTicket: JiraTicketState }) => {
           for a placeholder — it must not out-weigh the real link. */}
       {jiraTicket === 'error' ? (
         <div className={cn(rowBase, 'font-medium', textColors.tertiary)}>
-          <ChatIcon className={channelMark} />
           협업 채널 정보를 불러오지 못했어요
         </div>
       ) : jiraTicket === null ? (
         <div className={cn(rowBase, 'font-medium', textColors.tertiary)}>
-          <ChatIcon className={channelMark} />
           아직 연결된 협업 채널이 없어요
         </div>
       ) : href ? (
@@ -106,27 +108,20 @@ const CollabChannelCard = ({ jiraTicket }: { jiraTicket: JiraTicketState }) => {
             primaryColors.textHover,
           )}
         >
-          <ChatIcon className={channelMark} />
-          <span className="min-w-0 flex-1">
-            <span className={channelLabel}>협업 채널 링크</span>
-            {/* Owner ask: the issue key reads as a classic hyperlink — blue + underline.
-                `textOnLight` (#0050D6), not `text` (#0064FF), even though the brighter blue
-                is legal again now that the ground is white (4.92:1). 시안 E leaves the rail
-                almost colourless, and the one blue it keeps should be a single blue —
-                `guideStyles.accent` already paints the guide body's `<em>` #0050D6. */}
-            <span className={cn(channelKey, 'underline', primaryColors.textOnLight)}>
-              {jiraTicket.issueKey}
-            </span>
+          <span className={channelLabel}>협업 채널 링크</span>
+          {/* Owner ask: the issue key reads as a classic hyperlink — blue + underline.
+              `textOnLight` (#0050D6), not `text` (#0064FF), even though the brighter blue
+              is legal on white (4.92:1). The rail keeps ONE blue — `guideStyles.accent`
+              already paints the guide body's `<em>` #0050D6. */}
+          <span className={cn(channelKey, 'underline', primaryColors.textOnLight)}>
+            {jiraTicket.issueKey}
           </span>
         </a>
       ) : (
         // browseUrl 이 없으면(또는 http 가 아니면) 링크를 지어내지 않고 키만 보여준다.
         <div className={cn(rowBase, textColors.secondary)}>
-          <ChatIcon className={channelMark} />
-          <span className="min-w-0 flex-1">
-            <span className={channelLabel}>협업 채널</span>
-            <span className={channelKey}>{jiraTicket.issueKey}</span>
-          </span>
+          <span className={channelLabel}>협업 채널</span>
+          <span className={channelKey}>{jiraTicket.issueKey}</span>
         </div>
       )}
     </div>
@@ -181,15 +176,29 @@ export const GuidePanel = ({
   /**
    * What the folded rail says about the collab channel. The card itself is the escape
    * hatch for every step, and folding used to take it off the screen entirely — dot and
-   * all three of its states, including the one where the fetch failed. The dot carries
-   * the state in colour and `hint` carries the same thing in words, because the dot is
-   * `aria-hidden` and colour alone is not a channel.
+   * all three of its states, including the one where the fetch failed. `hint` says in
+   * words whatever the presentation says in colour, because the dot is `aria-hidden` and
+   * colour alone is not a channel.
+   *
+   * 오너 지시 2026-08-23: 「JiraTicket 없는 경우엔 접었을 때 적절히 다른 표현으로」. The
+   * three states used to differ by dot fill alone — same dark glyph, same blue 「채널」 —
+   * so the one with nothing behind it advertised itself exactly like the one you can
+   * reach. Now the presentations separate on two channels at once:
+   *
+   *   있음  진한 글리프 · 파란 라벨 · 초록 점     reachable
+   *   없음  차분한 글리프 · 중립 라벨 · 점 없음   there is nothing here
+   *   실패  진한 글리프 · 파란 라벨 · 빨간 점     we could not tell you
+   *
+   * ⛔ 없음 drops the dot rather than greying it. Green means reachable and red means
+   * broken; absence is neither, and a state dot on a zone with no state is decoration.
+   * ⛔ 실패 stays loud. A fetch that failed is not an empty channel, and quieting it would
+   * be the same conflation the separate error row exists to prevent.
    */
-  const collab =
+  const collab: { dot?: string; quiet?: boolean; hint: string } =
     jiraTicket === 'error'
       ? { dot: statusColors.error.dot, hint: '협업 채널 — 정보를 불러오지 못했어요' }
       : jiraTicket === null
-        ? { dot: statusColors.pending.dot, hint: '협업 채널 — 아직 연결되지 않았어요' }
+        ? { quiet: true, hint: '협업 채널 — 아직 연결되지 않았어요' }
         : { dot: statusColors.success.dot, hint: `협업 채널 — ${jiraTicket.issueKey}` };
 
   /**
@@ -259,6 +268,7 @@ export const GuidePanel = ({
             label="채널"
             hint={collab.hint}
             dot={collab.dot}
+            quiet={collab.quiet}
             tip={<CollabChannelCard jiraTicket={jiraTicket} />}
           />
           {/* Same mark, both states (오너 지시 2026-08-23) — the folded strip and the open
@@ -296,7 +306,14 @@ export const GuidePanel = ({
               holds the top of the rail and the guide scrolls underneath it. */}
           <div className={cn(railStyles.card, 'shrink-0 p-3')}>
             <div className="flex items-center justify-between gap-2">
-              <span className={railStyles.zoneLabel}>협업 채널</span>
+              {/* Same mark, both fold states — the rule the 가이드 전구 already follows
+                  (오너 지시 2026-08-23). It also gives the two zone heads one geometry,
+                  20 mark + 8 gap + label, which is what puts the two labels on the same x;
+                  they were 28px out while this one was a bare label. */}
+              <span className="flex items-center gap-2">
+                <ChatIcon className={cn('h-5 w-5 shrink-0', railStyles.zoneMarkChannel)} />
+                <span className={railStyles.zoneLabel}>협업 채널</span>
+              </span>
               {/* The 32px hit box centres a 16px glyph, so pulling the box 8px past the
                   card's 12px padding lands the GLYPH's edge on it. Align the ink, not the box. */}
               <span className="-mr-2 shrink-0">

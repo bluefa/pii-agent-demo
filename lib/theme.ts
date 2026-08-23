@@ -2456,6 +2456,20 @@ export const railStyles = {
    */
   zoneMark: 'text-[#F59E0B]', // design-exempt: 장식 글리프 — 뜻은 옆의 「N단계 가이드」와 스트립 aria-label 이 전부 싣는다. 텍스트 4.5:1 도, 1.4.11 의 3:1 도 대상이 아님
   /**
+   * The 협업 채널 zone's mark — the SAME `ChatIcon` the folded strip carries, at the same
+   * 20px (오너 지시 2026-08-23; the rule the 가이드 전구 already follows — folding changes
+   * how much of a zone you see, not what it looks like).
+   *
+   * `text-gray-700` is what the strip's `entry` gives that glyph by inheritance, so the
+   * two states match: 8.27:1 on the rail plane there, 9.06:1 on the card here.
+   *
+   * ⛔ Adding this REQUIRED taking the glyph off the link row — the two would sit ~56px
+   * apart inside one card, the same bubble twice at two sizes. It also puts both zone
+   * heads on one geometry (20 mark + 8 gap + label), which is what finally aligns the
+   * two labels; they were 28px out.
+   */
+  zoneMarkChannel: 'text-gray-700',
+  /**
    * Hairline between the size control and the entries — half the strip, so it reads as
    * a seam. #D2D8DC is the left rail's `divider`, i.e. the value already chosen for a
    * seam on this exact plane. ⛔ It was gray-100, which was lighter than the rail it now
@@ -2493,6 +2507,25 @@ export const railStyles = {
    * Written as a literal because `design-guard`'s `classOf` cannot follow a `${}`.
    */
   entryLabel: 'text-[14px] font-semibold leading-[1.2] whitespace-nowrap text-[#0050D6]',
+  /**
+   * The same entry when its zone has nothing behind it — 협업 채널 with no mapped ticket
+   * (오너 지시 2026-08-23: 「JiraTicket 없는 경우엔 접었을 때 적절히 다른 표현으로」).
+   *
+   * Blue is a promise of somewhere to go, and there is nowhere; #4E5968 withdraws that
+   * promise without whispering — 5.71:1 on the rail plane, against `entry`'s 8.27 and
+   * `entryLabel`'s 5.40, so it is quieter than both yet still comfortably AA. ⛔ Not
+   * gray-400 (1.9) or gray-500 (3.88): "muted" on THIS plane bottoms out at #4E5968.
+   *
+   * The pair also drops the state dot at the call site. Green says reachable and red says
+   * broken; absence is neither, and a dot on a zone with no state is decoration.
+   *
+   * ⛔ Full duplicates of `entry`/`entryLabel`, not modifiers — `cn` has no tailwind-merge,
+   * so an appended `text-*` would sit next to the one it means to replace and lose.
+   */
+  entryQuiet:
+    'flex w-full flex-col items-center gap-1 rounded-md py-2 text-[#4E5968] transition-colors hover:bg-gray-100',
+  entryLabelQuiet:
+    'text-[14px] font-semibold leading-[1.2] whitespace-nowrap text-[#4E5968]',
   /**
    * State dot on an entry's glyph — 8px, the same one `HistoryTimeline` uses, with a
    * white ring so it reads as ON the glyph rather than beside it. The caller supplies
