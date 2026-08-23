@@ -38,6 +38,7 @@ export type IconName =
   | 'shield'
   | 'warn-tri'
   | 'loader'
+  | 'bolt'
   | 'calendar'
   | 'info'
   | 'copy'
@@ -191,6 +192,9 @@ const ICON_PATHS: Record<IconName, ReactElement> = {
   ),
   // StatusPill RUNNING/IN_PROGRESS — open 3/4 arc, spun via `animate-spin`.
   loader: <path d="M12 3.5a8.5 8.5 0 1 0 8.5 8.5" />,
+  // 진행 중 mark — the bolt Step 5 already uses for WAITING_CONNECTION_TEST
+  // (StepGuide ICON_PATHS). Static: it is a mark, not a spinner.
+  bolt: <path d="M13 10V3L4 14h7v7l9-11h-7z" />,
   calendar: (
     <>
       <rect x="3.5" y="5" width="17" height="15" rx="2" />
