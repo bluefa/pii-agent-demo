@@ -21,6 +21,7 @@ import { parseRdsInstanceCandidates, type RdsInstanceCandidate } from '@/lib/rds
 import { fetchInfraJson } from '@/app/lib/api/infra';
 import type { TargetSourceRequestCloudType } from '@/lib/constants/provider-mapping';
 import type { TargetSourceCloudType } from '@/lib/target-source-creation';
+import { pickScanPrincipal } from '@/lib/target-source-response';
 // Re-export TargetSourceCloudType so consumers keep importing from one place.
 export type { TargetSourceCloudType };
 import type { z } from 'zod';
@@ -263,6 +264,9 @@ const toTargetSource = (raw: TargetSourceDetail, processStatusWire: unknown): Ta
   const subscriptionId = asStr(metadata?.subscription_id);
   const awsAccountId = asStr(metadata?.aws_account_id);
   const gcpProjectId = asStr(metadata?.gcp_project_id);
+  const cloudProvider = normalizeCloudProvider(asStr(item.cloud_provider));
+  // 프로바이더가 키를 고른다 — 자세한 이유는 pickScanPrincipal 주석.
+  const scanPrincipal = pickScanPrincipal(cloudProvider, metadata);
   const isSduType = asBool(metadata?.is_sdu_type) || isSduProvider(asStr(item.cloud_provider));
   // Same domain rule as toProjectSummary: absent = never granted = 수동 설치.
   const isTerraformExecutionGranted =
@@ -276,7 +280,7 @@ const toTargetSource = (raw: TargetSourceDetail, processStatusWire: unknown): Ta
     serviceCode,
     serviceName: asStr(item.service_name)?.trim() || serviceCode,
     processStatus,
-    cloudProvider: normalizeCloudProvider(asStr(item.cloud_provider)),
+    cloudProvider,
     createdAt,
     updatedAt: asStr(item.updated_at) ?? createdAt,
     name: fallbackCode,
@@ -286,6 +290,7 @@ const toTargetSource = (raw: TargetSourceDetail, processStatusWire: unknown): Ta
     ...(subscriptionId ? { subscriptionId } : {}),
     ...(awsAccountId ? { awsAccountId } : {}),
     ...(gcpProjectId ? { gcpProjectId } : {}),
+    ...(scanPrincipal ? { scanPrincipal } : {}),
     ...(isSduType !== undefined ? { isSduType } : {}),
     isTerraformExecutionGranted,
   };

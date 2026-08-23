@@ -585,6 +585,28 @@ export const mockProjects: Project[] = [
     updatedAt: '2026-02-09T10:00:00Z',
     isRejected: false,
   },
+  {
+    // Azure twin of GCP 1002: born without resources, so buildSeedScanHistory gives it no
+    // scan and /resources answers 404 — the never-scanned step 1 entry screen.
+    id: 'azure-proj-4',
+    targetSourceId: 1030,
+    projectCode: 'AZURE-006',
+    name: 'Azure PII Agent - 스캔 전',
+    description: 'Step 1. 연동 대상 확정 — 아직 한 번도 스캔하지 않은 상태입니다. 스캔 시작 안내와 실행 진입점을 확인합니다.',
+    serviceCode: 'azure',
+    cloudProvider: 'Azure',
+    tenantId: 'd4e5f6a7-b8c9-0123-def0-234567890123',
+    subscriptionId: '45678901-def0-1234-5678-9abcdef01234',
+    processStatus: ProcessStatus.WAITING_TARGET_CONFIRMATION,
+    status: createStatusForProcessStatus(ProcessStatus.WAITING_TARGET_CONFIRMATION),
+    resources: [],
+    terraformState: {
+      bdcTf: 'PENDING',
+    },
+    createdAt: '2026-02-01T09:00:00Z',
+    updatedAt: '2026-02-01T09:00:00Z',
+    isRejected: false,
+  },
   // Steps 2 and 3 carrying INSTALL_INELIGIBLE resources. Every other fixture holds them at
   // step 1 only, so there was no data to see how they render once the request is submitted.
   // One project covers all four branches: target / user-excluded (with reason) / ineligible
@@ -907,6 +929,29 @@ export const mockProjects: Project[] = [
     },
     createdAt: '2024-02-02T09:00:00Z',
     updatedAt: '2024-02-02T15:00:00Z',
+    isRejected: false,
+  },
+  {
+    // AWS twin of GCP 1002: born without resources, so buildSeedScanHistory gives it no
+    // scan and /resources answers 404 — the never-scanned step 1 entry screen.
+    id: 'proj-9',
+    targetSourceId: 1029,
+    projectCode: 'DATA-009',
+    name: 'PII Agent 설치 - 스캔 전 계정',
+    description: 'Step 1. 연동 대상 확정 — 아직 한 번도 스캔하지 않은 상태입니다. 스캔 시작 안내와 실행 진입점을 확인합니다.',
+    serviceCode: 'aws',
+    cloudProvider: 'AWS',
+    awsAccountId: '710293845611',
+    awsRegionType: 'global',
+    processStatus: ProcessStatus.WAITING_TARGET_CONFIRMATION,
+    status: createStatusForProcessStatus(ProcessStatus.WAITING_TARGET_CONFIRMATION),
+    resources: [],
+    terraformState: {
+      serviceTf: 'PENDING',
+      bdcTf: 'PENDING',
+    },
+    createdAt: '2026-02-01T09:00:00Z',
+    updatedAt: '2026-02-01T09:00:00Z',
     isRejected: false,
   },
 ];

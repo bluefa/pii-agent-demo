@@ -494,6 +494,13 @@ export interface CloudTargetSource extends BaseTargetSource {
 
   gcpProjectId?: string;
 
+  /**
+   * 이 대상을 스캔하는 주체 — 계약이 프로바이더마다 다른 키로 선언한 같은 사실
+   * (`aws_scan_role_arn` · `gcp_scan_service_account` · `azure_scan_app_id`).
+   * 어댑터가 프로바이더로 키를 골라 여기에 담는다(pickScanPrincipal).
+   */
+  scanPrincipal?: string;
+
   dbType?: string;
 }
 
