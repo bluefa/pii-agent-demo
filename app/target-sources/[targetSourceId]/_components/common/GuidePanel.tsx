@@ -7,8 +7,8 @@ import { ChatIcon, GuideIcon, OpenExternalIcon } from '@/app/components/ui/icons
 import {
   RailEntry,
   RailToggle,
-  RAIL_OPEN_MIN_WIDTH,
   useRailCollapse,
+  type RailCollapsed,
 } from '@/app/components/ui/RailCollapse';
 import {
   bgColors,
@@ -26,13 +26,6 @@ import type { GuideSlotKey } from '@/lib/constants/guide-registry';
 import { safeBrowseUrl } from '@/lib/jira-ticket';
 
 type PanelTab = 'guide' | 'history';
-
-/**
- * Versioned, and NOT keyed by target source: how much of the screen a reader wants
- * spent on help is a workspace preference, not a fact about one resource. Bump the
- * version if the stored shape ever stops being `'1' | '0'`.
- */
-const GUIDE_RAIL_STORAGE_KEY = 'pii:rail:v1:guide';
 
 /**
  * Collab-channel ticket state for the rail card, resolved server-side
@@ -189,6 +182,15 @@ const HistoryTimeline = ({ items }: { items: typeof MOCK_HISTORY }) => (
 interface GuidePanelProps {
   slotKey: GuideSlotKey | null;
   jiraTicket: JiraTicketState;
+  /**
+   * The fold preference the SERVER read off the request cookie. Not keyed by target
+   * source — how much of the screen a reader wants spent on help is a workspace
+   * preference, not a fact about one resource.
+   *
+   * ⛔ It has to arrive as a prop. Reading it in here would put the answer one frame
+   * behind the paint, which is the flash this replaced.
+   */
+  initialCollapsed: RailCollapsed;
 }
 
 /**
@@ -212,6 +214,7 @@ interface GuidePanelProps {
 export const GuidePanel = ({
   slotKey,
   jiraTicket,
+  initialCollapsed,
 }: GuidePanelProps) => {
   const [tab, setTab] = useState<PanelTab>('guide');
   const [page, setPage] = useState(0);
@@ -227,7 +230,7 @@ export const GuidePanel = ({
     setPage(0);
   };
 
-  const { collapsed, toggle } = useRailCollapse(GUIDE_RAIL_STORAGE_KEY, RAIL_OPEN_MIN_WIDTH);
+  const { collapsed, toggle } = useRailCollapse(initialCollapsed);
 
   /**
    * What the folded rail says about the collab channel. The card itself is the escape

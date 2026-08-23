@@ -1,3 +1,5 @@
+import { cookies } from 'next/headers';
+
 import { bff } from '@/lib/bff/client';
 import { BffError } from '@/lib/bff/errors';
 import { schemas } from '@/lib/generated/install-v1';
@@ -5,6 +7,7 @@ import { extractTargetSourceFromSnake } from '@/lib/target-source-response';
 import { ProjectDetail } from '@/app/target-sources/[targetSourceId]/_components/ProjectDetail';
 import { AccessDeniedState, ErrorState } from '@/app/target-sources/[targetSourceId]/_components/common';
 import { classifyTargetSourceLoad } from '@/app/target-sources/[targetSourceId]/load-error';
+import { RAIL_COOKIE_NAME, parseRailCookie } from '@/lib/rail-preference';
 import type { JiraTicketState } from '@/app/target-sources/[targetSourceId]/_components/common/GuidePanel';
 
 interface PageProps {
@@ -62,5 +65,16 @@ export default async function ProjectDetailPage({ params }: PageProps) {
     return failure.kind === 'forbidden' ? <AccessDeniedState /> : <ErrorState message={failure.message} />;
   }
 
-  return <ProjectDetail initialProject={project} jiraTicket={jiraTicket} />;
+  // Read HERE, not in the rail. The rail's width is settled during this render, and a
+  // cookie is the only preference the server can see — with client storage the first
+  // paint could only guess from a media query and then correct itself on screen.
+  const railCollapsed = parseRailCookie((await cookies()).get(RAIL_COOKIE_NAME)?.value);
+
+  return (
+    <ProjectDetail
+      initialProject={project}
+      jiraTicket={jiraTicket}
+      railCollapsed={railCollapsed}
+    />
+  );
 }

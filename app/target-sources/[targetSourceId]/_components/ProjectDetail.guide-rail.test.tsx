@@ -64,7 +64,7 @@ const azureFixture: TargetSource = {
 // full-height right rail (GuidePanel) with the slot key resolved from the project.
 describe('ProjectDetail guide rail', () => {
   it('renders the GuidePanel rail next to the provider page with the resolved slot key', () => {
-    render(<ProjectDetail initialProject={azureFixture} jiraTicket={null} />);
+    render(<ProjectDetail initialProject={azureFixture} jiraTicket={null} railCollapsed={null} />);
 
     expect(screen.getByTestId('azure-page')).toBeTruthy();
     const panel = screen.getByTestId('guide-panel');
@@ -79,7 +79,7 @@ describe('ProjectDetail guide rail', () => {
 describe('ProjectDetail scroll containment', () => {
   it('positions the scrolling column so absolute descendants cannot escape it', () => {
     const { container } = render(
-      <ProjectDetail initialProject={azureFixture} jiraTicket={null} />,
+      <ProjectDetail initialProject={azureFixture} jiraTicket={null} railCollapsed={null} />,
     );
 
     const column = container.querySelector('div.overflow-auto');

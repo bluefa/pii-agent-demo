@@ -10,29 +10,21 @@ import { GuidePanel } from '@/app/target-sources/[targetSourceId]/_components/co
 
 const baseProps = {
   slotKey: null,
+  /** No stored preference — the width default decides. Tests that care pass their own. */
+  initialCollapsed: null,
 } as const;
 
-const STORAGE_KEY = 'pii:rail:v1:guide';
-
 /**
- * jsdom here exposes a `localStorage` with NO methods — `getItem`/`setItem` are both
- * `undefined`. Every call throws a TypeError that `useRailCollapse`'s own `catch`
- * swallows, so without this the fold would silently never persist and every assertion
- * below would still pass on the width default. A real in-memory Storage has to be
- * installed before any of it is observable. (Same footgun, same fix, as
- * `useColumnResize.test.tsx` — the property is a configurable getter, so it can be
- * replaced outright.)
+ * The preference is a COOKIE, read by the server and handed down as `initialCollapsed`.
+ * jsdom implements `document.cookie` properly, so unlike the `localStorage` version this
+ * needs no stub — reading the cookie back is the same thing the server would do.
  */
-const store = new Map<string, string>();
-Object.defineProperty(window, 'localStorage', {
-  configurable: true,
-  value: {
-    getItem: (key: string) => store.get(key) ?? null,
-    setItem: (key: string, value: string) => void store.set(key, String(value)),
-    removeItem: (key: string) => void store.delete(key),
-    clear: () => store.clear(),
-  },
-});
+const readRailCookie = (): string | null =>
+  document.cookie.match(/(?:^|;\s*)pii-rail-guide=([^;]*)/)?.[1] ?? null;
+
+const clearRailCookie = () => {
+  document.cookie = 'pii-rail-guide=; path=/; max-age=0';
+};
 
 /** jsdom reports 1024, i.e. under RAIL_OPEN_MIN_WIDTH — set it per test rather than
  *  inheriting whichever side of the default a given machine happens to land on. */
@@ -41,9 +33,9 @@ const setViewportWidth = (width: number) => {
 };
 
 /**
- * The fold resolves on a `setTimeout(0)` after mount. Until it does, BOTH halves are
- * mounted and the media query arbitrates — so "settled" is exactly when one fold control
- * is left instead of two.
+ * With no cookie the fold resolves on a `setTimeout(0)` after mount. Until it does, BOTH
+ * halves are mounted and the media query arbitrates — so "settled" is exactly when one
+ * fold control is left instead of two.
  */
 const settled = () =>
   waitFor(() =>
@@ -51,7 +43,7 @@ const settled = () =>
   );
 
 beforeEach(() => {
-  localStorage.clear();
+  clearRailCookie();
   setViewportWidth(1440);
 });
 
@@ -130,27 +122,56 @@ describe('GuidePanel — the rail folds, it does not vanish', () => {
     await waitFor(() => expect(screen.getByText('도움이 필요하신가요?')).toBeTruthy());
   });
 
-  it('remembers the fold across mounts, and a press beats the width default', async () => {
-    // Wide, so the default is open — then fold it and prove the preference outranks
-    // the breakpoint on the next visit rather than the rail springing back.
+  it('writes the fold to a cookie, and the press beats the width default', async () => {
+    // Wide, so the default is open — then fold it and prove the preference is on the
+    // request the next paint will ride, not in storage the server cannot see.
     const first = render(<GuidePanel {...baseProps} jiraTicket={null} />);
     await settled();
     fireEvent.click(screen.getByRole('button', { name: '가이드 접기' }));
-    await waitFor(() => expect(localStorage.getItem(STORAGE_KEY)).toBe('1'));
+    await waitFor(() => expect(readRailCookie()).toBe('1'));
     first.unmount();
 
-    render(<GuidePanel {...baseProps} jiraTicket={null} />);
-    await settled();
+    // What the server does on the next request: read the cookie, hand it down.
+    render(<GuidePanel {...baseProps} jiraTicket={null} initialCollapsed />);
+    expect(screen.getByRole('button', { name: '가이드 펼치기' })).toBeTruthy();
+  });
+});
+
+describe('GuidePanel — the fold does not flash on reload', () => {
+  // The bug: the server could not see `localStorage`, so a folded rail painted OPEN at
+  // 320px and snapped to the strip once hydration delivered the real answer.
+  it('paints the strip on the FIRST render when the server says folded', () => {
+    const { container } = render(
+      <GuidePanel {...baseProps} jiraTicket={null} initialCollapsed />,
+    );
+    const classes = container.querySelector('aside')?.className.split(/\s+/) ?? [];
+
+    // ⛔ No breakpoint class at all. `min-[1360px]:w-[320px]` is the signature of the
+    // unresolved frame — the one that painted 320px before correcting itself.
+    expect(classes.some((c) => c.startsWith('min-[1360px]:'))).toBe(false);
+    expect(classes).toContain('w-14');
+    // …and the body was never mounted, so nothing had to be torn down.
+    expect(screen.queryByText('도움이 필요하신가요?')).toBeNull();
     expect(screen.getByRole('button', { name: '가이드 펼치기' })).toBeTruthy();
   });
 
-  it('falls back to the width default when the stored value is not one it wrote', async () => {
-    // A restored value that skipped the gesture's invariants is how a rail comes back in
-    // a state no press could have produced — so anything but '1'/'0' is not a preference.
-    localStorage.setItem(STORAGE_KEY, 'true');
-    render(<GuidePanel {...baseProps} jiraTicket={null} />);
-    await settled();
-    expect(screen.getByRole('button', { name: '가이드 접기' })).toBeTruthy();
+  it('paints the open rail on the FIRST render when the server says open', () => {
+    setViewportWidth(1024); // ⛔ narrow: the width default would fold it. The cookie wins.
+    const { container } = render(
+      <GuidePanel {...baseProps} jiraTicket={null} initialCollapsed={false} />,
+    );
+    const classes = container.querySelector('aside')?.className.split(/\s+/) ?? [];
+    expect(classes.some((c) => c.startsWith('min-[1360px]:'))).toBe(false);
+    expect(classes).toContain('w-[320px]');
+    expect(screen.getByText('도움이 필요하신가요?')).toBeTruthy();
+  });
+
+  it('still arbitrates with the media query when no cookie was sent', () => {
+    const { container } = render(<GuidePanel {...baseProps} jiraTicket={null} />);
+    const classes = container.querySelector('aside')?.className.split(/\s+/) ?? [];
+    // Honest "not known yet": the server had nothing to go on, so the breakpoint paints
+    // the frame and the effect resolves to the same answer. Nothing moves either way.
+    expect(classes.some((c) => c.startsWith('min-[1360px]:'))).toBe(true);
   });
 });
 
@@ -161,7 +182,7 @@ describe('GuidePanel — the rail folds, it does not vanish', () => {
  * one test would mount already-collapsed and find no 「가이드 접기」 to press.
  */
 const folded = async (jiraTicket: Parameters<typeof GuidePanel>[0]['jiraTicket']) => {
-  localStorage.clear();
+  clearRailCookie();
   const view = render(<GuidePanel {...baseProps} jiraTicket={jiraTicket} />);
   await settled();
   fireEvent.click(screen.getByRole('button', { name: '가이드 접기' }));

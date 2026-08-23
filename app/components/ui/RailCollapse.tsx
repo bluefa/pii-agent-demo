@@ -3,47 +3,14 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { ChevronLeftIcon, ChevronRightIcon } from '@/app/components/ui/icons';
 import { Tooltip } from '@/app/components/ui/Tooltip';
+import { RAIL_OPEN_MIN_WIDTH, serialiseRailCookie } from '@/lib/rail-preference';
 import { cn, railStyles } from '@/lib/theme';
 
 /**
- * The width at or above which the guide rail starts open.
- *
- * This is the number `GuidePanel` used to DISAPPEAR at, now doing a different job: it
- * picks a DEFAULT, and a default is something a press can overrule. Before, the viewport
- * decided whether the rail existed at all — and that rail is the only render site in the
- * app for 단계 가이드, 진행 내역 and the Jira collab channel, so below 1360
- * all three were unreachable rather than merely hidden: Tailwind's `hidden` is
- * `display:none`, which also takes them out of the accessibility tree and the tab order,
- * and no second entry point existed for any of them.
- */
-export const RAIL_OPEN_MIN_WIDTH = 1360;
-
-/**
- * `null` until the stored preference resolves. Neither the server nor the first client
- * paint can know it, so for that one frame the caller paints its media-query default —
- * which is exactly the markup the server sent.
+ * `null` = no stored preference. The caller paints its media-query default for that
+ * case, which is exactly the markup the server sent.
  */
 export type RailCollapsed = boolean | null;
-
-const STORED_COLLAPSED = '1';
-const STORED_EXPANDED = '0';
-
-/**
- * Exactly two strings mean anything here. Anything else — a value written by an older
- * build, a half-finished write, a hand-edited entry — resolves to `null` and falls back
- * to the width default instead of being coerced into a boolean. A restored value that
- * skipped the invariants the gesture enforces is how a rail comes back in a state no
- * press could have produced.
- */
-const readStored = (key: string): boolean | null => {
-  try {
-    const raw = localStorage.getItem(key);
-    return raw === STORED_COLLAPSED ? true : raw === STORED_EXPANDED ? false : null;
-  } catch {
-    // Private windows and blocked storage: the width default is the fallback.
-    return null;
-  }
-};
 
 export interface RailCollapse {
   collapsed: RailCollapsed;
@@ -51,48 +18,47 @@ export interface RailCollapse {
 }
 
 /**
- * Fold state for one full-height rail, remembered across visits.
+ * Fold state for the guide rail, remembered across visits.
  *
- * Three-phase, the same shape `useColumnResize` uses and for the same reason: a lazy
- * initializer would have to read `localStorage` and `innerWidth` during render, and the
- * server has neither, so every rail would hydrate mismatched. Instead the first paint
- * renders `null`, the caller paints its media-query default for that frame, and the
- * stored preference lands right after mount and owns the rail from then on.
+ * `initialCollapsed` comes from the SERVER, which read the cookie off the request — so
+ * when a preference exists the very first painted frame is already the right width and
+ * there is nothing to correct. That is the whole reason this is a cookie: the rail's
+ * width is decided during the first paint, and the first paint happens before any client
+ * storage can be read. The previous `localStorage` version could only guess from a media
+ * query, so a reader who had folded the rail watched it paint open and then snap shut.
+ *
+ * With no cookie, `initialCollapsed` is `null` and the old three-phase shape still runs:
+ * the caller paints the breakpoint default, and the effect below resolves to the same
+ * answer, so nothing moves. It exists so `collapsed` stops being `null` once a real value
+ * is knowable — a press has to mean "the opposite of what I am looking at".
  *
  * `setTimeout(0)`, not `requestAnimationFrame` — rAF never fires in a background tab, so
- * a page opened in one would sit on the media-query default until someone looked at it.
+ * a page opened in one would sit on `null` until someone looked at it.
  */
-export const useRailCollapse = (
-  storageKey: string,
-  /** Start collapsed below this viewport width when there is no stored preference. */
-  openMinWidth: number,
-): RailCollapse => {
-  const [collapsed, setCollapsed] = useState<RailCollapsed>(null);
-
-  /** What the media query is painting right now — i.e. what `null` means on screen. */
-  const widthDefault = useCallback(
-    () => window.innerWidth < openMinWidth,
-    [openMinWidth],
-  );
+export const useRailCollapse = (initialCollapsed: RailCollapsed): RailCollapse => {
+  const [collapsed, setCollapsed] = useState<RailCollapsed>(initialCollapsed);
 
   useEffect(() => {
-    const timer = window.setTimeout(() => {
-      setCollapsed(readStored(storageKey) ?? widthDefault());
-    }, 0);
+    // The server already knew; there is nothing for the client to resolve.
+    if (initialCollapsed !== null) return;
+    const timer = window.setTimeout(
+      () => setCollapsed(window.innerWidth < RAIL_OPEN_MIN_WIDTH),
+      0,
+    );
     return () => window.clearTimeout(timer);
-  }, [storageKey, widthDefault]);
+  }, [initialCollapsed]);
 
   const toggle = useCallback(() => {
-    // A press that lands before the preference resolves still has to mean "the opposite
-    // of what I am looking at", and what the reader is looking at is the width default.
-    const next = !(collapsed ?? widthDefault());
+    // A press that lands before the effect runs still has to mean "the opposite of what
+    // I am looking at", and what the reader is looking at is the width default.
+    const next = !(collapsed ?? window.innerWidth < RAIL_OPEN_MIN_WIDTH);
     setCollapsed(next);
     try {
-      localStorage.setItem(storageKey, next ? STORED_COLLAPSED : STORED_EXPANDED);
+      document.cookie = serialiseRailCookie(next, window.location.protocol === 'https:');
     } catch {
-      // Best effort — the fold still works for this visit.
+      // Blocked cookies: the fold still works for this visit.
     }
-  }, [collapsed, storageKey, widthDefault]);
+  }, [collapsed]);
 
   return { collapsed, toggle };
 };
