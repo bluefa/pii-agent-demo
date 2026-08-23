@@ -42,8 +42,9 @@ export interface ModalProps {
   ariaLabel?: string;
   children: ReactNode;
   /**
-   * Header close ✕. Set false for a read-only notice that carries no footer either —
-   * backdrop click and ESC still close it. Every other caller keeps the default.
+   * Header close ✕. Set false when nothing else needs it: a read-only notice that carries
+   * no footer, or a footer whose own 취소/닫기 already owns the way out — two exits in one
+   * corner say the same thing twice. Backdrop click and ESC still close it either way.
    */
   closeButton?: boolean;
   /**

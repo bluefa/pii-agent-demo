@@ -97,6 +97,11 @@ export const IdcLoadRequestModal = ({
       size="wide"
       chrome="toss"
       tone="warn"
+      // 닫는 길은 푸터의 취소가 이미 갖고 있다 — 헤더 ✕ 는 같은 말을 두 번(Ec2AddModal 과 같은 규칙).
+      closeButton={false}
+      // 본문↔푸터 헤어라인 없음: 그 선은 스크롤하는 내용이 어디서 끝나는지 표시하는 것인데,
+      // 이 모달의 본문은 표든 빈 상태든 제 테두리로 이미 닫혀 있어 선이 하나 더 그어질 뿐이다.
+      footerDivider={false}
       footer={
         <>
           <button type="button" className={idcStyles.modalBtn.outline} onClick={onClose}>
