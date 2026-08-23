@@ -187,6 +187,10 @@ describe('ApplyingApprovedCard — RDS cluster rows', () => {
 
     expect(await screen.findByText('demo-cluster')).toBeTruthy();
     expect(screen.getByText('RDS Cluster')).toBeTruthy();
+    // ⛔ Folded even though the cluster IS in the request (owner, 2026-08-23): the fold is opt-in
+    // on both sides now, so the chip is only reachable through the chevron.
+    expect(screen.queryByText('선택됨')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'demo-cluster 인스턴스 목록 펼치기' }));
     expect(screen.getAllByText('선택됨')).toHaveLength(1);
   });
 
@@ -218,7 +222,7 @@ describe('ApplyingApprovedCard — RDS cluster rows', () => {
 
     expect(await screen.findByText('demo-cluster')).toBeTruthy();
     expect(screen.getByText('RDS Cluster')).toBeTruthy();
-    // An excluded cluster starts folded (useClusterFold): its members are reference, not review.
+    // Every cluster starts folded: its members are reference, not review.
     expect(screen.queryByText('demo-1')).toBeNull();
 
     fireEvent.click(screen.getByRole('button', { name: 'demo-cluster 인스턴스 목록 펼치기' }));

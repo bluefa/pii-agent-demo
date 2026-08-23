@@ -4,7 +4,8 @@ import type { ReactNode } from 'react';
 import { ResourceKindTag } from '@/app/components/ui/RdsInstanceChips';
 import { ChevronRightIcon } from '@/app/components/ui/icons';
 import { getDatabaseShortLabel } from '@/app/components/ui/DatabaseIcon';
-import { cn, idcStyles, primaryColors } from '@/lib/theme';
+import { GROUPED_CHILD_KIND_LABEL } from '@/lib/resource-grouping';
+import { cn, idcStyles, primaryColors, verdictText } from '@/lib/theme';
 import type { RailRowProps } from '@/app/hooks/useRailHover';
 
 interface ResourceGroupRowProps {
@@ -152,5 +153,46 @@ export const ResourceGroupCount = ({
   <span className={idcStyles.table.group.meta}>
     데이터베이스 · 대상 <span className={idcStyles.table.group.metaValue}>{targetCount}</span> ·
     제외 <span className={idcStyles.table.group.metaValue}>{excludedCount}</span>
+  </span>
+);
+
+/**
+ * The same third line, framed as a subtraction — "Database 총 N개 중 M개 제외" (owner, 2026-08-23).
+ *
+ * `ResourceGroupCount` above prints two parallel counts, which leaves the reader to ADD them to
+ * learn how big the group is. Here the total comes first and the exception is taken off it, so
+ * the size is stated rather than derived and the exclusion — the only reason to read this line at
+ * all — is what the sentence ends on. The unit is named for the same reason it is named above: an
+ * Athena group's children are databases, so `GROUPED_CHILD_KIND_LABEL` says what was counted.
+ *
+ * The exclusion clause wears the verdict's own colour, so the M here and the 제외 rows it
+ * summarises are one magenta rather than two ways of saying the same verdict. A group with
+ * nothing excluded prints the total alone — no clause, no colour, matching `verdictRail.target`:
+ * 침묵이 곧 정상이다. "0개 제외" would spend the page's only alarm colour on a non-event.
+ *
+ * Both counts sit one step above the words beside them (12 → 14px, `metaValue`) — the same
+ * two-pixel lift `ResourceGroupCount` uses, so a number reads as a number in either line.
+ *
+ * Steps 2·3 only. Step 1 keeps `ResourceGroupCount`: there the group is being CHOSEN, and 대상 is
+ * the number the reader is actively moving.
+ */
+export const GroupExclusionCount = ({
+  totalCount,
+  excludedCount,
+}: {
+  totalCount: number;
+  excludedCount: number;
+}) => (
+  <span className={idcStyles.table.group.meta}>
+    {`${GROUPED_CHILD_KIND_LABEL} 총 `}
+    <span className={idcStyles.table.group.metaValue}>{totalCount}</span>개
+    {excludedCount > 0 && (
+      <>
+        {' 중 '}
+        <span className={verdictText.excluded}>
+          <span className={idcStyles.table.group.metaValue}>{excludedCount}</span>개 제외
+        </span>
+      </>
+    )}
   </span>
 );

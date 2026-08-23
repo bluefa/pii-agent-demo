@@ -144,14 +144,14 @@ describe('WaitingApprovalTable', () => {
       ...(counts ? { logicalDbCount: counts[0], excludedLogicalDbCount: counts[1] } : {}),
     });
 
-    /** The group row's identity cell — type and region, and nothing else. */
+    /** The group row's identity cell — type, region, and what the group holds. */
     const identityOf = (region: string) => {
       const toggle = screen.getByRole('button', { name: new RegExp(`Athena ${region} 그룹`) });
       const row = required(toggle.closest('tr'), 'the group row holding the toggle');
       return within(row).getAllByRole('cell')[0].textContent ?? '';
     };
 
-    it('renders one parent row per region, and no count line under it', () => {
+    it('renders one parent row per region, and states the total minus the exclusions', () => {
       render(
         <WaitingApprovalTable
           resources={[
@@ -164,15 +164,23 @@ describe('WaitingApprovalTable', () => {
 
       const toggles = screen.getAllByRole('button', { name: /그룹 (펼치기|접기)$/ });
       expect(toggles).toHaveLength(2);
+      // ⛔ Owner, 2026-08-23: groups start CLOSED. The identity line below already says how many
+      // databases are inside and how many are excluded, so the rows are what you open to check
+      // that claim. Pressing the chevron is the only thing that opens one.
+      expect(toggles[0].getAttribute('aria-expanded')).toBe('false');
+      fireEvent.click(toggles[0]);
       expect(toggles[0].getAttribute('aria-expanded')).toBe('true');
-      // ⛔ Owner, 2026-08-23: the third identity line is gone from steps 2·3. Opening the
-      // group says the same thing in the rows, and 요청 대상 여부 carries each row's verdict.
-      // Asserted on the whole cell because the counts were split across spans — `getByText`
-      // matches an element's OWN text nodes and never saw the phrase.
+      // Asserted on the WHOLE cell text, not `getByText`: the counts are their own spans (they
+      // sit 2px above the words), so the phrase exists only as the concatenation and no single
+      // element owns it as its own text nodes.
       expect(identityOf('ap-northeast-1')).toContain('ap-northeast-1');
+      expect(identityOf('ap-northeast-1')).toContain('Database 총 2개 중 1개 제외');
+      // ⛔ Owner, 2026-08-23: the total stands ALONE when nothing is excluded. "0개 제외" would
+      // print the verdict colour on a group that has no verdict to report.
+      expect(identityOf('us-east-1')).toContain('Database 총 1개');
+      expect(identityOf('us-east-1')).not.toContain('제외');
+      // The old two-count line ("데이터베이스 · 대상 N · 제외 N") belongs to step 1 now.
       expect(identityOf('ap-northeast-1')).not.toContain('대상');
-      expect(identityOf('ap-northeast-1')).not.toContain('제외');
-      expect(identityOf('us-east-1')).not.toContain('데이터베이스');
     });
 
     // The parent's type and region live in its identity cell, not in the two columns keyed on
@@ -547,13 +555,23 @@ describe('WaitingApprovalTable', () => {
         .filter((text) => /^demo-\d$/.test(text));
     };
 
+    /**
+     * Open the member band. EVERY cluster starts folded now (owner, 2026-08-23) — being part of
+     * the request no longer opens one — so a test that reads the members has to press the
+     * chevron first, the same way the excluded-cluster test below always had to.
+     */
+    const openBand = () =>
+      fireEvent.click(screen.getByRole('button', { name: 'demo-cluster 인스턴스 목록 펼치기' }));
+
     it('lists instances Reader-first then by ARN, regardless of wire order', () => {
       render(<WaitingApprovalTable resources={[cluster()]} />);
+      openBand();
       expect(instanceNames()).toEqual(['demo-2', 'demo-3', 'demo-1']);
     });
 
     it('marks only the chosen instance 선택됨, and never offers a radio', () => {
       render(<WaitingApprovalTable resources={[cluster()]} />);
+      openBand();
       expect(screen.getAllByText('선택됨')).toHaveLength(1);
       expect(screen.queryAllByRole('radio')).toHaveLength(0);
       // The chip rides the chosen instance's own LINE inside the band.
@@ -565,6 +583,7 @@ describe('WaitingApprovalTable', () => {
     // names this exact failure mode as the reason a separate verdict column was rejected.
     it('spans the band across every column of this table', () => {
       render(<WaitingApprovalTable resources={[cluster()]} />);
+      openBand();
       const band = required(
         screen.getByRole('table', { name: rdsInstanceBandLabel('demo-cluster') }).closest('td'),
         "the band's spanning cell",
@@ -576,6 +595,7 @@ describe('WaitingApprovalTable', () => {
 
     it('shows the member role on every instance line', () => {
       render(<WaitingApprovalTable resources={[cluster()]} />);
+      openBand();
       const band = within(screen.getByRole('table', { name: rdsInstanceBandLabel('demo-cluster') }));
       expect(band.getAllByText('Reader')).toHaveLength(2);
       expect(band.getAllByText('Writer')).toHaveLength(1);
@@ -589,6 +609,7 @@ describe('WaitingApprovalTable', () => {
     // other thing a reviewer compares — had nowhere to go.
     it('gives each instance its own labelled AZ and endpoint columns', () => {
       render(<WaitingApprovalTable resources={[cluster()]} />);
+      openBand();
       expect(screen.getByText('가용 영역')).toBeTruthy();
       expect(screen.getByText('엔드포인트')).toBeTruthy();
       // The table's Region column stays the CLUSTER's region — one row, one value.
@@ -622,19 +643,24 @@ describe('WaitingApprovalTable', () => {
       expect(screen.getAllByText('RDS Cluster')).toHaveLength(1);
     });
 
-    it('starts expanded and collapses from the chevron', () => {
+    // ⛔ Owner, 2026-08-23: a SELECTED cluster no longer starts expanded. `useClusterFold`'s
+    // policy opened every cluster in the request, which was most of them — three member rows
+    // under each, and the fold stopped being a fold. The band is now opt-in on both sides.
+    it('starts folded and opens from the chevron', () => {
       render(<WaitingApprovalTable resources={[cluster()]} />);
-      expect(instanceNames()).toHaveLength(3);
-
-      fireEvent.click(screen.getByRole('button', { name: 'demo-cluster 인스턴스 목록 접기' }));
       expect(instanceNames()).toHaveLength(0);
-      // Folding hides the comparison, never the choice: the tag and the chosen member survive.
+      // Folded hides the comparison, never the choice: the tag and the chosen member survive.
       expect(screen.getByText('RDS Cluster')).toBeTruthy();
       const clusterCell = required(
         screen.getByText('demo-cluster').closest('td'),
         "the cluster's identity cell",
       );
       expect(clusterCell.textContent).toContain('demo-2');
+
+      openBand();
+      expect(instanceNames()).toHaveLength(3);
+      fireEvent.click(screen.getByRole('button', { name: 'demo-cluster 인스턴스 목록 접기' }));
+      expect(instanceNames()).toHaveLength(0);
     });
 
     // An excluded PARENT never dims its members' text — exclusion is what the rail says. The band sits
@@ -646,8 +672,8 @@ describe('WaitingApprovalTable', () => {
           resources={[cluster({ selected: false, selectedRdsInstanceResourceId: undefined })]}
         />,
       );
-      // An excluded cluster starts folded (useClusterFold) — open it to read the lines.
-      fireEvent.click(screen.getByRole('button', { name: 'demo-cluster 인스턴스 목록 펼치기' }));
+      // Every cluster starts folded — open it to read the lines.
+      openBand();
       const band = screen.getByRole('table', { name: rdsInstanceBandLabel('demo-cluster') });
       expect(instanceNames()).toHaveLength(3);
       expect(band.innerHTML).not.toContain(textColors.tertiary);

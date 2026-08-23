@@ -9,7 +9,10 @@ import { IdentifierTip, Tooltip } from '@/app/components/ui/Tooltip';
 import { getDatabaseShortLabel } from '@/app/components/ui/DatabaseIcon';
 import { ResourceIdCell } from '@/app/target-sources/[targetSourceId]/_components/shared/ResourceIdCell';
 import { TableEmptyState } from '@/app/target-sources/[targetSourceId]/_components/shared/TableEmptyState';
-import { ResourceGroupRow } from '@/app/target-sources/[targetSourceId]/_components/shared/ResourceGroupRow';
+import {
+  GroupExclusionCount,
+  ResourceGroupRow,
+} from '@/app/target-sources/[targetSourceId]/_components/shared/ResourceGroupRow';
 import { LogicalDbCountCell } from '@/app/target-sources/[targetSourceId]/_components/logical-db/LogicalDbCountCell';
 import { GROUPED_CHILD_KIND_LABEL, groupResourceRows } from '@/lib/resource-grouping';
 import {
@@ -556,24 +559,30 @@ export const WaitingApprovalTable = memo(
           : [{ kind: 'rows' as const, key: 'rows-0', rows: resources }],
       [resources, grouped],
     );
-    const [collapsedGroups, setCollapsedGroups] = useState<ReadonlySet<string>>(() => new Set());
+    // Which groups the user has OPENED — closed is the default, so the empty set is the initial
+    // state and no effect has to seed it. Held this way round on purpose: a collapsed-by-default
+    // set would have to be re-seeded every time `sections` changes (filter, search, page), and a
+    // group that appears on page 2 would arrive open because nothing had put its key in yet.
+    const [expandedGroups, setExpandedGroups] = useState<ReadonlySet<string>>(() => new Set());
     const [expandedFolds, setExpandedFolds] = useState<ReadonlySet<string>>(() => new Set());
-    // RDS cluster instance lists — shared fold policy (`useClusterFold`): open while the
-    // cluster is part of the request, folded once it is excluded.
+    // RDS cluster instance lists. `false`, NOT `resource.selected` (owner, 2026-08-23): the shared
+    // policy opens a cluster that is part of the request, which put three member rows under most
+    // of the clusters on the page — the fold stopped being a fold. Every foldable thing on this
+    // table now starts closed, so the row count is the resource count and opening one is a
+    // deliberate act. `useClusterFold`'s override still wins per cluster.
     const clusterFold = useClusterFold();
     // Tree rails: hovering any row of a group / cluster / folded region lights the whole rail.
     const railRow = useRailHover();
 
     const toggleGroup = (key: string) =>
-      setCollapsedGroups((previous) => {
+      setExpandedGroups((previous) => {
         const next = new Set(previous);
         if (!next.delete(key)) next.add(key);
         return next;
       });
 
-    // Which folded Athena regions are open (steps 6·7). CLOSED by default, the opposite of the
-    // approval groups above: there the user is reviewing every database before approving, here
-    // the region is the unit and its databases are reference.
+    // Which folded Athena regions are open (steps 6·7). Closed by default — the same default the
+    // approval groups above now use, so every fold on every step of this table behaves alike.
     const toggleFold = (key: string) =>
       setExpandedFolds((previous) => {
         const next = new Set(previous);
@@ -655,7 +664,7 @@ export const WaitingApprovalTable = memo(
       const chosenInstance = instances.find(
         (instance) => instance.resource_id === resource.selectedRdsInstanceResourceId,
       );
-      const instanceFold = clusterFold(rowKey, resource.selected);
+      const instanceFold = clusterFold(rowKey, false);
       const instancesOpen = hasInstances && instanceFold.open;
       // Keyed on the declared top-level type, never on `resourceType` — see the field's note.
       const isCluster = isRdsCluster(resource.declaredResourceType ?? '');
@@ -718,7 +727,14 @@ export const WaitingApprovalTable = memo(
               coveredCell,
               'font-mono text-[14px]',
               textColors.primary,
-              NAME_LIFT,
+              // ⛔ NOT `NAME_LIFT` (owner, 2026-08-23): the name no longer turns blue on row
+              // hover, it is semibold all the time. Blue only ranked the column while the
+              // pointer was on it, and it is the column you rank a row BY — the reader picking
+              // a name out of six columns is not hovering yet. Weight ranks it at rest, and it
+              // ranks it in the one channel this table has left: the row already spends colour
+              // on the verdict (magenta 제외 / amber 연동 불가) and the tint on hover, so a
+              // seventh blue would have been a third meaning for colour on one line.
+              'font-semibold',
               // 그룹 자식 행은 레일을 그리지 않는다: 첫 셀 왼쪽 0~4px 는 그룹 트리 레일이 이미
               // 말하는 자리이고, 판정은 부모 행의 집계(대상 N / 제외 M)가 대신 답한다.
               !grouped &&
@@ -1147,15 +1163,13 @@ export const WaitingApprovalTable = memo(
 
       const { group } = section;
       const rowsId = `approval-group-${group.key.replace('|', '-')}`;
-      const collapsed = collapsedGroups.has(group.key);
+      // Closed unless the user opened it (owner, 2026-08-23). A group's identity line already
+      // says how many databases are inside and how many are excluded, so the rows underneath are
+      // what you open to check that claim — not what you scroll past to reach the next group.
+      const collapsed = !expandedGroups.has(group.key);
       return (
         <Fragment key={group.key}>
           <tbody className={bodyClass}>
-            {/* ⛔ No `inlineMeta` (owner, 2026-08-23): the third identity line
-                "데이터베이스 · 대상 N · 제외 N" is gone from steps 2·3. Expanding the group says
-                the same thing in the rows themselves, and the 요청 대상 여부 column already
-                carries each row's verdict. Step 1's candidate table still prints it — that is
-                the screen where the group is chosen rather than reviewed. */}
             <ResourceGroupRow
               type={group.type}
               region={group.region}
@@ -1163,6 +1177,18 @@ export const WaitingApprovalTable = memo(
               onToggle={() => toggleGroup(group.key)}
               controls={rowsId}
               rail={railRow(group.key)}
+              // ⛔ NOT `ResourceGroupCount`, which this line replaced earlier the same day
+              // (owner, 2026-08-23): two parallel counts said 대상 twice — the 요청 대상 여부
+              // column already answers that for every child. A total with the exclusion taken
+              // off it says the one thing the columns cannot, because it is about the group and
+              // not about any row in it. The total is the two counts added rather than a third
+              // number off the wire, which is why `groupResourceRows` never had to grow one.
+              inlineMeta={
+                <GroupExclusionCount
+                  totalCount={group.targetCount + group.excludedCount}
+                  excludedCount={group.excludedCount}
+                />
+              }
               // Resource Name · Resource ID · Database Type · Region · 요청 대상 여부 ·
               // 제외 사유 — the parent had a value for none of them once the identity
               // took its type, region and counts (owner, 2026-08-12).
