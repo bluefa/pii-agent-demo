@@ -13,6 +13,7 @@ import {
   WaitingApprovalStats,
 } from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalStats';
 import {
+  useApprovalColumnResize,
   WaitingApprovalTable,
   type WaitingApprovalResource,
 } from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalTable';
@@ -151,6 +152,8 @@ export const WaitingApprovalCard = ({
   );
 
   const table = useApprovalTableState(resources);
+  // Drag-resizable column widths, shared with step 3's applying card — see the hook.
+  const columns = useApprovalColumnResize();
 
   const showFilterEmpty =
     state.status === 'ready' && resources.length > 0 && table.filteredCount === 0;
@@ -205,6 +208,7 @@ export const WaitingApprovalCard = ({
         connected
         raisedRows
         emptyMessage={showFilterEmpty ? FILTER_EMPTY_MESSAGE : undefined}
+        columns={columns}
       />
       {table.filteredCount > 0 && (
         <Pagination

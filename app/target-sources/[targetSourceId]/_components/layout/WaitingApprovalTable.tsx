@@ -9,10 +9,7 @@ import { IdentifierTip, Tooltip } from '@/app/components/ui/Tooltip';
 import { getDatabaseShortLabel } from '@/app/components/ui/DatabaseIcon';
 import { ResourceIdCell } from '@/app/target-sources/[targetSourceId]/_components/shared/ResourceIdCell';
 import { TableEmptyState } from '@/app/target-sources/[targetSourceId]/_components/shared/TableEmptyState';
-import {
-  ResourceGroupCount,
-  ResourceGroupRow,
-} from '@/app/target-sources/[targetSourceId]/_components/shared/ResourceGroupRow';
+import { ResourceGroupRow } from '@/app/target-sources/[targetSourceId]/_components/shared/ResourceGroupRow';
 import { LogicalDbCountCell } from '@/app/target-sources/[targetSourceId]/_components/logical-db/LogicalDbCountCell';
 import { GROUPED_CHILD_KIND_LABEL, groupResourceRows } from '@/lib/resource-grouping';
 import {
@@ -26,7 +23,7 @@ import {
   RdsClusterTag,
 } from '@/app/components/ui/RdsInstanceChips';
 import { RdsInstancePanel } from '@/app/target-sources/[targetSourceId]/_components/shared/RdsInstancePanel';
-import { type ColumnResize } from '@/app/components/ui/useColumnResize';
+import { useColumnResize, type ColumnResize } from '@/app/components/ui/useColumnResize';
 import {
   ConsoleTable,
   type ConsoleTableColumn,
@@ -209,10 +206,11 @@ interface WaitingApprovalTableProps {
    */
   identityColumns?: ApprovalIdentityColumns;
   /**
-   * `confirmed` variant only — drag-resizable column widths (useColumnResize with
-   * `clampToContent`): the table goes `table-fixed`, every header cell takes a width and
-   * a handle, and truncated values are uncovered by dragging the divider (round 3).
-   * Instantiated by the CALLER, not here: the storage key names one screen's table.
+   * Console variants (`confirmed`, `approval`) — drag-resizable column widths
+   * (useColumnResize with `clampToContent`): the table goes `table-fixed`, every header cell
+   * takes a width and a handle, and truncated values are uncovered by dragging the divider
+   * (round 3). Instantiated by the CALLER, not here: the storage key names the screen, or
+   * the pair of screens — steps 2·3 share one through `useApprovalColumnResize`.
    */
   columns?: ColumnResize;
   /**
@@ -429,6 +427,84 @@ const confirmedColumns = (regionLabel: string, withKind: boolean): ConsoleTableC
 ];
 
 /**
+ * Steps 2·3 column widths, summing to 988 — the confirmed table's floor, so neither scrolls
+ * at the same pane. `dbType` and `region` keep the confirmed table's own numbers, which are
+ * also what their values measure; `target` is IdcResourceTable's 요청 대상 여부 (`w-[112px]`),
+ * the same question asked of the same kind of row.
+ *
+ * The split between the remaining three follows the owner's ranking (2026-08-23: "resource
+ * name, resource id가 더 중요해" / "resource name은 축약어로 보여지는 현상"), measured on
+ * /pass/target-sources/1007:
+ *
+ * - 제외 사유 rendered EMPTY on all nine rows, and at most it holds `clampReason`'s 15 chars in
+ *   a chip that expands. 230 sized it to that worst case; 142 sizes it to the common one and
+ *   leaves the tail to the affordance that already exists. ALL of the slack came from here.
+ * - Resource Name needed 303 against 162 — that shortfall IS the truncation the owner
+ *   reported. At 250 six of the nine rows stop truncating; the three left are one 248px name
+ *   and two `dynamodb:<acct>:<region>` strings, which are identifiers wearing the name column.
+ * - Resource ID keeps 186. It cannot be satisfied at any sane floor (its ARNs need 645), and
+ *   as the sink it takes everything above the floor anyway.
+ *
+ * ⛔ The three cannot all grow: six columns whose contents need ~1500 do not fit a 990 pane,
+ * so widening Name's share narrows the ARN's on a wide screen. That is the trade the ranking
+ * above buys, and the drag handle is how a reader unmakes it for one session.
+ */
+const APPROVAL_COLUMN_WIDTHS = {
+  name: 250,
+  id: CONFIRMED_COLUMN_WIDTHS.id,
+  dbType: CONFIRMED_COLUMN_WIDTHS.dbType,
+  region: CONFIRMED_COLUMN_WIDTHS.region,
+  target: 112,
+  reason: 142,
+} as const;
+
+/**
+ * The steps-2·3 flex columns — see `CONFIRMED_FLEX_KEYS` for why the caller needs them. The
+ * same pair the confirmed table picks, for the same reason: they are the two columns whose
+ * values run to arbitrary length AND that every row fills.
+ *
+ * ⛔ NOT 제외 사유, though it is the one free-text column here. Measured: it renders nothing
+ * at all on a 대상 row (`ReasonCell` returns null when `selected`), and on an excluded row it
+ * renders a chip carrying `clampReason(...)` — a summary with its own expansion. Widening it
+ * reveals nothing; and since the sink takes whatever the shares leave (~80% here), making it
+ * the sink spent 1620px of a 2700px table on a mostly-empty column. A sink has to be a column
+ * where the pixels pay.
+ */
+export const APPROVAL_FLEX_KEYS = ['name', 'id'] as const;
+
+/**
+ * The resize instance for the steps-2·3 table. Unlike the confirmed table — whose caller
+ * owns its instance because the storage key names ONE screen — both cards here show the same
+ * table of the same rows, so they share one key: a width set while reviewing the request is
+ * still there while watching it apply.
+ */
+export const useApprovalColumnResize = (): ColumnResize =>
+  useColumnResize({
+    clampToContent: true,
+    storageKey: 'pii:colw:v1:approval-resources',
+    ephemeralKeys: APPROVAL_FLEX_KEYS,
+  });
+
+/** The steps-2·3 column spec. Six columns, matching `ResourceGroupRow`'s colSpan. */
+const approvalColumns = (regionLabel: string): ConsoleTableColumn[] => [
+  {
+    key: 'name',
+    label: 'Resource Name',
+    width: APPROVAL_COLUMN_WIDTHS.name,
+    flex: true,
+    headClassName: idcStyles.table.nameCell,
+  },
+  // The sink: last flex column, so it takes what the others leave — the ARN, which every row
+  // fills and which is the only value here a cut actually costs the reader.
+  { key: 'id', label: 'Resource ID', width: APPROVAL_COLUMN_WIDTHS.id, flex: true },
+  { key: 'dbType', label: 'Database Type', width: APPROVAL_COLUMN_WIDTHS.dbType },
+  { key: 'region', label: regionLabel, width: APPROVAL_COLUMN_WIDTHS.region },
+  { key: 'target', label: '요청 대상 여부', width: APPROVAL_COLUMN_WIDTHS.target },
+  // Sized, not flex — see APPROVAL_FLEX_KEYS for the measurement that rejected it as the sink.
+  { key: 'reason', label: '제외 사유', width: APPROVAL_COLUMN_WIDTHS.reason },
+];
+
+/**
  * Does this roster put anything in the 종류 column? Azure/GCP rows carry no kind today, and a
  * permanently blank column is dead space — but "permanently" is a fact about the whole LIST,
  * which this table never sees: it is handed one page at a time. Asking the page turned the
@@ -513,6 +589,19 @@ export const WaitingApprovalTable = memo(
     const installVariant = variant === 'install';
     const plainVariant = variant === 'plain';
 
+    /**
+     * Which shell renders this table. The console grammar (rails, drag-resize, the covered
+     * clip) reached the confirmed tables first; steps 2·3 join it here, so a reader walking
+     * 2 → 3 → 6 → 7 stays in one table.
+     *
+     * `identityColumns` holds the approval variant back: those columns are the CALLER's, and
+     * `ApprovalIdentityCell` measures them in a Tailwind class, which `table-fixed` cannot
+     * read — a spec needs a number. Nobody passes identityColumns with this variant today
+     * (install does, and install is still on the legacy shell); when step 4 migrates, that
+     * field gets its numeric width and this clause goes.
+     */
+    const consoleVariant = confirmedVariant || (variant === 'approval' && !identityColumns);
+
     // Round 3 (시안 F): the kind leaves the two-line identity stack and becomes its own
     // column, taking the row to one line (py-4 + 20px = 52px). Round 9 reseated it after
     // Resource ID as plain text (chip retired). Whether it exists at all is the caller's
@@ -524,7 +613,14 @@ export const WaitingApprovalTable = memo(
 
     // The covered-clip cell (round 4) — `ConsoleTable`'s cell grammar, applied per td so
     // the other variants keep their ellipsis. See the token for why the CELL clips.
-    const coveredCell = confirmedVariant ? idcStyles.table.consoleCell : undefined;
+    const coveredCell = consoleVariant ? idcStyles.table.consoleCell : undefined;
+
+    // Approval rows sit one step over approvalCell's py-4 (owner request, step-1 table
+    // matches). It rides the tbody rather than the table because both shells share these
+    // bodies and only one of them owns a <table> element here.
+    // :not([colspan]) keeps spanning cells (panel-style tds zero their own padding) out of
+    // the override — see CandidateResourceTable.
+    const bodyClass = cn(idcStyles.table.body, raisedRows && '[&_td:not([colspan])]:py-5');
 
     // `grouped` only indents the identity cell — every other cell is identical whether the row
     // stands alone or hangs under a parent, so a group never changes what a row says.
@@ -587,7 +683,7 @@ export const WaitingApprovalTable = memo(
               ? bgColors.panel
               : excluded
                 ? ROW_EXCLUDED
-                : confirmedVariant
+                : consoleVariant
                   ? ROW_TARGET_CONSOLE
                   : ROW_TARGET,
             foldToggleable && 'cursor-pointer',
@@ -755,21 +851,21 @@ export const WaitingApprovalTable = memo(
                 content={<IdentifierTip label="Resource Name" value={resource.resourceName} />}
                 variant="value"
                 size="md"
-                // In the fixed-layout confirmed table the COLUMN owns the truncation point —
+                // In a fixed-layout console table the COLUMN owns the truncation point —
                 // a per-cell 200px clamp would make dragging the column wider reveal nothing.
                 // `w-full` because the trigger is an inline-flex box: left to shrink-to-fit it
                 // sizes to the nowrap name and paints over the next column (the 200px cap was
                 // what contained it before). The child needs min-w-0 to shrink inside it —
                 // the same recipe ResourceIdCell already uses.
-                triggerClassName={confirmedVariant ? 'min-w-0 w-full' : 'min-w-0 max-w-[200px] block'}
+                triggerClassName={consoleVariant ? 'min-w-0 w-full' : 'min-w-0 max-w-[200px] block'}
                 truncatedOnly
               >
-                {/* Confirmed: no self-truncation — the overflow runs on and the TD's own
+                {/* Console: no self-truncation — the overflow runs on and the TD's own
                     covered-clip cuts it at the column stroke (round 4). */}
                 <span
                   className={cn(
                     'block min-w-0',
-                    confirmedVariant ? 'whitespace-nowrap' : 'truncate',
+                    consoleVariant ? 'whitespace-nowrap' : 'truncate',
                   )}
                 >
                   {resource.resourceName || PLACEHOLDER}
@@ -792,7 +888,7 @@ export const WaitingApprovalTable = memo(
                 focusable "Resource ID 복사" on every row, copying ''. */}
             {grouped || !resource.resourceId ? null : (
               // 260px (the cell default) plus a non-wrapping Region overran the card.
-              // Confirmed tables let the COLUMN own the truncation point instead (round 3):
+              // Console tables let the COLUMN own the truncation point instead (round 3):
               // the cell fills its fixed column, and the drag handle is the way to see more.
               // hardClip joins the round-4 covered grammar: the ARN cuts mid-letter rather
               // than ellipsizing, saying "continues underneath" like every other cell here.
@@ -803,10 +899,10 @@ export const WaitingApprovalTable = memo(
               <ResourceIdCell
                 value={resource.resourceId}
                 label="Resource ID"
-                maxWidthClass={confirmedVariant ? 'w-[calc(100%+18px)]' : 'max-w-[220px]'}
+                maxWidthClass={consoleVariant ? 'w-[calc(100%+18px)]' : 'max-w-[220px]'}
                 sizeClass="text-[14px]"
                 textClassName={cn(textColors.secondary, CELL_LIFT)}
-                hardClip={confirmedVariant}
+                hardClip={consoleVariant}
               />
             )}
           </td>
@@ -1042,7 +1138,7 @@ export const WaitingApprovalTable = memo(
             // the benchmark's Azure reconstruction #EDEBE9 — both 1.19:1): resting rules
             // whisper, and the hover TINT — not the border — is what reveals a row as a
             // block, which is the behaviour the owner remembered as Azure's.
-            className={idcStyles.table.body}
+            className={bodyClass}
           >
             {section.rows.map((resource) => renderRow(resource))}
           </tbody>
@@ -1054,7 +1150,12 @@ export const WaitingApprovalTable = memo(
       const collapsed = collapsedGroups.has(group.key);
       return (
         <Fragment key={group.key}>
-          <tbody className={idcStyles.table.body}>
+          <tbody className={bodyClass}>
+            {/* ⛔ No `inlineMeta` (owner, 2026-08-23): the third identity line
+                "데이터베이스 · 대상 N · 제외 N" is gone from steps 2·3. Expanding the group says
+                the same thing in the rows themselves, and the 요청 대상 여부 column already
+                carries each row's verdict. Step 1's candidate table still prints it — that is
+                the screen where the group is chosen rather than reviewed. */}
             <ResourceGroupRow
               type={group.type}
               region={group.region}
@@ -1062,12 +1163,6 @@ export const WaitingApprovalTable = memo(
               onToggle={() => toggleGroup(group.key)}
               controls={rowsId}
               rail={railRow(group.key)}
-              inlineMeta={
-                <ResourceGroupCount
-                  targetCount={group.targetCount}
-                  excludedCount={group.excludedCount}
-                />
-              }
               // Resource Name · Resource ID · Database Type · Region · 요청 대상 여부 ·
               // 제외 사유 — the parent had a value for none of them once the identity
               // took its type, region and counts (owner, 2026-08-12).
@@ -1075,7 +1170,7 @@ export const WaitingApprovalTable = memo(
             />
           </tbody>
           {/* Kept mounted while collapsed so `aria-controls` always resolves. */}
-          <tbody id={rowsId} hidden={collapsed} className={idcStyles.table.body}>
+          <tbody id={rowsId} hidden={collapsed} className={bodyClass}>
             {group.rows.map((resource, index) =>
               renderRow(resource, true, index === group.rows.length - 1, group.key),
             )}
@@ -1086,26 +1181,25 @@ export const WaitingApprovalTable = memo(
 
     return (
       <div className={connected ? CONNECTED_FRAME : idcStyles.table.frame}>
-        {confirmedVariant ? (
+        {consoleVariant ? (
           /* Round 13: the console grammar moved into `ConsoleTable` — the shell owns the
              grid, the resizable header and the boundary's two states, this table owns its
              columns and rows. `columns` (the resize instance) is created by the caller. */
           <ConsoleTable
-            columns={confirmedColumns(regionLabel, confirmedKindColumn)}
+            columns={
+              confirmedVariant
+                ? confirmedColumns(regionLabel, confirmedKindColumn)
+                : approvalColumns(regionLabel)
+            }
             resize={columns}
           >
             {bodies}
           </ConsoleTable>
         ) : (
           <div className="overflow-x-auto">
-            {/* approval rows raised one step over approvalCell's py-4 (owner request, step-1
-                table matches). Variant-scoped: the install table (step 4) keeps the shared
-                token's rhythm. :not([colspan]) keeps spanning cells (panel-style tds zero
-                their own padding) out of the override — see CandidateResourceTable. */}
             <table
               className={cn(
                 'w-full',
-                raisedRows && '[&_td:not([colspan])]:py-5',
                 // A group is three tbodies, and `body`'s divide-y stops at each tbody's edge.
                 idcStyles.table.tbodySeam,
               )}

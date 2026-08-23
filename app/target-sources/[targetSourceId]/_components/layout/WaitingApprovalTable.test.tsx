@@ -144,14 +144,14 @@ describe('WaitingApprovalTable', () => {
       ...(counts ? { logicalDbCount: counts[0], excludedLogicalDbCount: counts[1] } : {}),
     });
 
-    /** The aggregate rides the identity cell, beside the region it counts within. */
-    const aggregateOf = (region: string) => {
+    /** The group row's identity cell — type and region, and nothing else. */
+    const identityOf = (region: string) => {
       const toggle = screen.getByRole('button', { name: new RegExp(`Athena ${region} 그룹`) });
       const row = required(toggle.closest('tr'), 'the group row holding the toggle');
-      return within(row).getAllByRole('cell')[0].textContent;
+      return within(row).getAllByRole('cell')[0].textContent ?? '';
     };
 
-    it('renders one parent row per region with the target/excluded aggregate', () => {
+    it('renders one parent row per region, and no count line under it', () => {
       render(
         <WaitingApprovalTable
           resources={[
@@ -165,10 +165,14 @@ describe('WaitingApprovalTable', () => {
       const toggles = screen.getAllByRole('button', { name: /그룹 (펼치기|접기)$/ });
       expect(toggles).toHaveLength(2);
       expect(toggles[0].getAttribute('aria-expanded')).toBe('true');
-      // The counts are split across spans (the numbers sit a size up), so `getByText` — which
-      // matches an element's OWN text nodes — cannot see the phrase. Read the cell instead.
-      expect(aggregateOf('ap-northeast-1')).toContain('데이터베이스 · 대상 1 · 제외 1');
-      expect(aggregateOf('us-east-1')).toContain('데이터베이스 · 대상 1 · 제외 0');
+      // ⛔ Owner, 2026-08-23: the third identity line is gone from steps 2·3. Opening the
+      // group says the same thing in the rows, and 요청 대상 여부 carries each row's verdict.
+      // Asserted on the whole cell because the counts were split across spans — `getByText`
+      // matches an element's OWN text nodes and never saw the phrase.
+      expect(identityOf('ap-northeast-1')).toContain('ap-northeast-1');
+      expect(identityOf('ap-northeast-1')).not.toContain('대상');
+      expect(identityOf('ap-northeast-1')).not.toContain('제외');
+      expect(identityOf('us-east-1')).not.toContain('데이터베이스');
     });
 
     // The parent's type and region live in its identity cell, not in the two columns keyed on
@@ -804,8 +808,20 @@ describe('WaitingApprovalTable', () => {
       expect(nameSpan.classList.contains('truncate')).toBe(false);
     });
 
-    it('keeps the approval variant on the ellipsis grammar', () => {
+    it('gives steps 2·3 the same clip — the grammar follows the shell, not the variant', () => {
+      // The approval variant joined the console shell, so it must join its CELL grammar too:
+      // a cell that clips while its value still ellipsizes draws both cuts, 18px apart.
       render(<WaitingApprovalTable variant="approval" resources={[row()]} />);
+      const nameSpan = screen.getByText('covered-name');
+      expect(nameSpan.closest('td')?.classList.contains('overflow-hidden')).toBe(true);
+      expect(nameSpan.classList.contains('truncate')).toBe(false);
+    });
+
+    it('keeps the install variant on the ellipsis grammar', () => {
+      // Still on the legacy shell (its identity columns are injected by the caller and
+      // measured in a Tailwind class, which `table-fixed` cannot read) — so it must keep the
+      // self-ellipsis, whose job is to stop a value painting over the next column.
+      render(<WaitingApprovalTable variant="install" resources={[row()]} />);
       const nameSpan = screen.getByText('covered-name');
       expect(nameSpan.classList.contains('truncate')).toBe(true);
       expect(nameSpan.closest('td')?.classList.contains('overflow-hidden')).toBe(false);
@@ -833,19 +849,28 @@ describe('WaitingApprovalTable', () => {
         screen.getByText('arn:aws:rds:ap-northeast-2:804656952396:db:covered').className,
       ).not.toContain('mask-image');
 
-      // The approval variant keeps the in-flow button — the overlay belongs to the
-      // covered grammar only.
+      // Steps 2·3 joined the covered grammar, so they get the overlay too.
       rerender(<WaitingApprovalTable variant="approval" resources={[row()]} />);
-      const approvalCopy = screen.getByRole('button', { name: 'Resource ID 복사' });
-      expect(approvalCopy.className).not.toContain('absolute');
-      expect(approvalCopy.className).toContain('shrink-0');
+      expect(screen.getByRole('button', { name: 'Resource ID 복사' }).className).toContain(
+        'absolute',
+      );
+
+      // The legacy shell keeps the in-flow button — the overlay belongs to the covered
+      // grammar, and without the clip there is nothing for it to sit on.
+      rerender(<WaitingApprovalTable variant="install" resources={[row()]} />);
+      const installCopy = screen.getByRole('button', { name: 'Resource ID 복사' });
+      expect(installCopy.className).not.toContain('absolute');
+      expect(installCopy.className).toContain('shrink-0');
     });
 
     // Round 5: the console grid dropped its rails to border-default, and that step only
     // survives the row hover if the hover is the prototype's quiet #F7F9FB — under the
     // approval tint (#EAEEF7) the rails wash to 1.08:1. Wiring only; ratios are measured
     // in the browser (docs/ux/benchmark/target-source-resource-table-console.md).
-    it('hovers confirmed rows on the console tint, approval rows on the blue lift', () => {
+    it('hovers console rows on the console tint, legacy rows on the blue lift', () => {
+      // The tint belongs to the SHELL: on the console grid the rails are the quiet step, and
+      // only #F7F9FB leaves them visible under a hovered row (round 5). Steps 2·3 moved onto
+      // that grid, so they moved onto its tint.
       const { rerender } = render(
         <WaitingApprovalTable variant="confirmed" resources={[row()]} />,
       );
@@ -854,8 +879,14 @@ describe('WaitingApprovalTable', () => {
       expect(confirmedTr?.className).not.toContain('hover:bg-[#EAEEF7]');
 
       rerender(<WaitingApprovalTable variant="approval" resources={[row()]} />);
-      const approvalTr = screen.getByText('covered-name').closest('tr');
-      expect(approvalTr?.className).toContain('hover:bg-[#EAEEF7]');
+      expect(screen.getByText('covered-name').closest('tr')?.className).toContain(
+        'hover:bg-[#F7F9FB]',
+      );
+
+      rerender(<WaitingApprovalTable variant="install" resources={[row()]} />);
+      expect(screen.getByText('covered-name').closest('tr')?.className).toContain(
+        'hover:bg-[#EAEEF7]',
+      );
     });
 
     it('covers the column rail with the resize guide, full header height', () => {
@@ -929,11 +960,32 @@ describe('WaitingApprovalTable', () => {
         .toEqual(['18.8372%', 'auto', '142px', '156px', '118px', '96px']);
     });
 
-    it('skips the seam tracer for approval tables', () => {
+    it('skips the seam tracer for the variants still on the legacy shell', () => {
+      for (const variant of ['install', 'plain'] as const) {
+        const { container, unmount } = render(
+          <WaitingApprovalTable variant={variant} resources={[row()]} />,
+        );
+        expect(container.querySelector('[data-seam-tracer]')).toBeNull();
+        unmount();
+      }
+    });
+
+    it('gives steps 2·3 the console shell, with the identity pair absorbing', () => {
+      // The spec's own decision, so it is asserted here rather than in ConsoleTable.test:
+      // six columns summing to 988 (the confirmed table's floor, so the two line up), with
+      // flex on the identity pair — Resource ID last, so IT is the sink.
+      // ⛔ 제외 사유 must stay sized: it is blank on every 대상 row and clamped on the rest,
+      // so as the sink it spent 60% of a wide table on a mostly-empty column.
       const { container } = render(
         <WaitingApprovalTable variant="approval" resources={[row()]} />,
       );
-      expect(container.querySelector('[data-seam-tracer]')).toBeNull();
+      const table = required(container.querySelector('table'), 'the table');
+      expect(container.querySelector('[data-seam-tracer]')).not.toBeNull();
+      expect(table.className).toContain('table-fixed');
+      expect(table.className).toContain('w-full');
+      expect((table as HTMLElement).style.minWidth).toBe('988px');
+      expect([...table.querySelectorAll('thead th')].map((th) => (th as HTMLElement).style.width))
+        .toEqual(['25.3036%', 'auto', '142px', '156px', '112px', '142px']);
     });
   });
 });
