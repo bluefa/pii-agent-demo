@@ -99,12 +99,23 @@ describe('GuidePanel — collab-channel card states', () => {
       />,
     );
     const link = screen.getByTitle('협업 채널 — Jira에서 논의하기');
-    expect(link.className).not.toMatch(/bg-white|rounded-lg|(^|\s)border(\s|$)/);
+
+    // ⛔ An allowlist of what MAY NOT appear, by prefix — not three literal tokens. The
+    // previous form named `bg-white`, `rounded-lg` and a bare `border`, so
+    // `rounded-md border-2 bg-[#F2F4F6] p-3 shadow-sm` walked straight through it and put
+    // back the card-inside-a-card this test exists to forbid.
+    const surfaceOf = (el: Element) =>
+      (el.getAttribute('class') ?? '')
+        .split(/\s+/)
+        .filter((c) => /^(bg-|border|rounded|shadow|ring|p-|px-|py-)/.test(c));
+    expect(surfaceOf(link)).toEqual([]);
 
     // Stacked, not side by side — and the key carries the AA-safe blue. #0064FF measures
     // 4.33:1 on #E8F1FF; it was only ever legal because a white row sat under it.
     const key = screen.getByText('PII-42');
-    expect(key.className).toContain('block');
+    // ⛔ `block`, exactly — `toContain` was satisfied by `inline-block`, which is the
+    // side-by-side layout this line is here to rule out, and jsdom measures no geometry.
+    expect(key.className.split(/\s+/)).toContain('block');
     expect(key.className).toContain('text-[#0050D6]');
     expect(key.className).not.toContain('text-[#0064FF]');
 
@@ -142,9 +153,7 @@ describe('GuidePanel — the rail folds, it does not vanish', () => {
     render(<GuidePanel {...baseProps} jiraTicket={null} />);
     await settled();
     expect(screen.getByRole('button', { name: '가이드 접기' })).toBeTruthy();
-    expect(
-      screen.getByText('진행 중 막히는 부분은 협업 채널에서 바로 문의할 수 있어요.'),
-    ).toBeTruthy();
+    expect(screen.getByText(CHANNEL_LINE)).toBeTruthy();
   });
 
   // 오너 지시 2026-08-23: the open rail read as THREE axes — a chevron, 협업 채널, 가이드.
@@ -245,9 +254,16 @@ describe('GuidePanel — the rail folds, it does not vanish', () => {
     // Folded, the strip's one-word label stays 「가이드」 (56px), but the accessible name
     // carries the number — the entry is a 20px glyph and the tooltip is its only channel.
     fireEvent.click(screen.getByRole('button', { name: '가이드 접기' }));
-    await waitFor(() =>
-      expect(screen.getByRole('button', { name: '4단계 가이드 — 펼치기' })).toBeTruthy(),
+    const strip = await waitFor(() =>
+      screen.getByRole('button', { name: '4단계 가이드 — 펼치기' }),
     );
+
+    // ⛔ The VISIBLE label, not just the accessible one. Both are read off the same slot,
+    // so `label={guideZoneLabel}` is a one-word change that keeps this test green — and
+    // 「4단계 가이드」 does not fit a 56px strip. The two names differ on purpose: the strip
+    // has room for one word, the tooltip has room for the sentence.
+    expect(strip.textContent).toBe('가이드');
+    expect(strip.textContent).not.toContain('단계');
   });
 
   it('folds and unfolds on press, taking the rail body with it', async () => {
@@ -307,10 +323,32 @@ describe('GuidePanel — the fold does not flash on reload', () => {
 
   it('still arbitrates with the media query when no cookie was sent', () => {
     const { container } = render(<GuidePanel {...baseProps} jiraTicket={null} />);
-    const classes = container.querySelector('aside')?.className.split(/\s+/) ?? [];
+    const aside = container.querySelector('aside');
+    const classes = aside?.className.split(/\s+/) ?? [];
     // Honest "not known yet": the server had nothing to go on, so the breakpoint paints
     // the frame and the effect resolves to the same answer. Nothing moves either way.
     expect(classes.some((c) => c.startsWith('min-[1360px]:'))).toBe(true);
+
+    // ⛔ The rail's own width is not the whole flash. Both halves MOUNT while the answer
+    // is `null`, so the media query has to hide exactly one of them — and that lives on
+    // the halves, not on the aside. Reading only the aside let `stripShown = 'flex'`
+    // through, which stacks the folded strip on top of the open rail for one frame at
+    // every load ≥1360px: the flash this whole cookie exists to prevent, by another door.
+    const halves = Array.from(aside?.children ?? []).map((el) =>
+      (el.getAttribute('class') ?? '').split(/\s+/),
+    );
+    expect(halves).toHaveLength(2);
+    const shownAt = (cs: string[]) => ({
+      base: cs.includes('flex') ? 'flex' : cs.includes('hidden') ? 'hidden' : '?',
+      wide: cs.find((c) => c.startsWith('min-[1360px]:')) ?? '',
+    });
+    // One shows narrow and hides wide; the other does the opposite. Never both, never neither.
+    expect(halves.map(shownAt)).toEqual(
+      expect.arrayContaining([
+        { base: 'flex', wide: 'min-[1360px]:hidden' },
+        { base: 'hidden', wide: 'min-[1360px]:flex' },
+      ]),
+    );
   });
 });
 
@@ -327,6 +365,30 @@ const folded = async (jiraTicket: Parameters<typeof GuidePanel>[0]['jiraTicket']
   fireEvent.click(screen.getByRole('button', { name: '가이드 접기' }));
   await waitFor(() => expect(screen.getByRole('button', { name: '가이드 펼치기' })).toBeTruthy());
   return view;
+};
+
+/** The channel mark — the only `span.relative` in this rail, in either fold state. */
+const channelMark = (root: HTMLElement) => root.querySelector('aside span.relative');
+
+/** Its markup: glyph + state dot. ⛔ NOT the ink — that lives outside it, see `inkOn`. */
+const markIn = (root: HTMLElement) => channelMark(root)?.innerHTML;
+
+/**
+ * The ink applied to that mark. `RailMark` sets no colour of its own — deliberately, so
+ * both call sites can hand it the same bare glyph and inherit — which means the colour
+ * lives on the nearest ancestor that declares one: the strip's `<button>`, or the open
+ * head's label row. Walking up is the only way to read the thing the user actually sees.
+ */
+const inkOn = (root: HTMLElement) => {
+  // `text-` is two utilities wearing one prefix. Colour is `text-[#…]` or `text-name-NNN`;
+  // `text-[14px]` is a size and would shadow the real answer on any element that sets both.
+  const isInk = (c: string) => /^text-\[#/.test(c) || /^text-[a-z]+-\d{2,3}$/.test(c);
+
+  for (let el = channelMark(root)?.parentElement; el; el = el.parentElement) {
+    const ink = (el.getAttribute('class') ?? '').split(/\s+/).find(isInk);
+    if (ink) return ink;
+  }
+  return undefined;
 };
 
 describe('GuidePanel — the folded strip says what it is', () => {
@@ -371,8 +433,6 @@ describe('GuidePanel — the folded strip says what it is', () => {
   // nothing the owner was asking about. Both call sites now render `RailMark`, so the
   // assertion is that the two marks are the same MARKUP, dot and all.
   it('shows the folded strip’s channel mark on the open zone head too — dot included', async () => {
-    // The mark is the only `span.relative` in this rail, in either state.
-    const markIn = (root: HTMLElement) => root.querySelector('aside span.relative')?.innerHTML;
     const ticket = { issueKey: 'PII-42', browseUrl: 'https://jira.example.com/browse/PII-42' };
 
     const open = render(<GuidePanel {...baseProps} jiraTicket={ticket} />);
@@ -391,16 +451,47 @@ describe('GuidePanel — the folded strip says what it is', () => {
   // goes quiet and loses its dot, so a head fixed at full strength would match here and
   // break there.
   it('keeps the two marks identical when the channel is empty', async () => {
-    const markIn = (root: HTMLElement) => root.querySelector('aside span.relative')?.innerHTML;
-
     const open = render(<GuidePanel {...baseProps} jiraTicket={null} />);
     await settled();
     const onHead = markIn(open.container as HTMLElement);
+    const headInk = inkOn(open.container as HTMLElement);
     expect(onHead).not.toContain('rounded-full');
     open.unmount();
 
     const { container } = await folded(null);
     expect(markIn(container as HTMLElement)).toBe(onHead);
+    expect(inkOn(container as HTMLElement)).toBe(headInk);
+  });
+
+  /**
+   * ⛔ And the ink is part of the mark even though it is not part of `RailMark`.
+   *
+   * This is the studied bug at one more remove. `markIn` reads `innerHTML`, and the fix
+   * for the original defect deliberately moved the ink OUT of the mark and onto whatever
+   * encloses it — so the comparison above steps over exactly the property that fix
+   * introduced. A head pinned at full strength matches on both counts and still renders
+   * the quiet row wrong, which is the failure the test above claims to have covered.
+   *
+   * The two states are compared to each other rather than to a literal: the class names
+   * are `theme.ts`'s business, and the invariant is sameness, not any particular colour.
+   */
+  it('gives the two marks the same ink, and a different one when the channel is empty', async () => {
+    const ticket = { issueKey: 'PII-42', browseUrl: 'https://jira.example.com/browse/PII-42' };
+
+    const open = render(<GuidePanel {...baseProps} jiraTicket={ticket} />);
+    await settled();
+    const headInk = inkOn(open.container as HTMLElement);
+    expect(headInk).toBeTruthy();
+    open.unmount();
+
+    const strip = await folded(ticket);
+    expect(inkOn(strip.container as HTMLElement)).toBe(headInk);
+    strip.unmount();
+
+    // …and it is not the same ink the empty channel gets, or "quiet" is not a state.
+    const empty = render(<GuidePanel {...baseProps} jiraTicket={null} />);
+    await settled();
+    expect(inkOn(empty.container as HTMLElement)).not.toBe(headInk);
   });
 
   // ⛔ The head's glyph DISPLACES the row's — the same bubble twice inside one card, at
@@ -486,9 +577,6 @@ describe('GuidePanel — the folded strip says what it is', () => {
     fireEvent.click(screen.getByRole('button', { name: /^협업 채널 — / }));
 
     expect(screen.getByText(CHANNEL_LINE)).toBeTruthy();
-    expect(
-      screen.getByText('진행 중 막히는 부분은 협업 채널에서 바로 문의할 수 있어요.'),
-    ).toBeTruthy();
     expect(screen.getByText('BDCDIP-1007')).toBeTruthy();
     // ⛔ And the rail did NOT unfold. Reading the channel must not cost the width back.
     expect(screen.getByRole('button', { name: '가이드 펼치기' })).toBeTruthy();

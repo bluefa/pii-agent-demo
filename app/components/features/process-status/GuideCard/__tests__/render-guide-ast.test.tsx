@@ -66,7 +66,14 @@ describe('renderGuideAst — per-node output', () => {
     const html = render([{ type: 'blockquote', children: [{ type: 'text', value: '안내' }] }]);
     expect(html).toBe(`<blockquote class="${guideStyles.note}">안내</blockquote>`);
     // ⛔ The fill is ~1.09:1 on white; the hairline is what makes it a card.
-    expect(guideStyles.note).toContain('border');
+    //
+    // The bare `border` is the load-bearing half and it must be its own class. Tailwind v4
+    // preflight sets `border-width: 0` on every element, so a colour with no width paints
+    // nothing at all — and `toContain('border')` was satisfied by the colour utility on
+    // its own, which let the box lose its only separation with the whole suite green.
+    const note = guideStyles.note.split(/\s+/);
+    expect(note).toContain('border');
+    expect(note.some((c) => c.startsWith('border-'))).toBe(true);
   });
 
   it('renders <ul> / <ol> with <li> children', () => {

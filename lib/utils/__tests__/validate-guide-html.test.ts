@@ -74,7 +74,15 @@ describe('validateGuideHtml — allow-list pass', () => {
   it('accepts <blockquote> only when the caller opts in — the guide 안내 박스', () => {
     // ⛔ Not in the base list. The post editor's toolbar cannot produce a blockquote but
     // a paste can carry one, and there the validator is the gate, not the editor.
-    expect(validateGuideHtml('<blockquote>x</blockquote>').valid).toBe(false);
+    //
+    // The REASON is asserted, not just the verdict: `valid === false` alone would hold if
+    // the tag were rejected for something incidental — a parser quirk, an unrelated rule —
+    // and would go on holding after the opt-in stopped being what gates it.
+    const closed = validateGuideHtml('<blockquote>x</blockquote>');
+    expect(closed.valid).toBe(false);
+    expect(closed.valid === false && closed.errors).toContainEqual(
+      expect.objectContaining({ code: 'DISALLOWED_TAG', tagName: 'blockquote' }),
+    );
     expect(
       validateGuideHtml('<blockquote>set-off note</blockquote>', GUIDE_VALIDATE_OPTIONS).valid,
     ).toBe(true);

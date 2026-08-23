@@ -24,9 +24,13 @@ describe('STEP_GUIDE_HTML', () => {
 
 /**
  * Steps 2, 3 and 6 carry one owner-authored body each, and each is meant for EVERY
- * integration type. The copy is only correct if it actually reaches all of them, so
- * the slot list is derived from the registry rather than hand-written: a new
- * provider's step joins these tests by existing.
+ * integration type. The copy is only correct if it actually reaches all of them, so the
+ * slot list is derived from the registry rather than hand-written.
+ *
+ * ⛔ Derived, but still censused: the test below pins the exact five keys, so a sixth
+ * provider FAILS here rather than quietly joining. That is the intent — "shared by every
+ * type" is a claim about a known set, and a new type is a decision about whether one
+ * authored card really does fit it, not a row to be swept in automatically.
  */
 const slotsForStep = (step: '2' | '3' | '6') =>
   (Object.keys(GUIDE_SLOTS) as GuideSlotKey[]).filter((key) => key.endsWith(`.${step}`));

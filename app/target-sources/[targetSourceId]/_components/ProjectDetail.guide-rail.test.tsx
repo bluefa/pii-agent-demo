@@ -33,8 +33,23 @@ vi.mock(
     >();
     return {
       ...mod,
-      GuidePanel: ({ slotKey }: { slotKey: string | null }) => (
-        <div data-testid="guide-panel" data-slot-key={slotKey ?? ''} />
+      // ⛔ `initialCollapsed` is captured too, and it is not decoration. The cookie is
+      // read in `page.tsx` and used in `GuidePanel`, so THIS component is the only hop
+      // between them — and a hop nobody asserts is a hop that can be cut. Dropping it
+      // here (`initialCollapsed={null}`) type-checks, because `null` is a legal value,
+      // and puts the 320px→56px reload flash back with the whole suite still green.
+      GuidePanel: ({
+        slotKey,
+        initialCollapsed,
+      }: {
+        slotKey: string | null;
+        initialCollapsed?: boolean | null;
+      }) => (
+        <div
+          data-testid="guide-panel"
+          data-slot-key={slotKey ?? ''}
+          data-initial-collapsed={String(initialCollapsed)}
+        />
       ),
     };
   },
@@ -69,6 +84,27 @@ describe('ProjectDetail guide rail', () => {
     expect(screen.getByTestId('azure-page')).toBeTruthy();
     const panel = screen.getByTestId('guide-panel');
     expect(panel.getAttribute('data-slot-key')).toBe('stub-slot-key');
+  });
+
+  // The fold preference survives every hop or it survives none: the server parses the
+  // cookie, this component is the only thing between that parse and the rail, and the
+  // rail's first paint is the whole reason the preference is a cookie at all.
+  //
+  // ⛔ All three values, not just one. `null` is what "no cookie" looks like, so a hop
+  // that hard-codes it is invisible to a test that only ever passes `null` — which is
+  // exactly what the two tests around this one do.
+  it.each([
+    ['collapsed', true],
+    ['open', false],
+    ['no preference', null],
+  ] as const)('hands the server-parsed cookie to the rail — %s', (_name, railCollapsed) => {
+    render(
+      <ProjectDetail initialProject={azureFixture} jiraTicket={null} railCollapsed={railCollapsed} />,
+    );
+
+    expect(screen.getByTestId('guide-panel').getAttribute('data-initial-collapsed')).toBe(
+      String(railCollapsed),
+    );
   });
 });
 
