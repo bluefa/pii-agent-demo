@@ -1021,6 +1021,9 @@ const idcResourcesForStep = (step: ProcessStatus): MockResource[] => {
 mockProjects.push(
   // Step 1 stays empty (manual input — no seeded targets).
   makeIdcProject(1020, ProcessStatus.WAITING_TARGET_CONFIRMATION, 'IDC PII Agent - 연동 대상 입력', []),
+  // 1020 의 짝 — 이전 요청이 없는 타겟소스(lib/mock-idc.ts 가 404 로 답한다). 불러오기
+  // 모달의 빈 상태는 이 화면에서만 볼 수 있다: 1020 은 시드를 갖고 있어 표가 뜬다.
+  makeIdcProject(1028, ProcessStatus.WAITING_TARGET_CONFIRMATION, 'IDC PII Agent - 연동 대상 입력 (이전 요청 없음)', []),
   makeIdcProject(1021, ProcessStatus.WAITING_APPROVAL, 'IDC PII Agent - 승인 대기', idcResourcesForStep(ProcessStatus.WAITING_APPROVAL)),
   makeIdcProject(1022, ProcessStatus.APPLYING_APPROVED, 'IDC PII Agent - 반영 중', idcResourcesForStep(ProcessStatus.APPLYING_APPROVED)),
   makeIdcProject(1023, ProcessStatus.INSTALLING, 'IDC PII Agent - 설치 진행', idcResourcesForStep(ProcessStatus.INSTALLING)),

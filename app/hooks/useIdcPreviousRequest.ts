@@ -42,6 +42,15 @@ export function useIdcPreviousRequest(targetSourceId: number): UseIdcPreviousReq
       })
       .catch((err: unknown) => {
         if (!active || isAbort(err)) return; // DR3/DR5
+        // 404 는 실패가 아니라 부재다 — 불러올 이전 요청이 없는 타겟소스에 상류가 그렇게
+        // 답한다. 이걸 에러 문장으로 그리면 "못 불러왔다"(다시 열면 될지도 모른다)와
+        // "불러올 게 없다"(다시 열어도 같다)가 한 화면이 되고, 사용자는 없는 재시도를
+        // 찾는다. 빈 결과로 접어 모달의 빈 상태가 그 사실을 말하게 한다.
+        if (err instanceof AppError && err.code === 'NOT_FOUND') {
+          setResources([]);
+          setLoading(false);
+          return;
+        }
         setError(FETCH_ERROR);
         setLoading(false);
       });

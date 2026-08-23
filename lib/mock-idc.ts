@@ -43,11 +43,27 @@ export const IDC_PREV_REQUEST_SEED: IdcResourceInputWire[] = [
 /** Test/dev reset (kept for parity with the prior export; store below is stateless). */
 export const resetIdcStore = (): void => {};
 
+/**
+ * 이전 요청이 있는 타겟소스 — 상류는 없는 타겟소스에 404 로 답한다.
+ *
+ * 전에는 어떤 id 로 물어도 시드를 돌려줘서 불러오기 모달의 빈 상태가 데모에서
+ * 도달 불가였다. 목이 부재를 만들 수 있어야 그 화면을 볼 수 있다. 1028 은 이전 요청이
+ * 없는 짝(`lib/mock-data.ts` IDC 시드)이다.
+ */
+const IDC_PREV_REQUEST_TARGET_SOURCE_IDS: ReadonlySet<number> = new Set([1020]);
+
 export const getIdcPreviousRequest = (
-  _targetSourceId: number,
-): MockIdcResult<{ resources: IdcResourceInputWire[] }> => ({
-  data: { resources: cloneSeed(IDC_PREV_REQUEST_SEED) },
-});
+  targetSourceId: number,
+): MockIdcResult<{ resources: IdcResourceInputWire[] }> =>
+  IDC_PREV_REQUEST_TARGET_SOURCE_IDS.has(targetSourceId)
+    ? { data: { resources: cloneSeed(IDC_PREV_REQUEST_SEED) } }
+    : {
+        error: {
+          code: 'NOT_FOUND',
+          message: '이전 연동 요청이 없습니다.',
+          status: 404,
+        },
+      };
 
 /**
  * Installation-status — new contract shape. resource_ids align with the seeded
