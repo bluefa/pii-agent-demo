@@ -144,6 +144,27 @@ describe('WaitingApprovalTable', () => {
       ...(counts ? { logicalDbCount: counts[0], excludedLogicalDbCount: counts[1] } : {}),
     });
 
+    // The owner's call was about the approval screens. Steps 6·7 and the admin ops 확정 정보 tab
+    // reach the same `<td>` and were NOT in it: they replace the verdict pair with logical-DB
+    // counts, so "colour already means verdict here" — the reason weight won — does not hold.
+    it('ranks the name by weight on steps 2·3 only, leaving the hover blue on confirmed', () => {
+      // Ungrouped rows on purpose: a group parent's own cell is a different element.
+      const rows = [fixture[0]];
+      const nameCell = () =>
+        required(
+          required(screen.getByText('sea-live-space-prod').closest('td'), 'the name cell'),
+          'the name cell',
+        ).className;
+
+      const { rerender } = render(<WaitingApprovalTable resources={rows} />);
+      expect(nameCell()).toContain('font-semibold');
+      expect(nameCell()).not.toContain('group-hover:text-');
+
+      rerender(<WaitingApprovalTable variant="confirmed" resources={rows} />);
+      expect(nameCell()).toContain('group-hover:text-');
+      expect(nameCell()).not.toContain('font-semibold');
+    });
+
     /** The group row's identity cell — type, region, and what the group holds. */
     const identityOf = (region: string) => {
       const toggle = screen.getByRole('button', { name: new RegExp(`Athena ${region} 그룹`) });
@@ -181,6 +202,30 @@ describe('WaitingApprovalTable', () => {
       expect(identityOf('us-east-1')).not.toContain('제외');
       // The old two-count line ("데이터베이스 · 대상 N · 제외 N") belongs to step 1 now.
       expect(identityOf('ap-northeast-1')).not.toContain('대상');
+    });
+
+    // The failure `expandFolds` was built for, one disclosure over. A search matching only a
+    // database INSIDE a group used to be safe because groups were open; once they closed by
+    // default, the same search drew a shut "Database 총 1개" and the typed string nowhere.
+    it('opens every group while the list is narrowed, with no toggle to press', () => {
+      const rows = [athena('db_a', 'ap-northeast-1', true), athena('db_c', 'us-east-1', true)];
+      // `hidden`, not absence: the children tbody stays MOUNTED while shut so `aria-controls`
+      // always resolves, and a text query would find `db_a` either way.
+      const childrenHidden = () =>
+        required(
+          required(screen.getByText('db_a').closest('tbody'), "the children's tbody"),
+          "the children's tbody",
+        ).hasAttribute('hidden');
+
+      const { rerender } = render(<WaitingApprovalTable resources={rows} />);
+      expect(childrenHidden()).toBe(true);
+
+      // What the card passes once the toolbar narrows the list.
+      rerender(<WaitingApprovalTable resources={[rows[0]]} expandFolds />);
+      expect(childrenHidden()).toBe(false);
+      // Indicator, not control: a press here would be recorded as a COLLAPSE against state the
+      // filter owns, and clearing the filter would then shut a group nobody closed.
+      expect(screen.queryByRole('button', { name: /그룹 (펼치기|접기)$/ })).toBeNull();
     });
 
     // The parent's type and region live in its identity cell, not in the two columns keyed on
@@ -631,6 +676,36 @@ describe('WaitingApprovalTable', () => {
       expect(clusterCell.textContent).toContain('demo-2');
       expect(clusterCell.textContent).toContain('Reader');
       expect(screen.queryByText('3개 인스턴스')).toBeNull();
+    });
+
+    // Three branches render the Resource Name and all three are the same column, so all three
+    // have to drop the per-cell cap under the console shell. The migration switched only the
+    // plain one-liner; a cluster row's name stayed clamped at 200px while its column flexed
+    // past 600, and dragging the divider revealed nothing.
+    it('lets the name fill the column on EVERY branch, cluster rows included', () => {
+      render(
+        <WaitingApprovalTable
+          resources={[
+            cluster(),
+            { ...cluster(), rowKey: 'ec2', resourceId: 'i-1', resourceType: 'AWS_EC2',
+              resourceName: 'ec2-box', rdsInstanceCandidates: undefined },
+            { ...cluster(), rowKey: 'plain', resourceId: 'db-1', resourceType: 'MYSQL',
+              resourceName: 'plain-db', rdsInstanceCandidates: undefined },
+          ]}
+        />,
+      );
+
+      const nameTriggers = ['demo-cluster', 'ec2-box', 'plain-db'].map((name) =>
+        required(screen.getByText(name).parentElement, `${name}'s tooltip trigger`),
+      );
+      for (const trigger of nameTriggers) {
+        expect(trigger.className).toContain('w-full');
+        expect(trigger.className).not.toContain('max-w-[200px]');
+      }
+      // The column clips; the cell must not do it a second time.
+      for (const name of ['demo-cluster', 'ec2-box', 'plain-db']) {
+        expect(screen.getByText(name).className).not.toContain('truncate');
+      }
     });
 
     it('tags the cluster row RDS Cluster, before the name', () => {

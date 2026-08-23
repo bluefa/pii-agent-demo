@@ -226,6 +226,14 @@ export const ApplyingApprovedCard = ({ targetSourceId }: ApplyingApprovedCardPro
               connected
               raisedRows
               emptyMessage={showFilterEmpty ? FILTER_EMPTY_MESSAGE : undefined}
+              // Same as step 2 — see WaitingApprovalCard: closed groups must not swallow what a
+              // filter narrowed to, and the group's count line describes the filtered set.
+              expandFolds={
+                !!table.searchValue.trim()
+                || !!table.dbType
+                || !!table.region
+                || table.filter !== 'all'
+              }
               columns={columns}
             />
             {table.filteredCount > 0 && (

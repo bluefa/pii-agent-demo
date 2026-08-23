@@ -208,6 +208,14 @@ export const WaitingApprovalCard = ({
         connected
         raisedRows
         emptyMessage={showFilterEmpty ? FILTER_EMPTY_MESSAGE : undefined}
+        // Any narrowing opens the groups. Closed by default, a search that matched only a
+        // database inside one drew a shut group and none of the text that was typed. The tiles
+        // count too, unlike the confirmed table's expression: `groupResourceRows` re-groups the
+        // FILTERED rows, so under 연동 대상 a 3-database group prints "Database 총 2개" — the
+        // line describes a subset, and the only honest answer is to show which rows it means.
+        expandFolds={
+          !!table.searchValue.trim() || !!table.dbType || !!table.region || table.filter !== 'all'
+        }
         columns={columns}
       />
       {table.filteredCount > 0 && (

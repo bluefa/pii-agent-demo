@@ -16,6 +16,13 @@ interface ResourceGroupRowProps {
   onToggle: () => void;
   /** Id of the element the chevron controls, so screen readers follow the parent/child pair. */
   controls: string;
+  /**
+   * Whether the group can be folded right now. Pass `false` while a search or filter owns the
+   * open state: the chevron becomes an indicator (`toggleStatic`), matching what a folded region
+   * row does under the same condition. Left as a live toggle it does nothing visible AND records
+   * the press as a COLLAPSE, so clearing the filter shuts a group the user just opened.
+   */
+  toggleable?: boolean;
   /** Leading spacer cell — pass the checkbox column's `<td>` when the table has one. */
   leadingCell?: ReactNode;
   /** Third identity line — see `ResourceGroupCount` for what it says and why it sits there. */
@@ -59,12 +66,13 @@ export const ResourceGroupRow = ({
   inlineMeta,
   rail,
   colSpan,
+  toggleable = true,
 }: ResourceGroupRowProps) => {
   const label = getDatabaseShortLabel(type);
   return (
     <tr
-      className={cn(idcStyles.table.group.row, 'cursor-pointer', rail?.className)}
-      onClick={onToggle}
+      className={cn(idcStyles.table.group.row, toggleable && 'cursor-pointer', rail?.className)}
+      onClick={toggleable ? onToggle : undefined}
       onMouseEnter={rail?.onMouseEnter}
       onMouseLeave={rail?.onMouseLeave}
     >
@@ -96,28 +104,42 @@ export const ResourceGroupRow = ({
             The chevron hangs off this box (`toggle` is absolute against it) and centres on the
             stack's middle line, which is the name — same as the cluster row. */}
         <span className={idcStyles.table.group.lead}>
-          <button
-            type="button"
-            aria-expanded={expanded}
-            aria-controls={controls}
-            aria-label={`${label} ${region} 그룹 ${expanded ? '접기' : '펼치기'}`}
-            onClick={(event) => {
-              event.stopPropagation();
-              onToggle();
-            }}
-            className={cn(
-              idcStyles.table.group.toggle,
-              // `toggle` centres on the stack's BOX, which works while the stack has three lines
-              // (the name is then the middle one). Without `inlineMeta` the box's centre falls in
-              // the gap between tag and name, and the chevron reads as hanging off the tag —
-              // measured 12px above the line it points at. Push it back onto the name.
-              inlineMeta == null && 'top-[calc(50%_+_12px)]',
-              expanded ? idcStyles.table.group.toggleOpen : idcStyles.table.group.toggleClosed,
-              primaryColors.focusRing,
-            )}
-          >
-            <ChevronRightIcon className="h-3.5 w-3.5" />
-          </button>
+          {toggleable ? (
+            <button
+              type="button"
+              aria-expanded={expanded}
+              aria-controls={controls}
+              aria-label={`${label} ${region} 그룹 ${expanded ? '접기' : '펼치기'}`}
+              onClick={(event) => {
+                event.stopPropagation();
+                onToggle();
+              }}
+              className={cn(
+                idcStyles.table.group.toggle,
+                // `toggle` centres on the stack's BOX, which works while the stack has three lines
+                // (the name is then the middle one). Without `inlineMeta` the box's centre falls in
+                // the gap between tag and name, and the chevron reads as hanging off the tag —
+                // measured 12px above the line it points at. Push it back onto the name.
+                inlineMeta == null && 'top-[calc(50%_+_12px)]',
+                expanded ? idcStyles.table.group.toggleOpen : idcStyles.table.group.toggleClosed,
+                primaryColors.focusRing,
+              )}
+            >
+              <ChevronRightIcon className="h-3.5 w-3.5" />
+            </button>
+          ) : (
+            <span
+              aria-hidden
+              className={cn(
+                idcStyles.table.group.toggle,
+                // Same centering as the live toggle above — both wear the absolute `toggle` box.
+                inlineMeta == null && 'top-[calc(50%_+_12px)]',
+                idcStyles.table.group.toggleStatic,
+              )}
+            >
+              <ChevronRightIcon className="h-3.5 w-3.5" />
+            </span>
+          )}
           <span className="flex w-full min-w-0 flex-col items-start gap-1">
             <ResourceKindTag>{label}</ResourceKindTag>
             <span className={idcStyles.table.group.label}>{region}</span>
