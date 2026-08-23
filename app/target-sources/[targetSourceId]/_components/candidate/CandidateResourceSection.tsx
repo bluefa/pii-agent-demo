@@ -63,6 +63,8 @@ interface CandidateResourceSectionProps {
   targetSourceId: number;
   /** 스캔 권한 검증·안내 문구가 프로바이더별 자격을 그대로 부르기 위한 값. */
   provider: CloudProvider;
+  /** TargetSource.scanPrincipal — 온보딩 히어로의 스캔 권한 박스가 이름 아래 출력한다. */
+  scanPrincipal?: string;
   readonly: boolean;
   refreshProject: () => Promise<void>;
 }
@@ -106,6 +108,7 @@ const CandidateTableSkeleton = () => (
 export const CandidateResourceSection = ({
   targetSourceId,
   provider,
+  scanPrincipal,
   readonly,
   refreshProject,
 }: CandidateResourceSectionProps) => {
@@ -656,6 +659,7 @@ export const CandidateResourceSection = ({
                 return neverScanned ? (
                   <ScanHeroState
                     provider={provider}
+                    scanPrincipal={scanPrincipal}
                     permission={permission}
                     onCheckPermission={handleCheckPermission}
                     onStartScan={startScan}

@@ -17,6 +17,8 @@ export interface ScanHeroStateProps {
   onStartScan: () => void;
   canStart: boolean;
   starting: boolean;
+  /** TargetSource.scanPrincipal — 이 대상을 스캔하는 주체. 계약이 안 주면 종류 줄까지만. */
+  scanPrincipal?: string;
 }
 
 /**
@@ -31,6 +33,7 @@ export const ScanHeroState = ({
   onStartScan,
   canStart,
   starting,
+  scanPrincipal,
 }: ScanHeroStateProps) => (
   <div className="px-5 py-12 text-center">
     <div
@@ -56,11 +59,15 @@ export const ScanHeroState = ({
         <line x1="21" y1="21" x2="16.5" y2="16.5" />
       </svg>
     </div>
+    {/* 카드 헤더가 바로 위에서 "인프라 스캔으로 {provider} 계정의 리소스를 조회하고…"를
+        이미 말한다. 히어로는 그걸 되풀이하는 대신 이 화면만 가진 사실 하나 — 기록이
+        없다 — 를 말한다. 문장은 같은 상태의 ScanStrip 것과 같은 것으로 둔다: 한 상태를
+        두 문장으로 부르면 같은 화면이 두 번 설명된다. */}
     <h3 className={cn('text-lg font-bold', textColors.primary)}>
-      인프라 스캔으로 보유 DB를 찾아드려요
+      아직 스캔한 적이 없어요
     </h3>
     <p className={cn('mt-2 text-[13.5px] leading-[1.6]', textColors.tertiary)}>
-      연결된 {provider} 계정에서 DB 리소스를 조회해요. 평균 5분 이내 완료돼요.
+      스캔하면 연결된 {provider} 계정의 DB 리소스를 조회해요. 평균 5분 이내 완료돼요.
     </p>
 
     {/* 권한 프리플라이트 한 줄 — 확인은 시점 있는 관측이라 결과는 세션 안에서만
@@ -77,6 +84,16 @@ export const ScanHeroState = ({
         <div className={cn('mt-0.5 text-[12px]', textColors.tertiary)}>
           {SCAN_CREDENTIAL_LABELS[provider]}
         </div>
+        {/* 종류 아래 줄에 그 종류의 값. 확인 버튼이 무엇을 확인하는지가 이름으로 서고,
+            실패했을 때 어디를 고쳐야 하는지도 이 한 줄이 답한다. */}
+        {scanPrincipal ? (
+          <div
+            className={cn('mt-1 truncate font-mono text-[12px]', textColors.secondary)}
+            title={scanPrincipal}
+          >
+            {scanPrincipal}
+          </div>
+        ) : null}
       </div>
       {permission.status === 'idle' || permission.status === 'checking' ? (
         <button

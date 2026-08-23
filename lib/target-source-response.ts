@@ -8,12 +8,40 @@
  * process_status is no longer carried by the target-source payload — the caller
  * fetches it from the process-status endpoint and passes the raw wire value in.
  */
-import type { TargetSource } from '@/lib/types';
+import type { CloudProvider, TargetSource } from '@/lib/types';
 import { ProcessStatus, isSduProvider, normalizeCloudProvider } from '@/lib/types';
 import type { schemas } from '@/lib/generated/install-v1';
 import type { z } from 'zod';
 
 type TargetSourceDetailWire = z.infer<typeof schemas.TargetSourceDetail>;
+
+/**
+ * 프로바이더별 스캔 주체를 담은 metadata 키. 계약은 셋을 각각 선언한다
+ * (`TargetSourceMetadata`) — 같은 사실을 다른 이름으로 부르는 것뿐이다.
+ * IDC 는 클라우드 스캔이 없어 주체도 없다.
+ */
+const SCAN_PRINCIPAL_KEYS: Record<CloudProvider, string | null> = {
+  AWS: 'aws_scan_role_arn',
+  GCP: 'gcp_scan_service_account',
+  Azure: 'azure_scan_app_id',
+  IDC: null,
+};
+
+/**
+ * metadata → 이 대상을 스캔하는 주체 하나.
+ *
+ * ⛔ `??` 체인으로 쓰지 마라 — 세 키가 한 응답에 같이 실릴 수 있고(SDU 계정처럼 CSP 가
+ * 겹치는 대상), 그러면 GCP 화면이 AWS ARN 을 제 것처럼 그린다. 프로바이더가 키를 고른다.
+ */
+export const pickScanPrincipal = (
+  provider: CloudProvider,
+  metadata: Record<string, unknown> | null | undefined,
+): string | undefined => {
+  const key = SCAN_PRINCIPAL_KEYS[provider];
+  if (!key) return undefined;
+  const value = metadata?.[key];
+  return typeof value === 'string' && value.trim() !== '' ? value : undefined;
+};
 
 export const normalizeTargetSourceProcessStatus = (value: unknown): ProcessStatus => {
   switch (String(value).trim().toUpperCase()) {
@@ -63,6 +91,8 @@ export const extractTargetSourceFromSnake = (
   const subscriptionId = asStr(metadata?.subscription_id);
   const awsAccountId = asStr(metadata?.aws_account_id);
   const gcpProjectId = asStr(metadata?.gcp_project_id);
+  const cloudProvider = normalizeCloudProvider(asStr(item.cloud_provider));
+  const scanPrincipal = pickScanPrincipal(cloudProvider, metadata);
   // Both readings of SDU, and the same two-state collapse the CSR adapter makes —
   // this is the SSR path for the detail page, and the two must not disagree.
   const isSduType = asBool(metadata?.is_sdu_type) || isSduProvider(item.cloud_provider);
@@ -77,7 +107,7 @@ export const extractTargetSourceFromSnake = (
     serviceCode,
     serviceName: asStr(item.service_name)?.trim() || serviceCode,
     processStatus,
-    cloudProvider: normalizeCloudProvider(asStr(item.cloud_provider)),
+    cloudProvider,
     createdAt,
     updatedAt: asStr(item.updated_at) ?? createdAt,
     name: fallbackCode,
@@ -90,6 +120,7 @@ export const extractTargetSourceFromSnake = (
     ...(subscriptionId ? { subscriptionId } : {}),
     ...(awsAccountId ? { awsAccountId } : {}),
     ...(gcpProjectId ? { gcpProjectId } : {}),
+    ...(scanPrincipal ? { scanPrincipal } : {}),
     ...(isSduType !== undefined ? { isSduType } : {}),
   };
 };
