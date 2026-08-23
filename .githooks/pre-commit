@@ -37,15 +37,23 @@ fi
 if [[ "$code_changed" -eq 0 ]]; then
   echo "[pre-commit] No code files changed — skipping lint/tsc/test/build"
   echo "[pre-commit] OK"
-  # Mark tree as validated for downstream hooks (gh pr create / stop-verify).
+  # Mark tree as validated for downstream hooks (gh pr create / stop-verify) —
+  # but only by inheritance: "no code delta" carries forward a validation the
+  # parent tree actually has. After a rebase the parent tree is new and never
+  # validated, so stamping here would launder it into a pr-check cache hit.
   marker="$(git rev-parse --git-path pii-pre-commit-validated.env 2>/dev/null || true)"
-  [ -n "$marker" ] && {
+  parent_tree="$(git rev-parse 'HEAD^{tree}' 2>/dev/null || echo "")"
+  validated_tree=""
+  [ -n "$marker" ] && [ -f "$marker" ] && validated_tree="$(sed -n 's/^tree=//p' "$marker" 2>/dev/null | head -1)"
+  if [ -n "$marker" ] && [ -n "$parent_tree" ] && [ "$parent_tree" = "$validated_tree" ]; then
     {
       printf 'tree=%s\n' "$(git write-tree 2>/dev/null || echo "")"
       printf 'parent=%s\n' "$(git rev-parse HEAD 2>/dev/null || echo "")"
       printf 'validatedAt=%s\n' "$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
     } >"$marker"
-  }
+  else
+    echo "[pre-commit] parent tree not validated — marker left unstamped (pr-check will run the full suite)"
+  fi
   exit 0
 fi
 
