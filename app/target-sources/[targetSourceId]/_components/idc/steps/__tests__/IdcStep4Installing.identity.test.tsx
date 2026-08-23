@@ -124,6 +124,22 @@ describe('IdcStep4Installing 정체성 열', () => {
     expect(screen.getByText('MySQL')).toBeTruthy();
   });
 
+  it('콘솔 열이 잘림 지점을 소유한다 — 셀의 px 자체 클램프는 legacy 표의 것', async () => {
+    renderStep();
+
+    // 출발지(10.10.0.21)와 접속 주소(10.20.31.10) 둘 다 HostCell 로 그려진다. legacy
+    // auto-layout 표에서는 max-w-[150px]/[200px] 가 열 폭 통제 수단이지만, 이 표는
+    // table-fixed 라 그 캡이 남으면 열을 드래그해 넓혀도 값(FQDN)이 더 드러나지
+    // 않는다 — 캡은 max-w-full 이어야 열의 잘림 지점을 따라간다.
+    const src = (await screen.findByText('10.10.0.21')).closest('[class*="group/host"]');
+    const endpoint = screen.getByText('10.20.31.10').closest('[class*="group/host"]');
+    for (const host of [src, endpoint]) {
+      expect(host).toBeTruthy();
+      expect(host?.className).toContain('max-w-full');
+      expect(host?.className).not.toMatch(/max-w-\[\d+px\]/);
+    }
+  });
+
   it('나머지 IP 는 더보기로 펼친다', async () => {
     renderStep();
 

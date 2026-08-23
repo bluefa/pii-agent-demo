@@ -181,8 +181,13 @@ export const IdcStep4Installing = ({
             cell(row, (r) =>
               // 이 단계의 모든 행은 확정된 연동 대상이라 출발지가 있어야 한다. 빈 칸은
               // "이 행은 대상이 아니다"라는 다른 단계의 뜻이 되므로 여기선 대시로 말한다.
+              //
+              // max-w-full: 이 표는 콘솔 문법(table-fixed)이라 잘림 지점은 열이 소유한다 —
+              // 셀의 150px 자체 클램프는 auto 레이아웃(steps 2·3·5·6·7)의 열 폭 통제
+              // 수단이고, 여기 남기면 열을 넓혀도 값이 안 드러난다. LIN-100 이관 전까지
+              // 두 모드가 공존한다 (HostCell 문서).
               r.sourceIps.length > 0 ? (
-                <IdcSourceIpCell sourceIps={r.sourceIps} emphasis />
+                <IdcSourceIpCell sourceIps={r.sourceIps} emphasis maxWidthClass="max-w-full" />
               ) : (
                 <span className={textColors.tertiary}>—</span>
               ),
@@ -192,10 +197,13 @@ export const IdcStep4Installing = ({
           key: 'endpoint',
           label: '접속 주소',
           // 폭도 셀도 steps 2·3·5·6·7 의 그 열 그대로 — 단계끼리 어긋나지 않게.
+          // max-w-full 만 다르다: sink 인 이 열의 존재 이유가 남는 픽셀로 호스트를
+          // 드러내는 것이라, 셀의 200px 자체 클램프(auto 레이아웃의 열 폭 통제)를
+          // 여기서는 열의 잘림 지점으로 바꾼다 — 출발지 열과 같은 규칙.
           width: 200,
           flex: true,
           render: (row: { resourceId: string }) =>
-            cell(row, (r) => <IdcEndpointWithKindCell resource={r} />),
+            cell(row, (r) => <IdcEndpointWithKindCell resource={r} maxWidthClass="max-w-full" />),
         },
         {
           key: 'port',

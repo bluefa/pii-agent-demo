@@ -36,6 +36,12 @@ export const IdcKindBadge = ({ kind }: { kind: IdcKind }) =>
  * fits its cell has nothing to reveal and stays inert, and the light `value` variant with a
  * labelled body — a bare dark string repeats what is already on screen without naming the
  * field it belongs to.
+ *
+ * `maxWidthClass` has two modes, one per table layout. In the legacy auto-layout tables a
+ * column is as wide as its widest cell, so the px cap here IS the column-width control
+ * (REASON_CLAMP's argument). Inside a console (`table-fixed`) column the caller passes
+ * `max-w-full` instead: the COLUMN owns the truncation point there, and a px cap would
+ * survive a drag and make widening the column reveal nothing.
  */
 const HostCell = ({
   value,
@@ -74,8 +80,15 @@ const HostCell = ({
   </span>
 );
 
-/** 접속 주소 cell — host(s) only (no port). Multiple IP collapses behind a toggle. */
-export const IdcEndpointCell = ({ resource }: { resource: IdcResourceView }) => {
+/** 접속 주소 cell — host(s) only (no port). Multiple IP collapses behind a toggle.
+ *  `maxWidthClass` forwards to every HostCell — see its doc for the two width modes. */
+export const IdcEndpointCell = ({
+  resource,
+  maxWidthClass,
+}: {
+  resource: IdcResourceView;
+  maxWidthClass?: string;
+}) => {
   const [expanded, setExpanded] = useState(false);
   const { hosts, kind } = resource;
 
@@ -85,14 +98,19 @@ export const IdcEndpointCell = ({ resource }: { resource: IdcResourceView }) => 
   if (hosts.length === 0) return <span className={textColors.tertiary}>—</span>;
 
   if (kind !== 'MULTIPLE_IP') {
-    return <HostCell value={hosts[0] ?? ''} label="Host" />;
+    return <HostCell value={hosts[0] ?? ''} label="Host" maxWidthClass={maxWidthClass} />;
   }
 
   const extra = hosts.length - 1;
   return (
     <span className="flex flex-col items-start gap-0.5">
-      <HostCell value={hosts[0] ?? ''} label="Host" />
-      {expanded && hosts.slice(1).map((host) => <HostCell key={host} value={host} label="Host" />)}
+      <HostCell value={hosts[0] ?? ''} label="Host" maxWidthClass={maxWidthClass} />
+      {expanded &&
+        hosts
+          .slice(1)
+          .map((host) => (
+            <HostCell key={host} value={host} label="Host" maxWidthClass={maxWidthClass} />
+          ))}
       <button
         type="button"
         onClick={() => setExpanded((v) => !v)}
@@ -113,10 +131,18 @@ export const IdcEndpointCell = ({ resource }: { resource: IdcResourceView }) => 
  * 정확히 '태그가 그려지는 행'이고, 그건 DOMAIN 뿐이다(`IdcKindBadge`).
  * DOMAIN 은 언제나 주소 한 줄이라 MULTIPLE_IP 의 '더보기로 자라는' 예외와 겹치지 않는다.
  */
-export const IdcEndpointWithKindCell = ({ resource }: { resource: IdcResourceView }) => {
-  if (resource.kind !== 'DOMAIN') return <IdcEndpointCell resource={resource} />;
+export const IdcEndpointWithKindCell = ({
+  resource,
+  maxWidthClass,
+}: {
+  resource: IdcResourceView;
+  maxWidthClass?: string;
+}) => {
+  if (resource.kind !== 'DOMAIN')
+    return <IdcEndpointCell resource={resource} maxWidthClass={maxWidthClass} />;
   // 끝점이 없는 행은 종류도 없다 — 어댑터의 기본값을 모양으로 단언하지 않는다.
-  if (resource.hosts.length === 0) return <IdcEndpointCell resource={resource} />;
+  if (resource.hosts.length === 0)
+    return <IdcEndpointCell resource={resource} maxWidthClass={maxWidthClass} />;
   return (
     <span
       className={cn(
@@ -125,7 +151,7 @@ export const IdcEndpointWithKindCell = ({ resource }: { resource: IdcResourceVie
       )}
     >
       <IdcKindBadge kind={resource.kind} />
-      <IdcEndpointCell resource={resource} />
+      <IdcEndpointCell resource={resource} maxWidthClass={maxWidthClass} />
     </span>
   );
 };
@@ -171,10 +197,13 @@ export const IdcDbTypeCell = ({ resource }: { resource: IdcResourceView }) => (
 export const IdcSourceIpCell = ({
   sourceIps,
   emphasis = false,
+  maxWidthClass = 'max-w-[150px]',
 }: {
   sourceIps: string[];
   /** 이 열이 화면의 주어인 단계(step 4)에서만 켠다. */
   emphasis?: boolean;
+  /** HostCell 로 전달 — 두 폭 모드는 HostCell 문서 참조. */
+  maxWidthClass?: string;
 }) => {
   // Blank, not an em-dash. The BDC assigns source IPs to integration targets only, so an empty
   // value means the row is not one — the same reason the 제외 사유 cell of a 대상 row is blank.
@@ -187,7 +216,7 @@ export const IdcSourceIpCell = ({
           key={ip}
           value={ip}
           label={IDC_SOURCE_LABEL}
-          maxWidthClass="max-w-[150px]"
+          maxWidthClass={maxWidthClass}
           {...(emphasis && {
             // hover 리프트를 같이 건다 — #0064FF 는 흰 바탕 4.92:1 이지만 행 hover 틴트
             // 위에서 4.46:1 로 AA 아래다 (primaryColors.textGroupHover 주석 참조).
