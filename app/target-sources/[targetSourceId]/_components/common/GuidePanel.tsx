@@ -4,6 +4,7 @@ import { GuideCardContainer } from '@/app/components/features/process-status/Gui
 import { ChatIcon, GuideIcon } from '@/app/components/ui/icons';
 import {
   RailEntry,
+  RailMark,
   RailToggle,
   useRailCollapse,
   type RailCollapsed,
@@ -309,9 +310,26 @@ export const GuidePanel = ({
               {/* Same mark, both fold states — the rule the 가이드 전구 already follows
                   (오너 지시 2026-08-23). It also gives the two zone heads one geometry,
                   20 mark + 8 gap + label, which is what puts the two labels on the same x;
-                  they were 28px out while this one was a bare label. */}
-              <span className="flex items-center gap-2">
-                <ChatIcon className={cn('h-5 w-5 shrink-0', railStyles.zoneMarkChannel)} />
+                  they were 28px out while this one was a bare label.
+
+                  ⛔ `RailMark` and `collab`, not a bare ChatIcon. The first attempt here
+                  rendered the identical SVG and was still wrong: the strip draws that
+                  glyph with the state dot ON it, and it goes quiet when no ticket is
+                  mapped. The mark is glyph + dot + ink.
+
+                  ⛔ The ink sits on THIS span, not on the glyph — the strip colours its
+                  mark by inheriting from the entry button, so the only way both sides can
+                  hand `RailMark` the same markup is for both to inherit. `zoneLabel` sets
+                  its own colour, so the label is unaffected. */}
+              <span
+                className={cn(
+                  'flex items-center gap-2',
+                  collab.quiet
+                    ? railStyles.zoneMarkChannelQuiet
+                    : railStyles.zoneMarkChannel,
+                )}
+              >
+                <RailMark icon={<ChatIcon className="h-5 w-5" />} dot={collab.dot} />
                 <span className={railStyles.zoneLabel}>협업 채널</span>
               </span>
               {/* The 32px hit box centres a 16px glyph, so pulling the box 8px past the

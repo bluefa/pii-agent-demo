@@ -363,31 +363,44 @@ describe('GuidePanel — the folded strip says what it is', () => {
   });
 
   // 오너 지시 2026-08-23: 「접었을 때의 채널 아이콘이 펼쳐졌을 때도 그대로」 — the rule the
-  // 가이드 전구 already follows. Comparing the path data, not just "an svg is present":
-  // the point is that it is the SAME glyph, and only the geometry proves that.
-  it('shows the folded strip’s ChatIcon on the open zone head too — same glyph, same 20px', async () => {
-    // ChatIcon is the only 24-viewBox glyph at h-5 in this rail: GuideIcon is a 14 box and
-    // the fold chevron is h-4.
-    const chatIn = (root: HTMLElement) =>
-      [...root.querySelectorAll('aside svg')].find(
-        (s) =>
-          s.getAttribute('viewBox') === '0 0 24 24' &&
-          (s.getAttribute('class') ?? '').includes('h-5'),
-      );
+  // 가이드 전구 already follows.
+  //
+  // ⛔ Compare the MARK, not the glyph. The first version of this test asserted the two
+  // `path` `d` strings matched, and they did — while the folded strip drew that glyph
+  // with a green state dot on it and the open head drew it bare. Matching the SVG proved
+  // nothing the owner was asking about. Both call sites now render `RailMark`, so the
+  // assertion is that the two marks are the same MARKUP, dot and all.
+  it('shows the folded strip’s channel mark on the open zone head too — dot included', async () => {
+    // The mark is the only `span.relative` in this rail, in either state.
+    const markIn = (root: HTMLElement) => root.querySelector('aside span.relative')?.innerHTML;
+    const ticket = { issueKey: 'PII-42', browseUrl: 'https://jira.example.com/browse/PII-42' };
+
+    const open = render(<GuidePanel {...baseProps} jiraTicket={ticket} />);
+    await settled();
+    const onHead = markIn(open.container as HTMLElement);
+    expect(onHead).toBeTruthy();
+    // The dot travels with it — this is the half the SVG comparison could not see.
+    expect(onHead).toContain('rounded-full');
+    open.unmount();
+
+    const { container } = await folded(ticket);
+    expect(markIn(container as HTMLElement)).toBe(onHead);
+  });
+
+  // ⛔ And it has to hold for the DATA, not just for one row: with no ticket the strip
+  // goes quiet and loses its dot, so a head fixed at full strength would match here and
+  // break there.
+  it('keeps the two marks identical when the channel is empty', async () => {
+    const markIn = (root: HTMLElement) => root.querySelector('aside span.relative')?.innerHTML;
 
     const open = render(<GuidePanel {...baseProps} jiraTicket={null} />);
     await settled();
-    const onHead = chatIn(open.container as HTMLElement);
-    expect(onHead).toBeTruthy();
+    const onHead = markIn(open.container as HTMLElement);
+    expect(onHead).not.toContain('rounded-full');
     open.unmount();
 
     const { container } = await folded(null);
-    const onStrip = chatIn(container as HTMLElement);
-    expect(onStrip).toBeTruthy();
-
-    expect(onHead?.querySelector('path')?.getAttribute('d')).toBe(
-      onStrip?.querySelector('path')?.getAttribute('d'),
-    );
+    expect(markIn(container as HTMLElement)).toBe(onHead);
   });
 
   // ⛔ The head's glyph DISPLACES the row's — the same bubble twice inside one card, at

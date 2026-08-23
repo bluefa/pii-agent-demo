@@ -2467,8 +2467,19 @@ export const railStyles = {
    * apart inside one card, the same bubble twice at two sizes. It also puts both zone
    * heads on one geometry (20 mark + 8 gap + label), which is what finally aligns the
    * two labels; they were 28px out.
+   *
+   * ⛔ The ink is a PAIR and the head wears whichever one the folded strip is wearing.
+   * "Same mark in both states" has to survive the DATA too: with no ticket mapped the
+   * strip goes quiet, so a head fixed at full strength would match on 1007 and break on
+   * 1003, and a rule that holds for some rows is not a rule.
+   *
+   * ⛔ Nor is the glyph the whole mark. Render it through `RailMark`, which carries the
+   * state dot with it — the first attempt at this matched the SVG exactly and still
+   * looked wrong, because the folded strip draws that glyph with a dot on it.
    */
   zoneMarkChannel: 'text-gray-700',
+  /** The quiet half of the pair above — #4E5968, 7.11:1 on the zone card's white. */
+  zoneMarkChannelQuiet: 'text-[#4E5968]',
   /**
    * Hairline between the size control and the entries — half the strip, so it reads as
    * a seam. #D2D8DC is the left rail's `divider`, i.e. the value already chosen for a

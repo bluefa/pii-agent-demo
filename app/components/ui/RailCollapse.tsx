@@ -94,6 +94,39 @@ export const RailToggle = ({ direction, label, onClick }: RailToggleProps) => {
   );
 };
 
+interface RailMarkProps {
+  /** 20px glyph. Reuse the icon that already means this thing elsewhere in the app. */
+  icon: ReactNode;
+  /** Fill class for the state dot, from `statusColors[tone].dot`. Omit for no dot. */
+  dot?: string;
+}
+
+/**
+ * A zone's mark: its glyph, plus the state dot when the zone has one.
+ *
+ * Exported and shared because "the same mark in both fold states" (오너 지시 2026-08-23)
+ * is otherwise an invariant nobody enforces. It was already broken once: the open zone
+ * head rendered the identical `ChatIcon` — same 20px, same ink, same path — while the
+ * folded strip rendered that glyph WITH a green dot on it. Matching the glyph is not
+ * matching the mark, and comparing the two by eye is how that slips through. One
+ * component, two call sites, and there is nothing left to keep in sync by hand.
+ *
+ * ⚠️ `entryDot` carries `ring-white`, which reads as a halo on the rail's tinted plane
+ * and disappears into a white zone card. That is the ring doing its job — it exists to
+ * hold the dot off the glyph — and not a second design.
+ *
+ * ⛔ The ink belongs to whatever encloses this, never to the `icon` passed in. Both call
+ * sites hand over the same bare `<ChatIcon className="h-5 w-5" />` and let it inherit, so
+ * the two marks are the same MARKUP and a test can say so with one string comparison.
+ * Colour the glyph at the call site and that equality quietly stops holding.
+ */
+export const RailMark = ({ icon, dot }: RailMarkProps) => (
+  <span className="relative flex shrink-0">
+    {icon}
+    {dot && <span aria-hidden className={cn(railStyles.entryDot, dot)} />}
+  </span>
+);
+
 interface RailEntryProps {
   /** 20px glyph. Reuse the icon that already means this thing elsewhere in the app. */
   icon: ReactNode;
@@ -166,10 +199,7 @@ export const RailEntry = ({ icon, label, hint, tip, dot, onClick, quiet }: RailE
       aria-label={hint}
       className={quiet ? railStyles.entryQuiet : railStyles.entry}
     >
-      <span className="relative flex">
-        {icon}
-        {dot && <span aria-hidden className={cn(railStyles.entryDot, dot)} />}
-      </span>
+      <RailMark icon={icon} dot={dot} />
       <span className={quiet ? railStyles.entryLabelQuiet : railStyles.entryLabel}>{label}</span>
     </button>
   </Tooltip>
