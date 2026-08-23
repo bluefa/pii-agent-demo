@@ -2,7 +2,57 @@ import type { ReactNode } from 'react';
 import { formatDate } from '@/lib/utils/date';
 import { ChevronDownIcon } from '@/app/components/ui/icons';
 import { MetaField } from '@/app/target-sources/[targetSourceId]/_components/shared/MetaField';
-import { bgColors, borderColors, cn, primaryColors, textColors } from '@/lib/theme';
+import {
+  bgColors,
+  borderColors,
+  cn,
+  numericFeatures,
+  primaryColors,
+  textColors,
+  verdictText,
+} from '@/lib/theme';
+
+/**
+ * One count in the summary row — NOT a `MetaField`.
+ *
+ * The pairs beside it (요청일시 / 요청자) are label-and-text, and MetaField sets both tiers at
+ * 12px because a timestamp reads as a phrase. A count is a number, and this repo already ranks
+ * numbers by lifting the digit one step over the words around it — the same 12 → 14 the Athena
+ * group's 「총 N개 중 M개 제외」 line uses (owner, 2026-08-23, applied here the same day). The
+ * unit stays at 12: 건 is a word, not a number.
+ *
+ * `excluded` paints the whole pair in the verdict's own colour, so the 8 here and the 제외 rows
+ * it counts are one magenta. The label/value tiers survive that on weight and size alone, which
+ * is what they were already carrying — colour was never doing the ranking inside a pair.
+ */
+const CountField = ({
+  label,
+  count,
+  excluded = false,
+}: {
+  label: string;
+  count: number;
+  excluded?: boolean;
+}) => (
+  <div className={cn('flex min-w-0 items-baseline gap-1.5', excluded && verdictText.excluded)}>
+    <span
+      className={cn(
+        'shrink-0 whitespace-nowrap text-[12px] font-normal',
+        !excluded && textColors.tertiary,
+      )}
+    >
+      {label}
+    </span>
+    <span
+      className={cn(
+        'whitespace-nowrap text-[12px] font-semibold leading-[1.3]',
+        !excluded && textColors.secondary,
+      )}
+    >
+      <span className={cn('text-[14px]', numericFeatures.tabular)}>{count}</span>건
+    </span>
+  </div>
+);
 
 interface RejectedTargetRecordProps {
   totalCount: number;
@@ -60,9 +110,9 @@ export const RejectedTargetRecord = ({
         {/* Dropped once open: the stat tiles below carry the same three numbers, and showing them
             twice is what made the old screen read as duplicated. */}
         <div className="flex flex-wrap gap-x-5 gap-y-2 group-open:hidden">
-          <MetaField inline label="전체" value={`${totalCount}건`} />
-          <MetaField inline label="연동 대상" value={`${selectedCount}건`} />
-          <MetaField inline label="제외" value={`${excludedCount}건`} />
+          <CountField label="전체" count={totalCount} />
+          <CountField label="연동 대상" count={selectedCount} />
+          <CountField label="제외" count={excludedCount} excluded />
         </div>
         {request && (
           <>
