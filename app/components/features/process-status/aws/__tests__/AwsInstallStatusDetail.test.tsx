@@ -83,9 +83,12 @@ describe('AwsInstallStatusDetail', () => {
     // 레일 푸터(진행바+요약)는 오너 결정으로 삭제됐다.
     expect(within(nav).queryByText('2개 중 1개 완료')).toBeNull();
 
-    // No open todo → the failed step is the default view, and its table's 안내
-    // chip is the single place the failure reason is stated.
-    expect(screen.getAllByText('서브넷 IP 부족')).toHaveLength(1);
+    // No open todo → the failed step is the default view. Its table's 안내 chip used to
+    // be the single place the failure reason was stated; that column is gone (owner
+    // instruction, 2026-08-24, every provider) and nothing replaced it — the grouped
+    // rail here never mounts InstallStatusDetail's alternate summary/action-item view
+    // (every step declares `group`) — so the reason text no longer renders at all.
+    expect(screen.queryByText('서브넷 IP 부족')).toBeNull();
   });
 
   it('할 일이 남아 있으면 "모두 완료"를 달지 않는다', () => {
@@ -190,8 +193,12 @@ describe('AwsInstallStatusDetail', () => {
 
     // default selection = service step (IN_PROGRESS present) → SKIP row visible.
     expect(screen.getAllByText('해당 없음').length).toBeGreaterThanOrEqual(1);
-    // 안내 is the steps-2·3 reason chip, which clamps its summary — the full guide is in the tip.
-    expect(screen.getByText(/설치 대상이 아닌/)).toBeTruthy();
+    // 안내 column removed 2026-08-24 (owner instruction, every provider) — guide text
+    // stays on the wire (serviceTerraform.guide) but no longer renders anywhere on this
+    // screen. The grouped rail (every step here declares `group`) also never mounts
+    // InstallStatusDetail's alternate summary/action-item view, so this is a genuine
+    // absence, not a gap this test happens to miss.
+    expect(screen.queryByText(/설치 대상이 아닌/)).toBeNull();
 
     // The grouped rail drops n/m counts — only the status words remain.
     const nav = screen.getByRole('navigation', { name: '설치 단계' });

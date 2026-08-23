@@ -561,17 +561,21 @@ const approvalColumns = (regionLabel: string): ConsoleTableColumn[] => [
  * overrides (`InstallStepCell.label` — today only Azure's PE step, `PE_LABELS` in its
  * install-detail adapter). The widest member, 'Azure Portal에서 승인 필요', renders 154px
  * at the cell's 14px semibold (browser-measured, 2026-08-23). 154 + approvalCell's 36px
- * padding + slack = 200 — the 종류 column's own recipe. The floor must cover the widest
- * word: the cell is overflow-hidden with no ellipsis and no tooltip, so anything cut
- * would be lost silently.
- * `guide` reuses 제외 사유's 142: the same `ReasonChipInline` under the same
- * `clampReason(15)`, so the same worst case with the same expansion affordance.
+ * padding (18px each side) = 190 — the bare measured floor. LIN-97 first landed 200 by
+ * adding the 종류 column's usual +10 slack on top of this same floor; the owner had that
+ * cushion dropped 2026-08-24, so 190 is not a new measurement, just the old one without
+ * the slack. The floor must still cover the widest word: the cell is overflow-hidden
+ * with no ellipsis and no tooltip, so anything cut would be lost silently — do not
+ * narrow below 190 without re-measuring the Azure PE label.
+ *
+ * 안내 column removed 2026-08-24 (owner instruction, every provider). `guide` stays on
+ * the wire — AWS/Azure/GCP/IDC adapters all still read `step.guide` into the model — only
+ * this table's column is gone.
  */
 const INSTALL_COLUMN_WIDTHS = {
   name: CONFIRMED_COLUMN_WIDTHS.name,
   id: CONFIRMED_COLUMN_WIDTHS.id,
-  status: 200,
-  guide: APPROVAL_COLUMN_WIDTHS.reason,
+  status: 190,
 } as const;
 
 /** install(cloud)·plain flex the confirmed pair — the same two arbitrary-length columns
@@ -610,9 +614,6 @@ const installColumns = (identity?: ApprovalIdentityColumns): ConsoleTableColumn[
         { key: 'id', label: 'Resource ID', width: INSTALL_COLUMN_WIDTHS.id, flex: true },
       ]),
   { key: 'status', label: '상태', width: INSTALL_COLUMN_WIDTHS.status },
-  // Sized, not flex — the same measurement that rejected 제외 사유 as a sink (see
-  // APPROVAL_FLEX_KEYS): blank on most rows, clamped to a self-expanding chip on the rest.
-  { key: 'guide', label: '안내', width: INSTALL_COLUMN_WIDTHS.guide },
 ];
 
 /**
@@ -1149,20 +1150,12 @@ export const WaitingApprovalTable = memo(
             <>
               {/* Covered like the value columns: the status word ('BDC 설치 대기', 81px)
                   outruns the header label the drag floors on, so without the clip a
-                  narrowed column paints it over 안내. The verdict pill next door skips
-                  the clip because its longest word fits its column at every legal width. */}
+                  narrowed column spills the word past its own right edge — it is the
+                  last install-row column now that 안내 is gone. The verdict pill next
+                  door skips the clip because its longest word fits its column at every
+                  legal width. */}
               <td className={cn(idcStyles.table.approvalCell, coveredCell)}>
                 {resource.installCell && <InstallStatusText cell={resource.installCell} />}
-              </td>
-              {/* 안내 없음은 빈 칸 — 대시는 시각적 노이즈만 남긴다. */}
-              <td className={cn(idcStyles.table.approvalCell, 'text-sm')}>
-                {resource.installCell?.guide ? (
-                  <ReasonChipInline
-                    reason={resource.installCell.guide}
-                    summary={clampReason(resource.installCell.guide)}
-                    label="안내"
-                  />
-                ) : null}
               </td>
             </>
           ) : (
