@@ -10,7 +10,7 @@ import {
 import { rdsInstanceBandLabel } from '@/app/target-sources/[targetSourceId]/_components/shared/RdsInstancePanel';
 import { useColumnResize } from '@/app/components/ui/useColumnResize';
 import { required } from '@/lib/test-dom';
-import { textColors, verdictRail } from '@/lib/theme';
+import { tableRowLift, textColors, verdictRail } from '@/lib/theme';
 
 const fixture: WaitingApprovalResource[] = [
   {
@@ -995,23 +995,25 @@ describe('WaitingApprovalTable', () => {
     // in the browser (docs/ux/benchmark/target-source-resource-table-console.md).
     it('hovers console rows on the console tint, legacy rows on the blue lift', () => {
       // The tint belongs to the SHELL: on the console grid the rails are the quiet step, and
-      // only #F7F9FB leaves them visible under a hovered row (round 5). Steps 2·3 moved onto
-      // that grid, so they moved onto its tint.
+      // only the console tint leaves them visible under a hovered row (round 5; the measured
+      // ratios live on tableRowLift.console's docblock). Steps 2·3 moved onto that grid, so
+      // they moved onto its tint. Asserted through the token, like NAME_LIFT above — the
+      // value itself is theme.ts's to spell.
       const { rerender } = render(
         <WaitingApprovalTable variant="confirmed" resources={[row()]} />,
       );
       const confirmedTr = screen.getByText('covered-name').closest('tr');
-      expect(confirmedTr?.className).toContain('hover:bg-[#F7F9FB]');
-      expect(confirmedTr?.className).not.toContain('hover:bg-[#EAEEF7]');
+      expect(confirmedTr?.className).toContain(tableRowLift.console);
+      expect(confirmedTr?.className).not.toContain(tableRowLift.target);
 
       rerender(<WaitingApprovalTable variant="approval" resources={[row()]} />);
       expect(screen.getByText('covered-name').closest('tr')?.className).toContain(
-        'hover:bg-[#F7F9FB]',
+        tableRowLift.console,
       );
 
       rerender(<WaitingApprovalTable variant="install" resources={[row()]} />);
       expect(screen.getByText('covered-name').closest('tr')?.className).toContain(
-        'hover:bg-[#EAEEF7]',
+        tableRowLift.target,
       );
     });
 
