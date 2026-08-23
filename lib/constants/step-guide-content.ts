@@ -14,6 +14,13 @@
  * - Escalation threshold matches the admin alert board: warn ≈ 1 day.
  * - Escalation channel is the 협업 채널 card at the top of this rail.
  *
+ * ⚠️ Steps 2, 3 and 6 are OWNER COPY (2026-08-23) and stand outside the last three
+ * rules on purpose, not by oversight. They escalate at 2, 2 and 3 business days to
+ * 담당자 rather than at ~1 day to the 협업 채널 card, they do not tell the reader to
+ * refresh — these pages still do not poll — and steps 3 and 6 promise an outbound
+ * contact that no notification path in this app can deliver. Every other step still
+ * follows the rules above; do not "harmonise" one side into the other without asking.
+ *
  * Markup must satisfy `validateGuideHtml` (h4/p/br/ul/ol/li/strong/em/
  * code/a only) — asserted by `__tests__/step-guide-content.test.ts`.
  */
@@ -52,26 +59,66 @@ const IDC_TARGET_INPUT_HTML =
 // Step 2 — approval pending (shared)
 // ---------------------------------------------------------------------------
 
+/**
+ * Owner copy, 2026-08-23. Shared by all five step-2 slots.
+ *
+ * ⚠️ OPEN: the control's name does not match the screen. This copy says
+ * 「연동 대상 다시 선택하기」 (owner, 2026-08-23, third name given for it), while
+ * `WaitingApprovalCancelButton` still renders 「다시 요청하기」 — as do the two body
+ * sentences beside it (`WaitingApprovalCard`, `IdcStep2WaitingApproval`). Renaming the
+ * button is a four-file change to a control whose current label is the app-wide retry
+ * word, so it is not being inferred from a copy edit; it needs a decision. Until then a
+ * reader is told to press something the screen calls otherwise.
+ */
 const STEP_2_HTML =
-  '<h4>관리자가 요청을 검토하고 있어요</h4>' +
-  '<p>요청하신 연동 대상 목록을 관리자가 확인하고 있어요. 결과는 이 화면에 반영되며, 새로고침으로 최신 상태를 확인할 수 있어요.</p>' +
+  '<h4>PII Agent 담당자의 검토를 기다리고 있어요</h4>' +
+  '<p>제출하신 DB 연동 대상 목록을 담당자가 순차적으로 검토하고 있어요. 검토 후 이슈 없을 경우, 다음 단계로 넘어가요.</p>' +
+  '<blockquote>연동 대상 DB가 잘못 제출된 상태라면 <strong>연동 대상 다시 선택하기</strong>를 통해 ' +
+  'Step 1로 돌아가 재입력 후 다시 제출할 수 있어요.</blockquote>' +
   '<ul>' +
-  '<li>반려되면 이 화면에 <strong>반려 사유</strong>가 표시돼요. 사유에 맞춰 대상을 다시 구성해 재요청하면 돼요.</li>' +
-  '<li>요청 내용을 바꾸고 싶다면 <strong>전체 요청 취소</strong>로 1단계로 돌아갈 수 있어요. 관리자에게 따로 연락할 필요 없어요.</li>' +
-  '<li>1영업일 이상 응답이 없으면 상단 <strong>협업 채널</strong>로 문의해 주세요.</li>' +
+  '<li>평균 1영업일 이내 검토가 완료됩니다.</li>' +
+  '<li>2영업일 이상 지연 시 <em>담당자에게 문의</em>해 주세요.</li>' +
   '</ul>';
 
 // ---------------------------------------------------------------------------
-// Step 3 — applying (shared)
+// Step 3 — applying (shared by AWS AUTO/MANUAL, Azure, GCP, IDC)
 // ---------------------------------------------------------------------------
 
+/**
+ * Owner copy, ported from Figma `step3-integration-dashboard`
+ * (CjvNbe87eHJt1IGBsPFmdI, node 2:111). One card in the design serves all
+ * integration types, which is why all five slots still share this constant.
+ *
+ * Three deliberate departures from the design, each forced:
+ *
+ * - The design's status label 「연동 환경 구성 중」 is dropped. There is no tag for a
+ *   dotted eyebrow in the guide allow-list, a second `<h4>` would give the card two
+ *   titles, and the step plate in the page header already states this step's name —
+ *   the design duplicated its own wizard badge.
+ * - The design's grey callout box becomes a plain `<p>`. The allow-list has no box
+ *   element; `<strong>` on the conditional lead gives the note a scannable head instead.
+ * - The design's fourth bullet is empty (a marker with no text) and is not ported.
+ * - 「2 영업일」/「문의해주세요」 are set as 「2영업일」/「문의해 주세요」. The design contradicts
+ *   itself one line up (「평균 1영업일」, no space), and steps 2 and 6 — typed by the owner
+ *   the same day — have neither space. Three adjacent steps spelling one phrase two ways
+ *   is the kind of thing a reader notices and an author never does.
+ *
+ * ⚠️ This copy overrides two of the editorial rules at the top of this file, on the
+ * owner's authority rather than by oversight: the escalation threshold is 2 business
+ * days here (not ~1 day), and it routes to 담당자 rather than the 협업 채널 card. It also
+ * promises an outbound contact ("개별 연락드릴 예정"), which no notification path in this
+ * app can currently deliver — the promise is the operations team's to keep, not the
+ * product's.
+ */
 const STEP_3_HTML =
-  '<h4>승인된 대상을 시스템에 반영하고 있어요</h4>' +
-  '<p>승인 완료 후 Agent 설치를 위한 사전 작업이 자동으로 진행돼요. 별도 조치는 필요 없어요.</p>' +
+  '<h4>담당자가 연동을 위한 환경을 구성하고 있어요</h4>' +
+  '<p>환경 구성이 완료되면 다음 단계로 넘어갑니다.</p>' +
+  '<blockquote><strong>최초 연동이 아닌 재연동인 경우</strong>, 시스템 담당자의 조치가 필요할 수도 있어요' +
+  '(이전에 설치된 PII Agent 리소스 삭제 필요). 조치가 필요한 경우 담당자가 개별 연락드릴 예정입니다.</blockquote>' +
   '<ul>' +
-  '<li>평균 5분 내외 소요되며, 완료되면 다음 단계로 넘어가요. 새로고침으로 진행 상황을 확인해 주세요.</li>' +
-  '<li>이 단계에서는 실제 데이터가 아닌 메타데이터만 동기화돼요.</li>' +
-  '<li>하루 이상 이 단계에 머물러 있으면 상단 <strong>협업 채널</strong>로 문의해 주세요.</li>' +
+  '<li>최초 연동일 경우, 평균 10분 이내 완료됩니다.</li>' +
+  '<li>재연동일 경우, 평균 1영업일 소요됩니다.</li>' +
+  '<li>2영업일 이상 지연 시 <em>담당자에게 문의</em>해 주세요.</li>' +
   '</ul>';
 
 // ---------------------------------------------------------------------------
@@ -153,14 +200,24 @@ const STEP_5_IDC_HTML =
 // Step 6 — final admin approval (shared)
 // ---------------------------------------------------------------------------
 
+/**
+ * Owner copy, 2026-08-23. Shared by all five step-6 slots.
+ *
+ * 「연락될」 in the source reads 「연락드릴」 here — 담당자가 is the subject, so the passive
+ * does not agree with it, and step 3 already carries the same sentence in the active form.
+ *
+ * ⚠️ This drops what the previous copy said about <strong>연결 테스트 재실행</strong>: that
+ * the reader can send themselves back to step 5 without asking anyone. The control still
+ * renders; the guide no longer mentions it.
+ */
 const STEP_6_HTML =
-  '<h4>운영팀이 최종 확인하고 있어요</h4>' +
-  '<p>연결이 확인된 대상에 대해 운영팀이 마지막 점검을 진행하고 있어요. 승인되면 바로 모니터링이 시작돼요.</p>' +
+  '<h4>PII Agent를 통해 meta/sample data가 정상 수집되는지 담당자가 확인하고 있어요</h4>' +
+  '<p>정상 수집 여부가 확인되면 <strong>완료</strong> 단계로 넘어가요.</p>' +
+  '<blockquote>별도 조치가 필요한 경우 담당자가 개별 연락드릴 예정입니다.</blockquote>' +
   '<ul>' +
-  '<li>결과는 이 화면에 반영돼요. 새로고침으로 최신 상태를 확인해 주세요.</li>' +
-  '<li>테스트를 다시 하고 싶다면 <strong>연결 테스트 재실행</strong>으로 직접 5단계로 돌아갈 수 있어요. 관리자 요청이 필요 없어요.</li>' +
-  '<li>운영팀이 재실행을 요청하면 사유가 함께 표시돼요. 사유에 맞춰 조치 후 다시 테스트해 주세요.</li>' +
-  '<li>1영업일 이상 지연되면 상단 <strong>협업 채널</strong>로 문의해 주세요.</li>' +
+  '<li>평균 1영업일 소요되는 과정입니다.</li>' +
+  '<li>수집해야 할 데이터가 클 경우, 더 오래 소요될 수 있어요.</li>' +
+  '<li>3영업일 이상 지연 시 <em>담당자에게 문의</em>해 주세요.</li>' +
   '</ul>';
 
 // ---------------------------------------------------------------------------

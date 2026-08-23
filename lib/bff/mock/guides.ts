@@ -19,7 +19,7 @@ import { NextResponse } from 'next/server';
 
 import { createProblem, problemResponse } from '@/app/api/_lib/problem';
 import { GUIDE_NAMES } from '@/lib/constants/guide-registry';
-import { validateGuideHtml } from '@/lib/utils/validate-guide-html';
+import { GUIDE_VALIDATE_OPTIONS, validateGuideHtml } from '@/lib/utils/validate-guide-html';
 
 import { guidesSeed } from '@/lib/bff/mock/guides-seed';
 
@@ -143,8 +143,8 @@ export const mockGuides = {
     }
     ensureSeeded();
 
-    const koResult = validateGuideHtml(body.contents.ko);
-    const enResult = validateGuideHtml(body.contents.en);
+    const koResult = validateGuideHtml(body.contents.ko, GUIDE_VALIDATE_OPTIONS);
+    const enResult = validateGuideHtml(body.contents.en, GUIDE_VALIDATE_OPTIONS);
     if (!koResult.valid || !enResult.valid) {
       const errors: GuideContentInvalidDetails = {};
       if (!koResult.valid) errors.ko = koResult.errors;

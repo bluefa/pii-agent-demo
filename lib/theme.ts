@@ -639,10 +639,6 @@ export const pageHeaderTitleStyle =
 /** Muted suffix inside the page H1 (e.g. the "(serviceCode)" parens) — inherits the H1 size, weak Toss gray. */
 export const pageHeaderTitleMutedStyle = 'font-medium text-[#6B7684]';
 
-/** "인프라 삭제" chip — quiet danger-outline (red-50 fill, red-200 border, red-800 text). */
-export const deleteInfraButtonStyle =
-  'inline-flex items-center gap-1 rounded-md border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-medium text-red-800 transition-colors hover:bg-red-100';
-
 /**
  * Page-meta horizontal kv strip (Toss display variant).
  * See ADR-014 D1; consumer rollout starts in Wave 1.
@@ -2316,6 +2312,269 @@ export const rowMenuStyles = {
   panel:
     'absolute right-0 top-full z-10 mt-1 min-w-[160px] rounded-lg border border-gray-200 bg-white p-1 shadow-lg',
   item: 'block w-full rounded-md px-3 py-2 text-left text-[12px] font-medium',
+} as const;
+
+/**
+ * Fold chrome for `GuidePanel`, the target-source screen's right rail. The left
+ * rail (`ServiceListPanel`) does NOT fold — it is how the reader leaves the
+ * screen, and where it rests is not the viewport's call or a gesture's.
+ *
+ * A collapsed rail is the same surface at a different width, not a new surface,
+ * so the strip keeps the plane its rail already paints and the button borrows
+ * the neutrals the quiet controls here already use.
+ */
+export const railStyles = {
+  /**
+   * The rail's own plane. Deliberately the SAME value as `serviceSidebarStyles.surface`:
+   * this screen carries two rails of the same kind and they were painted two different
+   * planes — the left one tinted, this one white — which left the auxiliary panel as the
+   * brightest surface on the page (benchmark P1, `docs/ux/benchmark/guide-rail-surface.md`).
+   *
+   * ⚠️ This reverses 시안 E's "not one fill anywhere in the rail". E kept the rail white
+   * and spent its budget removing tints; the owner then asked for the guide to be GROUPED
+   * AS A CARD (오너 지시 2026-08-23), and a white card on a white rail is not a card. Every
+   * card grammar available here converges on 시안 A — drop the plane, float the cards.
+   *
+   * The ladder the left rail's comment sets is the one this joins:
+   *
+   *   rail L* 91.4  →  canvas 96.4  →  card 100
+   *
+   * Ink measured on THIS plane (benchmark record §1):
+   *   #191F28 13.29 ✔ · #374151 8.27 ✔ · #4E5968 5.71 ✔ · #0050D6 5.40 ✔
+   *   ⛔ #0064FF 3.95 ✘ · gray-500 3.88 ✘
+   *
+   * Only the FOLDED strip prints straight onto this plane; every open-rail zone sits
+   * inside a white `card` below, so tokens measured against white stay valid there. ⛔ If
+   * you move something out of a card onto the rail, re-measure it against 91.4 first.
+   */
+  surface: 'bg-[#E2E7EA]',
+  /**
+   * One zone of the open rail — 협업 채널, 가이드 — as a card on that plane.
+   *
+   * ⛔ No border and no shadow. White on #E2E7EA is a 1.28 step (ΔL* 8.6) and 12px of gap
+   * runs around every side, which is the containment grammar the content column already
+   * uses: its card measures radius 20 / border 0 / shadow none against a canvas only 1.08
+   * away. A hairline here would be a third separator stacked on two that already work.
+   *
+   * `rounded-xl` = 12, reused from `GuideCardChrome`. ⛔ Not the content card's 20 — that
+   * radius is cut against a 1054px card and reads as a bubble at this rail's 296.
+   */
+  card: 'rounded-xl bg-white',
+  /**
+   * 56px. It was 48 — a 32px hit target and nothing else — and a strip that holds only
+   * a direction chevron does not say WHICH panel it puts back. 56 buys a 12px label
+   * under a 20px glyph, and 12px is the design guide's floor, not a value to shave.
+   *
+   * ⛔ Keep it a multiple of 4, and ⛔ do NOT take it to 64. This rail is subtracted
+   * from the very column the confirmed table stands in, and that table floors at 988px
+   * (`#754`). Available = viewport − 296 (service rail) − rail − 40 (page gutter) − 56
+   * (card keyline), so the table needs `viewport ≥ 1380 + rail`:
+   *
+   *   56 → 1436   1440 laptops clear it by 4px
+   *   64 → 1444   1440 laptops MISS it by 4px and get a horizontal scrollbar
+   *
+   * The 8px between those two is not a taste question. It decides whether the most
+   * common laptop width can show the table without scrolling sideways.
+   */
+  collapsedWidth: 'w-14',
+  /**
+   * The strip's own layout — chevron, then the entries, top-anchored and centred. The
+   * caller supplies `flex` or `hidden`, because on this rail that choice is a media
+   * query. `flex-1` so the strip owns the rail's full height.
+   *
+   * `px-1` insets the entries 4px, so an entry's hover fill stops short of the rail's
+   * edges instead of bleeding into the border.
+   *
+   * ⚠️ The chevron sits at x=12 here and at x=8 on the open rail — but both are measured
+   * from the RAIL's left edge, and the rail is right-anchored, so its left edge itself
+   * moves 264px when the fold happens. The pointer travels either way; there is no
+   * stationary-target invariant to preserve. (An earlier comment here claimed one.)
+   */
+  strip: 'flex-1 flex-col items-center px-1 py-2',
+  /**
+   * The fold control. Glyph-only, so the call site owes it an `aria-label` that says
+   * what the press DOES ("가이드 접기"), not what the rail currently is.
+   *
+   * ⚠️ It now renders on TWO grounds: inside the 협업 채널 card (white) when the rail is
+   * open, and straight on the rail plane (#E2E7EA) when it is folded. One token still
+   * covers both because gray-100 lands at least as far from each — measured in the
+   * browser at 1.101 against white and **1.132** against #E2E7EA, i.e. the folded state
+   * is the more visible of the two. It reads as a dip on the card and a lift on the rail;
+   * that polarity flip is the price of one token, and each side is locally consistent.
+   *
+   * ⛔ This is not a general licence to put a plane under it. gray-100 measures ~1.03
+   * against #E8F1FF, where the hover simply vanishes; the pair that works there is
+   * #D6E7FF (1.103). Measure the pair before adopting a new ground, and re-split the
+   * token rather than leaving the control silent.
+   */
+  toggle:
+    'flex h-8 w-8 items-center justify-center rounded-md text-gray-700 transition-colors hover:bg-gray-100',
+  /**
+   * Zone heading on the open rail — 「협업 채널」, 「2단계 가이드」.
+   *
+   * It is now a card's head — the zone it names is a `card`, so containment does the
+   * separating and this says WHICH zone. (Under 시안 E it was load-bearing in a stronger
+   * sense: a hairline and this label were the only things dividing the rail at all.)
+   *
+   * 16px semibold (오너 지시 2026-08-23). ⚠️ It started as the service rail's
+   * `sectionLabel` (12px medium #4E5968) on the argument that two rails in one app
+   * should share a nav idiom. That argument no longer holds — at 16px this is a section
+   * HEADING, not a nav label, so it is deliberately its own thing.
+   *
+   * #4E5968 stays, and it is now the FIRST thing read in its zone: the 16px bold
+   * 「도움이 필요하신가요?」 that used to outrank it is gone (two same-size headings 8px
+   * apart is a stutter, not a hierarchy). 7.12:1 on the card's white. ⛔ Do not read the
+   * 5.71 figure next to `surface` as this token's number — that one is for the rail plane,
+   * which this label never touches.
+   */
+  zoneLabel: 'text-[16px] font-semibold tracking-[0.02em] text-[#4E5968]',
+  /**
+   * The 가이드 zone's mark — the 전구 ink, on the open rail's zone head and on the folded
+   * strip (오너 지시 2026-08-23: the same mark in both states).
+   *
+   * Value is the owner's Figma node (`slrqFgziqlHznBZ1VMPtcq`, `6:11`), not a pick of
+   * ours. It replaced #CA8A04, this file's own attempt at the same brief.
+   *
+   * ⛔ Bare, at 20px, in BOTH fold states — the folded strip's mark is the standard
+   * (오너 지시 2026-08-23). The Figma node also carries a 28×28 #FFF8E1 plate; it was
+   * rendered on the open zone head for one commit and then removed. The strip has no room
+   * for it beside a 14px label, and a mark that changes shape when the rail folds is two
+   * marks. ⛔ Do not bring the plate back on one side only. (It used to also be what kept
+   * the 안내박스 the rail's single fill; 시안 A retired that argument, the one about the
+   * two fold states did not.)
+   *
+   * ⚠️ #F59E0B is 2.15:1 on white — under 1.4.11's 3:1, and no saturated yellow-amber
+   * clears that: at H 38° you reach 3:1 only by darkening past the point where the hue
+   * stops being yellow. Legal here because the glyph is DECORATIVE — 「N단계 가이드」 sits
+   * beside it and the strip entry's `aria-label` repeats it. ⛔ Do not reuse this token
+   * where the glyph is the only channel.
+   *
+   * ⛔ Nor is it a warning — and it is CLOSER to one than #CA8A04 was. `connProgress` owns
+   * amber for warnings (#E8A03A dot, #B45309 ink), and #E8A03A is H 35° to this H 38°.
+   * Hue will not separate them; the silhouette and the place have to — a 전구 on a rail
+   * zone head, never a status dot.
+   */
+  zoneMark: 'text-[#F59E0B]', // design-exempt: 장식 글리프 — 뜻은 옆의 「N단계 가이드」와 스트립 aria-label 이 전부 싣는다. 텍스트 4.5:1 도, 1.4.11 의 3:1 도 대상이 아님
+  /**
+   * The 협업 채널 zone's mark — the SAME `ChatIcon` the folded strip carries, at the same
+   * 20px (오너 지시 2026-08-23; the rule the 가이드 전구 already follows — folding changes
+   * how much of a zone you see, not what it looks like).
+   *
+   * `text-gray-700` is what the strip's `entry` gives that glyph by inheritance, so the
+   * two states match: 8.27:1 on the rail plane there, 9.06:1 on the card here.
+   *
+   * ⛔ Adding this REQUIRED taking the glyph off the link row — the two would sit ~56px
+   * apart inside one card, the same bubble twice at two sizes. It also puts both zone
+   * heads on one geometry (20 mark + 8 gap + label), which is what finally aligns the
+   * two labels; they were 28px out.
+   *
+   * ⛔ The ink is a PAIR and the head wears whichever one the folded strip is wearing.
+   * "Same mark in both states" has to survive the DATA too: with no ticket mapped the
+   * strip goes quiet, so a head fixed at full strength would match on 1007 and break on
+   * 1003, and a rule that holds for some rows is not a rule.
+   *
+   * ⛔ Nor is the glyph the whole mark. Render it through `RailMark`, which carries the
+   * state dot with it — the first attempt at this matched the SVG exactly and still
+   * looked wrong, because the folded strip draws that glyph with a dot on it.
+   */
+  zoneMarkChannel: 'text-gray-700',
+  /** The quiet half of the pair above — #4E5968, 7.11:1 on the zone card's white. */
+  zoneMarkChannelQuiet: 'text-[#4E5968]',
+  /**
+   * Hairline between the size control and the entries — half the strip, so it reads as
+   * a seam. #D2D8DC is the left rail's `divider`, i.e. the value already chosen for a
+   * seam on this exact plane. ⛔ It was gray-100, which was lighter than the rail it now
+   * sits on — a seam that reads as a highlight rather than a cut.
+   */
+  divider: 'my-2 h-px w-8 bg-[#D2D8DC]',
+  /**
+   * One fold entry: a 20px glyph over a 12px label, the whole block a single button.
+   *
+   * 20px, not the toggle's 16 — the chevron is chrome that only has to be hittable,
+   * while these carry the panel's identity and are the first thing read on the strip.
+   * It is the size the target-source header's provider mark used before 오너 지시 took
+   * it to 28.
+   *
+   * `text-gray-700` (#374151) is 8.27:1 on the rail's #E2E7EA plane — it was 9.06 while
+   * the rail was white, and the glyph is what survives when the label is read past.
+   * ⛔ gray-500 is 3.88 here, i.e. no longer legal at all; it was 4.83 on white.
+   */
+  entry:
+    'flex w-full flex-col items-center gap-1 rounded-md py-2 text-gray-700 transition-colors hover:bg-gray-100',
+  /**
+   * 14px semibold, blue (오너 지시 2026-08-23). Was 12px medium, inheriting the entry's
+   * gray-700.
+   *
+   * ⛔ 14px is now the CEILING here, not a floor. The strip is 56px wide and `px-1` leaves
+   * 48 usable, so 「가이드」 is 3 × 14 = 42px with 3px of air each side. One more character
+   * or one more px overflows, and `whitespace-nowrap` means it overflows rather than
+   * wrapping — a wrapped label in a 56px rail is a paragraph. If a label will not fit,
+   * shorten the WORD (JetBrains' stripe rule: two words max, abbreviate).
+   *
+   * #0050D6 is the rail's single blue — the same ink the Jira key and `guideStyles.accent`
+   * use — and it holds on both of this rail's grounds: 6.73:1 on white, 5.40:1 on the
+   * #E2E7EA strip plane where this label actually renders. ⛔ Not #0064FF, which is 4.92
+   * on white but **3.95 here** — the plane change is exactly what disqualifies it.
+   * Written as a literal because `design-guard`'s `classOf` cannot follow a `${}`.
+   */
+  entryLabel: 'text-[14px] font-semibold leading-[1.2] whitespace-nowrap text-[#0050D6]',
+  /**
+   * The same entry when its zone has nothing behind it — 협업 채널 with no mapped ticket
+   * (오너 지시 2026-08-23: 「JiraTicket 없는 경우엔 접었을 때 적절히 다른 표현으로」).
+   *
+   * Blue is a promise of somewhere to go, and there is nowhere; #4E5968 withdraws that
+   * promise without whispering — 5.71:1 on the rail plane, against `entry`'s 8.27 and
+   * `entryLabel`'s 5.40, so it is quieter than both yet still comfortably AA. ⛔ Not
+   * gray-400 (1.9) or gray-500 (3.88): "muted" on THIS plane bottoms out at #4E5968.
+   *
+   * The pair also drops the state dot at the call site. Green says reachable and red says
+   * broken; absence is neither, and a dot on a zone with no state is decoration.
+   *
+   * ⛔ Full duplicates of `entry`/`entryLabel`, not modifiers — `cn` has no tailwind-merge,
+   * so an appended `text-*` would sit next to the one it means to replace and lose.
+   */
+  entryQuiet:
+    'flex w-full flex-col items-center gap-1 rounded-md py-2 text-[#4E5968] transition-colors hover:bg-gray-100',
+  entryLabelQuiet:
+    'text-[14px] font-semibold leading-[1.2] whitespace-nowrap text-[#4E5968]',
+  /**
+   * State dot on an entry's glyph — 8px, the same one `HistoryTimeline` uses, with a
+   * white ring so it reads as ON the glyph rather than beside it. The caller supplies
+   * the fill from `statusColors[tone].dot`.
+   *
+   * ⛔ The dot is `aria-hidden`; the entry's `aria-label` has to say the state in words,
+   * or the whole channel status is invisible to anyone not looking at colour.
+   */
+  entryDot: 'absolute -right-1 -top-0.5 h-2 w-2 rounded-full ring-2 ring-white',
+} as const;
+
+/**
+ * Guide prose accents that `prose-guide` (globals.css) cannot express, because the
+ * guide allow-list gives an author no class or style to hang them on. The renderer
+ * (`render-guide-ast.tsx`) attaches these by TAG, so the markup stays plain HTML and
+ * the styling stays here.
+ */
+export const guideStyles = {
+  /**
+   * 안내 박스 — `<blockquote>`. A recessed grey card for a set-off note.
+   *
+   * ⛔ The fill alone is not the separation. `#F2F4F6` against white measures ~1.09:1,
+   * nowhere near the 3:1 a non-text boundary owes (the same reason this file already
+   * refuses `#F9FAFB` as a row tint), so the hairline is load-bearing — drop it and the
+   * card stops being a card. Body ink stays the inherited `--fg-2` (#374151), which is
+   * 9.6:1 on this fill.
+   */
+  note: 'my-2.5 rounded-lg border border-gray-200 bg-[#F2F4F6] px-3 py-2.5',
+  /**
+   * Brand-coloured emphasis — `<em>`.
+   *
+   * The tag is repurposed, not decorated: italics do not exist for 한글 in any useful
+   * sense, and no guide body in the repo used `<em>` for slant. `#0050D6`, not the
+   * `#0064FF` brand ink, because this text can land inside `note` above, where
+   * #0064FF measures 4.31:1 — under AA. #0050D6 holds 6.7:1 on white and 5.9:1 on the
+   * note, so one ink covers both surfaces.
+   */
+  accent: 'not-italic font-medium text-[#0050D6]',
 } as const;
 
 /**

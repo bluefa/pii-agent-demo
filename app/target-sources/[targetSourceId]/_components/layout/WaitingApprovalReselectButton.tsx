@@ -53,8 +53,11 @@ export const WaitingApprovalReselectButton = ({
 
       {/* The title is the pre-flight nudge — once the user moves on, the reason leaves the
           screen, so "did you read it?" is the one question worth asking. Confirm stays blue
-          (default variant): recovery step, not a destructive one. No loss banner — the request
-          history stays visible in 진행 내역, so nothing worth warning about is lost. */}
+          (default variant): recovery step, not a destructive one. No loss banner: re-selecting
+          replaces a draft, not a record.
+          ⚠️ The earlier reason — "the history stays visible in 진행 내역" — no longer holds. That
+          tab is gone (오너 지시 2026-08-23) and was mock data before it. See
+          WaitingApprovalCancelButton for the same note. */}
       <ConfirmStepModal
         open={modal.isOpen}
         onClose={modal.close}

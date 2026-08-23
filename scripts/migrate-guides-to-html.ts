@@ -14,7 +14,7 @@
 
 import { AWS_AUTO_GUIDE, AWS_MANUAL_GUIDE, AZURE_GUIDE, GCP_GUIDE } from '@/lib/constants/process-guides';
 import { GUIDE_SLOTS } from '@/lib/constants/guide-registry';
-import { validateGuideHtml } from '@/lib/utils/validate-guide-html';
+import { GUIDE_VALIDATE_OPTIONS, validateGuideHtml } from '@/lib/utils/validate-guide-html';
 
 import type { GuideName } from '@/lib/types/guide';
 import type { ProviderProcessGuide } from '@/lib/types/process-guide';
@@ -60,7 +60,7 @@ const collect = (): SeedEntry[] => {
     if (entries.some((e) => e.name === slot.guideName)) continue;
     // Placeholder HTML — real content is authored in the CMS admin UI.
     const ko = `<h4>${label}</h4>`;
-    const result = validateGuideHtml(ko);
+    const result = validateGuideHtml(ko, GUIDE_VALIDATE_OPTIONS);
     if (!result.valid) {
       console.error(`validateGuideHtml failed for ${slot.guideName}:`, result.errors);
       process.exit(1);

@@ -1,30 +1,64 @@
 // @vitest-environment jsdom
-import { render, screen } from '@testing-library/react';
-import { describe, it, expect, vi } from 'vitest';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { beforeEach, describe, it, expect, vi } from 'vitest';
 
 vi.mock('@/app/components/features/process-status/GuideCard/GuideCardContainer', () => ({
   GuideCardContainer: () => <div data-testid="guide-card" />,
 }));
 
-// The management footer renders DeleteInfrastructureButton, which needs the
-// toast context — mock it so the panel renders standalone.
-vi.mock(
-  '@/app/target-sources/[targetSourceId]/_components/common/DeleteInfrastructureButton',
-  () => ({
-    DeleteInfrastructureButton: () => <button type="button">인프라 삭제</button>,
-  }),
-);
-
 import { GuidePanel } from '@/app/target-sources/[targetSourceId]/_components/common/GuidePanel';
+import { railStyles } from '@/lib/theme';
+
+/**
+ * The channel zone's first line, and the marker the fold tests use for "this zone
+ * rendered". It took that job from 「도움이 필요하신가요?」, which was deleted for being a
+ * second 16px heading directly under 「협업 채널」 (오너 지시 2026-08-23).
+ */
+const CHANNEL_LINE = '진행 중 막히는 부분은 협업 채널에서 바로 문의할 수 있어요.';
 
 const baseProps = {
   slotKey: null,
+  /** No stored preference — the width default decides. Tests that care pass their own. */
+  initialCollapsed: null,
 } as const;
+
+/**
+ * The preference is a COOKIE, read by the server and handed down as `initialCollapsed`.
+ * jsdom implements `document.cookie` properly, so unlike the `localStorage` version this
+ * needs no stub — reading the cookie back is the same thing the server would do.
+ */
+const readRailCookie = (): string | null =>
+  document.cookie.match(/(?:^|;\s*)pii-rail-guide=([^;]*)/)?.[1] ?? null;
+
+const clearRailCookie = () => {
+  document.cookie = 'pii-rail-guide=; path=/; max-age=0';
+};
+
+/** jsdom reports 1024, i.e. under RAIL_OPEN_MIN_WIDTH — set it per test rather than
+ *  inheriting whichever side of the default a given machine happens to land on. */
+const setViewportWidth = (width: number) => {
+  Object.defineProperty(window, 'innerWidth', { value: width, configurable: true });
+};
+
+/**
+ * With no cookie the fold resolves on a `setTimeout(0)` after mount. Until it does, BOTH
+ * halves are mounted and the media query arbitrates — so "settled" is exactly when one
+ * fold control is left instead of two.
+ */
+const settled = () =>
+  waitFor(() =>
+    expect(screen.getAllByRole('button', { name: /가이드 (접기|펼치기)/ })).toHaveLength(1),
+  );
+
+beforeEach(() => {
+  clearRailCookie();
+  setViewportWidth(1440);
+});
 
 describe('GuidePanel — collab-channel card states', () => {
   it('renders the explicit 미연결 state when no Jira ticket is mapped (404 → null)', () => {
     render(<GuidePanel {...baseProps} jiraTicket={null} />);
-    expect(screen.getByText('도움이 필요하신가요?')).toBeTruthy();
+    expect(screen.getByText(CHANNEL_LINE)).toBeTruthy();
     expect(screen.getByText('아직 연결된 협업 채널이 없어요')).toBeTruthy();
     expect(screen.queryByTitle('협업 채널 — Jira에서 논의하기')).toBeNull();
   });
@@ -54,16 +88,625 @@ describe('GuidePanel — collab-channel card states', () => {
     expect(screen.queryByTitle('협업 채널 — Jira에서 논의하기')).toBeNull();
     expect(screen.getByText('PII-42')).toBeTruthy();
   });
+
+  // 오너 지시 2026-08-23: no white card inside the card. Its fill and border were also the
+  // 26px that made the label and the key collide in the folded rail's fixed 280px tip.
+  it('gives the channel row no surface of its own, and stacks its two tiers', () => {
+    render(
+      <GuidePanel
+        {...baseProps}
+        jiraTicket={{ issueKey: 'PII-42', browseUrl: 'https://jira.example.com/browse/PII-42' }}
+      />,
+    );
+    const link = screen.getByTitle('협업 채널 — Jira에서 논의하기');
+
+    // ⛔ An allowlist of what MAY NOT appear, by prefix — not three literal tokens. The
+    // previous form named `bg-white`, `rounded-lg` and a bare `border`, so
+    // `rounded-md border-2 bg-[#F2F4F6] p-3 shadow-sm` walked straight through it and put
+    // back the card-inside-a-card this test exists to forbid.
+    const surfaceOf = (el: Element) =>
+      (el.getAttribute('class') ?? '')
+        .split(/\s+/)
+        .filter((c) => /^(bg-|border|rounded|shadow|ring|p-|px-|py-)/.test(c));
+    expect(surfaceOf(link)).toEqual([]);
+
+    // Stacked, not side by side — and the key carries the AA-safe blue. #0064FF measures
+    // 4.33:1 on #E8F1FF; it was only ever legal because a white row sat under it.
+    const key = screen.getByText('PII-42');
+    // ⛔ `block`, exactly — `toContain` was satisfied by `inline-block`, which is the
+    // side-by-side layout this line is here to rule out, and jsdom measures no geometry.
+    expect(key.className.split(/\s+/)).toContain('block');
+    expect(key.className).toContain('text-[#0050D6]');
+    expect(key.className).not.toContain('text-[#0064FF]');
+
+    // One leading for every line the rail sets itself. Half-leading lands on both sides
+    // of a box, so mixed leadings (1.55 / 1.45 / 1.35) made equal box gaps read unequal —
+    // matching the numbers only means something once the leading matches too.
+    expect(screen.getByText('협업 채널 링크').className).toContain('leading-[1.5]');
+    expect(key.className).toContain('leading-[1.5]');
+  });
 });
 
-describe('GuidePanel — danger footer', () => {
-  it('renders the collab card at the top and the delete action pinned at the bottom', () => {
+describe('GuidePanel — the rail folds, it does not vanish', () => {
+  // The defect this replaces: `hidden … min-[1360px]:flex` meant the viewport decided
+  // whether the rail EXISTED, and this file is the only render site for the guide and
+  // the Jira channel. `hidden` is `display:none`, so below 1360px both left the
+  // accessibility tree with no way back.
+  it('mounts at a narrow viewport instead of being display:none', async () => {
+    setViewportWidth(1280);
+    const { container } = render(<GuidePanel {...baseProps} jiraTicket={null} />);
+    await settled();
+
+    const aside = container.querySelector('aside');
+    expect(aside).toBeTruthy();
+    const classes = aside?.className.split(/\s+/) ?? [];
+    // ⛔ Neither of these may come back: `hidden` removes the rail outright and the
+    // breakpoint variant is what used to make the viewport the authority.
+    expect(classes).not.toContain('hidden');
+    expect(classes.some((c) => c.startsWith('min-[1360px]:'))).toBe(false);
+    // Narrow ⇒ folded by default, and the control that unfolds it is on screen.
+    expect(screen.getByRole('button', { name: '가이드 펼치기' })).toBeTruthy();
+  });
+
+  it('starts open at 1360px and above', async () => {
+    setViewportWidth(1360);
     render(<GuidePanel {...baseProps} jiraTicket={null} />);
-    const collabCard = screen.getByText('도움이 필요하신가요?');
-    const deleteButton = screen.getByRole('button', { name: '인프라 삭제' });
-    // top card precedes the delete footer in document order
-    expect(
-      collabCard.compareDocumentPosition(deleteButton) & Node.DOCUMENT_POSITION_FOLLOWING,
-    ).toBeTruthy();
+    await settled();
+    expect(screen.getByRole('button', { name: '가이드 접기' })).toBeTruthy();
+    expect(screen.getByText(CHANNEL_LINE)).toBeTruthy();
+  });
+
+  // 오너 지시 2026-08-23: the open rail read as THREE axes — a chevron, 협업 채널, 가이드.
+  // The chevron's band cost 48px and a seam for one button; it rides the channel band's
+  // title line now, so the panel is two zones with one seam between them.
+  it('opens as two zones, with the fold control inside the first', async () => {
+    const { container } = render(<GuidePanel {...baseProps} jiraTicket={null} />);
+    await settled();
+
+    const body = container.querySelector('aside > div');
+    expect(body?.children).toHaveLength(2);
+
+    // ⛔ The control may not take a band back. It has to sit inside zone 1.
+    const channel = body?.children[0] as HTMLElement;
+    const toggle = screen.getByRole('button', { name: '가이드 접기' });
+    expect(channel.contains(toggle)).toBe(true);
+  });
+
+  // 시안 A (오너 지시 2026-08-23: 「2단계 가이드」 아래 실제 가이드는 카드 그룹으로).
+  //
+  // This REPLACES 시안 E's "not one fill anywhere in the rail", which this test used to
+  // assert. A white card on a white rail is not a card, so grouping the guide is what
+  // forced the rail down onto the left rail's plane. ⛔ The two halves move together: a
+  // rail back on `bg-white` with the zones still cards is the state where the grouping
+  // the owner asked for is invisible.
+  it('drops the rail to the left rail’s plane and floats each zone as a card', async () => {
+    const { container } = render(<GuidePanel {...baseProps} jiraTicket={null} />);
+    await settled();
+
+    const aside = container.querySelector('aside') as HTMLElement;
+    expect(aside.className).toContain('bg-[#E2E7EA]');
+    expect(aside.className).not.toContain('bg-white');
+
+    const zones = Array.from(
+      (container.querySelector('aside > div') as HTMLElement).children,
+    ) as HTMLElement[];
+    expect(zones).toHaveLength(2);
+    for (const zone of zones) {
+      expect(zone.className).toContain('bg-white');
+      expect(zone.className).toContain('rounded-xl');
+    }
+
+    // The cards separate the zones; the labels say which is which.
+    expect(screen.getByText('협업 채널')).toBeTruthy();
+    expect(screen.getByText('가이드')).toBeTruthy();
+  });
+
+  // ⛔ 「도움이 필요하신가요?」 does not come back. It was 16px bold sitting 8px under
+  // 「협업 채널」 at 16px semibold — two headings of the same size, told apart by weight
+  // alone, saying the same thing twice (오너 지시 2026-08-23).
+  it('leaves the channel zone one heading, not two of the same size', async () => {
+    render(<GuidePanel {...baseProps} jiraTicket={null} />);
+    await settled();
+
+    expect(screen.queryByText(/도움이 필요하신가요/)).toBeNull();
+    expect(screen.getByText('협업 채널')).toBeTruthy();
+  });
+
+  // 오너 지시 2026-08-23: the 가이드 mark is the owner's Figma 전구
+  // (slrqFgziqlHznBZ1VMPtcq, 6:11) and it shows in BOTH fold states — folding changes how
+  // much of the guide you see, not what it looks like.
+  it('marks the guide zone with the Figma 전구 in both fold states', async () => {
+    const { container } = render(<GuidePanel {...baseProps} jiraTicket={null} />);
+    await settled();
+
+    const open = container.querySelector('aside svg.text-\\[\\#F59E0B\\]');
+    expect(open).toBeTruthy();
+    // Stroked at a 14 viewBox, per the node. ⛔ Rescaling into the 24 box every other
+    // icon uses would have to thin the stroke and stop being the spec.
+    expect(open?.getAttribute('viewBox')).toBe('0 0 14 14');
+    expect(open?.getAttribute('stroke')).toBe('currentColor');
+    expect(open?.getAttribute('fill')).toBe('none');
+
+    // ⛔ ONE mark, and the folded one is the standard: same 20px, bare, both states. The
+    // Figma node's 28px #FFF8E1 plate was on the open head for one commit and is gone —
+    // a mark that changes shape when the rail folds is two marks.
+    // `getAttribute`, not `.className` — on an SVGElement that is an SVGAnimatedString.
+    expect(open?.getAttribute('class')).toContain('h-5');
+    expect(container.querySelector('aside .bg-\\[\\#FFF8E1\\]')).toBeNull();
+
+    // ⛔ The whole mark, compared as markup — not `h-5` and a missing plate.
+    //
+    // This test used to check viewBox/stroke/fill on the OPEN glyph and then, once
+    // folded, only that SOMETHING amber with `h-5` was present. Swapping the strip's
+    // 전구 for the ChatIcon kept every one of those assertions true: same selector, same
+    // size, still no plate, wrong shape. That is the channel-mark bug again, on the other
+    // mark — so it gets the same answer, one `.toBe()` over identical markup.
+    const openMark = guideMark(container as HTMLElement)?.outerHTML;
+    expect(openMark).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: '가이드 접기' }));
+    await waitFor(() => expect(screen.getByRole('button', { name: '가이드 펼치기' })).toBeTruthy());
+
+    expect(guideMark(container as HTMLElement)?.outerHTML).toBe(openMark);
+    expect(container.querySelector('aside .bg-\\[\\#FFF8E1\\]')).toBeNull();
+  });
+
+  // 오너 지시 2026-08-23: 「N단계 가이드」, not 「가이드」 — the rail is docked beside a
+  // seven-step process, so the number is what says which guide this is.
+  it('numbers the guide zone from the slot registry, in both fold states', async () => {
+    render(<GuidePanel {...baseProps} slotKey="process.aws.manual.4" jiraTicket={null} />);
+    await settled();
+    expect(screen.getByText('4단계 가이드')).toBeTruthy();
+
+    // Folded, the strip's one-word label stays 「가이드」 (56px), but the accessible name
+    // carries the number — the entry is a 20px glyph and the tooltip is its only channel.
+    fireEvent.click(screen.getByRole('button', { name: '가이드 접기' }));
+    const strip = await waitFor(() =>
+      screen.getByRole('button', { name: '4단계 가이드 — 펼치기' }),
+    );
+
+    // ⛔ The VISIBLE label, not just the accessible one. Both are read off the same slot,
+    // so `label={guideZoneLabel}` is a one-word change that keeps this test green — and
+    // 「4단계 가이드」 does not fit a 56px strip. The two names differ on purpose: the strip
+    // has room for one word, the tooltip has room for the sentence.
+    expect(strip.textContent).toBe('가이드');
+    expect(strip.textContent).not.toContain('단계');
+  });
+
+  /**
+   * ⛔ The two fold controls live in the two halves of the rail, and a press unmounts the
+   * half it was pressed in — so the button that was just activated is destroyed by its own
+   * click. Without a hand-off the focus ring lands on `<body>` and a keyboard reader has
+   * to tab from the top of the page to fold the rail back.
+   *
+   * This was introduced by this PR: the old rail had no press-driven toggle at all, only
+   * `hidden … min-[1360px]:flex`.
+   */
+  it('hands focus to the surviving toggle, both ways', async () => {
+    render(<GuidePanel {...baseProps} jiraTicket={null} />);
+    await settled();
+
+    fireEvent.click(screen.getByRole('button', { name: '가이드 접기' }));
+    const expand = await waitFor(() => screen.getByRole('button', { name: '가이드 펼치기' }));
+    expect(document.activeElement).toBe(expand);
+
+    fireEvent.click(expand);
+    const collapse = await waitFor(() => screen.getByRole('button', { name: '가이드 접기' }));
+    expect(document.activeElement).toBe(collapse);
+  });
+
+  // ⛔ And nothing steals focus before a press. The rail resolves its own width on mount,
+  // which is a render the reader did not ask for — grabbing focus there would yank the
+  // caret out of whatever they were actually doing.
+  it('does not take focus on the first paint', async () => {
+    render(<GuidePanel {...baseProps} jiraTicket={null} />);
+    await settled();
+    expect(document.activeElement).toBe(document.body);
+  });
+
+  // The name says what the press DOES (「가이드 접기」); `aria-expanded` says where the rail
+  // IS. A control that only ever renames itself leaves AT with no state to report, and
+  // `aria-controls` is what ties the button to the region it folds.
+  it('reports its expanded state and names the region it controls', async () => {
+    const { container } = render(<GuidePanel {...baseProps} jiraTicket={null} />);
+    await settled();
+
+    const railId = container.querySelector('aside')?.id;
+    expect(railId).toBeTruthy();
+
+    const collapse = screen.getByRole('button', { name: '가이드 접기' });
+    expect(collapse.getAttribute('aria-expanded')).toBe('true');
+    expect(collapse.getAttribute('aria-controls')).toBe(railId);
+
+    fireEvent.click(collapse);
+    const expand = await waitFor(() => screen.getByRole('button', { name: '가이드 펼치기' }));
+    expect(expand.getAttribute('aria-expanded')).toBe('false');
+    // ⛔ It must still point at something that exists — the rail survives the fold, only
+    // its contents change, so a dangling `aria-controls` here would be a silent one.
+    expect(expand.getAttribute('aria-controls')).toBe(railId);
+    expect(container.querySelector(`#${railId}`)).toBeTruthy();
+  });
+
+  it('folds and unfolds on press, taking the rail body with it', async () => {
+    render(<GuidePanel {...baseProps} jiraTicket={null} />);
+    await settled();
+
+    fireEvent.click(screen.getByRole('button', { name: '가이드 접기' }));
+    await waitFor(() => expect(screen.queryByText(CHANNEL_LINE)).toBeNull());
+
+    fireEvent.click(screen.getByRole('button', { name: '가이드 펼치기' }));
+    await waitFor(() => expect(screen.getByText(CHANNEL_LINE)).toBeTruthy());
+  });
+
+  it('writes the fold to a cookie, and the press beats the width default', async () => {
+    // Wide, so the default is open — then fold it and prove the preference is on the
+    // request the next paint will ride, not in storage the server cannot see.
+    const first = render(<GuidePanel {...baseProps} jiraTicket={null} />);
+    await settled();
+    fireEvent.click(screen.getByRole('button', { name: '가이드 접기' }));
+    await waitFor(() => expect(readRailCookie()).toBe('1'));
+    first.unmount();
+
+    // What the server does on the next request: read the cookie, hand it down.
+    render(<GuidePanel {...baseProps} jiraTicket={null} initialCollapsed />);
+    expect(screen.getByRole('button', { name: '가이드 펼치기' })).toBeTruthy();
+  });
+});
+
+describe('GuidePanel — the fold does not flash on reload', () => {
+  // The bug: the server could not see `localStorage`, so a folded rail painted OPEN at
+  // 320px and snapped to the strip once hydration delivered the real answer.
+  it('paints the strip on the FIRST render when the server says folded', () => {
+    const { container } = render(
+      <GuidePanel {...baseProps} jiraTicket={null} initialCollapsed />,
+    );
+    const classes = container.querySelector('aside')?.className.split(/\s+/) ?? [];
+
+    // ⛔ No breakpoint class at all. `min-[1360px]:w-[320px]` is the signature of the
+    // unresolved frame — the one that painted 320px before correcting itself.
+    expect(classes.some((c) => c.startsWith('min-[1360px]:'))).toBe(false);
+    expect(classes).toContain('w-14');
+    // …and the body was never mounted, so nothing had to be torn down.
+    expect(screen.queryByText(CHANNEL_LINE)).toBeNull();
+    expect(screen.getByRole('button', { name: '가이드 펼치기' })).toBeTruthy();
+  });
+
+  it('paints the open rail on the FIRST render when the server says open', () => {
+    setViewportWidth(1024); // ⛔ narrow: the width default would fold it. The cookie wins.
+    const { container } = render(
+      <GuidePanel {...baseProps} jiraTicket={null} initialCollapsed={false} />,
+    );
+    const classes = container.querySelector('aside')?.className.split(/\s+/) ?? [];
+    expect(classes.some((c) => c.startsWith('min-[1360px]:'))).toBe(false);
+    expect(classes).toContain('w-[320px]');
+    expect(screen.getByText(CHANNEL_LINE)).toBeTruthy();
+  });
+
+  it('still arbitrates with the media query when no cookie was sent', () => {
+    const { container } = render(<GuidePanel {...baseProps} jiraTicket={null} />);
+    const aside = container.querySelector('aside');
+    const classes = aside?.className.split(/\s+/) ?? [];
+    // Honest "not known yet": the server had nothing to go on, so the breakpoint paints
+    // the frame and the effect resolves to the same answer. Nothing moves either way.
+    expect(classes.some((c) => c.startsWith('min-[1360px]:'))).toBe(true);
+
+    // ⛔ The rail's own width is not the whole flash. Both halves MOUNT while the answer
+    // is `null`, so the media query has to hide exactly one of them — and that lives on
+    // the halves, not on the aside. Reading only the aside let `stripShown = 'flex'`
+    // through, which stacks the folded strip on top of the open rail for one frame at
+    // every load ≥1360px: the flash this whole cookie exists to prevent, by another door.
+    const halves = Array.from(aside?.children ?? []).map((el) =>
+      (el.getAttribute('class') ?? '').split(/\s+/),
+    );
+    expect(halves).toHaveLength(2);
+    const shownAt = (cs: string[]) => ({
+      base: cs.includes('flex') ? 'flex' : cs.includes('hidden') ? 'hidden' : '?',
+      wide: cs.find((c) => c.startsWith('min-[1360px]:')) ?? '',
+    });
+    // One shows narrow and hides wide; the other does the opposite. Never both, never neither.
+    expect(halves.map(shownAt)).toEqual(
+      expect.arrayContaining([
+        { base: 'flex', wide: 'min-[1360px]:hidden' },
+        { base: 'hidden', wide: 'min-[1360px]:flex' },
+      ]),
+    );
+  });
+});
+
+/**
+ * Folds the rail and waits for the strip. Every test below starts here.
+ *
+ * The `clear()` is load-bearing: folding WRITES the preference, so a second call inside
+ * one test would mount already-collapsed and find no 「가이드 접기」 to press.
+ */
+const folded = async (jiraTicket: Parameters<typeof GuidePanel>[0]['jiraTicket']) => {
+  clearRailCookie();
+  const view = render(<GuidePanel {...baseProps} jiraTicket={jiraTicket} />);
+  await settled();
+  fireEvent.click(screen.getByRole('button', { name: '가이드 접기' }));
+  await waitFor(() => expect(screen.getByRole('button', { name: '가이드 펼치기' })).toBeTruthy());
+  return view;
+};
+
+/**
+ * The rail's two zone marks, in DOM order: 채널 then 가이드.
+ *
+ * Order is not incidental — 채널 above 가이드 is asserted in its own test, because the
+ * strip mirrors the open panel's vertical order. Both zones render their glyph through
+ * `RailMark` in both fold states, so there are always exactly two.
+ */
+const marks = (root: HTMLElement) => Array.from(root.querySelectorAll('aside span.relative'));
+
+const channelMark = (root: HTMLElement) => marks(root)[0];
+const guideMark = (root: HTMLElement) => marks(root)[1];
+
+/** Its markup: glyph + state dot. ⛔ NOT the ink — that lives outside it, see `inkOn`. */
+const markIn = (root: HTMLElement) => channelMark(root)?.innerHTML;
+
+/**
+ * The ink applied to that mark. `RailMark` sets no colour of its own — deliberately, so
+ * both call sites can hand it the same bare glyph and inherit — which means the colour
+ * lives on the nearest ancestor that declares one: the strip's `<button>`, or the open
+ * head's label row. Walking up is the only way to read the thing the user actually sees.
+ */
+const inkOn = (root: HTMLElement) => {
+  // `text-` is two utilities wearing one prefix. Colour is `text-[#…]` or `text-name-NNN`;
+  // `text-[14px]` is a size and would shadow the real answer on any element that sets both.
+  const isInk = (c: string) => /^text-\[#/.test(c) || /^text-[a-z]+-\d{2,3}$/.test(c);
+
+  for (let el = channelMark(root)?.parentElement; el; el = el.parentElement) {
+    const ink = (el.getAttribute('class') ?? '').split(/\s+/).find(isInk);
+    if (ink) return ink;
+  }
+  return undefined;
+};
+
+describe('GuidePanel — the folded strip says what it is', () => {
+  it('names the panel in words, not just a direction chevron', async () => {
+    await folded(null);
+    // ⛔ Deleting either label puts the strip back to "one chevron, no idea what it opens".
+    expect(screen.getByText('가이드')).toBeTruthy();
+    expect(screen.getByText('채널')).toBeTruthy();
+  });
+
+  it('is 56px wide — not 48, and ⛔ not 64', async () => {
+    // 64 would push the confirmed table's fit threshold to 1444px and cost 1440px
+    // laptops a horizontal scrollbar by 4px. This is the tripwire on that arithmetic.
+    const { container } = await folded(null);
+    const classes = container.querySelector('aside')?.className.split(/\s+/) ?? [];
+    expect(classes).toContain('w-14');
+    expect(classes).not.toContain('w-16');
+  });
+
+  it('carries the collab channel through the fold — all three states, in words', async () => {
+    const linked = await folded({ issueKey: 'BDCDIP-1353', browseUrl: 'https://jira.example.com/browse/BDCDIP-1353' });
+    // The ticket key survives folding. It used to disappear with the whole card.
+    expect(screen.getByRole('button', { name: '협업 채널 — BDCDIP-1353' })).toBeTruthy();
+    linked.unmount();
+
+    const none = await folded(null);
+    expect(screen.getByRole('button', { name: '협업 채널 — 아직 연결되지 않았어요' })).toBeTruthy();
+    none.unmount();
+
+    // ⛔ A failed fetch must not read as "no channel" on the strip either.
+    await folded('error');
+    expect(screen.getByRole('button', { name: '협업 채널 — 정보를 불러오지 못했어요' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /아직 연결되지 않았어요/ })).toBeNull();
+  });
+
+  // 오너 지시 2026-08-23: 「접었을 때의 채널 아이콘이 펼쳐졌을 때도 그대로」 — the rule the
+  // 가이드 전구 already follows.
+  //
+  // ⛔ Compare the MARK, not the glyph. The first version of this test asserted the two
+  // `path` `d` strings matched, and they did — while the folded strip drew that glyph
+  // with a green state dot on it and the open head drew it bare. Matching the SVG proved
+  // nothing the owner was asking about. Both call sites now render `RailMark`, so the
+  // assertion is that the two marks are the same MARKUP, dot and all.
+  it('shows the folded strip’s channel mark on the open zone head too — dot included', async () => {
+    const ticket = { issueKey: 'PII-42', browseUrl: 'https://jira.example.com/browse/PII-42' };
+
+    const open = render(<GuidePanel {...baseProps} jiraTicket={ticket} />);
+    await settled();
+    const onHead = markIn(open.container as HTMLElement);
+    expect(onHead).toBeTruthy();
+    // The dot travels with it — this is the half the SVG comparison could not see.
+    expect(onHead).toContain('rounded-full');
+    open.unmount();
+
+    const { container } = await folded(ticket);
+    expect(markIn(container as HTMLElement)).toBe(onHead);
+  });
+
+  // ⛔ And it has to hold for the DATA, not just for one row: with no ticket the strip
+  // goes quiet and loses its dot, so a head fixed at full strength would match here and
+  // break there.
+  it('keeps the two marks identical when the channel is empty', async () => {
+    const open = render(<GuidePanel {...baseProps} jiraTicket={null} />);
+    await settled();
+    const onHead = markIn(open.container as HTMLElement);
+    const headInk = inkOn(open.container as HTMLElement);
+    expect(onHead).not.toContain('rounded-full');
+    open.unmount();
+
+    const { container } = await folded(null);
+    expect(markIn(container as HTMLElement)).toBe(onHead);
+    expect(inkOn(container as HTMLElement)).toBe(headInk);
+  });
+
+  /**
+   * ⛔ And the ink is part of the mark even though it is not part of `RailMark`.
+   *
+   * This is the studied bug at one more remove. `markIn` reads `innerHTML`, and the fix
+   * for the original defect deliberately moved the ink OUT of the mark and onto whatever
+   * encloses it — so the comparison above steps over exactly the property that fix
+   * introduced. A head pinned at full strength matches on both counts and still renders
+   * the quiet row wrong, which is the failure the test above claims to have covered.
+   *
+   * The two states are compared to each other rather than to a literal: the class names
+   * are `theme.ts`'s business, and the invariant is sameness, not any particular colour.
+   */
+  it('gives the two marks the same ink, and a different one when the channel is empty', async () => {
+    const ticket = { issueKey: 'PII-42', browseUrl: 'https://jira.example.com/browse/PII-42' };
+
+    const open = render(<GuidePanel {...baseProps} jiraTicket={ticket} />);
+    await settled();
+    const headInk = inkOn(open.container as HTMLElement);
+    expect(headInk).toBeTruthy();
+    open.unmount();
+
+    const strip = await folded(ticket);
+    expect(inkOn(strip.container as HTMLElement)).toBe(headInk);
+    strip.unmount();
+
+    // …and it is not the same ink the empty channel gets, or "quiet" is not a state.
+    const empty = render(<GuidePanel {...baseProps} jiraTicket={null} />);
+    await settled();
+    expect(inkOn(empty.container as HTMLElement)).not.toBe(headInk);
+  });
+
+  // ⛔ "Once the zone head carries it" is half the claim, and it was the unasserted half:
+  // deleting the head's `RailMark` outright left this test green, because it only ever
+  // proved the ROW had lost its icon. A displacement needs both ends.
+  it('keeps the channel glyph on the zone head, which is what lets the row drop it', async () => {
+    const { container } = render(
+      <GuidePanel
+        {...baseProps}
+        jiraTicket={{ issueKey: 'PII-42', browseUrl: 'https://jira.example.com/browse/PII-42' }}
+      />,
+    );
+    await settled();
+
+    const head = channelMark(container as HTMLElement);
+    expect(head?.querySelector('svg')).toBeTruthy();
+  });
+
+  // ⛔ The head's glyph DISPLACES the row's — the same bubble twice inside one card, at
+  // two sizes ~56px apart, is a mistake and not a rhyme.
+  it('takes the ChatIcon off the link row once the zone head carries it', async () => {
+    render(
+      <GuidePanel
+        {...baseProps}
+        jiraTicket={{ issueKey: 'PII-42', browseUrl: 'https://jira.example.com/browse/PII-42' }}
+      />,
+    );
+    await settled();
+    expect(screen.getByTitle('협업 채널 — Jira에서 논의하기').querySelector('svg')).toBeNull();
+  });
+
+  it('gives each channel state its own dot fill, so colour is not dead weight', async () => {
+    const dotOf = (container: HTMLElement) =>
+      container.querySelector('aside span[aria-hidden].rounded-full')?.className ?? '';
+
+    const linked = await folded({ issueKey: 'PII-1', browseUrl: null });
+    const okFill = dotOf(linked.container as HTMLElement);
+    linked.unmount();
+
+    const failed = await folded('error');
+    const errFill = dotOf(failed.container as HTMLElement);
+
+    expect(okFill).not.toBe('');
+    expect(errFill).not.toBe('');
+    expect(okFill).not.toBe(errFill);
+  });
+
+  // 오너 지시 2026-08-23: 「JiraTicket 없는 경우엔 접었을 때 적절히 다른 표현으로」. The three
+  // states used to differ by dot fill alone, so the zone with nothing behind it advertised
+  // itself exactly like the one you can reach.
+  it('withdraws the channel entry’s promise when no ticket is mapped', async () => {
+    const channelBtn = () => screen.getByRole('button', { name: /^협업 채널/ });
+    const dotIn = (btn: HTMLElement) => btn.querySelector('span[aria-hidden].rounded-full');
+
+    // The two token pairs have to actually differ, or every assertion below passes on a
+    // distinction that is not being drawn.
+    expect(railStyles.entryQuiet).not.toBe(railStyles.entry);
+    expect(railStyles.entryLabelQuiet).not.toBe(railStyles.entryLabel);
+
+    const none = await folded(null);
+    const quiet = channelBtn();
+    expect(quiet.className).toBe(railStyles.entryQuiet);
+    // Blue promises somewhere to go. #4E5968 withdraws that and still clears AA on the
+    // rail plane (5.71) — ⛔ gray-400 (1.9) and gray-500 (3.88) do not.
+    expect(screen.getByText('채널').className).toContain('text-[#4E5968]');
+    // ⛔ No dot. Green means reachable and red means broken; absence is neither.
+    expect(dotIn(quiet)).toBeNull();
+    none.unmount();
+
+    // ⛔ A failed fetch is NOT an empty channel — it keeps full ink and its dot, or the
+    // strip says "there is nothing here" about something it simply could not read.
+    await folded('error');
+    const loud = channelBtn();
+    expect(loud.className).toBe(railStyles.entry);
+    expect(screen.getByText('채널').className).toContain('text-[#0050D6]');
+    expect(dotIn(loud)).toBeTruthy();
+  });
+
+  it('puts 채널 above 가이드 — the order the open rail already teaches', async () => {
+    // ⛔ Do not reorder to "guide first". The collab card sits above the tabs when the rail
+    // is open; a strip that ranked them the other way would teach a layout the open rail
+    // then contradicts.
+    const { container } = await folded(null);
+    const order = [...(container.querySelector('aside')?.querySelectorAll('button') ?? [])].map(
+      (b) => b.getAttribute('aria-label') ?? '',
+    );
+    const channel = order.findIndex((l) => l.startsWith('협업 채널'));
+    const guide = order.findIndex((l) => l.startsWith('가이드 —'));
+    expect(channel).toBeGreaterThan(-1);
+    expect(guide).toBeGreaterThan(-1);
+    expect(channel).toBeLessThan(guide);
+  });
+
+  it('shows the collab card itself in the tip, without unfolding the rail', async () => {
+    await folded({ issueKey: 'BDCDIP-1007', browseUrl: 'https://jira.example.com/browse/BDCDIP-1007' });
+    // Folded, so the card is gone from the rail body — whatever appears next came from the tip.
+    expect(screen.queryByText(CHANNEL_LINE)).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: /^협업 채널 — / }));
+
+    expect(screen.getByText(CHANNEL_LINE)).toBeTruthy();
+    expect(screen.getByText('BDCDIP-1007')).toBeTruthy();
+    // ⛔ And the rail did NOT unfold. Reading the channel must not cost the width back.
+    expect(screen.getByRole('button', { name: '가이드 펼치기' })).toBeTruthy();
+  });
+
+  it('paints the tip as the white surface, not the dark status box', async () => {
+    await folded(null);
+    fireEvent.click(screen.getByRole('button', { name: /^협업 채널 — / }));
+
+    const box = [...document.body.querySelectorAll('div')].find(
+      (el) => el.style.position === 'fixed' && el.style.boxShadow !== '',
+    );
+    expect(box).toBeTruthy();
+    expect(box?.style.background).toMatch(/rgb\(255,\s*255,\s*255\)|#fff/i);
+    expect(box?.style.border).toMatch(/1px solid/);
+    expect(box?.style.boxShadow).not.toBe('');
+  });
+
+  it('survives a press inside the pinned tip — the Jira link has to be reachable', async () => {
+    await folded({ issueKey: 'BDCDIP-1007', browseUrl: 'https://jira.example.com/browse/BDCDIP-1007' });
+    fireEvent.click(screen.getByRole('button', { name: /^협업 채널 — / }));
+
+    const link = screen.getByRole('link', { name: /협업 채널 링크/ });
+    // ⛔ The tip is portaled to <body>, so an "outside" test that only checks the trigger
+    // counts this as outside and unmounts the box on pointerdown — before the click can
+    // ever reach the link. Pinning exists so the reader can move INTO the content.
+    fireEvent.pointerDown(link);
+    expect(screen.getByRole('link', { name: /협업 채널 링크/ })).toBeTruthy();
+
+    // …and a press genuinely outside still dismisses it.
+    fireEvent.pointerDown(document.body);
+    await waitFor(() => expect(screen.queryByRole('link', { name: /협업 채널 링크/ })).toBeNull());
+  });
+
+  it('shows the guide alone — no 가이드/진행 내역 tabs to choose between', () => {
+    render(<GuidePanel {...baseProps} jiraTicket={null} initialCollapsed={false} />);
+
+    // ⛔ The split is gone (오너 지시 2026-08-23). 진행 내역 was twelve hardcoded rows behind
+    // a tab that promised a second thing worth choosing; putting either back fails here.
+    expect(screen.queryAllByRole('tab')).toHaveLength(0);
+    expect(screen.queryByText('진행 내역')).toBeNull();
+    expect(screen.queryByText('관리자 승인 완료')).toBeNull();
+
+    // …and the guide itself is still the body.
+    expect(screen.getByText('이 단계에는 표시할 가이드가 없습니다.')).toBeTruthy();
   });
 });

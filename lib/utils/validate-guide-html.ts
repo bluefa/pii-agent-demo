@@ -17,7 +17,13 @@
 // ---------------------------------------------------------------------------
 
 export type GuideNode =
-  | { type: 'h4' | 'p'; children: GuideNode[] }
+  /**
+   * `blockquote` is the guide's 안내 박스 — a set-off note on a grey card, the shape
+   * every owner-authored step draws. It is here because the allow-list had no way to
+   * say "this paragraph is an aside"; the alternative, styling by position (e.g.
+   * `p:has(+ ul)`), would have boxed the opening paragraph of every other guide.
+   */
+  | { type: 'h4' | 'p' | 'blockquote'; children: GuideNode[] }
   | { type: 'br' }
   | { type: 'ul' | 'ol'; children: GuideNode[] }
   | { type: 'li'; children: GuideNode[] }
@@ -60,7 +66,21 @@ export interface ValidateGuideHtmlOptions {
    * which is the safe failure when the host is misconfigured.
    */
   imageSrcPrefixes?: readonly string[];
+  /**
+   * Permit `<blockquote>`, the guide's 안내 박스. Off by default, and deliberately not
+   * in the base list: the post editor's toolbar cannot produce one, but a paste can
+   * carry one, and the validator — not the editor's restraint — is the gate there.
+   * Guides are authored in code or by an admin, so the risk is not the same.
+   */
+  allowNoteBox?: boolean;
 }
+
+/**
+ * What a STEP GUIDE is allowed to be, as opposed to a post. One object so the four
+ * guide call sites — the renderer, the emptiness probe, the admin CMS write and the
+ * migration script — cannot drift apart on what validates.
+ */
+export const GUIDE_VALIDATE_OPTIONS: ValidateGuideHtmlOptions = { allowNoteBox: true };
 
 // ---------------------------------------------------------------------------
 // Allow-list
@@ -295,7 +315,9 @@ const visitChildren = (
     const childPath = ctx.path ? `${ctx.path} > ${segment}` : segment;
 
     const tagAllowed =
-      ALLOWED_TAGS.has(tag) || (tag === 'img' && ctx.options.allowImages === true);
+      ALLOWED_TAGS.has(tag) ||
+      (tag === 'img' && ctx.options.allowImages === true) ||
+      (tag === 'blockquote' && ctx.options.allowNoteBox === true);
     if (!tagAllowed) {
       errors.push({
         code: 'DISALLOWED_TAG',
@@ -377,6 +399,7 @@ const toAstNode = (
       return { type: 'br' };
     case 'h4':
     case 'p':
+    case 'blockquote':
       return { type: tag, children };
     case 'ul':
     case 'ol':

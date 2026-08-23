@@ -19,7 +19,6 @@ vi.mock(
     return {
       ...mod,
       ProjectPageMeta: () => null,
-      DeleteInfrastructureButton: () => null,
     };
   },
 );

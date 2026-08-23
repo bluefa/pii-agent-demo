@@ -12,6 +12,7 @@
 
 import type { ReactNode } from 'react';
 
+import { guideStyles } from '@/lib/theme';
 import type { GuideNode } from '@/lib/utils/validate-guide-html';
 
 let keyCounter = 0;
@@ -32,6 +33,14 @@ const renderNode = (node: GuideNode): ReactNode => {
       return <h4 key={nextKey()}>{node.children.map(renderNode)}</h4>;
     case 'p':
       return <p key={nextKey()}>{node.children.map(renderNode)}</p>;
+    // 안내 박스. The class comes from the renderer, not the markup — the allow-list
+    // gives an author no class or style attribute, which is the point.
+    case 'blockquote':
+      return (
+        <blockquote key={nextKey()} className={guideStyles.note}>
+          {node.children.map(renderNode)}
+        </blockquote>
+      );
     case 'ul':
       return <ul key={nextKey()}>{node.children.map(renderNode)}</ul>;
     case 'ol':
@@ -40,8 +49,13 @@ const renderNode = (node: GuideNode): ReactNode => {
       return <li key={nextKey()}>{node.children.map(renderNode)}</li>;
     case 'strong':
       return <strong key={nextKey()}>{node.children.map(renderNode)}</strong>;
+    // Brand-coloured emphasis, not slant — see `guideStyles.accent`.
     case 'em':
-      return <em key={nextKey()}>{node.children.map(renderNode)}</em>;
+      return (
+        <em key={nextKey()} className={guideStyles.accent}>
+          {node.children.map(renderNode)}
+        </em>
+      );
     case 'code':
       return <code key={nextKey()}>{node.children.map(renderNode)}</code>;
     case 'a':

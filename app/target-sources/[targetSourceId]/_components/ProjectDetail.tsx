@@ -8,6 +8,7 @@ import {
   SduUnsupportedNotice,
 } from '@/app/target-sources/[targetSourceId]/_components/common';
 import type { JiraTicketState } from '@/app/target-sources/[targetSourceId]/_components/common/GuidePanel';
+import type { RailCollapsed } from '@/app/components/ui/RailCollapse';
 import { resolveProjectStepSlot } from '@/app/components/features/process-status/GuideCard/resolve-step-slot';
 import { AwsProjectPage } from '@/app/target-sources/[targetSourceId]/_components/aws';
 import { AzureProjectPage } from '@/app/target-sources/[targetSourceId]/_components/azure';
@@ -29,9 +30,15 @@ interface ProjectDetailProps {
   initialProject: TargetSource;
   /** SSR-resolved collab ticket (page.tsx): null = none mapped (404), 'error' = fetch failed. */
   jiraTicket: JiraTicketState;
+  /** Fold preference off the request cookie (page.tsx). `null` = none stored. */
+  railCollapsed: RailCollapsed;
 }
 
-export const ProjectDetail = ({ initialProject, jiraTicket }: ProjectDetailProps) => {
+export const ProjectDetail = ({
+  initialProject,
+  jiraTicket,
+  railCollapsed,
+}: ProjectDetailProps) => {
   const [project, setProject] = useState<TargetSource>(initialProject);
 
   // Right column wrapper is a <div> (not <main>) — provider pages already
@@ -86,10 +93,11 @@ export const ProjectDetail = ({ initialProject, jiraTicket }: ProjectDetailProps
       <div className={SCROLL_COLUMN}>
         {renderProvider()}
       </div>
-      {/* Full-height right rail (가이드/진행 내역) — mirrors the left ServiceListPanel. */}
+      {/* Full-height right rail (가이드) — mirrors the left ServiceListPanel. */}
       <GuidePanel
         slotKey={resolveProjectStepSlot(project)}
         jiraTicket={jiraTicket}
+        initialCollapsed={railCollapsed}
       />
     </div>
   );

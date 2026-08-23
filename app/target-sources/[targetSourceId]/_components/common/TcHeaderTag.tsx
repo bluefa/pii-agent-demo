@@ -23,9 +23,10 @@ interface TcHeaderTagProps {
  * The copy drops the word 연결 because the step name sits directly above it, and drops
  * the run number at the owner's request. That second cost is known: on this page 실행 #N
  * is drawn only by the Step 5 card and the 실행 이력 modal, both mounted only under Step 5,
- * so on the other six steps the number is now unreachable. The guide rail's 진행 내역 tab
- * is hardcoded mock data holding no connection-test runs, so it is not an alternative
- * path. (The admin ops console draws 회차 too, but that is a different surface and not
+ * so on the other six steps the number is now unreachable. The guide rail used to carry a
+ * 진행 내역 tab, but it held hardcoded mock rows with no connection-test runs in them and
+ * has since been removed outright (오너 지시 2026-08-23) — it was never an alternative path
+ * and is not one now. (The admin ops console draws 회차 too, but that is a different surface and not
  * something this page's user can reach.) If the number turns out to be needed across
  * steps, here is where it goes back.
  */

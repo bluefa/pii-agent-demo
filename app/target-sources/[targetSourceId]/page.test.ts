@@ -19,6 +19,22 @@ const {
   AccessDeniedStub: () => null,
 }));
 
+// The page reads the guide rail's fold preference off the request, so the FIRST paint
+// is already the right width. `railCookie.value` stays undefined by default — what a
+// first-time visitor sends — which keeps the cases below about the project fetch.
+const { railCookie } = vi.hoisted(() => ({
+  railCookie: { value: undefined as string | undefined },
+}));
+
+vi.mock('next/headers', () => ({
+  cookies: async () => ({
+    get: (name: string) =>
+      name === 'pii-rail-guide' && railCookie.value !== undefined
+        ? { name, value: railCookie.value }
+        : undefined,
+  }),
+}));
+
 vi.mock('@/lib/bff/client', () => ({
   bff: {
     targetSources: {
@@ -49,6 +65,25 @@ describe('GET /pass/target-sources/[targetSourceId]', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
+
+  const renderPage = async () =>
+    (await ProjectDetailPage({
+      params: Promise.resolve({ targetSourceId: '321' }),
+    })) as ReactElement<{ railCollapsed: boolean | null }>;
+
+  const seedProject = () => {
+    getTargetSourceMock.mockResolvedValue({
+      target_source_id: 321,
+      cloud_provider: 'AWS',
+      created_at: '2026-04-01T00:00:00Z',
+    });
+    getProcessStatusMock.mockResolvedValue({
+      target_source_id: 321,
+      process_status: 'IDLE',
+      healthy: 'HEALTHY',
+      evaluated_at: '2026-04-01T00:00:00Z',
+    });
+  };
 
   it('current user 조회 없이 프로젝트만 전달한다 (ADR-019: snake wire → TargetSource)', async () => {
     // ADR-019: bff.targetSources.get returns raw snake TargetSourceDetail (no
@@ -170,6 +205,34 @@ describe('GET /pass/target-sources/[targetSourceId]', () => {
       })) as ReactElement<{ message?: string }>;
       expect(element.props.message).toContain('올바르지 않아요');
       expect(getTargetSourceMock).not.toHaveBeenCalled();
+    });
+  });
+
+  // ⛔ The rail's width is settled during THIS render. Reading the preference in the
+  // client instead put it one frame late, and a folded rail painted open at 320px and
+  // then snapped shut on every reload.
+  describe('guide rail fold preference', () => {
+    it("hands the cookie down so the first paint is already the reader's width", async () => {
+      seedProject();
+
+      railCookie.value = '1';
+      expect((await renderPage()).props.railCollapsed).toBe(true);
+
+      railCookie.value = '0';
+      expect((await renderPage()).props.railCollapsed).toBe(false);
+    });
+
+    it('sends null when nothing is stored, and for a value it never wrote', async () => {
+      seedProject();
+
+      railCookie.value = undefined;
+      expect((await renderPage()).props.railCollapsed).toBeNull();
+
+      // A cookie that skipped the gesture's invariants is not a preference.
+      railCookie.value = 'true';
+      expect((await renderPage()).props.railCollapsed).toBeNull();
+
+      railCookie.value = undefined;
     });
   });
 });

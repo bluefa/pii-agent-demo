@@ -1,25 +1,25 @@
 'use client';
 
-import { useState } from 'react';
-
 import { GuideCardContainer } from '@/app/components/features/process-status/GuideCard/GuideCardContainer';
-import { ChatIcon, OpenExternalIcon } from '@/app/components/ui/icons';
-import { DeleteInfrastructureButton } from '@/app/target-sources/[targetSourceId]/_components/common/DeleteInfrastructureButton';
+import { ChatIcon, GuideIcon } from '@/app/components/ui/icons';
 import {
-  bgColors,
+  RailEntry,
+  RailMark,
+  RailToggle,
+  useRailCollapse,
+  type RailCollapsed,
+} from '@/app/components/ui/RailCollapse';
+import {
   borderColors,
   cn,
-  interactiveColors,
   primaryColors,
-  segmentedControlStyles,
+  railStyles,
   statusColors,
   textColors,
 } from '@/lib/theme';
 
-import type { GuideSlotKey } from '@/lib/constants/guide-registry';
+import { GUIDE_SLOTS, type GuideSlotKey } from '@/lib/constants/guide-registry';
 import { safeBrowseUrl } from '@/lib/jira-ticket';
-
-type PanelTab = 'guide' | 'history';
 
 /**
  * Collab-channel ticket state for the rail card, resolved server-side
@@ -27,6 +27,9 @@ type PanelTab = 'guide' | 'history';
  * v5 계약 — 열 주소는 `browseUrl` 이 싣는다. 프론트는 조립·파싱하지 않는다.
  */
 export type JiraTicketState = { issueKey: string; browseUrl: string | null } | null | 'error';
+
+/** The rail's region id — what both fold controls point `aria-controls` at. */
+const RAIL_ID = 'guide-rail';
 
 /**
  * Top-of-rail help card — the collab-channel entry point, mirroring
@@ -36,44 +39,64 @@ export type JiraTicketState = { issueKey: string; browseUrl: string | null } | n
  * is not misread as "no channel".
  */
 const CollabChannelCard = ({ jiraTicket }: { jiraTicket: JiraTicketState }) => {
-  const rowBase = 'mt-3 flex items-center gap-2 rounded-lg border px-3 py-2 text-[12.5px]';
+  /**
+   * The channel zone's content, and nothing else — no fill, no border, no radius of its
+   * own, in either place it renders. Containment is the CALLER's, and it differs: on the
+   * open rail the zone's `railStyles.card` is the white box, and in the folded rail's tip
+   * the tooltip's own white box already is one. Owning a surface here would nest a card
+   * inside whichever of those it landed in.
+   *
+   * ⛔ Do not give the row back the white fill it used to have. That surface is also
+   * what broke it: the tip is a fixed 280px box, so 280 − 2 border − 28 padding = 250,
+   * and the row's own border and padding spent 26 of that before the old card's 34 —
+   * leaving 190 for a 68px label beside an 85px key, and 한글 wrapped mid-phrase.
+   *
+   * ⛔ No trailing ↗ on the link row (오너 지시 2026-08-23). What says "link" is the key
+   * itself: blue, underlined, with `title` naming the destination. The 11px glyph at 50%
+   * opacity was the only new-tab cue, so re-adding it is an owner's call, not a tidy-up.
+   *
+   * ⛔ And no ChatIcon on the rows any more. The zone head took it (`zoneMarkChannel` —
+   * the folded strip's own 20px glyph, 오너 지시 2026-08-23), and the same bubble twice
+   * inside one card, 24px on the row and 20px on the head some 56px apart, reads as a
+   * mistake rather than a rhyme. Every row is a plain text stack now, so `rowBase` has
+   * stopped laying out a glyph.
+   *
+   * The tiers stay stacked even though one line now fits: the key is user data and a
+   * longer one puts the collision straight back.
+   */
+  // One leading for everything the rail sets itself: 1.5. It was 1.55 / 1.45 / 1.35 on
+  // three lines that sit 4px apart, and line-height is half-leading on BOTH sides of a
+  // box — so a 4px box gap between a 1.4 line and a 1.55 line opens to ~10.5px of air
+  // while an 8px gap elsewhere opens to ~15. Matching the box numbers alone never made
+  // the column look even; matching the leading is what makes the numbers mean anything.
+  // ⛔ The guide body keeps its own 1.72 — `.prose-guide` is shared with the admin post
+  // editor, and rendered markdown is allowed its own rhythm.
+  const rowBase = 'mt-3 block text-[12px]';
+  const channelLabel = 'block text-[12px] font-semibold leading-[1.5]';
+  const channelKey = 'block font-mono text-[14px] leading-[1.5]';
   const href =
     jiraTicket && jiraTicket !== 'error' ? safeBrowseUrl(jiraTicket.browseUrl) : null;
 
   return (
-    <div className={cn('rounded-xl border p-4', primaryColors.bgLight, primaryColors.borderLight)}>
-      <p className={cn('text-[16px] font-bold leading-[1.4]', textColors.primary)}>
-        도움이 필요하신가요?
+    <div>
+      {/* ⛔ No 「도움이 필요하신가요?」 heading above this sentence (오너 지시 2026-08-23).
+          It was 16px bold sitting 8px under 「협업 채널」 at 16px semibold — two headings
+          of the same size, separated by weight alone, saying the same thing twice. The
+          zone label names the zone; this sentence says what it is for. */}
+      <p className={cn('text-[12px] leading-[1.5]', textColors.secondary)}>
+        진행 중 막히는 부분은 협업 채널에서 바로 문의할 수 있어요.
       </p>
-      {/* secondary, not tertiary: gray-500 is calibrated against white (4.83:1) and drops
-          to 4.25:1 on the primary tint — under AA at this size. gray-700 holds 9.06:1. */}
-      <p className={cn('mt-1 text-[12px] leading-[1.55]', textColors.secondary)}>
-        진행 중 막히는 부분은 협업 채널에서 담당자에게 바로 문의할 수 있어요.
-      </p>
+      {/* The two empty states are back on `tertiary`. They were moved up to `secondary`
+          only because a #E8F1FF band stood under them, where gray-500 is 4.25:1. No band
+          survives here: 시안 A puts this row inside the zone's white card, where it is
+          4.83:1 again. Quiet is the right register for a placeholder — it must not
+          out-weigh the real link. */}
       {jiraTicket === 'error' ? (
-        <div
-          className={cn(
-            rowBase,
-            'border-dashed font-medium',
-            primaryColors.borderLight,
-            bgColors.surface,
-            textColors.tertiary,
-          )}
-        >
-          <ChatIcon className="h-3.5 w-3.5 shrink-0" />
+        <div className={cn(rowBase, 'font-medium', textColors.tertiary)}>
           협업 채널 정보를 불러오지 못했어요
         </div>
       ) : jiraTicket === null ? (
-        <div
-          className={cn(
-            rowBase,
-            'border-dashed font-medium',
-            primaryColors.borderLight,
-            bgColors.surface,
-            textColors.tertiary,
-          )}
-        >
-          <ChatIcon className="h-3.5 w-3.5 shrink-0" />
+        <div className={cn(rowBase, 'font-medium', textColors.tertiary)}>
           아직 연결된 협업 채널이 없어요
         </div>
       ) : href ? (
@@ -85,224 +108,299 @@ const CollabChannelCard = ({ jiraTicket }: { jiraTicket: JiraTicketState }) => {
           title="협업 채널 — Jira에서 논의하기"
           className={cn(
             rowBase,
-            'font-semibold no-underline transition-colors',
-            primaryColors.borderLight,
-            bgColors.surface,
+            'no-underline transition-colors',
             textColors.secondary,
             primaryColors.textHover,
           )}
         >
-          <ChatIcon className="h-3.5 w-3.5 shrink-0" />
-          협업 채널 링크
-          {/* Owner ask: the issue key reads as a classic hyperlink — blue + underline. */}
-          <span className={cn('ml-auto font-mono text-[12px] underline', primaryColors.text)}>
+          <span className={channelLabel}>협업 채널 링크</span>
+          {/* Owner ask: the issue key reads as a classic hyperlink — blue + underline.
+              `textOnLight` (#0050D6), not `text` (#0064FF), even though the brighter blue
+              is legal on white (4.92:1). The rail keeps ONE blue — `guideStyles.accent`
+              already paints the guide body's `<em>` #0050D6. */}
+          <span className={cn(channelKey, 'underline', primaryColors.textOnLight)}>
             {jiraTicket.issueKey}
           </span>
-          <OpenExternalIcon className="h-[11px] w-[11px] shrink-0 opacity-50" />
         </a>
       ) : (
         // browseUrl 이 없으면(또는 http 가 아니면) 링크를 지어내지 않고 키만 보여준다.
-        <div
-          className={cn(
-            rowBase,
-            'font-semibold',
-            primaryColors.borderLight,
-            bgColors.surface,
-            textColors.secondary,
-          )}
-        >
-          <ChatIcon className="h-3.5 w-3.5 shrink-0" />
-          협업 채널
-          <span className={cn('ml-auto font-mono text-[12px]', textColors.secondary)}>
-            {jiraTicket.issueKey}
-          </span>
+        <div className={cn(rowBase, textColors.secondary)}>
+          <span className={channelLabel}>협업 채널</span>
+          <span className={channelKey}>{jiraTicket.issueKey}</span>
         </div>
       )}
     </div>
   );
 };
 
-// ponytail: no history API exists yet, so this is a hardcoded mock — swap in
-// the real data source when one lands.
-const MOCK_HISTORY: ReadonlyArray<{
-  title: string;
-  detail: string;
-  at: string;
-  tone: keyof typeof statusColors;
-}> = [
-  { title: '관리자 승인 완료', detail: '승인자 김보안(kim.security)', at: '2024-01-19 오후 06:00', tone: 'success' },
-  { title: '연동 대상 승인 요청', detail: '전체 3건 · 대상 2 · 비대상 1', at: '2024-01-18 오후 08:00', tone: 'info' },
-  { title: '연동 대상 승인 반려', detail: '사유: 스테이징 DB는 제외하고 다시 요청해 주세요', at: '2024-01-17 오전 09:12', tone: 'error' },
-  { title: '연동 대상 승인 요청', detail: '전체 4건 · 대상 3 · 비대상 1', at: '2024-01-16 오후 05:40', tone: 'info' },
-  { title: 'Infra Scan 완료', detail: 'DB 리소스 10건 조회', at: '2024-01-15 오후 02:30', tone: 'pending' },
-  { title: 'Infra Scan 실행', detail: '요청자 관리자', at: '2024-01-15 오후 02:26', tone: 'pending' },
-  { title: 'DB Credential 등록', detail: 'Key2 (RDS 접근용)', at: '2024-01-15 오전 11:02', tone: 'info' },
-  { title: 'Infra Scan 실패', detail: '사유: IAM Role 권한 부족 — 재시도됨', at: '2024-01-14 오후 07:18', tone: 'error' },
-  { title: 'TF 실행 권한 확인', detail: 'AssumeRole 검증 통과', at: '2024-01-14 오후 07:02', tone: 'success' },
-  { title: '협업 채널 연결', detail: 'BDCDIP-1353', at: '2024-01-14 오후 06:55', tone: 'pending' },
-  { title: '인프라 등록', detail: 'AWS Account 123456789012', at: '2024-01-14 오후 06:50', tone: 'info' },
-  { title: '연동 프로세스 시작', detail: '요청자 관리자', at: '2024-01-14 오후 06:48', tone: 'pending' },
-];
-
-const HISTORY_PAGE_SIZE = 5;
-
-const HistoryTimeline = ({ items }: { items: typeof MOCK_HISTORY }) => (
-  <ol>
-    {items.map((item, index) => (
-      <li key={item.at} className="relative flex gap-3 pb-5 last:pb-0">
-        {index < items.length - 1 && (
-          <span
-            aria-hidden
-            className={cn('absolute left-[3.5px] top-4 bottom-0 w-px', bgColors.divider)}
-          />
-        )}
-        <span
-          className={cn('mt-1.5 h-2 w-2 shrink-0 rounded-full', statusColors[item.tone].dot)}
-        />
-        <div className="min-w-0">
-          <p className={cn('text-[12.5px] font-semibold leading-[1.4]', textColors.secondary)}>
-            {item.title}
-          </p>
-          <p className={cn('mt-0.5 text-[12px] leading-[1.5]', textColors.tertiary)}>
-            {item.detail}
-          </p>
-          <p className={cn('mt-1 text-[11px]', textColors.tertiary)}>{item.at}</p>
-        </div>
-      </li>
-    ))}
-  </ol>
-);
-
 interface GuidePanelProps {
   slotKey: GuideSlotKey | null;
   jiraTicket: JiraTicketState;
+  /**
+   * The fold preference the SERVER read off the request cookie. Not keyed by target
+   * source — how much of the screen a reader wants spent on help is a workspace
+   * preference, not a fact about one resource.
+   *
+   * ⛔ It has to arrive as a prop. Reading it in here would put the answer one frame
+   * behind the paint, which is the flash this replaced.
+   */
+  initialCollapsed: RailCollapsed;
 }
 
 /**
- * Full-height right rail for the step screens — mirrors the left ServiceListPanel:
- * flat surface, left border, [가이드 | 진행 내역] tab header, scrollable body,
- * bottom pager on the history tab. Deliberately quiet (auxiliary) chrome so the
- * working column keeps the visual weight. Replaces the inline amber guide card
+ * Full-height right rail for the step screens — now literally the same plane as the left
+ * ServiceListPanel (`railStyles.surface`), carrying two zone cards: the collab channel,
+ * then the step's guide in a scrollable frame. Deliberately quiet (auxiliary) chrome so
+ * the working column keeps the visual weight. Replaces the inline amber guide card
  * (UX report P2/P3).
+ *
+ * ONE thing, not two. The rail used to split into a [가이드 | 진행 내역] segmented
+ * control, and 진행 내역 was twelve hardcoded rows — no history API exists, so every
+ * target source showed the same fabricated timeline. A tab is a promise that there are
+ * two things worth choosing between; there was one (오너 지시 2026-08-23). If a real
+ * history endpoint lands, it comes back as its own decision, not as a revert.
+ *
+ * The rail FOLDS; it no longer vanishes. It used to be `hidden … min-[1360px]:flex`,
+ * which made the viewport decide whether it existed — and since this file is the only
+ * render site for the guide and the Jira channel, both were unreachable below 1360px,
+ * out of the accessibility tree and out of the tab order, with no control anywhere
+ * that brought them back. 1360 survives as the DEFAULT (`RAIL_OPEN_MIN_WIDTH`), and a
+ * press outranks it at every width.
+ *
+ * ⛔ Nothing destructive belongs on this rail. It is an auxiliary panel that folds
+ * away on request, so the only copy of an irreversible action placed here would go
+ * with it — exactly the defect above. Keep such an action on the content column.
  */
 export const GuidePanel = ({
   slotKey,
   jiraTicket,
+  initialCollapsed,
 }: GuidePanelProps) => {
-  const [tab, setTab] = useState<PanelTab>('guide');
-  const [page, setPage] = useState(0);
+  const { collapsed, toggle, presses } = useRailCollapse(initialCollapsed);
 
-  const pageCount = Math.ceil(MOCK_HISTORY.length / HISTORY_PAGE_SIZE);
-  const pageItems = MOCK_HISTORY.slice(
-    page * HISTORY_PAGE_SIZE,
-    (page + 1) * HISTORY_PAGE_SIZE,
-  );
+  /**
+   * What the folded rail says about the collab channel. The card itself is the escape
+   * hatch for every step, and folding used to take it off the screen entirely — dot and
+   * all three of its states, including the one where the fetch failed. `hint` says in
+   * words whatever the presentation says in colour, because the dot is `aria-hidden` and
+   * colour alone is not a channel.
+   *
+   * 오너 지시 2026-08-23: 「JiraTicket 없는 경우엔 접었을 때 적절히 다른 표현으로」. The
+   * three states used to differ by dot fill alone — same dark glyph, same blue 「채널」 —
+   * so the one with nothing behind it advertised itself exactly like the one you can
+   * reach. Now the presentations separate on two channels at once:
+   *
+   *   있음  진한 글리프 · 파란 라벨 · 초록 점     reachable
+   *   없음  차분한 글리프 · 중립 라벨 · 점 없음   there is nothing here
+   *   실패  진한 글리프 · 파란 라벨 · 빨간 점     we could not tell you
+   *
+   * ⛔ 없음 drops the dot rather than greying it. Green means reachable and red means
+   * broken; absence is neither, and a state dot on a zone with no state is decoration.
+   * ⛔ 실패 stays loud. A fetch that failed is not an empty channel, and quieting it would
+   * be the same conflation the separate error row exists to prevent.
+   */
+  const collab: { dot?: string; quiet?: boolean; hint: string } =
+    jiraTicket === 'error'
+      ? { dot: statusColors.error.dot, hint: '협업 채널 — 정보를 불러오지 못했어요' }
+      : jiraTicket === null
+        ? { quiet: true, hint: '협업 채널 — 아직 연결되지 않았어요' }
+        : { dot: statusColors.success.dot, hint: `협업 채널 — ${jiraTicket.issueKey}` };
 
-  const selectTab = (next: PanelTab) => {
-    setTab(next);
-    setPage(0);
-  };
+  /**
+   * 「2단계 가이드」 rather than 「가이드」 (오너 지시 2026-08-23). The rail is docked beside
+   * a screen that is itself a numbered process, so the number is what says WHICH guide
+   * this is — without it the zone head is the same four words on all seven steps.
+   *
+   * The registry is the source: all 35 slots are `process-step` today, but `GuidePlacement`
+   * is a union that reserves `side-panel`/`tooltip`/`faq`, and those carry no step. Narrow
+   * rather than assert — a guide with no step number falls back to the bare word instead
+   * of printing 「undefined단계」.
+   */
+  const placement = slotKey ? GUIDE_SLOTS[slotKey].placement : null;
+  const guideZoneLabel =
+    placement?.kind === 'process-step' ? `${placement.step}단계 가이드` : '가이드';
 
-  const tabClass = (active: boolean) =>
-    cn(
-      segmentedControlStyles.item,
-      'flex-1 justify-center',
-      active && segmentedControlStyles.itemActive,
-    );
 
-  const pagerBtnClass = cn(
-    'rounded-md px-2 py-1 text-[12px] font-medium transition-colors',
-    interactiveColors.underlineTab,
-    'disabled:cursor-default disabled:opacity-40',
-  );
+  // While `collapsed` is null the media query paints the default — the same markup the
+  // server sent — so the first frame does not jump on the way to the stored preference.
+  // Once it resolves the state owns the rail and the breakpoint stops mattering.
+  const railWidth =
+    collapsed === null
+      ? cn(railStyles.collapsedWidth, 'min-[1360px]:w-[320px]')
+      : collapsed
+        ? railStyles.collapsedWidth
+        : 'w-[320px]';
+  // Both halves mount only while the answer is still `null` — that is the one frame the
+  // media query has to arbitrate. Once it resolves, the losing half UNMOUNTS rather than
+  // being class-hidden: a `hidden` sibling still holds a focusable fold button, so two
+  // controls for the same gesture would sit in the tab order with one of them invisible.
+  const stripShown = collapsed === null ? 'flex min-[1360px]:hidden' : 'flex';
+  const bodyShown = collapsed === null ? 'hidden min-[1360px]:flex' : 'flex';
+
 
   return (
     <aside
-      aria-label="단계 가이드 및 진행 내역"
+      /* The region both toggles name in `aria-controls`. Static, because there is exactly
+         one guide rail on the page — the panel that used to mount per step now mounts
+         once, which is what made a single id possible. */
+      id={RAIL_ID}
+      /* One name for the panel, and it is the one on the strip. It used to be called
+         three things — this label, 「가이드 펼치기」 on the button, and 「가이드 / 진행
+         내역」 on the tabs — which is fine until the folded rail has to carry ONE word. */
+      aria-label="가이드"
       className={cn(
-        'hidden w-[320px] shrink-0 flex-col border-l min-[1360px]:flex',
-        borderColors.light,
-        bgColors.surface,
+        railWidth,
+        // `default`, matching the left rail's `border-r` — the two rails are the same
+        // plane now, so they owe the canvas the same edge.
+        'flex shrink-0 flex-col border-l',
+        borderColors.default,
+        railStyles.surface,
       )}
     >
-      {/* Jira ticket next — the collab channel is the escape hatch for every
-          step, so it stays above the fold. */}
-      <div className={cn('shrink-0 border-b p-4', borderColors.light)}>
-        <CollabChannelCard jiraTicket={jiraTicket} />
-      </div>
+      {/* Folded. The strip IS the rail, so it has to answer two questions a chevron alone
+          cannot: what panel is this, and is the collab channel still there.
 
-      <div className={cn('shrink-0 border-b p-3', borderColors.light)}>
-        <div role="tablist" className={cn(segmentedControlStyles.container, 'w-full')}>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={tab === 'guide'}
-            onClick={() => selectTab('guide')}
-            className={tabClass(tab === 'guide')}
-          >
-            가이드
-          </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={tab === 'history'}
-            onClick={() => selectTab('history')}
-            className={tabClass(tab === 'history')}
-          >
-            진행 내역
-          </button>
-        </div>
-      </div>
+          채널 above 가이드, because the strip mirrors the panel's own vertical order — the
+          channel band sits above the guide when the rail is open, and a strip that reordered
+          the zones would teach a layout the open rail then contradicts. (Cloudscape puts
+          help first in its trigger bar, but that bar ranks separate PANELS against each
+          other; these are zones inside one panel, and the panel already has an order.)
 
-      <div role="tabpanel" className="min-h-0 flex-1 overflow-y-auto p-5">
-        {tab === 'guide' ? (
-          slotKey ? (
-            <GuideCardContainer slotKey={slotKey} bare />
-          ) : (
-            <p className={cn('py-4 text-center text-[12.5px]', textColors.tertiary)}>
-              이 단계에는 표시할 가이드가 없습니다.
-            </p>
-          )
-        ) : (
-          <HistoryTimeline items={pageItems} />
-        )}
-      </div>
-
-      {tab === 'history' && pageCount > 1 && (
-        <div
-          className={cn(
-            'flex shrink-0 items-center justify-between border-t px-4 py-2.5',
-            borderColors.light,
-          )}
-        >
-          <button
-            type="button"
-            className={pagerBtnClass}
-            disabled={page === 0}
-            onClick={() => setPage((p) => p - 1)}
-          >
-            ‹ 이전
-          </button>
-          <span className={cn('text-[11.5px] tabular-nums', textColors.tertiary)}>
-            {page + 1} / {pageCount}
-          </span>
-          <button
-            type="button"
-            className={pagerBtnClass}
-            disabled={page === pageCount - 1}
-            onClick={() => setPage((p) => p + 1)}
-          >
-            다음 ›
-          </button>
+          채널 does not unfold. Its tip carries the card itself, so the answer arrives
+          without the rail moving — which is the whole point of having folded it. */}
+      {collapsed !== false && (
+        <div className={cn(stripShown, railStyles.strip)}>
+          <RailToggle
+            direction="left"
+            label="가이드 펼치기"
+            expanded={false}
+            controls={RAIL_ID}
+            presses={presses}
+            onClick={toggle}
+          />
+          <span aria-hidden className={railStyles.divider} />
+          <RailEntry
+            icon={<ChatIcon className="h-5 w-5" />}
+            label="채널"
+            hint={collab.hint}
+            dot={collab.dot}
+            quiet={collab.quiet}
+            tip={<CollabChannelCard jiraTicket={jiraTicket} />}
+          />
+          {/* Same mark, both states (오너 지시 2026-08-23) — the folded strip and the open
+              rail's zone head show one 전구, so folding does not change what the guide
+              looks like, only how much of it there is. */}
+          <RailEntry
+            icon={<GuideIcon className={cn('h-5 w-5', railStyles.zoneMark)} />}
+            label="가이드"
+            hint={`${guideZoneLabel} — 펼치기`}
+            onClick={toggle}
+          />
         </div>
       )}
 
-      {/* Danger zone — the destructive infra action stays pinned to the rail's
-          bottom edge across both tabs: one predictable, visually isolated spot
-          instead of competing with the page header's primary CTA. */}
-      <div className={cn('shrink-0 border-t p-4', borderColors.light)}>
-        <DeleteInfrastructureButton className="w-full justify-center" />
-      </div>
+      {/* Open. A flex column of its own, so every zone below still measures against the
+          rail's height exactly as it did when these were the aside's own children. */}
+      {collapsed !== true && (
+        <div className={cn(bodyShown, 'min-h-0 flex-1 flex-col gap-3 p-3')}>
+          {/* 시안 A — 레일은 뒷판, 존은 그 위의 카드 (오너 지시 2026-08-23: 가이드를 카드
+              그룹으로 묶을 것).
+
+              This replaces 시안 E, which held the rail white and separated the two zones
+              with a hairline and a label alone. E was the cheaper answer to the same
+              complaint and it did close P2–P5; what it left open was P1 — the rail was the
+              brightest surface on the page while the left rail had already been dropped to
+              a back plane. Asking for a card forces that: a white card on a white rail is
+              not a card, so the plane had to move for the card to exist at all.
+
+              ONE number runs the whole layout: 12. Rail padding, card padding, the gap
+              between the cards. The rail's own scale is now {8 (zone label → its content),
+              12 (block → block)} and nothing else; the 6/10 inside the guide belong to
+              `.prose-guide`, which the admin post editor shares.
+
+              The channel is still first — it is the escape hatch for every step, so it
+              holds the top of the rail and the guide scrolls underneath it. */}
+          <div className={cn(railStyles.card, 'shrink-0 p-3')}>
+            <div className="flex items-center justify-between gap-2">
+              {/* Same mark, both fold states — the rule the 가이드 전구 already follows
+                  (오너 지시 2026-08-23). It also gives the two zone heads one geometry,
+                  20 mark + 8 gap + label, which is what puts the two labels on the same x;
+                  they were 28px out while this one was a bare label.
+
+                  ⛔ `RailMark` and `collab`, not a bare ChatIcon. The first attempt here
+                  rendered the identical SVG and was still wrong: the strip draws that
+                  glyph with the state dot ON it, and it goes quiet when no ticket is
+                  mapped. The mark is glyph + dot + ink.
+
+                  ⛔ The ink sits on THIS span, not on the glyph — the strip colours its
+                  mark by inheriting from the entry button, so the only way both sides can
+                  hand `RailMark` the same markup is for both to inherit. `zoneLabel` sets
+                  its own colour, so the label is unaffected. */}
+              <span
+                className={cn(
+                  'flex items-center gap-2',
+                  collab.quiet
+                    ? railStyles.zoneMarkChannelQuiet
+                    : railStyles.zoneMarkChannel,
+                )}
+              >
+                <RailMark icon={<ChatIcon className="h-5 w-5" />} dot={collab.dot} />
+                <span className={railStyles.zoneLabel}>협업 채널</span>
+              </span>
+              {/* The 32px hit box centres a 16px glyph, so pulling the box 8px past the
+                  card's 12px padding lands the GLYPH's edge on it. Align the ink, not the box. */}
+              <span className="-mr-2 shrink-0">
+                <RailToggle
+                  direction="right"
+                  label="가이드 접기"
+                  expanded
+                  controls={RAIL_ID}
+                  presses={presses}
+                  onClick={toggle}
+                />
+              </span>
+            </div>
+            {/* 4, not 8. The label's ink stops 4px above the 32px control row it shares,
+                so 4 more puts the sentence 8 below the INK — which is the number the
+                guide card's head uses too. Align what is seen, not what is boxed. */}
+            <div className="mt-1">
+              <CollabChannelCard jiraTicket={jiraTicket} />
+            </div>
+          </div>
+
+          {/* The guide card is a FRAME: it takes the rail's remaining height and scrolls
+              inside itself, with the zone head as its fixed head. ⛔ Do not move the head
+              into the scroller — a label that scrolls away stops labelling. The scrollbar
+              consequently runs at the card's inner edge rather than the rail's, which is
+              the trade the frame buys. */}
+          <div className={cn(railStyles.card, 'flex min-h-0 flex-1 flex-col')}>
+            {/* ⛔ One mark, and the FOLDED one is the standard (오너 지시 2026-08-23): a bare
+                20px 전구, same size and no plate, in both states. The Figma node's 28px
+                #FFF8E1 container was rendered here for one commit and is gone — the strip
+                had no room for it, and a mark that changes shape when you fold the rail is
+                two marks. Dropping it also puts the 안내박스 back to being the rail's only
+                fill, which is the whole of 시안 E. */}
+            <div className="flex shrink-0 items-center gap-2 p-3 pb-2">
+              {/* `RailMark`, like the channel head — the strip renders its 전구 through the
+                  same component, so passing the icon bare here is what makes "one mark in
+                  both fold states" a structural fact rather than two files agreeing by
+                  eye. It also supplies the `shrink-0` this used to carry itself, which was
+                  the one class that stopped the two sides being identical markup. */}
+              <RailMark icon={<GuideIcon className={cn('h-5 w-5', railStyles.zoneMark)} />} />
+              <span className={railStyles.zoneLabel}>{guideZoneLabel}</span>
+            </div>
+            <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-3">
+              {slotKey ? (
+                <GuideCardContainer slotKey={slotKey} bare />
+              ) : (
+                <p className={cn('py-4 text-center text-[12px]', textColors.tertiary)}>
+                  이 단계에는 표시할 가이드가 없습니다.
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </aside>
   );
 };

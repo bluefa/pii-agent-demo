@@ -83,7 +83,9 @@ export const ApprovalUnavailableCard = ({
 
       {/* Same grammar as the rejected-state reselect modal: pre-flight question (the reason
           leaves the screen once we move on), one cause→effect sentence with 1단계 in brand
-          blue, blue 확인. No loss banner — the request history stays in 진행 내역. */}
+          blue, blue 확인. No loss banner.
+          ⚠️ Not because "the history stays in 진행 내역" — that tab is gone (오너 지시
+          2026-08-23) and was mock data before it. See WaitingApprovalCancelButton. */}
       <ConfirmStepModal
         open={modal.isOpen}
         onClose={modal.close}

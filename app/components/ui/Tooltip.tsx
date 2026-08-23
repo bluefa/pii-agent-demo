@@ -216,6 +216,12 @@ export const Tooltip = ({
   // click bubbles to the wrapper toggle, and a document `click` listener would race it
   // and re-close what the press just opened. pointerdown fires first and the
   // `contains` check lets the trigger's own press through to the toggle.
+  //
+  // The tip's own box has to be excluded too. It is PORTALED to `document.body`, so it is
+  // not inside `containerRef` and a press on it read as "outside" — which unmounted the
+  // box on `pointerdown`, before the `click` could reach whatever was pressed. Any link or
+  // button in a pinned tip was therefore dead. Pinning exists precisely so the reader can
+  // move into the content; the content has to survive being touched.
   useEffect(() => {
     if (!byClick || !isVisible) return;
     const close = () => {
@@ -223,7 +229,9 @@ export const Tooltip = ({
       setIsVisible(false);
     };
     const onPointerDown = (event: PointerEvent) => {
-      if (!containerRef.current?.contains(event.target as Node)) close();
+      const target = event.target as Node;
+      if (containerRef.current?.contains(target) || tooltipRef.current?.contains(target)) return;
+      close();
     };
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') close();

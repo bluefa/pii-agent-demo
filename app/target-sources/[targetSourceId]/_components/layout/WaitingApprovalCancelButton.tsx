@@ -47,8 +47,12 @@ export const WaitingApprovalCancelButton = ({
       </button>
 
       {/* Same grammar as the rejected-state reselect modal: question title, one cause→effect
-          sentence with 1단계 in brand blue, blue 확인. No loss banner — the request history
-          stays visible in 진행 내역, and cancelling is a rewind, not a deletion. */}
+          sentence with 1단계 in brand blue, blue 확인. No loss banner, because cancelling is a
+          rewind and not a deletion.
+          ⚠️ It used to also say "the history stays visible in 진행 내역". That tab is gone
+          (오너 지시 2026-08-23), and it was hardcoded mock rows before that — so the claim was
+          never true for a real request. There is now NO surface showing a user their own
+          request history; if that turns out to matter, this modal is where the warning goes. */}
       <ConfirmStepModal
         open={modal.isOpen}
         onClose={modal.close}
