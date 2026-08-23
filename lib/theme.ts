@@ -2586,6 +2586,24 @@ export const shadows = {
   hairRing: 'shadow-[inset_0_0_0_1px_rgba(229,232,235,1),0_1px_0_rgba(25,31,40,0.04)]',
 } as const;
 
+/**
+ * The value-tip white-box family (`IdentifierTip`'s dress), for callers composing their
+ * own tip BODY — a guide tooltip whose terms outrank its caption (step-1 설치 구분 안내).
+ * Hexes are the Toss text ramp (`tossColors.strongText`/`mediumText`) and the gray-200
+ * hairline; they live here as literal classes because Tailwind's JIT cannot see an
+ * interpolated `text-[${…}]`.
+ */
+export const tipTiers = {
+  /** The box's own title — semibold, strong ink. */
+  title: 'text-[14px] font-semibold text-[#191F28]',
+  /** A term the reader came to look up — bold, same ink, outranks the title by weight. */
+  term: 'text-[14px] font-bold text-[#191F28]',
+  /** Body/description tier. */
+  body: 'text-[12px] text-[#4E5968]',
+  /** The rule between the title zone and the terms zone. */
+  hairline: 'h-px bg-[#E5E8EB]',
+} as const;
+
 // =============================================================================
 // 헬퍼 함수 (Helper Functions)
 // =============================================================================

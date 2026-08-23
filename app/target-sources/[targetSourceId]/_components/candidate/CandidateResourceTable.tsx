@@ -1,7 +1,7 @@
 'use client';
 
 import { Fragment, useMemo } from 'react';
-import { cn, idcStyles } from '@/lib/theme';
+import { cn, idcStyles, tipTiers } from '@/lib/theme';
 import { groupResourceRows } from '@/lib/resource-grouping';
 import { useClusterFold } from '@/app/hooks/useClusterFold';
 import { listMissingExclusionReasons } from '@/app/target-sources/[targetSourceId]/_components/candidate/approval-payload';
@@ -22,7 +22,7 @@ import { ResourceGroupRow } from '@/app/target-sources/[targetSourceId]/_compone
 // 한 세트다 — 사유 입력·비활성 체크박스를 만난 사용자가 여기서 이유를 찾는다.
 //
 // IdentifierTip(변수: variant="value")과 같은 화이트 박스 가족. 계층 3단 —
-// 캡션(11px 회색 제목) < 본문(12px #4E5968) < 용어(13px bold #191F28) — 로
+// 캡션(회색 제목) < 본문(tipTiers.body) < 용어(bold, tipTiers.term) — 로
 // 용어가 제목보다 크게 읽힌다: 사용자가 찾으러 온 것은 "안내"가 아니라 자기
 // 행에 찍힌 그 단어다. 제목 구역과 용어 구역은 헤어라인으로 가른다.
 const CATEGORY_TERMS = [
@@ -45,16 +45,16 @@ const CATEGORY_TERMS = [
 
 const CATEGORY_TOOLTIP_CONTENT = (
   <div className="leading-[1.55]">
-    <span className="block text-[14px] font-semibold text-[#191F28]">설치 구분 안내</span>
-    <p className="mt-[4px] text-[12px] text-[#4E5968]">
+    <span className={cn('block', tipTiers.title)}>설치 구분 안내</span>
+    <p className={cn('mt-[4px]', tipTiers.body)}>
       스캔 결과를 바탕으로 시스템이 판정하는 값이라 직접 변경할 수 없어요.
     </p>
-    <div className="my-[10px] h-px bg-[#E5E8EB]" aria-hidden="true" />
+    <div className={cn('my-[10px]', tipTiers.hairline)} aria-hidden="true" />
     <div className="space-y-[10px]">
       {CATEGORY_TERMS.map(({ term, description }) => (
         <div key={term}>
-          <span className="block text-[14px] font-bold text-[#191F28]">{term}</span>
-          <p className="mt-[2px] text-[12px] text-[#4E5968]">{description}</p>
+          <span className={cn('block', tipTiers.term)}>{term}</span>
+          <p className={cn('mt-[2px]', tipTiers.body)}>{description}</p>
         </div>
       ))}
     </div>
