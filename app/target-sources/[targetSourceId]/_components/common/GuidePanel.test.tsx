@@ -141,14 +141,61 @@ describe('GuidePanel — the rail folds, it does not vanish', () => {
     const body = container.querySelector('aside > div');
     expect(body?.children).toHaveLength(2);
 
-    // ⛔ The control may not take a band back. It has to sit inside zone 1 — and zone 1 is
-    // the tinted one, which is what makes it a REGION of the panel rather than a card.
+    // ⛔ The control may not take a band back. It has to sit inside zone 1.
     const channel = body?.children[0] as HTMLElement;
     const toggle = screen.getByRole('button', { name: '가이드 접기' });
     expect(channel.contains(toggle)).toBe(true);
-    expect(channel.className).toContain('bg-[#E8F1FF]');
-    // A tinted ground needs the tinted hover: gray-100 measures 1.03 here and vanishes.
-    expect(toggle.className).toContain('hover:bg-[#D6E7FF]');
+  });
+
+  // 시안 E (오너 지시 2026-08-23): 무채색 + 잉크만. The zones are told apart by a hairline
+  // and a label, so ⛔ NO element in the open rail may carry a background fill — the guide's
+  // own 안내박스 is the single exception, and it renders inside the mocked guide card here.
+  it('paints no fill anywhere in the open rail, and names each zone', async () => {
+    const { container } = render(<GuidePanel {...baseProps} jiraTicket={null} />);
+    await settled();
+
+    const filled = Array.from(container.querySelectorAll<HTMLElement>('aside *')).filter((el) =>
+      /(^|\s)bg-(?!transparent)/.test(el.className),
+    );
+    expect(filled.map((el) => el.className)).toEqual([]);
+
+    // The labels are load-bearing: with no fill and no card they are the only thing that
+    // says where one zone ends and the next begins.
+    expect(screen.getByText('협업 채널')).toBeTruthy();
+    expect(screen.getByText('가이드')).toBeTruthy();
+  });
+
+  // 오너 지시 2026-08-23: the 가이드 mark is a filled yellow 전구, and it shows in BOTH fold
+  // states — folding changes how much of the guide you see, not what it looks like.
+  it('marks the guide zone with the filled yellow 전구 in both fold states', async () => {
+    const { container } = render(<GuidePanel {...baseProps} jiraTicket={null} />);
+    await settled();
+
+    const open = container.querySelector('aside svg.text-\\[\\#CA8A04\\]');
+    expect(open).toBeTruthy();
+    // Filled, not stroked — a stroke has nowhere to put a colour at 16px.
+    expect(open?.getAttribute('fill')).toBe('currentColor');
+    expect(open?.getAttribute('stroke')).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: '가이드 접기' }));
+    await waitFor(() =>
+      expect(container.querySelector('aside svg.text-\\[\\#CA8A04\\]')).toBeTruthy(),
+    );
+  });
+
+  // 오너 지시 2026-08-23: 「N단계 가이드」, not 「가이드」 — the rail is docked beside a
+  // seven-step process, so the number is what says which guide this is.
+  it('numbers the guide zone from the slot registry, in both fold states', async () => {
+    render(<GuidePanel {...baseProps} slotKey="process.aws.manual.4" jiraTicket={null} />);
+    await settled();
+    expect(screen.getByText('4단계 가이드')).toBeTruthy();
+
+    // Folded, the strip's one-word label stays 「가이드」 (56px), but the accessible name
+    // carries the number — the entry is a 20px glyph and the tooltip is its only channel.
+    fireEvent.click(screen.getByRole('button', { name: '가이드 접기' }));
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: '4단계 가이드 — 펼치기' })).toBeTruthy(),
+    );
   });
 
   it('folds and unfolds on press, taking the rail body with it', async () => {

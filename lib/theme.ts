@@ -2359,19 +2359,44 @@ export const railStyles = {
    * The fold control. Glyph-only, so the call site owes it an `aria-label` that says
    * what the press DOES ("가이드 접기"), not what the rail currently is.
    *
-   * ⚠️ This was ONE token until the open rail stopped giving the control a band of its
-   * own. It now rides the 협업 채널 band, which is tinted; the earlier collapse into a
-   * single `toggle` was correct for a single ground and expired with it.
+   * One token again, because the rail has one ground again. It briefly split into
+   * base + `onSurface`/`onTint` while the 협업 채널 zone was a #E8F1FF band; 시안 E took
+   * every fill out of the rail, so both states of the control now stand on white.
    *
-   * ⛔ The two grounds cannot share a hover. gray-100 measures ~1.03 against #E8F1FF and
-   * simply does not appear — the lesson the service rail's retry button already carries.
+   * ⛔ Put a tinted plane back under this and the hover disappears — gray-100 measures
+   * ~1.03 against #E8F1FF. The pair that works there is #D6E7FF (1.103, matching
+   * gray-100-on-white's 1.101); re-split the token rather than leaving it silent.
    */
-  toggleBase:
-    'flex h-8 w-8 items-center justify-center rounded-md text-gray-700 transition-colors',
-  /** On the rail's own white plane — the folded strip. */
-  toggleOnSurface: 'hover:bg-gray-100',
-  /** On the 협업 채널 band's #E8F1FF. The fill this file already pairs with that tint. */
-  toggleOnTint: 'hover:bg-[#D6E7FF]',
+  toggle:
+    'flex h-8 w-8 items-center justify-center rounded-md text-gray-700 transition-colors hover:bg-gray-100',
+  /**
+   * Zone heading on the open rail — 「협업 채널」, 「2단계 가이드」.
+   *
+   * 시안 E separates the rail's two zones with a hairline and this label and nothing
+   * else: no fill, no card. The label is therefore load-bearing, not decoration — it is
+   * the only thing that says where one zone ends.
+   *
+   * Value is the service rail's `sectionLabel` verbatim, because it is the same role in
+   * the same app and the two rails should not invent a nav idiom each. #4E5968 is
+   * 5.71:1 on that rail's #E2E7EA and 7.12:1 here on white; 12px is the guide's floor.
+   */
+  zoneLabel: 'text-[12px] font-medium tracking-[0.02em] text-[#4E5968]',
+  /**
+   * The 가이드 zone's mark — a filled 전구, on the zone label and on the folded strip
+   * (오너 지시 2026-08-23: the same mark in both states).
+   *
+   * ⚠️ #CA8A04 is 2.94:1 on white, under 1.4.11's 3:1 — and that is the best a
+   * *saturated yellow* can do. Yellow's luminance is intrinsically high: at H 41° and
+   * S 96% you reach 3:1 only by darkening to L 37%, by which point the hue has slid
+   * into amber. The glyph is legal here because it is DECORATIVE — 「N단계 가이드」 sits
+   * beside it and the strip entry's `aria-label` repeats it, so nothing is carried by
+   * the mark alone. ⛔ Do not reuse this token where the glyph is the only channel.
+   *
+   * ⛔ Nor is it a warning. This file already gave amber to `connProgress` (#E8A03A dot,
+   * #B45309 ink). 41° is only a few degrees off that family, so what separates them is
+   * the silhouette and the place — a 전구 on a rail zone head, never a status dot.
+   */
+  zoneMark: 'text-[#CA8A04]', // design-exempt: 장식 글리프 — 뜻은 옆의 「N단계 가이드」와 스트립 aria-label 이 전부 싣는다. 텍스트 4.5:1 도, 1.4.11 의 3:1 도 대상이 아님
   /** Hairline between the size control and the entries — half the strip, so it reads as a seam. */
   divider: 'my-2 h-px w-8 bg-gray-100',
   /**
