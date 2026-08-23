@@ -8,6 +8,8 @@ import { getDatabaseShortLabel } from '@/app/components/ui/DatabaseIcon';
 import { Ec2InstanceTag, RdsClusterTag } from '@/app/components/ui/RdsInstanceChips';
 import { isRdsCluster } from '@/lib/rds-instances';
 import { Pagination } from '@/app/components/ui/Pagination';
+import { ConsoleTable, type ConsoleTableColumn } from '@/app/components/ui/ConsoleTable';
+import { useColumnResize } from '@/app/components/ui/useColumnResize';
 import { useModal } from '@/app/hooks/useModal';
 import { usePagination } from '@/app/hooks/usePagination';
 import { useRailHover } from '@/app/hooks/useRailHover';
@@ -94,6 +96,60 @@ const seedCreds = (confirmed: readonly ConfirmedResource[]): CredMap =>
 // 미설정 경고가 서고 Run Test 가 영영 막힌다. 계약상 database_type 은 optional 이다.
 const requiresCredential = (databaseType: string | null): boolean =>
   !!databaseType && needsCredential(databaseType);
+
+/**
+ * Steps 1·2·3 order, verbatim: identity (name) → attributes (type · region) → what this
+ * step asks of the row. A user arrives here having read the same rows three times already;
+ * leading with Database Type made them re-find the anchor they had been scanning by.
+ *
+ * Resource ID is the one column steps 1·2·3 carry that this step drops. Seven columns at
+ * the approval table's 18px gutters wanted 1160px in a 948px card, so one had to go, and
+ * this is the only one nothing here is decided by: the row is already named, typed and
+ * located by the three columns around it, while every other column is either that anchor
+ * or an action. Step 4 drops the same class of column for the same reason.
+ *
+ * Floors are the LIN-96 ledger, verbatim (owner-approved 2026-08-23):
+ * name 162 · dbType 142 · region 156 · cred 180 · conn 104 · logical 118 — Σ **862**,
+ * inside the 948px card with ~86px of slack for the flex column. Resource Name is the
+ * SINGLE flex (ledger footnote ³, closed the same way as LIN-100's IDC table): it is the
+ * only column whose values run arbitrarily long on every row, and a forced second flex
+ * would hand the sink to a short-valued column (§9(b)).
+ */
+const TC_COLUMN_WIDTHS = { name: 162, dbType: 142, region: 156, cred: 180, conn: 104, logical: 118 } as const;
+const TC_FLEX_KEYS = ['name'] as const;
+
+/** "DB" 는 표 전체가 이미 DB 얘기라 붙일 필요가 없었다. 대신 이 열이 무엇을 고르는
+ *  것인지는 이름만으로 안 읽히므로 (i) 로 한 번 설명한다. 밝은 variant: 흰 표 위의
+ *  검은 상자는 다른 시스템의 UI 처럼 보인다. */
+const CREDENTIAL_HEAD = (
+  <span className="inline-flex items-center gap-1">
+    Credential
+    {/* 엔진을 열거하지 않는다 — 목록(lib/types.ts NO_CREDENTIAL_ENGINES)은 엔진이
+        늘 때마다 바뀌고, 여기 적은 예시는 같이 안 바뀐다. 표가 이미 찍은 값을
+        가리키는 편이 언제나 참이다. */}
+    <Tooltip
+      variant="value"
+      size="lg"
+      content={
+        <span className={idcStyles.table.headerTipBody}>
+          해당 DB에 접속할 때 사용할 계정 정보예요. Credentials 메뉴에서 등록한 것 중에서 고르고,
+          불필요로 표시된 대상은 이 단계에서 지정하지 않아요.
+        </span>
+      }
+    >
+      <InfoCircleIcon className={cn('h-3.5 w-3.5', textColors.tertiary)} aria-label="Credential 설명" />
+    </Tooltip>
+  </span>
+);
+
+const TC_COLUMNS: ConsoleTableColumn[] = [
+  { key: 'name', label: 'Resource Name', width: TC_COLUMN_WIDTHS.name, flex: true, headClassName: idcStyles.table.nameCell },
+  { key: 'dbType', label: 'Database Type', width: TC_COLUMN_WIDTHS.dbType },
+  { key: 'region', label: 'Region', width: TC_COLUMN_WIDTHS.region },
+  { key: 'cred', label: 'Credential', width: TC_COLUMN_WIDTHS.cred, head: CREDENTIAL_HEAD },
+  { key: 'conn', label: '연결 상태', width: TC_COLUMN_WIDTHS.conn },
+  { key: 'logical', label: '논리 DB 확인', width: TC_COLUMN_WIDTHS.logical },
+];
 
 interface ConnectionTestCardProps {
   targetSourceId: number;
@@ -218,6 +274,13 @@ export const ConnectionTestCard = ({
     [units, credFilter, credState],
   );
 
+  // Drag-resizable columns — the instance lives with this screen's one table mount
+  // (the shared shell's contract). The flex width is session-only like every console surface.
+  const resize = useColumnResize({
+    clampToContent: true,
+    storageKey: 'pii:colw:v1:tc-resources',
+    ephemeralKeys: TC_FLEX_KEYS,
+  });
   const { page, pageSize, setPage, setPageSize, pageItems: pageRows } = usePagination(filteredUnits, {
     initialPageSize: 10,
   });
@@ -467,56 +530,12 @@ export const ConnectionTestCard = ({
             </div>
           )}
           <div>
-            {/* CONNECTED_FRAME's own `overflow-hidden` and an `overflow-x-auto` would be two
-                values of one property on one element, and `cn` is a plain join — which of them
-                wins would be decided by Tailwind's emit order. Separate elements: the frame clips
-                to the radius, the inner box scrolls. */}
+            {/* The console shell owns the scroll box (its wrapper is the overflow-x-auto
+                escape), the header row, and the resize grammar; the frame above it keeps the
+                radius clip. 연결 상태 칸이 스켈레톤인 동안은 표가 아직 채워지는 중이다 —
+                보조기술에도 그렇게 말한다(`busy` → 표의 aria-busy). */}
             <div className={cn(CONNECTED_FRAME, 'rounded-t-[12px]')}>
-              <div className="overflow-x-auto">
-              {/* 연결 상태 칸이 스켈레톤인 동안은 표가 아직 채워지는 중이다 — 보조기술에도 그렇게 말한다. */}
-              <table className="w-full" aria-busy={loading}>
-                <thead className={idcStyles.table.approvalHeader}>
-                  {/* Steps 1·2·3 order, verbatim: identity (name → id) → attributes (type ·
-                      region) → what this step asks of the row. A user arrives here having read
-                      the same rows three times already; leading with Database Type made them
-                      re-find the anchor they had been scanning by. */}
-                  {/* Resource ID is the one column steps 1·2·3 carry that this step drops. Seven
-                      columns at the approval table's 18px gutters want 1160px in a 948px card, so
-                      one had to go, and this is the only one nothing here is decided by: the row is
-                      already named, typed and located by the three columns around it, while every
-                      other column is either that anchor or an action. Step 4 drops the same class of
-                      column for the same reason. */}
-                  <tr className="whitespace-nowrap">
-                    <th className={cn(idcStyles.table.approvalHeaderCell, idcStyles.table.nameCell)}>Resource Name</th>
-                    <th className={idcStyles.table.approvalHeaderCell}>Database Type</th>
-                    <th className={idcStyles.table.approvalHeaderCell}>Region</th>
-                    <th className={idcStyles.table.approvalHeaderCell}>
-                      {/* "DB" 는 표 전체가 이미 DB 얘기라 붙일 필요가 없었다. 대신 이 열이 무엇을
-                          고르는 것인지는 이름만으로 안 읽히므로 (i) 로 한 번 설명한다. 밝은 variant:
-                          흰 표 위의 검은 상자는 다른 시스템의 UI 처럼 보인다. */}
-                      <span className="inline-flex items-center gap-1">
-                        Credential
-                        {/* 엔진을 열거하지 않는다 — 목록(lib/types.ts NO_CREDENTIAL_ENGINES)은 엔진이
-                            늘 때마다 바뀌고, 여기 적은 예시는 같이 안 바뀐다. 표가 이미 찍은 값을
-                            가리키는 편이 언제나 참이다. */}
-                        <Tooltip
-                          variant="value"
-                          size="lg"
-                          content={
-                            <span className={idcStyles.table.headerTipBody}>
-                              해당 DB에 접속할 때 사용할 계정 정보예요. Credentials 메뉴에서 등록한 것 중에서 고르고,
-                              불필요로 표시된 대상은 이 단계에서 지정하지 않아요.
-                            </span>
-                          }
-                        >
-                          <InfoCircleIcon className={cn('h-3.5 w-3.5', textColors.tertiary)} aria-label="Credential 설명" />
-                        </Tooltip>
-                      </span>
-                    </th>
-                    <th className={idcStyles.table.approvalHeaderCell}>연결 상태</th>
-                    <th className={idcStyles.table.approvalHeaderCell}>논리 DB 확인</th>
-                  </tr>
-                </thead>
+              <ConsoleTable columns={TC_COLUMNS} resize={resize} busy={loading}>
                 <tbody className={idcStyles.table.body}>
                   {pageRows.map((unit) => {
                     const cred = unitCred(unit);
@@ -550,6 +569,7 @@ export const ConnectionTestCard = ({
                           className={cn(
                             idcStyles.table.approvalCell,
                             idcStyles.table.nameCell,
+                            idcStyles.table.consoleCell,
                             'font-mono text-[14px]',
                             textColors.primary,
                             NAME_LIFT,
@@ -597,7 +617,10 @@ export const ConnectionTestCard = ({
                                 }
                                 variant="value"
                                 size="md"
-                                triggerClassName="min-w-0 max-w-[200px] block"
+                                // w-full min-w-0, not a px cap: the COLUMN owns the cut now,
+                                // and under the stack's items-start a bare block would size to
+                                // its own content and never truncate (the manual-EC2 lesson).
+                                triggerClassName="w-full min-w-0 block"
                                 truncatedOnly
                               >
                                 <span className="block truncate">
@@ -610,6 +633,7 @@ export const ConnectionTestCard = ({
                         <td
                           className={cn(
                             idcStyles.table.approvalCell,
+                            idcStyles.table.consoleCell,
                             'text-[12px]',
                             textColors.secondary,
                             CELL_LIFT,
@@ -620,6 +644,7 @@ export const ConnectionTestCard = ({
                         <td
                           className={cn(
                             idcStyles.table.approvalCell,
+                            idcStyles.table.consoleCell,
                             MONO_CELL,
                             textColors.secondary,
                             CELL_LIFT,
@@ -644,7 +669,9 @@ export const ConnectionTestCard = ({
                               }
                               aria-label={`${first.resourceName ?? first.resourceId} Credential 수정 — 현재 ${cred || '미설정'}`}
                               title={cred || undefined}
-                              className={cn(idcStyles.triggerBtn.linkNeutral, 'max-w-[160px]')}
+                              // 144 = 180 열 − 좌우 패딩 36 (IDC 와 같은 산술). 예전 160 은 auto 표의
+                              // 자유 예산이라 fixed 콘텐츠 상자(144)를 넘겨 말줄임 없이 잘렸을 것.
+                              className={cn(idcStyles.triggerBtn.linkNeutral, 'max-w-[144px]')}
                             >
                               {cred ? (
                                 <span className="min-w-0 truncate font-mono">{cred}</span>
@@ -718,6 +745,7 @@ export const ConnectionTestCard = ({
                             <td
                               className={cn(
                                 idcStyles.table.approvalCell,
+                                idcStyles.table.consoleCell,
                                 'font-mono text-[14px]',
                                 textColors.primary,
                                 idcStyles.table.group.childCell,
@@ -760,11 +788,11 @@ export const ConnectionTestCard = ({
                     </tr>
                   )}
                 </tbody>
-                </table>
-              </div>
+              </ConsoleTable>
             </div>
             {filteredUnits.length > 0 && (
               <Pagination
+                size="md"
                 page={page}
                 pageSize={pageSize}
                 totalCount={filteredUnits.length}

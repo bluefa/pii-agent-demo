@@ -503,6 +503,30 @@ Step 4 와 admin `plain` 은 §10, Step 1(`CandidateResourceTable`)은 §11 에�
 - 콘솔 이관과 함께 이 표들 위 페이저 전부 `size="md"`(14px 고정 규칙) — 가드 스캔에
   `<IdcResourceTable` 렌더 태그 추가로 두 동명 표의 호출자가 자동 편입됐다.
 
+## 13. Step 5 클라우드 랜딩 (LIN-99, 2026-08-23)
+
+`ConnectionTestCard` 의 표가 콘솔 셸로 이관 — 프로젝트의 마지막 클라우드 표면.
+
+- 하한(원장 그대로): name 162 · dbType 142 · region 156 · cred 180 · conn 104 ·
+  logical 118 = **Σ862**. 948px 카드 안이라 스크롤 없이 들어가고(실측: 판 990 에서
+  scrollDelta 0), slack 은 name 이 흡수.
+- **flex = Resource Name 단일** (원장 각주 ³, §12와 같은 판정) — 행마다 임의 길이인
+  열이 이름뿐. sink 도 name.
+- **`ConsoleTable` 에 `busy` prop 신설** — aria-busy 는 표 요소 자신이 말해야 하는데
+  (기존 테스트 2건이 그 계약을 고정) 셸이 `<table>` 을 소유하므로 caller 가 상태를
+  넘긴다. 테스트를 구현에 맞추지 않고 셸을 계약에 맞췄다.
+- 셀 캡 정리: name 트리거 `max-w-[200px]`→`w-full min-w-0`(열이 컷 소유 — items-start
+  스택이라 w-full 이 하중, manual-EC2 교훈). **Credential 캡 160→144** — 이건 §12에서
+  기각된 「캡 제거」가 아니라 산술 교정: auto 표의 자유 예산 160 이 fixed 콘텐츠 상자
+  144(=180−36)를 넘으면 말줄임 없이 잘린다. 버튼 캡 자체는 유지(오너: "width 조절
+  필요없어").
+- 그룹 자식(논리 DB 이름) 셀에 consoleCell — 긴 무공백 이름이 이웃 열 위로 페인트
+  번지는 것 방지.
+- 드래그 실측: conn 열 위로는 콘텐츠 캡(~109), 아래로는 라벨 플로어(93) — 기존 문법
+  그대로, TC 상태 태그는 양끝에서 정상 렌더. 카드 스트립(점 범례·파형·모래시계)은
+  표 밖이라 무접촉.
+- 스토리지 `pii:colw:v1:tc-resources`, 페이저 `size="md"`.
+
 ---
 
 측정 환경: Chrome, 창 1710×, dPR 2, dev 서버 `/pass/target-sources/1012`,
@@ -510,3 +534,4 @@ Step 4 와 admin `plain` 은 §10, Step 1(`CandidateResourceTable`)은 §11 에�
 Step 4, 판 716)·`1023`(IDC Step 4)·admin ops `1008?tab=confirm`(판 1116). §11 실측은
 `/pass/target-sources/1006`(AWS Step 1, 판 990). §12 실측은 IDC `1021`/`1022`/`1024`/
 `1025`(판 990)·완료 승인 모달(판 710)·admin queue `1031`(판 1420)·ops `1026?tab=confirm`.
+§13 실측은 `2101`(클라우드 Step 5 TC 카드, 판 990).

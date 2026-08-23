@@ -611,3 +611,20 @@ describe('ConnectionTestCard', () => {
     });
   });
 });
+
+/**
+ * Console shape (LIN-99) — the LIN-96 ledger, pinned: name 162(flex/sink) · dbType 142 ·
+ * region 156 · cred 180 · conn 104 · logical 118, Σ 862 on the table's minWidth. Resource
+ * Name is the single flex so it renders `auto`; every other column renders its ledger px.
+ */
+describe('ConnectionTestCard — console column spec', () => {
+  it('holds the 862 floor with Resource Name as the sink', async () => {
+    renderCard([makeResource({})]);
+    const table = (await screen.findByRole('table')) as HTMLTableElement;
+    expect(table.style.minWidth).toBe('862px');
+    const widths = Array.from(table.querySelectorAll('thead th')).map(
+      (th) => (th as HTMLElement).style.width,
+    );
+    expect(widths).toEqual(['auto', '142px', '156px', '180px', '104px', '118px']);
+  });
+});
