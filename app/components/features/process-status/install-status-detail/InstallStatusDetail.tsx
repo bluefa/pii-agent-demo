@@ -20,10 +20,12 @@ import { DownloadIcon } from '@/app/components/ui/icons';
 import { Pagination } from '@/app/components/ui/Pagination';
 import { EmptyState } from '@/app/components/ui/state';
 import {
+  INSTALL_FLEX_KEYS,
   WaitingApprovalTable,
   type ApprovalIdentityColumns,
   type WaitingApprovalResource,
 } from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalTable';
+import { useColumnResize } from '@/app/components/ui/useColumnResize';
 import { WaitingApprovalToolbar } from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalToolbar';
 import { useApprovalTableState } from '@/app/target-sources/[targetSourceId]/_components/layout/useApprovalTableState';
 import { formatDateTime, formatDateTimeKst } from '@/lib/utils/date';
@@ -239,6 +241,18 @@ const StepResourceTable = ({
     [rows],
   );
   const table = useApprovalTableState(approvalRows, identityColumns?.dbTypeLabel);
+  // The console table's resize instance — owned here because the storage key names the
+  // screen (LIN-97). One key serves both step-4 shapes: their column keys don't collide
+  // (name/id vs the IDC identity keys), so a dragged width only ever finds its own column.
+  // Ephemeral (session-only) widths ride the flex columns, which the shapes declare
+  // differently — the caller's identity cells carry their own flags.
+  const resize = useColumnResize({
+    clampToContent: true,
+    storageKey: 'pii:colw:v1:install-resources',
+    ephemeralKeys: identityColumns
+      ? identityColumns.columns.filter((cell) => cell.flex).map((cell) => cell.key)
+      : INSTALL_FLEX_KEYS,
+  });
 
   if (rows.length === 0) {
     return (
@@ -268,6 +282,7 @@ const StepResourceTable = ({
         connected
         emptyMessage={FILTER_EMPTY_MESSAGE}
         identityColumns={identityColumns}
+        columns={resize}
       />
       {table.filteredCount > 0 && (
         <Pagination

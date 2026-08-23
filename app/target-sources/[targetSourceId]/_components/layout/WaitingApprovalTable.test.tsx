@@ -172,6 +172,14 @@ describe('WaitingApprovalTable', () => {
       rerender(<WaitingApprovalTable variant="plain" resources={rows} />);
       expect(nameCell()).toContain(NAME_LIFT);
       expect(nameCell()).not.toContain('font-semibold');
+
+      // `install` joined the console shell in LIN-97 — the moment the old
+      // `consoleVariant && !confirmedVariant` phrasing would have started carrying the
+      // owner's steps-2·3 call onto step 4. Recorded decision: it does not; the predicate
+      // names the variant now, and this line is the tripwire on that.
+      rerender(<WaitingApprovalTable variant="install" resources={rows} />);
+      expect(nameCell()).toContain(NAME_LIFT);
+      expect(nameCell()).not.toContain('font-semibold');
     });
 
     /** The group row's identity cell — type, region, and what the group holds. */
@@ -943,14 +951,14 @@ describe('WaitingApprovalTable', () => {
       expect(nameSpan.classList.contains('truncate')).toBe(false);
     });
 
-    it('keeps the install variant on the ellipsis grammar', () => {
-      // Still on the legacy shell (its identity columns are injected by the caller and
-      // measured in a Tailwind class, which `table-fixed` cannot read) — so it must keep the
-      // self-ellipsis, whose job is to stop a value painting over the next column.
+    it('gives the install variant the same clip — the last variants joined the shell (LIN-97)', () => {
+      // `ApprovalIdentityCell` widths are numbers now, which is what `table-fixed` needed,
+      // so install left the legacy shell — and with it the self-ellipsis, whose job the
+      // column's covered clip does here like everywhere else.
       render(<WaitingApprovalTable variant="install" resources={[row()]} />);
       const nameSpan = screen.getByText('covered-name');
-      expect(nameSpan.classList.contains('truncate')).toBe(true);
-      expect(nameSpan.closest('td')?.classList.contains('overflow-hidden')).toBe(false);
+      expect(nameSpan.classList.contains('truncate')).toBe(false);
+      expect(nameSpan.closest('td')?.classList.contains('overflow-hidden')).toBe(true);
     });
 
     // Round 11 (owner): "ResourceId가 종류 행에 의해서 더 많이 가려져" — the copy button's
@@ -981,19 +989,19 @@ describe('WaitingApprovalTable', () => {
         'absolute',
       );
 
-      // The legacy shell keeps the in-flow button — the overlay belongs to the covered
-      // grammar, and without the clip there is nothing for it to sit on.
+      // Install joined the covered grammar too (LIN-97), so its id runs to the boundary
+      // and takes the same overlay — no variant keeps the in-flow button any more.
       rerender(<WaitingApprovalTable variant="install" resources={[row()]} />);
       const installCopy = screen.getByRole('button', { name: 'Resource ID 복사' });
-      expect(installCopy.className).not.toContain('absolute');
-      expect(installCopy.className).toContain('shrink-0');
+      expect(installCopy.className).toContain('absolute');
+      expect(installCopy.parentElement?.className).toContain('w-[calc(100%+18px)]');
     });
 
     // Round 5: the console grid dropped its rails to border-default, and that step only
     // survives the row hover if the hover is the prototype's quiet #F7F9FB — under the
     // approval tint (#EAEEF7) the rails wash to 1.08:1. Wiring only; ratios are measured
     // in the browser (docs/ux/benchmark/target-source-resource-table-console.md).
-    it('hovers console rows on the console tint, legacy rows on the blue lift', () => {
+    it('hovers every variant on the console tint — the tint follows the shell', () => {
       // The tint belongs to the SHELL: on the console grid the rails are the quiet step, and
       // only the console tint leaves them visible under a hovered row (round 5; the measured
       // ratios live on tableRowLift.console's docblock). Steps 2·3 moved onto that grid, so
@@ -1011,10 +1019,12 @@ describe('WaitingApprovalTable', () => {
         tableRowLift.console,
       );
 
+      // Install rides the same grid since LIN-97, so it must ride the same tint — under
+      // ROW_TARGET's blue the console rails wash to 1.08:1 (round 5).
       rerender(<WaitingApprovalTable variant="install" resources={[row()]} />);
-      expect(screen.getByText('covered-name').closest('tr')?.className).toContain(
-        tableRowLift.target,
-      );
+      const installTr = screen.getByText('covered-name').closest('tr');
+      expect(installTr?.className).toContain(tableRowLift.console);
+      expect(installTr?.className).not.toContain(tableRowLift.target);
     });
 
     it('covers the column rail with the resize guide, full header height', () => {
@@ -1088,12 +1098,17 @@ describe('WaitingApprovalTable', () => {
         .toEqual(['18.8372%', 'auto', '142px', '156px', '118px', '96px']);
     });
 
-    it('skips the seam tracer for the variants still on the legacy shell', () => {
+    it('mounts the console shell for install and plain — no variant is left on the legacy table', () => {
+      // LIN-97: the auto-layout shell is gone from this file, so the seam tracer — the
+      // shell's own furniture — is the cheapest proof each variant actually reached it.
       for (const variant of ['install', 'plain'] as const) {
         const { container, unmount } = render(
           <WaitingApprovalTable variant={variant} resources={[row()]} />,
         );
-        expect(container.querySelector('[data-seam-tracer]')).toBeNull();
+        expect(container.querySelector('[data-seam-tracer]')).not.toBeNull();
+        expect(
+          required(container.querySelector('table'), `the ${variant} table`).className,
+        ).toContain('table-fixed');
         unmount();
       }
     });
@@ -1114,6 +1129,70 @@ describe('WaitingApprovalTable', () => {
       expect((table as HTMLElement).style.minWidth).toBe('988px');
       expect([...table.querySelectorAll('thead th')].map((th) => (th as HTMLElement).style.width))
         .toEqual(['25.3036%', 'auto', '142px', '156px', '112px', '142px']);
+    });
+
+    it('gives step 4 (cloud shape) the install spec — confirmed identity floors plus the install pair', () => {
+      // name 162 + id 186 + 상태 128 + 안내 142 = 618, the FLOOR: the identity pair flexes
+      // and Resource ID is last, so IT is the sink — the ARN is where the pixels pay.
+      // 상태 128 = 'BDC 설치 대기' (the longest of the six status words, 81px at the
+      // cell's 14px semibold) + the 36px cell padding + the 종류 column's slack recipe;
+      // 안내 reuses 제외 사유's 142 (same chip, same clamp). LIN-96 원장 §1.
+      const { container } = render(
+        <WaitingApprovalTable variant="install" resources={[row()]} />,
+      );
+      const table = required(container.querySelector('table'), 'the install table');
+      expect((table as HTMLElement).style.minWidth).toBe('618px');
+      expect([...table.querySelectorAll('thead th')].map((th) => th.textContent))
+        .toEqual(['Resource Name', 'Resource ID', '상태', '안내']);
+      expect([...table.querySelectorAll('thead th')].map((th) => (th as HTMLElement).style.width))
+        .toEqual(['26.2136%', 'auto', '128px', '142px']);
+    });
+
+    it('builds the IDC install spec from the caller identity cells — numeric widths, endpoint as sink', () => {
+      // The caller declares width AND flex per cell now (LIN-97): the identity pair
+      // (출발지·접속 주소) flexes like the cloud's name·id, and 접속 주소 — declaration-order
+      // last — is the sink, the one column here whose values run to arbitrary length.
+      // 144 + 200 + 80 + 172 + 128 + 142 = 866. 출발지 is 144, NOT the 150 this screen
+      // used to declare: the shared table's 144 was always the stated intent (원장 §3-1).
+      const identity = {
+        columns: [
+          {
+            key: 'src',
+            label: '출발지',
+            width: 144,
+            flex: true,
+            head: <span>출발지-헤더</span>,
+            render: () => 'src-cell',
+          },
+          { key: 'endpoint', label: '접속 주소', width: 200, flex: true, render: () => 'endpoint-cell' },
+          { key: 'port', label: 'Port', width: 80, render: () => null },
+          { key: 'dbType', label: 'Database Type', width: 172, render: () => null },
+        ],
+      };
+      const { container } = render(
+        <WaitingApprovalTable variant="install" resources={[row()]} identityColumns={identity} />,
+      );
+      const table = required(container.querySelector('table'), 'the IDC install table');
+      expect((table as HTMLElement).style.minWidth).toBe('866px');
+      expect([...table.querySelectorAll('thead th')].map((th) => (th as HTMLElement).style.width))
+        .toEqual(['16.6282%', 'auto', '80px', '172px', '128px', '142px']);
+      // The caller's header CONTENT renders (the 출발지 tooltip head), inside the console th.
+      expect(within(required(screen.getByText('출발지-헤더').closest('th'), 'the src th')).getByText('출발지-헤더')).toBeTruthy();
+      // And the caller's cells land in covered tds, like every other value cell here.
+      expect(screen.getByText('src-cell').closest('td')?.classList.contains('overflow-hidden')).toBe(true);
+    });
+
+    it('gives the plain variant the confirmed head at 646 — same floors, no question column', () => {
+      // name 162 · id 186 · dbType 142 · region 156 (LIN-96 원장 §2, admin plain). The
+      // floors are the confirmed table's own, so the two surfaces stay in register on the
+      // columns they share; what plain drops is the per-row question, not any width.
+      const { container } = render(
+        <WaitingApprovalTable variant="plain" resources={[row()]} />,
+      );
+      const table = required(container.querySelector('table'), 'the plain table');
+      expect((table as HTMLElement).style.minWidth).toBe('646px');
+      expect([...table.querySelectorAll('thead th')].map((th) => (th as HTMLElement).style.width))
+        .toEqual(['25.0774%', 'auto', '142px', '156px']);
     });
   });
 });

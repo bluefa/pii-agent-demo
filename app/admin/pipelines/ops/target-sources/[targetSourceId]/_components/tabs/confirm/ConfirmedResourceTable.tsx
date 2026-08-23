@@ -19,7 +19,9 @@
  */
 import { useMemo, type ReactElement } from 'react';
 import { Pagination } from '@/app/components/ui/Pagination';
+import { useColumnResize } from '@/app/components/ui/useColumnResize';
 import {
+  PLAIN_FLEX_KEYS,
   WaitingApprovalTable,
   type WaitingApprovalResource,
 } from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalTable';
@@ -56,6 +58,13 @@ export function ConfirmedResourceTable({
   );
   // 접기가 없으므로 행 하나가 곧 페이지 단위다 — Step 6·7 과 같은 이유로 그룹핑을 끈다.
   const table = useApprovalTableState(approvalRows, undefined, false);
+  // 콘솔 표의 리사이즈 인스턴스 — storage key 는 화면 이름(LIN-97). Step 6·7 의
+  // confirmed-resources 와 열 하한은 같지만 화면이 다르므로 키를 나눠 갖는다.
+  const resize = useColumnResize({
+    clampToContent: true,
+    storageKey: 'pii:colw:v1:ops-confirmed-resources',
+    ephemeralKeys: PLAIN_FLEX_KEYS,
+  });
   const showFilterEmpty = approvalRows.length > 0 && table.filteredCount === 0;
 
   return (
@@ -75,6 +84,7 @@ export function ConfirmedResourceTable({
         variant="plain"
         connected
         emptyMessage={showFilterEmpty ? FILTER_EMPTY_MESSAGE : undefined}
+        columns={resize}
       />
       {table.filteredCount > 0 && (
         <Pagination

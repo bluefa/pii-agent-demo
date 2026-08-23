@@ -139,10 +139,15 @@ export interface WaitingApprovalResource {
 type WaitingApprovalTableVariant = 'approval' | 'confirmed' | 'install' | 'plain';
 
 export interface ApprovalIdentityCell {
+  /** `ConsoleTableColumn.key` — the resize instance stores dragged widths under it, so it
+   *  outlives the (Korean, renameable) label. */
+  key: string;
   label: string;
   render: (resource: WaitingApprovalResource) => ReactNode;
-  /** 헤더 폭 — 호출자의 다른 단계 표에서 그대로 복사해, 단계끼리 열이 어긋나지 않게 한다. */
-  widthClass?: string;
+  /** 하한(px) — LIN-96 원장의 그 열 값 그대로, 단계끼리 열이 어긋나지 않게 한다. */
+  width: number;
+  /** `ConsoleTableColumn.flex` — 값이 임의 길이인 열에만. 선언 순서 마지막 flex 가 sink. */
+  flex?: boolean;
   /**
    * 헤더 내용 — 글자 말고 다른 것이 붙는 열에만(출발지 열의 설명 툴팁 등). `label` 은
    * 그대로 남는다: React key 이자, 여기 없을 때 그리는 기본값이다.
@@ -210,16 +215,16 @@ interface WaitingApprovalTableProps {
    */
   expandFolds?: boolean;
   /**
-   * `install` variant only — see `ApprovalIdentityColumns`. The other two variants group,
+   * `install` variant only — see `ApprovalIdentityColumns`. The other variants group,
    * fold and cluster on the name/id pair, so the swap is not offered there.
    */
   identityColumns?: ApprovalIdentityColumns;
   /**
-   * Console variants (`confirmed`, `approval`) — drag-resizable column widths
-   * (useColumnResize with `clampToContent`): the table goes `table-fixed`, every header cell
-   * takes a width and a handle, and truncated values are uncovered by dragging the divider
-   * (round 3). Instantiated by the CALLER, not here: the storage key names the screen, or
-   * the pair of screens — steps 2·3 share one through `useApprovalColumnResize`.
+   * Drag-resizable column widths (useColumnResize with `clampToContent`): the table is
+   * `table-fixed`, every header cell takes a width and a handle, and truncated values are
+   * uncovered by dragging the divider (round 3). Instantiated by the CALLER, not here: the
+   * storage key names the screen, or the pair of screens — steps 2·3 share one through
+   * `useApprovalColumnResize`. Omitted, the table renders at its floors without handles.
    */
   columns?: ColumnResize;
   /**
@@ -245,6 +250,9 @@ export const CONNECTED_FRAME = 'overflow-hidden bg-white';
 // state colors; ROW_BASE carries no color at all.
 // Why the tints lean blue (and what that reserves): see tableRowLift in lib/theme.ts.
 export const ROW_BASE = tableRowLift.base;
+// No longer used by this table itself (every variant hovers on the console tint since
+// LIN-97) — still exported for the auto-layout tables that quote this file's row grammar
+// (admin queue request tables, IdcTargetListTable).
 export const ROW_TARGET = tableRowLift.target;
 // Confirmed/console rows hover on the prototype's quiet neutral instead — the console
 // grid's rails survive that tint and wash out under ROW_TARGET's. See tableRowLift.console.
@@ -274,32 +282,25 @@ export const CELL_LIFT = tableRowLift.cellText;
 export const NAME_LIFT = primaryColors.textGroupHover;
 
 /**
- * How the Resource Name behaves inside its cell, per shell. THREE branches render this name —
- * an RDS cluster with members, a cluster/EC2 tag stack, and the plain one-liner — and all three
- * have to agree, because they are the same column.
+ * How the Resource Name behaves inside its cell. THREE branches render this name — an RDS
+ * cluster with members, a cluster/EC2 tag stack, and the plain one-liner — and all three have
+ * to agree, because they are the same column. Named constants, not a class per site: the first
+ * migration switched only the third branch and left the other two clamped at 200px on steps
+ * 2·3, where a cluster row's name stopped widening at 200 while its column flexed past 600.
  *
- * `console`: no self-truncation and no per-cell cap. The COLUMN owns the truncation point in a
+ * No self-truncation and no per-cell cap. The COLUMN owns the truncation point in a
  * fixed-layout table, so a 200px clamp would survive the drag and make widening the column
  * reveal nothing; the overflow runs on and the td's covered-clip cuts it at the column stroke
  * (round 4). `w-full` because the trigger is an inline-flex box — left to shrink-to-fit it sizes
  * to the nowrap name and paints over the next column, which is what the cap used to prevent —
  * and the child needs `min-w-0` to shrink inside it, the recipe `ResourceIdCell` already uses.
  *
- * `legacy`: the auto-layout shells (install, plain), where nothing else bounds the column.
- *
- * ⛔ Named pairs, not two ternaries per site: the first migration switched only the third branch
- * and left the other two clamped at 200px on steps 2·3, where a cluster row's name stopped
- * widening at 200 while its column flexed past 600.
+ * (The `legacy` halves of these pairs — self-ellipsis for the auto-layout shells — left with
+ * the legacy shell itself: LIN-97 put the last two variants on `ConsoleTable`.)
  */
-const NAME_TRIGGER = {
-  console: 'min-w-0 w-full',
-  legacy: 'min-w-0 max-w-[200px] block',
-} as const;
+const NAME_TRIGGER = 'min-w-0 w-full';
 
-const NAME_TEXT = {
-  console: 'block whitespace-nowrap',
-  legacy: 'block truncate',
-} as const;
+const NAME_TEXT = 'block whitespace-nowrap';
 
 // 제외 행을 한 단 흐리게 하던 처리(gray-500)는 없앴다.
 //
@@ -550,6 +551,85 @@ const approvalColumns = (regionLabel: string): ConsoleTableColumn[] => [
 ];
 
 /**
+ * Step-4 (install) column widths. The identity pair reuses the confirmed-context floors —
+ * every install row IS a confirmed target, the same rows steps 6·7 list (LIN-96 원장 §1).
+ *
+ * `status`: the cell vocabulary is closed — the six `INSTALL_STATUS_LABEL` words, no
+ * adapter override in use — and the longest, 'BDC 설치 대기', renders 81px at the cell's
+ * 14px semibold (browser-measured, 2026-08-23). 81 + approvalCell's 36px padding + slack
+ * = 128 — the 종류 column's own recipe, for a near-identical content width (82 there).
+ * `guide` reuses 제외 사유's 142: the same `ReasonChipInline` under the same
+ * `clampReason(15)`, so the same worst case with the same expansion affordance.
+ */
+const INSTALL_COLUMN_WIDTHS = {
+  name: CONFIRMED_COLUMN_WIDTHS.name,
+  id: CONFIRMED_COLUMN_WIDTHS.id,
+  status: 128,
+  guide: APPROVAL_COLUMN_WIDTHS.reason,
+} as const;
+
+/** install(cloud)·plain flex the confirmed pair — the same two arbitrary-length columns
+ *  (a name and an ARN), for the reason on `CONFIRMED_FLEX_KEYS`. The IDC install shape
+ *  declares its own flex on `ApprovalIdentityCell` instead. */
+export const INSTALL_FLEX_KEYS = CONFIRMED_FLEX_KEYS;
+export const PLAIN_FLEX_KEYS = CONFIRMED_FLEX_KEYS;
+
+/**
+ * The step-4 column spec: the caller's identity columns (IDC — widths and flex declared
+ * per cell, see `ApprovalIdentityCell`) or the standard pair (cloud), then the install
+ * pair. No Database Type / Region: the engine was settled back on steps 1·2 and the
+ * region is a constant within one target source (and already inside the resource id).
+ */
+const installColumns = (identity?: ApprovalIdentityColumns): ConsoleTableColumn[] => [
+  ...(identity
+    ? identity.columns.map((cell, index) => ({
+        key: cell.key,
+        label: cell.label,
+        width: cell.width,
+        ...(cell.flex ? { flex: true } : {}),
+        ...(cell.head !== undefined ? { head: cell.head } : {}),
+        // 판정 레일과 26px 들여쓰기는 첫 칸의 몫 — 행 쪽(`renderRow`)과 같은 규칙.
+        ...(index === 0 ? { headClassName: idcStyles.table.nameCell } : {}),
+      }))
+    : [
+        {
+          key: 'name',
+          label: 'Resource Name',
+          width: INSTALL_COLUMN_WIDTHS.name,
+          flex: true,
+          headClassName: idcStyles.table.nameCell,
+        },
+        // The sink, as on every standard-identity surface: the ARN is the longest value
+        // in the row and the only one a cut costs the reader.
+        { key: 'id', label: 'Resource ID', width: INSTALL_COLUMN_WIDTHS.id, flex: true },
+      ]),
+  { key: 'status', label: '상태', width: INSTALL_COLUMN_WIDTHS.status },
+  // Sized, not flex — the same measurement that rejected 제외 사유 as a sink (see
+  // APPROVAL_FLEX_KEYS): blank on most rows, clamped to a self-expanding chip on the rest.
+  { key: 'guide', label: '안내', width: INSTALL_COLUMN_WIDTHS.guide },
+];
+
+/**
+ * The plain (admin ops 확정 정보) spec — the confirmed table's identity/attribute head with
+ * no per-row question column: name 162 · id 186 · dbType 142 · region 156 = 646 (LIN-96
+ * 원장 §2). Same floors as steps 6·7, so the two surfaces stay in register on the columns
+ * they share.
+ */
+const plainColumns = (regionLabel: string): ConsoleTableColumn[] => [
+  {
+    key: 'name',
+    label: 'Resource Name',
+    width: CONFIRMED_COLUMN_WIDTHS.name,
+    flex: true,
+    headClassName: idcStyles.table.nameCell,
+  },
+  // The sink — see `confirmedColumns`; the reasoning transfers with the column.
+  { key: 'id', label: 'Resource ID', width: CONFIRMED_COLUMN_WIDTHS.id, flex: true },
+  { key: 'dbType', label: 'Database Type', width: CONFIRMED_COLUMN_WIDTHS.dbType },
+  { key: 'region', label: regionLabel, width: CONFIRMED_COLUMN_WIDTHS.region },
+];
+
+/**
  * Does this roster put anything in the 종류 column? Azure/GCP rows carry no kind today, and a
  * permanently blank column is dead space — but "permanently" is a fact about the whole LIST,
  * which this table never sees: it is handed one page at a time. Asking the page turned the
@@ -640,18 +720,11 @@ export const WaitingApprovalTable = memo(
     const installVariant = variant === 'install';
     const plainVariant = variant === 'plain';
 
-    /**
-     * Which shell renders this table. The console grammar (rails, drag-resize, the covered
-     * clip) reached the confirmed tables first; steps 2·3 join it here, so a reader walking
-     * 2 → 3 → 6 → 7 stays in one table.
-     *
-     * `identityColumns` holds the approval variant back: those columns are the CALLER's, and
-     * `ApprovalIdentityCell` measures them in a Tailwind class, which `table-fixed` cannot
-     * read — a spec needs a number. Nobody passes identityColumns with this variant today
-     * (install does, and install is still on the legacy shell); when step 4 migrates, that
-     * field gets its numeric width and this clause goes.
-     */
-    const consoleVariant = confirmedVariant || (variant === 'approval' && !identityColumns);
+    // One shell for every variant. The console grammar (rails, drag-resize, the covered
+    // clip) reached the confirmed tables first, steps 2·3 joined in #761, and LIN-97 moved
+    // the last two — install (its `ApprovalIdentityCell` widths are numbers now, which is
+    // what `table-fixed` needed) and plain — so a reader walking 2 → 3 → 4 → 6 → 7 and the
+    // admin ops tabs stays in one table.
 
     // Round 3 (시안 F): the kind leaves the two-line identity stack and becomes its own
     // column, taking the row to one line (py-4 + 20px = 52px). Round 9 reseated it after
@@ -662,13 +735,15 @@ export const WaitingApprovalTable = memo(
     // Colorless — each row picks its resting tier (dim vs secondary) at the cell.
     const monoCell = 'whitespace-nowrap font-mono text-[14px]';
 
-    // The covered-clip cell (round 4) — `ConsoleTable`'s cell grammar, applied per td so
-    // the other variants keep their ellipsis. See the token for why the CELL clips.
-    const coveredCell = consoleVariant ? idcStyles.table.consoleCell : undefined;
-    // Steps 2·3 exactly — the console shell MINUS the confirmed tables. For the handful of
-    // choices the owner made about the approval screens specifically, where `consoleVariant`
-    // would have carried them onto steps 6·7 and the admin ops tab as well.
-    const approvalConsole = consoleVariant && !confirmedVariant;
+    // The covered-clip cell (round 4) — `ConsoleTable`'s cell grammar. See the token for
+    // why the CELL clips.
+    const coveredCell = idcStyles.table.consoleCell;
+    // Steps 2·3 exactly. For the handful of choices the owner made about the approval
+    // screens specifically — recorded (LIN-97): when install and plain joined the console
+    // shell, the old `consoleVariant && !confirmedVariant` phrasing would have carried
+    // those choices onto step 4 and the admin ops 확정 정보 tab, which the owner's call
+    // (semibold names, 2026-08-23) did not cover. The predicate now names the variant.
+    const approvalConsole = variant === 'approval';
 
     // Approval rows sit one step over approvalCell's py-4 (owner request, step-1 table
     // matches). It rides the tbody rather than the table because both shells share these
@@ -734,13 +809,7 @@ export const WaitingApprovalTable = memo(
             // the two sharing one tint with nothing between them is what makes the pair read as
             // one block that opened rather than as a row with a panel underneath it — the same
             // override step 1's cluster row makes.
-            instancesOpen
-              ? bgColors.panel
-              : excluded
-                ? ROW_EXCLUDED
-                : consoleVariant
-                  ? ROW_TARGET_CONSOLE
-                  : ROW_TARGET,
+            instancesOpen ? bgColors.panel : excluded ? ROW_EXCLUDED : ROW_TARGET_CONSOLE,
             foldToggleable && 'cursor-pointer',
             rail?.className,
           )}
@@ -753,9 +822,10 @@ export const WaitingApprovalTable = memo(
                나머지는 여느 셀과 같다 — 이 표의 다른 열들과 같은 리듬을 유지한다. */
             identityColumns.columns.map((column, index) => (
               <td
-                key={column.label}
+                key={column.key}
                 className={cn(
                   idcStyles.table.approvalCell,
+                  coveredCell,
                   index === 0 && verdictRailClass(excluded),
                   index === 0 && idcStyles.table.nameCell,
                 )}
@@ -834,10 +904,10 @@ export const WaitingApprovalTable = memo(
                     content={<IdentifierTip label="Resource Name" value={resource.resourceName} />}
                     variant="value"
                     size="md"
-                    triggerClassName={NAME_TRIGGER[consoleVariant ? 'console' : 'legacy']}
+                    triggerClassName={NAME_TRIGGER}
                     truncatedOnly
                   >
-                    <span className={NAME_TEXT[consoleVariant ? 'console' : 'legacy']}>
+                    <span className={NAME_TEXT}>
                       {resource.resourceName || PLACEHOLDER}
                     </span>
                   </Tooltip>
@@ -908,10 +978,10 @@ export const WaitingApprovalTable = memo(
                   content={<IdentifierTip label="Resource Name" value={resource.resourceName} />}
                   variant="value"
                   size="md"
-                  triggerClassName={NAME_TRIGGER[consoleVariant ? 'console' : 'legacy']}
+                  triggerClassName={NAME_TRIGGER}
                   truncatedOnly
                 >
-                  <span className={NAME_TEXT[consoleVariant ? 'console' : 'legacy']}>
+                  <span className={NAME_TEXT}>
                     {resource.resourceName || PLACEHOLDER}
                   </span>
                 </Tooltip>
@@ -921,12 +991,10 @@ export const WaitingApprovalTable = memo(
                 content={<IdentifierTip label="Resource Name" value={resource.resourceName} />}
                 variant="value"
                 size="md"
-                triggerClassName={NAME_TRIGGER[consoleVariant ? 'console' : 'legacy']}
+                triggerClassName={NAME_TRIGGER}
                 truncatedOnly
               >
-                <span
-                  className={cn('min-w-0', NAME_TEXT[consoleVariant ? 'console' : 'legacy'])}
-                >
+                <span className={cn('min-w-0', NAME_TEXT)}>
                   {resource.resourceName || PLACEHOLDER}
                 </span>
               </Tooltip>
@@ -958,10 +1026,10 @@ export const WaitingApprovalTable = memo(
               <ResourceIdCell
                 value={resource.resourceId}
                 label="Resource ID"
-                maxWidthClass={consoleVariant ? 'w-[calc(100%+18px)]' : 'max-w-[220px]'}
+                maxWidthClass="w-[calc(100%+18px)]"
                 sizeClass="text-[14px]"
                 textClassName={cn(textColors.secondary, CELL_LIFT)}
-                hardClip={consoleVariant}
+                hardClip
               />
             )}
           </td>
@@ -1073,7 +1141,11 @@ export const WaitingApprovalTable = memo(
             )
           ) : installVariant ? (
             <>
-              <td className={idcStyles.table.approvalCell}>
+              {/* Covered like the value columns: the status word ('BDC 설치 대기', 81px)
+                  outruns the header label the drag floors on, so without the clip a
+                  narrowed column paints it over 안내. The verdict pill next door skips
+                  the clip because its longest word fits its column at every legal width. */}
+              <td className={cn(idcStyles.table.approvalCell, coveredCell)}>
                 {resource.installCell && <InstallStatusText cell={resource.installCell} />}
               </td>
               {/* 안내 없음은 빈 칸 — 대시는 시각적 노이즈만 남긴다. */}
@@ -1258,80 +1330,25 @@ export const WaitingApprovalTable = memo(
 
     return (
       <div className={connected ? CONNECTED_FRAME : idcStyles.table.frame}>
-        {consoleVariant ? (
-          /* Round 13: the console grammar moved into `ConsoleTable` — the shell owns the
-             grid, the resizable header and the boundary's two states, this table owns its
-             columns and rows. `columns` (the resize instance) is created by the caller. */
-          <ConsoleTable
-            columns={
-              confirmedVariant
-                ? confirmedColumns(regionLabel, confirmedKindColumn)
-                : approvalColumns(regionLabel)
-            }
-            resize={columns}
-          >
-            {bodies}
-          </ConsoleTable>
-        ) : (
-          <div className="overflow-x-auto">
-            <table
-              className={cn(
-                'w-full',
-                // A group is three tbodies, and `body`'s divide-y stops at each tbody's edge.
-                idcStyles.table.tbodySeam,
-              )}
-            >
-              <thead className={idcStyles.table.approvalHeader}>
-              {/* Identity (name → id) → attributes (type · region) → decision (verdict → reason).
-                  The scan anchor is the human-readable name, not a 3-value category column. */}
-              <tr className="whitespace-nowrap">
-                {identityColumns ? (
-                  identityColumns.columns.map((column, index) => (
-                    <th
-                      key={column.label}
-                      className={cn(
-                        idcStyles.table.approvalHeaderCell,
-                        index === 0 && idcStyles.table.nameCell,
-                        column.widthClass,
-                      )}
-                    >
-                      {column.head ?? column.label}
-                    </th>
-                  ))
-                ) : (
-                  <>
-                    <th className={cn(idcStyles.table.approvalHeaderCell, idcStyles.table.nameCell)}>Resource Name</th>
-                    <th className={idcStyles.table.approvalHeaderCell}>Resource ID</th>
-                  </>
-                )}
-                {/* Step 4 drops the two attribute columns: the engine was settled back on
-                    steps 1·2 and the install runs the same either way, and the region is a
-                    constant within one target source (and already inside the resource id).
-                    What they cost — 250px — is what 상태/안내 need to stay on screen. */}
-                {!installVariant && (
-                  <>
-                    <th className={idcStyles.table.approvalHeaderCell}>Database Type</th>
-                    <th className={idcStyles.table.approvalHeaderCell}>{regionLabel}</th>
-                  </>
-                )}
-                {plainVariant ? null : installVariant ? (
-                  <>
-                    <th className={idcStyles.table.approvalHeaderCell}>상태</th>
-                    <th className={idcStyles.table.approvalHeaderCell}>안내</th>
-                  </>
-                ) : (
-                  <>
-                    {/* The header asks the question, the cell answers it. */}
-                    <th className={idcStyles.table.approvalHeaderCell}>요청 대상 여부</th>
-                    <th className={idcStyles.table.approvalHeaderCell}>제외 사유</th>
-                  </>
-                )}
-              </tr>
-            </thead>
-              {bodies}
-            </table>
-          </div>
-        )}
+        {/* Round 13: the console grammar moved into `ConsoleTable` — the shell owns the
+            grid, the resizable header and the boundary's two states, this table owns its
+            columns and rows. `columns` (the resize instance) is created by the caller.
+            LIN-97 retired the auto-layout shell that used to sit in the else branch here:
+            every variant now hands the shell its spec. */}
+        <ConsoleTable
+          columns={
+            confirmedVariant
+              ? confirmedColumns(regionLabel, confirmedKindColumn)
+              : installVariant
+                ? installColumns(identityColumns)
+                : plainVariant
+                  ? plainColumns(regionLabel)
+                  : approvalColumns(regionLabel)
+          }
+          resize={columns}
+        >
+          {bodies}
+        </ConsoleTable>
       </div>
     );
   },
