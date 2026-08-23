@@ -35,45 +35,83 @@ export type JiraTicketState = { issueKey: string; browseUrl: string | null } | n
  * row instead of a fake sample key; fetch error → its own row, so an outage
  * is not misread as "no channel".
  */
-const CollabChannelCard = ({ jiraTicket }: { jiraTicket: JiraTicketState }) => {
-  const rowBase = 'mt-3 flex items-center gap-2 rounded-lg border px-3 py-2 text-[12.5px]';
+const CollabChannelCard = ({
+  jiraTicket,
+  onCollapse,
+}: {
+  jiraTicket: JiraTicketState;
+  /**
+   * Supplied only where this card IS the panel's top band. It then drops its own card
+   * chrome — the band owns the tint, the padding and the seam — and carries the panel's
+   * fold control on its title line.
+   *
+   * The two travel together on purpose. A panel-level control may not sit inside a
+   * discrete card, because a control inside an object belongs to that object; so when
+   * the card takes the control, it stops being a card. Omitted by the folded rail's tip,
+   * where this floats as a card on the tooltip's surface and folds nothing.
+   */
+  onCollapse?: () => void;
+}) => {
+  /**
+   * The channel row, in all four states: a mark, then the text. No surface of its own —
+   * ⛔ do not give it back the white fill and border it used to have (오너 지시
+   * 2026-08-23). The card is already a surface inside a panel; a third one inside that
+   * was a box in a box in a box.
+   *
+   * Losing the fill is what makes the row FIT. The folded rail renders this card in a
+   * fixed 280px tip: 280 − 2 border − 28 padding = 250, − 2 − 32 = 216 inside the card.
+   * The old row spent 26 of that on its own border and padding and had 190 left; its
+   * fixed parts (glyph + 3 × 8 gap + 11 ↗) took 49, leaving 141 for a 78px label beside
+   * a 79px key. 16px short — so 한글 wrapped mid-phrase and the row read as two
+   * accidental lines. Stacking is the deliberate version of that break: what it is, then
+   * which one. At 24/12/14 the widest tier is the 14px key, 92px inside 173 of room.
+   *
+   * ⛔ Measure against the tip's 216, never the open rail's 288. The tip is the tighter
+   * of the two surfaces this card renders on, and it is the one that broke.
+   */
+  const rowBase = 'mt-3 flex items-center gap-2 text-[12px]';
+  const channelMark = 'h-6 w-6 shrink-0';
+  const channelLabel = 'block text-[12px] font-semibold leading-[1.45]';
+  const channelKey = 'block font-mono text-[14px] leading-[1.35]';
   const href =
     jiraTicket && jiraTicket !== 'error' ? safeBrowseUrl(jiraTicket.browseUrl) : null;
 
   return (
-    <div className={cn('rounded-xl border p-4', primaryColors.bgLight, primaryColors.borderLight)}>
-      <p className={cn('text-[16px] font-bold leading-[1.4]', textColors.primary)}>
-        도움이 필요하신가요?
-      </p>
+    <div
+      className={
+        onCollapse
+          ? undefined
+          : cn('rounded-xl border p-4', primaryColors.bgLight, primaryColors.borderLight)
+      }
+    >
+      <div className="flex items-center justify-between gap-2">
+        <p className={cn('text-[16px] font-bold leading-[1.4]', textColors.primary)}>
+          도움이 필요하신가요?
+        </p>
+        {/* Measured: the 32px hit box centres a 16px glyph, so pulling the box 8px past the
+            band's 16px inset lands the GLYPH's edge exactly on it. Align the ink, not the box. */}
+        {onCollapse && (
+          <span className="-mr-2 shrink-0">
+            <RailToggle direction="right" label="가이드 접기" onTint onClick={onCollapse} />
+          </span>
+        )}
+      </div>
       {/* secondary, not tertiary: gray-500 is calibrated against white (4.83:1) and drops
           to 4.25:1 on the primary tint — under AA at this size. gray-700 holds 9.06:1. */}
       <p className={cn('mt-1 text-[12px] leading-[1.55]', textColors.secondary)}>
         진행 중 막히는 부분은 협업 채널에서 담당자에게 바로 문의할 수 있어요.
       </p>
+      {/* ⚠️ secondary, not tertiary — the same trap the sentence above documents. gray-500
+          was measured against the white row that used to sit under this text; with the row
+          gone it stands on the #E8F1FF tint at 4.25:1, under AA. */}
       {jiraTicket === 'error' ? (
-        <div
-          className={cn(
-            rowBase,
-            'border-dashed font-medium',
-            primaryColors.borderLight,
-            bgColors.surface,
-            textColors.tertiary,
-          )}
-        >
-          <ChatIcon className="h-3.5 w-3.5 shrink-0" />
+        <div className={cn(rowBase, 'font-medium', textColors.secondary)}>
+          <ChatIcon className={channelMark} />
           협업 채널 정보를 불러오지 못했어요
         </div>
       ) : jiraTicket === null ? (
-        <div
-          className={cn(
-            rowBase,
-            'border-dashed font-medium',
-            primaryColors.borderLight,
-            bgColors.surface,
-            textColors.tertiary,
-          )}
-        >
-          <ChatIcon className="h-3.5 w-3.5 shrink-0" />
+        <div className={cn(rowBase, 'font-medium', textColors.secondary)}>
+          <ChatIcon className={channelMark} />
           아직 연결된 협업 채널이 없어요
         </div>
       ) : href ? (
@@ -85,36 +123,31 @@ const CollabChannelCard = ({ jiraTicket }: { jiraTicket: JiraTicketState }) => {
           title="협업 채널 — Jira에서 논의하기"
           className={cn(
             rowBase,
-            'font-semibold no-underline transition-colors',
-            primaryColors.borderLight,
-            bgColors.surface,
+            'no-underline transition-colors',
             textColors.secondary,
             primaryColors.textHover,
           )}
         >
-          <ChatIcon className="h-3.5 w-3.5 shrink-0" />
-          협업 채널 링크
-          {/* Owner ask: the issue key reads as a classic hyperlink — blue + underline. */}
-          <span className={cn('ml-auto font-mono text-[12px] underline', primaryColors.text)}>
-            {jiraTicket.issueKey}
+          <ChatIcon className={channelMark} />
+          <span className="min-w-0 flex-1">
+            <span className={channelLabel}>협업 채널 링크</span>
+            {/* Owner ask: the issue key reads as a classic hyperlink — blue + underline.
+                ⛔ `textOnLight`, never `text`. Measured: #0064FF is 4.33:1 on #E8F1FF, under
+                AA at 14px; #0050D6 is 5.92:1. The white row this key used to sit on was what
+                made the brighter blue legal, and that row is gone. */}
+            <span className={cn(channelKey, 'underline', primaryColors.textOnLight)}>
+              {jiraTicket.issueKey}
+            </span>
           </span>
           <OpenExternalIcon className="h-[11px] w-[11px] shrink-0 opacity-50" />
         </a>
       ) : (
         // browseUrl 이 없으면(또는 http 가 아니면) 링크를 지어내지 않고 키만 보여준다.
-        <div
-          className={cn(
-            rowBase,
-            'font-semibold',
-            primaryColors.borderLight,
-            bgColors.surface,
-            textColors.secondary,
-          )}
-        >
-          <ChatIcon className="h-3.5 w-3.5 shrink-0" />
-          협업 채널
-          <span className={cn('ml-auto font-mono text-[12px]', textColors.secondary)}>
-            {jiraTicket.issueKey}
+        <div className={cn(rowBase, textColors.secondary)}>
+          <ChatIcon className={channelMark} />
+          <span className="min-w-0 flex-1">
+            <span className={channelLabel}>협업 채널</span>
+            <span className={channelKey}>{jiraTicket.issueKey}</span>
           </span>
         </div>
       )}
@@ -215,7 +248,7 @@ export const GuidePanel = ({
           cannot: what panel is this, and is the collab channel still there.
 
           채널 above 가이드, because the strip mirrors the panel's own vertical order — the
-          collab card sits above the tabs when the rail is open, and a strip that reordered
+          channel band sits above the guide when the rail is open, and a strip that reordered
           the zones would teach a layout the open rail then contradicts. (Cloudscape puts
           help first in its trigger bar, but that bar ranks separate PANELS against each
           other; these are zones inside one panel, and the panel already has an order.)
@@ -246,29 +279,33 @@ export const GuidePanel = ({
           rail's height exactly as it did when these were the aside's own children. */}
       {collapsed !== true && (
         <div className={cn(bodyShown, 'min-h-0 flex-1 flex-col')}>
-          {/* The fold control sits on the rail's INNER edge at the top — the same x and y
-              the strip's button occupies, so the pointer does not have to move between the
-              two states. */}
-          <div className={cn('flex shrink-0 items-center border-b p-2', borderColors.light)}>
-            <RailToggle direction="right" label="가이드 접기" onClick={toggle} />
+          {/* TWO zones, not three. The fold control used to hold a band of its own — 48px
+              and a seam spent on one 32px button — which read as a third axis beside 협업
+              채널 and 가이드 (오너 지시 2026-08-23). It rides this band's title line now,
+              and the card's tint came out here with it: full-bleed, so the control sits on
+              a REGION of the panel instead of inside a discrete card.
+
+              The channel is still first. It is the escape hatch for every step, so it holds
+              the top of the rail and the guide scrolls underneath it. */}
+          <div
+            className={cn(
+              'shrink-0 border-b px-4 py-3.5',
+              primaryColors.bgLight,
+              borderColors.light,
+            )}
+          >
+            <CollabChannelCard jiraTicket={jiraTicket} onCollapse={toggle} />
           </div>
 
-        {/* Jira ticket next — the collab channel is the escape hatch for every
-            step, so it stays above the fold. */}
-        <div className={cn('shrink-0 border-b p-4', borderColors.light)}>
-          <CollabChannelCard jiraTicket={jiraTicket} />
-        </div>
-
-        <div className="min-h-0 flex-1 overflow-y-auto p-5">
-          {slotKey ? (
-            <GuideCardContainer slotKey={slotKey} bare />
-          ) : (
-            <p className={cn('py-4 text-center text-[12px]', textColors.tertiary)}>
-              이 단계에는 표시할 가이드가 없습니다.
-            </p>
-          )}
-        </div>
-
+          <div className="min-h-0 flex-1 overflow-y-auto p-5">
+            {slotKey ? (
+              <GuideCardContainer slotKey={slotKey} bare />
+            ) : (
+              <p className={cn('py-4 text-center text-[12px]', textColors.tertiary)}>
+                이 단계에는 표시할 가이드가 없습니다.
+              </p>
+            )}
+          </div>
         </div>
       )}
     </aside>

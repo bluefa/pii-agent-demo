@@ -80,6 +80,26 @@ describe('GuidePanel — collab-channel card states', () => {
     expect(screen.queryByTitle('협업 채널 — Jira에서 논의하기')).toBeNull();
     expect(screen.getByText('PII-42')).toBeTruthy();
   });
+
+  // 오너 지시 2026-08-23: no white card inside the card. Its fill and border were also the
+  // 26px that made the label and the key collide in the folded rail's fixed 280px tip.
+  it('gives the channel row no surface of its own, and stacks its two tiers', () => {
+    render(
+      <GuidePanel
+        {...baseProps}
+        jiraTicket={{ issueKey: 'PII-42', browseUrl: 'https://jira.example.com/browse/PII-42' }}
+      />,
+    );
+    const link = screen.getByTitle('협업 채널 — Jira에서 논의하기');
+    expect(link.className).not.toMatch(/bg-white|rounded-lg|(^|\s)border(\s|$)/);
+
+    // Stacked, not side by side — and the key carries the AA-safe blue. #0064FF measures
+    // 4.33:1 on #E8F1FF; it was only ever legal because a white row sat under it.
+    const key = screen.getByText('PII-42');
+    expect(key.className).toContain('block');
+    expect(key.className).toContain('text-[#0050D6]');
+    expect(key.className).not.toContain('text-[#0064FF]');
+  });
 });
 
 describe('GuidePanel — the rail folds, it does not vanish', () => {
@@ -109,6 +129,26 @@ describe('GuidePanel — the rail folds, it does not vanish', () => {
     await settled();
     expect(screen.getByRole('button', { name: '가이드 접기' })).toBeTruthy();
     expect(screen.getByText('도움이 필요하신가요?')).toBeTruthy();
+  });
+
+  // 오너 지시 2026-08-23: the open rail read as THREE axes — a chevron, 협업 채널, 가이드.
+  // The chevron's band cost 48px and a seam for one button; it rides the channel band's
+  // title line now, so the panel is two zones with one seam between them.
+  it('opens as two zones, with the fold control inside the first', async () => {
+    const { container } = render(<GuidePanel {...baseProps} jiraTicket={null} />);
+    await settled();
+
+    const body = container.querySelector('aside > div');
+    expect(body?.children).toHaveLength(2);
+
+    // ⛔ The control may not take a band back. It has to sit inside zone 1 — and zone 1 is
+    // the tinted one, which is what makes it a REGION of the panel rather than a card.
+    const channel = body?.children[0] as HTMLElement;
+    const toggle = screen.getByRole('button', { name: '가이드 접기' });
+    expect(channel.contains(toggle)).toBe(true);
+    expect(channel.className).toContain('bg-[#E8F1FF]');
+    // A tinted ground needs the tinted hover: gray-100 measures 1.03 here and vanishes.
+    expect(toggle.className).toContain('hover:bg-[#D6E7FF]');
   });
 
   it('folds and unfolds on press, taking the rail body with it', async () => {

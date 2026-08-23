@@ -68,6 +68,12 @@ interface RailToggleProps {
   direction: 'left' | 'right';
   /** What the press does — 「가이드 접기」. This is a glyph-only control, so it is its whole name. */
   label: string;
+  /**
+   * The control sits on the 협업 채널 band's #E8F1FF rather than the rail's white plane.
+   * ⛔ Not cosmetic: the white plane's gray-100 hover measures ~1.03 on that tint, so
+   * without this the button silently loses its only hover feedback.
+   */
+  onTint?: boolean;
   onClick: () => void;
 }
 
@@ -79,7 +85,7 @@ interface RailToggleProps {
  * open rail each render their own button behind a media query, so neither one is in a
  * position to ask what the current state is.
  */
-export const RailToggle = ({ direction, label, onClick }: RailToggleProps) => {
+export const RailToggle = ({ direction, label, onTint, onClick }: RailToggleProps) => {
   const Glyph = direction === 'left' ? ChevronLeftIcon : ChevronRightIcon;
   return (
     <button
@@ -87,7 +93,10 @@ export const RailToggle = ({ direction, label, onClick }: RailToggleProps) => {
       onClick={onClick}
       aria-label={label}
       title={label}
-      className={railStyles.toggle}
+      className={cn(
+        railStyles.toggleBase,
+        onTint ? railStyles.toggleOnTint : railStyles.toggleOnSurface,
+      )}
     >
       <Glyph className="h-4 w-4" />
     </button>

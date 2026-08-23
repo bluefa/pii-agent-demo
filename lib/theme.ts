@@ -2356,16 +2356,22 @@ export const railStyles = {
    */
   strip: 'flex-1 flex-col items-center px-1 py-2',
   /**
-   * The fold control, in both of the rail's states. Glyph-only, so the call site owes
-   * it an `aria-label` that says what the press DOES ("가이드 접기"), not what the
-   * rail currently is.
+   * The fold control. Glyph-only, so the call site owes it an `aria-label` that says
+   * what the press DOES ("가이드 접기"), not what the rail currently is.
    *
-   * Both inks are set for the guide rail's white plane. ⛔ A tinted plane needs a
-   * different hover: gray-50 and gray-100 measure ~1.03 against the service rail's
-   * tint and simply do not appear — the lesson its retry button already carries.
+   * ⚠️ This was ONE token until the open rail stopped giving the control a band of its
+   * own. It now rides the 협업 채널 band, which is tinted; the earlier collapse into a
+   * single `toggle` was correct for a single ground and expired with it.
+   *
+   * ⛔ The two grounds cannot share a hover. gray-100 measures ~1.03 against #E8F1FF and
+   * simply does not appear — the lesson the service rail's retry button already carries.
    */
-  toggle:
-    'flex h-8 w-8 items-center justify-center rounded-md text-gray-700 transition-colors hover:bg-gray-100',
+  toggleBase:
+    'flex h-8 w-8 items-center justify-center rounded-md text-gray-700 transition-colors',
+  /** On the rail's own white plane — the folded strip. */
+  toggleOnSurface: 'hover:bg-gray-100',
+  /** On the 협업 채널 band's #E8F1FF. The fill this file already pairs with that tint. */
+  toggleOnTint: 'hover:bg-[#D6E7FF]',
   /** Hairline between the size control and the entries — half the strip, so it reads as a seam. */
   divider: 'my-2 h-px w-8 bg-gray-100',
   /**
