@@ -120,14 +120,16 @@ export const SourceIpHeader = () => (
  *   [logicalro]                 승인 모달   200+80+172+118+96          =  666
  *   [excl]                      step 2     200+80+172+112+142         =  706
  *   [src,excl]                  step 3     200+80+172+144+112+142     =  850
- *   [cred,conn,logicalro,src]   step 5     200+80+172+180+104+118+96+144 = 1094
+ *   [cred,conn,logicalro,src]   step 5     200+80+172+264+104+118+96+144 = 1178
  *   [logicalro,src]             steps 6·7  200+80+172+118+96+144      =  810
  *
  * Ledger corrections landed with the migration: 연동 논리 DB 120 → 118, and the two
  * previously UN-declared columns get numbers (제외 사유 142 · 연동 제외 96) — under
- * table-fixed an undeclared column is not "auto slack", it is a bug.
+ * table-fixed an undeclared column is not "auto slack", it is a bug. cred 180 → 264
+ * followed by owner order (2026-08-23): 180 was sized for Key1/Key2 synthetic names,
+ * and the longest real store name measures 220px at 14px (+36 padding +8 slack).
  *
- * ⚠️ Step 5's 1094 exceeds the panel at common widths — ConsoleTable's own wrapper is
+ * ⚠️ Step 5's 1178 exceeds the panel at common widths — ConsoleTable's own wrapper is
  * the overflow-x-auto escape hatch the legacy frame never had (ledger ⚠️⁴). The 승인
  * 모달 combo (666) fits its 712px pane with ~46px of slack for the flex column.
  */
@@ -138,7 +140,7 @@ const IDC_COLUMN_WIDTHS = {
   src: 144,
   target: 112,
   reason: 142,
-  cred: 180,
+  cred: 264,
   conn: 104,
   logicalDb: 118,
   logicalExcl: 96,
@@ -305,10 +307,10 @@ export const IdcResourceTable = ({
                       onClick={() => onCredentialOpen?.(r)}
                       aria-label={`${r.hosts[0] ?? r.resourceId} Credential 수정 — 현재 ${credentials?.[r.resourceId] || '미설정'}`}
                       title={credentials?.[r.resourceId] || undefined}
-                      // max-w-[144px] (= 180 − 좌우 패딩 36) 는 콘솔에서도 유지한다: 이 값은
-                      // 열 폭이 아니라 '한 버튼이 차지할 수 있는 상한'이고, 드래그로 열을
-                      // 늘리는 이유는 Credential 이름이 아니라 이웃 flex 열을 위해서다.
-                      className={cn(idcStyles.triggerBtn.linkNeutral, 'max-w-[144px]')}
+                      // 컷은 열이 소유한다(max-w-full): 픽셀 캡이 남아 있으면 열을 드래그로
+                      // 늘려도 이름이 더 안 보이는 리사이즈 벽이 된다. 264 열은 시드 실명
+                      // 전부를 통째로 보여주고, 그보다 긴 운영 이름만 말줄임된다.
+                      className={cn(idcStyles.triggerBtn.linkNeutral, 'max-w-full')}
                     >
                       {credentials?.[r.resourceId] ? (
                         <span className="min-w-0 truncate font-mono">{credentials[r.resourceId]}</span>

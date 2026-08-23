@@ -507,8 +507,8 @@ Step 4 와 admin `plain` 은 §10, Step 1(`CandidateResourceTable`)은 §11 에�
 
 `ConnectionTestCard` 의 표가 콘솔 셸로 이관 — 프로젝트의 마지막 클라우드 표면.
 
-- 하한(원장 그대로): name 162 · dbType 142 · region 156 · cred 180 · conn 104 ·
-  logical 118 = **Σ862**. 948px 카드 안이라 스크롤 없이 들어가고(실측: 판 990 에서
+- 하한: name 162 · dbType 142 · region 156 · cred **264**(교정 경위는 아래) · conn 104 ·
+  logical 118 = **Σ946**. 948px 카드 안이라 스크롤 없이 들어가고(실측: 판 990 에서
   scrollDelta 0), slack 은 name 이 흡수.
 - **flex = Resource Name 단일** (원장 각주 ³, §12와 같은 판정) — 행마다 임의 길이인
   열이 이름뿐. sink 도 name.
@@ -516,10 +516,16 @@ Step 4 와 admin `plain` 은 §10, Step 1(`CandidateResourceTable`)은 §11 에�
   (기존 테스트 2건이 그 계약을 고정) 셸이 `<table>` 을 소유하므로 caller 가 상태를
   넘긴다. 테스트를 구현에 맞추지 않고 셸을 계약에 맞췄다.
 - 셀 캡 정리: name 트리거 `max-w-[200px]`→`w-full min-w-0`(열이 컷 소유 — items-start
-  스택이라 w-full 이 하중, manual-EC2 교훈). **Credential 캡 160→144** — 이건 §12에서
-  기각된 「캡 제거」가 아니라 산술 교정: auto 표의 자유 예산 160 이 fixed 콘텐츠 상자
-  144(=180−36)를 넘으면 말줄임 없이 잘린다. 버튼 캡 자체는 유지(오너: "width 조절
-  필요없어").
+  스택이라 w-full 이 하중, manual-EC2 교훈).
+- **Credential 실명 통짜 노출 (오너 재발주 08-23, 「캡 유지」 판례 만료)** — 목 실명화
+  뒤에도 긴 실명이 말줄임되자 오너가 축약 자체를 걷어냈다. 원장 cred **180→264**:
+  180 은 Key1/Key2 합성 이름 시절 치수였고, 실명 최장
+  `kimcs-postgres-analytics-readonly` 는 14px Pretendard 실측 220 → 220+36(패딩)+8(슬랙).
+  트리거 픽셀 캡(144)은 **max-w-full 로 교체** — 캡은 열을 드래그로 늘려도 이름이 더
+  안 보이는 리사이즈 벽이었다(REASON_CLAMP 와 같은 병). 시드 실명 전부 통짜, 그보다
+  긴 운영 이름만 열 소유 말줄임. 제로섬: 클라우드 Σ862→**946**(판 990, 스크롤 없음
+  유지) · IDC step 5 조합 Σ1094→**1178**(§12 표의 이 줄만 교정 — 의도된 스크롤 표면이
+  104→188px 로).
 - 그룹 자식(논리 DB 이름) 셀에 consoleCell — 긴 무공백 이름이 이웃 열 위로 페인트
   번지는 것 방지.
 - 드래그 실측: conn 열 위로는 콘텐츠 캡(~109), 아래로는 라벨 플로어(93) — 기존 문법

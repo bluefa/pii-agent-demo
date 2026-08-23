@@ -108,14 +108,17 @@ const requiresCredential = (databaseType: string | null): boolean =>
  * located by the three columns around it, while every other column is either that anchor
  * or an action. Step 4 drops the same class of column for the same reason.
  *
- * Floors are the LIN-96 ledger, verbatim (owner-approved 2026-08-23):
- * name 162 · dbType 142 · region 156 · cred 180 · conn 104 · logical 118 — Σ **862**,
- * inside the 948px card with ~86px of slack for the flex column. Resource Name is the
+ * Floors are the LIN-96 ledger with one owner-ordered correction (2026-08-23):
+ * name 162 · dbType 142 · region 156 · cred 264 · conn 104 · logical 118 — Σ **946**,
+ * inside the 948px card. cred was 180, sized in the Key1/Key2 synthetic-name era; real
+ * store names run to `kimcs-postgres-analytics-readonly` = 220px measured at 14px
+ * Pretendard, so 264 = 220 + 36 padding + 8 slack shows every seeded name whole
+ * (owner: credential names must not render abbreviated). Resource Name stays the
  * SINGLE flex (ledger footnote ³, closed the same way as LIN-100's IDC table): it is the
  * only column whose values run arbitrarily long on every row, and a forced second flex
  * would hand the sink to a short-valued column (§9(b)).
  */
-const TC_COLUMN_WIDTHS = { name: 162, dbType: 142, region: 156, cred: 180, conn: 104, logical: 118 } as const;
+const TC_COLUMN_WIDTHS = { name: 162, dbType: 142, region: 156, cred: 264, conn: 104, logical: 118 } as const;
 const TC_FLEX_KEYS = ['name'] as const;
 
 /** "DB" 는 표 전체가 이미 DB 얘기라 붙일 필요가 없었다. 대신 이 열이 무엇을 고르는
@@ -669,9 +672,10 @@ export const ConnectionTestCard = ({
                               }
                               aria-label={`${first.resourceName ?? first.resourceId} Credential 수정 — 현재 ${cred || '미설정'}`}
                               title={cred || undefined}
-                              // 144 = 180 열 − 좌우 패딩 36 (IDC 와 같은 산술). 예전 160 은 auto 표의
-                              // 자유 예산이라 fixed 콘텐츠 상자(144)를 넘겨 말줄임 없이 잘렸을 것.
-                              className={cn(idcStyles.triggerBtn.linkNeutral, 'max-w-[144px]')}
+                              // 컷은 열이 소유한다(max-w-full): 픽셀 캡이 남아 있으면 열을 드래그로
+                              // 늘려도 이름이 더 안 보이는 리사이즈 벽이 된다. 264 열은 시드 실명
+                              // 전부를 통째로 보여주고, 그보다 긴 운영 이름만 말줄임된다.
+                              className={cn(idcStyles.triggerBtn.linkNeutral, 'max-w-full')}
                             >
                               {cred ? (
                                 <span className="min-w-0 truncate font-mono">{cred}</span>
