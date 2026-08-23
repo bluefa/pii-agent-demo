@@ -380,10 +380,14 @@ export const CandidateResourceRow = ({
             //
             // px 상한 없음: 잘림 지점은 열이 소유한다 (REASON_CLAMP 의 판정과 같다).
             <span className={cn(ec2Styles.rowStack, 'relative top-[10px]')}>
-              <span className={cn(ec2Styles.rowId, 'block truncate')}>
+              {/* `w-full min-w-0` (the NAME_TRIGGER recipe): under `items-start` a flex item
+                  sizes to its own nowrap content, so a bare `truncate` never engages and the
+                  td's overflow-hidden hard-cuts with no ellipsis. The anchor hands the
+                  truncation point back to the column. */}
+              <span className={cn(ec2Styles.rowId, 'block w-full min-w-0 truncate')}>
                 {candidate.resourceId}
               </span>
-              <span className={cn(ec2Styles.rowSub, 'block truncate')}>
+              <span className={cn(ec2Styles.rowSub, 'block w-full min-w-0 truncate')}>
                 Private IP {candidate.endpointConfig?.host || '—'}
               </span>
             </span>
