@@ -8,6 +8,13 @@ vi.mock('@/app/components/features/process-status/GuideCard/GuideCardContainer',
 
 import { GuidePanel } from '@/app/target-sources/[targetSourceId]/_components/common/GuidePanel';
 
+/**
+ * The channel zone's first line, and the marker the fold tests use for "this zone
+ * rendered". It took that job from 「도움이 필요하신가요?」, which was deleted for being a
+ * second 16px heading directly under 「협업 채널」 (오너 지시 2026-08-23).
+ */
+const CHANNEL_LINE = '진행 중 막히는 부분은 협업 채널에서 바로 문의할 수 있어요.';
+
 const baseProps = {
   slotKey: null,
   /** No stored preference — the width default decides. Tests that care pass their own. */
@@ -50,7 +57,7 @@ beforeEach(() => {
 describe('GuidePanel — collab-channel card states', () => {
   it('renders the explicit 미연결 state when no Jira ticket is mapped (404 → null)', () => {
     render(<GuidePanel {...baseProps} jiraTicket={null} />);
-    expect(screen.getByText('도움이 필요하신가요?')).toBeTruthy();
+    expect(screen.getByText(CHANNEL_LINE)).toBeTruthy();
     expect(screen.getByText('아직 연결된 협업 채널이 없어요')).toBeTruthy();
     expect(screen.queryByTitle('협업 채널 — Jira에서 논의하기')).toBeNull();
   });
@@ -99,6 +106,12 @@ describe('GuidePanel — collab-channel card states', () => {
     expect(key.className).toContain('block');
     expect(key.className).toContain('text-[#0050D6]');
     expect(key.className).not.toContain('text-[#0064FF]');
+
+    // One leading for every line the rail sets itself. Half-leading lands on both sides
+    // of a box, so mixed leadings (1.55 / 1.45 / 1.35) made equal box gaps read unequal —
+    // matching the numbers only means something once the leading matches too.
+    expect(screen.getByText('협업 채널 링크').className).toContain('leading-[1.5]');
+    expect(key.className).toContain('leading-[1.5]');
   });
 });
 
@@ -128,7 +141,9 @@ describe('GuidePanel — the rail folds, it does not vanish', () => {
     render(<GuidePanel {...baseProps} jiraTicket={null} />);
     await settled();
     expect(screen.getByRole('button', { name: '가이드 접기' })).toBeTruthy();
-    expect(screen.getByText('도움이 필요하신가요?')).toBeTruthy();
+    expect(
+      screen.getByText('진행 중 막히는 부분은 협업 채널에서 바로 문의할 수 있어요.'),
+    ).toBeTruthy();
   });
 
   // 오너 지시 2026-08-23: the open rail read as THREE axes — a chevron, 협업 채널, 가이드.
@@ -147,23 +162,44 @@ describe('GuidePanel — the rail folds, it does not vanish', () => {
     expect(channel.contains(toggle)).toBe(true);
   });
 
-  // 시안 E (오너 지시 2026-08-23): 무채색 + 잉크만. The zones are told apart by a hairline
-  // and a label, so ⛔ NO element in the open rail may carry a fill. The guide's own
-  // 안내박스 is the single exception and it renders inside the mocked guide card here, so
-  // this assertion sees an empty list.
-  it('paints no fill anywhere in the open rail, and names each zone', async () => {
+  // 시안 A (오너 지시 2026-08-23: 「2단계 가이드」 아래 실제 가이드는 카드 그룹으로).
+  //
+  // This REPLACES 시안 E's "not one fill anywhere in the rail", which this test used to
+  // assert. A white card on a white rail is not a card, so grouping the guide is what
+  // forced the rail down onto the left rail's plane. ⛔ The two halves move together: a
+  // rail back on `bg-white` with the zones still cards is the state where the grouping
+  // the owner asked for is invisible.
+  it('drops the rail to the left rail’s plane and floats each zone as a card', async () => {
     const { container } = render(<GuidePanel {...baseProps} jiraTicket={null} />);
     await settled();
 
-    const filled = Array.from(container.querySelectorAll<HTMLElement>('aside *')).filter((el) =>
-      /(^|\s)bg-(?!transparent)/.test(el.className),
-    );
-    expect(filled.map((el) => el.className)).toEqual([]);
+    const aside = container.querySelector('aside') as HTMLElement;
+    expect(aside.className).toContain('bg-[#E2E7EA]');
+    expect(aside.className).not.toContain('bg-white');
 
-    // The labels are load-bearing: with no fill and no card they are the only thing that
-    // says where one zone ends and the next begins.
+    const zones = Array.from(
+      (container.querySelector('aside > div') as HTMLElement).children,
+    ) as HTMLElement[];
+    expect(zones).toHaveLength(2);
+    for (const zone of zones) {
+      expect(zone.className).toContain('bg-white');
+      expect(zone.className).toContain('rounded-xl');
+    }
+
+    // The cards separate the zones; the labels say which is which.
     expect(screen.getByText('협업 채널')).toBeTruthy();
     expect(screen.getByText('가이드')).toBeTruthy();
+  });
+
+  // ⛔ 「도움이 필요하신가요?」 does not come back. It was 16px bold sitting 8px under
+  // 「협업 채널」 at 16px semibold — two headings of the same size, told apart by weight
+  // alone, saying the same thing twice (오너 지시 2026-08-23).
+  it('leaves the channel zone one heading, not two of the same size', async () => {
+    render(<GuidePanel {...baseProps} jiraTicket={null} />);
+    await settled();
+
+    expect(screen.queryByText(/도움이 필요하신가요/)).toBeNull();
+    expect(screen.getByText('협업 채널')).toBeTruthy();
   });
 
   // 오너 지시 2026-08-23: the 가이드 mark is the owner's Figma 전구
@@ -218,10 +254,10 @@ describe('GuidePanel — the rail folds, it does not vanish', () => {
     await settled();
 
     fireEvent.click(screen.getByRole('button', { name: '가이드 접기' }));
-    await waitFor(() => expect(screen.queryByText('도움이 필요하신가요?')).toBeNull());
+    await waitFor(() => expect(screen.queryByText(CHANNEL_LINE)).toBeNull());
 
     fireEvent.click(screen.getByRole('button', { name: '가이드 펼치기' }));
-    await waitFor(() => expect(screen.getByText('도움이 필요하신가요?')).toBeTruthy());
+    await waitFor(() => expect(screen.getByText(CHANNEL_LINE)).toBeTruthy());
   });
 
   it('writes the fold to a cookie, and the press beats the width default', async () => {
@@ -253,7 +289,7 @@ describe('GuidePanel — the fold does not flash on reload', () => {
     expect(classes.some((c) => c.startsWith('min-[1360px]:'))).toBe(false);
     expect(classes).toContain('w-14');
     // …and the body was never mounted, so nothing had to be torn down.
-    expect(screen.queryByText('도움이 필요하신가요?')).toBeNull();
+    expect(screen.queryByText(CHANNEL_LINE)).toBeNull();
     expect(screen.getByRole('button', { name: '가이드 펼치기' })).toBeTruthy();
   });
 
@@ -265,7 +301,7 @@ describe('GuidePanel — the fold does not flash on reload', () => {
     const classes = container.querySelector('aside')?.className.split(/\s+/) ?? [];
     expect(classes.some((c) => c.startsWith('min-[1360px]:'))).toBe(false);
     expect(classes).toContain('w-[320px]');
-    expect(screen.getByText('도움이 필요하신가요?')).toBeTruthy();
+    expect(screen.getByText(CHANNEL_LINE)).toBeTruthy();
   });
 
   it('still arbitrates with the media query when no cookie was sent', () => {
@@ -359,11 +395,11 @@ describe('GuidePanel — the folded strip says what it is', () => {
   it('shows the collab card itself in the tip, without unfolding the rail', async () => {
     await folded({ issueKey: 'BDCDIP-1007', browseUrl: 'https://jira.example.com/browse/BDCDIP-1007' });
     // Folded, so the card is gone from the rail body — whatever appears next came from the tip.
-    expect(screen.queryByText('도움이 필요하신가요?')).toBeNull();
+    expect(screen.queryByText(CHANNEL_LINE)).toBeNull();
 
     fireEvent.click(screen.getByRole('button', { name: /^협업 채널 — / }));
 
-    expect(screen.getByText('도움이 필요하신가요?')).toBeTruthy();
+    expect(screen.getByText(CHANNEL_LINE)).toBeTruthy();
     expect(
       screen.getByText('진행 중 막히는 부분은 협업 채널에서 바로 문의할 수 있어요.'),
     ).toBeTruthy();

@@ -9,7 +9,6 @@ import {
   type RailCollapsed,
 } from '@/app/components/ui/RailCollapse';
 import {
-  bgColors,
   borderColors,
   cn,
   primaryColors,
@@ -37,10 +36,11 @@ export type JiraTicketState = { issueKey: string; browseUrl: string | null } | n
  */
 const CollabChannelCard = ({ jiraTicket }: { jiraTicket: JiraTicketState }) => {
   /**
-   * The channel zone's content, and nothing else — no fill, no border, no radius, in
-   * either place it renders (시안 E, 오너 지시 2026-08-23). Containment is the caller's:
-   * on the open rail a hairline and a zone label separate it, and in the folded rail's
-   * tip the tooltip's own white box already is the card.
+   * The channel zone's content, and nothing else — no fill, no border, no radius of its
+   * own, in either place it renders. Containment is the CALLER's, and it differs: on the
+   * open rail the zone's `railStyles.card` is the white box, and in the folded rail's tip
+   * the tooltip's own white box already is one. Owning a surface here would nest a card
+   * inside whichever of those it landed in.
    *
    * ⛔ Do not give the row back the white fill it used to have. That surface is also
    * what broke it: the tip is a fixed 280px box, so 280 − 2 border − 28 padding = 250,
@@ -55,19 +55,27 @@ const CollabChannelCard = ({ jiraTicket }: { jiraTicket: JiraTicketState }) => {
    * The tiers stay stacked even though one line now fits (161 inside 218): the key is
    * user data and a longer one puts the collision straight back.
    */
+  // One leading for everything the rail sets itself: 1.5. It was 1.55 / 1.45 / 1.35 on
+  // three lines that sit 4px apart, and line-height is half-leading on BOTH sides of a
+  // box — so a 4px box gap between a 1.4 line and a 1.55 line opens to ~10.5px of air
+  // while an 8px gap elsewhere opens to ~15. Matching the box numbers alone never made
+  // the column look even; matching the leading is what makes the numbers mean anything.
+  // ⛔ The guide body keeps its own 1.72 — `.prose-guide` is shared with the admin post
+  // editor, and rendered markdown is allowed its own rhythm.
   const rowBase = 'mt-3 flex items-center gap-2 text-[12px]';
   const channelMark = 'h-6 w-6 shrink-0';
-  const channelLabel = 'block text-[12px] font-semibold leading-[1.45]';
-  const channelKey = 'block font-mono text-[14px] leading-[1.35]';
+  const channelLabel = 'block text-[12px] font-semibold leading-[1.5]';
+  const channelKey = 'block font-mono text-[14px] leading-[1.5]';
   const href =
     jiraTicket && jiraTicket !== 'error' ? safeBrowseUrl(jiraTicket.browseUrl) : null;
 
   return (
     <div>
-      <p className={cn('text-[16px] font-bold leading-[1.4]', textColors.primary)}>
-        도움이 필요하신가요?
-      </p>
-      <p className={cn('mt-1 text-[12px] leading-[1.55]', textColors.secondary)}>
+      {/* ⛔ No 「도움이 필요하신가요?」 heading above this sentence (오너 지시 2026-08-23).
+          It was 16px bold sitting 8px under 「협업 채널」 at 16px semibold — two headings
+          of the same size, separated by weight alone, saying the same thing twice. The
+          zone label names the zone; this sentence says what it is for. */}
+      <p className={cn('text-[12px] leading-[1.5]', textColors.secondary)}>
         진행 중 막히는 부분은 협업 채널에서 바로 문의할 수 있어요.
       </p>
       {/* The two empty states are back on `tertiary`. They were moved up to `secondary`
@@ -140,10 +148,11 @@ interface GuidePanelProps {
 }
 
 /**
- * Full-height right rail for the step screens — mirrors the left ServiceListPanel:
- * flat surface, left border, the collab-channel card, then the step's guide in a
- * scrollable body. Deliberately quiet (auxiliary) chrome so the working column keeps
- * the visual weight. Replaces the inline amber guide card (UX report P2/P3).
+ * Full-height right rail for the step screens — now literally the same plane as the left
+ * ServiceListPanel (`railStyles.surface`), carrying two zone cards: the collab channel,
+ * then the step's guide in a scrollable frame. Deliberately quiet (auxiliary) chrome so
+ * the working column keeps the visual weight. Replaces the inline amber guide card
+ * (UX report P2/P3).
  *
  * ONE thing, not two. The rail used to split into a [가이드 | 진행 내역] segmented
  * control, and 진행 내역 was twelve hardcoded rows — no history API exists, so every
@@ -223,9 +232,11 @@ export const GuidePanel = ({
       aria-label="가이드"
       className={cn(
         railWidth,
+        // `default`, matching the left rail's `border-r` — the two rails are the same
+        // plane now, so they owe the canvas the same edge.
         'flex shrink-0 flex-col border-l',
-        borderColors.light,
-        bgColors.surface,
+        borderColors.default,
+        railStyles.surface,
       )}
     >
       {/* Folded. The strip IS the rail, so it has to answer two questions a chevron alone
@@ -265,56 +276,58 @@ export const GuidePanel = ({
       {/* Open. A flex column of its own, so every zone below still measures against the
           rail's height exactly as it did when these were the aside's own children. */}
       {collapsed !== true && (
-        <div className={cn(bodyShown, 'min-h-0 flex-1 flex-col')}>
-          {/* 시안 E — 무채색 + 잉크만. Not one fill anywhere in the rail: the two zones are
-              separated by a hairline and a zone label and nothing else, which is why the
-              label is load-bearing rather than decoration. The #E8F1FF band that used to
-              open this rail was the app's most overloaded tint (`cardStyles.stepTag` paints
-              the 「N단계」 chip on the same screen with it), and it sat above the guide's own
-              grey 안내박스 — two tinted blocks in one 320px column, which is the thing
-              GitHub's alert guidance names outright: limit them, never consecutively.
-              The 안내박스 is now the rail's ONLY tint, so it means something again.
+        <div className={cn(bodyShown, 'min-h-0 flex-1 flex-col gap-3 p-3')}>
+          {/* 시안 A — 레일은 뒷판, 존은 그 위의 카드 (오너 지시 2026-08-23: 가이드를 카드
+              그룹으로 묶을 것).
 
-              Both zones are inset 20px. They used to be 16 and 20, i.e. two text columns
-              4px apart inside one panel.
+              This replaces 시안 E, which held the rail white and separated the two zones
+              with a hairline and a label alone. E was the cheaper answer to the same
+              complaint and it did close P2–P5; what it left open was P1 — the rail was the
+              brightest surface on the page while the left rail had already been dropped to
+              a back plane. Asking for a card forces that: a white card on a white rail is
+              not a card, so the plane had to move for the card to exist at all.
+
+              ONE number runs the whole layout: 12. Rail padding, card padding, the gap
+              between the cards. The rail's own scale is now {8 (zone label → its content),
+              12 (block → block)} and nothing else; the 6/10 inside the guide belong to
+              `.prose-guide`, which the admin post editor shares.
 
               The channel is still first — it is the escape hatch for every step, so it
               holds the top of the rail and the guide scrolls underneath it. */}
-          {/* ⛔ `default`, not `light`. With every fill gone this hairline is one of only two
-              things separating the zones, and gray-100 measures 1.101 against white — the
-              same step the service rail's comment calls out as leaving the border doing all
-              the work unaided. gray-200 is 1.238, near the 1.439 that rail's own divider
-              holds against its plane. */}
-          <div className={cn('shrink-0 border-b px-5 pb-5 pt-3', borderColors.default)}>
+          <div className={cn(railStyles.card, 'shrink-0 p-3')}>
             <div className="flex items-center justify-between gap-2">
               <span className={railStyles.zoneLabel}>협업 채널</span>
               {/* The 32px hit box centres a 16px glyph, so pulling the box 8px past the
-                  zone's 20px inset lands the GLYPH's edge on it. Align the ink, not the box. */}
+                  card's 12px padding lands the GLYPH's edge on it. Align the ink, not the box. */}
               <span className="-mr-2 shrink-0">
                 <RailToggle direction="right" label="가이드 접기" onClick={toggle} />
               </span>
             </div>
+            {/* 4, not 8. The label's ink stops 4px above the 32px control row it shares,
+                so 4 more puts the sentence 8 below the INK — which is the number the
+                guide card's head uses too. Align what is seen, not what is boxed. */}
             <div className="mt-1">
               <CollabChannelCard jiraTicket={jiraTicket} />
             </div>
           </div>
 
-          {/* The zone head sits OUTSIDE the scroller. A label that scrolls away stops
-              labelling, and this one is load-bearing — 시안 E has no fill to fall back on.
-              Padding is split so the scrollbar still runs at the rail's edge while the
-              prose keeps the same 20px column as the zone above. */}
-          <div className="flex min-h-0 flex-1 flex-col">
+          {/* The guide card is a FRAME: it takes the rail's remaining height and scrolls
+              inside itself, with the zone head as its fixed head. ⛔ Do not move the head
+              into the scroller — a label that scrolls away stops labelling. The scrollbar
+              consequently runs at the card's inner edge rather than the rail's, which is
+              the trade the frame buys. */}
+          <div className={cn(railStyles.card, 'flex min-h-0 flex-1 flex-col')}>
             {/* ⛔ One mark, and the FOLDED one is the standard (오너 지시 2026-08-23): a bare
                 20px 전구, same size and no plate, in both states. The Figma node's 28px
                 #FFF8E1 container was rendered here for one commit and is gone — the strip
                 had no room for it, and a mark that changes shape when you fold the rail is
                 two marks. Dropping it also puts the 안내박스 back to being the rail's only
                 fill, which is the whole of 시안 E. */}
-            <div className="flex shrink-0 items-center gap-2 px-5 pb-2 pt-3">
+            <div className="flex shrink-0 items-center gap-2 p-3 pb-2">
               <GuideIcon className={cn('h-5 w-5 shrink-0', railStyles.zoneMark)} />
               <span className={railStyles.zoneLabel}>{guideZoneLabel}</span>
             </div>
-            <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-5">
+            <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-3">
               {slotKey ? (
                 <GuideCardContainer slotKey={slotKey} bare />
               ) : (

@@ -2319,11 +2319,47 @@ export const rowMenuStyles = {
  * rail (`ServiceListPanel`) does NOT fold — it is how the reader leaves the
  * screen, and where it rests is not the viewport's call or a gesture's.
  *
- * No colour of its own. A collapsed rail is the same surface at a different
- * width, not a new surface, so the strip keeps the plane its rail already paints
- * and the button borrows the neutrals the quiet controls here already use.
+ * A collapsed rail is the same surface at a different width, not a new surface,
+ * so the strip keeps the plane its rail already paints and the button borrows
+ * the neutrals the quiet controls here already use.
  */
 export const railStyles = {
+  /**
+   * The rail's own plane. Deliberately the SAME value as `serviceSidebarStyles.surface`:
+   * this screen carries two rails of the same kind and they were painted two different
+   * planes — the left one tinted, this one white — which left the auxiliary panel as the
+   * brightest surface on the page (benchmark P1, `docs/ux/benchmark/guide-rail-surface.md`).
+   *
+   * ⚠️ This reverses 시안 E's "not one fill anywhere in the rail". E kept the rail white
+   * and spent its budget removing tints; the owner then asked for the guide to be GROUPED
+   * AS A CARD (오너 지시 2026-08-23), and a white card on a white rail is not a card. Every
+   * card grammar available here converges on 시안 A — drop the plane, float the cards.
+   *
+   * The ladder the left rail's comment sets is the one this joins:
+   *
+   *   rail L* 91.4  →  canvas 96.4  →  card 100
+   *
+   * Ink measured on THIS plane (benchmark record §1):
+   *   #191F28 13.29 ✔ · #374151 8.27 ✔ · #4E5968 5.71 ✔ · #0050D6 5.40 ✔
+   *   ⛔ #0064FF 3.95 ✘ · gray-500 3.88 ✘
+   *
+   * Only the FOLDED strip prints straight onto this plane; every open-rail zone sits
+   * inside a white `card` below, so tokens measured against white stay valid there. ⛔ If
+   * you move something out of a card onto the rail, re-measure it against 91.4 first.
+   */
+  surface: 'bg-[#E2E7EA]',
+  /**
+   * One zone of the open rail — 협업 채널, 가이드 — as a card on that plane.
+   *
+   * ⛔ No border and no shadow. White on #E2E7EA is a 1.28 step (ΔL* 8.6) and 12px of gap
+   * runs around every side, which is the containment grammar the content column already
+   * uses: its card measures radius 20 / border 0 / shadow none against a canvas only 1.08
+   * away. A hairline here would be a third separator stacked on two that already work.
+   *
+   * `rounded-xl` = 12, reused from `GuideCardChrome`. ⛔ Not the content card's 20 — that
+   * radius is cut against a 1054px card and reads as a bubble at this rail's 296.
+   */
+  card: 'rounded-xl bg-white',
   /**
    * 56px. It was 48 — a 32px hit target and nothing else — and a strip that holds only
    * a direction chevron does not say WHICH panel it puts back. 56 buys a 12px label
@@ -2359,29 +2395,37 @@ export const railStyles = {
    * The fold control. Glyph-only, so the call site owes it an `aria-label` that says
    * what the press DOES ("가이드 접기"), not what the rail currently is.
    *
-   * One token again, because the rail has one ground again. It briefly split into
-   * base + `onSurface`/`onTint` while the 협업 채널 zone was a #E8F1FF band; 시안 E took
-   * every fill out of the rail, so both states of the control now stand on white.
+   * ⚠️ It now renders on TWO grounds: inside the 협업 채널 card (white) when the rail is
+   * open, and straight on the rail plane (#E2E7EA) when it is folded. One token still
+   * covers both because gray-100 lands at least as far from each — measured in the
+   * browser at 1.101 against white and **1.132** against #E2E7EA, i.e. the folded state
+   * is the more visible of the two. It reads as a dip on the card and a lift on the rail;
+   * that polarity flip is the price of one token, and each side is locally consistent.
    *
-   * ⛔ Put a tinted plane back under this and the hover disappears — gray-100 measures
-   * ~1.03 against #E8F1FF. The pair that works there is #D6E7FF (1.103, matching
-   * gray-100-on-white's 1.101); re-split the token rather than leaving it silent.
+   * ⛔ This is not a general licence to put a plane under it. gray-100 measures ~1.03
+   * against #E8F1FF, where the hover simply vanishes; the pair that works there is
+   * #D6E7FF (1.103). Measure the pair before adopting a new ground, and re-split the
+   * token rather than leaving the control silent.
    */
   toggle:
     'flex h-8 w-8 items-center justify-center rounded-md text-gray-700 transition-colors hover:bg-gray-100',
   /**
    * Zone heading on the open rail — 「협업 채널」, 「2단계 가이드」.
    *
-   * 시안 E separates the rail's two zones with a hairline and this label and nothing
-   * else: no fill, no card. The label is therefore load-bearing, not decoration — it is
-   * the only thing that says where one zone ends.
+   * It is now a card's head — the zone it names is a `card`, so containment does the
+   * separating and this says WHICH zone. (Under 시안 E it was load-bearing in a stronger
+   * sense: a hairline and this label were the only things dividing the rail at all.)
    *
    * 16px semibold (오너 지시 2026-08-23). ⚠️ It started as the service rail's
    * `sectionLabel` (12px medium #4E5968) on the argument that two rails in one app
    * should share a nav idiom. That argument no longer holds — at 16px this is a section
-   * HEADING, not a nav label, so it is deliberately its own thing. #4E5968 stays: 7.12:1
-   * on white, and it keeps the head under 「도움이 필요하신가요?」 (16px bold #191F28,
-   * 15.6:1), which is the one line in the zone that must still read first.
+   * HEADING, not a nav label, so it is deliberately its own thing.
+   *
+   * #4E5968 stays, and it is now the FIRST thing read in its zone: the 16px bold
+   * 「도움이 필요하신가요?」 that used to outrank it is gone (two same-size headings 8px
+   * apart is a stutter, not a hierarchy). 7.12:1 on the card's white. ⛔ Do not read the
+   * 5.71 figure next to `surface` as this token's number — that one is for the rail plane,
+   * which this label never touches.
    */
   zoneLabel: 'text-[16px] font-semibold tracking-[0.02em] text-[#4E5968]',
   /**
@@ -2395,8 +2439,9 @@ export const railStyles = {
    * (오너 지시 2026-08-23). The Figma node also carries a 28×28 #FFF8E1 plate; it was
    * rendered on the open zone head for one commit and then removed. The strip has no room
    * for it beside a 14px label, and a mark that changes shape when the rail folds is two
-   * marks. ⛔ Do not bring the plate back on one side only. Its absence is also what keeps
-   * the 안내박스 the rail's single fill, which is the whole of 시안 E.
+   * marks. ⛔ Do not bring the plate back on one side only. (It used to also be what kept
+   * the 안내박스 the rail's single fill; 시안 A retired that argument, the one about the
+   * two fold states did not.)
    *
    * ⚠️ #F59E0B is 2.15:1 on white — under 1.4.11's 3:1, and no saturated yellow-amber
    * clears that: at H 38° you reach 3:1 only by darkening past the point where the hue
@@ -2410,8 +2455,13 @@ export const railStyles = {
    * zone head, never a status dot.
    */
   zoneMark: 'text-[#F59E0B]', // design-exempt: 장식 글리프 — 뜻은 옆의 「N단계 가이드」와 스트립 aria-label 이 전부 싣는다. 텍스트 4.5:1 도, 1.4.11 의 3:1 도 대상이 아님
-  /** Hairline between the size control and the entries — half the strip, so it reads as a seam. */
-  divider: 'my-2 h-px w-8 bg-gray-100',
+  /**
+   * Hairline between the size control and the entries — half the strip, so it reads as
+   * a seam. #D2D8DC is the left rail's `divider`, i.e. the value already chosen for a
+   * seam on this exact plane. ⛔ It was gray-100, which was lighter than the rail it now
+   * sits on — a seam that reads as a highlight rather than a cut.
+   */
+  divider: 'my-2 h-px w-8 bg-[#D2D8DC]',
   /**
    * One fold entry: a 20px glyph over a 12px label, the whole block a single button.
    *
@@ -2420,8 +2470,9 @@ export const railStyles = {
    * It is the size the target-source header's provider mark used before 오너 지시 took
    * it to 28.
    *
-   * `text-gray-700` is 9.06:1 on this rail's white plane, which the 12px label needs;
-   * gray-500 would be 4.83 and legal but the label is the whole point of widening the rail.
+   * `text-gray-700` (#374151) is 8.27:1 on the rail's #E2E7EA plane — it was 9.06 while
+   * the rail was white, and the glyph is what survives when the label is read past.
+   * ⛔ gray-500 is 3.88 here, i.e. no longer legal at all; it was 4.83 on white.
    */
   entry:
     'flex w-full flex-col items-center gap-1 rounded-md py-2 text-gray-700 transition-colors hover:bg-gray-100',
@@ -2435,8 +2486,10 @@ export const railStyles = {
    * wrapping — a wrapped label in a 56px rail is a paragraph. If a label will not fit,
    * shorten the WORD (JetBrains' stripe rule: two words max, abbreviate).
    *
-   * #0050D6 is 6.73:1 on white and is the rail's single blue — the same ink the Jira key
-   * and `guideStyles.accent` use. ⛔ Not #0064FF: keeping one blue is the point.
+   * #0050D6 is the rail's single blue — the same ink the Jira key and `guideStyles.accent`
+   * use — and it holds on both of this rail's grounds: 6.73:1 on white, 5.40:1 on the
+   * #E2E7EA strip plane where this label actually renders. ⛔ Not #0064FF, which is 4.92
+   * on white but **3.95 here** — the plane change is exactly what disqualifies it.
    * Written as a literal because `design-guard`'s `classOf` cannot follow a `${}`.
    */
   entryLabel: 'text-[14px] font-semibold leading-[1.2] whitespace-nowrap text-[#0050D6]',
