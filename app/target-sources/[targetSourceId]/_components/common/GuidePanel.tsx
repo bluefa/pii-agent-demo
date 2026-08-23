@@ -226,9 +226,7 @@ export const GuidePanel = ({
     setPage(0);
   };
 
-  const { collapsed, toggle } = useRailCollapse(GUIDE_RAIL_STORAGE_KEY, {
-    openMinWidth: RAIL_OPEN_MIN_WIDTH,
-  });
+  const { collapsed, toggle } = useRailCollapse(GUIDE_RAIL_STORAGE_KEY, RAIL_OPEN_MIN_WIDTH);
 
   // While `collapsed` is null the media query paints the default — the same markup the
   // server sent — so the first frame does not jump on the way to the stored preference.
@@ -273,12 +271,7 @@ export const GuidePanel = ({
           thing on it — a fold the reader cannot see their way out of is not a fold. */}
       {collapsed !== false && (
         <div className={cn(stripShown, railStyles.strip)}>
-          <RailToggle
-            direction="left"
-            label="가이드 펼치기"
-            plane="surface"
-            onClick={toggle}
-          />
+          <RailToggle direction="left" label="가이드 펼치기" onClick={toggle} />
         </div>
       )}
 
@@ -290,7 +283,7 @@ export const GuidePanel = ({
               the strip's button occupies, so the pointer does not have to move between the
               two states. */}
           <div className={cn('flex shrink-0 items-center border-b p-2', borderColors.light)}>
-            <RailToggle direction="right" label="가이드 접기" plane="surface" onClick={toggle} />
+            <RailToggle direction="right" label="가이드 접기" onClick={toggle} />
           </div>
 
         {/* Jira ticket next — the collab channel is the escape hatch for every

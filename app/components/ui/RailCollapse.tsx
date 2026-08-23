@@ -2,10 +2,10 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { ChevronLeftIcon, ChevronRightIcon } from '@/app/components/ui/icons';
-import { cn, railStyles } from '@/lib/theme';
+import { railStyles } from '@/lib/theme';
 
 /**
- * The width at or above which a rail that opts in starts open.
+ * The width at or above which the guide rail starts open.
  *
  * This is the number `GuidePanel` used to DISAPPEAR at, now doing a different job: it
  * picks a DEFAULT, and a default is something a press can overrule. Before, the viewport
@@ -44,14 +44,6 @@ const readStored = (key: string): boolean | null => {
   }
 };
 
-export interface RailCollapseOptions {
-  /**
-   * Start collapsed below this viewport width when the user has no stored preference.
-   * Omit it and the rail defaults to open at every width.
-   */
-  openMinWidth?: number;
-}
-
 export interface RailCollapse {
   collapsed: RailCollapsed;
   toggle: () => void;
@@ -71,14 +63,14 @@ export interface RailCollapse {
  */
 export const useRailCollapse = (
   storageKey: string,
-  options?: RailCollapseOptions,
+  /** Start collapsed below this viewport width when there is no stored preference. */
+  openMinWidth: number,
 ): RailCollapse => {
-  const openMinWidth = options?.openMinWidth;
   const [collapsed, setCollapsed] = useState<RailCollapsed>(null);
 
   /** What the media query is painting right now — i.e. what `null` means on screen. */
   const widthDefault = useCallback(
-    () => openMinWidth !== undefined && window.innerWidth < openMinWidth,
+    () => window.innerWidth < openMinWidth,
     [openMinWidth],
   );
 
@@ -109,8 +101,6 @@ interface RailToggleProps {
   direction: 'left' | 'right';
   /** What the press does — 「가이드 접기」. This is a glyph-only control, so it is its whole name. */
   label: string;
-  /** The plane the button sits on, which decides which hover is visible on it. */
-  plane: 'tint' | 'surface';
   onClick: () => void;
 }
 
@@ -122,7 +112,7 @@ interface RailToggleProps {
  * open rail each render their own button behind a media query, so neither one is in a
  * position to ask what the current state is.
  */
-export const RailToggle = ({ direction, label, plane, onClick }: RailToggleProps) => {
+export const RailToggle = ({ direction, label, onClick }: RailToggleProps) => {
   const Glyph = direction === 'left' ? ChevronLeftIcon : ChevronRightIcon;
   return (
     <button
@@ -130,10 +120,7 @@ export const RailToggle = ({ direction, label, plane, onClick }: RailToggleProps
       onClick={onClick}
       aria-label={label}
       title={label}
-      className={cn(
-        railStyles.toggleBase,
-        plane === 'tint' ? railStyles.toggleOnTint : railStyles.toggleOnSurface,
-      )}
+      className={railStyles.toggle}
     >
       <Glyph className="h-4 w-4" />
     </button>

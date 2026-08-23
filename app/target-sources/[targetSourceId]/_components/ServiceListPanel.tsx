@@ -14,28 +14,10 @@ import {
   type ServiceListAction,
   type ServiceListState,
 } from '@/app/components/features/admin-dashboard/serviceListReducer';
-import { RailToggle, useRailCollapse } from '@/app/components/ui/RailCollapse';
 import { useModal } from '@/app/hooks/useModal';
 import { getServicesPage } from '@/app/lib/api';
 import { passRoutes } from '@/lib/routes';
-import {
-  bgColors,
-  borderColors,
-  cn,
-  railStyles,
-  serviceSidebarStyles,
-  textColors,
-} from '@/lib/theme';
-
-/**
- * Versioned, and not keyed by target source: how much of the screen a reader wants spent
- * on the switcher is a workspace preference. Sibling of the guide rail's own key.
- *
- * No `openMinWidth` at the call site below, unlike the guide rail — this rail is open at
- * every width today and stays that way. Folding it is a thing the reader may now DO, not
- * a thing the viewport decides for them; changing its resting state was not asked for.
- */
-const SERVICE_RAIL_STORAGE_KEY = 'pii:rail:v1:services';
+import { bgColors, borderColors, cn, serviceSidebarStyles, textColors } from '@/lib/theme';
 
 const ServiceMoveConfirmModal = dynamic(
   () =>
@@ -93,7 +75,6 @@ interface ServiceListPanelProps {
 
 export const ServiceListPanel = ({ currentService }: ServiceListPanelProps) => {
   const router = useRouter();
-  const { collapsed, toggle } = useRailCollapse(SERVICE_RAIL_STORAGE_KEY);
   const [state, dispatch] = useReducer(panelReducer, undefined, buildInitialPanelState);
   const { services, query, pageInfo } = state.list;
   const fetchState = state.fetch;
@@ -212,32 +193,6 @@ export const ServiceListPanel = ({ currentService }: ServiceListPanelProps) => {
 
   const isInitialLoading = fetchState.status === 'loading' && services.length === 0;
 
-  // Folded — and folded ahead of the error branch, because a rail the reader has put
-  // away should stay away whether or not the list behind it happens to be failing.
-  // `collapsed` is null only until the preference resolves, and this rail's default is
-  // open, so null paints the open rail: no media query needed on this side.
-  if (collapsed) {
-    return (
-      <aside
-        aria-label="서비스 목록"
-        className={cn(
-          railStyles.collapsedWidth,
-          'flex shrink-0 border-r',
-          railStyles.strip,
-          serviceSidebarStyles.surface,
-          borderColors.default,
-        )}
-      >
-        <RailToggle
-          direction="right"
-          label="서비스 목록 펼치기"
-          plane="tint"
-          onClick={toggle}
-        />
-      </aside>
-    );
-  }
-
   if (fetchState.status === 'error') {
     return (
       // Same flush plane as ServiceSidebar — a failed fetch must not hand back a
@@ -280,7 +235,6 @@ export const ServiceListPanel = ({ currentService }: ServiceListPanelProps) => {
         pageInfo={pageInfo}
         onPageChange={handlePageChange}
         loading={isInitialLoading}
-        onCollapse={toggle}
       />
       {confirmModal.data && (
         <ServiceMoveConfirmModal

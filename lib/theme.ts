@@ -2315,24 +2315,22 @@ export const rowMenuStyles = {
 } as const;
 
 /**
- * Fold chrome for the two full-height rails on the target-source screen —
- * `ServiceListPanel` on the left, `GuidePanel` on the right. Shared so the two
- * fold into the SAME object rather than into two things that both happen to get
- * narrow: they are subtracted from one content column, and a reader who learns
- * the gesture on one rail must not have to learn it again on the other.
+ * Fold chrome for `GuidePanel`, the target-source screen's right rail. The left
+ * rail (`ServiceListPanel`) does NOT fold — it is how the reader leaves the
+ * screen, and where it rests is not the viewport's call or a gesture's.
  *
  * No colour of its own. A collapsed rail is the same surface at a different
- * width, not a new surface, so the strip keeps whatever plane its rail already
- * paints and the button borrows the neutrals the quiet controls here already use.
+ * width, not a new surface, so the strip keeps the plane its rail already paints
+ * and the button borrows the neutrals the quiet controls here already use.
  */
 export const railStyles = {
   /**
    * 48px. A 32px hit target with 8px either side — the narrowest strip that still
    * reads as a rail rather than as a thick border.
    *
-   * ⛔ Keep it a multiple of 4. Both rail widths come out of the same content
-   * column, and the step cards' 20px gutter plus their own 28px keyline assume
-   * whole pixels; an odd rail puts that keyline on a half-pixel.
+   * ⛔ Keep it a multiple of 4. The rail's width comes out of the same content
+   * column the step cards stand in, and their 20px gutter plus their own 28px
+   * keyline assume whole pixels; an odd rail puts that keyline on a half-pixel.
    */
   collapsedWidth: 'w-12',
   /**
@@ -2345,24 +2343,16 @@ export const railStyles = {
    */
   strip: 'flex-col items-center pt-2',
   /**
-   * The fold control, in both states and on both rails. Glyph-only, so every call
-   * site owes it an `aria-label` that says what the press DOES ("가이드 접기"),
-   * not what the rail currently is.
+   * The fold control, in both of the rail's states. Glyph-only, so the call site owes
+   * it an `aria-label` that says what the press DOES ("가이드 접기"), not what the
+   * rail currently is.
    *
-   * `text-gray-700`, not `-500`: the left rail is tinted, and gray-500 measures
-   * 4.37:1 there — under AA. gray-700 holds on the tint, on white and on the
-   * canvas, so one ink covers both rails.
+   * Both inks are set for the guide rail's white plane. ⛔ A tinted plane needs a
+   * different hover: gray-50 and gray-100 measure ~1.03 against the service rail's
+   * tint and simply do not appear — the lesson its retry button already carries.
    */
-  toggleBase:
-    'flex h-8 w-8 items-center justify-center rounded-md text-gray-700 transition-colors',
-  /**
-   * Hover for the button sitting on the LEFT rail's tint. White, because gray-50
-   * and gray-100 measure ~1.03 against that tint and simply do not appear — the
-   * same lesson `ServiceListPanel`'s retry button already carries.
-   */
-  toggleOnTint: 'hover:bg-white',
-  /** Hover for the button on the RIGHT rail's white plane, where white IS the plane. */
-  toggleOnSurface: 'hover:bg-gray-100',
+  toggle:
+    'flex h-8 w-8 items-center justify-center rounded-md text-gray-700 transition-colors hover:bg-gray-100',
 } as const;
 
 /**
