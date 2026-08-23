@@ -1,7 +1,7 @@
 'use client';
 
 import { GuideCardContainer } from '@/app/components/features/process-status/GuideCard/GuideCardContainer';
-import { ChatIcon, GuideIcon, OpenExternalIcon } from '@/app/components/ui/icons';
+import { ChatIcon, GuideIcon } from '@/app/components/ui/icons';
 import {
   RailEntry,
   RailToggle,
@@ -45,11 +45,15 @@ const CollabChannelCard = ({ jiraTicket }: { jiraTicket: JiraTicketState }) => {
    * ⛔ Do not give the row back the white fill it used to have. That surface is also
    * what broke it: the tip is a fixed 280px box, so 280 − 2 border − 28 padding = 250,
    * and the row's own border and padding spent 26 of that before the old card's 34 —
-   * leaving 190. Its fixed parts (glyph + 3 × 8 gap + 11 ↗) take 51, so 139 was left
-   * for a 68px label beside an 85px key, and 한글 wrapped mid-phrase.
+   * leaving 190. The glyph and its 8px gap take 32, so 158 remained for a 68px label
+   * beside an 85px key — 161 with the gap between them — and 한글 wrapped mid-phrase.
    *
-   * The tiers stay stacked even though one line would now fit (68 + 8 + 85 = 161 inside
-   * 199): the key is user data and a longer one puts the collision straight back.
+   * ⛔ No trailing ↗ on the link row (오너 지시 2026-08-23). What says "link" is the key
+   * itself: blue, underlined, with `title` naming the destination. The 11px glyph at 50%
+   * opacity was the only new-tab cue, so re-adding it is an owner's call, not a tidy-up.
+   *
+   * The tiers stay stacked even though one line now fits (161 inside 218): the key is
+   * user data and a longer one puts the collision straight back.
    */
   const rowBase = 'mt-3 flex items-center gap-2 text-[12px]';
   const channelMark = 'h-6 w-6 shrink-0';
@@ -106,7 +110,6 @@ const CollabChannelCard = ({ jiraTicket }: { jiraTicket: JiraTicketState }) => {
               {jiraTicket.issueKey}
             </span>
           </span>
-          <OpenExternalIcon className="h-[11px] w-[11px] shrink-0 opacity-50" />
         </a>
       ) : (
         // browseUrl 이 없으면(또는 http 가 아니면) 링크를 지어내지 않고 키만 보여준다.
