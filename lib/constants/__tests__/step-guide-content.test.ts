@@ -4,6 +4,8 @@
  * guide for the invalid-state card on the live page.
  */
 
+import { readFile } from 'node:fs/promises';
+
 import { describe, expect, it } from 'vitest';
 
 import { GUIDE_SLOTS, resolveSlot } from '@/lib/constants/guide-registry';
@@ -184,14 +186,37 @@ describe('the transcription reversed the old house rules', () => {
   });
 });
 
+/** The label the PENDING sub-state's control renders — the one Step 2's guide describes. */
+const PENDING_CONTROL = '다시 요청하기';
+
 describe('step 2 — the control the guide points at', () => {
   it("names '다시 요청하기', the label WaitingApprovalCancelButton actually draws", () => {
     const html = bodyFor('process.aws.auto.2');
-    expect(html).toContain("<strong>'다시 요청하기'</strong>");
-    // Both were names this copy carried for the same button before the source screens
-    // settled it. Either one reappearing means the naming question was reopened by edit.
+    expect(html).toContain(`<strong>'${PENDING_CONTROL}'</strong>`);
+    // ⛔ 「연동 대상 다시 선택하기」 is NOT another name for this button — it is
+    // `WaitingApprovalReselectButton`, at the card's foot, and only in the REJECTED
+    // sub-state, which this guide does not describe. The old copy sent a waiting reader
+    // to a control that is not on their screen; this line is what stops it coming back.
     expect(html).not.toContain('연동 대상 다시 선택하기');
     expect(html).not.toContain('전체 요청 취소');
+  });
+
+  /**
+   * The guide and the button are two files that have already drifted apart once — the whole
+   * ⚠️ OPEN block this rewrite deleted was the record of that. Nothing but this test couples
+   * them: rename the button and every other check in the repo still passes while the guide
+   * quietly starts pointing at a control nobody can find.
+   */
+  it('says the same word the button source does', async () => {
+    const source = await readFile(
+      new URL(
+        '../../../app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalCancelButton.tsx',
+        import.meta.url,
+      ),
+      'utf8',
+    );
+    expect(source).toContain(PENDING_CONTROL);
+    expect(bodyFor('process.aws.auto.2')).toContain(`<strong>'${PENDING_CONTROL}'</strong>`);
   });
 });
 

@@ -12,10 +12,14 @@
  * rules, so they are gone rather than reconciled:
  * - Escalation goes to the 협업 채널 card at the top of this rail, not to 담당자.
  * - Durations read 「N일 … (주말·공휴일 제외)」, never 「N영업일」.
- * - Step 2 names the control 「다시 요청하기」 — which is what
- *   `WaitingApprovalCancelButton` actually renders. The naming mismatch this
- *   file carried as an OPEN question is closed by the owner picking the
- *   screen's own word.
+ * - Step 2 names the control 「다시 요청하기」 — what `WaitingApprovalCancelButton`
+ *   renders, in the card header, in the PENDING sub-state this guide describes.
+ *   The name it carried before, 「연동 대상 다시 선택하기」, belongs to a different
+ *   control in a different place: `WaitingApprovalReselectButton`, in the verdict
+ *   block at the card's foot, and only once the request has been REJECTED (the
+ *   pending card deliberately renders no corner button then). That is what made
+ *   the old copy's ⚠️ OPEN question a real defect rather than a wording quibble,
+ *   and it is why 「연동 대상 다시 선택하기」 must not be restored here.
  * - No step tells the reader to refresh. These pages still do not poll; the
  *   instruction is dropped on the owner's authority, not by oversight.
  *
