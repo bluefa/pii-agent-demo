@@ -294,25 +294,32 @@ export const GuidePanel = ({
       )}
     >
       {/* Folded. The strip IS the rail, so it has to answer two questions a chevron alone
-          cannot: what panel is this, and is the collab channel still there. Chevron first
-          (the size control), hairline, then the entries — the guide at the top, which is
-          the order Cloudscape fixes for its own trigger bar: help always first. */}
+          cannot: what panel is this, and is the collab channel still there.
+
+          채널 above 가이드, because the strip mirrors the panel's own vertical order — the
+          collab card sits above the tabs when the rail is open, and a strip that reordered
+          the zones would teach a layout the open rail then contradicts. (Cloudscape puts
+          help first in its trigger bar, but that bar ranks separate PANELS against each
+          other; these are zones inside one panel, and the panel already has an order.)
+
+          채널 does not unfold. Its tip carries the card itself, so the answer arrives
+          without the rail moving — which is the whole point of having folded it. */}
       {collapsed !== false && (
         <div className={cn(stripShown, railStyles.strip)}>
           <RailToggle direction="left" label="가이드 펼치기" onClick={toggle} />
           <span aria-hidden className={railStyles.divider} />
           <RailEntry
-            icon={<GuideIcon className="h-5 w-5" />}
-            label="가이드"
-            hint="가이드 — 단계 가이드와 진행 내역 펼치기"
-            onClick={openGuide}
-          />
-          <RailEntry
             icon={<ChatIcon className="h-5 w-5" />}
             label="채널"
             hint={collab.hint}
             dot={collab.dot}
-            onClick={toggle}
+            tip={<CollabChannelCard jiraTicket={jiraTicket} />}
+          />
+          <RailEntry
+            icon={<GuideIcon className="h-5 w-5" />}
+            label="가이드"
+            hint="가이드 — 단계 가이드와 진행 내역 펼치기"
+            onClick={openGuide}
           />
         </div>
       )}

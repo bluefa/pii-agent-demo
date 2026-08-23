@@ -138,13 +138,27 @@ interface RailEntryProps {
   label: string;
   /**
    * The entry's full name AND its state, in words: "협업 채널 — BDCDIP-1353".
-   * It is the tooltip, and it is the accessible name, so it must CONTAIN `label`
-   * (WCAG 2.5.3) and it must carry whatever the dot says in colour.
+   * It is the accessible name, so it must CONTAIN `label` (WCAG 2.5.3) and it must
+   * carry whatever the dot says in colour.
    */
   hint: string;
+  /**
+   * Richer tip content than the `hint` sentence — the panel zone itself, rendered in
+   * place so the reader does not have to unfold to read it.
+   *
+   * Supplying it switches the tip to click-to-pin, because content worth rendering is
+   * content worth reaching: a hover tip dies the moment the pointer leaves the trigger,
+   * and anything interactive inside it would be unreachable. ⛔ Do not pass a plain
+   * sentence here — `hint` already is one, and pinning a sentence just adds a press.
+   */
+  tip?: ReactNode;
   /** Fill class for the state dot, from `statusColors[tone].dot`. Omit for no dot. */
   dot?: string;
-  onClick: () => void;
+  /**
+   * What the press does. Omit when `tip` carries the whole answer — then the press is
+   * the pin, and the button is still a real button so Enter/Space reach it.
+   */
+  onClick?: () => void;
 }
 
 /**
@@ -156,8 +170,19 @@ interface RailEntryProps {
  * name is on the strip in words, the way JetBrains lets a tool window show its name
  * under the stripe icon, and the tooltip carries what the one-word label had to drop.
  */
-export const RailEntry = ({ icon, label, hint, dot, onClick }: RailEntryProps) => (
-  <Tooltip content={hint} position="left" triggerClassName="w-full">
+export const RailEntry = ({ icon, label, hint, tip, dot, onClick }: RailEntryProps) => (
+  <Tooltip
+    content={tip ?? hint}
+    // `value`, not the dark `status` box: this tip carries a zone of the panel, and the
+    // panel is a white surface. The white box with a hairline and a soft shadow reads as
+    // that surface lifted off the page — the dark box would read as UI from elsewhere.
+    variant="value"
+    // Down, not up. The entries sit near the top of a full-height rail, so a tip placed
+    // above has to flip anyway; asking for the flip is not a plan.
+    position="bottom"
+    openOn={tip ? 'click' : 'hover'}
+    triggerClassName="w-full"
+  >
     <button type="button" onClick={onClick} aria-label={hint} className={railStyles.entry}>
       <span className="relative flex">
         {icon}

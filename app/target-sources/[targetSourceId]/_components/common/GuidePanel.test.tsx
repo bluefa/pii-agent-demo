@@ -218,6 +218,66 @@ describe('GuidePanel — the folded strip says what it is', () => {
     expect(okFill).not.toBe(errFill);
   });
 
+  it('puts 채널 above 가이드 — the order the open rail already teaches', async () => {
+    // ⛔ Do not reorder to "guide first". The collab card sits above the tabs when the rail
+    // is open; a strip that ranked them the other way would teach a layout the open rail
+    // then contradicts.
+    const { container } = await folded(null);
+    const order = [...(container.querySelector('aside')?.querySelectorAll('button') ?? [])].map(
+      (b) => b.getAttribute('aria-label') ?? '',
+    );
+    const channel = order.findIndex((l) => l.startsWith('협업 채널'));
+    const guide = order.findIndex((l) => l.startsWith('가이드 —'));
+    expect(channel).toBeGreaterThan(-1);
+    expect(guide).toBeGreaterThan(-1);
+    expect(channel).toBeLessThan(guide);
+  });
+
+  it('shows the collab card itself in the tip, without unfolding the rail', async () => {
+    await folded({ issueKey: 'BDCDIP-1007', browseUrl: 'https://jira.example.com/browse/BDCDIP-1007' });
+    // Folded, so the card is gone from the rail body — whatever appears next came from the tip.
+    expect(screen.queryByText('도움이 필요하신가요?')).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: /^협업 채널 — / }));
+
+    expect(screen.getByText('도움이 필요하신가요?')).toBeTruthy();
+    expect(
+      screen.getByText('진행 중 막히는 부분은 협업 채널에서 담당자에게 바로 문의할 수 있어요.'),
+    ).toBeTruthy();
+    expect(screen.getByText('BDCDIP-1007')).toBeTruthy();
+    // ⛔ And the rail did NOT unfold. Reading the channel must not cost the width back.
+    expect(screen.getByRole('button', { name: '가이드 펼치기' })).toBeTruthy();
+  });
+
+  it('paints the tip as the white surface, not the dark status box', async () => {
+    await folded(null);
+    fireEvent.click(screen.getByRole('button', { name: /^협업 채널 — / }));
+
+    const box = [...document.body.querySelectorAll('div')].find(
+      (el) => el.style.position === 'fixed' && el.style.boxShadow !== '',
+    );
+    expect(box).toBeTruthy();
+    expect(box?.style.background).toMatch(/rgb\(255,\s*255,\s*255\)|#fff/i);
+    expect(box?.style.border).toMatch(/1px solid/);
+    expect(box?.style.boxShadow).not.toBe('');
+  });
+
+  it('survives a press inside the pinned tip — the Jira link has to be reachable', async () => {
+    await folded({ issueKey: 'BDCDIP-1007', browseUrl: 'https://jira.example.com/browse/BDCDIP-1007' });
+    fireEvent.click(screen.getByRole('button', { name: /^협업 채널 — / }));
+
+    const link = screen.getByRole('link', { name: /협업 채널 링크/ });
+    // ⛔ The tip is portaled to <body>, so an "outside" test that only checks the trigger
+    // counts this as outside and unmounts the box on pointerdown — before the click can
+    // ever reach the link. Pinning exists so the reader can move INTO the content.
+    fireEvent.pointerDown(link);
+    expect(screen.getByRole('link', { name: /협업 채널 링크/ })).toBeTruthy();
+
+    // …and a press genuinely outside still dismisses it.
+    fireEvent.pointerDown(document.body);
+    await waitFor(() => expect(screen.queryByRole('link', { name: /협업 채널 링크/ })).toBeNull());
+  });
+
   it('unfolds onto 가이드 when 가이드 is pressed, even if 진행 내역 was the open tab', async () => {
     render(<GuidePanel {...baseProps} jiraTicket={null} />);
     await settled();
