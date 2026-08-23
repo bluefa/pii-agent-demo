@@ -3,30 +3,31 @@ import type { IconProps } from '@/app/components/ui/icons/types';
 /**
  * 가이드 — 전구.
  *
- * Solid, not the outline it used to be. Two reasons, both from 오너 지시 2026-08-23:
- * the glyph now carries a colour of its own, and a colour needs an area to sit in — a
- * 2px stroke on a 24 viewBox has almost none. And at the 20px the folded rail gives it,
- * the outline read as a wire drawing rather than as a mark.
+ * Path is the owner's Figma node verbatim (`slrqFgziqlHznBZ1VMPtcq`, `6:11`,
+ * 오너 지시 2026-08-23), so ⛔ do not "tidy" the coordinates — they are the design.
  *
- * Path is Heroicons v2 `light-bulb` (solid), transcribed verbatim. The outline it
- * replaces was the v1 counterpart of the same glyph, so the silhouette is unchanged.
+ * ⚠️ `viewBox="0 0 14 14"`, not the 24 every other icon here uses. The stroke is 2 at
+ * that box, i.e. a 1:7 stroke-to-box ratio against Heroicons' 1:12 — a noticeably
+ * chunkier glyph, and that chunk is the point. Rescaling the path into a 24 box would
+ * have to thin the stroke to 3.43 to keep the ratio, which is not a value anyone would
+ * read back as "the Figma spec". Callers size it with `h-*`/`w-*` as usual.
  *
- * Fill is `currentColor` — the caller owns the colour, and both call sites take it
- * from `railStyles.zoneMark`.
+ * Stroked, not filled — it was briefly a Heroicons solid bulb, and the Figma spec that
+ * replaced it is an outline. `currentColor`, so the caller owns the ink: both call sites
+ * take it from `railStyles.zoneMark`, and the open rail's zone head additionally sets it
+ * on `railStyles.zoneMarkPlate`.
  */
 export const GuideIcon = ({ className, ...rest }: IconProps) => (
   <svg
     className={className}
-    fill="currentColor"
-    viewBox="0 0 24 24"
+    viewBox="0 0 14 14"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth={2}
+    strokeLinecap="round"
     aria-hidden={!rest['aria-label']}
     {...rest}
   >
-    <path d="M12 .75a8.25 8.25 0 00-4.135 15.39c.686.398 1.115 1.008 1.134 1.623a.75.75 0 00.577.706c.352.083.71.148 1.074.195.323.041.6-.218.6-.544v-4.661a6.714 6.714 0 01-.937-.171.75.75 0 11.374-1.453 5.261 5.261 0 002.626 0 .75.75 0 11.374 1.452 6.712 6.712 0 01-.937.172v4.66c0 .327.277.586.6.545.364-.047.722-.112 1.074-.195a.75.75 0 00.577-.706c.02-.615.448-1.225 1.134-1.623A8.25 8.25 0 0012 .75z" />
-    <path
-      fillRule="evenodd"
-      clipRule="evenodd"
-      d="M9.013 19.9a.75.75 0 01.877-.597 11.319 11.319 0 004.22 0 .75.75 0 11.28 1.473 12.819 12.819 0 01-4.78 0 .75.75 0 01-.597-.876zM9.754 22.344a.75.75 0 01.824-.668 13.682 13.682 0 002.844 0 .75.75 0 11.156 1.492 15.156 15.156 0 01-3.156 0 .75.75 0 01-.668-.824z"
-    />
+    <path d="M8.75 8.16676C8.86667 7.58338 9.15833 7.17501 9.625 6.70831C10.2083 6.18327 10.5 5.42487 10.5 4.66648C10.5 3.73815 10.1313 2.84784 9.47487 2.19141C8.8185 1.53498 7.92826 1.1662 7 1.1662C6.07174 1.1662 5.1815 1.53498 4.52513 2.19141C3.86875 2.84784 3.5 3.73815 3.5 4.66648C3.5 5.24986 3.61667 5.94992 4.375 6.70831C4.78333 7.11668 5.13333 7.58338 5.25 8.16676M5.25 10.5003H8.75M5.83333 12.8338H8.16667" />
   </svg>
 );

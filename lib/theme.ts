@@ -2376,27 +2376,46 @@ export const railStyles = {
    * else: no fill, no card. The label is therefore load-bearing, not decoration — it is
    * the only thing that says where one zone ends.
    *
-   * Value is the service rail's `sectionLabel` verbatim, because it is the same role in
-   * the same app and the two rails should not invent a nav idiom each. #4E5968 is
-   * 5.71:1 on that rail's #E2E7EA and 7.12:1 here on white; 12px is the guide's floor.
+   * 16px semibold (오너 지시 2026-08-23). ⚠️ It started as the service rail's
+   * `sectionLabel` (12px medium #4E5968) on the argument that two rails in one app
+   * should share a nav idiom. That argument no longer holds — at 16px this is a section
+   * HEADING, not a nav label, so it is deliberately its own thing. #4E5968 stays: 7.12:1
+   * on white, and it keeps the head under 「도움이 필요하신가요?」 (16px bold #191F28,
+   * 15.6:1), which is the one line in the zone that must still read first.
    */
-  zoneLabel: 'text-[12px] font-medium tracking-[0.02em] text-[#4E5968]',
+  zoneLabel: 'text-[16px] font-semibold tracking-[0.02em] text-[#4E5968]',
   /**
-   * The 가이드 zone's mark — a filled 전구, on the zone label and on the folded strip
-   * (오너 지시 2026-08-23: the same mark in both states).
+   * The 가이드 zone's mark — the 전구 ink, on the open rail's zone head and on the folded
+   * strip (오너 지시 2026-08-23: the same mark in both states).
    *
-   * ⚠️ #CA8A04 is 2.94:1 on white, under 1.4.11's 3:1 — and that is the best a
-   * *saturated yellow* can do. Yellow's luminance is intrinsically high: at H 41° and
-   * S 96% you reach 3:1 only by darkening to L 37%, by which point the hue has slid
-   * into amber. The glyph is legal here because it is DECORATIVE — 「N단계 가이드」 sits
-   * beside it and the strip entry's `aria-label` repeats it, so nothing is carried by
-   * the mark alone. ⛔ Do not reuse this token where the glyph is the only channel.
+   * Value is the owner's Figma node (`slrqFgziqlHznBZ1VMPtcq`, `6:11`), not a pick of
+   * ours. It replaced #CA8A04, this file's own attempt at the same brief.
    *
-   * ⛔ Nor is it a warning. This file already gave amber to `connProgress` (#E8A03A dot,
-   * #B45309 ink). 41° is only a few degrees off that family, so what separates them is
-   * the silhouette and the place — a 전구 on a rail zone head, never a status dot.
+   * ⚠️ #F59E0B is 2.15:1 on white and 2.02:1 on its own plate — under 1.4.11's 3:1, and
+   * no saturated yellow-amber clears that: at H 38° you reach 3:1 only by darkening past
+   * the point where the hue stops being yellow. Legal here because the glyph is
+   * DECORATIVE — 「N단계 가이드」 sits beside it and the strip entry's `aria-label` repeats
+   * it. ⛔ Do not reuse this token where the glyph is the only channel.
+   *
+   * ⛔ Nor is it a warning — and it is now CLOSER to one than #CA8A04 was. `connProgress`
+   * owns amber for warnings (#E8A03A dot, #B45309 ink), and #E8A03A is H 35° to this
+   * H 38°. Hue will not separate them; the silhouette and the place have to — a 전구 on a
+   * rail zone head, never a status dot.
    */
-  zoneMark: 'text-[#CA8A04]', // design-exempt: 장식 글리프 — 뜻은 옆의 「N단계 가이드」와 스트립 aria-label 이 전부 싣는다. 텍스트 4.5:1 도, 1.4.11 의 3:1 도 대상이 아님
+  zoneMark: 'text-[#F59E0B]', // design-exempt: 장식 글리프 — 뜻은 옆의 「N단계 가이드」와 스트립 aria-label 이 전부 싣는다. 텍스트 4.5:1 도, 1.4.11 의 3:1 도 대상이 아님
+  /**
+   * The plate under that mark on the OPEN rail's zone head — 28px, radius 8, #FFF8E1,
+   * off the same Figma node.
+   *
+   * ⚠️ This is a fill, and 시안 E's rule is that the rail carries none. The rule is about
+   * zone-sized surfaces: a 28px plate is a mark, not a plane, and at 1.06:1 against white
+   * it does not compete with the 안내박스 for "the tinted block that means something".
+   * ⛔ It stays 28px. Grown into a band it is the #E8F1FF mistake again in a new hue.
+   *
+   * ⛔ Strip-side the mark goes bare. The folded rail's grammar is "20px glyph over a
+   * label" for both entries, and plating one of the pair breaks it.
+   */
+  zoneMarkPlate: 'flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-[#FFF8E1]',
   /** Hairline between the size control and the entries — half the strip, so it reads as a seam. */
   divider: 'my-2 h-px w-8 bg-gray-100',
   /**
@@ -2413,12 +2432,20 @@ export const railStyles = {
   entry:
     'flex w-full flex-col items-center gap-1 rounded-md py-2 text-gray-700 transition-colors hover:bg-gray-100',
   /**
-   * ⛔ 12px is the floor, not a starting point — do not shave it to fit a longer word.
-   * If a label will not fit, shorten the WORD (JetBrains' stripe rule: two words max,
-   * abbreviate when the stripe shows the name). `leading-[1.2]` is the guide's one-line
-   * step; `whitespace-nowrap` because a wrapped label in a 56px rail is a paragraph.
+   * 14px semibold, blue (오너 지시 2026-08-23). Was 12px medium, inheriting the entry's
+   * gray-700.
+   *
+   * ⛔ 14px is now the CEILING here, not a floor. The strip is 56px wide and `px-1` leaves
+   * 48 usable, so 「가이드」 is 3 × 14 = 42px with 3px of air each side. One more character
+   * or one more px overflows, and `whitespace-nowrap` means it overflows rather than
+   * wrapping — a wrapped label in a 56px rail is a paragraph. If a label will not fit,
+   * shorten the WORD (JetBrains' stripe rule: two words max, abbreviate).
+   *
+   * #0050D6 is 6.73:1 on white and is the rail's single blue — the same ink the Jira key
+   * and `guideStyles.accent` use. ⛔ Not #0064FF: keeping one blue is the point.
+   * Written as a literal because `design-guard`'s `classOf` cannot follow a `${}`.
    */
-  entryLabel: 'text-[12px] font-medium leading-[1.2] whitespace-nowrap',
+  entryLabel: 'text-[14px] font-semibold leading-[1.2] whitespace-nowrap text-[#0050D6]',
   /**
    * State dot on an entry's glyph — 8px, the same one `HistoryTimeline` uses, with a
    * white ring so it reads as ON the glyph rather than beside it. The caller supplies

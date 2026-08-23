@@ -147,40 +147,52 @@ describe('GuidePanel — the rail folds, it does not vanish', () => {
     expect(channel.contains(toggle)).toBe(true);
   });
 
-  // 시안 E (오너 지시 2026-08-23): 무채색 + 잉크만. The zones are told apart by a hairline
-  // and a label, so ⛔ NO element in the open rail may carry a background fill — the guide's
-  // own 안내박스 is the single exception, and it renders inside the mocked guide card here.
-  it('paints no fill anywhere in the open rail, and names each zone', async () => {
+  // 시안 E (오너 지시 2026-08-23): 무채색 + 잉크만. ⛔ Neither ZONE may carry a fill — the
+  // hairline and the label are what separate them, which is why both are load-bearing.
+  // Marks may: the guide's 28px #FFF8E1 plate is a mark, not a plane. The rule is about
+  // zone-sized surfaces, and the one tinted BLOCK stays the guide's own 안내박스.
+  it('paints no fill on either zone, and names them both', async () => {
     const { container } = render(<GuidePanel {...baseProps} jiraTicket={null} />);
     await settled();
 
-    const filled = Array.from(container.querySelectorAll<HTMLElement>('aside *')).filter((el) =>
-      /(^|\s)bg-(?!transparent)/.test(el.className),
-    );
-    expect(filled.map((el) => el.className)).toEqual([]);
+    const zones = Array.from(container.querySelector('aside > div')?.children ?? []);
+    expect(zones).toHaveLength(2);
+    for (const zone of zones) {
+      expect(zone.className).not.toMatch(/(^|\s)bg-(?!transparent)/);
+    }
 
-    // The labels are load-bearing: with no fill and no card they are the only thing that
-    // says where one zone ends and the next begins.
+    // ⛔ And no fill may grow past a mark. 28px is the plate; anything wider is the
+    // #E8F1FF band coming back in a different hue.
+    const plate = container.querySelector('aside .bg-\\[\\#FFF8E1\\]');
+    expect(plate?.className).toContain('h-7');
+    expect(plate?.className).toContain('w-7');
+
     expect(screen.getByText('협업 채널')).toBeTruthy();
     expect(screen.getByText('가이드')).toBeTruthy();
   });
 
-  // 오너 지시 2026-08-23: the 가이드 mark is a filled yellow 전구, and it shows in BOTH fold
-  // states — folding changes how much of the guide you see, not what it looks like.
-  it('marks the guide zone with the filled yellow 전구 in both fold states', async () => {
+  // 오너 지시 2026-08-23: the 가이드 mark is the owner's Figma 전구
+  // (slrqFgziqlHznBZ1VMPtcq, 6:11) and it shows in BOTH fold states — folding changes how
+  // much of the guide you see, not what it looks like.
+  it('marks the guide zone with the Figma 전구 in both fold states', async () => {
     const { container } = render(<GuidePanel {...baseProps} jiraTicket={null} />);
     await settled();
 
-    const open = container.querySelector('aside svg.text-\\[\\#CA8A04\\]');
+    const open = container.querySelector('aside svg.text-\\[\\#F59E0B\\]');
     expect(open).toBeTruthy();
-    // Filled, not stroked — a stroke has nowhere to put a colour at 16px.
-    expect(open?.getAttribute('fill')).toBe('currentColor');
-    expect(open?.getAttribute('stroke')).toBeNull();
+    // Stroked at a 14 viewBox, per the node. ⛔ Rescaling into the 24 box every other
+    // icon uses would have to thin the stroke and stop being the spec.
+    expect(open?.getAttribute('viewBox')).toBe('0 0 14 14');
+    expect(open?.getAttribute('stroke')).toBe('currentColor');
+    expect(open?.getAttribute('fill')).toBe('none');
 
     fireEvent.click(screen.getByRole('button', { name: '가이드 접기' }));
     await waitFor(() =>
-      expect(container.querySelector('aside svg.text-\\[\\#CA8A04\\]')).toBeTruthy(),
+      expect(container.querySelector('aside svg.text-\\[\\#F59E0B\\]')).toBeTruthy(),
     );
+    // Bare on the strip — the plate is the open zone head's, and 28px does not fit a
+    // 56px rail beside a 14px label.
+    expect(container.querySelector('aside .bg-\\[\\#FFF8E1\\]')).toBeNull();
   });
 
   // 오너 지시 2026-08-23: 「N단계 가이드」, not 「가이드」 — the rail is docked beside a
@@ -350,7 +362,7 @@ describe('GuidePanel — the folded strip says what it is', () => {
 
     expect(screen.getByText('도움이 필요하신가요?')).toBeTruthy();
     expect(
-      screen.getByText('진행 중 막히는 부분은 협업 채널에서 담당자에게 바로 문의할 수 있어요.'),
+      screen.getByText('진행 중 막히는 부분은 협업 채널에서 바로 문의할 수 있어요.'),
     ).toBeTruthy();
     expect(screen.getByText('BDCDIP-1007')).toBeTruthy();
     // ⛔ And the rail did NOT unfold. Reading the channel must not cost the width back.

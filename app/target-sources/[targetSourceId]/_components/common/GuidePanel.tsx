@@ -64,7 +64,7 @@ const CollabChannelCard = ({ jiraTicket }: { jiraTicket: JiraTicketState }) => {
         도움이 필요하신가요?
       </p>
       <p className={cn('mt-1 text-[12px] leading-[1.55]', textColors.secondary)}>
-        진행 중 막히는 부분은 협업 채널에서 담당자에게 바로 문의할 수 있어요.
+        진행 중 막히는 부분은 협업 채널에서 바로 문의할 수 있어요.
       </p>
       {/* The two empty states are back on `tertiary`. They were moved up to `secondary`
           only because a #E8F1FF band stood under them, where gray-500 is 4.25:1; 시안 E
@@ -301,8 +301,12 @@ export const GuidePanel = ({
               Padding is split so the scrollbar still runs at the rail's edge while the
               prose keeps the same 20px column as the zone above. */}
           <div className="flex min-h-0 flex-1 flex-col">
-            <div className="flex shrink-0 items-center gap-1.5 px-5 pb-2 pt-3">
-              <GuideIcon className={cn('h-4 w-4 shrink-0', railStyles.zoneMark)} />
+            {/* The mark is plated here and bare on the strip — the plate is the Figma
+                node's own 28px container, and the strip has no room for it. */}
+            <div className="flex shrink-0 items-center gap-2 px-5 pb-2 pt-3">
+              <span className={railStyles.zoneMarkPlate}>
+                <GuideIcon className={cn('h-3.5 w-3.5', railStyles.zoneMark)} />
+              </span>
               <span className={railStyles.zoneLabel}>{guideZoneLabel}</span>
             </div>
             <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-5">
