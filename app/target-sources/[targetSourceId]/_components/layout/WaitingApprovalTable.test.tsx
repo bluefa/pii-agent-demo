@@ -1132,27 +1132,29 @@ describe('WaitingApprovalTable', () => {
     });
 
     it('gives step 4 (cloud shape) the install spec — confirmed identity floors plus the install pair', () => {
-      // name 162 + id 186 + 상태 128 + 안내 142 = 618, the FLOOR: the identity pair flexes
+      // name 162 + id 186 + 상태 200 + 안내 142 = 690, the FLOOR: the identity pair flexes
       // and Resource ID is last, so IT is the sink — the ARN is where the pixels pay.
-      // 상태 128 = 'BDC 설치 대기' (the longest of the six status words, 81px at the
-      // cell's 14px semibold) + the 36px cell padding + the 종류 column's slack recipe;
+      // 상태 200 = 'Azure Portal에서 승인 필요' (the longest status word — adapters may
+      // override labels via InstallStepCell.label, so the vocabulary is NOT just the six
+      // INSTALL_STATUS_LABEL words; 154px at the cell's 14px semibold) + the 36px cell
+      // padding + the 종류 column's slack recipe;
       // 안내 reuses 제외 사유's 142 (same chip, same clamp). LIN-96 원장 §1.
       const { container } = render(
         <WaitingApprovalTable variant="install" resources={[row()]} />,
       );
       const table = required(container.querySelector('table'), 'the install table');
-      expect((table as HTMLElement).style.minWidth).toBe('618px');
+      expect((table as HTMLElement).style.minWidth).toBe('690px');
       expect([...table.querySelectorAll('thead th')].map((th) => th.textContent))
         .toEqual(['Resource Name', 'Resource ID', '상태', '안내']);
       expect([...table.querySelectorAll('thead th')].map((th) => (th as HTMLElement).style.width))
-        .toEqual(['26.2136%', 'auto', '128px', '142px']);
+        .toEqual(['23.4783%', 'auto', '200px', '142px']);
     });
 
     it('builds the IDC install spec from the caller identity cells — numeric widths, endpoint as sink', () => {
       // The caller declares width AND flex per cell now (LIN-97): the identity pair
       // (출발지·접속 주소) flexes like the cloud's name·id, and 접속 주소 — declaration-order
       // last — is the sink, the one column here whose values run to arbitrary length.
-      // 144 + 200 + 80 + 172 + 128 + 142 = 866. 출발지 is 144, NOT the 150 this screen
+      // 144 + 200 + 80 + 172 + 상태 200 + 142 = 938. 출발지 is 144, NOT the 150 this screen
       // used to declare: the shared table's 144 was always the stated intent (원장 §3-1).
       const identity = {
         columns: [
@@ -1173,9 +1175,9 @@ describe('WaitingApprovalTable', () => {
         <WaitingApprovalTable variant="install" resources={[row()]} identityColumns={identity} />,
       );
       const table = required(container.querySelector('table'), 'the IDC install table');
-      expect((table as HTMLElement).style.minWidth).toBe('866px');
+      expect((table as HTMLElement).style.minWidth).toBe('938px');
       expect([...table.querySelectorAll('thead th')].map((th) => (th as HTMLElement).style.width))
-        .toEqual(['16.6282%', 'auto', '80px', '172px', '128px', '142px']);
+        .toEqual(['15.3518%', 'auto', '80px', '172px', '200px', '142px']);
       // The caller's header CONTENT renders (the 출발지 tooltip head), inside the console th.
       expect(within(required(screen.getByText('출발지-헤더').closest('th'), 'the src th')).getByText('출발지-헤더')).toBeTruthy();
       // And the caller's cells land in covered tds, like every other value cell here.

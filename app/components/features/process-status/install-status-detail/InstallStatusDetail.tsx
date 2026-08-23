@@ -242,8 +242,9 @@ const StepResourceTable = ({
   );
   const table = useApprovalTableState(approvalRows, identityColumns?.dbTypeLabel);
   // The console table's resize instance — owned here because the storage key names the
-  // screen (LIN-97). One key serves both step-4 shapes: their column keys don't collide
-  // (name/id vs the IDC identity keys), so a dragged width only ever finds its own column.
+  // screen (LIN-97). One key serves both step-4 shapes: the identity halves are disjoint
+  // (name/id vs the IDC keys), while `status`/`guide` are deliberately the same key — same
+  // floor, same meaning, so a dragged width carrying across shapes is correct, not a leak.
   // Ephemeral (session-only) widths ride the flex columns, which the shapes declare
   // differently — the caller's identity cells carry their own flags.
   const resize = useColumnResize({

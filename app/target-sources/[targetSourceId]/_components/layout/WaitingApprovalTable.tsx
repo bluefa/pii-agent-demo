@@ -554,17 +554,20 @@ const approvalColumns = (regionLabel: string): ConsoleTableColumn[] => [
  * Step-4 (install) column widths. The identity pair reuses the confirmed-context floors —
  * every install row IS a confirmed target, the same rows steps 6·7 list (LIN-96 원장 §1).
  *
- * `status`: the cell vocabulary is closed — the six `INSTALL_STATUS_LABEL` words, no
- * adapter override in use — and the longest, 'BDC 설치 대기', renders 81px at the cell's
- * 14px semibold (browser-measured, 2026-08-23). 81 + approvalCell's 36px padding + slack
- * = 128 — the 종류 column's own recipe, for a near-identical content width (82 there).
+ * `status`: the vocabulary is the six `INSTALL_STATUS_LABEL` words PLUS adapter label
+ * overrides (`InstallStepCell.label` — today only Azure's PE step, `PE_LABELS` in its
+ * install-detail adapter). The widest member, 'Azure Portal에서 승인 필요', renders 154px
+ * at the cell's 14px semibold (browser-measured, 2026-08-23). 154 + approvalCell's 36px
+ * padding + slack = 200 — the 종류 column's own recipe. The floor must cover the widest
+ * word: the cell is overflow-hidden with no ellipsis and no tooltip, so anything cut
+ * would be lost silently.
  * `guide` reuses 제외 사유's 142: the same `ReasonChipInline` under the same
  * `clampReason(15)`, so the same worst case with the same expansion affordance.
  */
 const INSTALL_COLUMN_WIDTHS = {
   name: CONFIRMED_COLUMN_WIDTHS.name,
   id: CONFIRMED_COLUMN_WIDTHS.id,
-  status: 128,
+  status: 200,
   guide: APPROVAL_COLUMN_WIDTHS.reason,
 } as const;
 
