@@ -504,15 +504,16 @@ describe('CandidateResourceTable — Athena groups', () => {
       />,
     );
 
-  it('starts collapsed, holding the region and the counts but no child names', () => {
+  it('starts collapsed, holding the region but no child names', () => {
     renderGroup(['raw_athena_db_prod', 'raw_athena_db_stg']);
     const toggle = screen.getByRole('button', { name: 'Athena ap-northeast-2 그룹 펼치기' });
     expect(toggle.getAttribute('aria-expanded')).toBe('false');
 
     const identity = required(toggle.closest('td'), "the group's identity cell");
     expect(identity.textContent).toContain('ap-northeast-2');
-    // The fixture's rows are unselected, so both land on the 제외 side.
-    expect(identity.textContent).toContain('데이터베이스 · 대상 0 · 제외 2');
+    // 집계 줄(데이터베이스 · 대상 N · 제외 N)은 이 표에서 내렸다 — 같은 숫자를 표 아래
+    // 깔때기(ScanStrip)와 액션바가 이미 말한다. 그룹 머리는 정체성만 진다.
+    expect(identity.textContent).not.toContain('데이터베이스');
     expect(identity.textContent).not.toContain('raw_athena_db_prod');
   });
 

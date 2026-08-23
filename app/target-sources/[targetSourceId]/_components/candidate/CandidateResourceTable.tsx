@@ -13,10 +13,7 @@ import {
 } from '@/app/target-sources/[targetSourceId]/_components/candidate/CandidateResourceRow';
 import { useRailHover, type RailRowProps } from '@/app/hooks/useRailHover';
 import { TableEmptyState } from '@/app/target-sources/[targetSourceId]/_components/shared/TableEmptyState';
-import {
-  ResourceGroupCount,
-  ResourceGroupRow,
-} from '@/app/target-sources/[targetSourceId]/_components/shared/ResourceGroupRow';
+import { ResourceGroupRow } from '@/app/target-sources/[targetSourceId]/_components/shared/ResourceGroupRow';
 
 // 설치 구분 = 스캔이 판정한 시스템 사실(사용자 변경 불가). 값의 뜻만이 아니라
 // 각 값이 선택에 거는 규칙(대상 제외 시 사유 필수, 불가는 선택 자체 불가)까지가
@@ -157,7 +154,14 @@ export const CandidateResourceTable = ({
                   />
                 </span>
               </th>
-              {showCheckboxColumn && <th className={idcStyles.table.approvalHeaderCell}>제외 사유</th>}
+              {/* 이 값은 상한이 아니라 하한이다 — auto 레이아웃에서 열 폭은 셀의 max-content
+                  이므로 상한을 정하는 것은 칩의 클램프(REASON_CLAMP 150 → 열 186px)이고, 여기
+                  160 은 사유가 없는 표에서 이 열이 「사유 입력」 링크 폭까지 쪼그라들지 않게
+                  잡아 둔다. 둘이 함께 열을 160~186 사이에 묶는다 — 행을 식별하는 것은 이름과
+                  id 이고, 사유 전문은 칩의 팁이 갖는다. */}
+              {showCheckboxColumn && (
+                <th className={cn(idcStyles.table.approvalHeaderCell, 'w-[160px]')}>제외 사유</th>
+              )}
             </tr>
           </thead>
           {sections.map((section) => {
@@ -225,15 +229,6 @@ export const CandidateResourceTable = ({
                     onToggle={fold.toggle}
                     controls={rowsId}
                     rail={rail}
-                    // The aggregate rides the identity, next to the region it counts within
-                    // (owner, 2026-08-12) — a column at the far end of the row put the numbers a
-                    // screen-width away from the group they belong to.
-                    inlineMeta={
-                      <ResourceGroupCount
-                        targetCount={group.targetCount}
-                        excludedCount={group.excludedCount}
-                      />
-                    }
                     leadingCell={
                       showCheckboxColumn ? (
                         // No group-level checkbox: selecting a whole Athena family is a bulk

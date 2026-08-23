@@ -71,6 +71,12 @@ const ROW_BASE = tableRowLift.base;
 const ROW_TARGET = tableRowLift.target;
 const ROW_EXCLUDED = tableRowLift.excluded;
 const CELL_LIFT = tableRowLift.cellText;
+/**
+ * 제외 사유 칸의 폭 상한. 자동 레이아웃에서 열 폭은 셀의 max-content 이므로, 칩을
+ * 클램프하지 않으면 사유 한 줄이 Resource Name·ID 보다 넓은 칸을 가져간다 — 행을
+ * 식별하는 것은 이름과 id 다. 잘린 사유의 전문은 칩의 팁이 갖는다.
+ */
+const REASON_CLAMP = 'block max-w-[150px]';
 const NAME_LIFT = primaryColors.textGroupHover;
 
 // integration_category(시스템의 사실) → 설치-계열 표기. 선택(사용자의 결정)과
@@ -369,9 +375,10 @@ export const CandidateResourceRow = ({
               <ResourceIdCell
                 value={candidate.resourceId}
                 label="Resource ID"
-                // 220px(승인 테이블 기본)에서 축소: 이 테이블은 체크박스+설치 구분이
-                // 더 있어 220이면 제외 사유 열이 가로 스크롤 뒤로 밀린다. 전문은 팁·복사에.
-                maxWidthClass="max-w-[160px]"
+                // 승인 테이블 기본값 220px 그대로. 한때 160으로 줄였던 이유(제외 사유 열이
+                // 가로 스크롤 뒤로 밀린다)는 그 열에 상한이 생기면서 사라졌다 — 사유 칩의
+                // REASON_CLAMP(150) 가 그 열의 max-content 를 186px 로 묶는다.
+                maxWidthClass="max-w-[220px]"
                 sizeClass="text-[14px]"
                 textClassName={cn(textColors.secondary, CELL_LIFT)}
               />
@@ -482,14 +489,19 @@ export const CandidateResourceRow = ({
               // exclusion_reason 에 판정 코드를 그대로 실어 보내는 경로가 있어, 그대로 찍으면
               // 이 칸에 원문 enum 이 나왔다.
               ineligibleReason && (
-                <ReasonChipInline reason={ineligibleReason.text} code={ineligibleReason.code} />
+                // 칩의 폭이 곧 열의 폭이다 — 자동 레이아웃은 셀의 max-content 를 열 폭으로
+                // 잡으므로, 클램프를 걸지 않으면 사유 한 줄이 Resource ID 보다 넓은 칸을
+                // 가져간다. 전문은 칩의 팁이 갖는다.
+                <span className={REASON_CLAMP}>
+                  <ReasonChipInline reason={ineligibleReason.text} code={ineligibleReason.code} />
+                </span>
               )
             ) : !isSelected && exclusionReason ? (
               <button
                 type="button"
                 aria-label="제외 사유 수정"
                 onClick={(event) => actions.reasonChipClick(candidate.id, event.currentTarget)}
-                className="text-left"
+                className={cn('text-left', REASON_CLAMP)}
               >
                 <ReasonChipInline reason={exclusionReason} />
               </button>

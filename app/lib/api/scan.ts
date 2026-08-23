@@ -16,8 +16,12 @@ export const startScan = async (
 /** 최신 스캔 작업 조회 (polling용) — 404는 컴포넌트(Layer 2)에서 처리 */
 export const getLatestScanJob = async (
   targetSourceId: number,
+  options?: { signal?: AbortSignal },
 ): Promise<z.infer<typeof schemas.ScanJobResponse>> =>
-  fetchInfraJson(`${BASE_URL}/${targetSourceId}/scanJob/latest`);
+  fetchInfraJson(
+    `${BASE_URL}/${targetSourceId}/scanJob/latest`,
+    options?.signal ? { signal: options.signal } : undefined,
+  );
 
 /** 스캔 이력 조회 (페이지네이션) */
 export const getScanHistory = async (

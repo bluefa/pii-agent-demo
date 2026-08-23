@@ -2,7 +2,8 @@
 
 import { Modal } from '@/app/components/ui/Modal';
 import { ReasonChipInline } from '@/app/components/ui/ReasonChipInline';
-import { StatusWarningIcon } from '@/app/components/ui/icons';
+import { EmptyBoxIcon, StatusWarningIcon } from '@/app/components/ui/icons';
+import { EmptyState } from '@/app/components/ui/state';
 import { useIdcPreviousRequest } from '@/app/hooks/useIdcPreviousRequest';
 import { usePagination } from '@/app/hooks/usePagination';
 import { type IdcResourceView } from '@/app/lib/api/idc';
@@ -96,6 +97,11 @@ export const IdcLoadRequestModal = ({
       size="wide"
       chrome="toss"
       tone="warn"
+      // 닫는 길은 푸터의 취소가 이미 갖고 있다 — 헤더 ✕ 는 같은 말을 두 번(Ec2AddModal 과 같은 규칙).
+      closeButton={false}
+      // 본문↔푸터 헤어라인 없음: 그 선은 스크롤하는 내용이 어디서 끝나는지 표시하는 것인데,
+      // 이 모달의 본문은 표든 빈 상태든 제 테두리로 이미 닫혀 있어 선이 하나 더 그어질 뿐이다.
+      footerDivider={false}
       footer={
         <>
           <button type="button" className={idcStyles.modalBtn.outline} onClick={onClose}>
@@ -118,19 +124,16 @@ export const IdcLoadRequestModal = ({
         <div className={cn('px-6 py-12 text-center text-sm', statusColors.error.text)}>{error}</div>
       )}
 
+      {/* 부재는 에러가 아니다 — 상류의 404(이전 요청 없음)도 여기로 온다(useIdcPreviousRequest).
+          ADR-018 §1 의 canonical empty: 글리프 → 제목 → 보조 문장. 재시도할 것이 없는 화면이라
+          CTA 는 두지 않는다 — 취소·불러오기(비활성)를 이미 푸터가 들고 있다. */}
       {!loading && !error && !hasRows && (
-        <div
-          className={cn(
-            'rounded-xl border border-dashed px-6 py-10 text-center text-[12px]',
-            borderColors.default,
-            textColors.tertiary,
-          )}
-        >
-          <strong className={cn('mb-1 block text-[14px]', textColors.secondary)}>
-            불러올 기존 연동 정보가 없어요
-          </strong>
-          이전에 요청한 연동 정보가 있을 때만 불러올 수 있어요
-        </div>
+        <EmptyState
+          variant="card"
+          icon={<EmptyBoxIcon className="h-7 w-7" />}
+          title="불러올 연동 대상이 없어요"
+          description="이전에 요청한 연동 대상이 있을 때만 불러올 수 있어요"
+        />
       )}
 
       {!loading && !error && hasRows && (

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { getConfirmResources } from '@/app/lib/api';
 import { catalogToCandidates } from '@/lib/resource-catalog';
 import { AppError } from '@/lib/errors';
+import { fetchLatestScan, hasScanResults } from '@/app/hooks/useScanPolling';
 import { IDC_EXCL_PRESETS } from '@/lib/constants/idc';
 import type { CandidateResource } from '@/lib/types/resources';
 import type { AsyncState } from '@/app/target-sources/[targetSourceId]/_components/shared/async-state';
@@ -56,15 +57,30 @@ export const useCandidateResources = (targetSourceId: number) => {
         );
       });
 
-    void fetchResourcesWithRetry(
-      () =>
-        getConfirmResources(targetSourceId, { signal: controller.signal }).then((response) =>
-          catalogToCandidates(response.resources),
-        ),
-      maxAttempts,
-      delayBeforeRetry,
-      isTransientError,
-    )
+    // 게이트: 성공한 스캔이 있을 때만 결과를 조회한다. 잡은 ScanController 도 폴링하지만
+    // 그 값은 렌더 트리 안에서만 살아 있어 이 훅이 볼 수 없다 — 진입당 한 번의 읽기를 더
+    // 하는 대신, 조회를 여는 판정이 조회 바로 옆에 있다.
+    //
+    // ⚠️ 여기서 잡 읽기의 실패를 삼키지 않는다. `fetchLatestScan` 은 404(스캔 이력 없음)만
+    // null 로 접고 나머지는 던지는데, 그걸 catch 로 뭉개면 "못 읽었다"가 "스캔한 적 없다"로
+    // 둔갑한다 — 잡 엔드포인트가 500 을 주는 동안 결과 40건을 가진 화면이 온보딩 히어로를
+    // 세우고, 그 화면의 CTA 는 새 스캔이다. 던지면 아래 catch 가 받아 fetchError 프레임이
+    // 서고(스트립이 함께 뜬다), 표는 여전히 안 열린다 — 닫힌 쪽 판정은 그대로다.
+    const load = async (): Promise<CandidateResource[]> => {
+      const job = await fetchLatestScan(targetSourceId, { signal: controller.signal });
+      if (controller.signal.aborted || !hasScanResults(job)) return EMPTY_CANDIDATES;
+      return fetchResourcesWithRetry(
+        () =>
+          getConfirmResources(targetSourceId, { signal: controller.signal }).then((response) =>
+            catalogToCandidates(response.resources),
+          ),
+        maxAttempts,
+        delayBeforeRetry,
+        isTransientError,
+      );
+    };
+
+    void load()
       .then((data) => {
         if (controller.signal.aborted) return;
         setState({ status: 'ready', data });
