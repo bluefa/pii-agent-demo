@@ -43,9 +43,10 @@ export interface ConsoleTableColumn {
    * instead of padding every column out. Declare it on the columns whose values actually run
    * long — an ARN, a host, a free-text reason — and leave the rest sized.
    *
-   * DECLARATION ORDER MATTERS. The last flex column the user has not dragged is the sink and
-   * renders `auto`; the others render a percentage. See `ConsoleTable` for why that split
-   * exists and what happens when the sink is dragged.
+   * DECLARE TWO OF THEM WHERE YOU CAN. One of the flex columns is always the sink: it renders
+   * `auto` and cannot be sized, only filled. With two, dragging either one hands the sink to
+   * the other and the pair behaves like a split pane; with one, its own handle soft-floors at
+   * the fill width. Order matters too — the sink is taken from the END. See `slackSinkKey`.
    */
   flex?: boolean;
   /** Extra header-cell classes — e.g. the leading identity column's deeper inset. */
@@ -56,11 +57,33 @@ export interface ConsoleTableColumn {
 export const consoleColumnWidth = (column: ConsoleTableColumn, resize?: ColumnResize): number =>
   resize?.widthOf(column.key)?.width ?? column.width;
 
-/** The `flex` columns the user has not pinned by dragging, in declaration order. */
-const flexingColumns = (
+/**
+ * The column that renders `auto` and absorbs whatever the others leave: the LAST `flex`
+ * column, minus the one the user last adjusted. Null only when no column is `flex`.
+ *
+ * Excluding the adjusted column is what makes a drag land where the pointer is. A sink is
+ * filled, not sized — set a width on it and the fill overwrites it — so dragging the sink
+ * moves nothing until the table's floor passes the container. Handing the role to the other
+ * flex column instead makes the pair read as a split pane: size one, the other spends the
+ * rest, and the sized columns never budge.
+ *
+ * ⛔ Never let this go null while a `flex` column exists. Rounds 19 and 20 both did — first
+ * by tying the role to one column's identity, then by dropping it once every flex column was
+ * dragged — and both times the table stopped following the container for the rest of the
+ * visit, which is the whole defect this file exists to prevent.
+ */
+const slackSinkKey = (
   columns: readonly ConsoleTableColumn[],
   resize?: ColumnResize,
-): ConsoleTableColumn[] => columns.filter((column) => column.flex && !resize?.widthOf(column.key));
+): string | null => {
+  const flex = columns.filter((column) => column.flex);
+  if (flex.length === 0) return null;
+  const free = flex.filter((column) => column.key !== resize?.lastResizedKey);
+  // Fallback = a table with ONE flex column: it stays the sink even while being dragged, so
+  // the fill survives, and the drag soft-floors at the fill width (Cloudscape's behaviour).
+  // Declare two flex columns to get the split pane instead.
+  return (free[free.length - 1] ?? flex[flex.length - 1]).key;
+};
 
 /**
  * One column's declared width.
@@ -149,23 +172,22 @@ interface ConsoleTableProps {
  * The grammar, and why each piece is here rather than in the caller:
  * - `table-fixed`: fixed layout is what lets a drag rule the column at all (in auto layout
  *   nowrap content dictates it and dragging changes nothing).
- * - The table's width, in two modes. While any `flex` column is unpinned the table is
- *   `w-full` over a `min-width` floor, so it follows the container. With none left — none
- *   declared, or the user has dragged every one of them and their widths are now the truth —
- *   the width is the column SUM. It must not be `w-full` in THAT mode: with every column
- *   sized, the fixed algorithm redistributes slack proportionally across all of them, so
- *   each renders wider than it declares and a 16px keyboard step moves ~3px on screen.
- *   (Round 4 read that as "never w-full"; the premise was that every column is sized. One
- *   auto column retires it.)
- * - THE SINK IS A POSITION, NOT A COLUMN: the last `flex` column the user has not dragged.
- *   Drag it and the role hands off to the flex column before it, so the table keeps filling
- *   the container instead of stranding itself at one screen size. Round 19 tied the role to
- *   one column's identity, and a single drag left nobody absorbing — the table went fixed,
- *   for that visit and (before `ephemeralKeys`) every visit after. Cloudscape, whose table
- *   this grammar comes from, defines the same role positionally: `isLastColumn &&
- *   container > total → width: 'auto'`. Fluent's DetailsList made our mistake instead and
- *   has had it open since 2017 (microsoft/fluentui#517). Non-sink flex columns take a
- *   percentage share so a wide screen spreads the slack over every long-valued column
+ * - The table's width, in two modes, and the mode is decided by the COLUMN SPEC, never by
+ *   what the user has dragged. Declare a `flex` column and the table is `w-full` over a
+ *   `min-width` floor for good, so it follows the container no matter how many columns have
+ *   been pinned. Declare none and the width is the column SUM. It must not be `w-full` in
+ *   THAT mode: with every column sized, the fixed algorithm redistributes slack
+ *   proportionally across all of them, so each renders wider than it declares and a 16px
+ *   keyboard step moves ~3px on screen. (Round 4 read that as "never w-full"; the premise
+ *   was that every column is sized. One auto column retires it.)
+ * - THE SINK IS A ROLE, AND SOMEBODY ALWAYS HOLDS IT — see `slackSinkKey`. Two rounds lost
+ *   the fill by letting the role go vacant: round 19 tied it to one column's identity, and
+ *   round 20 to being un-dragged, so pinning both long columns (the two anyone drags) went
+ *   fixed for the rest of the visit. Cloudscape, whose table this grammar comes from, keeps
+ *   it positional and unconditional: `isLastColumn && container > total → width: 'auto'`.
+ *   Fluent's DetailsList made the round-19 mistake instead and has had it open since 2017
+ *   (microsoft/fluentui#517). Non-sink flex columns that are still unpinned take a
+ *   percentage share, so a wide screen spreads the slack over every long-valued column
  *   rather than pouring all of it into one. See
  *   docs/ux/benchmark/console-table-slack-ownership.md.
  * - `consoleGrid`: header rails plus, in the body, the covering sheet's cast shadow —
@@ -180,8 +202,7 @@ interface ConsoleTableProps {
 export const ConsoleTable = ({ columns, resize, children }: ConsoleTableProps) => {
   const wrapRef = useRef<HTMLDivElement>(null);
   const tracerRef = useRef<HTMLDivElement>(null);
-  const flexing = flexingColumns(columns, resize);
-  const sinkKey = flexing.length > 0 ? flexing[flexing.length - 1].key : null;
+  const sinkKey = slackSinkKey(columns, resize);
   const columnSum = columns.reduce((sum, column) => sum + consoleColumnWidth(column, resize), 0);
   // Any width change — drag step, arrow key, double-click, reset, storage hydration —
   // douses the tracer and latches it dark until the pointer is next seen OUTSIDE a seam

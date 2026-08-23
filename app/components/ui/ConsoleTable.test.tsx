@@ -43,7 +43,11 @@ const required = <T,>(value: T | null | undefined, what: string): T => {
 
 /** A resize instance with no stored widths — a fresh identity on every call, which is
  *  exactly the signal a width change produces (the real hook memoizes on its widths). */
-const resize = (widths: Record<string, number> = {}): ColumnResize => ({
+const resize = (
+  widths: Record<string, number> = {},
+  lastResizedKey: string | null = null,
+): ColumnResize => ({
+  lastResizedKey,
   widthOf: (key) => (widths[key] === undefined ? undefined : { width: widths[key] }),
   handleProps: (key, label) => ({ role: 'separator', 'aria-label': `${label} 너비 조절` }),
 });
@@ -133,12 +137,13 @@ describe('ConsoleTable — columns', () => {
     expect((table as HTMLElement).style.minWidth).toBe('360px');
   });
 
-  it('hands the sink to the previous flex column when the last one is dragged', () => {
-    // THE round-19 defect. The sink is a position, not a column: pinning the last flex
-    // column must move the role rather than delete it, or the table stops following the
-    // container for the rest of the visit with nothing on screen saying why.
+  it('hands the sink to the OTHER flex column, so the dragged one keeps its width', () => {
+    // THE round-19 defect. Dragging the sink must move the role rather than delete it, or
+    // the table stops following the container for the rest of the visit with nothing on
+    // screen saying why — and the dragged column would not follow the pointer either,
+    // because a sink is filled, not sized.
     const { container } = render(
-      <ConsoleTable columns={TWO_FLEX_COLUMNS} resize={resize({ id: 500 })}>
+      <ConsoleTable columns={TWO_FLEX_COLUMNS} resize={resize({ id: 500 }, 'id')}>
         {rows}
       </ConsoleTable>,
     );
@@ -155,21 +160,43 @@ describe('ConsoleTable — columns', () => {
     expect((table as HTMLElement).style.width).toBe('');
   });
 
-  it('drops back to the sum only once EVERY flex column has been dragged', () => {
-    // With no unpinned flex column left there is nobody to absorb, and leaving the table at
-    // w-full is exactly the redistribution bug the first test guards. `FLEX_COLUMNS` has a
-    // single flex column, so one drag is already "every".
+  it('keeps filling once EVERY flex column has been dragged — the role never goes vacant', () => {
+    // THE round-20 defect, and the one the owner hit: Name and ID are the two columns
+    // anyone drags, and pinning both dropped the table to the column sum for the rest of
+    // the visit. Whichever one was touched last is the one being sized; the other holds
+    // the slack, and its own pinned width survives as part of the floor.
     const { container } = render(
-      <ConsoleTable columns={FLEX_COLUMNS} resize={resize({ id: 500 })}>
+      <ConsoleTable columns={TWO_FLEX_COLUMNS} resize={resize({ name: 150, id: 500 }, 'name')}>
         {rows}
       </ConsoleTable>,
     );
     const ths = container.querySelectorAll('thead th');
-    expect((ths[1] as HTMLElement).style.width).toBe('500px');
+    expect([...ths].map((th) => (th as HTMLElement).style.width)).toEqual([
+      '150px', // the column under the pointer follows it exactly
+      'auto', // …and the other one goes back to absorbing
+      '60px',
+    ]);
     const table = required(container.querySelector('table'), 'the table');
-    expect(table.className).not.toContain('w-full');
-    expect((table as HTMLElement).style.width).toBe('660px');
-    expect((table as HTMLElement).style.minWidth).toBe('');
+    expect(table.className).toContain('w-full');
+    expect((table as HTMLElement).style.minWidth).toBe('710px');
+    expect((table as HTMLElement).style.width).toBe('');
+  });
+
+  it('lets a lone flex column stay the sink even while it is the one being dragged', () => {
+    // Nothing else can absorb, so the fill outranks the gesture: the dragged width becomes
+    // the table's floor and the column soft-floors at the fill width (Cloudscape's rule).
+    // Going to width=sum here would be the round-20 defect again, one column smaller.
+    const { container } = render(
+      <ConsoleTable columns={FLEX_COLUMNS} resize={resize({ id: 500 }, 'id')}>
+        {rows}
+      </ConsoleTable>,
+    );
+    const ths = container.querySelectorAll('thead th');
+    expect((ths[1] as HTMLElement).style.width).toBe('auto');
+    const table = required(container.querySelector('table'), 'the table');
+    expect(table.className).toContain('w-full');
+    expect((table as HTMLElement).style.minWidth).toBe('660px');
+    expect((table as HTMLElement).style.width).toBe('');
   });
 
   it('keeps a grab handle on the flex column', () => {

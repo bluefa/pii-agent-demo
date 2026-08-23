@@ -63,6 +63,13 @@ export interface ColumnResize {
   widthOf: (key: string) => { width: number } | undefined;
   /** 헤더 오른쪽 끝 손잡이의 props. 감싸는 `<th>` 는 `relative` 나 `sticky` 여야 한다. */
   handleProps: (key: string, label: string) => HTMLAttributes<HTMLSpanElement>;
+  /**
+   * The column the user adjusted most recently, or null until they touch one. `ConsoleTable`
+   * keeps THIS column out of the slack-sink role: a sink is filled, not sized, so dragging
+   * one moves nothing until the table's floor passes the container. Restoring a width from
+   * storage does not count as touching — nobody was pointing at anything.
+   */
+  lastResizedKey: string | null;
 }
 
 /**
@@ -118,9 +125,9 @@ const headerFloor = (th: HTMLTableCellElement): number => {
  *
  * 흡수하는 열(`ConsoleTableColumn.flex`)에도 손잡이는 단다. 손잡이는 th 의 오른쪽 경계에
  * 있고 그 경계는 시임 트레이서가 이미 점등하는 자리라, 거기만 손잡이가 없으면 경계 문법이
- * 한 칸 비는 것으로 읽힌다. 대신 그 열을 끄는 순간 사용자가 고른 폭이 진실이 되고 표는
- * 폭=Σ열폭 으로 돌아간다(`ConsoleTable`) — 시작 폭이 아래처럼 실제 렌더 폭이라 그 전환에
- * 점프가 없다.
+ * 한 칸 비는 것으로 읽힌다. 그 열을 끄는 순간 흡수 역할은 다른 flex 열로 넘어가고 — 끌고
+ * 있는 열은 흡수자가 될 수 없다(`lastResizedKey`) — 폭은 포인터를 그대로 따라온다. 시작
+ * 폭이 아래처럼 실제 렌더 폭이라 그 전환에 점프도 없다.
  *
  * 시작 폭은 상태가 아니라 pointerdown 시점의 실제 렌더 폭(offsetWidth)에서 읽는다. 훅은
  * 기본값을 알 필요가 없고(클래스가 소유), 사용자가 건드린 열만 기억한다.
@@ -132,6 +139,10 @@ export const useColumnResize = (options?: ColumnResizeOptions): ColumnResize => 
   // — including the hydration one, which re-arms its gate.
   const ephemeralIds = ephemeralKeys?.join(',') ?? '';
   const [widths, setWidths] = useState<Readonly<Record<string, number>>>({});
+  // Which column the pointer is on, so the shell can keep it out of the sink role. Set from
+  // `resize` below — every gesture (drag, arrow key, double-click) goes through it — and
+  // NOT from hydration, which sets widths without anyone having aimed at a column.
+  const [lastResizedKey, setLastResizedKey] = useState<string | null>(null);
   /**
    * 진행 중인 드래그를 끝내는 함수. window 리스너는 이 훅 밖에서 살아 있으므로, 드래그
    * 도중에 표가 사라지면(모달을 닫으면) 아무도 그것을 떼어 주지 않는다 — 언마운트가
@@ -197,7 +208,10 @@ export const useColumnResize = (options?: ColumnResizeOptions): ColumnResize => 
   // Memoized so a memo()'d table taking this as a prop only re-renders when a width
   // actually changes, not on every render of the hook's host.
   return useMemo<ColumnResize>(() => {
-    const resize = (key: string, from: number, delta: number, cap?: number, floor?: number) =>
+    const resize = (key: string, from: number, delta: number, cap?: number, floor?: number) => {
+      // Called at pointermove frequency; React bails out on an unchanged value, so this
+      // re-renders once per gesture rather than once per frame.
+      setLastResizedKey(key);
       setWidths((prev) => ({
         ...prev,
         [key]: Math.min(
@@ -205,6 +219,7 @@ export const useColumnResize = (options?: ColumnResizeOptions): ColumnResize => 
           Math.max(floor ?? MIN_COLUMN_WIDTH, from + delta),
         ),
       }));
+    };
 
     /** The column this handle belongs to. */
     const ownerTh = (target: HTMLElement): HTMLTableCellElement | null => target.closest('th');
@@ -273,6 +288,7 @@ export const useColumnResize = (options?: ColumnResizeOptions): ColumnResize => 
     };
 
     return {
+      lastResizedKey,
       widthOf: (key) => (widths[key] === undefined ? undefined : { width: widths[key] }),
       handleProps: (key, label) => ({
         role: 'separator',
@@ -291,5 +307,5 @@ export const useColumnResize = (options?: ColumnResizeOptions): ColumnResize => 
           : idcStyles.table.resizeHandle,
       }),
     };
-  }, [widths, clampToContent]);
+  }, [widths, lastResizedKey, clampToContent]);
 };
