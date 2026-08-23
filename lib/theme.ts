@@ -106,6 +106,11 @@ export const primaryColors = {
   textGroupHover: 'group-hover:text-[#0050D6] group-focus-within:text-[#0050D6]',
   /** Progress-bar fill — brand blue drifting to indigo along the run. */
   barGradient: 'bg-gradient-to-r from-[#0064FF] to-[#4F46E5]',
+  /**
+   * Native checkbox/radio check color on user surfaces. Admin pipelines use
+   * `accent-[var(--pl-primary)]` (#2563EB) — a different blue; don't swap one for the other.
+   */
+  accent: 'accent-[#0064FF]',
 } as const;
 
 /**

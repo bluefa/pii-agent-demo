@@ -221,8 +221,9 @@ export const CredentialPickModal = ({
                   <th className={cn(idcStyles.table.headerCell, 'w-[40px]')}>
                     <span className="sr-only">선택</span>
                   </th>
-                  {/* 112px 는 8글자에서 끊겼다 — 사내 User ID 는 그보다 길다. 같은 값을 mono 로
-                      끊어 보여주는 Step 5 표의 Credential 칸(max-w-[160px])과 폭을 맞춘다. */}
+                  {/* 112px 는 8글자에서 끊겼다 — 사내 User ID 는 그보다 길어 160 으로 늘렸다.
+                      (한때 Step 5 표의 Credential 캡 160 과도 정렬돼 있었으나, 그 캡은
+                      max-w-full 로 걷혀 이 폭의 근거는 User ID 실측만 남는다.) */}
                   <SortHeader
                     label="User ID"
                     columnKey="userId"
@@ -288,7 +289,7 @@ export const CredentialPickModal = ({
                           checked={checked}
                           onChange={() => setPicked(row.name)}
                           aria-label={`${row.userId ? `${row.userId} ` : ''}${row.label}`}
-                          className="h-4 w-4 accent-[#0064FF]"
+                          className={cn('h-4 w-4', primaryColors.accent)}
                         />
                       </td>
                       {/* 세 칸은 같은 단이다. 어느 행이 골라졌는지는 라디오와 행 배경이 이미

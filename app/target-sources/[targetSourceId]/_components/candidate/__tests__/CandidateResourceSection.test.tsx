@@ -274,8 +274,9 @@ describe('CandidateResourceSection', () => {
         refreshProject={async () => {}}
       />,
     );
-    await screen.findByRole('heading', { level: 2, name: '연동 대상 DB 선택' });
-    expect(screen.getByText('아직 스캔한 적이 없어요')).toBeTruthy();
+    // findBy, not getBy-after-heading: the heading paints on mount, BEFORE the scan-state
+    // fetch resolves — anchoring on it raced the strip and flaked the full suite under load.
+    expect(await screen.findByText('아직 스캔한 적이 없어요')).toBeTruthy();
     expect(screen.getByRole('button', { name: '스캔 시작' })).toBeTruthy();
     expect(screen.queryByText(/마지막 스캔/)).toBeNull();
   });
@@ -299,9 +300,10 @@ describe('CandidateResourceSection', () => {
           refreshProject={async () => {}}
         />,
       );
-      await screen.findByRole('heading', { level: 2, name: '연동 대상 DB 선택' });
+      // Same race as the no-record test above: the heading paints on mount, before the
+      // scan-state fetch resolves — await the strip itself, then siblings are settled.
+      expect(await screen.findByText('아직 스캔한 적이 없어요')).toBeTruthy();
       expect(screen.queryByText(/마지막 스캔/)).toBeNull();
-      expect(screen.getByText('아직 스캔한 적이 없어요')).toBeTruthy();
       expect(screen.getByRole('button', { name: '스캔 시작' })).toBeTruthy();
     } finally {
       scanRenderProps.latestJob = null;

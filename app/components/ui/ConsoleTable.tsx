@@ -201,6 +201,10 @@ interface ConsoleTableProps {
   /** The `<tbody>` elements. One per row block: a tree renders parent and children as
    *  separate bodies, and `tbodySeam` keeps the hairline rhythm across them. */
   children: ReactNode;
+  /** While the rows' data is still in flight the TABLE says so (`aria-busy`) — the shell
+   *  owns the `<table>` element, so a caller that wants the attribute on the table itself
+   *  (where assistive tech expects it) passes the state instead of wrapping. */
+  busy?: boolean;
 }
 
 /**
@@ -240,7 +244,7 @@ interface ConsoleTableProps {
  * Frame and chrome (border, counter band, search, pagination) stay OUTSIDE: this shell
  * is the table, not the panel around it.
  */
-export const ConsoleTable = ({ columns, resize, children }: ConsoleTableProps) => {
+export const ConsoleTable = ({ columns, resize, children, busy }: ConsoleTableProps) => {
   const wrapRef = useRef<HTMLDivElement>(null);
   const tracerRef = useRef<HTMLDivElement>(null);
   const sinkKey = slackSinkKey(columns, resize);
@@ -304,6 +308,7 @@ export const ConsoleTable = ({ columns, resize, children }: ConsoleTableProps) =
       onMouseLeave={hideSeamTracer}
     >
       <table
+        aria-busy={busy}
         className={cn(
           'table-fixed',
           sinkKey !== null && 'w-full',

@@ -225,11 +225,11 @@ describe('IdcResourceTable — console column spec', () => {
     };
   };
 
-  it('step 5 combo holds the 1094 floor with 접속 주소 as the sink', () => {
+  it('step 5 combo holds the 1178 floor with 접속 주소 as the sink', () => {
     const { minWidth, widths } = shape(['cred', 'conn', 'logicalro', 'src']);
-    expect(minWidth).toBe('1094px');
-    // endpoint(auto sink) · port · dbType · cred · conn · 논리DB · 제외 · src
-    expect(widths).toEqual(['auto', '80px', '172px', '180px', '104px', '118px', '96px', '144px']);
+    expect(minWidth).toBe('1178px');
+    // endpoint(auto sink) · port · dbType · cred(264: real names render whole) · conn · 논리DB · 제외 · src
+    expect(widths).toEqual(['auto', '80px', '172px', '264px', '104px', '118px', '96px', '144px']);
   });
 
   it('step 2 combo holds 706, with the two once-undeclared columns now numbered', () => {
