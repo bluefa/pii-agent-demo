@@ -206,14 +206,23 @@ const demoResourceName = (
  */
 const isWireSeeded = (provider: Project['cloudProvider']): boolean => provider === 'AWS';
 
-// v15 shows DB Credential as Key1 / Key2 links. Preserve an explicit selection
-// when present, otherwise alternate Key1/Key2 by a stable hash.
+// v15 rendered DB Credential as Key1 / Key2 links and this fallback kept synthesizing
+// those tokens. The owner retired them (2026-08-23): 'Key1' exists nowhere in the
+// credential store, so the cell showed a value the picker modal (which lists the real
+// secrets) could not contain. A row without an explicit selection now borrows a REAL
+// store name — same engine where the store has one — keeping cell and modal consistent.
+// AWS stays null: its wire capture carries the truth, including genuinely empty cells.
 const resolveCredential = (
   provider: Project['cloudProvider'],
   resource: MockResource,
-): string | null =>
-  resource.selectedCredentialId ??
-  (isWireSeeded(provider) ? null : stableIndex(resource.id, 2) === 0 ? 'Key1' : 'Key2');
+): string | null => {
+  if (resource.selectedCredentialId) return resource.selectedCredentialId;
+  if (isWireSeeded(provider)) return null;
+  const store = mockData.getCredentials();
+  const sameEngine = store.filter((c) => c.databaseType === resource.databaseType);
+  const pool = sameEngine.length > 0 ? sameEngine : store;
+  return pool[stableIndex(resource.id, pool.length)]?.name ?? null;
+};
 
 // Default DB port by database type (demo). Confirmed-integration must surface a
 // non-null host/port; cloud seeds carry neither on the resource (only VM configs
