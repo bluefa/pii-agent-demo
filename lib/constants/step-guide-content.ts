@@ -62,16 +62,40 @@ const STEP_2_HTML =
   '</ul>';
 
 // ---------------------------------------------------------------------------
-// Step 3 — applying (shared)
+// Step 3 — applying (shared by AWS AUTO/MANUAL, Azure, GCP, IDC)
 // ---------------------------------------------------------------------------
 
+/**
+ * Owner copy, ported from Figma `step3-integration-dashboard`
+ * (CjvNbe87eHJt1IGBsPFmdI, node 2:111). One card in the design serves all
+ * integration types, which is why all five slots still share this constant.
+ *
+ * Three deliberate departures from the design, each forced:
+ *
+ * - The design's status label 「연동 환경 구성 중」 is dropped. There is no tag for a
+ *   dotted eyebrow in the guide allow-list, a second `<h4>` would give the card two
+ *   titles, and the step plate in the page header already states this step's name —
+ *   the design duplicated its own wizard badge.
+ * - The design's grey callout box becomes a plain `<p>`. The allow-list has no box
+ *   element; `<strong>` on the conditional lead gives the note a scannable head instead.
+ * - The design's fourth bullet is empty (a marker with no text) and is not ported.
+ *
+ * ⚠️ This copy overrides two of the editorial rules at the top of this file, on the
+ * owner's authority rather than by oversight: the escalation threshold is 2 business
+ * days here (not ~1 day), and it routes to 담당자 rather than the 협업 채널 card. It also
+ * promises an outbound contact ("개별 연락드릴 예정"), which no notification path in this
+ * app can currently deliver — the promise is the operations team's to keep, not the
+ * product's.
+ */
 const STEP_3_HTML =
-  '<h4>승인된 대상을 시스템에 반영하고 있어요</h4>' +
-  '<p>승인 완료 후 Agent 설치를 위한 사전 작업이 자동으로 진행돼요. 별도 조치는 필요 없어요.</p>' +
+  '<h4>담당자가 연동을 위한 환경을 구성하고 있어요</h4>' +
+  '<p>환경 구성이 완료되면 다음 단계로 넘어갑니다.</p>' +
+  '<p><strong>최초 연동이 아닌 재연동인 경우</strong>, 시스템 담당자의 조치가 필요할 수도 있어요' +
+  '(이전에 설치된 PII Agent 리소스 삭제 필요). 조치가 필요한 경우 담당자가 개별 연락드릴 예정입니다.</p>' +
   '<ul>' +
-  '<li>평균 5분 내외 소요되며, 완료되면 다음 단계로 넘어가요. 새로고침으로 진행 상황을 확인해 주세요.</li>' +
-  '<li>이 단계에서는 실제 데이터가 아닌 메타데이터만 동기화돼요.</li>' +
-  '<li>하루 이상 이 단계에 머물러 있으면 상단 <strong>협업 채널</strong>로 문의해 주세요.</li>' +
+  '<li>최초 연동일 경우, 평균 10분 이내 완료됩니다.</li>' +
+  '<li>재연동일 경우, 평균 1영업일 소요됩니다.</li>' +
+  '<li>2 영업일 이상 지연 시 담당자에게 문의해주세요.</li>' +
   '</ul>';
 
 // ---------------------------------------------------------------------------
