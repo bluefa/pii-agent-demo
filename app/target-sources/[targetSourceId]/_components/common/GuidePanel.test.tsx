@@ -234,13 +234,20 @@ describe('GuidePanel — the rail folds, it does not vanish', () => {
     expect(open?.getAttribute('class')).toContain('h-5');
     expect(container.querySelector('aside .bg-\\[\\#FFF8E1\\]')).toBeNull();
 
+    // ⛔ The whole mark, compared as markup — not `h-5` and a missing plate.
+    //
+    // This test used to check viewBox/stroke/fill on the OPEN glyph and then, once
+    // folded, only that SOMETHING amber with `h-5` was present. Swapping the strip's
+    // 전구 for the ChatIcon kept every one of those assertions true: same selector, same
+    // size, still no plate, wrong shape. That is the channel-mark bug again, on the other
+    // mark — so it gets the same answer, one `.toBe()` over identical markup.
+    const openMark = guideMark(container as HTMLElement)?.outerHTML;
+    expect(openMark).toBeTruthy();
+
     fireEvent.click(screen.getByRole('button', { name: '가이드 접기' }));
-    const folded = await waitFor(() => {
-      const el = container.querySelector('aside svg.text-\\[\\#F59E0B\\]');
-      expect(el).toBeTruthy();
-      return el as SVGElement;
-    });
-    expect(folded.getAttribute('class')).toContain('h-5');
+    await waitFor(() => expect(screen.getByRole('button', { name: '가이드 펼치기' })).toBeTruthy());
+
+    expect(guideMark(container as HTMLElement)?.outerHTML).toBe(openMark);
     expect(container.querySelector('aside .bg-\\[\\#FFF8E1\\]')).toBeNull();
   });
 
@@ -264,6 +271,60 @@ describe('GuidePanel — the rail folds, it does not vanish', () => {
     // has room for one word, the tooltip has room for the sentence.
     expect(strip.textContent).toBe('가이드');
     expect(strip.textContent).not.toContain('단계');
+  });
+
+  /**
+   * ⛔ The two fold controls live in the two halves of the rail, and a press unmounts the
+   * half it was pressed in — so the button that was just activated is destroyed by its own
+   * click. Without a hand-off the focus ring lands on `<body>` and a keyboard reader has
+   * to tab from the top of the page to fold the rail back.
+   *
+   * This was introduced by this PR: the old rail had no press-driven toggle at all, only
+   * `hidden … min-[1360px]:flex`.
+   */
+  it('hands focus to the surviving toggle, both ways', async () => {
+    render(<GuidePanel {...baseProps} jiraTicket={null} />);
+    await settled();
+
+    fireEvent.click(screen.getByRole('button', { name: '가이드 접기' }));
+    const expand = await waitFor(() => screen.getByRole('button', { name: '가이드 펼치기' }));
+    expect(document.activeElement).toBe(expand);
+
+    fireEvent.click(expand);
+    const collapse = await waitFor(() => screen.getByRole('button', { name: '가이드 접기' }));
+    expect(document.activeElement).toBe(collapse);
+  });
+
+  // ⛔ And nothing steals focus before a press. The rail resolves its own width on mount,
+  // which is a render the reader did not ask for — grabbing focus there would yank the
+  // caret out of whatever they were actually doing.
+  it('does not take focus on the first paint', async () => {
+    render(<GuidePanel {...baseProps} jiraTicket={null} />);
+    await settled();
+    expect(document.activeElement).toBe(document.body);
+  });
+
+  // The name says what the press DOES (「가이드 접기」); `aria-expanded` says where the rail
+  // IS. A control that only ever renames itself leaves AT with no state to report, and
+  // `aria-controls` is what ties the button to the region it folds.
+  it('reports its expanded state and names the region it controls', async () => {
+    const { container } = render(<GuidePanel {...baseProps} jiraTicket={null} />);
+    await settled();
+
+    const railId = container.querySelector('aside')?.id;
+    expect(railId).toBeTruthy();
+
+    const collapse = screen.getByRole('button', { name: '가이드 접기' });
+    expect(collapse.getAttribute('aria-expanded')).toBe('true');
+    expect(collapse.getAttribute('aria-controls')).toBe(railId);
+
+    fireEvent.click(collapse);
+    const expand = await waitFor(() => screen.getByRole('button', { name: '가이드 펼치기' }));
+    expect(expand.getAttribute('aria-expanded')).toBe('false');
+    // ⛔ It must still point at something that exists — the rail survives the fold, only
+    // its contents change, so a dangling `aria-controls` here would be a silent one.
+    expect(expand.getAttribute('aria-controls')).toBe(railId);
+    expect(container.querySelector(`#${railId}`)).toBeTruthy();
   });
 
   it('folds and unfolds on press, taking the rail body with it', async () => {
@@ -367,8 +428,17 @@ const folded = async (jiraTicket: Parameters<typeof GuidePanel>[0]['jiraTicket']
   return view;
 };
 
-/** The channel mark — the only `span.relative` in this rail, in either fold state. */
-const channelMark = (root: HTMLElement) => root.querySelector('aside span.relative');
+/**
+ * The rail's two zone marks, in DOM order: 채널 then 가이드.
+ *
+ * Order is not incidental — 채널 above 가이드 is asserted in its own test, because the
+ * strip mirrors the open panel's vertical order. Both zones render their glyph through
+ * `RailMark` in both fold states, so there are always exactly two.
+ */
+const marks = (root: HTMLElement) => Array.from(root.querySelectorAll('aside span.relative'));
+
+const channelMark = (root: HTMLElement) => marks(root)[0];
+const guideMark = (root: HTMLElement) => marks(root)[1];
 
 /** Its markup: glyph + state dot. ⛔ NOT the ink — that lives outside it, see `inkOn`. */
 const markIn = (root: HTMLElement) => channelMark(root)?.innerHTML;
@@ -492,6 +562,22 @@ describe('GuidePanel — the folded strip says what it is', () => {
     const empty = render(<GuidePanel {...baseProps} jiraTicket={null} />);
     await settled();
     expect(inkOn(empty.container as HTMLElement)).not.toBe(headInk);
+  });
+
+  // ⛔ "Once the zone head carries it" is half the claim, and it was the unasserted half:
+  // deleting the head's `RailMark` outright left this test green, because it only ever
+  // proved the ROW had lost its icon. A displacement needs both ends.
+  it('keeps the channel glyph on the zone head, which is what lets the row drop it', async () => {
+    const { container } = render(
+      <GuidePanel
+        {...baseProps}
+        jiraTicket={{ issueKey: 'PII-42', browseUrl: 'https://jira.example.com/browse/PII-42' }}
+      />,
+    );
+    await settled();
+
+    const head = channelMark(container as HTMLElement);
+    expect(head?.querySelector('svg')).toBeTruthy();
   });
 
   // ⛔ The head's glyph DISPLACES the row's — the same bubble twice inside one card, at

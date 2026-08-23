@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { ChevronLeftIcon, ChevronRightIcon } from '@/app/components/ui/icons';
 import { Tooltip } from '@/app/components/ui/Tooltip';
 import { RAIL_OPEN_MIN_WIDTH, serialiseRailCookie } from '@/lib/rail-preference';
@@ -15,6 +15,18 @@ export type RailCollapsed = boolean | null;
 export interface RailCollapse {
   collapsed: RailCollapsed;
   toggle: () => void;
+  /**
+   * How many times the rail has been folded or unfolded by a press this session.
+   *
+   * Hand it to every `RailToggle`. The two controls live in the two halves of the rail,
+   * and a press unmounts the half it was pressed in — so without this the focus ring
+   * lands on `<body>` every single time and a keyboard reader has to tab from the top of
+   * the page to find the control again. The surviving toggle uses the change to take the
+   * focus its twin just lost. ⛔ A counter, not a boolean: while `collapsed` is still
+   * `null` BOTH halves are mounted, so the first press remounts neither of them and a
+   * mount-time effect would never fire.
+   */
+  presses: number;
 }
 
 /**
@@ -37,14 +49,19 @@ export interface RailCollapse {
  */
 export const useRailCollapse = (initialCollapsed: RailCollapsed): RailCollapse => {
   const [collapsed, setCollapsed] = useState<RailCollapsed>(initialCollapsed);
+  const [presses, setPresses] = useState(0);
+  /** A press has spoken. ⛔ The width fallback must not answer over it. */
+  const chosen = useRef(false);
 
   useEffect(() => {
     // The server already knew; there is nothing for the client to resolve.
     if (initialCollapsed !== null) return;
-    const timer = window.setTimeout(
-      () => setCollapsed(window.innerWidth < RAIL_OPEN_MIN_WIDTH),
-      0,
-    );
+    const timer = window.setTimeout(() => {
+      // The timer was queued before the reader could press anything, but it fires after —
+      // and a press that landed in between is the answer, not a race to be overwritten.
+      if (chosen.current) return;
+      setCollapsed(window.innerWidth < RAIL_OPEN_MIN_WIDTH);
+    }, 0);
     return () => window.clearTimeout(timer);
   }, [initialCollapsed]);
 
@@ -52,7 +69,9 @@ export const useRailCollapse = (initialCollapsed: RailCollapsed): RailCollapse =
     // A press that lands before the effect runs still has to mean "the opposite of what
     // I am looking at", and what the reader is looking at is the width default.
     const next = !(collapsed ?? window.innerWidth < RAIL_OPEN_MIN_WIDTH);
+    chosen.current = true;
     setCollapsed(next);
+    setPresses((n) => n + 1);
     try {
       document.cookie = serialiseRailCookie(next, window.location.protocol === 'https:');
     } catch {
@@ -60,7 +79,7 @@ export const useRailCollapse = (initialCollapsed: RailCollapsed): RailCollapse =
     }
   }, [collapsed]);
 
-  return { collapsed, toggle };
+  return { collapsed, toggle, presses };
 };
 
 interface RailToggleProps {
@@ -68,6 +87,12 @@ interface RailToggleProps {
   direction: 'left' | 'right';
   /** What the press does — 「가이드 접기」. This is a glyph-only control, so it is its whole name. */
   label: string;
+  /** Is the rail open right now? The name says what the press DOES; this says where it IS. */
+  expanded: boolean;
+  /** `id` of the region this folds — the rail itself. */
+  controls: string;
+  /** `presses` from `useRailCollapse`. See the note on that field: this is the focus fix. */
+  presses: number;
   onClick: () => void;
 }
 
@@ -79,13 +104,33 @@ interface RailToggleProps {
  * open rail each render their own button behind a media query, so neither one is in a
  * position to ask what the current state is.
  */
-export const RailToggle = ({ direction, label, onClick }: RailToggleProps) => {
+export const RailToggle = ({
+  direction,
+  label,
+  expanded,
+  controls,
+  presses,
+  onClick,
+}: RailToggleProps) => {
   const Glyph = direction === 'left' ? ChevronLeftIcon : ChevronRightIcon;
+  const ref = useRef<HTMLButtonElement>(null);
+
+  // Take the focus the twin lost. A press unmounts the half it was pressed in, so without
+  // this the ring drops to `<body>` on every fold. ⛔ Keyed on `presses`, not on mount:
+  // out of the `null` state neither half remounts, and on the very first render `presses`
+  // is 0, so nothing steals focus from wherever the reader actually is.
+  useEffect(() => {
+    if (presses > 0) ref.current?.focus();
+  }, [presses]);
+
   return (
     <button
+      ref={ref}
       type="button"
       onClick={onClick}
       aria-label={label}
+      aria-expanded={expanded}
+      aria-controls={controls}
       title={label}
       className={railStyles.toggle}
     >

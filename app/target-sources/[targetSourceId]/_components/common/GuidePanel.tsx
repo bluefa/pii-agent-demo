@@ -28,6 +28,9 @@ import { safeBrowseUrl } from '@/lib/jira-ticket';
  */
 export type JiraTicketState = { issueKey: string; browseUrl: string | null } | null | 'error';
 
+/** The rail's region id — what both fold controls point `aria-controls` at. */
+const RAIL_ID = 'guide-rail';
+
 /**
  * Top-of-rail help card — the collab-channel entry point, mirroring
  * GET /target-sources/{id}/jira-ticket: mapped ticket → Jira link row (or a
@@ -173,7 +176,7 @@ export const GuidePanel = ({
   jiraTicket,
   initialCollapsed,
 }: GuidePanelProps) => {
-  const { collapsed, toggle } = useRailCollapse(initialCollapsed);
+  const { collapsed, toggle, presses } = useRailCollapse(initialCollapsed);
 
   /**
    * What the folded rail says about the collab channel. The card itself is the escape
@@ -237,6 +240,10 @@ export const GuidePanel = ({
 
   return (
     <aside
+      /* The region both toggles name in `aria-controls`. Static, because there is exactly
+         one guide rail on the page — the panel that used to mount per step now mounts
+         once, which is what made a single id possible. */
+      id={RAIL_ID}
       /* One name for the panel, and it is the one on the strip. It used to be called
          three things — this label, 「가이드 펼치기」 on the button, and 「가이드 / 진행
          내역」 on the tabs — which is fine until the folded rail has to carry ONE word. */
@@ -263,7 +270,14 @@ export const GuidePanel = ({
           without the rail moving — which is the whole point of having folded it. */}
       {collapsed !== false && (
         <div className={cn(stripShown, railStyles.strip)}>
-          <RailToggle direction="left" label="가이드 펼치기" onClick={toggle} />
+          <RailToggle
+            direction="left"
+            label="가이드 펼치기"
+            expanded={false}
+            controls={RAIL_ID}
+            presses={presses}
+            onClick={toggle}
+          />
           <span aria-hidden className={railStyles.divider} />
           <RailEntry
             icon={<ChatIcon className="h-5 w-5" />}
@@ -336,7 +350,14 @@ export const GuidePanel = ({
               {/* The 32px hit box centres a 16px glyph, so pulling the box 8px past the
                   card's 12px padding lands the GLYPH's edge on it. Align the ink, not the box. */}
               <span className="-mr-2 shrink-0">
-                <RailToggle direction="right" label="가이드 접기" onClick={toggle} />
+                <RailToggle
+                  direction="right"
+                  label="가이드 접기"
+                  expanded
+                  controls={RAIL_ID}
+                  presses={presses}
+                  onClick={toggle}
+                />
               </span>
             </div>
             {/* 4, not 8. The label's ink stops 4px above the 32px control row it shares,
@@ -360,7 +381,12 @@ export const GuidePanel = ({
                 two marks. Dropping it also puts the 안내박스 back to being the rail's only
                 fill, which is the whole of 시안 E. */}
             <div className="flex shrink-0 items-center gap-2 p-3 pb-2">
-              <GuideIcon className={cn('h-5 w-5 shrink-0', railStyles.zoneMark)} />
+              {/* `RailMark`, like the channel head — the strip renders its 전구 through the
+                  same component, so passing the icon bare here is what makes "one mark in
+                  both fold states" a structural fact rather than two files agreeing by
+                  eye. It also supplies the `shrink-0` this used to carry itself, which was
+                  the one class that stopped the two sides being identical markup. */}
+              <RailMark icon={<GuideIcon className={cn('h-5 w-5', railStyles.zoneMark)} />} />
               <span className={railStyles.zoneLabel}>{guideZoneLabel}</span>
             </div>
             <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-3">
