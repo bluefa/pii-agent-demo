@@ -10,11 +10,11 @@
  *
  * Rule: every component file that RENDERS a console-grammar table AND mounts
  * <Pagination> must pass `size="md"` on every mount. Rendering, not importing —
- * several legacy files (IdcResourceTable, ConnectionTestCard, CloudReqApprovalModal)
- * import cell helpers from WaitingApprovalTable while their own table is still
- * pre-console; their pagers stay `sm` until LIN-99/100 migrate them, at which
- * point the new render tag pulls them into this scan automatically — pass the
- * prop then, do not loosen the scan.
+ * legacy files (e.g. ConnectionTestCard, CloudReqApprovalModal) import cell
+ * helpers from WaitingApprovalTable while their own table is still pre-console;
+ * their pagers stay `sm` until LIN-99 migrates them, at which point the new
+ * render tag pulls them into this scan automatically — pass the prop then, do
+ * not loosen the scan. (LIN-100 already pulled both IdcResourceTables in.)
  */
 import { readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
@@ -23,7 +23,13 @@ import { describe, expect, it } from 'vitest';
 const root = path.resolve(__dirname, '../../..');
 
 /** Rendering any of these marks the file as a console-grammar table caller. */
-const CONSOLE_TABLE_TAGS = ['<ConsoleTable', '<WaitingApprovalTable', '<CandidateResourceTable'];
+const CONSOLE_TABLE_TAGS = [
+  '<ConsoleTable',
+  '<WaitingApprovalTable',
+  '<CandidateResourceTable',
+  // LIN-100: both same-named IDC tables (user-side and admin queue) are console now.
+  '<IdcResourceTable',
+];
 
 const tsxFilesUnder = (dir: string): string[] =>
   readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {

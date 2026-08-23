@@ -82,6 +82,7 @@ export function ConfirmedIdcTable({
 
       {filtered.length > 0 && (
         <Pagination
+          size="md"
           page={paged.page}
           pageSize={list.pageSize}
           totalCount={filtered.length}

@@ -455,9 +455,58 @@ Step 4 와 admin `plain` 은 §10, Step 1(`CandidateResourceTable`)은 §11 에�
   4px(의사요소는 소유자로 히트테스트된다) — 총 8px 유지, 점등 `after:` 가이드는 리터럴
   그대로(라운드 6 기록·플레인 핸들과의 구분 마커 불변).
 
+## 12. IDC 랜딩 (LIN-100, 2026-08-23)
+
+공유 `IdcResourceTable`(user)과 admin queue 의 동명 사본, 두 표가 콘솔 셸로 이관됐다.
+조합별 하한(원장 §2 그대로, 전부 실측 재확인):
+
+| 조합 | 화면 | Σ | 실측 (판 990) |
+| -- | -- | -- | -- |
+| `[excl]` | IDC step 2 (TS 1021) | **706** | 표 990, scrollDelta 0 |
+| `[src,excl]` | step 3 (1022) — src 4번째 | **850** | 표 990, 0 |
+| `[cred,conn,logicalro,src]` | step 5 (1024) | **1094** | 표 1094 유지, **가로 스크롤 104px** |
+| `[logicalro]` | 완료 승인 모달 (판 710) | **666** | 표 710, 0 — **모달은 스크롤 불요 판정** |
+| `[logicalro,src]` | steps 6·7 (1025) | **810** | 표 990, 0 |
+| admin 8열 | queue 요청 (1031, 판 1420) | **1070** | 접속 265(%) · 사유 sink 427 |
+| admin 5열 (확정) | ops confirm (1026) | **706** | 접속 sink |
+
+결정과 근거:
+
+- **flex 는 접속 주소 하나 (단일 flex 예외, 원장 각주 ³ 종결)** — 이 표에서 행마다
+  임의 길이인 열은 호스트/FQDN 뿐이다. Database Type 을 둘째로 세우면 대부분의 행에서
+  짧은 엔진 라벨 열이 sink 가 되어 §9(b)(픽셀이 값을 해야 한다)가 재발한다. 비용은
+  접속 주소 자체 핸들이 fill 폭에서 soft-floor 하는 것(Cloudscape 동작, ConsoleTable
+  문서화된 fallback).
+- **admin 사본은 별도 컴포넌트 유지** — 행 타입(RequestResourceRow vs IdcResourceView)·
+  셀 모듈·NLB/사용 서비스 열·의심 그룹 커넥터가 전부 다르다. 문법(셸)만 공유한다
+  (§11 의 "표 하나로 합치기 기각" 판례와 같은 이유). admin 은 **접속(%) + 사유(sink)**
+  flex 쌍 — 이 표의 원래 slack 주인이 사유였고, 판정 열이 내려간 확정 변형에서는 접속
+  단일 flex 로 자연 강등된다.
+- **스토리지**: user 스텝 표면 공유 `pii:colw:v1:idc-resources`(단계 간 정체성 열 정렬이
+  이 표의 창립 불만), admin 두 표면 공유 `admin-idc-resources`. **승인 모달은 ephemeral**
+  — 넓은 화면에서 저장된 폭이 710px 판을 강제 스크롤시키는 것을 막는다.
+- **오너 삭제 발주 이행**: `fw`·`health` 열(타입·JSX·배지)과 `IdcConfirmedResourcesPanel`
+  branch B(`['cred','logicalro','src']`, 도달 불가) 제거. `IdcHealthBadge` 는 호출자가
+  0 이 되어 함께 삭제. `IdcFirewallBadge` 는 IdcFirewallModal 이 계속 쓴다.
+- **원장 교정 랜딩**: 연동 논리 DB 120→118 · 무선언 2열(제외 사유 142·연동 제외 96) ·
+  admin 접속 260→**200**·dbType 170→**172**·출발지 160→**144**.
+- **셀 폭 이중 모드 확장**: user `IdcDbTypeCell` SID 캡 170→`sidMaxWidthClass`(콘솔은
+  max-w-full), admin idcCells 3종(접속 200·SID 150·출발지 150)도 같은 패턴. 레거시
+  소비자(IdcTargetListTable·IdcLoadRequestModal·ops TC 탭)는 px 기본값 유지 — 두 모드
+  공존은 그 표들이 콘솔로 올 때 끝난다.
+- **셸 결함 수정: 마지막 핸들이 표 밖 4+1px 를 차지했다** — 히트박스 스트래들의
+  `before:` 스트립(4px)과 점등 가이드 `after:-right-px`(1px)가 마지막 th 의 바깥
+  모서리를 넘어, overflow-x-auto 판이 이를 콘텐츠로 세어 **모든 콘솔 표에 4px 유령
+  가로 스크롤**이 있었다(scrollWidth 994 vs 990 실측). 마지막 열 핸들만
+  `before:hidden after:!right-0` — `!` 는 토큰의 오프셋과 같은 속성을 다투는데 승자를
+  cn 순서가 아니라 Tailwind emit 순서가 정하기 때문이다. 내부 seam 의 스트래들은 불변.
+- 콘솔 이관과 함께 이 표들 위 페이저 전부 `size="md"`(14px 고정 규칙) — 가드 스캔에
+  `<IdcResourceTable` 렌더 태그 추가로 두 동명 표의 호출자가 자동 편입됐다.
+
 ---
 
 측정 환경: Chrome, 창 1710×, dPR 2, dev 서버 `/pass/target-sources/1012`,
 판 폭 990px (브라우저 1710 − 좌우 레일 720). §10 실측은 `/pass/target-sources/1008`(AWS
 Step 4, 판 716)·`1023`(IDC Step 4)·admin ops `1008?tab=confirm`(판 1116). §11 실측은
-`/pass/target-sources/1006`(AWS Step 1, 판 990).
+`/pass/target-sources/1006`(AWS Step 1, 판 990). §12 실측은 IDC `1021`/`1022`/`1024`/
+`1025`(판 990)·완료 승인 모달(판 710)·admin queue `1031`(판 1420)·ops `1026?tab=confirm`.

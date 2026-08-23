@@ -21,6 +21,8 @@
 'use client';
 
 import type { ReactElement } from 'react';
+import { ConsoleTable, type ConsoleTableColumn } from '@/app/components/ui/ConsoleTable';
+import { useColumnResize } from '@/app/components/ui/useColumnResize';
 import { cn, idcStyles, textColors, verdictRail } from '@/lib/theme';
 import { getDatabaseShortLabel } from '@/app/components/ui/DatabaseIcon';
 import {
@@ -39,6 +41,7 @@ import {
   IdcSourceIpCell,
 } from '@/app/admin/pipelines/queue/requests/_components/idcCells';
 import type { SuspectMark } from '@/app/admin/pipelines/queue/requests/_duplicateAddress';
+import { IDC_SOURCE_LABEL } from '@/lib/constants/idc';
 import { idcAddressKind } from '@/app/lib/api/task-queue-requests';
 import type { RequestResourceRow } from '@/app/lib/api/task-queue-requests';
 
@@ -81,6 +84,19 @@ export interface IdcResourceTableProps {
   servicesDisabledReason?: string;
 }
 
+/**
+ * LIN-96 ledger floors (owner-approved 2026-08-23), corrections landed with the console
+ * migration: 접속 주소 260 → 200, Database Type 170 → 172, 출발지 160 → 144, and the
+ * previously elastic 제외 사유 gets its number (142). Full set Σ = 200+172+80+112+110+
+ * 144+110+142 = 1070; the 확정 variant (no verdict pair, no services) Σ = 706.
+ *
+ * Flex pair = 접속 주소 + 제외 사유, so the sink is the reason column when it exists —
+ * the same slack owner this table always had ("a sentence is the one cell that can spend
+ * leftover width"), now as the console sink. Without the verdict pair the endpoint is the
+ * single flex and stays its own sink (ConsoleTable's documented fallback).
+ */
+const ADMIN_IDC_FLEX_KEYS = ['endpoint', 'reason'] as const;
+
 // A text button, not a control cluster: opening the assignment is one act, and the
 // cell's job is to say what the row is assigned to right now. The underline stays on —
 // hover-only left a column of plain blue text saying nothing about being clickable
@@ -106,64 +122,31 @@ export function IdcResourceTable({
 }: IdcResourceTableProps): ReactElement {
   const { table } = idcStyles;
 
+  // Cross-surface store: this component serves the queue request detail AND the ops
+  // confirm tab (ConfirmedIdcTable), whose column sets differ only by the gated columns —
+  // shared keys mean the identity columns hold one width across both.
+  const resize = useColumnResize({
+    clampToContent: true,
+    storageKey: 'pii:colw:v1:admin-idc-resources',
+    ephemeralKeys: ADMIN_IDC_FLEX_KEYS,
+  });
+  const columns: ConsoleTableColumn[] = [
+    { key: 'endpoint', label: '접속 주소', width: 200, flex: true },
+    { key: 'dbType', label: 'Database Type', width: 172 },
+    { key: 'port', label: 'Port', width: 80 },
+    ...(showVerdict ? [{ key: 'target', label: '요청 대상 여부', width: 112 }] : []),
+    { key: 'nlb', label: 'NLB 배정', width: 110 },
+    { key: 'src', label: IDC_SOURCE_LABEL, width: 144, head: <SourceIpHeader /> },
+    ...(onShowServices ? [{ key: 'services', label: '사용 서비스', width: 110 }] : []),
+    ...(showVerdict ? [{ key: 'reason', label: '제외 사유', width: 142, flex: true }] : []),
+  ];
+
   return (
     // No frame of its own — the toolbar above owns the rounded top and the pager below
-    // the bottom, exactly as step 1's list table does (CONNECTED_FRAME).
+    // the bottom, exactly as step 1's list table does (CONNECTED_FRAME). The horizontal
+    // scroll escape lives inside ConsoleTable's own wrapper.
     <div className={CONNECTED_FRAME}>
-      <div className="overflow-x-auto">
-      <table className="w-full text-[14px]">
-        <thead className={table.approvalHeaderChrome}>
-          {/* Identity first, then its attributes, then the decision — the same reading
-              order as the cloud table and step 1. An IDC row's identity is its host/IP,
-              so 접속 주소 leads; Database Type carries the SID underneath. */}
-          <tr>
-            {/* Each column is sized to its longest real value; only 제외 사유 is elastic,
-                because a sentence is the one cell that can spend leftover width. The page
-                is layout.contentFluid (no max-width), so the table gets viewport − 328px:
-                these seven fixed columns total 1002, leaving ~230px for the reason at
-                1512 and ~590px at 1920 (the section carries no card, so there is no
-                px-6 to subtract). 접속 주소 caps its text at 220px — a long FQDN
-                truncates to its tip either way, and the tip carries the full value. */}
-            <th className={cn(table.approvalHeaderCell, 'w-[260px]')}>접속 주소</th>
-            <th className={cn(table.approvalHeaderCell, 'w-[170px]')}>Database Type</th>
-            {/* Beside the engine it belongs to: which port a DB answers on is an
-                attribute of the engine, not of the address. */}
-            <th className={cn(table.approvalHeaderCell, 'w-[80px]')}>Port</th>
-            {/* Back as a real column: with the row's other cells sized to their content
-                there was width to spare, and the verdict is the one thing the admin is
-                actually deciding — worth a header rather than an sr-only aside. */}
-            {/* 112 is step 1's own width for this column — the pill, not a text label,
-                is what has to fit. */}
-            {showVerdict && (
-              <th className={cn(table.approvalHeaderCell, 'w-[112px] whitespace-nowrap')}>
-                요청 대상 여부
-              </th>
-            )}
-            {/* NLB 배정 and 제외 사유 stay separate: they never co-occur in a row, but
-                they answer different questions and one shared header could only name
-                both. 110px is what a text button needs — the select it replaced took
-                290. */}
-            <th className={cn(table.approvalHeaderCell, 'w-[110px]')}>NLB 배정</th>
-            {/* Adjacent to the assignment, because a source IP is an attribute of the NLB
-                the target was assigned to — reading NLB #3 and the IPs it answers from
-                should not cross the table. Stacking them in one cell read worse:
-                two values of different kinds in one column lost the scan down either one.
-                Step 1's own header, imported rather than restated: the column needs the
-                "접근 허용 필요" note here too — the admin approving the request is the
-                one who has to know the rule the service owner was shown. */}
-            <th className={cn(table.approvalHeaderCell, 'w-[160px]')}>
-              <SourceIpHeader />
-            </th>
-            {/* The same 연동 대상 can be consumed by 20–30 services, each on its own NLB
-                — a fan-out no cell can hold. The column carries the way in, not the list.
-                Named for what is behind it (the consuming services), not 배정: that word
-                belongs to the NLB 배정 column, which is the one the admin can change. */}
-            {onShowServices && (
-              <th className={cn(table.approvalHeaderCell, 'w-[110px]')}>사용 서비스</th>
-            )}
-            {showVerdict && <th className={table.approvalHeaderCell}>제외 사유</th>}
-          </tr>
-        </thead>
+      <ConsoleTable columns={columns} resize={resize}>
         <tbody className={table.body}>
           {rows.map((row, index) => {
             // Identity first: the list filters and pages, so a positional key would let
@@ -204,6 +187,7 @@ export function IdcResourceTable({
                   <td
                     className={cn(
                       table.approvalCell,
+                      table.consoleCell,
                       row.integrationCategory === 'INSTALL_INELIGIBLE' && verdictRail.ineligible,
                     )}
                   >
@@ -211,13 +195,15 @@ export function IdcResourceTable({
                       hosts={row.connectTargets}
                       kind={idcAddressKind(row)}
                       tone={textColors.secondary}
+                      maxWidthClass="max-w-full"
                     />
                   </td>
-                  <td className={table.approvalCell}>
+                  <td className={cn(table.approvalCell, table.consoleCell)}>
                     <IdcDbTypeCell
                       label={dbLabel}
                       oracleSid={row.oracleSid}
                       tone={textColors.secondary}
+                      sidMaxWidthClass="max-w-full"
                     />
                   </td>
                   {/* 0 is the adapter's "no port in the payload" value, not a port — step
@@ -250,7 +236,7 @@ export function IdcResourceTable({
                   <td className={table.approvalCell} />
                   {onShowServices && <td className={table.approvalCell} />}
                   {showVerdict && (
-                    <td className={cn(table.approvalCell, 'text-sm')}>
+                    <td className={cn(table.approvalCell, table.consoleCell, 'text-sm')}>
                       <ReasonChip row={row} />
                     </td>
                   )}
@@ -261,15 +247,16 @@ export function IdcResourceTable({
 
             return (
               <tr key={rowKey} className={cn(ROW_BASE, ROW_TARGET)}>
-                <td className={cn(table.approvalCell, connector)}>
+                <td className={cn(table.approvalCell, table.consoleCell, connector)}>
                   <IdcEndpointCell
                     hosts={row.connectTargets}
                     kind={idcAddressKind(row)}
                     suspect={mark}
+                    maxWidthClass="max-w-full"
                   />
                 </td>
-                <td className={table.approvalCell}>
-                  <IdcDbTypeCell label={dbLabel} oracleSid={row.oracleSid} />
+                <td className={cn(table.approvalCell, table.consoleCell)}>
+                  <IdcDbTypeCell label={dbLabel} oracleSid={row.oracleSid} sidMaxWidthClass="max-w-full" />
                 </td>
                 <td
                   className={cn(
@@ -309,8 +296,8 @@ export function IdcResourceTable({
                   )}
                 </td>
                 {/* Right of the assignment that produces it. */}
-                <td className={table.approvalCell}>
-                  <IdcSourceIpCell sourceIps={row.sourceIps} />
+                <td className={cn(table.approvalCell, table.consoleCell)}>
+                  <IdcSourceIpCell sourceIps={row.sourceIps} maxWidthClass="max-w-full" />
                 </td>
                 {onShowServices && (
                   <td className={table.approvalCell}>
@@ -335,8 +322,7 @@ export function IdcResourceTable({
             );
           })}
         </tbody>
-      </table>
-      </div>
+      </ConsoleTable>
     </div>
   );
 }

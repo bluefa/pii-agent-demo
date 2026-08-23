@@ -204,3 +204,53 @@ describe('IdcResourceTable — step-6 logicalro', () => {
     expect(screen.getByText('미설정')).toBeTruthy();
   });
 });
+
+/**
+ * Console shape (LIN-100) — the LIN-96 ledger's per-combination sums, pinned. The floors
+ * live on the table's minWidth (a table-fixed cell ignores min-width), the single flex
+ * column (접속 주소) is the sink and renders `auto`, and every other column renders its
+ * ledger px. A sum drifting here means a width changed without re-checking every surface.
+ */
+describe('IdcResourceTable — console column spec', () => {
+  const shape = (cols: React.ComponentProps<typeof IdcResourceTable>['cols']) => {
+    const { container } = render(
+      <IdcResourceTable resources={[view({ resourceId: 'r1' })]} cols={cols} connected />,
+    );
+    const table = container.querySelector('table') as HTMLTableElement;
+    return {
+      minWidth: table.style.minWidth,
+      widths: Array.from(container.querySelectorAll('thead th')).map(
+        (th) => (th as HTMLElement).style.width,
+      ),
+    };
+  };
+
+  it('step 5 combo holds the 1094 floor with 접속 주소 as the sink', () => {
+    const { minWidth, widths } = shape(['cred', 'conn', 'logicalro', 'src']);
+    expect(minWidth).toBe('1094px');
+    // endpoint(auto sink) · port · dbType · cred · conn · 논리DB · 제외 · src
+    expect(widths).toEqual(['auto', '80px', '172px', '180px', '104px', '118px', '96px', '144px']);
+  });
+
+  it('step 2 combo holds 706, with the two once-undeclared columns now numbered', () => {
+    const { minWidth, widths } = shape(['excl']);
+    expect(minWidth).toBe('706px');
+    // 제외 사유 142 — under table-fixed an undeclared column is a bug, not "auto slack".
+    expect(widths).toEqual(['auto', '80px', '172px', '112px', '142px']);
+  });
+
+  it('steps 6·7 combo holds 810 and the 승인 모달 combo 666', () => {
+    expect(shape(['logicalro', 'src']).minWidth).toBe('810px');
+    expect(shape(['logicalro']).minWidth).toBe('666px');
+  });
+
+  it('fw/health are gone from the vocabulary (owner deletion order)', () => {
+    // Type-level: 'fw' is no longer an IdcTableCol — this line failing to compile is the
+    // real assertion; the render check below proves no stray header survived.
+    render(
+      <IdcResourceTable resources={[view({ resourceId: 'r1' })]} cols={['excl']} connected />,
+    );
+    expect(screen.queryByText('접근 허용 상태')).toBeNull();
+    expect(screen.queryByText('Status')).toBeNull();
+  });
+});

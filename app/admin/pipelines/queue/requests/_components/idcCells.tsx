@@ -97,11 +97,15 @@ export function IdcEndpointCell({
   kind,
   tone,
   suspect,
+  maxWidthClass = 'max-w-[200px]',
 }: {
   hosts: readonly string[];
   /** null for non-IDC rows — the badge is simply omitted. */
   kind?: IdcKind | null;
   tone?: string;
+  /** Address-line cap — HostCell's two width modes: the px default is the column control
+   *  in the legacy auto tables (ops TC tab), console callers pass `max-w-full`. */
+  maxWidthClass?: string;
   /**
    * '같은 데이터베이스 의심' 표시 (@see _duplicateAddress). 배지는 구분 배지와 같은 줄에,
    * 짝의 주소는 주소 아래에 선다 — 새 열도 표 머리글도 아니고 행의 정체성에 붙는다.
@@ -149,7 +153,7 @@ export function IdcEndpointCell({
                   : cn(tone ?? textColors.primary, primaryColors.textGroupHover)
               }
               textClassName="text-[14px]"
-              maxWidthClass="max-w-[200px]"
+              maxWidthClass={maxWidthClass}
             />
             {collapsible && i === shown.length - 1 && (
               <button
@@ -180,10 +184,13 @@ export function IdcDbTypeCell({
   label,
   oracleSid,
   tone,
+  sidMaxWidthClass = 'max-w-[150px]',
 }: {
   label: string;
   oracleSid: string | null;
   tone?: string;
+  /** SID cap — same two width modes as `IdcEndpointCell.maxWidthClass`. */
+  sidMaxWidthClass?: string;
 }): ReactElement {
   return (
     <span className="flex flex-col items-start gap-1">
@@ -199,7 +206,7 @@ export function IdcDbTypeCell({
             // identifier the admin matches against, and tertiary at the row's size would
             // leave it the faintest text there.
             textClassName="text-[14px] font-medium"
-            maxWidthClass="max-w-[150px]"
+            maxWidthClass={sidMaxWidthClass}
           />
         </span>
       )}
@@ -211,9 +218,12 @@ export function IdcDbTypeCell({
 export function IdcSourceIpCell({
   sourceIps,
   tone,
+  maxWidthClass = 'max-w-[150px]',
 }: {
   sourceIps: readonly string[];
   tone?: string;
+  /** Same two width modes as `IdcEndpointCell.maxWidthClass`. */
+  maxWidthClass?: string;
 }): ReactElement | null {
   // Blank, not an em-dash: the BDC assigns source IPs to integration targets only, so
   // an empty value means the row is not one — the same reason a 대상 row's 제외 사유
@@ -222,7 +232,7 @@ export function IdcSourceIpCell({
   return (
     <span className="flex flex-col gap-0.5">
       {sourceIps.map((ip) => (
-        <HostCell key={ip} value={ip} label={IDC_SOURCE_LABEL} tone={tone} maxWidthClass="max-w-[150px]" />
+        <HostCell key={ip} value={ip} label={IDC_SOURCE_LABEL} tone={tone} maxWidthClass={maxWidthClass} />
       ))}
     </span>
   );
