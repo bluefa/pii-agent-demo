@@ -63,10 +63,19 @@ const CATEGORY_TOOLTIP_CONTENT = (
 
 /**
  * Step-1 floors, from the LIN-96 ledger §1·§2 — this table QUOTES them, it does not choose:
- * checkbox 40 (the old `w-10`, 선언 재사용) · name 250 (심사 문맥, the steps-2·3 value) ·
+ * checkbox 52 (실측 — see below) · name 250 (심사 문맥, the steps-2·3 value) ·
  * id 186 · dbType 142 · region 156 · reason 160 (편집 열: the floor keeps the column from
  * shrinking under the 「사유 입력」 link; the chip itself cuts at the column boundary — see
  * `REASON_CLAMP`).
+ *
+ * `select` is 52 by MEASUREMENT, not the legacy `w-10` declaration: in the old auto-layout
+ * table that 40 was never obeyed — the column rendered its min-content, `approvalCell`'s
+ * 18px padding + 16px box + 18px = 52 — and the tier family's absolute px are built on the
+ * real 52: `RdsInstancePanel`'s pl-[106px] is 52+30+24, and the instance band's trunk
+ * (`-left-[38px]`) drops exactly from the fold chevron's center at 52+16. Landing 40 pulled
+ * everything right of the gutter 12px left of those constants, so an expanded cluster's tree
+ * line visibly missed its chevron (user report, 2026-08-23). Ledger method (a) 실측 beats
+ * (b) 선언 재사용 whenever the declaration never actually governed.
  *
  * `category` (설치 구분) was the ledger's one [실측→LIN-98] hole. Measured 2026-08-23 on
  * TS 1006: the vocabulary is closed (`CATEGORY_LABELS` + the 설치 불가 guide button), the
@@ -74,10 +83,10 @@ const CATEGORY_TOOLTIP_CONTENT = (
  * header ("설치 구분" + help icon) is 62.5. 68 + approvalCell's 36px padding + slack = 112 —
  * the 요청 대상 여부 value class, which carries the same kind of short verdict word.
  *
- * Sums: edit 40+250+186+142+156+112+160 = 1046 · read-only 250+186+142+156+112 = 846.
+ * Sums: edit 52+250+186+142+156+112+160 = 1058 · read-only 250+186+142+156+112 = 846.
  */
 const CANDIDATE_COLUMN_WIDTHS = {
-  select: 40,
+  select: 52,
   name: 250,
   id: 186,
   dbType: 142,
@@ -321,7 +330,9 @@ export const CandidateResourceTable = ({
                     showCheckboxColumn ? (
                       // No group-level checkbox: selecting a whole Athena family is a bulk
                       // action nobody asked for, and 제외 사유 is required per resource.
-                      <td className={cn(idcStyles.table.approvalCell, 'w-10')} />
+                      // No width class (the header spec owns the column under table-fixed);
+                      // data-static-col keeps the gutter boundary-free (`consoleGrid`).
+                      <td data-static-col="" className={idcStyles.table.approvalCell} />
                     ) : undefined
                   }
                   // Resource Name · Resource ID · Database Type · Region · 설치 구분, plus

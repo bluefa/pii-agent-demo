@@ -1063,7 +1063,9 @@ describe('WaitingApprovalTable', () => {
       const table = screen.getByText('covered-name').closest('table');
       expect(table?.className).toContain('linear-gradient(to_left');
       expect(table?.className).not.toContain('td+td');
-      expect(table?.className).toContain('[&_th+th]:border-l');
+      // Rails persist between DATA headers; the :not() carve-out is LIN-98's structural
+      // gutter (a `data-static-col` th ends no-boundary, so the th after it draws none).
+      expect(table?.className).toContain('[&_th:not([data-static-col])+th]:border-l');
     });
 
     it('mounts the console shell for the confirmed variant', () => {

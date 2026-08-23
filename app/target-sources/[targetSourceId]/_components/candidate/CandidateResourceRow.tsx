@@ -231,10 +231,12 @@ export const CandidateResourceRow = ({
         onMouseLeave={rail?.onMouseLeave}
       >
         {showCheckboxColumn && (
+          // data-static-col: a structural gutter carries no boundary — no rail after its
+          // header, no shadow band on this cell (`consoleGrid`). Width is the spec's job.
           <td
+            data-static-col=""
             className={cn(
               idcStyles.table.approvalCell,
-              'w-10',
               verdictRailClass(dimmed, isIneligible),
             )}
             onClick={(event) => event.stopPropagation()}
@@ -244,7 +246,11 @@ export const CandidateResourceRow = ({
               checked={isSelected}
               disabled={isIneligible}
               onChange={(event) => handleCheckboxChange(event.target.checked, event.currentTarget)}
-              className={cn('h-4 w-4 rounded disabled:cursor-not-allowed disabled:opacity-50', statusColors.pending.border, primaryColors.text, primaryColors.focusRing)}
+              // `block`: an inline checkbox rides its line box's BASELINE, which floats the
+              // box ~2.5px above the row's middle — the line the name cell puts its text on
+              // (measured 29.4 vs 32.0 on a 64px row). A block box has no baseline seat, so
+              // the cell's vertical-align:middle centers it on that same line.
+              className={cn('block h-4 w-4 rounded disabled:cursor-not-allowed disabled:opacity-50', statusColors.pending.border, primaryColors.text, primaryColors.focusRing)}
             />
           </td>
         )}

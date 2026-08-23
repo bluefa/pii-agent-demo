@@ -483,20 +483,21 @@ describe('CandidateResourceTable — RDS cluster instances', () => {
 
 /**
  * The console-table spec (LIN-98). Floors are the LIN-96 ledger's — the assertions quote them
- * (select 40 · name 250 · id 186 · dbType 142 · region 156 · category 112 [measured on TS
- * 1006] · reason 160). name+id flex; id, the declaration-order last, is the sink and renders
- * `auto`; name renders its floor's share of the sum to 4 decimals (CSSOM re-serializes
- * `style.width`, dropping trailing zeros — neither shape's share has one).
+ * (select 52 [the legacy column's real min-content, 18+16+18 — the px the RdsInstancePanel
+ * tier constants are built on] · name 250 · id 186 · dbType 142 · region 156 · category 112
+ * [measured on TS 1006] · reason 160). name+id flex; id, the declaration-order last, is the
+ * sink and renders `auto`; name renders its floor's share of the sum to 4 decimals (CSSOM
+ * re-serializes `style.width`, dropping trailing zeros — neither shape's share has one).
  */
 describe('CandidateResourceTable — console spec', () => {
-  it('declares the edit shape: minWidth 1046, name 23.9006%, id auto', () => {
+  it('declares the edit shape: minWidth 1058, name 23.6295%, id auto', () => {
     render(<CandidateResourceTable {...defaultProps} />);
     const table = required(screen.getAllByRole('table')[0], 'the candidate table');
-    expect((table as HTMLElement).style.minWidth).toBe('1046px');
+    expect((table as HTMLElement).style.minWidth).toBe('1058px');
     const widths = [...table.querySelectorAll('thead th')].map(
       (th) => (th as HTMLElement).style.width,
     );
-    expect(widths).toEqual(['40px', '23.9006%', 'auto', '142px', '156px', '112px', '160px']);
+    expect(widths).toEqual(['52px', '23.6295%', 'auto', '142px', '156px', '112px', '160px']);
   });
 
   it('declares the read-only shape: minWidth 846, no decision columns', () => {
@@ -518,6 +519,22 @@ describe('CandidateResourceTable — console spec', () => {
     expect(screen.queryByRole('separator', { name: '선택 열 너비 조절' })).toBeNull();
     const selectTh = screen.getAllByRole('columnheader')[0];
     expect(selectTh.hasAttribute('data-static-col')).toBe(true);
+  });
+
+  // The gutter's BODY cells opt out of the boundary grammar the same way (owner,
+  // 2026-08-23: no divider between the checkbox and Resource Name) — the marker is what
+  // `consoleGrid` keys its "no rail after / no shadow band" exclusions on.
+  it('marks every gutter cell static so the boundary grammar skips it', () => {
+    render(<CandidateResourceTable {...defaultProps} />);
+    const table = required(screen.getAllByRole('table')[0], 'the candidate table');
+    const rows = [...table.querySelectorAll('tbody tr')]
+      .map((tr) => tr as HTMLTableRowElement)
+      .filter((tr) => tr.cells.length > 1);
+    expect(rows.length).toBeGreaterThan(0);
+    for (const tr of rows) {
+      expect(tr.cells[0].hasAttribute('data-static-col')).toBe(true);
+      expect(tr.cells[1].hasAttribute('data-static-col')).toBe(false);
+    }
   });
 
   /**

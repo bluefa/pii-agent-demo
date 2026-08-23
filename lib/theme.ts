@@ -1860,8 +1860,16 @@ export const idcStyles = {
     // #EBEEF2 held 1.16:1 on white but only 1.07:1 on #F1F6FE — a wash costs a ramp step,
     // and #D9E5F9 (this fill's own partner border) restores it at 1.17:1. The BODY ramp is
     // unchanged: it sits on white/hover rows, which the header band does not touch.
+    //
+    // LIN-98 (owner: "CheckBox와 ResourceName 사이에 구분선이 … 좋아보이지 않습니다"): a
+    // structural gutter (`ConsoleTableColumn.resizable: false`) has NO boundary at all —
+    // the th after a `data-static-col` header draws no rail, and a `data-static-col` BODY
+    // cell casts no shadow band (callers stamp the attribute on the gutter td, the same
+    // marker the th already carries for the seam tracer). One vocabulary: static column =
+    // no handle, no tracer stop, no rail, no band — the gutter reads as the row's lead-in,
+    // not a column something could be compared across.
     consoleGrid:
-      '[&_th+th]:border-l [&_th+th]:border-[#D9E5F9] [&_td:not(:last-child)]:[background:linear-gradient(to_left,rgba(15,23,42,0.03),transparent)_right/10px_100%_no-repeat]',
+      '[&_th:not([data-static-col])+th]:border-l [&_th:not([data-static-col])+th]:border-[#D9E5F9] [&_td:not(:last-child):not([data-static-col])]:[background:linear-gradient(to_left,rgba(15,23,42,0.03),transparent)_right/10px_100%_no-repeat]',
     /**
      * Body cell of a `ConsoleTable` — the covered-clip grammar (round 4, owner: "왼쪽
      * 부분이 오른쪽에 덮인 느낌"). The CELL clips, so an overlong value runs through its
@@ -1946,9 +1954,17 @@ export const idcStyles = {
      * below the guide. Straddling (-right-px, 2px) and full-height, the guide owns the
      * whole boundary while it shows. Depends on the th not clipping (labels
      * self-truncate instead) — an overflow-hidden th would cut the straddle's outer px.
+     *
+     * LIN-98: the HITBOX straddles too — same 8px total, now 4px each side of the
+     * boundary (span w-1 + an invisible `before:` strip reaching 4px past the edge; a
+     * pseudo-element is hit-tested as its owner, so the pointer zone grows without the
+     * span moving). It used to END exactly on the line (right-0 w-2), and the line is
+     * where a pointer naturally aims — a press 1px right of it landed on the next th
+     * and started a text selection, which reads as "dragging does nothing" (reproduced
+     * with a real pointer on the step-1 id column). The lit `after:` guide is untouched.
      */
     resizeHandleOnGrid:
-      'absolute inset-y-0 right-0 z-20 w-2 cursor-col-resize touch-none after:absolute after:inset-y-0 after:-right-px after:w-0.5 after:bg-transparent hover:after:bg-[#0064FF] focus-visible:after:bg-[#0064FF] focus:outline-none',
+      'absolute inset-y-0 right-0 z-20 w-1 cursor-col-resize touch-none before:absolute before:inset-y-0 before:-right-1 before:w-1 after:absolute after:inset-y-0 after:-right-px after:w-0.5 after:bg-transparent hover:after:bg-[#0064FF] focus-visible:after:bg-[#0064FF] focus:outline-none',
     /**
      * Two-line identity stack — kind tag ABOVE, resource name below (RDS Cluster · EC2 · a
      * member instance's Reader/Writer chip). Lifts the stack by half its tag line so the
