@@ -132,7 +132,7 @@ export const IdcLoadRequestModal = ({
           variant="card"
           icon={<EmptyBoxIcon className="h-7 w-7" />}
           title="불러올 연동 대상이 없어요"
-          description="이전에 요청한 연동 정보가 있을 때만 불러올 수 있어요"
+          description="이전에 요청한 연동 대상이 있을 때만 불러올 수 있어요"
         />
       )}
 

@@ -568,10 +568,16 @@ describe('CandidateResourceSection — 스캔 게이트', () => {
     }
   });
 
-  it('스캔 잡 조회가 실패하면 닫힌 쪽으로 판정한다', async () => {
+  // 잡을 못 읽은 것은 "성공을 확인하지 못한" 것이다 — 확인되지 않은 성공 위에 표를 세우지
+  // 않는다. 그렇다고 부재로 말해서도 안 된다: 위 404 테스트와 같은 화면이 나오면 결과를
+  // 가진 타겟소스가 잡 엔드포인트 장애 동안 "아직 스캔한 적 없어요"를 띄우고, 그 화면의
+  // CTA 는 새 스캔이다. 실패는 실패 프레임으로 말한다.
+  it('스캔 잡 조회가 실패하면 조회를 막되 실패로 말한다', async () => {
     getLatestScanJob.mockRejectedValue(new Error('boom'));
     renderSection();
     await settle();
     expect(getConfirmResources).not.toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: '다시 시도' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: '스캔 시작' })).toBeNull();
   });
 });

@@ -375,9 +375,9 @@ export const CandidateResourceRow = ({
               <ResourceIdCell
                 value={candidate.resourceId}
                 label="Resource ID"
-                // 승인 테이블 기본값 220px 그대로. 한때 160으로 줄였던 이유(제외 사유
-                // 열이 가로 스크롤 뒤로 밀린다)는 그 열이 폭을 고정하면서 사라졌다 —
-                // CandidateResourceTable 의 `w-[160px]` 헤더가 그 자리를 잡아 둔다.
+                // 승인 테이블 기본값 220px 그대로. 한때 160으로 줄였던 이유(제외 사유 열이
+                // 가로 스크롤 뒤로 밀린다)는 그 열에 상한이 생기면서 사라졌다 — 사유 칩의
+                // REASON_CLAMP(150) 가 그 열의 max-content 를 186px 로 묶는다.
                 maxWidthClass="max-w-[220px]"
                 sizeClass="text-[14px]"
                 textClassName={cn(textColors.secondary, CELL_LIFT)}

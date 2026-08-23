@@ -46,6 +46,10 @@ export function useIdcPreviousRequest(targetSourceId: number): UseIdcPreviousReq
         // 답한다. 이걸 에러 문장으로 그리면 "못 불러왔다"(다시 열면 될지도 모른다)와
         // "불러올 게 없다"(다시 열어도 같다)가 한 화면이 되고, 사용자는 없는 재시도를
         // 찾는다. 빈 결과로 접어 모달의 빈 상태가 그 사실을 말하게 한다.
+        // ⚠️ 이 접기는 404 를 하나로 본다 — 상류의 "이전 요청 없음" 과 "타겟소스 없음" 이
+        // 같은 코드로 온다(fetch-json 은 본문 코드와 무관하게 404 → NOT_FOUND). 계약이 둘을
+        // 가를 칸을 주지 않으므로 흔한 쪽을 택했다: 이 모달은 존재하는 타겟소스의 화면에서만
+        // 열린다.
         if (err instanceof AppError && err.code === 'NOT_FOUND') {
           setResources([]);
           setLoading(false);

@@ -41,8 +41,12 @@ interface ResourceGroupRowProps {
  * Parent row of a grouped resource table (Athena × Region).
  *
  * The whole row toggles; the chevron is the labelled control so a keyboard user gets one stop per
- * group instead of one per cell. Counts belong in the caller's aggregate cells — collapsing a group
- * must never hide how many targets it holds, which is the reason the grouping exists at all.
+ * group instead of one per cell.
+ *
+ * `inlineMeta` (the counts) is genuinely optional, and its presence changes the geometry below:
+ * steps 2·3 pass `ResourceGroupCount` so a collapsed group still says what it holds, while step 1
+ * drops it (owner) because the scan funnel and the action bar stand on the same screen. A caller
+ * that leaves it out accepts that a collapsed group states only its identity.
  */
 export const ResourceGroupRow = ({
   type,
@@ -102,6 +106,11 @@ export const ResourceGroupRow = ({
             }}
             className={cn(
               idcStyles.table.group.toggle,
+              // `toggle` centres on the stack's BOX, which works while the stack has three lines
+              // (the name is then the middle one). Without `inlineMeta` the box's centre falls in
+              // the gap between tag and name, and the chevron reads as hanging off the tag —
+              // measured 12px above the line it points at. Push it back onto the name.
+              inlineMeta == null && 'top-[calc(50%_+_12px)]',
               expanded ? idcStyles.table.group.toggleOpen : idcStyles.table.group.toggleClosed,
               primaryColors.focusRing,
             )}

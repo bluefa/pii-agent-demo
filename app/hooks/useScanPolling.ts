@@ -57,6 +57,10 @@ export const isScanFinalizing = (job: ScanJob | null): boolean =>
  */
 export const hasScanResults = (job: ScanJob | null): boolean =>
   job?.scan_status === 'SUCCESS' && !isScanFinalizing(job);
+// ⚠️ 이건 **최신 잡** 의 규칙이고, 상류의 보관 규칙("성공이 한 번이라도 있었나")보다 좁다.
+// FAIL·TIMEOUT 에서는 차이가 화면에 안 나온다 — selectPhase 가 그 프레임을 먼저 가져가 표는
+// 어차피 안 보인다. 남는 갈래는 CANCELED 뿐인데 우리 앱에도 목에도 스캔 취소 경로가 없다.
+// 넓히려면 이력 조회가 한 번 더 붙는데, 그 조회가 값을 갖는 경우가 그 하나뿐이라 달지 않았다.
 
 /** Still working — actively scanning, or scanned and aggregating. */
 const isScanRunning = (job: ScanJob | null): boolean =>
@@ -76,9 +80,12 @@ const computeUIState = (job: ScanJob | null): ScanUIState => {
 };
 
 /** 404(스캔 이력 없음)는 결과가 아니라 부재다 — null 로 접어 호출부가 상태로 다룬다. */
-export const fetchLatestScan = async (targetSourceId: number): Promise<ScanJob | null> => {
+export const fetchLatestScan = async (
+  targetSourceId: number,
+  options?: { signal?: AbortSignal },
+): Promise<ScanJob | null> => {
   try {
-    return await getLatestScanJob(targetSourceId);
+    return await getLatestScanJob(targetSourceId, options);
   } catch (err) {
     const appErr = err as AppError;
     if (appErr.code === 'NOT_FOUND') return null;

@@ -154,8 +154,10 @@ export const CandidateResourceTable = ({
                   />
                 </span>
               </th>
-              {/* 사유 열은 폭을 고정한다 — auto 레이아웃에서 남는 폭을 나눠 가지면 12자짜리
-                  칩이 Resource Name·ID 보다 넓은 칸을 차지한다. 행을 식별하는 것은 이름과
+              {/* 이 값은 상한이 아니라 하한이다 — auto 레이아웃에서 열 폭은 셀의 max-content
+                  이므로 상한을 정하는 것은 칩의 클램프(REASON_CLAMP 150 → 열 186px)이고, 여기
+                  160 은 사유가 없는 표에서 이 열이 「사유 입력」 링크 폭까지 쪼그라들지 않게
+                  잡아 둔다. 둘이 함께 열을 160~186 사이에 묶는다 — 행을 식별하는 것은 이름과
                   id 이고, 사유 전문은 칩의 팁이 갖는다. */}
               {showCheckboxColumn && (
                 <th className={cn(idcStyles.table.approvalHeaderCell, 'w-[160px]')}>제외 사유</th>
