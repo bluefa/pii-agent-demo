@@ -297,10 +297,13 @@ export const NAME_LIFT = primaryColors.textGroupHover;
  *
  * (The `legacy` halves of these pairs — self-ellipsis for the auto-layout shells — left with
  * the legacy shell itself: LIN-97 put the last two variants on `ConsoleTable`.)
+ *
+ * Exported for the step-1 candidate table (LIN-98), whose name column renders the same three
+ * branches inside the same console grammar — the token is the sync, as with `CELL_LIFT`.
  */
-const NAME_TRIGGER = 'min-w-0 w-full';
+export const NAME_TRIGGER = 'min-w-0 w-full';
 
-const NAME_TEXT = 'block whitespace-nowrap';
+export const NAME_TEXT = 'block whitespace-nowrap';
 
 // 제외 행을 한 단 흐리게 하던 처리(gray-500)는 없앴다.
 //

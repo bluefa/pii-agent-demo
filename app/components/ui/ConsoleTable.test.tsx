@@ -240,6 +240,25 @@ describe('ConsoleTable — columns', () => {
     expect(container.querySelectorAll('[role="separator"]').length).toBe(3);
   });
 
+  // A structural gutter (a checkbox or chevron column) declares `resizable: false`: its
+  // width is a layout constant, not a reader decision, so it gets no handle — and its th
+  // is marked so the seam tracer can skip its edge (see the seam suite).
+  it('skips the handle on a resizable:false column and marks its th', () => {
+    const { container } = render(
+      <ConsoleTable
+        columns={[{ key: 'select', label: '선택', width: 40, resizable: false }, ...COLUMNS]}
+        resize={resize()}
+      >
+        {rows}
+      </ConsoleTable>,
+    );
+    const ths = container.querySelectorAll('thead th');
+    expect(ths[0].hasAttribute('data-static-col')).toBe(true);
+    expect(ths[0].querySelector('[role="separator"]')).toBeNull();
+    // The data columns keep theirs — the flag is per column, not per table.
+    expect(container.querySelectorAll('[role="separator"]').length).toBe(3);
+  });
+
   it('gives the drag its floor probe — a shrink-to-fit label box, not a block one', () => {
     // The hook reads this span's scrollWidth. A block span reports the th's width, which
     // froze every column at its current width — an actual bug, so it gets a test.
@@ -278,6 +297,25 @@ describe('ConsoleTable — the seam', () => {
     fireEvent.mouseMove(wrap, { clientX: 104 });
     fireEvent.mouseLeave(wrap);
     expect(tracer.style.opacity).toBe('0');
+  });
+
+  it('never advertises a static column’s edge — the tracer skips data-static-col', () => {
+    const { wrap, tracer } = mount(
+      <ConsoleTable
+        columns={[{ key: 'select', label: '선택', width: 40, resizable: false }, ...COLUMNS]}
+        resize={resize()}
+      >
+        {rows}
+      </ConsoleTable>,
+    );
+    pinLayout(wrap);
+    // x=104: the nearest edge (100) belongs to the static gutter — no gesture lives
+    // there, so the discovery band must not show.
+    fireEvent.mouseMove(wrap, { clientX: 104 });
+    expect(tracer.style.opacity).toBe('0');
+    // x=204: a data column's seam — the band shows as usual.
+    fireEvent.mouseMove(wrap, { clientX: 204 });
+    expect(tracer.style.opacity).toBe('1');
   });
 
   it('douses the band while a button is held — a drag must not trail its ghost', () => {

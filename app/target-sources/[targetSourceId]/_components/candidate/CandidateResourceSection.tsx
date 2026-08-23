@@ -641,6 +641,15 @@ export const CandidateResourceSection = ({
                       actions={rowActions}
                       justAddedResourceId={justAddedEc2Id}
                       emptyMessage="조건에 맞는 결과가 없어요."
+                      // 검색·필터·깔때기 타일이 목록을 좁히는 동안은 그룹을 전부 연다 —
+                      // 일치 행이 접힌 그룹 안에 숨으면 친 검색어가 빈 화면을 돌려받는다
+                      // (steps 2·3·6·7 의 expandFolds 계약 그대로).
+                      expandFolds={
+                        !!table.searchValue.trim()
+                        || !!table.dbType
+                        || !!table.region
+                        || table.filter !== 'all'
+                      }
                     />
                     {table.filteredCount > 0 && (
                       <Pagination

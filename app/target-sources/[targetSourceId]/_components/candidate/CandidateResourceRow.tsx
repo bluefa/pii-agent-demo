@@ -11,6 +11,10 @@ import {
 import { ReasonChipInline } from '@/app/components/ui/ReasonChipInline';
 import { IdentifierTip, Tooltip } from '@/app/components/ui/Tooltip';
 import { ResourceIdCell } from '@/app/target-sources/[targetSourceId]/_components/shared/ResourceIdCell';
+import {
+  NAME_TRIGGER,
+  NAME_TEXT,
+} from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalTable';
 import { VmDatabaseConfigPanel } from '@/app/target-sources/[targetSourceId]/_components/candidate/VmDatabaseConfigPanel';
 import { InstallIneligibleGuideModal } from '@/app/target-sources/[targetSourceId]/_components/candidate/InstallIneligibleGuideModal';
 import { useModal } from '@/app/hooks/useModal';
@@ -72,12 +76,16 @@ const ROW_TARGET = tableRowLift.target;
 const ROW_EXCLUDED = tableRowLift.excluded;
 const CELL_LIFT = tableRowLift.cellText;
 /**
- * 제외 사유 칸의 폭 상한. 자동 레이아웃에서 열 폭은 셀의 max-content 이므로, 칩을
- * 클램프하지 않으면 사유 한 줄이 Resource Name·ID 보다 넓은 칸을 가져간다 — 행을
- * 식별하는 것은 이름과 id 다. 잘린 사유의 전문은 칩의 팁이 갖는다.
+ * 제외 사유 칩의 폭 = 열의 폭. 콘솔 표(table-fixed)에서는 잘림 지점을 열이 소유한다 —
+ * px 상한을 남기면 열을 드래그해 넓혀도 사유가 더 드러나지 않는다 (LIN-97 의 HostCell
+ * 과 같은 판정). 예전의 max-w-[150px] 는 auto 레이아웃에서 열 폭(max-content)을 묶던
+ * 수단이었고, 그 역할은 열 하한 160(CANDIDATE_COLUMN_WIDTHS.reason)이 이어받았다.
+ * 잘린 사유의 전문은 칩의 팁이 갖는다.
  */
-const REASON_CLAMP = 'block max-w-[150px]';
+const REASON_CLAMP = 'block max-w-full';
 const NAME_LIFT = primaryColors.textGroupHover;
+/** 값 칸의 덮개 — 넘친 값은 열 경계에서 끊긴다 (steps 2·3 의 coveredCell 그대로). */
+const COVERED_CELL = idcStyles.table.consoleCell;
 
 // integration_category(시스템의 사실) → 설치-계열 표기. 선택(사용자의 결정)과
 // 단어 가족을 나눠 갖지 않도록 "설치"로만 말한다 — 승인 요청/상세 모달 라벨과
@@ -245,6 +253,7 @@ export const CandidateResourceRow = ({
         <td
           className={cn(
             idcStyles.table.approvalCell,
+            COVERED_CELL,
             'font-mono text-[14px]',
             textColors.primary,
             !showCheckboxColumn && verdictRailClass(dimmed, isIneligible),
@@ -306,10 +315,10 @@ export const CandidateResourceRow = ({
                   content={<IdentifierTip label="Resource Name" value={displayName} />}
                   variant="value"
                   size="md"
-                  triggerClassName="min-w-0 max-w-[200px] block"
+                  triggerClassName={NAME_TRIGGER}
                   truncatedOnly
                 >
-                  <span className="block truncate">{displayName || '—'}</span>
+                  <span className={NAME_TEXT}>{displayName || '—'}</span>
                 </Tooltip>
                 {/* `secondary`, not `tertiary`, in BOTH fold states: opening the row flips its
                     background to `bgColors.panel`, and that token's contract says gray-500 reads
@@ -334,10 +343,10 @@ export const CandidateResourceRow = ({
                 content={<IdentifierTip label="Resource Name" value={displayName} />}
                 variant="value"
                 size="md"
-                triggerClassName="min-w-0 max-w-[200px] block"
+                triggerClassName={NAME_TRIGGER}
                 truncatedOnly
               >
-                <span className="block truncate">{displayName || '—'}</span>
+                <span className={NAME_TEXT}>{displayName || '—'}</span>
               </Tooltip>
             </span>
           ) : (
@@ -345,10 +354,10 @@ export const CandidateResourceRow = ({
               content={<IdentifierTip label="Resource Name" value={displayName} />}
               variant="value"
               size="md"
-              triggerClassName="min-w-0 max-w-[200px] block"
+              triggerClassName={NAME_TRIGGER}
               truncatedOnly
             >
-              <span className="block truncate">{displayName || '—'}</span>
+              <span className={cn('min-w-0', NAME_TEXT)}>{displayName || '—'}</span>
             </Tooltip>
           )}
         </td>
@@ -356,31 +365,35 @@ export const CandidateResourceRow = ({
         {/* Inside a group the id is dropped: it is the parent's own path with the child's name
             tacked on (`athena:<acct>:<region>/<catalog>/test_raw`), so every child repeated the
             group's identity and then said its name a second time. */}
-        <td className={idcStyles.table.approvalCell}>
+        <td className={cn(idcStyles.table.approvalCell, COVERED_CELL)}>
           {grouped ? null : isManualEc2 ? (
             // 종류 태그는 이름 열이 가져갔다 — 여기는 instance id → 접속 주소.
             // 여기는 값이 위·보조 줄이 아래라 스택을 반대로 내린다: 이름 열이 `stackedIdentityLift`
             // 로 이름을 행의 가운데 선에 올려놓았고, id 도 같은 선에 서야 둘이 짝을 이룬다.
             // 10 = 보조 줄(16px) + 4px gap 의 절반.
+            //
+            // px 상한 없음: 잘림 지점은 열이 소유한다 (REASON_CLAMP 의 판정과 같다).
             <span className={cn(ec2Styles.rowStack, 'relative top-[10px]')}>
-              <span className={cn(ec2Styles.rowId, 'block max-w-[220px] truncate')}>
+              <span className={cn(ec2Styles.rowId, 'block truncate')}>
                 {candidate.resourceId}
               </span>
-              <span className={cn(ec2Styles.rowSub, 'block max-w-[220px] truncate')}>
+              <span className={cn(ec2Styles.rowSub, 'block truncate')}>
                 Private IP {candidate.endpointConfig?.host || '—'}
               </span>
             </span>
           ) : (
             <span onClick={(event) => event.stopPropagation()}>
+              {/* 콘솔 열의 id 레시피 (steps 2·3 그대로): 셀이 고정 열을 가득 채우고
+                  hardClip 이 열 경계에서 글자 중간을 끊는다 — "아래로 이어진다"는 이
+                  표의 문법. +18px = approvalCell 의 오른쪽 패딩: 래퍼가 열 경계에서
+                  끝나야 꼬리 마스크가 보이는 글리프 전부를 덮는다. */}
               <ResourceIdCell
                 value={candidate.resourceId}
                 label="Resource ID"
-                // 승인 테이블 기본값 220px 그대로. 한때 160으로 줄였던 이유(제외 사유 열이
-                // 가로 스크롤 뒤로 밀린다)는 그 열에 상한이 생기면서 사라졌다 — 사유 칩의
-                // REASON_CLAMP(150) 가 그 열의 max-content 를 186px 로 묶는다.
-                maxWidthClass="max-w-[220px]"
+                maxWidthClass="w-[calc(100%+18px)]"
                 sizeClass="text-[14px]"
                 textClassName={cn(textColors.secondary, CELL_LIFT)}
+                hardClip
               />
             </span>
           )}
@@ -393,6 +406,7 @@ export const CandidateResourceRow = ({
         <td
           className={cn(
             idcStyles.table.approvalCell,
+            COVERED_CELL,
             'text-[14px]',
             textColors.secondary,
             CELL_LIFT,
@@ -413,6 +427,7 @@ export const CandidateResourceRow = ({
         <td
           className={cn(
             idcStyles.table.approvalCell,
+            COVERED_CELL,
             'whitespace-nowrap font-mono text-[14px]',
             textColors.secondary,
             CELL_LIFT,
@@ -430,7 +445,7 @@ export const CandidateResourceRow = ({
 
         {/* 시스템 분류는 조용한 사실 티어 — 행동을 막는 설치 불가만 주황 + 안내
             링크로 예외 강조(감광에서도 제외: 왜 못 고르는지는 살아 있어야 한다). */}
-        <td className={cn(idcStyles.table.approvalCell, 'text-[14px]')}>
+        <td className={cn(idcStyles.table.approvalCell, COVERED_CELL, 'text-[14px]')}>
           {isIneligible ? (
             <button
               type="button"

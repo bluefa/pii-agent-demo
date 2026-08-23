@@ -481,6 +481,149 @@ describe('CandidateResourceTable — RDS cluster instances', () => {
   });
 });
 
+/**
+ * The console-table spec (LIN-98). Floors are the LIN-96 ledger's — the assertions quote them
+ * (select 40 · name 250 · id 186 · dbType 142 · region 156 · category 112 [measured on TS
+ * 1006] · reason 160). name+id flex; id, the declaration-order last, is the sink and renders
+ * `auto`; name renders its floor's share of the sum to 4 decimals (CSSOM re-serializes
+ * `style.width`, dropping trailing zeros — neither shape's share has one).
+ */
+describe('CandidateResourceTable — console spec', () => {
+  it('declares the edit shape: minWidth 1046, name 23.9006%, id auto', () => {
+    render(<CandidateResourceTable {...defaultProps} />);
+    const table = required(screen.getAllByRole('table')[0], 'the candidate table');
+    expect((table as HTMLElement).style.minWidth).toBe('1046px');
+    const widths = [...table.querySelectorAll('thead th')].map(
+      (th) => (th as HTMLElement).style.width,
+    );
+    expect(widths).toEqual(['40px', '23.9006%', 'auto', '142px', '156px', '112px', '160px']);
+  });
+
+  it('declares the read-only shape: minWidth 846, no decision columns', () => {
+    render(<CandidateResourceTable {...defaultProps} readonly />);
+    const table = required(screen.getAllByRole('table')[0], 'the candidate table');
+    expect((table as HTMLElement).style.minWidth).toBe('846px');
+    const widths = [...table.querySelectorAll('thead th')].map(
+      (th) => (th as HTMLElement).style.width,
+    );
+    expect(widths).toEqual(['29.5508%', 'auto', '142px', '156px', '112px']);
+  });
+
+  // The checkbox column is a structural gutter, not a data column: its width is a layout
+  // constant, so it gets no drag handle — and the seam tracer skips its edge via the marker.
+  it('gives every data column a resize handle but never the checkbox gutter', () => {
+    render(<CandidateResourceTable {...defaultProps} />);
+    expect(screen.getByRole('separator', { name: 'Resource Name 열 너비 조절' })).toBeTruthy();
+    expect(screen.getByRole('separator', { name: '제외 사유 열 너비 조절' })).toBeTruthy();
+    expect(screen.queryByRole('separator', { name: '선택 열 너비 조절' })).toBeNull();
+    const selectTh = screen.getAllByRole('columnheader')[0];
+    expect(selectTh.hasAttribute('data-static-col')).toBe(true);
+  });
+
+  /**
+   * The column owns the truncation point (LIN-97's HostCell verdict): a per-cell px cap
+   * would survive a drag and make widening the column reveal nothing. All THREE name
+   * branches must agree — the first migration of steps 2·3 switched only one and left the
+   * other two clamped at 200px while their column flexed past 600.
+   */
+  it('caps no name branch and no reason chip at a px width', () => {
+    render(
+      <CandidateResourceTable
+        {...defaultProps}
+        candidates={[
+          candidateFixture({ id: 'c-plain', resourceId: 'res-plain' }),
+          candidateFixture({
+            id: 'c-ec2',
+            resourceId: 'i-0a1b2c3d4e5f67890',
+            resourceName: 'ip-10-10-1-24.ap-northeast-2.compute.internal',
+            type: 'AWS_EC2_INSTANCE',
+            integrationCategory: 'NO_INSTALL_NEEDED',
+          }),
+          candidateFixture({
+            id: 'c-cluster',
+            resourceId: 'arn:cluster:demo',
+            resourceName: 'demo-cluster',
+            type: 'AWS_DB_CLUSTER',
+            behaviorKey: 'rdsInstance',
+            rdsInstanceCandidates: [
+              { resource_id: 'arn:db:demo-1', resource_name: 'demo-1', host: 'demo-1.rds', port: 3306, availability_zone: 'ap-northeast-2a', cluster_member_role: 'WRITER' },
+            ],
+          }),
+        ]}
+        exclusionReasons={{ 'c-plain': '스테이징 DB라 제외합니다' }}
+      />,
+    );
+    for (const name of ['res-plain', 'ip-10-10-1-24.ap-northeast-2.compute.internal', 'demo-cluster']) {
+      // The nearest w-full ancestor of the name text is the tooltip trigger (NAME_TRIGGER).
+      const trigger = required(
+        screen.getByText(name).closest('[class*="w-full"]'),
+        `${name}'s tooltip trigger`,
+      );
+      expect(trigger.className).toContain('min-w-0');
+      expect(trigger.className).not.toMatch(/max-w-\[\d+px\]/);
+    }
+    const reasonChip = required(
+      screen.getByRole('button', { name: '제외 사유 수정' }),
+      'the editable reason chip',
+    );
+    expect(reasonChip.className).toContain('max-w-full');
+    expect(reasonChip.className).not.toMatch(/max-w-\[\d+px\]/);
+  });
+});
+
+/**
+ * While a search or filter narrows the list, the filter owns the fold: a match inside a
+ * collapsed group is invisible (reproduced on TS 1006 — searching the one Athena child left
+ * a folded parent and no match on screen), so every group opens and the chevron becomes an
+ * indicator rather than a control that records presses against the cleared filter.
+ */
+describe('CandidateResourceTable — expandFolds while filtering', () => {
+  const athena = (id: string, name: string): CandidateResource =>
+    candidateFixture({
+      id,
+      resourceId: `athena:1234:ap-northeast-2/AwsDataCatalog/${name}`,
+      resourceName: name,
+      type: 'ATHENA',
+      databaseType: 'ATHENA',
+      metadata: { provider: 'AWS', resourceType: 'ATHENA', region: 'ap-northeast-2' },
+    });
+
+  it('forces the group open and demotes the chevron to an indicator', () => {
+    render(
+      <CandidateResourceTable
+        {...defaultProps}
+        candidates={[athena('a-0', 'raw_athena_db_prod')]}
+        expandFolds
+      />,
+    );
+    // No live toggle — the static chevron is aria-hidden, so no 그룹 button exists at all.
+    expect(screen.queryByRole('button', { name: /그룹/ })).toBeNull();
+    // The child rows are visible: the tbody the fold used to hide is not hidden.
+    expect(
+      required(
+        screen.getByText('raw_athena_db_prod').closest('tbody'),
+        "the group's child tbody",
+      ).hidden,
+    ).toBe(false);
+  });
+
+  it('returns the fold to the table when the filter clears', () => {
+    const { rerender } = render(
+      <CandidateResourceTable
+        {...defaultProps}
+        candidates={[athena('a-0', 'raw_athena_db_prod')]}
+        expandFolds
+      />,
+    );
+    rerender(
+      <CandidateResourceTable {...defaultProps} candidates={[athena('a-0', 'raw_athena_db_prod')]} />,
+    );
+    // Nothing selected → the owner's collapsed default, untouched by the filtered interlude.
+    const toggle = screen.getByRole('button', { name: 'Athena ap-northeast-2 그룹 펼치기' });
+    expect(toggle.getAttribute('aria-expanded')).toBe('false');
+  });
+});
+
 // Athena groups start COLLAPSED (owner, 2026-08-11). The parent names the group and how many
 // databases it holds on each side of the decision; it does NOT list their names — that line was
 // tried and cut (owner, 2026-08-12), because a folded row that spells out its children is a
