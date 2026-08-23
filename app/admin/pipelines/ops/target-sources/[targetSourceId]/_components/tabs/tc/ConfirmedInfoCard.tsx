@@ -706,7 +706,10 @@ export function ConfirmedInfoCard({
                             불필요
                           </span>
                         ) : row.resource_id ? (
-                          <div className="w-[190px]">
+                          // 264px — long enough for the longest seeded credential name
+                          // (kimcs-postgres-analytics-readonly) at this cell's 14px type.
+                          // 190px cut it; the column owns the cut, not the cell (PR #767).
+                          <div className="w-[264px]">
                             <button
                               type="button"
                               aria-haspopup="dialog"
