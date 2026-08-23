@@ -127,7 +127,7 @@ export const SourceIpHeader = () => (
  * previously UN-declared columns get numbers (제외 사유 142 · 연동 제외 96) — under
  * table-fixed an undeclared column is not "auto slack", it is a bug. cred 180 → 264
  * followed by owner order (2026-08-23): 180 was sized for Key1/Key2 synthetic names,
- * and the longest real store name measures 220px at 14px (+36 padding +8 slack).
+ * and the longest real store name measures 203px at 13px/600 (+36 padding +25 slack).
  *
  * ⚠️ Step 5's 1178 exceeds the panel at common widths — ConsoleTable's own wrapper is
  * the overflow-x-auto escape hatch the legacy frame never had (ledger ⚠️⁴). The 승인

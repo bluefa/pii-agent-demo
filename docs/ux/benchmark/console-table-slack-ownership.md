@@ -508,7 +508,7 @@ Step 4 와 admin `plain` 은 §10, Step 1(`CandidateResourceTable`)은 §11 에�
 `ConnectionTestCard` 의 표가 콘솔 셸로 이관 — 프로젝트의 마지막 클라우드 표면.
 
 - 하한: name 162 · dbType 142 · region 156 · cred **264**(교정 경위는 아래) · conn 104 ·
-  logical 118 = **Σ946**. 948px 카드 안이라 스크롤 없이 들어가고(실측: 판 990 에서
+  logical 118 = **Σ946**. 990px 판 안이라 스크롤 없이 들어가고(실측: 판 990 에서
   scrollDelta 0), slack 은 name 이 흡수.
 - **flex = Resource Name 단일** (원장 각주 ³, §12와 같은 판정) — 행마다 임의 길이인
   열이 이름뿐. sink 도 name.
@@ -520,7 +520,7 @@ Step 4 와 admin `plain` 은 §10, Step 1(`CandidateResourceTable`)은 §11 에�
 - **Credential 실명 통짜 노출 (오너 재발주 08-23, 「캡 유지」 판례 만료)** — 목 실명화
   뒤에도 긴 실명이 말줄임되자 오너가 축약 자체를 걷어냈다. 원장 cred **180→264**:
   180 은 Key1/Key2 합성 이름 시절 치수였고, 실명 최장
-  `kimcs-postgres-analytics-readonly` 는 14px Pretendard 실측 220 → 220+36(패딩)+8(슬랙).
+  `kimcs-postgres-analytics-readonly` 는 13px/600 Pretendard 실측 203 → 203+36(패딩)+25(슬랙).
   트리거 픽셀 캡(144)은 **max-w-full 로 교체** — 캡은 열을 드래그로 늘려도 이름이 더
   안 보이는 리사이즈 벽이었다(REASON_CLAMP 와 같은 병). 시드 실명 전부 통짜, 그보다
   긴 운영 이름만 열 소유 말줄임. 제로섬: 클라우드 Σ862→**946**(판 990, 스크롤 없음
@@ -541,3 +541,7 @@ Step 4, 판 716)·`1023`(IDC Step 4)·admin ops `1008?tab=confirm`(판 1116). §
 `/pass/target-sources/1006`(AWS Step 1, 판 990). §12 실측은 IDC `1021`/`1022`/`1024`/
 `1025`(판 990)·완료 승인 모달(판 710)·admin queue `1031`(판 1420)·ops `1026?tab=confirm`.
 §13 실측은 `2101`(클라우드 Step 5 TC 카드, 판 990).
+
+판 폭 실측은 가이드 레일 펼침 + `pii:colw:v1:*` 초기화가 전제다 — 레일 접기(PR #759)는
+쿠키로 남아 접힌 채면 판이 1310(컨테이너 1254)으로 넓어져 스크롤을 가리고, 드래그로
+저장된 열폭도 선언 기본값을 덮어쓴다.
