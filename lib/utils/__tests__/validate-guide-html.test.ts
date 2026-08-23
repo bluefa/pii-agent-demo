@@ -14,11 +14,7 @@
 
 import { describe, expect, it } from 'vitest';
 
-import {
-  validateGuideHtml,
-  type GuideNode,
-  type ValidationError,
-} from '@/lib/utils/validate-guide-html';
+import { GUIDE_VALIDATE_OPTIONS, type GuideNode, type ValidationError, validateGuideHtml } from '@/lib/utils/validate-guide-html';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -75,6 +71,21 @@ describe('validateGuideHtml — allow-list pass', () => {
     expectValid('<p><em>italic</em></p>');
   });
 
+  it('accepts <blockquote> only when the caller opts in — the guide 안내 박스', () => {
+    // ⛔ Not in the base list. The post editor's toolbar cannot produce a blockquote but
+    // a paste can carry one, and there the validator is the gate, not the editor.
+    expect(validateGuideHtml('<blockquote>x</blockquote>').valid).toBe(false);
+    expect(
+      validateGuideHtml('<blockquote>set-off note</blockquote>', GUIDE_VALIDATE_OPTIONS).valid,
+    ).toBe(true);
+    expect(
+      validateGuideHtml(
+        '<blockquote><strong>조건</strong>이면 이렇게 하세요.</blockquote>',
+        GUIDE_VALIDATE_OPTIONS,
+      ).valid,
+    ).toBe(true);
+  });
+
   it('accepts <code>', () => {
     expectValid('<p><code>snippet</code></p>');
   });
@@ -104,7 +115,8 @@ describe('validateGuideHtml — disallowed tags', () => {
     ['h5', '<h5>x</h5>'],
     ['h6', '<h6>x</h6>'],
     ['pre', '<pre>x</pre>'],
-    ['blockquote', '<blockquote>x</blockquote>'],
+    // `blockquote` stays rejected by default and is covered by its own case above,
+    // which also proves the guide opt-in lets it through.
   ];
 
   for (const [tag, html] of samples) {

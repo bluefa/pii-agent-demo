@@ -17,6 +17,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 import { renderGuideAst } from '@/app/components/features/process-status/GuideCard/render-guide-ast';
+import { guideStyles } from '@/lib/theme';
 import type { GuideNode } from '@/lib/utils/validate-guide-html';
 
 const render = (ast: GuideNode[]): string => renderToStaticMarkup(<>{renderGuideAst(ast)}</>);
@@ -49,7 +50,23 @@ describe('renderGuideAst — per-node output', () => {
         ],
       },
     ]);
-    expect(html).toBe('<p><strong>b</strong><em>i</em><code>c</code></p>');
+    expect(html).toBe(
+      `<p><strong>b</strong><em class="${guideStyles.accent}">i</em><code>c</code></p>`,
+    );
+  });
+
+  it('renders <em> as brand-coloured emphasis, never as slant', () => {
+    const html = render([{ type: 'em', children: [{ type: 'text', value: '담당자에게 문의' }] }]);
+    // ⛔ Italics do not exist for 한글 in any useful sense — this tag was repurposed.
+    expect(html).toContain('not-italic');
+    expect(html).toContain('#0050D6');
+  });
+
+  it('renders <blockquote> as the 안내 박스 card', () => {
+    const html = render([{ type: 'blockquote', children: [{ type: 'text', value: '안내' }] }]);
+    expect(html).toBe(`<blockquote class="${guideStyles.note}">안내</blockquote>`);
+    // ⛔ The fill is ~1.09:1 on white; the hairline is what makes it a card.
+    expect(guideStyles.note).toContain('border');
   });
 
   it('renders <ul> / <ol> with <li> children', () => {

@@ -2400,6 +2400,35 @@ export const railStyles = {
 } as const;
 
 /**
+ * Guide prose accents that `prose-guide` (globals.css) cannot express, because the
+ * guide allow-list gives an author no class or style to hang them on. The renderer
+ * (`render-guide-ast.tsx`) attaches these by TAG, so the markup stays plain HTML and
+ * the styling stays here.
+ */
+export const guideStyles = {
+  /**
+   * 안내 박스 — `<blockquote>`. A recessed grey card for a set-off note.
+   *
+   * ⛔ The fill alone is not the separation. `#F2F4F6` against white measures ~1.09:1,
+   * nowhere near the 3:1 a non-text boundary owes (the same reason this file already
+   * refuses `#F9FAFB` as a row tint), so the hairline is load-bearing — drop it and the
+   * card stops being a card. Body ink stays the inherited `--fg-2` (#374151), which is
+   * 9.6:1 on this fill.
+   */
+  note: 'my-2.5 rounded-lg border border-gray-200 bg-[#F2F4F6] px-3 py-2.5',
+  /**
+   * Brand-coloured emphasis — `<em>`.
+   *
+   * The tag is repurposed, not decorated: italics do not exist for 한글 in any useful
+   * sense, and no guide body in the repo used `<em>` for slant. `#0050D6`, not the
+   * `#0064FF` brand ink, because this text can land inside `note` above, where
+   * #0064FF measures 4.31:1 — under AA. #0050D6 holds 6.7:1 on white and 5.9:1 on the
+   * note, so one ink covers both surfaces.
+   */
+  accent: 'not-italic font-medium text-[#0050D6]',
+} as const;
+
+/**
  * ServiceListPanel / ServiceSidebar — the target-source left rail.
  *
  * The rail is the page's BACK plane: a tinted, flush surface with full-bleed

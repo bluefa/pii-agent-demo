@@ -7,7 +7,7 @@ import { GuideCardInvalidState } from '@/app/components/features/process-status/
 import { renderGuideAst } from '@/app/components/features/process-status/GuideCard/render-guide-ast';
 import { GuideIcon } from '@/app/components/ui/icons';
 import { cardStyles, cn } from '@/lib/theme';
-import { validateGuideHtml } from '@/lib/utils/validate-guide-html';
+import { GUIDE_VALIDATE_OPTIONS, validateGuideHtml } from '@/lib/utils/validate-guide-html';
 
 interface Props {
   content: string;
@@ -47,7 +47,7 @@ export const GuideCardPure = ({
 }: Props) => {
   // Provider pages re-render on status polls; memo keeps DOM parsing
   // and AST allocation off the hot path while content is unchanged.
-  const result = useMemo(() => validateGuideHtml(content), [content]);
+  const result = useMemo(() => validateGuideHtml(content, GUIDE_VALIDATE_OPTIONS), [content]);
   const rendered = useMemo(
     () => (result.valid ? renderGuideAst(result.ast) : null),
     [result],

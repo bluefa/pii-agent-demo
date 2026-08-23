@@ -9,13 +9,15 @@ import { describe, expect, it } from 'vitest';
 import { GUIDE_SLOTS, resolveSlot } from '@/lib/constants/guide-registry';
 import { STEP_GUIDE_HTML } from '@/lib/constants/step-guide-content';
 import { GUIDE_NAMES } from '@/lib/types/guide';
-import { validateGuideHtml } from '@/lib/utils/validate-guide-html';
+import { GUIDE_VALIDATE_OPTIONS, validateGuideHtml } from '@/lib/utils/validate-guide-html';
 
 import type { GuideSlotKey } from '@/lib/constants/guide-registry';
 
 describe('STEP_GUIDE_HTML', () => {
   it.each(GUIDE_NAMES)('%s passes validateGuideHtml', (name) => {
-    const result = validateGuideHtml(STEP_GUIDE_HTML[name]);
+    // Same options `GuideCardPure` renders with — validating a guide under the post
+    // rules would reject the 안내 박스 the guides now use.
+    const result = validateGuideHtml(STEP_GUIDE_HTML[name], GUIDE_VALIDATE_OPTIONS);
     expect(result).toMatchObject({ valid: true });
   });
 });
@@ -37,9 +39,9 @@ describe.each([
     lines: [
       'PII Agent 담당자의 검토를 기다리고 있어요',
       '제출하신 DB 연동 대상 목록을 담당자가 순차적으로 검토하고 있어요.',
-      'Step 1로 돌아가',
+      '<strong>연동 대상 다시 선택하기</strong>를 통해 Step 1로 돌아가',
       '평균 1영업일 이내 검토가 완료됩니다.',
-      '2영업일 이상 지연 시 담당자에게 문의해 주세요.',
+      '2영업일 이상 지연 시 <em>담당자에게 문의</em>해 주세요.',
     ],
     bullets: 2,
   },
@@ -51,7 +53,7 @@ describe.each([
       '이전에 설치된 PII Agent 리소스 삭제 필요',
       '최초 연동일 경우, 평균 10분 이내 완료됩니다.',
       '재연동일 경우, 평균 1영업일 소요됩니다.',
-      '2영업일 이상 지연 시 담당자에게 문의해 주세요.',
+      '2영업일 이상 지연 시 <em>담당자에게 문의</em>해 주세요.',
     ],
     bullets: 3,
   },
@@ -63,7 +65,7 @@ describe.each([
       '별도 조치가 필요한 경우 담당자가 개별 연락드릴 예정입니다.',
       '평균 1영업일 소요되는 과정입니다.',
       '수집해야 할 데이터가 클 경우, 더 오래 소요될 수 있어요.',
-      '3영업일 이상 지연 시 담당자에게 문의해 주세요.',
+      '3영업일 이상 지연 시 <em>담당자에게 문의</em>해 주세요.',
     ],
     bullets: 3,
   },
@@ -96,13 +98,28 @@ describe.each([
   });
 });
 
-describe('step 2 — the guide points at a button that renders', () => {
-  it('names 다시 요청하기, never 전체 요청 취소', () => {
+describe('step 2 — the control the guide points at', () => {
+  it('names 연동 대상 다시 선택하기 in bold, never 전체 요청 취소', () => {
     const html = bodyFor('process.aws.auto.2');
-    // ⛔ `WaitingApprovalCancelButton` renders 「다시 요청하기」. 「전체 요청 취소」 is a label
-    // no screen in this app shows — putting it back sends the reader hunting for it.
-    expect(html).toContain('<strong>다시 요청하기</strong>');
+    // ⚠️ This is the owner's name for the control (2026-08-23). The button still renders
+    // 「다시 요청하기」; renaming it is an open decision, and this test is the reminder.
+    expect(html).toContain('<strong>연동 대상 다시 선택하기</strong>');
     expect(html).not.toContain('전체 요청 취소');
+  });
+});
+
+describe('the owner steps use the 안내 박스 and the accent ink', () => {
+  it.each(['2', '3', '6'] as const)('step %s sets its note on a blockquote', (step) => {
+    const html = bodyFor(slotsForStep(step)[0]);
+    // ⛔ Flattening this back to <p> loses the grey card the design draws — there is no
+    // other way to say "this paragraph is an aside" inside the guide allow-list.
+    expect(html.match(/<blockquote>/g)).toHaveLength(1);
+    expect(html).toContain('</blockquote>');
+  });
+
+  it.each(['2', '3', '6'] as const)('step %s colours 담당자에게 문의', (step) => {
+    const html = bodyFor(slotsForStep(step)[0]);
+    expect(html).toContain('<em>담당자에게 문의</em>해 주세요.');
   });
 });
 

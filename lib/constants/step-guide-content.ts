@@ -62,20 +62,22 @@ const IDC_TARGET_INPUT_HTML =
 /**
  * Owner copy, 2026-08-23. Shared by all five step-2 slots.
  *
- * ⚠️ One word is not the owner's: the copy named the control 「전체 요청 취소」, and no
- * such label renders. The button on this step is `WaitingApprovalCancelButton`, and it
- * reads <strong>다시 요청하기</strong> — which is what it is pointed at here, because a
- * guide that names a button the reader cannot find is worse than a guide that is quiet.
- * If the button is being renamed, rename it and flip this back.
+ * ⚠️ OPEN: the control's name does not match the screen. This copy says
+ * 「연동 대상 다시 선택하기」 (owner, 2026-08-23, third name given for it), while
+ * `WaitingApprovalCancelButton` still renders 「다시 요청하기」 — as do the two body
+ * sentences beside it (`WaitingApprovalCard`, `IdcStep2WaitingApproval`). Renaming the
+ * button is a four-file change to a control whose current label is the app-wide retry
+ * word, so it is not being inferred from a copy edit; it needs a decision. Until then a
+ * reader is told to press something the screen calls otherwise.
  */
 const STEP_2_HTML =
   '<h4>PII Agent 담당자의 검토를 기다리고 있어요</h4>' +
   '<p>제출하신 DB 연동 대상 목록을 담당자가 순차적으로 검토하고 있어요. 검토 후 이슈 없을 경우, 다음 단계로 넘어가요.</p>' +
-  '<p>연동 대상 DB가 잘못 제출된 상태라면 <strong>다시 요청하기</strong>를 통해 Step 1로 돌아가 ' +
-  '재입력 후 다시 제출할 수 있어요.</p>' +
+  '<blockquote>연동 대상 DB가 잘못 제출된 상태라면 <strong>연동 대상 다시 선택하기</strong>를 통해 ' +
+  'Step 1로 돌아가 재입력 후 다시 제출할 수 있어요.</blockquote>' +
   '<ul>' +
   '<li>평균 1영업일 이내 검토가 완료됩니다.</li>' +
-  '<li>2영업일 이상 지연 시 담당자에게 문의해 주세요.</li>' +
+  '<li>2영업일 이상 지연 시 <em>담당자에게 문의</em>해 주세요.</li>' +
   '</ul>';
 
 // ---------------------------------------------------------------------------
@@ -111,12 +113,12 @@ const STEP_2_HTML =
 const STEP_3_HTML =
   '<h4>담당자가 연동을 위한 환경을 구성하고 있어요</h4>' +
   '<p>환경 구성이 완료되면 다음 단계로 넘어갑니다.</p>' +
-  '<p><strong>최초 연동이 아닌 재연동인 경우</strong>, 시스템 담당자의 조치가 필요할 수도 있어요' +
-  '(이전에 설치된 PII Agent 리소스 삭제 필요). 조치가 필요한 경우 담당자가 개별 연락드릴 예정입니다.</p>' +
+  '<blockquote><strong>최초 연동이 아닌 재연동인 경우</strong>, 시스템 담당자의 조치가 필요할 수도 있어요' +
+  '(이전에 설치된 PII Agent 리소스 삭제 필요). 조치가 필요한 경우 담당자가 개별 연락드릴 예정입니다.</blockquote>' +
   '<ul>' +
   '<li>최초 연동일 경우, 평균 10분 이내 완료됩니다.</li>' +
   '<li>재연동일 경우, 평균 1영업일 소요됩니다.</li>' +
-  '<li>2영업일 이상 지연 시 담당자에게 문의해 주세요.</li>' +
+  '<li>2영업일 이상 지연 시 <em>담당자에게 문의</em>해 주세요.</li>' +
   '</ul>';
 
 // ---------------------------------------------------------------------------
@@ -211,11 +213,11 @@ const STEP_5_IDC_HTML =
 const STEP_6_HTML =
   '<h4>PII Agent를 통해 meta/sample data가 정상 수집되는지 담당자가 확인하고 있어요</h4>' +
   '<p>정상 수집 여부가 확인되면 <strong>완료</strong> 단계로 넘어가요.</p>' +
-  '<p>별도 조치가 필요한 경우 담당자가 개별 연락드릴 예정입니다.</p>' +
+  '<blockquote>별도 조치가 필요한 경우 담당자가 개별 연락드릴 예정입니다.</blockquote>' +
   '<ul>' +
   '<li>평균 1영업일 소요되는 과정입니다.</li>' +
   '<li>수집해야 할 데이터가 클 경우, 더 오래 소요될 수 있어요.</li>' +
-  '<li>3영업일 이상 지연 시 담당자에게 문의해 주세요.</li>' +
+  '<li>3영업일 이상 지연 시 <em>담당자에게 문의</em>해 주세요.</li>' +
   '</ul>';
 
 // ---------------------------------------------------------------------------

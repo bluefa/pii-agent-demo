@@ -11,10 +11,10 @@
  * caller free to attempt save and surface the BFF's specific error —
  * this helper only answers "is the body non-empty?".
  */
-import { validateGuideHtml } from '@/lib/utils/validate-guide-html';
+import { GUIDE_VALIDATE_OPTIONS, validateGuideHtml } from '@/lib/utils/validate-guide-html';
 
 export const hasGuideContent = (html: string): boolean => {
-  const result = validateGuideHtml(html);
+  const result = validateGuideHtml(html, GUIDE_VALIDATE_OPTIONS);
   if (result.valid) return true;
   return !result.errors.some((err) => err.code === 'EMPTY_CONTENT');
 };
