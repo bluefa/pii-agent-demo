@@ -3,6 +3,7 @@ import { fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, it, expect } from 'vitest';
 import {
   hasKindColumn,
+  NAME_LIFT,
   WaitingApprovalTable,
   type WaitingApprovalResource,
 } from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalTable';
@@ -156,12 +157,20 @@ describe('WaitingApprovalTable', () => {
           'the name cell',
         ).className;
 
+      // Matched against the TOKEN, not the `group-hover:text-` prefix: the day this cell also
+      // carries CELL_LIFT (another group-hover colour) a prefix test would pass for the wrong
+      // reason on confirmed and fail spuriously on approval.
       const { rerender } = render(<WaitingApprovalTable resources={rows} />);
       expect(nameCell()).toContain('font-semibold');
-      expect(nameCell()).not.toContain('group-hover:text-');
+      expect(nameCell()).not.toContain(NAME_LIFT);
 
       rerender(<WaitingApprovalTable variant="confirmed" resources={rows} />);
-      expect(nameCell()).toContain('group-hover:text-');
+      expect(nameCell()).toContain(NAME_LIFT);
+      expect(nameCell()).not.toContain('font-semibold');
+
+      // `plain` is the other screen the unscoped version reached (admin ops 확정 정보).
+      rerender(<WaitingApprovalTable variant="plain" resources={rows} />);
+      expect(nameCell()).toContain(NAME_LIFT);
       expect(nameCell()).not.toContain('font-semibold');
     });
 
@@ -220,8 +229,9 @@ describe('WaitingApprovalTable', () => {
       const { rerender } = render(<WaitingApprovalTable resources={rows} />);
       expect(childrenHidden()).toBe(true);
 
-      // What the card passes once the toolbar narrows the list.
-      rerender(<WaitingApprovalTable resources={[rows[0]]} expandFolds />);
+      // ONE variable: same rows, `expandFolds` flipped. Narrowing `resources` at the same time
+      // would leave it open which of the two moved the fold.
+      rerender(<WaitingApprovalTable resources={rows} expandFolds />);
       expect(childrenHidden()).toBe(false);
       // Indicator, not control: a press here would be recorded as a COLLAPSE against state the
       // filter owns, and clearing the filter would then shut a group nobody closed.
@@ -686,14 +696,29 @@ describe('WaitingApprovalTable', () => {
       render(
         <WaitingApprovalTable
           resources={[
+            // Branch 1 — a cluster WITH members.
             cluster(),
-            { ...cluster(), rowKey: 'ec2', resourceId: 'i-1', resourceType: 'AWS_EC2',
-              resourceName: 'ec2-box', rdsInstanceCandidates: undefined },
+            // Branch 2 — the tag stack. Two ways to miss it, both silent:
+            // ⛔ the field is `declaredResourceType`, not `resourceType` (`isEc2` reads the
+            //    declared one), and
+            // ⛔ the value must normalise to EC2 — `AWS_EC2_INSTANCE` is the wire spelling the
+            //    alias map carries; a plausible-looking `AWS_EC2` does not resolve.
+            // Either slip drops the row into branch 3 and leaves branch 2 — one of the two that
+            // carried the bug — untested. A mutation check cannot catch that: reverting the fix
+            // reddens branch 1 regardless, so the test still goes red for the wrong reason.
+            { ...cluster(), rowKey: 'ec2', resourceId: 'i-1', resourceType: 'AWS_EC2_INSTANCE',
+              declaredResourceType: 'AWS_EC2_INSTANCE', resourceName: 'ec2-box',
+              rdsInstanceCandidates: undefined },
+            // Branch 3 — the plain one-liner.
             { ...cluster(), rowKey: 'plain', resourceId: 'db-1', resourceType: 'MYSQL',
-              resourceName: 'plain-db', rdsInstanceCandidates: undefined },
+              declaredResourceType: undefined, resourceName: 'plain-db',
+              rdsInstanceCandidates: undefined },
           ]}
         />,
       );
+
+      // Branch 2 really is branch 2: only it prints the kind tag beside the name.
+      expect(screen.getByText('EC2')).toBeTruthy();
 
       const nameTriggers = ['demo-cluster', 'ec2-box', 'plain-db'].map((name) =>
         required(screen.getByText(name).parentElement, `${name}'s tooltip trigger`),
@@ -1073,10 +1098,10 @@ describe('WaitingApprovalTable', () => {
 
     it('gives steps 2·3 the console shell, with the identity pair absorbing', () => {
       // The spec's own decision, so it is asserted here rather than in ConsoleTable.test:
-      // six columns summing to 988 (the confirmed table's floor, so the two line up), with
-      // flex on the identity pair — Resource ID last, so IT is the sink.
-      // ⛔ 제외 사유 must stay sized: it is blank on every 대상 row and clamped on the rest,
-      // so as the sink it spent 60% of a wide table on a mostly-empty column.
+      // six columns summing to 988 (the confirmed table's floor WITH its 종류 column; without
+      // it confirmed is 860), with flex on the identity pair — Resource ID last, so IT is the sink.
+      // ⛔ 제외 사유 must stay sized: it is blank on every 대상 row and clamped on the rest, so
+      // as the sink it would hold 1099px of a 2700px table — 41% — on a mostly-empty column.
       const { container } = render(
         <WaitingApprovalTable variant="approval" resources={[row()]} />,
       );

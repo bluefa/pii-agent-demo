@@ -209,10 +209,13 @@ export const WaitingApprovalCard = ({
         raisedRows
         emptyMessage={showFilterEmpty ? FILTER_EMPTY_MESSAGE : undefined}
         // Any narrowing opens the groups. Closed by default, a search that matched only a
-        // database inside one drew a shut group and none of the text that was typed. The tiles
-        // count too, unlike the confirmed table's expression: `groupResourceRows` re-groups the
-        // FILTERED rows, so under 연동 대상 a 3-database group prints "Database 총 2개" — the
-        // line describes a subset, and the only honest answer is to show which rows it means.
+        // database inside one drew a shut group and none of the text that was typed.
+        //
+        // The 대상/제외 tiles are in the expression because `groupResourceRows` re-groups the
+        // FILTERED rows: under 연동 대상 a three-database group prints "Database 총 2개", and a
+        // line describing a subset has to be able to show which rows it means. The confirmed
+        // table's version of this expression omits them only because that toolbar HAS no tiles —
+        // it is not a divergence to harmonise away.
         expandFolds={
           !!table.searchValue.trim() || !!table.dbType || !!table.region || table.filter !== 'all'
         }

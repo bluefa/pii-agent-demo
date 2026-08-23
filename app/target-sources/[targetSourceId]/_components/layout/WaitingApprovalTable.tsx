@@ -467,8 +467,10 @@ const confirmedColumns = (regionLabel: string, withKind: boolean): ConsoleTableC
 ];
 
 /**
- * Steps 2·3 column widths, summing to 988 — the confirmed table's floor, so neither scrolls
- * at the same pane. `dbType` and `region` keep the confirmed table's own numbers, which are
+ * Steps 2·3 column widths, summing to 988. That equals the confirmed table's floor only with
+ * its 종류 column on; without it confirmed is 860 and this table scrolls first, so the two line
+ * up on an Athena roster and not on an RDS/EC2 one. `dbType` and `region` keep the confirmed
+ * table's own numbers, which are
  * also what their values measure; `target` is IdcResourceTable's 요청 대상 여부 (`w-[112px]`),
  * the same question asked of the same kind of row.
  *
@@ -480,7 +482,7 @@ const confirmedColumns = (regionLabel: string, withKind: boolean): ConsoleTableC
  *   a chip that expands. 230 sized it to that worst case; 142 sizes it to the common one and
  *   leaves the tail to the affordance that already exists. ALL of the slack came from here.
  * - Resource Name needed 303 against 162 — that shortfall IS the truncation the owner
- *   reported. 250 leaves a 203px content box (250 − `nameCell`'s 30 − the cell's 18), and six
+ *   reported. 250 leaves a 202px content box (250 − `nameCell`'s 30 − the cell's 18), and six
  *   of the nine names fit it: 54 / 97 / 109 / 145 / 175 / 181. The three that do not are one
  *   223px cluster name and the two `dynamodb:<acct>:<region>` strings at 264 and 263, which
  *   are identifiers wearing the name column.
@@ -508,9 +510,10 @@ const APPROVAL_COLUMN_WIDTHS = {
  * ⛔ NOT 제외 사유, though it is the one free-text column here. Measured: it renders nothing
  * at all on a 대상 row (`ReasonCell` returns null when `selected`), and on an excluded row it
  * renders a chip carrying `clampReason(...)` — a summary with its own expansion. Widening it
- * reveals nothing; and since the sink takes whatever the shares leave (~80% here), making it
- * the sink spent 1620px of a 2700px table on a mostly-empty column. A sink has to be a column
- * where the pixels pay.
+ * reveals nothing; and a sink takes ALL the slack above the floors, so as the sink this column
+ * would hold 1099px of a 2700px table — 41% of it, mostly empty. (2700 − name 683 − id 508 −
+ * the three sized 410; the two shares are 250/988 and 186/988 of the pane.) A sink has to be a
+ * column where the pixels pay.
  */
 export const APPROVAL_FLEX_KEYS = ['name', 'id'] as const;
 
@@ -922,7 +925,7 @@ export const WaitingApprovalTable = memo(
                 truncatedOnly
               >
                 <span
-                  className={cn('block min-w-0', NAME_TEXT[consoleVariant ? 'console' : 'legacy'])}
+                  className={cn('min-w-0', NAME_TEXT[consoleVariant ? 'console' : 'legacy'])}
                 >
                   {resource.resourceName || PLACEHOLDER}
                 </span>
