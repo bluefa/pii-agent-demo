@@ -211,6 +211,18 @@ describe('false positive 경계 — 폼이 받아 준 값은 서버도 받는다
     expect(result.value.resources?.map((r) => r.resource_id)).toEqual(['db-1']);
   });
 
+  // 조작된 본문으로만 도달한다(실 UI 는 매퍼가 먼저 걸러 스키마 400 에서 끝난다).
+  // 리소스 0개짜리 승인 요청을 상류에 만들지 않는다.
+  it('걸러 내고 나서 한 행도 안 남으면 빈 요청을 상류로 보내지 않는다', async () => {
+    const result = await resolveApprovalInput(1, 'AWS', parse({
+      resources: [{ resource_id: '', selected: true }],
+    }));
+
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.failure.status).toBe(400);
+  });
+
   it('id 없는 행이 둘이어도 중복으로 걸리지 않는다', async () => {
     const result = await resolveApprovalInput(1, 'AWS', parse({
       resources: [

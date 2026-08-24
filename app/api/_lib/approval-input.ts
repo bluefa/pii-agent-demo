@@ -222,6 +222,12 @@ export const resolveApprovalInput = async (
   // identity this flow adds"). 중복 검사보다 먼저 떨어내야 `''` 두 개가 중복으로 걸리지 않는다.
   const rows = input.resources.filter((row) => row.resource_id !== '');
 
+  // 스키마의 `.min(1)` 을 필터 뒤에 한 번 더 적용한다. 실 UI 는 여기 못 온다 — 매퍼가
+  // 먼저 걸러 내므로 빈 목록은 라우트의 스키마에서 400 으로 끝난다. 남는 도달 경로는
+  // 조작된 본문뿐이고, 그때 리소스 0개짜리 승인 요청(상태 전이 + 빈 큐 항목)이 상류에
+  // 생기게 둘 이유가 없다.
+  if (rows.length === 0) return fail('연동할 리소스가 없습니다.');
+
   const ids = rows.map((row) => row.resource_id);
   if (new Set(ids).size !== ids.length) return fail('같은 리소스가 두 번 담겼습니다.');
 
