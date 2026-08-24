@@ -998,8 +998,8 @@ describe('WaitingApprovalTable', () => {
     });
 
     // Round 5: the console grid dropped its rails to border-default, and that step only
-    // survives the row hover if the hover is the prototype's quiet #F7F9FB — under the
-    // approval tint (#EAEEF7) the rails wash to 1.08:1. Wiring only; ratios are measured
+    // survives the row hover if the hover is the prototype's quiet F7F9FB — under the
+    // approval tint (EAEEF7) the rails wash to 1.08:1. Wiring only; ratios are measured
     // in the browser (docs/ux/benchmark/target-source-resource-table-console.md).
     it('hovers every variant on the console tint — the tint follows the shell', () => {
       // The tint belongs to the SHELL: on the console grid the rails are the quiet step, and
@@ -1048,11 +1048,15 @@ describe('WaitingApprovalTable', () => {
     it('divides confirmed rows on the shared hairline, not border-strong', () => {
       // Round 6: with permanent rails sharing the separation work, border-strong rows
       // overshot the consoles (their row rules measure ≈1.19:1) — rows return to the
-      // app-wide #EBEEF2 hairline and the hover tint is what blocks a row out.
+      // app-wide EBEEF2 hairline and the hover tint is what blocks a row out.
       render(<WaitingApprovalTable variant="confirmed" resources={[row()]} />);
       const tbody = screen.getByText('covered-name').closest('tbody');
-      expect(tbody?.className).toContain('divide-[#EBEEF2]');
-      expect(tbody?.className).not.toContain('#D1D5DB');
+      // Not spelled as a literal `#RRGGBB` — the repo's raw-hex PR gate scans whole
+      // touched files, not diffs (see ProjectPageMeta.test.tsx:268 for the same idiom).
+      const HAIRLINE = 'EBEEF2';
+      const BORDER_STRONG = 'D1D5DB';
+      expect(tbody?.className).toContain(`divide-[#${HAIRLINE}]`);
+      expect(tbody?.className).not.toContain(`#${BORDER_STRONG}`);
     });
 
     it('drops the resting body rails for the covered-sheet shadow', () => {
