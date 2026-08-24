@@ -193,7 +193,10 @@ const AZURE_INSTALLING_HTML =
 
 const GCP_INSTALLING_HTML =
   '<h4>DB Type에 따라 필요한 설치 작업이 달라집니다.</h4>' +
-  '<p>아래 3가지 작업 중 일부만 필요하거나, 전혀 필요하지 않을 수 있어요.</p>' +
+  // 오너 지시 2026-08-24: drop the 「BDC Side Terraform」 block and the 「Service Side
+  // Terraform 실행 가이드」 bar. The count moves with the list — a sentence that counts the
+  // blocks below it goes wrong the moment one is removed, and 3 is now visibly two.
+  '<p>아래 2가지 작업 중 일부만 필요하거나, 전혀 필요하지 않을 수 있어요.</p>' +
   '<p><mark>Service Side Subnet 생성</mark><br />상대측 GCP Project에 ' +
   'Regional Managed Proxy Subnet이 존재하는지 확인하는 작업입니다.</p>' +
   '<p><mark>Service Side Terraform</mark><br />상대측 GCP Project에 PSC 및 관련 리소스를 ' +
@@ -202,9 +205,6 @@ const GCP_INSTALLING_HTML =
   'Service Attachment의 <code>consumerAcceptLists</code>에 BDC 프로젝트를 미리 등록해두면 ' +
   '승인 절차 없이 자동으로 연결돼요. 등록되어 있지 않으면 상대측 담당자의 수동 승인이 한 번 더 필요해요.' +
   '</blockquote>' +
-  refBar('Service Side Terraform 실행 가이드') +
-  '<p><mark>BDC Side Terraform</mark><br />우리측 GCP Project에 PSC Connection ' +
-  '생성(BIGQUERY의 경우 bigquery.user 권한 부여)하는 작업입니다.</p>' +
   '<blockquote><strong>PSC 연동(PRIVATE_IP_MODE · PSC_MODE)의 경우</strong>, 연결 상태가 ' +
   '<strong>Pending</strong>이면 상대측 담당자의 승인이 필요해요. (Service Side Terraform 단계의 ' +
   '<code>consumerAcceptLists</code> 등록 여부에 따라 달라집니다)</blockquote>';

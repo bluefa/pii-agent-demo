@@ -351,6 +351,36 @@ describe('step 4 — each AWS slot carries one branch', () => {
   });
 });
 
+/**
+ * 오너 지시 2026-08-24: the BDC-side block leaves the GCP guide. The source artifact still
+ * carries it, so this is the one GCP slot that deliberately departs from the transcription
+ * — without a test the next pass against the artifact reads the gap as a porting miss and
+ * quietly puts it back.
+ */
+describe('step 4 — the GCP slot drops the BDC-side block', () => {
+  const gcp = bodyFor('process.gcp.4');
+
+  it.each([
+    '<details><summary>Service Side Terraform 실행 가이드</summary></details>',
+    '<mark>BDC Side Terraform</mark>',
+    '우리측 GCP Project에 PSC Connection',
+  ])('no longer carries 「%s」', (removed) => {
+    expect(gcp).not.toContain(removed);
+  });
+
+  it('counts the blocks it actually prints', () => {
+    // 「3가지」 outlived the third block by one edit. The reader can count the pills, so the
+    // number is a claim the body either backs or contradicts.
+    expect(gcp).toContain('아래 2가지 작업');
+    expect(gcp.match(/<mark>/g) ?? []).toHaveLength(2);
+  });
+
+  it('keeps the Service-side work the owner did not remove', () => {
+    expect(gcp).toContain('<mark>Service Side Subnet 생성</mark>');
+    expect(gcp).toContain('<mark>Service Side Terraform</mark>');
+  });
+});
+
 // ---------------------------------------------------------------------------
 // The source's visual grammar
 // ---------------------------------------------------------------------------
@@ -371,7 +401,6 @@ describe('the source draws shapes, not only sentences', () => {
     ['process.aws.manual.4', 'Terraform Script 실행 가이드'],
     ['process.azure.4', 'VM Subnet 생성을 위한 권한 부여 설정'],
     ['process.azure.4', 'Private Endpoint 승인 가이드'],
-    ['process.gcp.4', 'Service Side Terraform 실행 가이드'],
     ['process.aws.auto.5', 'DB Credential 등록 페이지 가이드'],
   ];
 
@@ -406,7 +435,6 @@ describe('the source draws shapes, not only sentences', () => {
   it.each([
     ['process.gcp.4', 'Service Side Subnet 생성'],
     ['process.gcp.4', 'Service Side Terraform'],
-    ['process.gcp.4', 'BDC Side Terraform'],
     ['process.azure.4', 'Private Endpoint 승인'],
     ['process.aws.auto.4', '자동 설치'],
     ['process.aws.manual.4', '수동 설치'],
