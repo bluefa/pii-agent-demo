@@ -49,7 +49,9 @@ export const GuideCardPure = ({
   // and AST allocation off the hot path while content is unchanged.
   const result = useMemo(() => validateGuideHtml(content, GUIDE_VALIDATE_OPTIONS), [content]);
   const rendered = useMemo(
-    () => (result.valid ? renderGuideAst(result.ast) : null),
+    // `steps: true` — a step guide's ordered list is a procedure, and the source draws it
+    // with a numbered circle per step. Posts render the same AST without it.
+    () => (result.valid ? renderGuideAst(result.ast, { steps: true }) : null),
     [result],
   );
 

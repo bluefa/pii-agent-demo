@@ -509,6 +509,77 @@ body {
   font-size: 0.8125rem;
 }
 
+/* =============================================================================
+   단계 원 — the step guides' numbered procedure (source: `ol.steps`).
+
+   The `guide-steps` class comes from the RENDERER, which only puts it on an `<ol>`
+   when the caller passed `{ steps: true }` — `GuideCardPure` does, `PostAccordionRow`
+   does not. A numbered list in a notice is a list, not a procedure, and filled
+   circles would claim an order of operations it does not have.
+
+   Specificity beats the `.prose-guide ol` rules above ((0,2,1) against (0,1,1)),
+   so the padding and list-style here win wherever the class is present.
+
+   Geometry is the source's, scaled from its 16px body to this panel's 13px:
+   26px circle → 22px, 14px column gap → 10px, 20px between steps → 14px.
+   ============================================================================= */
+
+.prose-guide ol.guide-steps {
+  list-style: none;
+  counter-reset: guide-step;
+  padding-left: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.prose-guide ol.guide-steps > li {
+  counter-increment: guide-step;
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr);
+  gap: 10px;
+  margin: 0;
+}
+
+/* Everything a step contains belongs beside the circle, never under it. Without
+   this, a step with three children (title, bar, sub-list) auto-places its third
+   into column 1 and it lands beneath the number. The source dodges this by
+   wrapping each step's body in one div; the guide allow-list has no div, so the
+   column is pinned here instead. `> *` cannot match `::before`, which is what
+   leaves the circle its own cell. */
+.prose-guide ol.guide-steps > li > * {
+  grid-column: 2;
+}
+
+.prose-guide ol.guide-steps > li::before {
+  content: counter(guide-step);
+  grid-column: 1;
+  grid-row: 1;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  /* --color-primary-hover (#0050D6), not --color-primary (#0064FF). Both clear AA:
+     white measures 4.92:1 on the brand blue, 6.73:1 here, against the 4.5:1 a 12px/500
+     numeral needs. So the brand blue is not disqualified — it is chosen against, because
+     4.92 leaves almost no headroom on a glyph this small and the circle is the only
+     thing carrying the step's number. An earlier revision of this comment said 4.66:1
+     and called #0064FF an AA failure; both were wrong, and neither should be cited. */
+  background: var(--color-primary-hover);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  display: grid;
+  place-items: center;
+  margin-top: 1px;
+}
+
+/* The sub-list under a step sits flush with its title — the circle column has
+   already provided the indent, and `.prose-guide`'s 1.25rem would indent it twice. */
+.prose-guide ol.guide-steps > li > ul {
+  padding-left: 1rem;
+}
+
 /* Guide CMS admin editor — Tiptap renders <.ProseMirror> inside the
    <EditorContent> wrapper. Without an explicit min-height on the inner
    contenteditable, clicking the wrapper's padding region misses the

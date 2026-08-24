@@ -2580,6 +2580,49 @@ export const guideStyles = {
    * note, so one ink covers both surfaces.
    */
   accent: 'not-italic font-medium text-[#0050D6]',
+  /**
+   * 참고 가이드 바 — `<details>` holding nothing but its `<summary>`.
+   *
+   * The source screens draw these as a filled accent bar with a ▶ on the right and
+   * `cursor: default`: a pointer to another document, not a control. They are the loudest
+   * thing in those cards, and rendering them as plain bullets — which is what the first
+   * pass did — makes eleven of them vanish into the prose.
+   *
+   * Fill and ink are this app's own blessed pair (`primaryColors.bgLight` / `textOnLight`,
+   * 5.92:1), not the source's #EEF2F8/#3F6293: the rail already owns one blue and a second
+   * would read as a second meaning. Geometry is scaled from the source's 14px/12×16px to
+   * this panel's 13px body — 320px is not the source's 64ch.
+   *
+   * No hairline, unlike `note` above, and that is not an oversight: #E8F1FF against the
+   * card measures ~1.14:1, so the fill is not what separates this. The 600-weight accent
+   * ink is — measured 5.92:1 on the fill — and the source draws the bar `border: 0` for
+   * the same reason. `note` needs its hairline because a grey aside has no ink of its own
+   * to be told apart by.
+   *
+   * ⛔ Not a working toggle. There is no panel to open — the source has no body behind
+   * these either — so the renderer emits a static row and the ▶ is decoration.
+   */
+  refBar:
+    'my-1.5 flex w-full items-center gap-2.5 rounded-[9px] bg-[#E8F1FF] px-3 py-2.5 ' +
+    "font-semibold text-[#0050D6] after:ml-auto after:text-[10px] after:opacity-60 after:content-['▶']",
+  /**
+   * 작업 이름표 — `<mark>`, the source's `.tag` and `.path__pill`.
+   *
+   * `<mark>` is repurposed the way `<em>` above already is: browser default highlighting
+   * is not a thing any guide here wants, and the tag reads as "this run is a label",
+   * which is the job. The source sets these in a mono face; this app is single-family
+   * Pretendard, so the pill carries its distinction on fill and size instead.
+   *
+   * One pill serves both of the source's two — `.tag` (wash) and `.path__pill` (solid) —
+   * because they never share a card here. The source needs them apart since it prints both
+   * install branches side by side and the solid fill marks the selected one; each slot in
+   * this app carries a single branch, so a second fill would distinguish nothing. The
+   * `.tag` cards (GCP, Azure) and the `.path__pill` cards (AWS) are disjoint, so one style
+   * still reads consistently inside every card that draws it.
+   */
+  pill:
+    'mb-1 inline-block rounded-[5px] bg-[#E8F1FF] px-2 py-0.5 text-[12px] ' +
+    'font-medium tracking-[0.02em] text-[#0050D6]',
 } as const;
 
 /**

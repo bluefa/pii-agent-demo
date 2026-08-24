@@ -94,6 +94,81 @@ describe('renderGuideAst — per-node output', () => {
   });
 });
 
+describe('renderGuideAst — the step-guide shapes', () => {
+  const bar: GuideNode = {
+    type: 'details',
+    children: [{ type: 'summary', children: [{ type: 'text', value: '실행 권한 부여 가이드' }] }],
+  };
+
+  it('draws 참고 가이드 바 as a static row, never a real disclosure', () => {
+    const html = render([bar]);
+    // ⛔ Not a `<details>`: there is no panel behind it, and a toggle that opens nothing
+    // offers the reader something the guide cannot deliver.
+    expect(html).not.toContain('<details');
+    expect(html).not.toContain('<summary');
+    // `refBar` ends in `content-['▶']`, and React escapes the quotes on the way into the
+    // attribute — compare against what actually lands in the HTML, not the token.
+    expect(html).toContain(guideStyles.refBar.replace(/'/g, '&#x27;'));
+    expect(html).toContain('실행 권한 부여 가이드');
+  });
+
+  it('draws 작업 이름표 on a <mark> that carries the pill', () => {
+    const html = render([{ type: 'mark', children: [{ type: 'text', value: '자동 설치' }] }]);
+    expect(html).toContain(`<mark class="${guideStyles.pill}">자동 설치</mark>`);
+  });
+
+  /**
+   * The numbered circle is the caller's declaration, not the markup's — the same renderer
+   * draws notices, whose ordered lists are lists rather than procedures. Both directions
+   * are asserted: opting in without ever opting out would let the class leak to posts.
+   */
+  const list: GuideNode[] = [
+    { type: 'ol', children: [{ type: 'li', children: [{ type: 'text', value: '하나' }] }] },
+  ];
+
+  it('marks <ol> as a procedure only when the caller asks', () => {
+    expect(renderToStaticMarkup(<>{renderGuideAst(list, { steps: true })}</>)).toContain(
+      '<ol class="guide-steps">',
+    );
+  });
+
+  it('leaves <ol> unmarked by default — a notice list is not a procedure', () => {
+    expect(render(list)).toBe('<ol><li>하나</li></ol>');
+  });
+
+  it('does not carry the procedure flag over to the next render', () => {
+    // `steps` is threaded through the walk, so there is no module state left to leak. Kept
+    // as a tripwire anyway: this is the invariant the threading exists to hold, and a
+    // refactor back to a module-level flag fails here instead of in production.
+    renderGuideAst(list, { steps: true });
+    expect(render(list)).not.toContain('guide-steps');
+  });
+
+  it('threads the procedure flag all the way down', () => {
+    // The risk the threading introduces, which the old module-level flag did not have: a
+    // branch that forgets to pass `steps` silently drops the circles on everything below
+    // it. So the DEEPEST list is what this asserts, not the top one.
+    const nested: GuideNode[] = [
+      {
+        type: 'ol',
+        children: [
+          {
+            type: 'li',
+            children: [
+              {
+                type: 'ol',
+                children: [{ type: 'li', children: [{ type: 'text', value: '깊은 곳' }] }],
+              },
+            ],
+          },
+        ],
+      },
+    ];
+    const html = renderToStaticMarkup(<>{renderGuideAst(nested, { steps: true })}</>);
+    expect(html.match(/<ol class="guide-steps">/g)).toHaveLength(2);
+  });
+});
+
 describe('renderGuideAst — anchor attributes', () => {
   it('passes through href / target / rel', () => {
     const html = render([
