@@ -2356,21 +2356,28 @@ export const railStyles = {
    *
    * The ladder the left rail's comment sets is the one this joins:
    *
-   *   rail L* 91.4  →  canvas 96.4  →  card 100
+   *   rail L* 91.2  →  canvas 96.4  →  card 100
    *
-   * Ink measured on THIS plane (benchmark record §1):
-   *   #191F28 13.29 ✔ · #374151 8.27 ✔ · #4E5968 5.71 ✔ · #0050D6 5.40 ✔
-   *   ⛔ #0064FF 3.95 ✘ · gray-500 3.88 ✘
+   * The hue belongs to the page, not to the rail. #E2E7EA sat at H 241° while the canvas
+   * it abuts (#F4F4FB) sits at H 290° and the brand blue at H 295° — two neutrals from
+   * different families meeting along a vertical edge, which is what read as murky
+   * (오너 2026-08-24). #E5E5EF is H 291° at the SAME lightness step, so the fix costs
+   * nothing: every ink on this plane moved by ≤0.05 and not one had to be re-picked.
    *
-   * Only the FOLDED strip prints straight onto this plane; every open-rail zone sits
-   * inside a white `card` below, so tokens measured against white stay valid there. ⛔ If
-   * you move something out of a card onto the rail, re-measure it against 91.4 first.
+   * Ink measured on THIS plane:
+   *   #191F28 13.24 ✔ · #374151 8.24 ✔ · #4E5968 5.68 ✔ · #0050D6 5.38 ✔
+   *   ⛔ #0064FF 3.93 ✘ · gray-500 3.86 ✘
+   *
+   * The FOLDED strip and the open rail's fold control print straight onto this plane;
+   * every zone below sits inside a white `card`, so tokens measured against white stay
+   * valid there. ⛔ If you move something out of a card onto the rail, re-measure it
+   * against 91.2 first.
    */
-  surface: 'bg-[#E2E7EA]',
+  surface: 'bg-[#E5E5EF]',
   /**
    * One zone of the open rail — 협업 채널, 가이드 — as a card on that plane.
    *
-   * ⛔ No border and no shadow. White on #E2E7EA is a 1.28 step (ΔL* 8.6) and 12px of gap
+   * ⛔ No border and no shadow. White on #E5E5EF is a 1.25 step (ΔL* 8.8) and 12px of gap
    * runs around every side, which is the containment grammar the content column already
    * uses: its card measures radius 20 / border 0 / shadow none against a canvas only 1.08
    * away. A hairline here would be a third separator stacked on two that already work.
@@ -2414,12 +2421,11 @@ export const railStyles = {
    * The fold control. Glyph-only, so the call site owes it an `aria-label` that says
    * what the press DOES ("가이드 접기"), not what the rail currently is.
    *
-   * ⚠️ It now renders on TWO grounds: inside the 협업 채널 card (white) when the rail is
-   * open, and straight on the rail plane (#E2E7EA) when it is folded. One token still
-   * covers both because gray-100 lands at least as far from each — measured in the
-   * browser at 1.101 against white and **1.132** against #E2E7EA, i.e. the folded state
-   * is the more visible of the two. It reads as a dip on the card and a lift on the rail;
-   * that polarity flip is the price of one token, and each side is locally consistent.
+   * It renders on ONE ground now — the rail plane, in both fold states. It used to sit
+   * inside the 협업 채널 card while the rail was open, which put the panel's own control
+   * inside the panel's first zone (오너 2026-08-24: 「접기 버튼이 협업채널의 일부처럼
+   * 보인다」) and made the hover a dip on white and a lift on the plane. gray-100 measures
+   * 1.14 against #E5E5EF, and that is the only pair left to hold.
    *
    * ⛔ This is not a general licence to put a plane under it. gray-100 measures ~1.03
    * against #E8F1FF, where the hover simply vanishes; the pair that works there is
@@ -2435,18 +2441,30 @@ export const railStyles = {
    * separating and this says WHICH zone. (Under 시안 E it was load-bearing in a stronger
    * sense: a hairline and this label were the only things dividing the rail at all.)
    *
-   * 16px semibold (오너 지시 2026-08-23). ⚠️ It started as the service rail's
-   * `sectionLabel` (12px medium #4E5968) on the argument that two rails in one app
-   * should share a nav idiom. That argument no longer holds — at 16px this is a section
-   * HEADING, not a nav label, so it is deliberately its own thing.
+   * 16px (오너 지시 2026-08-23). ⚠️ It started as the service rail's `sectionLabel`
+   * (12px medium #4E5968) on the argument that two rails in one app should share a nav
+   * idiom. That argument no longer holds — at 16px this is a section HEADING, not a nav
+   * label, so it is deliberately its own thing.
    *
-   * #4E5968 stays, and it is now the FIRST thing read in its zone: the 16px bold
-   * 「도움이 필요하신가요?」 that used to outrank it is gone (two same-size headings 8px
-   * apart is a stutter, not a hierarchy). 7.12:1 on the card's white. ⛔ Do not read the
-   * 5.71 figure next to `surface` as this token's number — that one is for the rail plane,
-   * which this label never touches.
+   * T1 of the rail's three tiers (오너 2026-08-24: 12 / 14 / 16, and a leading per group).
+   * It was 600 #4E5968 at leading 1.5, and the guide's own `<h4>` two lines below it was
+   * 14px **700** #111827 at 1.72 — a 24.08px line box against this label's 24.00, i.e. the
+   * body's heading outranked its section's on weight, ink AND line box, losing only 2px of
+   * size. Every lever now points the same way: 16 over 14, 700 over 600, and a line box
+   * that is 20 to the body's 20.
+   *
+   *   size 16 · leading 20 (1.25) · tracking −0.02em · weight 700 · #333D4B, 11.0:1 on white
+   *
+   * ⛔ The tracking is negative and the tier below it is less negative — the gradient runs
+   * that way on purpose. `letter-spacing` inherits as a computed LENGTH, so `body`'s
+   * −0.288px lands on 12px text as −0.024em and on this as −0.018em; the old +0.02em here
+   * inverted the one place it had been declared. Carbon (+0.32 → +0.16 → 0px) and Material
+   * (+0.5 → +0.25 → +0.15px) both loosen the small end and tighten the large one.
+   *
+   * ⛔ Do not read the 5.68 figure next to `surface` as this token's number — that one is
+   * for the rail plane, which this label never touches.
    */
-  zoneLabel: 'text-[16px] font-semibold tracking-[0.02em] text-[#4E5968]',
+  zoneLabel: 'text-[16px] font-bold leading-[20px] tracking-[-0.02em] text-[#333D4B]',
   /**
    * The 가이드 zone's mark — the 전구 ink, on the open rail's zone head and on the folded
    * strip (오너 지시 2026-08-23: the same mark in both states).
@@ -2514,9 +2532,9 @@ export const railStyles = {
    * It is the size the target-source header's provider mark used before 오너 지시 took
    * it to 28.
    *
-   * `text-gray-700` (#374151) is 8.27:1 on the rail's #E2E7EA plane — it was 9.06 while
+   * `text-gray-700` (#374151) is 8.24:1 on the rail's #E5E5EF plane — it was 9.06 while
    * the rail was white, and the glyph is what survives when the label is read past.
-   * ⛔ gray-500 is 3.88 here, i.e. no longer legal at all; it was 4.83 on white.
+   * ⛔ gray-500 is 3.86 here, i.e. no longer legal at all; it was 4.83 on white.
    */
   entry:
     'flex w-full flex-col items-center gap-1 rounded-md py-2 text-gray-700 transition-colors hover:bg-gray-100',
@@ -2531,9 +2549,9 @@ export const railStyles = {
    * shorten the WORD (JetBrains' stripe rule: two words max, abbreviate).
    *
    * #0050D6 is the rail's single blue — the same ink the Jira key and `guideStyles.accent`
-   * use — and it holds on both of this rail's grounds: 6.73:1 on white, 5.40:1 on the
-   * #E2E7EA strip plane where this label actually renders. ⛔ Not #0064FF, which is 4.92
-   * on white but **3.95 here** — the plane change is exactly what disqualifies it.
+   * use — and it holds on both of this rail's grounds: 6.73:1 on white, 5.38:1 on the
+   * #E5E5EF strip plane where this label actually renders. ⛔ Not #0064FF, which is 4.92
+   * on white but **3.93 here** — the plane change is exactly what disqualifies it.
    * Written as a literal because `design-guard`'s `classOf` cannot follow a `${}`.
    */
   entryLabel: 'text-[14px] font-semibold leading-[1.2] whitespace-nowrap text-[#0050D6]',
@@ -2577,13 +2595,17 @@ export const guideStyles = {
   /**
    * 안내 박스 — `<blockquote>`. A recessed grey card for a set-off note.
    *
-   * ⛔ The fill alone is not the separation. `#F2F4F6` against white measures ~1.09:1,
+   * ⛔ The fill alone is not the separation. `#F3F3F9` against white measures ~1.11:1,
    * nowhere near the 3:1 a non-text boundary owes (the same reason this file already
    * refuses `#F9FAFB` as a row tint), so the hairline is load-bearing — drop it and the
    * card stops being a card. Body ink stays the inherited `--fg-2` (#374151), which is
-   * 9.6:1 on this fill.
+   * 9.33:1 on this fill.
+   *
+   * It was #F2F4F6 (H 256°), a third neutral in a panel whose other two were H 241° and
+   * H 290°. #F3F3F9 is the same lightness (L* 96.1 → 96.0) in the canvas's family, so the
+   * rail now carries ONE neutral hue — see `railStyles.surface`.
    */
-  note: 'my-2.5 rounded-lg border border-gray-200 bg-[#F2F4F6] px-3 py-2.5',
+  note: 'my-2 rounded-lg border border-gray-200 bg-[#F3F3F9] px-3 py-2.5',
   /**
    * Brand-coloured emphasis — `<em>`.
    *
@@ -2633,10 +2655,17 @@ export const guideStyles = {
    * this app carries a single branch, so a second fill would distinguish nothing. The
    * `.tag` cards (GCP, Azure) and the `.path__pill` cards (AWS) are disjoint, so one style
    * still reads consistently inside every card that draws it.
+   *
+   * ⛔ It no longer carries a fill, and that is the point. It wore `#E8F1FF` + `#0050D6` —
+   * the exact skin of `refBar` directly above it — so a run of text that does nothing and
+   * a row that points at another document were the same blue chip, told apart only by a
+   * 10px ▶ at 60% opacity. In this panel a blue fill now means "there is somewhere to go".
+   * The label keeps its distinction the way the rest of the tier does, on weight and ink.
+   *
+   * `bg-transparent` is load-bearing: `<mark>` has a yellow UA background and Preflight
+   * does not clear it, so the old fill was also what hid it.
    */
-  pill:
-    'mb-1 inline-block rounded-[5px] bg-[#E8F1FF] px-2 py-0.5 text-[12px] ' +
-    'font-medium tracking-[0.02em] text-[#0050D6]',
+  pill: 'mb-1 inline-block bg-transparent text-[14px] font-semibold tracking-[-0.01em] text-[#191F28]',
 } as const;
 
 /**
@@ -2682,7 +2711,7 @@ export const serviceSidebarStyles = {
    *
    *   rail vs ground   ΔE00 3.79 → 4.71
    *   rail vs white    ΔE00 3.10 → 5.71   (rowActive lifts twice as far)
-   *   L* 95.3 → 91.4, under the ground's 96.4 — the ladder holds
+   *   L* 95.3 → 91.2, under the ground's 96.4 — the ladder holds
    *
    * Everything printed ON the rail moves with it, or it disappears into the new
    * surface — that is why `count`/`rowCode`/`divider`/`skeletonBar` carry their
@@ -2691,8 +2720,15 @@ export const serviceSidebarStyles = {
    * this surface at all (3.88:1), and neither is `primaryColors.text` (3.95:1) —
    * see `emptyText`/`emptyAction`, which exist so those two pairs are declared
    * next to the surface instead of being discovered on a consumer.
+   *
+   * ⛔ This value and `railStyles.surface` are ONE plane by decision — the page carries
+   * two rails of the same kind and they may not be painted two greys. Moving it to
+   * #E5E5EF (2026-08-24) was a hue correction, not a level one: L* 91.4 → 91.2, H 241° →
+   * 291°, into the family the canvas (#F4F4FB, H 290°) already belongs to. Every contrast
+   * quoted above moved by ≤0.05 — gray-500 is 3.86 here, `primaryColors.text` 3.93, both
+   * still unusable for the same reason as before. ⛔ Change the two together or not at all.
    */
-  surface: 'bg-[#E2E7EA]',
+  surface: 'bg-[#E5E5EF]',
   /**
    * The ground this rail sits beside — the app canvas, not gray-50.
    *

@@ -580,6 +580,32 @@ body {
   padding-left: 1rem;
 }
 
+/* =============================================================================
+   Guide rail tier map — the rail's own numbers, and only the rail's.
+
+   `.prose-guide` is shared with the admin post editor and the notices accordion,
+   both of which keep the rhythm above. `GuideCardPure`'s `bare` branch is the only
+   thing that adds this class, and `GuidePanel` is the only caller of `bare`.
+
+   Specificity ties with the `.prose-guide` rules ((0,1,1) either way), so these
+   have to stay BELOW them in source order.
+   ============================================================================= */
+
+/* 600, not 700. This is the body's own heading, and the section head 20px above it
+   is 16/700 (`railStyles.zoneLabel`) — at 700 with #111827 and a 24.08px line box it
+   outranked its own section on weight, ink and line box, losing only 2px of size. */
+.prose-guide-rail h4 {
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+/* The last off-scale size in the rail: 0.8125rem is 13px. The face is already the
+   inherited Pretendard, so the size was the whole of the distinction — and one px
+   is not a distinction worth a fourth tier. */
+.prose-guide-rail code {
+  font-size: inherit;
+}
+
 /* Guide CMS admin editor — Tiptap renders <.ProseMirror> inside the
    <EditorContent> wrapper. Without an explicit min-height on the inner
    contenteditable, clicking the wrapper's padding region misses the

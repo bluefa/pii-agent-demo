@@ -64,16 +64,27 @@ const CollabChannelCard = ({ jiraTicket }: { jiraTicket: JiraTicketState }) => {
    * The tiers stay stacked even though one line now fits: the key is user data and a
    * longer one puts the collision straight back.
    */
-  // One leading for everything the rail sets itself: 1.5. It was 1.55 / 1.45 / 1.35 on
-  // three lines that sit 4px apart, and line-height is half-leading on BOTH sides of a
-  // box — so a 4px box gap between a 1.4 line and a 1.55 line opens to ~10.5px of air
-  // while an 8px gap elsewhere opens to ~15. Matching the box numbers alone never made
-  // the column look even; matching the leading is what makes the numbers mean anything.
-  // ⛔ The guide body keeps its own 1.72 — `.prose-guide` is shared with the admin post
-  // editor, and rendered markdown is allowed its own rhythm.
-  const rowBase = 'mt-3 block text-[12px]';
-  const channelLabel = 'block text-[12px] font-semibold leading-[1.5]';
-  const channelKey = 'block font-mono text-[14px] leading-[1.5]';
+  // The rail's tiers, T3 and T2 (오너 2026-08-24: 12 / 14 / 16, and a leading per group).
+  //
+  // Leading is set by ROLE, not by size. What is READ gets ~1.43; what is CALLED — a label,
+  // a key, a heading — gets 1.25–1.33. It used to be a flat 1.5 here and a flat 1.72 in the
+  // guide body, i.e. the larger the type the more air it took, which is the opposite of what
+  // Carbon, Atlassian, Material and Cloudscape all encode (12→16, 14→20, 16→20 for a head).
+  // `theme.ts` already agrees with them: its two commonest leadings are 1.2 (15 uses, all
+  // headings) and 1.4 (13, body). The rail was the one place using neither.
+  //
+  // ⛔ `tracking-normal` is not "no tracking" — it CANCELS the −0.288px that `body` hands
+  // down. `letter-spacing` inherits as a computed LENGTH, so that one declaration lands on
+  // 12px text as −0.024em and on 16px as −0.018em: tightest exactly where it should be
+  // loosest. Every tier now declares its own, and the gradient runs 0 → −0.01 → −0.02.
+  // `break-keep` because cancelling the tracking is what made it necessary: the sentence
+  // grew ~8px, crossed the 296px column, and Korean's default break-anywhere left 「요.」
+  // alone on line two. It breaks between 어절 now, the way `DuplicateAddressNotice` and
+  // `accessStyles` already do it.
+  const meta = 'text-[12px] leading-[16px] tracking-normal break-keep';
+  const rowBase = `mt-3 block ${meta}`;
+  const channelLabel = `block ${meta} font-semibold`;
+  const channelKey = 'block font-mono text-[14px] leading-[20px] tracking-[-0.01em]';
   const href =
     jiraTicket && jiraTicket !== 'error' ? safeBrowseUrl(jiraTicket.browseUrl) : null;
 
@@ -83,7 +94,7 @@ const CollabChannelCard = ({ jiraTicket }: { jiraTicket: JiraTicketState }) => {
           It was 16px bold sitting 8px under 「협업 채널」 at 16px semibold — two headings
           of the same size, separated by weight alone, saying the same thing twice. The
           zone label names the zone; this sentence says what it is for. */}
-      <p className={cn('text-[12px] leading-[1.5]', textColors.secondary)}>
+      <p className={cn(meta, textColors.secondary)}>
         진행 중 막히는 부분은 협업 채널에서 바로 문의할 수 있어요.
       </p>
       {/* The two empty states are back on `tertiary`. They were moved up to `secondary`
@@ -302,7 +313,37 @@ export const GuidePanel = ({
       {/* Open. A flex column of its own, so every zone below still measures against the
           rail's height exactly as it did when these were the aside's own children. */}
       {collapsed !== true && (
-        <div className={cn(bodyShown, 'min-h-0 flex-1 flex-col gap-3 p-3')}>
+        <div className={cn(bodyShown, 'min-h-0 flex-1 flex-col gap-3 p-3 pt-2')}>
+          {/* The rail's head: the fold control, and nothing else.
+
+              It used to live inside the 협업 채널 card, in a `justify-between` row with that
+              zone's label — so the control that folds the WHOLE panel was a child of the
+              panel's first zone, and it read as one (오너 2026-08-24: 「우측으로 접기 버튼이
+              협업채널의 일부처럼 보여」). It also landed somewhere else in each fold state.
+              The rail is right-anchored, so its right edge is what the eye and the pointer
+              measure from, and from there the glyph's centre sat at (28, 24) folded and
+              (32, 40) open — a 16px drop and a 4px sidestep on a control that never changed
+              what it does.
+
+              `pt-2` + a 32px box puts the centre at y=24, and `p-3`'s 12px right padding
+              puts it 28px in from the rail's right edge — the folded strip's own numbers
+              (`railStyles.strip` is `px-1 py-2` on a 56px rail: 4 + 8 + 16 = 28). Measured
+              after the move: Δ (0.5px, 0). The 0.5 is the rail's own `border-l`.
+
+              ⛔ Not a header with a title in it. The rail is named once, by the zone heads;
+              a third label here would be the 「도움이 필요하신가요?」 stutter again. JetBrains
+              puts Hide on the tool window's header and Stripe Apps puts an app's top-level
+              actions on the drawer's — neither puts them in the first section. */}
+          <div className="flex shrink-0 justify-end">
+            <RailToggle
+              direction="right"
+              label="가이드 접기"
+              expanded
+              controls={RAIL_ID}
+              presses={presses}
+              onClick={toggle}
+            />
+          </div>
           {/* 시안 A — 레일은 뒷판, 존은 그 위의 카드 (오너 지시 2026-08-23: 가이드를 카드
               그룹으로 묶을 것).
 
@@ -321,7 +362,10 @@ export const GuidePanel = ({
               The channel is still first — it is the escape hatch for every step, so it
               holds the top of the rail and the guide scrolls underneath it. */}
           <div className={cn(railStyles.card, 'shrink-0 p-3')}>
-            <div className="flex items-center justify-between gap-2">
+            {/* No longer a `justify-between` row — the fold control that used to sit at its
+                far end moved to the rail's head above. What is left is the zone's mark and
+                its name, which is what the guide card's head has always been. */}
+            <div className="flex items-center gap-2">
               {/* Same mark, both fold states — the rule the 가이드 전구 already follows
                   (오너 지시 2026-08-23). It also gives the two zone heads one geometry,
                   20 mark + 8 gap + label, which is what puts the two labels on the same x;
@@ -347,22 +391,12 @@ export const GuidePanel = ({
                 <RailMark icon={<ChatIcon className="h-5 w-5" />} dot={collab.dot} />
                 <span className={railStyles.zoneLabel}>협업 채널</span>
               </span>
-              {/* The 32px hit box centres a 16px glyph, so pulling the box 8px past the
-                  card's 12px padding lands the GLYPH's edge on it. Align the ink, not the box. */}
-              <span className="-mr-2 shrink-0">
-                <RailToggle
-                  direction="right"
-                  label="가이드 접기"
-                  expanded
-                  controls={RAIL_ID}
-                  presses={presses}
-                  onClick={toggle}
-                />
-              </span>
             </div>
-            {/* 4, not 8. The label's ink stops 4px above the 32px control row it shares,
-                so 4 more puts the sentence 8 below the INK — which is the number the
-                guide card's head uses too. Align what is seen, not what is boxed. */}
+            {/* Still 4, and still for 8. The row is now the label's own 20px line box
+                rather than a 32px control row, so the arithmetic changed under it and
+                landed on the same answer: 16px ink in a 20px box leaves 2px of half-leading
+                below, 12px ink in a 16px box leaves 2px above, and 4 between the boxes puts
+                8 between the INK. Align what is seen, not what is boxed. */}
             <div className="mt-1">
               <CollabChannelCard jiraTicket={jiraTicket} />
             </div>
