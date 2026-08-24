@@ -26,6 +26,8 @@ interface AwsInstallationInlineProps {
   terraformExecutionGranted?: boolean;
   /** metadata.aws_account_id — 권한 패널이 "무엇을 검증했나"로 그린다. */
   awsAccountId?: string;
+  /** metadata.aws_terraform_execution_role_arn — 같은 패널의 Role 행. */
+  awsTerraformExecutionRoleArn?: string;
   onInstallComplete?: () => void;
 }
 
@@ -33,6 +35,7 @@ export const AwsInstallationInline = ({
   targetSourceId,
   terraformExecutionGranted,
   awsAccountId,
+  awsTerraformExecutionRoleArn,
   onInstallComplete,
 }: AwsInstallationInlineProps) => {
   const isManualInstall = terraformExecutionGranted !== true;
@@ -124,6 +127,7 @@ export const AwsInstallationInline = ({
             manualInstall={isManualInstall}
             targetSourceId={targetSourceId}
             awsAccountId={awsAccountId ?? null}
+            awsTerraformExecutionRoleArn={awsTerraformExecutionRoleArn ?? null}
           />
         ) : null}
       </div>

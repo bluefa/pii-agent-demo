@@ -57,7 +57,14 @@ const DEMO_FAIL_BY_ROLE_NAME: ReadonlyArray<readonly [RegExp, string]> = [
  * can still be cycled through several codes.
  */
 const DEMO_FAIL_BY_TARGET: Readonly<Record<number, string>> = {
-  1008: 'ROLE_NOT_CONFIGURED',
+  // 1008 은 ROLE_NOT_CONFIGURED 였다. Step 4 권한 패널이 등록된 Role 을 metadata
+  // (aws_terraform_execution_role_arn)에서 읽기 시작하면서 그 조합이 자기모순이 됐다 —
+  // 목의 metadata 는 계정이 있는 모든 AWS 대상에 ARN 을 만들어 주므로, 화면이 ARN 을
+  // 띄워 놓고 바로 아래에서 "등록되지 않았습니다"라고 말한다. SCAN_ROLE_NOT_ASSUMABLE
+  // 은 등록된 ARN 과 양립하는 코드이고, 그 문구("등록된 Terraform Role ARN 은 원인이
+  // 아닙니다")가 바로 위에 뜬 ARN 을 가리켜 오히려 읽힌다.
+  // ROLE_NOT_CONFIGURED 는 이름 규칙(DEMO_FAIL_BY_ROLE_NAME)으로 계속 재현할 수 있다.
+  1008: 'SCAN_ROLE_NOT_ASSUMABLE',
   1010: 'INVALID_ROLE_ARN',
   1011: 'ROLE_VERIFICATION_UNAVAILABLE',
   // Unmapped code — checks that the screen falls back to status and still shows the code.

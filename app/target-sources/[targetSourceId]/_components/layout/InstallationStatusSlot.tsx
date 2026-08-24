@@ -22,6 +22,7 @@ export const InstallationStatusSlot = ({
             targetSourceId={project.targetSourceId}
             terraformExecutionGranted={project.isTerraformExecutionGranted}
             awsAccountId={project.awsAccountId}
+            awsTerraformExecutionRoleArn={project.awsTerraformExecutionRoleArn}
             refreshProject={refreshProject}
           />
         );

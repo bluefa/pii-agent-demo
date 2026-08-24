@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import {
-  borderColors,
   cn,
   getButtonClass,
   idcStyles,
@@ -88,14 +87,21 @@ interface TerraformRoleVerifyPanelProps {
   targetSourceId: number;
   /** metadata.aws_account_id — 어느 계정을 검증했는지가 조치의 출발점이다. */
   awsAccountId: string | null;
-  /** 설치 상태가 실어 온 Role ARN. 검증 응답이 자기 값을 주기 전까지의 출처. */
-  fallbackRoleArn: string | null;
+  /**
+   * metadata.aws_terraform_execution_role_arn — **등록된 Role 의 유일한 출처**.
+   *
+   * 설치 상태(`terraform_execution_role_verify.role_arn`)와 검증 응답도 같은 이름의
+   * 필드를 싣지만, 둘 다 "검증이 본 값"이라 검증 전이거나 실패하면 비어 있다. 실제
+   * 캡처 응답(1008)이 정확히 그 모양이다 — 메타데이터에는 ARN 이 있는데 두 응답은
+   * null 이라, 그 둘을 출처로 삼으면 화면이 등록된 Role 을 "—" 라고 말한다.
+   */
+  roleArn: string | null;
 }
 
 export const TerraformRoleVerifyPanel = ({
   targetSourceId,
   awsAccountId,
-  fallbackRoleArn,
+  roleArn,
 }: TerraformRoleVerifyPanelProps) => {
   const [state, setState] = useState<LoadState>({ phase: 'loading' });
   // 재검증 트리거. 스켈레톤 전환은 이벤트 핸들러에서 일으킨다 — 이펙트 본문에서
@@ -129,11 +135,13 @@ export const TerraformRoleVerifyPanel = ({
   return (
     // 라벨↔값은 한 덩어리(tight), 항목끼리는 형제(related), 블록 사이는 group.
     <div className={cn('flex flex-col', stackGap.group)}>
-      <div
-        className={cn('rounded-xl border px-5 py-4 flex flex-col', stackGap.related, borderColors.default)}
-      >
+      {/* 판을 두르지 않는다 — 이 두 줄은 패널의 부제이지 별개의 블록이 아니고,
+          카드 안에 카드를 만들지 않기로 한 결정이 이 안쪽에도 그대로 적용된다(오너).
+          경계선이 없는 만큼 묶는 일은 여백이 한다: 라벨↔값은 96px 열로 정렬되고,
+          두 줄 사이는 related, 아래 원인 블록과는 group 으로 벌어진다. */}
+      <div className={cn('flex flex-col', stackGap.related)}>
         <IdentityRow label="AWS 계정" value={awsAccountId} />
-        <IdentityRow label="Terraform Role" value={data?.role_arn ?? fallbackRoleArn} />
+        <IdentityRow label="Terraform Role" value={roleArn} />
       </div>
 
       {verifying ? (
@@ -163,12 +171,15 @@ export const TerraformRoleVerifyPanel = ({
         >
           {verifying ? '확인 중...' : '지금 확인'}
         </button>
+        {/* 카드 헤더의 확인 시각과 같은 문법 — 경과가 앞에 서고 정확한 시각이 뒤를 받친다. */}
         {stamp && (
-          <span
-            className={cn(textStyles.caption, textColors.tertiary)}
-            title={stamp.text === stamp.absolute ? undefined : `마지막 검증 ${stamp.absolute}`}
-          >
-            마지막 검증 {stamp.text}
+          <span className="inline-flex items-baseline gap-1.5 whitespace-nowrap">
+            {stamp.elapsed && (
+              <span className={cn(textStyles.captionStrong, textColors.secondary)}>
+                {stamp.elapsed} 검증
+              </span>
+            )}
+            <span className={cn(textStyles.caption, textColors.tertiary)}>{stamp.absolute}</span>
           </span>
         )}
       </div>

@@ -122,6 +122,32 @@ export function fmtRelativeTime(iso: string | null | undefined, now: number = Da
   return `${Math.floor(diffHour / 24)}일 전`;
 }
 
+/**
+ * 경과 시간을 "얼마나 됐나"로 — 큰 단위 두 개까지, 0인 단위는 적지 않는다
+ * (`3시간 0분 전` 은 0을 읽게 만들 뿐이다. 오너 지시).
+ *
+ *   500ms → '방금 전' · 45s → '45초 전' · 3m20s → '3분 20초 전'
+ *   2h5m  → '2시간 5분 전' · 2h    → '2시간 전' · 25d3h → '25일 3시간 전'
+ *
+ * `fmtRelativeTime` 과 다른 점은 정밀도다. 저쪽은 한 단위로 뭉뚱그려(‘3시간 전’)
+ * 게시물 시각에 맞고, 이쪽은 초까지 내려가 폴링 사이에도 값이 움직인다 — 화면이
+ * 살아 있다고 말할 수 있는 유일한 수다. 음수/NaN → null (호출부가 문장을 접는다).
+ */
+export function fmtElapsedAgo(ms: number): string | null {
+  if (!Number.isFinite(ms) || ms < 0) return null;
+  const pair = (head: string, rest: number, unit: string): string =>
+    rest > 0 ? `${head} ${rest}${unit} 전` : `${head} 전`;
+
+  const sec = Math.floor(ms / 1000);
+  if (sec < 1) return '방금 전';
+  if (sec < 60) return `${sec}초 전`;
+  const min = Math.floor(sec / 60);
+  if (min < 60) return pair(`${min}분`, sec % 60, '초');
+  const hour = Math.floor(min / 60);
+  if (hour < 24) return pair(`${hour}시간`, min % 60, '분');
+  return pair(`${Math.floor(hour / 24)}일`, hour % 24, '시간');
+}
+
 const ISO_DURATION = /^P(?:T(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?)?$/;
 
 /**

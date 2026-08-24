@@ -485,6 +485,14 @@ export interface CloudTargetSource extends BaseTargetSource {
   awsRegionType?: 'global' | 'china';
   isChinaRegion?: boolean;
   isTerraformExecutionGranted: boolean;
+  /**
+   * swagger TargetSourceDetail.metadata.aws_terraform_execution_role_arn — 등록된
+   * Terraform 실행 Role. **이 대상에 무엇이 등록돼 있는지의 유일한 출처다.**
+   * 설치 상태와 검증 응답도 `role_arn` 을 싣지만 둘 다 비어 있을 수 있고(검증 전,
+   * 캡처 응답), 그때도 등록된 값은 존재한다 — 두 곳을 폴백으로 엮으면 화면이
+   * "등록 안 됨"과 "아직 검증 못 함"을 같은 빈칸으로 말하게 된다.
+   */
+  awsTerraformExecutionRoleArn?: string;
   // swagger TargetSourceDetail.metadata.is_sdu_type — SDU accounts render "SDU"
   // instead of "{Provider} Agent" in the identity bar.
   isSduType?: boolean;

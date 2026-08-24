@@ -98,6 +98,12 @@ interface AwsInstallStatusDetailProps {
    * 주고 있었고 관리자 콘솔은 이미 쓰지만, 이 화면에는 도달한 적이 없다.
    */
   awsAccountId: string | null;
+  /**
+   * metadata.aws_terraform_execution_role_arn — 이 대상에 등록된 Terraform 실행 Role.
+   * 설치 상태의 `terraform_execution_role_verify.role_arn` 은 검증이 끝나야 채워지고
+   * 캡처 응답에서는 내내 null 이라, 등록 사실을 말할 수 있는 것은 메타데이터뿐이다.
+   */
+  awsTerraformExecutionRoleArn: string | null;
 }
 
 export const AwsInstallStatusDetail = ({
@@ -106,6 +112,7 @@ export const AwsInstallStatusDetail = ({
   manualInstall,
   targetSourceId,
   awsAccountId,
+  awsTerraformExecutionRoleArn,
 }: AwsInstallStatusDetailProps) => {
   const steps = useMemo(() => buildSteps(manualInstall), [manualInstall]);
 
@@ -140,12 +147,12 @@ export const AwsInstallStatusDetail = ({
                 <TerraformRoleVerifyPanel
                   targetSourceId={targetSourceId}
                   awsAccountId={awsAccountId}
-                  fallbackRoleArn={status.roleVerify.roleArn}
+                  roleArn={awsTerraformExecutionRoleArn}
                 />
               ),
             },
           ],
-    [manualInstall, status, targetSourceId, awsAccountId],
+    [manualInstall, status, targetSourceId, awsAccountId, awsTerraformExecutionRoleArn],
   );
 
   const resources = useMemo<InstallDetailResource[]>(

@@ -73,6 +73,7 @@ describe('AwsInstallStatusDetail', () => {
         manualInstall={false}
         targetSourceId={1008}
         awsAccountId={null}
+        awsTerraformExecutionRoleArn={null}
       />,
     );
 
@@ -118,6 +119,7 @@ describe('AwsInstallStatusDetail', () => {
         manualInstall={false}
         targetSourceId={1008}
         awsAccountId={null}
+        awsTerraformExecutionRoleArn={null}
       />,
     );
 
@@ -134,6 +136,7 @@ describe('AwsInstallStatusDetail', () => {
         manualInstall={false}
         targetSourceId={1008}
         awsAccountId={null}
+        awsTerraformExecutionRoleArn={null}
       />,
     );
 
@@ -162,6 +165,7 @@ describe('AwsInstallStatusDetail', () => {
         manualInstall={false}
         targetSourceId={1008}
         awsAccountId={null}
+        awsTerraformExecutionRoleArn={null}
       />,
     );
 
@@ -177,6 +181,7 @@ describe('AwsInstallStatusDetail', () => {
         manualInstall={false}
         targetSourceId={1008}
         awsAccountId={null}
+        awsTerraformExecutionRoleArn={null}
       />,
     );
 
@@ -193,6 +198,7 @@ describe('AwsInstallStatusDetail', () => {
         manualInstall={false}
         targetSourceId={1008}
         awsAccountId={null}
+        awsTerraformExecutionRoleArn={null}
       />,
     );
 
@@ -216,6 +222,7 @@ describe('AwsInstallStatusDetail', () => {
         manualInstall={false}
         targetSourceId={1008}
         awsAccountId={null}
+        awsTerraformExecutionRoleArn={null}
       />,
     );
 
@@ -261,6 +268,7 @@ describe('AwsInstallStatusDetail', () => {
         manualInstall={false}
         targetSourceId={1008}
         awsAccountId={null}
+        awsTerraformExecutionRoleArn={null}
       />,
     );
 
@@ -281,10 +289,11 @@ describe('AwsInstallStatusDetail', () => {
   });
 
   it('shows the role-verify panel (검증 대상 + 지금 확인, no resource table) when selected', async () => {
+    // 검증 응답에는 role_arn 이 없다 — 등록 사실을 말하는 것은 메타데이터뿐이고,
+    // 화면은 검증이 무엇을 봤는지가 아니라 이 대상에 무엇이 등록됐는지를 그린다.
     vi.mocked(getAwsRoleVerification).mockResolvedValue({
       status: 'INVALID',
       fail_reason: 'SCAN_ROLE_NOT_ASSUMABLE',
-      role_arn: 'arn:aws:iam::123456789012:role/exec',
       last_verified_at: '2026-07-29T14:00:00Z',
     });
 
@@ -295,6 +304,7 @@ describe('AwsInstallStatusDetail', () => {
         manualInstall={false}
         targetSourceId={1008}
         awsAccountId="123456789012"
+        awsTerraformExecutionRoleArn="arn:aws:iam::123456789012:role/exec"
       />,
     );
 
@@ -320,6 +330,7 @@ describe('AwsInstallStatusDetail', () => {
         manualInstall
         targetSourceId={1008}
         awsAccountId={null}
+        awsTerraformExecutionRoleArn={null}
       />,
     );
 
@@ -347,6 +358,7 @@ describe('AwsInstallStatusDetail', () => {
         manualInstall={false}
         targetSourceId={1008}
         awsAccountId={null}
+        awsTerraformExecutionRoleArn={null}
       />,
     );
 
@@ -361,6 +373,7 @@ describe('AwsInstallStatusDetail', () => {
         manualInstall={false}
         targetSourceId={1008}
         awsAccountId={null}
+        awsTerraformExecutionRoleArn={null}
       />,
     );
 
@@ -383,6 +396,7 @@ describe('AwsInstallStatusDetail', () => {
         manualInstall={false}
         targetSourceId={1008}
         awsAccountId={null}
+        awsTerraformExecutionRoleArn={null}
       />,
     );
 
@@ -417,6 +431,7 @@ describe('AwsInstallStatusDetail', () => {
         manualInstall={false}
         targetSourceId={1008}
         awsAccountId={null}
+        awsTerraformExecutionRoleArn={null}
       />,
     );
 
