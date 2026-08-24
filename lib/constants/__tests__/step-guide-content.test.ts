@@ -263,6 +263,20 @@ describe('the owner steps set their note on a blockquote', () => {
     expect(html.match(/<blockquote>/g)).toHaveLength(1);
     expect(html).toContain('</blockquote>');
   });
+
+  it('never opens two 안내 박스 on the same clause, in any body', () => {
+    // The defect this generalizes: GCP step 4 shipped with two boxes both opening
+    // 「PSC 연동(PRIVATE_IP_MODE · PSC_MODE)의 경우」, because the second belonged to a
+    // block that had been deleted out from under it. Two adjacent asides with an
+    // identical lead read as a duplicate no matter which one the reader trusts.
+    //
+    // Whole-corpus, not per-step: the guard above looks only at 2/3/6, which is exactly
+    // why nobody noticed step 4 had grown a second box.
+    for (const [name, html] of EVERY_BODY) {
+      const leads = [...html.matchAll(/<blockquote>(?:<strong>)?([^<]{8,40})/g)].map((m) => m[1]);
+      expect(new Set(leads).size, `${name} — ${leads.join(' / ')}`).toBe(leads.length);
+    }
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -373,8 +387,18 @@ describe('step 4 — the GCP slot drops the BDC-side block', () => {
     'Service Side Terraform 실행 가이드',
     'BDC Side Terraform',
     '우리측 GCP Project에 PSC Connection',
+    // Went with the block above it, one round later — it described that block's output.
+    '연결 상태가 Pending이면',
   ])('no longer carries 「%s」', (removed) => {
     expect(textOf(gcp)).not.toContain(removed.replace(/\s+/g, ''));
+  });
+
+  it('is left with one 안내 박스, and it still carries both approval outcomes', () => {
+    // The deleted box's content was not lost, it was already duplicated — so this asserts
+    // the survivor still says both halves rather than merely counting boxes.
+    expect(gcp.match(/<blockquote>/g)).toHaveLength(1);
+    expect(gcp).toContain('승인 절차 없이 자동으로 연결돼요');
+    expect(gcp).toContain('상대측 담당자의 수동 승인이 한 번 더 필요해요');
   });
 
   it('counts the blocks it actually prints', () => {
