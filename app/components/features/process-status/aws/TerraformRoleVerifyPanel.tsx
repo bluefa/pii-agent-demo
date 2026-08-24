@@ -12,7 +12,10 @@ import {
 } from '@/lib/theme';
 import { CopyButton } from '@/app/components/ui/CopyButton';
 import { getAwsRoleVerification, type AwsRoleVerification } from '@/app/lib/api/aws';
-import { useRelativeStamp } from '@/app/components/features/process-status/install-status-detail/LastCheckStamp';
+import {
+  LastVerifyStamp,
+  useRelativeStamp,
+} from '@/app/components/features/process-status/install-status-detail/LastCheckStamp';
 import {
   terraformRoleFinding,
   type TerraformRoleFinding,
@@ -171,18 +174,8 @@ export const TerraformRoleVerifyPanel = ({
         >
           {verifying ? '확인 중...' : '지금 확인'}
         </button>
-        {/* 카드 헤더의 확인 시각과 같은 문법 — 두 층, 경과가 위. 이 줄은 왼쪽으로
-            흐르므로 정렬만 뒤집는다. */}
-        {stamp && (
-          <span className="inline-flex flex-col items-start whitespace-nowrap">
-            {stamp.elapsed && (
-              <span className={cn(textStyles.captionStrong, textColors.secondary)}>
-                {stamp.elapsed} 검증
-              </span>
-            )}
-            <span className={cn(textStyles.caption, textColors.tertiary)}>{stamp.absolute}</span>
-          </span>
-        )}
+        {/* 카드 헤더의 확인 시각과 같은 문법 — 시계 + 두 층, 경과가 위. */}
+        {stamp && <LastVerifyStamp stamp={stamp} />}
       </div>
     </div>
   );
