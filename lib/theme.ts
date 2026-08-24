@@ -2588,22 +2588,23 @@ export const guideStyles = {
    * thing in those cards, and rendering them as plain bullets — which is what the first
    * pass did — makes eleven of them vanish into the prose.
    *
-   * Fill and ink are this app's own blessed pair (`primaryColors.bgLight` / `textOnLight`,
-   * 5.92:1), not the source's #EEF2F8/#3F6293: the rail already owns one blue and a second
-   * would read as a second meaning. Geometry is scaled from the source's 14px/12×16px to
-   * this panel's 13px body — 320px is not the source's 64ch.
+   * Ink is this app's own `primaryColors.textOnLight`, not the source's #3F6293: the rail
+   * already owns one blue and a second would read as a second meaning. Geometry is scaled
+   * from the source's 14px/12×16px to this panel's 13px body — 320px is not the source's
+   * 64ch.
    *
-   * No hairline, unlike `note` above, and that is not an oversight: #E8F1FF against the
-   * card measures ~1.14:1, so the fill is not what separates this. The 600-weight accent
-   * ink is — measured 5.92:1 on the fill — and the source draws the bar `border: 0` for
-   * the same reason. `note` needs its hairline because a grey aside has no ink of its own
-   * to be told apart by.
+   * ⛔ No fill (오너 지시 2026-08-24). It was `#E8F1FF`, and a filled blue band is the CTA's
+   * own grammar — two of these bars can stand in one slot, so the panel's passive reference
+   * rows out-shouted the page's single real action. Blue survives as INK, which is what the
+   * bar has to say anyway: there is another document here. Removing the fill promotes the
+   * boundary, so the bar takes `note`'s hairline; the two asides stay apart on ink and the
+   * ▶, not on their box.
    *
    * ⛔ Not a working toggle. There is no panel to open — the source has no body behind
    * these either — so the renderer emits a static row and the ▶ is decoration.
    */
   refBar:
-    'my-1.5 flex w-full items-center gap-2.5 rounded-[9px] bg-[#E8F1FF] px-3 py-2.5 ' +
+    'my-1.5 flex w-full items-center gap-2.5 rounded-[9px] border border-gray-200 px-3 py-2.5 ' +
     "font-semibold text-[#0050D6] after:ml-auto after:text-[10px] after:opacity-60 after:content-['▶']",
   /**
    * 작업 이름표 — `<mark>`, the source's `.tag` and `.path__pill`.
@@ -2619,10 +2620,16 @@ export const guideStyles = {
    * this app carries a single branch, so a second fill would distinguish nothing. The
    * `.tag` cards (GCP, Azure) and the `.path__pill` cards (AWS) are disjoint, so one style
    * still reads consistently inside every card that draws it.
+   *
+   * ⛔ Neutral, not blue (오너 지시 2026-08-24). It was #E8F1FF/#0050D6, and this is the
+   * most frequent accent in the guide bodies — a name tag that says which branch a block
+   * belongs to, never "go here". Blue on it spent the action colour on a label. #E5E8EB
+   * rather than `note`'s #F2F4F6 so the pill still reads when it lands inside a 안내 박스;
+   * #4E5968 on it is 5.70:1, and 6.36:1 on white.
    */
   pill:
-    'mb-1 inline-block rounded-[5px] bg-[#E8F1FF] px-2 py-0.5 text-[12px] ' +
-    'font-medium tracking-[0.02em] text-[#0050D6]',
+    'mb-1 inline-block rounded-[5px] bg-[#E5E8EB] px-2 py-0.5 text-[12px] ' +
+    'font-medium tracking-[0.02em] text-[#4E5968]',
 } as const;
 
 /**

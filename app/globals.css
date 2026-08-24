@@ -486,9 +486,12 @@ body {
   margin-bottom: 0.125rem;
 }
 
+/* Bullets are punctuation, not accents. They were --color-primary — the CTA's own ink,
+   scattered across every list item in the panel — which is what made the guide read as
+   loud as the page's one real action. --fg-3 keeps them the body ink's family. */
 .prose-guide ul::marker,
 .prose-guide ul > li::marker {
-  color: var(--color-primary);
+  color: var(--fg-3);
 }
 
 /* Body images (FAQ & Notices). The img's own width/height attributes carry the
