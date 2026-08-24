@@ -2,7 +2,7 @@
 
 import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
-import { useCallback, useEffect, useReducer, useRef } from 'react';
+import { useCallback, useEffect, useReducer, useRef, useState } from 'react';
 
 import {
   ServiceSidebar,
@@ -67,6 +67,10 @@ interface ConfirmModalData {
 // Page size belongs to the rail, not to this page — see SERVICE_RAIL_PAGE_SIZE.
 const SERVICE_PAGE_SIZE = SERVICE_RAIL_PAGE_SIZE;
 const SEARCH_DEBOUNCE_MS = 300;
+/** How long the move waits for the destination to answer before it gives up. */
+const NAV_TIMEOUT_MS = 5000;
+const NAV_TIMEOUT_REASON = '5초 동안 응답이 오지 않았습니다.';
+const NAV_FAILED_REASON = '서버가 응답하지 못했습니다.';
 
 interface ServiceListPanelProps {
   /** The service this target source belongs to — pinned to the top of the list. */
@@ -85,6 +89,8 @@ export const ServiceListPanel = ({ currentService }: ServiceListPanelProps) => {
   // re-issue the failed attempt rather than the last successful pageInfo.
   const lastAttemptedRef = useRef<{ page: number; query?: string }>({ page: 0 });
   const confirmModal = useModal<ConfirmModalData>();
+  const [navPending, setNavPending] = useState(false);
+  const [navError, setNavError] = useState<string | null>(null);
 
   const fetchServicesPage = useCallback(async (page: number, searchQuery?: string) => {
     lastAttemptedRef.current = { page, query: searchQuery };
@@ -175,15 +181,55 @@ export const ServiceListPanel = ({ currentService }: ServiceListPanelProps) => {
     void fetchServicesPage(page, query);
   }, [fetchServicesPage, query]);
 
-  const handleConfirm = useCallback(() => {
-    if (!confirmModal.data) return;
-    // URL-driven selection: the services page reads `?service_code=`. Preserve
-    // the original casing — the target-sources lookup is case-sensitive (404 on
-    // a wrong-case code).
-    router.push(
-      `${passRoutes.services}?service_code=${encodeURIComponent(confirmModal.data.code)}`,
-    );
+  const handleConfirm = useCallback(async () => {
+    const data = confirmModal.data;
+    if (!data) return;
+    setNavPending(true);
+    // The router cannot be called back once it starts — a transition that resolves after
+    // the deadline still commits, and the page would move under a dialog that already
+    // said the move failed. So the deadline is spent on a request we CAN abort, one the
+    // destination needs anyway, and the router is handed control only once that came back
+    // in time. An answer arriving after the deadline is dropped, not followed.
+    const controller = new AbortController();
+    let timedOut = false;
+    const deadline = setTimeout(() => {
+      // The deadline reports the failure itself rather than leaving it to the catch:
+      // that makes `timedOut` the single decision point below, and the guarantee holds
+      // even if the aborted request settles instead of rejecting.
+      timedOut = true;
+      controller.abort();
+      setNavPending(false);
+      setNavError(NAV_TIMEOUT_REASON);
+    }, NAV_TIMEOUT_MS);
+    try {
+      await getServicesPage(0, SERVICE_PAGE_SIZE, undefined, { signal: controller.signal });
+      // A late answer is dropped, not followed: the dialog has already said the move
+      // failed, and moving the page out from under that frame is the exact thing this
+      // deadline exists to prevent.
+      if (timedOut) return;
+      // URL-driven selection: the services page reads `?service_code=`. Preserve
+      // the original casing — the target-sources lookup is case-sensitive (404 on
+      // a wrong-case code).
+      router.push(
+        `${passRoutes.services}?service_code=${encodeURIComponent(data.code)}`,
+      );
+    } catch {
+      if (timedOut) return;
+      // Pending clears, the failure stays: the dialog swaps to its error frame, whose
+      // 다시 요청하기 runs this same handler again.
+      setNavPending(false);
+      setNavError(NAV_FAILED_REASON);
+    } finally {
+      clearTimeout(deadline);
+    }
   }, [confirmModal.data, router]);
+
+  // Closing discards the attempt — a reopened dialog must not inherit the last failure.
+  const handleMoveClose = useCallback(() => {
+    setNavPending(false);
+    setNavError(null);
+    confirmModal.close();
+  }, [confirmModal]);
 
   const handleRetry = useCallback(() => {
     const attempted = lastAttemptedRef.current;
@@ -239,8 +285,11 @@ export const ServiceListPanel = ({ currentService }: ServiceListPanelProps) => {
       {confirmModal.data && (
         <ServiceMoveConfirmModal
           isOpen={confirmModal.isOpen}
-          onClose={confirmModal.close}
+          onClose={handleMoveClose}
           onConfirm={handleConfirm}
+          onRetry={handleConfirm}
+          isPending={navPending}
+          errorReason={navError}
         />
       )}
     </>
