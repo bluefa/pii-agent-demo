@@ -34,6 +34,7 @@ import {
   textColors,
 } from '@/lib/theme';
 import { ProcessStatus } from '@/lib/types';
+import { EXCLUSION_REASON_MAXLEN } from '@/lib/approval-selection';
 import type { CloudProvider } from '@/lib/types';
 import type { CandidateDraftState, CandidateResource, EndpointConfigDraft } from '@/lib/types/resources';
 import { CardActionBar } from '@/app/target-sources/[targetSourceId]/_components/common';
@@ -86,7 +87,7 @@ interface ManualEc2Entry {
 
 /** Cloud exclusion reason UI cap. Contract allows 3000 (docs/cloud-provider-states.md);
  *  운영 정책으로 1000자로 조인다 — 계약의 부분집합이라 wire엔 영향 없다. */
-const CLOUD_EXCL_REASON_MAXLEN = 1000;
+const CLOUD_EXCL_REASON_MAXLEN = EXCLUSION_REASON_MAXLEN;
 
 /** Skeleton frame shown while candidate resources load — mirrors the candidate table shape. */
 const CandidateTableSkeleton = () => (

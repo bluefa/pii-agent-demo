@@ -1,17 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('@/lib/bff/client', () => ({
-  bff: {
-    confirm: { getResources: vi.fn() },
-    aws: { searchEc2Resources: vi.fn() },
-  },
+  bff: { confirm: { getResources: vi.fn() } },
 }));
 
 import { ApprovalSelectionInput, resolveApprovalInput } from '@/app/api/_lib/approval-input';
 import { bff } from '@/lib/bff/client';
 
 const getResources = vi.mocked(bff.confirm.getResources);
-const searchEc2 = vi.mocked(bff.aws.searchEc2Resources);
 
 /** 스캔이 찾은 한 행. 클라이언트가 절대 만들어 낼 수 없어야 하는 속성들이 여기 있다. */
 const scanned = {
@@ -62,7 +58,8 @@ describe('선택형 — 스캔 집합이 사실을 소유한다', () => {
     const [row] = result.value.resources ?? [];
     expect(row.resource_name).toBe('실제-이름');
     expect(row.metadata?.region).toBe('ap-northeast-2');
-    expect(row.metadata?.database_type).toBe('MYSQL');
+    // 요청은 소문자 정규형으로 나간다(lib/types.ts).
+    expect(row.metadata?.database_type).toBe('mysql');
     // 멤버 목록은 클러스터가 무엇인지를 서술한다 — 상류가 준 배열 그대로 되싣는다.
     expect(row.metadata?.rds_instance_candidates).toEqual(
       scanned.metadata.rds_instance_candidates,
@@ -106,8 +103,112 @@ describe('선택형 — 스캔 집합이 사실을 소유한다', () => {
   });
 });
 
+describe('endpoint 는 접속 정보를 사용자가 채우는 행에서만 받는다', () => {
+  it('스캔이 찾은 비-VM 행에 endpoint 를 붙여도 스캔 값이 이긴다', async () => {
+    const result = await resolveApprovalInput(1, 'AWS', parse({
+      resources: [
+        {
+          resource_id: 'db-1',
+          selected: true,
+          endpoint: {
+            host: 'attacker.internal',
+            port: 1,
+            database_type: 'oracle',
+            network_interface_id: 'eni-x',
+          },
+        },
+      ],
+    }));
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const meta = result.value.resources?.[0].metadata;
+    // RDS 클러스터의 DB 타입은 스캔이 소유한다 — 클라이언트가 덮을 수 없다.
+    expect(meta?.database_type).toBe('mysql');
+    expect(meta).not.toHaveProperty('host');
+    expect(meta).not.toHaveProperty('network_interface_id');
+    expect(meta?.port).toBeUndefined();
+  });
+
+  it('스캔이 찾은 VM 행에서는 사용자가 채운 접속 정보를 싣는다', async () => {
+    getResources.mockResolvedValue({
+      resources: [
+        {
+          resource_id: 'vm-1',
+          resource_name: 'vm-one',
+          resource_type: 'EC2',
+          metadata: { provider: 'AWS', region: 'ap-northeast-2' },
+        },
+      ],
+      total_count: 1,
+    });
+
+    const result = await resolveApprovalInput(1, 'AWS', parse({
+      resources: [
+        {
+          resource_id: 'vm-1',
+          selected: true,
+          endpoint: { host: '10.0.0.7', port: 1521, database_type: 'ORACLE' },
+        },
+      ],
+    }));
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const meta = result.value.resources?.[0].metadata;
+    expect(meta?.host).toBe('10.0.0.7');
+    expect(meta?.port).toBe(1521);
+    expect(meta?.database_type).toBe('ORACLE');
+  });
+});
+
+describe('false positive 경계 — 폼이 받아 준 값은 서버도 받는다', () => {
+  it('제외 사유는 폼 상한(1000자)까지 통과한다', async () => {
+    const result = await resolveApprovalInput(1, 'AWS', parse({
+      resources: [{ resource_id: 'db-1', selected: false, exclusion_reason: '가'.repeat(1000) }],
+    }));
+
+    expect(result.ok).toBe(true);
+  });
+
+  it('사용자가 적은 사유가 스캔 판정을 이긴다', async () => {
+    getResources.mockResolvedValue({
+      resources: [{ ...scanned, recommend_fail_reason: '엔진 미지원' }],
+      total_count: 1,
+    });
+
+    const result = await resolveApprovalInput(1, 'AWS', parse({
+      resources: [{ resource_id: 'db-1', selected: false, exclusion_reason: '운영팀 요청' }],
+    }));
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.resources?.[0].exclusion_reason).toBe('운영팀 요청');
+    expect(result.value.resources?.[0].recommend_fail_reason).toBe('엔진 미지원');
+  });
+
+  it('이름 없는 수기 EC2 와 포트 0 도 통과한다', () => {
+    const parsed = ApprovalSelectionInput.safeParse({
+      resources: [
+        { resource_id: 'i-abc', selected: true, manual_ec2: {}, endpoint: { port: 0 } },
+      ],
+    });
+    expect(parsed.success).toBe(true);
+  });
+
+  it('스캔 결과가 수백 건이어도 상한에 걸리지 않는다', () => {
+    const parsed = ApprovalSelectionInput.safeParse({
+      resources: Array.from({ length: 800 }, (_, i) => ({
+        resource_id: `res-${i}`,
+        selected: false,
+      })),
+    });
+    expect(parsed.success).toBe(true);
+  });
+});
+
 describe('RDS 멤버 선택 — 고를 수는 있어도 지어낼 수는 없다', () => {
-  it('후보 목록에 없는 인스턴스를 고르면 거부한다', async () => {
+  it('후보 목록에 없는 인스턴스를 고르면 409 다 — 목록이 갱신된 것이지 입력이 틀린 게 아니다', async () => {
     const result = await resolveApprovalInput(1, 'AWS', parse({
       resources: [
         { resource_id: 'db-1', selected: true, selected_rds_instance_resource_id: 'inst-없음' },
@@ -116,7 +217,7 @@ describe('RDS 멤버 선택 — 고를 수는 있어도 지어낼 수는 없다'
 
     expect(result.ok).toBe(false);
     if (result.ok) return;
-    expect(result.failure.status).toBe(400);
+    expect(result.failure.status).toBe(409);
   });
 
   it('역할은 클라이언트가 아니라 후보 목록에서 읽는다', async () => {
@@ -173,14 +274,14 @@ describe('VM — 표시가 갈래를 고르고, 진위는 BFF 가 막는다', ()
     expect(result.ok).toBe(false);
   });
 
-  it('스캔이 이미 찾은 리소스에 수기 추가 표시를 붙이면 거부한다', async () => {
+  it('재스캔이 같은 인스턴스를 후보로 올렸으면 409 다 (오래된 화면)', async () => {
     const result = await resolveApprovalInput(1, 'AWS', parse({
       resources: [{ resource_id: 'db-1', selected: true, manual_ec2: {} }],
     }));
 
     expect(result.ok).toBe(false);
     if (result.ok) return;
-    expect(result.failure.status).toBe(400);
+    expect(result.failure.status).toBe(409);
   });
 
   it('포트는 범위만 본다 — 벗어나면 스키마가 거부한다', () => {

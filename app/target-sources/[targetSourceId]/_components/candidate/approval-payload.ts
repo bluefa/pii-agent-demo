@@ -59,6 +59,13 @@ export const listMissingExclusionReasons = (
   );
 
 /**
+ * 수기 추가 EC2 표시. 이름은 검색 와이어가 private DNS 없이 돌아오면 빈 문자열이라
+ * (`app/lib/api/ec2.ts`), 없는 값을 보내는 대신 키를 생략한다.
+ */
+const manualEc2Mark = (candidate: CandidateResource): SelectionRow['manual_ec2'] =>
+  (candidate.resourceName ? { resource_name: candidate.resourceName } : {});
+
+/**
  * Input adapter: UI selection → the route's `ApprovalSelectionInput`.
  *
  * Sends the CHOICES only — which resource, selected or not, the reason the user typed,
@@ -88,7 +95,7 @@ export const toApprovalRequestInput = (
         ...(userReason ? { exclusion_reason: userReason } : {}),
         // 제외된 행도 스캔 목록에는 없다. 표시가 빠지면 오래된 화면으로 읽혀 409 가 된다.
         ...(isManualEc2Candidate(candidate)
-          ? { manual_ec2: { resource_name: candidate.resourceName } }
+          ? { manual_ec2: manualEc2Mark(candidate) }
           : {}),
       };
     }
@@ -100,7 +107,7 @@ export const toApprovalRequestInput = (
       // 스캔 목록에 없는 id 가 "방금 추가한 인스턴스"인지 "오래된 화면"인지는 서버가
       // 구별할 수 없다 — 이 표시가 그 갈래를 고른다.
       ...(isManualEc2Candidate(candidate)
-        ? { manual_ec2: { resource_name: candidate.resourceName } }
+        ? { manual_ec2: manualEc2Mark(candidate) }
         : {}),
       ...(fields.selected_rds_instance_resource_id
         ? { selected_rds_instance_resource_id: fields.selected_rds_instance_resource_id }

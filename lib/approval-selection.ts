@@ -10,8 +10,17 @@ import { z } from 'zod';
 // 보내면 그 자리가 곧 false positive 다.
 import { isValidIdcIp } from '@/lib/constants/idc';
 
-/** 한 요청이 실을 수 있는 행 수. 스캔 결과 규모(수백)보다 넉넉하되 무한은 아니다. */
-const MAX_RESOURCES = 500;
+/**
+ * 한 요청이 실을 수 있는 행 수. 매퍼는 고른 것만이 아니라 후보 **전부**(선택·제외·
+ * 연동 불가)를 싣는다 — 그래서 이 상한은 선택 규모가 아니라 스캔 규모에 걸린다.
+ * 스캔이 수백 건이면 수백 행이 그대로 올라오므로 여유를 크게 둔다.
+ */
+const MAX_RESOURCES = 2000;
+/**
+ * 제외 사유 길이. 입력 폼(`CandidateResourceSection`)이 쓰는 값과 **같은 상수**여야
+ * 한다 — 폼이 받아 준 글자를 서버가 되돌려 보내면 그 자리가 곧 false positive 다.
+ */
+export const EXCLUSION_REASON_MAXLEN = 1000;
 /** IDC 한 행이 묶을 수 있는 IP 수. MULTIPLE_IP 실사용은 한 자릿수다. */
 const MAX_IDC_HOSTS = 32;
 // 호스트명은 폼(`IDC_DOMAIN_RE`)보다 한 칸 넓게 본다: 점 없는 이름·밑줄까지 받는다.
@@ -26,7 +35,9 @@ const HOSTNAME = /^[A-Za-z0-9]([A-Za-z0-9._-]*[A-Za-z0-9])?$/;
 const EndpointInput = z
   .object({
     host: z.string().min(1).max(253).optional(),
-    port: z.number().int().min(1).max(65535).optional(),
+    // 하한이 0 인 이유: 카탈로그는 `port !== null` 이면 endpointConfig 를 만들므로
+    // 와이어의 port 0 이 그대로 올라온다. 옛 경로도 0 을 그대로 보냈다.
+    port: z.number().int().min(0).max(65535).optional(),
     database_type: z.string().min(1).max(64).optional(),
     oracle_service_id: z.string().min(1).max(128).optional(),
     network_interface_id: z.string().min(1).max(256).optional(),
@@ -39,7 +50,9 @@ const EndpointInput = z
  */
 const ManualEc2Input = z
   .object({
-    resource_name: z.string().min(1).max(253).optional(),
+    // 빈 문자열도 받는다: EC2 검색 와이어가 private DNS 이름 없이 돌아오면 매퍼가
+    // `''` 를 싣는다(`app/lib/api/ec2.ts`). 없던 거부를 만들지 않는다.
+    resource_name: z.string().max(253).optional(),
   })
   .strict();
 
@@ -83,10 +96,12 @@ export const ApprovalSelectionInput = z
       .array(
         z
           .object({
-            resource_id: z.string().min(1).max(512),
+            // 빈 문자열도 받는다: 와이어가 resource_id 없이 준 행을 어댑터가 `''` 로
+            // 싣는다(`app/lib/api/index.ts`). 리졸버가 교집합에서 걸러 낸다.
+            resource_id: z.string().max(512),
             selected: z.boolean(),
             /** 사용자가 적은 제외 사유. 스캔 판정(recommend_fail_reason)은 서버가 붙인다. */
-            exclusion_reason: z.string().max(500).optional(),
+            exclusion_reason: z.string().max(EXCLUSION_REASON_MAXLEN).optional(),
             /** RDS 클러스터에서 고른 멤버. 서버가 후보 목록 안에 있는지 확인한다. */
             selected_rds_instance_resource_id: z.string().min(1).max(512).optional(),
             /** VM 계열 수기 접속 정보. */

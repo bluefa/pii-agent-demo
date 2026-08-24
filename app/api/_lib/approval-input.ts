@@ -1,6 +1,8 @@
 import { z } from 'zod';
 import { schemas } from '@/lib/generated/install-v1';
 import { bff } from '@/lib/bff/client';
+import { toWireDatabaseType } from '@/lib/types';
+import { VM_RESOURCE_TYPES } from '@/lib/resource-catalog';
 import {
   ApprovalSelectionInput,
   type ApprovalSelection,
@@ -91,7 +93,12 @@ const authoritativeMetadata = (item: ResourceItem): Metadata => {
   return {
     ...(source.provider ? { provider: source.provider } : {}),
     ...(source.region ? { region: source.region } : {}),
-    ...(source.database_type ? { database_type: source.database_type } : {}),
+    // 요청은 database_type 을 소문자 정규형으로 보낸다(lib/types.ts). 좁히기 전
+    // 매퍼가 `toWireDatabaseType` 를 거쳤으므로 여기서도 거친다 — 스캔 값을 날것
+    // 그대로 되싣으면 대문자가 올라가 조용히 모양이 바뀐다.
+    ...(source.database_type
+      ? { database_type: toWireDatabaseType(source.database_type) }
+      : {}),
     ...(source.resource_type ? { resource_type: source.resource_type } : {}),
     ...(source.rds_instance_candidates
       ? { rds_instance_candidates: source.rds_instance_candidates }
@@ -123,12 +130,20 @@ const rdsSelection = (
   };
 };
 
+/**
+ * 접속 정보를 사용자가 채우는 행인가. 폼은 이 집합에서만 endpoint 를 만들고
+ * (`lib/resource-catalog.ts`), 서버도 같은 집합으로 판단한다 — 여기를 열어 두면 스캔이
+ * 소유해야 할 속성(대표적으로 database_type)을 클라이언트가 덮어쓴다.
+ */
+const acceptsEndpoint = (item: ResourceItem): boolean =>
+  !!item.resource_type && VM_RESOURCE_TYPES.has(item.resource_type);
+
 const buildFromAuthoritative = (row: SelectionRow, item: ResourceItem): ResourceItem => {
   const candidates = item.metadata?.rds_instance_candidates ?? [];
   const rds = rdsSelection(row, candidates);
   const metadata: Metadata = {
     ...authoritativeMetadata(item),
-    ...endpointMetadata(row.endpoint),
+    ...(acceptsEndpoint(item) ? endpointMetadata(row.endpoint) : {}),
     ...(rds.ok ? rds.fields : {}),
   };
   const base = {
@@ -209,6 +224,7 @@ export const resolveApprovalInput = async (
       // IDC 는 수기 입력이라 행마다 접속 정보가 있어야 한다 — 없으면 연동 대상이 아니다.
       if (!row.idc) return fail('IDC 연동 대상에는 접속 정보가 필요합니다.');
       if (row.endpoint) return fail('IDC 행은 endpoint 를 쓰지 않습니다.');
+      if (row.manual_ec2) return fail('IDC 행은 수기 추가 EC2 갈래를 쓰지 않습니다.');
       resources.push(buildIdc(row, row.idc));
     }
     return { ok: true, value: { resources } };
@@ -221,17 +237,22 @@ export const resolveApprovalInput = async (
   const authoritative = await bff.confirm.getResources(targetSourceId);
   const known = new Map<string, ResourceItem>();
   for (const item of authoritative.resources ?? []) {
-    if (item.resource_id) known.set(item.resource_id, item);
+    // 생성 스키마가 느슨해 배열 원소 자체가 null 일 수 있다.
+    if (item?.resource_id) known.set(item.resource_id, item);
   }
 
   const resources: ResourceItem[] = [];
   for (const row of input.resources) {
     const item = known.get(row.resource_id);
     if (item) {
-      if (row.manual_ec2) return fail('스캔이 이미 찾은 리소스입니다.');
+      // 수기로 추가한 뒤 재스캔이 같은 인스턴스를 후보로 올리면 여기 온다.
+      // 입력이 틀린 게 아니라 화면이 오래된 것이라 409 다.
+      if (row.manual_ec2) return fail('연동 대상 목록이 변경되었습니다. 화면을 새로 읽고 다시 선택해 주세요.', 409);
       const candidates = item.metadata?.rds_instance_candidates ?? [];
       if (!rdsSelection(row, candidates).ok) {
-        return fail('선택한 RDS 인스턴스가 이 클러스터의 멤버가 아닙니다.');
+        // 재스캔이 멤버 목록을 바꾸면 화면의 기본 선택이 사라진 멤버를 가리킨다 —
+        // 사용자가 고른 게 틀린 게 아니라 목록이 갱신된 것이라 409 다.
+        return fail('연동 대상 목록이 변경되었습니다. 화면을 새로 읽고 다시 선택해 주세요.', 409);
       }
       resources.push(buildFromAuthoritative(row, item));
       continue;

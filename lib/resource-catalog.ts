@@ -52,7 +52,12 @@ const VM_DATABASE_TYPES: readonly VmDatabaseType[] = [
   'ORACLE',
 ];
 
-const VM_RESOURCE_TYPES: ReadonlySet<string> = new Set(['AZURE_VM', 'EC2']);
+/**
+ * 접속 정보(host/port/db_type)를 사용자가 채우는 자원 타입. 폼이 이 집합에서만
+ * `endpointConfig` 를 만들고, 승인 요청 라우트도 같은 집합으로 endpoint 를 받을지
+ * 정한다 — 두 곳이 갈라지면 스캔이 소유해야 할 속성을 클라이언트가 덮어쓸 수 있다.
+ */
+export const VM_RESOURCE_TYPES: ReadonlySet<string> = new Set(['AZURE_VM', 'EC2']);
 
 const isVmDatabaseType = (databaseType: DatabaseType): databaseType is VmDatabaseType =>
   VM_DATABASE_TYPES.includes(databaseType as VmDatabaseType);
