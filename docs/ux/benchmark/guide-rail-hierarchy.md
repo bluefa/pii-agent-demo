@@ -2,7 +2,7 @@
 
 - **일자**: 2026-08-25
 - **대상**: `/pass/target-sources/{id}` 설치 화면의 우측 가이드 패널(`GuidePanel`) — 펼친 320px 전체
-- **구현 PR**: #779
+- **구현 PR**: #780
 - **아티팩트**: https://claude.ai/code/artifact/4a019e8d-9f76-4c3a-89d4-4db8cb00fe70
 - **선행 라운드**: [레일 표면(시안 A)](guide-rail-surface.md) · [접힘 스트립](guide-rail-collapsed.md)
 
