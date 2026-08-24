@@ -74,7 +74,9 @@ const TF_SCRIPT_ID = 'tfScript';
  * UI 문장으로 그대로 쓰지 않는 것이 이 함수의 일이다.
  */
 const athenaCatalogName = (resourceId: string): string | null =>
-  resourceId.startsWith('athena:') ? resourceId.split('/')[1] ?? null : null;
+  // `||`, not `??`: a trailing-slash id splits to '', which `??` would pass through as a
+  // name and render the row's empty-value placeholder instead of falling back to the wire.
+  resourceId.startsWith('athena:') ? resourceId.split('/')[1] || null : null;
 
 /** 서비스 측 TF 단계 이름 — 단계 배열과 참고 항목의 링크 라벨이 같은 출처를 쓴다. */
 const serviceStepTitle = (manualInstall: boolean) =>

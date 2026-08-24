@@ -611,10 +611,7 @@ export const PLAIN_FLEX_KEYS = CONFIRMED_FLEX_KEYS;
  * steps 4 and 6·7 read down the same columns at the same widths. IDC keeps only the
  * caller's cells: its identity already ends in a Database Type, and it has no region.
  */
-const installColumns = (
-  identity?: ApprovalIdentityColumns,
-  regionLabel = 'Region',
-): ConsoleTableColumn[] => [
+const installColumns = (identity?: ApprovalIdentityColumns): ConsoleTableColumn[] => [
   ...(identity
     ? identity.columns.map((cell, index) => ({
         key: cell.key,
@@ -637,8 +634,11 @@ const installColumns = (
         // in the row and the only one a cut costs the reader. Still the sink with the two
         // attribute columns behind it — neither of them flexes.
         { key: 'id', label: 'Resource ID', width: INSTALL_COLUMN_WIDTHS.id, flex: true },
+        // `Region` literally, not the caller's `regionLabel`: that prop exists for surfaces
+        // whose rows can be host-based (IDC says 위치), and an IDC step 4 never reaches this
+        // branch — it draws its own identity cells and has no region column at all.
         { key: 'dbType', label: 'Database Type', width: INSTALL_COLUMN_WIDTHS.dbType },
-        { key: 'region', label: regionLabel, width: INSTALL_COLUMN_WIDTHS.region },
+        { key: 'region', label: 'Region', width: INSTALL_COLUMN_WIDTHS.region },
       ]),
   { key: 'status', label: '상태', width: INSTALL_COLUMN_WIDTHS.status },
 ];
@@ -827,11 +827,17 @@ export const WaitingApprovalTable = memo(
       // Keyed on the declared top-level type, never on `resourceType` — see the field's note.
       const isCluster = isRdsCluster(resource.declaredResourceType ?? '');
       const isEc2 = isEc2Instance(resource.declaredResourceType);
-      // Step 4 only. From step 4 the region IS the Athena resource, so the row arrives with no
-      // scan-assigned name and nothing on it said what kind of thing it was — the other two
-      // kinds wear a tag here and Athena wore none. Steps 2·3 are excluded because their
-      // Athena rows are children under a group parent that already carries this same tag;
-      // steps 6·7 answer in the 종류 column instead.
+      // Step 4 only. From step 4 the region IS the Athena resource, so the row has no
+      // scan-assigned name — it is named by the catalog it stands for, and this tag is what
+      // says whose catalog that is, the way the other two kinds wear one here.
+      //
+      // The Database Type column added alongside it also reads Athena: service and engine
+      // are one word here, where an RDS row splits into `RDS Cluster` + `MySQL`. Kept anyway
+      // — the tag sits in the identity cell, which is where a reader answers "what is this
+      // row" before scanning across. The owner was told, 2026-08-24.
+      //
+      // Steps 2·3 are excluded: their Athena rows are children under a group parent that
+      // already carries this same tag. Steps 6·7 answer in the 종류 column instead.
       const isAthena = installVariant && isGroupedResourceType(resource.declaredResourceType);
       // Every row of one rail shares a key: a group's children take the group's (passed in by
       // the caller), a folded region and its members take the row's own. Rows that draw NO rail
@@ -1377,7 +1383,7 @@ export const WaitingApprovalTable = memo(
             confirmedVariant
               ? confirmedColumns(regionLabel, confirmedKindColumn)
               : installVariant
-                ? installColumns(identityColumns, regionLabel)
+                ? installColumns(identityColumns)
                 : plainVariant
                   ? plainColumns(regionLabel)
                   : approvalColumns(regionLabel)
