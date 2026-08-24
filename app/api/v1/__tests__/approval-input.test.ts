@@ -192,6 +192,34 @@ describe('VM — 정체성은 스캔이 정하고, 접속 정보는 사용자가
     expect(result.ok).toBe(false);
   });
 
+  it('여러 건을 추가해도 조회가 직렬로 쌓이지 않는다', async () => {
+    const ids = Array.from({ length: 12 }, (_, i) => `i-${String(i).padStart(6, '0')}`);
+    searchEc2.mockImplementation(async (_id, query) => ({
+      resources: [{ resource_id: query, metadata: { private_ip_address: '10.0.0.1' } }],
+    }));
+
+    const result = await resolveApprovalInput(1, 'AWS', parse({
+      resources: ids.map((id) => ({ resource_id: id, selected: true })),
+    }));
+
+    expect(result.ok).toBe(true);
+    expect(searchEc2).toHaveBeenCalledTimes(12);
+  });
+
+  it('스캔이 모르는 id 가 상한을 넘으면 조회하지 않고 409 로 되돌린다', async () => {
+    const many = Array.from({ length: 51 }, (_, i) => ({
+      resource_id: `i-${String(i).padStart(6, '0')}`,
+      selected: true,
+    }));
+
+    const result = await resolveApprovalInput(1, 'AWS', parse({ resources: many }));
+
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.failure.status).toBe(409);
+    expect(searchEc2).not.toHaveBeenCalled();
+  });
+
   it('AWS 가 아니면 EC2 검색으로 되살리지 않는다', async () => {
     searchEc2.mockResolvedValue({ resources: [{ resource_id: 'i-abc123' }] });
 

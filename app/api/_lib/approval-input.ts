@@ -39,6 +39,13 @@ type SelectionRow = ApprovalSelection['resources'][number];
 
 /** 정확한 instance-id 로 거는 prefix 검색 — 일치 항목은 많아야 하나다. */
 const EC2_EXACT_LOOKUP_LIMIT = 1;
+/** 한 번에 상류로 나가는 EC2 조회 수. 제출 지연을 행 수에서 떼어 놓되 상류를 몰아치지 않는다. */
+const EC2_LOOKUP_CONCURRENCY = 8;
+/**
+ * 스캔이 모르는 id 를 몇 개까지 되살려 볼지. 수기 추가는 검색 모달로 한 건씩 넣는 것이라
+ * 실사용은 한 자릿수다 — 이 수를 넘는 요청은 되살릴 대상이 아니라 오래된 화면이다.
+ */
+const MAX_EC2_LOOKUPS = 50;
 
 export { ApprovalSelectionInput };
 export type { ApprovalSelection };
@@ -238,6 +245,28 @@ const fail = (message: string, status: 400 | 409 = 400): ResolveResult => ({
  * 선택을 계약 본문으로 바꾼다. 상류로 나가는 모양은 `ApprovalRequestInputDto` 그대로다 —
  * 좁아진 것은 브라우저↔프론트 서버 경계뿐이고, 계약은 건드리지 않는다.
  */
+/**
+ * 스캔 목록에 없는 id 를 한 번에 확인한다. 수기 추가 EC2 는 사용자가 검색 모달로 한 건씩
+ * 넣는 것이라 실사용은 한 자릿수지만, 순차로 돌면 추가 개수만큼 왕복이 직렬로 쌓인다 —
+ * 제출 한 번의 지연이 행 수에 비례하면 안 된다. 상류를 한꺼번에 때리지도 않도록 폭을 묶는다.
+ */
+const lookupEc2Instances = async (
+  targetSourceId: number,
+  instanceIds: readonly string[],
+): Promise<Map<string, Ec2Hit>> => {
+  const found = new Map<string, Ec2Hit>();
+  for (let i = 0; i < instanceIds.length; i += EC2_LOOKUP_CONCURRENCY) {
+    const window = instanceIds.slice(i, i + EC2_LOOKUP_CONCURRENCY);
+    const hits = await Promise.all(
+      window.map((id) => findEc2Instance(targetSourceId, id)),
+    );
+    hits.forEach((hit, index) => {
+      if (hit) found.set(window[index], hit);
+    });
+  }
+  return found;
+};
+
 export const resolveApprovalInput = async (
   targetSourceId: number,
   cloudProvider: string,
@@ -267,6 +296,21 @@ export const resolveApprovalInput = async (
     if (item.resource_id) known.set(item.resource_id, item);
   }
 
+  // 스캔이 모르는 id 는 AWS 에서만 되살아날 수 있다(수기 추가 EC2). 조회는 그 목록에
+  // 대해서만, 한 번에 묶어서 돈다.
+  const unknownIds = input.resources
+    .map((row) => row.resource_id)
+    .filter((id) => !known.has(id));
+  if (unknownIds.length > MAX_EC2_LOOKUPS) {
+    return fail(
+      '연동 대상 목록이 변경되었습니다. 화면을 새로 읽고 다시 선택해 주세요.',
+      409,
+    );
+  }
+  const ec2Hits = isAwsProvider(cloudProvider) && unknownIds.length > 0
+    ? await lookupEc2Instances(targetSourceId, unknownIds)
+    : new Map<string, Ec2Hit>();
+
   const resources: ResourceItem[] = [];
   for (const row of input.resources) {
     const item = known.get(row.resource_id);
@@ -278,13 +322,10 @@ export const resolveApprovalInput = async (
       resources.push(buildFromAuthoritative(row, item));
       continue;
     }
-    // 스캔 목록에 없는 id — AWS 라면 사용자가 검색해 추가한 EC2 일 수 있다.
-    if (isAwsProvider(cloudProvider)) {
-      const hit = await findEc2Instance(targetSourceId, row.resource_id);
-      if (hit) {
-        resources.push(buildManualEc2(row, hit));
-        continue;
-      }
+    const hit = ec2Hits.get(row.resource_id);
+    if (hit) {
+      resources.push(buildManualEc2(row, hit));
+      continue;
     }
     return fail(
       '연동 대상 목록이 변경되었습니다. 화면을 새로 읽고 다시 선택해 주세요.',
