@@ -969,8 +969,11 @@ describe('instance band rail shares the group rail axis', () => {
  * fixed width is the landing point a title that swings 91→208px across the seven steps
  * could not give the eye.
  *
- * A census, not a spot check: a thirteenth step card written the old way has to fail here
- * rather than quietly ship a card whose head reads differently from its twelve siblings.
+ * A census, not a spot check: a fourteenth step card written the old way has to fail here
+ * rather than quietly ship a card whose head reads differently from its thirteen siblings.
+ * `ConnectionVerifiedStep` is why the census keys on the RENDERED 「N단계」 and not only on
+ * the token — that head had the token's classes spelled out by hand, so it sat out this
+ * move invisibly to anything grepping for `cardStyles.stepTag`.
  */
 describe('step tag rides the title row', () => {
   /** The row the tag and the title share. Same class the seven title+badge rows already use. */
@@ -983,13 +986,28 @@ describe('step tag rides the title row', () => {
       return entry.name.endsWith('.tsx') && !entry.name.includes('.test.') ? [full] : [];
     });
 
-  const callers = tsxUnder(path.join(root, 'app'))
-    .filter((f) => readFileSync(f, 'utf8').includes('cardStyles.stepTag'))
-    .map((f) => path.relative(root, f));
+  const appTsx = tsxUnder(path.join(root, 'app')).map((f) => path.relative(root, f));
+
+  /**
+   * A `<span>` whose ENTIRE text is 「N단계」 — the pill. The four 「1단계」/「5단계」 in
+   * `ConfirmRewindModal` and friends are `<strong>` inside running copy and do not match,
+   * which is the point: they name a step in a sentence, they are not tags.
+   */
+  const PILL = /<span\b[^>]*>\s*[1-9]단계\s*<\/span>/;
+  /** The mount, not the bare token — the token's name also appears in prose above it. */
+  const TAG_USE = 'className={cardStyles.stepTag}';
+  /** The token's own geometry, minus its `${…}` colour holes. Drifts with the token. */
+  const TAG_GEOMETRY = classOf(blockOf('cardStyles'), 'stepTag').split('${')[0].trim();
+
+  const byPill = appTsx.filter((f) => PILL.test(read(f)));
+  const byToken = appTsx.filter((f) => read(f).includes(TAG_USE));
 
   it('is worn by every step card there is', () => {
-    // Cloud 1·2·3·4·5·7 and IDC 1·2·3·5·6·7 — twelve heads, one grammar.
-    expect(callers).toHaveLength(12);
+    // Cloud 1·2·3·4·5·6·7 and IDC 1·2·3·5·6·7 — thirteen heads, one grammar.
+    // The two sets pin each other: a head that renders a pill without the token, or wears
+    // the token in a shape this scan cannot read, breaks the equality rather than hiding.
+    expect(byToken).toEqual(byPill);
+    expect(byToken).toHaveLength(13);
   });
 
   it('carries no margin of its own — it is a flex child, not a line', () => {
@@ -997,11 +1015,17 @@ describe('step tag rides the title row', () => {
     expect(classOf(blockOf('cardStyles'), 'stepTag')).not.toMatch(/(?:^|\s)-?m[btlrxy]?-/);
   });
 
-  it.each(callers)('%s opens the row before the tag', (file) => {
+  it('is imported, never spelled out — a hand copy is invisible to this census', () => {
+    // ⛔ `ConnectionVerifiedStep` shipped 'mb-1.5 inline-flex items-center rounded-[6px]
+    // px-2 py-0.5 text-[12px] font-bold' inline. It read identically and moved with nothing.
+    expect(appTsx.filter((f) => read(f).includes(TAG_GEOMETRY))).toEqual([]);
+  });
+
+  it.each(byToken)('%s opens the row before the tag', (file) => {
     const src = read(file);
-    const at = src.indexOf('cardStyles.stepTag');
+    const at = src.indexOf(TAG_USE);
     // The row container opens just above the tag. Before this change every one of these
-    // twelve had the tag OUTSIDE any such row — the check fails on a revert, not just on
+    // heads had the tag OUTSIDE any such row — the check fails on a revert, not just on
     // a deletion.
     expect(src.slice(Math.max(0, at - 300), at)).toContain(TITLE_ROW);
   });
