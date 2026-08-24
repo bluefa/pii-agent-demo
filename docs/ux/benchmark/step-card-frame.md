@@ -2,6 +2,7 @@
 
 - **일자**: 2026-08-24
 - **대상**: `/pass/target-sources/{id}` 설치 화면의 스텝 카드 (`cardStyles.base` / `cardStyles.header` 를 쓰는 18개 카드 전부)
+- **구현 PR**: #774
 - **아티팩트**: https://claude.ai/code/artifact/533ddc5d-2fe8-4a48-9395-ec26929f5b97
 - **1차 라운드(정렬)**: https://claude.ai/code/artifact/77981f01-5864-4423-b725-49ebcad5d08b
 
