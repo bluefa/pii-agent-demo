@@ -264,12 +264,14 @@ export const IdcStep1TargetInput = ({
     <>
       {/* No overflow-hidden: it would establish a clip box and kill the sticky CardActionBar. */}
       <section className={cardStyles.base}>
-        {/* Cloud step-1 header grammar: 단계 태그 → 고정 제목 → 안내 문장. The two input entry
-            points stay pinned to the header right — IDC has no scan strip to carry them. */}
+        {/* Cloud step-1 header grammar: 단계 태그 · 고정 제목 한 줄 → 안내 문장. The two input
+            entry points stay pinned to the header right — IDC has no scan strip to carry them. */}
         <header className={cn(cardStyles.header, 'flex items-start justify-between gap-4')}>
           <div>
-            <span className={cardStyles.stepTag}>1단계</span>
-            <h2 className={cardStyles.cardTitle}>연동 대상 DB 입력</h2>
+            <div className="flex items-center gap-2">
+              <span className={cardStyles.stepTag}>1단계</span>
+              <h2 className={cardStyles.cardTitle}>연동 대상 DB 입력</h2>
+            </div>
             {/* Blue marks only what the user has to do by hand (입력·사유) — 승인 is the system's
                 part, so it stays plain. break-keep wraps by word, not by syllable. */}
             <p className={cn('mt-2.5 break-keep', cardStyles.guidance)}>

@@ -83,20 +83,14 @@ export const ConnectionVerifiedStep = ({
       <section className={cn(cardStyles.base, 'overflow-hidden')}>
         {/* Same left-aligned stack as steps 2·3: step tag, title + status, guidance copy. */}
         <header className={cardStyles.header}>
-          {/* Step position, matching INSTALL_STEPS order in InstallationProcessProgressBar. */}
-          <span
-            className={cn(
-              'mb-1.5 inline-flex items-center rounded-[6px] px-2 py-0.5 text-[12px] font-bold',
-              primaryColors.bgLight,
-              primaryColors.textOnLight,
-            )}
-          >
-            6단계
-          </span>
-          {/* The step tag sits on its own row above, so the title and the action share one
-              centered row — the text-weight action lines up with the title, not with the tag. */}
+          {/* The tag, the title and the state badge are one row; the action holds the other
+              end of it. This head had `cardStyles.stepTag` spelled out by hand instead of
+              imported, which is how it sat out the move onto the title row — nothing that
+              greps for the token could see it. */}
           <div className="flex items-center justify-between gap-4">
             <div className="flex items-center gap-2">
+              {/* Step position, matching INSTALL_STEPS order in InstallationProcessProgressBar. */}
+              <span className={cardStyles.stepTag}>6단계</span>
               <h2 className={cardStyles.cardTitle}>완료 여부 관리자 승인 대기</h2>
               <span
                 className={cn(

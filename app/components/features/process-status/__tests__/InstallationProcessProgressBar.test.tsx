@@ -43,7 +43,7 @@ const row = (el: HTMLElement) => tag(el)?.textContent?.replace(/\s+/g, ' ').trim
 
 const cue = (el: HTMLElement) => within(el).getByRole('button', { name: /전체 단계/ });
 
-describe('InstallationProcessProgressBar — 설치 진행 [7단계 중 4단계 · Agent 설치]', () => {
+describe('InstallationProcessProgressBar — 설치 진행 [7단계 중 4단계]', () => {
   it('states name and position on one row (오너 14차 지시)', () => {
     const el = block(ProcessStatus.INSTALLING);
     // The block name and the position plate share the head row: the name's parent is
@@ -51,31 +51,24 @@ describe('InstallationProcessProgressBar — 설치 진행 [7단계 중 4단계 
     const head = within(el).getByText('설치 진행').parentElement;
     expect(head?.className).toBe(installStepperStyles.head);
     expect(tag(el)?.parentElement).toBe(head);
-    // No space around the middot: the spacing is layout, the dot is the text — the
-    // digits, the separator and the step's name are three elements inside the plate.
-    expect(row(el)).toBe('7단계 중 4단계·Agent 설치');
-  });
-
-  it('breaks the position off the step name with a middot (오너 19차 지시)', () => {
-    // Inside a plate this small a 6px gap read as spacing rather than a break, so the
-    // position and the label ran together. The dot is the seam, and it is decoration:
-    // it carries no class of its own and is hidden from the accessible name.
-    const dot = [...block(ProcessStatus.INSTALLING).querySelectorAll('span')].find(
-      (s) => s.textContent === '·',
-    );
-    expect(dot?.getAttribute('aria-hidden')).toBe('true');
-    // ⛔ No class — a separator in a second tint would be a mark that means something.
-    expect(dot?.className).toBe('');
+    expect(row(el)).toBe('7단계 중 4단계');
   });
 
   it.each([
     [ProcessStatus.WAITING_TARGET_CONFIRMATION, '1단계', '연동 대상 DB 선택'],
+    [ProcessStatus.INSTALLING, '4단계', 'Agent 설치'],
     [ProcessStatus.WAITING_CONNECTION_TEST, '5단계', '연결 테스트'],
-  ])('counts %s as %s and tags it %s', (step, position, label) => {
+  ])('counts %s as %s and does NOT name it %s', (step, position, label) => {
     const el = block(step);
-    // 「N단계 중 」 — the space is real text (`{' '}`), unlike the gap before the label.
+    // 「N단계 중 」 — the space is real text (`{' '}`).
     expect(row(el)).toContain(`중 ${position}`);
-    expect(within(el).getByText(label)).toBeTruthy();
+    // ⛔ The plate answers 「어디」 and stops. The name belongs to the card head below,
+    // which prints it at 20px beside its own tag; carrying it here too put one string
+    // on the screen three times over (plate, card title, guide panel heading) — and the
+    // three disagreed, this list saying 「완료」 where step 7's card says 「PII 모니터링
+    // 모듈 연동」. The middot that used to break position from name went with the name.
+    expect(row(el)).not.toContain(label);
+    expect(row(el)).not.toContain('·');
   });
 
   it('drops the position once there is none left to report (오너 18차 지시)', () => {
@@ -88,10 +81,12 @@ describe('InstallationProcessProgressBar — 설치 진행 [7단계 중 4단계 
     expect([...el.querySelectorAll('b')].map((c) => c.textContent)).toEqual(['7']);
   });
 
-  it('names only the step it is on while the road is folded', () => {
+  it('names no step at all while the road is folded', () => {
     const el = block(ProcessStatus.WAITING_TARGET_CONFIRMATION);
     expect(within(el).queryByText('완료')).toBeNull();
     expect(within(el).queryByText('Agent 설치')).toBeNull();
+    // Including the one it is on — the card head owns that name now.
+    expect(within(el).queryByText('연동 대상 DB 선택')).toBeNull();
   });
 
   it('puts both digits on the one plate, in the plate’s own ink (오너 16차 지시)', () => {
@@ -133,11 +128,13 @@ describe('InstallationProcessProgressBar — 설치 진행 [7단계 중 4단계 
     expect(installStepperStyles.stepTag).not.toContain('#EAEEF7'); // the path's slate
   });
 
-  it('wears the same plate as the 「N단계」 tag over the step card', () => {
-    // Same fact rendered twice, both on screen at once: this row says 「4단계 Agent
-    // 설치」 and the card below titles itself 「4단계 / Agent 설치」. One fill in two
-    // tints reads as two meanings — this shipped as #1747B5 for a round because the
-    // ink was reasoned against `metaCue` and never against the card tag.
+  it('wears the same plate as the 「N단계」 tag on the step card', () => {
+    // Both plates are on screen at once — this row says 「7단계 중 4단계」 and the card
+    // head below opens with 「4단계」 beside its title. They carry the same number, so
+    // they must carry the same fill: one fill in two tints reads as two meanings, and
+    // this shipped as #1747B5 for a round because the ink was reasoned against
+    // `metaCue` and never against the card tag. What separates them is size and what
+    // they are attached to, not colour.
     const inkOf = (cls: string) => cls.match(/text-\[(#[0-9A-Fa-f]{6})\]/)?.[1];
     const fillOf = (cls: string) => cls.match(/bg-\[(#[0-9A-Fa-f]{6})\]/)?.[1];
     // cardStyles.stepTag builds its pair from primaryColors, so resolve through those.

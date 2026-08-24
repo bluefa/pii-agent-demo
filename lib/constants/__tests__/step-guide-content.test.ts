@@ -14,6 +14,7 @@ import { GUIDE_NAMES } from '@/lib/types/guide';
 import { GUIDE_VALIDATE_OPTIONS, validateGuideHtml } from '@/lib/utils/validate-guide-html';
 
 import type { GuideSlotKey } from '@/lib/constants/guide-registry';
+import type { GuideName } from '@/lib/types/guide';
 import type { GuideNode } from '@/lib/utils/validate-guide-html';
 
 describe('STEP_GUIDE_HTML', () => {
@@ -225,10 +226,23 @@ describe('step 2 — the control the guide points at', () => {
 // Shape the copy check cannot see
 // ---------------------------------------------------------------------------
 
+/**
+ * Cloud step 1 is the one body that must NOT open with a heading, and the exception is
+ * spelled out rather than skipped: the panel header prints 「1단계 가이드」 and the card head
+ * beside it prints 「연동 대상 DB 선택」 at 20px, so an <h4> here was that string's third copy
+ * on one screen. Listed by name so a fourth headless body is a decision, not a slip.
+ */
+const HEADLESS_BY_DESIGN = new Set<GuideName>([
+  'AWS_TARGET_CONFIRM',
+  'AZURE_TARGET_CONFIRM',
+  'GCP_TARGET_CONFIRM',
+]);
+
 describe('every body', () => {
-  it.each(EVERY_BODY)('%s opens with its own <h4>', (_name, html) => {
-    // The card header only ever prints 「가이드」 — a body with no <h4> renders headless.
-    expect(html.startsWith('<h4>')).toBe(true);
+  it.each(EVERY_BODY)('%s opens with its own <h4> — unless it must not', (name, html) => {
+    // A body with no <h4> renders headless under a panel header that says only 「N단계 가이드」.
+    // The inverse matters just as much: re-adding the heading to cloud step 1 fails here.
+    expect(html.startsWith('<h4>')).toBe(!HEADLESS_BY_DESIGN.has(name));
   });
 
   it.each(EVERY_BODY)('%s carries no link', (_name, html) => {

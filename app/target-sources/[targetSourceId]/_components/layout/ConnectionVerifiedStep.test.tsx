@@ -2,6 +2,7 @@
 import { act, render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { ProcessStatus, type CloudTargetSource } from '@/lib/types';
+import { cardStyles } from '@/lib/theme';
 import type { ProjectIdentity } from '@/app/target-sources/[targetSourceId]/_components/common';
 
 const updateConfirmationMock = vi.fn();
@@ -146,10 +147,11 @@ describe('ConnectionVerifiedStep', () => {
   });
 
 
-  it('renders the card title with the cardTitle token (v15 26px / font-extrabold)', () => {
+  it('renders the card title with the cardTitle token', () => {
     renderStep();
     const h2 = screen.getByRole('heading', { level: 2, name: /완료 여부 관리자 승인 대기/ });
-    expect(h2.className).toContain('text-[22px]');
-    expect(h2.className).toContain('font-extrabold');
+    // Against the token, not a literal: the size has moved 26 → 22 → 20 and each move
+    // left this line asserting the last one. What the card owes is the shared token.
+    expect(h2.className).toContain(cardStyles.cardTitle);
   });
 });

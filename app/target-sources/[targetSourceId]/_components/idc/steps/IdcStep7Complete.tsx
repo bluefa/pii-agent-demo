@@ -84,8 +84,8 @@ export const IdcStep7Complete = ({
       {/* No overflow-hidden: it would establish a clip box and kill the sticky CardActionBar. */}
       <section className={cardStyles.base}>
         <header className={cardStyles.header}>
-          <span className={cardStyles.stepTag}>7단계</span>
           <div className="flex items-center gap-2">
+            <span className={cardStyles.stepTag}>7단계</span>
             <h2 className={cardStyles.cardTitle}>PII 모니터링 모듈 연동</h2>
             <span
               className={cn(

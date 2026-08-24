@@ -242,34 +242,38 @@ export const WaitingApprovalCard = ({
       <div className={cardStyles.header}>
         <div className="flex items-start justify-between gap-4">
           <div>
-            <span className={cardStyles.stepTag}>2단계</span>
             <div className="flex items-center gap-2">
-            {/* The verdict arrives with the fetch, so title and badge stay unresolved until then —
-                rendering the pending copy first makes every rejected load flash 승인 대기 → 반려. */}
-            {resolved ? (
-              <>
-                {/* Fixed step name, matching the progress bar — the badge alone carries state. */}
-                <h2 className={cn(cardStyles.cardTitle)}>연동 대상 승인 대기</h2>
-                <span
-                  className={cn(
-                    // Rejected matches the 반려 사유 tag in the quote below, so the two marks read
-                    // as one pair on this screen; pending keeps the rounded-full state badge.
-                    rejected
-                      ? 'inline-flex items-center rounded-md px-1.5 py-0.5 text-[12px] font-medium'
-                      : cardStyles.stepBadge,
-                    statusColors.warning.bg,
-                    statusColors.warning.textDark,
-                  )}
-                >
-                  {rejected ? '반려' : '승인 대기'}
-                </span>
-              </>
-            ) : (
-              <>
-                <div className={cn(idcStyles.skeletonBar, 'h-[26px] w-[220px] rounded-[6px]')} />
-                <div className={cn(idcStyles.skeletonBar, 'h-[26px] w-[68px] rounded-full')} />
-              </>
-            )}
+              {/* Outside the ternary: the step number is known before the fetch, so it renders
+                  while the title is still a skeleton. */}
+              <span className={cardStyles.stepTag}>2단계</span>
+              {/* The verdict arrives with the fetch, so title and badge stay unresolved until then —
+                  rendering the pending copy first makes every rejected load flash 승인 대기 → 반려. */}
+              {resolved ? (
+                <>
+                  {/* Fixed step name, matching the progress bar — the badge alone carries state. */}
+                  <h2 className={cn(cardStyles.cardTitle)}>연동 대상 승인 대기</h2>
+                  <span
+                    className={cn(
+                      // Rejected matches the 반려 사유 tag in the quote below, so the two marks read
+                      // as one pair on this screen; pending keeps the rounded-full state badge.
+                      rejected
+                        ? 'inline-flex items-center rounded-md px-1.5 py-0.5 text-[12px] font-medium'
+                        : cardStyles.stepBadge,
+                      statusColors.warning.bg,
+                      statusColors.warning.textDark,
+                    )}
+                  >
+                    {rejected ? '반려' : '승인 대기'}
+                  </span>
+                </>
+              ) : (
+                <>
+                  {/* 24px, not 26: the title's line box is 20 × 1.2 since the tag moved onto its
+                      row. A skeleton taller than what replaces it makes the card settle downward. */}
+                  <div className={cn(idcStyles.skeletonBar, 'h-[24px] w-[220px] rounded-[6px]')} />
+                  <div className={cn(idcStyles.skeletonBar, 'h-[24px] w-[68px] rounded-full')} />
+                </>
+              )}
             </div>
           </div>
           {/* Card CTA sits beside the title — in the bottom dock the user only meets it past the whole table.

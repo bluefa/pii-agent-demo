@@ -84,9 +84,9 @@ export const IdcStep6ConnectionVerified = ({
       <section className={cn(cardStyles.base, 'overflow-hidden')}>
         {/* Same left-aligned stack as the cloud step: step tag, title + status, guidance copy. */}
         <header className={cardStyles.header}>
-          <span className={cardStyles.stepTag}>6단계</span>
           <div className="flex items-center justify-between gap-4">
             <div className="flex items-center gap-2">
+              <span className={cardStyles.stepTag}>6단계</span>
               <h2 className={cardStyles.cardTitle}>완료 여부 관리자 승인 대기</h2>
               <span
                 className={cn(

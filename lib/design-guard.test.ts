@@ -18,7 +18,7 @@
  * Values are extracted from the live sources (theme.ts / _services/styles.ts /
  * globals.css), so re-tinting a token re-runs the geometry with no edit here.
  */
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 
@@ -955,5 +955,86 @@ describe('instance band rail shares the group rail axis', () => {
     const radio = px(railClassOf(bandSrc, 'radio'), /-left-(\d+)\b/) * 4;
     const elbow = px(railClassOf(bandSrc, 'line'), /after:w-\[(\d+)px\]/);
     expect(axis - radio).toBeGreaterThan(elbow);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// the step tag rides the title's row
+// ---------------------------------------------------------------------------
+
+/**
+ * 「N단계」 used to own the line above each step-card title, which put two blue plates on
+ * the screen 115px apart — this one and the position plate on 「설치 진행」 — differing only
+ * by a font weight and a pixel of padding. It now sits inside the title's row, where its
+ * fixed width is the landing point a title that swings 91→208px across the seven steps
+ * could not give the eye.
+ *
+ * A census, not a spot check: a fourteenth step card written the old way has to fail here
+ * rather than quietly ship a card whose head reads differently from its thirteen siblings.
+ * `ConnectionVerifiedStep` is why the census keys on the RENDERED 「N단계」 and not only on
+ * the token — that head had the token's classes spelled out by hand, so it sat out this
+ * move invisibly to anything grepping for `cardStyles.stepTag`.
+ */
+describe('step tag rides the title row', () => {
+  /** The row the tag and the title share. Same class the seven title+badge rows already use. */
+  const TITLE_ROW = 'flex items-center gap-2';
+
+  const tsxUnder = (dir: string): string[] =>
+    readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) return tsxUnder(full);
+      return entry.name.endsWith('.tsx') && !entry.name.includes('.test.') ? [full] : [];
+    });
+
+  const appTsx = tsxUnder(path.join(root, 'app')).map((f) => path.relative(root, f));
+
+  /**
+   * A `<span>` whose ENTIRE text is 「N단계」 — the pill. The four 「1단계」/「5단계」 in
+   * `ConfirmRewindModal` and friends are `<strong>` inside running copy and do not match,
+   * which is the point: they name a step in a sentence, they are not tags.
+   */
+  const PILL = /<span\b[^>]*>\s*[1-9]단계\s*<\/span>/;
+  /** The mount, not the bare token — the token's name also appears in prose above it. */
+  const TAG_USE = 'className={cardStyles.stepTag}';
+  /** The token's own geometry, minus its `${…}` colour holes. Drifts with the token. */
+  const TAG_GEOMETRY = classOf(blockOf('cardStyles'), 'stepTag').split('${')[0].trim();
+
+  const byPill = appTsx.filter((f) => PILL.test(read(f)));
+  const byToken = appTsx.filter((f) => read(f).includes(TAG_USE));
+
+  it('is worn by every step card there is', () => {
+    // Cloud 1·2·3·4·5·6·7 and IDC 1·2·3·5·6·7 — thirteen heads, one grammar.
+    // The two sets pin each other: a head that renders a pill without the token, or wears
+    // the token in a shape this scan cannot read, breaks the equality rather than hiding.
+    //
+    // 13 counts the TAGGED heads, not every card head. `ApprovalUnavailableCard` also
+    // wears `cardStyles.cardTitle` and carries no tag: it stands in for step 2 when the
+    // target is ruled out, and whether that state has a step number is a product question,
+    // not a token one. It predates this census — do not read the count as blessing it.
+    expect(byToken).toEqual(byPill);
+    expect(byToken).toHaveLength(13);
+  });
+
+  it('carries no margin of its own — it is a flex child, not a line', () => {
+    // A margin here would push the tag back off the row and re-open the twin-plate gap.
+    expect(classOf(blockOf('cardStyles'), 'stepTag')).not.toMatch(/(?:^|\s)-?m[btlrxy]?-/);
+  });
+
+  it('is imported, never spelled out — a hand copy is invisible to this census', () => {
+    // ⛔ `ConnectionVerifiedStep` shipped 'mb-1.5 inline-flex items-center rounded-[6px]
+    // px-2 py-0.5 text-[12px] font-bold' inline. It read identically and moved with nothing.
+    expect(appTsx.filter((f) => read(f).includes(TAG_GEOMETRY))).toEqual([]);
+  });
+
+  it.each(byToken)('%s opens the row before the tag', (file) => {
+    const src = read(file);
+    const at = src.indexOf(TAG_USE);
+    // Positional, not structural: it asks that a row opens in the 300 characters above
+    // the tag, which is what a revert removes — moving the tag back out puts a `</div>`
+    // or a bare `<header>` there instead. It does NOT prove the tag is inside that row;
+    // an unrelated `flex items-center gap-2` nearby would satisfy it. The set equality
+    // above is the strong half of this census. Verifying containment would mean parsing
+    // JSX, which is more machinery than this earns.
+    expect(src.slice(Math.max(0, at - 300), at)).toContain(TITLE_ROW);
   });
 });

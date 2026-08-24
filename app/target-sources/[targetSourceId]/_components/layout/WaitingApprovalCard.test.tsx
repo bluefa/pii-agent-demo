@@ -18,7 +18,7 @@ vi.mock('@/app/lib/api', () => ({
 }));
 
 import { WaitingApprovalCard } from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalCard';
-import { numericFeatures, primaryColors, verdictText } from '@/lib/theme';
+import { cardStyles, numericFeatures, primaryColors, verdictText } from '@/lib/theme';
 
 interface ResourceOpts {
   selected: boolean;
@@ -102,8 +102,9 @@ describe('WaitingApprovalCard', () => {
 
     // The title only appears once the verdict is known — before that the header is a skeleton.
     const heading = await screen.findByRole('heading', { name: '연동 대상 승인 대기' });
-    expect(heading.className).toContain('text-[22px]');
-    expect(heading.className).toContain('font-extrabold');
+    // Against the token, not a literal: the size has moved 26 → 22 → 20 and each move
+    // left this line asserting the last one. What the card owes is the shared token.
+    expect(heading.className).toContain(cardStyles.cardTitle);
 
     await waitFor(() => {
       expect(screen.getByText('mysql-prod-01')).toBeTruthy();

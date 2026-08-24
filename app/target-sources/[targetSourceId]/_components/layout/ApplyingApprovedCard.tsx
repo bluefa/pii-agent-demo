@@ -153,12 +153,12 @@ export const ApplyingApprovedCard = ({ targetSourceId }: ApplyingApprovedCardPro
     <section className={cn(cardStyles.base, 'overflow-hidden')}>
       {/* Same left-aligned stack as step 2: step tag, title + status, guidance copy, approval meta. */}
       <div className={cardStyles.header}>
-        {/* Step position, matching INSTALL_STEPS order in InstallationProcessProgressBar. */}
-        <span className={cardStyles.stepTag}>3단계</span>
         {/* Status tag and guidance copy wait for the fetch: asserting a state before the data lands
             means the header can contradict what resolves under it. Skeletons hold the space so the
             card does not jump when they arrive. */}
         <div className="flex items-center gap-2">
+          {/* Step position, matching INSTALL_STEPS order in InstallationProcessProgressBar. */}
+          <span className={cardStyles.stepTag}>3단계</span>
           <h2 className={cn(cardStyles.cardTitle)}>연동 대상 반영중</h2>
           {loaded ? (
             <span
@@ -171,7 +171,10 @@ export const ApplyingApprovedCard = ({ targetSourceId }: ApplyingApprovedCardPro
               반영중
             </span>
           ) : (
-            <span className={cn(idcStyles.skeletonBar, 'h-[26px] w-[62px] rounded-full')} />
+            /* 24px, not 26: the title's line box is 20 × 1.2 since the tag moved onto this row,
+               so the 26px skeleton became the tallest thing in it and the row settled 2px on
+               resolve — the jump the comment above promises it prevents. `stepBadge` is 24. */
+            <span className={cn(idcStyles.skeletonBar, 'h-[24px] w-[62px] rounded-full')} />
           )}
         </div>
         {/* Was said three times — this sentence, a green StepBanner below it, and the guide panel.

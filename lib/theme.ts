@@ -553,18 +553,28 @@ export const cardStyles = {
   /** Large display heading inside a card header (ADR-014 card-display-title). */
   displayTitle: 'text-[26px] font-extrabold text-[#191F28] tracking-[-0.045em] leading-[1.2]',
   /** In-card section / step-card title — v15 display geometry (26 / 800 / -0.045em / #191F28). */
-  // 22px sits BELOW the 24px page H1 (pageHeaderTitleStyle) — the unified header
+  // 20px sits BELOW the 24px page H1 (pageHeaderTitleStyle) — the unified header
   // introduced a page-level title above every step card, so the step title must
-  // read as a section heading, not compete with the page identity (was 26px).
+  // read as a section heading, not compete with the page identity (was 26px, then 22px).
+  // 20, not 22, because `stepTag` now shares this line: beside a 22px-tall pill a 22px
+  // title leaves the pill looking like debris the title dropped. At 20 the two read as
+  // one row, and the step down to the 16px guidance below stays legible.
   // Tracking is -0.01em, not the -0.03em latin display type takes: Korean glyphs are already dense,
   // so tighter tracking reads as cramped instead of as a tightened headline.
-  cardTitle: 'text-[22px] font-extrabold tracking-[-0.01em] leading-[1.2] text-[#191F28]',
+  cardTitle: 'text-[20px] font-extrabold tracking-[-0.01em] leading-[1.2] text-[#191F28]',
   /**
-   * "N단계" tag above a step-card title, matching INSTALL_STEPS order in
+   * "N단계" tag ON a step-card title's row, matching INSTALL_STEPS order in
    * InstallationProcessProgressBar. Was copy-pasted into every step card with a "keep the two in
    * sync" note; six cards (cloud 1·2·3, IDC 1·2·3 + 6) is where that stops being a note.
+   *
+   * ⛔ No margin of its own. The tag used to own the line above the title (`mb-1.5`), which put
+   * two near-identical blue plates on the screen 115px apart — this one and the position plate
+   * on 「설치 진행」 — differing only by a font weight and a pixel of padding. It now sits inside
+   * the title's `flex items-center gap-2` row, where its fixed 42px width is the landing point
+   * a title that swings 91→208px across the seven steps could not give the eye. A margin here
+   * would break that row back apart.
    */
-  stepTag: `mb-1.5 inline-flex items-center rounded-[6px] px-2 py-0.5 text-[12px] font-bold ${primaryColors.bgLight} ${primaryColors.textOnLight}`,
+  stepTag: `inline-flex items-center rounded-[6px] px-2 py-0.5 text-[12px] font-bold ${primaryColors.bgLight} ${primaryColors.textOnLight}`,
   /** State pill beside a step title (승인 대기 / 반영중). Shape only — the caller owns the tone. */
   stepBadge: 'inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium',
   /**
@@ -1001,18 +1011,19 @@ export const installStepperStyles = {
    */
   head: 'flex min-w-0 flex-wrap items-baseline gap-x-3 gap-y-1',
   /**
-   * 「7단계 중 1단계 연동 대상 DB 선택」 — the whole position statement, as one tag
-   * (오너 16차 지시). The total used to stand outside it as loose 12px prose
-   * (「전체 7단계 중」); the owner deleted that, so the plate now carries the complete
-   * sentence and the row is a name followed by tags with no running text between them.
+   * 「7단계 중 1단계」 — the position, as one tag (오너 16차 지시). The total used to stand
+   * outside it as loose 12px prose (「전체 7단계 중」); the owner deleted that, so the plate
+   * carries both numbers and the row is a name followed by tags with no running text
+   * between them. It stops at the position: naming the step as well put one string on the
+   * screen three times, and the card head 32px below owns the name.
    *
    * Blue, on the owner's call: the slate this used to wear is the path's tag
    * vocabulary, and on a row that also carries the block's name the step needed to be
    * the thing the eye lands on.
    *
-   * ⛔ Fill AND ink must stay equal to `cardStyles.stepTag` — the 「N단계」 tag over
-   * every step-card title, which is the SAME fact rendered a second time and is on
-   * screen at the same moment. This shipped for one review round as `#1747B5` on the
+   * ⛔ Fill AND ink must stay equal to `cardStyles.stepTag` — the 「N단계」 tag beside
+   * every step-card title, which carries the SAME number and is on screen at the same
+   * moment. This shipped for one review round as `#1747B5` on the
    * same `#E8F1FF`, reasoned only against `metaCue` and never against the card tag;
    * one fill carrying one fact in two tints reads as two meanings.
    * `primaryColors.bgLight`/`textOnLight` are written out as literals because
@@ -1024,10 +1035,13 @@ export const installStepperStyles = {
    * sits at the opposite edge, and is not the same fact.
    *
    * `items-baseline`, so the 14px digits and the 12px words sit on one line inside the
-   * tag and the tag itself lands on the block name's baseline.
+   * tag and the tag itself lands on the block name's baseline. No `gap`: the plate held
+   * three children back when it also carried a middot and the step's name — it is one
+   * span now, and a gap between nothing and nothing is a class the next reader has to
+   * disprove.
    */
   stepTag:
-    'inline-flex items-baseline gap-1.5 rounded-[6px] bg-[#E8F1FF] px-2 py-[3px] text-[12px] font-semibold text-[#0050D6]',
+    'inline-flex items-baseline rounded-[6px] bg-[#E8F1FF] px-2 py-[3px] text-[12px] font-semibold text-[#0050D6]',
   /** Both digits inside the tag — the total and the position. They take the tag's own
       ink: a near-black here would be a second colour inside the plate, and the plate is
       one statement. `tabular-nums` so the line does not shift as the target advances. */

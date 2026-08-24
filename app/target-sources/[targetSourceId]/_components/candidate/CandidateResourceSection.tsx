@@ -690,12 +690,14 @@ export const CandidateResourceSection = ({
           return (
             // No overflow-hidden: it would establish a clip box and kill the sticky CardActionBar.
             <section className={cardStyles.base}>
-              {/* Step 2·3 헤더 문법: 단계 태그 → 고정 제목 → 안내 문장. 스캔 컨트롤은
+              {/* Step 2·3 헤더 문법: 단계 태그 · 고정 제목 한 줄 → 안내 문장. 스캔 컨트롤은
                   헤더가 아니라 스트립/히어로가 소유한다 — 목록이 있을 때 이 카드의
                   primary CTA는 하단 승인 요청 하나뿐이고, 스캔은 보조 밴드로 물러난다. */}
               <header className={cardStyles.header}>
-                <span className={cardStyles.stepTag}>1단계</span>
-                <h2 className={cn(cardStyles.cardTitle)}>연동 대상 DB 선택</h2>
+                <div className="flex items-center gap-2">
+                  <span className={cardStyles.stepTag}>1단계</span>
+                  <h2 className={cn(cardStyles.cardTitle)}>연동 대상 DB 선택</h2>
+                </div>
                 {/* 2호흡: 스캔→선택 / 사유→승인. 강조는 사용자가 직접 해야 하는
                     행동 두 가지(선택·사유 입력)만 파랑 — 승인은 시스템 몫이라 평문.
                     break-keep: 음절 고아("요."만 다음 줄) 방지, 단어 단위로 감는다. */}
