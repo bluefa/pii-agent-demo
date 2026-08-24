@@ -313,6 +313,25 @@ describe('VM — 표시가 갈래를 고르고, 진위는 BFF 가 막는다', ()
     expect(result.ok).toBe(false);
   });
 
+  // `normalizeCloudProvider` 는 별칭 표에 없는 값을 'AWS' 로 떨어뜨리고, 화면은 그
+  // 정규화된 값으로 EC2 수기 추가 입구를 연다. 서버가 원문을 그대로 비교하면 SDU 대상은
+  // 버튼을 보고 행을 만든 뒤 제출에서만 409 를 받는다 — 새로고침해도 같은 자리다.
+  it('화면이 AWS 로 그리는 대상이면 서버도 AWS 갈래로 받는다 (SDU)', async () => {
+    const result = await resolveApprovalInput(1, 'SDU', parse({
+      resources: [{ resource_id: 'i-abc123', selected: true, manual_ec2: {} }],
+    }));
+
+    expect(result.ok).toBe(true);
+  });
+
+  it('대문자·공백이 섞여도 같은 갈래로 간다', async () => {
+    const result = await resolveApprovalInput(1, ' aws ', parse({
+      resources: [{ resource_id: 'i-abc123', selected: true, manual_ec2: {} }],
+    }));
+
+    expect(result.ok).toBe(true);
+  });
+
   it('재스캔이 같은 인스턴스를 후보로 올렸으면 409 다 (오래된 화면)', async () => {
     const result = await resolveApprovalInput(1, 'AWS', parse({
       resources: [{ resource_id: 'db-1', selected: true, manual_ec2: {} }],

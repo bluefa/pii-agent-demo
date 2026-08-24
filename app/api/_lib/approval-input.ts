@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { schemas } from '@/lib/generated/install-v1';
 import { bff } from '@/lib/bff/client';
-import { toWireDatabaseType } from '@/lib/types';
+import { normalizeCloudProvider, toWireDatabaseType, type CloudProvider } from '@/lib/types';
 import { VM_RESOURCE_TYPES } from '@/lib/resource-catalog';
 import {
   ApprovalSelectionInput,
@@ -55,8 +55,14 @@ type ResolveResult =
   | { ok: true; value: ApprovalInput }
   | { ok: false; failure: ResolveFailure };
 
-const isIdcProvider = (provider: string): boolean => provider.trim().toUpperCase() === 'IDC';
-const isAwsProvider = (provider: string): boolean => provider.trim().toUpperCase() === 'AWS';
+// 갈래는 화면이 쓰는 바로 그 함수로 정한다. 손으로 `=== 'AWS'` 를 적으면 별칭 표를
+// 건너뛰게 되고, 서버가 화면보다 좁아진다 — `normalizeCloudProvider` 는 표에 없는 값을
+// 'AWS' 로 떨어뜨리므로(`SDU`, `ORACLE_CLOUD` …) 그런 대상에서도 화면은 EC2 수기 추가
+// 입구를 연다(`CandidateResourceSection`: `provider === 'AWS'`). 서버만 원문을 보고
+// 거부하면 새로고침해도 같은 화면이 같은 행을 다시 만들어 영원히 409 다.
+const providerOf = (provider: string): CloudProvider => normalizeCloudProvider(provider);
+const isIdcProvider = (provider: string): boolean => providerOf(provider) === 'IDC';
+const isAwsProvider = (provider: string): boolean => providerOf(provider) === 'AWS';
 
 const endpointMetadata = (endpoint: EndpointInput | undefined): Metadata =>
   endpoint
