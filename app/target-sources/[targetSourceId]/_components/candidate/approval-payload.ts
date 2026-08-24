@@ -84,7 +84,9 @@ export const toApprovalRequestInput = (
   drafts: CandidateDraftState,
   exclusionReasons: Readonly<Record<string, string>>,
 ): ApprovalSelection => ({
-  resources: candidates.map((candidate): SelectionRow => {
+  // id 없는 후보는 연동 대상이 될 수 없다(`ec2.ts` 와 같은 규칙). 실어 보내 봐야 라우트가
+  // 교집합에서 못 찾아 요청 전체가 막힌다.
+  resources: candidates.filter((candidate) => candidate.id !== '').map((candidate): SelectionRow => {
     if (!selectedIds.has(candidate.id)) {
       // The scan's own verdict is NOT sent: the route reads `recommend_fail_reason` from
       // the authoritative row and falls back to it when the user typed nothing.

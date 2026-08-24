@@ -215,12 +215,19 @@ export const resolveApprovalInput = async (
   cloudProvider: string,
   input: ApprovalSelection,
 ): Promise<ResolveResult> => {
-  const ids = input.resources.map((row) => row.resource_id);
+  // id 없는 행은 연동 대상이 아니다 — 와이어가 resource_id 없이 준 행을 어댑터가 `''` 로
+  // 싣고(`app/lib/api/index.ts`), 매퍼는 후보를 전부 보내므로 그 행이 매 제출에 딸려 온다.
+  // 거부하면 새로고침해도 같은 와이어를 다시 읽어 영원히 같은 자리에서 막힌다. 떨군다 —
+  // `ec2.ts` 가 instance id 없는 검색 결과에 쓰는 것과 같은 규칙이다("the id IS the
+  // identity this flow adds"). 중복 검사보다 먼저 떨어내야 `''` 두 개가 중복으로 걸리지 않는다.
+  const rows = input.resources.filter((row) => row.resource_id !== '');
+
+  const ids = rows.map((row) => row.resource_id);
   if (new Set(ids).size !== ids.length) return fail('같은 리소스가 두 번 담겼습니다.');
 
   if (isIdcProvider(cloudProvider)) {
     const resources: ResourceItem[] = [];
-    for (const row of input.resources) {
+    for (const row of rows) {
       // IDC 는 수기 입력이라 행마다 접속 정보가 있어야 한다 — 없으면 연동 대상이 아니다.
       if (!row.idc) return fail('IDC 연동 대상에는 접속 정보가 필요합니다.');
       if (row.endpoint) return fail('IDC 행은 endpoint 를 쓰지 않습니다.');
@@ -230,7 +237,7 @@ export const resolveApprovalInput = async (
     return { ok: true, value: { resources } };
   }
 
-  if (input.resources.some((row) => row.idc)) {
+  if (rows.some((row) => row.idc)) {
     return fail('IDC 접속 정보는 IDC 연동에서만 보낼 수 있습니다.');
   }
 
@@ -242,7 +249,7 @@ export const resolveApprovalInput = async (
   }
 
   const resources: ResourceItem[] = [];
-  for (const row of input.resources) {
+  for (const row of rows) {
     const item = known.get(row.resource_id);
     if (item) {
       // 수기로 추가한 뒤 재스캔이 같은 인스턴스를 후보로 올리면 여기 온다.

@@ -196,6 +196,33 @@ describe('false positive 경계 — 폼이 받아 준 값은 서버도 받는다
     expect(parsed.success).toBe(true);
   });
 
+  // id 없는 와이어 행은 매 제출에 딸려 온다. 거부하면 새로고침해도 같은 와이어를 다시
+  // 읽어 영원히 같은 자리에서 막힌다 — 떨궈야 한다.
+  it('id 없는 행은 요청을 막지 않고 조용히 빠진다', async () => {
+    const result = await resolveApprovalInput(1, 'AWS', parse({
+      resources: [
+        { resource_id: '', selected: false },
+        { resource_id: 'db-1', selected: true },
+      ],
+    }));
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.resources?.map((r) => r.resource_id)).toEqual(['db-1']);
+  });
+
+  it('id 없는 행이 둘이어도 중복으로 걸리지 않는다', async () => {
+    const result = await resolveApprovalInput(1, 'AWS', parse({
+      resources: [
+        { resource_id: '', selected: false },
+        { resource_id: '', selected: false },
+        { resource_id: 'db-1', selected: true },
+      ],
+    }));
+
+    expect(result.ok).toBe(true);
+  });
+
   it('스캔 결과가 수백 건이어도 상한에 걸리지 않는다', () => {
     const parsed = ApprovalSelectionInput.safeParse({
       resources: Array.from({ length: 800 }, (_, i) => ({
@@ -382,6 +409,21 @@ describe('IDC — 대조할 집합이 없으므로 형식만 본다', () => {
     const result = await resolveApprovalInput(1, 'AWS', parse(
       idcRow({ host_format: 'IP', hosts: ['10.1.2.3'] }),
     ));
+
+    expect(result.ok).toBe(false);
+  });
+
+  it('IDC 행에 수기 추가 EC2 표시를 붙이면 거부한다', async () => {
+    const result = await resolveApprovalInput(1, 'IDC', parse({
+      resources: [
+        {
+          resource_id: 'idc-1',
+          selected: true,
+          idc: { host_format: 'IP', hosts: ['10.1.2.3'] },
+          manual_ec2: {},
+        },
+      ],
+    }));
 
     expect(result.ok).toBe(false);
   });
