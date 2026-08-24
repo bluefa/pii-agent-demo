@@ -3,7 +3,7 @@
 import { cn, statusColors, textColors, textStyles } from '@/lib/theme';
 import { useNowTick } from '@/app/hooks/useNowTick';
 import { fmtElapsedAgo } from '@/lib/pipeline/format';
-import { formatDateTimeKst } from '@/lib/utils/date';
+import { formatDateTimeKstCompact } from '@/lib/utils/date';
 import type { InstallLastCheck } from '@/app/components/features/process-status/install-status-detail/model';
 
 /**
@@ -23,7 +23,7 @@ import type { InstallLastCheck } from '@/app/components/features/process-status/
 export interface RelativeStamp {
   /** 경과 — 큰 단위 두 개까지, 0인 단위는 빼고. 매 초 다시 계산된다. */
   elapsed: string | null;
-  /** 정확한 시각(KST 고정 — wire 는 UTC 라 브라우저 타임존을 믿지 않는다). */
+  /** 정확한 시각 `YY. MM. DD. HH:mm` (KST 고정 — wire 는 UTC 라 브라우저 타임존을 믿지 않는다). */
   absolute: string;
 }
 
@@ -40,11 +40,18 @@ export const useRelativeStamp = (iso: string | null | undefined): RelativeStamp 
   if (!iso) return null;
   return {
     elapsed: now === null ? null : fmtElapsedAgo(now - Date.parse(iso)),
-    absolute: `${formatDateTimeKst(iso)} (KST)`,
+    absolute: formatDateTimeKstCompact(iso),
   };
 };
 
-export const LastCheckStamp = ({ lastCheck }: { lastCheck: InstallLastCheck }) => {
+export const LastCheckStamp = ({
+  lastCheck,
+  className,
+}: {
+  lastCheck: InstallLastCheck;
+  /** 정렬 override — 기본은 헤더 우측(items-end). 왼쪽으로 흐르는 줄에서만 넘긴다. */
+  className?: string;
+}) => {
   const stamp = useRelativeStamp(lastCheck.checkedAt);
   const failed = lastCheck.status === 'FAILED';
 
@@ -59,21 +66,22 @@ export const LastCheckStamp = ({ lastCheck }: { lastCheck: InstallLastCheck }) =
     ) : null;
   }
 
+  // 한 줄로 이으면 "25일 8시간 전 확인 2026. 07. 30. 오후 02:46 (KST)" 가 되어 제목
+  // 옆 슬롯을 다 먹는다(오너). 두 층으로 쌓으면 각 줄이 짧아지고, 답(경과)과 근거
+  // (정확한 시각)가 위아래로 갈려 크기·굵기 말고 위치로도 구분된다.
   return (
-    <span className="inline-flex items-baseline gap-1.5 whitespace-nowrap">
-      {/* 이 줄에서 답이 되는 값 — 12/600, 한 단 진한 잉크. */}
+    <span className={cn('inline-flex flex-col items-end whitespace-nowrap', className)}>
+      {/* 위층 = 이 줄에서 답이 되는 값. 12/600, 한 단 진한 잉크. */}
       {stamp.elapsed && (
         <span className={cn(textStyles.captionStrong, textColors.secondary)}>
           {stamp.elapsed} 확인
+          {failed && (
+            <span className={cn('ml-1', statusColors.error.textDark)}>· 상태 확인 실패</span>
+          )}
         </span>
       )}
-      {/* 근거 — 같은 크기, 한 단 옅게. 경과가 없으면 이쪽이 유일한 값이 된다. */}
+      {/* 아래층 = 근거. 같은 크기, 한 단 옅게. 경과가 없으면 이쪽이 유일한 값이 된다. */}
       <span className={cn(textStyles.caption, textColors.tertiary)}>{stamp.absolute}</span>
-      {failed && (
-        <span className={cn('font-semibold', textStyles.caption, statusColors.error.textDark)}>
-          · 상태 확인 실패
-        </span>
-      )}
     </span>
   );
 };

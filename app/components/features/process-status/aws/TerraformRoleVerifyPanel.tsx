@@ -171,9 +171,10 @@ export const TerraformRoleVerifyPanel = ({
         >
           {verifying ? '확인 중...' : '지금 확인'}
         </button>
-        {/* 카드 헤더의 확인 시각과 같은 문법 — 경과가 앞에 서고 정확한 시각이 뒤를 받친다. */}
+        {/* 카드 헤더의 확인 시각과 같은 문법 — 두 층, 경과가 위. 이 줄은 왼쪽으로
+            흐르므로 정렬만 뒤집는다. */}
         {stamp && (
-          <span className="inline-flex items-baseline gap-1.5 whitespace-nowrap">
+          <span className="inline-flex flex-col items-start whitespace-nowrap">
             {stamp.elapsed && (
               <span className={cn(textStyles.captionStrong, textColors.secondary)}>
                 {stamp.elapsed} 검증

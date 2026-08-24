@@ -20,7 +20,8 @@ describe('LastCheckStamp', () => {
     at('2026-08-24T04:47:40Z'); // 12분 20초 전
     expect(screen.getByText('12분 20초 전 확인')).toBeTruthy();
     // 상대만 남긴 제품들이 "그래서 언제냐"는 요청을 받았다 — 절대 시각은 지우지 않는다.
-    expect(screen.getByText(/\(KST\)$/)).toBeTruthy();
+    // 아래층은 `YY. MM. DD. HH:mm` (오너 지정) — 두 줄로 쌓인 만큼 폭을 아낀다.
+    expect(screen.getByText('26. 08. 24. 13:47')).toBeTruthy();
   });
 
   it('0인 단위는 적지 않는다', () => {

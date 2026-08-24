@@ -22,8 +22,12 @@ export const InstallCardHeader = ({ action }: { action?: ReactNode }) => (
       {action && <div className="shrink-0">{action}</div>}
     </div>
     {/* 2호흡: 무슨 일이 일어나는가 / 내가 할 일은 무엇인가.
-        break-keep: 음절 고아 방지, 단어 단위로 감는다. */}
-    <p className={cn('mt-2.5 break-keep', cardStyles.guidance)}>
+        break-keep: 음절 고아 방지, 단어 단위로 감는다.
+
+        제목과의 거리는 16px(group). 10px 이던 자리다 — 세트에 없는 값인 데다, 아래
+        guidance 가 두 문단이라 그 둘 사이 간격(줄간격뿐)과 거의 같아져서 제목이 두 줄짜리
+        덩어리에 붙어 버렸다. 거리도 계층의 레버라, 크기·굵기만으로는 답이 안 났다(오너). */}
+    <p className={cn('mt-4 break-keep', cardStyles.guidance)}>
       승인된 연동 대상에 PII Agent 를 설치하는 단계예요. 리소스 생성은 BDC 가 자동으로
       진행하고, 서비스 측 계정에서만 할 수 있는 작업은 따로 모아 안내해요.
     </p>
