@@ -5,11 +5,11 @@ import type {
   CandidateDraftState,
   CandidateResource,
 } from '@/lib/types/resources';
-import { cloudProviderToWireProvider, toWireDatabaseType } from '@/lib/types';
+import type { ApprovalSelection } from '@/lib/approval-selection';
 import { getCandidateBehavior } from '@/app/target-sources/[targetSourceId]/_components/candidate/candidate-resource-behavior';
 
-type ResourceItem = z.infer<typeof schemas.TargetSourceResourceItemDto>;
-type ApprovalRequestInput = z.infer<typeof schemas.ApprovalRequestInputDto>;
+type SelectionRow = ApprovalSelection['resources'][number];
+type MetadataFields = z.infer<typeof schemas.TargetSourceResourceMetadataDto>;
 
 export const toModalResources = (
   candidates: readonly CandidateResource[],
@@ -58,87 +58,62 @@ export const listMissingExclusionReasons = (
   );
 
 /**
- * Input adapter: UI selection (candidates + selected set + endpoint drafts +
- * per-resource exclusion reasons) → contract `ApprovalRequestInputDto`
- * ({ resources: TargetSourceResourceItemDto[] }). Every item carries its identity
- * (resource_name, resource_type, integration_category) and the candidate's intrinsic metadata
- * (provider/region/database_type); selected items additionally carry the behavior's
- * endpoint fields (VM db_type/host/port) from user drafts; excluded items carry the
- * reason the user picked. This is the ONLY shape sent on the wire.
+ * Input adapter: UI selection → the route's `ApprovalSelectionInput`.
+ *
+ * Sends the CHOICES only — which resource, selected or not, the reason the user typed,
+ * the RDS member they picked, and the endpoint fields they filled in. Identity and
+ * intrinsic metadata (resource_name/resource_type/integration_category/provider/region/
+ * database_type/rds_instance_candidates) are NO LONGER sent: the route re-reads them from
+ * the scan and assembles the contract body itself, so a crafted payload cannot describe a
+ * resource the scan never saw. See `app/api/_lib/approval-input.ts`.
+ *
+ * The behavior still decides WHICH endpoint fields apply — that logic is unchanged; only
+ * its output is re-addressed from contract metadata into the narrower input shape.
  */
 export const toApprovalRequestInput = (
   candidates: readonly CandidateResource[],
   selectedIds: ReadonlySet<string>,
   drafts: CandidateDraftState,
   exclusionReasons: Readonly<Record<string, string>>,
-): ApprovalRequestInput => ({
-  resources: buildResourceInputs(candidates, selectedIds, drafts, exclusionReasons),
-});
-
-const buildResourceInputs = (
-  candidates: readonly CandidateResource[],
-  selectedIds: ReadonlySet<string>,
-  drafts: CandidateDraftState,
-  exclusionReasons: Readonly<Record<string, string>>,
-): ResourceItem[] =>
-  candidates.map((candidate): ResourceItem => {
-    // Contract: provider/region/database_type live under metadata
-    // (TargetSourceResourceMetadataDto). Carry them from the candidate so a
-    // backend echoing the payload keeps them through Step2/Step3.
-    const intrinsicMetadata: ResourceItem['metadata'] = {
-      ...(candidate.metadata.provider
-        ? { provider: cloudProviderToWireProvider(candidate.metadata.provider) }
-        : {}),
-      ...(candidate.metadata.region ? { region: candidate.metadata.region } : {}),
-      ...(candidate.databaseType ? { database_type: toWireDatabaseType(candidate.databaseType) } : {}),
-      // An RDS cluster's member list travels with the resource whether or not it was
-      // selected: it describes what the cluster IS, and the backend joins the echoed
-      // array. Only the CHOICE (selected_rds_instance_resource_id) is selection-scoped, and the
-      // behavior adds that on the selected branch.
-      ...(candidate.rdsInstanceCandidates ? { rds_instance_candidates: candidate.rdsInstanceCandidates } : {}),
-    };
-
-    // `candidate.type` is 'UNKNOWN' when the upstream row omitted resource_type — a local
-    // sentinel, not one of the contract's enum values. Omitting the key (yesterday's shape)
-    // is valid; sending the sentinel could make a strict BFF reject the whole request.
-    const resourceTypeField =
-      candidate.type && candidate.type !== 'UNKNOWN'
-        ? { resource_type: candidate.type }
-        : {};
-
-    if (selectedIds.has(candidate.id)) {
-      const behavior = getCandidateBehavior(candidate);
+): ApprovalSelection => ({
+  resources: candidates.map((candidate): SelectionRow => {
+    if (!selectedIds.has(candidate.id)) {
+      // The scan's own verdict is NOT sent: the route reads `recommend_fail_reason` from
+      // the authoritative row and falls back to it when the user typed nothing.
+      const userReason = exclusionReasons[candidate.id]?.trim();
       return {
         resource_id: candidate.id,
-        resource_name: candidate.resourceName,
-        ...resourceTypeField,
-        selected: true,
-        integration_category: candidate.integrationCategory as ResourceItem['integration_category'],
-        // The behavior's endpoint fields (VM db_type/host/port) override on top.
-        metadata: {
-          ...intrinsicMetadata,
-          ...behavior.buildMetadataFields(candidate, drafts),
-        },
+        selected: false,
+        ...(userReason ? { exclusion_reason: userReason } : {}),
       };
     }
-    // An install-ineligible row has no user reason — its checkbox is disabled, so nobody
-    // could have typed one. Send the scan's verdict as the reason instead: every consumer
-    // downstream (steps 2·3, the admin request queue, the ops request tab) reads
-    // `exclusion_reason` and would otherwise render a blank cell, indistinguishable from a
-    // reason the user forgot. `recommend_fail_reason` rides along as itself so the fact
-    // stays machine-readable and is not inferred back out of free text.
-    const userReason = exclusionReasons[candidate.id];
-    const reason = userReason || candidate.recommendFailReason || undefined;
+    const fields = getCandidateBehavior(candidate).buildMetadataFields(candidate, drafts);
+    const endpoint = toEndpointInput(fields);
     return {
       resource_id: candidate.id,
-      resource_name: candidate.resourceName,
-      ...resourceTypeField,
-      selected: false,
-      integration_category: candidate.integrationCategory as ResourceItem['integration_category'],
-      ...(candidate.recommendFailReason
-        ? { recommend_fail_reason: candidate.recommendFailReason }
+      selected: true,
+      ...(fields.selected_rds_instance_resource_id
+        ? { selected_rds_instance_resource_id: fields.selected_rds_instance_resource_id }
         : {}),
-      ...(reason ? { exclusion_reason: reason } : {}),
-      metadata: intrinsicMetadata,
+      ...(endpoint ? { endpoint } : {}),
     };
-  });
+  }),
+});
+
+/**
+ * The behavior emits contract-shaped metadata; the route's input takes the same five
+ * user-authored endpoint fields under `endpoint`. Undefined when the behavior emitted
+ * none — a resource whose connection info comes from the scan sends nothing here.
+ */
+const toEndpointInput = (fields: MetadataFields): SelectionRow['endpoint'] => {
+  const endpoint = {
+    ...(fields.host ? { host: fields.host } : {}),
+    ...(typeof fields.port === 'number' ? { port: fields.port } : {}),
+    ...(fields.database_type ? { database_type: fields.database_type } : {}),
+    ...(fields.oracle_service_id ? { oracle_service_id: fields.oracle_service_id } : {}),
+    ...(fields.network_interface_id
+      ? { network_interface_id: fields.network_interface_id }
+      : {}),
+  };
+  return Object.keys(endpoint).length > 0 ? endpoint : undefined;
+};

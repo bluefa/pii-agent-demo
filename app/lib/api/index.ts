@@ -20,6 +20,7 @@ import type { SecretKey } from '@/lib/types';
 import { parseRdsInstanceCandidates, type RdsInstanceCandidate } from '@/lib/rds-instances';
 import { fetchInfraJson } from '@/app/lib/api/infra';
 import type { TcScope } from '@/app/lib/api/tc-scope';
+import type { ApprovalSelection } from '@/lib/approval-selection';
 import type { TargetSourceRequestCloudType } from '@/lib/constants/provider-mapping';
 import type { TargetSourceCloudType } from '@/lib/target-source-creation';
 import { pickScanPrincipal } from '@/lib/target-source-response';
@@ -443,9 +444,14 @@ export const getConfirmResources = async (
   };
 };
 
+/**
+ * 승인 요청 생성. 보내는 것은 선택(`ApprovalSelectionInput`)이지 계약 본문이 아니다 —
+ * 라우트가 스캔 결과를 다시 읽어 `ApprovalRequestInputDto` 를 조립한다
+ * (`app/api/_lib/approval-input.ts`).
+ */
 export const createApprovalRequest = async (
   targetSourceId: number,
-  input: z.infer<typeof schemas.ApprovalRequestInputDto>,
+  input: ApprovalSelection,
 ): Promise<ApprovalRequestSummaryDto> =>
   fetchInfraJson<ApprovalRequestSummaryDto>(
     `${CONFIRM_BASE}/${targetSourceId}/approval-requests`,

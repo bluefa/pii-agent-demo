@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
-import { schemas } from '@/lib/generated/install-v1';
+import { ApprovalSelectionInput } from '@/lib/approval-selection';
 import { toIdcApprovalRequestInput } from '@/app/target-sources/[targetSourceId]/_components/idc/steps/IdcStep1TargetInput';
 import type { IdcStep1Row } from '@/app/target-sources/[targetSourceId]/_components/idc/IdcTargetListTable';
 
@@ -23,62 +23,65 @@ const row = (o: Partial<IdcStep1Row> = {}): IdcStep1Row => ({
 });
 
 describe('toIdcApprovalRequestInput', () => {
-  it('IP-mode selected row carries the manually-entered connection info under metadata (LIN-52)', () => {
+  it('IP 행은 수기 접속 정보를 idc 로 싣는다 (LIN-52)', () => {
     const input = toIdcApprovalRequestInput([row({ oracleSid: 'ORCL', credentialId: 'cred-1' })]);
-    const item = (input.resources ?? [])[0];
+    const [item] = input.resources;
 
     expect(item.selected).toBe(true);
-    expect(item.metadata).toMatchObject({
-      provider: 'IDC',
-      idc_host_format: 'IP',
-      idc_ips: ['10.0.0.5'],
+    expect(item.idc).toMatchObject({
+      host_format: 'IP',
+      hosts: ['10.0.0.5'],
       port: 3306,
-      // Requests send database_type lowercase (IDC wire enum is 'MYSQL').
+      // 요청은 database_type 을 소문자로 보낸다 (IDC wire enum 은 'MYSQL').
       database_type: 'mysql',
       oracle_service_id: 'ORCL',
       credential_id: 'cred-1',
     });
-    // Domain-only + Step-2-assigned fields are not sent from Step 1.
-    expect(item.metadata).not.toHaveProperty('idc_host');
-    expect(item.metadata).not.toHaveProperty('idc_source_ips');
-    // Still a valid contract item.
-    expect(() => schemas.TargetSourceResourceItemDto.parse(item)).not.toThrow();
+    // Step2 가 붙이는 필드는 Step1 에서 보내지 않는다 — 스키마가 아예 받지 않는다.
+    expect(item.idc).not.toHaveProperty('idc_source_ips');
+    expect(() => ApprovalSelectionInput.parse(input)).not.toThrow();
   });
 
-  it('round-trips a DB type outside the known enum via the raw label (databaseTypeWire undefined)', () => {
-    // A loaded previous-request row with a server-side DB type the frontend enum does
-    // not know: toIdcResourceView leaves databaseTypeWire undefined and keeps the raw
-    // wire value in databaseTypeLabel. It must still be resubmitted.
+  it('정체성 서술은 더 이상 보내지 않는다 — 라우트가 idc 로 metadata 를 짓는다', () => {
+    const input = toIdcApprovalRequestInput([row()]);
+    const [item] = input.resources;
+
+    expect(item).not.toHaveProperty('metadata');
+    expect(item).not.toHaveProperty('resource_name');
+  });
+
+  it('enum 밖 DB 타입도 raw 라벨로 왕복한다 (databaseTypeWire undefined)', () => {
+    // 이전 요청에서 불러온 행의 DB 타입이 프론트 enum 밖일 수 있다: toIdcResourceView 가
+    // databaseTypeWire 를 비우고 raw 값을 databaseTypeLabel 에 남긴다. 그래도 재제출돼야 한다.
     const input = toIdcApprovalRequestInput([
       row({ databaseTypeWire: undefined, databaseTypeLabel: 'COCKROACHDB' }),
     ]);
-    const meta = (input.resources ?? [])[0].metadata;
-    // Preserved AND lowercased on the request.
-    expect(meta?.database_type).toBe('cockroachdb');
+
+    expect(input.resources[0].idc?.database_type).toBe('cockroachdb');
   });
 
-  it('DOMAIN-mode row uses idc_host (not idc_ips)', () => {
+  it('DOMAIN 행은 host_format 을 HOST 로 보낸다', () => {
     const input = toIdcApprovalRequestInput([row({ kind: 'DOMAIN', hosts: ['db.example.com'] })]);
-    const meta = (input.resources ?? [])[0].metadata;
 
-    expect(meta).toMatchObject({ idc_host_format: 'HOST', idc_host: 'db.example.com' });
-    expect(meta).not.toHaveProperty('idc_ips');
+    expect(input.resources[0].idc).toMatchObject({
+      host_format: 'HOST',
+      hosts: ['db.example.com'],
+    });
+    expect(() => ApprovalSelectionInput.parse(input)).not.toThrow();
   });
 
-  it('excluded row carries exclusion reason AND its connection metadata (not just resource_id)', () => {
+  it('제외 행도 접속 정보를 싣는다 — resource_id 만으로는 그 행이 무엇이었는지 못 읽는다', () => {
     const input = toIdcApprovalRequestInput([row({ excluded: true, exclusionReason: '미사용 인스턴스' })]);
-    const item = (input.resources ?? [])[0];
+    const [item] = input.resources;
 
     expect(item.selected).toBe(false);
     expect(item.exclusion_reason).toBe('미사용 인스턴스');
-    // Excluded rows stay identifiable: the entered connection info is kept.
-    expect(item.metadata).toMatchObject({
-      provider: 'IDC',
-      idc_host_format: 'IP',
-      idc_ips: ['10.0.0.5'],
+    expect(item.idc).toMatchObject({
+      host_format: 'IP',
+      hosts: ['10.0.0.5'],
       port: 3306,
       database_type: 'mysql',
     });
-    expect(() => schemas.TargetSourceResourceItemDto.parse(item)).not.toThrow();
+    expect(() => ApprovalSelectionInput.parse(input)).not.toThrow();
   });
 });
