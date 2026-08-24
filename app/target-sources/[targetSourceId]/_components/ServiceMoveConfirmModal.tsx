@@ -6,6 +6,12 @@ interface ServiceMoveConfirmModalProps {
   isOpen: boolean;
   onClose: () => void;
   onConfirm: () => void;
+  /** 다시 요청하기 on the failure frame — the same move, attempted again. */
+  onRetry?: () => void;
+  /** The move is out and the deadline has not passed yet. */
+  isPending?: boolean;
+  /** Why the move gave up. Present = the dialog shows its failure frame. */
+  errorReason?: string | null;
 }
 
 /**
@@ -21,11 +27,29 @@ export const ServiceMoveConfirmModal = ({
   isOpen,
   onClose,
   onConfirm,
+  onRetry,
+  isPending = false,
+  errorReason = null,
 }: ServiceMoveConfirmModalProps) => (
   <ConfirmStepModal
     open={isOpen}
     onClose={onClose}
     onConfirm={onConfirm}
+    onRetry={onRetry}
+    isPending={isPending}
+    // The failure says what did not happen and how long it waited. It does not tell the
+    // user to try later or to ask someone — 다시 요청하기 is right there, and the wait is
+    // the only fact this dialog actually knows.
+    result={
+      errorReason
+        ? {
+            kind: 'error',
+            title: '이동하지 못했어요',
+            description: '서비스 인프라 목록을 여는 데 실패했습니다.',
+            reason: errorReason,
+          }
+        : null
+    }
     // The sidebar's current-service row opens this dialog too, so neither line can claim
     // the destination is a *different* service.
     title="서비스 인프라 목록으로 이동할까요?"
