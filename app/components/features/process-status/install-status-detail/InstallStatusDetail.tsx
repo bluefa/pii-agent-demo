@@ -28,7 +28,7 @@ import {
 import { useColumnResize } from '@/app/components/ui/useColumnResize';
 import { WaitingApprovalToolbar } from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalToolbar';
 import { useApprovalTableState } from '@/app/target-sources/[targetSourceId]/_components/layout/useApprovalTableState';
-import { formatDateTime, formatDateTimeKst } from '@/lib/utils/date';
+import { formatDateTime } from '@/lib/utils/date';
 import {
   INSTALL_STATUS_LABEL,
   isSettledInstallStatus,
@@ -832,38 +832,21 @@ export const InstallStatusDetail = ({
     );
 
     return (
-      <div className="flex flex-col gap-3">
-        {/* 조회 시각만 남는다 — 카드 헤더가 이미 'Agent 설치'라고 말하는데 트레이가
-            제목을 한 번 더 걸면 두 제목이 170px 간격으로 겹치고, 크기·굵기 어느
-            레버도 둘 중 누가 상위인지 답하지 못한다. No manual refresh or interval
-            control (owner decision) — polling refreshes quietly.
-
-            줄은 비어 있어도 선다. checked_at 은 선택 필드라(아직 한 번도 확인 안 한
-            상태) 내용 유무로 접으면 프레임의 y 가 데이터에 따라 달라지고, 스켈레톤은
-            그 분기를 미리 알 수 없어 도착 순간 카드가 28px 튄다. 예전 메타바가 제목
-            덕에 늘 자리를 차지했던 것과 같은 안정성이다. */}
-        {/* min-h-4 = caption line-height. 빈 div 는 line box 가 없어 높이 0 이라,
-            줄을 남겨두는 것만으로는 같은 튐이 방향만 바꿔 그대로 남는다. */}
-        <div className={cn('flex justify-end min-h-4', textStyles.caption, textColors.secondary)}>
-          {/* checked_at is UTC wire — the label asserts KST, so the formatter
-              pins Asia/Seoul instead of trusting the browser timezone. */}
-          {lastCheck.checkedAt && <>마지막 확인 {formatDateTimeKst(lastCheck.checkedAt)} (KST)</>}
-          {lastCheck.status === 'FAILED' && (
-            <span className={cn('font-semibold', statusColors.error.textDark)}> · 상태 확인 실패</span>
-          )}
-        </div>
-
-        {/* 레거시(Azure/GCP/IDC) 분기와 같은 그릇이다 — 헤어라인 컨테이너 하나가 레일과
-            내용을 담고, 회색은 카드 위에 얹은 판이 아니라 레일 셀의 채움이다. 카드
-            자체가 캔버스 위에 떠 있는 raised 표면이라 그 안에 가라앉은 면을 또 깔 수
-            없다(Atlassian elevation: sunken 은 default 위에만).
+      // 조회 시각 줄이 이 위에 있었다. 카드 헤더로 올라갔다(LastCheckStamp) — 오른쪽
+      // 끝에 홀로 서서 위아래 어느 쪽 소속인지 말하지 못했고, 원래 짝이던 트레이 제목이
+      // 삭제되면서 정렬의 기준마저 사라진 자리였다. 카드에 대한 한 줄은 카드 이름 옆에
+      // 선다. No manual refresh or interval control (owner decision) — the card polls
+      // quietly and that line is where the poll is visible.
+      <div className="flex flex-col">
+        {/* 레일과 내용을 담는 그릇. 테두리는 두르지 않는다 — 스텝 카드가 이미 자기 테두리를
+            가진 면이라, 그 안에서 한 겹을 더 두르면 카드 속 카드가 되어 4단계만 다른
+            단계보다 한 겹 깊어 보였다(1·2·3·5단계는 카드 본문에 툴바와 표가 바로 앉는다).
+            가르는 일은 레일의 회색 채움과 그 오른쪽 세로 헤어라인이 이미 한다 — Atlassian
+            elevation 이 raised 표면 안에서 지정하는 대안이 정확히 그 둘(여백·경계선)이다.
+            라운드와 overflow-hidden 은 남긴다: 회색 채움이 각지게 끝나면 그 컬럼이 카드
+            밖에서 잘려 들어온 것처럼 보인다.
             높이 고정은 유지 — 스크롤은 좌우 셀 안에서 일어나고 프레임이 자르는 점이다. */}
-        <div
-          className={cn(
-            'grid grid-cols-[224px_minmax(0,1fr)] rounded-xl border overflow-hidden h-[560px]',
-            borderColors.light,
-          )}
-        >
+        <div className="grid grid-cols-[224px_minmax(0,1fr)] rounded-xl overflow-hidden h-[560px]">
           <nav
             className={cn(
               'flex flex-col gap-0.5 p-2 border-r overflow-y-auto min-h-0',

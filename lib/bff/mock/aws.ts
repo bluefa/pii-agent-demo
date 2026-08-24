@@ -5,6 +5,8 @@ import {
   awsWireSampleInstallationStatus,
   isAwsWireInstallSample,
 } from '@/lib/bff/mock/aws-wire-sample';
+import { minutesAgo } from '@/lib/bff/mock/clock';
+
 
 /**
  * AWS cloud-status mocks (ADR-019 Spec G). Handlers author the **swagger snake
@@ -173,7 +175,7 @@ export const mockAws = {
     return NextResponse.json({
       last_check: {
         status: completed ? 'COMPLETED' : 'IN_PROGRESS',
-        checked_at: '2026-06-23T10:00:00Z',
+        checked_at: minutesAgo(3),
         fail_reason: null,
       },
       resources,
@@ -203,7 +205,10 @@ export const mockAws = {
       fail_reason: failure?.fail_reason ?? null,
       // deprecated — never sent for the new codes, so the screen has to speak from fail_reason alone.
       fail_message: null,
-      last_verified_at: override?.pending && !failure ? null : '2026-06-23T10:00:00Z',
+      // verify-* 는 "실시간으로 검증"하는 오퍼레이션이다 — 응답에 실린 시각은 방금
+      // 수행한 그 검증의 시각이라야 한다. 과거 시각을 돌려주면 '지금 확인'을 눌러도
+      // 화면의 '마지막 검증'이 안 움직여 아무 일도 안 일어난 것처럼 보인다.
+      last_verified_at: override?.pending && !failure ? null : minutesAgo(0),
     });
   },
 
@@ -225,7 +230,10 @@ export const mockAws = {
       role_arn: failure?.fail_reason === 'ROLE_NOT_CONFIGURED' ? null : roleArn,
       fail_reason: failure?.fail_reason ?? null,
       fail_message: null,
-      last_verified_at: override?.pending && !failure ? null : '2026-06-23T10:00:00Z',
+      // verify-* 는 "실시간으로 검증"하는 오퍼레이션이다 — 응답에 실린 시각은 방금
+      // 수행한 그 검증의 시각이라야 한다. 과거 시각을 돌려주면 '지금 확인'을 눌러도
+      // 화면의 '마지막 검증'이 안 움직여 아무 일도 안 일어난 것처럼 보인다.
+      last_verified_at: override?.pending && !failure ? null : minutesAgo(0),
     });
   },
 

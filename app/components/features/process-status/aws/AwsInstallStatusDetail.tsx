@@ -1,21 +1,18 @@
 'use client';
 
 import { useMemo } from 'react';
-import { borderColors, cn, stackGap, textColors, textStyles } from '@/lib/theme';
-import { CopyButton } from '@/app/components/ui/CopyButton';
-import { formatDateTime } from '@/lib/utils/date';
 import {
   InstallStatusDetail,
   type InstallPanelStep,
 } from '@/app/components/features/process-status/install-status-detail/InstallStatusDetail';
 import {
-  INSTALL_STATUS_LABEL,
   type InstallDetailResource,
   type InstallReferenceStep,
   type InstallResourceMeta,
   type InstallTableStep,
 } from '@/app/components/features/process-status/install-status-detail/model';
 import { TerraformScriptDownload } from '@/app/components/features/process-status/aws/TerraformScriptDownload';
+import { TerraformRoleVerifyPanel } from '@/app/components/features/process-status/aws/TerraformRoleVerifyPanel';
 import type { ConfirmedResource } from '@/lib/types/resources';
 import type { AwsInstallationStatus } from '@/lib/types';
 
@@ -25,39 +22,6 @@ import type { AwsInstallationStatus } from '@/lib/types';
  * Auto mode leads with the Terraform role-verify panel step; manual mode hides
  * it and relabels the service step as a direct apply.
  */
-
-const RoleVerifyPanel = ({ status }: { status: AwsInstallationStatus }) => (
-  // 라벨↔값은 한 덩어리(tight), 항목끼리는 형제(related).
-  <div className={cn('rounded-xl border px-5 py-4 flex flex-col', stackGap.related, borderColors.default)}>
-    <div className={cn('flex items-center', stackGap.group, textStyles.body)}>
-      <span className={cn('w-24 flex-shrink-0', textColors.tertiary)}>검증 결과</span>
-      <span className={textColors.primary}>{INSTALL_STATUS_LABEL[status.roleVerify.status]}</span>
-    </div>
-    <div className={cn('flex items-center', stackGap.group, textStyles.body)}>
-      <span className={cn('w-24 flex-shrink-0', textColors.tertiary)}>Role ARN</span>
-      {status.roleVerify.roleArn ? (
-        <span className="inline-flex items-center gap-1.5 min-w-0 group">
-          <span className={cn('font-mono break-all', textStyles.caption, textColors.primary)}>
-            {status.roleVerify.roleArn}
-          </span>
-          <CopyButton
-            value={status.roleVerify.roleArn}
-            label="Role ARN 복사"
-            className="opacity-0 group-hover:opacity-100"
-          />
-        </span>
-      ) : (
-        <span className={textColors.tertiary}>—</span>
-      )}
-    </div>
-    {status.lastCheck.checkedAt && (
-      <div className={cn('flex items-center', stackGap.group, textStyles.body)}>
-        <span className={cn('w-24 flex-shrink-0', textColors.tertiary)}>확인 시각</span>
-        <span className={textColors.primary}>{formatDateTime(status.lastCheck.checkedAt)}</span>
-      </div>
-    )}
-  </div>
-);
 
 /** 참고 항목 id — 단계의 역참조 링크가 같은 값을 가리켜야 한다. */
 const TF_SCRIPT_ID = 'tfScript';
@@ -129,6 +93,11 @@ interface AwsInstallStatusDetailProps {
   confirmed: readonly ConfirmedResource[];
   manualInstall: boolean;
   targetSourceId: number;
+  /**
+   * metadata.aws_account_id — 검증이 어느 계정을 본 결과인지. 계약이 대상 소스와 함께
+   * 주고 있었고 관리자 콘솔은 이미 쓰지만, 이 화면에는 도달한 적이 없다.
+   */
+  awsAccountId: string | null;
 }
 
 export const AwsInstallStatusDetail = ({
@@ -136,6 +105,7 @@ export const AwsInstallStatusDetail = ({
   confirmed,
   manualInstall,
   targetSourceId,
+  awsAccountId,
 }: AwsInstallStatusDetailProps) => {
   const steps = useMemo(() => buildSteps(manualInstall), [manualInstall]);
 
@@ -166,10 +136,16 @@ export const AwsInstallStatusDetail = ({
               serviceAction: '대상 AWS 계정에 Terraform 실행용 IAM Role / AssumeRole 권한을 부여해 주세요.',
               desc: '대상 AWS 계정에 Terraform 실행을 위한 IAM Role / AssumeRole 권한이 부여되었는지 검증합니다.',
               status: status.roleVerify.status,
-              panel: <RoleVerifyPanel status={status} />,
+              panel: (
+                <TerraformRoleVerifyPanel
+                  targetSourceId={targetSourceId}
+                  awsAccountId={awsAccountId}
+                  fallbackRoleArn={status.roleVerify.roleArn}
+                />
+              ),
             },
           ],
-    [manualInstall, status],
+    [manualInstall, status, targetSourceId, awsAccountId],
   );
 
   const resources = useMemo<InstallDetailResource[]>(

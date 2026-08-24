@@ -33,6 +33,7 @@ import { IDC_SOURCE_LABEL } from '@/lib/constants/idc';
 import { IdcFirewallModal } from '@/app/target-sources/[targetSourceId]/_components/idc/modals/IdcFirewallModal';
 import type { IdcStepProps } from '@/app/target-sources/[targetSourceId]/_components/idc/types';
 import { InstallCardHeader } from '@/app/components/features/process-status/install-status-detail/InstallCardHeader';
+import { LastCheckStamp } from '@/app/components/features/process-status/install-status-detail/LastCheckStamp';
 
 const isAbort = (err: unknown): boolean => err instanceof AppError && err.code === 'ABORTED';
 
@@ -272,7 +273,11 @@ export const IdcStep4Installing = ({
   return (
     <>
       <section className={cn(cardStyles.base, 'overflow-hidden')}>
-        <InstallCardHeader />
+        {/* IDC 는 다른 훅(useIdcInstallationStatus)을 쓰므로 폴링은 아직 없다 —
+            시각 표기만 다른 프로바이더와 같은 자리로 옮긴다. */}
+        <InstallCardHeader
+          action={status && <LastCheckStamp lastCheck={toInstallLastCheck(status.lastCheck)} />}
+        />
         <div className={cardStyles.body}>
           {/* 두 조회(설치 상태 + 확정 연동)가 모두 도착할 때까지 스켈레톤을 유지한다.
               빈 배열을 그대로 그리면 "전체 리소스 0 · 대기 0/0"에 접근 허용 조치 배너까지

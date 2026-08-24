@@ -35,6 +35,8 @@ const installDetail: AzureInstallDetail = {
 };
 
 vi.mock('@/app/hooks/useInstallationStatus', () => ({
+  // 폴 주기는 훅이 내보내는 상수다 — 모듈을 통째로 대체하면 이 값도 같이 세워야 한다.
+  INSTALL_POLL_INTERVAL_MS: 30_000,
   useInstallationStatus: () => ({
     status: installDetail,
     loading: false,

@@ -164,3 +164,111 @@ describe('useInstallationStatus', () => {
     expect(frames.filter((f) => f.id === 2 && f.error !== null)).toEqual([]);
   });
 });
+
+/**
+ * Polling — the card used to read once on mount and never again, so its
+ * "마지막 확인" stamp counted up forever against a number nothing refreshed.
+ */
+describe('useInstallationStatus — 폴링', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.clearAllMocks();
+  });
+
+  const settledAfter = (n: number) => {
+    let calls = 0;
+    return vi.fn(async () => {
+      calls += 1;
+      return calls > n ? 'DONE' : 'RUNNING';
+    });
+  };
+
+  it('정착할 때까지 주기적으로 다시 읽고, 정착하면 멈춘다', async () => {
+    vi.useFakeTimers();
+    const getFn = settledAfter(2);
+    const onComplete = vi.fn();
+
+    renderHook(() =>
+      useInstallationStatus<string>({
+        targetSourceId: 1,
+        getFn,
+        isComplete: (s) => s === 'DONE',
+        onComplete,
+        pollIntervalMs: 30_000,
+      }),
+    );
+
+    // mount fetch
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    expect(getFn).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(30_000);
+    });
+    expect(getFn).toHaveBeenCalledTimes(2);
+
+    // 세 번째 응답이 DONE — 이후로는 타이머가 아무리 흘러도 더 부르지 않는다.
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(30_000);
+    });
+    expect(getFn).toHaveBeenCalledTimes(3);
+    expect(onComplete).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(120_000);
+    });
+    expect(getFn).toHaveBeenCalledTimes(3);
+  });
+
+  it('주기를 주지 않으면 마운트 때 한 번만 읽는다', async () => {
+    vi.useFakeTimers();
+    const getFn = vi.fn(async () => 'RUNNING');
+
+    renderHook(() =>
+      useInstallationStatus<string>({
+        targetSourceId: 1,
+        getFn,
+        isComplete: () => false,
+      }),
+    );
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(120_000);
+    });
+    expect(getFn).toHaveBeenCalledTimes(1);
+  });
+
+  it('폴 한 번이 실패해도 마지막 스냅샷을 지우지 않는다', async () => {
+    vi.useFakeTimers();
+    let calls = 0;
+    const getFn = vi.fn(async () => {
+      calls += 1;
+      if (calls === 2) throw new Error('502');
+      return 'RUNNING';
+    });
+
+    const { result } = renderHook(() =>
+      useInstallationStatus<string>({
+        targetSourceId: 1,
+        getFn,
+        isComplete: (s) => s === 'DONE',
+        pollIntervalMs: 30_000,
+      }),
+    );
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    expect(result.current.status).toBe('RUNNING');
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(30_000);
+    });
+    // 실패한 폴은 화면을 에러 뷰로 바꾸지 않는다 — 확인에 실패한 것이지
+    // 알고 있던 것이 틀린 것이 아니다.
+    expect(result.current.error).toBeNull();
+    expect(result.current.status).toBe('RUNNING');
+  });
+});

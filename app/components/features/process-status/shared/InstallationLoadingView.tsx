@@ -4,7 +4,7 @@ import { bgColors, borderColors, cn, idcStyles, stackGap } from '@/lib/theme';
 
 type InstallationLoadingViewProps = { provider: string } & (
   | {
-      /** Mirror the grouped rail frame (bordered container + 224px rail + fixed 560px). */
+      /** Mirror the grouped rail frame (borderless container + 224px rail + fixed 560px). */
       grouped: true;
       railRows?: never;
     }
@@ -30,8 +30,9 @@ const Bar = ({ className, tone }: { className: string; tone?: string }) => (
  * Skeleton frame for the Agent 설치 step while the installation status loads.
  *
  * Every frame value here is copied from InstallStatusDetail's own markup —
- * `grouped` mirrors the grouped-rail frame (AWS); the default mirrors the
- * legacy frame: 224px rail on bgColors.panel, borderColors.light container,
+ * `grouped` mirrors the grouped-rail frame (AWS) — no container border, the
+ * rail's right hairline does the dividing; the default mirrors the legacy
+ * frame: 224px rail on bgColors.panel, borderColors.light container,
  * px-5 py-4 right pane, one bordered stats card, bar heights = the real
  * tokens' line-heights — so nothing shifts horizontally and the stats card
  * keeps its y. A skeleton that only approximates the frame reintroduces the
@@ -49,18 +50,11 @@ export const InstallationLoadingView = (props: InstallationLoadingViewProps) =>
       aria-busy="true"
       aria-live="polite"
       aria-label={`${props.provider} 설치 상태 확인 중`}
-      className="flex flex-col gap-3"
+      className="flex flex-col"
     >
-      {/* last-check caption — right aligned, no title (the card header carries it) */}
-      <div className="flex justify-end">
-        <Bar className="h-4 w-44 rounded" />
-      </div>
-      <div
-        className={cn(
-          'grid grid-cols-[224px_minmax(0,1fr)] rounded-xl border overflow-hidden h-[560px]',
-          borderColors.light,
-        )}
-      >
+      {/* No last-check bar: that line lives in the card header now, and the header
+          is drawn by the caller — it is not part of what this skeleton replaces. */}
+      <div className="grid grid-cols-[224px_minmax(0,1fr)] rounded-xl overflow-hidden h-[560px]">
         {/* rail — 그룹 머리글은 항상 둘이다(내가 할 일 / BDC 진행).
             항목 수 1/3 은 AWS 자동 설치의 모양이고 나머지는 다르다(Azure 3/1,
             GCP·IDC 1/2, AWS 수동 1/2). 프로바이더별로 맞추지 않는 이유는 프레임

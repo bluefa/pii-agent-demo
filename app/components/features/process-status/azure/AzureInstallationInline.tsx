@@ -14,10 +14,14 @@ import {
   buildAzureInstallDetail,
   type AzureInstallDetail,
 } from '@/app/components/features/process-status/azure/install-detail-adapter';
-import { useInstallationStatus } from '@/app/hooks/useInstallationStatus';
+import {
+  INSTALL_POLL_INTERVAL_MS,
+  useInstallationStatus,
+} from '@/app/hooks/useInstallationStatus';
 import { cardStyles, statusColors, cn } from '@/lib/theme';
 import type { ConfirmedResource } from '@/lib/types/resources';
 import { InstallCardHeader } from '@/app/components/features/process-status/install-status-detail/InstallCardHeader';
+import { LastCheckStamp } from '@/app/components/features/process-status/install-status-detail/LastCheckStamp';
 
 interface AzureInstallationInlineProps {
   targetSourceId: number;
@@ -95,6 +99,7 @@ export const AzureInstallationInline = ({
       getFn: getStatus,
       // Refresh = re-GET installation-status (POST check-installation REMOVED-no-swagger).
       checkFn: getStatus,
+      pollIntervalMs: INSTALL_POLL_INTERVAL_MS,
       isComplete: (data) => areInstallResourcesSettled(data.resources),
       onComplete: onInstallComplete,
     });
@@ -121,7 +126,7 @@ export const AzureInstallationInline = ({
 
   return (
     <section className={cn(cardStyles.base, 'overflow-hidden')}>
-      <InstallCardHeader />
+      <InstallCardHeader action={status && <LastCheckStamp lastCheck={status.lastCheck} />} />
       <div className={cn(cardStyles.body, 'space-y-3')}>
         {hasSyncFailure && status && (
           <div className={cn('px-4 py-2 rounded-lg border text-sm', statusColors.error.bg, statusColors.error.border, statusColors.error.textDark)}>

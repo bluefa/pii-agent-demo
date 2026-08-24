@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import * as mockData from '@/lib/mock-data';
 import * as gcpFns from '@/lib/mock-gcp';
 import { GCP_ERROR_CODES } from '@/lib/constants/gcp';
+import { minutesAgo } from '@/lib/bff/mock/clock';
+
 
 /**
  * GCP cloud-status mocks (ADR-019 Spec G). Handlers author the **swagger snake
@@ -69,7 +71,7 @@ export const mockGcp = {
     }));
 
     return NextResponse.json({
-      last_check: { status: 'COMPLETED', checked_at: '2026-06-23T10:00:00Z', fail_reason: null },
+      last_check: { status: 'COMPLETED', checked_at: minutesAgo(3), fail_reason: null },
       resources,
     });
   },
@@ -84,7 +86,7 @@ export const mockGcp = {
       status: 'VALID',
       fail_reason: null,
       fail_message: null,
-      last_verified_at: '2026-06-23T10:00:00Z',
+      last_verified_at: minutesAgo(11),
     });
   },
 
@@ -98,7 +100,7 @@ export const mockGcp = {
       status: 'VALID',
       fail_reason: null,
       fail_message: null,
-      last_verified_at: '2026-06-23T10:00:00Z',
+      last_verified_at: minutesAgo(11),
     });
   },
 };
