@@ -18,8 +18,30 @@ import type { GuideNode } from '@/lib/utils/validate-guide-html';
 let keyCounter = 0;
 const nextKey = (): string => `guide-node-${keyCounter++}`;
 
-export const renderGuideAst = (ast: GuideNode[]): ReactNode[] => {
+/**
+ * Whether this tree's `<ol>`s are procedures — steps drawn with the numbered circle the
+ * step-guide source uses — or ordinary ordered lists.
+ *
+ * A module-level flag rather than a threaded parameter, matching `keyCounter` above: both
+ * are set once per `renderGuideAst` call and read during a synchronous walk.
+ *
+ * It is the CALLER's declaration, not the markup's, because the same renderer serves two
+ * surfaces. A step guide's `<ol>` really is a sequence; an ordered list in a notice is a
+ * list, and giving it filled circles would claim an order of operations it does not have.
+ */
+let orderedListsAreSteps = false;
+
+export interface RenderGuideAstOptions {
+  /** Draw `<ol>` as the step-guide procedure — see {@link orderedListsAreSteps}. */
+  steps?: boolean;
+}
+
+export const renderGuideAst = (
+  ast: GuideNode[],
+  { steps = false }: RenderGuideAstOptions = {},
+): ReactNode[] => {
   keyCounter = 0;
+  orderedListsAreSteps = steps;
   return ast.map(renderNode);
 };
 
@@ -44,7 +66,13 @@ const renderNode = (node: GuideNode): ReactNode => {
     case 'ul':
       return <ul key={nextKey()}>{node.children.map(renderNode)}</ul>;
     case 'ol':
-      return <ol key={nextKey()}>{node.children.map(renderNode)}</ol>;
+      // A plain class name, not a `guideStyles` token: the circle is a `::before` carrying
+      // a CSS counter, which has no Tailwind spelling. `globals.css` owns `.guide-steps`.
+      return (
+        <ol key={nextKey()} className={orderedListsAreSteps ? 'guide-steps' : undefined}>
+          {node.children.map(renderNode)}
+        </ol>
+      );
     case 'li':
       return <li key={nextKey()}>{node.children.map(renderNode)}</li>;
     case 'strong':

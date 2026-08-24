@@ -75,13 +75,19 @@ const extLink = (label: string): string => `<li><em>${label} ↗</em></li>`;
 const step1Cloud = ({ vmRows }: { vmRows: boolean }): string =>
   '<h4>연동 대상 DB 선택</h4>' +
   '<ol>' +
-  "<li><strong>'스캔 시작'을 눌러 인프라 스캔을 진행해주세요.</strong>" +
+  // 오너 지시 2026-08-24: name BOTH buttons. The source says 「'스캔 시작'을 눌러」, but the
+  // strip renders 「스캔 시작」 only before the first scan and 「다시 스캔」 ever after
+  // (`ScanStrip.tsx`), so a returning reader is told to press something that is no longer
+  // on their screen. This is the one place the copy leaves the source, and on purpose.
+  "<li><strong>'스캔 시작' 또는 '다시 스캔'을 눌러 인프라 스캔을 진행해주세요.</strong>" +
   refBar('Infra Scan 권한 설정 가이드(스캔 불가 시 수행)') +
   '</li>' +
   '<li><strong>스캔된 DB 중 연동이 불필요한 DB는 제외해주세요. (PRD DB만 제출해주세요)</strong>' +
   '<ul>' +
-  '<li>체크박스 해제 후 연동 비대상 사유를 입력해주세요.</li>' +
-  '<li>Dev DB / Stg DB / Temp DB / 타 시스템 사용 DB / 기타 (직접 입력)</li>' +
+  // The reason list is nested UNDER the checkbox instruction, as in the source — it
+  // enumerates what to put in that field, so as a sibling it reads as a separate step.
+  '<li>체크박스 해제 후 연동 비대상 사유를 입력해주세요.' +
+  '<ul><li>Dev DB / Stg DB / Temp DB / 타 시스템 사용 DB / 기타 (직접 입력)</li></ul></li>' +
   (vmRows
     ? '<li>VM에서 운영 중인 DB는 인프라 스캔을 지원하지 않아요. ' +
       "<strong>'VM DB 등록'</strong>을 통해 연동 대상 DB를 직접 등록해주세요.</li>"

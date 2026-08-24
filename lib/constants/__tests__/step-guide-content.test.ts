@@ -286,6 +286,37 @@ describe('step 1 — the VM row is the only thing that splits the cloud copy', (
     expect(bodyFor('process.gcp.1')).toBe(bodyFor('process.aws.auto.1').replace(VM_BULLET, ''));
   });
 
+  /**
+   * 오너 지시 2026-08-24. The source names one button; the strip renders two, and which one
+   * a reader sees depends on whether this source has ever been scanned. Naming only the
+   * first leaves everyone past their first scan looking for a control that is not there —
+   * the same defect the step-2 name carried, caught before it shipped this time.
+   *
+   * Coupled to the component source for the same reason as step 2's: nothing else in the
+   * repo ties the guide's words to the button's, and a rename would leave every other
+   * check green.
+   */
+  it('names both scan buttons, because the strip renders both', async () => {
+    const source = await readFile(
+      new URL('../../../app/components/features/scan/ScanStrip.tsx', import.meta.url),
+      'utf8',
+    );
+    const html = bodyFor('process.aws.auto.1');
+    for (const label of ['스캔 시작', '다시 스캔']) {
+      expect(source, `ScanStrip no longer renders ${label}`).toContain(`'${label}'`);
+      expect(html).toContain(`'${label}'`);
+    }
+  });
+
+  it('nests the 비대상 사유 options under the instruction that asks for them', () => {
+    // The source nests them, and it is right to: the list enumerates what goes IN that
+    // field. As a sibling bullet it reads as a separate thing to do.
+    expect(bodyFor('process.aws.auto.1')).toContain(
+      '<li>체크박스 해제 후 연동 비대상 사유를 입력해주세요.' +
+        '<ul><li>Dev DB / Stg DB / Temp DB / 타 시스템 사용 DB / 기타 (직접 입력)</li></ul></li>',
+    );
+  });
+
   it('has IDC type its targets in instead of scanning for them', () => {
     const html = bodyFor('process.idc.1');
     expect(html).toContain('<h4>연동 대상 DB의 접속 정보를 입력해주세요.</h4>');
