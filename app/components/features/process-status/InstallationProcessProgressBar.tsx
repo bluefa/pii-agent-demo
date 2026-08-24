@@ -61,10 +61,11 @@ export const InstallationProcessProgressBar = ({
   tcTag,
 }: InstallationProcessProgressBarProps) => {
   const [stepsOpen, setStepsOpen] = useState(false);
-  const currentIndex = INSTALL_STEPS.findIndex((it) => it.step === currentStep);
   // ProcessStatus is exactly these seven, but the value arrives over the wire —
-  // an unknown one drops the position line rather than printing 「0단계」.
-  const current = INSTALL_STEPS[currentIndex];
+  // an unknown one drops the position line rather than printing 「0단계」. The row used to
+  // hold the matched step for its `.label`; it prints only numbers now, so the index is
+  // the whole guard.
+  const currentIndex = INSTALL_STEPS.findIndex((it) => it.step === currentStep);
   const done = currentIndex === INSTALL_STEPS.length - 1;
 
   return (
@@ -74,7 +75,7 @@ export const InstallationProcessProgressBar = ({
           <span id={PROGRESS_LABEL_ID} className={projectHeaderStyles.blockLabel}>
             설치 진행
           </span>
-          {current &&
+          {currentIndex >= 0 &&
             (done ? (
               /* 「7단계 중 7단계 완료」 said the same thing three times (오너 18차 지시).
                  Every other label names work in progress, so the fraction answers「how

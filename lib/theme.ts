@@ -1011,18 +1011,19 @@ export const installStepperStyles = {
    */
   head: 'flex min-w-0 flex-wrap items-baseline gap-x-3 gap-y-1',
   /**
-   * 「7단계 중 1단계 연동 대상 DB 선택」 — the whole position statement, as one tag
-   * (오너 16차 지시). The total used to stand outside it as loose 12px prose
-   * (「전체 7단계 중」); the owner deleted that, so the plate now carries the complete
-   * sentence and the row is a name followed by tags with no running text between them.
+   * 「7단계 중 1단계」 — the position, as one tag (오너 16차 지시). The total used to stand
+   * outside it as loose 12px prose (「전체 7단계 중」); the owner deleted that, so the plate
+   * carries both numbers and the row is a name followed by tags with no running text
+   * between them. It stops at the position: naming the step as well put one string on the
+   * screen three times, and the card head 32px below owns the name.
    *
    * Blue, on the owner's call: the slate this used to wear is the path's tag
    * vocabulary, and on a row that also carries the block's name the step needed to be
    * the thing the eye lands on.
    *
-   * ⛔ Fill AND ink must stay equal to `cardStyles.stepTag` — the 「N단계」 tag over
-   * every step-card title, which is the SAME fact rendered a second time and is on
-   * screen at the same moment. This shipped for one review round as `#1747B5` on the
+   * ⛔ Fill AND ink must stay equal to `cardStyles.stepTag` — the 「N단계」 tag beside
+   * every step-card title, which carries the SAME number and is on screen at the same
+   * moment. This shipped for one review round as `#1747B5` on the
    * same `#E8F1FF`, reasoned only against `metaCue` and never against the card tag;
    * one fill carrying one fact in two tints reads as two meanings.
    * `primaryColors.bgLight`/`textOnLight` are written out as literals because
@@ -1034,10 +1035,13 @@ export const installStepperStyles = {
    * sits at the opposite edge, and is not the same fact.
    *
    * `items-baseline`, so the 14px digits and the 12px words sit on one line inside the
-   * tag and the tag itself lands on the block name's baseline.
+   * tag and the tag itself lands on the block name's baseline. No `gap`: the plate held
+   * three children back when it also carried a middot and the step's name — it is one
+   * span now, and a gap between nothing and nothing is a class the next reader has to
+   * disprove.
    */
   stepTag:
-    'inline-flex items-baseline gap-1.5 rounded-[6px] bg-[#E8F1FF] px-2 py-[3px] text-[12px] font-semibold text-[#0050D6]',
+    'inline-flex items-baseline rounded-[6px] bg-[#E8F1FF] px-2 py-[3px] text-[12px] font-semibold text-[#0050D6]',
   /** Both digits inside the tag — the total and the position. They take the tag's own
       ink: a near-black here would be a second colour inside the plate, and the plate is
       one statement. `tabular-nums` so the line does not shift as the target advances. */

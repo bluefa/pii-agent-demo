@@ -1006,6 +1006,11 @@ describe('step tag rides the title row', () => {
     // Cloud 1·2·3·4·5·6·7 and IDC 1·2·3·5·6·7 — thirteen heads, one grammar.
     // The two sets pin each other: a head that renders a pill without the token, or wears
     // the token in a shape this scan cannot read, breaks the equality rather than hiding.
+    //
+    // 13 counts the TAGGED heads, not every card head. `ApprovalUnavailableCard` also
+    // wears `cardStyles.cardTitle` and carries no tag: it stands in for step 2 when the
+    // target is ruled out, and whether that state has a step number is a product question,
+    // not a token one. It predates this census — do not read the count as blessing it.
     expect(byToken).toEqual(byPill);
     expect(byToken).toHaveLength(13);
   });
@@ -1024,9 +1029,12 @@ describe('step tag rides the title row', () => {
   it.each(byToken)('%s opens the row before the tag', (file) => {
     const src = read(file);
     const at = src.indexOf(TAG_USE);
-    // The row container opens just above the tag. Before this change every one of these
-    // heads had the tag OUTSIDE any such row — the check fails on a revert, not just on
-    // a deletion.
+    // Positional, not structural: it asks that a row opens in the 300 characters above
+    // the tag, which is what a revert removes — moving the tag back out puts a `</div>`
+    // or a bare `<header>` there instead. It does NOT prove the tag is inside that row;
+    // an unrelated `flex items-center gap-2` nearby would satisfy it. The set equality
+    // above is the strong half of this census. Verifying containment would mean parsing
+    // JSX, which is more machinery than this earns.
     expect(src.slice(Math.max(0, at - 300), at)).toContain(TITLE_ROW);
   });
 });

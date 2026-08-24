@@ -171,7 +171,10 @@ export const ApplyingApprovedCard = ({ targetSourceId }: ApplyingApprovedCardPro
               반영중
             </span>
           ) : (
-            <span className={cn(idcStyles.skeletonBar, 'h-[26px] w-[62px] rounded-full')} />
+            /* 24px, not 26: the title's line box is 20 × 1.2 since the tag moved onto this row,
+               so the 26px skeleton became the tallest thing in it and the row settled 2px on
+               resolve — the jump the comment above promises it prevents. `stepBadge` is 24. */
+            <span className={cn(idcStyles.skeletonBar, 'h-[24px] w-[62px] rounded-full')} />
           )}
         </div>
         {/* Was said three times — this sentence, a green StepBanner below it, and the guide panel.
