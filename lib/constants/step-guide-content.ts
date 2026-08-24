@@ -204,10 +204,16 @@ const GCP_INSTALLING_HTML =
   '<blockquote><strong>PSC 연동(PRIVATE_IP_MODE · PSC_MODE)의 경우</strong>, 이 단계에서 상대측 ' +
   'Service Attachment의 <code>consumerAcceptLists</code>에 BDC 프로젝트를 미리 등록해두면 ' +
   '승인 절차 없이 자동으로 연결돼요. 등록되어 있지 않으면 상대측 담당자의 수동 승인이 한 번 더 필요해요.' +
-  '</blockquote>' +
-  '<blockquote><strong>PSC 연동(PRIVATE_IP_MODE · PSC_MODE)의 경우</strong>, 연결 상태가 ' +
-  '<strong>Pending</strong>이면 상대측 담당자의 승인이 필요해요. (Service Side Terraform 단계의 ' +
-  '<code>consumerAcceptLists</code> 등록 여부에 따라 달라집니다)</blockquote>';
+  '</blockquote>';
+// 오너 지시 2026-08-24 (2차): the second 안내 박스 leaves with the block it belonged to.
+// It opened on the same clause as the box above and said 「연결 상태가 Pending이면 상대측
+// 담당자의 승인이 필요해요」 — but the BDC-side block removed earlier was the only place
+// this guide introduced a PSC Connection, so nothing left here has a 연결 상태 to read.
+// Its parenthetical then pointed at 「Service Side Terraform 단계의 consumerAcceptLists」,
+// a detail that lives in the box directly above it. Both facts it carried already sit
+// there: register in advance and it connects itself, otherwise the far side approves by
+// hand. What it alone added — Pending as the observable signal — cannot be restored
+// without reintroducing the connection the owner removed.
 
 /**
  * ⚠️ 「Source IP」 is the source document's word for the far end of the firewall
