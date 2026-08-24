@@ -228,11 +228,28 @@ describe('IDC — 대조할 집합이 없으므로 형식만 본다', () => {
     expect(parsed.success).toBe(false);
   });
 
-  it('도메인 행은 호스트를 하나만 가진다', () => {
-    const parsed = ApprovalSelectionInput.safeParse(
+  // 좁히기 전에도 통과하던 모양은 계속 통과해야 한다 — 없던 거부를 새로 만들면 그 자리가
+  // 곧 false positive 다. 이전 요청 불러오기가 host 없는 행을 `hosts: []` 로 싣는다.
+  it('주소가 비어 있어도 통과하고, 주소 키를 붙이지 않는다', async () => {
+    const result = await resolveApprovalInput(1, 'IDC', parse(
+      idcRow({ host_format: 'IP', hosts: [], port: 1521 }),
+    ));
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const meta = result.value.resources?.[0].metadata;
+    expect(meta).not.toHaveProperty('idc_ips');
+    expect(meta?.port).toBe(1521);
+  });
+
+  it('도메인 행에 호스트가 여럿이면 첫 개만 싣는다 (옛 매퍼와 같은 생략)', async () => {
+    const result = await resolveApprovalInput(1, 'IDC', parse(
       idcRow({ host_format: 'HOST', hosts: ['a.example.com', 'b.example.com'] }),
-    );
-    expect(parsed.success).toBe(false);
+    ));
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.resources?.[0].metadata?.idc_host).toBe('a.example.com');
   });
 
   it('IP 행은 idc_ips 로, 도메인 행은 idc_host 로 조립된다', async () => {

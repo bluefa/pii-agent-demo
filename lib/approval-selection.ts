@@ -50,7 +50,11 @@ const ManualEc2Input = z
 const IdcInput = z
   .object({
     host_format: z.enum(['HOST', 'IP']),
-    hosts: z.array(z.string().min(1).max(253)).min(1).max(MAX_IDC_HOSTS),
+    // 비어 있어도 받는다. 이전 요청 불러오기가 host 없는 행을 `hosts: []` 로 싣고
+    // (`app/lib/api/idc.ts` toIdcResourceView), 좁히기 전에도 그 행은 주소 필드 없이
+    // 통과했다 — 없던 거부를 새로 만들면 그 자리에서 FP 가 된다. 한 행이 전체 제출을
+    // 죽이는 자리라 더욱 그렇다.
+    hosts: z.array(z.string().min(1).max(253)).max(MAX_IDC_HOSTS),
     // `database_type` 은 계약상 평문 문자열이고, 이전 요청 불러오기가 enum 밖 값을
     // 되싣는다. enum 으로 좁히면 그 왕복이 깨지므로 길이만 본다.
     database_type: z.string().min(1).max(64).optional(),
@@ -69,13 +73,6 @@ const IdcInput = z
           message: `${value.host_format === 'IP' ? 'IP 주소' : '호스트명'} 형식이 아닙니다: ${host}`,
         });
       }
-    }
-    if (value.host_format === 'HOST' && value.hosts.length !== 1) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ['hosts'],
-        message: '도메인 행은 호스트를 하나만 가집니다',
-      });
     }
   });
 

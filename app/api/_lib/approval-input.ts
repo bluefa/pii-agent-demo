@@ -73,7 +73,10 @@ const idcMetadata = (idc: IdcInput): Metadata => ({
   provider: 'IDC',
   idc_host_format: idc.host_format,
   ...(idc.database_type ? { database_type: idc.database_type } : {}),
-  ...(idc.host_format === 'HOST' ? { idc_host: idc.hosts[0] } : { idc_ips: idc.hosts }),
+  // 옛 매퍼와 같은 생략 규칙: 도메인은 첫 호스트만, IP 는 목록이 비면 키를 붙이지 않는다.
+  ...(idc.host_format === 'HOST'
+    ? (idc.hosts[0] ? { idc_host: idc.hosts[0] } : {})
+    : (idc.hosts.length > 0 ? { idc_ips: idc.hosts } : {})),
   ...(idc.port !== undefined ? { port: idc.port } : {}),
   ...(idc.oracle_service_id ? { oracle_service_id: idc.oracle_service_id } : {}),
   ...(idc.credential_id ? { credential_id: idc.credential_id } : {}),
