@@ -72,9 +72,9 @@ export const IdcStep2WaitingApproval = ({
       ) : (
         <section className={cn(cardStyles.base, 'overflow-hidden')}>
           <header className={cardStyles.header}>
-            <span className={cardStyles.stepTag}>2단계</span>
             <div className="flex items-start justify-between gap-4">
               <div className="flex items-center gap-2">
+                <span className={cardStyles.stepTag}>2단계</span>
                 <h2 className={cardStyles.cardTitle}>연동 대상 승인 대기</h2>
                 <span
                   className={cn(

@@ -46,10 +46,10 @@ interface InstallationProcessProgressBarProps {
 /**
  * 설치 진행 — one row at rest, the seven-step road behind 「전체 단계」 (오너 14차 지시).
  *
- * The row states the one fact a mid-install reader came for: 전체 7단계 중, then where
- * they are as a tag. The road that names all seven is what a first-time reader wants
- * exactly once, so it opens on request instead of charging every visit ~60px of
- * header for it.
+ * The row states the one fact a mid-install reader came for: 전체 7단계 중 어디인지, as a
+ * tag. It does not name the step — the card head below owns that. The road that names
+ * all seven is what a first-time reader wants exactly once, so it opens on request
+ * instead of charging every visit ~60px of header for it.
  *
  * Same three parts as 설치 대상 one block above — `blockHead` carrying the name and
  * one cue, the body underneath — because the header is two named blocks in one
@@ -87,6 +87,14 @@ export const InstallationProcessProgressBar = ({
                 </span>
               </span>
             ) : (
+              /* Position only. The step's NAME belongs to the card head 32px below, which
+                 prints it at 20px beside its own 「N단계」 tag. Carrying it here as well put
+                 one string on the screen three times — this plate, the card title, and the
+                 guide panel's heading — and the three did not even agree: the road below
+                 says 「완료」 where step 7's card says 「PII 모니터링 모듈 연동」. One fact,
+                 one owner: this plate answers 「어디」, the card answers 「무엇을」.
+                 The middot that broke position from name (오너 19차 지시) went out with the
+                 name — there is nothing left inside the plate for it to separate. */
               <span className={s.stepTag}>
                 {/* One span, so both 14px digits baseline-align inside the phrase rather
                     than becoming flex items that have to be aligned against it. */}
@@ -94,16 +102,6 @@ export const InstallationProcessProgressBar = ({
                   <b className={s.tagCount}>{INSTALL_STEPS.length}</b>단계 중{' '}
                   <b className={s.tagCount}>{currentIndex + 1}</b>단계
                 </span>
-                {/* The gap alone had to carry the seam between the position and the
-                    step's name (오너 19차 지시). Inside one small plate a 6px gap reads
-                    as spacing, not as a break — so the two halves ran together. The
-                    middot is the break, drawn.
-                    No class: it takes the plate's own 12px `#0050D6`, and a separator
-                    in a second tint would be a mark that means something. `aria-hidden`
-                    because it is punctuation for the eye — a reader hears
-                    「7단계 중 4단계 Agent 설치」 either way. */}
-                <span aria-hidden="true">·</span>
-                <span>{current.label}</span>
               </span>
             ))}
           {/* Two gates, both of which must hold.

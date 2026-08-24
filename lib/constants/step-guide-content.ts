@@ -68,12 +68,14 @@ const extLink = (label: string): string => `<li><em>${label} ↗</em></li>`;
  * GCP has no VM integration (docs/cloud-provider-states.md) and the source
  * card drops that bullet for exactly that reason.
  *
- * The source card carries no heading of its own — the step's name titles it in
- * the document's own rail. The panel header only ever says 「가이드」, so the step
- * name is carried here instead.
+ * ⛔ The only body with no <h4>. It used to open with 「연동 대상 DB 선택」, on the reasoning
+ * that the panel header only ever said 「가이드」 so the step name had to be carried here.
+ * That premise expired: `GuidePanel` prints 「N단계 가이드」 (오너 지시 2026-08-23), and the
+ * card head beside it prints the step's name at 20px. The heading was that string's third
+ * copy, two lines under the second. Every other body opens with a sentence about what is
+ * happening rather than with the step's name, so this one had nothing left to say.
  */
 const step1Cloud = ({ vmRows }: { vmRows: boolean }): string =>
-  '<h4>연동 대상 DB 선택</h4>' +
   '<ol>' +
   // 오너 지시 2026-08-24: name BOTH buttons. The source says 「'스캔 시작'을 눌러」, but the
   // strip renders 「스캔 시작」 only before the first scan and 「다시 스캔」 ever after

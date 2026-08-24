@@ -553,18 +553,28 @@ export const cardStyles = {
   /** Large display heading inside a card header (ADR-014 card-display-title). */
   displayTitle: 'text-[26px] font-extrabold text-[#191F28] tracking-[-0.045em] leading-[1.2]',
   /** In-card section / step-card title — v15 display geometry (26 / 800 / -0.045em / #191F28). */
-  // 22px sits BELOW the 24px page H1 (pageHeaderTitleStyle) — the unified header
+  // 20px sits BELOW the 24px page H1 (pageHeaderTitleStyle) — the unified header
   // introduced a page-level title above every step card, so the step title must
-  // read as a section heading, not compete with the page identity (was 26px).
+  // read as a section heading, not compete with the page identity (was 26px, then 22px).
+  // 20, not 22, because `stepTag` now shares this line: beside a 22px-tall pill a 22px
+  // title leaves the pill looking like debris the title dropped. At 20 the two read as
+  // one row, and the step down to the 16px guidance below stays legible.
   // Tracking is -0.01em, not the -0.03em latin display type takes: Korean glyphs are already dense,
   // so tighter tracking reads as cramped instead of as a tightened headline.
-  cardTitle: 'text-[22px] font-extrabold tracking-[-0.01em] leading-[1.2] text-[#191F28]',
+  cardTitle: 'text-[20px] font-extrabold tracking-[-0.01em] leading-[1.2] text-[#191F28]',
   /**
-   * "N단계" tag above a step-card title, matching INSTALL_STEPS order in
+   * "N단계" tag ON a step-card title's row, matching INSTALL_STEPS order in
    * InstallationProcessProgressBar. Was copy-pasted into every step card with a "keep the two in
    * sync" note; six cards (cloud 1·2·3, IDC 1·2·3 + 6) is where that stops being a note.
+   *
+   * ⛔ No margin of its own. The tag used to own the line above the title (`mb-1.5`), which put
+   * two near-identical blue plates on the screen 115px apart — this one and the position plate
+   * on 「설치 진행」 — differing only by a font weight and a pixel of padding. It now sits inside
+   * the title's `flex items-center gap-2` row, where its fixed 42px width is the landing point
+   * a title that swings 91→208px across the seven steps could not give the eye. A margin here
+   * would break that row back apart.
    */
-  stepTag: `mb-1.5 inline-flex items-center rounded-[6px] px-2 py-0.5 text-[12px] font-bold ${primaryColors.bgLight} ${primaryColors.textOnLight}`,
+  stepTag: `inline-flex items-center rounded-[6px] px-2 py-0.5 text-[12px] font-bold ${primaryColors.bgLight} ${primaryColors.textOnLight}`,
   /** State pill beside a step title (승인 대기 / 반영중). Shape only — the caller owns the tone. */
   stepBadge: 'inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium',
   /**

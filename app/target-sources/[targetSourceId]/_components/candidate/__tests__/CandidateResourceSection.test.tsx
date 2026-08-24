@@ -2,6 +2,7 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, it, expect, vi } from 'vitest';
 import type { ScanControllerRenderProps } from '@/app/components/features/scan/ScanPanel';
+import { cardStyles } from '@/lib/theme';
 
 // 조회를 테스트가 붙잡을 수 있어야 한다 — 즉시 resolve 하면 loading 구간이 아예
 // 존재하지 않아, "확인 프레임이 스켈레톤을 이긴다"는 단언이 이길 상대가 없어진다.
@@ -161,8 +162,9 @@ describe('CandidateResourceSection', () => {
       />,
     );
     const h2 = await screen.findByRole('heading', { level: 2, name: '연동 대상 DB 선택' });
-    expect(h2.className).toContain('text-[22px]');
-    expect(h2.className).toContain('font-extrabold');
+    // Against the token, not a literal: the size has moved 26 → 22 → 20 and each move
+    // left this line asserting the last one. What the card owes is the shared token.
+    expect(h2.className).toContain(cardStyles.cardTitle);
   });
 
   // Step 2·3 header grammar ported to step 1: step tag above the fixed title,

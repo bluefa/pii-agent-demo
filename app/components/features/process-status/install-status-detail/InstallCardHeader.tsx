@@ -3,7 +3,7 @@ import type { ReactNode } from 'react';
 import { cardStyles, cn, primaryColors } from '@/lib/theme';
 
 /**
- * Step-4 카드 헤더 — 스텝 카드 문법(1·2·3·6·7과 동일): 단계 태그 → 제목 → guidance.
+ * Step-4 카드 헤더 — 스텝 카드 문법(1·2·3·6·7과 동일): 단계 태그 · 제목 한 줄 → guidance.
  *
  * 파랑은 **사용자가 직접 해야 하는 행동**에만 붙인다. BDC 자동 설치처럼 시스템이
  * 하는 일은 평문으로 둔다 (Step 1 CandidateResourceSection 의 강조 규칙 그대로).
@@ -12,10 +12,13 @@ import { cardStyles, cn, primaryColors } from '@/lib/theme';
  */
 export const InstallCardHeader = ({ action }: { action?: ReactNode }) => (
   <header className={cardStyles.header}>
-    <span className={cardStyles.stepTag}>4단계</span>
-    {/* 단계 태그가 윗줄을 차지하므로, 제목과 보조 액션이 한 줄을 나눠 갖는다. */}
+    {/* 태그·제목이 왼쪽 한 덩어리, 보조 액션이 오른쪽. gap-4 는 그 둘 사이의 거리이고,
+        태그와 제목 사이는 gap-2 — 둘은 한 줄에 있어도 다른 간격의 두 관계다. */}
     <div className="flex items-center justify-between gap-4">
-      <h2 className={cardStyles.cardTitle}>Agent 설치</h2>
+      <div className="flex items-center gap-2">
+        <span className={cardStyles.stepTag}>4단계</span>
+        <h2 className={cardStyles.cardTitle}>Agent 설치</h2>
+      </div>
       {action && <div className="shrink-0">{action}</div>}
     </div>
     {/* 2호흡: 무슨 일이 일어나는가 / 내가 할 일은 무엇인가.

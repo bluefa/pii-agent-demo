@@ -242,8 +242,10 @@ export const WaitingApprovalCard = ({
       <div className={cardStyles.header}>
         <div className="flex items-start justify-between gap-4">
           <div>
-            <span className={cardStyles.stepTag}>2단계</span>
             <div className="flex items-center gap-2">
+              {/* Outside the ternary: the step number is known before the fetch, so it renders
+                  while the title is still a skeleton. */}
+              <span className={cardStyles.stepTag}>2단계</span>
             {/* The verdict arrives with the fetch, so title and badge stay unresolved until then —
                 rendering the pending copy first makes every rejected load flash 승인 대기 → 반려. */}
             {resolved ? (
@@ -266,8 +268,10 @@ export const WaitingApprovalCard = ({
               </>
             ) : (
               <>
-                <div className={cn(idcStyles.skeletonBar, 'h-[26px] w-[220px] rounded-[6px]')} />
-                <div className={cn(idcStyles.skeletonBar, 'h-[26px] w-[68px] rounded-full')} />
+                {/* 24px, not 26: the title's line box is 20 × 1.2 since the tag moved onto its
+                    row. A skeleton taller than what replaces it makes the card settle downward. */}
+                <div className={cn(idcStyles.skeletonBar, 'h-[24px] w-[220px] rounded-[6px]')} />
+                <div className={cn(idcStyles.skeletonBar, 'h-[24px] w-[68px] rounded-full')} />
               </>
             )}
             </div>
