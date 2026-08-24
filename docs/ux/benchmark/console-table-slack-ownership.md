@@ -382,7 +382,7 @@ Step 4 와 admin `plain` 은 §10, Step 1(`CandidateResourceTable`)은 §11 에�
 
 | 표면 | 열 (하한) | flex | sink | Σ |
 | -- | -- | -- | -- | -- |
-| Step 4 클라우드 | name 162 · id 186 · 상태 190 | name+id | id | **538** |
+| Step 4 클라우드 | name 162 · id 186 · dbType 142 · region 156 · 상태 190 | name+id | id | **836** |
 | Step 4 IDC | 출발지 144 · 접속 200 · Port 80 · dbType 172 · 상태 190 | 출발지+접속 | 접속 | **786** |
 | admin plain (확정 정보) | name 162 · id 186 · dbType 142 · region 156 | name+id | id | **646** |
 
@@ -406,6 +406,13 @@ Step 4 와 admin `plain` 은 §10, Step 1(`CandidateResourceTable`)은 §11 에�
   규칙, sink 는 임의 길이 값(호스트)이 사는 접속 주소. 판(716px)보다 Σ(786)가 크면
   `ConsoleTable` 의 overflow-x-auto 가 스크롤을 연다(실측: scrollDelta 70px — 안내 삭제
   전 222px 에서 줄었을 뿐, 이 표면은 여전히 스크롤한다).
+- **Database Type·Region 추가 (2026-08-24, 오너 지시)** — 클라우드 Step 4 에 두 열이
+  더 붙는다. 새로 재는 대신 원장 §1·§2(steps 6·7·admin plain)의 하한 dbType 142 ·
+  region 156 을 그대로 가져와 Step 4 를 그 표들과 같은 열에서 같은 하한으로
+  정렬한다. Σ538→836(name 162 · id 186 · dbType 142 · region 156 · 상태 190).
+  Step 4 판(716 — 마스터-디테일 레일 안이라 다른 step 의 990보다 좁다)보다 커져,
+  바로 위 IDC 와 같은 산식으로 이 표도 이제 가로 스크롤을 연다(스크롤 델타
+  120px) — IDC Σ786 도 이미 감수한 설계상 트레이드오프와 같다.
 - `approvalConsole` 은 이제 variant 술어다 — install·plain 이 콘솔에 들어오는 순간 옛
   `콘솔 − confirmed` 표현이 semibold 를 Step 4·admin 으로 새게 했을 것이므로(§9 의 ⛔ 그
   사례), 트립와이어 테스트가 세 variant 에서 이를 고정한다.

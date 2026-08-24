@@ -62,6 +62,20 @@ const RoleVerifyPanel = ({ status }: { status: AwsInstallationStatus }) => (
 /** 참고 항목 id — 단계의 역참조 링크가 같은 값을 가리켜야 한다. */
 const TF_SCRIPT_ID = 'tfScript';
 
+/**
+ * 리전 단위 Athena 행의 이름 — resource_id `athena:<acct>:<region>/<catalog>` 의 카탈로그.
+ *
+ * 이 행의 wire `resource_name` 은 리전 문자열이다(`us-east-1`). Resource Name 열에 리전을
+ * 적는 셈이고, 그 리전은 바로 옆 Region 열이 이미 말한다 — 리전 이름 하나만 덩그러니 놓인
+ * 이름 칸(owner, 2026-08-24). 행이 실제로 가리키는 것은 그 리전의 카탈로그이므로 카탈로그
+ * 이름을 쓰고, `AthenaTag` 가 그것이 Athena 임을 말한다.
+ *
+ * ⛔ `lib/bff/mock/aws-wire-sample.ts` 는 실제 캡처 응답이라 고치지 않는다 — wire 어휘를
+ * UI 문장으로 그대로 쓰지 않는 것이 이 함수의 일이다.
+ */
+const athenaCatalogName = (resourceId: string): string | null =>
+  resourceId.startsWith('athena:') ? resourceId.split('/')[1] ?? null : null;
+
 /** 서비스 측 TF 단계 이름 — 단계 배열과 참고 항목의 링크 라벨이 같은 출처를 쓴다. */
 const serviceStepTitle = (manualInstall: boolean) =>
   manualInstall ? 'Terraform 직접 적용' : '서비스 측 Terraform 자동 적용';
@@ -160,7 +174,7 @@ export const AwsInstallStatusDetail = ({
     () =>
       status.resources.map((r) => ({
         resourceId: r.resourceId,
-        resourceName: r.resourceName,
+        resourceName: athenaCatalogName(r.resourceId) ?? r.resourceName,
         rollup: { status: r.installationStatus, guide: null },
         cells: {
           service: r.serviceTerraform,

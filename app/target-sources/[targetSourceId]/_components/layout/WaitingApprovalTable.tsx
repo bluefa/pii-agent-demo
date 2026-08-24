@@ -14,13 +14,18 @@ import {
   ResourceGroupRow,
 } from '@/app/target-sources/[targetSourceId]/_components/shared/ResourceGroupRow';
 import { LogicalDbCountCell } from '@/app/target-sources/[targetSourceId]/_components/logical-db/LogicalDbCountCell';
-import { GROUPED_CHILD_KIND_LABEL, groupResourceRows } from '@/lib/resource-grouping';
+import {
+  GROUPED_CHILD_KIND_LABEL,
+  groupResourceRows,
+  isGroupedResourceType,
+} from '@/lib/resource-grouping';
 import {
   isRdsCluster,
   sortRdsInstances,
   type RdsInstanceCandidate,
 } from '@/lib/rds-instances';
 import {
+  AthenaTag,
   Ec2InstanceTag,
   RdsChosenInstanceLine,
   RdsClusterTag,
@@ -571,10 +576,24 @@ const approvalColumns = (regionLabel: string): ConsoleTableColumn[] => [
  * 안내 column removed 2026-08-24 (owner instruction, every provider). `guide` stays on
  * the wire — AWS/Azure/GCP/IDC adapters all still read `step.guide` into the model — only
  * this table's column is gone.
+ *
+ * `dbType`/`region` added the same day (owner instruction, cloud shapes only — IDC's
+ * identity cells already carry a Database Type). They reverse this spec's original ruling
+ * that the engine was settled on steps 1·2 and that the region is a constant already
+ * inside the resource id; both floors are the confirmed table's own, so the two columns
+ * a reader learned on steps 6·7 sit at the same widths here.
+ *
+ * Cost: the cloud floor goes 538 → 836. Step 4's table sits inside the master-detail rail,
+ * not the 990px body pane the other steps get — measured on /pass/target-sources/1008
+ * (2026-08-24) its pane is `innerWidth − 994`, so 836 needs 1830px of browser and scrolls
+ * horizontally below that. Accepted with the columns: it is the same by-design trade the
+ * IDC step-4 shape (786) has always made.
  */
 const INSTALL_COLUMN_WIDTHS = {
   name: CONFIRMED_COLUMN_WIDTHS.name,
   id: CONFIRMED_COLUMN_WIDTHS.id,
+  dbType: CONFIRMED_COLUMN_WIDTHS.dbType,
+  region: CONFIRMED_COLUMN_WIDTHS.region,
   status: 190,
 } as const;
 
@@ -586,11 +605,16 @@ export const PLAIN_FLEX_KEYS = CONFIRMED_FLEX_KEYS;
 
 /**
  * The step-4 column spec: the caller's identity columns (IDC — widths and flex declared
- * per cell, see `ApprovalIdentityCell`) or the standard pair (cloud), then the install
- * pair. No Database Type / Region: the engine was settled back on steps 1·2 and the
- * region is a constant within one target source (and already inside the resource id).
+ * per cell, see `ApprovalIdentityCell`) or the cloud head, then 상태.
+ *
+ * The cloud head is the confirmed table's own — name · id · Database Type · Region — so
+ * steps 4 and 6·7 read down the same columns at the same widths. IDC keeps only the
+ * caller's cells: its identity already ends in a Database Type, and it has no region.
  */
-const installColumns = (identity?: ApprovalIdentityColumns): ConsoleTableColumn[] => [
+const installColumns = (
+  identity?: ApprovalIdentityColumns,
+  regionLabel = 'Region',
+): ConsoleTableColumn[] => [
   ...(identity
     ? identity.columns.map((cell, index) => ({
         key: cell.key,
@@ -610,8 +634,11 @@ const installColumns = (identity?: ApprovalIdentityColumns): ConsoleTableColumn[
           headClassName: idcStyles.table.nameCell,
         },
         // The sink, as on every standard-identity surface: the ARN is the longest value
-        // in the row and the only one a cut costs the reader.
+        // in the row and the only one a cut costs the reader. Still the sink with the two
+        // attribute columns behind it — neither of them flexes.
         { key: 'id', label: 'Resource ID', width: INSTALL_COLUMN_WIDTHS.id, flex: true },
+        { key: 'dbType', label: 'Database Type', width: INSTALL_COLUMN_WIDTHS.dbType },
+        { key: 'region', label: regionLabel, width: INSTALL_COLUMN_WIDTHS.region },
       ]),
   { key: 'status', label: '상태', width: INSTALL_COLUMN_WIDTHS.status },
 ];
@@ -726,6 +753,9 @@ export const WaitingApprovalTable = memo(
     const confirmedVariant = variant === 'confirmed';
     const installVariant = variant === 'install';
     const plainVariant = variant === 'plain';
+    // Step 4's cloud shape carries the attribute pair; its IDC shape does not — the caller's
+    // identity cells already end in a Database Type, and an IDC endpoint has no region.
+    const cloudInstall = installVariant && !identityColumns;
 
     // One shell for every variant. The console grammar (rails, drag-resize, the covered
     // clip) reached the confirmed tables first, steps 2·3 joined in #761, and LIN-97 moved
@@ -797,6 +827,12 @@ export const WaitingApprovalTable = memo(
       // Keyed on the declared top-level type, never on `resourceType` — see the field's note.
       const isCluster = isRdsCluster(resource.declaredResourceType ?? '');
       const isEc2 = isEc2Instance(resource.declaredResourceType);
+      // Step 4 only. From step 4 the region IS the Athena resource, so the row arrives with no
+      // scan-assigned name and nothing on it said what kind of thing it was — the other two
+      // kinds wear a tag here and Athena wore none. Steps 2·3 are excluded because their
+      // Athena rows are children under a group parent that already carries this same tag;
+      // steps 6·7 answer in the 종류 column instead.
+      const isAthena = installVariant && isGroupedResourceType(resource.declaredResourceType);
       // Every row of one rail shares a key: a group's children take the group's (passed in by
       // the caller), a folded region and its members take the row's own. Rows that draw NO rail
       // get no handlers: this table is memo()'d and paginated, and lighting nothing on every
@@ -970,17 +1006,19 @@ export const WaitingApprovalTable = memo(
                     chevron with nothing beside it. */}
                 <span className="whitespace-nowrap">{foldLabel}</span>
               </span>
-            ) : (isCluster || isEc2) && !confirmedVariant ? (
+            ) : (isCluster || isEc2 || isAthena) && !confirmedVariant ? (
               // Step 4: the tag alone. Those steps list what is being installed and
               // connected, not what is being chosen, so the member instances stay a steps 1–3
               // concern — but the row still has to say it is a cluster, in the same stack.
               // EC2 rides the same branch: it has no members to fold, so the tag is all it needs,
               // and steps 2·3 reach it here too (the branch above is cluster-with-instances only).
+              // Athena joins on step 4 alone (see `isAthena`), where the row stands for a region's
+              // catalog and the name beside the tag is that catalog, not the region.
               // The confirmed tables (steps 6·7) left this stack in round 3: their kind lives in
               // the 종류 column (plain text since round 9), so they fall through to the
               // one-line name below.
               <span className={cn('flex min-w-0 flex-col items-start gap-1', idcStyles.table.stackedIdentityLift)}>
-                {isCluster ? <RdsClusterTag /> : <Ec2InstanceTag />}
+                {isCluster ? <RdsClusterTag /> : isEc2 ? <Ec2InstanceTag /> : <AthenaTag />}
                 <Tooltip
                   content={<IdentifierTip label="Resource Name" value={resource.resourceName} />}
                   variant="value"
@@ -1067,7 +1105,7 @@ export const WaitingApprovalTable = memo(
               each child says `Database`. The Region column repeats the parent's value on every
               child (owner, 2026-08-12) — a column is read down, and blanks under it read as
               "no region" once the parent has scrolled away. */}
-          {!installVariant && (
+          {(!installVariant || cloudInstall) && (
             <>
               <td
                 className={cn(
@@ -1339,7 +1377,7 @@ export const WaitingApprovalTable = memo(
             confirmedVariant
               ? confirmedColumns(regionLabel, confirmedKindColumn)
               : installVariant
-                ? installColumns(identityColumns)
+                ? installColumns(identityColumns, regionLabel)
                 : plainVariant
                   ? plainColumns(regionLabel)
                   : approvalColumns(regionLabel)
