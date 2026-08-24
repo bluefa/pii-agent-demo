@@ -137,10 +137,35 @@ describe('renderGuideAst — the step-guide shapes', () => {
   });
 
   it('does not carry the procedure flag over to the next render', () => {
-    // The flag is module-level, like `keyCounter`. Were it not reset per call, one guide
-    // render would turn every later notice's ordered list into a stepper.
+    // `steps` is threaded through the walk, so there is no module state left to leak. Kept
+    // as a tripwire anyway: this is the invariant the threading exists to hold, and a
+    // refactor back to a module-level flag fails here instead of in production.
     renderGuideAst(list, { steps: true });
     expect(render(list)).not.toContain('guide-steps');
+  });
+
+  it('threads the procedure flag all the way down', () => {
+    // The risk the threading introduces, which the old module-level flag did not have: a
+    // branch that forgets to pass `steps` silently drops the circles on everything below
+    // it. So the DEEPEST list is what this asserts, not the top one.
+    const nested: GuideNode[] = [
+      {
+        type: 'ol',
+        children: [
+          {
+            type: 'li',
+            children: [
+              {
+                type: 'ol',
+                children: [{ type: 'li', children: [{ type: 'text', value: '깊은 곳' }] }],
+              },
+            ],
+          },
+        ],
+      },
+    ];
+    const html = renderToStaticMarkup(<>{renderGuideAst(nested, { steps: true })}</>);
+    expect(html.match(/<ol class="guide-steps">/g)).toHaveLength(2);
   });
 });
 

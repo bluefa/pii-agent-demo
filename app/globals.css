@@ -558,8 +558,12 @@ body {
   width: 22px;
   height: 22px;
   border-radius: 50%;
-  /* --color-primary-hover (#0050D6), not --color-primary (#0064FF): white on the
-     brand blue measures 4.66:1, under AA at this size. This holds 6.25:1. */
+  /* --color-primary-hover (#0050D6), not --color-primary (#0064FF). Both clear AA:
+     white measures 4.92:1 on the brand blue, 6.73:1 here, against the 4.5:1 a 12px/500
+     numeral needs. So the brand blue is not disqualified — it is chosen against, because
+     4.92 leaves almost no headroom on a glyph this small and the circle is the only
+     thing carrying the step's number. An earlier revision of this comment said 4.66:1
+     and called #0064FF an AA failure; both were wrong, and neither should be cited. */
   background: var(--color-primary-hover);
   color: #fff;
   font-size: 12px;

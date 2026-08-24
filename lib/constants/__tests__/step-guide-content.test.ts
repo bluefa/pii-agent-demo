@@ -360,12 +360,21 @@ describe('step 4 — each AWS slot carries one branch', () => {
 describe('step 4 — the GCP slot drops the BDC-side block', () => {
   const gcp = bodyFor('process.gcp.4');
 
+  /**
+   * Matched on TEXT, not on markup. The first version of these pins spelled the whole tag
+   * — `<details><summary>…</summary></details>`, `<mark>BDC Side Terraform</mark>` — which
+   * coupled them to `refBar()`'s template: add a class or a space to that helper and every
+   * negative passes forever while the content walks back in. Whitespace is collapsed for
+   * the same reason, so a re-transcription writing 「우리 측」 does not slip through.
+   */
+  const textOf = (html: string): string => html.replace(/<[^>]*>/g, '').replace(/\s+/g, '');
+
   it.each([
-    '<details><summary>Service Side Terraform 실행 가이드</summary></details>',
-    '<mark>BDC Side Terraform</mark>',
+    'Service Side Terraform 실행 가이드',
+    'BDC Side Terraform',
     '우리측 GCP Project에 PSC Connection',
   ])('no longer carries 「%s」', (removed) => {
-    expect(gcp).not.toContain(removed);
+    expect(textOf(gcp)).not.toContain(removed.replace(/\s+/g, ''));
   });
 
   it('counts the blocks it actually prints', () => {

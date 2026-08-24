@@ -18,21 +18,15 @@ import type { GuideNode } from '@/lib/utils/validate-guide-html';
 let keyCounter = 0;
 const nextKey = (): string => `guide-node-${keyCounter++}`;
 
-/**
- * Whether this tree's `<ol>`s are procedures — steps drawn with the numbered circle the
- * step-guide source uses — or ordinary ordered lists.
- *
- * A module-level flag rather than a threaded parameter, matching `keyCounter` above: both
- * are set once per `renderGuideAst` call and read during a synchronous walk.
- *
- * It is the CALLER's declaration, not the markup's, because the same renderer serves two
- * surfaces. A step guide's `<ol>` really is a sequence; an ordered list in a notice is a
- * list, and giving it filled circles would claim an order of operations it does not have.
- */
-let orderedListsAreSteps = false;
-
 export interface RenderGuideAstOptions {
-  /** Draw `<ol>` as the step-guide procedure — see {@link orderedListsAreSteps}. */
+  /**
+   * Draw `<ol>` as the step-guide procedure — the numbered circle the source uses — rather
+   * than an ordinary ordered list.
+   *
+   * The CALLER's declaration, not the markup's, because the same renderer serves two
+   * surfaces. A step guide's `<ol>` really is a sequence; an ordered list in a notice is a
+   * list, and filled circles would claim an order of operations it does not have.
+   */
   steps?: boolean;
 }
 
@@ -41,51 +35,62 @@ export const renderGuideAst = (
   { steps = false }: RenderGuideAstOptions = {},
 ): ReactNode[] => {
   keyCounter = 0;
-  orderedListsAreSteps = steps;
-  return ast.map(renderNode);
+  return ast.map((node) => renderNode(node, steps));
 };
 
-const renderNode = (node: GuideNode): ReactNode => {
+/**
+ * `steps` is threaded rather than held in a module-level flag. A flag is correct only while
+ * every branch below materializes its children inside this synchronous walk — true today,
+ * and one refactor from false: the moment 참고 가이드 바 becomes a real disclosure that
+ * renders children on toggle, those children are built at React render time, after the next
+ * caller has already overwritten the flag, and a notice's list silently becomes a stepper.
+ * A wrong key is cosmetic; a wrong flag is a wrong visual claim, so this one does not get
+ * `keyCounter`'s treatment.
+ */
+const renderNode = (node: GuideNode, steps: boolean): ReactNode => {
+  const kids = (children: GuideNode[]): ReactNode[] =>
+    children.map((child) => renderNode(child, steps));
+
   switch (node.type) {
     case 'text':
       return node.value;
     case 'br':
       return <br key={nextKey()} />;
     case 'h4':
-      return <h4 key={nextKey()}>{node.children.map(renderNode)}</h4>;
+      return <h4 key={nextKey()}>{kids(node.children)}</h4>;
     case 'p':
-      return <p key={nextKey()}>{node.children.map(renderNode)}</p>;
+      return <p key={nextKey()}>{kids(node.children)}</p>;
     // 안내 박스. The class comes from the renderer, not the markup — the allow-list
     // gives an author no class or style attribute, which is the point.
     case 'blockquote':
       return (
         <blockquote key={nextKey()} className={guideStyles.note}>
-          {node.children.map(renderNode)}
+          {kids(node.children)}
         </blockquote>
       );
     case 'ul':
-      return <ul key={nextKey()}>{node.children.map(renderNode)}</ul>;
+      return <ul key={nextKey()}>{kids(node.children)}</ul>;
     case 'ol':
       // A plain class name, not a `guideStyles` token: the circle is a `::before` carrying
       // a CSS counter, which has no Tailwind spelling. `globals.css` owns `.guide-steps`.
       return (
-        <ol key={nextKey()} className={orderedListsAreSteps ? 'guide-steps' : undefined}>
-          {node.children.map(renderNode)}
+        <ol key={nextKey()} className={steps ? 'guide-steps' : undefined}>
+          {kids(node.children)}
         </ol>
       );
     case 'li':
-      return <li key={nextKey()}>{node.children.map(renderNode)}</li>;
+      return <li key={nextKey()}>{kids(node.children)}</li>;
     case 'strong':
-      return <strong key={nextKey()}>{node.children.map(renderNode)}</strong>;
+      return <strong key={nextKey()}>{kids(node.children)}</strong>;
     // Brand-coloured emphasis, not slant — see `guideStyles.accent`.
     case 'em':
       return (
         <em key={nextKey()} className={guideStyles.accent}>
-          {node.children.map(renderNode)}
+          {kids(node.children)}
         </em>
       );
     case 'code':
-      return <code key={nextKey()}>{node.children.map(renderNode)}</code>;
+      return <code key={nextKey()}>{kids(node.children)}</code>;
     // 참고 가이드 바. A `<div>`, not a `<details>`: the source draws an accent row with
     // `cursor: default` and nothing behind it, so a real disclosure would offer to open a
     // panel that does not exist. The ▶ comes from `refBar`'s ::after — decoration, not a
@@ -93,23 +98,23 @@ const renderNode = (node: GuideNode): ReactNode => {
     case 'details':
       return (
         <div key={nextKey()} className={guideStyles.refBar}>
-          {node.children.map(renderNode)}
+          {kids(node.children)}
         </div>
       );
     // The bar's label. It carries no box of its own — the bar above is the box.
     case 'summary':
-      return <span key={nextKey()}>{node.children.map(renderNode)}</span>;
+      return <span key={nextKey()}>{kids(node.children)}</span>;
     // 작업 이름표 — see `guideStyles.pill`.
     case 'mark':
       return (
         <mark key={nextKey()} className={guideStyles.pill}>
-          {node.children.map(renderNode)}
+          {kids(node.children)}
         </mark>
       );
     case 'a':
       return (
         <a key={nextKey()} href={node.href} target={node.target} rel={node.rel}>
-          {node.children.map(renderNode)}
+          {kids(node.children)}
         </a>
       );
     case 'img':
