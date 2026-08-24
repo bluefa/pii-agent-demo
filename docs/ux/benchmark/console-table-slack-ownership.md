@@ -411,8 +411,11 @@ Step 4 와 admin `plain` 은 §10, Step 1(`CandidateResourceTable`)은 §11 에�
   region 156 을 그대로 가져와 Step 4 를 그 표들과 같은 열에서 같은 하한으로
   정렬한다. Σ538→836(name 162 · id 186 · dbType 142 · region 156 · 상태 190).
   Step 4 판(716 — 마스터-디테일 레일 안이라 다른 step 의 990보다 좁다)보다 커져,
-  바로 위 IDC 와 같은 산식으로 이 표도 이제 가로 스크롤을 연다(스크롤 델타
-  120px) — IDC Σ786 도 이미 감수한 설계상 트레이드오프와 같다.
+  바로 위 IDC 와 같은 산식으로 이 표도 이제 가로 스크롤을 연다 — IDC Σ786 이 이미
+  감수한 설계상 트레이드오프와 같다. 실측(/pass/target-sources/1008, 가이드 레일 편
+  상태 + 저장 폭 초기화 후): 판은 `innerWidth − 994` 라 1920 에서 926 · scrollDelta 0,
+  판을 이 문서 기준폭 1710 이 주는 716 에 고정하면 scrollDelta 120px 에 다섯 열이 전부
+  선언 하한(162·186·142·156·190) 그대로다. 즉 836 은 브라우저 1830px 부터 들어간다.
 - `approvalConsole` 은 이제 variant 술어다 — install·plain 이 콘솔에 들어오는 순간 옛
   `콘솔 − confirmed` 표현이 semibold 를 Step 4·admin 으로 새게 했을 것이므로(§9 의 ⛔ 그
   사례), 트립와이어 테스트가 세 variant 에서 이를 고정한다.
