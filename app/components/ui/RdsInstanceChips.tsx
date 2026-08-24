@@ -42,6 +42,14 @@ export const RdsClusterTag = () => <ResourceKindTag>RDS Cluster</ResourceKindTag
 export const Ec2InstanceTag = () => <ResourceKindTag>EC2</ResourceKindTag>;
 
 /**
+ * Athena. Same fact tier as the two above — from step 4 the region is the Athena resource, so
+ * the row is named by the catalog it stands for and this tag is what says the catalog is
+ * Athena's. Judged by `isGroupedResourceType(resourceType)`, which takes every spelling the
+ * wire uses. Steps 2·3 draw the same tag through `ResourceGroupRow`'s group parent.
+ */
+export const AthenaTag = () => <ResourceKindTag>Athena</ResourceKindTag>;
+
+/**
  * An RDS cluster instance's Reader/Writer role.
  *
  * ONE grey surface, and the role lives in the letters alone: warm = Writer (the instance the

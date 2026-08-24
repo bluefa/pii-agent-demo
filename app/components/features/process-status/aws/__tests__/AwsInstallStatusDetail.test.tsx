@@ -2,6 +2,7 @@
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { AwsInstallStatusDetail } from '@/app/components/features/process-status/aws/AwsInstallStatusDetail';
+import { required } from '@/lib/test-dom';
 import type { ConfirmedResource } from '@/lib/types/resources';
 import type {
   AwsInstallationStatus,
@@ -83,9 +84,12 @@ describe('AwsInstallStatusDetail', () => {
     // 레일 푸터(진행바+요약)는 오너 결정으로 삭제됐다.
     expect(within(nav).queryByText('2개 중 1개 완료')).toBeNull();
 
-    // No open todo → the failed step is the default view, and its table's 안내
-    // chip is the single place the failure reason is stated.
-    expect(screen.getAllByText('서브넷 IP 부족')).toHaveLength(1);
+    // No open todo → the failed step is the default view. Its table's 안내 chip used to
+    // be the single place the failure reason was stated; that column is gone (owner
+    // instruction, 2026-08-24, every provider) and nothing replaced it — the grouped
+    // rail here never mounts InstallStatusDetail's alternate summary/action-item view
+    // (every step declares `group`) — so the reason text no longer renders at all.
+    expect(screen.queryByText('서브넷 IP 부족')).toBeNull();
   });
 
   it('할 일이 남아 있으면 "모두 완료"를 달지 않는다', () => {
@@ -117,8 +121,13 @@ describe('AwsInstallStatusDetail', () => {
 
     expect(screen.getByText('r-1')).toBeTruthy();
     expect(screen.getByText('name-of-r-1')).toBeTruthy();
-    // Step 4 drops the Region / Database Type columns, so the joined attributes
-    // surface through the toolbar filter rather than as cells.
+    // The cloud install shape carries Database Type / Region again (owner instruction,
+    // 2026-08-24), so the joined attributes are cells AND filter options — the filter
+    // offers exactly the values the columns print.
+    const row = required(screen.getByText('name-of-r-1').closest('tr'), 'the install row');
+    const cells = within(row).getAllByRole('cell');
+    expect(cells[2].textContent).toBe('MySQL');
+    expect(cells[3].textContent).toBe('ap-northeast-2');
     fireEvent.click(screen.getByRole('button', { name: '필터' }));
     const filters = screen.getByRole('group', { name: '필터 옵션' });
     expect(within(filters).getByText('ap-northeast-2')).toBeTruthy();
@@ -190,8 +199,12 @@ describe('AwsInstallStatusDetail', () => {
 
     // default selection = service step (IN_PROGRESS present) → SKIP row visible.
     expect(screen.getAllByText('해당 없음').length).toBeGreaterThanOrEqual(1);
-    // 안내 is the steps-2·3 reason chip, which clamps its summary — the full guide is in the tip.
-    expect(screen.getByText(/설치 대상이 아닌/)).toBeTruthy();
+    // 안내 column removed 2026-08-24 (owner instruction, every provider) — guide text
+    // stays on the wire (serviceTerraform.guide) but no longer renders anywhere on this
+    // screen. The grouped rail (every step here declares `group`) also never mounts
+    // InstallStatusDetail's alternate summary/action-item view, so this is a genuine
+    // absence, not a gap this test happens to miss.
+    expect(screen.queryByText(/설치 대상이 아닌/)).toBeNull();
 
     // The grouped rail drops n/m counts — only the status words remain.
     const nav = screen.getByRole('navigation', { name: '설치 단계' });
@@ -228,9 +241,16 @@ describe('AwsInstallStatusDetail', () => {
       />,
     );
 
-    // The region row takes its name from the wire row; the confirmed DB it joins to
-    // supplies the attributes, which step 4 exposes through the filter (no columns).
-    expect(screen.getByText('us-east-1')).toBeTruthy();
+    // The wire names this row `us-east-1` — the region, which the Region column now says
+    // one cell over. The row stands for that region's CATALOG, so the name is read out of
+    // the id (`athena:<acct>:<region>/<catalog>`) instead and the region is said once.
+    const row = required(screen.getByText('AwsDataCatalog').closest('tr'), 'the Athena row');
+    const cells = within(row).getAllByRole('cell');
+    // name · id · Database Type · Region · 상태. The name cell holds the catalog and the tag
+    // that says whose catalog it is; the region appears once, in its own column.
+    expect(cells[0].textContent).not.toContain('us-east-1');
+    expect(within(cells[0]).getByText('Athena')).toBeTruthy();
+    expect(cells[3].textContent).toBe('us-east-1');
     fireEvent.click(screen.getByRole('button', { name: '필터' }));
     const filters = screen.getByRole('group', { name: '필터 옵션' });
     expect(within(filters).getByText('Athena')).toBeTruthy();

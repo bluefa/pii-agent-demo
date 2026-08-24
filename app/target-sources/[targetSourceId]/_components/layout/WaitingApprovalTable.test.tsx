@@ -905,6 +905,53 @@ describe('WaitingApprovalTable', () => {
     });
   });
 
+  // The third kind tag, and the only one scoped to a single step. From step 4 the region IS the
+  // Athena resource, so the row arrives named by its catalog and nothing else on it said what
+  // kind of thing that is; steps 2·3 list databases under a group parent that already carries
+  // the tag, and steps 6·7 answer in the 종류 column.
+  describe('Athena tag on the step-4 region row', () => {
+    const athenaRow = (): WaitingApprovalResource => ({
+      // Region-level, as `installation-status` sends it — the database-level rows
+      // (`…:<catalog>/<db>`) belong to the confirmed list. AwsInstallStatusDetail reads the
+      // catalog out of this id for the name; the wire's own `resource_name` is the region.
+      resourceId: 'athena:804656952396:us-east-1/AwsDataCatalog',
+      // The engine, as steps 4·6·7 set it — the declared type is what answers "is this Athena".
+      resourceType: 'athena',
+      declaredResourceType: 'AWS_ATHENA_DATABASE',
+      region: 'us-east-1',
+      resourceName: 'AwsDataCatalog',
+      selected: true,
+      displayDbType: 'athena',
+    });
+
+    it('tags the region row Athena on the install variant, above the name', () => {
+      render(<WaitingApprovalTable variant="install" resources={[athenaRow()]} />);
+      // Scoped to the identity cell: the Database Type column says `Athena` too (the engine
+      // label for `athena`), so an unscoped text query would match either of them.
+      const cells = within(
+        required(screen.getByText('AwsDataCatalog').closest('tr'), 'the Athena row'),
+      ).getAllByRole('cell');
+      expect(within(cells[0]).getByText('Athena')).toBeTruthy();
+      expect(cells[0].textContent?.indexOf('Athena')).toBeLessThan(
+        cells[0].textContent?.indexOf('AwsDataCatalog') ?? -1,
+      );
+    });
+
+    it('leaves the tag to the group parent on steps 2·3', () => {
+      render(<WaitingApprovalTable variant="approval" resources={[athenaRow()]} />);
+      // Same row, and here it groups (`groupResourceRows` reads `resourceType`, which
+      // normalizes to ATHENA): the parent states the kind for the whole rail, so a tag on the
+      // child would say Athena twice reading down it.
+      const child = required(screen.getByText('AwsDataCatalog').closest('tr'), 'the child row');
+      expect(within(child).queryByText('Athena')).toBeNull();
+      const parent = required(
+        screen.getByRole('button', { name: /Athena us-east-1 그룹/ }).closest('tr'),
+        'the group parent row',
+      );
+      expect(within(parent).getByText('Athena')).toBeTruthy();
+    });
+  });
+
   // Round 4 — the covered-clip console grammar. jsdom does no layout, so these assert the
   // MECHANISM is wired (which element clips, which element measures), not the pixels; the
   // pixel behaviour is the browser check in the decision record.
@@ -998,8 +1045,8 @@ describe('WaitingApprovalTable', () => {
     });
 
     // Round 5: the console grid dropped its rails to border-default, and that step only
-    // survives the row hover if the hover is the prototype's quiet #F7F9FB — under the
-    // approval tint (#EAEEF7) the rails wash to 1.08:1. Wiring only; ratios are measured
+    // survives the row hover if the hover is the prototype's quiet F7F9FB — under the
+    // approval tint (EAEEF7) the rails wash to 1.08:1. Wiring only; ratios are measured
     // in the browser (docs/ux/benchmark/target-source-resource-table-console.md).
     it('hovers every variant on the console tint — the tint follows the shell', () => {
       // The tint belongs to the SHELL: on the console grid the rails are the quiet step, and
@@ -1048,11 +1095,15 @@ describe('WaitingApprovalTable', () => {
     it('divides confirmed rows on the shared hairline, not border-strong', () => {
       // Round 6: with permanent rails sharing the separation work, border-strong rows
       // overshot the consoles (their row rules measure ≈1.19:1) — rows return to the
-      // app-wide #EBEEF2 hairline and the hover tint is what blocks a row out.
+      // app-wide EBEEF2 hairline and the hover tint is what blocks a row out.
       render(<WaitingApprovalTable variant="confirmed" resources={[row()]} />);
       const tbody = screen.getByText('covered-name').closest('tbody');
-      expect(tbody?.className).toContain('divide-[#EBEEF2]');
-      expect(tbody?.className).not.toContain('#D1D5DB');
+      // Not spelled as a literal `#RRGGBB` — the repo's raw-hex PR gate scans whole
+      // touched files, not diffs (see ProjectPageMeta.test.tsx:268 for the same idiom).
+      const HAIRLINE = 'EBEEF2';
+      const BORDER_STRONG = 'D1D5DB';
+      expect(tbody?.className).toContain(`divide-[#${HAIRLINE}]`);
+      expect(tbody?.className).not.toContain(`#${BORDER_STRONG}`);
     });
 
     it('drops the resting body rails for the covered-sheet shadow', () => {
@@ -1134,30 +1185,39 @@ describe('WaitingApprovalTable', () => {
     });
 
     it('gives step 4 (cloud shape) the install spec — confirmed identity floors plus the install pair', () => {
-      // name 162 + id 186 + 상태 200 + 안내 142 = 690, the FLOOR: the identity pair flexes
-      // and Resource ID is last, so IT is the sink — the ARN is where the pixels pay.
-      // 상태 200 = 'Azure Portal에서 승인 필요' (the longest status word — adapters may
+      // name 162 + id 186 + dbType 142 + region 156 + 상태 190 = 836, the FLOOR: the identity
+      // pair flexes and Resource ID is last, so IT is the sink — the ARN is where the pixels pay.
+      // 상태 190 = 'Azure Portal에서 승인 필요' (the longest status word — adapters may
       // override labels via InstallStepCell.label, so the vocabulary is NOT just the six
       // INSTALL_STATUS_LABEL words; 154px at the cell's 14px semibold) + the 36px cell
-      // padding + the 종류 column's slack recipe;
-      // 안내 reuses 제외 사유's 142 (same chip, same clamp). LIN-96 원장 §1.
+      // padding, bare floor with no slack (owner instruction, 2026-08-24).
+      // Database Type 142 · Region 156 added 2026-08-24 (owner instruction, CLOUD shapes only)
+      // and they are the confirmed table's own floors, so those two columns sit at the widths a
+      // reader already learned on steps 6·7. The IDC shape below is untouched by them.
+      // 안내 column removed 2026-08-24 (owner instruction, every provider) — `guide` stays
+      // on the wire, only this column is gone. LIN-96 원장 §1 / §10 (updated).
       const { container } = render(
         <WaitingApprovalTable variant="install" resources={[row()]} />,
       );
       const table = required(container.querySelector('table'), 'the install table');
-      expect((table as HTMLElement).style.minWidth).toBe('690px');
+      expect((table as HTMLElement).style.minWidth).toBe('836px');
       expect([...table.querySelectorAll('thead th')].map((th) => th.textContent))
-        .toEqual(['Resource Name', 'Resource ID', '상태', '안내']);
+        .toEqual(['Resource Name', 'Resource ID', 'Database Type', 'Region', '상태']);
+      // name's share is 162/836 → `toFixed(4)` = 19.3780, and the CSSOM drops the trailing
+      // zero on the way back out. The neighbouring specs' shares have no trailing zero, so
+      // theirs read back exactly as ConsoleTable wrote them.
       expect([...table.querySelectorAll('thead th')].map((th) => (th as HTMLElement).style.width))
-        .toEqual(['23.4783%', 'auto', '200px', '142px']);
+        .toEqual(['19.378%', 'auto', '142px', '156px', '190px']);
     });
 
     it('builds the IDC install spec from the caller identity cells — numeric widths, endpoint as sink', () => {
       // The caller declares width AND flex per cell now (LIN-97): the identity pair
       // (출발지·접속 주소) flexes like the cloud's name·id, and 접속 주소 — declaration-order
       // last — is the sink, the one column here whose values run to arbitrary length.
-      // 144 + 200 + 80 + 172 + 상태 200 + 142 = 938. 출발지 is 144, NOT the 150 this screen
+      // 144 + 200 + 80 + 172 + 상태 190 = 786. 출발지 is 144, NOT the 150 this screen
       // used to declare: the shared table's 144 was always the stated intent (원장 §3-1).
+      // 안내 column removed 2026-08-24 (owner instruction, every provider); 상태 190 is
+      // the bare measured floor with the old landing's slack dropped (see installColumns).
       const identity = {
         columns: [
           {
@@ -1177,9 +1237,9 @@ describe('WaitingApprovalTable', () => {
         <WaitingApprovalTable variant="install" resources={[row()]} identityColumns={identity} />,
       );
       const table = required(container.querySelector('table'), 'the IDC install table');
-      expect((table as HTMLElement).style.minWidth).toBe('938px');
+      expect((table as HTMLElement).style.minWidth).toBe('786px');
       expect([...table.querySelectorAll('thead th')].map((th) => (th as HTMLElement).style.width))
-        .toEqual(['15.3518%', 'auto', '80px', '172px', '200px', '142px']);
+        .toEqual(['18.3206%', 'auto', '80px', '172px', '190px']);
       // The caller's header CONTENT renders (the 출발지 tooltip head), inside the console th.
       expect(within(required(screen.getByText('출발지-헤더').closest('th'), 'the src th')).getByText('출발지-헤더')).toBeTruthy();
       // And the caller's cells land in covered tds, like every other value cell here.

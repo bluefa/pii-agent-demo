@@ -242,14 +242,24 @@ const StepResourceTable = ({
   );
   const table = useApprovalTableState(approvalRows, identityColumns?.dbTypeLabel);
   // The console table's resize instance — owned here because the storage key names the
-  // screen (LIN-97). One key serves both step-4 shapes: the identity halves are disjoint
-  // (name/id vs the IDC keys), while `status`/`guide` are deliberately the same key — same
-  // floor, same meaning, so a dragged width carrying across shapes is correct, not a leak.
+  // screen (LIN-97).
+  //
+  // A key PER SHAPE. The two shapes shared one until 2026-08-24, on the reasoning that
+  // their columns were either disjoint (name/id vs the IDC identity keys) or identical
+  // (`status`: same floor, same meaning, so a width carrying across was correct). Adding
+  // Database Type to the cloud shape broke that: both shapes now declare a `dbType`, at
+  // 142 and 172, and hydration clamps only to `MIN_COLUMN_WIDTH` — so a width dragged on
+  // one shape landed on the other BELOW its declared floor, and no floor would have caught
+  // it. Splitting costs only the `status` carry, which no user can observe: a target source
+  // is one provider, so nobody sees both shapes for the same resource.
+  //
   // Ephemeral (session-only) widths ride the flex columns, which the shapes declare
   // differently — the caller's identity cells carry their own flags.
   const resize = useColumnResize({
     clampToContent: true,
-    storageKey: 'pii:colw:v1:install-resources',
+    storageKey: identityColumns
+      ? 'pii:colw:v1:install-resources-idc'
+      : 'pii:colw:v1:install-resources-cloud',
     ephemeralKeys: identityColumns
       ? identityColumns.columns.filter((cell) => cell.flex).map((cell) => cell.key)
       : INSTALL_FLEX_KEYS,
