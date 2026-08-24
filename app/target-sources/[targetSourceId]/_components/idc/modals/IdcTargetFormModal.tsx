@@ -242,8 +242,12 @@ export const IdcTargetFormModal = ({ isOpen, initial, onSubmit, onClose }: IdcTa
 
             {mode === 'ip' ? (
               <div>
-                <label className={cn('mb-1.5 block text-[12.5px] font-medium', textColors.secondary)}>
+                <label className={cn('mb-1.5 flex items-baseline gap-1.5 text-[12.5px] font-medium', textColors.secondary)}>
                   {t.formIpLabel}
+                  {/* 규칙을 틀린 뒤가 아니라 치기 전에 말한다 — 아래 FieldError 는 같은
+                      규칙의 사후 통보이고, 이 줄은 사전 고지다. 서버도 같은 판정을 쓴다
+                      (`isValidIdcIp`, lib/constants/idc.ts). */}
+                  <span className={cn('font-normal', textColors.tertiary)}>{t.formIpHint}</span>
                 </label>
                 <div className="space-y-2">
                   {ips.map((ip, index) => (

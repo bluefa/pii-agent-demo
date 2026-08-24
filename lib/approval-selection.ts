@@ -6,20 +6,17 @@
  * 판정은 서버만의 일이라 파일을 나눈다.
  */
 import { z } from 'zod';
+// IP 판정은 입력 모달과 같은 주인을 쓴다 — 폼이 통과시킨 값을 서버가 되돌려
+// 보내면 그 자리가 곧 false positive 다.
+import { isValidIdcIp } from '@/lib/constants/idc';
 
 /** 한 요청이 실을 수 있는 행 수. 스캔 결과 규모(수백)보다 넉넉하되 무한은 아니다. */
 const MAX_RESOURCES = 500;
 /** IDC 한 행이 묶을 수 있는 IP 수. MULTIPLE_IP 실사용은 한 자릿수다. */
 const MAX_IDC_HOSTS = 32;
-const isIpv4 = (value: string): boolean => {
-  const parts = value.split('.');
-  if (parts.length !== 4) return false;
-  return parts.every((part) =>
-    /^\d{1,3}$/.test(part) && Number(part) <= 255 && String(Number(part)) === part);
-};
-
-// 라벨 하나. 밑줄/점/하이픈까지 — 상류가 받아 온 호스트명을 되돌려 보내는 경로가 있어
-// RFC 보다 한 칸 넓다.
+// 호스트명은 폼(`IDC_DOMAIN_RE`)보다 한 칸 넓게 본다: 점 없는 이름·밑줄까지 받는다.
+// 이전 요청 왕복이 폼을 거치지 않은 값을 되싣기 때문이고, 서버가 폼보다 엄격해지는
+// 순간 그 차이가 전부 false positive 가 된다.
 const HOSTNAME = /^[A-Za-z0-9]([A-Za-z0-9._-]*[A-Za-z0-9])?$/;
 
 /**
@@ -64,7 +61,7 @@ const IdcInput = z
   })
   .strict()
   .superRefine((value, ctx) => {
-    const ok = value.host_format === 'IP' ? isIpv4 : (h: string) => HOSTNAME.test(h);
+    const ok = value.host_format === 'IP' ? isValidIdcIp : (h: string) => HOSTNAME.test(h);
     for (const host of value.hosts) {
       if (!ok(host)) {
         ctx.addIssue({
