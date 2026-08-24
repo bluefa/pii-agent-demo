@@ -6,6 +6,7 @@ import {
   type ApprovalSelection,
   type EndpointInput,
   type IdcInput,
+  type ManualEc2Input,
 } from '@/lib/approval-selection';
 
 /**
@@ -37,15 +38,6 @@ type ApprovalInput = z.infer<typeof schemas.ApprovalRequestInputDto>;
 type RdsCandidate = z.infer<typeof schemas.RdsClusterInstanceCandidateDto>;
 type SelectionRow = ApprovalSelection['resources'][number];
 
-/** 정확한 instance-id 로 거는 prefix 검색 — 일치 항목은 많아야 하나다. */
-const EC2_EXACT_LOOKUP_LIMIT = 1;
-/** 한 번에 상류로 나가는 EC2 조회 수. 제출 지연을 행 수에서 떼어 놓되 상류를 몰아치지 않는다. */
-const EC2_LOOKUP_CONCURRENCY = 8;
-/**
- * 스캔이 모르는 id 를 몇 개까지 되살려 볼지. 수기 추가는 검색 모달로 한 건씩 넣는 것이라
- * 실사용은 한 자릿수다 — 이 수를 넘는 요청은 되살릴 대상이 아니라 오래된 화면이다.
- */
-const MAX_EC2_LOOKUPS = 50;
 
 export { ApprovalSelectionInput };
 export type { ApprovalSelection };
@@ -157,25 +149,6 @@ const buildFromAuthoritative = (row: SelectionRow, item: ResourceItem): Resource
   };
 };
 
-const ec2Hit = z
-  .object({
-    resource_id: z.string().nullable().optional(),
-    resource_name: z.string().nullable().optional(),
-    metadata: z
-      .object({
-        private_ip_address: z.string().nullable().optional(),
-        private_dns_name: z.string().nullable().optional(),
-      })
-      .passthrough()
-      .nullable()
-      .optional(),
-  })
-  .passthrough();
-const ec2Wire = z
-  .object({ resources: z.array(ec2Hit).nullable().optional() })
-  .passthrough();
-type Ec2Hit = z.infer<typeof ec2Hit>;
-
 /** 수기 추가 EC2 행의 wire resource_type — 이 흐름의 상수다(`manual-ec2.ts`). */
 const EC2_INSTANCE_RESOURCE_TYPE = 'AWS_EC2_INSTANCE';
 /**
@@ -185,49 +158,23 @@ const EC2_INSTANCE_RESOURCE_TYPE = 'AWS_EC2_INSTANCE';
 const EC2_INTEGRATION_CATEGORY = 'NO_INSTALL_NEEDED';
 
 /**
- * 스캔이 찾은 EC2 안에서 이 instance-id 를 집어 온다. 검색은 prefix 매칭이므로 정확한
- * id 로 걸고 정확히 일치하는 행만 받는다 — prefix 가 겹치는 다른 인스턴스가 통과하면 안 된다.
+ * 수기 추가 EC2 행. 이 갈래는 서버가 되짚지 않는다 — 인스턴스가 실재하는지, 그 주소가
+ * 맞는지는 BFF 가 막는다. 여기서 하는 일은 형식이 통과한 값을 계약 모양으로 옮기는 것뿐이고,
+ * 그래서 이 행의 metadata 는 유일하게 클라이언트가 적어 넣는 metadata 다.
  */
-const findEc2Instance = async (
-  targetSourceId: number,
-  instanceId: string,
-): Promise<Ec2Hit | undefined> => {
-  const raw = await bff.aws.searchEc2Resources(
-    targetSourceId,
-    instanceId,
-    EC2_EXACT_LOOKUP_LIMIT,
-  );
-  const parsed = ec2Wire.safeParse(raw);
-  if (!parsed.success) return undefined;
-  return (parsed.data.resources ?? []).find((item) => item.resource_id === instanceId);
-};
-
-/**
- * VM 수기 추가 행. 주소는 사용자가 고르지 않는다 — 스캔이 보고한 Private IP 이고, 추가
- * 모달에서도 읽기 전용이다. 사용자가 실제로 친 것은 DB 종류·포트·SID 뿐이라 그 셋만
- * 클라이언트에서 받는다.
- */
-const buildManualEc2 = (row: SelectionRow, hit: Ec2Hit): ResourceItem => {
-  const host = hit.metadata?.private_ip_address ?? undefined;
-  const name = hit.resource_name ?? hit.metadata?.private_dns_name ?? undefined;
-  const typed = endpointMetadata(row.endpoint);
-  return {
-    resource_id: row.resource_id,
-    ...(name ? { resource_name: name } : {}),
+const buildManualEc2 = (row: SelectionRow, manual: ManualEc2Input): ResourceItem => ({
+  resource_id: row.resource_id,
+  ...(manual.resource_name ? { resource_name: manual.resource_name } : {}),
+  resource_type: EC2_INSTANCE_RESOURCE_TYPE,
+  integration_category: EC2_INTEGRATION_CATEGORY,
+  selected: row.selected,
+  metadata: {
+    provider: 'AWS',
     resource_type: EC2_INSTANCE_RESOURCE_TYPE,
-    integration_category: EC2_INTEGRATION_CATEGORY,
-    selected: row.selected,
-    metadata: {
-      provider: 'AWS',
-      resource_type: EC2_INSTANCE_RESOURCE_TYPE,
-      ...(typed.database_type ? { database_type: typed.database_type } : {}),
-      ...(typed.port !== undefined ? { port: typed.port } : {}),
-      ...(typed.oracle_service_id ? { oracle_service_id: typed.oracle_service_id } : {}),
-      ...(host ? { host } : {}),
-    },
-    ...(!row.selected && row.exclusion_reason ? { exclusion_reason: row.exclusion_reason } : {}),
-  };
-};
+    ...endpointMetadata(row.endpoint),
+  },
+  ...(!row.selected && row.exclusion_reason ? { exclusion_reason: row.exclusion_reason } : {}),
+});
 
 const buildIdc = (row: SelectionRow, idc: IdcInput): ResourceItem => ({
   resource_id: row.resource_id,
@@ -245,28 +192,6 @@ const fail = (message: string, status: 400 | 409 = 400): ResolveResult => ({
  * 선택을 계약 본문으로 바꾼다. 상류로 나가는 모양은 `ApprovalRequestInputDto` 그대로다 —
  * 좁아진 것은 브라우저↔프론트 서버 경계뿐이고, 계약은 건드리지 않는다.
  */
-/**
- * 스캔 목록에 없는 id 를 한 번에 확인한다. 수기 추가 EC2 는 사용자가 검색 모달로 한 건씩
- * 넣는 것이라 실사용은 한 자릿수지만, 순차로 돌면 추가 개수만큼 왕복이 직렬로 쌓인다 —
- * 제출 한 번의 지연이 행 수에 비례하면 안 된다. 상류를 한꺼번에 때리지도 않도록 폭을 묶는다.
- */
-const lookupEc2Instances = async (
-  targetSourceId: number,
-  instanceIds: readonly string[],
-): Promise<Map<string, Ec2Hit>> => {
-  const found = new Map<string, Ec2Hit>();
-  for (let i = 0; i < instanceIds.length; i += EC2_LOOKUP_CONCURRENCY) {
-    const window = instanceIds.slice(i, i + EC2_LOOKUP_CONCURRENCY);
-    const hits = await Promise.all(
-      window.map((id) => findEc2Instance(targetSourceId, id)),
-    );
-    hits.forEach((hit, index) => {
-      if (hit) found.set(window[index], hit);
-    });
-  }
-  return found;
-};
-
 export const resolveApprovalInput = async (
   targetSourceId: number,
   cloudProvider: string,
@@ -296,25 +221,11 @@ export const resolveApprovalInput = async (
     if (item.resource_id) known.set(item.resource_id, item);
   }
 
-  // 스캔이 모르는 id 는 AWS 에서만 되살아날 수 있다(수기 추가 EC2). 조회는 그 목록에
-  // 대해서만, 한 번에 묶어서 돈다.
-  const unknownIds = input.resources
-    .map((row) => row.resource_id)
-    .filter((id) => !known.has(id));
-  if (unknownIds.length > MAX_EC2_LOOKUPS) {
-    return fail(
-      '연동 대상 목록이 변경되었습니다. 화면을 새로 읽고 다시 선택해 주세요.',
-      409,
-    );
-  }
-  const ec2Hits = isAwsProvider(cloudProvider) && unknownIds.length > 0
-    ? await lookupEc2Instances(targetSourceId, unknownIds)
-    : new Map<string, Ec2Hit>();
-
   const resources: ResourceItem[] = [];
   for (const row of input.resources) {
     const item = known.get(row.resource_id);
     if (item) {
+      if (row.manual_ec2) return fail('스캔이 이미 찾은 리소스입니다.');
       const candidates = item.metadata?.rds_instance_candidates ?? [];
       if (!rdsSelection(row, candidates).ok) {
         return fail('선택한 RDS 인스턴스가 이 클러스터의 멤버가 아닙니다.');
@@ -322,9 +233,10 @@ export const resolveApprovalInput = async (
       resources.push(buildFromAuthoritative(row, item));
       continue;
     }
-    const hit = ec2Hits.get(row.resource_id);
-    if (hit) {
-      resources.push(buildManualEc2(row, hit));
+    // 스캔 목록에 없는 id. 수기 추가 EC2 라고 표시된 AWS 행만 통과하고, 그 진위는 BFF 가
+    // 판정한다. 표시가 없다면 화면이 오래된 것이다 — 그 둘을 서버가 구별할 방법은 표시뿐이다.
+    if (row.manual_ec2 && isAwsProvider(cloudProvider)) {
+      resources.push(buildManualEc2(row, row.manual_ec2));
       continue;
     }
     return fail(

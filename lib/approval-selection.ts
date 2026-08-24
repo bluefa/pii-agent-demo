@@ -36,6 +36,16 @@ const EndpointInput = z
   })
   .strict();
 
+/**
+ * 수기 추가 EC2 행이 스스로 말하는 것. 이름(Private DNS)은 추가 모달이 검색 결과에서
+ * 받은 값이고, 서버가 다시 확인하지 않는다 — 이 경로의 진위는 BFF 가 막는다.
+ */
+const ManualEc2Input = z
+  .object({
+    resource_name: z.string().min(1).max(253).optional(),
+  })
+  .strict();
+
 /** IDC 한 행의 수기 입력. `idc_source_ips`/`nlb_index` 는 Step2 가 붙이므로 받지 않는다. */
 const IdcInput = z
   .object({
@@ -87,6 +97,13 @@ export const ApprovalSelectionInput = z
             selected_rds_instance_resource_id: z.string().min(1).max(512).optional(),
             /** VM 계열 수기 접속 정보. */
             endpoint: EndpointInput.optional(),
+            /**
+             * 검색해서 손으로 추가한 EC2 행이라는 표시. 스캔 목록에 없는 id 가
+             * "오래된 화면"인지 "방금 추가한 인스턴스"인지는 서버가 구별할 수 없다 —
+             * 그 갈래를 이 키가 고른다. 위조 방지 장치가 아니다(붙이면 그만이다):
+             * 이 갈래의 진위는 BFF 가 판정하고, 여기서는 형식만 본다.
+             */
+            manual_ec2: ManualEc2Input.optional(),
             /** IDC 전용. 다른 provider 에서 오면 거부된다. */
             idc: IdcInput.optional(),
           })
@@ -100,3 +117,4 @@ export const ApprovalSelectionInput = z
 export type ApprovalSelection = z.infer<typeof ApprovalSelectionInput>;
 export type EndpointInput = z.infer<typeof EndpointInput>;
 export type IdcInput = z.infer<typeof IdcInput>;
+export type ManualEc2Input = z.infer<typeof ManualEc2Input>;

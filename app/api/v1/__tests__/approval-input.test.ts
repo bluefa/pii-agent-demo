@@ -132,22 +132,15 @@ describe('RDS 멤버 선택 — 고를 수는 있어도 지어낼 수는 없다'
   });
 });
 
-describe('VM — 정체성은 스캔이 정하고, 접속 정보는 사용자가 적는다', () => {
-  const ec2Hit = {
-    resource_id: 'i-abc123',
-    resource_name: 'ip-10-10-1-24.internal',
-    metadata: { private_ip_address: '10.10.1.24', private_dns_name: 'ip-10-10-1-24.internal' },
-  };
-
-  it('스캔 목록에 없어도 EC2 검색이 확인해 주면 통과한다', async () => {
-    searchEc2.mockResolvedValue({ resources: [ec2Hit] });
-
+describe('VM — 표시가 갈래를 고르고, 진위는 BFF 가 막는다', () => {
+  it('수기 추가로 표시된 AWS 행은 스캔 목록에 없어도 통과한다', async () => {
     const result = await resolveApprovalInput(1, 'AWS', parse({
       resources: [
         {
           resource_id: 'i-abc123',
           selected: true,
-          endpoint: { port: 3306, database_type: 'MYSQL' },
+          manual_ec2: { resource_name: 'ip-10-10-1-24.internal' },
+          endpoint: { host: '10.10.1.24', port: 3306, database_type: 'MYSQL' },
         },
       ],
     }));
@@ -155,80 +148,48 @@ describe('VM — 정체성은 스캔이 정하고, 접속 정보는 사용자가
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     const [row] = result.value.resources ?? [];
+    expect(row.resource_name).toBe('ip-10-10-1-24.internal');
     expect(row.resource_type).toBe('AWS_EC2_INSTANCE');
     expect(row.integration_category).toBe('NO_INSTALL_NEEDED');
-    // 사용자가 실제로 친 것 — DB 종류·포트만 클라이언트에서 온다.
-    expect(row.metadata?.database_type).toBe('MYSQL');
+    expect(row.metadata?.host).toBe('10.10.1.24');
     expect(row.metadata?.port).toBe(3306);
-    expect(searchEc2).toHaveBeenCalledWith(1, 'i-abc123', 1);
   });
 
-  it('주소는 스캔이 보고한 Private IP 다 — 클라이언트가 보낸 host 는 쓰지 않는다', async () => {
-    searchEc2.mockResolvedValue({ resources: [ec2Hit] });
-
+  it('표시가 없으면 스캔 목록에 없는 id 는 여전히 409 다 (오래된 화면 감지)', async () => {
     const result = await resolveApprovalInput(1, 'AWS', parse({
-      resources: [
-        {
-          resource_id: 'i-abc123',
-          selected: true,
-          endpoint: { host: '10.0.0.5', port: 3306, database_type: 'MYSQL' },
-        },
-      ],
-    }));
-
-    expect(result.ok).toBe(true);
-    if (!result.ok) return;
-    expect(result.value.resources?.[0].metadata?.host).toBe('10.10.1.24');
-  });
-
-  it('prefix 만 겹치는 다른 인스턴스는 통과시키지 않는다', async () => {
-    // 검색은 prefix 매칭이다 — 'i-abc' 로 걸면 'i-abc999' 가 돌아올 수 있다.
-    searchEc2.mockResolvedValue({ resources: [{ resource_id: 'i-abc999' }] });
-
-    const result = await resolveApprovalInput(1, 'AWS', parse({
-      resources: [{ resource_id: 'i-abc', selected: true }],
-    }));
-
-    expect(result.ok).toBe(false);
-  });
-
-  it('여러 건을 추가해도 조회가 직렬로 쌓이지 않는다', async () => {
-    const ids = Array.from({ length: 12 }, (_, i) => `i-${String(i).padStart(6, '0')}`);
-    searchEc2.mockImplementation(async (_id, query) => ({
-      resources: [{ resource_id: query, metadata: { private_ip_address: '10.0.0.1' } }],
-    }));
-
-    const result = await resolveApprovalInput(1, 'AWS', parse({
-      resources: ids.map((id) => ({ resource_id: id, selected: true })),
-    }));
-
-    expect(result.ok).toBe(true);
-    expect(searchEc2).toHaveBeenCalledTimes(12);
-  });
-
-  it('스캔이 모르는 id 가 상한을 넘으면 조회하지 않고 409 로 되돌린다', async () => {
-    const many = Array.from({ length: 51 }, (_, i) => ({
-      resource_id: `i-${String(i).padStart(6, '0')}`,
-      selected: true,
-    }));
-
-    const result = await resolveApprovalInput(1, 'AWS', parse({ resources: many }));
-
-    expect(result.ok).toBe(false);
-    if (result.ok) return;
-    expect(result.failure.status).toBe(409);
-    expect(searchEc2).not.toHaveBeenCalled();
-  });
-
-  it('AWS 가 아니면 EC2 검색으로 되살리지 않는다', async () => {
-    searchEc2.mockResolvedValue({ resources: [{ resource_id: 'i-abc123' }] });
-
-    const result = await resolveApprovalInput(1, 'GCP', parse({
       resources: [{ resource_id: 'i-abc123', selected: true }],
     }));
 
     expect(result.ok).toBe(false);
-    expect(searchEc2).not.toHaveBeenCalled();
+    if (result.ok) return;
+    expect(result.failure.status).toBe(409);
+  });
+
+  it('AWS 가 아니면 수기 추가 표시를 받아 주지 않는다', async () => {
+    const result = await resolveApprovalInput(1, 'GCP', parse({
+      resources: [{ resource_id: 'i-abc123', selected: true, manual_ec2: {} }],
+    }));
+
+    expect(result.ok).toBe(false);
+  });
+
+  it('스캔이 이미 찾은 리소스에 수기 추가 표시를 붙이면 거부한다', async () => {
+    const result = await resolveApprovalInput(1, 'AWS', parse({
+      resources: [{ resource_id: 'db-1', selected: true, manual_ec2: {} }],
+    }));
+
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.failure.status).toBe(400);
+  });
+
+  it('포트는 범위만 본다 — 벗어나면 스키마가 거부한다', () => {
+    const parsed = ApprovalSelectionInput.safeParse({
+      resources: [
+        { resource_id: 'i-abc', selected: true, manual_ec2: {}, endpoint: { port: 70000 } },
+      ],
+    });
+    expect(parsed.success).toBe(false);
   });
 });
 

@@ -7,6 +7,7 @@ import type {
 } from '@/lib/types/resources';
 import type { ApprovalSelection } from '@/lib/approval-selection';
 import { getCandidateBehavior } from '@/app/target-sources/[targetSourceId]/_components/candidate/candidate-resource-behavior';
+import { isManualEc2Candidate } from '@/app/target-sources/[targetSourceId]/_components/candidate/manual-ec2';
 
 type SelectionRow = ApprovalSelection['resources'][number];
 type MetadataFields = z.infer<typeof schemas.TargetSourceResourceMetadataDto>;
@@ -85,6 +86,10 @@ export const toApprovalRequestInput = (
         resource_id: candidate.id,
         selected: false,
         ...(userReason ? { exclusion_reason: userReason } : {}),
+        // 제외된 행도 스캔 목록에는 없다. 표시가 빠지면 오래된 화면으로 읽혀 409 가 된다.
+        ...(isManualEc2Candidate(candidate)
+          ? { manual_ec2: { resource_name: candidate.resourceName } }
+          : {}),
       };
     }
     const fields = getCandidateBehavior(candidate).buildMetadataFields(candidate, drafts);
@@ -92,6 +97,11 @@ export const toApprovalRequestInput = (
     return {
       resource_id: candidate.id,
       selected: true,
+      // 스캔 목록에 없는 id 가 "방금 추가한 인스턴스"인지 "오래된 화면"인지는 서버가
+      // 구별할 수 없다 — 이 표시가 그 갈래를 고른다.
+      ...(isManualEc2Candidate(candidate)
+        ? { manual_ec2: { resource_name: candidate.resourceName } }
+        : {}),
       ...(fields.selected_rds_instance_resource_id
         ? { selected_rds_instance_resource_id: fields.selected_rds_instance_resource_id }
         : {}),

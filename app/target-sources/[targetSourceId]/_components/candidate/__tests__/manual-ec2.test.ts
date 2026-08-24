@@ -33,14 +33,23 @@ describe('manual EC2 → approval selection', () => {
     expect(() => ApprovalSelectionInput.parse(input)).not.toThrow();
   });
 
-  it('정체성과 판정은 더 이상 클라이언트가 주장하지 않는다', () => {
+  it('수기 추가 표시를 달아 보낸다 — 스캔 목록에 없는 id 의 갈래를 고르는 키다', () => {
     const candidate = toManualEc2Candidate(instance, { databaseType: 'MYSQL', port: 3306 });
     const input = toApprovalRequestInput([candidate], new Set([instance.instanceId]), drafts, {});
     const [item] = input.resources;
 
+    expect(item.manual_ec2).toEqual({ resource_name: instance.privateDnsName });
+    // 타입과 카테고리는 이 흐름의 상수라 라우트가 붙인다.
     expect(item).not.toHaveProperty('resource_type');
     expect(item).not.toHaveProperty('integration_category');
     expect(item).not.toHaveProperty('metadata');
+  });
+
+  it('체크를 푼 행에도 표시가 남는다 — 빠지면 오래된 화면으로 읽혀 409 가 된다', () => {
+    const candidate = toManualEc2Candidate(instance, { databaseType: 'MYSQL', port: 3306 });
+    const input = toApprovalRequestInput([candidate], new Set<string>(), drafts, {});
+
+    expect(input.resources[0].manual_ec2).toEqual({ resource_name: instance.privateDnsName });
   });
 
   it('SID 가 필요한 엔진에서만 SID 를 싣는다', () => {
