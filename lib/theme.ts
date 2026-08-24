@@ -534,16 +534,45 @@ export const tableRowLift = {
 } as const;
 
 export const cardStyles = {
-  /** v15 Toss card — radius 20 + 2-layer toss-shadow-sm. */
-  base: 'bg-white rounded-[20px] shadow-[0_1px_2px_rgba(17,24,39,0.04),0_4px_16px_-8px_rgba(17,24,39,0.06)]',
+  /**
+   * v15 Toss card — radius 20 + 2-layer toss-shadow-sm, and the 1px ring that gives
+   * the card an edge.
+   *
+   * The shadow alone never drew one. Its second layer carries `-8px` spread and
+   * `+4px` y, so it shrinks 8px inward before blurring and paints essentially
+   * nothing on the left and right: those sides met the canvas across a 1.095:1
+   * value step and nothing else. The service rail separates from that same canvas
+   * at 1.138:1 — the chrome was asserting itself harder than the body it frames.
+   *
+   * `ring-1`, not `border`: with `box-sizing: border-box` a border pushes the
+   * content in by 1px, and this card's text column (x=344) is pinned to the page
+   * header's. Measured: a border drifted the title to 345, a ring left it at 344.
+   *
+   * #D6DBE6 is `borderColors.card`'s value — the token that already exists for
+   * "outline for a card on the tinted canvas", measured 1.267:1 there. Repeated as
+   * a literal because a `ring-*` utility cannot take a `border-*` class.
+   */
+  base: 'bg-white rounded-[20px] ring-1 ring-[#D6DBE6] shadow-[0_1px_2px_rgba(17,24,39,0.04),0_4px_16px_-8px_rgba(17,24,39,0.06)]',
   padding: {
     none: '',
     sm: 'p-4',
     default: 'p-6',
     lg: 'p-8',
   },
-  /** v15 header — 28/28/12 padding, no base border. */
-  header: 'pt-[28px] px-[28px] pb-[12px]',
+  /**
+   * v15 header — 28/28/16 padding, and the seam under it.
+   *
+   * The card already drew a seam at its foot (`CardActionBar`'s `border-t`) and none
+   * at its head, so a three-part object showed one of its two joints. The rule is
+   * also the card's second line at its OWN box: this element spans the full card
+   * width and insets its text with padding, so `border-b` lands on 316…1572 while
+   * every other line inside the card types to the header's 344…1544 column.
+   *
+   * pb 12 → 16 so the gap reads symmetric across the rule against `body`'s
+   * `pt-[16px]`. `default`, not `light`: `light` is the #F3F4F6 the foot used, the
+   * faintest line on the page at 1.101:1 on white — a joint nobody could see.
+   */
+  header: `pt-[28px] px-[28px] pb-[16px] border-b ${borderColors.default}`,
   /** v15 card body — 16/28/28 padding. */
   body: 'pt-[16px] px-[28px] pb-[28px]',
   /** @deprecated Use cardStyles.eyebrow for the small uppercase header role. */

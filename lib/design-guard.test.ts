@@ -286,11 +286,12 @@ const nestedBlockOf = (src: string, key: string) => {
  */
 const TW_GRAY: Record<string, string> = {
   '100': '#F3F4F6',
+  '200': '#E5E7EB',
   '500': '#6B7280',
   '700': '#374151',
   '900': '#111827',
 };
-const twGray = (cls: string, prop: 'bg' | 'text') => {
+const twGray = (cls: string, prop: 'bg' | 'text' | 'border') => {
   const m = cls.match(new RegExp(`${REST}${prop}-gray-(\\d+)\\b`));
   if (!m) throw new Error(`no rest ${prop}-gray-* in "${cls}"`);
   const hex = TW_GRAY[m[1]];
@@ -788,6 +789,72 @@ describe('chip hover ring is actually wired up', () => {
 
   it.each(CHIP_EDGE_CONSUMERS)('%s carries chipEdge', (_what, src) => {
     expect(src).toContain('tableRowLift.chipEdge');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// the step card's frame: one ring at its box, one value on both its seams.
+// ---------------------------------------------------------------------------
+
+/**
+ * The card used to meet the canvas across a 1.095:1 value step and a shadow whose second
+ * layer carries -8px spread and +4px y — which paints nothing at all on the left and
+ * right. Measured on /pass/target-sources/1006: the service rail separates from that same
+ * canvas at 1.138:1, so the chrome was asserting itself harder than the body it frames,
+ * and of the 19 horizontal rules in the content column exactly one landed on the card's
+ * own box (316…1572); every other one typed to the page header's 344…1544 column.
+ *
+ * The ring draws the box. The head seam is the second line on it — `cardStyles.header`
+ * spans the full card width and insets its text with padding, so its `border-b` lands on
+ * the box for free.
+ */
+const cardBlock = blockOf('cardStyles');
+const borderBlock = blockOf('borderColors');
+const cardRing = (() => {
+  const m = classOf(cardBlock, 'base').match(new RegExp(`ring-\\[${COLOR}\\]`));
+  if (!m) throw new Error('no ring-[#…] in cardStyles.base — the card lost its edge');
+  return resolve(m[1]);
+})();
+/** Head and foot are one joint seen from two ends, so they resolve to one value. */
+const cardSeam = twGray(classOf(borderBlock, 'default'), 'border');
+
+describe('step card frame', () => {
+  it('the ring separates the card from the canvas it stands on', () => {
+    expect(contrast(cardRing, canvas)).toBeGreaterThanOrEqual(1.2);
+  });
+
+  it('the ring still reads against the white it edges', () => {
+    expect(contrast(cardRing, '#FFFFFF')).toBeGreaterThanOrEqual(1.3);
+  });
+
+  it('the body edge is louder than the chrome beside it', () => {
+    // The rail out-asserting the card on the shared canvas is the defect itself,
+    // so re-tinting either one past the other has to fail here.
+    expect(contrast(cardRing, canvas)).toBeGreaterThan(contrast(rail, canvas));
+  });
+
+  it('both card seams clear the value `light` could not', () => {
+    // `light` (#F3F4F6) reads 1.101:1 on white — fainter than every line the card's own
+    // children draw, including the table rows inside it.
+    expect(contrast(cardSeam, '#FFFFFF')).toBeGreaterThanOrEqual(1.2);
+  });
+
+  /**
+   * The WIRING, which the contrast checks above cannot see: they measure whatever colour
+   * the tokens declare, so dropping `ring-1` from the card, dropping `border-b` from its
+   * head, or letting the two seams drift back onto different tokens all leave them green.
+   */
+  it('the ring is `borderColors.card`, the token that already means this', () => {
+    expect(cardRing).toBe(borderOf(classOf(borderBlock, 'card')));
+    expect(classOf(cardBlock, 'base')).toMatch(/(?:^|\s)ring-1(?:\s|$)/);
+  });
+
+  it.each([
+    ['cardStyles.header', classOf(cardBlock, 'header'), 'border-b'],
+    ['CardActionBar', read('app/target-sources/[targetSourceId]/_components/common/CardActionBar.tsx'), 'border-t'],
+  ])('%s draws its seam on borderColors.default', (_what, src, side) => {
+    expect(src).toContain(side);
+    expect(src).toContain('borderColors.default');
   });
 });
 
