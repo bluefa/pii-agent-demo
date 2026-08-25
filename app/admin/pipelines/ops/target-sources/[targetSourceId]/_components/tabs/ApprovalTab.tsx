@@ -3,18 +3,17 @@
 /**
  * 관리자 승인 tab — the process branch this target's Step 6 exists for.
  *
- * 구조는 시안 C(근거 리포트 행, GitLab MR 위젯 문법 — docs/ux/benchmark/
- * approval-tab-report-rows.md)에서 한 걸음 더: 카드 한 장 안에 결정(헤드+CTA) ▸ 승인
- * 조건 세 행이 선다. 근거는 더 이상 따로 선 절이 아니라 그 조건을 판정한 행 자신이
- * "상세보기"로 연다 — 조건과 그 근거가 두 곳에 나뉘어 있으면 관리자가 화면을 위아래로
- * 오가며 짝을 맞춰야 했다. 펼침은 세션에 저장하지 않아 매번 접힌 채 시작한다(접힌 줄이
- * 판정을 이미 나른다).
+ * 이 탭은 판정만 한다 — 카드 한 장 안에 결정(헤드+CTA) ▸ 승인 조건 세 행. 조건마다
+ * "상세보기"가 그 조건을 판정한 근거의 탭으로 보낸다(② 연결 테스트, ③ Airflow 확인).
+ * 근거를 여기서 다시 그리지 않는 이유는 표가 두 벌이 되기 때문만이 아니다: 저 탭들은
+ * 읽기 말고 할 수 있는 일(제외 정책·Credential·재실행)도 갖고 있어서, 잠긴 조건을 풀러
+ * 가는 곳과 근거를 보러 가는 곳이 같은 화면이 된다.
  *
  * Flow: 서비스가 5단계(연결 테스트)에서 완료 승인 요청(PUT
- * …/test-connection-acknowledgment)을 보내면 Step 5 → 6 으로 넘어오고, 관리자는
- * 결과를 보고 둘 중 하나를 고른다 —
- *   재실행 요청        POST …/test-connection/reject          (서비스 단계로 되돌림)
+ * …/test-connection-acknowledgment)을 보내면 Step 5 → 6 으로 넘어오고, 관리자가 내리는
+ * 결정은 여기서 하나뿐이다 —
  *   PII Agent 설치 완료 POST …/pii-agent-installation/confirm  (연동 확정)
+ * 되돌림(재실행 요청)은 오너 지시로 이 탭에서 내렸다 (2026-08-25).
  *
  * THREE conditions gate the approve CTA (the 승인 조건 checklist states all three):
  *   ① 서비스 완료 승인 요청 (status = TEST_CONNECTION_COMPLETED)
@@ -28,39 +27,20 @@
 import { useMemo, useState, type ReactElement, type ReactNode } from 'react';
 import { cn, pipelineStyles } from '@/lib/theme';
 import { fmtDateTimeSec } from '@/lib/pipeline/format';
-import { useApiAction, useApiMutation } from '@/app/hooks/useApiMutation';
-import { useAbortableEffect } from '@/app/hooks/useAbortableEffect';
-import { normalizeCloudProvider } from '@/lib/types';
-import { isMissingConfirmedIntegrationError } from '@/lib/errors';
-import { rejectTestConnection, confirmInstallation, type TcResultRow } from '@/app/lib/api/task-queue-tc';
-import {
-  getConfirmedIntegration,
-  type ConfirmedIntegrationResourceItem,
-  type TestConnectionVersionResult,
-} from '@/app/lib/api';
-import { getApprovalRequestLatest } from '@/app/lib/api/task-queue-requests';
-import { getDagStatus } from '@/app/lib/api/ops';
-import {
-  indexConfirmedResources,
-  type ConfirmedIndex,
-} from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/agentFacts';
+import { useApiAction } from '@/app/hooks/useApiMutation';
+import { confirmInstallation, type TcResultRow } from '@/app/lib/api/task-queue-tc';
+import type { TestConnectionVersionResult } from '@/app/lib/api';
 import type { RawTargetSourceDetail } from '@/app/lib/api/pipeline-target';
 import type { TestConnectionStatusRow } from '@/lib/types/task-queue';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
-import { ModalShell } from '@/app/admin/pipelines/_components/ModalShell';
 import { Icon } from '@/app/admin/pipelines/_components/icons';
 import { usePlToast } from '@/app/admin/pipelines/_components/usePlToast';
 import { opsStyles } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/opsStyles';
-import {
-  TcRerunModal,
-  TcApproveModal,
-} from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/TcActionModals';
+import { TcApproveModal } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/TcActionModals';
 import { TcPill } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/bits';
 import {
-  orderByRequest,
   runStatus,
   tcResultStats,
-  verdictByResource,
 } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/logic';
 import {
   TC_COMPLETED,
@@ -73,15 +53,6 @@ import {
   tcRunGate,
   type DagFetch,
 } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/approvalGate';
-import { MonitoringEvidenceBody } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/MonitoringEvidenceBody';
-import { TcReviewTable } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/TcReviewTable';
-import { AgentDagTable } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/AgentDagTable';
-import { DbWeeklyBoard } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/DbWeeklyBoard';
-import { DagDetailModal } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/DagDetailModal';
-import type {
-  BoardFilter,
-  DagDbRow,
-} from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/dagBoard';
 
 const n = (value: number): string => value.toLocaleString('ko-KR');
 
@@ -100,9 +71,6 @@ function GateRow({
   suffix,
   titleHint,
   meta,
-  open,
-  onToggle,
-  children,
   onNavigate,
 }: {
   state: GateRowState;
@@ -111,11 +79,7 @@ function GateRow({
   /** Debug-tier raw value (wire vocabulary) — tooltip only, never in the copy. */
   titleHint?: string;
   meta?: string;
-  /** 근거 펼침 — children 이 있을 때만 "상세보기"가 이 자리에서 편다. */
-  open?: boolean;
-  onToggle?: () => void;
-  children?: ReactNode;
-  /** 근거가 한 화면짜리라 여기서 펼치지 않고 그 탭으로 보내는 경우. */
+  /** "상세보기" — 이 조건을 판정한 근거가 사는 탭으로 보낸다. */
   onNavigate?: () => void;
 }): ReactElement {
   const icon =
@@ -128,62 +92,36 @@ function GateRow({
     ) : (
       <span aria-hidden className="block h-4 w-4 rounded-full border-2 border-[var(--pl-border-strong)]" />
     );
-  // 닫힌 본문은 언마운트라 aria-controls 는 달지 않는다(참조가 절반의 시간 동안 허공에
-  // 뜬다 — APG disclosure: aria-expanded 만으로 적합).
-  const disclosable = children != null && onToggle != null;
   return (
-    <div>
-      <div className="flex items-start gap-2.5 px-4 py-3">
-        {/* 아이콘은 판정문 줄에 붙는다 — 두 줄 블록의 가운데로 내려오면 어느 줄을
-            판정하는 것인지 흐려진다. */}
-        <span className="mt-0.5 flex-none">{icon}</span>
-        <div className="min-w-0 flex-1">
-          <p className="text-[14px] font-medium text-[var(--pl-text-strong)]" title={titleHint}>
-            {text}
+    <div className="flex items-start gap-2.5 px-4 py-3">
+      {/* 아이콘은 판정문 줄에 붙는다 — 두 줄 블록의 가운데로 내려오면 어느 줄을
+          판정하는 것인지 흐려진다. */}
+      <span className="mt-0.5 flex-none">{icon}</span>
+      <div className="min-w-0 flex-1">
+        <p className="text-[14px] font-medium text-[var(--pl-text-strong)]" title={titleHint}>
+          {text}
+        </p>
+        {(suffix || meta) && (
+          <p className="mt-1 text-[12px] text-[var(--pl-text-weak)]">
+            {suffix}
+            {suffix && meta && ' · '}
+            {meta && <span className="tabular-nums">{meta}</span>}
           </p>
-          {(suffix || meta) && (
-            <p className="mt-1 text-[12px] text-[var(--pl-text-weak)]">
-              {suffix}
-              {suffix && meta && ' · '}
-              {meta && <span className="tabular-nums">{meta}</span>}
-            </p>
-          )}
-        </div>
-        {(disclosable || onNavigate) && (
-          <button
-            type="button"
-            aria-expanded={disclosable ? open : undefined}
-            onClick={disclosable ? onToggle : onNavigate}
-            className="mt-0.5 flex flex-none cursor-pointer items-center gap-0.5 text-[13px] font-semibold text-[var(--pl-primary)] hover:underline"
-          >
-            상세보기
-            <Icon
-              name="chev-r"
-              size={14}
-              className={cn('transition-transform', disclosable && open && 'rotate-90')}
-            />
-          </button>
         )}
       </div>
-      {disclosable && open && (
-        // 펼침 본문의 상하 여백은 비대칭(28/42) — 아래가 커야 본문 끝과 다음 행이
-        // 붙어 읽히지 않는다 (오너 08-21).
-        <div className="border-t border-[var(--pl-border)] px-4 pb-[42px] pt-7">{children}</div>
+      {onNavigate && (
+        <button
+          type="button"
+          onClick={onNavigate}
+          className="mt-0.5 flex flex-none cursor-pointer items-center gap-0.5 text-[13px] font-semibold text-[var(--pl-primary)] hover:underline"
+        >
+          상세보기
+          <Icon name="chev-r" size={14} />
+        </button>
       )}
     </div>
   );
 }
-
-/**
- * 확정 스냅샷 한 번으로 두 소비자를 먹인다 — DAG 표의 조인 index 와 검토 표의 rows.
- * phase 를 남기는 이유(리뷰 08-21): 실패를 빈 배열로 접으면 검토 표가 "확정 정보가
- * 없다"는 사실을 단정하게 된다 — 실패는 빈 결과가 아니다. DAG 표의 조인 칸은
- * 실패해도 대시로 서는 것이 설계지만, "없음"을 문장으로 말하는 쪽은 가른다.
- */
-type ConfirmedFetch =
-  | { phase: 'loading' }
-  | { phase: 'failed' }
-  | { phase: 'loaded'; index: ConfirmedIndex; rows: ConfirmedIntegrationResourceItem[] };
 
 export interface ApprovalTabProps {
   targetSourceId: number;
@@ -194,6 +132,8 @@ export interface ApprovalTabProps {
   latest: TestConnectionVersionResult | null;
   /** latest fetch 실패 (404 는 실패가 아니다) — null 이 '이력 없음'인지 '모름'인지 가른다. */
   latestFailed: boolean;
+  /** TC 세 응답이 도착했는가 — 도착 전의 null 을 '이력 없음'으로 읽지 않기 위해. */
+  tcLoaded: boolean;
   /** 리소스별 논리 DB 건수 (latest-results; fetched by the page). */
   results: readonly TcResultRow[];
   /** §10 dag-status — fetched once by the page and shared with Airflow 확인. */
@@ -212,6 +152,7 @@ export function ApprovalTab({
   status,
   latest,
   latestFailed,
+  tcLoaded,
   results,
   dag,
   onDecided,
@@ -219,11 +160,7 @@ export function ApprovalTab({
   onOpenAirflowTab,
 }: ApprovalTabProps): ReactElement {
   const toast = usePlToast();
-  const [rerunOpen, setRerunOpen] = useState(false);
   const [approveOpen, setApproveOpen] = useState(false);
-  // 조건 ② 의 근거 펼침 — 세션에 저장하지 않고 매번 접힌 채 시작한다(접힌 줄이 판정을
-  // 이미 나른다).
-  const [tcOpen, setTcOpen] = useState(false);
 
   const tcCompleted = status?.status === TC_COMPLETED;
   const isRejected = status?.status === TC_REJECTED;
@@ -231,7 +168,6 @@ export function ApprovalTab({
   // 근거 행이 나르는 판정 — 페이지가 내려준 두 응답을 여기서 접는다 (연결 테스트
   // 탭과 같은 fold 라 합계가 두 탭에서 갈라지지 않는다).
   const stats = useMemo(() => tcResultStats(results, latest), [results, latest]);
-  const verdicts = useMemo(() => verdictByResource(latest), [latest]);
   const run = runStatus(latest);
 
   // 확정 정보 조인 — DAG 표가 §10 밖에서 빌려 오는 사실(리전·DatabaseType·IDC 접속
@@ -239,58 +175,12 @@ export function ApprovalTab({
   // 게이트 ① 이전(혼동 상태)에도 서야 한다. 게이트에는 아무 영향이 없다 — 실패하면
   // 조인 칸은 대시로, 검토 표는 빈 상태 문장으로 서고 화면은 그대로 뜬다.
   // 요청 순서 조인은 연결 테스트 탭과 같은 이유(두 표를 행 단위로 대조)·같은 best-effort.
-  const [confirmed, setConfirmed] = useState<ConfirmedFetch>({ phase: 'loading' });
-  useAbortableEffect(
-    (signal) => {
-      setConfirmed({ phase: 'loading' });
-      return Promise.allSettled([
-        getConfirmedIntegration(targetSourceId, { signal }),
-        getApprovalRequestLatest(targetSourceId, { signal }),
-      ]).then(([snapshot, request]) => {
-        if (signal.aborted) return;
-        if (snapshot.status !== 'fulfilled') {
-          // 404 = 확정 전 대상(원래 없음) — 실패가 아니라 빈 스냅샷이다 (TcTab 과
-          // 같은 판별). 그 밖의 거절만 '모름'으로 남긴다.
-          setConfirmed(
-            isMissingConfirmedIntegrationError(snapshot.reason)
-              ? { phase: 'loaded', index: indexConfirmedResources([]), rows: [] }
-              : { phase: 'failed' },
-          );
-          return;
-        }
-        const infos = snapshot.value.resource_infos ?? [];
-        const order =
-          request.status === 'fulfilled'
-            ? request.value.resources.map((resource) => resource.resourceId ?? '').filter(Boolean)
-            : [];
-        setConfirmed({
-          phase: 'loaded',
-          index: indexConfirmedResources(infos),
-          rows: orderByRequest(infos, order),
-        });
-      });
-    },
-    [targetSourceId],
-  );
-
-  const isIdc = normalizeCloudProvider(detail.cloud_provider) === 'IDC';
-
   // 모니터링 판정의 집계 — 조건 ③ 줄이 읽는 한 벌(본문은 Airflow 확인 탭의 것).
   const agg = useMemo(
     () => (dag.phase === 'loaded' ? aggregateDagStatus(dag.data) : null),
     [dag],
   );
   const monHead = monitoringEvidenceHead(dag, agg);
-
-  // On failure the modal stays open and the error surfaces via the section toast.
-  const rerun = useApiMutation((reason: string) => rejectTestConnection(targetSourceId, reason), {
-    onSuccess: () => {
-      setRerunOpen(false);
-      toast.show('재실행을 요청했습니다.');
-      onDecided();
-    },
-    onError: () => toast.show('재실행 요청에 실패했습니다.'),
-  });
 
   const approve = useApiAction(() => confirmInstallation(targetSourceId), {
     onSuccess: () => {
@@ -317,7 +207,9 @@ export function ApprovalTab({
     return parts.length > 0 ? parts.join(' · ') : null;
   })();
 
-  const gate = tcRunGate(run, latest !== null, latestFailed);
+  // 도착 전에는 아무 사실도 말하지 않는다 — 로딩 중의 null 을 '이력 없음'으로 읽으면
+  // 체크리스트가 한 프레임 동안 거짓을 단정한다.
+  const gate = tcLoaded ? tcRunGate(run, latest !== null, latestFailed) : 'loading';
   const head = foldApprovalHead(status?.status, gate, dag);
 
   // 승인 조건 row ③ — the checklist carries the "why", the CTA stays unmounted.
@@ -359,6 +251,8 @@ export function ApprovalTab({
         };
       case 'open':
         return { state: 'pending', suffix: ['진행 중', tcSubtitle].filter(Boolean).join(' · ') };
+      case 'loading':
+        return { state: 'pending', suffix: '확인 중…' };
       case 'none':
         return { state: 'pending', suffix: '연결 테스트 실행 기록이 없습니다' };
       case 'error':
@@ -385,21 +279,11 @@ export function ApprovalTab({
             </h2>
             <p className={opsStyles.cardDesc}>{head.desc}</p>
           </div>
-          {(head.canRerun || head.canApprove) && (
-            <div className="flex flex-none gap-2">
-              {head.canRerun && (
-                // 경고성 outline (오너 08-21) — 이 버튼은 되돌림이다: 누르면(모달 확인
-                // 후) 서비스 단계가 뒤로 간다. 회색 secondary 로 서 있으면 "조용한
-                // 보조 동작"처럼 읽힌다.
-                <PlButton variant="danger" onClick={() => setRerunOpen(true)}>
-                  연결 테스트 재실행 요청
-                </PlButton>
-              )}
-              {head.canApprove && (
-                <PlButton variant="primary" onClick={() => setApproveOpen(true)}>
-                  PII Agent 설치 완료
-                </PlButton>
-              )}
+          {head.canApprove && (
+            <div className="flex-none">
+              <PlButton variant="primary" onClick={() => setApproveOpen(true)}>
+                PII Agent 설치 완료
+              </PlButton>
             </div>
           )}
         </div>
@@ -420,9 +304,12 @@ export function ApprovalTab({
                 state="pending"
                 text="서비스가 연결 테스트 완료 승인을 요청하면 충족됩니다"
                 // C-1 조건부 캡션 — "테스트 성공 + 미요청" 상태에서만. 강조는 굵기와
-                // 색으로 지고, 문장은 짧게 둘로 나눈다 (오너 08-20).
+                // 색으로 지고, 문장은 짧게 둘로 나눈다 (오너 08-20). 응답 도착 전에는
+                // 미요청이라고 말할 수 없어 확인 중이라고만 한다.
                 suffix={
-                  showsHandoffCaption(status?.status, run) ? (
+                  !tcLoaded ? (
+                    '확인 중…'
+                  ) : showsHandoffCaption(status?.status, run) ? (
                     <>
                       연결 테스트가 성공해도 이 조건은 자동으로 충족되지 않습니다. 서비스
                       담당자가{' '}
@@ -440,65 +327,11 @@ export function ApprovalTab({
               text="최신 연결 테스트 결과가 성공입니다"
               suffix={runRow.suffix}
               titleHint={runRow.titleHint}
-              open={tcOpen}
-              onToggle={latest !== null ? () => setTcOpen((value) => !value) : undefined}
-            >
-              {latest !== null && (
-                <>
-                  <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[12px] text-[var(--pl-text-weak)]">
-                    <span>
-                      리소스 <b className="font-semibold text-[var(--pl-text-strong)]">{n(stats.resourceCount)}</b>
-                    </span>
-                    <span>
-                      연결 성공 <b className="font-semibold text-[var(--pl-text-strong)]">{n(stats.successCount)}</b>
-                    </span>
-                    <span className={stats.failedCount > 0 ? 'text-[var(--pl-err-text)]' : undefined}>
-                      연결 실패 <b className="font-semibold">{n(stats.failedCount)}</b>
-                    </span>
-                    {stats.runningCount > 0 && (
-                      <span>
-                        진행 중 <b className="font-semibold text-[var(--pl-text-strong)]">{n(stats.runningCount)}</b>
-                      </span>
-                    )}
-                    {stats.unknownCount > 0 && (
-                      <span>
-                        알 수 없음 <b className="font-semibold text-[var(--pl-text-strong)]">{n(stats.unknownCount)}</b>
-                      </span>
-                    )}
-                    <span>
-                      연동 대상 논리 DB <b className="font-semibold text-[var(--pl-text-strong)]">{n(stats.includedTotal)}</b>
-                    </span>
-                    <span>
-                      연동 제외 <b className="font-semibold text-[var(--pl-text-strong)]">{n(stats.excludedTotal)}</b>
-                    </span>
-                    {/* 읽기는 여기서, 쓰기는 저 탭에서 — 경계가 문장이 아니라 동선에 있다. */}
-                    <button
-                      type="button"
-                      onClick={onOpenTcTab}
-                      className="ml-auto cursor-pointer whitespace-nowrap text-[12px] font-semibold text-[var(--pl-primary)] hover:underline"
-                    >
-                      연결 테스트 탭에서 관리
-                    </button>
-                  </div>
-                  <div className="mt-2.5">
-                    <TcReviewTable
-                      targetSourceId={targetSourceId}
-                      isIdc={isIdc}
-                      snapshotPhase={confirmed.phase}
-                      rows={confirmed.phase === 'loaded' ? confirmed.rows : []}
-                      tcResults={results}
-                      verdicts={verdicts}
-                    />
-                  </div>
-                  <p className="mt-2.5 text-[12px] text-[var(--pl-text-weak)]">
-                    개수를 클릭하면 읽기 전용 논리 DB 목록이 열립니다. 제외 정책·Credential
-                    배정·재실행은 연결 테스트 탭에서 관리합니다.
-                  </p>
-                </>
-              )}
-            </GateRow>
-            {/* 조건 ③ 의 근거는 표 하나로 끝나지 않아 그 자리에서 펼치지 않는다 — 주간
-                보드·DAG 상세까지 딸린 한 화면이라 Airflow 확인 탭이 통째로 갖는다. */}
+              onNavigate={onOpenTcTab}
+            />
+            {/* 근거는 어느 조건도 이 자리에서 펼치지 않는다 — 판정을 만든 화면이 이미
+                따로 있고, 그 화면은 읽기 말고 할 수 있는 일(제외 정책·Credential·재실행)도
+                갖고 있다. 여기서 한 번 더 그리면 같은 표가 두 벌이 된다. */}
             <GateRow
               state={healthRow.state}
               text="모니터링 헬스가 HEALTHY 상태입니다"
@@ -526,15 +359,6 @@ export function ApprovalTab({
           </div>
         )}
       </section>
-
-      <TcRerunModal
-        key={rerunOpen ? 'rerun-open' : 'rerun-closed'}
-        open={rerunOpen}
-        onClose={() => setRerunOpen(false)}
-        targetSourceId={targetSourceId}
-        onSubmit={(reason) => void rerun.mutate(reason)}
-        submitting={rerun.loading}
-      />
 
       <TcApproveModal
         open={approveOpen}

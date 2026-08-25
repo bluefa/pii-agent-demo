@@ -411,6 +411,7 @@ export function OpsTargetView({ targetSourceId, initialTab }: OpsTargetViewProps
               status={tcStatus}
               latest={tcLatest}
               latestFailed={tcLatestFailed}
+              tcLoaded={tcLoaded}
               results={tcResults}
               dag={dag}
               onDecided={retry}

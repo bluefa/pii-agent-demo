@@ -7,9 +7,8 @@
  *   ③ monitoring health is HEALTHY — by ALLOWLIST (`=== 'HEALTHY'`), so loading,
  *     fetch failure, and enum values we have not seen all LOCK instead of passing.
  *
- * 재실행 요청 stays mounted whenever ① holds: on UNHEALTHY it is the operator's
- * only exit, but nothing here claims a rerun fixes health — the contract does
- * not say that.
+ * 잠긴 조건을 푸는 동작은 이 탭에 없다 — 연결 테스트의 재실행도, 헬스의 복구도 각자의
+ * 탭이 가진다. 여기서 나오는 것은 판정과 그 판정을 만든 근거로 가는 길뿐이다.
  */
 import type { DagDatabaseStatus, DagStatusResponse } from '@/lib/types/dag-status';
 import type { TcExecutionStatus } from '@/app/lib/api/task-queue-tc';
@@ -47,6 +46,8 @@ export const healthVerdict = (healthStatus: string): HealthVerdict =>
 export type TcRunGate =
   | 'success'
   | 'failed'
+  /** 아직 답이 안 왔다 — '이력 없음'이라고 말해 버리기 전의 자리. */
+  | 'loading'
   /** PENDING · RUNNING — 아직 끝나지 않은 실행. */
   | 'open'
   /** 실행 이력 없음 (404). */
@@ -74,10 +75,8 @@ export function tcRunGate(run: TcExecutionStatus, hasLatest: boolean, latestFail
 export interface ApprovalHead {
   pill: { tone: TcTone; label: string };
   desc: string;
-  /** Mounts PII Agent 설치 완료 — true on exactly one state: TC 완료 ∧ HEALTHY. */
+  /** Mounts PII Agent 설치 완료 — true on exactly one state: 세 조건이 모두 충족. */
   canApprove: boolean;
-  /** Mounts 재실행 요청 — true whenever TC 완료 (the escape stays open). */
-  canRerun: boolean;
 }
 
 export function foldApprovalHead(
@@ -90,7 +89,6 @@ export function foldApprovalHead(
       pill: { tone: 'warn', label: '재실행 요청됨' },
       desc: '재실행을 요청했습니다. 서비스가 다시 완료 승인을 요청하면 처리할 수 있습니다.',
       canApprove: false,
-      canRerun: false,
     };
   }
   if (tcStatus !== TC_COMPLETED) {
@@ -100,11 +98,9 @@ export function foldApprovalHead(
       pill: { tone: 'off', label: '완료 승인 대기' },
       desc: '서비스가 5단계에서 완료 승인을 요청하면 처리할 수 있습니다.',
       canApprove: false,
-      canRerun: false,
     };
   }
-  // 조건 ② — 최신 실행이 성공이라고 말할 때만 다음 조건으로 넘어간다. 재실행 요청은
-  // 여기서도 유일한 탈출구라 계속 서 있다.
+  // 조건 ② — 최신 실행이 성공이라고 말할 때만 다음 조건으로 넘어간다.
   switch (run) {
     case 'success':
       break;
@@ -113,35 +109,36 @@ export function foldApprovalHead(
         pill: { tone: 'err', label: '승인 불가' },
         desc: '최신 연결 테스트가 실패했어요 — 설치 완료를 처리할 수 없어요.',
         canApprove: false,
-        canRerun: true,
       };
     case 'open':
       return {
         pill: { tone: 'off', label: '테스트 진행 중' },
         desc: '연결 테스트가 아직 끝나지 않았어요.',
         canApprove: false,
-        canRerun: true,
+      };
+    case 'loading':
+      return {
+        pill: { tone: 'off', label: '결과 확인 중' },
+        desc: '연결 테스트 결과를 확인하고 있어요.',
+        canApprove: false,
       };
     case 'none':
       return {
         pill: { tone: 'off', label: '결과 없음' },
         desc: '연결 테스트 실행 기록이 없어 설치 완료를 처리할 수 없어요.',
         canApprove: false,
-        canRerun: true,
       };
     case 'error':
       return {
         pill: { tone: 'err', label: '확인 실패' },
         desc: '연결 테스트 결과를 확인하지 못했어요.',
         canApprove: false,
-        canRerun: true,
       };
     case 'unknown':
       return {
         pill: { tone: 'off', label: '미확인' },
         desc: '연결 테스트 결과를 판정할 수 없어 설치 완료를 처리할 수 없어요.',
         canApprove: false,
-        canRerun: true,
       };
   }
   switch (dag.phase) {
@@ -150,14 +147,12 @@ export function foldApprovalHead(
         pill: { tone: 'off', label: '헬스 확인 중' },
         desc: '모니터링 상태를 확인하고 있어요.',
         canApprove: false,
-        canRerun: true,
       };
     case 'failed':
       return {
         pill: { tone: 'err', label: '확인 실패' },
         desc: '모니터링 상태를 확인하지 못했어요.',
         canApprove: false,
-        canRerun: true,
       };
     case 'loaded': {
       const verdict = healthVerdict(dag.data.healthStatus);
@@ -165,16 +160,14 @@ export function foldApprovalHead(
         case 'healthy':
           return {
             pill: { tone: 'ok', label: '처리 대기' },
-            desc: 'Test Connection 결과를 확인한 뒤 재실행을 요청하거나 설치를 완료 처리하세요.',
+            desc: '세 조건이 모두 충족됐어요 — 설치를 완료 처리할 수 있어요.',
             canApprove: true,
-            canRerun: true,
           };
         case 'unhealthy':
           return {
             pill: { tone: 'err', label: '승인 불가' },
             desc: '모니터링이 UNHEALTHY 상태예요 — 설치 완료를 처리할 수 없어요.',
             canApprove: false,
-            canRerun: true,
           };
         case 'unknown':
           // Wire vocabulary (enum raw, field name) never rides in sentence-tier
@@ -183,7 +176,6 @@ export function foldApprovalHead(
             pill: { tone: 'off', label: '미확인' },
             desc: '모니터링 상태를 판정할 수 없어 설치 완료를 처리할 수 없어요.',
             canApprove: false,
-            canRerun: true,
           };
       }
     }
