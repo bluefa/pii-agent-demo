@@ -14,12 +14,17 @@ interface CardActionBarProps {
  * (sticky) while a long card scrolls. Mount as the LAST child of the card
  * <section> — outside the padded body — and drop `overflow-hidden` from the
  * host section, which would otherwise break position: sticky.
+ *
+ * `default`, not `light`: this rule and `cardStyles.header`'s are the same joint
+ * seen from two ends, so they carry one value. `light` (#F3F4F6) measured 1.101:1
+ * on white — fainter than any other line in the card, including the ones its own
+ * children draw.
  */
 export const CardActionBar = ({ hint, children }: CardActionBarProps) => (
   <div
     className={cn(
       'sticky bottom-0 z-10 flex items-center justify-end gap-2 rounded-b-[20px] border-t px-[28px] py-[14px]',
-      borderColors.light,
+      borderColors.default,
       bgColors.surface,
     )}
   >
