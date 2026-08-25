@@ -44,6 +44,8 @@ import { getDatabaseShortLabel } from '@/app/components/ui/DatabaseIcon';
 import { ConsoleTable, type ConsoleTableColumn } from '@/app/components/ui/ConsoleTable';
 import { useColumnResize } from '@/app/components/ui/useColumnResize';
 import { Pagination } from '@/app/components/ui/Pagination';
+import { SortCaretIcon } from '@/app/components/ui/icons';
+import { CONNECTED_FRAME } from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalTable';
 import type { DagStatusResponse } from '@/lib/types/dag-status';
 import {
   Dash,
@@ -65,11 +67,14 @@ const CELL = cn(idcStyles.table.approvalCell, 'align-middle text-[14px] text-[va
 const CLIP_CELL = cn(CELL, idcStyles.table.consoleCell);
 
 /**
- * Step 1 표의 본문 래퍼 그대로 — 무윤곽 흰 판, 행 높이는 `approvalCell` 의 py-4 에서
- * 한 단 올린 py-5 (오너 지시로 Step 1 이 그렇게 서 있다). `:not([colspan])` 가드는
- * 스팬 셀(빈 상태 줄)이 이 선택자에 걸리지 않게 한다.
+ * Step 1 표의 본문 래퍼 **그대로** — 클래스를 베끼지 않고 그 표가 쓰는 상수를 그대로
+ * 가져온다(`CONNECTED_FRAME`). 같아야 하는 것이 값이 아니라 정체라, Step 1 이 그 판을
+ * 바꾸는 날 이 표도 같이 움직여야 한다.
+ *
+ * 얹는 것은 행 높이 하나뿐 — `approvalCell` 의 py-4 에서 한 단 올린 py-5 (Step 1 이 그렇게
+ * 서 있다). `:not([colspan])` 가드는 스팬 셀(빈 상태 줄)이 이 선택자에 걸리지 않게 한다.
  */
-const TABLE_BODY = cn('overflow-hidden bg-white', '[&_td:not([colspan])]:py-5');
+const TABLE_BODY = cn(CONNECTED_FRAME, '[&_td:not([colspan])]:py-5');
 
 /**
  * 열 폭. flex 는 Resource ID 하나뿐이다 — 셸의 싱크(남는 폭을 흡수하는 열)는 마지막 flex
@@ -91,18 +96,6 @@ type StatusSort = null | 'attention' | 'ok';
 const TONE_RANK: Record<string, number> = { err: 0, warn: 1, off: 2, ok: 3 };
 
 const sortRank = (agent: DagAgentSummary): number => TONE_RANK[agentVerdict(agent).tone] ?? 2;
-
-/** 정렬 글리프 — 활성 방향만 진하고 나머지는 흐리다(둘 다 흐리면 미정렬). */
-function SortCaret({ sort }: { sort: StatusSort }): ReactElement {
-  const on = 'fill-[var(--pl-text-strong)]';
-  const off = 'fill-[var(--pl-text-faint)]';
-  return (
-    <svg width={8} height={12} viewBox="0 0 8 12" aria-hidden focusable="false" className="flex-none">
-      <path d="M4 1 7 5H1z" className={sort === 'attention' ? on : off} />
-      <path d="M4 11 1 7h6z" className={sort === 'ok' ? on : off} />
-    </svg>
-  );
-}
 
 export interface AgentDagTableProps {
   data: DagStatusResponse;
@@ -224,7 +217,12 @@ export function AgentDagTable({
           className="inline-flex cursor-pointer items-center gap-1.5 align-bottom"
         >
           Monitoring 상태
-          <SortCaret sort={sort} />
+          {/* 이 열의 두 방향을 글리프의 두 방향에 맞춘다 — 확인 필요가 위로 오는 정렬이
+              위 삼각형이다. 색은 currentColor 라 머리글 라벨과 한 잉크로 읽힌다. */}
+          <SortCaretIcon
+            className="flex-none"
+            active={sort === null ? null : sort === 'attention' ? 'asc' : 'desc'}
+          />
         </button>
       ),
     },

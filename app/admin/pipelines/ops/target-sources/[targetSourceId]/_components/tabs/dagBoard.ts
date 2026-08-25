@@ -55,11 +55,13 @@ export const flattenDagRows = (data: DagStatusResponse): DagDbRow[] =>
  */
 export const ATTENTION_BUCKETS = ['failed', 'unscheduled'] as const;
 
+type AttentionBucket = (typeof ATTENTION_BUCKETS)[number];
+
 export const isAttentionBucket = (bucket: DbBucket): boolean =>
-  (ATTENTION_BUCKETS as readonly DbBucket[]).includes(bucket);
+  ATTENTION_BUCKETS.some((attention) => attention === bucket);
 
 /** 확인 필요 합계 — 요약 카운트 줄과 보드 칩이 같은 셈을 쓰게 하는 한 곳. */
-export const attentionCount = (counts: Record<(typeof ATTENTION_BUCKETS)[number], number>): number =>
+export const attentionCount = (counts: Record<AttentionBucket, number>): number =>
   ATTENTION_BUCKETS.reduce((sum, bucket) => sum + counts[bucket], 0);
 
 export type BoardFilter = DbBucket | 'attention' | 'ALL';

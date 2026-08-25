@@ -17,6 +17,7 @@ import { useAbortableEffect } from '@/app/hooks/useAbortableEffect';
 import { useModal } from '@/app/hooks/useModal';
 import { getConfirmedIntegration } from '@/app/lib/api';
 import { ModalShell } from '@/app/admin/pipelines/_components/ModalShell';
+import { ComposerIcon } from '@/app/components/ui/icons';
 import { opsStyles } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/opsStyles';
 import {
   indexConfirmedResources,
@@ -58,35 +59,6 @@ const verdictSentence = (dag: DagFetch): string => {
       return '모니터링 상태를 판정할 수 없어요.';
   }
 };
-
-/**
- * Cloud Composer 제품 아이콘 — 이 화면이 보는 DAG 를 실제로 도는 것이 Composer 다.
- *
- * 인라인이다. `public/icons/*.svg` + `<img src="/icons/…">` 가 이 앱의 브랜드 에셋 문법
- * 이지만, 앱이 `basePath: '/pass'` 아래 있고 맨 `<img src>` 는 basePath 를 타지 않아
- * 그대로 404 다(실측 — `/icons/gcp.svg` 404, `/pass/icons/gcp.svg` 200. 같은 이유로
- * `AzureServiceIcon` 도 지금 깨져 있다. 이 탭 밖의 문제라 손대지 않았다).
- *
- * ⏳ **공식 마크가 아니다** — 오너가 GCP 아이콘 세트의 실물을 주면 아래 path 를 그것으로
- * 갈아 끼운다. 지금 것은 Google Cloud 제품 아이콘의 팔레트(#4285F4 · #669DF6)와 24 그리드를
- * 따른 오케스트레이션(삼각 DAG) 근사치다.
- */
-function ComposerIcon(): ReactElement {
-  return (
-    <svg width={18} height={18} viewBox="0 0 24 24" aria-hidden focusable="false" className="flex-none">
-      <path
-        d="M10.31 7.95 7.09 13.55M13.69 7.95l3.22 5.6M8.8 16.5h6.4"
-        fill="none"
-        stroke="#669DF6"
-        strokeWidth={1.8}
-        strokeLinecap="round"
-      />
-      <circle cx="12" cy="5" r="2.6" fill="#4285F4" />
-      <circle cx="5.4" cy="16.5" r="2.6" fill="#669DF6" />
-      <circle cx="18.6" cy="16.5" r="2.6" fill="#669DF6" />
-    </svg>
-  );
-}
 
 export interface AirflowTabProps {
   targetSourceId: number;
@@ -140,7 +112,7 @@ export function AirflowTab({ targetSourceId, isIdc, dag }: AirflowTabProps): Rea
         <div className="flex items-start justify-between gap-4">
           <div>
             <h2 className={cn(opsStyles.cardTitle, 'flex items-center gap-2')}>
-              <ComposerIcon />
+              <ComposerIcon className="flex-none" />
               Airflow 확인
               <TcPill tone={head.pill.tone} label={head.pill.label} />
             </h2>
