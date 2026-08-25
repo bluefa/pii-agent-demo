@@ -206,6 +206,38 @@ const currentRailTitle = () => {
     ?.textContent;
 };
 
+/**
+ * 레일 항목이 두 줄이라는 사실 자체를 잰다. 잘림은 렌더된 글자로는 안 보이고
+ * (textContent 는 잘리기 전 문자열 그대로다) 실측으로만 드러났다 — 224px 레일에서
+ * 제목 상자 122px 에 169px 짜리 라벨이 들어가 「서비스 측 Terrafor…」로 끊겼고,
+ * 이 레일에 Terraform 이 셋이라 어느 것인지 말하지 못했다. 그래서 여기서는 클래스를
+ * 본다: `truncate` 가 다시 붙으면 화면은 조용히 예전으로 돌아가고 다른 어떤 단언도
+ * 깨지지 않는다.
+ */
+describe('InstallStatusDetail 그룹 레일 — 제목은 잘리지 않는다', () => {
+  const railButton = (name: RegExp) =>
+    within(screen.getByRole('navigation', { name: '설치 단계' })).getByRole('button', { name });
+
+  it('제목은 잘리는 대신 감긴다', () => {
+    renderGrouped('IN_PROGRESS');
+
+    const title = within(railButton(/서비스 측 Terraform 적용/)).getByText('서비스 측 Terraform 적용');
+    expect(title.className).not.toContain('truncate');
+    expect(title.className).toContain('break-keep');
+  });
+
+  it('상태는 제목과 다른 줄에 선다 — 제목이 한 줄을 독점한다', () => {
+    renderGrouped('IN_PROGRESS');
+
+    const button = railButton(/서비스 측 Terraform 적용/);
+    const title = within(button).getByText('서비스 측 Terraform 적용');
+    const status = within(button).getByText('진행중');
+    // 같은 줄이면 상태가 제목의 형제로 같은 flex row 에 있다. 두 줄이면 아니다.
+    expect(status.parentElement).toBe(button);
+    expect(title.parentElement).not.toBe(button);
+  });
+});
+
 describe('InstallStatusDetail 그룹 레일 — 손댈 수 없는 할 일', () => {
   it('전부 BDC 대기인 할 일을 카운트에서 빼되 완료라 부르지 않는다', () => {
     renderGrouped('BDC_INSTALL_REQUIRED');

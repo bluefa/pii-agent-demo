@@ -546,6 +546,15 @@ export const cardStyles = {
   header: 'pt-[28px] px-[28px] pb-[12px]',
   /** v15 card body — 16/28/28 padding. */
   body: 'pt-[16px] px-[28px] pb-[28px]',
+  /**
+   * `body` 의 좌우·아래 패딩을 되돌린다 — 카드의 가장자리까지 닿아야 하는 마지막
+   * 자식에게만. 4단계 설치 화면의 좌측 레일이 유일한 소비자다: 회색 열이 카드 안쪽에
+   * 떠 있으면 "카드 위에 놓인 판"이고, 카드 모서리까지 흐르면 "카드의 왼쪽 열"이 된다.
+   *
+   * ⚠️ `body` 와 같은 값을 반대 부호로 적은 것이므로 둘은 한 몸이다. 패딩을 바꾸면
+   * 여기도 같이 바꿀 것. 부모 카드에 `overflow-hidden` 이 있어야 라운드가 자른다.
+   */
+  bodyBleed: '-mx-[28px] -mb-[28px]',
   /** @deprecated Use cardStyles.eyebrow for the small uppercase header role. */
   title: 'text-sm font-semibold text-gray-500 uppercase tracking-wide',
   /** Small uppercase header above a card display title (ADR-014 card-eyebrow). */

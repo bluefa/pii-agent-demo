@@ -4,6 +4,7 @@ import { useMemo, useState, type ReactNode } from 'react';
 import {
   bgColors,
   borderColors,
+  cardStyles,
   cn,
   primaryColors,
   serviceSidebarStyles,
@@ -674,15 +675,39 @@ export const InstallStatusDetail = ({
   const naWithoutGuides =
     activeAggregate?.kind === 'na' && rows.every((row) => !row.cell.guide);
 
-  // Right-pane header/body — shared by both layouts (grouped / legacy).
-  const paneHead = (
+  /**
+   * Right-pane header/body — shared by both layouts (grouped / legacy).
+   *
+   * `compact` 는 그룹 레일(카드와 한 몸인 배치)에서만 켠다. 그 배치에서 이 머리는
+   * 16/700 제목 + 12px 설명 + 우측 태그 열 + 폭 전체 1px 헤어라인이었는데, 정작
+   * 바깥 카드 머리(20/800 제목 + 안내문)에는 태그 열도 구분선도 없다. 크기는 한 단
+   * 낮은데 **구성이 더 완전해서**, 안쪽이 독립한 카드로 읽혔다 — 카드를 만드는 것은
+   * 테두리가 아니라 제목 → 구분선 → 본문이라는 배치다(오너 지적, Atlassian elevation:
+   * "use whitespace or borders instead", "don't use raised to group content").
+   * 프레임 테두리를 지운 앞 라운드는 결과를 지웠고 원인은 남겨 뒀다.
+   *
+   * 그래서 제목을 12/700 섹션 라벨로 내린다. 단계 이름은 이제 레일의 선택 항목이
+   * 소유한다(Cloudscape details pattern: 선택 장치가 이름을 갖고 내용은 다시 쓰지
+   * 않는다). legacy 배치는 여전히 테두리 있는 프레임 안이라 제목이 필요하다 — 끄지 않는다.
+   */
+  const paneHead = (compact: boolean) => (
     <div className="flex items-start justify-between gap-3">
       {/* title↔subtitle = tight 4px */}
       <div className={cn('min-w-0 flex flex-col', stackGap.tight)}>
-        <h3 className={cn(textStyles.cardTitle, textColors.primary)}>{active.title}</h3>
+        {compact ? (
+          // 12/700 + tracking — 같은 화면의 조치 항목(ActionItem)·원인 블록이 이미
+          // 쓰는 라벨 값이다. 크기가 같아진 만큼 라벨과 설명은 잉크·굵기 두 레버로
+          // 갈린다: primary/700 vs tertiary/400. secondary 로 두었더니 두 12px 줄이
+          // 한 계층으로 뭉쳐 읽혔다.
+          <h3 className={cn('text-[12px] font-bold tracking-[0.02em]', textColors.primary)}>
+            {active.title}
+          </h3>
+        ) : (
+          <h3 className={cn(textStyles.cardTitle, textColors.primary)}>{active.title}</h3>
+        )}
         {/* 폭 캡 없음 — 단계 설명은 전부 한 문장이라, 판이 허용하는 만큼 한 줄로
             선다(오너 요구: "리소스별 Private Endpoint …" 줄바꿈 금지). */}
-        <p className={cn(textStyles.caption, textColors.secondary)}>
+        <p className={cn(textStyles.caption, compact ? textColors.tertiary : textColors.secondary)}>
           {active.desc}
         </p>
         {/* 역참조 한 줄 — 참고 항목이 이 단계를 가리키는 만큼, 이 단계도 참고 항목을
@@ -743,9 +768,19 @@ export const InstallStatusDetail = ({
     // 선택은 서비스 목록 rail 의 "현재 위치" 문법(rowCurrent: 보라 틴트 + 우측 2px 바)
     // 그대로다 — 흰 pill + 헤어라인은 회색 판 위에서 눌린 티가 나지 않았다(오너 지적).
     // 바가 라운드를 뚫지 않도록 overflow-hidden.
+    //
+    // 두 줄이다 — 제목이 한 줄을 독점하고 상태는 그 아래로 내려간다. 한 줄에 세 열
+    // ([순번][제목][상태])을 224px 에 넣으면 순번·상태가 flex-shrink-0 이라 줄어드는
+    // 것이 제목뿐이었고, 실측으로 제목 상자가 122.2px 인데 「서비스 측 Terraform 자동
+    // 적용」이 169.3px 라 47px(28%)가 잘렸다. 하필 이 레일에 Terraform 이 셋이라
+    // (권한 부여 확인 / 자동 적용 / Script) 잘린 라벨이 어느 것인지 말하지 못했다.
+    // 두 줄이면 제목 상자가 186px 로 열려 지금 라벨이 문구를 안 고쳐도 들어간다.
+    //
+    // 새 모양이 아니다: Azure·GCP·IDC 가 쓰는 아래 legacy 레일이 이미 제목 한 줄 +
+    // 상태 한 줄이다. 그룹 레일만 3열 한 줄로 갈라져 있었다.
     const railItemClass = (isActive: boolean) =>
       cn(
-        'flex items-baseline gap-2 w-full text-left pl-3.5 pr-2.5 py-2 rounded-lg transition-colors flex-shrink-0 overflow-hidden',
+        'flex flex-col gap-1 w-full text-left pl-3.5 pr-2.5 py-2 rounded-lg transition-colors flex-shrink-0 overflow-hidden',
         isActive ? serviceSidebarStyles.rowCurrent : 'hover:bg-white/60',
       );
 
@@ -759,7 +794,9 @@ export const InstallStatusDetail = ({
     // tertiary 가 아니라 secondary 인 이유는 레일 표면이 gray-100 이기 때문이다.
     const railTitleClass = (isActive: boolean, na: boolean) =>
       cn(
-        'flex-1 min-w-0 truncate',
+        // truncate 없음 — 넘치면 잘리는 대신 감긴다. break-keep 은 한국어를 단어
+        // 단위로 감아 음절 하나가 홀로 다음 줄에 남지 않게 한다.
+        'flex-1 min-w-0 break-keep',
         isActive ? textStyles.bodyStrong : textStyles.body,
         na ? cn('line-through', textColors.secondary) : textColors.primary,
       );
@@ -776,19 +813,24 @@ export const InstallStatusDetail = ({
           aria-current={isActive}
           className={railItemClass(isActive)}
         >
-          {ord !== null && (
-            // Execution order — quiet gray digits. secondary, not tertiary:
-            // gray-500 on the panel surface (gray-100) is 4.37:1, under AA.
-            <span className={cn('flex-shrink-0 w-3.5 tabular-nums', textStyles.caption, textColors.secondary)}>
-              {ord}
+          <span className="flex items-baseline gap-2 w-full">
+            {ord !== null && (
+              // Execution order — quiet gray digits. secondary, not tertiary:
+              // gray-500 on the panel surface (gray-100) is 4.37:1, under AA.
+              <span className={cn('flex-shrink-0 w-3.5 tabular-nums', textStyles.caption, textColors.secondary)}>
+                {ord}
+              </span>
+            )}
+            <span className={railTitleClass(isActive, aggregate.kind === 'na')}>
+              {step.title}
             </span>
-          )}
-          <span className={railTitleClass(isActive, aggregate.kind === 'na')}>
-            {step.title}
           </span>
+          {/* 상태는 제목의 글 열에 맞춰 선다 — 순번이 있는 항목만 그 폭(14px + gap 8px)
+              만큼 들여쓴다. legacy 레일의 pl-[34px] 과 같은 계산이고 원 대신 숫자라
+              값만 다르다. */}
           <span
             className={cn(
-              'flex-shrink-0',
+              ord !== null && 'pl-[22px]',
               textStyles.caption,
               NAV_STATUS_TEXT[aggregate.kind],
               NAV_STATUS_WEIGHT[aggregate.kind],
@@ -837,7 +879,8 @@ export const InstallStatusDetail = ({
       // 삭제되면서 정렬의 기준마저 사라진 자리였다. 카드에 대한 한 줄은 카드 이름 옆에
       // 선다. No manual refresh or interval control (owner decision) — the card polls
       // quietly and that line is where the poll is visible.
-      <div className="flex flex-col">
+      // 카드 본문의 패딩을 되돌려 좌측 레일이 카드 모서리까지 흐르게 한다.
+      <div className={cn('flex flex-col', cardStyles.bodyBleed)}>
         {/* 레일과 내용을 담는 그릇. 테두리는 두르지 않는다 — 스텝 카드가 이미 자기 테두리를
             가진 면이라, 그 안에서 한 겹을 더 두르면 카드 속 카드가 되어 4단계만 다른
             단계보다 한 겹 깊어 보였다(1·2·3·5단계는 카드 본문에 툴바와 표가 바로 앉는다).
@@ -846,10 +889,16 @@ export const InstallStatusDetail = ({
             라운드와 overflow-hidden 은 남긴다: 회색 채움이 각지게 끝나면 그 컬럼이 카드
             밖에서 잘려 들어온 것처럼 보인다.
             높이 고정은 유지 — 스크롤은 좌우 셀 안에서 일어나고 프레임이 자르는 점이다. */}
-        <div className="grid grid-cols-[224px_minmax(0,1fr)] rounded-xl overflow-hidden h-[560px]">
+        {/* 높이는 내용이 정하되 560px 에서 멈춘다 — 패널 단계(폼 몇 줄)가 억지로 560 을
+            채우느라 본문 셀의 61%가 빈 흰 면이었다(실측 293px). 상한은 **행이 아니라 각
+            셀**이 갖는다: 그리드 행에 `max-h` 를 걸면 행(auto)이 그걸 무시하고 내용만큼
+            자라 표가 카드 밖으로 흘러나오고, `grid-rows-[minmax(0,560px)]` 로 트랙을
+            묶으면 이번엔 짧은 단계까지 560 으로 늘어나 빈 면이 돌아온다. 셀에 걸면 둘 다
+            산다 — 짧으면 내용 높이, 길면 560 에서 셀 안 스크롤. */}
+        <div className="grid grid-cols-[224px_minmax(0,1fr)]">
           <nav
             className={cn(
-              'flex flex-col gap-0.5 p-2 border-r overflow-y-auto min-h-0',
+              'flex flex-col gap-0.5 p-2 border-r overflow-y-auto min-h-0 max-h-[560px]',
               bgColors.panel,
               borderColors.light,
             )}
@@ -891,7 +940,7 @@ export const InstallStatusDetail = ({
           {/* 프레임의 오른쪽 셀 — 카드의 흰 바닥을 그대로 쓴다. 가르는 일은 레일의
               회색 채움과 컨테이너 세로 경계선이 이미 하므로, 여기에 카드를 한 겹 더
               두르면 카드 속 카드가 된다. */}
-          <div className="min-w-0 min-h-0 flex flex-col">
+          <div className="min-w-0 min-h-0 max-h-[560px] flex flex-col">
             {activeReference ? (
               /* 참고 패널은 표가 아니라 액션 하나다 — 헤더+본문으로 쪼개면 16px 제목,
                  12px 설명, 떠 있는 버튼 세 조각이 큰 빈 면 위에 남는다(오너 지적).
@@ -930,8 +979,11 @@ export const InstallStatusDetail = ({
               </div>
             ) : (
               <>
-                <div className={cn('flex-none px-5 py-4 border-b', borderColors.light)}>{paneHead}</div>
-                <div className="flex-1 min-h-0 overflow-y-auto px-5 py-4">{paneBody}</div>
+                {/* 헤어라인 삭제 — 폭 전체를 가로지르는 1px 은 이 셀을 "제목 + 구분선 +
+                    본문"으로 만들어, 테두리를 지운 뒤에도 두 번째 카드로 읽히게 하던
+                    마지막 신호였다. 가르는 일은 여백이 한다(머리↔본문 = related 8px). */}
+                <div className="flex-none px-5 pt-4 pb-2">{paneHead(true)}</div>
+                <div className="flex-1 min-h-0 overflow-y-auto px-5 pb-5">{paneBody}</div>
               </>
             )}
           </div>
@@ -1019,7 +1071,7 @@ export const InstallStatusDetail = ({
 
       {/* 컨테이너에 갇힌 뒤로는 내용이 테두리에 닿으므로 안쪽 여백이 gap-6 을 대신한다. */}
       <div className="min-w-0 px-5 py-4">
-        {paneHead}
+        {paneHead(false)}
 
         <div className="mt-4">{paneBody}</div>
 
