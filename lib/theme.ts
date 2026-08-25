@@ -546,6 +546,15 @@ export const cardStyles = {
   header: 'pt-[28px] px-[28px] pb-[12px]',
   /** v15 card body — 16/28/28 padding. */
   body: 'pt-[16px] px-[28px] pb-[28px]',
+  /**
+   * `body` 의 좌우·아래 패딩을 되돌린다 — 카드의 가장자리까지 닿아야 하는 마지막
+   * 자식에게만. 4단계 설치 화면의 좌측 레일이 유일한 소비자다: 회색 열이 카드 안쪽에
+   * 떠 있으면 "카드 위에 놓인 판"이고, 카드 모서리까지 흐르면 "카드의 왼쪽 열"이 된다.
+   *
+   * ⚠️ `body` 와 같은 값을 반대 부호로 적은 것이므로 둘은 한 몸이다. 패딩을 바꾸면
+   * 여기도 같이 바꿀 것. 부모 카드에 `overflow-hidden` 이 있어야 라운드가 자른다.
+   */
+  bodyBleed: '-mx-[28px] -mb-[28px]',
   /** @deprecated Use cardStyles.eyebrow for the small uppercase header role. */
   title: 'text-sm font-semibold text-gray-500 uppercase tracking-wide',
   /** Small uppercase header above a card display title (ADR-014 card-eyebrow). */
@@ -2950,6 +2959,74 @@ export const serviceSidebarStyles = {
   pagerBtn:
     'flex h-[26px] w-[26px] items-center justify-center rounded-[6px] text-[#4E5968] transition-colors hover:bg-white hover:text-[#0064FF] disabled:cursor-not-allowed disabled:text-[#8B95A1] disabled:hover:bg-transparent disabled:hover:text-[#8B95A1]',
 } as const;
+
+/**
+ * 4단계 설치 레일 — 항목이 흰 카드로 서는 판.
+ *
+ * 레일의 회색 칠(`bgColors.panel`)을 걷어낸 뒤로는 `serviceSidebarStyles.rowCurrent` 을
+ * 여기 쓸 수 없다. 그 값(#E9E4F3)은 바로 위 주석이 밝히듯 **회색 레일 위에서 밝게 뜨도록**
+ * L* 91.4 로 잡힌 것이라, 흰 바닥(L* 100)에서는 뜨는 대신 가라앉아 "선택됨"이 "비활성"으로
+ * 뒤집힌다. 같은 주석이 흰 바닥의 짝으로 지목하는 값이 #F3EEFF(`tableRowLift.card` 가
+ * 흰 카드 hover 로 쓰는 바로 그 보라)이고, 이 판은 그것을 hover 가 아니라 **정착 상태**로 쓴다.
+ *
+ * 그래서 세 신호가 각자의 채널에 남는다: hover 는 중립으로 내려앉고(gray-50), current 는
+ * 색조(보라), 경계는 언제나 1px 이다. 굵기는 상태에 따라 움직이지 않는다 — 선택 시 테두리가
+ * 굵어지면 카드 안쪽 글이 1px 밀린다.
+ *
+ * 두 값은 **택일**이라 각자 완결이다. 경계색을 공용 토큰과 겹쳐 쓰면 어느 쪽이 이기는지가
+ * 클래스 문자열 순서가 아니라 생성된 CSS 순서에 달리므로, 한쪽에 몰아 적는다.
+ */
+export const installRailStyles = {
+  /** 비선택 — 흰 카드. 경계는 목록에서 반복되는 카드의 윤곽(`borderColors.card`). */
+  item: `bg-white ${borderColors.card} ${bgColors.mutedHover}`,
+  /**
+   * 현재 항목 — 색조 채널. 경계는 같은 보라 계열에서 한 단 진하게 가서 흰 카드들 사이에서
+   * 자기 자리를 말한다(칠만으로는 ΔL* 가 작아 훑을 때 걸리지 않는다).
+   */
+  itemCurrent: 'bg-[#F3EEFF] border-[#8E7FC4] hover:bg-[#EDE6FB]',
+} as const;
+
+/**
+ * 그룹 레일의 **그룹 머리** — 24px 밴드(칠 + 글자)와, 그 밴드의 왼쪽 모서리에서 항목들
+ * 옆으로 내려오는 2px 스파인. 상자를 닫지 않고 ㄴ 자로 담는다.
+ *
+ * 라벨에 자기 면을 주는 이유: 밴드가 없을 때 라벨은 칠도 테두리도 없는 글자 한 줄인데
+ * 그 위아래 이웃은 둘 다 흰 카드(1px 윤곽)라, **부모가 자식보다 약한 신호**를 갖고
+ * 위아래 어느 쪽 소속인지도 형태로 말하지 못했다. 밴드가 생기면 그 둘이 같이 풀린다.
+ *
+ * 스파인이 따로 필요한 이유: 밴드만으로는 그룹 색이 라벨 자기 자신에서 끝난다. 항목
+ * 카드는 전부 같은 흰 칠 + 같은 회색 윤곽이라, 색이 소속을 말하려면 소속된 쪽까지
+ * 닿아야 한다(Elastic EUI `emphasize`: 강조는 "that section **and its nested items**").
+ *
+ * 스파인 굵기는 흰 바닥 대비로 고른다 — 항목 카드 윤곽(#D6DBE6, 1.39:1)과 열 경계선
+ * (`strong`, 1.47:1) 사이를 지나가는 선이므로 **그 둘보다 진해야** 묶는 선으로 읽힌다:
+ * blue-300 1.80:1 · indigo-300 1.99:1 · orange-300 1.70:1(`warning.border` 주석의 값).
+ * `todoDone` 만 gray-300(1.47:1)으로 한 단 내린다 — 끝난 그룹은 가장 조용한 게 맞다.
+ *
+ * 세 그룹의 색 출처가 다른 것은 의도다. 「내가 할 일」은 **조치**의 묶음이라 앱의 브랜드
+ * 짝(`bgLight`/`textOnLight`, design-guard 에 등록된 대비 쌍)을 쓰고, 나머지 둘은 정보의
+ * 묶음이라 이 화면이 이미 쓰는 팔레트 짝을 그대로 쓴다 — indigo 는 `tagStyles.indigo`·
+ * `sideTextColors.bdc`(BDC측), orange 는 `statusColors.warning`(참고자료).
+ */
+export const installRailGroupStyles = {
+  todo: {
+    band: `${primaryColors.bgLight} ${primaryColors.textOnLight}`,
+    spine: statusColors.info.border,
+  },
+  todoDone: {
+    band: `${bgColors.panel} ${textColors.secondary}`,
+    spine: borderColors.strong,
+  },
+  bdc: {
+    band: `bg-indigo-100 ${sideTextColors.bdc}`,
+    spine: 'border-indigo-300',
+  },
+  reference: {
+    band: `${statusColors.warning.bg} ${statusColors.warning.textDark}`,
+    spine: statusColors.warning.border,
+  },
+} as const;
+
 
 // =============================================================================
 // 레이아웃 (Layout)

@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import * as mockData from '@/lib/mock-data';
 import * as azureFns from '@/lib/mock-azure';
 import { AZURE_ERROR_CODES } from '@/lib/constants/azure';
+import { minutesAgo } from '@/lib/bff/mock/clock';
+
 
 /**
  * Azure cloud-status mocks (ADR-019 Spec G). installation-status authors the
@@ -113,7 +115,7 @@ export const mockAzure = {
     return NextResponse.json({
       last_check: {
         status: dbResult.data?.installed ? 'COMPLETED' : 'IN_PROGRESS',
-        checked_at: '2026-06-23T10:00:00Z',
+        checked_at: minutesAgo(3),
         fail_reason: null,
       },
       resources,

@@ -6,11 +6,15 @@ import { InstallationLoadingView } from '@/app/components/features/process-statu
 import { InstallationErrorView } from '@/app/components/features/process-status/shared/InstallationErrorView';
 import { AwsInstallStatusDetail } from '@/app/components/features/process-status/aws/AwsInstallStatusDetail';
 import { isAwsInstallationComplete } from '@/app/api/v1/aws/target-sources/_lib/installation-transform';
-import { useInstallationStatus } from '@/app/hooks/useInstallationStatus';
+import {
+  INSTALL_POLL_INTERVAL_MS,
+  useInstallationStatus,
+} from '@/app/hooks/useInstallationStatus';
 import { useConfirmedIntegration } from '@/app/target-sources/[targetSourceId]/_components/data/ConfirmedIntegrationDataProvider';
 import { borderColors, cardStyles, cn, idcStyles, stackGap, statusColors, textStyles } from '@/lib/theme';
 import type { AwsInstallationStatus } from '@/lib/types';
 import { InstallCardHeader } from '@/app/components/features/process-status/install-status-detail/InstallCardHeader';
+import { LastCheckStamp } from '@/app/components/features/process-status/install-status-detail/LastCheckStamp';
 
 interface AwsInstallationInlineProps {
   targetSourceId: number;
@@ -20,12 +24,18 @@ interface AwsInstallationInlineProps {
    * role-verify step. Same rule the meta bar and the list chip read.
    */
   terraformExecutionGranted?: boolean;
+  /** metadata.aws_account_id — 권한 패널이 "무엇을 검증했나"로 그린다. */
+  awsAccountId?: string;
+  /** metadata.aws_terraform_execution_role_arn — 같은 패널의 Role 행. */
+  awsTerraformExecutionRoleArn?: string;
   onInstallComplete?: () => void;
 }
 
 export const AwsInstallationInline = ({
   targetSourceId,
   terraformExecutionGranted,
+  awsAccountId,
+  awsTerraformExecutionRoleArn,
   onInstallComplete,
 }: AwsInstallationInlineProps) => {
   const isManualInstall = terraformExecutionGranted !== true;
@@ -46,6 +56,9 @@ export const AwsInstallationInline = ({
     getFn: getAwsInstallationStatus,
     // Refresh = re-GET installation-status (POST check-installation REMOVED-no-swagger).
     checkFn: getAwsInstallationStatus,
+    // 설치가 정착할 때까지만 조용히 다시 읽는다 — 새로고침 버튼도 주기 컨트롤도
+    // 노출하지 않는다는 결정은 그대로고, 갱신이 실제로 일어나는 것만 달라진다.
+    pollIntervalMs: INSTALL_POLL_INTERVAL_MS,
     isComplete,
     onComplete: () => {
       if (!completionNotifiedRef.current) {
@@ -61,7 +74,7 @@ export const AwsInstallationInline = ({
 
   return (
     <section className={cn(cardStyles.base, 'overflow-hidden')}>
-      <InstallCardHeader />
+      <InstallCardHeader action={status && <LastCheckStamp lastCheck={status.lastCheck} />} />
       {/* 카드 내 블록 경계 = group 16px */}
       <div className={cn(cardStyles.body, 'flex flex-col', stackGap.group)}>
         {/* TF 스크립트 다운로드는 레일의 '참고' 항목이 갖는다 — 자동/수동 양쪽 모두
@@ -113,6 +126,8 @@ export const AwsInstallationInline = ({
             confirmed={confirmedResources}
             manualInstall={isManualInstall}
             targetSourceId={targetSourceId}
+            awsAccountId={awsAccountId ?? null}
+            awsTerraformExecutionRoleArn={awsTerraformExecutionRoleArn ?? null}
           />
         ) : null}
       </div>

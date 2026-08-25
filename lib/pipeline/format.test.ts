@@ -7,6 +7,7 @@ import {
   fmtDateTime,
   fmtDateTimeSec,
   fmtDuration,
+  fmtElapsedAgo,
   fmtElapsedMs,
   fmtRelativeTime,
   fmtTimeMs,
@@ -581,5 +582,25 @@ describe('fmtTimeMs', () => {
     expect(fmtTimeMs(null)).toBe('-');
     expect(fmtTimeMs('')).toBe('-');
     expect(fmtTimeMs('not-a-date')).toBe('-');
+  });
+});
+
+describe('fmtElapsedAgo — 큰 단위 두 개까지, 0인 단위는 생략', () => {
+  it.each([
+    [500, '방금 전'],
+    [45_000, '45초 전'],
+    [200_000, '3분 20초 전'],
+    [180_000, '3분 전'],
+    [7_500_000, '2시간 5분 전'],
+    [7_200_000, '2시간 전'],
+    [183_600_000, '2일 3시간 전'],
+    [172_800_000, '2일 전'],
+  ])('%i ms → %s', (ms, expected) => {
+    expect(fmtElapsedAgo(ms)).toBe(expected);
+  });
+
+  it('음수/NaN 은 문장을 만들지 않는다 — 뒷받침할 수 없는 신선도는 말하지 않는다', () => {
+    expect(fmtElapsedAgo(-1)).toBeNull();
+    expect(fmtElapsedAgo(Number.NaN)).toBeNull();
   });
 });

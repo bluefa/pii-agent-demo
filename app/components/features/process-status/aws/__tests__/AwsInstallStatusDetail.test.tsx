@@ -1,7 +1,15 @@
 // @vitest-environment jsdom
 import { fireEvent, render, screen, within } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+// 권한 패널은 마운트되는 순간 실시간 검증을 부른다 — 그 오퍼레이션이 이 스위트의
+// 유일한 네트워크 의존이라 모듈째 세운다(TF 스크립트 다운로드도 같은 모듈).
+vi.mock('@/app/lib/api/aws', () => ({
+  getAwsRoleVerification: vi.fn(),
+  getAwsTerraformScript: vi.fn(),
+}));
+
 import { AwsInstallStatusDetail } from '@/app/components/features/process-status/aws/AwsInstallStatusDetail';
+import { getAwsRoleVerification } from '@/app/lib/api/aws';
 import { required } from '@/lib/test-dom';
 import type { ConfirmedResource } from '@/lib/types/resources';
 import type {
@@ -49,6 +57,12 @@ const buildStatus = (
 });
 
 describe('AwsInstallStatusDetail', () => {
+  beforeEach(() => {
+    // 검증을 통과한 기본값 — 사유 블록이 그려지지 않으므로 다른 케이스의 단언을 흐리지 않는다.
+    vi.mocked(getAwsRoleVerification).mockReset();
+    vi.mocked(getAwsRoleVerification).mockResolvedValue({ status: 'VALID' });
+  });
+
   it('renders the grouped rail (내가 할 일 / BDC 진행) and auto-selects the failed step', () => {
     render(
       <AwsInstallStatusDetail
@@ -58,6 +72,8 @@ describe('AwsInstallStatusDetail', () => {
         confirmed={[confirmedResource('r-1'), confirmedResource('r-2')]}
         manualInstall={false}
         targetSourceId={1008}
+        awsAccountId={null}
+        awsTerraformExecutionRoleArn={null}
       />,
     );
 
@@ -65,9 +81,10 @@ describe('AwsInstallStatusDetail', () => {
     // The grouped rail has no summary step — the rail lists the steps directly.
     expect(within(nav).queryByText('설치 현황 요약')).toBeNull();
     // 트레이 제목은 없다 — 카드 헤더('Agent 설치')가 이미 한 말이라 두 제목이 겹쳤다.
-    // 다만 제목과 한 줄에 있던 조회 시각은 제목을 지울 때 같이 사라지면 안 된다.
+    // 조회 시각도 여기 없다: 짝을 잃은 한 줄로 프레임 위에 뜨는 대신 카드 헤더로
+    // 올라갔고(LastCheckStamp), 그 자리는 이 컴포넌트가 아니라 호출자가 그린다.
     expect(screen.queryByText('설치 진행 상황')).toBeNull();
-    expect(screen.getByText(/^마지막 확인 .+ \(KST\)$/)).toBeTruthy();
+    expect(screen.queryByText(/^마지막 확인/)).toBeNull();
     expect(within(nav).getByText('Terraform 권한 부여 확인')).toBeTruthy();
     expect(within(nav).getByText('서비스 측 Terraform 자동 적용')).toBeTruthy();
     expect(within(nav).getByText('BDC 서비스 영역')).toBeTruthy();
@@ -101,6 +118,8 @@ describe('AwsInstallStatusDetail', () => {
         confirmed={[]}
         manualInstall={false}
         targetSourceId={1008}
+        awsAccountId={null}
+        awsTerraformExecutionRoleArn={null}
       />,
     );
 
@@ -116,6 +135,8 @@ describe('AwsInstallStatusDetail', () => {
         confirmed={[confirmedResource('r-1')]}
         manualInstall={false}
         targetSourceId={1008}
+        awsAccountId={null}
+        awsTerraformExecutionRoleArn={null}
       />,
     );
 
@@ -143,6 +164,8 @@ describe('AwsInstallStatusDetail', () => {
         confirmed={[{ ...confirmedResource('r-cluster'), type: 'AWS_DB_CLUSTER' }]}
         manualInstall={false}
         targetSourceId={1008}
+        awsAccountId={null}
+        awsTerraformExecutionRoleArn={null}
       />,
     );
 
@@ -157,6 +180,8 @@ describe('AwsInstallStatusDetail', () => {
         confirmed={[confirmedResource('r-1')]}
         manualInstall={false}
         targetSourceId={1008}
+        awsAccountId={null}
+        awsTerraformExecutionRoleArn={null}
       />,
     );
 
@@ -172,6 +197,8 @@ describe('AwsInstallStatusDetail', () => {
         confirmed={[]}
         manualInstall={false}
         targetSourceId={1008}
+        awsAccountId={null}
+        awsTerraformExecutionRoleArn={null}
       />,
     );
 
@@ -194,6 +221,8 @@ describe('AwsInstallStatusDetail', () => {
         confirmed={[]}
         manualInstall={false}
         targetSourceId={1008}
+        awsAccountId={null}
+        awsTerraformExecutionRoleArn={null}
       />,
     );
 
@@ -238,6 +267,8 @@ describe('AwsInstallStatusDetail', () => {
         confirmed={[athenaDb]}
         manualInstall={false}
         targetSourceId={1008}
+        awsAccountId={null}
+        awsTerraformExecutionRoleArn={null}
       />,
     );
 
@@ -257,20 +288,38 @@ describe('AwsInstallStatusDetail', () => {
     expect(within(filters).getByText('us-east-1')).toBeTruthy();
   });
 
-  it('shows the role-verify panel (Role ARN, no resource table) when selected', () => {
+  it('shows the role-verify panel (검증 대상 + 지금 확인, no resource table) when selected', async () => {
+    // 검증 응답에는 role_arn 이 없다 — 등록 사실을 말하는 것은 메타데이터뿐이고,
+    // 화면은 검증이 무엇을 봤는지가 아니라 이 대상에 무엇이 등록됐는지를 그린다.
+    vi.mocked(getAwsRoleVerification).mockResolvedValue({
+      status: 'INVALID',
+      fail_reason: 'SCAN_ROLE_NOT_ASSUMABLE',
+      last_verified_at: '2026-07-29T14:00:00Z',
+    });
+
     render(
       <AwsInstallStatusDetail
         status={buildStatus([resource('r-1', 'IN_PROGRESS')])}
         confirmed={[]}
         manualInstall={false}
         targetSourceId={1008}
+        awsAccountId="123456789012"
+        awsTerraformExecutionRoleArn="arn:aws:iam::123456789012:role/exec"
       />,
     );
 
     fireEvent.click(screen.getByRole('button', { name: /Terraform 권한 부여 확인/ }));
+    // 무엇을 검증했는지가 먼저다 — 계정과 Role 이 있어야 사용자가 자기 콘솔에서
+    // 무엇을 열어야 할지 안다.
+    expect(screen.getByText('123456789012')).toBeTruthy();
     expect(screen.getByText('arn:aws:iam::123456789012:role/exec')).toBeTruthy();
-    expect(screen.getByText('검증 결과')).toBeTruthy();
     expect(screen.queryByRole('columnheader', { name: 'Region' })).toBeNull();
+
+    // 사유는 설치 상태가 아니라 실시간 검증이 갖고 있다 — 여섯 코드 중 하나를 문장으로.
+    expect(await screen.findByText(/Scan Role 을 넘겨받지 못했습니다/)).toBeTruthy();
+    expect(screen.getByText('등록된 Terraform Role ARN 은 원인이 아닙니다.')).toBeTruthy();
+    // 검증이 끝나야 버튼이 다시 눌린다 — 그 전에는 '확인 중...' 으로 잠겨 있다.
+    expect(screen.getByRole('button', { name: '지금 확인' })).toBeTruthy();
   });
 
   it('manual install hides the role-verify step and relabels the service step', () => {
@@ -280,6 +329,8 @@ describe('AwsInstallStatusDetail', () => {
         confirmed={[]}
         manualInstall
         targetSourceId={1008}
+        awsAccountId={null}
+        awsTerraformExecutionRoleArn={null}
       />,
     );
 
@@ -306,6 +357,8 @@ describe('AwsInstallStatusDetail', () => {
         confirmed={[]}
         manualInstall={false}
         targetSourceId={1008}
+        awsAccountId={null}
+        awsTerraformExecutionRoleArn={null}
       />,
     );
 
@@ -319,6 +372,8 @@ describe('AwsInstallStatusDetail', () => {
         confirmed={[]}
         manualInstall={false}
         targetSourceId={1008}
+        awsAccountId={null}
+        awsTerraformExecutionRoleArn={null}
       />,
     );
 
@@ -340,6 +395,8 @@ describe('AwsInstallStatusDetail', () => {
         confirmed={[]}
         manualInstall={false}
         targetSourceId={1008}
+        awsAccountId={null}
+        awsTerraformExecutionRoleArn={null}
       />,
     );
 
@@ -373,6 +430,8 @@ describe('AwsInstallStatusDetail', () => {
         confirmed={[]}
         manualInstall={false}
         targetSourceId={1008}
+        awsAccountId={null}
+        awsTerraformExecutionRoleArn={null}
       />,
     );
 

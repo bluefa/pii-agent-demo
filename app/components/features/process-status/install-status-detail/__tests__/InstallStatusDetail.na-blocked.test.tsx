@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
+import { bgColors } from '@/lib/theme';
 import { InstallStatusDetail } from '@/app/components/features/process-status/install-status-detail/InstallStatusDetail';
 import type {
   InstallDetailResource,
@@ -205,6 +206,116 @@ const currentRailTitle = () => {
   return [...nav.querySelectorAll('button')].find((b) => b.getAttribute('aria-current') === 'true')
     ?.textContent;
 };
+
+/**
+ * 레일 항목이 두 줄이라는 사실 자체를 잰다. 잘림은 렌더된 글자로는 안 보이고
+ * (textContent 는 잘리기 전 문자열 그대로다) 실측으로만 드러났다 — 224px 레일에서
+ * 제목 상자 122px 에 169px 짜리 라벨이 들어가 「서비스 측 Terrafor…」로 끊겼고,
+ * 이 레일에 Terraform 이 셋이라 어느 것인지 말하지 못했다. 그래서 여기서는 클래스를
+ * 본다: `truncate` 가 다시 붙으면 화면은 조용히 예전으로 돌아가고 다른 어떤 단언도
+ * 깨지지 않는다.
+ */
+describe('InstallStatusDetail 그룹 레일 — 제목은 잘리지 않는다', () => {
+  const railButton = (name: RegExp) =>
+    within(screen.getByRole('navigation', { name: '설치 단계' })).getByRole('button', { name });
+
+  it('제목은 잘리는 대신 감긴다', () => {
+    renderGrouped('IN_PROGRESS');
+
+    const title = within(railButton(/서비스 측 Terraform 적용/)).getByText('서비스 측 Terraform 적용');
+    expect(title.className).not.toContain('truncate');
+    expect(title.className).toContain('break-keep');
+  });
+
+  it('상태는 제목과 다른 줄에 선다 — 제목이 한 줄을 독점한다', () => {
+    renderGrouped('IN_PROGRESS');
+
+    const button = railButton(/서비스 측 Terraform 적용/);
+    // 제목과 상태가 같은 줄이면 항목은 flex row 다. 두 줄이면 column.
+    expect(button.className).toContain('flex-col');
+    expect(button.className).not.toContain('items-baseline');
+  });
+
+  /**
+   * BDC 그룹 항목이 달고 있던 실행 순번(1·2·3) 삭제 — 오너 지시. 순서는 항목의
+   * 위아래가 말하고, 숫자는 제목에서 22px 을 가져갔다. 되돌아오면 제목 폭이 다시
+   * 좁아지므로(잘림의 원인 중 하나) 여기서 막는다.
+   */
+  /**
+   * 레일이 자기 칠(`bgColors.panel`)을 갖던 시절, 그 면은 카드(raised) 안의 sunken 이라
+   * Atlassian elevation 이 금지하는 조합이었고 카드 모서리까지 붙자 "구멍"으로 읽혔다.
+   * 칠이 지던 구분은 항목 카드의 윤곽이 이어받았다 — 칠이 돌아오거나 카드가 풀리면
+   * 둘 다 화면에서만 보이고 다른 단언은 하나도 깨지지 않는다.
+   */
+  it('레일은 자기 칠을 갖지 않고, 항목이 카드로 선다', () => {
+    renderGrouped('IN_PROGRESS');
+
+    const nav = screen.getByRole('navigation', { name: '설치 단계' });
+    expect(nav.className).not.toContain(bgColors.panel);
+    for (const button of nav.querySelectorAll('button')) {
+      expect(button.className.split(' ')).toContain('border');
+    }
+  });
+
+  it('레일 항목에 실행 순번을 달지 않는다', () => {
+    renderGrouped('IN_PROGRESS');
+
+    const nav = screen.getByRole('navigation', { name: '설치 단계' });
+    for (const button of nav.querySelectorAll('button')) {
+      expect(button.textContent ?? '').not.toMatch(/^\d/);
+    }
+  });
+});
+
+/**
+ * 그룹이 그룹으로 읽히게 하는 세 신호의 가드.
+ *
+ * 셋 다 **픽셀에서만 보이고 다른 단언은 하나도 깨뜨리지 않는다** — 그룹 래퍼를 걷어내
+ * 라벨과 항목을 다시 nav 의 형제로 늘어놓아도 위 스위트의 제목·순번·카드 단언은 전부
+ * 그대로 통과한다. 실제로 그게 이 라운드 직전의 상태였고, 그때 레일 자식 8개의 인접
+ * 간격은 **전부 8.0px** 이었다(그룹 경계와 그룹 내부가 같은 값).
+ *
+ * jsdom 에는 레이아웃이 없어 px 을 잴 수 없으므로 간격은 클래스로 잰다. 두 값이 서로
+ * 다르다는 사실만 여기서 지키고, 정확한 수치는 브라우저 실측으로 확인한다.
+ */
+describe('InstallStatusDetail 그룹 레일 — 그룹이 항목을 담는다', () => {
+  const getNav = () => screen.getByRole('navigation', { name: '설치 단계' });
+
+  it('nav 의 직계 자식은 그룹뿐이다 — 라벨과 항목이 형제로 서지 않는다', () => {
+    renderGrouped('IN_PROGRESS');
+
+    // 라벨이 nav 의 직계 자식으로 돌아오면 그 자식은 button 을 품지 못한다.
+    for (const child of getNav().children) {
+      expect(child.querySelector('button')).toBeTruthy();
+    }
+  });
+
+  it('그룹 사이 간격이 그룹 안 간격보다 넓다', () => {
+    renderGrouped('IN_PROGRESS');
+
+    const nav = getNav();
+    const groupBody = nav.querySelector('button')!.parentElement!;
+    const outer = nav.className.split(' ').find((c) => c.startsWith('gap-'));
+    const inner = groupBody.className.split(' ').find((c) => c.startsWith('gap-'));
+    expect(outer).toBeTruthy();
+    expect(inner).toBeTruthy();
+    // gap-6(24px) vs gap-1.5(6px). 하나의 값으로 되돌아오면 여기서 걸린다.
+    expect(Number(outer!.slice(4))).toBeGreaterThan(Number(inner!.slice(4)));
+  });
+
+  it('그룹 색이 항목 옆까지 내려온다 — 밴드와 스파인', () => {
+    renderGrouped('IN_PROGRESS');
+
+    const nav = getNav();
+    const groupHead = nav.children[0].firstElementChild!;
+    const groupBody = nav.querySelector('button')!.parentElement!;
+    // 머리에는 자기 면(밴드)이 있다 — 칠 없는 글자 한 줄로 되돌아가면 부모가 다시
+    // 자식(흰 카드)보다 약한 신호를 갖는다.
+    expect(groupHead.className).toMatch(/\bbg-/);
+    // 몸에는 스파인이 있다 — 없으면 그룹 색이 라벨 글자에서 끝난다.
+    expect(groupBody.className.split(' ')).toContain('border-l-2');
+  });
+});
 
 describe('InstallStatusDetail 그룹 레일 — 손댈 수 없는 할 일', () => {
   it('전부 BDC 대기인 할 일을 카운트에서 빼되 완료라 부르지 않는다', () => {

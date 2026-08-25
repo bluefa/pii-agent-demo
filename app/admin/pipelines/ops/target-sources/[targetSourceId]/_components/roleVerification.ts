@@ -138,6 +138,13 @@ const REASONS: Record<string, (kind: RoleKind) => ReasonSpec> = {
 };
 
 /**
+ * The frozen key set, exported so the requester-side twin
+ * (`terraform-role-finding.ts`, which words the same six codes for the service
+ * user) cannot drift from it unnoticed. A parity test compares the two.
+ */
+export const ROLE_VERIFICATION_REASON_CODES = Object.keys(REASONS);
+
+/**
  * Fallback when the code is unmapped — decide from status. Unknown codes are
  * deliberately NOT all routed to "undeterminable": INVALID means the server has
  * already decided, and GCP/Azure use their own code vocabulary (SA_NOT_CONFIGURED

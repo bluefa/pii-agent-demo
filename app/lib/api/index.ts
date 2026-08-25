@@ -263,6 +263,7 @@ const toTargetSource = (raw: TargetSourceDetail, processStatusWire: unknown): Ta
   const tenantId = asStr(metadata?.tenant_id);
   const subscriptionId = asStr(metadata?.subscription_id);
   const awsAccountId = asStr(metadata?.aws_account_id);
+  const awsTerraformExecutionRoleArn = asStr(metadata?.aws_terraform_execution_role_arn);
   const gcpProjectId = asStr(metadata?.gcp_project_id);
   const cloudProvider = normalizeCloudProvider(asStr(item.cloud_provider));
   // 프로바이더가 키를 고른다 — 자세한 이유는 pickScanPrincipal 주석.
@@ -289,6 +290,7 @@ const toTargetSource = (raw: TargetSourceDetail, processStatusWire: unknown): Ta
     ...(tenantId ? { tenantId } : {}),
     ...(subscriptionId ? { subscriptionId } : {}),
     ...(awsAccountId ? { awsAccountId } : {}),
+    ...(awsTerraformExecutionRoleArn ? { awsTerraformExecutionRoleArn } : {}),
     ...(gcpProjectId ? { gcpProjectId } : {}),
     ...(scanPrincipal ? { scanPrincipal } : {}),
     ...(isSduType !== undefined ? { isSduType } : {}),

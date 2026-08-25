@@ -1,10 +1,10 @@
 'use client';
 
-import { bgColors, borderColors, cn, idcStyles, stackGap } from '@/lib/theme';
+import { bgColors, borderColors, cardStyles, cn, idcStyles, stackGap } from '@/lib/theme';
 
 type InstallationLoadingViewProps = { provider: string } & (
   | {
-      /** Mirror the grouped rail frame (bordered container + 224px rail + fixed 560px). */
+      /** Mirror the grouped rail frame (borderless container + 224px rail + fixed 560px). */
       grouped: true;
       railRows?: never;
     }
@@ -18,8 +18,9 @@ type InstallationLoadingViewProps = { provider: string } & (
     }
 );
 
-// 레일은 panel(gray-100) 위에 앉는데 기본 스켈레톤 바도 gray-100 이라 그 위에서는
-// 보이지 않는다 — 레일 안에서만 divider(gray-200)로 한 단 올린다.
+// 그룹 레일의 항목은 흰 카드라 기본 스켈레톤 바(gray-100)도 보이기는 한다. 그래도
+// divider(gray-200)를 유지하는 이유는 legacy 레일이 아직 panel(gray-100) 위에 앉기
+// 때문이다 — 그 표면에서 gray-100 바는 완전히 사라진다.
 const RAIL_BAR = cn('animate-pulse', bgColors.divider);
 
 const Bar = ({ className, tone }: { className: string; tone?: string }) => (
@@ -30,8 +31,9 @@ const Bar = ({ className, tone }: { className: string; tone?: string }) => (
  * Skeleton frame for the Agent 설치 step while the installation status loads.
  *
  * Every frame value here is copied from InstallStatusDetail's own markup —
- * `grouped` mirrors the grouped-rail frame (AWS); the default mirrors the
- * legacy frame: 224px rail on bgColors.panel, borderColors.light container,
+ * `grouped` mirrors the grouped-rail frame (AWS) — no container border, the
+ * rail's right hairline does the dividing; the default mirrors the legacy
+ * frame: 224px rail on bgColors.panel, borderColors.light container,
  * px-5 py-4 right pane, one bordered stats card, bar heights = the real
  * tokens' line-heights — so nothing shifts horizontally and the stats card
  * keeps its y. A skeleton that only approximates the frame reintroduces the
@@ -49,43 +51,50 @@ export const InstallationLoadingView = (props: InstallationLoadingViewProps) =>
       aria-busy="true"
       aria-live="polite"
       aria-label={`${props.provider} 설치 상태 확인 중`}
-      className="flex flex-col gap-3"
+      className={cn('flex flex-col', cardStyles.bodyBleed)}
     >
-      {/* last-check caption — right aligned, no title (the card header carries it) */}
-      <div className="flex justify-end">
-        <Bar className="h-4 w-44 rounded" />
-      </div>
-      <div
-        className={cn(
-          'grid grid-cols-[224px_minmax(0,1fr)] rounded-xl border overflow-hidden h-[560px]',
-          borderColors.light,
-        )}
-      >
-        {/* rail — 그룹 머리글은 항상 둘이다(내가 할 일 / BDC 진행).
-            항목 수 1/3 은 AWS 자동 설치의 모양이고 나머지는 다르다(Azure 3/1,
-            GCP·IDC 1/2, AWS 수동 1/2). 프로바이더별로 맞추지 않는 이유는 프레임
-            높이가 h-[560px] 로 고정이라 레일 안에서 바가 움직여도 카드를 밀지
-            못하기 때문이다 — 이 근사는 reflow 를 만들지 않는다. */}
-        <div className={cn('flex flex-col gap-0.5 p-2 border-r', bgColors.panel, borderColors.light)}>
-          {[1, 3].map((rows, group) => (
-            <div key={group} className="flex flex-col gap-0.5">
-              <Bar tone={RAIL_BAR} className="mx-2.5 mt-3 mb-1 h-3 w-24 rounded" />
-              {Array.from({ length: rows }).map((_, i) => (
-                <div key={i} className="flex items-center gap-2 px-3.5 py-2">
-                  <Bar tone={RAIL_BAR} className="h-3.5 flex-1 rounded" />
-                  <Bar tone={RAIL_BAR} className="h-3 w-8 flex-shrink-0 rounded" />
-                </div>
-              ))}
+      {/* No last-check bar: that line lives in the card header now, and the header
+          is drawn by the caller — it is not part of what this skeleton replaces. */}
+      <div className="grid grid-cols-[240px_minmax(0,1fr)]">
+        {/* rail — 두 줄 항목(제목 한 줄 + 상태 한 줄), 그룹 머리글 셋.
+            항목 수 1/3/1 은 AWS 자동 설치의 모양이고 나머지는 다르다(Azure 3/1,
+            GCP·IDC 1/2, AWS 수동 1/2). 프레임 고정 높이를 놓은 뒤로는 레일이 이
+            셀의 높이를 정하므로, 근사가 아니라 **실제 행 수·행 높이**를 그려야
+            도착 시 카드가 덜 튄다.
+            그룹 문법도 실물 그대로다 — 그룹 사이 24px / 그룹 안 6px, 24px 밴드,
+            그리고 항목 옆 스파인. 여기서 간격 하나로 뭉개면 도착 순간 레일이 늘어난다.
+            밴드·스파인의 **색은 중립**으로 둔다: 스켈레톤은 아직 어느 그룹이 어떤
+            상태인지 모르고, 미리 칠하면 도착하며 색이 바뀌는 깜빡임이 생긴다. */}
+        <div className={cn('flex flex-col gap-6 p-2 border-r', borderColors.strong)}>
+          {[1, 3, 1].map((rows, group) => (
+            <div key={group} className="flex flex-col">
+              {/* 그룹 밴드 — 실물과 같은 24px(py-1 + leading-4) */}
+              <div className={cn('rounded-md px-2.5 py-1', bgColors.panel)}>
+                <Bar tone={RAIL_BAR} className="h-4 w-20 rounded" />
+              </div>
+              <div className={cn('mt-1.5 pl-2 border-l-2 flex flex-col gap-1.5', borderColors.strong)}>
+                {Array.from({ length: rows }).map((_, i) => (
+                  // 항목 카드 — 도착하면 이 자리에 같은 윤곽의 카드가 선다.
+                  <div
+                    key={i}
+                    className={cn('flex flex-col gap-1 px-3 py-2 rounded-lg border', borderColors.card)}
+                  >
+                    {/* 제목 = body 20px line-height, 상태 = caption 16px */}
+                    <Bar tone={RAIL_BAR} className="h-5 w-[80%] rounded" />
+                    <Bar tone={RAIL_BAR} className="h-4 w-10 rounded" />
+                  </div>
+                ))}
+              </div>
             </div>
           ))}
         </div>
-        {/* content cell — fixed header, table-row body, on the card's own white */}
+        {/* content cell — section label + desc, then rows, on the card's own white */}
         <div className="min-w-0 flex flex-col">
-          <div className={cn('flex flex-col gap-1.5 px-5 py-4 border-b', borderColors.light)}>
-            <Bar className="h-4 w-40 rounded" />
-            <Bar className="h-3 w-[60%] rounded" />
+          <div className="flex flex-col gap-1.5 px-5 pt-4 pb-2">
+            <Bar className="h-4 w-32 rounded" />
+            <Bar className="h-4 w-[60%] rounded" />
           </div>
-          <div className="flex-1 min-h-0 overflow-hidden px-5 py-4 flex flex-col gap-2.5">
+          <div className="flex-1 min-h-0 overflow-hidden px-5 pb-5 flex flex-col gap-2.5">
             {Array.from({ length: 6 }).map((_, i) => (
               <Bar key={i} className="h-8 w-full rounded" />
             ))}

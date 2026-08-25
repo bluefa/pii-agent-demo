@@ -91,6 +91,29 @@ export const formatDateTimeKst = (dateString: string): string => {
 };
 
 /**
+ * `YY. MM. DD. HH:mm`, Asia/Seoul 고정 (오너 지정 표기: "26. 07. 30. 14:46").
+ *
+ * 두 층으로 쌓인 시각 표기의 아래층용이다 — 위층이 경과("25일 8시간 전")를 말하고
+ * 이 줄은 근거만 받치므로, 4자리 연도와 오전/오후는 폭만 차지한다. 존은 `formatDateTimeKst`
+ * 와 같이 Asia/Seoul 로 못박는다: (KST) 꼬리표를 뗀 것은 라벨이지 값이 아니다.
+ *
+ * @example
+ * formatDateTimeKstCompact('2026-07-30T05:46:38Z') // "26. 07. 30. 14:46"
+ */
+export const formatDateTimeKstCompact = (dateString: string): string => {
+  return new Date(dateString).toLocaleString('ko-KR', {
+    timeZone: 'Asia/Seoul',
+    year: '2-digit',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    // h23 — hour12:false 는 자정을 '24:00' 으로 적는다(fmtTimeMs 가 손으로 고치던 그 값).
+    hourCycle: 'h23',
+  });
+};
+
+/**
  * 뷰어의 로컬 타임존으로 렌더하고 존 오프셋을 덧붙입니다 — 스캔 시각처럼
  * "내 시간으로 언제였나"가 답이어야 하는 자리용. wire 는 UTC instant(`...Z`)라
  * 변환은 `Date` 파싱이 맡고, 라벨은 그 숫자가 어느 존의 것인지 못 박습니다.

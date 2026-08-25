@@ -5,6 +5,8 @@ import {
   awsWireSampleInstallationStatus,
   isAwsWireInstallSample,
 } from '@/lib/bff/mock/aws-wire-sample';
+import { minutesAgo } from '@/lib/bff/mock/clock';
+
 
 /**
  * AWS cloud-status mocks (ADR-019 Spec G). Handlers author the **swagger snake
@@ -55,7 +57,14 @@ const DEMO_FAIL_BY_ROLE_NAME: ReadonlyArray<readonly [RegExp, string]> = [
  * can still be cycled through several codes.
  */
 const DEMO_FAIL_BY_TARGET: Readonly<Record<number, string>> = {
-  1008: 'ROLE_NOT_CONFIGURED',
+  // 1008 은 ROLE_NOT_CONFIGURED 였다. Step 4 권한 패널이 등록된 Role 을 metadata
+  // (aws_terraform_execution_role_arn)에서 읽기 시작하면서 그 조합이 자기모순이 됐다 —
+  // 목의 metadata 는 계정이 있는 모든 AWS 대상에 ARN 을 만들어 주므로, 화면이 ARN 을
+  // 띄워 놓고 바로 아래에서 "등록되지 않았습니다"라고 말한다. SCAN_ROLE_NOT_ASSUMABLE
+  // 은 등록된 ARN 과 양립하는 코드이고, 그 문구("등록된 Terraform Role ARN 은 원인이
+  // 아닙니다")가 바로 위에 뜬 ARN 을 가리켜 오히려 읽힌다.
+  // ROLE_NOT_CONFIGURED 는 이름 규칙(DEMO_FAIL_BY_ROLE_NAME)으로 계속 재현할 수 있다.
+  1008: 'SCAN_ROLE_NOT_ASSUMABLE',
   1010: 'INVALID_ROLE_ARN',
   1011: 'ROLE_VERIFICATION_UNAVAILABLE',
   // Unmapped code — checks that the screen falls back to status and still shows the code.
@@ -173,7 +182,7 @@ export const mockAws = {
     return NextResponse.json({
       last_check: {
         status: completed ? 'COMPLETED' : 'IN_PROGRESS',
-        checked_at: '2026-06-23T10:00:00Z',
+        checked_at: minutesAgo(3),
         fail_reason: null,
       },
       resources,
@@ -203,7 +212,10 @@ export const mockAws = {
       fail_reason: failure?.fail_reason ?? null,
       // deprecated — never sent for the new codes, so the screen has to speak from fail_reason alone.
       fail_message: null,
-      last_verified_at: override?.pending && !failure ? null : '2026-06-23T10:00:00Z',
+      // verify-* 는 "실시간으로 검증"하는 오퍼레이션이다 — 응답에 실린 시각은 방금
+      // 수행한 그 검증의 시각이라야 한다. 과거 시각을 돌려주면 '지금 확인'을 눌러도
+      // 화면의 '마지막 검증'이 안 움직여 아무 일도 안 일어난 것처럼 보인다.
+      last_verified_at: override?.pending && !failure ? null : minutesAgo(0),
     });
   },
 
@@ -225,7 +237,10 @@ export const mockAws = {
       role_arn: failure?.fail_reason === 'ROLE_NOT_CONFIGURED' ? null : roleArn,
       fail_reason: failure?.fail_reason ?? null,
       fail_message: null,
-      last_verified_at: override?.pending && !failure ? null : '2026-06-23T10:00:00Z',
+      // verify-* 는 "실시간으로 검증"하는 오퍼레이션이다 — 응답에 실린 시각은 방금
+      // 수행한 그 검증의 시각이라야 한다. 과거 시각을 돌려주면 '지금 확인'을 눌러도
+      // 화면의 '마지막 검증'이 안 움직여 아무 일도 안 일어난 것처럼 보인다.
+      last_verified_at: override?.pending && !failure ? null : minutesAgo(0),
     });
   },
 

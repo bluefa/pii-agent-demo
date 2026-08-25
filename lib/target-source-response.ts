@@ -90,6 +90,9 @@ export const extractTargetSourceFromSnake = (
   const tenantId = asStr(metadata?.tenant_id);
   const subscriptionId = asStr(metadata?.subscription_id);
   const awsAccountId = asStr(metadata?.aws_account_id);
+  // 등록된 Terraform 실행 Role — Step 4 권한 패널의 유일한 출처. 설치 상태/검증 응답의
+  // 같은 이름 필드는 '검증이 본 값'이라 검증 전에는 비어 있다(CloudTargetSource 주석).
+  const awsTerraformExecutionRoleArn = asStr(metadata?.aws_terraform_execution_role_arn);
   const gcpProjectId = asStr(metadata?.gcp_project_id);
   const cloudProvider = normalizeCloudProvider(asStr(item.cloud_provider));
   const scanPrincipal = pickScanPrincipal(cloudProvider, metadata);
@@ -119,6 +122,7 @@ export const extractTargetSourceFromSnake = (
     ...(tenantId ? { tenantId } : {}),
     ...(subscriptionId ? { subscriptionId } : {}),
     ...(awsAccountId ? { awsAccountId } : {}),
+    ...(awsTerraformExecutionRoleArn ? { awsTerraformExecutionRoleArn } : {}),
     ...(gcpProjectId ? { gcpProjectId } : {}),
     ...(scanPrincipal ? { scanPrincipal } : {}),
     ...(isSduType !== undefined ? { isSduType } : {}),

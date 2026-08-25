@@ -4,9 +4,11 @@ import { useMemo, useState, type ReactNode } from 'react';
 import {
   bgColors,
   borderColors,
+  cardStyles,
   cn,
+  installRailGroupStyles,
+  installRailStyles,
   primaryColors,
-  serviceSidebarStyles,
   sideTextColors,
   stackGap,
   shadows,
@@ -28,7 +30,7 @@ import {
 import { useColumnResize } from '@/app/components/ui/useColumnResize';
 import { WaitingApprovalToolbar } from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalToolbar';
 import { useApprovalTableState } from '@/app/target-sources/[targetSourceId]/_components/layout/useApprovalTableState';
-import { formatDateTime, formatDateTimeKst } from '@/lib/utils/date';
+import { formatDateTime } from '@/lib/utils/date';
 import {
   INSTALL_STATUS_LABEL,
   isSettledInstallStatus,
@@ -674,15 +676,39 @@ export const InstallStatusDetail = ({
   const naWithoutGuides =
     activeAggregate?.kind === 'na' && rows.every((row) => !row.cell.guide);
 
-  // Right-pane header/body — shared by both layouts (grouped / legacy).
-  const paneHead = (
+  /**
+   * Right-pane header/body — shared by both layouts (grouped / legacy).
+   *
+   * `compact` 는 그룹 레일(카드와 한 몸인 배치)에서만 켠다. 그 배치에서 이 머리는
+   * 16/700 제목 + 12px 설명 + 우측 태그 열 + 폭 전체 1px 헤어라인이었는데, 정작
+   * 바깥 카드 머리(20/800 제목 + 안내문)에는 태그 열도 구분선도 없다. 크기는 한 단
+   * 낮은데 **구성이 더 완전해서**, 안쪽이 독립한 카드로 읽혔다 — 카드를 만드는 것은
+   * 테두리가 아니라 제목 → 구분선 → 본문이라는 배치다(오너 지적, Atlassian elevation:
+   * "use whitespace or borders instead", "don't use raised to group content").
+   * 프레임 테두리를 지운 앞 라운드는 결과를 지웠고 원인은 남겨 뒀다.
+   *
+   * 그래서 제목을 12/700 섹션 라벨로 내린다. 단계 이름은 이제 레일의 선택 항목이
+   * 소유한다(Cloudscape details pattern: 선택 장치가 이름을 갖고 내용은 다시 쓰지
+   * 않는다). legacy 배치는 여전히 테두리 있는 프레임 안이라 제목이 필요하다 — 끄지 않는다.
+   */
+  const paneHead = (compact: boolean) => (
     <div className="flex items-start justify-between gap-3">
       {/* title↔subtitle = tight 4px */}
       <div className={cn('min-w-0 flex flex-col', stackGap.tight)}>
-        <h3 className={cn(textStyles.cardTitle, textColors.primary)}>{active.title}</h3>
+        {compact ? (
+          // 12/700 + tracking — 같은 화면의 조치 항목(ActionItem)·원인 블록이 이미
+          // 쓰는 라벨 값이다. 크기가 같아진 만큼 라벨과 설명은 잉크·굵기 두 레버로
+          // 갈린다: primary/700 vs tertiary/400. secondary 로 두었더니 두 12px 줄이
+          // 한 계층으로 뭉쳐 읽혔다.
+          <h3 className={cn('text-[12px] font-bold tracking-[0.02em]', textColors.primary)}>
+            {active.title}
+          </h3>
+        ) : (
+          <h3 className={cn(textStyles.cardTitle, textColors.primary)}>{active.title}</h3>
+        )}
         {/* 폭 캡 없음 — 단계 설명은 전부 한 문장이라, 판이 허용하는 만큼 한 줄로
             선다(오너 요구: "리소스별 Private Endpoint …" 줄바꿈 금지). */}
-        <p className={cn(textStyles.caption, textColors.secondary)}>
+        <p className={cn(textStyles.caption, compact ? textColors.tertiary : textColors.secondary)}>
           {active.desc}
         </p>
         {/* 역참조 한 줄 — 참고 항목이 이 단계를 가리키는 만큼, 이 단계도 참고 항목을
@@ -740,13 +766,26 @@ export const InstallStatusDetail = ({
     // 행에서 그룹 헤더로 자리만 옮긴 꼴이다. (0)은 사실이므로 라벨은 그대로 둔다.
     const todoAllDone = todoSteps.every((s) => aggregates.get(s.id)?.kind === 'done');
     // 레일 항목 껍데기 — 단계와 참고 항목이 같은 히트 영역·선택 표현을 쓴다.
-    // 선택은 서비스 목록 rail 의 "현재 위치" 문법(rowCurrent: 보라 틴트 + 우측 2px 바)
-    // 그대로다 — 흰 pill + 헤어라인은 회색 판 위에서 눌린 티가 나지 않았다(오너 지적).
-    // 바가 라운드를 뚫지 않도록 overflow-hidden.
+    //
+    // 이제 항목 하나가 카드다(오너 지시). 레일의 회색 칠이 빠진 자리에서 "여기가 목차다"를
+    // 말하는 일을 이 카드들이 이어받는다 — 칠 하나가 지던 구분을 다섯 개의 윤곽이 나눠 진다.
+    // 선택 표현은 `installRailStyles` 로 옮겼다: 회색 레일용으로 보정된 rowCurrent 를
+    // 흰 바닥에 그대로 쓰면 틴트가 뜨는 대신 가라앉는다(토큰 주석 참조).
+    // 항목 사이는 gap-2 — 카드끼리 붙어 있으면 한 덩어리로 읽힌다.
+    //
+    // 두 줄이다 — 제목이 한 줄을 독점하고 상태는 그 아래로 내려간다. 한 줄에 세 열
+    // ([순번][제목][상태])을 224px 에 넣으면 순번·상태가 flex-shrink-0 이라 줄어드는
+    // 것이 제목뿐이었고, 실측으로 제목 상자가 122.2px 인데 「서비스 측 Terraform 자동
+    // 적용」이 169.3px 라 47px(28%)가 잘렸다. 하필 이 레일에 Terraform 이 셋이라
+    // (권한 부여 확인 / 자동 적용 / Script) 잘린 라벨이 어느 것인지 말하지 못했다.
+    // 두 줄이면 제목 상자가 186px 로 열려 지금 라벨이 문구를 안 고쳐도 들어간다.
+    //
+    // 새 모양이 아니다: Azure·GCP·IDC 가 쓰는 아래 legacy 레일이 이미 제목 한 줄 +
+    // 상태 한 줄이다. 그룹 레일만 3열 한 줄로 갈라져 있었다.
     const railItemClass = (isActive: boolean) =>
       cn(
-        'flex items-baseline gap-2 w-full text-left pl-3.5 pr-2.5 py-2 rounded-lg transition-colors flex-shrink-0 overflow-hidden',
-        isActive ? serviceSidebarStyles.rowCurrent : 'hover:bg-white/60',
+        'flex flex-col gap-1 w-full text-left px-3 py-2 rounded-lg border transition-colors flex-shrink-0 overflow-hidden',
+        isActive ? installRailStyles.itemCurrent : installRailStyles.item,
       );
 
     // 레일 항목 제목 — 평시 14/400, 선택 시 14/600. 항목이 조용해진 만큼(A안)
@@ -759,13 +798,20 @@ export const InstallStatusDetail = ({
     // tertiary 가 아니라 secondary 인 이유는 레일 표면이 gray-100 이기 때문이다.
     const railTitleClass = (isActive: boolean, na: boolean) =>
       cn(
-        'flex-1 min-w-0 truncate',
+        // truncate 없음 — 넘치면 잘리는 대신 감긴다. break-keep 은 한국어를 단어
+        // 단위로 감아 음절 하나가 홀로 다음 줄에 남지 않게 한다.
+        'break-keep',
         isActive ? textStyles.bodyStrong : textStyles.body,
         na ? cn('line-through', textColors.secondary) : textColors.primary,
       );
 
-    // Rail item — one line: [ordinal] title · status word.
-    const railItem = (step: InstallTableStep, ord: number | null) => {
+    // Rail item — 두 줄: 제목, 그 아래 상태 한 단어.
+    //
+    // BDC 그룹 항목이 달고 있던 실행 순번(1·2·3)은 없앴다(오너 지시). 순서는 항목이
+    // 놓인 위아래가 이미 말하고, 숫자는 그 사실을 한 번 더 적으면서 제목의 폭을
+    // 22px 씩 가져갔다 — 잘림을 고치자마자 다시 좁히는 열이었다. '내가 할 일' 그룹은
+    // 처음부터 순번 없이 서 있었으므로 두 그룹의 문법도 이걸로 같아진다.
+    const railItem = (step: InstallTableStep) => {
       const aggregate = aggregates.get(step.id)!;
       const isActive = step.id === activeId;
       return (
@@ -776,19 +822,9 @@ export const InstallStatusDetail = ({
           aria-current={isActive}
           className={railItemClass(isActive)}
         >
-          {ord !== null && (
-            // Execution order — quiet gray digits. secondary, not tertiary:
-            // gray-500 on the panel surface (gray-100) is 4.37:1, under AA.
-            <span className={cn('flex-shrink-0 w-3.5 tabular-nums', textStyles.caption, textColors.secondary)}>
-              {ord}
-            </span>
-          )}
-          <span className={railTitleClass(isActive, aggregate.kind === 'na')}>
-            {step.title}
-          </span>
+          <span className={railTitleClass(isActive, aggregate.kind === 'na')}>{step.title}</span>
           <span
             className={cn(
-              'flex-shrink-0',
               textStyles.caption,
               NAV_STATUS_TEXT[aggregate.kind],
               NAV_STATUS_WEIGHT[aggregate.kind],
@@ -814,67 +850,100 @@ export const InstallStatusDetail = ({
       </button>
     );
 
-    // 16/600 — 그룹 이름이 항목(14/400)보다 크고 굵다. 계층 레버(크기·굵기)가 전부
-    // 라벨 편을 가리켜야 한다 — 16/500 은 크기로는 상위, 굵기·잉크로는 하위라
-    // 부모가 오락가락했다(레일 타이포 벤치마크 진단 1).
-    const groupLabel = (text: string, tone: string, trailing?: ReactNode) => (
-      <div
-        className={cn(
-          'flex items-baseline gap-2 px-2.5 pt-3 pb-1 text-[16px] font-semibold leading-[24px] tracking-[-0.01em] flex-shrink-0',
-          // On the gray-100 panel: raw Primary is 4.47:1 and gray-500 is 4.37:1,
-          // both under AA — use the darker tiers the theme keeps for tints.
-          tone,
-        )}
-      >
-        <span className="min-w-0 truncate">{text}</span>
-        {trailing}
+    // 그룹 = 머리(밴드) + 몸(스파인이 붙든 항목들). 이 함수가 만들어지기 전까지 레일에는
+    // **그룹이라는 상자가 없었다** — 라벨과 항목이 nav 의 형제로 나란히 놓였고, 그래서
+    // 그룹을 만드는 세 신호가 전부 빠져 있었다.
+    //
+    // ① 근접성 — 실측했더니 레일 자식 8개의 인접 간격이 **전부 8.0px** 이었다. 그룹
+    //    경계(마지막 항목 → 다음 라벨)와 그룹 내부(항목 → 항목)가 같은 값이라, 여백만
+    //    보면 어디서 묶음이 끊기는지 알 수 없었다. 근접성은 색·모양 같은 다른 신호를
+    //    덮어쓰기 때문에(NN/g Law of Proximity) 이걸 안 고치면 나머지가 절반만 듣는다.
+    //    이제 간격은 두 값이다 — 그룹 사이 24px(nav 의 gap-6), 그룹 안 6px(gap-1.5).
+    // ② 포함 — 라벨은 칠도 테두리도 없는 글자 한 줄인데 위아래 이웃은 둘 다 흰 카드라
+    //    부모가 자식보다 약했고, 카드 윤곽이 라벨의 위아래를 똑같이 막아서 라벨이 위를
+    //    닫는 줄인지 아래를 여는 줄인지 형태로 말하지 못했다. 밴드가 그 둘을 푼다.
+    // ③ 색의 도달 — 그룹 색이 라벨 글자에서 끝났다. 스파인이 그걸 항목 옆까지 끌고
+    //    내려간다(`installRailGroupStyles` 주석의 EUI `emphasize` 근거).
+    //
+    // 라벨은 16/600 → **12/600 + 자간 0.04em**. 담는 면이 생긴 이상 크기로 이길 필요가
+    // 없고, 패널 머리는 내용이 아니라 크롬이다(Ant `groupTitleColor` 문법). 라벨이
+    // 40px → 24px 로 내려가면서 레일 전체는 오히려 짧아진다.
+    //
+    // 스파인은 밴드의 **왼쪽 모서리에서** 내려온다(ml 없음) — 둘이 같은 x 에 서야 ㄴ 자로
+    // 읽힌다. 항목은 그 안쪽 8px 에 놓여 글자 기준 13px 들여쓰기가 된다(업계 12~16px).
+    const railGroup = (
+      key: string,
+      text: string,
+      tone: { band: string; spine: string },
+      items: ReactNode,
+      trailing?: ReactNode,
+    ) => (
+      <div key={key} className="flex flex-col flex-shrink-0">
+        <div className={cn('flex items-baseline gap-2 rounded-md px-2.5 py-1', tone.band)}>
+          <span className="min-w-0 truncate text-[12px] font-semibold leading-4 tracking-[0.04em]">
+            {text}
+          </span>
+          {trailing}
+        </div>
+        <div className={cn('mt-1.5 pl-2 border-l-2 flex flex-col gap-1.5', tone.spine)}>{items}</div>
       </div>
     );
 
     return (
-      <div className="flex flex-col gap-3">
-        {/* 조회 시각만 남는다 — 카드 헤더가 이미 'Agent 설치'라고 말하는데 트레이가
-            제목을 한 번 더 걸면 두 제목이 170px 간격으로 겹치고, 크기·굵기 어느
-            레버도 둘 중 누가 상위인지 답하지 못한다. No manual refresh or interval
-            control (owner decision) — polling refreshes quietly.
-
-            줄은 비어 있어도 선다. checked_at 은 선택 필드라(아직 한 번도 확인 안 한
-            상태) 내용 유무로 접으면 프레임의 y 가 데이터에 따라 달라지고, 스켈레톤은
-            그 분기를 미리 알 수 없어 도착 순간 카드가 28px 튄다. 예전 메타바가 제목
-            덕에 늘 자리를 차지했던 것과 같은 안정성이다. */}
-        {/* min-h-4 = caption line-height. 빈 div 는 line box 가 없어 높이 0 이라,
-            줄을 남겨두는 것만으로는 같은 튐이 방향만 바꿔 그대로 남는다. */}
-        <div className={cn('flex justify-end min-h-4', textStyles.caption, textColors.secondary)}>
-          {/* checked_at is UTC wire — the label asserts KST, so the formatter
-              pins Asia/Seoul instead of trusting the browser timezone. */}
-          {lastCheck.checkedAt && <>마지막 확인 {formatDateTimeKst(lastCheck.checkedAt)} (KST)</>}
-          {lastCheck.status === 'FAILED' && (
-            <span className={cn('font-semibold', statusColors.error.textDark)}> · 상태 확인 실패</span>
-          )}
-        </div>
-
-        {/* 레거시(Azure/GCP/IDC) 분기와 같은 그릇이다 — 헤어라인 컨테이너 하나가 레일과
-            내용을 담고, 회색은 카드 위에 얹은 판이 아니라 레일 셀의 채움이다. 카드
-            자체가 캔버스 위에 떠 있는 raised 표면이라 그 안에 가라앉은 면을 또 깔 수
-            없다(Atlassian elevation: sunken 은 default 위에만).
+      // 조회 시각 줄이 이 위에 있었다. 카드 헤더로 올라갔다(LastCheckStamp) — 오른쪽
+      // 끝에 홀로 서서 위아래 어느 쪽 소속인지 말하지 못했고, 원래 짝이던 트레이 제목이
+      // 삭제되면서 정렬의 기준마저 사라진 자리였다. 카드에 대한 한 줄은 카드 이름 옆에
+      // 선다. No manual refresh or interval control (owner decision) — the card polls
+      // quietly and that line is where the poll is visible.
+      // 카드 본문의 패딩을 되돌려 좌측 레일이 카드 모서리까지 흐르게 한다.
+      <div className={cn('flex flex-col', cardStyles.bodyBleed)}>
+        {/* 레일과 내용을 담는 그릇. 테두리는 두르지 않는다 — 스텝 카드가 이미 자기 테두리를
+            가진 면이라, 그 안에서 한 겹을 더 두르면 카드 속 카드가 되어 4단계만 다른
+            단계보다 한 겹 깊어 보였다(1·2·3·5단계는 카드 본문에 툴바와 표가 바로 앉는다).
+            가르는 일은 레일의 회색 채움과 그 오른쪽 세로 헤어라인이 이미 한다 — Atlassian
+            elevation 이 raised 표면 안에서 지정하는 대안이 정확히 그 둘(여백·경계선)이다.
+            라운드와 overflow-hidden 은 남긴다: 회색 채움이 각지게 끝나면 그 컬럼이 카드
+            밖에서 잘려 들어온 것처럼 보인다.
             높이 고정은 유지 — 스크롤은 좌우 셀 안에서 일어나고 프레임이 자르는 점이다. */}
-        <div
-          className={cn(
-            'grid grid-cols-[224px_minmax(0,1fr)] rounded-xl border overflow-hidden h-[560px]',
-            borderColors.light,
-          )}
-        >
+        {/* 높이는 내용이 정하되 560px 에서 멈춘다 — 패널 단계(폼 몇 줄)가 억지로 560 을
+            채우느라 본문 셀의 61%가 빈 흰 면이었다(실측 293px). 상한은 **행이 아니라 각
+            셀**이 갖는다: 그리드 행에 `max-h` 를 걸면 행(auto)이 그걸 무시하고 내용만큼
+            자라 표가 카드 밖으로 흘러나오고, `grid-rows-[minmax(0,560px)]` 로 트랙을
+            묶으면 이번엔 짧은 단계까지 560 으로 늘어나 빈 면이 돌아온다. 셀에 걸면 둘 다
+            산다 — 짧으면 내용 높이, 길면 560 에서 셀 안 스크롤. */}
+        {/* 레일 224 → 240px. 들여쓰기는 공짜가 아니다 — 고정 레일은 제로섬 열이라
+            스파인(2px)과 그 안쪽 여백(8px)이 그대로 제목 상자에서 빠진다. 224 그대로
+            두면 제목 상자가 181 → 171px 이 되는데, 이 레일에서 가장 긴 제목인
+            「서비스 측 Terraform 자동 적용」의 실측 잉크 폭이 **169.3px** 이라 여유가
+            1.7px 만 남는다. 그 라벨이 다시 감기는 것을 막으려고 두 라운드를 썼으므로
+            (47px 잘림 → 두 줄 → 순번 제거), 16px 은 오른쪽 셀에서 가져온다. 그쪽은
+            열 폭이 저장되는 리사이즈 표라 16px 은 여유분에서 빠진다. 결과 188px. */}
+        <div className="grid grid-cols-[240px_minmax(0,1fr)]">
+          {/* 레일은 카드의 흰 바닥을 그대로 쓴다(시안 A). 회색 칠은 카드(raised) 안의
+              sunken 면이라 Atlassian elevation 이 금지하는 조합이었고, 지난 라운드에
+              카드 모서리까지 붙이면서 "가라앉은 판"이 아니라 "카드가 그만큼 없는 것"으로
+              읽혔다(오너: 구멍이 난 느낌). 칠이 지던 구분은 둘로 나눠 진다 —
+              항목 카드들의 윤곽, 그리고 이 열 경계선.
+              경계선은 `light`(gray-100) 가 아니라 `strong`(gray-300) 이다. `light` 는
+              칠(gray-100)과 **같은 색**이라 border-r 이 그려져도 보이지 않았고, 한 단
+              올린 `default`(gray-200)는 흰 바닥에서 1.24:1 — 항목 카드의 윤곽(#D6DBE6,
+              1.39:1)보다도 흐렸다. 열의 경계가 그 안쪽 항목의 경계보다 약할 수는 없다. */}
           <nav
             className={cn(
-              'flex flex-col gap-0.5 p-2 border-r overflow-y-auto min-h-0',
-              bgColors.panel,
-              borderColors.light,
+              // gap-6 = 그룹 사이 24px. 그룹 **안**은 6px 이라 두 값의 비가 4:1 이다 —
+              // 8px 하나로 둘 다 쓰던 자리(진단 1)를 가르는 것이 이 레일의 1차 신호다.
+              'flex flex-col gap-6 p-2 border-r overflow-y-auto min-h-0 max-h-[560px]',
+              borderColors.strong,
             )}
             aria-label="설치 단계"
           >
-            {groupLabel(
+            {railGroup(
+              'todo',
               `내가 할 일 (${openTodoCount})`,
-              openTodoCount > 0 ? primaryColors.textOnLight : textColors.secondary,
+              // 끝난 그룹은 브랜드 색을 놓는다 — 남은 조치가 없는 묶음이 레일에서 가장
+              // 밝은 면이면 "여기를 보라"가 거짓이 된다.
+              openTodoCount > 0 ? installRailGroupStyles.todo : installRailGroupStyles.todoDone,
+              todoSteps.map((s) => railItem(s)),
               // 다 끝났을 때는 남는 자리에 문단을 뿌리는 대신 그룹 이름 옆에서 한 마디로
               // 닫는다. 지웠던 두 줄은 둘 다 중복이었다: "하실 일이 없어요"는 라벨의 (0)이,
               // "자동으로 진행돼요"는 바로 아래 'BDC 진행' 라벨이 이미 말한다.
@@ -884,22 +953,26 @@ export const InstallStatusDetail = ({
                 </span>
               ),
             )}
-            {todoSteps.map((s) => railItem(s, null))}
             {/* BDC 는 인디고 — 새 색이 아니라 이 화면이 이미 'BDC측'에 쓰고 있는 색이다
                 (SideTag 의 tagStyles.indigo, sideTextColors.bdc). 그룹 이름과 행 태그가
                 같은 색을 말해야 "이 묶음이 곧 BDC 측"으로 읽힌다. */}
-            {groupLabel('BDC 진행', sideTextColors.bdc)}
-            {autoSteps.map((s, i) => railItem(s, i + 1))}
-
-            {/* 설치 스크립트 — 단계가 아니므로 진행 순번 다음, 레일 끝에 선다.
-                주황은 파랑(내가 할 일)과 겹치지 않는 유일한 강조색이라, 처음 들어온
-                담당자도 찾지 않고 걸린다(오너 요구). */}
-            {reference && (
-              <>
-                {groupLabel('설치 스크립트', statusColors.warning.textDark)}
-                {referenceItem(reference)}
-              </>
+            {railGroup(
+              'auto',
+              'BDC 진행',
+              installRailGroupStyles.bdc,
+              autoSteps.map((s) => railItem(s)),
             )}
+
+            {/* 설치 스크립트 — 단계가 아니므로 레일 끝에 선다. 주황은 파랑(내가 할 일)과
+                겹치지 않는 유일한 강조색이라, 처음 들어온 담당자도 찾지 않고 걸린다
+                (오너 요구). */}
+            {reference &&
+              railGroup(
+                'reference',
+                '설치 스크립트',
+                installRailGroupStyles.reference,
+                referenceItem(reference),
+              )}
             {/* 레일 푸터(진행바 + "N개 중 M개 완료") 삭제 — 오너 결정. 단계 행의 상태
                 글자는 최악값 한 단어라 리소스 개수를 대신하지 못하므로, 그룹 레일에는
                 수치 진행률이 남아 있지 않다. 필요해지면 메타바 우측이 자리다. */}
@@ -908,7 +981,7 @@ export const InstallStatusDetail = ({
           {/* 프레임의 오른쪽 셀 — 카드의 흰 바닥을 그대로 쓴다. 가르는 일은 레일의
               회색 채움과 컨테이너 세로 경계선이 이미 하므로, 여기에 카드를 한 겹 더
               두르면 카드 속 카드가 된다. */}
-          <div className="min-w-0 min-h-0 flex flex-col">
+          <div className="min-w-0 min-h-0 max-h-[560px] flex flex-col">
             {activeReference ? (
               /* 참고 패널은 표가 아니라 액션 하나다 — 헤더+본문으로 쪼개면 16px 제목,
                  12px 설명, 떠 있는 버튼 세 조각이 큰 빈 면 위에 남는다(오너 지적).
@@ -947,8 +1020,11 @@ export const InstallStatusDetail = ({
               </div>
             ) : (
               <>
-                <div className={cn('flex-none px-5 py-4 border-b', borderColors.light)}>{paneHead}</div>
-                <div className="flex-1 min-h-0 overflow-y-auto px-5 py-4">{paneBody}</div>
+                {/* 헤어라인 삭제 — 폭 전체를 가로지르는 1px 은 이 셀을 "제목 + 구분선 +
+                    본문"으로 만들어, 테두리를 지운 뒤에도 두 번째 카드로 읽히게 하던
+                    마지막 신호였다. 가르는 일은 여백이 한다(머리↔본문 = related 8px). */}
+                <div className="flex-none px-5 pt-4 pb-2">{paneHead(true)}</div>
+                <div className="flex-1 min-h-0 overflow-y-auto px-5 pb-5">{paneBody}</div>
               </>
             )}
           </div>
@@ -1036,7 +1112,7 @@ export const InstallStatusDetail = ({
 
       {/* 컨테이너에 갇힌 뒤로는 내용이 테두리에 닿으므로 안쪽 여백이 gap-6 을 대신한다. */}
       <div className="min-w-0 px-5 py-4">
-        {paneHead}
+        {paneHead(false)}
 
         <div className="mt-4">{paneBody}</div>
 

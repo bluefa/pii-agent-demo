@@ -21,9 +21,13 @@ import {
   type InstallResourceMeta,
   type InstallTableStep,
 } from '@/app/components/features/process-status/install-status-detail/model';
-import { useInstallationStatus } from '@/app/hooks/useInstallationStatus';
+import {
+  INSTALL_POLL_INTERVAL_MS,
+  useInstallationStatus,
+} from '@/app/hooks/useInstallationStatus';
 import { useConfirmedIntegration } from '@/app/target-sources/[targetSourceId]/_components/data/ConfirmedIntegrationDataProvider';
 import { InstallCardHeader } from '@/app/components/features/process-status/install-status-detail/InstallCardHeader';
+import { LastCheckStamp } from '@/app/components/features/process-status/install-status-detail/LastCheckStamp';
 
 interface GcpInstallationInlineProps {
   targetSourceId: number;
@@ -86,6 +90,7 @@ export const GcpInstallationInline = ({
     getFn: getInstallDetail,
     // Refresh = re-GET installation-status (POST check-installation REMOVED-no-swagger).
     checkFn: getInstallDetail,
+    pollIntervalMs: INSTALL_POLL_INTERVAL_MS,
     isComplete: (data) => areInstallResourcesSettled(data.resources),
     onComplete: onInstallComplete,
   });
@@ -111,7 +116,7 @@ export const GcpInstallationInline = ({
   // 나타나 스켈레톤의 목적(레이아웃 유지)이 깨진다.
   return (
     <section className={cn(cardStyles.base, 'overflow-hidden')}>
-      <InstallCardHeader />
+      <InstallCardHeader action={status && <LastCheckStamp lastCheck={status.lastCheck} />} />
       <div className={cn(cardStyles.body, 'space-y-3')}>
         {status?.lastCheck.status === 'FAILED' && status.lastCheck.failReason && (
           <div className={cn('px-4 py-2 rounded-lg border text-sm', statusColors.error.bg, statusColors.error.border, statusColors.error.textDark)}>
