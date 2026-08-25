@@ -43,7 +43,9 @@ import {
   TcPill,
 } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/bits';
 import {
-  BUCKET_LABEL,
+  BOARD_FILTER_LABEL,
+  attentionCount,
+  matchesBoardFilter,
   FIXED_BOARD_FILTERS,
   abbrevDagName,
   agentDisplayName,
@@ -149,9 +151,9 @@ function DbIdentity({ db }: { db: DagDbRow['db'] }): ReactElement {
 
 export interface DbWeeklyBoardProps {
   data: DagStatusResponse;
-  /** 진입 프리셋 — 진입 세 곳이 각자 약속한 것을 명시한다(실패 숫자만 'failed',
-   *  나머지는 'ALL'). 기본값을 두지 않는 것이 규칙이다: 여는 쪽이 무엇을 보여 주기로
-   *  했는지 알지, 보드가 추측할 일이 아니다. */
+  /** 진입 프리셋 — 진입 세 곳이 각자 약속한 것을 명시한다(확인 필요 숫자만
+   *  'attention', 나머지는 'ALL'). 기본값을 두지 않는 것이 규칙이다: 여는 쪽이 무엇을
+   *  보여 주기로 했는지 알지, 보드가 추측할 일이 아니다. */
   initialFilter: BoardFilter;
   initialAgentId?: string | null;
   /** 패널 머리의 ✕ — scrim·Esc 와 함께 ModalShell 의 onClose 로 모인다. */
@@ -183,7 +185,7 @@ export function DbWeeklyBoard({
   );
   const counts = useMemo(() => countBuckets(scoped), [scoped]);
   const visible = useMemo(
-    () => sortBoardRows(filter === 'ALL' ? scoped : scoped.filter((r) => r.bucket === filter)),
+    () => sortBoardRows(scoped.filter((r) => matchesBoardFilter(r.bucket, filter))),
     [scoped, filter],
   );
 
@@ -193,9 +195,9 @@ export function DbWeeklyBoard({
   const first = visible.length === 0 ? 0 : safePage * pageSize + 1;
 
   const options = [
-    ...FIXED_BOARD_FILTERS.map((bucket) => ({
-      value: bucket as BoardFilter,
-      label: `${BUCKET_LABEL[bucket]} ${counts[bucket].toLocaleString('ko-KR')}`,
+    ...FIXED_BOARD_FILTERS.map((value) => ({
+      value: value as BoardFilter,
+      label: `${BOARD_FILTER_LABEL[value]} ${(value === 'attention' ? attentionCount(counts) : counts[value]).toLocaleString('ko-KR')}`,
     })),
     // 'other' 는 계약 밖 값이 실제로 왔을 때만 생기는 칩이지만, 걸려 있는 동안에는
     // 0건이어도 남는다 — 사라지면 보이지 않는 필터가 목록을 비운 채로 남는다.

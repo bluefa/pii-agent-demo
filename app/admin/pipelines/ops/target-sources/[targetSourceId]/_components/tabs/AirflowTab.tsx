@@ -39,7 +39,7 @@ import type {
 } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/dagBoard';
 
 /**
- * 카드의 보조 한 줄 — 판정만 말한다. 수(총계·성공·실패·스케줄 안 됨)는 바로 아래
+ * 카드의 보조 한 줄 — 판정만 말한다. 수(총계·성공·확인 필요)는 바로 아래
  * 카운트 줄이 지므로, 예전처럼 문장이 같은 수를 한 번 더 세지 않는다 (오너 2026-08-25).
  * 관측 스코프는 우측 상단 메타 줄로 갔다 — '최근 7일' 태그 + 조회 시각(타임존).
  *
@@ -150,11 +150,15 @@ export function AirflowTab({ targetSourceId, isIdc, dag }: AirflowTabProps): Rea
           </div>
           {dag.phase === 'loaded' && (
             <p className="mt-1 flex flex-none items-center gap-2 text-[12px] tabular-nums text-[var(--pl-text-weak)]">
-              {/* 스코프는 태그, 시각은 문장 (오너 2026-08-25). 셋을 가운뎃점으로 잇던 줄은
-                  세 값을 같은 무게로 세워서, 이 탭 전체가 최근 7일치라는 사실이 조회 시각의
-                  각주처럼 읽혔다. 태그는 그 사실을 값이 아니라 라벨로 만든다. */}
-              <TcPill tone="off" label="최근 7일" />
-              조회 {fmtDateTimeShort(dag.fetchedAt)} ({dag.data.timezone})
+              {/* 스코프는 태그, 시각은 값 (오너 2026-08-25). 셋을 가운뎃점으로 잇던 줄은
+                  세 값을 같은 무게로 세워서, 이 탭 전체가 최근 7일치라는 사실이 시각의
+                  각주처럼 읽혔다.
+
+                  태그는 파랑이다 — 중립 회색은 이 줄의 글자색과 같은 계열이라 태그가 아니라
+                  굵은 글자로 읽혔다(`opsStyles.scopeTag` 에 값의 근거). '조회'는 걷혔다:
+                  메타 줄에 시각이 하나뿐이라 그 낱말이 고르는 것이 없다. */}
+              <span className={opsStyles.scopeTag}>최근 7일</span>
+              {fmtDateTimeShort(dag.fetchedAt)} ({dag.data.timezone})
             </p>
           )}
         </div>
@@ -164,7 +168,7 @@ export function AirflowTab({ targetSourceId, isIdc, dag }: AirflowTabProps): Rea
             <div className="mt-5">
               <MonitoringEvidenceBody
                 agg={agg}
-                onShowFailed={() => board.open({ filter: 'failed' })}
+                onShowAttention={() => board.open({ filter: 'attention' })}
                 onOpenBoard={() => board.open({ filter: 'ALL' })}
               />
             </div>

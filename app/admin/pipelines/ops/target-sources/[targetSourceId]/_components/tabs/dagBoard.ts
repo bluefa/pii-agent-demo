@@ -43,7 +43,34 @@ export const flattenDagRows = (data: DagStatusResponse): DagDbRow[] =>
 // 보드 필터 — 상태 칩(고정 슬롯) + 검색 + 에이전트 스코프
 // ---------------------------------------------------------------------------
 
-export type BoardFilter = DbBucket | 'ALL';
+/**
+ * 확인 필요 = 실패 + 스케줄 안 됨 (오너 2026-08-25: "결국은 스케쥴 안 된 것도 확인 필요해").
+ *
+ * 두 버킷을 세로 나눠 세우던 것은 원인의 구분이지 **할 일**의 구분이 아니었다 — 어느
+ * 쪽이든 관리자가 다음에 하는 일은 그 논리 DB 를 열어 보는 것 하나다. 원인은 보드의
+ * 7일 스트립이 행마다 이미 말한다(실패한 날은 빨간 칸, 안 걸린 날은 빈 칸): 합치는 것은
+ * **수**이고, 사실은 행에 그대로 남는다.
+ *
+ * `DbBucket` 자체는 건드리지 않는다 — 행 하나의 진짜 상태는 여전히 다섯 갈래다.
+ */
+export const ATTENTION_BUCKETS = ['failed', 'unscheduled'] as const;
+
+export const isAttentionBucket = (bucket: DbBucket): boolean =>
+  (ATTENTION_BUCKETS as readonly DbBucket[]).includes(bucket);
+
+/** 확인 필요 합계 — 요약 카운트 줄과 보드 칩이 같은 셈을 쓰게 하는 한 곳. */
+export const attentionCount = (counts: Record<(typeof ATTENTION_BUCKETS)[number], number>): number =>
+  ATTENTION_BUCKETS.reduce((sum, bucket) => sum + counts[bucket], 0);
+
+export type BoardFilter = DbBucket | 'attention' | 'ALL';
+
+/** 필터 하나가 어떤 행을 받는지 — 'attention' 만 여러 버킷을 받는다. */
+export const matchesBoardFilter = (bucket: DbBucket, filter: BoardFilter): boolean =>
+  filter === 'ALL'
+    ? true
+    : filter === 'attention'
+      ? isAttentionBucket(bucket)
+      : bucket === filter;
 
 export const BUCKET_LABEL: Record<DbBucket, string> = {
   failed: '실패',
@@ -61,12 +88,17 @@ export const BUCKET_LABEL: Record<DbBucket, string> = {
 
 /** 항상 자리를 지키는 칩 순서 (문제 먼저 — TcAgentResultList FIXED_FILTERS 문법).
  *  'other' 는 계약 밖의 값이 실제로 왔을 때만 생기므로 0건이면 감춘다. */
-export const FIXED_BOARD_FILTERS: readonly DbBucket[] = [
-  'failed',
-  'unscheduled',
+export const FIXED_BOARD_FILTERS: readonly Exclude<BoardFilter, 'ALL'>[] = [
+  'attention',
   'running',
   'succeeded',
 ];
+
+/** 칩 이름 — 버킷 이름 + 합쳐진 슬롯 하나. 요약 카운트 줄이 쓰는 말과 같아야 한다. */
+export const BOARD_FILTER_LABEL: Record<Exclude<BoardFilter, 'ALL'>, string> = {
+  ...BUCKET_LABEL,
+  attention: '확인 필요',
+};
 
 /** 에이전트 스코프 + 검색까지 좁힌 행 — 칩 카운트의 분모. 검색은 행에 보이는
  *  정체성 전부(이름·스키마·DAG)와 주소를 훑는다: 열로 세운 값은 찾을 수도 있어야

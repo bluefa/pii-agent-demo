@@ -19,21 +19,22 @@ import type { ReactElement } from 'react';
 import { cn } from '@/lib/theme';
 import { opsStyles } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/opsStyles';
 import type { DagAggregates } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/approvalGate';
+import { attentionCount } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/dagBoard';
 
 const n = (value: number): string => value.toLocaleString('ko-KR');
 
 export interface MonitoringEvidenceBodyProps {
   /** ApprovalTab 이 응답당 1회 접어 둔 집계 — 1,500행을 여기서 다시 세지 않는다. */
   agg: DagAggregates;
-  /** 실패 숫자 → 보드 패널을 실패 필터로 연다. 실패 0건이면 그릴 것이 없다. */
-  onShowFailed?: () => void;
+  /** 확인 필요 숫자 → 보드 패널을 같은 필터로 연다. 0건이면 그릴 것이 없다. */
+  onShowAttention?: () => void;
   /** 1,500행 보드 패널(논리 DB 전체 현황) 진입. */
   onOpenBoard: () => void;
 }
 
 export function MonitoringEvidenceBody({
   agg,
-  onShowFailed,
+  onShowAttention,
   onOpenBoard,
 }: MonitoringEvidenceBodyProps): ReactElement {
   const b = opsStyles.tcBand;
@@ -41,8 +42,10 @@ export function MonitoringEvidenceBody({
   // 색이 아니라 형태(파선 링)로 말한다: 읽지 못한 값이지 나쁜 값이 아니다.
   const buckets: { label: string; value: number; dot: string; ink?: string }[] = [
     { label: '성공', value: agg.succeeded, dot: b.countDotOk, ink: b.okValue },
-    { label: '실패', value: agg.failed, dot: b.countDotFail, ink: b.failValue },
-    { label: '스케줄 안 됨', value: agg.unscheduled, dot: b.countDotRest },
+    // 실패와 스케줄 안 됨은 한 수로 선다 (오너 2026-08-25) — 둘의 차이는 원인이지
+    // 할 일이 아니고, 이 줄이 답하는 질문은 "몇 개를 봐야 하나" 하나다. 원인은 보드의
+    // 7일 스트립이 행마다 진다. 표의 판정 알약·실패 레일과도 같은 낱말이 됐다.
+    { label: '확인 필요', value: attentionCount(agg), dot: b.countDotFail, ink: b.failValue },
     ...(agg.running > 0
       ? [{ label: '진행 중', value: agg.running, dot: b.countDotRest }]
       : []),
@@ -56,13 +59,13 @@ export function MonitoringEvidenceBody({
         논리 DB<b className={b.countValue}>{n(agg.dbTotal)}</b>
       </span>
       {buckets.map((part) =>
-        // 실패만 진입을 진다 — 밑줄이 affordance 를 지고 색은 상태에 남는다(countLink 규칙).
-        part.label === '실패' && onShowFailed && part.value > 0 ? (
+        // 확인 필요만 진입을 진다 — 밑줄이 affordance 를 지고 색은 상태에 남는다(countLink 규칙).
+        part.label === '확인 필요' && onShowAttention && part.value > 0 ? (
           <button
             key={part.label}
             type="button"
-            onClick={onShowFailed}
-            aria-label={`실패 ${n(part.value)}건을 최근 7일 현황에서 보기`}
+            onClick={onShowAttention}
+            aria-label={`확인 필요 ${n(part.value)}건을 최근 7일 현황에서 보기`}
             className={cn(b.countSeg, 'cursor-pointer')}
           >
             <span className={cn(b.countDot, part.dot)} />

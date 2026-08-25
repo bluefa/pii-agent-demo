@@ -7,11 +7,15 @@
 import { describe, expect, it } from 'vitest';
 import type { DagDatabaseStatus, DagStatusResponse } from '@/lib/types/dag-status';
 import {
+  BOARD_FILTER_LABEL,
+  FIXED_BOARD_FILTERS,
   abbrevDagName,
   agentDisplayName,
   agentVerdict,
+  attentionCount,
   connPill,
   countBuckets,
+  matchesBoardFilter,
   dayCellKind,
   dayCellTip,
   dayLabel,
@@ -106,6 +110,33 @@ describe('scopeBoardRows', () => {
     expect(bySchema.map((r) => r.db.databaseName)).toEqual(['orders']);
     const byDag = scopeBoardRows(rows, null, 'pii_scan_billing');
     expect(byDag.map((r) => r.db.databaseName)).toEqual(['billing']);
+  });
+});
+
+describe('확인 필요 = 실패 + 스케줄 안 됨', () => {
+  it('두 버킷을 한 수로 센다', () => {
+    expect(attentionCount({ failed: 14, unscheduled: 4 })).toBe(18);
+  });
+
+  it('필터는 두 버킷을 다 받고, 나머지는 안 받는다', () => {
+    expect(matchesBoardFilter('failed', 'attention')).toBe(true);
+    expect(matchesBoardFilter('unscheduled', 'attention')).toBe(true);
+    expect(matchesBoardFilter('running', 'attention')).toBe(false);
+    expect(matchesBoardFilter('succeeded', 'attention')).toBe(false);
+    expect(matchesBoardFilter('other', 'attention')).toBe(false);
+  });
+
+  it('버킷 하나를 고른 필터와 전체는 그대로다 — 합친 것은 이 슬롯뿐', () => {
+    expect(matchesBoardFilter('failed', 'failed')).toBe(true);
+    expect(matchesBoardFilter('unscheduled', 'failed')).toBe(false);
+    expect(matchesBoardFilter('other', 'ALL')).toBe(true);
+  });
+
+  it('보드 칩에서 두 버킷이 따로 서지 않는다 — 카운트 줄과 같은 낱말', () => {
+    expect(FIXED_BOARD_FILTERS).not.toContain('failed');
+    expect(FIXED_BOARD_FILTERS).not.toContain('unscheduled');
+    expect(FIXED_BOARD_FILTERS).toContain('attention');
+    expect(BOARD_FILTER_LABEL.attention).toBe('확인 필요');
   });
 });
 
