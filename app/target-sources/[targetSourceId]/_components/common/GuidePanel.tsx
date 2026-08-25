@@ -78,9 +78,9 @@ const CollabChannelCard = ({ jiraTicket }: { jiraTicket: JiraTicketState }) => {
   // 12px text as −0.024em and on 16px as −0.018em: tightest exactly where it should be
   // loosest. Every tier now declares its own, and the gradient runs 0 → −0.01 → −0.02.
   // `break-keep` because cancelling the tracking is what made it necessary: the sentence
-  // grew ~8px, crossed the 296px column, and Korean's default break-anywhere left 「요.」
-  // alone on line two. It breaks between 어절 now, the way `DuplicateAddressNotice` and
-  // `accessStyles` already do it.
+  // grew ~8px, crossed the 271px column (320 rail − 1 border − 24 rail padding − 24 card
+  // padding), and Korean's default break-anywhere left 「요.」 alone on line two. It breaks
+  // between 어절 now, the way `DuplicateAddressNotice` and `accessStyles` already do it.
   const meta = 'text-[12px] leading-[16px] tracking-normal break-keep';
   const rowBase = `mt-3 block ${meta}`;
   const channelLabel = `block ${meta} font-semibold`;
@@ -356,8 +356,9 @@ export const GuidePanel = ({
 
               ONE number runs the whole layout: 12. Rail padding, card padding, the gap
               between the cards. The rail's own scale is now {8 (zone label → its content),
-              12 (block → block)} and nothing else; the 6/10 inside the guide belong to
-              `.prose-guide`, which the admin post editor shares.
+              12 (block → block)} and nothing else; the guide body keeps its own smaller
+              rhythm, part of it in `.prose-guide` (shared with the admin post editor) and
+              part in `.prose-guide-rail` / `guideStyles` (this rail only).
 
               The channel is still first — it is the escape hatch for every step, so it
               holds the top of the rail and the guide scrolls underneath it. */}

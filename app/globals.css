@@ -520,8 +520,10 @@ body {
    Specificity beats the `.prose-guide ol` rules above ((0,2,1) against (0,1,1)),
    so the padding and list-style here win wherever the class is present.
 
-   Geometry is the source's, scaled from its 16px body to this panel's 13px:
-   26px circle → 22px, 14px column gap → 10px, 20px between steps → 14px.
+   Geometry is the source's, scaled from its 16px body to the panel's body:
+   26px circle → 22px, 14px column gap → 10px, 20px between steps → 14px. The scale
+   was struck against a 13px body; the guide rail's is 14px now (`.prose-guide-rail`),
+   which is why the circle takes its own line-box correction there.
    ============================================================================= */
 
 .prose-guide ol.guide-steps {
@@ -591,11 +593,16 @@ body {
    have to stay BELOW them in source order.
    ============================================================================= */
 
-/* 600, not 700. This is the body's own heading, and the section head 20px above it
-   is 16/700 (`railStyles.zoneLabel`) — at 700 with #111827 and a 24.08px line box it
-   outranked its own section on weight, ink and line box, losing only 2px of size. */
+/* The margin, not the weight. `<h4>` outranked its own section head — 14px/700/#111827 in
+   a 24.08px line box against `railStyles.zoneLabel`'s 16px/600/#4E5968 in 24.00 — but the
+   fix belongs on the HEAD, which is now 16/700/#191F28 in a 20px box. Size is then the one
+   channel that separates them, and everything else ties.
+
+   ⛔ Do not drop this to 600 to "help" that. It was 600 for one round and collided with
+   `.prose-guide strong`, which is also 14/600/#111827 — and 7 of the 9 slots carrying an
+   `<h4>` carry a `<strong>` too, so the block heading and inline emphasis rendered as one
+   thing. The 700/600 pair is the only separation those two have. */
 .prose-guide-rail h4 {
-  font-weight: 600;
   margin-bottom: 4px;
 }
 
@@ -604,6 +611,14 @@ body {
    is not a distinction worth a fourth tier. */
 .prose-guide-rail code {
   font-size: inherit;
+}
+
+/* The 22px circle was struck against a 13 × 1.72 = 22.36px line box, where `margin-top: 1px`
+   sat it almost exactly on the title's first line. T2's box is 20px, so the same 1px now
+   pushes a 23px cell into a 20px row and offsets the numeral's centre from the title's by
+   ~2px on any one-line step. −1 centres the circle on the line box instead. */
+.prose-guide-rail ol.guide-steps > li::before {
+  margin-top: -1px;
 }
 
 /* Guide CMS admin editor — Tiptap renders <.ProseMirror> inside the

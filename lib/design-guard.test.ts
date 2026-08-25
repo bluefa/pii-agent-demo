@@ -651,6 +651,60 @@ describe('surface separation (CIEDE2000 >= JND)', () => {
 });
 
 /**
+ * The service rail RANKS its three fills, and a floor cannot express that.
+ *
+ * `serviceSidebarStyles.rowCurrent` puts the current row's tint at the rail's exact
+ * lightness — luminance ratio 1.004:1 — so hue and chroma carry the entire signal, and
+ * `rowActive`'s comment states the rule the pair has to keep: "A hover is a pointer echo,
+ * not a state, so it stays UNDER the selected row's own step."
+ *
+ * `SURFACES` above already measures the tint against the rail, but only against
+ * SURFACE_MIN (1.0). That is why it stayed green through the regression this exists to
+ * catch: taking the plane from #E2E7EA (H 241°) to #E5E5EF (H 291°) — a hue correction for
+ * the GUIDE rail, on a token the two rails share — moved it into the tint's own family
+ * (H 303°) and collapsed the tint from ΔE00 8.21 to 3.36 while lifting the neutral hover
+ * from 3.01 to 5.25. Both cleared 1.0. The row under the pointer separated 1.6× more than
+ * the row you were on, and nothing failed.
+ *
+ * ⛔ Polarity, not a threshold — the same reason the kind-tag block below uses one. The
+ * honest number here depends on three fills at once, and any floor picked today is a floor
+ * the next re-tint tunes itself just past.
+ */
+describe('the rail ranks its own fills', () => {
+  /** `rowActive` is hover-only, so `bgOf` (rest-state) cannot read it. */
+  const hoverBgOf = (cls: string) => {
+    const m = cls.match(/hover:bg-\[(#[0-9A-Fa-f]{6})\]/);
+    if (!m) throw new Error(`no hover bg in "${cls}"`);
+    return m[1];
+  };
+  const guideRailBlock = (() => {
+    const m = themeSrc.match(/export const railStyles = \{[\s\S]*?\n\} as const/);
+    if (!m) throw new Error('railStyles not found');
+    return m[0];
+  })();
+  const tint = bgOf(classOf(railBlock, 'rowCurrent'));
+  const hover = hoverBgOf(classOf(railBlock, 'rowActive'));
+
+  it('separates the current row further than its hover echo does', () => {
+    expect(deltaE00(tint, rail)).toBeGreaterThan(deltaE00(hover, rail));
+  });
+
+  it('keeps the current tint at the rail’s own level, so hue is what says “here”', () => {
+    // ⛔ If this ever needs relaxing, the tint has stopped being a hue signal and the
+    // docstring's three-channel model (hover LIFTS · current is HUE · press goes DOWN) has
+    // to be rewritten first — a lighter tint was tried and rejected as "a lit band".
+    expect(Math.abs(toLab(tint)[0] - toLab(rail)[0])).toBeLessThan(0.5);
+  });
+
+  it('paints both rails one plane — the guide rail may not drift off the service rail', () => {
+    // ⛔ The pair is a decision, not a coincidence, and it had no guard. A hue move for one
+    // rail is a hue move for both, which is exactly how the regression above reached a
+    // screen the change was not about.
+    expect(classOf(guideRailBlock, 'surface')).toBe(classOf(railBlock, 'surface'));
+  });
+});
+
+/**
  * The kind tag's fill against the row tints, by POLARITY rather than by a threshold.
  *
  * A plate this pale can never win a contrast number against a tint that is itself pale —

@@ -68,7 +68,7 @@ export const GuideCardPure = ({
       // the one Carbon, Atlassian, Material and Cloudscape all give 14px reading text.
       //
       // Bigger type, LESS height: measured in the browser, a step-4 guide body went 358 →
-      // 315px, because 1.72 → 1.43 gives back more than 13 → 14 costs.
+      // 319px, because 1.72 → 1.43 gives back more than 13 → 14 costs.
       //
       // `tracking` is declared here rather than inherited: `letter-spacing` passes down as a
       // computed LENGTH, so `body`'s −0.288px was −0.022em on this text and −0.024em on the

@@ -212,10 +212,12 @@ describe('GuidePanel — the rail folds, it does not vanish', () => {
     await settled();
 
     const aside = container.querySelector('aside') as HTMLElement;
-    // ⛔ Read the plane off the token, not off a literal. It moved once already —
-    // #E2E7EA (H 241°) → #E5E5EF (H 291°), a hue correction into the canvas's family at
-    // the same lightness step — and a hard-coded hex here is what made that a test fix
-    // rather than a token change. `railStyles.surface` is the one place it is decided.
+    // Wiring only — that the token reaches the element. It cannot fail on a VALUE change,
+    // and deliberately does not try: what the plane's value has to satisfy is a set of
+    // relationships this file cannot see (it must stay one plane with the service rail,
+    // and it must let `rowCurrent`'s tint out-separate its own hover). Those live in
+    // `lib/design-guard.test.ts` › "the rail ranks its own fills", which is where a hex
+    // pinned here would have been the weaker half anyway.
     expect(aside.className).toContain(railStyles.surface);
     expect(aside.className).not.toContain('bg-white');
 
