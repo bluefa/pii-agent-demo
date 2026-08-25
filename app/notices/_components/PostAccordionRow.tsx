@@ -19,8 +19,8 @@ interface PostAccordionRowProps {
    */
   showCategory?: boolean;
   /**
-   * 처음부터 펼쳐 둔다. 목록의 첫 글에만 붙는다 — 빈 목록 칸을 글로 채우는 것이
-   * 목적이라 한 건이면 된다.
+   * 처음부터 펼쳐 둔다. 목록의 첫 글, 그리고 배너 링크가 지목한 글에 붙는다 —
+   * 후자는 부모가 `key` 를 바꿔 행을 다시 세우므로 이 값이 마운트마다 다시 읽힌다.
    */
   defaultOpen?: boolean;
 }
@@ -66,7 +66,8 @@ export const PostAccordionRow = ({
     : validateGuideHtml(body, { allowImages: true, imageSrcPrefixes: POST_IMAGE_SRC_PREFIXES });
 
   return (
-    <li className="border-b border-[#F3F4F6] last:border-b-0">
+    // 배너 링크가 스크롤할 표적. id 는 행이 들고 있어야 목록 어디에 놓여도 찾힌다.
+    <li id={`post-${post.id}`} className="border-b border-[#F3F4F6] last:border-b-0">
       <button
         type="button"
         onClick={() => setOpen((current) => !current)}
