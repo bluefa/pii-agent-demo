@@ -66,17 +66,19 @@ const headerLabels = (): string[] =>
   [...document.querySelectorAll('thead th')].map((th) => (th.textContent ?? '').trim());
 
 describe('확정 정보 표 — 열 구성', () => {
-  it('정체와 속성이 각자 제 열이다 (오너 2026-08-25)', () => {
+  // 오너가 못 박은 척추 다섯(정체 둘 → 판정 → 규모 → Credential)은 붙어 있어야 하고,
+  // 부연 셋(증거 → 분류)이 그 뒤를 잇는다. 순서가 곧 이 표를 읽는 순서다.
+  it('열 순서는 정체 → 판정 → 규모 → Credential → 증거 → 분류다 (오너 2026-08-25)', () => {
     renderTable();
     expect(headerLabels()).toEqual([
       'Resource Name',
       'Resource ID',
-      'Database Type',
-      'Region',
       '연결 상태',
-      'Pod 로그',
       '연동 논리 DB',
       'Credential',
+      'Pod 로그',
+      'Database Type',
+      'Region',
     ]);
   });
 
@@ -84,11 +86,11 @@ describe('확정 정보 표 — 열 구성', () => {
     renderTable(true);
     expect(headerLabels()).toEqual([
       '접속 주소',
-      'Database Type',
       '연결 상태',
-      'Pod 로그',
       '연동 논리 DB',
       'Credential',
+      'Pod 로그',
+      'Database Type',
     ]);
   });
 

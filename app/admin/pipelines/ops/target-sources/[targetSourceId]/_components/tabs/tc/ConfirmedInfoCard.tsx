@@ -157,6 +157,13 @@ const CREDENTIAL_HEAD = (
 );
 
 /**
+ * 열 순서 — 오너가 못 박은 척추 다섯: 정체(이름·ID) → 판정 → 규모 → Credential
+ * (2026-08-25). 이 다섯은 붙어 있어야 하므로 나머지는 그 뒤에 선다.
+ *
+ * 뒤에 남는 셋의 순서는 "부연의 순서"다: Pod 로그는 바로 앞 판정의 증거이고, Database
+ * Type·Region 은 행이 무엇인지 가르는 분류라 가장 늦다. 예전에는 분류가 정체 바로 뒤에
+ * 있었는데, 그 자리는 이 표를 여는 이유(어디가 실패했나)를 두 열 밀어내고 있었다.
+ *
  * IDC 는 이름 대신 접속 주소 한 열을 싣는다 — Resource Name·ID 도 Region 도 없다(온프렘
  * DB 는 스캔이 이름 붙인 적이 없고 리전이 없다). 열을 숨기는 게 아니라 그 사실이 없다.
  */
@@ -164,21 +171,21 @@ const confirmedColumns = (isIdc: boolean): ConsoleTableColumn[] =>
   isIdc
     ? [
         { key: 'name', label: '접속 주소', width: COL_W.idcName, flex: true },
-        { key: 'type', label: 'Database Type', width: COL_W.type },
         { key: 'conn', label: '연결 상태', width: COL_W.conn },
-        { key: 'pod', label: 'Pod 로그', width: COL_W.pod },
         { key: 'ldb', label: '연동 논리 DB', width: COL_W.ldb },
         { key: 'cred', label: 'Credential', width: COL_W.cred, head: CREDENTIAL_HEAD },
+        { key: 'pod', label: 'Pod 로그', width: COL_W.pod },
+        { key: 'type', label: 'Database Type', width: COL_W.type },
       ]
     : [
         { key: 'name', label: 'Resource Name', width: COL_W.name, flex: true },
         { key: 'id', label: 'Resource ID', width: COL_W.id, flex: true },
-        { key: 'type', label: 'Database Type', width: COL_W.type },
-        { key: 'region', label: 'Region', width: COL_W.region },
         { key: 'conn', label: '연결 상태', width: COL_W.conn },
-        { key: 'pod', label: 'Pod 로그', width: COL_W.pod },
         { key: 'ldb', label: '연동 논리 DB', width: COL_W.ldb },
         { key: 'cred', label: 'Credential', width: COL_W.cred, head: CREDENTIAL_HEAD },
+        { key: 'pod', label: 'Pod 로그', width: COL_W.pod },
+        { key: 'type', label: 'Database Type', width: COL_W.type },
+        { key: 'region', label: 'Region', width: COL_W.region },
       ];
 
 /** 네 값 중 하나만 한국어였다(Success / Failed / 진행 중 / Unknown): 같은 칸이 같은
@@ -683,28 +690,7 @@ export function ConfirmedInfoCard({
                         </td>
                       )}
                       <td className={CELL}>
-                        <TypeCell type={row.database_type} />
-                      </td>
-                      {!isIdc && (
-                        <td className={CELL}>
-                          <RegionCell region={row.database_region || null} />
-                        </td>
-                      )}
-                      <td className={CELL}>
                         <VerdictCell verdict={verdict} fact={fact} />
-                      </td>
-                      <td className={CLIP_CELL}>
-                        <PodLogCell
-                          fact={fact}
-                          onOpen={() =>
-                            fact?.podId
-                            && setPodTarget({
-                              podId: fact.podId,
-                              // 접힌 행의 pod 는 리전의 pod 다 — 뷰어 부제도 리전을 말해야 한다.
-                              resourceLabel: unit.folded ? unit.unitId : rowLabel(row),
-                            })
-                          }
-                        />
                       </td>
                       <td className={CELL}>
                         <LdbCell row={tc} verdict={verdict} onOpen={openLdb} />
@@ -768,6 +754,27 @@ export function ConfirmedInfoCard({
                           <Dash />
                         )}
                       </td>
+                      <td className={CLIP_CELL}>
+                        <PodLogCell
+                          fact={fact}
+                          onOpen={() =>
+                            fact?.podId
+                            && setPodTarget({
+                              podId: fact.podId,
+                              // 접힌 행의 pod 는 리전의 pod 다 — 뷰어 부제도 리전을 말해야 한다.
+                              resourceLabel: unit.folded ? unit.unitId : rowLabel(row),
+                            })
+                          }
+                        />
+                      </td>
+                      <td className={CELL}>
+                        <TypeCell type={row.database_type} />
+                      </td>
+                      {!isIdc && (
+                        <td className={CELL}>
+                          <RegionCell region={row.database_region || null} />
+                        </td>
+                      )}
                     </tr>
                     {/* 데이터베이스 목록 — 이름과, 그 이름이 무엇인지(Database Type 열이
                         Athena → Database 로 읽힌다). 나머지 칸은 비운다: 리전 행이 이미
@@ -775,30 +782,48 @@ export function ConfirmedInfoCard({
                     {unit.folded
                       && open
                       && unit.members.map((db) => (
-                        /* 접힘은 Athena(클라우드)에만 있으므로 이 행은 IDC 를 만나지 않는다
-                           — 이름·ID·타입 세 칸을 채우고 나머지는 부모 행이 이미 답했다. */
+                        /* 이름·ID·타입 세 칸만 채우고 나머지는 부모 행이 이미 답했다.
+                           칸은 열 목록을 그대로 따라 그린다 — 빈 칸을 `colSpan` 숫자 하나로
+                           덮으면 열 순서가 바뀔 때 그 숫자만 안 따라와 표가 한 칸씩 밀린다. */
                         <tr key={db.resource_id} className={idcStyles.table.row}>
-                          <td className={cn(CLIP_CELL, 'pl-[58px]')}>
-                            {db.resource_name ? (
-                              <span className="block whitespace-nowrap font-mono text-[14px]">
-                                {db.resource_name}
-                              </span>
-                            ) : (
-                              <Dash />
-                            )}
-                          </td>
-                          <td className={CLIP_CELL}>
-                            <ResourceIdCell
-                              value={db.resource_id}
-                              label="Resource ID"
-                              maxWidthClass="max-w-none"
-                              hardClip
-                            />
-                          </td>
-                          <td className={cn(CELL, 'whitespace-nowrap text-[var(--pl-text-weak)]')}>
-                            {GROUPED_CHILD_KIND_LABEL}
-                          </td>
-                          <td className={CELL} colSpan={columns.length - 3} />
+                          {columns.map((column) => {
+                            if (column.key === 'name') {
+                              return (
+                                <td key={column.key} className={cn(CLIP_CELL, 'pl-[58px]')}>
+                                  {db.resource_name ? (
+                                    <span className="block whitespace-nowrap font-mono text-[14px]">
+                                      {db.resource_name}
+                                    </span>
+                                  ) : (
+                                    <Dash />
+                                  )}
+                                </td>
+                              );
+                            }
+                            if (column.key === 'id') {
+                              return (
+                                <td key={column.key} className={CLIP_CELL}>
+                                  <ResourceIdCell
+                                    value={db.resource_id}
+                                    label="Resource ID"
+                                    maxWidthClass="max-w-none"
+                                    hardClip
+                                  />
+                                </td>
+                              );
+                            }
+                            if (column.key === 'type') {
+                              return (
+                                <td
+                                  key={column.key}
+                                  className={cn(CELL, 'whitespace-nowrap text-[var(--pl-text-weak)]')}
+                                >
+                                  {GROUPED_CHILD_KIND_LABEL}
+                                </td>
+                              );
+                            }
+                            return <td key={column.key} className={CELL} />;
+                          })}
                         </tr>
                       ))}
                     </Fragment>

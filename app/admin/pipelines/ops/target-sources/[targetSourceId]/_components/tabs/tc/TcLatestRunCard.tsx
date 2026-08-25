@@ -304,29 +304,17 @@ export function TcLatestRunCard({
 
   return (
     <section className={pipelineStyles.card.base} aria-label="연결 테스트">
-      <div className="flex items-start justify-between gap-4">
-        <div className="min-w-0">
-          <h2 className={cn(opsStyles.cardTitle, 'flex items-center gap-2')}>
-            {/* 사슬 — 이 카드가 검사하는 것이 곧 연결이다. */}
-            <Icon name="link" size={18} className="text-[var(--pl-primary)]" />
-            연결 테스트
-          </h2>
-          <p className={opsStyles.cardDesc}>
-            확정된 리소스에 실제로 접속해 연동 가능 여부를 검증합니다. 리소스별 결과는 아래 표의
-            연결 상태·실패 사유·Pod 로그 열에서 확인하고,{' '}
-            <b className="font-semibold text-[var(--pl-primary)]">Credential 값을 클릭하면 배정을 수정</b>
-            할 수 있습니다.
-          </p>
-        </div>
-        {/* 텍스트 버튼 — 조회지 행동이 아니다. 밑줄이 affordance 를 지고 색은 중립이다. */}
-        <button
-          type="button"
-          onClick={onOpenCredentials}
-          className={cn(opsStyles.countLink, 'mt-1 flex-none whitespace-nowrap text-[14px]')}
-        >
-          Credential 목록
-        </button>
-      </div>
+      <h2 className={cn(opsStyles.cardTitle, 'flex items-center gap-2')}>
+        {/* 사슬 — 이 카드가 검사하는 것이 곧 연결이다. */}
+        <Icon name="link" size={18} className="text-[var(--pl-primary)]" />
+        연결 테스트
+      </h2>
+      <p className={opsStyles.cardDesc}>
+        확정된 리소스에 실제로 접속해 연동 가능 여부를 검증합니다. 리소스별 결과는 아래 표의
+        연결 상태·실패 사유·Pod 로그 열에서 확인하고,{' '}
+        <b className="font-semibold text-[var(--pl-primary)]">Credential 값을 클릭하면 배정을 수정</b>
+        할 수 있습니다.
+      </p>
 
       {triggerFailed && (
         <p className="mt-4 rounded-lg bg-[var(--pl-err-bg)] px-3 py-2.5 text-[14px] text-[var(--pl-err-text)]">
@@ -386,18 +374,28 @@ export function TcLatestRunCard({
               {/* 사유는 실패의 속성이다 — 값이 없으면 줄 자체가 없다. */}
               {(phase === 'fail' || phase === 'unknown') && reason && <RunReasonNote raw={reason} />}
             </div>
-            {/* 실행이 한 번도 없으면 열어 볼 회차도 결정도 없다 — 빈 모달로 가는 입구는
-                세우지 않는다(Step 5 의 `run ? historyAction : null` 과 같은 게이트). */}
-            {latest && (
-              <span className="flex flex-none items-center gap-3">
-                <button type="button" onClick={onOpenRunHistory} className={META_LINK}>
-                  실행 기록
-                </button>
-                <button type="button" onClick={onOpenDecisionHistory} className={META_LINK}>
-                  승인·반려 이력
-                </button>
-              </span>
-            )}
+            {/* 조회 링크 셋 — Credential 목록이 실행 기록 왼쪽이다(오너 2026-08-25).
+                셋 다 "지금 이 실행" 밖의 무언가를 열어 보는 입구라 한 줄에 모인다.
+
+                다만 게이트가 다르다: 실행이 한 번도 없으면 열어 볼 회차도 결정도 없어
+                두 이력은 서지 않지만(Step 5 의 `run ? historyAction : null` 과 같은 게이트),
+                Credential 목록은 **그때가 오히려 필요한 때다** — 첫 실행 전에 배정을 맞추러
+                오는 화면이므로 실행 유무와 무관하게 선다. */}
+            <span className="flex flex-none items-center gap-3">
+              <button type="button" onClick={onOpenCredentials} className={META_LINK}>
+                Credential 목록
+              </button>
+              {latest && (
+                <>
+                  <button type="button" onClick={onOpenRunHistory} className={META_LINK}>
+                    실행 기록
+                  </button>
+                  <button type="button" onClick={onOpenDecisionHistory} className={META_LINK}>
+                    승인·반려 이력
+                  </button>
+                </>
+              )}
+            </span>
           </div>
 
           {showTrack && (
