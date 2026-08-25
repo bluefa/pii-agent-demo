@@ -22,6 +22,8 @@ export const NoticeBoardView = () => {
 
   const [posts, setPosts] = useState<PostSummary[] | null>(null);
   const [category, setCategory] = useState<string>(ALL);
+  /** 배너 링크가 지목한 글 — 아래 목록에서 그 행을 펴고 그 자리로 스크롤한다. */
+  const [openId, setOpenId] = useState<number | null>(null);
 
   useEffect(() => {
     let alive = true;
@@ -36,6 +38,25 @@ export const NoticeBoardView = () => {
   const dropPost = useCallback((postId: number) => {
     setPosts((current) => current?.filter((post) => post.id !== postId) ?? null);
   }, []);
+
+  /**
+   * 배너 링크 → 아래 목록의 그 글. 계약에 게시글 slug 가 없어서 제목으로 찾는다
+   * (`PassBanner` 의 상수). 못 찾으면 — Admin 이 제목을 바꿨거나 아직 안 올렸다 —
+   * 아무 일도 일어나지 않는다. 엉뚱한 글을 여는 것보다 낫다.
+   *
+   * 스크롤을 효과가 아니라 여기서 한 프레임 뒤에 한다. `openId` 를 의존성으로 둔
+   * 효과였다면 같은 링크를 두 번 눌렀을 때(스크롤을 떠난 뒤 되돌아오려는 경우)
+   * 값이 안 바뀌어 두 번째 클릭이 죽는다.
+   */
+  const openPostByTitle = useCallback((title: string) => {
+    const found = posts?.find((post) => post.titles.ko === title);
+    if (!found) return;
+    setOpenId(found.id);
+    requestAnimationFrame(() => {
+      document.getElementById(`post-${found.id}`)
+        ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
+  }, [posts]);
 
   const byType = (type: PostType) =>
     posts === null ? null : posts.filter((post) => post.type === type);
@@ -156,7 +177,7 @@ export const NoticeBoardView = () => {
                 </section>
               ))}
               {!loading && shown.length === 0 && (
-                <p className="px-[22px] py-10 text-center text-[14px] text-[#6B7280]">
+                <p className={postStyles.emptyRow}>
                   등록된 게시글이 없습니다.
                 </p>
               )}
@@ -169,7 +190,7 @@ export const NoticeBoardView = () => {
 
   return (
     <div className={postStyles.page}>
-      <PassBanner />
+      <PassBanner onOpenPost={openPostByTitle} />
       {/* 공지사항 좌 · FAQ 우. min-w-0 은 카드 쪽에 있어야 긴 제목이 자기 열을 넓혀
           옆 열을 밀지 않는다. */}
       <div className={postStyles.dual}>
@@ -179,6 +200,7 @@ export const NoticeBoardView = () => {
           posts={byType('NOTICE')}
           limit={CARD_ROWS}
           onGone={dropPost}
+          openId={openId}
         />
         <PostBoardCard
           title="FAQ"

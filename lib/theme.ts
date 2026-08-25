@@ -4032,6 +4032,12 @@ export const postStyles = {
   entryRow:
     'group relative flex w-full items-start gap-5 px-[22px] py-[14px] text-left border-b border-[#F3F4F6] last:border-b-0 transition-colors duration-150 hover:bg-[#FAFBFD] motion-reduce:transition-none',
   entryRowOpen: 'bg-[#F7F9FC]',
+  /** 행을 감싸는 `li` — 구분선은 행이 아니라 항목이 긋는다(펼침 패널이 그 안에 있다). */
+  entryItem: 'border-b border-[#F3F4F6] last:border-b-0',
+  entryFocus:
+    'focus-visible:outline-2 focus-visible:outline-[#0064FF] focus-visible:-outline-offset-2',
+  /** 목록이 비었을 때의 한 줄. 카드와 그룹 목록이 같은 문장을 같은 자리에 놓는다. */
+  emptyRow: 'px-[22px] py-10 text-center text-[14px] text-[#6B7280]',
   /**
    * 왼쪽 지시바 — hover·펼침에 세로로 자란다. 배경 틴트만으로는 "지금 여기"가
    * 흰 바탕과 1.05:1 이라 거의 안 보인다(`tableRowLift` 에서 받은 같은 지적).
@@ -4298,46 +4304,53 @@ export const postFormStyles = {
 } as const;
 
 /**
- * Pass 소개 배너. 계약 범위 밖의 고정 콘텐츠라 API가 없다 —
+ * Pass 온보딩 배너. 계약 범위 밖의 고정 콘텐츠라 API가 없다 —
  * 문구를 바꾸려면 배너 컴포넌트를 고친다.
+ *
+ * 다크 네이비 면 위의 글이라 대비 검사(밝은 바닥 기준)를 통과하지 못한다.
+ * 색을 정하는 줄마다 `design-exempt:` 를 붙인 이유가 그것이다 — WCAG 가 인정하는
+ * 어두운 면 예외이고, 실제 대비는 이 면(#101A2E~#1B2B4A) 기준으로 잰다.
  */
 export const passBannerStyles = {
   /**
-   * 넓은 화면에서 그라데이션만으로는 띠 하나로 읽혀서 세 겹으로 면을 세운다:
-   * 안쪽 흰 실선(면의 경계), 보라로 물든 그림자(바닥에서 띄우기), 오른쪽 점 격자
-   * (글이 없는 절반을 채우는 것). 그림자 색을 중립 검정이 아니라 그라데이션의
-   * 어두운 끝(#4C1D95)에서 뽑는다 — 회색 그림자는 보라 면 아래에서 때처럼 읽힌다.
+   * 풀블리드 카드 — 최대 폭 제약 없이 부모(페이지 좌우 44px 여백) 폭을 그대로 쓴다.
+   * 980px 아래에서는 CTA 가 글 오른쪽에 설 자리가 없어 세로로 접고 왼쪽 정렬로 내린다.
    */
   root:
-    'relative isolate overflow-hidden rounded-xl px-12 py-14 text-white flex items-center justify-between gap-10 bg-[linear-gradient(101deg,#6D28D9_0%,#7C3AED_46%,#4F46E5_100%)] ring-1 ring-inset ring-white/20 shadow-[0_20px_44px_-20px_rgba(76,29,149,0.75)]',
-  /** 우상단 광원 — 그라데이션만으로는 면이 평평하게 읽힌다. */
-  glow: 'pointer-events-none absolute -right-[70px] -top-[90px] w-[280px] h-[280px] rounded-full bg-white/10',
-  /** 두 번째 광원. 하나뿐이면 빛의 방향이 아니라 "원이 하나 있다"로 읽힌다. */
-  glowSoft:
-    'pointer-events-none absolute right-[170px] -bottom-[150px] w-[260px] h-[260px] rounded-full bg-[#A78BFA]/25',
-  /**
-   * 점 격자 — 글이 끝나는 지점부터 오른쪽 끝까지. 왼쪽으로 갈수록 사라지는 마스크를
-   * 걸어 본문 대비는 건드리지 않는다(글자 뒤에는 점이 오지 않는다).
-   */
+    'relative isolate overflow-hidden rounded-[24px] px-9 py-8 flex items-center justify-between gap-8 bg-[linear-gradient(135deg,#101A2E_0%,#16233D_55%,#1B2B4A_100%)] shadow-[0_16px_36px_-20px_rgba(16,26,46,0.55)] max-[980px]:flex-col max-[980px]:items-start max-[980px]:gap-6',
+  /** 점 격자 — 그라데이션만으로는 넓은 면이 비어 보인다. 0.06 은 글 뒤에 와도 읽기를 건드리지 않는 세기다. */
   dots:
-    'pointer-events-none absolute inset-y-0 right-0 w-[58%] bg-[radial-gradient(circle,rgba(255,255,255,0.20)_1px,transparent_1px)] bg-[length:18px_18px] [mask-image:linear-gradient(to_right,transparent,#000_60%)]',
+    'pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_1px_1px,rgba(255,255,255,0.06)_1px,transparent_0)] bg-[length:28px_28px]',
+  /** 우상단 광원. 면 밖으로 걸치게 놓아 원이 아니라 빛으로 읽히게 한다. */
+  glow:
+    'pointer-events-none absolute -right-[60px] -top-[60px] h-[260px] w-[260px] rounded-full bg-[radial-gradient(circle,rgba(49,130,246,0.28)_0%,transparent_70%)]',
+  /**
+   * 1400px 을 넘어야 글과 CTA 사이가 빈 면이 된다 — 그 아래에서는 채울 여백이 아니라
+   * 글 뒤라서 통째로 숨긴다.
+   */
+  blobs: 'pointer-events-none absolute inset-0 max-[1400px]:hidden',
+  /** 세 덩이 모두 radial 이라 테두리가 없다 — 균일한 원은 이 세기에서도 "동그라미"로 읽힌다. */
+  blobA:
+    'absolute -top-[70px] right-[220px] h-[200px] w-[200px] rounded-full bg-[radial-gradient(circle,rgba(255,255,255,0.10)_0%,transparent_70%)]',
+  blobB:
+    'absolute -bottom-[110px] right-[400px] h-[240px] w-[240px] rounded-full bg-[radial-gradient(circle,rgba(49,130,246,0.15)_0%,transparent_70%)]',
+  blobC:
+    'absolute -bottom-[60px] right-[150px] h-[120px] w-[120px] rounded-full bg-[radial-gradient(circle,rgba(255,255,255,0.08)_0%,transparent_70%)]',
   /** 장식이 절대 배치라 본문은 새 층으로 올려야 점 격자 위에 온다. */
   content: 'relative z-[1] min-w-0',
-  eyebrow: 'text-[12px] font-bold tracking-[0.1em] uppercase text-white/[0.78]',
+  kicker: 'text-[12px] font-bold uppercase tracking-[0.08em] text-[#7DA6F5]', // design-exempt: dark-surface text (#7DA6F5 on #16233D = 6.4:1)
+  title: 'mt-2.5 text-[24px] font-bold tracking-[-0.02em] text-white',
+  body: 'mt-2.5 max-w-[72ch] text-[14px] leading-[1.5] text-white/[0.68]',
+  /** 링크 줄 — 좁은 화면에서 CTA 가 아래로 내려가도 이 줄은 접히며 버틴다. */
+  links: 'mt-4 flex flex-wrap items-center gap-x-4 gap-y-2',
   /**
-   * 40 은 이 앱이 이미 쓰는 최대 크기다(다른 5곳). 32 로는 페이지 제목 30 과 두 칸
-   * 차이라 배너가 목록을 이기지 못했다 — 1584px 면 안에서 32px 은 띠에 얹은 글이지
-   * 히어로가 아니다.
+   * 밑줄이 반투명이라 링크가 글 덩어리에서 튀지 않고, hover 에서 글자와 밑줄이 함께
+   * 흰색으로 올라온다 — 색 한 채널이 아니라 두 채널이 같이 움직여야 눌리는 것으로 읽힌다.
    */
-  title: 'text-[40px] font-extrabold tracking-[-0.03em] leading-[1.2] mt-2',
-  /**
-   * 16 은 읽기 크기이기도 하지만, 여기서는 글 블록의 폭을 정하는 값이다 —
-   * `max-w` 단위가 `ch` 라서 본문 크기가 곧 컬럼 폭이다(14px·60ch 일 때 500px 로
-   * 쪼그라들어 면의 32% 만 썼다).
-   */
-  body: 'text-[16px] text-white/[0.86] leading-[1.7] mt-4 max-w-[58ch]',
+  link:
+    'text-[12px] font-bold text-white/[0.88] underline decoration-white/[0.32] underline-offset-4 transition-colors hover:text-white hover:decoration-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/70',
   cta:
-    'relative z-[1] whitespace-nowrap bg-white text-[#5B21B6] text-[16px] font-bold px-7 py-4 rounded-lg shadow-[0_8px_20px_-8px_rgba(23,10,60,0.55)]',
+    'relative z-[1] inline-flex h-11 flex-none items-center whitespace-nowrap rounded-full bg-white px-[22px] text-[14px] font-bold text-[#0F172A] transition-[background-color,transform] hover:bg-white/[0.88] active:scale-[0.97] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/70',
 } as const;
 
 // =============================================================================
