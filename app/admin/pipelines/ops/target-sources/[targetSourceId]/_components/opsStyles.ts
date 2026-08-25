@@ -135,8 +135,6 @@ export const opsStyles = {
       mean state, because this link repeats once per row. */
   countLink:
     'inline-flex cursor-pointer items-center border-b border-current pb-px text-[14px] font-semibold tabular-nums text-[var(--pl-text-medium)] transition-colors hover:text-[var(--pl-text-strong)]',
-  /** A reported 0 has nothing to open — content, not a link, and not the — placeholder. */
-  countZero: 'text-[14px] tabular-nums text-[var(--pl-text-weak)]',
 
   /** In-cell text action that opens an editor — the Credential cell. A select box
       per row turns the table into a toolbar and buries the value inside a control,

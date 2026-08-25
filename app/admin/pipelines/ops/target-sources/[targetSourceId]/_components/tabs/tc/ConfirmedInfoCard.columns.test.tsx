@@ -3,6 +3,7 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import type { ConfirmedIntegrationResourceItem } from '@/app/lib/api';
 import type { TcResourceFact } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/logic';
+import type { TcResultRow } from '@/app/lib/api/task-queue-tc';
 
 /**
  * 정체와 속성은 각자 제 열이다 — 그리고 그 열 수는 **행이 채우는 칸 수**와 같아야 한다.
@@ -42,14 +43,18 @@ const { ConfirmedInfoCard } = await import(
   '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/ConfirmedInfoCard'
 );
 
-const renderTable = (isIdc = false, facts: Map<string, TcResourceFact> = new Map()) =>
+const renderTable = (
+  isIdc = false,
+  facts: Map<string, TcResourceFact> = new Map(),
+  tcResults: TcResultRow[] = [],
+) =>
   render(
     <ConfirmedInfoCard
       targetSourceId={1}
       isIdc={isIdc}
       rows={rows}
       secrets={[]}
-      tcResults={[]}
+      tcResults={tcResults}
       facts={facts}
       tcLoading={false}
       credMissingOnly={false}
@@ -139,6 +144,48 @@ describe('확정 정보 표 — 실패 사유', () => {
   it('사유가 없는 판정에는 표시도 없다', () => {
     renderTable(false, new Map([[rows[0].resource_id, { verdict: 'SUCCESS', podId: null, failReason: null }]]));
     expect(screen.queryByLabelText(/실패 사유/)).toBeNull();
+  });
+});
+
+/**
+ * 논리 DB 관리 화면으로 가는 문은 언제나 열려 있다 (오너 2026-08-25).
+ *
+ * 건수는 최신 실행이 성공했을 때만 오는 사실이라, 예전 칸은 실행이 실패했거나 아직 안 돈
+ * 리소스에서 `—` 글자 하나로 끝났다 — 제외 정책을 손볼 길이 그 행에는 없었다는 뜻이다.
+ * 정책은 실행이 말해 주는 것이 아니라 운영자가 쓰는 것이고, 모달은 자기 엔드포인트에서
+ * 목록을 직접 읽어 오므로 판정과 무관하게 열 수 있다.
+ *
+ * 조용히 깨지는 갈래가 둘이라 둘 다 문다: 무보고(건수 없음)와 **보고된 0**. 0 건인 리소스
+ * 야말로 제외 정책을 봐야 하는 리소스인데, 예전에는 "열 것이 없다"며 글자로 남았다.
+ */
+describe('확정 정보 표 — 논리 DB 관리 문', () => {
+  it('건수가 없어도 관리 링크가 선다 — —로 끝나지 않는다', () => {
+    const { container } = renderTable();
+    const ldbCells = [...container.querySelectorAll('tbody tr')].map(
+      (row) => row.querySelectorAll('td')[3],
+    );
+    expect(ldbCells.length).toBeGreaterThan(0);
+    for (const cell of ldbCells) {
+      expect(cell?.querySelector('button')).toBeTruthy();
+      expect(cell?.textContent).not.toContain('—');
+    }
+    expect(screen.getAllByRole('button', { name: '연동 논리 DB 관리' }).length).toBe(
+      ldbCells.length,
+    );
+  });
+
+  it('보고된 0개도 문이다 — 0건인 리소스야말로 제외 정책을 본다', () => {
+    const zero: TcResultRow[] = [
+      { resourceId: rows[0].resource_id, includedCount: 0, excludedCount: 3 },
+    ];
+    renderTable(
+      false,
+      new Map([[rows[0].resource_id, { verdict: 'SUCCESS', podId: null, failReason: null }]]),
+      zero,
+    );
+    const link = screen.getByRole('button', { name: '연동 논리 DB 0개 보기' });
+    expect(link.textContent).toBe('0개');
+    expect(screen.getByText('제외 3개')).toBeTruthy();
   });
 });
 

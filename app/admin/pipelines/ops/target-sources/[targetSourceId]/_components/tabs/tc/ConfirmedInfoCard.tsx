@@ -102,7 +102,7 @@ const CLIP_CELL = cn(CELL, idcStyles.table.consoleCell);
  * (오너 2026-08-25). #729 가 둘씩 한 칸에 포갠 것은 열 10개가 프레임보다 넓어서였는데,
  * 두 쌍만 푸는 8열은 합이 프레임 안에 든다 — 포개기를 유지할 이유가 사라졌다.
  *
- * 합(1214)이 프레임보다 넓어지면 표는 카드 안에서 가로로 스크롤한다 — 셸이 자기 자신을
+ * 합(1104)이 프레임보다 넓어지면 표는 카드 안에서 가로로 스크롤한다 — 셸이 자기 자신을
  * `overflow-x-auto` 로 감싸고 있어서 열이 사라지지는 않는다(1110px 프레임에서 실측).
  * 그래도 스크롤은 비용이라, 열을 넓히려면 다른 열에서 빼는 쪽을 먼저 본다.
  *
@@ -110,9 +110,14 @@ const CLIP_CELL = cn(CELL, idcStyles.table.consoleCell);
  * 다른 쪽으로 넘어가 분할 창처럼 움직인다)이고, 행마다 임의로 길어지는 값도 이 둘뿐이다
  * (이름, ARN). flex 열의 width 는 폭이 아니라 **바닥값**이다.
  *
- * cred 264 는 오너가 못 박은 값이다 — 실제 store 이름 `kimcs-postgres-analytics-readonly`
- * 가 잘리지 않는 폭(PR #767). 나머지 열의 바닥은 자기 **머리글**이 안 잘리는 폭이다:
- * 값은 덮어 자르는 문법이 있지만 열 이름이 잘리면 표가 깨진 것처럼 읽힌다.
+ * cred 는 264 였다 — 실제 store 이름 `kimcs-postgres-analytics-readonly` 가 잘리지 않는
+ * 폭(PR #767). 오너가 2026-08-25 에 그 값을 거뒀다: 이름이 그만큼 긴 것은 드문데 열은 매
+ * 행 그 폭을 들고 있어서, 짧은 이름 옆에 빈 지면 100px 가 상시로 서 있었다. 이제 204 —
+ * 이 화면이 싣는 가장 긴 이름(실측 167px)에 패딩 36 을 더한 폭이다. 더 긴 이름은 열이
+ * 덮어 자르고, 그 값은 hover 의 `title` 과 열 드래그가 되돌려 준다.
+ *
+ * 나머지 열의 바닥은 자기 **머리글**이 안 잘리는 폭이다: 값은 덮어 자르는 문법이 있지만
+ * 열 이름이 잘리면 표가 깨진 것처럼 읽힌다.
  */
 const COL_W = {
   name: 170,
@@ -120,12 +125,14 @@ const COL_W = {
   idcName: 240,
   // 14px 머리글이 안 잘리는 폭 — 글자를 12→14 로 올리면 라벨이 그만큼 넓어진다.
   // 값은 덮어 자르는 문법이 있지만 **열 이름**이 잘리면 표가 깨진 것처럼 읽힌다.
-  type: 150,
+  // `Database Type` 은 이 표에서 가장 긴 머리글이다(14px 실측 99px) — 좌우 패딩 36 을
+  // 더한 135 가 바닥이고, 리사이즈 손잡이 몫으로 5 만 남긴 140 이 그 바닥이다.
+  type: 140,
   region: 120,
   /** 알약 + tip 표시 한 줄, 그 밑에 로그 입구 한 줄 — pod_id 를 뺀 만큼 좁아졌다. */
   conn: 150,
   ldb: 130,
-  cred: 264,
+  cred: 204,
 } as const;
 const FLEX_KEYS = ['name', 'id'] as const;
 
@@ -370,10 +377,16 @@ function PodLogLine({
  * 열은 같은 사실을 두 번 넓게 벌려 놓은 것이었다. 다만 게이트가 같다고 두 필드가 늘 함께
  * 오는 것은 아니다 — 계약에서 둘 다 optional 이라 한쪽만 실린 행을 한 칸이 삼키면 안 된다.
  *
- * Contract-declared count — absent (no TC row / not a success) renders —, never 0.
- * 건수 링크 하나가 관리 모달을 연다(모달이 대상·제외 탭을 스스로 든다). 링크는 Step 6/7
- * 의 LogicalDbCountCell 규칙 — 밑줄이 affordance 를 지므로 행 끝에 관리 링크를 따로 달지
- * 않는다. 보고된 0 은 열 것이 없어 글자로 남는다.
+ * **문은 언제나 열려 있다** (오너 2026-08-25). 건수는 최신 실행이 성공했을 때만 오는 사실
+ * 이지만, 제외 정책은 실행이 말해 주는 것이 아니라 운영자가 쓰는 것이다 — 모달이 대상·제외
+ * 목록을 자기 엔드포인트에서 직접 읽어 오므로 실행이 실패했든 아직 안 돌았든 열 수 있다.
+ * 예전에는 건수가 없으면(—) 칸이 글자 하나로 끝나 관리 화면에 닿을 길이 없었고, 보고된 0
+ * 도 마찬가지였다: 논리 DB 가 0건인 리소스야말로 제외 정책을 손봐야 하는 리소스인데.
+ *
+ * 그래서 칸의 첫 줄은 늘 링크다 — 건수를 알면 건수가, 모르면 `관리` 가 그 문의 이름을 진다.
+ * (`—` 를 링크로 만들지 않는다: 이 표에서 —는 "보고 없음"이라는 판정의 글자다.) 링크는
+ * Step 6/7 의 LogicalDbCountCell 규칙 — 밑줄이 affordance 를 지므로 행 끝에 관리 링크를
+ * 따로 달지 않는다. 제외 건수는 그 밑에서 사실만 말한다.
  */
 function LdbCell({
   row,
@@ -386,11 +399,17 @@ function LdbCell({
 }): ReactElement {
   const included = ldbCount(row, 'inc', verdict);
   const excluded = ldbCount(row, 'exc', verdict);
-  if (included == null && excluded == null) return <Dash />;
   return (
     <span className="flex flex-col items-start">
-      {included == null ? null : included === 0 ? (
-        <span className={opsStyles.countZero}>0개</span>
+      {included == null ? (
+        <button
+          type="button"
+          onClick={onOpen}
+          aria-label="연동 논리 DB 관리"
+          className={opsStyles.countLink}
+        >
+          관리
+        </button>
       ) : (
         <button
           type="button"
