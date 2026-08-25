@@ -102,9 +102,9 @@ const CLIP_CELL = cn(CELL, idcStyles.table.consoleCell);
  * (오너 2026-08-25). #729 가 둘씩 한 칸에 포갠 것은 열 10개가 프레임보다 넓어서였는데,
  * 두 쌍만 푸는 8열은 합이 프레임 안에 든다 — 포개기를 유지할 이유가 사라졌다.
  *
- * ⚠️ 합은 실측 프레임(1320px @1568 viewport)보다 작아야 한다. 프레임은 `overflow-hidden`
- * 이라 넘치는 폭은 스크롤이 아니라 **잘림**이고, 잘리는 것은 마지막 열(Credential)이다.
- * 8열 합 1284 + 슬랙 36 → 싱크(id)가 가져간다. 열을 더 넓히려면 다른 열에서 빼야 한다.
+ * 합(1214)이 프레임보다 넓어지면 표는 카드 안에서 가로로 스크롤한다 — 셸이 자기 자신을
+ * `overflow-x-auto` 로 감싸고 있어서 열이 사라지지는 않는다(1110px 프레임에서 실측).
+ * 그래도 스크롤은 비용이라, 열을 넓히려면 다른 열에서 빼는 쪽을 먼저 본다.
  *
  * flex 는 **정체 두 열**이다. 셸의 문서가 권하는 짝(둘을 선언하면 한쪽을 끌 때 싱크가
  * 다른 쪽으로 넘어가 분할 창처럼 움직인다)이고, 행마다 임의로 길어지는 값도 이 둘뿐이다
@@ -118,11 +118,13 @@ const COL_W = {
   name: 170,
   id: 190,
   idcName: 240,
-  type: 130,
+  // 14px 머리글이 안 잘리는 폭 — 글자를 12→14 로 올리면 라벨이 그만큼 넓어진다.
+  // 값은 덮어 자르는 문법이 있지만 **열 이름**이 잘리면 표가 깨진 것처럼 읽힌다.
+  type: 150,
   region: 120,
   /** 알약 + tip 표시 한 줄, 그 밑에 로그 입구 + pod_id — 둘 중 긴 쪽이 pod_id 다. */
   conn: 190,
-  ldb: 110,
+  ldb: 130,
   cred: 264,
 } as const;
 const FLEX_KEYS = ['name', 'id'] as const;
@@ -168,6 +170,14 @@ const CREDENTIAL_HEAD = (
  * DB 는 스캔이 이름 붙인 적이 없고 리전이 없다). 열을 숨기는 게 아니라 그 사실이 없다.
  */
 const confirmedColumns = (isIdc: boolean): ConsoleTableColumn[] =>
+  // 표 안의 글자는 전부 14px 이다(오너 2026-08-25). 머리글의 12px 는 셸이 `<thead>` 에서
+  // 상속시키는 값이고 그 셸은 사용자 화면 표들과 공용이라, 여기서 열마다 자기 크기를 든다.
+  rawConfirmedColumns(isIdc).map((column) => ({
+    ...column,
+    headClassName: cn('text-[14px]', column.headClassName),
+  }));
+
+const rawConfirmedColumns = (isIdc: boolean): ConsoleTableColumn[] =>
   isIdc
     ? [
         { key: 'name', label: '접속 주소', width: COL_W.idcName, flex: true },
@@ -189,11 +199,12 @@ const confirmedColumns = (isIdc: boolean): ConsoleTableColumn[] =>
 /** 네 값 중 하나만 한국어였다(Success / Failed / 진행 중 / Unknown): 같은 칸이 같은
  *  질문에 두 언어로 답하고 있었으므로, 사용자 화면 Step 5 가 쓰는 말로 맞춘다. */
 function verdictPill(verdict: TcVerdict): ReactElement {
-  if (verdict === 'SUCCESS') return <TcPill tone="ok" label="성공" />;
-  if (verdict === 'FAIL') return <TcPill tone="err" label="실패" />;
-  if (verdict === 'RUNNING') return <TcPill tone="warn" label="진행 중" />;
-  if (verdict === 'PENDING') return <TcPill tone="off" label="대기" />;
-  return <TcPill tone="off" label="미확인" />;
+  // size="lg" 는 14px 판 — 이 표의 글자 크기는 하나다.
+  if (verdict === 'SUCCESS') return <TcPill tone="ok" label="성공" size="lg" />;
+  if (verdict === 'FAIL') return <TcPill tone="err" label="실패" size="lg" />;
+  if (verdict === 'RUNNING') return <TcPill tone="warn" label="진행 중" size="lg" />;
+  if (verdict === 'PENDING') return <TcPill tone="off" label="대기" size="lg" />;
+  return <TcPill tone="off" label="미확인" size="lg" />;
 }
 
 /**
@@ -294,7 +305,7 @@ const RegionCell = ({ region }: { region: string | null }): ReactElement =>
   region ? (
     <span
       className={cn(
-        pipelineStyles.text.mono,
+        pipelineStyles.text.monoFace,
         'whitespace-nowrap text-[14px] text-[var(--pl-text-medium)]',
       )}
     >
@@ -310,8 +321,8 @@ function PodIdLine({ podId }: { podId: string }): ReactElement {
   return (
     <span
       className={cn(
-        pipelineStyles.text.mono,
-        'block truncate text-[12px] text-[var(--pl-text-weak)]',
+        pipelineStyles.text.monoFace,
+        'block truncate text-[14px] text-[var(--pl-text-weak)]',
       )}
       title={podId}
     >
@@ -399,11 +410,11 @@ function LdbCell({
           className={opsStyles.countLink}
         >
           {included}
-          <span className="text-[12px] font-medium">개</span>
+          <span className="font-medium">개</span>
         </button>
       )}
       {excluded != null && (
-        <span className="whitespace-nowrap text-[12px] tabular-nums text-[var(--pl-text-weak)]">
+        <span className="whitespace-nowrap text-[14px] tabular-nums text-[var(--pl-text-weak)]">
           제외 {excluded}개
         </span>
       )}
@@ -703,6 +714,7 @@ export function ConfirmedInfoCard({
                               // 폭 캡도 말줄임도 없다 — 자르는 것은 열이고, 열은 드래그로
                               // 넓어진다. 픽셀 캡이 남아 있으면 넓혀도 더 안 보이는 벽이 된다.
                               maxWidthClass="max-w-none"
+                              sizeClass="text-[14px]"
                               hardClip
                             />
                           ) : (
@@ -736,7 +748,7 @@ export function ConfirmedInfoCard({
                             2026-08-25). 엔진이 가르는 것은 **비어 있는 것이 문제인가** 하나이고,
                             그 답은 빈 값의 낱말이 진다(불필요 / 미설정). */}
                         {unit.folded ? (
-                          <span className="whitespace-nowrap text-[12px] text-[var(--pl-text-weak)]">
+                          <span className="whitespace-nowrap text-[14px] text-[var(--pl-text-weak)]">
                             불필요
                           </span>
                         ) : row.resource_id ? (
@@ -755,7 +767,8 @@ export function ConfirmedInfoCard({
                               onClick={() => setCredRow(row)}
                               title={row.credential_id || undefined}
                               className={cn(
-                                idcStyles.triggerBtn.linkNeutral,
+                                // 13px 판이 아니라 14px 판 — 이 표의 글자는 하나다.
+                                idcStyles.triggerBtn.linkNeutralMd,
                                 'max-w-full disabled:cursor-not-allowed disabled:opacity-50',
                               )}
                             >
@@ -777,7 +790,7 @@ export function ConfirmedInfoCard({
                                 quietly folded in as one more selectable option. */}
                             {row.credential_id && !knownCredential.has(row.credential_id) && (
                               <span
-                                className={cn(opsStyles.statusTag, TC_TONE_FILL.warn, 'mt-1 block w-fit')}
+                                className={cn(opsStyles.statusTagLg, TC_TONE_FILL.warn, 'mt-1 block w-fit')}
                               >
                                 목록에 없음
                               </span>
@@ -827,6 +840,7 @@ export function ConfirmedInfoCard({
                                     value={db.resource_id}
                                     label="Resource ID"
                                     maxWidthClass="max-w-none"
+                                    sizeClass="text-[14px]"
                                     hardClip
                                   />
                                 </td>

@@ -201,6 +201,10 @@ export const opsStyles = {
   /** Uppercase wire-status tag (Figma APPROVED/CANCELLED chips). */
   statusTag:
     'inline-flex items-center rounded px-2 py-0.5 text-[12px] font-semibold tracking-[0.02em] whitespace-nowrap',
+  /** `statusTag` 의 14px 판 — 확정 정보 표는 안의 모든 글자가 14px 이다(오너 2026-08-25).
+      `cn` 은 단순 join 이라 뒤에 크기를 덧붙여도 이기지 못한다 — 크기가 다른 판을 따로 둔다. */
+  statusTagLg:
+    'inline-flex items-center rounded px-2 py-0.5 text-[14px] font-semibold tracking-[0.02em] whitespace-nowrap',
 
   /**
    * 최근 연결 테스트 밴드 — 사용자 화면 Step 5 카드(`idcStyles.connProgress`)의 문법을

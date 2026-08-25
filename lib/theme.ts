@@ -3205,6 +3205,9 @@ const pipelineText = {
   meta: 'text-[12px] font-normal leading-[1.4] text-[var(--pl-text-weak)]',
   /** mono caption — 12 / strong / mono. */
   mono: 'text-[12px] text-[var(--pl-text-strong)] [font-family:var(--pl-font-mono)]',
+  /** 서체만 — 크기·색을 부르는 쪽이 정할 때. `cn` 은 단순 join 이라 `mono` 뒤에 크기를
+      덧붙여도 이기지 못한다(둘 다 arbitrary 유틸이라 승부는 CSS 순서가 낸다). */
+  monoFace: '[font-family:var(--pl-font-mono)]',
   /** faint mono formula — 12 / faint / mono. */
   formula: 'text-[12px] leading-[1.4] text-[var(--pl-text-faint)] [font-family:var(--pl-font-mono)]',
   /** link — primary / 600 / underline on hover. */

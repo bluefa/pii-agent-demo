@@ -174,3 +174,37 @@ describe('확정 정보 표 — 연결 상태 로딩', () => {
     expect(container.querySelector('table')?.getAttribute('aria-busy')).toBe('true');
   });
 });
+
+/**
+ * 표 안의 글자 크기는 14px 하나다 (오너 2026-08-25). 크기가 섞이면 같은 표가 값마다 다른
+ * 중요도를 주장하게 되고, 12px 로 흘러내리기는 조용해서 리뷰로는 안 잡힌다.
+ *
+ * 예외는 `ResourceKindTag`(RDS Cluster · EC2) 하나뿐이다 — 크기가 그 컴포넌트의 설계이고
+ * (이름보다 조용해야 하고 이름의 폭을 먹지 않아야 한다), 1·2·3 단계와 같은 컴포넌트라
+ * 여기서 키우면 네 화면이 갈라진다. 오너가 그 갈라짐을 원하면 그때 prop 을 연다.
+ */
+describe('확정 정보 표 — 활자 크기', () => {
+  const SIZE = /^text-\[\d+px\]$|^text-(xs|sm|base|lg|xl|2xl)$/;
+
+  it('선언된 크기는 14px 하나 — 공유 종류 태그만 예외다', () => {
+    const { container } = renderTable(
+      false,
+      new Map([[rows[0].resource_id, { verdict: 'FAIL', podId: 'pod-1', failReason: 'SECRET_NOT_FOUND' }]]),
+    );
+    const table = container.querySelector('table');
+    expect(table).toBeTruthy();
+    // `<thead>` 자체는 세지 않는다 — 셸이 거기에 12px 를 상속용으로 얹고, 각 `<th>` 가
+    // 자기 크기로 덮는다(열마다 headClassName). 재는 것은 실제로 글자를 그리는 칸들이다.
+    const painted = [
+      ...(table?.querySelectorAll('thead th, thead th *, tbody *') ?? []),
+    ];
+    const declared = painted.flatMap((el) =>
+      [...el.classList].filter((name) => SIZE.test(name)),
+    );
+    expect([...new Set(declared)].sort()).toEqual(['text-[14px]', 'text-xs']);
+
+    const xs = painted.filter((el) => el.classList.contains('text-xs'));
+    expect(xs.length).toBeGreaterThan(0);
+    for (const el of xs) expect(['RDS Cluster', 'EC2']).toContain(el.textContent);
+  });
+});

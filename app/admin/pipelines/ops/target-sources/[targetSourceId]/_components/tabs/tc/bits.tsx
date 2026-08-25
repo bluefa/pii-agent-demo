@@ -23,9 +23,22 @@ export const TC_TONE_FILL: Record<TcTone, string> = {
  * 판정 헤드라인처럼 색을 실을 곳이 점뿐인 데서만 쓴다. nowrap 은 #729 — 반폭 카드의
  * 실행 표에서 두 음절 라벨이 알약 안에서 줄바꿈되던 것.
  */
-export function TcPill({ tone, label }: { tone: TcTone; label: string }): ReactElement {
+export function TcPill({
+  tone,
+  label,
+  size = 'md',
+}: {
+  tone: TcTone;
+  label: string;
+  /** `lg` 는 14px 판 — 모든 글자가 14px 인 표(확정 정보) 안에서 쓴다. 기본은 12px. */
+  size?: 'md' | 'lg';
+}): ReactElement {
   const { pill } = pipelineStyles;
-  return <span className={cn(pill.base, pill.md, 'whitespace-nowrap', TC_TONE_FILL[tone])}>{label}</span>;
+  return (
+    <span className={cn(pill.base, pill[size], 'whitespace-nowrap', TC_TONE_FILL[tone])}>
+      {label}
+    </span>
+  );
 }
 
 /** Absent value — never rendered as 0 or an assumed success. */
