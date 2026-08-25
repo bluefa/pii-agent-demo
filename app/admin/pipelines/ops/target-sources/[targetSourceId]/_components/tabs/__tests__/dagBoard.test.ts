@@ -238,7 +238,7 @@ describe('agentVerdict — 행의 종합 상태 (모든 행에 알약)', () => {
 
   it('연결 정상이어도 성공 기록 없는 DB 가 있으면 이상(err) — 2/4 는 정상이 아니다', () => {
     const v = agentVerdict({ ...base, succeeded: 2, failed: 1, rest: 1 });
-    expect(v).toMatchObject({ tone: 'err', label: '이상' });
+    expect(v).toMatchObject({ tone: 'err', label: '확인 필요' });
     expect(v.hint).toContain('2개');
   });
 

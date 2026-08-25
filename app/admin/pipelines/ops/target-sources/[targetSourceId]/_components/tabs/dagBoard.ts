@@ -185,7 +185,7 @@ export const summarizeAgents = (data: DagStatusResponse): DagAgentSummary[] =>
  * 성공이어도 2/4 성공인 행을 아무것도 경고하지 않았다.
  * 우선순위: 연결이 SUCCESS 가 아니면 그 사실이 판정이다(관측 자체를 못 믿는 행).
  * 연결이 정상이면 관측 결과로 판정한다 — 관측 논리 DB 전부가 최근 7일 성공이어야
- * 정상, 하나라도 성공 기록이 없으면 이상(대상 UNHEALTHY 와 같은 기준의 행 축소판).
+ * 정상, 하나라도 성공 기록이 없으면 확인 필요(대상 UNHEALTHY 와 같은 기준의 행 축소판).
  * raw enum 은 hint(툴팁 채널)로만 나른다.
  */
 export const agentVerdict = (
@@ -207,7 +207,9 @@ export const agentVerdict = (
   }
   return {
     tone: 'err',
-    label: '이상',
+    // '이상'은 판정만 말하고 '그래서 뭘 하나'는 안 말했다 — 관리자가 이 표에서 하는 일은
+    // 그 행을 열어 보는 것이라, 라벨이 그 일을 부른다 (오너 2026-08-25).
+    label: '확인 필요',
     hint: `논리 DB ${noSuccess}개가 최근 7일 성공 기록이 없어요`,
   };
 };
