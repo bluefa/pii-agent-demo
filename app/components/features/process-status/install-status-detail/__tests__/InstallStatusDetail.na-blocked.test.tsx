@@ -240,6 +240,22 @@ describe('InstallStatusDetail 그룹 레일 — 제목은 잘리지 않는다', 
    * 위아래가 말하고, 숫자는 제목에서 22px 을 가져갔다. 되돌아오면 제목 폭이 다시
    * 좁아지므로(잘림의 원인 중 하나) 여기서 막는다.
    */
+  /**
+   * 레일이 자기 칠(bg-gray-100)을 갖던 시절, 그 면은 카드(raised) 안의 sunken 이라
+   * Atlassian elevation 이 금지하는 조합이었고 카드 모서리까지 붙자 "구멍"으로 읽혔다.
+   * 칠이 지던 구분은 항목 카드의 윤곽이 이어받았다 — 칠이 돌아오거나 카드가 풀리면
+   * 둘 다 화면에서만 보이고 다른 단언은 하나도 깨지지 않는다.
+   */
+  it('레일은 자기 칠을 갖지 않고, 항목이 카드로 선다', () => {
+    renderGrouped('IN_PROGRESS');
+
+    const nav = screen.getByRole('navigation', { name: '설치 단계' });
+    expect(nav.className).not.toContain('bg-gray-100');
+    for (const button of nav.querySelectorAll('button')) {
+      expect(button.className.split(' ')).toContain('border');
+    }
+  });
+
   it('레일 항목에 실행 순번을 달지 않는다', () => {
     renderGrouped('IN_PROGRESS');
 

@@ -2960,6 +2960,33 @@ export const serviceSidebarStyles = {
     'flex h-[26px] w-[26px] items-center justify-center rounded-[6px] text-[#4E5968] transition-colors hover:bg-white hover:text-[#0064FF] disabled:cursor-not-allowed disabled:text-[#8B95A1] disabled:hover:bg-transparent disabled:hover:text-[#8B95A1]',
 } as const;
 
+/**
+ * 4단계 설치 레일 — 항목이 흰 카드로 서는 판.
+ *
+ * 레일의 회색 칠(`bgColors.panel`)을 걷어낸 뒤로는 `serviceSidebarStyles.rowCurrent` 을
+ * 여기 쓸 수 없다. 그 값(#E9E4F3)은 바로 위 주석이 밝히듯 **회색 레일 위에서 밝게 뜨도록**
+ * L* 91.4 로 잡힌 것이라, 흰 바닥(L* 100)에서는 뜨는 대신 가라앉아 "선택됨"이 "비활성"으로
+ * 뒤집힌다. 같은 주석이 흰 바닥의 짝으로 지목하는 값이 #F3EEFF(`tableRowLift.card` 가
+ * 흰 카드 hover 로 쓰는 바로 그 보라)이고, 이 판은 그것을 hover 가 아니라 **정착 상태**로 쓴다.
+ *
+ * 그래서 세 신호가 각자의 채널에 남는다: hover 는 중립으로 내려앉고(gray-50), current 는
+ * 색조(보라), 경계는 언제나 1px 이다. 굵기는 상태에 따라 움직이지 않는다 — 선택 시 테두리가
+ * 굵어지면 카드 안쪽 글이 1px 밀린다.
+ *
+ * 두 값은 **택일**이라 각자 완결이다. 경계색을 공용 토큰과 겹쳐 쓰면 어느 쪽이 이기는지가
+ * 클래스 문자열 순서가 아니라 생성된 CSS 순서에 달리므로, 한쪽에 몰아 적는다.
+ */
+export const installRailStyles = {
+  /** 비선택 — 흰 카드. 경계는 목록에서 반복되는 카드의 윤곽(`borderColors.card`). */
+  item: `bg-white ${borderColors.card} ${bgColors.mutedHover}`,
+  /**
+   * 현재 항목 — 색조 채널. 경계는 같은 보라 계열에서 한 단 진하게 가서 흰 카드들 사이에서
+   * 자기 자리를 말한다(칠만으로는 ΔL* 가 작아 훑을 때 걸리지 않는다).
+   */
+  itemCurrent: 'bg-[#F3EEFF] border-[#8E7FC4] hover:bg-[#EDE6FB]',
+} as const;
+
+
 // =============================================================================
 // 레이아웃 (Layout)
 // =============================================================================

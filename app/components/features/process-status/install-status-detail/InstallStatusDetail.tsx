@@ -6,8 +6,8 @@ import {
   borderColors,
   cardStyles,
   cn,
+  installRailStyles,
   primaryColors,
-  serviceSidebarStyles,
   sideTextColors,
   stackGap,
   shadows,
@@ -765,9 +765,12 @@ export const InstallStatusDetail = ({
     // 행에서 그룹 헤더로 자리만 옮긴 꼴이다. (0)은 사실이므로 라벨은 그대로 둔다.
     const todoAllDone = todoSteps.every((s) => aggregates.get(s.id)?.kind === 'done');
     // 레일 항목 껍데기 — 단계와 참고 항목이 같은 히트 영역·선택 표현을 쓴다.
-    // 선택은 서비스 목록 rail 의 "현재 위치" 문법(rowCurrent: 보라 틴트 + 우측 2px 바)
-    // 그대로다 — 흰 pill + 헤어라인은 회색 판 위에서 눌린 티가 나지 않았다(오너 지적).
-    // 바가 라운드를 뚫지 않도록 overflow-hidden.
+    //
+    // 이제 항목 하나가 카드다(오너 지시). 레일의 회색 칠이 빠진 자리에서 "여기가 목차다"를
+    // 말하는 일을 이 카드들이 이어받는다 — 칠 하나가 지던 구분을 다섯 개의 윤곽이 나눠 진다.
+    // 선택 표현은 `installRailStyles` 로 옮겼다: 회색 레일용으로 보정된 rowCurrent 를
+    // 흰 바닥에 그대로 쓰면 틴트가 뜨는 대신 가라앉는다(토큰 주석 참조).
+    // 항목 사이는 gap-2 — 카드끼리 붙어 있으면 한 덩어리로 읽힌다.
     //
     // 두 줄이다 — 제목이 한 줄을 독점하고 상태는 그 아래로 내려간다. 한 줄에 세 열
     // ([순번][제목][상태])을 224px 에 넣으면 순번·상태가 flex-shrink-0 이라 줄어드는
@@ -780,8 +783,8 @@ export const InstallStatusDetail = ({
     // 상태 한 줄이다. 그룹 레일만 3열 한 줄로 갈라져 있었다.
     const railItemClass = (isActive: boolean) =>
       cn(
-        'flex flex-col gap-1 w-full text-left pl-3.5 pr-2.5 py-2 rounded-lg transition-colors flex-shrink-0 overflow-hidden',
-        isActive ? serviceSidebarStyles.rowCurrent : 'hover:bg-white/60',
+        'flex flex-col gap-1 w-full text-left px-3 py-2 rounded-lg border transition-colors flex-shrink-0 overflow-hidden',
+        isActive ? installRailStyles.itemCurrent : installRailStyles.item,
       );
 
     // 레일 항목 제목 — 평시 14/400, 선택 시 14/600. 항목이 조용해진 만큼(A안)
@@ -886,11 +889,19 @@ export const InstallStatusDetail = ({
             묶으면 이번엔 짧은 단계까지 560 으로 늘어나 빈 면이 돌아온다. 셀에 걸면 둘 다
             산다 — 짧으면 내용 높이, 길면 560 에서 셀 안 스크롤. */}
         <div className="grid grid-cols-[224px_minmax(0,1fr)]">
+          {/* 레일은 카드의 흰 바닥을 그대로 쓴다(시안 A). 회색 칠은 카드(raised) 안의
+              sunken 면이라 Atlassian elevation 이 금지하는 조합이었고, 지난 라운드에
+              카드 모서리까지 붙이면서 "가라앉은 판"이 아니라 "카드가 그만큼 없는 것"으로
+              읽혔다(오너: 구멍이 난 느낌). 칠이 지던 구분은 둘로 나눠 진다 —
+              항목 카드들의 윤곽, 그리고 이 열 경계선.
+              경계선은 `light`(gray-100) 가 아니라 `strong`(gray-300) 이다. `light` 는
+              칠(gray-100)과 **같은 색**이라 border-r 이 그려져도 보이지 않았고, 한 단
+              올린 `default`(gray-200)는 흰 바닥에서 1.24:1 — 항목 카드의 윤곽(#D6DBE6,
+              1.39:1)보다도 흐렸다. 열의 경계가 그 안쪽 항목의 경계보다 약할 수는 없다. */}
           <nav
             className={cn(
-              'flex flex-col gap-0.5 p-2 border-r overflow-y-auto min-h-0 max-h-[560px]',
-              bgColors.panel,
-              borderColors.light,
+              'flex flex-col gap-2 p-2 border-r overflow-y-auto min-h-0 max-h-[560px]',
+              borderColors.strong,
             )}
             aria-label="설치 단계"
           >

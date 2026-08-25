@@ -18,8 +18,9 @@ type InstallationLoadingViewProps = { provider: string } & (
     }
 );
 
-// 레일은 panel(gray-100) 위에 앉는데 기본 스켈레톤 바도 gray-100 이라 그 위에서는
-// 보이지 않는다 — 레일 안에서만 divider(gray-200)로 한 단 올린다.
+// 그룹 레일의 항목은 흰 카드라 기본 스켈레톤 바(gray-100)도 보이기는 한다. 그래도
+// divider(gray-200)를 유지하는 이유는 legacy 레일이 아직 panel(gray-100) 위에 앉기
+// 때문이다 — 그 표면에서 gray-100 바는 완전히 사라진다.
 const RAIL_BAR = cn('animate-pulse', bgColors.divider);
 
 const Bar = ({ className, tone }: { className: string; tone?: string }) => (
@@ -60,12 +61,16 @@ export const InstallationLoadingView = (props: InstallationLoadingViewProps) =>
             GCP·IDC 1/2, AWS 수동 1/2). 프레임 고정 높이를 놓은 뒤로는 레일이 이
             셀의 높이를 정하므로, 근사가 아니라 **실제 행 수·행 높이**를 그려야
             도착 시 카드가 덜 튄다. */}
-        <div className={cn('flex flex-col gap-0.5 p-2 border-r', bgColors.panel, borderColors.light)}>
+        <div className={cn('flex flex-col gap-2 p-2 border-r', borderColors.strong)}>
           {[1, 3, 1].map((rows, group) => (
-            <div key={group} className="flex flex-col gap-0.5">
+            <div key={group} className="flex flex-col gap-2">
               <Bar tone={RAIL_BAR} className="mx-2.5 mt-3 mb-1 h-3 w-24 rounded" />
               {Array.from({ length: rows }).map((_, i) => (
-                <div key={i} className="flex flex-col gap-1 px-3.5 py-2">
+                // 항목 카드 — 도착하면 이 자리에 같은 윤곽의 카드가 선다.
+                <div
+                  key={i}
+                  className={cn('flex flex-col gap-1 px-3 py-2 rounded-lg border', borderColors.card)}
+                >
                   {/* 제목 = body 20px line-height, 상태 = caption 16px */}
                   <Bar tone={RAIL_BAR} className="h-5 w-[80%] rounded" />
                   <Bar tone={RAIL_BAR} className="h-4 w-10 rounded" />
