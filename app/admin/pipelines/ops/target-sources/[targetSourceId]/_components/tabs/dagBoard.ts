@@ -47,7 +47,9 @@ export type BoardFilter = DbBucket | 'ALL';
 
 export const BUCKET_LABEL: Record<DbBucket, string> = {
   failed: '실패',
-  unscheduled: '미스케줄',
+  // 요약 카운트 줄과 같은 말 (오너 2026-08-25) — 한 화면에서 같은 버킷이 칩과 카운트에서
+  // 다른 이름을 달면 다른 사실처럼 읽힌다. (날짜 칸의 '스케줄 없음'은 단위가 하루라 별개.)
+  unscheduled: '스케줄 안 됨',
   // ⛔"진행 중"으로 되돌리지 말 것 — 이 값은 지난 날짜 칸에도 선다. 그날 실행이
   // 시작됐고 결과가 아직 없다는 사실까지가 응답이 아는 전부이고, "진행 중"은
   // 지금 돌고 있다는 말까지 해 버린다(연결 상태의 RUNNING 은 진짜 그 뜻이라 그쪽은 유지).

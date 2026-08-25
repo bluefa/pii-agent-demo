@@ -11,6 +11,7 @@
  */
 import { useMemo, useState, type ReactElement } from 'react';
 import { cn, pipelineStyles } from '@/lib/theme';
+import { fmtDateTimeSec } from '@/lib/pipeline/format';
 import { isMissingConfirmedIntegrationError } from '@/lib/errors';
 import { useAbortableEffect } from '@/app/hooks/useAbortableEffect';
 import { useModal } from '@/app/hooks/useModal';
@@ -25,6 +26,7 @@ import {
 import { TcPill } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/bits';
 import {
   aggregateDagStatus,
+  healthVerdict,
   monitoringEvidenceHead,
   type DagFetch,
 } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/approvalGate';
@@ -36,6 +38,27 @@ import type {
   BoardFilter,
   DagDbRow,
 } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/dagBoard';
+
+/**
+ * 카드의 보조 한 줄 — 판정만 말한다. 수(총계·성공·실패·스케줄 안 됨)는 바로 아래
+ * 카운트 줄이 지므로, 예전처럼 문장이 같은 수를 한 번 더 세지 않는다 (오너 2026-08-25).
+ * 관측 스코프(최근 7일 · 타임존 · 조회 시각)는 우측 상단 메타 줄로 갔다.
+ *
+ * ⚠️ `monitoringEvidenceHead` 의 subtitle 을 쓰지 않는 이유: 그 문장은 승인 탭 조건 ③
+ * 행의 것이라 수를 안고 있어야 한다(그 화면엔 카운트 줄이 없다). 알약만 공유한다.
+ */
+const verdictSentence = (dag: DagFetch): string => {
+  if (dag.phase === 'loading') return '모니터링 상태를 확인하고 있어요.';
+  if (dag.phase === 'failed') return '모니터링 상태를 확인하지 못했어요.';
+  switch (healthVerdict(dag.data.healthStatus).kind) {
+    case 'healthy':
+      return 'DAG 실행이 정상이에요.';
+    case 'unhealthy':
+      return '성공 기록이 없는 논리 DB가 있어요.';
+    case 'unknown':
+      return '모니터링 상태를 판정할 수 없어요.';
+  }
+};
 
 export interface AirflowTabProps {
   targetSourceId: number;
@@ -81,50 +104,49 @@ export function AirflowTab({ targetSourceId, isIdc, dag }: AirflowTabProps): Rea
   return (
     <>
       <section className={pipelineStyles.card.base} aria-label="Airflow 확인">
-        <div>
-          <h2 className={cn(opsStyles.cardTitle, 'flex items-center gap-2')}>
-            <Icon name="flow" size={18} className="text-[var(--pl-primary)]" />
-            Airflow 확인
-            <TcPill tone={head.pill.tone} label={head.pill.label} />
-          </h2>
-          <p className={opsStyles.cardDesc} title={head.titleHint}>
-            {head.subtitle ?? '최근 7일 DAG 실행 기준으로 이 대상의 모니터링 상태를 봅니다.'}
-          </p>
-        </div>
-
-        <div className="mt-5">
-          {dag.phase === 'loaded' && agg ? (
-            <>
-              <MonitoringEvidenceBody
-                data={dag.data}
-                agg={agg}
-                fetchedAt={dag.fetchedAt}
-                onShowFailed={() => board.open({ filter: 'failed' })}
-                onOpenBoard={() => board.open({ filter: 'ALL' })}
-              />
-              {/* 에이전트가 1개뿐이어도 그린다 — 요약은 리소스가 무엇인지 말하지 않는다. */}
-              {dag.data.agents.length > 0 && (
-                <div className="mt-4">
-                  <AgentDagTable
-                    data={dag.data}
-                    // "DAG 상태 조회"가 약속하는 것은 그 에이전트의 DB 전부다.
-                    onViewDbs={(agentId) => board.open({ agentId, filter: 'ALL' })}
-                    confirmed={confirmed}
-                    isIdc={isIdc}
-                  />
-                </div>
-              )}
-            </>
-          ) : dag.phase === 'failed' ? (
-            <p className="text-[14px] text-[var(--pl-text-weak)]">
-              모니터링 상태를 불러오지 못했습니다.
+        {/* 머리 = 이름·판정 / 우측 상단 = 이 화면이 언제 무엇을 봤는가. 스코프와 조회
+            시각은 카드가 말하는 모든 수의 전제라, 수보다 위·바깥에 선다 (오너 지시). */}
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h2 className={cn(opsStyles.cardTitle, 'flex items-center gap-2')}>
+              <Icon name="flow" size={18} className="text-[var(--pl-primary)]" />
+              Airflow 확인
+              <TcPill tone={head.pill.tone} label={head.pill.label} />
+            </h2>
+            <p className={opsStyles.cardDesc} title={head.titleHint}>
+              {verdictSentence(dag)}
             </p>
-          ) : (
-            <p className="text-[14px] text-[var(--pl-text-weak)]" aria-busy>
-              모니터링 상태를 확인하고 있어요…
+          </div>
+          {dag.phase === 'loaded' && (
+            <p className="mt-1 flex-none text-[12px] tabular-nums text-[var(--pl-text-weak)]">
+              최근 7일 · {dag.data.timezone} · 조회 {fmtDateTimeSec(dag.fetchedAt)}
             </p>
           )}
         </div>
+
+        {dag.phase === 'loaded' && agg && (
+          <>
+            <div className="mt-5">
+              <MonitoringEvidenceBody
+                agg={agg}
+                onShowFailed={() => board.open({ filter: 'failed' })}
+                onOpenBoard={() => board.open({ filter: 'ALL' })}
+              />
+            </div>
+            {/* 에이전트가 1개뿐이어도 그린다 — 요약은 리소스가 무엇인지 말하지 않는다. */}
+            {dag.data.agents.length > 0 && (
+              <div className="mt-4">
+                <AgentDagTable
+                  data={dag.data}
+                  // "DAG 상태 조회"가 약속하는 것은 그 에이전트의 DB 전부다.
+                  onViewDbs={(agentId) => board.open({ agentId, filter: 'ALL' })}
+                  confirmed={confirmed}
+                  isIdc={isIdc}
+                />
+              </div>
+            )}
+          </>
+        )}
       </section>
 
       {/* 패널 + 그 위의 DAG 상세 = 2단 레이어. ModalShell 의 Esc 는 document 에 붙으므로,
