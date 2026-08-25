@@ -623,14 +623,15 @@ const stampLines = (
 };
 
 /**
- * DRAFT CONTRACT — pod_id 로 캡처본을 조회한다. 최신 실행의 정착한 리소스만 캡처가
- * 존재한다: 미정착(RUNNING) pod 는 완료 시점 캡처 전이고(UI 도 "수집 중"으로 막는다),
- * POD_CREATION_FAILED 는 pod 가 없어 wire 에 pod_id 자체가 실리지 않는다.
+ * `GET /install/v1/logs/{podId}` 의 본문 — 줄 리스트 하나가 전부다(pod_id·캡처 시각을
+ * 실어 주지 않는다). 최신 실행의 정착한 리소스만 로그가 존재한다: 미정착(RUNNING) pod 는
+ * 종결 전이고(UI 도 "수집 중"으로 막는다), POD_CREATION_FAILED 는 pod 가 없어 wire 에
+ * pod_id 자체가 실리지 않는다.
  */
 export const getPodLog = (
   targetSourceId: number,
   podId: string,
-): { pod_id: string; captured_at: string | null; entries: TestConnectionPodLogEntry[] } | null => {
+): TestConnectionPodLogEntry[] | null => {
   const job = getLatestJob(targetSourceId);
   if (!job) return null;
   const version = versionForTarget(targetSourceId);
@@ -640,12 +641,10 @@ export const getPodLog = (
       podIdFor(targetSourceId, version, r.resource_id) === podId,
   );
   if (!settled) return null;
-  const capturedAt = job.completed_at ?? job.requested_at;
-  return {
-    pod_id: podId,
-    captured_at: capturedAt,
-    entries: stampLines(capturedAt, podLogLines(targetSourceId, settled)),
-  };
+  // 업스트림 응답 예시가 최신 줄부터라 목도 그렇게 준다 — 어댑터의 정렬을 목 모드에서도
+  // 지나게 한다.
+  return stampLines(job.completed_at ?? job.requested_at, podLogLines(targetSourceId, settled))
+    .reverse();
 };
 
 // Steps that should already have a completed Test Connection result present.
