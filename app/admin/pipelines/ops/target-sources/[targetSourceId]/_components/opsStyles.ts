@@ -201,4 +201,90 @@ export const opsStyles = {
   /** Uppercase wire-status tag (Figma APPROVED/CANCELLED chips). */
   statusTag:
     'inline-flex items-center rounded px-2 py-0.5 text-[12px] font-semibold tracking-[0.02em] whitespace-nowrap',
+
+  /**
+   * 최근 연결 테스트 밴드 — 사용자 화면 Step 5 카드(`idcStyles.connProgress`)의 문법을
+   * 이 콘솔의 --pl-* 로 옮긴 것.
+   *
+   * 형태·간격·계층은 그쪽 그대로 두고 색만 갈아입힌다. 두 화면은 같은 실행을 말하므로
+   * 같은 모양이어야 하지만, 색까지 같이 오면 운영 콘솔 안에 다른 팔레트의 섬이 생긴다.
+   * 판정 로직도 나누지 않고 그대로 쓴다 — `lib/test-connection-summary` 한 벌이 문장·
+   * 버킷·경과를 두 화면에 똑같이 준다.
+   *
+   * ⛔ 테두리는 상태를 입지 않는다. 이 팔레트의 계열 테두리(--pl-ok-border #A6F4C5 등)는
+   * 같은 계열 면(#ECFDF3)보다 훨씬 진해서, 22px 알약이 아니라 전폭 판에 두르면 면보다
+   * 테두리가 먼저 읽힌다 — Step 5 가 면:테두리 비율을 지키느라 겪은 그 역전이다. 상태는
+   * 면·제목색·글리프 셋이 이미 말하고 있으므로 테두리는 중립 헤어라인으로 남는다.
+   */
+  tcBand: {
+    base: 'mt-4 rounded-[10px] border border-[var(--pl-border)] px-4 pt-[13px] pb-3.5 transition-colors',
+    /** 국면이 입는 유일한 면. queued 는 running 과 같은 면을 쓴다 — 경고가 아니라 정상 단계다. */
+    surface: {
+      idle: 'bg-[var(--pl-gray-50)]',
+      running: 'bg-[var(--pl-primary-bg)]',
+      success: 'bg-[var(--pl-ok-bg)]',
+      fail: 'bg-[var(--pl-err-bg)]',
+      unknown: 'bg-[var(--pl-off-bg)]',
+    },
+    head: 'flex flex-wrap items-start justify-between gap-x-3 gap-y-1.5 mb-[11px]',
+    /** 문장이 이 밴드의 제목이다 — 카드 제목(20px)과 본문(14px) 사이 한 단. */
+    title: 'flex items-center gap-2 text-[16px] font-bold tracking-[-0.01em] break-keep',
+    titleColor: {
+      idle: 'text-[var(--pl-text-strong)]',
+      running: 'text-[var(--pl-text-strong)]',
+      success: 'text-[var(--pl-ok-text)]',
+      fail: 'text-[var(--pl-err-text)]',
+      unknown: 'text-[var(--pl-text-medium)]',
+    },
+    accent: {
+      idle: 'text-[var(--pl-text-weak)]',
+      running: 'text-[var(--pl-primary)]',
+      success: 'text-[var(--pl-ok-text)]',
+      fail: 'text-[var(--pl-err-text)]',
+      unknown: 'text-[var(--pl-text-weak)]',
+    },
+    icon: 'inline-grid place-items-center w-[18px] h-[18px] flex-shrink-0',
+    /** 시각 서브라인 — 문장의 근거라 문장 바로 아래 붙고, 제목의 18px 글리프 열에 맞춘다. */
+    meta: 'flex items-center gap-2 text-[12px] font-medium tabular-nums text-[var(--pl-text-weak)]',
+    /**
+     * 밴드 안의 곁줄(사유 · Credential 경고). 상자가 아니라 맨 줄이다 — 카드 안에 상자를
+     * 또 두면 계층이 아니라 같은 무게의 상자 둘이 된다.
+     */
+    note: 'flex items-start gap-2 pl-[26px] text-[14px] leading-[1.5] break-keep',
+    noteWarn: 'text-[var(--pl-warn-text)]',
+    noteWeak: 'text-[var(--pl-text-medium)]',
+    /** 곁줄 안의 원문 enum — 라벨과 같은 줄에 mono 로 병기한다. */
+    noteRaw: 'text-[12px] text-[var(--pl-text-weak)]',
+    /** 곁줄 우측의 토글 링크 — 밑줄이 affordance 를 지고 색은 줄에서 상속한다. */
+    noteAction: 'ml-auto shrink-0 cursor-pointer whitespace-nowrap text-[14px] font-semibold underline underline-offset-2',
+    /**
+     * 진행 트랙. 바닥값이 Step 5 트랙(#E4E7EC)과 같은 값이라 위에 깔리는 행진 무늬
+     * (`idcStyles.connProgress.trackMarch`, #BAC4D1)의 대비 1.42:1 이 그대로 보존된다 —
+     * 그 값은 브라우저에서 넷을 1:1로 놓고 고른 것이라 다시 고르지 않는다.
+     */
+    track: 'relative h-2 overflow-hidden rounded-full bg-[var(--pl-gray-200)]',
+    fillOk: 'h-full transition-[width] duration-[250ms] ease-out bg-[var(--pl-ok)]',
+    fillFail: 'h-full transition-[width] duration-[250ms] ease-out bg-[var(--pl-err)]',
+    /** 카운트 줄 — 세그먼트 문법(점 · 라벨 · 굵은 수). */
+    counts: 'flex items-center gap-3 text-[12px] font-medium tabular-nums text-[var(--pl-text-weak)]',
+    countSeg: 'flex items-center gap-1.5',
+    countValue: 'text-[14px] font-bold tabular-nums',
+    countDot: 'h-2 w-2 rounded-full flex-shrink-0',
+    countDotOk: 'bg-[var(--pl-ok)]',
+    countDotFail: 'bg-[var(--pl-err)]',
+    countDotRest: 'bg-[var(--pl-text-faint)]',
+    /** 값이 없다는 사실은 색이 아니라 형태가 말한다 — 채운 점이 아니라 파선 링. */
+    countDotMissing: 'h-2.5 w-2.5 rounded-full border-2 border-dashed border-[var(--pl-warn-text)] flex-shrink-0',
+    okValue: 'text-[var(--pl-ok-text)]',
+    failValue: 'text-[var(--pl-err-text)]',
+
+    /**
+     * 밴드 아래 서비스 승인 요청 줄 — 실행의 판정이 아니라 **서비스가 그 판정으로 무엇을
+     * 했는가**라, 밴드 안이 아니라 그 밑에 자기 등급으로 선다. 상자도 틴트도 없다.
+     */
+    ack: 'mt-3.5 flex flex-wrap items-center gap-x-2.5 gap-y-1 border-t border-[var(--pl-border)] pt-3.5',
+    ackKey: 'text-[12px] font-semibold text-[var(--pl-text-weak)]',
+    ackTime: 'text-[12px] tabular-nums text-[var(--pl-text-weak)]',
+    ackReason: 'mt-1.5 w-full pl-0 text-[14px] leading-[1.5] text-[var(--pl-text-medium)] break-keep',
+  },
 } as const;

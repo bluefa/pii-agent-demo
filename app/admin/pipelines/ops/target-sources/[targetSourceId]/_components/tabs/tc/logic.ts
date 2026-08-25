@@ -10,8 +10,15 @@ import type {
   TestConnectionAgentResult,
   TestConnectionVersionResult,
 } from '@/app/lib/api';
-import type { SecretKey } from '@/lib/types';
-import { foldAgentStatuses, type UnitTcStatus } from '@/lib/test-connection-summary';
+import { needsCredential, type SecretKey } from '@/lib/types';
+import {
+  computeTcBuckets,
+  foldAgentStatuses,
+  tcSummarySentence,
+  type TcBuckets,
+  type TcRunPhase,
+  type UnitTcStatus,
+} from '@/lib/test-connection-summary';
 import { resultUnitId } from '@/lib/resource-grouping';
 import { POD_CREATION_FAILED } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/failReason';
 
@@ -404,4 +411,119 @@ export function toConfirmedUnits(
     units.push(unit);
   }
   return units;
+}
+
+/**
+ * 밴드가 그리는 국면. 사용자 화면 Step 5 의 `TcRunPhase` 다섯에 `unknown` 하나를 더한다 —
+ * `connection_status` 는 loose codegen 이라 계약 밖 값이 올 수 있고, 그걸 `fail` 로 접으면
+ * 밴드가 "연결 테스트가 실패했어요" 라고 없는 사실을 단정한다. 관리자 화면은 그 자리에서
+ * 판정을 보류할 수 있어야 한다(운영자가 원문을 보고 판단하는 화면이다).
+ *
+ * ⛔ Step 5 의 `policy-changed`·`confirmed` 는 여기 없다 — 그 둘은 completion-status 가
+ * 가르는데 이 탭은 그 엔드포인트를 부르지 않는다. 상태를 늘리기 전에 조회부터 붙일 것.
+ */
+export type TcBandPhase = TcRunPhase | 'unknown';
+
+export function runBandPhase(latest: TestConnectionVersionResult | null): TcBandPhase {
+  if (!latest) return 'idle';
+  switch (runStatus(latest)) {
+    case 'PENDING':
+      return 'queued';
+    case 'RUNNING':
+      return 'running';
+    case 'SUCCESS':
+      return 'success';
+    case 'FAIL':
+      return 'fail';
+    default:
+      return 'unknown';
+  }
+}
+
+/** 국면 문장 — `unknown` 만 이쪽 어휘이고 나머지는 Step 5 와 한 글자도 다르지 않다. */
+export function bandSentence(phase: TcBandPhase, buckets: TcBuckets): string {
+  return phase === 'unknown'
+    ? '실행 상태를 판정할 수 없어요'
+    : tcSummarySentence(phase, buckets);
+}
+
+/**
+ * 버킷의 분모가 되는 단위 목록.
+ *
+ * 원칙은 확정 스냅샷의 단위 — 실행이 대상으로 삼는 집합이고, 그래야 "무보고"가 셀 수 있는
+ * 사실이 된다. 다만 확정 조회가 404(연동 확정 전)이거나 실패했는데 실행은 있는 경우가
+ * 있어서, 그때는 실행이 실제로 보고한 id 로 떨어진다. 빈 목록을 그대로 쓰면 total 0 ·
+ * ok 0 이 되어 `ok === total` 이 성립하고, 문장이 "모든 리소스가 연결에 성공했어요" 라고
+ * 아무것도 확인하지 않은 실행을 성공이라 부른다.
+ */
+export function bandUnitIds(
+  units: readonly ConfirmedUnit[],
+  latest: TestConnectionVersionResult | null,
+): string[] {
+  if (units.length > 0) return units.map((unit) => unit.unitId);
+  const reported = new Set<string>();
+  for (const agent of latest?.test_connection_agent_results ?? []) {
+    if (agent?.resource_id) reported.add(agent.resource_id);
+  }
+  return [...reported];
+}
+
+/** 밴드의 카운트 — 접기·버킷 규칙은 Step 5 와 같은 한 벌을 쓴다. */
+export function bandBuckets(
+  unitIds: readonly string[],
+  latest: TestConnectionVersionResult | null,
+): TcBuckets {
+  const agents = (latest?.test_connection_agent_results ?? []).filter((agent) =>
+    Boolean(agent?.resource_id),
+  );
+  return computeTcBuckets(unitIds, foldAgentStatuses(agents, new Set(unitIds)));
+}
+
+/**
+ * 이 단위가 Credential 을 필요로 하는가.
+ *
+ * 판정은 엔진(`needsCredential`, lib/types.ts)이 한다 — Athena·DynamoDB·CosmosDB·
+ * BigQuery 는 IAM 으로 붙어서 배정할 것이 없다. 표가 쓰던 "접힌 행이면 불필요" 규칙은
+ * Athena 하나만 맞고 나머지 넷을 놓친다: DynamoDB 행은 접히지 않으므로 배정이 없는 채로
+ * `연결 안 함` 이라 표시되고, 그 행을 미설정으로 세면 있지도 않은 할 일이 경고로 뜬다.
+ *
+ * 엔진을 모를 때(빈 값)는 필요하다고 본다 — `database_type` 은 계약상 optional 이고,
+ * 비었다고 "불필요"라 답하면 실제로 막힌 배정을 화면에서 지운다.
+ */
+export function unitNeedsCredential(unit: ConfirmedUnit): boolean {
+  const dbType = unit.members[0]?.database_type ?? '';
+  return dbType ? needsCredential(dbType) : true;
+}
+
+/**
+ * 배정이 비어 있는 단위 — 밴드의 경고가 세는 것과 표의 필터가 거르는 것이 같은 술어여야
+ * "미설정 3건"이라 말해 놓고 표에 2행이 뜨는 일이 없다.
+ */
+export function unitCredentialMissing(unit: ConfirmedUnit): boolean {
+  return unitNeedsCredential(unit) && !unit.members.some((row) => row.credential_id);
+}
+
+/** Credential 이 필요한데 배정되지 않은 단위 수. 0 이 정상이고, 0 이면 아무 줄도 서지 않는다. */
+export function credentialMissingCount(units: readonly ConfirmedUnit[]): number {
+  return units.filter(unitCredentialMissing).length;
+}
+
+/**
+ * 서비스의 승인 요청 도장이 **지금 실행보다 오래됐는가**.
+ *
+ * 승인 요청은 TargetSource 단위 한 건이라 새 실행이 시작돼도 지워지지 않는다. 그대로
+ * 그리면 방금 시작한 실행 옆에 지난 회차의 `요청됨 08-20 14:03` 이 붙어, 이번 실행이
+ * 이미 승인 요청된 것처럼 읽힌다. 두 시각을 대 보면 그 사실을 말할 수 있다.
+ *
+ * 시각이 없거나 파싱되지 않으면 false — 모르는 것을 "오래됐다"고 단정하지 않는다.
+ */
+export function ackIsStale(
+  acknowledgedAt: string | null | undefined,
+  runRequestedAt: string | null | undefined,
+): boolean {
+  if (!acknowledgedAt || !runRequestedAt) return false;
+  const ack = Date.parse(acknowledgedAt);
+  const run = Date.parse(runRequestedAt);
+  if (!Number.isFinite(ack) || !Number.isFinite(run)) return false;
+  return ack < run;
 }

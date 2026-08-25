@@ -1,7 +1,15 @@
 import { describe, it, expect } from 'vitest';
 import { toTcResultRow, type TcResultRow } from '@/app/lib/api/task-queue-tc';
 import type { TestConnectionVersionResult } from '@/app/lib/api';
+import type { ConfirmedIntegrationResourceItem } from '@/app/lib/api';
 import {
+  ackIsStale,
+  bandBuckets,
+  bandSentence,
+  bandUnitIds,
+  credentialMissingCount,
+  runBandPhase,
+  unitNeedsCredential,
   isRunOpen,
   ldbCount,
   runDurationSeconds,
@@ -442,5 +450,88 @@ describe('podLogState', () => {
     expect(podLogState(fact({ verdict: 'RUNNING' }))).toBe('COLLECTING');
     expect(podLogState(fact())).toBe('LOG');
     expect(podLogState(fact({ verdict: 'FAIL', failReason: 'CLUSTER_TEST_FAILED' }))).toBe('LOG');
+  });
+});
+
+const confirmed = (over: Partial<ConfirmedIntegrationResourceItem> = {}) =>
+  ({
+    resource_id: 'r-1',
+    database_type: 'mysql',
+    ...over,
+  }) as ConfirmedIntegrationResourceItem;
+
+describe('runBandPhase', () => {
+  it('계약의 네 값만 국면으로 접고 나머지는 판정을 보류한다', () => {
+    expect(runBandPhase(null)).toBe('idle');
+    expect(runBandPhase(version([], { connection_status: 'PENDING' }))).toBe('queued');
+    expect(runBandPhase(version([], { connection_status: 'RUNNING' }))).toBe('running');
+    expect(runBandPhase(version([], { connection_status: 'SUCCESS' }))).toBe('success');
+    expect(runBandPhase(version([], { connection_status: 'FAIL' }))).toBe('fail');
+  });
+
+  it('계약 밖 값을 실패로 접지 않는다 — 없는 사실을 단정하게 된다', () => {
+    const phase = runBandPhase(version([], { connection_status: 'CANCELLED' }));
+    expect(phase).toBe('unknown');
+    expect(bandSentence(phase, bandBuckets([], null))).toBe('실행 상태를 판정할 수 없어요');
+  });
+});
+
+describe('bandUnitIds', () => {
+  it('확정 단위가 분모다 — 무보고를 셀 수 있는 것은 그 집합뿐이다', () => {
+    const units = toConfirmedUnits([confirmed(), confirmed({ resource_id: 'r-2' })]);
+    expect(bandUnitIds(units, version([['r-1', 'SUCCESS']]))).toEqual(['r-1', 'r-2']);
+    expect(bandBuckets(bandUnitIds(units, version([['r-1', 'SUCCESS']])), version([['r-1', 'SUCCESS']])))
+      .toMatchObject({ total: 2, ok: 1, unreported: 1 });
+  });
+
+  it('확정 스냅샷이 없으면 실행이 보고한 id 로 떨어진다 — 빈 분모는 거짓 성공을 만든다', () => {
+    const latest = version([['r-1', 'SUCCESS'], ['r-2', 'FAIL']]);
+    expect(bandUnitIds([], latest).sort()).toEqual(['r-1', 'r-2']);
+    // 빈 목록을 그대로 썼다면 total 0 · ok 0 이라 ok === total 이 성립해
+    // "모든 리소스가 연결에 성공했어요" 가 됐을 자리.
+    expect(bandSentence('success', bandBuckets(bandUnitIds([], latest), latest))).toBe(
+      '일부 리소스는 연결 결과가 확인되지 않았어요',
+    );
+  });
+});
+
+describe('unitNeedsCredential', () => {
+  it('IAM 으로 붙는 엔진은 넷 다 불필요다 — 접힘 여부가 아니라 엔진이 판정한다', () => {
+    for (const engine of ['athena', 'dynamodb', 'cosmosdb', 'bigquery']) {
+      const [unit] = toConfirmedUnits([confirmed({ database_type: engine })]);
+      // 접힘은 `athena_region_resource_id` 가 있을 때만 생긴다 — 접힘으로 갈랐을 때
+      // 이 넷이 전부 `연결 안 함` 으로 표시되고 미설정으로 세어지던 자리.
+      expect(unit.folded).toBe(false);
+      expect(unitNeedsCredential(unit)).toBe(false);
+    }
+  });
+
+  it('엔진을 모르면 필요하다고 본다 — 모르는 것을 "불필요"라 답하면 막힌 배정이 화면에서 사라진다', () => {
+    const [unit] = toConfirmedUnits([confirmed({ database_type: '' })]);
+    expect(unitNeedsCredential(unit)).toBe(true);
+  });
+});
+
+describe('credentialMissingCount', () => {
+  it('필요한데 비어 있는 단위만 센다', () => {
+    const units = toConfirmedUnits([
+      confirmed({ resource_id: 'r-1', credential_id: 'cred-a' }),
+      confirmed({ resource_id: 'r-2' }),
+      confirmed({ resource_id: 'r-3', database_type: 'dynamodb' }),
+    ]);
+    expect(credentialMissingCount(units)).toBe(1);
+  });
+});
+
+describe('ackIsStale', () => {
+  it('승인 요청이 지금 실행보다 오래됐으면 그렇게 말한다', () => {
+    expect(ackIsStale('2026-08-20T05:00:00Z', '2026-08-25T02:00:00Z')).toBe(true);
+    expect(ackIsStale('2026-08-25T03:00:00Z', '2026-08-25T02:00:00Z')).toBe(false);
+  });
+
+  it('시각을 모르면 오래됐다고 단정하지 않는다', () => {
+    expect(ackIsStale(null, '2026-08-25T02:00:00Z')).toBe(false);
+    expect(ackIsStale('2026-08-20T05:00:00Z', null)).toBe(false);
+    expect(ackIsStale('nope', '2026-08-25T02:00:00Z')).toBe(false);
   });
 });

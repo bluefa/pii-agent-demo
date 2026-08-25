@@ -62,6 +62,8 @@ import {
   ldbCount,
   podLogState,
   toConfirmedUnits,
+  unitCredentialMissing,
+  unitNeedsCredential,
   type TcResourceFact,
   type TcVerdict,
 } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/logic';
@@ -370,6 +372,12 @@ export interface ConfirmedInfoCardProps {
   tcResults: readonly TcResultRow[];
   /** 리소스별 연결 사실 — 판정·사유·pod (latest_version), joined by resource_id. */
   facts: ReadonlyMap<string, TcResourceFact>;
+  /**
+   * Credential 미설정 단위만 보기 — 밴드의 경고 줄이 소유하는 필터다. 표 자신의 세 축
+   * (검색·Database Type·Region)과 달리 여기 컨트롤이 없는 이유는, 이 조건의 요약과 도달
+   * 수단이 한 물건이어야 하기 때문이다(경고 줄의 링크가 곧 이 필터).
+   */
+  credMissingOnly: boolean;
   /** First tab load still in flight. */
   loading: boolean;
   /** Real snapshot fetch failure — a 404 "not confirmed yet" is not one. */
@@ -386,6 +394,7 @@ export function ConfirmedInfoCard({
   secrets,
   tcResults,
   facts,
+  credMissingOnly,
   loading,
   failed,
   secretsFailed,
@@ -432,7 +441,12 @@ export function ConfirmedInfoCard({
 
   // 페이지도 카운트도 행이 아니라 단위로 센다 — 접힌 Athena 리전은 데이터베이스를 몇 개
   // 담든 한 단위이고, 행으로 자르면 한 리전이 페이지 경계에서 갈려 부모 행이 두 번 그려진다.
-  const units = useMemo(() => toConfirmedUnits(filtered), [filtered]);
+  // Credential 필터는 단위 위에서 건다 — 배정은 단위(접힌 리전은 그 전부)의 속성이라
+  // 행 단위로 거르면 한 리전의 데이터베이스 몇 개만 남아 부모 행이 반쪽으로 그려진다.
+  const units = useMemo(() => {
+    const all = toConfirmedUnits(filtered);
+    return credMissingOnly ? all.filter(unitCredentialMissing) : all;
+  }, [filtered, credMissingOnly]);
   const totalUnits = useMemo(() => toConfirmedUnits(rows).length, [rows]);
   const totalPages = Math.max(1, Math.ceil(units.length / PAGE_SIZE));
   // Narrowing the filter can push the current page past the end — used as-is it renders empty.
@@ -701,7 +715,10 @@ export function ConfirmedInfoCard({
                         {/* Credential is addressed by resource id — no id, no assignment.
                             접힌 행은 리전이라 배정할 리소스가 하나로 정해지지 않고, 애초에
                             Athena 는 IAM 으로 붙어 Credential 이 필요 없다(Step 5 와 같은 말). */}
-                        {unit.folded ? (
+                        {/* 판정은 엔진이 한다 — Athena·DynamoDB·CosmosDB·BigQuery 는 IAM 으로
+                            붙어 배정할 것이 없다. 접힘 여부로 가르던 때는 Athena 하나만
+                            맞고 나머지 셋이 `연결 안 함` 으로 표시됐다(logic.ts 주석). */}
+                        {!unitNeedsCredential(unit) ? (
                           <span className="whitespace-nowrap text-[12px] text-[var(--pl-text-weak)]">
                             불필요
                           </span>

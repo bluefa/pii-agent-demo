@@ -2,6 +2,7 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import type { ConfirmedIntegrationResourceItem } from '@/app/lib/api';
+import type { TcBuckets } from '@/lib/test-connection-summary';
 
 /**
  * 진행률 분모가 확정 행이 아니라 결과 단위인지 — 배선 자체를 잡는 트립와이어.
@@ -56,8 +57,8 @@ vi.mock(
 vi.mock(
   '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/TcLatestRunCard',
   () => ({
-    TcLatestRunCard: ({ confirmedResourceCount }: { confirmedResourceCount: number }) => (
-      <output data-testid="denominator">{confirmedResourceCount}</output>
+    TcLatestRunCard: ({ buckets }: { buckets: TcBuckets }) => (
+      <output data-testid="denominator">{buckets.total}</output>
     ),
   }),
 );
@@ -77,6 +78,7 @@ describe('TcTab — 진행률 분모', () => {
         results={[]}
         statusLoaded
         latestFailed={false}
+        statusFailed={false}
         onStatusReload={vi.fn()}
       />,
     );
