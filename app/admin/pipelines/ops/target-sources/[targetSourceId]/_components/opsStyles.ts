@@ -211,8 +211,8 @@ export const opsStyles = {
    * 판정 로직도 나누지 않고 그대로 쓴다 — `lib/test-connection-summary` 한 벌이 문장·
    * 버킷·경과를 두 화면에 똑같이 준다.
    *
-   * ⛔ 테두리는 상태를 입지 않는다. 이 팔레트의 계열 테두리(--pl-ok-border #A6F4C5 등)는
-   * 같은 계열 면(#ECFDF3)보다 훨씬 진해서, 22px 알약이 아니라 전폭 판에 두르면 면보다
+   * ⛔ 테두리는 상태를 입지 않는다. 이 팔레트의 계열 테두리(`--pl-ok-border` 등)는 같은
+   * 계열 면(`--pl-ok-bg`)보다 훨씬 진해서, 22px 알약이 아니라 전폭 판에 두르면 면보다
    * 테두리가 먼저 읽힌다 — Step 5 가 면:테두리 비율을 지키느라 겪은 그 역전이다. 상태는
    * 면·제목색·글리프 셋이 이미 말하고 있으므로 테두리는 중립 헤어라인으로 남는다.
    */
@@ -271,8 +271,8 @@ export const opsStyles = {
      */
     noteAction: 'shrink-0 cursor-pointer whitespace-nowrap text-[14px] font-semibold underline underline-offset-2',
     /**
-     * 진행 트랙. 바닥값이 Step 5 트랙(#E4E7EC)과 같은 값이라 위에 깔리는 행진 무늬
-     * (`idcStyles.connProgress.trackMarch`, #BAC4D1)의 대비 1.42:1 이 그대로 보존된다 —
+     * 진행 트랙. 바닥값(`--pl-gray-200`)이 Step 5 트랙과 **같은 값**이라, 위에 깔리는 행진
+     * 무늬(`idcStyles.connProgress.trackMarch`)의 대비 1.42:1 이 그대로 보존된다 —
      * 그 값은 브라우저에서 넷을 1:1로 놓고 고른 것이라 다시 고르지 않는다.
      */
     track: 'relative h-2 overflow-hidden rounded-full bg-[var(--pl-gray-200)]',

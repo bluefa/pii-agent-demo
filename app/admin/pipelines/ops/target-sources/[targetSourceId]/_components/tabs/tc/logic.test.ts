@@ -496,13 +496,18 @@ describe('bandUnitIds', () => {
 });
 
 describe('unitNeedsCredential', () => {
-  it('IAM 으로 붙는 엔진은 넷 다 불필요다 — 접힘 여부가 아니라 엔진이 판정한다', () => {
-    for (const engine of ['athena', 'dynamodb', 'cosmosdb', 'bigquery']) {
+  it('오너가 지정한 네 엔진은 비어 있어도 경고하지 않는다 (athena·dynamodb·synapse·bigquery)', () => {
+    // 2026-08-25 오너 지시. cosmosdb 계열은 공용 목록에 이미 있어 같이 면제된다 —
+    // 지시에 없다고 새로 경고를 켜면 오늘까지 조용하던 화면이 시끄러워진다.
+    for (const engine of ['athena', 'dynamodb', 'synapse', 'bigquery', 'cosmosdb', 'cosmosdb_nosql']) {
       const [unit] = toConfirmedUnits([confirmed({ database_type: engine })]);
       // 접힘은 `athena_region_resource_id` 가 있을 때만 생긴다 — 접힘으로 갈랐을 때
-      // 이 넷이 전부 `연결 안 함` 으로 표시되고 미설정으로 세어지던 자리.
+      // 이 엔진들이 전부 배정 없는 값으로 표시되고 미설정으로 세어지던 자리.
       expect(unit.folded).toBe(false);
       expect(unitNeedsCredential(unit)).toBe(false);
+      // 대소문자는 계약이 보장하지 않는다 — 실제 목에도 `MYSQL` 같은 대문자가 온다.
+      const [upper] = toConfirmedUnits([confirmed({ database_type: engine.toUpperCase() })]);
+      expect(unitNeedsCredential(upper)).toBe(false);
     }
   });
 
@@ -513,13 +518,14 @@ describe('unitNeedsCredential', () => {
 });
 
 describe('credentialMissingCount', () => {
-  it('IAM 엔진만 있는 대상은 배정이 하나도 없어도 0 이다 — 잠금의 사유가 되지 않는다', () => {
+  it('면제 엔진만 있는 대상은 배정이 하나도 없어도 0 이다 — 잠금의 사유가 되지 않는다', () => {
     // 실행 잠금(오너 2026-08-25)이 이 수 위에 서므로, 여기서 세면 안 되는 것을 세면
-    // Athena·DynamoDB·BigQuery 만 쓰는 대상은 영영 연결 테스트를 못 돌린다.
+    // 그 엔진만 쓰는 대상은 영영 연결 테스트를 못 돌린다.
     const units = toConfirmedUnits([
       confirmed({ resource_id: 'a-1', database_type: 'athena' }),
       confirmed({ resource_id: 'd-1', database_type: 'dynamodb' }),
       confirmed({ resource_id: 'b-1', database_type: 'bigquery' }),
+      confirmed({ resource_id: 's-1', database_type: 'synapse' }),
       confirmed({ resource_id: 'c-1', database_type: 'cosmosdb' }),
     ]);
     expect(credentialMissingCount(units)).toBe(0);

@@ -136,8 +136,8 @@ const CREDENTIAL_HEAD = (
       size="lg"
       content={
         <span className={idcStyles.table.headerTipBody}>
-          해당 DB에 접속할 때 사용할 계정 정보예요. Credentials 메뉴에서 등록한 것 중에서 고르고,
-          불필요로 표시된 대상은 이 단계에서 지정하지 않아요.
+          해당 DB에 접속할 때 사용할 계정 정보예요. Credentials 메뉴에서 등록한 것 중에서
+          고르고, 불필요로 표시된 대상은 지정하지 않아도 연결 테스트를 막지 않아요.
         </span>
       }
     >
@@ -782,10 +782,12 @@ export function ConfirmedInfoCard({
                       </td>
                       <td className={CLIP_CELL}>
                         {/* Credential is addressed by resource id — no id, no assignment.
-                            판정은 엔진이 한다 — Athena·DynamoDB·CosmosDB·BigQuery 는 IAM 으로
-                            붙어 배정할 것이 없다. 접힘 여부로 가르던 때는 Athena 하나만
-                            맞고 나머지 셋이 배정 없는 값으로 표시됐다(logic.ts 주석). */}
-                        {!unitNeedsCredential(unit) ? (
+                            그래서 **못 고르는 것은 접힌 리전뿐**이다: 리전 한 행이 데이터베이스
+                            여럿을 덮으므로 배정 대상이 하나로 정해지지 않는다. 엔진은 고를 수
+                            있는지를 가르지 않는다 — 어느 DB든 지정할 수 있어야 한다(오너
+                            2026-08-25). 엔진이 가르는 것은 **비어 있는 것이 문제인가** 하나이고,
+                            그 답은 빈 값의 낱말이 진다(불필요 / 미설정). */}
+                        {unit.folded ? (
                           <span className="whitespace-nowrap text-[12px] text-[var(--pl-text-weak)]">
                             불필요
                           </span>
@@ -800,7 +802,7 @@ export function ConfirmedInfoCard({
                             <button
                               type="button"
                               aria-haspopup="dialog"
-                              aria-label={`${rowLabel(row)} Credential 수정 — 현재 ${row.credential_id || '미설정'}`}
+                              aria-label={`${rowLabel(row)} Credential 수정 — 현재 ${row.credential_id || (unitNeedsCredential(unit) ? '미설정' : '불필요')}`}
                               disabled={savingId === row.resource_id}
                               onClick={() => setCredRow(row)}
                               title={row.credential_id || undefined}
@@ -813,10 +815,14 @@ export function ConfirmedInfoCard({
                                 <span className="min-w-0 whitespace-nowrap font-mono">
                                   {row.credential_id}
                                 </span>
-                              ) : (
+                              ) : unitNeedsCredential(unit) ? (
                                 // 어휘는 밴드의 경고 줄과 같아야 한다 — 그 줄이 세는 것이
                                 // 바로 이 값이다("Credential 미설정 N건").
                                 <span className="font-sans">미설정</span>
+                              ) : (
+                                // 없어도 정상인 엔진. 낱말은 정책을 말하고("안 해도 된다"),
+                                // 밑줄은 여전히 할 수 있다고 말한다 — 둘은 다른 질문의 답이다.
+                                <span className="font-sans">불필요</span>
                               )}
                             </button>
                             {/* An assignment the list no longer carries is stated, not

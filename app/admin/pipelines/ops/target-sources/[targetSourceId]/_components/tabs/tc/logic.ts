@@ -480,19 +480,34 @@ export function bandBuckets(
 }
 
 /**
- * 이 단위가 Credential 을 필요로 하는가.
+ * ⚠️ 관리자 화면에서만 경고를 면제하는 엔진 (오너 2026-08-25: "synapse 면 경고를 띄우지마").
  *
- * 판정은 엔진(`needsCredential`, lib/types.ts)이 한다 — Athena·DynamoDB·CosmosDB·
- * BigQuery 는 IAM 으로 붙어서 배정할 것이 없다. 표가 쓰던 "접힌 행이면 불필요" 규칙은
- * Athena 하나만 맞고 나머지 넷을 놓친다: DynamoDB 행은 접히지 않으므로 배정이 없는 채로
- * `연결 안 함` 이라 표시되고, 그 행을 미설정으로 세면 있지도 않은 할 일이 경고로 뜬다.
+ * 공용 `needsCredential`(lib/types.ts `NO_CREDENTIAL_ENGINES`)에 `synapse` 하나를 더한
+ * 것이다. 공용 목록을 직접 넓히지 않는 이유는 그 목록이 **서비스 화면 Step 5 의 실행
+ * 게이트**이기도 해서다 — 오너가 말한 것은 이 탭의 경고이지 사용자 화면의 잠금이 아니다.
+ *
+ * synapse 가 정말 IAM 으로 붙는 엔진이라면 이 예외는 도메인 사실이므로
+ * `NO_CREDENTIAL_ENGINES` 로 옮겨 두 화면이 같은 목록을 보게 해야 한다 — **오너 확인 대기**.
+ */
+const ADMIN_NO_WARN_ENGINES: readonly string[] = ['synapse'];
+
+/**
+ * 이 단위에 Credential 이 없으면 **경고할 일인가**.
+ *
+ * 배정 자체는 어느 엔진에서도 할 수 있다(오너 2026-08-25) — 이 술어가 가르는 것은 오직
+ * "없는 것이 문제인가" 하나다. IAM 으로 붙는 엔진(Athena·DynamoDB·BigQuery·CosmosDB,
+ * 그리고 위의 synapse)은 없어도 정상이라 세지 않고, 따라서 실행도 막지 않는다.
+ *
+ * 표가 쓰던 "접힌 행이면 불필요" 규칙으로는 Athena 하나만 맞았다: DynamoDB 행은 접히지
+ * 않으므로 배정 없는 채로 세어져 있지도 않은 할 일이 경고로 떴다.
  *
  * 엔진을 모를 때(빈 값)는 필요하다고 본다 — `database_type` 은 계약상 optional 이고,
  * 비었다고 "불필요"라 답하면 실제로 막힌 배정을 화면에서 지운다.
  */
 export function unitNeedsCredential(unit: ConfirmedUnit): boolean {
-  const dbType = unit.members[0]?.database_type ?? '';
-  return dbType ? needsCredential(dbType) : true;
+  const dbType = (unit.members[0]?.database_type ?? '').toLowerCase();
+  if (!dbType) return true;
+  return needsCredential(dbType) && !ADMIN_NO_WARN_ENGINES.includes(dbType);
 }
 
 /**
