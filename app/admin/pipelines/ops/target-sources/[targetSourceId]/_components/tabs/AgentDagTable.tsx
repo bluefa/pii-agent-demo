@@ -63,10 +63,17 @@ const PAGE_SIZE = 10;
 /** 행 높이 실측(한 줄 · `approvalCell`) × PAGE_SIZE — floor 명시용. */
 const ROW_H = 53;
 
-/** 툴바 띠와 프레임 — 값은 `ConfirmedInfoCard` 의 것과 같다(한 화면의 표 둘이 같은 실루엣). */
+/**
+ * 툴바 띠 + 프레임 = 표가 갖는 **하나의 흰 판**. 치수는 `ConfirmedInfoCard` 의 것과 같지만
+ * 바닥이 다르다: 이 탭에는 카드가 없어서(오너 2026-08-25) 표가 놓이는 곳이 페이지 바닥
+ * (#F4F4FB)이다. 그래서 판을 흰색으로 명시한다 — 카드 안이었을 때는 상속으로 흰색이었다.
+ * 툴바도 같은 흰색이다: 카드 안에서 띠를 옅은 회색으로 깐 것은 흰 카드와 갈라 보이기
+ * 위해서였는데, 옅은 회색(#F9FAFB)은 이 바닥과 사실상 같은 밝기라 판에 구멍처럼 남는다.
+ */
 const TOOLBAR =
-  'flex flex-wrap items-center gap-2 rounded-t-[10px] border border-[var(--pl-border)] bg-[var(--pl-gray-50)] px-4 py-3';
-const TABLE_FRAME = 'rounded-b-[10px] border border-t-0 border-[var(--pl-border)]';
+  'flex flex-wrap items-center gap-2 rounded-t-[10px] border border-[var(--pl-border)] bg-[var(--pl-bg-card)] px-4 py-3';
+const TABLE_FRAME =
+  'rounded-b-[10px] border border-t-0 border-[var(--pl-border)] bg-[var(--pl-bg-card)]';
 /** 셸이 머리를 그리므로 남는 것은 본문 칸뿐 — 치수는 사용자 화면 표의 `approvalCell`. */
 const CELL = cn(idcStyles.table.approvalCell, 'align-middle text-[14px] text-[var(--pl-text-strong)]');
 /** 값을 덮어 자르는 칸(시안 F) — 넘치는 값이 말줄임 대신 다음 열 밑으로 이어진다. */
