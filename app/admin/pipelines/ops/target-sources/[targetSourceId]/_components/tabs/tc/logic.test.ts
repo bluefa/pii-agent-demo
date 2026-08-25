@@ -513,6 +513,18 @@ describe('unitNeedsCredential', () => {
 });
 
 describe('credentialMissingCount', () => {
+  it('IAM 엔진만 있는 대상은 배정이 하나도 없어도 0 이다 — 잠금의 사유가 되지 않는다', () => {
+    // 실행 잠금(오너 2026-08-25)이 이 수 위에 서므로, 여기서 세면 안 되는 것을 세면
+    // Athena·DynamoDB·BigQuery 만 쓰는 대상은 영영 연결 테스트를 못 돌린다.
+    const units = toConfirmedUnits([
+      confirmed({ resource_id: 'a-1', database_type: 'athena' }),
+      confirmed({ resource_id: 'd-1', database_type: 'dynamodb' }),
+      confirmed({ resource_id: 'b-1', database_type: 'bigquery' }),
+      confirmed({ resource_id: 'c-1', database_type: 'cosmosdb' }),
+    ]);
+    expect(credentialMissingCount(units)).toBe(0);
+  });
+
   it('필요한데 비어 있는 단위만 센다', () => {
     const units = toConfirmedUnits([
       confirmed({ resource_id: 'r-1', credential_id: 'cred-a' }),

@@ -129,11 +129,20 @@ describe('TcLatestRunCard — Credential 미설정 곁줄', () => {
     expect(screen.getByRole('button', { name: '전체 보기' })).toBeTruthy();
   });
 
-  it('실행을 잠그지는 않는다 — 관리자 화면은 서비스가 막혔을 때의 우회로다', () => {
+  it('실행을 잠근다 — 결과가 SECRET_NOT_FOUND 로 정해진 실행은 시작시키지 않는다', () => {
     renderCard({ credentialMissing: 3, latest: null });
-    expect(screen.getByRole('button', { name: '연결 테스트 실행' }).hasAttribute('disabled')).toBe(
-      false,
-    );
+    const run = screen.getByRole('button', { name: '연결 테스트 실행' });
+    expect(run.hasAttribute('disabled')).toBe(true);
+    // ⛔ 이유 없이 잠긴 버튼은 만들지 않는다 — 사유는 카드 첫 줄과 버튼 자신이 함께 진다.
+    expect(run.getAttribute('title')).toContain('Credential 미설정 3건');
+    expect(screen.getByText(/지정해야 연결 테스트를 실행할 수 있어요/)).toBeTruthy();
+  });
+
+  it('배정이 다 끝나면 잠금도 사유도 없다', () => {
+    renderCard({ credentialMissing: 0, latest: null });
+    const run = screen.getByRole('button', { name: '연결 테스트 실행' });
+    expect(run.hasAttribute('disabled')).toBe(false);
+    expect(run.getAttribute('title')).toBeNull();
   });
 });
 

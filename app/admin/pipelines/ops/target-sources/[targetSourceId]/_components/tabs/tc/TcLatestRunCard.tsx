@@ -75,7 +75,11 @@ export interface TcLatestRunCardProps {
   status: TestConnectionStatusRow | null;
   /** 확정 단위 기준 판정 분포 (Step 5 와 같은 접기·버킷 규칙). */
   buckets: TcBuckets;
-  /** Credential 이 필요한데 배정되지 않은 단위 수 — 0 이면 곁줄이 서지 않는다. */
+  /**
+   * Credential 이 필요한데 배정되지 않은 단위 수 — 0 이면 곁줄이 서지 않는다.
+   * 0 이 아니면 실행 CTA 가 잠긴다(오너 2026-08-25). IAM 으로 붙는 엔진(Athena·
+   * DynamoDB·CosmosDB·BigQuery)은 애초에 이 수에 들지 않으므로 잠금의 사유가 되지 않는다.
+   */
   credentialMissing: number;
   /** 확정 정보 표가 지금 미설정 단위만 보고 있는가 (곁줄의 토글이 소유). */
   credFilterOn: boolean;
@@ -259,6 +263,18 @@ export function TcLatestRunCard({
   const okPct = buckets.total > 0 ? (buckets.ok / buckets.total) * 100 : 0;
   const failPct = buckets.total > 0 ? (buckets.fail / buckets.total) * 100 : 0;
 
+  // Credential 이 빠진 채로 도는 실행은 그 리소스에서 SECRET_NOT_FOUND 로 끝난다 — 결과가
+  // 정해진 실행을 시작할 수 있게 두지 않는다(오너 2026-08-25). 서비스 화면 Step 5 도 같은
+  // 게이트를 걸고 있어(`runDisabled = !canRunTest || !allCredsSet`) 두 화면이 같은 조건에서
+  // 같은 답을 한다.
+  //
+  // ⛔ 이유 없이 잠긴 버튼은 만들지 않는다. 잠금의 사유는 카드 첫 줄의 경고가 이미 말하고
+  //   있고(건수 + 도달 링크), 버튼 자신도 title 로 그 말을 진다.
+  const credBlocked = credentialMissing > 0;
+  const blockedHint = credBlocked
+    ? `Credential 미설정 ${credentialMissing}건 — 지정해야 연결 테스트를 실행할 수 있습니다`
+    : undefined;
+
   // 슬롯 — 한 시점에 primary 하나. 관리자에게 이 밴드의 행동은 늘 "돌린다" 하나이고,
   // 승인·반려 결정은 탭 레일(TcDecisionActions)의 몫이라 여기 서지 않는다.
   const slot = ((): ReactElement => {
@@ -280,7 +296,8 @@ export function TcLatestRunCard({
       <PlButton
         variant={phase === 'success' ? 'secondary' : 'primary'}
         size="sm"
-        disabled={running}
+        disabled={running || credBlocked}
+        title={blockedHint}
         onClick={onRunTest}
       >
         {phase === 'idle' ? '연결 테스트 실행' : '다시 실행'}
@@ -303,6 +320,34 @@ export function TcLatestRunCard({
         <p className="mt-4 rounded-lg bg-[var(--pl-err-bg)] px-3 py-2.5 text-[14px] text-[var(--pl-err-text)]">
           연결 테스트를 시작하지 못했습니다. 잠시 후 다시 시도해 주세요.
         </p>
+      )}
+
+      {/* Credential 미설정 — 밴드 **위**, 카드의 첫 줄이다 (오너 2026-08-25).
+          이것은 실행의 판정이 아니라 다음 실행의 전제라, 밴드 안에서 국면 문장 아래에 두면
+          "모든 리소스가 연결에 성공했어요" 라는 초록 헤드라인에 딸린 각주처럼 읽힌다 —
+          정작 그 성공은 배정된 리소스들만의 것이다. 밖으로 꺼내면 어느 국면에서도 같은
+          자리에 서고, 카드를 연 사람이 판정보다 먼저 읽는다.
+          0 건이면 줄 자체가 없다: 할 일이 없다는 말이 상시로 자리를 차지하지 않는다.
+          줄의 링크가 곧 아래 표의 필터라 요약과 도달 수단이 한 물건이고, 실행을 잠그지는
+          않는다 — 관리자 화면은 서비스가 막혔을 때의 우회로다. */}
+      {credentialMissing > 0 && (
+        <div className={b.cardNote}>
+          <StatusWarningIcon className="mt-0.5 h-4 w-4 flex-none" />
+          {/* 문안은 잠금의 사유다 — 예고("실패합니다")가 아니라 지금 무엇이 막혀 있고 무엇을
+              하면 풀리는지. 어휘는 서비스 화면 Step 5 의 같은 줄 그대로다. */}
+          <span className="break-keep">
+            Credential 미설정 <b className="font-bold tabular-nums">{credentialMissing}건</b> —
+            지정해야 연결 테스트를 실행할 수 있어요
+          </span>
+          <button
+            type="button"
+            onClick={onToggleCredFilter}
+            aria-pressed={credFilterOn}
+            className={b.noteAction}
+          >
+            {credFilterOn ? '전체 보기' : '미설정만 보기'}
+          </button>
+        </div>
       )}
 
       {loading && !latest ? (
@@ -328,27 +373,6 @@ export function TcLatestRunCard({
               )}
               {/* 사유는 실패의 속성이다 — 값이 없으면 줄 자체가 없다. */}
               {(phase === 'fail' || phase === 'unknown') && reason && <RunReasonNote raw={reason} />}
-              {/* Credential 미설정 — 0 건이 정상이고, 조치가 필요할 때만 한 줄이 생긴다.
-                  줄의 링크가 곧 아래 표의 필터라 요약과 도달 수단이 한 물건이다. 관리자
-                  화면은 서비스가 막혔을 때의 우회로라 실행을 잠그지는 않는다: 사실만 말하고
-                  누를지는 운영자가 정한다. */}
-              {credentialMissing > 0 && (
-                <BandNote tone="warn">
-                  <span className="break-keep">
-                    Credential 미설정{' '}
-                    <b className="font-bold tabular-nums">{credentialMissing}건</b> — 지정하지
-                    않으면 해당 리소스는 연결에 실패합니다
-                  </span>
-                  <button
-                    type="button"
-                    onClick={onToggleCredFilter}
-                    aria-pressed={credFilterOn}
-                    className={b.noteAction}
-                  >
-                    {credFilterOn ? '전체 보기' : '미설정만 보기'}
-                  </button>
-                </BandNote>
-              )}
             </div>
             {/* 실행이 한 번도 없으면 열어 볼 회차도 결정도 없다 — 빈 모달로 가는 입구는
                 세우지 않는다(Step 5 의 `run ? historyAction : null` 과 같은 게이트). */}

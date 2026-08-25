@@ -193,6 +193,9 @@ export function TcTab({
   // just reports; the button is disabled while a run is open to spare a request
   // that can only be refused.
   const runTest = useCallback(async (): Promise<void> => {
+    // 버튼이 이미 잠겨 있지만 게이트는 값에도 둔다 — 배정을 지우는 쓰기가 이 화면에서
+    // 일어나므로(Credential 배정 모달), 눌린 순간과 세어진 순간 사이가 벌어질 수 있다.
+    if (credentialMissing > 0) return;
     setTriggering(true);
     setTriggerFailed(false);
     try {
@@ -205,7 +208,7 @@ export function TcTab({
     } finally {
       setTriggering(false);
     }
-  }, [targetSourceId, onStatusReload, toast]);
+  }, [targetSourceId, credentialMissing, onStatusReload, toast]);
 
   return (
     <>
