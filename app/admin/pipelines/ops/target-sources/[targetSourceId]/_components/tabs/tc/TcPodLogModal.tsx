@@ -19,6 +19,14 @@
  * 세로로 훑고, 그 뒤에야 문장을 읽는다. 시각은 밀리초까지(같은 초에 여러 줄이 찍힌다),
  * 날짜는 줄에서 뺀다 — 한 pod 의 로그는 몇 분 안에 끝난다. 응답이 시각을 안 주면 그 칸은
  * 통째로 빠진다 — 자리만 잡고 '-' 를 세우지 않는다.
+ *
+ * 한 줄은 한 행 — 접힘이 기본 (오너 2026-08-25). 종전에는 본문이 그대로 감겨서, 스택
+ * 트레이스 한 건이 화면을 통째로 먹고 그 아래 줄들이 지면 밖으로 밀렸다. 이제 접힌 행은
+ * 무슨 일이 있어도 정확히 한 줄(`truncate`)이라 "몇 건이 어떤 순서로 찍혔나"가 먼저 읽히고,
+ * 필요한 줄만 눌러서 편다 — StackDriver 가 행 앞 화살표로 상세를 여는 것과 같은 문법이다.
+ * 편 행은 본문 전문(감김)과 함께 접힌 줄이 못 싣는 두 사실을 덧붙인다: severity 원문 낱말
+ * (같은 색을 나눠 쓰는 ERROR/CRITICAL 을 가른다 — hover title 의 상시 판)과 날짜까지 붙은
+ * 시각. 그래서 펴기는 언제나 픽셀을 바꾼다 — 짧은 줄에서도 죽은 토글이 되지 않는다.
  */
 import {
   useEffect,
@@ -31,7 +39,7 @@ import { AppError } from '@/lib/errors';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
 import { ModalShell } from '@/app/admin/pipelines/_components/ModalShell';
 import { Icon, type IconName } from '@/app/admin/pipelines/_components/icons';
-import { fmtTimeMs } from '@/lib/pipeline/format';
+import { fmtDate, fmtTimeMs } from '@/lib/pipeline/format';
 import { j } from '@/app/admin/pipelines/_detail/taskDrawerShared';
 import {
   resizeFromDrag,
@@ -73,9 +81,18 @@ const SEVERITY_GLYPH: Readonly<Record<string, IconName>> = {
   INFO: 'info',
 };
 
-/** 한 줄 — 글리프·시각·본문이 한 줄에 서고, 가리키면 그 줄만 밝아진다(StackDriver 행). */
+/**
+ * 한 줄 — 화살표·글리프·시각·본문이 한 줄에 서고, 가리키면 그 줄만 밝아진다(StackDriver 행).
+ * 행 전체가 디스클로저 머리다: 가리키면 밝아지고 누르면 펴진다. group 은 이름을 달아
+ * 둔다 — 맨몸 group 은 바깥 group 의 hover 까지 받는다.
+ *
+ * 포커스 표식은 이 행이 따로 그리지 않는다 — 전역 `*:focus-visible` 아웃라인
+ * (globals.css)이 이미 모든 초점 대상에 같은 표식을 세우고, 그 규칙은 cascade layer
+ * 밖이라 Tailwind 의 `outline-none` 으로는 못 끈다(.ec2-search-field 주석 참조). 행마다
+ * 링을 하나 더 얹으면 굵기가 다른 고리 두 개가 겹친다.
+ */
 const LOG_ROW =
-  'flex items-start gap-2 -mx-2 rounded-[4px] px-2 py-[3px] hover:bg-[var(--pl-gray-700)]';
+  'group/logrow flex cursor-pointer items-start gap-2 -mx-2 rounded-[4px] px-2 py-[3px] hover:bg-[var(--pl-gray-700)]';
 
 /** 필터 칩의 정렬 순서 — 심한 쪽 먼저. 0건 severity 칩은 그리지 않는다. */
 const SEVERITY_ORDER: readonly string[] = [
@@ -110,6 +127,10 @@ export function TcPodLogModal({
   const [phase, setPhase] = useState<Phase>('loading');
   const [log, setLog] = useState<TcPodLog | null>(null);
   const [filter, setFilter] = useState<string | null>(null);
+  // 펴진 행 — 키는 필터 전 원본 인덱스다. 필터를 바꿔도 같은 줄이 같은 상태로 남는다.
+  const [expanded, setExpanded] = useState<ReadonlySet<number>>(() => new Set());
+  // Tab 이 멈추는 행 하나(roving tabindex). 같은 키.
+  const [rovingRow, setRovingRow] = useState(0);
 
   // 모달은 pod 하나당 한 번 마운트된다(닫아야 다른 pod 를 연다) — 초기 상태가 곧
   // loading 이라 effect 안에서 동기 setState 로 되돌릴 일이 없다.
@@ -161,7 +182,34 @@ export function TcPodLogModal({
     ...SEVERITY_ORDER.filter((key) => (counts.get(key) ?? 0) > 0),
     ...[...counts.keys()].filter((key) => !SEVERITY_ORDER.includes(key)),
   ];
-  const visible: TcPodLogEntry[] = filter ? entries.filter((e) => e.severity === filter) : entries;
+  const rows: { entry: TcPodLogEntry; index: number }[] = entries
+    .map((entry, index) => ({ entry, index }))
+    .filter(({ entry }) => !filter || entry.severity === filter);
+  const visible: TcPodLogEntry[] = rows.map((row) => row.entry);
+
+  const toggleRow = (index: number): void => {
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (!next.delete(index)) next.add(index);
+      return next;
+    });
+  };
+
+  /**
+   * Tab 은 목록 전체에서 한 번만 멈춘다 — 행 위아래는 방향키로 옮긴다(roving tabindex).
+   * 행마다 `tabIndex={0}` 을 주면 300줄짜리 캡처본이 ModalShell 의 포커스 트랩 안에
+   * 300개의 정거장을 만들고, 트랩은 Tab 마다 후보를 다시 훑으므로 그 비용이 O(N) 로
+   * 붙는다. 필터가 그 행을 걷어냈으면 보이는 첫 행이 대신 선다 — 정거장이 0개가 되면
+   * 로그가 키보드에서 아예 사라진다.
+   */
+  const rovingIndex = rows.some((row) => row.index === rovingRow) ? rovingRow : rows[0]?.index;
+
+  const moveFocus = (from: EventTarget & HTMLElement, delta: number): boolean => {
+    const sibling = delta < 0 ? from.previousElementSibling : from.nextElementSibling;
+    if (!(sibling instanceof HTMLElement) || sibling.getAttribute('role') !== 'button') return false;
+    sibling.focus();
+    return true;
+  };
 
   const dark = phase === 'ok' && entries.length > 0;
   // 캡처본이 시각을 하나도 안 주면 시각 칸 자체를 세우지 않는다(빈 칸 = 없는 사실).
@@ -209,22 +257,75 @@ export function TcPodLogModal({
   } else {
     body = (
       <div className={j.logBody} tabIndex={0} role="region" aria-label="Pod 로그">
-        <div className={cn(j.logPre, 'flex flex-col')}>
-          {visible.map((entry, index) => (
-            <div
-              key={index}
-              className={cn(LOG_ROW, SEVERITY_TONE[entry.severity] ?? j.logAnsi.gray)}
-              title={entry.severity}
-            >
-              <SeverityGlyph severity={entry.severity} />
-              {hasTime && (
-                <span className="flex-none tabular-nums opacity-70">
-                  {fmtTimeMs(entry.timestamp)}
-                </span>
-              )}
-              <span className="min-w-0 flex-1">{entry.content}</span>
-            </div>
-          ))}
+        {/* pt — 전역 포커스 아웃라인은 행 박스 **바깥**으로 2px 떨어져 2px 두께로 그려진다.
+            `j.logBody` 는 padding-top 이 0 이라 첫 행이 스크롤 경계에 붙고, 그 4px 이
+            잘린다. 여기서만 위를 띄운다(공유 셸은 건드리지 않는다). */}
+        <div className={cn(j.logPre, 'flex flex-col pt-1.5')}>
+          {rows.map(({ entry, index }) => {
+            const open = expanded.has(index);
+            return (
+              <div
+                key={index}
+                role="button"
+                tabIndex={index === rovingIndex ? 0 : -1}
+                aria-expanded={open}
+                onFocus={() => setRovingRow(index)}
+                onClick={() => {
+                  // 드래그로 본문을 긁는 중이면 그 손짓은 선택이지 펴기가 아니다. 키보드
+                  // 활성화는 이 문을 지나지 않는다 — 긁어 둔 선택이 살아 있다고 해서
+                  // Enter 가 먹히지 않으면, 아무 말 없이 안 열린다.
+                  if (window.getSelection()?.isCollapsed === false) return;
+                  toggleRow(index);
+                }}
+                onKeyDown={(event) => {
+                  if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+                    // 목록 끝에서는 키를 삼키지 않는다 — 마지막 행이 펴져 있으면 그 아래로
+                    // 더 스크롤할 지면이 남아 있고, 방향키가 유일한 손잡이다.
+                    if (moveFocus(event.currentTarget, event.key === 'ArrowDown' ? 1 : -1)) {
+                      event.preventDefault();
+                    }
+                    return;
+                  }
+                  if (event.key !== 'Enter' && event.key !== ' ') return;
+                  event.preventDefault();
+                  // 누르고 있는 Space 의 auto-repeat 로 행이 깜빡이지 않게 — 진짜 버튼도
+                  // 한 번만 활성화된다.
+                  if (event.repeat) return;
+                  toggleRow(index);
+                }}
+                className={cn(LOG_ROW, SEVERITY_TONE[entry.severity] ?? j.logAnsi.gray)}
+                title={entry.severity}
+              >
+                <Icon
+                  name="chev-r"
+                  size={12}
+                  className={cn(
+                    'mt-[4px] flex-none transition-transform group-hover/logrow:opacity-100',
+                    open ? 'rotate-90 opacity-100' : 'opacity-40',
+                  )}
+                />
+                <SeverityGlyph severity={entry.severity} />
+                {hasTime && (
+                  <span className="flex-none tabular-nums opacity-70">
+                    {fmtTimeMs(entry.timestamp)}
+                  </span>
+                )}
+                <div className="min-w-0 flex-1">
+                  <div className={open ? 'whitespace-pre-wrap break-all' : 'truncate'}>
+                    {entry.content}
+                  </div>
+                  {open && (
+                    <div className="mt-1 text-[12px] opacity-60">
+                      {entry.severity}
+                      {entry.timestamp
+                        ? ` · ${fmtDate(entry.timestamp)} ${fmtTimeMs(entry.timestamp)}`
+                        : ''}
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
           {visible.length === 0 && (
             <span className={j.logAnsi.gray}>이 severity 의 로그가 없습니다.</span>
           )}

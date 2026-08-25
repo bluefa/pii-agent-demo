@@ -583,6 +583,24 @@ const podLogLines = (
       { severity: 'INFO', content: `Credential resolved · connecting to ${rid}` },
       { severity: 'NOTICE', content: 'TCP handshake established · authenticating' },
       { severity: 'ERROR', content: "Access denied for user 'pii_agent'@'10.32.0.14' (using password: YES)" },
+      // 실제 캡처본의 최악 케이스 — 한 줄(entry)이 스택 트레이스 전문이다. 뷰어가 행을
+      // 접어서 세는지 확인할 수 있어야 목이 사실을 만든다.
+      {
+        severity: 'ERROR',
+        content: [
+          'java.sql.SQLException: Access denied for user \'pii_agent\'@\'10.32.0.14\' (using password: YES)',
+          '\tat com.mysql.cj.jdbc.exceptions.SQLError.createSQLException(SQLError.java:129)',
+          '\tat com.mysql.cj.jdbc.exceptions.SQLExceptionsMapping.translateException(SQLExceptionsMapping.java:122)',
+          '\tat com.mysql.cj.jdbc.ConnectionImpl.createNewIO(ConnectionImpl.java:836)',
+          '\tat com.mysql.cj.jdbc.ConnectionImpl.<init>(ConnectionImpl.java:456)',
+          '\tat com.mysql.cj.jdbc.ConnectionImpl.getInstance(ConnectionImpl.java:246)',
+          '\tat com.pass.piiagent.probe.ClusterProbe.open(ClusterProbe.java:88)',
+          '\tat com.pass.piiagent.probe.ClusterProbe.test(ClusterProbe.java:41)',
+          '\tat com.pass.piiagent.runner.ConnectionTestRunner.run(ConnectionTestRunner.java:117)',
+          'Caused by: com.mysql.cj.exceptions.CJException: Access denied',
+          '\t... 14 more',
+        ].join('\n'),
+      },
       { severity: 'ERROR', content: 'Giving up after 3 attempts: CLUSTER_TEST_FAILED' },
       ...tail,
     ];
