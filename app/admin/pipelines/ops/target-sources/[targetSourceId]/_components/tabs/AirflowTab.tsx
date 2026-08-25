@@ -11,7 +11,7 @@
  */
 import { useMemo, useState, type ReactElement } from 'react';
 import { cn } from '@/lib/theme';
-import { fmtDateTimeSec } from '@/lib/pipeline/format';
+import { fmtDateTimeShort } from '@/lib/pipeline/format';
 import { isMissingConfirmedIntegrationError } from '@/lib/errors';
 import { useAbortableEffect } from '@/app/hooks/useAbortableEffect';
 import { useModal } from '@/app/hooks/useModal';
@@ -41,7 +41,7 @@ import type {
 /**
  * 카드의 보조 한 줄 — 판정만 말한다. 수(총계·성공·실패·스케줄 안 됨)는 바로 아래
  * 카운트 줄이 지므로, 예전처럼 문장이 같은 수를 한 번 더 세지 않는다 (오너 2026-08-25).
- * 관측 스코프(최근 7일 · 타임존 · 조회 시각)는 우측 상단 메타 줄로 갔다.
+ * 관측 스코프는 우측 상단 메타 줄로 갔다 — '최근 7일' 태그 + 조회 시각(타임존).
  *
  * ⚠️ `monitoringEvidenceHead` 의 subtitle 을 쓰지 않는 이유: 그 문장은 승인 탭 조건 ③
  * 행의 것이라 수를 안고 있어야 한다(그 화면엔 카운트 줄이 없다). 알약만 공유한다.
@@ -149,8 +149,12 @@ export function AirflowTab({ targetSourceId, isIdc, dag }: AirflowTabProps): Rea
             </p>
           </div>
           {dag.phase === 'loaded' && (
-            <p className="mt-1 flex-none text-[12px] tabular-nums text-[var(--pl-text-weak)]">
-              최근 7일 · {dag.data.timezone} · 조회 {fmtDateTimeSec(dag.fetchedAt)}
+            <p className="mt-1 flex flex-none items-center gap-2 text-[12px] tabular-nums text-[var(--pl-text-weak)]">
+              {/* 스코프는 태그, 시각은 문장 (오너 2026-08-25). 셋을 가운뎃점으로 잇던 줄은
+                  세 값을 같은 무게로 세워서, 이 탭 전체가 최근 7일치라는 사실이 조회 시각의
+                  각주처럼 읽혔다. 태그는 그 사실을 값이 아니라 라벨로 만든다. */}
+              <TcPill tone="off" label="최근 7일" />
+              조회 {fmtDateTimeShort(dag.fetchedAt)} ({dag.data.timezone})
             </p>
           )}
         </div>

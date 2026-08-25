@@ -6,6 +6,7 @@ import {
   elapsedMs,
   fmtDateTime,
   fmtDateTimeSec,
+  fmtDateTimeShort,
   fmtDuration,
   fmtElapsedAgo,
   fmtElapsedMs,
@@ -100,6 +101,21 @@ describe('fmtDateTimeSec', () => {
   it('returns - for null / invalid', () => {
     expect(fmtDateTimeSec(null)).toBe('-');
     expect(fmtDateTimeSec('not-a-date')).toBe('-');
+  });
+});
+
+describe('fmtDateTimeShort', () => {
+  it('세기와 초를 뺀 KST — 26.08.25 21:05', () => {
+    expect(fmtDateTimeShort('2026-08-25T12:05:32Z')).toBe('26.08.25 21:05');
+  });
+
+  it('자정은 24시가 아니라 00시로 넘어간다 (fmtDateTime 과 같은 정규화)', () => {
+    expect(fmtDateTimeShort('2026-06-29T15:00:05Z')).toBe('26.06.30 00:00');
+  });
+
+  it('없거나 못 읽는 값은 대시 — 자르기 전에 빠져나온다', () => {
+    expect(fmtDateTimeShort(null)).toBe('-');
+    expect(fmtDateTimeShort('not-a-date')).toBe('-');
   });
 });
 

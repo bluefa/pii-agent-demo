@@ -78,6 +78,22 @@ export function fmtDateTimeSec(iso: string | null | undefined): string {
   return seoulDateTime(iso, true);
 }
 
+/**
+ * ISO-8601 instant → 'YY.MM.DD HH:mm' in Asia/Seoul. `null`/invalid → '-'.
+ *
+ * 화면의 주인공이 아닌 시각 — 헤더 메타 줄의 '조회 시각'처럼, 언제 찍힌 숫자인지만
+ * 말하면 되는 자리다 (오너 2026-08-25). 세기(20)는 매 줄 같은 값이라 정보가 아니고,
+ * 초는 다시 조회해야 바뀌는 값이라 여기서는 정밀도가 아니라 길이일 뿐이다.
+ * 점 구분은 이 짧은 꼴에서만 쓴다 — 'YYYY-MM-DD' 는 값으로서의 날짜가 서는 자리의
+ * 문법이고(`fmtDate`), 둘을 같은 꼴로 만들면 짧게 쓴 이유가 사라진다.
+ */
+export function fmtDateTimeShort(iso: string | null | undefined): string {
+  const full = seoulDateTime(iso, false);
+  if (full === '-') return full;
+  const [date, time] = full.split(' ');
+  return `${date.slice(2).replace(/-/g, '.')} ${time}`;
+}
+
 const SEOUL_TIME_MS = new Intl.DateTimeFormat('en-GB', {
   timeZone: 'Asia/Seoul',
   hour: '2-digit',
