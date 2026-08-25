@@ -51,6 +51,7 @@ const renderTable = (isIdc = false, facts: Map<string, TcResourceFact> = new Map
       secrets={[]}
       tcResults={[]}
       facts={facts}
+      tcLoading={false}
       credMissingOnly={false}
       loading={false}
       failed={false}
@@ -138,5 +139,38 @@ describe('확정 정보 표 — 실패 사유', () => {
   it('사유가 없는 판정에는 표시도 없다', () => {
     renderTable(false, new Map([[rows[0].resource_id, { verdict: 'SUCCESS', podId: null, failReason: null }]]));
     expect(screen.queryByLabelText(/실패 사유/)).toBeNull();
+  });
+});
+
+/**
+ * 조회 중인 것과 "보고가 없다"는 다른 사실이다. 이 표에서 —는 후자를 뜻하는 글자라
+ * (각주가 그렇게 못 박아 두었었다), 아직 물어보는 중에 그것을 그리면 픽셀이 거짓말한다.
+ */
+describe('확정 정보 표 — 연결 상태 로딩', () => {
+  it('조회 중에는 —가 아니라 자리를 잡아 둔다 (오너 2026-08-25)', () => {
+    const { container } = render(
+      <ConfirmedInfoCard
+        targetSourceId={1}
+        isIdc={false}
+        rows={rows}
+        secrets={[]}
+        tcResults={[]}
+        facts={new Map()}
+        tcLoading
+        credMissingOnly={false}
+        loading={false}
+        failed={false}
+        onReload={vi.fn()}
+      />,
+    );
+    const connCells = [...container.querySelectorAll('tbody tr')].map(
+      (row) => row.querySelectorAll('td')[2],
+    );
+    expect(connCells.length).toBeGreaterThan(0);
+    for (const cell of connCells) {
+      expect(cell?.textContent).not.toContain('—');
+      expect(cell?.querySelector('.animate-pulse')).toBeTruthy();
+    }
+    expect(container.querySelector('table')?.getAttribute('aria-busy')).toBe('true');
   });
 });

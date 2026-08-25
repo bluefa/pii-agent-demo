@@ -214,12 +214,27 @@ function verdictPill(verdict: TcVerdict): ReactElement {
 function ConnCell({
   fact,
   verdict,
+  loading,
   onOpenLog,
 }: {
   fact: TcResourceFact | undefined;
   verdict: TcVerdict | undefined;
+  /** 최신 실행 조회가 아직 안 끝났다 — 판정이 없는 것과 다르다. */
+  loading: boolean;
   onOpenLog: () => void;
 }): ReactElement {
+  // 아직 물어보는 중인 것을 —(값 없음)로 그리면, 그 자리에서 —는 "보고가 없는 리소스"라는
+  // 판정을 뜻하게 된다(표의 문법이 그렇다). 모르는 동안에는 판정처럼 생긴 것을 그리지 않고
+  // 자리만 잡아 둔다 — 알약 한 칸과 그 아랫줄 한 칸, 정착 후 들어설 모양 그대로
+  // (오너 2026-08-25).
+  if (loading) {
+    return (
+      <span className="flex flex-col items-start gap-1">
+        <span className={cn(opsStyles.skeleton, 'block h-5 w-[52px]')} aria-hidden="true" />
+        <span className={cn(opsStyles.skeletonBar, 'block h-3 w-[104px]')} aria-hidden="true" />
+      </span>
+    );
+  }
   if (!verdict) return <Dash />;
   const view = failReasonView(fact?.failReason);
   return (
@@ -478,6 +493,11 @@ export interface ConfirmedInfoCardProps {
   /** 리소스별 연결 사실 — 판정·사유·pod (latest_version), joined by resource_id. */
   facts: ReadonlyMap<string, TcResourceFact>;
   /**
+   * 최신 실행(latest_version) 조회가 아직 안 끝났다. `facts` 가 비는 모양은 이때와
+   * "정착했는데 이 리소스는 무보고" 일 때가 같으므로, 그 둘을 가르는 것은 이 플래그뿐이다.
+   */
+  tcLoading: boolean;
+  /**
    * Credential 미설정 단위만 보기 — 밴드의 경고 줄이 소유하는 유일한 필터다. 표에 자기
    * 컨트롤이 없는 이유는 이 조건의 요약과 도달 수단이 한 물건이어야 하기 때문이다
    * (경고 줄의 링크가 곧 이 필터).
@@ -497,6 +517,7 @@ export function ConfirmedInfoCard({
   secrets,
   tcResults,
   facts,
+  tcLoading,
   credMissingOnly,
   loading,
   failed,
@@ -603,7 +624,7 @@ export function ConfirmedInfoCard({
               사실이 아니고, 그 둘까지 풀면 10열이 되어 #729 가 접었던 폭 문제로 되돌아간다
               (docs/ux/benchmark/tc-confirmed-columns.md). */}
           <div className={TABLE_FRAME}>
-            <ConsoleTable columns={columns} resize={resize} busy={loading}>
+            <ConsoleTable columns={columns} resize={resize} busy={loading || tcLoading}>
               <tbody className={idcStyles.table.body}>
                 {pageUnits.length === 0 && (
                   <tr>
@@ -693,6 +714,7 @@ export function ConfirmedInfoCard({
                         <ConnCell
                           verdict={verdict}
                           fact={fact}
+                          loading={tcLoading}
                           onOpenLog={() =>
                             fact?.podId
                             && setPodTarget({

@@ -238,6 +238,7 @@ export function TcTab({
           secrets={secrets}
           tcResults={statusLoaded ? results : []}
           facts={tcFactsByResource(statusLoaded ? latest : null)}
+          tcLoading={!statusLoaded}
           credMissingOnly={credMissingOnly}
           loading={!settled}
           failed={confirmedFailed}
