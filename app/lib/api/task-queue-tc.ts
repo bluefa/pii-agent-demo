@@ -245,7 +245,7 @@ export const getTestConnectionHistory = async (
 };
 
 // ---------------------------------------------------------------------------
-// Pod 로그 — TC pod 의 StackDriver 캡처본 (DRAFT CONTRACT, swagger 미랜딩).
+// Pod 로그 — 업스트림 `GET /install/v1/logs/{podId}` (Infra Manager 로그 프록시).
 // ---------------------------------------------------------------------------
 
 /** severity + content 한 줄 — StackDriver LogSeverity 원문 어휘. */
@@ -258,44 +258,37 @@ export interface TcPodLogEntry {
 
 export interface TcPodLog {
   podId: string;
-  /** 완료 시점 캡처 도장 — 뷰어 헤더의 "…에 캡처". */
-  capturedAt: string | null;
   entries: TcPodLogEntry[];
 }
 
+/** 업스트림 한 줄 — 계약이 선언하는 세 필드가 전부다(pod_id·캡처 시각은 없다). */
 interface TcPodLogWire {
-  pod_id?: string | null;
-  captured_at?: string | null;
-  entries?:
-    | readonly {
-        severity?: string | null;
-        content?: string | null;
-        timestamp?: string | null;
-      }[]
-    | null;
+  timestamp?: string | null;
+  content?: string | null;
+  severity?: string | null;
 }
 
 /**
- * GET …/{id}/test-connection/pod-logs/{podId} — 캡처본 조회. 404 = 캡처 없음
- * (실행 이력이 없거나, pod 가 최신 실행의 것이 아니거나, 아직 정착 전).
- * DRAFT 라 스키마 검증이 없으므로 이 어댑터가 방어적으로 접는다.
+ * GET …/{id}/test-connection/pod-logs/{podId} — 내부 경로는 대상별로 두고, 업스트림
+ * `GET /install/v1/logs/{podId}` 로 프록시된다. 404 = 로그 없음(실행 이력이 없거나
+ * pod 가 최신 실행의 것이 아니거나, 아직 종결 전).
  */
 export const getTestConnectionPodLog = async (
   targetSourceId: number,
   podId: string,
 ): Promise<TcPodLog> => {
-  const raw = await fetchInfraJson<TcPodLogWire>(
+  const raw = await fetchInfraJson<readonly TcPodLogWire[] | null>(
     `/target-sources/${targetSourceId}/test-connection/pod-logs/${encodeURIComponent(podId)}`,
   );
-  return {
-    podId: raw.pod_id || podId,
-    capturedAt: raw.captured_at ?? null,
-    entries: (raw.entries ?? [])
-      .filter((entry) => Boolean(entry?.content))
-      .map((entry) => ({
-        severity: (entry.severity ?? '').toUpperCase() || 'DEFAULT',
-        content: entry.content ?? '',
-        timestamp: entry.timestamp || null,
-      })),
-  };
+  const entries: TcPodLogEntry[] = (raw ?? [])
+    .filter((entry) => Boolean(entry?.content))
+    .map((entry) => ({
+      severity: (entry.severity ?? '').toUpperCase() || 'DEFAULT',
+      content: entry.content ?? '',
+      timestamp: entry.timestamp || null,
+    }));
+  // 업스트림은 최신 줄부터 준다 — 뷰어는 위에서 아래로 읽으므로 오래된 줄이 위로 오게
+  // 세운다. 시각(UTC ISO 8601)이 없는 줄끼리는 sort 가 안정적이라 원래 순서를 지킨다.
+  entries.sort((a, b) => (a.timestamp ?? '').localeCompare(b.timestamp ?? ''));
+  return { podId, entries };
 };

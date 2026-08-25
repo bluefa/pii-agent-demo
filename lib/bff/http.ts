@@ -710,11 +710,11 @@ export const httpBff: BffClient = {
         `/target-sources/${id}/test-connection/latest_version`,
       ),
 
-    // DRAFT CONTRACT — swagger 미랜딩: 경로는 예고안이고 응답은 원문 그대로 통과한다.
-    getTestConnectionPodLog: (id, podId) =>
-      getSnakeRaw<unknown>(
-        `/target-sources/${id}/test-connection/pod-logs/${encodeURIComponent(podId)}`,
-      ),
+    // GET /install/v1/logs/{podId} — Self Installation Tool 이 Infra Manager 의 로그
+    // API 를 프록시한다. pod 가 전역 키라 target source 로 스코프되지 않는다(내부 경로만
+    // 대상별로 남는다). 응답은 [{timestamp, content, severity}] 리스트 원문 그대로 통과.
+    getTestConnectionPodLog: (_id, podId) =>
+      getSnakeRaw<unknown>(`/logs/${encodeURIComponent(podId)}`),
 
     getLatestTestConnectionResultSummaries: (id) =>
       getSnakeRaw<z.infer<typeof schemas.TestConnectionLatestResultSummaryResponse>[]>(

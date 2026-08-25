@@ -3,11 +3,10 @@
 /**
  * TC Pod 로그 뷰어 — Terraform Job 로그 뷰어(JobViewer)의 셸을 그대로 입는다:
  * ModalShell · 기본 720×572 · 우하단 드래그 그립 · 어두운 로그 패널. 본문만 다르다 —
- * ANSI 텍스트 대신 severity + content 구조화 리스트(StackDriver 캡처본).
+ * ANSI 텍스트 대신 severity + content 구조화 리스트(`GET /install/v1/logs/{podId}`).
  *
- * 캡처본이라 새로고침이 없다 — 헤더의 캡처 도장이 "이 시점의 전부"라고 말한다
- * (완료 시점 캡처: entries.list 쿼터 60/min 이 프로젝트 공유라 조회 시점 재조회를
- * 하지 않는다). severity 필터는 클라이언트 — 응답이 리스트로 한 번에 온다.
+ * 본문은 열 때 한 번 읽고 끝난다 — 새로고침 버튼이 없다. severity 필터는 클라이언트 —
+ * 응답이 리스트로 한 번에 온다.
  *
  * severity 접기 — 9종을 4색으로: ERROR·CRITICAL·ALERT·EMERGENCY → 적색 /
  * WARNING → 호박색 / NOTICE·INFO → 중립 / DEBUG·DEFAULT → faint. 라벨 열은 없다 —
@@ -18,7 +17,7 @@
  * 행 문법은 StackDriver 그대로 — 글리프 · 시각 · 본문 (오너 2026-08-20). 바닥과 줄 색은
  * 위 그대로 두고 앞의 두 칸만 가져온 것이다: 로그를 읽는 사람은 "몇 시에 무엇이"를 왼쪽에서
  * 세로로 훑고, 그 뒤에야 문장을 읽는다. 시각은 밀리초까지(같은 초에 여러 줄이 찍힌다),
- * 날짜는 헤더의 캡처 도장이 이미 말하므로 줄에서 뺀다. 캡처본이 시각을 안 주면 그 칸은
+ * 날짜는 줄에서 뺀다 — 한 pod 의 로그는 몇 분 안에 끝난다. 응답이 시각을 안 주면 그 칸은
  * 통째로 빠진다 — 자리만 잡고 '-' 를 세우지 않는다.
  */
 import {
@@ -32,7 +31,7 @@ import { AppError } from '@/lib/errors';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
 import { ModalShell } from '@/app/admin/pipelines/_components/ModalShell';
 import { Icon, type IconName } from '@/app/admin/pipelines/_components/icons';
-import { fmtDateTime, fmtTimeMs } from '@/lib/pipeline/format';
+import { fmtTimeMs } from '@/lib/pipeline/format';
 import { j } from '@/app/admin/pipelines/_detail/taskDrawerShared';
 import {
   resizeFromDrag,
@@ -182,10 +181,10 @@ export function TcPodLogModal({
     body = (
       <div className={j.vEmpty}>
         <Icon name="warn-tri" size="lg" className={j.vEmptyIcon} />
-        <div className={j.vEmptyTitle}>로그 캡처본이 없습니다</div>
+        <div className={j.vEmptyTitle}>로그가 없습니다</div>
         <div className={j.vEmptyDesc}>
-          이 pod 의 로그가 저장되지 않았습니다. 최신 실행이 아니거나, 완료 시점 캡처가 아직
-          없는 pod 입니다.
+          이 pod 의 로그를 찾지 못했습니다. 최신 실행이 아니거나, 아직 종결되지 않은 pod
+          입니다.
         </div>
       </div>
     );
@@ -201,9 +200,9 @@ export function TcPodLogModal({
     body = (
       <div className={j.vEmpty}>
         <Icon name="warn-tri" size="lg" className={j.vEmptyIcon} />
-        <div className={j.vEmptyTitle}>캡처된 로그가 비어 있습니다</div>
+        <div className={j.vEmptyTitle}>로그가 비어 있습니다</div>
         <div className={j.vEmptyDesc}>
-          pod 는 종결됐지만 캡처본에 로그 줄이 없습니다. 캡처 시각과 실행 결과는 유효합니다.
+          pod 는 종결됐지만 남은 로그 줄이 없습니다. 실행 결과는 유효합니다.
         </div>
       </div>
     );
@@ -251,8 +250,6 @@ export function TcPodLogModal({
             </span>
           </div>
           <div className={j.vSub}>{resourceLabel}</div>
-          {/* 캡처 도장 — 이 본문이 "언제의 전부"인지. 새로고침 버튼은 없다. */}
-          {log?.capturedAt && <div className={j.vStamp}>{fmtDateTime(log.capturedAt)} 캡처</div>}
         </div>
         <button type="button" className={j.vClose} onClick={onClose} aria-label="닫기" title="닫기 (Esc)">
           <Icon name="x" size="lg" />

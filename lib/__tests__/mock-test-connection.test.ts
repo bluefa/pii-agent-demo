@@ -660,19 +660,24 @@ describe('mock-test-connection behavior lock-in', () => {
       expect(ok.every((agent) => agent.fail_reason === undefined)).toBe(true);
     });
 
-    it('getPodLog 는 최신 실행의 정착 pod 만 캡처본을 준다', () => {
+    it('getPodLog 는 최신 실행의 정착 pod 만 줄 리스트를 준다', () => {
       const wire = toVersionResultResponse(getLatestJob(TC_CARD_FIXTURE.fail)!);
       const withPod = wire.test_connection_agent_results.find(
         (agent) => agent.connection_status === 'FAIL' && agent.pod_id,
       );
       expect(withPod).toBeDefined();
       const log = getPodLog(TC_CARD_FIXTURE.fail, withPod!.pod_id as string);
-      expect(log?.pod_id).toBe(withPod!.pod_id);
-      expect(log?.captured_at).toBeTruthy();
-      // 실패 행의 캡처본은 그 행의 fail_reason 서사를 담는다 — 화면 문구와 로그가
+      // 계약 본문은 줄 리스트 하나 — pod_id·캡처 시각을 감싸지 않는다.
+      expect(Array.isArray(log)).toBe(true);
+      expect(log!.every((entry) => entry.timestamp)).toBe(true);
+      // 업스트림처럼 최신 줄이 먼저 온다 — 어댑터가 다시 세운다.
+      expect(new Date(log![0].timestamp!).getTime()).toBeGreaterThan(
+        new Date(log![log!.length - 1].timestamp!).getTime(),
+      );
+      // 실패 행의 로그는 그 행의 fail_reason 서사를 담는다 — 화면 문구와 로그가
       // 서로를 반증하지 않는다.
-      expect(log?.entries.some((entry) => entry.content.includes('SECRET_NOT_FOUND'))).toBe(true);
-      // 같은 pod 를 두 번 열어도 같은 캡처본 (결정적).
+      expect(log!.some((entry) => entry.content.includes('SECRET_NOT_FOUND'))).toBe(true);
+      // 같은 pod 를 두 번 열어도 같은 본문 (결정적).
       expect(getPodLog(TC_CARD_FIXTURE.fail, withPod!.pod_id as string)).toEqual(log);
     });
 
