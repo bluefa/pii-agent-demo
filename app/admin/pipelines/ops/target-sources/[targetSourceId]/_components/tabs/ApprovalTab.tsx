@@ -134,6 +134,8 @@ export interface ApprovalTabProps {
   latestFailed: boolean;
   /** TC 세 응답이 도착했는가 — 도착 전의 null 을 '이력 없음'으로 읽지 않기 위해. */
   tcLoaded: boolean;
+  /** status 조회가 404 아닌 이유로 거절됐는가 — 조회 실패 ≠ 미요청. */
+  statusFailed: boolean;
   /** 리소스별 논리 DB 건수 (latest-results; fetched by the page). */
   results: readonly TcResultRow[];
   /** §10 dag-status — fetched once by the page and shared with Airflow 확인. */
@@ -153,6 +155,7 @@ export function ApprovalTab({
   latest,
   latestFailed,
   tcLoaded,
+  statusFailed,
   results,
   dag,
   onDecided,
@@ -165,16 +168,11 @@ export function ApprovalTab({
   const tcCompleted = status?.status === TC_COMPLETED;
   const isRejected = status?.status === TC_REJECTED;
 
-  // 근거 행이 나르는 판정 — 페이지가 내려준 두 응답을 여기서 접는다 (연결 테스트
+  // 조건 ② 줄이 읽는 판정 — 페이지가 내려준 두 응답을 여기서 접는다 (연결 테스트
   // 탭과 같은 fold 라 합계가 두 탭에서 갈라지지 않는다).
   const stats = useMemo(() => tcResultStats(results, latest), [results, latest]);
   const run = runStatus(latest);
 
-  // 확정 정보 조인 — DAG 표가 §10 밖에서 빌려 오는 사실(리전·DatabaseType·IDC 접속
-  // 주소)의 출처이자, 검토 표(C-2)의 행 목록. TC 완료 승인 전에도 받는다: 검토 표는
-  // 게이트 ① 이전(혼동 상태)에도 서야 한다. 게이트에는 아무 영향이 없다 — 실패하면
-  // 조인 칸은 대시로, 검토 표는 빈 상태 문장으로 서고 화면은 그대로 뜬다.
-  // 요청 순서 조인은 연결 테스트 탭과 같은 이유(두 표를 행 단위로 대조)·같은 best-effort.
   // 모니터링 판정의 집계 — 조건 ③ 줄이 읽는 한 벌(본문은 Airflow 확인 탭의 것).
   const agg = useMemo(
     () => (dag.phase === 'loaded' ? aggregateDagStatus(dag.data) : null),
@@ -191,8 +189,8 @@ export function ApprovalTab({
     onError: () => toast.show('설치 완료 처리에 실패했습니다.'),
   });
 
-  // 연결 테스트 근거의 접힌 줄 — 회차·시각과, 성공분이 있을 때만 논리 DB 합계.
-  // 합계는 검토 표의 셀과 같은 fold(ldbCount 게이트)라 두 층이 갈라지지 않는다.
+  // 조건 ② 의 보조 줄 — 회차·시각과, 성공분이 있을 때만 논리 DB 합계. 합계는 연결
+  // 테스트 탭의 셀과 같은 fold(ldbCount 게이트)라 두 화면이 갈라지지 않는다.
   const tcSubtitle = ((): string | null => {
     if (!latest) return null;
     const parts: string[] = [];
@@ -210,7 +208,42 @@ export function ApprovalTab({
   // 도착 전에는 아무 사실도 말하지 않는다 — 로딩 중의 null 을 '이력 없음'으로 읽으면
   // 체크리스트가 한 프레임 동안 거짓을 단정한다.
   const gate = tcLoaded ? tcRunGate(run, latest !== null, latestFailed) : 'loading';
-  const head = foldApprovalHead(status?.status, gate, dag);
+  const head = foldApprovalHead(status?.status, statusFailed, gate, dag);
+
+  // 승인 조건 row ① — 도착 전 · 조회 실패 · 미요청 · 요청됨. 문장은 조건이 충족됐을
+  // 때만 완료형이 되고, 나머지 셋은 같은 미충족 문장에 이유만 갈아 끼운다.
+  const PENDING_ACK = '서비스가 연결 테스트 완료 승인을 요청하면 충족됩니다';
+  const ackRow = ((): {
+    state: GateRowState;
+    text: string;
+    suffix?: ReactNode;
+    meta?: string;
+  } => {
+    if (!tcLoaded) return { state: 'pending', text: PENDING_ACK, suffix: '확인 중…' };
+    if (statusFailed)
+      return { state: 'err', text: PENDING_ACK, suffix: '완료 승인 상태를 불러오지 못했습니다' };
+    if (tcCompleted)
+      return {
+        state: 'ok',
+        text: '서비스가 연결 테스트 완료 승인을 요청했습니다',
+        meta: fmtDateTimeSec(status?.completedAt),
+      };
+    return {
+      state: 'pending',
+      text: PENDING_ACK,
+      // C-1 조건부 캡션 — "테스트 성공 + 미요청" 상태에서만. 강조는 굵기와 색으로
+      // 지고, 문장은 짧게 둘로 나눈다 (오너 08-20).
+      suffix: showsHandoffCaption(status?.status, run) ? (
+        <>
+          연결 테스트가 성공해도 이 조건은 자동으로 충족되지 않습니다. 서비스 담당자가{' '}
+          <b className="font-semibold text-[var(--pl-text-strong)]">
+            5단계 연결 테스트에서 승인 요청
+          </b>
+          을 눌러야 합니다.
+        </>
+      ) : undefined,
+    };
+  })();
 
   // 승인 조건 row ③ — the checklist carries the "why", the CTA stays unmounted.
   // 근거 문장은 모니터링 근거의 fold 그대로 빌린다 — 조건 줄과 Airflow 확인 탭이
@@ -221,6 +254,7 @@ export function ApprovalTab({
     titleHint?: string;
     meta?: string;
   } => {
+    if (!tcLoaded) return { state: 'pending', suffix: '확인 중…' };
     if (!tcCompleted) return { state: 'pending', suffix: '완료 승인 후 점검합니다' };
     switch (dag.phase) {
       case 'loading':
@@ -293,35 +327,12 @@ export function ApprovalTab({
         <div className="mt-5">
           <p className="text-[16px] font-semibold text-[var(--pl-text-strong)]">승인 조건</p>
           <div className="mt-2.5 divide-y divide-[var(--pl-border)] rounded-lg border border-[var(--pl-border)]">
-            {tcCompleted ? (
-              <GateRow
-                state="ok"
-                text="서비스가 연결 테스트 완료 승인을 요청했습니다"
-                meta={fmtDateTimeSec(status?.completedAt)}
-              />
-            ) : (
-              <GateRow
-                state="pending"
-                text="서비스가 연결 테스트 완료 승인을 요청하면 충족됩니다"
-                // C-1 조건부 캡션 — "테스트 성공 + 미요청" 상태에서만. 강조는 굵기와
-                // 색으로 지고, 문장은 짧게 둘로 나눈다 (오너 08-20). 응답 도착 전에는
-                // 미요청이라고 말할 수 없어 확인 중이라고만 한다.
-                suffix={
-                  !tcLoaded ? (
-                    '확인 중…'
-                  ) : showsHandoffCaption(status?.status, run) ? (
-                    <>
-                      연결 테스트가 성공해도 이 조건은 자동으로 충족되지 않습니다. 서비스
-                      담당자가{' '}
-                      <b className="font-semibold text-[var(--pl-text-strong)]">
-                        5단계 연결 테스트에서 승인 요청
-                      </b>
-                      을 눌러야 합니다.
-                    </>
-                  ) : undefined
-                }
-              />
-            )}
+            <GateRow
+              state={ackRow.state}
+              text={ackRow.text}
+              suffix={ackRow.suffix}
+              meta={ackRow.meta}
+            />
             <GateRow
               state={runRow.state}
               text="최신 연결 테스트 결과가 성공입니다"

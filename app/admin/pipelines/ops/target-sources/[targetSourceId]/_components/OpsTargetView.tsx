@@ -46,8 +46,13 @@ import { PipelineTab } from '@/app/admin/pipelines/ops/target-sources/[targetSou
 import { TcTab } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/TcTab';
 import { ApprovalTab } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/ApprovalTab';
 import { AirflowTab } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/AirflowTab';
+import { AppError } from '@/lib/errors';
+import { useAbortableEffect } from '@/app/hooks/useAbortableEffect';
 import { getDagStatus } from '@/app/lib/api/ops';
-import type { DagFetch } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/approvalGate';
+import {
+  TC_COMPLETED,
+  type DagFetch,
+} from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/approvalGate';
 
 const TABS = Object.values(OPS_TAB_SLUGS);
 type TabLabel = OpsTargetTabLabel;
@@ -90,7 +95,9 @@ export function OpsTargetView({ targetSourceId, initialTab }: OpsTargetViewProps
   const [tcResults, setTcResults] = useState<TcResultRow[]>([]);
   const [tcLoaded, setTcLoaded] = useState(false);
   const [tcLatestFailed, setTcLatestFailed] = useState(false);
-  // DAG 헬스도 한 자리에서 받는다 — 관리자 승인 탭의 조건 ③ 과 Airflow 확인 탭이 같은
+  /** status 조회가 '아직 없다'(404)가 아닌 이유로 거절됐는가 — 조회 실패 ≠ 미요청. */
+  const [tcStatusFailed, setTcStatusFailed] = useState(false);
+  // DAG 헬스는 한 자리에서 받는다 — 관리자 승인 탭의 조건 ③ 과 Airflow 확인 탭이 같은
   // 응답을 읽으므로, 탭을 오갈 때마다 같은 §10 을 다시 부르지 않게 소유자는 여기다.
   const [dag, setDag] = useState<DagFetch>({ phase: 'loading' });
   const [modal, setModal] = useState<ModalState>(null);
@@ -172,6 +179,12 @@ export function OpsTargetView({ targetSourceId, initialTab }: OpsTargetViewProps
     ]);
     if (seq !== tcSeq.current) return;
     setTcStatus(statusRow.status === 'fulfilled' ? statusRow.value : null);
+    // NOT_FOUND 만 "아직 요청 전"이다 — 그 밖의 거절을 null 로 접으면 승인 조건 ① 이
+    // 조회 실패를 '미요청'으로 단정한다 (fetchLatestTest 와 같은 규칙).
+    setTcStatusFailed(
+      statusRow.status === 'rejected'
+      && !(statusRow.reason instanceof AppError && statusRow.reason.code === 'NOT_FOUND'),
+    );
     setTcLatest(latest.status === 'fulfilled' ? latest.value : null);
     setTcLatestFailed(latest.status !== 'fulfilled');
     setTcResults(resultRows.status === 'fulfilled' ? resultRows.value : []);
@@ -186,9 +199,6 @@ export function OpsTargetView({ targetSourceId, initialTab }: OpsTargetViewProps
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      // 대상이 바뀌면 헬스부터 비운다 — 앞 대상의 판정이 새 대상의 승인 조건 줄에
-      // 한 프레임이라도 서면 안 된다.
-      setDag({ phase: 'loading' });
       let loaded: RawTargetSourceDetail;
       try {
         loaded = await getRawTargetSourceDetail(targetSourceId);
@@ -223,17 +233,37 @@ export function OpsTargetView({ targetSourceId, initialTab }: OpsTargetViewProps
         .catch(() => !cancelled && setJiraTicket(null))
         .finally(() => !cancelled && setTicketLoaded(true));
       void loadTc();
-      void getDagStatus(targetSourceId)
-        .then((data) => {
-          if (cancelled) return;
-          setDag({ phase: 'loaded', data, fetchedAt: new Date().toISOString() });
-        })
-        .catch(() => !cancelled && setDag({ phase: 'failed' }));
     })();
     return () => {
       cancelled = true;
     };
   }, [targetSourceId, reloadKey, loadTc]);
+
+  /**
+   * §10 dag-status — 한 대상의 응답이 MB 단위까지 간다(논리 DB 1만 행). 그래서 대상을
+   * 열자마자가 아니라 **읽을 사람이 생겼을 때** 받는다:
+   *   완료 승인된 대상   승인 조건 ③ 이 판정을 걸고 있다 (탭과 무관하게 필요)
+   *   Airflow 확인 탭    본문 전체가 이 응답이다
+   * 완료 승인된 대상에서는 이 값이 계속 true 라 승인 ↔ Airflow 를 오가도 deps 가 그대로다
+   * — 탭 전환으로는 다시 부르지 않는다.
+   */
+  const needsDag = tcStatus?.status === TC_COMPLETED || currentTab === OPS_TAB_SLUGS.airflow;
+  useAbortableEffect(
+    (signal) => {
+      if (!needsDag) return;
+      setDag({ phase: 'loading' });
+      return getDagStatus(targetSourceId, { signal })
+        .then((data) => {
+          if (signal.aborted) return;
+          setDag({ phase: 'loaded', data, fetchedAt: new Date().toISOString() });
+        })
+        .catch(() => {
+          if (signal.aborted) return;
+          setDag({ phase: 'failed' });
+        });
+    },
+    [needsDag, targetSourceId, reloadKey],
+  );
 
   if (detailFailed) {
     return (
@@ -412,6 +442,7 @@ export function OpsTargetView({ targetSourceId, initialTab }: OpsTargetViewProps
               latest={tcLatest}
               latestFailed={tcLatestFailed}
               tcLoaded={tcLoaded}
+              statusFailed={tcStatusFailed}
               results={tcResults}
               dag={dag}
               onDecided={retry}

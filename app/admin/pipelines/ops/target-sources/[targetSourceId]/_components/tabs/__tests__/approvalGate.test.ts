@@ -55,7 +55,7 @@ const loaded = (healthStatus: string): DagFetch => ({
 // 성공 ∧ ③ HEALTHY.
 describe('foldApprovalHead', () => {
   it('row 1 — TC 미완료: both CTAs unmounted, 서비스 쪽 버튼 이름(완료 승인)으로 말한다', () => {
-    const head = foldApprovalHead(null, 'success', { phase: 'loading' });
+    const head = foldApprovalHead(null, false, 'success', { phase: 'loading' });
     expect(head.canApprove).toBe(false);
     expect(head.pill).toEqual({ tone: 'off', label: '완료 승인 대기' });
     // Step 5 CTA 의 실제 라벨은 "승인 요청" — 화면에 없는 이름을 안내하지 않는다.
@@ -64,37 +64,37 @@ describe('foldApprovalHead', () => {
   });
 
   it('row 2 — REJECTED: both CTAs unmounted regardless of dag state', () => {
-    const head = foldApprovalHead('TEST_CONNECTION_REJECTED', 'success', loaded('HEALTHY'));
+    const head = foldApprovalHead('TEST_CONNECTION_REJECTED', false, 'success', loaded('HEALTHY'));
     expect(head.canApprove).toBe(false);
     expect(head.pill).toEqual({ tone: 'warn', label: '재실행 요청됨' });
   });
 
   it('row 3 — COMPLETED + loading: approve locked', () => {
-    const head = foldApprovalHead('TEST_CONNECTION_COMPLETED', 'success', { phase: 'loading' });
+    const head = foldApprovalHead('TEST_CONNECTION_COMPLETED', false, 'success', { phase: 'loading' });
     expect(head.canApprove).toBe(false);
     expect(head.pill).toEqual({ tone: 'off', label: '헬스 확인 중' });
   });
 
   it('row 4 — COMPLETED + fetch failure: locked (failure is not an empty result)', () => {
-    const head = foldApprovalHead('TEST_CONNECTION_COMPLETED', 'success', { phase: 'failed' });
+    const head = foldApprovalHead('TEST_CONNECTION_COMPLETED', false, 'success', { phase: 'failed' });
     expect(head.canApprove).toBe(false);
     expect(head.pill).toEqual({ tone: 'err', label: '확인 실패' });
   });
 
   it('row 5 — COMPLETED + HEALTHY: the one approvable state', () => {
-    const head = foldApprovalHead('TEST_CONNECTION_COMPLETED', 'success', loaded('HEALTHY'));
+    const head = foldApprovalHead('TEST_CONNECTION_COMPLETED', false, 'success', loaded('HEALTHY'));
     expect(head.canApprove).toBe(true);
     expect(head.pill).toEqual({ tone: 'ok', label: '처리 대기' });
   });
 
   it('row 6 — COMPLETED + UNHEALTHY: approve locked', () => {
-    const head = foldApprovalHead('TEST_CONNECTION_COMPLETED', 'success', loaded('UNHEALTHY'));
+    const head = foldApprovalHead('TEST_CONNECTION_COMPLETED', false, 'success', loaded('UNHEALTHY'));
     expect(head.canApprove).toBe(false);
     expect(head.pill).toEqual({ tone: 'err', label: '승인 불가' });
   });
 
   it('row 7 — COMPLETED + unknown enum: locked, raw value kept OUT of the copy', () => {
-    const head = foldApprovalHead('TEST_CONNECTION_COMPLETED', 'success', loaded('DEGRADED'));
+    const head = foldApprovalHead('TEST_CONNECTION_COMPLETED', false, 'success', loaded('DEGRADED'));
     expect(head.canApprove).toBe(false);
     expect(head.pill).toEqual({ tone: 'off', label: '미확인' });
     // Wire vocabulary never rides in sentence-tier copy — tooltip channel only.
@@ -104,23 +104,36 @@ describe('foldApprovalHead', () => {
 
   // 조건 ② — HEALTHY 라도 최신 실행이 성공이라고 말하지 않으면 승인은 잠긴다.
   it('COMPLETED + 실행 실패: approve locked even when health is HEALTHY', () => {
-    const head = foldApprovalHead('TEST_CONNECTION_COMPLETED', 'failed', loaded('HEALTHY'));
+    const head = foldApprovalHead('TEST_CONNECTION_COMPLETED', false, 'failed', loaded('HEALTHY'));
     expect(head.canApprove).toBe(false);
     expect(head.pill).toEqual({ tone: 'err', label: '승인 불가' });
   });
 
   it('COMPLETED + 도착 전 / 진행 중 / 이력 없음 / 조회 실패 / 미지 enum: 전부 잠긴다', () => {
     for (const run of ['loading', 'open', 'none', 'error', 'unknown'] as const) {
-      const head = foldApprovalHead('TEST_CONNECTION_COMPLETED', run, loaded('HEALTHY'));
+      const head = foldApprovalHead('TEST_CONNECTION_COMPLETED', false, run, loaded('HEALTHY'));
       expect(head.canApprove).toBe(false);
     }
   });
 
   it('도착 전·실행 실패·이력 없음·조회 실패는 서로 다른 문장이다 (실패 ≠ 빈 결과 ≠ 모름)', () => {
     const descs = (['loading', 'failed', 'none', 'error'] as const).map(
-      (run) => foldApprovalHead('TEST_CONNECTION_COMPLETED', run, loaded('HEALTHY')).desc,
+      (run) => foldApprovalHead('TEST_CONNECTION_COMPLETED', false, run, loaded('HEALTHY')).desc,
     );
     expect(new Set(descs).size).toBe(4);
+  });
+
+  it('status 조회 실패는 미요청과 다른 문장이다 — 404 가 아닌 거절은 모름이다', () => {
+    const failed = foldApprovalHead(null, true, 'success', loaded('HEALTHY'));
+    const pending = foldApprovalHead(null, false, 'success', loaded('HEALTHY'));
+    expect(failed.canApprove).toBe(false);
+    expect(failed.pill).toEqual({ tone: 'err', label: '확인 실패' });
+    expect(failed.desc).not.toBe(pending.desc);
+  });
+
+  it('완료 승인된 대상이라도 status 조회 실패가 서 있으면 잠근다', () => {
+    const head = foldApprovalHead('TEST_CONNECTION_COMPLETED', true, 'success', loaded('HEALTHY'));
+    expect(head.canApprove).toBe(false);
   });
 });
 

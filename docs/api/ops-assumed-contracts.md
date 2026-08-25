@@ -357,8 +357,13 @@ Connection run is `SUCCESS`, ③ `healthStatus === 'HEALTHY'`. All three are all
 loading, fetch failure, and unknown enum values lock rather than pass.
 
 The same response also feeds the **Airflow 확인** tab (`?tab=airflow`), which owns the
-weekly board, the agent table, and the DAG detail modal. The page fetches it once and
-hands it to both tabs, so switching between them does not re-request §10.
+weekly board, the agent table, and the DAG detail modal. The page owns the fetch and
+hands the result to both tabs, so switching between them does not re-request §10.
+
+It is fetched lazily — a single target's response reaches MB scale (10k 논리 DB rows,
+BE open issue below), so the page only asks once a reader exists: the target is
+완료 승인 (조건 ③ gates on it) or the Airflow 확인 tab is open. Targets earlier in the
+process never request it.
 
 ```
 GET /install/v1/target-sources/{targetSourceId}/dag-status

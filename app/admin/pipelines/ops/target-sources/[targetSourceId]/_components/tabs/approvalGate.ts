@@ -17,8 +17,8 @@ import type { TcTone } from '@/app/admin/pipelines/ops/target-sources/[targetSou
 export const TC_COMPLETED = 'TEST_CONNECTION_COMPLETED';
 export const TC_REJECTED = 'TEST_CONNECTION_REJECTED';
 
-/** dag-status fetch lifecycle — 'loading' doubles as "not fetched yet";
- *  consumers gate on TC completion before reading it. */
+/** dag-status fetch lifecycle — 'loading' doubles as "not fetched yet". The page
+ *  owns it and only asks when a reader exists (승인 조건 ③ · Airflow 확인 탭). */
 export type DagFetch =
   | { phase: 'loading' }
   | { phase: 'failed' }
@@ -81,9 +81,28 @@ export interface ApprovalHead {
 
 export function foldApprovalHead(
   tcStatus: string | null | undefined,
+  /** status 조회가 404 아닌 이유로 거절됐는가 — 조회 실패를 '미요청'으로 읽지 않기 위해. */
+  statusFailed: boolean,
   run: TcRunGate,
   dag: DagFetch,
 ): ApprovalHead {
+  // 'loading' 은 최신 실행만 모르는 상태가 아니다 — TC 세 응답이 한 번에 오므로
+  // tcStatus 도 아직 모른다. tcStatus 를 읽는 분기보다 먼저 답해야 "완료 승인 대기"
+  // 같은 사실을 도착 전에 단정하지 않는다.
+  if (run === 'loading') {
+    return {
+      pill: { tone: 'off', label: '결과 확인 중' },
+      desc: '연결 테스트 결과를 확인하고 있어요.',
+      canApprove: false,
+    };
+  }
+  if (statusFailed) {
+    return {
+      pill: { tone: 'err', label: '확인 실패' },
+      desc: '완료 승인 상태를 확인하지 못했어요.',
+      canApprove: false,
+    };
+  }
   if (tcStatus === TC_REJECTED) {
     return {
       pill: { tone: 'warn', label: '재실행 요청됨' },
@@ -114,12 +133,6 @@ export function foldApprovalHead(
       return {
         pill: { tone: 'off', label: '테스트 진행 중' },
         desc: '연결 테스트가 아직 끝나지 않았어요.',
-        canApprove: false,
-      };
-    case 'loading':
-      return {
-        pill: { tone: 'off', label: '결과 확인 중' },
-        desc: '연결 테스트 결과를 확인하고 있어요.',
         canApprove: false,
       };
     case 'none':

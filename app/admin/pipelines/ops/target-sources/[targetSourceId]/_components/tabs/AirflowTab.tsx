@@ -13,6 +13,7 @@ import { useMemo, useState, type ReactElement } from 'react';
 import { cn, pipelineStyles } from '@/lib/theme';
 import { isMissingConfirmedIntegrationError } from '@/lib/errors';
 import { useAbortableEffect } from '@/app/hooks/useAbortableEffect';
+import { useModal } from '@/app/hooks/useModal';
 import { getConfirmedIntegration } from '@/app/lib/api';
 import { Icon } from '@/app/admin/pipelines/_components/icons';
 import { ModalShell } from '@/app/admin/pipelines/_components/ModalShell';
@@ -69,12 +70,12 @@ export function AirflowTab({ targetSourceId, isIdc, dag }: AirflowTabProps): Rea
 
   // 논리 DB 보드 — 우측 오버레이 패널. 진입(요약의 실패 숫자 · 현황 보기 · 에이전트 표의
   // "DAG 상태 조회")이 프리셋과 함께 연다.
-  const [board, setBoard] = useState<{ filter: BoardFilter; agentId?: string } | null>(null);
+  const board = useModal<{ filter: BoardFilter; agentId?: string }>();
   // DAG 상세는 패널 위에 겹치는 레이어라 소유자가 여기여야 Esc 를 누가 먹을지 정할 수 있다.
-  const [dagRow, setDagRow] = useState<DagDbRow | null>(null);
+  const dagDetail = useModal<DagDbRow>();
   const closeBoard = (): void => {
-    setDagRow(null);
-    setBoard(null);
+    dagDetail.close();
+    board.close();
   };
 
   return (
@@ -98,8 +99,8 @@ export function AirflowTab({ targetSourceId, isIdc, dag }: AirflowTabProps): Rea
                 data={dag.data}
                 agg={agg}
                 fetchedAt={dag.fetchedAt}
-                onShowFailed={() => setBoard({ filter: 'failed' })}
-                onOpenBoard={() => setBoard({ filter: 'ALL' })}
+                onShowFailed={() => board.open({ filter: 'failed' })}
+                onOpenBoard={() => board.open({ filter: 'ALL' })}
               />
               {/* 에이전트가 1개뿐이어도 그린다 — 요약은 리소스가 무엇인지 말하지 않는다. */}
               {dag.data.agents.length > 0 && (
@@ -107,7 +108,7 @@ export function AirflowTab({ targetSourceId, isIdc, dag }: AirflowTabProps): Rea
                   <AgentDagTable
                     data={dag.data}
                     // "DAG 상태 조회"가 약속하는 것은 그 에이전트의 DB 전부다.
-                    onViewDbs={(agentId) => setBoard({ agentId, filter: 'ALL' })}
+                    onViewDbs={(agentId) => board.open({ agentId, filter: 'ALL' })}
                     confirmed={confirmed}
                     isIdc={isIdc}
                   />
@@ -131,24 +132,28 @@ export function AirflowTab({ targetSourceId, isIdc, dag }: AirflowTabProps): Rea
       {dag.phase === 'loaded' && (
         <>
           <ModalShell
-            open={board !== null}
+            open={board.isOpen}
             onClose={closeBoard}
             variant="panel"
             labelledBy="db-board-title"
-            closeOnEsc={dagRow === null}
+            closeOnEsc={!dagDetail.isOpen}
           >
-            {board !== null && (
+            {board.data && (
               <DbWeeklyBoard
                 data={dag.data}
-                initialFilter={board.filter}
-                initialAgentId={board.agentId ?? null}
+                initialFilter={board.data.filter}
+                initialAgentId={board.data.agentId ?? null}
                 onClose={closeBoard}
-                onOpenDag={setDagRow}
+                onOpenDag={dagDetail.open}
               />
             )}
           </ModalShell>
 
-          <DagDetailModal row={dagRow} timezone={dag.data.timezone} onClose={() => setDagRow(null)} />
+          <DagDetailModal
+            row={dagDetail.data ?? null}
+            timezone={dag.data.timezone}
+            onClose={dagDetail.close}
+          />
         </>
       )}
     </>
