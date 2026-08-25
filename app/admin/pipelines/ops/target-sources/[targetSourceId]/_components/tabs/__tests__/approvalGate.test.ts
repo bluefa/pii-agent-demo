@@ -5,10 +5,9 @@ import {
   foldApprovalHead,
   monitoringEvidenceHead,
   showsHandoffCaption,
-  tcEvidencePill,
+  tcRunGate,
   type DagFetch,
 } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/approvalGate';
-import type { TcResultStats } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/logic';
 import type { DagDatabaseStatus, DagStatusResponse } from '@/lib/types/dag-status';
 
 const day = (status: string, successTime: string | null = null) => ({
@@ -52,11 +51,12 @@ const loaded = (healthStatus: string): DagFetch => ({
 });
 
 // The 승인 가능 truth table (docs/api/ops-assumed-contracts.md §10) — one case
-// per row. The approve CTA mounts on exactly one of the seven.
+// per row. The approve CTA mounts on exactly one of them: ① 완료 승인 ∧ ② 최신 실행
+// 성공 ∧ ③ HEALTHY.
 describe('foldApprovalHead', () => {
   it('row 1 — TC 미완료: both CTAs unmounted, 서비스 쪽 버튼 이름(완료 승인)으로 말한다', () => {
-    const head = foldApprovalHead(null, { phase: 'loading' });
-    expect(head).toMatchObject({ canApprove: false, canRerun: false });
+    const head = foldApprovalHead(null, false, 'success', { phase: 'loading' });
+    expect(head.canApprove).toBe(false);
     expect(head.pill).toEqual({ tone: 'off', label: '완료 승인 대기' });
     // Step 5 CTA 의 실제 라벨은 "승인 요청" — 화면에 없는 이름을 안내하지 않는다.
     expect(head.desc).toContain('완료 승인');
@@ -64,54 +64,93 @@ describe('foldApprovalHead', () => {
   });
 
   it('row 2 — REJECTED: both CTAs unmounted regardless of dag state', () => {
-    const head = foldApprovalHead('TEST_CONNECTION_REJECTED', loaded('HEALTHY'));
-    expect(head).toMatchObject({ canApprove: false, canRerun: false });
+    const head = foldApprovalHead('TEST_CONNECTION_REJECTED', false, 'success', loaded('HEALTHY'));
+    expect(head.canApprove).toBe(false);
     expect(head.pill).toEqual({ tone: 'warn', label: '재실행 요청됨' });
   });
 
-  it('row 3 — COMPLETED + loading: approve locked, rerun stays open', () => {
-    const head = foldApprovalHead('TEST_CONNECTION_COMPLETED', { phase: 'loading' });
-    expect(head).toMatchObject({ canApprove: false, canRerun: true });
+  it('row 3 — COMPLETED + loading: approve locked', () => {
+    const head = foldApprovalHead('TEST_CONNECTION_COMPLETED', false, 'success', { phase: 'loading' });
+    expect(head.canApprove).toBe(false);
     expect(head.pill).toEqual({ tone: 'off', label: '헬스 확인 중' });
   });
 
   it('row 4 — COMPLETED + fetch failure: locked (failure is not an empty result)', () => {
-    const head = foldApprovalHead('TEST_CONNECTION_COMPLETED', { phase: 'failed' });
-    expect(head).toMatchObject({ canApprove: false, canRerun: true });
+    const head = foldApprovalHead('TEST_CONNECTION_COMPLETED', false, 'success', { phase: 'failed' });
+    expect(head.canApprove).toBe(false);
     expect(head.pill).toEqual({ tone: 'err', label: '확인 실패' });
   });
 
   it('row 5 — COMPLETED + HEALTHY: the one approvable state', () => {
-    const head = foldApprovalHead('TEST_CONNECTION_COMPLETED', loaded('HEALTHY'));
-    expect(head).toMatchObject({ canApprove: true, canRerun: true });
+    const head = foldApprovalHead('TEST_CONNECTION_COMPLETED', false, 'success', loaded('HEALTHY'));
+    expect(head.canApprove).toBe(true);
     expect(head.pill).toEqual({ tone: 'ok', label: '처리 대기' });
   });
 
-  it('row 6 — COMPLETED + UNHEALTHY: approve locked, rerun is the exit', () => {
-    const head = foldApprovalHead('TEST_CONNECTION_COMPLETED', loaded('UNHEALTHY'));
-    expect(head).toMatchObject({ canApprove: false, canRerun: true });
+  it('row 6 — COMPLETED + UNHEALTHY: approve locked', () => {
+    const head = foldApprovalHead('TEST_CONNECTION_COMPLETED', false, 'success', loaded('UNHEALTHY'));
+    expect(head.canApprove).toBe(false);
     expect(head.pill).toEqual({ tone: 'err', label: '승인 불가' });
   });
 
   it('row 7 — COMPLETED + unknown enum: locked, raw value kept OUT of the copy', () => {
-    const head = foldApprovalHead('TEST_CONNECTION_COMPLETED', loaded('DEGRADED'));
-    expect(head).toMatchObject({ canApprove: false, canRerun: true });
+    const head = foldApprovalHead('TEST_CONNECTION_COMPLETED', false, 'success', loaded('DEGRADED'));
+    expect(head.canApprove).toBe(false);
     expect(head.pill).toEqual({ tone: 'off', label: '미확인' });
     // Wire vocabulary never rides in sentence-tier copy — tooltip channel only.
     expect(head.desc).not.toContain('DEGRADED');
     expect(head.desc).not.toContain('healthStatus');
   });
+
+  // 조건 ② — HEALTHY 라도 최신 실행이 성공이라고 말하지 않으면 승인은 잠긴다.
+  it('COMPLETED + 실행 실패: approve locked even when health is HEALTHY', () => {
+    const head = foldApprovalHead('TEST_CONNECTION_COMPLETED', false, 'failed', loaded('HEALTHY'));
+    expect(head.canApprove).toBe(false);
+    expect(head.pill).toEqual({ tone: 'err', label: '승인 불가' });
+  });
+
+  it('COMPLETED + 도착 전 / 진행 중 / 이력 없음 / 조회 실패 / 미지 enum: 전부 잠긴다', () => {
+    for (const run of ['loading', 'open', 'none', 'error', 'unknown'] as const) {
+      const head = foldApprovalHead('TEST_CONNECTION_COMPLETED', false, run, loaded('HEALTHY'));
+      expect(head.canApprove).toBe(false);
+    }
+  });
+
+  it('도착 전·실행 실패·이력 없음·조회 실패는 서로 다른 문장이다 (실패 ≠ 빈 결과 ≠ 모름)', () => {
+    const descs = (['loading', 'failed', 'none', 'error'] as const).map(
+      (run) => foldApprovalHead('TEST_CONNECTION_COMPLETED', false, run, loaded('HEALTHY')).desc,
+    );
+    expect(new Set(descs).size).toBe(4);
+  });
+
+  it('status 조회 실패는 미요청과 다른 문장이다 — 404 가 아닌 거절은 모름이다', () => {
+    const failed = foldApprovalHead(null, true, 'success', loaded('HEALTHY'));
+    const pending = foldApprovalHead(null, false, 'success', loaded('HEALTHY'));
+    expect(failed.canApprove).toBe(false);
+    expect(failed.pill).toEqual({ tone: 'err', label: '확인 실패' });
+    expect(failed.desc).not.toBe(pending.desc);
+  });
+
+  it('완료 승인된 대상이라도 status 조회 실패가 서 있으면 잠근다', () => {
+    const head = foldApprovalHead('TEST_CONNECTION_COMPLETED', true, 'success', loaded('HEALTHY'));
+    expect(head.canApprove).toBe(false);
+  });
 });
 
-const stats = (over: Partial<TcResultStats>): TcResultStats => ({
-  resourceCount: 5,
-  includedTotal: 52,
-  excludedTotal: 2,
-  successCount: 5,
-  failedCount: 0,
-  runningCount: 0,
-  unknownCount: 0,
-  ...over,
+// 조건 ② 의 판정 — 통과는 SUCCESS 하나뿐(ALLOWLIST)이고, 잠그는 이유는 갈라 둔다.
+describe('tcRunGate', () => {
+  it('SUCCESS 만 통과한다', () => {
+    expect(tcRunGate('SUCCESS', true, false)).toBe('success');
+    expect(tcRunGate('FAIL', true, false)).toBe('failed');
+    expect(tcRunGate('RUNNING', true, false)).toBe('open');
+    expect(tcRunGate('PENDING', true, false)).toBe('open');
+    expect(tcRunGate('UNKNOWN', true, false)).toBe('unknown');
+  });
+
+  it('이력 없음과 조회 실패는 다른 사실이다', () => {
+    expect(tcRunGate('UNKNOWN', false, false)).toBe('none');
+    expect(tcRunGate('UNKNOWN', false, true)).toBe('error');
+  });
 });
 
 // C-1 조건부 캡션 — 혼동은 "테스트 성공 + 완료 승인 미요청" 한 상태에서만 생긴다.
@@ -126,29 +165,6 @@ describe('showsHandoffCaption', () => {
     expect(showsHandoffCaption('TEST_CONNECTION_REJECTED', 'SUCCESS')).toBe(false);
     expect(showsHandoffCaption(null, 'FAIL')).toBe(false);
     expect(showsHandoffCaption(null, 'RUNNING')).toBe(false);
-  });
-});
-
-// 근거 행의 알약은 사실만 나른다 — 판정 아이콘(✓·✗·○)은 승인 조건 행의 것.
-describe('tcEvidencePill', () => {
-  it('전부 성공 → 성공 s/r', () => {
-    expect(tcEvidencePill(stats({}), 'SUCCESS')).toEqual({ tone: 'ok', label: '성공 5/5' });
-  });
-
-  it('실패가 있으면 err 로 사실만 — "승인 불가"라는 어휘는 쓰지 않는다', () => {
-    const pill = tcEvidencePill(stats({ successCount: 3, failedCount: 2 }), 'SUCCESS');
-    expect(pill).toEqual({ tone: 'err', label: '실패 2' });
-  });
-
-  it('실행이 아직 열려 있으면 진행 중 — 부분 결과를 성패로 올리지 않는다', () => {
-    expect(tcEvidencePill(stats({}), 'RUNNING')).toEqual({ tone: 'warn', label: '진행 중' });
-    expect(tcEvidencePill(stats({}), 'PENDING')).toEqual({ tone: 'warn', label: '진행 중' });
-  });
-
-  it('판정할 결과가 없으면 결과 없음', () => {
-    expect(
-      tcEvidencePill(stats({ resourceCount: 0, successCount: 0 }), 'UNKNOWN'),
-    ).toEqual({ tone: 'off', label: '결과 없음' });
   });
 });
 

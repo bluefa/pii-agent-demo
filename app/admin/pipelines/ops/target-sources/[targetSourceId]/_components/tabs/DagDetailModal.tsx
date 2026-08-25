@@ -10,7 +10,7 @@
  *    조회 중 · 주소 · 확인 불가. **재시도는 조회가 실패했을 때만** — 업스트림이 이미
  *    "없다"고 답한 것을 다시 물어도 답은 같다(실패와 빈 결과는 다른 사실이다).
  *  - 패널 위에 겹치는 2단 레이어다. 이 모달이 열려 있는 동안 패널의 Esc 는 꺼진다
- *    (ApprovalTab 이 closeOnEsc 로 넘긴다) — 그러지 않으면 Esc 한 번에 둘 다 닫힌다.
+ *    (AirflowTab 이 closeOnEsc 로 넘긴다) — 그러지 않으면 Esc 한 번에 둘 다 닫힌다.
  */
 import { useState, type ReactElement, type ReactNode } from 'react';
 import { cn, pipelineStyles } from '@/lib/theme';

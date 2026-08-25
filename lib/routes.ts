@@ -18,6 +18,7 @@ export const OPS_TAB_SLUGS = {
   infra: '인프라 작업',
   tc: '연결 테스트',
   approval: '관리자 승인',
+  airflow: 'Airflow 확인',
 } as const;
 
 export type OpsTargetTab = keyof typeof OPS_TAB_SLUGS;

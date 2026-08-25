@@ -40,6 +40,8 @@ vi.mock('@/app/lib/api/aws', () => ({ getAwsRoleVerification: vi.fn(async () => 
 vi.mock('@/app/lib/api/ops', () => ({
   getCollaborationChannel: vi.fn(async () => null),
   getTargetJiraTicket: vi.fn(async () => null),
+  // 이 파일의 픽스처에는 §10 응답이 없다 — 뷰의 .catch 가 받아 헬스만 '확인 실패'로 선다.
+  getDagStatus: vi.fn(() => Promise.reject(new Error('no dag-status fixture'))),
 }));
 vi.mock('@/app/lib/api/task-queue-tc', () => ({
   getTestConnectionDetail: vi.fn(async () => null),
@@ -70,7 +72,7 @@ describe('OpsTargetView — IDC 스캔 탭', () => {
   it('IDC 대상에는 스캔 탭이 없다', async () => {
     getRawTargetSourceDetail.mockResolvedValue(detail());
     render(<OpsTargetView targetSourceId={1583} initialTab="진행 상태" />);
-    // The whole list, not just the absence: only 스캔 leaves, and the other six keep
+    // The whole list, not just the absence: only 스캔 leaves, and the other seven keep
     // their order. Asserting absence alone lets a broadened filter pass.
     expect(await tabNames()).toEqual([
       '진행 상태',
@@ -79,6 +81,7 @@ describe('OpsTargetView — IDC 스캔 탭', () => {
       '인프라 작업',
       '연결 테스트',
       '관리자 승인',
+      'Airflow 확인',
     ]);
   });
 

@@ -1,25 +1,24 @@
 /**
  * 관리자 승인 gate — the single fold point for the tab's head state.
  *
- * Two conditions gate the approve CTA (docs/api/ops-assumed-contracts.md §10):
+ * Three conditions gate the approve CTA (docs/api/ops-assumed-contracts.md §10):
  *   ① the service acknowledged Test Connection (status = TEST_CONNECTION_COMPLETED)
- *   ② monitoring health is HEALTHY — by ALLOWLIST (`=== 'HEALTHY'`), so loading,
+ *   ② the latest Test Connection run SUCCEEDED — by ALLOWLIST (`=== 'SUCCESS'`)
+ *   ③ monitoring health is HEALTHY — by ALLOWLIST (`=== 'HEALTHY'`), so loading,
  *     fetch failure, and enum values we have not seen all LOCK instead of passing.
  *
- * 재실행 요청 stays mounted whenever ① holds: on UNHEALTHY it is the operator's
- * only exit, but nothing here claims a rerun fixes health — the contract does
- * not say that.
+ * 잠긴 조건을 푸는 동작은 이 탭에 없다 — 연결 테스트의 재실행도, 헬스의 복구도 각자의
+ * 탭이 가진다. 여기서 나오는 것은 판정과 그 판정을 만든 근거로 가는 길뿐이다.
  */
 import type { DagDatabaseStatus, DagStatusResponse } from '@/lib/types/dag-status';
 import type { TcExecutionStatus } from '@/app/lib/api/task-queue-tc';
 import type { TcTone } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/bits';
-import type { TcResultStats } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/logic';
 
 export const TC_COMPLETED = 'TEST_CONNECTION_COMPLETED';
 export const TC_REJECTED = 'TEST_CONNECTION_REJECTED';
 
-/** dag-status fetch lifecycle — 'loading' doubles as "not fetched yet";
- *  consumers gate on TC completion before reading it. */
+/** dag-status fetch lifecycle — 'loading' doubles as "not fetched yet". The page
+ *  owns it and only asks when a reader exists (승인 조건 ③ · Airflow 확인 탭). */
 export type DagFetch =
   | { phase: 'loading' }
   | { phase: 'failed' }
@@ -37,22 +36,78 @@ export const healthVerdict = (healthStatus: string): HealthVerdict =>
       ? { kind: 'unhealthy' }
       : { kind: 'unknown', raw: healthStatus };
 
+/**
+ * 최신 연결 테스트 실행의 게이트 판정 — 승인 조건 ②.
+ *
+ * 통과는 실행 단위 `connection_status === 'SUCCESS'` 하나뿐(ALLOWLIST)이다. 나머지는
+ * 전부 잠근다. 잠그는 이유는 갈라 둔다 — 이력이 없는 것과 조회에 실패한 것은 다른
+ * 사실이고, 승인 조건 행이 그 둘을 같은 문장으로 말하면 안 된다.
+ */
+export type TcRunGate =
+  | 'success'
+  | 'failed'
+  /** 아직 답이 안 왔다 — '이력 없음'이라고 말해 버리기 전의 자리. */
+  | 'loading'
+  /** PENDING · RUNNING — 아직 끝나지 않은 실행. */
+  | 'open'
+  /** 실행 이력 없음 (404). */
+  | 'none'
+  /** 최신 실행 조회 실패 — 빈 결과가 아니다. */
+  | 'error'
+  /** 선언된 enum 밖의 값. */
+  | 'unknown';
+
+export function tcRunGate(run: TcExecutionStatus, hasLatest: boolean, latestFailed: boolean): TcRunGate {
+  if (!hasLatest) return latestFailed ? 'error' : 'none';
+  switch (run) {
+    case 'SUCCESS':
+      return 'success';
+    case 'FAIL':
+      return 'failed';
+    case 'PENDING':
+    case 'RUNNING':
+      return 'open';
+    default:
+      return 'unknown';
+  }
+}
+
 export interface ApprovalHead {
   pill: { tone: TcTone; label: string };
   desc: string;
-  /** Mounts PII Agent 설치 완료 — true on exactly one state: TC 완료 ∧ HEALTHY. */
+  /** Mounts PII Agent 설치 완료 — true on exactly one state: 세 조건이 모두 충족. */
   canApprove: boolean;
-  /** Mounts 재실행 요청 — true whenever TC 완료 (the escape stays open). */
-  canRerun: boolean;
 }
 
-export function foldApprovalHead(tcStatus: string | null | undefined, dag: DagFetch): ApprovalHead {
+export function foldApprovalHead(
+  tcStatus: string | null | undefined,
+  /** status 조회가 404 아닌 이유로 거절됐는가 — 조회 실패를 '미요청'으로 읽지 않기 위해. */
+  statusFailed: boolean,
+  run: TcRunGate,
+  dag: DagFetch,
+): ApprovalHead {
+  // 'loading' 은 최신 실행만 모르는 상태가 아니다 — TC 세 응답이 한 번에 오므로
+  // tcStatus 도 아직 모른다. tcStatus 를 읽는 분기보다 먼저 답해야 "완료 승인 대기"
+  // 같은 사실을 도착 전에 단정하지 않는다.
+  if (run === 'loading') {
+    return {
+      pill: { tone: 'off', label: '결과 확인 중' },
+      desc: '연결 테스트 결과를 확인하고 있어요.',
+      canApprove: false,
+    };
+  }
+  if (statusFailed) {
+    return {
+      pill: { tone: 'err', label: '확인 실패' },
+      desc: '완료 승인 상태를 확인하지 못했어요.',
+      canApprove: false,
+    };
+  }
   if (tcStatus === TC_REJECTED) {
     return {
       pill: { tone: 'warn', label: '재실행 요청됨' },
       desc: '재실행을 요청했습니다. 서비스가 다시 완료 승인을 요청하면 처리할 수 있습니다.',
       canApprove: false,
-      canRerun: false,
     };
   }
   if (tcStatus !== TC_COMPLETED) {
@@ -62,8 +117,42 @@ export function foldApprovalHead(tcStatus: string | null | undefined, dag: DagFe
       pill: { tone: 'off', label: '완료 승인 대기' },
       desc: '서비스가 5단계에서 완료 승인을 요청하면 처리할 수 있습니다.',
       canApprove: false,
-      canRerun: false,
     };
+  }
+  // 조건 ② — 최신 실행이 성공이라고 말할 때만 다음 조건으로 넘어간다.
+  switch (run) {
+    case 'success':
+      break;
+    case 'failed':
+      return {
+        pill: { tone: 'err', label: '승인 불가' },
+        desc: '최신 연결 테스트가 실패했어요 — 설치 완료를 처리할 수 없어요.',
+        canApprove: false,
+      };
+    case 'open':
+      return {
+        pill: { tone: 'off', label: '테스트 진행 중' },
+        desc: '연결 테스트가 아직 끝나지 않았어요.',
+        canApprove: false,
+      };
+    case 'none':
+      return {
+        pill: { tone: 'off', label: '결과 없음' },
+        desc: '연결 테스트 실행 기록이 없어 설치 완료를 처리할 수 없어요.',
+        canApprove: false,
+      };
+    case 'error':
+      return {
+        pill: { tone: 'err', label: '확인 실패' },
+        desc: '연결 테스트 결과를 확인하지 못했어요.',
+        canApprove: false,
+      };
+    case 'unknown':
+      return {
+        pill: { tone: 'off', label: '미확인' },
+        desc: '연결 테스트 결과를 판정할 수 없어 설치 완료를 처리할 수 없어요.',
+        canApprove: false,
+      };
   }
   switch (dag.phase) {
     case 'loading':
@@ -71,14 +160,12 @@ export function foldApprovalHead(tcStatus: string | null | undefined, dag: DagFe
         pill: { tone: 'off', label: '헬스 확인 중' },
         desc: '모니터링 상태를 확인하고 있어요.',
         canApprove: false,
-        canRerun: true,
       };
     case 'failed':
       return {
         pill: { tone: 'err', label: '확인 실패' },
         desc: '모니터링 상태를 확인하지 못했어요.',
         canApprove: false,
-        canRerun: true,
       };
     case 'loaded': {
       const verdict = healthVerdict(dag.data.healthStatus);
@@ -86,16 +173,14 @@ export function foldApprovalHead(tcStatus: string | null | undefined, dag: DagFe
         case 'healthy':
           return {
             pill: { tone: 'ok', label: '처리 대기' },
-            desc: 'Test Connection 결과를 확인한 뒤 재실행을 요청하거나 설치를 완료 처리하세요.',
+            desc: '세 조건이 모두 충족됐어요 — 설치를 완료 처리할 수 있어요.',
             canApprove: true,
-            canRerun: true,
           };
         case 'unhealthy':
           return {
             pill: { tone: 'err', label: '승인 불가' },
             desc: '모니터링이 UNHEALTHY 상태예요 — 설치 완료를 처리할 수 없어요.',
             canApprove: false,
-            canRerun: true,
           };
         case 'unknown':
           // Wire vocabulary (enum raw, field name) never rides in sentence-tier
@@ -104,7 +189,6 @@ export function foldApprovalHead(tcStatus: string | null | undefined, dag: DagFe
             pill: { tone: 'off', label: '미확인' },
             desc: '모니터링 상태를 판정할 수 없어 설치 완료를 처리할 수 없어요.',
             canApprove: false,
-            canRerun: true,
           };
       }
     }
@@ -148,26 +232,10 @@ export const showsHandoffCaption = (
   run: TcExecutionStatus,
 ): boolean => tcStatus !== TC_COMPLETED && tcStatus !== TC_REJECTED && run === 'SUCCESS';
 
-/**
- * 근거 행의 알약 — 사실만 나른다. 판정 아이콘(✓·✗·○)은 승인 조건 행의 것이다:
- * 근거의 실패는 승인을 잠그지 않으므로(게이트는 ① 완료 승인 ② 헬스뿐), 근거 행에
- * ✗ 를 세우면 "승인 불가"라는 거짓말이 된다.
- */
+/** 모니터링 근거 줄의 알약 — 헬스 판정을 화면 어휘로 나른다. */
 export interface EvidencePill {
   tone: TcTone;
   label: string;
-}
-
-export function tcEvidencePill(stats: TcResultStats, run: TcExecutionStatus): EvidencePill {
-  if (run === 'PENDING' || run === 'RUNNING') return { tone: 'warn', label: '진행 중' };
-  if (stats.failedCount > 0)
-    return { tone: 'err', label: `실패 ${stats.failedCount.toLocaleString('ko-KR')}` };
-  if (stats.successCount > 0) {
-    const s = stats.successCount.toLocaleString('ko-KR');
-    const r = stats.resourceCount.toLocaleString('ko-KR');
-    return { tone: 'ok', label: `성공 ${s}/${r}` };
-  }
-  return { tone: 'off', label: '결과 없음' };
 }
 
 export interface MonitoringEvidenceHead {
