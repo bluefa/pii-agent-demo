@@ -3,9 +3,11 @@
 /**
  * Test Connection 탭 — the scan tab's hierarchy applied to connection testing.
  *
- * Reading order (top to bottom): 최근 실행이 통과했는가 → 리소스별 상세. 지난 회차와
- * 결정은 밴드의 링크가 여는 모달이다 — 지면의 마지막 절이 "과거"가 되면 이 탭에 온
- * 이유(지금 무엇이 실패했나)가 화면에서 가장 멀어진다.
+ * Reading order (top to bottom): 최근 실행이 통과했는가 → 리소스별 상세. 둘은 **카드 한
+ * 장**이다(오너 2026-08-25) — 같은 실행을 집계로 한 번, 리소스별 사실로 한 번 말하는
+ * 것이라 껍데기가 두 벌일 이유가 없다. 껍데기는 `TcLatestRunCard` 가 들고 확정 정보 표는
+ * 그 children 으로 들어간다. 지난 회차와 결정은 밴드의 링크가 여는 모달이다 — 지면의
+ * 마지막 절이 "과거"가 되면 이 탭에 온 이유(지금 무엇이 실패했나)가 화면에서 가장 멀어진다.
  *
  * 관리자 처리 is NOT here — it is a process branch (Step 6 → 7 / → 5), so it lives
  * on the tab rail (TcDecisionActions) where it is visible from every tab instead
@@ -43,6 +45,7 @@ import { TcLatestRunCard } from '@/app/admin/pipelines/ops/target-sources/[targe
 import { TcRunHistoryModal } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/TcRunHistoryModal';
 import { ConfirmedInfoCard } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/ConfirmedInfoCard';
 import { TcHistoryModal } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/TcHistoryModal';
+import { TcCredentialModal } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/TcCredentialModal';
 import {
   bandBuckets,
   bandUnitIds,
@@ -91,6 +94,8 @@ export function TcTab({
   const [reloadKey, setReloadKey] = useState(0);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [runHistoryOpen, setRunHistoryOpen] = useState(false);
+  // 카드 머리의 텍스트 버튼이 여는 조회 모달 — 표가 아니라 카드의 것이라 여기서 든다.
+  const [credentialsOpen, setCredentialsOpen] = useState(false);
   // Credential 미설정만 보기 — 밴드의 경고 줄이 토글하고 아래 표가 적용한다. 요약과 도달
   // 수단이 한 물건이라, 세는 규칙(credentialMissingCount)과 거르는 규칙이 어긋날 수 없다.
   const [credMissingOnly, setCredMissingOnly] = useState(false);
@@ -212,7 +217,7 @@ export function TcTab({
 
   return (
     <>
-      {/* 집계는 밴드로, 사실은 표로 — 종합 상태 밴드가 확정 정보 표 바로 위에 서고,
+      {/* 집계는 밴드로, 사실은 표로 — 한 카드 안에서 밴드가 위, 확정 정보 표가 아래다.
           리소스별 사실(연결 상태·실패 사유·Pod 로그)은 전부 표의 열이다. 지난 회차와
           결정은 밴드의 링크가 여는 모달로 — 탭의 마지막 절이 "과거"가 되지 않도록
           (사용자 화면 Step 5 와 같은 배치). */}
@@ -234,21 +239,21 @@ export function TcTab({
         onReloadStatus={onStatusReload}
         onOpenRunHistory={() => setRunHistoryOpen(true)}
         onOpenDecisionHistory={() => setHistoryOpen(true)}
-      />
-
-      <ConfirmedInfoCard
-        targetSourceId={targetSourceId}
-        isIdc={isIdc}
-        rows={orderedRows}
-        secrets={secrets}
-        tcResults={statusLoaded ? results : []}
-        facts={tcFactsByResource(statusLoaded ? latest : null)}
-        credMissingOnly={credMissingOnly}
-        loading={!settled}
-        failed={confirmedFailed}
-        secretsFailed={secretsFailed}
-        onReload={reload}
-      />
+        onOpenCredentials={() => setCredentialsOpen(true)}
+      >
+        <ConfirmedInfoCard
+          targetSourceId={targetSourceId}
+          isIdc={isIdc}
+          rows={orderedRows}
+          secrets={secrets}
+          tcResults={statusLoaded ? results : []}
+          facts={tcFactsByResource(statusLoaded ? latest : null)}
+          credMissingOnly={credMissingOnly}
+          loading={!settled}
+          failed={confirmedFailed}
+          onReload={reload}
+        />
+      </TcLatestRunCard>
 
       {runHistoryOpen && (
         <TcRunHistoryModal
@@ -259,6 +264,15 @@ export function TcTab({
 
       {historyOpen && (
         <TcHistoryModal targetSourceId={targetSourceId} onClose={() => setHistoryOpen(false)} />
+      )}
+
+      {credentialsOpen && (
+        <TcCredentialModal
+          secrets={secrets}
+          rows={orderedRows}
+          failed={secretsFailed}
+          onClose={() => setCredentialsOpen(false)}
+        />
       )}
     </>
   );

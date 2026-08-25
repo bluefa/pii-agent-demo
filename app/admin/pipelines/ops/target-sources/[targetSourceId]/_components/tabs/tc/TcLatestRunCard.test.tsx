@@ -70,6 +70,8 @@ const renderCard = (over: Partial<Parameters<typeof TcLatestRunCard>[0]> = {}) =
     onReloadStatus: vi.fn(),
     onOpenRunHistory: vi.fn(),
     onOpenDecisionHistory: vi.fn(),
+    onOpenCredentials: vi.fn(),
+    children: null,
     ...over,
   };
   return { ...render(<TcLatestRunCard {...props} />), props };

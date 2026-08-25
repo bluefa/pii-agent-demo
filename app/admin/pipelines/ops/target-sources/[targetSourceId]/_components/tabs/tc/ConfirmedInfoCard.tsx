@@ -1,7 +1,11 @@
 'use client';
 
 /**
- * 확정 정보 card — the single per-resource table of this tab.
+ * 확정 정보 표 — the single per-resource table of this tab.
+ *
+ * 카드가 아니라 표다 (오너 2026-08-25). 이 탭은 카드 한 장(`연결 테스트`)이고, 밴드와
+ * 이 표는 그 안의 두 절이다 — 같은 실행을 집계로 한 번, 리소스별 사실로 한 번 말하는
+ * 것이라 제목도 테두리도 두 벌일 이유가 없다. 카드 껍데기는 `TcLatestRunCard` 가 든다.
  *
  * Rows come from the confirmed snapshot (GET …/confirmed-integration, snake
  * passthrough per ADR-019). Two joins by `resource_id` fill the trailing columns,
@@ -14,10 +18,10 @@
  * 대기(PENDING, agent 가 보고한 사실)와 다른 사실이라 서로 다른 픽셀을 받는다.
  *
  * Per-row controls: Credential 배정 (searchable combobox over GET …/secrets — the
- * contract's credential list, whose card sits at the top of the tab) and
+ * contract's credential list, which the card header's 목록 link opens) and
  * 논리 DB 관리 (skip policy).
  *
- * Rows/secrets are fetched by TcTab and passed in, because the credential card
+ * Rows/secrets are fetched by TcTab and passed in, because the credential list modal
  * needs the same two datasets to answer "이 자격 증명이 몇 건에 배정됐나".
  *
  * An absent snapshot (404 before 연동 확정) is an empty state, not an error; a real
@@ -27,6 +31,7 @@
 import { Fragment, useMemo, useState, type ReactElement } from 'react';
 import { cn, idcStyles, pipelineStyles } from '@/lib/theme';
 import { ConsoleTable, type ConsoleTableColumn } from '@/app/components/ui/ConsoleTable';
+import { Pagination } from '@/app/components/ui/Pagination';
 import { useColumnResize } from '@/app/components/ui/useColumnResize';
 import {
   updateResourceCredential,
@@ -44,9 +49,7 @@ import { ResourceIdCell } from '@/app/target-sources/[targetSourceId]/_component
 import { IdcEndpointCell } from '@/app/admin/pipelines/queue/requests/_components/idcCells';
 import { toIdcResourceViewFromConfirmed } from '@/app/lib/api/idc';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
-import { PlSelect } from '@/app/admin/pipelines/_components/PlSelect';
 import { Icon } from '@/app/admin/pipelines/_components/icons';
-import { OpsPagination } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/OpsPagination';
 import { usePlToast } from '@/app/admin/pipelines/_components/usePlToast';
 import { opsStyles } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/opsStyles';
 import {
@@ -57,11 +60,9 @@ import {
 import { LdbManageModal } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/LdbManageModal';
 import { TcPodLogModal } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/TcPodLogModal';
 import { failReasonView } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/failReason';
-import { TcCredentialModal } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/TcCredentialModal';
 import { CredentialAssignModal } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/CredentialAssignModal';
 import {
   credentialEntries,
-  filterConfirmedRows,
   ldbCount,
   podLogState,
   toConfirmedUnits,
@@ -71,14 +72,10 @@ import {
   type TcVerdict,
 } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/logic';
 
-/** One page's worth, same as the Step 6·7 confirmed table. */
-const PAGE_SIZE = 10;
+/** 첫 페이지 크기 — 이후로는 푸터의 표시 건수 선택이 정한다(Step 1~7 과 같은 바). */
+const DEFAULT_PAGE_SIZE = 10;
 
 const FILTER_EMPTY_MESSAGE = '조건에 맞는 결과가 없어요.';
-
-/** A blank cannot be an option — a condition nobody can pick stays out of the list. */
-const uniqueSorted = (values: readonly string[]): string[] =>
-  Array.from(new Set(values.filter(Boolean))).sort((a, b) => a.localeCompare(b));
 
 /**
  * 표는 사용자 화면이 쓰는 콘솔 표(시안 F) 그 자체다 — `ConsoleTable` 셸을 그대로 쓴다
@@ -90,12 +87,9 @@ const uniqueSorted = (values: readonly string[]): string[] =>
  * 싱크 열(폭을 흡수하는 flex 열). 셸이 **안** 가져오는 것: 프레임·툴바·페이저 — 그건 이
  * 카드의 몫이라 아래에 그대로 남는다.
  */
-const TABLE_FRAME = 'rounded-b-[10px] border border-t-0 border-[var(--pl-border)]';
-/** The toolbar is attached to the table — a gap between them leaves the search box unable to say which table it filters. */
-const TOOLBAR =
-  'mt-3 flex flex-wrap items-center gap-2 rounded-t-[10px] border border-[var(--pl-border)] bg-[var(--pl-gray-50)] px-4 py-3';
-const SEARCH_INPUT =
-  'h-8 w-[260px] flex-none rounded-lg border border-[var(--pl-border-strong)] bg-[var(--pl-bg-card)] px-3 text-[14px] text-[var(--pl-text-strong)] focus:border-[var(--pl-primary)] focus:shadow-[0_0_0_3px_var(--pl-primary-ring)] focus:outline-none';
+/** 표를 아래에서 닫는 것은 페이지 바다 — 그 바가 자기 옆선과 아래 라운드를 그리므로
+ *  표는 곧은 아래 모서리로 끝나고 바와 같은 테두리 색을 든다(`framePaged`). */
+const TABLE_FRAME = cn('mt-3', idcStyles.table.framePaged);
 /** 셸이 머리를 그리므로 남는 것은 본문 칸뿐 — 치수는 사용자 화면 표의 `approvalCell`. */
 const CELL = cn(idcStyles.table.approvalCell, 'align-middle text-[14px] text-[var(--pl-text-strong)]');
 /** 값을 덮어 자르는 칸(시안 F) — 넘치는 값이 말줄임 대신 다음 열 밑으로 이어진다. */
@@ -104,21 +98,34 @@ const CLIP_CELL = cn(CELL, idcStyles.table.consoleCell);
 /**
  * 열 폭.
  *
- * flex 는 **정체 열 하나뿐**이다. 셸의 싱크(남는 폭을 흡수하는 열)는 마지막 flex 열이
- * 지므로, Credential 을 같이 flex 로 두면 싱크가 그쪽으로 가서 `hgildong-mysql-prod`
- * 한 줄이 380px 를 차지하고 정작 ARN 은 그대로 잘린다 — 사용자 화면 Step 5 가 같은 이유로
- * 단일 flex 를 쓴다("a forced second flex would hand the sink to a short-valued column").
- * 행마다 임의로 길어지는 값은 정체(이름 + ARN)뿐이다.
+ * 정체(Resource Name · Resource ID)와 속성(Database Type · Region)은 각자 제 열이다
+ * (오너 2026-08-25). #729 가 둘씩 한 칸에 포갠 것은 열 10개가 프레임보다 넓어서였는데,
+ * 두 쌍만 푸는 8열은 합이 프레임 안에 든다 — 포개기를 유지할 이유가 사라졌다.
+ *
+ * ⚠️ 합은 실측 프레임(1320px @1568 viewport)보다 작아야 한다. 프레임은 `overflow-hidden`
+ * 이라 넘치는 폭은 스크롤이 아니라 **잘림**이고, 잘리는 것은 마지막 열(Credential)이다.
+ * 8열 합 1284 + 슬랙 36 → 싱크(id)가 가져간다. 열을 더 넓히려면 다른 열에서 빼야 한다.
+ *
+ * flex 는 **정체 두 열**이다. 셸의 문서가 권하는 짝(둘을 선언하면 한쪽을 끌 때 싱크가
+ * 다른 쪽으로 넘어가 분할 창처럼 움직인다)이고, 행마다 임의로 길어지는 값도 이 둘뿐이다
+ * (이름, ARN). flex 열의 width 는 폭이 아니라 **바닥값**이다.
  *
  * cred 264 는 오너가 못 박은 값이다 — 실제 store 이름 `kimcs-postgres-analytics-readonly`
- * 가 잘리지 않는 폭(PR #767).
- *
- * type 은 라벨이 `Database Type · Region` 이라 190 이다. 셸은 넘치는 값을 말줄임 없이
- * 덮어 자르는데, 그 문법이 **머리글**에 걸리면 열 이름이 깨진 것처럼 읽힌다. IDC 는 리전이
- * 없어 라벨이 짧으므로 같이 줄인다.
+ * 가 잘리지 않는 폭(PR #767). 나머지 열의 바닥은 자기 **머리글**이 안 잘리는 폭이다:
+ * 값은 덮어 자르는 문법이 있지만 열 이름이 잘리면 표가 깨진 것처럼 읽힌다.
  */
-const COL_W = { name: 240, type: 190, typeIdc: 140, conn: 180, pod: 140, ldb: 110, cred: 264 } as const;
-const FLEX_KEYS = ['name'] as const;
+const COL_W = {
+  name: 170,
+  id: 190,
+  idcName: 240,
+  type: 130,
+  region: 120,
+  conn: 170,
+  pod: 130,
+  ldb: 110,
+  cred: 264,
+} as const;
+const FLEX_KEYS = ['name', 'id'] as const;
 
 /**
  * Credential 머리글 — 사용자 화면 Step 5 의 것 그대로. 열 이름만으로는 이 값이 무엇을
@@ -149,19 +156,30 @@ const CREDENTIAL_HEAD = (
   </span>
 );
 
-/** IDC 는 이름 대신 접속 주소를 싣고 리전이 없다 — 열은 지우는 게 아니라 라벨이 바뀐다. */
-const confirmedColumns = (isIdc: boolean): ConsoleTableColumn[] => [
-  { key: 'name', label: isIdc ? '접속 주소' : 'Resource Name', width: COL_W.name, flex: true },
-  {
-    key: 'type',
-    label: isIdc ? 'Database Type' : 'Database Type · Region',
-    width: isIdc ? COL_W.typeIdc : COL_W.type,
-  },
-  { key: 'conn', label: '연결 상태', width: COL_W.conn },
-  { key: 'pod', label: 'Pod 로그', width: COL_W.pod },
-  { key: 'ldb', label: '연동 논리 DB', width: COL_W.ldb },
-  { key: 'cred', label: 'Credential', width: COL_W.cred, head: CREDENTIAL_HEAD },
-];
+/**
+ * IDC 는 이름 대신 접속 주소 한 열을 싣는다 — Resource Name·ID 도 Region 도 없다(온프렘
+ * DB 는 스캔이 이름 붙인 적이 없고 리전이 없다). 열을 숨기는 게 아니라 그 사실이 없다.
+ */
+const confirmedColumns = (isIdc: boolean): ConsoleTableColumn[] =>
+  isIdc
+    ? [
+        { key: 'name', label: '접속 주소', width: COL_W.idcName, flex: true },
+        { key: 'type', label: 'Database Type', width: COL_W.type },
+        { key: 'conn', label: '연결 상태', width: COL_W.conn },
+        { key: 'pod', label: 'Pod 로그', width: COL_W.pod },
+        { key: 'ldb', label: '연동 논리 DB', width: COL_W.ldb },
+        { key: 'cred', label: 'Credential', width: COL_W.cred, head: CREDENTIAL_HEAD },
+      ]
+    : [
+        { key: 'name', label: 'Resource Name', width: COL_W.name, flex: true },
+        { key: 'id', label: 'Resource ID', width: COL_W.id, flex: true },
+        { key: 'type', label: 'Database Type', width: COL_W.type },
+        { key: 'region', label: 'Region', width: COL_W.region },
+        { key: 'conn', label: '연결 상태', width: COL_W.conn },
+        { key: 'pod', label: 'Pod 로그', width: COL_W.pod },
+        { key: 'ldb', label: '연동 논리 DB', width: COL_W.ldb },
+        { key: 'cred', label: 'Credential', width: COL_W.cred, head: CREDENTIAL_HEAD },
+      ];
 
 /** 네 값 중 하나만 한국어였다(Success / Failed / 진행 중 / Unknown): 같은 칸이 같은
  *  질문에 두 언어로 답하고 있었으므로, 사용자 화면 Step 5 가 쓰는 말로 맞춘다. */
@@ -222,36 +240,27 @@ function VerdictCell({
 }
 
 /**
- * Database Type · Region — 한 칸 두 단. 둘 다 리소스의 분류지 상태가 아니라 칩을 달지
- * 않는다. 리전은 한 토큰이라 줄바꿈하지 않는다('ap-northeast-' / '2' 는 둘로 읽힌다).
- * IDC 는 리전이 없어(온프렘) 타입 한 줄로 끝난다.
+ * Database Type — 분류지 상태가 아니라 칩을 달지 않는다. The wire is lowercase
+ * (mysql·athena) — labelled the way the user screens label it.
  */
-function TypeRegionCell({
-  type,
-  region,
-}: {
-  type: string | null | undefined;
-  region: string | null;
-}): ReactElement {
-  return (
-    <span className="flex flex-col items-start">
-      {/* The wire is lowercase (mysql·athena) — labelled the way the user screens label it. */}
-      <span className="whitespace-nowrap text-[14px]">
-        {type ? getDatabaseShortLabel(type) : <Dash />}
-      </span>
-      {region && (
-        <span
-          className={cn(
-            pipelineStyles.text.mono,
-            'whitespace-nowrap text-[12px] text-[var(--pl-text-weak)]',
-          )}
-        >
-          {region}
-        </span>
+const TypeCell = ({ type }: { type: string | null | undefined }): ReactElement =>
+  type ? <span className="whitespace-nowrap text-[14px]">{getDatabaseShortLabel(type)}</span> : <Dash />;
+
+/** Region — 사용자 화면 확정 표와 같은 처방(mono·중간 잉크). 한 토큰이라 줄바꿈하지
+ *  않는다('ap-northeast-' / '2' 는 둘로 읽힌다). */
+const RegionCell = ({ region }: { region: string | null }): ReactElement =>
+  region ? (
+    <span
+      className={cn(
+        pipelineStyles.text.mono,
+        'whitespace-nowrap text-[14px] text-[var(--pl-text-medium)]',
       )}
+    >
+      {region}
     </span>
+  ) : (
+    <Dash />
   );
-}
 
 /** pod_id 는 캡처본을 조회하는 열쇠라 액션 바로 아래 그대로 적는다(오너 2026-08-21) —
  *  운영자가 클러스터에서 같은 이름을 찾는 값이므로 hover 에만 두지 않는다. */
@@ -440,17 +449,15 @@ export interface ConfirmedInfoCardProps {
   /** 리소스별 연결 사실 — 판정·사유·pod (latest_version), joined by resource_id. */
   facts: ReadonlyMap<string, TcResourceFact>;
   /**
-   * Credential 미설정 단위만 보기 — 밴드의 경고 줄이 소유하는 필터다. 표 자신의 세 축
-   * (검색·Database Type·Region)과 달리 여기 컨트롤이 없는 이유는, 이 조건의 요약과 도달
-   * 수단이 한 물건이어야 하기 때문이다(경고 줄의 링크가 곧 이 필터).
+   * Credential 미설정 단위만 보기 — 밴드의 경고 줄이 소유하는 유일한 필터다. 표에 자기
+   * 컨트롤이 없는 이유는 이 조건의 요약과 도달 수단이 한 물건이어야 하기 때문이다
+   * (경고 줄의 링크가 곧 이 필터).
    */
   credMissingOnly: boolean;
   /** First tab load still in flight. */
   loading: boolean;
   /** Real snapshot fetch failure — a 404 "not confirmed yet" is not one. */
   failed: boolean;
-  /** GET …/secrets failed — the credential modal says so instead of showing "0개". */
-  secretsFailed: boolean;
   onReload: () => void;
 }
 
@@ -464,7 +471,6 @@ export function ConfirmedInfoCard({
   credMissingOnly,
   loading,
   failed,
-  secretsFailed,
   onReload,
 }: ConfirmedInfoCardProps): ReactElement {
   const toast = usePlToast();
@@ -473,14 +479,10 @@ export function ConfirmedInfoCard({
   const [credRow, setCredRow] = useState<ConfirmedIntegrationResourceItem | null>(null);
   /** 로그 뷰어 대상 — pod 와 그 pod 가 검사한 리소스의 라벨. */
   const [podTarget, setPodTarget] = useState<{ podId: string; resourceLabel: string } | null>(null);
-  const [credentialsOpen, setCredentialsOpen] = useState(false);
-  // Search · filter · page — the same three the Step 6·7 confirmed table carries. Confirmed
-  // resources run to dozens, and laying them all out at once made whoever came here to assign
-  // a Credential hunt for their own row by eye.
-  const [query, setQuery] = useState('');
-  const [dbTypeFilter, setDbTypeFilter] = useState('');
-  const [regionFilter, setRegionFilter] = useState('');
+  // 페이지만 남는다 — 검색·필터 두 축은 뺐다(오너 2026-08-25). 남은 거르기는 밴드의
+  // 경고 줄이 거는 Credential 미설정 하나뿐이고, 표시 건수는 푸터가 정한다.
   const [page, setPage] = useState(0);
+  const [pageSize, setPageSize] = useState<number>(DEFAULT_PAGE_SIZE);
   /** 펼쳐 둔 리전 단위 — 닫힘이 기본값이다(표는 단위 목록이지 데이터베이스 목록이 아니다). */
   const [expanded, setExpanded] = useState<readonly string[]>([]);
   const toggleUnit = (unitId: string): void =>
@@ -497,37 +499,20 @@ export function ConfirmedInfoCard({
   });
 
   const tcByResourceId = new Map(tcResults.map((row) => [row.resourceId, row]));
-
-  // An option has to be the string the cell actually prints — put the wire value (mysql)
-  // in the list and it never equals the cell's MySQL, so no row would ever pass.
-  const dbTypeOf = (row: ConfirmedIntegrationResourceItem): string =>
-    row.database_type ? getDatabaseShortLabel(row.database_type) : '';
-  const dbTypeOptions = useMemo(() => uniqueSorted(rows.map(dbTypeOf)), [rows]);
-  const regionOptions = useMemo(
-    () => uniqueSorted(rows.map((row) => row.database_region ?? '')),
-    [rows],
-  );
-
-  const filtered = useMemo(
-    () =>
-      filterConfirmedRows(rows, { query, dbType: dbTypeFilter, region: regionFilter }, dbTypeOf),
-    [rows, query, dbTypeFilter, regionFilter],
-  );
+  const columns = confirmedColumns(isIdc);
 
   // 페이지도 카운트도 행이 아니라 단위로 센다 — 접힌 Athena 리전은 데이터베이스를 몇 개
   // 담든 한 단위이고, 행으로 자르면 한 리전이 페이지 경계에서 갈려 부모 행이 두 번 그려진다.
   // Credential 필터는 단위 위에서 건다 — 배정은 단위(접힌 리전은 그 전부)의 속성이라
   // 행 단위로 거르면 한 리전의 데이터베이스 몇 개만 남아 부모 행이 반쪽으로 그려진다.
   const units = useMemo(() => {
-    const all = toConfirmedUnits(filtered);
+    const all = toConfirmedUnits(rows);
     return credMissingOnly ? all.filter(unitCredentialMissing) : all;
-  }, [filtered, credMissingOnly]);
-  const totalUnits = useMemo(() => toConfirmedUnits(rows).length, [rows]);
-  const totalPages = Math.max(1, Math.ceil(units.length / PAGE_SIZE));
+  }, [rows, credMissingOnly]);
+  const totalPages = Math.max(1, Math.ceil(units.length / pageSize));
   // Narrowing the filter can push the current page past the end — used as-is it renders empty.
   const safePage = Math.min(page, totalPages - 1);
-  const pageUnits = units.slice(safePage * PAGE_SIZE, safePage * PAGE_SIZE + PAGE_SIZE);
-  const firstIndex = units.length === 0 ? 0 : safePage * PAGE_SIZE + 1;
+  const pageUnits = units.slice(safePage * pageSize, safePage * pageSize + pageSize);
 
   // 생성 시각 + 배정 건수 ride along in the assign modal: with 20+ credentials the
   // name alone rarely settles "which one is this", and those are the only other
@@ -555,32 +540,7 @@ export function ConfirmedInfoCard({
 
 
   return (
-    <section className={pipelineStyles.card.base} aria-label="확정 정보">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h2 className={cn(opsStyles.cardTitle, 'flex items-center gap-2')}>
-            <Icon name="install" size={18} className="text-[var(--pl-primary)]" />
-            확정 정보
-          </h2>
-          {/* The cell affordance only appears on hover/focus, so the card says up
-              front that the column is editable — otherwise the table reads as a
-              read-only report and nobody hovers it. Primary color marks the one
-              action in this sentence, not the whole sentence. */}
-          <p className={opsStyles.cardDesc}>
-            연동이 확정된 리소스별 연결 결과입니다. 순서는 연동 요청(Step 2) 표와 같으며,{' '}
-            <b className="font-semibold text-[var(--pl-primary)]">
-              Credential 값을 클릭하면 배정을 수정
-            </b>
-            할 수 있습니다.
-          </p>
-        </div>
-        {/* The credential list is a lookup, not a status — it opens from here,
-            where credentials are actually assigned. */}
-        <PlButton variant="secondary" className="flex-none" onClick={() => setCredentialsOpen(true)}>
-          Credential 목록
-        </PlButton>
-      </div>
-
+    <>
       {loading ? (
         <div className="mt-3" aria-busy>
           {Array.from({ length: 4 }, (_, index) => (
@@ -605,72 +565,21 @@ export function ConfirmedInfoCard({
         </div>
       ) : (
         <>
-          {/* Search + the two filters are a toolbar attached to the table — the same
-              silhouette as Step 6·7 (pale band, rounded on top only, no gap below).
-              A floating input cannot say what it is filtering. */}
-          <div className={TOOLBAR}>
-            <input
-              type="text"
-              value={query}
-              onChange={(event) => {
-                setQuery(event.target.value);
-                setPage(0);
-              }}
-              placeholder={isIdc ? '호스트 · IP 검색' : 'Resource ID 또는 Resource Name 검색'}
-              aria-label="확정 리소스 검색"
-              className={SEARCH_INPUT}
-            />
-            <PlSelect
-              aria-label="Database Type 필터"
-              value={dbTypeFilter}
-              onChange={(event) => {
-                setDbTypeFilter(event.target.value);
-                setPage(0);
-              }}
-            >
-              <option value="">Database Type 전체</option>
-              {dbTypeOptions.map((option) => (
-                <option key={option} value={option}>
-                  {option}
-                </option>
-              ))}
-            </PlSelect>
-            {/* No Region filter for IDC — an on-prem DB has no region, so the control
-                could only ever offer an empty list. */}
-            {!isIdc && (
-              <PlSelect
-                aria-label="Region 필터"
-                value={regionFilter}
-                onChange={(event) => {
-                  setRegionFilter(event.target.value);
-                  setPage(0);
-                }}
-              >
-                <option value="">Region 전체</option>
-                {regionOptions.map((option) => (
-                  <option key={option} value={option}>
-                    {option}
-                  </option>
-                ))}
-              </PlSelect>
-            )}
-          </div>
           {/* The column order of steps 2·3·6·7: identity → attributes → verdict →
               그 결과로 알게 된 규모(논리 DB) → Credential (design: 최신 TC 결과 설계
               프레임 ①).
 
-              열 10개가 프레임(1370px)보다 152px 넓어 Credential 이 접힌 채 열렸다.
-              같은 질문에 답하는 값끼리 한 칸에 포개 6개로 줄인다 —
-              정체(이름+ID) · 속성(타입+리전) · 판정(상태+사유) · 로그(입구+pod_id) ·
-              규모(대상+제외). 열을 지운 게 아니라 겹친 것이라 사라진 사실은 없다
+              정체 두 열과 속성 두 열은 각자 선다(오너 2026-08-25). 판정+사유와
+              로그+pod_id 는 그대로 한 칸 두 단이다 — 아래 단이 위 단의 부연이지 나란한
+              사실이 아니고, 그 둘까지 풀면 10열이 되어 #729 가 접었던 폭 문제로 되돌아간다
               (docs/ux/benchmark/tc-confirmed-columns.md). */}
           <div className={TABLE_FRAME}>
-            <ConsoleTable columns={confirmedColumns(isIdc)} resize={resize} busy={loading}>
+            <ConsoleTable columns={columns} resize={resize} busy={loading}>
               <tbody className={idcStyles.table.body}>
                 {pageUnits.length === 0 && (
                   <tr>
                     <td
-                      colSpan={6}
+                      colSpan={columns.length}
                       className={cn(CELL, 'py-10 text-center text-[var(--pl-text-weak)]')}
                     >
                       {FILTER_EMPTY_MESSAGE}
@@ -701,62 +610,64 @@ export function ConfirmedInfoCard({
                       <td className={CLIP_CELL}>
                         {isIdc ? (
                           <IdcIdentityCell row={row} />
+                        ) : unit.folded ? (
+                          /* 접힌 행은 리전을 가리킨다 — 리전에는 Resource Name 이 없으므로
+                             이 칸이 펼침 손잡이와 엔진 이름을 대신 든다. 사용자 화면
+                             Step 5 와 같은 문법이다. */
+                          <button
+                            type="button"
+                            aria-expanded={open}
+                            aria-label={`${row.database_region ?? ''} 데이터베이스 목록 ${open ? '접기' : '펼치기'}`}
+                            onClick={() => toggleUnit(unit.unitId)}
+                            className="inline-flex items-center gap-1.5 rounded text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--pl-primary)]"
+                          >
+                            <Icon
+                              name="chev-r"
+                              size="sm"
+                              className={cn(
+                                'flex-none text-[var(--pl-text-weak)] transition-transform',
+                                open && 'rotate-90',
+                              )}
+                            />
+                            <span className="font-mono text-[14px]">
+                              {row.database_type ? getDatabaseShortLabel(row.database_type) : '—'}
+                            </span>
+                          </button>
                         ) : (
-                          /* 이름 위, Resource ID 아래 — 열 하나가 아니라 한 칸 두 단이다.
-                             ID 는 지우지 않는다: ARN 이 같은 이름을 리전·계정으로 가르는
-                             유일한 값이라, 열을 접어도 정체는 남아야 한다. */
-                          <span className="flex min-w-0 flex-col items-start gap-1">
-                            {/* 접힌 행은 리전을 가리킨다 — 리전에는 Resource Name 이 없으므로
-                                이 칸이 펼침 손잡이와 엔진 이름을 대신 든다. 사용자 화면
-                                Step 5 와 같은 문법이다. */}
-                            {unit.folded ? (
-                              <button
-                                type="button"
-                                aria-expanded={open}
-                                aria-label={`${row.database_region ?? ''} 데이터베이스 목록 ${open ? '접기' : '펼치기'}`}
-                                onClick={() => toggleUnit(unit.unitId)}
-                                className="inline-flex items-center gap-1.5 rounded text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--pl-primary)]"
-                              >
-                                <Icon
-                                  name="chev-r"
-                                  size="sm"
-                                  className={cn(
-                                    'flex-none text-[var(--pl-text-weak)] transition-transform',
-                                    open && 'rotate-90',
-                                  )}
-                                />
-                                <span className="font-mono text-[14px]">
-                                  {row.database_type ? getDatabaseShortLabel(row.database_type) : '—'}
-                                </span>
-                              </button>
-                            ) : (
-                              <ResourceNameCell
-                                value={row.resource_name || null}
-                                resourceType={row.resource_type}
-                              />
-                            )}
-                            {/* Step 1·2·3 grammar: truncated to `Prefix…` like the name
-                                above it, tip on hover, copy button on row hover.
-                                접힌 행이 다는 것은 결과가 실제로 키로 쓰는 id — 리전 id 다. */}
-                            {unit.unitId && (
-                              <ResourceIdCell
-                                value={unit.unitId}
-                                label="Resource ID"
-                                // 폭 캡도 말줄임도 없다 — 자르는 것은 열이고, 열은 드래그로
-                                // 넓어진다. 픽셀 캡이 남아 있으면 넓혀도 더 안 보이는 벽이 된다.
-                                maxWidthClass="max-w-none"
-                                hardClip
-                              />
-                            )}
-                          </span>
+                          <ResourceNameCell
+                            value={row.resource_name || null}
+                            resourceType={row.resource_type}
+                          />
                         )}
                       </td>
+                      {/* Resource ID 는 제 열이다 — ARN 이 같은 이름을 리전·계정으로 가르는
+                          유일한 값이라 이름과 나란히 선다. 접힌 행이 다는 것은 결과가 실제로
+                          키로 쓰는 id — 리전 id 다. IDC 는 이 열이 아예 없다(내부 키라
+                          화면에 올리지 않는다, design-spec §8). */}
+                      {!isIdc && (
+                        <td className={CLIP_CELL}>
+                          {unit.unitId ? (
+                            <ResourceIdCell
+                              value={unit.unitId}
+                              label="Resource ID"
+                              // 폭 캡도 말줄임도 없다 — 자르는 것은 열이고, 열은 드래그로
+                              // 넓어진다. 픽셀 캡이 남아 있으면 넓혀도 더 안 보이는 벽이 된다.
+                              maxWidthClass="max-w-none"
+                              hardClip
+                            />
+                          ) : (
+                            <Dash />
+                          )}
+                        </td>
+                      )}
                       <td className={CELL}>
-                        <TypeRegionCell
-                          type={row.database_type}
-                          region={isIdc ? null : row.database_region || null}
-                        />
+                        <TypeCell type={row.database_type} />
                       </td>
+                      {!isIdc && (
+                        <td className={CELL}>
+                          <RegionCell region={row.database_region || null} />
+                        </td>
+                      )}
                       <td className={CELL}>
                         <VerdictCell verdict={verdict} fact={fact} />
                       </td>
@@ -842,28 +753,30 @@ export function ConfirmedInfoCard({
                     {unit.folded
                       && open
                       && unit.members.map((db) => (
+                        /* 접힘은 Athena(클라우드)에만 있으므로 이 행은 IDC 를 만나지 않는다
+                           — 이름·ID·타입 세 칸을 채우고 나머지는 부모 행이 이미 답했다. */
                         <tr key={db.resource_id} className={idcStyles.table.row}>
                           <td className={cn(CLIP_CELL, 'pl-[58px]')}>
-                            <span className="flex min-w-0 flex-col items-start gap-1">
-                              {db.resource_name ? (
-                                <span className="block whitespace-nowrap font-mono text-[14px]">
-                                  {db.resource_name}
-                                </span>
-                              ) : (
-                                <Dash />
-                              )}
-                              <ResourceIdCell
-                                value={db.resource_id}
-                                label="Resource ID"
-                                maxWidthClass="max-w-none"
-                                hardClip
-                              />
-                            </span>
+                            {db.resource_name ? (
+                              <span className="block whitespace-nowrap font-mono text-[14px]">
+                                {db.resource_name}
+                              </span>
+                            ) : (
+                              <Dash />
+                            )}
+                          </td>
+                          <td className={CLIP_CELL}>
+                            <ResourceIdCell
+                              value={db.resource_id}
+                              label="Resource ID"
+                              maxWidthClass="max-w-none"
+                              hardClip
+                            />
                           </td>
                           <td className={cn(CELL, 'whitespace-nowrap text-[var(--pl-text-weak)]')}>
                             {GROUPED_CHILD_KIND_LABEL}
                           </td>
-                          <td className={CELL} colSpan={4} />
+                          <td className={CELL} colSpan={columns.length - 3} />
                         </tr>
                       ))}
                     </Fragment>
@@ -872,14 +785,20 @@ export function ConfirmedInfoCard({
               </tbody>
             </ConsoleTable>
           </div>
-          {/* Range and pager share a line — the grammar the Agent별 결과 list above uses. */}
-          <div className="mt-3 flex items-center justify-between gap-3">
-            <p className="text-[12px] tabular-nums text-[var(--pl-text-weak)]">
-              {firstIndex}–{safePage * PAGE_SIZE + pageUnits.length} / {units.length}
-              {units.length !== totalUnits && ` (전체 ${totalUnits})`}
-            </p>
-            <OpsPagination page={safePage} totalPages={totalPages} onChange={setPage} />
-          </div>
+          {/* Step 1~7 이 쓰는 그 푸터다 (오너 2026-08-25) — 표시 건수·범위·페이저가 한 바에
+              들고, 바가 표를 아래에서 닫는다. 콘솔 표의 문자 크기는 14px 고정(size="md"). */}
+          <Pagination
+            size="md"
+            page={safePage}
+            pageSize={pageSize}
+            totalCount={units.length}
+            onPageChange={setPage}
+            onPageSizeChange={(next) => {
+              setPageSize(next);
+              // 페이지 크기가 커지면 지금 페이지 번호가 끝을 넘길 수 있다 — 첫 장으로.
+              setPage(0);
+            }}
+          />
           <p className={cn(pipelineStyles.text.meta, 'mt-3.5')}>
             연결 상태(실패 사유 포함)·Pod 로그는 최근 연결 테스트가 리소스별로 보고한 사실이고,
             논리 DB 건수는 그중 성공한 리소스에만 표기합니다. 보고가 없는 리소스는 —(값 없음)으로
@@ -899,15 +818,6 @@ export function ConfirmedInfoCard({
           saving={savingId === credRow.resource_id}
           onSubmit={(next) => void assignCredential(credRow, next)}
           onClose={() => setCredRow(null)}
-        />
-      )}
-
-      {credentialsOpen && (
-        <TcCredentialModal
-          secrets={secrets}
-          rows={rows}
-          failed={secretsFailed}
-          onClose={() => setCredentialsOpen(false)}
         />
       )}
 
@@ -931,6 +841,6 @@ export function ConfirmedInfoCard({
           onSaved={onReload}
         />
       )}
-    </section>
+    </>
   );
 }

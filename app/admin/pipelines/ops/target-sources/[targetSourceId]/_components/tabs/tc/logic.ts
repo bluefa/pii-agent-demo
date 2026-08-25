@@ -308,46 +308,6 @@ export function filterCredentials(
   return entries.filter((entry) => entry.name.toLowerCase().includes(q));
 }
 
-/** The confirmed table's three conditions. An empty string = do not filter on that axis. */
-export interface ConfirmedRowFilter {
-  query: string;
-  dbType: string;
-  region: string;
-}
-
-/**
- * Search and filter over confirmed resources — the same three axes as the Step 6·7
- * confirmed table (search · Database Type · Region). The search matches Resource ID AND
- * Resource Name: an operator looks up whichever of the two they happen to know.
- *
- * `labelOfDbType` must return the string the table actually prints — comparing against
- * the wire value (mysql) never equals the cell's MySQL, so no row would ever pass.
- */
-export function filterConfirmedRows(
-  rows: readonly ConfirmedIntegrationResourceItem[],
-  filter: ConfirmedRowFilter,
-  labelOfDbType: (row: ConfirmedIntegrationResourceItem) => string,
-): ConfirmedIntegrationResourceItem[] {
-  const needle = filter.query.trim().toLowerCase();
-  return rows.filter((row) => {
-    if (filter.dbType && labelOfDbType(row) !== filter.dbType) return false;
-    if (filter.region && (row.database_region ?? '') !== filter.region) return false;
-    if (!needle) return true;
-    return (
-      row.resource_id.toLowerCase().includes(needle)
-      || (row.resource_name ?? '').toLowerCase().includes(needle)
-      // 접힌 Athena 행이 화면에 다는 id 는 리전 id 이고, 데이터베이스 자기 id 의 부분
-      // 문자열이 아니다(`…:region/catalog` vs `…:region:catalog/db`). 그 행에서 복사한
-      // 값이 바로 위 검색창에서 0건이 되지 않도록 여기서도 받는다.
-      || (row.athena_region_resource_id ?? '').toLowerCase().includes(needle)
-      // An IDC row has no name and does not print its id — its address is the only
-      // identity on the screen, so it has to be what the box matches.
-      || (row.idc_host ?? '').toLowerCase().includes(needle)
-      || (row.idc_ips ?? []).some((ip) => ip.toLowerCase().includes(needle))
-    );
-  });
-}
-
 export type LdbTab = 'inc' | 'exc';
 
 /**

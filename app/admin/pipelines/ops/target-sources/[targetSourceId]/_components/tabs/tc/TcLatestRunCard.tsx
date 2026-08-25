@@ -1,7 +1,12 @@
 'use client';
 
 /**
- * 최근 연결 테스트 — 종합 상태 밴드 (집계는 밴드로, 사실은 표로).
+ * 연결 테스트 카드 — 이 탭의 카드 한 장. 집계는 밴드로, 사실은 표로.
+ *
+ * 카드는 하나다 (오너 2026-08-25). 밴드와 확정 정보 표는 같은 실행을 집계로 한 번,
+ * 리소스별 사실로 한 번 말하는 것이라 제목·테두리·여백을 두 벌 두면 두 화면처럼 읽힌다.
+ * 그래서 이 파일이 카드 껍데기(제목·설명·목록 링크)를 들고, 표는 `children` 으로 받아
+ * 밴드 아래 같은 면 위에 선다.
  *
  * 이 밴드는 사용자 화면 Step 5 의 연결 테스트 카드(`TcSummaryCard`)를 이 콘솔의 팔레트로
  * 옮긴 것이다. 문장·버킷·경과는 판정 로직을 나누지 않고 `lib/test-connection-summary`
@@ -21,6 +26,10 @@
  * 못했다 — Step 5 가 시안 A 로 푼 그 문제라 같은 답(상태가 CTA 를 고르는 슬롯 하나)을 쓴다.
  *
  * 회차 번호(#N)는 여기 없다 — 회차는 그것을 세는 표(실행 기록 모달)가 가진다.
+ *
+ * Credential 목록은 조회다 — 상태가 아니라 가끔 묻는 질문이라 카드 머리의 텍스트 버튼이
+ * 모달로 연다(오너 2026-08-25). 채운 버튼이던 것을 텍스트로 낮춘 이유도 같다: 이 카드에서
+ * 채워도 되는 버튼은 실행 CTA 하나다.
  *
  * Source is `GET …/test-connection/latest_version` (TestConnectionVersionResult).
  * 404 는 오류가 아니라 "최신 연결 테스트 없음" 이라 `latest === null` 로 들어온다.
@@ -105,6 +114,10 @@ export interface TcLatestRunCardProps {
   onOpenRunHistory: () => void;
   /** 승인·반려 이력 modal — 서비스 측 승인 요청·재실행 요청 trail. */
   onOpenDecisionHistory: () => void;
+  /** Credential 목록 modal — 카드 머리의 텍스트 버튼이 연다. */
+  onOpenCredentials: () => void;
+  /** 확정 정보 표 — 밴드·승인 요청 줄 아래, 같은 카드 안. */
+  children: ReactNode;
 }
 
 /** 곁줄 하나 — 글리프 · 본문 · (우측 액션). 상자가 아니라 맨 줄이다. */
@@ -198,6 +211,8 @@ export function TcLatestRunCard({
   onReloadStatus,
   onOpenRunHistory,
   onOpenDecisionHistory,
+  onOpenCredentials,
+  children,
 }: TcLatestRunCardProps): ReactElement {
   const b = opsStyles.tcBand;
   // 조회에 실패했으면 국면을 아는 척하지 않는다 — idle 표면은 "아직 실행한 적 없다"는
@@ -306,15 +321,30 @@ export function TcLatestRunCard({
   })();
 
   return (
-    <section className={pipelineStyles.card.base} aria-label="최근 연결 테스트">
-      <h2 className={cn(opsStyles.cardTitle, 'flex items-center gap-2')}>
-        <Icon name="flow" size={18} className="text-[var(--pl-primary)]" />
-        최근 연결 테스트
-      </h2>
-      <p className={opsStyles.cardDesc}>
-        확정된 리소스에 실제로 접속해 연동 가능 여부를 검증합니다. 리소스별 결과는 아래 확정
-        정보 표의 연결 상태·실패 사유·Pod 로그 열에서 확인합니다.
-      </p>
+    <section className={pipelineStyles.card.base} aria-label="연결 테스트">
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0">
+          <h2 className={cn(opsStyles.cardTitle, 'flex items-center gap-2')}>
+            {/* 사슬 — 이 카드가 검사하는 것이 곧 연결이다. */}
+            <Icon name="link" size={18} className="text-[var(--pl-primary)]" />
+            연결 테스트
+          </h2>
+          <p className={opsStyles.cardDesc}>
+            확정된 리소스에 실제로 접속해 연동 가능 여부를 검증합니다. 리소스별 결과는 아래 표의
+            연결 상태·실패 사유·Pod 로그 열에서 확인하고,{' '}
+            <b className="font-semibold text-[var(--pl-primary)]">Credential 값을 클릭하면 배정을 수정</b>
+            할 수 있습니다.
+          </p>
+        </div>
+        {/* 텍스트 버튼 — 조회지 행동이 아니다. 밑줄이 affordance 를 지고 색은 중립이다. */}
+        <button
+          type="button"
+          onClick={onOpenCredentials}
+          className={cn(opsStyles.countLink, 'mt-1 flex-none whitespace-nowrap text-[14px]')}
+        >
+          Credential 목록
+        </button>
+      </div>
 
       {triggerFailed && (
         <p className="mt-4 rounded-lg bg-[var(--pl-err-bg)] px-3 py-2.5 text-[14px] text-[var(--pl-err-text)]">
@@ -425,6 +455,8 @@ export function TcLatestRunCard({
         failedFetch={statusFailed}
         onReload={onReloadStatus}
       />
+
+      {children}
     </section>
   );
 }
