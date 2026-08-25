@@ -67,8 +67,8 @@ const headerLabels = (): string[] =>
 
 describe('확정 정보 표 — 열 구성', () => {
   // 오너가 못 박은 척추 다섯(정체 둘 → 판정 → 규모 → Credential)은 붙어 있어야 하고,
-  // 부연 셋(증거 → 분류)이 그 뒤를 잇는다. 순서가 곧 이 표를 읽는 순서다.
-  it('열 순서는 정체 → 판정 → 규모 → Credential → 증거 → 분류다 (오너 2026-08-25)', () => {
+  // 분류 둘이 그 뒤를 잇는다. Pod 로그는 열이 아니다 — 판정 칸으로 접혔다.
+  it('열 순서는 정체 → 판정 → 규모 → Credential → 분류다 (오너 2026-08-25)', () => {
     renderTable();
     expect(headerLabels()).toEqual([
       'Resource Name',
@@ -76,7 +76,6 @@ describe('확정 정보 표 — 열 구성', () => {
       '연결 상태',
       '연동 논리 DB',
       'Credential',
-      'Pod 로그',
       'Database Type',
       'Region',
     ]);
@@ -89,7 +88,6 @@ describe('확정 정보 표 — 열 구성', () => {
       '연결 상태',
       '연동 논리 DB',
       'Credential',
-      'Pod 로그',
       'Database Type',
     ]);
   });
@@ -112,23 +110,33 @@ describe('확정 정보 표 — 열 구성', () => {
 });
 
 /**
- * 사유 칸은 원문 enum 만 지면에 세우고 한국어는 hover 로 미룬다 (오너 2026-08-25).
- * 라벨을 다시 한 단 얹으면 실패한 행마다 3단이 되어 판정보다 사유가 커 보인다.
+ * 판정 칸은 알약 하나로 말하고, 사유는 오른쪽 tip 표시가 hover 로만 든다
+ * (오너 2026-08-25: "결국 실패 이슈라는거잖아?"). 사유가 지면에 한 단 더 서면
+ * 표를 훑는 눈이 판정 말고 사유를 먼저 읽는다.
  */
 describe('확정 정보 표 — 실패 사유', () => {
   const failing = (reason: string): Map<string, TcResourceFact> =>
     new Map([[rows[0].resource_id, { verdict: 'FAIL', podId: null, failReason: reason }]]);
 
-  it('지면에는 원문만 — 한국어 설명은 hover 가 든다', () => {
+  it('사유는 지면에 서지 않는다 — 라벨도 원문도 hover 안에 있다', () => {
     renderTable(false, failing('POD_CREATION_FAILED'));
-    expect(screen.getByText('POD_CREATION_FAILED')).toBeTruthy();
-    // 라벨은 tip 안에만 있다. 셀이 다시 들면 여기서 두 번 잡힌다.
+    expect(screen.getByText('실패')).toBeTruthy();
+    expect(screen.queryByText('POD_CREATION_FAILED')).toBeNull();
     expect(screen.queryByText('테스트 Pod 생성 실패')).toBeNull();
   });
 
-  it('허용목록 밖의 사유는 설명이 없으므로 tip 트리거도 아니다', () => {
-    renderTable(false, failing('SOMETHING_ELSE'));
-    const raw = screen.getByText('SOMETHING_ELSE');
-    expect(raw.className).not.toContain('decoration-dotted');
+  it('판정 오른쪽에 hover 로만 열리는 표시가 선다', () => {
+    renderTable(false, failing('POD_CREATION_FAILED'));
+    const marker = screen.getByLabelText('실패 사유 테스트 Pod 생성 실패');
+    expect(marker).toBeTruthy();
+    // click 으로 고정되지 않는다 — 눌러도 열리지 않아야 한다.
+    fireEvent.click(marker);
+    expect(screen.queryByText(/pod 자체가 뜨지 못해/)).toBeNull();
+    fireEvent.mouseEnter(marker.closest('[class]') ?? marker);
+  });
+
+  it('사유가 없는 판정에는 표시도 없다', () => {
+    renderTable(false, new Map([[rows[0].resource_id, { verdict: 'SUCCESS', podId: null, failReason: null }]]));
+    expect(screen.queryByLabelText(/실패 사유/)).toBeNull();
   });
 });

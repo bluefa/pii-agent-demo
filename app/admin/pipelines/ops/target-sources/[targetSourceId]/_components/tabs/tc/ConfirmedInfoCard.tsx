@@ -120,8 +120,8 @@ const COL_W = {
   idcName: 240,
   type: 130,
   region: 120,
-  conn: 170,
-  pod: 130,
+  /** 알약 + tip 표시 한 줄, 그 밑에 로그 입구 + pod_id — 둘 중 긴 쪽이 pod_id 다. */
+  conn: 190,
   ldb: 110,
   cred: 264,
 } as const;
@@ -160,9 +160,9 @@ const CREDENTIAL_HEAD = (
  * 열 순서 — 오너가 못 박은 척추 다섯: 정체(이름·ID) → 판정 → 규모 → Credential
  * (2026-08-25). 이 다섯은 붙어 있어야 하므로 나머지는 그 뒤에 선다.
  *
- * 뒤에 남는 셋의 순서는 "부연의 순서"다: Pod 로그는 바로 앞 판정의 증거이고, Database
- * Type·Region 은 행이 무엇인지 가르는 분류라 가장 늦다. 예전에는 분류가 정체 바로 뒤에
- * 있었는데, 그 자리는 이 표를 여는 이유(어디가 실패했나)를 두 열 밀어내고 있었다.
+ * 뒤에 남는 Database Type·Region 은 행이 무엇인지 가르는 분류라 가장 늦다. 예전에는
+ * 분류가 정체 바로 뒤에 있었는데, 그 자리는 이 표를 여는 이유(어디가 실패했나)를 두 열
+ * 밀어내고 있었다. Pod 로그 열은 없다 — 판정·사유와 함께 연결 상태 한 칸으로 접혔다.
  *
  * IDC 는 이름 대신 접속 주소 한 열을 싣는다 — Resource Name·ID 도 Region 도 없다(온프렘
  * DB 는 스캔이 이름 붙인 적이 없고 리전이 없다). 열을 숨기는 게 아니라 그 사실이 없다.
@@ -174,7 +174,6 @@ const confirmedColumns = (isIdc: boolean): ConsoleTableColumn[] =>
         { key: 'conn', label: '연결 상태', width: COL_W.conn },
         { key: 'ldb', label: '연동 논리 DB', width: COL_W.ldb },
         { key: 'cred', label: 'Credential', width: COL_W.cred, head: CREDENTIAL_HEAD },
-        { key: 'pod', label: 'Pod 로그', width: COL_W.pod },
         { key: 'type', label: 'Database Type', width: COL_W.type },
       ]
     : [
@@ -183,7 +182,6 @@ const confirmedColumns = (isIdc: boolean): ConsoleTableColumn[] =>
         { key: 'conn', label: '연결 상태', width: COL_W.conn },
         { key: 'ldb', label: '연동 논리 DB', width: COL_W.ldb },
         { key: 'cred', label: 'Credential', width: COL_W.cred, head: CREDENTIAL_HEAD },
-        { key: 'pod', label: 'Pod 로그', width: COL_W.pod },
         { key: 'type', label: 'Database Type', width: COL_W.type },
         { key: 'region', label: 'Region', width: COL_W.region },
       ];
@@ -199,44 +197,36 @@ function verdictPill(verdict: TcVerdict): ReactElement {
 }
 
 /**
- * 연결 상태 cell — 판정 알약 위, 실패 사유 아래. 한 칸이다.
+ * 연결 상태 cell — 이 실행이 이 리소스에 대해 알아낸 전부. 한 칸이다.
  *
- * 사유는 제 열을 갖고 있었는데, 그 열은 여섯 행 중 두 행만 채우면서 174px 를 상시
- * 점유했다(사유는 실패한 행에만 있다). 사유는 판정과 나란한 사실이 아니라 판정에
- * 딸린 부연이므로, 열을 하나 더 쓰는 대신 판정 밑 한 단으로 내려온다.
+ * 판정 · 실패 사유 · Pod 로그는 원래 두 열에 흩어져 있었고, 사유는 판정 밑에 원문 enum
+ * 한 단으로 붙어 있었다. 셋 다 **같은 한 가지 사건**의 다른 면이다 — 실패했다, 왜
+ * 실패했다, 그 증거는 여기 있다 (오너 2026-08-25: "결국 실패 이슈라는거잖아?").
+ * 그래서 열 하나로 접고, 판정 오른쪽에 tip 표시 하나만 둔다.
  *
- * **지면에는 원문 enum 만 선다** (오너 2026-08-25). 한국어 라벨을 그 위에 한 단 더 얹으면
- * 실패한 행마다 3단이 되어, 판정보다 사유가 더 커 보였다. 원문은 운영자가 grep 하고
- * 티켓에 붙이는 바로 그 문자열이므로 남기고, 뜻을 만드는 한국어 문장은 hover 로 미룬다
- * (필요할 때만 그린다). 12종 허용목록 밖의 값은 설명이 없으므로 tip 도 달지 않는다 —
- * 열리지 않는 트리거는 밑줄로 거짓말을 하게 된다.
+ * 알약이 문장을 진다. 사유는 hover 로만 열리는 tip 이 든다 — 한국어 라벨·설명과 원문
+ * enum 까지 전부. 지면에 상시로 서는 것은 판정뿐이라 표를 훑는 눈이 "어디가 빨간가"
+ * 하나만 쫓으면 된다. tip 은 click 으로 고정되지 않는다(hover·focus 전용).
  *
- * 사유에 적색을 다시 칠하지 않는 것은 그대로: 판정은 바로 위 알약이 이미 말했다.
+ * ⛔ pod_id 는 tip 에 넣지 않는다 — 운영자가 클러스터에서 같은 이름을 찾을 때 쓰는 값이라
+ * 지면에 남아야 한다(오너 2026-08-21). 로그 입구와 함께 알약 아랫줄에 선다.
  */
-function VerdictCell({
-  verdict,
+function ConnCell({
   fact,
+  verdict,
+  onOpenLog,
 }: {
-  verdict: TcVerdict | undefined;
   fact: TcResourceFact | undefined;
+  verdict: TcVerdict | undefined;
+  onOpenLog: () => void;
 }): ReactElement {
   if (!verdict) return <Dash />;
   const view = failReasonView(fact?.failReason);
-  const raw = (
-    <span
-      className={cn(
-        pipelineStyles.text.mono,
-        'whitespace-nowrap text-[12px] text-[var(--pl-text-weak)]',
-      )}
-    >
-      {view?.raw}
-    </span>
-  );
   return (
-    <span className="flex flex-col items-start gap-1.5">
-      {verdictPill(verdict)}
-      {view
-        && (view.label ? (
+    <span className="flex flex-col items-start gap-1">
+      <span className="flex items-center gap-1.5">
+        {verdictPill(verdict)}
+        {view && (
           // 흰 면 + 그림자 + 윤곽선(`variant="value"`) — 표의 흰 바닥 위에서 상자가
           // 스스로 떠 있어야 하므로 세 가지가 다 필요하다.
           <Tooltip
@@ -244,26 +234,34 @@ function VerdictCell({
             size="lg"
             content={
               <>
-                <span className={idcStyles.table.headerTipTitle}>{view.label}</span>
+                {view.label ? (
+                  <span className={idcStyles.table.headerTipTitle}>{view.label}</span>
+                ) : (
+                  // 허용목록 밖의 값은 우리가 옮길 문장이 없다 — 원문이 곧 제목이다.
+                  <span className={cn(idcStyles.table.headerTipTitle, 'font-mono text-[13px]')}>
+                    {view.raw}
+                  </span>
+                )}
                 {view.desc && (
                   <span className={cn(idcStyles.table.headerTipBody, 'mt-1.5')}>{view.desc}</span>
                 )}
+                {/* 원문 enum — 티켓에 붙이고 로그에서 찾는 문자열이라 tip 안에서도 그대로. */}
+                {view.label && (
+                  <span className={cn(idcStyles.table.headerTipBody, 'mt-2 font-mono')}>
+                    {view.raw}
+                  </span>
+                )}
               </>
             }
-            triggerClassName="min-w-0"
           >
-            <span
-              className={cn(
-                pipelineStyles.text.mono,
-                'cursor-help whitespace-nowrap text-[12px] text-[var(--pl-text-weak)] underline decoration-dotted underline-offset-2',
-              )}
-            >
-              {view.raw}
-            </span>
+            <InfoCircleIcon
+              className="h-3.5 w-3.5 cursor-help text-[var(--pl-text-faint)]"
+              aria-label={`실패 사유 ${view.label ?? view.raw}`}
+            />
           </Tooltip>
-        ) : (
-          raw
-        ))}
+        )}
+      </span>
+      <PodLogLine fact={fact} onOpen={onOpenLog} />
     </span>
   );
 }
@@ -308,7 +306,7 @@ function PodIdLine({ podId }: { podId: string }): ReactElement {
 }
 
 /**
- * Pod 로그 cell — pod_id 와, 그 pod 의 로그를 여는 입구.
+ * Pod 로그 줄 — pod_id 와, 그 pod 의 로그를 여는 입구. 연결 상태 칸의 아랫줄이다.
  *
  * 네 마디 중 어느 것을 할지는 `podLogState` 가 정한다(그 규칙과 근거는 거기에 적혀 있고,
  * 여기서는 문장과 픽셀만 고른다). 요지는 "pod 가 없다"는 계약이 POD_CREATION_FAILED 라고
@@ -321,20 +319,22 @@ const PodNote = ({ children }: { children: string }): ReactElement => (
   <span className="whitespace-nowrap text-[14px] text-[var(--pl-text-weak)]">{children}</span>
 );
 
-function PodLogCell({
+function PodLogLine({
   fact,
   onOpen,
 }: {
   fact: TcResourceFact | undefined;
   onOpen: () => void;
-}): ReactElement {
+}): ReactElement | null {
   const state = podLogState(fact);
-  if (state === 'UNREPORTED') return <Dash />;
+  // 판정은 있는데 로그 이야기는 할 것이 없는 행 — 알약 밑에 —(값 없음)을 또 그리지
+  // 않는다. 그 자리의 —는 "연결 상태를 모른다"로 읽히는데 그건 이미 알약이 답했다.
+  if (state === 'UNREPORTED') return null;
   if (state === 'BEFORE_POD') return <PodNote>Pod 생성 전</PodNote>;
   if (state === 'NO_POD') return <PodNote>Pod 없음</PodNote>;
   const podId = fact?.podId ?? '';
   return (
-    <span className="flex max-w-[180px] flex-col items-start gap-1">
+    <span className="flex min-w-0 max-w-full flex-col items-start gap-0.5">
       <button
         type="button"
         onClick={onOpen}
@@ -689,8 +689,19 @@ export function ConfirmedInfoCard({
                           )}
                         </td>
                       )}
-                      <td className={CELL}>
-                        <VerdictCell verdict={verdict} fact={fact} />
+                      <td className={CLIP_CELL}>
+                        <ConnCell
+                          verdict={verdict}
+                          fact={fact}
+                          onOpenLog={() =>
+                            fact?.podId
+                            && setPodTarget({
+                              podId: fact.podId,
+                              // 접힌 행의 pod 는 리전의 pod 다 — 뷰어 부제도 리전을 말해야 한다.
+                              resourceLabel: unit.folded ? unit.unitId : rowLabel(row),
+                            })
+                          }
+                        />
                       </td>
                       <td className={CELL}>
                         <LdbCell row={tc} verdict={verdict} onOpen={openLdb} />
@@ -753,19 +764,6 @@ export function ConfirmedInfoCard({
                         ) : (
                           <Dash />
                         )}
-                      </td>
-                      <td className={CLIP_CELL}>
-                        <PodLogCell
-                          fact={fact}
-                          onOpen={() =>
-                            fact?.podId
-                            && setPodTarget({
-                              podId: fact.podId,
-                              // 접힌 행의 pod 는 리전의 pod 다 — 뷰어 부제도 리전을 말해야 한다.
-                              resourceLabel: unit.folded ? unit.unitId : rowLabel(row),
-                            })
-                          }
-                        />
                       </td>
                       <td className={CELL}>
                         <TypeCell type={row.database_type} />

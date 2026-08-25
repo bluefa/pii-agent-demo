@@ -310,8 +310,8 @@ export function TcLatestRunCard({
         연결 테스트
       </h2>
       <p className={opsStyles.cardDesc}>
-        확정된 리소스에 실제로 접속해 연동 가능 여부를 검증합니다. 리소스별 결과는 아래 표의
-        연결 상태·실패 사유·Pod 로그 열에서 확인하고,{' '}
+        확정된 리소스에 실제로 접속해 연동 가능 여부를 검증합니다. 리소스별 판정·실패 사유·Pod
+        로그는 아래 표의 연결 상태 열에서 확인하고,{' '}
         <b className="font-semibold text-[var(--pl-primary)]">Credential 값을 클릭하면 배정을 수정</b>
         할 수 있습니다.
       </p>
