@@ -280,8 +280,11 @@ function ConnCell({
               </>
             }
           >
+            {/* `--pl-text-faint` 가 아니라 `--pl-text-weak` — faint 는 흰 바닥에서
+                2.58:1 이라 비텍스트 대비(WCAG 1.4.11, 3:1)를 못 넘긴다. weak 은 4.97:1
+                이고 이 표의 다른 보조 글자와 같은 잉크다(브라우저 실측). */}
             <InfoCircleIcon
-              className="h-3.5 w-3.5 cursor-help text-[var(--pl-text-faint)]"
+              className="h-3.5 w-3.5 cursor-help text-[var(--pl-text-weak)]"
               aria-label={`실패 사유 ${view.label ?? view.raw}`}
             />
           </Tooltip>
