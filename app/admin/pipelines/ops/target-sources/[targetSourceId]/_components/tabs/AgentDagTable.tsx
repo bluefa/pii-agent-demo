@@ -45,7 +45,6 @@ import { SegControl, type SegOption } from '@/app/admin/pipelines/_components/Se
 import { OpsPagination } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/OpsPagination';
 import {
   Dash,
-  ResourceId,
   TcPill,
 } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/bits';
 import {
@@ -274,8 +273,11 @@ export function AgentDagTable({
                       <Dash />
                     )}
                   </td>
-                  <td className={CLIP_CELL}>
-                    <ResourceId value={agent.resourceId} />
+                  {/* 축약하지 않는다 (오너 2026-08-25) — 값은 통째로 서고, 넘치면 다음 열이
+                      덮어 자른다(`consoleCell`). 말줄임은 "여기서 줄였다"고 말해 버려서
+                      드래그하면 더 보인다는 사실을 숨긴다; Step 6·7 확정 정보 표도 같은 규칙. */}
+                  <td className={cn(CLIP_CELL, 'font-mono text-[var(--pl-text-medium)]')}>
+                    {agent.resourceId}
                   </td>
                   <td className={CLIP_CELL}>
                     {/* 엔진 이름은 확정 정보 표와 같은 함수로 쓴다 — 한 화면에서 같은
