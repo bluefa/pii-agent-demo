@@ -119,11 +119,23 @@ describe('GuidePanel — collab-channel card states', () => {
     expect(key.className).toContain('text-[#0050D6]');
     expect(key.className).not.toContain('text-[#0064FF]');
 
-    // One leading for every line the rail sets itself. Half-leading lands on both sides
-    // of a box, so mixed leadings (1.55 / 1.45 / 1.35) made equal box gaps read unequal —
-    // matching the numbers only means something once the leading matches too.
-    expect(screen.getByText('협업 채널 링크').className).toContain('leading-[1.5]');
-    expect(key.className).toContain('leading-[1.5]');
+    // A leading per GROUP, not one for the whole rail (오너 2026-08-24). The row label is
+    // T3 and the key is T2, and each carries the pair its tier owns — 12/16 and 14/20.
+    // It was a flat 1.5 for both, i.e. 18 and 21: two line boxes off the 4px grid, on a
+    // ramp where the bigger the type the more air it took.
+    const label = screen.getByText('협업 채널 링크');
+    expect(label.className).toContain('text-[12px]');
+    expect(label.className).toContain('leading-[16px]');
+    expect(key.className).toContain('text-[14px]');
+    expect(key.className).toContain('leading-[20px]');
+
+    // ⛔ The tracking gradient, and it has to run this way. `letter-spacing` inherits as a
+    // computed LENGTH, so `body`'s single −0.288px lands on 12px text as −0.024em and on
+    // 16px as −0.018em — tightest exactly where Carbon and Material are loosest. Every
+    // tier declares its own now: T3 normal → T2 −0.01em → T1 −0.02em.
+    expect(label.className).toContain('tracking-normal');
+    expect(key.className).toContain('tracking-[-0.01em]');
+    expect(railStyles.zoneLabel).toContain('tracking-[-0.02em]');
   });
 });
 
@@ -156,20 +168,36 @@ describe('GuidePanel — the rail folds, it does not vanish', () => {
     expect(screen.getByText(CHANNEL_LINE)).toBeTruthy();
   });
 
-  // 오너 지시 2026-08-23: the open rail read as THREE axes — a chevron, 협업 채널, 가이드.
-  // The chevron's band cost 48px and a seam for one button; it rides the channel band's
-  // title line now, so the panel is two zones with one seam between them.
-  it('opens as two zones, with the fold control inside the first', async () => {
+  // The fold control belongs to the RAIL, not to a zone (오너 2026-08-24: 「우측으로 접기
+  // 버튼이 협업채널의 일부처럼 보여」). It used to ride the 협업 채널 card's title line, so
+  // the control that folds the whole panel was a child of the panel's first zone — and it
+  // read as one, because a card is exactly the thing that says "this belongs to me".
+  //
+  // ⛔ This is not a licence to give the head a band of its own with a title in it. It is
+  // 32px of control and nothing else; the zones are still what name the rail.
+  it('opens as a head that owns the fold control, then two zones', async () => {
     const { container } = render(<GuidePanel {...baseProps} jiraTicket={null} />);
     await settled();
 
-    const body = container.querySelector('aside > div');
-    expect(body?.children).toHaveLength(2);
+    const body = container.querySelector('aside > div') as HTMLElement;
+    expect(body.children).toHaveLength(3);
 
-    // ⛔ The control may not take a band back. It has to sit inside zone 1.
-    const channel = body?.children[0] as HTMLElement;
+    const [head, ...zones] = Array.from(body.children) as HTMLElement[];
     const toggle = screen.getByRole('button', { name: '가이드 접기' });
-    expect(channel.contains(toggle)).toBe(true);
+    expect(head.contains(toggle)).toBe(true);
+    // ⛔ And in NEITHER zone. `head.contains` alone would still pass if the control were
+    // duplicated, and the head is the first child either way.
+    for (const zone of zones) expect(zone.contains(toggle)).toBe(false);
+
+    // The head is chrome, not a third zone: no fill, no radius, no title of its own.
+    expect(head.className).not.toContain('bg-white');
+    expect(head.className).not.toContain('rounded');
+    expect(head.textContent).toBe('');
+
+    // ⛔ No negative margin. The old call site pulled the box 8px past the card's padding
+    // to land the glyph on it; on the rail's own gutter the box needs no correction, and a
+    // `-mr-*` here is the tell that it was moved back inside something.
+    expect(toggle.parentElement?.className ?? '').not.toMatch(/(?:^|\s)-m[btlrxy]?-/);
   });
 
   // 시안 A (오너 지시 2026-08-23: 「2단계 가이드」 아래 실제 가이드는 카드 그룹으로).
@@ -184,12 +212,19 @@ describe('GuidePanel — the rail folds, it does not vanish', () => {
     await settled();
 
     const aside = container.querySelector('aside') as HTMLElement;
-    expect(aside.className).toContain('bg-[#E2E7EA]');
+    // Wiring only — that the token reaches the element. It cannot fail on a VALUE change,
+    // and deliberately does not try: what the plane's value has to satisfy is a set of
+    // relationships this file cannot see (it must stay one plane with the service rail,
+    // and it must let `rowCurrent`'s tint out-separate its own hover). Those live in
+    // `lib/design-guard.test.ts` › "the rail ranks its own fills", which is where a hex
+    // pinned here would have been the weaker half anyway.
+    expect(aside.className).toContain(railStyles.surface);
     expect(aside.className).not.toContain('bg-white');
 
+    // Zones only — `children[0]` is the rail's head, which owns the fold control.
     const zones = Array.from(
       (container.querySelector('aside > div') as HTMLElement).children,
-    ) as HTMLElement[];
+    ).slice(1) as HTMLElement[];
     expect(zones).toHaveLength(2);
     for (const zone of zones) {
       expect(zone.className).toContain('bg-white');

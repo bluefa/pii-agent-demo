@@ -61,8 +61,27 @@ export const GuideCardPure = ({
 
   if (bare) {
     return (
-      // v16 .guide-content geometry; color via the --fg-2 foreground var (globals.css).
-      <div className="prose-guide text-[13px] leading-[1.72] text-[var(--fg-2)]">{rendered}</div>
+      // T2 of the guide rail's three tiers (오너 2026-08-24: 12 / 14 / 16, one leading per
+      // group). It was 13px/1.72 — a size off the app's scale carrying most of the panel's
+      // text, at a leading that grew with every step up. 14/20 is the pair `theme.ts` already
+      // uses most for body (`text-[14px] leading-[1.4]` → 19.6, snapped to the 4px grid) and
+      // the one Carbon, Atlassian, Material and Cloudscape all give 14px reading text.
+      //
+      // Bigger type, LESS height: measured in the browser, a step-4 guide body went 358 →
+      // 319px, because 1.72 → 1.43 gives back more than 13 → 14 costs.
+      //
+      // `tracking` is declared here rather than inherited: `letter-spacing` passes down as a
+      // computed LENGTH, so `body`'s −0.288px was −0.022em on this text and −0.024em on the
+      // 12px rows beside it — tightest where it should be loosest.
+      //
+      // ⛔ `prose-guide-rail` is what keeps these numbers off the admin post editor, which
+      // shares `.prose-guide`. `bare` has exactly one caller and it is the rail.
+      // `break-keep`: 271px of column is narrow enough that Korean's default
+      // break-anywhere was splitting words mid-어절 (「인프라 스 / 캔을」), and 14px wraps
+      // more often than 13 did. Latin runs still break at their own boundaries.
+      <div className="prose-guide prose-guide-rail break-keep text-[14px] leading-[20px] tracking-[-0.01em] text-[var(--fg-2)]">
+        {rendered}
+      </div>
     );
   }
 

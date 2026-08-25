@@ -520,8 +520,10 @@ body {
    Specificity beats the `.prose-guide ol` rules above ((0,2,1) against (0,1,1)),
    so the padding and list-style here win wherever the class is present.
 
-   Geometry is the source's, scaled from its 16px body to this panel's 13px:
-   26px circle → 22px, 14px column gap → 10px, 20px between steps → 14px.
+   Geometry is the source's, scaled from its 16px body to the panel's body:
+   26px circle → 22px, 14px column gap → 10px, 20px between steps → 14px. The scale
+   was struck against a 13px body; the guide rail's is 14px now (`.prose-guide-rail`),
+   which is why the circle takes its own line-box correction there.
    ============================================================================= */
 
 .prose-guide ol.guide-steps {
@@ -578,6 +580,45 @@ body {
    already provided the indent, and `.prose-guide`'s 1.25rem would indent it twice. */
 .prose-guide ol.guide-steps > li > ul {
   padding-left: 1rem;
+}
+
+/* =============================================================================
+   Guide rail tier map — the rail's own numbers, and only the rail's.
+
+   `.prose-guide` is shared with the admin post editor and the notices accordion,
+   both of which keep the rhythm above. `GuideCardPure`'s `bare` branch is the only
+   thing that adds this class, and `GuidePanel` is the only caller of `bare`.
+
+   Specificity ties with the `.prose-guide` rules ((0,1,1) either way), so these
+   have to stay BELOW them in source order.
+   ============================================================================= */
+
+/* The margin, not the weight. `<h4>` outranked its own section head — 14px/700/#111827 in
+   a 24.08px line box against `railStyles.zoneLabel`'s 16px/600/#4E5968 in 24.00 — but the
+   fix belongs on the HEAD, which is now 16/700/#191F28 in a 20px box. Size is then the one
+   channel that separates them, and everything else ties.
+
+   ⛔ Do not drop this to 600 to "help" that. It was 600 for one round and collided with
+   `.prose-guide strong`, which is also 14/600/#111827 — and 7 of the 9 slots carrying an
+   `<h4>` carry a `<strong>` too, so the block heading and inline emphasis rendered as one
+   thing. The 700/600 pair is the only separation those two have. */
+.prose-guide-rail h4 {
+  margin-bottom: 4px;
+}
+
+/* The last off-scale size in the rail: 0.8125rem is 13px. The face is already the
+   inherited Pretendard, so the size was the whole of the distinction — and one px
+   is not a distinction worth a fourth tier. */
+.prose-guide-rail code {
+  font-size: inherit;
+}
+
+/* The 22px circle was struck against a 13 × 1.72 = 22.36px line box, where `margin-top: 1px`
+   sat it almost exactly on the title's first line. T2's box is 20px, so the same 1px now
+   pushes a 23px cell into a 20px row and offsets the numeral's centre from the title's by
+   ~2px on any one-line step. −1 centres the circle on the line box instead. */
+.prose-guide-rail ol.guide-steps > li::before {
+  margin-top: -1px;
 }
 
 /* Guide CMS admin editor — Tiptap renders <.ProseMirror> inside the
