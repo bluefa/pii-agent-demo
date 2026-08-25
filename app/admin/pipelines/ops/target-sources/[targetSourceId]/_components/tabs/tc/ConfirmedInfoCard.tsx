@@ -122,8 +122,8 @@ const COL_W = {
   // 값은 덮어 자르는 문법이 있지만 **열 이름**이 잘리면 표가 깨진 것처럼 읽힌다.
   type: 150,
   region: 120,
-  /** 알약 + tip 표시 한 줄, 그 밑에 로그 입구 + pod_id — 둘 중 긴 쪽이 pod_id 다. */
-  conn: 190,
+  /** 알약 + tip 표시 한 줄, 그 밑에 로그 입구 한 줄 — pod_id 를 뺀 만큼 좁아졌다. */
+  conn: 150,
   ldb: 130,
   cred: 264,
 } as const;
@@ -220,8 +220,9 @@ function verdictPill(verdict: TcVerdict): ReactElement {
  * enum 까지 전부. 지면에 상시로 서는 것은 판정뿐이라 표를 훑는 눈이 "어디가 빨간가"
  * 하나만 쫓으면 된다. tip 은 click 으로 고정되지 않는다(hover·focus 전용).
  *
- * ⛔ pod_id 는 tip 에 넣지 않는다 — 운영자가 클러스터에서 같은 이름을 찾을 때 쓰는 값이라
- * 지면에 남아야 한다(오너 2026-08-21). 로그 입구와 함께 알약 아랫줄에 선다.
+ * 아랫줄은 로그 입구 하나다. pod_id 는 지면에서 뺐고(오너 2026-08-25), tip 에도 넣지
+ * 않는다 — 옮긴 게 아니라 없앤 것이다. 그 값이 필요한 자리는 로그 뷰어이고, 뷰어가 자기
+ * 제목에서 이미 말한다.
  */
 function ConnCell({
   fact,
@@ -319,22 +320,6 @@ const RegionCell = ({ region }: { region: string | null }): ReactElement =>
     <Dash />
   );
 
-/** pod_id 는 캡처본을 조회하는 열쇠라 액션 바로 아래 그대로 적는다(오너 2026-08-21) —
- *  운영자가 클러스터에서 같은 이름을 찾는 값이므로 hover 에만 두지 않는다. */
-function PodIdLine({ podId }: { podId: string }): ReactElement {
-  return (
-    <span
-      className={cn(
-        pipelineStyles.text.monoFace,
-        'block truncate text-[14px] text-[var(--pl-text-weak)]',
-      )}
-      title={podId}
-    >
-      {podId}
-    </span>
-  );
-}
-
 /**
  * Pod 로그 줄 — pod_id 와, 그 pod 의 로그를 여는 입구. 연결 상태 칸의 아랫줄이다.
  *
@@ -362,19 +347,19 @@ function PodLogLine({
   if (state === 'UNREPORTED') return null;
   if (state === 'BEFORE_POD') return <PodNote>Pod 생성 전</PodNote>;
   if (state === 'NO_POD') return <PodNote>Pod 없음</PodNote>;
-  const podId = fact?.podId ?? '';
+  // pod_id 는 지면에서 뺐다 (오너 2026-08-25). 08-21 에는 "클러스터에서 같은 이름을
+  // 찾는 값이라 hover 에만 두지 말라"고 했지만, 판정·사유·로그가 한 칸으로 모이고 나니
+  // 그 줄이 칸의 절반을 쓰면서 정작 아무도 안 읽는 값이 됐다. 로그를 여는 데는 필요 없다
+  // — 뷰어가 pod 를 알고 열고, 화면 제목이 그 이름을 다시 말한다.
   return (
-    <span className="flex min-w-0 max-w-full flex-col items-start gap-0.5">
-      <button
-        type="button"
-        onClick={onOpen}
-        aria-label={`Pod 로그 조회 — ${podId}`}
-        className={cn(opsStyles.countLink, 'whitespace-nowrap')}
-      >
-        로그 조회
-      </button>
-      <PodIdLine podId={podId} />
-    </span>
+    <button
+      type="button"
+      onClick={onOpen}
+      aria-label={`Pod 로그 조회 — ${fact?.podId ?? ''}`}
+      className={cn(opsStyles.countLink, 'whitespace-nowrap')}
+    >
+      로그 조회
+    </button>
   );
 }
 
