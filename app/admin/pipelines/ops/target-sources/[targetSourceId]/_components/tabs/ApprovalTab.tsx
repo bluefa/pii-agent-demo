@@ -345,7 +345,11 @@ export function ApprovalTab({
                 갖고 있다. 여기서 한 번 더 그리면 같은 표가 두 벌이 된다. */}
             <GateRow
               state={healthRow.state}
-              text="모니터링 헬스가 HEALTHY 상태입니다"
+              // 조건은 계약이 쓰는 말이 아니라 이 조건이 지키는 사실로 부른다 (오너
+              // 2026-08-25): `모니터링 헬스가 HEALTHY 상태입니다` 는 관리자에게
+              // healthStatus 라는 필드를 먼저 배우게 했다. 판정의 출처(enum)는 suffix 의
+              // 툴팁 채널에 그대로 남는다.
+              text="Airflow DAG가 정상 동작합니다"
               suffix={healthRow.suffix}
               titleHint={healthRow.titleHint}
               meta={healthRow.meta}
