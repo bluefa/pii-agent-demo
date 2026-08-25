@@ -52,7 +52,9 @@ const verdictSentence = (dag: DagFetch): string => {
   if (dag.phase === 'failed') return '모니터링 상태를 확인하지 못했어요.';
   switch (healthVerdict(dag.data.healthStatus).kind) {
     case 'healthy':
-      return 'DAG 실행이 정상이에요.';
+      // 스코프를 문장이 진다 — §10 이 healthStatus 산식을 열린 질문으로 두고 UI 문구를
+      // '최근 7일 DAG 실행 기준'까지로 묶는다(승인 탭 게이트 ③ 과 같은 제약).
+      return '최근 7일 DAG 실행이 정상이에요.';
     case 'unhealthy':
       return '성공 기록이 없는 논리 DB가 있어요.';
     case 'unknown':

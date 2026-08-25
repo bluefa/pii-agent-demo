@@ -349,7 +349,13 @@ export function ApprovalTab({
               // 2026-08-25): `모니터링 헬스가 HEALTHY 상태입니다` 는 관리자에게
               // healthStatus 라는 필드를 먼저 배우게 했다. 판정의 출처(enum)는 suffix 의
               // 툴팁 채널에 그대로 남는다.
-              text="Airflow DAG가 정상 동작합니다"
+              //
+              // ⛔ 스코프('최근 7일 DAG 실행')를 떼지 말 것. §10 은 healthStatus 의 산식을
+              // BE 미회신 열린 질문으로 두면서 "UI copy stops at 최근 7일 DAG 실행 기준"
+              // 이라고 못박는다. 이 줄은 설치 완료 승인 CTA 를 여는 세 조건 중 하나라,
+              // 스코프를 떼면 우리가 모르는 산식 위에서 "DAG 가 정상 동작한다"고 단언하게
+              // 된다. 산식이 회신되면 그때 문구를 넓힌다.
+              text="최근 7일 DAG 실행이 정상입니다"
               suffix={healthRow.suffix}
               titleHint={healthRow.titleHint}
               meta={healthRow.meta}
