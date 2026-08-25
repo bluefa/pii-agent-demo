@@ -99,8 +99,8 @@ export function tcFactsByResource(
   return facts;
 }
 
-/** Pod 로그 칸이 할 수 있는 다섯 마디 — 표는 이 중 하나만 그린다. */
-export type PodLogState = 'LOG' | 'COLLECTING' | 'BEFORE_POD' | 'NO_POD' | 'UNREPORTED';
+/** Pod 로그 칸이 할 수 있는 네 마디 — 표는 이 중 하나만 그린다. */
+export type PodLogState = 'LOG' | 'BEFORE_POD' | 'NO_POD' | 'UNREPORTED';
 
 /**
  * pod 가 없다는 말을 언제 해도 되는가.
@@ -112,16 +112,15 @@ export type PodLogState = 'LOG' | 'COLLECTING' | 'BEFORE_POD' | 'NO_POD' | 'UNRE
  *
  * 실행이 아직 열려 있으면(대기·진행 중) pod 는 **아직** 안 생긴 것이라 문장이 다르다.
  * 보고 자체가 없는 행(fact 없음)은 pod 부재와 다른 사실이라 또 따로 둔다.
+ *
+ * pod 가 있으면 실행 단계와 무관하게 연다(오너 2026-08-25). 로그는 pod 가 뜬 순간부터
+ * 쌓이므로 진행 중에도 읽을 것이 있고, 그때가 바로 운영자가 가장 보고 싶어 하는 때다.
  */
 export function podLogState(fact: TcResourceFact | undefined): PodLogState {
   if (!fact) return 'UNREPORTED';
-  const open = fact.verdict === 'PENDING' || fact.verdict === 'RUNNING';
-  if (!fact.podId) {
-    if (open) return 'BEFORE_POD';
-    return fact.failReason === POD_CREATION_FAILED ? 'NO_POD' : 'UNREPORTED';
-  }
-  // 캡처는 실행이 끝나는 시점에 뜬다 — 열려 있는 동안에는 열 로그가 아직 없다.
-  return open ? 'COLLECTING' : 'LOG';
+  if (fact.podId) return 'LOG';
+  if (fact.verdict === 'PENDING' || fact.verdict === 'RUNNING') return 'BEFORE_POD';
+  return fact.failReason === POD_CREATION_FAILED ? 'NO_POD' : 'UNREPORTED';
 }
 
 /** 판정만 필요한 소비자(집계)용 — 접기는 `tcFactsByResource` 한 벌뿐이다. */

@@ -272,11 +272,11 @@ function PodIdLine({ podId }: { podId: string }): ReactElement {
 /**
  * Pod 로그 cell — pod_id 와, 그 pod 의 로그를 여는 입구.
  *
- * 다섯 마디 중 어느 것을 할지는 `podLogState` 가 정한다(그 규칙과 근거는 거기에 적혀 있고,
+ * 네 마디 중 어느 것을 할지는 `podLogState` 가 정한다(그 규칙과 근거는 거기에 적혀 있고,
  * 여기서는 문장과 픽셀만 고른다). 요지는 "pod 가 없다"는 계약이 POD_CREATION_FAILED 라고
  * 말해 줄 때만 하는 말이고, 나머지 빈칸은 "없음"이 아니라 "모름"이라는 것.
  *
- * 로그는 실행이 끝나는 시점에 캡처되므로 진행 중에는 열 것이 없다("수집 중 …").
+ * pod 가 있으면 진행 중이라도 링크다 — 로그는 pod 가 뜬 순간부터 쌓인다.
  * 링크는 countLink 규칙 — 밑줄이 affordance 를 지고 색은 중립이다.
  */
 const PodNote = ({ children }: { children: string }): ReactElement => (
@@ -297,18 +297,14 @@ function PodLogCell({
   const podId = fact?.podId ?? '';
   return (
     <span className="flex max-w-[180px] flex-col items-start gap-1">
-      {state === 'LOG' ? (
-        <button
-          type="button"
-          onClick={onOpen}
-          aria-label={`Pod 로그 조회 — ${podId}`}
-          className={cn(opsStyles.countLink, 'whitespace-nowrap')}
-        >
-          로그 조회
-        </button>
-      ) : (
-        <PodNote>수집 중 …</PodNote>
-      )}
+      <button
+        type="button"
+        onClick={onOpen}
+        aria-label={`Pod 로그 조회 — ${podId}`}
+        className={cn(opsStyles.countLink, 'whitespace-nowrap')}
+      >
+        로그 조회
+      </button>
       <PodIdLine podId={podId} />
     </span>
   );

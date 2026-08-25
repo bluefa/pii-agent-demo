@@ -446,8 +446,9 @@ describe('podLogState', () => {
     expect(podLogState(fact({ verdict: 'RUNNING', podId: null }))).toBe('BEFORE_POD');
   });
 
-  it('캡처는 실행이 끝나야 뜬다 — pod 가 있어도 진행 중이면 수집 중이다', () => {
-    expect(podLogState(fact({ verdict: 'RUNNING' }))).toBe('COLLECTING');
+  it('pod 가 있으면 실행 단계와 무관하게 연다 — 진행 중이 가장 보고 싶은 때다', () => {
+    expect(podLogState(fact({ verdict: 'PENDING' }))).toBe('LOG');
+    expect(podLogState(fact({ verdict: 'RUNNING' }))).toBe('LOG');
     expect(podLogState(fact())).toBe('LOG');
     expect(podLogState(fact({ verdict: 'FAIL', failReason: 'CLUSTER_TEST_FAILED' }))).toBe('LOG');
   });
