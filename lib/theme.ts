@@ -4032,6 +4032,12 @@ export const postStyles = {
   entryRow:
     'group relative flex w-full items-start gap-5 px-[22px] py-[14px] text-left border-b border-[#F3F4F6] last:border-b-0 transition-colors duration-150 hover:bg-[#FAFBFD] motion-reduce:transition-none',
   entryRowOpen: 'bg-[#F7F9FC]',
+  /** 행을 감싸는 `li` — 구분선은 행이 아니라 항목이 긋는다(펼침 패널이 그 안에 있다). */
+  entryItem: 'border-b border-[#F3F4F6] last:border-b-0',
+  entryFocus:
+    'focus-visible:outline-2 focus-visible:outline-[#0064FF] focus-visible:-outline-offset-2',
+  /** 목록이 비었을 때의 한 줄. 카드와 그룹 목록이 같은 문장을 같은 자리에 놓는다. */
+  emptyRow: 'px-[22px] py-10 text-center text-[14px] text-[#6B7280]',
   /**
    * 왼쪽 지시바 — hover·펼침에 세로로 자란다. 배경 틴트만으로는 "지금 여기"가
    * 흰 바탕과 1.05:1 이라 거의 안 보인다(`tableRowLift` 에서 받은 같은 지적).

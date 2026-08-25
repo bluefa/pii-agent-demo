@@ -52,7 +52,7 @@ export const PostBoardCard = ({
       )}
 
       {visible !== null && visible.length === 0 && (
-        <p className="px-[22px] py-10 text-center text-[14px] text-[#6B7280]">
+        <p className={postStyles.emptyRow}>
           등록된 게시글이 없습니다.
         </p>
       )}

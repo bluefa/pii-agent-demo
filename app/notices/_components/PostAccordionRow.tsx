@@ -67,7 +67,7 @@ export const PostAccordionRow = ({
 
   return (
     // 배너 링크가 스크롤할 표적. id 는 행이 들고 있어야 목록 어디에 놓여도 찾힌다.
-    <li id={`post-${post.id}`} className="border-b border-[#F3F4F6] last:border-b-0">
+    <li id={`post-${post.id}`} className={postStyles.entryItem}>
       <button
         type="button"
         onClick={() => setOpen((current) => !current)}
@@ -76,7 +76,7 @@ export const PostAccordionRow = ({
         // 하나만 두면 화면 읽는 사람에게는 상태만 있고 대상이 없다.
         aria-controls={panelId}
         className={cn(
-          'focus-visible:outline-2 focus-visible:outline-[#0064FF] focus-visible:-outline-offset-2',
+          postStyles.entryFocus,
           postStyles.entryRow,
           'border-b-0',
           open && postStyles.entryRowOpen,
