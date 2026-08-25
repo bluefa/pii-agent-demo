@@ -111,8 +111,11 @@ function BandNote({ tone, children }: { tone: 'warn' | 'weak'; children: ReactNo
   const b = opsStyles.tcBand;
   return (
     <span className={cn(b.note, tone === 'warn' ? b.noteWarn : b.noteWeak)}>
-      {/* 경고를 색만으로 말하지 않는다(WCAG 1.4.1) — 마크가 색 없이도 같은 뜻을 진다. */}
-      <StatusWarningIcon className="mt-0.5 h-4 w-4 flex-none" />
+      {/* 경고를 색만으로 말하지 않는다(WCAG 1.4.1) — 마크가 색 없이도 같은 뜻을 진다.
+          제목·시각과 같은 18px 글리프 열에 앉아 세 줄의 시작선이 하나가 된다. */}
+      <span className={b.icon}>
+        <StatusWarningIcon className="h-4 w-4" />
+      </span>
       {children}
     </span>
   );

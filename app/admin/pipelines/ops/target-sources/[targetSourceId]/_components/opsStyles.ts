@@ -251,10 +251,14 @@ export const opsStyles = {
     /** 시각 서브라인 — 문장의 근거라 문장 바로 아래 붙고, 제목의 18px 글리프 열에 맞춘다. */
     meta: 'flex items-center gap-2 text-[12px] font-medium tabular-nums text-[var(--pl-text-weak)]',
     /**
-     * 밴드 안의 곁줄(사유 · Credential 경고). 상자가 아니라 맨 줄이다 — 카드 안에 상자를
-     * 또 두면 계층이 아니라 같은 무게의 상자 둘이 된다.
+     * 밴드 안의 곁줄(사유). 상자가 아니라 맨 줄이다 — 카드 안에 상자를 또 두면 계층이
+     * 아니라 같은 무게의 상자 둘이 된다.
+     *
+     * 들여쓰기는 없다 (오너 2026-08-25). 26px 을 물려 제목의 **글 열**에 맞춰 두었더니,
+     * 위의 두 줄은 글리프에서 시작하는데 이 줄만 한 칸 안으로 들어가 밴드 왼쪽에 계단이
+     * 생겼다. 대신 글리프를 제목과 같은 18px 열에 넣어 세 줄이 한 세로선에서 시작한다.
      */
-    note: 'flex items-start gap-2 pl-[26px] text-[14px] leading-[1.5] break-keep',
+    note: 'flex items-start gap-2 text-[14px] leading-[1.5] break-keep',
     /**
      * 카드 등급의 경고 줄 — 밴드 **밖**, 설명문과 밴드 사이. 여기 서는 것은 실행의 판정이
      * 아니라 다음 실행의 전제다(Credential 미설정). 상자가 아니라 맨 줄인 것은 밴드와 같은
