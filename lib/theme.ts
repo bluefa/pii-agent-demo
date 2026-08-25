@@ -4339,8 +4339,8 @@ export const passBannerStyles = {
   /** 장식이 절대 배치라 본문은 새 층으로 올려야 점 격자 위에 온다. */
   content: 'relative z-[1] min-w-0',
   kicker: 'text-[12px] font-bold uppercase tracking-[0.08em] text-[#7DA6F5]', // design-exempt: dark-surface text (#7DA6F5 on #16233D = 6.4:1)
-  title: 'mt-2.5 text-[24px] font-bold tracking-[-0.02em] text-white',
-  body: 'mt-2.5 max-w-[72ch] text-[14px] leading-[1.5] text-white/[0.68]',
+  title: 'mt-2.5 text-[36px] font-bold tracking-[-0.02em] text-white',
+  body: 'mt-2.5 max-w-[72ch] text-[24px] font-medium leading-[1.5] text-white/[0.68]',
   /** 링크 줄 — 좁은 화면에서 CTA 가 아래로 내려가도 이 줄은 접히며 버틴다. */
   links: 'mt-4 flex flex-wrap items-center gap-x-4 gap-y-2',
   /**
