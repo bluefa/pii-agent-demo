@@ -45,6 +45,9 @@ import { ConfirmTab } from '@/app/admin/pipelines/ops/target-sources/[targetSour
 import { PipelineTab } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/PipelineTab';
 import { TcTab } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/TcTab';
 import { ApprovalTab } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/ApprovalTab';
+import { AirflowTab } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/AirflowTab';
+import { getDagStatus } from '@/app/lib/api/ops';
+import type { DagFetch } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/approvalGate';
 
 const TABS = Object.values(OPS_TAB_SLUGS);
 type TabLabel = OpsTargetTabLabel;
@@ -87,6 +90,9 @@ export function OpsTargetView({ targetSourceId, initialTab }: OpsTargetViewProps
   const [tcResults, setTcResults] = useState<TcResultRow[]>([]);
   const [tcLoaded, setTcLoaded] = useState(false);
   const [tcLatestFailed, setTcLatestFailed] = useState(false);
+  // DAG 헬스도 한 자리에서 받는다 — 관리자 승인 탭의 조건 ③ 과 Airflow 확인 탭이 같은
+  // 응답을 읽으므로, 탭을 오갈 때마다 같은 §10 을 다시 부르지 않게 소유자는 여기다.
+  const [dag, setDag] = useState<DagFetch>({ phase: 'loading' });
   const [modal, setModal] = useState<ModalState>(null);
   /**
    * The tab the URL asks for — not necessarily the one on screen. A target whose tab
@@ -180,6 +186,9 @@ export function OpsTargetView({ targetSourceId, initialTab }: OpsTargetViewProps
   useEffect(() => {
     let cancelled = false;
     (async () => {
+      // 대상이 바뀌면 헬스부터 비운다 — 앞 대상의 판정이 새 대상의 승인 조건 줄에
+      // 한 프레임이라도 서면 안 된다.
+      setDag({ phase: 'loading' });
       let loaded: RawTargetSourceDetail;
       try {
         loaded = await getRawTargetSourceDetail(targetSourceId);
@@ -214,6 +223,12 @@ export function OpsTargetView({ targetSourceId, initialTab }: OpsTargetViewProps
         .catch(() => !cancelled && setJiraTicket(null))
         .finally(() => !cancelled && setTicketLoaded(true));
       void loadTc();
+      void getDagStatus(targetSourceId)
+        .then((data) => {
+          if (cancelled) return;
+          setDag({ phase: 'loaded', data, fetchedAt: new Date().toISOString() });
+        })
+        .catch(() => !cancelled && setDag({ phase: 'failed' }));
     })();
     return () => {
       cancelled = true;
@@ -397,9 +412,14 @@ export function OpsTargetView({ targetSourceId, initialTab }: OpsTargetViewProps
               latest={tcLatest}
               latestFailed={tcLatestFailed}
               results={tcResults}
+              dag={dag}
               onDecided={retry}
               onOpenTcTab={() => selectTab('연결 테스트')}
+              onOpenAirflowTab={() => selectTab('Airflow 확인')}
             />
+          )}
+          {currentTab === 'Airflow 확인' && (
+            <AirflowTab targetSourceId={targetSourceId} isIdc={isIdc} dag={dag} />
           )}
         </div>
         <OpsMetaRail

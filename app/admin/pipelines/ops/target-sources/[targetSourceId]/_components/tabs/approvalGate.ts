@@ -1,9 +1,10 @@
 /**
  * 관리자 승인 gate — the single fold point for the tab's head state.
  *
- * Two conditions gate the approve CTA (docs/api/ops-assumed-contracts.md §10):
+ * Three conditions gate the approve CTA (docs/api/ops-assumed-contracts.md §10):
  *   ① the service acknowledged Test Connection (status = TEST_CONNECTION_COMPLETED)
- *   ② monitoring health is HEALTHY — by ALLOWLIST (`=== 'HEALTHY'`), so loading,
+ *   ② the latest Test Connection run SUCCEEDED — by ALLOWLIST (`=== 'SUCCESS'`)
+ *   ③ monitoring health is HEALTHY — by ALLOWLIST (`=== 'HEALTHY'`), so loading,
  *     fetch failure, and enum values we have not seen all LOCK instead of passing.
  *
  * 재실행 요청 stays mounted whenever ① holds: on UNHEALTHY it is the operator's
@@ -13,7 +14,6 @@
 import type { DagDatabaseStatus, DagStatusResponse } from '@/lib/types/dag-status';
 import type { TcExecutionStatus } from '@/app/lib/api/task-queue-tc';
 import type { TcTone } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/bits';
-import type { TcResultStats } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/logic';
 
 export const TC_COMPLETED = 'TEST_CONNECTION_COMPLETED';
 export const TC_REJECTED = 'TEST_CONNECTION_REJECTED';
@@ -37,6 +37,40 @@ export const healthVerdict = (healthStatus: string): HealthVerdict =>
       ? { kind: 'unhealthy' }
       : { kind: 'unknown', raw: healthStatus };
 
+/**
+ * 최신 연결 테스트 실행의 게이트 판정 — 승인 조건 ②.
+ *
+ * 통과는 실행 단위 `connection_status === 'SUCCESS'` 하나뿐(ALLOWLIST)이다. 나머지는
+ * 전부 잠근다. 잠그는 이유는 갈라 둔다 — 이력이 없는 것과 조회에 실패한 것은 다른
+ * 사실이고, 승인 조건 행이 그 둘을 같은 문장으로 말하면 안 된다.
+ */
+export type TcRunGate =
+  | 'success'
+  | 'failed'
+  /** PENDING · RUNNING — 아직 끝나지 않은 실행. */
+  | 'open'
+  /** 실행 이력 없음 (404). */
+  | 'none'
+  /** 최신 실행 조회 실패 — 빈 결과가 아니다. */
+  | 'error'
+  /** 선언된 enum 밖의 값. */
+  | 'unknown';
+
+export function tcRunGate(run: TcExecutionStatus, hasLatest: boolean, latestFailed: boolean): TcRunGate {
+  if (!hasLatest) return latestFailed ? 'error' : 'none';
+  switch (run) {
+    case 'SUCCESS':
+      return 'success';
+    case 'FAIL':
+      return 'failed';
+    case 'PENDING':
+    case 'RUNNING':
+      return 'open';
+    default:
+      return 'unknown';
+  }
+}
+
 export interface ApprovalHead {
   pill: { tone: TcTone; label: string };
   desc: string;
@@ -46,7 +80,11 @@ export interface ApprovalHead {
   canRerun: boolean;
 }
 
-export function foldApprovalHead(tcStatus: string | null | undefined, dag: DagFetch): ApprovalHead {
+export function foldApprovalHead(
+  tcStatus: string | null | undefined,
+  run: TcRunGate,
+  dag: DagFetch,
+): ApprovalHead {
   if (tcStatus === TC_REJECTED) {
     return {
       pill: { tone: 'warn', label: '재실행 요청됨' },
@@ -64,6 +102,47 @@ export function foldApprovalHead(tcStatus: string | null | undefined, dag: DagFe
       canApprove: false,
       canRerun: false,
     };
+  }
+  // 조건 ② — 최신 실행이 성공이라고 말할 때만 다음 조건으로 넘어간다. 재실행 요청은
+  // 여기서도 유일한 탈출구라 계속 서 있다.
+  switch (run) {
+    case 'success':
+      break;
+    case 'failed':
+      return {
+        pill: { tone: 'err', label: '승인 불가' },
+        desc: '최신 연결 테스트가 실패했어요 — 설치 완료를 처리할 수 없어요.',
+        canApprove: false,
+        canRerun: true,
+      };
+    case 'open':
+      return {
+        pill: { tone: 'off', label: '테스트 진행 중' },
+        desc: '연결 테스트가 아직 끝나지 않았어요.',
+        canApprove: false,
+        canRerun: true,
+      };
+    case 'none':
+      return {
+        pill: { tone: 'off', label: '결과 없음' },
+        desc: '연결 테스트 실행 기록이 없어 설치 완료를 처리할 수 없어요.',
+        canApprove: false,
+        canRerun: true,
+      };
+    case 'error':
+      return {
+        pill: { tone: 'err', label: '확인 실패' },
+        desc: '연결 테스트 결과를 확인하지 못했어요.',
+        canApprove: false,
+        canRerun: true,
+      };
+    case 'unknown':
+      return {
+        pill: { tone: 'off', label: '미확인' },
+        desc: '연결 테스트 결과를 판정할 수 없어 설치 완료를 처리할 수 없어요.',
+        canApprove: false,
+        canRerun: true,
+      };
   }
   switch (dag.phase) {
     case 'loading':
@@ -148,26 +227,10 @@ export const showsHandoffCaption = (
   run: TcExecutionStatus,
 ): boolean => tcStatus !== TC_COMPLETED && tcStatus !== TC_REJECTED && run === 'SUCCESS';
 
-/**
- * 근거 행의 알약 — 사실만 나른다. 판정 아이콘(✓·✗·○)은 승인 조건 행의 것이다:
- * 근거의 실패는 승인을 잠그지 않으므로(게이트는 ① 완료 승인 ② 헬스뿐), 근거 행에
- * ✗ 를 세우면 "승인 불가"라는 거짓말이 된다.
- */
+/** 모니터링 근거 줄의 알약 — 헬스 판정을 화면 어휘로 나른다. */
 export interface EvidencePill {
   tone: TcTone;
   label: string;
-}
-
-export function tcEvidencePill(stats: TcResultStats, run: TcExecutionStatus): EvidencePill {
-  if (run === 'PENDING' || run === 'RUNNING') return { tone: 'warn', label: '진행 중' };
-  if (stats.failedCount > 0)
-    return { tone: 'err', label: `실패 ${stats.failedCount.toLocaleString('ko-KR')}` };
-  if (stats.successCount > 0) {
-    const s = stats.successCount.toLocaleString('ko-KR');
-    const r = stats.resourceCount.toLocaleString('ko-KR');
-    return { tone: 'ok', label: `성공 ${s}/${r}` };
-  }
-  return { tone: 'off', label: '결과 없음' };
 }
 
 export interface MonitoringEvidenceHead {

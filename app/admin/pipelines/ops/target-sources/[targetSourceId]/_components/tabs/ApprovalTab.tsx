@@ -4,9 +4,11 @@
  * 관리자 승인 tab — the process branch this target's Step 6 exists for.
  *
  * 구조는 시안 C(근거 리포트 행, GitLab MR 위젯 문법 — docs/ux/benchmark/
- * approval-tab-report-rows.md): 카드 한 장 안에 결정(헤드+CTA) ▸ 승인 조건 ▸ 근거
- * 두 행이 선다. 근거 행은 기본 접힘이고 펼치면 그 자리에서 표가 열린다 — 펼침은
- * 세션에 저장하지 않아 매번 접힌 채 시작한다(접힌 줄이 판정을 이미 나른다).
+ * approval-tab-report-rows.md)에서 한 걸음 더: 카드 한 장 안에 결정(헤드+CTA) ▸ 승인
+ * 조건 세 행이 선다. 근거는 더 이상 따로 선 절이 아니라 그 조건을 판정한 행 자신이
+ * "상세보기"로 연다 — 조건과 그 근거가 두 곳에 나뉘어 있으면 관리자가 화면을 위아래로
+ * 오가며 짝을 맞춰야 했다. 펼침은 세션에 저장하지 않아 매번 접힌 채 시작한다(접힌 줄이
+ * 판정을 이미 나른다).
  *
  * Flow: 서비스가 5단계(연결 테스트)에서 완료 승인 요청(PUT
  * …/test-connection-acknowledgment)을 보내면 Step 5 → 6 으로 넘어오고, 관리자는
@@ -14,14 +16,14 @@
  *   재실행 요청        POST …/test-connection/reject          (서비스 단계로 되돌림)
  *   PII Agent 설치 완료 POST …/pii-agent-installation/confirm  (연동 확정)
  *
- * TWO conditions gate the approve CTA (the 승인 조건 checklist states both):
+ * THREE conditions gate the approve CTA (the 승인 조건 checklist states all three):
  *   ① 서비스 완료 승인 요청 (status = TEST_CONNECTION_COMPLETED)
- *   ② 모니터링 헬스 HEALTHY (assumed §10 dag-status, allowlist — approvalGate.ts)
+ *   ② 최신 연결 테스트 결과 SUCCESS (allowlist — approvalGate.ts)
+ *   ③ 모니터링 헬스 HEALTHY (assumed §10 dag-status, allowlist — approvalGate.ts)
  *
- * 아이콘 문법 (C-1): 판정 아이콘(✓·✗·○)은 승인 조건 행만 갖는다. 근거 행의 알약은
- * 사실만 나른다 — TC 실패는 게이트가 아니므로 근거 행의 ✗ 는 "승인 불가"라는
- * 거짓말이 된다. "완료·승인"은 사람의 행위(인수인계)에만, "성공·실패"는 테스트
- * 결과에만 쓴다.
+ * 아이콘 문법: 판정 아이콘(✓·✗·○)은 승인 조건 행의 것이고, 이제 세 조건이 전부 게이트라
+ * 실패 행의 ✗ 는 실제로 "승인 불가"를 뜻한다. "완료·승인"은 사람의 행위(인수인계)에만,
+ * "성공·실패"는 테스트 결과에만 쓴다.
  */
 import { useMemo, useState, type ReactElement, type ReactNode } from 'react';
 import { cn, pipelineStyles } from '@/lib/theme';
@@ -68,9 +70,8 @@ import {
   healthVerdict,
   monitoringEvidenceHead,
   showsHandoffCaption,
-  tcEvidencePill,
+  tcRunGate,
   type DagFetch,
-  type EvidencePill,
 } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/approvalGate';
 import { MonitoringEvidenceBody } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/MonitoringEvidenceBody';
 import { TcReviewTable } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/TcReviewTable';
@@ -99,6 +100,10 @@ function GateRow({
   suffix,
   titleHint,
   meta,
+  open,
+  onToggle,
+  children,
+  onNavigate,
 }: {
   state: GateRowState;
   text: string;
@@ -106,6 +111,12 @@ function GateRow({
   /** Debug-tier raw value (wire vocabulary) — tooltip only, never in the copy. */
   titleHint?: string;
   meta?: string;
+  /** 근거 펼침 — children 이 있을 때만 "상세보기"가 이 자리에서 편다. */
+  open?: boolean;
+  onToggle?: () => void;
+  children?: ReactNode;
+  /** 근거가 한 화면짜리라 여기서 펼치지 않고 그 탭으로 보내는 경우. */
+  onNavigate?: () => void;
 }): ReactElement {
   const icon =
     state === 'ok' ? (
@@ -117,86 +128,46 @@ function GateRow({
     ) : (
       <span aria-hidden className="block h-4 w-4 rounded-full border-2 border-[var(--pl-border-strong)]" />
     );
-  return (
-    <div className="flex items-start gap-2.5 px-4 py-3">
-      {/* 아이콘은 판정문 줄에 붙는다 — 두 줄 블록의 가운데로 내려오면 어느 줄을
-          판정하는 것인지 흐려진다. */}
-      <span className="mt-0.5 flex-none">{icon}</span>
-      <div className="min-w-0 flex-1">
-        <p className="text-[14px] font-medium text-[var(--pl-text-strong)]" title={titleHint}>
-          {text}
-        </p>
-        {(suffix || meta) && (
-          <p className="mt-1 text-[12px] text-[var(--pl-text-weak)]">
-            {suffix}
-            {suffix && meta && ' · '}
-            {meta && <span className="tabular-nums">{meta}</span>}
-          </p>
-        )}
-      </div>
-    </div>
-  );
-}
-
-/**
- * 근거 리포트 행 — 접힌 줄(제목·보조·알약·셰브런)이 판정을 나르고, 펼치면 그 자리에
- * 본문이 열린다. 닫힌 본문은 언마운트라 aria-controls 는 달지 않는다(참조가 절반의
- * 시간 동안 허공에 뜬다 — APG disclosure: aria-expanded 만으로 적합).
- */
-function ReportRow({
-  title,
-  subtitle,
-  subtitleHint,
-  pill,
-  open,
-  onToggle,
-  children,
-}: {
-  title: string;
-  subtitle?: string | null;
-  /** Debug-tier raw value — tooltip only. */
-  subtitleHint?: string;
-  pill: EvidencePill;
-  open: boolean;
-  onToggle: () => void;
-  children?: ReactNode;
-}): ReactElement {
+  // 닫힌 본문은 언마운트라 aria-controls 는 달지 않는다(참조가 절반의 시간 동안 허공에
+  // 뜬다 — APG disclosure: aria-expanded 만으로 적합).
+  const disclosable = children != null && onToggle != null;
   return (
     <div>
-      <button
-        type="button"
-        aria-expanded={open}
-        onClick={onToggle}
-        className="flex w-full cursor-pointer items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-[var(--pl-gray-50)]"
-      >
-        {/* button 은 phrasing content 만 담는다 — p 대신 block span. */}
-        <span className="min-w-0 flex-1">
-          <span className="block text-[14px] font-medium text-[var(--pl-text-strong)]">{title}</span>
-          {subtitle && (
-            <span
-              className="mt-1 block text-[12px] text-[var(--pl-text-weak)]"
-              title={subtitleHint}
-            >
-              {subtitle}
-            </span>
+      <div className="flex items-start gap-2.5 px-4 py-3">
+        {/* 아이콘은 판정문 줄에 붙는다 — 두 줄 블록의 가운데로 내려오면 어느 줄을
+            판정하는 것인지 흐려진다. */}
+        <span className="mt-0.5 flex-none">{icon}</span>
+        <div className="min-w-0 flex-1">
+          <p className="text-[14px] font-medium text-[var(--pl-text-strong)]" title={titleHint}>
+            {text}
+          </p>
+          {(suffix || meta) && (
+            <p className="mt-1 text-[12px] text-[var(--pl-text-weak)]">
+              {suffix}
+              {suffix && meta && ' · '}
+              {meta && <span className="tabular-nums">{meta}</span>}
+            </p>
           )}
-        </span>
-        <span className="flex-none">
-          <TcPill tone={pill.tone} label={pill.label} />
-        </span>
-        <Icon
-          name="chev-r"
-          size={16}
-          className={cn(
-            'flex-none text-[var(--pl-text-weak)] transition-transform',
-            open && 'rotate-90',
-          )}
-        />
-      </button>
-      {open && children != null && (
+        </div>
+        {(disclosable || onNavigate) && (
+          <button
+            type="button"
+            aria-expanded={disclosable ? open : undefined}
+            onClick={disclosable ? onToggle : onNavigate}
+            className="mt-0.5 flex flex-none cursor-pointer items-center gap-0.5 text-[13px] font-semibold text-[var(--pl-primary)] hover:underline"
+          >
+            상세보기
+            <Icon
+              name="chev-r"
+              size={14}
+              className={cn('transition-transform', disclosable && open && 'rotate-90')}
+            />
+          </button>
+        )}
+      </div>
+      {disclosable && open && (
         // 펼침 본문의 상하 여백은 비대칭(28/42) — 아래가 커야 본문 끝과 다음 행이
-        // 붙어 읽히지 않는다. 공지 아코디언(postStyles.panelBody, 16/64)과 같은
-        // 방향의 완화판이다 (오너 08-21, 20/32에서 한 번 더 +8/+10).
+        // 붙어 읽히지 않는다 (오너 08-21).
         <div className="border-t border-[var(--pl-border)] px-4 pb-[42px] pt-7">{children}</div>
       )}
     </div>
@@ -225,10 +196,14 @@ export interface ApprovalTabProps {
   latestFailed: boolean;
   /** 리소스별 논리 DB 건수 (latest-results; fetched by the page). */
   results: readonly TcResultRow[];
+  /** §10 dag-status — fetched once by the page and shared with Airflow 확인. */
+  dag: DagFetch;
   /** Both outcomes change the target's step, so the whole page reloads. */
   onDecided: () => void;
   /** "연결 테스트 탭에서 관리" — 쓰기(제외 정책·Credential·재실행)는 그 탭의 것. */
   onOpenTcTab: () => void;
+  /** 조건 ③ 의 "상세보기" — 모니터링 근거 전부는 Airflow 확인 탭이 갖는다. */
+  onOpenAirflowTab: () => void;
 }
 
 export function ApprovalTab({
@@ -238,16 +213,17 @@ export function ApprovalTab({
   latest,
   latestFailed,
   results,
+  dag,
   onDecided,
   onOpenTcTab,
+  onOpenAirflowTab,
 }: ApprovalTabProps): ReactElement {
   const toast = usePlToast();
   const [rerunOpen, setRerunOpen] = useState(false);
   const [approveOpen, setApproveOpen] = useState(false);
-  // 근거 행 펼침 — 세션에 저장하지 않고 매번 접힌 채 시작한다. 두 행은 독립이다:
-  // 둘 다 펼치면 같은 정체성 열로 리소스를 행 단위 대조할 수 있어야 한다.
+  // 조건 ② 의 근거 펼침 — 세션에 저장하지 않고 매번 접힌 채 시작한다(접힌 줄이 판정을
+  // 이미 나른다).
   const [tcOpen, setTcOpen] = useState(false);
-  const [monOpen, setMonOpen] = useState(false);
 
   const tcCompleted = status?.status === TC_COMPLETED;
   const isRejected = status?.status === TC_REJECTED;
@@ -257,29 +233,6 @@ export function ApprovalTab({
   const stats = useMemo(() => tcResultStats(results, latest), [results, latest]);
   const verdicts = useMemo(() => verdictByResource(latest), [latest]);
   const run = runStatus(latest);
-
-  // Gate ② — dag-status is fetched only once TC 완료 승인 (fetch gate, §10);
-  // before that there is nothing to check, and every consumer below gates on
-  // tcCompleted before reading `dag`. Abort-on-deps-change is the stale-response
-  // guard (PagedCard pattern). 다시 확인(수동 재조회) 버튼은 오너가 뺐다 (08-21) —
-  // 최신 값이 필요하면 화면을 새로 연다.
-  const [dag, setDag] = useState<DagFetch>({ phase: 'loading' });
-  useAbortableEffect(
-    (signal) => {
-      if (!tcCompleted) return;
-      setDag({ phase: 'loading' });
-      return getDagStatus(targetSourceId, { signal })
-        .then((data) => {
-          if (signal.aborted) return;
-          setDag({ phase: 'loaded', data, fetchedAt: new Date().toISOString() });
-        })
-        .catch(() => {
-          if (signal.aborted) return;
-          setDag({ phase: 'failed' });
-        });
-    },
-    [tcCompleted, targetSourceId],
-  );
 
   // 확정 정보 조인 — DAG 표가 §10 밖에서 빌려 오는 사실(리전·DatabaseType·IDC 접속
   // 주소)의 출처이자, 검토 표(C-2)의 행 목록. TC 완료 승인 전에도 받는다: 검토 표는
@@ -322,20 +275,7 @@ export function ApprovalTab({
 
   const isIdc = normalizeCloudProvider(detail.cloud_provider) === 'IDC';
 
-  // 논리 DB 보드 — 우측 오버레이 패널(벤치마크 시안 A). 진입(펼친 모니터링 본문의
-  // 실패 숫자 · 전체 현황 · 에이전트 표의 "DAG 상태 조회")이 프리셋과 함께 연다. ModalShell
-  // 은 닫히면 자식을 언마운트하므로 매 오픈이 새 마운트 — 프리셋은 마운트 1회 소비로
-  // 충분하다.
-  const [board, setBoard] = useState<{ filter: BoardFilter; agentId?: string } | null>(null);
-  // DAG 상세는 보드가 아니라 여기서 연다 — 패널 위에 겹치는 레이어라 Esc 를 누가
-  // 먹을지 결정할 수 있어야 한다. 패널이 닫히면 그 위의 모달도 함께 접는다.
-  const [dagRow, setDagRow] = useState<DagDbRow | null>(null);
-  const closeBoard = (): void => {
-    setDagRow(null);
-    setBoard(null);
-  };
-
-  // 모니터링 근거의 집계 — 접힌 줄(head)과 펼친 본문이 같은 파생을 응답당 1회로 나눈다.
+  // 모니터링 판정의 집계 — 조건 ③ 줄이 읽는 한 벌(본문은 Airflow 확인 탭의 것).
   const agg = useMemo(
     () => (dag.phase === 'loaded' ? aggregateDagStatus(dag.data) : null),
     [dag],
@@ -361,46 +301,6 @@ export function ApprovalTab({
     onError: () => toast.show('설치 완료 처리에 실패했습니다.'),
   });
 
-  const head = foldApprovalHead(status?.status, dag);
-
-  // 승인 조건 row ② — the checklist carries the "why", the CTA stays unmounted.
-  const healthRow = ((): {
-    state: GateRowState;
-    suffix: string;
-    titleHint?: string;
-    meta?: string;
-  } => {
-    if (!tcCompleted) return { state: 'pending', suffix: '완료 승인 후 점검합니다' };
-    switch (dag.phase) {
-      case 'loading':
-        return { state: 'pending', suffix: '확인 중…' };
-      case 'failed':
-        return { state: 'err', suffix: '확인하지 못했습니다' };
-      case 'loaded': {
-        const verdict = healthVerdict(dag.data.healthStatus);
-        const meta = `조회 ${fmtDateTimeSec(dag.fetchedAt)}`;
-        switch (verdict.kind) {
-          case 'healthy':
-            return { state: 'ok', suffix: '최근 7일 DAG 실행 기준', meta };
-          case 'unhealthy':
-            return {
-              state: 'err',
-              suffix: '현재 UNHEALTHY · 최근 7일 DAG 실행 기준',
-              meta,
-            };
-          case 'unknown':
-            // Raw enum value stays in the tooltip channel — not in the copy.
-            return {
-              state: 'warn',
-              suffix: '판정할 수 없는 값',
-              titleHint: `healthStatus: ${verdict.raw}`,
-              meta,
-            };
-        }
-      }
-    }
-  })();
-
   // 연결 테스트 근거의 접힌 줄 — 회차·시각과, 성공분이 있을 때만 논리 DB 합계.
   // 합계는 검토 표의 셀과 같은 fold(ldbCount 게이트)라 두 층이 갈라지지 않는다.
   const tcSubtitle = ((): string | null => {
@@ -415,6 +315,62 @@ export function ApprovalTab({
       parts.push(`제외 ${n(stats.excludedTotal)}`);
     }
     return parts.length > 0 ? parts.join(' · ') : null;
+  })();
+
+  const gate = tcRunGate(run, latest !== null, latestFailed);
+  const head = foldApprovalHead(status?.status, gate, dag);
+
+  // 승인 조건 row ③ — the checklist carries the "why", the CTA stays unmounted.
+  // 근거 문장은 모니터링 근거의 fold 그대로 빌린다 — 조건 줄과 Airflow 확인 탭이
+  // 같은 응답을 다른 낱말로 부르면 안 된다.
+  const healthRow = ((): {
+    state: GateRowState;
+    suffix: string | null;
+    titleHint?: string;
+    meta?: string;
+  } => {
+    if (!tcCompleted) return { state: 'pending', suffix: '완료 승인 후 점검합니다' };
+    switch (dag.phase) {
+      case 'loading':
+        return { state: 'pending', suffix: monHead.subtitle };
+      case 'failed':
+        return { state: 'err', suffix: monHead.subtitle };
+      case 'loaded': {
+        const verdict = healthVerdict(dag.data.healthStatus);
+        const meta = `조회 ${fmtDateTimeSec(dag.fetchedAt)}`;
+        const state: GateRowState =
+          verdict.kind === 'healthy' ? 'ok' : verdict.kind === 'unhealthy' ? 'err' : 'warn';
+        return { state, suffix: monHead.subtitle, titleHint: monHead.titleHint, meta };
+      }
+    }
+  })();
+
+  // 승인 조건 row ② — 최신 실행의 판정. 잠그는 이유는 갈라 말한다(이력 없음 ≠ 조회 실패).
+  const runRow = ((): { state: GateRowState; suffix: string | null; titleHint?: string } => {
+    switch (gate) {
+      case 'success':
+        return { state: 'ok', suffix: tcSubtitle };
+      case 'failed':
+        return {
+          state: 'err',
+          suffix: [stats.failedCount > 0 ? `연결 실패 ${n(stats.failedCount)}` : '', tcSubtitle]
+            .filter(Boolean)
+            .join(' · '),
+        };
+      case 'open':
+        return { state: 'pending', suffix: ['진행 중', tcSubtitle].filter(Boolean).join(' · ') };
+      case 'none':
+        return { state: 'pending', suffix: '연결 테스트 실행 기록이 없습니다' };
+      case 'error':
+        return { state: 'err', suffix: '실행 정보를 불러오지 못했습니다' };
+      case 'unknown':
+        // Raw enum value stays in the tooltip channel — not in the copy.
+        return {
+          state: 'warn',
+          suffix: '판정할 수 없는 값',
+          titleHint: `connection_status: ${latest?.connection_status ?? ''}`,
+        };
+    }
   })();
 
   return (
@@ -480,42 +436,15 @@ export function ApprovalTab({
               />
             )}
             <GateRow
-              state={healthRow.state}
-              text="모니터링 헬스가 HEALTHY 상태입니다"
-              suffix={healthRow.suffix}
-              titleHint={healthRow.titleHint}
-              meta={healthRow.meta}
-            />
-          </div>
-        </div>
-
-        {/* 근거 — 결정의 재료 두 행, 말한 우선순위 그대로 같은 컨테이너의 형제.
-            무엇을 승인하는가(연결 테스트)와 지금 살아 있는가(모니터링)를 여기서
-            대조한다 — Test Connection 탭으로 돌아가지 않아도 되도록. */}
-        {(latest !== null || latestFailed || tcCompleted) && (
-          <div className="mt-5">
-            <p className="text-[16px] font-semibold text-[var(--pl-text-strong)]">근거</p>
-            <div className="mt-2.5 divide-y divide-[var(--pl-border)] rounded-lg border border-[var(--pl-border)]">
-              {/* fetch 실패는 '이력 없음'과 다르다 (리뷰 08-21) — 행을 접는 대신 실패를
-                  말한다. 접으면 근거 하나가 사라진 채로 승인 CTA 가 서 있게 된다. */}
-              {latest === null && latestFailed && (
-                <div className="px-4 py-3">
-                  <p className="text-[14px] font-medium text-[var(--pl-text-strong)]">
-                    연결 테스트 결과
-                  </p>
-                  <p className="mt-1 text-[12px] text-[var(--pl-err-text)]">
-                    실행 정보를 불러오지 못했습니다.
-                  </p>
-                </div>
-              )}
+              state={runRow.state}
+              text="최신 연결 테스트 결과가 성공입니다"
+              suffix={runRow.suffix}
+              titleHint={runRow.titleHint}
+              open={tcOpen}
+              onToggle={latest !== null ? () => setTcOpen((value) => !value) : undefined}
+            >
               {latest !== null && (
-                <ReportRow
-                  title="연결 테스트 결과"
-                  subtitle={tcSubtitle}
-                  pill={tcEvidencePill(stats, run)}
-                  open={tcOpen}
-                  onToggle={() => setTcOpen((value) => !value)}
-                >
+                <>
                   <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[12px] text-[var(--pl-text-weak)]">
                     <span>
                       리소스 <b className="font-semibold text-[var(--pl-text-strong)]">{n(stats.resourceCount)}</b>
@@ -565,55 +494,21 @@ export function ApprovalTab({
                     개수를 클릭하면 읽기 전용 논리 DB 목록이 열립니다. 제외 정책·Credential
                     배정·재실행은 연결 테스트 탭에서 관리합니다.
                   </p>
-                </ReportRow>
+                </>
               )}
-              {tcCompleted && (
-                <ReportRow
-                  title="모니터링 결과"
-                  subtitle={monHead.subtitle}
-                  subtitleHint={monHead.titleHint}
-                  pill={monHead.pill}
-                  open={monOpen}
-                  onToggle={() => setMonOpen((value) => !value)}
-                >
-                  {dag.phase === 'loaded' && agg ? (
-                    <>
-                      <MonitoringEvidenceBody
-                        data={dag.data}
-                        agg={agg}
-                        fetchedAt={dag.fetchedAt}
-                        onShowFailed={() => setBoard({ filter: 'failed' })}
-                        onOpenBoard={() => setBoard({ filter: 'ALL' })}
-                      />
-                      {/* 에이전트가 1개뿐이어도 그린다 — 요약은 리소스가 무엇인지 말하지
-                          않는다 (2026-08-20 정정, AgentDagTable 주석). */}
-                      {dag.data.agents.length > 0 && (
-                        <div className="mt-4">
-                          <AgentDagTable
-                            data={dag.data}
-                            // "DAG 상태 조회"가 약속하는 것은 그 에이전트의 DB 전부다 —
-                            // 실패 선적용은 실패 숫자 진입의 것.
-                            onViewDbs={(agentId) => setBoard({ agentId, filter: 'ALL' })}
-                            confirmed={confirmed.phase === 'loaded' ? confirmed.index : null}
-                            isIdc={isIdc}
-                          />
-                        </div>
-                      )}
-                    </>
-                  ) : dag.phase === 'failed' ? (
-                    <p className="text-[14px] text-[var(--pl-text-weak)]">
-                      모니터링 상태를 불러오지 못했습니다.
-                    </p>
-                  ) : (
-                    <p className="text-[14px] text-[var(--pl-text-weak)]" aria-busy>
-                      모니터링 상태를 확인하고 있어요…
-                    </p>
-                  )}
-                </ReportRow>
-              )}
-            </div>
+            </GateRow>
+            {/* 조건 ③ 의 근거는 표 하나로 끝나지 않아 그 자리에서 펼치지 않는다 — 주간
+                보드·DAG 상세까지 딸린 한 화면이라 Airflow 확인 탭이 통째로 갖는다. */}
+            <GateRow
+              state={healthRow.state}
+              text="모니터링 헬스가 HEALTHY 상태입니다"
+              suffix={healthRow.suffix}
+              titleHint={healthRow.titleHint}
+              meta={healthRow.meta}
+              onNavigate={onOpenAirflowTab}
+            />
           </div>
-        )}
+        </div>
 
         {isRejected && (
           <div className="mt-4 rounded-lg bg-[var(--pl-gray-50)] px-3.5 py-3">
@@ -631,33 +526,6 @@ export function ApprovalTab({
           </div>
         )}
       </section>
-
-      {/* 패널 + 그 위의 DAG 상세 = 2단 레이어. ModalShell 의 Esc 는 document 에
-          붙으므로, 모달이 떠 있는 동안 패널의 Esc 를 꺼야 한 번에 둘 다 닫히지
-          않는다. */}
-      {tcCompleted && dag.phase === 'loaded' && (
-        <>
-          <ModalShell
-            open={board !== null}
-            onClose={closeBoard}
-            variant="panel"
-            labelledBy="db-board-title"
-            closeOnEsc={dagRow === null}
-          >
-            {board !== null && (
-              <DbWeeklyBoard
-                data={dag.data}
-                initialFilter={board.filter}
-                initialAgentId={board.agentId ?? null}
-                onClose={closeBoard}
-                onOpenDag={setDagRow}
-              />
-            )}
-          </ModalShell>
-
-          <DagDetailModal row={dagRow} timezone={dag.data.timezone} onClose={() => setDagRow(null)} />
-        </>
-      )}
 
       <TcRerunModal
         key={rerunOpen ? 'rerun-open' : 'rerun-closed'}

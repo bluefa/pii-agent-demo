@@ -32,6 +32,8 @@ vi.mock('@/app/lib/api/ops', () => ({
   getCollaborationChannel: vi.fn(async () => null),
   getTargetJiraTicket: vi.fn(async () => null),
   updateTargetSourceDoesSupportRaw: vi.fn(async () => undefined),
+  // 이 파일의 픽스처에는 §10 응답이 없다 — 뷰의 .catch 가 받아 헬스만 '확인 실패'로 선다.
+  getDagStatus: vi.fn(() => Promise.reject(new Error('no dag-status fixture'))),
 }));
 vi.mock('@/app/lib/api/task-queue-tc', () => ({
   getTestConnectionDetail: vi.fn(async () => null),

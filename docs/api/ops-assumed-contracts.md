@@ -351,9 +351,14 @@ wire, or absent). The two surfaces fold them differently, and on purpose:
 ## 10. DAG weekly health status (관리자 승인 gate)
 
 DRAFT CONTRACT — transcribed verbatim from the owner's sketch (2026-08-19), not yet in
-any swagger yaml. The 관리자 승인 tab reads it to decide whether PII Agent 설치 완료 may
-be offered: the approve CTA mounts only on `healthStatus === 'HEALTHY'` (allowlist —
-loading, fetch failure, and unknown enum values all lock).
+any swagger yaml. The 관리자 승인 tab reads it as one of THREE approval conditions gating
+PII Agent 설치 완료 — ① the service acknowledged Test Connection, ② the latest Test
+Connection run is `SUCCESS`, ③ `healthStatus === 'HEALTHY'`. All three are allowlists:
+loading, fetch failure, and unknown enum values lock rather than pass.
+
+The same response also feeds the **Airflow 확인** tab (`?tab=airflow`), which owns the
+weekly board, the agent table, and the DAG detail modal. The page fetches it once and
+hands it to both tabs, so switching between them does not re-request §10.
 
 ```
 GET /install/v1/target-sources/{targetSourceId}/dag-status
