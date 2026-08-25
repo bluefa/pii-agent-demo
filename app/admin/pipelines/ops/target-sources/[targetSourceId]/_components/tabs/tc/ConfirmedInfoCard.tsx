@@ -38,6 +38,7 @@ import { isRdsCluster } from '@/lib/rds-instances';
 import type { TcResultRow } from '@/app/lib/api/task-queue-tc';
 import { getDatabaseShortLabel } from '@/app/components/ui/DatabaseIcon';
 import { IdentifierTip, Tooltip } from '@/app/components/ui/Tooltip';
+import { InfoCircleIcon } from '@/app/components/ui/icons';
 import { Ec2InstanceTag, RdsClusterTag } from '@/app/components/ui/RdsInstanceChips';
 import { ResourceIdCell } from '@/app/target-sources/[targetSourceId]/_components/shared/ResourceIdCell';
 import { IdcEndpointCell } from '@/app/admin/pipelines/queue/requests/_components/idcCells';
@@ -119,6 +120,35 @@ const CLIP_CELL = cn(CELL, idcStyles.table.consoleCell);
 const COL_W = { name: 240, type: 190, typeIdc: 140, conn: 180, pod: 140, ldb: 110, cred: 264 } as const;
 const FLEX_KEYS = ['name'] as const;
 
+/**
+ * Credential 머리글 — 사용자 화면 Step 5 의 것 그대로. 열 이름만으로는 이 값이 무엇을
+ * 고르는 것인지 안 읽히므로 (i) 로 한 번 설명한다.
+ *
+ * ⛔ 엔진을 열거하지 않는다: 목록(lib/types.ts NO_CREDENTIAL_ENGINES)은 엔진이 늘 때마다
+ * 바뀌고 여기 적은 예시는 같이 안 바뀐다. 표가 이미 찍은 값(`불필요`)을 가리키는 편이
+ * 언제나 참이다.
+ */
+const CREDENTIAL_HEAD = (
+  <span className="inline-flex items-center gap-1">
+    Credential
+    <Tooltip
+      variant="value"
+      size="lg"
+      content={
+        <span className={idcStyles.table.headerTipBody}>
+          해당 DB에 접속할 때 사용할 계정 정보예요. Credentials 메뉴에서 등록한 것 중에서 고르고,
+          불필요로 표시된 대상은 이 단계에서 지정하지 않아요.
+        </span>
+      }
+    >
+      <InfoCircleIcon
+        className="h-3.5 w-3.5 text-[var(--pl-text-faint)]"
+        aria-label="Credential 설명"
+      />
+    </Tooltip>
+  </span>
+);
+
 /** IDC 는 이름 대신 접속 주소를 싣고 리전이 없다 — 열은 지우는 게 아니라 라벨이 바뀐다. */
 const confirmedColumns = (isIdc: boolean): ConsoleTableColumn[] => [
   { key: 'name', label: isIdc ? '접속 주소' : 'Resource Name', width: COL_W.name, flex: true },
@@ -130,7 +160,7 @@ const confirmedColumns = (isIdc: boolean): ConsoleTableColumn[] => [
   { key: 'conn', label: '연결 상태', width: COL_W.conn },
   { key: 'pod', label: 'Pod 로그', width: COL_W.pod },
   { key: 'ldb', label: '연동 논리 DB', width: COL_W.ldb },
-  { key: 'cred', label: 'Credential', width: COL_W.cred },
+  { key: 'cred', label: 'Credential', width: COL_W.cred, head: CREDENTIAL_HEAD },
 ];
 
 /** 네 값 중 하나만 한국어였다(Success / Failed / 진행 중 / Unknown): 같은 칸이 같은
@@ -356,10 +386,13 @@ function ResourceNameCell({
       content={<IdentifierTip label="Resource Name" value={value} />}
       variant="value"
       size="md"
-      triggerClassName="min-w-0 max-w-[200px] block"
+      // 폭 캡도 말줄임도 없다 — 자르는 것은 열(TD 가 clipper)이고, 열은 드래그로 넓어진다.
+      // `…` 는 "여기서 줄였다"고 말하는데, 이 표에서 참인 것은 "다음 열 밑으로 이어진다"다
+      // (오너 2026-08-25). `ResourceIdCell` 의 hardClip 과 같은 처방.
+      triggerClassName="min-w-0 block w-full"
       truncatedOnly
     >
-      <span className="block truncate font-mono text-[14px]">{value}</span>
+      <span className="block whitespace-nowrap font-mono text-[14px]">{value}</span>
     </Tooltip>
   ) : (
     <Dash />
@@ -713,7 +746,10 @@ export function ConfirmedInfoCard({
                               <ResourceIdCell
                                 value={unit.unitId}
                                 label="Resource ID"
-                                maxWidthClass="max-w-[240px]"
+                                // 폭 캡도 말줄임도 없다 — 자르는 것은 열이고, 열은 드래그로
+                                // 넓어진다. 픽셀 캡이 남아 있으면 넓혀도 더 안 보이는 벽이 된다.
+                                maxWidthClass="max-w-none"
+                                hardClip
                               />
                             )}
                           </span>
@@ -746,40 +782,42 @@ export function ConfirmedInfoCard({
                       </td>
                       <td className={CLIP_CELL}>
                         {/* Credential is addressed by resource id — no id, no assignment.
-                            접힌 행은 리전이라 배정할 리소스가 하나로 정해지지 않고, 애초에
-                            Athena 는 IAM 으로 붙어 Credential 이 필요 없다(Step 5 와 같은 말). */}
-                        {/* 판정은 엔진이 한다 — Athena·DynamoDB·CosmosDB·BigQuery 는 IAM 으로
+                            판정은 엔진이 한다 — Athena·DynamoDB·CosmosDB·BigQuery 는 IAM 으로
                             붙어 배정할 것이 없다. 접힘 여부로 가르던 때는 Athena 하나만
-                            맞고 나머지 셋이 `연결 안 함` 으로 표시됐다(logic.ts 주석). */}
+                            맞고 나머지 셋이 배정 없는 값으로 표시됐다(logic.ts 주석). */}
                         {!unitNeedsCredential(unit) ? (
                           <span className="whitespace-nowrap text-[12px] text-[var(--pl-text-weak)]">
                             불필요
                           </span>
                         ) : row.resource_id ? (
-                          // 폭은 열이 진다 — `COL_W.cred` 가 264 이고 그 열은 flex 라 넓은
-                          // 화면에서 더 열린다. 칸이 자기 폭을 다시 못 박으면 그 확장이 죽는다.
+                          // 폭은 열이 진다 — 칸이 자기 폭을 다시 못 박으면 열을 넓혀도 안 커진다.
                           <div className="min-w-0">
+                            {/* 값이 곧 트리거이고, 밑줄이 affordance 를 진다 — 사용자 화면
+                                Step 5 의 Credential 칸과 같은 문법이다(`linkNeutral`). hover 에서만
+                                드러나던 `수정` 힌트는 뺐다: 상시 밑줄이 이미 같은 말을 하고,
+                                파란 힌트는 행마다 반복되면 표에서 가장 시끄러운 것이 된다.
+                                말줄임도 없다 — 열이 자르고, 열은 드래그로 넓어진다. */}
                             <button
                               type="button"
                               aria-haspopup="dialog"
-                              aria-label={`${rowLabel(row)} Credential 수정 — 현재 ${row.credential_id || '연결 안 함'}`}
+                              aria-label={`${rowLabel(row)} Credential 수정 — 현재 ${row.credential_id || '미설정'}`}
                               disabled={savingId === row.resource_id}
                               onClick={() => setCredRow(row)}
-                              className={opsStyles.cellAction}
+                              title={row.credential_id || undefined}
+                              className={cn(
+                                idcStyles.triggerBtn.linkNeutral,
+                                'max-w-full disabled:cursor-not-allowed disabled:opacity-50',
+                              )}
                             >
-                              <span
-                                className={
-                                  row.credential_id
-                                    ? opsStyles.cellActionValue
-                                    : opsStyles.cellActionEmpty
-                                }
-                              >
-                                {row.credential_id || '연결 안 함'}
-                              </span>
-                              {/* aria-hidden — the button's own label already says it edits. */}
-                              <span aria-hidden className={opsStyles.cellActionHint}>
-                                수정
-                              </span>
+                              {row.credential_id ? (
+                                <span className="min-w-0 whitespace-nowrap font-mono">
+                                  {row.credential_id}
+                                </span>
+                              ) : (
+                                // 어휘는 밴드의 경고 줄과 같아야 한다 — 그 줄이 세는 것이
+                                // 바로 이 값이다("Credential 미설정 N건").
+                                <span className="font-sans">미설정</span>
+                              )}
                             </button>
                             {/* An assignment the list no longer carries is stated, not
                                 quietly folded in as one more selectable option. */}
@@ -806,7 +844,7 @@ export function ConfirmedInfoCard({
                           <td className={cn(CLIP_CELL, 'pl-[58px]')}>
                             <span className="flex min-w-0 flex-col items-start gap-1">
                               {db.resource_name ? (
-                                <span className="block truncate font-mono text-[14px]">
+                                <span className="block whitespace-nowrap font-mono text-[14px]">
                                   {db.resource_name}
                                 </span>
                               ) : (
@@ -815,7 +853,8 @@ export function ConfirmedInfoCard({
                               <ResourceIdCell
                                 value={db.resource_id}
                                 label="Resource ID"
-                                maxWidthClass="max-w-[240px]"
+                                maxWidthClass="max-w-none"
+                                hardClip
                               />
                             </span>
                           </td>
