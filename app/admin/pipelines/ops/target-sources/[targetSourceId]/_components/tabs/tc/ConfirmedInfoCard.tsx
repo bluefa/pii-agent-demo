@@ -198,9 +198,13 @@ function verdictPill(verdict: TcVerdict): ReactElement {
  * 점유했다(사유는 실패한 행에만 있다). 사유는 판정과 나란한 사실이 아니라 판정에
  * 딸린 부연이므로, 열을 하나 더 쓰는 대신 판정 밑 한 단으로 내려온다.
  *
- * 한국어 라벨 + 원문 enum 2단은 그대로다 — admin 에서 원문은 검색·전달용 디버깅
- * 어휘라 hover 에 숨기지 않는다. 12종 허용목록 밖의 값은 원문만 중립으로.
- * 사유에 적색을 다시 칠하지 않는 것도 그대로: 판정은 바로 위 알약이 이미 말했다.
+ * **지면에는 원문 enum 만 선다** (오너 2026-08-25). 한국어 라벨을 그 위에 한 단 더 얹으면
+ * 실패한 행마다 3단이 되어, 판정보다 사유가 더 커 보였다. 원문은 운영자가 grep 하고
+ * 티켓에 붙이는 바로 그 문자열이므로 남기고, 뜻을 만드는 한국어 문장은 hover 로 미룬다
+ * (필요할 때만 그린다). 12종 허용목록 밖의 값은 설명이 없으므로 tip 도 달지 않는다 —
+ * 열리지 않는 트리거는 밑줄로 거짓말을 하게 된다.
+ *
+ * 사유에 적색을 다시 칠하지 않는 것은 그대로: 판정은 바로 위 알약이 이미 말했다.
  */
 function VerdictCell({
   verdict,
@@ -226,12 +230,30 @@ function VerdictCell({
       {verdictPill(verdict)}
       {view
         && (view.label ? (
-          <span className="flex flex-col" title={view.desc ?? undefined}>
-            <span className="whitespace-nowrap text-[14px] text-[var(--pl-text-medium)]">
-              {view.label}
+          // 흰 면 + 그림자 + 윤곽선(`variant="value"`) — 표의 흰 바닥 위에서 상자가
+          // 스스로 떠 있어야 하므로 세 가지가 다 필요하다.
+          <Tooltip
+            variant="value"
+            size="lg"
+            content={
+              <>
+                <span className={idcStyles.table.headerTipTitle}>{view.label}</span>
+                {view.desc && (
+                  <span className={cn(idcStyles.table.headerTipBody, 'mt-1.5')}>{view.desc}</span>
+                )}
+              </>
+            }
+            triggerClassName="min-w-0"
+          >
+            <span
+              className={cn(
+                pipelineStyles.text.mono,
+                'cursor-help whitespace-nowrap text-[12px] text-[var(--pl-text-weak)] underline decoration-dotted underline-offset-2',
+              )}
+            >
+              {view.raw}
             </span>
-            {raw}
-          </span>
+          </Tooltip>
         ) : (
           raw
         ))}
@@ -799,13 +821,6 @@ export function ConfirmedInfoCard({
               setPage(0);
             }}
           />
-          <p className={cn(pipelineStyles.text.meta, 'mt-3.5')}>
-            연결 상태(실패 사유 포함)·Pod 로그는 최근 연결 테스트가 리소스별로 보고한 사실이고,
-            논리 DB 건수는 그중 성공한 리소스에만 표기합니다. 보고가 없는 리소스는 —(값 없음)으로
-            두며, 임의로 성공 처리하지 않습니다. Pod 로그는 실행 완료 시점의 캡처본이고, 테스트 Pod
-            생성 실패(POD_CREATION_FAILED)는 pod 가 뜨지 못해 로그가 없습니다. 논리 DB 건수를
-            누르면 대상·제외 정책을 관리할 수 있습니다.
-          </p>
         </>
       )}
 

@@ -2,6 +2,7 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import type { ConfirmedIntegrationResourceItem } from '@/app/lib/api';
+import type { TcResourceFact } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/logic';
 
 /**
  * 정체와 속성은 각자 제 열이다 — 그리고 그 열 수는 **행이 채우는 칸 수**와 같아야 한다.
@@ -41,7 +42,7 @@ const { ConfirmedInfoCard } = await import(
   '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/ConfirmedInfoCard'
 );
 
-const renderTable = (isIdc = false) =>
+const renderTable = (isIdc = false, facts: Map<string, TcResourceFact> = new Map()) =>
   render(
     <ConfirmedInfoCard
       targetSourceId={1}
@@ -49,7 +50,7 @@ const renderTable = (isIdc = false) =>
       rows={rows}
       secrets={[]}
       tcResults={[]}
-      facts={new Map()}
+      facts={facts}
       credMissingOnly={false}
       loading={false}
       failed={false}
@@ -105,5 +106,27 @@ describe('확정 정보 표 — 열 구성', () => {
     renderTable();
     expect(screen.queryByRole('textbox')).toBeNull();
     expect(screen.queryByLabelText('Database Type 필터')).toBeNull();
+  });
+});
+
+/**
+ * 사유 칸은 원문 enum 만 지면에 세우고 한국어는 hover 로 미룬다 (오너 2026-08-25).
+ * 라벨을 다시 한 단 얹으면 실패한 행마다 3단이 되어 판정보다 사유가 커 보인다.
+ */
+describe('확정 정보 표 — 실패 사유', () => {
+  const failing = (reason: string): Map<string, TcResourceFact> =>
+    new Map([[rows[0].resource_id, { verdict: 'FAIL', podId: null, failReason: reason }]]);
+
+  it('지면에는 원문만 — 한국어 설명은 hover 가 든다', () => {
+    renderTable(false, failing('POD_CREATION_FAILED'));
+    expect(screen.getByText('POD_CREATION_FAILED')).toBeTruthy();
+    // 라벨은 tip 안에만 있다. 셀이 다시 들면 여기서 두 번 잡힌다.
+    expect(screen.queryByText('테스트 Pod 생성 실패')).toBeNull();
+  });
+
+  it('허용목록 밖의 사유는 설명이 없으므로 tip 트리거도 아니다', () => {
+    renderTable(false, failing('SOMETHING_ELSE'));
+    const raw = screen.getByText('SOMETHING_ELSE');
+    expect(raw.className).not.toContain('decoration-dotted');
   });
 });

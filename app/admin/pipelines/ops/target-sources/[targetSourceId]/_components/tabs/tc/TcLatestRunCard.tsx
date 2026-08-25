@@ -19,7 +19,10 @@
  *   곁줄             실패 사유 · Credential 미설정 (다음 실행을 막는 것)
  *   트랙             진행 중에만
  *   카운트 · 슬롯     판정 분포 · 이 국면에서 할 수 있는 한 가지
- *   승인 요청 줄      서비스가 그 판정으로 무엇을 했는가
+ *
+ * 승인 요청 줄은 없앴다 (오너 2026-08-25). 서비스가 그 판정으로 무엇을 했는지는 밴드의
+ * `승인·반려 이력` 링크가 여는 모달이 든다 — 카드에 상시로 서는 줄은 대개 "아직 요청 안 함"
+ * 하나를 반복하고 있었다.
  *
  * 예전 이 카드는 헤더 우상단에 실행 버튼을 상시로 두고 그 아래에 진행/집계를 따로 그렸다.
  * 상태와 행동이 서로 다른 자리에 흩어져 있어 "지금 눌러도 되는 버튼인가"를 화면이 답하지
@@ -49,14 +52,11 @@ import {
   StatusWarningIcon,
 } from '@/app/components/ui/icons';
 import type { TestConnectionVersionResult } from '@/app/lib/api';
-import type { TestConnectionStatusRow } from '@/lib/types/task-queue';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
 import { Icon } from '@/app/admin/pipelines/_components/icons';
 import { opsStyles } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/opsStyles';
-import { TcPill } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/bits';
 import { failReasonView } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/failReason';
 import {
-  ackIsStale,
   bandSentence,
   runBandPhase,
   runFailReason,
@@ -70,9 +70,6 @@ import {
 const META_LINK =
   'cursor-pointer border-b border-current pb-px text-[12px] font-medium text-[var(--pl-text-weak)] transition-colors hover:text-[var(--pl-text-strong)]';
 
-const COMPLETED = 'TEST_CONNECTION_COMPLETED';
-const REJECTED = 'TEST_CONNECTION_REJECTED';
-
 /** queued 는 running 과 같은 면·잉크를 쓴다 — 경고가 아니라 정상 단계라, 둘은 글리프와 문장이 가른다. */
 const surfaceOf = (phase: TcBandPhase): Exclude<TcBandPhase, 'queued'> =>
   phase === 'queued' ? 'running' : phase;
@@ -80,8 +77,6 @@ const surfaceOf = (phase: TcBandPhase): Exclude<TcBandPhase, 'queued'> =>
 export interface TcLatestRunCardProps {
   /** 최신 실행 — 404(연결 테스트 이력 없음)면 null. */
   latest: TestConnectionVersionResult | null;
-  /** Service acknowledgment row — null when the service has not requested approval. */
-  status: TestConnectionStatusRow | null;
   /** 확정 단위 기준 판정 분포 (Step 5 와 같은 접기·버킷 규칙). */
   buckets: TcBuckets;
   /**
@@ -97,19 +92,10 @@ export interface TcLatestRunCardProps {
   loading: boolean;
   /** latest_version fetch failed (404 는 실패가 아니다). */
   failed: boolean;
-  /**
-   * 승인 요청 상태(status) 조회가 실패했다. 미요청과 같은 픽셀이면 안 된다 —
-   * 침묵은 "아직 안 눌렀다"로 읽히는데 그건 우리가 확인하지 못한 사실이다.
-   */
-  statusFailed: boolean;
-  /** Page-level TC fetch has settled at least once. */
-  statusLoaded: boolean;
   running: boolean;
   triggering: boolean;
   triggerFailed: boolean;
   onRunTest: () => void;
-  /** status·latest 재조회 — 승인 요청 줄의 조회 실패에서 유일한 출구. */
-  onReloadStatus: () => void;
   /** 실행 기록 modal — 회차 목록. */
   onOpenRunHistory: () => void;
   /** 승인·반려 이력 modal — 서비스 측 승인 요청·재실행 요청 trail. */
@@ -195,20 +181,16 @@ function BandSkeleton(): ReactElement {
 
 export function TcLatestRunCard({
   latest,
-  status,
   buckets,
   credentialMissing,
   credFilterOn,
   onToggleCredFilter,
   loading,
   failed,
-  statusFailed,
-  statusLoaded,
   running,
   triggering,
   triggerFailed,
   onRunTest,
-  onReloadStatus,
   onOpenRunHistory,
   onOpenDecisionHistory,
   onOpenCredentials,
@@ -448,81 +430,7 @@ export function TcLatestRunCard({
         </div>
       )}
 
-      <AckRow
-        status={status}
-        latest={latest}
-        loaded={statusLoaded}
-        failedFetch={statusFailed}
-        onReload={onReloadStatus}
-      />
-
       {children}
     </section>
-  );
-}
-
-/**
- * 서비스 승인 요청 줄 — 서비스 화면 5단계의 `승인 요청` 버튼이 눌렸는가.
- *
- * ⚠️ 이 줄은 **항상** 선다. 예전에는 완료/반려일 때만 그려서, 아무것도 없는 화면이
- * "아직 안 눌렀다"인지 "조회가 실패했다"인지 구분되지 않았다 — 침묵은 사실이 아니다.
- *
- * 어휘는 서비스 쪽 버튼 이름을 그대로 인용한다(`승인 요청`, Step 5 카드의 슬롯 CTA).
- * 관리자가 서비스에 안내할 때 화면에 없는 이름을 부르면 서로 다른 버튼을 찾게 된다.
- *
- * 실행의 판정이 아니라 **서비스가 그 판정으로 무엇을 했는가**라, 밴드 안이 아니라 그 밑에
- * 자기 등급으로 선다 — 틴트도 상자도 없이 헤어라인 하나로 갈린다.
- */
-function AckRow({
-  status,
-  latest,
-  loaded,
-  failedFetch,
-  onReload,
-}: {
-  status: TestConnectionStatusRow | null;
-  latest: TestConnectionVersionResult | null;
-  loaded: boolean;
-  failedFetch: boolean;
-  onReload: () => void;
-}): ReactElement {
-  const b = opsStyles.tcBand;
-  const isCompleted = status?.status === COMPLETED;
-  const isRejected = status?.status === REJECTED;
-  const stampedAt = isCompleted ? status?.completedAt : isRejected ? status?.rejectedAt : null;
-  // 승인 요청은 TargetSource 단위 한 건이라 새 실행이 시작돼도 남는다 — 지난 회차의
-  // 도장을 이번 실행의 것처럼 그리지 않도록, 실행보다 오래됐으면 그렇게 말한다.
-  const stale = ackIsStale(stampedAt, latest?.requested_at);
-  const settledRow = loaded && !failedFetch;
-
-  return (
-    <div className={b.ack}>
-      <span className={b.ackKey}>승인 요청</span>
-      {!loaded ? (
-        <TcPill tone="off" label="확인 중" />
-      ) : failedFetch ? (
-        <>
-          <TcPill tone="off" label="조회 실패" />
-          <button type="button" onClick={onReload} className={META_LINK}>
-            다시 시도
-          </button>
-        </>
-      ) : isCompleted ? (
-        <TcPill tone="ok" label="요청됨" />
-      ) : isRejected ? (
-        <TcPill tone="warn" label="재실행 요청됨" />
-      ) : (
-        <TcPill tone="off" label="아직 요청 안 함" />
-      )}
-      {settledRow && stampedAt && (
-        <span className={b.ackTime}>
-          {fmtDateTimeSec(stampedAt)}
-          {stale && ' · 이전 실행 기준'}
-        </span>
-      )}
-      {settledRow && isRejected && status?.rejectReason && (
-        <p className={b.ackReason}>{status.rejectReason}</p>
-      )}
-    </div>
   );
 }

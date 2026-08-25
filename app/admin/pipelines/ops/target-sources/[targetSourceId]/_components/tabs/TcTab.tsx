@@ -63,8 +63,6 @@ export interface TcTabProps {
   targetSourceId: number;
   /** Picks 확정 정보's identity columns — an IDC row has an address, not a name/region. */
   isIdc: boolean;
-  /** Service acknowledgment row — fetched by the page (관리자 승인 탭이 여기에 게이트). */
-  status: TestConnectionStatusRow | null;
   /** 최신 실행 (latest_version) — 실행 이력이 없으면 null. Fetched by the page. */
   latest: TestConnectionVersionResult | null;
   /** 리소스별 논리 DB 건수 (latest-results) — fetched by the page. */
@@ -73,8 +71,6 @@ export interface TcTabProps {
   statusLoaded: boolean;
   /** latest_version 조회가 404 가 아닌 이유로 실패했다. */
   latestFailed: boolean;
-  /** 승인 요청 상태(status) 조회가 실패했다 — 미요청과 다른 사실이다. */
-  statusFailed: boolean;
   /** Reload the page-level TC fetch (status + latest + results). */
   onStatusReload: () => void;
 }
@@ -82,12 +78,10 @@ export interface TcTabProps {
 export function TcTab({
   targetSourceId,
   isIdc,
-  status,
   latest,
   results,
   statusLoaded,
   latestFailed,
-  statusFailed,
   onStatusReload,
 }: TcTabProps): ReactElement {
   const toast = usePlToast();
@@ -223,20 +217,16 @@ export function TcTab({
           (사용자 화면 Step 5 와 같은 배치). */}
       <TcLatestRunCard
         latest={latest}
-        status={status}
         buckets={buckets}
         credentialMissing={credentialMissing}
         credFilterOn={credMissingOnly}
         onToggleCredFilter={() => setCredMissingOnly((on) => !on)}
         loading={!statusLoaded}
         failed={latestFailed}
-        statusFailed={statusFailed}
-        statusLoaded={statusLoaded}
         running={running}
         triggering={triggering}
         triggerFailed={triggerFailed}
         onRunTest={() => void runTest()}
-        onReloadStatus={onStatusReload}
         onOpenRunHistory={() => setRunHistoryOpen(true)}
         onOpenDecisionHistory={() => setHistoryOpen(true)}
         onOpenCredentials={() => setCredentialsOpen(true)}

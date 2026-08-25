@@ -54,20 +54,16 @@ const renderCard = (over: Partial<Parameters<typeof TcLatestRunCard>[0]> = {}) =
   const latest = over.latest === undefined ? version([['r-1', 'SUCCESS']]) : over.latest;
   const props = {
     latest,
-    status: null,
     buckets: bucketsOf(['r-1'], latest),
     credentialMissing: 0,
     credFilterOn: false,
     onToggleCredFilter: vi.fn(),
     loading: false,
     failed: false,
-    statusFailed: false,
-    statusLoaded: true,
     running: false,
     triggering: false,
     triggerFailed: false,
     onRunTest: vi.fn(),
-    onReloadStatus: vi.fn(),
     onOpenRunHistory: vi.fn(),
     onOpenDecisionHistory: vi.fn(),
     onOpenCredentials: vi.fn(),
@@ -76,40 +72,6 @@ const renderCard = (over: Partial<Parameters<typeof TcLatestRunCard>[0]> = {}) =
   };
   return { ...render(<TcLatestRunCard {...props} />), props };
 };
-
-describe('TcLatestRunCard — 승인 요청 줄', () => {
-  it('아직 누르지 않았어도 줄이 선다 — 침묵은 "안 눌렀다"라는 사실이 아니다', () => {
-    renderCard({ status: null });
-    expect(screen.getByText('승인 요청')).toBeTruthy();
-    expect(screen.getByText('아직 요청 안 함')).toBeTruthy();
-  });
-
-  it('조회 실패는 미요청과 다른 픽셀이고, 그 줄에 출구가 있다', () => {
-    const { props } = renderCard({ status: null, statusFailed: true });
-    expect(screen.queryByText('아직 요청 안 함')).toBeNull();
-    expect(screen.getByText('조회 실패')).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: '다시 시도' }));
-    expect(props.onReloadStatus).toHaveBeenCalled();
-  });
-
-  it('눌렀으면 서비스 쪽 버튼 이름 그대로 "요청됨"이다', () => {
-    renderCard({ status: ack() });
-    expect(screen.getByText('요청됨')).toBeTruthy();
-  });
-
-  it('직전 회차의 도장을 이번 실행의 것처럼 그리지 않는다', () => {
-    renderCard({
-      status: ack({ completedAt: '2026-08-20T05:00:00Z' }),
-      latest: version([['r-1', 'SUCCESS']], { requested_at: '2026-08-25T02:00:00Z' }),
-    });
-    expect(screen.getByText(/이전 실행 기준/)).toBeTruthy();
-  });
-
-  it('이번 실행 뒤에 찍힌 도장에는 그 꼬리표가 없다', () => {
-    renderCard({ status: ack({ completedAt: '2026-08-25T02:05:00Z' }) });
-    expect(screen.queryByText(/이전 실행 기준/)).toBeNull();
-  });
-});
 
 describe('TcLatestRunCard — Credential 미설정 곁줄', () => {
   it('0 건이면 줄 자체가 없다 — 할 일이 없다는 말이 자리를 차지하지 않는다', () => {

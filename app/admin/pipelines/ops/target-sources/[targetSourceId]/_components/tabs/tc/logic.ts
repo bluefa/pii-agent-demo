@@ -482,22 +482,3 @@ export function credentialMissingCount(units: readonly ConfirmedUnit[]): number 
   return units.filter(unitCredentialMissing).length;
 }
 
-/**
- * 서비스의 승인 요청 도장이 **지금 실행보다 오래됐는가**.
- *
- * 승인 요청은 TargetSource 단위 한 건이라 새 실행이 시작돼도 지워지지 않는다. 그대로
- * 그리면 방금 시작한 실행 옆에 지난 회차의 `요청됨 08-20 14:03` 이 붙어, 이번 실행이
- * 이미 승인 요청된 것처럼 읽힌다. 두 시각을 대 보면 그 사실을 말할 수 있다.
- *
- * 시각이 없거나 파싱되지 않으면 false — 모르는 것을 "오래됐다"고 단정하지 않는다.
- */
-export function ackIsStale(
-  acknowledgedAt: string | null | undefined,
-  runRequestedAt: string | null | undefined,
-): boolean {
-  if (!acknowledgedAt || !runRequestedAt) return false;
-  const ack = Date.parse(acknowledgedAt);
-  const run = Date.parse(runRequestedAt);
-  if (!Number.isFinite(ack) || !Number.isFinite(run)) return false;
-  return ack < run;
-}
