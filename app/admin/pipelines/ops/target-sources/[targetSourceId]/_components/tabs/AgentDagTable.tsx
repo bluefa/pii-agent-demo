@@ -8,15 +8,18 @@
  * (`ConfirmedInfoCard` 와 같은 문법). 예전에는 admin 로컬 `opsStyles.table` 로 그려서
  * 열 드래그·시임 트레이서·덮어 자르는 셀 문법이 전부 빠져 있었다.
  *
- * 행 = dag-status 응답의 agent 하나. §10 이 리소스에 대해 보증하는 것은 resourceId 와
- * gcpRegion 뿐이라, 리전(비-GCP)·DatabaseType 은 확정 정보와 resourceId 로 조인해서
- * 채운다(agentFacts). 조인이 빗나가면 그 칸만 대시로 서고 표는 그대로다.
+ * 행 = dag-status 응답의 agent 하나. 열은 Resource Name · Resource ID · Database Type ·
+ * Region · Monitoring 상태 (오너 2026-08-25) — Step 1 리소스 표와 같은 순서·같은 열 이름.
+ *
+ * §10 이 리소스에 대해 보증하는 것은 `resourceId` 와 `gcpRegion` 뿐이라, 나머지 세 칸
+ * (이름·엔진·비-GCP 리전)은 확정 정보와 resourceId 로 조인해서 채운다(agentFacts).
+ * 조인이 빗나가면 그 칸만 대시로 서고 표는 그대로다 — 없는 값을 id 에서 지어내지 않는다.
  *
  * 값의 문법은 확정 정보 표(WaitingApprovalTable)를 따른다 — Region 도 DB 도 맨 텍스트고,
  * 엔진 이름은 같은 `getDatabaseShortLabel` 로 쓴다. 한 화면 안에서 같은 사실이 자리마다
  * 다른 옷을 입으면 다른 사실처럼 읽힌다 (오너 08-20).
  *
- * 연결 상태 열은 최근 7일 DAG 열에 접혔고 (오너 08-20), 그 자리에는 이제 **종합
+ * 연결 상태 열은 Monitoring 상태 열에 접혔고 (오너 08-20), 그 자리에는 **종합
  * 상태 알약이 모든 행에** 선다 (오너 08-21, agentVerdict): 비정상만 표시하던 예외
  * 방식은 연결 성공 + 2/4 성공인 행을 아무것도 경고하지 않았다. 연결이 우선하고,
  * 연결이 정상이면 주간 관측으로 정상/이상을 판정한다. TC 탭의 판정과 출처가 다른
@@ -40,14 +43,12 @@ import { useColumnResize } from '@/app/components/ui/useColumnResize';
 import type { DagStatusResponse } from '@/lib/types/dag-status';
 import { SegControl, type SegOption } from '@/app/admin/pipelines/_components/SegControl';
 import { OpsPagination } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/OpsPagination';
-import { opsStyles } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/opsStyles';
 import {
   Dash,
+  ResourceId,
   TcPill,
-  shortResourceId,
 } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/bits';
 import {
-  agentDisplayName,
   agentVerdict,
   summarizeAgents,
   type DagAgentSummary,
@@ -59,8 +60,8 @@ import {
 
 const PAGE_SIZE = 10;
 
-/** 행 높이 실측(2줄 정체성 · `approvalCell`) × PAGE_SIZE — floor 명시용. */
-const ROW_H = 62;
+/** 행 높이 실측(한 줄 · `approvalCell`) × PAGE_SIZE — floor 명시용. */
+const ROW_H = 53;
 
 /** 툴바 띠와 프레임 — 값은 `ConfirmedInfoCard` 의 것과 같다(한 화면의 표 둘이 같은 실루엣). */
 const TOOLBAR =
@@ -72,28 +73,35 @@ const CELL = cn(idcStyles.table.approvalCell, 'align-middle text-[14px] text-[va
 const CLIP_CELL = cn(CELL, idcStyles.table.consoleCell);
 
 /**
- * 열 폭. flex 는 정체 열 하나뿐이다 — 셸의 싱크(남는 폭을 흡수하는 열)는 마지막 flex 열이
- * 지므로, 행마다 임의로 길어지는 값(경로형 resourceId)이 그 역할을 가져가야 한다.
+ * 열 폭. flex 는 Resource ID 하나뿐이다 — 셸의 싱크(남는 폭을 흡수하는 열)는 마지막 flex
+ * 열이 지므로, 행마다 임의로 길어지는 값(경로형 id, 120자 넘는 Azure ARM id)이 그 역할을
+ * 가져가야 한다. 이름·타입·리전은 길이가 예측되는 값이라 폭을 고정한다.
  */
-const COL_W = { name: 300, region: 200, address: 240, dbType: 150, weekly: 210, action: 140 } as const;
-const FLEX_KEYS = ['name'] as const;
+const COL_W = { name: 250, id: 300, dbType: 150, region: 170, address: 240, status: 230 } as const;
+const FLEX_KEYS = ['id'] as const;
 
-/** IDC 는 리전 대신 접속 주소를 싣고 엔진 열이 하나 더 선다. */
+/**
+ * 열 = 정체(이름 → id) → 속성(엔진 · 리전) → 판정(Monitoring 상태) → 진입.
+ * 사용자 화면 Step 1 (`CandidateResourceTable`)의 순서 그대로이고, 열 이름도 그 표의 것을
+ * 그대로 쓴다 — 같은 리소스가 화면마다 다른 이름의 칸에 담기면 다른 사실처럼 읽힌다.
+ *
+ * ⚠️ 08-21 의 "엔진 열은 IDC 에만"은 만료됐다 (오너 2026-08-25). 그 판단의 전제는 엔진 열이
+ * 분수의 분모(논리 DB 수) 바로 옆에 서서 그 개수 얘기처럼 읽힌다는 것이었는데, 지금은
+ * 속성 블록 안에 있고 분수는 Monitoring 상태 칸 안으로 들어갔다.
+ *
+ * IDC 는 리전이 없다 — 그 자리에 접속 주소가 선다(바닥에 놓인 기계에 리전은 없다).
+ */
 const agentColumns = (isIdc: boolean): ConsoleTableColumn[] => [
-  { key: 'name', label: '리소스', width: COL_W.name, flex: true },
+  { key: 'name', label: 'Resource Name', width: COL_W.name },
+  { key: 'id', label: 'Resource ID', width: COL_W.id, flex: true },
+  { key: 'dbType', label: 'Database Type', width: COL_W.dbType },
   {
     key: 'region',
     label: isIdc ? '접속 주소' : 'Region',
     width: isIdc ? COL_W.address : COL_W.region,
   },
-  // 엔진 열은 IDC 에만 선다 (오너 08-21): 접속 주소는 엔진을 말하지 않지만, 클라우드
-  // 리소스는 이름·리전으로 이미 정체성이 서고 엔진은 검토 표가 말한다.
-  ...(isIdc
-    ? [{ key: 'dbType', label: 'Database Type', width: COL_W.dbType } satisfies ConsoleTableColumn]
-    : []),
-  { key: 'weekly', label: '최근 7일 DAG', width: COL_W.weekly },
-  // 동작 거터 — 데이터 열이 아니라서 머리는 비고(접근성 이름은 label 이 진다) 드래그도 없다.
-  { key: 'action', label: '동작', head: <></>, width: COL_W.action, resizable: false },
+  // 판정과 진입은 한 칸이다 (오너 2026-08-25) — 아래 WeeklyCell 참조.
+  { key: 'status', label: 'Monitoring 상태', width: COL_W.status },
 ];
 
 /**
@@ -116,25 +124,44 @@ const filterBucket = (agent: DagAgentSummary): Exclude<AgentFilter, 'ALL'> => {
 };
 
 /**
- * 최근 7일 요약 셀 — 종합 상태 알약(agentVerdict, 모든 행) + 분수.
+ * Monitoring 상태 셀 — 판정 알약 + 최근 7일 분수, 그리고 **분수가 곧 진입**이다.
+ *
+ * `DAG 상태 조회` 열을 따로 두지 않는다 (오너 2026-08-25, "모니터링 상태와 DAG 상세를
+ * 하나로"): 그 열은 모든 행에 같은 글자를 30번 찍으면서 140px 를 상시 점유했고, 무엇을
+ * 여는지는 결국 옆 칸의 분수(그 에이전트의 논리 DB 52건)가 말하고 있었다. 그래서 여는
+ * 것을 그 수 위에 얹는다 — 밑줄이 affordance 를 지고 색은 판정에 남는 규칙은 이 화면의
+ * 카운트 줄(`실패 14`)이 이미 쓰는 문법이라, 표와 요약이 같은 제스처를 같은 모양으로 쓴다.
+ *
+ * 관측 DB 가 0개면 분수도 진입도 없다 — 알약('DAG 없음')이 이미 부재를 말했고, 빈 보드를
+ * 여는 진입은 막다른 길이다(예전 열이 링크를 숨기던 조건 그대로).
  *
  * 미니 분포 바는 요약의 긴 스택바와 함께 걷혔다 (오너 2026-08-25, "긴 막대 바는 없애자").
- * 남은 것은 수다: 판정은 알약이, 규모와 성공은 분수가 말하고, 실패 몫은 알약의 title 이
- * 나른다 — 64px 짜리 띠가 1,500 분의 96 을 정직하게 그릴 수 있었던 적은 없다.
  */
-function WeeklyCell({ agent }: { agent: DagAgentSummary }): ReactElement {
+function WeeklyCell({
+  agent,
+  onViewDbs,
+}: {
+  agent: DagAgentSummary;
+  onViewDbs: () => void;
+}): ReactElement {
   const verdict = agentVerdict(agent);
   return (
     <span className="inline-flex flex-wrap items-center gap-2">
       <span title={verdict.hint}>
         <TcPill tone={verdict.tone} label={verdict.label} />
       </span>
-      {/* 관측 DB 가 0개면 분수도 없다 — 알약('DAG 없음')이 이미 부재를 말했다. */}
       {agent.dbTotal > 0 && (
-        <span className="whitespace-nowrap font-mono text-[12px] tabular-nums text-[var(--pl-text-strong)]">
-          <b className="font-semibold">{agent.succeeded.toLocaleString('ko-KR')}</b>/
-          {agent.dbTotal.toLocaleString('ko-KR')} 성공
-        </span>
+        <button
+          type="button"
+          onClick={onViewDbs}
+          aria-label={`이 리소스의 논리 DB ${agent.dbTotal.toLocaleString('ko-KR')}건을 최근 7일 현황에서 보기`}
+          className="cursor-pointer whitespace-nowrap font-mono text-[12px] tabular-nums text-[var(--pl-text-strong)]"
+        >
+          <b className="border-b border-current font-semibold">
+            {agent.succeeded.toLocaleString('ko-KR')}/{agent.dbTotal.toLocaleString('ko-KR')}
+          </b>{' '}
+          성공
+        </button>
       )}
     </span>
   );
@@ -146,8 +173,8 @@ export interface AgentDagTableProps {
   onViewDbs: (agentId: string) => void;
   /**
    * 확정 정보 조인 — 없으면(로딩·조회 실패·조인 실패) 그 칸들은 대시로 선다.
-   * §10 은 리소스에 대해 resourceId·gcpRegion 만 보증한다: 리전(비-GCP)·DatabaseType·
-   * IDC 접속 주소는 전부 여기서 온다.
+   * §10 은 리소스에 대해 resourceId·gcpRegion 만 보증한다: Resource Name·DatabaseType·
+   * 리전(비-GCP)·IDC 접속 주소는 전부 여기서 온다.
    */
   confirmed: ConfirmedIndex | null;
   /** IDC 대상이면 리전 자리에 접속 주소가 선다 — 바닥에 놓인 기계에 리전은 없다. */
@@ -168,7 +195,7 @@ export function AgentDagTable({
   // flex 열의 폭은 세션 한정: 다음 방문에 되살리면 그 열이 싱크 역할을 잃는다.
   const resize = useColumnResize({
     clampToContent: true,
-    storageKey: 'pii:colw:v1:ops-airflow-agents',
+    storageKey: 'pii:colw:v2:ops-airflow-agents',
     ephemeralKeys: FLEX_KEYS,
   });
 
@@ -229,23 +256,27 @@ export function AgentDagTable({
               const facts = agentResourceFacts(agent.resourceId, confirmed);
               return (
                 <tr key={agent.agentId} className={idcStyles.table.row}>
+                  {/* 이름은 확정 정보의 것뿐이다 — §10 은 리소스 이름을 주지 않는다.
+                      조인이 빗나가면 대시로 서고, id 열이 정체를 마저 진다. */}
                   <td className={CLIP_CELL}>
-                    <p
-                      className="truncate font-medium text-[var(--pl-text-strong)]"
-                      title={agent.resourceId}
-                    >
-                      {agentDisplayName(agent.resourceId)}
-                    </p>
-                    {/* 경로형 id 라야 두 줄이 서로 다른 말을 한다. IDC 처럼 구분자가 없는
-                        id 는 이름줄과 축약줄이 같은 문자열이 되므로 둘째 줄을 접는다 —
-                        같은 값을 두 번 찍으면 행이 고장 난 것처럼 읽힌다. */}
-                    {shortResourceId(agent.resourceId) !== agentDisplayName(agent.resourceId) && (
-                      <p
-                        className="truncate font-mono text-[12px] text-[var(--pl-text-weak)]"
-                        title={agent.resourceId}
-                      >
-                        {shortResourceId(agent.resourceId)}
-                      </p>
+                    {facts.name ? (
+                      <span className="font-medium text-[var(--pl-text-strong)]" title="확정 정보 기준">
+                        {facts.name}
+                      </span>
+                    ) : (
+                      <Dash />
+                    )}
+                  </td>
+                  <td className={CLIP_CELL}>
+                    <ResourceId value={agent.resourceId} />
+                  </td>
+                  <td className={CLIP_CELL}>
+                    {/* 엔진 이름은 확정 정보 표와 같은 함수로 쓴다 — 한 화면에서 같은
+                        리소스가 MYSQL 과 MySQL 로 갈라져 읽히면 다른 것처럼 보인다. */}
+                    {facts.databaseType ? (
+                      <span title="확정 정보 기준">{getDatabaseShortLabel(facts.databaseType)}</span>
+                    ) : (
+                      <Dash />
                     )}
                   </td>
                   {/* IDC 는 접속 주소, 그 밖은 리전. 리전은 응답의 gcpRegion 이 먼저고,
@@ -277,33 +308,8 @@ export function AgentDagTable({
                       <Dash />
                     )}
                   </td>
-                  {isIdc && (
-                    <td className={CLIP_CELL}>
-                      {/* 엔진 이름은 확정 정보 표와 같은 함수로 쓴다 — 한 화면에서 같은
-                          리소스가 MYSQL 과 MySQL 로 갈라져 읽히면 다른 것처럼 보인다. */}
-                      {facts.databaseType ? (
-                        <span title="확정 정보 기준">
-                          {getDatabaseShortLabel(facts.databaseType)}
-                        </span>
-                      ) : (
-                        <Dash />
-                      )}
-                    </td>
-                  )}
                   <td className={CELL}>
-                    <WeeklyCell agent={agent} />
-                  </td>
-                  <td className={cn(CELL, 'text-right')}>
-                    {/* 볼 DB 가 없으면 링크도 없다 — 빈 보드를 여는 진입은 막다른 길이다. */}
-                    {agent.dbTotal > 0 && (
-                      <button
-                        type="button"
-                        onClick={() => onViewDbs(agent.agentId)}
-                        className={opsStyles.detailLink}
-                      >
-                        DAG 상태 조회
-                      </button>
-                    )}
+                    <WeeklyCell agent={agent} onViewDbs={() => onViewDbs(agent.agentId)} />
                   </td>
                 </tr>
               );

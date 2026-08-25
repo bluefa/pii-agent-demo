@@ -1468,6 +1468,15 @@ const lgsResources: MockResource[] = (
 );
 
 /**
+ * 1801 리소스 30개의 id — 이 목록을 읽는 다른 목(모니터링 §10)이 같은 리소스를 다른 id 로
+ * 부르지 않게 하는 단일 출처. 두 목이 각자 id 를 지어내면 화면의 조인이 조용히 빗나가고,
+ * 그 결과가 "이름·엔진·리전 칸이 전부 대시"라 코드 버그처럼 보인다 (2026-08-25 실측).
+ */
+export const LGS_RESOURCE_IDS: readonly string[] = lgsResources.map(
+  (resource) => resource.resourceId,
+);
+
+/**
  * 쿠폰서비스(1642)의 AWS 계정. 리소스 id 와 `extra.awsAccountId` 가 같은 계정을 말해야
  * Athena·클러스터 id 가 화면에서 서로 다른 계정처럼 읽히지 않는다.
  */

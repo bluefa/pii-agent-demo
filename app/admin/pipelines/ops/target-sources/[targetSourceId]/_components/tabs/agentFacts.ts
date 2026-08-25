@@ -19,6 +19,13 @@ import type { ConfirmedIntegrationResourceInfo } from '@/lib/types';
 export type ConfirmedIndex = ReadonlyMap<string, ConfirmedIntegrationResourceInfo>;
 
 export interface AgentResourceFacts {
+  /**
+   * 사람이 부르는 이름 — 확정 정보의 `resource_name`. §10 은 이름을 주지 않으므로 조인이
+   * 빗나가면 대시다: 경로형 id 의 꼬리를 잘라 이름 자리에 세우면, 어느 API 도 그렇게
+   * 부른 적 없는 값이 `Resource Name` 열에 사실처럼 선다.
+   * IDC 는 스캔이 이름을 짓지 않아 원래 null 이다 — 주소가 정체다.
+   */
+  name: string | null;
   /** 비-GCP 대상의 리전 — 확정 정보의 database_region. */
   region: string | null;
   /**
@@ -34,6 +41,7 @@ export interface AgentResourceFacts {
 }
 
 export const EMPTY_FACTS: AgentResourceFacts = {
+  name: null,
   region: null,
   databaseType: null,
   address: null,
@@ -81,6 +89,7 @@ export const agentResourceFacts = (
   const addresses = idcAddresses(row);
   const first = addresses[0] ?? null;
   return {
+    name: row.resource_name ?? null,
     region: row.database_region ?? null,
     databaseType: row.database_type ?? null,
     address: first === null ? null : row.port === null ? first : `${first}:${row.port}`,

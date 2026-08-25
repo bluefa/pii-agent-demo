@@ -90,6 +90,8 @@ describe('agentResourceFacts', () => {
       }),
     ]);
     expect(agentResourceFacts('idc-r-8f21', index)).toEqual({
+      // IDC 는 스캔이 이름을 짓지 않아 원래 null — 주소가 정체다.
+      name: null,
       region: null,
       databaseType: 'ORACLE',
       address: '10.20.1.11:1521',
@@ -123,16 +125,31 @@ describe('agentResourceFacts', () => {
     expect(getDatabaseShortLabel('athena')).toBe(getDatabaseShortLabel('ATHENA'));
   });
 
+  it('이름은 확정 정보의 것뿐 — id 에서 지어내지 않는다', () => {
+    // `Resource Name` 열이 대시로 서는 것은 사실이고, 경로 꼬리(`servers/mysql-01`)를
+    // 이름 자리에 세우는 것은 어느 API 도 그렇게 부른 적 없는 값을 사실로 만드는 것이다.
+    const index = indexConfirmedResources([
+      row({ resource_id: '/subscriptions/x/servers/mysql-01', resource_name: null }),
+      row({ resource_id: '/subscriptions/x/servers/mysql-02', resource_name: 'sea-payments-prod' }),
+    ]);
+    expect(agentResourceFacts('/subscriptions/x/servers/mysql-01', index).name).toBeNull();
+    expect(agentResourceFacts('/subscriptions/x/servers/mysql-02', index).name).toBe(
+      'sea-payments-prod',
+    );
+  });
+
   it('클라우드 행은 주소가 없고 리전·타입만 온다', () => {
     const index = indexConfirmedResources([
       row({
         resource_id: 'arn:aws:rds:ap-northeast-2:8046:cluster:database-1',
+        resource_name: 'database-1',
         database_type: 'MYSQL' as ConfirmedIntegrationResourceInfo['database_type'],
         database_region: 'ap-northeast-2',
         host: '',
       }),
     ]);
     expect(agentResourceFacts('arn:aws:rds:ap-northeast-2:8046:cluster:database-1', index)).toEqual({
+      name: 'database-1',
       region: 'ap-northeast-2',
       databaseType: 'MYSQL',
       address: null,

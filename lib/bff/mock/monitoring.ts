@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { CPN_CLUSTER_ARN, cpnAthenaRegionId } from '@/lib/mock-data';
+import { CPN_CLUSTER_ARN, LGS_RESOURCE_IDS, cpnAthenaRegionId } from '@/lib/mock-data';
 import type { DagAgentStatus, DagDatabaseStatus, DagDayStatus, DagStatusResponse } from '@/lib/types/dag-status';
 
 /**
@@ -131,7 +131,8 @@ const buildScaleAgents = (days: string[]): DagAgentStatus[] =>
     agent(
       1801,
       agentIdx,
-      `/subscriptions/5f1a2b3c/resourceGroups/rg-lgs-prod/providers/Microsoft.DBforMySQL/servers/lgs-mysql-${String(agentIdx + 1).padStart(2, '0')}`,
+      // 확정 정보와 같은 id — 표의 이름·엔진·리전 칸은 그 조인으로만 채워진다.
+      LGS_RESOURCE_IDS[agentIdx],
       null,
       'SUCCESS',
       Array.from({ length: 52 }, (_, dbIdx) => {
