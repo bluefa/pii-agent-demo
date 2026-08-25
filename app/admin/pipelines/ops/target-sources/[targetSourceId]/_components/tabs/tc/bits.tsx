@@ -41,8 +41,15 @@ export function TcPill({
   );
 }
 
-/** Absent value — never rendered as 0 or an assumed success. */
-export const Dash = (): ReactElement => <span className="text-[var(--pl-text-faint)]">—</span>;
+/**
+ * Absent value — never rendered as 0 or an assumed success.
+ *
+ * 잉크는 `--pl-text-weak` 다. faint 로 두면 흰 바닥에서 2.58:1, 밴드 틴트 위에서는
+ * 2.34:1 까지 떨어져 본문 대비(4.5:1)를 한참 못 넘긴다 — 조용해야 하는 자리라도 읽히지
+ * 않아도 되는 것은 아니고, 이 글자는 "값이 없다"는 **사실**을 말한다(오너 2026-08-25,
+ * 브라우저 실측). weak 은 흰 바닥 4.97:1 · 최악 표면 4.51:1.
+ */
+export const Dash = (): ReactElement => <span className="text-[var(--pl-text-weak)]">—</span>;
 
 const ID_MAX = 32;
 

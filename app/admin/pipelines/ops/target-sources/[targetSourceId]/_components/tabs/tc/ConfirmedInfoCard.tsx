@@ -150,8 +150,9 @@ const CREDENTIAL_HEAD = (
         </span>
       }
     >
+      {/* 사유 칸의 tip 마커와 같은 이유로 weak — faint 는 비텍스트 대비 3:1 을 못 넘긴다. */}
       <InfoCircleIcon
-        className="h-3.5 w-3.5 text-[var(--pl-text-faint)]"
+        className="h-3.5 w-3.5 text-[var(--pl-text-weak)]"
         aria-label="Credential 설명"
       />
     </Tooltip>
