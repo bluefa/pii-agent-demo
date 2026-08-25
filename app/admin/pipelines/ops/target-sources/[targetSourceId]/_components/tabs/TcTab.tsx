@@ -44,10 +44,12 @@ import { TcRunHistoryModal } from '@/app/admin/pipelines/ops/target-sources/[tar
 import { ConfirmedInfoCard } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/ConfirmedInfoCard';
 import { TcHistoryModal } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/TcHistoryModal';
 import {
+  bandBuckets,
+  bandUnitIds,
+  credentialMissingCount,
   isRunOpen,
   orderByRequest,
   tcFactsByResource,
-  tcResultStats,
   toConfirmedUnits,
 } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/logic';
 
@@ -68,6 +70,8 @@ export interface TcTabProps {
   statusLoaded: boolean;
   /** latest_version 조회가 404 가 아닌 이유로 실패했다. */
   latestFailed: boolean;
+  /** 승인 요청 상태(status) 조회가 실패했다 — 미요청과 다른 사실이다. */
+  statusFailed: boolean;
   /** Reload the page-level TC fetch (status + latest + results). */
   onStatusReload: () => void;
 }
@@ -80,12 +84,16 @@ export function TcTab({
   results,
   statusLoaded,
   latestFailed,
+  statusFailed,
   onStatusReload,
 }: TcTabProps): ReactElement {
   const toast = usePlToast();
   const [reloadKey, setReloadKey] = useState(0);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [runHistoryOpen, setRunHistoryOpen] = useState(false);
+  // Credential 미설정만 보기 — 밴드의 경고 줄이 토글하고 아래 표가 적용한다. 요약과 도달
+  // 수단이 한 물건이라, 세는 규칙(credentialMissingCount)과 거르는 규칙이 어긋날 수 없다.
+  const [credMissingOnly, setCredMissingOnly] = useState(false);
   const reload = useCallback(() => setReloadKey((key) => key + 1), []);
 
   const [confirmedRows, setConfirmedRows] = useState<ConfirmedIntegrationResourceItem[]>([]);
@@ -144,7 +152,12 @@ export function TcTab({
   // one Athena region is one result no matter how many databases it holds. Counting rows
   // here would print 진행 5/7 on a run that only ever produces five results — the same
   // miscount the user-side Step 5 card documents (ConnectionTestCard's TestUnit).
-  const unitCount = toConfirmedUnits(orderedRows).length;
+  const units = toConfirmedUnits(orderedRows);
+  // 밴드의 분모이자 무보고를 셀 수 있게 하는 집합. 확정 조회가 404·실패면 실행이 실제로
+  // 보고한 id 로 떨어진다 — 빈 목록이면 `ok === total` 이 저절로 성립해 아무것도 확인하지
+  // 않은 실행을 "모두 성공"이라 부르게 된다.
+  const buckets = bandBuckets(bandUnitIds(units, latest), latest);
+  const credentialMissing = settled ? credentialMissingCount(units) : 0;
 
   const running = isRunOpen(latest);
 
@@ -170,12 +183,19 @@ export function TcTab({
     wasRunning.current = running;
   }, [running, reload, onStatusReload]);
 
+  // 마지막 하나를 배정하면 경고 줄이 사라진다 — 필터를 그대로 두면 표가 빈 화면이 되고,
+  // 그것을 되돌릴 컨트롤(경고 줄의 토글)도 같이 사라진 뒤다. 사라질 때 같이 푼다.
+  if (credMissingOnly && credentialMissing === 0) setCredMissingOnly(false);
+
   const [triggering, setTriggering] = useState(false);
   const [triggerFailed, setTriggerFailed] = useState(false);
   // The server owns eligibility (409 while running / 4xx before install), so this
   // just reports; the button is disabled while a run is open to spare a request
   // that can only be refused.
   const runTest = useCallback(async (): Promise<void> => {
+    // 버튼이 이미 잠겨 있지만 게이트는 값에도 둔다 — 배정을 지우는 쓰기가 이 화면에서
+    // 일어나므로(Credential 배정 모달), 눌린 순간과 세어진 순간 사이가 벌어질 수 있다.
+    if (credentialMissing > 0) return;
     setTriggering(true);
     setTriggerFailed(false);
     try {
@@ -188,7 +208,7 @@ export function TcTab({
     } finally {
       setTriggering(false);
     }
-  }, [targetSourceId, onStatusReload, toast]);
+  }, [targetSourceId, credentialMissing, onStatusReload, toast]);
 
   return (
     <>
@@ -198,15 +218,20 @@ export function TcTab({
           (사용자 화면 Step 5 와 같은 배치). */}
       <TcLatestRunCard
         latest={latest}
-        status={statusLoaded ? status : null}
-        stats={tcResultStats(results, latest)}
-        confirmedResourceCount={unitCount}
+        status={status}
+        buckets={buckets}
+        credentialMissing={credentialMissing}
+        credFilterOn={credMissingOnly}
+        onToggleCredFilter={() => setCredMissingOnly((on) => !on)}
         loading={!statusLoaded}
         failed={latestFailed}
+        statusFailed={statusFailed}
+        statusLoaded={statusLoaded}
         running={running}
         triggering={triggering}
         triggerFailed={triggerFailed}
         onRunTest={() => void runTest()}
+        onReloadStatus={onStatusReload}
         onOpenRunHistory={() => setRunHistoryOpen(true)}
         onOpenDecisionHistory={() => setHistoryOpen(true)}
       />
@@ -218,6 +243,7 @@ export function TcTab({
         secrets={secrets}
         tcResults={statusLoaded ? results : []}
         facts={tcFactsByResource(statusLoaded ? latest : null)}
+        credMissingOnly={credMissingOnly}
         loading={!settled}
         failed={confirmedFailed}
         secretsFailed={secretsFailed}
