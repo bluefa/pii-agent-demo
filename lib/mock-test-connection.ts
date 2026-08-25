@@ -481,14 +481,29 @@ const unsettledAgentResults = (
 
 /**
  * `TestConnectionLatestResultSummaryResponse[]` wire shape
- * (getLatestTestConnectionResultSummaries) — per-resource logical-DB counts for
- * the latest SUCCESS run. The real counts come from the logical-DB domain; the
- * mock derives deterministic placeholders keyed off the resource id so the table
- * renders. Empty array when the latest run is not a success.
+ * (getLatestTestConnectionResultSummaries) — per-resource logical-DB counts from
+ * the **latest** run. The real counts come from the logical-DB domain; the mock
+ * derives deterministic placeholders keyed off the resource id so the table renders.
+ *
+ * 게이트는 **리소스**에 있다, job 에 있지 않다 (오너 2026-08-25). 예전에는 `job.status !==
+ * 'SUCCESS'` 로 통째로 `[]` 를 냈는데, 그러면 리소스 하나가 실패한 순간 **성공한 나머지
+ * 전부의** 건수까지 같이 사라진다 — 부분 실패는 예외가 아니라 평상시라(#2103: 성공 4 ·
+ * 실패 2) 표의 논리 DB 열이 상시로 비는 원인이 그것이었다. 오너의 논지는 이름 그대로다:
+ * `latest-results` 는 "가장 최신 결과"를 뜻하지 "최신 성공 결과"를 뜻하지 않는다. 후자가
+ * 필요하면 `latest-success-results` 를 따로 두는 게 맞다.
+ *
+ * 같은 목의 데모 갈래(`getTcLatestResultRows`)는 처음부터 이렇게 동작했다 — 성공한 리소스만
+ * 건수를 달고, 실패한 리소스는 필드 자체가 없으며, 실패가 섞여도 배열은 비지 않는다. 두
+ * 갈래가 이제 같은 규칙을 쓴다.
+ *
+ * ⚠️ 계약 문장은 아직 이 규칙이 아니다 — swagger `getLatestTestConnectionResultSummaries`
+ * 의 description 은 "최신 Test Connection이 성공한 경우 … 조회합니다". 백엔드 합의 전까지
+ * 목이 앞서 있는 상태이고, 클라이언트는 어느 쪽이든 안전하다: `ldbCount` 가 이미 **리소스**
+ * 판정으로 한 번 더 거른다.
  */
 export const toLatestResultSummaries = (targetSourceId: number) => {
   const job = getLatestJob(targetSourceId);
-  if (!job || job.status !== 'SUCCESS') return [];
+  if (!job) return [];
 
   // Athena 리전 하나가 덮는 데이터베이스 수. Athena 는 데이터베이스가 곧 논리 DB 라
   // (그 안에 다시 나눌 하위 단위가 없다) 연동 대상 수 = 데이터베이스 수, 제외는 0 이다.
