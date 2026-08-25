@@ -796,13 +796,18 @@ export const InstallStatusDetail = ({
       cn(
         // truncate 없음 — 넘치면 잘리는 대신 감긴다. break-keep 은 한국어를 단어
         // 단위로 감아 음절 하나가 홀로 다음 줄에 남지 않게 한다.
-        'flex-1 min-w-0 break-keep',
+        'break-keep',
         isActive ? textStyles.bodyStrong : textStyles.body,
         na ? cn('line-through', textColors.secondary) : textColors.primary,
       );
 
-    // Rail item — one line: [ordinal] title · status word.
-    const railItem = (step: InstallTableStep, ord: number | null) => {
+    // Rail item — 두 줄: 제목, 그 아래 상태 한 단어.
+    //
+    // BDC 그룹 항목이 달고 있던 실행 순번(1·2·3)은 없앴다(오너 지시). 순서는 항목이
+    // 놓인 위아래가 이미 말하고, 숫자는 그 사실을 한 번 더 적으면서 제목의 폭을
+    // 22px 씩 가져갔다 — 잘림을 고치자마자 다시 좁히는 열이었다. '내가 할 일' 그룹은
+    // 처음부터 순번 없이 서 있었으므로 두 그룹의 문법도 이걸로 같아진다.
+    const railItem = (step: InstallTableStep) => {
       const aggregate = aggregates.get(step.id)!;
       const isActive = step.id === activeId;
       return (
@@ -813,24 +818,9 @@ export const InstallStatusDetail = ({
           aria-current={isActive}
           className={railItemClass(isActive)}
         >
-          <span className="flex items-baseline gap-2 w-full">
-            {ord !== null && (
-              // Execution order — quiet gray digits. secondary, not tertiary:
-              // gray-500 on the panel surface (gray-100) is 4.37:1, under AA.
-              <span className={cn('flex-shrink-0 w-3.5 tabular-nums', textStyles.caption, textColors.secondary)}>
-                {ord}
-              </span>
-            )}
-            <span className={railTitleClass(isActive, aggregate.kind === 'na')}>
-              {step.title}
-            </span>
-          </span>
-          {/* 상태는 제목의 글 열에 맞춰 선다 — 순번이 있는 항목만 그 폭(14px + gap 8px)
-              만큼 들여쓴다. legacy 레일의 pl-[34px] 과 같은 계산이고 원 대신 숫자라
-              값만 다르다. */}
+          <span className={railTitleClass(isActive, aggregate.kind === 'na')}>{step.title}</span>
           <span
             className={cn(
-              ord !== null && 'pl-[22px]',
               textStyles.caption,
               NAV_STATUS_TEXT[aggregate.kind],
               NAV_STATUS_WEIGHT[aggregate.kind],
@@ -916,12 +906,12 @@ export const InstallStatusDetail = ({
                 </span>
               ),
             )}
-            {todoSteps.map((s) => railItem(s, null))}
+            {todoSteps.map((s) => railItem(s))}
             {/* BDC 는 인디고 — 새 색이 아니라 이 화면이 이미 'BDC측'에 쓰고 있는 색이다
                 (SideTag 의 tagStyles.indigo, sideTextColors.bdc). 그룹 이름과 행 태그가
                 같은 색을 말해야 "이 묶음이 곧 BDC 측"으로 읽힌다. */}
             {groupLabel('BDC 진행', sideTextColors.bdc)}
-            {autoSteps.map((s, i) => railItem(s, i + 1))}
+            {autoSteps.map((s) => railItem(s))}
 
             {/* 설치 스크립트 — 단계가 아니므로 진행 순번 다음, 레일 끝에 선다.
                 주황은 파랑(내가 할 일)과 겹치지 않는 유일한 강조색이라, 처음 들어온

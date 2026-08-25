@@ -86,9 +86,9 @@ describe('AzureInstallationInline — 그룹 레일', () => {
     // 서비스 측 셋 중 열려 있는 것은 PE 하나뿐(Subnet·Apply 는 COMPLETED).
     expect(within(nav).getByText('내가 할 일 (1)')).toBeTruthy();
     expect(within(nav).getByText('BDC 진행')).toBeTruthy();
-    // BDC 그룹은 하나뿐이라 순번도 1 에서 끝난다 — 서비스 단계가 섞여 들어오면 깨진다.
-    expect(within(nav).getByText('1')).toBeTruthy();
-    expect(within(nav).queryByText('2')).toBeNull();
+    // 실행 순번(1·2·3)은 레일에서 걷어냈으므로 그룹 구성은 항목 수로 잰다 — 이 CSP 는
+    // 서비스 셋 + BDC 하나다. 서비스 단계가 auto 그룹으로 섞여 들어오면 이 수가 흔들린다.
+    expect(within(nav).getAllByRole('button')).toHaveLength(4);
   });
 
   it('열린 할 일이 PE 하나면 그 단계가 기본 화면이다', () => {

@@ -230,11 +230,23 @@ describe('InstallStatusDetail 그룹 레일 — 제목은 잘리지 않는다', 
     renderGrouped('IN_PROGRESS');
 
     const button = railButton(/서비스 측 Terraform 적용/);
-    const title = within(button).getByText('서비스 측 Terraform 적용');
-    const status = within(button).getByText('진행중');
-    // 같은 줄이면 상태가 제목의 형제로 같은 flex row 에 있다. 두 줄이면 아니다.
-    expect(status.parentElement).toBe(button);
-    expect(title.parentElement).not.toBe(button);
+    // 제목과 상태가 같은 줄이면 항목은 flex row 다. 두 줄이면 column.
+    expect(button.className).toContain('flex-col');
+    expect(button.className).not.toContain('items-baseline');
+  });
+
+  /**
+   * BDC 그룹 항목이 달고 있던 실행 순번(1·2·3) 삭제 — 오너 지시. 순서는 항목의
+   * 위아래가 말하고, 숫자는 제목에서 22px 을 가져갔다. 되돌아오면 제목 폭이 다시
+   * 좁아지므로(잘림의 원인 중 하나) 여기서 막는다.
+   */
+  it('레일 항목에 실행 순번을 달지 않는다', () => {
+    renderGrouped('IN_PROGRESS');
+
+    const nav = screen.getByRole('navigation', { name: '설치 단계' });
+    for (const button of nav.querySelectorAll('button')) {
+      expect(button.textContent ?? '').not.toMatch(/^\d/);
+    }
   });
 });
 
