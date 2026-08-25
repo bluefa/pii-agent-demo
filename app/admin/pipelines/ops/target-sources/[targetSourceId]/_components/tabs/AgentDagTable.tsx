@@ -30,12 +30,16 @@
  * 연결이 정상이면 주간 관측으로 정상/확인 필요를 판정한다. TC 탭의 판정과 출처가 다른
  * 값이라 (§06-5) raw 는 툴팁이 나른다.
  *
+ * 실패 판정 행은 첫 칸에 4px 레일을 진다 (오너 2026-08-25) — 알약이 행의 끝에 서 있어
+ * 색이 읽는 방향의 마지막에야 도착하던 것을, 같은 색을 행의 시작으로 한 벌 옮겨 푼다.
+ * 면(행 틴트)이 아닌 이유는 `verdictRail.failed` 에 적혀 있다.
+ *
  * 에이전트가 1개뿐이어도 그린다 (2026-08-20 정정): 한 행이 요약의 반복일 거라는
  * 최초 판단이 실물 응답에서 깨졌다 — 요약은 resourceId·Region·그 리소스의 연결 상태를
  * 말하지 않아서, 표를 접으면 화면이 끝까지 어느 리소스 얘긴지 말하지 못한다.
  */
 import { useMemo, useState, type ReactElement } from 'react';
-import { cn, idcStyles } from '@/lib/theme';
+import { cn, idcStyles, verdictRail } from '@/lib/theme';
 import { getDatabaseShortLabel } from '@/app/components/ui/DatabaseIcon';
 import { ConsoleTable, type ConsoleTableColumn } from '@/app/components/ui/ConsoleTable';
 import { useColumnResize } from '@/app/components/ui/useColumnResize';
@@ -125,15 +129,19 @@ export interface AgentDagTableProps {
  *
  * 관측 DB 가 0개면 분수도 진입도 없다 — 알약('DAG 없음')이 이미 부재를 말했고, 빈 보드를
  * 여는 진입은 막다른 길이다.
+ *
+ * 판정은 호출부에서 받는다 — 같은 행의 실패 레일이 같은 값을 읽어야 하고, 레일과 알약이
+ * 서로 다른 판정을 말할 수 있는 길은 아예 없는 편이 낫다(정렬 키가 tone 을 쓰는 것과 같은 이유).
  */
 function WeeklyCell({
   agent,
+  verdict,
   onViewDbs,
 }: {
   agent: DagAgentSummary;
+  verdict: ReturnType<typeof agentVerdict>;
   onViewDbs: () => void;
 }): ReactElement {
-  const verdict = agentVerdict(agent);
   return (
     <span className="inline-flex flex-wrap items-center gap-2">
       <span title={verdict.hint}>
@@ -242,11 +250,14 @@ export function AgentDagTable({
             <tbody className={idcStyles.table.body}>
               {pageRows.map((agent) => {
                 const facts = agentResourceFacts(agent.resourceId, confirmed);
+                const verdict = agentVerdict(agent);
                 return (
                   <tr key={agent.agentId} className={idcStyles.table.row}>
                     {/* 이름은 확정 정보의 것뿐이다 — §10 은 리소스 이름을 주지 않는다.
                         조인이 빗나가면 대시로 서고, id 열이 정체를 마저 진다. */}
-                    <td className={CLIP_CELL}>
+                    {/* 실패 판정만 레일을 진다 — 침묵이 곧 정상이다(`verdictRail.target` 과 같은 규칙).
+                        경고·부재(연결 진행 중·DAG 없음)는 볼 것이 아직 없는 상태라 부르지 않는다. */}
+                    <td className={cn(CLIP_CELL, verdict.tone === 'err' && verdictRail.failed)}>
                       {facts.name ? (
                         <span className="font-medium text-[var(--pl-text-strong)]" title="확정 정보 기준">
                           {facts.name}
@@ -300,7 +311,11 @@ export function AgentDagTable({
                       )}
                     </td>
                     <td className={CELL}>
-                      <WeeklyCell agent={agent} onViewDbs={() => onViewDbs(agent.agentId)} />
+                      <WeeklyCell
+                        agent={agent}
+                        verdict={verdict}
+                        onViewDbs={() => onViewDbs(agent.agentId)}
+                      />
                     </td>
                   </tr>
                 );
