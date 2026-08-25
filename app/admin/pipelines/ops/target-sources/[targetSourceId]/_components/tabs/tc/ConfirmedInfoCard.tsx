@@ -121,7 +121,10 @@ const CLIP_CELL = cn(CELL, idcStyles.table.consoleCell);
  */
 const COL_W = {
   name: 170,
-  id: 190,
+  // flex 열의 width 는 폭이 아니라 **바닥값**이라, 표가 프레임 안에 들 때는 이 값보다
+  // 넓게 그려진다. 논리 DB 칸이 가져간 36px 중 18 을 여기서 냈다 — 이 열은 자기 머리글
+  // (79px)보다 93px 넓은, 표에서 여유가 가장 큰 바닥이었다.
+  id: 172,
   idcName: 240,
   // 14px 머리글이 안 잘리는 폭 — 글자를 12→14 로 올리면 라벨이 그만큼 넓어진다.
   // 값은 덮어 자르는 문법이 있지만 **열 이름**이 잘리면 표가 깨진 것처럼 읽힌다.
@@ -129,9 +132,12 @@ const COL_W = {
   // 더한 135 가 바닥이고, 리사이즈 손잡이 몫으로 5 만 남긴 140 이 그 바닥이다.
   type: 140,
   region: 120,
-  /** 알약 + tip 표시 한 줄, 그 밑에 로그 입구 한 줄 — pod_id 를 뺀 만큼 좁아졌다. */
-  conn: 150,
-  ldb: 130,
+  /** 알약 + tip 표시 한 줄, 그 밑에 로그 입구 한 줄 — pod_id 를 뺀 만큼 좁아졌다.
+   *  가장 넓은 내용은 `진행 중` 알약 + tip 표시(실측 ~82px)라 132 는 그 위로 넉넉하다. */
+  conn: 132,
+  /** 이름 붙은 건수 두 줄(가장 넓은 `최근 조회 5개` 76px) + 간격 10 + `관리 ↗` 43,
+   *  좌우 패딩 36 을 더해 165 — 166 으로 잡는다. */
+  ldb: 166,
   cred: 204,
 } as const;
 const FLEX_KEYS = ['name', 'id'] as const;
@@ -383,10 +389,15 @@ function PodLogLine({
  * 예전에는 건수가 없으면(—) 칸이 글자 하나로 끝나 관리 화면에 닿을 길이 없었고, 보고된 0
  * 도 마찬가지였다: 논리 DB 가 0건인 리소스야말로 제외 정책을 손봐야 하는 리소스인데.
  *
- * 그래서 칸의 첫 줄은 늘 링크다 — 건수를 알면 건수가, 모르면 `관리` 가 그 문의 이름을 진다.
- * (`—` 를 링크로 만들지 않는다: 이 표에서 —는 "보고 없음"이라는 판정의 글자다.) 링크는
- * Step 6/7 의 LogicalDbCountCell 규칙 — 밑줄이 affordance 를 지므로 행 끝에 관리 링크를
- * 따로 달지 않는다. 제외 건수는 그 밑에서 사실만 말한다.
+ * 그 문은 이제 건수가 아니라 **칸 오른쪽의 `관리 ↗`** 다 (오너 2026-08-25). 값과 행위를
+ * 갈라 놓으면 셋이 한꺼번에 풀린다: 건수는 판정과 무관하게 그냥 사실로 남고, 문은 판정과
+ * 무관하게 늘 서고, `—`(보고 없음)도 링크로 위장하지 않고 제 글자로 돌아온다. 건수를
+ * 트리거로 쓰던 문법(Step 6/7 의 LogicalDbCountCell)은 값이 하나일 때의 처방이라, 두 값이
+ * 스택으로 서는 이 칸에서는 "어느 쪽을 눌러야 하나"를 만들고 있었다.
+ *
+ * 두 줄은 각자 자기 이름을 단다 — 맨 숫자 `5개` 하나로는 무엇을 센 5인지 칸이 말해 주지
+ * 않았다. `최근 조회` 는 최신 성공 실행이 찾아낸 논리 DB 수(latest-results), `제외` 는 그중
+ * 정책으로 빼 둔 수다.
  */
 function LdbCell({
   row,
@@ -400,32 +411,37 @@ function LdbCell({
   const included = ldbCount(row, 'inc', verdict);
   const excluded = ldbCount(row, 'exc', verdict);
   return (
-    <span className="flex flex-col items-start">
-      {included == null ? (
-        <button
-          type="button"
-          onClick={onOpen}
-          aria-label="연동 논리 DB 관리"
-          className={opsStyles.countLink}
-        >
-          관리
-        </button>
-      ) : (
-        <button
-          type="button"
-          onClick={onOpen}
-          aria-label={`연동 논리 DB ${included}개 보기`}
-          className={opsStyles.countLink}
-        >
-          {included}
-          <span className="font-medium">개</span>
-        </button>
-      )}
-      {excluded != null && (
-        <span className="whitespace-nowrap text-[14px] tabular-nums text-[var(--pl-text-weak)]">
-          제외 {excluded}개
-        </span>
-      )}
+    <span className="flex items-center justify-between gap-2.5">
+      <span className="flex min-w-0 flex-col items-start">
+        {included == null && excluded == null ? (
+          <Dash />
+        ) : (
+          <>
+            <LdbCount label="최근 조회" value={included} />
+            <LdbCount label="제외" value={excluded} />
+          </>
+        )}
+      </span>
+      <button
+        type="button"
+        onClick={onOpen}
+        aria-label="연동 논리 DB 관리"
+        className={opsStyles.manageLink}
+      >
+        관리 ↗
+      </button>
+    </span>
+  );
+}
+
+/** 이름 붙은 건수 한 줄. 계약에서 두 필드가 각자 optional 이라, 없는 쪽은 줄이 없다 —
+ *  한쪽만 실린 응답에서 다른 쪽을 0 으로 지어내지 않는다. */
+function LdbCount({ label, value }: { label: string; value: number | null }): ReactElement | null {
+  if (value == null) return null;
+  return (
+    <span className="whitespace-nowrap text-[14px] tabular-nums text-[var(--pl-text-strong)]">
+      <span className="font-normal text-[var(--pl-text-weak)]">{label} </span>
+      {value}개
     </span>
   );
 }

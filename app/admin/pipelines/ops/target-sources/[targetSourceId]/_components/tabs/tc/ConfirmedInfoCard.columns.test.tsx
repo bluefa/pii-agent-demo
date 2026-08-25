@@ -159,33 +159,54 @@ describe('확정 정보 표 — 실패 사유', () => {
  * 야말로 제외 정책을 봐야 하는 리소스인데, 예전에는 "열 것이 없다"며 글자로 남았다.
  */
 describe('확정 정보 표 — 논리 DB 관리 문', () => {
-  it('건수가 없어도 관리 링크가 선다 — —로 끝나지 않는다', () => {
+  const ldbCells = (container: HTMLElement): (HTMLTableCellElement | undefined)[] =>
+    [...container.querySelectorAll('tbody tr')].map((row) => row.querySelectorAll('td')[3]);
+
+  it('판정이 무엇이든 행마다 관리 링크가 하나씩 선다', () => {
     const { container } = renderTable();
-    const ldbCells = [...container.querySelectorAll('tbody tr')].map(
-      (row) => row.querySelectorAll('td')[3],
-    );
-    expect(ldbCells.length).toBeGreaterThan(0);
-    for (const cell of ldbCells) {
-      expect(cell?.querySelector('button')).toBeTruthy();
-      expect(cell?.textContent).not.toContain('—');
-    }
-    expect(screen.getAllByRole('button', { name: '연동 논리 DB 관리' }).length).toBe(
-      ldbCells.length,
-    );
+    const cells = ldbCells(container);
+    expect(cells.length).toBeGreaterThan(0);
+    expect(screen.getAllByRole('button', { name: '연동 논리 DB 관리' })).toHaveLength(cells.length);
   });
 
-  it('보고된 0개도 문이다 — 0건인 리소스야말로 제외 정책을 본다', () => {
+  it('보고된 0개도 문이 있다 — 0건인 리소스야말로 제외 정책을 본다', () => {
     const zero: TcResultRow[] = [
       { resourceId: rows[0].resource_id, includedCount: 0, excludedCount: 3 },
     ];
-    renderTable(
+    const { container } = renderTable(
       false,
       new Map([[rows[0].resource_id, { verdict: 'SUCCESS', podId: null, failReason: null }]]),
       zero,
     );
-    const link = screen.getByRole('button', { name: '연동 논리 DB 0개 보기' });
-    expect(link.textContent).toBe('0개');
-    expect(screen.getByText('제외 3개')).toBeTruthy();
+    const cell = ldbCells(container)[0];
+    expect(cell?.textContent).toContain('최근 조회 0개');
+    expect(cell?.textContent).toContain('제외 3개');
+    expect(cell?.querySelector('button')?.textContent).toContain('관리');
+  });
+
+  /**
+   * 값과 행위는 갈라져 있다 (오너 2026-08-25). 건수를 다시 트리거로 만들면 칸에 문이 둘이
+   * 되고 — "어느 쪽을 눌러야 하나" — `—` 도 다시 링크로 위장하게 된다.
+   */
+  it('건수는 눌리지 않는다 — 칸의 유일한 버튼은 관리다', () => {
+    const counted: TcResultRow[] = [
+      { resourceId: rows[0].resource_id, includedCount: 5, excludedCount: 2 },
+    ];
+    const { container } = renderTable(
+      false,
+      new Map([[rows[0].resource_id, { verdict: 'SUCCESS', podId: null, failReason: null }]]),
+      counted,
+    );
+    const cell = ldbCells(container)[0];
+    const buttons = [...(cell?.querySelectorAll('button') ?? [])];
+    expect(buttons).toHaveLength(1);
+    expect(buttons[0].textContent).toContain('관리');
+    expect(screen.getByText(/최근 조회/).closest('button')).toBeNull();
+  });
+
+  it('보고가 없으면 건수 자리는 —로 남는다 — 링크로 위장하지 않는다', () => {
+    const { container } = renderTable();
+    expect(ldbCells(container)[0]?.textContent).toContain('—');
   });
 });
 

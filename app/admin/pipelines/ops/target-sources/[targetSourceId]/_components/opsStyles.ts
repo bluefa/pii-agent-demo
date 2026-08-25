@@ -136,6 +136,18 @@ export const opsStyles = {
   countLink:
     'inline-flex cursor-pointer items-center border-b border-current pb-px text-[14px] font-semibold tabular-nums text-[var(--pl-text-medium)] transition-colors hover:text-[var(--pl-text-strong)]',
 
+  /**
+   * 칸 오른쪽 끝의 관리 입구 (오너 2026-08-25). `countLink` 와 다른 물건이다: 저쪽은 **값이
+   * 곧 트리거**라 밑줄이 affordance 를 지지만, 이 링크는 값이 아니라 행위라 옆에 세울 값이
+   * 없다. 대신 화살표가 "여기서 끝나지 않고 다른 화면으로 간다"를 말하고, 파랑은 hover
+   * 에서만 든다 — 행마다 반복되는 링크가 상시로 파랗면 표에서 가장 시끄러운 것이 된다.
+   *
+   * 바탕 잉크 `--pl-text-medium` 10.46:1, hover 의 `--pl-primary` 는 흰 면 5.17:1 · 행
+   * hover 틴트 4.95:1 로 두 상태 모두 4.5:1 을 넘는다(실측).
+   */
+  manageLink:
+    'inline-flex flex-none cursor-pointer items-center whitespace-nowrap text-[14px] font-semibold text-[var(--pl-text-medium)] transition-colors hover:text-[var(--pl-primary)]',
+
   /** In-cell text action that opens an editor — the Credential cell. A select box
       per row turns the table into a toolbar and buries the value inside a control,
       so the value IS the trigger. The hint's slot is reserved (opacity, not
@@ -246,8 +258,20 @@ export const opsStyles = {
       unknown: 'text-[var(--pl-text-weak)]',
     },
     icon: 'inline-grid place-items-center w-[18px] h-[18px] flex-shrink-0',
-    /** 시각 서브라인 — 문장의 근거라 문장 바로 아래 붙고, 제목의 18px 글리프 열에 맞춘다. */
-    meta: 'flex items-center gap-2 text-[12px] font-medium tabular-nums text-[var(--pl-text-weak)]',
+    /**
+     * 시각 서브라인 — 문장의 근거라 문장 바로 아래 붙고, 제목의 18px 글리프 열에 맞춘다.
+     *
+     * 잉크는 `--pl-text-weak` 이었다(밴드 다섯 면에서 4.51~4.76:1, 브라우저 실측). 숫자로는
+     * 4.5:1 을 넘지만 이 줄은 12px/500 이라 같은 비율의 14px 줄보다 훨씬 옅게 읽히고, 바로
+     * 아래 사유 줄이 `--pl-text-medium`(9.49~10.01:1)이라 두 곁줄의 잉크가 두 배 넘게
+     * 벌어져 있었다 — 오너가 "너무 흐리다"고 본 것이 그 격차다(2026-08-25).
+     *
+     * `--pl-gray-600` 은 램프의 다음 칸이다: 다섯 면 전부에서 6.97~7.36:1 로 5:1 을 넉넉히
+     * 넘고, 사유 줄보다는 여전히 한 칸 아래라 곁줄 둘의 순서가 뒤집히지 않는다. 램프에
+     * 5:1 짜리 칸은 없고, 한 줄을 위해 칸을 새로 만들지는 않는다. 시계 글리프는 이 span
+     * 안에서 currentColor 를 상속하므로 같이 올라간다.
+     */
+    meta: 'flex items-center gap-2 text-[12px] font-medium tabular-nums text-[var(--pl-gray-600)]',
     /**
      * 밴드 안의 곁줄(사유). 상자가 아니라 맨 줄이다 — 카드 안에 상자를 또 두면 계층이
      * 아니라 같은 무게의 상자 둘이 된다.
