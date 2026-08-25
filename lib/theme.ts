@@ -2986,6 +2986,47 @@ export const installRailStyles = {
   itemCurrent: 'bg-[#F3EEFF] border-[#8E7FC4] hover:bg-[#EDE6FB]',
 } as const;
 
+/**
+ * 그룹 레일의 **그룹 머리** — 24px 밴드(칠 + 글자)와, 그 밴드의 왼쪽 모서리에서 항목들
+ * 옆으로 내려오는 2px 스파인. 상자를 닫지 않고 ㄴ 자로 담는다.
+ *
+ * 라벨에 자기 면을 주는 이유: 밴드가 없을 때 라벨은 칠도 테두리도 없는 글자 한 줄인데
+ * 그 위아래 이웃은 둘 다 흰 카드(1px 윤곽)라, **부모가 자식보다 약한 신호**를 갖고
+ * 위아래 어느 쪽 소속인지도 형태로 말하지 못했다. 밴드가 생기면 그 둘이 같이 풀린다.
+ *
+ * 스파인이 따로 필요한 이유: 밴드만으로는 그룹 색이 라벨 자기 자신에서 끝난다. 항목
+ * 카드는 전부 같은 흰 칠 + 같은 회색 윤곽이라, 색이 소속을 말하려면 소속된 쪽까지
+ * 닿아야 한다(Elastic EUI `emphasize`: 강조는 "that section **and its nested items**").
+ *
+ * 스파인 굵기는 흰 바닥 대비로 고른다 — 항목 카드 윤곽(#D6DBE6, 1.39:1)과 열 경계선
+ * (`strong`, 1.47:1) 사이를 지나가는 선이므로 **그 둘보다 진해야** 묶는 선으로 읽힌다:
+ * blue-300 1.80:1 · indigo-300 1.99:1 · orange-300 1.70:1(`warning.border` 주석의 값).
+ * `todoDone` 만 gray-300(1.47:1)으로 한 단 내린다 — 끝난 그룹은 가장 조용한 게 맞다.
+ *
+ * 세 그룹의 색 출처가 다른 것은 의도다. 「내가 할 일」은 **조치**의 묶음이라 앱의 브랜드
+ * 짝(`bgLight`/`textOnLight`, design-guard 에 등록된 대비 쌍)을 쓰고, 나머지 둘은 정보의
+ * 묶음이라 이 화면이 이미 쓰는 팔레트 짝을 그대로 쓴다 — indigo 는 `tagStyles.indigo`·
+ * `sideTextColors.bdc`(BDC측), orange 는 `statusColors.warning`(참고자료).
+ */
+export const installRailGroupStyles = {
+  todo: {
+    band: `${primaryColors.bgLight} ${primaryColors.textOnLight}`,
+    spine: statusColors.info.border,
+  },
+  todoDone: {
+    band: `${bgColors.panel} ${textColors.secondary}`,
+    spine: borderColors.strong,
+  },
+  bdc: {
+    band: `bg-indigo-100 ${sideTextColors.bdc}`,
+    spine: 'border-indigo-300',
+  },
+  reference: {
+    band: `${statusColors.warning.bg} ${statusColors.warning.textDark}`,
+    spine: statusColors.warning.border,
+  },
+} as const;
+
 
 // =============================================================================
 // 레이아웃 (Layout)

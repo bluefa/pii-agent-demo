@@ -6,6 +6,7 @@ import {
   borderColors,
   cardStyles,
   cn,
+  installRailGroupStyles,
   installRailStyles,
   primaryColors,
   sideTextColors,
@@ -849,20 +850,42 @@ export const InstallStatusDetail = ({
       </button>
     );
 
-    // 16/600 — 그룹 이름이 항목(14/400)보다 크고 굵다. 계층 레버(크기·굵기)가 전부
-    // 라벨 편을 가리켜야 한다 — 16/500 은 크기로는 상위, 굵기·잉크로는 하위라
-    // 부모가 오락가락했다(레일 타이포 벤치마크 진단 1).
-    const groupLabel = (text: string, tone: string, trailing?: ReactNode) => (
-      <div
-        className={cn(
-          'flex items-baseline gap-2 px-2.5 pt-3 pb-1 text-[16px] font-semibold leading-[24px] tracking-[-0.01em] flex-shrink-0',
-          // On the gray-100 panel: raw Primary is 4.47:1 and gray-500 is 4.37:1,
-          // both under AA — use the darker tiers the theme keeps for tints.
-          tone,
-        )}
-      >
-        <span className="min-w-0 truncate">{text}</span>
-        {trailing}
+    // 그룹 = 머리(밴드) + 몸(스파인이 붙든 항목들). 이 함수가 만들어지기 전까지 레일에는
+    // **그룹이라는 상자가 없었다** — 라벨과 항목이 nav 의 형제로 나란히 놓였고, 그래서
+    // 그룹을 만드는 세 신호가 전부 빠져 있었다.
+    //
+    // ① 근접성 — 실측했더니 레일 자식 8개의 인접 간격이 **전부 8.0px** 이었다. 그룹
+    //    경계(마지막 항목 → 다음 라벨)와 그룹 내부(항목 → 항목)가 같은 값이라, 여백만
+    //    보면 어디서 묶음이 끊기는지 알 수 없었다. 근접성은 색·모양 같은 다른 신호를
+    //    덮어쓰기 때문에(NN/g Law of Proximity) 이걸 안 고치면 나머지가 절반만 듣는다.
+    //    이제 간격은 두 값이다 — 그룹 사이 24px(nav 의 gap-6), 그룹 안 6px(gap-1.5).
+    // ② 포함 — 라벨은 칠도 테두리도 없는 글자 한 줄인데 위아래 이웃은 둘 다 흰 카드라
+    //    부모가 자식보다 약했고, 카드 윤곽이 라벨의 위아래를 똑같이 막아서 라벨이 위를
+    //    닫는 줄인지 아래를 여는 줄인지 형태로 말하지 못했다. 밴드가 그 둘을 푼다.
+    // ③ 색의 도달 — 그룹 색이 라벨 글자에서 끝났다. 스파인이 그걸 항목 옆까지 끌고
+    //    내려간다(`installRailGroupStyles` 주석의 EUI `emphasize` 근거).
+    //
+    // 라벨은 16/600 → **12/600 + 자간 0.04em**. 담는 면이 생긴 이상 크기로 이길 필요가
+    // 없고, 패널 머리는 내용이 아니라 크롬이다(Ant `groupTitleColor` 문법). 라벨이
+    // 40px → 24px 로 내려가면서 레일 전체는 오히려 짧아진다.
+    //
+    // 스파인은 밴드의 **왼쪽 모서리에서** 내려온다(ml 없음) — 둘이 같은 x 에 서야 ㄴ 자로
+    // 읽힌다. 항목은 그 안쪽 8px 에 놓여 글자 기준 13px 들여쓰기가 된다(업계 12~16px).
+    const railGroup = (
+      key: string,
+      text: string,
+      tone: { band: string; spine: string },
+      items: ReactNode,
+      trailing?: ReactNode,
+    ) => (
+      <div key={key} className="flex flex-col flex-shrink-0">
+        <div className={cn('flex items-baseline gap-2 rounded-md px-2.5 py-1', tone.band)}>
+          <span className="min-w-0 truncate text-[12px] font-semibold leading-4 tracking-[0.04em]">
+            {text}
+          </span>
+          {trailing}
+        </div>
+        <div className={cn('mt-1.5 pl-2 border-l-2 flex flex-col gap-1.5', tone.spine)}>{items}</div>
       </div>
     );
 
@@ -888,7 +911,14 @@ export const InstallStatusDetail = ({
             자라 표가 카드 밖으로 흘러나오고, `grid-rows-[minmax(0,560px)]` 로 트랙을
             묶으면 이번엔 짧은 단계까지 560 으로 늘어나 빈 면이 돌아온다. 셀에 걸면 둘 다
             산다 — 짧으면 내용 높이, 길면 560 에서 셀 안 스크롤. */}
-        <div className="grid grid-cols-[224px_minmax(0,1fr)]">
+        {/* 레일 224 → 240px. 들여쓰기는 공짜가 아니다 — 고정 레일은 제로섬 열이라
+            스파인(2px)과 그 안쪽 여백(8px)이 그대로 제목 상자에서 빠진다. 224 그대로
+            두면 제목 상자가 181 → 171px 이 되는데, 이 레일에서 가장 긴 제목인
+            「서비스 측 Terraform 자동 적용」의 실측 잉크 폭이 **169.3px** 이라 여유가
+            1.7px 만 남는다. 그 라벨이 다시 감기는 것을 막으려고 두 라운드를 썼으므로
+            (47px 잘림 → 두 줄 → 순번 제거), 16px 은 오른쪽 셀에서 가져온다. 그쪽은
+            열 폭이 저장되는 리사이즈 표라 16px 은 여유분에서 빠진다. 결과 188px. */}
+        <div className="grid grid-cols-[240px_minmax(0,1fr)]">
           {/* 레일은 카드의 흰 바닥을 그대로 쓴다(시안 A). 회색 칠은 카드(raised) 안의
               sunken 면이라 Atlassian elevation 이 금지하는 조합이었고, 지난 라운드에
               카드 모서리까지 붙이면서 "가라앉은 판"이 아니라 "카드가 그만큼 없는 것"으로
@@ -900,14 +930,20 @@ export const InstallStatusDetail = ({
               1.39:1)보다도 흐렸다. 열의 경계가 그 안쪽 항목의 경계보다 약할 수는 없다. */}
           <nav
             className={cn(
-              'flex flex-col gap-2 p-2 border-r overflow-y-auto min-h-0 max-h-[560px]',
+              // gap-6 = 그룹 사이 24px. 그룹 **안**은 6px 이라 두 값의 비가 4:1 이다 —
+              // 8px 하나로 둘 다 쓰던 자리(진단 1)를 가르는 것이 이 레일의 1차 신호다.
+              'flex flex-col gap-6 p-2 border-r overflow-y-auto min-h-0 max-h-[560px]',
               borderColors.strong,
             )}
             aria-label="설치 단계"
           >
-            {groupLabel(
+            {railGroup(
+              'todo',
               `내가 할 일 (${openTodoCount})`,
-              openTodoCount > 0 ? primaryColors.textOnLight : textColors.secondary,
+              // 끝난 그룹은 브랜드 색을 놓는다 — 남은 조치가 없는 묶음이 레일에서 가장
+              // 밝은 면이면 "여기를 보라"가 거짓이 된다.
+              openTodoCount > 0 ? installRailGroupStyles.todo : installRailGroupStyles.todoDone,
+              todoSteps.map((s) => railItem(s)),
               // 다 끝났을 때는 남는 자리에 문단을 뿌리는 대신 그룹 이름 옆에서 한 마디로
               // 닫는다. 지웠던 두 줄은 둘 다 중복이었다: "하실 일이 없어요"는 라벨의 (0)이,
               // "자동으로 진행돼요"는 바로 아래 'BDC 진행' 라벨이 이미 말한다.
@@ -917,22 +953,26 @@ export const InstallStatusDetail = ({
                 </span>
               ),
             )}
-            {todoSteps.map((s) => railItem(s))}
             {/* BDC 는 인디고 — 새 색이 아니라 이 화면이 이미 'BDC측'에 쓰고 있는 색이다
                 (SideTag 의 tagStyles.indigo, sideTextColors.bdc). 그룹 이름과 행 태그가
                 같은 색을 말해야 "이 묶음이 곧 BDC 측"으로 읽힌다. */}
-            {groupLabel('BDC 진행', sideTextColors.bdc)}
-            {autoSteps.map((s) => railItem(s))}
-
-            {/* 설치 스크립트 — 단계가 아니므로 진행 순번 다음, 레일 끝에 선다.
-                주황은 파랑(내가 할 일)과 겹치지 않는 유일한 강조색이라, 처음 들어온
-                담당자도 찾지 않고 걸린다(오너 요구). */}
-            {reference && (
-              <>
-                {groupLabel('설치 스크립트', statusColors.warning.textDark)}
-                {referenceItem(reference)}
-              </>
+            {railGroup(
+              'auto',
+              'BDC 진행',
+              installRailGroupStyles.bdc,
+              autoSteps.map((s) => railItem(s)),
             )}
+
+            {/* 설치 스크립트 — 단계가 아니므로 레일 끝에 선다. 주황은 파랑(내가 할 일)과
+                겹치지 않는 유일한 강조색이라, 처음 들어온 담당자도 찾지 않고 걸린다
+                (오너 요구). */}
+            {reference &&
+              railGroup(
+                'reference',
+                '설치 스크립트',
+                installRailGroupStyles.reference,
+                referenceItem(reference),
+              )}
             {/* 레일 푸터(진행바 + "N개 중 M개 완료") 삭제 — 오너 결정. 단계 행의 상태
                 글자는 최악값 한 단어라 리소스 개수를 대신하지 못하므로, 그룹 레일에는
                 수치 진행률이 남아 있지 않다. 필요해지면 메타바 우측이 자리다. */}

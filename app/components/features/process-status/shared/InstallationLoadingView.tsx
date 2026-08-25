@@ -55,27 +55,36 @@ export const InstallationLoadingView = (props: InstallationLoadingViewProps) =>
     >
       {/* No last-check bar: that line lives in the card header now, and the header
           is drawn by the caller — it is not part of what this skeleton replaces. */}
-      <div className="grid grid-cols-[224px_minmax(0,1fr)]">
+      <div className="grid grid-cols-[240px_minmax(0,1fr)]">
         {/* rail — 두 줄 항목(제목 한 줄 + 상태 한 줄), 그룹 머리글 셋.
             항목 수 1/3/1 은 AWS 자동 설치의 모양이고 나머지는 다르다(Azure 3/1,
             GCP·IDC 1/2, AWS 수동 1/2). 프레임 고정 높이를 놓은 뒤로는 레일이 이
             셀의 높이를 정하므로, 근사가 아니라 **실제 행 수·행 높이**를 그려야
-            도착 시 카드가 덜 튄다. */}
-        <div className={cn('flex flex-col gap-2 p-2 border-r', borderColors.strong)}>
+            도착 시 카드가 덜 튄다.
+            그룹 문법도 실물 그대로다 — 그룹 사이 24px / 그룹 안 6px, 24px 밴드,
+            그리고 항목 옆 스파인. 여기서 간격 하나로 뭉개면 도착 순간 레일이 늘어난다.
+            밴드·스파인의 **색은 중립**으로 둔다: 스켈레톤은 아직 어느 그룹이 어떤
+            상태인지 모르고, 미리 칠하면 도착하며 색이 바뀌는 깜빡임이 생긴다. */}
+        <div className={cn('flex flex-col gap-6 p-2 border-r', borderColors.strong)}>
           {[1, 3, 1].map((rows, group) => (
-            <div key={group} className="flex flex-col gap-2">
-              <Bar tone={RAIL_BAR} className="mx-2.5 mt-3 mb-1 h-3 w-24 rounded" />
-              {Array.from({ length: rows }).map((_, i) => (
-                // 항목 카드 — 도착하면 이 자리에 같은 윤곽의 카드가 선다.
-                <div
-                  key={i}
-                  className={cn('flex flex-col gap-1 px-3 py-2 rounded-lg border', borderColors.card)}
-                >
-                  {/* 제목 = body 20px line-height, 상태 = caption 16px */}
-                  <Bar tone={RAIL_BAR} className="h-5 w-[80%] rounded" />
-                  <Bar tone={RAIL_BAR} className="h-4 w-10 rounded" />
-                </div>
-              ))}
+            <div key={group} className="flex flex-col">
+              {/* 그룹 밴드 — 실물과 같은 24px(py-1 + leading-4) */}
+              <div className={cn('rounded-md px-2.5 py-1', bgColors.panel)}>
+                <Bar tone={RAIL_BAR} className="h-4 w-20 rounded" />
+              </div>
+              <div className={cn('mt-1.5 pl-2 border-l-2 flex flex-col gap-1.5', borderColors.strong)}>
+                {Array.from({ length: rows }).map((_, i) => (
+                  // 항목 카드 — 도착하면 이 자리에 같은 윤곽의 카드가 선다.
+                  <div
+                    key={i}
+                    className={cn('flex flex-col gap-1 px-3 py-2 rounded-lg border', borderColors.card)}
+                  >
+                    {/* 제목 = body 20px line-height, 상태 = caption 16px */}
+                    <Bar tone={RAIL_BAR} className="h-5 w-[80%] rounded" />
+                    <Bar tone={RAIL_BAR} className="h-4 w-10 rounded" />
+                  </div>
+                ))}
+              </div>
             </div>
           ))}
         </div>
