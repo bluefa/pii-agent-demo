@@ -111,13 +111,13 @@ describe('TcLatestRunCard — Credential 미설정 곁줄', () => {
 });
 
 describe('TcLatestRunCard — 국면이 CTA 를 고른다', () => {
-  it('미실행은 실행, 실패는 다시 실행, 진행 중은 잠긴 채로 국면을 말한다', () => {
+  it('미실행은 실행, 정착한 뒤에는 연결 테스트, 진행 중은 잠긴 채로 국면을 말한다', () => {
     const { unmount } = renderCard({ latest: null });
     expect(screen.getByRole('button', { name: '연결 테스트 실행' })).toBeTruthy();
     unmount();
 
     const failed = renderCard({ latest: version([['r-1', 'FAIL']], { connection_status: 'FAIL' }) });
-    expect(screen.getByRole('button', { name: '다시 실행' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: '연결 테스트' })).toBeTruthy();
     failed.unmount();
 
     renderCard({

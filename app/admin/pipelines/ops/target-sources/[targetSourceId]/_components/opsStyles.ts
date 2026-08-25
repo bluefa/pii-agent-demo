@@ -142,11 +142,24 @@ export const opsStyles = {
    * 없다. 대신 화살표가 "여기서 끝나지 않고 다른 화면으로 간다"를 말하고, 파랑은 hover
    * 에서만 든다 — 행마다 반복되는 링크가 상시로 파랗면 표에서 가장 시끄러운 것이 된다.
    *
-   * 바탕 잉크 `--pl-text-medium` 10.46:1, hover 의 `--pl-primary` 는 흰 면 5.17:1 · 행
-   * hover 틴트 4.95:1 로 두 상태 모두 4.5:1 을 넘는다(실측).
+   * 평소엔 **없다** (오너 2026-08-25). 행마다 반복되는 링크가 상시로 서 있으면 표에서
+   * 가장 시끄러운 것이 되는데, 이 칸이 늘 말해야 하는 것은 건수지 입구가 아니다. 행에 눈이
+   * 가는 순간 그 행이 무엇을 할 수 있는지 파랑으로 함께 켜진다 — 같은 행의 Credential 값도
+   * 같이 켜지므로 두 입구가 한 제스처에 답한다.
+   *
+   * 사라지는 것은 `opacity` 지 자리가 아니다 — `hidden` 이면 hover 마다 건수 두 줄이 옆으로
+   * 밀린다. 그리고 `focus-visible` 에서도 켜진다: 키보드로 온 사람에게 안 보이는 버튼에
+   * 포커스가 서면 그 정거장은 사라진 것이나 같다.
+   *
+   * 그룹은 이름 있는 그룹이다(`/row`, `idcStyles.table.row` 가 선언). 맨 `group-hover` 는
+   * 조상 중 아무 `group` 에나 걸려 표 바깥의 group 에서도 샌다
+   * ([[feedback_bare_group_hover_leaks]]).
+   *
+   * 바탕 잉크 `--pl-text-medium` 10.46:1, `--pl-primary` 는 흰 면 5.17:1 · 행 hover 틴트
+   * 4.95:1 로 두 상태 모두 4.5:1 을 넘는다(실측).
    */
   manageLink:
-    'inline-flex flex-none cursor-pointer items-center whitespace-nowrap text-[14px] font-semibold text-[var(--pl-text-medium)] transition-colors hover:text-[var(--pl-primary)]',
+    'inline-flex flex-none cursor-pointer items-center whitespace-nowrap text-[14px] font-semibold text-[var(--pl-text-medium)] opacity-0 transition-[color,opacity] group-hover/row:opacity-100 group-hover/row:text-[var(--pl-primary)] hover:text-[var(--pl-primary)] focus-visible:opacity-100',
 
   /** In-cell text action that opens an editor — the Credential cell. A select box
       per row turns the table into a toolbar and buries the value inside a control,

@@ -300,7 +300,10 @@ export function TcLatestRunCard({
         title={blockedHint}
         onClick={onRunTest}
       >
-        {phase === 'idle' ? '연결 테스트 실행' : '다시 실행'}
+        {/* 정착한 실행 뒤의 낱말은 `다시 실행` 이 아니라 `연결 테스트` 다 (오너
+            2026-08-25) — 버튼이 무엇을 하는지를 말하지, 몇 번째인지를 말하지 않는다.
+            회차는 이미 밴드의 시각 줄과 실행 기록이 센다. */}
+        {phase === 'idle' ? '연결 테스트 실행' : '연결 테스트'}
       </PlButton>
     );
   })();

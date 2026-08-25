@@ -402,10 +402,13 @@ function PodLogLine({
 function LdbCell({
   row,
   verdict,
+  loading,
   onOpen,
 }: {
   row: TcResultRow | undefined;
   verdict: TcVerdict | undefined;
+  /** 최신 실행 조회가 아직 안 끝났다 — 건수가 없는 것과 다르다. */
+  loading: boolean;
   onOpen: () => void;
 }): ReactElement {
   const included = ldbCount(row, 'inc', verdict);
@@ -413,13 +416,28 @@ function LdbCell({
   return (
     <span className="flex items-center justify-between gap-2.5">
       <span className="flex min-w-0 flex-col items-start">
-        {included == null && excluded == null ? (
+        {/* 판정 칸과 같은 이유로 —를 그리지 않는다: 이 표에서 —는 "보고 없음"이라는 판정의
+            글자라, 아직 물어보는 중에 그것을 그리면 픽셀이 거짓말한다(오너 2026-08-25).
+            두 막대의 폭은 정착 후 들어설 두 줄(`최근 조회 N개` 76px · `제외 N개` 49px)이다.
+            문은 이 조회를 기다리지 않으므로 관리 링크는 그대로 선다 — 모달은 실행이 아니라
+            논리 DB 엔드포인트를 읽는다. */}
+        {loading ? (
+          <span className="flex flex-col items-start gap-1.5">
+            <span className={cn(opsStyles.skeletonBar, 'block h-3 w-[76px]')} aria-hidden="true" />
+            <span className={cn(opsStyles.skeletonBar, 'block h-3 w-[49px]')} aria-hidden="true" />
+          </span>
+        ) : included == null && excluded == null ? (
           <Dash />
         ) : (
-          <>
+          // 두 줄이 아니라 **작은 표** 하나다 (오너 2026-08-25: "2줄로 표현하니 조금
+          // 이상하다"). 라벨 길이가 다른 두 줄을 그냥 쌓으면 12 와 3 이 서로 다른 x 에
+          // 서서 비교가 안 되고, 같은 무게의 문장 둘이 목록처럼 읽힌다. 라벨 열과 수 열을
+          // 갈라 수를 오른쪽 끝에 맞추면(tabular-nums) 자릿수가 한 기둥에 서고, 칸 전체가
+          // 줄 둘이 아니라 한 덩어리로 읽힌다.
+          <span className="grid grid-cols-[auto_auto] items-baseline gap-x-2 gap-y-0.5">
             <LdbCount label="최근 조회" value={included} />
             <LdbCount label="제외" value={excluded} />
-          </>
+          </span>
         )}
       </span>
       <button
@@ -439,10 +457,15 @@ function LdbCell({
 function LdbCount({ label, value }: { label: string; value: number | null }): ReactElement | null {
   if (value == null) return null;
   return (
-    <span className="whitespace-nowrap text-[14px] tabular-nums text-[var(--pl-text-strong)]">
-      <span className="font-normal text-[var(--pl-text-weak)]">{label} </span>
-      {value}개
-    </span>
+    <>
+      <span className="whitespace-nowrap text-[14px] text-[var(--pl-text-weak)]">{label}</span>
+      {/* 수만 semibold — 이 칸에서 눈이 찾는 것은 이름이 아니라 수다. 한때 16px 로 올려
+          봤지만 오너가 14px 로 되돌렸다(2026-08-25): 크기는 표의 규칙(글자 크기는 14px
+          하나)이 소유하고, 무게만으로도 수가 이름 위로 올라선다. */}
+      <span className="whitespace-nowrap text-right text-[14px] font-semibold tabular-nums text-[var(--pl-text-strong)]">
+        {value}개
+      </span>
+    </>
   );
 }
 
@@ -762,7 +785,7 @@ export function ConfirmedInfoCard({
                         />
                       </td>
                       <td className={CELL}>
-                        <LdbCell row={tc} verdict={verdict} onOpen={openLdb} />
+                        <LdbCell row={tc} verdict={verdict} loading={tcLoading} onOpen={openLdb} />
                       </td>
                       <td className={CLIP_CELL}>
                         {/* Credential is addressed by resource id — no id, no assignment.
@@ -793,6 +816,10 @@ export function ConfirmedInfoCard({
                               className={cn(
                                 // 13px 판이 아니라 14px 판 — 이 표의 글자는 하나다.
                                 idcStyles.triggerBtn.linkNeutralMd,
+                                // 값도 행 hover 에서 파랑이 든다 (오너 2026-08-25) — 같은 행의
+                                // `관리 ↗` 와 한 제스처에 함께 켜져, 이 행에서 누를 수 있는
+                                // 것 둘이 동시에 드러난다. 그룹은 이름 있는 `/row` 다.
+                                'group-hover/row:text-[var(--pl-primary)] hover:text-[var(--pl-primary)]',
                                 'max-w-full disabled:cursor-not-allowed disabled:opacity-50',
                               )}
                             >

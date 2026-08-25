@@ -178,9 +178,11 @@ describe('확정 정보 표 — 논리 DB 관리 문', () => {
       new Map([[rows[0].resource_id, { verdict: 'SUCCESS', podId: null, failReason: null }]]),
       zero,
     );
+    // 이름·수·단위가 각자 span 이라(무게가 수에만 붙는다) textContent 에는 공백이 없다.
     const cell = ldbCells(container)[0];
-    expect(cell?.textContent).toContain('최근 조회 0개');
-    expect(cell?.textContent).toContain('제외 3개');
+    const flat = (cell?.textContent ?? '').replace(/\s+/g, '');
+    expect(flat).toContain('최근조회0개');
+    expect(flat).toContain('제외3개');
     expect(cell?.querySelector('button')?.textContent).toContain('관리');
   });
 
@@ -240,6 +242,34 @@ describe('확정 정보 표 — 연결 상태 로딩', () => {
       expect(cell?.querySelector('.animate-pulse')).toBeTruthy();
     }
     expect(container.querySelector('table')?.getAttribute('aria-busy')).toBe('true');
+  });
+
+  /** 논리 DB 칸도 같은 규칙이다 (오너 2026-08-25) — 그리고 문은 이 조회를 안 기다린다. */
+  it('논리 DB 칸도 조회 중에는 자리를 잡아 두고, 관리 링크는 그대로 선다', () => {
+    const { container } = render(
+      <ConfirmedInfoCard
+        targetSourceId={1}
+        isIdc={false}
+        rows={rows}
+        secrets={[]}
+        tcResults={[]}
+        facts={new Map()}
+        tcLoading
+        credMissingOnly={false}
+        loading={false}
+        failed={false}
+        onReload={vi.fn()}
+      />,
+    );
+    const cells = [...container.querySelectorAll('tbody tr')].map(
+      (row) => row.querySelectorAll('td')[3],
+    );
+    expect(cells.length).toBeGreaterThan(0);
+    for (const cell of cells) {
+      expect(cell?.querySelector('.animate-pulse')).toBeTruthy();
+      expect(cell?.textContent).not.toContain('—');
+      expect(cell?.querySelector('button')?.textContent).toContain('관리');
+    }
   });
 });
 
