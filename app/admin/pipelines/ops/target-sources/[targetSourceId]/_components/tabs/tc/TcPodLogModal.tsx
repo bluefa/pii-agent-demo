@@ -14,19 +14,30 @@
  * 칩이 같은 색을 입어 범례를 겸한다(오너 2026-08-19). 같은 색을 나눠 쓰는 severity
  * (ERROR/CRITICAL 등)의 정확한 낱말은 행 hover title 로 남는다. 행 틴트는 금지.
  *
- * 행 문법은 StackDriver 그대로 — 글리프 · 시각 · 본문 (오너 2026-08-20). 바닥과 줄 색은
- * 위 그대로 두고 앞의 두 칸만 가져온 것이다: 로그를 읽는 사람은 "몇 시에 무엇이"를 왼쪽에서
- * 세로로 훑고, 그 뒤에야 문장을 읽는다. 시각은 밀리초까지(같은 초에 여러 줄이 찍힌다),
- * 날짜는 줄에서 뺀다 — 한 pod 의 로그는 몇 분 안에 끝난다. 응답이 시각을 안 주면 그 칸은
- * 통째로 빠진다 — 자리만 잡고 '-' 를 세우지 않는다.
+ * 행 문법은 StackDriver 그대로 — 화살표 · 글리프 · 시각 · 본문이 한 줄에 선다. 로그를
+ * 읽는 사람은 "몇 시에 무엇이"를 왼쪽에서 세로로 훑고, 그 뒤에야 문장을 읽는다.
+ *
+ * 시각은 **날짜까지** 줄에 싣는다 (오너 2026-08-26). 종전에는 "한 pod 은 몇 분 안에
+ * 끝난다"를 근거로 날짜를 뺐지만, Cloud Logging 의 행은 언제나 날짜를 달고 있고 — 복사해
+ * 붙인 한 줄이 어느 날 것인지 그 줄 혼자 말할 수 있어야 한다. 밀리초는 그대로 둔다:
+ * 한 pod 의 줄들은 같은 초 안에 여러 개 찍히고, 초에서 자르면 순서가 시각으로 설명되지
+ * 않는다. 응답이 시각을 하나도 안 주면 그 칸은 통째로 빠진다 — 자리만 잡고 '-' 를 세우지
+ * 않는다.
+ *
+ * 행마다 흰 stroke (오너 2026-08-26). 종전에는 행의 경계가 hover 때만 나타나서, 여러 줄
+ * 트레이스를 펴 놓으면 어디서 한 행이 끝나고 다음 행이 시작하는지 바닥 색만으로는 읽히지
+ * 않았다. 이제 어두운 패널 위에 흰색 20% 윤곽이 상시로 각 행을 감싼다 — 칠이 아니라 선이라
+ * severity 색(줄 전체가 입는다)을 흐리지 않는다.
  *
  * 한 줄은 한 행 — 접힘이 기본 (오너 2026-08-25). 종전에는 본문이 그대로 감겨서, 스택
  * 트레이스 한 건이 화면을 통째로 먹고 그 아래 줄들이 지면 밖으로 밀렸다. 이제 접힌 행은
  * 무슨 일이 있어도 정확히 한 줄(`truncate`)이라 "몇 건이 어떤 순서로 찍혔나"가 먼저 읽히고,
  * 필요한 줄만 눌러서 편다 — StackDriver 가 행 앞 화살표로 상세를 여는 것과 같은 문법이다.
- * 편 행은 본문 전문(감김)과 함께 접힌 줄이 못 싣는 두 사실을 덧붙인다: severity 원문 낱말
- * (같은 색을 나눠 쓰는 ERROR/CRITICAL 을 가른다 — hover title 의 상시 판)과 날짜까지 붙은
- * 시각. 그래서 펴기는 언제나 픽셀을 바꾼다 — 짧은 줄에서도 죽은 토글이 되지 않는다.
+ * ⚠️ 펴기가 더하는 사실은 이제 **본문 전문 하나뿐**이다 — 종전의 `severity · 날짜 시각`
+ * 꼬리표는 오너가 걷어냈고(2026-08-26), 시각은 접힌 줄이 이미 날짜까지 싣는다. 그래서
+ * 안 잘리는 짧은 줄에서는 펴도 화살표 회전 말고는 픽셀이 안 바뀐다 — Cloud Logging 도
+ * 모든 행에 같은 화살표를 세우므로 그 균일한 왼쪽 홈통을 따랐다. severity 원문 낱말은
+ * 색을 나눠 쓰는 ERROR/CRITICAL 을 가르기 위해 행 hover title 로 남는다.
  */
 import {
   useEffect,
@@ -82,9 +93,12 @@ const SEVERITY_GLYPH: Readonly<Record<string, IconName>> = {
 };
 
 /**
- * 한 줄 — 화살표·글리프·시각·본문이 한 줄에 서고, 가리키면 그 줄만 밝아진다(StackDriver 행).
- * 행 전체가 디스클로저 머리다: 가리키면 밝아지고 누르면 펴진다. group 은 이름을 달아
+ * 한 줄 — 화살표·글리프·시각·본문이 한 줄에 서고, 흰 stroke 가 그 줄을 감싼다(StackDriver
+ * 행). 행 전체가 디스클로저 머리다: 가리키면 밝아지고 누르면 펴진다. group 은 이름을 달아
  * 둔다 — 맨몸 group 은 바깥 group 의 hover 까지 받는다.
+ *
+ * 윤곽은 `border` 가 아니라 `ring` 이다 — border 는 border-box 안에서 본문을 1px 씩 밀어
+ * 시각 칸과 본문의 세로줄을 흐트러뜨린다(ring 은 레이아웃 밖에 그려진다).
  *
  * 포커스 표식은 이 행이 따로 그리지 않는다 — 전역 `*:focus-visible` 아웃라인
  * (globals.css)이 이미 모든 초점 대상에 같은 표식을 세우고, 그 규칙은 cascade layer
@@ -92,7 +106,7 @@ const SEVERITY_GLYPH: Readonly<Record<string, IconName>> = {
  * 링을 하나 더 얹으면 굵기가 다른 고리 두 개가 겹친다.
  */
 const LOG_ROW =
-  'group/logrow flex cursor-pointer items-start gap-2 -mx-2 rounded-[4px] px-2 py-[3px] hover:bg-[var(--pl-gray-700)]';
+  'group/logrow flex cursor-pointer items-start gap-2 rounded-[4px] px-2 py-1 ring-1 ring-inset ring-white/20 hover:bg-[var(--pl-gray-700)] hover:ring-white/40';
 
 /** 필터 칩의 정렬 순서 — 심한 쪽 먼저. 0건 severity 칩은 그리지 않는다. */
 const SEVERITY_ORDER: readonly string[] = [
@@ -106,6 +120,13 @@ const SEVERITY_ORDER: readonly string[] = [
   'DEBUG',
   'DEFAULT',
 ];
+
+/**
+ * 행의 시각 칸 — `YYYY-MM-DD HH:mm:ss.SSS`. 시각 칸이 서는 건 캡처본에 시각이 하나라도
+ * 있을 때뿐이고, 그 안에서 시각이 빠진 낱줄만 '-' 를 받는다.
+ */
+const stamp = (iso: string | null | undefined): string =>
+  iso ? `${fmtDate(iso)} ${fmtTimeMs(iso)}` : '-';
 
 type Phase = 'loading' | 'ok' | 'notfound' | 'error';
 
@@ -216,7 +237,7 @@ export function TcPodLogModal({
   const hasTime = entries.some((entry) => entry.timestamp);
   const copyText = visible
     .map((entry) =>
-      [entry.timestamp ? fmtTimeMs(entry.timestamp) : null, entry.severity, entry.content]
+      [entry.timestamp ? stamp(entry.timestamp) : null, entry.severity, entry.content]
         .filter(Boolean)
         .join('\t'),
     )
@@ -260,7 +281,7 @@ export function TcPodLogModal({
         {/* pt — 전역 포커스 아웃라인은 행 박스 **바깥**으로 2px 떨어져 2px 두께로 그려진다.
             `j.logBody` 는 padding-top 이 0 이라 첫 행이 스크롤 경계에 붙고, 그 4px 이
             잘린다. 여기서만 위를 띄운다(공유 셸은 건드리지 않는다). */}
-        <div className={cn(j.logPre, 'flex flex-col pt-1.5')}>
+        <div className={cn(j.logPre, 'flex flex-col gap-1 pt-1.5')}>
           {rows.map(({ entry, index }) => {
             const open = expanded.has(index);
             return (
@@ -306,22 +327,15 @@ export function TcPodLogModal({
                 />
                 <SeverityGlyph severity={entry.severity} />
                 {hasTime && (
-                  <span className="flex-none tabular-nums opacity-70">
-                    {fmtTimeMs(entry.timestamp)}
-                  </span>
+                  <span className="flex-none tabular-nums opacity-70">{stamp(entry.timestamp)}</span>
                 )}
-                <div className="min-w-0 flex-1">
-                  <div className={open ? 'whitespace-pre-wrap break-all' : 'truncate'}>
-                    {entry.content}
-                  </div>
-                  {open && (
-                    <div className="mt-1 text-[12px] opacity-60">
-                      {entry.severity}
-                      {entry.timestamp
-                        ? ` · ${fmtDate(entry.timestamp)} ${fmtTimeMs(entry.timestamp)}`
-                        : ''}
-                    </div>
+                <div
+                  className={cn(
+                    'min-w-0 flex-1',
+                    open ? 'whitespace-pre-wrap break-all' : 'truncate',
                   )}
+                >
+                  {entry.content}
                 </div>
               </div>
             );
