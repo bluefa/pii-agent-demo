@@ -46,8 +46,13 @@ import { IdentifierTip, Tooltip } from '@/app/components/ui/Tooltip';
 import { InfoCircleIcon } from '@/app/components/ui/icons';
 import { Ec2InstanceTag, RdsClusterTag } from '@/app/components/ui/RdsInstanceChips';
 import { ResourceIdCell } from '@/app/target-sources/[targetSourceId]/_components/shared/ResourceIdCell';
-import { IdcEndpointCell } from '@/app/admin/pipelines/queue/requests/_components/idcCells';
+import {
+  IdcEndpointCell,
+  IdcSourceIpCell,
+} from '@/app/admin/pipelines/queue/requests/_components/idcCells';
+import { SourceIpHeader } from '@/app/target-sources/[targetSourceId]/_components/idc/IdcResourceTable';
 import { toIdcResourceViewFromConfirmed } from '@/app/lib/api/idc';
+import { IDC_SOURCE_LABEL } from '@/lib/constants/idc';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
 import { Icon } from '@/app/admin/pipelines/_components/icons';
 import { usePlToast } from '@/app/admin/pipelines/_components/usePlToast';
@@ -125,7 +130,13 @@ const COL_W = {
   // 넓게 그려진다. 논리 DB 칸이 가져간 36px 중 18 을 여기서 냈다 — 이 열은 자기 머리글
   // (79px)보다 93px 넓은, 표에서 여유가 가장 큰 바닥이었다.
   id: 172,
-  idcName: 240,
+  // 온프렘 표는 열이 둘 더 붙어(Port · 출발지) 주소 바닥값을 200 으로 낮췄다 — flex 열이라
+  // 표가 프레임 안에 들면 이보다 넓게 그려진다. 합 1066 < 1110.
+  idcName: 200,
+  /** 포트 번호 다섯 자리 — 큐의 IDC 표와 같은 폭. */
+  port: 80,
+  /** `BDC측 출발지` 머리글(+ⓘ)이 안 잘리는 폭 — 큐의 IDC 표와 같은 144. */
+  src: 144,
   // 14px 머리글이 안 잘리는 폭 — 글자를 12→14 로 올리면 라벨이 그만큼 넓어진다.
   // 값은 덮어 자르는 문법이 있지만 **열 이름**이 잘리면 표가 깨진 것처럼 읽힌다.
   // `Database Type` 은 이 표에서 가장 긴 머리글이다(14px 실측 99px) — 좌우 패딩 36 을
@@ -182,6 +193,16 @@ const CREDENTIAL_HEAD = (
  *
  * IDC 는 이름 대신 접속 주소 한 열을 싣는다 — Resource Name·ID 도 Region 도 없다(온프렘
  * DB 는 스캔이 이름 붙인 적이 없고 리전이 없다). 열을 숨기는 게 아니라 그 사실이 없다.
+ *
+ * 대신 온프렘에만 있는 사실 둘이 붙는다 (오너 2026-08-26): **Port** 와 **BDC측 출발지**.
+ * 클라우드 리소스는 ARN 하나가 주소·포트·경로를 다 물고 있고 접근 경로도 IAM 이 정하지만,
+ * 온프렘은 주소와 포트가 따로고 서비스 방화벽이 `출발지 → IP:Port` 를 열어 줘야 연결
+ * 테스트가 통과한다 — 실패를 읽는 사람이 가장 먼저 확인하는 두 값이다. 큐의 연동 요청
+ * 표(`IdcResourceTable`)가 이미 같은 두 열을 같은 셀·같은 머리글로 싣는다.
+ *
+ * 그리고 IDC 만 Database Type 이 판정 **왼쪽**이다 (오너 2026-08-26). 클라우드 표는 오너가
+ * 2026-08-25 에 척추 다섯(이름·ID·판정·논리 DB·Credential)을 붙여 두라고 못 박아서, 분류를
+ * 그 사이에 끼우면 정체와 판정이 갈라진다. 온프렘에는 그 척추가 없다(ID 열 자체가 없다).
  */
 const confirmedColumns = (isIdc: boolean): ConsoleTableColumn[] =>
   // 표 안의 글자는 전부 14px 이다(오너 2026-08-25). 머리글의 12px 는 셸이 `<thead>` 에서
@@ -195,10 +216,12 @@ const rawConfirmedColumns = (isIdc: boolean): ConsoleTableColumn[] =>
   isIdc
     ? [
         { key: 'name', label: '접속 주소', width: COL_W.idcName, flex: true },
+        { key: 'port', label: 'Port', width: COL_W.port },
+        { key: 'type', label: 'Database Type', width: COL_W.type },
         { key: 'conn', label: '연결 상태', width: COL_W.conn },
         { key: 'ldb', label: '연동 논리 DB', width: COL_W.ldb },
         { key: 'cred', label: 'Credential', width: COL_W.cred, head: CREDENTIAL_HEAD },
-        { key: 'type', label: 'Database Type', width: COL_W.type },
+        { key: 'src', label: IDC_SOURCE_LABEL, width: COL_W.src, head: <SourceIpHeader /> },
       ]
     : [
         { key: 'name', label: 'Resource Name', width: COL_W.name, flex: true },
@@ -774,6 +797,20 @@ export function ConfirmedInfoCard({
                           />
                         )}
                       </td>
+                      {/* 온프렘은 주소와 포트가 따로다 — 클라우드의 ARN 처럼 하나가 둘을 물고
+                          있지 않으므로 포트가 제 열을 갖는다. 큐의 연동 요청 표와 같은 폭(80). */}
+                      {isIdc && (
+                        <td className={cn(CELL, 'tabular-nums')}>
+                          {row.port ? row.port : <Dash />}
+                        </td>
+                      )}
+                      {/* 온프렘만 분류가 판정 왼쪽이다 (오너 2026-08-26) — 클라우드 표의
+                          척추 다섯을 가르지 않으려면 그쪽은 뒤에 남아야 한다. */}
+                      {isIdc && (
+                        <td className={CELL}>
+                          <TypeCell type={row.database_type} />
+                        </td>
+                      )}
                       {/* Resource ID 는 제 열이다 — ARN 이 같은 이름을 리전·계정으로 가르는
                           유일한 값이라 이름과 나란히 선다. 접힌 행이 다는 것은 결과가 실제로
                           키로 쓰는 id — 리전 id 다. IDC 는 이 열이 아예 없다(내부 키라
@@ -883,12 +920,26 @@ export function ConfirmedInfoCard({
                           <Dash />
                         )}
                       </td>
-                      <td className={CELL}>
-                        <TypeCell type={row.database_type} />
-                      </td>
+                      {!isIdc && (
+                        <td className={CELL}>
+                          <TypeCell type={row.database_type} />
+                        </td>
+                      )}
                       {!isIdc && (
                         <td className={CELL}>
                           <RegionCell region={row.database_region || null} />
+                        </td>
+                      )}
+                      {/* BDC측 출발지 — 서비스 방화벽이 `출발지 → IP:Port` 를 열어 줘야 연결
+                          테스트가 통과하므로, 실패를 읽는 사람이 확인할 값이다. 큐의 표와 같은
+                          셀이라 주소 하나에 tip·복사가 그대로 딸려 온다. 빈 값은 —가 아니라
+                          공백이다(셀이 그렇게 정한다): BDC 는 연동 대상에만 출발지를 배정한다. */}
+                      {isIdc && (
+                        <td className={CLIP_CELL}>
+                          <IdcSourceIpCell
+                            sourceIps={toIdcResourceViewFromConfirmed(row).sourceIps}
+                            maxWidthClass="max-w-full"
+                          />
                         </td>
                       )}
                     </tr>

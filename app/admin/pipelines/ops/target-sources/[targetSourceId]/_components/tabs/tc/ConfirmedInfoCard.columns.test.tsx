@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type { ConfirmedIntegrationResourceItem } from '@/app/lib/api';
 import type { TcResourceFact } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/logic';
 import type { TcResultRow } from '@/app/lib/api/task-queue-tc';
+import { IDC_SOURCE_LABEL } from '@/lib/constants/idc';
 
 /**
  * 정체와 속성은 각자 제 열이다 — 그리고 그 열 수는 **행이 채우는 칸 수**와 같아야 한다.
@@ -87,15 +88,35 @@ describe('확정 정보 표 — 열 구성', () => {
     ]);
   });
 
-  it('IDC 는 이름·ID 대신 접속 주소 한 열이고 리전이 없다 — 온프렘에 없는 사실이다', () => {
+  /**
+   * 온프렘은 다른 표다. 없는 것(Resource Name·ID·Region)과 온프렘에만 있는 것(Port·
+   * BDC측 출발지)이 둘 다 있고, 분류가 판정 **왼쪽**이다 (오너 2026-08-26) — 클라우드 표의
+   * 척추 다섯을 가르지 않으려면 그쪽에서는 같은 이동을 할 수 없다.
+   */
+  it('IDC 는 접속 주소·Port·분류가 판정 앞에 서고, 끝에 출발지가 붙는다', () => {
     renderTable(true);
     expect(headerLabels()).toEqual([
       '접속 주소',
+      'Port',
+      'Database Type',
       '연결 상태',
       '연동 논리 DB',
       'Credential',
-      'Database Type',
+      IDC_SOURCE_LABEL,
     ]);
+  });
+
+  /**
+   * 헤더만 세는 단언은 IDC 의 손으로 쓴 `<td>` 들을 못 본다 — 그 칸들은 `columns.map` 이
+   * 아니라 `{isIdc && …}` 가지로 흩어져 있어서, 열을 하나 붙이고 칸을 안 붙이면 표가 조용히
+   * 한 칸씩 밀린다(값이 남의 열 아래로 간다). jsdom 은 레이아웃을 안 재므로 칸 수만이 잡는다.
+   */
+  it('IDC 행도 열 수를 정확히 채운다', () => {
+    const { container } = renderTable(true);
+    const columns = headerLabels().length;
+    const bodyRows = [...container.querySelectorAll('tbody tr')] as HTMLTableRowElement[];
+    expect(bodyRows.length).toBeGreaterThan(0);
+    for (const row of bodyRows) expect(spanOf(row)).toBe(columns);
   });
 
   it('펼친 리전의 자식 행도 열 수를 정확히 채운다 — 한 칸 밀리면 값이 남의 열로 간다', () => {
