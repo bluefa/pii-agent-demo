@@ -98,11 +98,9 @@ export const opsStyles = {
   fmGlyph: 'h-5 w-5 flex-none text-[var(--pl-text-medium)]',
   fmLabel:
     'whitespace-nowrap text-[14px] font-semibold tracking-[0.02em] text-[var(--pl-text-medium)]',
-  /** 머리 줄 오른쪽 — 「관련 페이지」와 나가는 링크들, 그리고 「상세 정보」.
-      그리드는 사실만 지고, 이 줄의 오른쪽이 누를 수 있는 것들의 자리다. */
-  fmAside: 'flex flex-none items-center gap-3',
-  fmAsideLabel: 'text-[12px] font-semibold text-[var(--pl-gray-600)]',
-  fmAsideSep: 'h-3 w-px flex-none bg-[var(--pl-border-strong)]',
+  /** 「관련 페이지」 블록의 본문 — 나가는 링크들 한 줄. kv 그리드와 같은 자리에서
+      시작하도록 머리 아래 여백은 `fmGrid` 의 pt 와 같은 값이다. */
+  fmLinkRow: 'flex flex-wrap items-center gap-x-5 gap-y-2 pt-2.5',
   /** 포커스 링을 손으로 그리지 않는다 — `focus-visible:outline-none` 은 이 앱에서 무효라
       (globals.css 의 전역 아웃라인이 cascade layer 밖) 옅은 링이 전역 파란 아웃라인 옆에
       같이 그려졌다. 옆의 링크 둘과 같은 방식으로 전역 아웃라인만 받는다. */
