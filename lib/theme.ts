@@ -761,7 +761,7 @@ export const projectHeaderStyles = {
    * never the reason anyone opened this screen, so it reads at the weight of a
    * location, and the service name it used to crowd gets the whole middle.
    *
-   * Same grammar as the ops side of the same target (`opsStyles.crumb`): 12px, a
+   * Same grammar as the ops side of the same target (`opsStyles.path`): 12px, a
    * 280px clamp on the name, the last segment closing the path as "you are here".
    * Nothing here links, so this is a heading SHAPED like a path, not a breadcrumb.
    */
