@@ -63,6 +63,20 @@ type GateRowState = 'ok' | 'err' | 'warn' | 'pending';
 const GATE_ORDINALS = [1, 2, 3] as const;
 
 /**
+ * 카드 본문의 근거 한 줄. 라벨이 있으면 라벨–값 행, 없으면 산문 줄.
+ *
+ * 예전에는 근거 전부가 ` · ` 로 이어 붙인 한 줄이었다 — "3회차 2026-06-01 09:04:20 · 연동
+ * 대상 논리 DB 35 · 제외 1" 은 좁은 열에서 두 줄로 접히면서 어디까지가 한 사실인지 경계를
+ * 잃는다. 이제 사실 하나가 줄 하나를 갖고, 값의 이름은 왼쪽 열이 진다 (오너 2026-08-26:
+ * "정보 정리 좀 잘 해봐").
+ */
+interface GateFact {
+  /** 없으면 산문 줄 — 판정의 이유·안내처럼 이름 붙일 값이 아닌 것. */
+  label?: string;
+  value: ReactNode;
+}
+
+/**
  * One 승인 조건 — 카드 한 장.
  *
  * 세 조건이 한 상자 안에 `divide-y` 로 붙어 있던 동안에는 세 판정이 한 덩어리로 읽혔다
@@ -70,40 +84,43 @@ const GATE_ORDINALS = [1, 2, 3] as const;
  * 각자 자기 카드에 서고, 세 카드는 한 행 세 열로 나란히 선다 — 감싸는 상자 없이
  * 콘텐츠 열 바닥에 그대로 깔린다.
  *
- * 카드 안 순서: 라벨(승인 조건 1) ▸ 판정문 ▸ 근거·조회 시각 ▸ (바닥) 상세보기. 판정문은 이제 카드의 제목
- * 자리라 한 단 올라가고(14 → 16), 근거 줄도 따라 한 단 오른다(12 → 14) — 상자 안 행이
- * 아니라 카드 본문이 됐으므로. 아이콘은 판정문 줄에 붙는다: 두 줄 블록의 가운데로 내려오면
- * 어느 줄을 판정하는 것인지 흐려진다.
+ * 카드 안 순서: 라벨(승인 조건 1) ▸ 판정문 ▸ 근거 행 ▸ (바닥) 상세보기.
+ *
+ * 판정문은 카드의 제목이라 이 화면의 제목 활자(`opsStyles.cardTitle`, 20px)를 그대로 입는다
+ * (오너 2026-08-26). 근거 행은 12px 라벨 / 14px 값 두 열이고 행 사이를 8px 벌린다 — 좁은
+ * 열에서 값이 두 줄로 접혀도 옆 행과 붙지 않을 만큼. 아이콘은 판정문 줄에 붙는다: 두 줄
+ * 블록의 가운데로 내려오면 어느 줄을 판정하는 것인지 흐려진다.
  */
 function GateCard({
   ordinal,
   state,
   text,
-  suffix,
+  facts,
   titleHint,
-  meta,
   onNavigate,
 }: {
-  /** 조건 번호 — 카드가 셋으로 흩어져도 순서(①②③)는 카드 자신이 진다. */
+  /** 조건 번호 — 카드가 셋으로 흩어져도 순서(1·2·3)는 카드 자신이 진다. */
   ordinal: (typeof GATE_ORDINALS)[number];
   state: GateRowState;
   text: string;
-  suffix?: ReactNode;
+  facts: readonly GateFact[];
   /** Debug-tier raw value (wire vocabulary) — tooltip only, never in the copy. */
   titleHint?: string;
-  meta?: string;
   /** "상세보기" — 이 조건을 판정한 근거가 사는 탭으로 보낸다. */
   onNavigate?: () => void;
 }): ReactElement {
   const icon =
     state === 'ok' ? (
-      <Icon name="check-circle" size={18} className="text-[var(--pl-ok-text)]" />
+      <Icon name="check-circle" size={20} className="text-[var(--pl-ok-text)]" />
     ) : state === 'err' ? (
-      <Icon name="x-circle" size={18} className="text-[var(--pl-err-text)]" />
+      <Icon name="x-circle" size={20} className="text-[var(--pl-err-text)]" />
     ) : state === 'warn' ? (
-      <Icon name="warn-tri" size={18} className="text-[var(--pl-warn-text)]" />
+      <Icon name="warn-tri" size={20} className="text-[var(--pl-warn-text)]" />
     ) : (
-      <span aria-hidden className="block h-[18px] w-[18px] rounded-full border-2 border-[var(--pl-border-strong)]" />
+      <span
+        aria-hidden
+        className="block h-5 w-5 rounded-full border-2 border-[var(--pl-border-strong)]"
+      />
     );
   return (
     <section
@@ -111,28 +128,42 @@ function GateCard({
       aria-label={`승인 조건 ${ordinal}`}
     >
       <p className="text-[12px] font-semibold text-[var(--pl-text-weak)]">승인 조건 {ordinal}</p>
-      <div className="mt-2 flex items-start gap-2.5">
-        <span className="mt-px flex-none">{icon}</span>
-        <div className="min-w-0 flex-1">
-          <p className="text-[16px] font-semibold leading-[1.45] text-[var(--pl-text-strong)]" title={titleHint}>
-            {text}
-          </p>
-          {(suffix || meta) && (
-            <p className="mt-1.5 text-[14px] leading-[1.5] text-[var(--pl-text-weak)]">
-              {suffix}
-              {suffix && meta && ' · '}
-              {meta && <span className="tabular-nums">{meta}</span>}
-            </p>
-          )}
-        </div>
+      <div className="mt-2.5 flex items-start gap-2.5">
+        <span className="mt-0.5 flex-none">{icon}</span>
+        <p
+          className={cn(opsStyles.cardTitle, 'min-w-0 flex-1 break-keep leading-[1.4]')}
+          title={titleHint}
+        >
+          {text}
+        </p>
       </div>
+      {facts.length > 0 && (
+        <dl className="mt-3.5 flex flex-col gap-2">
+          {facts.map((fact, i) =>
+            fact.label ? (
+              <div key={i} className="flex items-baseline gap-2">
+                <dt className="w-[68px] flex-none text-[12px] leading-[1.5] text-[var(--pl-text-weak)]">
+                  {fact.label}
+                </dt>
+                <dd className="min-w-0 flex-1 text-[14px] leading-[1.5] tabular-nums text-[var(--pl-text-medium)]">
+                  {fact.value}
+                </dd>
+              </div>
+            ) : (
+              <dd key={i} className="text-[14px] leading-[1.6] text-[var(--pl-text-weak)]">
+                {fact.value}
+              </dd>
+            ),
+          )}
+        </dl>
+      )}
       {onNavigate && (
         // 세 열이 되면서 제목 옆을 떠났다 — 360px 열에서 판정문과 CTA 가 한 줄을 나눠 쓰면
         // 문장이 두세 줄로 접힌다. 카드 바닥은 셋이 같은 자리라 열끼리도 줄이 맞는다.
         <button
           type="button"
           onClick={onNavigate}
-          className="mt-auto flex cursor-pointer items-center gap-0.5 self-start pt-3 text-[14px] font-semibold text-[var(--pl-primary)] hover:underline"
+          className="mt-auto flex cursor-pointer items-center gap-0.5 self-start pt-4 text-[14px] font-semibold text-[var(--pl-primary)] hover:underline"
         >
           상세보기
           <Icon name="chev-r" size={14} />
@@ -141,7 +172,6 @@ function GateCard({
     </section>
   );
 }
-
 
 export interface ApprovalTabProps {
   targetSourceId: number;
@@ -209,20 +239,26 @@ export function ApprovalTab({
     onError: () => toast.show('설치 완료 처리에 실패했습니다.'),
   });
 
-  // 조건 ② 의 보조 줄 — 회차·시각과, 성공분이 있을 때만 논리 DB 합계. 합계는 연결
-  // 테스트 탭의 셀과 같은 fold(ldbCount 게이트)라 두 화면이 갈라지지 않는다.
-  const tcSubtitle = ((): string | null => {
-    if (!latest) return null;
-    const parts: string[] = [];
-    const round = latest.test_connection_version != null ? `${latest.test_connection_version}회차` : '';
-    const at = latest.completed_at ?? latest.requested_at;
-    const identity = [round, at ? fmtDateTimeSec(at) : ''].filter(Boolean).join(' ');
-    if (identity) parts.push(identity);
-    if (stats.successCount > 0) {
-      parts.push(`연동 대상 논리 DB ${n(stats.includedTotal)}`);
-      parts.push(`제외 ${n(stats.excludedTotal)}`);
+  // 조건 ② 의 근거 행 — 회차·시각, 그리고 성공분이 있을 때만 논리 DB 합계. 합계는 연결
+  // 테스트 탭의 셀과 같은 fold(ldbCount 게이트)라 두 화면이 갈라지지 않는다. 한 줄에 ` · `
+  // 로 잇던 것을 사실마다 한 행으로 나눈다 (오너 2026-08-26).
+  const tcFacts = ((): readonly GateFact[] => {
+    if (!latest) return [];
+    const facts: GateFact[] = [];
+    if (latest.test_connection_version != null) {
+      facts.push({ label: '회차', value: `${latest.test_connection_version}회차` });
     }
-    return parts.length > 0 ? parts.join(' · ') : null;
+    // 끝난 실행이면 완료 시각, 아직이면 요청 시각 — 라벨이 어느 쪽인지 말한다.
+    const done = latest.completed_at;
+    const at = done ?? latest.requested_at;
+    if (at) facts.push({ label: done ? '완료' : '요청', value: fmtDateTimeSec(at) });
+    if (stats.successCount > 0) {
+      facts.push({
+        label: '논리 DB',
+        value: `연동 대상 ${n(stats.includedTotal)}개 · 제외 ${n(stats.excludedTotal)}개`,
+      });
+    }
+    return facts;
   })();
 
   // 도착 전에는 아무 사실도 말하지 않는다 — 로딩 중의 null 을 '이력 없음'으로 읽으면
@@ -230,92 +266,114 @@ export function ApprovalTab({
   const gate = tcLoaded ? tcRunGate(run, latest !== null, latestFailed) : 'loading';
   const head = foldApprovalHead(status?.status, statusFailed, gate, dag);
 
-  // 승인 조건 row ① — 도착 전 · 조회 실패 · 미요청 · 요청됨. 문장은 조건이 충족됐을
+  // 승인 조건 ① — 도착 전 · 조회 실패 · 미요청 · 요청됨. 문장은 조건이 충족됐을
   // 때만 완료형이 되고, 나머지 셋은 같은 미충족 문장에 이유만 갈아 끼운다.
   const PENDING_ACK = '서비스가 연결 테스트 완료 승인을 요청하면 충족됩니다';
   const ackRow = ((): {
     state: GateRowState;
     text: string;
-    suffix?: ReactNode;
-    meta?: string;
+    facts: readonly GateFact[];
   } => {
-    if (!tcLoaded) return { state: 'pending', text: PENDING_ACK, suffix: '확인 중…' };
+    if (!tcLoaded) return { state: 'pending', text: PENDING_ACK, facts: [{ value: '확인 중…' }] };
     if (statusFailed)
-      return { state: 'err', text: PENDING_ACK, suffix: '완료 승인 상태를 불러오지 못했습니다' };
+      return {
+        state: 'err',
+        text: PENDING_ACK,
+        facts: [{ value: '완료 승인 상태를 불러오지 못했습니다' }],
+      };
     if (tcCompleted)
       return {
         state: 'ok',
         text: '서비스가 연결 테스트 완료 승인을 요청했습니다',
-        meta: fmtDateTimeSec(status?.completedAt),
+        facts: [{ label: '요청', value: fmtDateTimeSec(status?.completedAt) }],
       };
     return {
       state: 'pending',
       text: PENDING_ACK,
       // C-1 조건부 캡션 — "테스트 성공 + 미요청" 상태에서만. 강조는 굵기와 색으로
       // 지고, 문장은 짧게 둘로 나눈다 (오너 08-20).
-      suffix: showsHandoffCaption(status?.status, run) ? (
-        <>
-          연결 테스트가 성공해도 이 조건은 자동으로 충족되지 않습니다. 서비스 담당자가{' '}
-          <b className="font-semibold text-[var(--pl-text-strong)]">
-            5단계 연결 테스트에서 승인 요청
-          </b>
-          을 눌러야 합니다.
-        </>
-      ) : undefined,
+      facts: showsHandoffCaption(status?.status, run)
+        ? [
+            {
+              value: (
+                <>
+                  연결 테스트가 성공해도 이 조건은 자동으로 충족되지 않습니다. 서비스 담당자가{' '}
+                  <b className="font-semibold text-[var(--pl-text-strong)]">
+                    5단계 연결 테스트에서 승인 요청
+                  </b>
+                  을 눌러야 합니다.
+                </>
+              ),
+            },
+          ]
+        : [],
     };
   })();
 
-  // 승인 조건 row ③ — the checklist carries the "why", the CTA stays unmounted.
-  // 근거 문장은 모니터링 근거의 fold 그대로 빌린다 — 조건 줄과 Airflow 확인 탭이
-  // 같은 응답을 다른 낱말로 부르면 안 된다.
+  // 승인 조건 ③ — the checklist carries the "why", the CTA stays locked.
+  // 근거 문장은 모니터링 근거의 fold 그대로 빌린다 — 조건 카드와 Airflow 확인 탭이
+  // 같은 응답을 다른 낱말로 부르면 안 된다. 그 문장은 사실 둘을 ` · ` 로 이어 붙인
+  // 것이라, 낱말은 그대로 두고 이음매에서만 줄을 나눈다.
   const healthRow = ((): {
     state: GateRowState;
-    suffix: string | null;
+    facts: readonly GateFact[];
     titleHint?: string;
-    meta?: string;
   } => {
-    if (!tcLoaded) return { state: 'pending', suffix: '확인 중…' };
-    if (!tcCompleted) return { state: 'pending', suffix: '완료 승인 후 점검합니다' };
+    const prose = (line: string | null): readonly GateFact[] => (line ? [{ value: line }] : []);
+    if (!tcLoaded) return { state: 'pending', facts: [{ value: '확인 중…' }] };
+    if (!tcCompleted) return { state: 'pending', facts: [{ value: '완료 승인 후 점검합니다' }] };
     switch (dag.phase) {
       case 'loading':
-        return { state: 'pending', suffix: monHead.subtitle };
+        return { state: 'pending', facts: prose(monHead.subtitle) };
       case 'failed':
-        return { state: 'err', suffix: monHead.subtitle };
+        return { state: 'err', facts: prose(monHead.subtitle) };
       case 'loaded': {
         const verdict = healthVerdict(dag.data.healthStatus);
-        const meta = `조회 ${fmtDateTimeSec(dag.fetchedAt)}`;
         const state: GateRowState =
           verdict.kind === 'healthy' ? 'ok' : verdict.kind === 'unhealthy' ? 'err' : 'warn';
-        return { state, suffix: monHead.subtitle, titleHint: monHead.titleHint, meta };
+        return {
+          state,
+          facts: [
+            ...(monHead.subtitle ?? '')
+              .split(' · ')
+              .filter(Boolean)
+              .map((line): GateFact => ({ value: line })),
+            { label: '조회', value: fmtDateTimeSec(dag.fetchedAt) },
+          ],
+          titleHint: monHead.titleHint,
+        };
       }
     }
   })();
 
-  // 승인 조건 row ② — 최신 실행의 판정. 잠그는 이유는 갈라 말한다(이력 없음 ≠ 조회 실패).
-  const runRow = ((): { state: GateRowState; suffix: string | null; titleHint?: string } => {
+  // 승인 조건 ② — 최신 실행의 판정. 잠그는 이유는 갈라 말한다(이력 없음 ≠ 조회 실패).
+  const runRow = ((): { state: GateRowState; facts: readonly GateFact[]; titleHint?: string } => {
     switch (gate) {
       case 'success':
-        return { state: 'ok', suffix: tcSubtitle };
+        return { state: 'ok', facts: tcFacts };
       case 'failed':
         return {
           state: 'err',
-          suffix: [stats.failedCount > 0 ? `연결 실패 ${n(stats.failedCount)}` : '', tcSubtitle]
-            .filter(Boolean)
-            .join(' · '),
+          facts: [
+            ...(stats.failedCount > 0
+              ? [{ label: '연결 실패', value: `${n(stats.failedCount)}건` }]
+              : []),
+            ...tcFacts,
+          ],
         };
       case 'open':
-        return { state: 'pending', suffix: ['진행 중', tcSubtitle].filter(Boolean).join(' · ') };
+        return { state: 'pending', facts: [{ value: '진행 중' }, ...tcFacts] };
       case 'loading':
-        return { state: 'pending', suffix: '확인 중…' };
+        return { state: 'pending', facts: [{ value: '확인 중…' }] };
       case 'none':
-        return { state: 'pending', suffix: '연결 테스트 실행 기록이 없습니다' };
+        return { state: 'pending', facts: [{ value: '연결 테스트 실행 기록이 없습니다' }] };
       case 'error':
-        return { state: 'err', suffix: '실행 정보를 불러오지 못했습니다' };
+        return { state: 'err', facts: [{ value: '실행 정보를 불러오지 못했습니다' }] };
       case 'unknown':
         // Raw enum value stays in the tooltip channel — not in the copy.
         return {
           state: 'warn',
-          suffix: '판정할 수 없는 값',
+          facts: [{ value: '판정할 수 없는 값' }],
           titleHint: `connection_status: ${latest?.connection_status ?? ''}`,
         };
     }
@@ -383,14 +441,13 @@ export function ApprovalTab({
           ordinal={GATE_ORDINALS[0]}
           state={ackRow.state}
           text={ackRow.text}
-          suffix={ackRow.suffix}
-          meta={ackRow.meta}
+          facts={ackRow.facts}
         />
         <GateCard
           ordinal={GATE_ORDINALS[1]}
           state={runRow.state}
           text="최신 연결 테스트 결과가 성공입니다"
-          suffix={runRow.suffix}
+          facts={runRow.facts}
           titleHint={runRow.titleHint}
           onNavigate={onOpenTcTab}
         />
@@ -406,9 +463,8 @@ export function ApprovalTab({
           // 줄은 설치 완료 승인 CTA 를 여는 세 조건 중 하나라, 스코프를 떼면 우리가 모르는
           // 산식 위에서 "DAG 가 정상 동작한다"고 단언하게 된다. 산식이 회신되면 그때 넓힌다.
           text="최근 7일 DAG 실행이 정상입니다"
-          suffix={healthRow.suffix}
+          facts={healthRow.facts}
           titleHint={healthRow.titleHint}
-          meta={healthRow.meta}
           onNavigate={onOpenAirflowTab}
         />
       </div>
