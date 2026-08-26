@@ -274,12 +274,16 @@ export function OpsHeader({
                 나란히 서면 한 행이 정확히 4칸으로 찬다. */}
             {provider === 'Azure' && monoCell('구독', meta.subscription_id, false, scopeTag)}
             {provider === 'Azure' && monoCell('테넌트', meta.tenant_id)}
-            {/* Azure 도 주체가 계정 옆이다. 리전 칸이 사라진 뒤 「구독·테넌트·실데이터」는
-                첫 행에 한 칸을 비워 두는데, 2열짜리 Scan App 이 그 자리로 올라오면
-                첫 행이 정확히 찬다. GCP 는 반대다 — SA 둘이 2열씩이라 위로 올리면
-                「프로젝트 + SA」로 3칸만 차고 다음 SA 가 못 들어온다. 그 자리는
-                실데이터가 채운다. */}
-            {provider === 'Azure' && monoCell('Scan App', meta.azure_scan_app_id, true)}
+            {/* Scan App takes ONE column, like 구독 and 테넌트 (owner, 2026-08-26 —
+                「설정」 must stand on the same row as Scan App). All three are UUIDs of
+                the same length, so the 2-column Scan App was an inconsistency rather
+                than a need: its neighbours already truncate with a `title` in one column
+                each, and truncation is safe here because 「상세 정보」 prints every
+                identifier in full with a copy button. Azure now packs 구독·테넌트·Scan
+                App·설정 into exactly four slots — one row, the shape AWS already has.
+                GCP keeps its 2-column service accounts: those are addresses, long enough
+                that one column would leave only the prefix. */}
+            {provider === 'Azure' && monoCell('Scan App', meta.azure_scan_app_id)}
             {/* IDC 는 계정이 없는 게 정상이다 — 빈 칸을 두는 대신 그 대상이 무엇인지
                 말한다 (ServiceDetailView glossOf 의 어휘 그대로). */}
             {provider === 'IDC'
