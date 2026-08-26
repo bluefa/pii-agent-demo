@@ -3,7 +3,7 @@
 /**
  * 관리자 승인 tab — the process branch this target's Step 6 exists for.
  *
- * 이 탭은 판정만 한다 — 카드 한 장 안에 결정(헤드+CTA) ▸ 승인 조건 세 행. 조건마다
+ * 이 탭은 판정만 한다 — 결정 카드(헤드+CTA) 아래 승인 조건 세 장이 각자 카드로 선다. 조건마다
  * "상세보기"가 그 조건을 판정한 근거의 탭으로 보낸다(② 연결 테스트, ③ Airflow 확인).
  * 근거를 여기서 다시 그리지 않는 이유는 표가 두 벌이 되기 때문만이 아니다: 저 탭들은
  * 읽기 말고 할 수 있는 일(제외 정책·Credential·재실행)도 갖고 있어서, 잠긴 조건을 풀러
@@ -58,14 +58,24 @@ const n = (value: number): string => value.toLocaleString('ko-KR');
 
 type GateRowState = 'ok' | 'err' | 'warn' | 'pending';
 
+/** 카드 라벨의 번호 — 원문자(①)는 12px 에서 ⓘ 로 읽혀 못 쓴다(브라우저 실측). */
+const GATE_ORDINALS = [1, 2, 3] as const;
+
 /**
- * One 승인 조건 row — 판정문 한 줄, 그 아래 근거 한 줄, 오른쪽에 보조 CTA.
+ * One 승인 조건 — 카드 한 장.
  *
- * 근거와 조회 시각이 판정문과 한 줄에 있으면 셋이 이어진 한 문장으로 읽힌다. 크기만
- * 줄여서는 갈라지지 않아서 — 줄을 나누고 크기·굵기·색 세 채널을 함께 내린다. 아래 줄에는
- * 성격이 같은 것끼리(무엇을 보고 판정했나 · 언제 봤나) 모인다.
+ * 세 조건이 한 상자 안에 `divide-y` 로 붙어 있던 동안에는 세 판정이 한 덩어리로 읽혔다
+ * (오너 2026-08-26: "답답해"). 조건은 저마다 다른 화면이 판정하고 저마다 따로 풀리므로,
+ * 각자 자기 카드에 서고 카드 사이는 페이지의 간격(`opsStyles.content` 의 gap-4)이 벌린다.
+ * 카드 넷은 감싸는 상자 없이 콘텐츠 열 바닥에 그대로 깔린다.
+ *
+ * 카드 안 순서: 라벨(승인 조건 1) ▸ 판정문 ▸ 근거·조회 시각. 판정문은 이제 카드의 제목
+ * 자리라 한 단 올라가고(14 → 16), 근거 줄도 따라 한 단 오른다(12 → 14) — 상자 안 행이
+ * 아니라 카드 본문이 됐으므로. 아이콘은 판정문 줄에 붙는다: 두 줄 블록의 가운데로 내려오면
+ * 어느 줄을 판정하는 것인지 흐려진다.
  */
-function GateRow({
+function GateCard({
+  ordinal,
   state,
   text,
   suffix,
@@ -73,6 +83,8 @@ function GateRow({
   meta,
   onNavigate,
 }: {
+  /** 조건 번호 — 카드가 셋으로 흩어져도 순서(①②③)는 카드 자신이 진다. */
+  ordinal: (typeof GATE_ORDINALS)[number];
   state: GateRowState;
   text: string;
   suffix?: ReactNode;
@@ -84,42 +96,43 @@ function GateRow({
 }): ReactElement {
   const icon =
     state === 'ok' ? (
-      <Icon name="check-circle" size={16} className="text-[var(--pl-ok-text)]" />
+      <Icon name="check-circle" size={18} className="text-[var(--pl-ok-text)]" />
     ) : state === 'err' ? (
-      <Icon name="x-circle" size={16} className="text-[var(--pl-err-text)]" />
+      <Icon name="x-circle" size={18} className="text-[var(--pl-err-text)]" />
     ) : state === 'warn' ? (
-      <Icon name="warn-tri" size={16} className="text-[var(--pl-warn-text)]" />
+      <Icon name="warn-tri" size={18} className="text-[var(--pl-warn-text)]" />
     ) : (
-      <span aria-hidden className="block h-4 w-4 rounded-full border-2 border-[var(--pl-border-strong)]" />
+      <span aria-hidden className="block h-[18px] w-[18px] rounded-full border-2 border-[var(--pl-border-strong)]" />
     );
   return (
-    <div className="flex items-start gap-2.5 px-4 py-3">
-      {/* 아이콘은 판정문 줄에 붙는다 — 두 줄 블록의 가운데로 내려오면 어느 줄을
-          판정하는 것인지 흐려진다. */}
-      <span className="mt-0.5 flex-none">{icon}</span>
-      <div className="min-w-0 flex-1">
-        <p className="text-[14px] font-medium text-[var(--pl-text-strong)]" title={titleHint}>
-          {text}
-        </p>
-        {(suffix || meta) && (
-          <p className="mt-1 text-[12px] text-[var(--pl-text-weak)]">
-            {suffix}
-            {suffix && meta && ' · '}
-            {meta && <span className="tabular-nums">{meta}</span>}
+    <section className={pipelineStyles.card.base} aria-label={`승인 조건 ${ordinal}`}>
+      <p className="text-[12px] font-semibold text-[var(--pl-text-weak)]">승인 조건 {ordinal}</p>
+      <div className="mt-2 flex items-start gap-2.5">
+        <span className="mt-px flex-none">{icon}</span>
+        <div className="min-w-0 flex-1">
+          <p className="text-[16px] font-semibold text-[var(--pl-text-strong)]" title={titleHint}>
+            {text}
           </p>
+          {(suffix || meta) && (
+            <p className="mt-1.5 text-[14px] leading-[1.5] text-[var(--pl-text-weak)]">
+              {suffix}
+              {suffix && meta && ' · '}
+              {meta && <span className="tabular-nums">{meta}</span>}
+            </p>
+          )}
+        </div>
+        {onNavigate && (
+          <button
+            type="button"
+            onClick={onNavigate}
+            className="mt-0.5 flex flex-none cursor-pointer items-center gap-0.5 text-[14px] font-semibold text-[var(--pl-primary)] hover:underline"
+          >
+            상세보기
+            <Icon name="chev-r" size={14} />
+          </button>
         )}
       </div>
-      {onNavigate && (
-        <button
-          type="button"
-          onClick={onNavigate}
-          className="mt-0.5 flex flex-none cursor-pointer items-center gap-0.5 text-[13px] font-semibold text-[var(--pl-primary)] hover:underline"
-        >
-          상세보기
-          <Icon name="chev-r" size={14} />
-        </button>
-      )}
-    </div>
+    </section>
   );
 }
 
@@ -322,48 +335,6 @@ export function ApprovalTab({
           )}
         </div>
 
-        {/* 왜 CTA 가 없는지는 이 체크리스트가 말한다 — 버튼은 전 조건 충족 시에만
-            마운트하는 현행 문법 유지 ("죽은 버튼 금지"). */}
-        <div className="mt-5">
-          <p className="text-[16px] font-semibold text-[var(--pl-text-strong)]">승인 조건</p>
-          <div className="mt-2.5 divide-y divide-[var(--pl-border)] rounded-lg border border-[var(--pl-border)]">
-            <GateRow
-              state={ackRow.state}
-              text={ackRow.text}
-              suffix={ackRow.suffix}
-              meta={ackRow.meta}
-            />
-            <GateRow
-              state={runRow.state}
-              text="최신 연결 테스트 결과가 성공입니다"
-              suffix={runRow.suffix}
-              titleHint={runRow.titleHint}
-              onNavigate={onOpenTcTab}
-            />
-            {/* 근거는 어느 조건도 이 자리에서 펼치지 않는다 — 판정을 만든 화면이 이미
-                따로 있고, 그 화면은 읽기 말고 할 수 있는 일(제외 정책·Credential·재실행)도
-                갖고 있다. 여기서 한 번 더 그리면 같은 표가 두 벌이 된다. */}
-            <GateRow
-              state={healthRow.state}
-              // 조건은 계약이 쓰는 말이 아니라 이 조건이 지키는 사실로 부른다 (오너
-              // 2026-08-25): `모니터링 헬스가 HEALTHY 상태입니다` 는 관리자에게
-              // healthStatus 라는 필드를 먼저 배우게 했다. 판정의 출처(enum)는 suffix 의
-              // 툴팁 채널에 그대로 남는다.
-              //
-              // ⛔ 스코프('최근 7일 DAG 실행')를 떼지 말 것. §10 은 healthStatus 의 산식을
-              // BE 미회신 열린 질문으로 두면서 "UI copy stops at 최근 7일 DAG 실행 기준"
-              // 이라고 못박는다. 이 줄은 설치 완료 승인 CTA 를 여는 세 조건 중 하나라,
-              // 스코프를 떼면 우리가 모르는 산식 위에서 "DAG 가 정상 동작한다"고 단언하게
-              // 된다. 산식이 회신되면 그때 문구를 넓힌다.
-              text="최근 7일 DAG 실행이 정상입니다"
-              suffix={healthRow.suffix}
-              titleHint={healthRow.titleHint}
-              meta={healthRow.meta}
-              onNavigate={onOpenAirflowTab}
-            />
-          </div>
-        </div>
-
         {isRejected && (
           <div className="mt-4 rounded-lg bg-[var(--pl-gray-50)] px-3.5 py-3">
             <div className="flex items-center gap-2">
@@ -380,6 +351,45 @@ export function ApprovalTab({
           </div>
         )}
       </section>
+
+      {/* 왜 CTA 가 없는지는 이 세 카드가 말한다 — 버튼은 전 조건 충족 시에만 마운트하는
+          현행 문법 유지 ("죽은 버튼 금지").
+
+          근거는 어느 조건도 이 자리에서 펼치지 않는다 — 판정을 만든 화면이 이미 따로 있고,
+          그 화면은 읽기 말고 할 수 있는 일(제외 정책·Credential·재실행)도 갖고 있다.
+          여기서 한 번 더 그리면 같은 표가 두 벌이 된다. */}
+      <GateCard
+        ordinal={GATE_ORDINALS[0]}
+        state={ackRow.state}
+        text={ackRow.text}
+        suffix={ackRow.suffix}
+        meta={ackRow.meta}
+      />
+      <GateCard
+        ordinal={GATE_ORDINALS[1]}
+        state={runRow.state}
+        text="최신 연결 테스트 결과가 성공입니다"
+        suffix={runRow.suffix}
+        titleHint={runRow.titleHint}
+        onNavigate={onOpenTcTab}
+      />
+      <GateCard
+        ordinal={GATE_ORDINALS[2]}
+        state={healthRow.state}
+        // 조건은 계약이 쓰는 말이 아니라 이 조건이 지키는 사실로 부른다 (오너 2026-08-25):
+        // `모니터링 헬스가 HEALTHY 상태입니다` 는 관리자에게 healthStatus 라는 필드를 먼저
+        // 배우게 했다. 판정의 출처(enum)는 suffix 의 툴팁 채널에 그대로 남는다.
+        //
+        // ⛔ 스코프('최근 7일 DAG 실행')를 떼지 말 것. §10 은 healthStatus 의 산식을 BE 미회신
+        // 열린 질문으로 두면서 "UI copy stops at 최근 7일 DAG 실행 기준" 이라고 못박는다. 이
+        // 줄은 설치 완료 승인 CTA 를 여는 세 조건 중 하나라, 스코프를 떼면 우리가 모르는
+        // 산식 위에서 "DAG 가 정상 동작한다"고 단언하게 된다. 산식이 회신되면 그때 넓힌다.
+        text="최근 7일 DAG 실행이 정상입니다"
+        suffix={healthRow.suffix}
+        titleHint={healthRow.titleHint}
+        meta={healthRow.meta}
+        onNavigate={onOpenAirflowTab}
+      />
 
       <TcApproveModal
         open={approveOpen}
