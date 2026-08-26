@@ -1,3 +1,4 @@
+import { composerMark } from '@/lib/theme';
 import type { IconProps } from '@/app/components/ui/icons/types';
 
 /**
@@ -5,7 +6,8 @@ import type { IconProps } from '@/app/components/ui/icons/types';
  *
  * Brand colours, so this one does not take `currentColor`: it identifies a
  * vendor product rather than joining the text around it. Same reasoning as the
- * provider marks in `CloudProviderIcon`.
+ * provider marks in `CloudProviderIcon`. The values live in `composerMark`
+ * (lib/theme.ts) — spelling a colour out anywhere else is what `raw-hex` stops.
  *
  * ⏳ Approximation drawn from the Google Cloud palette — swap the paths when the
  * official asset lands. It is inlined rather than served from `public/`: a bare
@@ -20,16 +22,15 @@ export const ComposerIcon = ({ className, ...rest }: IconProps) => (
     aria-hidden={!rest['aria-label']}
     {...rest}
   >
-    {/* design-exempt: brand logotype (WCAG 1.4.11) */}
     <path
       d="M10.31 7.95 7.09 13.55M13.69 7.95l3.22 5.6M8.8 16.5h6.4"
       fill="none"
-      stroke="#669DF6"
+      stroke={composerMark.link}
       strokeWidth={1.8}
       strokeLinecap="round"
     />
-    <circle cx="12" cy="5" r="2.6" fill="#4285F4" />
-    <circle cx="5.4" cy="16.5" r="2.6" fill="#669DF6" />
-    <circle cx="18.6" cy="16.5" r="2.6" fill="#669DF6" />
+    <circle cx="12" cy="5" r="2.6" fill={composerMark.node} />
+    <circle cx="5.4" cy="16.5" r="2.6" fill={composerMark.link} />
+    <circle cx="18.6" cy="16.5" r="2.6" fill={composerMark.link} />
   </svg>
 );

@@ -549,6 +549,18 @@ export const tableRowLift = {
   card: 'hover:bg-[#F3EEFF] focus-within:bg-[#F3EEFF]',
 } as const;
 
+/**
+ * Cloud Composer 마크의 두 색 — 이 앱의 색이 아니라 벤더 제품의 색이다.
+ *
+ * 아이콘이 값을 직접 들고 있으면 안 되는 이유는 정책이다: `raw-hex` 게이트가 theme.ts
+ * 하나만 예외로 두고, 그건 "색을 글자로 적는 곳은 여기 하나"라는 규칙 그대로다.
+ * 짙은 쪽은 이미 있는 프로바이더 토큰(`--pl-pv-gcp`)을 그대로 쓴다 — 같은 브랜드의
+ * 같은 파랑을 두 값으로 갈라 두면 나중에 한쪽만 움직인다.
+ *
+ * design-exempt: brand logotype (WCAG 1.4.11) — 대비 하한의 대상이 아니다.
+ */
+export const composerMark = { node: 'var(--pl-pv-gcp)', link: '#669DF6' } as const;
+
 export const cardStyles = {
   /** v15 Toss card — radius 20 + 2-layer toss-shadow-sm. */
   base: 'bg-white rounded-[20px] shadow-[0_1px_2px_rgba(17,24,39,0.04),0_4px_16px_-8px_rgba(17,24,39,0.06)]',
