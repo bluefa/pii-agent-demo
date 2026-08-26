@@ -151,7 +151,10 @@ export const opsStyles = {
   fmCellWide: 'col-span-2',
   /** 워시는 램프 한 칸을 잡아먹는다 — `--pl-text-weak` 는 이 gray-100 위에서 4.51:1 로
       AA 바닥이라 12px 라벨에 쓰지 않는다. `--pl-gray-600` 은 같은 자리에서 6.98:1. */
-  fmKey: 'text-[12px] font-semibold leading-4 text-[var(--pl-gray-600)]',
+  /** 라벨 줄 — 라벨과 그 단서(파티션 태그)가 같은 줄에 선다. 태그가 16px 이라 이 줄은
+      `fmKey` 의 leading-4 그대로 16px 을 유지한다. */
+  fmKeyRow: 'flex min-w-0 items-center gap-1.5',
+  fmKey: 'truncate text-[12px] font-semibold leading-4 text-[var(--pl-gray-600)]',
   /** 수정할 수 있는 **값** (오너 08-26 "해당 값에 밑줄을 그어야지. 밑줄은 파란색으로") —
       값 옆에 서 있던 「수정」 링크가 값 자신으로 접혀 들어간다. 글자색은 값의 것으로 두고
       밑줄만 파랗다: 파랑이 글자를 먹으면 이 줄에서 나가는 링크들과 같은 것이 되는데, 이건
@@ -244,8 +247,12 @@ export const opsStyles = {
    * 어휘이고(서비스 레일의 "여기 있음", 캔버스와 같은 가족), 그래서 파티션·환경
    * 같은 **속성**이 앉을 자리다. 칠이 워시와 가까워서 테두리가 형태를 진다.
    */
+  /** 10/14 에 padding 4·0 — 테두리까지 **정확히 16px** 이라 `fmKey` 의 leading-4 줄에
+      얹혀도 그 줄이 한 픽셀도 자라지 않는다 (오너 08-26 "태그 크기가 너무 크다"). 12/18 에
+      px-1.5 py-0.5 이던 22px 짜리가 값 줄의 높이를 혼자 정하고 있었다. 태그는 값이 아니라
+      값에 붙는 단서라, 제가 선 줄의 높이를 정하면 안 된다. */
   metaTagQuiet:
-    'inline-flex items-center whitespace-nowrap rounded border border-[var(--pl-current)] bg-[var(--pl-current-bg)] px-1.5 py-0.5 text-[12px] font-semibold text-[var(--pl-current-ink)]',
+    'inline-flex items-center whitespace-nowrap rounded border border-[var(--pl-current)] bg-[var(--pl-current-bg)] px-1 text-[10px] font-semibold leading-[14px] text-[var(--pl-current-ink)]',
 
   /**
    * Card tabs in a band (R1, 오너 08-20 셋째 조정) — the strip itself is a

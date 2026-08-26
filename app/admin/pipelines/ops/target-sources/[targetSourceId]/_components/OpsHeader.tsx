@@ -102,10 +102,22 @@ export function OpsHeader({
   const rawDataLabel =
     supportRawData === true ? '포함' : supportRawData === false ? '미포함' : '미확인';
 
-  /** kv 셀 — 라벨이 값 위에 선다. `wide` 는 긴 주체(ARN·SA·App ID)가 먹는 2열. */
-  const cell = (label: string, value: ReactNode, wide = false): ReactElement => (
+  /**
+   * kv 셀 — 라벨이 값 위에 선다. `wide` 는 긴 주체(ARN·SA·App ID)가 먹는 2열이고,
+   * `labelAfter` 는 **라벨 줄**에 붙는 단서(파티션 태그)다. 값 줄이 아니라 라벨 줄인
+   * 이유는 아래 `scopeTag` 의 독블록에 적혀 있다.
+   */
+  const cell = (
+    label: string,
+    value: ReactNode,
+    wide = false,
+    labelAfter?: ReactNode,
+  ): ReactElement => (
     <div key={label} className={cn(opsStyles.fmCell, wide && opsStyles.fmCellWide)}>
-      <span className={opsStyles.fmKey}>{label}</span>
+      <span className={opsStyles.fmKeyRow}>
+        <span className={opsStyles.fmKey}>{label}</span>
+        {labelAfter}
+      </span>
       <span className={opsStyles.fmValue}>{value}</span>
     </div>
   );
@@ -116,6 +128,12 @@ export function OpsHeader({
    * 나란한 사실이 아니었고, 한 칸을 차지하면 4열에서 진짜 사실 하나를 밀어낸다.
    * 계정 자리는 프로바이더마다 다르다 — AWS 계정 · GCP 프로젝트 · Azure 구독.
    * 읽기 전용이라 흰 면이 아니라 gray-200 이다: 흰 면은 수정 가능한 값의 것으로 남는다.
+   *
+   * 08-26 2차: 태그는 값 줄에서 **라벨 줄로** 올라갔다 (오너 "Global은 계정 오른쪽에
+   * 표현해"). 값 줄은 식별자의 것이다 — Azure 구독 UUID 는 36자로 240px 칸을 그대로
+   * 채우고, 그 뒤에 선 태그는 늘 밀리는 쪽이었다. 라벨 줄은 「계정」 세 글자뿐이라
+   * 자리가 남는다. 태그를 16px 로 줄여 `fmKey` 의 leading-4 와 같은 높이로 맞췄으므로
+   * 이 이동은 어느 프로바이더의 행 높이도 바꾸지 않는다.
    */
   const scopeTag = (
     <span className={cn(opsStyles.metaTagQuiet, 'flex-none')}>{isChina ? 'China' : 'Global'}</span>
@@ -126,21 +144,19 @@ export function OpsHeader({
     label: string,
     value: string | null | undefined,
     wide = false,
-    after?: ReactNode,
+    labelAfter?: ReactNode,
   ): ReactElement =>
     cell(
       label,
-      <>
-        {value ? (
-          <span className={cn(opsStyles.fmValueText, opsStyles.fmMono)} title={value}>
-            {value}
-          </span>
-        ) : (
-          <span className={opsStyles.fmNone}>미등록</span>
-        )}
-        {after}
-      </>,
+      value ? (
+        <span className={cn(opsStyles.fmValueText, opsStyles.fmMono)} title={value}>
+          {value}
+        </span>
+      ) : (
+        <span className={opsStyles.fmNone}>미등록</span>
+      ),
       wide,
+      labelAfter,
     );
 
   /** 표시값은 detail 과 같이 온다 (v5 metadata 의 등록값) — 저장 직후 한 칸만 saved 가 덮는다. */

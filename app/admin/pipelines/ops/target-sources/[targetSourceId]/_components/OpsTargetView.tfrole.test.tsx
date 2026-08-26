@@ -50,10 +50,13 @@ const detail = (grant: boolean) => ({
   },
 });
 
-/** 「Terraform Role」 라벨이 든 kv 셀의 값 — 라벨이 값 위에 서므로 형제 하나를 읽는다. */
+/**
+ * 「Terraform Role」 라벨이 든 kv 셀의 값. 라벨은 제 줄(`fmKeyRow`)에 단서와 같이 서므로
+ * 부모 하나가 아니라 **셀(div)까지** 올라간 뒤 값 줄을 읽는다.
+ */
 const tfValue = async (): Promise<string> => {
   const key = await screen.findByText('Terraform Role');
-  const cell = key.parentElement;
+  const cell = key.closest('div');
   await waitFor(() => expect(cell?.children[1]?.textContent).toBeTruthy());
   return cell?.children[1]?.textContent ?? '';
 };
