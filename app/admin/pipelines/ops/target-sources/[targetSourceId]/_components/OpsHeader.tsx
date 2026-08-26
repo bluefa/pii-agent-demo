@@ -244,25 +244,63 @@ export function OpsHeader({
               연동 대상
             </span>
           </span>
-          {/* 큐는 자기가 여는 블록과 같은 줄에 선다 (오너 판단 Q2) — 그래야 무엇이
-              열리는지 말한다. 파랑은 이 팔레트에서 "누를 수 있다"의 한 가지 색. */}
-          <button
-            type="button"
-            onClick={() => setOpen((v) => !v)}
-            aria-expanded={open}
-            aria-controls={open ? foldId : undefined}
-            className={opsStyles.fmCue}
-          >
-            상세 정보
-            <Icon
-              name="chev-d"
-              size="sm"
-              className={cn(opsStyles.fmCueIcon, open && opsStyles.fmCueIconOpen)}
-            />
-          </button>
+          {/* 관련 페이지는 사실이 아니라 **참고**다 (오너 08-26 "아예 우측으로 빼보자").
+              kv 그리드에 있을 때는 2열을 먹으면서 계정·주체와 같은 줄에 서 있었는데,
+              이 둘은 대조하는 값이 아니라 떠나는 문이다. 블록 머리 오른쪽 = 이 화면에서
+              누를 수 있는 것들의 자리이고, 「상세 정보」와는 세로선으로 갈린다:
+              둘은 나가고 하나는 여기서 열린다. */}
+          <span className={opsStyles.fmAside}>
+            {/* 티켓은 detail 과 따로 도착한다 — 도착 전에 자리를 비우면 머리 줄이 한 번
+                흔들리므로, 그 사이는 같은 폭의 자리만 잡아 둔다. 열 주소가 없거나 http(s)
+                가 아니면 링크가 아니라 **글자**로 선다 (`docs/api/jira-tickets.md`, 다른 두
+                렌더 자리와 같은 규칙) — 주소를 조립하지도, 티켓 번호를 감추지도 않는다. */}
+            {!ticketLoaded ? (
+              <span className={cn(opsStyles.skeletonWash, 'h-4 w-[68px]')} aria-hidden />
+            ) : jiraHref ? (
+              <a
+                href={jiraHref}
+                target="_blank"
+                rel="noreferrer"
+                className={opsStyles.relatedLink}
+                title={`Jira ${jiraTicket?.issueKey} — 협업 채널`}
+              >
+                Jira Ticket <Icon name="arrow-ur" size="sm" />
+              </a>
+            ) : jiraTicket ? (
+              <span className={opsStyles.fmValueText} title="Jira 열 주소 없음 — 티켓 번호만 확인된다">
+                {jiraTicket.issueKey}
+              </span>
+            ) : null}
+            {/* 같은 대상의 서비스측 화면 — 운영자가 "담당자한테는 지금 뭐가 보이나"를
+                묻는 자리가 여기뿐이다. */}
+            <Link
+              href={passRoutes.targetSource(targetSourceId)}
+              className={opsStyles.relatedLink}
+              title="PII Agent 설치 화면 — 서비스 담당자가 보는 진행 화면"
+            >
+              서비스 담당자가 보는 화면 <Icon name="arrow-ur" size="sm" />
+            </Link>
+            <span className={opsStyles.fmAsideSep} aria-hidden />
+            {/* 큐는 자기가 여는 블록과 같은 줄에 선다 (오너 판단 Q2) — 그래야 무엇이
+                열리는지 말한다. 파랑은 이 팔레트에서 "누를 수 있다"의 한 가지 색. */}
+            <button
+              type="button"
+              onClick={() => setOpen((v) => !v)}
+              aria-expanded={open}
+              aria-controls={open ? foldId : undefined}
+              className={opsStyles.fmCue}
+            >
+              상세 정보
+              <Icon
+                name="chev-d"
+                size="sm"
+                className={cn(opsStyles.fmCueIcon, open && opsStyles.fmCueIconOpen)}
+              />
+            </button>
+          </span>
         </div>
 
-        {/* 항상 보이는 스트립 — 계정/프로젝트 · 리전 · 설정, 그리고 **권한 주체**.
+        {/* 항상 보이는 스트립 — 계정/프로젝트 · 설정, 그리고 **권한 주체**.
             Role 은 접힘 밖에 산다 (오너 지시): 이 화면에서 운영자가 가장 자주 대조하는
             값이고, 접어 두면 프로바이더마다 다른 깊이에 숨는다. */}
         <div className={opsStyles.fmGrid}>
@@ -274,6 +312,12 @@ export function OpsHeader({
               나란히 서면 한 행이 정확히 4칸으로 찬다. */}
           {provider === 'Azure' && monoCell('구독', meta.subscription_id, false, scopeTag)}
           {provider === 'Azure' && monoCell('테넌트', meta.tenant_id)}
+          {/* Azure 도 주체가 계정 옆이다. 리전 칸이 사라진 뒤 「구독·테넌트·실데이터」는
+              첫 행에 한 칸을 비워 두는데, 2열짜리 Scan App 이 그 자리로 올라오면
+              첫 행이 정확히 찬다. GCP 는 반대다 — SA 둘이 2열씩이라 위로 올리면
+              「프로젝트 + SA」로 3칸만 차고 다음 SA 가 못 들어온다. 그 자리는
+              실데이터가 채운다. */}
+          {provider === 'Azure' && monoCell('Scan App', meta.azure_scan_app_id, true)}
           {/* IDC 는 계정이 없는 게 정상이다 — 빈 칸을 두는 대신 그 대상이 무엇인지
               말한다 (ServiceDetailView glossOf 의 어휘 그대로). */}
           {provider === 'IDC'
@@ -284,56 +328,19 @@ export function OpsHeader({
                 <span className={opsStyles.metaTagQuiet}>IDC</span>
               </>,
             )}
-          {isAws && tagCell('설치모드', grantTfExecution ? '자동' : '수동', onOpenMode, '설치모드 변경')}
-          {tagCell('실데이터', rawDataLabel, onOpenRawData, '실데이터 여부 변경', '실데이터 여부')}
+          {/* 주체는 계정 바로 옆에 선다 (오너 08-26) — 운영자가 콘솔과 대조하는 순서가
+              「이 계정의 · 이 role」 이고, 설정 두 칸이 그 사이에 끼면 짝이 갈라진다.
+              4열은 자동(계정·scan·execution·설치모드)과 수동(계정·scan·설치모드·실데이터)
+              양쪽에서 첫 행이 정확히 찬다. */}
           {isAws && roleCell('scan')}
           {isAws && grantTfExecution && roleCell('execution')}
+          {isAws && tagCell('설치모드', grantTfExecution ? '자동' : '수동', onOpenMode, '설치모드 변경')}
+          {tagCell('실데이터', rawDataLabel, onOpenRawData, '실데이터 여부 변경', '실데이터 여부')}
           {provider === 'GCP' && (
             <>
               {monoCell('Scan Service Account', meta.gcp_scan_service_account, true)}
               {monoCell('Terraform Service Account', meta.gcp_terraform_service_account, true)}
             </>
-          )}
-          {provider === 'Azure' && monoCell('Scan App', meta.azure_scan_app_id, true)}
-          {/* 관련 페이지 — 이 대상을 두고 갈 수 있는 다른 화면들 (오너 2026-08-26). Jira 는
-              접힘 안에만 있었는데, 논의가 어디서 벌어지는지는 헤더가 답해야 하는 질문이다.
-              사실 셀들 뒤에 마지막으로 선다: 프로바이더마다 앞의 셀 수가 달라도 이 셀의
-              자리는 늘 같은 곳(마지막)이다. */}
-          {cell(
-            '관련 페이지',
-            <span className="flex items-center gap-3">
-              {/* 티켓은 detail 과 따로 도착한다 — 도착 전에 자리를 비우면 셀이 한 번
-                  흔들리므로, 그 사이는 같은 폭의 자리만 잡아 둔다. 열 주소가 없거나 http(s)
-                  가 아니면 링크가 아니라 **글자**로 선다 (`docs/api/jira-tickets.md`, 다른 두
-                  렌더 자리와 같은 규칙) — 주소를 조립하지도, 티켓 번호를 감추지도 않는다. */}
-              {!ticketLoaded ? (
-                <span className={cn(opsStyles.skeletonWash, 'h-4 w-[68px]')} aria-hidden />
-              ) : jiraHref ? (
-                <a
-                  href={jiraHref}
-                  target="_blank"
-                  rel="noreferrer"
-                  className={opsStyles.relatedLink}
-                  title={`Jira ${jiraTicket?.issueKey} — 협업 채널`}
-                >
-                  Jira Ticket <Icon name="arrow-ur" size="sm" />
-                </a>
-              ) : jiraTicket ? (
-                <span className={opsStyles.fmValueText} title="Jira 열 주소 없음 — 티켓 번호만 확인된다">
-                  {jiraTicket.issueKey}
-                </span>
-              ) : null}
-              {/* 같은 대상의 서비스측 화면 — 운영자가 "담당자한테는 지금 뭐가 보이나"를
-                  묻는 자리가 여기뿐이다. */}
-              <Link
-                href={passRoutes.targetSource(targetSourceId)}
-                className={opsStyles.relatedLink}
-                title="PII Agent 설치 화면 — 서비스 담당자가 보는 진행 화면"
-              >
-                서비스 담당자가 보는 화면 <Icon name="arrow-ur" size="sm" />
-              </Link>
-            </span>,
-            true,
           )}
         </div>
 
