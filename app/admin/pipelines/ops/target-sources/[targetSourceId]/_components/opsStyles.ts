@@ -181,12 +181,20 @@ export const opsStyles = {
    * 실데이터) read as emphasized tags and the ACTION moves to a 수정 link beside
    * them, so the tag no longer has to look clickable (no underline, no hover
    * fill). metaTag = white face + strong stroke, one notch louder (px-2) than
-   * rawDataTag; metaTagQuiet = the read-only region tag (China/Global), filled
-   * with the band's gray-200 so the white face keeps meaning "editable value"
-   * (2.94 on the wash, text 8.44:1).
+   * rawDataTag; metaTagQuiet = the read-only attribute tag (China/Global · IDC),
+   * which must NOT wear the white face — that face means "editable value" here.
+   *
+   * 그 태그는 gray-200 이었는데 오너가 "회색은 너무 칙칙해 보임" 이라 했다 (08-26).
+   * 이 콘솔에서 옅은 칠은 이미 임자가 있다: `--pl-info-bg` 는 RUNNING·진행 중이고
+   * (`detailJobStyles` · `ConfirmStatusPill` 등 일곱 자리), `--pl-primary-bg` 는
+   * 누를 수 있는 것이다. ok/err/warn 은 판정이라 파티션에 쓸 수 없다. 남는 유일한
+   * 계열이 `--pl-current` 바이올렛 — 이 콘솔에서 상태도 링크도 아닌 "정체" 쪽
+   * 어휘이고(서비스 레일의 "여기 있음", 캔버스와 같은 가족), 그래서 파티션·환경
+   * 같은 **속성**이 앉을 자리다. 칠이 워시와 가까워서 테두리가 형태를 진다.
    */
   metaTag: 'inline-flex items-center whitespace-nowrap rounded px-2 py-0.5 text-[12px] font-semibold border border-[var(--pl-border-strong)] bg-[var(--pl-bg-card)] text-[var(--pl-text-strong)]',
-  metaTagQuiet: 'inline-flex items-center whitespace-nowrap rounded px-1.5 py-0.5 text-[12px] font-medium bg-[var(--pl-gray-200)] text-[var(--pl-text-medium)]',
+  metaTagQuiet:
+    'inline-flex items-center whitespace-nowrap rounded border border-[var(--pl-current)] bg-[var(--pl-current-bg)] px-1.5 py-0.5 text-[12px] font-semibold text-[var(--pl-current-ink)]',
 
   /**
    * Card tabs in a band (R1, 오너 08-20 셋째 조정) — the strip itself is a
