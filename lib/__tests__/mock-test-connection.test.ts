@@ -358,10 +358,34 @@ describe('mock-test-connection behavior lock-in', () => {
   });
 
   describe('toLatestResultSummaries', () => {
-    it('non-success latest run → empty array', () => {
+    it('아직 정착한 리소스가 없는 실행 → 빈 배열', () => {
       const project = getAwsProjectWithSelectedResources();
       createTestConnectionJob(project, AWS_TARGET_SOURCE_ID, 'a@example.com');
       expect(toLatestResultSummaries(AWS_TARGET_SOURCE_ID)).toEqual([]);
+    });
+
+    /**
+     * 게이트는 리소스에 있다 (오너 2026-08-25). job 단위로 자르면 리소스 하나가 실패한
+     * 순간 성공한 나머지 전부의 건수까지 사라지는데, 부분 실패는 예외가 아니라 평상시다.
+     * `latest-results` 는 이름 그대로 "가장 최신 결과"고, "최신 **성공** 결과"가 필요하면
+     * 그건 다른 오퍼레이션(`latest-success-results`)의 몫이다.
+     */
+    it('일부만 실패한 실행 → 성공한 리소스는 건수를 낸다', () => {
+      vi.spyOn(Math, 'random').mockReturnValue(0);
+      const project = getAwsProjectWithSelectedResources();
+      const selected = project.resources.filter((r) => r.isSelected).length;
+      createTestConnectionJob(project, AWS_TARGET_SOURCE_ID, 'a@example.com');
+      vi.setSystemTime(new Date(FIXED_DATE.getTime() + selected * 5000 + 1000));
+      const job = getLatestJob(AWS_TARGET_SOURCE_ID);
+      // 한 건만 실패로 뒤집는다 — job 은 더 이상 SUCCESS 가 아니지만 나머지는 성공했다.
+      job!.resource_results[0].status = 'FAIL';
+      job!.status = 'FAIL';
+
+      const summaries = toLatestResultSummaries(AWS_TARGET_SOURCE_ID);
+      expect(summaries).toHaveLength(selected - 1);
+      expect(summaries.map((s) => s.resource_id)).not.toContain(
+        job!.resource_results[0].resource_id,
+      );
     });
 
     it('SUCCESS run → per-resource logical-DB counts', () => {

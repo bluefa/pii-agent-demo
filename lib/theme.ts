@@ -1784,6 +1784,13 @@ export const idcStyles = {
     /** Body text of a header (i) tooltip — the value-variant Tooltip's white surface. */
     headerTipBody: 'block text-[12px] leading-[1.6] text-[#4E5968]',
     /**
+     * Headline of a two-tier tip — the sentence the tip exists to say, with
+     * `headerTipBody` under it as the detail. Inverse of `IdentifierTip`'s tiers
+     * (label over value): here the strong line comes first because it IS the answer.
+     * Used where the cell shows a machine token and the tip translates it.
+     */
+    headerTipTitle: 'block text-[14px] font-semibold leading-[1.5] text-[#191F28]',
+    /**
      * Console-grammar header (confirmed tables, 시안 F round 3) — the rule stays
      * #D1D5DB (DESIGN.md border-strong) now that the interior grid is hairline
      * (round 6): it is the one strong line left — the "table starts here" anchor,
@@ -3198,6 +3205,9 @@ const pipelineText = {
   meta: 'text-[12px] font-normal leading-[1.4] text-[var(--pl-text-weak)]',
   /** mono caption — 12 / strong / mono. */
   mono: 'text-[12px] text-[var(--pl-text-strong)] [font-family:var(--pl-font-mono)]',
+  /** 서체만 — 크기·색을 부르는 쪽이 정할 때. `cn` 은 단순 join 이라 `mono` 뒤에 크기를
+      덧붙여도 이기지 못한다(둘 다 arbitrary 유틸이라 승부는 CSS 순서가 낸다). */
+  monoFace: '[font-family:var(--pl-font-mono)]',
   /** faint mono formula — 12 / faint / mono. */
   formula: 'text-[12px] leading-[1.4] text-[var(--pl-text-faint)] [font-family:var(--pl-font-mono)]',
   /** link — primary / 600 / underline on hover. */

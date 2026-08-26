@@ -1,7 +1,12 @@
 'use client';
 
 /**
- * 최근 연결 테스트 — 종합 상태 밴드 (집계는 밴드로, 사실은 표로).
+ * 연결 테스트 카드 — 이 탭의 카드 한 장. 집계는 밴드로, 사실은 표로.
+ *
+ * 카드는 하나다 (오너 2026-08-25). 밴드와 확정 정보 표는 같은 실행을 집계로 한 번,
+ * 리소스별 사실로 한 번 말하는 것이라 제목·테두리·여백을 두 벌 두면 두 화면처럼 읽힌다.
+ * 그래서 이 파일이 카드 껍데기(제목·설명·목록 링크)를 들고, 표는 `children` 으로 받아
+ * 밴드 아래 같은 면 위에 선다.
  *
  * 이 밴드는 사용자 화면 Step 5 의 연결 테스트 카드(`TcSummaryCard`)를 이 콘솔의 팔레트로
  * 옮긴 것이다. 문장·버킷·경과는 판정 로직을 나누지 않고 `lib/test-connection-summary`
@@ -14,13 +19,20 @@
  *   곁줄             실패 사유 · Credential 미설정 (다음 실행을 막는 것)
  *   트랙             진행 중에만
  *   카운트 · 슬롯     판정 분포 · 이 국면에서 할 수 있는 한 가지
- *   승인 요청 줄      서비스가 그 판정으로 무엇을 했는가
+ *
+ * 승인 요청 줄은 없앴다 (오너 2026-08-25). 서비스가 그 판정으로 무엇을 했는지는 밴드의
+ * `승인·반려 이력` 링크가 여는 모달이 든다 — 카드에 상시로 서는 줄은 대개 "아직 요청 안 함"
+ * 하나를 반복하고 있었다.
  *
  * 예전 이 카드는 헤더 우상단에 실행 버튼을 상시로 두고 그 아래에 진행/집계를 따로 그렸다.
  * 상태와 행동이 서로 다른 자리에 흩어져 있어 "지금 눌러도 되는 버튼인가"를 화면이 답하지
  * 못했다 — Step 5 가 시안 A 로 푼 그 문제라 같은 답(상태가 CTA 를 고르는 슬롯 하나)을 쓴다.
  *
  * 회차 번호(#N)는 여기 없다 — 회차는 그것을 세는 표(실행 기록 모달)가 가진다.
+ *
+ * Credential 목록은 조회다 — 상태가 아니라 가끔 묻는 질문이라 카드 머리의 텍스트 버튼이
+ * 모달로 연다(오너 2026-08-25). 채운 버튼이던 것을 텍스트로 낮춘 이유도 같다: 이 카드에서
+ * 채워도 되는 버튼은 실행 CTA 하나다.
  *
  * Source is `GET …/test-connection/latest_version` (TestConnectionVersionResult).
  * 404 는 오류가 아니라 "최신 연결 테스트 없음" 이라 `latest === null` 로 들어온다.
@@ -40,14 +52,11 @@ import {
   StatusWarningIcon,
 } from '@/app/components/ui/icons';
 import type { TestConnectionVersionResult } from '@/app/lib/api';
-import type { TestConnectionStatusRow } from '@/lib/types/task-queue';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
 import { Icon } from '@/app/admin/pipelines/_components/icons';
 import { opsStyles } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/opsStyles';
-import { TcPill } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/bits';
 import { failReasonView } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/failReason';
 import {
-  ackIsStale,
   bandSentence,
   runBandPhase,
   runFailReason,
@@ -61,9 +70,6 @@ import {
 const META_LINK =
   'cursor-pointer border-b border-current pb-px text-[12px] font-medium text-[var(--pl-text-weak)] transition-colors hover:text-[var(--pl-text-strong)]';
 
-const COMPLETED = 'TEST_CONNECTION_COMPLETED';
-const REJECTED = 'TEST_CONNECTION_REJECTED';
-
 /** queued 는 running 과 같은 면·잉크를 쓴다 — 경고가 아니라 정상 단계라, 둘은 글리프와 문장이 가른다. */
 const surfaceOf = (phase: TcBandPhase): Exclude<TcBandPhase, 'queued'> =>
   phase === 'queued' ? 'running' : phase;
@@ -71,8 +77,6 @@ const surfaceOf = (phase: TcBandPhase): Exclude<TcBandPhase, 'queued'> =>
 export interface TcLatestRunCardProps {
   /** 최신 실행 — 404(연결 테스트 이력 없음)면 null. */
   latest: TestConnectionVersionResult | null;
-  /** Service acknowledgment row — null when the service has not requested approval. */
-  status: TestConnectionStatusRow | null;
   /** 확정 단위 기준 판정 분포 (Step 5 와 같은 접기·버킷 규칙). */
   buckets: TcBuckets;
   /**
@@ -88,23 +92,18 @@ export interface TcLatestRunCardProps {
   loading: boolean;
   /** latest_version fetch failed (404 는 실패가 아니다). */
   failed: boolean;
-  /**
-   * 승인 요청 상태(status) 조회가 실패했다. 미요청과 같은 픽셀이면 안 된다 —
-   * 침묵은 "아직 안 눌렀다"로 읽히는데 그건 우리가 확인하지 못한 사실이다.
-   */
-  statusFailed: boolean;
-  /** Page-level TC fetch has settled at least once. */
-  statusLoaded: boolean;
   running: boolean;
   triggering: boolean;
   triggerFailed: boolean;
   onRunTest: () => void;
-  /** status·latest 재조회 — 승인 요청 줄의 조회 실패에서 유일한 출구. */
-  onReloadStatus: () => void;
   /** 실행 기록 modal — 회차 목록. */
   onOpenRunHistory: () => void;
   /** 승인·반려 이력 modal — 서비스 측 승인 요청·재실행 요청 trail. */
   onOpenDecisionHistory: () => void;
+  /** Credential 목록 modal — 카드 머리의 텍스트 버튼이 연다. */
+  onOpenCredentials: () => void;
+  /** 확정 정보 표 — 밴드·승인 요청 줄 아래, 같은 카드 안. */
+  children: ReactNode;
 }
 
 /** 곁줄 하나 — 글리프 · 본문 · (우측 액션). 상자가 아니라 맨 줄이다. */
@@ -112,8 +111,11 @@ function BandNote({ tone, children }: { tone: 'warn' | 'weak'; children: ReactNo
   const b = opsStyles.tcBand;
   return (
     <span className={cn(b.note, tone === 'warn' ? b.noteWarn : b.noteWeak)}>
-      {/* 경고를 색만으로 말하지 않는다(WCAG 1.4.1) — 마크가 색 없이도 같은 뜻을 진다. */}
-      <StatusWarningIcon className="mt-0.5 h-4 w-4 flex-none" />
+      {/* 경고를 색만으로 말하지 않는다(WCAG 1.4.1) — 마크가 색 없이도 같은 뜻을 진다.
+          제목·시각과 같은 18px 글리프 열에 앉아 세 줄의 시작선이 하나가 된다. */}
+      <span className={b.icon}>
+        <StatusWarningIcon className="h-4 w-4" />
+      </span>
       {children}
     </span>
   );
@@ -182,22 +184,20 @@ function BandSkeleton(): ReactElement {
 
 export function TcLatestRunCard({
   latest,
-  status,
   buckets,
   credentialMissing,
   credFilterOn,
   onToggleCredFilter,
   loading,
   failed,
-  statusFailed,
-  statusLoaded,
   running,
   triggering,
   triggerFailed,
   onRunTest,
-  onReloadStatus,
   onOpenRunHistory,
   onOpenDecisionHistory,
+  onOpenCredentials,
+  children,
 }: TcLatestRunCardProps): ReactElement {
   const b = opsStyles.tcBand;
   // 조회에 실패했으면 국면을 아는 척하지 않는다 — idle 표면은 "아직 실행한 적 없다"는
@@ -300,20 +300,26 @@ export function TcLatestRunCard({
         title={blockedHint}
         onClick={onRunTest}
       >
-        {phase === 'idle' ? '연결 테스트 실행' : '다시 실행'}
+        {/* 정착한 실행 뒤의 낱말은 `다시 실행` 이 아니라 `연결 테스트` 다 (오너
+            2026-08-25) — 버튼이 무엇을 하는지를 말하지, 몇 번째인지를 말하지 않는다.
+            회차는 이미 밴드의 시각 줄과 실행 기록이 센다. */}
+        {phase === 'idle' ? '연결 테스트 실행' : '연결 테스트'}
       </PlButton>
     );
   })();
 
   return (
-    <section className={pipelineStyles.card.base} aria-label="최근 연결 테스트">
+    <section className={pipelineStyles.card.base} aria-label="연결 테스트">
       <h2 className={cn(opsStyles.cardTitle, 'flex items-center gap-2')}>
-        <Icon name="flow" size={18} className="text-[var(--pl-primary)]" />
-        최근 연결 테스트
+        {/* 사슬 — 이 카드가 검사하는 것이 곧 연결이다. */}
+        <Icon name="link" size={18} className="text-[var(--pl-primary)]" />
+        연결 테스트
       </h2>
       <p className={opsStyles.cardDesc}>
-        확정된 리소스에 실제로 접속해 연동 가능 여부를 검증합니다. 리소스별 결과는 아래 확정
-        정보 표의 연결 상태·실패 사유·Pod 로그 열에서 확인합니다.
+        확정된 리소스에 실제로 접속해 연동 가능 여부를 검증합니다. 리소스별 판정·실패 사유·Pod
+        로그는 아래 표의 연결 상태 열에서 확인하고,{' '}
+        <b className="font-semibold text-[var(--pl-primary)]">Credential 값을 클릭하면 배정을 수정</b>
+        할 수 있습니다.
       </p>
 
       {triggerFailed && (
@@ -374,18 +380,28 @@ export function TcLatestRunCard({
               {/* 사유는 실패의 속성이다 — 값이 없으면 줄 자체가 없다. */}
               {(phase === 'fail' || phase === 'unknown') && reason && <RunReasonNote raw={reason} />}
             </div>
-            {/* 실행이 한 번도 없으면 열어 볼 회차도 결정도 없다 — 빈 모달로 가는 입구는
-                세우지 않는다(Step 5 의 `run ? historyAction : null` 과 같은 게이트). */}
-            {latest && (
-              <span className="flex flex-none items-center gap-3">
-                <button type="button" onClick={onOpenRunHistory} className={META_LINK}>
-                  실행 기록
-                </button>
-                <button type="button" onClick={onOpenDecisionHistory} className={META_LINK}>
-                  승인·반려 이력
-                </button>
-              </span>
-            )}
+            {/* 조회 링크 셋 — Credential 목록이 실행 기록 왼쪽이다(오너 2026-08-25).
+                셋 다 "지금 이 실행" 밖의 무언가를 열어 보는 입구라 한 줄에 모인다.
+
+                다만 게이트가 다르다: 실행이 한 번도 없으면 열어 볼 회차도 결정도 없어
+                두 이력은 서지 않지만(Step 5 의 `run ? historyAction : null` 과 같은 게이트),
+                Credential 목록은 **그때가 오히려 필요한 때다** — 첫 실행 전에 배정을 맞추러
+                오는 화면이므로 실행 유무와 무관하게 선다. */}
+            <span className="flex flex-none items-center gap-3">
+              <button type="button" onClick={onOpenCredentials} className={META_LINK}>
+                Credential 목록
+              </button>
+              {latest && (
+                <>
+                  <button type="button" onClick={onOpenRunHistory} className={META_LINK}>
+                    실행 기록
+                  </button>
+                  <button type="button" onClick={onOpenDecisionHistory} className={META_LINK}>
+                    승인·반려 이력
+                  </button>
+                </>
+              )}
+            </span>
           </div>
 
           {showTrack && (
@@ -418,79 +434,7 @@ export function TcLatestRunCard({
         </div>
       )}
 
-      <AckRow
-        status={status}
-        latest={latest}
-        loaded={statusLoaded}
-        failedFetch={statusFailed}
-        onReload={onReloadStatus}
-      />
+      {children}
     </section>
-  );
-}
-
-/**
- * 서비스 승인 요청 줄 — 서비스 화면 5단계의 `승인 요청` 버튼이 눌렸는가.
- *
- * ⚠️ 이 줄은 **항상** 선다. 예전에는 완료/반려일 때만 그려서, 아무것도 없는 화면이
- * "아직 안 눌렀다"인지 "조회가 실패했다"인지 구분되지 않았다 — 침묵은 사실이 아니다.
- *
- * 어휘는 서비스 쪽 버튼 이름을 그대로 인용한다(`승인 요청`, Step 5 카드의 슬롯 CTA).
- * 관리자가 서비스에 안내할 때 화면에 없는 이름을 부르면 서로 다른 버튼을 찾게 된다.
- *
- * 실행의 판정이 아니라 **서비스가 그 판정으로 무엇을 했는가**라, 밴드 안이 아니라 그 밑에
- * 자기 등급으로 선다 — 틴트도 상자도 없이 헤어라인 하나로 갈린다.
- */
-function AckRow({
-  status,
-  latest,
-  loaded,
-  failedFetch,
-  onReload,
-}: {
-  status: TestConnectionStatusRow | null;
-  latest: TestConnectionVersionResult | null;
-  loaded: boolean;
-  failedFetch: boolean;
-  onReload: () => void;
-}): ReactElement {
-  const b = opsStyles.tcBand;
-  const isCompleted = status?.status === COMPLETED;
-  const isRejected = status?.status === REJECTED;
-  const stampedAt = isCompleted ? status?.completedAt : isRejected ? status?.rejectedAt : null;
-  // 승인 요청은 TargetSource 단위 한 건이라 새 실행이 시작돼도 남는다 — 지난 회차의
-  // 도장을 이번 실행의 것처럼 그리지 않도록, 실행보다 오래됐으면 그렇게 말한다.
-  const stale = ackIsStale(stampedAt, latest?.requested_at);
-  const settledRow = loaded && !failedFetch;
-
-  return (
-    <div className={b.ack}>
-      <span className={b.ackKey}>승인 요청</span>
-      {!loaded ? (
-        <TcPill tone="off" label="확인 중" />
-      ) : failedFetch ? (
-        <>
-          <TcPill tone="off" label="조회 실패" />
-          <button type="button" onClick={onReload} className={META_LINK}>
-            다시 시도
-          </button>
-        </>
-      ) : isCompleted ? (
-        <TcPill tone="ok" label="요청됨" />
-      ) : isRejected ? (
-        <TcPill tone="warn" label="재실행 요청됨" />
-      ) : (
-        <TcPill tone="off" label="아직 요청 안 함" />
-      )}
-      {settledRow && stampedAt && (
-        <span className={b.ackTime}>
-          {fmtDateTimeSec(stampedAt)}
-          {stale && ' · 이전 실행 기준'}
-        </span>
-      )}
-      {settledRow && isRejected && status?.rejectReason && (
-        <p className={b.ackReason}>{status.rejectReason}</p>
-      )}
-    </div>
   );
 }

@@ -1,8 +1,8 @@
 'use client';
 
 /**
- * Database Credential 목록 modal — opened from 확정 정보, where credentials are
- * assigned.
+ * Database Credential 목록 modal — opened from the 연결 테스트 card's header link,
+ * beside the table where credentials are assigned.
  *
  * A modal rather than a card: the list answers a lookup ("이 대상이 어떤 자격
  * 증명을 갖고 있나 / 안 쓰이는 건 뭔가") that the operator asks occasionally, not a
@@ -56,7 +56,7 @@ export function TcCredentialModal({
         Database Credential
       </h3>
       <p className={pipelineStyles.modal.desc}>
-        확정 리소스에 배정하는 DB 접속 자격 증명입니다. 배정은 확정 정보 표에서 변경합니다.
+        확정 리소스에 배정하는 DB 접속 자격 증명입니다. 배정은 연결 테스트 표에서 변경합니다.
       </p>
 
       {failed ? (

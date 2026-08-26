@@ -3,7 +3,6 @@ import { toTcResultRow, type TcResultRow } from '@/app/lib/api/task-queue-tc';
 import type { TestConnectionVersionResult } from '@/app/lib/api';
 import type { ConfirmedIntegrationResourceItem } from '@/app/lib/api';
 import {
-  ackIsStale,
   bandBuckets,
   bandSentence,
   bandUnitIds,
@@ -539,18 +538,5 @@ describe('credentialMissingCount', () => {
       confirmed({ resource_id: 'r-3', database_type: 'dynamodb' }),
     ]);
     expect(credentialMissingCount(units)).toBe(1);
-  });
-});
-
-describe('ackIsStale', () => {
-  it('승인 요청이 지금 실행보다 오래됐으면 그렇게 말한다', () => {
-    expect(ackIsStale('2026-08-20T05:00:00Z', '2026-08-25T02:00:00Z')).toBe(true);
-    expect(ackIsStale('2026-08-25T03:00:00Z', '2026-08-25T02:00:00Z')).toBe(false);
-  });
-
-  it('시각을 모르면 오래됐다고 단정하지 않는다', () => {
-    expect(ackIsStale(null, '2026-08-25T02:00:00Z')).toBe(false);
-    expect(ackIsStale('2026-08-20T05:00:00Z', null)).toBe(false);
-    expect(ackIsStale('nope', '2026-08-25T02:00:00Z')).toBe(false);
   });
 });

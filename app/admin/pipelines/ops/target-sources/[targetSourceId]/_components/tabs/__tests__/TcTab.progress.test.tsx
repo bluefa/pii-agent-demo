@@ -73,12 +73,10 @@ describe('TcTab — 진행률 분모', () => {
       <TcTab
         targetSourceId={1}
         isIdc={false}
-        status={null}
         latest={null}
         results={[]}
         statusLoaded
         latestFailed={false}
-        statusFailed={false}
         onStatusReload={vi.fn()}
       />,
     );

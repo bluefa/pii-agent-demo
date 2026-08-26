@@ -426,12 +426,10 @@ export function OpsTargetView({ targetSourceId, initialTab }: OpsTargetViewProps
             <TcTab
               targetSourceId={targetSourceId}
               isIdc={isIdc}
-              status={tcStatus}
               latest={tcLatest}
               results={tcResults}
               statusLoaded={tcLoaded}
               latestFailed={tcLatestFailed}
-              statusFailed={tcStatusFailed}
               onStatusReload={reloadTc}
             />
           )}
