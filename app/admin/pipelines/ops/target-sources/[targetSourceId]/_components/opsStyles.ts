@@ -65,15 +65,6 @@ export const opsStyles = {
   pathHereKind: 'text-[12px] text-[var(--pl-text-weak)]',
   pathHereId:
     '[font-family:var(--pl-font-mono)] text-[14px] font-semibold tabular-nums text-[var(--pl-primary)]',
-  /**
-   * 관련 페이지 (오너 2026-08-26) — 이 대상을 두고 갈 수 있는 **다른 화면들**. kv 그리드의
-   * 한 셀로 산다: 라벨이 값 위에 서는 이 헤더의 문법 그대로이고, 목적지가 늘어도 셀 안에서
-   * 늘어난다. 회색 보조 버튼 하나가 경로 줄에 서 있던 자리인데, 목적지가 둘이 되면 버튼
-   * 둘은 그 줄에서 가장 시끄러운 것이 된다 — 파란 낱말은 이 화면의 다른 이동(서비스 운영 ·
-   * 수정 · 상세 정보)과 같은 문법이고, 우상향 화살표가 "여기서 끝나지 않는다"를 말한다.
-   */
-  relatedLink:
-    'inline-flex cursor-pointer items-center gap-0.5 whitespace-nowrap text-[12px] font-semibold text-[var(--pl-primary)] hover:underline',
   pathChipLabel: 'text-[12px] font-medium text-[var(--pl-gray-600)]',
   pathChipValue:
     '[font-family:var(--pl-font-mono)] text-[12px] font-semibold text-[var(--pl-text-strong)]',
@@ -98,9 +89,21 @@ export const opsStyles = {
   fmGlyph: 'h-5 w-5 flex-none text-[var(--pl-text-medium)]',
   fmLabel:
     'whitespace-nowrap text-[14px] font-semibold tracking-[0.02em] text-[var(--pl-text-medium)]',
-  /** 「관련 페이지」 블록의 본문 — 나가는 링크들 한 줄. kv 그리드와 같은 자리에서
-      시작하도록 머리 아래 여백은 `fmGrid` 의 pt 와 같은 값이다. */
-  fmLinkRow: 'flex flex-wrap items-center gap-x-6 gap-y-2 pt-2.5',
+  /**
+   * 마스트헤드는 두 단이다 (오너 08-26 "헤더 오른쪽에서 Github About처럼") — 왼쪽이
+   * 사실(연동 대상 + kv 4열), 오른쪽이 나가는 문(관련 페이지). 관련 페이지가 한 단
+   * **아래**에 있을 때는 탭 줄을 그만큼 밀어내렸는데, 그건 이 화면에서 가장 자주 쓰는
+   * 것(탭)을 가장 덜 쓰는 것(참고 링크)이 밀어낸 배치였다. 오른쪽으로 서면 kv 그리드가
+   * 쓰지 않고 남기던 폭을 대신 쓰므로 마스트헤드 높이가 한 줄도 늘지 않는다.
+   * 두 머리 줄의 헤어라인이 같은 y 에 서서 한 줄처럼 읽히고, 열 사이 간격이 그 줄을 끊는다.
+   */
+  fmSplit: 'flex items-start gap-8',
+  /** 200px — kv 열(240px)보다 좁게 잡는다: 이 단은 대조하는 값이 아니라 이정표라
+      제 이름 두 개가 들어가는 만큼만 있으면 되고, 남는 폭은 그리드 쪽에 남는다. */
+  aboutPanel: 'w-[200px] flex-none',
+  /** About 패널의 본문 — 목적지가 **세로로** 쌓인다 (GitHub About). kv 그리드와 같은
+      자리에서 시작하도록 머리 아래 여백은 `fmGrid` 의 pt 와 같은 값이다. */
+  aboutList: 'flex flex-col items-start gap-2 pt-2.5',
   /** About 패널의 한 줄 — 마크가 앞에 서고 이름이 링크다. 마크는 값이 아니라 이정표라
       본문보다 한 단 옅다. */
   aboutRow: 'inline-flex items-center gap-1.5',

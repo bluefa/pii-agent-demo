@@ -464,7 +464,7 @@ const TEXT: TextPair[] = [
   { what: 'ops FrontMeta description prose on the masthead wash', fg: textOf(classOf(opsSrc, 'fmProse')), on: resolve('var(--pl-gray-100)') },
   { what: 'ops FrontMeta full identifier on the masthead wash', fg: textOf(classOf(opsSrc, 'fmValueFull')), on: resolve('var(--pl-gray-100)') },
   { what: 'ops role edit link on the masthead wash', fg: textOf(classOf(opsSrc, 'fmLink')), on: resolve('var(--pl-gray-100)') },
-  { what: 'ops 관련 페이지 link on the masthead wash', fg: textOf(classOf(opsSrc, 'relatedLink')), on: resolve('var(--pl-gray-100)') },
+  { what: 'ops 관련 페이지 About link on the masthead wash', fg: textOf(classOf(opsSrc, 'aboutLink')), on: resolve('var(--pl-gray-100)') },
   { what: 'ops fold copy glyph on the masthead wash', fg: textOf(classOf(opsSrc, 'fmCopy')), on: resolve('var(--pl-gray-100)') },
   { what: 'rail section label on rail', fg: textOf(classOf(railBlock, 'sectionLabel')), on: rail },
   { what: 'rail footer page on rail', fg: textOf(classOf(railBlock, 'footerPage')), on: rail },

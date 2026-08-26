@@ -16,10 +16,12 @@
  *                   and what opens here (owner, 08-26).
  *   3  kv 4열       the facts, label above value — cells change per provider, the
  *                   column rule does not
- *   4  관련 페이지   a second named block in the same grammar: the doors out of this
- *                   target (Jira, the service-side screen). Not facts to compare
- *                   and not a control on someone else's row — its own tier, named
- *                   (owner, 08-26).
+ *   2r 관련 페이지   the same named block, in the RIGHT column of the same row — a
+ *                   GitHub About panel: the doors out of this target (Jira, the
+ *                   service-side screen), stacked, mark then name. It is its own
+ *                   named block and not a control on someone else's row, but it
+ *                   costs no height: it takes the width the fixed kv grid leaves
+ *                   over, instead of pushing the tab band down (owner, 08-26).
  *
  * Two things moved here in this round. The 236px meta rail is gone: the service
  * axis it owned (이름·코드·Jira·운영) and the 설명 now live behind the disclosure
@@ -218,198 +220,201 @@ export function OpsHeader({
         </h1>
       </div>
 
-      <section aria-labelledby={labelId} className={opsStyles.fmGroup}>
-        <div className={opsStyles.fmHead}>
-          <span className={opsStyles.fmName}>
-            {/* 마크는 이름을 대신하지 않는다 — 블록 이름이 읽히는 문자열이라
-                글리프는 장식으로 남는다. */}
-            <span aria-hidden className="flex">
-              <ProviderGlyph
-                provider={provider}
-                isSdu={meta.is_sdu_type === true}
-                className={opsStyles.fmGlyph}
+      <div className={cn(opsStyles.fmGroup, opsStyles.fmSplit)}>
+        <section aria-labelledby={labelId} className="min-w-0 flex-1">
+          <div className={opsStyles.fmHead}>
+            <span className={opsStyles.fmName}>
+              {/* 마크는 이름을 대신하지 않는다 — 블록 이름이 읽히는 문자열이라
+                  글리프는 장식으로 남는다. */}
+              <span aria-hidden className="flex">
+                <ProviderGlyph
+                  provider={provider}
+                  isSdu={meta.is_sdu_type === true}
+                  className={opsStyles.fmGlyph}
+                />
+              </span>
+              <span id={labelId} className={opsStyles.fmLabel}>
+                연동 대상
+              </span>
+              {/* 알약과 도장은 「연동 대상」 옆에 선다 (오너 08-26) — 둘 다 이 블록이
+                  말하는 그 대상의 상태이지 경로의 일부가 아니다. 경로 줄은 이제 이동만
+                  말한다: 어디서 왔고(크럼) 어디로 더 갈 수 있나(관련 페이지). */}
+              {processStatus && <StepPill status={processStatus} framed />}
+              {/* 도장과 알약은 다른 축이다: 알약은 "지금 어디", 도장은 "최초로 마친 적
+                  있다 · 언제". 초기화된 대상은 둘이 같이 보이는 것이 말해야 하는 사실이다. */}
+              <CompletedStamp firstInstalledAt={detail.pii_agent_first_installed_at} size="sm" />
+            </span>
+            {/* 큐는 자기가 여는 블록과 같은 줄에 선다 (오너 판단 Q2) — 그래야 무엇이
+                열리는지 말한다. 파랑은 이 팔레트에서 "누를 수 있다"의 한 가지 색. */}
+            <button
+              type="button"
+              onClick={() => setOpen((v) => !v)}
+              aria-expanded={open}
+              aria-controls={open ? foldId : undefined}
+              className={opsStyles.fmCue}
+            >
+              상세 정보
+              <Icon
+                name="chev-d"
+                size="sm"
+                className={cn(opsStyles.fmCueIcon, open && opsStyles.fmCueIconOpen)}
               />
-            </span>
-            <span id={labelId} className={opsStyles.fmLabel}>
-              연동 대상
-            </span>
-            {/* 알약과 도장은 「연동 대상」 옆에 선다 (오너 08-26) — 둘 다 이 블록이
-                말하는 그 대상의 상태이지 경로의 일부가 아니다. 경로 줄은 이제 이동만
-                말한다: 어디서 왔고(크럼) 어디로 더 갈 수 있나(관련 페이지). */}
-            {processStatus && <StepPill status={processStatus} framed />}
-            {/* 도장과 알약은 다른 축이다: 알약은 "지금 어디", 도장은 "최초로 마친 적
-                있다 · 언제". 초기화된 대상은 둘이 같이 보이는 것이 말해야 하는 사실이다. */}
-            <CompletedStamp firstInstalledAt={detail.pii_agent_first_installed_at} size="sm" />
-          </span>
-          {/* 큐는 자기가 여는 블록과 같은 줄에 선다 (오너 판단 Q2) — 그래야 무엇이
-              열리는지 말한다. 파랑은 이 팔레트에서 "누를 수 있다"의 한 가지 색. */}
-          <button
-            type="button"
-            onClick={() => setOpen((v) => !v)}
-            aria-expanded={open}
-            aria-controls={open ? foldId : undefined}
-            className={opsStyles.fmCue}
-          >
-            상세 정보
-            <Icon
-              name="chev-d"
-              size="sm"
-              className={cn(opsStyles.fmCueIcon, open && opsStyles.fmCueIconOpen)}
-            />
-          </button>
-        </div>
+            </button>
+          </div>
 
-        {/* 항상 보이는 스트립 — 계정/프로젝트 · 설정, 그리고 **권한 주체**.
-            Role 은 접힘 밖에 산다 (오너 지시): 이 화면에서 운영자가 가장 자주 대조하는
-            값이고, 접어 두면 프로바이더마다 다른 깊이에 숨는다. */}
-        <div className={opsStyles.fmGrid}>
-          {isAws && monoCell('계정', meta.aws_account_id, false, scopeTag)}
-          {provider === 'GCP' && monoCell('프로젝트', meta.gcp_project_id, false, scopeTag)}
-          {/* Azure 는 계정 자리가 구독이고, 테넌트가 그 옆에 선다 (오너 2026-08-26).
-              Q3 에서는 UUID 두 개가 스코프 줄을 468px 쓴다고 접힘에 두자고 했는데,
-              4열 그리드는 값 폭이 아니라 셀 수로 서는 배치라 그 근거가 없다 — 둘이
-              나란히 서면 한 행이 정확히 4칸으로 찬다. */}
-          {provider === 'Azure' && monoCell('구독', meta.subscription_id, false, scopeTag)}
-          {provider === 'Azure' && monoCell('테넌트', meta.tenant_id)}
-          {/* Azure 도 주체가 계정 옆이다. 리전 칸이 사라진 뒤 「구독·테넌트·실데이터」는
-              첫 행에 한 칸을 비워 두는데, 2열짜리 Scan App 이 그 자리로 올라오면
-              첫 행이 정확히 찬다. GCP 는 반대다 — SA 둘이 2열씩이라 위로 올리면
-              「프로젝트 + SA」로 3칸만 차고 다음 SA 가 못 들어온다. 그 자리는
-              실데이터가 채운다. */}
-          {provider === 'Azure' && monoCell('Scan App', meta.azure_scan_app_id, true)}
-          {/* IDC 는 계정이 없는 게 정상이다 — 빈 칸을 두는 대신 그 대상이 무엇인지
-              말한다 (ServiceDetailView glossOf 의 어휘 그대로). */}
-          {provider === 'IDC'
-            && cell(
-              '환경',
-              <>
-                사내망
-                <span className={opsStyles.metaTagQuiet}>IDC</span>
-              </>,
-            )}
-          {/* 주체는 계정 바로 옆에 선다 (오너 08-26) — 운영자가 콘솔과 대조하는 순서가
-              「이 계정의 · 이 role」 이고, 설정 두 칸이 그 사이에 끼면 짝이 갈라진다.
-              4열은 자동(계정·scan·execution·설치모드)과 수동(계정·scan·설치모드·실데이터)
-              양쪽에서 첫 행이 정확히 찬다. */}
-          {isAws && roleCell('scan')}
-          {isAws && grantTfExecution && roleCell('execution')}
-          {/* 설정 한 칸 (design-benchmark 시안 A, 오너 08-26) — 라벨 둘·흰 면 태그 둘·
-              「수정」 둘이 라벨 하나와 밑줄 낱말 둘이 된다. 라벨이 줄었으니 값이 스스로를
-              말한다. 이 칸이 그리드의 마지막 사실 뒤에 서면서 AWS 자동은 첫 행이 4칸으로
-              정확히 찬다 — 실데이터 하나 때문에 서 있던 둘째 행이 사라진다. */}
-          {cell(
-            '설정',
-            <span className={opsStyles.fmSettings}>
-              {isAws && (
+          {/* 항상 보이는 스트립 — 계정/프로젝트 · 설정, 그리고 **권한 주체**.
+              Role 은 접힘 밖에 산다 (오너 지시): 이 화면에서 운영자가 가장 자주 대조하는
+              값이고, 접어 두면 프로바이더마다 다른 깊이에 숨는다. */}
+          <div className={opsStyles.fmGrid}>
+            {isAws && monoCell('계정', meta.aws_account_id, false, scopeTag)}
+            {provider === 'GCP' && monoCell('프로젝트', meta.gcp_project_id, false, scopeTag)}
+            {/* Azure 는 계정 자리가 구독이고, 테넌트가 그 옆에 선다 (오너 2026-08-26).
+                Q3 에서는 UUID 두 개가 스코프 줄을 468px 쓴다고 접힘에 두자고 했는데,
+                4열 그리드는 값 폭이 아니라 셀 수로 서는 배치라 그 근거가 없다 — 둘이
+                나란히 서면 한 행이 정확히 4칸으로 찬다. */}
+            {provider === 'Azure' && monoCell('구독', meta.subscription_id, false, scopeTag)}
+            {provider === 'Azure' && monoCell('테넌트', meta.tenant_id)}
+            {/* Azure 도 주체가 계정 옆이다. 리전 칸이 사라진 뒤 「구독·테넌트·실데이터」는
+                첫 행에 한 칸을 비워 두는데, 2열짜리 Scan App 이 그 자리로 올라오면
+                첫 행이 정확히 찬다. GCP 는 반대다 — SA 둘이 2열씩이라 위로 올리면
+                「프로젝트 + SA」로 3칸만 차고 다음 SA 가 못 들어온다. 그 자리는
+                실데이터가 채운다. */}
+            {provider === 'Azure' && monoCell('Scan App', meta.azure_scan_app_id, true)}
+            {/* IDC 는 계정이 없는 게 정상이다 — 빈 칸을 두는 대신 그 대상이 무엇인지
+                말한다 (ServiceDetailView glossOf 의 어휘 그대로). */}
+            {provider === 'IDC'
+              && cell(
+                '환경',
                 <>
-                  <button
-                    type="button"
-                    className={opsStyles.fmValueEdit}
-                    onClick={onOpenMode}
-                    title="설치모드 변경"
-                  >
-                    {grantTfExecution ? '자동 설치' : '수동 설치'}
-                  </button>
-                  <span className={opsStyles.fmSettingsSep} aria-hidden>
-                    ·
-                  </span>
-                </>
+                  사내망
+                  <span className={opsStyles.metaTagQuiet}>IDC</span>
+                </>,
               )}
-              <button
-                type="button"
-                className={opsStyles.fmValueEdit}
-                onClick={onOpenRawData}
-                title="실데이터 여부 변경"
-              >
-                실데이터 {rawDataLabel}
-              </button>
-            </span>,
-          )}
-          {provider === 'GCP' && (
-            <>
-              {monoCell('Scan Service Account', meta.gcp_scan_service_account, true)}
-              {monoCell('Terraform Service Account', meta.gcp_terraform_service_account, true)}
-            </>
-          )}
-        </div>
+            {/* 주체는 계정 바로 옆에 선다 (오너 08-26) — 운영자가 콘솔과 대조하는 순서가
+                「이 계정의 · 이 role」 이고, 설정 두 칸이 그 사이에 끼면 짝이 갈라진다.
+                4열은 자동(계정·scan·execution·설치모드)과 수동(계정·scan·설치모드·실데이터)
+                양쪽에서 첫 행이 정확히 찬다. */}
+            {isAws && roleCell('scan')}
+            {isAws && grantTfExecution && roleCell('execution')}
+            {/* 설정 한 칸 (design-benchmark 시안 A, 오너 08-26) — 라벨 둘·흰 면 태그 둘·
+                「수정」 둘이 라벨 하나와 밑줄 낱말 둘이 된다. 라벨이 줄었으니 값이 스스로를
+                말한다. 이 칸이 그리드의 마지막 사실 뒤에 서면서 AWS 자동은 첫 행이 4칸으로
+                정확히 찬다 — 실데이터 하나 때문에 서 있던 둘째 행이 사라진다. */}
+            {cell(
+              '설정',
+              <span className={opsStyles.fmSettings}>
+                {isAws && (
+                  <>
+                    <button
+                      type="button"
+                      className={opsStyles.fmValueEdit}
+                      onClick={onOpenMode}
+                      title="설치모드 변경"
+                    >
+                      {grantTfExecution ? '자동 설치' : '수동 설치'}
+                    </button>
+                    <span className={opsStyles.fmSettingsSep} aria-hidden>
+                      ·
+                    </span>
+                  </>
+                )}
+                <button
+                  type="button"
+                  className={opsStyles.fmValueEdit}
+                  onClick={onOpenRawData}
+                  title="실데이터 여부 변경"
+                >
+                  실데이터 {rawDataLabel}
+                </button>
+              </span>,
+            )}
+            {provider === 'GCP' && (
+              <>
+                {monoCell('Scan Service Account', meta.gcp_scan_service_account, true)}
+                {monoCell('Terraform Service Account', meta.gcp_terraform_service_account, true)}
+              </>
+            )}
+          </div>
 
-        {open && (
-          <OpsDetailFold
-            id={foldId}
-            detail={detail}
-            grantTfExecution={grantTfExecution}
-            savedRoleArns={savedRoleArns}
-            onEditDescription={onEditDescription}
-          />
-        )}
-      </section>
+          {open && (
+            <OpsDetailFold
+              id={foldId}
+              detail={detail}
+              grantTfExecution={grantTfExecution}
+              savedRoleArns={savedRoleArns}
+              onEditDescription={onEditDescription}
+            />
+          )}
+        </section>
 
-      {/* 관련 페이지 — 「연동 대상」과 같은 문법의 **한 단 아래 블록**이다 (오너 08-26
-          "연동 대상 처럼 한 단을 밑에 추가하자고"). 사실 그리드에 섞여 있을 때는 대조하는
-          값 행세를 했고, 머리 줄 오른쪽에 붙였을 때는 「상세 정보」와 같은 급이 됐다. 제
-          이름을 가진 블록이 되면 둘 다 아니다: 이 대상을 두고 갈 수 있는 다른 화면들이
-          한 묶음으로 서고, 이름이 그 묶음이 무엇인지 말한다. */}
-      <section aria-labelledby={relatedId} className={opsStyles.fmGroup}>
-        <div className={opsStyles.fmHead}>
-          <span id={relatedId} className={opsStyles.fmLabel}>
-            관련 페이지
-          </span>
-        </div>
-        {/* GitHub 의 About 패널 문법 (오너 08-26 "Github About으로 관련 사이트도 구성",
-            design-benchmark 레퍼런스 04) — 목적지마다 **아이콘이 앞에 서고 이름이 링크**다.
-            화살표를 줄마다 반복하지 않는다: 아이콘이 이미 "무엇으로 가는지"를 말하고,
-            About 패널도 링크 뒤에 표식을 붙이지 않는다. 새 창으로 여는 것(Jira)만 ↗ 를
-            남긴다 — 그건 목적지가 아니라 **어디에 열리는지**를 말하는 표식이라 다른 축이다. */}
-        <div className={opsStyles.fmLinkRow}>
-          {/* 티켓은 detail 과 따로 도착한다 — 도착 전에 자리를 비우면 줄이 한 번 흔들리므로,
-              그 사이는 같은 폭의 자리만 잡아 둔다. 열 주소가 없거나 http(s) 가 아니면 링크가
-              아니라 **글자**로 선다 (`docs/api/jira-tickets.md`, 다른 두 렌더 자리와 같은
-              규칙) — 주소를 조립하지도, 티켓 번호를 감추지도 않는다. */}
-          {!ticketLoaded ? (
-            <span className={cn(opsStyles.skeletonWash, 'h-4 w-[120px]')} aria-hidden />
-          ) : (
+        {/* 관련 페이지 — 「연동 대상」과 같은 문법의 블록이되, 같은 행의 **오른쪽 단**이다
+            (오너 08-26 "헤더 오른쪽에서 Github About처럼"). 사실 그리드에 섞여 있을 때는
+            대조하는 값 행세를 했고, 머리 줄 오른쪽에 붙였을 때는 「상세 정보」와 같은 급이
+            됐고, 한 단 아래에 뒀을 때는 탭 줄을 밀어내렸다. 제 이름을 가진 오른쪽 단이 되면
+            셋 다 아니다 — 이 대상을 두고 갈 수 있는 다른 화면들이 한 묶음으로 서고, kv
+            그리드가 안 쓰고 남기던 폭에 서므로 마스트헤드가 한 줄도 높아지지 않는다. */}
+        <section aria-labelledby={relatedId} className={opsStyles.aboutPanel}>
+          <div className={opsStyles.fmHead}>
+            <span id={relatedId} className={opsStyles.fmLabel}>
+              관련 페이지
+            </span>
+          </div>
+          {/* GitHub 의 About 패널 문법 (오너 08-26, design-benchmark 레퍼런스 04) —
+              목적지마다 **아이콘이 앞에 서고 이름이 링크**이고, 목적지들은 세로로 쌓인다.
+              화살표를 줄마다 반복하지 않는다: 아이콘이 이미 "무엇으로 가는지"를 말하고,
+              About 패널도 링크 뒤에 표식을 붙이지 않는다. 새 창으로 여는 것(Jira)만 ↗ 를
+              남긴다 — 그건 목적지가 아니라 **어디에 열리는지**를 말하는 표식이라 다른 축이다. */}
+          <div className={opsStyles.aboutList}>
+            {/* 티켓은 detail 과 따로 도착한다 — 도착 전에 자리를 비우면 줄이 한 번 흔들리므로,
+                그 사이는 같은 폭의 자리만 잡아 둔다. 열 주소가 없거나 http(s) 가 아니면 링크가
+                아니라 **글자**로 선다 (`docs/api/jira-tickets.md`, 다른 두 렌더 자리와 같은
+                규칙) — 주소를 조립하지도, 티켓 번호를 감추지도 않는다. */}
+            {!ticketLoaded ? (
+              <span className={cn(opsStyles.skeletonWash, 'h-4 w-[120px]')} aria-hidden />
+            ) : (
+              <span className={opsStyles.aboutRow}>
+                <span className={opsStyles.aboutMark} aria-hidden>
+                  <JiraLogo size={14} />
+                </span>
+                {jiraHref ? (
+                  <a
+                    href={jiraHref}
+                    target="_blank"
+                    rel="noreferrer"
+                    className={opsStyles.aboutLink}
+                    title={`Jira ${jiraTicket?.issueKey} — 협업 채널`}
+                  >
+                    {jiraTicket?.issueKey} <Icon name="arrow-ur" size="sm" />
+                  </a>
+                ) : jiraTicket ? (
+                  <span
+                    className={opsStyles.aboutPlain}
+                    title="Jira 열 주소 없음 — 티켓 번호만 확인된다"
+                  >
+                    {jiraTicket.issueKey}
+                  </span>
+                ) : (
+                  <span className={opsStyles.aboutPlain}>티켓 없음</span>
+                )}
+              </span>
+            )}
+            {/* 같은 대상의 서비스측 화면 — 운영자가 "담당자한테는 지금 뭐가 보이나"를
+                묻는 자리가 여기뿐이다. */}
             <span className={opsStyles.aboutRow}>
               <span className={opsStyles.aboutMark} aria-hidden>
-                <JiraLogo size={14} />
+                <Icon name="install" size="sm" />
               </span>
-              {jiraHref ? (
-                <a
-                  href={jiraHref}
-                  target="_blank"
-                  rel="noreferrer"
-                  className={opsStyles.aboutLink}
-                  title={`Jira ${jiraTicket?.issueKey} — 협업 채널`}
-                >
-                  {jiraTicket?.issueKey} <Icon name="arrow-ur" size="sm" />
-                </a>
-              ) : jiraTicket ? (
-                <span
-                  className={opsStyles.aboutPlain}
-                  title="Jira 열 주소 없음 — 티켓 번호만 확인된다"
-                >
-                  {jiraTicket.issueKey}
-                </span>
-              ) : (
-                <span className={opsStyles.aboutPlain}>티켓 없음</span>
-              )}
+              <Link
+                href={passRoutes.targetSource(targetSourceId)}
+                className={opsStyles.aboutLink}
+                title="PII Agent 설치 화면 — 서비스 담당자가 보는 진행 화면"
+              >
+                서비스가 보는 화면
+              </Link>
             </span>
-          )}
-          {/* 같은 대상의 서비스측 화면 — 운영자가 "담당자한테는 지금 뭐가 보이나"를
-              묻는 자리가 여기뿐이다. */}
-          <span className={opsStyles.aboutRow}>
-            <span className={opsStyles.aboutMark} aria-hidden>
-              <Icon name="install" size="sm" />
-            </span>
-            <Link
-              href={passRoutes.targetSource(targetSourceId)}
-              className={opsStyles.aboutLink}
-              title="PII Agent 설치 화면 — 서비스 담당자가 보는 진행 화면"
-            >
-              서비스가 보는 화면
-            </Link>
-          </span>
-        </div>
-      </section>
+          </div>
+        </section>
+      </div>
     </>
   );
 }
