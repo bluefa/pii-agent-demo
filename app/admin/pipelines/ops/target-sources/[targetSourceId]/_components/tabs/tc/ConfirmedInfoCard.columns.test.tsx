@@ -203,13 +203,39 @@ describe('확정 정보 표 — 논리 DB 관리 문', () => {
     const buttons = [...(cell?.querySelectorAll('button') ?? [])];
     expect(buttons).toHaveLength(1);
     expect(buttons[0].textContent).toContain('관리');
-    expect(screen.getByText(/최근 조회/).closest('button')).toBeNull();
+    // 이름은 이제 행마다 있으므로 전역 조회로는 못 집는다 — 이 칸 안에서 찾는다.
+    const label = [...(cell?.querySelectorAll('span') ?? [])].find(
+      (el) => el.textContent === '최근 조회',
+    );
+    expect(label).toBeTruthy();
+    expect(label?.closest('button')).toBeNull();
   });
 
   it('보고가 없으면 건수 자리는 —로 남는다 — 링크로 위장하지 않는다', () => {
     const { container } = renderTable();
     expect(ldbCells(container)[0]?.textContent).toContain('—');
   });
+
+  /**
+   * 이름은 판정과 무관하게 늘 선다 (오너 2026-08-26). 실패·대기·진행 중에 칸이 `—` 하나로
+   * 오그라들면 이 칸이 무엇을 셀 자리였는지가 사라져, 제외 정책이 아예 없는 것처럼 읽힌다.
+   * 정책은 실행이 만드는 것이 아니라 운영자가 쓴 것이라 실행이 실패해도 남아 있고,
+   * 그래서 그 자리를 여는 문도 남아 있어야 한다.
+   */
+  it.each(['FAIL', 'PENDING', 'RUNNING'] as const)(
+    '%s 에서도 두 이름과 관리 문이 모두 선다',
+    (verdict) => {
+      const { container } = renderTable(
+        false,
+        new Map([[rows[0].resource_id, { verdict, podId: null, failReason: null }]]),
+      );
+      const cell = ldbCells(container)[0];
+      const flat = (cell?.textContent ?? '').replace(/\s+/g, '');
+      expect(flat).toContain('최근조회');
+      expect(flat).toContain('제외');
+      expect(cell?.querySelector('button')?.textContent).toContain('관리');
+    },
+  );
 });
 
 /**

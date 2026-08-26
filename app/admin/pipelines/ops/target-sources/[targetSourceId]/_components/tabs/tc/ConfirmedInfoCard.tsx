@@ -415,30 +415,20 @@ function LdbCell({
   const excluded = ldbCount(row, 'exc', verdict);
   return (
     <span className="flex items-center justify-between gap-2.5">
-      <span className="flex min-w-0 flex-col items-start">
-        {/* 판정 칸과 같은 이유로 —를 그리지 않는다: 이 표에서 —는 "보고 없음"이라는 판정의
-            글자라, 아직 물어보는 중에 그것을 그리면 픽셀이 거짓말한다(오너 2026-08-25).
-            두 막대의 폭은 정착 후 들어설 두 줄(`최근 조회 N개` 76px · `제외 N개` 49px)이다.
-            문은 이 조회를 기다리지 않으므로 관리 링크는 그대로 선다 — 모달은 실행이 아니라
-            논리 DB 엔드포인트를 읽는다. */}
-        {loading ? (
-          <span className="flex flex-col items-start gap-1.5">
-            <span className={cn(opsStyles.skeletonBar, 'block h-3 w-[76px]')} aria-hidden="true" />
-            <span className={cn(opsStyles.skeletonBar, 'block h-3 w-[49px]')} aria-hidden="true" />
-          </span>
-        ) : included == null && excluded == null ? (
-          <Dash />
-        ) : (
-          // 두 줄이 아니라 **작은 표** 하나다 (오너 2026-08-25: "2줄로 표현하니 조금
-          // 이상하다"). 라벨 길이가 다른 두 줄을 그냥 쌓으면 12 와 3 이 서로 다른 x 에
-          // 서서 비교가 안 되고, 같은 무게의 문장 둘이 목록처럼 읽힌다. 라벨 열과 수 열을
-          // 갈라 수를 오른쪽 끝에 맞추면(tabular-nums) 자릿수가 한 기둥에 서고, 칸 전체가
-          // 줄 둘이 아니라 한 덩어리로 읽힌다.
-          <span className="grid grid-cols-[auto_auto] items-baseline gap-x-2 gap-y-0.5">
-            <LdbCount label="최근 조회" value={included} />
-            <LdbCount label="제외" value={excluded} />
-          </span>
-        )}
+      {/* 두 줄이 아니라 **작은 표** 하나다 (오너 2026-08-25: "2줄로 표현하니 조금
+          이상하다"). 라벨 길이가 다른 두 줄을 그냥 쌓으면 12 와 3 이 서로 다른 x 에 서서
+          비교가 안 되고, 같은 무게의 문장 둘이 목록처럼 읽힌다. 라벨 열과 수 열을 갈라 수를
+          오른쪽 끝에 맞추면(tabular-nums) 자릿수가 한 기둥에 서고, 칸 전체가 줄 둘이 아니라
+          한 덩어리로 읽힌다.
+
+          **이름은 판정과 무관하게 늘 선다** (오너 2026-08-26). 실패·대기·진행 중이면 예전
+          칸은 `—` 글자 하나로 오그라들었는데, 그러면 이 칸이 무엇을 셀 자리였는지가 사라져
+          제외 정책이 아예 없는 것처럼 읽힌다 — 정책은 실행이 만드는 것이 아니라 운영자가
+          쓴 것이고, 실행이 실패했다고 없어지지 않는다. 이제 칸의 뼈대(이름 둘)는 고정이고
+          국면이 바꾸는 것은 **수 열뿐**이다: 조회 중이면 막대, 보고가 없으면 `—`, 있으면 수. */}
+      <span className="grid grid-cols-[auto_auto] items-baseline gap-x-2 gap-y-0.5">
+        <LdbCount label="최근 조회" value={included} loading={loading} />
+        <LdbCount label="제외" value={excluded} loading={loading} />
       </span>
       <button
         type="button"
@@ -452,10 +442,21 @@ function LdbCell({
   );
 }
 
-/** 이름 붙은 건수 한 줄. 계약에서 두 필드가 각자 optional 이라, 없는 쪽은 줄이 없다 —
- *  한쪽만 실린 응답에서 다른 쪽을 0 으로 지어내지 않는다. */
-function LdbCount({ label, value }: { label: string; value: number | null }): ReactElement | null {
-  if (value == null) return null;
+/**
+ * 이름 붙은 건수 한 줄 — 격자의 두 칸(이름, 수)을 낸다.
+ *
+ * 이름은 언제나 있고 수만 국면을 탄다. 계약에서 두 필드가 각자 optional 이라 한쪽만 실린
+ * 응답이 올 수 있는데, 그때도 없는 쪽을 0 으로 지어내지 않고 `—`(보고 없음)로 둔다.
+ */
+function LdbCount({
+  label,
+  value,
+  loading,
+}: {
+  label: string;
+  value: number | null;
+  loading: boolean;
+}): ReactElement {
   return (
     <>
       <span className="whitespace-nowrap text-[14px] text-[var(--pl-text-weak)]">{label}</span>
@@ -463,7 +464,19 @@ function LdbCount({ label, value }: { label: string; value: number | null }): Re
           봤지만 오너가 14px 로 되돌렸다(2026-08-25): 크기는 표의 규칙(글자 크기는 14px
           하나)이 소유하고, 무게만으로도 수가 이름 위로 올라선다. */}
       <span className="whitespace-nowrap text-right text-[14px] font-semibold tabular-nums text-[var(--pl-text-strong)]">
-        {value}개
+        {/* 조회 중에 `—` 를 그리면 그 자리에서 —는 "보고가 없는 리소스"라는 판정을 뜻하게
+            된다(표의 문법이 그렇다) — 아직 물어보는 중에는 자리만 잡아 둔다. 막대 폭은
+            정착 후 들어설 값(`12개` ≈ 34px)이다. */}
+        {loading ? (
+          <span
+            className={cn(opsStyles.skeletonBar, 'inline-block h-3 w-[34px] align-middle')}
+            aria-hidden="true"
+          />
+        ) : value == null ? (
+          <Dash />
+        ) : (
+          `${value}개`
+        )}
       </span>
     </>
   );
