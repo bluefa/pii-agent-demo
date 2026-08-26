@@ -239,9 +239,25 @@ export interface EvidencePill {
   label: string;
 }
 
+/** 근거 한 줄의 라벨–값 — 승인 카드가 조건 ② 와 같은 문법으로 그린다. */
+export interface MonitoringEvidenceFact {
+  label: string;
+  value: string;
+}
+
 export interface MonitoringEvidenceHead {
   pill: EvidencePill;
+  /** 산문 한 줄 — 셀 수 있는 사실이 아직 없을 때(조회 중·조회 실패·미지 값). */
   subtitle: string | null;
+  /**
+   * 라벨–값 행 (오너 2026-08-26: "Dag 상황도 test connection 처럼 정리해줘").
+   *
+   * ` · ` 로 이어 붙인 한 문장이던 것을 사실마다 한 행으로 나눈다. 낱말은 그대로다 —
+   * 값의 이름(논리 DB·에이전트)만 왼쪽 라벨 열로 나가고, 문장의 종결어미가 값에 어울리는
+   * 명사형으로 바뀐다. 이 문장은 Airflow 확인 탭이 쓰지 않으므로(그 탭은 알약만 공유한다)
+   * 두 화면이 갈라질 일은 없다.
+   */
+  facts: readonly MonitoringEvidenceFact[];
   /** Wire vocabulary (raw enum) — tooltip channel only. */
   titleHint?: string;
 }
@@ -256,41 +272,60 @@ export function monitoringEvidenceHead(
   agg: DagAggregates | null,
 ): MonitoringEvidenceHead {
   const n = (value: number): string => value.toLocaleString('ko-KR');
+  const agents = (): readonly MonitoringEvidenceFact[] =>
+    agg ? [{ label: '에이전트', value: `${n(agg.agentConnected)}/${n(agg.agentTotal)} 연결` }] : [];
   switch (dag.phase) {
     case 'loading':
-      return { pill: { tone: 'off', label: '확인 중' }, subtitle: '모니터링 상태를 확인하고 있어요' };
+      return {
+        pill: { tone: 'off', label: '확인 중' },
+        subtitle: '모니터링 상태를 확인하고 있어요',
+        facts: [],
+      };
     case 'failed':
       return {
         pill: { tone: 'err', label: '확인 실패' },
         subtitle: '모니터링 상태를 확인하지 못했어요',
+        facts: [],
       };
     case 'loaded': {
       const verdict = healthVerdict(dag.data.healthStatus);
-      const agents = agg ? ` · 에이전트 ${n(agg.agentConnected)}/${n(agg.agentTotal)} 연결` : '';
       switch (verdict.kind) {
         case 'healthy':
           return {
             pill: { tone: 'ok', label: 'HEALTHY' },
-            subtitle: agg
-              ? agg.dbTotal === 0
-                ? `DAG 관측 논리 DB 없음${agents}`
-                : agg.succeeded === agg.dbTotal
-                  ? `DAG 관측 논리 DB ${n(agg.dbTotal)}개 전부 최근 7일 성공${agents}`
-                  : `DAG 관측 논리 DB ${n(agg.dbTotal)}개 중 ${n(agg.succeeded)}개 최근 7일 성공${agents}`
-              : null,
+            subtitle: null,
+            facts: agg
+              ? [
+                  {
+                    label: '논리 DB',
+                    value:
+                      agg.dbTotal === 0
+                        ? 'DAG 관측 없음'
+                        : agg.succeeded === agg.dbTotal
+                          ? `DAG 관측 ${n(agg.dbTotal)}개 전부 최근 7일 성공`
+                          : `DAG 관측 ${n(agg.dbTotal)}개 중 ${n(agg.succeeded)}개 최근 7일 성공`,
+                  },
+                  ...agents(),
+                ]
+              : [],
           };
         case 'unhealthy':
           // UNHEALTHY 문장이 세는 것은 succeededThisWeek=false 뿐 — 밴드와 같은 규칙.
           return {
             pill: { tone: 'err', label: 'UNHEALTHY' },
-            subtitle: agg
-              ? `논리 DB ${n(agg.noSuccess)}개가 최근 7일 성공 기록이 없어요${agents}`
-              : null,
+            subtitle: null,
+            facts: agg
+              ? [
+                  { label: '논리 DB', value: `${n(agg.noSuccess)}개가 최근 7일 성공 기록 없음` },
+                  ...agents(),
+                ]
+              : [],
           };
         case 'unknown':
           return {
             pill: { tone: 'off', label: '미확인' },
             subtitle: '판정할 수 없는 값',
+            facts: [],
             titleHint: `healthStatus: ${verdict.raw}`,
           };
       }

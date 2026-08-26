@@ -88,7 +88,13 @@ interface GateFact {
  *
  * 판정문은 카드의 제목이라 이 화면의 제목 활자(`opsStyles.cardTitle`, 20px)를 그대로 입는다
  * (오너 2026-08-26). 근거 행은 12px 라벨 / 14px 값 두 열이고 행 사이를 8px 벌린다 — 좁은
- * 열에서 값이 두 줄로 접혀도 옆 행과 붙지 않을 만큼. 아이콘은 판정문 줄에 붙는다: 두 줄
+ * 열에서 값이 두 줄로 접혀도 옆 행과 붙지 않을 만큼.
+ *
+ * 라벨의 잉크는 `--pl-gray-600` 이다. `--pl-text-weak` 은 흰 면에서 4.97:1 로 숫자는
+ * 넘기지만, 이 줄은 12px 이라 같은 비율의 14px 값보다 훨씬 옅게 읽힌다 — 램프의 다음 칸이
+ * 7.69:1 로, 값(`--pl-text-medium`, 10.46:1)보다는 여전히 한 칸 아래라 두 열의 순서가
+ * 뒤집히지 않는다 (오너 2026-08-26: "4.7:1 이상"). `tcBand.meta` 가 같은 이유로 같은 칸을
+ * 골랐다. 아이콘은 판정문 줄에 붙는다: 두 줄
  * 블록의 가운데로 내려오면 어느 줄을 판정하는 것인지 흐려진다.
  */
 function GateCard({
@@ -142,7 +148,7 @@ function GateCard({
           {facts.map((fact, i) =>
             fact.label ? (
               <div key={i} className="flex items-baseline gap-2">
-                <dt className="w-[68px] flex-none text-[12px] leading-[1.5] text-[var(--pl-text-weak)]">
+                <dt className="w-[68px] flex-none text-[12px] leading-[1.5] text-[var(--pl-gray-600)]">
                   {fact.label}
                 </dt>
                 <dd className="min-w-0 flex-1 text-[14px] leading-[1.5] tabular-nums text-[var(--pl-text-medium)]">
@@ -239,15 +245,15 @@ export function ApprovalTab({
     onError: () => toast.show('설치 완료 처리에 실패했습니다.'),
   });
 
-  // 조건 ② 의 근거 행 — 회차·시각, 그리고 성공분이 있을 때만 논리 DB 합계. 합계는 연결
+  // 조건 ② 의 근거 행 — 시각, 그리고 성공분이 있을 때만 논리 DB 합계. 합계는 연결
   // 테스트 탭의 셀과 같은 fold(ldbCount 게이트)라 두 화면이 갈라지지 않는다. 한 줄에 ` · `
   // 로 잇던 것을 사실마다 한 행으로 나눈다 (오너 2026-08-26).
   const tcFacts = ((): readonly GateFact[] => {
     if (!latest) return [];
+    // 회차는 빠졌다 (오너 2026-08-26). 이 카드가 판정하는 것은 "최신 실행이 성공인가"라
+    // 하나뿐이고 최신은 늘 최신이라, 몇 번째였는지는 이 조건을 좌우하지 않는다 — 회차별
+    // 이력은 연결 테스트 탭이 갖는다.
     const facts: GateFact[] = [];
-    if (latest.test_connection_version != null) {
-      facts.push({ label: '회차', value: `${latest.test_connection_version}회차` });
-    }
     // 끝난 실행이면 완료 시각, 아직이면 요청 시각 — 라벨이 어느 쪽인지 말한다.
     const done = latest.completed_at;
     const at = done ?? latest.requested_at;
@@ -311,9 +317,8 @@ export function ApprovalTab({
   })();
 
   // 승인 조건 ③ — the checklist carries the "why", the CTA stays locked.
-  // 근거 문장은 모니터링 근거의 fold 그대로 빌린다 — 조건 카드와 Airflow 확인 탭이
-  // 같은 응답을 다른 낱말로 부르면 안 된다. 그 문장은 사실 둘을 ` · ` 로 이어 붙인
-  // 것이라, 낱말은 그대로 두고 이음매에서만 줄을 나눈다.
+  // 근거 행은 모니터링 근거의 fold 그대로 빌린다 — 이 화면과 Airflow 확인 탭이 같은
+  // 응답을 다른 낱말로 부르면 안 된다. 조건 ② 와 같은 라벨–값 문법이다.
   const healthRow = ((): {
     state: GateRowState;
     facts: readonly GateFact[];
@@ -334,10 +339,8 @@ export function ApprovalTab({
         return {
           state,
           facts: [
-            ...(monHead.subtitle ?? '')
-              .split(' · ')
-              .filter(Boolean)
-              .map((line): GateFact => ({ value: line })),
+            ...prose(monHead.subtitle),
+            ...monHead.facts,
             { label: '조회', value: fmtDateTimeSec(dag.fetchedAt) },
           ],
           titleHint: monHead.titleHint,

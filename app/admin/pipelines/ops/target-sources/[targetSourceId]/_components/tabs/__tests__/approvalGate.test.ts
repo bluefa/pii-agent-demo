@@ -178,7 +178,12 @@ describe('monitoringEvidenceHead', () => {
       aggregateDagStatus(data),
     );
     expect(head.pill).toEqual({ tone: 'ok', label: 'HEALTHY' });
-    expect(head.subtitle).toBe('DAG 관측 논리 DB 1개 전부 최근 7일 성공 · 에이전트 1/1 연결');
+    // 사실마다 한 행 — 값의 이름은 라벨 열이 진다 (오너 2026-08-26).
+    expect(head.subtitle).toBeNull();
+    expect(head.facts).toEqual([
+      { label: '논리 DB', value: 'DAG 관측 1개 전부 최근 7일 성공' },
+      { label: '에이전트', value: '1/1 연결' },
+    ]);
   });
 
   it('UNHEALTHY 는 succeededThisWeek=false 만 센다', () => {
@@ -188,13 +193,14 @@ describe('monitoringEvidenceHead', () => {
       aggregateDagStatus(data),
     );
     expect(head.pill).toEqual({ tone: 'err', label: 'UNHEALTHY' });
-    expect(head.subtitle).toContain('논리 DB 1개가 최근 7일 성공 기록이 없어요');
+    expect(head.facts[0]).toEqual({ label: '논리 DB', value: '1개가 최근 7일 성공 기록 없음' });
   });
 
   it('미지 enum — raw 는 툴팁 채널에만', () => {
     const head = monitoringEvidenceHead(loaded('DEGRADED'), aggregateDagStatus(response('DEGRADED')));
     expect(head.pill).toEqual({ tone: 'off', label: '미확인' });
     expect(head.subtitle).not.toContain('DEGRADED');
+    expect(head.facts).toEqual([]);
     expect(head.titleHint).toBe('healthStatus: DEGRADED');
   });
 
