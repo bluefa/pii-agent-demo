@@ -255,9 +255,16 @@ function ConnCell({
   // (오너 2026-08-25).
   if (loading) {
     return (
+      // 치수는 정착 후 들어설 모양에서 온다 — 알약은 `pill.lg`(h-7, 28px), 그 아랫줄은
+      // 14px 글줄의 line box(21px)다. 자리표가 실물보다 낮으면 조회가 끝나는 순간 행이
+      // 그만큼 자라는데, 자리표는 바로 그 도약을 없애려고 있는 것이다
+      // ([[feedback_loading_gate_and_skeleton_fidelity]]). 실측 합계 53px = 정착 52~54px.
+      // ⚠️ 알약 크기를 다시 바꾸면 이 두 수도 같이 바꿔야 한다.
       <span className="flex flex-col items-start gap-1">
-        <span className={cn(opsStyles.skeleton, 'block h-5 w-[52px]')} aria-hidden="true" />
-        <span className={cn(opsStyles.skeletonBar, 'block h-3 w-[104px]')} aria-hidden="true" />
+        <span className={cn(opsStyles.skeleton, 'block h-7 w-[52px]')} aria-hidden="true" />
+        <span className="flex h-[21px] items-center">
+          <span className={cn(opsStyles.skeletonBar, 'block h-3 w-[64px]')} aria-hidden="true" />
+        </span>
       </span>
     );
   }
@@ -279,7 +286,7 @@ function ConnCell({
                   <span className={idcStyles.table.headerTipTitle}>{view.label}</span>
                 ) : (
                   // 허용목록 밖의 값은 우리가 옮길 문장이 없다 — 원문이 곧 제목이다.
-                  <span className={cn(idcStyles.table.headerTipTitle, 'font-mono text-[13px]')}>
+                  <span className={cn(idcStyles.table.headerTipTitle, 'font-mono')}>
                     {view.raw}
                   </span>
                 )}
@@ -401,11 +408,14 @@ function PodLogLine({
  */
 function LdbCell({
   row,
+  label,
   verdict,
   loading,
   onOpen,
 }: {
   row: TcResultRow | undefined;
+  /** 이 행의 정체 — 접힌 리전은 리전 id, 그 외는 리소스 이름. 버튼 이름표가 쓴다. */
+  label: string;
   verdict: TcVerdict | undefined;
   /** 최신 실행 조회가 아직 안 끝났다 — 건수가 없는 것과 다르다. */
   loading: boolean;
@@ -433,7 +443,10 @@ function LdbCell({
       <button
         type="button"
         onClick={onOpen}
-        aria-label="연동 논리 DB 관리"
+        // 행마다 반복되는 버튼은 자기 행을 이름표에 실어야 한다 — 열 줄짜리 표에서 같은
+        // 이름의 버튼 열 개는 스크린리더 사용자에게 구별되지 않는다. 같은 칸의 Credential·
+        // Pod 로그·펼침 버튼이 이미 그렇게 한다 ([[feedback_fixed_title_needs_meta_in_the_label]]).
+        aria-label={`${label} 연동 논리 DB 관리`}
         className={opsStyles.manageLink}
       >
         관리 ↗
@@ -695,7 +708,7 @@ export function ConfirmedInfoCard({
               사실이 아니고, 그 둘까지 풀면 10열이 되어 #729 가 접었던 폭 문제로 되돌아간다
               (docs/ux/benchmark/tc-confirmed-columns.md). */}
           <div className={TABLE_FRAME}>
-            <ConsoleTable columns={columns} resize={resize} busy={loading || tcLoading}>
+            <ConsoleTable columns={columns} resize={resize} busy={tcLoading}>
               <tbody className={idcStyles.table.body}>
                 {pageUnits.length === 0 && (
                   <tr>
@@ -798,7 +811,13 @@ export function ConfirmedInfoCard({
                         />
                       </td>
                       <td className={CELL}>
-                        <LdbCell row={tc} verdict={verdict} loading={tcLoading} onOpen={openLdb} />
+                        <LdbCell
+                          row={tc}
+                          label={unit.folded ? unit.unitId : rowLabel(row)}
+                          verdict={verdict}
+                          loading={tcLoading}
+                          onOpen={openLdb}
+                        />
                       </td>
                       <td className={CLIP_CELL}>
                         {/* Credential is addressed by resource id — no id, no assignment.

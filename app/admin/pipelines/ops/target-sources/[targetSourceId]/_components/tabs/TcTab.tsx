@@ -39,7 +39,6 @@ import {
 import type { SecretKey } from '@/lib/types';
 import type { TcResultRow } from '@/app/lib/api/task-queue-tc';
 import { getApprovalRequestLatest } from '@/app/lib/api/task-queue-requests';
-import type { TestConnectionStatusRow } from '@/lib/types/task-queue';
 import { usePlToast } from '@/app/admin/pipelines/_components/usePlToast';
 import { TcLatestRunCard } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/TcLatestRunCard';
 import { TcRunHistoryModal } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/TcRunHistoryModal';

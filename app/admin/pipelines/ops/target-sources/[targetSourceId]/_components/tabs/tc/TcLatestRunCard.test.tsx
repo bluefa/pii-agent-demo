@@ -2,7 +2,6 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import type { TestConnectionVersionResult } from '@/app/lib/api';
-import type { TestConnectionStatusRow } from '@/lib/types/task-queue';
 import { computeTcBuckets, foldAgentStatuses } from '@/lib/test-connection-summary';
 import { TcLatestRunCard } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/TcLatestRunCard';
 
@@ -38,17 +37,6 @@ const bucketsOf = (
     foldAgentStatuses(latest?.test_connection_agent_results ?? [], new Set(unitIds)),
   );
 
-const ack = (over: Partial<TestConnectionStatusRow> = {}): TestConnectionStatusRow => ({
-  targetSourceId: 1,
-  status: 'TEST_CONNECTION_COMPLETED',
-  serviceName: null,
-  serviceCode: null,
-  cloudProvider: null,
-  rejectReason: null,
-  rejectedAt: null,
-  completedAt: '2026-08-25T02:05:00Z',
-  ...over,
-});
 
 const renderCard = (over: Partial<Parameters<typeof TcLatestRunCard>[0]> = {}) => {
   const latest = over.latest === undefined ? version([['r-1', 'SUCCESS']]) : over.latest;

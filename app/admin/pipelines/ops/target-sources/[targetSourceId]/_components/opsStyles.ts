@@ -334,13 +334,5 @@ export const opsStyles = {
     okValue: 'text-[var(--pl-ok-text)]',
     failValue: 'text-[var(--pl-err-text)]',
 
-    /**
-     * 밴드 아래 서비스 승인 요청 줄 — 실행의 판정이 아니라 **서비스가 그 판정으로 무엇을
-     * 했는가**라, 밴드 안이 아니라 그 밑에 자기 등급으로 선다. 상자도 틴트도 없다.
-     */
-    ack: 'mt-3.5 flex flex-wrap items-center gap-x-2.5 gap-y-1 border-t border-[var(--pl-border)] pt-3.5',
-    ackKey: 'text-[12px] font-semibold text-[var(--pl-text-weak)]',
-    ackTime: 'text-[12px] tabular-nums text-[var(--pl-text-weak)]',
-    ackReason: 'mt-1.5 w-full pl-0 text-[14px] leading-[1.5] text-[var(--pl-text-medium)] break-keep',
   },
 } as const;

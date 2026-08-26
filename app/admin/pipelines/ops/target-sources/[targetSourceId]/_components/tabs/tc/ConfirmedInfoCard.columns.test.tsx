@@ -135,10 +135,24 @@ describe('확정 정보 표 — 실패 사유', () => {
     renderTable(false, failing('POD_CREATION_FAILED'));
     const marker = screen.getByLabelText('실패 사유 테스트 Pod 생성 실패');
     expect(marker).toBeTruthy();
-    // click 으로 고정되지 않는다 — 눌러도 열리지 않아야 한다.
+    // click 으로 고정되지 않는다 — `Tooltip` 은 `openOn: 'click'` 판을 갖고 있으므로
+    // 이 단언은 공허하지 않다: 그 판으로 바꾸면 여기서 빨개진다.
     fireEvent.click(marker);
     expect(screen.queryByText(/pod 자체가 뜨지 못해/)).toBeNull();
-    fireEvent.mouseEnter(marker.closest('[class]') ?? marker);
+  });
+
+  /**
+   * 사유가 지면에 없다는 단언만으로는 tip 을 통째로 지워도 초록이다 — 숨긴 것과 없앤 것을
+   * 가르는 것은 "hover 하면 나온다"는 이 단언뿐이다.
+   */
+  it('hover 하면 라벨·설명·원문이 모두 나온다 — 숨긴 것이지 없앤 것이 아니다', () => {
+    renderTable(false, failing('POD_CREATION_FAILED'));
+    const marker = screen.getByLabelText('실패 사유 테스트 Pod 생성 실패');
+    // `Tooltip` 은 트리거를 감싼 컨테이너가 onMouseEnter 를 듣는다.
+    fireEvent.mouseEnter(marker.parentElement as HTMLElement);
+    expect(screen.getByText('테스트 Pod 생성 실패')).toBeTruthy();
+    expect(screen.getByText('POD_CREATION_FAILED')).toBeTruthy();
+    expect(screen.getByText(/pod 자체가 뜨지 못해/)).toBeTruthy();
   });
 
   it('사유가 없는 판정에는 표시도 없다', () => {
@@ -162,11 +176,16 @@ describe('확정 정보 표 — 논리 DB 관리 문', () => {
   const ldbCells = (container: HTMLElement): (HTMLTableCellElement | undefined)[] =>
     [...container.querySelectorAll('tbody tr')].map((row) => row.querySelectorAll('td')[3]);
 
-  it('판정이 무엇이든 행마다 관리 링크가 하나씩 선다', () => {
+  it('판정이 무엇이든 행마다 관리 링크가 하나씩 서고, 이름표가 서로 다르다', () => {
     const { container } = renderTable();
     const cells = ldbCells(container);
     expect(cells.length).toBeGreaterThan(0);
-    expect(screen.getAllByRole('button', { name: '연동 논리 DB 관리' })).toHaveLength(cells.length);
+    const doors = screen.getAllByRole('button', { name: /연동 논리 DB 관리$/ });
+    expect(doors).toHaveLength(cells.length);
+    // 같은 이름의 버튼 여럿은 스크린리더에서 구별되지 않는다 — 행 정체가 이름표에 있어야
+    // 한다. 이름표를 고정 문자열로 되돌리면 이 집합이 1 로 줄어 빨개진다.
+    const names = new Set(doors.map((el) => el.getAttribute('aria-label')));
+    expect(names.size).toBe(cells.length);
   });
 
   it('보고된 0개도 문이 있다 — 0건인 리소스야말로 제외 정책을 본다', () => {
