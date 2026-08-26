@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
 import { describe, it, expect } from 'vitest';
 import {
   aggregateDagStatus,
@@ -44,6 +46,21 @@ const response = (healthStatus: string, dbs: DagDatabaseStatus[] = []): DagStatu
   ],
 });
 
+/**
+ * 승인 탭의 소스. 머리 문장이 하나로 접히면서(오너 2026-08-26) "무엇이 왜 막혔는지"는
+ * 조건 카드로 이사했는데, 그 문장들은 카드 fold 안의 리터럴이라 부를 손잡이가 없다.
+ * 검사가 지키는 것은 렌더 결과가 아니라 **그 사실들이 화면 어딘가에 남아 있다는 것**이다
+ * (같은 디렉터리의 health-copy-scope 검사와 같은 수법).
+ */
+const approvalTabSource = (): string =>
+  readFileSync(
+    path.join(
+      process.cwd(),
+      'app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/ApprovalTab.tsx',
+    ),
+    'utf8',
+  );
+
 const loaded = (healthStatus: string): DagFetch => ({
   phase: 'loaded',
   data: response(healthStatus),
@@ -54,13 +71,20 @@ const loaded = (healthStatus: string): DagFetch => ({
 // per row. The approve CTA mounts on exactly one of them: ① 완료 승인 ∧ ② 최신 실행
 // 성공 ∧ ③ HEALTHY.
 describe('foldApprovalHead', () => {
-  it('row 1 — TC 미완료: both CTAs unmounted, 서비스 쪽 버튼 이름(완료 승인)으로 말한다', () => {
+  it('row 1 — TC 미완료: CTA 잠김, 머리는 미충족만 말한다', () => {
     const head = foldApprovalHead(null, false, 'success', { phase: 'loading' });
     expect(head.canApprove).toBe(false);
+    expect(head.unmet).toBe(true);
     expect(head.pill).toEqual({ tone: 'off', label: '완료 승인 대기' });
+    // 머리는 결정만 진다 — 어느 단계에서 무엇을 눌러야 하는지는 조건 ① 카드의 것이다.
+    expect(head.desc).not.toContain('5단계');
+  });
+
+  it('서비스 쪽 버튼 이름(5단계 · 승인 요청)은 조건 ① 카드가 계속 안내한다', () => {
     // Step 5 CTA 의 실제 라벨은 "승인 요청" — 화면에 없는 이름을 안내하지 않는다.
-    expect(head.desc).toContain('완료 승인');
-    expect(head.desc).toContain('5단계');
+    // 머리에서 걷어 낸 안내가 카드에도 없으면 관리자는 서비스에 전달할 말을 잃는다.
+    const src = approvalTabSource();
+    expect(src).toContain('5단계 연결 테스트에서 승인 요청');
   });
 
   it('row 2 — REJECTED: both CTAs unmounted regardless of dag state', () => {
@@ -116,11 +140,27 @@ describe('foldApprovalHead', () => {
     }
   });
 
-  it('도착 전·실행 실패·이력 없음·조회 실패는 서로 다른 문장이다 (실패 ≠ 빈 결과 ≠ 모름)', () => {
-    const descs = (['loading', 'failed', 'none', 'error'] as const).map(
-      (run) => foldApprovalHead('TEST_CONNECTION_COMPLETED', false, run, loaded('HEALTHY')).desc,
-    );
-    expect(new Set(descs).size).toBe(4);
+  it('머리는 모름과 미충족을 가른다 — 확인 못 한 것을 "충족되지 않았다"고 하지 않는다', () => {
+    const head = (run: Parameters<typeof foldApprovalHead>[2]) =>
+      foldApprovalHead('TEST_CONNECTION_COMPLETED', false, run, loaded('HEALTHY'));
+    // 판정: 조건이 실제로 안 풀린 상태 — 경고 아이콘이 서는 자리다.
+    for (const run of ['failed', 'none', 'open'] as const) expect(head(run).unmet).toBe(true);
+    // 모름: 아직 답이 없거나 조회가 거절됐다. 문장도 따로 서야 한다.
+    for (const run of ['loading', 'error', 'unknown'] as const) {
+      expect(head(run).unmet).toBe(false);
+      expect(head(run).desc).not.toBe(head('failed').desc);
+    }
+  });
+
+  it('실패 ≠ 빈 결과 ≠ 모름 — 갈라 말하는 자리가 머리에서 조건 ② 카드로 옮겨졌다', () => {
+    const src = approvalTabSource();
+    const evidence = [
+      '연결 실패',
+      '연결 테스트 실행 기록이 없습니다',
+      '실행 정보를 불러오지 못했습니다',
+    ];
+    for (const line of evidence) expect(src).toContain(line);
+    expect(new Set(evidence).size).toBe(evidence.length);
   });
 
   it('status 조회 실패는 미요청과 다른 문장이다 — 404 가 아닌 거절은 모름이다', () => {

@@ -21,13 +21,19 @@
  *   ② 최신 연결 테스트 결과 SUCCESS (allowlist — approvalGate.ts)
  *   ③ 모니터링 헬스 HEALTHY (assumed §10 dag-status, allowlist — approvalGate.ts)
  *
- * 아이콘 문법: 판정 아이콘(✓·✗·○)은 승인 조건 행의 것이고, 이제 세 조건이 전부 게이트라
- * 실패 행의 ✗ 는 실제로 "승인 불가"를 뜻한다. "완료·승인"은 사람의 행위(인수인계)에만,
- * "성공·실패"는 테스트 결과에만 쓴다.
+ * 아이콘 문법: ✓ 는 충족, ✗ 는 미충족, 도는 고리는 조회 중이다. 세 조건이 전부 게이트라
+ * 미충족은 이유(실패·경고·미요청)와 무관하게 같은 ✗ 를 쓰고, 이유는 잉크가 가른다.
+ * "완료·승인"은 사람의 행위(인수인계)에만, "성공·실패"는 테스트 결과에만 쓴다.
+ *
+ * 제목 문법: 카드 제목은 판정이 아니라 **요건**이다("…이어야 합니다"). 단정문
+ * ("…성공입니다")은 옆에 선 ✗ 와 정면으로 부딪혀 — 문장은 성공이라 하고 아이콘은
+ * 아니라 한다 — 읽는 사람이 매번 둘을 맞대 봐야 했다 (오너 2026-08-26). 요건은 참·거짓이
+ * 아니라 충족·미충족이라 어느 판정 옆에 서도 말이 된다. 셋 다 상태와 무관하게 고정이고,
+ * 무슨 일이 있었는지는 아이콘과 근거 행이 진다.
  */
 import { useMemo, useState, type ReactElement, type ReactNode } from 'react';
 import { cn, pipelineStyles } from '@/lib/theme';
-import { fmtDateTimeSec } from '@/lib/pipeline/format';
+import { fmtDateTimeShort } from '@/lib/pipeline/format';
 import { useApiAction } from '@/app/hooks/useApiMutation';
 import { confirmInstallation, type TcResultRow } from '@/app/lib/api/task-queue-tc';
 import type { TestConnectionVersionResult } from '@/app/lib/api';
@@ -58,7 +64,12 @@ import {
 
 const n = (value: number): string => value.toLocaleString('ko-KR');
 
-type GateRowState = 'ok' | 'err' | 'warn' | 'pending';
+/**
+ * 판정 아이콘의 갈래. `loading` 만 판정 마크를 달지 않는다 — 나머지 미충족은 이유가
+ * 무엇이든 ✗ 다 (오너 2026-08-26). 도착 전을 ✗ 로 그리면 아직 모르는 것을 "충족되지
+ * 않았다"고 단정한다.
+ */
+type GateRowState = 'ok' | 'err' | 'warn' | 'pending' | 'loading';
 
 /** 카드 라벨의 번호 — 원문자(①)는 12px 에서 ⓘ 로 읽혀 못 쓴다(브라우저 실측). */
 const GATE_ORDINALS = [1, 2, 3] as const;
@@ -138,27 +149,47 @@ function GateCard({
   /** "상세보기" — 이 조건을 판정한 근거가 사는 탭으로 보낸다. */
   onNavigate?: () => void;
 }): ReactElement {
+  // 충족이 아니면 전부 ✗ — 이유가 실패든 미요청이든 같은 마크, 같은 잉크다 (오너
+  // 2026-08-26). 예전의 빈 동그라미는 "미충족"이 아니라 "해당 없음"으로 읽혔고, 이유마다
+  // 잉크를 갈랐던 그 다음 판은 카드 획(아래)이 둘로만 갈리면서 안팎이 어긋났다.
+  // 세 조건은 전부 CTA 하나를 잠그는 게이트라, 갈래도 셋이 아니라 둘이다.
   const icon =
     state === 'ok' ? (
       <Icon name="check-circle" size={20} className="text-[var(--pl-ok-text)]" />
-    ) : state === 'err' ? (
-      <Icon name="x-circle" size={20} className="text-[var(--pl-err-text)]" />
-    ) : state === 'warn' ? (
-      <Icon name="warn-tri" size={20} className="text-[var(--pl-warn-text)]" />
-    ) : (
-      <span
-        aria-hidden
-        className="block h-5 w-5 rounded-full border-2 border-[var(--pl-border-strong)]"
+    ) : state === 'loading' ? (
+      <Icon
+        name="loader"
+        size={20}
+        className="animate-spin text-[var(--pl-text-weak)] motion-reduce:animate-none"
       />
+    ) : (
+      <Icon name="x-circle" size={20} className="text-[var(--pl-err-text)]" />
     );
   return (
     <section
-      className={cn(pipelineStyles.card.base, 'flex h-full flex-col')}
+      className={cn(
+        pipelineStyles.card.base,
+        'flex h-full flex-col',
+        // 판정을 카드 둘레까지 끌고 나온다 (오너 2026-08-26). 아이콘 하나는 20px 이라
+        // 세 카드를 훑을 때 눈이 먼저 세는 것은 획이다. 잉크는 알약이 쓰는 옅은 칸
+        // (#A6F4C5 / #FDA29B) 이라 면을 물들이지 않고 테두리에서 멎는다 — 미충족이
+        // 정상 흐름의 대부분인 화면에서 진한 빨강은 매번 사고를 알리게 된다.
+        state === 'ok'
+          ? 'border-[var(--pl-ok-border)]'
+          : state === 'loading'
+            ? undefined
+            : 'border-[var(--pl-err-border)]',
+      )}
       aria-label={`승인 조건 ${ordinal}`}
     >
       <p className="text-[12px] font-semibold text-[var(--pl-text-weak)]">승인 조건 {ordinal}</p>
       <div className="mt-2.5 flex items-start gap-2.5">
-        <span className="mt-0.5 flex-none">{icon}</span>
+        <span
+          className="mt-0.5 flex-none"
+          {...(state === 'loading' ? { role: 'status', 'aria-label': '확인 중' } : {})}
+        >
+          {icon}
+        </span>
         <p
           className={cn(opsStyles.cardTitle, 'min-w-0 flex-1 break-keep leading-[1.4]')}
           title={titleHint}
@@ -166,25 +197,35 @@ function GateCard({
           {text}
         </p>
       </div>
-      {facts.length > 0 && (
-        <dl className="mt-3.5 flex flex-col gap-2">
-          {facts.map((fact, i) =>
-            fact.label ? (
-              <div key={i} className="flex items-baseline gap-2">
-                <dt className="w-[68px] flex-none text-[12px] leading-[1.5] text-[var(--pl-gray-600)]">
-                  {fact.label}
-                </dt>
-                <dd className="min-w-0 flex-1 text-[14px] leading-[1.5] tabular-nums text-[var(--pl-text-medium)]">
+      {state === 'loading' ? (
+        // 근거가 앉을 자리를 미리 잡아 둔다 — 도착하면서 카드가 자라면 세 카드가 함께
+        // 들썩인다(한 행 `items-stretch` 라 높이가 묶여 있다). 문장 대신 뛰는 막대를
+        // 두는 이유는 "확인 중…" 이 근거 한 줄과 같은 활자라 사실처럼 읽혀서다.
+        <div
+          aria-hidden
+          className={cn(pipelineStyles.skeletonBar, 'mt-3.5 h-[21px] w-2/3 rounded')}
+        />
+      ) : (
+        facts.length > 0 && (
+          <dl className="mt-3.5 flex flex-col gap-2">
+            {facts.map((fact, i) =>
+              fact.label ? (
+                <div key={i} className="flex items-baseline gap-2">
+                  <dt className="w-[68px] flex-none text-[12px] leading-[1.5] text-[var(--pl-gray-600)]">
+                    {fact.label}
+                  </dt>
+                  <dd className="min-w-0 flex-1 text-[14px] leading-[1.5] tabular-nums text-[var(--pl-text-medium)]">
+                    {fact.value}
+                  </dd>
+                </div>
+              ) : (
+                <dd key={i} className="text-[14px] leading-[1.6] text-[var(--pl-text-weak)]">
                   {fact.value}
                 </dd>
-              </div>
-            ) : (
-              <dd key={i} className="text-[14px] leading-[1.6] text-[var(--pl-text-weak)]">
-                {fact.value}
-              </dd>
-            ),
-          )}
-        </dl>
+              ),
+            )}
+          </dl>
+        )
       )}
       {onNavigate && (
         // 세 열이 되면서 제목 옆을 떠났다 — 360px 열에서 판정문과 CTA 가 한 줄을 나눠 쓰면
@@ -280,11 +321,22 @@ export function ApprovalTab({
     // 끝난 실행이면 완료 시각, 아직이면 요청 시각 — 라벨이 어느 쪽인지 말한다.
     const done = latest.completed_at;
     const at = done ?? latest.requested_at;
-    if (at) facts.push({ label: done ? '완료' : '요청', value: fmtDateTimeSec(at) });
+    if (at) facts.push({ label: done ? '완료' : '요청', value: fmtDateTimeShort(at) });
     if (stats.successCount > 0) {
       facts.push({
         label: '논리 DB',
-        value: `연동 대상 ${n(stats.includedTotal)}개 · 제외 ${n(stats.excludedTotal)}개`,
+        // 조건 ③ 과 같은 세는 줄 문법 — 수는 14px 굵게, 낱말은 12px (오너 2026-08-26).
+        // 두 조각을 가르는 것도 ` · ` 가 아니라 간격이다: 구분자는 세는 줄에 놓이면
+        // 조각을 한 문장으로 이어 붙인다. 나란한 두 카드가 같은 것을 세면서 서로 다른
+        // 문법으로 말하고 있었다.
+        value: (
+          <CountLine
+            segments={[
+              { prefix: '연동 대상', count: stats.includedTotal, suffix: '개' },
+              { prefix: '제외', count: stats.excludedTotal, suffix: '개' },
+            ]}
+          />
+        ),
       });
     }
     return facts;
@@ -295,30 +347,26 @@ export function ApprovalTab({
   const gate = tcLoaded ? tcRunGate(run, latest !== null, latestFailed) : 'loading';
   const head = foldApprovalHead(status?.status, statusFailed, gate, dag);
 
-  // 승인 조건 ① — 도착 전 · 조회 실패 · 미요청 · 요청됨. 문장은 조건이 충족됐을
-  // 때만 완료형이 되고, 나머지 셋은 같은 미충족 문장에 이유만 갈아 끼운다.
-  const PENDING_ACK = '서비스가 연결 테스트 완료 승인을 요청하면 충족됩니다';
+  // 승인 조건 ① — 도착 전 · 조회 실패 · 미요청 · 요청됨. 제목은 나머지 둘과 같은 요건문
+  // 하나로 고정이라 이 fold 는 판정과 근거만 진다: 요청이 도착했다는 소식은 제목이 아니라
+  // '요청' 시각이 나른다.
   const ackRow = ((): {
     state: GateRowState;
-    text: string;
     facts: readonly GateFact[];
   } => {
-    if (!tcLoaded) return { state: 'pending', text: PENDING_ACK, facts: [{ value: '확인 중…' }] };
+    if (!tcLoaded) return { state: 'loading', facts: [] };
     if (statusFailed)
       return {
         state: 'err',
-        text: PENDING_ACK,
         facts: [{ value: '완료 승인 상태를 불러오지 못했습니다' }],
       };
     if (tcCompleted)
       return {
         state: 'ok',
-        text: '서비스가 연결 테스트 완료 승인을 요청했습니다',
-        facts: [{ label: '요청', value: fmtDateTimeSec(status?.completedAt) }],
+        facts: [{ label: '요청', value: fmtDateTimeShort(status?.completedAt) }],
       };
     return {
       state: 'pending',
-      text: PENDING_ACK,
       // C-1 조건부 캡션 — "테스트 성공 + 미요청" 상태에서만. 강조는 굵기와 색으로
       // 지고, 문장은 짧게 둘로 나눈다 (오너 08-20).
       facts: showsHandoffCaption(status?.status, run)
@@ -348,11 +396,11 @@ export function ApprovalTab({
     titleHint?: string;
   } => {
     const prose = (line: string | null): readonly GateFact[] => (line ? [{ value: line }] : []);
-    if (!tcLoaded) return { state: 'pending', facts: [{ value: '확인 중…' }] };
+    if (!tcLoaded) return { state: 'loading', facts: [] };
     if (!tcCompleted) return { state: 'pending', facts: [{ value: '완료 승인 후 점검합니다' }] };
     switch (dag.phase) {
       case 'loading':
-        return { state: 'pending', facts: prose(monHead.subtitle) };
+        return { state: 'loading', facts: [] };
       case 'failed':
         return { state: 'err', facts: prose(monHead.subtitle) };
       case 'loaded': {
@@ -366,7 +414,7 @@ export function ApprovalTab({
             ...monHead.facts.map(
               (fact): GateFact => ({ label: fact.label, value: <CountLine segments={fact.segments} /> }),
             ),
-            { label: '조회', value: fmtDateTimeSec(dag.fetchedAt) },
+            { label: '조회', value: fmtDateTimeShort(dag.fetchedAt) },
           ],
           titleHint: monHead.titleHint,
         };
@@ -392,7 +440,7 @@ export function ApprovalTab({
       case 'open':
         return { state: 'pending', facts: [{ value: '진행 중' }, ...tcFacts] };
       case 'loading':
-        return { state: 'pending', facts: [{ value: '확인 중…' }] };
+        return { state: 'loading', facts: [] };
       case 'none':
         return { state: 'pending', facts: [{ value: '연결 테스트 실행 기록이 없습니다' }] };
       case 'error':
@@ -419,7 +467,18 @@ export function ApprovalTab({
             관리자 승인
             <TcPill tone={head.pill.tone} label={head.pill.label} />
           </h2>
-          <p className={opsStyles.cardDesc}>{head.desc}</p>
+          {/* 미충족은 경고 아이콘을 달고 선다 (오너 2026-08-26) — 조회 중·확인 실패는
+              달지 않는다: 그건 충족되지 않았다는 판정이 아니라 아직 모른다는 말이다. */}
+          <p className={cn(opsStyles.cardDesc, 'flex items-center gap-1.5')}>
+            {head.unmet && (
+              <Icon
+                name="warn-tri"
+                size={16}
+                className="flex-none text-[var(--pl-warn-text)]"
+              />
+            )}
+            {head.desc}
+          </p>
         </div>
         {/* CTA 는 늘 서 있고, 세 조건이 다 충족될 때까지 눌리지 않는다 (오너 2026-08-26).
             언마운트하던 이전 문법은 "이 화면에서 무엇을 하게 되는가"를 조건이 풀리기
@@ -447,7 +506,7 @@ export function ApprovalTab({
           <div className="flex items-center gap-2">
             <span className="text-[12px] font-semibold text-[var(--pl-text-weak)]">재실행 요청</span>
             <span className="text-[12px] tabular-nums text-[var(--pl-text-weak)]">
-              {fmtDateTimeSec(status?.rejectedAt)}
+              {fmtDateTimeShort(status?.rejectedAt)}
             </span>
           </div>
           {status?.rejectReason && (
@@ -468,13 +527,13 @@ export function ApprovalTab({
         <GateCard
           ordinal={GATE_ORDINALS[0]}
           state={ackRow.state}
-          text={ackRow.text}
+          text="연결 테스트 완료 승인을 요청해야 합니다"
           facts={ackRow.facts}
         />
         <GateCard
           ordinal={GATE_ORDINALS[1]}
           state={runRow.state}
-          text="최신 연결 테스트 결과가 성공입니다"
+          text="최신 연결 테스트 결과가 성공이어야 합니다"
           facts={runRow.facts}
           titleHint={runRow.titleHint}
           onNavigate={onOpenTcTab}
@@ -490,7 +549,7 @@ export function ApprovalTab({
           // 열린 질문으로 두면서 "UI copy stops at 최근 7일 DAG 실행 기준" 이라고 못박는다. 이
           // 줄은 설치 완료 승인 CTA 를 여는 세 조건 중 하나라, 스코프를 떼면 우리가 모르는
           // 산식 위에서 "DAG 가 정상 동작한다"고 단언하게 된다. 산식이 회신되면 그때 넓힌다.
-          text="최근 7일 DAG 실행이 정상입니다"
+          text="최근 7일 DAG 실행이 정상이어야 합니다"
           facts={healthRow.facts}
           titleHint={healthRow.titleHint}
           onNavigate={onOpenAirflowTab}
