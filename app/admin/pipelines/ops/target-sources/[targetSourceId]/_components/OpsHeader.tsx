@@ -108,27 +108,6 @@ export function OpsHeader({
     </div>
   );
 
-  /** 값은 강조 태그로, 동작은 옆의 수정 링크로 (오너 08-20 넷째 조정) — 태그가 클릭
-      대상 행세를 하지 않으니 밑줄도 hover 채움도 없다. */
-  const tagCell = (
-    label: string,
-    tag: string,
-    onEdit: () => void,
-    editTitle: string,
-    tagTitle?: string,
-  ): ReactElement =>
-    cell(
-      label,
-      <>
-        <span className={opsStyles.metaTag} title={tagTitle}>
-          {tag}
-        </span>
-        <button type="button" className={opsStyles.fmLink} onClick={onEdit} title={editTitle}>
-          수정
-        </button>
-      </>,
-    );
-
   /**
    * 파티션(China · Global)은 제 칸을 갖지 않고 **계정 값 옆에** 선다 (오너 08-26
    * "리전은 없애. 그리고 계정 옆에 Global 을 적어"). 리전은 계정의 속성이지 계정과
@@ -183,7 +162,7 @@ export function OpsHeader({
       short,
       <button
         type="button"
-        className={opsStyles.fmValueEdit}
+        className={cn(opsStyles.fmValueEdit, 'flex min-w-0 items-center')}
         onClick={() => onOpenEdit(kind)}
         title={arn ? `${arn} — ${short} 수정` : `${short} 등록`}
       >
@@ -314,8 +293,38 @@ export function OpsHeader({
               양쪽에서 첫 행이 정확히 찬다. */}
           {isAws && roleCell('scan')}
           {isAws && grantTfExecution && roleCell('execution')}
-          {isAws && tagCell('설치모드', grantTfExecution ? '자동' : '수동', onOpenMode, '설치모드 변경')}
-          {tagCell('실데이터', rawDataLabel, onOpenRawData, '실데이터 여부 변경', '실데이터 여부')}
+          {/* 설정 한 칸 (design-benchmark 시안 A, 오너 08-26) — 라벨 둘·흰 면 태그 둘·
+              「수정」 둘이 라벨 하나와 밑줄 낱말 둘이 된다. 라벨이 줄었으니 값이 스스로를
+              말한다. 이 칸이 그리드의 마지막 사실 뒤에 서면서 AWS 자동은 첫 행이 4칸으로
+              정확히 찬다 — 실데이터 하나 때문에 서 있던 둘째 행이 사라진다. */}
+          {cell(
+            '설정',
+            <span className={opsStyles.fmSettings}>
+              {isAws && (
+                <>
+                  <button
+                    type="button"
+                    className={opsStyles.fmValueEdit}
+                    onClick={onOpenMode}
+                    title="설치모드 변경"
+                  >
+                    {grantTfExecution ? '자동 설치' : '수동 설치'}
+                  </button>
+                  <span className={opsStyles.fmSettingsSep} aria-hidden>
+                    ·
+                  </span>
+                </>
+              )}
+              <button
+                type="button"
+                className={opsStyles.fmValueEdit}
+                onClick={onOpenRawData}
+                title="실데이터 여부 변경"
+              >
+                실데이터 {rawDataLabel}
+              </button>
+            </span>,
+          )}
           {provider === 'GCP' && (
             <>
               {monoCell('Scan Service Account', meta.gcp_scan_service_account, true)}
@@ -346,39 +355,59 @@ export function OpsHeader({
             관련 페이지
           </span>
         </div>
+        {/* GitHub 의 About 패널 문법 (오너 08-26 "Github About으로 관련 사이트도 구성",
+            design-benchmark 레퍼런스 04) — 목적지마다 **아이콘이 앞에 서고 이름이 링크**다.
+            화살표를 줄마다 반복하지 않는다: 아이콘이 이미 "무엇으로 가는지"를 말하고,
+            About 패널도 링크 뒤에 표식을 붙이지 않는다. 새 창으로 여는 것(Jira)만 ↗ 를
+            남긴다 — 그건 목적지가 아니라 **어디에 열리는지**를 말하는 표식이라 다른 축이다. */}
         <div className={opsStyles.fmLinkRow}>
-          {/* 티켓은 detail 과 따로 도착한다 — 도착 전에 자리를 비우면 머리 줄이 한 번
-              흔들리므로, 그 사이는 같은 폭의 자리만 잡아 둔다. 열 주소가 없거나 http(s)
-              가 아니면 링크가 아니라 **글자**로 선다 (`docs/api/jira-tickets.md`, 다른 두
-              렌더 자리와 같은 규칙) — 주소를 조립하지도, 티켓 번호를 감추지도 않는다. */}
+          {/* 티켓은 detail 과 따로 도착한다 — 도착 전에 자리를 비우면 줄이 한 번 흔들리므로,
+              그 사이는 같은 폭의 자리만 잡아 둔다. 열 주소가 없거나 http(s) 가 아니면 링크가
+              아니라 **글자**로 선다 (`docs/api/jira-tickets.md`, 다른 두 렌더 자리와 같은
+              규칙) — 주소를 조립하지도, 티켓 번호를 감추지도 않는다. */}
           {!ticketLoaded ? (
-            <span className={cn(opsStyles.skeletonWash, 'h-4 w-[68px]')} aria-hidden />
-          ) : jiraHref ? (
-            <a
-              href={jiraHref}
-              target="_blank"
-              rel="noreferrer"
-              className={opsStyles.relatedLink}
-              title={`Jira ${jiraTicket?.issueKey} — 협업 채널`}
-            >
-              <JiraLogo size={14} />
-              {jiraTicket?.issueKey ?? 'Jira Ticket'}
-              <Icon name="arrow-ur" size="sm" />
-            </a>
-          ) : jiraTicket ? (
-            <span className={opsStyles.fmValueText} title="Jira 열 주소 없음 — 티켓 번호만 확인된다">
-              {jiraTicket.issueKey}
+            <span className={cn(opsStyles.skeletonWash, 'h-4 w-[120px]')} aria-hidden />
+          ) : (
+            <span className={opsStyles.aboutRow}>
+              <span className={opsStyles.aboutMark} aria-hidden>
+                <JiraLogo size={14} />
+              </span>
+              {jiraHref ? (
+                <a
+                  href={jiraHref}
+                  target="_blank"
+                  rel="noreferrer"
+                  className={opsStyles.aboutLink}
+                  title={`Jira ${jiraTicket?.issueKey} — 협업 채널`}
+                >
+                  {jiraTicket?.issueKey} <Icon name="arrow-ur" size="sm" />
+                </a>
+              ) : jiraTicket ? (
+                <span
+                  className={opsStyles.aboutPlain}
+                  title="Jira 열 주소 없음 — 티켓 번호만 확인된다"
+                >
+                  {jiraTicket.issueKey}
+                </span>
+              ) : (
+                <span className={opsStyles.aboutPlain}>티켓 없음</span>
+              )}
             </span>
-          ) : null}
+          )}
           {/* 같은 대상의 서비스측 화면 — 운영자가 "담당자한테는 지금 뭐가 보이나"를
               묻는 자리가 여기뿐이다. */}
-          <Link
-            href={passRoutes.targetSource(targetSourceId)}
-            className={opsStyles.relatedLink}
-            title="PII Agent 설치 화면 — 서비스 담당자가 보는 진행 화면"
-          >
-            서비스가 보는 화면 <Icon name="arrow-ur" size="sm" />
-          </Link>
+          <span className={opsStyles.aboutRow}>
+            <span className={opsStyles.aboutMark} aria-hidden>
+              <Icon name="install" size="sm" />
+            </span>
+            <Link
+              href={passRoutes.targetSource(targetSourceId)}
+              className={opsStyles.aboutLink}
+              title="PII Agent 설치 화면 — 서비스 담당자가 보는 진행 화면"
+            >
+              서비스가 보는 화면
+            </Link>
+          </span>
         </div>
       </section>
     </>

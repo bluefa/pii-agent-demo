@@ -367,7 +367,6 @@ const SURFACES: SurfacePair[] = [
   { what: 'ops tab band on the masthead wash', top: bgOf(classOf(opsSrc, 'tabStrip')), under: resolve('var(--pl-gray-100)') },
   { what: 'ops tab band against the R1 canvas', top: bgOf(classOf(opsSrc, 'tabStrip')), under: resolve('var(--pl-bg-canvas)') },
   { what: 'ops active tab face on the tab band', top: bgOf(classOf(opsSrc, 'tabActive')), under: bgOf(classOf(opsSrc, 'tabStrip')) },
-  { what: 'ops meta editable tag face on the masthead wash', top: bgOf(classOf(opsSrc, 'metaTag')), under: resolve('var(--pl-gray-100)') },
   { what: 'ops region tag on the masthead wash', top: bgOf(classOf(opsSrc, 'metaTagQuiet')), under: resolve('var(--pl-gray-100)') },
   // The card's hover fill is a surface too — it replaces white under the cursor, so it
   // has to separate from the canvas the card sits on or the hovered card dissolves into
@@ -442,7 +441,6 @@ const TEXT: TextPair[] = [
   // 실데이터·설치모드 태그 — 흰 면 + 획 위의 값. 동작은 옆의 수정 링크가 지므로
   // (오너 08-20 넷째 조정) 태그에는 hover 채움이 없다. 12px 이라 큰 글자 예외가
   // 없다. (키는 행이 말하므로 태그 안에는 값만 산다 — R1.)
-  { what: '메타 태그 값 on the tag face', fg: textOf(classOf(opsSrc, 'metaTag')), on: bgOf(classOf(opsSrc, 'metaTag')) },
   { what: '리전 태그 값 on the gray-200 tag', fg: textOf(classOf(opsSrc, 'metaTagQuiet')), on: bgOf(classOf(opsSrc, 'metaTagQuiet')) },
   { what: 'ops path on the masthead wash', fg: textOf(classOf(opsSrc, 'path')), on: resolve('var(--pl-gray-100)') },
   { what: 'ops path ancestor link on the masthead wash', fg: textOf(classOf(opsSrc, 'pathLink')), on: resolve('var(--pl-gray-100)') },

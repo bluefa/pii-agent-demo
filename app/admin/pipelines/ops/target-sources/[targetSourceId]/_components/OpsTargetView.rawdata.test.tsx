@@ -46,10 +46,12 @@ const detail = (over: Record<string, unknown> = {}) => ({
 });
 
 const chip = async (): Promise<string> => {
-  // 값 태그와 수정 버튼이 분리됐다 (넷째 조정) — 값은 태그(title=실데이터 여부)가 든다.
-  const tag = await screen.findByTitle('실데이터 여부');
+  // 08-26: 태그와 「수정」 링크가 값 하나로 합쳐졌다 (시안 A+F) — 이제 밑줄 낱말 자체가
+  // 모달을 열고, 라벨이 「설정」 한 칸으로 줄어든 만큼 값이 자기 이름을 달고 있다
+  // ("실데이터 미포함"). 세 상태 구분은 그 뒷말이 그대로 진다.
+  const tag = await screen.findByTitle('실데이터 여부 변경');
   await waitFor(() => expect(tag.textContent).toBeTruthy());
-  return tag.textContent ?? '';
+  return (tag.textContent ?? '').replace(/^실데이터\s*/, '');
 };
 
 beforeEach(() => {

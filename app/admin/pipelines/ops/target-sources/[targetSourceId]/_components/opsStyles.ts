@@ -100,7 +100,14 @@ export const opsStyles = {
     'whitespace-nowrap text-[14px] font-semibold tracking-[0.02em] text-[var(--pl-text-medium)]',
   /** 「관련 페이지」 블록의 본문 — 나가는 링크들 한 줄. kv 그리드와 같은 자리에서
       시작하도록 머리 아래 여백은 `fmGrid` 의 pt 와 같은 값이다. */
-  fmLinkRow: 'flex flex-wrap items-center gap-x-5 gap-y-2 pt-2.5',
+  fmLinkRow: 'flex flex-wrap items-center gap-x-6 gap-y-2 pt-2.5',
+  /** About 패널의 한 줄 — 마크가 앞에 서고 이름이 링크다. 마크는 값이 아니라 이정표라
+      본문보다 한 단 옅다. */
+  aboutRow: 'inline-flex items-center gap-1.5',
+  aboutMark: 'flex flex-none text-[var(--pl-text-weak)]',
+  aboutLink:
+    'inline-flex cursor-pointer items-center gap-0.5 whitespace-nowrap text-[12px] font-semibold text-[var(--pl-primary)] hover:underline',
+  aboutPlain: 'whitespace-nowrap text-[12px] font-medium text-[var(--pl-text-medium)]',
   /** 포커스 링을 손으로 그리지 않는다 — `focus-visible:outline-none` 은 이 앱에서 무효라
       (globals.css 의 전역 아웃라인이 cascade layer 밖) 옅은 링이 전역 파란 아웃라인 옆에
       같이 그려졌다. 옆의 링크 둘과 같은 방식으로 전역 아웃라인만 받는다. */
@@ -135,7 +142,14 @@ export const opsStyles = {
       08-20 의 판례는 *태그*가 눌리는 척하지 말라는 것이라 부딪히지 않는다 — 여기서
       눌리는 것은 흰 면 태그가 아니라 mono 값이다. */
   fmValueEdit:
-    'flex min-w-0 cursor-pointer items-center underline underline-offset-2 decoration-[var(--pl-primary)] transition-colors hover:decoration-[var(--pl-primary-hover)]',
+    'cursor-pointer underline underline-offset-2 decoration-[var(--pl-primary)] transition-colors hover:decoration-[var(--pl-primary-hover)]',
+  /** 「설정」 한 칸 (design-benchmark `ops-settings-cells.md` 시안 A + F 문법, 오너 08-26
+      "「설정」 병합 셀 괜찮음") — 설치모드·실데이터가 각자 라벨과 흰 면 태그와 「수정」
+      링크를 갖던 두 칸이 한 칸이 된다. 라벨이 하나로 줄었으므로 값이 스스로를 설명해야
+      한다: 「자동」이 아니라 「자동 설치」, 「미포함」이 아니라 「실데이터 미포함」.
+      AWS 자동 배치에서 그리드가 2행 → 1행이 된다(계정·Scan·TF·설정 = 정확히 4칸). */
+  fmSettings: 'flex flex-wrap items-center gap-x-1.5 gap-y-0.5',
+  fmSettingsSep: 'text-[var(--pl-text-weak)]',
   /** `min-h` 가 있는 이유: 흰 면 태그가 들어오는 셀(22px)과 글자만 있는 셀의 높이를
       같게 잡아 둔다. 안 맞추면 같은 행 안에서 프로바이더마다 셀이 엇갈린다. */
   fmValue:
@@ -191,8 +205,9 @@ export const opsStyles = {
    * Masthead meta tags (오너 08-20 넷째 조정) — the editable values (설치모드·
    * 실데이터) read as emphasized tags and the ACTION moves to a 수정 link beside
    * them, so the tag no longer has to look clickable (no underline, no hover
-   * fill). metaTag = white face + strong stroke, one notch louder (px-2) than
-   * rawDataTag; metaTagQuiet = the read-only attribute tag (China/Global · IDC),
+   * fill). ⚠️ metaTag(흰 면 + 강한 획)는 08-26 에 은퇴했다 — 시안 A+F 로 설정 두 칸이
+   * 값 밑줄 하나가 되면서 이 그리드에 흰 면 태그가 남지 않는다. 되살릴 일이 생기면
+   * 그 규칙("흰 면 = 수정 가능")부터 다시 세워야 한다. metaTagQuiet = the read-only attribute tag (China/Global · IDC),
    * which must NOT wear the white face — that face means "editable value" here.
    *
    * 그 태그는 gray-200 이었는데 오너가 "회색은 너무 칙칙해 보임" 이라 했다 (08-26).
@@ -203,7 +218,6 @@ export const opsStyles = {
    * 어휘이고(서비스 레일의 "여기 있음", 캔버스와 같은 가족), 그래서 파티션·환경
    * 같은 **속성**이 앉을 자리다. 칠이 워시와 가까워서 테두리가 형태를 진다.
    */
-  metaTag: 'inline-flex items-center whitespace-nowrap rounded px-2 py-0.5 text-[12px] font-semibold border border-[var(--pl-border-strong)] bg-[var(--pl-bg-card)] text-[var(--pl-text-strong)]',
   metaTagQuiet:
     'inline-flex items-center whitespace-nowrap rounded border border-[var(--pl-current)] bg-[var(--pl-current-bg)] px-1.5 py-0.5 text-[12px] font-semibold text-[var(--pl-current-ink)]',
 
