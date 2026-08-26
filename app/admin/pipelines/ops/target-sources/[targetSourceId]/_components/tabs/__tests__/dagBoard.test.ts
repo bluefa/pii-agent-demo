@@ -7,11 +7,16 @@
 import { describe, expect, it } from 'vitest';
 import type { DagDatabaseStatus, DagStatusResponse } from '@/lib/types/dag-status';
 import {
+  BOARD_FILTER_LABEL,
+  BUCKET_LABEL,
+  FIXED_BOARD_FILTERS,
   abbrevDagName,
   agentDisplayName,
   agentVerdict,
+  attentionCount,
   connPill,
   countBuckets,
+  matchesBoardFilter,
   dayCellKind,
   dayCellTip,
   dayLabel,
@@ -109,6 +114,35 @@ describe('scopeBoardRows', () => {
   });
 });
 
+describe('확인 필요 = 성공 아닌 전부', () => {
+  it('성공을 제외한 네 버킷을 한 수로 센다', () => {
+    expect(attentionCount({ failed: 14, unscheduled: 4, running: 2, other: 1 })).toBe(21);
+  });
+
+  it('필터는 성공만 빼고 다 받는다', () => {
+    for (const bucket of ['failed', 'unscheduled', 'running', 'other'] as const) {
+      expect(matchesBoardFilter(bucket, 'attention')).toBe(true);
+    }
+    expect(matchesBoardFilter('succeeded', 'attention')).toBe(false);
+  });
+
+  it('성공 + 확인 필요 = 총계 — 두 조각이 항상 전부를 덮는다', () => {
+    const counts = { failed: 3, unscheduled: 1, running: 2, other: 1, succeeded: 40 };
+    expect(attentionCount(counts) + counts.succeeded).toBe(47);
+  });
+
+  it('버킷 하나를 고른 필터와 전체는 그대로다 — 합친 것은 이 슬롯뿐', () => {
+    expect(matchesBoardFilter('failed', 'failed')).toBe(true);
+    expect(matchesBoardFilter('unscheduled', 'failed')).toBe(false);
+    expect(matchesBoardFilter('other', 'ALL')).toBe(true);
+  });
+
+  it('보드 칩은 확인 필요·성공 둘뿐 — 카운트 줄과 같은 두 조각', () => {
+    expect([...FIXED_BOARD_FILTERS]).toEqual(['attention', 'succeeded']);
+    expect(BOARD_FILTER_LABEL.attention).toBe('확인 필요');
+  });
+});
+
 describe('sortBoardRows — 문제 우선', () => {
   it('실패 → 그 외 → 미스케줄 → 실행 시작 → 성공 순서로 세운다', () => {
     const sorted = sortBoardRows(flattenDagRows(RESPONSE));
@@ -136,15 +170,22 @@ describe('isTodayKst — 오늘 칸은 자리가 아니라 날짜', () => {
   });
 });
 
-describe('summarizeAgents — 문제 우선 + 분수', () => {
-  it('연결 실패 에이전트가 먼저 서고, 분수 필드가 bucket 합과 맞는다', () => {
+describe('summarizeAgents — 문제 우선 + bucket 합', () => {
+  it('연결 실패 에이전트가 먼저 서고, 버킷 필드가 bucket 합과 맞는다', () => {
     const agents = summarizeAgents(RESPONSE);
     expect(agents[0].agentId).toBe('agent-2');
     expect(agents[0].dbTotal).toBe(2);
     expect(agents[0].running).toBe(1);
-    // 미지의 day status(SOMETHING_NEW) 행은 rest(부재 몫)로 — 성공으로 위장하지 않는다.
-    expect(agents[0].rest).toBe(1);
-    expect(agents[1]).toMatchObject({ agentId: 'agent-1', succeeded: 1, failed: 1, rest: 1 });
+    // 미지의 day status(SOMETHING_NEW) 행은 other 로 — 성공으로도 미스케줄로도 위장하지 않는다.
+    expect(agents[0].other).toBe(1);
+    expect(agents[0].unscheduled).toBe(0);
+    expect(agents[1]).toMatchObject({
+      agentId: 'agent-1',
+      succeeded: 1,
+      failed: 1,
+      unscheduled: 1,
+      other: 0,
+    });
   });
 });
 
@@ -223,12 +264,13 @@ describe('agentVerdict — 행의 종합 상태 (모든 행에 알약)', () => {
     succeeded: 4,
     failed: 0,
     running: 0,
-    rest: 0,
+    unscheduled: 0,
+    other: 0,
   };
 
-  it('연결이 SUCCESS 가 아니면 연결 사실이 판정을 이긴다 — raw 는 hint 로만', () => {
+  it('연결이 SUCCESS 가 아니면 관측을 못 믿는다 — 수 없이 확인 필요', () => {
     const v = agentVerdict({ ...base, connectionStatus: 'FAIL', succeeded: 4 });
-    expect(v).toMatchObject({ tone: 'err', label: '연결 실패' });
+    expect(v).toMatchObject({ tone: 'err', label: '확인 필요' });
     expect(v.hint).toContain('FAIL');
   });
 
@@ -236,16 +278,58 @@ describe('agentVerdict — 행의 종합 상태 (모든 행에 알약)', () => {
     expect(agentVerdict(base)).toMatchObject({ tone: 'ok', label: '정상' });
   });
 
-  it('연결 정상이어도 성공 기록 없는 DB 가 있으면 이상(err) — 2/4 는 정상이 아니다', () => {
-    const v = agentVerdict({ ...base, succeeded: 2, failed: 1, rest: 1 });
-    expect(v).toMatchObject({ tone: 'err', label: '이상' });
-    expect(v.hint).toContain('2개');
+  it('판정은 낱말만 낸다 — 몇 개인지는 툴팁 채널로만 간다', () => {
+    // 수를 판정 칸에 다시 실으면(오너 2026-08-26 삭제) 한 칸이 판정과 수를 같이 지게 되어,
+    // 분수를 걷어 낸 이유로 되돌아간다. 세는 것은 규모 열과 요약 줄의 일이다.
+    const v = agentVerdict({ ...base, succeeded: 2, failed: 1, unscheduled: 1 });
+    expect(v).toEqual({
+      tone: 'err',
+      label: '확인 필요',
+      hint: '논리 DB 2개가 최근 7일 성공 기록이 없어요',
+    });
   });
 
-  it('관측 DB 0개는 판정 없이 부재만 — DAG 없음(off)', () => {
-    expect(agentVerdict({ ...base, dbTotal: 0, succeeded: 0 })).toMatchObject({
-      tone: 'off',
-      label: 'DAG 없음',
-    });
+  // ⛔ 회귀 잠금: 한때 판정이 `dbTotal − succeeded` 로 세어서, 요약 줄이 '확인 필요 0'
+  // 이라 말하는 행에 '확인 필요' + 빨간 레일이 섰고 눌러 열면 0건이었다.
+  it('실행 시작·그 외도 확인 필요다 — 성공 기록이 없으면 갈래를 따지지 않는다', () => {
+    // RUNNING 이 오늘 칸인지 사흘 전 칸인지 `classifyDb` 는 보지 않는다. 사흘째 멈춘
+    // DAG 를 정상 쪽에 두는 쪽이 더 크게 틀리므로, 성공 없음은 전부 확인 필요다.
+    for (const agent of [
+      { ...base, succeeded: 3, running: 1 },
+      { ...base, succeeded: 3, other: 1 },
+    ]) {
+      const v = agentVerdict(agent);
+      expect(v).toMatchObject({ tone: 'err', label: '확인 필요' });
+      expect(v.hint).toContain('1개');
+    }
+  });
+
+  it('판정은 두 낱말뿐이다 — 연결 실패도 DAG 없음도 확인 필요로 접힌다', () => {
+    const labels = [
+      agentVerdict(base),
+      agentVerdict({ ...base, connectionStatus: 'FAIL' }),
+      agentVerdict({ ...base, connectionStatus: 'ZZZ' }),
+      agentVerdict({ ...base, dbTotal: 0, succeeded: 0 }),
+      agentVerdict({ ...base, succeeded: 2, failed: 2 }),
+    ].map((v) => v.label);
+    expect(new Set(labels)).toEqual(new Set(['정상', '확인 필요']));
+  });
+
+  it('셀 것이 없는 확인 필요는 개수를 말하지 않는다 — 0 을 세우지 않는다', () => {
+    expect(agentVerdict({ ...base, dbTotal: 0, succeeded: 0 }).hint).not.toMatch(/\d+개/);
+    expect(agentVerdict({ ...base, connectionStatus: 'FAIL' }).hint).not.toMatch(/\d+개/);
+  });
+
+  // wire 어휘는 라벨 금지 — raw enum 은 툴팁 채널에만 산다.
+  it('알 수 없는 connectionStatus 의 raw 는 hint 로만 간다', () => {
+    const v = agentVerdict({ ...base, connectionStatus: 'ZZZ' });
+    expect(v.label).toBe('확인 필요');
+    expect(v.hint).toContain('ZZZ');
+  });
+
+  it('관측 DB 0개는 정상이 아니다 — 부재에서 건강을 읽지 않는다', () => {
+    const v = agentVerdict({ ...base, dbTotal: 0, succeeded: 0 });
+    expect(v).toMatchObject({ tone: 'err', label: '확인 필요' });
+    expect(v.hint).toContain('관측 중인 논리 DB 가 없어요');
   });
 });

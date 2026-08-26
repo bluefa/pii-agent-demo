@@ -14,15 +14,15 @@ import {
   MockResource,
   TerraformState,
   CloudProvider,
-} from '@/lib/types';
-import { getStore } from '@/lib/mock-store';
-import { createInitialProjectStatus } from '@/lib/process';
+} from "@/lib/types";
+import { getStore } from "@/lib/mock-store";
+import { createInitialProjectStatus } from "@/lib/process";
 import {
   AWS_WIRE_APPROVAL_ACCOUNT_ID,
   AWS_WIRE_CONFIRMED_ACCOUNT_ID,
   awsWireApprovalResources,
   awsWireSampleResources,
-} from '@/lib/bff/mock/aws-wire-sample';
+} from "@/lib/bff/mock/aws-wire-sample";
 
 /**
  * ProcessStatus에 맞는 ProjectStatus를 생성합니다.
@@ -45,56 +45,75 @@ const createStatusForProcessStatus = (
     case ProcessStatus.WAITING_TARGET_CONFIRMATION:
       return {
         ...base,
-        scan: { status: 'COMPLETED' },
+        scan: { status: "COMPLETED" },
       };
 
     case ProcessStatus.WAITING_APPROVAL:
       return {
         ...base,
-        scan: { status: 'COMPLETED' },
+        scan: { status: "COMPLETED" },
         targets: { confirmed: true, selectedCount, excludedCount },
         approval: options?.unavailableReason
-          ? { status: 'UNAVAILABLE', rejectionReason: options.unavailableReason }
-          : { status: options?.isRejected ? 'REJECTED' : 'PENDING' },
+          ? {
+              status: "UNAVAILABLE",
+              rejectionReason: options.unavailableReason,
+            }
+          : { status: options?.isRejected ? "REJECTED" : "PENDING" },
       };
 
     case ProcessStatus.INSTALLING:
       return {
         ...base,
-        scan: { status: 'COMPLETED' },
+        scan: { status: "COMPLETED" },
         targets: { confirmed: true, selectedCount, excludedCount },
-        approval: { status: 'APPROVED', approvedAt: new Date().toISOString() },
-        installation: { status: 'IN_PROGRESS' },
+        approval: { status: "APPROVED", approvedAt: new Date().toISOString() },
+        installation: { status: "IN_PROGRESS" },
       };
 
     case ProcessStatus.WAITING_CONNECTION_TEST:
       return {
         ...base,
-        scan: { status: 'COMPLETED' },
+        scan: { status: "COMPLETED" },
         targets: { confirmed: true, selectedCount, excludedCount },
-        approval: { status: 'APPROVED', approvedAt: new Date().toISOString() },
-        installation: { status: 'COMPLETED', completedAt: new Date().toISOString() },
-        connectionTest: { status: 'NOT_TESTED' },
+        approval: { status: "APPROVED", approvedAt: new Date().toISOString() },
+        installation: {
+          status: "COMPLETED",
+          completedAt: new Date().toISOString(),
+        },
+        connectionTest: { status: "NOT_TESTED" },
       };
 
     case ProcessStatus.CONNECTION_VERIFIED:
       return {
         ...base,
-        scan: { status: 'COMPLETED' },
+        scan: { status: "COMPLETED" },
         targets: { confirmed: true, selectedCount, excludedCount },
-        approval: { status: 'APPROVED', approvedAt: new Date().toISOString() },
-        installation: { status: 'COMPLETED', completedAt: new Date().toISOString() },
-        connectionTest: { status: 'PASSED', passedAt: new Date().toISOString() },
+        approval: { status: "APPROVED", approvedAt: new Date().toISOString() },
+        installation: {
+          status: "COMPLETED",
+          completedAt: new Date().toISOString(),
+        },
+        connectionTest: {
+          status: "PASSED",
+          passedAt: new Date().toISOString(),
+        },
       };
 
     case ProcessStatus.INSTALLATION_COMPLETE:
       return {
         ...base,
-        scan: { status: 'COMPLETED' },
+        scan: { status: "COMPLETED" },
         targets: { confirmed: true, selectedCount, excludedCount },
-        approval: { status: 'APPROVED', approvedAt: new Date().toISOString() },
-        installation: { status: 'COMPLETED', completedAt: new Date().toISOString() },
-        connectionTest: { status: 'PASSED', passedAt: new Date().toISOString(), operationConfirmed: true },
+        approval: { status: "APPROVED", approvedAt: new Date().toISOString() },
+        installation: {
+          status: "COMPLETED",
+          completedAt: new Date().toISOString(),
+        },
+        connectionTest: {
+          status: "PASSED",
+          passedAt: new Date().toISOString(),
+          operationConfirmed: true,
+        },
       };
 
     default:
@@ -105,27 +124,27 @@ const createStatusForProcessStatus = (
 // ===== Mock Users =====
 export const mockUsers: User[] = [
   {
-    id: 'user-1',
-    knoxId: 'gildong.hong',
-    name: '홍길동',
-    email: 'hong@company.com',
-    role: 'SERVICE_MANAGER',
-    serviceCodePermissions: ['azure', 'aws', 'idc', 'gcp', 'SDU'],
+    id: "user-1",
+    knoxId: "gildong.hong",
+    name: "홍길동",
+    email: "hong@company.com",
+    role: "SERVICE_MANAGER",
+    serviceCodePermissions: ["azure", "aws", "idc", "gcp", "SDU"],
   },
   {
-    id: 'user-2',
-    knoxId: 'chulsoo.kim',
-    name: '김철수',
-    email: 'kim@company.com',
-    role: 'SERVICE_MANAGER',
-    serviceCodePermissions: ['azure', 'aws', 'idc', 'gcp', 'SDU'],
+    id: "user-2",
+    knoxId: "chulsoo.kim",
+    name: "김철수",
+    email: "kim@company.com",
+    role: "SERVICE_MANAGER",
+    serviceCodePermissions: ["azure", "aws", "idc", "gcp", "SDU"],
   },
   {
-    id: 'admin-1',
-    knoxId: 'admin.pass',
-    name: '관리자',
-    email: 'admin@company.com',
-    role: 'ADMIN',
+    id: "admin-1",
+    knoxId: "admin.pass",
+    name: "관리자",
+    email: "admin@company.com",
+    role: "ADMIN",
     // ADMIN 은 서비스 검사를 role 로 통과하므로(`role !== 'ADMIN' && !permissions…`)
     // 이 목록은 다른 화면에 영향이 없다. 접근 권한 화면에서만 읽힌다 — `access_status`
     // 를 정하는 건 role 이 아니라 이 목록이라서, 승인된 요청(1007·1008)의 서비스가
@@ -140,7 +159,16 @@ export const mockUsers: User[] = [
     // 고르는 규칙 둘: admin-1 본인이 요청해 둔 서비스(1009~1013 의 ORD·ADS·CSC·SEL·LOG)는
     // 넣지 않는다 — 권한이 있으면 `accessStatusFor` 가 OWNED 를 이겨서 "반려됨"인데 접근
     // 가능 목록에도 서 있게 된다. MKT 도 넣지 않는다(담당자 없는 서비스 한 건은 남겨 둔다).
-    serviceCodePermissions: ['azure', 'gcp', 'DLV', 'IVT', 'PAY', 'MBR', 'SRC', 'PRD'],
+    serviceCodePermissions: [
+      "azure",
+      "gcp",
+      "DLV",
+      "IVT",
+      "PAY",
+      "MBR",
+      "SRC",
+      "PRD",
+    ],
   },
   // 접근 권한 화면들이 쓸 사용자들 — 표와 페이저에 실을 것이 있어야 하고, 권한이
   // 없는 사용자(user-6·user-8)가 있어야 "권한 요청" 흐름을 열어 볼 수 있다.
@@ -149,17 +177,66 @@ export const mockUsers: User[] = [
   // 행마다 담당자를 싣기로 하면서(2026-08-14 오너 스펙) 목록 화면이 그 이름을 그리는데,
   // 담당자가 시드에 없으면 열다섯 줄이 모두 "담당자 없음"이 되어 실제와 다른 화면이
   // 된다. MKT 한 건만 일부러 비워 둔다 — 담당자 없는 서비스도 볼 수 있어야 한다.
-  { id: 'user-3', knoxId: 'younghee.lee', name: '이영희', email: 'lee@company.com', role: 'SERVICE_MANAGER', serviceCodePermissions: ['aws', 'gcp', 'CPN', 'ORD', 'RVW', 'ADS'] },
-  { id: 'user-4', knoxId: 'minsu.park', name: '박민수', email: 'park@company.com', role: 'SERVICE_MANAGER', serviceCodePermissions: ['azure', 'DLV', 'SEL', 'PRD'] },
-  { id: 'user-5', knoxId: 'sujin.jung', name: '정수진', email: 'jung@company.com', role: 'SERVICE_MANAGER', serviceCodePermissions: ['aws', 'idc', 'SDU', 'DLV', 'IVT', 'NTF', 'LOG'] },
-  { id: 'user-6', knoxId: 'donghyun.choi', name: '최동현', email: 'choi@company.com', role: 'SERVICE_MANAGER', serviceCodePermissions: [] },
-  { id: 'user-7', knoxId: 'haneul.kang', name: '강하늘', email: 'kang@company.com', role: 'SERVICE_MANAGER', serviceCodePermissions: ['gcp'] },
-  { id: 'user-8', knoxId: 'seoyeon.yoon', name: '윤서연', email: 'yoon@company.com', role: 'SERVICE_MANAGER', serviceCodePermissions: [] },
-  { id: 'user-9', knoxId: 'jaehyun.lim', name: '임재현', email: 'lim@company.com', role: 'SERVICE_MANAGER', serviceCodePermissions: ['aws', 'SRC', 'CSC', 'ADS'] },
+  {
+    id: "user-3",
+    knoxId: "younghee.lee",
+    name: "이영희",
+    email: "lee@company.com",
+    role: "SERVICE_MANAGER",
+    serviceCodePermissions: ["aws", "gcp", "CPN", "ORD", "RVW", "ADS"],
+  },
+  {
+    id: "user-4",
+    knoxId: "minsu.park",
+    name: "박민수",
+    email: "park@company.com",
+    role: "SERVICE_MANAGER",
+    serviceCodePermissions: ["azure", "DLV", "SEL", "PRD"],
+  },
+  {
+    id: "user-5",
+    knoxId: "sujin.jung",
+    name: "정수진",
+    email: "jung@company.com",
+    role: "SERVICE_MANAGER",
+    serviceCodePermissions: ["aws", "idc", "SDU", "DLV", "IVT", "NTF", "LOG"],
+  },
+  {
+    id: "user-6",
+    knoxId: "donghyun.choi",
+    name: "최동현",
+    email: "choi@company.com",
+    role: "SERVICE_MANAGER",
+    serviceCodePermissions: [],
+  },
+  {
+    id: "user-7",
+    knoxId: "haneul.kang",
+    name: "강하늘",
+    email: "kang@company.com",
+    role: "SERVICE_MANAGER",
+    serviceCodePermissions: ["gcp"],
+  },
+  {
+    id: "user-8",
+    knoxId: "seoyeon.yoon",
+    name: "윤서연",
+    email: "yoon@company.com",
+    role: "SERVICE_MANAGER",
+    serviceCodePermissions: [],
+  },
+  {
+    id: "user-9",
+    knoxId: "jaehyun.lim",
+    name: "임재현",
+    email: "lim@company.com",
+    role: "SERVICE_MANAGER",
+    serviceCodePermissions: ["aws", "SRC", "CSC", "ADS"],
+  },
 ];
 
 // ===== Current User (기본: 관리자) =====
-let currentUserId = 'admin-1';
+let currentUserId = "admin-1";
 
 export const setCurrentUser = (userId: string) => {
   currentUserId = userId;
@@ -172,76 +249,162 @@ export const getCurrentUser = (): User | undefined => {
 // ===== Mock Service Codes =====
 export const mockServiceCodes: ServiceCode[] = [
   {
-    code: 'azure',
-    name: 'Azure',
-    description: 'Azure 클라우드 PII Agent 연동',
+    code: "azure",
+    name: "Azure",
+    description: "Azure 클라우드 PII Agent 연동",
   },
   {
-    code: 'aws',
-    name: 'AWS',
-    description: 'AWS 클라우드 PII Agent 연동',
+    code: "aws",
+    name: "AWS",
+    description: "AWS 클라우드 PII Agent 연동",
   },
   {
-    code: 'idc',
-    name: 'IDC',
-    description: 'IDC 온프레미스 PII Agent 연동',
+    code: "idc",
+    name: "IDC",
+    description: "IDC 온프레미스 PII Agent 연동",
   },
   {
-    code: 'gcp',
-    name: 'GCP',
-    description: 'GCP 클라우드 PII Agent 연동',
+    code: "gcp",
+    name: "GCP",
+    description: "GCP 클라우드 PII Agent 연동",
   },
   {
-    code: 'SDU',
-    name: 'SDU',
-    description: 'SDU 계정 PII Agent 연동',
+    code: "SDU",
+    name: "SDU",
+    description: "SDU 계정 PII Agent 연동",
   },
   // Test Connection 큐 대상의 서비스 (mockProjects 하단 참조).
   // 이름 길이를 일부러 흩어 둔다 — 전부 "OO서비스" 로 맞추면 목록이 실제보다
   // 균질해 보여, 긴 이름이 레일에서 어떻게 접히는지 화면으로 확인할 수 없다.
   // DLV 는 계약상 상한인 30자 (줄바꿈 3줄 케이스).
-  { code: 'DLV', name: '배송 물류 거점 통합 관제 및 실시간 배차 운영 플랫폼', description: '배송 도메인 PII Agent 연동' },
-  { code: 'CPN', name: '쿠폰·프로모션 발급 정산', description: '쿠폰/프로모션 도메인 PII Agent 연동' },
-  { code: 'RVW', name: '고객 리뷰 및 평점 운영', description: '리뷰 도메인 PII Agent 연동' },
-  { code: 'IVT', name: '재고 실시간 동기화 관리', description: '재고 도메인 PII Agent 연동' },
+  {
+    code: "DLV",
+    name: "배송 물류 거점 통합 관제 및 실시간 배차 운영 플랫폼",
+    description: "배송 도메인 PII Agent 연동",
+  },
+  {
+    code: "CPN",
+    name: "쿠폰·프로모션 발급 정산",
+    description: "쿠폰/프로모션 도메인 PII Agent 연동",
+  },
+  {
+    code: "RVW",
+    name: "고객 리뷰 및 평점 운영",
+    description: "리뷰 도메인 PII Agent 연동",
+  },
+  {
+    code: "IVT",
+    name: "재고 실시간 동기화 관리",
+    description: "재고 도메인 PII Agent 연동",
+  },
   // 운영 알림 드릴다운 대상의 서비스. 이 코드들이 카탈로그에 없으면 Target Source 운영
   // 헤더가 서비스 이름 자리에 코드를 그대로 적는다 ("서비스 이름 MDA · 코드 MDA").
-  { code: 'MDA', name: '미디어 업로드 및 트랜스코딩', description: '미디어 도메인 PII Agent 연동' },
-  { code: 'STL', name: '정산 마감 및 대사', description: '정산 도메인 PII Agent 연동' },
-  { code: 'RCM', name: '개인화 추천 피처', description: '추천 도메인 PII Agent 연동' },
-  { code: 'BIL', name: '과금 청구 및 수납', description: '과금 도메인 PII Agent 연동' },
-  { code: 'RSV', name: '예약 및 좌석 배정', description: '예약 도메인 PII Agent 연동' },
-  { code: 'ATH', name: '통합 인증 토큰 발급', description: '인증 도메인 PII Agent 연동' },
-  { code: 'MAI', name: '메일 발송 허브', description: '메일 도메인 PII Agent 연동' },
+  {
+    code: "MDA",
+    name: "미디어 업로드 및 트랜스코딩",
+    description: "미디어 도메인 PII Agent 연동",
+  },
+  {
+    code: "STL",
+    name: "정산 마감 및 대사",
+    description: "정산 도메인 PII Agent 연동",
+  },
+  {
+    code: "RCM",
+    name: "개인화 추천 피처",
+    description: "추천 도메인 PII Agent 연동",
+  },
+  {
+    code: "BIL",
+    name: "과금 청구 및 수납",
+    description: "과금 도메인 PII Agent 연동",
+  },
+  {
+    code: "RSV",
+    name: "예약 및 좌석 배정",
+    description: "예약 도메인 PII Agent 연동",
+  },
+  {
+    code: "ATH",
+    name: "통합 인증 토큰 발급",
+    description: "인증 도메인 PII Agent 연동",
+  },
+  {
+    code: "MAI",
+    name: "메일 발송 허브",
+    description: "메일 도메인 PII Agent 연동",
+  },
   // 레일이 한 화면에 여러 서비스를 담았을 때를 보기 위한 카탈로그 — 연동 과제
   // (mockProjects)는 없고 서비스 목록·검색·페이지네이션에만 등장한다.
   // 코드는 실제 계약과 같이 3글자로 맞춘다.
-  { code: 'PAY', name: '결제 승인 및 정산', description: '결제 도메인 PII Agent 연동' },
-  { code: 'MBR', name: '회원 통합 인증', description: '회원 도메인 PII Agent 연동' },
-  { code: 'SRC', name: '통합 검색 랭킹', description: '검색 도메인 PII Agent 연동' },
-  { code: 'ADS', name: '광고 노출 및 정산 리포팅', description: '광고 도메인 PII Agent 연동' },
-  { code: 'NTF', name: '알림 발송 허브', description: '알림 도메인 PII Agent 연동' },
+  {
+    code: "PAY",
+    name: "결제 승인 및 정산",
+    description: "결제 도메인 PII Agent 연동",
+  },
+  {
+    code: "MBR",
+    name: "회원 통합 인증",
+    description: "회원 도메인 PII Agent 연동",
+  },
+  {
+    code: "SRC",
+    name: "통합 검색 랭킹",
+    description: "검색 도메인 PII Agent 연동",
+  },
+  {
+    code: "ADS",
+    name: "광고 노출 및 정산 리포팅",
+    description: "광고 도메인 PII Agent 연동",
+  },
+  {
+    code: "NTF",
+    name: "알림 발송 허브",
+    description: "알림 도메인 PII Agent 연동",
+  },
   // EOS 표기를 실제로 볼 수 있는 한 건. 나머지는 필드를 아예 두지 않아 "모름"으로
   // 남는다 — 목이 전부 false 를 실어 보내면 계약이 나가기 전 상태를 재현하지 못한다.
   {
-    code: 'CSC',
-    name: '고객센터 상담 이력',
-    description: 'CS 도메인 PII Agent 연동',
+    code: "CSC",
+    name: "고객센터 상담 이력",
+    description: "CS 도메인 PII Agent 연동",
     isEosService: true,
   },
-  { code: 'SEL', name: '셀러 정산 및 입점 심사', description: '셀러 도메인 PII Agent 연동' },
-  { code: 'PRD', name: '상품 마스터', description: '상품 도메인 PII Agent 연동' },
-  { code: 'ORD', name: '주문 접수 및 취소·반품 처리', description: '주문 도메인 PII Agent 연동' },
-  { code: 'MKT', name: '마케팅 캠페인 타겟팅', description: '마케팅 도메인 PII Agent 연동' },
-  { code: 'LOG', name: '통합 로그 수집', description: '로그 도메인 PII Agent 연동' },
+  {
+    code: "SEL",
+    name: "셀러 정산 및 입점 심사",
+    description: "셀러 도메인 PII Agent 연동",
+  },
+  {
+    code: "PRD",
+    name: "상품 마스터",
+    description: "상품 도메인 PII Agent 연동",
+  },
+  {
+    code: "ORD",
+    name: "주문 접수 및 취소·반품 처리",
+    description: "주문 도메인 PII Agent 연동",
+  },
+  {
+    code: "MKT",
+    name: "마케팅 캠페인 타겟팅",
+    description: "마케팅 도메인 PII Agent 연동",
+  },
+  {
+    code: "LOG",
+    name: "통합 로그 수집",
+    description: "로그 도메인 PII Agent 연동",
+  },
 ];
 
 // Step 6/7 의 확정 정보 표는 CONNECTED 리소스만 노출한다. 캡처 seed 는 PENDING 이라
 // 해당 단계 대상에만 연결 상태를 올려서 쓴다.
-const connectedWireResources: MockResource[] = awsWireSampleResources.map((r) => ({
-  ...r,
-  connectionStatus: 'CONNECTED',
-}));
+const connectedWireResources: MockResource[] = awsWireSampleResources.map(
+  (r) => ({
+    ...r,
+    connectionStatus: "CONNECTED",
+  })
+);
 
 // Step 1 의 RDS 클러스터 인스턴스 선택 데모용 합성 리소스. 실 BFF 응답 캡처
 // (awsWireApprovalResources) 에는 rds_instance_candidates 가 없어서 — 캡처는 그대로 두고 —
@@ -249,47 +412,45 @@ const connectedWireResources: MockResource[] = awsWireSampleResources.map((r) =>
 // Reader 는 -3 → -2) 두어 화면의 Reader 우선 정렬과 기본 선택(-2)이 눈에 보이게 한다.
 // selected_rds_instance_resource_id 은 목이 내리지 않는다: 서버 선택값이 없을 때 클라이언트
 // 기본 선택이 도는지가 이 데모의 핵심이다.
-const RDS_CLUSTER_DEMO_INSTANCE_ARN_BASE =
-  `arn:aws:rds:ap-northeast-2:${AWS_WIRE_APPROVAL_ACCOUNT_ID}:db:demo-aurora-mysql`;
-const RDS_CLUSTER_DEMO_ARN =
-  `arn:aws:rds:ap-northeast-2:${AWS_WIRE_APPROVAL_ACCOUNT_ID}:cluster:demo-aurora-mysql-cluster`;
+const RDS_CLUSTER_DEMO_INSTANCE_ARN_BASE = `arn:aws:rds:ap-northeast-2:${AWS_WIRE_APPROVAL_ACCOUNT_ID}:db:demo-aurora-mysql`;
+const RDS_CLUSTER_DEMO_ARN = `arn:aws:rds:ap-northeast-2:${AWS_WIRE_APPROVAL_ACCOUNT_ID}:cluster:demo-aurora-mysql-cluster`;
 const rdsClusterDemoResource: MockResource = {
-  id: 'res-wire-cand-rds-cluster',
-  type: 'AWS_DB_CLUSTER',
-  awsType: 'RDS_CLUSTER',
+  id: "res-wire-cand-rds-cluster",
+  type: "AWS_DB_CLUSTER",
+  awsType: "RDS_CLUSTER",
   resourceId: RDS_CLUSTER_DEMO_ARN,
-  resourceName: 'demo-aurora-mysql-cluster',
-  databaseType: 'MYSQL',
-  connectionStatus: 'PENDING',
+  resourceName: "demo-aurora-mysql-cluster",
+  databaseType: "MYSQL",
+  connectionStatus: "PENDING",
   isSelected: true,
-  region: 'ap-northeast-2',
-  integrationCategory: 'TARGET',
+  region: "ap-northeast-2",
+  integrationCategory: "TARGET",
   host: null,
   port: null,
   rdsInstanceCandidates: [
     {
       resource_id: `${RDS_CLUSTER_DEMO_INSTANCE_ARN_BASE}-1`,
-      resource_name: 'demo-aurora-mysql-1',
-      host: 'demo-aurora-mysql-1.cluster-abcdefghij.ap-northeast-2.rds.amazonaws.com',
+      resource_name: "demo-aurora-mysql-1",
+      host: "demo-aurora-mysql-1.cluster-abcdefghij.ap-northeast-2.rds.amazonaws.com",
       port: 3306,
-      availability_zone: 'ap-northeast-2a',
-      cluster_member_role: 'WRITER',
+      availability_zone: "ap-northeast-2a",
+      cluster_member_role: "WRITER",
     },
     {
       resource_id: `${RDS_CLUSTER_DEMO_INSTANCE_ARN_BASE}-3`,
-      resource_name: 'demo-aurora-mysql-3',
-      host: 'demo-aurora-mysql-3.cluster-ro-abcdefghij.ap-northeast-2.rds.amazonaws.com',
+      resource_name: "demo-aurora-mysql-3",
+      host: "demo-aurora-mysql-3.cluster-ro-abcdefghij.ap-northeast-2.rds.amazonaws.com",
       port: 3306,
-      availability_zone: 'ap-northeast-2c',
-      cluster_member_role: 'READER',
+      availability_zone: "ap-northeast-2c",
+      cluster_member_role: "READER",
     },
     {
       resource_id: `${RDS_CLUSTER_DEMO_INSTANCE_ARN_BASE}-2`,
-      resource_name: 'demo-aurora-mysql-2',
-      host: 'demo-aurora-mysql-2.cluster-ro-abcdefghij.ap-northeast-2.rds.amazonaws.com',
+      resource_name: "demo-aurora-mysql-2",
+      host: "demo-aurora-mysql-2.cluster-ro-abcdefghij.ap-northeast-2.rds.amazonaws.com",
       port: 3306,
-      availability_zone: 'ap-northeast-2b',
-      cluster_member_role: 'READER',
+      availability_zone: "ap-northeast-2b",
+      cluster_member_role: "READER",
     },
   ],
 };
@@ -300,7 +461,7 @@ const rdsClusterDemoResource: MockResource = {
 // id 는 1006 데모 리소스와 store 에서 충돌하지 않게 분리한다.
 const rdsClusterApplyingResource: MockResource = {
   ...rdsClusterDemoResource,
-  id: 'res-wire-applying-rds-cluster',
+  id: "res-wire-applying-rds-cluster",
   selectedRdsInstanceResourceId: `${RDS_CLUSTER_DEMO_INSTANCE_ARN_BASE}-2`,
 };
 
@@ -308,22 +469,25 @@ const rdsClusterApplyingResource: MockResource = {
 export const mockProjects: Project[] = [
   // ===== GCP 프로젝트 =====
   {
-    id: 'gcp-proj-1',
+    id: "gcp-proj-1",
     targetSourceId: 1002,
-    projectCode: 'GCP-001',
-    name: 'GCP PII Agent - Cloud SQL / BigQuery',
-    description: 'Step 1. 연동 대상 확정 — 스캔 후보가 아직 없는 상태입니다. 목록이 비었을 때의 빈 화면과 스캔 실행 진입점을 확인합니다.',
-    serviceCode: 'gcp',
-    cloudProvider: 'GCP',
-    gcpProjectId: 'pii-agent-prod-12345',
+    projectCode: "GCP-001",
+    name: "GCP PII Agent - Cloud SQL / BigQuery",
+    description:
+      "Step 1. 연동 대상 확정 — 스캔 후보가 아직 없는 상태입니다. 목록이 비었을 때의 빈 화면과 스캔 실행 진입점을 확인합니다.",
+    serviceCode: "gcp",
+    cloudProvider: "GCP",
+    gcpProjectId: "pii-agent-prod-12345",
     processStatus: ProcessStatus.WAITING_TARGET_CONFIRMATION,
-    status: createStatusForProcessStatus(ProcessStatus.WAITING_TARGET_CONFIRMATION),
+    status: createStatusForProcessStatus(
+      ProcessStatus.WAITING_TARGET_CONFIRMATION
+    ),
     resources: [],
     terraformState: {
-      bdcTf: 'PENDING',
+      bdcTf: "PENDING",
     },
-    createdAt: '2026-02-01T09:00:00Z',
-    updatedAt: '2026-02-01T09:00:00Z',
+    createdAt: "2026-02-01T09:00:00Z",
+    updatedAt: "2026-02-01T09:00:00Z",
     isRejected: false,
   },
   {
@@ -331,573 +495,753 @@ export const mockProjects: Project[] = [
     // step and every other GCP fixture is already past it, so without this project the
     // guide has no reachable case. Separate from 1002, which mock-gcp locks in as the
     // resource-less GCP project.
-    id: 'gcp-proj-2',
+    id: "gcp-proj-2",
     targetSourceId: 1017,
-    projectCode: 'GCP-002',
-    name: 'GCP PII Agent - 대상 선택 (설치 불가 포함)',
-    description: 'Step 1. 연동 대상 확정 — Cloud SQL 4건 중 2건이 설치 불가(공인 IP / 내부 LB 서브넷)로 잡힌 상태입니다. 설치 불가 사유 표기와 안내 모달 진입을 확인합니다.',
-    serviceCode: 'gcp',
-    cloudProvider: 'GCP',
-    gcpProjectId: 'pii-agent-prod-12345',
+    projectCode: "GCP-002",
+    name: "GCP PII Agent - 대상 선택 (설치 불가 포함)",
+    description:
+      "Step 1. 연동 대상 확정 — Cloud SQL 4건 중 2건이 설치 불가(공인 IP / 내부 LB 서브넷)로 잡힌 상태입니다. 설치 불가 사유 표기와 안내 모달 진입을 확인합니다.",
+    serviceCode: "gcp",
+    cloudProvider: "GCP",
+    gcpProjectId: "pii-agent-prod-12345",
     processStatus: ProcessStatus.WAITING_TARGET_CONFIRMATION,
-    status: createStatusForProcessStatus(ProcessStatus.WAITING_TARGET_CONFIRMATION),
+    status: createStatusForProcessStatus(
+      ProcessStatus.WAITING_TARGET_CONFIRMATION
+    ),
     resources: [
       {
-        id: 'gcp-res-1', type: 'GCP_SQL',
-        resourceId: 'projects/pii-agent-prod-12345/instances/cloudsql-prod-001',
-        databaseType: 'MYSQL', connectionStatus: 'PENDING', isSelected: true,
-        integrationCategory: 'TARGET',
+        id: "gcp-res-1",
+        type: "GCP_SQL",
+        resourceId: "projects/pii-agent-prod-12345/instances/cloudsql-prod-001",
+        databaseType: "MYSQL",
+        connectionStatus: "PENDING",
+        isSelected: true,
+        integrationCategory: "TARGET",
       },
       {
-        id: 'gcp-res-2', type: 'GCP_SQL',
-        resourceId: 'projects/pii-agent-prod-12345/instances/cloudsql-prod-002',
-        databaseType: 'POSTGRESQL', connectionStatus: 'PENDING', isSelected: false,
-        integrationCategory: 'TARGET',
+        id: "gcp-res-2",
+        type: "GCP_SQL",
+        resourceId: "projects/pii-agent-prod-12345/instances/cloudsql-prod-002",
+        databaseType: "POSTGRESQL",
+        connectionStatus: "PENDING",
+        isSelected: false,
+        integrationCategory: "TARGET",
       },
       {
-        id: 'gcp-res-3', type: 'GCP_SQL',
-        resourceId: 'projects/pii-agent-prod-12345/instances/cloudsql-pubip-003',
-        databaseType: 'MYSQL', connectionStatus: 'PENDING', isSelected: false,
-        integrationCategory: 'INSTALL_INELIGIBLE',
-        recommendFailReason: 'GCP_CLOUD_SQL_HAS_PUBLIC_IP',
+        id: "gcp-res-3",
+        type: "GCP_SQL",
+        resourceId:
+          "projects/pii-agent-prod-12345/instances/cloudsql-pubip-003",
+        databaseType: "MYSQL",
+        connectionStatus: "PENDING",
+        isSelected: false,
+        integrationCategory: "INSTALL_INELIGIBLE",
+        recommendFailReason: "GCP_CLOUD_SQL_HAS_PUBLIC_IP",
       },
       {
-        id: 'gcp-res-4', type: 'GCP_SQL',
-        resourceId: 'projects/pii-agent-prod-12345/instances/cloudsql-ilb-004',
-        databaseType: 'POSTGRESQL', connectionStatus: 'PENDING', isSelected: false,
-        integrationCategory: 'INSTALL_INELIGIBLE',
-        recommendFailReason: 'GCP_CLOUD_SQL_HAS_INTERNAL_HTTP_LOAD_BALANCER_SUBNET',
+        id: "gcp-res-4",
+        type: "GCP_SQL",
+        resourceId: "projects/pii-agent-prod-12345/instances/cloudsql-ilb-004",
+        databaseType: "POSTGRESQL",
+        connectionStatus: "PENDING",
+        isSelected: false,
+        integrationCategory: "INSTALL_INELIGIBLE",
+        recommendFailReason:
+          "GCP_CLOUD_SQL_HAS_INTERNAL_HTTP_LOAD_BALANCER_SUBNET",
       },
     ],
     terraformState: {
-      bdcTf: 'PENDING',
+      bdcTf: "PENDING",
     },
-    createdAt: '2026-02-01T09:00:00Z',
-    updatedAt: '2026-02-01T09:00:00Z',
+    createdAt: "2026-02-01T09:00:00Z",
+    updatedAt: "2026-02-01T09:00:00Z",
     isRejected: false,
   },
   // ===== Azure 프로젝트 =====
   {
-    id: 'azure-proj-1',
+    id: "azure-proj-1",
     targetSourceId: 1003,
-    projectCode: 'AZURE-001',
-    name: 'Azure PII Agent - DB 연동',
-    description: 'Step 4. 설치 진행 — MySQL·PostgreSQL·MSSQL 4건이 설치 중이고 비대상 2건이 사유와 함께 남아 있는 상태입니다. 서비스측/BDC측 설치 현황을 확인합니다.',
-    serviceCode: 'azure',
-    cloudProvider: 'Azure',
-    tenantId: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
-    subscriptionId: '12345678-abcd-ef01-2345-6789abcdef01',
+    projectCode: "AZURE-001",
+    name: "Azure PII Agent - DB 연동",
+    description:
+      "Step 4. 설치 진행 — MySQL·PostgreSQL·MSSQL 4건이 설치 중이고 비대상 2건이 사유와 함께 남아 있는 상태입니다. 서비스측/BDC측 설치 현황을 확인합니다.",
+    serviceCode: "azure",
+    cloudProvider: "Azure",
+    tenantId: "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    subscriptionId: "12345678-abcd-ef01-2345-6789abcdef01",
     processStatus: ProcessStatus.INSTALLING,
-    status: createStatusForProcessStatus(ProcessStatus.INSTALLING, { selectedCount: 4, excludedCount: 2 }),
+    status: createStatusForProcessStatus(ProcessStatus.INSTALLING, {
+      selectedCount: 4,
+      excludedCount: 2,
+    }),
     resources: [
       {
-        id: 'azure-res-1',
-        type: 'AZURE_MYSQL',
-        resourceId: '/subscriptions/2867a4f9-1234-5678-90ab-cdef12345678/resourceGroups/rg-prod-app/providers/Microsoft.DBforMySQL/flexibleServers/mysql-prod-01',
-        databaseType: 'MYSQL',
-        connectionStatus: 'PENDING',
+        id: "azure-res-1",
+        type: "AZURE_MYSQL",
+        resourceId:
+          "/subscriptions/2867a4f9-1234-5678-90ab-cdef12345678/resourceGroups/rg-prod-app/providers/Microsoft.DBforMySQL/flexibleServers/mysql-prod-01",
+        databaseType: "MYSQL",
+        connectionStatus: "PENDING",
         isSelected: true,
-        integrationCategory: 'TARGET',
+        integrationCategory: "TARGET",
       },
       {
-        id: 'azure-res-2',
-        type: 'AZURE_MYSQL',
-        resourceId: '/subscriptions/2867a4f9-1234-5678-90ab-cdef12345678/resourceGroups/rg-prod-app/providers/Microsoft.DBforMySQL/flexibleServers/mysql-stg-02',
-        databaseType: 'MYSQL',
-        connectionStatus: 'PENDING',
+        id: "azure-res-2",
+        type: "AZURE_MYSQL",
+        resourceId:
+          "/subscriptions/2867a4f9-1234-5678-90ab-cdef12345678/resourceGroups/rg-prod-app/providers/Microsoft.DBforMySQL/flexibleServers/mysql-stg-02",
+        databaseType: "MYSQL",
+        connectionStatus: "PENDING",
         isSelected: true,
-        integrationCategory: 'TARGET',
+        integrationCategory: "TARGET",
       },
       {
-        id: 'azure-res-3',
-        type: 'AZURE_POSTGRESQL',
-        resourceId: '/subscriptions/2867a4f9-1234-5678-90ab-cdef12345678/resourceGroups/rg-prod-app/providers/Microsoft.DBforPostgreSQL/flexibleServers/pg-analytics-03',
-        databaseType: 'POSTGRESQL',
-        connectionStatus: 'PENDING',
+        id: "azure-res-3",
+        type: "AZURE_POSTGRESQL",
+        resourceId:
+          "/subscriptions/2867a4f9-1234-5678-90ab-cdef12345678/resourceGroups/rg-prod-app/providers/Microsoft.DBforPostgreSQL/flexibleServers/pg-analytics-03",
+        databaseType: "POSTGRESQL",
+        connectionStatus: "PENDING",
         isSelected: true,
-        integrationCategory: 'TARGET',
+        integrationCategory: "TARGET",
       },
       {
-        id: 'azure-res-9',
-        type: 'AZURE_MSSQL',
-        resourceId: '/subscriptions/2867a4f9-1234-5678-90ab-cdef12345678/resourceGroups/rg-prod-app/providers/Microsoft.Sql/servers/mssql-payments-04',
-        databaseType: 'MSSQL',
-        connectionStatus: 'PENDING',
+        id: "azure-res-9",
+        type: "AZURE_MSSQL",
+        resourceId:
+          "/subscriptions/2867a4f9-1234-5678-90ab-cdef12345678/resourceGroups/rg-prod-app/providers/Microsoft.Sql/servers/mssql-payments-04",
+        databaseType: "MSSQL",
+        connectionStatus: "PENDING",
         isSelected: true,
-        integrationCategory: 'TARGET',
+        integrationCategory: "TARGET",
       },
       // 비대상 (excluded) — v15 step2/3 show 비대상 rows with reason chips
       {
-        id: 'azure-res-10',
-        type: 'AZURE_POSTGRESQL',
-        resourceId: '/subscriptions/2867a4f9-1234-5678-90ab-cdef12345678/resourceGroups/rg-stg/providers/Microsoft.DBforPostgreSQL/flexibleServers/pg-stg-05',
-        databaseType: 'POSTGRESQL',
-        connectionStatus: 'PENDING',
+        id: "azure-res-10",
+        type: "AZURE_POSTGRESQL",
+        resourceId:
+          "/subscriptions/2867a4f9-1234-5678-90ab-cdef12345678/resourceGroups/rg-stg/providers/Microsoft.DBforPostgreSQL/flexibleServers/pg-stg-05",
+        databaseType: "POSTGRESQL",
+        connectionStatus: "PENDING",
         isSelected: false,
-        integrationCategory: 'TARGET',
+        integrationCategory: "TARGET",
         exclusion: {
-          reason: 'Stg 환경 DB · PII 데이터 미보유',
-          excludedAt: '2026-01-20T09:00:00Z',
-          excludedBy: { id: 'admin-1', name: '관리자' },
+          reason: "Stg 환경 DB · PII 데이터 미보유",
+          excludedAt: "2026-01-20T09:00:00Z",
+          excludedBy: { id: "admin-1", name: "관리자" },
         },
       },
       {
-        id: 'azure-res-11',
-        type: 'AZURE_MARIADB',
-        resourceId: '/subscriptions/2867a4f9-1234-5678-90ab-cdef12345678/resourceGroups/rg-legacy/providers/Microsoft.DBforMariaDB/servers/mariadb-legacy-archive-2019',
-        databaseType: 'MYSQL',
-        connectionStatus: 'PENDING',
+        id: "azure-res-11",
+        type: "AZURE_MARIADB",
+        resourceId:
+          "/subscriptions/2867a4f9-1234-5678-90ab-cdef12345678/resourceGroups/rg-legacy/providers/Microsoft.DBforMariaDB/servers/mariadb-legacy-archive-2019",
+        databaseType: "MYSQL",
+        connectionStatus: "PENDING",
         isSelected: false,
-        integrationCategory: 'TARGET',
+        integrationCategory: "TARGET",
         exclusion: {
-          reason: 'Legacy archive · 2024년 EOL 예정으로 연동 제외',
-          excludedAt: '2026-01-20T09:00:00Z',
-          excludedBy: { id: 'admin-1', name: '관리자' },
+          reason: "Legacy archive · 2024년 EOL 예정으로 연동 제외",
+          excludedAt: "2026-01-20T09:00:00Z",
+          excludedBy: { id: "admin-1", name: "관리자" },
         },
       },
     ],
     terraformState: {
-      bdcTf: 'PENDING',
+      bdcTf: "PENDING",
     },
-    createdAt: '2026-01-20T09:00:00Z',
-    updatedAt: '2026-01-25T14:00:00Z',
+    createdAt: "2026-01-20T09:00:00Z",
+    updatedAt: "2026-01-25T14:00:00Z",
     isRejected: false,
   },
   {
-    id: 'azure-proj-2',
+    id: "azure-proj-2",
     targetSourceId: 1004,
-    projectCode: 'AZURE-002',
-    name: 'Azure PII Agent - VM 포함',
-    description: 'Step 4. 설치 진행 — Synapse 1건과 VM 2대가 섞인 구성입니다. VM 은 설치 대상이 아니라 NIC 만 노출되는데, NIC 3개짜리 행 표기를 확인합니다.',
-    serviceCode: 'azure',
-    cloudProvider: 'Azure',
-    tenantId: 'b2c3d4e5-f6a7-8901-bcde-f12345678901',
-    subscriptionId: '23456789-bcde-f012-3456-789abcdef012',
+    projectCode: "AZURE-002",
+    name: "Azure PII Agent - VM 포함",
+    description:
+      "Step 4. 설치 진행 — Synapse 1건과 VM 2대가 섞인 구성입니다. VM 은 설치 대상이 아니라 NIC 만 노출되는데, NIC 3개짜리 행 표기를 확인합니다.",
+    serviceCode: "azure",
+    cloudProvider: "Azure",
+    tenantId: "b2c3d4e5-f6a7-8901-bcde-f12345678901",
+    subscriptionId: "23456789-bcde-f012-3456-789abcdef012",
     processStatus: ProcessStatus.INSTALLING,
-    status: createStatusForProcessStatus(ProcessStatus.INSTALLING, { selectedCount: 3 }),
+    status: createStatusForProcessStatus(ProcessStatus.INSTALLING, {
+      selectedCount: 3,
+    }),
     resources: [
       {
-        id: 'azure-res-4',
-        type: 'AZURE_SYNAPSE',
-        resourceId: 'synapse-dw-001',
-        databaseType: 'MSSQL',
-        connectionStatus: 'PENDING',
+        id: "azure-res-4",
+        type: "AZURE_SYNAPSE",
+        resourceId: "synapse-dw-001",
+        databaseType: "MSSQL",
+        connectionStatus: "PENDING",
         isSelected: true,
-        integrationCategory: 'TARGET',
+        integrationCategory: "TARGET",
       },
       {
-        id: 'azure-res-5',
-        type: 'AZURE_VM',
-        resourceId: 'vm-agent-001',
-        databaseType: 'MSSQL',
-        connectionStatus: 'PENDING',
+        id: "azure-res-5",
+        type: "AZURE_VM",
+        resourceId: "vm-agent-001",
+        databaseType: "MSSQL",
+        connectionStatus: "PENDING",
         isSelected: true,
-        integrationCategory: 'NO_INSTALL_NEEDED',
+        integrationCategory: "NO_INSTALL_NEEDED",
         nics: [
-          { nicId: 'nic-vm-agent-001-0', name: 'nic-vm-agent-001-0', privateIp: '10.0.1.10' },
+          {
+            nicId: "nic-vm-agent-001-0",
+            name: "nic-vm-agent-001-0",
+            privateIp: "10.0.1.10",
+          },
         ],
       },
       {
-        id: 'azure-res-6',
-        type: 'AZURE_VM',
-        resourceId: 'vm-agent-002',
-        databaseType: 'POSTGRESQL',
-        connectionStatus: 'PENDING',
+        id: "azure-res-6",
+        type: "AZURE_VM",
+        resourceId: "vm-agent-002",
+        databaseType: "POSTGRESQL",
+        connectionStatus: "PENDING",
         isSelected: true,
-        integrationCategory: 'NO_INSTALL_NEEDED',
+        integrationCategory: "NO_INSTALL_NEEDED",
         nics: [
-          { nicId: 'nic-vm-agent-002-0', name: 'nic-vm-agent-002-0', privateIp: '10.0.2.20' },
-          { nicId: 'nic-vm-agent-002-1', name: 'nic-vm-agent-002-1', privateIp: '10.0.2.21' },
-          { nicId: 'nic-vm-agent-002-2', name: 'nic-vm-agent-002-2', privateIp: '10.0.2.22' },
+          {
+            nicId: "nic-vm-agent-002-0",
+            name: "nic-vm-agent-002-0",
+            privateIp: "10.0.2.20",
+          },
+          {
+            nicId: "nic-vm-agent-002-1",
+            name: "nic-vm-agent-002-1",
+            privateIp: "10.0.2.21",
+          },
+          {
+            nicId: "nic-vm-agent-002-2",
+            name: "nic-vm-agent-002-2",
+            privateIp: "10.0.2.22",
+          },
         ],
       },
     ],
     terraformState: {
-      bdcTf: 'PENDING',
+      bdcTf: "PENDING",
     },
-    createdAt: '2026-01-22T10:00:00Z',
-    updatedAt: '2026-01-26T11:00:00Z',
+    createdAt: "2026-01-22T10:00:00Z",
+    updatedAt: "2026-01-26T11:00:00Z",
     isRejected: false,
   },
   {
-    id: 'azure-proj-3',
+    id: "azure-proj-3",
     targetSourceId: 1005,
-    projectCode: 'AZURE-003',
-    name: 'Azure PII Agent - VM+MySQL 스캔 완료',
-    description: 'Step 1. 연동 대상 확정 — 스캔에서 VM 1대·MySQL 1대가 후보로 잡히고 VNet 통합 리소스 2건이 설치 불가로 갈린 상태입니다. 확정 전 선택 화면을 확인합니다.',
-    serviceCode: 'azure',
-    cloudProvider: 'Azure',
-    tenantId: 'c3d4e5f6-a7b8-9012-cdef-123456789012',
-    subscriptionId: '34567890-cdef-0123-4567-89abcdef0123',
+    projectCode: "AZURE-003",
+    name: "Azure PII Agent - VM+MySQL 스캔 완료",
+    description:
+      "Step 1. 연동 대상 확정 — 스캔에서 VM 1대·MySQL 1대가 후보로 잡히고 VNet 통합 리소스 2건이 설치 불가로 갈린 상태입니다. 확정 전 선택 화면을 확인합니다.",
+    serviceCode: "azure",
+    cloudProvider: "Azure",
+    tenantId: "c3d4e5f6-a7b8-9012-cdef-123456789012",
+    subscriptionId: "34567890-cdef-0123-4567-89abcdef0123",
     processStatus: ProcessStatus.WAITING_TARGET_CONFIRMATION,
-    status: createStatusForProcessStatus(ProcessStatus.WAITING_TARGET_CONFIRMATION),
+    status: createStatusForProcessStatus(
+      ProcessStatus.WAITING_TARGET_CONFIRMATION
+    ),
     resources: [
       {
-        id: 'azure-res-7',
-        type: 'AZURE_VM',
-        resourceId: 'vm-scan-001',
-        databaseType: 'MYSQL',
-        connectionStatus: 'PENDING',
+        id: "azure-res-7",
+        type: "AZURE_VM",
+        resourceId: "vm-scan-001",
+        databaseType: "MYSQL",
+        connectionStatus: "PENDING",
         isSelected: true,
-        integrationCategory: 'NO_INSTALL_NEEDED',
+        integrationCategory: "NO_INSTALL_NEEDED",
         nics: [
-          { nicId: 'nic-vm-scan-001-0', name: 'nic-vm-scan-001-0', privateIp: '10.0.3.30' },
-          { nicId: 'nic-vm-scan-001-1', name: 'nic-vm-scan-001-1', privateIp: '10.0.3.31' },
+          {
+            nicId: "nic-vm-scan-001-0",
+            name: "nic-vm-scan-001-0",
+            privateIp: "10.0.3.30",
+          },
+          {
+            nicId: "nic-vm-scan-001-1",
+            name: "nic-vm-scan-001-1",
+            privateIp: "10.0.3.31",
+          },
         ],
       },
       {
-        id: 'azure-res-8',
-        type: 'AZURE_MYSQL',
-        resourceId: 'mysql-scan-001',
-        databaseType: 'MYSQL',
-        connectionStatus: 'PENDING',
+        id: "azure-res-8",
+        type: "AZURE_MYSQL",
+        resourceId: "mysql-scan-001",
+        databaseType: "MYSQL",
+        connectionStatus: "PENDING",
         isSelected: true,
-        integrationCategory: 'TARGET',
-        azureNetworkingMode: 'PUBLIC_ACCESS',
+        integrationCategory: "TARGET",
+        azureNetworkingMode: "PUBLIC_ACCESS",
       },
       {
-        id: 'azure-res-vnet-1',
-        type: 'AZURE_MYSQL',
-        resourceId: '/subscriptions/34567890-cdef-0123-4567-89abcdef0123/resourceGroups/rg-prod-app/providers/Microsoft.DBforMySQL/flexibleServers/mysql-vnet-001',
-        databaseType: 'MYSQL',
-        connectionStatus: 'PENDING',
+        id: "azure-res-vnet-1",
+        type: "AZURE_MYSQL",
+        resourceId:
+          "/subscriptions/34567890-cdef-0123-4567-89abcdef0123/resourceGroups/rg-prod-app/providers/Microsoft.DBforMySQL/flexibleServers/mysql-vnet-001",
+        databaseType: "MYSQL",
+        connectionStatus: "PENDING",
         isSelected: false,
-        integrationCategory: 'INSTALL_INELIGIBLE',
-        azureNetworkingMode: 'VNET_INTEGRATION',
-        recommendFailReason: 'AZURE_RESOURCE_VNET_INTEGRATED_MODE',
+        integrationCategory: "INSTALL_INELIGIBLE",
+        azureNetworkingMode: "VNET_INTEGRATION",
+        recommendFailReason: "AZURE_RESOURCE_VNET_INTEGRATED_MODE",
       },
       {
-        id: 'azure-res-vnet-2',
-        type: 'AZURE_POSTGRESQL',
-        resourceId: '/subscriptions/34567890-cdef-0123-4567-89abcdef0123/resourceGroups/rg-prod-app/providers/Microsoft.DBforPostgreSQL/flexibleServers/psql-vnet-001',
-        databaseType: 'POSTGRESQL',
-        connectionStatus: 'PENDING',
+        id: "azure-res-vnet-2",
+        type: "AZURE_POSTGRESQL",
+        resourceId:
+          "/subscriptions/34567890-cdef-0123-4567-89abcdef0123/resourceGroups/rg-prod-app/providers/Microsoft.DBforPostgreSQL/flexibleServers/psql-vnet-001",
+        databaseType: "POSTGRESQL",
+        connectionStatus: "PENDING",
         isSelected: false,
-        integrationCategory: 'INSTALL_INELIGIBLE',
-        azureNetworkingMode: 'VNET_INTEGRATION',
-        recommendFailReason: 'AZURE_RESOURCE_VNET_INTEGRATED_MODE',
+        integrationCategory: "INSTALL_INELIGIBLE",
+        azureNetworkingMode: "VNET_INTEGRATION",
+        recommendFailReason: "AZURE_RESOURCE_VNET_INTEGRATED_MODE",
       },
     ],
     terraformState: {
-      bdcTf: 'PENDING',
+      bdcTf: "PENDING",
     },
-    createdAt: '2026-02-05T09:00:00Z',
-    updatedAt: '2026-02-09T10:00:00Z',
+    createdAt: "2026-02-05T09:00:00Z",
+    updatedAt: "2026-02-09T10:00:00Z",
     isRejected: false,
   },
   {
     // Azure twin of GCP 1002: born without resources, so buildSeedScanHistory gives it no
     // scan and /resources answers 404 — the never-scanned step 1 entry screen.
-    id: 'azure-proj-4',
+    id: "azure-proj-4",
     targetSourceId: 1030,
-    projectCode: 'AZURE-006',
-    name: 'Azure PII Agent - 스캔 전',
-    description: 'Step 1. 연동 대상 확정 — 아직 한 번도 스캔하지 않은 상태입니다. 스캔 시작 안내와 실행 진입점을 확인합니다.',
-    serviceCode: 'azure',
-    cloudProvider: 'Azure',
-    tenantId: 'd4e5f6a7-b8c9-0123-def0-234567890123',
-    subscriptionId: '45678901-def0-1234-5678-9abcdef01234',
+    projectCode: "AZURE-006",
+    name: "Azure PII Agent - 스캔 전",
+    description:
+      "Step 1. 연동 대상 확정 — 아직 한 번도 스캔하지 않은 상태입니다. 스캔 시작 안내와 실행 진입점을 확인합니다.",
+    serviceCode: "azure",
+    cloudProvider: "Azure",
+    tenantId: "d4e5f6a7-b8c9-0123-def0-234567890123",
+    subscriptionId: "45678901-def0-1234-5678-9abcdef01234",
     processStatus: ProcessStatus.WAITING_TARGET_CONFIRMATION,
-    status: createStatusForProcessStatus(ProcessStatus.WAITING_TARGET_CONFIRMATION),
+    status: createStatusForProcessStatus(
+      ProcessStatus.WAITING_TARGET_CONFIRMATION
+    ),
     resources: [],
     terraformState: {
-      bdcTf: 'PENDING',
+      bdcTf: "PENDING",
     },
-    createdAt: '2026-02-01T09:00:00Z',
-    updatedAt: '2026-02-01T09:00:00Z',
+    createdAt: "2026-02-01T09:00:00Z",
+    updatedAt: "2026-02-01T09:00:00Z",
     isRejected: false,
   },
   // Steps 2 and 3 carrying INSTALL_INELIGIBLE resources. Every other fixture holds them at
   // step 1 only, so there was no data to see how they render once the request is submitted.
   // One project covers all four branches: target / user-excluded (with reason) / ineligible
   // (with an enum reason) / ineligible (without one, as AWS and IDC always are).
-  ...([
-    [1013, ProcessStatus.WAITING_APPROVAL, 'AZURE-004', 'Azure PII Agent - 승인 대기 (연동 불가 포함)',
-      'Step 2. 관리자 승인 대기 — 연동 대상 2건·사용자 제외 1건·연동 불가 2건이 한 요청에 섞여 올라간 상태입니다. 사유가 있는 연동 불가와 없는 연동 불가가 각각 어떻게 보이는지 확인합니다.'],
-    [1014, ProcessStatus.APPLYING_APPROVED, 'AZURE-005', 'Azure PII Agent - 반영 중 (연동 불가 포함)',
-      'Step 3. 승인 반영 중 — 같은 구성(대상 2 · 제외 1 · 연동 불가 2)이 승인된 뒤 확정 처리를 기다리는 화면입니다. 반영 중에도 비대상 행이 사유와 함께 남는지 확인합니다.'],
-  ] as const).map(([targetSourceId, processStatus, projectCode, name, description]): Project => ({
-    id: `azure-proj-${targetSourceId}`,
-    targetSourceId,
-    projectCode,
-    name,
-    description,
-    serviceCode: 'azure',
-    cloudProvider: 'Azure',
-    tenantId: 'c3d4e5f6-a7b8-9012-cdef-123456789012',
-    subscriptionId: '34567890-cdef-0123-4567-89abcdef0123',
-    processStatus,
-    // 1013 만 실데이터 — 1014 는 같은 서비스·같은 provider 이면서 태그가 없는 짝이라,
-    // 목록에서 태그가 대상마다 갈리는지(전부 켜지는 게 아닌지)가 눈으로 확인된다.
-    ...(targetSourceId === 1013 ? { supportRawData: true } : {}),
-    status: createStatusForProcessStatus(processStatus, { selectedCount: 2, excludedCount: 3 }),
-    resources: [
-      {
-        id: `azure-inel-${targetSourceId}-1`, type: 'AZURE_MYSQL', resourceId: 'mysql-prod-010',
-        databaseType: 'MYSQL', connectionStatus: 'PENDING', isSelected: true,
-        integrationCategory: 'TARGET',
-      },
-      {
-        id: `azure-inel-${targetSourceId}-2`, type: 'AZURE_POSTGRESQL', resourceId: 'psql-prod-011',
-        databaseType: 'POSTGRESQL', connectionStatus: 'PENDING', isSelected: true,
-        integrationCategory: 'TARGET',
-      },
-      {
-        id: `azure-inel-${targetSourceId}-3`, type: 'AZURE_MYSQL', resourceId: 'mysql-stg-012',
-        databaseType: 'MYSQL', connectionStatus: 'PENDING', isSelected: false,
-        integrationCategory: 'TARGET',
-        exclusion: {
-          reason: '스테이징 DB라 연동 대상에서 제외합니다.',
-          excludedBy: { id: 'admin-1', name: '관리자' },
-          excludedAt: '2026-03-01T09:00:00Z',
+  ...(
+    [
+      [
+        1013,
+        ProcessStatus.WAITING_APPROVAL,
+        "AZURE-004",
+        "Azure PII Agent - 승인 대기 (연동 불가 포함)",
+        "Step 2. 관리자 승인 대기 — 연동 대상 2건·사용자 제외 1건·연동 불가 2건이 한 요청에 섞여 올라간 상태입니다. 사유가 있는 연동 불가와 없는 연동 불가가 각각 어떻게 보이는지 확인합니다.",
+      ],
+      [
+        1014,
+        ProcessStatus.APPLYING_APPROVED,
+        "AZURE-005",
+        "Azure PII Agent - 반영 중 (연동 불가 포함)",
+        "Step 3. 승인 반영 중 — 같은 구성(대상 2 · 제외 1 · 연동 불가 2)이 승인된 뒤 확정 처리를 기다리는 화면입니다. 반영 중에도 비대상 행이 사유와 함께 남는지 확인합니다.",
+      ],
+    ] as const
+  ).map(
+    ([
+      targetSourceId,
+      processStatus,
+      projectCode,
+      name,
+      description,
+    ]): Project => ({
+      id: `azure-proj-${targetSourceId}`,
+      targetSourceId,
+      projectCode,
+      name,
+      description,
+      serviceCode: "azure",
+      cloudProvider: "Azure",
+      tenantId: "c3d4e5f6-a7b8-9012-cdef-123456789012",
+      subscriptionId: "34567890-cdef-0123-4567-89abcdef0123",
+      processStatus,
+      // 1013 만 실데이터 — 1014 는 같은 서비스·같은 provider 이면서 태그가 없는 짝이라,
+      // 목록에서 태그가 대상마다 갈리는지(전부 켜지는 게 아닌지)가 눈으로 확인된다.
+      ...(targetSourceId === 1013 ? { supportRawData: true } : {}),
+      status: createStatusForProcessStatus(processStatus, {
+        selectedCount: 2,
+        excludedCount: 3,
+      }),
+      resources: [
+        {
+          id: `azure-inel-${targetSourceId}-1`,
+          type: "AZURE_MYSQL",
+          resourceId: "mysql-prod-010",
+          databaseType: "MYSQL",
+          connectionStatus: "PENDING",
+          isSelected: true,
+          integrationCategory: "TARGET",
         },
-      },
-      {
-        id: `azure-inel-${targetSourceId}-4`, type: 'AZURE_MYSQL', resourceId: 'mysql-vnet-013',
-        databaseType: 'MYSQL', connectionStatus: 'PENDING', isSelected: false,
-        integrationCategory: 'INSTALL_INELIGIBLE',
-        azureNetworkingMode: 'VNET_INTEGRATION',
-        recommendFailReason: 'AZURE_RESOURCE_VNET_INTEGRATED_MODE',
-      },
-      {
-        id: `azure-inel-${targetSourceId}-5`, type: 'AZURE_POSTGRESQL', resourceId: 'psql-vnet-014',
-        databaseType: 'POSTGRESQL', connectionStatus: 'PENDING', isSelected: false,
-        integrationCategory: 'INSTALL_INELIGIBLE',
-        azureNetworkingMode: 'VNET_INTEGRATION',
-      },
-    ],
-    terraformState: { bdcTf: 'PENDING' },
-    createdAt: '2026-03-01T09:00:00Z',
-    updatedAt: '2026-03-02T10:00:00Z',
-    isRejected: false,
-  })),
+        {
+          id: `azure-inel-${targetSourceId}-2`,
+          type: "AZURE_POSTGRESQL",
+          resourceId: "psql-prod-011",
+          databaseType: "POSTGRESQL",
+          connectionStatus: "PENDING",
+          isSelected: true,
+          integrationCategory: "TARGET",
+        },
+        {
+          id: `azure-inel-${targetSourceId}-3`,
+          type: "AZURE_MYSQL",
+          resourceId: "mysql-stg-012",
+          databaseType: "MYSQL",
+          connectionStatus: "PENDING",
+          isSelected: false,
+          integrationCategory: "TARGET",
+          exclusion: {
+            reason: "스테이징 DB라 연동 대상에서 제외합니다.",
+            excludedBy: { id: "admin-1", name: "관리자" },
+            excludedAt: "2026-03-01T09:00:00Z",
+          },
+        },
+        {
+          id: `azure-inel-${targetSourceId}-4`,
+          type: "AZURE_MYSQL",
+          resourceId: "mysql-vnet-013",
+          databaseType: "MYSQL",
+          connectionStatus: "PENDING",
+          isSelected: false,
+          integrationCategory: "INSTALL_INELIGIBLE",
+          azureNetworkingMode: "VNET_INTEGRATION",
+          recommendFailReason: "AZURE_RESOURCE_VNET_INTEGRATED_MODE",
+        },
+        {
+          id: `azure-inel-${targetSourceId}-5`,
+          type: "AZURE_POSTGRESQL",
+          resourceId: "psql-vnet-014",
+          databaseType: "POSTGRESQL",
+          connectionStatus: "PENDING",
+          isSelected: false,
+          integrationCategory: "INSTALL_INELIGIBLE",
+          azureNetworkingMode: "VNET_INTEGRATION",
+        },
+      ],
+      terraformState: { bdcTf: "PENDING" },
+      createdAt: "2026-03-01T09:00:00Z",
+      updatedAt: "2026-03-02T10:00:00Z",
+      isRejected: false,
+    })
+  ),
   // The same shape on GCP, where both of the CSP's `recommend_fail_reason` values appear in
   // one table. They share their first 18 characters, so the reason column's clamp renders
   // them identically — the two rows below are the case that makes that visible.
-  ...([
-    [1015, ProcessStatus.WAITING_APPROVAL, 'GCP-004', 'GCP PII Agent - 승인 대기 (연동 불가 포함)',
-      'Step 2. 관리자 승인 대기 — 연동 대상 2건·사용자 제외 1건·연동 불가 2건이 함께 올라간 요청입니다. 두 설치 불가 사유(공인 IP / 내부 LB 서브넷)가 같은 열에서 어떻게 잘리는지 확인합니다.'],
-    [1016, ProcessStatus.APPLYING_APPROVED, 'GCP-005', 'GCP PII Agent - 반영 중 (연동 불가 포함)',
-      'Step 3. 승인 반영 중 — 같은 구성(대상 2 · 제외 1 · 연동 불가 2)이 승인된 뒤 확정 처리를 기다리는 화면입니다. 반영 중에도 비대상 행이 사유와 함께 남는지 확인합니다.'],
-  ] as const).map(([targetSourceId, processStatus, projectCode, name, description]): Project => ({
-    id: `gcp-proj-${targetSourceId}`,
-    targetSourceId,
-    projectCode,
-    name,
-    description,
-    serviceCode: 'gcp',
-    cloudProvider: 'GCP',
-    gcpProjectId: 'pii-agent-prod-12345',
-    processStatus,
-    status: createStatusForProcessStatus(processStatus, { selectedCount: 2, excludedCount: 3 }),
-    resources: [
-      {
-        id: `gcp-inel-${targetSourceId}-1`, type: 'GCP_SQL',
-        resourceId: 'projects/pii-agent-prod-12345/instances/cloudsql-prod-020',
-        databaseType: 'MYSQL', connectionStatus: 'PENDING', isSelected: true,
-        integrationCategory: 'TARGET',
-      },
-      {
-        id: `gcp-inel-${targetSourceId}-2`, type: 'GCP_SQL',
-        resourceId: 'projects/pii-agent-prod-12345/instances/cloudsql-prod-021',
-        databaseType: 'POSTGRESQL', connectionStatus: 'PENDING', isSelected: true,
-        integrationCategory: 'TARGET',
-      },
-      {
-        id: `gcp-inel-${targetSourceId}-3`, type: 'GCP_SQL',
-        resourceId: 'projects/pii-agent-prod-12345/instances/cloudsql-stg-022',
-        databaseType: 'MYSQL', connectionStatus: 'PENDING', isSelected: false,
-        integrationCategory: 'TARGET',
-        exclusion: {
-          reason: '스테이징 DB라 연동 대상에서 제외합니다.',
-          excludedBy: { id: 'admin-1', name: '관리자' },
-          excludedAt: '2026-03-01T09:00:00Z',
+  ...(
+    [
+      [
+        1015,
+        ProcessStatus.WAITING_APPROVAL,
+        "GCP-004",
+        "GCP PII Agent - 승인 대기 (연동 불가 포함)",
+        "Step 2. 관리자 승인 대기 — 연동 대상 2건·사용자 제외 1건·연동 불가 2건이 함께 올라간 요청입니다. 두 설치 불가 사유(공인 IP / 내부 LB 서브넷)가 같은 열에서 어떻게 잘리는지 확인합니다.",
+      ],
+      [
+        1016,
+        ProcessStatus.APPLYING_APPROVED,
+        "GCP-005",
+        "GCP PII Agent - 반영 중 (연동 불가 포함)",
+        "Step 3. 승인 반영 중 — 같은 구성(대상 2 · 제외 1 · 연동 불가 2)이 승인된 뒤 확정 처리를 기다리는 화면입니다. 반영 중에도 비대상 행이 사유와 함께 남는지 확인합니다.",
+      ],
+    ] as const
+  ).map(
+    ([
+      targetSourceId,
+      processStatus,
+      projectCode,
+      name,
+      description,
+    ]): Project => ({
+      id: `gcp-proj-${targetSourceId}`,
+      targetSourceId,
+      projectCode,
+      name,
+      description,
+      serviceCode: "gcp",
+      cloudProvider: "GCP",
+      gcpProjectId: "pii-agent-prod-12345",
+      processStatus,
+      status: createStatusForProcessStatus(processStatus, {
+        selectedCount: 2,
+        excludedCount: 3,
+      }),
+      resources: [
+        {
+          id: `gcp-inel-${targetSourceId}-1`,
+          type: "GCP_SQL",
+          resourceId:
+            "projects/pii-agent-prod-12345/instances/cloudsql-prod-020",
+          databaseType: "MYSQL",
+          connectionStatus: "PENDING",
+          isSelected: true,
+          integrationCategory: "TARGET",
         },
-      },
-      {
-        id: `gcp-inel-${targetSourceId}-4`, type: 'GCP_SQL',
-        resourceId: 'projects/pii-agent-prod-12345/instances/cloudsql-pubip-023',
-        databaseType: 'MYSQL', connectionStatus: 'PENDING', isSelected: false,
-        integrationCategory: 'INSTALL_INELIGIBLE',
-        recommendFailReason: 'GCP_CLOUD_SQL_HAS_PUBLIC_IP',
-      },
-      {
-        id: `gcp-inel-${targetSourceId}-5`, type: 'GCP_SQL',
-        resourceId: 'projects/pii-agent-prod-12345/instances/cloudsql-ilb-024',
-        databaseType: 'POSTGRESQL', connectionStatus: 'PENDING', isSelected: false,
-        integrationCategory: 'INSTALL_INELIGIBLE',
-        recommendFailReason: 'GCP_CLOUD_SQL_HAS_INTERNAL_HTTP_LOAD_BALANCER_SUBNET',
-      },
-    ],
-    terraformState: { bdcTf: 'PENDING' },
-    createdAt: '2026-03-01T09:00:00Z',
-    updatedAt: '2026-03-02T10:00:00Z',
-    isRejected: false,
-  })),
+        {
+          id: `gcp-inel-${targetSourceId}-2`,
+          type: "GCP_SQL",
+          resourceId:
+            "projects/pii-agent-prod-12345/instances/cloudsql-prod-021",
+          databaseType: "POSTGRESQL",
+          connectionStatus: "PENDING",
+          isSelected: true,
+          integrationCategory: "TARGET",
+        },
+        {
+          id: `gcp-inel-${targetSourceId}-3`,
+          type: "GCP_SQL",
+          resourceId:
+            "projects/pii-agent-prod-12345/instances/cloudsql-stg-022",
+          databaseType: "MYSQL",
+          connectionStatus: "PENDING",
+          isSelected: false,
+          integrationCategory: "TARGET",
+          exclusion: {
+            reason: "스테이징 DB라 연동 대상에서 제외합니다.",
+            excludedBy: { id: "admin-1", name: "관리자" },
+            excludedAt: "2026-03-01T09:00:00Z",
+          },
+        },
+        {
+          id: `gcp-inel-${targetSourceId}-4`,
+          type: "GCP_SQL",
+          resourceId:
+            "projects/pii-agent-prod-12345/instances/cloudsql-pubip-023",
+          databaseType: "MYSQL",
+          connectionStatus: "PENDING",
+          isSelected: false,
+          integrationCategory: "INSTALL_INELIGIBLE",
+          recommendFailReason: "GCP_CLOUD_SQL_HAS_PUBLIC_IP",
+        },
+        {
+          id: `gcp-inel-${targetSourceId}-5`,
+          type: "GCP_SQL",
+          resourceId:
+            "projects/pii-agent-prod-12345/instances/cloudsql-ilb-024",
+          databaseType: "POSTGRESQL",
+          connectionStatus: "PENDING",
+          isSelected: false,
+          integrationCategory: "INSTALL_INELIGIBLE",
+          recommendFailReason:
+            "GCP_CLOUD_SQL_HAS_INTERNAL_HTTP_LOAD_BALANCER_SUBNET",
+        },
+      ],
+      terraformState: { bdcTf: "PENDING" },
+      createdAt: "2026-03-01T09:00:00Z",
+      updatedAt: "2026-03-02T10:00:00Z",
+      isRejected: false,
+    })
+  ),
   // ===== AWS 프로젝트 =====
   {
-    id: 'proj-1',
+    id: "proj-1",
     targetSourceId: 1006,
-    projectCode: 'N-IRP-001',
-    name: 'PII Agent 설치 - 고객 DB',
-    description: 'Step 1. 연동 대상 확정 — 실 BFF 응답 캡처의 스캔 후보 9건(엔진 6종)이 모두 선택된 상태입니다. TF 실행 권한 미허용이라 이후 설치는 직접 적용 모드로 이어집니다.',
-    serviceCode: 'aws',
-    cloudProvider: 'AWS',
+    projectCode: "N-IRP-001",
+    name: "PII Agent 설치 - 고객 DB",
+    description:
+      "Step 1. 연동 대상 확정 — 실 BFF 응답 캡처의 스캔 후보 9건(엔진 6종)이 모두 선택된 상태입니다. TF 실행 권한 미허용이라 이후 설치는 직접 적용 모드로 이어집니다.",
+    serviceCode: "aws",
+    cloudProvider: "AWS",
     awsAccountId: AWS_WIRE_APPROVAL_ACCOUNT_ID,
-    awsRegionType: 'global',
+    awsRegionType: "global",
     // 데모: TF 실행 권한 미허용 → 수동 설치 모드
     isTerraformExecutionGranted: false,
     processStatus: ProcessStatus.WAITING_TARGET_CONFIRMATION,
-    status: createStatusForProcessStatus(ProcessStatus.WAITING_TARGET_CONFIRMATION),
+    status: createStatusForProcessStatus(
+      ProcessStatus.WAITING_TARGET_CONFIRMATION
+    ),
     // 전 건 선택. 미선택 행은 제외 사유가 없으면 승인 요청 버튼을 막으므로, 이 시드에서
     // 승인 요청까지 가려면 매번 아홉 개를 손으로 체크해야 했다. 캡처(awsWireApprovalResources)
     // 자체는 손대지 않는다 — 반려 시드(N-IRP-002)가 같은 배열을 쓰고 그 selectedCount 는
     // 캡처의 선택 상태에서 나온다.
-    resources: [...awsWireApprovalResources, rdsClusterDemoResource].map((resource) => ({
-      ...resource,
-      isSelected: true,
-    })),
+    resources: [...awsWireApprovalResources, rdsClusterDemoResource].map(
+      (resource) => ({
+        ...resource,
+        isSelected: true,
+      })
+    ),
     terraformState: {
-      serviceTf: 'PENDING',
-      bdcTf: 'PENDING',
+      serviceTf: "PENDING",
+      bdcTf: "PENDING",
     },
-    createdAt: '2024-01-15T09:00:00Z',
-    updatedAt: '2024-01-20T14:30:00Z',
+    createdAt: "2024-01-15T09:00:00Z",
+    updatedAt: "2024-01-20T14:30:00Z",
     isRejected: false,
   },
   {
-    id: 'proj-2',
+    id: "proj-2",
     targetSourceId: 1007,
-    projectCode: 'N-IRP-002',
-    name: 'PII Agent 설치 - 로그 분석 계정',
-    description: 'Step 2. 관리자 승인 반려 — RDS_CLUSTER 미지원 사유로 반려된 상태입니다. 반려 사유 노출과 재신청 흐름을 검증합니다. 리소스는 실 BFF 응답 캡처의 스캔 후보 9건입니다.',
-    serviceCode: 'aws',
-    cloudProvider: 'AWS',
+    projectCode: "N-IRP-002",
+    name: "PII Agent 설치 - 로그 분석 계정",
+    description:
+      "Step 2. 관리자 승인 반려 — RDS_CLUSTER 미지원 사유로 반려된 상태입니다. 반려 사유 노출과 재신청 흐름을 검증합니다. 리소스는 실 BFF 응답 캡처의 스캔 후보 9건입니다.",
+    serviceCode: "aws",
+    cloudProvider: "AWS",
     awsAccountId: AWS_WIRE_APPROVAL_ACCOUNT_ID,
-    awsRegionType: 'global',
+    awsRegionType: "global",
     processStatus: ProcessStatus.WAITING_APPROVAL,
-    status: createStatusForProcessStatus(ProcessStatus.WAITING_APPROVAL, { isRejected: true, selectedCount: 2, excludedCount: 1 }),
+    status: createStatusForProcessStatus(ProcessStatus.WAITING_APPROVAL, {
+      isRejected: true,
+      selectedCount: 2,
+      excludedCount: 1,
+    }),
     resources: awsWireApprovalResources,
     terraformState: {
-      serviceTf: 'PENDING',
-      bdcTf: 'PENDING',
+      serviceTf: "PENDING",
+      bdcTf: "PENDING",
     },
-    createdAt: '2024-01-18T10:00:00Z',
-    updatedAt: '2024-01-18T11:00:00Z',
+    createdAt: "2024-01-18T10:00:00Z",
+    updatedAt: "2024-01-18T11:00:00Z",
     isRejected: true,
-    rejectionReason: 'RDS_CLUSTER 리소스는 현재 지원되지 않습니다. RDS 단일 인스턴스만 선택해주세요.',
-    rejectedAt: '2024-01-18T14:00:00Z',
+    rejectionReason:
+      "RDS_CLUSTER 리소스는 현재 지원되지 않습니다. RDS 단일 인스턴스만 선택해주세요.",
+    rejectedAt: "2024-01-18T14:00:00Z",
   },
   {
-    id: 'proj-3',
+    id: "proj-3",
     targetSourceId: 1008,
-    projectCode: 'OTHER-003',
-    name: 'PII Agent 설치 - 이벤트 적재 파이프라인',
-    description: 'Step 4. 자동 설치 진행 중 — 단계별 설치 현황(서비스측/BDC측)을 검증합니다. installation-status 를 실 BFF 응답 캡처 원문으로 서빙하므로 상태는 전부 진행중이고, 빈 Role ARN·Athena 리전 단위 리소스 id 가 그대로 노출됩니다.',
-    serviceCode: 'aws',
-    cloudProvider: 'AWS',
+    projectCode: "OTHER-003",
+    name: "PII Agent 설치 - 이벤트 적재 파이프라인",
+    description:
+      "Step 4. 자동 설치 진행 중 — 단계별 설치 현황(서비스측/BDC측)을 검증합니다. installation-status 를 실 BFF 응답 캡처 원문으로 서빙하므로 상태는 전부 진행중이고, 빈 Role ARN·Athena 리전 단위 리소스 id 가 그대로 노출됩니다.",
+    serviceCode: "aws",
+    cloudProvider: "AWS",
     awsAccountId: AWS_WIRE_CONFIRMED_ACCOUNT_ID,
-    awsRegionType: 'global',
+    awsRegionType: "global",
     // 데모: TF 실행 권한 허용 → 자동 설치 모드 (설치중 화면)
     isTerraformExecutionGranted: true,
     processStatus: ProcessStatus.INSTALLING,
-    status: createStatusForProcessStatus(ProcessStatus.INSTALLING, { selectedCount: 4, excludedCount: 1 }),
+    status: createStatusForProcessStatus(ProcessStatus.INSTALLING, {
+      selectedCount: 4,
+      excludedCount: 1,
+    }),
     resources: awsWireSampleResources,
     terraformState: {
-      serviceTf: 'PENDING',
-      bdcTf: 'PENDING',
+      serviceTf: "PENDING",
+      bdcTf: "PENDING",
     },
-    createdAt: '2024-01-19T08:00:00Z',
-    updatedAt: '2024-01-19T09:00:00Z',
+    createdAt: "2024-01-19T08:00:00Z",
+    updatedAt: "2024-01-19T09:00:00Z",
     isRejected: false,
   },
   {
-    id: 'proj-3b',
+    id: "proj-3b",
     targetSourceId: 1009,
-    projectCode: 'OTHER-004',
-    name: 'PII Agent 설치 - 실시간 정산 파이프라인',
-    description: 'Step 4. 권한 확인까지 끝나 "내가 할 일"이 0 이 되고 BDC 자동 단계만 남은 화면을 검증합니다. 레일의 할 일 그룹이 "모두 완료"로 닫히는 상태입니다.',
-    serviceCode: 'aws',
-    cloudProvider: 'AWS',
+    projectCode: "OTHER-004",
+    name: "PII Agent 설치 - 실시간 정산 파이프라인",
+    description:
+      'Step 4. 권한 확인까지 끝나 "내가 할 일"이 0 이 되고 BDC 자동 단계만 남은 화면을 검증합니다. 레일의 할 일 그룹이 "모두 완료"로 닫히는 상태입니다.',
+    serviceCode: "aws",
+    cloudProvider: "AWS",
     awsAccountId: AWS_WIRE_CONFIRMED_ACCOUNT_ID,
-    awsRegionType: 'global',
+    awsRegionType: "global",
     // 자동 설치 모드 — 이 모드에서만 '내가 할 일'이 권한 확인 한 건이라, 그게 끝나면 0 이 된다.
     isTerraformExecutionGranted: true,
     processStatus: ProcessStatus.INSTALLING,
-    status: createStatusForProcessStatus(ProcessStatus.INSTALLING, { selectedCount: 4, excludedCount: 1 }),
+    status: createStatusForProcessStatus(ProcessStatus.INSTALLING, {
+      selectedCount: 4,
+      excludedCount: 1,
+    }),
     resources: awsWireSampleResources,
     terraformState: {
-      roleVerify: 'COMPLETED',
-      serviceTf: 'PENDING',
-      bdcTf: 'PENDING',
+      roleVerify: "COMPLETED",
+      serviceTf: "PENDING",
+      bdcTf: "PENDING",
     },
-    createdAt: '2024-01-20T08:00:00Z',
-    updatedAt: '2024-01-20T09:30:00Z',
+    createdAt: "2024-01-20T08:00:00Z",
+    updatedAt: "2024-01-20T09:30:00Z",
     isRejected: false,
   },
   {
-    id: 'proj-5',
+    id: "proj-5",
     targetSourceId: 1010,
-    projectCode: 'DATA-005',
-    name: 'PII Agent 설치 - 데이터 마트',
-    description: 'Step 5. 연결 테스트 — 설치 완료 후 연결 테스트 수행을 검증합니다. 확정 정보가 실 BFF 응답 캡처라 Credential 불필요 엔진(Athena)과 필요 엔진(MySQL)이 섞여 있습니다.',
-    serviceCode: 'aws',
-    cloudProvider: 'AWS',
+    projectCode: "DATA-005",
+    name: "PII Agent 설치 - 데이터 마트",
+    description:
+      "Step 5. 연결 테스트 — 설치 완료 후 연결 테스트 수행을 검증합니다. 확정 정보가 실 BFF 응답 캡처라 Credential 불필요 엔진(Athena)과 필요 엔진(MySQL)이 섞여 있습니다.",
+    serviceCode: "aws",
+    cloudProvider: "AWS",
     awsAccountId: AWS_WIRE_CONFIRMED_ACCOUNT_ID,
-    awsRegionType: 'global',
+    awsRegionType: "global",
     // SDU 아님 — 이 행은 Step 5 연결 테스트를 보기 위한 것이고, SDU 로 두면 상세가
     // 미지원 안내로 대체돼 그 단계를 아예 볼 수 없다. SDU 표기·미지원 안내는 1099/1100.
     processStatus: ProcessStatus.WAITING_CONNECTION_TEST,
-    status: createStatusForProcessStatus(ProcessStatus.WAITING_CONNECTION_TEST, { selectedCount: 2, excludedCount: 1 }),
+    status: createStatusForProcessStatus(
+      ProcessStatus.WAITING_CONNECTION_TEST,
+      { selectedCount: 2, excludedCount: 1 }
+    ),
     resources: awsWireSampleResources,
     terraformState: {
-      serviceTf: 'COMPLETED',
-      bdcTf: 'COMPLETED',
+      serviceTf: "COMPLETED",
+      bdcTf: "COMPLETED",
     },
-    createdAt: '2024-01-21T11:00:00Z',
-    updatedAt: '2024-01-21T15:00:00Z',
+    createdAt: "2024-01-21T11:00:00Z",
+    updatedAt: "2024-01-21T15:00:00Z",
     isRejected: false,
   },
   {
-    id: 'proj-6',
+    id: "proj-6",
     targetSourceId: 1011,
-    projectCode: 'DATA-006',
-    name: 'PII Agent 설치 - 결제 데이터',
-    description: 'Step 6. 최종 관리자 승인 대기 — 연결 테스트 검증까지 끝난 뒤 완료 승인을 기다리는 화면을 검증합니다.',
-    serviceCode: 'aws',
-    cloudProvider: 'AWS',
+    projectCode: "DATA-006",
+    name: "PII Agent 설치 - 결제 데이터",
+    description:
+      "Step 6. 최종 관리자 승인 대기 — 연결 테스트 검증까지 끝난 뒤 완료 승인을 기다리는 화면을 검증합니다.",
+    serviceCode: "aws",
+    cloudProvider: "AWS",
     awsAccountId: AWS_WIRE_CONFIRMED_ACCOUNT_ID,
-    awsRegionType: 'global',
+    awsRegionType: "global",
     processStatus: ProcessStatus.CONNECTION_VERIFIED,
-    status: createStatusForProcessStatus(ProcessStatus.CONNECTION_VERIFIED, { selectedCount: 2, excludedCount: 0 }),
+    status: createStatusForProcessStatus(ProcessStatus.CONNECTION_VERIFIED, {
+      selectedCount: 2,
+      excludedCount: 0,
+    }),
     resources: connectedWireResources,
     terraformState: {
-      serviceTf: 'COMPLETED',
-      bdcTf: 'COMPLETED',
+      serviceTf: "COMPLETED",
+      bdcTf: "COMPLETED",
     },
-    createdAt: '2024-01-22T09:00:00Z',
-    updatedAt: '2024-01-22T16:00:00Z',
+    createdAt: "2024-01-22T09:00:00Z",
+    updatedAt: "2024-01-22T16:00:00Z",
     isRejected: false,
   },
   {
-    id: 'proj-7',
+    id: "proj-7",
     targetSourceId: 1012,
-    projectCode: 'DATA-007',
-    name: 'PII Agent 모니터링 운영',
-    description: 'Step 7. 설치 완료 — 연동이 끝나 PII 모니터링이 실행 중인 최종 화면을 검증합니다.',
-    serviceCode: 'aws',
-    cloudProvider: 'AWS',
+    projectCode: "DATA-007",
+    name: "PII Agent 모니터링 운영",
+    description:
+      "Step 7. 설치 완료 — 연동이 끝나 PII 모니터링이 실행 중인 최종 화면을 검증합니다.",
+    serviceCode: "aws",
+    cloudProvider: "AWS",
     awsAccountId: AWS_WIRE_CONFIRMED_ACCOUNT_ID,
-    awsRegionType: 'global',
+    awsRegionType: "global",
     processStatus: ProcessStatus.INSTALLATION_COMPLETE,
-    status: createStatusForProcessStatus(ProcessStatus.INSTALLATION_COMPLETE, { selectedCount: 3, excludedCount: 0 }),
+    status: createStatusForProcessStatus(ProcessStatus.INSTALLATION_COMPLETE, {
+      selectedCount: 3,
+      excludedCount: 0,
+    }),
     resources: connectedWireResources,
     terraformState: {
-      serviceTf: 'COMPLETED',
-      bdcTf: 'COMPLETED',
+      serviceTf: "COMPLETED",
+      bdcTf: "COMPLETED",
     },
-    createdAt: '2024-01-15T10:00:00Z',
-    updatedAt: '2024-01-25T14:30:00Z',
+    createdAt: "2024-01-15T10:00:00Z",
+    updatedAt: "2024-01-25T14:30:00Z",
     isRejected: false,
   },
   {
@@ -910,48 +1254,54 @@ export const mockProjects: Project[] = [
      * 계정 id 도 캡처 상수를 쓰지 않는다 — 같은 계정이 global 과 china 로 동시에
      * 존재하는 모양이 되어, 캡처를 읽는 화면들이 서로 다른 partition 을 말하게 된다.
      */
-    id: 'proj-8',
+    id: "proj-8",
     targetSourceId: 1018,
-    projectCode: 'DATA-008',
-    name: 'PII Agent 설치 - 중국 리전 계정',
-    description: '중국 리전 AWS 대상. 리전 표기와 aws-cn partition 처리를 검증합니다.',
-    serviceCode: 'aws',
-    cloudProvider: 'AWS',
-    awsAccountId: '918273645500',
-    awsRegionType: 'china',
+    projectCode: "DATA-008",
+    name: "PII Agent 설치 - 중국 리전 계정",
+    description:
+      "중국 리전 AWS 대상. 리전 표기와 aws-cn partition 처리를 검증합니다.",
+    serviceCode: "aws",
+    cloudProvider: "AWS",
+    awsAccountId: "918273645500",
+    awsRegionType: "china",
     isChinaRegion: true,
     processStatus: ProcessStatus.INSTALLATION_COMPLETE,
-    status: createStatusForProcessStatus(ProcessStatus.INSTALLATION_COMPLETE, { selectedCount: 1 }),
+    status: createStatusForProcessStatus(ProcessStatus.INSTALLATION_COMPLETE, {
+      selectedCount: 1,
+    }),
     resources: [],
     terraformState: {
-      serviceTf: 'COMPLETED',
-      bdcTf: 'COMPLETED',
+      serviceTf: "COMPLETED",
+      bdcTf: "COMPLETED",
     },
-    createdAt: '2024-02-02T09:00:00Z',
-    updatedAt: '2024-02-02T15:00:00Z',
+    createdAt: "2024-02-02T09:00:00Z",
+    updatedAt: "2024-02-02T15:00:00Z",
     isRejected: false,
   },
   {
     // AWS twin of GCP 1002: born without resources, so buildSeedScanHistory gives it no
     // scan and /resources answers 404 — the never-scanned step 1 entry screen.
-    id: 'proj-9',
+    id: "proj-9",
     targetSourceId: 1029,
-    projectCode: 'DATA-009',
-    name: 'PII Agent 설치 - 스캔 전 계정',
-    description: 'Step 1. 연동 대상 확정 — 아직 한 번도 스캔하지 않은 상태입니다. 스캔 시작 안내와 실행 진입점을 확인합니다.',
-    serviceCode: 'aws',
-    cloudProvider: 'AWS',
-    awsAccountId: '710293845611',
-    awsRegionType: 'global',
+    projectCode: "DATA-009",
+    name: "PII Agent 설치 - 스캔 전 계정",
+    description:
+      "Step 1. 연동 대상 확정 — 아직 한 번도 스캔하지 않은 상태입니다. 스캔 시작 안내와 실행 진입점을 확인합니다.",
+    serviceCode: "aws",
+    cloudProvider: "AWS",
+    awsAccountId: "710293845611",
+    awsRegionType: "global",
     processStatus: ProcessStatus.WAITING_TARGET_CONFIRMATION,
-    status: createStatusForProcessStatus(ProcessStatus.WAITING_TARGET_CONFIRMATION),
+    status: createStatusForProcessStatus(
+      ProcessStatus.WAITING_TARGET_CONFIRMATION
+    ),
     resources: [],
     terraformState: {
-      serviceTf: 'PENDING',
-      bdcTf: 'PENDING',
+      serviceTf: "PENDING",
+      bdcTf: "PENDING",
     },
-    createdAt: '2026-02-01T09:00:00Z',
-    updatedAt: '2026-02-01T09:00:00Z',
+    createdAt: "2026-02-01T09:00:00Z",
+    updatedAt: "2026-02-01T09:00:00Z",
     isRejected: false,
   },
 ];
@@ -966,42 +1316,128 @@ export const mockProjects: Project[] = [
 // status still comes from idc installation-status (lib/mock-idc.ts).
 const IDC_DEMO_RESOURCES: MockResource[] = [
   {
-    id: 'idc-res-001', type: 'IDC_RESOURCE', resourceId: 'idc-res-001',
-    connectionStatus: 'PENDING', isSelected: true, databaseType: 'MYSQL', integrationCategory: 'TARGET',
-    idcConfig: { inputFormat: 'IP', ips: ['10.20.30.40'], domain: '', sourceIps: ['10.10.0.21'], firewallOpen: true },
+    id: "idc-res-001",
+    type: "IDC_RESOURCE",
+    resourceId: "idc-res-001",
+    connectionStatus: "PENDING",
+    isSelected: true,
+    databaseType: "MYSQL",
+    integrationCategory: "TARGET",
+    idcConfig: {
+      inputFormat: "IP",
+      ips: ["10.20.30.40"],
+      domain: "",
+      sourceIps: ["10.10.0.21"],
+      firewallOpen: true,
+    },
   },
   {
-    id: 'idc-res-002', type: 'IDC_RESOURCE', resourceId: 'idc-res-002',
-    connectionStatus: 'PENDING', isSelected: true, databaseType: 'ORACLE', integrationCategory: 'TARGET',
-    idcConfig: { inputFormat: 'IP', ips: ['10.20.31.10', '10.20.31.11'], domain: '', oracleSid: 'ORCL', sourceIps: ['10.10.0.21', '10.10.0.22'], firewallOpen: true },
+    id: "idc-res-002",
+    type: "IDC_RESOURCE",
+    resourceId: "idc-res-002",
+    connectionStatus: "PENDING",
+    isSelected: true,
+    databaseType: "ORACLE",
+    integrationCategory: "TARGET",
+    idcConfig: {
+      inputFormat: "IP",
+      ips: ["10.20.31.10", "10.20.31.11"],
+      domain: "",
+      oracleSid: "ORCL",
+      sourceIps: ["10.10.0.21", "10.10.0.22"],
+      firewallOpen: true,
+    },
   },
   {
-    id: 'idc-res-003', type: 'IDC_RESOURCE', resourceId: 'idc-res-003',
-    connectionStatus: 'PENDING', isSelected: true, databaseType: 'MYSQL', integrationCategory: 'TARGET',
-    idcConfig: { inputFormat: 'IP', ips: ['10.20.32.7'], domain: '', sourceIps: ['10.10.0.21'], firewallOpen: false },
+    id: "idc-res-003",
+    type: "IDC_RESOURCE",
+    resourceId: "idc-res-003",
+    connectionStatus: "PENDING",
+    isSelected: true,
+    databaseType: "MYSQL",
+    integrationCategory: "TARGET",
+    idcConfig: {
+      inputFormat: "IP",
+      ips: ["10.20.32.7"],
+      domain: "",
+      sourceIps: ["10.10.0.21"],
+      firewallOpen: false,
+    },
   },
   {
-    id: 'idc-res-004', type: 'IDC_RESOURCE', resourceId: 'idc-res-004',
-    connectionStatus: 'PENDING', isSelected: true, databaseType: 'MONGODB', integrationCategory: 'TARGET',
-    idcConfig: { inputFormat: 'IP', ips: ['10.20.32.8'], domain: '', sourceIps: ['10.10.0.22'], firewallOpen: true },
+    id: "idc-res-004",
+    type: "IDC_RESOURCE",
+    resourceId: "idc-res-004",
+    connectionStatus: "PENDING",
+    isSelected: true,
+    databaseType: "MONGODB",
+    integrationCategory: "TARGET",
+    idcConfig: {
+      inputFormat: "IP",
+      ips: ["10.20.32.8"],
+      domain: "",
+      sourceIps: ["10.10.0.22"],
+      firewallOpen: true,
+    },
   },
   {
-    id: 'idc-res-005', type: 'IDC_RESOURCE', resourceId: 'idc-res-005',
-    connectionStatus: 'PENDING', isSelected: true, databaseType: 'MSSQL', integrationCategory: 'TARGET',
-    idcConfig: { inputFormat: 'IP', ips: ['10.20.33.2'], domain: '', sourceIps: ['10.10.0.22'], firewallOpen: true },
+    id: "idc-res-005",
+    type: "IDC_RESOURCE",
+    resourceId: "idc-res-005",
+    connectionStatus: "PENDING",
+    isSelected: true,
+    databaseType: "MSSQL",
+    integrationCategory: "TARGET",
+    idcConfig: {
+      inputFormat: "IP",
+      ips: ["10.20.33.2"],
+      domain: "",
+      sourceIps: ["10.10.0.22"],
+      firewallOpen: true,
+    },
   },
   // Excluded (비대상) — surfaced in Step 2/3 with their reason chips.
   {
-    id: 'idc-res-006', type: 'IDC_RESOURCE', resourceId: 'idc-res-006',
-    connectionStatus: 'PENDING', isSelected: false, databaseType: 'POSTGRESQL', integrationCategory: 'TARGET',
-    idcConfig: { inputFormat: 'HOST', ips: [], domain: 'db.svc-a.io', sourceIps: [], firewallOpen: false },
-    exclusion: { reason: 'StageDB', excludedBy: { id: 'admin-1', name: '관리자' }, excludedAt: '2026-03-01T09:00:00Z' },
+    id: "idc-res-006",
+    type: "IDC_RESOURCE",
+    resourceId: "idc-res-006",
+    connectionStatus: "PENDING",
+    isSelected: false,
+    databaseType: "POSTGRESQL",
+    integrationCategory: "TARGET",
+    idcConfig: {
+      inputFormat: "HOST",
+      ips: [],
+      domain: "db.svc-a.io",
+      sourceIps: [],
+      firewallOpen: false,
+    },
+    exclusion: {
+      reason: "StageDB",
+      excludedBy: { id: "admin-1", name: "관리자" },
+      excludedAt: "2026-03-01T09:00:00Z",
+    },
   },
   {
-    id: 'idc-res-007', type: 'IDC_RESOURCE', resourceId: 'idc-res-007',
-    connectionStatus: 'PENDING', isSelected: false, databaseType: 'REDIS', integrationCategory: 'TARGET',
-    idcConfig: { inputFormat: 'HOST', ips: [], domain: 'cache.svc-a.io', sourceIps: [], firewallOpen: false },
-    exclusion: { reason: '캐시 전용 DB로 PII 데이터를 보관하지 않아 제외합니다.', excludedBy: { id: 'admin-1', name: '관리자' }, excludedAt: '2026-03-01T09:00:00Z' },
+    id: "idc-res-007",
+    type: "IDC_RESOURCE",
+    resourceId: "idc-res-007",
+    connectionStatus: "PENDING",
+    isSelected: false,
+    databaseType: "REDIS",
+    integrationCategory: "TARGET",
+    idcConfig: {
+      inputFormat: "HOST",
+      ips: [],
+      domain: "cache.svc-a.io",
+      sourceIps: [],
+      firewallOpen: false,
+    },
+    exclusion: {
+      reason: "캐시 전용 DB로 PII 데이터를 보관하지 않아 제외합니다.",
+      excludedBy: { id: "admin-1", name: "관리자" },
+      excludedAt: "2026-03-01T09:00:00Z",
+    },
   },
 ];
 
@@ -1010,19 +1446,19 @@ const IDC_DEMO_RESOURCES: MockResource[] = [
 // numbers 1~7, so this table is complete by construction.
 const IDC_STEP_DESCRIPTION: Record<ProcessStatus, string> = {
   [ProcessStatus.WAITING_TARGET_CONFIRMATION]:
-    'Step 1. 연동 대상 입력 — 스캔이 없는 IDC 라 대상 DB 를 직접 입력하는 단계입니다. 빈 목록에서 IP·도메인과 포트, DB 종류를 추가하는 흐름을 확인합니다.',
+    "Step 1. 연동 대상 입력 — 스캔이 없는 IDC 라 대상 DB 를 직접 입력하는 단계입니다. 빈 목록에서 IP·도메인과 포트, DB 종류를 추가하는 흐름을 확인합니다.",
   [ProcessStatus.WAITING_APPROVAL]:
-    'Step 2. 관리자 승인 대기 — 직접 입력한 대상 5건(MySQL·Oracle·MongoDB·MSSQL)과 제외 2건이 승인 요청까지 올라간 상태입니다. 방화벽 오픈 여부와 Source IP 표기를 확인합니다.',
+    "Step 2. 관리자 승인 대기 — 직접 입력한 대상 5건(MySQL·Oracle·MongoDB·MSSQL)과 제외 2건이 승인 요청까지 올라간 상태입니다. 방화벽 오픈 여부와 Source IP 표기를 확인합니다.",
   [ProcessStatus.APPLYING_APPROVED]:
-    'Step 3. 승인 반영 중 — 승인 직후 확정 처리(APPLYING_APPROVED)를 기다리는 화면입니다. 폴링 중 안내 문구와 설치 진입 직전 상태를 확인합니다.',
+    "Step 3. 승인 반영 중 — 승인 직후 확정 처리(APPLYING_APPROVED)를 기다리는 화면입니다. 폴링 중 안내 문구와 설치 진입 직전 상태를 확인합니다.",
   [ProcessStatus.INSTALLING]:
-    'Step 4. 설치 진행 — IDC 설치 단계별 현황을 확인합니다. 클라우드와 달리 방화벽 오픈 같은 담당자 직접 작업이 자동 단계와 나란히 놓입니다.',
+    "Step 4. 설치 진행 — IDC 설치 단계별 현황을 확인합니다. 클라우드와 달리 방화벽 오픈 같은 담당자 직접 작업이 자동 단계와 나란히 놓입니다.",
   [ProcessStatus.WAITING_CONNECTION_TEST]:
-    'Step 5. 연결 테스트 — 설치가 끝난 온프레미스 DB 5건에 연결 테스트를 수행하는 화면입니다. 엔진별 Credential 입력과 테스트 결과 표기를 확인합니다.',
+    "Step 5. 연결 테스트 — 설치가 끝난 온프레미스 DB 5건에 연결 테스트를 수행하는 화면입니다. 엔진별 Credential 입력과 테스트 결과 표기를 확인합니다.",
   [ProcessStatus.CONNECTION_VERIFIED]:
-    'Step 6. 완료 승인 대기 — 연결 테스트 검증까지 끝난 뒤 관리자의 완료 승인을 기다리는 화면을 확인합니다.',
+    "Step 6. 완료 승인 대기 — 연결 테스트 검증까지 끝난 뒤 관리자의 완료 승인을 기다리는 화면을 확인합니다.",
   [ProcessStatus.INSTALLATION_COMPLETE]:
-    'Step 7. 설치 완료 — 연동이 끝나 PII 모니터링이 실행 중인 최종 화면을 확인합니다.',
+    "Step 7. 설치 완료 — 연동이 끝나 PII 모니터링이 실행 중인 최종 화면을 확인합니다.",
 };
 
 const makeIdcProject = (
@@ -1030,23 +1466,29 @@ const makeIdcProject = (
   step: ProcessStatus,
   name: string,
   resources: MockResource[],
-  unavailableReason?: string,
+  unavailableReason?: string
 ): Project => ({
   id: `idc-proj-${targetSourceId}`,
   targetSourceId,
   projectCode: `IDC-${String(targetSourceId).slice(-3)}`,
   name,
   description: unavailableReason
-    ? 'Step 2. 관리자 승인 — 연동 불가로 판정된 상태입니다. 요청한 온프레미스 DB 가 연동 대상 네트워크 대역 밖일 때의 판정과 사유 문구를 확인합니다.'
+    ? "Step 2. 관리자 승인 — 연동 불가로 판정된 상태입니다. 요청한 온프레미스 DB 가 연동 대상 네트워크 대역 밖일 때의 판정과 사유 문구를 확인합니다."
     : IDC_STEP_DESCRIPTION[step],
-  serviceCode: 'idc',
-  cloudProvider: 'IDC',
+  serviceCode: "idc",
+  cloudProvider: "IDC",
   processStatus: step,
-  status: createStatusForProcessStatus(step, { selectedCount: 5, excludedCount: 2, unavailableReason }),
+  status: createStatusForProcessStatus(step, {
+    selectedCount: 5,
+    excludedCount: 2,
+    unavailableReason,
+  }),
   resources,
-  terraformState: { bdcTf: step >= ProcessStatus.INSTALLING ? 'COMPLETED' : 'PENDING' },
-  createdAt: '2026-03-01T09:00:00Z',
-  updatedAt: '2026-03-01T09:00:00Z',
+  terraformState: {
+    bdcTf: step >= ProcessStatus.INSTALLING ? "COMPLETED" : "PENDING",
+  },
+  createdAt: "2026-03-01T09:00:00Z",
+  updatedAt: "2026-03-01T09:00:00Z",
   isRejected: false,
 });
 
@@ -1055,34 +1497,75 @@ const makeIdcProject = (
 // INSTALLATION_COMPLETE). Mark selected targets CONNECTED for those steps.
 const idcResourcesForStep = (step: ProcessStatus): MockResource[] => {
   const connected =
-    step === ProcessStatus.CONNECTION_VERIFIED || step === ProcessStatus.INSTALLATION_COMPLETE;
+    step === ProcessStatus.CONNECTION_VERIFIED ||
+    step === ProcessStatus.INSTALLATION_COMPLETE;
   return connected
     ? IDC_DEMO_RESOURCES.map((r) =>
-        r.isSelected ? { ...r, connectionStatus: 'CONNECTED' as const } : r,
+        r.isSelected ? { ...r, connectionStatus: "CONNECTED" as const } : r
       )
     : IDC_DEMO_RESOURCES;
 };
 
 mockProjects.push(
   // Step 1 stays empty (manual input — no seeded targets).
-  makeIdcProject(1020, ProcessStatus.WAITING_TARGET_CONFIRMATION, 'IDC PII Agent - 연동 대상 입력', []),
+  makeIdcProject(
+    1020,
+    ProcessStatus.WAITING_TARGET_CONFIRMATION,
+    "IDC PII Agent - 연동 대상 입력",
+    []
+  ),
   // 1020 의 짝 — 이전 요청이 없는 타겟소스(lib/mock-idc.ts 가 404 로 답한다). 불러오기
   // 모달의 빈 상태는 이 화면에서만 볼 수 있다: 1020 은 시드를 갖고 있어 표가 뜬다.
-  makeIdcProject(1028, ProcessStatus.WAITING_TARGET_CONFIRMATION, 'IDC PII Agent - 연동 대상 입력 (이전 요청 없음)', []),
-  makeIdcProject(1021, ProcessStatus.WAITING_APPROVAL, 'IDC PII Agent - 승인 대기', idcResourcesForStep(ProcessStatus.WAITING_APPROVAL)),
-  makeIdcProject(1022, ProcessStatus.APPLYING_APPROVED, 'IDC PII Agent - 반영 중', idcResourcesForStep(ProcessStatus.APPLYING_APPROVED)),
-  makeIdcProject(1023, ProcessStatus.INSTALLING, 'IDC PII Agent - 설치 진행', idcResourcesForStep(ProcessStatus.INSTALLING)),
-  makeIdcProject(1024, ProcessStatus.WAITING_CONNECTION_TEST, 'IDC PII Agent - 연결 테스트', idcResourcesForStep(ProcessStatus.WAITING_CONNECTION_TEST)),
-  makeIdcProject(1025, ProcessStatus.CONNECTION_VERIFIED, 'IDC PII Agent - 연결 확인', idcResourcesForStep(ProcessStatus.CONNECTION_VERIFIED)),
-  makeIdcProject(1026, ProcessStatus.INSTALLATION_COMPLETE, 'IDC PII Agent - 설치 완료', idcResourcesForStep(ProcessStatus.INSTALLATION_COMPLETE)),
+  makeIdcProject(
+    1028,
+    ProcessStatus.WAITING_TARGET_CONFIRMATION,
+    "IDC PII Agent - 연동 대상 입력 (이전 요청 없음)",
+    []
+  ),
+  makeIdcProject(
+    1021,
+    ProcessStatus.WAITING_APPROVAL,
+    "IDC PII Agent - 승인 대기",
+    idcResourcesForStep(ProcessStatus.WAITING_APPROVAL)
+  ),
+  makeIdcProject(
+    1022,
+    ProcessStatus.APPLYING_APPROVED,
+    "IDC PII Agent - 반영 중",
+    idcResourcesForStep(ProcessStatus.APPLYING_APPROVED)
+  ),
+  makeIdcProject(
+    1023,
+    ProcessStatus.INSTALLING,
+    "IDC PII Agent - 설치 진행",
+    idcResourcesForStep(ProcessStatus.INSTALLING)
+  ),
+  makeIdcProject(
+    1024,
+    ProcessStatus.WAITING_CONNECTION_TEST,
+    "IDC PII Agent - 연결 테스트",
+    idcResourcesForStep(ProcessStatus.WAITING_CONNECTION_TEST)
+  ),
+  makeIdcProject(
+    1025,
+    ProcessStatus.CONNECTION_VERIFIED,
+    "IDC PII Agent - 연결 확인",
+    idcResourcesForStep(ProcessStatus.CONNECTION_VERIFIED)
+  ),
+  makeIdcProject(
+    1026,
+    ProcessStatus.INSTALLATION_COMPLETE,
+    "IDC PII Agent - 설치 완료",
+    idcResourcesForStep(ProcessStatus.INSTALLATION_COMPLETE)
+  ),
   // Step 2, integration-unavailable sub-state — targets judged un-integratable by admin.
   makeIdcProject(
     1027,
     ProcessStatus.WAITING_APPROVAL,
-    'IDC PII Agent - 연동 불가',
+    "IDC PII Agent - 연동 불가",
     idcResourcesForStep(ProcessStatus.WAITING_APPROVAL),
-    '요청하신 온프레미스 DB는 현재 연동 대상 네트워크 대역 밖에 있어 연동할 수 없습니다.',
-  ),
+    "요청하신 온프레미스 DB는 현재 연동 대상 네트워크 대역 밖에 있어 연동할 수 없습니다."
+  )
 );
 
 // ===== Cloud step-coverage seed (detail page) =====
@@ -1090,47 +1573,51 @@ mockProjects.push(
 // the target-source detail page for azure / aws / gcp (IDC is seeded above).
 // Cloud step screens read `project.resources`, so GCP (whose only seed has none)
 // gets a small demo set; azure/aws clones inherit their base's resources.
-const gcpDemoResources: Project['resources'] = [
+const gcpDemoResources: Project["resources"] = [
   {
-    id: 'gcp-res-1',
-    type: 'GCP_SQL',
-    resourceId: 'projects/sea-bdp-prd/locations/asia-northeast3/services/bigquery/datasets/sea_bdp_prd',
-    databaseType: 'MYSQL',
-    connectionStatus: 'PENDING',
+    id: "gcp-res-1",
+    type: "GCP_SQL",
+    resourceId:
+      "projects/sea-bdp-prd/locations/asia-northeast3/services/bigquery/datasets/sea_bdp_prd",
+    databaseType: "MYSQL",
+    connectionStatus: "PENDING",
     isSelected: true,
-    integrationCategory: 'TARGET',
+    integrationCategory: "TARGET",
   },
   {
-    id: 'gcp-res-2',
-    type: 'GCP_SQL',
-    resourceId: 'projects/sea-bdp-prd/locations/asia-northeast3/instances/sql-analytics-01',
-    databaseType: 'MYSQL',
-    connectionStatus: 'PENDING',
+    id: "gcp-res-2",
+    type: "GCP_SQL",
+    resourceId:
+      "projects/sea-bdp-prd/locations/asia-northeast3/instances/sql-analytics-01",
+    databaseType: "MYSQL",
+    connectionStatus: "PENDING",
     isSelected: true,
-    integrationCategory: 'TARGET',
+    integrationCategory: "TARGET",
   },
   {
-    id: 'gcp-res-3',
-    type: 'GCP_SQL',
-    resourceId: 'projects/sea-bdp-prd/locations/asia-northeast3/instances/cloudsql-main',
-    databaseType: 'POSTGRESQL',
-    connectionStatus: 'PENDING',
+    id: "gcp-res-3",
+    type: "GCP_SQL",
+    resourceId:
+      "projects/sea-bdp-prd/locations/asia-northeast3/instances/cloudsql-main",
+    databaseType: "POSTGRESQL",
+    connectionStatus: "PENDING",
     isSelected: true,
-    integrationCategory: 'TARGET',
+    integrationCategory: "TARGET",
   },
   // 비대상 (excluded) — v15 step2/3 show 비대상 rows with reason chips
   {
-    id: 'gcp-res-4',
-    type: 'GCP_SQL',
-    resourceId: 'projects/sea-bdp-prd/locations/asia-northeast3/instances/cloudsql-stg-02',
-    databaseType: 'POSTGRESQL',
-    connectionStatus: 'PENDING',
+    id: "gcp-res-4",
+    type: "GCP_SQL",
+    resourceId:
+      "projects/sea-bdp-prd/locations/asia-northeast3/instances/cloudsql-stg-02",
+    databaseType: "POSTGRESQL",
+    connectionStatus: "PENDING",
     isSelected: false,
-    integrationCategory: 'TARGET',
+    integrationCategory: "TARGET",
     exclusion: {
-      reason: 'Stg 환경 DB · PII 데이터 미보유',
-      excludedAt: '2026-02-01T09:00:00Z',
-      excludedBy: { id: 'admin-1', name: '관리자' },
+      reason: "Stg 환경 DB · PII 데이터 미보유",
+      excludedAt: "2026-02-01T09:00:00Z",
+      excludedBy: { id: "admin-1", name: "관리자" },
     },
   },
 ];
@@ -1145,9 +1632,9 @@ const cloneForStep = (
     status: ProcessStatus;
     /** 미지정 시 base 설명을 그대로 상속한다. */
     description?: string;
-    resources?: Project['resources'];
+    resources?: Project["resources"];
     unavailableReason?: string;
-  },
+  }
 ): Project => {
   const base = mockProjects.find((p) => p.id === baseId);
   if (!base) throw new Error(`step-coverage base not found: ${baseId}`);
@@ -1161,9 +1648,9 @@ const cloneForStep = (
     over.status === ProcessStatus.INSTALLATION_COMPLETE;
   const resources = requiresConnection
     ? sourceResources.map((r) =>
-        r.isSelected && r.integrationCategory === 'TARGET'
-          ? { ...r, connectionStatus: 'CONNECTED' as const }
-          : r,
+        r.isSelected && r.integrationCategory === "TARGET"
+          ? { ...r, connectionStatus: "CONNECTED" as const }
+          : r
       )
     : sourceResources;
   return {
@@ -1185,31 +1672,136 @@ const cloneForStep = (
 
 mockProjects.push(
   // AWS — fills the missing APPLYING_APPROVED step
-  cloneForStep('proj-3', {
-    id: 'aws-proj-applying',
+  cloneForStep("proj-3", {
+    id: "aws-proj-applying",
     targetSourceId: 2001,
-    projectCode: 'AWS-APPLYING',
-    name: 'AWS PII Agent - 반영 중',
+    projectCode: "AWS-APPLYING",
+    name: "AWS PII Agent - 반영 중",
     status: ProcessStatus.APPLYING_APPROVED,
-    description: 'Step 3. 승인 반영 중 — 승인 직후 확정 처리(APPLYING_APPROVED)를 기다리는 화면을 검증합니다. 폴링 중 안내 문구와 설치 진입 직전 상태를 확인할 수 있습니다.',
+    description:
+      "Step 3. 승인 반영 중 — 승인 직후 확정 처리(APPLYING_APPROVED)를 기다리는 화면을 검증합니다. 폴링 중 안내 문구와 설치 진입 직전 상태를 확인할 수 있습니다.",
     // RDS 클러스터 인스턴스 목록(선택됨 칩 포함)이 3단계 승인 정보에 그대로 보이는지 검증.
     resources: [...awsWireSampleResources, rdsClusterApplyingResource],
   }),
   // Azure — fills steps 2/3/5/6/7 (base azure-proj-1 carries full resources)
-  cloneForStep('azure-proj-1', { id: 'azure-proj-approval', description: 'Step 2. 관리자 승인 대기 — Azure DB 대상이 승인 요청까지 올라간 상태입니다. 승인 정보 카드와 대기 안내 문구를 확인합니다.', targetSourceId: 2002, projectCode: 'AZURE-APPROVAL', name: 'Azure PII Agent - 승인 대기', status: ProcessStatus.WAITING_APPROVAL }),
-  cloneForStep('azure-proj-1', { id: 'azure-proj-applying', description: 'Step 3. 승인 반영 중 — 승인 직후 확정 처리(APPLYING_APPROVED)를 기다리는 화면입니다. 폴링 중 안내 문구와 설치 진입 직전 상태를 확인합니다.', targetSourceId: 2003, projectCode: 'AZURE-APPLYING', name: 'Azure PII Agent - 반영 중', status: ProcessStatus.APPLYING_APPROVED }),
-  cloneForStep('azure-proj-1', { id: 'azure-proj-test', description: 'Step 5. 연결 테스트 — 설치가 끝난 Azure DB 대상에 연결 테스트를 수행하는 화면입니다. 엔진별 Credential 입력과 테스트 결과 표기를 확인합니다.', targetSourceId: 2004, projectCode: 'AZURE-TEST', name: 'Azure PII Agent - 연결 테스트', status: ProcessStatus.WAITING_CONNECTION_TEST }),
-  cloneForStep('azure-proj-1', { id: 'azure-proj-verified', description: 'Step 6. 완료 승인 대기 — 연결 테스트 검증까지 끝난 뒤 관리자의 완료 승인을 기다리는 화면을 확인합니다.', targetSourceId: 2005, projectCode: 'AZURE-VERIFIED', name: 'Azure PII Agent - 완료 승인 대기', status: ProcessStatus.CONNECTION_VERIFIED }),
-  cloneForStep('azure-proj-1', { id: 'azure-proj-complete', description: 'Step 7. 설치 완료 — 연동이 끝나 PII 모니터링이 실행 중인 최종 화면을 확인합니다.', targetSourceId: 2006, projectCode: 'AZURE-COMPLETE', name: 'Azure PII Agent - 연동 완료', status: ProcessStatus.INSTALLATION_COMPLETE }),
+  cloneForStep("azure-proj-1", {
+    id: "azure-proj-approval",
+    description:
+      "Step 2. 관리자 승인 대기 — Azure DB 대상이 승인 요청까지 올라간 상태입니다. 승인 정보 카드와 대기 안내 문구를 확인합니다.",
+    targetSourceId: 2002,
+    projectCode: "AZURE-APPROVAL",
+    name: "Azure PII Agent - 승인 대기",
+    status: ProcessStatus.WAITING_APPROVAL,
+  }),
+  cloneForStep("azure-proj-1", {
+    id: "azure-proj-applying",
+    description:
+      "Step 3. 승인 반영 중 — 승인 직후 확정 처리(APPLYING_APPROVED)를 기다리는 화면입니다. 폴링 중 안내 문구와 설치 진입 직전 상태를 확인합니다.",
+    targetSourceId: 2003,
+    projectCode: "AZURE-APPLYING",
+    name: "Azure PII Agent - 반영 중",
+    status: ProcessStatus.APPLYING_APPROVED,
+  }),
+  cloneForStep("azure-proj-1", {
+    id: "azure-proj-test",
+    description:
+      "Step 5. 연결 테스트 — 설치가 끝난 Azure DB 대상에 연결 테스트를 수행하는 화면입니다. 엔진별 Credential 입력과 테스트 결과 표기를 확인합니다.",
+    targetSourceId: 2004,
+    projectCode: "AZURE-TEST",
+    name: "Azure PII Agent - 연결 테스트",
+    status: ProcessStatus.WAITING_CONNECTION_TEST,
+  }),
+  cloneForStep("azure-proj-1", {
+    id: "azure-proj-verified",
+    description:
+      "Step 6. 완료 승인 대기 — 연결 테스트 검증까지 끝난 뒤 관리자의 완료 승인을 기다리는 화면을 확인합니다.",
+    targetSourceId: 2005,
+    projectCode: "AZURE-VERIFIED",
+    name: "Azure PII Agent - 완료 승인 대기",
+    status: ProcessStatus.CONNECTION_VERIFIED,
+  }),
+  cloneForStep("azure-proj-1", {
+    id: "azure-proj-complete",
+    description:
+      "Step 7. 설치 완료 — 연동이 끝나 PII 모니터링이 실행 중인 최종 화면을 확인합니다.",
+    targetSourceId: 2006,
+    projectCode: "AZURE-COMPLETE",
+    name: "Azure PII Agent - 연동 완료",
+    status: ProcessStatus.INSTALLATION_COMPLETE,
+  }),
   // Step 2, integration-unavailable sub-state — verdict + reason on the cloud approval card.
-  cloneForStep('azure-proj-1', { id: 'azure-proj-unavailable', description: 'Step 2. 관리자 승인 — 연동 불가로 판정된 상태입니다. 승인 카드의 판정과 사유 문구, 대상 재선택 안내를 확인합니다.', targetSourceId: 2013, projectCode: 'AZURE-UNAVAIL', name: 'Azure PII Agent - 연동 불가', status: ProcessStatus.WAITING_APPROVAL, unavailableReason: '선택하신 리소스는 현재 지원되지 않는 유형이라 연동할 수 없습니다. 지원 대상 DB만 다시 선택해주세요.' }),
+  cloneForStep("azure-proj-1", {
+    id: "azure-proj-unavailable",
+    description:
+      "Step 2. 관리자 승인 — 연동 불가로 판정된 상태입니다. 승인 카드의 판정과 사유 문구, 대상 재선택 안내를 확인합니다.",
+    targetSourceId: 2013,
+    projectCode: "AZURE-UNAVAIL",
+    name: "Azure PII Agent - 연동 불가",
+    status: ProcessStatus.WAITING_APPROVAL,
+    unavailableReason:
+      "선택하신 리소스는 현재 지원되지 않는 유형이라 연동할 수 없습니다. 지원 대상 DB만 다시 선택해주세요.",
+  }),
   // GCP — fills steps 2/3/4/5/6/7 (gcp-proj-1 has no resources, so inject a demo set)
-  cloneForStep('gcp-proj-1', { id: 'gcp-proj-approval', description: 'Step 2. 관리자 승인 대기 — Cloud SQL 대상이 승인 요청까지 올라간 상태입니다. 승인 정보 카드와 대기 안내 문구를 확인합니다.', targetSourceId: 2007, projectCode: 'GCP-APPROVAL', name: 'GCP PII Agent - 승인 대기', status: ProcessStatus.WAITING_APPROVAL, resources: gcpDemoResources }),
-  cloneForStep('gcp-proj-1', { id: 'gcp-proj-applying', description: 'Step 3. 승인 반영 중 — 승인 직후 확정 처리(APPLYING_APPROVED)를 기다리는 화면입니다. 폴링 중 안내 문구와 설치 진입 직전 상태를 확인합니다.', targetSourceId: 2008, projectCode: 'GCP-APPLYING', name: 'GCP PII Agent - 반영 중', status: ProcessStatus.APPLYING_APPROVED, resources: gcpDemoResources }),
-  cloneForStep('gcp-proj-1', { id: 'gcp-proj-installing', description: 'Step 4. 설치 진행 — GCP 자동 설치의 단계별 현황(서비스측/BDC측)을 확인합니다.', targetSourceId: 2009, projectCode: 'GCP-INSTALLING', name: 'GCP PII Agent - 설치 진행', status: ProcessStatus.INSTALLING, resources: gcpDemoResources }),
-  cloneForStep('gcp-proj-1', { id: 'gcp-proj-test', description: 'Step 5. 연결 테스트 — 설치가 끝난 Cloud SQL 대상에 연결 테스트를 수행하는 화면입니다. 엔진별 Credential 입력과 테스트 결과 표기를 확인합니다.', targetSourceId: 2010, projectCode: 'GCP-TEST', name: 'GCP PII Agent - 연결 테스트', status: ProcessStatus.WAITING_CONNECTION_TEST, resources: gcpDemoResources }),
-  cloneForStep('gcp-proj-1', { id: 'gcp-proj-verified', description: 'Step 6. 완료 승인 대기 — 연결 테스트 검증까지 끝난 뒤 관리자의 완료 승인을 기다리는 화면을 확인합니다.', targetSourceId: 2011, projectCode: 'GCP-VERIFIED', name: 'GCP PII Agent - 완료 승인 대기', status: ProcessStatus.CONNECTION_VERIFIED, resources: gcpDemoResources }),
-  cloneForStep('gcp-proj-1', { id: 'gcp-proj-complete', description: 'Step 7. 설치 완료 — 연동이 끝나 PII 모니터링이 실행 중인 최종 화면을 확인합니다.', targetSourceId: 2012, projectCode: 'GCP-COMPLETE', name: 'GCP PII Agent - 연동 완료', status: ProcessStatus.INSTALLATION_COMPLETE, resources: gcpDemoResources }),
+  cloneForStep("gcp-proj-1", {
+    id: "gcp-proj-approval",
+    description:
+      "Step 2. 관리자 승인 대기 — Cloud SQL 대상이 승인 요청까지 올라간 상태입니다. 승인 정보 카드와 대기 안내 문구를 확인합니다.",
+    targetSourceId: 2007,
+    projectCode: "GCP-APPROVAL",
+    name: "GCP PII Agent - 승인 대기",
+    status: ProcessStatus.WAITING_APPROVAL,
+    resources: gcpDemoResources,
+  }),
+  cloneForStep("gcp-proj-1", {
+    id: "gcp-proj-applying",
+    description:
+      "Step 3. 승인 반영 중 — 승인 직후 확정 처리(APPLYING_APPROVED)를 기다리는 화면입니다. 폴링 중 안내 문구와 설치 진입 직전 상태를 확인합니다.",
+    targetSourceId: 2008,
+    projectCode: "GCP-APPLYING",
+    name: "GCP PII Agent - 반영 중",
+    status: ProcessStatus.APPLYING_APPROVED,
+    resources: gcpDemoResources,
+  }),
+  cloneForStep("gcp-proj-1", {
+    id: "gcp-proj-installing",
+    description:
+      "Step 4. 설치 진행 — GCP 자동 설치의 단계별 현황(서비스측/BDC측)을 확인합니다.",
+    targetSourceId: 2009,
+    projectCode: "GCP-INSTALLING",
+    name: "GCP PII Agent - 설치 진행",
+    status: ProcessStatus.INSTALLING,
+    resources: gcpDemoResources,
+  }),
+  cloneForStep("gcp-proj-1", {
+    id: "gcp-proj-test",
+    description:
+      "Step 5. 연결 테스트 — 설치가 끝난 Cloud SQL 대상에 연결 테스트를 수행하는 화면입니다. 엔진별 Credential 입력과 테스트 결과 표기를 확인합니다.",
+    targetSourceId: 2010,
+    projectCode: "GCP-TEST",
+    name: "GCP PII Agent - 연결 테스트",
+    status: ProcessStatus.WAITING_CONNECTION_TEST,
+    resources: gcpDemoResources,
+  }),
+  cloneForStep("gcp-proj-1", {
+    id: "gcp-proj-verified",
+    description:
+      "Step 6. 완료 승인 대기 — 연결 테스트 검증까지 끝난 뒤 관리자의 완료 승인을 기다리는 화면을 확인합니다.",
+    targetSourceId: 2011,
+    projectCode: "GCP-VERIFIED",
+    name: "GCP PII Agent - 완료 승인 대기",
+    status: ProcessStatus.CONNECTION_VERIFIED,
+    resources: gcpDemoResources,
+  }),
+  cloneForStep("gcp-proj-1", {
+    id: "gcp-proj-complete",
+    description:
+      "Step 7. 설치 완료 — 연동이 끝나 PII 모니터링이 실행 중인 최종 화면을 확인합니다.",
+    targetSourceId: 2012,
+    projectCode: "GCP-COMPLETE",
+    name: "GCP PII Agent - 연동 완료",
+    status: ProcessStatus.INSTALLATION_COMPLETE,
+    resources: gcpDemoResources,
+  })
 );
 
 // ===== Step 5 TC 카드 상태 fixture (21xx) =====
@@ -1219,16 +1811,17 @@ mockProjects.push(
 // lib/mock-test-connection.ts 의 TC_CARD_FIXTURE 가 같은 id(2101~2108)로 분기한다.
 // Credential 게이트가 슬롯 CTA 를 잠그지 않도록 자격 증명이 필요한 엔진에는 시드
 // Credential 을 배정한다 — 게이트가 잠근 변형은 1010 이 그대로 보여 준다.
-const tcCardFixtureResources: Project['resources'] = awsWireSampleResources.map((r) =>
-  needsCredential(r.databaseType)
-    ? {
-        ...r,
-        selectedCredentialId:
-          r.databaseType.toLowerCase() === 'postgresql'
-            ? 'kimcs-postgres-analytics'
-            : 'hgildong-mysql-prod',
-      }
-    : r,
+const tcCardFixtureResources: Project["resources"] = awsWireSampleResources.map(
+  (r) =>
+    needsCredential(r.databaseType)
+      ? {
+          ...r,
+          selectedCredentialId:
+            r.databaseType.toLowerCase() === "postgresql"
+              ? "kimcs-postgres-analytics"
+              : "hgildong-mysql-prod",
+        }
+      : r
 );
 
 const tcCardStateClone = (over: {
@@ -1237,7 +1830,7 @@ const tcCardStateClone = (over: {
   name: string;
   description: string;
 }): Project =>
-  cloneForStep('proj-5', {
+  cloneForStep("proj-5", {
     id: `aws-proj-tc-${over.key}`,
     targetSourceId: over.targetSourceId,
     projectCode: `TC-${over.key.toUpperCase()}`,
@@ -1249,149 +1842,163 @@ const tcCardStateClone = (over: {
 
 const tcCardConfirmedFixture = tcCardStateClone({
   targetSourceId: 2106,
-  key: 'confirmed',
-  name: 'TC 카드 - 확인 완료',
+  key: "confirmed",
+  name: "TC 카드 - 확인 완료",
   description:
-    'Step 5 TC 카드 상태 fixture — 확인 완료(봉인). 완료 승인이 이미 지나 CTA 없이 실행 이력만 남는 상태를 검증합니다.',
+    "Step 5 TC 카드 상태 fixture — 확인 완료(봉인). 완료 승인이 이미 지나 CTA 없이 실행 이력만 남는 상태를 검증합니다.",
 });
 // CONFIRMED 판정 근거는 passedAt 이다(mock getCompletionStatus). processStatus 는 5단계에
 // 고정해 카드의 봉인 프레임을 화면에서 볼 수 있게 한다 — 실 서비스에선 승인 직후 프로세스
 // 전이가 반영되기 전 창에서 보이는 상태다.
 tcCardConfirmedFixture.status = {
   ...tcCardConfirmedFixture.status,
-  connectionTest: { status: 'PASSED', passedAt: '2026-06-01T00:10:00.000Z' },
+  connectionTest: { status: "PASSED", passedAt: "2026-06-01T00:10:00.000Z" },
 };
 
 mockProjects.push(
   tcCardStateClone({
     targetSourceId: 2101,
-    key: 'idle',
-    name: 'TC 카드 - 미실행',
-    description: 'Step 5 TC 카드 상태 fixture — 미실행. 실행 이력이 없어 슬롯이 실행 primary CTA 를 드는 상태를 검증합니다.',
+    key: "idle",
+    name: "TC 카드 - 미실행",
+    description:
+      "Step 5 TC 카드 상태 fixture — 미실행. 실행 이력이 없어 슬롯이 실행 primary CTA 를 드는 상태를 검증합니다.",
   }),
   tcCardStateClone({
     targetSourceId: 2102,
-    key: 'running',
-    name: 'TC 카드 - 진행 중',
-    description: 'Step 5 TC 카드 상태 fixture — 진행 중. 시드 실행이 중간 지점에 고정돼(2099년 완료 예정) 잠긴 슬롯과 진행 트랙을 검증합니다.',
+    key: "running",
+    name: "TC 카드 - 진행 중",
+    description:
+      "Step 5 TC 카드 상태 fixture — 진행 중. 시드 실행이 중간 지점에 고정돼(2099년 완료 예정) 잠긴 슬롯과 진행 트랙을 검증합니다.",
   }),
   tcCardStateClone({
     targetSourceId: 2103,
-    key: 'fail',
-    name: 'TC 카드 - 실패',
-    description: 'Step 5 TC 카드 상태 fixture — 실패 정착. 최신 실행이 FAIL(2건 실패)로 끝나 슬롯이 다시 실행을 드는 상태를 검증합니다.',
+    key: "fail",
+    name: "TC 카드 - 실패",
+    description:
+      "Step 5 TC 카드 상태 fixture — 실패 정착. 최신 실행이 FAIL(2건 실패)로 끝나 슬롯이 다시 실행을 드는 상태를 검증합니다.",
   }),
   tcCardStateClone({
     targetSourceId: 2104,
-    key: 'success',
-    name: 'TC 카드 - 성공',
-    description: 'Step 5 TC 카드 상태 fixture — 성공 정착. 다시 실행 링크와 승인 요청 primary 가 동거하는 슬롯을 검증합니다.',
+    key: "success",
+    name: "TC 카드 - 성공",
+    description:
+      "Step 5 TC 카드 상태 fixture — 성공 정착. 다시 실행 링크와 승인 요청 primary 가 동거하는 슬롯을 검증합니다.",
   }),
   tcCardStateClone({
     targetSourceId: 2105,
-    key: 'policy',
-    name: 'TC 카드 - 정책 변경',
-    description: 'Step 5 TC 카드 상태 fixture — 정책 변경. 논리 DB 정책이 마지막 실행 이후 바뀌어 pending 표면 위 다시 실행을 검증합니다. 재실행하면 success 로 돌아갑니다.',
+    key: "policy",
+    name: "TC 카드 - 정책 변경",
+    description:
+      "Step 5 TC 카드 상태 fixture — 정책 변경. 논리 DB 정책이 마지막 실행 이후 바뀌어 pending 표면 위 다시 실행을 검증합니다. 재실행하면 success 로 돌아갑니다.",
   }),
   tcCardConfirmedFixture,
   tcCardStateClone({
     targetSourceId: 2107,
-    key: 'queued',
-    name: 'TC 카드 - 시작 대기',
-    description: 'Step 5 TC 카드 상태 fixture — 시작 대기(top-level PENDING). 접수만 되고 디스패치 전이라 스핀·진행 트랙 없이 잠긴 슬롯("시작 대기…")을 검증합니다.',
+    key: "queued",
+    name: "TC 카드 - 시작 대기",
+    description:
+      'Step 5 TC 카드 상태 fixture — 시작 대기(top-level PENDING). 접수만 되고 디스패치 전이라 스핀·진행 트랙 없이 잠긴 슬롯("시작 대기…")을 검증합니다.',
   }),
   tcCardStateClone({
     targetSourceId: 2108,
-    key: 'noreport',
-    name: 'TC 카드 - 보고 0건 실패',
-    description: 'Step 5 TC 카드 상태 fixture — 보고 0건 실패(PENDING→FAIL). 한 건도 보고되기 전에 실패로 정착 — 카드는 특수 문구 없이 일반 실패("연결 테스트가 실패했어요")로 접히는 것을 검증합니다.',
-  }),
+    key: "noreport",
+    name: "TC 카드 - 보고 0건 실패",
+    description:
+      'Step 5 TC 카드 상태 fixture — 보고 0건 실패(PENDING→FAIL). 한 건도 보고되기 전에 실패로 정착 — 카드는 특수 문구 없이 일반 실패("연결 테스트가 실패했어요")로 접히는 것을 검증합니다.',
+  })
 );
 
 // 데모: SDU 계정 대상 — cloud_provider 는 AWS 지만 metadata.is_sdu_type=true 라
 // 파이프라인 목록·상세·대상 상세 어디서든 하위 CSP 대신 "SDU"로 노출된다.
 mockProjects.push({
-  id: 'aws-proj-sdu',
+  id: "aws-proj-sdu",
   targetSourceId: 1099,
-  projectCode: 'SDU-001',
-  name: 'SDU PII Agent - 데모 대상',
-  description: 'SDU 계정 대상(중국 리전). 하위 CSP(AWS)와 무관하게 SDU 로 표기됩니다.',
-  serviceCode: 'SDU',
-  cloudProvider: 'AWS',
-  awsAccountId: '210987654321',
+  projectCode: "SDU-001",
+  name: "SDU PII Agent - 데모 대상",
+  description:
+    "SDU 계정 대상(중국 리전). 하위 CSP(AWS)와 무관하게 SDU 로 표기됩니다.",
+  serviceCode: "SDU",
+  cloudProvider: "AWS",
+  awsAccountId: "210987654321",
   // 중국 리전 SDU — 두 표기가 겹치는 경우가 목에 하나도 없어, 중국 칩이 SDU 행에서
   // 도는지 화면으로 볼 수가 없었다. 나머지 SDU 대상(1100)은 global 로 남긴다.
-  awsRegionType: 'china',
+  awsRegionType: "china",
   isChinaRegion: true,
   isSduType: true,
   processStatus: ProcessStatus.INSTALLATION_COMPLETE,
-  status: createStatusForProcessStatus(ProcessStatus.INSTALLATION_COMPLETE, { selectedCount: 1 }),
+  status: createStatusForProcessStatus(ProcessStatus.INSTALLATION_COMPLETE, {
+    selectedCount: 1,
+  }),
   resources: [
     {
-      id: 'res-sdu-1',
-      type: 'RDS',
-      resourceId: 'rds-sdu-01',
-      databaseType: 'POSTGRESQL',
-      connectionStatus: 'CONNECTED',
+      id: "res-sdu-1",
+      type: "RDS",
+      resourceId: "rds-sdu-01",
+      databaseType: "POSTGRESQL",
+      connectionStatus: "CONNECTED",
       isSelected: true,
-      awsType: 'RDS',
-      region: 'ap-northeast-2',
-      vpcId: 'vpc-sdu-001',
-      integrationCategory: 'TARGET',
-      note: '',
+      awsType: "RDS",
+      region: "ap-northeast-2",
+      vpcId: "vpc-sdu-001",
+      integrationCategory: "TARGET",
+      note: "",
     },
   ],
-  terraformState: { serviceTf: 'COMPLETED', bdcTf: 'COMPLETED' },
-  createdAt: '2024-02-01T09:00:00Z',
-  updatedAt: '2024-02-01T12:00:00Z',
+  terraformState: { serviceTf: "COMPLETED", bdcTf: "COMPLETED" },
+  createdAt: "2024-02-01T09:00:00Z",
+  updatedAt: "2024-02-01T12:00:00Z",
   isRejected: false,
 });
 
 // 데모: 두 번째 SDU 대상 — 승인 대기 단계(설치 전)로, SDU 서비스에 대상이
 // 하나가 아님을 보이고 파이프라인 시작 흐름을 시연할 수 있게 한다.
 mockProjects.push({
-  id: 'aws-proj-sdu-2',
+  id: "aws-proj-sdu-2",
   targetSourceId: 1100,
-  projectCode: 'SDU-002',
-  name: 'SDU PII Agent - 데이터 레이크',
-  description: 'SDU 계정 대상(승인 대기). 하위 CSP(AWS)와 무관하게 SDU 로 표기됩니다.',
-  serviceCode: 'SDU',
-  cloudProvider: 'AWS',
-  awsAccountId: '345678901234',
-  awsRegionType: 'global',
+  projectCode: "SDU-002",
+  name: "SDU PII Agent - 데이터 레이크",
+  description:
+    "SDU 계정 대상(승인 대기). 하위 CSP(AWS)와 무관하게 SDU 로 표기됩니다.",
+  serviceCode: "SDU",
+  cloudProvider: "AWS",
+  awsAccountId: "345678901234",
+  awsRegionType: "global",
   isSduType: true,
   processStatus: ProcessStatus.WAITING_APPROVAL,
-  status: createStatusForProcessStatus(ProcessStatus.WAITING_APPROVAL, { selectedCount: 2, excludedCount: 1 }),
+  status: createStatusForProcessStatus(ProcessStatus.WAITING_APPROVAL, {
+    selectedCount: 2,
+    excludedCount: 1,
+  }),
   resources: [
     {
-      id: 'res-sdu-2',
-      type: 'RDS',
-      resourceId: 'rds-sdu-02',
-      databaseType: 'MYSQL',
-      connectionStatus: 'PENDING',
+      id: "res-sdu-2",
+      type: "RDS",
+      resourceId: "rds-sdu-02",
+      databaseType: "MYSQL",
+      connectionStatus: "PENDING",
       isSelected: true,
-      awsType: 'RDS',
-      region: 'ap-northeast-2',
-      vpcId: 'vpc-sdu-002',
-      integrationCategory: 'TARGET',
-      note: 'NEW',
+      awsType: "RDS",
+      region: "ap-northeast-2",
+      vpcId: "vpc-sdu-002",
+      integrationCategory: "TARGET",
+      note: "NEW",
     },
     {
-      id: 'res-sdu-3',
-      type: 'DYNAMODB',
-      resourceId: 'ddb-sdu-01',
-      databaseType: 'DYNAMODB',
-      connectionStatus: 'PENDING',
+      id: "res-sdu-3",
+      type: "DYNAMODB",
+      resourceId: "ddb-sdu-01",
+      databaseType: "DYNAMODB",
+      connectionStatus: "PENDING",
       isSelected: true,
-      awsType: 'DYNAMODB',
-      region: 'ap-northeast-2',
-      integrationCategory: 'TARGET',
-      note: 'NEW',
+      awsType: "DYNAMODB",
+      region: "ap-northeast-2",
+      integrationCategory: "TARGET",
+      note: "NEW",
     },
   ],
-  terraformState: { serviceTf: 'PENDING', bdcTf: 'PENDING' },
-  createdAt: '2024-02-02T09:00:00Z',
-  updatedAt: '2024-02-02T10:00:00Z',
+  terraformState: { serviceTf: "PENDING", bdcTf: "PENDING" },
+  createdAt: "2024-02-02T09:00:00Z",
+  updatedAt: "2024-02-02T10:00:00Z",
   isRejected: false,
 });
 
@@ -1420,7 +2027,8 @@ const makeTcQueueProject = (args: {
   targetSourceId: args.targetSourceId,
   projectCode: `${args.serviceCode}-${String(args.targetSourceId).slice(-3)}`,
   name: args.name,
-  description: 'Test Connection 큐 대상 — 연결 테스트 완료/재실행 요청 흐름 시연',
+  description:
+    "Test Connection 큐 대상 — 연결 테스트 완료/재실행 요청 흐름 시연",
   serviceCode: args.serviceCode,
   cloudProvider: args.cloudProvider,
   processStatus: args.processStatus,
@@ -1429,8 +2037,8 @@ const makeTcQueueProject = (args: {
     excludedCount: args.resources.filter((r) => !r.isSelected).length,
   }),
   resources: args.resources,
-  terraformState: { serviceTf: 'COMPLETED', bdcTf: 'COMPLETED' },
-  createdAt: '2026-06-28T09:00:00Z',
+  terraformState: { serviceTf: "COMPLETED", bdcTf: "COMPLETED" },
+  createdAt: "2026-06-28T09:00:00Z",
   updatedAt: args.updatedAt,
   isRejected: false,
   ...args.extra,
@@ -1440,38 +2048,120 @@ const makeTcQueueProject = (args: {
  * 대규모 대상(1801)의 리소스 30개. 리소스 그룹 4개에 나눠 담아 이름이 한 덩어리로
  * 보이지 않게 한다 — 30줄이 같은 접두사로 시작하면 목록이 한 줄도 구분되지 않는다.
  */
-const LGS_SUBSCRIPTION = 'b1d4e77c-90a2-4f38-8c15-6e2f0a9b3d41';
+const LGS_SUBSCRIPTION = "b1d4e77c-90a2-4f38-8c15-6e2f0a9b3d41";
 
 const lgsResources: MockResource[] = (
   [
-    ['order', 'MYSQL', 8],
-    ['wms', 'MYSQL', 6],
-    ['track', 'POSTGRESQL', 9],
-    ['analytics', 'POSTGRESQL', 7],
+    ["order", "MYSQL", 8],
+    ["wms", "MYSQL", 6],
+    ["track", "POSTGRESQL", 9],
+    ["analytics", "POSTGRESQL", 7],
   ] as const
 ).flatMap(([group, databaseType, count]) =>
   Array.from({ length: count }, (_, index): MockResource => {
-    const mysql = databaseType === 'MYSQL';
-    const name = `${mysql ? 'mysql' : 'pg'}-lgs-${group}-${String(index + 1).padStart(2, '0')}`;
+    const mysql = databaseType === "MYSQL";
+    const name = `${mysql ? "mysql" : "pg"}-lgs-${group}-${String(
+      index + 1
+    ).padStart(2, "0")}`;
     return {
       id: `lgs-res-${group}-${index + 1}`,
-      type: mysql ? 'AZURE_MYSQL' : 'AZURE_POSTGRESQL',
-      resourceId: `/subscriptions/${LGS_SUBSCRIPTION}/resourceGroups/rg-lgs-${group}/providers/Microsoft.DBfor${mysql ? 'MySQL' : 'PostgreSQL'}/servers/${name}`,
+      type: mysql ? "AZURE_MYSQL" : "AZURE_POSTGRESQL",
+      resourceId: `/subscriptions/${LGS_SUBSCRIPTION}/resourceGroups/rg-lgs-${group}/providers/Microsoft.DBfor${
+        mysql ? "MySQL" : "PostgreSQL"
+      }/servers/${name}`,
       databaseType,
-      selectedCredentialId: mysql ? 'hgildong-mysql-prod' : 'kimcs-postgres-analytics',
-      connectionStatus: 'CONNECTED',
+      selectedCredentialId: mysql
+        ? "hgildong-mysql-prod"
+        : "kimcs-postgres-analytics",
+      connectionStatus: "CONNECTED",
       isSelected: true,
-      integrationCategory: 'TARGET',
-      azureNetworkingMode: 'VNET_INTEGRATION',
+      integrationCategory: "TARGET",
+      azureNetworkingMode: "VNET_INTEGRATION",
     };
-  }),
+  })
+);
+
+/**
+ * 재고서비스(1583)의 IDC 리소스 3개. 이름을 붙여 둔 이유는 §10 모니터링 목이 같은
+ * 리소스를 부를 id 를 여기서 가져가야 해서다 — 두 목이 각자 id 를 지어내면 화면의 조인이
+ * 조용히 빗나가고, 그 결과는 IDC 표의 접속 주소·Port·엔진 칸이 전부 대시다
+ * ([[LGS_RESOURCE_IDS]] 와 같은 이유).
+ */
+const ivtResources: MockResource[] = [
+  {
+    id: "ivt-res-1",
+    type: "IDC_RESOURCE",
+    resourceId: "idc-ivt-9a01",
+    databaseType: "MYSQL",
+    selectedCredentialId: "hgildong-mysql-prod",
+    connectionStatus: "CONNECTED",
+    isSelected: true,
+    integrationCategory: "TARGET",
+    idcConfig: {
+      inputFormat: "HOST",
+      ips: [],
+      domain: "db-mysql.ivt.prod.internal",
+      sourceIps: ["10.20.9.11"],
+      firewallOpen: true,
+      nlbIndex: 3,
+    },
+  },
+  {
+    id: "ivt-res-2",
+    type: "IDC_RESOURCE",
+    resourceId: "idc-ivt-9a02",
+    databaseType: "MYSQL",
+    selectedCredentialId: "hgildong-mysql-prod",
+    connectionStatus: "CONNECTED",
+    isSelected: true,
+    integrationCategory: "TARGET",
+    idcConfig: {
+      inputFormat: "IP",
+      ips: ["10.20.4.11"],
+      domain: "",
+      sourceIps: ["10.20.9.11"],
+      firewallOpen: true,
+      nlbIndex: 3,
+    },
+  },
+  {
+    id: "ivt-res-3",
+    type: "IDC_RESOURCE",
+    resourceId: "idc-ivt-9a03",
+    databaseType: "ORACLE",
+    selectedCredentialId: "kimcs-redshift-dw",
+    connectionStatus: "DISCONNECTED",
+    isSelected: true,
+    integrationCategory: "TARGET",
+    idcConfig: {
+      inputFormat: "IP",
+      ips: ["10.20.4.18"],
+      domain: "",
+      oracleSid: "IVTPDB",
+      sourceIps: ["10.20.9.12"],
+      firewallOpen: false,
+    },
+  },
+];
+
+export const IVT_RESOURCE_IDS: readonly string[] = ivtResources.map(
+  (resource) => resource.resourceId
+);
+
+/**
+ * 1801 리소스 30개의 id — 이 목록을 읽는 다른 목(모니터링 §10)이 같은 리소스를 다른 id 로
+ * 부르지 않게 하는 단일 출처. 두 목이 각자 id 를 지어내면 화면의 조인이 조용히 빗나가고,
+ * 그 결과가 "이름·엔진·리전 칸이 전부 대시"라 코드 버그처럼 보인다 (2026-08-25 실측).
+ */
+export const LGS_RESOURCE_IDS: readonly string[] = lgsResources.map(
+  (resource) => resource.resourceId
 );
 
 /**
  * 쿠폰서비스(1642)의 AWS 계정. 리소스 id 와 `extra.awsAccountId` 가 같은 계정을 말해야
  * Athena·클러스터 id 가 화면에서 서로 다른 계정처럼 읽히지 않는다.
  */
-export const CPN_ACCOUNT = '481920374655';
+export const CPN_ACCOUNT = "481920374655";
 export const CPN_CLUSTER_ARN = `arn:aws:rds:ap-northeast-2:${CPN_ACCOUNT}:cluster:cpn-aurora-order`;
 const CPN_CLUSTER_INSTANCE_ARN = `arn:aws:rds:ap-northeast-2:${CPN_ACCOUNT}:db:cpn-aurora-order`;
 
@@ -1484,18 +2174,22 @@ export const cpnAthenaRegionId = (region: string): string =>
  * 결과(연결 테스트·설치 상태·DAG)는 리전 단위로 답한다. ap-northeast-2 에 DB 를 둘 둔 것은
  * 의도적이다: 그 둘이 한 단위로 접히는지는 리전에 DB 가 하나뿐이면 화면에서 확인되지 않는다.
  */
-const cpnAthenaResource = (id: string, region: string, database: string): MockResource => ({
+const cpnAthenaResource = (
+  id: string,
+  region: string,
+  database: string
+): MockResource => ({
   id,
-  type: 'AWS_ATHENA_DATABASE',
-  awsType: 'ATHENA',
+  type: "AWS_ATHENA_DATABASE",
+  awsType: "ATHENA",
   resourceId: `athena:${CPN_ACCOUNT}:${region}:AwsDataCatalog/${database}`,
   resourceName: database,
-  databaseType: 'ATHENA',
+  databaseType: "ATHENA",
   athenaRegionResourceId: cpnAthenaRegionId(region),
-  connectionStatus: 'CONNECTED',
+  connectionStatus: "CONNECTED",
   isSelected: true,
   region,
-  integrationCategory: 'TARGET',
+  integrationCategory: "TARGET",
   // Athena 는 접속 주소가 없다 — 캡처도 host·port 를 비워 보낸다.
   host: null,
   port: null,
@@ -1504,69 +2198,157 @@ const cpnAthenaResource = (id: string, region: string, database: string): MockRe
 mockProjects.push(
   makeTcQueueProject({
     targetSourceId: 1799,
-    serviceCode: 'DLV',
-    name: '배송서비스 PII Agent - 연결 테스트 완료',
-    cloudProvider: 'Azure',
+    serviceCode: "DLV",
+    name: "배송서비스 PII Agent - 연결 테스트 완료",
+    cloudProvider: "Azure",
     processStatus: ProcessStatus.CONNECTION_VERIFIED,
-    updatedAt: '2026-07-20T17:19:00Z',
+    updatedAt: "2026-07-20T17:19:00Z",
     extra: {
-      subscriptionId: '2867a4f9-1e3a-4c8f-bf0a-91c5dd7e2188',
-      tenantId: '7f9c1b30-52d4-4a11-9d63-0c1e5a8b7742',
+      subscriptionId: "2867a4f9-1e3a-4c8f-bf0a-91c5dd7e2188",
+      tenantId: "7f9c1b30-52d4-4a11-9d63-0c1e5a8b7742",
     },
     resources: [
-      { id: 'dlv-res-1', type: 'AZURE_MYSQL', resourceId: '/subscriptions/2867a4f9-1e3a-4c8f-bf0a-91c5dd7e2188/resourceGroups/rg-dlv-prod/providers/Microsoft.DBforMySQL/servers/mysql-dlv-01', databaseType: 'MYSQL', selectedCredentialId: 'hgildong-mysql-prod', connectionStatus: 'CONNECTED', isSelected: true, integrationCategory: 'TARGET', azureNetworkingMode: 'VNET_INTEGRATION' },
-      { id: 'dlv-res-2', type: 'AZURE_MYSQL', resourceId: '/subscriptions/2867a4f9-1e3a-4c8f-bf0a-91c5dd7e2188/resourceGroups/rg-dlv-prod/providers/Microsoft.DBforMySQL/servers/mysql-dlv-02', databaseType: 'MYSQL', selectedCredentialId: 'hgildong-mysql-prod', connectionStatus: 'CONNECTED', isSelected: true, integrationCategory: 'TARGET', azureNetworkingMode: 'VNET_INTEGRATION' },
-      { id: 'dlv-res-3', type: 'AZURE_POSTGRESQL', resourceId: '/subscriptions/2867a4f9-1e3a-4c8f-bf0a-91c5dd7e2188/resourceGroups/rg-dlv-prod/providers/Microsoft.DBforPostgreSQL/servers/pg-dlv-main', databaseType: 'POSTGRESQL', selectedCredentialId: 'kimcs-postgres-analytics', connectionStatus: 'CONNECTED', isSelected: true, integrationCategory: 'TARGET', azureNetworkingMode: 'VNET_INTEGRATION' },
+      {
+        id: "dlv-res-1",
+        type: "AZURE_MYSQL",
+        resourceId:
+          "/subscriptions/2867a4f9-1e3a-4c8f-bf0a-91c5dd7e2188/resourceGroups/rg-dlv-prod/providers/Microsoft.DBforMySQL/servers/mysql-dlv-01",
+        databaseType: "MYSQL",
+        selectedCredentialId: "hgildong-mysql-prod",
+        connectionStatus: "CONNECTED",
+        isSelected: true,
+        integrationCategory: "TARGET",
+        azureNetworkingMode: "VNET_INTEGRATION",
+      },
+      {
+        id: "dlv-res-2",
+        type: "AZURE_MYSQL",
+        resourceId:
+          "/subscriptions/2867a4f9-1e3a-4c8f-bf0a-91c5dd7e2188/resourceGroups/rg-dlv-prod/providers/Microsoft.DBforMySQL/servers/mysql-dlv-02",
+        databaseType: "MYSQL",
+        selectedCredentialId: "hgildong-mysql-prod",
+        connectionStatus: "CONNECTED",
+        isSelected: true,
+        integrationCategory: "TARGET",
+        azureNetworkingMode: "VNET_INTEGRATION",
+      },
+      {
+        id: "dlv-res-3",
+        type: "AZURE_POSTGRESQL",
+        resourceId:
+          "/subscriptions/2867a4f9-1e3a-4c8f-bf0a-91c5dd7e2188/resourceGroups/rg-dlv-prod/providers/Microsoft.DBforPostgreSQL/servers/pg-dlv-main",
+        databaseType: "POSTGRESQL",
+        selectedCredentialId: "kimcs-postgres-analytics",
+        connectionStatus: "CONNECTED",
+        isSelected: true,
+        integrationCategory: "TARGET",
+        azureNetworkingMode: "VNET_INTEGRATION",
+      },
     ],
   }),
   makeTcQueueProject({
     targetSourceId: 1642,
-    serviceCode: 'CPN',
-    name: '쿠폰서비스 PII Agent - 연결 테스트 완료',
-    cloudProvider: 'AWS',
+    serviceCode: "CPN",
+    name: "쿠폰서비스 PII Agent - 연결 테스트 완료",
+    cloudProvider: "AWS",
     processStatus: ProcessStatus.CONNECTION_VERIFIED,
-    updatedAt: '2026-07-20T06:23:00Z',
-    extra: { awsAccountId: CPN_ACCOUNT, awsRegionType: 'global' },
+    updatedAt: "2026-07-20T06:23:00Z",
+    extra: { awsAccountId: CPN_ACCOUNT, awsRegionType: "global" },
     resources: [
-      { id: 'cpn-res-1', type: 'RDS', resourceId: 'rds-cpn-main', databaseType: 'MYSQL', selectedCredentialId: 'hgildong-mysql-prod', connectionStatus: 'CONNECTED', isSelected: true, awsType: 'RDS', region: 'ap-northeast-2', vpcId: 'vpc-cpn-001', integrationCategory: 'TARGET' },
-      { id: 'cpn-res-2', type: 'DYNAMODB', resourceId: 'ddb-cpn-issue', databaseType: 'DYNAMODB', selectedCredentialId: 'kimcs-redshift-dw', connectionStatus: 'CONNECTED', isSelected: true, awsType: 'DYNAMODB', region: 'ap-northeast-2', integrationCategory: 'TARGET' },
+      {
+        id: "cpn-res-1",
+        type: "RDS",
+        resourceId: "rds-cpn-main",
+        databaseType: "MYSQL",
+        selectedCredentialId: "hgildong-mysql-prod",
+        connectionStatus: "CONNECTED",
+        isSelected: true,
+        awsType: "RDS",
+        region: "ap-northeast-2",
+        vpcId: "vpc-cpn-001",
+        integrationCategory: "TARGET",
+      },
+      {
+        id: "cpn-res-2",
+        type: "DYNAMODB",
+        resourceId: "ddb-cpn-issue",
+        databaseType: "DYNAMODB",
+        selectedCredentialId: "kimcs-redshift-dw",
+        connectionStatus: "CONNECTED",
+        isSelected: true,
+        awsType: "DYNAMODB",
+        region: "ap-northeast-2",
+        integrationCategory: "TARGET",
+      },
       // RDS 클러스터 — id 가 ARN 이라 이름줄과 mono 줄이 서로 다른 말을 하는 유일한 AWS 행이다.
       {
-        id: 'cpn-res-3',
-        type: 'AWS_DB_CLUSTER',
-        awsType: 'RDS_CLUSTER',
+        id: "cpn-res-3",
+        type: "AWS_DB_CLUSTER",
+        awsType: "RDS_CLUSTER",
         resourceId: CPN_CLUSTER_ARN,
-        resourceName: 'cpn-aurora-order',
-        databaseType: 'MYSQL',
-        selectedCredentialId: 'hgildong-mysql-prod',
-        connectionStatus: 'CONNECTED',
+        resourceName: "cpn-aurora-order",
+        databaseType: "MYSQL",
+        selectedCredentialId: "hgildong-mysql-prod",
+        connectionStatus: "CONNECTED",
         isSelected: true,
-        region: 'ap-northeast-2',
-        integrationCategory: 'TARGET',
+        region: "ap-northeast-2",
+        integrationCategory: "TARGET",
         host: null,
         port: null,
         rdsInstanceCandidates: [
-          { resource_id: `${CPN_CLUSTER_INSTANCE_ARN}-1`, resource_name: 'cpn-aurora-order-1', host: 'cpn-aurora-order-1.cluster-cpnabc.ap-northeast-2.rds.amazonaws.com', port: 3306, availability_zone: 'ap-northeast-2a', cluster_member_role: 'WRITER' },
-          { resource_id: `${CPN_CLUSTER_INSTANCE_ARN}-2`, resource_name: 'cpn-aurora-order-2', host: 'cpn-aurora-order-2.cluster-ro-cpnabc.ap-northeast-2.rds.amazonaws.com', port: 3306, availability_zone: 'ap-northeast-2c', cluster_member_role: 'READER' },
+          {
+            resource_id: `${CPN_CLUSTER_INSTANCE_ARN}-1`,
+            resource_name: "cpn-aurora-order-1",
+            host: "cpn-aurora-order-1.cluster-cpnabc.ap-northeast-2.rds.amazonaws.com",
+            port: 3306,
+            availability_zone: "ap-northeast-2a",
+            cluster_member_role: "WRITER",
+          },
+          {
+            resource_id: `${CPN_CLUSTER_INSTANCE_ARN}-2`,
+            resource_name: "cpn-aurora-order-2",
+            host: "cpn-aurora-order-2.cluster-ro-cpnabc.ap-northeast-2.rds.amazonaws.com",
+            port: 3306,
+            availability_zone: "ap-northeast-2c",
+            cluster_member_role: "READER",
+          },
         ],
         selectedRdsInstanceResourceId: `${CPN_CLUSTER_INSTANCE_ARN}-2`,
       },
-      cpnAthenaResource('cpn-res-4', 'ap-northeast-2', 'cpn_events'),
-      cpnAthenaResource('cpn-res-5', 'ap-northeast-2', 'cpn_logs'),
-      cpnAthenaResource('cpn-res-6', 'us-east-1', 'cpn_archive'),
+      cpnAthenaResource("cpn-res-4", "ap-northeast-2", "cpn_events"),
+      cpnAthenaResource("cpn-res-5", "ap-northeast-2", "cpn_logs"),
+      cpnAthenaResource("cpn-res-6", "us-east-1", "cpn_archive"),
     ],
   }),
   makeTcQueueProject({
     targetSourceId: 1511,
-    serviceCode: 'RVW',
-    name: '리뷰서비스 PII Agent - 연결 테스트 완료',
-    cloudProvider: 'GCP',
+    serviceCode: "RVW",
+    name: "리뷰서비스 PII Agent - 연결 테스트 완료",
+    cloudProvider: "GCP",
     processStatus: ProcessStatus.CONNECTION_VERIFIED,
-    updatedAt: '2026-07-13T19:40:00Z',
-    extra: { gcpProjectId: 'sea-rvw-prd' },
+    updatedAt: "2026-07-13T19:40:00Z",
+    extra: { gcpProjectId: "sea-rvw-prd" },
     resources: [
-      { id: 'rvw-res-1', type: 'GCP_SQL', resourceId: 'projects/sea-rvw-prd/instances/cloudsql-rvw-main', databaseType: 'POSTGRESQL', selectedCredentialId: 'kimcs-postgres-analytics', connectionStatus: 'CONNECTED', isSelected: true, integrationCategory: 'TARGET' },
-      { id: 'rvw-res-2', type: 'GCP_SQL', resourceId: 'projects/sea-rvw-prd/instances/cloudsql-rvw-log', databaseType: 'MYSQL', selectedCredentialId: 'hgildong-mysql-prod', connectionStatus: 'CONNECTED', isSelected: true, integrationCategory: 'TARGET' },
+      {
+        id: "rvw-res-1",
+        type: "GCP_SQL",
+        resourceId: "projects/sea-rvw-prd/instances/cloudsql-rvw-main",
+        databaseType: "POSTGRESQL",
+        selectedCredentialId: "kimcs-postgres-analytics",
+        connectionStatus: "CONNECTED",
+        isSelected: true,
+        integrationCategory: "TARGET",
+      },
+      {
+        id: "rvw-res-2",
+        type: "GCP_SQL",
+        resourceId: "projects/sea-rvw-prd/instances/cloudsql-rvw-log",
+        databaseType: "MYSQL",
+        selectedCredentialId: "hgildong-mysql-prod",
+        connectionStatus: "CONNECTED",
+        isSelected: true,
+        integrationCategory: "TARGET",
+      },
     ],
   }),
   // 30개 규모 대상 — 연결 테스트 카드·확정 정보 표가 리소스 수에 흔들리지 않는지
@@ -1574,34 +2356,32 @@ mockProjects.push(
   // 있는 리소스 식별자 중 가장 길어, Resource ID 절단이 가장 먼저 깨지는 자리이기도 하다.
   makeTcQueueProject({
     targetSourceId: 1801,
-    serviceCode: 'LGS',
-    name: '물류서비스 PII Agent - 대규모 대상',
-    cloudProvider: 'Azure',
+    serviceCode: "LGS",
+    name: "물류서비스 PII Agent - 대규모 대상",
+    cloudProvider: "Azure",
     processStatus: ProcessStatus.CONNECTION_VERIFIED,
-    updatedAt: '2026-08-01T11:05:00Z',
+    updatedAt: "2026-08-01T11:05:00Z",
     extra: {
-      subscriptionId: 'b1d4e77c-90a2-4f38-8c15-6e2f0a9b3d41',
-      tenantId: '7f9c1b30-52d4-4a11-9d63-0c1e5a8b7742',
+      subscriptionId: "b1d4e77c-90a2-4f38-8c15-6e2f0a9b3d41",
+      tenantId: "7f9c1b30-52d4-4a11-9d63-0c1e5a8b7742",
     },
     resources: lgsResources,
   }),
   // 재실행 요청 상태 — 반려로 되돌아가 어떤 상태 필터에도 걸리지 않는 케이스.
   makeTcQueueProject({
     targetSourceId: 1583,
-    serviceCode: 'IVT',
-    name: '재고서비스 PII Agent - 재실행 요청',
-    cloudProvider: 'IDC',
+    serviceCode: "IVT",
+    name: "재고서비스 PII Agent - 재실행 요청",
+    cloudProvider: "IDC",
     processStatus: ProcessStatus.WAITING_CONNECTION_TEST,
-    updatedAt: '2026-07-19T14:52:00Z',
+    updatedAt: "2026-07-19T14:52:00Z",
     resources: [
       // nlbIndex: assigned, so the admin screens' NLB 배정 column reads a value instead
       // of standing empty on every row. 9a03 is deliberately left unassigned — that is
       // the state the 배정하기 affordance exists for.
-      { id: 'ivt-res-1', type: 'IDC_RESOURCE', resourceId: 'idc-ivt-9a01', databaseType: 'MYSQL', selectedCredentialId: 'hgildong-mysql-prod', connectionStatus: 'CONNECTED', isSelected: true, integrationCategory: 'TARGET', idcConfig: { inputFormat: 'HOST', ips: [], domain: 'db-mysql.ivt.prod.internal', sourceIps: ['10.20.9.11'], firewallOpen: true, nlbIndex: 3 } },
-      { id: 'ivt-res-2', type: 'IDC_RESOURCE', resourceId: 'idc-ivt-9a02', databaseType: 'MYSQL', selectedCredentialId: 'hgildong-mysql-prod', connectionStatus: 'CONNECTED', isSelected: true, integrationCategory: 'TARGET', idcConfig: { inputFormat: 'IP', ips: ['10.20.4.11'], domain: '', sourceIps: ['10.20.9.11'], firewallOpen: true, nlbIndex: 3 } },
-      { id: 'ivt-res-3', type: 'IDC_RESOURCE', resourceId: 'idc-ivt-9a03', databaseType: 'ORACLE', selectedCredentialId: 'kimcs-redshift-dw', connectionStatus: 'DISCONNECTED', isSelected: true, integrationCategory: 'TARGET', idcConfig: { inputFormat: 'IP', ips: ['10.20.4.18'], domain: '', oracleSid: 'IVTPDB', sourceIps: ['10.20.9.12'], firewallOpen: false } },
+      ...ivtResources,
     ],
-  }),
+  })
 );
 
 /**
@@ -1616,61 +2396,159 @@ mockProjects.push(
  * "설치 필요"라고 불러 놓고 상세가 연결 확인 완료를 그리면, 이동이 되는지는 봐도
  * 이동한 곳이 맞는지는 못 본다.
  */
-const alertDrilldownResources = (code: string, provider: CloudProvider): MockResource[] => {
+const alertDrilldownResources = (
+  code: string,
+  provider: CloudProvider
+): MockResource[] => {
   const key = code.toLowerCase();
   const common = {
     id: `${key}-res-1`,
-    connectionStatus: 'CONNECTED' as const,
+    connectionStatus: "CONNECTED" as const,
     isSelected: true,
-    integrationCategory: 'TARGET' as const,
-    selectedCredentialId: 'hgildong-mysql-prod',
-    databaseType: 'MYSQL' as const,
+    integrationCategory: "TARGET" as const,
+    selectedCredentialId: "hgildong-mysql-prod",
+    databaseType: "MYSQL" as const,
   };
-  if (provider === 'GCP') {
-    return [{ ...common, type: 'GCP_SQL', resourceId: `projects/sea-${key}-prd/instances/cloudsql-${key}-main` }];
+  if (provider === "GCP") {
+    return [
+      {
+        ...common,
+        type: "GCP_SQL",
+        resourceId: `projects/sea-${key}-prd/instances/cloudsql-${key}-main`,
+      },
+    ];
   }
-  if (provider === 'Azure') {
-    return [{ ...common, type: 'AZURE_MYSQL', resourceId: `/subscriptions/2867a4f9-1e3a-4c8f-bf0a-91c5dd7e2188/resourceGroups/rg-${key}-prod/providers/Microsoft.DBforMySQL/servers/mysql-${key}-01`, azureNetworkingMode: 'VNET_INTEGRATION' as const }];
+  if (provider === "Azure") {
+    return [
+      {
+        ...common,
+        type: "AZURE_MYSQL",
+        resourceId: `/subscriptions/2867a4f9-1e3a-4c8f-bf0a-91c5dd7e2188/resourceGroups/rg-${key}-prod/providers/Microsoft.DBforMySQL/servers/mysql-${key}-01`,
+        azureNetworkingMode: "VNET_INTEGRATION" as const,
+      },
+    ];
   }
-  return [{ ...common, type: 'RDS', resourceId: `rds-${key}-main`, awsType: 'RDS' as const, region: 'ap-northeast-2' as const, vpcId: `vpc-${key}-001` }];
+  return [
+    {
+      ...common,
+      type: "RDS",
+      resourceId: `rds-${key}-main`,
+      awsType: "RDS" as const,
+      region: "ap-northeast-2" as const,
+      vpcId: `vpc-${key}-001`,
+    },
+  ];
 };
 
 mockProjects.push(
   ...(
     [
       // 리소스 확정 진행 중 → 확정 탭
-      [1980, 'MBR', '회원서비스', 'GCP', ProcessStatus.WAITING_TARGET_CONFIRMATION, '회원 프로필·동의 이력 Cloud SQL', '2026-07-20T19:21:00Z'],
-      [1430, 'MDA', '미디어서비스', 'AWS', ProcessStatus.WAITING_TARGET_CONFIRMATION, '미디어 업로드 메타데이터 Aurora', '2026-07-20T19:02:00Z'],
+      [
+        1980,
+        "MBR",
+        "회원서비스",
+        "GCP",
+        ProcessStatus.WAITING_TARGET_CONFIRMATION,
+        "회원 프로필·동의 이력 Cloud SQL",
+        "2026-07-20T19:21:00Z",
+      ],
+      [
+        1430,
+        "MDA",
+        "미디어서비스",
+        "AWS",
+        ProcessStatus.WAITING_TARGET_CONFIRMATION,
+        "미디어 업로드 메타데이터 Aurora",
+        "2026-07-20T19:02:00Z",
+      ],
       // 설치 필요 → 인프라 작업 탭
-      [1861, 'STL', '정산서비스', 'AWS', ProcessStatus.APPLYING_APPROVED, '정산 마감 배치 RDS', '2026-07-17T18:56:00Z'],
-      [1520, 'RCM', '추천서비스', 'GCP', ProcessStatus.APPLYING_APPROVED, '추천 피처 스토어 Cloud SQL', '2026-07-20T10:52:00Z'],
-      [1388, 'BIL', '과금서비스', 'AWS', ProcessStatus.APPLYING_APPROVED, '과금 청구·정산 원장 RDS', '2026-07-19T10:53:00Z'],
+      [
+        1861,
+        "STL",
+        "정산서비스",
+        "AWS",
+        ProcessStatus.APPLYING_APPROVED,
+        "정산 마감 배치 RDS",
+        "2026-07-17T18:56:00Z",
+      ],
+      [
+        1520,
+        "RCM",
+        "추천서비스",
+        "GCP",
+        ProcessStatus.APPLYING_APPROVED,
+        "추천 피처 스토어 Cloud SQL",
+        "2026-07-20T10:52:00Z",
+      ],
+      [
+        1388,
+        "BIL",
+        "과금서비스",
+        "AWS",
+        ProcessStatus.APPLYING_APPROVED,
+        "과금 청구·정산 원장 RDS",
+        "2026-07-19T10:53:00Z",
+      ],
       // 연결 테스트 필요 → 연결 테스트 탭
-      [1322, 'RSV', '예약서비스', 'Azure', ProcessStatus.WAITING_CONNECTION_TEST, '예약 이력·좌석 배정 Azure SQL', '2026-07-20T15:17:00Z'],
+      [
+        1322,
+        "RSV",
+        "예약서비스",
+        "Azure",
+        ProcessStatus.WAITING_CONNECTION_TEST,
+        "예약 이력·좌석 배정 Azure SQL",
+        "2026-07-20T15:17:00Z",
+      ],
       // PII Agent 확인 필요 → 승인 탭
-      [1462, 'ATH', '인증서비스', 'Azure', ProcessStatus.CONNECTION_VERIFIED, '인증 토큰 발급 이력 Azure SQL', '2026-07-20T01:22:00Z'],
-      [1255, 'MAI', '메일서비스', 'AWS', ProcessStatus.CONNECTION_VERIFIED, '메일 발송 수신자 목록 RDS', '2026-07-20T05:11:00Z'],
+      [
+        1462,
+        "ATH",
+        "인증서비스",
+        "Azure",
+        ProcessStatus.CONNECTION_VERIFIED,
+        "인증 토큰 발급 이력 Azure SQL",
+        "2026-07-20T01:22:00Z",
+      ],
+      [
+        1255,
+        "MAI",
+        "메일서비스",
+        "AWS",
+        ProcessStatus.CONNECTION_VERIFIED,
+        "메일 발송 수신자 목록 RDS",
+        "2026-07-20T05:11:00Z",
+      ],
     ] as const
-  ).map(([targetSourceId, serviceCode, serviceName, provider, processStatus, description, updatedAt]) =>
-    makeTcQueueProject({
+  ).map(
+    ([
       targetSourceId,
       serviceCode,
-      name: `${serviceName} PII Agent`,
-      cloudProvider: provider,
+      serviceName,
+      provider,
       processStatus,
+      description,
       updatedAt,
-      resources: alertDrilldownResources(serviceCode, provider),
-      // 설명은 알림 목록이 쓰는 문장과 같아야 한다 — 목록과 상세가 한 대상을 두고
-      // 다른 말을 하면, 이동이 맞게 됐는지 확인할 근거가 사라진다.
-      //
-      // 예외는 1388 하나다. 알림 응답에서만 이름·설명을 상한 밖 길이로 덮어써 절단을
-      // 보기 때문에(`lib/bff/mock/task-queue.ts` ALERT_OVERFLOW_FIXTURE), 그 행만
-      // 목록과 상세가 다른 문장을 든다. 절단을 보려면 어딘가는 계약을 벗어나야 하고,
-      // 벗어나는 자리를 한 행·한 응답으로 가둔 결과다 — 그 행의 이동이 맞는지는
-      // 설명이 아니라 Target 번호로 확인한다.
-      extra: { description },
-    }),
-  ),
+    ]) =>
+      makeTcQueueProject({
+        targetSourceId,
+        serviceCode,
+        name: `${serviceName} PII Agent`,
+        cloudProvider: provider,
+        processStatus,
+        updatedAt,
+        resources: alertDrilldownResources(serviceCode, provider),
+        // 설명은 알림 목록이 쓰는 문장과 같아야 한다 — 목록과 상세가 한 대상을 두고
+        // 다른 말을 하면, 이동이 맞게 됐는지 확인할 근거가 사라진다.
+        //
+        // 예외는 1388 하나다. 알림 응답에서만 이름·설명을 상한 밖 길이로 덮어써 절단을
+        // 보기 때문에(`lib/bff/mock/task-queue.ts` ALERT_OVERFLOW_FIXTURE), 그 행만
+        // 목록과 상세가 다른 문장을 든다. 절단을 보려면 어딘가는 계약을 벗어나야 하고,
+        // 벗어나는 자리를 한 행·한 응답으로 가둔 결과다 — 그 행의 이동이 맞는지는
+        // 설명이 아니라 Target 번호로 확인한다.
+        extra: { description },
+      })
+  )
 );
 
 // ===== 최초 연동 시각 =====
@@ -1705,7 +2583,10 @@ export const addProject = (project: Project): Project => {
   return project;
 };
 
-export const updateProject = (id: string, updates: Partial<Project>): Project | undefined => {
+export const updateProject = (
+  id: string,
+  updates: Partial<Project>
+): Project | undefined => {
   const store = getStore();
   const index = store.projects.findIndex((p) => p.id === id);
   if (index === -1) return undefined;
@@ -1728,98 +2609,106 @@ export const deleteProject = (id: string): boolean => {
 };
 
 export const generateId = (prefix: string): string => {
-  return `${prefix}-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
+  return `${prefix}-${Date.now()}-${Math.random()
+    .toString(36)
+    .substring(2, 11)}`;
 };
 
 export const generateTargetSourceId = (): number => {
   const projects = getStore().projects;
   if (projects.length === 0) return 1001;
-  return Math.max(...projects.map(p => p.targetSourceId)) + 1;
+  return Math.max(...projects.map((p) => p.targetSourceId)) + 1;
 };
 
-export const getProjectByTargetSourceId = (targetSourceId: number): Project | undefined =>
-  getStore().projects.find(p => p.targetSourceId === targetSourceId);
+export const getProjectByTargetSourceId = (
+  targetSourceId: number
+): Project | undefined =>
+  getStore().projects.find((p) => p.targetSourceId === targetSourceId);
 
 // ===== Mock DB Credentials =====
 export const mockCredentials: DBCredential[] = [
   {
-    id: 'cred-1',
-    name: 'hgildong-mysql-prod',
-    databaseType: 'MYSQL',
-    host: 'prod-mysql.example.com',
+    id: "cred-1",
+    name: "hgildong-mysql-prod",
+    databaseType: "MYSQL",
+    host: "prod-mysql.example.com",
     port: 3306,
-    username: 'pii_agent',
-    maskedPassword: '********',
-    createdAt: '2024-01-10T09:00:00Z',
-    createdBy: 'user-1',
+    username: "pii_agent",
+    maskedPassword: "********",
+    createdAt: "2024-01-10T09:00:00Z",
+    createdBy: "user-1",
   },
   {
-    id: 'cred-2',
-    name: 'kimcs-postgres-analytics',
-    databaseType: 'POSTGRESQL',
-    host: 'analytics-pg.example.com',
+    id: "cred-2",
+    name: "kimcs-postgres-analytics",
+    databaseType: "POSTGRESQL",
+    host: "analytics-pg.example.com",
     port: 5432,
-    username: 'analyst',
-    maskedPassword: '********',
-    createdAt: '2024-01-12T10:00:00Z',
-    createdBy: 'user-1',
+    username: "analyst",
+    maskedPassword: "********",
+    createdAt: "2024-01-12T10:00:00Z",
+    createdBy: "user-1",
   },
   {
-    id: 'cred-3',
-    name: 'kimcs-redshift-dw',
-    databaseType: 'REDSHIFT',
-    host: 'dw-cluster.example.com',
+    id: "cred-3",
+    name: "kimcs-redshift-dw",
+    databaseType: "REDSHIFT",
+    host: "dw-cluster.example.com",
     port: 5439,
-    username: 'dw_reader',
-    maskedPassword: '********',
-    createdAt: '2024-01-15T11:00:00Z',
-    createdBy: 'admin-1',
+    username: "dw_reader",
+    maskedPassword: "********",
+    createdAt: "2024-01-15T11:00:00Z",
+    createdBy: "admin-1",
   },
   // 데모: 실 운영 규모(20+)를 재현해 검색·목록 폭이 개수에 흔들리지 않는지 확인한다.
   // 이름이 서로 닮아 있어야 "생성 시각 / 배정 건수"가 실제로 구분에 쓰이는지도 보인다.
   ...(
     [
-      ['hgildong-mysql-prod-replica', 'MYSQL', '2024-01-10T09:04:00Z'],
-      ['kimcs-postgres-analytics-readonly', 'POSTGRESQL', '2024-01-12T10:06:00Z'],
-      ['jhpark-mssql-payments', 'MSSQL', '2024-02-01T00:12:00Z'],
-      ['jhpark-mssql-payments-stg', 'MSSQL', '2024-02-01T00:20:00Z'],
-      ['swlee-mysql-orders', 'MYSQL', '2024-02-03T02:40:00Z'],
-      ['swlee-mysql-orders-stg', 'MYSQL', '2024-02-03T02:44:00Z'],
-      ['swlee-mysql-coupons', 'MYSQL', '2024-02-11T05:05:00Z'],
-      ['yjkim-cosmos-notifications', 'MYSQL', '2024-02-14T07:31:00Z'],
-      ['yjkim-oracle-inventory', 'ORACLE', '2024-03-02T00:50:00Z'],
-      ['yjkim-oracle-inventory-dr', 'ORACLE', '2024-03-02T00:57:00Z'],
-      ['mjshin-postgres-reviews', 'POSTGRESQL', '2024-03-08T04:22:00Z'],
-      ['mjshin-mysql-delivery', 'MYSQL', '2024-03-15T01:11:00Z'],
-      ['mjshin-mysql-delivery-stg', 'MYSQL', '2024-03-15T01:18:00Z'],
-      ['dwjung-mssql-settlement', 'MSSQL', '2024-04-01T00:00:00Z'],
-      ['dwjung-mysql-members', 'MYSQL', '2024-04-22T03:03:00Z'],
-      ['dwjung-mysql-members-readonly', 'MYSQL', '2024-04-22T03:09:00Z'],
-      ['sysadmin-athena-logs', 'ATHENA', '2024-06-02T00:38:00Z'],
+      ["hgildong-mysql-prod-replica", "MYSQL", "2024-01-10T09:04:00Z"],
+      [
+        "kimcs-postgres-analytics-readonly",
+        "POSTGRESQL",
+        "2024-01-12T10:06:00Z",
+      ],
+      ["jhpark-mssql-payments", "MSSQL", "2024-02-01T00:12:00Z"],
+      ["jhpark-mssql-payments-stg", "MSSQL", "2024-02-01T00:20:00Z"],
+      ["swlee-mysql-orders", "MYSQL", "2024-02-03T02:40:00Z"],
+      ["swlee-mysql-orders-stg", "MYSQL", "2024-02-03T02:44:00Z"],
+      ["swlee-mysql-coupons", "MYSQL", "2024-02-11T05:05:00Z"],
+      ["yjkim-cosmos-notifications", "MYSQL", "2024-02-14T07:31:00Z"],
+      ["yjkim-oracle-inventory", "ORACLE", "2024-03-02T00:50:00Z"],
+      ["yjkim-oracle-inventory-dr", "ORACLE", "2024-03-02T00:57:00Z"],
+      ["mjshin-postgres-reviews", "POSTGRESQL", "2024-03-08T04:22:00Z"],
+      ["mjshin-mysql-delivery", "MYSQL", "2024-03-15T01:11:00Z"],
+      ["mjshin-mysql-delivery-stg", "MYSQL", "2024-03-15T01:18:00Z"],
+      ["dwjung-mssql-settlement", "MSSQL", "2024-04-01T00:00:00Z"],
+      ["dwjung-mysql-members", "MYSQL", "2024-04-22T03:03:00Z"],
+      ["dwjung-mysql-members-readonly", "MYSQL", "2024-04-22T03:09:00Z"],
+      ["sysadmin-athena-logs", "ATHENA", "2024-06-02T00:38:00Z"],
       // 규칙(`{userId}-{name}`)에 맞지 않는 값 — 하이픈이 없다. 이런 이름이 섞여도 화면이
       // userId 를 지어내지 않고 이름 전체를 그대로 보여주는지 데모에서 바로 보인다.
-      ['legacy_shared_account', 'MYSQL', '2023-11-02T02:10:00Z'],
+      ["legacy_shared_account", "MYSQL", "2023-11-02T02:10:00Z"],
     ] as const
   ).map(([name, databaseType, createdAt], index) => ({
     id: `cred-${index + 4}`,
     name,
-    databaseType: databaseType as DBCredential['databaseType'],
+    databaseType: databaseType as DBCredential["databaseType"],
     host: `${name.toLowerCase()}.example.com`,
     port: 3306,
-    username: 'pii_agent',
-    maskedPassword: '********',
+    username: "pii_agent",
+    maskedPassword: "********",
     createdAt,
-    createdBy: 'admin-1',
+    createdBy: "admin-1",
   })),
 ];
 
 // ===== Connection Test Simulation =====
 const ERROR_MESSAGES: Record<ConnectionErrorType, string> = {
-  AUTH_FAILED: '인증에 실패했습니다. Credential을 확인하세요.',
-  PERMISSION_DENIED: '권한이 부족합니다. DB 권한을 확인하세요.',
-  NETWORK_ERROR: '네트워크 연결에 실패했습니다. 방화벽 설정을 확인하세요.',
-  TIMEOUT: '연결 시간이 초과되었습니다.',
-  UNKNOWN_ERROR: '알 수 없는 오류가 발생했습니다.',
+  AUTH_FAILED: "인증에 실패했습니다. Credential을 확인하세요.",
+  PERMISSION_DENIED: "권한이 부족합니다. DB 권한을 확인하세요.",
+  NETWORK_ERROR: "네트워크 연결에 실패했습니다. 방화벽 설정을 확인하세요.",
+  TIMEOUT: "연결 시간이 초과되었습니다.",
+  UNKNOWN_ERROR: "알 수 없는 오류가 발생했습니다.",
 };
 
 export const getCredentials = (): DBCredential[] => {
@@ -1827,7 +2716,9 @@ export const getCredentials = (): DBCredential[] => {
   return store.credentials;
 };
 
-export const getCredentialsByDatabaseType = (databaseType: DatabaseType): DBCredential[] => {
+export const getCredentialsByDatabaseType = (
+  databaseType: DatabaseType
+): DBCredential[] => {
   const store = getStore();
   return store.credentials.filter((c) => c.databaseType === databaseType);
 };
@@ -1848,8 +2739,8 @@ export const simulateConnectionTest = (
       credentialName,
       success: false,
       error: {
-        type: 'AUTH_FAILED',
-        message: 'Credential이 선택되지 않았습니다.',
+        type: "AUTH_FAILED",
+        message: "Credential이 선택되지 않았습니다.",
       },
     };
   }
@@ -1858,10 +2749,17 @@ export const simulateConnectionTest = (
   const rand = Math.random();
 
   if (rand < 0.8) {
-    return { resourceId, resourceType, databaseType, credentialName, success: true };
+    return {
+      resourceId,
+      resourceType,
+      databaseType,
+      credentialName,
+      success: true,
+    };
   }
 
-  const errorType: ConnectionErrorType = rand < 0.9 ? 'AUTH_FAILED' : 'PERMISSION_DENIED';
+  const errorType: ConnectionErrorType =
+    rand < 0.9 ? "AUTH_FAILED" : "PERMISSION_DENIED";
 
   return {
     resourceId,
@@ -1883,90 +2781,124 @@ export const getCredentialById = (id: string): DBCredential | undefined => {
 
 // ===== Mock AWS Installation Status =====
 // 기존 AWS 프로젝트들의 설치 상태 초기 데이터 (key: targetSourceId)
-export const mockAwsInstallations: Map<number, LegacyAwsInstallationStatus> = new Map([
-  // targetSourceId 1008 (proj-3): 설치 진행 중 (INSTALLING) - Service TF 완료, BDC TF 진행 중
-  [
-    1008,
-    {
-      provider: 'AWS',
-      hasTfPermission: true,
-      serviceTfScripts: [
-        { id: 'vpc_vpc-seoul-001_ap-northeast-2', type: 'VPC_ENDPOINT', status: 'COMPLETED', label: 'vpc_vpc-seoul-001_ap-northeast-2', vpcId: 'vpc-seoul-001', region: 'ap-northeast-2', resources: [{ resourceId: 'rds-003', type: 'RDS', name: 'rds-003' }], completedAt: '2024-01-19T08:30:00Z' },
-      ],
-      bdcTf: { status: 'IN_PROGRESS' },
-      serviceTfCompleted: true,
-      bdcTfCompleted: false,
-      lastCheckedAt: '2024-01-19T09:00:00Z',
-    },
-  ],
-  // targetSourceId 1010 (proj-5): 연결 테스트 대기 (WAITING_CONNECTION_TEST) - 설치 완료
-  [
-    1010,
-    {
-      provider: 'AWS',
-      hasTfPermission: true,
-      serviceTfScripts: [
-        { id: 'vpc_vpc-seoul-001_ap-northeast-2', type: 'VPC_ENDPOINT', status: 'COMPLETED', label: 'vpc_vpc-seoul-001_ap-northeast-2', vpcId: 'vpc-seoul-001', region: 'ap-northeast-2', resources: [{ resourceId: 'rds-005', type: 'RDS', name: 'rds-005' }], completedAt: '2024-01-21T13:30:00Z' },
-        { id: 'dynamodb_ap-northeast-2', type: 'DYNAMODB_ROLE', status: 'COMPLETED', label: 'dynamodb_ap-northeast-2', region: 'ap-northeast-2', resources: [{ resourceId: 'ddb-005', type: 'DYNAMODB', name: 'ddb-005' }], completedAt: '2024-01-21T13:35:00Z' },
-      ],
-      bdcTf: { status: 'COMPLETED', completedAt: '2024-01-21T14:00:00Z' },
-      serviceTfCompleted: true,
-      bdcTfCompleted: true,
-      completedAt: '2024-01-21T14:00:00Z',
-      lastCheckedAt: '2024-01-21T15:00:00Z',
-    },
-  ],
-]);
+export const mockAwsInstallations: Map<number, LegacyAwsInstallationStatus> =
+  new Map([
+    // targetSourceId 1008 (proj-3): 설치 진행 중 (INSTALLING) - Service TF 완료, BDC TF 진행 중
+    [
+      1008,
+      {
+        provider: "AWS",
+        hasTfPermission: true,
+        serviceTfScripts: [
+          {
+            id: "vpc_vpc-seoul-001_ap-northeast-2",
+            type: "VPC_ENDPOINT",
+            status: "COMPLETED",
+            label: "vpc_vpc-seoul-001_ap-northeast-2",
+            vpcId: "vpc-seoul-001",
+            region: "ap-northeast-2",
+            resources: [
+              { resourceId: "rds-003", type: "RDS", name: "rds-003" },
+            ],
+            completedAt: "2024-01-19T08:30:00Z",
+          },
+        ],
+        bdcTf: { status: "IN_PROGRESS" },
+        serviceTfCompleted: true,
+        bdcTfCompleted: false,
+        lastCheckedAt: "2024-01-19T09:00:00Z",
+      },
+    ],
+    // targetSourceId 1010 (proj-5): 연결 테스트 대기 (WAITING_CONNECTION_TEST) - 설치 완료
+    [
+      1010,
+      {
+        provider: "AWS",
+        hasTfPermission: true,
+        serviceTfScripts: [
+          {
+            id: "vpc_vpc-seoul-001_ap-northeast-2",
+            type: "VPC_ENDPOINT",
+            status: "COMPLETED",
+            label: "vpc_vpc-seoul-001_ap-northeast-2",
+            vpcId: "vpc-seoul-001",
+            region: "ap-northeast-2",
+            resources: [
+              { resourceId: "rds-005", type: "RDS", name: "rds-005" },
+            ],
+            completedAt: "2024-01-21T13:30:00Z",
+          },
+          {
+            id: "dynamodb_ap-northeast-2",
+            type: "DYNAMODB_ROLE",
+            status: "COMPLETED",
+            label: "dynamodb_ap-northeast-2",
+            region: "ap-northeast-2",
+            resources: [
+              { resourceId: "ddb-005", type: "DYNAMODB", name: "ddb-005" },
+            ],
+            completedAt: "2024-01-21T13:35:00Z",
+          },
+        ],
+        bdcTf: { status: "COMPLETED", completedAt: "2024-01-21T14:00:00Z" },
+        serviceTfCompleted: true,
+        bdcTfCompleted: true,
+        completedAt: "2024-01-21T14:00:00Z",
+        lastCheckedAt: "2024-01-21T15:00:00Z",
+      },
+    ],
+  ]);
 
 // ===== Mock AWS Service Settings =====
 // 서비스별 AWS 연동 설정 초기 데이터
-export const mockAwsServiceSettings: Map<string, LegacyAwsServiceSettings> = new Map([
-  // SERVICE-A: AWS 설정 완료
-  [
-    'SERVICE-A',
-    {
-      accountId: '123456789012',
-      scanRole: {
-        registered: true,
-        roleArn: 'arn:aws:iam::123456789012:role/PIIAgentScanRole',
-        lastVerifiedAt: '2024-01-15T10:00:00Z',
-        status: 'VALID',
+export const mockAwsServiceSettings: Map<string, LegacyAwsServiceSettings> =
+  new Map([
+    // SERVICE-A: AWS 설정 완료
+    [
+      "SERVICE-A",
+      {
+        accountId: "123456789012",
+        scanRole: {
+          registered: true,
+          roleArn: "arn:aws:iam::123456789012:role/PIIAgentScanRole",
+          lastVerifiedAt: "2024-01-15T10:00:00Z",
+          status: "VALID",
+        },
       },
-    },
-  ],
-  // SERVICE-B: AWS 설정 미완료 (IDC 프로젝트만 있음)
-  [
-    'SERVICE-B',
-    {
-      scanRole: {
-        registered: false,
+    ],
+    // SERVICE-B: AWS 설정 미완료 (IDC 프로젝트만 있음)
+    [
+      "SERVICE-B",
+      {
+        scanRole: {
+          registered: false,
+        },
+        guide: {
+          title: "AWS 연동 설정 필요",
+          steps: [
+            "서비스에 사용할 AWS 계정 ID를 입력하세요.",
+            "Scan Role ARN을 입력하세요.",
+            "Scan Role은 BDC가 AWS 리소스를 스캔할 때 사용됩니다.",
+            "필요한 권한: ReadOnlyAccess 또는 커스텀 정책",
+          ],
+          documentUrl: "https://docs.example.com/aws/scan-role-setup",
+        },
       },
-      guide: {
-        title: 'AWS 연동 설정 필요',
-        steps: [
-          '서비스에 사용할 AWS 계정 ID를 입력하세요.',
-          'Scan Role ARN을 입력하세요.',
-          'Scan Role은 BDC가 AWS 리소스를 스캔할 때 사용됩니다.',
-          '필요한 권한: ReadOnlyAccess 또는 커스텀 정책',
-        ],
-        documentUrl: 'https://docs.example.com/aws/scan-role-setup',
+    ],
+    // SERVICE-C: AWS 설정 완료되었으나 Role 검증 필요
+    [
+      "SERVICE-C",
+      {
+        accountId: "987654321098",
+        scanRole: {
+          registered: true,
+          roleArn: "arn:aws:iam::987654321098:role/PIIAgentScanRole",
+          lastVerifiedAt: "2024-01-10T09:00:00Z",
+          status: "NOT_VERIFIED",
+        },
       },
-    },
-  ],
-  // SERVICE-C: AWS 설정 완료되었으나 Role 검증 필요
-  [
-    'SERVICE-C',
-    {
-      accountId: '987654321098',
-      scanRole: {
-        registered: true,
-        roleArn: 'arn:aws:iam::987654321098:role/PIIAgentScanRole',
-        lastVerifiedAt: '2024-01-10T09:00:00Z',
-        status: 'NOT_VERIFIED',
-      },
-    },
-  ],
-]);
+    ],
+  ]);
 
 // ===== AWS Installation Helper Functions =====
 

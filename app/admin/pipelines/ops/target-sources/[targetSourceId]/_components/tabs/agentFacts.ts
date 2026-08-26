@@ -19,6 +19,13 @@ import type { ConfirmedIntegrationResourceInfo } from '@/lib/types';
 export type ConfirmedIndex = ReadonlyMap<string, ConfirmedIntegrationResourceInfo>;
 
 export interface AgentResourceFacts {
+  /**
+   * 사람이 부르는 이름 — 확정 정보의 `resource_name`. §10 은 이름을 주지 않으므로 조인이
+   * 빗나가면 대시다: 경로형 id 의 꼬리를 잘라 이름 자리에 세우면, 어느 API 도 그렇게
+   * 부른 적 없는 값이 `Resource Name` 열에 사실처럼 선다.
+   * IDC 는 스캔이 이름을 짓지 않아 원래 null 이다 — 주소가 정체다.
+   */
+  name: string | null;
   /** 비-GCP 대상의 리전 — 확정 정보의 database_region. */
   region: string | null;
   /**
@@ -27,16 +34,24 @@ export interface AgentResourceFacts {
    * 손대지 않는다(확정 정보 표와 같은 이름이 나와야 한다).
    */
   databaseType: string | null;
-  /** IDC 접속 주소 한 줄 (`10.20.1.11:1521`). 클라우드 행에는 없다. */
+  /**
+   * IDC 접속 주소 한 줄 — **포트 없이** (`10.20.1.11`). 클라우드 행에는 없다.
+   * 포트를 붙이지 않는 이유는 열이 갈려 있어서다: IDC 단계 표(`IdcResourceTable`)가
+   * 접속 주소와 Port 를 따로 세우고, Airflow 확인 표도 IDC 대상에서 그 구성을 그대로 쓴다.
+   */
   address: string | null;
+  /** 접속 주소의 짝 — 확정 정보의 `port`. 없는 값은 대시로 서지 0 으로 서지 않는다. */
+  port: number | null;
   /** IP 가 여러 개인 IDC 행에서 첫 줄 뒤에 남은 개수. */
   moreAddresses: number;
 }
 
 export const EMPTY_FACTS: AgentResourceFacts = {
+  name: null,
   region: null,
   databaseType: null,
   address: null,
+  port: null,
   moreAddresses: 0,
 };
 
@@ -81,9 +96,11 @@ export const agentResourceFacts = (
   const addresses = idcAddresses(row);
   const first = addresses[0] ?? null;
   return {
+    name: row.resource_name ?? null,
     region: row.database_region ?? null,
     databaseType: row.database_type ?? null,
-    address: first === null ? null : row.port === null ? first : `${first}:${row.port}`,
+    address: first,
+    port: row.port ?? null,
     moreAddresses: Math.max(0, addresses.length - 1),
   };
 };

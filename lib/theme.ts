@@ -452,6 +452,22 @@ export const verdictRail = {
   target: '',
   excluded: 'shadow-[inset_4px_0_0_0_#D6409F]',
   ineligible: 'shadow-[inset_4px_0_0_0_#D97706]',
+  /**
+   * 실패 판정 행 — Airflow 확인 표 (오너 2026-08-25: "실패한 행은 어느정도는 색상으로").
+   *
+   * 판정 알약은 행의 **끝**에 선다. 즉 읽는 방향의 마지막에야 색이 도착해서, 어느 행을
+   * 봐야 하는지는 그 행을 다 읽고 나서 알게 된다. 레일은 같은 색을 행이 시작하는 자리로
+   * 옮긴다 — 알약과 레일이 한 행을 양끝에서 물고, 색은 두 번 말하지만 두 번째가 처음이다.
+   *
+   * 면(행 틴트)이 아닌 이유는 바로 아래 `tableRowLift.excluded` 가 이미 적어 둔 것과 같다:
+   * 배경은 면적이 넓어 신호가 될 만큼 진해지면 그 위 본문 글자의 대비를 갉아먹고, 옅게
+   * 두면(1.05:1) 애초에 신호가 아니다. 좁은 레일은 같은 일을 대비 손실 없이 한다.
+   *
+   * `--pl-err`(#F04438)는 흰 행 3.76:1 · hover 틴트(#F7F8FA) 3.57:1 로 두 표면 모두에서
+   * 1.4.11 의 3:1 을 넘는다. 위의 두 레일과 같은 4px — 자리를 나눠 쓰는 값이라 폭이
+   * 갈리면 같은 표에서 두 문법이 된다(`nameCell` 의 패딩 예산도 4px 을 전제한다).
+   */
+  failed: 'shadow-[inset_4px_0_0_0_var(--pl-err)]',
 } as const;
 
 /** 행의 첫 셀에 얹을 레일 클래스. 대상 행은 빈 문자열 — 침묵이 곧 정상이다. */
@@ -532,6 +548,18 @@ export const tableRowLift = {
    */
   card: 'hover:bg-[#F3EEFF] focus-within:bg-[#F3EEFF]',
 } as const;
+
+/**
+ * Cloud Composer 마크의 두 색 — 이 앱의 색이 아니라 벤더 제품의 색이다.
+ *
+ * 아이콘이 값을 직접 들고 있으면 안 되는 이유는 정책이다: `raw-hex` 게이트가 theme.ts
+ * 하나만 예외로 두고, 그건 "색을 글자로 적는 곳은 여기 하나"라는 규칙 그대로다.
+ * 짙은 쪽은 이미 있는 프로바이더 토큰(`--pl-pv-gcp`)을 그대로 쓴다 — 같은 브랜드의
+ * 같은 파랑을 두 값으로 갈라 두면 나중에 한쪽만 움직인다.
+ *
+ * design-exempt: brand logotype (WCAG 1.4.11) — 대비 하한의 대상이 아니다.
+ */
+export const composerMark = { node: 'var(--pl-pv-gcp)', link: '#669DF6' } as const;
 
 export const cardStyles = {
   /** v15 Toss card — radius 20 + 2-layer toss-shadow-sm. */

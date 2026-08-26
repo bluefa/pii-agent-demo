@@ -2,6 +2,8 @@
  * Ops target-source page chrome (Figma pYCA7zTWcZysYOpYykuYAN 4:2, adapted to
  * the --pl-* token system — raw Figma hex values map to their semantic tokens).
  */
+import { primaryColors } from '@/lib/theme';
+
 export const opsStyles = {
   /**
    * R1 page root (docs/ux/benchmark/ops-detail-ia-redesign.md) — escapes
@@ -122,6 +124,23 @@ export const opsStyles = {
   cardTitle: 'text-[20px] font-semibold text-[var(--pl-text-strong)]',
   /** 14/weak, 12px below the title — the helper line recedes to gray, one tier under body headers. */
   cardDesc: 'text-[14px] text-[var(--pl-text-weak)] mt-3',
+  /**
+   * 관측 스코프 태그 — 카드 머리 메타 줄의 '최근 7일' (오너 2026-08-25: "파란색 태그로").
+   *
+   * 중립 회색 태그는 이 줄의 글자색(`--pl-text-weak`)과 같은 계열이라 태그가 아니라 굵은
+   * 글자로 읽혔다. 파랑은 앱이 상호작용에 쓰는 한 가지 색이지만, 여기서는 면만 쓰고 밑줄도
+   * 커서도 없어 누를 것으로 읽히지 않는다 — 같은 줄 오른쪽의 '전체 현황 보기'가 파란 **글자**
+   * 라, 채널이 갈린다(면=라벨, 글자=진입).
+   *
+   * 색은 `primaryColors` 의 bgLight/textOnLight 를 그대로 받는다(그 짝이 5.92:1) — 파란 태그
+   * 가족이다. 값을 손으로 베끼지 않는 이유는 census 다: 토큰이 움직이는 날 손복사본만
+   * 제자리에 남아 두 파랑이 된다.
+   *
+   * ⛔ `cardStyles.stepTag` 를 빌려 쓰지 말 것: 그 토큰은 「N단계」 13개 헤드의 것이고
+   * `design-guard.test.ts` 의 인구조사가 집합으로 고정한다. 그래서 기하도 일부러 다르다
+   * (4px 라운드·semibold — 메타 줄의 가벼운 태그).
+   */
+  scopeTag: `inline-flex flex-none items-center rounded-[4px] px-1.5 py-0.5 text-[12px] font-semibold ${primaryColors.bgLight} ${primaryColors.textOnLight}`,
 
   /** A paged card in cardsRow: column layout so the pager sits at the bottom. */
   pagedCard: 'flex flex-col',
