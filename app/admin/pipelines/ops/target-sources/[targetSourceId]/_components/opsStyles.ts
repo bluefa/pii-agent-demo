@@ -104,8 +104,11 @@ export const opsStyles = {
   /** 포커스 링을 손으로 그리지 않는다 — `focus-visible:outline-none` 은 이 앱에서 무효라
       (globals.css 의 전역 아웃라인이 cascade layer 밖) 옅은 링이 전역 파란 아웃라인 옆에
       같이 그려졌다. 옆의 링크 둘과 같은 방식으로 전역 아웃라인만 받는다. */
+  /** 「상세 정보」는 계층을 한 단 내렸다 (오너 08-26 "파란색은 과하다") — 파랑은 이 줄에서
+      나가는 링크 둘이 이미 쓰고 있고, 이건 나가는 문이 아니라 여기서 열리는 접힘이다.
+      medium 은 워시 위 8.44:1 로 옅어진 게 아니라 조용해진 것이다. */
   fmCue:
-    'flex flex-none cursor-pointer items-center gap-1 rounded-[6px] text-[12px] font-semibold text-[var(--pl-primary)]',
+    'flex flex-none cursor-pointer items-center gap-1 rounded-[6px] text-[12px] font-medium text-[var(--pl-text-medium)] transition-colors hover:text-[var(--pl-text-strong)]',
   fmCueIcon: 'transition-transform motion-reduce:transition-none',
   fmCueIconOpen: 'rotate-180',
   /**
@@ -125,6 +128,13 @@ export const opsStyles = {
   /** 워시는 램프 한 칸을 잡아먹는다 — `--pl-text-weak` 는 이 gray-100 위에서 4.51:1 로
       AA 바닥이라 12px 라벨에 쓰지 않는다. `--pl-gray-600` 은 같은 자리에서 6.98:1. */
   fmKey: 'text-[12px] font-semibold leading-4 text-[var(--pl-gray-600)]',
+  /** 수정할 수 있는 kv 라벨 (오너 08-26 "수정은 없애. 그냥 밑줄을 그어놔") — 값 옆의
+      「수정」 링크 대신 **라벨 자신이** 모달을 연다. 08-20 의 판례는 *태그*가 눌리는
+      척하지 말라는 것이었고, 여기서 눌리는 것은 태그가 아니라 라벨이라 부딪히지 않는다.
+      밑줄이 유일한 신호이므로 색은 fmKey 그대로 두고(워시 위 6.98:1), self-start 가
+      없으면 flex-col 셀에서 버튼이 240px 로 늘어나 밑줄이 칸 전체를 긋는다. */
+  fmKeyAction:
+    'flex cursor-pointer self-start text-[12px] font-semibold leading-4 text-[var(--pl-gray-600)] underline underline-offset-2 decoration-[var(--pl-border-strong)] transition-colors hover:text-[var(--pl-text-strong)] hover:decoration-[var(--pl-text-strong)]',
   /** `min-h` 가 있는 이유: 흰 면 태그가 들어오는 셀(22px)과 글자만 있는 셀의 높이를
       같게 잡아 둔다. 안 맞추면 같은 행 안에서 프로바이더마다 셀이 엇갈린다. */
   fmValue:

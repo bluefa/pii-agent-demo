@@ -459,6 +459,7 @@ const TEXT: TextPair[] = [
   // 여기서 4.51:1) 라벨 계단이 gray-600 에서 시작한다.
   { what: 'ops FrontMeta block label on the masthead wash', fg: textOf(classOf(opsSrc, 'fmLabel')), on: resolve('var(--pl-gray-100)') },
   { what: 'ops FrontMeta kv key on the masthead wash', fg: textOf(classOf(opsSrc, 'fmKey')), on: resolve('var(--pl-gray-100)') },
+  { what: 'ops FrontMeta editable kv key on the masthead wash', fg: textOf(classOf(opsSrc, 'fmKeyAction')), on: resolve('var(--pl-gray-100)') },
   { what: 'ops FrontMeta kv value on the masthead wash', fg: textOf(classOf(opsSrc, 'fmValue')), on: resolve('var(--pl-gray-100)') },
   { what: 'ops FrontMeta 미등록 on the masthead wash', fg: textOf(classOf(opsSrc, 'fmNone')), on: resolve('var(--pl-gray-100)') },
   { what: 'ops FrontMeta disclosure cue on the masthead wash', fg: textOf(classOf(opsSrc, 'fmCue')), on: resolve('var(--pl-gray-100)') },

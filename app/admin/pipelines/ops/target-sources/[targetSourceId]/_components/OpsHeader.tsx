@@ -90,9 +90,25 @@ export function OpsHeader({
     supportRawData === true ? '포함' : supportRawData === false ? '미포함' : '미확인';
 
   /** kv 셀 — 라벨이 값 위에 선다. `wide` 는 긴 주체(ARN·SA·App ID)가 먹는 2열. */
-  const cell = (label: string, value: ReactNode, wide = false): ReactElement => (
+  const cell = (
+    label: string,
+    value: ReactNode,
+    wide = false,
+    onLabel?: { onClick: () => void; title: string },
+  ): ReactElement => (
     <div key={label} className={cn(opsStyles.fmCell, wide && opsStyles.fmCellWide)}>
-      <span className={opsStyles.fmKey}>{label}</span>
+      {onLabel ? (
+        <button
+          type="button"
+          className={opsStyles.fmKeyAction}
+          onClick={onLabel.onClick}
+          title={onLabel.title}
+        >
+          {label}
+        </button>
+      ) : (
+        <span className={opsStyles.fmKey}>{label}</span>
+      )}
       <span className={opsStyles.fmValue}>{value}</span>
     </div>
   );
@@ -152,34 +168,30 @@ export function OpsHeader({
     );
 
   /** 표시값은 detail 과 같이 온다 (v5 metadata 의 등록값) — 저장 직후 한 칸만 saved 가 덮는다. */
+  /**
+   * Role 셀 — 「수정」 링크가 없다 (오너 08-26 "ScanRole 오른쪽에 수정은 없애. 그냥
+   * ScanRole 밑줄을 그어놔. 그리고 클릭하면 수정 모달이 열리게"). 값 옆에 서 있던 동사가
+   * 라벨로 접혀 들어가면서 셀 하나가 한 칸으로 줄고, AWS 첫 행이 계정·Scan·TF·설치모드로
+   * 정확히 찬다. ARN 전문은 「상세 정보」가 복사와 함께 지므로 240px 안에서 잘려도 된다 —
+   * prefix 가 대상 계정과 일치할 때만 role 이름으로 줄고, 불일치(교차 계정·파티션)는 그
+   * prefix 가 어긋남의 유일한 증거라 전체를 남긴다 (awsRoleArnDisplay).
+   */
   const roleCell = (kind: RoleKind): ReactElement => {
     const arn =
       savedRoleArns[kind]
       ?? (kind === 'scan' ? meta.aws_scan_role_arn : meta.aws_terraform_execution_role_arn);
+    const short = ROLE_META[kind].short;
     return cell(
-      ROLE_META[kind].short,
+      short,
       arn ? (
-        <>
-          {/* ARN 은 값이지 동작이 아니다 — 링크로 그리지 않고, 동작(수정)은 옆 버튼이
-              맡는다. prefix 가 대상 계정과 일치할 때만 role 이름으로 줄고, 불일치
-              (교차 계정·파티션)는 그 prefix 가 어긋남의 유일한 증거라 전체를 남긴다
-              (awsRoleArnDisplay). 전문은 「상세 정보」에 복사와 함께 있다. */}
-          <span className={cn(opsStyles.fmValueText, opsStyles.fmMono)} title={arn}>
-            {awsRoleArnDisplay(arn, meta.aws_account_id ?? '', isChina)}
-          </span>
-          <button type="button" className={opsStyles.fmLink} onClick={() => onOpenEdit(kind)}>
-            수정
-          </button>
-        </>
+        <span className={cn(opsStyles.fmValueText, opsStyles.fmMono)} title={arn}>
+          {awsRoleArnDisplay(arn, meta.aws_account_id ?? '', isChina)}
+        </span>
       ) : (
-        <>
-          <span className={opsStyles.fmNone}>미등록</span>
-          <button type="button" className={opsStyles.fmLink} onClick={() => onOpenEdit(kind)}>
-            등록하기
-          </button>
-        </>
+        <span className={opsStyles.fmNone}>미등록</span>
       ),
-      true,
+      false,
+      { onClick: () => onOpenEdit(kind), title: arn ? `${short} 수정` : `${short} 등록` },
     );
   };
 
