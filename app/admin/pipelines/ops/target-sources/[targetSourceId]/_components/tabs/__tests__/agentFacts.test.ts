@@ -78,7 +78,7 @@ describe('agentResourceFacts', () => {
     expect(agentResourceFacts('known', null)).toEqual(EMPTY_FACTS);
   });
 
-  it('IDC IP 모드 — 첫 주소에 포트를 붙이고 나머지는 개수로 센다', () => {
+  it('IDC IP 모드 — 주소와 포트는 갈려서 나오고 나머지 주소는 개수로 센다', () => {
     const index = indexConfirmedResources([
       row({
         resource_id: 'idc-r-8f21',
@@ -94,7 +94,10 @@ describe('agentResourceFacts', () => {
       name: null,
       region: null,
       databaseType: 'ORACLE',
-      address: '10.20.1.11:1521',
+      // 주소와 포트가 갈려 있는 이유는 표가 갈라서 세우기 때문이다 — IDC 단계 표
+      // (`IdcResourceTable`)의 접속 주소 · Port 구성을 Airflow 확인 표도 그대로 쓴다.
+      address: '10.20.1.11',
+      port: 1521,
       moreAddresses: 2,
     });
   });
@@ -104,15 +107,15 @@ describe('agentResourceFacts', () => {
       row({ resource_id: 'a', idc_host_format: 'HOST', idc_host: 'db.internal', port: 3306 }),
       row({ resource_id: 'b', host: 'legacy.internal', port: 5432 }),
     ]);
-    expect(agentResourceFacts('a', index).address).toBe('db.internal:3306');
-    expect(agentResourceFacts('b', index).address).toBe('legacy.internal:5432');
+    expect(agentResourceFacts('a', index)).toMatchObject({ address: 'db.internal', port: 3306 });
+    expect(agentResourceFacts('b', index)).toMatchObject({ address: 'legacy.internal', port: 5432 });
   });
 
-  it('포트가 없으면 주소만 — 콜론만 남은 주소를 만들지 않는다', () => {
+  it('포트가 없으면 Port 칸은 대시로 설 값(null) — 0 으로 채우지 않는다', () => {
     const index = indexConfirmedResources([
       row({ resource_id: 'a', idc_host_format: 'IP', idc_ips: ['10.0.0.1'], port: null }),
     ]);
-    expect(agentResourceFacts('a', index).address).toBe('10.0.0.1');
+    expect(agentResourceFacts('a', index)).toMatchObject({ address: '10.0.0.1', port: null });
   });
 
   it('DatabaseType 은 원문 그대로 — 표기는 표가 getDatabaseShortLabel 로 고른다', () => {
@@ -153,6 +156,7 @@ describe('agentResourceFacts', () => {
       region: 'ap-northeast-2',
       databaseType: 'MYSQL',
       address: null,
+      port: null,
       moreAddresses: 0,
     });
   });

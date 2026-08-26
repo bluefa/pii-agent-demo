@@ -127,12 +127,15 @@ const spec = (
 
 /** 1801 물류서비스 — the scale fixture: 30 agents × 52 DBs = 1,560 rows. */
 const buildScaleAgents = (days: string[]): DagAgentStatus[] =>
-  Array.from({ length: 30 }, (_, agentIdx) =>
+  // 개수를 손으로 적지 않는다 — lgsResources 의 그룹 수가 바뀌는 순간 손으로 적은 30 이
+  // 명부를 넘어서고, 넘친 행은 조인이 빗나가 통째로 대시가 된다. 이 픽스처가 막으려던
+  // 실패가 바로 그것이다.
+  Array.from(LGS_RESOURCE_IDS, (resourceId, agentIdx) =>
     agent(
       1801,
       agentIdx,
       // 확정 정보와 같은 id — 표의 이름·엔진·리전 칸은 그 조인으로만 채워진다.
-      LGS_RESOURCE_IDS[agentIdx],
+      resourceId,
       null,
       'SUCCESS',
       Array.from({ length: 52 }, (_, dbIdx) => {

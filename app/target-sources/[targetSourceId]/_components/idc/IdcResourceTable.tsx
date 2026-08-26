@@ -133,7 +133,12 @@ export const SourceIpHeader = () => (
  * the overflow-x-auto escape hatch the legacy frame never had (ledger ⚠️⁴). The 승인
  * 모달 combo (666) fits its 712px pane with ~46px of slack for the flex column.
  */
-const IDC_COLUMN_WIDTHS = {
+/**
+ * 열 폭. Airflow 확인 탭의 리소스 표가 IDC 대상에서 이 표의 정체 열(접속 주소·Port·
+ * Database Type)을 그대로 쓰므로 export 다 — 값을 손으로 베끼면 census 가 못 보는
+ * 사본이 되고, 이 표가 폭을 바꾸는 날 그쪽만 옛 값으로 남는다.
+ */
+export const IDC_COLUMN_WIDTHS = {
   endpoint: 200,
   port: 80,
   dbType: 172,

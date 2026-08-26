@@ -34,8 +34,14 @@ export interface AgentResourceFacts {
    * 손대지 않는다(확정 정보 표와 같은 이름이 나와야 한다).
    */
   databaseType: string | null;
-  /** IDC 접속 주소 한 줄 (`10.20.1.11:1521`). 클라우드 행에는 없다. */
+  /**
+   * IDC 접속 주소 한 줄 — **포트 없이** (`10.20.1.11`). 클라우드 행에는 없다.
+   * 포트를 붙이지 않는 이유는 열이 갈려 있어서다: IDC 단계 표(`IdcResourceTable`)가
+   * 접속 주소와 Port 를 따로 세우고, Airflow 확인 표도 IDC 대상에서 그 구성을 그대로 쓴다.
+   */
   address: string | null;
+  /** 접속 주소의 짝 — 확정 정보의 `port`. 없는 값은 대시로 서지 0 으로 서지 않는다. */
+  port: number | null;
   /** IP 가 여러 개인 IDC 행에서 첫 줄 뒤에 남은 개수. */
   moreAddresses: number;
 }
@@ -45,6 +51,7 @@ export const EMPTY_FACTS: AgentResourceFacts = {
   region: null,
   databaseType: null,
   address: null,
+  port: null,
   moreAddresses: 0,
 };
 
@@ -92,7 +99,8 @@ export const agentResourceFacts = (
     name: row.resource_name ?? null,
     region: row.database_region ?? null,
     databaseType: row.database_type ?? null,
-    address: first === null ? null : row.port === null ? first : `${first}:${row.port}`,
+    address: first,
+    port: row.port ?? null,
     moreAddresses: Math.max(0, addresses.length - 1),
   };
 };

@@ -45,11 +45,13 @@ import { ConsoleTable, type ConsoleTableColumn } from '@/app/components/ui/Conso
 import { useColumnResize } from '@/app/components/ui/useColumnResize';
 import { Pagination } from '@/app/components/ui/Pagination';
 import { SortCaretIcon } from '@/app/components/ui/icons';
+import { IDC_COLUMN_WIDTHS } from '@/app/target-sources/[targetSourceId]/_components/idc/IdcResourceTable';
 import { CONNECTED_FRAME } from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalTable';
 import type { DagStatusResponse } from '@/lib/types/dag-status';
 import {
   Dash,
   TcPill,
+  type TcTone,
 } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/bits';
 import {
   agentVerdict,
@@ -72,16 +74,20 @@ const CLIP_CELL = cn(CELL, idcStyles.table.consoleCell);
  * 바꾸는 날 이 표도 같이 움직여야 한다.
  *
  * 얹는 것은 행 높이 하나뿐 — `approvalCell` 의 py-4 에서 한 단 올린 py-5 (Step 1 이 그렇게
- * 서 있다). `:not([colspan])` 가드는 스팬 셀(빈 상태 줄)이 이 선택자에 걸리지 않게 한다.
+ * 서 있다). `:not([colspan])` 가드는 Step 1 에서 온 그대로다 — 이 표에는 빈 상태 줄이
+ * 없지만(호출부가 `agents.length > 0` 으로 막는다), 상수를 빌려 쓰는 쪽이 원본의 조건을
+ * 깎을 이유가 없다.
  */
 const TABLE_BODY = cn(CONNECTED_FRAME, '[&_td:not([colspan])]:py-5');
 
 /**
- * 열 폭. flex 는 Resource ID 하나뿐이다 — 셸의 싱크(남는 폭을 흡수하는 열)는 마지막 flex
- * 열이 지므로, 행마다 임의로 길어지는 값(경로형 id)이 그 역할을 가져가야 한다.
+ * 열 폭. flex 는 하나뿐이다 — 셸의 싱크(남는 폭을 흡수하는 열)는 마지막 flex 열이 지므로,
+ * 행마다 임의로 길어지는 값이 그 역할을 가져가야 한다. 클라우드는 경로형 id 가, IDC 는
+ * 접속 주소(호스트·FQDN)가 그 값이다.
  */
-const COL_W = { name: 250, id: 300, dbType: 150, region: 170, address: 240, status: 230 } as const;
-const FLEX_KEYS = ['id'] as const;
+const COL_W = { name: 250, id: 300, dbType: 150, region: 170, status: 230 } as const;
+const CLOUD_FLEX = ['id'] as const;
+const IDC_FLEX = ['endpoint'] as const;
 
 /**
  * Monitoring 상태 정렬 — 이 표가 답하는 질문은 "무엇을 봐야 하나" 하나뿐이라, 거르는
@@ -92,10 +98,14 @@ const FLEX_KEYS = ['id'] as const;
  */
 type StatusSort = null | 'attention' | 'ok';
 
-/** 정렬 키 — 알약의 tone 을 그대로 쓴다. 칩과 알약이 다른 판정을 말할 수 없던 이유와 같다. */
-const TONE_RANK: Record<string, number> = { err: 0, warn: 1, off: 2, ok: 3 };
+/**
+ * 정렬 키 — 알약의 tone 을 그대로 쓴다. 칩과 알약이 다른 판정을 말할 수 없던 이유와 같다.
+ * `TcTone` 으로 닫아 두면 fallback 이 필요 없고, 톤이 하나 늘면 런타임에 중간 등수로
+ * 조용히 떨어지는 대신 컴파일이 막는다.
+ */
+const TONE_RANK: Record<TcTone, number> = { err: 0, warn: 1, off: 2, ok: 3 };
 
-const sortRank = (agent: DagAgentSummary): number => TONE_RANK[agentVerdict(agent).tone] ?? 2;
+const sortRank = (agent: DagAgentSummary): number => TONE_RANK[agentVerdict(agent).tone];
 
 export interface AgentDagTableProps {
   data: DagStatusResponse;
@@ -107,50 +117,58 @@ export interface AgentDagTableProps {
    * 리전(비-GCP)·IDC 접속 주소는 전부 여기서 온다.
    */
   confirmed: ConfirmedIndex | null;
-  /** IDC 대상이면 리전 자리에 접속 주소가 선다 — 바닥에 놓인 기계에 리전은 없다. */
+  /**
+   * IDC 대상이면 정체 열이 통째로 갈린다 — 클라우드의 이름·id·리전 대신 IDC 단계 표
+   * (`IdcResourceTable`)의 접속 주소 · Port · Database Type 이 선다 (오너 2026-08-26).
+   */
   isIdc: boolean;
 }
 
 /**
- * Monitoring 상태 셀 — 판정 알약 + 최근 7일 분수, 그리고 **분수가 곧 진입**이다.
+ * Monitoring 상태 셀 (시안 A, 오너 2026-08-26) — 판정 알약 + **확인해야 할 개수 하나**,
+ * 그리고 그 수가 곧 진입이다.
  *
- * `DAG 상태 조회` 열을 따로 두지 않는다 (오너 2026-08-25, "모니터링 상태와 DAG 상세를
- * 하나로"): 그 열은 모든 행에 같은 글자를 30번 찍으면서 140px 를 상시 점유했고, 무엇을
- * 여는지는 결국 옆 칸의 분수(그 에이전트의 논리 DB 52건)가 말하고 있었다. 그래서 여는
- * 것을 그 수 위에 얹는다 — 밑줄이 affordance 를 지고 색은 판정에 남는 규칙은 이 화면의
- * 카운트 줄(`실패 14`)이 이미 쓰는 문법이다.
+ * 분수(`34/52 성공`)를 버린 이유는 한 칸 안에서 극성이 뒤집혔기 때문이다: 알약은 잘못된
+ * 것을 부르고(확인 필요) 분수는 잘된 것을 셌다. 정작 필요한 수 — 확인해야 할 18 — 은
+ * 어디에도 없어서 빼야 나왔고, 밑줄은 성공한 34 위에 앉아 목적지를 잘못 말했고,
+ * 정상 행은 `정상 52/52 성공`으로 같은 사실을 두 번 말했다. 열을 세로로 훑으면 마지막
+ * 낱말이 매 행 `성공`이었다.
  *
- * 관측 DB 가 0개면 분수도 진입도 없다 — 알약('DAG 없음')이 이미 부재를 말했고, 빈 보드를
- * 여는 진입은 막다른 길이다.
+ * 지금은 바로 위 요약 카운트 줄과 같은 문법이다 — 버킷마다 자기 수를 세고, 분수가 없고,
+ * 극성이 한 방향. 이 셀은 그 줄의 리소스 단위 축소판이다. 활자도 그 줄의 것을 쓴다
+ * (`countValue` 14px bold tabular): 알약 12px 과 갈려서 무엇이 판정이고 무엇이 그 크기인지
+ * 형태가 말한다.
+ *
+ * 수는 판정을 낸 함수가 같이 낸다(`verdict.count`) — 셀이 같은 셈을 두 번째로 하다가
+ * 어긋날 길을 없앤다. 그래서 수가 서는 행은 정확히 알약이 '확인 필요'인 행이다.
+ * 나머지 판정(정상 · 진행 중 · 그 외 · DAG 없음 · 연결 실패)은 알약만 세운다 —
+ * 셀 것이 없다는 것이 곧 볼 것이 없다는 뜻이 된다.
  *
  * 판정은 호출부에서 받는다 — 같은 행의 실패 레일이 같은 값을 읽어야 하고, 레일과 알약이
  * 서로 다른 판정을 말할 수 있는 길은 아예 없는 편이 낫다(정렬 키가 tone 을 쓰는 것과 같은 이유).
  */
-function WeeklyCell({
-  agent,
+function VerdictCell({
   verdict,
   onViewDbs,
 }: {
-  agent: DagAgentSummary;
   verdict: ReturnType<typeof agentVerdict>;
   onViewDbs: () => void;
 }): ReactElement {
+  const count = verdict.count ?? 0;
   return (
     <span className="inline-flex flex-wrap items-center gap-2">
       <span title={verdict.hint}>
         <TcPill tone={verdict.tone} label={verdict.label} />
       </span>
-      {agent.dbTotal > 0 && (
+      {count > 0 && (
         <button
           type="button"
           onClick={onViewDbs}
-          aria-label={`이 리소스의 논리 DB ${agent.dbTotal.toLocaleString('ko-KR')}건을 최근 7일 현황에서 보기`}
-          className="cursor-pointer whitespace-nowrap font-mono text-[12px] tabular-nums text-[var(--pl-text-strong)]"
+          aria-label={`이 리소스의 확인 필요 논리 DB ${count.toLocaleString('ko-KR')}건을 최근 7일 현황에서 보기`}
+          // 색은 판정에 남고 밑줄이 affordance 를 진다 — 카운트 줄의 `실패 14` 와 같은 규칙.
+          className="cursor-pointer whitespace-nowrap border-b border-current text-[14px] font-bold tabular-nums text-[var(--pl-err-text)]"
         >
-          <b className="border-b border-current font-semibold">
-            {agent.succeeded.toLocaleString('ko-KR')}/{agent.dbTotal.toLocaleString('ko-KR')}
-          </b>{' '}
-          성공
+          {count.toLocaleString('ko-KR')}
         </button>
       )}
     </span>
@@ -170,10 +188,12 @@ export function AgentDagTable({
 
   // 드래그 폭은 이 화면 한 표의 것이다 — 셸은 공유하지만 저장 키는 호출부가 준다.
   // flex 열의 폭은 세션 한정: 다음 방문에 되살리면 그 열이 싱크 역할을 잃는다.
+  // 저장 키가 갈리는 이유는 열 자체가 갈려서다 — 한 키를 나눠 쓰면 IDC 의 Database Type
+  // 폭(172)과 클라우드의 것(150)이 같은 슬롯을 놓고 덮어쓴다.
   const resize = useColumnResize({
     clampToContent: true,
-    storageKey: 'pii:colw:v2:ops-airflow-agents',
-    ephemeralKeys: FLEX_KEYS,
+    storageKey: isIdc ? 'pii:colw:v1:ops-airflow-agents-idc' : 'pii:colw:v2:ops-airflow-agents',
+    ephemeralKeys: isIdc ? IDC_FLEX : CLOUD_FLEX,
   });
 
   const toggleSort = (): void => {
@@ -182,21 +202,34 @@ export function AgentDagTable({
   };
 
   /**
-   * IDC 는 리전이 없다 — 그 자리에 접속 주소가 선다(바닥에 놓인 기계에 리전은 없다).
+   * 정체 열은 대상이 어느 쪽이냐에 따라 통째로 갈린다 (오너 2026-08-26: "idc는 기존
+   * step에서처럼 컬럼을 구성해").
+   *
+   * 클라우드는 Step 1 리소스 표의 열 이름을, IDC 는 IDC 단계 표(`IdcResourceTable`)의
+   * 정체 3열을 그대로 쓴다 — 접속 주소(싱크) · Port · Database Type. 폭도 그 표에서
+   * import 한다: 값을 베끼면 그 표가 폭을 바꾸는 날 여기만 옛 값으로 남는다.
+   *
+   * IDC 에 이름·id·리전이 없는 것은 생략이 아니라 사실이다. 스캔이 IDC 리소스에 이름을
+   * 짓지 않고(주소가 정체다), 바닥에 놓인 기계에 리전은 없다. 단계 표들이 같은 이유로
+   * 같은 열을 갖고 있다.
    *
    * ⚠️ 08-21 의 "엔진 열은 IDC 에만"은 만료됐다 (오너 2026-08-25). 그 판단의 전제는 엔진
    * 열이 분수의 분모(논리 DB 수) 바로 옆에 서서 그 개수 얘기처럼 읽힌다는 것이었는데,
-   * 지금은 속성 블록 안에 있고 분수는 Monitoring 상태 칸 안으로 들어갔다.
+   * 분수는 이제 없다.
    */
   const columns: ConsoleTableColumn[] = [
-    { key: 'name', label: 'Resource Name', width: COL_W.name },
-    { key: 'id', label: 'Resource ID', width: COL_W.id, flex: true },
-    { key: 'dbType', label: 'Database Type', width: COL_W.dbType },
-    {
-      key: 'region',
-      label: isIdc ? '접속 주소' : 'Region',
-      width: isIdc ? COL_W.address : COL_W.region,
-    },
+    ...(isIdc
+      ? [
+          { key: 'endpoint', label: '접속 주소', width: IDC_COLUMN_WIDTHS.endpoint, flex: true },
+          { key: 'port', label: 'Port', width: IDC_COLUMN_WIDTHS.port },
+          { key: 'dbType', label: 'Database Type', width: IDC_COLUMN_WIDTHS.dbType },
+        ]
+      : [
+          { key: 'name', label: 'Resource Name', width: COL_W.name },
+          { key: 'id', label: 'Resource ID', width: COL_W.id, flex: true },
+          { key: 'dbType', label: 'Database Type', width: COL_W.dbType },
+          { key: 'region', label: 'Region', width: COL_W.region },
+        ]),
     {
       key: 'status',
       label: 'Monitoring 상태',
@@ -235,7 +268,11 @@ export function AgentDagTable({
     return [...agents].sort((a, b) => (sortRank(a) - sortRank(b)) * dir);
   }, [agents, sort]);
 
+  // 렌더는 clamp 로 안전하지만 `page` 자체를 되돌려 놓지 않으면 목록이 줄었다 늘 때
+  // 누른 적 없는 자리로 돌아간다: 5페이지에서 12건짜리 응답이 오면 2페이지를 보여 주고,
+  // 다음 응답이 30건이면 조용히 5페이지로 튄다.
   const safePage = Math.min(page, Math.max(0, Math.ceil(ordered.length / pageSize) - 1));
+  if (page !== safePage) setPage(safePage);
   const pageRows = ordered.slice(safePage * pageSize, safePage * pageSize + pageSize);
 
   return (
@@ -249,71 +286,89 @@ export function AgentDagTable({
               {pageRows.map((agent) => {
                 const facts = agentResourceFacts(agent.resourceId, confirmed);
                 const verdict = agentVerdict(agent);
+                const RAIL = verdict.tone === 'err' && verdictRail.failed;
                 return (
                   <tr key={agent.agentId} className={idcStyles.table.row}>
-                    {/* 이름은 확정 정보의 것뿐이다 — §10 은 리소스 이름을 주지 않는다.
-                        조인이 빗나가면 대시로 서고, id 열이 정체를 마저 진다. */}
                     {/* 실패 판정만 레일을 진다 — 침묵이 곧 정상이다(`verdictRail.target` 과 같은 규칙).
-                        경고·부재(연결 진행 중·DAG 없음)는 볼 것이 아직 없는 상태라 부르지 않는다. */}
-                    <td className={cn(CLIP_CELL, verdict.tone === 'err' && verdictRail.failed)}>
-                      {facts.name ? (
-                        <span className="font-medium text-[var(--pl-text-strong)]" title="확정 정보 기준">
-                          {facts.name}
-                        </span>
-                      ) : (
-                        <Dash />
-                      )}
-                    </td>
-                    {/* 축약하지 않는다 (오너 2026-08-25) — 값은 통째로 서고, 넘치면 다음 열이
-                        덮어 자른다(`consoleCell`). 말줄임은 "여기서 줄였다"고 말해 버려서
-                        열을 넓히면 더 보인다는 사실을 숨긴다; Step 6·7 표도 같은 규칙. */}
-                    <td className={cn(CLIP_CELL, 'font-mono text-[var(--pl-text-medium)]')}>
-                      {agent.resourceId}
-                    </td>
-                    <td className={CLIP_CELL}>
-                      {/* 엔진 이름은 확정 정보 표와 같은 함수로 쓴다 — 한 화면에서 같은
-                          리소스가 MYSQL 과 MySQL 로 갈라져 읽히면 다른 것처럼 보인다. */}
-                      {facts.databaseType ? (
-                        <span title="확정 정보 기준">{getDatabaseShortLabel(facts.databaseType)}</span>
-                      ) : (
-                        <Dash />
-                      )}
-                    </td>
-                    {/* 리전은 응답의 gcpRegion 이 먼저고, 없으면 확정 정보에서 빌려 온다 —
-                        빌려 온 칸은 툴팁이 출처를 밝힌다. */}
-                    <td className={CLIP_CELL}>
-                      {isIdc ? (
-                        facts.address ? (
-                          <span
-                            className="inline-flex items-baseline gap-1.5"
-                            title={facts.moreAddresses > 0 ? '확정 정보 기준 · 주소 여러 개' : '확정 정보 기준'}
-                          >
-                            <span className="font-mono text-[12px] text-[var(--pl-text-medium)]">
-                              {facts.address}
-                            </span>
-                            {facts.moreAddresses > 0 && (
-                              <span className="flex-none text-[12px] text-[var(--pl-text-weak)]">
-                                +{facts.moreAddresses}
+                        경고·부재(진행 중·그 외·DAG 없음)는 볼 것이 아직 없는 상태라 부르지 않는다.
+                        레일은 어느 배치에서든 **첫 칸**이 진다: 행이 시작하는 자리가 신호다. */}
+                    {isIdc ? (
+                      <>
+                        {/* 주소가 IDC 리소스의 정체다 — 이름이 없어서 대신 쓰는 것이 아니라,
+                            스캔이 이름을 짓지 않는 자리라 원래 주소가 이름이다. */}
+                        <td className={cn(CLIP_CELL, RAIL)}>
+                          {facts.address ? (
+                            <span
+                              className="inline-flex items-baseline gap-1.5"
+                              title={facts.moreAddresses > 0 ? '확정 정보 기준 · 주소 여러 개' : '확정 정보 기준'}
+                            >
+                              <span className="font-mono text-[var(--pl-text-strong)]">
+                                {facts.address}
                               </span>
-                            )}
-                          </span>
-                        ) : (
-                          <Dash />
-                        )
-                      ) : agent.gcpRegion ? (
-                        <span>{agent.gcpRegion}</span>
-                      ) : facts.region ? (
-                        <span title="확정 정보 기준">{facts.region}</span>
-                      ) : (
-                        <Dash />
-                      )}
-                    </td>
+                              {facts.moreAddresses > 0 && (
+                                <span className="flex-none text-[12px] text-[var(--pl-text-weak)]">
+                                  +{facts.moreAddresses}
+                                </span>
+                              )}
+                            </span>
+                          ) : (
+                            <Dash />
+                          )}
+                        </td>
+                        <td className={cn(CLIP_CELL, 'font-mono text-[var(--pl-text-medium)]')}>
+                          {facts.port === null ? <Dash /> : facts.port}
+                        </td>
+                        <td className={CLIP_CELL}>
+                          {facts.databaseType ? (
+                            <span title="확정 정보 기준">{getDatabaseShortLabel(facts.databaseType)}</span>
+                          ) : (
+                            <Dash />
+                          )}
+                        </td>
+                      </>
+                    ) : (
+                      <>
+                        {/* 이름은 확정 정보의 것뿐이다 — §10 은 리소스 이름을 주지 않는다.
+                            조인이 빗나가면 대시로 서고, id 열이 정체를 마저 진다. */}
+                        <td className={cn(CLIP_CELL, RAIL)}>
+                          {facts.name ? (
+                            <span className="font-medium text-[var(--pl-text-strong)]" title="확정 정보 기준">
+                              {facts.name}
+                            </span>
+                          ) : (
+                            <Dash />
+                          )}
+                        </td>
+                        {/* 축약하지 않는다 (오너 2026-08-25) — 값은 통째로 서고, 넘치면 다음 열이
+                            덮어 자른다(`consoleCell`). 말줄임은 "여기서 줄였다"고 말해 버려서
+                            열을 넓히면 더 보인다는 사실을 숨긴다; Step 6·7 표도 같은 규칙. */}
+                        <td className={cn(CLIP_CELL, 'font-mono text-[var(--pl-text-medium)]')}>
+                          {agent.resourceId}
+                        </td>
+                        <td className={CLIP_CELL}>
+                          {/* 엔진 이름은 확정 정보 표와 같은 함수로 쓴다 — 한 화면에서 같은
+                              리소스가 MYSQL 과 MySQL 로 갈라져 읽히면 다른 것처럼 보인다. */}
+                          {facts.databaseType ? (
+                            <span title="확정 정보 기준">{getDatabaseShortLabel(facts.databaseType)}</span>
+                          ) : (
+                            <Dash />
+                          )}
+                        </td>
+                        {/* 리전은 응답의 gcpRegion 이 먼저고, 없으면 확정 정보에서 빌려 온다 —
+                            빌려 온 칸은 툴팁이 출처를 밝힌다. */}
+                        <td className={CLIP_CELL}>
+                          {agent.gcpRegion ? (
+                            <span>{agent.gcpRegion}</span>
+                          ) : facts.region ? (
+                            <span title="확정 정보 기준">{facts.region}</span>
+                          ) : (
+                            <Dash />
+                          )}
+                        </td>
+                      </>
+                    )}
                     <td className={CELL}>
-                      <WeeklyCell
-                        agent={agent}
-                        verdict={verdict}
-                        onViewDbs={() => onViewDbs(agent.agentId)}
-                      />
+                      <VerdictCell verdict={verdict} onViewDbs={() => onViewDbs(agent.agentId)} />
                     </td>
                   </tr>
                 );

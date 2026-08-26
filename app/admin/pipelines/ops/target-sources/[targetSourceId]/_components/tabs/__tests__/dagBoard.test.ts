@@ -167,15 +167,22 @@ describe('isTodayKst — 오늘 칸은 자리가 아니라 날짜', () => {
   });
 });
 
-describe('summarizeAgents — 문제 우선 + 분수', () => {
-  it('연결 실패 에이전트가 먼저 서고, 분수 필드가 bucket 합과 맞는다', () => {
+describe('summarizeAgents — 문제 우선 + bucket 합', () => {
+  it('연결 실패 에이전트가 먼저 서고, 버킷 필드가 bucket 합과 맞는다', () => {
     const agents = summarizeAgents(RESPONSE);
     expect(agents[0].agentId).toBe('agent-2');
     expect(agents[0].dbTotal).toBe(2);
     expect(agents[0].running).toBe(1);
-    // 미지의 day status(SOMETHING_NEW) 행은 rest(부재 몫)로 — 성공으로 위장하지 않는다.
-    expect(agents[0].rest).toBe(1);
-    expect(agents[1]).toMatchObject({ agentId: 'agent-1', succeeded: 1, failed: 1, rest: 1 });
+    // 미지의 day status(SOMETHING_NEW) 행은 other 로 — 성공으로도 미스케줄로도 위장하지 않는다.
+    expect(agents[0].other).toBe(1);
+    expect(agents[0].unscheduled).toBe(0);
+    expect(agents[1]).toMatchObject({
+      agentId: 'agent-1',
+      succeeded: 1,
+      failed: 1,
+      unscheduled: 1,
+      other: 0,
+    });
   });
 });
 
@@ -254,7 +261,8 @@ describe('agentVerdict — 행의 종합 상태 (모든 행에 알약)', () => {
     succeeded: 4,
     failed: 0,
     running: 0,
-    rest: 0,
+    unscheduled: 0,
+    other: 0,
   };
 
   it('연결이 SUCCESS 가 아니면 연결 사실이 판정을 이긴다 — raw 는 hint 로만', () => {
@@ -267,10 +275,24 @@ describe('agentVerdict — 행의 종합 상태 (모든 행에 알약)', () => {
     expect(agentVerdict(base)).toMatchObject({ tone: 'ok', label: '정상' });
   });
 
-  it('연결 정상이어도 성공 기록 없는 DB 가 있으면 이상(err) — 2/4 는 정상이 아니다', () => {
-    const v = agentVerdict({ ...base, succeeded: 2, failed: 1, rest: 1 });
-    expect(v).toMatchObject({ tone: 'err', label: '확인 필요' });
+  it('실패·미스케줄이 있으면 확인 필요(err), 그리고 수까지 같이 낸다', () => {
+    const v = agentVerdict({ ...base, succeeded: 2, failed: 1, unscheduled: 1 });
+    expect(v).toMatchObject({ tone: 'err', label: '확인 필요', count: 2 });
     expect(v.hint).toContain('2개');
+  });
+
+  // ⛔ 회귀 잠금: 한때 판정이 `dbTotal − succeeded` 로 세어서, 요약 줄이 '확인 필요 0'
+  // 이라 말하는 행에 '확인 필요' + 빨간 레일이 섰고 눌러 열면 0건이었다.
+  it('진행 중만 있는 행은 확인 필요가 아니다 — 요약 줄과 같은 집합을 센다', () => {
+    const agent = { ...base, succeeded: 3, running: 1 };
+    expect(attentionCount(agent)).toBe(0);
+    expect(agentVerdict(agent)).toMatchObject({ tone: 'warn', label: '진행 중' });
+    expect(agentVerdict(agent).count).toBeUndefined();
+  });
+
+  it('계약 밖 값만 남은 행은 그 외(off) — 나쁜 값이 아니라 읽지 못한 값이다', () => {
+    const agent = { ...base, succeeded: 3, other: 1 };
+    expect(agentVerdict(agent)).toMatchObject({ tone: 'off', label: '그 외' });
   });
 
   it('관측 DB 0개는 판정 없이 부재만 — DAG 없음(off)', () => {

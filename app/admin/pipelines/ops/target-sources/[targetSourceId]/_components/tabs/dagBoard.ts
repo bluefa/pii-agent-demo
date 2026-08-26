@@ -173,8 +173,9 @@ export interface DagAgentSummary {
   succeeded: number;
   failed: number;
   running: number;
-  /** unscheduled + other — 분포 바의 점선(부재) 몫. */
-  rest: number;
+  unscheduled: number;
+  /** 계약 밖의 상태값이 섞인 DB — 나쁜 값이 아니라 읽지 못한 값이다. */
+  other: number;
 }
 
 /** 문제 우선 정렬: 연결이 SUCCESS 가 아닌 에이전트 먼저, 그 다음 실패 DB 많은 순.
@@ -199,14 +200,15 @@ export const summarizeAgents = (data: DagStatusResponse): DagAgentSummary[] =>
         succeeded: counts.succeeded,
         failed: counts.failed,
         running: counts.running,
-        rest: counts.unscheduled + counts.other,
+        unscheduled: counts.unscheduled,
+        other: counts.other,
       };
     })
     .sort((a, b) => {
       const aConn = a.connectionStatus === 'SUCCESS' ? 1 : 0;
       const bConn = b.connectionStatus === 'SUCCESS' ? 1 : 0;
       if (aConn !== bConn) return aConn - bConn;
-      return b.failed - a.failed;
+      return attentionCount(b) - attentionCount(a);
     });
 
 /**
@@ -218,13 +220,24 @@ export const summarizeAgents = (data: DagStatusResponse): DagAgentSummary[] =>
  * 세운다. 비정상만 표시하던 예외 방식은 "왜 이 행만 알약이지?"로 읽혔고, 연결
  * 성공이어도 2/4 성공인 행을 아무것도 경고하지 않았다.
  * 우선순위: 연결이 SUCCESS 가 아니면 그 사실이 판정이다(관측 자체를 못 믿는 행).
- * 연결이 정상이면 관측 결과로 판정한다 — 관측 논리 DB 전부가 최근 7일 성공이어야
- * 정상, 하나라도 성공 기록이 없으면 확인 필요(대상 UNHEALTHY 와 같은 기준의 행 축소판).
+ * 연결이 정상이면 관측 결과로 판정한다.
+ *
+ * ⛔ '확인 필요'가 세는 집합은 **요약 카운트 줄과 같아야 한다**(`attentionCount`).
+ * 한때 이 함수는 `dbTotal − succeeded`(실패+미스케줄+진행 중+그 외)로 판정했는데,
+ * 요약 줄은 실패+미스케줄만 셌다. 그래서 성공 없는 DB 가 진행 중뿐인 리소스는 행에
+ * '확인 필요'가 서고 빨간 레일까지 붙는데 요약은 '확인 필요 0'이었고, 그 수를 눌러 열면
+ * 그 리소스 행이 0건이었다. 한 화면의 두 자리가 같은 낱말로 다른 집합을 부르면 그 낱말은
+ * 아무것도 뜻하지 않는다. 목이 running·other 버킷을 만들지 못해 테스트만 초록이었다.
+ *
+ * 진행 중과 그 외는 자기 판정을 갖는다 — 진행 중은 시간이 지나면 저절로 갈리는 상태라
+ * 지금 할 일이 없고, 그 외는 나쁜 값이 아니라 읽지 못한 값이다.
  * raw enum 은 hint(툴팁 채널)로만 나른다.
  */
 export const agentVerdict = (
   agent: DagAgentSummary,
-): { tone: TcTone; label: string; hint?: string } => {
+  // count 는 '확인 필요'에만 실린다 — 시안 A 의 셀이 그 수를 그대로 세운다. 판정을 낸
+  // 함수가 수까지 같이 내주므로, 셀이 같은 셈을 두 번째로 하다가 어긋날 길이 없다.
+): { tone: TcTone; label: string; count?: number; hint?: string } => {
   if (agent.connectionStatus !== 'SUCCESS') {
     const conn = connPill(agent.connectionStatus);
     return {
@@ -235,17 +248,24 @@ export const agentVerdict = (
   }
   // 0 은 조회 실패가 아니라 걸린 DAG 가 없다는 확정된 사실 — 판정 없이 부재만 말한다.
   if (agent.dbTotal === 0) return { tone: 'off', label: 'DAG 없음' };
-  const noSuccess = agent.dbTotal - agent.succeeded;
-  if (noSuccess === 0) {
-    return { tone: 'ok', label: '정상', hint: '관측 논리 DB 전부 최근 7일 성공' };
+  const attention = attentionCount(agent);
+  if (attention > 0) {
+    return {
+      tone: 'err',
+      // '이상'은 판정만 말하고 '그래서 뭘 하나'는 안 말했다 — 관리자가 이 표에서 하는 일은
+      // 그 행을 열어 보는 것이라, 라벨이 그 일을 부른다 (오너 2026-08-25).
+      label: '확인 필요',
+      count: attention,
+      hint: `논리 DB ${attention}개가 최근 7일 성공 기록이 없어요`,
+    };
   }
-  return {
-    tone: 'err',
-    // '이상'은 판정만 말하고 '그래서 뭘 하나'는 안 말했다 — 관리자가 이 표에서 하는 일은
-    // 그 행을 열어 보는 것이라, 라벨이 그 일을 부른다 (오너 2026-08-25).
-    label: '확인 필요',
-    hint: `논리 DB ${noSuccess}개가 최근 7일 성공 기록이 없어요`,
-  };
+  if (agent.running > 0) {
+    return { tone: 'warn', label: '진행 중', hint: '이번 주 실행이 시작됐고 결과가 아직 없어요' };
+  }
+  if (agent.other > 0) {
+    return { tone: 'off', label: '그 외', hint: '계약 밖의 상태값이 섞여 있어요' };
+  }
+  return { tone: 'ok', label: '정상', hint: '관측 논리 DB 전부 최근 7일 성공' };
 };
 
 export const connPill = (

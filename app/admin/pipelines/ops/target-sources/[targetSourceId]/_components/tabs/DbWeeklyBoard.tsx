@@ -202,7 +202,12 @@ export function DbWeeklyBoard({
     // 'other' 는 계약 밖 값이 실제로 왔을 때만 생기는 칩이지만, 걸려 있는 동안에는
     // 0건이어도 남는다 — 사라지면 보이지 않는 필터가 목록을 비운 채로 남는다.
     ...(counts.other > 0 || filter === 'other'
-      ? [{ value: 'other' as BoardFilter, label: `그 외 ${counts.other.toLocaleString('ko-KR')}` }]
+      ? [
+          {
+            value: 'other' as BoardFilter,
+            label: `${BOARD_FILTER_LABEL.other} ${counts.other.toLocaleString('ko-KR')}`,
+          },
+        ]
       : []),
     { value: 'ALL' as BoardFilter, label: `전체 ${scoped.length.toLocaleString('ko-KR')}` },
   ];
