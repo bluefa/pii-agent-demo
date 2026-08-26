@@ -34,7 +34,24 @@ export const opsStyles = {
   idTitle: 'whitespace-nowrap text-[16px] font-bold tracking-[-0.02em] text-[var(--pl-text-strong)]',
   /** 오너 08-20: 제목 16px, id 부분은 한 단 아래 14px. */
   idNum: 'text-[14px] tabular-nums',
-  idHash: 'text-[14px] font-normal text-[var(--pl-text-faint)]', // design-exempt: prefix glyph, the id digits beside it carry the reading
+  idHash: 'text-[14px] font-normal text-[var(--pl-text-faint)]',
+  /**
+   * 마스트헤드 식별 태그 — 제목 줄의 `Target Source` 와 브레드크럼의 서비스 이름
+   * (오너 2026-08-26: "눈에 잘 보이게 파란색 태그로, 채도는 좀 낮춰").
+   *
+   * 이 두 낱말은 "지금 보고 있는 것이 무엇인가"를 말하는데, 워시 위에서 검은 제목·회색
+   * 경로에 섞여 문장의 일부로 읽혔다. 면을 주면 낱말이 아니라 이름표가 된다.
+   *
+   * 색은 `primaryColors` 의 bgLight/textOnLight 를 그대로 받는다 — 앱의 파란 태그 가족
+   * (`scopeTag` 과 같은 짝, 5.92:1)이고, CTA 가 입는 채운 파랑보다 한참 낮은 채도라 마스트헤드
+   * 에서 CTA 처럼 튀지 않는다. 값을 손으로 베끼지 않는 이유는 census 다: 토큰이 움직이는
+   * 날 손복사본만 제자리에 남아 두 파랑이 된다.
+   *
+   * 밑줄도 커서도 없다 — 누를 것이 아니라 이름표다. 브레드크럼 판(`crumbTag`)은 그 줄의
+   * 12px 에 맞춘 같은 태그다.
+   */
+  idTag: `inline-flex flex-none items-center rounded-[6px] px-2 py-0.5 text-[14px] font-semibold ${primaryColors.bgLight} ${primaryColors.textOnLight}`,
+  crumbTag: `inline-flex flex-none items-center rounded-[4px] px-1.5 py-0.5 text-[12px] font-semibold ${primaryColors.bgLight} ${primaryColors.textOnLight}`, // design-exempt: prefix glyph, the id digits beside it carry the reading
 
   /** Meta block — 클라우드 · 설정 + 검증값 on the wash (오너 08-20: the target's
       own facts came back out of the rail; 08-20 둘째 조정: 한 줄 나열이 아니라

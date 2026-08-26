@@ -151,7 +151,10 @@ export function OpsHeader({
           <span>서비스 운영</span>
         )}
         <span className={opsStyles.crumbSep}>/</span>
-        <span className="max-w-[280px] truncate" title={detail.service_name ?? undefined}>
+        <span
+          className={cn(opsStyles.crumbTag, 'max-w-[280px] truncate')}
+          title={detail.service_name ?? undefined}
+        >
           {detail.service_name ?? '-'}
         </span>
         <span className={opsStyles.crumbSep}>/</span>
@@ -166,9 +169,12 @@ export function OpsHeader({
         />
         {/* 화면 이름 + 대상 번호 (오너 08-20) — provider 는 글리프와 브레드크럼이
             이미 말하므로 제목이 반복하지 않는다. */}
-        <h1 className={opsStyles.idTitle}>
-          Target Source 운영 <span className={opsStyles.idHash}>#</span>
-          <span className={opsStyles.idNum}>{targetSourceId}</span>
+        <h1 className={cn(opsStyles.idTitle, 'flex items-center gap-2')}>
+          <span className={opsStyles.idTag}>Target Source</span>
+          <span>
+            운영 <span className={opsStyles.idHash}>#</span>
+            <span className={opsStyles.idNum}>{targetSourceId}</span>
+          </span>
         </h1>
         {processStatus && <StepPill status={processStatus} />}
         {/* 도장과 알약은 다른 축이다: 알약은 "지금 어디", 도장은 "최초로 마친 적
