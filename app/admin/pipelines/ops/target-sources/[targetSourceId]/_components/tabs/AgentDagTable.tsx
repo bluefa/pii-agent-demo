@@ -86,6 +86,8 @@ const TABLE_BODY = cn(CONNECTED_FRAME, '[&_td:not([colspan])]:py-5');
  * 접속 주소(호스트·FQDN)가 그 값이다.
  */
 const COL_W = { name: 250, id: 300, dbType: 150, region: 170, status: 230 } as const;
+/** 관측 규모 열 — IDC 단계 표의 `연동 논리 DB` 와 같은 폭. 같은 것을 세는 열이다. */
+const LDB_W = IDC_COLUMN_WIDTHS.logicalDb;
 const CLOUD_FLEX = ['id'] as const;
 const IDC_FLEX = ['endpoint'] as const;
 
@@ -109,8 +111,12 @@ const sortRank = (agent: DagAgentSummary): number => TONE_RANK[agentVerdict(agen
 
 export interface AgentDagTableProps {
   data: DagStatusResponse;
-  /** 주간 보드 패널을 이 에이전트로 스코프해 연다. */
-  onViewDbs: (agentId: string) => void;
+  /**
+   * 주간 보드 패널을 이 에이전트로 스코프해 연다. 필터까지 받는 이유는 한 행에 진입이
+   * 둘이어서다 — 규모(전부 보기)와 확인 필요(문제만 보기)는 다른 질문이고, 여는 쪽이
+   * 무엇을 보여 주기로 했는지 알지 보드가 추측할 일이 아니다.
+   */
+  onViewDbs: (agentId: string, filter: 'ALL' | 'attention') => void;
   /**
    * 확정 정보 조인 — 없으면(로딩·조회 실패·조인 실패) 그 칸들은 대시로 선다.
    * §10 은 리소스에 대해 resourceId·gcpRegion 만 보증한다: Resource Name·DatabaseType·
@@ -230,6 +236,10 @@ export function AgentDagTable({
           { key: 'dbType', label: 'Database Type', width: COL_W.dbType },
           { key: 'region', label: 'Region', width: COL_W.region },
         ]),
+    // 규모가 판정 바로 앞에 선다 — 요약 카운트 줄의 순서(논리 DB → 성공 → 확인 필요)와
+    // 같다. 시안 A 가 분수를 걷으면서 이 수까지 같이 잃었고, 그 바람에 정상 행에는
+    // 진입이 하나도 남지 않았다 (오너 2026-08-26).
+    { key: 'ldb', label: '논리 DB', width: LDB_W },
     {
       key: 'status',
       label: 'Monitoring 상태',
@@ -367,8 +377,28 @@ export function AgentDagTable({
                         </td>
                       </>
                     )}
+                    {/* 이 리소스가 무엇을 얼마나 보고 있는지, 그리고 **모든 행의 창구**.
+                        판정과 무관하게 서므로 정상 행도 열어 볼 수 있다 — 확인 필요의 수는
+                        문제만 열고, 이 수는 전부 연다. 0 이면 열 것이 없어 대시다. */}
                     <td className={CELL}>
-                      <VerdictCell verdict={verdict} onViewDbs={() => onViewDbs(agent.agentId)} />
+                      {agent.dbTotal > 0 ? (
+                        <button
+                          type="button"
+                          onClick={() => onViewDbs(agent.agentId, 'ALL')}
+                          aria-label={`이 리소스의 논리 DB ${agent.dbTotal.toLocaleString('ko-KR')}건을 최근 7일 현황에서 보기`}
+                          className="cursor-pointer whitespace-nowrap border-b border-current font-mono tabular-nums text-[var(--pl-text-strong)]"
+                        >
+                          {agent.dbTotal.toLocaleString('ko-KR')}
+                        </button>
+                      ) : (
+                        <Dash />
+                      )}
+                    </td>
+                    <td className={CELL}>
+                      <VerdictCell
+                        verdict={verdict}
+                        onViewDbs={() => onViewDbs(agent.agentId, 'attention')}
+                      />
                     </td>
                   </tr>
                 );
