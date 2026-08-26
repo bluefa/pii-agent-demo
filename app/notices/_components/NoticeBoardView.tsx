@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
+import { useLocale } from '@/app/components/LocaleProvider';
+import { POST_COPY } from '@/app/notices/_components/copy';
 import { PassBanner } from '@/app/notices/_components/PassBanner';
 import { PostBoardCard } from '@/app/notices/_components/PostBoardCard';
 import { PostAccordionRow } from '@/app/notices/_components/PostAccordionRow';
@@ -12,13 +14,16 @@ import { parsePostType, type PostSummary, type PostType } from '@/lib/types/post
 /** 카드 한 장이 전체보기로 넘기기 전에 보여 주는 행 수. */
 const CARD_ROWS = 5;
 
-/** Category 레일의 "전체" 항목. `null` 은 미분류 게시글을 뜻한다. */
+/** Category 레일의 "전체" 항목. 그룹 키는 `categoryId` 이고 미분류는 `NONE` 이다. */
 const ALL = '__all__';
+const NONE = '__none__';
 
 export const NoticeBoardView = () => {
   // `?type=` 이 같은 라우트를 2카드 요약 ↔ 한 종류 전체목록으로 바꾼다.
   // 라우트 하나, 데이터 출처 하나 — 전체보기는 별도 페이지가 아니라 이 화면의 한 상태다.
   const focus = parsePostType(useSearchParams().get('type'));
+  const { locale } = useLocale();
+  const t = POST_COPY[locale];
 
   const [posts, setPosts] = useState<PostSummary[] | null>(null);
   const [category, setCategory] = useState<string>(ALL);
@@ -63,21 +68,28 @@ export const NoticeBoardView = () => {
 
   const focused = focus ? byType(focus) : null;
 
+  /** 배너 링크의 표시 이름 — 그 글의 지금 언어 제목. */
+  const labelFor = useCallback(
+    (title: string) => posts?.find((post) => post.titles.ko === title)?.titles[locale] ?? title,
+    [posts, locale],
+  );
+
   /**
    * Category 레일. 사용자용 `PostCategory` 에는 건수가 없어서(Admin 쪽에만 있다)
    * 받아 온 목록에서 직접 센다 — 계약이 전량을 내려주므로 셀 수 있다.
+   * 키는 id 다 — 이름은 언어마다 다르고, 선택은 언어를 바꿔도 남아야 한다.
    */
   const groups = useMemo(() => {
     if (!focused) return [];
     const order: { key: string; label: string; posts: PostSummary[] }[] = [];
     for (const post of focused) {
-      const key = post.categoryName ?? '미분류';
+      const key = post.categoryId === null ? NONE : String(post.categoryId);
       const found = order.find((group) => group.key === key);
       if (found) found.posts.push(post);
-      else order.push({ key, label: key, posts: [post] });
+      else order.push({ key, label: post.categoryNames?.[locale] ?? t.uncategorised, posts: [post] });
     }
     return order;
-  }, [focused]);
+  }, [focused, locale, t.uncategorised]);
 
   // `focused` 가 아니라 `focus` 로 가른다. 목록이 도착하기 전엔 `focused` 가 null 이라
   // 예전에는 2카드 뷰로 떨어졌고, 거기 있는 Pass 배너가 한 프레임 떴다가 사라졌다.
@@ -99,19 +111,17 @@ export const NoticeBoardView = () => {
     return (
       <div className={postStyles.pageFill}>
         <header className={postStyles.pageBand}>
-          <h1 className={postStyles.bandTitle}>{focus === 'NOTICE' ? '공지사항' : 'FAQ'}</h1>
-          <p className={postStyles.bandSub}>
-            Category별로 모아 보여줍니다. 숨김 처리된 게시글은 나오지 않습니다.
-          </p>
+          <h1 className={postStyles.bandTitle}>{focus === 'NOTICE' ? t.notice : t.faq}</h1>
+          <p className={postStyles.bandSub}>{t.bandSub}</p>
         </header>
 
         <div className={postStyles.pageBody}>
           {/* 계약에 페이지네이션이 없어 이 목록은 시간이 갈수록 단조 증가한다.
               레일이 그 길이를 Category 단위로 자르는 유일한 장치다. */}
           <div className={postStyles.grouped}>
-            <nav className={postStyles.catNav} aria-label="Category">
+            <nav className={postStyles.catNav} aria-label={t.category}>
               {/* 머리는 목록이 아니라 칸의 것이라, 불러오는 중에도 자리를 지킨다. */}
-              <p className={postStyles.catNavHead}>Category</p>
+              <p className={postStyles.catNavHead}>{t.category}</p>
               {/* 선택을 색으로만 말하면 스크린 리더에는 아무 일도 일어나지 않는다
                   (Primer NavList 가 같은 자리에 `aria-current` 를 쓴다). */}
               {loading && [0, 1, 2].map((row) => (
@@ -126,7 +136,7 @@ export const NoticeBoardView = () => {
                 aria-current={category === ALL || undefined}
                 className={cn(postStyles.catNavItem, category === ALL && postStyles.catNavItemOn)}
               >
-                전체 <span className={postStyles.catNavCount}>{focused.length}</span>
+                {t.all} <span className={postStyles.catNavCount}>{focused.length}</span>
               </button>
               )}
               {!loading && groups.length > 0 && <hr className={postStyles.catNavDivide} />}
@@ -160,7 +170,7 @@ export const NoticeBoardView = () => {
                 <section key={group.key} className={postStyles.groupSection}>
                   <header className={postStyles.groupHead}>
                     <h2 className={postStyles.groupTitle}>{group.label}</h2>
-                    <span className={postStyles.groupCount}>{group.posts.length}건</span>
+                    <span className={postStyles.groupCount}>{t.count(group.posts.length)}</span>
                   </header>
                   <ul>
                     {group.posts.map((post) => (
@@ -177,9 +187,7 @@ export const NoticeBoardView = () => {
                 </section>
               ))}
               {!loading && shown.length === 0 && (
-                <p className={postStyles.emptyRow}>
-                  등록된 게시글이 없습니다.
-                </p>
+                <p className={postStyles.emptyRow}>{t.empty}</p>
               )}
             </div>
           </div>
@@ -190,12 +198,12 @@ export const NoticeBoardView = () => {
 
   return (
     <div className={postStyles.page}>
-      <PassBanner onOpenPost={openPostByTitle} />
+      <PassBanner onOpenPost={openPostByTitle} labelFor={labelFor} />
       {/* 공지사항 좌 · FAQ 우. min-w-0 은 카드 쪽에 있어야 긴 제목이 자기 열을 넓혀
           옆 열을 밀지 않는다. */}
       <div className={postStyles.dual}>
         <PostBoardCard
-          title="공지사항"
+          title={t.notice}
           type="NOTICE"
           posts={byType('NOTICE')}
           limit={CARD_ROWS}
@@ -203,7 +211,7 @@ export const NoticeBoardView = () => {
           openId={openId}
         />
         <PostBoardCard
-          title="FAQ"
+          title={t.faq}
           type="FAQ"
           posts={byType('FAQ')}
           limit={CARD_ROWS}

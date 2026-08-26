@@ -5,10 +5,14 @@ import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { cn, navStyles, textColors } from '@/lib/theme';
 import { passRoutes } from '@/lib/routes';
-import { BellIcon, BookIcon, QuestionCircleIcon } from '@/app/components/ui/icons';
+import { BellIcon, BookIcon, GlobeIcon, QuestionCircleIcon } from '@/app/components/ui/icons';
 import { UserChip } from '@/app/components/layout/UserChip';
 import type { UserMeResponse } from '@/app/lib/api';
 import { PassLogo } from '@/app/components/layout/PassLogo';
+import { useLocale } from '@/app/components/LocaleProvider';
+
+/** What the language button shows — the language the page is in, not the one it would switch to. */
+const LOCALE_LABEL = { ko: '한국어', en: 'English' } as const;
 
 type NavItem = {
   label: string;
@@ -125,6 +129,7 @@ const NAV_ITEMS: NavItem[] = [
 
 export const TopNav = ({ user }: { user: UserMeResponse | null }) => {
   const pathname = usePathname() ?? '';
+  const { locale, setLocale } = useLocale();
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   useEffect(() => {
@@ -289,6 +294,23 @@ export const TopNav = ({ user }: { user: UserMeResponse | null }) => {
               </a>
             );
           })}
+
+          {/* Language. Two values, so one button that flips them — a menu for two
+              options is a menu for nothing. The label names the language the page
+              is IN (what GitHub Docs and Apple do), the globe says it is a switch. */}
+          <button
+            type="button"
+            onClick={() => setLocale(locale === 'ko' ? 'en' : 'ko')}
+            aria-label="Language"
+            title="Language"
+            className={cn(
+              'inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-[13px] font-medium whitespace-nowrap transition-colors', // design-exempt: same class as the sibling utility links, text on navStyles.bg (slate-900)
+              navStyles.link.inactive,
+            )}
+          >
+            <GlobeIcon className="h-3.5 w-3.5" />
+            <span className="hidden xl:inline">{LOCALE_LABEL[locale]}</span>
+          </button>
         </nav>
 
         {/* Help links and the account are both "right cluster", but they are not the

@@ -1,3 +1,7 @@
+'use client';
+
+import { useLocale } from '@/app/components/LocaleProvider';
+import { POST_COPY } from '@/app/notices/_components/copy';
 import { cn, postStyles } from '@/lib/theme';
 
 /**
@@ -14,12 +18,15 @@ const PinIcon = () => (
   </svg>
 );
 
-export const PinBadge = () => (
-  <span className={cn(postStyles.badge, postStyles.badgePin)}>
-    <PinIcon />
-    고정
-  </span>
-);
+export const PinBadge = () => {
+  const { locale } = useLocale();
+  return (
+    <span className={cn(postStyles.badge, postStyles.badgePin)}>
+      <PinIcon />
+      {POST_COPY[locale].pinned}
+    </span>
+  );
+};
 
 /** Category — 채운 칩이 아니라 흰 아웃라인. 제목보다 앞서면 안 되기 때문이다. */
 export const CategoryBadge = ({ name }: { name: string }) => (

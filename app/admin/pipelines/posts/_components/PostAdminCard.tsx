@@ -30,16 +30,22 @@ export const PostAdminCard = ({
   onTogglePinned,
   onToggleHidden,
 }: PostAdminCardProps) => {
-  const [category, setCategory] = useState<string | undefined>(undefined);
+  const [category, setCategory] = useState<number | undefined>(undefined);
   const [visibility, setVisibility] = useState<VisibilityFilter>(undefined);
 
-  const categories = useMemo(
-    () => [...new Set((posts ?? []).map((post) => post.categoryName).filter(Boolean))] as string[],
-    [posts],
-  );
+  // The admin screen is Korean-only; the ko name labels the chip, the id keys it.
+  const categories = useMemo(() => {
+    const byId = new Map<number, string>();
+    for (const post of posts ?? []) {
+      if (post.categoryId !== null && post.categoryNames) {
+        byId.set(post.categoryId, post.categoryNames.ko);
+      }
+    }
+    return [...byId].map(([id, label]) => ({ id, label }));
+  }, [posts]);
 
   const shown = posts?.filter((post) => {
-    if (category !== undefined && post.categoryName !== category) return false;
+    if (category !== undefined && post.categoryId !== category) return false;
     if (visibility === 'visible' && post.hidden) return false;
     if (visibility === 'hidden' && !post.hidden) return false;
     return true;
@@ -116,7 +122,7 @@ export const PostAdminCard = ({
                 <div className={postStyles.rowMeta}>
                   {post.pinned && <PinBadge />}
                   {post.hidden && <HiddenBadge />}
-                  {post.categoryName && <CategoryBadge name={post.categoryName} />}
+                  {post.categoryNames && <CategoryBadge name={post.categoryNames.ko} />}
                 </div>
                 <button
                   type="button"

@@ -25,6 +25,7 @@ export { EmptyBoxIcon } from '@/app/components/ui/icons/EmptyBoxIcon';
 export { ExcludedIcon } from '@/app/components/ui/icons/ExcludedIcon';
 export { ExpandIcon } from '@/app/components/ui/icons/ExpandIcon';
 export { FilterIcon } from '@/app/components/ui/icons/FilterIcon';
+export { GlobeIcon } from '@/app/components/ui/icons/GlobeIcon';
 export { GuideIcon } from '@/app/components/ui/icons/GuideIcon';
 export { HourglassIcon } from '@/app/components/ui/icons/HourglassIcon';
 export { InfoCircleIcon } from '@/app/components/ui/icons/InfoCircleIcon';

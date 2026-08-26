@@ -39,7 +39,8 @@ export interface PostSummary {
   type: PostType;
   /** null for an uncategorised post. */
   categoryId: number | null;
-  categoryName: string | null;
+  /** The category's `names`, joined in by the BFF. null exactly when `categoryId` is. */
+  categoryNames: LocalizedText | null;
   titles: LocalizedText;
   /** First publish time. An edit does not move it. */
   publishedAt: string;
@@ -78,7 +79,8 @@ export interface PostImageRef {
 export interface PostCategory {
   id: number;
   type: PostType;
-  name: string;
+  /** ko/en pair, like `titles` — a category reads in whichever language the screen is in. */
+  names: LocalizedText;
   displayOrder: number;
 }
 
@@ -124,7 +126,8 @@ export interface PostUpdateRequest {
 
 export interface PostCategoryCreateRequest {
   type: PostType;
-  name: string;
+  /** Both required. Unique per `type` on each side separately (tag guide §5 Category). */
+  names: LocalizedText;
 }
 
 /**

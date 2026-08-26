@@ -1,6 +1,8 @@
 'use client';
 
 import Link from 'next/link';
+import { useLocale } from '@/app/components/LocaleProvider';
+import { POST_COPY } from '@/app/notices/_components/copy';
 import { PostAccordionRow } from '@/app/notices/_components/PostAccordionRow';
 import { bgColors, cn, postStyles } from '@/lib/theme';
 import { passRoutes } from '@/lib/routes';
@@ -25,6 +27,7 @@ export const PostBoardCard = ({
   onGone,
   openId = null,
 }: PostBoardCardProps) => {
+  const t = POST_COPY[useLocale().locale];
   const capped = posts === null ? null : (limit === undefined ? posts : posts.slice(0, limit));
   // 잘린 뒤에 지목된 글이면 붙여 준다 — 없는 행으로는 스크롤도 펼침도 갈 데가 없다.
   const beyond = capped === null || openId === null || capped.some((post) => post.id === openId)
@@ -52,9 +55,7 @@ export const PostBoardCard = ({
       )}
 
       {visible !== null && visible.length === 0 && (
-        <p className={postStyles.emptyRow}>
-          등록된 게시글이 없습니다.
-        </p>
+        <p className={postStyles.emptyRow}>{t.empty}</p>
       )}
 
       {visible !== null && visible.length > 0 && (
@@ -75,7 +76,7 @@ export const PostBoardCard = ({
 
       {limit !== undefined && (
         <Link href={`${passRoutes.notices}?type=${type}`} className={postStyles.cardMore}>
-          전체보기 →
+          {t.viewAll}
         </Link>
       )}
     </section>

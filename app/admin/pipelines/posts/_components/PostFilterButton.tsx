@@ -6,11 +6,17 @@ import { cn, postStyles } from '@/lib/theme';
 /** 노출 상태 필터. `undefined` = 전체. */
 export type VisibilityFilter = 'visible' | 'hidden' | undefined;
 
+/** A category chip. Keyed by id — names are per-language and may repeat across types. */
+export interface CategoryChip {
+  id: number;
+  label: string;
+}
+
 interface PostFilterButtonProps {
-  categories: string[];
-  category: string | undefined;
+  categories: CategoryChip[];
+  category: number | undefined;
   visibility: VisibilityFilter;
-  onCategory: (value: string | undefined) => void;
+  onCategory: (value: number | undefined) => void;
   onVisibility: (value: VisibilityFilter) => void;
 }
 
@@ -74,7 +80,7 @@ export const PostFilterButton = ({
             <span className="text-[12px] font-bold tracking-[0.02em] text-[#4E5968]">Category</span>
             <div className="flex flex-wrap gap-1.5">
               {chip('전체', category === undefined, () => onCategory(undefined))}
-              {categories.map((name) => chip(name, category === name, () => onCategory(name)))}
+              {categories.map(({ id, label }) => chip(label, category === id, () => onCategory(id)))}
             </div>
           </div>
           <div className="flex flex-col gap-2">
