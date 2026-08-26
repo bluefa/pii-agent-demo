@@ -13,6 +13,8 @@ import { useLocale } from '@/app/components/LocaleProvider';
 
 /** What the language button shows — the language the page is in, not the one it would switch to. */
 const LOCALE_LABEL = { ko: '한국어', en: 'English' } as const;
+/** The control's name, in the page's language — the visible label stays inside it (Label in Name). */
+const LOCALE_CONTROL = { ko: '언어', en: 'Language' } as const;
 
 type NavItem = {
   label: string;
@@ -301,8 +303,8 @@ export const TopNav = ({ user }: { user: UserMeResponse | null }) => {
           <button
             type="button"
             onClick={() => setLocale(locale === 'ko' ? 'en' : 'ko')}
-            aria-label="Language"
-            title="Language"
+            aria-label={`${LOCALE_CONTROL[locale]}: ${LOCALE_LABEL[locale]}`}
+            title={`${LOCALE_CONTROL[locale]}: ${LOCALE_LABEL[locale]}`}
             className={cn(
               'inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-[13px] font-medium whitespace-nowrap transition-colors', // design-exempt: same class as the sibling utility links, text on navStyles.bg (slate-900)
               navStyles.link.inactive,

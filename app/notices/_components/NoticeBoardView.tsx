@@ -109,7 +109,7 @@ export const NoticeBoardView = () => {
     const openFirst = shown[0]?.posts[0]?.id;
 
     return (
-      <div className={postStyles.pageFill}>
+      <div lang={locale} className={postStyles.pageFill}>
         <header className={postStyles.pageBand}>
           <h1 className={postStyles.bandTitle}>{focus === 'NOTICE' ? t.notice : t.faq}</h1>
           <p className={postStyles.bandSub}>{t.bandSub}</p>

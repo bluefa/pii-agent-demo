@@ -32,9 +32,6 @@ export const LocaleProvider = ({ initial, children }: LocaleProviderProps) => {
   const setLocale = useCallback((next: Locale) => {
     setState(next);
     document.cookie = serialiseLocaleCookie(next, window.location.protocol === 'https:');
-    // `<html lang>` was stamped by the server from the same cookie; keep it honest
-    // for the rest of this visit without a reload.
-    document.documentElement.lang = next;
   }, []);
 
   return (
