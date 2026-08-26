@@ -40,6 +40,24 @@ const rows: ConfirmedIntegrationResourceItem[] = [
   athenaDb('integration'),
 ];
 
+/**
+ * 온프렘 행 — 값이 실제로 흐르는지 보려면 IDC 필드가 실린 행이 필요하다. 이전에는 IDC
+ * 가지에 클라우드 행을 흘려서 **칸 수만** 증명하고 Port·출발지 배선은 한 번도 실행되지
+ * 않았다 ([[feedback_pure_test_misses_the_wiring]]).
+ */
+const idcRows: ConfirmedIntegrationResourceItem[] = [
+  {
+    resource_id: 'idc-ivt-9a01',
+    resource_name: null,
+    resource_type: 'IDC',
+    database_type: 'mysql',
+    port: 3306,
+    idc_host_format: 'IP',
+    idc_ips: ['10.20.4.11'],
+    idc_source_ips: ['10.20.9.11'],
+  } as unknown as ConfirmedIntegrationResourceItem,
+];
+
 const { ConfirmedInfoCard } = await import(
   '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/ConfirmedInfoCard'
 );
@@ -48,12 +66,13 @@ const renderTable = (
   isIdc = false,
   facts: Map<string, TcResourceFact> = new Map(),
   tcResults: TcResultRow[] = [],
+  tableRows: ConfirmedIntegrationResourceItem[] = rows,
 ) =>
   render(
     <ConfirmedInfoCard
       targetSourceId={1}
       isIdc={isIdc}
-      rows={rows}
+      rows={tableRows}
       secrets={[]}
       tcResults={tcResults}
       facts={facts}
@@ -117,6 +136,30 @@ describe('확정 정보 표 — 열 구성', () => {
     const bodyRows = [...container.querySelectorAll('tbody tr')] as HTMLTableRowElement[];
     expect(bodyRows.length).toBeGreaterThan(0);
     for (const row of bodyRows) expect(spanOf(row)).toBe(columns);
+  });
+
+  /**
+   * 칸 수만 세면 **순서가 어긋나는 것**은 못 잡는다 — `<td>` 둘을 맞바꿔도 합은 그대로 7 이고,
+   * 값만 남의 머리글 아래로 간다(칸 수 단언의 각주가 막겠다고 말한 바로 그 실패다).
+   * 값이 아는 자리에 있는지를 같이 못 박는다. 실제 IDC 필드가 실린 행으로 돌려야
+   * Port·출발지 배선이 처음으로 실행된다.
+   */
+  it('IDC 값은 제 열 아래에 선다 — 순서가 바뀌면 잡는다', () => {
+    const { container } = renderTable(true, new Map(), [], idcRows);
+    expect(headerLabels()).toEqual([
+      '접속 주소',
+      'Port',
+      'Database Type',
+      '연결 상태',
+      '연동 논리 DB',
+      'Credential',
+      IDC_SOURCE_LABEL,
+    ]);
+    const cells = [...(container.querySelector('tbody tr')?.querySelectorAll('td') ?? [])];
+    expect(cells[0].textContent).toContain('10.20.4.11');
+    expect(cells[1].textContent?.trim()).toBe('3306');
+    expect(cells[2].textContent).toContain('MySQL');
+    expect(cells[6].textContent).toContain('10.20.9.11');
   });
 
   it('펼친 리전의 자식 행도 열 수를 정확히 채운다 — 한 칸 밀리면 값이 남의 열로 간다', () => {
@@ -347,8 +390,21 @@ describe('확정 정보 표 — 연결 상태 로딩', () => {
  * (이름보다 조용해야 하고 이름의 폭을 먹지 않아야 한다), 1·2·3 단계와 같은 컴포넌트라
  * 여기서 키우면 네 화면이 갈라진다. 오너가 그 갈라짐을 원하면 그때 prop 을 연다.
  */
+const SIZE = /^text-\[\d+px\]$|^text-(xs|sm|base|lg|xl|2xl)$/;
+
 describe('확정 정보 표 — 활자 크기', () => {
-  const SIZE = /^text-\[\d+px\]$|^text-(xs|sm|base|lg|xl|2xl)$/;
+
+  /** 온프렘 가지도 같은 규칙이다 — `SourceIpHeader`·`HostCell` 은 남이 소유한 공유
+   *  컴포넌트라, 저쪽이 크기를 선언하면 이 표의 규칙이 조용히 깨진다. */
+  it('IDC 가지도 14px 하나다', () => {
+    const { container } = renderTable(true, new Map(), [], idcRows);
+    const table = container.querySelector('table');
+    const painted = [...(table?.querySelectorAll('thead th, thead th *, tbody *') ?? [])];
+    const declared = painted.flatMap((el) =>
+      [...el.classList].filter((name) => SIZE.test(name)),
+    );
+    expect([...new Set(declared)]).toEqual(['text-[14px]']);
+  });
 
   it('선언된 크기는 14px 하나 — 공유 종류 태그만 예외다', () => {
     const { container } = renderTable(
