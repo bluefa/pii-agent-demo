@@ -37,7 +37,6 @@ const bucketsOf = (
     foldAgentStatuses(latest?.test_connection_agent_results ?? [], new Set(unitIds)),
   );
 
-
 const renderCard = (over: Partial<Parameters<typeof TcLatestRunCard>[0]> = {}) => {
   const latest = over.latest === undefined ? version([['r-1', 'SUCCESS']]) : over.latest;
   const props = {
