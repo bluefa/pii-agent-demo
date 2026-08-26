@@ -288,8 +288,8 @@ export function OpsHeader({
                 Q3 에서는 UUID 두 개가 스코프 줄을 468px 쓴다고 접힘에 두자고 했는데,
                 4열 그리드는 값 폭이 아니라 셀 수로 서는 배치라 그 근거가 없다 — 둘이
                 나란히 서면 한 행이 정확히 4칸으로 찬다. */}
-            {provider === 'Azure' && monoCell('구독', meta.subscription_id, false, scopeTag)}
-            {provider === 'Azure' && monoCell('테넌트', meta.tenant_id)}
+            {provider === 'Azure' && monoCell('구독(Subscription)', meta.subscription_id, false, scopeTag)}
+            {provider === 'Azure' && monoCell('테넌트(Tenant)', meta.tenant_id)}
             {/* Scan App takes ONE column, like 구독 and 테넌트 (owner, 2026-08-26 —
                 「설정」 must stand on the same row as Scan App). All three are UUIDs of
                 the same length, so the 2-column Scan App was an inconsistency rather
