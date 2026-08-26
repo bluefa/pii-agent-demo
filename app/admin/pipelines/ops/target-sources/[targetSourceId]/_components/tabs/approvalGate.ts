@@ -75,7 +75,8 @@ export function tcRunGate(run: TcExecutionStatus, hasLatest: boolean, latestFail
 export interface ApprovalHead {
   pill: { tone: TcTone; label: string };
   desc: string;
-  /** Mounts PII Agent 설치 완료 — true on exactly one state: 세 조건이 모두 충족. */
+  /** 연동 완료 CTA 의 잠금을 푼다 — true on exactly one state: 세 조건이 모두 충족.
+   *  (버튼 자체는 늘 마운트된다 — 오너 2026-08-26.) */
   canApprove: boolean;
 }
 

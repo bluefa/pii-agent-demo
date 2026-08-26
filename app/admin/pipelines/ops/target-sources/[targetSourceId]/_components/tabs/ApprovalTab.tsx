@@ -3,7 +3,8 @@
 /**
  * 관리자 승인 tab — the process branch this target's Step 6 exists for.
  *
- * 이 탭은 판정만 한다 — 결정 카드(헤드+CTA) 아래 승인 조건 세 장이 각자 카드로 선다. 조건마다
+ * 이 탭은 판정만 한다 — 캔버스 위 결정 머리(제목·상태·CTA) 아래 승인 조건 셋이 한 행
+ * 세 열로 카드를 입고 선다. 조건마다
  * "상세보기"가 그 조건을 판정한 근거의 탭으로 보낸다(② 연결 테스트, ③ Airflow 확인).
  * 근거를 여기서 다시 그리지 않는 이유는 표가 두 벌이 되기 때문만이 아니다: 저 탭들은
  * 읽기 말고 할 수 있는 일(제외 정책·Credential·재실행)도 갖고 있어서, 잠긴 조건을 풀러
@@ -66,10 +67,10 @@ const GATE_ORDINALS = [1, 2, 3] as const;
  *
  * 세 조건이 한 상자 안에 `divide-y` 로 붙어 있던 동안에는 세 판정이 한 덩어리로 읽혔다
  * (오너 2026-08-26: "답답해"). 조건은 저마다 다른 화면이 판정하고 저마다 따로 풀리므로,
- * 각자 자기 카드에 서고 카드 사이는 페이지의 간격(`opsStyles.content` 의 gap-4)이 벌린다.
- * 카드 넷은 감싸는 상자 없이 콘텐츠 열 바닥에 그대로 깔린다.
+ * 각자 자기 카드에 서고, 세 카드는 한 행 세 열로 나란히 선다 — 감싸는 상자 없이
+ * 콘텐츠 열 바닥에 그대로 깔린다.
  *
- * 카드 안 순서: 라벨(승인 조건 1) ▸ 판정문 ▸ 근거·조회 시각. 판정문은 이제 카드의 제목
+ * 카드 안 순서: 라벨(승인 조건 1) ▸ 판정문 ▸ 근거·조회 시각 ▸ (바닥) 상세보기. 판정문은 이제 카드의 제목
  * 자리라 한 단 올라가고(14 → 16), 근거 줄도 따라 한 단 오른다(12 → 14) — 상자 안 행이
  * 아니라 카드 본문이 됐으므로. 아이콘은 판정문 줄에 붙는다: 두 줄 블록의 가운데로 내려오면
  * 어느 줄을 판정하는 것인지 흐려진다.
@@ -105,12 +106,15 @@ function GateCard({
       <span aria-hidden className="block h-[18px] w-[18px] rounded-full border-2 border-[var(--pl-border-strong)]" />
     );
   return (
-    <section className={pipelineStyles.card.base} aria-label={`승인 조건 ${ordinal}`}>
+    <section
+      className={cn(pipelineStyles.card.base, 'flex h-full flex-col')}
+      aria-label={`승인 조건 ${ordinal}`}
+    >
       <p className="text-[12px] font-semibold text-[var(--pl-text-weak)]">승인 조건 {ordinal}</p>
       <div className="mt-2 flex items-start gap-2.5">
         <span className="mt-px flex-none">{icon}</span>
         <div className="min-w-0 flex-1">
-          <p className="text-[16px] font-semibold text-[var(--pl-text-strong)]" title={titleHint}>
+          <p className="text-[16px] font-semibold leading-[1.45] text-[var(--pl-text-strong)]" title={titleHint}>
             {text}
           </p>
           {(suffix || meta) && (
@@ -121,20 +125,23 @@ function GateCard({
             </p>
           )}
         </div>
-        {onNavigate && (
-          <button
-            type="button"
-            onClick={onNavigate}
-            className="mt-0.5 flex flex-none cursor-pointer items-center gap-0.5 text-[14px] font-semibold text-[var(--pl-primary)] hover:underline"
-          >
-            상세보기
-            <Icon name="chev-r" size={14} />
-          </button>
-        )}
       </div>
+      {onNavigate && (
+        // 세 열이 되면서 제목 옆을 떠났다 — 360px 열에서 판정문과 CTA 가 한 줄을 나눠 쓰면
+        // 문장이 두세 줄로 접힌다. 카드 바닥은 셋이 같은 자리라 열끼리도 줄이 맞는다.
+        <button
+          type="button"
+          onClick={onNavigate}
+          className="mt-auto flex cursor-pointer items-center gap-0.5 self-start pt-3 text-[14px] font-semibold text-[var(--pl-primary)] hover:underline"
+        >
+          상세보기
+          <Icon name="chev-r" size={14} />
+        </button>
+      )}
     </section>
   );
 }
+
 
 export interface ApprovalTabProps {
   targetSourceId: number;
@@ -316,80 +323,95 @@ export function ApprovalTab({
 
   return (
     <>
-      <section className={pipelineStyles.card.base} aria-label="관리자 승인">
-        <div className="flex items-start justify-between gap-6">
-          <div>
-            <h2 className={cn(opsStyles.cardTitle, 'flex items-center gap-2')}>
-              <Icon name="check" size={18} className="text-[var(--pl-primary)]" />
-              관리자 승인
-              <TcPill tone={head.pill.tone} label={head.pill.label} />
-            </h2>
-            <p className={opsStyles.cardDesc}>{head.desc}</p>
+      {/* 결정 머리 — 카드가 아니라 캔버스 위 맨몸 (오너 2026-08-26). 흰 면은 판정 카드 셋의
+          것이고, 이 줄이 카드를 입으면 "무엇을 결정하는가"와 "무엇이 판정됐는가"가 같은
+          종이 두 장으로 겹쳐 읽힌다. */}
+      <div className="flex items-start justify-between gap-6">
+        <div>
+          <h2 className={cn(opsStyles.cardTitle, 'flex items-center gap-2')}>
+            <Icon name="check" size={18} className="text-[var(--pl-primary)]" />
+            관리자 승인
+            <TcPill tone={head.pill.tone} label={head.pill.label} />
+          </h2>
+          <p className={opsStyles.cardDesc}>{head.desc}</p>
+        </div>
+        {/* CTA 는 늘 서 있고, 세 조건이 다 충족될 때까지 눌리지 않는다 (오너 2026-08-26).
+            언마운트하던 이전 문법은 "이 화면에서 무엇을 하게 되는가"를 조건이 풀리기
+            전까지 감췄다 — 비활성 버튼은 죽은 버튼이 아니라 아래 세 카드가 무엇을 여는
+            열쇠인지 말해 주는 목적지다. 조회 중(head.canApprove=false)과 제출 중에도
+            잠긴다. */}
+        <div className="flex-none">
+          <PlButton
+            variant="primary"
+            disabled={!head.canApprove || approve.loading}
+            // 잠긴 CTA 는 캔버스 위에 선다 — primary 의 disabled 면(gray-100)은 이 라벤더
+            // 바탕에서 거의 사라져 버튼이 아니라 흐린 글자로 읽힌다(브라우저 실측). 획을
+            // 하나 두면 눌리지 않는 동안에도 버튼의 모양이 남는다. 카드 위에 서는 다른
+            // disabled primary 들은 흰 면에서 이미 보이므로 전역 토큰은 건드리지 않는다.
+            className="disabled:border-[var(--pl-border-strong)]"
+            onClick={() => setApproveOpen(true)}
+          >
+            연동 완료
+          </PlButton>
+        </div>
+      </div>
+
+      {isRejected && (
+        <div className="rounded-lg bg-[var(--pl-gray-50)] px-3.5 py-3">
+          <div className="flex items-center gap-2">
+            <span className="text-[12px] font-semibold text-[var(--pl-text-weak)]">재실행 요청</span>
+            <span className="text-[12px] tabular-nums text-[var(--pl-text-weak)]">
+              {fmtDateTimeSec(status?.rejectedAt)}
+            </span>
           </div>
-          {head.canApprove && (
-            <div className="flex-none">
-              <PlButton variant="primary" onClick={() => setApproveOpen(true)}>
-                PII Agent 설치 완료
-              </PlButton>
-            </div>
+          {status?.rejectReason && (
+            <p className={cn(pipelineStyles.text.body, 'mt-2')}>{status.rejectReason}</p>
           )}
         </div>
+      )}
 
-        {isRejected && (
-          <div className="mt-4 rounded-lg bg-[var(--pl-gray-50)] px-3.5 py-3">
-            <div className="flex items-center gap-2">
-              <span className="text-[12px] font-semibold text-[var(--pl-text-weak)]">
-                재실행 요청
-              </span>
-              <span className="text-[12px] tabular-nums text-[var(--pl-text-weak)]">
-                {fmtDateTimeSec(status?.rejectedAt)}
-              </span>
-            </div>
-            {status?.rejectReason && (
-              <p className={cn(pipelineStyles.text.body, 'mt-2')}>{status.rejectReason}</p>
-            )}
-          </div>
-        )}
-      </section>
-
-      {/* 왜 CTA 가 없는지는 이 세 카드가 말한다 — 버튼은 전 조건 충족 시에만 마운트하는
-          현행 문법 유지 ("죽은 버튼 금지").
+      {/* 왜 CTA 가 잠겨 있는지는 이 세 카드가 말한다.
 
           근거는 어느 조건도 이 자리에서 펼치지 않는다 — 판정을 만든 화면이 이미 따로 있고,
           그 화면은 읽기 말고 할 수 있는 일(제외 정책·Credential·재실행)도 갖고 있다.
-          여기서 한 번 더 그리면 같은 표가 두 벌이 된다. */}
-      <GateCard
-        ordinal={GATE_ORDINALS[0]}
-        state={ackRow.state}
-        text={ackRow.text}
-        suffix={ackRow.suffix}
-        meta={ackRow.meta}
-      />
-      <GateCard
-        ordinal={GATE_ORDINALS[1]}
-        state={runRow.state}
-        text="최신 연결 테스트 결과가 성공입니다"
-        suffix={runRow.suffix}
-        titleHint={runRow.titleHint}
-        onNavigate={onOpenTcTab}
-      />
-      <GateCard
-        ordinal={GATE_ORDINALS[2]}
-        state={healthRow.state}
-        // 조건은 계약이 쓰는 말이 아니라 이 조건이 지키는 사실로 부른다 (오너 2026-08-25):
-        // `모니터링 헬스가 HEALTHY 상태입니다` 는 관리자에게 healthStatus 라는 필드를 먼저
-        // 배우게 했다. 판정의 출처(enum)는 suffix 의 툴팁 채널에 그대로 남는다.
-        //
-        // ⛔ 스코프('최근 7일 DAG 실행')를 떼지 말 것. §10 은 healthStatus 의 산식을 BE 미회신
-        // 열린 질문으로 두면서 "UI copy stops at 최근 7일 DAG 실행 기준" 이라고 못박는다. 이
-        // 줄은 설치 완료 승인 CTA 를 여는 세 조건 중 하나라, 스코프를 떼면 우리가 모르는
-        // 산식 위에서 "DAG 가 정상 동작한다"고 단언하게 된다. 산식이 회신되면 그때 넓힌다.
-        text="최근 7일 DAG 실행이 정상입니다"
-        suffix={healthRow.suffix}
-        titleHint={healthRow.titleHint}
-        meta={healthRow.meta}
-        onNavigate={onOpenAirflowTab}
-      />
+          여기서 한 번 더 그리면 같은 표가 두 벌이 된다.
+
+          한 행 세 열 (오너 2026-08-26: "응집도가 더 높을 듯"). 세 조건은 CTA 하나를 함께
+          여는 한 벌이라, 세로로 쌓으면 스크롤 순서가 되고 가로로 서면 한 눈에 든다. */}
+      <div className="grid grid-cols-3 items-stretch gap-4">
+        <GateCard
+          ordinal={GATE_ORDINALS[0]}
+          state={ackRow.state}
+          text={ackRow.text}
+          suffix={ackRow.suffix}
+          meta={ackRow.meta}
+        />
+        <GateCard
+          ordinal={GATE_ORDINALS[1]}
+          state={runRow.state}
+          text="최신 연결 테스트 결과가 성공입니다"
+          suffix={runRow.suffix}
+          titleHint={runRow.titleHint}
+          onNavigate={onOpenTcTab}
+        />
+        <GateCard
+          ordinal={GATE_ORDINALS[2]}
+          state={healthRow.state}
+          // 조건은 계약이 쓰는 말이 아니라 이 조건이 지키는 사실로 부른다 (오너 2026-08-25):
+          // `모니터링 헬스가 HEALTHY 상태입니다` 는 관리자에게 healthStatus 라는 필드를 먼저
+          // 배우게 했다. 판정의 출처(enum)는 suffix 의 툴팁 채널에 그대로 남는다.
+          //
+          // ⛔ 스코프('최근 7일 DAG 실행')를 떼지 말 것. §10 은 healthStatus 의 산식을 BE 미회신
+          // 열린 질문으로 두면서 "UI copy stops at 최근 7일 DAG 실행 기준" 이라고 못박는다. 이
+          // 줄은 설치 완료 승인 CTA 를 여는 세 조건 중 하나라, 스코프를 떼면 우리가 모르는
+          // 산식 위에서 "DAG 가 정상 동작한다"고 단언하게 된다. 산식이 회신되면 그때 넓힌다.
+          text="최근 7일 DAG 실행이 정상입니다"
+          suffix={healthRow.suffix}
+          titleHint={healthRow.titleHint}
+          meta={healthRow.meta}
+          onNavigate={onOpenAirflowTab}
+        />
+      </div>
 
       <TcApproveModal
         open={approveOpen}
