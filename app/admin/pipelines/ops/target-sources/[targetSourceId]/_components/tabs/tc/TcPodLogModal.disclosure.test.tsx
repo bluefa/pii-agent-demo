@@ -39,18 +39,40 @@ describe('TcPodLogModal — StackDriver 행 디스클로저', () => {
     const clamped = rows[1].querySelector('.truncate');
     expect(clamped?.textContent).toBe(TRACE);
     // jsdom 은 레이아웃을 안 재므로 `truncate` 만으로는 잘림을 못 본다. 잘림을 실제로
-    // 지탱하는 건 부모의 `min-w-0` 다 — 없으면 flex 아이템이 콘텐츠 아래로 안 줄어들어
+    // 지탱하는 건 같은 박스의 `min-w-0` 다 — 없으면 flex 아이템이 콘텐츠 아래로 안 줄어들어
     // truncate 가 조용히 무력화되고 행이 트레이스 높이로 자란다.
-    expect(clamped?.parentElement?.className).toContain('min-w-0');
+    expect(clamped?.className).toContain('min-w-0');
 
     fireEvent.click(rows[1]);
     expect(rows[1].getAttribute('aria-expanded')).toBe('true');
     expect(rows[0].getAttribute('aria-expanded')).toBe('false');
-    // 편 줄만 접힌 줄이 못 싣는 두 사실을 덧붙인다: severity 원문 + 날짜까지 붙은 시각.
-    expect(rows[1].textContent).toContain('ERROR · 2026-06-01 09:04:16.000');
+    // 펴면 잘림만 풀린다 — 본문 전문이 감기고, 자른 자리가 사라진다.
+    expect(rows[1].querySelector('.truncate')).toBeNull();
+    expect(rows[1].querySelector('.whitespace-pre-wrap')?.textContent).toBe(TRACE);
 
     fireEvent.click(rows[1]);
     expect(rows[1].getAttribute('aria-expanded')).toBe('false');
+  });
+
+  it('행은 접힌 채로 날짜까지 싣고, 편다고 꼬리표가 붙지 않는다', async () => {
+    const rows = await open();
+    // 시각 칸은 날짜를 달고 선다 — 복사해 붙인 한 줄이 어느 날 것인지 혼자 말해야 한다.
+    expect(rows[1].textContent).toContain('2026-06-01 09:04:16.000');
+
+    fireEvent.click(rows[1]);
+    // 종전의 `severity · 날짜 시각` 꼬리표는 오너가 걷어냈다(2026-08-26). 접힌 줄이 이미
+    // 날짜까지 싣는데 편 줄이 같은 사실을 한 번 더 쓰면 두 번 읽힌다.
+    expect(rows[1].textContent).not.toContain('ERROR ·');
+    expect(rows[1].textContent).not.toContain('2026-06-01 09:04:16.0002026-06-01');
+  });
+
+  it('행 윤곽은 hover 가 아니라 쉴 때 서 있다', async () => {
+    const rows = await open();
+    // 경계가 hover 때만 나타나면, 여러 줄 트레이스를 펴 놓았을 때 어디서 한 행이 끝나는지
+    // 바닥 색만으로는 안 읽힌다. 상시 ring 이어야 한다 — `hover:ring-…` 은 이걸 못 대신한다.
+    for (const row of rows) {
+      expect(row.className).toMatch(/(?<!hover:)ring-white\/20/);
+    }
   });
 
   it('키보드로도 같은 자리에서 펴고, Tab 은 목록에서 한 번만 멈춘다', async () => {
