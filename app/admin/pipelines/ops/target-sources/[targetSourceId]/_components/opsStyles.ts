@@ -44,9 +44,11 @@ export const opsStyles = {
    *     ("Structure should be felt not seen"). 칠이 사라졌으므로 구분자는 faint(워시 위
    *     2.34:1)에서 weak(4.53:1)로 올라간다 — 유일한 묶음 장치가 안 보이면 안 된다.
    *
-   * ⛔ 파랑은 이 줄에서 빠졌다. 08-24 의 "파란색 태그" 지시는 그 다음 라운드(#791)가
-   * 이미 회색 태그로 대체했고, 이번엔 그 회색 태그마저 걷는다. 링크는 색이 아니라
-   * hover 로 말한다 — 세 마디 중 둘이 링크라 파랑을 쓰면 줄의 3분의 2가 파래진다.
+   * ⛔ 파랑은 **지나온 마디**에서 빠졌다. 링크는 색이 아니라 hover 로 말한다 — 세 마디 중
+   * 둘이 링크라 거기에 파랑을 쓰면 줄의 3분의 2가 파래진다.
+   * 다만 **서 있는 곳의 식별자 하나만** 파랑이다 (오너 08-26 "#1029 파란색으로 바꿔").
+   * 링크가 아니므로 위 규칙과 부딪히지 않고, 굵기·크기·색 세 레버가 한 요소에 모여
+   * 줄에서 눈이 가장 먼저 닿는 곳이 "지금 보고 있는 대상"이 된다.
    */
   pathLine: 'flex flex-wrap items-baseline gap-x-3 gap-y-1',
   path: 'flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-1 text-[12px] leading-[1.5] text-[var(--pl-text-weak)]',
@@ -62,7 +64,7 @@ export const opsStyles = {
   pathHere: 'flex flex-none items-baseline gap-1.5',
   pathHereKind: 'text-[12px] text-[var(--pl-text-weak)]',
   pathHereId:
-    '[font-family:var(--pl-font-mono)] text-[14px] font-semibold tabular-nums text-[var(--pl-text-strong)]',
+    '[font-family:var(--pl-font-mono)] text-[14px] font-semibold tabular-nums text-[var(--pl-primary)]',
   /**
    * 관련 페이지 (오너 2026-08-26) — 이 대상을 두고 갈 수 있는 **다른 화면들**. kv 그리드의
    * 한 셀로 산다: 라벨이 값 위에 서는 이 헤더의 문법 그대로이고, 목적지가 늘어도 셀 안에서
