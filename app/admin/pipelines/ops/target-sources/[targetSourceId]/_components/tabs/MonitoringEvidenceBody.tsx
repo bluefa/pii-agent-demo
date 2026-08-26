@@ -19,7 +19,10 @@ import type { ReactElement } from 'react';
 import { cn } from '@/lib/theme';
 import { opsStyles } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/opsStyles';
 import type { DagAggregates } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/approvalGate';
-import { attentionCount } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/dagBoard';
+import {
+  BUCKET_LABEL,
+  attentionCount,
+} from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/dagBoard';
 
 const n = (value: number): string => value.toLocaleString('ko-KR');
 
@@ -38,7 +41,7 @@ export function MonitoringEvidenceBody({
   onOpenBoard,
 }: MonitoringEvidenceBodyProps): ReactElement {
   const b = opsStyles.tcBand;
-  // 진행 중·그 외는 있을 때만 — 0 을 세우면 없다는 사실만 반복한다. 계약 밖 값(그 외)은
+  // 실행 시작·그 외는 있을 때만 — 0 을 세우면 없다는 사실만 반복한다. 계약 밖 값(그 외)은
   // 색이 아니라 형태(파선 링)로 말한다: 읽지 못한 값이지 나쁜 값이 아니다.
   const buckets: { label: string; value: number; dot: string; ink?: string }[] = [
     { label: '성공', value: agg.succeeded, dot: b.countDotOk, ink: b.okValue },
@@ -47,9 +50,11 @@ export function MonitoringEvidenceBody({
     // 7일 스트립이 행마다 진다. 표의 판정 알약·실패 레일과도 같은 낱말이 됐다.
     { label: '확인 필요', value: attentionCount(agg), dot: b.countDotFail, ink: b.failValue },
     ...(agg.running > 0
-      ? [{ label: '진행 중', value: agg.running, dot: b.countDotRest }]
+      ? [{ label: BUCKET_LABEL.running, value: agg.running, dot: b.countDotRest }]
       : []),
-    ...(agg.other > 0 ? [{ label: '그 외', value: agg.other, dot: b.countDotMissing }] : []),
+    ...(agg.other > 0
+      ? [{ label: BUCKET_LABEL.other, value: agg.other, dot: b.countDotMissing }]
+      : []),
   ];
 
   return (

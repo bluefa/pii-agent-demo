@@ -8,6 +8,7 @@ import { describe, expect, it } from 'vitest';
 import type { DagDatabaseStatus, DagStatusResponse } from '@/lib/types/dag-status';
 import {
   BOARD_FILTER_LABEL,
+  BUCKET_LABEL,
   FIXED_BOARD_FILTERS,
   abbrevDagName,
   agentDisplayName,
@@ -283,16 +284,27 @@ describe('agentVerdict — 행의 종합 상태 (모든 행에 알약)', () => {
 
   // ⛔ 회귀 잠금: 한때 판정이 `dbTotal − succeeded` 로 세어서, 요약 줄이 '확인 필요 0'
   // 이라 말하는 행에 '확인 필요' + 빨간 레일이 섰고 눌러 열면 0건이었다.
-  it('진행 중만 있는 행은 확인 필요가 아니다 — 요약 줄과 같은 집합을 센다', () => {
+  it('실행 시작만 있는 행은 확인 필요가 아니다 — 요약 줄과 같은 집합을 센다', () => {
     const agent = { ...base, succeeded: 3, running: 1 };
     expect(attentionCount(agent)).toBe(0);
-    expect(agentVerdict(agent)).toMatchObject({ tone: 'warn', label: '진행 중' });
+    expect(agentVerdict(agent)).toMatchObject({ tone: 'warn', label: '실행 시작' });
     expect(agentVerdict(agent).count).toBeUndefined();
   });
 
   it('계약 밖 값만 남은 행은 그 외(off) — 나쁜 값이 아니라 읽지 못한 값이다', () => {
     const agent = { ...base, succeeded: 3, other: 1 };
     expect(agentVerdict(agent)).toMatchObject({ tone: 'off', label: '그 외' });
+  });
+
+  // ⛔ 회귀 잠금: 같은 버킷을 부르는 자리가 넷이라(보드 칩 · 날짜 범례 · 요약 카운트 줄 ·
+  // 행 판정) 낱말을 리터럴로 적는 순간 갈린다. 실제로 행 판정이 '진행 중'으로 적혀
+  // BUCKET_LABEL 의 ⛔ 를 어겼고, 한 화면이 한 버킷을 두 이름으로 불렀다.
+  // '진행 중'이 금지인 이유: RUNNING 은 지난 날짜 칸에도 서므로 "지금 돌고 있다"를
+  // 응답이 말하지 않은 채로 말하게 된다.
+  it('행 판정의 낱말은 보드 칩과 한 상수에서 온다', () => {
+    expect(agentVerdict({ ...base, succeeded: 3, running: 1 }).label).toBe(BUCKET_LABEL.running);
+    expect(agentVerdict({ ...base, succeeded: 3, other: 1 }).label).toBe(BUCKET_LABEL.other);
+    expect(BUCKET_LABEL.running).not.toBe('진행 중');
   });
 
   it('관측 DB 0개는 판정 없이 부재만 — DAG 없음(off)', () => {

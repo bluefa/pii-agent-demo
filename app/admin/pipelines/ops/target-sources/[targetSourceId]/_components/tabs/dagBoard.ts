@@ -223,14 +223,18 @@ export const summarizeAgents = (data: DagStatusResponse): DagAgentSummary[] =>
  * 연결이 정상이면 관측 결과로 판정한다.
  *
  * ⛔ '확인 필요'가 세는 집합은 **요약 카운트 줄과 같아야 한다**(`attentionCount`).
- * 한때 이 함수는 `dbTotal − succeeded`(실패+미스케줄+진행 중+그 외)로 판정했는데,
- * 요약 줄은 실패+미스케줄만 셌다. 그래서 성공 없는 DB 가 진행 중뿐인 리소스는 행에
+ * 한때 이 함수는 `dbTotal − succeeded`(실패+미스케줄+실행 시작+그 외)로 판정했는데,
+ * 요약 줄은 실패+미스케줄만 셌다. 그래서 성공 없는 DB 가 실행 시작뿐인 리소스는 행에
  * '확인 필요'가 서고 빨간 레일까지 붙는데 요약은 '확인 필요 0'이었고, 그 수를 눌러 열면
  * 그 리소스 행이 0건이었다. 한 화면의 두 자리가 같은 낱말로 다른 집합을 부르면 그 낱말은
  * 아무것도 뜻하지 않는다. 목이 running·other 버킷을 만들지 못해 테스트만 초록이었다.
  *
- * 진행 중과 그 외는 자기 판정을 갖는다 — 진행 중은 시간이 지나면 저절로 갈리는 상태라
- * 지금 할 일이 없고, 그 외는 나쁜 값이 아니라 읽지 못한 값이다.
+ * 실행 시작과 그 외는 자기 판정을 갖는다 — 실행 시작은 시간이 지나면 저절로 갈리는
+ * 상태라 지금 할 일이 없고, 그 외는 나쁜 값이 아니라 읽지 못한 값이다.
+ *
+ * ⛔ 이 판정들의 낱말을 리터럴로 쓰지 말 것. 같은 버킷을 부르는 자리가 넷이고
+ * (보드 칩 · 날짜 범례 · 요약 카운트 줄 · 이 판정), 리터럴로 적는 순간 갈린다 —
+ * 실제로 이 함수가 `running` 을 '진행 중'으로 적어서 `BUCKET_LABEL` 의 ⛔ 를 어겼다.
  * raw enum 은 hint(툴팁 채널)로만 나른다.
  */
 export const agentVerdict = (
@@ -260,10 +264,17 @@ export const agentVerdict = (
     };
   }
   if (agent.running > 0) {
-    return { tone: 'warn', label: '진행 중', hint: '이번 주 실행이 시작됐고 결과가 아직 없어요' };
+    // 낱말은 `BUCKET_LABEL` 에서 읽는다 — 리터럴로 적었더니 곧바로 어겼다(아래 ⛔).
+    // 보드 칩·날짜 범례·카운트 줄·행 판정이 같은 버킷을 네 자리에서 부르는데, 그 넷이
+    // 한 상수를 읽으면 갈릴 길이 없다.
+    return {
+      tone: 'warn',
+      label: BUCKET_LABEL.running,
+      hint: '최근 7일 성공 기록이 없고, 실행이 시작된 날이 있어요',
+    };
   }
   if (agent.other > 0) {
-    return { tone: 'off', label: '그 외', hint: '계약 밖의 상태값이 섞여 있어요' };
+    return { tone: 'off', label: BUCKET_LABEL.other, hint: '계약 밖의 상태값이 섞여 있어요' };
   }
   return { tone: 'ok', label: '정상', hint: '관측 논리 DB 전부 최근 7일 성공' };
 };
