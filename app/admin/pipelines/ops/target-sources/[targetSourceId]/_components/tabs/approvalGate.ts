@@ -239,10 +239,25 @@ export interface EvidencePill {
   label: string;
 }
 
+/**
+ * 세는 값 한 조각 — "총 14개", "14개 성공", "0개 확인 필요".
+ *
+ * 수와 낱말을 나눠 두는 이유는 렌더 때문이다: 수는 한 단 크고 굵게, 낱말은 한 단 작게
+ * 선다 (오너 2026-08-26: "숫자는 14픽셀로 올리고"). 문자열 한 벌로 내려보내면 호출부가
+ * 정규식으로 숫자를 도로 찾아내야 한다.
+ */
+export interface CountSegment {
+  /** 수 앞에 붙는 낱말 — '총'. */
+  prefix?: string;
+  count: number;
+  /** 수 뒤에 붙는 낱말 — '개', '개 성공', '개 확인 필요'. */
+  suffix: string;
+}
+
 /** 근거 한 줄의 라벨–값 — 승인 카드가 조건 ② 와 같은 문법으로 그린다. */
 export interface MonitoringEvidenceFact {
   label: string;
-  value: string;
+  segments: readonly CountSegment[];
 }
 
 export interface MonitoringEvidenceHead {
@@ -271,9 +286,22 @@ export function monitoringEvidenceHead(
   dag: DagFetch,
   agg: DagAggregates | null,
 ): MonitoringEvidenceHead {
-  const n = (value: number): string => value.toLocaleString('ko-KR');
-  const agents = (): readonly MonitoringEvidenceFact[] =>
-    agg ? [{ label: '에이전트', value: `${n(agg.agentConnected)}/${n(agg.agentTotal)} 연결` }] : [];
+  // 리소스(에이전트) 도 논리 DB 와 같은 셈으로 말한다 (오너 2026-08-26) — 연결된 것이
+  // 성공, 나머지가 확인 필요. 라벨이 '리소스' 인 것은 이 줄이 세는 것이 EC2·RDS 같은
+  // 등록 리소스이기 때문이다.
+  const resources = (): readonly MonitoringEvidenceFact[] =>
+    agg
+      ? [
+          {
+            label: '리소스',
+            segments: [
+              { prefix: '총', count: agg.agentTotal, suffix: '개' },
+              { count: agg.agentConnected, suffix: '개 성공' },
+              { count: agg.agentTotal - agg.agentConnected, suffix: '개 확인 필요' },
+            ],
+          },
+        ]
+      : [];
   switch (dag.phase) {
     case 'loading':
       return {
@@ -313,12 +341,13 @@ export function monitoringEvidenceHead(
           ? [
               {
                 label: '논리 DB',
-                value:
-                  agg.dbTotal === 0
-                    ? '없음'
-                    : `${n(agg.dbTotal)}개 중 ${n(agg.succeeded)}개 성공, ${n(agg.dbTotal - agg.succeeded)}개 확인 필요`,
+                segments: [
+                  { prefix: '총', count: agg.dbTotal, suffix: '개' },
+                  { count: agg.succeeded, suffix: '개 성공' },
+                  { count: agg.dbTotal - agg.succeeded, suffix: '개 확인 필요' },
+                ],
               },
-              ...agents(),
+              ...resources(),
             ]
           : [],
       };

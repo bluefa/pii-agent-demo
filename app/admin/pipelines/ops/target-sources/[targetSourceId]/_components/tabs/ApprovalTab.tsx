@@ -50,6 +50,7 @@ import {
   foldApprovalHead,
   healthVerdict,
   monitoringEvidenceHead,
+  type CountSegment,
   showsHandoffCaption,
   tcRunGate,
   type DagFetch,
@@ -74,6 +75,28 @@ interface GateFact {
   /** 없으면 산문 줄 — 판정의 이유·안내처럼 이름 붙일 값이 아닌 것. */
   label?: string;
   value: ReactNode;
+}
+
+/**
+ * 세는 값 한 줄 — "총 14개  14개 성공  0개 확인 필요".
+ *
+ * 수는 14px 굵게, 낱말은 12px (오너 2026-08-26). 한 줄 안에서 크기가 갈리므로 눈이 수부터
+ * 집고 낱말은 그 수가 무엇인지 뒤따라 설명한다 — 같은 크기로 늘어놓으면 세 조각이 한
+ * 문장으로 뭉쳐 읽힌다. 조각 사이는 쉼표가 아니라 간격이 가른다: 쉼표는 문장의 기호라
+ * 세는 줄에 놓이면 조각을 이어 붙인다.
+ */
+function CountLine({ segments }: { segments: readonly CountSegment[] }): ReactElement {
+  return (
+    <span className="flex flex-wrap items-baseline gap-x-3 gap-y-1 text-[12px] text-[var(--pl-text-medium)]">
+      {segments.map((seg, i) => (
+        <span key={i} className="whitespace-nowrap">
+          {seg.prefix && `${seg.prefix} `}
+          <b className="text-[14px] font-bold tabular-nums">{n(seg.count)}</b>
+          {seg.suffix}
+        </span>
+      ))}
+    </span>
+  );
 }
 
 /**
@@ -340,7 +363,9 @@ export function ApprovalTab({
           state,
           facts: [
             ...prose(monHead.subtitle),
-            ...monHead.facts,
+            ...monHead.facts.map(
+              (fact): GateFact => ({ label: fact.label, value: <CountLine segments={fact.segments} /> }),
+            ),
             { label: '조회', value: fmtDateTimeSec(dag.fetchedAt) },
           ],
           titleHint: monHead.titleHint,

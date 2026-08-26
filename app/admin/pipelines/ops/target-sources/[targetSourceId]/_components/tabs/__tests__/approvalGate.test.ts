@@ -181,8 +181,22 @@ describe('monitoringEvidenceHead', () => {
     // 사실마다 한 행 — 값의 이름은 라벨 열이 진다 (오너 2026-08-26).
     expect(head.subtitle).toBeNull();
     expect(head.facts).toEqual([
-      { label: '논리 DB', value: '1개 중 1개 성공, 0개 확인 필요' },
-      { label: '에이전트', value: '1/1 연결' },
+      {
+        label: '논리 DB',
+        segments: [
+          { prefix: '총', count: 1, suffix: '개' },
+          { count: 1, suffix: '개 성공' },
+          { count: 0, suffix: '개 확인 필요' },
+        ],
+      },
+      {
+        label: '리소스',
+        segments: [
+          { prefix: '총', count: 1, suffix: '개' },
+          { count: 1, suffix: '개 성공' },
+          { count: 0, suffix: '개 확인 필요' },
+        ],
+      },
     ]);
   });
 
@@ -194,7 +208,14 @@ describe('monitoringEvidenceHead', () => {
     );
     expect(head.pill).toEqual({ tone: 'err', label: 'UNHEALTHY' });
     // 판정이 갈려도 행은 같다 — 정상 여부는 알약이 말하고 이 행은 센다.
-    expect(head.facts[0]).toEqual({ label: '논리 DB', value: '2개 중 1개 성공, 1개 확인 필요' });
+    expect(head.facts[0]).toEqual({
+      label: '논리 DB',
+      segments: [
+        { prefix: '총', count: 2, suffix: '개' },
+        { count: 1, suffix: '개 성공' },
+        { count: 1, suffix: '개 확인 필요' },
+      ],
+    });
   });
 
   it('미지 enum — raw 는 툴팁 채널에만', () => {
