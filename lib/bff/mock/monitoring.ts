@@ -1,5 +1,10 @@
 import { NextResponse } from 'next/server';
-import { CPN_CLUSTER_ARN, LGS_RESOURCE_IDS, cpnAthenaRegionId } from '@/lib/mock-data';
+import {
+  CPN_CLUSTER_ARN,
+  IVT_RESOURCE_IDS,
+  LGS_RESOURCE_IDS,
+  cpnAthenaRegionId,
+} from '@/lib/mock-data';
 import type { DagAgentStatus, DagDatabaseStatus, DagDayStatus, DagStatusResponse } from '@/lib/types/dag-status';
 
 /**
@@ -15,6 +20,9 @@ import type { DagAgentStatus, DagDatabaseStatus, DagDayStatus, DagStatusResponse
  *   1511 GCP   — UNHEALTHY, 5 DBs without a success  (truth row 6)
  *   1801 AZURE — UNHEALTHY at scale: 1,560 DBs       (truth row 6 + 1,500-row demo)
  *   1799 AZURE — HEALTHY, single agent
+ *   1583 IDC   — UNHEALTHY, 3 agents: 정상 · 확인 필요 · 진행 중
+ *                IDC 표의 접속 주소·Port·엔진 열은 확정 정보 조인으로만 채워지므로,
+ *                id 를 IVT_RESOURCE_IDS 에서 가져와야 그 열들이 값을 받는다.
  * Any other id gets a small HEALTHY default so the gate works on targets the
  * demo flips to TEST_CONNECTION_COMPLETED at runtime. Every seed stays inside
  * the declared healthStatus enum — the unknown-value lock (truth row 7) is
@@ -34,7 +42,7 @@ const kstDays = (): string[] => {
   });
 };
 
-type DbPattern = 'success' | 'runningToday' | 'failed' | 'unscheduled';
+type DbPattern = 'success' | 'runningToday' | 'failed' | 'unscheduled' | 'runningOnly';
 
 /** Deterministic per-row jitter so success times differ without Math.random. */
 const jitter = (seed: number, mod: number): number => (seed * 7919 + 104729) % mod;
@@ -57,6 +65,15 @@ const buildDays = (pattern: DbPattern, days: string[], seed: number): DagDayStat
           : { day, status: 'FAILED', successTime: null };
       case 'unscheduled':
         return { day, status: 'NOT_SCHEDULED', successTime: null };
+      case 'runningOnly':
+        // 이번 주 성공 기록이 **없고** 오늘 실행이 시작된 상태 — `classifyDb` 의 'running'
+        // 버킷은 이 조합에서만 나온다. `runningToday` 는 지난 날짜가 성공이라
+        // succeededThisWeek 가 참이 되어 'succeeded' 로 떨어졌고, 그래서 이 픽스처가
+        // 생기기 전까지 'running' 버킷은 어떤 목에서도 만들어지지 않았다 — 카운트 줄과
+        // 행 판정이 이 버킷에서 갈렸던 버그가 테스트로는 초록이던 이유다.
+        return isToday
+          ? { day, status: 'RUNNING', successTime: null }
+          : { day, status: 'NOT_SCHEDULED', successTime: null };
     }
   });
 
@@ -273,6 +290,33 @@ const buildResponse = (targetSourceId: number): DagStatusResponse => {
           ),
         ],
       };
+    case 1583: { // 재고서비스 IDC — 접속 주소·Port·엔진 열이 값을 받는 유일한 IDC 픽스처.
+      const [a1, a2, a3] = IVT_RESOURCE_IDS;
+      return {
+        targetSourceId,
+        connectionStatus: 'SUCCESS',
+        healthStatus: 'UNHEALTHY',
+        timezone: 'KST',
+        agents: [
+          // 전부 성공 — 알약만 서고 셀 것이 없다.
+          agent(1583, 0, a1, null, 'SUCCESS', [
+            spec('mysql://db-mysql.ivt.prod.internal:3306/ivt_orders', 'ivt_orders', 'success', 11),
+            spec('mysql://db-mysql.ivt.prod.internal:3306/ivt_stock', 'ivt_stock', 'success', 12),
+          ]),
+          // 실패 1 + 미스케줄 1 → 확인 필요 2, 그리고 첫 칸에 레일.
+          agent(1583, 1, a2, null, 'SUCCESS', [
+            spec('mysql://10.20.4.11:3306/ivt_ledger', 'ivt_ledger', 'success', 13),
+            spec('mysql://10.20.4.11:3306/ivt_audit', 'ivt_audit', 'failed', 14),
+            spec('mysql://10.20.4.11:3306/ivt_archive', 'ivt_archive', 'unscheduled', 15),
+          ]),
+          // 성공 기록 없이 오늘 시작된 실행 하나 → 진행 중(warn). 확인 필요가 아니다.
+          agent(1583, 2, a3, null, 'SUCCESS', [
+            spec('oracle://10.20.4.18:1521/IVTPDB', 'IVTPDB', 'success', 16),
+            spec('oracle://10.20.4.18:1521/IVTHIST', 'IVTHIST', 'runningOnly', 17),
+          ]),
+        ],
+      };
+    }
     default: // Targets flipped to COMPLETED at runtime still get a working gate.
       return {
         targetSourceId,
