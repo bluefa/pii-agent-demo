@@ -16,6 +16,7 @@ export type IconName =
   | 'arrow-right'
   | 'arrow-up-right'
   | 'chev-r'
+  | 'chev-d'
   | 'plus'
   | 'check'
   | 'x'
@@ -65,6 +66,7 @@ const ICON_PATHS: Record<IconName, ReactElement> = {
   'arrow-right': <path d="M5 12h14M12 5l7 7-7 7" />,
   'arrow-up-right': <path d="M7 17 17 7M7 7h10v10" />,
   'chev-r': <path d="m9 5.5 6.5 6.5L9 18.5" />,
+  'chev-d': <path d="M5.5 9 12 15.5 18.5 9" />,
   /** `i-info` — the omitted prototype symbol, added for the P3 row-level detail affordance. */
   info: (
     <>

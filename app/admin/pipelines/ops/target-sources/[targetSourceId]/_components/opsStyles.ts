@@ -14,54 +14,135 @@ export const opsStyles = {
    */
   page: '-mx-8 -mt-6 -mb-12 flex min-h-[calc(100vh_-_64px)] flex-col bg-[var(--pl-bg-canvas)]',
   /**
-   * Masthead — one gray-100 wash holding breadcrumb + identity line, closed by
+   * Masthead — one gray-100 wash holding the path line + FrontMeta block, closed by
    * the tab band (tabStrip). The wash separates from the canvas on chroma, not
    * luminance (ΔE00 2.46, guard-pinned).
    */
   masthead: 'bg-[var(--pl-gray-100)] px-8 pt-4',
 
-  /** Breadcrumb — 서비스 운영 / 서비스 이름 / #id. On the wash, so weak not faint:
-      워시는 램프 한 칸을 잡아먹는다 (faint measures 2.34:1 here). */
-  crumb: 'flex items-center gap-1.5 text-[12px] text-[var(--pl-text-weak)]',
-  crumbLink: 'hover:text-[var(--pl-text-strong)] hover:underline',
-  crumbSep: 'text-[var(--pl-text-faint)]', // design-exempt: decorative path glyph, the labels around it carry the reading
-  crumbHere: 'font-semibold text-[var(--pl-text-strong)]',
-
-  /** Identity line — provider mark + "Target Source 운영 #{id}" (h1) + step pill + stamp,
-      the service-side link pushed to the far edge. One line: everything else the
-      old five-tier header stacked here now lives in the meta rail (OpsMetaRail). */
-  idLine: 'mt-1.5 flex flex-wrap items-center gap-3',
-  idTitle: 'whitespace-nowrap text-[16px] font-bold tracking-[-0.02em] text-[var(--pl-text-strong)]',
-  /** 오너 08-20: 제목 16px, id 부분은 한 단 아래 14px. */
-  idNum: 'text-[14px] tabular-nums',
-  idHash: 'text-[14px] font-normal text-[var(--pl-text-faint)]',
   /**
-   * 마스트헤드 식별 태그 — 제목 줄의 `Target Source` 와 브레드크럼의 서비스 이름
-   * (오너 2026-08-26: "눈에 잘 보이게 파란색 태그로, 채도는 좀 낮춰").
+   * 경로 한 줄 (오너 2026-08-26) — 크럼과 제목이 두 줄로 갈려 있던 것을 Linear 의
+   * FrontMeta 문법 한 줄로 합친다:
    *
-   * 이 두 낱말은 "지금 보고 있는 것이 무엇인가"를 말하는데, 워시 위에서 검은 제목·회색
-   * 경로에 섞여 문장의 일부로 읽혔다. 면을 주면 낱말이 아니라 이름표가 된다.
+   *   서비스 운영 / [서비스 코드 CPN] / Target Source 운영 / [Target Source #1642]
    *
-   * 색은 `primaryColors` 의 bgLight/textOnLight 를 그대로 받는다 — 앱의 파란 태그 가족
-   * (`scopeTag` 과 같은 짝, 5.92:1)이고, CTA 가 입는 채운 파랑보다 한참 낮은 채도라 마스트헤드
-   * 에서 CTA 처럼 튀지 않는다. 값을 손으로 베끼지 않는 이유는 census 다: 토큰이 움직이는
-   * 날 손복사본만 제자리에 남아 두 파랑이 된다.
+   * 마디는 「화면 이름 · 그 화면의 식별자」 짝으로 두 벌 선다 (오너 2026-08-26). 지나온
+   * 화면의 이름만 파랗다 — 파랑은 이 팔레트에서 "누를 수 있다"이고, 그 옆 태그는 정체성이라
+   * 색을 쓰지 않는다: 이동은 낱말이 지고 값은 태그가 진다.
    *
-   * 밑줄도 커서도 없다 — 누를 것이 아니라 이름표다. 브레드크럼 판(`crumbTag`)은 그 줄의
-   * 12px 에 맞춘 같은 태그다.
+   * 「Target Source 운영」은 더 이상 16px 굵은 제목이 아니다 (오너: "과하게 강조할 필요
+   * 없음") — 경로의 한 마디이고, 서비스측 `crumbRoot` 와 같은 14/600 이다. 서비스
+   * **이름**은 이 줄에서 빠져 「상세 정보」로 갔다: 이름은 라벨이고, 경로에 서야 하는
+   * 것은 대조할 수 있는 식별자(서비스 코드 · 대상 번호)다.
    */
-  idTag: `inline-flex flex-none items-center rounded-[6px] px-2 py-0.5 text-[14px] font-semibold ${primaryColors.bgLight} ${primaryColors.textOnLight}`,
-  crumbTag: `inline-flex flex-none items-center rounded-[4px] px-1.5 py-0.5 text-[12px] font-semibold ${primaryColors.bgLight} ${primaryColors.textOnLight}`, // design-exempt: prefix glyph, the id digits beside it carry the reading
+  pathLine: 'flex flex-wrap items-center gap-3',
+  path: 'flex min-w-0 flex-wrap items-center gap-1.5 text-[12px] leading-[1.5] text-[var(--pl-text-medium)]',
+  pathRoot: 'flex-none text-[14px] font-semibold text-[var(--pl-text-strong)]',
+  pathSep: 'flex-none text-[var(--pl-text-faint)]', // design-exempt: decorative path glyph, the tags around it carry the reading
+  /**
+   * 마디 태그 (서비스측 `codeChip` 을 --pl-* 로) — 값 앞에 그 값의 **종류**를 적는다.
+   * 경로의 한 마디는 값만 말하고 그 값이 무엇인지는 말하지 못하는데, 「azure」 하나만
+   * 놓이면 처음 온 사람에게는 아무 말도 아니다.
+   *
+   * 슬레이트 계열이고 파랑이 아니다: 이 팔레트에서 파랑은 "누를 수 있다"의 색이라 마디의
+   * 정체성에는 쓰지 않는다. 면은 gray-200 — 워시(gray-100) 위에서 탭 밴드와 같은 ΔE00
+   * 2.94 이고, 흰 면은 이 화면에서 "만질 수 있는 값"(metaTag)의 것으로 남는다.
+   */
+  pathChip:
+    'inline-flex flex-none items-baseline gap-1.5 rounded-[6px] border border-[var(--pl-border-strong)] bg-[var(--pl-gray-200)] px-2 py-[3px]',
+  /** 조상 마디 — 파란 글씨 (오너 2026-08-26). 현재 화면(`pathRoot`)보다 한 단 작다:
+      지나온 곳과 서 있는 곳의 차이가 곧 경로의 순서다. 워시 위 4.69:1. */
+  pathLink:
+    'flex-none cursor-pointer text-[12px] font-semibold text-[var(--pl-primary)] hover:underline',
+  /**
+   * 관련 페이지 (오너 2026-08-26) — 이 대상을 두고 갈 수 있는 **다른 화면들**. kv 그리드의
+   * 한 셀로 산다: 라벨이 값 위에 서는 이 헤더의 문법 그대로이고, 목적지가 늘어도 셀 안에서
+   * 늘어난다. 회색 보조 버튼 하나가 경로 줄에 서 있던 자리인데, 목적지가 둘이 되면 버튼
+   * 둘은 그 줄에서 가장 시끄러운 것이 된다 — 파란 낱말은 이 화면의 다른 이동(서비스 운영 ·
+   * 수정 · 상세 정보)과 같은 문법이고, 우상향 화살표가 "여기서 끝나지 않는다"를 말한다.
+   */
+  relatedLink:
+    'inline-flex cursor-pointer items-center gap-0.5 whitespace-nowrap text-[12px] font-semibold text-[var(--pl-primary)] hover:underline',
+  pathChipLabel: 'text-[12px] font-medium text-[var(--pl-gray-600)]',
+  pathChipValue:
+    '[font-family:var(--pl-font-mono)] text-[12px] font-semibold text-[var(--pl-text-strong)]',
 
-  /** Meta block — 클라우드 · 설정 + 검증값 on the wash (오너 08-20: the target's
-      own facts came back out of the rail; 08-20 둘째 조정: 한 줄 나열이 아니라
-      기존 헤더처럼 행 스택). One key·value row per fact, fixed 72px label column
-      (the old roleRow grammar); white chips and the ARN action are the only
-      interactive islands. */
-  metaRows: 'mt-2.5 flex flex-col gap-1',
-  metaRow: 'flex min-h-[23px] items-center gap-3',
-  metaKey: 'w-[72px] flex-none text-[12px] text-[var(--pl-text-weak)]',
-  metaValue: 'min-w-0 text-[12px] font-semibold text-[var(--pl-text-medium)]',
+  /**
+   * FrontMeta — 명명 블록 「연동 대상」 + kv 4열 (design-benchmark
+   * `ops-target-frontmeta.md`, 시안 C). 서비스측 `projectHeaderStyles` 의 blockHead
+   * 문법을 이 콘솔의 --pl-* 로 옮긴 것: 이름은 왼쪽, 여는 큐는 오른쪽 끝, 헤어라인
+   * 한 줄이 그 행을 닫는다.
+   *
+   * 활자는 세 단만 쓴다 (오너 지시) — 16(제목) / 14(블록 이름) / 12(경로·라벨·값·
+   * 태그·링크). 옛 마스트헤드는 12px 한 단에 21개 런이 몰려 있어 14 자리가 비어
+   * 있었고, 그 빈 칸을 블록 이름이 채운다.
+   */
+  fmGroup: 'mt-3',
+  fmHead:
+    'flex items-center justify-between gap-4 border-b border-[var(--pl-border-strong)] pb-1.5',
+  fmName: 'flex min-w-0 items-center gap-2',
+  /** 20px — 운영 대시보드 `identityGlyphMark` 의 칸. 같은 대상의 마크를 24(제목 줄)·
+      28(서비스측)·20(대시보드) 세 크기로 그리던 것을 한 크기로 모은다: 이 화면의
+      마크는 이제 블록 머리의 하나뿐이라 제목 줄의 24px 는 사라진다. */
+  fmGlyph: 'h-5 w-5 flex-none text-[var(--pl-text-medium)]',
+  fmLabel:
+    'whitespace-nowrap text-[14px] font-semibold tracking-[0.02em] text-[var(--pl-text-medium)]',
+  /** 포커스 링을 손으로 그리지 않는다 — `focus-visible:outline-none` 은 이 앱에서 무효라
+      (globals.css 의 전역 아웃라인이 cascade layer 밖) 옅은 링이 전역 파란 아웃라인 옆에
+      같이 그려졌다. 옆의 링크 둘과 같은 방식으로 전역 아웃라인만 받는다. */
+  fmCue:
+    'flex flex-none cursor-pointer items-center gap-1 rounded-[6px] text-[12px] font-semibold text-[var(--pl-primary)]',
+  fmCueIcon: 'transition-transform motion-reduce:transition-none',
+  fmCueIconOpen: 'rotate-180',
+  /**
+   * kv 4열 (Cloudscape key-value pairs) — 라벨이 값 **위**에 선다. 프로바이더가
+   * 바뀌면 셀만 갈리고 열 규칙은 그대로라, 대상을 옮겨 다녀도 헤더 높이가 흔들리지
+   * 않는다 (옛 행 스택은 AWS 218px ↔ GCP 137px 로 벌어져 탭 y 가 81px 움직였다).
+   * 긴 주체(ARN · Service Account · App ID)만 2열을 먹는다 — `fmCellWide`.
+   */
+  /** 열은 240px 로 고정한다 — `1fr` 4개는 1330px 캔버스에서 한 칸이 300px 이 되어
+      「계정 804656952396」 과 다음 라벨 사이에 300px 짜리 빈 곳이 생긴다. 라벨이 값
+      **위**에 있으니 짝은 이미 붙어 있고, 열이 늘어나 봐야 사실 사이 거리만 벌어진다.
+      240 은 이 화면의 가장 긴 라벨(Terraform Service Account, 165px)과 2열 병합
+      (498px)이 GCP SA 전문(≈380px)을 받는 폭에서 나온 값이다. */
+  fmGrid: 'grid grid-cols-[repeat(4,minmax(0,240px))] gap-x-[18px] gap-y-3 pt-2.5',
+  fmCell: 'flex min-w-0 flex-col gap-0.5',
+  fmCellWide: 'col-span-2',
+  /** 워시는 램프 한 칸을 잡아먹는다 — `--pl-text-weak` 는 이 gray-100 위에서 4.51:1 로
+      AA 바닥이라 12px 라벨에 쓰지 않는다. `--pl-gray-600` 은 같은 자리에서 6.98:1. */
+  fmKey: 'text-[12px] font-semibold leading-4 text-[var(--pl-gray-600)]',
+  /** `min-h` 가 있는 이유: 흰 면 태그가 들어오는 셀(22px)과 글자만 있는 셀의 높이를
+      같게 잡아 둔다. 안 맞추면 같은 행 안에서 프로바이더마다 셀이 엇갈린다. */
+  fmValue:
+    'flex min-h-[22px] min-w-0 items-center gap-2 text-[12px] font-medium leading-4 text-[var(--pl-text-strong)]',
+  fmValueText: 'min-w-0 truncate',
+  fmNone: 'text-[12px] font-medium text-[var(--pl-gray-600)]',
+  fmMono: '[font-family:var(--pl-font-mono)] font-medium',
+  fmLink:
+    'inline-flex cursor-pointer items-center gap-0.5 whitespace-nowrap text-[12px] font-semibold text-[var(--pl-primary)] underline underline-offset-2 decoration-[var(--pl-primary-ring)] hover:decoration-[var(--pl-primary)]',
+
+  /**
+   * 「상세 정보」 접힘 — 3열이라 열려도 사실이 세로로 쌓이지 않는다. 236px 레일이 지고
+   * 있던 서비스 축(이름·코드·Jira·운영)과 설명이 여기로 들어오고, 계약에는 있는데
+   * 화면엔 없던 사실(생성일 · Tenant ID)과 주체 **전문**이 함께 선다.
+   */
+  /** 열 폭은 세 그룹이 지는 것에서 나온다 — 서비스는 짧은 값(이름·코드·티켓)이라 220,
+      대상은 설명 문단이 65자 안팎에서 읽히게 460, 식별자는 GCP SA 전문(≈380px)이
+      한 줄에 들어가게 460. 같은 폭 3열이면 서비스 칸만 240px 를 비운다. */
+  fmFold: 'grid grid-cols-[220px_minmax(0,460px)_minmax(0,460px)] gap-x-6 gap-y-4 pt-3.5',
+  fmFoldGroup: 'flex min-w-0 flex-col gap-2.5',
+  fmFoldLabel: 'text-[12px] font-bold tracking-[0.06em] text-[var(--pl-gray-600)]',
+  /** 설명 본문 — 접힘 안에서는 전문을 편다. 표시를 100자에서 접던 것은 레일이 236px
+      였기 때문이고, 3열 접힘에는 그 폭 제약이 없다. */
+  fmProse: 'break-words text-[12px] font-medium leading-[18px] text-[var(--pl-text-strong)]',
+  /** 전문 값 — 자르지 않는다. ARN·Service Account 는 접힌 이름이 아니라 문자열 전체가
+      정보라(복사해 콘솔에서 찾는 값) 이 자리에서만은 truncate 를 걸지 않는다. 이것이
+      title 툴팁 안에만 있던 전문을 화면으로 꺼내는 자리다. */
+  fmValueFull: 'break-all text-[12px] font-medium leading-[18px] text-[var(--pl-text-strong)]',
+  /** 복사 — 값 옆의 아이콘 하나. 글자가 아니라 그래픽이라 3:1 기준이고, weak 는 이
+      워시에서 4.51:1 로 그 위다. */
+  fmCopy:
+    'inline-flex flex-none cursor-pointer items-center rounded p-0.5 text-[var(--pl-text-weak)] transition-colors hover:text-[var(--pl-primary)]',
 
   /** Neutral tag / region tag — shared with SduOpsNotice·ServiceDetailView·
       TerraformStatusModal (Figma 49:4/34:4). */
@@ -110,28 +191,11 @@ export const opsStyles = {
   /** 보기(진행 상태·스캔·연동 요청·확정) | 도구(인프라·연결 테스트·승인) group gap. */
   tabGap: 'w-3.5 flex-none self-stretch',
 
-  /** Body — content column + 236px meta rail, both on the canvas. */
-  body: 'flex flex-1 items-start gap-6 px-8 pt-6 pb-12',
+  /** Body — 콘텐츠 한 열. 236px 메타 레일은 FrontMeta 의 「상세 정보」로 접혀 들어갔고,
+      그 폭은 탭 7개 전부에서 본문으로 돌아간다 (1020 → 1280px). */
+  body: 'flex flex-1 flex-col px-8 pt-6 pb-12',
   content: 'flex min-w-0 flex-1 flex-col gap-4',
 
-  /**
-   * Meta rail (R1′ V-b) — bare on the canvas: no card, 흰 면은 인터랙티브에만.
-   * 흰 카드(종이)는 화면에서 주 콘텐츠 한 계층에만 허용 (GitHub PR sidebar ·
-   * Notion properties 문법). 오너 08-20 조정 이후 레일은 서비스 축(이름·코드·
-   * Jira·운영)만 남는다 — 대상 자신의 사실은 마스트헤드 metaRow 로 갔다.
-   */
-  rail: 'w-[236px] flex-none',
-  railGroup: 'border-t border-[var(--pl-border)] py-3 first:border-t-0 first:pt-1',
-  railLabel: 'text-[12px] font-bold tracking-[0.06em] text-[var(--pl-text-weak)]',
-  railRow: 'mt-1.5 flex items-baseline justify-between gap-2',
-  railKey: 'flex-none text-[12px] text-[var(--pl-text-weak)]',
-  railValue: 'min-w-0 truncate text-right text-[12px] font-semibold text-[var(--pl-text-medium)]',
-  railMono: '[font-family:var(--pl-font-mono)] font-medium',
-  railLink: 'inline-flex cursor-pointer items-center gap-0.5 whitespace-nowrap text-[12px] font-semibold text-[var(--pl-primary)] underline underline-offset-2 decoration-[var(--pl-primary-ring)] hover:decoration-[var(--pl-primary)]',
-  railNone: 'text-[12px] text-[var(--pl-text-weak)]',
-  /** 설명 본문 — 레일의 유일한 문단. 표시만 100자에서 접고(전문은 title), 계약의
-      1000자 한도는 수정 다이얼로그가 진다. */
-  railProse: 'mt-1.5 break-words text-[12px] leading-[18px] text-[var(--pl-text-medium)]',
   /** Skeleton bar ON THE WASH — the gray-100 `skeletonBar` vanishes there (same
       value as the wash), so masthead skeletons step one ramp deeper. */
   skeletonWash: 'animate-pulse rounded-[6px] bg-[var(--pl-gray-200)]',

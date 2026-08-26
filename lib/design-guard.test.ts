@@ -444,19 +444,27 @@ const TEXT: TextPair[] = [
   // 없다. (키는 행이 말하므로 태그 안에는 값만 산다 — R1.)
   { what: '메타 태그 값 on the tag face', fg: textOf(classOf(opsSrc, 'metaTag')), on: bgOf(classOf(opsSrc, 'metaTag')) },
   { what: '리전 태그 값 on the gray-200 tag', fg: textOf(classOf(opsSrc, 'metaTagQuiet')), on: bgOf(classOf(opsSrc, 'metaTagQuiet')) },
-  // R1 meta rail — bare on the canvas (no card), so every run of rail text answers to
-  // --pl-bg-canvas directly; the masthead's crumb and idle tabs answer to the wash.
-  { what: 'ops rail group label on the R1 canvas', fg: textOf(classOf(opsSrc, 'railLabel')), on: resolve('var(--pl-bg-canvas)') },
-  { what: 'ops rail key on the R1 canvas', fg: textOf(classOf(opsSrc, 'railKey')), on: resolve('var(--pl-bg-canvas)') },
-  { what: 'ops rail value on the R1 canvas', fg: textOf(classOf(opsSrc, 'railValue')), on: resolve('var(--pl-bg-canvas)') },
-  { what: 'ops rail link on the R1 canvas', fg: textOf(classOf(opsSrc, 'railLink')), on: resolve('var(--pl-bg-canvas)') },
-  { what: 'ops rail description prose on the R1 canvas', fg: textOf(classOf(opsSrc, 'railProse')), on: resolve('var(--pl-bg-canvas)') },
-  { what: 'ops crumb on the masthead wash', fg: textOf(classOf(opsSrc, 'crumb')), on: resolve('var(--pl-gray-100)') },
+  { what: 'ops path on the masthead wash', fg: textOf(classOf(opsSrc, 'path')), on: resolve('var(--pl-gray-100)') },
+  { what: 'ops path root on the masthead wash', fg: textOf(classOf(opsSrc, 'pathRoot')), on: resolve('var(--pl-gray-100)') },
+  { what: 'ops path ancestor link on the masthead wash', fg: textOf(classOf(opsSrc, 'pathLink')), on: resolve('var(--pl-gray-100)') },
+  // 경로 마디 태그는 제 면(gray-200) 위에 산다 — 워시가 아니라 칩 안이 배경이다.
+  { what: 'ops path chip label on its slate face', fg: textOf(classOf(opsSrc, 'pathChipLabel')), on: bgOf(classOf(opsSrc, 'pathChip')) },
+  { what: 'ops path chip value on its slate face', fg: textOf(classOf(opsSrc, 'pathChipValue')), on: bgOf(classOf(opsSrc, 'pathChip')) },
   { what: 'ops idle tab on the tab band', fg: textOf(classOf(opsSrc, 'tabIdle')), on: bgOf(classOf(opsSrc, 'tabStrip')) },
-  // 마스트헤드 meta line (오너 08-20: 클라우드·설정 + 검증값이 레일에서 복귀) — 워시 위 키·값.
-  { what: 'ops meta key on the masthead wash', fg: textOf(classOf(opsSrc, 'metaKey')), on: resolve('var(--pl-gray-100)') },
-  { what: 'ops meta value on the masthead wash', fg: textOf(classOf(opsSrc, 'metaValue')), on: resolve('var(--pl-gray-100)') },
-  { what: 'ops role edit link on the masthead wash', fg: textOf(classOf(opsSrc, 'railLink')), on: resolve('var(--pl-gray-100)') },
+  // FrontMeta (ops-target-frontmeta.md 시안 C) — 236px 레일이 사라져 이 화면의 메타 글자는
+  // 전부 마스트헤드 워시 위에 산다. 그 워시는 램프 한 칸을 잡아먹으므로(--pl-text-weak 는
+  // 여기서 4.51:1) 라벨 계단이 gray-600 에서 시작한다.
+  { what: 'ops FrontMeta block label on the masthead wash', fg: textOf(classOf(opsSrc, 'fmLabel')), on: resolve('var(--pl-gray-100)') },
+  { what: 'ops FrontMeta kv key on the masthead wash', fg: textOf(classOf(opsSrc, 'fmKey')), on: resolve('var(--pl-gray-100)') },
+  { what: 'ops FrontMeta kv value on the masthead wash', fg: textOf(classOf(opsSrc, 'fmValue')), on: resolve('var(--pl-gray-100)') },
+  { what: 'ops FrontMeta 미등록 on the masthead wash', fg: textOf(classOf(opsSrc, 'fmNone')), on: resolve('var(--pl-gray-100)') },
+  { what: 'ops FrontMeta disclosure cue on the masthead wash', fg: textOf(classOf(opsSrc, 'fmCue')), on: resolve('var(--pl-gray-100)') },
+  { what: 'ops FrontMeta fold group label on the masthead wash', fg: textOf(classOf(opsSrc, 'fmFoldLabel')), on: resolve('var(--pl-gray-100)') },
+  { what: 'ops FrontMeta description prose on the masthead wash', fg: textOf(classOf(opsSrc, 'fmProse')), on: resolve('var(--pl-gray-100)') },
+  { what: 'ops FrontMeta full identifier on the masthead wash', fg: textOf(classOf(opsSrc, 'fmValueFull')), on: resolve('var(--pl-gray-100)') },
+  { what: 'ops role edit link on the masthead wash', fg: textOf(classOf(opsSrc, 'fmLink')), on: resolve('var(--pl-gray-100)') },
+  { what: 'ops 관련 페이지 link on the masthead wash', fg: textOf(classOf(opsSrc, 'relatedLink')), on: resolve('var(--pl-gray-100)') },
+  { what: 'ops fold copy glyph on the masthead wash', fg: textOf(classOf(opsSrc, 'fmCopy')), on: resolve('var(--pl-gray-100)') },
   { what: 'rail section label on rail', fg: textOf(classOf(railBlock, 'sectionLabel')), on: rail },
   { what: 'rail footer page on rail', fg: textOf(classOf(railBlock, 'footerPage')), on: rail },
   { what: 'rail pager glyph on rail', fg: textOf(classOf(railBlock, 'pagerBtn')), on: rail },

@@ -1,10 +1,11 @@
 'use client';
 
 /**
- * Target Source 운영 상세 (design-benchmark `ops-detail-ia-redesign.md`, R1) —
- * masthead wash + attached card tabs over a lavender canvas, with the tab
- * content beside a fixed 236px meta rail (OpsMetaRail) that shows the target's
- * metadata in the same place on every tab.
+ * Target Source 운영 상세 (design-benchmark `ops-detail-ia-redesign.md` R1,
+ * `ops-target-frontmeta.md` 시안 C) — masthead wash + attached card tabs over a
+ * lavender canvas. The target's whole identity is one FrontMeta in the masthead
+ * (OpsHeader), so the tab content owns the full content width: the 236px meta
+ * rail folded into that header's 「상세 정보」 disclosure.
  */
 import { Fragment, useCallback, useEffect, useRef, useState, type ReactElement } from 'react';
 import { cn, pipelineStyles } from '@/lib/theme';
@@ -27,7 +28,6 @@ import type { TestConnectionStatusRow } from '@/lib/types/task-queue';
 import type { ProcessStatus } from '@/app/admin/pipelines/queue/_components/StepStack';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
 import { OpsHeader } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/OpsHeader';
-import { OpsMetaRail } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/OpsMetaRail';
 import { ProcessCard } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/ProcessCard';
 import { ApprovalHistoryCard } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/ApprovalHistoryCard';
 import { StatusHistoryCard } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/StatusHistoryCard';
@@ -287,10 +287,23 @@ export function OpsTargetView({ targetSourceId, initialTab }: OpsTargetViewProps
           {/* 정착 프레임의 컨테이너 클래스를 그대로 쓴다 — 도착 시 마스트헤드·탭·
               본문 시작 y 가 움직이지 않게. 데이터에 따라 있고 없는 부분(StepPill·
               도장·탭 구성·레일 행)은 그리지 않는다. */}
-          <div className={cn(opsStyles.skeletonWash, 'h-[18px] w-[220px]')} />
-          <div className={opsStyles.idLine}>
-            <div className={cn(opsStyles.skeletonWash, 'h-6 w-6 flex-none rounded-md')} />
-            <div className={cn(opsStyles.skeletonWash, 'h-6 w-[160px]')} />
+          <div className={opsStyles.pathLine}>
+            <div className={cn(opsStyles.skeletonWash, 'h-6 w-[320px]')} />
+          </div>
+          {/* 명명 블록 + kv 2행 — 셀 수는 데이터라 그리지 않고, 행 수만 잡는다:
+              마스트헤드가 그만큼 자리를 비워 두면 도착해도 탭이 위아래로 안 뛴다. */}
+          <div className={opsStyles.fmGroup}>
+            <div className={opsStyles.fmHead}>
+              <div className={cn(opsStyles.skeletonWash, 'h-5 w-[108px]')} />
+            </div>
+            <div className={opsStyles.fmGrid}>
+              {[0, 1].map((row) => (
+                <div key={row} className={cn(opsStyles.fmCell, 'col-span-4')}>
+                  <div className={cn(opsStyles.skeletonWash, 'h-4 w-[64px]')} />
+                  <div className={cn(opsStyles.skeletonWash, 'h-[22px] w-[180px]')} />
+                </div>
+              ))}
+            </div>
           </div>
           <div className={opsStyles.tabStrip}>
             {/* 보이지 않는 탭 하나가 레일 높이를 정확히 잡는다 — 탭 구성은 데이터다. */}
@@ -302,9 +315,6 @@ export function OpsTargetView({ targetSourceId, initialTab }: OpsTargetViewProps
         <div className={opsStyles.body}>
           <div className={opsStyles.content}>
             <div className={cn(opsStyles.skeleton, 'h-[320px]')} />
-          </div>
-          <div className={opsStyles.rail}>
-            <div className={cn(opsStyles.skeleton, 'h-[220px]')} />
           </div>
         </div>
       </div>
@@ -352,9 +362,12 @@ export function OpsTargetView({ targetSourceId, initialTab }: OpsTargetViewProps
           savedRoleArns={savedRoleArns}
           grantTfExecution={grantTfExecution}
           supportRawData={supportRawData}
+          jiraTicket={jiraTicket}
+          ticketLoaded={ticketLoaded}
           onOpenMode={() => setModal({ type: 'mode' })}
           onOpenEdit={(kind) => setModal({ type: 'edit', kind })}
           onOpenRawData={() => setModal({ type: 'raw' })}
+          onEditDescription={() => setModal({ type: 'description' })}
         />
         <div className={opsStyles.tabStrip} role="tablist" aria-label="Target Source 운영 탭">
           {tabs.map((tab) => {
@@ -453,12 +466,6 @@ export function OpsTargetView({ targetSourceId, initialTab }: OpsTargetViewProps
             <AirflowTab targetSourceId={targetSourceId} isIdc={isIdc} dag={dag} />
           )}
         </div>
-        <OpsMetaRail
-          detail={detail}
-          jiraTicket={jiraTicket}
-          ticketLoaded={ticketLoaded}
-          onEditDescription={() => setModal({ type: 'description' })}
-        />
       </div>
 
       {modal?.type === 'description' && (
