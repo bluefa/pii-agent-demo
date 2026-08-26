@@ -61,6 +61,10 @@ export const opsStyles = {
   pathLinkId:
     'flex-none cursor-pointer text-[12px] font-medium text-[var(--pl-text-medium)] transition-colors hover:text-[var(--pl-text-strong)] hover:underline',
   /** 서 있는 곳 — 종류(옅은 낱말) + 식별자(줄에서 유일하게 굵고 큰 것). */
+  /** 경로 줄 오른쪽 끝 — 「관련 페이지」 + 나가는 링크들. `ml-auto` 가 줄의 남는 폭을
+      전부 먹어 오른쪽에 붙이고, 좁아지면 pathLine 의 flex-wrap 이 아랫줄로 내린다. */
+  pathAside: 'ml-auto flex flex-none items-center gap-3',
+  pathAsideLabel: 'text-[12px] font-semibold text-[var(--pl-gray-600)]',
   pathHere: 'flex flex-none items-baseline gap-1.5',
   pathHereKind: 'text-[12px] text-[var(--pl-text-weak)]',
   pathHereId:
@@ -128,13 +132,14 @@ export const opsStyles = {
   /** 워시는 램프 한 칸을 잡아먹는다 — `--pl-text-weak` 는 이 gray-100 위에서 4.51:1 로
       AA 바닥이라 12px 라벨에 쓰지 않는다. `--pl-gray-600` 은 같은 자리에서 6.98:1. */
   fmKey: 'text-[12px] font-semibold leading-4 text-[var(--pl-gray-600)]',
-  /** 수정할 수 있는 kv 라벨 (오너 08-26 "수정은 없애. 그냥 밑줄을 그어놔") — 값 옆의
-      「수정」 링크 대신 **라벨 자신이** 모달을 연다. 08-20 의 판례는 *태그*가 눌리는
-      척하지 말라는 것이었고, 여기서 눌리는 것은 태그가 아니라 라벨이라 부딪히지 않는다.
-      밑줄이 유일한 신호이므로 색은 fmKey 그대로 두고(워시 위 6.98:1), self-start 가
-      없으면 flex-col 셀에서 버튼이 240px 로 늘어나 밑줄이 칸 전체를 긋는다. */
-  fmKeyAction:
-    'flex cursor-pointer self-start text-[12px] font-semibold leading-4 text-[var(--pl-gray-600)] underline underline-offset-2 decoration-[var(--pl-border-strong)] transition-colors hover:text-[var(--pl-text-strong)] hover:decoration-[var(--pl-text-strong)]',
+  /** 수정할 수 있는 **값** (오너 08-26 "해당 값에 밑줄을 그어야지. 밑줄은 파란색으로") —
+      값 옆에 서 있던 「수정」 링크가 값 자신으로 접혀 들어간다. 글자색은 값의 것으로 두고
+      밑줄만 파랗다: 파랑이 글자를 먹으면 이 줄에서 나가는 링크들과 같은 것이 되는데, 이건
+      여기서 모달을 여는 것이라 신호는 밑줄이 지고 색은 그 밑줄에만 실린다.
+      08-20 의 판례는 *태그*가 눌리는 척하지 말라는 것이라 부딪히지 않는다 — 여기서
+      눌리는 것은 흰 면 태그가 아니라 mono 값이다. */
+  fmValueEdit:
+    'flex min-w-0 cursor-pointer items-center underline underline-offset-2 decoration-[var(--pl-primary)] transition-colors hover:decoration-[var(--pl-primary-hover)]',
   /** `min-h` 가 있는 이유: 흰 면 태그가 들어오는 셀(22px)과 글자만 있는 셀의 높이를
       같게 잡아 둔다. 안 맞추면 같은 행 안에서 프로바이더마다 셀이 엇갈린다. */
   fmValue:

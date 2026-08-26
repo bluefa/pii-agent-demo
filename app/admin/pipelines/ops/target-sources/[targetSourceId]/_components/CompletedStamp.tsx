@@ -27,13 +27,22 @@ import { cn } from '@/lib/theme';
 import { fmtDate, fmtDateTime } from '@/lib/pipeline/format';
 
 /**
- * 목록 20px / 상세 24px. 상세의 24px 는 이 화면 h1(`pipelineStyles.text.pageTitle`)과
- * 같은 급이고, 목록의 20px 는 그 아래 한 단이다 — 카드 제목이 16px 이므로 도장이 그
- * 위에 서면서도 페이지 제목을 넘지 않는다.
+ * 크럼 16px / 목록 20px / 상세 24px. 상세의 24px 는 이 화면 h1
+ * (`pipelineStyles.text.pageTitle`)과 같은 급이고, 목록의 20px 는 그 아래 한 단이다 —
+ * 카드 제목이 16px 이므로 도장이 그 위에 서면서도 페이지 제목을 넘지 않는다.
+ * 16px 는 경로 줄처럼 도장이 **주인공이 아닌** 자리의 것이다.
  */
-type StampSize = 'md' | 'lg';
+type StampSize = 'sm' | 'md' | 'lg';
 
 const SIZE: Record<StampSize, { box: string; date: string }> = {
+  /**
+   * 마스트헤드 경로 줄용 (오너 08-26 "너무 크게 노출된다"). 20px 날짜는 그 줄에서
+   * 가장 큰 활자였는데, 도장이 말하는 것은 **지난 사실**이지 지금 상태가 아니다 —
+   * 지금은 옆의 단계 알약이 말한다. 16px 로 내리면 줄에서 가장 큰 것이 다시
+   * 「#1029」(14px)와 알약이 되고, 도장 높이가 53 → 41px 이라 경로 줄이 그만큼
+   * 낮아진다. 문구는 12px 그대로다 — 더 내릴 칸이 이 앱에 없다(짝수 px 규칙).
+   */
+  sm: { box: 'px-2.5 pt-1 pb-1', date: 'text-[16px]' },
   md: { box: 'px-3 pt-[5px] pb-1.5', date: 'text-[20px]' },
   lg: { box: 'px-3.5 pt-1.5 pb-2', date: 'text-[24px]' },
 };
