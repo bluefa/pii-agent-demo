@@ -169,7 +169,7 @@ describe('showsHandoffCaption', () => {
 });
 
 describe('monitoringEvidenceHead', () => {
-  it('HEALTHY 전수 성공 — 관측 스코프(DAG 관측)가 라벨에 선다 (P5 라벨 분리)', () => {
+  it('HEALTHY 전수 성공 — 논리 DB 는 세어서 말한다 (총계 중 성공, 나머지는 확인 필요)', () => {
     const data = response('HEALTHY', [
       db({ succeededThisWeek: true, days: [day('SUCCESS', '2026-08-18T07:00:00+09:00')] }),
     ]);
@@ -181,7 +181,7 @@ describe('monitoringEvidenceHead', () => {
     // 사실마다 한 행 — 값의 이름은 라벨 열이 진다 (오너 2026-08-26).
     expect(head.subtitle).toBeNull();
     expect(head.facts).toEqual([
-      { label: '논리 DB', value: 'DAG 관측 1개 전부 최근 7일 성공' },
+      { label: '논리 DB', value: '1개 중 1개 성공, 0개 확인 필요' },
       { label: '에이전트', value: '1/1 연결' },
     ]);
   });
@@ -193,7 +193,8 @@ describe('monitoringEvidenceHead', () => {
       aggregateDagStatus(data),
     );
     expect(head.pill).toEqual({ tone: 'err', label: 'UNHEALTHY' });
-    expect(head.facts[0]).toEqual({ label: '논리 DB', value: '1개가 최근 7일 성공 기록 없음' });
+    // 판정이 갈려도 행은 같다 — 정상 여부는 알약이 말하고 이 행은 센다.
+    expect(head.facts[0]).toEqual({ label: '논리 DB', value: '2개 중 1개 성공, 1개 확인 필요' });
   });
 
   it('미지 enum — raw 는 툴팁 채널에만', () => {

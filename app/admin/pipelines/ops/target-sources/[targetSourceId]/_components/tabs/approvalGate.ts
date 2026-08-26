@@ -289,46 +289,39 @@ export function monitoringEvidenceHead(
       };
     case 'loaded': {
       const verdict = healthVerdict(dag.data.healthStatus);
-      switch (verdict.kind) {
-        case 'healthy':
-          return {
-            pill: { tone: 'ok', label: 'HEALTHY' },
-            subtitle: null,
-            facts: agg
-              ? [
-                  {
-                    label: '논리 DB',
-                    value:
-                      agg.dbTotal === 0
-                        ? 'DAG 관측 없음'
-                        : agg.succeeded === agg.dbTotal
-                          ? `DAG 관측 ${n(agg.dbTotal)}개 전부 최근 7일 성공`
-                          : `DAG 관측 ${n(agg.dbTotal)}개 중 ${n(agg.succeeded)}개 최근 7일 성공`,
-                  },
-                  ...agents(),
-                ]
-              : [],
-          };
-        case 'unhealthy':
-          // UNHEALTHY 문장이 세는 것은 succeededThisWeek=false 뿐 — 밴드와 같은 규칙.
-          return {
-            pill: { tone: 'err', label: 'UNHEALTHY' },
-            subtitle: null,
-            facts: agg
-              ? [
-                  { label: '논리 DB', value: `${n(agg.noSuccess)}개가 최근 7일 성공 기록 없음` },
-                  ...agents(),
-                ]
-              : [],
-          };
-        case 'unknown':
-          return {
-            pill: { tone: 'off', label: '미확인' },
-            subtitle: '판정할 수 없는 값',
-            facts: [],
-            titleHint: `healthStatus: ${verdict.raw}`,
-          };
+      if (verdict.kind === 'unknown') {
+        return {
+          pill: { tone: 'off', label: '미확인' },
+          subtitle: '판정할 수 없는 값',
+          facts: [],
+          titleHint: `healthStatus: ${verdict.raw}`,
+        };
       }
+      return {
+        pill:
+          verdict.kind === 'healthy'
+            ? { tone: 'ok', label: 'HEALTHY' }
+            : { tone: 'err', label: 'UNHEALTHY' },
+        subtitle: null,
+        // 논리 DB 는 세어서 말한다 (오너 2026-08-26). "전부 최근 7일 성공" 같은 문장은
+        // 판정문이 이미 진 스코프를 한 번 더 반복하면서 정작 몇 개가 어땠는지는 안 셌다.
+        //
+        // 두 판정이 같은 행을 쓴다 — 정상인지 아닌지는 알약이 말하고 이 행은 세기만 한다.
+        // 확인 필요는 성공의 여집합이다: 요약 카운트 줄(`attentionCount` 의 네 버킷 합)이
+        // 세는 집합과 같은 수라, 조건 카드와 Airflow 확인 탭이 다른 수를 말하지 않는다.
+        facts: agg
+          ? [
+              {
+                label: '논리 DB',
+                value:
+                  agg.dbTotal === 0
+                    ? '없음'
+                    : `${n(agg.dbTotal)}개 중 ${n(agg.succeeded)}개 성공, ${n(agg.dbTotal - agg.succeeded)}개 확인 필요`,
+              },
+              ...agents(),
+            ]
+          : [],
+      };
     }
   }
 }
