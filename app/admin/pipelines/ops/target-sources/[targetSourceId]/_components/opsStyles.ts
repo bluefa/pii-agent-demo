@@ -95,19 +95,30 @@ export const opsStyles = {
   fmCueIcon: 'transition-transform motion-reduce:transition-none',
   fmCueIconOpen: 'rotate-180',
   /**
-   * kv 4열 (Cloudscape key-value pairs) — 라벨이 값 **위**에 선다. 프로바이더가
-   * 바뀌면 셀만 갈리고 열 규칙은 그대로라, 대상을 옮겨 다녀도 헤더 높이가 흔들리지
-   * 않는다 (옛 행 스택은 AWS 218px ↔ GCP 137px 로 벌어져 탭 y 가 81px 움직였다).
-   * 긴 주체(ARN · Service Account · App ID)만 2열을 먹는다 — `fmCellWide`.
+   * kv (Cloudscape key-value pairs) — 라벨이 값 **위**에 선다. 프로바이더가 바뀌면
+   * 셀만 갈리고 묶음 규칙은 그대로라, 대상을 옮겨 다녀도 헤더 높이가 흔들리지 않는다
+   * (옛 행 스택은 AWS 218px ↔ GCP 137px 로 벌어져 탭 y 가 81px 움직였다).
    */
-  /** 열은 240px 로 고정한다 — `1fr` 4개는 1330px 캔버스에서 한 칸이 300px 이 되어
-      「계정 804656952396」 과 다음 라벨 사이에 300px 짜리 빈 곳이 생긴다. 라벨이 값
-      **위**에 있으니 짝은 이미 붙어 있고, 열이 늘어나 봐야 사실 사이 거리만 벌어진다.
-      240 은 이 화면의 가장 긴 라벨(Terraform Service Account, 165px)과 2열 병합
-      (498px)이 GCP SA 전문(≈380px)을 받는 폭에서 나온 값이다. */
-  fmGrid: 'grid grid-cols-[repeat(4,minmax(0,240px))] gap-x-[18px] gap-y-3 pt-2.5',
+  /**
+   * 세 묶음 — 계정 정보 · 대상 설정 · 관련 페이지 (design-benchmark
+   * `ops-header-groups.md`, 시안 C).
+   *
+   * 앞선 4열 평면은 신원(계정·Role) · 배치(리전) · 설정(설치모드·실데이터) · 이동을
+   * 전부 같은 18px 간격으로 늘어놓았고, 그래서 신원 셋이 1·5·6번에 흩어졌다
+   * (오너 2026-08-26: "정보가 정리가 안 된 느낌", "Role 은 계정 정보로 묶이면").
+   * design-guide §3 의 「거리 자체가 정보 구조」·「뭉탱이 금지」에 그대로 걸리던 자리다.
+   *
+   * **수치를 새로 만들지 않는다.** 열 폭 · 묶음 제목 · 묶음 간격은 바로 아래 「상세 정보」
+   * 접힘(`fmFold`·`fmFoldGroup`·`fmFoldLabel`)이 이미 쓰는 값을 그대로 받는다 —
+   * 220/460 을 460/220/220 으로 다시 나눈 것뿐이라, 스트립과 접힘이 한 문법으로 읽힌다.
+   * 460 은 GCP Service Account 전문(≈365px 실측)이 한 줄에 들어가는 폭이다.
+   */
+  fmBands: 'grid grid-cols-[minmax(0,460px)_minmax(0,220px)_minmax(0,220px)] gap-x-6 pt-2.5',
+  fmBand: 'flex min-w-0 flex-col gap-2.5',
+  /** 묶음 머리 — 이름은 왼쪽, 그 묶음의 편집 진입은 오른쪽 끝. 블록 머리(`fmHead`)와
+      같은 배치를 한 단 낮춘 것이라 헤어라인도 한 단 옅은 `--pl-border` 다. */
+  fmBandHead: 'flex items-center justify-between gap-3 border-b border-[var(--pl-border)] pb-1',
   fmCell: 'flex min-w-0 flex-col gap-0.5',
-  fmCellWide: 'col-span-2',
   /** 워시는 램프 한 칸을 잡아먹는다 — `--pl-text-weak` 는 이 gray-100 위에서 4.51:1 로
       AA 바닥이라 12px 라벨에 쓰지 않는다. `--pl-gray-600` 은 같은 자리에서 6.98:1. */
   fmKey: 'text-[12px] font-semibold leading-4 text-[var(--pl-gray-600)]',

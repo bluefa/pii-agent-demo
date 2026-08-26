@@ -55,9 +55,10 @@ export interface OpsHeaderProps {
   jiraTicket: TargetJiraTicket | null;
   /** false = 아직 조회 중 — null 을 "티켓 없음" 으로 단정하지 않는다. */
   ticketLoaded: boolean;
-  onOpenMode: () => void;
-  onOpenEdit: (kind: RoleKind) => void;
-  onOpenRawData: () => void;
+  /** 「계정 정보」 묶음 머리 — Scan/TF Role 을 한 폼에서 연다 (AWS 전용). */
+  onOpenRoles: () => void;
+  /** 「대상 설정」 묶음 머리 — 설치모드·실데이터를 한 폼에서 연다. */
+  onOpenSettings: () => void;
   onEditDescription: () => void;
 }
 
@@ -71,9 +72,8 @@ export function OpsHeader({
   supportRawData,
   jiraTicket,
   ticketLoaded,
-  onOpenMode,
-  onOpenEdit,
-  onOpenRawData,
+  onOpenRoles,
+  onOpenSettings,
   onEditDescription,
 }: OpsHeaderProps): ReactElement {
   const [open, setOpen] = useState(false);
@@ -89,37 +89,26 @@ export function OpsHeader({
   const rawDataLabel =
     supportRawData === true ? '포함' : supportRawData === false ? '미포함' : '미확인';
 
-  /** kv 셀 — 라벨이 값 위에 선다. `wide` 는 긴 주체(ARN·SA·App ID)가 먹는 2열. */
-  const cell = (label: string, value: ReactNode, wide = false): ReactElement => (
-    <div key={label} className={cn(opsStyles.fmCell, wide && opsStyles.fmCellWide)}>
+  /** kv 셀 — 라벨이 값 위에 선다. 묶음 안에서 세로로 쌓이므로 열 병합은 없다. */
+  const cell = (label: string, value: ReactNode): ReactElement => (
+    <div key={label} className={opsStyles.fmCell}>
       <span className={opsStyles.fmKey}>{label}</span>
       <span className={opsStyles.fmValue}>{value}</span>
     </div>
   );
 
-  /** 값은 강조 태그로, 동작은 옆의 수정 링크로 (오너 08-20 넷째 조정) — 태그가 클릭
-      대상 행세를 하지 않으니 밑줄도 hover 채움도 없다. */
-  const tagCell = (
-    label: string,
-    tag: string,
-    onEdit: () => void,
-    editTitle: string,
-    tagTitle?: string,
-  ): ReactElement =>
+  /** 값은 강조 태그로 (오너 08-20 넷째 조정) — 태그가 클릭 대상 행세를 하지 않으니
+      밑줄도 hover 채움도 없다. 동작은 이제 값 옆이 아니라 **묶음 머리**에 산다. */
+  const tagCell = (label: string, tag: string, tagTitle?: string): ReactElement =>
     cell(
       label,
-      <>
-        <span className={opsStyles.metaTag} title={tagTitle}>
-          {tag}
-        </span>
-        <button type="button" className={opsStyles.fmLink} onClick={onEdit} title={editTitle}>
-          수정
-        </button>
-      </>,
+      <span className={opsStyles.metaTag} title={tagTitle}>
+        {tag}
+      </span>,
     );
 
   /** 읽기 전용 mono 값 — 전문은 「상세 정보」가 복사와 함께 진다. */
-  const monoCell = (label: string, value: string | null | undefined, wide = false): ReactElement =>
+  const monoCell = (label: string, value: string | null | undefined): ReactElement =>
     cell(
       label,
       value ? (
@@ -129,7 +118,6 @@ export function OpsHeader({
       ) : (
         <span className={opsStyles.fmNone}>미등록</span>
       ),
-      wide,
     );
 
   /** 표시값은 detail 과 같이 온다 (v5 metadata 의 등록값) — 저장 직후 한 칸만 saved 가 덮는다. */
@@ -140,29 +128,41 @@ export function OpsHeader({
     return cell(
       ROLE_META[kind].short,
       arn ? (
-        <>
-          {/* ARN 은 값이지 동작이 아니다 — 링크로 그리지 않고, 동작(수정)은 옆 버튼이
-              맡는다. prefix 가 대상 계정과 일치할 때만 role 이름으로 줄고, 불일치
-              (교차 계정·파티션)는 그 prefix 가 어긋남의 유일한 증거라 전체를 남긴다
-              (awsRoleArnDisplay). 전문은 「상세 정보」에 복사와 함께 있다. */}
-          <span className={cn(opsStyles.fmValueText, opsStyles.fmMono)} title={arn}>
-            {awsRoleArnDisplay(arn, meta.aws_account_id ?? '', isChina)}
-          </span>
-          <button type="button" className={opsStyles.fmLink} onClick={() => onOpenEdit(kind)}>
-            수정
-          </button>
-        </>
+        // ARN 은 값이지 동작이 아니다 — prefix 가 대상 계정과 일치할 때만 role 이름으로
+        // 줄고, 불일치(교차 계정·파티션)는 그 prefix 가 어긋남의 유일한 증거라 전체를
+        // 남긴다 (awsRoleArnDisplay). 전문은 「상세 정보」에 복사와 함께 있다.
+        <span className={cn(opsStyles.fmValueText, opsStyles.fmMono)} title={arn}>
+          {awsRoleArnDisplay(arn, meta.aws_account_id ?? '', isChina)}
+        </span>
       ) : (
-        <>
-          <span className={opsStyles.fmNone}>미등록</span>
-          <button type="button" className={opsStyles.fmLink} onClick={() => onOpenEdit(kind)}>
-            등록하기
-          </button>
-        </>
+        <span className={opsStyles.fmNone}>미등록</span>
       ),
-      true,
     );
   };
+
+  /** 묶음 — 이름 + (있으면) 그 묶음의 편집 진입 하나, 그 아래로 셀이 쌓인다. */
+  const band = (
+    label: string,
+    cells: ReactNode,
+    action?: { label: string; title: string; onClick: () => void },
+  ): ReactElement => (
+    <section className={opsStyles.fmBand} aria-label={label}>
+      <div className={opsStyles.fmBandHead}>
+        <h3 className={opsStyles.fmFoldLabel}>{label}</h3>
+        {action && (
+          <button
+            type="button"
+            className={opsStyles.fmLink}
+            onClick={action.onClick}
+            title={action.title}
+          >
+            {action.label}
+          </button>
+        )}
+      </div>
+      {cells}
+    </section>
+  );
 
   return (
     <>
@@ -238,57 +238,87 @@ export function OpsHeader({
           </button>
         </div>
 
-        {/* 항상 보이는 스트립 — 계정/프로젝트 · 리전 · 설정, 그리고 **권한 주체**.
-            Role 은 접힘 밖에 산다 (오너 지시): 이 화면에서 운영자가 가장 자주 대조하는
-            값이고, 접어 두면 프로바이더마다 다른 깊이에 숨는다. */}
-        <div className={opsStyles.fmGrid}>
-          {isAws && monoCell('계정', meta.aws_account_id)}
-          {provider === 'GCP' && monoCell('프로젝트', meta.gcp_project_id)}
-          {/* Azure 는 계정 자리가 구독이고, 테넌트가 그 옆에 선다 (오너 2026-08-26).
-              Q3 에서는 UUID 두 개가 스코프 줄을 468px 쓴다고 접힘에 두자고 했는데,
-              4열 그리드는 값 폭이 아니라 셀 수로 서는 배치라 그 근거가 없다 — 둘이
-              나란히 서면 한 행이 정확히 4칸으로 찬다. */}
-          {provider === 'Azure' && monoCell('구독', meta.subscription_id)}
-          {provider === 'Azure' && monoCell('테넌트', meta.tenant_id)}
-          {/* IDC 는 계정이 없는 게 정상이다 — 빈 칸을 두는 대신 그 대상이 무엇인지
-              말한다 (ServiceDetailView glossOf 의 어휘 그대로). */}
-          {provider === 'IDC'
-            && cell(
-              '환경',
-              <>
-                사내망
-                <span className={opsStyles.metaTagQuiet}>IDC</span>
-              </>,
-            )}
-          {/* 리전은 계정의 속성이지만 4열에서는 제 칸을 갖는다 — 읽기 전용이라 흰 면이
-              아니라 gray-200: 흰 면은 수정 가능한 값의 것으로 남는다. */}
-          {provider !== 'IDC'
-            && cell(
-              '리전',
-              <span className={opsStyles.metaTagQuiet}>{isChina ? 'China' : 'Global'}</span>,
-            )}
-          {isAws && tagCell('설치모드', grantTfExecution ? '자동' : '수동', onOpenMode, '설치모드 변경')}
-          {tagCell('실데이터', rawDataLabel, onOpenRawData, '실데이터 여부 변경', '실데이터 여부')}
-          {isAws && roleCell('scan')}
-          {isAws && grantTfExecution && roleCell('execution')}
-          {provider === 'GCP' && (
+        {/* 항상 보이는 스트립 — 세 묶음이다 (design-benchmark `ops-header-groups.md`,
+            시안 C). 「계정 정보」는 그 클라우드에서 **우리가 누구인가**(계정/프로젝트/구독
+            + 스캔·실행 주체), 「대상 설정」은 **이 대상을 어떻게 다루는가**(리전·설치모드·
+            실데이터), 「관련 페이지」는 **여기서 어디로 나가는가**. Role 은 접힘 밖에 산다
+            (오너 지시): 운영자가 가장 자주 대조하는 값이고, 접어 두면 프로바이더마다 다른
+            깊이에 숨는다.
+
+            편집 진입은 값 옆이 아니라 **묶음 머리**에 하나씩 선다 — 넷이던 「수정」이 둘이
+            되고, 둘은 서로 다른 낱말이라 문맥 없이도 갈린다 (오너 2026-08-26 "수정 가능한
+            내역들도 너무 많음"). Cloudscape details-page 가 "리소스 전체에 영향을 주는
+            액션은 헤더 버튼", GCP Cloud SQL 이 "절마다 Edit …" 로 세운 자리와 같다. */}
+        <div className={opsStyles.fmBands}>
+          {band(
+            '계정 정보',
             <>
-              {monoCell('Scan Service Account', meta.gcp_scan_service_account, true)}
-              {monoCell('Terraform Service Account', meta.gcp_terraform_service_account, true)}
-            </>
+              {isAws && monoCell('계정', meta.aws_account_id)}
+              {provider === 'GCP' && monoCell('프로젝트', meta.gcp_project_id)}
+              {/* Azure 는 계정 자리가 구독이고, 테넌트가 그 아래 선다 (오너 2026-08-26). */}
+              {provider === 'Azure' && monoCell('구독', meta.subscription_id)}
+              {provider === 'Azure' && monoCell('테넌트', meta.tenant_id)}
+              {/* IDC 는 계정이 없는 게 정상이다 — 빈 칸을 두는 대신 그 대상이 무엇인지
+                  말한다 (ServiceDetailView glossOf 의 어휘 그대로). */}
+              {provider === 'IDC'
+                && cell(
+                  '환경',
+                  <>
+                    사내망
+                    <span className={opsStyles.metaTagQuiet}>IDC</span>
+                  </>,
+                )}
+              {isAws && roleCell('scan')}
+              {isAws && grantTfExecution && roleCell('execution')}
+              {provider === 'GCP' && (
+                <>
+                  {monoCell('Scan Service Account', meta.gcp_scan_service_account)}
+                  {monoCell('Terraform Service Account', meta.gcp_terraform_service_account)}
+                </>
+              )}
+              {provider === 'Azure' && monoCell('Scan App', meta.azure_scan_app_id)}
+            </>,
+            // 고칠 수 있는 주체가 있는 프로바이더는 AWS 뿐이다 — 나머지는 머리에 동작을
+            // 두지 않는다 (누를 것이 없는 자리에 낱말만 남기지 않는다).
+            isAws
+              ? {
+                  label: 'Role 수정',
+                  title: grantTfExecution
+                    ? 'Scan Role · Terraform Execution Role 등록/수정'
+                    : 'Scan Role 등록/수정',
+                  onClick: onOpenRoles,
+                }
+              : undefined,
           )}
-          {provider === 'Azure' && monoCell('Scan App', meta.azure_scan_app_id, true)}
-          {/* 관련 페이지 — 이 대상을 두고 갈 수 있는 다른 화면들 (오너 2026-08-26). Jira 는
-              접힘 안에만 있었는데, 논의가 어디서 벌어지는지는 헤더가 답해야 하는 질문이다.
-              사실 셀들 뒤에 마지막으로 선다: 프로바이더마다 앞의 셀 수가 달라도 이 셀의
-              자리는 늘 같은 곳(마지막)이다. */}
-          {cell(
+
+          {band(
+            '대상 설정',
+            <>
+              {/* 리전은 읽기 전용 배치값이라 흰 면이 아니라 gray-200 이다 — 흰 면은 이
+                  화면에서 "바꿀 수 있는 값"의 것으로 남는다. */}
+              {provider !== 'IDC'
+                && cell(
+                  '리전',
+                  <span className={opsStyles.metaTagQuiet}>{isChina ? 'China' : 'Global'}</span>,
+                )}
+              {isAws && tagCell('설치모드', grantTfExecution ? '자동' : '수동')}
+              {tagCell('실데이터', rawDataLabel, '실데이터 여부')}
+            </>,
+            {
+              label: '설정 수정',
+              title: isAws ? '설치모드 · 실데이터 여부 변경' : '실데이터 여부 변경',
+              onClick: onOpenSettings,
+            },
+          )}
+
+          {/* 이동은 사실이 아니다 — 라벨 위·값 아래 짝을 입히면 「관련 페이지 = Jira Ticket」
+              처럼 읽힌다. 묶음 이름이 곧 라벨이고, 목적지는 그 아래로 쌓인다. */}
+          {band(
             '관련 페이지',
-            <span className="flex items-center gap-3">
-              {/* 티켓은 detail 과 따로 도착한다 — 도착 전에 자리를 비우면 셀이 한 번
+            <>
+              {/* 티켓은 detail 과 따로 도착한다 — 도착 전에 자리를 비우면 묶음이 한 번
                   흔들리므로, 그 사이는 같은 폭의 자리만 잡아 둔다. 열 주소가 없거나 http(s)
-                  가 아니면 링크가 아니라 **글자**로 선다 (`docs/api/jira-tickets.md`, 다른 두
-                  렌더 자리와 같은 규칙) — 주소를 조립하지도, 티켓 번호를 감추지도 않는다. */}
+                  가 아니면 링크가 아니라 **글자**로 선다 (`docs/api/jira-tickets.md`). */}
               {!ticketLoaded ? (
                 <span className={cn(opsStyles.skeletonWash, 'h-4 w-[68px]')} aria-hidden />
               ) : jiraHref ? (
@@ -302,7 +332,10 @@ export function OpsHeader({
                   Jira Ticket <Icon name="arrow-ur" size="sm" />
                 </a>
               ) : jiraTicket ? (
-                <span className={opsStyles.fmValueText} title="Jira 열 주소 없음 — 티켓 번호만 확인된다">
+                <span
+                  className={opsStyles.fmValueText}
+                  title="Jira 열 주소 없음 — 티켓 번호만 확인된다"
+                >
                   {jiraTicket.issueKey}
                 </span>
               ) : null}
@@ -315,8 +348,7 @@ export function OpsHeader({
               >
                 서비스 담당자가 보는 화면 <Icon name="arrow-ur" size="sm" />
               </Link>
-            </span>,
-            true,
+            </>,
           )}
         </div>
 

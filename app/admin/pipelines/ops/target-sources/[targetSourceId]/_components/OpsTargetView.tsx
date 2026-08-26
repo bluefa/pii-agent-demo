@@ -31,9 +31,8 @@ import { OpsHeader } from '@/app/admin/pipelines/ops/target-sources/[targetSourc
 import { ProcessCard } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/ProcessCard';
 import { ApprovalHistoryCard } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/ApprovalHistoryCard';
 import { StatusHistoryCard } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/StatusHistoryCard';
-import { InstallModeModal } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/InstallModeModal';
+import { TargetSettingsModal } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/TargetSettingsModal';
 import { RoleEditModal } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/RoleEditModal';
-import { RawDataModal } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/RawDataModal';
 import { DescriptionEditModal } from '@/app/services/_components/DescriptionEditModal';
 import { type RoleKind } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/roleMeta';
 import { isSduTarget, normalizeCloudProvider, readSupportRawData } from '@/lib/types';
@@ -58,9 +57,10 @@ const TABS = Object.values(OPS_TAB_SLUGS);
 type TabLabel = OpsTargetTabLabel;
 
 type ModalState =
-  | { type: 'mode' }
-  | { type: 'edit'; kind: RoleKind }
-  | { type: 'raw' }
+  /** 설치모드 + 실데이터 — 「대상 설정」 묶음 머리가 여는 한 폼. */
+  | { type: 'settings' }
+  /** 「계정 정보」 묶음 머리는 주체 전부를, 스캔 탭은 판정이 떨어진 하나만 연다. */
+  | { type: 'edit'; kinds: readonly RoleKind[] }
   | { type: 'description' }
   | null;
 
@@ -290,17 +290,26 @@ export function OpsTargetView({ targetSourceId, initialTab }: OpsTargetViewProps
           <div className={opsStyles.pathLine}>
             <div className={cn(opsStyles.skeletonWash, 'h-6 w-[320px]')} />
           </div>
-          {/* 명명 블록 + kv 2행 — 셀 수는 데이터라 그리지 않고, 행 수만 잡는다:
-              마스트헤드가 그만큼 자리를 비워 두면 도착해도 탭이 위아래로 안 뛴다. */}
+          {/* 명명 블록 + 세 묶음 — 셀 수는 데이터라 그리지 않고, 묶음의 **모양**만 잡는다.
+              프로바이더 넷 중 셋(AWS·GCP·Azure)이 계정 3행 · 설정 3행 · 관련 2행으로
+              정확히 3행에 서므로, 이 모양을 비워 두면 도착해도 탭이 위아래로 안 뛴다.
+              (IDC 만 사실이 적어 2행에 선다 — 프레임이 흔들려서가 아니다.) */}
           <div className={opsStyles.fmGroup}>
             <div className={opsStyles.fmHead}>
               <div className={cn(opsStyles.skeletonWash, 'h-5 w-[108px]')} />
             </div>
-            <div className={opsStyles.fmGrid}>
-              {[0, 1].map((row) => (
-                <div key={row} className={cn(opsStyles.fmCell, 'col-span-4')}>
-                  <div className={cn(opsStyles.skeletonWash, 'h-4 w-[64px]')} />
-                  <div className={cn(opsStyles.skeletonWash, 'h-[22px] w-[180px]')} />
+            <div className={opsStyles.fmBands}>
+              {[3, 3, 2].map((rows, band) => (
+                <div key={band} className={opsStyles.fmBand}>
+                  <div className={opsStyles.fmBandHead}>
+                    <div className={cn(opsStyles.skeletonWash, 'h-4 w-[56px]')} />
+                  </div>
+                  {Array.from({ length: rows }, (_, row) => (
+                    <div key={row} className={opsStyles.fmCell}>
+                      <div className={cn(opsStyles.skeletonWash, 'h-4 w-[64px]')} />
+                      <div className={cn(opsStyles.skeletonWash, 'h-[22px] w-[180px]')} />
+                    </div>
+                  ))}
                 </div>
               ))}
             </div>
@@ -349,7 +358,12 @@ export function OpsTargetView({ targetSourceId, initialTab }: OpsTargetViewProps
   const accountId = meta.aws_account_id ?? '';
   const isChina = meta.is_china_region === true;
   const regionLabel = isChina ? 'China' : 'Global';
-  const activeRole = modal?.type === 'edit' ? modal.kind : null;
+  const roleKinds = modal?.type === 'edit' ? modal.kinds : null;
+  /** 표시 폴백과 같은 순서 — 빈 입력으로 열리면 덮어쓰기 사고가 된다. */
+  const currentArns: Partial<Record<RoleKind, string>> = {
+    scan: savedRoleArns.scan ?? meta.aws_scan_role_arn ?? undefined,
+    execution: savedRoleArns.execution ?? meta.aws_terraform_execution_role_arn ?? undefined,
+  };
 
   return (
     <div className={opsStyles.page}>
@@ -364,9 +378,10 @@ export function OpsTargetView({ targetSourceId, initialTab }: OpsTargetViewProps
           supportRawData={supportRawData}
           jiraTicket={jiraTicket}
           ticketLoaded={ticketLoaded}
-          onOpenMode={() => setModal({ type: 'mode' })}
-          onOpenEdit={(kind) => setModal({ type: 'edit', kind })}
-          onOpenRawData={() => setModal({ type: 'raw' })}
+          onOpenRoles={() =>
+            setModal({ type: 'edit', kinds: grantTfExecution ? ['scan', 'execution'] : ['scan'] })
+          }
+          onOpenSettings={() => setModal({ type: 'settings' })}
           onEditDescription={() => setModal({ type: 'description' })}
         />
         <div className={opsStyles.tabStrip} role="tablist" aria-label="Target Source 운영 탭">
@@ -415,7 +430,7 @@ export function OpsTargetView({ targetSourceId, initialTab }: OpsTargetViewProps
               detail={detail}
               // This screen owns the modal the permission card's CTA opens. The
               // register/edit contract is AWS-only, so no other provider gets it.
-              onEditRole={isAws ? (kind) => setModal({ type: 'edit', kind }) : undefined}
+              onEditRole={isAws ? (kind) => setModal({ type: 'edit', kinds: [kind] }) : undefined}
               credentialReloadKey={savedRoleArns.scan}
             />
           )}
@@ -480,32 +495,25 @@ export function OpsTargetView({ targetSourceId, initialTab }: OpsTargetViewProps
           onClose={() => setModal(null)}
         />
       )}
-      <RawDataModal
-        open={modal?.type === 'raw'}
+      <TargetSettingsModal
+        open={modal?.type === 'settings'}
         onClose={() => setModal(null)}
         targetSourceId={targetSourceId}
-        current={supportRawData}
-        onSaved={setSupportRawData}
-      />
-      <InstallModeModal
-        open={modal?.type === 'mode'}
-        onClose={() => setModal(null)}
-        targetSourceId={targetSourceId}
+        showInstallMode={isAws}
         currentGrant={grantTfExecution}
-        onSaved={setGrantTfExecution}
+        currentRaw={supportRawData}
+        onSaved={(next) => {
+          if (next.grant !== undefined) setGrantTfExecution(next.grant);
+          if (next.raw !== undefined) setSupportRawData(next.raw);
+        }}
       />
-      {activeRole && modal?.type === 'edit' && (
+      {roleKinds && (
         <RoleEditModal
           open
           onClose={() => setModal(null)}
           targetSourceId={targetSourceId}
-          kind={activeRole}
-          // OpsHeader 의 표시 폴백과 같은 순서 — 빈 입력으로 열리면 덮어쓰기 사고가 된다.
-          currentArn={
-            savedRoleArns[activeRole]
-            ?? (activeRole === 'scan' ? meta.aws_scan_role_arn : meta.aws_terraform_execution_role_arn)
-            ?? undefined
-          }
+          kinds={roleKinds}
+          currentArns={currentArns}
           accountId={accountId}
           isChinaRegion={isChina}
           regionLabel={regionLabel}

@@ -369,6 +369,10 @@ const SURFACES: SurfacePair[] = [
   { what: 'ops active tab face on the tab band', top: bgOf(classOf(opsSrc, 'tabActive')), under: bgOf(classOf(opsSrc, 'tabStrip')) },
   { what: 'ops meta editable tag face on the masthead wash', top: bgOf(classOf(opsSrc, 'metaTag')), under: resolve('var(--pl-gray-100)') },
   { what: 'ops region tag on the masthead wash', top: bgOf(classOf(opsSrc, 'metaTagQuiet')), under: resolve('var(--pl-gray-100)') },
+  // 헤어라인이 둘 겹친다 — 블록 머리(「연동 대상」)가 굵은 쪽, 그 아래 세 묶음 머리가
+  // 한 단 옅은 쪽. 순서가 뒤집히면 묶음이 블록보다 세게 읽혀 계층이 거꾸로 선다.
+  { what: 'ops FrontMeta block rule on the masthead wash', top: borderOf(classOf(opsSrc, 'fmHead')), under: resolve('var(--pl-gray-100)') },
+  { what: 'ops FrontMeta band rule on the masthead wash', top: borderOf(classOf(opsSrc, 'fmBandHead')), under: resolve('var(--pl-gray-100)') },
   // The card's hover fill is a surface too — it replaces white under the cursor, so it
   // has to separate from the canvas the card sits on or the hovered card dissolves into
   // the page. `bg-gray-50` here measured 1.20 from the card it replaced.
