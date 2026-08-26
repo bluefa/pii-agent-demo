@@ -132,11 +132,14 @@ describe('ConfirmedIntegrationTable', () => {
       expect(required(range.parentElement, '카운트 줄').textContent).toContain('/ 전체 1건');
       expect(screen.getByRole('combobox', { name: '페이지당 표시 건수' })).toBeTruthy();
       expect(screen.getByRole('button', { name: '다음 페이지' })).toBeTruthy();
-      // Round 17: this table now uses the same bar as 1006, first/last jumps included.
-      // 시안 A had dropped them on MUI's precedent; adopting 1006's design brings the
-      // whole control set back rather than a variant of it.
-      expect(screen.getByRole('button', { name: '처음 페이지' })).toBeTruthy();
-      expect(screen.getByRole('button', { name: '끝 페이지' })).toBeTruthy();
+      // 2026-08-26: first/last 점프가 다시 빠졌다 — 이번엔 오너가 그 요소를 직접 보고
+      // 내린 결정이다(페이저 푸터 벤치마크 시안 C). 라운드 17 때는 1006 의 디자인을 통째로
+      // 가져오면서 double-chevron 이 딸려 온 것이었고, 그 앞 라운드의 시안 A 는 MUI 를
+      // 근거로 이미 한 번 빼자고 했었다. 세 번째 왕복이라 근거를 적어 둔다: 한 페이지짜리
+      // 표에서 가장자리 컨트롤 넷이 전부 죽은 채 서 있었고(바 위에서 1.89:1), 끝 페이지는
+      // `buildVisiblePages` 가 마지막 인덱스를 항상 그려서 한 번에 닿는다.
+      expect(screen.queryByRole('button', { name: '처음 페이지' })).toBeNull();
+      expect(screen.queryByRole('button', { name: '끝 페이지' })).toBeNull();
     });
 
     // The 종류 column is a fact about the roster, not about the page. Deriving it from the

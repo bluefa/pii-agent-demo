@@ -4397,6 +4397,37 @@ export const passBannerStyles = {
 } as const;
 
 // =============================================================================
+// Pagination — 표 마감 바 (v15 `.pagination-row`)
+// =============================================================================
+
+/**
+ * `Pagination` 의 색. 이 값들은 원래 컴포넌트 안에 hex 로 박혀 있었고, 2026-08-26
+ * 3열 그리드 개편 때 여기로 끌어냈다.
+ *
+ * ⛔ **한 값도 바뀌지 않았다** — 옮기기만 했다. 개편은 배치·크기·대비를 손보는 것이지
+ * 팔레트를 바꾸는 게 아니라서, 표 21곳의 파랑이 조용히 다른 파랑이 되면 안 됐다. 그래서
+ * 이웃한 CSS 변수(`--pl-primary` 는 #2563EB, `--pl-border` 는 #E4E7EC 로 값이 다르다)로
+ * "정리"하지 않고 원래 리터럴을 그대로 들고 왔다. 팔레트 통일은 별도 지시로 온다.
+ *
+ * 예외는 `pageBtnDisabled` 하나 — 원래 `opacity-35` 였고, 그게 #374151 을 바 위에서
+ * 1.89:1 로 만들었다(텍스트 4.5:1 은 물론 비텍스트 3:1 바닥도 미달). 투명도 대신 색을
+ * 갈아 끼워 4.85:1 로 올린다. 옅은 회색은 델타가 아니라 극성으로 판단해야 하므로,
+ * 활성(10.05:1)과 비활성이 여전히 두 계단 떨어져 있는지가 판정 기준이다.
+ */
+export const paginationStyles = {
+  bar: 'border border-[#E5E7EB] border-t-0 rounded-b-[10px] bg-[#FCFCFD] text-[#6B7280]',
+  count: 'text-[#374151]',
+  countStrong: 'text-[#111827]',
+  select: 'rounded-[6px] border border-[#E5E7EB] bg-white text-[#111827]',
+  pageBtn:
+    'border-transparent bg-transparent text-[#374151] hover:bg-[#F9FAFB] hover:text-[#111827]',
+  pageBtnCurrent: 'border-transparent bg-[#0064FF] text-white',
+  /** 투명도가 아니라 색. `--pl-text-weak`(#667085) 는 바(#FCFCFD) 위에서 4.85:1. */
+  pageBtnDisabled: 'disabled:text-[var(--pl-text-weak)] disabled:hover:bg-transparent',
+  ellipsis: 'text-[#6B7280]',
+} as const;
+
+// =============================================================================
 // 타입 내보내기 (Type Exports)
 // =============================================================================
 
