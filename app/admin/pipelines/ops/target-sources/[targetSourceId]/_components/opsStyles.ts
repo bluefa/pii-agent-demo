@@ -79,7 +79,21 @@ export const opsStyles = {
    * 태그·링크). 옛 마스트헤드는 12px 한 단에 21개 런이 몰려 있어 14 자리가 비어
    * 있었고, 그 빈 칸을 블록 이름이 채운다.
    */
-  fmGroup: 'mt-3',
+  /**
+   * 마스트헤드의 세로 간격은 **포함을 그린다** (오너 08-26 "행간 거리가 짧다보니 답답해
+   * 보인다"). 실측이 2 / 10 / 12 / 11.2px 이었는데, 이건 네 단이 아니라 한 단이다 —
+   * 「블록 안」(10)과 「블록 사이」(12)가 같은 크기면 간격이 무엇도 묶지 못한다.
+   * 네 자리를 1.4~1.5배씩 벌려 세 단으로 세운다:
+   *
+   *   4px   한 짝 안      라벨 ↔ 그 값            `fmCell` gap-1
+   *   14px  한 블록 안    머리 헤어라인 ↔ 사실들   `fmGrid`·`aboutList` pt-3.5
+   *   20px  블록 사이     경로 줄 ↔ 연동 대상      `fmGroup` mt-5
+   *   16px  워시 ↔ 탭 밴드                        `tabStrip` mt-4
+   *
+   * 탭 밴드만 20 이 아니라 16 인 것은 거기가 **색이 바뀌는 경계**라서다 — gray-100 →
+   * gray-200 이 이미 한 번 긋고 있으니 간격까지 최대로 줄 이유가 없다.
+   */
+  fmGroup: 'mt-5',
   fmHead:
     'flex items-center justify-between gap-4 border-b border-[var(--pl-border-strong)] pb-1.5',
   fmName: 'flex min-w-0 items-center gap-2',
@@ -103,7 +117,7 @@ export const opsStyles = {
   aboutPanel: 'w-[200px] flex-none',
   /** About 패널의 본문 — 목적지가 **세로로** 쌓인다 (GitHub About). kv 그리드와 같은
       자리에서 시작하도록 머리 아래 여백은 `fmGrid` 의 pt 와 같은 값이다. */
-  aboutList: 'flex flex-col items-start gap-2 pt-2.5',
+  aboutList: 'flex flex-col items-start gap-2 pt-3.5',
   /** About 패널의 한 줄 — 마크가 앞에 서고 이름이 링크다. 마크는 값이 아니라 이정표라
       본문보다 한 단 옅다. */
   aboutRow: 'inline-flex items-center gap-1.5',
@@ -132,8 +146,8 @@ export const opsStyles = {
       **위**에 있으니 짝은 이미 붙어 있고, 열이 늘어나 봐야 사실 사이 거리만 벌어진다.
       240 은 이 화면의 가장 긴 라벨(Terraform Service Account, 165px)과 2열 병합
       (498px)이 GCP SA 전문(≈380px)을 받는 폭에서 나온 값이다. */
-  fmGrid: 'grid grid-cols-[repeat(4,minmax(0,240px))] gap-x-[18px] gap-y-3 pt-2.5',
-  fmCell: 'flex min-w-0 flex-col gap-0.5',
+  fmGrid: 'grid grid-cols-[repeat(4,minmax(0,240px))] gap-x-[18px] gap-y-3 pt-3.5',
+  fmCell: 'flex min-w-0 flex-col gap-1',
   fmCellWide: 'col-span-2',
   /** 워시는 램프 한 칸을 잡아먹는다 — `--pl-text-weak` 는 이 gray-100 위에서 4.51:1 로
       AA 바닥이라 12px 라벨에 쓰지 않는다. `--pl-gray-600` 은 같은 자리에서 6.98:1. */
@@ -232,7 +246,7 @@ export const opsStyles = {
    * IS the band color (ΔE00 0.00): on the darker band the face alone carries
    * the shape (white on band 5.66, vs 2.78 it managed on the wash).
    */
-  tabStrip: 'mt-2.5 -mx-8 flex items-end gap-1 overflow-x-auto bg-[var(--pl-gray-200)] px-8 pt-1.5',
+  tabStrip: 'mt-4 -mx-8 flex items-end gap-1 overflow-x-auto bg-[var(--pl-gray-200)] px-8 pt-1.5',
   tab: 'cursor-pointer whitespace-nowrap rounded-t-[8px] px-4 py-2 text-[14px]',
   tabActive: 'bg-[var(--pl-bg-card)] font-semibold text-[var(--pl-text-strong)]',
   /** 워시는 램프 한 칸을 잡아먹는다, and the band eats one more: weak measures

@@ -14,7 +14,7 @@ export const ROLE_META: Record<
   },
   execution: {
     title: 'Terraform Execution Role',
-    short: 'TF Role',
+    short: 'Terraform Role',
     sample: 'bdc-infra-terraform-worker-service-role',
     recommended: ['bdc-infra-terraform-worker-service-role'],
   },

@@ -295,7 +295,23 @@ export function OpsHeader({
                 4열은 자동(계정·scan·execution·설치모드)과 수동(계정·scan·설치모드·실데이터)
                 양쪽에서 첫 행이 정확히 찬다. */}
             {isAws && roleCell('scan')}
-            {isAws && grantTfExecution && roleCell('execution')}
+            {/* Terraform Role 칸은 **모드와 상관없이 늘 선다** (오너 08-26 "수동 설치/자동설치에
+                따라서 tf role이 보이고 안 보이고가 결정되니 조금 이상한듯"). 칸이 사라지면
+                화면은 "이 대상엔 그런 게 없다"와 "아직 안 읽었다"를 구분해 주지 않고, 그
+                자리를 뒤 칸이 밀고 들어와 두 모드의 열 순서가 어긋난다. 수동일 때는 빈
+                칸이 아니라 **왜 비었는지**를 적는다 — 미등록이 아니라 필요 없는 것이다. */}
+            {isAws
+              && (grantTfExecution
+                ? roleCell('execution')
+                : cell(
+                    ROLE_META.execution.short,
+                    <span
+                      className={opsStyles.fmNone}
+                      title="수동 설치 — 담당자가 직접 실행하므로 Terraform 실행 role 을 등록하지 않는다"
+                    >
+                      역할 불필요
+                    </span>,
+                  ))}
             {/* 설정 한 칸 (design-benchmark 시안 A, 오너 08-26) — 라벨 둘·흰 면 태그 둘·
                 「수정」 둘이 라벨 하나와 밑줄 낱말 둘이 된다. 라벨이 줄었으니 값이 스스로를
                 말한다. 이 칸이 그리드의 마지막 사실 뒤에 서면서 AWS 자동은 첫 행이 4칸으로
