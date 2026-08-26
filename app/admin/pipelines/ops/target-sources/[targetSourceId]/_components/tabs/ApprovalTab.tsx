@@ -469,7 +469,14 @@ export function ApprovalTab({
           </h2>
           {/* 미충족은 경고 아이콘을 달고 선다 (오너 2026-08-26) — 조회 중·확인 실패는
               달지 않는다: 그건 충족되지 않았다는 판정이 아니라 아직 모른다는 말이다. */}
-          <p className={cn(opsStyles.cardDesc, 'flex items-center gap-1.5')}>
+          {/* 이 줄은 opsStyles.cardDesc 를 떠났다 (오너 2026-08-26) — `cn` 은 단순 join 이라
+              `text-[14px]` 위에 `text-[16px]` 를 얹으면 둘 다 남고 어느 쪽이 이기는지는 CSS
+              순서가 정한다. 토큰을 덮어쓰는 게 아니라 벗어나야 한다. cardDesc 자체는 건드리지
+              않는다: ops 탭 10곳이 그 토큰을 쓴다. 잉크가 `--pl-gray-600`(#475467)인 이유는
+              캔버스(#F4F4FB) 위에서 7.02:1 로 5:1 을 넘기면서도 제목(`--pl-text-strong`,
+              16.21:1)보다 한 칸 아래라 두 줄의 순서가 뒤집히지 않기 때문 — 기존
+              `--pl-text-weak` 는 4.54:1 로 미달이었다. */}
+          <p className="mt-3 flex items-center gap-1.5 text-[16px] text-[var(--pl-gray-600)]">
             {head.unmet && (
               <Icon
                 name="warn-tri"
