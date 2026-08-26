@@ -166,36 +166,41 @@ export function OpsHeader({
 
   return (
     <>
-      {/* 경로 한 줄 (오너 2026-08-26) — Linear FrontMeta 문법. 「화면 이름 · 그 화면의
-          식별자」 짝이 두 벌 선다: 지나온 서비스 운영(파란 낱말 + 코드 태그)과 서 있는
-          Target Source 운영(짙은 낱말 + 번호 태그). 값은 늘 대조 가능한 식별자다 — 서비스
-          **이름**은 여기서 빠져 「상세 정보」의 서비스 그룹으로 갔다(이름은 라벨이지 경로가
-          아니다). 파랑은 이동하는 낱말에만 든다. */}
+      {/* 경로 한 줄 — 세 마디, 굵은 것 하나 (오너 2026-08-26 2차: "너무 어지럽다").
+          문법은 `opsStyles.path*` 의 독블록에 적혀 있다. 요지: 마디는 값만 말하고, 종류는
+          마지막 마디가 한 번만 말하며, 칠한 태그는 없다. */}
       <div className={opsStyles.pathLine}>
         <h1 className={opsStyles.path}>
-          {/* 서비스가 없으면 갈 운영 화면도 없다 — 없는 목적지는 말하지 않고 빠진다. */}
+          {/* 마디마다 목적지가 다르다: 목록 → 이 서비스 → 이 대상. 예전에는 「서비스
+              운영」만 링크이고 그 옆 코드 태그는 값이라, 두 마디가 사실상 한 곳을
+              가리켰다. 서비스가 없으면 갈 곳도 없으므로 두 마디가 통째로 빠진다. */}
           {detail.service_code && (
             <>
-              <Link
-                href={passRoutes.pipelines.ops.service(detail.service_code)}
-                className={opsStyles.pathLink}
-                title={`서비스 ${detail.service_code} 운영`}
-              >
+              <Link href={passRoutes.pipelines.ops.services} className={opsStyles.pathLink}>
                 서비스 운영
               </Link>
-              <span className={opsStyles.pathSep}>/</span>
-              <span className={opsStyles.pathChip}>
-                <span className={opsStyles.pathChipLabel}>서비스 코드</span>
-                <span className={opsStyles.pathChipValue}>{detail.service_code}</span>
+              <span className={opsStyles.pathSep} aria-hidden>
+                /
               </span>
-              <span className={opsStyles.pathSep}>/</span>
+              {/* 코드만 적는다 — 라벨 없이도 자리가 종류를 말한다. 처음 온 사람을 위한
+                  설명은 title 이 지고, 서비스 이름은 「상세 정보」의 서비스 그룹에 있다. */}
+              <Link
+                href={passRoutes.pipelines.ops.service(detail.service_code)}
+                className={opsStyles.pathLinkId}
+                title={`서비스 코드 ${detail.service_code} — 이 서비스의 운영 화면`}
+              >
+                {detail.service_code}
+              </Link>
+              <span className={opsStyles.pathSep} aria-hidden>
+                /
+              </span>
             </>
           )}
-          <span className={opsStyles.pathRoot}>Target Source 운영</span>
-          <span className={opsStyles.pathSep}>/</span>
-          <span className={opsStyles.pathChip}>
-            <span className={opsStyles.pathChipLabel}>Target Source</span>
-            <span className={opsStyles.pathChipValue}>#{targetSourceId}</span>
+          {/* 서 있는 곳. 종류를 여기서 한 번만 말하므로 「Target Source 운영」 마디는
+              사라졌다 — 링크도 아니었고, 바로 뒤 태그가 같은 낱말을 반복하고 있었다. */}
+          <span className={opsStyles.pathHere} aria-current="page">
+            <span className={opsStyles.pathHereKind}>Target Source</span>
+            <span className={opsStyles.pathHereId}>#{targetSourceId}</span>
           </span>
         </h1>
         {processStatus && <StepPill status={processStatus} />}

@@ -445,11 +445,14 @@ const TEXT: TextPair[] = [
   { what: '메타 태그 값 on the tag face', fg: textOf(classOf(opsSrc, 'metaTag')), on: bgOf(classOf(opsSrc, 'metaTag')) },
   { what: '리전 태그 값 on the gray-200 tag', fg: textOf(classOf(opsSrc, 'metaTagQuiet')), on: bgOf(classOf(opsSrc, 'metaTagQuiet')) },
   { what: 'ops path on the masthead wash', fg: textOf(classOf(opsSrc, 'path')), on: resolve('var(--pl-gray-100)') },
-  { what: 'ops path root on the masthead wash', fg: textOf(classOf(opsSrc, 'pathRoot')), on: resolve('var(--pl-gray-100)') },
   { what: 'ops path ancestor link on the masthead wash', fg: textOf(classOf(opsSrc, 'pathLink')), on: resolve('var(--pl-gray-100)') },
-  // 경로 마디 태그는 제 면(gray-200) 위에 산다 — 워시가 아니라 칩 안이 배경이다.
-  { what: 'ops path chip label on its slate face', fg: textOf(classOf(opsSrc, 'pathChipLabel')), on: bgOf(classOf(opsSrc, 'pathChip')) },
-  { what: 'ops path chip value on its slate face', fg: textOf(classOf(opsSrc, 'pathChipValue')), on: bgOf(classOf(opsSrc, 'pathChip')) },
+  { what: 'ops path service-code crumb on the masthead wash', fg: textOf(classOf(opsSrc, 'pathLinkId')), on: resolve('var(--pl-gray-100)') },
+  // 칠한 마디 태그가 사라지면서 구분자가 이 줄의 유일한 묶음 장치가 됐다 — faint 로는
+  // 그 하중을 못 진다(워시 위 2.34:1). 여기 걸어 두면 다시 옅어질 때 잡힌다.
+  { what: 'ops path separator on the masthead wash', fg: textOf(classOf(opsSrc, 'pathSep')), on: resolve('var(--pl-gray-100)') },
+  // 서 있는 마디 — 종류는 옅고 식별자만 굵다. 둘 다 워시 위에 직접 산다(칩 면이 없다).
+  { what: 'ops path current kind on the masthead wash', fg: textOf(classOf(opsSrc, 'pathHereKind')), on: resolve('var(--pl-gray-100)') },
+  { what: 'ops path current id on the masthead wash', fg: textOf(classOf(opsSrc, 'pathHereId')), on: resolve('var(--pl-gray-100)') },
   { what: 'ops idle tab on the tab band', fg: textOf(classOf(opsSrc, 'tabIdle')), on: bgOf(classOf(opsSrc, 'tabStrip')) },
   // FrontMeta (ops-target-frontmeta.md 시안 C) — 236px 레일이 사라져 이 화면의 메타 글자는
   // 전부 마스트헤드 워시 위에 산다. 그 워시는 램프 한 칸을 잡아먹으므로(--pl-text-weak 는

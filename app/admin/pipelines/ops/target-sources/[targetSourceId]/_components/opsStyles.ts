@@ -21,39 +21,48 @@ export const opsStyles = {
   masthead: 'bg-[var(--pl-gray-100)] px-8 pt-4',
 
   /**
-   * 경로 한 줄 (오너 2026-08-26) — 크럼과 제목이 두 줄로 갈려 있던 것을 Linear 의
-   * FrontMeta 문법 한 줄로 합친다:
+   * 경로 한 줄 — Linear 문법 (오너 2026-08-26 2차: "너무 어지럽다. 정보정리가 안 된듯.
+   * Linear 처럼 정리해볼래?").
    *
-   *   서비스 운영 / [서비스 코드 CPN] / Target Source 운영 / [Target Source #1642]
+   *   전:  서비스 운영 / [서비스 코드 LGS] / Target Source 운영 / [Target Source #1801]
+   *   후:  서비스 운영 / LGS / Target Source #1801
    *
-   * 마디는 「화면 이름 · 그 화면의 식별자」 짝으로 두 벌 선다 (오너 2026-08-26). 지나온
-   * 화면의 이름만 파랗다 — 파랑은 이 팔레트에서 "누를 수 있다"이고, 그 옆 태그는 정체성이라
-   * 색을 쓰지 않는다: 이동은 낱말이 지고 값은 태그가 진다.
+   * 앞의 것은 26px 한 줄에 텍스트 런 **10개**가 서 있었고, 그중 여섯이 굵기 600 이었다.
+   * 색은 넷(파란 링크 · 옅은 구분자 · 태그 라벨 · 태그 값), 칠한 상자는 셋. 경로는
+   * 내비게이션 크롬인데 본문만큼 소리를 내고 있었다 — Linear 가 리디자인에서 세운 원칙
+   * 그대로의 반례다: **"Don't compete for attention you haven't earned"**
+   * (linear.app/now/behind-the-latest-design-refresh). 그리고 「Target Source 운영 /
+   * Target Source #1801」은 같은 낱말을 연달아 두 번 말하고 있었다.
    *
-   * 「Target Source 운영」은 더 이상 16px 굵은 제목이 아니다 (오너: "과하게 강조할 필요
-   * 없음") — 경로의 한 마디이고, 서비스측 `crumbRoot` 와 같은 14/600 이다. 서비스
-   * **이름**은 이 줄에서 빠져 「상세 정보」로 갔다: 이름은 라벨이고, 경로에 서야 하는
-   * 것은 대조할 수 있는 식별자(서비스 코드 · 대상 번호)다.
+   * 정리한 규칙 셋:
+   *  1. **마디는 값만 말한다.** 「서비스 코드 LGS」의 라벨은 태그를 만들려고 붙인 것이지
+   *     읽는 사람에게 필요한 것이 아니었다 — Linear 의 크럼은 팀 키를 그냥 `ENG` 로 적고
+   *     "Team:" 을 쓰지 않는다. 종류는 마지막 마디가 한 번만 말한다(`Target Source #1801`).
+   *  2. **굵은 것은 하나뿐이다.** 서 있는 곳의 식별자만 14/600 이고 나머지는 전부 12/400.
+   *     크기와 무게 두 레버가 같은 요소에 실린다(design-guide §3 "인접 계층은 레버 2개").
+   *  3. **칠을 걷고 구분자에 하중을 넘긴다.** 상자가 지던 묶음을 이제 `/` 와 간격이 진다
+   *     ("Structure should be felt not seen"). 칠이 사라졌으므로 구분자는 faint(워시 위
+   *     2.34:1)에서 weak(4.53:1)로 올라간다 — 유일한 묶음 장치가 안 보이면 안 된다.
+   *
+   * ⛔ 파랑은 이 줄에서 빠졌다. 08-24 의 "파란색 태그" 지시는 그 다음 라운드(#791)가
+   * 이미 회색 태그로 대체했고, 이번엔 그 회색 태그마저 걷는다. 링크는 색이 아니라
+   * hover 로 말한다 — 세 마디 중 둘이 링크라 파랑을 쓰면 줄의 3분의 2가 파래진다.
    */
-  pathLine: 'flex flex-wrap items-center gap-3',
-  path: 'flex min-w-0 flex-wrap items-center gap-1.5 text-[12px] leading-[1.5] text-[var(--pl-text-medium)]',
-  pathRoot: 'flex-none text-[14px] font-semibold text-[var(--pl-text-strong)]',
-  pathSep: 'flex-none text-[var(--pl-text-faint)]', // design-exempt: decorative path glyph, the tags around it carry the reading
-  /**
-   * 마디 태그 (서비스측 `codeChip` 을 --pl-* 로) — 값 앞에 그 값의 **종류**를 적는다.
-   * 경로의 한 마디는 값만 말하고 그 값이 무엇인지는 말하지 못하는데, 「azure」 하나만
-   * 놓이면 처음 온 사람에게는 아무 말도 아니다.
-   *
-   * 슬레이트 계열이고 파랑이 아니다: 이 팔레트에서 파랑은 "누를 수 있다"의 색이라 마디의
-   * 정체성에는 쓰지 않는다. 면은 gray-200 — 워시(gray-100) 위에서 탭 밴드와 같은 ΔE00
-   * 2.94 이고, 흰 면은 이 화면에서 "만질 수 있는 값"(metaTag)의 것으로 남는다.
-   */
-  pathChip:
-    'inline-flex flex-none items-baseline gap-1.5 rounded-[6px] border border-[var(--pl-border-strong)] bg-[var(--pl-gray-200)] px-2 py-[3px]',
-  /** 조상 마디 — 파란 글씨 (오너 2026-08-26). 현재 화면(`pathRoot`)보다 한 단 작다:
-      지나온 곳과 서 있는 곳의 차이가 곧 경로의 순서다. 워시 위 4.69:1. */
+  pathLine: 'flex flex-wrap items-baseline gap-x-3 gap-y-1',
+  path: 'flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-1 text-[12px] leading-[1.5] text-[var(--pl-text-weak)]',
+  /** 구분자 — 칠이 없어진 뒤로 이 줄의 유일한 묶음 장치다. 워시 위 4.53:1. */
+  pathSep: 'flex-none text-[var(--pl-text-weak)]',
+  /** 지나온 마디. 색도 굵기도 없고, 누를 수 있다는 것은 hover 가 말한다. */
   pathLink:
-    'flex-none cursor-pointer text-[12px] font-semibold text-[var(--pl-primary)] hover:underline',
+    'flex-none cursor-pointer text-[12px] text-[var(--pl-text-weak)] transition-colors hover:text-[var(--pl-text-strong)] hover:underline',
+  /** 지나온 마디 중 **식별자**인 것(서비스 코드) — 낱말보다 한 단 진하다. */
+  pathLinkId:
+    'flex-none cursor-pointer text-[12px] font-medium text-[var(--pl-text-medium)] transition-colors hover:text-[var(--pl-text-strong)] hover:underline',
+  /** 서 있는 곳 — 종류(옅은 낱말) + 식별자(줄에서 유일하게 굵고 큰 것). */
+  pathHere: 'flex flex-none items-baseline gap-1.5',
+  pathHereKind: 'text-[12px] text-[var(--pl-text-weak)]',
+  pathHereId:
+    '[font-family:var(--pl-font-mono)] text-[14px] font-semibold tabular-nums text-[var(--pl-text-strong)]',
   /**
    * 관련 페이지 (오너 2026-08-26) — 이 대상을 두고 갈 수 있는 **다른 화면들**. kv 그리드의
    * 한 셀로 산다: 라벨이 값 위에 서는 이 헤더의 문법 그대로이고, 목적지가 늘어도 셀 안에서
