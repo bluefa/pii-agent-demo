@@ -19,10 +19,7 @@ import type { ReactElement } from 'react';
 import { cn } from '@/lib/theme';
 import { opsStyles } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/opsStyles';
 import type { DagAggregates } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/approvalGate';
-import {
-  BUCKET_LABEL,
-  attentionCount,
-} from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/dagBoard';
+import { attentionCount } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/dagBoard';
 
 const n = (value: number): string => value.toLocaleString('ko-KR');
 
@@ -41,20 +38,17 @@ export function MonitoringEvidenceBody({
   onOpenBoard,
 }: MonitoringEvidenceBodyProps): ReactElement {
   const b = opsStyles.tcBand;
-  // 실행 시작·그 외는 있을 때만 — 0 을 세우면 없다는 사실만 반복한다. 계약 밖 값(그 외)은
-  // 색이 아니라 형태(파선 링)로 말한다: 읽지 못한 값이지 나쁜 값이 아니다.
+  // 두 조각뿐이다 (오너 2026-08-26: healthy/unhealthy 로 분기) — 성공했나 아닌가.
+  // 실행 시작·그 외를 따로 세우던 조각은 확인 필요 안으로 들어갔다: 셋의 차이는 원인이지
+  // **할 일**이 아니고, 이 줄이 답하는 질문은 "몇 개를 봐야 하나" 하나다. 원인은 보드의
+  // 7일 스트립이 행마다 진다.
+  //
+  // 두 수의 합이 항상 논리 DB 총계다. 그리고 확인 필요는 카드 머리의 UNHEALTHY 문장
+  // ("성공 기록이 없는 논리 DB가 있어요")이 세는 집합과 같다 — 문장과 수가 같은 것을
+  // 가리키지 않던 것이 이 줄의 오래된 문제였다.
   const buckets: { label: string; value: number; dot: string; ink?: string }[] = [
     { label: '성공', value: agg.succeeded, dot: b.countDotOk, ink: b.okValue },
-    // 실패와 스케줄 안 됨은 한 수로 선다 (오너 2026-08-25) — 둘의 차이는 원인이지
-    // 할 일이 아니고, 이 줄이 답하는 질문은 "몇 개를 봐야 하나" 하나다. 원인은 보드의
-    // 7일 스트립이 행마다 진다. 표의 판정 알약·실패 레일과도 같은 낱말이 됐다.
     { label: '확인 필요', value: attentionCount(agg), dot: b.countDotFail, ink: b.failValue },
-    ...(agg.running > 0
-      ? [{ label: BUCKET_LABEL.running, value: agg.running, dot: b.countDotRest }]
-      : []),
-    ...(agg.other > 0
-      ? [{ label: BUCKET_LABEL.other, value: agg.other, dot: b.countDotMissing }]
-      : []),
   ];
 
   return (

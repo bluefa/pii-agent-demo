@@ -44,16 +44,24 @@ export const flattenDagRows = (data: DagStatusResponse): DagDbRow[] =>
 // ---------------------------------------------------------------------------
 
 /**
- * 확인 필요 = 실패 + 스케줄 안 됨 (오너 2026-08-25: "결국은 스케쥴 안 된 것도 확인 필요해").
+ * 확인 필요 = **성공 아닌 전부** (오너 2026-08-26: "healthy/unhealthy 로 분기하고 싶어,
+ * 그렇게 상세한 정보는 지금은 불필요").
  *
- * 두 버킷을 세로 나눠 세우던 것은 원인의 구분이지 **할 일**의 구분이 아니었다 — 어느
- * 쪽이든 관리자가 다음에 하는 일은 그 논리 DB 를 열어 보는 것 하나다. 원인은 보드의
- * 7일 스트립이 행마다 이미 말한다(실패한 날은 빨간 칸, 안 걸린 날은 빈 칸): 합치는 것은
- * **수**이고, 사실은 행에 그대로 남는다.
+ * 08-25 에는 실패 + 스케줄 안 됨만 셌다. 그 경계가 흔들린 것은 `running` 때문이다 —
+ * `classifyDb` 는 RUNNING 이 **오늘 칸인지 사흘 전 칸인지 보지 않아서**, 정상적으로 도는
+ * 중인 DB 와 사흘째 멈춰 있는 DB 가 한 버킷에 앉는다. 후자는 명백히 확인 대상이므로
+ * 그 버킷을 통째로 빼 두는 것은 틀린 쪽으로 기울어 있었다.
  *
- * `DbBucket` 자체는 건드리지 않는다 — 행 하나의 진짜 상태는 여전히 다섯 갈래다.
+ * 이제 규칙이 하나다: **최근 7일 성공 기록이 있으면 정상, 없으면 확인 필요.** 그리고 이
+ * 집합은 `DagAggregates.noSuccess`(succeededThisWeek=false)와 정확히 같은 집합이라,
+ * 카드 머리의 UNHEALTHY 문장("성공 기록이 없는 논리 DB가 있어요")이 세는 것과 그 아래
+ * 수가 처음으로 같은 것을 가리킨다.
+ *
+ * 원인은 잃지 않는다 — 보드의 7일 스트립이 행마다 말한다(실패한 날은 빨간 칸, 안 걸린
+ * 날은 빈 칸, 시작만 한 날은 주황). 합치는 것은 **수**고, 사실은 행에 그대로 남는다.
+ * `DbBucket` 자체도 건드리지 않는다: 행 하나의 진짜 상태는 여전히 다섯 갈래다.
  */
-export const ATTENTION_BUCKETS = ['failed', 'unscheduled'] as const;
+export const ATTENTION_BUCKETS = ['failed', 'unscheduled', 'running', 'other'] as const;
 
 type AttentionBucket = (typeof ATTENTION_BUCKETS)[number];
 
@@ -92,7 +100,6 @@ export const BUCKET_LABEL: Record<DbBucket, string> = {
  *  'other' 는 계약 밖의 값이 실제로 왔을 때만 생기므로 0건이면 감춘다. */
 export const FIXED_BOARD_FILTERS: readonly Exclude<BoardFilter, 'ALL'>[] = [
   'attention',
-  'running',
   'succeeded',
 ];
 
@@ -216,67 +223,49 @@ export const summarizeAgents = (data: DagStatusResponse): DagAgentSummary[] =>
  * raw 는 label 에 싣지 않는다(wire 어휘는 문장·라벨 금지 — 툴팁 채널은 호출부 몫).
  */
 /**
- * 행의 종합 상태 (오너 08-21) — 연결과 주간 DAG 를 알약 하나로 접어 **모든 행**에
- * 세운다. 비정상만 표시하던 예외 방식은 "왜 이 행만 알약이지?"로 읽혔고, 연결
- * 성공이어도 2/4 성공인 행을 아무것도 경고하지 않았다.
- * 우선순위: 연결이 SUCCESS 가 아니면 그 사실이 판정이다(관측 자체를 못 믿는 행).
- * 연결이 정상이면 관측 결과로 판정한다.
+ * 행의 종합 상태 — **두 갈래뿐이다**: 정상 / 확인 필요 (오너 2026-08-26).
  *
- * ⛔ '확인 필요'가 세는 집합은 **요약 카운트 줄과 같아야 한다**(`attentionCount`).
- * 한때 이 함수는 `dbTotal − succeeded`(실패+미스케줄+실행 시작+그 외)로 판정했는데,
- * 요약 줄은 실패+미스케줄만 셌다. 그래서 성공 없는 DB 가 실행 시작뿐인 리소스는 행에
- * '확인 필요'가 서고 빨간 레일까지 붙는데 요약은 '확인 필요 0'이었고, 그 수를 눌러 열면
- * 그 리소스 행이 0건이었다. 한 화면의 두 자리가 같은 낱말로 다른 집합을 부르면 그 낱말은
- * 아무것도 뜻하지 않는다. 목이 running·other 버킷을 만들지 못해 테스트만 초록이었다.
+ * 08-21 에는 연결 실패 · DAG 없음 · 실행 시작 · 그 외가 각자 알약을 가졌다. 그것들은
+ * 전부 "왜"인데, 이 표가 답하는 질문은 "무엇을 봐야 하나" 하나뿐이라 판정 어휘가 다섯
+ * 갈래일 이유가 없었다. 왜는 툴팁(hint)이 나르고, 더 깊은 왜는 보드의 7일 스트립이
+ * 행마다 그린다.
  *
- * 실행 시작과 그 외는 자기 판정을 갖는다 — 실행 시작은 시간이 지나면 저절로 갈리는
- * 상태라 지금 할 일이 없고, 그 외는 나쁜 값이 아니라 읽지 못한 값이다.
+ * 규칙: 관측을 믿을 수 있고(연결 SUCCESS), 관측한 논리 DB 가 있고, 그 전부가 최근 7일
+ * 성공 기록을 가지면 정상. 나머지는 전부 확인 필요다.
  *
- * ⛔ 이 판정들의 낱말을 리터럴로 쓰지 말 것. 같은 버킷을 부르는 자리가 넷이고
- * (보드 칩 · 날짜 범례 · 요약 카운트 줄 · 이 판정), 리터럴로 적는 순간 갈린다 —
- * 실제로 이 함수가 `running` 을 '진행 중'으로 적어서 `BUCKET_LABEL` 의 ⛔ 를 어겼다.
- * raw enum 은 hint(툴팁 채널)로만 나른다.
+ * - 연결이 SUCCESS 가 아니면 이 행의 수는 아무것도 뜻하지 않는다 — 관측 자체를 못 믿는
+ *   행이라 그 사실이 곧 확인 대상이다.
+ * - 관측 논리 DB 0개는 성공률 100% 가 아니라 **아무것도 안 보고 있다**는 뜻이다.
+ *   부재에서 건강을 읽으면 안 된다. 셀 수가 없으므로 수는 붙지 않는다.
+ * - 그 밖에는 성공하지 못한 논리 DB 개수가 그대로 확인 필요의 수다
+ *   (`attentionCount` — 요약 카운트 줄이 쓰는 그 셈).
+ *
+ * ⛔ 판정을 다시 갈래 내지 말 것. 한 화면에서 같은 낱말이 자리마다 다른 집합을 부르면
+ * 그 낱말은 아무것도 뜻하지 않는다 — 한때 이 함수가 `dbTotal − succeeded` 로 판정하고
+ * 요약 줄은 실패+미스케줄만 세서, 행에 '확인 필요' + 빨간 레일이 선 리소스를 눌러 열면
+ * 0건이었다. 지금은 둘 다 `attentionCount` 하나를 지난다.
+ *
+ * raw enum 은 hint(툴팁 채널)로만 나른다 — wire 어휘는 라벨에 싣지 않는다.
  */
 export const agentVerdict = (
   agent: DagAgentSummary,
-  // count 는 '확인 필요'에만 실린다 — 시안 A 의 셀이 그 수를 그대로 세운다. 판정을 낸
-  // 함수가 수까지 같이 내주므로, 셀이 같은 셈을 두 번째로 하다가 어긋날 길이 없다.
+  // count 는 '확인 필요'에만, 그것도 셀 것이 있을 때만 실린다 — 시안 A 의 셀이 그 수를
+  // 그대로 세운다. 판정을 낸 함수가 수까지 같이 내주므로 셀이 같은 셈을 두 번째로 하다가
+  // 어긋날 길이 없다.
 ): { tone: TcTone; label: string; count?: number; hint?: string } => {
+  const attention = { tone: 'err' as const, label: '확인 필요' };
   if (agent.connectionStatus !== 'SUCCESS') {
     const conn = connPill(agent.connectionStatus);
-    return {
-      tone: conn.tone,
-      label: `연결 ${conn.label}`,
-      hint: `connectionStatus: ${conn.raw ?? agent.connectionStatus}`,
-    };
+    return { ...attention, hint: `모니터링 연결 ${conn.label} — connectionStatus: ${conn.raw ?? agent.connectionStatus}` };
   }
-  // 0 은 조회 실패가 아니라 걸린 DAG 가 없다는 확정된 사실 — 판정 없이 부재만 말한다.
-  if (agent.dbTotal === 0) return { tone: 'off', label: 'DAG 없음' };
-  const attention = attentionCount(agent);
-  if (attention > 0) {
-    return {
-      tone: 'err',
-      // '이상'은 판정만 말하고 '그래서 뭘 하나'는 안 말했다 — 관리자가 이 표에서 하는 일은
-      // 그 행을 열어 보는 것이라, 라벨이 그 일을 부른다 (오너 2026-08-25).
-      label: '확인 필요',
-      count: attention,
-      hint: `논리 DB ${attention}개가 최근 7일 성공 기록이 없어요`,
-    };
+  if (agent.dbTotal === 0) {
+    return { ...attention, hint: '이 리소스에서 관측 중인 논리 DB 가 없어요' };
   }
-  if (agent.running > 0) {
-    // 낱말은 `BUCKET_LABEL` 에서 읽는다 — 리터럴로 적었더니 곧바로 어겼다(아래 ⛔).
-    // 보드 칩·날짜 범례·카운트 줄·행 판정이 같은 버킷을 네 자리에서 부르는데, 그 넷이
-    // 한 상수를 읽으면 갈릴 길이 없다.
-    return {
-      tone: 'warn',
-      label: BUCKET_LABEL.running,
-      hint: '최근 7일 성공 기록이 없고, 실행이 시작된 날이 있어요',
-    };
+  const count = attentionCount(agent);
+  if (count === 0) {
+    return { tone: 'ok', label: '정상', hint: '관측 논리 DB 전부 최근 7일 성공' };
   }
-  if (agent.other > 0) {
-    return { tone: 'off', label: BUCKET_LABEL.other, hint: '계약 밖의 상태값이 섞여 있어요' };
-  }
-  return { tone: 'ok', label: '정상', hint: '관측 논리 DB 전부 최근 7일 성공' };
+  return { ...attention, count, hint: `논리 DB ${count}개가 최근 7일 성공 기록이 없어요` };
 };
 
 export const connPill = (

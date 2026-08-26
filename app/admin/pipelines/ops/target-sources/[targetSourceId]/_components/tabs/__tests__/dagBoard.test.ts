@@ -114,17 +114,21 @@ describe('scopeBoardRows', () => {
   });
 });
 
-describe('확인 필요 = 실패 + 스케줄 안 됨', () => {
-  it('두 버킷을 한 수로 센다', () => {
-    expect(attentionCount({ failed: 14, unscheduled: 4 })).toBe(18);
+describe('확인 필요 = 성공 아닌 전부', () => {
+  it('성공을 제외한 네 버킷을 한 수로 센다', () => {
+    expect(attentionCount({ failed: 14, unscheduled: 4, running: 2, other: 1 })).toBe(21);
   });
 
-  it('필터는 두 버킷을 다 받고, 나머지는 안 받는다', () => {
-    expect(matchesBoardFilter('failed', 'attention')).toBe(true);
-    expect(matchesBoardFilter('unscheduled', 'attention')).toBe(true);
-    expect(matchesBoardFilter('running', 'attention')).toBe(false);
+  it('필터는 성공만 빼고 다 받는다', () => {
+    for (const bucket of ['failed', 'unscheduled', 'running', 'other'] as const) {
+      expect(matchesBoardFilter(bucket, 'attention')).toBe(true);
+    }
     expect(matchesBoardFilter('succeeded', 'attention')).toBe(false);
-    expect(matchesBoardFilter('other', 'attention')).toBe(false);
+  });
+
+  it('성공 + 확인 필요 = 총계 — 두 조각이 항상 전부를 덮는다', () => {
+    const counts = { failed: 3, unscheduled: 1, running: 2, other: 1, succeeded: 40 };
+    expect(attentionCount(counts) + counts.succeeded).toBe(47);
   });
 
   it('버킷 하나를 고른 필터와 전체는 그대로다 — 합친 것은 이 슬롯뿐', () => {
@@ -133,10 +137,8 @@ describe('확인 필요 = 실패 + 스케줄 안 됨', () => {
     expect(matchesBoardFilter('other', 'ALL')).toBe(true);
   });
 
-  it('보드 칩에서 두 버킷이 따로 서지 않는다 — 카운트 줄과 같은 낱말', () => {
-    expect(FIXED_BOARD_FILTERS).not.toContain('failed');
-    expect(FIXED_BOARD_FILTERS).not.toContain('unscheduled');
-    expect(FIXED_BOARD_FILTERS).toContain('attention');
+  it('보드 칩은 확인 필요·성공 둘뿐 — 카운트 줄과 같은 두 조각', () => {
+    expect([...FIXED_BOARD_FILTERS]).toEqual(['attention', 'succeeded']);
     expect(BOARD_FILTER_LABEL.attention).toBe('확인 필요');
   });
 });
@@ -266,9 +268,9 @@ describe('agentVerdict — 행의 종합 상태 (모든 행에 알약)', () => {
     other: 0,
   };
 
-  it('연결이 SUCCESS 가 아니면 연결 사실이 판정을 이긴다 — raw 는 hint 로만', () => {
+  it('연결이 SUCCESS 가 아니면 관측을 못 믿는다 — 수 없이 확인 필요', () => {
     const v = agentVerdict({ ...base, connectionStatus: 'FAIL', succeeded: 4 });
-    expect(v).toMatchObject({ tone: 'err', label: '연결 실패' });
+    expect(v).toMatchObject({ tone: 'err', label: '확인 필요' });
     expect(v.hint).toContain('FAIL');
   });
 
@@ -276,7 +278,7 @@ describe('agentVerdict — 행의 종합 상태 (모든 행에 알약)', () => {
     expect(agentVerdict(base)).toMatchObject({ tone: 'ok', label: '정상' });
   });
 
-  it('실패·미스케줄이 있으면 확인 필요(err), 그리고 수까지 같이 낸다', () => {
+  it('성공하지 못한 논리 DB 수가 그대로 확인 필요의 수다', () => {
     const v = agentVerdict({ ...base, succeeded: 2, failed: 1, unscheduled: 1 });
     expect(v).toMatchObject({ tone: 'err', label: '확인 필요', count: 2 });
     expect(v.hint).toContain('2개');
@@ -284,33 +286,47 @@ describe('agentVerdict — 행의 종합 상태 (모든 행에 알약)', () => {
 
   // ⛔ 회귀 잠금: 한때 판정이 `dbTotal − succeeded` 로 세어서, 요약 줄이 '확인 필요 0'
   // 이라 말하는 행에 '확인 필요' + 빨간 레일이 섰고 눌러 열면 0건이었다.
-  it('실행 시작만 있는 행은 확인 필요가 아니다 — 요약 줄과 같은 집합을 센다', () => {
-    const agent = { ...base, succeeded: 3, running: 1 };
-    expect(attentionCount(agent)).toBe(0);
-    expect(agentVerdict(agent)).toMatchObject({ tone: 'warn', label: '실행 시작' });
-    expect(agentVerdict(agent).count).toBeUndefined();
-  });
-
-  it('계약 밖 값만 남은 행은 그 외(off) — 나쁜 값이 아니라 읽지 못한 값이다', () => {
-    const agent = { ...base, succeeded: 3, other: 1 };
-    expect(agentVerdict(agent)).toMatchObject({ tone: 'off', label: '그 외' });
-  });
-
-  // ⛔ 회귀 잠금: 같은 버킷을 부르는 자리가 넷이라(보드 칩 · 날짜 범례 · 요약 카운트 줄 ·
-  // 행 판정) 낱말을 리터럴로 적는 순간 갈린다. 실제로 행 판정이 '진행 중'으로 적혀
-  // BUCKET_LABEL 의 ⛔ 를 어겼고, 한 화면이 한 버킷을 두 이름으로 불렀다.
-  // '진행 중'이 금지인 이유: RUNNING 은 지난 날짜 칸에도 서므로 "지금 돌고 있다"를
-  // 응답이 말하지 않은 채로 말하게 된다.
-  it('행 판정의 낱말은 보드 칩과 한 상수에서 온다', () => {
-    expect(agentVerdict({ ...base, succeeded: 3, running: 1 }).label).toBe(BUCKET_LABEL.running);
-    expect(agentVerdict({ ...base, succeeded: 3, other: 1 }).label).toBe(BUCKET_LABEL.other);
-    expect(BUCKET_LABEL.running).not.toBe('진행 중');
-  });
-
-  it('관측 DB 0개는 판정 없이 부재만 — DAG 없음(off)', () => {
-    expect(agentVerdict({ ...base, dbTotal: 0, succeeded: 0 })).toMatchObject({
-      tone: 'off',
-      label: 'DAG 없음',
+  it('실행 시작·그 외도 확인 필요다 — 성공 기록이 없으면 갈래를 따지지 않는다', () => {
+    // RUNNING 이 오늘 칸인지 사흘 전 칸인지 `classifyDb` 는 보지 않는다. 사흘째 멈춘
+    // DAG 를 정상 쪽에 두는 쪽이 더 크게 틀리므로, 성공 없음은 전부 확인 필요다.
+    expect(agentVerdict({ ...base, succeeded: 3, running: 1 })).toMatchObject({
+      tone: 'err',
+      label: '확인 필요',
+      count: 1,
     });
+    expect(agentVerdict({ ...base, succeeded: 3, other: 1 })).toMatchObject({
+      tone: 'err',
+      label: '확인 필요',
+      count: 1,
+    });
+  });
+
+  it('판정은 두 낱말뿐이다 — 연결 실패도 DAG 없음도 확인 필요로 접힌다', () => {
+    const labels = [
+      agentVerdict(base),
+      agentVerdict({ ...base, connectionStatus: 'FAIL' }),
+      agentVerdict({ ...base, connectionStatus: 'ZZZ' }),
+      agentVerdict({ ...base, dbTotal: 0, succeeded: 0 }),
+      agentVerdict({ ...base, succeeded: 2, failed: 2 }),
+    ].map((v) => v.label);
+    expect(new Set(labels)).toEqual(new Set(['정상', '확인 필요']));
+  });
+
+  it('셀 것이 없는 확인 필요에는 수가 붙지 않는다 — 0 을 세우지 않는다', () => {
+    expect(agentVerdict({ ...base, dbTotal: 0, succeeded: 0 }).count).toBeUndefined();
+    expect(agentVerdict({ ...base, connectionStatus: 'FAIL' }).count).toBeUndefined();
+  });
+
+  // wire 어휘는 라벨 금지 — raw enum 은 툴팁 채널에만 산다.
+  it('알 수 없는 connectionStatus 의 raw 는 hint 로만 간다', () => {
+    const v = agentVerdict({ ...base, connectionStatus: 'ZZZ' });
+    expect(v.label).toBe('확인 필요');
+    expect(v.hint).toContain('ZZZ');
+  });
+
+  it('관측 DB 0개는 정상이 아니다 — 부재에서 건강을 읽지 않는다', () => {
+    const v = agentVerdict({ ...base, dbTotal: 0, succeeded: 0 });
+    expect(v).toMatchObject({ tone: 'err', label: '확인 필요' });
+    expect(v.hint).toContain('관측 중인 논리 DB 가 없어요');
   });
 });

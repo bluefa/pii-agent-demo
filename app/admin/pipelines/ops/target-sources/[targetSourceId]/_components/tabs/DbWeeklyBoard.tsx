@@ -201,7 +201,10 @@ export function DbWeeklyBoard({
     })),
     // 'other' 는 계약 밖 값이 실제로 왔을 때만 생기는 칩이지만, 걸려 있는 동안에는
     // 0건이어도 남는다 — 사라지면 보이지 않는 필터가 목록을 비운 채로 남는다.
-    ...(counts.other > 0 || filter === 'other'
+    // 'other' 칩은 사라졌다 (오너 2026-08-26) — 계약 밖 값도 확인 필요 안에 있다.
+    // 다만 그 필터로 진입한 상태라면 세운다: 없으면 SegControl 의 value 가 옵션 밖이 되고,
+    // 보이지 않는 필터가 목록을 비운 채로 남는다.
+    ...(filter === 'other'
       ? [
           {
             value: 'other' as BoardFilter,
