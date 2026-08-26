@@ -252,7 +252,7 @@ export function OpsHeader({
             {/* 알약과 도장은 「연동 대상」 옆에 선다 (오너 08-26) — 둘 다 이 블록이
                 말하는 그 대상의 상태이지 경로의 일부가 아니다. 경로 줄은 이제 이동만
                 말한다: 어디서 왔고(크럼) 어디로 더 갈 수 있나(관련 페이지). */}
-            {processStatus && <StepPill status={processStatus} />}
+            {processStatus && <StepPill status={processStatus} framed />}
             {/* 도장과 알약은 다른 축이다: 알약은 "지금 어디", 도장은 "최초로 마친 적
                 있다 · 언제". 초기화된 대상은 둘이 같이 보이는 것이 말해야 하는 사실이다. */}
             <CompletedStamp firstInstalledAt={detail.pii_agent_first_installed_at} size="sm" />
