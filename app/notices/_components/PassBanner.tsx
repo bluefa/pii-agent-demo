@@ -1,5 +1,7 @@
 'use client';
 
+import { useLocale } from '@/app/components/LocaleProvider';
+import { POST_COPY } from '@/app/notices/_components/copy';
 import { passBannerStyles } from '@/lib/theme';
 
 /**
@@ -20,6 +22,12 @@ export const BANNER_CTA_TITLE = 'PASS 서비스 소개 안내';
 interface PassBannerProps {
   /** 아래 목록에서 그 제목의 글로 스크롤하고 아코디언을 편다. */
   onOpenPost: (title: string) => void;
+  /**
+   * 한국어 제목(위 상수) → 지금 언어의 제목. 링크가 가리키는 글의 `titles` 에서
+   * 온다 — 배너가 영어 제목을 따로 들고 있으면 Admin 이 글을 고칠 때 둘이 갈린다.
+   * 목록이 아직 없으면 한국어 제목 그대로다.
+   */
+  labelFor: (title: string) => string;
 }
 
 /**
@@ -29,7 +37,9 @@ interface PassBannerProps {
  * Admin 편집이 필요해지면 `Admin Guides` Tag(name-keyed content store) 재사용을
  * 먼저 검토한다. 그 전까지 문구는 이 파일이 원본이다.
  */
-export const PassBanner = ({ onOpenPost }: PassBannerProps) => (
+export const PassBanner = ({ onOpenPost, labelFor }: PassBannerProps) => {
+  const t = POST_COPY[useLocale().locale];
+  return (
   <section className={passBannerStyles.root}>
     <span className={passBannerStyles.dots} aria-hidden />
     <span className={passBannerStyles.glow} aria-hidden />
@@ -40,12 +50,10 @@ export const PassBanner = ({ onOpenPost }: PassBannerProps) => (
     </span>
 
     <div className={passBannerStyles.content}>
-      <p className={passBannerStyles.kicker}>ONBOARDING</p>
-      <p className={passBannerStyles.title}>PASS에 오신 것을 환영합니다! 👋</p>
-      <p className={passBannerStyles.body}>
-        PASS는 담당 시스템의 PII 모니터링 모듈 연동 및 상태 조회를 제공하는 서비스입니다.
-      </p>
-      <nav className={passBannerStyles.links} aria-label="온보딩 안내 문서">
+      <p className={passBannerStyles.kicker}>{t.bannerKicker}</p>
+      <p className={passBannerStyles.title}>{t.bannerTitle}</p>
+      <p className={passBannerStyles.body}>{t.bannerBody}</p>
+      <nav className={passBannerStyles.links} aria-label={t.bannerLinksLabel}>
         {BANNER_LINK_TITLES.map((title) => (
           <button
             key={title}
@@ -53,7 +61,7 @@ export const PassBanner = ({ onOpenPost }: PassBannerProps) => (
             onClick={() => onOpenPost(title)}
             className={passBannerStyles.link}
           >
-            {title}
+            {labelFor(title)}
           </button>
         ))}
       </nav>
@@ -64,7 +72,8 @@ export const PassBanner = ({ onOpenPost }: PassBannerProps) => (
       onClick={() => onOpenPost(BANNER_CTA_TITLE)}
       className={passBannerStyles.cta}
     >
-      PASS 소개 ›
+      {t.bannerCta}
     </button>
   </section>
-);
+  );
+};

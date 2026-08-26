@@ -26,9 +26,13 @@ interface CategoryModalProps {
  */
 export const CategoryModal = ({ type, onClose, onChanged }: CategoryModalProps) => {
   const [categories, setCategories] = useState<AdminPostCategory[] | null>(null);
-  const [name, setName] = useState('');
+  // Both languages side by side, not behind a tab like the editor: a category
+  // name is one line, and two visible boxes show a missing side without a click.
+  const [ko, setKo] = useState('');
+  const [en, setEn] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const ready = ko.trim() !== '' && en.trim() !== '';
 
   const reload = () => {
     listAdminPostCategories(type)
@@ -39,12 +43,13 @@ export const CategoryModal = ({ type, onClose, onChanged }: CategoryModalProps) 
   useEffect(reload, [type]);
 
   const submit = async () => {
-    if (name.trim() === '' || busy) return;
+    if (!ready || busy) return;
     setBusy(true);
     setError(null);
     try {
-      await createPostCategory({ type, name: name.trim() });
-      setName('');
+      await createPostCategory({ type, names: { ko: ko.trim(), en: en.trim() } });
+      setKo('');
+      setEn('');
       reload();
       onChanged();
     } catch (cause) {
@@ -76,13 +81,22 @@ export const CategoryModal = ({ type, onClose, onChanged }: CategoryModalProps) 
       <div className="space-y-4">
         <div className="flex gap-2">
           <input
-            value={name}
-            onChange={(event) => setName(event.target.value)}
+            value={ko}
+            onChange={(event) => setKo(event.target.value)}
             onKeyDown={(event) => { if (event.key === 'Enter') void submit(); }}
-            placeholder="새 Category 이름"
+            placeholder="이름 (한국어)"
+            aria-label="Category 이름 (한국어)"
             className={cn(inputStyles.base, 'flex-1')}
           />
-          <Button onClick={submit} disabled={busy || name.trim() === ''}>
+          <input
+            value={en}
+            onChange={(event) => setEn(event.target.value)}
+            onKeyDown={(event) => { if (event.key === 'Enter') void submit(); }}
+            placeholder="Name (English)"
+            aria-label="Category 이름 (English)"
+            className={cn(inputStyles.base, 'flex-1')}
+          />
+          <Button onClick={submit} disabled={busy || !ready}>
             추가
           </Button>
         </div>
@@ -97,8 +111,11 @@ export const CategoryModal = ({ type, onClose, onChanged }: CategoryModalProps) 
           )}
           {categories?.map((category) => (
             <li key={category.id} className="flex items-center gap-3 px-4 py-3">
-              <span className={cn('flex-1 text-sm font-medium', textColors.primary)}>
-                {category.name}
+              <span className="flex flex-1 flex-col">
+                <span className={cn('text-sm font-medium', textColors.primary)}>
+                  {category.names.ko}
+                </span>
+                <span className={cn('text-xs', textColors.tertiary)}>{category.names.en}</span>
               </span>
               <span className={cn('text-xs tabular-nums', textColors.tertiary)}>
                 게시글 {category.postCount}

@@ -5,7 +5,7 @@
 > API Tag: `FAQ & Notices`
 > 담당: TBD
 > 작성일: 2026-08-12
-> 마지막 수정일: 2026-08-12
+> 마지막 수정일: 2026-08-26
 > 관련 PR: TBD
 
 ## 1. 목적
@@ -519,7 +519,7 @@ paths:
       description: |
         Category를 추가한다. `displayOrder`는 같은 `type` 안에서 마지막 순번으로 자동 부여된다.
 
-        같은 `type` 안에서 `name`은 중복될 수 없다.
+        같은 `type` 안에서 `names.ko`와 `names.en`은 각각 중복될 수 없다.
       requestBody:
         required: true
         content:
@@ -622,9 +622,11 @@ components:
           type: integer
           format: int64
           nullable: true
-        categoryName:
-          type: string
+        categoryNames:
+          allOf:
+          - $ref: '#/components/schemas/LocalizedText'
           nullable: true
+          description: 소속 Category의 `names`. categoryId가 null이면 함께 null이다.
         titles:
           $ref: '#/components/schemas/LocalizedText'
         publishedAt:
@@ -651,8 +653,8 @@ components:
           format: int64
         type:
           $ref: '#/components/schemas/PostType'
-        name:
-          type: string
+        names:
+          $ref: '#/components/schemas/LocalizedText'
         displayOrder:
           type: integer
           format: int32
@@ -753,9 +755,11 @@ components:
           format: int64
           nullable: true
           description: Category가 지정되지 않은 게시글은 null이다.
-        categoryName:
-          type: string
+        categoryNames:
+          allOf:
+          - $ref: '#/components/schemas/LocalizedText'
           nullable: true
+          description: 소속 Category의 `names`. categoryId가 null이면 함께 null이다.
         titles:
           $ref: '#/components/schemas/LocalizedText'
         publishedAt:
@@ -776,8 +780,8 @@ components:
           format: int64
         type:
           $ref: '#/components/schemas/PostType'
-        name:
-          type: string
+        names:
+          $ref: '#/components/schemas/LocalizedText'
         displayOrder:
           type: integer
           format: int32
@@ -786,13 +790,14 @@ components:
       type: object
       required:
       - type
-      - name
+      - names
       properties:
         type:
           $ref: '#/components/schemas/PostType'
-        name:
-          type: string
-          description: 같은 type 안에서 고유해야 한다. 공백만으로 이루어질 수 없다.
+        names:
+          allOf:
+          - $ref: '#/components/schemas/LocalizedTextRequest'
+          description: ko/en 둘 다 필수. 같은 type 안에서 ko끼리, en끼리 각각 고유해야 한다.
     PostCreateRequest:
       type: object
       required:
@@ -878,7 +883,7 @@ components:
 | `contents.*` 안의 `img` | `src`는 업로드 API가 돌려준 URL만 들어 있다. `width`/`height`는 원본 픽셀 크기이며 관리자가 조절한 값이 아니다 — 레이아웃 밀림을 막기 위한 값이다. | §5 본문 HTML allow-list |
 | `publishedAt` | 최초 등록 시각이며 수정으로 변하지 않는다. 화면 표기는 `yy-mm-dd`로 절삭한다. | 화면 요구사항 |
 | `updatedAt` | 마지막 수정 시각. 고정/숨김 전이로는 갱신되지 않는다. 내용이 바뀐 경우에만 갱신된다. | §5 시각 규칙 |
-| `categoryId` / `categoryName` | 둘 다 null이면 미분류 게시글이다. 상세 페이지의 Category 그룹화에서 별도 "미분류" 그룹으로 처리해야 한다. | §5 Category 규칙 |
+| `categoryId` / `categoryNames` | `categoryNames`는 Category의 `names`(ko/en) 그대로다. 둘 다 null이면 미분류 게시글이다. 상세 페이지의 Category 그룹화에서 별도 "미분류" 그룹으로 처리해야 한다. | §5 Category 규칙 |
 | `pinned` | 정렬 그룹만 결정한다. 고정 그룹 내부는 다시 `publishedAt` 내림차순이다. | §5 정렬 규칙 |
 | `hidden` (Admin 전용) | Admin 목록에서 숨김 배지를 표시하는 근거다. 사용자 응답 스키마(`Post`)에는 이 필드가 존재하지 않는다 — 값이 false인 게 아니라 필드 자체가 없다. | §5 숨김 규칙 |
 | `hiddenAt` | 마지막 숨김 시각. 복구하면 null로 돌아가므로 숨김 이력이 아니라 **현재 상태의 부가 정보**다. 이력이 필요하면 별도 설계가 필요하다. | §5 숨김 규칙 |
@@ -956,6 +961,8 @@ components:
 ### Category
 
 - Category는 `type`에 소속된다. FAQ와 Notice가 같은 Category를 공유하지 않는다.
+- 이름은 `names`(ko/en 쌍)이며 둘 다 필수다. 같은 `type` 안에서 `ko`끼리, `en`끼리 **각각** 고유하다 — 한쪽만 겹쳐도 `409 CATEGORY_NAME_DUPLICATED`. `en`만 같으면 영어 화면에서 두 그룹이 같은 이름으로 보이기 때문이다.
+- 게시글 응답의 `categoryNames`는 BFF가 응답 시점에 join한 값이며 저장하지 않는다.
 - 삭제는 잔여 게시글이 0건일 때만 가능하다. 숨김 게시글도 잔여 게시글로 계산한다.
 - Category 이름 수정 API와 표시 순서 변경 API는 이번 범위에 포함하지 않는다. 요구사항에 없다.
 - `categoryId`가 null인 미분류 게시글이 존재할 수 있다.
@@ -1006,3 +1013,4 @@ enum 카탈로그(`catalogs/enums-and-states.md`)가 아직 부트스트랩되�
 | 26.08.12 | Draft | Added | FAQ / 공지사항 게시글·Category API 12건 초안 작성. 단일 `posts` 리소스 + `type` 구분, 삭제 없이 숨김 전이, Category 삭제는 잔여 게시글 0건일 때만 허용하는 방향으로 제안. | [2026-08-12 논의](../discussions/2026-08-12-faq-notices-added.md) |
 | 26.08.12 | Draft | Changed | Title·본문을 ko/en 쌍(`titles`, `contents`)으로 변경하고 본문 이미지 업로드 API를 추가(12 → 13건). allow-list에 `img` 추가. Draft 단계라 별도 discussion 없이 같은 논의 문서(§2.9)에 이어 기록. | [2026-08-12 논의](../discussions/2026-08-12-faq-notices-added.md) |
 | 26.08.12 | Draft | Changed | 목록 응답에서 본문을 제거하고 단건 조회로 옮김(`PostSummary` / `AdminPostSummary` 신설). 초안의 "목록에 본문 포함" 결정을 뒤집은 것으로, ko/en 2배 · 페이지네이션 없음 · 전체보기 화면이 겹쳐 목록 크기에 상한이 없어졌기 때문이다. 엔드포인트 수는 13건 그대로. | [2026-08-12 논의](../discussions/2026-08-12-faq-notices-added.md) §2.3 |
+| 26.08.26 | Draft | Changed | Category 이름을 ko/en 쌍으로 변경 — `PostCategory.name` → `names`, `PostSummary.categoryName` → `categoryNames`, `PostCategoryCreateRequest.name` → `names`. 중복 판정은 언어별 2축. 엔드포인트 수 변화 없음. | [2026-08-26 요청](../requests/2026-08-26-post-category-localized-names.md) |

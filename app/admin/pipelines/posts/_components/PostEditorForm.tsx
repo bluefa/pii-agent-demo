@@ -206,7 +206,9 @@ export const PostEditorForm = ({ type: initialType, postId }: PostEditorFormProp
             >
               <option value="">미분류</option>
               {categories.map((category) => (
-                <option key={category.id} value={category.id}>{category.name}</option>
+                <option key={category.id} value={category.id}>
+                  {category.names.ko} / {category.names.en}
+                </option>
               ))}
             </select>
           </div>

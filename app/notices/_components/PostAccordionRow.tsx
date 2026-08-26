@@ -1,12 +1,14 @@
 'use client';
 
 import { useEffect, useId, useState } from 'react';
+import { useLocale } from '@/app/components/LocaleProvider';
+import { POST_COPY } from '@/app/notices/_components/copy';
 import { CategoryBadge, PinBadge } from '@/app/notices/_components/PostBadge';
 import { renderGuideAst } from '@/app/components/features/process-status/GuideCard/render-guide-ast';
 import { getPost } from '@/app/lib/api/posts';
 import { POST_IMAGE_SRC_PREFIXES } from '@/lib/constants/post-images';
 import { bgColors, cn, postStyles } from '@/lib/theme';
-import { formatPostDate, type PostSummary } from '@/lib/types/post';
+import { formatPostDate, type LocalizedText, type PostSummary } from '@/lib/types/post';
 import { validateGuideHtml } from '@/lib/utils/validate-guide-html';
 
 interface PostAccordionRowProps {
@@ -31,8 +33,12 @@ export const PostAccordionRow = ({
   showCategory = true,
   defaultOpen = false,
 }: PostAccordionRowProps) => {
+  const { locale } = useLocale();
+  const t = POST_COPY[locale];
   const [open, setOpen] = useState(defaultOpen);
-  const [body, setBody] = useState<string | null>(null);
+  // Both languages are kept, not the one on screen: the contract sends the pair
+  // in one response, so a language switch re-renders without a second request.
+  const [body, setBody] = useState<LocalizedText | null>(null);
   const [failed, setFailed] = useState(false);
   const panelId = useId();
 
@@ -47,7 +53,7 @@ export const PostAccordionRow = ({
     if (!open || body !== null || failed) return;
     let alive = true;
     getPost(post.id)
-      .then((detail) => { if (alive) setBody(detail.contents.ko); })
+      .then((detail) => { if (alive) setBody(detail.contents); })
       .catch((error) => {
         if (!alive) return;
         // 404 = 목록을 받은 뒤 숨김 처리된 글. 독자에게 보일 오류가 아니라
@@ -63,7 +69,7 @@ export const PostAccordionRow = ({
 
   const parsed = body === null
     ? null
-    : validateGuideHtml(body, { allowImages: true, imageSrcPrefixes: POST_IMAGE_SRC_PREFIXES });
+    : validateGuideHtml(body[locale], { allowImages: true, imageSrcPrefixes: POST_IMAGE_SRC_PREFIXES });
 
   return (
     // 배너 링크가 스크롤할 표적. id 는 행이 들고 있어야 목록 어디에 놓여도 찾힌다.
@@ -96,14 +102,16 @@ export const PostAccordionRow = ({
         <span className={postStyles.entryMain}>
           {/* 배지줄과 제목이 다른 줄에 있어야 제목이 행의 주어가 된다 —
               한 줄에 나란하면 크기 한 단 차이뿐이라 계층이 서지 않는다. */}
-          {(post.pinned || (showCategory && post.categoryName)) && (
+          {(post.pinned || (showCategory && post.categoryNames)) && (
             <span className={postStyles.rowMeta}>
               {post.pinned && <PinBadge />}
-              {showCategory && post.categoryName && <CategoryBadge name={post.categoryName} />}
+              {showCategory && post.categoryNames && (
+                <CategoryBadge name={post.categoryNames[locale]} />
+              )}
             </span>
           )}
           <span className={cn(postStyles.entryTitle, open && postStyles.entryTitleOpen)}>
-            {post.titles.ko}
+            {post.titles[locale]}
           </span>
         </span>
 
@@ -126,13 +134,13 @@ export const PostAccordionRow = ({
               open ? postStyles.panelFadeOn : postStyles.panelFadeOff,
             )}
           >
-            {failed && <p>본문을 불러오지 못했습니다.</p>}
+            {failed && <p>{t.bodyFailed}</p>}
             {!failed && body === null && (
               <div className={cn('h-4 w-2/3 animate-pulse rounded', bgColors.divider)} />
             )}
             {/* 본문 서식은 `.prose-guide` 가 단일 출처 — 목록·에디터·가이드가 같은 규칙으로 그린다. */}
             {parsed?.valid && <div className="prose-guide">{renderGuideAst(parsed.ast)}</div>}
-            {parsed && !parsed.valid && <p>본문 형식이 올바르지 않아 표시할 수 없습니다.</p>}
+            {parsed && !parsed.valid && <p>{t.bodyInvalid}</p>}
           </div>
         </div>
       </div>

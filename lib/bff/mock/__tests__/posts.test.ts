@@ -440,19 +440,36 @@ describe('categories', () => {
   it('scopes names to a type — FAQ and Notice may hold the same name', async () => {
     const posts = await freshStore();
 
-    await posts.createCategory({ type: 'NOTICE', name: '공통' });
-    await expect(posts.createCategory({ type: 'FAQ', name: '공통' })).resolves.toBeDefined();
+    await posts.createCategory({ type: 'NOTICE', names: { ko: '공통', en: 'Common' } });
+    await expect(
+      posts.createCategory({ type: 'FAQ', names: { ko: '공통', en: 'Common' } }),
+    ).resolves.toBeDefined();
   });
 
-  it('rejects a duplicate name inside one type', async () => {
+  // Each language is its own uniqueness axis — a clash on either side is a 409.
+  it.each([
+    ['ko', { ko: '중복', en: 'Other' }],
+    ['en', { ko: '다른 이름', en: 'Dup' }],
+  ])('rejects a duplicate %s name inside one type', async (_side, names) => {
     const posts = await freshStore();
 
-    await posts.createCategory({ type: 'NOTICE', name: '중복' });
+    await posts.createCategory({ type: 'NOTICE', names: { ko: '중복', en: 'Dup' } });
     const error = asBffError(
-      await posts.createCategory({ type: 'NOTICE', name: '중복' }).catch((cause: unknown) => cause),
+      await posts.createCategory({ type: 'NOTICE', names }).catch((cause: unknown) => cause),
     );
     expect(error.status).toBe(409);
     expect(error.code).toBe('CATEGORY_NAME_DUPLICATED');
+  });
+
+  it('rejects a category with one side blank', async () => {
+    const posts = await freshStore();
+
+    const error = asBffError(
+      await posts.createCategory({ type: 'NOTICE', names: { ko: '이름', en: '  ' } })
+        .catch((cause: unknown) => cause),
+    );
+    expect(error.status).toBe(400);
+    expect(error.code).toBe('VALIDATION_FAILED');
   });
 
   it('refuses deletion while posts remain, counting hidden posts too', async () => {
@@ -471,7 +488,7 @@ describe('categories', () => {
 
   it('deletes an empty category', async () => {
     const posts = await freshStore();
-    const created = await posts.createCategory({ type: 'FAQ', name: '빈 카테고리' });
+    const created = await posts.createCategory({ type: 'FAQ', names: { ko: '빈 카테고리', en: 'Empty' } });
 
     await expect(posts.deleteCategory(created.id)).resolves.toBeUndefined();
   });

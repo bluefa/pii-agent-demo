@@ -1,7 +1,10 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
 import "@/app/globals.css";
+import { cookies } from "next/headers";
+import { LocaleProvider } from "@/app/components/LocaleProvider";
 import { ToastProvider } from "@/app/components/ui/toast";
+import { DEFAULT_LOCALE, LOCALE_COOKIE_NAME, parseLocaleCookie } from "@/lib/locale";
 import { cn } from "@/lib/theme";
 
 // The UI is Korean and Geist ships no Hangul, so every Korean string fell through to whatever the
@@ -26,17 +29,23 @@ export const metadata: Metadata = {
   description: "Cloud Provider PII Agent 연동 관리 시스템",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // The language rides in a cookie so this first paint already speaks it — see lib/locale.ts.
+  const locale = parseLocaleCookie((await cookies()).get(LOCALE_COOKIE_NAME)?.value);
   return (
-    <html lang="ko">
+    // Only the notice screens speak the chosen language today; the localised subtree
+    // stamps its own `lang` so the Korean-only screens are not announced as English.
+    <html lang={DEFAULT_LOCALE}>
       <body
         className={cn(pretendard.variable, 'antialiased')}
       >
-        <ToastProvider>{children}</ToastProvider>
+        <LocaleProvider initial={locale}>
+          <ToastProvider>{children}</ToastProvider>
+        </LocaleProvider>
       </body>
     </html>
   );

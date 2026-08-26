@@ -115,14 +115,14 @@ const ensureSeeded = (): void => {
 // Projections
 // ---------------------------------------------------------------------------
 
-const categoryName = (categoryId: number | null): string | null =>
-  categoryId === null ? null : (categories.get(categoryId)?.name ?? null);
+const categoryNames = (categoryId: number | null): LocalizedText | null =>
+  categoryId === null ? null : (categories.get(categoryId)?.names ?? null);
 
 const toSummary = (post: StoredPost): PostSummary => ({
   id: post.id,
   type: post.type,
   categoryId: post.categoryId,
-  categoryName: categoryName(post.categoryId),
+  categoryNames: categoryNames(post.categoryId),
   titles: post.titles,
   publishedAt: post.publishedAt,
   updatedAt: post.updatedAt,
@@ -379,7 +379,7 @@ export const mockPosts = {
       id: store().nextPostId++,
       type: body.type,
       categoryId: body.categoryId ?? null,
-      categoryName: categoryName(body.categoryId ?? null),
+      categoryNames: categoryNames(body.categoryId ?? null),
       titles: body.titles,
       contents: saved.contents,
       publishedAt: now,
@@ -468,23 +468,26 @@ export const mockPosts = {
 
   createCategory: async (body: PostCategoryCreateRequest): Promise<AdminPostCategory> => {
     ensureSeeded();
-    const name = body.name.trim();
-    if (name === '') {
-      throw new BffError(400, 'VALIDATION_FAILED', 'Category 이름이 비어 있습니다');
+    const names: LocalizedText = { ko: body.names.ko.trim(), en: body.names.en.trim() };
+    if (names.ko === '' || names.en === '') {
+      throw new BffError(400, 'VALIDATION_FAILED', 'Category 이름의 한국어·영어가 모두 필요합니다');
     }
-    // Unique within a type only — FAQ and Notice do not share categories.
-    const duplicated = [...categories.values()].some(
-      (category) => category.type === body.type && category.name === name,
+    // Unique within a type only — FAQ and Notice do not share categories. Each
+    // language is its own axis: two categories that differ in Korean but share
+    // an English name are two rails with one label on the English screen.
+    const siblings = [...categories.values()].filter((category) => category.type === body.type);
+    const clash = siblings.find(
+      (category) => category.names.ko === names.ko || category.names.en === names.en,
     );
-    if (duplicated) {
-      throw new BffError(409, 'CATEGORY_NAME_DUPLICATED', `이미 있는 Category 입니다: ${name}`);
+    if (clash) {
+      const taken = clash.names.ko === names.ko ? names.ko : names.en;
+      throw new BffError(409, 'CATEGORY_NAME_DUPLICATED', `이미 있는 Category 입니다: ${taken}`);
     }
 
-    const siblings = [...categories.values()].filter((category) => category.type === body.type);
     const category: StoredCategory = {
       id: store().nextCategoryId++,
       type: body.type,
-      name,
+      names,
       displayOrder: siblings.length + 1,
       active: true,
     };

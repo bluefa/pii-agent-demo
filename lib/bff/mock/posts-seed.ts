@@ -17,12 +17,12 @@ interface SeedCategory extends PostCategory {
 }
 
 export const postCategoriesSeed: SeedCategory[] = [
-  { id: 1, type: 'NOTICE', name: '서비스 점검', displayOrder: 1, active: true },
-  { id: 2, type: 'NOTICE', name: '기능 업데이트', displayOrder: 2, active: true },
-  { id: 3, type: 'FAQ', name: '연동', displayOrder: 1, active: true },
-  { id: 4, type: 'FAQ', name: '스캔', displayOrder: 2, active: true },
-  { id: 5, type: 'FAQ', name: '권한', displayOrder: 3, active: true },
-  { id: 6, type: 'NOTICE', name: '서비스 안내', displayOrder: 3, active: true },
+  { id: 1, type: 'NOTICE', names: { ko: '서비스 점검', en: 'Maintenance' }, displayOrder: 1, active: true },
+  { id: 2, type: 'NOTICE', names: { ko: '기능 업데이트', en: 'Updates' }, displayOrder: 2, active: true },
+  { id: 3, type: 'FAQ', names: { ko: '연동', en: 'Integration' }, displayOrder: 1, active: true },
+  { id: 4, type: 'FAQ', names: { ko: '스캔', en: 'Scan' }, displayOrder: 2, active: true },
+  { id: 5, type: 'FAQ', names: { ko: '권한', en: 'Permissions' }, displayOrder: 3, active: true },
+  { id: 6, type: 'NOTICE', names: { ko: '서비스 안내', en: 'About PASS' }, displayOrder: 3, active: true },
 ];
 
 const post = (
@@ -39,7 +39,7 @@ const post = (
   id,
   type,
   categoryId,
-  categoryName: null, // resolved by the store at read time
+  categoryNames: null, // resolved by the store at read time
   titles: { ko: titleKo, en: titleEn },
   contents: { ko: bodyKo, en: bodyEn },
   publishedAt,
