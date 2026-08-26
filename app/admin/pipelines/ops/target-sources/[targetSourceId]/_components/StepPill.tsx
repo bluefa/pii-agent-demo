@@ -36,7 +36,9 @@ export interface StepPillProps {
    *
    * 틴트 알약은 **목록의 문법**이다 — 이력 표에서는 한 열에 여럿이 쌓이므로 계열 색이
    * 서로를 구별한다. 마스트헤드에는 하나뿐이라 구별할 상대가 없고, 대신 그 하나가 이
-   * 화면의 주어다: 흰 면 + 2px 획이 도장과 같은 "찍힌 것"의 문법이고(CompletedStamp),
+   * 화면의 주어다: 흰 면 + 획이 도장과 같은 "찍힌 것"의 문법이고(CompletedStamp),
+   * 그 획은 1px 이다 — 2px 은 도장(2px + 안쪽 링 한 겹)과 같은 무게라 둘이 나란히 서면
+   * 어느 쪽이 이 화면의 주어인지 다투었다 (오너 08-26 "stroke 낮추자").
    * 단계 번호만 파랑으로 올라선다. 14px 숫자는 이 줄에서 「연동 대상」(14px)과 같은 급이다.
    *
    * 색이 계열을 말하지 않게 되므로 **어느 단계인지는 숫자와 낱말이 진다** — 액자는 모든
@@ -53,7 +55,7 @@ export function StepPill({ status, framed = false, className }: StepPillProps): 
     return (
       <span
         className={cn(
-          'inline-flex flex-none items-baseline gap-1 rounded-full border-2 px-2.5 py-0.5',
+          'inline-flex flex-none items-baseline gap-1 rounded-full border px-2.5 py-0.5',
           'border-[var(--pl-text-strong)] bg-[var(--pl-bg-card)]',
           className,
         )}
