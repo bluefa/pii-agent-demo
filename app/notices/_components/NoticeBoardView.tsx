@@ -197,7 +197,7 @@ export const NoticeBoardView = () => {
   }
 
   return (
-    <div className={postStyles.page}>
+    <div lang={locale} className={postStyles.page}>
       <PassBanner onOpenPost={openPostByTitle} labelFor={labelFor} />
       {/* 공지사항 좌 · FAQ 우. min-w-0 은 카드 쪽에 있어야 긴 제목이 자기 열을 넓혀
           옆 열을 밀지 않는다. */}
