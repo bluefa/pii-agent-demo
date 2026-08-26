@@ -4076,6 +4076,11 @@ export const postStyles = {
     'focus-visible:outline-2 focus-visible:outline-[#0064FF] focus-visible:-outline-offset-2',
   /** 목록이 비었을 때의 한 줄. 카드와 그룹 목록이 같은 문장을 같은 자리에 놓는다. */
   emptyRow: 'px-[22px] py-10 text-center text-[14px] text-[#6B7280]',
+  /** Admin row action (고정 · 숨김) and the header's 'Category 관리' — one quiet outlined button. */
+  rowAction:
+    'rounded-md border border-[#E5E7EB] px-[11px] py-1.5 text-[12px] font-semibold text-[#4E5968] transition-colors hover:bg-[#F9FAFB]',
+  /** Admin header's hidden-post count, beside the shown count. */
+  cardHiddenCount: 'text-[12px] text-[#6B7280] tabular-nums',
   /**
    * 왼쪽 지시바 — hover·펼침에 세로로 자란다. 배경 틴트만으로는 "지금 여기"가
    * 흰 바탕과 1.05:1 이라 거의 안 보인다(`tableRowLift` 에서 받은 같은 지적).

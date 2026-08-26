@@ -57,7 +57,7 @@ export const PostAdminCard = ({
     <button
       type="button"
       onClick={onClick}
-      className="rounded-md border border-[#E5E7EB] px-[11px] py-1.5 text-[12px] font-semibold text-[#4E5968] transition-colors hover:bg-[#F9FAFB]"
+      className={postStyles.rowAction}
     >
       {label}
     </button>
@@ -72,7 +72,7 @@ export const PostAdminCard = ({
         {shown !== null && <span className={postStyles.cardCount}>{shown.length}</span>}
         {/* 숨김 건수는 계약 추가 없이 센다 — Admin 목록은 전량을 받는다. */}
         {hiddenCount > 0 && (
-          <span className="text-[12px] text-[#6B7280] tabular-nums">숨김 {hiddenCount}</span>
+          <span className={postStyles.cardHiddenCount}>숨김 {hiddenCount}</span>
         )}
         <div className="ml-auto flex items-center gap-2">
           <PostFilterButton
@@ -85,7 +85,7 @@ export const PostAdminCard = ({
           <button
             type="button"
             onClick={onManageCategories}
-            className="rounded-md border border-[#E5E7EB] px-[11px] py-1.5 text-[12px] font-semibold text-[#4E5968] transition-colors hover:bg-[#F9FAFB]"
+            className={postStyles.rowAction}
           >
             Category 관리
           </button>
@@ -104,7 +104,7 @@ export const PostAdminCard = ({
       )}
 
       {shown !== null && shown.length === 0 && (
-        <p className="px-[22px] py-10 text-center text-[14px] text-[#6B7280]">
+        <p className={postStyles.emptyRow}>
           {posts?.length ? '조건에 맞는 게시글이 없습니다.' : '등록된 게시글이 없습니다.'}
         </p>
       )}

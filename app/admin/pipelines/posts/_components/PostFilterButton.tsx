@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { cn, postStyles } from '@/lib/theme';
+import { cn, postFormStyles, postStyles } from '@/lib/theme';
 
 /** 노출 상태 필터. `undefined` = 전체. */
 export type VisibilityFilter = 'visible' | 'hidden' | undefined;
@@ -77,14 +77,14 @@ export const PostFilterButton = ({
       {open && (
         <div className={postStyles.filterPop}>
           <div className="flex flex-col gap-2">
-            <span className="text-[12px] font-bold tracking-[0.02em] text-[#4E5968]">Category</span>
+            <span className={postFormStyles.label}>Category</span>
             <div className="flex flex-wrap gap-1.5">
               {chip('전체', category === undefined, () => onCategory(undefined))}
               {categories.map(({ id, label }) => chip(label, category === id, () => onCategory(id)))}
             </div>
           </div>
           <div className="flex flex-col gap-2">
-            <span className="text-[12px] font-bold tracking-[0.02em] text-[#4E5968]">노출 상태</span>
+            <span className={postFormStyles.label}>노출 상태</span>
             <div className="flex flex-wrap gap-1.5">
               {chip('전체', visibility === undefined, () => onVisibility(undefined))}
               {chip('노출', visibility === 'visible', () => onVisibility('visible'))}
