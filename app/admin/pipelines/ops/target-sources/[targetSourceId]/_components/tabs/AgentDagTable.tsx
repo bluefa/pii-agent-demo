@@ -111,12 +111,8 @@ const sortRank = (agent: DagAgentSummary): number => TONE_RANK[agentVerdict(agen
 
 export interface AgentDagTableProps {
   data: DagStatusResponse;
-  /**
-   * 주간 보드 패널을 이 에이전트로 스코프해 연다. 필터까지 받는 이유는 한 행에 진입이
-   * 둘이어서다 — 규모(전부 보기)와 확인 필요(문제만 보기)는 다른 질문이고, 여는 쪽이
-   * 무엇을 보여 주기로 했는지 알지 보드가 추측할 일이 아니다.
-   */
-  onViewDbs: (agentId: string, filter: 'ALL' | 'attention') => void;
+  /** 주간 보드 패널을 이 에이전트로 스코프해 연다 — 진입은 규모 열의 수 하나뿐이다. */
+  onViewDbs: (agentId: string) => void;
   /**
    * 확정 정보 조인 — 없으면(로딩·조회 실패·조인 실패) 그 칸들은 대시로 선다.
    * §10 은 리소스에 대해 resourceId·gcpRegion 만 보증한다: Resource Name·DatabaseType·
@@ -128,57 +124,6 @@ export interface AgentDagTableProps {
    * (`IdcResourceTable`)의 접속 주소 · Port · Database Type 이 선다 (오너 2026-08-26).
    */
   isIdc: boolean;
-}
-
-/**
- * Monitoring 상태 셀 (시안 A, 오너 2026-08-26) — 판정 알약 + **확인해야 할 개수 하나**,
- * 그리고 그 수가 곧 진입이다.
- *
- * 분수(`34/52 성공`)를 버린 이유는 한 칸 안에서 극성이 뒤집혔기 때문이다: 알약은 잘못된
- * 것을 부르고(확인 필요) 분수는 잘된 것을 셌다. 정작 필요한 수 — 확인해야 할 18 — 은
- * 어디에도 없어서 빼야 나왔고, 밑줄은 성공한 34 위에 앉아 목적지를 잘못 말했고,
- * 정상 행은 `정상 52/52 성공`으로 같은 사실을 두 번 말했다. 열을 세로로 훑으면 마지막
- * 낱말이 매 행 `성공`이었다.
- *
- * 지금은 바로 위 요약 카운트 줄과 같은 문법이다 — 버킷마다 자기 수를 세고, 분수가 없고,
- * 극성이 한 방향. 이 셀은 그 줄의 리소스 단위 축소판이다. 활자도 그 줄의 것을 쓴다
- * (`countValue` 14px bold tabular): 알약 12px 과 갈려서 무엇이 판정이고 무엇이 그 크기인지
- * 형태가 말한다.
- *
- * 수는 판정을 낸 함수가 같이 낸다(`verdict.count`) — 셀이 같은 셈을 두 번째로 하다가
- * 어긋날 길을 없앤다. 그래서 수가 서는 행은 정확히 알약이 '확인 필요'인 행이다.
- * 나머지 판정(정상 · 실행 시작 · 그 외 · DAG 없음 · 연결 실패)은 알약만 세운다 —
- * 셀 것이 없다는 것이 곧 볼 것이 없다는 뜻이 된다.
- *
- * 판정은 호출부에서 받는다 — 같은 행의 실패 레일이 같은 값을 읽어야 하고, 레일과 알약이
- * 서로 다른 판정을 말할 수 있는 길은 아예 없는 편이 낫다(정렬 키가 tone 을 쓰는 것과 같은 이유).
- */
-function VerdictCell({
-  verdict,
-  onViewDbs,
-}: {
-  verdict: ReturnType<typeof agentVerdict>;
-  onViewDbs: () => void;
-}): ReactElement {
-  const count = verdict.count ?? 0;
-  return (
-    <span className="inline-flex flex-wrap items-center gap-2">
-      <span title={verdict.hint}>
-        <TcPill tone={verdict.tone} label={verdict.label} />
-      </span>
-      {count > 0 && (
-        <button
-          type="button"
-          onClick={onViewDbs}
-          aria-label={`이 리소스의 확인 필요 논리 DB ${count.toLocaleString('ko-KR')}건을 최근 7일 현황에서 보기`}
-          // 색은 판정에 남고 밑줄이 affordance 를 진다 — 카운트 줄의 `실패 14` 와 같은 규칙.
-          className="cursor-pointer whitespace-nowrap border-b border-current text-[14px] font-bold tabular-nums text-[var(--pl-err-text)]"
-        >
-          {count.toLocaleString('ko-KR')}
-        </button>
-      )}
-    </span>
-  );
 }
 
 export function AgentDagTable({
@@ -377,14 +322,14 @@ export function AgentDagTable({
                         </td>
                       </>
                     )}
-                    {/* 이 리소스가 무엇을 얼마나 보고 있는지, 그리고 **모든 행의 창구**.
-                        판정과 무관하게 서므로 정상 행도 열어 볼 수 있다 — 확인 필요의 수는
-                        문제만 열고, 이 수는 전부 연다. 0 이면 열 것이 없어 대시다. */}
+                    {/* 이 리소스가 무엇을 얼마나 보고 있는지, 그리고 **행의 유일한 창구**.
+                        판정과 무관하게 서므로 정상 행도 열어 볼 수 있다. 0 이면 열 것이
+                        없어 대시다. 열린 보드는 문제 우선으로 서고 확인 필요 칩을 갖는다. */}
                     <td className={CELL}>
                       {agent.dbTotal > 0 ? (
                         <button
                           type="button"
-                          onClick={() => onViewDbs(agent.agentId, 'ALL')}
+                          onClick={() => onViewDbs(agent.agentId)}
                           aria-label={`이 리소스의 논리 DB ${agent.dbTotal.toLocaleString('ko-KR')}건을 최근 7일 현황에서 보기`}
                           className="cursor-pointer whitespace-nowrap border-b border-current font-mono tabular-nums text-[var(--pl-text-strong)]"
                         >
@@ -394,11 +339,13 @@ export function AgentDagTable({
                         <Dash />
                       )}
                     </td>
+                    {/* 판정 칸은 낱말 하나다 (오너 2026-08-26) — 수는 옆의 규모 열이
+                        전부 진다. 한 칸이 판정과 수를 같이 지면, 분수를 걷어 낸 이유
+                        (한 칸 안에서 두 가지 일)로 그대로 되돌아간다. 몇 개인지는 툴팁. */}
                     <td className={CELL}>
-                      <VerdictCell
-                        verdict={verdict}
-                        onViewDbs={() => onViewDbs(agent.agentId, 'attention')}
-                      />
+                      <span title={verdict.hint}>
+                        <TcPill tone={verdict.tone} label={verdict.label} />
+                      </span>
                     </td>
                   </tr>
                 );

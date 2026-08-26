@@ -278,10 +278,15 @@ describe('agentVerdict — 행의 종합 상태 (모든 행에 알약)', () => {
     expect(agentVerdict(base)).toMatchObject({ tone: 'ok', label: '정상' });
   });
 
-  it('성공하지 못한 논리 DB 수가 그대로 확인 필요의 수다', () => {
+  it('판정은 낱말만 낸다 — 몇 개인지는 툴팁 채널로만 간다', () => {
+    // 수를 판정 칸에 다시 실으면(오너 2026-08-26 삭제) 한 칸이 판정과 수를 같이 지게 되어,
+    // 분수를 걷어 낸 이유로 되돌아간다. 세는 것은 규모 열과 요약 줄의 일이다.
     const v = agentVerdict({ ...base, succeeded: 2, failed: 1, unscheduled: 1 });
-    expect(v).toMatchObject({ tone: 'err', label: '확인 필요', count: 2 });
-    expect(v.hint).toContain('2개');
+    expect(v).toEqual({
+      tone: 'err',
+      label: '확인 필요',
+      hint: '논리 DB 2개가 최근 7일 성공 기록이 없어요',
+    });
   });
 
   // ⛔ 회귀 잠금: 한때 판정이 `dbTotal − succeeded` 로 세어서, 요약 줄이 '확인 필요 0'
@@ -289,16 +294,14 @@ describe('agentVerdict — 행의 종합 상태 (모든 행에 알약)', () => {
   it('실행 시작·그 외도 확인 필요다 — 성공 기록이 없으면 갈래를 따지지 않는다', () => {
     // RUNNING 이 오늘 칸인지 사흘 전 칸인지 `classifyDb` 는 보지 않는다. 사흘째 멈춘
     // DAG 를 정상 쪽에 두는 쪽이 더 크게 틀리므로, 성공 없음은 전부 확인 필요다.
-    expect(agentVerdict({ ...base, succeeded: 3, running: 1 })).toMatchObject({
-      tone: 'err',
-      label: '확인 필요',
-      count: 1,
-    });
-    expect(agentVerdict({ ...base, succeeded: 3, other: 1 })).toMatchObject({
-      tone: 'err',
-      label: '확인 필요',
-      count: 1,
-    });
+    for (const agent of [
+      { ...base, succeeded: 3, running: 1 },
+      { ...base, succeeded: 3, other: 1 },
+    ]) {
+      const v = agentVerdict(agent);
+      expect(v).toMatchObject({ tone: 'err', label: '확인 필요' });
+      expect(v.hint).toContain('1개');
+    }
   });
 
   it('판정은 두 낱말뿐이다 — 연결 실패도 DAG 없음도 확인 필요로 접힌다', () => {
@@ -312,9 +315,9 @@ describe('agentVerdict — 행의 종합 상태 (모든 행에 알약)', () => {
     expect(new Set(labels)).toEqual(new Set(['정상', '확인 필요']));
   });
 
-  it('셀 것이 없는 확인 필요에는 수가 붙지 않는다 — 0 을 세우지 않는다', () => {
-    expect(agentVerdict({ ...base, dbTotal: 0, succeeded: 0 }).count).toBeUndefined();
-    expect(agentVerdict({ ...base, connectionStatus: 'FAIL' }).count).toBeUndefined();
+  it('셀 것이 없는 확인 필요는 개수를 말하지 않는다 — 0 을 세우지 않는다', () => {
+    expect(agentVerdict({ ...base, dbTotal: 0, succeeded: 0 }).hint).not.toMatch(/\d+개/);
+    expect(agentVerdict({ ...base, connectionStatus: 'FAIL' }).hint).not.toMatch(/\d+개/);
   });
 
   // wire 어휘는 라벨 금지 — raw enum 은 툴팁 채널에만 산다.

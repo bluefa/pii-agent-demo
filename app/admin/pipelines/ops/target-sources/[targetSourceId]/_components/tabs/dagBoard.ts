@@ -237,8 +237,12 @@ export const summarizeAgents = (data: DagStatusResponse): DagAgentSummary[] =>
  *   행이라 그 사실이 곧 확인 대상이다.
  * - 관측 논리 DB 0개는 성공률 100% 가 아니라 **아무것도 안 보고 있다**는 뜻이다.
  *   부재에서 건강을 읽으면 안 된다. 셀 수가 없으므로 수는 붙지 않는다.
- * - 그 밖에는 성공하지 못한 논리 DB 개수가 그대로 확인 필요의 수다
+ * - 그 밖에는 성공하지 못한 논리 DB 가 하나라도 있으면 확인 필요다
  *   (`attentionCount` — 요약 카운트 줄이 쓰는 그 셈).
+ *
+ * 수는 내지 않는다 (오너 2026-08-26). 한 행에 수가 둘이면(규모·확인 필요) 판정 칸이
+ * 다시 두 가지 일을 하고, 시안 A 가 분수를 걷은 이유로 되돌아간다. 몇 개인지는 툴팁이
+ * 말하고, 세는 것은 규모 열과 요약 줄의 일이다.
  *
  * ⛔ 판정을 다시 갈래 내지 말 것. 한 화면에서 같은 낱말이 자리마다 다른 집합을 부르면
  * 그 낱말은 아무것도 뜻하지 않는다 — 한때 이 함수가 `dbTotal − succeeded` 로 판정하고
@@ -249,10 +253,7 @@ export const summarizeAgents = (data: DagStatusResponse): DagAgentSummary[] =>
  */
 export const agentVerdict = (
   agent: DagAgentSummary,
-  // count 는 '확인 필요'에만, 그것도 셀 것이 있을 때만 실린다 — 시안 A 의 셀이 그 수를
-  // 그대로 세운다. 판정을 낸 함수가 수까지 같이 내주므로 셀이 같은 셈을 두 번째로 하다가
-  // 어긋날 길이 없다.
-): { tone: TcTone; label: string; count?: number; hint?: string } => {
+): { tone: TcTone; label: string; hint?: string } => {
   const attention = { tone: 'err' as const, label: '확인 필요' };
   if (agent.connectionStatus !== 'SUCCESS') {
     const conn = connPill(agent.connectionStatus);
@@ -265,7 +266,7 @@ export const agentVerdict = (
   if (count === 0) {
     return { tone: 'ok', label: '정상', hint: '관측 논리 DB 전부 최근 7일 성공' };
   }
-  return { ...attention, count, hint: `논리 DB ${count}개가 최근 7일 성공 기록이 없어요` };
+  return { ...attention, hint: `논리 DB ${count}개가 최근 7일 성공 기록이 없어요` };
 };
 
 export const connPill = (

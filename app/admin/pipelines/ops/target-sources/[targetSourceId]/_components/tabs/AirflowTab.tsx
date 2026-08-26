@@ -152,9 +152,8 @@ export function AirflowTab({ targetSourceId, isIdc, dag }: AirflowTabProps): Rea
                 <AgentDagTable
                   data={dag.data}
                   // "DAG 상태 조회"가 약속하는 것은 그 에이전트의 DB 전부다.
-                  // 행의 수가 여는 것은 그 수가 센 행이다 — 논리 DB 는 전부, 확인 필요는
-                  // 그 집합만. 어느 쪽인지는 누른 수가 정하고 보드는 받기만 한다.
-                  onViewDbs={(agentId, filter) => board.open({ agentId, filter })}
+                  // 행의 수가 여는 것은 그 수가 센 행이다 — 규모 열의 수는 그 리소스 전부.
+                  onViewDbs={(agentId) => board.open({ agentId, filter: 'ALL' })}
                   confirmed={confirmed}
                   isIdc={isIdc}
                 />
