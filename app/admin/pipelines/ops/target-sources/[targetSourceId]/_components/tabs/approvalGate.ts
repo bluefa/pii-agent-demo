@@ -75,7 +75,8 @@ export function tcRunGate(run: TcExecutionStatus, hasLatest: boolean, latestFail
 export interface ApprovalHead {
   pill: { tone: TcTone; label: string };
   desc: string;
-  /** Mounts PII Agent 설치 완료 — true on exactly one state: 세 조건이 모두 충족. */
+  /** 연동 완료 CTA 의 잠금을 푼다 — true on exactly one state: 세 조건이 모두 충족.
+   *  (버튼 자체는 늘 마운트된다 — 오너 2026-08-26.) */
   canApprove: boolean;
 }
 
@@ -238,9 +239,40 @@ export interface EvidencePill {
   label: string;
 }
 
+/**
+ * 세는 값 한 조각 — "총 14개", "14개 성공", "0개 확인 필요".
+ *
+ * 수와 낱말을 나눠 두는 이유는 렌더 때문이다: 수는 한 단 크고 굵게, 낱말은 한 단 작게
+ * 선다 (오너 2026-08-26: "숫자는 14픽셀로 올리고"). 문자열 한 벌로 내려보내면 호출부가
+ * 정규식으로 숫자를 도로 찾아내야 한다.
+ */
+export interface CountSegment {
+  /** 수 앞에 붙는 낱말 — '총'. */
+  prefix?: string;
+  count: number;
+  /** 수 뒤에 붙는 낱말 — '개', '개 성공', '개 확인 필요'. */
+  suffix: string;
+}
+
+/** 근거 한 줄의 라벨–값 — 승인 카드가 조건 ② 와 같은 문법으로 그린다. */
+export interface MonitoringEvidenceFact {
+  label: string;
+  segments: readonly CountSegment[];
+}
+
 export interface MonitoringEvidenceHead {
   pill: EvidencePill;
+  /** 산문 한 줄 — 셀 수 있는 사실이 아직 없을 때(조회 중·조회 실패·미지 값). */
   subtitle: string | null;
+  /**
+   * 라벨–값 행 (오너 2026-08-26: "Dag 상황도 test connection 처럼 정리해줘").
+   *
+   * ` · ` 로 이어 붙인 한 문장이던 것을 사실마다 한 행으로 나눈다. 낱말은 그대로다 —
+   * 값의 이름(논리 DB·에이전트)만 왼쪽 라벨 열로 나가고, 문장의 종결어미가 값에 어울리는
+   * 명사형으로 바뀐다. 이 문장은 Airflow 확인 탭이 쓰지 않으므로(그 탭은 알약만 공유한다)
+   * 두 화면이 갈라질 일은 없다.
+   */
+  facts: readonly MonitoringEvidenceFact[];
   /** Wire vocabulary (raw enum) — tooltip channel only. */
   titleHint?: string;
 }
@@ -254,45 +286,71 @@ export function monitoringEvidenceHead(
   dag: DagFetch,
   agg: DagAggregates | null,
 ): MonitoringEvidenceHead {
-  const n = (value: number): string => value.toLocaleString('ko-KR');
+  // 리소스(에이전트) 도 논리 DB 와 같은 셈으로 말한다 (오너 2026-08-26) — 연결된 것이
+  // 성공, 나머지가 확인 필요. 라벨이 '리소스' 인 것은 이 줄이 세는 것이 EC2·RDS 같은
+  // 등록 리소스이기 때문이다.
+  const resources = (): readonly MonitoringEvidenceFact[] =>
+    agg
+      ? [
+          {
+            label: '리소스',
+            segments: [
+              { prefix: '총', count: agg.agentTotal, suffix: '개' },
+              { count: agg.agentConnected, suffix: '개 성공' },
+              { count: agg.agentTotal - agg.agentConnected, suffix: '개 확인 필요' },
+            ],
+          },
+        ]
+      : [];
   switch (dag.phase) {
     case 'loading':
-      return { pill: { tone: 'off', label: '확인 중' }, subtitle: '모니터링 상태를 확인하고 있어요' };
+      return {
+        pill: { tone: 'off', label: '확인 중' },
+        subtitle: '모니터링 상태를 확인하고 있어요',
+        facts: [],
+      };
     case 'failed':
       return {
         pill: { tone: 'err', label: '확인 실패' },
         subtitle: '모니터링 상태를 확인하지 못했어요',
+        facts: [],
       };
     case 'loaded': {
       const verdict = healthVerdict(dag.data.healthStatus);
-      const agents = agg ? ` · 에이전트 ${n(agg.agentConnected)}/${n(agg.agentTotal)} 연결` : '';
-      switch (verdict.kind) {
-        case 'healthy':
-          return {
-            pill: { tone: 'ok', label: 'HEALTHY' },
-            subtitle: agg
-              ? agg.dbTotal === 0
-                ? `DAG 관측 논리 DB 없음${agents}`
-                : agg.succeeded === agg.dbTotal
-                  ? `DAG 관측 논리 DB ${n(agg.dbTotal)}개 전부 최근 7일 성공${agents}`
-                  : `DAG 관측 논리 DB ${n(agg.dbTotal)}개 중 ${n(agg.succeeded)}개 최근 7일 성공${agents}`
-              : null,
-          };
-        case 'unhealthy':
-          // UNHEALTHY 문장이 세는 것은 succeededThisWeek=false 뿐 — 밴드와 같은 규칙.
-          return {
-            pill: { tone: 'err', label: 'UNHEALTHY' },
-            subtitle: agg
-              ? `논리 DB ${n(agg.noSuccess)}개가 최근 7일 성공 기록이 없어요${agents}`
-              : null,
-          };
-        case 'unknown':
-          return {
-            pill: { tone: 'off', label: '미확인' },
-            subtitle: '판정할 수 없는 값',
-            titleHint: `healthStatus: ${verdict.raw}`,
-          };
+      if (verdict.kind === 'unknown') {
+        return {
+          pill: { tone: 'off', label: '미확인' },
+          subtitle: '판정할 수 없는 값',
+          facts: [],
+          titleHint: `healthStatus: ${verdict.raw}`,
+        };
       }
+      return {
+        pill:
+          verdict.kind === 'healthy'
+            ? { tone: 'ok', label: 'HEALTHY' }
+            : { tone: 'err', label: 'UNHEALTHY' },
+        subtitle: null,
+        // 논리 DB 는 세어서 말한다 (오너 2026-08-26). "전부 최근 7일 성공" 같은 문장은
+        // 판정문이 이미 진 스코프를 한 번 더 반복하면서 정작 몇 개가 어땠는지는 안 셌다.
+        //
+        // 두 판정이 같은 행을 쓴다 — 정상인지 아닌지는 알약이 말하고 이 행은 세기만 한다.
+        // 확인 필요는 성공의 여집합이다: 요약 카운트 줄(`attentionCount` 의 네 버킷 합)이
+        // 세는 집합과 같은 수라, 조건 카드와 Airflow 확인 탭이 다른 수를 말하지 않는다.
+        facts: agg
+          ? [
+              {
+                label: '논리 DB',
+                segments: [
+                  { prefix: '총', count: agg.dbTotal, suffix: '개' },
+                  { count: agg.succeeded, suffix: '개 성공' },
+                  { count: agg.dbTotal - agg.succeeded, suffix: '개 확인 필요' },
+                ],
+              },
+              ...resources(),
+            ]
+          : [],
+      };
     }
   }
 }
