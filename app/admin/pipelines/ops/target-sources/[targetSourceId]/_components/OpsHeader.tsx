@@ -118,17 +118,36 @@ export function OpsHeader({
       </>,
     );
 
+  /**
+   * 파티션(China · Global)은 제 칸을 갖지 않고 **계정 값 옆에** 선다 (오너 08-26
+   * "리전은 없애. 그리고 계정 옆에 Global 을 적어"). 리전은 계정의 속성이지 계정과
+   * 나란한 사실이 아니었고, 한 칸을 차지하면 4열에서 진짜 사실 하나를 밀어낸다.
+   * 계정 자리는 프로바이더마다 다르다 — AWS 계정 · GCP 프로젝트 · Azure 구독.
+   * 읽기 전용이라 흰 면이 아니라 gray-200 이다: 흰 면은 수정 가능한 값의 것으로 남는다.
+   */
+  const scopeTag = (
+    <span className={cn(opsStyles.metaTagQuiet, 'flex-none')}>{isChina ? 'China' : 'Global'}</span>
+  );
+
   /** 읽기 전용 mono 값 — 전문은 「상세 정보」가 복사와 함께 진다. */
-  const monoCell = (label: string, value: string | null | undefined, wide = false): ReactElement =>
+  const monoCell = (
+    label: string,
+    value: string | null | undefined,
+    wide = false,
+    after?: ReactNode,
+  ): ReactElement =>
     cell(
       label,
-      value ? (
-        <span className={cn(opsStyles.fmValueText, opsStyles.fmMono)} title={value}>
-          {value}
-        </span>
-      ) : (
-        <span className={opsStyles.fmNone}>미등록</span>
-      ),
+      <>
+        {value ? (
+          <span className={cn(opsStyles.fmValueText, opsStyles.fmMono)} title={value}>
+            {value}
+          </span>
+        ) : (
+          <span className={opsStyles.fmNone}>미등록</span>
+        )}
+        {after}
+      </>,
       wide,
     );
 
@@ -247,13 +266,13 @@ export function OpsHeader({
             Role 은 접힘 밖에 산다 (오너 지시): 이 화면에서 운영자가 가장 자주 대조하는
             값이고, 접어 두면 프로바이더마다 다른 깊이에 숨는다. */}
         <div className={opsStyles.fmGrid}>
-          {isAws && monoCell('계정', meta.aws_account_id)}
-          {provider === 'GCP' && monoCell('프로젝트', meta.gcp_project_id)}
+          {isAws && monoCell('계정', meta.aws_account_id, false, scopeTag)}
+          {provider === 'GCP' && monoCell('프로젝트', meta.gcp_project_id, false, scopeTag)}
           {/* Azure 는 계정 자리가 구독이고, 테넌트가 그 옆에 선다 (오너 2026-08-26).
               Q3 에서는 UUID 두 개가 스코프 줄을 468px 쓴다고 접힘에 두자고 했는데,
               4열 그리드는 값 폭이 아니라 셀 수로 서는 배치라 그 근거가 없다 — 둘이
               나란히 서면 한 행이 정확히 4칸으로 찬다. */}
-          {provider === 'Azure' && monoCell('구독', meta.subscription_id)}
+          {provider === 'Azure' && monoCell('구독', meta.subscription_id, false, scopeTag)}
           {provider === 'Azure' && monoCell('테넌트', meta.tenant_id)}
           {/* IDC 는 계정이 없는 게 정상이다 — 빈 칸을 두는 대신 그 대상이 무엇인지
               말한다 (ServiceDetailView glossOf 의 어휘 그대로). */}
@@ -264,13 +283,6 @@ export function OpsHeader({
                 사내망
                 <span className={opsStyles.metaTagQuiet}>IDC</span>
               </>,
-            )}
-          {/* 리전은 계정의 속성이지만 4열에서는 제 칸을 갖는다 — 읽기 전용이라 흰 면이
-              아니라 gray-200: 흰 면은 수정 가능한 값의 것으로 남는다. */}
-          {provider !== 'IDC'
-            && cell(
-              '리전',
-              <span className={opsStyles.metaTagQuiet}>{isChina ? 'China' : 'Global'}</span>,
             )}
           {isAws && tagCell('설치모드', grantTfExecution ? '자동' : '수동', onOpenMode, '설치모드 변경')}
           {tagCell('실데이터', rawDataLabel, onOpenRawData, '실데이터 여부 변경', '실데이터 여부')}
