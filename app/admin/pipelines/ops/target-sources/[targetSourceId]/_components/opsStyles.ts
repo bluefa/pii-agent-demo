@@ -61,10 +61,6 @@ export const opsStyles = {
   pathLinkId:
     'flex-none cursor-pointer text-[12px] font-medium text-[var(--pl-text-medium)] transition-colors hover:text-[var(--pl-text-strong)] hover:underline',
   /** 서 있는 곳 — 종류(옅은 낱말) + 식별자(줄에서 유일하게 굵고 큰 것). */
-  /** 경로 줄 오른쪽 끝 — 「관련 페이지」 + 나가는 링크들. `ml-auto` 가 줄의 남는 폭을
-      전부 먹어 오른쪽에 붙이고, 좁아지면 pathLine 의 flex-wrap 이 아랫줄로 내린다. */
-  pathAside: 'ml-auto flex flex-none items-center gap-3',
-  pathAsideLabel: 'text-[12px] font-semibold text-[var(--pl-gray-600)]',
   pathHere: 'flex flex-none items-baseline gap-1.5',
   pathHereKind: 'text-[12px] text-[var(--pl-text-weak)]',
   pathHereId:
@@ -102,8 +98,10 @@ export const opsStyles = {
   fmGlyph: 'h-5 w-5 flex-none text-[var(--pl-text-medium)]',
   fmLabel:
     'whitespace-nowrap text-[14px] font-semibold tracking-[0.02em] text-[var(--pl-text-medium)]',
-  /** 머리 줄 오른쪽 — 나가는 링크들 + 「상세 정보」. 그리드는 사실만 진다. */
+  /** 머리 줄 오른쪽 — 「관련 페이지」와 나가는 링크들, 그리고 「상세 정보」.
+      그리드는 사실만 지고, 이 줄의 오른쪽이 누를 수 있는 것들의 자리다. */
   fmAside: 'flex flex-none items-center gap-3',
+  fmAsideLabel: 'text-[12px] font-semibold text-[var(--pl-gray-600)]',
   fmAsideSep: 'h-3 w-px flex-none bg-[var(--pl-border-strong)]',
   /** 포커스 링을 손으로 그리지 않는다 — `focus-visible:outline-none` 은 이 앱에서 무효라
       (globals.css 의 전역 아웃라인이 cascade layer 밖) 옅은 링이 전역 파란 아웃라인 옆에

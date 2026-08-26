@@ -5,13 +5,15 @@
  * whole identity as ONE FrontMeta on the gray-100 wash, in the grammar the
  * service-side install screen uses (`projectHeaderStyles.blockHead`):
  *
- *   1  path         서비스 운영 / CPN / Target Source #1642, and at the right end
- *                   관련 페이지 — the two doors out (Jira, the service-side screen).
- *                   This row is movement only: where you came from, where else to go.
+ *   1  path         서비스 운영 / CPN / Target Source #1642 — where you came from,
+ *                   and nothing else.
  *   2  연동 대상     a named block: [mark] name · step pill · first-install stamp …
- *                   「상세 정보 ⌄」, closed by one hairline. The pill and the stamp
- *                   are the target's state, so they belong to the block that names
- *                   it, not to the path (owner, 08-26).
+ *                   관련 페이지 (Jira, the service-side screen) | 「상세 정보 ⌄」,
+ *                   closed by one hairline. The pill and the stamp are the target's
+ *                   state, so they belong to the block that names it rather than to
+ *                   the path; the right end of the same row is where everything you
+ *                   can press lives, split by a rule between what leaves the page
+ *                   and what opens here (owner, 08-26).
  *   3  kv 4열       the facts, label above value — cells change per provider, the
  *                   column rule does not
  *
@@ -230,45 +232,6 @@ export function OpsHeader({
             <span className={opsStyles.pathHereId}>#{targetSourceId}</span>
           </span>
         </h1>
-        {/* 관련 페이지 (오너 08-26 "해당 정보를 헤더에 넣어도 될 것 같은데?") — 이 대상을
-            두고 갈 수 있는 다른 화면들. 사실이 아니라 참고라서 kv 그리드에서 나왔고, 여기
-            경로 줄 오른쪽 끝이 제자리다: 경로는 "어디서 왔나", 이 둘은 "어디로 더 갈 수
-            있나" — 같은 이동의 문법이고 줄 하나를 새로 만들지 않는다. */}
-        <span className={opsStyles.pathAside}>
-          <span className={opsStyles.pathAsideLabel}>관련 페이지</span>
-          {/* 티켓은 detail 과 따로 도착한다 — 도착 전에 자리를 비우면 머리 줄이 한 번
-              흔들리므로, 그 사이는 같은 폭의 자리만 잡아 둔다. 열 주소가 없거나 http(s)
-              가 아니면 링크가 아니라 **글자**로 선다 (`docs/api/jira-tickets.md`, 다른 두
-              렌더 자리와 같은 규칙) — 주소를 조립하지도, 티켓 번호를 감추지도 않는다. */}
-          {!ticketLoaded ? (
-            <span className={cn(opsStyles.skeletonWash, 'h-4 w-[68px]')} aria-hidden />
-          ) : jiraHref ? (
-            <a
-              href={jiraHref}
-              target="_blank"
-              rel="noreferrer"
-              className={opsStyles.relatedLink}
-              title={`Jira ${jiraTicket?.issueKey} — 협업 채널`}
-            >
-              <JiraLogo size={14} />
-              {jiraTicket?.issueKey ?? 'Jira Ticket'}
-              <Icon name="arrow-ur" size="sm" />
-            </a>
-          ) : jiraTicket ? (
-            <span className={opsStyles.fmValueText} title="Jira 열 주소 없음 — 티켓 번호만 확인된다">
-              {jiraTicket.issueKey}
-            </span>
-          ) : null}
-          {/* 같은 대상의 서비스측 화면 — 운영자가 "담당자한테는 지금 뭐가 보이나"를
-              묻는 자리가 여기뿐이다. */}
-          <Link
-            href={passRoutes.targetSource(targetSourceId)}
-            className={opsStyles.relatedLink}
-            title="PII Agent 설치 화면 — 서비스 담당자가 보는 진행 화면"
-          >
-            서비스가 보는 화면 <Icon name="arrow-ur" size="sm" />
-          </Link>
-        </span>
       </div>
 
       <section aria-labelledby={labelId} className={opsStyles.fmGroup}>
@@ -294,22 +257,62 @@ export function OpsHeader({
                 있다 · 언제". 초기화된 대상은 둘이 같이 보이는 것이 말해야 하는 사실이다. */}
             <CompletedStamp firstInstalledAt={detail.pii_agent_first_installed_at} size="sm" />
           </span>
-          {/* 큐는 자기가 여는 블록과 같은 줄에 선다 (오너 판단 Q2) — 그래야 무엇이
-              열리는지 말한다. 파랑은 이 팔레트에서 "누를 수 있다"의 한 가지 색. */}
-          <button
-            type="button"
-            onClick={() => setOpen((v) => !v)}
-            aria-expanded={open}
-            aria-controls={open ? foldId : undefined}
-            className={opsStyles.fmCue}
-          >
-            상세 정보
-            <Icon
-              name="chev-d"
-              size="sm"
-              className={cn(opsStyles.fmCueIcon, open && opsStyles.fmCueIconOpen)}
-            />
-          </button>
+          {/* 관련 페이지 (오너 08-26 "관련 페이지는 헤더로 내리라니깐") — 이 대상을
+              두고 갈 수 있는 다른 화면들. 사실이 아니라 참고라서 kv 그리드에서 나왔고,
+              블록 머리 오른쪽이 제자리다: 이 줄의 오른쪽은 누를 수 있는 것들의 자리이고,
+              「상세 정보」와는 세로선으로 갈린다 — 둘은 나가고 하나는 여기서 열린다. */}
+          <span className={opsStyles.fmAside}>
+            <span className={opsStyles.fmAsideLabel}>관련 페이지</span>
+            {/* 티켓은 detail 과 따로 도착한다 — 도착 전에 자리를 비우면 머리 줄이 한 번
+                흔들리므로, 그 사이는 같은 폭의 자리만 잡아 둔다. 열 주소가 없거나 http(s)
+                가 아니면 링크가 아니라 **글자**로 선다 (`docs/api/jira-tickets.md`, 다른 두
+                렌더 자리와 같은 규칙) — 주소를 조립하지도, 티켓 번호를 감추지도 않는다. */}
+            {!ticketLoaded ? (
+              <span className={cn(opsStyles.skeletonWash, 'h-4 w-[68px]')} aria-hidden />
+            ) : jiraHref ? (
+              <a
+                href={jiraHref}
+                target="_blank"
+                rel="noreferrer"
+                className={opsStyles.relatedLink}
+                title={`Jira ${jiraTicket?.issueKey} — 협업 채널`}
+              >
+                <JiraLogo size={14} />
+                {jiraTicket?.issueKey ?? 'Jira Ticket'}
+                <Icon name="arrow-ur" size="sm" />
+              </a>
+            ) : jiraTicket ? (
+              <span className={opsStyles.fmValueText} title="Jira 열 주소 없음 — 티켓 번호만 확인된다">
+                {jiraTicket.issueKey}
+              </span>
+            ) : null}
+            {/* 같은 대상의 서비스측 화면 — 운영자가 "담당자한테는 지금 뭐가 보이나"를
+                묻는 자리가 여기뿐이다. */}
+            <Link
+              href={passRoutes.targetSource(targetSourceId)}
+              className={opsStyles.relatedLink}
+              title="PII Agent 설치 화면 — 서비스 담당자가 보는 진행 화면"
+            >
+              서비스가 보는 화면 <Icon name="arrow-ur" size="sm" />
+            </Link>
+            <span className={opsStyles.fmAsideSep} aria-hidden />
+            {/* 큐는 자기가 여는 블록과 같은 줄에 선다 (오너 판단 Q2) — 그래야 무엇이
+                열리는지 말한다. 파랑은 이 팔레트에서 "누를 수 있다"의 한 가지 색. */}
+            <button
+              type="button"
+              onClick={() => setOpen((v) => !v)}
+              aria-expanded={open}
+              aria-controls={open ? foldId : undefined}
+              className={opsStyles.fmCue}
+            >
+              상세 정보
+              <Icon
+                name="chev-d"
+                size="sm"
+                className={cn(opsStyles.fmCueIcon, open && opsStyles.fmCueIconOpen)}
+              />
+            </button>
+          </span>
         </div>
 
         {/* 항상 보이는 스트립 — 계정/프로젝트 · 설정, 그리고 **권한 주체**.
