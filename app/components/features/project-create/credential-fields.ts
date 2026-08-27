@@ -43,11 +43,12 @@ const azureGuidField = (name: string, label: string, helper: string): Credential
   validate: validateGuid,
 });
 
-const descriptionField = (label: string): CredentialFieldDef => ({
+// `subject` carries its own 조사: a CSP row identifies an account, an IDC row an 인프라.
+const descriptionField = (label: string, subject: string): CredentialFieldDef => ({
   name: 'description',
   label,
-  placeholder: '이 인프라를 알아볼 수 있는 짧은 설명',
-  helper: '어떤 인프라인지 알아볼 수 있게 적어 주세요',
+  placeholder: `${subject} 식별할 수 있는 설명을 입력해 주세요`,
+  helper: 'N-IRP/SW-PLM 과제라면 과제 코드를 입력해 주세요',
   full: true,
 });
 
@@ -65,12 +66,12 @@ export const CREDENTIAL_FIELDS: Record<ProviderChipKey, CredentialFieldDef[]> = 
       // 열어 두지 않으면 단일 계정 사용자는 2단계를 통과할 방법이 없다.
       '리소스가 있는 하위 계정 ID(숫자 12자리) — 하위 계정을 쓰지 않으면 Payer Account와 같은 값',
     ),
-    descriptionField('설명'),
+    descriptionField('설명', '해당 계정을'),
   ],
   azure: [
     azureGuidField('tenantId', 'Tenant ID', 'Microsoft Entra ID의 테넌트 식별자'),
     azureGuidField('subscriptionId', 'Subscription ID', '연결할 구독의 식별자'),
-    descriptionField('설명'),
+    descriptionField('설명', '해당 계정을'),
   ],
   gcp: [
     {
@@ -80,10 +81,10 @@ export const CREDENTIAL_FIELDS: Record<ProviderChipKey, CredentialFieldDef[]> = 
       helper: 'Project Number가 아닌 Project ID를 입력해 주세요',
       full: true,
     },
-    descriptionField('설명'),
+    descriptionField('설명', '해당 계정을'),
   ],
-  idc: [descriptionField('인프라 설명')],
-  other: [descriptionField('인프라 설명')],
+  idc: [descriptionField('인프라 설명', '이 인프라를')],
+  other: [descriptionField('인프라 설명', '이 인프라를')],
 };
 
 export const credentialFieldError = (

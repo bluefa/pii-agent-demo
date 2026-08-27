@@ -16,8 +16,17 @@ import {
 // 자동 sits on the right and is the default: it is the path we recommend, and a
 // segmented pair reads left→right as "the other option, then the one we mean".
 const INSTALL_OPTIONS: Array<{ value: AwsInstallMode; title: string; description: string }> = [
-  { value: 'manual', title: '수동 설치', description: '제공되는 스크립트를 직접 실행해요.' },
-  { value: 'auto', title: '자동 설치', description: '권한을 위임하면 모듈을 자동으로 설치해요.' },
+  {
+    value: 'manual',
+    title: '수동 설치',
+    description: '제공되는 테라폼 스크립트를 직접 실행하여 설치하는 방식이에요.',
+  },
+  {
+    value: 'auto',
+    title: '자동 설치',
+    description:
+      'PASS 담당자에게 테라폼 설치 권한을 부여하면, PASS 담당자가 테라폼 스크립트를 직접 실행해 설치해 주는 방식이에요.',
+  },
 ];
 
 interface Step2AccountInfoProps {
