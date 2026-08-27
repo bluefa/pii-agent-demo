@@ -162,6 +162,9 @@ describe('SduStep4Upload', () => {
     await renderStep();
 
     expect(screen.getByText('2단계')).toBeTruthy();
+    // The tag and the heading have to name the same step. Indexing the title map by a
+    // literal survives a renumbering with a clean type-check and prints 「2단계 완료」.
+    expect(screen.getByRole('heading', { level: 2 }).textContent).toBe('데이터 업로드');
     expect(screen.getByText(FIREWALL_QUESTION)).toBeTruthy();
     expect(screen.queryByText(RECIPIENTS_INTRO)).toBeNull();
     expect(screen.queryByText(COMMANDS_INTRO_HEAD)).toBeNull();
