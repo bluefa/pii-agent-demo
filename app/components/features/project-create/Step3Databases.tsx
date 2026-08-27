@@ -120,7 +120,7 @@ export const Step3Databases = ({
         </p>
       ) : (
         <p className={cn('mt-2.5 max-w-[640px] text-xs', textColors.tertiary)}>
-          선택하신 Database는 연동 구성을 판단하는 데 사용해요.
+          선택하신 Database는 PII 모니터링 연동 방식을 판단하는 데 사용해요.
         </p>
       )}
     </div>
