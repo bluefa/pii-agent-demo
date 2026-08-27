@@ -2,7 +2,7 @@
  * Ops target-source page chrome (Figma pYCA7zTWcZysYOpYykuYAN 4:2, adapted to
  * the --pl-* token system — raw Figma hex values map to their semantic tokens).
  */
-import { primaryColors } from '@/lib/theme';
+import { partitionColors, primaryColors } from '@/lib/theme';
 
 export const opsStyles = {
   /**
@@ -129,7 +129,21 @@ export const opsStyles = {
    * 두 머리를 잇던 것은 같은 y 에 선 헤어라인 두 도막이었는데, 그 선이 사라진 지금은
    * 두 이름이 같은 baseline 에 같은 활자로 서는 것이 그 일을 한다.
    */
-  fmSplit: 'flex items-start gap-8',
+  /** 간격 24px — 획이 서기 전에는 32px 혼자 두 단을 갈랐다. 획이 그 일을 지므로 간격은
+      한 단 줄어도 되고, 줄여야 한다: 획과 그 양옆 간격이 kv 레인에서 폭을 가져가는데,
+      32+1+32 이면 GCP 3등분 한 열이 441 → 430px 이 되어 Service Account 전문이 두 줄로
+      접혔다(실측 @1900). 24+1+24 는 441px 을 그대로 돌려준다. */
+  fmSplit: 'flex items-start gap-6',
+  /** 두 단 사이의 세로 획 하나 (오너 2026-08-27 "관련 페이지와 연동 대상 사이에 줄 하나만
+      그어보자. 정보 계층 분리하는 것 처럼 보일 필요는 있을듯"). 왼쪽은 이 대상의 사실,
+      오른쪽은 나가는 문이라 두 단은 원래 다른 것을 말하는데, 그동안은 간격(32px) 혼자
+      그 말을 지고 있었다.
+
+      획을 오른쪽 패널의 `border-l` 로 주지 않는 이유: `aboutPanel` 은 200px 고정 폭이라
+      테두리와 padding 이 그만큼 링크 폭을 먹는다(제로섬 열). 제 폭 1px 말고는 아무것도
+      차지하지 않는 요소를 따로 세우고, `self-stretch` 로 두 단 중 높은 쪽 높이를 따른다.
+      `--pl-border` 다 — 이 워시 위의 `--pl-border-strong` 획은 탭 띠의 것으로 남는다. */
+  fmSplitRule: 'w-px flex-none self-stretch bg-[var(--pl-border)]',
   /** 200px — kv 열(240px)보다 좁게 잡는다: 이 단은 대조하는 값이 아니라 이정표라
       제 이름 두 개가 들어가는 만큼만 있으면 되고, 남는 폭은 그리드 쪽에 남는다. */
   aboutPanel: 'w-[200px] flex-none',
@@ -140,9 +154,17 @@ export const opsStyles = {
       본문보다 한 단 옅다. */
   aboutRow: 'inline-flex items-center gap-1.5',
   aboutMark: 'flex flex-none text-[var(--pl-text-weak)]',
+  /** 14px — 왼쪽 단의 값(`fmValue`)과 같은 급이다 (오너 2026-08-27 "BDCDIP-1002, 서비스
+      담당자가 보는 화면 이것도 14 픽셀로 확장"). 두 단은 획 하나로 갈려 있고 각자 제
+      이름(16/600)을 갖는데, 본문만 12 로 남으면 오른쪽 단이 왼쪽 단의 각주처럼 읽힌다.
+
+      글자는 **검정 14/500** 이다 (오너 2026-08-27 "관련 페이지 계층이 너무 쎄다. 검정색으로
+      표현해봐"). 파랑 14/600 일 때는 색·굵기 두 레버가 겹쳐, 이 화면에서 가장 덜 쓰는 것이
+      가장 세게 읽혔다 — 왼쪽 단의 값들(14/600 검정)보다도 앞에 섰다. 누를 수 있다는 신호는
+      hover 가 진다: 밑줄이 그때 파랗게 그어진다. */
   aboutLink:
-    'inline-flex cursor-pointer items-center gap-0.5 whitespace-nowrap text-[12px] font-semibold text-[var(--pl-primary)] hover:underline',
-  aboutPlain: 'whitespace-nowrap text-[12px] font-medium text-[var(--pl-text-medium)]',
+    'inline-flex cursor-pointer items-center gap-0.5 whitespace-nowrap text-[14px] font-medium text-[var(--pl-text-strong)] hover:underline hover:decoration-[var(--pl-primary)]',
+  aboutPlain: 'whitespace-nowrap text-[14px] font-medium text-[var(--pl-text-medium)]',
   /** 포커스 링을 손으로 그리지 않는다 — `focus-visible:outline-none` 은 이 앱에서 무효라
       (globals.css 의 전역 아웃라인이 cascade layer 밖) 옅은 링이 전역 파란 아웃라인 옆에
       같이 그려졌다. 옆의 링크 둘과 같은 방식으로 전역 아웃라인만 받는다. */
@@ -173,27 +195,58 @@ export const opsStyles = {
       셋까지 들어갈 수가 없다(21px 모자란다). 그래서 GCP 만 2행이고, 2열 병합 셀이
       각각 451px 을 받아 둘 다 잘리지 않는다. */
   fmGrid: 'grid grid-cols-[repeat(4,minmax(0,240px))] gap-x-[18px] gap-y-3 pt-[22px]',
-  /** GCP 만 세 칸 한 줄이다 — 주체 둘이 mail 주소 전문이라 240px 트랙에 안 들어간다
-      (오너 2026-08-27 "설정을없애면안 되냐? 그리고한 줄로표현해봐"). 내용 폭으로 잡으면
-      115 + 341 + 365 + 36(간격 둘) = 857px 이라 920px 레인에 63px 여유로 선다.
+  /** GCP 만 세 칸 한 줄이고, 그 세 칸은 **3등분**이다 (오너 2026-08-27 "3등분으로 정보를
+      갖고 가게"). 첫 열을 `max-content` 로 잡고 남은 폭을 주체 둘이 나눠 갖던 배치를
+      버린다 — 그 배치에서는 프로젝트가 제 글자 폭(115px)까지만 차지한 채 왼쪽에 몰아
+      붙고, 세 칸의 열선이 대상마다 움직였다.
+
+      실측: kv 레인이 @1900 에서 1388px → 열당 441px, @1440 에서 920px → 열당 285px.
+      이 줄은 이제 Service Account 를 **이름만** 적으므로(전문은 복사·title·폴드가 진다)
+      어느 폭에서도 남는다 — 전문을 싣던 시절에는 433px 이라 @1440 한 열(285px)에 못 들어갔고,
+      3 × 361 > 920 이라 3등분과 한 줄 전문이 동시에 성립하지 않았다. 그 산술이 이름만
+      남기기로 한 결정의 배경이다. ⚠️ 스트립 값은 `fmValueText` 의 `truncate` 라 넘치면
+      **접히는 게 아니라 잘린다** — 여기에 다시 긴 값을 넣을 거면 그 전제부터 확인할 것.
+
+      「상세 정보」 폴드와 열이 어긋난다는 전제는 끝났다 — GCP 는 폴드도 같은 3등분
+      (`fmFoldGcp`)으로 옮겼으므로 두 격자의 열선이 일치한다 (오너 2026-08-27 "gcp
+      더보기도 동일하게 정렬 맞춰"). 반대로 이 줄을 240px 격자로 되돌려 맞추는 길은
+      쓰지 않았다 — 그러면 주체 전문이 잘린다.
+
       토큰을 둘로 나눈 이유: 두 클래스를 겹쳐 쓰면 같은 특이도의 임의값이라 승자를 소스
       순서가 아니라 스타일시트 순서가 정한다 — 호출부가 **고른다**. */
-  fmGridGcp:
-    'grid grid-cols-[max-content_max-content_max-content] gap-x-[18px] gap-y-3 pt-[22px]',
+  fmGridGcp: 'grid grid-cols-3 gap-x-6 gap-y-3 pt-[22px]',
   fmCell: 'flex min-w-0 flex-col gap-1',
   fmCellWide: 'col-span-2',
   /** 워시는 램프 한 칸을 잡아먹는다 — `--pl-text-weak` 는 이 gray-100 위에서 4.51:1 로
       AA 바닥이라 12px 라벨에 쓰지 않는다. `--pl-gray-600` 은 같은 자리에서 6.98:1. */
-  /** 라벨 줄 — 라벨과 그 단서(파티션 태그)가 같은 줄에 선다. 태그가 16px 이라 이 줄은
-      `fmKey` 의 leading-4 그대로 16px 을 유지한다. */
+  /** 라벨 줄 — 이제 라벨 하나만 선다. 파티션 태그(Global/China)는 2026-08-27 에 이 줄을
+      떠나 「연동 대상」 블록 머리로, 단계 알약 오른쪽에 섰다(오너 지시) — 파티션은 어느 한
+      칸의 단서가 아니라 대상 전체를 말하는 사실이라 머리 줄이 임자다. 그래서 "태그가 16px
+      이라 줄이 안 자란다"는 옛 근거는 전제가 사라졌고, 이 줄의 높이는 그냥 `fmKey` 의
+      leading-4 (16px) 다. 토큰이 남는 이유는 그 16px 을 `truncate` 와 함께 붙들어 두는
+      것이고(min-w-0 + flex), 라벨이 긴 프로바이더에서 잘림이 여기서 일어난다. */
   fmKeyRow: 'flex min-w-0 items-center gap-1.5',
-  fmKey: 'truncate text-[12px] font-semibold leading-4 text-[var(--pl-gray-600)]',
+  /** 라벨 12/500 — 값(14/600)에 계층을 넘긴다 (오너 2026-08-27 "값을 14 픽셀로 수정해볼래?
+      이게 계층 정리가 될 듯"). 라벨은 대상마다 안 바뀌는 고정 문자열이라 한 번 익히면 다시
+      읽히지 않고, 이 줄에서 운영자가 대조하는 것은 값이다. 크기·무게 두 레버가 값 쪽에
+      모인다. 색은 그대로 gray-600(워시 위 6.98:1). */
+  fmKey: 'truncate text-[12px] font-medium leading-4 text-[var(--pl-gray-600)]',
   /** 수정할 수 있는 **값** (오너 08-26 "해당 값에 밑줄을 그어야지. 밑줄은 파란색으로") —
       값 옆에 서 있던 「수정」 링크가 값 자신으로 접혀 들어간다. 글자색은 값의 것으로 두고
       밑줄만 파랗다: 파랑이 글자를 먹으면 이 줄에서 나가는 링크들과 같은 것이 되는데, 이건
       여기서 모달을 여는 것이라 신호는 밑줄이 지고 색은 그 밑줄에만 실린다.
       08-20 의 판례는 *태그*가 눌리는 척하지 말라는 것이라 부딪히지 않는다 — 여기서
       눌리는 것은 흰 면 태그가 아니라 mono 값이다. */
+  /** 「설정」 값의 수정 신호 — 글자는 **검정**, 파랑은 밑줄에만 (오너 2026-08-27 "검은색으로
+      바꿔. 파란색 너무 눈에 띈다"). 세 라운드를 돌아 여기 왔다: gray-600(너무 조용) →
+      파랑 글자 14/600(너무 셈) → 파랑 14/500 → 검정 14/500 + 파란 밑줄.
+
+      남은 문법은 `fmValueEdit`(ARN 수정)와 같다 — 글자색은 값의 것으로 두고 신호는 밑줄이
+      진다. 다른 점은 무게 하나뿐이다(500): 이 칸은 「사실」이 아니라 「설정」이라, 옆 칸의
+      식별자(14/600)보다 한 단 뒤에 선다. 이 줄의 파랑은 이제 링크(오른쪽 단)와 밑줄들뿐이라
+      글자를 파랗게 칠할 때 생기던 "다른 화면으로 간다"는 오독도 사라진다. */
+  fmSettingEdit:
+    'cursor-pointer text-[14px] font-medium text-[var(--pl-text-strong)] underline underline-offset-2 decoration-[var(--pl-primary)] transition-colors hover:decoration-[var(--pl-primary-hover)]',
   fmValueEdit:
     'cursor-pointer underline underline-offset-2 decoration-[var(--pl-primary)] transition-colors hover:decoration-[var(--pl-primary-hover)]',
   /** 「설정」 한 칸 (design-benchmark `ops-settings-cells.md` 시안 A + F 문법, 오너 08-26
@@ -205,11 +258,17 @@ export const opsStyles = {
   fmSettingsSep: 'text-[var(--pl-text-weak)]',
   /** `min-h` 가 있는 이유: 흰 면 태그가 들어오는 셀(22px)과 글자만 있는 셀의 높이를
       같게 잡아 둔다. 안 맞추면 같은 행 안에서 프로바이더마다 셀이 엇갈린다. */
+  /** 값 14/600 — 스트립의 주인공 (오너 2026-08-27). GCP 서비스 계정이 전문 대신 이름만
+      남으면서 이 줄의 값들이 전부 짧아졌고, 그래서 한 단 키울 폭이 생겼다. `min-h` 는
+      leading-5 에 맞춰 22 → 24px. */
   fmValue:
-    'flex min-h-[22px] min-w-0 items-center gap-2 text-[12px] font-medium leading-4 text-[var(--pl-text-strong)]',
+    'flex min-h-[24px] min-w-0 items-center gap-2 text-[14px] font-semibold leading-5 text-[var(--pl-text-strong)]',
   fmValueText: 'min-w-0 truncate',
-  fmNone: 'text-[12px] font-medium text-[var(--pl-gray-600)]',
-  fmMono: '[font-family:var(--pl-font-mono)] font-medium',
+  fmNone: 'text-[14px] font-medium text-[var(--pl-gray-600)]',
+  /** 글꼴만 바꾼다 — 무게는 **자리가 정한다** (스트립 `fmValue` 600 · 폴드 `fmValueFull`
+      500). `font-medium` 을 여기 박아 두면 값이 14/600 으로 올라간 뒤에도 mono 값만
+      500 으로 남아 라벨과의 레버가 크기 하나로 줄었다(실측으로 잡음). */
+  fmMono: '[font-family:var(--pl-font-mono)]',
   fmLink:
     'inline-flex cursor-pointer items-center gap-0.5 whitespace-nowrap text-[12px] font-semibold text-[var(--pl-primary)] underline underline-offset-2 decoration-[var(--pl-primary-ring)] hover:decoration-[var(--pl-primary)]',
 
@@ -231,6 +290,22 @@ export const opsStyles = {
    * 있는 것이고 ARN 은 아니다.
    */
   fmFold: 'grid grid-cols-[repeat(4,minmax(0,240px))] gap-x-[18px] gap-y-4 pt-3.5',
+  /** GCP 만 폴드도 **3등분**이다 (오너 2026-08-27 "gcp 더보기도 동일하게 정렬 맞춰") —
+      위 스트립이 `fmGridGcp` 로 3등분이라, 폴드가 240px 격자에 서면 열 규칙이 화면에 둘이
+      된다(실측 @1900: 스트립 248 / 689 / 1130 대 폴드 248 / 506 / 764). 같은 3등분에
+      얹으면 열선이 하나가 되고, 폴드를 여는 것이 열을 새로 그리는 일이 아니라 **같은 열을
+      아래로 잇는** 일이 된다 — 위 `fmFold` 의 08-26 원칙 그대로고, 바뀌는 것은 격자뿐이다.
+
+      ⚠️ 폴드의 식별자 값은 옆에 복사 버튼(`fmCopy` 18px + gap 4)을 달고 서므로, 한 열이
+      받는 글자 폭은 열 폭에서 22px 을 뺀 만큼이다 — 전문 428px + 22 = 450px 라 @1900 의
+      441px 열에서도 한 줄에 못 선다. 폴드 값은 `fmValueFull` 의 `break-all` 이라 잘리지
+      않고 접히므로 해가 없지만, "한 줄에 선다"는 계산은 하지 말 것.
+
+      세 묶음(서비스 · 대상 · 식별자)이 정확히 세 열이라 `wide` 가 필요 없다: @1900 에서 한
+      열이 441px 이고, GCP 의 가장 긴 값인 Service Account 전문은 `fmValueFull`(14px)에서
+      433px 이라 한 열에 선다. 좁아지면 `fmValueFull` 이 이미 `break-all` 이라 접힌다
+      (자르지 않는다). */
+  fmFoldGcp: 'grid grid-cols-3 gap-x-6 gap-y-4 pt-3.5',
   fmFoldGroup: 'flex min-w-0 flex-col gap-2.5',
   fmFoldLabel: 'text-[12px] font-bold tracking-[0.06em] text-[var(--pl-gray-600)]',
   /** 설명 본문 — 접힘 안에서는 전문을 편다. 표시를 100자에서 접던 것은 레일이 236px
@@ -239,7 +314,12 @@ export const opsStyles = {
   /** 전문 값 — 자르지 않는다. ARN·Service Account 는 접힌 이름이 아니라 문자열 전체가
       정보라(복사해 콘솔에서 찾는 값) 이 자리에서만은 truncate 를 걸지 않는다. 이것이
       title 툴팁 안에만 있던 전문을 화면으로 꺼내는 자리다. */
-  fmValueFull: 'break-all text-[12px] font-medium leading-[18px] text-[var(--pl-text-strong)]',
+  /** 14px — 스트립 값(`fmValue`)과 같은 급이다 (오너 2026-08-27 "pii-agent-terraform
+      이것도 14픽셀"). 접힘의 짧은 값들은 이미 `fmValue` 로 14 라, 전문만 12 로 남으면
+      같은 대상의 같은 사실이 두 크기로 적힌다. `break-all` 이라 열이 좁아지면 자르는
+      대신 접힌다 — 14px 에서 Service Account 전문은 433px 이고 @1900 폴드 한 열이
+      441px 이라 한 줄에 선다. */
+  fmValueFull: 'break-all text-[14px] font-medium leading-5 text-[var(--pl-text-strong)]',
   /** 복사 — 값 옆의 아이콘 하나. 글자가 아니라 그래픽이라 3:1 기준이고, weak 는 이
       워시에서 4.51:1 로 그 위다. */
   fmCopy:
@@ -269,8 +349,10 @@ export const opsStyles = {
    * them, so the tag no longer has to look clickable (no underline, no hover
    * fill). ⚠️ metaTag(흰 면 + 강한 획)는 08-26 에 은퇴했다 — 시안 A+F 로 설정 두 칸이
    * 값 밑줄 하나가 되면서 이 그리드에 흰 면 태그가 남지 않는다. 되살릴 일이 생기면
-   * 그 규칙("흰 면 = 수정 가능")부터 다시 세워야 한다. metaTagQuiet = the read-only attribute tag (China/Global · IDC),
+   * 그 규칙("흰 면 = 수정 가능")부터 다시 세워야 한다. metaTagQuiet = the read-only attribute tag,
    * which must NOT wear the white face — that face means "editable value" here.
+   * ⚠️ 2026-08-27: 파티션(China/Global)은 이 토큰을 떠났다 — 블록 머리로 올라가면서 파란
+   * `partitionTag` 를 입는다. 여기 남은 것은 IDC 「환경」 값 줄의 태그 하나뿐이다.
    *
    * 그 태그는 gray-200 이었는데 오너가 "회색은 너무 칙칙해 보임" 이라 했다 (08-26).
    * 이 콘솔에서 옅은 칠은 이미 임자가 있다: `--pl-info-bg` 는 RUNNING·진행 중이고
@@ -280,12 +362,45 @@ export const opsStyles = {
    * 어휘이고(서비스 레일의 "여기 있음", 캔버스와 같은 가족), 그래서 파티션·환경
    * 같은 **속성**이 앉을 자리다. 칠이 워시와 가까워서 테두리가 형태를 진다.
    */
-  /** 10/14 에 padding 4·0 — 테두리까지 **정확히 16px** 이라 `fmKey` 의 leading-4 줄에
-      얹혀도 그 줄이 한 픽셀도 자라지 않는다 (오너 08-26 "태그 크기가 너무 크다"). 12/18 에
-      px-1.5 py-0.5 이던 22px 짜리가 값 줄의 높이를 혼자 정하고 있었다. 태그는 값이 아니라
-      값에 붙는 단서라, 제가 선 줄의 높이를 정하면 안 된다. */
+  /** 10/14 에 padding 4·0 — 테두리까지 **정확히 16px** (오너 08-26 "태그 크기가 너무 크다").
+      12/18 에 px-1.5 py-0.5 이던 22px 짜리가 값 줄의 높이를 혼자 정하고 있었다. 태그는 값이
+      아니라 값에 붙는 단서라, 제가 선 줄의 높이를 정하면 안 된다 — 지금 남은 자리(IDC
+      「환경」)도 값 줄이므로 그 규칙은 그대로다. */
   metaTagQuiet:
     'inline-flex items-center whitespace-nowrap rounded border border-[var(--pl-current)] bg-[var(--pl-current-bg)] px-1 text-[10px] font-semibold leading-[14px] text-[var(--pl-current-ink)]',
+
+  /**
+   * 파티션 태그(Global · China) — 「연동 대상」 블록 머리에서 단계 알약 오른쪽에 선다
+   * (오너 2026-08-27 "오른쪽에 China 태그 옮겨 … 14픽셀로 수정 … Global, China 태그는
+   * Bold로 강조하자. 파란색으로 선언").
+   *
+   * 이 태그는 이제 kv 라벨의 장식이 아니라 **머리 줄의 단서**다. 파티션은 계정·프로젝트·
+   * 구독 어느 한 칸의 속성이 아니라 그 대상이 어느 권역에 사는지의 사실이고, 그래서 단계
+   * 알약("지금 어디")과 같은 줄에 선다 — 둘 다 대상을 통째로 서술한다. 라벨 줄에 있을
+   * 때는 세 프로바이더가 각자 다른 칸(계정/프로젝트/구독)에 같은 사실을 붙이고 있었다.
+   *
+   * 색은 권역이 정한다: Global 은 저채도 파랑(`partitionGlobal`), China 는 저채도 빨강
+   * (`partitionChina`) — 값을 손으로 베끼지 않는 이유는 census 다.
+   * `metaTagQuiet` 를 돌려쓰지 않은 이유: 그 토큰은 10px 짜리 IDC 속성 태그로 남아 있고,
+   * 여기서 필요한 것은 알약과 같은 급의 14px 이다.
+   *
+   * 기하: 14/16 에 px-1.5 py-0.5 = **정확히 20px** 로, 액자 알약(14 + py 4 + border 2)과
+   * 같은 높이다. 그래서 머리 줄은 이 태그 때문에 한 픽셀도 자라지 않는다. 라운드는 알약의
+   * full 이 아니라 4px — 알약 모양을 빌리면 상태를 말하는 것으로 읽히고, 그보다 각지면
+   * 누를 것(버튼)으로 읽힌다.
+   */
+  partitionTag:
+    'inline-flex flex-none items-center whitespace-nowrap rounded-[4px] px-1.5 py-0.5 text-[14px] font-bold leading-4',
+  /** Global — China 와 **같은 채도·명도**의 파랑이다 (오너 2026-08-27 "Global Region 아직도
+      파란색인데"). primary 의 파랑(`bgLight`/`textOnLight`)을 쓰면 이 줄에서 링크와 같은
+      계열이라 태그가 눌리는 것처럼 읽히고, 옆의 저채도 China 와도 가족이 아니게 된다.
+      두 태그는 채도·명도가 같고 색상(hue)만 다르다 — 실측 6.76:1. */
+  partitionGlobal: `${partitionColors.globalBg} ${partitionColors.globalInk}`,
+  /** China — 빨강 (오너 2026-08-27 "China는 빨간색으로 표시하자"). `--pl-err-*` 를 쓰지
+      않는 이유는 그 램프가 **실패**를 말하기 때문이다: 파티션은 실패가 아니라 이 대상의
+      상시 사실이라, 같은 자리에서 오류 배지로 읽히면 안 된다. 그래서 채도·명도를 낮춘
+      짝을 `partitionColors` 에 따로 세웠다(실측 6.59:1). */
+  partitionChina: `${partitionColors.chinaBg} ${partitionColors.chinaInk}`,
 
   /**
    * Line tabs on the masthead wash (design-benchmark `ops-tab-band.md` 시안 A) —

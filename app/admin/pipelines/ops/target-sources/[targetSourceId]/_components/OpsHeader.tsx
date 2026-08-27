@@ -41,6 +41,7 @@ import { cn } from '@/lib/theme';
 import { passRoutes } from '@/lib/routes';
 import { normalizeCloudProvider } from '@/lib/types';
 import { awsRoleArnDisplay } from '@/lib/constants/aws-role';
+import { gcpServiceAccountDisplay } from '@/lib/constants/gcp-service-account';
 import { safeBrowseUrl } from '@/lib/jira-ticket';
 import { ProviderGlyph } from '@/app/components/ui/CloudProviderIcon';
 import { Icon } from '@/app/admin/pipelines/_components/icons';
@@ -50,6 +51,7 @@ import type { TargetJiraTicket } from '@/app/lib/api/ops';
 import type { ProcessStatus } from '@/app/admin/pipelines/queue/_components/StepStack';
 import { StepPill } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/StepPill';
 import { CompletedStamp } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/CompletedStamp';
+import { CopyButton } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/CopyButton';
 import { OpsDetailFold } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/OpsDetailFold';
 import { ROLE_META, type RoleKind } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/roleMeta';
 import { opsStyles } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/opsStyles';
@@ -72,6 +74,9 @@ export interface OpsHeaderProps {
   onOpenRawData: () => void;
   onEditDescription: () => void;
 }
+
+/** 파티션(Global · China)을 갖는 프로바이더 — IDC 는 클라우드 파티션이 없다. */
+const PARTITIONED = new Set(['AWS', 'GCP', 'Azure']);
 
 export function OpsHeader({
   targetSourceId,
@@ -104,52 +109,43 @@ export function OpsHeader({
 
   /**
    * kv 셀 — 라벨이 값 위에 선다. `wide` 는 긴 주체(ARN·SA·App ID)가 먹는 2열이고,
-   * `labelAfter` 는 **라벨 줄**에 붙는 단서(파티션 태그)다. 값 줄이 아니라 라벨 줄인
-   * 이유는 아래 `scopeTag` 의 독블록에 적혀 있다.
+   * 라벨 줄에 단서를 붙이던 `labelAfter` 는 사라졌다 — 그 단서(파티션 태그)가 블록 머리로
+   * 올라가면서 이 자리에 아무도 넘기지 않는다.
    */
-  const cell = (
-    label: string,
-    value: ReactNode,
-    wide = false,
-    labelAfter?: ReactNode,
-    /** 배치 클래스 하나 — 지금은 GCP 주체 쌍을 제 행에서 시작시키는 `col-start-1`. */
-    className?: string,
-  ): ReactElement => (
-    <div key={label} className={cn(opsStyles.fmCell, wide && opsStyles.fmCellWide, className)}>
+  const cell = (label: string, value: ReactNode, wide = false): ReactElement => (
+    <div key={label} className={cn(opsStyles.fmCell, wide && opsStyles.fmCellWide)}>
       <span className={opsStyles.fmKeyRow}>
         <span className={opsStyles.fmKey}>{label}</span>
-        {labelAfter}
       </span>
       <span className={opsStyles.fmValue}>{value}</span>
     </div>
   );
 
-  /**
-   * 파티션(China · Global)은 제 칸을 갖지 않고 **계정 값 옆에** 선다 (오너 08-26
-   * "리전은 없애. 그리고 계정 옆에 Global 을 적어"). 리전은 계정의 속성이지 계정과
-   * 나란한 사실이 아니었고, 한 칸을 차지하면 4열에서 진짜 사실 하나를 밀어낸다.
-   * 계정 자리는 프로바이더마다 다르다 — AWS 계정 · GCP 프로젝트 · Azure 구독.
-   * 읽기 전용이라 흰 면이 아니라 gray-200 이다: 흰 면은 수정 가능한 값의 것으로 남는다.
-   *
-   * 08-26 2차: 태그는 값 줄에서 **라벨 줄로** 올라갔다 (오너 "Global은 계정 오른쪽에
-   * 표현해"). 값 줄은 식별자의 것이다 — Azure 구독 UUID 는 36자로 240px 칸을 그대로
-   * 채우고, 그 뒤에 선 태그는 늘 밀리는 쪽이었다. 라벨 줄은 「계정」 세 글자뿐이라
-   * 자리가 남는다. 태그를 16px 로 줄여 `fmKey` 의 leading-4 와 같은 높이로 맞췄으므로
-   * 이 이동은 어느 프로바이더의 행 높이도 바꾸지 않는다.
-   */
   const isGcp = provider === 'GCP';
+  const scanSa = meta.gcp_scan_service_account;
+  const terraformSa = meta.gcp_terraform_service_account;
 
-  const scopeTag = (
-    <span className={cn(opsStyles.metaTagQuiet, 'flex-none')}>{isChina ? 'China' : 'Global'}</span>
-  );
+  /**
+   * 파티션 태그 — 「연동 대상」 머리 줄에서 단계 알약 **오른쪽**에 선다 (오너 2026-08-27
+   * "오른쪽에 China 태그 옮겨 … Bold로 강조하자. 파란색으로 선언"). 이 값은 계정 하나의
+   * 속성이 아니라 이 대상이 어느 파티션에 있느냐라, 알약과 같이 대상 전체를 말하는 자리에
+   * 선다. IDC 는 파티션이 없으므로 태그도 없다. */
+  const partitionTag = PARTITIONED.has(provider) ? (
+    <span
+      className={cn(
+        opsStyles.partitionTag,
+        isChina ? opsStyles.partitionChina : opsStyles.partitionGlobal,
+      )}
+    >
+      {isChina ? 'China' : 'Global'} Region
+    </span>
+  ) : null;
 
   /** 읽기 전용 mono 값 — 전문은 「상세 정보」가 복사와 함께 진다. */
   const monoCell = (
     label: string,
     value: string | null | undefined,
     wide = false,
-    labelAfter?: ReactNode,
-    className?: string,
   ): ReactElement =>
     cell(
       label,
@@ -161,9 +157,40 @@ export function OpsHeader({
         <span className={opsStyles.fmNone}>미등록</span>
       ),
       wide,
-      labelAfter,
-      className,
     );
+
+  /**
+   * GCP kv 줄의 셀 — `monoCell` 과 같은 활자를 쓰고 복사 하나만 더 갖는다. 라벨 12/500 ·
+   * 값 14/600 의 계층은 한때 이 셀만의 것이었는데(`fmKeyQuiet`/`fmValueLead`), 서비스
+   * 계정이 이름만 남으면서 스트립 전체가 같은 규칙으로 올라갔다 — 그래서 두 토큰은
+   * 사라지고 이 셀도 `fmKey`/`fmValue` 를 쓴다.
+   *
+   * `copyValue` 가 있으면 값 오른쪽에 복사가 선다 — 표시가 짧아진 자리(서비스 계정)에서만
+   * 쓴다. 넘기는 것은 **표시형이 아니라 전문**이다.
+   */
+  const gcpCell = (
+    label: string,
+    value: string | null | undefined,
+    copyValue?: string | null,
+  ): ReactElement => (
+    <div key={label} className={opsStyles.fmCell}>
+      <span className={opsStyles.fmKeyRow}>
+        <span className={opsStyles.fmKey}>{label}</span>
+      </span>
+      <span className={opsStyles.fmValue}>
+        {value ? (
+          <>
+            <span className={cn(opsStyles.fmValueText, opsStyles.fmMono)} title={copyValue ?? value}>
+              {value}
+            </span>
+            {copyValue && <CopyButton value={copyValue} label={`${label} 복사`} />}
+          </>
+        ) : (
+          <span className={opsStyles.fmNone}>미등록</span>
+        )}
+      </span>
+    </div>
+  );
 
   /** 표시값은 detail 과 같이 온다 (v5 metadata 의 등록값) — 저장 직후 한 칸만 saved 가 덮는다. */
   /**
@@ -173,9 +200,17 @@ export function OpsHeader({
    * 정확히 찬다. 옛 주석의 "ARN 은 값이지 동작이 아니다 — 링크로 그리지 않는다" 는
    * 이 지시로 뒤집혔다: 값이 곧 동작이고, 신호는 색이 아니라 파란 밑줄이 진다.
    *
-   * ARN 전문은 「상세 정보」가 복사와 함께 지므로 240px 안에서 잘려도 된다 — prefix 가
-   * 대상 계정과 일치할 때만 role 이름으로 줄고, 불일치(교차 계정·파티션)는 그 prefix 가
-   * 어긋남의 유일한 증거라 전체를 남긴다 (awsRoleArnDisplay).
+   * 08-27: 값 오른쪽에 복사가 선다 (오너 "ScanRole도 그냥 gcp처럼 정리할래?"). GCP 주체
+   * 칸과 같은 문법이다 — **값은 읽으라고 짧고, 남에게 넘어가는 것은 전문**이라 복사는
+   * 표시형이 아니라 늘 ARN 전체를 싣는다. 복사는 수정 버튼 **바깥**에 형제로 선다: 안에
+   * 넣으면 아이콘을 누른 손이 수정 모달까지 열어 한 자리에 두 동작이 겹친다. ARN 이
+   * 없으면(「미등록」) 넘길 것도 없으므로 복사도 없다.
+   *
+   * 값은 **언제나 role 이름만** 적는다 (오너 08-27 "ㄴㄴ 정리하라고"). 교차 계정·파티션
+   * 불일치일 때 prefix 를 남기던 규칙은 이 지시로 폐기됐다 — 그 규칙의 전제는 "prefix 가
+   * 어긋남의 유일한 증거"였는데, 이제 전문이 복사 값·title·「상세 정보」 세 자리에 있어
+   * 전제가 사라졌다. 줄이는 자리는 여전히 `awsRoleArnDisplay` 하나이고, GCP 주체도 같은
+   * 결정을 받았으므로 두 프로바이더의 권한 주체 행이 한 문법으로 읽힌다.
    */
   const roleCell = (kind: RoleKind): ReactElement => {
     const arn =
@@ -184,20 +219,23 @@ export function OpsHeader({
     const short = ROLE_META[kind].short;
     return cell(
       short,
-      <button
-        type="button"
-        className={cn(opsStyles.fmValueEdit, 'flex min-w-0 items-center')}
-        onClick={() => onOpenEdit(kind)}
-        title={arn ? `${arn} — ${short} 수정` : `${short} 등록`}
-      >
-        {arn ? (
-          <span className={cn(opsStyles.fmValueText, opsStyles.fmMono)}>
-            {awsRoleArnDisplay(arn, meta.aws_account_id ?? '', isChina)}
-          </span>
-        ) : (
-          <span className={opsStyles.fmNone}>미등록</span>
-        )}
-      </button>,
+      <>
+        <button
+          type="button"
+          className={cn(opsStyles.fmValueEdit, 'flex min-w-0 items-center')}
+          onClick={() => onOpenEdit(kind)}
+          title={arn ? `${arn} — ${short} 수정` : `${short} 등록`}
+        >
+          {arn ? (
+            <span className={cn(opsStyles.fmValueText, opsStyles.fmMono)}>
+              {awsRoleArnDisplay(arn)}
+            </span>
+          ) : (
+            <span className={opsStyles.fmNone}>미등록</span>
+          )}
+        </button>
+        {arn && <CopyButton value={arn} label={`${short} 복사`} />}
+      </>,
     );
   };
 
@@ -240,6 +278,11 @@ export function OpsHeader({
             <span className={opsStyles.pathHereId}>#{targetSourceId}</span>
           </span>
         </h1>
+        {/* 도장은 경로 줄로 올라왔다 (오너 2026-08-27 "「최초 1회 연동 완료」 도장을
+            「Target Source #1002」가 있는 경로 줄로 올려라"). 도장이 말하는 것은 이 줄이
+            가리키는 그 대상의 **지난 사실**이라 식별자 옆에 선다. 단계 알약은 「연동 대상」
+            옆에 남는다 — 알약은 "지금 어디", 도장은 "최초로 마친 적 있다". */}
+        <CompletedStamp firstInstalledAt={detail.pii_agent_first_installed_at} size="xs" />
       </div>
 
       <div className={cn(opsStyles.fmGroup, opsStyles.fmSplit)}>
@@ -258,13 +301,10 @@ export function OpsHeader({
               <span id={labelId} className={opsStyles.fmLabel}>
                 연동 대상
               </span>
-              {/* 알약과 도장은 「연동 대상」 옆에 선다 (오너 08-26) — 둘 다 이 블록이
-                  말하는 그 대상의 상태이지 경로의 일부가 아니다. 경로 줄은 이제 이동만
-                  말한다: 어디서 왔고(크럼) 어디로 더 갈 수 있나(관련 페이지). */}
+              {/* 알약은 「연동 대상」 옆에 선다 (오너 08-26) — 지금 몇 단계인지는 이 블록이
+                  이름 붙인 그 대상의 상태이지 경로의 일부가 아니다. */}
               {processStatus && <StepPill status={processStatus} framed />}
-              {/* 도장과 알약은 다른 축이다: 알약은 "지금 어디", 도장은 "최초로 마친 적
-                  있다 · 언제". 초기화된 대상은 둘이 같이 보이는 것이 말해야 하는 사실이다. */}
-              <CompletedStamp firstInstalledAt={detail.pii_agent_first_installed_at} size="sm" />
+              {partitionTag}
             </span>
             {/* 큐는 자기가 여는 블록과 같은 줄에 선다 (오너 판단 Q2) — 그래야 무엇이
                 열리는지 말한다. 파랑은 이 팔레트에서 "누를 수 있다"의 한 가지 색. */}
@@ -288,13 +328,13 @@ export function OpsHeader({
               Role 은 접힘 밖에 산다 (오너 지시): 이 화면에서 운영자가 가장 자주 대조하는
               값이고, 접어 두면 프로바이더마다 다른 깊이에 숨는다. */}
           <div className={isGcp ? opsStyles.fmGridGcp : opsStyles.fmGrid}>
-            {isAws && monoCell('계정', meta.aws_account_id, false, scopeTag)}
-            {provider === 'GCP' && monoCell('프로젝트', meta.gcp_project_id, false, scopeTag)}
+            {isAws && monoCell('계정', meta.aws_account_id)}
+            {provider === 'GCP' && gcpCell('프로젝트', meta.gcp_project_id)}
             {/* Azure 는 계정 자리가 구독이고, 테넌트가 그 옆에 선다 (오너 2026-08-26).
                 Q3 에서는 UUID 두 개가 스코프 줄을 468px 쓴다고 접힘에 두자고 했는데,
                 4열 그리드는 값 폭이 아니라 셀 수로 서는 배치라 그 근거가 없다 — 둘이
                 나란히 서면 한 행이 정확히 4칸으로 찬다. */}
-            {provider === 'Azure' && monoCell('구독(Subscription)', meta.subscription_id, false, scopeTag)}
+            {provider === 'Azure' && monoCell('구독(Subscription)', meta.subscription_id)}
             {provider === 'Azure' && monoCell('테넌트(Tenant)', meta.tenant_id)}
             {/* Scan App takes ONE column, like 구독 and 테넌트 (owner, 2026-08-26 —
                 「설정」 must stand on the same row as Scan App). All three are UUIDs of
@@ -303,9 +343,7 @@ export function OpsHeader({
                 each, and truncation is safe here because 「상세 정보」 prints every
                 identifier in full with a copy button. Azure now packs 구독·테넌트·Scan
                 App·설정 into exactly four slots — one row, the shape AWS already has.
-                GCP keeps its 2-column service accounts: those are full mail addresses
-                (오너 2026-08-27), and at 341/365px neither fits a 240px track — so the
-                pair takes a row of its own, below. */}
+                GCP 는 이 격자를 아예 쓰지 않는다 — 3등분(`fmGridGcp`)에 따로 선다. */}
             {provider === 'Azure' && monoCell('Scan App', meta.azure_scan_app_id)}
             {/* IDC 는 계정이 없는 게 정상이다 — 빈 칸을 두는 대신 그 대상이 무엇인지
                 말한다 (ServiceDetailView glossOf 의 어휘 그대로). */}
@@ -351,7 +389,7 @@ export function OpsHeader({
                   <>
                     <button
                       type="button"
-                      className={opsStyles.fmValueEdit}
+                      className={opsStyles.fmSettingEdit}
                       onClick={onOpenMode}
                       title="설치모드 변경"
                     >
@@ -364,7 +402,7 @@ export function OpsHeader({
                 )}
                 <button
                   type="button"
-                  className={opsStyles.fmValueEdit}
+                  className={opsStyles.fmSettingEdit}
                   onClick={onOpenRawData}
                   title="실데이터 여부 변경"
                 >
@@ -372,15 +410,29 @@ export function OpsHeader({
                 </button>
               </span>,
               )}
-            {/* GCP 는 세 칸 한 줄이다 (오너 2026-08-27: 설정을 없애고 한 줄로). 전문
-                둘이 341 + 365px, 프로젝트가 115px, 간격 둘이 36px — 1440 의 920px 레인에
-                63px 여유로 들어간다. 설정 칸(74px)까지 세우면 21px 모자라 주소가 잘렸다.
-                트랙은 `fmGridGcp` 가 내용 폭으로 잡는다: 240px 상한은 짧은 스칼라가 넓은
-                트랙에 홀로 남는 걸 막는 규칙이라 전문 주소에는 근거가 없다. */}
+            {/* GCP 는 세 칸 한 줄이고, 그 셋이 레인을 **3등분**한다 (오너 2026-08-27
+                "3등분으로 정보를 갖고 가게"). 세 칸은 전부 `gcpCell` 이라 라벨이 물러나고
+                값이 앞에 선다 — 계층은 값 쪽이다.
+
+                주체 둘은 **계정 이름만** 적는다 (오너 2026-08-27 "SA 이름만 남겨보자.
+                그리고 오른쪽에 복사 버튼을 눌러서 tf sa를 전달할 수 있게. 복사는 fqdn 이
+                복사되도록"). 짧은 이름은 **읽으라고** 있는 것이고, 다른 사람에게
+                **전달되는 것은 전문**이라 복사는 늘 주소 전체를 싣는다 — 화면에서 줄어든
+                꼬리를 손으로 다시 적게 하지 않는다. 전문은 title 로도 남는다.
+                줄이는 규칙은 `gcpServiceAccountDisplay` 가 진다: 프로젝트가 어디든
+                **언제나 이름만** 적는다 (오너 08-27 "ㄴㄴ 정리하라고") — 빌려 온 계정의
+                꼬리를 증거로 남기던 규칙은 전문이 복사 값·title·「상세 정보」 세 자리에
+                있으므로 전제가 사라졌다. AWS 역할 칸도 같은 결정을 받았다.
+                라벨도 한국어다 (오너 2026-08-27) — 「상세 정보」의 식별자 목록은 Project ID
+                와 짝이라 영문 그대로 둔다. */}
             {provider === 'GCP' && (
               <>
-                {monoCell('Scan Service Account', meta.gcp_scan_service_account)}
-                {monoCell('Terraform Service Account', meta.gcp_terraform_service_account)}
+                {gcpCell('스캔 서비스 계정', scanSa && gcpServiceAccountDisplay(scanSa), scanSa)}
+                {gcpCell(
+                  '테라폼 서비스 계정',
+                  terraformSa && gcpServiceAccountDisplay(terraformSa),
+                  terraformSa,
+                )}
               </>
             )}
           </div>
@@ -396,6 +448,10 @@ export function OpsHeader({
           )}
         </section>
 
+        {/* 두 단을 가르는 획 하나 (오너 2026-08-27 "줄 하나만 그어보자") — 간격 혼자
+            지고 있던 "왼쪽은 사실, 오른쪽은 나가는 문" 을 획이 한 번 더 말한다. */}
+        <span aria-hidden className={opsStyles.fmSplitRule} />
+
         {/* 관련 페이지 — 「연동 대상」과 같은 문법의 블록이되, 같은 행의 **오른쪽 단**이다
             (오너 08-26 "헤더 오른쪽에서 Github About처럼"). 사실 그리드에 섞여 있을 때는
             대조하는 값 행세를 했고, 머리 줄 오른쪽에 붙였을 때는 「상세 정보」와 같은 급이
@@ -410,9 +466,13 @@ export function OpsHeader({
           </div>
           {/* GitHub 의 About 패널 문법 (오너 08-26, design-benchmark 레퍼런스 04) —
               목적지마다 **아이콘이 앞에 서고 이름이 링크**이고, 목적지들은 세로로 쌓인다.
-              화살표를 줄마다 반복하지 않는다: 아이콘이 이미 "무엇으로 가는지"를 말하고,
-              About 패널도 링크 뒤에 표식을 붙이지 않는다. 새 창으로 여는 것(Jira)만 ↗ 를
-              남긴다 — 그건 목적지가 아니라 **어디에 열리는지**를 말하는 표식이라 다른 축이다. */}
+              ↗ 는 **이 화면을 떠난다**는 뜻이다 (오너 2026-08-27 "규칙바꿔"). 08-26 에는
+              「새 창으로 여는 것만」이었는데, 그 규칙은 같은 표식에 두 가지를 싣고 있었다 —
+              목적지가 바깥이라는 것과 창이 새로 열린다는 것. 앞의 것만 남긴다: 이 패널의 두
+              줄이 다 바깥으로 나가므로 둘 다 ↗ 를 달고, 창이 새로 열리는지는 표식이 아니라
+              링크가 정한다(Jira 는 `target="_blank"`, 담당자 화면은 같은 창).
+              이 앱의 다른 8곳도 전부 「나가는 문」이라 이 정의와 어긋나지 않는다.
+              어느 화면으로 가는지는 여전히 **앞의 마크**가 말한다 — ↗ 는 방향, 마크는 목적지. */}
           <div className={opsStyles.aboutList}>
             {/* 티켓은 detail 과 따로 도착한다 — 도착 전에 자리를 비우면 줄이 한 번 흔들리므로,
                 그 사이는 같은 폭의 자리만 잡아 둔다. 열 주소가 없거나 http(s) 가 아니면 링크가
@@ -450,15 +510,23 @@ export function OpsHeader({
             {/* 같은 대상의 서비스측 화면 — 운영자가 "담당자한테는 지금 뭐가 보이나"를
                 묻는 자리가 여기뿐이다. */}
             <span className={opsStyles.aboutRow}>
+              {/* `install` 은 내려받기 글리프라 이 줄에서 목적지를 잘못 말했다 — 아무것도
+                  내려받지 않는다 (오너 2026-08-27 "SDU Icon이라서 별로임"). 저장소가 같은
+                  이유로 이미 한 번 물린 이름이다(icons.tsx:145-147, 파이프라인 태그는
+                  package-plus 로 갈아탔다). `cursor` 는 다섯 후보 비교에서 오너가 고른 것:
+                  다섯 중 유일하게 **사람**을 데려오는 글리프라 "담당자가 보는"이라는 문장의
+                  주어와 붙는다. 시안 아티팩트는 docs/ux/icon-vocabulary.md 에 적어 뒀다. */}
               <span className={opsStyles.aboutMark} aria-hidden>
-                <Icon name="install" size="sm" />
+                <Icon name="cursor" size="sm" />
               </span>
               <Link
                 href={passRoutes.targetSource(targetSourceId)}
                 className={opsStyles.aboutLink}
                 title="PII Agent 설치 화면 — 이 대상의 서비스측 진행 화면"
               >
-                서비스 담당자가 보는 화면
+                {/* 화살표는 Jira 줄과 같다 (오너 2026-08-27) — 이 줄도 이 화면을 떠나
+                    다른 화면으로 나간다. 두 줄이 같은 종류라는 것을 같은 글리프가 말한다. */}
+                서비스 담당자가 보는 화면 <Icon name="arrow-ur" size="sm" />
               </Link>
             </span>
           </div>

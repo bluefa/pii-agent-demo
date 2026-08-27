@@ -1,20 +1,18 @@
-/** GCP service-account address suffix for a project — `@{project}.iam.gserviceaccount.com`. */
-export const gcpServiceAccountSuffix = (projectId: string): string =>
-  `@${projectId}.iam.gserviceaccount.com`;
-
 /**
- * Display form for a service account in tight slots (ops meta rail): just the account
- * name when the address sits under this target's own project. Anything else — an account
- * borrowed from another project — keeps the full address: the suffix IS the only evidence
- * of that mismatch, so a naive `split('@')` would erase it.
+ * Display form for a service account in tight slots (ops strip): always just the account
+ * name, whatever project the address belongs to (owner, 2026-08-27).
  *
- * Same rule as `awsRoleArnDisplay`, so the two providers' rows read alike: a short name
- * when everything lines up, the full value the moment it does not.
+ * This retires the older rule, which kept the full address for an account borrowed from
+ * another project, on the grounds that the suffix was the only evidence of that mismatch.
+ * That premise no longer holds: the strip stands a copy button carrying the full address,
+ * the value's `title` spells it out, and 「상세 정보」 prints it in full with its own copy.
+ *
+ * Same rule as `awsRoleArnDisplay`, so the two providers' rows read alike — one grammar,
+ * the short name to read and the full value to hand over.
+ *
+ * A string with no local part before `@` is returned whole: the cell never renders empty.
  */
-export const gcpServiceAccountDisplay = (serviceAccount: string, projectId: string): string => {
-  if (!projectId) return serviceAccount;
-  const suffix = gcpServiceAccountSuffix(projectId);
-  return serviceAccount.endsWith(suffix)
-    ? serviceAccount.slice(0, -suffix.length)
-    : serviceAccount;
+export const gcpServiceAccountDisplay = (serviceAccount: string): string => {
+  const at = serviceAccount.indexOf('@');
+  return at > 0 ? serviceAccount.slice(0, at) : serviceAccount;
 };

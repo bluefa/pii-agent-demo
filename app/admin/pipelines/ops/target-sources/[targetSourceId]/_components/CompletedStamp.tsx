@@ -27,14 +27,42 @@ import { cn } from '@/lib/theme';
 import { fmtDate, fmtDateTime } from '@/lib/pipeline/format';
 
 /**
- * 크럼 16px / 목록 20px / 상세 24px. 상세의 24px 는 이 화면 h1
+ * 경로 줄 12px / 크럼 16px / 목록 20px / 상세 24px. 상세의 24px 는 이 화면 h1
  * (`pipelineStyles.text.pageTitle`)과 같은 급이고, 목록의 20px 는 그 아래 한 단이다 —
  * 카드 제목이 16px 이므로 도장이 그 위에 서면서도 페이지 제목을 넘지 않는다.
- * 16px 는 경로 줄처럼 도장이 **주인공이 아닌** 자리의 것이다.
+ * 16px 는 경로 줄처럼 도장이 **주인공이 아닌** 자리의 것이고, 12px 는 그 줄 높이
+ * 안에 도장이 통째로 들어앉기 위한 크기다.
  */
-type StampSize = 'sm' | 'md' | 'lg';
+type StampSize = 'xs' | 'sm' | 'md' | 'lg';
 
-const SIZE: Record<StampSize, { box: string; date: string }> = {
+/**
+ * 두 줄 도장(`sm`/`md`/`lg`)의 공통 형태 — 문구 위에 날짜를 쌓고 −4° 기울인 뒤 안쪽
+ * 한 겹을 준다. `xs` 만 이 형태를 쓰지 않는다.
+ */
+const TILTED =
+  'flex-col items-center -rotate-[4deg] ' +
+  'shadow-[inset_0_0_0_1px_var(--pl-white),inset_0_0_0_3px_var(--pl-ok-border)]';
+
+const SIZE: Record<StampSize, { wrap: string; label: string; date: string }> = {
+  /**
+   * 경로 줄용 — **한 줄로 눕힌 도장**. 오너 2026-08-27: "아직도 도장으로 인해서 칸이
+   * 밀려. 도장을 그냥 기울이지말고 세우거나.. 아니면 밀리지만 않게 해봐".
+   *
+   * 실측: 경로 줄은 21px 인데 두 줄짜리 도장은 49px 이라 그 아래를 20px 민다. 기울임
+   * (`-rotate-[4deg]`)은 `transform` 이라 레이아웃 높이를 한 픽셀도 쓰지 않는다 —
+   * 그래서 **세우는 것만으로는 밀림이 사라지지 않는다**. 밀림을 0 으로 만드는 길은
+   * 도장이 **한 줄**이 되는 것 하나뿐이다: 문구와 날짜를 나란히 놓고 둘 다 `leading-4`
+   * 로 잡으면 16 + 테두리 4 = 20px 이라 21px 줄 안에 통째로 들어앉는다.
+   *
+   * 대신 이 크기에서만 도장의 두 줄 형태(문구 위에 날짜)를 포기했다. 안쪽 한 겹
+   * (`shadow-[inset...]`)도 뺀다 — 20px 높이에서는 두 링이 글자를 먹는다. 2px 획이
+   * 혼자 도장을 지탱한다.
+   */
+  xs: {
+    wrap: 'items-center gap-1.5 px-1.5',
+    label: 'text-[12px] leading-4',
+    date: 'text-[12px] leading-4',
+  },
   /**
    * 마스트헤드 경로 줄용 (오너 08-26 "너무 크게 노출된다"). 20px 날짜는 그 줄에서
    * 가장 큰 활자였는데, 도장이 말하는 것은 **지난 사실**이지 지금 상태가 아니다 —
@@ -42,9 +70,21 @@ const SIZE: Record<StampSize, { box: string; date: string }> = {
    * 「#1029」(14px)와 알약이 되고, 도장 높이가 53 → 41px 이라 경로 줄이 그만큼
    * 낮아진다. 문구는 12px 그대로다 — 더 내릴 칸이 이 앱에 없다(짝수 px 규칙).
    */
-  sm: { box: 'px-2.5 pt-1 pb-1', date: 'text-[16px]' },
-  md: { box: 'px-3 pt-[5px] pb-1.5', date: 'text-[20px]' },
-  lg: { box: 'px-3.5 pt-1.5 pb-2', date: 'text-[24px]' },
+  sm: {
+    wrap: `${TILTED} px-2.5 pt-1 pb-1`,
+    label: 'text-[12px]',
+    date: 'text-[16px] leading-[1.2]',
+  },
+  md: {
+    wrap: `${TILTED} px-3 pt-[5px] pb-1.5`,
+    label: 'text-[12px]',
+    date: 'text-[20px] leading-[1.2]',
+  },
+  lg: {
+    wrap: `${TILTED} px-3.5 pt-1.5 pb-2`,
+    label: 'text-[12px]',
+    date: 'text-[24px] leading-[1.2]',
+  },
 };
 
 /** 도장 문구. "1회" 가 하는 일: 이 값은 다시 찍히지 않는다는 것까지 말한다. */
@@ -85,25 +125,23 @@ export function CompletedStamp({
   return (
     <span
       className={cn(
-        'inline-flex flex-col items-center rounded-[6px] border-2',
-        'border-[var(--pl-ok-text)] bg-[var(--pl-bg-card)] -rotate-[4deg]',
-        // 안쪽 한 겹 — 흰 여백 1px 위에 옅은 초록 링. 획을 두껍게 하는 대신 겹을
-        // 주면 같은 무게에서 "찍힌 것"으로 읽힌다.
-        'shadow-[inset_0_0_0_1px_var(--pl-white),inset_0_0_0_3px_var(--pl-ok-border)]',
-        s.box,
+        // 겹(안쪽 링)과 기울임, 문구·날짜를 쌓느냐 나란히 놓느냐는 크기가 정한다.
+        'inline-flex rounded-[6px] border-2',
+        'border-[var(--pl-ok-text)] bg-[var(--pl-bg-card)]',
+        s.wrap,
         className,
       )}
       // 도장은 날짜만 보인다 — 분까지가 필요한 사람에게는 전문을 남긴다. "부터"가
       // 아니라 "에": 이 값은 상태가 시작된 시점이 아니라 한 번 일어난 사건이다.
       title={`${STAMP_LABEL} — ${fmtDateTime(firstInstalledAt)}`}
     >
-      <span className="text-[12px] font-bold tracking-[0.06em] text-[var(--pl-ok-text)]">
+      <span className={cn('font-bold tracking-[0.06em] text-[var(--pl-ok-text)]', s.label)}>
         {STAMP_LABEL}
       </span>
       <span
         className={cn(
           // 날짜는 절대 접히지 않는다 — 도장 안에서 두 줄이 되면 도장이 아니다.
-          'whitespace-nowrap font-bold tabular-nums leading-[1.2] text-[var(--pl-ok-text)]',
+          'whitespace-nowrap font-bold tabular-nums text-[var(--pl-ok-text)]',
           s.date,
         )}
       >
