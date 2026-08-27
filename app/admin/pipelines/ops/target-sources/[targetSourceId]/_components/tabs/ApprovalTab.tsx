@@ -70,11 +70,17 @@ const n = (value: number): string => value.toLocaleString('ko-KR');
 /**
  * 판정 아이콘의 갈래.
  *
- * 불변식: 카드의 `warn` ⟺ 머리의 `unmet: false` ∧ 조회 중 아님
- * (`ApprovalHead.unmet`, approvalGate.ts). 즉 `warn` 은 미충족이 아니라 **모름**이다 —
- * 조회에 실패했거나 판정할 수 없는 값이라 알아내지 못한 것. 실제 미충족만
- * (`err` · `pending`) ✗ 를 입는다. 이 둘이 어긋나면 머리는 "확인하지 못했어요"라고
- * 말하는데 카드는 미충족의 마크를 입고 서게 된다.
+ * 지키는 성질(한 방향): 카드가 `warn` 을 입으면 머리는 **그 조건을** 미충족이라 부르지
+ * 않는다. `warn` 은 미충족이 아니라 **모름**이다 — 조회에 실패했거나 판정할 수 없는
+ * 값이라 알아내지 못한 것. 실제 미충족만 (`err` · `pending`) ✗ 를 입는다. 어긋나면 머리는
+ * "확인하지 못했어요"라고 말하는데 카드는 미충족의 마크를 입고 서게 된다.
+ *
+ * ⛔ 머리의 `unmet`(approvalGate.ts) 과 양방향(⟺)으로 묶어 읽지 말 것. 머리는 한 번에 한
+ * 조건만 말하고(먼저 걸리는 조건에서 멈춘다) 카드는 셋이 동시에 선다 — 그래서 어느
+ * 방향으로도 전체가 성립하지 않는다:
+ *   · 미요청 + 최신 실행 조회 거절 → 머리는 조건 ① 을 보고 `unmet: true` 인데 카드 ② 는
+ *     `warn` 이다. 둘 다 각자 옳다.
+ *   · 세 조건 다 충족 → `unmet: false` 지만 `warn` 인 카드는 하나도 없다.
  *
  * 오너의 초록/빨강 획 지시(2026-08-26)는 충족 vs 미충족을 가른 것이다. 모름은 둘 중
  * 어느 쪽도 아니라 중립 획으로 선다 — `loading` 과 같다.
@@ -182,7 +188,12 @@ function GateCard({
         className="animate-spin text-[var(--pl-text-weak)] motion-reduce:animate-none"
       />
     ) : state === 'warn' ? (
-      <Icon name="warn-tri" size={20} className="text-[var(--pl-warn-text)]" title="확인 필요" />
+      // 이 마크의 이름은 '확인 필요'가 아니라 '미확인'이다 — 같은 카드의 본문이 이미
+      // '확인 필요'를 다른 뜻으로 쓴다(`N개 확인 필요` = 성공하지 못한 논리 DB·리소스의
+      // 수). 한 카드 안에서 낱말 하나가 마크의 이름이자 세는 값의 이름이면 스크린리더가
+      // 같은 말을 두 뜻으로 읽는다. '미확인'은 이 상태의 알약이 이미 쓰는 낱말이다
+      // (approvalGate.ts) — 머리도 "판정할 수 없어요"라고 말한다.
+      <Icon name="warn-tri" size={20} className="text-[var(--pl-warn-text)]" title="미확인" />
     ) : (
       <Icon name="x-circle" size={20} className="text-[var(--pl-err-text)]" title="미충족" />
     );
@@ -429,7 +440,12 @@ export function ApprovalTab({
   } => {
     const prose = (line: string | null): readonly GateFact[] => (line ? [{ value: line }] : []);
     if (!tcLoaded) return { state: 'loading', facts: [] };
-    if (!tcCompleted) return { state: 'pending', facts: [{ value: '완료 승인 후 점검합니다' }] };
+    // 모름 — §10 dag-status 는 읽는 사람이 생겼을 때만 가져오므로 이 상태에서는 헬스를
+    // 아직 보지도 않았다. 미요청·기록 없음·진행 중이 `pending`(✗)을 입는 것은 그것들이
+    // 관측된 사실이기 때문이다(요청이 없었다, 실행이 없었다). 이 줄은 DAG 에 대한 사실이
+    // 아니라 우리가 아직 안 봤다는 말이라, ✗ 를 달면 마크는 "미충족"이라 하고 바로 옆
+    // 문장은 "아직 점검 전"이라 하며 서로를 부정한다.
+    if (!tcCompleted) return { state: 'warn', facts: [{ value: '완료 승인 후 점검합니다' }] };
     switch (dag.phase) {
       case 'loading':
         return { state: 'loading', facts: [] };
