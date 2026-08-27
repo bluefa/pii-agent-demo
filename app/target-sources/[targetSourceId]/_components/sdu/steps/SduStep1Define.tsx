@@ -57,7 +57,7 @@ const SAVE_ERROR_MESSAGE = '연동 대상을 저장하지 못했어요. 잠시 �
  * 업로드 IP · Database Type 네 가지이고, 이 중 **Region 이 이후 업로드 경로를 가르는 축**이라
  * 목록 머리줄이 Region 곳수를 항상 세어 보여준다.
  *
- * `mode='return'` 은 4단계에서 대상을 고치러 돌아온 같은 화면이다. 그때만 행이 변경 상태를
+ * `mode='return'` 은 2단계에서 대상을 고치러 돌아온 같은 화면이다. 그때만 행이 변경 상태를
  * 입고, 삭제는 즉시 지우지 않고 표시만 한다 — 저장 전에는 되돌릴 수 있어야 한다.
  */
 export function SduStep1Define({
@@ -120,7 +120,7 @@ export function SduStep1Define({
       await putSduDefinition(targetSourceId, { targets: toSduPutTargets(rows) });
       await submitSduDefinition(targetSourceId);
     },
-    // 확인 프레임이 물러난 뒤에 갱신한다 — 상태가 바뀌는 순간 이 컴포넌트가 4단계 화면으로
+    // 확인 프레임이 물러난 뒤에 갱신한다 — 상태가 바뀌는 순간 이 컴포넌트가 2단계 화면으로
     // 교체되므로, 순서가 반대면 프레임이 그려지지 않는다. 갱신 실패는 삼키지 않는다:
     // 제출은 접수됐는데 화면은 1단계 그대로라, 아무 말도 없으면 한 번 더 누른다.
     settle: async () => {
@@ -198,14 +198,14 @@ export function SduStep1Define({
             <h2 className={cardStyles.cardTitle}>{SDU_STEP_TITLES[1]}</h2>
             {isReturn && (
               <span className={cn(chipStyles.base, chipStyles.variant.manual)}>
-                4단계에서 돌아옴
+                2단계에서 돌아옴
               </span>
             )}
           </div>
           <p className={cn('mt-2.5 break-keep', cardStyles.guidance)}>
             {isReturn ? (
               <>
-                이미 4단계를 진행 중인 대상소스예요. 대상을 고치면 4단계에서 확인하신 내용 중{' '}
+                이미 2단계를 진행 중인 대상소스예요. 대상을 고치면 2단계에서 확인하신 내용 중{' '}
                 <span className={primaryColors.text}>Region이 달라지는 부분만</span> 다시
                 확인하시면 돼요. 등록한 수신자와 받으신 S3 Access Key는 그대로예요.
               </>
@@ -296,7 +296,7 @@ export function SduStep1Define({
                 onClick={handleReturnSave}
                 className={idcStyles.triggerBtn.primary}
               >
-                저장하고 4단계로 돌아가기
+                저장하고 2단계로 돌아가기
               </button>
             ) : (
               <button

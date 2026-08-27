@@ -179,7 +179,7 @@ export function SduStep4Upload({ project, onProjectUpdate }: SduStepProps) {
       <header className={cardStyles.header}>
         <div className="flex items-start justify-between gap-4">
           <div className="flex items-center gap-2">
-            <span className={cardStyles.stepTag}>4단계</span>
+            <span className={cardStyles.stepTag}>2단계</span>
             <h2 className={cardStyles.cardTitle}>{SDU_STEP_TITLES[4]}</h2>
           </div>
           <div className="flex flex-shrink-0 items-center gap-3">

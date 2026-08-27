@@ -19,37 +19,20 @@ const INSTALL_STEPS = [
   { step: ProcessStatus.INSTALLATION_COMPLETE, label: '완료' },
 ] as const;
 
-/** The step from which a connection-test verdict can describe THIS configuration. */
-const TEST_INDEX = INSTALL_STEPS.findIndex(
-  (it) => it.step === ProcessStatus.WAITING_CONNECTION_TEST,
-);
-
 /**
- * SDU walks four of the seven (1·4·6·7) and names them differently — 4 is an upload, not
- * an install. Keyed by step NUMBER rather than by `ProcessStatus`, because two statuses
- * fold onto one SDU step and this table is about the road, not about where a target is.
- * A Map, not an index into `SDU_STEP_TITLES`: that record's key type is the four SDU steps
- * only, so reading it with an arbitrary loop counter would need a cast to compile.
+ * SDU's road is its OWN four steps (오너 2026-08-27), not the seven with three struck
+ * through. The owner never walks the missing three, and a road that showed them — struck
+ * or not — made the reader hold two numbering schemes at once.
+ *
+ * The `step` field is only a React key and the 연결 테스트 lookup below; position comes
+ * from `sduStepOf`, because several statuses fold onto one entry here.
  */
-const SDU_LABELS = new Map<number, string>([
-  [1, SDU_STEP_TITLES[1]],
-  [4, SDU_STEP_TITLES[4]],
-  [6, SDU_STEP_TITLES[6]],
-  [7, SDU_STEP_TITLES[7]],
-]);
-
-/**
- * The other three, and WHY each is gone — they are struck, never removed. Deleting them
- * would renumber nothing (the numbers are fixed) but it would leave a reader whose road
- * has no 승인 대기 with no way to learn that SDU has no approval at all, as opposed to
- * their target having skipped it. 5 is the subtle one: the connection test still happens,
- * it is just not the owner's to run.
- */
-const SDU_SKIPPED = new Map<number, string>([
-  [2, '승인 없음'],
-  [3, '승인 없음'],
-  [5, '연결 테스트는 BDC가 수행'],
-]);
+const SDU_STEPS = [
+  { step: ProcessStatus.WAITING_TARGET_CONFIRMATION, label: SDU_STEP_TITLES[1] },
+  { step: ProcessStatus.INSTALLING, label: SDU_STEP_TITLES[2] },
+  { step: ProcessStatus.WAITING_CONNECTION_TEST, label: SDU_STEP_TITLES[3] },
+  { step: ProcessStatus.INSTALLATION_COMPLETE, label: SDU_STEP_TITLES[4] },
+] as const;
 
 /** Names the 설치 진행 region (`aria-labelledby`), like 설치 대상 above it. */
 const PROGRESS_LABEL_ID = 'install-progress-label';
@@ -73,18 +56,16 @@ interface InstallationProcessProgressBarProps {
    */
   tcTag?: ReactNode;
   /**
-   * `'sdu'` re-labels the four steps SDU walks and strikes the three it does not. The
-   * road keeps all seven slots and the numbering never shifts — 「4단계」 has to point at
-   * the same place for every integration type, or an operator and an owner cannot say
-   * 「4단계에서 막혀 있다」 to each other and mean one thing.
+   * `'sdu'` swaps the road for SDU's own four steps — 1 연동 대상 정의 · 2 데이터 업로드 ·
+   * 3 SDU 연동중 · 4 완료. The wire lattice is untouched; this is what the owner is told.
    */
   variant?: 'sdu';
 }
 
 /**
- * 설치 진행 — one row at rest, the seven-step road behind 「전체 단계」 (오너 14차 지시).
+ * 설치 진행 — one row at rest, the whole road behind 「전체 단계」 (오너 14차 지시).
  *
- * The row states the one fact a mid-install reader came for: 전체 7단계 중 어디인지, as a
+ * The row states the one fact a mid-install reader came for: 전체 몇 단계 중 어디인지, as a
  * tag. It does not name the step — the card head below owns that. The road that names
  * all seven is what a first-time reader wants exactly once, so it opens on request
  * instead of charging every visit ~60px of header for it.
@@ -100,19 +81,22 @@ export const InstallationProcessProgressBar = ({
   variant,
 }: InstallationProcessProgressBarProps) => {
   const [stepsOpen, setStepsOpen] = useState(false);
-  // ProcessStatus is exactly these seven, but the value arrives over the wire —
-  // an unknown one drops the position line rather than printing 「0단계」. The row used to
-  // hold the matched step for its `.label`; it prints only numbers now, so the index is
-  // the whole guard.
-  // SDU folds two statuses onto step 4 and two onto step 6, so its position cannot be
-  // read off this list — `sduStepOf` owns that mapping. It returns `undefined` for a
-  // status outside the seven, which lands on the same -1 the default lookup gives.
+  // ProcessStatus is exactly seven values, but it arrives over the wire — an unknown one
+  // drops the position line rather than printing 「0단계」. The row used to hold the matched
+  // step for its `.label`; it prints only numbers now, so the index is the whole guard.
+  // SDU folds several statuses onto one of its steps, so its position cannot be read off
+  // the road — `sduStepOf` owns that mapping. It returns `undefined` for a status outside
+  // the seven, which lands on the same -1 the default lookup gives.
+  const steps: readonly { step: ProcessStatus; label: string }[] =
+    variant === 'sdu' ? SDU_STEPS : INSTALL_STEPS;
   const sduStep = variant === 'sdu' ? sduStepOf(currentStep) : undefined;
   const currentIndex =
     variant === 'sdu'
       ? (sduStep ?? 0) - 1
-      : INSTALL_STEPS.findIndex((it) => it.step === currentStep);
-  const done = currentIndex === INSTALL_STEPS.length - 1;
+      : steps.findIndex((it) => it.step === currentStep);
+  const done = currentIndex === steps.length - 1;
+  /** The step from which a connection-test verdict can describe THIS configuration. */
+  const testIndex = steps.findIndex((it) => it.step === ProcessStatus.WAITING_CONNECTION_TEST);
 
   return (
     <section aria-labelledby={PROGRESS_LABEL_ID} className={s.wrap}>
@@ -130,7 +114,7 @@ export const InstallationProcessProgressBar = ({
                  stays because it is what was completed. */
               <span className={s.stepTag}>
                 <span>
-                  <b className={s.tagCount}>{INSTALL_STEPS.length}</b>단계 모두 완료
+                  <b className={s.tagCount}>{steps.length}</b>단계 모두 완료
                 </span>
               </span>
             ) : (
@@ -146,7 +130,7 @@ export const InstallationProcessProgressBar = ({
                 {/* One span, so both 14px digits baseline-align inside the phrase rather
                     than becoming flex items that have to be aligned against it. */}
                 <span>
-                  <b className={s.tagCount}>{INSTALL_STEPS.length}</b>단계 중{' '}
+                  <b className={s.tagCount}>{steps.length}</b>단계 중{' '}
                   <b className={s.tagCount}>{currentIndex + 1}</b>단계
                 </span>
               </span>
@@ -161,7 +145,7 @@ export const InstallationProcessProgressBar = ({
                  step, so it belongs to the same press that names the steps.
               Neither gate merely hides the tag: `TcHeaderTag` fetches latest_version on
               mount, so not rendering it is also not fetching. */}
-          {stepsOpen && currentIndex >= TEST_INDEX && tcTag && (
+          {stepsOpen && currentIndex >= testIndex && tcTag && (
             <span id={VERDICT_SLOT_ID} className={s.tagSlot}>
               {tcTag}
             </span>
@@ -189,14 +173,10 @@ export const InstallationProcessProgressBar = ({
           id={STEPS_BLOCK_ID}
           role="list"
           className={s.list}
-          style={{ gridTemplateColumns: `repeat(${INSTALL_STEPS.length}, minmax(0, 1fr))` }}
+          style={{ gridTemplateColumns: `repeat(${steps.length}, minmax(0, 1fr))` }}
         >
-          {INSTALL_STEPS.map((it, index) => {
-            const stepNumber = index + 1;
-            // The reason this slot is struck, or undefined when the type walks it.
-            const skippedReason = variant === 'sdu' ? SDU_SKIPPED.get(stepNumber) : undefined;
-            const label = (variant === 'sdu' && SDU_LABELS.get(stepNumber)) || it.label;
-            const isLast = index === INSTALL_STEPS.length - 1;
+          {steps.map((it, index) => {
+            const isLast = index === steps.length - 1;
             const isCurrent = index === currentIndex;
             const isCompleted = currentIndex > index;
             // A segment is "walked" when it leads INTO a step the user has
@@ -208,11 +188,6 @@ export const InstallationProcessProgressBar = ({
               <li
                 key={it.step}
                 aria-current={isCurrent ? 'step' : undefined}
-                /* The reason rides the whole slot, not just the label: `title` is the only
-                   channel this road has for a sentence, and the slot is what a pointer is
-                   over. Absent on a walked step — an empty title is a tooltip that opens
-                   on nothing. */
-                title={skippedReason}
                 className={s.item}
               >
                 <span className={s.track}>
@@ -236,33 +211,19 @@ export const InstallationProcessProgressBar = ({
                       )}
                     />
                   )}
-                  {/* A struck step gets no bead. Every dot on this road means a position
-                      relative to the reader — walked, here, ahead — and a slot that is
-                      none of the three has no honest fill: `dotPending` would say「아직」
-                      about something that will never happen. The line runs straight
-                      through instead, which is the truth: the road does not stop here. */}
-                  {!skippedReason && (
-                    <i
-                      aria-hidden="true"
-                      className={cn(
-                        s.dotBase,
-                        isCurrent ? s.dotCurrent : isCompleted ? s.dotDone : s.dotPending,
-                      )}
-                    />
-                  )}
+                  <i
+                    aria-hidden="true"
+                    className={cn(
+                      s.dotBase,
+                      isCurrent ? s.dotCurrent : isCompleted ? s.dotDone : s.dotPending,
+                    )}
+                  />
                 </span>
                 <span
-                  className={cn(
-                    s.labelBase,
-                    skippedReason
-                      ? s.labelSkipped
-                      : isCurrent
-                        ? s.labelCurrent
-                        : s.labelRest,
-                  )}
+                  className={cn(s.labelBase, isCurrent ? s.labelCurrent : s.labelRest)}
                   style={{ wordBreak: 'keep-all' }}
                 >
-                  {label}
+                  {it.label}
                 </span>
               </li>
             );

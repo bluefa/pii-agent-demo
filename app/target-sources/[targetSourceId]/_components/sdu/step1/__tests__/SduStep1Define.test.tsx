@@ -161,7 +161,7 @@ describe('제출 게이트', () => {
   });
 });
 
-describe('4단계에서 돌아온 1단계', () => {
+describe('2단계에서 돌아온 1단계', () => {
   const renderReturn = async () => {
     getSduDefinition.mockResolvedValue(twoTargets);
     const onReturn = vi.fn();
@@ -206,11 +206,11 @@ describe('4단계에서 돌아온 1단계', () => {
     expect(screen.getByText('추가함')).toBeTruthy();
   });
 
-  it('저장은 정의를 쓰기만 하고 제출하지 않는다 — 이미 4단계를 지나온 대상소스다', async () => {
+  it('저장은 정의를 쓰기만 하고 제출하지 않는다 — 이미 2단계를 지나온 대상소스다', async () => {
     const { onReturn } = await renderReturn();
     putSduDefinition.mockResolvedValue(twoTargets);
 
-    fireEvent.click(button('저장하고 4단계로 돌아가기'));
+    fireEvent.click(button('저장하고 2단계로 돌아가기'));
 
     await waitFor(() => expect(onReturn).toHaveBeenCalledTimes(1));
     expect(putSduDefinition).toHaveBeenCalledTimes(1);

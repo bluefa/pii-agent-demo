@@ -45,11 +45,11 @@ type SharedStep = '2' | '3' | '5' | '6' | '7';
 const slotsForStep = (step: SharedStep) =>
   (Object.keys(GUIDE_SLOTS) as GuideSlotKey[]).filter(
     // ⛔ SDU is excluded on purpose, and this filter is the decision the comment above
-    // demands. `process.sdu.6` and `.7` end in the same digit as the shared cards but do
-    // NOT share their body: the shared step 6 describes a 관리자 승인 대기 that SDU has no
-    // such thing as, and the shared step 7 sends the reader to 인프라 변경 →
-    // 연동 대상 DB 선택, neither of which exists on the SDU road. Sweeping them in here
-    // would have made "one authored card, every integration type" quietly false.
+    // demands. SDU numbers its own four steps, so its keys END in the same digits as the
+    // shared cards while saying something else entirely — SDU's 3단계 is SDU 연동중 where
+    // the shared 3단계 is 연동 대상 반영중, and SDU's 4단계 is 완료 where the shared one is
+    // Agent 설치. Sweeping them in here would have made "one authored card, every
+    // integration type" quietly false.
     (key) => key.endsWith(`.${step}`) && !key.startsWith('process.sdu.'),
   );
 

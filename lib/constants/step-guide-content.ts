@@ -332,19 +332,20 @@ const STEP_7_HTML =
   '문의를 남겨주세요.</blockquote>';
 
 // ---------------------------------------------------------------------------
-// SDU — the four steps the owner walks (1 · 4 · 6 · 7)
+// SDU — the four steps the owner walks (1 · 2 · 3 · 4)
 // ---------------------------------------------------------------------------
 
 /**
- * SOURCE: `design/sdu/sdu-flow-design.html`, the 「이 단계에서 할 일」 rail lists in
- * `#step1` / `#step4` and the hero copy in `#step6`. Same transcription discipline as the
- * rest of this file — the rail list IS the guide, so it is copied rather than re-written.
+ * SOURCE: `design/sdu/sdu-flow-design.html`, the 「이 단계에서 할 일」 rail lists in its
+ * `#step1` / `#step4` / `#step6` sections (the storyboard numbers by the shared lattice;
+ * the owner-facing steps below are 1·2·3·4). Same transcription discipline as the rest of
+ * this file — the rail list IS the guide, so it is copied rather than re-written.
  *
- * Steps 6 and 7 do NOT reuse the shared cards. The shared step 6 describes a
- * 관리자 승인 대기 that SDU has no such thing as, and the shared step 7 tells the reader to
- * press 인프라 변경 and land on 연동 대상 DB 선택 — SDU's step 1 is 연동 대상 정의 and there
- * is no infrastructure to change. Sending a reader to a control that is not on their
- * screen is the exact defect the 2026-08-23 transcription existed to remove.
+ * SDU 연동중 and 완료 do NOT reuse the shared cards. The shared 관리자 승인 대기 card names
+ * something SDU has no such thing as, and the shared 완료 card tells the reader to press
+ * 인프라 변경 and land on 연동 대상 DB 선택 — SDU's 1단계 is 연동 대상 정의 and there is no
+ * infrastructure to change. Sending a reader to a control that is not on their screen is
+ * the exact defect the 2026-08-23 transcription existed to remove.
  */
 const SDU_TARGET_DEFINE_HTML =
   '<h4>연동할 대상을 직접 정의해주세요.</h4>' +

@@ -164,7 +164,7 @@ describe('SduStep6Integrating — what the card says', () => {
     getProject.mockResolvedValue(project(ProcessStatus.WAITING_CONNECTION_TEST));
   });
 
-  it('states the cadence, and offers no control to beat it', async () => {
+  it('says nothing about the poll, and offers no control to beat it', async () => {
     render(
       <SduStep6Integrating
         project={project(ProcessStatus.WAITING_CONNECTION_TEST)}
@@ -173,12 +173,13 @@ describe('SduStep6Integrating — what the card says', () => {
     );
     await settle();
 
-    // The number in the copy is derived from the interval the poll actually runs at —
-    // a promise the screen keeps by construction rather than by a reviewer noticing.
-    expect(screen.getByText(/30초마다 자동 확인/)).toBeTruthy();
-    // ⛔ No 새로고침 / 다시 확인 button. There is nothing the owner can do to make BDC
-    // finish sooner, so the only effect such a control could have is to reset the number
-    // beside it.
+    // 오너 2026-08-27 — the poll runs, but the card says nothing about it: no cadence,
+    // no last-check stamp. Both halves of the old live line are pinned absent, because
+    // either one alone reintroduces the machinery talk.
+    expect(screen.queryByText(/자동 확인/)).toBeNull();
+    expect(screen.queryByText(/확인함/)).toBeNull();
+    // ⛔ No 새로고침 / 다시 확인 button either. There is nothing the owner can do to make
+    // BDC finish sooner.
     expect(screen.queryByRole('button')).toBeNull();
   });
 

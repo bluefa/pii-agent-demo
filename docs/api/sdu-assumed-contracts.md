@@ -36,20 +36,21 @@ SDU is not a cloud provider. `CloudProvider` stays `AWS | Azure | GCP | IDC`, an
 (`isSduTarget`, `lib/types.ts`). The owner does not have infrastructure we scan — they
 upload data to an S3 bucket we own. So there is no approval step and no Terraform for
 them to run: they **define** what they are going to upload (Step 1), **upload** it
-(Step 4), and wait (Step 6, then 7).
+(Step 2), and wait (Step 3, then 4).
 
-The 7-step `ProcessStatus` lattice is shared with every other provider. SDU rides it and
-folds the steps it has no screen for — `sduStepOf`
+**The owner-facing SDU flow is presented as 4 steps; the wire `ProcessStatus` lattice is
+unchanged.** The 7-step lattice is shared with every other provider — SDU rides it and
+folds it for presentation in `sduStepOf`
 (`app/target-sources/[targetSourceId]/_components/sdu/sdu-steps.ts`):
 
 | ProcessStatus | 1 | 2 | 3 | 4 | 5 | 6 | 7 |
 |---|---|---|---|---|---|---|---|
-| SDU step | 1 | 4 | 4 | 4 | 6 | 6 | 7 |
+| SDU step | 1 | 2 | 2 | 2 | 3 | 3 | 4 |
 
-2 and 3 fold into 4 because SDU has no approval; 5 folds into 6 because the admin's
-scan → Terraform → 연결 테스트 → Airflow run is one sentence to the owner. The four
-blocks inside Step 4 are **mock-only sub-state**, not statuses — nothing on the wire
-names them.
+Statuses 2·3 join 4 on SDU's step 2 because SDU has no approval; 5 joins 6 on step 3
+because the admin's scan → Terraform → 연결 테스트 → Airflow run is one sentence to the
+owner. The four blocks inside SDU's step 2 are **mock-only sub-state**, not statuses —
+nothing on the wire names them.
 
 ## 1. Integration target definition — read
 
@@ -100,8 +101,9 @@ on the client:
 
 ### Invalidation
 
-A save recomputes what the Step-4 answers still mean. This is the storyboard's table,
-and it is why every Step-4 response is keyed by region: an answer stored as
+A save recomputes what the Step-2 (데이터 업로드) answers still mean. This is the
+storyboard's table, and it is why every upload-step response is keyed by region: an
+answer stored as
 "이 Region에 대해 이렇게 답했다" can be kept or dropped one region at a time, where a
 per-block boolean would be wiped by every edit and the owner would learn to avoid going
 back.
@@ -203,7 +205,7 @@ body { kind: "FIREWALL" | "UPLOAD", regions: string[], confirmed: boolean }
 `confirmed: true` adds the regions to the matching `acked_regions`, `false` removes them.
 `regions` must be a subset of §4's `regions`.
 
-`false` is a first-class value, not a missing answer. The Step-4 gates block forward
+`false` is a first-class value, not a missing answer. The upload-step gates block forward
 only — a finished block folds, it does not lock — so every one of them keeps a way back.
 
 Storing an ack also clears `invalidation` (§2).
@@ -231,7 +233,7 @@ target source to ProcessStatus 5 (`WAITING_CONNECTION_TEST`). Losing any of thos
 conditions before completion returns it to `NOT_STARTED`: an invalidated ack means BDC is
 waiting again, not that it is half-done.
 
-The existing `POST …/reset` (Step 7's 인프라 변경) clears the SDU **upload** state —
+The existing `POST …/reset` (Step 4 완료's 연동 대상 수정) clears the SDU **upload** state —
 acks, recipients, BDC — and **keeps the definition**. Reset returns the target to Step 1,
 and Step 1 is where the definition is edited; wiping it would hand the owner an empty
 screen to re-type from memory, which is the same reasoning that keeps the scan results.
@@ -294,7 +296,7 @@ BDC progression is evaluated **on read and on every write**, comparing elapsed t
 the pattern `lib/mock-installation.ts` uses for terraform scripts. A `setTimeout` would
 not survive a hot reload and would keep the test process alive.
 
-Fixtures (`lib/mock-data.ts`): **1100** is mid-Step-4 (2 targets / regions `us`+`eu`,
+Fixtures (`lib/mock-data.ts`): **1100** is mid-upload-step (2 targets / regions `us`+`eu`,
 firewall acked for `us` only, 3 recipients); **1101** is Global at Step 1 with an empty
 definition; **1102** is the same at China (`isChinaRegion: true`). **1099** is left alone
 — it is pinned by `OpsTargetView.sdu.test.tsx` and `lib/bff/mock/__tests__/pipeline.test.ts`.

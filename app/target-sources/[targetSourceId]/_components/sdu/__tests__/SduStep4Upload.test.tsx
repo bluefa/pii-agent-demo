@@ -161,7 +161,7 @@ describe('SduStep4Upload', () => {
   it('opens only the block the owner is on, and folds the rest', async () => {
     await renderStep();
 
-    expect(screen.getByText('4단계')).toBeTruthy();
+    expect(screen.getByText('2단계')).toBeTruthy();
     expect(screen.getByText(FIREWALL_QUESTION)).toBeTruthy();
     expect(screen.queryByText(RECIPIENTS_INTRO)).toBeNull();
     expect(screen.queryByText(COMMANDS_INTRO_HEAD)).toBeNull();

@@ -146,8 +146,8 @@ const IDC_STEP_7_HTML =
 
 // ---------------------------------------------------------------------------
 // SDU step-keyed HTML — the owner uploads the data, so there is no scan, no
-// approval and no agent to install. Four steps carry a screen (1·4·6·7); the
-// seed has one entry per GuideName, and SDU contributes exactly those four.
+// approval and no agent to install. The owner-facing flow is four steps
+// (1·2·3·4); the seed has one entry per GuideName, and SDU contributes those four.
 // ---------------------------------------------------------------------------
 
 const SDU_STEP_1_HTML =
@@ -159,7 +159,7 @@ const SDU_STEP_1_HTML =
   '<li>SDU는 연동 대상 승인 절차가 없어 제출 즉시 업로드 준비 단계로 넘어갑니다.</li>' +
   '</ul>';
 
-const SDU_STEP_4_HTML =
+const SDU_STEP_2_HTML =
   '<h4>데이터를 업로드해 주세요</h4>' +
   '<p>방화벽 결재를 확인하고, S3 Access Key를 받으실 분을 등록한 뒤 데이터를 업로드합니다. 업로드된 파일은 Region별 확인 명령으로 점검할 수 있습니다.</p>' +
   '<ul>' +
@@ -167,7 +167,7 @@ const SDU_STEP_4_HTML =
   '<li>BDC 측 리소스 생성이 완료되면 다음 단계로 넘어갑니다.</li>' +
   '</ul>';
 
-const SDU_STEP_6_HTML =
+const SDU_STEP_3_HTML =
   '<h4>업로드된 데이터를 연동하고 있어요</h4>' +
   '<p>BDC 측에서 업로드된 데이터를 확인하고 연동하는 중입니다. 담당자가 추가로 하실 일은 없습니다.</p>' +
   '<ul>' +
@@ -175,7 +175,7 @@ const SDU_STEP_6_HTML =
   '<li>연동이 끝나면 완료 단계로 넘어갑니다.</li>' +
   '</ul>';
 
-const SDU_STEP_7_HTML =
+const SDU_STEP_4_HTML =
   '<h4>SDU 연동이 완료되었습니다</h4>' +
   '<p>업로드하신 데이터가 PII 모니터링 대상으로 연동되었습니다.</p>' +
   '<ul>' +
@@ -229,7 +229,7 @@ export const guidesSeed: Record<GuideName, GuideDetail> = {
   IDC_COMPLETE: entry('IDC_COMPLETE', STEP_7_HTML),
   // SDU (4) — self-upload flow; steps 2·3·5 have no screen and therefore no guide.
   SDU_TARGET_DEFINE: entry('SDU_TARGET_DEFINE', SDU_STEP_1_HTML),
-  SDU_UPLOAD: entry('SDU_UPLOAD', SDU_STEP_4_HTML),
-  SDU_INTEGRATING: entry('SDU_INTEGRATING', SDU_STEP_6_HTML),
-  SDU_COMPLETE: entry('SDU_COMPLETE', SDU_STEP_7_HTML),
+  SDU_UPLOAD: entry('SDU_UPLOAD', SDU_STEP_2_HTML),
+  SDU_INTEGRATING: entry('SDU_INTEGRATING', SDU_STEP_3_HTML),
+  SDU_COMPLETE: entry('SDU_COMPLETE', SDU_STEP_4_HTML),
 };

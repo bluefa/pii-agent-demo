@@ -30,7 +30,7 @@ import {
  * `toSduDefinitionRequest` omits the field for those, and the server's "did this row's
  * upload IP change" verdict depends on that omission.
  *
- * `removed` is a MARK, not a deletion: on the trip back from 4단계 the user has to be able
+ * `removed` is a MARK, not a deletion: on the trip back from 2단계 the user has to be able
  * to undo a removal before saving, so the row stays in the list wearing 삭제함.
  */
 export interface SduTargetDraft {
@@ -143,7 +143,7 @@ export const SDU_ROW_DIFF_LABEL: Record<SduRowDiff, string> = {
 };
 
 /**
- * 4단계에서 돌아온 화면의 행 상태. 기준은 **불러온 정의**다 — 저장 전까지 서버는
+ * 2단계에서 돌아온 화면의 행 상태. 기준은 **불러온 정의**다 — 저장 전까지 서버는
  * 아무것도 모르므로, 이 판정만이 "무엇이 무효가 되는지"를 미리 말해 줄 수 있다.
  */
 export const sduRowDiff = (baseline: readonly SduTarget[], row: SduTargetDraft): SduRowDiff => {
@@ -198,7 +198,7 @@ const regionNames = (regions: readonly SduRegion[]): string =>
   regions.map((region) => SDU_REGION_LABEL[region]).join(' · ');
 
 /**
- * 4단계로 돌아가기 직전의 한 줄 — 이 저장이 4단계의 무엇을 다시 묻게 만드는지.
+ * 2단계로 돌아가기 직전의 한 줄 — 이 저장이 2단계의 무엇을 다시 묻게 만드는지.
  *
  * 경로 수가 같아도 "2개 → 2개"라고 굳이 말한다: 수가 같다고 같은 경로가 아니다.
  */

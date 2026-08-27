@@ -15,15 +15,15 @@ import {
 import { GUIDE_SLOTS } from '@/lib/constants/guide-registry';
 import { ProcessStatus } from '@/lib/types';
 
-/** The whole fold, status by status — 2·3·4 → 4 and 5·6 → 6. */
+/** The whole fold, status by status — 승인 두 상태와 설치가 2단계, 연결 테스트가 3단계로. */
 const CASES = [
   [ProcessStatus.WAITING_TARGET_CONFIRMATION, 'process.sdu.1'],
-  [ProcessStatus.WAITING_APPROVAL, 'process.sdu.4'],
-  [ProcessStatus.APPLYING_APPROVED, 'process.sdu.4'],
-  [ProcessStatus.INSTALLING, 'process.sdu.4'],
-  [ProcessStatus.WAITING_CONNECTION_TEST, 'process.sdu.6'],
-  [ProcessStatus.CONNECTION_VERIFIED, 'process.sdu.6'],
-  [ProcessStatus.INSTALLATION_COMPLETE, 'process.sdu.7'],
+  [ProcessStatus.WAITING_APPROVAL, 'process.sdu.2'],
+  [ProcessStatus.APPLYING_APPROVED, 'process.sdu.2'],
+  [ProcessStatus.INSTALLING, 'process.sdu.2'],
+  [ProcessStatus.WAITING_CONNECTION_TEST, 'process.sdu.3'],
+  [ProcessStatus.CONNECTION_VERIFIED, 'process.sdu.3'],
+  [ProcessStatus.INSTALLATION_COMPLETE, 'process.sdu.4'],
 ] as const;
 
 describe('resolveStepSlot — SDU', () => {
@@ -38,22 +38,22 @@ describe('resolveStepSlot — SDU', () => {
     // they are not looking at.
     for (const provider of ['AWS', 'Azure', 'GCP', 'IDC'] as const) {
       expect(resolveStepSlot(provider, ProcessStatus.INSTALLING, { sdu: true })).toBe(
-        'process.sdu.4',
+        'process.sdu.2',
       );
     }
   });
 
-  it('never resolves a slot for the three steps SDU does not walk', () => {
-    // There is no `process.sdu.2` / `.3` / `.5` in the registry, and there must not be:
-    // a guide nobody can reach is a guide nobody maintains.
+  it('has exactly four SDU slots, and every one of them is reachable', () => {
+    // 네 슬롯이 곧 담당자가 걷는 네 단계다 — 다섯 번째가 생기면 아무도 닿지 못하는
+    // 가이드이고, 하나가 빠지면 화면 하나가 가이드 없이 선다.
     const sduKeys = Object.keys(GUIDE_SLOTS).filter((key) => key.startsWith('process.sdu.'));
     expect(sduKeys.sort()).toEqual([
       'process.sdu.1',
+      'process.sdu.2',
+      'process.sdu.3',
       'process.sdu.4',
-      'process.sdu.6',
-      'process.sdu.7',
     ]);
-    expect(new Set(CASES.map(([, key]) => key)).size).toBe(4);
+    expect(new Set(CASES.map(([, key]) => key))).toEqual(new Set(sduKeys));
   });
 
   it('still refuses a status outside the seven', () => {
@@ -71,7 +71,7 @@ describe('resolveProjectStepSlot — SDU', () => {
   });
 
   it('reads isSduType off the project', () => {
-    expect(resolveProjectStepSlot(project(true))).toBe('process.sdu.6');
+    expect(resolveProjectStepSlot(project(true))).toBe('process.sdu.3');
   });
 
   it.each([

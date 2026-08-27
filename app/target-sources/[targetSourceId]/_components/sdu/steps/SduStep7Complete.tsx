@@ -14,7 +14,7 @@ const REWIND_BTN_DISABLED = 'disabled:cursor-not-allowed disabled:opacity-45';
 
 /**
  * ONE rewind, where the cloud and IDC steps expose two. 연결 테스트 재실행 is not offered
- * because 5단계 is struck through on the SDU road: the test runs, but the admin runs it,
+ * because the connection test is not on the SDU road: the test runs, but the admin runs it,
  * and a button that re-opens a step the reader cannot stand on would be the screen
  * offering work it cannot accept.
  */
@@ -68,7 +68,7 @@ export const SduStep7Complete = ({ project, onProjectUpdate }: SduStepProps) => 
   <section className={cardStyles.base}>
     <header className={cardStyles.header}>
       <div className="flex items-center gap-2">
-        <span className={cardStyles.stepTag}>7단계</span>
+        <span className={cardStyles.stepTag}>4단계</span>
         <h2 className={cardStyles.cardTitle}>PII 모니터링 모듈 연동</h2>
         <span
           className={cn(

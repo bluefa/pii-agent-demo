@@ -76,7 +76,7 @@ export const SduSubmitModal = ({
       size="sm"
     >
       <p className={cn('text-[14px] font-medium', numericFeatures.tabular, textColors.tertiary)}>
-        제출한 뒤에도 4단계에서 연동 대상을 고치러 이 화면으로 돌아올 수 있어요.
+        제출한 뒤에도 2단계에서 연동 대상을 고치러 이 화면으로 돌아올 수 있어요.
       </p>
     </ConfirmStepModal>
   );

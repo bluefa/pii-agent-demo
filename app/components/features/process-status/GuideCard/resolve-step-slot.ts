@@ -27,8 +27,8 @@ export const resolveStepSlot = (
   // SDU is checked BEFORE the provider, and takes no `provider` of its own: an SDU
   // target still sits on a CSP (its `cloudProvider` is AWS or whatever it is), so
   // falling through to the provider branch would hand it the AWS guide for a step it
-  // is not on. The slot is keyed by the SDU step, not by the status — two statuses fold
-  // onto step 4 and two onto step 6, and `sduStepOf` owns that fold.
+  // is not on. The slot is keyed by the SDU step (1·2·3·4), not by the status — several
+  // statuses fold onto one SDU step, and `sduStepOf` owns that fold.
   if (opts?.sdu) {
     const key = `process.sdu.${sduStepOf(currentStep)}`;
     return isSlotKey(key) ? key : null;

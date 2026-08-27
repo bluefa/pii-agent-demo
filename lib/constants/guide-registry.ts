@@ -195,29 +195,27 @@ export const GUIDE_SLOTS = {
     placement: { kind: 'process-step', provider: 'IDC', step: 7, stepLabel: '설치 완료' },
     component: 'GuideCard',
   },
-  // SDU (4) — FOUR slots, not seven. Steps 2·3·5 are struck on the SDU road
-  // (InstallationProcessProgressBar `variant="sdu"`), so no SDU target ever stands on
-  // one and a slot for it would be a guide nobody can reach. The numbers stay 1·4·6·7
-  // rather than renumbering to 1·2·3·4: 「4단계」 must mean the same position for every
-  // integration type or an operator and an owner cannot use the word to each other.
+  // SDU (4) — FOUR slots, numbered 1·2·3·4 (오너 2026-08-27). The owner-facing SDU flow
+  // IS four steps; the shared 7-step ProcessStatus lattice is unchanged on the wire and
+  // `sduStepOf` is the only place the fold from one to the other is written.
   'process.sdu.1': {
     guideName: 'SDU_TARGET_DEFINE',
     placement: { kind: 'process-step', provider: 'SDU', step: 1, stepLabel: '연동 대상 정의' },
     component: 'GuideCard',
   },
-  'process.sdu.4': {
+  'process.sdu.2': {
     guideName: 'SDU_UPLOAD',
-    placement: { kind: 'process-step', provider: 'SDU', step: 4, stepLabel: '데이터 업로드' },
+    placement: { kind: 'process-step', provider: 'SDU', step: 2, stepLabel: '데이터 업로드' },
     component: 'GuideCard',
   },
-  'process.sdu.6': {
+  'process.sdu.3': {
     guideName: 'SDU_INTEGRATING',
-    placement: { kind: 'process-step', provider: 'SDU', step: 6, stepLabel: 'SDU 연동중' },
+    placement: { kind: 'process-step', provider: 'SDU', step: 3, stepLabel: 'SDU 연동중' },
     component: 'GuideCard',
   },
-  'process.sdu.7': {
+  'process.sdu.4': {
     guideName: 'SDU_COMPLETE',
-    placement: { kind: 'process-step', provider: 'SDU', step: 7, stepLabel: '완료' },
+    placement: { kind: 'process-step', provider: 'SDU', step: 4, stepLabel: '완료' },
     component: 'GuideCard',
   },
 } as const satisfies Record<string, GuideSlot>;

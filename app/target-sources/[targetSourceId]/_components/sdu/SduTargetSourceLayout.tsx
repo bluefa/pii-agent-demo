@@ -13,19 +13,19 @@ import { SduStep7Complete } from '@/app/target-sources/[targetSourceId]/_compone
 
 /**
  * Four screens for seven statuses. The cloud and IDC layouts switch on `processStatus`
- * directly because they have one screen per status; SDU folds 2·3·4 onto 데이터 업로드 and
- * 5·6 onto SDU 연동중, so the switch runs on the SDU step instead and `sduStepOf` is the
- * single place that fold is written.
+ * directly because they have one screen per status; SDU folds three statuses onto
+ * 2 데이터 업로드 and two onto 3 SDU 연동중, so the switch runs on the SDU step instead and
+ * `sduStepOf` is the single place that fold is written.
  */
 const renderStep = (props: SduStepProps): ReactNode => {
   switch (sduStepOf(props.project.processStatus)) {
     case 1:
       return <SduStep1Define {...props} />;
-    case 4:
+    case 2:
       return <SduStep4Upload {...props} />;
-    case 6:
+    case 3:
       return <SduStep6Integrating {...props} />;
-    case 7:
+    case 4:
       return <SduStep7Complete {...props} />;
     default:
       // `sduStepOf` is total over `ProcessStatus`, but the status arrives over the wire —
