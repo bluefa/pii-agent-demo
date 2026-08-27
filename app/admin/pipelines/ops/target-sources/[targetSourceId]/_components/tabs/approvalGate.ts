@@ -133,8 +133,9 @@ export function foldApprovalHead(
     };
   }
   if (tcStatus !== TC_COMPLETED) {
-    // 서비스 쪽 실제 버튼 이름(승인 요청, Step 5 카드)으로 말한다 — 화면에 없는
-    // 이름을 안내하면 관리자가 서비스에 전달할 때 서로 다른 버튼을 찾게 된다.
+    // 버튼 이름 안내(5단계 · 승인 요청)는 조건 ① 카드의 C-1 캡션으로 옮겨졌다 — 머리는
+    // 결정만 지고 여기 desc 는 UNMET 하나라 어느 이름도 부르지 않는다. 그 캡션이 서는
+    // 조건은 `showsHandoffCaption` 이 진다.
     return {
       pill: { tone: 'off', label: '완료 승인 대기' },
       desc: UNMET,

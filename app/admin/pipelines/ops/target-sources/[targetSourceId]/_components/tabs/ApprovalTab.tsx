@@ -21,8 +21,11 @@
  *   ② 최신 연결 테스트 결과 SUCCESS (allowlist — approvalGate.ts)
  *   ③ 모니터링 헬스 HEALTHY (assumed §10 dag-status, allowlist — approvalGate.ts)
  *
- * 아이콘 문법: ✓ 는 충족, ✗ 는 미충족, 도는 고리는 조회 중이다. 세 조건이 전부 게이트라
- * 미충족은 이유(실패·경고·미요청)와 무관하게 같은 ✗ 를 쓰고, 이유는 잉크가 가른다.
+ * 아이콘 문법: ✓ 충족 · ✗ 미충족 · ⚠ 확인 못 함 · 도는 호 조회 중. 실제로 안 풀린 조건은
+ * 이유(실패·미요청)와 무관하게 같은 ✗ 를 쓴다. 모름(조회 실패·판정할 수 없는 값)이 그 ✗ 를
+ * 쓰지 못하는 이유는 머리의 `unmet`(approvalGate.ts) 과 같다 — 확인하지 못한 것을
+ * "충족되지 않았다"고 단정하게 된다. 획도 같은 셋으로 갈린다: 초록은 충족, 빨강은 미충족,
+ * 모름과 조회 중은 중립 획이다.
  * "완료·승인"은 사람의 행위(인수인계)에만, "성공·실패"는 테스트 결과에만 쓴다.
  *
  * 제목 문법: 카드 제목은 판정이 아니라 **요건**이다("…이어야 합니다"). 단정문
@@ -65,9 +68,16 @@ import {
 const n = (value: number): string => value.toLocaleString('ko-KR');
 
 /**
- * 판정 아이콘의 갈래. `loading` 만 판정 마크를 달지 않는다 — 나머지 미충족은 이유가
- * 무엇이든 ✗ 다 (오너 2026-08-26). 도착 전을 ✗ 로 그리면 아직 모르는 것을 "충족되지
- * 않았다"고 단정한다.
+ * 판정 아이콘의 갈래.
+ *
+ * 불변식: 카드의 `warn` ⟺ 머리의 `unmet: false` ∧ 조회 중 아님
+ * (`ApprovalHead.unmet`, approvalGate.ts). 즉 `warn` 은 미충족이 아니라 **모름**이다 —
+ * 조회에 실패했거나 판정할 수 없는 값이라 알아내지 못한 것. 실제 미충족만
+ * (`err` · `pending`) ✗ 를 입는다. 이 둘이 어긋나면 머리는 "확인하지 못했어요"라고
+ * 말하는데 카드는 미충족의 마크를 입고 서게 된다.
+ *
+ * 오너의 초록/빨강 획 지시(2026-08-26)는 충족 vs 미충족을 가른 것이다. 모름은 둘 중
+ * 어느 쪽도 아니라 중립 획으로 선다 — `loading` 과 같다.
  */
 type GateRowState = 'ok' | 'err' | 'warn' | 'pending' | 'loading';
 
@@ -149,36 +159,56 @@ function GateCard({
   /** "상세보기" — 이 조건을 판정한 근거가 사는 탭으로 보낸다. */
   onNavigate?: () => void;
 }): ReactElement {
-  // 충족이 아니면 전부 ✗ — 이유가 실패든 미요청이든 같은 마크, 같은 잉크다 (오너
-  // 2026-08-26). 예전의 빈 동그라미는 "미충족"이 아니라 "해당 없음"으로 읽혔고, 이유마다
-  // 잉크를 갈랐던 그 다음 판은 카드 획(아래)이 둘로만 갈리면서 안팎이 어긋났다.
-  // 세 조건은 전부 CTA 하나를 잠그는 게이트라, 갈래도 셋이 아니라 둘이다.
+  // ✓ 충족 · ✗ 미충족 · ⚠ 확인 못 함 · 도는 호 조회 중. 예전의 빈 동그라미는 "미충족"이
+  // 아니라 "해당 없음"으로 읽혔고, 이유마다 잉크를 갈랐던 그 다음 판은 카드 획(아래)이
+  // 둘로만 갈리면서 안팎이 어긋났다. 미충족의 이유(실패·미요청)는 여전히 가르지 않는다 —
+  // 셋 다 CTA 하나를 잠그는 게이트라 관리자가 할 일이 같다.
+  //
+  // 모름만은 ✗ 를 쓰지 못한다 (머리의 `unmet` 과 같은 이유) — 확인하지 못한 것을
+  // "충족되지 않았다"고 단정하게 되고, 머리가 "…확인하지 못했어요"라고 말하는 동안
+  // 카드만 미충족의 마크를 입는다.
+  //
+  // 마크에는 말도 붙인다: `Icon` 은 `title` 이 없으면 `aria-hidden` 이라(icons.tsx),
+  // 제목이 요건문 하나로 고정된 뒤로 충족·미충족 카드가 스크린리더에게 똑같이 들렸다.
   const icon =
     state === 'ok' ? (
-      <Icon name="check-circle" size={20} className="text-[var(--pl-ok-text)]" />
+      <Icon name="check-circle" size={20} className="text-[var(--pl-ok-text)]" title="충족" />
     ) : state === 'loading' ? (
+      // 조회 중의 말은 아래 래퍼(`role="status"`)가 이미 진다 — 여기에 title 을 또 달면
+      // 같은 사실이 두 번 읽힌다.
       <Icon
         name="loader"
         size={20}
         className="animate-spin text-[var(--pl-text-weak)] motion-reduce:animate-none"
       />
+    ) : state === 'warn' ? (
+      <Icon name="warn-tri" size={20} className="text-[var(--pl-warn-text)]" title="확인 필요" />
     ) : (
-      <Icon name="x-circle" size={20} className="text-[var(--pl-err-text)]" />
+      <Icon name="x-circle" size={20} className="text-[var(--pl-err-text)]" title="미충족" />
     );
   return (
     <section
       className={cn(
-        pipelineStyles.card.base,
-        'flex h-full flex-col',
+        // 이 줄은 `pipelineStyles.card.base` 를 덮어쓰는 게 아니라 벗어난다. base 는
+        // `border border-[var(--pl-border)]` 를 이미 달고 오는데 `cn` 은 단순 join 이라
+        // (lib/theme.ts) 같은 속성을 두 벌 얹으면 둘 다 살아남고 승자는 CSS 소스 순서가
+        // 정한다 — 지금 override 가 이기는 것은 arbitrary value 의 알파벳 순서 덕이라
+        // 토큰 이름 하나만 바뀌어도 뒤집힌다. 그래서 base 의 값을 테두리 색만 빼고 그대로
+        // 옮겨 적고, 색은 아래에서 딱 한 벌 얹는다. base 가 바뀌면 이 줄도 같이 바꾼다.
+        // (같은 이유로 이 파일의 머리 desc 줄도 `opsStyles.cardDesc` 를 벗어나 있다.)
+        'rounded-[10px] bg-[var(--pl-bg-card)] px-6 pb-6 pt-5 shadow-[var(--pl-shadow-xs)]',
+        'flex h-full flex-col border',
         // 판정을 카드 둘레까지 끌고 나온다 (오너 2026-08-26). 아이콘 하나는 20px 이라
         // 세 카드를 훑을 때 눈이 먼저 세는 것은 획이다. 잉크는 알약이 쓰는 옅은 칸
         // (#A6F4C5 / #FDA29B) 이라 면을 물들이지 않고 테두리에서 멎는다 — 미충족이
         // 정상 흐름의 대부분인 화면에서 진한 빨강은 매번 사고를 알리게 된다.
+        // 오너 지시는 충족 vs 미충족을 가른 것이라, 모름(`warn`)과 조회 중은 어느 색도
+        // 갖지 않고 중립 획으로 선다.
         state === 'ok'
           ? 'border-[var(--pl-ok-border)]'
-          : state === 'loading'
-            ? undefined
-            : 'border-[var(--pl-err-border)]',
+          : state === 'err' || state === 'pending'
+            ? 'border-[var(--pl-err-border)]'
+            : 'border-[var(--pl-border)]',
       )}
       aria-label={`승인 조건 ${ordinal}`}
     >
@@ -356,8 +386,10 @@ export function ApprovalTab({
   } => {
     if (!tcLoaded) return { state: 'loading', facts: [] };
     if (statusFailed)
+      // 모름 — 조회가 거절됐을 뿐 "요청이 없었다"는 사실을 관측한 게 아니다
+      // (머리도 여기서 `unmet: false` 다).
       return {
-        state: 'err',
+        state: 'warn',
         facts: [{ value: '완료 승인 상태를 불러오지 못했습니다' }],
       };
     if (tcCompleted)
@@ -402,7 +434,8 @@ export function ApprovalTab({
       case 'loading':
         return { state: 'loading', facts: [] };
       case 'failed':
-        return { state: 'err', facts: prose(monHead.subtitle) };
+        // 모름 — 헬스를 확인하지 못한 것이지 UNHEALTHY 라고 관측한 게 아니다.
+        return { state: 'warn', facts: prose(monHead.subtitle) };
       case 'loaded': {
         const verdict = healthVerdict(dag.data.healthStatus);
         const state: GateRowState =
@@ -444,7 +477,8 @@ export function ApprovalTab({
       case 'none':
         return { state: 'pending', facts: [{ value: '연결 테스트 실행 기록이 없습니다' }] };
       case 'error':
-        return { state: 'err', facts: [{ value: '실행 정보를 불러오지 못했습니다' }] };
+        // 모름 — 조회 실패는 빈 결과도, 실패한 실행도 아니다 ('none' · 'failed' 와 갈라 둔다).
+        return { state: 'warn', facts: [{ value: '실행 정보를 불러오지 못했습니다' }] };
       case 'unknown':
         // Raw enum value stays in the tooltip channel — not in the copy.
         return {

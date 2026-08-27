@@ -47,18 +47,30 @@ const response = (healthStatus: string, dbs: DagDatabaseStatus[] = []): DagStatu
 });
 
 /**
- * 승인 탭의 소스. 머리 문장이 하나로 접히면서(오너 2026-08-26) "무엇이 왜 막혔는지"는
- * 조건 카드로 이사했는데, 그 문장들은 카드 fold 안의 리터럴이라 부를 손잡이가 없다.
- * 검사가 지키는 것은 렌더 결과가 아니라 **그 사실들이 화면 어딘가에 남아 있다는 것**이다
- * (같은 디렉터리의 health-copy-scope 검사와 같은 수법).
+ * 주석을 걷어 낸 소스만 남긴다 — 같은 디렉터리의 health-copy-scope 검사에서 그대로
+ * 가져온 장치다. 그 검사는 첫 실행이 ⛔ 블록 안에 인용해 둔 옛 문구를 잡고 빨갛게
+ * 떨어졌다. 걷지 않으면 다음 라운드가 문장을 화면에서 지우고 줄 주석이나 블록 주석에
+ * 인용만 남겨도 아래 두 검사가 초록으로 남는다 — **주석이 화면인 척한다**. 게다가
+ * ApprovalTab 에는 이미 옛 카피를 인용한 ⛔ 블록이 살아 있다.
+ */
+const code = (src: string): string =>
+  src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+
+/**
+ * 승인 탭의 소스(주석 제외). 머리 문장이 하나로 접히면서(오너 2026-08-26) "무엇이 왜
+ * 막혔는지"는 조건 카드로 이사했는데, 그 문장들은 카드 fold 안의 리터럴이라 부를 손잡이가
+ * 없다. 검사가 지키는 것은 렌더 결과가 아니라 **그 사실들이 화면 어딘가에 남아 있다는
+ * 것**이다.
  */
 const approvalTabSource = (): string =>
-  readFileSync(
-    path.join(
-      process.cwd(),
-      'app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/ApprovalTab.tsx',
+  code(
+    readFileSync(
+      path.join(
+        process.cwd(),
+        'app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/ApprovalTab.tsx',
+      ),
+      'utf8',
     ),
-    'utf8',
   );
 
 const loaded = (healthStatus: string): DagFetch => ({
@@ -85,6 +97,15 @@ describe('foldApprovalHead', () => {
     // 머리에서 걷어 낸 안내가 카드에도 없으면 관리자는 서비스에 전달할 말을 잃는다.
     const src = approvalTabSource();
     expect(src).toContain('5단계 연결 테스트에서 승인 요청');
+    // 문장이 소스에 있다는 것과 화면에 설 수 있다는 것은 다르다 — 이 캡션은
+    // `showsHandoffCaption` 이 참일 때만 나온다. 술어 자체를 여기서 한 번 못 박고,
+    // 그 술어가 캡션의 렌더 게이트에 아직 걸려 있는지도 본다.
+    expect(showsHandoffCaption(null, 'SUCCESS')).toBe(true);
+    // 잡는 것: 게이트를 지우거나 `facts: false && showsHandoffCaption(...)` 처럼 상수로
+    // 무력화해 캡션이 어느 상태에서도 못 서게 만드는 변형.
+    // 못 잡는 것: 호출은 그대로 두고 뜻만 뒤집는 변형(`facts: !showsHandoffCaption(...)`)
+    // 이나, 캡션 JSX 를 렌더하지 않는 다른 경로로 옮기는 변형. 렌더 검사가 아니다.
+    expect(src).toMatch(/facts:\s*showsHandoffCaption\(/);
   });
 
   it('row 2 — REJECTED: both CTAs unmounted regardless of dag state', () => {
@@ -150,6 +171,11 @@ describe('foldApprovalHead', () => {
       expect(head(run).unmet).toBe(false);
       expect(head(run).desc).not.toBe(head('failed').desc);
     }
+    // 셋끼리도 갈라야 한다 — 미충족과만 견주면 '조회 실패'와 '판정할 수 없음'을 같은
+    // 문장으로 접어도 초록으로 남는다.
+    expect(new Set((['loading', 'error', 'unknown'] as const).map((r) => head(r).desc)).size).toBe(
+      3,
+    );
   });
 
   it('실패 ≠ 빈 결과 ≠ 모름 — 갈라 말하는 자리가 머리에서 조건 ② 카드로 옮겨졌다', () => {
@@ -160,7 +186,6 @@ describe('foldApprovalHead', () => {
       '실행 정보를 불러오지 못했습니다',
     ];
     for (const line of evidence) expect(src).toContain(line);
-    expect(new Set(evidence).size).toBe(evidence.length);
   });
 
   it('status 조회 실패는 미요청과 다른 문장이다 — 404 가 아닌 거절은 모름이다', () => {
