@@ -508,15 +508,24 @@ const openZones = (root: HTMLElement) =>
   ) as HTMLElement[];
 
 /**
- * The 협업 채널 card's head row, read off the CARD rather than off its label.
+ * The 협업 채널 card's head, read off the CARD rather than off its label.
  *
- * `getByText('협업 채널')` cannot do this job: the card's own link-less row prints the same
- * two words, so the query is ambiguous for a ticket with no `browseUrl`. It also has to be
- * this row specifically — `justify-between` on it is what puts the dot on the card's
- * corner, so a dot found anywhere else in the card is not what the owner asked for.
+ * `getByText('협업 채널')` cannot do this job: the sentence under the head prints the same
+ * two words, so the query is ambiguous.
  */
 const channelHead = (root: HTMLElement) => openZones(root)[0].firstElementChild as HTMLElement;
-const headDot = (root: HTMLElement) => channelHead(root).lastElementChild as HTMLElement | null;
+
+/**
+ * The card's state dot — and it is found by looking for ONE, anywhere in the card, because
+ * "exactly one dot per card" is half of what these tests are about. It used to be
+ * `channelHead(root).lastElementChild`: the head's far corner, where `justify-between` had
+ * put it. 오너 지시 2026-08-27 moved it onto the value row, since what it reports is whether
+ * the channel is reachable — a fact about the issue key, not about the zone's name.
+ */
+const cardDots = (root: HTMLElement) =>
+  Array.from(
+    openZones(root)[0].querySelectorAll('span[aria-hidden].rounded-full'),
+  ) as HTMLElement[];
 
 describe('GuidePanel — the folded strip says what it is', () => {
   it('names the panel in words, not just a direction chevron', async () => {
@@ -576,10 +585,13 @@ describe('GuidePanel — the folded strip says what it is', () => {
     await settled();
 
     const head = channelHead(container as HTMLElement);
-    // Two children: the label, then the state dot. Nothing between them and nothing after.
-    expect(head.children).toHaveLength(2);
-    expect(head.children[0].textContent).toBe('협업 채널');
+    // The label, and it IS the head — no wrapper row left to hang a second child on.
+    expect(head.textContent).toBe('협업 채널');
+    expect(head.children).toHaveLength(0);
     expect(head.querySelector('svg')).toBeNull();
+    // ⛔ And no dot on it either (오너 지시 2026-08-27). It moved to the value row; a dot
+    // back on this head would be the zone reporting a state it does not have.
+    expect(head.className).not.toContain('justify-between');
     // …and no `RailMark` anywhere on the open rail but the 가이드 zone's 전구.
     expect(channelMark(container as HTMLElement)).toBeUndefined();
     expect(guideMark(container as HTMLElement)).toBeTruthy();
@@ -612,34 +624,46 @@ describe('GuidePanel — the folded strip says what it is', () => {
   });
 
   /**
-   * ⛔ No state renders a dotless head any more — 미연결 included (오너 지시 2026-08-27).
+   * ⛔ No state renders a dotless card — 미연결 included (오너 지시 2026-08-27).
    *
    * That reverses this file's own earlier assertion that the empty channel drops its dot,
    * on the grounds that green means reachable and red means broken so absence is neither.
    * 미연결 is one of three answers the zone gives, so it gets a fill of its own and a reader
    * scanning for the dot finds one every time instead of having to notice a gap.
    *
+   * ⛔ And it is on the row that STATES that answer, not on the zone's head. That is the
+   * assertion carrying the 2026-08-27 move, and it is worth more than "a dot exists
+   * somewhere in the card": the head-corner version passed that weaker claim for four
+   * commits. `aria-hidden` is legal exactly because the row it sits on says the same thing
+   * in words — this test reads the row's own text back to prove the pairing.
+   *
    * The fills are compared to EACH OTHER, not to literals: which grey or which green is
    * `theme.ts`'s business, and the invariant is that the three differ.
    */
-  it('puts a distinct state dot on the open card’s corner in all three states', async () => {
-    const fillOf = (dot: HTMLElement | null) =>
-      (dot?.className ?? '').split(/\s+/).find((c) => c.startsWith('bg-'));
+  it('puts one state dot on the row that states it, in all three states', async () => {
+    const fillOf = (dot: HTMLElement) =>
+      dot.className.split(/\s+/).find((c) => c.startsWith('bg-'));
 
     const fills: Array<string | undefined> = [];
-    for (const ticket of [
-      { issueKey: 'PII-42', browseUrl: 'https://jira.example.com/browse/PII-42' },
-      null,
-      'error',
+    for (const [ticket, says] of [
+      [{ issueKey: 'PII-42', browseUrl: 'https://jira.example.com/browse/PII-42' }, 'PII-42'],
+      [null, '아직 연결된 협업 채널이 없어요'],
+      ['error', '협업 채널 정보를 불러오지 못했어요'],
     ] as const) {
       const view = render(<GuidePanel {...baseProps} jiraTicket={ticket} />);
       await settled();
 
-      const dot = headDot(view.container as HTMLElement);
-      expect(dot?.className).toContain('rounded-full');
-      // ⛔ Decorative, and allowed to be: the rows below state every one of these three
-      // states in words. Colour is a second channel here, never the only one.
-      expect(dot?.getAttribute('aria-hidden')).toBe('true');
+      const root = view.container as HTMLElement;
+      // Exactly one. Two would mean the head kept a copy of what the row now reports.
+      const dots = cardDots(root);
+      expect(dots).toHaveLength(1);
+      const [dot] = dots;
+      expect(dot.className).toContain('rounded-full');
+      // ⛔ Decorative, and allowed to be — because this very row says it in words.
+      expect(dot.getAttribute('aria-hidden')).toBe('true');
+      expect(dot.parentElement?.textContent).toContain(says);
+      // ⛔ Not in the head. `channelHead` is the label alone now.
+      expect(channelHead(root).contains(dot)).toBe(false);
       fills.push(fillOf(dot));
       view.unmount();
     }

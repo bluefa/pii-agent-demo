@@ -38,7 +38,19 @@ const RAIL_ID = 'guide-rail';
  * row instead of a fake sample key; fetch error → its own row, so an outage
  * is not misread as "no channel".
  */
-const CollabChannelCard = ({ jiraTicket }: { jiraTicket: JiraTicketState }) => {
+interface CollabChannelCardProps {
+  jiraTicket: JiraTicketState;
+  /**
+   * The state dot's fill, from `statusColors[tone].dot`. Handed down rather than derived:
+   * `GuidePanel` already maps the three ticket states for the folded strip's entry, and
+   * the same mapping written twice is two things to keep in step. Required, not optional —
+   * every state has a fill (오너 지시 2026-08-27), so a dotless row is not a state this
+   * card can be in.
+   */
+  dot: string;
+}
+
+const CollabChannelCard = ({ jiraTicket, dot }: CollabChannelCardProps) => {
   /**
    * The channel zone's content, and nothing else — no fill, no border, no radius of its
    * own, in either place it renders. Containment is the CALLER's, and it differs: on the
@@ -105,6 +117,28 @@ const CollabChannelCard = ({ jiraTicket }: { jiraTicket: JiraTicketState }) => {
   const href =
     jiraTicket && jiraTicket !== 'error' ? safeBrowseUrl(jiraTicket.browseUrl) : null;
 
+  /**
+   * The state dot, on the VALUE's row — inline, before the key.
+   *
+   * ⚠️ It rode the zone head's far corner until 2026-08-27, put there because the card is
+   * the folded strip's 말풍선 enlarged and the dot rides that glyph's top-right corner.
+   * The geometry transferred; the meaning did not. What the dot reports is whether the
+   * channel is REACHABLE, which is a fact about this value — the card's head has no state
+   * of its own, and a dot on it made the whole zone look like the thing that had failed.
+   * Cloudscape puts its `StatusIndicator` inside the VALUE of a key-value pair for the
+   * same reason. The 말풍선 argument is untouched by the move: the CARD is still the
+   * enlarged glyph (`railStyles.bubbleTail`), which is why the head carries no glyph.
+   *
+   * ⛔ It is `aria-hidden`, and it is allowed to be only because the row it sits on states
+   * the same thing in words — the issue key, 「아직 연결된 협업 채널이 없어요」, or
+   * 「협업 채널 정보를 불러오지 못했어요」. Colour is a second channel on that sentence,
+   * never the only one, which is the same exemption `railStyles.zoneMark` documents.
+   *
+   * ⛔ All three states draw one. 미연결 included (오너 지시 2026-08-27): a reader scanning
+   * for the dot finds one every time rather than having to notice a gap.
+   */
+  const stateDot = <span aria-hidden className={cn('h-2 w-2 shrink-0 rounded-full', dot)} />;
+
   // Two box margins in the whole body — 4 and 8 — and what they buy is measured in INK,
   // half-leadings included:
   //    8.5  zone head → 문장        (2 + mt-1 4 + 2.5)
@@ -128,21 +162,38 @@ const CollabChannelCard = ({ jiraTicket }: { jiraTicket: JiraTicketState }) => {
           4.83:1 again. Quiet is the right register for a placeholder — it must not
           out-weigh the real link. */}
       {jiraTicket === 'error' ? (
-        <div className={cn('mt-2', sentence, 'font-medium', textColors.tertiary)}>
+        <div
+          className={cn(
+            'mt-2 flex items-center gap-2',
+            sentence,
+            'font-medium',
+            textColors.tertiary,
+          )}
+        >
+          {stateDot}
           협업 채널 정보를 불러오지 못했어요
         </div>
       ) : jiraTicket === null ? (
-        <div className={cn('mt-2', sentence, 'font-medium', textColors.tertiary)}>
+        <div
+          className={cn(
+            'mt-2 flex items-center gap-2',
+            sentence,
+            'font-medium',
+            textColors.tertiary,
+          )}
+        >
+          {stateDot}
           아직 연결된 협업 채널이 없어요
         </div>
       ) : (
         <>
           <div className={cn('mt-2', channelLabel, textColors.tertiary)}>이슈 키</div>
-          {/* `flex`, so the row has no strut of its own: an inline anchor would sit in a
-              line box sized by whatever leading the card inherits, and the 6.5px ink gap
-              above depends on that box being the key's own 17px. The row therefore holds
-              no type — the value carries it. */}
-          <div className="mt-1 flex">
+          {/* Two children, the dot and the key, 8px apart. `flex`, so the row has no strut
+              of its own: an inline anchor would sit in a line box sized by whatever leading
+              the card inherits, and the 6.5px ink gap above depends on that box being the
+              key's own 17px. The row therefore holds no type — the value carries it. */}
+          <div className="mt-1 flex items-center gap-2">
+            {stateDot}
             {href ? (
               /* Owner ask: the issue key reads as a classic hyperlink — blue + underline.
                  `textOnLight` (#0050D6), not `text` (#0064FF), even though the brighter
@@ -152,8 +203,11 @@ const CollabChannelCard = ({ jiraTicket }: { jiraTicket: JiraTicketState }) => {
                  ⛔ The anchor is the VALUE's box, not the row's. It used to wrap the label
                  too, so the clickable rectangle measured 271.46 × 36 where the underline
                  measured 271.46 × 20 — underline, hit area and hover were three different
-                 shapes, and the widest of them was the whole column. As the row's only flex
-                 item it is shrink-to-fit, which is what makes the two rects one rectangle.
+                 shapes, and the widest of them was the whole column. As a flex item that
+                 neither grows nor stretches it is shrink-to-fit: measured at 1440, the
+                 anchor's box is 84.41 × 17 at the same origin as the underlined run's
+                 84.41 × 16 — one width, one left edge, and the 1px is the line box over
+                 the text run inside it.
 
                  ⛔ No `hover:` ink on it. `primaryColors.textHover` IS `textOnLight` — the
                  rail keeps one blue, so the hover state it used to declare changed no pixel
@@ -229,7 +283,8 @@ export const GuidePanel = ({
 
   /**
    * What the rail says about the collab channel — the strip's entry when folded, and the
-   * zone card's own corner dot when open. The card itself is the escape hatch for every
+   * dot on the card's value row when open (`CollabChannelCard`'s `dot` prop; it was the
+   * card's head corner until 오너 지시 2026-08-27 moved it onto the row it describes). The card itself is the escape hatch for every
    * step, and folding used to take it off the screen entirely — dot and all three of its
    * states, including the one where the fetch failed. `hint` says in words whatever the
    * presentation says in colour, because the dot is `aria-hidden` and colour alone is not
@@ -349,7 +404,7 @@ export const GuidePanel = ({
             hint={collab.hint}
             dot={collab.dot}
             quiet={collab.quiet}
-            tip={<CollabChannelCard jiraTicket={jiraTicket} />}
+            tip={<CollabChannelCard jiraTicket={jiraTicket} dot={collab.dot} />}
           />
           {/* Same mark, both states (오너 지시 2026-08-23) — the folded strip and the open
               rail's zone head show one 전구, so folding does not change what the guide
@@ -416,40 +471,34 @@ export const GuidePanel = ({
               The channel is still first — it is the escape hatch for every step, so it
               holds the top of the rail and the guide scrolls underneath it. */}
           <div className={cn(railStyles.card, railStyles.bubbleTail, 'shrink-0 p-3')}>
-            {/* The zone head: its name, and the state dot at the far end. Nothing else.
+            {/* The zone head: the zone's name, and nothing else. No glyph, no control, and
+                since 2026-08-27 no dot either.
 
                 오너 지시 2026-08-27 — the CARD is the 말풍선 the folded strip draws as a 20px
                 `ChatIcon`, enlarged (`railStyles.bubbleTail` carries the tail). That is what
                 took the glyph off this head: an enlarged icon cannot also contain a small
-                copy of itself. The strip's geometry survives the scale change instead of the
-                glyph doing — glyph → card, and the dot that rides the glyph's top-right
-                corner → the card's.
+                copy of itself.
 
-                ⚠️ This REVERSES 오너 지시 2026-08-23, which put `RailMark` here precisely so
-                the head and the strip drew one identical mark, glyph + dot + ink, and whose
-                ⛔ said a bare ChatIcon was not enough. That rule was right about the DOT and
-                right that the ink had to move with the data; what it could not survive is the
-                card itself becoming the mark. Same owner, 2026-08-27. The dot stayed, the
-                glyph did not, and `railStyles.zoneMarkChannel`/`…Quiet` — the ink pair that
-                existed only to colour that glyph — went with it.
+                ⚠️ The dot came here on the same argument — it rides the glyph's top-right
+                corner, so `justify-between` put it on the CARD's corner — and it has since
+                moved onto the value row. The geometry transferred cleanly and the meaning
+                did not: the dot says whether the channel is reachable, which is a fact about
+                the issue key, and this head has no state of its own to report. On the corner
+                it read as the zone's verdict, which is how a failed fetch made the whole card
+                look broken. It now sits on the very row that states the same thing in words
+                (`stateDot`, and the ⛔ there is what keeps it `aria-hidden`-legal).
 
-                `justify-between`, so the dot lands on the card's own padding edge: the
-                label's 20px line box puts it optically on the top-right corner with no
-                second measurement, and a longer label pushes nothing.
+                ⚠️ Both of those REVERSE 오너 지시 2026-08-23, which put `RailMark` here
+                precisely so the head and the strip drew one identical mark — glyph + dot +
+                ink — and whose ⛔ said a bare ChatIcon was not enough. That rule was right
+                that the state had to move with the data; what it could not survive is the
+                card itself becoming the mark. Same owner. `railStyles.zoneMarkChannel`/
+                `…Quiet`, the ink pair that existed only to colour that glyph, went with it.
 
-                ⛔ The dot is `aria-hidden`, and it is allowed to be only because every state
-                is already stated in words in the rows below — 「아직 연결된 협업 채널이 없어
-                요」, 「협업 채널 정보를 불러오지 못했어요」, or the issue key itself. It is a
-                second channel on those, never the only one, which is the same exemption
-                `railStyles.zoneMark` documents: gray-400 and #45CB85 sit under 3:1 and are
-                legal here because they are decorative. */}
-            <div className="flex items-center justify-between">
-              <span className={railStyles.zoneLabel}>협업 채널</span>
-              <span
-                aria-hidden
-                className={cn('h-2 w-2 shrink-0 rounded-full', collab.dot)}
-              />
-            </div>
+                `block`, so the label's own 20px line box is the head's box. As a bare inline
+                span it would sit in a line box sized by the card's inherited leading, and
+                the 8.5px ink gap below is measured off the 20. */}
+            <span className={cn('block', railStyles.zoneLabel)}>협업 채널</span>
             {/* Still 4, and the ink it buys is 8.5. The head's 16px ink sits in a 20px line
                 box, leaving 2 below; the sentence's 12px ink sits in a 17px box, leaving 2.5
                 above; 4 between the boxes puts 8.5 between the INK. It read 8 while the
@@ -458,7 +507,7 @@ export const GuidePanel = ({
                 card's ladder (8.5 / 11.5 / 6.5, and the largest of them stays under the
                 12px `gap-3` between the zones). */}
             <div className="mt-1">
-              <CollabChannelCard jiraTicket={jiraTicket} />
+              <CollabChannelCard jiraTicket={jiraTicket} dot={collab.dot} />
             </div>
           </div>
 
