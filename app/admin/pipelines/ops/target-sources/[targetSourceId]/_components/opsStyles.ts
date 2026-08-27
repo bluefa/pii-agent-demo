@@ -14,9 +14,9 @@ export const opsStyles = {
    */
   page: '-mx-8 -mt-6 -mb-12 flex min-h-[calc(100vh_-_64px)] flex-col bg-[var(--pl-bg-canvas)]',
   /**
-   * Masthead — one gray-100 wash holding the path line + FrontMeta block, closed by
-   * the tab band (tabStrip). The wash separates from the canvas on chroma, not
-   * luminance (ΔE00 2.46, guard-pinned).
+   * Masthead — one gray-100 wash holding the path line + FrontMeta block + the tab
+   * strip, closed by that strip's hairline (tabStrip). The wash separates from the
+   * canvas on chroma, not luminance (ΔE00 2.46, guard-pinned).
    */
   masthead: 'bg-[var(--pl-gray-100)] px-8 pt-4',
 
@@ -88,10 +88,11 @@ export const opsStyles = {
    *   4px   한 짝 안      라벨 ↔ 그 값            `fmCell` gap-1
    *   14px  한 블록 안    머리 헤어라인 ↔ 사실들   `fmGrid`·`aboutList` pt-3.5
    *   20px  블록 사이     경로 줄 ↔ 연동 대상      `fmGroup` mt-5
-   *   16px  워시 ↔ 탭 밴드                        `tabStrip` mt-4
+   *   16px  워시 ↔ 탭 줄                          `tabStrip` mt-4
    *
-   * 탭 밴드만 20 이 아니라 16 인 것은 거기가 **색이 바뀌는 경계**라서다 — gray-100 →
-   * gray-200 이 이미 한 번 긋고 있으니 간격까지 최대로 줄 이유가 없다.
+   * 탭 줄만 20 이 아니라 16 인 것은 거기가 **문법이 바뀌는 경계**라서다 — 위는 사실이고
+   * 아래는 내비게이션이라 간격까지 최대로 줄 이유가 없다. (밴드가 있을 때는
+   * 색이 바뀌는 경계가 같은 자리에서 같은 일을 했다.)
    */
   fmGroup: 'mt-5',
   fmHead:
@@ -255,21 +256,62 @@ export const opsStyles = {
     'inline-flex items-center whitespace-nowrap rounded border border-[var(--pl-current)] bg-[var(--pl-current-bg)] px-1 text-[10px] font-semibold leading-[14px] text-[var(--pl-current-ink)]',
 
   /**
-   * Card tabs in a band (R1, 오너 08-20 셋째 조정) — the strip itself is a
-   * gray-200 band one ramp under the wash (ΔE00 2.94 on the wash, 3.53 against
-   * the canvas below), so the tab tier reads as its own layer. The active tab
-   * is a bare white face with an OPEN bottom — no stroke, because --pl-border
-   * IS the band color (ΔE00 0.00): on the darker band the face alone carries
-   * the shape (white on band 5.66, vs 2.78 it managed on the wash).
+   * Line tabs on the masthead wash (design-benchmark `ops-tab-band.md` 시안 A) —
+   * no band. The tabs stand on the same --pl-gray-100 the masthead does, closed
+   * by ONE hairline in --pl-border-strong, the token `fmHead` already uses to
+   * close the 「연동 대상」 block head; the masthead now ends on the same stroke
+   * its own blocks do instead of on a third tone.
+   *
+   * The band (08-20 셋째 조정) existed because the masthead had no way to close
+   * itself: the wash ran into the canvas and something had to draw the seam. The
+   * FrontMeta rewrite gave the wash a hairline vocabulary, so that premise is
+   * spent — and the band cost real contrast, dropping --pl-primary to 4.17 (AA
+   * fail) where it measures 4.69 on the wash.
+   *
+   * The full bleed goes with it. `-mx-8 … px-8` made this strip the only thing on
+   * the screen reaching the wash's own edges while every fact above and every card
+   * below stands in the content column, so its hairline cut across x the content
+   * never touches (Primer: navigation lives inside the width it governs).
    */
-  tabStrip: 'mt-4 -mx-8 flex items-end gap-1 overflow-x-auto bg-[var(--pl-gray-200)] px-8 pt-1.5',
-  tab: 'cursor-pointer whitespace-nowrap rounded-t-[8px] px-4 py-2 text-[14px]',
-  tabActive: 'bg-[var(--pl-bg-card)] font-semibold text-[var(--pl-text-strong)]',
-  /** 워시는 램프 한 칸을 잡아먹는다, and the band eats one more: weak measures
-      4.01:1 on gray-200 (AA fail) — idle steps up to medium (8.44:1). */
-  tabIdle: 'font-medium text-[var(--pl-text-medium)] hover:text-[var(--pl-text-strong)]',
-  /** 보기(진행 상태·스캔·연동 요청·확정) | 도구(인프라·연결 테스트·승인) group gap. */
+  /** `overflow-x-auto` 는 없다 — 여덟 탭의 전체 폭이 717px 이라 1422px 열에서 넘칠 일이
+      없고(실측), 스크롤 컨테이너로 두면 활성 탭의 `-mb-px` 가 1px 짜리 세로 스크롤을
+      만든다. 밑줄이 헤어라인을 먹으려면 그 1px 은 밖으로 나가야 한다. */
+  tabStrip: 'mt-4 flex items-end gap-1 border-b border-[var(--pl-border-strong)]',
+  /**
+   * Geometry is `accessStyles.tab` verbatim (the 접근 권한 page tabs) — the admin
+   * console should have one line-tab, not two that differ by a few px.
+   */
+  tab: 'flex cursor-pointer items-center gap-1.5 whitespace-nowrap border-b-2 -mb-px px-3 py-2.5 text-[14px] transition-colors',
+  /** 잉크 + 밑줄. The face is gone, so 파랑 is the only thing marking the tab that
+      is open — 4.69:1 on the wash (실측). */
+  tabActive: 'font-semibold text-[var(--pl-primary)] border-[var(--pl-primary)]',
+  /** 워시는 램프 한 칸을 잡아먹는다 — `--pl-text-weak` (accessStyles' idle ink) is
+      only 4.51 here, so idle stays at medium: 9.49:1 (실측). */
+  tabIdle:
+    'font-medium text-[var(--pl-text-medium)] border-transparent hover:text-[var(--pl-text-strong)] hover:border-[var(--pl-border-strong)]',
+  /**
+   * Group gap — used TWICE, because these eight tabs are three things, not two:
+   *   보기       진행 상태 · 스캔 · 연동 요청 정보 · 확정 정보
+   *   실행       인프라 작업 · 연결 테스트
+   *   승인·근거  관리자 승인 · Airflow 확인
+   * Airflow 확인 (PR #783) landed at the end of the tool run, but it is not a
+   * tool: it holds the evidence behind 승인 조건 ③ and is read, not operated.
+   */
   tabGap: 'w-3.5 flex-none self-stretch',
+  /**
+   * 「연결 테스트」 탭의 상태 점 — 8px, the size this screen's own dots already use
+   * (`tcBand.countDot`, ConfirmEditorModal). It says only that the latest run
+   * failed or is still open; the tab itself says the rest. No count badges: a
+   * number on a tab claims the tab is a worklist (#735).
+   *
+   * 색은 그래픽이라 3:1 기준이다. `--pl-err` 는 워시 위 3.41 로 그 위지만, 이 점은
+   * 8px 이라 램프를 한 칸 더 내려 `--pl-err-solid`(4.38, 실측)를 쓴다. 진행 중은
+   * `--pl-info` 가 2.94 로 3:1 을 **못 넘어서**(실측) 같은 계열의 다음 칸
+   * `--pl-info-text`(5.43)가 진다.
+   */
+  tabDot: 'h-2 w-2 flex-none rounded-full',
+  tabDotFail: 'bg-[var(--pl-err-solid)]',
+  tabDotRunning: 'bg-[var(--pl-info-text)]',
 
   /** Body — 콘텐츠 한 열. 236px 메타 레일은 FrontMeta 의 「상세 정보」로 접혀 들어갔고,
       그 폭은 탭 7개 전부에서 본문으로 돌아간다 (1020 → 1280px). */

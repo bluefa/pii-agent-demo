@@ -51,8 +51,10 @@ import { useAbortableEffect } from '@/app/hooks/useAbortableEffect';
 import { getDagStatus } from '@/app/lib/api/ops';
 import {
   TC_COMPLETED,
+  tcRunGate,
   type DagFetch,
 } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/approvalGate';
+import { runStatus } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/logic';
 
 const TABS = Object.values(OPS_TAB_SLUGS);
 type TabLabel = OpsTargetTabLabel;
@@ -265,6 +267,25 @@ export function OpsTargetView({ targetSourceId, initialTab }: OpsTargetViewProps
     [needsDag, targetSourceId, reloadKey],
   );
 
+  /**
+   * 「연결 테스트」 탭의 점 — 탭 줄에서 유일하게 상태를 말하는 자리다. 판정은 승인 탭과
+   * 같은 게이트(`tcRunGate`)에서 나오고, 이미 이 화면이 들고 있는 세 응답만 읽는다 —
+   * 탭 줄을 위한 요청은 없다.
+   *
+   * 말하는 것은 둘뿐이다: 최신 실행이 **실패**했거나 아직 **열려 있다**(PENDING·RUNNING).
+   * 이력 없음·조회 실패·enum 밖은 점을 켜지 않는다 — 그것들은 "무엇이 있다"가 아니라
+   * "모른다"라, 탭 옆의 점 하나로 말할 수 있는 사실이 아니다.
+   */
+  const tcGate = tcLoaded
+    ? tcRunGate(runStatus(tcLatest), tcLatest !== null, tcLatestFailed)
+    : 'loading';
+  const tcDot =
+    tcGate === 'failed'
+      ? opsStyles.tabDotFail
+      : tcGate === 'open'
+        ? opsStyles.tabDotRunning
+        : null;
+
   if (detailFailed) {
     return (
       <div className={cn(pipelineStyles.empty.base, pipelineStyles.empty.center)}>
@@ -374,8 +395,12 @@ export function OpsTargetView({ targetSourceId, initialTab }: OpsTargetViewProps
             const active = tab === currentTab;
             return (
               <Fragment key={tab}>
-                {/* 보기(읽는 탭)와 도구(작업 탭) 사이 한 칸 — 인프라 작업부터 도구다. */}
-                {tab === OPS_TAB_SLUGS.infra && <span className={opsStyles.tabGap} aria-hidden />}
+                {/* 세 묶음 사이 한 칸씩 — 보기 | 실행(인프라 작업부터) | 승인·근거(관리자
+                    승인부터). Airflow 확인은 도구가 아니라 승인 조건 ③ 의 근거라 승인 쪽에
+                    붙는다. */}
+                {(tab === OPS_TAB_SLUGS.infra || tab === OPS_TAB_SLUGS.approval) && (
+                  <span className={opsStyles.tabGap} aria-hidden />
+                )}
                 <button
                   type="button"
                   role="tab"
@@ -384,6 +409,9 @@ export function OpsTargetView({ targetSourceId, initialTab }: OpsTargetViewProps
                   className={cn(opsStyles.tab, active ? opsStyles.tabActive : opsStyles.tabIdle)}
                 >
                   {tab}
+                  {tab === OPS_TAB_SLUGS.tc && tcDot && (
+                    <span className={cn(opsStyles.tabDot, tcDot)} aria-hidden />
+                  )}
                 </button>
               </Fragment>
             );
