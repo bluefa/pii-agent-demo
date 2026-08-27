@@ -1736,12 +1736,24 @@ export const idcStyles = {
      * #4E5968 은 **6.67:1** 이다. 14px 는 아직 large text 가 아니라 기준은 4.5:1 그대로다.
      */
     guidance: 'pl-[26px] text-[14px] font-medium leading-[1.5] text-[#4E5968] break-keep',
-    /** The bucket list inside `counts` — dots replace the 가운뎃점 separators, so the
-     *  segments need their own gap (12px between, 6px inside a segment). */
-    countList: 'flex items-center gap-3',
+    /**
+     * The bucket list inside `counts` — dots replace the 가운뎃점 separators, so the
+     * segments need their own gap (12px between, 6px inside a segment).
+     *
+     * 14px, overriding `counts`' 12 (오너 2026-08-27). The size lives HERE and not on
+     * `counts` because that token is worn twice in this card: by this row AND by the
+     * 시각 서브라인 above it ("… 완료 · 소요 4분 20초"). Moving it there would take the
+     * timestamp up with it and flatten the card's 16(제목)/14(안내)/12(메타) ladder — the
+     * exact collapse `guidance` was introduced to undo. The count row is not that meta
+     * tier: it is the card's finding, and it now reads a step above the clock line.
+     */
+    countList: 'flex items-center gap-3 text-[14px]',
     countSeg: 'flex items-center gap-1.5',
-    /** The value, two steps above its 12px label — the number is what the row is for. */
-    countValue: 'text-[14px] font-bold [font-variant-numeric:tabular-nums]',
+    /** The value, one step above its 14px label — the number is what the row is for.
+     *  Moved 14 → 16 with the label's 12 → 14 (오너 2026-08-27), keeping the pair's
+     *  one-step relation. `opsStyles.tcBand.countValueRow` carries the same two sizes on
+     *  the admin band, which is this row ported. */
+    countValue: 'text-[16px] font-bold [font-variant-numeric:tabular-nums]',
     /** 범례 점 — 판정 둘은 `fillColor.success`/`fail` 을 그대로 써서 카운트 줄이 바의 범례를 겸한다
      *  (#21A157 3.07:1, #E5483D 3.63:1 on running).
      *

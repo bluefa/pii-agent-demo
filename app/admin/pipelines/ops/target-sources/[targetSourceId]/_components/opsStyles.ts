@@ -768,6 +768,21 @@ export const opsStyles = {
     counts: 'flex items-center gap-3 text-[12px] font-medium tabular-nums text-[var(--pl-text-weak)]',
     countSeg: 'flex items-center gap-1.5',
     countValue: 'text-[14px] font-bold tabular-nums',
+    /**
+     * 실행 밴드의 카운트 줄만 입는 활자 — 라벨 14 / 수 16 (오너 2026-08-27). Step 5 카드가
+     * 같은 줄을 같은 두 값으로 그리고(`idcStyles.connProgress.countList`·`countValue`), 이
+     * 밴드는 그 줄을 이식한 것이라 같이 움직인다.
+     *
+     * ⛔ `counts`·`countValue` 자체를 올리지 않는다. 그 둘은 모니터링 근거 줄
+     * (`MonitoringEvidenceBody` 의 논리 DB 성공/확인 필요)도 같이 입는데, 그 줄은 실행의
+     * 판정이 아니라 카드 본문에 딸린 집계라 12/14 에 남는다(오너가 범위를 그렇게 그었다).
+     *
+     * `counts` 를 통째로 **대신** 한다 — 크기만 덧대면 한 엘리먼트에 text-[12px] 와
+     * text-[14px] 가 같이 서고, `cn` 은 plain join 이라 승자를 Tailwind 의 emit 순서가
+     * 정한다. 나머지 선언은 `counts` 와 글자 그대로 같은 값이다.
+     */
+    countsRow: 'flex items-center gap-3 text-[14px] font-medium tabular-nums text-[var(--pl-text-weak)]',
+    countValueRow: 'text-[16px] font-bold tabular-nums',
     countDot: 'h-2 w-2 rounded-full flex-shrink-0',
     countDotOk: 'bg-[var(--pl-ok)]',
     countDotFail: 'bg-[var(--pl-err)]',
