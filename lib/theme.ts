@@ -63,6 +63,26 @@ export const tossShadow = {
 // =============================================================================
 
 /**
+ * Partition tag colours — the ops masthead tag that says which cloud partition a target
+ * lives in (Global · China). China is red because a China-partition target is the one an
+ * operator must not confuse with a global one; Global keeps the primary blue.
+ *
+ * Both hues are deliberately DESATURATED and a shade darker than the ramps they come from
+ * (owner 2026-08-27 "채도와 명도는 좀 낮춰서 표현해", then "Global Region 아직도 파란색인데"):
+ * the error ramp is loud because it reports a failure and the primary blue is loud because it
+ * invites a click, but a partition is neither — it is a standing fact about the target.
+ * The two tags are built on the SAME saturation/lightness pair (face S33 L95 · ink S47 L37)
+ * so they read as one family whose only difference is hue.
+ * Measured contrast: China ink on its face 6.59:1, Global 6.76:1 (AA text needs 4.5:1).
+ */
+export const partitionColors = {
+  chinaBg: 'bg-[#F6EEED]',
+  chinaInk: 'text-[#8C3B33]',
+  globalBg: 'bg-[#EEF1F6]',
+  globalInk: 'text-[#32538B]',
+};
+
+/**
  * Primary 색상 — 주요 액션, 링크, 강조에 사용
  * 모든 값이 완성된 Tailwind 클래스 (동적 조합 금지)
  */

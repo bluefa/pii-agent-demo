@@ -19,15 +19,14 @@
  * seconds, selectable never.
  */
 import Link from 'next/link';
-import { useState, type ReactElement, type ReactNode } from 'react';
+import { type ReactElement, type ReactNode } from 'react';
 import { cn } from '@/lib/theme';
 import { passRoutes } from '@/lib/routes';
 import { fmtDate } from '@/lib/pipeline/format';
 import { normalizeCloudProvider } from '@/lib/types';
-import { TIMINGS } from '@/lib/constants/timings';
-import { Icon } from '@/app/admin/pipelines/_components/icons';
 import type { RawTargetSourceDetail } from '@/app/lib/api/pipeline-target';
 import type { RoleKind } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/roleMeta';
+import { CopyButton } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/CopyButton';
 import { opsStyles } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/opsStyles';
 
 export interface OpsDetailFoldProps {
@@ -37,29 +36,6 @@ export interface OpsDetailFoldProps {
   /** 이 화면에서 방금 저장한 ARN만 — 그 외에는 detail.metadata 가 표시의 유일한 출처. */
   savedRoleArns: Partial<Record<RoleKind, string>>;
   onEditDescription: () => void;
-}
-
-/** 전문 옆의 복사 — 값이 아니라 동작이라 아이콘 하나로 서고, 누른 뒤 체크로 답한다. */
-function CopyButton({ value, label }: { value: string; label: string }): ReactElement {
-  const [copied, setCopied] = useState(false);
-  return (
-    <button
-      type="button"
-      className={opsStyles.fmCopy}
-      aria-label={label}
-      onClick={async () => {
-        try {
-          await navigator.clipboard.writeText(value);
-          setCopied(true);
-          window.setTimeout(() => setCopied(false), TIMINGS.COPY_FEEDBACK_MS);
-        } catch (error) {
-          console.warn('[OpsDetailFold] clipboard.writeText failed', { error, label });
-        }
-      }}
-    >
-      <Icon name={copied ? 'check' : 'copy'} size="sm" />
-    </button>
-  );
 }
 
 /** `wide` = ARN 전문이 한 줄에 서야 하는 묶음 — 위 그리드와 같은 2열 병합(498px). */
@@ -123,7 +99,9 @@ export function OpsDetailFold({
   }
 
   return (
-    <div id={id} className={opsStyles.fmFold}>
+    // GCP 는 위 kv 스트립이 3등분이라 폴드도 같은 3등분에 선다 (오너 2026-08-27 "gcp
+    // 더보기도 동일하게 정렬 맞춰") — 세 묶음이 정확히 세 열이다. 나머지는 4 × 240 그대로.
+    <div id={id} className={provider === 'GCP' ? opsStyles.fmFoldGcp : opsStyles.fmFold}>
       <Group label="서비스">
         <Cell label="이름">
           <span className={opsStyles.fmValue}>
@@ -195,7 +173,9 @@ export function OpsDetailFold({
       </Group>
 
       {identifiers.length > 0 && (
-        <Group label="식별자" wide>
+        // 3등분 위에서는 한 열이 이미 전문을 받는다 — GCP 만 1열, 나머지는 지금처럼
+        // 2열 병합으로 ARN 전문을 한 줄에 세운다.
+        <Group label="식별자" wide={provider !== 'GCP'}>
           {identifiers.map(({ label, value }) => (
             <div key={label} className={opsStyles.fmCell}>
               <span className={opsStyles.fmKey}>{label}</span>
