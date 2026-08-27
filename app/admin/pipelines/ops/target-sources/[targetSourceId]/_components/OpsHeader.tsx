@@ -109,39 +109,18 @@ export function OpsHeader({
 
   /**
    * kv 셀 — 라벨이 값 위에 선다. `wide` 는 긴 주체(ARN·SA·App ID)가 먹는 2열이고,
-   * `labelAfter` 는 **라벨 줄**에 붙는 단서(파티션 태그)다. 값 줄이 아니라 라벨 줄인
-   * 이유는 아래 `partitionTag` 의 독블록에 적혀 있다.
+   * 라벨 줄에 단서를 붙이던 `labelAfter` 는 사라졌다 — 그 단서(파티션 태그)가 블록 머리로
+   * 올라가면서 이 자리에 아무도 넘기지 않는다.
    */
-  const cell = (
-    label: string,
-    value: ReactNode,
-    wide = false,
-    labelAfter?: ReactNode,
-    /** 배치 클래스 하나 — 지금은 GCP 주체 쌍을 제 행에서 시작시키는 `col-start-1`. */
-    className?: string,
-  ): ReactElement => (
-    <div key={label} className={cn(opsStyles.fmCell, wide && opsStyles.fmCellWide, className)}>
+  const cell = (label: string, value: ReactNode, wide = false): ReactElement => (
+    <div key={label} className={cn(opsStyles.fmCell, wide && opsStyles.fmCellWide)}>
       <span className={opsStyles.fmKeyRow}>
         <span className={opsStyles.fmKey}>{label}</span>
-        {labelAfter}
       </span>
       <span className={opsStyles.fmValue}>{value}</span>
     </div>
   );
 
-  /**
-   * 파티션(China · Global)은 제 칸을 갖지 않고 **계정 값 옆에** 선다 (오너 08-26
-   * "리전은 없애. 그리고 계정 옆에 Global 을 적어"). 리전은 계정의 속성이지 계정과
-   * 나란한 사실이 아니었고, 한 칸을 차지하면 4열에서 진짜 사실 하나를 밀어낸다.
-   * 계정 자리는 프로바이더마다 다르다 — AWS 계정 · GCP 프로젝트 · Azure 구독.
-   * 읽기 전용이라 흰 면이 아니라 gray-200 이다: 흰 면은 수정 가능한 값의 것으로 남는다.
-   *
-   * 08-26 2차: 태그는 값 줄에서 **라벨 줄로** 올라갔다 (오너 "Global은 계정 오른쪽에
-   * 표현해"). 값 줄은 식별자의 것이다 — Azure 구독 UUID 는 36자로 240px 칸을 그대로
-   * 채우고, 그 뒤에 선 태그는 늘 밀리는 쪽이었다. 라벨 줄은 「계정」 세 글자뿐이라
-   * 자리가 남는다. 태그를 16px 로 줄여 `fmKey` 의 leading-4 와 같은 높이로 맞췄으므로
-   * 이 이동은 어느 프로바이더의 행 높이도 바꾸지 않는다.
-   */
   const isGcp = provider === 'GCP';
   const scanSa = meta.gcp_scan_service_account;
   const terraformSa = meta.gcp_terraform_service_account;
@@ -167,8 +146,6 @@ export function OpsHeader({
     label: string,
     value: string | null | undefined,
     wide = false,
-    labelAfter?: ReactNode,
-    className?: string,
   ): ReactElement =>
     cell(
       label,
@@ -180,8 +157,6 @@ export function OpsHeader({
         <span className={opsStyles.fmNone}>미등록</span>
       ),
       wide,
-      labelAfter,
-      className,
     );
 
   /**
@@ -196,13 +171,11 @@ export function OpsHeader({
   const gcpCell = (
     label: string,
     value: string | null | undefined,
-    labelAfter?: ReactNode,
     copyValue?: string | null,
   ): ReactElement => (
     <div key={label} className={opsStyles.fmCell}>
       <span className={opsStyles.fmKeyRow}>
         <span className={opsStyles.fmKey}>{label}</span>
-        {labelAfter}
       </span>
       <span className={opsStyles.fmValue}>
         {value ? (
@@ -370,9 +343,7 @@ export function OpsHeader({
                 each, and truncation is safe here because 「상세 정보」 prints every
                 identifier in full with a copy button. Azure now packs 구독·테넌트·Scan
                 App·설정 into exactly four slots — one row, the shape AWS already has.
-                GCP keeps its 2-column service accounts: those are full mail addresses
-                (오너 2026-08-27), and at 341/365px neither fits a 240px track — so the
-                pair takes a row of its own, below. */}
+                GCP 는 이 격자를 아예 쓰지 않는다 — 3등분(`fmGridGcp`)에 따로 선다. */}
             {provider === 'Azure' && monoCell('Scan App', meta.azure_scan_app_id)}
             {/* IDC 는 계정이 없는 게 정상이다 — 빈 칸을 두는 대신 그 대상이 무엇인지
                 말한다 (ServiceDetailView glossOf 의 어휘 그대로). */}
@@ -456,16 +427,10 @@ export function OpsHeader({
                 와 짝이라 영문 그대로 둔다. */}
             {provider === 'GCP' && (
               <>
-                {gcpCell(
-                  '스캔 서비스 계정',
-                  scanSa && gcpServiceAccountDisplay(scanSa),
-                  undefined,
-                  scanSa,
-                )}
+                {gcpCell('스캔 서비스 계정', scanSa && gcpServiceAccountDisplay(scanSa), scanSa)}
                 {gcpCell(
                   '테라폼 서비스 계정',
                   terraformSa && gcpServiceAccountDisplay(terraformSa),
-                  undefined,
                   terraformSa,
                 )}
               </>

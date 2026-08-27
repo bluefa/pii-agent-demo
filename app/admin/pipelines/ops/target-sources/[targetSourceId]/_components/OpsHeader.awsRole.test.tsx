@@ -102,7 +102,7 @@ describe('OpsHeader — AWS 역할 칸', () => {
     expect(screen.getByTitle(`${scan} — 스캔 역할 수정`).textContent).toBe('BDCPIIInfraScanRole');
   });
 
-  it('복사는 수정 모달을 열지 않는다 — 한 자리에 두 동작이 겹치지 않는다', () => {
+  it('복사는 수정 모달을 열지 않는다 — 한 자리에 두 동작이 겹치지 않는다', async () => {
     const onOpenEdit = vi.fn();
     render(
       <OpsHeader
@@ -122,6 +122,8 @@ describe('OpsHeader — AWS 역할 칸', () => {
       />,
     );
     fireEvent.click(screen.getByLabelText('스캔 역할 복사'));
+    // 복사는 클릭 뒤 제 상태를 비동기로 바꾼다 — 기다리지 않으면 그 갱신이 act 밖에서 난다.
+    await waitFor(() => expect(writeText).toHaveBeenCalled());
     expect(onOpenEdit).not.toHaveBeenCalled();
   });
 

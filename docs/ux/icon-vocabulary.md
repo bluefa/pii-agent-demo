@@ -23,6 +23,10 @@ grep -rhoE "(name|icon)[=:] ?[\"']<이름>[\"']" app --include=*.tsx --include=*
 ⚠️ 이름만 grep 하면(`grep -r "'cursor'"`) 과다 집계된다 — `link`·`table`·`install` 은
 tiptap 마크·DB 어휘·도메인 낱말로도 쓰인다.
 
+⚠️ 위 정규식도 **삼항으로 고르는 자리**는 못 잡는다 — `name={copied ? 'check' : 'copy'}`
+(`CopyButton.tsx`) 같은 것. 0건으로 나온 이름은 `grep -rn "'<이름>'" app` 로 한 번 더 눈으로
+확인한다.
+
 ## 뜻이 정해진 이름 (재사용 시 그 뜻을 따라야 함)
 
 | 이름 | 이 앱에서의 뜻 | 대표 사용처 | 건수 |
@@ -39,7 +43,7 @@ tiptap 마크·DB 어휘·도메인 낱말로도 쓰인다.
 | `arrow-up-right` | 상승 추세 (↗ 링크와 **다른** 이름이니 혼동 주의) | `CurrentPipelineCard` | 5 |
 | `check` / `check-circle` | 완료 | `TaskFlow` | 5 / 4 |
 | `info` | 안내 블록 | `CurrentPipelineCard` | 4 |
-| `install` | ⛔ **쓰지 말 것** — 아래 「물린 이름」 참조 | — | 4 |
+| `install` | ⛔ **쓰지 말 것** — 아래 「물린 이름」 참조 | — | 3 |
 | `cursor` | ① 「좌측에서 하나 고르세요」 빈 상태 ② **「담당자가 보는 화면」 이정표**(2026-08-27 추가) | `services/[[...code]]/page.tsx` · `OpsHeader.tsx` | 4 |
 | `shield` / `shield-check` | 권한 · 권한 확인됨 | `access/admins` | 3 / 2 |
 | `x-circle` / `loader` | Terraform 상태 계열 | `terraformState.ts` | 3 / 3 |
@@ -52,7 +56,11 @@ tiptap 마크·DB 어휘·도메인 낱말로도 쓰인다.
 
 ## 아직 비어 있는 이름 (뜻을 새로 붙일 수 있음)
 
-`calendar` · `copy` · `refresh` — 0건.
+`calendar` · `refresh` — 0건.
+
+`copy` 는 census 정규식에는 0건으로 잡히지만 실제로는 **복사 버튼**의 글리프다
+(`_components/CopyButton.tsx` — `name={copied ? 'check' : 'copy'}`). 뜻은 「이 값을 복사」로
+이미 정해져 있다.
 
 ## 물린 이름 — `install`
 

@@ -40,6 +40,10 @@ colors:
   text-medium-toss:      "#4E5968"
   text-weak-toss:        "#8B95A1"
   text-faint-toss:       "#B0B8C1"
+  partition-china-bg:    "#F6EEED"
+  partition-china-ink:   "#8C3B33"
+  partition-global-bg:   "#EEF1F6"
+  partition-global-ink:  "#32538B"
 typography:
   page-title:
     fontFamily: Geist

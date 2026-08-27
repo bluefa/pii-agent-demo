@@ -34,6 +34,27 @@ describe('CompletedStamp', () => {
     expect(container.querySelector('[title]')?.getAttribute('title')).toMatch(/2026-07-14/);
   });
 
+  it('xs 는 한 줄이다 — 경로 줄(21px)을 밀지 않는 것이 이 크기의 존재 이유다', () => {
+    const { container } = render(<CompletedStamp firstInstalledAt="2026-07-13T19:40:00Z" size="xs" />);
+    const box = container.firstElementChild as HTMLElement;
+    // 세로로 쌓지 않고, 기울이지도 않는다 — 둘 다 두 줄 도장(sm/md/lg)의 것이다.
+    expect(box.className).not.toContain('flex-col');
+    expect(box.className).not.toContain('rotate');
+    // 문구와 날짜가 같은 줄에 서므로 둘 다 leading-4 다 (16 + 테두리 4 = 20px).
+    expect(box.className).toContain('items-center');
+    for (const span of Array.from(box.children)) {
+      expect(span.className).toContain('leading-4');
+      expect(span.className).toContain('text-[12px]');
+    }
+  });
+
+  it('두 줄 도장은 여전히 쌓고 기울인다 — xs 만 예외다', () => {
+    const { container } = render(<CompletedStamp firstInstalledAt="2026-07-13T19:40:00Z" size="md" />);
+    const box = container.firstElementChild as HTMLElement;
+    expect(box.className).toContain('flex-col');
+    expect(box.className).toContain('rotate');
+  });
+
   it('기록이 없으면 아무것도 그리지 않는다 — 미완료라고 쓰지 않는다', () => {
     for (const value of [null, undefined, '']) {
       const { container } = render(<CompletedStamp firstInstalledAt={value} />);

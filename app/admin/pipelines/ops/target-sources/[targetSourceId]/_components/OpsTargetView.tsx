@@ -390,13 +390,13 @@ export function OpsTargetView({ targetSourceId, initialTab }: OpsTargetViewProps
               {/* 22px — `fmLabel` 이 16px 이 되면서 그 줄 상자가 22.39px 가 됐다(실측).
                   20 으로 두면 스켈레톤 마스트헤드가 2.4px 짧아 도착하는 순간 탭 줄이
                   아래로 뛴다 — 이 자리가 잡아야 하는 바로 그것이다. */}
-              <div className={cn(opsStyles.skeletonWash, 'h-[22px] w-[108px]')} />
+              <div className={cn(opsStyles.skeletonWash, 'h-[24px] w-[108px]')} />
             </div>
             <div className={opsStyles.fmGrid}>
               {[0, 1].map((row) => (
                 <div key={row} className={cn(opsStyles.fmCell, 'col-span-4')}>
                   <div className={cn(opsStyles.skeletonWash, 'h-4 w-[64px]')} />
-                  <div className={cn(opsStyles.skeletonWash, 'h-[22px] w-[180px]')} />
+                  <div className={cn(opsStyles.skeletonWash, 'h-[24px] w-[180px]')} />
                 </div>
               ))}
             </div>
