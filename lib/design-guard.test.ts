@@ -457,12 +457,21 @@ const TEXT: TextPair[] = [
   // 워시가 램프 한 칸을 먹으므로 weak 가 아니라 medium 이다.
   { what: 'ops active tab ink on the masthead wash', fg: textOf(classOf(opsSrc, 'tabActive')), on: resolve('var(--pl-gray-100)') },
   { what: 'ops idle tab on the masthead wash', fg: textOf(classOf(opsSrc, 'tabIdle')), on: resolve('var(--pl-gray-100)') },
+  // 두 번째 밑줄 — 걸린 단계 (ops-nav 시안 E). 2px 획이라 글자가 아니라 **그래픽**이고,
+  // 기준은 3:1 이다: `--pl-current` 는 이 워시 위 4.50 으로 그 위에 선다. SURFACES 에
+  // 넣으면 안 된다 — 거기는 ΔE00 를 재지 대비를 재지 않아서, 3:1 아래로 내려가도
+  // 초록으로 통과한다(전례: --pl-info 2.94). 잉크는 idle 과 같은 medium 이지만 손으로
+  // 베낀 값이라, 여기 걸어 두지 않으면 한쪽만 움직이는 날 잡히지 않는다.
+  { what: 'ops step tab underline on the masthead wash', fg: borderOf(classOf(opsSrc, 'tabStep')), on: resolve('var(--pl-gray-100)'), min: 3 },
+  { what: 'ops step tab ink on the masthead wash', fg: textOf(classOf(opsSrc, 'tabStep')), on: resolve('var(--pl-gray-100)') },
   // 「연결 테스트」 탭의 8px 상태 점 — 글자가 아니라 그래픽이라 3:1 이다. `--pl-err` 는
   // 이 워시에서 3.41, `--pl-info` 는 2.94 로 **떨어진다**: 두 계열이 램프에서 한 칸씩
   // 다른 곳에 서 있는 이유가 그것이고, 여기 걸어 두지 않으면 다음 사람이 짝을 맞추려고
   // info 를 되돌리는 순간 진행 중 점만 조용히 사라진다.
   { what: 'ops tc tab dot (fail) on the masthead wash', fg: bgOf(classOf(opsSrc, 'tabDotFail')), on: resolve('var(--pl-gray-100)'), min: 3 },
   { what: 'ops tc tab dot (running) on the masthead wash', fg: bgOf(classOf(opsSrc, 'tabDotRunning')), on: resolve('var(--pl-gray-100)'), min: 3 },
+  // 열린 탭이 곧 걸린 탭일 때 보라가 물러나는 자리 — 같은 8px, 같은 3:1 기준.
+  { what: 'ops step tab dot on the masthead wash', fg: bgOf(classOf(opsSrc, 'tabDotStep')), on: resolve('var(--pl-gray-100)'), min: 3 },
   // FrontMeta (ops-target-frontmeta.md 시안 C) — 236px 레일이 사라져 이 화면의 메타 글자는
   // 전부 마스트헤드 워시 위에 산다. 그 워시는 램프 한 칸을 잡아먹으므로(--pl-text-weak 는
   // 여기서 4.51:1) 라벨 계단이 gray-600 에서 시작한다.

@@ -273,9 +273,10 @@ export const opsStyles = {
    * below stands in the content column, so its hairline cut across x the content
    * never touches (Primer: navigation lives inside the width it governs).
    */
-  /** `overflow-x-auto` 는 없다 — 여덟 탭의 전체 폭이 717px 이라 1422px 열에서 넘칠 일이
-      없고(실측), 스크롤 컨테이너로 두면 활성 탭의 `-mb-px` 가 1px 짜리 세로 스크롤을
-      만든다. 밑줄이 헤어라인을 먹으려면 그 1px 은 밖으로 나가야 한다. */
+  /** `overflow-x-auto` 는 없다 — 여덟 탭의 전체 폭이 772px 이라 1422px 열에서 넘칠 일이
+      없고(실측: 마크 슬롯 다섯 자리와 구간 갭까지 포함한 값이다), 스크롤 컨테이너로 두면
+      활성 탭의 `-mb-px` 가 1px 짜리 세로 스크롤을 만든다. 밑줄이 헤어라인을 먹으려면
+      그 1px 은 밖으로 나가야 한다. */
   /**
    * 내비게이션은 **선 두 개 사이에 산다** (오너 2026-08-27 "Navigation 위쪽에 구분선을
    * 하나 더 두자 … 위 아래 구분선이 Navigation이다라는 느낌만 주게"). 밴드를 걷고 나니
@@ -287,8 +288,21 @@ export const opsStyles = {
    * 헤어라인과 같은 토큰·같은 두께라, 마스트헤드의 마지막 사실과 이 띠 사이가 블록이
    * 갈리는 거리만큼 떨어져야 두 선이 서로 다른 것을 닫는 것으로 읽힌다.
    * 탭의 py-2.5 가 선 안쪽 10px 을 위아래로 똑같이 준다 — 띠는 대칭이다.
+   *
+   * 아래 선만 `tabGroup` 으로 내려갔다 (ops-nav 시안 A). 위 선은 통으로 남아 띠의
+   * 천장을 진다 — 두 선 중 하나가 끊기면 나머지가 띠를 계속 붙들고 있어야 한다.
    */
-  tabStrip: 'mt-5 flex items-end gap-1 border-y border-[var(--pl-border-strong)]',
+  tabStrip: 'mt-5 flex items-end gap-3.5 border-t border-[var(--pl-border-strong)]',
+  /**
+   * 구간 헤어라인 — 아래 선을 그룹마다 따로 긋는다. 여덟 탭은 세 가지 일이고
+   * (보기 · 실행 · 승인·근거), 그 경계는 지금까지 빈 칸 하나로만 서 있었다. 선이
+   * 갭에서 **끊기면** 그 빈 칸이 우연한 여백이 아니라 구간의 끝으로 읽힌다 — 칠도
+   * 밴드도 라벨도 없이(전부 이 줄에서 기각된 것들이다) 묶음이 보인다.
+   *
+   * 그룹 안의 `gap-1` 아래로도 선은 이어진다 — 선이 끊기는 곳은 오직 그룹 사이다.
+   * 활성 탭의 `-mb-px` 는 이제 제 그룹의 선을 먹는다(기하는 그대로).
+   */
+  tabGroup: 'flex items-end gap-1 border-b border-[var(--pl-border-strong)]',
   /**
    * Geometry is `accessStyles.tab` verbatim (the 접근 권한 page tabs) — the admin
    * console should have one line-tab, not two that differ by a few px.
@@ -308,14 +322,21 @@ export const opsStyles = {
   tabIdle:
     'text-[var(--pl-text-medium)] border-transparent hover:text-[var(--pl-text-strong)] hover:border-[var(--pl-border-strong)]',
   /**
-   * Group gap — used TWICE, because these eight tabs are three things, not two:
-   *   보기       진행 상태 · 스캔 · 연동 요청 정보 · 확정 정보
-   *   실행       인프라 작업 · 연결 테스트
-   *   승인·근거  관리자 승인 · Airflow 확인
-   * Airflow 확인 (PR #783) landed at the end of the tool run, but it is not a
-   * tool: it holds the evidence behind 승인 조건 ③ and is read, not operated.
+   * 두 번째 밑줄 — 지금 **단계가 걸린** 탭 (ops-nav 시안 E). 파랑이 "지금 열어 둔
+   * 패널"을 말한다면 보라는 "지금 일이 서 있는 곳"을 말한다: 채널이 둘이라 한 줄에
+   * 겹쳐 실을 수 있고, 두 밑줄이 갈라져 있는 동안 관리자는 보던 곳을 잃지 않고도
+   * 다음에 만질 탭을 본다.
+   *
+   * 색은 `--pl-current` — 이 콘솔에서 상태도 링크도 아닌 "여기 있음" 쪽 어휘다
+   * (서비스 레일의 현재 위치, `metaTagQuiet` 의 속성 태그와 같은 가족). 판정 계열
+   * (ok/err/warn)을 쓰면 걸린 단계가 문제로 읽히는데, 걸렸다는 것은 정상이다.
+   * 워시 위 4.50:1 (실측) 이라 2px 그래픽 기준 3:1 을 넘는다.
+   *
+   * 잉크는 idle 과 같은 medium 이다 — 굵기도 크기도 활성과 같으므로, 잉크까지
+   * 가져가면 열린 탭이 둘로 보인다. hover 밑줄이 없는 것도 같은 이유다: 보라를
+   * 회색으로 덮으면 hover 가 사실을 지운다.
    */
-  tabGap: 'w-3.5 flex-none self-stretch',
+  tabStep: 'text-[var(--pl-text-medium)] border-[var(--pl-current)] hover:text-[var(--pl-text-strong)]',
   /**
    * 「연결 테스트」 탭의 상태 점 — 8px, the size this screen's own dots already use
    * (`tcBand.countDot`, ConfirmEditorModal). It says only that the latest run
@@ -326,10 +347,17 @@ export const opsStyles = {
    * 8px 이라 램프를 한 칸 더 내려 `--pl-err-solid`(4.38, 실측)를 쓴다. 진행 중은
    * `--pl-info` 가 2.94 로 3:1 을 **못 넘어서**(실측) 같은 계열의 다음 칸
    * `--pl-info-text`(5.43)가 진다.
+   *
+   * 자리는 늘 잡혀 있고 `opacity` 로만 나타난다 (`manageLink` 와 같은 수법) — 탭별
+   * 데이터가 서로 다른 시각에 도착하는데 점이 `display` 로 끼어들면 그때마다 오른쪽
+   * 탭들의 x 가 밀린다. 탭을 눌러 보라가 점으로 물러나는 순간도 마찬가지다.
    */
-  tabDot: 'h-2 w-2 flex-none rounded-full',
+  tabDot: 'h-2 w-2 flex-none rounded-full transition-opacity',
   tabDotFail: 'bg-[var(--pl-err-solid)]',
   tabDotRunning: 'bg-[var(--pl-info-text)]',
+  /** 열린 탭이 곧 걸린 탭일 때 — 밑줄은 파랑이 가져가고(열린 것이 먼저다) 보라는
+      같은 8px 점으로 물러난다. 사실은 그대로 실리되 채널만 바뀐다. */
+  tabDotStep: 'bg-[var(--pl-current)]',
 
   /** Body — 콘텐츠 한 열. 236px 메타 레일은 FrontMeta 의 「상세 정보」로 접혀 들어갔고,
       그 폭은 탭 7개 전부에서 본문으로 돌아간다 (1020 → 1280px). */
