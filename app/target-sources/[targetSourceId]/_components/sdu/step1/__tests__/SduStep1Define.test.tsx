@@ -154,6 +154,19 @@ describe('업로드 IP', () => {
   });
 });
 
+describe('접힌 행', () => {
+  it('Database Type 은 이름을 늘어놓지 않고 몇 종인지만 말한다', async () => {
+    // 한 대상이 20종까지 가질 수 있다 — 이름을 다 적으면 행이 읽는 자리가 아니라 벽이 된다.
+    getSduDefinition.mockResolvedValue(twoTargets);
+    await renderStep();
+
+    expect(screen.getAllByText('2개 데이터베이스 선택')).toHaveLength(2);
+    expect(screen.queryByText('MySQL · PostgreSQL')).toBeNull();
+    // 머리줄의 「n종」은 목록 전체를 세는 다른 자리다 — 같은 규칙으로, 겹치는 이름은 한 번만.
+    expect(screen.getByText('Region 2곳 · Database Type 3종')).toBeTruthy();
+  });
+});
+
 describe('제출 게이트', () => {
   it('대상이 0건이면 제출할 수 없다', async () => {
     await renderStep();

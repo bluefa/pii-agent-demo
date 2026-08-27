@@ -116,10 +116,19 @@ export const sduDraftRegions = (rows: readonly SduTargetDraft[]): SduRegion[] =>
   sortSduRegions(activeSduDrafts(rows).map((row) => row.region));
 
 /** 몇 종인가 — 대소문자만 다른 같은 이름은 한 종으로 센다. */
+const dbTypeSpecies = (types: readonly string[]): number =>
+  new Set(types.map((type) => type.toLowerCase())).size;
+
 export const sduDraftDbTypeCount = (rows: readonly SduTargetDraft[]): number =>
-  new Set(
-    activeSduDrafts(rows).flatMap((row) => row.databaseTypes.map((type) => type.toLowerCase())),
-  ).size;
+  dbTypeSpecies(activeSduDrafts(rows).flatMap((row) => row.databaseTypes));
+
+/**
+ * 편집기 밖에서 Database Type 을 말하는 유일한 문장. 이름을 늘어놓지 않는다 — 한 대상이
+ * 20종까지 가질 수 있고, 그때 행은 읽는 자리가 아니라 벽이 된다. 세는 규칙은 머리줄의
+ * 「n종」과 같은 것을 쓴다: 두 자리가 같은 목록을 두고 다른 수를 말하면 안 된다.
+ */
+export const sduDbTypeSummary = (types: readonly string[]): string =>
+  `${dbTypeSpecies(types)}개 데이터베이스 선택`;
 
 /** PUT 본문에 실리는 대상 — 삭제 표시된 행은 여기서 빠지면서 실제로 사라진다. */
 export const toSduPutTargets = (rows: readonly SduTargetDraft[]): SduTarget[] =>

@@ -2,7 +2,7 @@
  * 「연동 대상 추가」 마법사 — 단계로 나눠 물었을 때 지켜야 하는 것들.
  *
  * 여기서 확인하는 것은 세 가지다: 못 가는 단계는 왜 못 가는지 말하는가, 네 단계를 다 걸으면
- * 담당자가 적은 값 그대로 돌아오는가, 그리고 적은 것이 있는 채로 닫으면 되묻는가. 저장은
+ * 담당자가 적은 값 그대로 돌아오는가, 그리고 적은 것이 있는 채로 나가면 되묻는가. 저장은
  * 이 모달의 일이 아니므로(1단계의 제출/저장이 한다) API 는 하나도 등장하지 않는다.
  */
 // @vitest-environment jsdom
@@ -13,6 +13,9 @@ import { SduAddTargetModal } from '@/app/target-sources/[targetSourceId]/_compon
 const wizard = () => within(screen.getByRole('dialog', { name: '연동 대상 추가' }));
 
 const click = (name: string) => fireEvent.click(wizard().getByRole('button', { name }));
+
+/** 나가는 길. 판에는 닫기 버튼이 없고 ESC 와 배경 클릭만 있다. */
+const escape = () => fireEvent.keyDown(document, { key: 'Escape' });
 
 const renderModal = () => {
   const onAdd = vi.fn();
@@ -70,12 +73,14 @@ describe('네 단계를 다 걸었을 때', () => {
     click('MySQL');
     click('다음');
 
-    // 확인 단계는 고치는 자리가 아니라 읽어 주는 자리다.
+    // 확인 단계는 고치는 자리가 아니라 읽어 주는 자리다. Database Type 은 이름을 늘어놓지
+    // 않고 몇 종인지만 말한다 — 한 대상이 20종까지 가질 수 있다.
     const summary = wizard();
     expect(summary.getByText('GCP')).toBeTruthy();
     expect(summary.getByText('EU')).toBeTruthy();
     expect(summary.getByText('10.20.30.40')).toBeTruthy();
-    expect(summary.getByText('MySQL')).toBeTruthy();
+    expect(summary.getByText('1개 데이터베이스 선택')).toBeTruthy();
+    expect(summary.queryByText('MySQL')).toBeNull();
 
     click('대상 추가');
 
@@ -93,13 +98,13 @@ describe('네 단계를 다 걸었을 때', () => {
   });
 });
 
-describe('닫기', () => {
+describe('나가기', () => {
   it('적은 것이 있으면 되묻고, 아무것도 돌려주지 않는다', () => {
     const { onAdd, onClose } = renderModal();
     click('다음');
     fireEvent.change(screen.getByLabelText('업로드 IP'), { target: { value: '10.20.30.40' } });
 
-    click('닫기');
+    escape();
 
     expect(screen.getByText('대상 추가를 그만두시겠어요?')).toBeTruthy();
     expect(screen.getByText('지금 닫으면 입력한 내용이 사라져요.')).toBeTruthy();
@@ -115,7 +120,7 @@ describe('닫기', () => {
   it('아무것도 적지 않았으면 되묻지 않고 바로 닫힌다', () => {
     const { onClose } = renderModal();
 
-    click('닫기');
+    escape();
 
     expect(screen.queryByText('대상 추가를 그만두시겠어요?')).toBeNull();
     expect(onClose).toHaveBeenCalledTimes(1);

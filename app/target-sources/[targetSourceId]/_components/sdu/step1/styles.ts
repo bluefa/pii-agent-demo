@@ -9,7 +9,6 @@
 import {
   bgColors,
   borderColors,
-  buttonStyles,
   cn,
   interactiveColors,
   numericFeatures,
@@ -113,16 +112,7 @@ export const addWizardStyles = {
   /** 카드 안의 스크롤러. pt-6 은 레일의 것과 같다 — 단계 제목과 모달 제목이 같은 줄에서 시작한다. */
   cardBody: 'min-h-0 flex-1 overflow-y-auto px-[30px] pt-6 pb-4',
   /** 스크롤러 바깥, 흰 판의 오른쪽 아래. 참조 마법사와 같은 px-[30px] pb-[26px] 다. */
-  cardFoot: 'flex flex-none items-center justify-between gap-2 px-[30px] pb-[26px]',
-  /**
-   * 나가는 길은 이 줄의 왼쪽 끝, 유령 무게로 선다 — 판을 떠나는 일이 판 안에서 나아가는
-   * 일과 같은 무게로 보이면 안 된다. 공용 `Button` 에는 ghost 변종이 없어서 그 기하
-   * (px-4 py-2 rounded-lg font-medium)를 그대로 두고 표면만 토큰으로 바꿔 끼운다.
-   */
-  footClose: cn(
-    'px-4 py-2 rounded-lg font-medium transition-all duration-150',
-    buttonStyles.variants.ghost,
-  ),
+  cardFoot: 'flex flex-none items-center justify-end gap-2 px-[30px] pb-[26px]',
   stepTitle: cn('text-[18px] font-bold', textColors.primary),
   stepLead: cn('mt-1 mb-5 text-[14px]', textColors.tertiary),
   /** 확인 단계 — 고치는 자리가 아니므로 네 값을 라벨과 함께 읽어 주기만 한다. */

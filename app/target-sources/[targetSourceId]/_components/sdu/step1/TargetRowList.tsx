@@ -9,6 +9,7 @@ import {
   activeSduDrafts,
   SDU_CLOUD_LABEL,
   SDU_ROW_DIFF_LABEL,
+  sduDbTypeSummary,
   sduDraftDbTypeCount,
   sduDraftRegions,
   sduRowDiff,
@@ -102,7 +103,7 @@ export const TargetRowList = ({
                 <span className={listStyles.cloud}>{SDU_CLOUD_LABEL[row.cloud]}</span>
                 <span className={listStyles.region}>{SDU_REGION_LABEL[row.region]}</span>
                 <span className={listStyles.ip}>{row.uploadIp}</span>
-                <span className={listStyles.types}>{row.databaseTypes.join(' · ')}</span>
+                <span className={listStyles.types}>{sduDbTypeSummary(row.databaseTypes)}</span>
                 <span className={listStyles.actions}>
                   {showDiff && (
                     <span className={rowDiffPill[diff]}>{SDU_ROW_DIFF_LABEL[diff]}</span>

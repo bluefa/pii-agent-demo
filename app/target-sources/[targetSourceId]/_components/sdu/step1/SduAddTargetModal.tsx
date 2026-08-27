@@ -26,6 +26,7 @@ import {
   SDU_DB_TYPE_REQUIRED_MESSAGE,
   SDU_IP_INVALID_MESSAGE,
   SDU_SCOPE_NOTE,
+  sduDbTypeSummary,
   type SduTargetDraft,
 } from '@/app/target-sources/[targetSourceId]/_components/sdu/step1/model';
 import {
@@ -307,7 +308,7 @@ export const SduAddTargetModal = ({ scope, newKey, onAdd, onClose }: SduAddTarge
                     <dd className={addWizardStyles.summaryIp}>{draft.uploadIp}</dd>
                     <dt className={addWizardStyles.summaryTerm}>Database Type</dt>
                     <dd className={addWizardStyles.summaryValue}>
-                      {draft.databaseTypes.join(' · ')}
+                      {sduDbTypeSummary(draft.databaseTypes)}
                     </dd>
                   </dl>
                 </div>
@@ -316,17 +317,12 @@ export const SduAddTargetModal = ({ scope, newKey, onAdd, onClose }: SduAddTarge
 
             {/* 판의 오른쪽 아래에 고정 — 스크롤러 바깥이라 어느 단계에서도 같은 자리에 선다. */}
             <div className={addWizardStyles.cardFoot}>
-              <button type="button" onClick={requestClose} className={addWizardStyles.footClose}>
-                닫기
-              </button>
-              <div className="flex gap-2">
-                {step > 1 && (
-                  <Button variant="secondary" onClick={() => setStep(PREV_STEP[step])}>
-                    이전
-                  </Button>
-                )}
-                <Button onClick={handleNext}>{step === 4 ? '대상 추가' : '다음'}</Button>
-              </div>
+              {step > 1 && (
+                <Button variant="secondary" onClick={() => setStep(PREV_STEP[step])}>
+                  이전
+                </Button>
+              )}
+              <Button onClick={handleNext}>{step === 4 ? '대상 추가' : '다음'}</Button>
             </div>
           </div>
         </div>
