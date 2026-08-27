@@ -273,10 +273,11 @@ export const opsStyles = {
    * below stands in the content column, so its hairline cut across x the content
    * never touches (Primer: navigation lives inside the width it governs).
    */
-  /** `overflow-x-auto` 는 없다 — 여덟 탭의 전체 폭이 788px 이라 1422px 열에서 넘칠 일이
-      없고(실측: 마크 슬롯 다섯 자리와 구간 갭 22px 두 칸까지 포함한 값이다), 스크롤
-      컨테이너로 두면 활성 탭의 `-mb-px` 가 1px 짜리 세로 스크롤을 만든다. 밑줄이
-      헤어라인을 먹으려면 그 1px 은 밖으로 나가야 한다. */
+  /** `overflow-x-auto` 는 없다 — 여덟 탭의 전체 폭이 732px 이라 1422px 열에서 넘칠 일이
+      없고(실측: 「연결 테스트」의 인라인 슬롯과 구간 갭 22px 두 칸까지 포함한 값이다.
+      단계 마크가 코너로 올라가 흐름 밖에 서면서 788 에서 내려왔다), 스크롤 컨테이너로
+      두면 활성 탭의 `-mb-px` 가 1px 짜리 세로 스크롤을 만든다. 밑줄이 헤어라인을
+      먹으려면 그 1px 은 밖으로 나가야 한다. */
   /**
    * 내비게이션은 **선 두 개 사이에 산다** (오너 2026-08-27 "Navigation 위쪽에 구분선을
    * 하나 더 두자 … 위 아래 구분선이 Navigation이다라는 느낌만 주게"). 밴드를 걷고 나니
@@ -318,7 +319,7 @@ export const opsStyles = {
       굵기는 활성·비활성이 같이 진다: 활성은 이미 잉크와 밑줄 두 레버를 들고 있어서,
       굵기까지 가져가면 비활성이 한 단 더 내려앉고 선택이 아니라 나머지가 흐려진 것처럼
       읽힌다. */
-  tab: 'flex cursor-pointer items-center gap-1.5 whitespace-nowrap border-b-2 -mb-px px-3 py-2.5 text-[14px] font-semibold transition-colors',
+  tab: 'relative flex cursor-pointer items-center gap-1.5 whitespace-nowrap border-b-2 -mb-px px-3 py-2.5 text-[14px] font-semibold transition-colors',
   /** 잉크 + 밑줄. The face is gone, so 파랑 is the only thing marking the tab that
       is open — 4.69:1 on the wash (실측). */
   tabActive: 'text-[var(--pl-primary)] border-[var(--pl-primary)]',
@@ -327,21 +328,36 @@ export const opsStyles = {
   tabIdle:
     'text-[var(--pl-text-medium)] border-transparent hover:text-[var(--pl-text-strong)] hover:border-[var(--pl-border-strong)]',
   /**
-   * 두 번째 밑줄 — 지금 **단계가 걸린** 탭 (ops-nav 시안 E). 파랑이 "지금 열어 둔
-   * 패널"을 말한다면 보라는 "지금 일이 서 있는 곳"을 말한다: 채널이 둘이라 한 줄에
-   * 겹쳐 실을 수 있고, 두 밑줄이 갈라져 있는 동안 관리자는 보던 곳을 잃지 않고도
-   * 다음에 만질 탭을 본다.
+   * 걸린 단계의 마크 — 탭 **우상단 코너의 점** (오너 2026-08-27 "보라색 밑줄 말고
+   * 확인 필요처럼 보이는 시각적 요소를 써볼까? 우상단의 빨간색 점은 어때?").
    *
-   * 색은 `--pl-current` — 이 콘솔에서 상태도 링크도 아닌 "여기 있음" 쪽 어휘다
-   * (서비스 레일의 현재 위치, `metaTagQuiet` 의 속성 태그와 같은 가족). 판정 계열
-   * (ok/err/warn)을 쓰면 걸린 단계가 문제로 읽히는데, 걸렸다는 것은 정상이다.
-   * 워시 위 4.50:1 (실측) 이라 2px 그래픽 기준 3:1 을 넘는다.
+   * 밑줄이었을 때는 파랑과 같은 자리를 다퉈서 "열린 탭 == 걸린 탭" 일 때 하나가
+   * 물러나는 규칙이 필요했다. 코너로 올라오면 자리가 달라서 그 규칙이 통째로
+   * 사라진다 — 두 사실이 동시에, 서로를 덮지 않고 선다.
    *
-   * 잉크는 idle 과 같은 medium 이다 — 굵기도 크기도 활성과 같으므로, 잉크까지
-   * 가져가면 열린 탭이 둘로 보인다. hover 밑줄이 없는 것도 같은 이유다: 보라를
-   * 회색으로 덮으면 hover 가 사실을 지운다.
+   * `absolute` 라 흐름 폭을 먹지 않는다: 단계가 어느 탭에 걸리든 여덟 탭의 x 는
+   * 그대로다. 라벨 옆 인라인 슬롯을 예약해야 했던 이유(=자리를 먹는 마크)가 여기엔
+   * 없다. 8px 은 이 화면이 이미 쓰는 점 크기이고(`tcBand.countDot`), 4px 인셋이
+   * 위 헤어라인과 라벨 사이의 빈 모서리에 정확히 들어간다(실측).
    */
-  tabStep: 'text-[var(--pl-text-medium)] border-[var(--pl-current)] hover:text-[var(--pl-text-strong)]',
+  tabCorner: 'absolute right-1 top-1 h-2 w-2 rounded-full',
+  /**
+   * 빨강은 **관리자 차례일 때만** 켜진다 — 6단계(CONNECTED, 관리자 승인 대기)가
+   * 관리자가 실제로 막혀 있는 유일한 자리다. 모든 대상은 늘 어떤 단계엔가 서 있으므로,
+   * 걸렸다는 사실 전체에 빨강을 주면 이 콘솔에서 빨강이 상시 켜져 아무 말도 하지 않게
+   * 된다. `--pl-err-solid` 는 워시 위 4.38 (실측) 로 그래픽 3:1 위다.
+   *
+   * 같은 빨강을 `tabDotFail` 도 쓰지만 뜻이 겹치지 않는다: 저쪽은 라벨 옆 인라인이고
+   * 이쪽은 코너다 — 자리가 두 사실을 가른다(실행이 실패했다 vs 당신 차례다).
+   */
+  tabCornerAlert: 'bg-[var(--pl-err-solid)]',
+  /**
+   * 나머지 단계(2·3·4·5)는 보라 — "지금 여기"이지 문제가 아니다. `--pl-current` 는
+   * 이 콘솔에서 상태도 링크도 아닌 정체 쪽 어휘라(서비스 레일의 현재 위치,
+   * `metaTagQuiet` 의 속성 태그와 같은 가족) 판정 계열과 부딪히지 않는다.
+   * 워시 위 4.50:1 (실측).
+   */
+  tabCornerStep: 'bg-[var(--pl-current)]',
   /**
    * 「연결 테스트」 탭의 상태 점 — 8px, the size this screen's own dots already use
    * (`tcBand.countDot`, ConfirmEditorModal). It says only that the latest run
@@ -353,16 +369,14 @@ export const opsStyles = {
    * `--pl-info` 가 2.94 로 3:1 을 **못 넘어서**(실측) 같은 계열의 다음 칸
    * `--pl-info-text`(5.43)가 진다.
    *
-   * 자리는 늘 잡혀 있고 `opacity` 로만 나타난다 (`manageLink` 와 같은 수법) — 탭별
-   * 데이터가 서로 다른 시각에 도착하는데 점이 `display` 로 끼어들면 그때마다 오른쪽
-   * 탭들의 x 가 밀린다. 탭을 눌러 보라가 점으로 물러나는 순간도 마찬가지다.
+   * 자리는 늘 잡혀 있고 `opacity` 로만 나타난다 (`manageLink` 와 같은 수법) — TC
+   * 응답은 마스트헤드보다 늦게 도착하는데, 이 점은 라벨 옆 **흐름 안**에 있어서
+   * `display` 로 끼어들면 그때마다 오른쪽 탭들의 x 가 밀린다. 코너 점(`tabCorner`)이
+   * 예약 없이 그냥 나타나도 되는 것은 그쪽이 흐름 밖이기 때문이다.
    */
   tabDot: 'h-2 w-2 flex-none rounded-full transition-opacity',
   tabDotFail: 'bg-[var(--pl-err-solid)]',
   tabDotRunning: 'bg-[var(--pl-info-text)]',
-  /** 열린 탭이 곧 걸린 탭일 때 — 밑줄은 파랑이 가져가고(열린 것이 먼저다) 보라는
-      같은 8px 점으로 물러난다. 사실은 그대로 실리되 채널만 바뀐다. */
-  tabDotStep: 'bg-[var(--pl-current)]',
 
   /** Body — 콘텐츠 한 열. 236px 메타 레일은 FrontMeta 의 「상세 정보」로 접혀 들어갔고,
       그 폭은 탭 7개 전부에서 본문으로 돌아간다 (1020 → 1280px). */

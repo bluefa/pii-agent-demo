@@ -93,14 +93,6 @@ const STEP_TAB = new Map<ProcessStatus, TabLabel>([
   ['CONNECTED', OPS_TAB_SLUGS.approval],
 ]);
 
-/**
- * Tabs that reserve the 8px mark slot — every tab a step can land on, plus 연결 테스트
- * for its run dot. The slot is structural, not data-driven: whether a tab can ever
- * carry a mark is known before any response arrives, so the strip's x positions are
- * settled on first paint and no later arrival (or click) moves them.
- */
-const MARK_TABS: ReadonlySet<string> = new Set<string>([...STEP_TAB.values(), OPS_TAB_SLUGS.tc]);
-
 type ModalState =
   | { type: 'mode' }
   | { type: 'edit'; kind: RoleKind }
@@ -340,10 +332,20 @@ export function OpsTargetView({ targetSourceId, initialTab }: OpsTargetViewProps
    */
   const tcWord = tcGate === 'failed' ? '최근 실행 실패' : tcGate === 'open' ? '최근 실행 진행 중' : null;
 
-  // 걸린 단계 — 1·7 단계는 STEP_TAB 에 없으므로 어느 탭도 보라를 켜지 않는다.
+  // 걸린 단계 — 1·7 단계는 STEP_TAB 에 없으므로 어느 탭도 코너 점을 켜지 않는다.
   const stepTab = processStatus ? STEP_TAB.get(processStatus) ?? null : null;
   const stepInfo = processStatus ? STEP[processStatus] : null;
-  const stepPhrase = stepInfo ? `${stepInfo.n}단계 · ${stepInfo.label}` : null;
+  /**
+   * 빨강은 6단계 하나에만 (오너 2026-08-27). 그 단계만 관리자가 실제로 막혀 있고,
+   * 나머지는 다른 누군가의 차례이거나 파이프라인이 돌고 있는 중이다 — 걸렸다는 사실
+   * 전체를 빨강으로 칠하면 모든 대상이 늘 어떤 단계엔가 있으므로 빨강이 상시 켜진다.
+   * 낱말도 같이 갈린다: 빨강만 「확인 필요」라고 말한다.
+   */
+  const stepAlert = processStatus === 'CONNECTED';
+  const stepDot = stepAlert ? opsStyles.tabCornerAlert : opsStyles.tabCornerStep;
+  const stepWord = stepInfo
+    ? `${stepAlert ? '확인 필요 — ' : '현재 '}${stepInfo.n}단계 · ${stepInfo.label}`
+    : null;
 
   if (detailFailed) {
     return (
@@ -462,18 +464,11 @@ export function OpsTargetView({ targetSourceId, initialTab }: OpsTargetViewProps
               {group.map((tab) => {
                 const active = tab === currentTab;
                 const isStep = tab === stepTab;
-                // 「연결 테스트」의 실행 점이 자리를 먼저 가져간다 — 실패·진행 중은 이 탭에서만
-                // 나오는 사실이고, 걸린 단계는 열려 있는 동안 마스트헤드의 StepPill 이 이미
-                // 말한다. 그 점이 없을 때만 보라가 점으로 내려앉는다.
-                const dot =
-                  tab === OPS_TAB_SLUGS.tc && tcDot
-                    ? tcDot
-                    : active && isStep
-                      ? opsStyles.tabDotStep
-                      : null;
+                // 한 탭이 두 마크를 동시에 들 수 있다 — 라벨 옆 인라인 점은 「연결 테스트」의
+                // 실행 결과, 우상단 코너 점은 걸린 단계다. 뜻이 다른 두 사실이라 자리로 갈린다.
                 const words = [
                   tab === OPS_TAB_SLUGS.tc ? tcWord : null,
-                  isStep && stepPhrase ? `현재 ${stepPhrase}` : null,
+                  isStep ? stepWord : null,
                 ].filter((word): word is string => word !== null);
                 return (
                   <button
@@ -481,22 +476,23 @@ export function OpsTargetView({ targetSourceId, initialTab }: OpsTargetViewProps
                     type="button"
                     role="tab"
                     aria-selected={active}
-                    title={isStep && stepPhrase ? stepPhrase : undefined}
+                    title={isStep && stepWord ? stepWord : undefined}
                     onClick={() => selectTab(tab)}
-                    className={cn(
-                      opsStyles.tab,
-                      active ? opsStyles.tabActive : isStep ? opsStyles.tabStep : opsStyles.tabIdle,
-                    )}
+                    className={cn(opsStyles.tab, active ? opsStyles.tabActive : opsStyles.tabIdle)}
                   >
                     {tab}
-                    {/* 낱말이 마크를 대신한다 — 밑줄도 점도 aria-hidden 이라, 상태는 탭의
+                    {/* 낱말이 마크를 대신한다 — 점은 둘 다 aria-hidden 이라, 상태는 탭의
                         접근명에 실려야 스크린 리더에 도착한다. */}
                     {words.length > 0 && <span className="sr-only">, {words.join(', ')}</span>}
-                    {MARK_TABS.has(tab) && (
+                    {tab === OPS_TAB_SLUGS.tc && (
                       <span
-                        className={cn(opsStyles.tabDot, dot, dot ? 'opacity-100' : 'opacity-0')}
+                        className={cn(opsStyles.tabDot, tcDot, tcDot ? 'opacity-100' : 'opacity-0')}
                         aria-hidden
                       />
+                    )}
+                    {isStep && (
+                      // 흐름 밖이라 슬롯을 예약하지 않는다 — 늦게 도착해도 x 를 밀지 않는다.
+                      <span className={cn(opsStyles.tabCorner, stepDot)} aria-hidden />
                     )}
                   </button>
                 );
