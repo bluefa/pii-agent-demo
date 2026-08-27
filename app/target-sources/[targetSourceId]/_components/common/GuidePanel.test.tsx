@@ -163,7 +163,7 @@ describe('GuidePanel — collab-channel card states', () => {
     // tier declares its own now: T3 normal → T2 −0.01em → T1 −0.02em.
     expect(key.className).toContain('tracking-[-0.01em]');
     expect(screen.getByText(CHANNEL_LINE).className).toContain('tracking-normal');
-    expect(railStyles.zoneLabel).toContain('tracking-[-0.02em]');
+    expect(railStyles.channelZoneLabel).toContain('tracking-[-0.02em]');
   });
 });
 
@@ -529,11 +529,11 @@ const openZones = (root: HTMLElement) =>
 const channelHead = (root: HTMLElement) => openZones(root)[0].firstElementChild as HTMLElement;
 
 /**
- * The card's state dot — and it is found by looking for ONE, anywhere in the card, because
- * "exactly one dot per card" is half of what these tests are about. It used to be
- * `channelHead(root).lastElementChild`: the head's far corner, where `justify-between` had
- * put it. 오너 지시 2026-08-27 moved it onto the value row, since what it reports is whether
- * the channel is reachable — a fact about the issue key, not about the zone's name.
+ * Every state dot in the open card — which must be NONE of them (시안 E, 오너 지시
+ * 2026-08-27). It is a search of the whole card on purpose: the dot has already been on the
+ * head's corner (`justify-between`) and on the value row (leading, then trailing), so a
+ * query aimed at either place would miss it coming back in the other. The strip's dot lives
+ * outside `openZones` and is not in scope here — see `channelMark`.
  */
 const cardDots = (root: HTMLElement) =>
   Array.from(
@@ -602,9 +602,24 @@ describe('GuidePanel — the folded strip says what it is', () => {
     expect(head.textContent).toBe('협업 채널');
     expect(head.children).toHaveLength(0);
     expect(head.querySelector('svg')).toBeNull();
-    // ⛔ And no dot on it either (오너 지시 2026-08-27). It moved to the value row; a dot
-    // back on this head would be the zone reporting a state it does not have.
+    // ⛔ And no dot on it either (오너 지시 2026-08-27). It went to the value row and then
+    // off the card; a dot back on this head would be the zone reporting a state it does not
+    // have. `justify-between` is what put it on the corner, so its absence is the tripwire.
     expect(head.className).not.toContain('justify-between');
+
+    // 20px, and THIS head only (오너 지시 2026-08-27: 「협업 채널은 20픽셀로 선언해볼래?」).
+    // ⛔ Its own token: `zoneLabel` still draws the guide card's head at 16, and growing the
+    // shared one would have moved a head the owner did not ask about — in a card whose body
+    // type did not move either. 24 is `/design-guide`'s 120% leading for 제목·라벨, the same
+    // rule `zoneLabel` follows at 16/20, and it keeps the 2px half-leading that both ink
+    // gaps around the head are measured off.
+    expect(head.className).toContain(railStyles.channelZoneLabel);
+    expect(railStyles.channelZoneLabel).toContain('text-[20px]');
+    expect(railStyles.channelZoneLabel).toContain('leading-[24px]');
+    expect(railStyles.zoneLabel).toContain('text-[16px]');
+    const guideHead = screen.getByText('가이드');
+    expect(guideHead.className).toContain(railStyles.zoneLabel);
+    expect(guideHead.className).not.toContain('text-[20px]');
     // …and no `RailMark` anywhere on the open rail but the 가이드 zone's 전구.
     expect(channelMark(container as HTMLElement)).toBeUndefined();
     expect(guideMark(container as HTMLElement)).toBeTruthy();
@@ -677,60 +692,41 @@ describe('GuidePanel — the folded strip says what it is', () => {
   });
 
   /**
-   * ⛔ No state renders a dotless card — 미연결 included (오너 지시 2026-08-27).
+   * ⛔ The CARD draws no state dot, and ⛔ the folded STRIP still draws one. Both halves are
+   * the claim; either alone is worthless.
    *
-   * That reverses this file's own earlier assertion that the empty channel drops its dot,
-   * on the grounds that green means reachable and red means broken so absence is neither.
-   * 미연결 is one of three answers the zone gives, so it gets a fill of its own and a reader
-   * scanning for the dot finds one every time instead of having to notice a gap.
+   * 시안 E, 오너 지시 2026-08-27 — reversing that same day's instruction that every state
+   * must draw a dot, which this file previously asserted here. Two rounds went into where
+   * the dot belonged (the head's corner, then trailing the value) and neither answered what
+   * it ADDED: 미연결 and 실패 state it in words on the row itself, and 연결됨 states it by
+   * having a clickable key. So the card's states are read back from its TEXT here — that is
+   * what makes "the dot was redundant" a checked claim rather than an assertion.
    *
-   * ⛔ And it is on the row that STATES that answer, not on the zone's head. That is the
-   * assertion carrying the 2026-08-27 move, and it is worth more than "a dot exists
-   * somewhere in the card": the head-corner version passed that weaker claim for four
-   * commits. `aria-hidden` is legal exactly because the row it sits on says the same thing
-   * in words — this test reads the row's own text back to prove the pairing.
-   *
-   * The fills are compared to EACH OTHER, not to literals: which grey or which green is
-   * `theme.ts`'s business, and the invariant is that the three differ.
+   * ⛔ The strip half is the tripwire that matters. Deleting the strip's dot as well would
+   * satisfy "no dot in the card" perfectly, and it would take the only state signal a 56px
+   * strip has: there are no rows out there to carry the words.
    */
-  it('puts one state dot on the row that states it, in all three states', async () => {
-    const fillOf = (dot: HTMLElement) =>
-      dot.className.split(/\s+/).find((c) => c.startsWith('bg-'));
-
-    const fills: Array<string | undefined> = [];
+  it('takes the state dot off the card, and keeps it on the folded strip', async () => {
     for (const [ticket, says] of [
       [{ issueKey: 'PII-42', browseUrl: 'https://jira.example.com/browse/PII-42' }, 'PII-42'],
       [null, '아직 연결된 협업 채널이 없어요'],
       ['error', '협업 채널 정보를 불러오지 못했어요'],
     ] as const) {
-      const view = render(<GuidePanel {...baseProps} jiraTicket={ticket} />);
+      const open = render(<GuidePanel {...baseProps} jiraTicket={ticket} />);
       await settled();
+      const zone = openZones(open.container as HTMLElement)[0];
+      expect(cardDots(open.container as HTMLElement)).toHaveLength(0);
+      // …and the state is still stated, which is why the dot could go.
+      expect(zone.textContent).toContain(says);
+      open.unmount();
 
-      const root = view.container as HTMLElement;
-      // Exactly one. Two would mean the head kept a copy of what the row now reports.
-      const dots = cardDots(root);
-      expect(dots).toHaveLength(1);
-      const [dot] = dots;
-      expect(dot.className).toContain('rounded-full');
-      // ⛔ Decorative, and allowed to be — because this very row says it in words.
-      expect(dot.getAttribute('aria-hidden')).toBe('true');
-      expect(dot.parentElement?.textContent).toContain(says);
-      // ⛔ Not in the head. `channelHead` is the label alone now.
-      expect(channelHead(root).contains(dot)).toBe(false);
-      // ⛔ TRAILING the value, not leading it — the dot is the row's LAST node and the
-      // words come first. This was not a tripwire while the dot led: everything above
-      // stayed green through the inversion, because "on the row that states it" says
-      // nothing about which end. It has to be asserted, because leading is what the 16px
-      // indent came from — it broke the one left edge that the head, the sentence and the
-      // label all share, and made the dot read as a bullet on a one-item list.
-      expect(dot.parentElement?.lastChild).toBe(dot);
-      expect(dot.previousSibling?.textContent).toContain(says);
-      fills.push(fillOf(dot));
-      view.unmount();
+      const strip = await folded(ticket);
+      const stripDot = channelMark(strip.container as HTMLElement)?.querySelector(
+        'span[aria-hidden].rounded-full',
+      );
+      expect(stripDot).toBeTruthy();
+      strip.unmount();
     }
-
-    expect(fills.every(Boolean)).toBe(true);
-    expect(new Set(fills).size).toBe(3);
   });
 
   // ⛔ The rows still carry no glyph, and the reason has grown rather than gone: the head

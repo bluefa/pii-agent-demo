@@ -2582,6 +2582,27 @@ export const railStyles = {
    */
   zoneLabel: 'text-[16px] font-bold leading-[20px] tracking-[-0.02em] text-[#191F28]',
   /**
+   * The 협업 채널 card's head, and ONLY that one — 20px (오너 지시 2026-08-27: 「협업 채널은
+   * 20픽셀로 선언해볼래?」).
+   *
+   *   size 20 · leading 24 (1.2) · tracking −0.02em · weight 700 · #191F28
+   *
+   * ⛔ A second token rather than a change to `zoneLabel`, because `zoneLabel` also draws
+   * the guide card's 「N단계 가이드」 and the owner asked about one head. Growing the shared
+   * token would have moved a head nobody looked at, in a card whose own body type did not
+   * move with it.
+   *
+   * 20 comes off the `/design-guide` size set (12/14/16/18/20/24) and 24 is that guide's
+   * 120% leading for 제목·라벨 — the same rule `zoneLabel` follows at 16/20 (125%), applied
+   * at the new size. Weight, ink and tracking are `zoneLabel`'s, unchanged: the ask was a
+   * size, so size is the only channel that moves.
+   *
+   * The half-leading stays 2px ((24 − 20) / 2, as ((20 − 16) / 2 was), which is why the
+   * card's ink gaps did not move when the head grew — 14 above it from `p-3` + 2, and 8.5
+   * below it to the sentence. The card got 4px taller and nothing else changed.
+   */
+  channelZoneLabel: 'text-[20px] font-bold leading-[24px] tracking-[-0.02em] text-[#191F28]',
+  /**
    * The 가이드 zone's mark — the 전구 ink, on the open rail's zone head and on the folded
    * strip (오너 지시 2026-08-23: the same mark in both states).
    *
