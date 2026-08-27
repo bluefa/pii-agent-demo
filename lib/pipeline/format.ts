@@ -94,6 +94,25 @@ export function fmtDateTimeShort(iso: string | null | undefined): string {
   return `${date.slice(2).replace(/-/g, '.')} ${time}`;
 }
 
+/**
+ * ISO-8601 instant → 'YY.MM.DD HH:mm:ss' in Asia/Seoul. `null`/invalid → '-'.
+ *
+ * `fmtDateTimeShort`의 짧은 꼴에 초를 남긴 것 — 둘을 가르는 건 그 시각이 줄에서
+ * 무엇이냐다. '조회 시각'은 다시 부르면 바뀌는 수라 초가 정밀도가 아니라 길이지만,
+ * 현재/최근 작업 카드의 '시작'은 운영자가 다른 곳(잡 로그·Airflow 실행)으로 들고 가
+ * 맞춰 보는 한 점이라 분 단위로 자르면 그 대조가 깨진다 (오너 2026-08-27).
+ *
+ * 그래도 점 구분의 짧은 꼴인 이유는 자리다 — 여기는 카드의 크롬 줄이고, 세기(20)는
+ * 모든 작업에서 같은 값이다. 'YYYY-MM-DD'는 값으로서의 날짜가 서는 자리의 문법으로
+ * 남는다 (`fmtDate`).
+ */
+export function fmtDateTimeShortSec(iso: string | null | undefined): string {
+  const full = seoulDateTime(iso, true);
+  if (full === '-') return full;
+  const [date, time] = full.split(' ');
+  return `${date.slice(2).replace(/-/g, '.')} ${time}`;
+}
+
 const SEOUL_TIME_MS = new Intl.DateTimeFormat('en-GB', {
   timeZone: 'Asia/Seoul',
   hour: '2-digit',
@@ -503,16 +522,26 @@ export function typeKo(type: PipelineType): string {
 /**
  * 진행 문구 — 완료 개수("1 / 4")가 아니라 현재 단계의 서수로 말한다. 2번째
  * 태스크가 도는 동안 "1 / 4"로 읽히던 라벨-값 불일치의 교정.
+ *
+ * 모든 상태가 한 꼴이다: `{n}/{total}단계 {상태어}` (오너 2026-08-27). 예전에는
+ * RUNNING·FAILED만 제 문장을 갖고 PENDING·CANCELLED는 `0/4단계 완료`로 떨어져,
+ * 시작도 안 한 작업과 중단된 작업이 둘 다 "완료"라고 말했다.
+ *
+ * RUNNING이 `실행 중`이 아니라 `진행 중`인 것도 오너 지시다 — enum의 라벨
+ * (`statusKo`)은 옆의 상태 pill이 이미 나르고, 이 문구가 답하는 질문은
+ * "몇 번째 단계냐"지 "무슨 상태냐"가 아니다. 조사(`…에서`)를 뗀 것은 이 문구가
+ * 이제 문장이 아니라 태그로 서기 때문.
  */
 export function progressPhrase(status: PipelineStatus, tasks: readonly TaskSummary[]): string {
   const { done, total } = progressCount(tasks);
   const cur = currentTask(tasks);
   const ordinal = cur ? tasks.filter((t) => t.sequence <= cur.sequence).length : null;
-  if (status === 'RUNNING' && ordinal != null) return `${ordinal}/${total}단계 실행 중`;
-  if (status === 'FAILED' && ordinal != null) return `${ordinal}/${total}단계에서 실패`;
   if (status === 'DONE') return `${total}단계 완료`;
-  // CANCELLED gets no suffix — the adjacent status pill already says 중단.
-  return `${done}/${total}단계 완료`;
+  if (status === 'RUNNING') return `${ordinal ?? done}/${total}단계 진행 중`;
+  // 시작 전이라 현재 태스크가 없을 수 있다 — 그래도 다음에 설 곳은 1단계다.
+  if (status === 'PENDING') return `${ordinal ?? 1}/${total}단계 대기`;
+  if (status === 'FAILED') return `${ordinal ?? done}/${total}단계 실패`;
+  return `${done}/${total}단계 중단`;
 }
 
 /**

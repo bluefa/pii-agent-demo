@@ -567,7 +567,8 @@ export function OpsTargetView({ targetSourceId, initialTab }: OpsTargetViewProps
             <PipelineTab
               targetSourceId={targetSourceId}
               detail={detail}
-              onOpenRequest={() => selectTab('연동 요청 정보')}
+              processStatus={processStatus}
+              onSelectTab={selectTab}
             />
           )}
           {currentTab === '연결 테스트' && (

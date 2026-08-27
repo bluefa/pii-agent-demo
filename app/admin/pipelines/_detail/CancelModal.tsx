@@ -3,7 +3,7 @@
 /**
  * CancelModal — "작업 중단" (design-inventory §Cancel, adjusted for contract
  * gap ⑤). The verb is 중단, matching how CANCELLED already reads elsewhere in
- * the UI (LastRunFailedCard: "…에서 중단됐습니다"); 취소 beside a 작업 중단 button
+ * the UI (a CANCELLED run's status pill reads 중단); 취소 beside a 작업 중단 button
  * read as two different operations.
  *
  * The real cancel is two-phase: an idle/PENDING run cancels immediately

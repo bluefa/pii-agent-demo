@@ -165,6 +165,19 @@ export const opsStyles = {
       240 은 이 화면의 가장 긴 라벨(Terraform Service Account, 165px)과 2열 병합
       (498px)이 GCP SA 전문(≈380px)을 받는 폭에서 나온 값이다. */
   fmGrid: 'grid grid-cols-[repeat(4,minmax(0,240px))] gap-x-[18px] gap-y-3 pt-[22px]',
+  /** GCP 만 다른 트랙을 쓴다 — 주체 둘이 mail 주소 전문이라서다 (오너 2026-08-27
+      "full mail 주소를 보여줘야됨" · "1층으로 나타내봐"). 위의 240px 상한은 **짧은
+      스칼라 값**이 넓은 트랙에 홀로 남는 것을 막는 규칙이고, 프로젝트(115px)와
+      설정(74px)에는 그대로 걸려 있다. 주체 두 칸에는 그 근거가 없다: 내용이 각각
+      341·365px 이라 `fr` 트랙은 늘어난 만큼 채워지지, 빈 곳으로 남지 않는다.
+      1400px 레인에서 fr 하나가 (1400−240−240−54)/2 = 433px 이므로 둘 다 잘리지
+      않는다. 이 자리에서 `truncate` 는 더 좁은 뷰포트와 더 긴 프로젝트 id 를 위한
+      대비책으로 남는다.
+
+      토큰이 둘인 이유: 두 클래스를 겹쳐 쓰면 같은 특이도의 임의값 두 개라 승자를
+      소스 순서가 아니라 스타일시트 순서가 정한다. 호출부가 **고른다**. */
+  fmGridGcp:
+    'grid grid-cols-[240px_minmax(0,1fr)_minmax(0,1fr)_240px] gap-x-[18px] gap-y-3 pt-[22px]',
   fmCell: 'flex min-w-0 flex-col gap-1',
   fmCellWide: 'col-span-2',
   /** 워시는 램프 한 칸을 잡아먹는다 — `--pl-text-weak` 는 이 gray-100 위에서 4.51:1 로
@@ -230,8 +243,8 @@ export const opsStyles = {
   fmCopy:
     'inline-flex flex-none cursor-pointer items-center rounded p-0.5 text-[var(--pl-text-weak)] transition-colors hover:text-[var(--pl-primary)]',
 
-  /** Neutral tag / region tag — shared with SduOpsNotice·ServiceDetailView·
-      TerraformStatusModal (Figma 49:4/34:4). */
+  /** Neutral tag / region tag — shared with SduOpsNotice·ServiceDetailView
+      (Figma 49:4/34:4). */
   tag: 'inline-flex items-center rounded px-2 py-1 text-[12px] font-semibold bg-[var(--pl-gray-100)] text-[var(--pl-text-medium)] whitespace-nowrap',
   regionTag: 'inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium bg-[var(--pl-gray-100)] text-[var(--pl-text-weak)]',
   /**

@@ -9,7 +9,7 @@
  * carries the origin's failure line (실패 N회 · ERROR_CODE), and the tail renders in
  * the plain re-run tone.
  *
- * Both entry points (LastRunFailedCard on the target page, the exec band on the
+ * Both entry points (the 최근 작업 run card on the target page, the exec band on the
  * pipeline page) share this modal. The frontend gate (§8.1) is convenience only, so the server
  * is still the authority: `restart-preview` runs the SAME validation as the
  * execution, and any 409 (`PIPELINE_NOT_RESTARTABLE` / `PIPELINE_NOT_LATEST` /

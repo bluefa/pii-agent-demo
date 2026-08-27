@@ -281,7 +281,7 @@ export function OpsHeader({
           {/* 항상 보이는 스트립 — 계정/프로젝트 · 설정, 그리고 **권한 주체**.
               Role 은 접힘 밖에 산다 (오너 지시): 이 화면에서 운영자가 가장 자주 대조하는
               값이고, 접어 두면 프로바이더마다 다른 깊이에 숨는다. */}
-          <div className={opsStyles.fmGrid}>
+          <div className={provider === 'GCP' ? opsStyles.fmGridGcp : opsStyles.fmGrid}>
             {isAws && monoCell('계정', meta.aws_account_id, false, scopeTag)}
             {provider === 'GCP' && monoCell('프로젝트', meta.gcp_project_id, false, scopeTag)}
             {/* Azure 는 계정 자리가 구독이고, 테넌트가 그 옆에 선다 (오너 2026-08-26).
@@ -297,8 +297,9 @@ export function OpsHeader({
                 each, and truncation is safe here because 「상세 정보」 prints every
                 identifier in full with a copy button. Azure now packs 구독·테넌트·Scan
                 App·설정 into exactly four slots — one row, the shape AWS already has.
-                GCP keeps its 2-column service accounts: those are addresses, long enough
-                that one column would leave only the prefix. */}
+                GCP prints full mail addresses (오너 2026-08-27) and so cannot use a
+                240px track for them at all; it gets its own template, `fmGridGcp`,
+                where the two 주체 columns are `fr` and the row still holds four. */}
             {provider === 'Azure' && monoCell('Scan App', meta.azure_scan_app_id)}
             {/* IDC 는 계정이 없는 게 정상이다 — 빈 칸을 두는 대신 그 대상이 무엇인지
                 말한다 (ServiceDetailView glossOf 의 어휘 그대로). */}
@@ -332,6 +333,17 @@ export function OpsHeader({
                       역할 불필요
                     </span>,
                   ))}
+            {/* GCP 주체 둘은 프로젝트 바로 옆, 한 행에 (오너 2026-08-27 "1층으로
+                나타내봐") — AWS 가 이미 갖는 순서이고, 「주체는 계정 바로 옆에」 규칙이
+                프로바이더를 가리지 않는다. 두 칸을 먹지도, 제 행을 갖지도 않는다:
+                `fmGridGcp` 가 이 둘에게만 `fr` 트랙을 주므로 주소 전문이 한 칸 안에서
+                잘리지 않는다. 그 트랙 계산은 opsStyles 의 토큰 옆에 적혀 있다. */}
+            {provider === 'GCP' && (
+              <>
+                {monoCell('Scan Service Account', meta.gcp_scan_service_account)}
+                {monoCell('Terraform Service Account', meta.gcp_terraform_service_account)}
+              </>
+            )}
             {/* 설정 한 칸 (design-benchmark 시안 A, 오너 08-26) — 라벨 둘·흰 면 태그 둘·
                 「수정」 둘이 라벨 하나와 밑줄 낱말 둘이 된다. 라벨이 줄었으니 값이 스스로를
                 말한다. 이 칸이 그리드의 마지막 사실 뒤에 서면서 AWS 자동은 첫 행이 4칸으로
@@ -363,12 +375,6 @@ export function OpsHeader({
                   실데이터 {rawDataLabel}
                 </button>
               </span>,
-            )}
-            {provider === 'GCP' && (
-              <>
-                {monoCell('Scan Service Account', meta.gcp_scan_service_account, true)}
-                {monoCell('Terraform Service Account', meta.gcp_terraform_service_account, true)}
-              </>
             )}
           </div>
 
