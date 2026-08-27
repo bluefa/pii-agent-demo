@@ -110,24 +110,38 @@ describe('GuidePanel — collab-channel card states', () => {
         .filter((c) => /^(bg-|border|rounded|shadow|ring|p-|px-|py-)/.test(c));
     expect(surfaceOf(link)).toEqual([]);
 
-    // Stacked, not side by side — and the key carries the AA-safe blue. #0064FF measures
-    // 4.33:1 on #E8F1FF; it was only ever legal because a white row sat under it.
+    // The key carries the AA-safe blue. #0064FF measures 4.33:1 on #E8F1FF; it was only
+    // ever legal because a white row sat under it.
     const key = screen.getByText('PII-42');
-    // ⛔ `block`, exactly — `toContain` was satisfied by `inline-block`, which is the
-    // side-by-side layout this line is here to rule out, and jsdom measures no geometry.
-    expect(key.className.split(/\s+/)).toContain('block');
     expect(key.className).toContain('text-[#0050D6]');
     expect(key.className).not.toContain('text-[#0064FF]');
 
-    // A leading per GROUP, not one for the whole rail (오너 2026-08-24). The row label is
-    // T3 and the key is T2, and each carries the pair its tier owns — 12/16 and 14/20.
-    // It was a flat 1.5 for both, i.e. 18 and 21: two line boxes off the 4px grid, on a
-    // ramp where the bigger the type the more air it took.
-    const label = screen.getByText('협업 채널 링크');
+    // ⛔ The anchor is the VALUE's box. It used to wrap the label as well, so the clickable
+    // rectangle was 271.46 × 36 where the underline was 271.46 × 20 — a hit area 16px taller
+    // and ~186px wider than the thing it underlined. Read the anchor's OWN content: this
+    // file's previous proof was `block` on the key, and a widened anchor keeps that class
+    // while quietly taking the label back inside itself.
+    const label = screen.getByText('이슈 키');
+    expect(link.textContent).toBe('PII-42');
+    expect(link.contains(label)).toBe(false);
+    // …and stacked, not side by side — structurally now, since the label is its own row and
+    // the key's row is the next one. `block` on the key could not survive scoping the anchor
+    // to the value: a full-width box is exactly what it must not have.
+    expect(label.nextElementSibling?.contains(key)).toBe(true);
+
+    // A leading per GROUP, and per ROLE inside the group (오너 2026-08-24). The label is
+    // called (12/14) and the key is a one-line machine value (14/17); the sentence above
+    // them is read (12/17). It was a flat 1.5 for all of them, i.e. 18 and 21: line boxes
+    // off the grid, on a ramp where the bigger the type the more air it took.
     expect(label.className).toContain('text-[12px]');
-    expect(label.className).toContain('leading-[16px]');
+    expect(label.className).toContain('leading-[14px]');
     expect(key.className).toContain('text-[14px]');
-    expect(key.className).toContain('leading-[20px]');
+    expect(screen.getByText(CHANNEL_LINE).className).toContain('leading-[17px]');
+
+    // ⛔ And the label sits QUIETER than its value. It was the same 12px semibold ink as the
+    // key's row, so the smaller, heavier word won the pair it was supposed to introduce.
+    expect(label.className).toContain('text-gray-500');
+    expect(key.className).not.toContain('text-gray-500');
 
     // ⛔ The tracking gradient, and it has to run this way. `letter-spacing` inherits as a
     // computed LENGTH, so `body`'s single −0.288px lands on 12px text as −0.024em and on
@@ -135,6 +149,7 @@ describe('GuidePanel — collab-channel card states', () => {
     // tier declares its own now: T3 normal → T2 −0.01em → T1 −0.02em.
     expect(label.className).toContain('tracking-normal');
     expect(key.className).toContain('tracking-[-0.01em]');
+    expect(screen.getByText(CHANNEL_LINE).className).toContain('tracking-normal');
     expect(railStyles.zoneLabel).toContain('tracking-[-0.02em]');
   });
 });
@@ -757,16 +772,19 @@ describe('GuidePanel — the folded strip says what it is', () => {
     await folded({ issueKey: 'BDCDIP-1007', browseUrl: 'https://jira.example.com/browse/BDCDIP-1007' });
     fireEvent.click(screen.getByRole('button', { name: /^협업 채널 — / }));
 
-    const link = screen.getByRole('link', { name: /협업 채널 링크/ });
+    // The link's accessible name is the issue key itself. It used to be 「협업 채널 링크
+    // BDCDIP-1007」, because the anchor wrapped the label as well as the value — and an
+    // anchor named after its own label is the widened hit area, spelled out loud.
+    const link = () => screen.queryByRole('link', { name: 'BDCDIP-1007' });
     // ⛔ The tip is portaled to <body>, so an "outside" test that only checks the trigger
     // counts this as outside and unmounts the box on pointerdown — before the click can
     // ever reach the link. Pinning exists so the reader can move INTO the content.
-    fireEvent.pointerDown(link);
-    expect(screen.getByRole('link', { name: /협업 채널 링크/ })).toBeTruthy();
+    fireEvent.pointerDown(link() as HTMLElement);
+    expect(link()).toBeTruthy();
 
     // …and a press genuinely outside still dismisses it.
     fireEvent.pointerDown(document.body);
-    await waitFor(() => expect(screen.queryByRole('link', { name: /협업 채널 링크/ })).toBeNull());
+    await waitFor(() => expect(link()).toBeNull());
   });
 
   it('shows the guide alone — no 가이드/진행 내역 tabs to choose between', () => {
