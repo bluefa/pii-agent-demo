@@ -55,11 +55,13 @@ const CollabChannelCard = ({ jiraTicket }: { jiraTicket: JiraTicketState }) => {
    * itself: blue, underlined, with `title` naming the destination. The 11px glyph at 50%
    * opacity was the only new-tab cue, so re-adding it is an owner's call, not a tidy-up.
    *
-   * ⛔ And no ChatIcon on the rows any more. The zone head took it (`zoneMarkChannel` —
-   * the folded strip's own 20px glyph, 오너 지시 2026-08-23), and the same bubble twice
-   * inside one card, 24px on the row and 20px on the head some 56px apart, reads as a
-   * mistake rather than a rhyme. Every row is a plain text stack now, so `rowBase` has
-   * stopped laying out a glyph.
+   * ⛔ Still no ChatIcon on the rows, and now for a bigger reason. It came off when the
+   * zone head took the glyph (오너 지시 2026-08-23, `zoneMarkChannel` — a token this change
+   * deleted), and the head has since given the glyph up altogether: the CARD is the bubble
+   * (오너 지시 2026-08-27, `railStyles.bubbleTail`). A 24px ChatIcon on a row would put a
+   * small copy of that bubble inside it — the same defect the 2026-08-23 argument was
+   * about, one level further out. Every row is a plain text stack, so `rowBase` lays out
+   * no glyph.
    *
    * The tiers stay stacked even though one line now fits: the key is user data and a
    * longer one puts the collision straight back.
@@ -190,31 +192,46 @@ export const GuidePanel = ({
   const { collapsed, toggle, presses } = useRailCollapse(initialCollapsed);
 
   /**
-   * What the folded rail says about the collab channel. The card itself is the escape
-   * hatch for every step, and folding used to take it off the screen entirely — dot and
-   * all three of its states, including the one where the fetch failed. `hint` says in
-   * words whatever the presentation says in colour, because the dot is `aria-hidden` and
-   * colour alone is not a channel.
+   * What the rail says about the collab channel — the strip's entry when folded, and the
+   * zone card's own corner dot when open. The card itself is the escape hatch for every
+   * step, and folding used to take it off the screen entirely — dot and all three of its
+   * states, including the one where the fetch failed. `hint` says in words whatever the
+   * presentation says in colour, because the dot is `aria-hidden` and colour alone is not
+   * a channel; on the open card the rows below do that job.
    *
    * 오너 지시 2026-08-23: 「JiraTicket 없는 경우엔 접었을 때 적절히 다른 표현으로」. The
    * three states used to differ by dot fill alone — same dark glyph, same blue 「채널」 —
    * so the one with nothing behind it advertised itself exactly like the one you can
-   * reach. Now the presentations separate on two channels at once:
+   * reach. The presentations separate on two channels at once:
    *
-   *   있음  진한 글리프 · 파란 라벨 · 초록 점     reachable
-   *   없음  차분한 글리프 · 중립 라벨 · 점 없음   there is nothing here
-   *   실패  진한 글리프 · 파란 라벨 · 빨간 점     we could not tell you
+   *   있음  진한 글리프 · 파란 라벨 · 초록 점    reachable
+   *   없음  차분한 글리프 · 중립 라벨 · 회색 점  there is nothing here
+   *   실패  진한 글리프 · 파란 라벨 · 빨간 점    we could not tell you
    *
-   * ⛔ 없음 drops the dot rather than greying it. Green means reachable and red means
-   * broken; absence is neither, and a state dot on a zone with no state is decoration.
+   * ⚠️ 없음 now GREYS its dot, where this block used to record the opposite as a ⛔: green
+   * means reachable and red means broken, so absence was neither and a dot on a stateless
+   * zone was decoration. 오너 지시 2026-08-27 reversed it, and the reversal is the stronger
+   * reading — 미연결 IS one of three answers this zone gives, so a reader scanning for the
+   * dot should find one every time rather than having to notice a gap. gray-400
+   * (`statusColors.pending.dot`) is the fill this app already uses for a slot with nothing
+   * in it yet.
+   * ⛔ `quiet` stays. The neutral label ink is what withdraws the promise of somewhere to
+   * go; the grey dot is a second channel, not a replacement for the first.
    * ⛔ 실패 stays loud. A fetch that failed is not an empty channel, and quieting it would
    * be the same conflation the separate error row exists to prevent.
+   *
+   * `dot` is required, not optional: with 미연결 filled in there is no state left that
+   * renders a dotless entry, and the type is where that stops being re-litigable.
    */
-  const collab: { dot?: string; quiet?: boolean; hint: string } =
+  const collab: { dot: string; quiet?: boolean; hint: string } =
     jiraTicket === 'error'
       ? { dot: statusColors.error.dot, hint: '협업 채널 — 정보를 불러오지 못했어요' }
       : jiraTicket === null
-        ? { quiet: true, hint: '협업 채널 — 아직 연결되지 않았어요' }
+        ? {
+            dot: statusColors.pending.dot,
+            quiet: true,
+            hint: '협업 채널 — 아직 연결되지 않았어요',
+          }
         : { dot: statusColors.success.dot, hint: `협업 채널 — ${jiraTicket.issueKey}` };
 
   /**
@@ -362,36 +379,40 @@ export const GuidePanel = ({
 
               The channel is still first — it is the escape hatch for every step, so it
               holds the top of the rail and the guide scrolls underneath it. */}
-          <div className={cn(railStyles.card, 'shrink-0 p-3')}>
-            {/* No longer a `justify-between` row — the fold control that used to sit at its
-                far end moved to the rail's head above. What is left is the zone's mark and
-                its name, which is what the guide card's head has always been. */}
-            <div className="flex items-center gap-2">
-              {/* Same mark, both fold states — the rule the 가이드 전구 already follows
-                  (오너 지시 2026-08-23). It also gives the two zone heads one geometry,
-                  20 mark + 8 gap + label, which is what puts the two labels on the same x;
-                  they were 28px out while this one was a bare label.
+          <div className={cn(railStyles.card, railStyles.bubbleTail, 'shrink-0 p-3')}>
+            {/* The zone head: its name, and the state dot at the far end. Nothing else.
 
-                  ⛔ `RailMark` and `collab`, not a bare ChatIcon. The first attempt here
-                  rendered the identical SVG and was still wrong: the strip draws that
-                  glyph with the state dot ON it, and it goes quiet when no ticket is
-                  mapped. The mark is glyph + dot + ink.
+                오너 지시 2026-08-27 — the CARD is the 말풍선 the folded strip draws as a 20px
+                `ChatIcon`, enlarged (`railStyles.bubbleTail` carries the tail). That is what
+                took the glyph off this head: an enlarged icon cannot also contain a small
+                copy of itself. The strip's geometry survives the scale change instead of the
+                glyph doing — glyph → card, and the dot that rides the glyph's top-right
+                corner → the card's.
 
-                  ⛔ The ink sits on THIS span, not on the glyph — the strip colours its
-                  mark by inheriting from the entry button, so the only way both sides can
-                  hand `RailMark` the same markup is for both to inherit. `zoneLabel` sets
-                  its own colour, so the label is unaffected. */}
+                ⚠️ This REVERSES 오너 지시 2026-08-23, which put `RailMark` here precisely so
+                the head and the strip drew one identical mark, glyph + dot + ink, and whose
+                ⛔ said a bare ChatIcon was not enough. That rule was right about the DOT and
+                right that the ink had to move with the data; what it could not survive is the
+                card itself becoming the mark. Same owner, 2026-08-27. The dot stayed, the
+                glyph did not, and `railStyles.zoneMarkChannel`/`…Quiet` — the ink pair that
+                existed only to colour that glyph — went with it.
+
+                `justify-between`, so the dot lands on the card's own padding edge: the
+                label's 20px line box puts it optically on the top-right corner with no
+                second measurement, and a longer label pushes nothing.
+
+                ⛔ The dot is `aria-hidden`, and it is allowed to be only because every state
+                is already stated in words in the rows below — 「아직 연결된 협업 채널이 없어
+                요」, 「협업 채널 정보를 불러오지 못했어요」, or the issue key itself. It is a
+                second channel on those, never the only one, which is the same exemption
+                `railStyles.zoneMark` documents: gray-400 and #45CB85 sit under 3:1 and are
+                legal here because they are decorative. */}
+            <div className="flex items-center justify-between">
+              <span className={railStyles.zoneLabel}>협업 채널</span>
               <span
-                className={cn(
-                  'flex items-center gap-2',
-                  collab.quiet
-                    ? railStyles.zoneMarkChannelQuiet
-                    : railStyles.zoneMarkChannel,
-                )}
-              >
-                <RailMark icon={<ChatIcon className="h-5 w-5" />} dot={collab.dot} />
-                <span className={railStyles.zoneLabel}>협업 채널</span>
-              </span>
+                aria-hidden
+                className={cn('h-2 w-2 shrink-0 rounded-full', collab.dot)}
+              />
             </div>
             {/* Still 4, and still for 8. The row is now the label's own 20px line box
                 rather than a 32px control row, so the arithmetic changed under it and
@@ -416,11 +437,14 @@ export const GuidePanel = ({
                 two marks. Dropping it also puts the 안내박스 back to being the rail's only
                 fill, which is the whole of 시안 E. */}
             <div className="flex shrink-0 items-center gap-2 p-3 pb-2">
-              {/* `RailMark`, like the channel head — the strip renders its 전구 through the
-                  same component, so passing the icon bare here is what makes "one mark in
-                  both fold states" a structural fact rather than two files agreeing by
-                  eye. It also supplies the `shrink-0` this used to carry itself, which was
-                  the one class that stopped the two sides being identical markup. */}
+              {/* `RailMark`, and this zone is now the ONLY one that renders it on both
+                  sides: the strip renders its 전구 through the same component, so passing
+                  the icon bare here is what makes "one mark in both fold states" a
+                  structural fact rather than two files agreeing by eye. (The 협업 채널 head
+                  used to do the same; its glyph became the card itself, 오너 지시
+                  2026-08-27.) It also supplies the `shrink-0` this used to carry itself,
+                  which was the one class that stopped the two sides being identical
+                  markup. */}
               <RailMark icon={<GuideIcon className={cn('h-5 w-5', railStyles.zoneMark)} />} />
               <span className={railStyles.zoneLabel}>{guideZoneLabel}</span>
             </div>

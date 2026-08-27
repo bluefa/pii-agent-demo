@@ -464,37 +464,44 @@ const folded = async (jiraTicket: Parameters<typeof GuidePanel>[0]['jiraTicket']
 };
 
 /**
- * The rail's two zone marks, in DOM order: 채널 then 가이드.
+ * A zone's `RailMark` — its glyph, plus the state dot when it has one — found by the GLYPH
+ * inside it.
  *
- * Order is not incidental — 채널 above 가이드 is asserted in its own test, because the
- * strip mirrors the open panel's vertical order. Both zones render their glyph through
- * `RailMark` in both fold states, so there are always exactly two.
+ * ⛔ Not by index. These used to be `marks()[0]` = 채널 and `[1]` = 가이드, which held only
+ * while both zones rendered a `RailMark` in both fold states. The 협업 채널 head stopped
+ * rendering one when the card itself became the bubble (오너 지시 2026-08-27), so the open
+ * rail now has exactly ONE mark and an index would quietly hand back the other zone's.
+ * The viewBox is the identity: `GuideIcon` is the owner's Figma node at 14, and every
+ * other icon in the app is drawn at 24.
  */
-const marks = (root: HTMLElement) => Array.from(root.querySelectorAll('aside span.relative'));
+const markWithGlyph = (root: HTMLElement, viewBox: string) =>
+  Array.from(root.querySelectorAll('aside span.relative')).find(
+    (m) => m.querySelector('svg')?.getAttribute('viewBox') === viewBox,
+  );
 
-const channelMark = (root: HTMLElement) => marks(root)[0];
-const guideMark = (root: HTMLElement) => marks(root)[1];
-
-/** Its markup: glyph + state dot. ⛔ NOT the ink — that lives outside it, see `inkOn`. */
-const markIn = (root: HTMLElement) => channelMark(root)?.innerHTML;
+/** ⛔ Only the folded strip has one of these now. See `channelHead` for the open rail. */
+const channelMark = (root: HTMLElement) => markWithGlyph(root, '0 0 24 24');
+const guideMark = (root: HTMLElement) => markWithGlyph(root, '0 0 14 14');
 
 /**
- * The ink applied to that mark. `RailMark` sets no colour of its own — deliberately, so
- * both call sites can hand it the same bare glyph and inherit — which means the colour
- * lives on the nearest ancestor that declares one: the strip's `<button>`, or the open
- * head's label row. Walking up is the only way to read the thing the user actually sees.
+ * The open rail's zone cards, in DOM order: 협업 채널 then 가이드. `children[0]` of the body
+ * is the rail's own head, which owns nothing but the fold control.
  */
-const inkOn = (root: HTMLElement) => {
-  // `text-` is two utilities wearing one prefix. Colour is `text-[#…]` or `text-name-NNN`;
-  // `text-[14px]` is a size and would shadow the real answer on any element that sets both.
-  const isInk = (c: string) => /^text-\[#/.test(c) || /^text-[a-z]+-\d{2,3}$/.test(c);
+const openZones = (root: HTMLElement) =>
+  Array.from((root.querySelector('aside > div') as HTMLElement).children).slice(
+    1,
+  ) as HTMLElement[];
 
-  for (let el = channelMark(root)?.parentElement; el; el = el.parentElement) {
-    const ink = (el.getAttribute('class') ?? '').split(/\s+/).find(isInk);
-    if (ink) return ink;
-  }
-  return undefined;
-};
+/**
+ * The 협업 채널 card's head row, read off the CARD rather than off its label.
+ *
+ * `getByText('협업 채널')` cannot do this job: the card's own link-less row prints the same
+ * two words, so the query is ambiguous for a ticket with no `browseUrl`. It also has to be
+ * this row specifically — `justify-between` on it is what puts the dot on the card's
+ * corner, so a dot found anywhere else in the card is not what the owner asked for.
+ */
+const channelHead = (root: HTMLElement) => openZones(root)[0].firstElementChild as HTMLElement;
+const headDot = (root: HTMLElement) => channelHead(root).lastElementChild as HTMLElement | null;
 
 describe('GuidePanel — the folded strip says what it is', () => {
   it('names the panel in words, not just a direction chevron', async () => {
@@ -529,80 +536,22 @@ describe('GuidePanel — the folded strip says what it is', () => {
     expect(screen.queryByRole('button', { name: /아직 연결되지 않았어요/ })).toBeNull();
   });
 
-  // 오너 지시 2026-08-23: 「접었을 때의 채널 아이콘이 펼쳐졌을 때도 그대로」 — the rule the
-  // 가이드 전구 already follows.
-  //
-  // ⛔ Compare the MARK, not the glyph. The first version of this test asserted the two
-  // `path` `d` strings matched, and they did — while the folded strip drew that glyph
-  // with a green state dot on it and the open head drew it bare. Matching the SVG proved
-  // nothing the owner was asking about. Both call sites now render `RailMark`, so the
-  // assertion is that the two marks are the same MARKUP, dot and all.
-  it('shows the folded strip’s channel mark on the open zone head too — dot included', async () => {
-    const ticket = { issueKey: 'PII-42', browseUrl: 'https://jira.example.com/browse/PII-42' };
-
-    const open = render(<GuidePanel {...baseProps} jiraTicket={ticket} />);
-    await settled();
-    const onHead = markIn(open.container as HTMLElement);
-    expect(onHead).toBeTruthy();
-    // The dot travels with it — this is the half the SVG comparison could not see.
-    expect(onHead).toContain('rounded-full');
-    open.unmount();
-
-    const { container } = await folded(ticket);
-    expect(markIn(container as HTMLElement)).toBe(onHead);
-  });
-
-  // ⛔ And it has to hold for the DATA, not just for one row: with no ticket the strip
-  // goes quiet and loses its dot, so a head fixed at full strength would match here and
-  // break there.
-  it('keeps the two marks identical when the channel is empty', async () => {
-    const open = render(<GuidePanel {...baseProps} jiraTicket={null} />);
-    await settled();
-    const onHead = markIn(open.container as HTMLElement);
-    const headInk = inkOn(open.container as HTMLElement);
-    expect(onHead).not.toContain('rounded-full');
-    open.unmount();
-
-    const { container } = await folded(null);
-    expect(markIn(container as HTMLElement)).toBe(onHead);
-    expect(inkOn(container as HTMLElement)).toBe(headInk);
-  });
-
   /**
-   * ⛔ And the ink is part of the mark even though it is not part of `RailMark`.
+   * 오너 지시 2026-08-27: 「펼친 상태의 협업 채널 카드는 접었을 때의 말풍선을 키운 것」.
    *
-   * This is the studied bug at one more remove. `markIn` reads `innerHTML`, and the fix
-   * for the original defect deliberately moved the ink OUT of the mark and onto whatever
-   * encloses it — so the comparison above steps over exactly the property that fix
-   * introduced. A head pinned at full strength matches on both counts and still renders
-   * the quiet row wrong, which is the failure the test above claims to have covered.
+   * ⚠️ This REPLACES 오너 지시 2026-08-23 and the three tests that guarded it, which asserted
+   * that the open head and the folded strip drew ONE identical mark — glyph + dot + ink —
+   * and compared the two as markup because comparing the SVGs alone had let a missing dot
+   * through. The dot survived that rule; the glyph did not. The card is the enlarged icon
+   * now, and an enlarged icon cannot also contain a small copy of itself.
    *
-   * The two states are compared to each other rather than to a literal: the class names
-   * are `theme.ts`'s business, and the invariant is sameness, not any particular colour.
+   * ⛔ Assert on the head's own CHILDREN. This file has already been burnt by the other
+   * shape of this test: 「takes the ChatIcon off the link row」 stayed green when the head's
+   * mark was deleted outright, because it only ever proved something was ABSENT somewhere.
+   * "No glyph anywhere in the rail" would fail the same way from the other side — the
+   * folded strip's ChatIcon lives in a subtree this claim is not about.
    */
-  it('gives the two marks the same ink, and a different one when the channel is empty', async () => {
-    const ticket = { issueKey: 'PII-42', browseUrl: 'https://jira.example.com/browse/PII-42' };
-
-    const open = render(<GuidePanel {...baseProps} jiraTicket={ticket} />);
-    await settled();
-    const headInk = inkOn(open.container as HTMLElement);
-    expect(headInk).toBeTruthy();
-    open.unmount();
-
-    const strip = await folded(ticket);
-    expect(inkOn(strip.container as HTMLElement)).toBe(headInk);
-    strip.unmount();
-
-    // …and it is not the same ink the empty channel gets, or "quiet" is not a state.
-    const empty = render(<GuidePanel {...baseProps} jiraTicket={null} />);
-    await settled();
-    expect(inkOn(empty.container as HTMLElement)).not.toBe(headInk);
-  });
-
-  // ⛔ "Once the zone head carries it" is half the claim, and it was the unasserted half:
-  // deleting the head's `RailMark` outright left this test green, because it only ever
-  // proved the ROW had lost its icon. A displacement needs both ends.
-  it('keeps the channel glyph on the zone head, which is what lets the row drop it', async () => {
+  it('leaves the open zone head its label and nothing else — no glyph', async () => {
     const { container } = render(
       <GuidePanel
         {...baseProps}
@@ -611,13 +560,83 @@ describe('GuidePanel — the folded strip says what it is', () => {
     );
     await settled();
 
-    const head = channelMark(container as HTMLElement);
-    expect(head?.querySelector('svg')).toBeTruthy();
+    const head = channelHead(container as HTMLElement);
+    // Two children: the label, then the state dot. Nothing between them and nothing after.
+    expect(head.children).toHaveLength(2);
+    expect(head.children[0].textContent).toBe('협업 채널');
+    expect(head.querySelector('svg')).toBeNull();
+    // …and no `RailMark` anywhere on the open rail but the 가이드 zone's 전구.
+    expect(channelMark(container as HTMLElement)).toBeUndefined();
+    expect(guideMark(container as HTMLElement)).toBeTruthy();
   });
 
-  // ⛔ The head's glyph DISPLACES the row's — the same bubble twice inside one card, at
-  // two sizes ~56px apart, is a mistake and not a rhyme.
-  it('takes the ChatIcon off the link row once the zone head carries it', async () => {
+  /**
+   * The tail is what makes the card a 말풍선 rather than a card with a dot on it, so it is
+   * the load-bearing half of 오너 지시 2026-08-27.
+   *
+   * Two of its numbers are decisions and not taste, and both are pinned here because the
+   * class string is the only place they exist:
+   *   · 8px, because the zones sit in a `gap-3` column — at 12 the tail would touch the
+   *     guide card below, and clearance is a gap, not a contact.
+   *   · down-and-LEFT, because that is the direction `ChatIcon`'s own path drops its tail
+   *     (`…H7l-4 4V5…`), and this card is that icon enlarged.
+   */
+  it('draws the channel zone as a speech bubble — tail included', async () => {
+    const { container } = render(<GuidePanel {...baseProps} jiraTicket={null} />);
+    await settled();
+
+    const [channelZone, guideZone] = openZones(container as HTMLElement);
+    expect(channelZone.className).toContain(railStyles.bubbleTail);
+    // ⛔ On that zone only. A tail on the guide card would make the rail two bubbles.
+    expect(guideZone.className).not.toContain(railStyles.bubbleTail);
+
+    // The 8 is only right relative to the 12 the zones are spaced by, so read both.
+    expect((container.querySelector('aside > div') as HTMLElement).className).toContain('gap-3');
+    expect(railStyles.bubbleTail).toContain('after:h-2');
+    expect(railStyles.bubbleTail).toContain('polygon(0_0,100%_0,0_100%)');
+  });
+
+  /**
+   * ⛔ No state renders a dotless head any more — 미연결 included (오너 지시 2026-08-27).
+   *
+   * That reverses this file's own earlier assertion that the empty channel drops its dot,
+   * on the grounds that green means reachable and red means broken so absence is neither.
+   * 미연결 is one of three answers the zone gives, so it gets a fill of its own and a reader
+   * scanning for the dot finds one every time instead of having to notice a gap.
+   *
+   * The fills are compared to EACH OTHER, not to literals: which grey or which green is
+   * `theme.ts`'s business, and the invariant is that the three differ.
+   */
+  it('puts a distinct state dot on the open card’s corner in all three states', async () => {
+    const fillOf = (dot: HTMLElement | null) =>
+      (dot?.className ?? '').split(/\s+/).find((c) => c.startsWith('bg-'));
+
+    const fills: Array<string | undefined> = [];
+    for (const ticket of [
+      { issueKey: 'PII-42', browseUrl: 'https://jira.example.com/browse/PII-42' },
+      null,
+      'error',
+    ] as const) {
+      const view = render(<GuidePanel {...baseProps} jiraTicket={ticket} />);
+      await settled();
+
+      const dot = headDot(view.container as HTMLElement);
+      expect(dot?.className).toContain('rounded-full');
+      // ⛔ Decorative, and allowed to be: the rows below state every one of these three
+      // states in words. Colour is a second channel here, never the only one.
+      expect(dot?.getAttribute('aria-hidden')).toBe('true');
+      fills.push(fillOf(dot));
+      view.unmount();
+    }
+
+    expect(fills.every(Boolean)).toBe(true);
+    expect(new Set(fills).size).toBe(3);
+  });
+
+  // ⛔ The rows still carry no glyph, and the reason has grown rather than gone: the head
+  // displaced it in 2026-08-23, and since 2026-08-27 the CARD is the bubble — so a 24px
+  // ChatIcon on a row would be a small copy of the bubble it is sitting inside.
+  it('keeps the ChatIcon off the link row — the card is the bubble', async () => {
     render(
       <GuidePanel
         {...baseProps}
@@ -628,6 +647,8 @@ describe('GuidePanel — the folded strip says what it is', () => {
     expect(screen.getByTitle('협업 채널 — Jira에서 논의하기').querySelector('svg')).toBeNull();
   });
 
+  // Same rule on the strip: three states, three fills, and ⛔ none of them answers by
+  // omission (오너 지시 2026-08-27). The strip's dot used to be dropped for 미연결.
   it('gives each channel state its own dot fill, so colour is not dead weight', async () => {
     const dotOf = (container: HTMLElement) =>
       container.querySelector('aside span[aria-hidden].rounded-full')?.className ?? '';
@@ -636,17 +657,26 @@ describe('GuidePanel — the folded strip says what it is', () => {
     const okFill = dotOf(linked.container as HTMLElement);
     linked.unmount();
 
+    const none = await folded(null);
+    const noneFill = dotOf(none.container as HTMLElement);
+    none.unmount();
+
     const failed = await folded('error');
     const errFill = dotOf(failed.container as HTMLElement);
 
-    expect(okFill).not.toBe('');
-    expect(errFill).not.toBe('');
-    expect(okFill).not.toBe(errFill);
+    for (const fill of [okFill, noneFill, errFill]) expect(fill).not.toBe('');
+    expect(new Set([okFill, noneFill, errFill]).size).toBe(3);
   });
 
   // 오너 지시 2026-08-23: 「JiraTicket 없는 경우엔 접었을 때 적절히 다른 표현으로」. The three
   // states used to differ by dot fill alone, so the zone with nothing behind it advertised
   // itself exactly like the one you can reach.
+  //
+  // ⚠️ 미연결 used to withdraw the promise on three channels, the third being that it drew
+  // no dot at all. 오너 지시 2026-08-27 gave it a grey one, so TWO channels are left doing
+  // that work and both are asserted here — the quiet ink, and a fill that is not the
+  // reachable state's. Dropping either one puts the empty channel back to advertising
+  // itself like a live one.
   it('withdraws the channel entry’s promise when no ticket is mapped', async () => {
     const channelBtn = () => screen.getByRole('button', { name: /^협업 채널/ });
     const dotIn = (btn: HTMLElement) => btn.querySelector('span[aria-hidden].rounded-full');
@@ -656,14 +686,21 @@ describe('GuidePanel — the folded strip says what it is', () => {
     expect(railStyles.entryQuiet).not.toBe(railStyles.entry);
     expect(railStyles.entryLabelQuiet).not.toBe(railStyles.entryLabel);
 
+    const linked = await folded({ issueKey: 'PII-7', browseUrl: null });
+    const reachableFill = dotIn(channelBtn())?.className;
+    expect(reachableFill).toBeTruthy();
+    linked.unmount();
+
     const none = await folded(null);
     const quiet = channelBtn();
     expect(quiet.className).toBe(railStyles.entryQuiet);
     // Blue promises somewhere to go. #4E5968 withdraws that and still clears AA on the
     // rail plane (5.71) — ⛔ gray-400 (1.9) and gray-500 (3.88) do not.
     expect(screen.getByText('채널').className).toContain('text-[#4E5968]');
-    // ⛔ No dot. Green means reachable and red means broken; absence is neither.
-    expect(dotIn(quiet)).toBeNull();
+    // Channel two: a dot, but not the reachable one's. ⛔ It may not be dropped — 미연결 is
+    // an answer, not a missing answer — and it may not be the green either.
+    expect(dotIn(quiet)).toBeTruthy();
+    expect(dotIn(quiet)?.className).not.toBe(reachableFill);
     none.unmount();
 
     // ⛔ A failed fetch is NOT an empty channel — it keeps full ink and its dot, or the

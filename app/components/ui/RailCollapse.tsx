@@ -150,20 +150,28 @@ interface RailMarkProps {
  * A zone's mark: its glyph, plus the state dot when the zone has one.
  *
  * Exported and shared because "the same mark in both fold states" (오너 지시 2026-08-23)
- * is otherwise an invariant nobody enforces. It was already broken once: the open zone
- * head rendered the identical `ChatIcon` — same 20px, same ink, same path — while the
- * folded strip rendered that glyph WITH a green dot on it. Matching the glyph is not
- * matching the mark, and comparing the two by eye is how that slips through. One
- * component, two call sites, and there is nothing left to keep in sync by hand.
+ * is otherwise an invariant nobody enforces, and the 가이드 zone still keeps it: its open
+ * head and the folded strip draw one 전구 through this one component, with nothing left to
+ * sync by hand.
+ *
+ * ⚠️ The 협업 채널 zone no longer renders this on both sides. Its open head gave the glyph
+ * up when the CARD became the enlarged bubble (오너 지시 2026-08-27, `railStyles.bubbleTail`),
+ * so only the strip renders this for that zone and the head wears the state dot on its own
+ * corner. The bug this component was extracted for is still worth recording: the open head
+ * once rendered the identical `ChatIcon` — same 20px, same ink, same path — while the strip
+ * rendered that glyph WITH a green dot on it. Matching the glyph is not matching the mark,
+ * and comparing the two by eye is how that slips through.
  *
  * ⚠️ `entryDot` carries `ring-white`, which reads as a halo on the rail's tinted plane
  * and disappears into a white zone card. That is the ring doing its job — it exists to
  * hold the dot off the glyph — and not a second design.
  *
- * ⛔ The ink belongs to whatever encloses this, never to the `icon` passed in. Both call
- * sites hand over the same bare `<ChatIcon className="h-5 w-5" />` and let it inherit, so
- * the two marks are the same MARKUP and a test can say so with one string comparison.
- * Colour the glyph at the call site and that equality quietly stops holding.
+ * ⛔ The ink is not this component's, and whichever way a zone supplies it, BOTH of that
+ * zone's fold states have to supply it the same way — otherwise the marks stop being one
+ * string comparison apart and start being two files agreeing by eye. The 가이드 mark hangs
+ * `railStyles.zoneMark` on the glyph at both of its call sites; the 협업 채널 glyph, while it
+ * had two sites, inherited from the enclosing element instead, so both sides could hand
+ * over the same bare `<ChatIcon className="h-5 w-5" />`.
  */
 export const RailMark = ({ icon, dot }: RailMarkProps) => (
   <span className="relative flex shrink-0">
