@@ -664,6 +664,14 @@ describe('GuidePanel — the folded strip says what it is', () => {
       expect(dot.parentElement?.textContent).toContain(says);
       // ⛔ Not in the head. `channelHead` is the label alone now.
       expect(channelHead(root).contains(dot)).toBe(false);
+      // ⛔ TRAILING the value, not leading it — the dot is the row's LAST node and the
+      // words come first. This was not a tripwire while the dot led: everything above
+      // stayed green through the inversion, because "on the row that states it" says
+      // nothing about which end. It has to be asserted, because leading is what the 16px
+      // indent came from — it broke the one left edge that the head, the sentence and the
+      // label all share, and made the dot read as a bullet on a one-item list.
+      expect(dot.parentElement?.lastChild).toBe(dot);
+      expect(dot.previousSibling?.textContent).toContain(says);
       fills.push(fillOf(dot));
       view.unmount();
     }

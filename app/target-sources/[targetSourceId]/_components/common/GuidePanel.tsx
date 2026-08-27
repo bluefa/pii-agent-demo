@@ -118,16 +118,31 @@ const CollabChannelCard = ({ jiraTicket, dot }: CollabChannelCardProps) => {
     jiraTicket && jiraTicket !== 'error' ? safeBrowseUrl(jiraTicket.browseUrl) : null;
 
   /**
-   * The state dot, on the VALUE's row — inline, before the key.
+   * The state dot, on the VALUE's row — inline, TRAILING the value it describes.
    *
    * ⚠️ It rode the zone head's far corner until 2026-08-27, put there because the card is
    * the folded strip's 말풍선 enlarged and the dot rides that glyph's top-right corner.
    * The geometry transferred; the meaning did not. What the dot reports is whether the
    * channel is REACHABLE, which is a fact about this value — the card's head has no state
    * of its own, and a dot on it made the whole zone look like the thing that had failed.
-   * Cloudscape puts its `StatusIndicator` inside the VALUE of a key-value pair for the
-   * same reason. The 말풍선 argument is untouched by the move: the CARD is still the
-   * enlarged glyph (`railStyles.bubbleTail`), which is why the head carries no glyph.
+   * The 말풍선 argument is untouched by the move: the CARD is still the enlarged glyph
+   * (`railStyles.bubbleTail`), which is why the head carries no glyph.
+   *
+   * ⚠️ It LED the value first, and was moved behind it. Leading is what Cloudscape does —
+   * its `StatusIndicator` sits at the head of the value — and the flush left edge is what
+   * outranked that here, so this is a tradeoff and not a correction. A leading dot spends
+   * 8 + `gap-2` = 16px indenting the value, which made it the one broken left edge in a
+   * card whose other three texts (head, 문장, 라벨) all start at the padding edge: it read
+   * as a bullet on a one-item list, and a ragged left edge is the complaint this whole
+   * change started from. Indenting the label to match would only move the defect — the
+   * pair would then be offset from the sentence above and the card would carry two text
+   * edges instead of one. Trailing keeps every text flush and still puts the dot on the
+   * row it describes, which is the part that mattered about leaving the head. Jira's
+   * Development panel annotates a line the same way, with its rolled-up lozenge after it.
+   *
+   * ⛔ `gap-2` after the value, and NOT justified to the column's far edge. No
+   * `justify-between`, no `ml-auto`: a dot floating 180px away from an 84px key annotates
+   * the row's right margin, not the key.
    *
    * ⛔ It is `aria-hidden`, and it is allowed to be only because the row it sits on states
    * the same thing in words — the issue key, 「아직 연결된 협업 채널이 없어요」, or
@@ -170,8 +185,8 @@ const CollabChannelCard = ({ jiraTicket, dot }: CollabChannelCardProps) => {
             textColors.tertiary,
           )}
         >
-          {stateDot}
           협업 채널 정보를 불러오지 못했어요
+          {stateDot}
         </div>
       ) : jiraTicket === null ? (
         <div
@@ -182,18 +197,18 @@ const CollabChannelCard = ({ jiraTicket, dot }: CollabChannelCardProps) => {
             textColors.tertiary,
           )}
         >
-          {stateDot}
           아직 연결된 협업 채널이 없어요
+          {stateDot}
         </div>
       ) : (
         <>
           <div className={cn('mt-2', channelLabel, textColors.tertiary)}>이슈 키</div>
-          {/* Two children, the dot and the key, 8px apart. `flex`, so the row has no strut
-              of its own: an inline anchor would sit in a line box sized by whatever leading
-              the card inherits, and the 6.5px ink gap above depends on that box being the
-              key's own 17px. The row therefore holds no type — the value carries it. */}
+          {/* Two children, the key and then the dot, 8px apart. `flex`, so the row has no
+              strut of its own: an inline anchor would sit in a line box sized by whatever
+              leading the card inherits, and the 6.5px ink gap above depends on that box
+              being the key's own 17px. The row therefore holds no type — the value carries
+              it. */}
           <div className="mt-1 flex items-center gap-2">
-            {stateDot}
             {href ? (
               /* Owner ask: the issue key reads as a classic hyperlink — blue + underline.
                  `textOnLight` (#0050D6), not `text` (#0064FF), even though the brighter
@@ -229,6 +244,7 @@ const CollabChannelCard = ({ jiraTicket, dot }: CollabChannelCardProps) => {
                 {jiraTicket.issueKey}
               </span>
             )}
+            {stateDot}
           </div>
         </>
       )}
