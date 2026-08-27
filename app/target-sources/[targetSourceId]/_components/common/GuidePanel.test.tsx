@@ -10,11 +10,16 @@ import { GuidePanel } from '@/app/target-sources/[targetSourceId]/_components/co
 import { railStyles } from '@/lib/theme';
 
 /**
- * The channel zone's first line, and the marker the fold tests use for "this zone
+ * The channel zone's one sentence, and the marker the fold tests use for "this zone
  * rendered". It took that job from 「도움이 필요하신가요?」, which was deleted for being a
  * second 16px heading directly under 「협업 채널」 (오너 지시 2026-08-23).
+ *
+ * It is a SHORT sentence on purpose. 「진행 중 막히는 부분은 협업 채널에서 바로 문의할 수
+ * 있어요.」 wrapped to two lines at the rail's 271px column — 34px of ink, the largest area
+ * in a 101px card and the least information in it — and it said 협업 채널 for the second of
+ * three times in one card. Measured after the cut: the `<p>` is 17px, one line.
  */
-const CHANNEL_LINE = '진행 중 막히는 부분은 협업 채널에서 바로 문의할 수 있어요.';
+const CHANNEL_LINE = '막히는 부분을 바로 문의할 수 있어요.';
 
 const baseProps = {
   slotKey: null,
@@ -91,7 +96,7 @@ describe('GuidePanel — collab-channel card states', () => {
 
   // 오너 지시 2026-08-23: no white card inside the card. Its fill and border were also the
   // 26px that made the label and the key collide in the folded rail's fixed 280px tip.
-  it('gives the channel row no surface of its own, and stacks its two tiers', () => {
+  it('gives the channel row no surface of its own, and scopes the anchor to the key', () => {
     render(
       <GuidePanel
         {...baseProps}
@@ -116,38 +121,46 @@ describe('GuidePanel — collab-channel card states', () => {
     expect(key.className).toContain('text-[#0050D6]');
     expect(key.className).not.toContain('text-[#0064FF]');
 
-    // ⛔ The anchor is the VALUE's box. It used to wrap the label as well, so the clickable
-    // rectangle was 271.46 × 36 where the underline was 271.46 × 20 — a hit area 16px taller
-    // and ~186px wider than the thing it underlined. Read the anchor's OWN content: this
-    // file's previous proof was `block` on the key, and a widened anchor keeps that class
-    // while quietly taking the label back inside itself.
-    const label = screen.getByText('이슈 키');
+    // ⛔ The anchor is the VALUE's box, and there are now TWO ways it could stop being one.
+    //
+    // Content: it once wrapped the row's label too, so the clickable rectangle was
+    // 271.46 × 36 where the underline was 271.46 × 20 — a hit area 16px taller and ~186px
+    // wider than the thing it underlined. The label is gone entirely, so "does not contain
+    // the label" has nothing left to catch; the claim it becomes is that the anchor holds
+    // the key text and NOTHING else.
     expect(link.textContent).toBe('PII-42');
-    expect(link.contains(label)).toBe(false);
-    // …and stacked, not side by side — structurally now, since the label is its own row and
-    // the key's row is the next one. `block` on the key could not survive scoping the anchor
-    // to the value: a full-width box is exactly what it must not have.
-    expect(label.nextElementSibling?.contains(key)).toBe(true);
+    expect(link.childNodes).toHaveLength(1);
+    expect(link.firstChild?.nodeType).toBe(Node.TEXT_NODE);
 
-    // A leading per GROUP, and per ROLE inside the group (오너 2026-08-24). The label is
-    // called (12/14) and the key is a one-line machine value (14/17); the sentence above
-    // them is read (12/17). It was a flat 1.5 for all of them, i.e. 18 and 21: line boxes
-    // off the grid, on a ramp where the bigger the type the more air it took.
-    expect(label.className).toContain('text-[12px]');
-    expect(label.className).toContain('leading-[14px]');
+    // Geometry: jsdom measures nothing, so the box is guarded by what it may not DECLARE.
+    // The anchor is shrink-to-fit only while it is a flex item that neither grows nor
+    // stretches — measured 84.41 × 17 against the row's 271, one origin with the underlined
+    // run. Any of these hands the column's full width back and puts the 36px-tall hit area
+    // straight into a card that no longer has a label to blame for it.
+    const takesTheRow = (el: Element) =>
+      (el.getAttribute('class') ?? '')
+        .split(/\s+/)
+        .filter((c) => /^(block|flex|inline-flex|w-full|flex-1|grow|basis-full|self-stretch)$/.test(c));
+    expect(takesTheRow(link)).toEqual([]);
+    expect(link.parentElement?.className).toContain('flex');
+
+    // A leading per ROLE (오너 2026-08-24): the key is a one-line machine value (14/17) and
+    // the sentence above it is read (12/17). It was a flat 1.5 for both, i.e. 18 and 21:
+    // line boxes off the grid, on a ramp where the bigger the type the more air it took.
     expect(key.className).toContain('text-[14px]');
     expect(screen.getByText(CHANNEL_LINE).className).toContain('leading-[17px]');
 
-    // ⛔ And the label sits QUIETER than its value. It was the same 12px semibold ink as the
-    // key's row, so the smaller, heavier word won the pair it was supposed to introduce.
-    expect(label.className).toContain('text-gray-500');
-    expect(key.className).not.toContain('text-gray-500');
+    // ⛔ No label row. It was 「협업 채널 링크」, then 「이슈 키」, and then nothing: a single
+    // self-describing link is not a key-value pair, and the label spent 20.5px of a 101px
+    // card saying what `font-mono` + #0050D6 + `BDCDIP-` already said. The `title` is what
+    // names the destination now, which is why it is asserted above and not here.
+    expect(screen.queryByText('이슈 키')).toBeNull();
+    expect(screen.queryByText('협업 채널 링크')).toBeNull();
 
     // ⛔ The tracking gradient, and it has to run this way. `letter-spacing` inherits as a
     // computed LENGTH, so `body`'s single −0.288px lands on 12px text as −0.024em and on
     // 16px as −0.018em — tightest exactly where Carbon and Material are loosest. Every
     // tier declares its own now: T3 normal → T2 −0.01em → T1 −0.02em.
-    expect(label.className).toContain('tracking-normal');
     expect(key.className).toContain('tracking-[-0.01em]');
     expect(screen.getByText(CHANNEL_LINE).className).toContain('tracking-normal');
     expect(railStyles.zoneLabel).toContain('tracking-[-0.02em]');
@@ -621,6 +634,46 @@ describe('GuidePanel — the folded strip says what it is', () => {
     expect((container.querySelector('aside > div') as HTMLElement).className).toContain('gap-3');
     expect(railStyles.bubbleTail).toContain('after:h-2');
     expect(railStyles.bubbleTail).toContain('polygon(0_0,100%_0,0_100%)');
+  });
+
+  /**
+   * ⛔ The card's two gaps may NOT be equal, and the section gap has to be the larger by at
+   * least 2× (`/design-guide` §3). This is the tripwire on a measured failure, not on taste:
+   * the gaps were once 8.5 / 11.5 / 6.5 — monotonic, max/min 1.77× — and at that spread the
+   * eye reads them as uniform, so the four lines formed no groups at all and the card read
+   * as one lump. Monotonicity is not hierarchy; asymmetry is.
+   *
+   * The assertion is the INK arithmetic, derived from the box margins, because the ink is
+   * what a reader sees: half-leadings are 2 below the head's 16/20, 2.5 either side of the
+   * sentence's 12/17, and 1.5 above the key's 14/17.
+   *
+   * ⚠️ 20 exceeds the 12px `gap-3` between the two zone cards, which an earlier round
+   * forbade. That rule died with its premise: the cards are told apart by a SURFACE (white
+   * `railStyles.card` on the #E2E7EA plane), and containment separates more strongly than
+   * any gap, so the outer boundary owes the inner one no margin of victory.
+   */
+  it('spaces the card as two groups — the section gap is 2× the internal one', async () => {
+    const { container } = render(
+      <GuidePanel
+        {...baseProps}
+        jiraTicket={{ issueKey: 'PII-42', browseUrl: 'https://jira.example.com/browse/PII-42' }}
+      />,
+    );
+    await settled();
+
+    const boxMargin = (el: HTMLElement) => Number(el.className.match(/\bmt-(\d+)\b/)?.[1] ?? 0) * 4;
+    // The card's children: the head, then the body. The body's `mt-1` is the internal gap.
+    const body = openZones(container as HTMLElement)[0].children[1] as HTMLElement;
+    const valueRow = screen.getByText('PII-42').parentElement as HTMLElement;
+
+    const internalInk = 2 + boxMargin(body) + 2.5;
+    const sectionInk = 2.5 + boxMargin(valueRow) + 1.5;
+    expect(internalInk).toBe(8.5);
+    expect(sectionInk).toBe(20);
+    expect(sectionInk / internalInk).toBeGreaterThanOrEqual(2);
+
+    // ⛔ And nothing between them carries a third margin — two gaps, two groups.
+    expect(screen.getByText(CHANNEL_LINE).className).not.toMatch(/\bmt-\d/);
   });
 
   /**

@@ -78,30 +78,31 @@ const CollabChannelCard = ({ jiraTicket, dot }: CollabChannelCardProps) => {
    * The tiers stay stacked even though one line now fits: the key is user data and a
    * longer one puts the collision straight back.
    */
-  // 「이슈 키」, not 「협업 채널 링크」. A key-value label names the VALUE, not the
-  // destination: Cloudscape's key-value pairs define the label as "a descriptor … that
-  // identifies the corresponding value", and GOV.UK admits a `<dl>` only for "information
-  // that has a key and at least one value". 「협업 채널 링크」 described the anchor's
-  // target, said the zone head's own words back, and described `BDCDIP-2004` not at all —
-  // it was also the THIRD 협업 채널 in one card. The head names the zone, the sentence says
-  // what the zone is for, and the label now names the value. Both value forms carry the
-  // same label, because whether a `browseUrl` came back is not a different field.
+  // ⛔ The key carries NO label. It had one — 「협업 채널 링크」, then 「이슈 키」 — and the
+  // second rename is what showed the row did not need either.
+  //
+  // Cloudscape's key-value rule ("a descriptor … that identifies the corresponding value")
+  // and GOV.UK's `<dl>` guidance answer what a label must SAY once you are presenting a
+  // key-value pair. Neither says this should be one, and a single link is not a property
+  // list. The value describes itself — `font-mono`, #0050D6, underlined, and a `BDCDIP-`
+  // prefix — so the label spent 20.5 of the card's 101px of content adding nothing, and it
+  // was a third 협업 채널-adjacent descriptor in a card that already had two. Jira's
+  // Development panel presents its external artifact as one unlabelled line for the same
+  // reason. What is left is the zone's name, one sentence, and the value.
+  //
+  // ⛔ The anchor's `title` therefore stays. With no label, that attribute is the only
+  // prose naming the destination — load-bearing now, not decoration.
   //
   // The rail's tiers, T3 and T2 (오너 2026-08-24: 12 / 14 / 16, and a leading per group).
   //
-  // Leading is set by ROLE, not by size. What is READ gets ~1.4; what is CALLED — a label,
-  // a key, a heading — gets 1.17–1.25. It used to be a flat 1.5 here and a flat 1.72 in the
-  // guide body, i.e. the larger the type the more air it took, which is the opposite of what
+  // Leading is set by ROLE, not by size. What is READ gets ~1.4; what is CALLED — a key,
+  // a heading — gets 1.17–1.25. It used to be a flat 1.5 here and a flat 1.72 in the guide
+  // body, i.e. the larger the type the more air it took, which is the opposite of what
   // Carbon, Atlassian, Material and Cloudscape all encode (12→16, 14→20, 16→20 for a head).
-  // Per role, and one string each rather than one `meta` for all four:
-  //   문장     12/17 (141%) — it is read, and it wraps.
-  //   라벨     12/14 (117%) — it is called, and it is one word.
+  // Per role, and one string each rather than one `meta` for all of them:
+  //   문장     12/17 (141%) — it is read.
   //   키       14/17 (121%) — one line of machine value.
   //   빈 상태  12/17 (140%) — sentences, not labels, so they take the 문장 leading.
-  //
-  // The label is `tertiary` and its value is not. A label may not out-weigh the value it
-  // introduces, and this one did: same 12px semibold ink as the key's own row, so the
-  // smaller and heavier of the pair won it. Quiet label, loud value.
   //
   // ⛔ `tracking-normal` is not "no tracking" — it CANCELS the −0.288px that `body` hands
   // down. `letter-spacing` inherits as a computed LENGTH, so that one declaration lands on
@@ -112,7 +113,6 @@ const CollabChannelCard = ({ jiraTicket, dot }: CollabChannelCardProps) => {
   // padding), and Korean's default break-anywhere left 「요.」 alone on line two. It breaks
   // between 어절 now, the way `DuplicateAddressNotice` and `accessStyles` already do it.
   const sentence = 'text-[12px] leading-[17px] tracking-normal break-keep';
-  const channelLabel = 'text-[12px] font-semibold leading-[14px] tracking-normal';
   const channelKey = 'font-mono text-[14px] leading-[17px] tracking-[-0.01em]';
   const href =
     jiraTicket && jiraTicket !== 'error' ? safeBrowseUrl(jiraTicket.browseUrl) : null;
@@ -154,22 +154,41 @@ const CollabChannelCard = ({ jiraTicket, dot }: CollabChannelCardProps) => {
    */
   const stateDot = <span aria-hidden className={cn('h-2 w-2 shrink-0 rounded-full', dot)} />;
 
-  // Two box margins in the whole body — 4 and 8 — and what they buy is measured in INK,
-  // half-leadings included:
-  //    8.5  zone head → 문장        (2 + mt-1 4 + 2.5)
-  //   11.5  문장 → 라벨 / 빈 상태   (2.5 + mt-2 8 + 1)
-  //    6.5  라벨 → 키               (1 + mt-1 4 + 1.5)
-  // Monotonic, and the widest gap INSIDE the card now sits under the 12px `gap-3` that
-  // separates it from the guide card. It used to be 16 against that same 12, i.e. the card
-  // held its own parts further apart than the space that told it from its neighbour.
+  // Two gaps, and they are deliberately UNEQUAL — measured in INK, half-leadings included:
+  //    8.5  zone head → 문장   (2 + mt-1 4 + 2.5)   the name and what it is for
+  //   20    문장 → 값 줄       (2.5 + mt-4 16 + 1.5) the value
+  // 2.35×, which is what makes two groups out of four lines. ⛔ It replaces a ladder of
+  // 8.5 / 11.5 / 6.5 that was monotonic and therefore useless: max/min was 1.77×, close
+  // enough that the eye read it as uniform and no group formed at all. `/design-guide` §3
+  // asks for a section gap at 2× the internal one and says plainly that uniform spacing
+  // makes everything read as one lump. Asymmetry is what makes hierarchy; monotonicity is
+  // not, and the earlier note claiming otherwise was wrong.
+  //
+  // ⚠️ 20 also breaks the rule that no internal gap may exceed the 12px `gap-3` between
+  // the two zone cards, and that rule does not survive its own premise: the cards are told
+  // apart by a SURFACE — white `railStyles.card` on the #E2E7EA plane — not by whitespace.
+  // Containment separates more strongly than any gap, so the outer boundary owes the inner
+  // one no margin of victory. ⛔ `gap-3` itself does not move.
+  //
+  // Measured after: the card is 98px tall where it was 125, and the two gaps come out 8.5
+  // and 20 off the rendered rects — 21 in the empty states, whose row is 12/17 rather than
+  // 14/17, so its half-leading is 1px deeper.
   return (
     <div>
       {/* ⛔ No 「도움이 필요하신가요?」 heading above this sentence (오너 지시 2026-08-23).
           It was 16px bold sitting 8px under 「협업 채널」 at 16px semibold — two headings
           of the same size, separated by weight alone, saying the same thing twice. The
-          zone label names the zone; this sentence says what it is for. */}
+          zone label names the zone; this sentence says what it is for.
+
+          ONE line, at the real 271px column. It was 「진행 중 막히는 부분은 협업 채널에서
+          바로 문의할 수 있어요.」 — two lines and 34px of ink, the largest area in the card
+          and the least information in it. 협업 채널 went because the head two lines up
+          already says it (that was the second of three occurrences), and 진행 중 went
+          because a step screen is where this rail lives. The 「…할 수 있어요」 register is
+          the app's own and the guide-copy transcription round settled it, so that part does
+          not move. Measured after the cut: the `<p>` is 17px tall, not 34. */}
       <p className={cn(sentence, textColors.secondary)}>
-        진행 중 막히는 부분은 협업 채널에서 바로 문의할 수 있어요.
+        막히는 부분을 바로 문의할 수 있어요.
       </p>
       {/* The two empty states are back on `tertiary`. They were moved up to `secondary`
           only because a #E8F1FF band stood under them, where gray-500 is 4.25:1. No band
@@ -179,7 +198,7 @@ const CollabChannelCard = ({ jiraTicket, dot }: CollabChannelCardProps) => {
       {jiraTicket === 'error' ? (
         <div
           className={cn(
-            'mt-2 flex items-center gap-2',
+            'mt-4 flex items-center gap-2',
             sentence,
             'font-medium',
             textColors.tertiary,
@@ -191,7 +210,7 @@ const CollabChannelCard = ({ jiraTicket, dot }: CollabChannelCardProps) => {
       ) : jiraTicket === null ? (
         <div
           className={cn(
-            'mt-2 flex items-center gap-2',
+            'mt-4 flex items-center gap-2',
             sentence,
             'font-medium',
             textColors.tertiary,
@@ -202,27 +221,27 @@ const CollabChannelCard = ({ jiraTicket, dot }: CollabChannelCardProps) => {
         </div>
       ) : (
         <>
-          <div className={cn('mt-2', channelLabel, textColors.tertiary)}>이슈 키</div>
           {/* Two children, the key and then the dot, 8px apart. `flex`, so the row has no
               strut of its own: an inline anchor would sit in a line box sized by whatever
-              leading the card inherits, and the 6.5px ink gap above depends on that box
+              leading the card inherits, and the 20px ink gap above depends on that box
               being the key's own 17px. The row therefore holds no type — the value carries
               it. */}
-          <div className="mt-1 flex items-center gap-2">
+          <div className="mt-4 flex items-center gap-2">
             {href ? (
               /* Owner ask: the issue key reads as a classic hyperlink — blue + underline.
                  `textOnLight` (#0050D6), not `text` (#0064FF), even though the brighter
                  blue is legal on white (4.92:1). The rail keeps ONE blue —
                  `guideStyles.accent` already paints the guide body's `<em>` #0050D6.
 
-                 ⛔ The anchor is the VALUE's box, not the row's. It used to wrap the label
-                 too, so the clickable rectangle measured 271.46 × 36 where the underline
-                 measured 271.46 × 20 — underline, hit area and hover were three different
-                 shapes, and the widest of them was the whole column. As a flex item that
-                 neither grows nor stretches it is shrink-to-fit: measured at 1440, the
-                 anchor's box is 84.41 × 17 at the same origin as the underlined run's
-                 84.41 × 16 — one width, one left edge, and the 1px is the line box over
-                 the text run inside it.
+                 ⛔ The anchor is the VALUE's box, not the row's. It used to wrap the row's
+                 label as well — the label this card no longer has at all — so the clickable
+                 rectangle measured 271.46 × 36 where the underline measured 271.46 × 20:
+                 underline, hit area and hover were three different shapes, and the widest of
+                 them was the whole column. As a flex item that neither grows nor stretches
+                 it is shrink-to-fit: measured at 1440, the anchor's box is 84.41 × 17 at the
+                 same origin as the underlined run's 84.41 × 16 — one width, one left edge,
+                 and the 1px is the line box over the text run inside it. Nothing may put it
+                 back to the column's width: no `w-full`, no `flex-1`, no `grow`.
 
                  ⛔ No `hover:` ink on it. `primaryColors.textHover` IS `textOnLight` — the
                  rail keeps one blue, so the hover state it used to declare changed no pixel
@@ -517,11 +536,11 @@ export const GuidePanel = ({
             <span className={cn('block', railStyles.zoneLabel)}>협업 채널</span>
             {/* Still 4, and the ink it buys is 8.5. The head's 16px ink sits in a 20px line
                 box, leaving 2 below; the sentence's 12px ink sits in a 17px box, leaving 2.5
-                above; 4 between the boxes puts 8.5 between the INK. It read 8 while the
-                sentence was 12/16 — the leading moved by role, so the arithmetic moved with
-                it. Align what is seen, not what is boxed: this is the smallest rung of the
-                card's ladder (8.5 / 11.5 / 6.5, and the largest of them stays under the
-                12px `gap-3` between the zones). */}
+                above; 4 between the boxes puts 8.5 between the INK. Align what is seen, not
+                what is boxed. This is the card's INTERNAL gap — the name and the sentence
+                are one group — and the card's own `mt-4` puts 20 before the value, i.e.
+                2.35× this. ⛔ Do not even them out: equal gaps here made the four lines read
+                as one lump, which is exactly what `/design-guide` §3 warns about. */}
             <div className="mt-1">
               <CollabChannelCard jiraTicket={jiraTicket} dot={collab.dot} />
             </div>
