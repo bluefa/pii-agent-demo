@@ -112,8 +112,10 @@ export function OpsHeader({
     value: ReactNode,
     wide = false,
     labelAfter?: ReactNode,
+    /** 배치 클래스 하나 — 지금은 GCP 주체 쌍을 제 행에서 시작시키는 `col-start-1`. */
+    className?: string,
   ): ReactElement => (
-    <div key={label} className={cn(opsStyles.fmCell, wide && opsStyles.fmCellWide)}>
+    <div key={label} className={cn(opsStyles.fmCell, wide && opsStyles.fmCellWide, className)}>
       <span className={opsStyles.fmKeyRow}>
         <span className={opsStyles.fmKey}>{label}</span>
         {labelAfter}
@@ -145,6 +147,7 @@ export function OpsHeader({
     value: string | null | undefined,
     wide = false,
     labelAfter?: ReactNode,
+    className?: string,
   ): ReactElement =>
     cell(
       label,
@@ -157,6 +160,7 @@ export function OpsHeader({
       ),
       wide,
       labelAfter,
+      className,
     );
 
   /** 표시값은 detail 과 같이 온다 (v5 metadata 의 등록값) — 저장 직후 한 칸만 saved 가 덮는다. */
@@ -281,7 +285,7 @@ export function OpsHeader({
           {/* 항상 보이는 스트립 — 계정/프로젝트 · 설정, 그리고 **권한 주체**.
               Role 은 접힘 밖에 산다 (오너 지시): 이 화면에서 운영자가 가장 자주 대조하는
               값이고, 접어 두면 프로바이더마다 다른 깊이에 숨는다. */}
-          <div className={provider === 'GCP' ? opsStyles.fmGridGcp : opsStyles.fmGrid}>
+          <div className={opsStyles.fmGrid}>
             {isAws && monoCell('계정', meta.aws_account_id, false, scopeTag)}
             {provider === 'GCP' && monoCell('프로젝트', meta.gcp_project_id, false, scopeTag)}
             {/* Azure 는 계정 자리가 구독이고, 테넌트가 그 옆에 선다 (오너 2026-08-26).
@@ -297,9 +301,9 @@ export function OpsHeader({
                 each, and truncation is safe here because 「상세 정보」 prints every
                 identifier in full with a copy button. Azure now packs 구독·테넌트·Scan
                 App·설정 into exactly four slots — one row, the shape AWS already has.
-                GCP prints full mail addresses (오너 2026-08-27) and so cannot use a
-                240px track for them at all; it gets its own template, `fmGridGcp`,
-                where the two 주체 columns are `fr` and the row still holds four. */}
+                GCP keeps its 2-column service accounts: those are full mail addresses
+                (오너 2026-08-27), and at 341/365px neither fits a 240px track — so the
+                pair takes a row of its own, below. */}
             {provider === 'Azure' && monoCell('Scan App', meta.azure_scan_app_id)}
             {/* IDC 는 계정이 없는 게 정상이다 — 빈 칸을 두는 대신 그 대상이 무엇인지
                 말한다 (ServiceDetailView glossOf 의 어휘 그대로). */}
@@ -333,17 +337,6 @@ export function OpsHeader({
                       역할 불필요
                     </span>,
                   ))}
-            {/* GCP 주체 둘은 프로젝트 바로 옆, 한 행에 (오너 2026-08-27 "1층으로
-                나타내봐") — AWS 가 이미 갖는 순서이고, 「주체는 계정 바로 옆에」 규칙이
-                프로바이더를 가리지 않는다. 두 칸을 먹지도, 제 행을 갖지도 않는다:
-                `fmGridGcp` 가 이 둘에게만 `fr` 트랙을 주므로 주소 전문이 한 칸 안에서
-                잘리지 않는다. 그 트랙 계산은 opsStyles 의 토큰 옆에 적혀 있다. */}
-            {provider === 'GCP' && (
-              <>
-                {monoCell('Scan Service Account', meta.gcp_scan_service_account)}
-                {monoCell('Terraform Service Account', meta.gcp_terraform_service_account)}
-              </>
-            )}
             {/* 설정 한 칸 (design-benchmark 시안 A, 오너 08-26) — 라벨 둘·흰 면 태그 둘·
                 「수정」 둘이 라벨 하나와 밑줄 낱말 둘이 된다. 라벨이 줄었으니 값이 스스로를
                 말한다. 이 칸이 그리드의 마지막 사실 뒤에 서면서 AWS 자동은 첫 행이 4칸으로
@@ -375,6 +368,28 @@ export function OpsHeader({
                   실데이터 {rawDataLabel}
                 </button>
               </span>,
+            )}
+            {/* GCP 주체 둘은 **제 행을 통째로** 갖는다 (오너 2026-08-27: 전문을 보여줄
+                것 · 둘은 같은 층에 설 것). 한 행에 넷을 세워 봤고 주소가 둘 다 잘렸다 —
+                1440 에서 kv 레인은 920px 남짓인데 전문 둘만으로 341 + 365 = 706px 이라,
+                프로젝트(115) + 설정(74) + 18px 간격 셋이 21px 모자란다. 2열 병합 두
+                칸이면 각각 451px 을 받아 둘 다 잘리지 않는다.
+
+                `col-start-1` 이 없으면 자동 배치가 Scan 을 1행 남은 두 칸에 앉히고
+                Terraform 을 혼자 2행으로 밀어낸다 — 오너가 신고한 그 모양이다. 1행이
+                절반 비는 것은 정직한 결과다: GCP 의 스칼라 사실은 둘뿐이고, 채우려고
+                만든 칸은 사실이 아니다. */}
+            {provider === 'GCP' && (
+              <>
+                {monoCell(
+                  'Scan Service Account',
+                  meta.gcp_scan_service_account,
+                  true,
+                  undefined,
+                  'col-start-1',
+                )}
+                {monoCell('Terraform Service Account', meta.gcp_terraform_service_account, true)}
+              </>
             )}
           </div>
 
