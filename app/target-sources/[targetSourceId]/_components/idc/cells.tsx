@@ -64,7 +64,9 @@ const HostCell = ({
     >
       <span
         className={cn(
-          'min-w-0 overflow-hidden text-ellipsis whitespace-nowrap font-mono text-[12.5px] text-left [direction:ltr]',
+          // 14px — 행이 글자 크기 하나로 읽힌다 (오너 2026-08-27). 12.5 는 v16 에서 넘어온
+          // 반 픽셀 값이라 디자인 가드가 받지 않는 값이기도 했다.
+          'min-w-0 overflow-hidden text-ellipsis whitespace-nowrap font-mono text-[14px] text-left [direction:ltr]',
           textClassName,
         )}
       >
@@ -170,7 +172,7 @@ export const IdcDbTypeCell = ({
         not a state, so a chip per row spends emphasis on the least decisive column. */}
     {/* CELL_LIFT is inert unless the row carries `group` (the CSP approval skin), so the same
         cell serves both table skins. */}
-    <span className={cn('text-[12px]', textColors.secondary, CELL_LIFT)}>
+    <span className={cn('text-[14px]', textColors.secondary, CELL_LIFT)}>
       {resource.databaseTypeLabel}
     </span>
     {resource.oracleSid ? (
@@ -185,7 +187,7 @@ export const IdcDbTypeCell = ({
         >
           <span
             className={cn(
-              'min-w-0 overflow-hidden text-ellipsis whitespace-nowrap font-mono text-[11.5px] text-left',
+              'min-w-0 overflow-hidden text-ellipsis whitespace-nowrap font-mono text-[14px] text-left',
               textColors.tertiary,
             )}
           >

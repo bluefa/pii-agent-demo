@@ -105,7 +105,10 @@ describe('IdcResourceTable — Domain 행에만 붙는 태그', () => {
 describe('IdcResourceTable — step-6 logicalro', () => {
   const counts = new Map([['r1', { target: 6, excluded: 0 }]]);
 
-  it('renders a non-zero count as a button and zero as plain text', () => {
+  // 시안 B — 수는 값이고, 문은 이름을 가진 칸 하나다. 전에는 두 수가 각자 버튼이면서
+  // 둘 다 같은 모달을 열었다: 문이 둘로 보이고 방은 하나라, 어느 쪽을 누르는지가
+  // 아무것도 바꾸지 않았다.
+  it('두 수는 값으로 두고, 문은 이름 붙은 설정 하나다', () => {
     const onOpen = vi.fn();
     render(
       <IdcResourceTable
@@ -115,10 +118,59 @@ describe('IdcResourceTable — step-6 logicalro', () => {
         onLogicalOpen={onOpen}
       />,
     );
-    const open = screen.getByRole('button', { name: /연동 논리 DB 목록 보기/ });
+    expect(screen.queryByRole('button', { name: /연동 논리 DB 목록 보기/ })).toBeNull();
     expect(screen.queryByRole('button', { name: /연동 제외 대상 보기/ })).toBeNull();
-    fireEvent.click(open);
+    const manage = screen.getByRole('button', { name: /연동 논리 DB 설정/ });
+    fireEvent.click(manage);
     expect(onOpen).toHaveBeenCalledTimes(1);
+  });
+
+  // 건수는 실행이 말하고 제외 정책은 운영자가 쓴다 — 보고가 없다고 정책을 못 고치면
+  // 안 된다. 논리 DB 0건인 리소스야말로 정책을 손봐야 하는 리소스다.
+  it('보고가 없어도(—) 설정 문은 그대로 선다', () => {
+    render(
+      <IdcResourceTable
+        resources={[view({ resourceId: 'no-summary' })]}
+        cols={['logicalro', 'src']}
+        logicalDbCounts={counts}
+        onLogicalOpen={() => {}}
+      />,
+    );
+    expect(screen.getByRole('button', { name: /연동 논리 DB 설정/ })).toBeTruthy();
+  });
+
+  // 그룹 머리는 두 수의 관계를 한 번만 말한다 — 나란한 `대상`/`제외` 만으로는
+  // 8 중 3 을 뺀 것처럼 읽힌다(deny 모델에서 둘은 다른 기준의 집계다).
+  it('두 tier 머리 — 연동 논리 DB 아래 대상·제외·관리', () => {
+    render(
+      <IdcResourceTable
+        resources={[view({ resourceId: 'r1' })]}
+        cols={['logicalro', 'src']}
+        logicalDbCounts={counts}
+        onLogicalOpen={() => {}}
+      />,
+    );
+    const group = screen.getByRole('columnheader', { name: '연동 논리 DB' });
+    expect(group.getAttribute('colspan')).toBe('3');
+    expect(group.getAttribute('scope')).toBe('colgroup');
+    const headers = screen.getAllByRole('columnheader').map((th) => th.textContent?.trim());
+    expect(headers).toContain('대상');
+    expect(headers).toContain('제외');
+    expect(headers).toContain('관리');
+  });
+
+  // 열 곳이 없는 화면(확인 모달)에는 관리 열이 서지 않는다 — 아무 일도 안 하는 열은
+  // 712px 판에서 96px 을 그냥 먹는다.
+  it('onLogicalOpen 이 없으면 관리 열도 그룹의 3번째 칸도 없다', () => {
+    render(
+      <IdcResourceTable
+        resources={[view({ resourceId: 'r1' })]}
+        cols={['logicalro']}
+        logicalDbCounts={counts}
+      />,
+    );
+    expect(screen.getByRole('columnheader', { name: '연동 논리 DB' }).getAttribute('colspan')).toBe('2');
+    expect(screen.queryByRole('columnheader', { name: '관리' })).toBeNull();
   });
 
   it('renders — when the resource has no summary row', () => {
@@ -147,12 +199,21 @@ describe('IdcResourceTable — step-6 logicalro', () => {
         logicalDbCounts={counts}
       />,
     );
-    const headers = screen.getAllByRole('columnheader').map((th) => th.textContent?.trim());
-    expect(headers[headers.length - 1]).toContain('BDC측 출발지');
+    // 두 tier 머리에서는 **문서 순서가 곧 열 순서가 아니다** — 그룹의 잎들이 두 번째
+    // `<tr>` 로 내려가므로 `getAllByRole` 의 끝은 오른쪽 끝 열이 아니라 그룹의 마지막
+    // 잎이다. 열 순서를 지는 것은 선언 순서(`data-col-key`)이고, 그것으로 잰다.
+    // 오른쪽 끝 열은 **첫 줄의 마지막 칸**이다. 그룹의 잎들은 둘째 줄에 있으므로 문서상
+    // 마지막 `columnheader` 는 오른쪽 끝이 아니라 그룹의 마지막 잎이다.
+    const topRow = container.querySelectorAll('thead tr')[0];
+    expect((topRow.lastElementChild as HTMLElement).dataset.colKey).toBe('src');
+    const leafKeys = Array.from(
+      container.querySelectorAll('thead th[data-col-key]'),
+    ).map((th) => (th as HTMLElement).dataset.colKey);
 
     const cells = Array.from(container.querySelectorAll('tbody td'));
     expect(cells[cells.length - 1].textContent).toContain('172.16.0.11');
-    expect(cells).toHaveLength(headers.length);
+    // 몸통 칸 수 = 잎 수. 그룹 머리는 칸을 하나도 내지 않는다.
+    expect(cells).toHaveLength(leafKeys.length);
   });
 
   // step 3 은 그대로 앞자리 — 순서 규칙이 다른 화면까지 끌고 가지 않는다.
@@ -212,24 +273,47 @@ describe('IdcResourceTable — step-6 logicalro', () => {
  * ledger px. A sum drifting here means a width changed without re-checking every surface.
  */
 describe('IdcResourceTable — console column spec', () => {
-  const shape = (cols: React.ComponentProps<typeof IdcResourceTable>['cols']) => {
+  // `onLogicalOpen` 은 관리 열의 존재를 정한다 — 실제 5·6·7단계 패널은 언제나 준다.
+  // 주지 않는 조합(확인 모달)은 아래에서 따로 잰다.
+  const shape = (
+    cols: React.ComponentProps<typeof IdcResourceTable>['cols'],
+    canManage = true,
+  ) => {
     const { container } = render(
-      <IdcResourceTable resources={[view({ resourceId: 'r1' })]} cols={cols} connected />,
+      <IdcResourceTable
+        resources={[view({ resourceId: 'r1' })]}
+        cols={cols}
+        connected
+        {...(canManage ? { onLogicalOpen: () => {} } : {})}
+      />,
     );
     const table = container.querySelector('table') as HTMLTableElement;
     return {
       minWidth: table.style.minWidth,
-      widths: Array.from(container.querySelectorAll('thead th')).map(
+      // 잎만 — 그룹 머리는 폭을 갖지 않는다(`ConsoleTableGroup`).
+      //
+      // ⚠️ 이 배열은 **문서 순서**다. 두 tier 머리에서 그룹의 잎들은 두 번째 `<tr>` 로
+      // 내려가므로, 그룹보다 오른쪽에 있는 열(src)이 잎들보다 먼저 나온다. 여기서 고정하는
+      // 것은 "각 잎이 자기 원장 px 를 그리고 싱크만 auto 다"이지 열의 좌우 순서가 아니다 —
+      // 좌우 순서는 아래 `출발지` 테스트가 첫 줄의 마지막 칸으로 따로 잰다.
+      widths: Array.from(container.querySelectorAll('thead th[data-col-key]')).map(
         (th) => (th as HTMLElement).style.width,
       ),
     };
   };
 
-  it('step 5 combo holds the 1178 floor with 접속 주소 as the sink', () => {
+  it('step 5 combo holds the 1252 floor with 접속 주소 as the sink', () => {
     const { minWidth, widths } = shape(['cred', 'conn', 'logicalro', 'src']);
-    expect(minWidth).toBe('1178px');
-    // endpoint(auto sink) · port · dbType · cred(264: real names render whole) · conn · 논리DB · 제외 · src
-    expect(widths).toEqual(['auto', '80px', '172px', '264px', '104px', '118px', '96px', '144px']);
+    expect(minWidth).toBe('1252px');
+    // 시안 B: 논리 DB 가 그룹 머리 + 3열(96·96·96)이 되면서 1178 → 1252.
+    // 첫 줄은 그룹 머리를 뺀 rowSpan=2 열들, 그 다음이 그룹의 잎 셋이다 — 폭은 잎이 진다.
+    // endpoint(auto sink) · port · dbType · cred(264) · conn · src ‖ 대상 · 제외 · 관리
+    expect(widths).toEqual([
+      // 첫 줄(rowSpan=2): endpoint(auto sink) · port · dbType · cred(264) · conn · src
+      'auto', '80px', '172px', '264px', '104px', '144px',
+      // 둘째 줄: 대상 · 제외 · 관리
+      '96px', '96px', '96px',
+    ]);
   });
 
   it('step 2 combo holds 706, with the two once-undeclared columns now numbered', () => {
@@ -239,9 +323,10 @@ describe('IdcResourceTable — console column spec', () => {
     expect(widths).toEqual(['auto', '80px', '172px', '112px', '142px']);
   });
 
-  it('steps 6·7 combo holds 810 and the 승인 모달 combo 666', () => {
-    expect(shape(['logicalro', 'src']).minWidth).toBe('810px');
-    expect(shape(['logicalro']).minWidth).toBe('666px');
+  it('steps 6·7 combo holds 884 and the 승인 모달 combo 644', () => {
+    expect(shape(['logicalro', 'src']).minWidth).toBe('884px');
+    // 관리 열이 없는 조합은 오히려 666 → 644 로 줄어, 712px 판의 여유가 46 → 68 이 된다.
+    expect(shape(['logicalro'], false).minWidth).toBe('644px');
   });
 
   it('fw/health are gone from the vocabulary (owner deletion order)', () => {

@@ -1,10 +1,15 @@
 'use client';
 
-import { InfoTooltip } from '@/app/components/ui/Tooltip';
+import { InfoTooltip, Tooltip } from '@/app/components/ui/Tooltip';
+import { InfoCircleIcon } from '@/app/components/ui/icons';
 import { Pagination } from '@/app/components/ui/Pagination';
 import { usePagination } from '@/app/hooks/usePagination';
 import { ReasonChipInline } from '@/app/components/ui/ReasonChipInline';
-import { ConsoleTable, type ConsoleTableColumn } from '@/app/components/ui/ConsoleTable';
+import {
+  ConsoleTable,
+  type ConsoleTableColumn,
+  type ConsoleTableGroup,
+} from '@/app/components/ui/ConsoleTable';
 import { useColumnResize } from '@/app/components/ui/useColumnResize';
 import { cn, idcStyles, textColors, verdictRailClass } from '@/lib/theme';
 import { IDC_SOURCE_IP_TOOLTIP, IDC_SOURCE_LABEL } from '@/lib/constants/idc';
@@ -117,11 +122,18 @@ export const SourceIpHeader = () => (
  * Column floors — the LIN-96 ledger, verbatim (owner-approved 2026-08-23). Per-combination
  * sums, so a width change here is checked against every surface at once:
  *
- *   [logicalro]                 승인 모달   200+80+172+118+96          =  666
+ *   [logicalro]                 승인 모달   200+80+172+96+96           =  644
  *   [excl]                      step 2     200+80+172+112+142         =  706
  *   [src,excl]                  step 3     200+80+172+144+112+142     =  850
- *   [cred,conn,logicalro,src]   step 5     200+80+172+264+104+118+96+144 = 1178
- *   [logicalro,src]             steps 6·7  200+80+172+118+96+144      =  810
+ *   [cred,conn,logicalro,src]   step 5     200+80+172+264+104+96+96+96+144 = 1252
+ *   [logicalro,src]             steps 6·7  200+80+172+96+96+96+144    =  884
+ *
+ * 시안 B (오너 2026-08-27): 연동 논리 DB 가 2열 → **그룹 머리 + 3열**(대상·제외·관리) 이
+ * 되면서 이 세 줄이 움직였다. 열 머리가 이제 `대상`/`제외` 라 118 은 `연동 논리 DB` 를
+ * 담으려던 폭이고 더 필요 없다 — 셋 다 96(옛 logicalExcl 값)으로 내려 앉는다.
+ * 관리 열은 `onLogicalOpen` 이 있을 때만 선다: 승인 모달은 그것을 주지 않으므로 거기서는
+ * 2열이고, 합이 666 → 644 로 오히려 줄어 712px 판의 여유가 46 → 68 이 된다.
+ * step 5 는 1178 → 1252 다. 가로 스크롤이 더 일찍 시작되는 것을 안건과 함께 받아들였다.
  *
  * Ledger corrections landed with the migration: 연동 논리 DB 120 → 118, and the two
  * previously UN-declared columns get numbers (제외 사유 142 · 연동 제외 96) — under
@@ -147,8 +159,9 @@ export const IDC_COLUMN_WIDTHS = {
   reason: 142,
   cred: 264,
   conn: 104,
-  logicalDb: 118,
+  logicalDb: 96,
   logicalExcl: 96,
+  logicalManage: 96,
 } as const;
 
 /** The flex keys — session-only widths, like every console surface's flex pair. */
@@ -166,6 +179,8 @@ const IDC_FLEX_KEYS = ['endpoint'] as const;
 const idcColumns = (
   has: (c: IdcTableCol) => boolean,
   srcAtEnd: boolean,
+  /** 관리 열은 열 곳이 있을 때만 선다 — 확인 모달은 `onLogicalOpen` 을 주지 않는다. */
+  canManage: boolean,
 ): ConsoleTableColumn[] => {
   const src: ConsoleTableColumn = {
     key: 'src',
@@ -186,15 +201,61 @@ const idcColumns = (
       : []),
     ...(has('cred') ? [{ key: 'cred', label: 'Credential', width: IDC_COLUMN_WIDTHS.cred }] : []),
     ...(has('conn') ? [{ key: 'conn', label: '연결 상태', width: IDC_COLUMN_WIDTHS.conn }] : []),
+    // 시안 B — 셋은 `연동 논리 DB` 그룹 머리 아래 선다(`idcGroups`). 그래서 열 이름이
+    // 카테고리를 되풀이하지 않고 `대상`/`제외`/`관리` 한 마디로 짧아진다.
     ...(has('logicalro')
       ? [
-          { key: 'logicalDb', label: '연동 논리 DB', width: IDC_COLUMN_WIDTHS.logicalDb },
-          { key: 'logicalExcl', label: '연동 제외', width: IDC_COLUMN_WIDTHS.logicalExcl },
+          { key: 'logicalDb', label: '대상', width: IDC_COLUMN_WIDTHS.logicalDb },
+          { key: 'logicalExcl', label: '제외', width: IDC_COLUMN_WIDTHS.logicalExcl },
+          ...(canManage
+            ? [{ key: 'logicalManage', label: '관리', width: IDC_COLUMN_WIDTHS.logicalManage }]
+            : []),
         ]
       : []),
     ...(has('src') && srcAtEnd ? [src] : []),
   ];
 };
+
+/**
+ * 그룹 머리의 설명 — 두 수의 **관계**를 여기서 한 번만 말한다.
+ *
+ * `대상`과 `제외`가 나란히 서면 8 중 3 을 뺀 것처럼 읽힌다. 이 앱의 deny 모델에서 제외는
+ * 정책이지 스캔 결과의 부분집합이 아니라, 두 수를 더해도 무엇의 전체도 되지 않는다.
+ * 열 머리 두 개로는 말할 수 없고 행마다 되풀이할 수도 없는 사실이라, 그것을 덮는 그룹
+ * 머리가 가진다.
+ */
+const LogicalDbGroupHeader = () => (
+  <span className="inline-flex items-center gap-1">
+    연동 논리 DB
+    <Tooltip
+      variant="value"
+      size="lg"
+      content={
+        <span className={idcStyles.table.headerTipBody}>
+          대상은 최근 연결 테스트가 찾아낸 논리 DB 수, 제외는 모니터링에서 빼 두도록 설정한
+          수예요. 서로 다른 기준으로 세기 때문에 두 수를 더해도 전체가 되지 않아요.
+        </span>
+      }
+    >
+      <InfoCircleIcon className={cn('h-3.5 w-3.5', textColors.tertiary)} aria-label="연동 논리 DB 설명" />
+    </Tooltip>
+  </span>
+);
+
+/** 두 tier 헤더 — 셋(또는 관리 없이 둘)을 한 이름 아래로 묶는다. */
+const idcGroups = (has: (c: IdcTableCol) => boolean, canManage: boolean): ConsoleTableGroup[] =>
+  has('logicalro')
+    ? [
+        {
+          key: 'logicalro',
+          label: '연동 논리 DB',
+          head: <LogicalDbGroupHeader />,
+          columns: canManage
+            ? ['logicalDb', 'logicalExcl', 'logicalManage']
+            : ['logicalDb', 'logicalExcl'],
+        },
+      ]
+    : [];
 
 /** Value cell: approval rhythm + the console covenant (overflow cuts on the boundary). */
 const VALUE_CELL = cn(idcStyles.table.approvalCell, idcStyles.table.consoleCell);
@@ -231,7 +292,9 @@ export const IdcResourceTable = ({
   // 출발지는 전제라, 정체성 열들 사이에 끼면 접속 주소~Database Type 을 갈라놓는다.
   // step 3 은 아직 대상을 고르는 화면이라 앞자리를 지킨다.
   const srcAtEnd = cols[cols.length - 1] === 'src';
-  const columns = idcColumns(has, srcAtEnd);
+  const canManageLogical = has('logicalro') && !!onLogicalOpen;
+  const columns = idcColumns(has, srcAtEnd, canManageLogical);
+  const groups = idcGroups(has, canManageLogical);
 
   // One store for every step surface — cross-step alignment of the shared identity columns
   // (접속/Port/Database Type/출발지) is this table's founding complaint, so a width chosen on
@@ -260,7 +323,7 @@ export const IdcResourceTable = ({
         dialog accepts the console header (12px flat) over its former 14px one: one grammar,
         looked at from a modal. */}
     <div className={connected ? CONNECTED_FRAME : idcStyles.table.framePaged}>
-      <ConsoleTable columns={columns} resize={resize}>
+      <ConsoleTable columns={columns} groups={groups} resize={resize}>
         <tbody className={idcStyles.table.body}>
           {pageRows.map((r) => {
             // 제외 행을 흐리게 하지 않는다: 승인 화면에서 제외 행은 가장 감사해야 하는 행이고,
@@ -274,7 +337,7 @@ export const IdcResourceTable = ({
                 </td>
                 {/* 0 is the adapter's "no port in the payload" value, not a port — an em-dash
                     says the field is missing instead of asserting a nonsense one. */}
-                <td className={cn(VALUE_CELL, 'font-mono text-[12px]', textColors.secondary, CELL_LIFT)}>
+                <td className={cn(VALUE_CELL, 'font-mono text-[14px]', textColors.secondary, CELL_LIFT)}>
                   {r.port || <span className={textColors.tertiary}>—</span>}
                 </td>
                 <td className={VALUE_CELL}>
@@ -315,7 +378,10 @@ export const IdcResourceTable = ({
                       // 컷은 열이 소유한다(max-w-full): 픽셀 캡이 남아 있으면 열을 드래그로
                       // 늘려도 이름이 더 안 보이는 리사이즈 벽이 된다. 264 열은 시드 실명
                       // 전부를 통째로 보여주고, 그보다 긴 운영 이름만 말줄임된다.
-                      className={cn(idcStyles.triggerBtn.linkNeutral, 'max-w-full')}
+                      // linkNeutralMd = linkNeutral at 14px. 행이 한 눈금으로 읽히도록
+                      // 옮겼다 (오너 2026-08-27) — `linkNeutral`(13px) 자체는 5·6단계
+                      // 카드의 링크들이 계속 들고 있어 건드리지 않는다.
+                      className={cn(idcStyles.triggerBtn.linkNeutralMd, 'max-w-full')}
                     >
                       {credentials?.[r.resourceId] ? (
                         <span className="min-w-0 truncate font-mono">{credentials[r.resourceId]}</span>
@@ -336,24 +402,42 @@ export const IdcResourceTable = ({
                 )}
                 {has('logicalro') && (
                   <>
-                    {/* `onLogicalOpen` 이 없으면 셀에 onOpen 을 **주지 않는다**. `() => x?.(r)`
-                        는 언제나 truthy 라, 열 곳이 없는 화면(확인 모달)에서도 숫자가 눌리는
-                        버튼으로 그려졌다 — LogicalDbCountCell 이 "아무 일도 안 하는 컨트롤
-                        대신 평문" 이라고 정해 둔 바로 그 상태다. */}
+                    {/* 시안 B — 수는 **값**이고 행위는 옆 칸의 이름 붙은 버튼이다.
+                        전에는 두 수가 각자 버튼이었는데 둘 다 같은 모달을 열었다: 문이
+                        둘로 보이지만 방은 하나라, 어느 쪽을 눌러야 하는지 고르는 일이
+                        아무것도 바꾸지 않았다. 이제 수는 평문(onOpen 을 주지 않는다 —
+                        LogicalDbCountCell 의 "아무 일도 안 하는 컨트롤 대신 평문" 갈래)
+                        이고, 문은 하나이며 이름을 갖는다. */}
                     <td className={idcStyles.table.approvalCell}>
                       <LogicalDbCountCell
                         count={logicalDbCounts?.get(r.resourceId)?.target ?? null}
-                        label={`${r.hosts[0] ?? r.resourceId} 연동 논리 DB 목록 보기`}
-                        onOpen={onLogicalOpen ? () => onLogicalOpen(r) : undefined}
+                        label={`${r.hosts[0] ?? r.resourceId} 연동 대상 논리 DB`}
                       />
                     </td>
                     <td className={idcStyles.table.approvalCell}>
                       <LogicalDbCountCell
                         count={logicalDbCounts?.get(r.resourceId)?.excluded ?? null}
-                        label={`${r.hosts[0] ?? r.resourceId} 연동 제외 대상 보기`}
-                        onOpen={onLogicalOpen ? () => onLogicalOpen(r) : undefined}
+                        label={`${r.hosts[0] ?? r.resourceId} 연동 제외 논리 DB`}
                       />
                     </td>
+                    {/* 건수와 무관하게 언제나 선다. 제외 정책은 실행이 만드는 것이 아니라
+                        운영자가 쓰는 것이라, 아직 보고가 없거나(—) 0건인 리소스 — 정책을
+                        가장 손봐야 할 리소스 — 에도 문이 있어야 한다. 어휘는 클라우드
+                        5단계의 `설정` 을 그대로 쓴다. */}
+                    {canManageLogical && (
+                      <td className={idcStyles.table.approvalCell}>
+                        <button
+                          type="button"
+                          onClick={() => onLogicalOpen?.(r)}
+                          // 행마다 반복되는 버튼은 자기 행을 이름표에 실어야 한다 — 같은
+                          // 이름의 버튼 열 개는 스크린리더에서 구별되지 않는다.
+                          aria-label={`${r.hosts[0] ?? r.resourceId} 연동 논리 DB 설정`}
+                          className={cn(idcStyles.triggerBtn.ghostSm, 'whitespace-nowrap')}
+                        >
+                          설정
+                        </button>
+                      </td>
+                    )}
                   </>
                 )}
                 {srcAtEnd && has('src') && (

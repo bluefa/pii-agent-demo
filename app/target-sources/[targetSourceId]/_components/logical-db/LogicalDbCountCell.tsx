@@ -15,6 +15,10 @@ import { cn, idcStyles, numericFeatures, textColors } from '@/lib/theme';
  * Neutral in both columns: the header says which is 연동 and which is 제외, so tinting the
  * numbers repeats that in a louder channel once per row.
  *
+ * 단위(`개`)는 자기 크기를 갖지 않는다 — 수에서 물려받아 14px 로 선다 (오너 2026-08-27:
+ * IDC 표의 행은 글자 크기 하나로 읽는다). 전에는 12px 이라 한 칸 안에서 수와 단위가 두
+ * 눈금으로 갈렸고, 그 12 는 이 컴포넌트를 함께 쓰는 클라우드 표에도 같이 서 있었다.
+ *
  * Shared by the cloud (WaitingApprovalTable) and IDC (IdcResourceTable) step-6 tables.
  */
 export const LogicalDbCountCell = ({
@@ -38,7 +42,7 @@ export const LogicalDbCountCell = ({
     return (
       <span className={cn('text-[14px] font-medium', numericFeatures.tabular, textColors.tertiary)}>
         {count}
-        <span className="ml-px text-[12px]">개</span>
+        <span className="ml-px">개</span>
       </span>
     );
   }
@@ -50,7 +54,7 @@ export const LogicalDbCountCell = ({
       className={cn(idcStyles.triggerBtn.linkNeutralMd, numericFeatures.tabular)}
     >
       {count}
-      <span className="text-[12px] font-medium">개</span>
+      <span className="font-medium">개</span>
     </button>
   );
 };

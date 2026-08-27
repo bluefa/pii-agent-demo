@@ -30,6 +30,30 @@ export const nearestSeamX = (clientX: number, ths: ArrayLike<Element>): number |
   return best;
 };
 
+/**
+ * A header that spans several adjacent leaf columns — the second tier of a two-tier
+ * `<thead>`. Declare one when a single name owns a run of columns that only mean
+ * something together (연동 논리 DB → 대상 · 제외 · 관리): without it each leaf has to
+ * repeat the category in its own label, and the run stops reading as one thing.
+ *
+ * The group owns NO width. Widths, the resize handles and the slack sink all stay with
+ * the leaf columns — a group cell is a label over a span, not a column.
+ *
+ * ⛔ `columns` must be contiguous in the `columns` array and in that same order. A group
+ * whose members are separated by an ungrouped column cannot be drawn as one `colSpan`,
+ * and the header would silently misalign with the body.
+ */
+export interface ConsoleTableGroup {
+  /** Stable key — React key only; no width is stored under it. */
+  key: string;
+  /** Group header text. Doubles as the colgroup cell's accessible name. */
+  label: string;
+  /** Rendered header content when it is more than the label — e.g. an explainer tooltip. */
+  head?: ReactNode;
+  /** The leaf column keys this group spans, in render order. */
+  columns: readonly string[];
+}
+
 export interface ConsoleTableColumn {
   /** Stable key — `useColumnResize` stores this column's dragged width under it, so it
    *  outlives the label (which may be localized or renamed) and the column's position. */
@@ -135,6 +159,7 @@ const ConsoleTh = ({
   sinkKey,
   resize,
   isLast,
+  rowSpan,
 }: {
   column: ConsoleTableColumn;
   columnSum: number;
@@ -142,6 +167,9 @@ const ConsoleTh = ({
   resize?: ColumnResize;
   /** Last column: its right edge is the table's OUTER edge, not an interior seam. */
   isLast?: boolean;
+  /** 2 when a two-tier header exists and this column sits outside every group — the cell
+   *  has to reach down through the leaf row, or the body shifts one row up under it. */
+  rowSpan?: number;
 }) => (
   <th
     // The handle below is a CHILD of this cell and carries its own aria-label, which the
@@ -150,6 +178,15 @@ const ConsoleTh = ({
     // with that as its header. Naming the cell explicitly stops the subtree from being
     // walked. (⛔ Do not "simplify" this away as duplicating the visible label.)
     aria-label={column.label}
+    // A leaf header, whether or not a group sits above it. Required once the thead has two
+    // rows (the colgroup cell above carries `scope="colgroup"`), and correct in the one-row
+    // case too, so it is unconditional rather than a second code path.
+    scope="col"
+    // The seam tracer looks columns up BY KEY rather than walking the DOM: with a two-tier
+    // header the leaf cells live in two different `<tr>`s, so document order stops matching
+    // left-to-right order and `nearestSeamX`'s "skip the outer edge" would skip the wrong one.
+    data-col-key={column.key}
+    rowSpan={rowSpan}
     className={cn(idcStyles.table.approvalHeaderCell, 'relative', column.headClassName)}
     // Floors live on the table's `min-width`, never here — a `table-fixed` cell ignores
     // `min-width`, so the only way to hold one is to keep the whole table above the sum.
@@ -194,6 +231,9 @@ interface ConsoleTableProps {
   /** Every column, in render order. A column the caller omits simply does not exist —
    *  that is how an optional column (one only some rows can fill) is expressed. */
   columns: readonly ConsoleTableColumn[];
+  /** Second-tier headers over runs of `columns`. Omit for the ordinary one-row header —
+   *  the two-tier `<thead>` only exists when a caller declares a group. */
+  groups?: readonly ConsoleTableGroup[];
   /** Drag-resize instance. Owned by the CALLER, not by this shell: its storage key and
    *  content cap belong to one screen's table, while this shell is shared. Omit it for
    *  a fixed-width console table. */
@@ -244,11 +284,53 @@ interface ConsoleTableProps {
  * Frame and chrome (border, counter band, search, pagination) stay OUTSIDE: this shell
  * is the table, not the panel around it.
  */
-export const ConsoleTable = ({ columns, resize, children, busy }: ConsoleTableProps) => {
+/**
+ * Split `columns` into the two header rows.
+ *
+ * `top` walks the columns in order and emits either a group cell (consuming that group's
+ * whole run) or the column itself; `leaf` is every grouped column, in the same order, for
+ * the second row. With no groups, `leaf` is empty and `top` is just the columns — which is
+ * how one call site serves both header shapes.
+ *
+ * `isLast` is computed against the COLUMN array, not against either row: it marks the cell
+ * whose right edge is the table's outer edge, and that is a fact about the table.
+ */
+const splitHeaderTiers = (
+  columns: readonly ConsoleTableColumn[],
+  groups?: readonly ConsoleTableGroup[],
+): {
+  top: ({ group: ConsoleTableGroup; column?: undefined; isLast?: undefined } | { group?: undefined; column: ConsoleTableColumn; isLast: boolean })[];
+  leaf: { column: ConsoleTableColumn; isLast: boolean }[];
+} => {
+  const lastKey = columns[columns.length - 1]?.key;
+  const groupOf = (key: string) => groups?.find((group) => group.columns.includes(key));
+  const top: ReturnType<typeof splitHeaderTiers>['top'] = [];
+  const leaf: ReturnType<typeof splitHeaderTiers>['leaf'] = [];
+  for (let index = 0; index < columns.length; index += 1) {
+    const column = columns[index];
+    const group = groupOf(column.key);
+    if (group) {
+      top.push({ group });
+      for (let member = 0; member < group.columns.length; member += 1) {
+        const child = columns[index + member];
+        if (child) leaf.push({ column: child, isLast: child.key === lastKey });
+      }
+      index += group.columns.length - 1;
+      continue;
+    }
+    top.push({ column, isLast: column.key === lastKey });
+  }
+  return { top, leaf };
+};
+
+export const ConsoleTable = ({ columns, groups, resize, children, busy }: ConsoleTableProps) => {
   const wrapRef = useRef<HTMLDivElement>(null);
   const tracerRef = useRef<HTMLDivElement>(null);
   const sinkKey = slackSinkKey(columns, resize);
   const columnSum = columns.reduce((sum, column) => sum + consoleColumnWidth(column, resize), 0);
+  // Groups carry no width, so this never touches `columnSum` or the sink — it only decides
+  // which of the two `<tr>`s each header cell is drawn in.
+  const headerTiers = splitHeaderTiers(columns, groups);
   // Any width change — drag step, arrow key, double-click, reset, storage hydration —
   // douses the tracer and latches it dark until the pointer is next seen OUTSIDE a seam
   // zone; without the latch the band reappears under the parked cursor the moment a drag
@@ -274,7 +356,23 @@ export const ConsoleTable = ({ columns, resize, children, busy }: ConsoleTablePr
       tracer.style.opacity = '0';
       return;
     }
-    const ths = wrap.querySelectorAll('thead th');
+    // BY KEY, in the caller's declared order — see `data-col-key` on ConsoleTh. Group
+    // cells carry no key, so they never offer a seam: a group boundary is always also a
+    // leaf boundary, and the leaf is the thing a drag actually resizes.
+    //
+    // Collected into a map and then indexed, NOT looked up with one selector per column:
+    // a column key is caller data and can hold any character, so a selector would need
+    // `CSS.escape` — which jsdom does not implement, so the whole handler threw there and
+    // the tracer went dead in tests before it could go dead on a real page.
+    const byKey = new Map<string, Element>();
+    wrap.querySelectorAll('thead th[data-col-key]').forEach((th) => {
+      const key = (th as HTMLElement).dataset.colKey;
+      if (key !== undefined) byKey.set(key, th);
+    });
+    const ths = columns
+      .map((column) => byKey.get(column.key))
+      .filter((th): th is Element => th !== undefined);
+    if (ths.length === 0) return;
     const seamX = nearestSeamX(event.clientX, ths);
     if (seamX === null) {
       suppressRef.current = false;
@@ -288,6 +386,9 @@ export const ConsoleTable = ({ columns, resize, children, busy }: ConsoleTablePr
     const x = seamX - wrapRect.left + wrap.scrollLeft - SEAM_BAND_PX;
     // Body only: the header keeps its line grammar (rails + the grab guide), so the band
     // starts under the thead rule instead of washing over the header labels.
+    // Any LEAF cell's bottom is the thead's bottom: an ungrouped one spans both rows, a
+    // grouped one sits in the last row. The group cells above end higher and would slide
+    // the band up over the leaf labels.
     tracer.style.top = `${ths[0].getBoundingClientRect().bottom - wrapRect.top}px`;
     tracer.style.transform = `translateX(${x}px)`;
     tracer.style.opacity = '1';
@@ -322,18 +423,49 @@ export const ConsoleTable = ({ columns, resize, children, busy }: ConsoleTablePr
         style={sinkKey !== null ? { minWidth: columnSum } : { width: columnSum }}
       >
         <thead className={idcStyles.table.approvalHeaderFlat}>
+          {/* One row, or two when the caller declared groups. The two-tier shape is the
+              `<thead>`-with-two-`<tr>` + scope="colgroup"/"col" structure (not a styling
+              trick): assistive tech associates a body cell with BOTH tiers only when the
+              markup says so. */}
           <tr className="whitespace-nowrap">
-            {columns.map((column, index) => (
-              <ConsoleTh
-                key={column.key}
-                column={column}
-                columnSum={columnSum}
-                sinkKey={sinkKey}
-                resize={resize}
-                isLast={index === columns.length - 1}
-              />
-            ))}
+            {headerTiers.top.map((cell) =>
+              cell.group ? (
+                <th
+                  key={cell.group.key}
+                  scope="colgroup"
+                  colSpan={cell.group.columns.length}
+                  aria-label={cell.group.label}
+                  className={idcStyles.table.consoleGroupHeaderCell}
+                >
+                  {cell.group.head ?? cell.group.label}
+                </th>
+              ) : (
+                <ConsoleTh
+                  key={cell.column.key}
+                  column={cell.column}
+                  columnSum={columnSum}
+                  sinkKey={sinkKey}
+                  resize={resize}
+                  isLast={cell.isLast}
+                  rowSpan={headerTiers.leaf.length > 0 ? 2 : undefined}
+                />
+              ),
+            )}
           </tr>
+          {headerTiers.leaf.length > 0 && (
+            <tr className="whitespace-nowrap">
+              {headerTiers.leaf.map((cell) => (
+                <ConsoleTh
+                  key={cell.column.key}
+                  column={cell.column}
+                  columnSum={columnSum}
+                  sinkKey={sinkKey}
+                  resize={resize}
+                  isLast={cell.isLast}
+                />
+              ))}
+            </tr>
+          )}
         </thead>
         {children}
       </table>

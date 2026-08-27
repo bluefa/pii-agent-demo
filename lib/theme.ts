@@ -1579,11 +1579,16 @@ export const idcStyles = {
    *  read as loud as the identity it was captioning; the row already spends its one
    *  colour on the kind badge. gray-500, not gray-400 — 11.5px semibold is not WCAG
    *  'large text', and gray-400 measures 2.54:1 on white against gray-500's 4.83:1. */
-  epToggle: 'text-[11.5px] font-semibold text-gray-500 hover:underline hover:text-gray-700',
+  /** 11.5px 은 v16 에서 넘어온 반 픽셀 값이라 디자인 가드가 받지 않는다. 행이 14px 한
+   *  눈금으로 정리되면서 이 토글도 같이 올라왔다 (오너 2026-08-27). */
+  epToggle: 'text-[14px] font-semibold text-gray-500 hover:underline hover:text-gray-700',
   /** Oracle SID key — `.idc-sid-k` (10px / 700 / fg-4 / ls .02em; bare, no bg/pad/radius). */
   // gray-500, not gray-400: this is text, and 10px bold is NOT WCAG 'large text'
   // (that starts at 18.66px bold). gray-400 measured 2.54:1 on white; gray-500 is 4.83:1.
-  sidKey: 'text-[10px] font-bold text-gray-500 tracking-[0.02em]',
+  /** IDC 표의 행은 글자 크기 하나(14px)로 읽는다 (오너 2026-08-27) — 이 키도 그 눈금에
+   *  선다. 작을수록 조용하던 자리를 이제 **무게와 색**이 맡는다: bold + gray-500 이
+   *  옆의 14px SID 값(tertiary, 보통 무게)보다 진하되 값보다 짧아 키로 읽힌다. */
+  sidKey: 'text-[14px] font-bold text-gray-500 tracking-[0.02em]',
   /** Field-level warning under an input — `.idc-field-warn` (#B45309 / 11.5px). */
   fieldWarn: 'mt-1 text-[11.5px] text-[#B45309]',
   /** Field-level error under an input — `.idc-field-err` (#DC2626 / 11.5px). */
@@ -1897,6 +1902,28 @@ export const idcStyles = {
     approvalHeaderDialog: 'bg-[#F7F8FA] text-left text-[14px] font-semibold text-[#4E5968]',
     /** Approval-table header cell padding — v16 12px V / 18px H. */
     approvalHeaderCell: 'px-[18px] py-3',
+    /**
+     * The colgroup cell of a two-tier console header (`ConsoleTableGroup`).
+     *
+     * Reads a step BELOW its leaves, not above them. The instinct is to make the group the
+     * louder of the two, but the leaves are what the reader matches a value against while
+     * scanning down — the group only says once what the run is called. So the leaves keep
+     * `approvalHeaderFlat`'s semibold #4E5968 and the group takes the weak ink at normal
+     * weight, which is the same order the crumb grammar uses (chrome sits two steps under
+     * the thing it labels).
+     *
+     * `text-center`: a label over a span belongs to the whole span, and left-aligning it
+     * parks it on the first leaf, which then reads as owning it.
+     *
+     * Vertical padding is shorter than `approvalHeaderCell` (py-2 vs py-3) because this
+     * cell stacks ON TOP of a full-height leaf row — matching them makes a 2-row header
+     * as tall as three body rows and the table stops starting at its data.
+     *
+     * No bottom border: the leaf row under it already carries `approvalHeaderFlat`'s
+     * #D1D5DB rule, and a second line would draw a box around a label.
+     */
+    consoleGroupHeaderCell:
+      'px-[18px] py-2 text-center text-[12px] font-medium text-[#8B95A1] border-b border-[#E5E8EB]',
     /** Approval-table body cell padding — v16 `.approval-table tbody td` 16px V / 18px H. */
     approvalCell: 'px-[18px] py-4',
     /**
