@@ -293,11 +293,13 @@ export const opsStyles = {
    * Geometry is `accessStyles.tab` verbatim (the 접근 권한 page tabs) — the admin
    * console should have one line-tab, not two that differ by a few px.
    */
-  /** 16/600 — 활자가 이 줄에서 유일하게 마스트헤드보다 크다 (오너 2026-08-27
-      "Navigation 픽셀을 16까지 올리고 semi bold"). 굵기는 활성·비활성이 같이 진다:
-      활성은 이미 잉크와 밑줄 두 레버를 들고 있어서, 굵기까지 가져가면 비활성이 한 단
-      더 내려앉고 선택이 아니라 나머지가 흐려진 것처럼 읽힌다. */
-  tab: 'flex cursor-pointer items-center gap-1.5 whitespace-nowrap border-b-2 -mb-px px-3 py-2.5 text-[16px] font-semibold transition-colors',
+  /** 14/600 — 크기는 다시 14 로 내렸고(오너 2026-08-27, 16 은 되돌림) 굵기만 남는다.
+      크기까지 오르면 탭이 이 화면에서 가장 큰 활자가 되어 블록 이름(14)을 넘어서는데,
+      띠를 만드는 일은 이미 선 두 개가 하고 있어서 활자가 더 낼 소리가 없었다.
+      굵기는 활성·비활성이 같이 진다: 활성은 이미 잉크와 밑줄 두 레버를 들고 있어서,
+      굵기까지 가져가면 비활성이 한 단 더 내려앉고 선택이 아니라 나머지가 흐려진 것처럼
+      읽힌다. */
+  tab: 'flex cursor-pointer items-center gap-1.5 whitespace-nowrap border-b-2 -mb-px px-3 py-2.5 text-[14px] font-semibold transition-colors',
   /** 잉크 + 밑줄. The face is gone, so 파랑 is the only thing marking the tab that
       is open — 4.69:1 on the wash (실측). */
   tabActive: 'text-[var(--pl-primary)] border-[var(--pl-primary)]',
