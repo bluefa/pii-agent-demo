@@ -38,6 +38,15 @@ export const GUIDE_NAMES = [
   'IDC_CONNECTION_TEST',
   'IDC_CONNECTION_VERIFIED',
   'IDC_COMPLETE',
+  // SDU (4) — the owner uploads the data, so the road is 1·4·6·7 and the other three
+  // steps have no screen to carry a guide. Steps 6·7 get their own copy rather than the
+  // shared cards: the shared 6 describes a 관리자 승인 that SDU does not have, and the
+  // shared 7 sends the reader to 인프라 변경 → 연동 대상 DB 선택, which is not what
+  // SDU's step 1 is called.
+  'SDU_TARGET_DEFINE',
+  'SDU_UPLOAD',
+  'SDU_INTEGRATING',
+  'SDU_COMPLETE',
 ] as const;
 
 export type GuideName = (typeof GUIDE_NAMES)[number];
@@ -49,7 +58,12 @@ export type GuideName = (typeof GUIDE_NAMES)[number];
 export type GuidePlacement =
   | {
       kind: 'process-step';
-      provider: 'AWS' | 'AZURE' | 'GCP' | 'IDC';
+      /**
+       * ⛔ Not `CloudProvider`. 'SDU' is a delivery method, not a cloud — an SDU target
+       * still has an underlying CSP — and this union names the guide's audience, which
+       * is the thing SDU differs on.
+       */
+      provider: 'AWS' | 'AZURE' | 'GCP' | 'IDC' | 'SDU';
       variant?: 'AUTO' | 'MANUAL';
       step: 1 | 2 | 3 | 4 | 5 | 6 | 7;
       stepLabel: string;

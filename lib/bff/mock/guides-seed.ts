@@ -145,6 +145,44 @@ const IDC_STEP_7_HTML =
   '</ul>';
 
 // ---------------------------------------------------------------------------
+// SDU step-keyed HTML — the owner uploads the data, so there is no scan, no
+// approval and no agent to install. Four steps carry a screen (1·4·6·7); the
+// seed has one entry per GuideName, and SDU contributes exactly those four.
+// ---------------------------------------------------------------------------
+
+const SDU_STEP_1_HTML =
+  '<h4>연동할 대상을 정의해 주세요</h4>' +
+  '<p>연동 권역을 고르고, 대상마다 클라우드 · Region · 업로드 IP · Database Type을 입력한 뒤 <strong>제출</strong>해 주세요.</p>' +
+  '<ul>' +
+  '<li>업로드 IP는 S3에 데이터를 올릴 때 사용하는 주소이며, 그 주소에서만 업로드가 허용됩니다.</li>' +
+  '<li>SDU는 연동 대상 승인 절차가 없어 제출 즉시 업로드 준비 단계로 넘어갑니다.</li>' +
+  '</ul>';
+
+const SDU_STEP_4_HTML =
+  '<h4>데이터를 업로드해 주세요</h4>' +
+  '<p>방화벽 결재를 확인하고, S3 Access Key를 받으실 분을 등록한 뒤 데이터를 업로드합니다. 업로드된 파일은 Region별 확인 명령으로 점검할 수 있습니다.</p>' +
+  '<ul>' +
+  '<li>S3 Access Key는 등록된 분들께 관리자가 메일로 직접 전달합니다.</li>' +
+  '<li>BDC 측 리소스 생성이 완료되면 다음 단계로 넘어갑니다.</li>' +
+  '</ul>';
+
+const SDU_STEP_6_HTML =
+  '<h4>업로드된 데이터를 연동하고 있어요</h4>' +
+  '<p>BDC 측에서 업로드된 데이터를 확인하고 연동하는 중입니다. 담당자가 추가로 하실 일은 없습니다.</p>' +
+  '<ul>' +
+  '<li>이 구간에서는 스캔 · 인프라 작업 · 연결 테스트가 관리자 콘솔에서 수행됩니다.</li>' +
+  '<li>연동이 끝나면 완료 단계로 넘어갑니다.</li>' +
+  '</ul>';
+
+const SDU_STEP_7_HTML =
+  '<h4>SDU 연동이 완료되었습니다</h4>' +
+  '<p>업로드하신 데이터가 PII 모니터링 대상으로 연동되었습니다.</p>' +
+  '<ul>' +
+  '<li>업로드할 대상이나 업로드 IP가 바뀌면 1단계로 돌아가 정의를 다시 제출해 주세요.</li>' +
+  '<li>1단계로 돌아가면 그동안의 업로드 확인 내역은 초기화됩니다.</li>' +
+  '</ul>';
+
+// ---------------------------------------------------------------------------
 // Assembly
 // ---------------------------------------------------------------------------
 
@@ -188,4 +226,9 @@ export const guidesSeed: Record<GuideName, GuideDetail> = {
   IDC_CONNECTION_TEST: entry('IDC_CONNECTION_TEST', STEP_5_HTML),
   IDC_CONNECTION_VERIFIED: entry('IDC_CONNECTION_VERIFIED', STEP_6_HTML),
   IDC_COMPLETE: entry('IDC_COMPLETE', STEP_7_HTML),
+  // SDU (4) — self-upload flow; steps 2·3·5 have no screen and therefore no guide.
+  SDU_TARGET_DEFINE: entry('SDU_TARGET_DEFINE', SDU_STEP_1_HTML),
+  SDU_UPLOAD: entry('SDU_UPLOAD', SDU_STEP_4_HTML),
+  SDU_INTEGRATING: entry('SDU_INTEGRATING', SDU_STEP_6_HTML),
+  SDU_COMPLETE: entry('SDU_COMPLETE', SDU_STEP_7_HTML),
 };

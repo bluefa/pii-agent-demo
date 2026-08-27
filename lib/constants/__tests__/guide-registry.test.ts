@@ -8,8 +8,11 @@ import {
 } from '@/lib/constants/guide-registry';
 
 describe('guide-registry', () => {
-  it('GUIDE_NAMES has exactly 29 entries', () => {
-    expect(GUIDE_NAMES).toHaveLength(29);
+  it('GUIDE_NAMES has exactly 33 entries', () => {
+    // 29 + SDU's four. SDU adds four rather than seven because its road walks 1·4·6·7 and
+    // strikes 2·3·5 — a guide slot for a step no target can stand on is a guide nobody
+    // would ever read and nobody would notice going stale.
+    expect(GUIDE_NAMES).toHaveLength(33);
   });
 
   it('every GUIDE_SLOTS entry references a name in GUIDE_NAMES', () => {

@@ -18,6 +18,7 @@ import type { ConfirmRewindKind } from '@/app/target-sources/[targetSourceId]/_c
 const FAILURE_MESSAGE: Record<ConfirmRewindKind, string> = {
   infra: '인프라 변경(연동 상태 초기화)에 실패했습니다.',
   retest: '연결 테스트 재실행 요청에 실패했습니다.',
+  sduRedefine: '연동 대상 수정(연동 상태 초기화)에 실패했습니다.',
 };
 
 /**
@@ -27,6 +28,7 @@ const FAILURE_MESSAGE: Record<ConfirmRewindKind, string> = {
 const REFRESH_FAILURE_MESSAGE: Record<ConfirmRewindKind, string> = {
   infra: '인프라 변경은 처리됐지만 화면을 갱신하지 못했어요. 새로고침해 주세요.',
   retest: '연결 테스트 재실행은 처리됐지만 화면을 갱신하지 못했어요. 새로고침해 주세요.',
+  sduRedefine: '연동 대상 수정은 처리됐지만 화면을 갱신하지 못했어요. 새로고침해 주세요.',
 };
 
 interface RewindArgs {
@@ -77,8 +79,12 @@ export const useRewindStep = (
   const rewind = useMemo(
     () =>
       async ({ kind, reason }: RewindArgs) => {
-        if (kind === 'infra') await resetTargetSource(targetSourceId, reason);
-        else await updateTestConnectionConfirmation(targetSourceId, false);
+        // `retest` is the one kind that rolls back a confirmation; every other kind is a
+        // full reset to 1단계. Written as an allow-list on `retest` rather than on
+        // `infra`, so a fourth reset-shaped kind cannot arrive and silently take the
+        // connection-test branch by not matching a name.
+        if (kind === 'retest') await updateTestConnectionConfirmation(targetSourceId, false);
+        else await resetTargetSource(targetSourceId, reason);
         // 성공을 값으로 돌려준다 — 훅은 실패했을 때만 undefined 를 주므로, 이 sentinel 이
         // 있어야 void 성공과 실패가 구분된다.
         return true as const;

@@ -5,7 +5,6 @@ import type { TargetSource } from '@/lib/types';
 import {
   ErrorState,
   GuidePanel,
-  SduUnsupportedNotice,
 } from '@/app/target-sources/[targetSourceId]/_components/common';
 import type { JiraTicketState } from '@/app/target-sources/[targetSourceId]/_components/common/GuidePanel';
 import type { RailCollapsed } from '@/app/components/ui/RailCollapse';
@@ -14,6 +13,7 @@ import { AwsProjectPage } from '@/app/target-sources/[targetSourceId]/_component
 import { AzureProjectPage } from '@/app/target-sources/[targetSourceId]/_components/azure';
 import { GcpProjectPage } from '@/app/target-sources/[targetSourceId]/_components/gcp';
 import { IdcProjectPage } from '@/app/target-sources/[targetSourceId]/_components/idc';
+import { SduProjectPage } from '@/app/target-sources/[targetSourceId]/_components/sdu';
 import { ServiceListPanel } from '@/app/target-sources/[targetSourceId]/_components/ServiceListPanel';
 
 // The middle column is the page's only scroller — the row above it is height-fixed
@@ -44,6 +44,27 @@ export const ProjectDetail = ({
   // Right column wrapper is a <div> (not <main>) — provider pages already
   // render their own <main>, and nesting two <main> elements is invalid.
   const renderProvider = () => {
+    // SDU is checked BEFORE the provider switch, and it is not a case in it: SDU names how
+    // the data arrives, not where it lives, so an SDU target still carries a real
+    // `cloudProvider` and would fall straight into that provider's page — a screen that
+    // would scan an account nobody is installing into.
+    //
+    // This used to be a full-page 「아직 지원하지 않는 서비스 타입입니다」 notice mounted in
+    // place of the whole layout, rail included. The flow exists now, so the notice is gone
+    // and the SDU page takes the same slot every other provider page takes — inside the
+    // scroll column, with ServiceListPanel to its left and the guide rail to its right.
+    // Keyed by targetSourceId for the same reason IDC is: switching targets fully remounts
+    // the subtree so no per-target state leaks across (DR2).
+    if (project.isSduType) {
+      return (
+        <SduProjectPage
+          key={project.targetSourceId}
+          project={project}
+          onProjectUpdate={setProject}
+        />
+      );
+    }
+
     switch (project.cloudProvider) {
       case 'AWS':
         return <AwsProjectPage project={project} onProjectUpdate={setProject} />;
@@ -65,25 +86,6 @@ export const ProjectDetail = ({
         return <ErrorState message="지원하지 않는 클라우드 프로바이더예요." />;
     }
   };
-
-  // SDU is not an account we install into — the owner uploads the data themselves —
-  // so no step, no resource table and no install status on this page has anything to
-  // say about it. Gate here rather than inside each provider page: this way nothing
-  // downstream mounts and nothing is fetched, instead of a full screen loading itself
-  // only to come back empty. The rail goes too — it reports on install progress that
-  // does not exist. The service list stays, because it is how you leave.
-  if (project.isSduType) {
-    return (
-      <div className="flex h-[calc(100vh-64px)]">
-        <ServiceListPanel
-          currentService={{ code: project.serviceCode, name: project.serviceName }}
-        />
-        <div className={SCROLL_COLUMN}>
-          <SduUnsupportedNotice />
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="flex h-[calc(100vh-64px)]">

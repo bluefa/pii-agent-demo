@@ -40,10 +40,12 @@ describe('Guide resolver — spec §8.1', () => {
     expect(slot).toBeUndefined();
   });
 
-  it('case 4: GUIDE_SLOTS has 35 unique keys', () => {
+  it('case 4: GUIDE_SLOTS has 39 unique keys', () => {
+    // 35 + SDU's four (1·4·6·7). The other three SDU steps are struck on the road, so
+    // they get no slot — see `process.sdu.*` in the registry.
     const keys = Object.keys(GUIDE_SLOTS);
-    expect(keys).toHaveLength(35);
-    expect(new Set(keys).size).toBe(35);
+    expect(keys).toHaveLength(39);
+    expect(new Set(keys).size).toBe(39);
   });
 
   it('case 5: every current slot is process-step kind', () => {

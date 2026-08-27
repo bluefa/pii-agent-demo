@@ -4,6 +4,5 @@ export { ErrorState } from '@/app/target-sources/[targetSourceId]/_components/co
 export { AccessDeniedState } from '@/app/target-sources/[targetSourceId]/_components/common/AccessDeniedState';
 export { RejectionAlert } from '@/app/target-sources/[targetSourceId]/_components/common/RejectionAlert';
 export { GuidePanel } from '@/app/target-sources/[targetSourceId]/_components/common/GuidePanel';
-export { SduUnsupportedNotice } from '@/app/target-sources/[targetSourceId]/_components/common/SduUnsupportedNotice';
 export { CardActionBar } from '@/app/target-sources/[targetSourceId]/_components/common/CardActionBar';
 export type { ProjectIdentity, TargetSourceIdentifier } from '@/app/target-sources/[targetSourceId]/_components/common/project-identity';

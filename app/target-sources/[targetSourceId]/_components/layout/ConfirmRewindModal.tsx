@@ -4,7 +4,14 @@ import { useRef, useState, type ReactNode } from 'react';
 import { ConfirmStepModal } from '@/app/components/ui/ConfirmStepModal';
 import { cn, idcStyles, primaryColors, statusColors, textColors } from '@/lib/theme';
 
-export type ConfirmRewindKind = 'infra' | 'retest';
+/**
+ * `sduRedefine` is the same API call as `infra` (POST …/reset) told in the words of a flow
+ * that has no infrastructure. An SDU owner never installed an Agent and never asked anyone
+ * for approval, so `infra`'s 「이미 끝난 Agent 설치와 승인은 모두 사라져요」 names two things
+ * that never happened to them, and its 「연동 대상 DB 선택」 names a step that is not what
+ * SDU's 1단계 is called.
+ */
+export type ConfirmRewindKind = 'infra' | 'retest' | 'sduRedefine';
 
 /** swagger TargetSourceResetRequestDto.reason 의 maxLength — 잘려 저장되기 전에 화면이 막는다. */
 const RESET_REASON_MAXLEN = 1000;
@@ -14,6 +21,13 @@ interface ConfirmStepContent {
   desc: ReactNode;
   /** Only when the rewind destroys work the sentence above cannot imply — see `infra`. */
   note?: string;
+  /**
+   * The reset API requires a reason and writes it to the audit log, so the two kinds that
+   * call it ask for one. Declared per kind rather than as an equality test on the kind:
+   * the third kind was added by copying that test's `=== 'infra'` and it silently did not
+   * apply, which is a disabled 확인 button and no way to learn why.
+   */
+  needsReason?: true;
 }
 
 /**
@@ -50,6 +64,21 @@ const CONTENT: Record<ConfirmRewindKind, ConfirmStepContent> = {
     // Kept: this rewind throws away a completed installation, which the sentence above
     // does not imply.
     note: '이미 끝난 Agent 설치와 승인은 모두 사라져요.',
+    needsReason: true,
+  },
+  sduRedefine: {
+    title: '연동 대상을 수정할까요?',
+    desc: (
+      <>
+        {'확인을 누르면 '}
+        <strong className={cn('font-semibold', primaryColors.text)}>1단계</strong>
+        {'로 돌아가, 연동 대상 정의부터 다시 진행해요.'}
+      </>
+    ),
+    // What this rewind actually destroys for an SDU target: the firewall and upload
+    // confirmations, which are per-Region and have to be given again.
+    note: '지금까지의 업로드 확인 내역은 모두 사라져요.',
+    needsReason: true,
   },
 };
 
@@ -89,7 +118,7 @@ export const ConfirmRewindModal = ({
   if (!kind) return null;
   const content = CONTENT[kind];
   // 사유는 초기화 API 의 required 필드이고 감사 로그에 남는다 — 되돌릴 수 없는 쪽만 묻는다.
-  const needsReason = kind === 'infra';
+  const needsReason = content.needsReason === true;
   const trimmedReason = reason.trim();
 
   return (

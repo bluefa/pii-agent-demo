@@ -563,6 +563,11 @@ const TEXT: TextPair[] = [
   // Stepper labels are text; the dots are the state markers, i.e. non-text per 1.4.11.
   { what: 'stepper rest label on the page wash', fg: textOf(classOf(stepperBlock, 'labelRest')), on: canvas },
   { what: 'stepper current label on the page wash', fg: textOf(classOf(stepperBlock, 'labelCurrent')), on: canvas },
+  // A struck step (SDU 2·3·5) is still a sentence the reader has to be able to read — the
+  // strike says it is not on their road, not that it is decoration. #6B7684, the quiet
+  // tier's usual grey, measures 4.22:1 on this wash: the same AA miss that moved the
+  // header's `kvLabel` to #68717F, and the reason this token does not share that grey.
+  { what: 'stepper struck label on the page wash', fg: textOf(classOf(stepperBlock, 'labelSkipped')), on: canvas },
   { what: 'stepper pending dot on the page wash', fg: bgOf(classOf(stepperBlock, 'dotPending')), on: canvas, min: 3.0 },
   { what: 'stepper done dot on the page wash', fg: bgOf(classOf(stepperBlock, 'dotDone')), on: canvas, min: 3.0 },
   { what: 'stepper current dot on the page wash', fg: bgOf(classOf(stepperBlock, 'dotCurrent')), on: canvas, min: 3.0 },
@@ -1148,16 +1153,21 @@ describe('step tag rides the title row', () => {
   const byToken = appTsx.filter((f) => read(f).includes(TAG_USE));
 
   it('is worn by every step card there is', () => {
-    // Cloud 1·2·3·4·5·6·7 and IDC 1·2·3·5·6·7 — thirteen heads, one grammar.
+    // Cloud 1·2·3·4·5·6·7, IDC 1·2·3·5·6·7 and SDU 1·4·6·7 — seventeen heads, one grammar.
     // The two sets pin each other: a head that renders a pill without the token, or wears
     // the token in a shape this scan cannot read, breaks the equality rather than hiding.
     //
-    // 13 counts the TAGGED heads, not every card head. `ApprovalUnavailableCard` also
+    // SDU contributes four, not seven: 2·3·5 are struck on its road
+    // (`InstallationProcessProgressBar` variant="sdu"), so there is no card to head. Its
+    // numbers are 1·4·6·7 and NOT 1·2·3·4 — the tag has to name the same position for
+    // every integration type or two people reading 「4단계」 are not reading one place.
+    //
+    // 17 counts the TAGGED heads, not every card head. `ApprovalUnavailableCard` also
     // wears `cardStyles.cardTitle` and carries no tag: it stands in for step 2 when the
     // target is ruled out, and whether that state has a step number is a product question,
     // not a token one. It predates this census — do not read the count as blessing it.
     expect(byToken).toEqual(byPill);
-    expect(byToken).toHaveLength(13);
+    expect(byToken).toHaveLength(17);
   });
 
   it('carries no margin of its own — it is a flex child, not a line', () => {

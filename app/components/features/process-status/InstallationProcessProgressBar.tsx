@@ -4,6 +4,10 @@ import { useState, type ReactNode } from 'react';
 import { ProcessStatus } from '@/lib/types';
 import { ChevronDownIcon } from '@/app/components/ui/icons';
 import { cn, installStepperStyles as s, projectHeaderStyles } from '@/lib/theme';
+import {
+  SDU_STEP_TITLES,
+  sduStepOf,
+} from '@/app/target-sources/[targetSourceId]/_components/sdu/sdu-steps';
 
 const INSTALL_STEPS = [
   { step: ProcessStatus.WAITING_TARGET_CONFIRMATION, label: '연동 대상 DB 선택' },
@@ -19,6 +23,33 @@ const INSTALL_STEPS = [
 const TEST_INDEX = INSTALL_STEPS.findIndex(
   (it) => it.step === ProcessStatus.WAITING_CONNECTION_TEST,
 );
+
+/**
+ * SDU walks four of the seven (1·4·6·7) and names them differently — 4 is an upload, not
+ * an install. Keyed by step NUMBER rather than by `ProcessStatus`, because two statuses
+ * fold onto one SDU step and this table is about the road, not about where a target is.
+ * A Map, not an index into `SDU_STEP_TITLES`: that record's key type is the four SDU steps
+ * only, so reading it with an arbitrary loop counter would need a cast to compile.
+ */
+const SDU_LABELS = new Map<number, string>([
+  [1, SDU_STEP_TITLES[1]],
+  [4, SDU_STEP_TITLES[4]],
+  [6, SDU_STEP_TITLES[6]],
+  [7, SDU_STEP_TITLES[7]],
+]);
+
+/**
+ * The other three, and WHY each is gone — they are struck, never removed. Deleting them
+ * would renumber nothing (the numbers are fixed) but it would leave a reader whose road
+ * has no 승인 대기 with no way to learn that SDU has no approval at all, as opposed to
+ * their target having skipped it. 5 is the subtle one: the connection test still happens,
+ * it is just not the owner's to run.
+ */
+const SDU_SKIPPED = new Map<number, string>([
+  [2, '승인 없음'],
+  [3, '승인 없음'],
+  [5, '연결 테스트는 BDC가 수행'],
+]);
 
 /** Names the 설치 진행 region (`aria-labelledby`), like 설치 대상 above it. */
 const PROGRESS_LABEL_ID = 'install-progress-label';
@@ -41,6 +72,13 @@ interface InstallationProcessProgressBarProps {
    * before the target reaches 연결 테스트, and nothing while the road is shut.
    */
   tcTag?: ReactNode;
+  /**
+   * `'sdu'` re-labels the four steps SDU walks and strikes the three it does not. The
+   * road keeps all seven slots and the numbering never shifts — 「4단계」 has to point at
+   * the same place for every integration type, or an operator and an owner cannot say
+   * 「4단계에서 막혀 있다」 to each other and mean one thing.
+   */
+  variant?: 'sdu';
 }
 
 /**
@@ -59,13 +97,21 @@ interface InstallationProcessProgressBarProps {
 export const InstallationProcessProgressBar = ({
   currentStep,
   tcTag,
+  variant,
 }: InstallationProcessProgressBarProps) => {
   const [stepsOpen, setStepsOpen] = useState(false);
   // ProcessStatus is exactly these seven, but the value arrives over the wire —
   // an unknown one drops the position line rather than printing 「0단계」. The row used to
   // hold the matched step for its `.label`; it prints only numbers now, so the index is
   // the whole guard.
-  const currentIndex = INSTALL_STEPS.findIndex((it) => it.step === currentStep);
+  // SDU folds two statuses onto step 4 and two onto step 6, so its position cannot be
+  // read off this list — `sduStepOf` owns that mapping. It returns `undefined` for a
+  // status outside the seven, which lands on the same -1 the default lookup gives.
+  const sduStep = variant === 'sdu' ? sduStepOf(currentStep) : undefined;
+  const currentIndex =
+    variant === 'sdu'
+      ? (sduStep ?? 0) - 1
+      : INSTALL_STEPS.findIndex((it) => it.step === currentStep);
   const done = currentIndex === INSTALL_STEPS.length - 1;
 
   return (
@@ -146,6 +192,10 @@ export const InstallationProcessProgressBar = ({
           style={{ gridTemplateColumns: `repeat(${INSTALL_STEPS.length}, minmax(0, 1fr))` }}
         >
           {INSTALL_STEPS.map((it, index) => {
+            const stepNumber = index + 1;
+            // The reason this slot is struck, or undefined when the type walks it.
+            const skippedReason = variant === 'sdu' ? SDU_SKIPPED.get(stepNumber) : undefined;
+            const label = (variant === 'sdu' && SDU_LABELS.get(stepNumber)) || it.label;
             const isLast = index === INSTALL_STEPS.length - 1;
             const isCurrent = index === currentIndex;
             const isCompleted = currentIndex > index;
@@ -155,7 +205,16 @@ export const InstallationProcessProgressBar = ({
             const leftWalked = index > 0 && index <= currentIndex;
             const rightWalked = index < currentIndex;
             return (
-              <li key={it.step} aria-current={isCurrent ? 'step' : undefined} className={s.item}>
+              <li
+                key={it.step}
+                aria-current={isCurrent ? 'step' : undefined}
+                /* The reason rides the whole slot, not just the label: `title` is the only
+                   channel this road has for a sentence, and the slot is what a pointer is
+                   over. Absent on a walked step — an empty title is a tooltip that opens
+                   on nothing. */
+                title={skippedReason}
+                className={s.item}
+              >
                 <span className={s.track}>
                   {index > 0 && (
                     <span
@@ -177,19 +236,33 @@ export const InstallationProcessProgressBar = ({
                       )}
                     />
                   )}
-                  <i
-                    aria-hidden="true"
-                    className={cn(
-                      s.dotBase,
-                      isCurrent ? s.dotCurrent : isCompleted ? s.dotDone : s.dotPending,
-                    )}
-                  />
+                  {/* A struck step gets no bead. Every dot on this road means a position
+                      relative to the reader — walked, here, ahead — and a slot that is
+                      none of the three has no honest fill: `dotPending` would say「아직」
+                      about something that will never happen. The line runs straight
+                      through instead, which is the truth: the road does not stop here. */}
+                  {!skippedReason && (
+                    <i
+                      aria-hidden="true"
+                      className={cn(
+                        s.dotBase,
+                        isCurrent ? s.dotCurrent : isCompleted ? s.dotDone : s.dotPending,
+                      )}
+                    />
+                  )}
                 </span>
                 <span
-                  className={cn(s.labelBase, isCurrent ? s.labelCurrent : s.labelRest)}
+                  className={cn(
+                    s.labelBase,
+                    skippedReason
+                      ? s.labelSkipped
+                      : isCurrent
+                        ? s.labelCurrent
+                        : s.labelRest,
+                  )}
                   style={{ wordBreak: 'keep-all' }}
                 >
-                  {it.label}
+                  {label}
                 </span>
               </li>
             );

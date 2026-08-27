@@ -327,14 +327,24 @@ export const ProjectPageMeta = ({ project, identity, action }: ProjectPageMetaPr
       </section>
 
       {/* #661 P5: the latest connection-test verdict rides its own step, not the
-          page title. */}
+          page title.
+
+          SDU passes no verdict tag at all. Not because the test does not happen — it
+          does, in the Admin console — but because it is not this reader's step: their
+          road strikes 5단계 through, and a 연결 테스트 판정 on a road that says
+          「연결 테스트는 BDC가 수행」 is a result for work they cannot see or repeat.
+          `undefined` rather than a hidden node: `TcHeaderTag` fetches on mount, so not
+          rendering it is also not asking. */}
       <InstallationProcessProgressBar
         currentStep={project.processStatus}
+        variant={project.isSduType ? 'sdu' : undefined}
         tcTag={
-          <TcHeaderTag
-            targetSourceId={project.targetSourceId}
-            scope={tcScopeFor(project.processStatus)}
-          />
+          project.isSduType ? undefined : (
+            <TcHeaderTag
+              targetSourceId={project.targetSourceId}
+              scope={tcScopeFor(project.processStatus)}
+            />
+          )
         }
       />
     </header>

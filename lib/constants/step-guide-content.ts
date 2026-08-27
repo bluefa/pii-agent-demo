@@ -51,6 +51,8 @@
  * asserted by `__tests__/step-guide-content.test.ts`.
  */
 
+import { SDU_DB_TYPE_MAX, SDU_DB_TYPE_MAXLEN } from '@/lib/types/sdu';
+
 import type { GuideName } from '@/lib/types/guide';
 
 /** 참고 가이드 바 — the source's `.accordion`, which carries a label and no body. */
@@ -330,6 +332,66 @@ const STEP_7_HTML =
   '문의를 남겨주세요.</blockquote>';
 
 // ---------------------------------------------------------------------------
+// SDU — the four steps the owner walks (1 · 4 · 6 · 7)
+// ---------------------------------------------------------------------------
+
+/**
+ * SOURCE: `design/sdu/sdu-flow-design.html`, the 「이 단계에서 할 일」 rail lists in
+ * `#step1` / `#step4` and the hero copy in `#step6`. Same transcription discipline as the
+ * rest of this file — the rail list IS the guide, so it is copied rather than re-written.
+ *
+ * Steps 6 and 7 do NOT reuse the shared cards. The shared step 6 describes a
+ * 관리자 승인 대기 that SDU has no such thing as, and the shared step 7 tells the reader to
+ * press 인프라 변경 and land on 연동 대상 DB 선택 — SDU's step 1 is 연동 대상 정의 and there
+ * is no infrastructure to change. Sending a reader to a control that is not on their
+ * screen is the exact defect the 2026-08-23 transcription existed to remove.
+ */
+const SDU_TARGET_DEFINE_HTML =
+  '<h4>연동할 대상을 직접 정의해주세요.</h4>' +
+  '<blockquote>SDU는 연동 대상 승인 절차가 없어요. 제출하면 바로 업로드 준비 단계로 넘어가요.</blockquote>' +
+  '<ol>' +
+  '<li><strong>연동 권역을 먼저 골라주세요.</strong>' +
+  '<ul><li>Global과 China는 고를 수 있는 Region이 달라요. 대상소스마다 하나만 고를 수 있어요.</li></ul></li>' +
+  '<li><strong>연동할 대상을 추가해주세요.</strong>' +
+  '<ul><li>대상마다 클라우드 · Region · 업로드 IP · Database Type을 입력해요.</li></ul></li>' +
+  '<li><strong>업로드 IP는 S3에 데이터를 올릴 때 사용하는 IP예요.</strong>' +
+  '<ul><li>이 주소에서만 업로드가 허용되므로 정확히 입력해주세요.</li></ul></li>' +
+  '<li><strong>목록에 없는 Database Type은 직접 입력할 수 있어요.</strong>' +
+  // The two caps are read from the domain constants the 1단계 form validates against —
+  // a guide that promises 20 where the field stops at 10 is worse than no guide.
+  `<ul><li>한 대상당 최대 ${SDU_DB_TYPE_MAX}개, 이름은 ${SDU_DB_TYPE_MAXLEN}자까지예요.</li></ul></li>` +
+  "<li><strong>'제출'을 누르면 업로드 준비 단계로 넘어가요.</strong></li>" +
+  '</ol>';
+
+const SDU_UPLOAD_HTML =
+  '<h4>데이터를 업로드하고, 올라간 파일을 확인해주세요.</h4>' +
+  '<blockquote>이미 마친 항목도 언제든 다시 하실 수 있어요. 연동 대상을 고치려면 ' +
+  "<strong>'연동 대상 수정'</strong>으로 1단계에 다녀오세요.</blockquote>" +
+  '<ol>' +
+  '<li><strong>방화벽 결재가 완료되었는지 확인해주세요.</strong>' +
+  '<ul><li>업로드 대상 S3 리전으로의 접근이 열려 있어야 해요.</li></ul></li>' +
+  '<li><strong>S3 Access Key를 받으실 분을 등록해주세요.</strong>' +
+  '<ul><li>여러 명을 등록할 수 있어요. 등록된 분들께 관리자가 메일로 키를 직접 전달해요.</li></ul></li>' +
+  '<li><strong>데이터를 업로드하고 확인해주세요.</strong>' +
+  '<ul><li>Region별 업로드 확인 명령 세 줄로 올라간 파일을 확인할 수 있어요.</li></ul></li>' +
+  '<li><strong>BDC 측 리소스 생성이 완료되면 다음 단계로 넘어가요.</strong></li>' +
+  '</ol>';
+
+const SDU_INTEGRATING_HTML =
+  '<h4>업로드하신 데이터를 연동하고 있어요.</h4>' +
+  '<p>BDC 측에서 업로드된 데이터를 확인하고 연동하고 있어요. 담당자가 하실 일은 없어요.</p>' +
+  '<blockquote>연동이 끝나면 완료 단계로 넘어가요.</blockquote>';
+
+const SDU_COMPLETE_HTML =
+  '<h4>SDU 연동이 완료되었어요.</h4>' +
+  '<p>업로드하신 데이터를 PII 모니터링 대상으로 연동했어요.</p>' +
+  '<ul>' +
+  '<li><strong>업로드할 대상이나 업로드 IP가 바뀐 경우</strong>' +
+  "<ul><li>하단 <strong>'연동 대상 수정'</strong>으로 1단계에 돌아가 정의를 다시 제출해주세요.</li></ul></li>" +
+  '</ul>' +
+  '<blockquote>1단계로 돌아가면 지금까지의 업로드 확인 내역은 사라져요.</blockquote>';
+
+// ---------------------------------------------------------------------------
 // Assembly — one entry per GuideName
 // ---------------------------------------------------------------------------
 
@@ -370,4 +432,9 @@ export const STEP_GUIDE_HTML: Record<GuideName, string> = {
   IDC_CONNECTION_TEST: STEP_5_HTML,
   IDC_CONNECTION_VERIFIED: STEP_6_HTML,
   IDC_COMPLETE: STEP_7_HTML,
+  // SDU (4) — 1·4·6·7 only; the road strikes 2·3·5 through, so there is no slot to fill.
+  SDU_TARGET_DEFINE: SDU_TARGET_DEFINE_HTML,
+  SDU_UPLOAD: SDU_UPLOAD_HTML,
+  SDU_INTEGRATING: SDU_INTEGRATING_HTML,
+  SDU_COMPLETE: SDU_COMPLETE_HTML,
 };
