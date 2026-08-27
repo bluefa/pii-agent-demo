@@ -159,7 +159,7 @@ export const mockBff: BffClient = {
   },
 
   // SDU 담당자 흐름 — ASSUMED contracts (docs/api/sdu-assumed-contracts.md).
-  // 규칙(권역 잠금·Region 소속·무효화 표·BDC 진행)은 전부 mock 모듈에 산다.
+  // 규칙(Region 소속·무효화 표·BDC 진행)은 전부 mock 모듈에 산다.
   sdu: {
     getDefinition: async (id) => unwrap(await mockSdu.getDefinition(id)),
     putDefinition: async (id, body) => unwrap(await mockSdu.putDefinition(id, body)),

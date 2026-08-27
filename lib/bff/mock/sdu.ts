@@ -9,7 +9,6 @@ import {
   SDU_REGIONS_BY_SCOPE,
   isSduCloud,
   isSduRegion,
-  isSduRegionScope,
   sortSduRegions,
 } from '@/lib/types/sdu';
 import type {
@@ -95,7 +94,6 @@ const buildCommand = (region: SduRegion, targetSourceId: number): string =>
 // ── Store ─────────────────────────────────────────────────────────────────────
 
 interface SduState {
-  regionScope: SduRegionScope;
   targets: SduTargetWire[];
   definitionUpdatedAt: string | null;
   submittedAt: string | null;
@@ -148,8 +146,7 @@ const SEED_1100_TARGETS: SduTargetWire[] = [
 
 const SEED_1100_RECIPIENTS = ['user-3', 'user-4', 'user-5'];
 
-const blankState = (regionScope: SduRegionScope): SduState => ({
-  regionScope,
+const blankState = (): SduState => ({
   targets: [],
   definitionUpdatedAt: null,
   submittedAt: null,
@@ -165,14 +162,18 @@ const blankState = (regionScope: SduRegionScope): SduState => ({
 });
 
 /**
- * Lazy per-target seed. The scope a target source starts in comes from the ONE contract
- * field that already says which world it lives in — `metadata.is_china_region`
- * (`project.isChinaRegion`). It is the *initial* value only: once the owner saves a
- * target the scope is theirs, and this never overwrites it.
+ * 권역은 대상소스가 가진 값이다 — 저장되는 상태가 아니라 `metadata.is_china_region`
+ * (`project.isChinaRegion`) 에서 읽는 파생값이고, AWS 가 같은 필드로 갈리는 것과 같다.
+ * 그래서 스토어에 담지 않고 읽을 때마다 다시 계산한다.
  */
+const scopeOf = (targetSourceId: number): SduRegionScope =>
+  mockData.getProjectByTargetSourceId(targetSourceId)?.isChinaRegion === true
+    ? 'CHINA'
+    : 'GLOBAL';
+
+/** Lazy per-target seed. */
 const seedState = (targetSourceId: number): SduState => {
-  const project = mockData.getProjectByTargetSourceId(targetSourceId);
-  const state = blankState(project?.isChinaRegion === true ? 'CHINA' : 'GLOBAL');
+  const state = blankState();
 
   if (targetSourceId === 1100) {
     state.targets = SEED_1100_TARGETS.map((target) => ({
@@ -322,9 +323,8 @@ export const completeSduBdcForTest = (targetSourceId: number): void => {
   refreshBdc(targetSourceId, state);
 };
 
-const toDefinitionWire = (state: SduState): SduDefinitionWire => ({
-  region_scope: state.regionScope,
-  locked: state.targets.length > 0,
+const toDefinitionWire = (targetSourceId: number, state: SduState): SduDefinitionWire => ({
+  region_scope: scopeOf(targetSourceId),
   targets: state.targets.map((target) => ({ ...target, database_types: [...target.database_types] })),
   updated_at: state.definitionUpdatedAt,
 });
@@ -501,7 +501,7 @@ export const mockSdu = {
   getDefinition: async (targetSourceId: number) => {
     const auth = authorize(targetSourceId);
     if ('error' in auth) return auth.error;
-    return NextResponse.json(toDefinitionWire(getState(targetSourceId)));
+    return NextResponse.json(toDefinitionWire(targetSourceId, getState(targetSourceId)));
   },
 
   // PUT …/sdu/definition (assumed §2).
@@ -511,33 +511,28 @@ export const mockSdu = {
 
     const state = getState(targetSourceId);
 
-    if (!isSduRegionScope(body?.region_scope)) {
-      return invalidParameter('region_scope는 GLOBAL 또는 CHINA여야 합니다.');
-    }
-    if (!Array.isArray(body.targets)) {
+    if (!Array.isArray(body?.targets)) {
       return invalidParameter('targets는 배열이어야 합니다.');
     }
-    // 권역은 대상소스에 하나인 값이다 — 바꾸는 순간 저장된 모든 대상의 Region이 없는
-    // 값이 된다. 바꾸려면 대상을 먼저 비워야 한다 (storyboard Q1).
-    if (state.targets.length > 0 && body.region_scope !== state.regionScope) {
-      return invalidParameter('연동 대상이 하나라도 있으면 권역을 바꿀 수 없습니다.');
-    }
+
+    // 권역은 본문이 아니라 대상소스가 정한다. 옛 클라이언트가 `region_scope` 를 실어
+    // 보내더라도 거절하지 않고 무시한다 — 쓸 수 없는 값을 보냈을 뿐, 틀린 요청은 아니다.
+    const scope = scopeOf(targetSourceId);
 
     const normalized: SduTargetWire[] = [];
     for (const [index, raw] of body.targets.entries()) {
-      const result = normalizeTarget(raw, index, body.region_scope, `sdu-${targetSourceId}-${index + 1}`);
+      const result = normalizeTarget(raw, index, scope, `sdu-${targetSourceId}-${index + 1}`);
       if ('message' in result) return invalidParameter(result.message);
       normalized.push(result.target);
     }
 
     const previous = state.targets;
     state.invalidation = applyInvalidation(state, previous, normalized);
-    state.regionScope = body.region_scope;
     state.targets = normalized;
     state.definitionUpdatedAt = new Date().toISOString();
     refreshBdc(targetSourceId, state);
 
-    return NextResponse.json(toDefinitionWire(state));
+    return NextResponse.json(toDefinitionWire(targetSourceId, state));
   },
 
   // POST …/sdu/definition/submit (assumed §3).

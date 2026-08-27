@@ -2006,9 +2006,9 @@ mockProjects.push({
 });
 
 // 데모: SDU 1단계 대상 둘 — 연동 대상 정의가 비어 있는 출발점. 1101 은 Global,
-// 1102 는 China 다. 권역은 대상소스에 하나인 값이고 SDU 목 스토어가 그 초기값을
-// `isChinaRegion` 에서 읽으므로(lib/bff/mock/sdu.ts), 두 권역의 1단계를 화면으로
-// 보려면 두 대상이 있어야 한다 — China 는 Region 이 하나뿐이라 경로도 언제나 하나다.
+// 1102 는 China 다. 권역은 고르는 값이 아니라 `isChinaRegion` 에서 읽는 파생값이므로
+// (lib/bff/mock/sdu.ts), 두 권역의 1단계를 화면으로 보려면 대상소스가 둘이어야 한다 —
+// China 는 Region 이 하나뿐이라 경로도 언제나 하나다.
 mockProjects.push({
   id: "aws-proj-sdu-3",
   targetSourceId: 1101,

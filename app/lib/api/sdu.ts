@@ -47,7 +47,6 @@ const toTarget = (wire: SduTargetWire): SduTarget => ({
 
 export const toSduDefinition = (wire: SduDefinitionWire): SduDefinition => ({
   regionScope: wire.region_scope,
-  locked: wire.locked,
   targets: wire.targets.map(toTarget),
   updatedAt: wire.updated_at,
 });
@@ -96,9 +95,8 @@ export const toSduUpload = (wire: SduUploadWire): SduUpload => ({
 // ── camel → snake (the one write body that carries a shape) ───────────────────
 
 export const toSduDefinitionRequest = (
-  definition: Pick<SduDefinition, 'regionScope' | 'targets'>,
+  definition: Pick<SduDefinition, 'targets'>,
 ): SduDefinitionRequestWire => ({
-  region_scope: definition.regionScope,
   targets: definition.targets.map((target) => ({
     // 저장된 적 없는 행은 id 가 없다 — 서버가 채운다. 빈 문자열을 보내면 서버가 그것을
     // "이전에 있던 행"으로 읽어 IP 변경 판정이 어긋난다.
@@ -119,10 +117,13 @@ export const getSduDefinition = async (
 ): Promise<SduDefinition> =>
   toSduDefinition(await fetchInfraJson<SduDefinitionWire>(`${base(targetSourceId)}/definition`, init));
 
-/** assumed §2 — 저장. 서버가 무효화를 다시 계산하므로 응답이 곧 새 정의다. */
+/**
+ * assumed §2 — 저장. 서버가 무효화를 다시 계산하므로 응답이 곧 새 정의다. 권역은 본문에
+ * 실리지 않는다: 대상소스가 가진 값이라 이 화면이 쓸 수 있는 값이 아니다.
+ */
 export const putSduDefinition = async (
   targetSourceId: number,
-  definition: Pick<SduDefinition, 'regionScope' | 'targets'>,
+  definition: Pick<SduDefinition, 'targets'>,
 ): Promise<SduDefinition> =>
   toSduDefinition(
     await fetchInfraJson<SduDefinitionWire>(`${base(targetSourceId)}/definition`, {

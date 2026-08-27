@@ -56,8 +56,7 @@ names them.
 ```
 GET /install/v1/target-sources/{targetSourceId}/sdu/definition
 → 200 {
-     region_scope: "GLOBAL" | "CHINA",
-     locked:       boolean,          // == targets.length > 0
+     region_scope: "GLOBAL" | "CHINA",   // read-only, derived from metadata.is_china_region
      targets: [{
        target_id:      string,
        cloud:          "AWS"|"GCP"|"AZURE"|"IDC"|"OTHER",
@@ -69,12 +68,12 @@ GET /install/v1/target-sources/{targetSourceId}/sdu/definition
    }
 ```
 
-`region_scope` (권역) is a target-source-level value with **no home in the contract** —
-the `cloud_provider` enum has one `SDU`, not `SDU_GLOBAL`/`SDU_CHINA` (storyboard Q1). The
-storyboard's assumption is ⓑ: a separate field on the target source, chosen at the top of
-Step 1 and **locked once any target exists**. The mock takes its *initial* value from the
-one field that already says which world the target lives in — `metadata.is_china_region`
-— and never overwrites the owner's choice afterwards.
+`region_scope` (권역) is **read-only and derived**: it is `metadata.is_china_region`
+(`project.isChinaRegion`) read through, exactly as AWS branches on that same field. The
+owner never picks it, so Step 1 has no scope control — it states the scope in one line and
+draws the region choices the scope owns. The `cloud_provider` enum has one `SDU`, not
+`SDU_GLOBAL`/`SDU_CHINA` (storyboard Q1), which is why the value has to be carried here at
+all; it is echoed on §1 so the screen does not have to re-derive it from a second source.
 
 `region` is **our** name, not an AWS region code. GLOBAL owns `asia|us|eu|cx`, CHINA owns
 `china` — a scope owns its regions exclusively, which is why a China target source always
@@ -84,7 +83,8 @@ has exactly one upload path.
 
 ```
 PUT /install/v1/target-sources/{targetSourceId}/sdu/definition
-body { region_scope, targets[] }        // target_id optional on a row never saved before
+body { targets[] }                      // target_id optional on a row never saved before
+                                        // no region_scope — it is not writable
 → 200  the same shape as §1
 → 400  INVALID_PARAMETER
 ```
@@ -92,9 +92,8 @@ body { region_scope, targets[] }        // target_id optional on a row never sav
 Server rules — all of them need the **stored** definition to decide, so none is duplicated
 on the client:
 
-- `region_scope` may not change while `targets.length > 0`. Changing it would make every
-  saved target's region a value that does not exist in the new scope (storyboard Q1).
-- every `region` must belong to `region_scope`.
+- every `region` must belong to the target source's scope (derived, §1). A body that still
+  carries `region_scope` is not rejected — the field is ignored.
 - `database_types`: ≤ 20 per target, each ≤ 50 characters, non-empty after trim.
 - `upload_ip`: a valid IPv4 (the same reader IDC uses, `isValidIdcIp`).
 - `cloud` must be one of the five.
@@ -114,7 +113,6 @@ back.
 | `upload_ip` changed | **all** dropped | kept | kept |
 | `database_types` only | kept | kept | kept |
 | `cloud` only | kept | kept | kept |
-| `region_scope` | rejected while any target exists | — | — |
 
 `upload_ip` is the only edit with a blast radius wider than its own row, because a
 firewall rule is a **source → destination pair**: a new source makes every rule a
@@ -282,8 +280,10 @@ cannot say "이 Region은 다시 확인해주세요" without being told which).
 These are the storyboard's, unresolved, and each one changes a screen if it is answered
 differently. Full text in `design/sdu/sdu-flow-design.html` §07.
 
-- **Q1** where `region_scope` lives (enum split / separate field / server-derived). If it
-  is server-derived, Step 1 loses its scope control entirely.
+- **Q1** where `region_scope` lives (enum split / separate field / server-derived).
+  **Answered (오너, 2026-08-27): server-derived** from `metadata.is_china_region`, so
+  Step 1 has no scope control. What stays open is whether the BFF echoes the field on §1
+  or the screen reads the target source's metadata directly.
 - **Q2** whether cloud and region are per-target or per-target-source. §1 assumes
   per-target — "Region 2곳" only exists if a row can differ.
 - **Q3** the region → bucket/endpoint mapping: fixed, per-target-source, or per-scope.

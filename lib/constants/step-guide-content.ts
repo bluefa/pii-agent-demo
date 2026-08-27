@@ -350,8 +350,8 @@ const SDU_TARGET_DEFINE_HTML =
   '<h4>연동할 대상을 직접 정의해주세요.</h4>' +
   '<blockquote>SDU는 연동 대상 승인 절차가 없어요. 제출하면 바로 업로드 준비 단계로 넘어가요.</blockquote>' +
   '<ol>' +
-  '<li><strong>연동 권역을 먼저 골라주세요.</strong>' +
-  '<ul><li>Global과 China는 고를 수 있는 Region이 달라요. 대상소스마다 하나만 고를 수 있어요.</li></ul></li>' +
+  '<li><strong>권역은 연동 대상 정보를 따라요.</strong>' +
+  '<ul><li>Global은 Asia · US · EU · CX, China는 China만 고를 수 있어요.</li></ul></li>' +
   '<li><strong>연동할 대상을 추가해주세요.</strong>' +
   '<ul><li>대상마다 클라우드 · Region · 업로드 IP · Database Type을 입력해요.</li></ul></li>' +
   '<li><strong>업로드 IP는 S3에 데이터를 올릴 때 사용하는 IP예요.</strong>' +

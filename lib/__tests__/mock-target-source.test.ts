@@ -46,8 +46,8 @@ describe('targetSourceId — seed 데이터', () => {
     // 없으면 알림 행을 눌러도 /target-sources/{id} 가 404 다.
     // IDC 데모 9 = 1020~1027 + 1028(이전 요청이 없는 1단계 짝 — 불러오기 모달의 빈 상태).
     // SDU 데모 4 = 1099(완료·중국) + 1100(업로드 단계 한가운데) + 1101·1102(연동 대상
-    // 정의 전 — Global 과 China 한 벌씩). 권역은 대상소스에 하나인 값이고 SDU 목이 그
-    // 초기값을 isChinaRegion 에서 읽으므로, 두 권역의 1단계를 보려면 대상이 둘이어야 한다.
+    // 정의 전 — Global 과 China 한 벌씩). 권역은 고를 수 있는 값이 아니라 SDU 목이
+    // isChinaRegion 에서 읽는 파생값이므로, 두 권역의 1단계를 보려면 대상이 둘이어야 한다.
     expect(mockProjects).toHaveLength(66);
   });
 });

@@ -152,8 +152,9 @@ const IDC_STEP_7_HTML =
 
 const SDU_STEP_1_HTML =
   '<h4>연동할 대상을 정의해 주세요</h4>' +
-  '<p>연동 권역을 고르고, 대상마다 클라우드 · Region · 업로드 IP · Database Type을 입력한 뒤 <strong>제출</strong>해 주세요.</p>' +
+  '<p>대상마다 클라우드 · Region · 업로드 IP · Database Type을 입력한 뒤 <strong>제출</strong>해 주세요.</p>' +
   '<ul>' +
+  '<li>권역은 연동 대상 정보를 따릅니다. Global은 Asia · US · EU · CX, China는 China만 고를 수 있습니다.</li>' +
   '<li>업로드 IP는 S3에 데이터를 올릴 때 사용하는 주소이며, 그 주소에서만 업로드가 허용됩니다.</li>' +
   '<li>SDU는 연동 대상 승인 절차가 없어 제출 즉시 업로드 준비 단계로 넘어갑니다.</li>' +
   '</ul>';

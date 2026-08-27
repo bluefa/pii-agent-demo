@@ -2,12 +2,15 @@
  * Step 1 「연동 대상 정의」 — the working list's shape and every rule the screen has to
  * state out loud.
  *
- * The mock BFF enforces the same four rules (lib/bff/mock/sdu.ts): the scope cannot move
- * once a target references a region, a region belongs to exactly one scope, a target holds
- * at most SDU_DB_TYPE_MAX types of at most SDU_DB_TYPE_MAXLEN characters, and the upload IP
- * is an IPv4 address. They are mirrored here so the screen can SAY them — a client that only
- * trusts the server turns each of them into a 400 carrying a wire sentence, and a client
- * that silently truncates turns them into data the user never agreed to.
+ * The mock BFF enforces the same three rules (lib/bff/mock/sdu.ts): a region belongs to
+ * exactly one scope, a target holds at most SDU_DB_TYPE_MAX types of at most
+ * SDU_DB_TYPE_MAXLEN characters, and the upload IP is an IPv4 address. They are mirrored
+ * here so the screen can SAY them — a client that only trusts the server turns each of
+ * them into a 400 carrying a wire sentence, and a client that silently truncates turns
+ * them into data the user never agreed to.
+ *
+ * 권역(scope)은 규칙이 아니라 대상소스가 가진 사실이다 — `project.isChinaRegion` 하나로
+ * 정해지고, 화면은 그것을 고르는 자리를 두지 않는다.
  */
 import { isValidIdcIp } from '@/lib/constants/idc';
 import {
@@ -67,7 +70,14 @@ export const SDU_IP_INVALID_MESSAGE = '올바른 IPv4 주소가 아니에요';
 export const SDU_DB_TYPE_MAX_MESSAGE = `대상당 ${SDU_DB_TYPE_MAX}개까지 등록할 수 있어요`;
 export const SDU_DB_TYPE_LEN_MESSAGE = `Database Type은 ${SDU_DB_TYPE_MAXLEN}자까지 입력할 수 있어요`;
 export const SDU_DB_TYPE_DUPLICATE_MESSAGE = '이미 추가한 타입이에요';
-export const SDU_SCOPE_LOCKED_HINT = '대상을 먼저 비워야 바꿀 수 있어요';
+/**
+ * 목록 위 한 줄. 고를 수 없는 값이므로 컨트롤이 아니라 문장이고, 이미 정해진 권역과
+ * 그 권역에서 Region 이 어떻게 되는지 두 가지만 말한다.
+ */
+export const SDU_SCOPE_NOTE: Record<SduRegionScope, string> = {
+  GLOBAL: '권역 Global · Region은 Asia · US · EU · CX 중에서 골라요',
+  CHINA: '권역 China · Region은 China로 고정돼요',
+};
 
 export const toSduTargetDrafts = (targets: readonly SduTarget[]): SduTargetDraft[] =>
   targets.map((target) => ({

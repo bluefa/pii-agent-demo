@@ -10,11 +10,10 @@ import { ErrorState, LoadingState } from '@/app/components/ui/state';
 import { StepBanner } from '@/app/components/ui/StepBanner';
 import { ProcessStatus } from '@/lib/types';
 import { cardStyles, chipStyles, cn, idcStyles, primaryColors } from '@/lib/theme';
-import { SDU_REGIONS_BY_SCOPE, type SduDefinition, type SduRegionScope } from '@/lib/types/sdu';
+import type { SduDefinition } from '@/lib/types/sdu';
 import { CardActionBar } from '@/app/target-sources/[targetSourceId]/_components/common';
 import { SDU_STEP_TITLES } from '@/app/target-sources/[targetSourceId]/_components/sdu/sdu-steps';
 import type { SduStepProps } from '@/app/target-sources/[targetSourceId]/_components/sdu/types';
-import { RegionScopeBand } from '@/app/target-sources/[targetSourceId]/_components/sdu/step1/RegionScopeBand';
 import { SduSubmitModal } from '@/app/target-sources/[targetSourceId]/_components/sdu/step1/SduSubmitModal';
 import { TargetRowEditor } from '@/app/target-sources/[targetSourceId]/_components/sdu/step1/TargetRowEditor';
 import { TargetRowList } from '@/app/target-sources/[targetSourceId]/_components/sdu/step1/TargetRowList';
@@ -22,12 +21,14 @@ import {
   activeSduDrafts,
   isSduDraftComplete,
   newSduTargetDraft,
+  SDU_SCOPE_NOTE,
   sduDraftRegions,
   sduReturnHint,
   toSduPutTargets,
   toSduTargetDrafts,
   type SduTargetDraft,
 } from '@/app/target-sources/[targetSourceId]/_components/sdu/step1/model';
+import { listStyles } from '@/app/target-sources/[targetSourceId]/_components/sdu/step1/styles';
 
 export interface SduStep1DefineProps extends SduStepProps {
   /**
@@ -67,11 +68,14 @@ export function SduStep1Define({
 }: SduStep1DefineProps) {
   const targetSourceId = project.targetSourceId;
   const isReturn = mode === 'return';
+  // 권역은 고르는 값이 아니라 대상소스가 가진 값이다 — AWS 가 갈리는 것과 같은 필드
+  // (`metadata.is_china_region`)를 읽는다. 정의 응답의 `region_scope` 로 판단하지 않는
+  // 것은, 화면이 그리는 선택지가 응답보다 먼저 서야 하기 때문이다.
+  const scope = project.isChinaRegion ? 'CHINA' : 'GLOBAL';
 
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
   const [reloadNonce, setReloadNonce] = useState(0);
   const [definition, setDefinition] = useState<SduDefinition | null>(null);
-  const [scope, setScope] = useState<SduRegionScope>(project.isChinaRegion ? 'CHINA' : 'GLOBAL');
   const [rows, setRows] = useState<SduTargetDraft[]>([]);
   const [editing, setEditing] = useState<EditingRow | null>(null);
   const [submitOpen, setSubmitOpen] = useState(false);
@@ -88,7 +92,6 @@ export function SduStep1Define({
         .then((loaded) => {
           if (signal.aborted) return;
           setDefinition(loaded);
-          setScope(loaded.regionScope);
           setRows(toSduTargetDrafts(loaded.targets));
           setEditing(null);
           setStatus('ready');
@@ -105,9 +108,6 @@ export function SduStep1Define({
   const baseline = definition?.targets ?? [];
   const active = activeSduDrafts(rows);
   const regions = sduDraftRegions(rows);
-  // 권역은 대상소스에 하나인 값이라, 대상이 하나라도 있으면 바꿀 수 없다 — 바꾸는 순간
-  // 저장된 모든 대상의 Region 이 존재하지 않는 값이 된다. 서버도 같은 이유로 거절한다.
-  const scopeLocked = (definition?.locked ?? false) || rows.length > 0;
   const blocked =
     editing !== null || active.length === 0 || active.some((row) => !isSduDraftComplete(row));
 
@@ -117,10 +117,7 @@ export function SduStep1Define({
     request: async () => {
       // 정의를 먼저 저장하고 제출한다. 제출은 본문이 없는 쓰기라(assumed §3) 저장하지 않은
       // 편집분을 실어 보낼 방법이 없다.
-      await putSduDefinition(targetSourceId, {
-        regionScope: scope,
-        targets: toSduPutTargets(rows),
-      });
+      await putSduDefinition(targetSourceId, { targets: toSduPutTargets(rows) });
       await submitSduDefinition(targetSourceId);
     },
     // 확인 프레임이 물러난 뒤에 갱신한다 — 상태가 바뀌는 순간 이 컴포넌트가 4단계 화면으로
@@ -136,17 +133,6 @@ export function SduStep1Define({
       }
     },
   });
-
-  const handleScopeChange = (next: SduRegionScope) => {
-    if (scopeLocked || next === scope) return;
-    setScope(next);
-    // 아직 저장되지 않은 편집 행이 남의 권역 Region 을 들고 있으면 서버가 거절한다.
-    setEditing((current) =>
-      current
-        ? { ...current, draft: { ...current.draft, region: SDU_REGIONS_BY_SCOPE[next][0] } }
-        : current,
-    );
-  };
 
   const handleAdd = () => {
     const key = `sdu-new-${newRowSeq.current++}`;
@@ -185,10 +171,7 @@ export function SduStep1Define({
     setSaving(true);
     setSaveError(null);
     try {
-      const saved = await putSduDefinition(targetSourceId, {
-        regionScope: scope,
-        targets: toSduPutTargets(rows),
-      });
+      const saved = await putSduDefinition(targetSourceId, { targets: toSduPutTargets(rows) });
       setDefinition(saved);
       setRows(toSduTargetDrafts(saved.targets));
       onReturn?.();
@@ -261,8 +244,10 @@ export function SduStep1Define({
               )}
               {saveError && <StepBanner variant="error">{saveError}</StepBanner>}
 
-              <div className="space-y-5">
-                <RegionScopeBand scope={scope} locked={scopeLocked} onChange={handleScopeChange} />
+              <div>
+                {/* 권역은 담당자가 정하는 값이 아니므로 컨트롤이 아니라 한 줄이다 — 목록
+                    머리줄과 같은 톤으로, 무엇이 이미 정해져 있는지만 말한다. */}
+                <p className={listStyles.scopeNote}>{SDU_SCOPE_NOTE[scope]}</p>
 
                 <TargetRowList
                   rows={rows}

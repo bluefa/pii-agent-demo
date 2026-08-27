@@ -22,7 +22,6 @@ import type { SduDefinitionWire, SduFirewallWire, SduUploadWire } from '@/lib/ty
 
 const DEFINITION_WIRE: SduDefinitionWire = {
   region_scope: 'GLOBAL',
-  locked: true,
   targets: [
     { target_id: 't1', cloud: 'AWS', region: 'us', upload_ip: '10.20.30.40', database_types: ['MySQL'] },
   ],
@@ -84,7 +83,6 @@ describe('SDU 어댑터 — snake → camel', () => {
 
     await expect(getSduDefinition(1101)).resolves.toEqual({
       regionScope: 'GLOBAL',
-      locked: true,
       targets: [
         {
           targetId: 't1',
@@ -163,20 +161,20 @@ describe('SDU 어댑터 — snake → camel', () => {
 describe('SDU 어댑터 — camel → snake', () => {
   it('저장 본문은 snake 로 나가고, 저장된 적 없는 행은 target_id 를 싣지 않는다', () => {
     const wire = toSduDefinitionRequest({
-      regionScope: 'GLOBAL',
       targets: [
         { targetId: 't1', cloud: 'AWS', region: 'us', uploadIp: '10.20.30.40', databaseTypes: ['MySQL'] },
         { targetId: '', cloud: 'GCP', region: 'eu', uploadIp: '10.20.30.41', databaseTypes: [] },
       ],
     });
 
+    // 권역은 본문에 없다 — 대상소스가 가진 값이라 이 화면이 쓸 수 있는 값이 아니다.
     expect(wire).toEqual({
-      region_scope: 'GLOBAL',
       targets: [
         { target_id: 't1', cloud: 'AWS', region: 'us', upload_ip: '10.20.30.40', database_types: ['MySQL'] },
         { cloud: 'GCP', region: 'eu', upload_ip: '10.20.30.41', database_types: [] },
       ],
     });
+    expect('region_scope' in wire).toBe(false);
     // 빈 문자열을 실으면 서버가 그것을 "이전에 있던 행"으로 읽어 IP 변경 판정이 어긋난다.
     expect('target_id' in wire.targets[1]).toBe(false);
   });
@@ -185,7 +183,6 @@ describe('SDU 어댑터 — camel → snake', () => {
     const seen = stubFetch(DEFINITION_WIRE);
 
     const saved = await putSduDefinition(1101, {
-      regionScope: 'GLOBAL',
       targets: [
         { targetId: 't1', cloud: 'AWS', region: 'us', uploadIp: '10.20.30.40', databaseTypes: ['MySQL'] },
       ],
@@ -193,7 +190,6 @@ describe('SDU 어댑터 — camel → snake', () => {
 
     expect(seen.method).toBe('PUT');
     expect(seen.body).toEqual({
-      region_scope: 'GLOBAL',
       targets: [
         { target_id: 't1', cloud: 'AWS', region: 'us', upload_ip: '10.20.30.40', database_types: ['MySQL'] },
       ],

@@ -3,9 +3,8 @@
  * 클래스 문자열을 다시 짓지 않는다 — 같은 모양(칩·행·알약)이 네 파일에 흩어지면
  * 한 곳만 고쳐지는 날이 온다.
  *
- * 권역 밴드와 Region 칩이 **다른 모양**인 것은 계층이다: 권역은 대상소스에 하나인 값
- * (회색 세그먼트), Region 은 행마다 고르는 값(파란 아웃라인 칩). 같은 모양이면 담당자가
- * 둘을 같은 층위로 읽는다.
+ * 권역은 대상소스가 가진 값이라 이 파일에 표면이 없다 — 목록 위 한 줄(`scopeNote`)이
+ * 전부이고, 고르는 값인 Region 만 칩을 입는다.
  */
 import {
   bgColors,
@@ -41,19 +40,9 @@ export const choiceChipStyles = {
   ),
 } as const;
 
-export const bandStyles = {
-  frame: cn(
-    'flex flex-wrap items-center gap-x-4 gap-y-2 rounded-[12px] border px-4 py-3',
-    borderColors.default,
-    bgColors.surface,
-  ),
-  label: cn('text-[14px] font-bold', textColors.primary),
-  sub: cn('text-[12px]', textColors.tertiary),
-  /** 잠긴 이유 — 밴드 옆에서 말한다. 못 누르는 것과 왜 못 누르는지는 다른 정보다. */
-  lockHint: cn('inline-flex items-center gap-1 text-[12px] font-medium', statusColors.warning.textDark),
-} as const;
-
 export const listStyles = {
+  /** 목록 머리줄과 같은 톤 — 정해져 있는 권역을 말할 뿐 고르게 하지 않는다. */
+  scopeNote: cn('mb-3 text-[12px]', textColors.tertiary),
   bar: 'flex flex-wrap items-center gap-x-3 gap-y-1',
   barTitle: cn('text-[16px] font-bold', textColors.primary),
   barCount: cn('text-[14px] font-bold', primaryColors.text),

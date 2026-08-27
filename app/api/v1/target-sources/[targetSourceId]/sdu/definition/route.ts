@@ -7,11 +7,13 @@ import type { SduDefinitionRequestWire } from '@/lib/types/sdu';
 
 // ASSUMED CONTRACT — docs/api/sdu-assumed-contracts.md §1·§2.
 // GET  …/sdu/definition → SduDefinition
-// PUT  …/sdu/definition { region_scope, targets[] } → SduDefinition
+// PUT  …/sdu/definition { targets[] } → SduDefinition
 //
-// The body is passed through verbatim: every rule that can reject it (scope lock, region
-// membership, the 20/50 caps, IPv4) needs the STORED definition to decide, so it lives
-// server-side. A second copy here would be a rule the upstream never agreed to.
+// The body carries no `region_scope`: 권역 is the target source's own metadata
+// (`is_china_region`), read-only here. The rest is passed through verbatim — every rule
+// that can reject it (region membership, the 20/50 caps, IPv4) needs the STORED
+// definition to decide, so it lives server-side. A second copy here would be a rule the
+// upstream never agreed to.
 
 export const GET = withV1(async (_request, { requestId, params }) => {
   const parsed = parseTargetSourceId(params.targetSourceId, requestId);

@@ -43,16 +43,16 @@ const project: CloudTargetSource = {
   isSduType: true,
 };
 
+const chinaProject: CloudTargetSource = { ...project, isChinaRegion: true };
+
 const definition = (over: Partial<SduDefinition> = {}): SduDefinition => ({
   regionScope: 'GLOBAL',
-  locked: false,
   targets: [],
   updatedAt: null,
   ...over,
 });
 
 const twoTargets: SduDefinition = definition({
-  locked: true,
   targets: [
     {
       targetId: 'sdu-1100-1',
@@ -83,7 +83,7 @@ const renderStep = async (props: Partial<Parameters<typeof SduStep1Define>[0]> =
       <SduStep1Define project={project} onProjectUpdate={() => {}} {...props} />
     </ToastProvider>,
   );
-  await screen.findByRole('radiogroup', { name: '연동 권역' });
+  await screen.findByRole('heading', { name: '연동 대상' });
   return view;
 };
 
@@ -92,33 +92,41 @@ beforeEach(() => {
   getSduDefinition.mockResolvedValue(definition());
 });
 
-describe('연동 권역 밴드', () => {
-  it('대상이 하나도 없으면 권역을 바꿀 수 있다', async () => {
-    await renderStep();
-    expect(radio('China').disabled).toBe(false);
-  });
-
-  it('대상이 한 건이라도 있으면 잠기고, 왜 잠겼는지 말한다', async () => {
-    getSduDefinition.mockResolvedValue(twoTargets);
+describe('연동 권역', () => {
+  it('Global 대상소스는 네 Region 을 칩으로 묻고, 권역은 한 줄로만 말한다', async () => {
     await renderStep();
 
-    expect(radio('Global').disabled).toBe(true);
-    expect(radio('China').disabled).toBe(true);
-    expect(screen.getByText('대상을 먼저 비워야 바꿀 수 있어요')).toBeTruthy();
-  });
-});
-
-describe('China 권역', () => {
-  it('Region 을 묻지 않고 확정된 값으로 보여준다 — 고를 수 있는 답이 하나뿐이다', async () => {
-    getSduDefinition.mockResolvedValue(definition({ regionScope: 'CHINA' }));
-    await renderStep();
+    // 고르는 자리가 아니다 — 권역은 대상소스가 가진 값이라 컨트롤이 없다.
+    expect(screen.queryByRole('radiogroup', { name: '연동 권역' })).toBeNull();
+    expect(
+      screen.getByText('권역 Global · Region은 Asia · US · EU · CX 중에서 골라요'),
+    ).toBeTruthy();
 
     fireEvent.click(button('대상 추가'));
 
-    // 칩 그룹 자체가 없다: 영영 누를 수 없는 칩을 남겨 두면 밴드가 한 말을 의심하게 된다.
+    const regions = within(screen.getByRole('radiogroup', { name: 'Region' }));
+    expect(regions.getAllByRole('radio').map((chip) => chip.textContent)).toEqual([
+      'Asia',
+      'US',
+      'EU',
+      'CX',
+    ]);
+  });
+
+  it('China 대상소스는 Region 을 묻지 않고 확정된 값으로 보여준다', async () => {
+    // 판단의 출처는 정의 응답이 아니라 대상소스의 is_china_region 이다.
+    await renderStep({ project: chinaProject });
+
+    expect(screen.getByText('권역 China · Region은 China로 고정돼요')).toBeTruthy();
+
+    fireEvent.click(button('대상 추가'));
+
+    // 칩 그룹 자체가 없다: 영영 누를 수 없는 칩을 남겨 두면 그 한 줄을 의심하게 된다.
     expect(screen.queryByRole('radiogroup', { name: 'Region' })).toBeNull();
     expect(screen.getByText('고정')).toBeTruthy();
-    expect(screen.getByText(/China로 고정돼요/)).toBeTruthy();
+    // 편집 행은 목록 위 한 줄과 같은 사실을 자기 자리에서 한 번 더 말한다 — 칩이 없는
+    // 이유는 칩이 있어야 할 자리에서 읽혀야 한다.
+    expect(screen.getByText(/대상마다 다르게 고를 수 없어요/)).toBeTruthy();
   });
 });
 

@@ -31,6 +31,9 @@ export type SduRegion = (typeof SDU_REGION_ORDER)[number];
 /**
  * A scope owns its regions exclusively. CHINA has exactly one, which is why a China
  * target source always has a single upload path (one firewall row, one command block).
+ *
+ * Which scope a target source is in is NOT a choice — it is read from the target source's
+ * `metadata.is_china_region` (`project.isChinaRegion`), the same field AWS branches on.
  */
 export const SDU_REGIONS_BY_SCOPE: Record<SduRegionScope, readonly SduRegion[]> = {
   GLOBAL: ['asia', 'us', 'eu', 'cx'],
@@ -66,9 +69,8 @@ export interface SduTargetWire {
 }
 
 export interface SduDefinitionWire {
+  /** Read-only — derived from `metadata.is_china_region`, never written by this screen. */
   region_scope: SduRegionScope;
-  /** `targets.length > 0` — the scope cannot change once a target references a region. */
-  locked: boolean;
   targets: SduTargetWire[];
   updated_at: string | null;
 }
@@ -82,8 +84,8 @@ export interface SduDefinitionRequestTargetWire {
   database_types: string[];
 }
 
+/** No `region_scope`: the scope is the target source's, so a write cannot carry it. */
 export interface SduDefinitionRequestWire {
-  region_scope: SduRegionScope;
   targets: SduDefinitionRequestTargetWire[];
 }
 
@@ -174,7 +176,6 @@ export interface SduTarget {
 
 export interface SduDefinition {
   regionScope: SduRegionScope;
-  locked: boolean;
   targets: SduTarget[];
   updatedAt: string | null;
 }
@@ -236,9 +237,6 @@ export interface SduUpload {
 }
 
 // ── Guards ────────────────────────────────────────────────────────────────────
-
-export const isSduRegionScope = (value: unknown): value is SduRegionScope =>
-  typeof value === 'string' && (SDU_REGION_SCOPES as readonly string[]).includes(value);
 
 export const isSduRegion = (value: unknown): value is SduRegion =>
   typeof value === 'string' && (SDU_REGION_ORDER as readonly string[]).includes(value);

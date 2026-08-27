@@ -91,7 +91,6 @@ const allAcked: SduRegion[] = ['us', 'eu'];
 
 const definition: SduDefinition = {
   regionScope: 'GLOBAL',
-  locked: true,
   updatedAt: '2026-08-24T05:40:00Z',
   targets: [
     {

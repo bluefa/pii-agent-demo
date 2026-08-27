@@ -33,7 +33,6 @@ const url = (path: string) => `http://localhost/pass/api/v1/target-sources/1101/
 
 const DEFINITION: SduDefinitionWire = {
   region_scope: 'GLOBAL',
-  locked: true,
   targets: [
     { target_id: 't1', cloud: 'AWS', region: 'us', upload_ip: '10.20.30.40', database_types: ['MySQL'] },
   ],
@@ -103,7 +102,7 @@ describe('SDU 라우트 — 해피 패스', () => {
   });
 
   it('PUT /definition 은 본문을 손대지 않고 넘긴다 — 규칙은 저장된 정의를 아는 쪽에 있다', async () => {
-    const requestBody = { region_scope: 'GLOBAL', targets: DEFINITION.targets };
+    const requestBody = { targets: DEFINITION.targets };
     const response = await putDefinition(
       new Request(url('/definition'), { method: 'PUT', body: JSON.stringify(requestBody) }),
       params('1101'),
@@ -182,11 +181,11 @@ describe('SDU 라우트 — 해피 패스', () => {
 describe('SDU 라우트 — 업스트림 실패', () => {
   it('BffError 는 ProblemDetails 로 바뀐다', async () => {
     mocked.putDefinition.mockRejectedValueOnce(
-      new BffError(400, 'INVALID_PARAMETER', '연동 대상이 하나라도 있으면 권역을 바꿀 수 없습니다.'),
+      new BffError(400, 'INVALID_PARAMETER', 'targets[0].region "china"은 GLOBAL 권역의 Region이 아닙니다.'),
     );
 
     const response = await putDefinition(
-      new Request(url('/definition'), { method: 'PUT', body: JSON.stringify({ region_scope: 'CHINA', targets: [] }) }),
+      new Request(url('/definition'), { method: 'PUT', body: JSON.stringify({ targets: [] }) }),
       params('1101'),
     );
 
@@ -194,7 +193,7 @@ describe('SDU 라우트 — 업스트림 실패', () => {
     expect(response.headers.get('content-type')).toContain('application/problem+json');
     await expect(response.json()).resolves.toMatchObject({
       code: 'INVALID_PARAMETER',
-      detail: '연동 대상이 하나라도 있으면 권역을 바꿀 수 없습니다.',
+      detail: 'targets[0].region "china"은 GLOBAL 권역의 Region이 아닙니다.',
     });
   });
 });

@@ -5,6 +5,7 @@ import * as mockData from '@/lib/mock-data';
 import { ProcessStatus } from '@/lib/types';
 import type {
   SduDefinitionRequestTargetWire,
+  SduDefinitionRequestWire,
   SduDefinitionWire,
   SduRegion,
   SduUploadWire,
@@ -36,8 +37,8 @@ const target = (
 
 const body = async <T>(response: Response): Promise<T> => (await response.json()) as T;
 
-const putDefinition = (id: number, targets: SduDefinitionRequestTargetWire[], scope: 'GLOBAL' | 'CHINA' = 'GLOBAL') =>
-  mockSdu.putDefinition(id, { region_scope: scope, targets });
+const putDefinition = (id: number, targets: SduDefinitionRequestTargetWire[]) =>
+  mockSdu.putDefinition(id, { targets });
 
 const upload = async (id: number): Promise<SduUploadWire> => body(await mockSdu.getUpload(id));
 
@@ -57,35 +58,30 @@ beforeEach(() => {
 });
 
 describe('SDU 정의 — 저장 규칙 (§2)', () => {
-  it('권역은 대상이 하나라도 있으면 바꿀 수 없다', async () => {
-    await putDefinition(GLOBAL_ID, [target()]);
-
-    const rejected = await putDefinition(GLOBAL_ID, [target({ region: 'china' })], 'CHINA');
-
+  it('권역에 속하지 않는 Region 은 거절한다 — 권역은 대상소스가 정한다', async () => {
+    // china 는 CHINA 권역의 Region 이다 — GLOBAL 대상소스에서 받으면 어느 권역도
+    // 소유하지 않는 버킷 경로가 생기고, 무효화를 계산할 수 없게 된다.
+    const rejected = await putDefinition(GLOBAL_ID, [target({ region: 'china' })]);
     expect(rejected.status).toBe(400);
     await expect(body<{ error: { code: string } }>(rejected)).resolves.toMatchObject({
       error: { code: 'INVALID_PARAMETER' },
     });
-  });
 
-  it('대상이 비어 있으면 권역을 바꿀 수 있다 — 잠그는 것은 대상이지 권역이 아니다', async () => {
-    const changed = await putDefinition(GLOBAL_ID, [], 'CHINA');
-
-    expect(changed.status).toBe(200);
-    await expect(body<SduDefinitionWire>(changed)).resolves.toMatchObject({
-      region_scope: 'CHINA',
-      locked: false,
-    });
-  });
-
-  it('권역에 속하지 않는 Region 은 거절한다', async () => {
-    // china 는 CHINA 권역의 Region 이다 — GLOBAL 에서 받으면 어느 권역도 소유하지 않는
-    // 버킷 경로가 생기고, 무효화를 계산할 수 없게 된다.
-    const rejected = await putDefinition(GLOBAL_ID, [target({ region: 'china' })]);
-    expect(rejected.status).toBe(400);
-
-    const accepted = await putDefinition(CHINA_ID, [target({ region: 'china' })], 'CHINA');
+    const accepted = await putDefinition(CHINA_ID, [target({ region: 'china' })]);
     expect(accepted.status).toBe(200);
+  });
+
+  it('본문이 실어 보낸 region_scope 는 무시한다 — 거절할 값이 아니라 쓸 수 없는 값이다', async () => {
+    // 옛 클라이언트의 본문 — 타입에는 없는 필드라 캐스트로만 만들 수 있다.
+    const response = await mockSdu.putDefinition(GLOBAL_ID, {
+      region_scope: 'CHINA',
+      targets: [target()],
+    } as SduDefinitionRequestWire);
+
+    expect(response.status).toBe(200);
+    await expect(body<SduDefinitionWire>(response)).resolves.toMatchObject({
+      region_scope: 'GLOBAL',
+    });
   });
 
   it('database_types 는 20개·50자 상한을 넘길 수 없다', async () => {
@@ -109,21 +105,14 @@ describe('SDU 정의 — 저장 규칙 (§2)', () => {
     expect((await putDefinition(GLOBAL_ID, [target({ upload_ip: '10.20.30.999' })])).status).toBe(400);
   });
 
-  it('locked 는 대상 유무를 그대로 말한다', async () => {
+  it('저장 전 정의는 비어 있고 updated_at 이 없다', async () => {
     await expect(body<SduDefinitionWire>(await mockSdu.getDefinition(GLOBAL_ID))).resolves.toMatchObject({
-      locked: false,
       targets: [],
       updated_at: null,
     });
-
-    await putDefinition(GLOBAL_ID, [target()]);
-
-    await expect(body<SduDefinitionWire>(await mockSdu.getDefinition(GLOBAL_ID))).resolves.toMatchObject({
-      locked: true,
-    });
   });
 
-  it('China 대상소스는 China 권역에서 시작한다 — is_china_region 이 초기값이다', async () => {
+  it('권역은 is_china_region 을 그대로 읽는다 — 저장되는 값이 아니다', async () => {
     await expect(body<SduDefinitionWire>(await mockSdu.getDefinition(CHINA_ID))).resolves.toMatchObject({
       region_scope: 'CHINA',
     });
@@ -263,7 +252,7 @@ describe('SDU 업로드 — 조회와 확인 (§4·§5·§6)', () => {
   });
 
   it('China 는 다른 파티션의 엔드포인트를 쓴다', async () => {
-    await putDefinition(CHINA_ID, [target({ region: 'china' })], 'CHINA');
+    await putDefinition(CHINA_ID, [target({ region: 'china' })]);
     const state = await upload(CHINA_ID);
 
     expect(state.firewall.rows).toHaveLength(1);
