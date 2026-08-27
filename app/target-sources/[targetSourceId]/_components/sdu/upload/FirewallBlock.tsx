@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import { ConsoleTable, type ConsoleTableColumn } from '@/app/components/ui/ConsoleTable';
-import { LastCheckStamp } from '@/app/components/features/process-status/install-status-detail/LastCheckStamp';
 import { YesNoAck } from '@/app/target-sources/[targetSourceId]/_components/sdu/upload/YesNoAck';
 import {
   missingRegions,
@@ -14,14 +13,7 @@ import {
   type SduRegion,
   type SduTarget,
 } from '@/lib/types/sdu';
-import {
-  cn,
-  getButtonClass,
-  idcStyles,
-  stackGap,
-  textColors,
-  textStyles,
-} from '@/lib/theme';
+import { cn, idcStyles, stackGap, textColors, textStyles } from '@/lib/theme';
 
 export interface FirewallBlockProps {
   /** Regions of the CURRENT definition — the answer is asked about these, not about the rows. */
@@ -29,7 +21,6 @@ export interface FirewallBlockProps {
   firewall: SduFirewall;
   /** 1단계's targets, for the 대상 count per region. */
   targets: readonly SduTarget[];
-  onRefresh: () => Promise<void>;
   onAnswer: (confirmed: boolean) => Promise<void>;
 }
 
@@ -54,34 +45,13 @@ const CELL = cn(idcStyles.table.approvalCell, 'align-top');
  * destination IPs. The bucket name is deliberately absent: it is not what gets written on the
  * form, and 4-3's `ls` command already says it. Destination IPs stack one per line because one
  * form line is one CIDR; comma-joined, one gets dropped in transcription.
- *
- * 「다시 조회」 lives here (and on the folded row) because the destination ranges are the cloud
- * provider's to change, not ours. The screen never claims the list is current — it shows when
- * it was read and lets the owner judge.
  */
-export const FirewallBlock = ({
-  regions,
-  firewall,
-  targets,
-  onRefresh,
-  onAnswer,
-}: FirewallBlockProps) => {
-  const [refreshing, setRefreshing] = useState(false);
+export const FirewallBlock = ({ regions, firewall, targets, onAnswer }: FirewallBlockProps) => {
   const [answering, setAnswering] = useState(false);
   const [declined, setDeclined] = useState(false);
 
   const missing = missingRegions(regions, firewall.ackedRegions);
   const answered = regions.filter((region) => firewall.ackedRegions.includes(region));
-  const rangeCount = firewall.rows.reduce((sum, row) => sum + row.destinationIps.length, 0);
-
-  const refresh = async () => {
-    setRefreshing(true);
-    try {
-      await onRefresh();
-    } finally {
-      setRefreshing(false);
-    }
-  };
 
   const answer = async (confirmed: boolean) => {
     setAnswering(true);
@@ -142,23 +112,6 @@ export const FirewallBlock = ({
             ))}
           </tbody>
         </ConsoleTable>
-      </div>
-
-      {/* The action and the time its last run stamped are one row — press the button and the
-          value that changes is beside it. Same composition as the AWS role-verify panel. */}
-      <div className="flex flex-wrap items-center gap-3">
-        <button
-          type="button"
-          onClick={refresh}
-          disabled={refreshing}
-          className={cn(getButtonClass('outline', 'sm'), 'whitespace-nowrap')}
-        >
-          {refreshing ? '조회 중...' : '다시 조회'}
-        </button>
-        <LastCheckStamp lastCheck={{ status: 'IN_PROGRESS', checkedAt: firewall.queriedAt }} />
-        <span className={cn(textStyles.caption, textColors.tertiary)}>
-          목적지 IP {rangeCount}개 대역 · 목적지 IP는 클라우드 사업자가 바꿀 수 있어요.
-        </span>
       </div>
 
       <YesNoAck

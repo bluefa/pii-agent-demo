@@ -11,7 +11,7 @@ import type { SduUpload } from '@/lib/types/sdu';
 const base: SduUpload = {
   submittedAt: '2026-08-24T05:41:00Z',
   regions: ['us', 'eu'],
-  firewall: { queriedAt: '2026-08-24T07:18:00Z', rows: [], ackedRegions: [] },
+  firewall: { rows: [], ackedRegions: [] },
   recipients: { users: [], updatedAt: null },
   commands: { rows: [], ackedRegions: [] },
   bdc: { status: 'NOT_STARTED', checkedAt: '2026-08-24T07:50:00Z', completedAt: null },

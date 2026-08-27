@@ -146,7 +146,6 @@ GET /install/v1/target-sources/{targetSourceId}/sdu/upload
      submitted_at: string | null,
      regions:      string[],          // distinct, canonical order: asia, us, eu, cx, china
      firewall: {
-       queried_at:    string,
        rows: [{ region, s3_endpoint: string, port: number, destination_ips: string[] }],
        acked_regions: string[],
      },
@@ -184,26 +183,15 @@ aws s3 ls s3://bdc-sdu-<aws-region>/<targetSourceId>/ --recursive --human-readab
 The screen shows it verbatim and never parses it. The moment a screen pulls `s3://` out
 of that string, the wire format becomes a screen contract — and a fourth line, or a
 different proxy address, breaks the screen instead of just changing what it displays.
-Conversely the firewall side is **structured**, because the screen stacks and counts
-those values.
+Conversely the firewall side is **structured**, because the screen stacks those values
+one CIDR per line — one form line is one CIDR.
 
 Region → AWS region / endpoint mapping is the **server's**, and the client only reads it
 (storyboard Q3 — it may not be one fixed table, and China is a different partition:
 `amazonaws.com.cn`). The mock keeps its illustrative table in one place,
 `REGION_FACTS` in `lib/bff/mock/sdu.ts`.
 
-## 5. Refresh the firewall rows
-
-```
-POST /install/v1/target-sources/{targetSourceId}/sdu/upload/firewall/refresh
-→ 200  the `firewall` object of §4, with a new `queried_at`
-```
-
-The destination IPs are the cloud provider's to change, so 다시 조회 has to exist. The
-mock moves the timestamp only: if it invented drift, the screen could not tell "this
-changed" from "I looked again".
-
-## 6. Confirmation answers
+## 5. Confirmation answers
 
 ```
 PUT /install/v1/target-sources/{targetSourceId}/sdu/upload/acks
@@ -220,7 +208,7 @@ only — a finished block folds, it does not lock — so every one of them keeps
 
 Storing an ack also clears `invalidation` (§2).
 
-## 7. S3 Access Key recipients
+## 6. S3 Access Key recipients
 
 ```
 PUT /install/v1/target-sources/{targetSourceId}/sdu/upload/recipients
@@ -233,7 +221,7 @@ body { user_ids: string[] }
 records who it goes to and nothing else. No section of this contract has sending
 semantics, and no screen built on it may imply that saving the list dispatched anything.
 
-## 8. BDC progression and system reset
+## 7. BDC progression and system reset
 
 Not an endpoint — a rule §4's `bdc` reports.
 

@@ -5,14 +5,13 @@ import {
   putSduAcks,
   putSduDefinition,
   putSduRecipients,
-  refreshSduFirewall,
   submitSduDefinition,
   toSduDefinitionRequest,
 } from '@/app/lib/api/sdu';
 import type { SduDefinitionWire, SduFirewallWire, SduUploadWire } from '@/lib/types/sdu';
 
 /**
- * ASSUMED CONTRACT — docs/api/sdu-assumed-contracts.md §1–§7.
+ * ASSUMED CONTRACT — docs/api/sdu-assumed-contracts.md §1–§6.
  *
  * This module is the ONE case boundary for the domain. A field that never gets renamed
  * arrives as `undefined` at the consumer and renders as an empty cell — green everywhere
@@ -29,7 +28,6 @@ const DEFINITION_WIRE: SduDefinitionWire = {
 };
 
 const FIREWALL_WIRE: SduFirewallWire = {
-  queried_at: '2026-08-24T07:18:00Z',
   // 정규 순서가 아닌 채로 온다 — 어댑터가 정렬한다.
   rows: [
     { region: 'eu', s3_endpoint: 's3.eu-west-1.amazonaws.com', port: 443, destination_ips: ['52.218.0.0/17'] },
@@ -102,7 +100,6 @@ describe('SDU 어댑터 — snake → camel', () => {
     const upload = await getSduUpload(1101);
 
     expect(upload.submittedAt).toBe('2026-08-24T05:41:00Z');
-    expect(upload.firewall.queriedAt).toBe('2026-08-24T07:18:00Z');
     expect(upload.firewall.rows[0]).toEqual({
       region: 'eu',
       s3Endpoint: 's3.eu-west-1.amazonaws.com',
@@ -146,16 +143,6 @@ describe('SDU 어댑터 — snake → camel', () => {
     expect(upload.commands.rows[0].command.split('\n')).toHaveLength(3);
   });
 
-  it('다시 조회는 방화벽 블록만 camel 로 돌려준다', async () => {
-    const seen = stubFetch(FIREWALL_WIRE);
-
-    const firewall = await refreshSduFirewall(1101);
-
-    expect(seen.method).toBe('POST');
-    expect(seen.url).toContain('/target-sources/1101/sdu/upload/firewall/refresh');
-    expect(firewall.queriedAt).toBe('2026-08-24T07:18:00Z');
-    expect(firewall.rows[0].s3Endpoint).toBe('s3.eu-west-1.amazonaws.com');
-  });
 });
 
 describe('SDU 어댑터 — camel → snake', () => {

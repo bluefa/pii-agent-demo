@@ -12,7 +12,7 @@ import type {
 } from '@/lib/types/sdu';
 
 /**
- * ASSUMED CONTRACT — docs/api/sdu-assumed-contracts.md §1–§8.
+ * ASSUMED CONTRACT — docs/api/sdu-assumed-contracts.md §1–§7.
  *
  * The subject here is the RULES, not the shapes: the invalidation table is the reason
  * every Step-4 answer is stored per region, and if it silently over-drops the owner
@@ -258,14 +258,6 @@ describe('SDU 업로드 — 조회와 확인 (§4·§5·§6)', () => {
     expect(state.firewall.rows).toHaveLength(1);
     expect(state.firewall.rows[0].s3_endpoint).toBe('s3.cn-north-1.amazonaws.com.cn');
     expect(state.firewall.rows[0].port).toBe(443);
-  });
-
-  it('다시 조회는 조회 시각만 새로 찍는다 — 행은 그대로다', async () => {
-    const before = await upload(GLOBAL_ID);
-    const refreshed = await body<SduUploadWire['firewall']>(await mockSdu.refreshFirewall(GLOBAL_ID));
-
-    expect(refreshed.rows).toEqual(before.firewall.rows);
-    expect(refreshed.queried_at).not.toBe(before.firewall.queried_at);
   });
 
   it('연동 대상에 없는 Region 은 확인할 수 없다', async () => {

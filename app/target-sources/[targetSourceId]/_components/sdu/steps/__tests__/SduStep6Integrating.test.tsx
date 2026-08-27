@@ -43,7 +43,7 @@ const project = (processStatus: ProcessStatus): CloudTargetSource => ({
 const UPLOAD = {
   submittedAt: '2026-08-24T05:02:00Z',
   regions: ['us', 'eu'],
-  firewall: { queriedAt: '2026-08-24T05:10:00Z', rows: [], ackedRegions: [] },
+  firewall: { rows: [], ackedRegions: [] },
   recipients: {
     users: [
       { id: 'u1', name: '박지원', email: 'a@example.com' },

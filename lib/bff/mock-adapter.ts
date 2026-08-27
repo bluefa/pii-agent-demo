@@ -167,7 +167,6 @@ export const mockBff: BffClient = {
       await unwrap(await mockSdu.submitDefinition(id));
     },
     getUpload: async (id) => unwrap(await mockSdu.getUpload(id)),
-    refreshFirewall: async (id) => unwrap(await mockSdu.refreshFirewall(id)),
     putAcks: async (id, body) => {
       await unwrap(await mockSdu.putAcks(id, body));
     },

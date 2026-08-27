@@ -7,7 +7,6 @@ vi.mock('@/lib/bff/client', () => ({
       putDefinition: vi.fn(),
       submitDefinition: vi.fn(),
       getUpload: vi.fn(),
-      refreshFirewall: vi.fn(),
       putAcks: vi.fn(),
       putRecipients: vi.fn(),
     },
@@ -17,14 +16,13 @@ vi.mock('@/lib/bff/client', () => ({
 import { GET as getDefinition, PUT as putDefinition } from '@/app/api/v1/target-sources/[targetSourceId]/sdu/definition/route';
 import { POST as submitDefinition } from '@/app/api/v1/target-sources/[targetSourceId]/sdu/definition/submit/route';
 import { GET as getUpload } from '@/app/api/v1/target-sources/[targetSourceId]/sdu/upload/route';
-import { POST as refreshFirewall } from '@/app/api/v1/target-sources/[targetSourceId]/sdu/upload/firewall/refresh/route';
 import { PUT as putAcks } from '@/app/api/v1/target-sources/[targetSourceId]/sdu/upload/acks/route';
 import { PUT as putRecipients } from '@/app/api/v1/target-sources/[targetSourceId]/sdu/upload/recipients/route';
 import { bff } from '@/lib/bff/client';
 import { BffError } from '@/lib/bff/errors';
 import type { SduDefinitionWire, SduFirewallWire, SduUploadWire } from '@/lib/types/sdu';
 
-/** ASSUMED CONTRACT — docs/api/sdu-assumed-contracts.md §1–§7. */
+/** ASSUMED CONTRACT — docs/api/sdu-assumed-contracts.md §1–§6. */
 
 const mocked = vi.mocked(bff.sdu);
 
@@ -40,7 +38,6 @@ const DEFINITION: SduDefinitionWire = {
 };
 
 const FIREWALL: SduFirewallWire = {
-  queried_at: '2026-08-24T07:18:00Z',
   rows: [
     { region: 'us', s3_endpoint: 's3.us-east-1.amazonaws.com', port: 443, destination_ips: ['52.216.0.0/15'] },
   ],
@@ -63,7 +60,6 @@ beforeEach(() => {
   mocked.putDefinition.mockResolvedValue(DEFINITION);
   mocked.submitDefinition.mockResolvedValue(undefined);
   mocked.getUpload.mockResolvedValue(UPLOAD);
-  mocked.refreshFirewall.mockResolvedValue(FIREWALL);
   mocked.putAcks.mockResolvedValue(undefined);
   mocked.putRecipients.mockResolvedValue(undefined);
 });
@@ -75,7 +71,6 @@ describe('SDU 라우트 — targetSourceId 검증', () => {
       putDefinition(new Request(url('/definition'), { method: 'PUT', body: '{}' }), params('abc')),
       submitDefinition(new Request(url('/definition/submit'), { method: 'POST' }), params('abc')),
       getUpload(new Request(url('/upload')), params('abc')),
-      refreshFirewall(new Request(url('/upload/firewall/refresh'), { method: 'POST' }), params('abc')),
       putAcks(new Request(url('/upload/acks'), { method: 'PUT', body: '{}' }), params('abc')),
       putRecipients(new Request(url('/upload/recipients'), { method: 'PUT', body: '{}' }), params('abc')),
     ]);
@@ -138,16 +133,6 @@ describe('SDU 라우트 — 해피 패스', () => {
 
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual(UPLOAD);
-  });
-
-  it('POST /upload/firewall/refresh 는 방화벽 블록만 돌려준다', async () => {
-    const response = await refreshFirewall(
-      new Request(url('/upload/firewall/refresh'), { method: 'POST' }),
-      params('1101'),
-    );
-
-    expect(response.status).toBe(200);
-    await expect(response.json()).resolves.toEqual(FIREWALL);
   });
 
   it('PUT /upload/acks 는 204 이고 본문을 그대로 넘긴다', async () => {

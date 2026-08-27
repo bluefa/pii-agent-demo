@@ -28,7 +28,7 @@ import type {
 
 /**
  * SDU (Self Data Upload) mocks for the ASSUMED contracts
- * (docs/api/sdu-assumed-contracts.md §1–§7). No SDU operation exists in
+ * (docs/api/sdu-assumed-contracts.md §1–§6). No SDU operation exists in
  * install-v1.yaml, so these handlers author the snake wire a future BFF is expected to
  * speak, backed by a globalThis-guarded in-memory store (the ops/access mock pattern —
  * a module-level Map would be re-created by the second bundle and silently lose writes).
@@ -97,7 +97,6 @@ interface SduState {
   targets: SduTargetWire[];
   definitionUpdatedAt: string | null;
   submittedAt: string | null;
-  firewallQueriedAt: string;
   firewallAcked: SduRegion[];
   commandsAcked: SduRegion[];
   recipientIds: string[];
@@ -121,7 +120,6 @@ const NO_INVALIDATION: SduInvalidationWire = {
 
 const emptyInvalidation = (): SduInvalidationWire => ({ ...NO_INVALIDATION });
 
-const SEED_QUERIED_AT = '2026-08-24T07:18:00Z';
 const SEED_DEFINITION_AT = '2026-08-24T05:40:00Z';
 const SEED_SUBMITTED_AT = '2026-08-24T05:41:00Z';
 const SEED_RECIPIENTS_AT = '2026-08-24T07:41:00Z';
@@ -150,7 +148,6 @@ const blankState = (): SduState => ({
   targets: [],
   definitionUpdatedAt: null,
   submittedAt: null,
-  firewallQueriedAt: SEED_QUERIED_AT,
   firewallAcked: [],
   commandsAcked: [],
   recipientIds: [],
@@ -336,11 +333,7 @@ const toFirewallWire = (state: SduState, regions: SduRegion[]): SduFirewallWire 
     port: S3_PORT,
     destination_ips: [...REGION_FACTS[region].destinationIps],
   }));
-  return {
-    queried_at: state.firewallQueriedAt,
-    rows,
-    acked_regions: sortSduRegions(state.firewallAcked),
-  };
+  return { rows, acked_regions: sortSduRegions(state.firewallAcked) };
 };
 
 const toCommandsWire = (
@@ -563,20 +556,7 @@ export const mockSdu = {
     return NextResponse.json(toUploadWire(targetSourceId, state));
   },
 
-  // POST …/sdu/upload/firewall/refresh (assumed §5).
-  refreshFirewall: async (targetSourceId: number) => {
-    const auth = authorize(targetSourceId);
-    if ('error' in auth) return auth.error;
-
-    const state = getState(targetSourceId);
-    // Only the timestamp moves. 목적지 IP 는 클라우드 사업자가 바꾸는 값이라 다시 조회할
-    // 이유가 있지만, 목이 그 변화를 지어내면 화면이 "바뀐 것"과 "다시 본 것"을 구분하지
-    // 못한다 — 여기서는 조회 시각만 새로 찍는다.
-    state.firewallQueriedAt = new Date().toISOString();
-    return NextResponse.json(toFirewallWire(state, regionsOf(state)));
-  },
-
-  // PUT …/sdu/upload/acks (assumed §6).
+  // PUT …/sdu/upload/acks (assumed §5).
   putAcks: async (targetSourceId: number, body: SduAcksRequestWire) => {
     const auth = authorize(targetSourceId);
     if ('error' in auth) return auth.error;
@@ -614,7 +594,7 @@ export const mockSdu = {
     return noContent();
   },
 
-  // PUT …/sdu/upload/recipients (assumed §7).
+  // PUT …/sdu/upload/recipients (assumed §6).
   putRecipients: async (targetSourceId: number, body: { user_ids: string[] }) => {
     const auth = authorize(targetSourceId);
     if ('error' in auth) return auth.error;

@@ -1,7 +1,7 @@
 /**
  * CSR helpers for the SDU (Self Data Upload) owner flow.
  *
- * ASSUMED contracts (docs/api/sdu-assumed-contracts.md §1–§7) — the Next routes exist,
+ * ASSUMED contracts (docs/api/sdu-assumed-contracts.md §1–§6) — the Next routes exist,
  * the upstream BFF endpoints do not. Against the real BFF every call here 404s, so the
  * failure copy on these screens must not promise that a retry will work.
  *
@@ -51,8 +51,7 @@ export const toSduDefinition = (wire: SduDefinitionWire): SduDefinition => ({
   updatedAt: wire.updated_at,
 });
 
-export const toSduFirewall = (wire: SduFirewallWire): SduFirewall => ({
-  queriedAt: wire.queried_at,
+const toFirewall = (wire: SduFirewallWire): SduFirewall => ({
   rows: wire.rows.map((row) => ({
     region: row.region,
     s3Endpoint: row.s3_endpoint,
@@ -81,7 +80,7 @@ const toInvalidation = (wire: SduInvalidationWire): SduInvalidation => ({
 export const toSduUpload = (wire: SduUploadWire): SduUpload => ({
   submittedAt: wire.submitted_at,
   regions: sortSduRegions(wire.regions),
-  firewall: toSduFirewall(wire.firewall),
+  firewall: toFirewall(wire.firewall),
   recipients: toRecipients(wire.recipients),
   commands: toCommands(wire.commands),
   bdc: {
@@ -144,15 +143,7 @@ export const getSduUpload = async (
 ): Promise<SduUpload> =>
   toSduUpload(await fetchInfraJson<SduUploadWire>(`${base(targetSourceId)}/upload`, init));
 
-/** assumed §5 — 다시 조회. 행은 그대로고 조회 시각만 새로 찍힌다. */
-export const refreshSduFirewall = async (targetSourceId: number): Promise<SduFirewall> =>
-  toSduFirewall(
-    await fetchInfraJson<SduFirewallWire>(`${base(targetSourceId)}/upload/firewall/refresh`, {
-      method: 'POST',
-    }),
-  );
-
-/** assumed §6 — 확인 응답. 예/아니오는 `confirmed` 하나이고, 되돌릴 수 있다. */
+/** assumed §5 — 확인 응답. 예/아니오는 `confirmed` 하나이고, 되돌릴 수 있다. */
 export const putSduAcks = async (
   targetSourceId: number,
   body: { kind: SduAckKind; regions: readonly SduRegion[]; confirmed: boolean },
@@ -164,7 +155,7 @@ export const putSduAcks = async (
 };
 
 /**
- * assumed §7 — S3 Access Key 수신자. 이것은 **목록**이지 발송이 아니다: 키는 관리자가
+ * assumed §6 — S3 Access Key 수신자. 이것은 **목록**이지 발송이 아니다: 키는 관리자가
  * 메일로 직접 전달하고, 화면은 누구 앞으로 가는지만 정한다.
  */
 export const putSduRecipients = async (

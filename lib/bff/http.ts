@@ -452,7 +452,6 @@ export const httpBff: BffClient = {
     submitDefinition: (id) =>
       send('POST', `/target-sources/${id}/sdu/definition/submit`, undefined, { emptyBodyOk: true }),
     getUpload: (id) => getSnakeRaw(`/target-sources/${id}/sdu/upload`),
-    refreshFirewall: (id) => post(`/target-sources/${id}/sdu/upload/firewall/refresh`, undefined),
     putAcks: (id, body) =>
       put(`/target-sources/${id}/sdu/upload/acks`, body, { emptyBodyOk: true }),
     putRecipients: (id, userIds) =>

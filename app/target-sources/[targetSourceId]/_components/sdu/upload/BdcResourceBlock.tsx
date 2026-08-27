@@ -6,7 +6,6 @@ import {
   INSTALL_POLL_INTERVAL_MS,
   useInstallationStatus,
 } from '@/app/hooks/useInstallationStatus';
-import { LastCheckStamp } from '@/app/components/features/process-status/install-status-detail/LastCheckStamp';
 import { cn, stackGap, textColors, textStyles } from '@/lib/theme';
 import type { CloudTargetSource } from '@/lib/types';
 import type { SduBdc, SduUpload } from '@/lib/types/sdu';
@@ -26,11 +25,11 @@ const isBdcComplete = (upload: SduUpload): boolean => upload.bdc.status === 'COM
  * What is being built is deliberately absent — no resource list, no step rail, no counts. The
  * owner cannot act on any of it, and a failure shown in a place with no remedy is worse than
  * no line at all; the admin's 인프라 작업 탭 owns the detail. The only fact this block carries
- * is "it is running", and the only thing that proves it is a number that moves on its own.
+ * is "it is running".
  *
- * No refresh button: the poll is silent and 30s long, so a button would mostly do nothing
- * visible. 4-1's 「다시 조회」 is a different act — there the owner is re-reading a list that a
- * cloud provider may have changed under them.
+ * The poll is SILENT (오너 2026-08-27): it still runs, notices completion and hands the
+ * refreshed project up, but it says nothing on screen. No refresh button either — a 30s
+ * poll means the button would mostly do nothing visible.
  */
 export const BdcResourceBlock = ({ targetSourceId, bdc, onProjectUpdate }: BdcResourceBlockProps) => {
   const { status } = useInstallationStatus<SduUpload>({
@@ -64,10 +63,6 @@ export const BdcResourceBlock = ({ targetSourceId, bdc, onProjectUpdate }: BdcRe
       <p className={cn(textStyles.body, textColors.secondary)}>
         담당자가 하실 일은 없어요. 생성이 끝나면 다음 단계로 넘어가요.
       </p>
-      <div className="flex flex-wrap items-center justify-center gap-2 pt-2">
-        <span className={cn(textStyles.caption, textColors.tertiary)}>30초마다 자동 확인</span>
-        <LastCheckStamp lastCheck={{ status: 'IN_PROGRESS', checkedAt: live.checkedAt }} />
-      </div>
     </div>
   );
 };

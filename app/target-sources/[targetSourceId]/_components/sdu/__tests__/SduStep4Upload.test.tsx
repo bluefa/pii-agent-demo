@@ -9,7 +9,6 @@ const api = vi.hoisted(() => ({
   getSduDefinition: vi.fn(),
   putSduAcks: vi.fn(),
   putSduRecipients: vi.fn(),
-  refreshSduFirewall: vi.fn(),
   searchUsers: vi.fn(),
   getProject: vi.fn(),
 }));
@@ -19,7 +18,6 @@ vi.mock('@/app/lib/api/sdu', () => ({
   getSduDefinition: api.getSduDefinition,
   putSduAcks: api.putSduAcks,
   putSduRecipients: api.putSduRecipients,
-  refreshSduFirewall: api.refreshSduFirewall,
 }));
 vi.mock('@/app/lib/api', () => ({
   searchUsers: api.searchUsers,
@@ -56,7 +54,6 @@ const upload = (over: Partial<SduUpload> = {}): SduUpload => ({
   submittedAt: '2026-08-24T05:41:00Z',
   regions: ['us', 'eu'],
   firewall: {
-    queriedAt: '2026-08-24T07:18:00Z',
     rows: [
       {
         region: 'us',
@@ -156,7 +153,6 @@ beforeEach(() => {
   api.getSduDefinition.mockResolvedValue(definition);
   api.putSduAcks.mockResolvedValue(undefined);
   api.putSduRecipients.mockResolvedValue(undefined);
-  api.refreshSduFirewall.mockResolvedValue(upload().firewall);
   api.searchUsers.mockResolvedValue({ users: [] });
   api.getProject.mockResolvedValue({ ...project, processStatus: ProcessStatus.WAITING_CONNECTION_TEST });
 });

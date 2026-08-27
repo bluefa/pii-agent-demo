@@ -97,7 +97,6 @@ export interface SduFirewallRowWire {
 }
 
 export interface SduFirewallWire {
-  queried_at: string;
   rows: SduFirewallRowWire[];
   acked_regions: SduRegion[];
 }
@@ -188,7 +187,6 @@ export interface SduFirewallRow {
 }
 
 export interface SduFirewall {
-  queriedAt: string;
   rows: SduFirewallRow[];
   ackedRegions: SduRegion[];
 }

@@ -1,13 +1,7 @@
 'use client';
 
 import { useCallback, useState } from 'react';
-import {
-  getSduDefinition,
-  getSduUpload,
-  putSduAcks,
-  putSduRecipients,
-  refreshSduFirewall,
-} from '@/app/lib/api/sdu';
+import { getSduDefinition, getSduUpload, putSduAcks, putSduRecipients } from '@/app/lib/api/sdu';
 import { useAbortableEffect } from '@/app/hooks/useAbortableEffect';
 import { ErrorState } from '@/app/components/ui/state';
 import { SduStep1Define } from '@/app/target-sources/[targetSourceId]/_components/sdu/steps/SduStep1Define';
@@ -144,19 +138,6 @@ export function SduStep4Upload({ project, onProjectUpdate }: SduStepProps) {
     [reload],
   );
 
-  /** Re-read the destination ranges. Never throws: the folded row calls it fire-and-forget. */
-  const refreshFirewall = useCallback(async () => {
-    setWriteError(null);
-    try {
-      const firewall = await refreshSduFirewall(targetSourceId);
-      setSnapshot((previous) =>
-        previous ? { ...previous, upload: { ...previous.upload, firewall } } : previous,
-      );
-    } catch {
-      setWriteError('방화벽 정보를 다시 조회하지 못했어요.');
-    }
-  }, [targetSourceId]);
-
   if (editing) {
     // The trip to 1단계 and back is client-side only — no status moves, so this is a swap of
     // what the card shows, not a navigation.
@@ -250,18 +231,13 @@ export function SduStep4Upload({ project, onProjectUpdate }: SduStepProps) {
                   snapshot.upload.regions,
                   snapshot.upload.firewall.ackedRegions,
                 )}
-                action={secondaryAction('다시 조회', () => {
-                  // Refreshing a folded block would change nothing the owner can see, so the
-                  // action opens it and re-reads in one gesture.
-                  setReopened('firewall');
-                  void refreshFirewall();
-                })}
               >
+                {/* 접힌 줄에 보조 동작이 없는 유일한 블록이다 — 되돌아갈 이유가
+                    「다시 답한다」 하나뿐이라 머리를 눌러 펴는 것으로 충분하다. */}
                 <FirewallBlock
                   regions={snapshot.upload.regions}
                   firewall={snapshot.upload.firewall}
                   targets={snapshot.definition.targets}
-                  onRefresh={refreshFirewall}
                   onAnswer={(confirmed) =>
                     write(() =>
                       putSduAcks(targetSourceId, {

@@ -32,7 +32,6 @@ import type {
   SduAcksRequestWire,
   SduDefinitionRequestWire,
   SduDefinitionWire,
-  SduFirewallWire,
   SduUploadWire,
 } from '@/lib/types/sdu';
 import type {
@@ -475,10 +474,9 @@ export interface BffClient {
     putDefinition: (id: number, body: SduDefinitionRequestWire) => Promise<SduDefinitionWire>;
     // assumed §3 — 제출. SDU 는 승인 절차가 없어 1단계가 곧바로 업로드 단계로 넘어간다.
     submitDefinition: (id: number) => Promise<void>;
-    // assumed §4·§5 — 업로드 단계(4단계). 모든 목록이 Region 단위다.
+    // assumed §4 — 업로드 단계(4단계). 모든 목록이 Region 단위다.
     getUpload: (id: number) => Promise<SduUploadWire>;
-    refreshFirewall: (id: number) => Promise<SduFirewallWire>;
-    // assumed §6·§7 — 확인 응답과 S3 Access Key 수신자. 둘 다 204.
+    // assumed §5·§6 — 확인 응답과 S3 Access Key 수신자. 둘 다 204.
     putAcks: (id: number, body: SduAcksRequestWire) => Promise<void>;
     putRecipients: (id: number, userIds: string[]) => Promise<void>;
   };
