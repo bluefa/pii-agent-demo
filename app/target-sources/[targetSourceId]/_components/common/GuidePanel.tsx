@@ -125,9 +125,16 @@ const CollabChannelCard = ({ jiraTicket }: { jiraTicket: JiraTicketState }) => {
    * there to.
    */
   // Two gaps, and they are deliberately UNEQUAL — measured in INK, half-leadings included:
-  //    8.5  zone head → 문장   (2 + mt-1 4 + 2.5)   the name and what it is for
-  //   20    문장 → 값 줄       (2.5 + mt-4 16 + 1.5) the value
-  // 2.35×, which is what makes two groups out of four lines. ⛔ It replaces a ladder of
+  //   12.5  zone head → 문장   (2 + mt-2 8 + 2.5)    the name and what it is for
+  //   28    문장 → 값 줄       (2.5 + mt-6 24 + 1.5)  the value
+  // 2.24×, which is what makes two groups out of three lines. They were 8.5 and 20 until
+  // 오너 지시 2026-08-28 (「행간 거리 띄우자. 타이틀과 보조 텍스트가 너무 붙어있다」). ⛔ The
+  // second gap grew even though only the first was named: at 20 the ratio would be 1.6×,
+  // which is the uniform spread this card was already diagnosed for. If the result reads too
+  // airy, the SECOND gap is the one to pull back — the first is the one the owner asked for.
+  // ⛔ Both moved by margin. No leading was touched; see the head's own note.
+  //
+  // ⛔ It replaces a ladder of
   // 8.5 / 11.5 / 6.5 that was monotonic and therefore useless: max/min was 1.77×, close
   // enough that the eye read it as uniform and no group formed at all. `/design-guide` §3
   // asks for a section gap at 2× the internal one and says plainly that uniform spacing
@@ -140,9 +147,9 @@ const CollabChannelCard = ({ jiraTicket }: { jiraTicket: JiraTicketState }) => {
   // Containment separates more strongly than any gap, so the outer boundary owes the inner
   // one no margin of victory. ⛔ `gap-3` itself does not move.
   //
-  // Measured after: the card is 98px tall where it was 125, and the two gaps come out 8.5
-  // and 20 off the rendered rects — 21 in the empty states, whose row is 12/17 rather than
-  // 14/17, so its half-leading is 1px deeper.
+  // Measured after: the two gaps come out 12.5 and 28 off the rendered rects — 29 in the
+  // empty states, whose row is 12/17 rather than 14/17, so its half-leading is 1px deeper.
+  // Card height has run 125 → 98 (two lines cut) → 102 (20px head) → 110 (this round).
   return (
     <div>
       {/* ⛔ No 「도움이 필요하신가요?」 heading above this sentence (오너 지시 2026-08-23).
@@ -166,11 +173,11 @@ const CollabChannelCard = ({ jiraTicket }: { jiraTicket: JiraTicketState }) => {
           4.83:1 again. Quiet is the right register for a placeholder — it must not
           out-weigh the real link. */}
       {jiraTicket === 'error' ? (
-        <div className={cn('mt-4', sentence, 'font-medium', textColors.tertiary)}>
+        <div className={cn('mt-6', sentence, 'font-medium', textColors.tertiary)}>
           협업 채널 정보를 불러오지 못했어요
         </div>
       ) : jiraTicket === null ? (
-        <div className={cn('mt-4', sentence, 'font-medium', textColors.tertiary)}>
+        <div className={cn('mt-6', sentence, 'font-medium', textColors.tertiary)}>
           아직 연결된 협업 채널이 없어요
         </div>
       ) : (
@@ -180,7 +187,7 @@ const CollabChannelCard = ({ jiraTicket }: { jiraTicket: JiraTicketState }) => {
               leading the card inherits and the 20px ink gap above would be measured off the
               wrong box. `flex` also keeps the anchor shrink-to-fit. The row holds no type —
               the value carries it. */}
-          <div className="mt-4 flex">
+          <div className="mt-6 flex">
             {href ? (
               /* Owner ask: the issue key reads as a classic hyperlink — blue + underline.
                  `textOnLight` (#0050D6), not `text` (#0064FF), even though the brighter
@@ -462,11 +469,15 @@ export const GuidePanel = ({
               holds the top of the rail and the guide scrolls underneath it. */}
           <div className={cn(railStyles.card, railStyles.bubbleTail, 'shrink-0 p-3')}>
             {/* The zone head: the zone's name, and nothing else. No glyph, no control, no
-                dot — 20px (오너 지시 2026-08-27: 「협업 채널은 20픽셀로 선언해볼래?」).
+                dot.
 
-                `railStyles.channelZoneLabel`, this head's own token. ⛔ Not `zoneLabel`,
-                which also draws the guide card's 「N단계 가이드」 — the ask was about this
-                head, and growing the shared token would have moved one nobody looked at.
+                `railStyles.zoneLabel`, 16/20 — the same token the guide card's head wears.
+                ⚠️ It was 20/24 through a token of its own for one commit (오너 지시
+                2026-08-27: 「협업 채널은 20픽셀로 선언해볼래?」) and came back the next day
+                (오너 지시 2026-08-28: 「16픽셀로 바꿔」). ⛔ The token went with the size: at
+                16 it was byte-identical to this one. Five of the benchmark's narrow-rail
+                references treat every section head alike whatever the section's size, so
+                sharing is the supported state and not just the smaller diff.
 
                 오너 지시 2026-08-27 — the CARD is the 말풍선 the folded strip draws as a 20px
                 `ChatIcon`, enlarged (`railStyles.bubbleTail` carries the tail). That is what
@@ -484,22 +495,33 @@ export const GuidePanel = ({
                 the dot was saying in colour. `railStyles.zoneMarkChannel`/`…Quiet`, the ink
                 pair that existed only to colour that glyph, went with the glyph.
 
-                `block`, so the label's own 24px line box is the head's box. As a bare inline
+                `block`, so the label's own 20px line box is the head's box. As a bare inline
                 span it would sit in a line box sized by the card's inherited leading, and
-                both ink gaps around it are measured off that 24: `p-3` + (24 − 20) / 2 = 14
-                above, and 2 + `mt-1` + 2.5 = 8.5 below. ⛔ Above > below, deliberately
-                (`/design-guide` 여백 7원칙 #2): a head belongs to the text it introduces, and
-                at equal margins it floats between the padding and the sentence. The head
-                grew 4px and neither gap moved, because 20/24 keeps 16/20's 2px half-leading. */}
-            <span className={cn('block', railStyles.channelZoneLabel)}>협업 채널</span>
-            {/* Still 4, and the ink it buys is 8.5. The head's 20px ink sits in a 24px line
-                box, leaving 2 below; the sentence's 12px ink sits in a 17px box, leaving 2.5
-                above; 4 between the boxes puts 8.5 between the INK. Align what is seen, not
-                what is boxed. This is the card's INTERNAL gap — the name and the sentence
-                are one group — and the card's own `mt-4` puts 20 before the value, i.e.
-                2.35× this. ⛔ Do not even them out: equal gaps here made the four lines read
-                as one lump, which is exactly what `/design-guide` §3 warns about. */}
-            <div className="mt-1">
+                both ink gaps around it are measured off that 20: `p-3` + (20 − 16) / 2 = 14
+                above, and 2 + `mt-2` + 2.5 = 12.5 below.
+
+                ⚠️ Above > below by 1.5px, which satisfies `/design-guide` 여백 7원칙 #2 (제목의
+                위 여백 > 아래 여백) and only just. This is known, not missed: the only lever
+                is the card's top padding — `p-4` would make it 18 — and the owner asked for
+                the gap UNDER the title, not for the card's padding. Leave `p-3` alone until
+                they do. */}
+            <span className={cn('block', railStyles.zoneLabel)}>협업 채널</span>
+            {/* 8, and the ink it buys is 12.5 (오너 지시 2026-08-28: 「타이틀과 보조 텍스트가
+                너무 붙어있다」 — it was 4, i.e. 8.5 of ink). The head's 16px ink sits in a
+                20px line box, leaving 2 below; the sentence's 12px ink sits in a 17px box,
+                leaving 2.5 above; 8 between the boxes puts 12.5 between the INK. Align what
+                is seen, not what is boxed.
+
+                ⛔ The MARGIN opened, not the head's `leading`. Inflating a line box to
+                manufacture space below it is the same "align what is boxed" error, and it
+                would spend the head's own rhythm — 16/20 is the design guide's 120% for a
+                제목 — on a gap that belongs to the box below.
+
+                This is the card's INTERNAL gap: the name and the sentence are one group.
+                The card's own `mt-6` puts 28 before the value, i.e. 2.24× this. ⛔ Do not
+                even them out: equal gaps here made the lines read as one lump, which is
+                exactly what `/design-guide` §3 warns about. */}
+            <div className="mt-2">
               <CollabChannelCard jiraTicket={jiraTicket} />
             </div>
           </div>

@@ -2556,6 +2556,14 @@ export const railStyles = {
    * idiom. That argument no longer holds — at 16px this is a section HEADING, not a nav
    * label, so it is deliberately its own thing.
    *
+   * ⚠️ BOTH heads wear this, and that is the settled state. The 협업 채널 card had its own
+   * `channelZoneLabel` for one commit, at 20/24 (오너 지시 2026-08-27), and 오너 지시
+   * 2026-08-28 brought it back to 16 — at which point the second token was byte-identical to
+   * this one, i.e. a duplicate carrying no delta, so it is deleted. ⛔ Do not re-introduce a
+   * per-zone head token to change one head's SPACING: the benchmark's five narrow-rail
+   * references all unify head treatment across sections regardless of section size, and the
+   * gap under a head is the margin's business, not the type's.
+   *
    * T1 of the rail's three tiers (오너 2026-08-24: 12 / 14 / 16, and a leading per group).
    * It was 600 #4E5968 at leading 1.5, and the guide's own `<h4>` two lines below it was
    * 14px **700** #111827 at 1.72 — a 24.08px line box against this label's 24.00, i.e. the
@@ -2581,27 +2589,6 @@ export const railStyles = {
    * for the rail plane, which this label never touches.
    */
   zoneLabel: 'text-[16px] font-bold leading-[20px] tracking-[-0.02em] text-[#191F28]',
-  /**
-   * The 협업 채널 card's head, and ONLY that one — 20px (오너 지시 2026-08-27: 「협업 채널은
-   * 20픽셀로 선언해볼래?」).
-   *
-   *   size 20 · leading 24 (1.2) · tracking −0.02em · weight 700 · #191F28
-   *
-   * ⛔ A second token rather than a change to `zoneLabel`, because `zoneLabel` also draws
-   * the guide card's 「N단계 가이드」 and the owner asked about one head. Growing the shared
-   * token would have moved a head nobody looked at, in a card whose own body type did not
-   * move with it.
-   *
-   * 20 comes off the `/design-guide` size set (12/14/16/18/20/24) and 24 is that guide's
-   * 120% leading for 제목·라벨 — the same rule `zoneLabel` follows at 16/20 (125%), applied
-   * at the new size. Weight, ink and tracking are `zoneLabel`'s, unchanged: the ask was a
-   * size, so size is the only channel that moves.
-   *
-   * The half-leading stays 2px ((24 − 20) / 2, as ((20 − 16) / 2 was), which is why the
-   * card's ink gaps did not move when the head grew — 14 above it from `p-3` + 2, and 8.5
-   * below it to the sentence. The card got 4px taller and nothing else changed.
-   */
-  channelZoneLabel: 'text-[20px] font-bold leading-[24px] tracking-[-0.02em] text-[#191F28]',
   /**
    * The 가이드 zone's mark — the 전구 ink, on the open rail's zone head and on the folded
    * strip (오너 지시 2026-08-23: the same mark in both states).

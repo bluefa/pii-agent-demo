@@ -163,7 +163,7 @@ describe('GuidePanel — collab-channel card states', () => {
     // tier declares its own now: T3 normal → T2 −0.01em → T1 −0.02em.
     expect(key.className).toContain('tracking-[-0.01em]');
     expect(screen.getByText(CHANNEL_LINE).className).toContain('tracking-normal');
-    expect(railStyles.channelZoneLabel).toContain('tracking-[-0.02em]');
+    expect(railStyles.zoneLabel).toContain('tracking-[-0.02em]');
   });
 });
 
@@ -607,19 +607,18 @@ describe('GuidePanel — the folded strip says what it is', () => {
     // have. `justify-between` is what put it on the corner, so its absence is the tripwire.
     expect(head.className).not.toContain('justify-between');
 
-    // 20px, and THIS head only (오너 지시 2026-08-27: 「협업 채널은 20픽셀로 선언해볼래?」).
-    // ⛔ Its own token: `zoneLabel` still draws the guide card's head at 16, and growing the
-    // shared one would have moved a head the owner did not ask about — in a card whose body
-    // type did not move either. 24 is `/design-guide`'s 120% leading for 제목·라벨, the same
-    // rule `zoneLabel` follows at 16/20, and it keeps the 2px half-leading that both ink
-    // gaps around the head are measured off.
-    expect(head.className).toContain(railStyles.channelZoneLabel);
-    expect(railStyles.channelZoneLabel).toContain('text-[20px]');
-    expect(railStyles.channelZoneLabel).toContain('leading-[24px]');
+    // 16/20, and BOTH heads wear the same token — the card's and the guide zone's.
+    // ⚠️ This head was 20/24 through a `channelZoneLabel` of its own for one commit (오너
+    // 지시 2026-08-27) and came back on 2026-08-28; the token went with the size, because at
+    // 16 it was byte-identical to `zoneLabel`. The benchmark's five narrow-rail references
+    // all treat every section head alike whatever the section's size.
+    // ⛔ Nobody may open the gap under this head by growing its line box instead: 20 is the
+    // design guide's 120% for a 제목, and both ink gaps around the head are measured off it.
+    expect(head.className).toContain(railStyles.zoneLabel);
     expect(railStyles.zoneLabel).toContain('text-[16px]');
+    expect(railStyles.zoneLabel).toContain('leading-[20px]');
     const guideHead = screen.getByText('가이드');
     expect(guideHead.className).toContain(railStyles.zoneLabel);
-    expect(guideHead.className).not.toContain('text-[20px]');
     // …and no `RailMark` anywhere on the open rail but the 가이드 zone's 전구.
     expect(channelMark(container as HTMLElement)).toBeUndefined();
     expect(guideMark(container as HTMLElement)).toBeTruthy();
@@ -658,6 +657,10 @@ describe('GuidePanel — the folded strip says what it is', () => {
    * eye reads them as uniform, so the four lines formed no groups at all and the card read
    * as one lump. Monotonicity is not hierarchy; asymmetry is.
    *
+   * 12.5 and 28 (오너 지시 2026-08-28: 「타이틀과 보조 텍스트가 너무 붙어있다」, which moved
+   * the pair up from 8.5 and 20). ⛔ Both by MARGIN — the ratio is what the second number is
+   * for, since holding it at 20 would put this at 1.6×.
+   *
    * The assertion is the INK arithmetic, derived from the box margins, because the ink is
    * what a reader sees: half-leadings are 2 below the head's 16/20, 2.5 either side of the
    * sentence's 12/17, and 1.5 above the key's 14/17.
@@ -667,7 +670,7 @@ describe('GuidePanel — the folded strip says what it is', () => {
    * `railStyles.card` on the #E2E7EA plane), and containment separates more strongly than
    * any gap, so the outer boundary owes the inner one no margin of victory.
    */
-  it('spaces the card as two groups — the section gap is 2× the internal one', async () => {
+  it('spaces the card as two groups — the section gap is 2× the internal one, in ink', async () => {
     const { container } = render(
       <GuidePanel
         {...baseProps}
@@ -683,8 +686,8 @@ describe('GuidePanel — the folded strip says what it is', () => {
 
     const internalInk = 2 + boxMargin(body) + 2.5;
     const sectionInk = 2.5 + boxMargin(valueRow) + 1.5;
-    expect(internalInk).toBe(8.5);
-    expect(sectionInk).toBe(20);
+    expect(internalInk).toBe(12.5);
+    expect(sectionInk).toBe(28);
     expect(sectionInk / internalInk).toBeGreaterThanOrEqual(2);
 
     // ⛔ And nothing between them carries a third margin — two gaps, two groups.
