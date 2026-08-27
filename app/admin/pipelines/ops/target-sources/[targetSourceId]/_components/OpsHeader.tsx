@@ -443,9 +443,9 @@ export function OpsHeader({
               <Link
                 href={passRoutes.targetSource(targetSourceId)}
                 className={opsStyles.aboutLink}
-                title="PII Agent 설치 화면 — 서비스 담당자가 보는 진행 화면"
+                title="PII Agent 설치 화면 — 이 대상의 서비스측 진행 화면"
               >
-                서비스가 보는 화면
+                서비스 담당자가 보는 화면
               </Link>
             </span>
           </div>
