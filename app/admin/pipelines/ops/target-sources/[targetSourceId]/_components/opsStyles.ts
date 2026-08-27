@@ -276,19 +276,35 @@ export const opsStyles = {
   /** `overflow-x-auto` 는 없다 — 여덟 탭의 전체 폭이 717px 이라 1422px 열에서 넘칠 일이
       없고(실측), 스크롤 컨테이너로 두면 활성 탭의 `-mb-px` 가 1px 짜리 세로 스크롤을
       만든다. 밑줄이 헤어라인을 먹으려면 그 1px 은 밖으로 나가야 한다. */
-  tabStrip: 'mt-4 flex items-end gap-1 border-b border-[var(--pl-border-strong)]',
+  /**
+   * 내비게이션은 **선 두 개 사이에 산다** (오너 2026-08-27 "Navigation 위쪽에 구분선을
+   * 하나 더 두자 … 위 아래 구분선이 Navigation이다라는 느낌만 주게"). 밴드를 걷고 나니
+   * 탭이 마스트헤드와 같은 워시 위에서 같은 활자로 섰고, 아래 선 하나는 블록 머리를
+   * 닫는 그 선과 구별되지 않아 탭 줄이 사실 한 줄로 읽혔다. 선이 짝이 되면 그 사이가
+   * 하나의 띠가 된다 — 칠을 하나도 쓰지 않고 묶는다("Structure should be felt not seen").
+   *
+   * 위 여백은 20px 로, 블록↔블록과 같은 칸이다. 위 선이 「연동 대상」 블록의 머리
+   * 헤어라인과 같은 토큰·같은 두께라, 마스트헤드의 마지막 사실과 이 띠 사이가 블록이
+   * 갈리는 거리만큼 떨어져야 두 선이 서로 다른 것을 닫는 것으로 읽힌다.
+   * 탭의 py-2.5 가 선 안쪽 10px 을 위아래로 똑같이 준다 — 띠는 대칭이다.
+   */
+  tabStrip: 'mt-5 flex items-end gap-1 border-y border-[var(--pl-border-strong)]',
   /**
    * Geometry is `accessStyles.tab` verbatim (the 접근 권한 page tabs) — the admin
    * console should have one line-tab, not two that differ by a few px.
    */
-  tab: 'flex cursor-pointer items-center gap-1.5 whitespace-nowrap border-b-2 -mb-px px-3 py-2.5 text-[14px] transition-colors',
+  /** 16/600 — 활자가 이 줄에서 유일하게 마스트헤드보다 크다 (오너 2026-08-27
+      "Navigation 픽셀을 16까지 올리고 semi bold"). 굵기는 활성·비활성이 같이 진다:
+      활성은 이미 잉크와 밑줄 두 레버를 들고 있어서, 굵기까지 가져가면 비활성이 한 단
+      더 내려앉고 선택이 아니라 나머지가 흐려진 것처럼 읽힌다. */
+  tab: 'flex cursor-pointer items-center gap-1.5 whitespace-nowrap border-b-2 -mb-px px-3 py-2.5 text-[16px] font-semibold transition-colors',
   /** 잉크 + 밑줄. The face is gone, so 파랑 is the only thing marking the tab that
       is open — 4.69:1 on the wash (실측). */
-  tabActive: 'font-semibold text-[var(--pl-primary)] border-[var(--pl-primary)]',
+  tabActive: 'text-[var(--pl-primary)] border-[var(--pl-primary)]',
   /** 워시는 램프 한 칸을 잡아먹는다 — `--pl-text-weak` (accessStyles' idle ink) is
       only 4.51 here, so idle stays at medium: 9.49:1 (실측). */
   tabIdle:
-    'font-medium text-[var(--pl-text-medium)] border-transparent hover:text-[var(--pl-text-strong)] hover:border-[var(--pl-border-strong)]',
+    'text-[var(--pl-text-medium)] border-transparent hover:text-[var(--pl-text-strong)] hover:border-[var(--pl-border-strong)]',
   /**
    * Group gap — used TWICE, because these eight tabs are three things, not two:
    *   보기       진행 상태 · 스캔 · 연동 요청 정보 · 확정 정보
