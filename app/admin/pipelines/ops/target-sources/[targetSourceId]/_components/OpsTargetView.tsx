@@ -376,7 +376,10 @@ export function OpsTargetView({ targetSourceId, initialTab }: OpsTargetViewProps
               마스트헤드가 그만큼 자리를 비워 두면 도착해도 탭이 위아래로 안 뛴다. */}
           <div className={opsStyles.fmGroup}>
             <div className={opsStyles.fmHead}>
-              <div className={cn(opsStyles.skeletonWash, 'h-5 w-[108px]')} />
+              {/* 22px — `fmLabel` 이 16px 이 되면서 그 줄 상자가 22.39px 가 됐다(실측).
+                  20 으로 두면 스켈레톤 마스트헤드가 2.4px 짧아 도착하는 순간 탭 줄이
+                  아래로 뛴다 — 이 자리가 잡아야 하는 바로 그것이다. */}
+              <div className={cn(opsStyles.skeletonWash, 'h-[22px] w-[108px]')} />
             </div>
             <div className={opsStyles.fmGrid}>
               {[0, 1].map((row) => (

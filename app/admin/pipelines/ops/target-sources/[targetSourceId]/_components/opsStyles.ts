@@ -86,31 +86,48 @@ export const opsStyles = {
    * 네 자리를 1.4~1.5배씩 벌려 세 단으로 세운다:
    *
    *   4px   한 짝 안      라벨 ↔ 그 값            `fmCell` gap-1
-   *   14px  한 블록 안    머리 헤어라인 ↔ 사실들   `fmGrid`·`aboutList` pt-3.5
+   *   22px  한 블록 안    블록 이름 ↔ 사실들       `fmGrid`·`aboutList` pt-[22px]
    *   20px  블록 사이     경로 줄 ↔ 연동 대상      `fmGroup` mt-5
-   *   16px  워시 ↔ 탭 줄                          `tabStrip` mt-4
+   *   20px  워시 ↔ 탭 줄                          `tabStrip` mt-5
    *
-   * 탭 줄만 20 이 아니라 16 인 것은 거기가 **문법이 바뀌는 경계**라서다 — 위는 사실이고
-   * 아래는 내비게이션이라 간격까지 최대로 줄 이유가 없다. (밴드가 있을 때는
-   * 색이 바뀌는 경계가 같은 자리에서 같은 일을 했다.)
+   * 「한 블록 안」이 14 에서 22 로 올랐다 (오너 2026-08-27 "하단에 구분선을 없애고
+   * 행간 거리를 8픽셀 더 두도록"). 헤어라인이 머리를 닫고 있을 때는 14 로 충분했다 —
+   * 선이 이름과 사실을 갈라 줬으니까. 선을 걷으면 그 일을 **간격 혼자** 해야 하고,
+   * 같은 14 로는 이름이 첫 사실 줄에 붙어 읽힌다. 실측으로 라벨 바닥↔첫 사실이
+   * 21 → 28px 이다(선 1px 이 옛 21 안에 포함돼 있었다).
+   *
+   * 탭 줄은 20 으로 블록↔블록과 같은 칸이다. 이 주석은 오래 16/mt-4 라고 적혀 있었지만
+   * 코드는 그때 이미 mt-5 였다 — 실측해서 맞춘 값이다.
    */
   fmGroup: 'mt-5',
-  fmHead:
-    'flex items-center justify-between gap-4 border-b border-[var(--pl-border-strong)] pb-1.5',
+  /**
+   * 블록 머리 — 이름 왼쪽, 여는 큐 오른쪽. **닫는 선은 없다** (오너 2026-08-27
+   * "하단에 구분선을 없애고"). 마스트헤드 워시 위에는 이제 이 화면에서 가장 무거운
+   * 획이 `tabStrip` 의 위 선 하나뿐이고, 그 선이 유일하므로 "여기서 내비게이션이
+   * 시작한다"를 혼자 말한다 — 같은 두께의 선이 위에 두 개 더 있을 때는 셋 중
+   * 하나였다. 블록을 묶는 일은 이름의 크기(16)와 그 아래 간격(22)이 진다.
+   */
+  fmHead: 'flex items-center justify-between gap-4 pb-1.5',
   fmName: 'flex min-w-0 items-center gap-2',
   /** 20px — 운영 대시보드 `identityGlyphMark` 의 칸. 같은 대상의 마크를 24(제목 줄)·
       28(서비스측)·20(대시보드) 세 크기로 그리던 것을 한 크기로 모은다: 이 화면의
       마크는 이제 블록 머리의 하나뿐이라 제목 줄의 24px 는 사라진다. */
   fmGlyph: 'h-5 w-5 flex-none text-[var(--pl-text-medium)]',
+  /** 16/600 (오너 2026-08-27 "연동 대상 정보, 관련 페이지의 픽셀을 16까지 키워봐").
+      탭은 14/600 그대로라, 블록 이름만 올라가면서 **마스트헤드의 사실과 탭이 활자로
+      갈린다** — 둘이 같은 14/600 으로 서 있던 것이 벤치마크 P3 의 지적이었다.
+      ⛔ 탭을 16 으로 올리는 것은 여전히 기각이다(오너 08-27 롤백): 이건 반대 방향으로
+      같은 간극을 벌리는 변경이다. */
   fmLabel:
-    'whitespace-nowrap text-[14px] font-semibold tracking-[0.02em] text-[var(--pl-text-medium)]',
+    'whitespace-nowrap text-[16px] font-semibold tracking-[0.02em] text-[var(--pl-text-medium)]',
   /**
    * 마스트헤드는 두 단이다 (오너 08-26 "헤더 오른쪽에서 Github About처럼") — 왼쪽이
    * 사실(연동 대상 + kv 4열), 오른쪽이 나가는 문(관련 페이지). 관련 페이지가 한 단
    * **아래**에 있을 때는 탭 줄을 그만큼 밀어내렸는데, 그건 이 화면에서 가장 자주 쓰는
    * 것(탭)을 가장 덜 쓰는 것(참고 링크)이 밀어낸 배치였다. 오른쪽으로 서면 kv 그리드가
    * 쓰지 않고 남기던 폭을 대신 쓰므로 마스트헤드 높이가 한 줄도 늘지 않는다.
-   * 두 머리 줄의 헤어라인이 같은 y 에 서서 한 줄처럼 읽히고, 열 사이 간격이 그 줄을 끊는다.
+   * 두 머리를 잇던 것은 같은 y 에 선 헤어라인 두 도막이었는데, 그 선이 사라진 지금은
+   * 두 이름이 같은 baseline 에 같은 활자로 서는 것이 그 일을 한다.
    */
   fmSplit: 'flex items-start gap-8',
   /** 200px — kv 열(240px)보다 좁게 잡는다: 이 단은 대조하는 값이 아니라 이정표라
@@ -118,7 +135,7 @@ export const opsStyles = {
   aboutPanel: 'w-[200px] flex-none',
   /** About 패널의 본문 — 목적지가 **세로로** 쌓인다 (GitHub About). kv 그리드와 같은
       자리에서 시작하도록 머리 아래 여백은 `fmGrid` 의 pt 와 같은 값이다. */
-  aboutList: 'flex flex-col items-start gap-2 pt-3.5',
+  aboutList: 'flex flex-col items-start gap-2 pt-[22px]',
   /** About 패널의 한 줄 — 마크가 앞에 서고 이름이 링크다. 마크는 값이 아니라 이정표라
       본문보다 한 단 옅다. */
   aboutRow: 'inline-flex items-center gap-1.5',
@@ -147,7 +164,7 @@ export const opsStyles = {
       **위**에 있으니 짝은 이미 붙어 있고, 열이 늘어나 봐야 사실 사이 거리만 벌어진다.
       240 은 이 화면의 가장 긴 라벨(Terraform Service Account, 165px)과 2열 병합
       (498px)이 GCP SA 전문(≈380px)을 받는 폭에서 나온 값이다. */
-  fmGrid: 'grid grid-cols-[repeat(4,minmax(0,240px))] gap-x-[18px] gap-y-3 pt-3.5',
+  fmGrid: 'grid grid-cols-[repeat(4,minmax(0,240px))] gap-x-[18px] gap-y-3 pt-[22px]',
   fmCell: 'flex min-w-0 flex-col gap-1',
   fmCellWide: 'col-span-2',
   /** 워시는 램프 한 칸을 잡아먹는다 — `--pl-text-weak` 는 이 gray-100 위에서 4.51:1 로
@@ -258,9 +275,10 @@ export const opsStyles = {
   /**
    * Line tabs on the masthead wash (design-benchmark `ops-tab-band.md` 시안 A) —
    * no band. The tabs stand on the same --pl-gray-100 the masthead does, closed
-   * by ONE hairline in --pl-border-strong, the token `fmHead` already uses to
-   * close the 「연동 대상」 block head; the masthead now ends on the same stroke
-   * its own blocks do instead of on a third tone.
+   * by hairlines in --pl-border-strong. That token used to draw the 「연동 대상」
+   * block head too, so the masthead ended on the same stroke its own blocks did;
+   * the block heads gave their hairline up (오너 2026-08-27), which leaves these
+   * the only --pl-border-strong strokes on the wash.
    *
    * The band (08-20 셋째 조정) existed because the masthead had no way to close
    * itself: the wash ran into the canvas and something had to draw the seam. The
@@ -285,9 +303,10 @@ export const opsStyles = {
    * 닫는 그 선과 구별되지 않아 탭 줄이 사실 한 줄로 읽혔다. 선이 짝이 되면 그 사이가
    * 하나의 띠가 된다 — 칠을 하나도 쓰지 않고 묶는다("Structure should be felt not seen").
    *
-   * 위 여백은 20px 로, 블록↔블록과 같은 칸이다. 위 선이 「연동 대상」 블록의 머리
-   * 헤어라인과 같은 토큰·같은 두께라, 마스트헤드의 마지막 사실과 이 띠 사이가 블록이
-   * 갈리는 거리만큼 떨어져야 두 선이 서로 다른 것을 닫는 것으로 읽힌다.
+   * 위 여백은 20px 로, 블록↔블록과 같은 칸이다. 블록 머리의 헤어라인이 사라진 뒤로
+   * (오너 2026-08-27) 이 워시 위에서 `--pl-border-strong` 획은 **이 띠의 두 선뿐**이라,
+   * 마스트헤드의 마지막 사실과 이 띠 사이는 블록이 갈리는 거리만큼 떨어져 있으면 된다 —
+   * 이제 선이 하는 말은 "여기서 내비게이션이 시작한다" 하나다.
    * 탭의 py-2.5 가 선 안쪽 10px 을 위아래로 똑같이 준다 — 띠는 대칭이다.
    *
    * 아래 선만 `tabGroup` 으로 내려갔다 (ops-nav 시안 A). 위 선은 통으로 남아 띠의
