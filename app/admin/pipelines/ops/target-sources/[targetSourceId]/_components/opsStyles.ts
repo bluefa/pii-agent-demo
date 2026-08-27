@@ -273,10 +273,10 @@ export const opsStyles = {
    * below stands in the content column, so its hairline cut across x the content
    * never touches (Primer: navigation lives inside the width it governs).
    */
-  /** `overflow-x-auto` 는 없다 — 여덟 탭의 전체 폭이 772px 이라 1422px 열에서 넘칠 일이
-      없고(실측: 마크 슬롯 다섯 자리와 구간 갭까지 포함한 값이다), 스크롤 컨테이너로 두면
-      활성 탭의 `-mb-px` 가 1px 짜리 세로 스크롤을 만든다. 밑줄이 헤어라인을 먹으려면
-      그 1px 은 밖으로 나가야 한다. */
+  /** `overflow-x-auto` 는 없다 — 여덟 탭의 전체 폭이 788px 이라 1422px 열에서 넘칠 일이
+      없고(실측: 마크 슬롯 다섯 자리와 구간 갭 22px 두 칸까지 포함한 값이다), 스크롤
+      컨테이너로 두면 활성 탭의 `-mb-px` 가 1px 짜리 세로 스크롤을 만든다. 밑줄이
+      헤어라인을 먹으려면 그 1px 은 밖으로 나가야 한다. */
   /**
    * 내비게이션은 **선 두 개 사이에 산다** (오너 2026-08-27 "Navigation 위쪽에 구분선을
    * 하나 더 두자 … 위 아래 구분선이 Navigation이다라는 느낌만 주게"). 밴드를 걷고 나니
@@ -291,8 +291,13 @@ export const opsStyles = {
    *
    * 아래 선만 `tabGroup` 으로 내려갔다 (ops-nav 시안 A). 위 선은 통으로 남아 띠의
    * 천장을 진다 — 두 선 중 하나가 끊기면 나머지가 띠를 계속 붙들고 있어야 한다.
-   */
-  tabStrip: 'mt-5 flex items-end gap-3.5 border-t border-[var(--pl-border-strong)]',
+   *
+   * `gap-[22px]` 는 램프 밖의 값이지만 임의로 고른 것이 아니다 — 스페이서 `<span>`
+   * (w-3.5) 이 `gap-1` 두 칸 사이에 서 있던 옛 구조의 실제 거리(4+14+4)를 그대로
+   * 옮긴 값이다. 구간이 갈리는 거리는 시안 A 에서 **변경 대상이 아니었다**: 바뀌는
+   * 것은 그 갭에서 선이 끊긴다는 것 하나뿐이다. `gap-5`(20)·`gap-6`(24)로 반올림하면
+   * 조정한 적 없는 간격이 조용히 움직인다. */
+  tabStrip: 'mt-5 flex items-end gap-[22px] border-t border-[var(--pl-border-strong)]',
   /**
    * 구간 헤어라인 — 아래 선을 그룹마다 따로 긋는다. 여덟 탭은 세 가지 일이고
    * (보기 · 실행 · 승인·근거), 그 경계는 지금까지 빈 칸 하나로만 서 있었다. 선이

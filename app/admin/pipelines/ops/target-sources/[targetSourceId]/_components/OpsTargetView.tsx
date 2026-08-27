@@ -455,7 +455,7 @@ export function OpsTargetView({ targetSourceId, initialTab }: OpsTargetViewProps
         />
         <div className={opsStyles.tabStrip} role="tablist" aria-label="Target Source 운영 탭">
           {tabGroups.map((group) => (
-            // 한 그룹 = 아래 헤어라인 한 도막. 그룹 사이 14px 에서 선이 끊긴다.
+            // 한 그룹 = 아래 헤어라인 한 도막. 그룹 사이 22px 에서 선이 끊긴다(실측).
             // `role="presentation"` — 그룹은 선을 긋는 상자일 뿐이라, tablist 가 소유하는
             // 것은 계속 탭 버튼이어야 한다.
             <div key={group[0]} role="presentation" className={opsStyles.tabGroup}>
