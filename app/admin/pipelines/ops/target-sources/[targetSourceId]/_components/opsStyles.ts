@@ -86,31 +86,48 @@ export const opsStyles = {
    * 네 자리를 1.4~1.5배씩 벌려 세 단으로 세운다:
    *
    *   4px   한 짝 안      라벨 ↔ 그 값            `fmCell` gap-1
-   *   14px  한 블록 안    머리 헤어라인 ↔ 사실들   `fmGrid`·`aboutList` pt-3.5
+   *   22px  한 블록 안    블록 이름 ↔ 사실들       `fmGrid`·`aboutList` pt-[22px]
    *   20px  블록 사이     경로 줄 ↔ 연동 대상      `fmGroup` mt-5
-   *   16px  워시 ↔ 탭 줄                          `tabStrip` mt-4
+   *   20px  워시 ↔ 탭 줄                          `tabStrip` mt-5
    *
-   * 탭 줄만 20 이 아니라 16 인 것은 거기가 **문법이 바뀌는 경계**라서다 — 위는 사실이고
-   * 아래는 내비게이션이라 간격까지 최대로 줄 이유가 없다. (밴드가 있을 때는
-   * 색이 바뀌는 경계가 같은 자리에서 같은 일을 했다.)
+   * 「한 블록 안」이 14 에서 22 로 올랐다 (오너 2026-08-27 "하단에 구분선을 없애고
+   * 행간 거리를 8픽셀 더 두도록"). 헤어라인이 머리를 닫고 있을 때는 14 로 충분했다 —
+   * 선이 이름과 사실을 갈라 줬으니까. 선을 걷으면 그 일을 **간격 혼자** 해야 하고,
+   * 같은 14 로는 이름이 첫 사실 줄에 붙어 읽힌다. 실측으로 라벨 바닥↔첫 사실이
+   * 21 → 28px 이다(선 1px 이 옛 21 안에 포함돼 있었다).
+   *
+   * 탭 줄은 20 으로 블록↔블록과 같은 칸이다. 이 주석은 오래 16/mt-4 라고 적혀 있었지만
+   * 코드는 그때 이미 mt-5 였다 — 실측해서 맞춘 값이다.
    */
   fmGroup: 'mt-5',
-  fmHead:
-    'flex items-center justify-between gap-4 border-b border-[var(--pl-border-strong)] pb-1.5',
+  /**
+   * 블록 머리 — 이름 왼쪽, 여는 큐 오른쪽. **닫는 선은 없다** (오너 2026-08-27
+   * "하단에 구분선을 없애고"). 이 워시 위의 `--pl-border-strong` 획은 이제 **탭 띠뿐**
+   * 이다 — 위 한 줄과, 그룹마다 끊기는 아래 도막들(`tabGroup`). 전부 한 덩어리로 같은
+   * 한 가지를 말하므로("여기서 내비게이션이 시작한다"), 블록 머리가 같은 획을 쓰면
+   * 그 말이 흐려진다. 블록을 묶는 일은 이름의 크기(16)와 그 아래 간격(22)이 진다.
+   */
+  fmHead: 'flex items-center justify-between gap-4 pb-1.5',
   fmName: 'flex min-w-0 items-center gap-2',
   /** 20px — 운영 대시보드 `identityGlyphMark` 의 칸. 같은 대상의 마크를 24(제목 줄)·
       28(서비스측)·20(대시보드) 세 크기로 그리던 것을 한 크기로 모은다: 이 화면의
       마크는 이제 블록 머리의 하나뿐이라 제목 줄의 24px 는 사라진다. */
   fmGlyph: 'h-5 w-5 flex-none text-[var(--pl-text-medium)]',
+  /** 16/600 (오너 2026-08-27 "연동 대상 정보, 관련 페이지의 픽셀을 16까지 키워봐").
+      탭은 14/600 그대로라, 블록 이름만 올라가면서 **마스트헤드의 사실과 탭이 활자로
+      갈린다** — 둘이 같은 14/600 으로 서 있던 것이 벤치마크 P3 의 지적이었다.
+      ⛔ 탭을 16 으로 올리는 것은 여전히 기각이다(오너 08-27 롤백): 이건 반대 방향으로
+      같은 간극을 벌리는 변경이다. */
   fmLabel:
-    'whitespace-nowrap text-[14px] font-semibold tracking-[0.02em] text-[var(--pl-text-medium)]',
+    'whitespace-nowrap text-[16px] font-semibold tracking-[0.02em] text-[var(--pl-text-medium)]',
   /**
    * 마스트헤드는 두 단이다 (오너 08-26 "헤더 오른쪽에서 Github About처럼") — 왼쪽이
    * 사실(연동 대상 + kv 4열), 오른쪽이 나가는 문(관련 페이지). 관련 페이지가 한 단
    * **아래**에 있을 때는 탭 줄을 그만큼 밀어내렸는데, 그건 이 화면에서 가장 자주 쓰는
    * 것(탭)을 가장 덜 쓰는 것(참고 링크)이 밀어낸 배치였다. 오른쪽으로 서면 kv 그리드가
    * 쓰지 않고 남기던 폭을 대신 쓰므로 마스트헤드 높이가 한 줄도 늘지 않는다.
-   * 두 머리 줄의 헤어라인이 같은 y 에 서서 한 줄처럼 읽히고, 열 사이 간격이 그 줄을 끊는다.
+   * 두 머리를 잇던 것은 같은 y 에 선 헤어라인 두 도막이었는데, 그 선이 사라진 지금은
+   * 두 이름이 같은 baseline 에 같은 활자로 서는 것이 그 일을 한다.
    */
   fmSplit: 'flex items-start gap-8',
   /** 200px — kv 열(240px)보다 좁게 잡는다: 이 단은 대조하는 값이 아니라 이정표라
@@ -118,7 +135,7 @@ export const opsStyles = {
   aboutPanel: 'w-[200px] flex-none',
   /** About 패널의 본문 — 목적지가 **세로로** 쌓인다 (GitHub About). kv 그리드와 같은
       자리에서 시작하도록 머리 아래 여백은 `fmGrid` 의 pt 와 같은 값이다. */
-  aboutList: 'flex flex-col items-start gap-2 pt-3.5',
+  aboutList: 'flex flex-col items-start gap-2 pt-[22px]',
   /** About 패널의 한 줄 — 마크가 앞에 서고 이름이 링크다. 마크는 값이 아니라 이정표라
       본문보다 한 단 옅다. */
   aboutRow: 'inline-flex items-center gap-1.5',
@@ -147,7 +164,7 @@ export const opsStyles = {
       **위**에 있으니 짝은 이미 붙어 있고, 열이 늘어나 봐야 사실 사이 거리만 벌어진다.
       240 은 이 화면의 가장 긴 라벨(Terraform Service Account, 165px)과 2열 병합
       (498px)이 GCP SA 전문(≈380px)을 받는 폭에서 나온 값이다. */
-  fmGrid: 'grid grid-cols-[repeat(4,minmax(0,240px))] gap-x-[18px] gap-y-3 pt-3.5',
+  fmGrid: 'grid grid-cols-[repeat(4,minmax(0,240px))] gap-x-[18px] gap-y-3 pt-[22px]',
   fmCell: 'flex min-w-0 flex-col gap-1',
   fmCellWide: 'col-span-2',
   /** 워시는 램프 한 칸을 잡아먹는다 — `--pl-text-weak` 는 이 gray-100 위에서 4.51:1 로
@@ -258,9 +275,10 @@ export const opsStyles = {
   /**
    * Line tabs on the masthead wash (design-benchmark `ops-tab-band.md` 시안 A) —
    * no band. The tabs stand on the same --pl-gray-100 the masthead does, closed
-   * by ONE hairline in --pl-border-strong, the token `fmHead` already uses to
-   * close the 「연동 대상」 block head; the masthead now ends on the same stroke
-   * its own blocks do instead of on a third tone.
+   * by hairlines in --pl-border-strong. That token used to draw the 「연동 대상」
+   * block head too, so the masthead ended on the same stroke its own blocks did;
+   * the block heads gave their hairline up (오너 2026-08-27), which leaves these
+   * the only --pl-border-strong strokes on the wash.
    *
    * The band (08-20 셋째 조정) existed because the masthead had no way to close
    * itself: the wash ran into the canvas and something had to draw the seam. The
@@ -273,9 +291,11 @@ export const opsStyles = {
    * below stands in the content column, so its hairline cut across x the content
    * never touches (Primer: navigation lives inside the width it governs).
    */
-  /** `overflow-x-auto` 는 없다 — 여덟 탭의 전체 폭이 717px 이라 1422px 열에서 넘칠 일이
-      없고(실측), 스크롤 컨테이너로 두면 활성 탭의 `-mb-px` 가 1px 짜리 세로 스크롤을
-      만든다. 밑줄이 헤어라인을 먹으려면 그 1px 은 밖으로 나가야 한다. */
+  /** `overflow-x-auto` 는 없다 — 여덟 탭의 전체 폭이 732px 이라 1422px 열에서 넘칠 일이
+      없고(실측: 「연결 테스트」의 인라인 슬롯과 구간 갭 22px 두 칸까지 포함한 값이다.
+      단계 마크가 코너로 올라가 흐름 밖에 서면서 788 에서 내려왔다), 스크롤 컨테이너로
+      두면 활성 탭의 `-mb-px` 가 1px 짜리 세로 스크롤을 만든다. 밑줄이 헤어라인을
+      먹으려면 그 1px 은 밖으로 나가야 한다. */
   /**
    * 내비게이션은 **선 두 개 사이에 산다** (오너 2026-08-27 "Navigation 위쪽에 구분선을
    * 하나 더 두자 … 위 아래 구분선이 Navigation이다라는 느낌만 주게"). 밴드를 걷고 나니
@@ -283,12 +303,38 @@ export const opsStyles = {
    * 닫는 그 선과 구별되지 않아 탭 줄이 사실 한 줄로 읽혔다. 선이 짝이 되면 그 사이가
    * 하나의 띠가 된다 — 칠을 하나도 쓰지 않고 묶는다("Structure should be felt not seen").
    *
-   * 위 여백은 20px 로, 블록↔블록과 같은 칸이다. 위 선이 「연동 대상」 블록의 머리
-   * 헤어라인과 같은 토큰·같은 두께라, 마스트헤드의 마지막 사실과 이 띠 사이가 블록이
-   * 갈리는 거리만큼 떨어져야 두 선이 서로 다른 것을 닫는 것으로 읽힌다.
+   * 위 여백은 20px 로, 블록↔블록과 같은 칸이다. 블록 머리의 헤어라인이 사라진 뒤로
+   * (오너 2026-08-27) 이 워시 위에서 `--pl-border-strong` 획은 **이 띠뿐**이다 — 위 한
+   * 줄과, 그룹마다 끊기는 아래 도막들. 그래서 마스트헤드의 마지막 사실과 이 띠 사이는
+   * 블록이 갈리는 거리만큼 떨어져 있으면 되고, 이 획들이 하는 말은 하나다:
+   * "여기서 내비게이션이 시작한다".
    * 탭의 py-2.5 가 선 안쪽 10px 을 위아래로 똑같이 준다 — 띠는 대칭이다.
+   *
+   * 아래 선만 `tabGroup` 으로 내려갔다 (ops-nav 시안 A). 위 선은 통으로 남아 띠의
+   * 천장을 진다 — 두 선 중 하나가 끊기면 나머지가 띠를 계속 붙들고 있어야 한다.
+   *
+   * `gap-[22px]` 는 램프 밖의 값이지만 임의로 고른 것이 아니다 — 스페이서 `<span>`
+   * (w-3.5) 이 `gap-1` 두 칸 사이에 서 있던 옛 구조의 실제 거리(4+14+4)를 그대로
+   * 옮긴 값이다. 구간이 갈리는 거리는 시안 A 에서 **변경 대상이 아니었다**: 바뀌는
+   * 것은 그 갭에서 선이 끊긴다는 것 하나뿐이다. `gap-5`(20)·`gap-6`(24)로 반올림하면
+   * 조정한 적 없는 간격이 조용히 움직인다. */
+  tabStrip: 'mt-5 flex items-end gap-[22px] border-t border-[var(--pl-border-strong)]',
+  /**
+   * 구간 헤어라인 — 아래 선을 그룹마다 따로 긋는다. 여덟 탭은 세 가지 일이고
+   * (보기 · 실행 · 승인·근거), 그 경계는 지금까지 빈 칸 하나로만 서 있었다. 선이
+   * 갭에서 **끊기면** 그 빈 칸이 우연한 여백이 아니라 구간의 끝으로 읽힌다 — 칠도
+   * 밴드도 라벨도 없이(전부 이 줄에서 기각된 것들이다) 묶음이 보인다.
+   *
+   * 그룹 안의 `gap-1` 아래로도 선은 이어진다 — 선이 끊기는 곳은 오직 그룹 사이다.
+   * 활성 탭의 `-mb-px` 는 이제 제 그룹의 선을 먹는다(기하는 그대로).
    */
-  tabStrip: 'mt-5 flex items-end gap-1 border-y border-[var(--pl-border-strong)]',
+  tabGroup: 'flex items-end gap-1 border-b border-[var(--pl-border-strong)]',
+  /** 스켈레톤에서만 아래 선을 **스트립**이 진다. 구간이 몇 개이고 어디서 끊기는지는 탭
+      구성이고 탭 구성은 데이터라, 도착 전에는 지어낼 수가 없다. `tabGroup` 하나로 감싸면
+      아래 선이 보이지 않는 탭 하나의 폭만 덮어(44px) 도착 순간 세 도막(732px)으로 뛴다 —
+      1px 획이라 레이아웃은 안 움직이지만 잉크가 통째로 바뀐다. 통으로 그어 두면 바뀌는
+      것은 선이 **끊기는 자리**뿐이다. */
+  tabStripLoading: 'border-b border-[var(--pl-border-strong)]',
   /**
    * Geometry is `accessStyles.tab` verbatim (the 접근 권한 page tabs) — the admin
    * console should have one line-tab, not two that differ by a few px.
@@ -299,7 +345,7 @@ export const opsStyles = {
       굵기는 활성·비활성이 같이 진다: 활성은 이미 잉크와 밑줄 두 레버를 들고 있어서,
       굵기까지 가져가면 비활성이 한 단 더 내려앉고 선택이 아니라 나머지가 흐려진 것처럼
       읽힌다. */
-  tab: 'flex cursor-pointer items-center gap-1.5 whitespace-nowrap border-b-2 -mb-px px-3 py-2.5 text-[14px] font-semibold transition-colors',
+  tab: 'relative flex cursor-pointer items-center gap-1.5 whitespace-nowrap border-b-2 -mb-px px-3 py-2.5 text-[14px] font-semibold transition-colors',
   /** 잉크 + 밑줄. The face is gone, so 파랑 is the only thing marking the tab that
       is open — 4.69:1 on the wash (실측). */
   tabActive: 'text-[var(--pl-primary)] border-[var(--pl-primary)]',
@@ -308,14 +354,36 @@ export const opsStyles = {
   tabIdle:
     'text-[var(--pl-text-medium)] border-transparent hover:text-[var(--pl-text-strong)] hover:border-[var(--pl-border-strong)]',
   /**
-   * Group gap — used TWICE, because these eight tabs are three things, not two:
-   *   보기       진행 상태 · 스캔 · 연동 요청 정보 · 확정 정보
-   *   실행       인프라 작업 · 연결 테스트
-   *   승인·근거  관리자 승인 · Airflow 확인
-   * Airflow 확인 (PR #783) landed at the end of the tool run, but it is not a
-   * tool: it holds the evidence behind 승인 조건 ③ and is read, not operated.
+   * 걸린 단계의 마크 — 탭 **우상단 코너의 점** (오너 2026-08-27 "보라색 밑줄 말고
+   * 확인 필요처럼 보이는 시각적 요소를 써볼까? 우상단의 빨간색 점은 어때?").
+   *
+   * 밑줄이었을 때는 파랑과 같은 자리를 다퉈서 "열린 탭 == 걸린 탭" 일 때 하나가
+   * 물러나는 규칙이 필요했다. 코너로 올라오면 자리가 달라서 그 규칙이 통째로
+   * 사라진다 — 두 사실이 동시에, 서로를 덮지 않고 선다.
+   *
+   * `absolute` 라 흐름 폭을 먹지 않는다: 단계가 어느 탭에 걸리든 여덟 탭의 x 는
+   * 그대로다. 라벨 옆 인라인 슬롯을 예약해야 했던 이유(=자리를 먹는 마크)가 여기엔
+   * 없다. 8px 은 이 화면이 이미 쓰는 점 크기이고(`tcBand.countDot`), 4px 인셋이
+   * 위 헤어라인과 라벨 사이의 빈 모서리에 정확히 들어간다(실측).
    */
-  tabGap: 'w-3.5 flex-none self-stretch',
+  tabCorner: 'absolute right-1 top-1 h-2 w-2 rounded-full',
+  /**
+   * 빨강은 **관리자 차례일 때만** 켜진다 — 6단계(CONNECTED, 관리자 승인 대기)가
+   * 관리자가 실제로 막혀 있는 유일한 자리다. 모든 대상은 늘 어떤 단계엔가 서 있으므로,
+   * 걸렸다는 사실 전체에 빨강을 주면 이 콘솔에서 빨강이 상시 켜져 아무 말도 하지 않게
+   * 된다. `--pl-err-solid` 는 워시 위 4.38 (실측) 로 그래픽 3:1 위다.
+   *
+   * 같은 빨강을 `tabDotFail` 도 쓰지만 뜻이 겹치지 않는다: 저쪽은 라벨 옆 인라인이고
+   * 이쪽은 코너다 — 자리가 두 사실을 가른다(실행이 실패했다 vs 당신 차례다).
+   */
+  tabCornerAlert: 'bg-[var(--pl-err-solid)]',
+  /**
+   * 나머지 단계(2·3·4·5)는 보라 — "지금 여기"이지 문제가 아니다. `--pl-current` 는
+   * 이 콘솔에서 상태도 링크도 아닌 정체 쪽 어휘라(서비스 레일의 현재 위치,
+   * `metaTagQuiet` 의 속성 태그와 같은 가족) 판정 계열과 부딪히지 않는다.
+   * 워시 위 4.50:1 (실측).
+   */
+  tabCornerStep: 'bg-[var(--pl-current)]',
   /**
    * 「연결 테스트」 탭의 상태 점 — 8px, the size this screen's own dots already use
    * (`tcBand.countDot`, ConfirmEditorModal). It says only that the latest run
@@ -326,8 +394,13 @@ export const opsStyles = {
    * 8px 이라 램프를 한 칸 더 내려 `--pl-err-solid`(4.38, 실측)를 쓴다. 진행 중은
    * `--pl-info` 가 2.94 로 3:1 을 **못 넘어서**(실측) 같은 계열의 다음 칸
    * `--pl-info-text`(5.43)가 진다.
+   *
+   * 자리는 늘 잡혀 있고 `opacity` 로만 나타난다 (`manageLink` 와 같은 수법) — TC
+   * 응답은 마스트헤드보다 늦게 도착하는데, 이 점은 라벨 옆 **흐름 안**에 있어서
+   * `display` 로 끼어들면 그때마다 오른쪽 탭들의 x 가 밀린다. 코너 점(`tabCorner`)이
+   * 예약 없이 그냥 나타나도 되는 것은 그쪽이 흐름 밖이기 때문이다.
    */
-  tabDot: 'h-2 w-2 flex-none rounded-full',
+  tabDot: 'h-2 w-2 flex-none rounded-full transition-opacity',
   tabDotFail: 'bg-[var(--pl-err-solid)]',
   tabDotRunning: 'bg-[var(--pl-info-text)]',
 

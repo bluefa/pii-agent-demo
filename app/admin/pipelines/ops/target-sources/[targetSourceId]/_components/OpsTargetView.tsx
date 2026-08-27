@@ -7,7 +7,7 @@
  * (OpsHeader), so the tab content owns the full content width: the 236px meta
  * rail folded into that header's 「상세 정보」 disclosure.
  */
-import { Fragment, useCallback, useEffect, useRef, useState, type ReactElement } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactElement } from 'react';
 import { cn, pipelineStyles } from '@/lib/theme';
 import {
   OPS_TAB_SLUGS,
@@ -25,7 +25,7 @@ import {
   type TcResultRow,
 } from '@/app/lib/api/task-queue-tc';
 import type { TestConnectionStatusRow } from '@/lib/types/task-queue';
-import type { ProcessStatus } from '@/app/admin/pipelines/queue/_components/StepStack';
+import { STEP, type ProcessStatus } from '@/app/admin/pipelines/queue/_components/StepStack';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
 import { OpsHeader } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/OpsHeader';
 import { ProcessCard } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/ProcessCard';
@@ -56,8 +56,51 @@ import {
 } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/approvalGate';
 import { runStatus } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/logic';
 
-const TABS = Object.values(OPS_TAB_SLUGS);
 type TabLabel = OpsTargetTabLabel;
+
+/**
+ * The render order, in three groups — 보기 · 실행 · 승인·근거. The strip draws one
+ * hairline per group (`opsStyles.tabGroup`), so this array is what the segmentation
+ * is made of, not a label on top of a flat list.
+ *
+ * **This is the only list of tabs.** The flat list the strip's selection logic needs
+ * is derived from it (`tabGroups.flat()`), never written a second time: two lists
+ * filtered by two copies of the same predicate agree only by luck, and the round
+ * they stop agreeing, `currentTab` can name a tab that is not rendered — a panel
+ * open under a strip with no active tab, and the URL-repair effect silent because
+ * `currentTab === requestedTab`.
+ *
+ * Every OPS_TAB_SLUGS entry must appear in exactly one group. That is not a comment
+ * anyone has to keep: `OpsTargetView.idc.test.tsx` compares a non-IDC target's strip
+ * against `Object.values(OPS_TAB_SLUGS)`, so a slug added to `lib/routes.ts` and
+ * left out of these rows fails there instead of quietly never rendering.
+ *
+ * Airflow 확인 (PR #783) landed at the end of the tool run, but it is not a tool:
+ * it holds the evidence behind 승인 조건 ③ and is read, not operated.
+ */
+const TAB_GROUPS: readonly (readonly TabLabel[])[] = [
+  [OPS_TAB_SLUGS.status, OPS_TAB_SLUGS.scan, OPS_TAB_SLUGS.request, OPS_TAB_SLUGS.confirm],
+  [OPS_TAB_SLUGS.infra, OPS_TAB_SLUGS.tc],
+  [OPS_TAB_SLUGS.approval, OPS_TAB_SLUGS.airflow],
+];
+
+/**
+ * ProcessStatus → the tab that step is worked in. The second underline (보라) stands
+ * on this tab: the first (파랑) says which panel is open, this one says where the
+ * work currently sits, and the two are different questions.
+ *
+ * 1단계(IDLE)·7단계(COMPLETED) 는 **어느 탭에도 걸지 않는다**. 1단계는 담당자가 아직
+ * 사용자 Step1 화면에서 DB 를 고르는 중이라 「스캔」도 「연동 요청 정보」도 이 콘솔의
+ * 사실이 아니고, 7단계는 대응하는 탭 자체가 없다. 없는 자리를 가장 가까운 탭으로
+ * 반올림하면 밑줄이 매번 거짓말을 한다.
+ */
+const STEP_TAB = new Map<ProcessStatus, TabLabel>([
+  ['PENDING', OPS_TAB_SLUGS.request],
+  ['CONFIRMING', OPS_TAB_SLUGS.confirm],
+  ['CONFIRMED', OPS_TAB_SLUGS.infra],
+  ['INSTALLED', OPS_TAB_SLUGS.tc],
+  ['CONNECTED', OPS_TAB_SLUGS.approval],
+]);
 
 type ModalState =
   | { type: 'mode' }
@@ -152,7 +195,15 @@ export function OpsTargetView({ targetSourceId, initialTab }: OpsTargetViewProps
    * hooks; `detail` is null on the first render, which just leaves every tab in place.
    */
   const isIdc = detail != null && normalizeCloudProvider(detail.cloud_provider) === 'IDC';
-  const tabs = isIdc ? TABS.filter((tab) => tab !== OPS_TAB_SLUGS.scan) : TABS;
+  // IDC 분기는 **그룹 안에서** 일어난다 — 「스캔」이 빠져도 그룹은 셋 그대로고,
+  // 보기 그룹만 넷에서 셋이 된다. 평평한 목록에서 걸러 낸 뒤 다시 묶으면 그룹이
+  // 사라지는 경우를 따로 다뤄야 하는데, 이 화면에는 그런 경우가 없다.
+  const tabGroups = isIdc
+    ? TAB_GROUPS.map((group) => group.filter((tab) => tab !== OPS_TAB_SLUGS.scan))
+    : TAB_GROUPS;
+  // 평평한 목록은 **그린 것에서** 나온다 — 같은 술어를 두 번 적으면 두 목록이 우연히만
+  // 일치하고, 어긋나는 순간 `currentTab` 이 렌더되지 않는 탭을 가리킬 수 있다.
+  const tabs = tabGroups.flat();
   const currentTab = tabs.includes(requestedTab) ? requestedTab : tabs[0];
 
   // A `?tab=scan` link to an IDC target — a bookmark from before the tab was dropped,
@@ -285,6 +336,27 @@ export function OpsTargetView({ targetSourceId, initialTab }: OpsTargetViewProps
       : tcGate === 'open'
         ? opsStyles.tabDotRunning
         : null;
+  /**
+   * 점이 말하는 것을 **낱말로도** 싣는다 — 점 자체는 `aria-hidden` 이라, 이 문장이
+   * 없으면 「연결 테스트 실패」가 스크린 리더에 한 글자도 도착하지 않는다. 탭의
+   * 접근명 뒤에 붙어서 "연결 테스트, 최근 실행 실패" 로 읽힌다.
+   */
+  const tcWord = tcGate === 'failed' ? '최근 실행 실패' : tcGate === 'open' ? '최근 실행 진행 중' : null;
+
+  // 걸린 단계 — 1·7 단계는 STEP_TAB 에 없으므로 어느 탭도 코너 점을 켜지 않는다.
+  const stepTab = processStatus ? STEP_TAB.get(processStatus) ?? null : null;
+  const stepInfo = processStatus ? STEP[processStatus] : null;
+  /**
+   * 빨강은 6단계 하나에만 (오너 2026-08-27). 그 단계만 관리자가 실제로 막혀 있고,
+   * 나머지는 다른 누군가의 차례이거나 파이프라인이 돌고 있는 중이다 — 걸렸다는 사실
+   * 전체를 빨강으로 칠하면 모든 대상이 늘 어떤 단계엔가 있으므로 빨강이 상시 켜진다.
+   * 낱말도 같이 갈린다: 빨강만 「확인 필요」라고 말한다.
+   */
+  const stepAlert = processStatus === 'CONNECTED';
+  const stepDot = stepAlert ? opsStyles.tabCornerAlert : opsStyles.tabCornerStep;
+  const stepWord = stepInfo
+    ? `${stepAlert ? '확인 필요 — ' : '현재 '}${stepInfo.n}단계 · ${stepInfo.label}`
+    : null;
 
   if (detailFailed) {
     return (
@@ -315,7 +387,10 @@ export function OpsTargetView({ targetSourceId, initialTab }: OpsTargetViewProps
               마스트헤드가 그만큼 자리를 비워 두면 도착해도 탭이 위아래로 안 뛴다. */}
           <div className={opsStyles.fmGroup}>
             <div className={opsStyles.fmHead}>
-              <div className={cn(opsStyles.skeletonWash, 'h-5 w-[108px]')} />
+              {/* 22px — `fmLabel` 이 16px 이 되면서 그 줄 상자가 22.39px 가 됐다(실측).
+                  20 으로 두면 스켈레톤 마스트헤드가 2.4px 짧아 도착하는 순간 탭 줄이
+                  아래로 뛴다 — 이 자리가 잡아야 하는 바로 그것이다. */}
+              <div className={cn(opsStyles.skeletonWash, 'h-[22px] w-[108px]')} />
             </div>
             <div className={opsStyles.fmGrid}>
               {[0, 1].map((row) => (
@@ -326,8 +401,13 @@ export function OpsTargetView({ targetSourceId, initialTab }: OpsTargetViewProps
               ))}
             </div>
           </div>
-          <div className={opsStyles.tabStrip}>
-            {/* 보이지 않는 탭 하나가 레일 높이를 정확히 잡는다 — 탭 구성은 데이터다. */}
+          {/* 아래 선은 `tabGroup` 이 아니라 스트립이 긋는다 — 구간이 몇 개이고 어디서
+              끊기는지는 **탭 구성**, 곧 데이터다. 그룹 하나를 두르면 아래 선이 보이지 않는
+              탭 하나의 폭(44px)만 덮어, 도착하는 순간 44px 토막이 세 도막 732px 로 뛴다.
+              모르는 것을 지어내지 않고 통으로 긋는다: 띠는 도착 전에도 선 두 개 사이에 있고,
+              바뀌는 것은 아래 선이 **끊기는 자리**뿐이다. */}
+          <div className={cn(opsStyles.tabStrip, opsStyles.tabStripLoading)}>
+            {/* 보이지 않는 탭 하나가 레일 높이를 정확히 잡는다. */}
             <span className={cn(opsStyles.tab, 'invisible select-none')} aria-hidden>
               탭
             </span>
@@ -391,31 +471,58 @@ export function OpsTargetView({ targetSourceId, initialTab }: OpsTargetViewProps
           onEditDescription={() => setModal({ type: 'description' })}
         />
         <div className={opsStyles.tabStrip} role="tablist" aria-label="Target Source 운영 탭">
-          {tabs.map((tab) => {
-            const active = tab === currentTab;
-            return (
-              <Fragment key={tab}>
-                {/* 세 묶음 사이 한 칸씩 — 보기 | 실행(인프라 작업부터) | 승인·근거(관리자
-                    승인부터). Airflow 확인은 도구가 아니라 승인 조건 ③ 의 근거라 승인 쪽에
-                    붙는다. */}
-                {(tab === OPS_TAB_SLUGS.infra || tab === OPS_TAB_SLUGS.approval) && (
-                  <span className={opsStyles.tabGap} aria-hidden />
-                )}
-                <button
-                  type="button"
-                  role="tab"
-                  aria-selected={active}
-                  onClick={() => selectTab(tab)}
-                  className={cn(opsStyles.tab, active ? opsStyles.tabActive : opsStyles.tabIdle)}
-                >
-                  {tab}
-                  {tab === OPS_TAB_SLUGS.tc && tcDot && (
-                    <span className={cn(opsStyles.tabDot, tcDot)} aria-hidden />
-                  )}
-                </button>
-              </Fragment>
-            );
-          })}
+          {tabGroups.map((group) => (
+            // 한 그룹 = 아래 헤어라인 한 도막. 그룹 사이 22px 에서 선이 끊긴다(실측).
+            // `role="presentation"` — 그룹은 선을 긋는 상자일 뿐이라, tablist 가 소유하는
+            // 것은 계속 탭 버튼이어야 한다.
+            <div key={group[0]} role="presentation" className={opsStyles.tabGroup}>
+              {group.map((tab) => {
+                const active = tab === currentTab;
+                const isStep = tab === stepTab;
+                // 한 탭이 두 마크를 동시에 들 수 있다 — 라벨 옆 인라인 점은 「연결 테스트」의
+                // 실행 결과, 우상단 코너 점은 걸린 단계다. 뜻이 다른 두 사실이라 자리로 갈린다.
+                const words = [
+                  tab === OPS_TAB_SLUGS.tc ? tcWord : null,
+                  isStep ? stepWord : null,
+                ].filter((word): word is string => word !== null);
+                return (
+                  <button
+                    key={tab}
+                    type="button"
+                    role="tab"
+                    aria-selected={active}
+                    onClick={() => selectTab(tab)}
+                    className={cn(opsStyles.tab, active ? opsStyles.tabActive : opsStyles.tabIdle)}
+                  >
+                    {tab}
+                    {/* 낱말이 마크를 대신한다 — 점은 둘 다 aria-hidden 이라, 상태는 탭의
+                        접근명에 실려야 스크린 리더에 도착한다. */}
+                    {words.length > 0 && <span className="sr-only">, {words.join(', ')}</span>}
+                    {tab === OPS_TAB_SLUGS.tc && (
+                      <span
+                        className={cn(opsStyles.tabDot, tcDot, tcDot ? 'opacity-100' : 'opacity-0')}
+                        aria-hidden
+                      />
+                    )}
+                    {isStep && (
+                      // 흐름 밖이라 슬롯을 예약하지 않는다 — 늦게 도착해도 x 를 밀지 않는다.
+                      //
+                      // `title` 은 버튼이 아니라 **점**이 진다. 버튼에 두면 접근명(내용 =
+                      // 위 `.sr-only` 포함)과 접근설명(title)이 같은 문장이 되어 스크린
+                      // 리더가 두 번 읽는다. 점은 `aria-hidden` 이라 a11y 트리 밖이고,
+                      // 마우스 툴팁만 남는다 — 낱말 쪽은 그대로 둔다(⛔ title 은 낭독이
+                      // 보장되지 않으므로 `.sr-only` 를 title 로 대체할 수 없다).
+                      <span
+                        className={cn(opsStyles.tabCorner, stepDot)}
+                        title={stepWord ?? undefined}
+                        aria-hidden
+                      />
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          ))}
         </div>
       </div>
 
