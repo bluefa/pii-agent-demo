@@ -162,9 +162,24 @@ export const opsStyles = {
   /** 열은 240px 로 고정한다 — `1fr` 4개는 1330px 캔버스에서 한 칸이 300px 이 되어
       「계정 804656952396」 과 다음 라벨 사이에 300px 짜리 빈 곳이 생긴다. 라벨이 값
       **위**에 있으니 짝은 이미 붙어 있고, 열이 늘어나 봐야 사실 사이 거리만 벌어진다.
-      240 은 이 화면의 가장 긴 라벨(Terraform Service Account, 165px)과 2열 병합
-      (498px)이 GCP SA 전문(≈380px)을 받는 폭에서 나온 값이다. */
+      240 은 이 화면의 가장 긴 라벨(Terraform Service Account, 165px)과 2열 병합이
+      GCP SA 전문을 받는 폭에서 나온 값이다.
+
+      실측(2026-08-27, 1440×1000): kv 레인은 **920px** 다(left 248 → right 1168;
+      트랙 정의에 따라 몇 px 움직인다 — 한 행 실험에서는 928 이었다).
+      1920 창에서 재면 훨씬 넓게 나오니 그 숫자로 다시 유도하지 말 것 — 그렇게 잰
+      값으로 한 행에 넷을 세웠다가 주소가 둘 다 잘렸다. GCP 주체 둘은 전문이 각각
+      341·365px = 706px 을 먹어서, 한 행에는 프로젝트(115) + 설정(74) + 18px 간격
+      셋까지 들어갈 수가 없다(21px 모자란다). 그래서 GCP 만 2행이고, 2열 병합 셀이
+      각각 451px 을 받아 둘 다 잘리지 않는다. */
   fmGrid: 'grid grid-cols-[repeat(4,minmax(0,240px))] gap-x-[18px] gap-y-3 pt-[22px]',
+  /** GCP 만 세 칸 한 줄이다 — 주체 둘이 mail 주소 전문이라 240px 트랙에 안 들어간다
+      (오너 2026-08-27 "설정을없애면안 되냐? 그리고한 줄로표현해봐"). 내용 폭으로 잡으면
+      115 + 341 + 365 + 36(간격 둘) = 857px 이라 920px 레인에 63px 여유로 선다.
+      토큰을 둘로 나눈 이유: 두 클래스를 겹쳐 쓰면 같은 특이도의 임의값이라 승자를 소스
+      순서가 아니라 스타일시트 순서가 정한다 — 호출부가 **고른다**. */
+  fmGridGcp:
+    'grid grid-cols-[max-content_max-content_max-content] gap-x-[18px] gap-y-3 pt-[22px]',
   fmCell: 'flex min-w-0 flex-col gap-1',
   fmCellWide: 'col-span-2',
   /** 워시는 램프 한 칸을 잡아먹는다 — `--pl-text-weak` 는 이 gray-100 위에서 4.51:1 로
@@ -230,8 +245,8 @@ export const opsStyles = {
   fmCopy:
     'inline-flex flex-none cursor-pointer items-center rounded p-0.5 text-[var(--pl-text-weak)] transition-colors hover:text-[var(--pl-primary)]',
 
-  /** Neutral tag / region tag — shared with SduOpsNotice·ServiceDetailView·
-      TerraformStatusModal (Figma 49:4/34:4). */
+  /** Neutral tag / region tag — shared with SduOpsNotice·ServiceDetailView
+      (Figma 49:4/34:4). */
   tag: 'inline-flex items-center rounded px-2 py-1 text-[12px] font-semibold bg-[var(--pl-gray-100)] text-[var(--pl-text-medium)] whitespace-nowrap',
   regionTag: 'inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium bg-[var(--pl-gray-100)] text-[var(--pl-text-weak)]',
   /**

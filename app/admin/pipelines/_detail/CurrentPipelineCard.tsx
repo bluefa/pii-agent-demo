@@ -1,28 +1,57 @@
 'use client';
 
 /**
- * CurrentPipelineCard — R24 "현재 작업" section body (Figma node 9-2,
- * Header Section 17:3 + Flow Track 9:506). Running: a compact hero card —
- * recipe title + #id + RUNNING pill (+ 중단 요청됨 once cancel is pending),
- * recipe description, the derived TerraformImpactNote, "작업 현황 보기 ↗" and
- * 작업 중단, then a "Task 실행 흐름" label over the 16px grid canvas that lays
- * out EVERY task as a RunTaskCard (tile + status corner + status pill) in one
- * horizontally-scrolling row. Detailed progress lives on the 현황 page the link
- * points to. Idle: the same shell with a centered empty state and the start CTA.
+ * CurrentPipelineCard — R24 run-card body (Figma node 9-2, Header Section 17:3 +
+ * Flow Track 9:506). ONE card for every run the section can focus on: recipe
+ * title + #id + status pill (+ 중단 요청됨 once cancel is pending), recipe
+ * description, a chrome meta line (시작 · 경과), and then a "Task 실행 흐름" line
+ * — label left, the stage phrase as a neutral tag right — over the 16px grid
+ * canvas that lays out EVERY task as a RunTaskCard (tile + status corner +
+ * status pill) in one horizontally-scrolling row.
  *
- * The section NAME (현재 작업 / 최근 작업) is the card's own first line — owner
- * call, so the pair of cards in the 2:1 row each carry their title inside
- * instead of above. `sectionCard.fill` keeps both columns one height.
+ * The task flow is the card's CONTENT, not its footnote — it renders on a
+ * finished or stopped run exactly as it does on a live one (owner: 작업이 완료돼도
+ * Task를 잘 보여줘야 한다). One thing only branches on live/terminal: the action
+ * group (중단 vs 재시작/새 작업 시작). Detailed progress lives on the 현황 page the
+ * link points to.
  *
- * Data (detail polling, catalog map, cancel flow) stays in the caller — this
- * file is presentation only.
+ * The derived Terraform impact note (이 작업은 실제 인프라를 변경합니다 + APPLY/PLAN/
+ * DESTROY counts) is gone at the owner's word: every card in the flow right below
+ * already wears its own JobKindTag, so the counts stated the same fact twice —
+ * once as a total, once per task — and only the per-task form says WHICH task
+ * does the destroying.
+ *
+ * EmptyPipelineCard is the same shell with a centered empty state and the start
+ * CTA — that branch is now only "no run has ever been created" and the gate.
+ *
+ * The section NAME (현재 작업 / 최근 작업) is the card's own first line, and a blue
+ * TAG rather than a heading — owner call, so the pair of cards in the 2:1 row
+ * each carry their title inside instead of above, and neither competes with the
+ * run name under it. `sectionCard.fill` keeps both columns one height.
+ *
+ * Data (detail polling, catalog map, cancel/restart flows) stays in the caller —
+ * this file is presentation only.
  */
 import { Fragment, useEffect, useRef, type ReactElement } from 'react';
-import { cn, pipelineStyles } from '@/lib/theme';
+import Link from 'next/link';
+import { cn } from '@/lib/theme';
 import { Icon } from '@/app/admin/pipelines/_components/icons';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
 import { detailStyles } from '@/app/admin/pipelines/_detail/detailStyles';
-import { canCancel, recipeDisplayName, recipeLabel, taskInfraSide } from '@/lib/pipeline/format';
+import { opsStyles } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/opsStyles';
+import type { GateStage } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/gateStage';
+import type { OpsTargetTabLabel } from '@/lib/routes';
+import {
+  canCancel,
+  elapsedMs,
+  fmtDateTimeShortSec,
+  fmtElapsedMs,
+  isLivePipeline,
+  progressPhrase,
+  recipeDisplayName,
+  recipeLabel,
+  taskInfraSide,
+} from '@/lib/pipeline/format';
 import {
   FlowArrow,
   FlowStatusPill,
@@ -31,119 +60,42 @@ import {
   RestartBadge,
   RunTaskCard,
 } from '@/app/admin/pipelines/_detail/r24Task';
-import type { PipelineDetail, TaskCatalogEntry, TerraformAction } from '@/lib/pipeline/types';
-
-const IMPACT_CHIP =
-  'rounded-[5px] border px-2 py-[3px] text-[11.5px] font-bold tracking-[0.02em] [font-family:var(--pl-font-mono)] whitespace-nowrap';
-
-/**
- * 이 작업이 인프라에 무엇을 하는가 — derived from the run's `terraform_action`s.
- *
- * A fixed caution line ("이 작업은 인프라를 변경합니다") stops being read after
- * the second visit. Counting what THIS run actually does keeps the line
- * informative every time, and lets the tone escalate ONLY when a DESTROY is
- * involved — so a red note still means something when it appears.
- *
- * Returns null for a run with no terraform task at all (CONDITION_CHECK only):
- * that run does not touch infrastructure, and saying it does would be a lie.
- */
-function TerraformImpactNote({ detail }: { detail: PipelineDetail }): ReactElement | null {
-  const counts: Record<TerraformAction, number> = { PLAN: 0, APPLY: 0, DESTROY: 0 };
-  for (const task of detail.tasks) {
-    if (task.terraform_action) counts[task.terraform_action] += 1;
-  }
-  if (counts.PLAN + counts.APPLY + counts.DESTROY === 0) return null;
-
-  const interrupted = detail.status === 'FAILED' || detail.status === 'CANCELLED';
-  const destructive = counts.DESTROY > 0;
-  // Two tones only: neutral for anything that builds, red for anything that
-  // destroys or broke. An APPLY-blue middle tier just made the note a third
-  // color on a screen that already had too many.
-  const tone =
-    destructive || interrupted
-      ? 'border-[1.5px] border-[var(--pl-err)] bg-[var(--pl-err-bg)] text-[var(--pl-err-text)]'
-      : 'border border-[var(--pl-border)] bg-[var(--pl-gray-50)] text-[var(--pl-text-medium)]';
-
-  return (
-    <div
-      className={cn(
-        'mt-4 flex flex-wrap items-center gap-x-3.5 gap-y-2 rounded-[9px] px-4 py-3 text-[13.5px] leading-[1.5]',
-        tone,
-      )}
-    >
-      <Icon name="warn-tri" size="md" className="flex-none" />
-      <span className="font-semibold">
-        {interrupted
-          ? '작업이 중단되어 인프라가 부분 상태일 수 있습니다.'
-          : destructive
-            ? '이 작업은 실제 인프라를 삭제합니다'
-            : '이 작업은 실제 인프라를 변경합니다'}
-      </span>
-      <span className="ml-auto flex flex-wrap gap-1.5">
-        {counts.DESTROY > 0 && (
-          <span
-            className={cn(
-              IMPACT_CHIP,
-              'border-[var(--pl-err-solid)] bg-[var(--pl-err-solid)] text-[var(--pl-white)]',
-            )}
-          >
-            DESTROY {counts.DESTROY}건
-          </span>
-        )}
-        {counts.APPLY > 0 && (
-          <span className={cn(IMPACT_CHIP, 'border-current bg-[var(--pl-bg-card)]')}>
-            APPLY {counts.APPLY}건
-          </span>
-        )}
-        {counts.PLAN > 0 && (
-          <span className={cn(IMPACT_CHIP, 'border-current bg-[var(--pl-bg-card)]')}>
-            PLAN {counts.PLAN}건
-          </span>
-        )}
-      </span>
-    </div>
-  );
-}
+import type { PipelineDetail, TaskCatalogEntry } from '@/lib/pipeline/types';
 
 const CARD_SHELL =
   'overflow-hidden rounded-[12px] border border-[var(--pl-border)] bg-[var(--pl-bg-card)] text-[var(--pl-text-strong)] shadow-[var(--pl-shadow-xs)]';
 
-/** 중단/실패 지점의 Task 이름 태그 (LastRunFailedCard) — 중립 톤. */
-const STOP_TAG =
-  'inline-flex items-center rounded-[6px] border border-[var(--pl-border)] bg-[var(--pl-gray-50)] px-[7px] py-[3px] align-[1px] text-[13px] font-semibold text-[var(--pl-text-strong)]';
-
-/** What the 현재 작업 card is for — constant; only its title tracks state. */
-const RUN_SECTION_DESC =
-  'Terraform을 실행해 인프라를 생성하거나 삭제합니다. 작업 시작·중단과 진행 상황을 여기서 확인합니다.';
-
-/** The card's own first line — see detailStyles.sectionCard. */
+/** The card's own first line — a blue tag; see detailStyles.sectionCard. */
 function SectionHead({ title }: { title: string }): ReactElement {
   const { sectionCard } = detailStyles;
   return (
     <div className={sectionCard.head}>
       <div className={sectionCard.titleRow}>
-        <h3 className={sectionCard.title}>
-          <Icon name="flow" size="sm" strokeWidth={2.2} />
-          {title}
-        </h3>
+        {/* No glyph: a tag is a label, not a titled row. */}
+        <h3 className={sectionCard.title}>{title}</h3>
       </div>
-      <p className={sectionCard.desc}>{RUN_SECTION_DESC}</p>
     </div>
   );
 }
 
 export interface CurrentPipelineCardProps {
   detail: PipelineDetail;
-  /** 현재 작업 — the section name, rendered inside the card. */
+  /** 현재 작업 (live) | 최근 작업 (terminal) — the section name, inside the card. */
   sectionTitle: string;
   /** task_definition name → catalog entry (display name + description). */
   defs: ReadonlyMap<string, TaskCatalogEntry>;
   onOpenPipeline: () => void;
   /** Opens the ORIGIN run when this one is a restart (restart badge). */
   onOpenOrigin?: (originPipelineId: number) => void;
-  /** Opens the 작업 중단 confirmation. Never gated: stopping a run in flight is
-   *  always allowed, whatever else on the page is blocked. */
+  /** Opens the 작업 중단 confirmation (live). Never gated: stopping a run in
+   *  flight is always allowed, whatever else on the page is blocked. */
   onCancel: () => void;
+  /** Opens the 재시작 modal — offered on a FAILED/CANCELLED run only. */
+  onRestart: () => void;
+  /** Opens the start-pipeline modal (terminal). */
+  onStartNew: () => void;
+  /** Disables the terminal CTAs and states why. */
+  blockedReason?: string | null;
 }
 
 export function CurrentPipelineCard({
@@ -153,7 +105,14 @@ export function CurrentPipelineCard({
   onOpenPipeline,
   onOpenOrigin,
   onCancel,
+  onRestart,
+  onStartNew,
+  blockedReason = null,
 }: CurrentPipelineCardProps): ReactElement {
+  const live = isLivePipeline(detail.status);
+  // 재시작 resumes an interrupted run — a DONE one has nothing left to resume,
+  // so that branch offers only 새 작업 시작 (restart-design §8.1, decision 5).
+  const resumable = detail.status === 'FAILED' || detail.status === 'CANCELLED';
   const label = recipeLabel(detail.recipe_definition);
   const title =
     detail.type === 'CUSTOM' ? '커스텀 작업' : recipeDisplayName(detail.recipe_definition);
@@ -171,10 +130,15 @@ export function CurrentPipelineCard({
   // attention lands on where the pipeline actually is (owner ask). Scrolls only
   // the track — computed from client rects so it never nudges the page.
   const flowRef = useRef<HTMLDivElement>(null);
-  const currentSeq = tasks.find((t) => t.status === 'IN_PROGRESS')?.sequence ?? null;
+  const focusSeq =
+    tasks.find((t) => t.status === 'IN_PROGRESS')?.sequence ??
+    tasks.find((t) => t.status === 'FAILED')?.sequence ??
+    null;
   useEffect(() => {
     const track = flowRef.current;
-    const el = track?.querySelector<HTMLElement>('.rtc.cur');
+    // `.rtc.cur` is the IN_PROGRESS card; a terminal run has none, so fall back
+    // to the failed one and a stopped run opens on the task that broke.
+    const el = track?.querySelector<HTMLElement>('.rtc.cur, .rtc.failed');
     if (!track || !el) return;
     const c = track.getBoundingClientRect();
     const e = el.getBoundingClientRect();
@@ -183,22 +147,29 @@ export function CurrentPipelineCard({
       left: delta,
       behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
     });
-  }, [currentSeq, detail.pipeline_id]);
+  }, [focusSeq, detail.pipeline_id]);
 
   return (
     <div className={cn(CARD_SHELL, detailStyles.sectionCard.fill)}>
       <style>{R24_CSS + R24_RUN_CSS}</style>
       <SectionHead title={sectionTitle} />
 
-      {/* header — eyebrow, title row + status, description, actions, flow label */}
-      <div className="px-6 pt-5 pb-1">
+      {/* header — title row + status, description, meta, actions, flow label.
+          pt-4, not pt-5: the head above lost its caption line, and the tag wants
+          the run name closer to it than a section heading did. */}
+      <div className="px-6 pt-4 pb-1">
         <div className="flex flex-wrap items-start gap-x-4 gap-y-2">
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-              <b className="text-[16px] font-semibold tracking-[-0.02em] text-[var(--pl-text-strong)]">
+              {/* 18px against the section title's 16px: the run is the subject
+                  of this card and the section label is chrome, so they must not
+                  read at one rank two rows apart. */}
+              <b className="text-[18px] font-semibold tracking-[-0.02em] text-[var(--pl-text-strong)]">
                 {title}
               </b>
-              <span className="text-[13px] text-[var(--pl-text-faint)] [font-family:var(--pl-font-mono)]">
+              {/* --pl-text-weak, not faint: at 12px the faint grey reads 2.58:1
+                  on the card. Same value the 작업 이력 row prints for this run. */}
+              <span className="text-[12px] text-[var(--pl-text-weak)] [font-family:var(--pl-font-mono)]">
                 #{detail.pipeline_id}
               </span>
               <FlowStatusPill status={detail.status} className="!px-2.5 !py-1 !text-[12px]" />
@@ -211,7 +182,7 @@ export function CurrentPipelineCard({
               {/* Cancel is two-phase (contract gap ⑤): a leased run keeps
                   RUNNING and only records the request, so without this the stop
                   button looked like it had done nothing. */}
-              {detail.cancel_requested && (
+              {live && detail.cancel_requested && (
                 <span className="inline-flex items-center gap-1 rounded-full border border-[var(--pl-err-border)] bg-[var(--pl-err-bg)] px-2.5 py-[3px] text-[12px] font-semibold text-[var(--pl-err-text)]">
                   중단 요청됨
                 </span>
@@ -222,33 +193,71 @@ export function CurrentPipelineCard({
                 {label.desc}
               </p>
             ) : null}
+            {/* 경과, not 소요: `elapsedMs` measures from created_at, so it counts
+                the wait before the first dispatch too. 시작 is the same instant,
+                so both numbers share one origin — and it is the timestamp the
+                작업 이력 row already shows for this run. The clock marks 시작 only:
+                경과 is read off the same glyph, and a second one would make two
+                clocks out of one line. */}
+            <p className="mt-2 flex flex-wrap items-center gap-1 text-[12px] tabular-nums text-[var(--pl-text-weak)]">
+              <Icon name="clock" size="sm" className="flex-none" />
+              시작 {fmtDateTimeShortSec(detail.created_at)} · 경과{' '}
+              {fmtElapsedMs(elapsedMs(detail.status, detail.created_at, detail.last_activity_at))}
+            </p>
           </div>
-          <div className="flex flex-none items-center gap-3 pt-0.5">
-            <button
-              type="button"
-              className={cn(
-                pipelineStyles.text.link,
-                'inline-flex items-center gap-1 text-[13px] font-semibold hover:underline',
+          <div className="flex flex-none flex-col items-end gap-2 pt-0.5">
+            <div className="flex items-center gap-3">
+              <button type="button" className={opsStyles.detailLink} onClick={onOpenPipeline}>
+                작업 현황 보기
+                <Icon name="arrow-up-right" size="sm" strokeWidth={2.2} />
+              </button>
+              {live ? (
+                <PlButton
+                  variant="danger"
+                  size="sm"
+                  onClick={onCancel}
+                  disabled={!canCancel(detail.status, detail.cancel_requested)}
+                >
+                  <Icon name="stop" size="sm" />
+                  작업 중단
+                </PlButton>
+              ) : (
+                <>
+                  {resumable && (
+                    <PlButton
+                      variant="primary"
+                      size="sm"
+                      onClick={onRestart}
+                      disabled={blockedReason != null}
+                    >
+                      <Icon name="play" size="sm" />
+                      {/* Just the verb: the flow below names the task it resumes
+                          from, and so does the modal. */}
+                      재시작
+                    </PlButton>
+                  )}
+                  <PlButton
+                    variant={resumable ? 'ghost' : 'primary'}
+                    size="sm"
+                    onClick={onStartNew}
+                    disabled={blockedReason != null}
+                  >
+                    새 작업 시작
+                  </PlButton>
+                </>
               )}
-              onClick={onOpenPipeline}
-            >
-              작업 현황 보기
-              <Icon name="arrow-up-right" size="sm" strokeWidth={2.2} />
-            </button>
-            <PlButton
-              variant="danger"
-              size="sm"
-              onClick={onCancel}
-              disabled={!canCancel(detail.status, detail.cancel_requested)}
-            >
-              <Icon name="stop" size="sm" />
-              작업 중단
-            </PlButton>
+            </div>
+            {!live && blockedReason && <BlockedReason reason={blockedReason} />}
           </div>
         </div>
-        <TerraformImpactNote detail={detail} />
-        <div className="mt-[18px] text-[14px] font-semibold tracking-[0.01em] text-[var(--pl-text-medium)]">
-          Task 실행 흐름
+        {/* The stage phrase labels the flow it counts, so it rides the flow's own
+            line. Neutral, not blue: blue declares the card in the head, and a
+            second blue tag would read as the same rank. */}
+        <div className="mt-[18px] flex items-center justify-between gap-3">
+          <span className="text-[14px] font-semibold tracking-[0.01em] text-[var(--pl-text-medium)]">
+            Task 실행 흐름
+          </span>
+          <span className={opsStyles.tag}>{progressPhrase(detail.status, tasks)}</span>
         </div>
       </div>
 
@@ -279,145 +288,10 @@ export function CurrentPipelineCard({
   );
 }
 
-export interface LastRunFailedCardProps {
-  detail: PipelineDetail;
-  /** 최근 작업 — the section name, rendered inside the card. */
-  sectionTitle: string;
-  /** task_definition name → catalog entry (display name + description). */
-  defs: ReadonlyMap<string, TaskCatalogEntry>;
-  onRestart: () => void;
-  onStartNew: () => void;
-  onOpenPipeline: () => void;
-  /** Opens the ORIGIN run when this failed run was itself a restart. */
-  onOpenOrigin?: (originPipelineId: number) => void;
-  /** Disables both CTAs and states why — see TargetPipelineSections. */
-  blockedReason?: string | null;
-}
-
-/**
- * Terminal FAILED/CANCELLED latest run (restart-design §8.1) — the third state
- * of the "현재 작업" section. Before this, a failed run fell back to the empty
- * card and the failure context vanished; here the failure stays on screen WITH
- * the action that answers it. The restart CTA renders only in this branch —
- * that IS the frontend half of decision 5's gating (live → cancel only, DONE → start only).
- */
-export function LastRunFailedCard({
-  detail,
-  sectionTitle,
-  defs,
-  onRestart,
-  onStartNew,
-  onOpenPipeline,
-  onOpenOrigin,
-  blockedReason = null,
-}: LastRunFailedCardProps): ReactElement {
-  const title =
-    detail.type === 'CUSTOM' ? '커스텀 작업' : recipeDisplayName(detail.recipe_definition);
-  const tasks = [...detail.tasks].sort((a, b) => a.sequence - b.sequence);
-  // The stop point: the failed task, else the first task that never completed
-  // (a cancelled run's in-flight task). Same rule the server resumes from.
-  const stopped = tasks.find((t) => t.status === 'FAILED') ?? tasks.find((t) => t.status !== 'DONE');
-  const stoppedName = stopped
-    ? defs.get(stopped.task_definition)?.display_name ?? stopped.task_definition
-    : null;
-
-  return (
-    <div className={cn(CARD_SHELL, detailStyles.sectionCard.fill)}>
-      <SectionHead title={sectionTitle} />
-      <div className="px-6 pt-5 pb-5">
-        <div className="flex flex-wrap items-start gap-x-4 gap-y-2">
-          <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-              <b className="text-[16px] font-semibold tracking-[-0.02em] text-[var(--pl-text-strong)]">
-                {title}
-              </b>
-              <span className="text-[13px] text-[var(--pl-text-faint)] [font-family:var(--pl-font-mono)]">
-                #{detail.pipeline_id}
-              </span>
-              <FlowStatusPill status={detail.status} className="!px-2.5 !py-1 !text-[12px]" />
-              {detail.origin_pipeline_id != null && (
-                <RestartBadge
-                  originPipelineId={detail.origin_pipeline_id}
-                  onClick={onOpenOrigin ? () => onOpenOrigin(detail.origin_pipeline_id as number) : undefined}
-                />
-              )}
-            </div>
-            {/* Two facts, two lines, two weights. They used to be one 14px line
-                glued by an em dash, which flattened "어디서 멈췄나"(actionable)
-                and "얼마나 갔나"(context) into the same rank. The stop point
-                leads because it is what the restart CTA acts on. */}
-            <p className="mt-1.5 text-[14px] font-medium leading-[1.55] text-[var(--pl-text-strong)]">
-              {stoppedName ? (
-                <>
-                  {/* The task name is a value, not prose — a neutral tag reads it
-                      as one unit. The failure signal stays on the status pill and
-                      the error-code chip; a red name as well was too loud. */}
-                  <span className={STOP_TAG}>{stoppedName}</span>
-                  {detail.status === 'FAILED' ? '에서 실패했습니다.' : '에서 중단됐습니다.'}
-                </>
-              ) : detail.status === 'FAILED' ? (
-                '작업이 실패했습니다.'
-              ) : (
-                '작업이 중단됐습니다.'
-              )}
-              {stopped?.error_code && (
-                <code className="ml-2 rounded bg-[var(--pl-err-bg)] px-1.5 py-0.5 align-middle text-[12px] font-medium text-[var(--pl-err-text)] [font-family:var(--pl-font-mono)]">
-                  {stopped.error_code}
-                </code>
-              )}
-            </p>
-            <p className="mt-1 text-[13px] leading-[1.5] text-[var(--pl-text-weak)]">
-              전체 {detail.total_task_count}단계 중 {detail.done_task_count}단계를 완료했습니다.
-            </p>
-          </div>
-          <div className="flex flex-none items-center pt-0.5">
-            <button
-              type="button"
-              className={cn(
-                pipelineStyles.text.link,
-                'inline-flex items-center gap-1 text-[13px] font-semibold hover:underline',
-              )}
-              onClick={onOpenPipeline}
-            >
-              작업 현황 보기
-              <Icon name="arrow-up-right" size="sm" strokeWidth={2.2} />
-            </button>
-          </div>
-        </div>
-        <TerraformImpactNote detail={detail} />
-        <div className="mt-4 flex items-center gap-2.5">
-          <PlButton variant="primary" onClick={onRestart} disabled={blockedReason != null}>
-            <Icon name="play" size="sm" />
-            {/* Just the verb: the line above already says where it stopped, and
-                the modal names the resume point. FAILED/CANCELLED wording no
-                longer has to be branched here. */}
-            재시작
-          </PlButton>
-          <PlButton variant="ghost" onClick={onStartNew} disabled={blockedReason != null}>
-            새 작업 시작
-          </PlButton>
-        </div>
-        {blockedReason && <BlockedReason reason={blockedReason} className="mt-2.5" />}
-      </div>
-    </div>
-  );
-}
-
 /** Why a start CTA is dead — stated next to the button that would not respond. */
-function BlockedReason({
-  reason,
-  className,
-}: {
-  reason: string;
-  className?: string;
-}): ReactElement {
+function BlockedReason({ reason }: { reason: string }): ReactElement {
   return (
-    <p
-      className={cn(
-        'inline-flex items-center gap-1.5 text-[13px] font-semibold text-[var(--pl-warn-text)]',
-        className,
-      )}
-    >
+    <p className="inline-flex items-center gap-1.5 text-right text-[12px] font-semibold text-[var(--pl-warn-text)]">
       <Icon name="ban" size="sm" />
       {reason}
     </p>
@@ -428,47 +302,135 @@ export interface EmptyPipelineCardProps {
   /** 현재 작업 — the section name, rendered inside the card. */
   sectionTitle: string;
   onStart: () => void;
-  /** Disables the CTA and states why — see TargetPipelineSections. */
-  blockedReason?: string | null;
+  /**
+   * Set only while 작업 시작 is closed: the one sentence that says why, and the
+   * one move that opens it (see ops `gateStage`). Null = the run can start.
+   */
+  gate?: GateStage | null;
+  /** Performs the gate's tab jump, when its action is one. */
+  onSelectTab: (tab: OpsTargetTabLabel) => void;
 }
 
-/** Idle state — the same card shell with a centered empty state + start CTA. */
+/** The verb the gate is talking about — emphasised where it appears. */
+const START_VERB = '작업 시작';
+
+/** The gate sentence, with 작업 시작 picked out of it. */
+function GateSentence({ sentence }: { sentence: string }): ReactElement {
+  const parts = sentence.split(START_VERB);
+  return (
+    <p className="break-keep text-[14px] leading-[1.6] text-[var(--pl-text-medium)]">
+      {parts.map((part, index) => (
+        <Fragment key={index}>
+          {index > 0 && <b className="font-semibold">{START_VERB}</b>}
+          {part}
+        </Fragment>
+      ))}
+    </p>
+  );
+}
+
+/**
+ * The gate's ONE move. Secondary or a link, never primary and never disabled:
+ * the operator did not come here to change tabs, and a control that refuses to
+ * respond is what this branch exists to remove.
+ */
+function GateActionControl({
+  action,
+  onSelectTab,
+}: {
+  action: GateStage['action'];
+  onSelectTab: (tab: OpsTargetTabLabel) => void;
+}): ReactElement {
+  if (action.kind === 'href') {
+    return (
+      <Link href={action.href} className={opsStyles.detailLink}>
+        {action.label}
+        <Icon name="arrow-up-right" size="sm" strokeWidth={2.2} />
+      </Link>
+    );
+  }
+  return (
+    <PlButton variant="secondary" onClick={() => onSelectTab(action.tab)}>
+      {action.label}
+      <Icon name="arrow-right" size="sm" />
+    </PlButton>
+  );
+}
+
+/**
+ * Idle state — the same card shell, and one of two bodies.
+ *
+ * BLOCKED: the info block in the 「이 탭에서 하는 일」 grammar, and under it a row
+ * of two — a DISABLED 작업 시작 beside the gate's own move.
+ *
+ * The button is back by owner instruction (2026-08-27 2차: "연동 정보 미확정
+ * 상태면 파이프라인 시작은 불가능하게 만들어줘. 버튼 비활성화 오케이?"), which
+ * SUPERSEDES the 08-27 1차 call that removed it ("차단된 「현재 작업」은 안내 블록
+ * 하나. 비활성 버튼·사유줄·아이콘 삭제"). Do not re-argue it from the older doc.
+ *
+ * What did NOT come back is the reason line: the sentence stands once, in the
+ * block directly above, and the dead button carries it in `title` for whoever
+ * hovers it. Saying it twice is the duplication P1 of the benchmark fixed, and
+ * that fix stays. Nothing here ever made a start possible — the gate branch has
+ * offered no working entrance since it existed; this round only changes the FORM
+ * the impossibility takes, from an absent control to a disabled one.
+ *
+ * IDLE: the headline, one sentence about what the button does, and the button.
+ * The 52px inbox circle is gone (it decorated an ordinary state), and the two
+ * paragraphs — a 15px description and an info-blue pre-warning — are one 14px
+ * line, because only the Terraform consequence was worth reading twice.
+ */
 export function EmptyPipelineCard({
   sectionTitle,
   onStart,
-  blockedReason = null,
+  gate = null,
+  onSelectTab,
 }: EmptyPipelineCardProps): ReactElement {
-  const blocked = blockedReason != null;
   return (
     <div className={cn(CARD_SHELL, detailStyles.sectionCard.fill)}>
       <SectionHead title={sectionTitle} />
       {/* justify-center: the row's height is set by whichever card is taller, so
-          the empty state centres in whatever space it is given. */}
+          the body centres in whatever space it is given. */}
       <div className="flex flex-1 flex-col items-center justify-center px-6 pb-10 pt-9 text-center">
-        <span className="mb-3 flex h-[52px] w-[52px] items-center justify-center rounded-full bg-[var(--pl-gray-50)] text-[var(--pl-text-faint)]">
-          <Icon name="inbox" size="lg" strokeWidth={1.8} />
-        </span>
-        <div className="text-[20px] font-medium tracking-[-0.01em] text-[var(--pl-text-strong)]">
-          실행 중인 작업이 없습니다.
-        </div>
-        <p className="mt-2 max-w-[468px] text-[15px] leading-[1.6] text-[var(--pl-text-weak)]">
-          작업을 시작해 보세요. 설치·삭제·커스텀 흐름이 여러 단계로 실행되고, 진행 상황을 여기서
-          바로 볼 수 있어요.
-        </p>
-        {/* Pre-warning, in info blue: nothing is wrong yet — this states what the
-            button will do. Amber belongs to the 확정 정보 gate, red to real
-            failures, so neither is borrowed here. Suppressed when the CTA is
-            already blocked; the reason line below says the operative thing. */}
-        {!blocked && (
-          <p className="mt-2.5 max-w-[468px] text-[14px] font-semibold leading-[1.6] text-[var(--pl-info-text)]">
-            작업을 시작하면 Terraform이 실행되어 실제 인프라가 생성되거나 삭제됩니다.
-          </p>
+        {gate ? (
+          <div className="flex max-w-[480px] flex-col gap-4">
+            <div className="flex items-start gap-3 rounded-[10px] border border-[var(--pl-info-border)] bg-[var(--pl-info-bg)] px-5 py-4 text-left">
+              <span className="mt-px flex-none text-[var(--pl-info-text)]">
+                <Icon name="info" size="md" strokeWidth={2} />
+              </span>
+              <div className="min-w-0">
+                <GateSentence sentence={gate.sentence} />
+              </div>
+            </div>
+            {/* The same control the open card offers, in its other condition —
+                same variant, same glyph, same words — so the two states read as
+                one button rather than two designs. The gate's move keeps its own
+                appearance beside it: exactly one control on this card responds,
+                and it is the one that opens the gate. */}
+            <div className="flex items-center justify-center gap-2.5">
+              <PlButton variant="primary" disabled title={gate.sentence}>
+                <Icon name="play" size="sm" />
+                작업 시작
+              </PlButton>
+              <GateActionControl action={gate.action} onSelectTab={onSelectTab} />
+            </div>
+          </div>
+        ) : (
+          <>
+            {/* 16px/600 against the section title's 16px/700 primary blue — the
+                same size, two ranks apart by weight and colour. */}
+            <div className="text-[16px] font-semibold tracking-[-0.01em] text-[var(--pl-text-strong)]">
+              실행 중인 작업 없음
+            </div>
+            <p className="mt-2 max-w-[468px] text-[14px] leading-[1.6] text-[var(--pl-text-weak)]">
+              작업을 시작하면 Terraform이 실행되어 실제 인프라가 생성되거나 삭제됩니다.
+            </p>
+            <PlButton variant="primary" className="mt-5" onClick={onStart}>
+              <Icon name="play" size="sm" />
+              작업 시작
+            </PlButton>
+          </>
         )}
-        <PlButton variant="primary" className="mt-5" onClick={onStart} disabled={blocked}>
-          <Icon name="play" size="sm" />
-          작업 시작
-        </PlButton>
-        {blockedReason && <BlockedReason reason={blockedReason} className="mt-2.5" />}
       </div>
     </div>
   );

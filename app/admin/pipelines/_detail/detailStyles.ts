@@ -10,6 +10,7 @@
  * keyframes) is scoped CSS inside TaskFlow.tsx, not here.
  */
 import { cn, pipelineStyles } from '@/lib/theme';
+import { opsStyles } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/opsStyles';
 
 const { text } = pipelineStyles;
 
@@ -221,19 +222,25 @@ export const detailStyles = {
   /**
    * 인프라 작업 tab's 2:1 row — 현재 작업 and 작업 이력. The section name lives
    * INSIDE the card (owner call), with no rule under it — separation is the type
-   * hierarchy plus the body's own top padding. The name is the only primary-blue
-   * text in the card and carries an icon, so it never reads as one more 16px line
-   * next to the run title below it; the 12px caption under it says what the card
-   * is FOR. `fill` lets both columns stretch to one shared height whichever card
-   * happens to be taller.
+   * hierarchy plus the body's own top padding. `fill` lets both columns stretch
+   * to one shared height whichever card happens to be taller.
+   *
+   * The name is a TAG, not a heading (owner 2026-08-27: "현재 작업은 태그로 선언
+   * 해주실래요? 파란색 태그"). A 16px bold blue line sat one rank from the 18px run
+   * name two rows under it — same size, and both loud. A 12px tag declares what
+   * the card IS and then gets out of the run's way, which is the whole hierarchy
+   * the round was asked to fix. The supporting caption went with it: it restated
+   * the tab's own info banner two rows above.
+   *
+   * `opsStyles.scopeTag` verbatim — the low-saturation blue tag the masthead
+   * already uses on this route (#792). Not hand-copied: a copy is what stays
+   * behind as a second blue on the day the token moves.
    */
   sectionCard: {
     fill: 'flex h-full flex-col',
     head: 'px-6 pt-5',
     titleRow: 'flex items-baseline justify-between gap-3',
-    title:
-      'flex items-center gap-1.5 text-[16px] font-bold tracking-[-0.01em] text-[var(--pl-primary)]',
-    desc: 'mt-1.5 break-keep text-[12px] leading-[1.5] text-[var(--pl-text-faint)]',
+    title: opsStyles.scopeTag,
     meta: 'flex-none text-[12px] tabular-nums text-[var(--pl-text-weak)]',
   },
 

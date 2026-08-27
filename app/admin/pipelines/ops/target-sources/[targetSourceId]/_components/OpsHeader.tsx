@@ -112,8 +112,10 @@ export function OpsHeader({
     value: ReactNode,
     wide = false,
     labelAfter?: ReactNode,
+    /** 배치 클래스 하나 — 지금은 GCP 주체 쌍을 제 행에서 시작시키는 `col-start-1`. */
+    className?: string,
   ): ReactElement => (
-    <div key={label} className={cn(opsStyles.fmCell, wide && opsStyles.fmCellWide)}>
+    <div key={label} className={cn(opsStyles.fmCell, wide && opsStyles.fmCellWide, className)}>
       <span className={opsStyles.fmKeyRow}>
         <span className={opsStyles.fmKey}>{label}</span>
         {labelAfter}
@@ -135,6 +137,8 @@ export function OpsHeader({
    * 자리가 남는다. 태그를 16px 로 줄여 `fmKey` 의 leading-4 와 같은 높이로 맞췄으므로
    * 이 이동은 어느 프로바이더의 행 높이도 바꾸지 않는다.
    */
+  const isGcp = provider === 'GCP';
+
   const scopeTag = (
     <span className={cn(opsStyles.metaTagQuiet, 'flex-none')}>{isChina ? 'China' : 'Global'}</span>
   );
@@ -145,6 +149,7 @@ export function OpsHeader({
     value: string | null | undefined,
     wide = false,
     labelAfter?: ReactNode,
+    className?: string,
   ): ReactElement =>
     cell(
       label,
@@ -157,6 +162,7 @@ export function OpsHeader({
       ),
       wide,
       labelAfter,
+      className,
     );
 
   /** 표시값은 detail 과 같이 온다 (v5 metadata 의 등록값) — 저장 직후 한 칸만 saved 가 덮는다. */
@@ -281,7 +287,7 @@ export function OpsHeader({
           {/* 항상 보이는 스트립 — 계정/프로젝트 · 설정, 그리고 **권한 주체**.
               Role 은 접힘 밖에 산다 (오너 지시): 이 화면에서 운영자가 가장 자주 대조하는
               값이고, 접어 두면 프로바이더마다 다른 깊이에 숨는다. */}
-          <div className={opsStyles.fmGrid}>
+          <div className={isGcp ? opsStyles.fmGridGcp : opsStyles.fmGrid}>
             {isAws && monoCell('계정', meta.aws_account_id, false, scopeTag)}
             {provider === 'GCP' && monoCell('프로젝트', meta.gcp_project_id, false, scopeTag)}
             {/* Azure 는 계정 자리가 구독이고, 테넌트가 그 옆에 선다 (오너 2026-08-26).
@@ -297,8 +303,9 @@ export function OpsHeader({
                 each, and truncation is safe here because 「상세 정보」 prints every
                 identifier in full with a copy button. Azure now packs 구독·테넌트·Scan
                 App·설정 into exactly four slots — one row, the shape AWS already has.
-                GCP keeps its 2-column service accounts: those are addresses, long enough
-                that one column would leave only the prefix. */}
+                GCP keeps its 2-column service accounts: those are full mail addresses
+                (오너 2026-08-27), and at 341/365px neither fits a 240px track — so the
+                pair takes a row of its own, below. */}
             {provider === 'Azure' && monoCell('Scan App', meta.azure_scan_app_id)}
             {/* IDC 는 계정이 없는 게 정상이다 — 빈 칸을 두는 대신 그 대상이 무엇인지
                 말한다 (ServiceDetailView glossOf 의 어휘 그대로). */}
@@ -336,7 +343,8 @@ export function OpsHeader({
                 「수정」 둘이 라벨 하나와 밑줄 낱말 둘이 된다. 라벨이 줄었으니 값이 스스로를
                 말한다. 이 칸이 그리드의 마지막 사실 뒤에 서면서 AWS 자동은 첫 행이 4칸으로
                 정확히 찬다 — 실데이터 하나 때문에 서 있던 둘째 행이 사라진다. */}
-            {cell(
+            {!isGcp
+              && cell(
               '설정',
               <span className={opsStyles.fmSettings}>
                 {isAws && (
@@ -363,11 +371,16 @@ export function OpsHeader({
                   실데이터 {rawDataLabel}
                 </button>
               </span>,
-            )}
+              )}
+            {/* GCP 는 세 칸 한 줄이다 (오너 2026-08-27: 설정을 없애고 한 줄로). 전문
+                둘이 341 + 365px, 프로젝트가 115px, 간격 둘이 36px — 1440 의 920px 레인에
+                63px 여유로 들어간다. 설정 칸(74px)까지 세우면 21px 모자라 주소가 잘렸다.
+                트랙은 `fmGridGcp` 가 내용 폭으로 잡는다: 240px 상한은 짧은 스칼라가 넓은
+                트랙에 홀로 남는 걸 막는 규칙이라 전문 주소에는 근거가 없다. */}
             {provider === 'GCP' && (
               <>
-                {monoCell('Scan Service Account', meta.gcp_scan_service_account, true)}
-                {monoCell('Terraform Service Account', meta.gcp_terraform_service_account, true)}
+                {monoCell('Scan Service Account', meta.gcp_scan_service_account)}
+                {monoCell('Terraform Service Account', meta.gcp_terraform_service_account)}
               </>
             )}
           </div>

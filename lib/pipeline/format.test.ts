@@ -7,6 +7,7 @@ import {
   fmtDateTime,
   fmtDateTimeSec,
   fmtDateTimeShort,
+  fmtDateTimeShortSec,
   fmtDuration,
   fmtElapsedAgo,
   fmtElapsedMs,
@@ -116,6 +117,18 @@ describe('fmtDateTimeShort', () => {
   it('없거나 못 읽는 값은 대시 — 자르기 전에 빠져나온다', () => {
     expect(fmtDateTimeShort(null)).toBe('-');
     expect(fmtDateTimeShort('not-a-date')).toBe('-');
+  });
+});
+
+describe('fmtDateTimeShortSec', () => {
+  it('짧은 꼴이되 초는 남는다 — 로그 한 줄과 맞춰 볼 시각이다', () => {
+    expect(fmtDateTimeShortSec('2026-08-25T12:05:32Z')).toBe('26.08.25 21:05:32');
+  });
+
+  it('자정 정규화와 대시 처리는 짧은 꼴과 같다', () => {
+    expect(fmtDateTimeShortSec('2026-06-29T15:00:05Z')).toBe('26.06.30 00:00:05');
+    expect(fmtDateTimeShortSec(null)).toBe('-');
+    expect(fmtDateTimeShortSec('not-a-date')).toBe('-');
   });
 });
 
@@ -397,19 +410,20 @@ describe('exec-band helpers (design-benchmark 시안 1·2·5)', () => {
     expect(statusKo('CANCELLED')).toBe('중단');
   });
 
-  it('progressPhrase — 완료 수가 아니라 현재 단계 서수 (2번째 실행 중 = 2/4)', () => {
+  it('progressPhrase — 완료 수가 아니라 현재 단계 서수 (2번째 진행 중 = 2/4)', () => {
     expect(progressPhrase('RUNNING', chain(['DONE', 'IN_PROGRESS', 'BLOCKED', 'BLOCKED']))).toBe(
-      '2/4단계 실행 중',
+      '2/4단계 진행 중',
     );
     expect(progressPhrase('FAILED', chain(['DONE', 'FAILED', 'BLOCKED', 'BLOCKED']))).toBe(
-      '2/4단계에서 실패',
+      '2/4단계 실패',
     );
     expect(progressPhrase('DONE', chain(['DONE', 'DONE']))).toBe('2단계 완료');
-    // CANCELLED 접미사 없음 — 옆의 상태 pill이 이미 '중단'을 말한다.
+    // 상태마다 제 상태어를 갖는다 — 예전에는 중단된 작업도, 시작도 안 한 작업도
+    // 똑같이 '완료'라고 말했다 (오너 2026-08-27).
     expect(progressPhrase('CANCELLED', chain(['DONE', 'CANCELLED', 'CANCELLED']))).toBe(
-      '1/3단계 완료',
+      '1/3단계 중단',
     );
-    expect(progressPhrase('PENDING', chain(['BLOCKED', 'BLOCKED']))).toBe('0/2단계 완료');
+    expect(progressPhrase('PENDING', chain(['BLOCKED', 'BLOCKED']))).toBe('1/2단계 대기');
   });
 
   it('runWindow — 태스크 타임스탬프에서 유도; 라이브는 end=null', () => {
