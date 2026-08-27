@@ -19,10 +19,28 @@ import {
 } from '@/lib/theme';
 
 // China first, Global second: the two cards sit on one row and the default lands right.
-const REGION_OPTIONS: Array<{ value: OperatingRegion; title: string; description: string }> = [
-  { value: 'china', title: 'China', description: '리전 정책에 따라 연동 구성이 달라질 수 있어요.' },
-  { value: 'global', title: 'Global', description: '일반 리전에서 운영 중인 계정이에요.' },
-];
+// Only AWS and Azure reach this list (`hasChinaRegion`), so the console host can name
+// the account the operator is actually looking at.
+const regionOptions = (
+  providerKey: ProviderChipKey,
+): Array<{ value: OperatingRegion; title: string; description: string }> => {
+  const host =
+    providerKey === 'azure'
+      ? { china: 'portal.azure.cn', global: 'portal.azure.com' }
+      : { china: 'console.amazonaws.cn', global: 'console.aws.amazon.com' };
+  return [
+    {
+      value: 'china',
+      title: 'China',
+      description: `중국 계정인 경우 선택해 주세요. (${host.china})`,
+    },
+    {
+      value: 'global',
+      title: 'Global',
+      description: `글로벌 상용 계정인 경우 선택해 주세요. (${host.global})`,
+    },
+  ];
+};
 
 interface Step1CloudAccountProps {
   providerKey: ProviderChipKey;
@@ -104,7 +122,7 @@ export const Step1CloudAccount = ({
           aria-label="운영 리전"
           className="grid max-w-[520px] grid-cols-2 gap-2"
         >
-          {REGION_OPTIONS.map((option) => {
+          {regionOptions(providerKey).map((option) => {
             const isSelected = region === option.value;
             return (
               <button
@@ -158,8 +176,8 @@ export const Step1CloudAccount = ({
 
     {isCspChip(providerKey) && (
       <p className={cn('max-w-[520px] text-xs', textColors.tertiary)}>
-        입력하신 내용을 바탕으로 알맞은 연동 구성을 안내해 드려요. 「등록 내용 확인」 단계에서 확인할 수
-        있어요.
+        입력하신 내용을 바탕으로 알맞은 PII 모니터링 연동 방식을 안내해 드려요. 「등록 내용 확인」
+        단계에서 확인할 수 있어요.
       </p>
     )}
   </div>
