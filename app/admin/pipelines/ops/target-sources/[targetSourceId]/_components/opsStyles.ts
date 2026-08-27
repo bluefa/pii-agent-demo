@@ -173,6 +173,13 @@ export const opsStyles = {
       셋까지 들어갈 수가 없다(21px 모자란다). 그래서 GCP 만 2행이고, 2열 병합 셀이
       각각 451px 을 받아 둘 다 잘리지 않는다. */
   fmGrid: 'grid grid-cols-[repeat(4,minmax(0,240px))] gap-x-[18px] gap-y-3 pt-[22px]',
+  /** GCP 만 세 칸 한 줄이다 — 주체 둘이 mail 주소 전문이라 240px 트랙에 안 들어간다
+      (오너 2026-08-27 "설정을없애면안 되냐? 그리고한 줄로표현해봐"). 내용 폭으로 잡으면
+      115 + 341 + 365 + 36(간격 둘) = 857px 이라 920px 레인에 63px 여유로 선다.
+      토큰을 둘로 나눈 이유: 두 클래스를 겹쳐 쓰면 같은 특이도의 임의값이라 승자를 소스
+      순서가 아니라 스타일시트 순서가 정한다 — 호출부가 **고른다**. */
+  fmGridGcp:
+    'grid grid-cols-[max-content_max-content_max-content] gap-x-[18px] gap-y-3 pt-[22px]',
   fmCell: 'flex min-w-0 flex-col gap-1',
   fmCellWide: 'col-span-2',
   /** 워시는 램프 한 칸을 잡아먹는다 — `--pl-text-weak` 는 이 gray-100 위에서 4.51:1 로

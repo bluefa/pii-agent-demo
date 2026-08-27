@@ -137,6 +137,8 @@ export function OpsHeader({
    * 자리가 남는다. 태그를 16px 로 줄여 `fmKey` 의 leading-4 와 같은 높이로 맞췄으므로
    * 이 이동은 어느 프로바이더의 행 높이도 바꾸지 않는다.
    */
+  const isGcp = provider === 'GCP';
+
   const scopeTag = (
     <span className={cn(opsStyles.metaTagQuiet, 'flex-none')}>{isChina ? 'China' : 'Global'}</span>
   );
@@ -285,7 +287,7 @@ export function OpsHeader({
           {/* 항상 보이는 스트립 — 계정/프로젝트 · 설정, 그리고 **권한 주체**.
               Role 은 접힘 밖에 산다 (오너 지시): 이 화면에서 운영자가 가장 자주 대조하는
               값이고, 접어 두면 프로바이더마다 다른 깊이에 숨는다. */}
-          <div className={opsStyles.fmGrid}>
+          <div className={isGcp ? opsStyles.fmGridGcp : opsStyles.fmGrid}>
             {isAws && monoCell('계정', meta.aws_account_id, false, scopeTag)}
             {provider === 'GCP' && monoCell('프로젝트', meta.gcp_project_id, false, scopeTag)}
             {/* Azure 는 계정 자리가 구독이고, 테넌트가 그 옆에 선다 (오너 2026-08-26).
@@ -341,7 +343,8 @@ export function OpsHeader({
                 「수정」 둘이 라벨 하나와 밑줄 낱말 둘이 된다. 라벨이 줄었으니 값이 스스로를
                 말한다. 이 칸이 그리드의 마지막 사실 뒤에 서면서 AWS 자동은 첫 행이 4칸으로
                 정확히 찬다 — 실데이터 하나 때문에 서 있던 둘째 행이 사라진다. */}
-            {cell(
+            {!isGcp
+              && cell(
               '설정',
               <span className={opsStyles.fmSettings}>
                 {isAws && (
@@ -368,27 +371,16 @@ export function OpsHeader({
                   실데이터 {rawDataLabel}
                 </button>
               </span>,
-            )}
-            {/* GCP 주체 둘은 **제 행을 통째로** 갖는다 (오너 2026-08-27: 전문을 보여줄
-                것 · 둘은 같은 층에 설 것). 한 행에 넷을 세워 봤고 주소가 둘 다 잘렸다 —
-                1440 에서 kv 레인은 920px 남짓인데 전문 둘만으로 341 + 365 = 706px 이라,
-                프로젝트(115) + 설정(74) + 18px 간격 셋이 21px 모자란다. 2열 병합 두
-                칸이면 각각 451px 을 받아 둘 다 잘리지 않는다.
-
-                `col-start-1` 이 없으면 자동 배치가 Scan 을 1행 남은 두 칸에 앉히고
-                Terraform 을 혼자 2행으로 밀어낸다 — 오너가 신고한 그 모양이다. 1행이
-                절반 비는 것은 정직한 결과다: GCP 의 스칼라 사실은 둘뿐이고, 채우려고
-                만든 칸은 사실이 아니다. */}
+              )}
+            {/* GCP 는 세 칸 한 줄이다 (오너 2026-08-27: 설정을 없애고 한 줄로). 전문
+                둘이 341 + 365px, 프로젝트가 115px, 간격 둘이 36px — 1440 의 920px 레인에
+                63px 여유로 들어간다. 설정 칸(74px)까지 세우면 21px 모자라 주소가 잘렸다.
+                트랙은 `fmGridGcp` 가 내용 폭으로 잡는다: 240px 상한은 짧은 스칼라가 넓은
+                트랙에 홀로 남는 걸 막는 규칙이라 전문 주소에는 근거가 없다. */}
             {provider === 'GCP' && (
               <>
-                {monoCell(
-                  'Scan Service Account',
-                  meta.gcp_scan_service_account,
-                  true,
-                  undefined,
-                  'col-start-1',
-                )}
-                {monoCell('Terraform Service Account', meta.gcp_terraform_service_account, true)}
+                {monoCell('Scan Service Account', meta.gcp_scan_service_account)}
+                {monoCell('Terraform Service Account', meta.gcp_terraform_service_account)}
               </>
             )}
           </div>
