@@ -62,9 +62,18 @@ function CopyButton({ value, label }: { value: string; label: string }): ReactEl
   );
 }
 
-function Group({ label, children }: { label: string; children: ReactNode }): ReactElement {
+/** `wide` = ARN 전문이 한 줄에 서야 하는 묶음 — 위 그리드와 같은 2열 병합(498px). */
+function Group({
+  label,
+  wide = false,
+  children,
+}: {
+  label: string;
+  wide?: boolean;
+  children: ReactNode;
+}): ReactElement {
   return (
-    <section className={opsStyles.fmFoldGroup}>
+    <section className={cn(opsStyles.fmFoldGroup, wide && opsStyles.fmCellWide)}>
       <h3 className={opsStyles.fmFoldLabel}>{label}</h3>
       {children}
     </section>
@@ -186,7 +195,7 @@ export function OpsDetailFold({
       </Group>
 
       {identifiers.length > 0 && (
-        <Group label="식별자">
+        <Group label="식별자" wide>
           {identifiers.map(({ label, value }) => (
             <div key={label} className={opsStyles.fmCell}>
               <span className={opsStyles.fmKey}>{label}</span>

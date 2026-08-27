@@ -364,10 +364,10 @@ const SURFACES: SurfacePair[] = [
   // the rail's interactive chips, and the active card tab ON the band.
   { what: 'ops masthead wash on the R1 canvas', top: resolve('var(--pl-gray-100)'), under: resolve('var(--pl-bg-canvas)') },
   { what: 'white card / rail chip on the R1 canvas', top: '#FFFFFF', under: resolve('var(--pl-bg-canvas)') },
-  { what: 'ops tab band on the masthead wash', top: bgOf(classOf(opsSrc, 'tabStrip')), under: resolve('var(--pl-gray-100)') },
-  { what: 'ops tab band against the R1 canvas', top: bgOf(classOf(opsSrc, 'tabStrip')), under: resolve('var(--pl-bg-canvas)') },
-  { what: 'ops active tab face on the tab band', top: bgOf(classOf(opsSrc, 'tabActive')), under: bgOf(classOf(opsSrc, 'tabStrip')) },
-  { what: 'ops meta editable tag face on the masthead wash', top: bgOf(classOf(opsSrc, 'metaTag')), under: resolve('var(--pl-gray-100)') },
+  // 탭 밴드가 사라졌다 (ops-tab-band.md 시안 A) — 탭은 워시 위에 바로 서고 헤어라인
+  // 하나가 마스트헤드를 닫는다. 밴드가 지던 면 쌍 셋(밴드↔워시 · 밴드↔캔버스 · 흰 활성
+  // 면↔밴드)은 임자가 없어졌고, 그 자리는 TEXT 의 잉크 쌍이 대신 받는다. 상태 점도
+  // 거기 있다 — 점이 워시에서 견디는지는 ΔE00 이 아니라 대비의 문제다(8px 그래픽 3:1).
   { what: 'ops region tag on the masthead wash', top: bgOf(classOf(opsSrc, 'metaTagQuiet')), under: resolve('var(--pl-gray-100)') },
   // The card's hover fill is a surface too — it replaces white under the cursor, so it
   // has to separate from the canvas the card sits on or the hovered card dissolves into
@@ -442,15 +442,27 @@ const TEXT: TextPair[] = [
   // 실데이터·설치모드 태그 — 흰 면 + 획 위의 값. 동작은 옆의 수정 링크가 지므로
   // (오너 08-20 넷째 조정) 태그에는 hover 채움이 없다. 12px 이라 큰 글자 예외가
   // 없다. (키는 행이 말하므로 태그 안에는 값만 산다 — R1.)
-  { what: '메타 태그 값 on the tag face', fg: textOf(classOf(opsSrc, 'metaTag')), on: bgOf(classOf(opsSrc, 'metaTag')) },
   { what: '리전 태그 값 on the gray-200 tag', fg: textOf(classOf(opsSrc, 'metaTagQuiet')), on: bgOf(classOf(opsSrc, 'metaTagQuiet')) },
   { what: 'ops path on the masthead wash', fg: textOf(classOf(opsSrc, 'path')), on: resolve('var(--pl-gray-100)') },
-  { what: 'ops path root on the masthead wash', fg: textOf(classOf(opsSrc, 'pathRoot')), on: resolve('var(--pl-gray-100)') },
   { what: 'ops path ancestor link on the masthead wash', fg: textOf(classOf(opsSrc, 'pathLink')), on: resolve('var(--pl-gray-100)') },
-  // 경로 마디 태그는 제 면(gray-200) 위에 산다 — 워시가 아니라 칩 안이 배경이다.
-  { what: 'ops path chip label on its slate face', fg: textOf(classOf(opsSrc, 'pathChipLabel')), on: bgOf(classOf(opsSrc, 'pathChip')) },
-  { what: 'ops path chip value on its slate face', fg: textOf(classOf(opsSrc, 'pathChipValue')), on: bgOf(classOf(opsSrc, 'pathChip')) },
-  { what: 'ops idle tab on the tab band', fg: textOf(classOf(opsSrc, 'tabIdle')), on: bgOf(classOf(opsSrc, 'tabStrip')) },
+  { what: 'ops path service-code crumb on the masthead wash', fg: textOf(classOf(opsSrc, 'pathLinkId')), on: resolve('var(--pl-gray-100)') },
+  // 칠한 마디 태그가 사라지면서 구분자가 이 줄의 유일한 묶음 장치가 됐다 — faint 로는
+  // 그 하중을 못 진다(워시 위 2.34:1). 여기 걸어 두면 다시 옅어질 때 잡힌다.
+  { what: 'ops path separator on the masthead wash', fg: textOf(classOf(opsSrc, 'pathSep')), on: resolve('var(--pl-gray-100)') },
+  // 서 있는 마디 — 종류는 옅고 식별자만 굵다. 둘 다 워시 위에 직접 산다(칩 면이 없다).
+  { what: 'ops path current kind on the masthead wash', fg: textOf(classOf(opsSrc, 'pathHereKind')), on: resolve('var(--pl-gray-100)') },
+  { what: 'ops path current id on the masthead wash', fg: textOf(classOf(opsSrc, 'pathHereId')), on: resolve('var(--pl-gray-100)') },
+  // 탭 둘 다 워시 위에 직접 산다 — 밴드 위에서 --pl-primary 는 4.17 로 AA 아래였고,
+  // 워시로 올라오면서 4.69 가 됐다(그 점이 시안 A 를 고른 이유 중 하나다). idle 은
+  // 워시가 램프 한 칸을 먹으므로 weak 가 아니라 medium 이다.
+  { what: 'ops active tab ink on the masthead wash', fg: textOf(classOf(opsSrc, 'tabActive')), on: resolve('var(--pl-gray-100)') },
+  { what: 'ops idle tab on the masthead wash', fg: textOf(classOf(opsSrc, 'tabIdle')), on: resolve('var(--pl-gray-100)') },
+  // 「연결 테스트」 탭의 8px 상태 점 — 글자가 아니라 그래픽이라 3:1 이다. `--pl-err` 는
+  // 이 워시에서 3.41, `--pl-info` 는 2.94 로 **떨어진다**: 두 계열이 램프에서 한 칸씩
+  // 다른 곳에 서 있는 이유가 그것이고, 여기 걸어 두지 않으면 다음 사람이 짝을 맞추려고
+  // info 를 되돌리는 순간 진행 중 점만 조용히 사라진다.
+  { what: 'ops tc tab dot (fail) on the masthead wash', fg: bgOf(classOf(opsSrc, 'tabDotFail')), on: resolve('var(--pl-gray-100)'), min: 3 },
+  { what: 'ops tc tab dot (running) on the masthead wash', fg: bgOf(classOf(opsSrc, 'tabDotRunning')), on: resolve('var(--pl-gray-100)'), min: 3 },
   // FrontMeta (ops-target-frontmeta.md 시안 C) — 236px 레일이 사라져 이 화면의 메타 글자는
   // 전부 마스트헤드 워시 위에 산다. 그 워시는 램프 한 칸을 잡아먹으므로(--pl-text-weak 는
   // 여기서 4.51:1) 라벨 계단이 gray-600 에서 시작한다.
@@ -463,7 +475,7 @@ const TEXT: TextPair[] = [
   { what: 'ops FrontMeta description prose on the masthead wash', fg: textOf(classOf(opsSrc, 'fmProse')), on: resolve('var(--pl-gray-100)') },
   { what: 'ops FrontMeta full identifier on the masthead wash', fg: textOf(classOf(opsSrc, 'fmValueFull')), on: resolve('var(--pl-gray-100)') },
   { what: 'ops role edit link on the masthead wash', fg: textOf(classOf(opsSrc, 'fmLink')), on: resolve('var(--pl-gray-100)') },
-  { what: 'ops 관련 페이지 link on the masthead wash', fg: textOf(classOf(opsSrc, 'relatedLink')), on: resolve('var(--pl-gray-100)') },
+  { what: 'ops 관련 페이지 About link on the masthead wash', fg: textOf(classOf(opsSrc, 'aboutLink')), on: resolve('var(--pl-gray-100)') },
   { what: 'ops fold copy glyph on the masthead wash', fg: textOf(classOf(opsSrc, 'fmCopy')), on: resolve('var(--pl-gray-100)') },
   { what: 'rail section label on rail', fg: textOf(classOf(railBlock, 'sectionLabel')), on: rail },
   { what: 'rail footer page on rail', fg: textOf(classOf(railBlock, 'footerPage')), on: rail },

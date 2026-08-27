@@ -14,55 +14,57 @@ export const opsStyles = {
    */
   page: '-mx-8 -mt-6 -mb-12 flex min-h-[calc(100vh_-_64px)] flex-col bg-[var(--pl-bg-canvas)]',
   /**
-   * Masthead — one gray-100 wash holding the path line + FrontMeta block, closed by
-   * the tab band (tabStrip). The wash separates from the canvas on chroma, not
-   * luminance (ΔE00 2.46, guard-pinned).
+   * Masthead — one gray-100 wash holding the path line + FrontMeta block + the tab
+   * strip, closed by that strip's hairline (tabStrip). The wash separates from the
+   * canvas on chroma, not luminance (ΔE00 2.46, guard-pinned).
    */
   masthead: 'bg-[var(--pl-gray-100)] px-8 pt-4',
 
   /**
-   * 경로 한 줄 (오너 2026-08-26) — 크럼과 제목이 두 줄로 갈려 있던 것을 Linear 의
-   * FrontMeta 문법 한 줄로 합친다:
+   * 경로 한 줄 — Linear 문법 (오너 2026-08-26 2차: "너무 어지럽다. 정보정리가 안 된듯.
+   * Linear 처럼 정리해볼래?").
    *
-   *   서비스 운영 / [서비스 코드 CPN] / Target Source 운영 / [Target Source #1642]
+   *   전:  서비스 운영 / [서비스 코드 LGS] / Target Source 운영 / [Target Source #1801]
+   *   후:  서비스 운영 / LGS / Target Source #1801
    *
-   * 마디는 「화면 이름 · 그 화면의 식별자」 짝으로 두 벌 선다 (오너 2026-08-26). 지나온
-   * 화면의 이름만 파랗다 — 파랑은 이 팔레트에서 "누를 수 있다"이고, 그 옆 태그는 정체성이라
-   * 색을 쓰지 않는다: 이동은 낱말이 지고 값은 태그가 진다.
+   * 앞의 것은 26px 한 줄에 텍스트 런 **10개**가 서 있었고, 그중 여섯이 굵기 600 이었다.
+   * 색은 넷(파란 링크 · 옅은 구분자 · 태그 라벨 · 태그 값), 칠한 상자는 셋. 경로는
+   * 내비게이션 크롬인데 본문만큼 소리를 내고 있었다 — Linear 가 리디자인에서 세운 원칙
+   * 그대로의 반례다: **"Don't compete for attention you haven't earned"**
+   * (linear.app/now/behind-the-latest-design-refresh). 그리고 「Target Source 운영 /
+   * Target Source #1801」은 같은 낱말을 연달아 두 번 말하고 있었다.
    *
-   * 「Target Source 운영」은 더 이상 16px 굵은 제목이 아니다 (오너: "과하게 강조할 필요
-   * 없음") — 경로의 한 마디이고, 서비스측 `crumbRoot` 와 같은 14/600 이다. 서비스
-   * **이름**은 이 줄에서 빠져 「상세 정보」로 갔다: 이름은 라벨이고, 경로에 서야 하는
-   * 것은 대조할 수 있는 식별자(서비스 코드 · 대상 번호)다.
+   * 정리한 규칙 셋:
+   *  1. **마디는 값만 말한다.** 「서비스 코드 LGS」의 라벨은 태그를 만들려고 붙인 것이지
+   *     읽는 사람에게 필요한 것이 아니었다 — Linear 의 크럼은 팀 키를 그냥 `ENG` 로 적고
+   *     "Team:" 을 쓰지 않는다. 종류는 마지막 마디가 한 번만 말한다(`Target Source #1801`).
+   *  2. **굵은 것은 하나뿐이다.** 서 있는 곳의 식별자만 14/600 이고 나머지는 전부 12/400.
+   *     크기와 무게 두 레버가 같은 요소에 실린다(design-guide §3 "인접 계층은 레버 2개").
+   *  3. **칠을 걷고 구분자에 하중을 넘긴다.** 상자가 지던 묶음을 이제 `/` 와 간격이 진다
+   *     ("Structure should be felt not seen"). 칠이 사라졌으므로 구분자는 faint(워시 위
+   *     2.34:1)에서 weak(4.53:1)로 올라간다 — 유일한 묶음 장치가 안 보이면 안 된다.
+   *
+   * ⛔ 파랑은 **지나온 마디**에서 빠졌다. 링크는 색이 아니라 hover 로 말한다 — 세 마디 중
+   * 둘이 링크라 거기에 파랑을 쓰면 줄의 3분의 2가 파래진다.
+   * 다만 **서 있는 곳의 식별자 하나만** 파랑이다 (오너 08-26 "#1029 파란색으로 바꿔").
+   * 링크가 아니므로 위 규칙과 부딪히지 않고, 굵기·크기·색 세 레버가 한 요소에 모여
+   * 줄에서 눈이 가장 먼저 닿는 곳이 "지금 보고 있는 대상"이 된다.
    */
-  pathLine: 'flex flex-wrap items-center gap-3',
-  path: 'flex min-w-0 flex-wrap items-center gap-1.5 text-[12px] leading-[1.5] text-[var(--pl-text-medium)]',
-  pathRoot: 'flex-none text-[14px] font-semibold text-[var(--pl-text-strong)]',
-  pathSep: 'flex-none text-[var(--pl-text-faint)]', // design-exempt: decorative path glyph, the tags around it carry the reading
-  /**
-   * 마디 태그 (서비스측 `codeChip` 을 --pl-* 로) — 값 앞에 그 값의 **종류**를 적는다.
-   * 경로의 한 마디는 값만 말하고 그 값이 무엇인지는 말하지 못하는데, 「azure」 하나만
-   * 놓이면 처음 온 사람에게는 아무 말도 아니다.
-   *
-   * 슬레이트 계열이고 파랑이 아니다: 이 팔레트에서 파랑은 "누를 수 있다"의 색이라 마디의
-   * 정체성에는 쓰지 않는다. 면은 gray-200 — 워시(gray-100) 위에서 탭 밴드와 같은 ΔE00
-   * 2.94 이고, 흰 면은 이 화면에서 "만질 수 있는 값"(metaTag)의 것으로 남는다.
-   */
-  pathChip:
-    'inline-flex flex-none items-baseline gap-1.5 rounded-[6px] border border-[var(--pl-border-strong)] bg-[var(--pl-gray-200)] px-2 py-[3px]',
-  /** 조상 마디 — 파란 글씨 (오너 2026-08-26). 현재 화면(`pathRoot`)보다 한 단 작다:
-      지나온 곳과 서 있는 곳의 차이가 곧 경로의 순서다. 워시 위 4.69:1. */
+  pathLine: 'flex flex-wrap items-baseline gap-x-3 gap-y-1',
+  path: 'flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-1 text-[12px] leading-[1.5] text-[var(--pl-text-weak)]',
+  /** 구분자 — 칠이 없어진 뒤로 이 줄의 유일한 묶음 장치다. 워시 위 4.53:1. */
+  pathSep: 'flex-none text-[var(--pl-text-weak)]',
+  /** 지나온 마디. 색도 굵기도 없고, 누를 수 있다는 것은 hover 가 말한다. */
   pathLink:
-    'flex-none cursor-pointer text-[12px] font-semibold text-[var(--pl-primary)] hover:underline',
-  /**
-   * 관련 페이지 (오너 2026-08-26) — 이 대상을 두고 갈 수 있는 **다른 화면들**. kv 그리드의
-   * 한 셀로 산다: 라벨이 값 위에 서는 이 헤더의 문법 그대로이고, 목적지가 늘어도 셀 안에서
-   * 늘어난다. 회색 보조 버튼 하나가 경로 줄에 서 있던 자리인데, 목적지가 둘이 되면 버튼
-   * 둘은 그 줄에서 가장 시끄러운 것이 된다 — 파란 낱말은 이 화면의 다른 이동(서비스 운영 ·
-   * 수정 · 상세 정보)과 같은 문법이고, 우상향 화살표가 "여기서 끝나지 않는다"를 말한다.
-   */
-  relatedLink:
-    'inline-flex cursor-pointer items-center gap-0.5 whitespace-nowrap text-[12px] font-semibold text-[var(--pl-primary)] hover:underline',
+    'flex-none cursor-pointer text-[12px] text-[var(--pl-text-weak)] transition-colors hover:text-[var(--pl-text-strong)] hover:underline',
+  /** 지나온 마디 중 **식별자**인 것(서비스 코드) — 낱말보다 한 단 진하다. */
+  pathLinkId:
+    'flex-none cursor-pointer text-[12px] font-medium text-[var(--pl-text-medium)] transition-colors hover:text-[var(--pl-text-strong)] hover:underline',
+  /** 서 있는 곳 — 종류(옅은 낱말) + 식별자(줄에서 유일하게 굵고 큰 것). */
+  pathHere: 'flex flex-none items-baseline gap-1.5',
+  pathHereKind: 'text-[12px] text-[var(--pl-text-weak)]',
+  pathHereId:
+    '[font-family:var(--pl-font-mono)] text-[14px] font-semibold tabular-nums text-[var(--pl-primary)]',
   pathChipLabel: 'text-[12px] font-medium text-[var(--pl-gray-600)]',
   pathChipValue:
     '[font-family:var(--pl-font-mono)] text-[12px] font-semibold text-[var(--pl-text-strong)]',
@@ -77,7 +79,22 @@ export const opsStyles = {
    * 태그·링크). 옛 마스트헤드는 12px 한 단에 21개 런이 몰려 있어 14 자리가 비어
    * 있었고, 그 빈 칸을 블록 이름이 채운다.
    */
-  fmGroup: 'mt-3',
+  /**
+   * 마스트헤드의 세로 간격은 **포함을 그린다** (오너 08-26 "행간 거리가 짧다보니 답답해
+   * 보인다"). 실측이 2 / 10 / 12 / 11.2px 이었는데, 이건 네 단이 아니라 한 단이다 —
+   * 「블록 안」(10)과 「블록 사이」(12)가 같은 크기면 간격이 무엇도 묶지 못한다.
+   * 네 자리를 1.4~1.5배씩 벌려 세 단으로 세운다:
+   *
+   *   4px   한 짝 안      라벨 ↔ 그 값            `fmCell` gap-1
+   *   14px  한 블록 안    머리 헤어라인 ↔ 사실들   `fmGrid`·`aboutList` pt-3.5
+   *   20px  블록 사이     경로 줄 ↔ 연동 대상      `fmGroup` mt-5
+   *   16px  워시 ↔ 탭 줄                          `tabStrip` mt-4
+   *
+   * 탭 줄만 20 이 아니라 16 인 것은 거기가 **문법이 바뀌는 경계**라서다 — 위는 사실이고
+   * 아래는 내비게이션이라 간격까지 최대로 줄 이유가 없다. (밴드가 있을 때는
+   * 색이 바뀌는 경계가 같은 자리에서 같은 일을 했다.)
+   */
+  fmGroup: 'mt-5',
   fmHead:
     'flex items-center justify-between gap-4 border-b border-[var(--pl-border-strong)] pb-1.5',
   fmName: 'flex min-w-0 items-center gap-2',
@@ -87,11 +104,36 @@ export const opsStyles = {
   fmGlyph: 'h-5 w-5 flex-none text-[var(--pl-text-medium)]',
   fmLabel:
     'whitespace-nowrap text-[14px] font-semibold tracking-[0.02em] text-[var(--pl-text-medium)]',
+  /**
+   * 마스트헤드는 두 단이다 (오너 08-26 "헤더 오른쪽에서 Github About처럼") — 왼쪽이
+   * 사실(연동 대상 + kv 4열), 오른쪽이 나가는 문(관련 페이지). 관련 페이지가 한 단
+   * **아래**에 있을 때는 탭 줄을 그만큼 밀어내렸는데, 그건 이 화면에서 가장 자주 쓰는
+   * 것(탭)을 가장 덜 쓰는 것(참고 링크)이 밀어낸 배치였다. 오른쪽으로 서면 kv 그리드가
+   * 쓰지 않고 남기던 폭을 대신 쓰므로 마스트헤드 높이가 한 줄도 늘지 않는다.
+   * 두 머리 줄의 헤어라인이 같은 y 에 서서 한 줄처럼 읽히고, 열 사이 간격이 그 줄을 끊는다.
+   */
+  fmSplit: 'flex items-start gap-8',
+  /** 200px — kv 열(240px)보다 좁게 잡는다: 이 단은 대조하는 값이 아니라 이정표라
+      제 이름 두 개가 들어가는 만큼만 있으면 되고, 남는 폭은 그리드 쪽에 남는다. */
+  aboutPanel: 'w-[200px] flex-none',
+  /** About 패널의 본문 — 목적지가 **세로로** 쌓인다 (GitHub About). kv 그리드와 같은
+      자리에서 시작하도록 머리 아래 여백은 `fmGrid` 의 pt 와 같은 값이다. */
+  aboutList: 'flex flex-col items-start gap-2 pt-3.5',
+  /** About 패널의 한 줄 — 마크가 앞에 서고 이름이 링크다. 마크는 값이 아니라 이정표라
+      본문보다 한 단 옅다. */
+  aboutRow: 'inline-flex items-center gap-1.5',
+  aboutMark: 'flex flex-none text-[var(--pl-text-weak)]',
+  aboutLink:
+    'inline-flex cursor-pointer items-center gap-0.5 whitespace-nowrap text-[12px] font-semibold text-[var(--pl-primary)] hover:underline',
+  aboutPlain: 'whitespace-nowrap text-[12px] font-medium text-[var(--pl-text-medium)]',
   /** 포커스 링을 손으로 그리지 않는다 — `focus-visible:outline-none` 은 이 앱에서 무효라
       (globals.css 의 전역 아웃라인이 cascade layer 밖) 옅은 링이 전역 파란 아웃라인 옆에
       같이 그려졌다. 옆의 링크 둘과 같은 방식으로 전역 아웃라인만 받는다. */
+  /** 「상세 정보」는 계층을 한 단 내렸다 (오너 08-26 "파란색은 과하다") — 파랑은 이 줄에서
+      나가는 링크 둘이 이미 쓰고 있고, 이건 나가는 문이 아니라 여기서 열리는 접힘이다.
+      medium 은 워시 위 8.44:1 로 옅어진 게 아니라 조용해진 것이다. */
   fmCue:
-    'flex flex-none cursor-pointer items-center gap-1 rounded-[6px] text-[12px] font-semibold text-[var(--pl-primary)]',
+    'flex flex-none cursor-pointer items-center gap-1 rounded-[6px] text-[12px] font-medium text-[var(--pl-text-medium)] transition-colors hover:text-[var(--pl-text-strong)]',
   fmCueIcon: 'transition-transform motion-reduce:transition-none',
   fmCueIconOpen: 'rotate-180',
   /**
@@ -105,12 +147,30 @@ export const opsStyles = {
       **위**에 있으니 짝은 이미 붙어 있고, 열이 늘어나 봐야 사실 사이 거리만 벌어진다.
       240 은 이 화면의 가장 긴 라벨(Terraform Service Account, 165px)과 2열 병합
       (498px)이 GCP SA 전문(≈380px)을 받는 폭에서 나온 값이다. */
-  fmGrid: 'grid grid-cols-[repeat(4,minmax(0,240px))] gap-x-[18px] gap-y-3 pt-2.5',
-  fmCell: 'flex min-w-0 flex-col gap-0.5',
+  fmGrid: 'grid grid-cols-[repeat(4,minmax(0,240px))] gap-x-[18px] gap-y-3 pt-3.5',
+  fmCell: 'flex min-w-0 flex-col gap-1',
   fmCellWide: 'col-span-2',
   /** 워시는 램프 한 칸을 잡아먹는다 — `--pl-text-weak` 는 이 gray-100 위에서 4.51:1 로
       AA 바닥이라 12px 라벨에 쓰지 않는다. `--pl-gray-600` 은 같은 자리에서 6.98:1. */
-  fmKey: 'text-[12px] font-semibold leading-4 text-[var(--pl-gray-600)]',
+  /** 라벨 줄 — 라벨과 그 단서(파티션 태그)가 같은 줄에 선다. 태그가 16px 이라 이 줄은
+      `fmKey` 의 leading-4 그대로 16px 을 유지한다. */
+  fmKeyRow: 'flex min-w-0 items-center gap-1.5',
+  fmKey: 'truncate text-[12px] font-semibold leading-4 text-[var(--pl-gray-600)]',
+  /** 수정할 수 있는 **값** (오너 08-26 "해당 값에 밑줄을 그어야지. 밑줄은 파란색으로") —
+      값 옆에 서 있던 「수정」 링크가 값 자신으로 접혀 들어간다. 글자색은 값의 것으로 두고
+      밑줄만 파랗다: 파랑이 글자를 먹으면 이 줄에서 나가는 링크들과 같은 것이 되는데, 이건
+      여기서 모달을 여는 것이라 신호는 밑줄이 지고 색은 그 밑줄에만 실린다.
+      08-20 의 판례는 *태그*가 눌리는 척하지 말라는 것이라 부딪히지 않는다 — 여기서
+      눌리는 것은 흰 면 태그가 아니라 mono 값이다. */
+  fmValueEdit:
+    'cursor-pointer underline underline-offset-2 decoration-[var(--pl-primary)] transition-colors hover:decoration-[var(--pl-primary-hover)]',
+  /** 「설정」 한 칸 (design-benchmark `ops-settings-cells.md` 시안 A + F 문법, 오너 08-26
+      "「설정」 병합 셀 괜찮음") — 설치모드·실데이터가 각자 라벨과 흰 면 태그와 「수정」
+      링크를 갖던 두 칸이 한 칸이 된다. 라벨이 하나로 줄었으므로 값이 스스로를 설명해야
+      한다: 「자동」이 아니라 「자동 설치」, 「미포함」이 아니라 「실데이터 미포함」.
+      AWS 자동 배치에서 그리드가 2행 → 1행이 된다(계정·Scan·TF·설정 = 정확히 4칸). */
+  fmSettings: 'flex flex-wrap items-center gap-x-1.5 gap-y-0.5',
+  fmSettingsSep: 'text-[var(--pl-text-weak)]',
   /** `min-h` 가 있는 이유: 흰 면 태그가 들어오는 셀(22px)과 글자만 있는 셀의 높이를
       같게 잡아 둔다. 안 맞추면 같은 행 안에서 프로바이더마다 셀이 엇갈린다. */
   fmValue:
@@ -126,10 +186,19 @@ export const opsStyles = {
    * 있던 서비스 축(이름·코드·Jira·운영)과 설명이 여기로 들어오고, 계약에는 있는데
    * 화면엔 없던 사실(생성일 · Tenant ID)과 주체 **전문**이 함께 선다.
    */
-  /** 열 폭은 세 그룹이 지는 것에서 나온다 — 서비스는 짧은 값(이름·코드·티켓)이라 220,
-      대상은 설명 문단이 65자 안팎에서 읽히게 460, 식별자는 GCP SA 전문(≈380px)이
-      한 줄에 들어가게 460. 같은 폭 3열이면 서비스 칸만 240px 를 비운다. */
-  fmFold: 'grid grid-cols-[220px_minmax(0,460px)_minmax(0,460px)] gap-x-6 gap-y-4 pt-3.5',
+  /**
+   * 접힘은 **위 그리드와 같은 열 규칙에 선다** (오너 08-26 "기존 정보들과 정렬이 안 맞는
+   * 부분이 존재합니다"). 전에는 220/460/460 · gap 24 라 열 규칙이 화면에 둘이었고, 실측
+   * x 가 248·492·976 대 248·506·764·1022 로 첫 열만 맞았다. 같은 240/18 에 얹으면 세
+   * 묶음이 전부 위 사실의 열선 위에서 시작한다 — 접힘을 여는 것이 열을 새로 그리는 일이
+   * 아니라 **같은 열을 아래로 잇는** 일이 된다.
+   *
+   * 폭은 필요한 만큼만 준다: 식별자는 전문이 한 줄에 서야 하니 2열이고 — 가장 긴 값인
+   * AWS Terraform Role ARN 이 394px, GCP Terraform SA 가 365px 라 한 열(240px)로는
+   * 못 서고 두 열(498px)이면 선다 — 나머지 둘은 짧은 값과 산문이라 1열. 산문은 접히라고
+   * 있는 것이고 ARN 은 아니다.
+   */
+  fmFold: 'grid grid-cols-[repeat(4,minmax(0,240px))] gap-x-[18px] gap-y-4 pt-3.5',
   fmFoldGroup: 'flex min-w-0 flex-col gap-2.5',
   fmFoldLabel: 'text-[12px] font-bold tracking-[0.06em] text-[var(--pl-gray-600)]',
   /** 설명 본문 — 접힘 안에서는 전문을 편다. 표시를 100자에서 접던 것은 레일이 236px
@@ -166,30 +235,101 @@ export const opsStyles = {
    * Masthead meta tags (오너 08-20 넷째 조정) — the editable values (설치모드·
    * 실데이터) read as emphasized tags and the ACTION moves to a 수정 link beside
    * them, so the tag no longer has to look clickable (no underline, no hover
-   * fill). metaTag = white face + strong stroke, one notch louder (px-2) than
-   * rawDataTag; metaTagQuiet = the read-only region tag (China/Global), filled
-   * with the band's gray-200 so the white face keeps meaning "editable value"
-   * (2.94 on the wash, text 8.44:1).
+   * fill). ⚠️ metaTag(흰 면 + 강한 획)는 08-26 에 은퇴했다 — 시안 A+F 로 설정 두 칸이
+   * 값 밑줄 하나가 되면서 이 그리드에 흰 면 태그가 남지 않는다. 되살릴 일이 생기면
+   * 그 규칙("흰 면 = 수정 가능")부터 다시 세워야 한다. metaTagQuiet = the read-only attribute tag (China/Global · IDC),
+   * which must NOT wear the white face — that face means "editable value" here.
+   *
+   * 그 태그는 gray-200 이었는데 오너가 "회색은 너무 칙칙해 보임" 이라 했다 (08-26).
+   * 이 콘솔에서 옅은 칠은 이미 임자가 있다: `--pl-info-bg` 는 RUNNING·진행 중이고
+   * (`detailJobStyles` · `ConfirmStatusPill` 등 일곱 자리), `--pl-primary-bg` 는
+   * 누를 수 있는 것이다. ok/err/warn 은 판정이라 파티션에 쓸 수 없다. 남는 유일한
+   * 계열이 `--pl-current` 바이올렛 — 이 콘솔에서 상태도 링크도 아닌 "정체" 쪽
+   * 어휘이고(서비스 레일의 "여기 있음", 캔버스와 같은 가족), 그래서 파티션·환경
+   * 같은 **속성**이 앉을 자리다. 칠이 워시와 가까워서 테두리가 형태를 진다.
    */
-  metaTag: 'inline-flex items-center whitespace-nowrap rounded px-2 py-0.5 text-[12px] font-semibold border border-[var(--pl-border-strong)] bg-[var(--pl-bg-card)] text-[var(--pl-text-strong)]',
-  metaTagQuiet: 'inline-flex items-center whitespace-nowrap rounded px-1.5 py-0.5 text-[12px] font-medium bg-[var(--pl-gray-200)] text-[var(--pl-text-medium)]',
+  /** 10/14 에 padding 4·0 — 테두리까지 **정확히 16px** 이라 `fmKey` 의 leading-4 줄에
+      얹혀도 그 줄이 한 픽셀도 자라지 않는다 (오너 08-26 "태그 크기가 너무 크다"). 12/18 에
+      px-1.5 py-0.5 이던 22px 짜리가 값 줄의 높이를 혼자 정하고 있었다. 태그는 값이 아니라
+      값에 붙는 단서라, 제가 선 줄의 높이를 정하면 안 된다. */
+  metaTagQuiet:
+    'inline-flex items-center whitespace-nowrap rounded border border-[var(--pl-current)] bg-[var(--pl-current-bg)] px-1 text-[10px] font-semibold leading-[14px] text-[var(--pl-current-ink)]',
 
   /**
-   * Card tabs in a band (R1, 오너 08-20 셋째 조정) — the strip itself is a
-   * gray-200 band one ramp under the wash (ΔE00 2.94 on the wash, 3.53 against
-   * the canvas below), so the tab tier reads as its own layer. The active tab
-   * is a bare white face with an OPEN bottom — no stroke, because --pl-border
-   * IS the band color (ΔE00 0.00): on the darker band the face alone carries
-   * the shape (white on band 5.66, vs 2.78 it managed on the wash).
+   * Line tabs on the masthead wash (design-benchmark `ops-tab-band.md` 시안 A) —
+   * no band. The tabs stand on the same --pl-gray-100 the masthead does, closed
+   * by ONE hairline in --pl-border-strong, the token `fmHead` already uses to
+   * close the 「연동 대상」 block head; the masthead now ends on the same stroke
+   * its own blocks do instead of on a third tone.
+   *
+   * The band (08-20 셋째 조정) existed because the masthead had no way to close
+   * itself: the wash ran into the canvas and something had to draw the seam. The
+   * FrontMeta rewrite gave the wash a hairline vocabulary, so that premise is
+   * spent — and the band cost real contrast, dropping --pl-primary to 4.17 (AA
+   * fail) where it measures 4.69 on the wash.
+   *
+   * The full bleed goes with it. `-mx-8 … px-8` made this strip the only thing on
+   * the screen reaching the wash's own edges while every fact above and every card
+   * below stands in the content column, so its hairline cut across x the content
+   * never touches (Primer: navigation lives inside the width it governs).
    */
-  tabStrip: 'mt-2.5 -mx-8 flex items-end gap-1 overflow-x-auto bg-[var(--pl-gray-200)] px-8 pt-1.5',
-  tab: 'cursor-pointer whitespace-nowrap rounded-t-[8px] px-4 py-2 text-[14px]',
-  tabActive: 'bg-[var(--pl-bg-card)] font-semibold text-[var(--pl-text-strong)]',
-  /** 워시는 램프 한 칸을 잡아먹는다, and the band eats one more: weak measures
-      4.01:1 on gray-200 (AA fail) — idle steps up to medium (8.44:1). */
-  tabIdle: 'font-medium text-[var(--pl-text-medium)] hover:text-[var(--pl-text-strong)]',
-  /** 보기(진행 상태·스캔·연동 요청·확정) | 도구(인프라·연결 테스트·승인) group gap. */
+  /** `overflow-x-auto` 는 없다 — 여덟 탭의 전체 폭이 717px 이라 1422px 열에서 넘칠 일이
+      없고(실측), 스크롤 컨테이너로 두면 활성 탭의 `-mb-px` 가 1px 짜리 세로 스크롤을
+      만든다. 밑줄이 헤어라인을 먹으려면 그 1px 은 밖으로 나가야 한다. */
+  /**
+   * 내비게이션은 **선 두 개 사이에 산다** (오너 2026-08-27 "Navigation 위쪽에 구분선을
+   * 하나 더 두자 … 위 아래 구분선이 Navigation이다라는 느낌만 주게"). 밴드를 걷고 나니
+   * 탭이 마스트헤드와 같은 워시 위에서 같은 활자로 섰고, 아래 선 하나는 블록 머리를
+   * 닫는 그 선과 구별되지 않아 탭 줄이 사실 한 줄로 읽혔다. 선이 짝이 되면 그 사이가
+   * 하나의 띠가 된다 — 칠을 하나도 쓰지 않고 묶는다("Structure should be felt not seen").
+   *
+   * 위 여백은 20px 로, 블록↔블록과 같은 칸이다. 위 선이 「연동 대상」 블록의 머리
+   * 헤어라인과 같은 토큰·같은 두께라, 마스트헤드의 마지막 사실과 이 띠 사이가 블록이
+   * 갈리는 거리만큼 떨어져야 두 선이 서로 다른 것을 닫는 것으로 읽힌다.
+   * 탭의 py-2.5 가 선 안쪽 10px 을 위아래로 똑같이 준다 — 띠는 대칭이다.
+   */
+  tabStrip: 'mt-5 flex items-end gap-1 border-y border-[var(--pl-border-strong)]',
+  /**
+   * Geometry is `accessStyles.tab` verbatim (the 접근 권한 page tabs) — the admin
+   * console should have one line-tab, not two that differ by a few px.
+   */
+  /** 14/600 — 크기는 다시 14 로 내렸고(오너 2026-08-27, 16 은 되돌림) 굵기만 남는다.
+      크기까지 오르면 탭이 이 화면에서 가장 큰 활자가 되어 블록 이름(14)을 넘어서는데,
+      띠를 만드는 일은 이미 선 두 개가 하고 있어서 활자가 더 낼 소리가 없었다.
+      굵기는 활성·비활성이 같이 진다: 활성은 이미 잉크와 밑줄 두 레버를 들고 있어서,
+      굵기까지 가져가면 비활성이 한 단 더 내려앉고 선택이 아니라 나머지가 흐려진 것처럼
+      읽힌다. */
+  tab: 'flex cursor-pointer items-center gap-1.5 whitespace-nowrap border-b-2 -mb-px px-3 py-2.5 text-[14px] font-semibold transition-colors',
+  /** 잉크 + 밑줄. The face is gone, so 파랑 is the only thing marking the tab that
+      is open — 4.69:1 on the wash (실측). */
+  tabActive: 'text-[var(--pl-primary)] border-[var(--pl-primary)]',
+  /** 워시는 램프 한 칸을 잡아먹는다 — `--pl-text-weak` (accessStyles' idle ink) is
+      only 4.51 here, so idle stays at medium: 9.49:1 (실측). */
+  tabIdle:
+    'text-[var(--pl-text-medium)] border-transparent hover:text-[var(--pl-text-strong)] hover:border-[var(--pl-border-strong)]',
+  /**
+   * Group gap — used TWICE, because these eight tabs are three things, not two:
+   *   보기       진행 상태 · 스캔 · 연동 요청 정보 · 확정 정보
+   *   실행       인프라 작업 · 연결 테스트
+   *   승인·근거  관리자 승인 · Airflow 확인
+   * Airflow 확인 (PR #783) landed at the end of the tool run, but it is not a
+   * tool: it holds the evidence behind 승인 조건 ③ and is read, not operated.
+   */
   tabGap: 'w-3.5 flex-none self-stretch',
+  /**
+   * 「연결 테스트」 탭의 상태 점 — 8px, the size this screen's own dots already use
+   * (`tcBand.countDot`, ConfirmEditorModal). It says only that the latest run
+   * failed or is still open; the tab itself says the rest. No count badges: a
+   * number on a tab claims the tab is a worklist (#735).
+   *
+   * 색은 그래픽이라 3:1 기준이다. `--pl-err` 는 워시 위 3.41 로 그 위지만, 이 점은
+   * 8px 이라 램프를 한 칸 더 내려 `--pl-err-solid`(4.38, 실측)를 쓴다. 진행 중은
+   * `--pl-info` 가 2.94 로 3:1 을 **못 넘어서**(실측) 같은 계열의 다음 칸
+   * `--pl-info-text`(5.43)가 진다.
+   */
+  tabDot: 'h-2 w-2 flex-none rounded-full',
+  tabDotFail: 'bg-[var(--pl-err-solid)]',
+  tabDotRunning: 'bg-[var(--pl-info-text)]',
 
   /** Body — 콘텐츠 한 열. 236px 메타 레일은 FrontMeta 의 「상세 정보」로 접혀 들어갔고,
       그 폭은 탭 7개 전부에서 본문으로 돌아간다 (1020 → 1280px). */
