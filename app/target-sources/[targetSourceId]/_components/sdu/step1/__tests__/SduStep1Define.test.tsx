@@ -74,8 +74,14 @@ const twoTargets: SduDefinition = definition({
 const button = (name: string): HTMLButtonElement =>
   screen.getByRole('button', { name }) as HTMLButtonElement;
 
+// 추가는 마법사 안에서 일어난다. 뒤에 남아 있는 목록도 「대상 추가」 버튼을 갖고 있으므로,
+// 마법사를 여는 클릭 이후의 조회는 전부 그 다이얼로그 안으로 좁힌다.
+const wizard = () => within(screen.getByRole('dialog', { name: '연동 대상 추가' }));
+
+const wizardClick = (name: string) => fireEvent.click(wizard().getByRole('button', { name }));
+
 const radio = (name: string): HTMLInputElement =>
-  screen.getByRole('radio', { name }) as HTMLInputElement;
+  wizard().getByRole('radio', { name }) as HTMLInputElement;
 
 const renderStep = async (props: Partial<Parameters<typeof SduStep1Define>[0]> = {}) => {
   const view = render(
@@ -131,15 +137,17 @@ describe('연동 권역', () => {
 });
 
 describe('업로드 IP', () => {
-  it('IPv4 가 아니면 말해 주고, 그 행은 저장되지 않는다', async () => {
+  it('IPv4 가 아니면 말해 주고, 그 단계를 넘어가지 못한다', async () => {
     await renderStep();
     fireEvent.click(button('대상 추가'));
+    wizardClick('다음');
 
     const input = screen.getByLabelText('업로드 IP');
     fireEvent.change(input, { target: { value: '10.20.30.999' } });
 
     expect(screen.getByText('올바른 IPv4 주소가 아니에요')).toBeTruthy();
-    expect(button('대상 저장').disabled).toBe(true);
+    wizardClick('다음');
+    expect(screen.getByRole('heading', { name: '업로드는 어느 IP에서 하나요?' })).toBeTruthy();
 
     fireEvent.change(input, { target: { value: '10.20.30.40' } });
     expect(screen.queryByText('올바른 IPv4 주소가 아니에요')).toBeNull();
@@ -195,9 +203,12 @@ describe('2단계에서 돌아온 1단계', () => {
     deleteSecondRow();
     fireEvent.click(button('대상 추가'));
     fireEvent.click(radio('Asia'));
+    wizardClick('다음');
     fireEvent.change(screen.getByLabelText('업로드 IP'), { target: { value: '10.20.30.41' } });
-    fireEvent.click(button('MySQL'));
-    fireEvent.click(button('대상 저장'));
+    wizardClick('다음');
+    wizardClick('MySQL');
+    wizardClick('다음');
+    wizardClick('대상 추가');
 
     // 수가 같아도 굳이 "2개 → 2개"라고 말한다: 경로 수가 같다고 같은 경로가 아니다.
     expect(

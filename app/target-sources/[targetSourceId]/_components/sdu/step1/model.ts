@@ -70,6 +70,7 @@ export const SDU_IP_INVALID_MESSAGE = '올바른 IPv4 주소가 아니에요';
 export const SDU_DB_TYPE_MAX_MESSAGE = `대상당 ${SDU_DB_TYPE_MAX}개까지 등록할 수 있어요`;
 export const SDU_DB_TYPE_LEN_MESSAGE = `Database Type은 ${SDU_DB_TYPE_MAXLEN}자까지 입력할 수 있어요`;
 export const SDU_DB_TYPE_DUPLICATE_MESSAGE = '이미 추가한 타입이에요';
+export const SDU_DB_TYPE_REQUIRED_MESSAGE = 'Database Type을 하나 이상 추가해 주세요';
 /**
  * 목록 위 한 줄. 고를 수 없는 값이므로 컨트롤이 아니라 문장이고, 이미 정해진 권역과
  * 그 권역에서 Region 이 어떻게 되는지 두 가지만 말한다.

@@ -14,13 +14,13 @@ import type { SduDefinition } from '@/lib/types/sdu';
 import { CardActionBar } from '@/app/target-sources/[targetSourceId]/_components/common';
 import { SDU_STEP_TITLES } from '@/app/target-sources/[targetSourceId]/_components/sdu/sdu-steps';
 import type { SduStepProps } from '@/app/target-sources/[targetSourceId]/_components/sdu/types';
+import { SduAddTargetModal } from '@/app/target-sources/[targetSourceId]/_components/sdu/step1/SduAddTargetModal';
 import { SduSubmitModal } from '@/app/target-sources/[targetSourceId]/_components/sdu/step1/SduSubmitModal';
 import { TargetRowEditor } from '@/app/target-sources/[targetSourceId]/_components/sdu/step1/TargetRowEditor';
 import { TargetRowList } from '@/app/target-sources/[targetSourceId]/_components/sdu/step1/TargetRowList';
 import {
   activeSduDrafts,
   isSduDraftComplete,
-  newSduTargetDraft,
   SDU_SCOPE_NOTE,
   sduDraftRegions,
   sduReturnHint,
@@ -39,10 +39,9 @@ export interface SduStep1DefineProps extends SduStepProps {
   onReturn?: () => void;
 }
 
-/** 지금 펼쳐 고치고 있는 행. `isNew` 면 취소가 그 행을 통째로 버린다. */
+/** 지금 펼쳐 고치고 있는 행. 목록에 이미 있는 행뿐이다 — 추가는 마법사가 맡는다. */
 interface EditingRow {
   key: string;
-  isNew: boolean;
   draft: SduTargetDraft;
 }
 
@@ -78,6 +77,7 @@ export function SduStep1Define({
   const [definition, setDefinition] = useState<SduDefinition | null>(null);
   const [rows, setRows] = useState<SduTargetDraft[]>([]);
   const [editing, setEditing] = useState<EditingRow | null>(null);
+  const [addKey, setAddKey] = useState<string | null>(null);
   const [submitOpen, setSubmitOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -134,23 +134,25 @@ export function SduStep1Define({
     },
   });
 
-  const handleAdd = () => {
-    const key = `sdu-new-${newRowSeq.current++}`;
-    setEditing({ key, isNew: true, draft: newSduTargetDraft(key, scope) });
+  // 추가는 단계로 나눠 묻는다 — 네 값을 한 줄에 늘어놓는 자리는 이미 아는 것을 고치는
+  // 사람의 자리이지, 처음 적는 사람의 자리가 아니다.
+  const handleAdd = () => setAddKey(`sdu-new-${newRowSeq.current++}`);
+
+  const handleAdded = (draft: SduTargetDraft) => {
+    setRows((prev) => [...prev, draft]);
+    setAddKey(null);
   };
 
   const handleEdit = (key: string) => {
     const row = rows.find((candidate) => candidate.key === key);
     if (!row) return;
-    setEditing({ key, isNew: false, draft: { ...row, databaseTypes: [...row.databaseTypes] } });
+    setEditing({ key, draft: { ...row, databaseTypes: [...row.databaseTypes] } });
   };
 
   const handleEditorSave = () => {
     if (!editing) return;
     const saved = editing.draft;
-    setRows((prev) =>
-      editing.isNew ? [...prev, saved] : prev.map((row) => (row.key === saved.key ? saved : row)),
-    );
+    setRows((prev) => prev.map((row) => (row.key === saved.key ? saved : row)));
     setEditing(null);
   };
 
@@ -259,11 +261,7 @@ export function SduStep1Define({
                       <TargetRowEditor
                         draft={editing.draft}
                         scope={scope}
-                        index={
-                          editing.isNew
-                            ? rows.length + 1
-                            : rows.findIndex((row) => row.key === editing.key) + 1
-                        }
+                        index={rows.findIndex((row) => row.key === editing.key) + 1}
                         onChange={(draft) => setEditing({ ...editing, draft })}
                         onSave={handleEditorSave}
                         onCancel={() => setEditing(null)}
@@ -311,6 +309,15 @@ export function SduStep1Define({
           </CardActionBar>
         )}
       </section>
+
+      {addKey !== null && (
+        <SduAddTargetModal
+          scope={scope}
+          newKey={addKey}
+          onAdd={handleAdded}
+          onClose={() => setAddKey(null)}
+        />
+      )}
 
       <SduSubmitModal
         isOpen={submitOpen}

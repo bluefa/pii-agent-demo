@@ -9,6 +9,7 @@
 import {
   bgColors,
   borderColors,
+  buttonStyles,
   cn,
   interactiveColors,
   numericFeatures,
@@ -88,6 +89,49 @@ export const listStyles = {
   ),
 } as const;
 
+/**
+ * 대상 추가 마법사의 표면. 「인프라 등록」 마법사(`ProjectCreateModal`)와 같은 문법이다 —
+ * 회색 바닥 위에 레일이 그대로 앉고, 내용만 흰 카드가 된다.
+ *
+ * `ground` 의 음수 마진은 공용 `Modal` 본문의 `p-6` 을 되돌리는 자리다. 회색 바닥이 모서리까지
+ * 닿지 않으면 카드 둘레에 흰 테가 남아 바닥이 또 하나의 상자로 읽힌다. 공용 푸터 슬롯은 쓰지
+ * 않는다 — 참조 마법사처럼 버튼은 흰 판 안, 스크롤러 바깥에 선다. 회색 바닥 위에 놓인 버튼은
+ * 어느 판에 속한 것인지 말하지 못한다.
+ *
+ * 높이를 고정하는 이유는 참조 마법사와 같다 — 네 단계의 내용 높이가 다른데 상자가 따라
+ * 늘었다 줄었다 하면 「다음」 버튼이 클릭 사이에 움직인다. 값은 가장 긴 단계가 정한다:
+ * 3단계(타일 두 줄 + 칩 한 줄 + 열린 입력칸)가 459px 로 가장 길고, 1단계가 426px 이다.
+ */
+export const addWizardStyles = {
+  ground: cn('-m-6 flex h-[464px] gap-4 p-4', bgColors.panel, textColors.primary),
+  card: cn(
+    'flex min-h-0 flex-1 flex-col rounded-lg border',
+    borderColors.card,
+    bgColors.surface,
+    textColors.primary,
+  ),
+  /** 카드 안의 스크롤러. pt-6 은 레일의 것과 같다 — 단계 제목과 모달 제목이 같은 줄에서 시작한다. */
+  cardBody: 'min-h-0 flex-1 overflow-y-auto px-[30px] pt-6 pb-4',
+  /** 스크롤러 바깥, 흰 판의 오른쪽 아래. 참조 마법사와 같은 px-[30px] pb-[26px] 다. */
+  cardFoot: 'flex flex-none items-center justify-between gap-2 px-[30px] pb-[26px]',
+  /**
+   * 나가는 길은 이 줄의 왼쪽 끝, 유령 무게로 선다 — 판을 떠나는 일이 판 안에서 나아가는
+   * 일과 같은 무게로 보이면 안 된다. 공용 `Button` 에는 ghost 변종이 없어서 그 기하
+   * (px-4 py-2 rounded-lg font-medium)를 그대로 두고 표면만 토큰으로 바꿔 끼운다.
+   */
+  footClose: cn(
+    'px-4 py-2 rounded-lg font-medium transition-all duration-150',
+    buttonStyles.variants.ghost,
+  ),
+  stepTitle: cn('text-[18px] font-bold', textColors.primary),
+  stepLead: cn('mt-1 mb-5 text-[14px]', textColors.tertiary),
+  /** 확인 단계 — 고치는 자리가 아니므로 네 값을 라벨과 함께 읽어 주기만 한다. */
+  summary: 'grid grid-cols-[112px_1fr] items-baseline gap-x-4 gap-y-3.5',
+  summaryTerm: cn('text-[14px] font-bold', textColors.primary),
+  summaryValue: cn('text-[14px]', textColors.secondary),
+  summaryIp: cn('text-[14px]', numericFeatures.tabular, textColors.secondary),
+} as const;
+
 /** Database Type 토큰 — 목록에서 고른 것과 직접 친 것을 구분하지 않는다(전부 자유 입력). */
 export const tokenStyles = {
   chip: cn(
@@ -103,6 +147,35 @@ export const tokenStyles = {
     textColors.secondary,
     interactiveColors.unselectedBorder,
   ),
+} as const;
+
+/**
+ * 자주 쓰는 타입을 타일 판으로 고르는 자리 — 「인프라 등록」 마법사의 Database 단계와 같은
+ * 어휘다(`Step3Databases`). 거기는 열거형이라 판이 곧 전부지만, 여기 Database Type 은 자유
+ * 입력이라 판 아래에 직접 입력하는 길(점선 줄)이 함께 서야 한다.
+ */
+export const dbGridStyles = {
+  grid: 'mt-2.5 grid grid-cols-4 gap-2',
+  tile: 'flex items-center justify-center gap-2 rounded-[10px] border-2 px-2 py-2.5 text-[14px] font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50',
+  tileOn: cn(primaryColors.border, primaryColors.bgLight, primaryColors.textOnLight),
+  tileOff: cn(
+    borderColors.default,
+    bgColors.surface,
+    textColors.secondary,
+    interactiveColors.unselectedBorder,
+  ),
+  /** 15px 체크칸. 타일 전체가 눌리는 자리이므로 이 칸은 상태 표시일 뿐 aria 에 노출하지 않는다. */
+  box: 'inline-flex h-[15px] w-[15px] flex-shrink-0 items-center justify-center rounded border-2',
+  boxOn: cn(primaryColors.border, primaryColors.bg, textColors.inverse),
+  boxOff: borderColors.strong,
+  /** 판에 없는 이름으로 나가는 길. 점선은 "여기서 끝이 아니다"는 뜻이다. */
+  customRow: cn(
+    'mt-2.5 w-full rounded-[10px] border-2 border-dashed px-3.5 py-2.5 text-left text-[14px] transition-colors',
+    borderColors.strong,
+    textColors.secondary,
+    bgColors.mutedHover,
+  ),
+  customOpen: 'mt-2.5 flex items-center gap-2',
 } as const;
 
 const pillBase = 'inline-flex items-center rounded-full px-2 py-0.5 text-[12px] font-semibold';
