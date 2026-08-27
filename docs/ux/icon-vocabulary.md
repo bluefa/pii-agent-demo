@@ -31,7 +31,7 @@ tiptap 마크·DB 어휘·도메인 낱말로도 쓰인다.
 
 | 이름 | 이 앱에서의 뜻 | 대표 사용처 | 건수 |
 |---|---|---|---|
-| `arrow-ur` ↗ | **다른 화면으로 나가는 문**. 단, About 패널 규칙상 ↗ 는 「새 창으로 열리는 것」만 (`OpsHeader.tsx:503-507`) | `_dashboard/cells.tsx` | 9 |
+| `arrow-ur` ↗ | **이 화면을 떠난다** — 방향이지 목적지가 아니다. 어디로 가는지는 앞의 마크가 말한다. 새 창 여부와는 무관하다 (오너 2026-08-27 규칙 개정, 이전 규칙은 「새 창으로 열리는 것만」) | `_dashboard/cells.tsx` | 9 |
 | `inbox` | 큐·요청함 | `access/requests/[requestId]` | 15 |
 | `chev-r` / `chev-l` / `chev-d` | 페이저·디스클로저 | 전역 | 11 / 3 / 1 |
 | `clock` | 시각·경과 | `access-requests/page.tsx` | 11 |
