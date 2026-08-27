@@ -766,9 +766,13 @@ export const ConnectionTestCard = ({
                                   resourceName: first.resourceName ?? first.resourceId,
                                 })
                               }
-                              className={cn(idcStyles.triggerBtn.ghostSm, 'whitespace-nowrap')}
+                              // The label is the same word on every row, so it carries the row's own
+                              // name — ten identically named buttons are indistinguishable in a screen
+                              // reader's element list. Same shape the IDC table's action uses.
+                              aria-label={`${first.resourceName ?? first.resourceId} 연동 논리 DB 관리하기`}
+                              className={idcStyles.triggerBtn.rowAction}
                             >
-                              설정
+                              관리하기
                             </button>
                           )}
                         </td>

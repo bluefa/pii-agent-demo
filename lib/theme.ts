@@ -1638,6 +1638,44 @@ export const idcStyles = {
     warnOutline: 'inline-flex h-10 items-center gap-1.5 rounded-xl bg-[#FEF3C7] px-[18px] text-[14px] font-semibold tracking-[-0.01em] text-[#92400E] transition-colors hover:bg-[#FDE68A]',
     /** Small blue ghost — v16 `.btn.sm.ghost` (the in-table "set" action). Disabled = opacity-45. */
     ghostSm: 'inline-flex h-8 items-center justify-center gap-1 rounded-[10px] px-3 text-[13px] font-bold text-[#0064FF] transition-colors hover:bg-[#EFF6FF] disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:bg-transparent',
+    /**
+     * The in-row action as TEXT, not as a chrome block (owner 2026-08-27: "설정이 파란색
+     * 버튼이잖아. 텍스트 버튼으로 바꾸자"). `ghostSm` gives every row a small blue face, and
+     * ten of them down a column read as ten offers competing with the values they sit
+     * beside. Stripped to a word, the action rests in the row's own secondary ink and only
+     * claims the brand hue once the row is the one being read.
+     *
+     * `font-medium`, deliberately NOT semibold (owner: "굵기는 다른 행이랑 똑같이 갖고가").
+     * It matches the two `LogicalDbCountCell` counts standing beside it in the same group,
+     * so weight says nothing here — the row-hover hue is the only thing that marks this one
+     * as the actionable cell, and it says it only while the row is being read.
+     *
+     * The hue is spent on ROW hover through the NAMED group (`tableRowLift.base` puts both
+     * `group` and `group/row` on the row): a bare `group-hover:` answers to any `.group`
+     * ancestor anywhere and fires from outside the row.
+     *
+     * The rule is `border-b border-current`, not `underline`: this is an `inline-flex` box
+     * and text-decoration stops at a flex container's atomic children, so an underline would
+     * not survive a trailing icon (the same reason `linkPrimary` below carries a border).
+     * `border-current` also means the rule follows the ink through row hover with no second
+     * declaration to keep in sync.
+     *
+     * The resemblance to `linkNeutralMd` — the Credential cell one column over in this very
+     * row — is deliberate, not a duplicate awaiting a merge: same 14px, same #4E5968, same
+     * border-b underline. They differ exactly where they must, in weight (medium vs semibold,
+     * because Credential is the cell you edit and this one is not) and in what the hover
+     * answers to (the ROW here, the element itself there).
+     *
+     * No focus utilities: `globals.css` paints `*:focus-visible` with a 2px brand outline
+     * from outside Tailwind's layers, so a text action that lost its button face still shows
+     * keyboard focus, and the row's own `focus-within` turns the word blue at the same time.
+     *
+     * Disabled re-pins the resting ink under row hover — the cloud call site disables the
+     * action until the resource is connected, and a greyed word that still turns blue when
+     * the row lights up reads as an offer that was refused.
+     */
+    rowAction:
+      'inline-flex items-center gap-1 whitespace-nowrap border-b border-current pb-0.5 text-[14px] font-medium text-[#4E5968] transition-colors duration-150 group-hover/row:text-[#0064FF] group-focus-within/row:text-[#0064FF] motion-reduce:transition-none disabled:cursor-not-allowed disabled:opacity-45 disabled:group-hover/row:text-[#4E5968] disabled:group-focus-within/row:text-[#4E5968]',
     /** `ghostSm` skeleton with the `primary` face — the Step 5 strip's state CTA slot (시안 A).
      *  In-table action size on purpose: the slot lives inside the summary strip, not the card edge. */
     primarySm: 'inline-flex h-8 items-center justify-center gap-1 rounded-[10px] bg-[#0064FF] px-3 text-[13px] font-bold text-white transition-colors hover:bg-[#0050D6] disabled:cursor-not-allowed disabled:bg-[#EBEEF2] disabled:text-[#8B95A1]', // design-exempt: recreates the measured ghostSm skeleton (13px)
@@ -1907,10 +1945,15 @@ export const idcStyles = {
      *
      * Reads a step BELOW its leaves, not above them. The instinct is to make the group the
      * louder of the two, but the leaves are what the reader matches a value against while
-     * scanning down — the group only says once what the run is called. So the leaves keep
-     * `approvalHeaderFlat`'s semibold #4E5968 and the group takes the weak ink at normal
-     * weight, which is the same order the crumb grammar uses (chrome sits two steps under
-     * the thing it labels).
+     * scanning down — the group only says once what the run is called. So the tier is
+     * carried by WEIGHT, not by lightness: the leaves keep `approvalHeaderFlat`'s semibold
+     * #4E5968 and the group takes the same ink at medium.
+     *
+     * The ink used to be #8B95A1, which measured 2.80:1 on `approvalHeaderFlat`'s #F1F6FE
+     * fill — under the 4.5:1 AA floor for 12px text (owner 2026-08-27: "연동 논리 DB 가
+     * 너무 흐리다. 명도비 맞춰"). The ramp's middle step #6B7684 only reaches 4.24:1 on the
+     * same fill, so it fails too and there is no fourth grey to invent. #4E5968 measures
+     * 6.55:1 there — the value `approvalHeaderFlat` already banked for its own leaves.
      *
      * `text-center`: a label over a span belongs to the whole span, and left-aligning it
      * parks it on the first leaf, which then reads as owning it.
@@ -1923,7 +1966,7 @@ export const idcStyles = {
      * #D1D5DB rule, and a second line would draw a box around a label.
      */
     consoleGroupHeaderCell:
-      'px-[18px] py-2 text-center text-[12px] font-medium text-[#8B95A1] border-b border-[#E5E8EB]',
+      'px-[18px] py-2 text-center text-[12px] font-medium text-[#4E5968] border-b border-[#E5E8EB]',
     /** Approval-table body cell padding — v16 `.approval-table tbody td` 16px V / 18px H. */
     approvalCell: 'px-[18px] py-4',
     /**

@@ -308,6 +308,7 @@ const idcBlock = blockOf('idcStyles');
 const kindBadgeBlock = nestedBlockOf(idcBlock, 'kindBadge');
 const idcTagBlock = nestedBlockOf(idcBlock, 'tag');
 const idcTableBlock = nestedBlockOf(idcBlock, 'table');
+const idcTriggerBtnBlock = nestedBlockOf(idcBlock, 'triggerBtn');
 
 // The target-source detail header went backgroundless (C3): it painted no plane of
 // its own, so every run of text and every chip in it stood on the canvas wash. That
@@ -664,6 +665,24 @@ const TEXT: TextPair[] = [
     fg: textOf(classOf(themeSrc, 'textOnLight')),
     on: '#F3F4F6',
   },
+  // 두 단 콘솔 머리(`ConsoleTableGroup`)의 그룹 셀. 제 면을 칠하지 않고 `<thead>` 의
+  // `approvalHeaderFlat` 채움 위에 그냥 앉으므로, 줄 단위로 재는 훅은 이 짝을 영영 못 본다.
+  // 잉크는 #8B95A1 이었고 그 면에서 2.80:1 이었다 — 12px 이라 큰 글자 예외가 없다. 램프의
+  // 가운데 칸 #6B7684 도 여기선 4.24:1 로 같이 떨어져서, 더 조용한 회색이라는 선택지가 아예
+  // 없다. 그래서 그룹과 잎의 단은 밝기가 아니라 **굵기**가 진다(잎 semibold · 그룹 medium).
+  {
+    what: '연동 논리 DB 그룹 머리 on the approval header fill',
+    fg: textOf(classOf(idcTableBlock, 'consoleGroupHeaderCell')),
+    on: bgOf(classOf(idcTableBlock, 'approvalHeaderFlat')),
+  },
+  // 그 잎. 그룹이 잎의 잉크를 빌려 쓰는 구조라 잎이 옮겨 가면 그룹도 따라 옮겨 가는데,
+  // 잎 쪽은 여기 한 줄도 없었다 — 파란 워시(#F1F6FE)는 흰 면이 아니고, 두 짝은 같은 면 위에서
+  // 같이 재져야 한다.
+  {
+    what: 'approval-table column label on its own header fill',
+    fg: textOf(classOf(idcTableBlock, 'approvalHeaderFlat')),
+    on: bgOf(classOf(idcTableBlock, 'approvalHeaderFlat')),
+  },
 ];
 
 // ---------------------------------------------------------------------------
@@ -868,6 +887,50 @@ describe('chip hover ring is actually wired up', () => {
 
   it.each(CHIP_EDGE_CONSUMERS)('%s carries chipEdge', (_what, src) => {
     expect(src).toContain('tableRowLift.chipEdge');
+  });
+});
+
+/**
+ * `idcStyles.triggerBtn.rowAction` — 행 안의 논리 DB 액션이 텍스트로 내려오면서(오너
+ * 2026-08-27) 색을 잃고, 그 색을 ROW hover 에서만 돌려받게 된 토큰.
+ *
+ * 위의 대비 검사와 같은 사각지대다: 검사는 토큰이 **선언한** 색을 재므로, `group-hover/row:`
+ * 를 `group-hover:` 로 바꿔도 재는 값이 한 톨도 안 변한다. 이름을 벗긴 변형은 이 저장소가
+ * 카드 행·서비스 타일·모달 목록에 뿌려 둔 아무 `.group` 에나 응답해서, 행 바깥에서 파랗게
+ * 켜진다 — 화면에서만 보이고 테스트에는 안 보이는 종류의 회귀다.
+ *
+ * 호출부 절반도 같이 필요하다. 토큰만 걸어 두면 누가 call site 를 `ghostSm` 으로 되돌려도
+ * 토큰은 멀쩡히 남아 전부 초록이다. 두 소비자가 행에 얹는 `ROW_BASE` 는 `tableRowLift.base`
+ * 이고, 그 토큰이 `group/row` 를 들고 있다는 사실은 바로 위 it.each 가 이미 박아 뒀다 —
+ * 아래 마지막 짝이 그 사슬의 가운데 고리다.
+ */
+const rowActionToken = classOf(idcTriggerBtnBlock, 'rowAction');
+const ROW_ACTION_CONSUMERS: Array<[string, string]> = [
+  ['IdcResourceTable', read('app/target-sources/[targetSourceId]/_components/idc/IdcResourceTable.tsx')],
+  ['ConnectionTestCard', read('app/target-sources/[targetSourceId]/_components/layout/ConnectionTestCard.tsx')],
+];
+
+describe('row action hue is actually wired to the row', () => {
+  it('rowAction is scoped to the named row group, not to any `group`', () => {
+    expect(rowActionToken).toMatch(/group-hover\/row:/);
+    expect(rowActionToken).toMatch(/group-focus-within\/row:/);
+    // 콜론까지 봐야 둘이 갈린다 — `group-hover/row:` 는 `group-hover` 를 부분 문자열로 품는다.
+    expect(rowActionToken).not.toMatch(/group-hover:/);
+    expect(rowActionToken).not.toMatch(/group-focus-within:/);
+  });
+
+  it.each(ROW_ACTION_CONSUMERS)('%s carries rowAction', (_what, src) => {
+    expect(src).toContain('idcStyles.triggerBtn.rowAction');
+  });
+
+  it.each(ROW_ACTION_CONSUMERS)('%s puts ROW_BASE on the row that holds it', (_what, src) => {
+    expect(src).toContain('ROW_BASE');
+  });
+
+  it('ROW_BASE is the token that carries group/row', () => {
+    expect(read('app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalTable.tsx')).toContain(
+      'export const ROW_BASE = tableRowLift.base;',
+    );
   });
 });
 

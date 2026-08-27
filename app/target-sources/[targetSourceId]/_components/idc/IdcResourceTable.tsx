@@ -423,7 +423,7 @@ export const IdcResourceTable = ({
                     {/* 건수와 무관하게 언제나 선다. 제외 정책은 실행이 만드는 것이 아니라
                         운영자가 쓰는 것이라, 아직 보고가 없거나(—) 0건인 리소스 — 정책을
                         가장 손봐야 할 리소스 — 에도 문이 있어야 한다. 어휘는 클라우드
-                        5단계의 `설정` 을 그대로 쓴다. */}
+                        5단계의 `관리하기` 를 그대로 쓴다. */}
                     {canManageLogical && (
                       <td className={idcStyles.table.approvalCell}>
                         <button
@@ -431,10 +431,10 @@ export const IdcResourceTable = ({
                           onClick={() => onLogicalOpen?.(r)}
                           // 행마다 반복되는 버튼은 자기 행을 이름표에 실어야 한다 — 같은
                           // 이름의 버튼 열 개는 스크린리더에서 구별되지 않는다.
-                          aria-label={`${r.hosts[0] ?? r.resourceId} 연동 논리 DB 설정`}
-                          className={cn(idcStyles.triggerBtn.ghostSm, 'whitespace-nowrap')}
+                          aria-label={`${r.hosts[0] ?? r.resourceId} 연동 논리 DB 관리하기`}
+                          className={idcStyles.triggerBtn.rowAction}
                         >
-                          설정
+                          관리하기
                         </button>
                       </td>
                     )}

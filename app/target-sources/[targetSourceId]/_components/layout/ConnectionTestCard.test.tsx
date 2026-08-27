@@ -310,7 +310,7 @@ describe('ConnectionTestCard', () => {
     expect(within(screen.getByRole('table')).queryByText('성공')).toBeNull();
     expect(screen.queryByText('자격 증명 필요')).toBeNull();
     expect(screen.getByRole('button', { name: '실행' })).toHaveProperty('disabled', true);
-    expect(screen.getByRole('button', { name: '설정' })).toHaveProperty('disabled', true);
+    expect(screen.getByRole('button', { name: /연동 논리 DB 관리하기/ })).toHaveProperty('disabled', true);
   });
 
   it('enables the run CTA when every row has a credential selected', () => {

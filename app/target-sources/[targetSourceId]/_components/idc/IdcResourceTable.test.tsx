@@ -108,7 +108,7 @@ describe('IdcResourceTable — step-6 logicalro', () => {
   // 시안 B — 수는 값이고, 문은 이름을 가진 칸 하나다. 전에는 두 수가 각자 버튼이면서
   // 둘 다 같은 모달을 열었다: 문이 둘로 보이고 방은 하나라, 어느 쪽을 누르는지가
   // 아무것도 바꾸지 않았다.
-  it('두 수는 값으로 두고, 문은 이름 붙은 설정 하나다', () => {
+  it('두 수는 값으로 두고, 문은 이름 붙은 관리하기 하나다', () => {
     const onOpen = vi.fn();
     render(
       <IdcResourceTable
@@ -120,14 +120,14 @@ describe('IdcResourceTable — step-6 logicalro', () => {
     );
     expect(screen.queryByRole('button', { name: /연동 논리 DB 목록 보기/ })).toBeNull();
     expect(screen.queryByRole('button', { name: /연동 제외 대상 보기/ })).toBeNull();
-    const manage = screen.getByRole('button', { name: /연동 논리 DB 설정/ });
+    const manage = screen.getByRole('button', { name: /연동 논리 DB 관리하기/ });
     fireEvent.click(manage);
     expect(onOpen).toHaveBeenCalledTimes(1);
   });
 
   // 건수는 실행이 말하고 제외 정책은 운영자가 쓴다 — 보고가 없다고 정책을 못 고치면
   // 안 된다. 논리 DB 0건인 리소스야말로 정책을 손봐야 하는 리소스다.
-  it('보고가 없어도(—) 설정 문은 그대로 선다', () => {
+  it('보고가 없어도(—) 관리하기 문은 그대로 선다', () => {
     render(
       <IdcResourceTable
         resources={[view({ resourceId: 'no-summary' })]}
@@ -136,7 +136,7 @@ describe('IdcResourceTable — step-6 logicalro', () => {
         onLogicalOpen={() => {}}
       />,
     );
-    expect(screen.getByRole('button', { name: /연동 논리 DB 설정/ })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /연동 논리 DB 관리하기/ })).toBeTruthy();
   });
 
   // 그룹 머리는 두 수의 관계를 한 번만 말한다 — 나란한 `대상`/`제외` 만으로는
