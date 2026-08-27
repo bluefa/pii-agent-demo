@@ -5,17 +5,25 @@ import { cn, idcStyles, textColors } from '@/lib/theme';
 import { fmtRelativeTime } from '@/lib/pipeline/format';
 import { fetchLatestTest } from '@/app/hooks/useTestConnectionPolling';
 import type { TestConnectionVersionResult } from '@/app/lib/api';
+import type { TcScope } from '@/app/lib/api/tc-scope';
 import { foldAgentStatuses } from '@/lib/test-connection-summary';
 
 interface TcHeaderTagProps {
   targetSourceId: number;
+  /** Which run this tag reads. Decided by the renderer (ProjectPageMeta), never guessed here. */
+  scope: TcScope;
 }
 
 /**
  * The latest connection-test verdict, hung under the stepper's 연결 테스트 step (P5).
  * Draws nothing when the target has never run a test.
  *
- * It reads latest_version once on mount and does not poll. Step 5's card owns its own
+ * The run it reads depends on the step the header sits on: Step 5 passes `latest`, so a
+ * failed run stays visible while the user is the one being asked to fix it; Steps 6·7 pass
+ * `latestSuccess`, so the tag keeps reporting the run their state was built on rather than a
+ * later failure. The tag does not work that out — `scope` arrives as a prop.
+ *
+ * It reads the run once on mount and does not poll. Step 5's card owns its own
  * polling, but #661 severed that feed from this tag (see WaitingConnectionTestStep,
  * where the downgrade is recorded), so a verdict that flips while you sit on Step 5
  * reaches the card and not this tag until the next mount.
@@ -30,12 +38,12 @@ interface TcHeaderTagProps {
  * something this page's user can reach.) If the number turns out to be needed across
  * steps, here is where it goes back.
  */
-export const TcHeaderTag = ({ targetSourceId }: TcHeaderTagProps) => {
+export const TcHeaderTag = ({ targetSourceId, scope }: TcHeaderTagProps) => {
   const [job, setJob] = useState<TestConnectionVersionResult | null>(null);
 
   useEffect(() => {
     let active = true;
-    void fetchLatestTest(targetSourceId)
+    void fetchLatestTest(targetSourceId, scope)
       .then((latest) => {
         if (active) setJob(latest);
       })
@@ -45,7 +53,7 @@ export const TcHeaderTag = ({ targetSourceId }: TcHeaderTagProps) => {
     return () => {
       active = false;
     };
-  }, [targetSourceId]);
+  }, [targetSourceId, scope]);
 
   if (!job) return null;
 

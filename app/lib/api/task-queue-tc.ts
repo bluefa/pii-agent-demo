@@ -17,6 +17,7 @@
  * CSR MUST NOT import `@/lib/bff/*` (route boundary).
  */
 import { fetchInfraJson } from '@/app/lib/api/infra';
+import type { TcScope } from '@/app/lib/api/tc-scope';
 import type { Paged, TestConnectionStatusRow } from '@/lib/types/task-queue';
 
 export type {
@@ -29,6 +30,7 @@ export {
   getTestedLogicalDatabases,
   getExcludedLogicalDatabases,
 } from '@/app/lib/api/logical-db';
+export type { TcScope } from '@/app/lib/api/tc-scope';
 
 export type { Paged, TestConnectionStatusRow } from '@/lib/types/task-queue';
 
@@ -110,13 +112,19 @@ export function toTcResultRow(wire: TcResultWire): TcResultRow {
   };
 }
 
-/** GET …/{id}/test-connection/latest-results — per-resource result rows. */
+/**
+ * GET …/{id}/test-connection/latest-results (scope `latest`) 또는
+ * …/latest-success-results (scope `latestSuccess`) — per-resource result rows.
+ * 기본값은 없다: 최신 실행과 마지막 성공은 다른 회차를 셀 수 있다.
+ */
 export const getTestConnectionResults = async (
   targetSourceId: number,
+  scope: TcScope,
   options?: { signal?: AbortSignal },
 ): Promise<TcResultRow[]> => {
+  const segment = scope === 'latestSuccess' ? 'latest-success-results' : 'latest-results';
   const raw = await fetchInfraJson<TcResultWire[]>(
-    `/target-sources/${targetSourceId}/test-connection/latest-results`,
+    `/target-sources/${targetSourceId}/test-connection/${segment}`,
     options?.signal ? { signal: options.signal } : undefined,
   );
   return (raw ?? []).map(toTcResultRow);

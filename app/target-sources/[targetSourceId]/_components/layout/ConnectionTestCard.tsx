@@ -840,6 +840,7 @@ export const ConnectionTestCard = ({
           <LogicalDbModalLoader
             open={logicalModal.isOpen}
             targetSourceId={targetSourceId}
+            scope="latest"
             resourceId={logicalModal.data.resourceId}
             resourceName={logicalModal.data.resourceName}
             onSaved={handleSaved}

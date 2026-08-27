@@ -8,6 +8,8 @@ import {
   toJobResponse,
   toVersionResultResponse,
   toLatestResultSummaries,
+  toLatestSuccessResultSummaries,
+  getLatestSuccessJob,
   getCompletionStatus,
   getPodLog,
   setConfirmation,
@@ -707,6 +709,61 @@ describe('mock-test-connection behavior lock-in', () => {
 
     it('모르는 pod 는 null — 라우트가 404 로 접는다', () => {
       expect(getPodLog(TC_CARD_FIXTURE.fail, 'tc-unknown-pod')).toBeNull();
+    });
+  });
+
+  /**
+   * 트립와이어 — latest 계열과 latestSuccess 계열이 실제로 갈라지는지.
+   *
+   * 두 계열이 같은 코드 경로로 접히면 화면은 "최신 실행"과 "마지막 성공"을 구분한다고
+   * 말해 놓고 같은 회차를 두 번 보여준다. 시드 대상 2103 은 최신 실행이 FAIL(2건 실패)이고
+   * 그보다 앞선 회차 하나가 SUCCESS 라, 갈라지지 않으면 여기서 무너진다.
+   */
+  describe('latest vs latestSuccess (TC_CARD_FIXTURE.fail)', () => {
+    it('마지막 성공 실행은 최신 실행보다 앞선 회차다', () => {
+      const latest = getLatestJob(TC_CARD_FIXTURE.fail);
+      const lastSuccess = getLatestSuccessJob(TC_CARD_FIXTURE.fail);
+      expect(latest?.status).toBe('FAIL');
+      expect(lastSuccess?.status).toBe('SUCCESS');
+      expect(lastSuccess?.id).not.toBe(latest?.id);
+
+      const latestWire = toVersionResultResponse(latest!);
+      const successWire = toVersionResultResponse(lastSuccess!);
+      expect(latestWire.connection_status).toBe('FAIL');
+      expect(successWire.connection_status).toBe('SUCCESS');
+      // 회차 번호까지 갈려야 한다 — 같은 번호면 화면이 두 실행을 한 실행이라고 말한다.
+      expect(successWire.test_connection_version).toBeLessThan(
+        latestWire.test_connection_version,
+      );
+    });
+
+    it('건수도 갈린다 — 실패한 리소스는 최신 계열에서만 빠진다', () => {
+      const latestRows = toLatestResultSummaries(TC_CARD_FIXTURE.fail);
+      const successRows = toLatestSuccessResultSummaries(TC_CARD_FIXTURE.fail);
+      // 최신 실행은 2건이 실패했고(시드), 마지막 성공 실행은 전부 성공했다.
+      expect(successRows.length).toBeGreaterThan(latestRows.length);
+      const failedIds = getLatestJob(TC_CARD_FIXTURE.fail)!
+        .resource_results.filter((r) => r.status === 'FAIL')
+        .map((r) => r.resource_id);
+      expect(failedIds.length).toBe(2);
+      failedIds.forEach((id) => {
+        expect(latestRows.map((r) => r.resource_id)).not.toContain(id);
+        expect(successRows.map((r) => r.resource_id)).toContain(id);
+      });
+    });
+
+    it('최신 실행이 성공인 대상에서는 두 계열이 같은 실행을 가리킨다', () => {
+      const latest = getLatestJob(TC_CARD_FIXTURE.success);
+      const lastSuccess = getLatestSuccessJob(TC_CARD_FIXTURE.success);
+      expect(lastSuccess?.id).toBe(latest?.id);
+      expect(toLatestSuccessResultSummaries(TC_CARD_FIXTURE.success)).toEqual(
+        toLatestResultSummaries(TC_CARD_FIXTURE.success),
+      );
+    });
+
+    it('성공한 실행이 하나도 없으면 undefined + 빈 배열', () => {
+      expect(getLatestSuccessJob(TC_CARD_FIXTURE.idle)).toBeUndefined();
+      expect(toLatestSuccessResultSummaries(TC_CARD_FIXTURE.idle)).toEqual([]);
     });
   });
 });

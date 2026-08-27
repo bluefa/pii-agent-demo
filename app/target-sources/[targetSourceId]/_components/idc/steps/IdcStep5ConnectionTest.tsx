@@ -98,7 +98,7 @@ export const IdcStep5ConnectionTest = ({
   const [credFilterOn, setCredFilterOn] = useState(false);
 
   const { latestJob, uiState, loading, canRunTest, retry, trigger, triggerError, fetchError } =
-    useTestConnectionPolling(targetSourceId);
+    useTestConnectionPolling(targetSourceId, 'latest');
   const toast = useToast();
   const logicalModal = useModal<LogicalModalTarget>();
 
@@ -457,6 +457,7 @@ export const IdcStep5ConnectionTest = ({
             <div>
               <IdcConfirmedResourcesPanel
                 targetSourceId={targetSourceId}
+                scope="latest"
                 state={panelState}
                 onLogicalOpen={handleLogicalOpen}
                 credentials={creds}
@@ -505,6 +506,7 @@ export const IdcStep5ConnectionTest = ({
             <LogicalDbModalLoader
               open={logicalModal.isOpen}
               targetSourceId={targetSourceId}
+              scope="latest"
               resourceId={logicalModal.data.resourceId}
               resourceName={logicalModal.data.resourceName}
               onSaved={handleLogicalSaved}

@@ -62,7 +62,7 @@ describe('fetchLatestTest', () => {
     vi.mocked(getTestConnectionLatest).mockRejectedValueOnce(
       new AppError({ status: 404, code: 'NOT_FOUND', message: 'no test', retriable: false }),
     );
-    await expect(fetchLatestTest(1)).resolves.toBeNull();
+    await expect(fetchLatestTest(1, 'latest')).resolves.toBeNull();
   });
 
   it('rethrows every other error instead of masking it as IDLE', async () => {
@@ -73,13 +73,13 @@ describe('fetchLatestTest', () => {
       retriable: true,
     });
     vi.mocked(getTestConnectionLatest).mockRejectedValueOnce(err);
-    await expect(fetchLatestTest(1)).rejects.toBe(err);
+    await expect(fetchLatestTest(1, 'latest')).rejects.toBe(err);
   });
 
   it('rethrows a non-AppError rejection even if it carries code NOT_FOUND', async () => {
     const impostor = { code: 'NOT_FOUND' };
     vi.mocked(getTestConnectionLatest).mockRejectedValueOnce(impostor);
-    await expect(fetchLatestTest(1)).rejects.toBe(impostor);
+    await expect(fetchLatestTest(1, 'latest')).rejects.toBe(impostor);
   });
 });
 
@@ -120,14 +120,14 @@ describe('canRunTest', () => {
   it('is false before the first read answers', async () => {
     const { renderHook, latestMock, useTestConnectionPolling } = await setup();
     latestMock.mockImplementation(() => new Promise(() => {}));
-    const { result } = renderHook(() => useTestConnectionPolling(1));
+    const { result } = renderHook(() => useTestConnectionPolling(1, 'latest'));
     expect(result.current.canRunTest).toBe(false);
   });
 
   it('is true once a settled read lands', async () => {
     const { renderHook, waitFor, latestMock, useTestConnectionPolling } = await setup();
     latestMock.mockResolvedValue(makeJob('SUCCESS'));
-    const { result } = renderHook(() => useTestConnectionPolling(1));
+    const { result } = renderHook(() => useTestConnectionPolling(1, 'latest'));
     await waitFor(() => expect(result.current.canRunTest).toBe(true));
   });
 
@@ -135,7 +135,7 @@ describe('canRunTest', () => {
   it('is false when the read failed, even though loading has ended', async () => {
     const { renderHook, waitFor, latestMock, useTestConnectionPolling } = await setup();
     latestMock.mockRejectedValue(netError());
-    const { result } = renderHook(() => useTestConnectionPolling(1));
+    const { result } = renderHook(() => useTestConnectionPolling(1, 'latest'));
     await waitFor(() => expect(result.current.fetchError).not.toBeNull());
     expect(result.current.loading).toBe(false);
     expect(result.current.canRunTest).toBe(false);
@@ -145,7 +145,7 @@ describe('canRunTest', () => {
     const { renderHook, waitFor, latestMock, useTestConnectionPolling } = await setup();
     // QUEUED(접수만 됨)도 실행이 떠 있는 것 — 여기서 열리면 이중 실행 창이 된다.
     latestMock.mockResolvedValue(makeJob('PENDING'));
-    const { result } = renderHook(() => useTestConnectionPolling(1));
+    const { result } = renderHook(() => useTestConnectionPolling(1, 'latest'));
     await waitFor(() => expect(result.current.uiState).toBe('QUEUED'));
     expect(result.current.canRunTest).toBe(false);
   });
@@ -157,7 +157,7 @@ describe('canRunTest', () => {
   it('stays false after a POST that failed without a response', async () => {
     const { renderHook, act, waitFor, triggerMock, latestMock, useTestConnectionPolling } = await setup();
     latestMock.mockResolvedValue(makeJob('SUCCESS'));
-    const { result } = renderHook(() => useTestConnectionPolling(1));
+    const { result } = renderHook(() => useTestConnectionPolling(1, 'latest'));
     await waitFor(() => expect(result.current.canRunTest).toBe(true));
 
     triggerMock.mockRejectedValue(netError());
@@ -175,7 +175,7 @@ describe('canRunTest', () => {
   it('recovers through retry() after the reads start succeeding again', async () => {
     const { renderHook, act, waitFor, latestMock, useTestConnectionPolling } = await setup();
     latestMock.mockRejectedValue(netError());
-    const { result } = renderHook(() => useTestConnectionPolling(1));
+    const { result } = renderHook(() => useTestConnectionPolling(1, 'latest'));
     await waitFor(() => expect(result.current.canRunTest).toBe(false));
 
     latestMock.mockResolvedValue(makeJob('SUCCESS'));
@@ -199,7 +199,7 @@ describe('canRunTest after a read starts failing', () => {
     latestMock.mockReset();
     latestMock.mockResolvedValue(makeJob('SUCCESS'));
 
-    const { result } = renderHook(() => useTestConnectionPolling(1));
+    const { result } = renderHook(() => useTestConnectionPolling(1, 'latest'));
     await waitFor(() => expect(result.current.canRunTest).toBe(true));
 
     latestMock.mockRejectedValue(
@@ -229,7 +229,7 @@ describe('trigger lock release', () => {
     latestMock.mockResolvedValue(makeJob('SUCCESS'));
     triggerMock.mockResolvedValue(undefined as never);
 
-    const { result } = renderHook(() => useTestConnectionPolling(1));
+    const { result } = renderHook(() => useTestConnectionPolling(1, 'latest'));
     await waitFor(() => expect(result.current.canRunTest).toBe(true));
 
     await act(async () => {

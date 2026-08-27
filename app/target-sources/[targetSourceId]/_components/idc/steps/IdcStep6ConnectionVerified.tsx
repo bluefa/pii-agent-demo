@@ -123,7 +123,11 @@ export const IdcStep6ConnectionVerified = ({
           </p>
         </header>
         <div className={cardStyles.body}>
-          <IdcConfirmedResourcesPanel targetSourceId={targetSourceId} state={state} />
+          <IdcConfirmedResourcesPanel
+            targetSourceId={targetSourceId}
+            scope="latestSuccess"
+            state={state}
+          />
         </div>
       </section>
       <RejectionAlert project={project} />

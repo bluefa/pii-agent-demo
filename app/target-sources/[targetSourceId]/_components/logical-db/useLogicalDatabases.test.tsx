@@ -15,6 +15,7 @@ import type {
   ExcludedLogicalDatabase,
   TestedLogicalDatabase,
 } from '@/app/lib/api/logical-db';
+import type { TcScope } from '@/app/lib/api/tc-scope';
 
 const TESTED: TestedLogicalDatabase[] = [
   { databaseName: 'live', type: 'DATABASE' },
@@ -40,7 +41,7 @@ describe('useLogicalDatabases', () => {
   });
 
   it('starts loading then resolves with adapted rows + seeded draft', async () => {
-    const { result } = renderHook(() => useLogicalDatabases(1020, 'srv-1'));
+    const { result } = renderHook(() => useLogicalDatabases(1020, 'srv-1', 'latest'));
     expect(result.current.state.status).toBe('loading');
 
     await waitFor(() => expect(result.current.state.status).toBe('ready'));
@@ -62,22 +63,43 @@ describe('useLogicalDatabases', () => {
   });
 
   it('fetches both lists by resourceId', async () => {
-    renderHook(() => useLogicalDatabases(1020, 'srv-1'));
+    renderHook(() => useLogicalDatabases(1020, 'srv-1', 'latest'));
     await waitFor(() => expect(getTested).toHaveBeenCalled());
-    expect(getTested).toHaveBeenCalledWith(1020, 'srv-1', expect.objectContaining({}));
+    expect(getTested).toHaveBeenCalledWith(1020, 'srv-1', 'latest', expect.objectContaining({}));
     expect(getExcluded).toHaveBeenCalledWith(1020, 'srv-1', expect.objectContaining({}));
   });
 
   it('surfaces an error state when a fetch rejects', async () => {
     getExcluded.mockRejectedValue(new Error('boom'));
-    const { result } = renderHook(() => useLogicalDatabases(1020, 'srv-1'));
+    const { result } = renderHook(() => useLogicalDatabases(1020, 'srv-1', 'latest'));
     await waitFor(() => expect(result.current.state.status).toBe('error'));
     if (result.current.state.status !== 'error') throw new Error('expected error');
     expect(result.current.state.message).toBe('논리 DB 정보를 불러오지 못했습니다.');
   });
 
+  // scope 는 fetchKey 의 일부다 — 같은 리소스라도 계열이 바뀌면 다른 목록이라, 다시 읽지
+  // 않으면 6단계 모달이 5단계가 읽어 둔 최신 실패분을 그대로 보여준다.
+  it('refetches when only the scope changes', async () => {
+    const { result, rerender } = renderHook(
+      ({ scope }: { scope: TcScope }) => useLogicalDatabases(1020, 'srv-1', scope),
+      { initialProps: { scope: 'latest' as TcScope } },
+    );
+    await waitFor(() => expect(result.current.state.status).toBe('ready'));
+
+    rerender({ scope: 'latestSuccess' });
+    expect(result.current.state.status).toBe('loading');
+    await waitFor(() =>
+      expect(getTested).toHaveBeenCalledWith(
+        1020,
+        'srv-1',
+        'latestSuccess',
+        expect.objectContaining({}),
+      ),
+    );
+  });
+
   it('retry refetches', async () => {
-    const { result } = renderHook(() => useLogicalDatabases(1020, 'srv-1'));
+    const { result } = renderHook(() => useLogicalDatabases(1020, 'srv-1', 'latest'));
     await waitFor(() => expect(result.current.state.status).toBe('ready'));
     const calls = getTested.mock.calls.length;
 

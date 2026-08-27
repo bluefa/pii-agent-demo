@@ -4,6 +4,7 @@ import {
   getTestConnectionLatest,
 } from '@/app/lib/api';
 import type { TestConnectionVersionResult } from '@/app/lib/api';
+import type { TcScope } from '@/app/lib/api/tc-scope';
 import { AppError } from '@/lib/errors';
 import { usePollingBase } from '@/app/hooks/usePollingBase';
 
@@ -72,9 +73,10 @@ export const shouldStopPolling = (job: TestConnectionVersionResult | null): bool
 // must surface instead of masquerading as an idle state. Exported for tests.
 export const fetchLatestTest = async (
   targetSourceId: number,
+  scope: TcScope,
 ): Promise<TestConnectionVersionResult | null> => {
   try {
-    return await getTestConnectionLatest(targetSourceId);
+    return await getTestConnectionLatest(targetSourceId, scope);
   } catch (err) {
     if (err instanceof AppError && err.code === 'NOT_FOUND') return null;
     throw err;
@@ -83,6 +85,7 @@ export const fetchLatestTest = async (
 
 export const useTestConnectionPolling = (
   targetSourceId: number,
+  scope: TcScope,
   interval = 4_000,
 ): UseTestConnectionPollingReturn => {
   const [loading, setLoading] = useState(true);
@@ -96,8 +99,8 @@ export const useTestConnectionPolling = (
   const [observed, setObserved] = useState(false);
 
   const fetchOnce = useCallback(
-    () => fetchLatestTest(targetSourceId),
-    [targetSourceId],
+    () => fetchLatestTest(targetSourceId, scope),
+    [targetSourceId, scope],
   );
 
   const shouldStop = useCallback(

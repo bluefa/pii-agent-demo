@@ -68,7 +68,7 @@ export const WaitingConnectionTestStep = ({
   // rendered by the layout now and self-fetches latest_version instead — the
   // live feed no longer reaches the header tag while a run is in flight
   // (known downgrade, recorded in docs/ux/benchmark/target-source-header.md).
-  const polling = useTestConnectionPolling(project.targetSourceId);
+  const polling = useTestConnectionPolling(project.targetSourceId, 'latest');
 
   return (
     <ConfirmedIntegrationDataProvider targetSourceId={project.targetSourceId}>

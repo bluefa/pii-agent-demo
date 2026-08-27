@@ -8,6 +8,7 @@ import { useLogicalDatabases } from '@/app/target-sources/[targetSourceId]/_comp
 import { isParentDeny } from '@/app/target-sources/[targetSourceId]/_components/logical-db/logical-db-deny';
 import type { LogicalDatabase } from '@/app/target-sources/[targetSourceId]/_components/logical-db/logical-db-types';
 import type { SkipReason } from '@/app/lib/api/logical-db';
+import type { TcScope } from '@/app/lib/api/tc-scope';
 import {
   bgColors,
   borderColors,
@@ -22,6 +23,11 @@ interface LogicalDbSummaryModalProps {
   targetSourceId: number;
   resourceId: string;
   resourceName: string;
+  /**
+   * Which connection-test run to read. The renderer decides: the cloud Steps 6·7 table passes
+   * `latestSuccess`, the IDC panel hands down whatever its own step gave it.
+   */
+  scope: TcScope;
   onClose: () => void;
 }
 
@@ -41,9 +47,10 @@ export const LogicalDbSummaryModal = ({
   targetSourceId,
   resourceId,
   resourceName,
+  scope,
   onClose,
 }: LogicalDbSummaryModalProps) => {
-  const { state, retry } = useLogicalDatabases(targetSourceId, resourceId);
+  const { state, retry } = useLogicalDatabases(targetSourceId, resourceId, scope);
 
   // `databases` already merges the policy-only names (excluded but not discovered), so the
   // split is by membership in the skip set. A SCHEMA under an excluded parent DATABASE is

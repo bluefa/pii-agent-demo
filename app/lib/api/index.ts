@@ -19,6 +19,7 @@ import type { RecommendFailReason } from '@/lib/types';
 import type { SecretKey } from '@/lib/types';
 import { parseRdsInstanceCandidates, type RdsInstanceCandidate } from '@/lib/rds-instances';
 import { fetchInfraJson } from '@/app/lib/api/infra';
+import type { TcScope } from '@/app/lib/api/tc-scope';
 import type { TargetSourceRequestCloudType } from '@/lib/constants/provider-mapping';
 import type { TargetSourceCloudType } from '@/lib/target-source-creation';
 import { pickScanPrincipal } from '@/lib/target-source-response';
@@ -775,21 +776,30 @@ export const triggerTestConnection = async (
   );
 };
 
-// 최근 연결 테스트 결과 (polling용) — 404 if none
+// 연결 테스트 실행 상태 (polling용) — 404 if none. scope 는 기본값이 없다: 최신
+// 실행(latest)과 마지막 성공(latestSuccess)은 서로 다른 회차를 가리키므로, 호출
+// 지점이 어느 쪽을 읽는지 매번 명시해야 한다.
 export const getTestConnectionLatest = async (
   targetSourceId: number,
+  scope: TcScope,
 ): Promise<TestConnectionVersionResult> =>
   fetchInfraJson<TestConnectionVersionResult>(
-    `${CONFIRM_BASE}/${targetSourceId}/test-connection/latest_version`,
+    `${CONFIRM_BASE}/${targetSourceId}/test-connection/${
+      scope === 'latestSuccess' ? 'latest_success_version' : 'latest_version'
+    }`,
   );
 
-// 최신 성공 run 의 resource/agent 별 논리 DB 요약
+// resource/agent 별 논리 DB 요약 — latest 는 최신 실행 그대로(부분 실패면 성공한
+// 리소스만 건수를 낸다), latestSuccess 는 마지막으로 성공한 실행 기준이다.
 export const getLatestTestConnectionResultSummaries = async (
   targetSourceId: number,
+  scope: TcScope,
   options?: { signal?: AbortSignal },
 ): Promise<TestConnectionLatestResultSummary[]> =>
   fetchInfraJson<TestConnectionLatestResultSummary[]>(
-    `${CONFIRM_BASE}/${targetSourceId}/test-connection/latest-results`,
+    `${CONFIRM_BASE}/${targetSourceId}/test-connection/${
+      scope === 'latestSuccess' ? 'latest-success-results' : 'latest-results'
+    }`,
     options?.signal ? { signal: options.signal } : undefined,
   );
 
@@ -838,6 +848,9 @@ export const confirmInstallation = async (
     `${CONFIRM_BASE}/${targetSourceId}/pii-agent-installation/confirm`,
     { method: 'POST' },
   );
+
+// ===== Test Connection scope (latest vs latestSuccess) =====
+export type { TcScope } from '@/app/lib/api/tc-scope';
 
 // ===== Azure API =====
 export * from '@/app/lib/api/azure';

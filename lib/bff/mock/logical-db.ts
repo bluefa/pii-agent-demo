@@ -26,6 +26,7 @@
 import { NextResponse } from 'next/server';
 import * as mockData from '@/lib/mock-data';
 import { getTcLogicalDbs } from '@/lib/bff/mock/task-queue';
+import { getLatestJob } from '@/lib/mock-test-connection';
 import { ProcessStatus } from '@/lib/types';
 import type { z } from 'zod';
 import type { schemas } from '@/lib/generated/install-v1';
@@ -172,6 +173,25 @@ const getSkipList = (targetSourceId: number, resourceId: string): SkipLogicalDat
 const getTestedList = (targetSourceId: number, resourceId: string): TestedLogicalDatabaseItemWire[] =>
   isTested(targetSourceId) ? cloneTested(resourceSeed(resourceId)?.tested ?? SEED_TESTED) : [];
 
+/**
+ * `tested-latest-logical-databases` — 최신 실행이 그 리소스에서 실제로 발견한 목록.
+ * 성공 전제(`isTested` 의 단계 게이트)를 쓰지 않고 최신 job 을 직접 본다: 실행이 통째로
+ * 실패했어도 성공한 리소스는 제 목록을 갖고, 반대로 그 실행에서 실패했거나 아직 정착하지
+ * 않은 리소스는 아무것도 발견하지 못했으니 빈 목록이다 — 여기서 마지막 성공 회차의 목록을
+ * 대신 내주면 최신 실행이 찾은 것이라고 거짓말하게 된다(그 답은 짝인
+ * `tested-logical-databases` 의 몫이다).
+ */
+const getTestedLatestList = (
+  targetSourceId: number,
+  resourceId: string,
+): TestedLogicalDatabaseItemWire[] => {
+  const settled = getLatestJob(targetSourceId)?.resource_results.find(
+    (r) => r.resource_id === resourceId,
+  );
+  if (settled?.status !== 'SUCCESS') return [];
+  return cloneTested(resourceSeed(resourceId)?.tested ?? SEED_TESTED);
+};
+
 // ===== Handlers (resourceId is the modal's only key) =====
 
 export const mockLogicalDb = {
@@ -189,6 +209,21 @@ export const mockLogicalDb = {
     if ('error' in auth && auth.error instanceof NextResponse) return auth.error;
     const body: TestedLogicalDatabasesResponseWire = {
       logical_database_list: getTestedList(Number(targetSourceId), resourceId),
+    };
+    return NextResponse.json(body);
+  },
+
+  getTestedLatestByResourceId: async (targetSourceId: string, resourceId: string) => {
+    // 데모 대상(1799/1583)은 실행 이력이 fixture 한 회차뿐이라 최신 == 그 회차다.
+    const demo = getTcLogicalDbs(Number(targetSourceId), resourceId);
+    if (demo) {
+      const demoBody: TestedLogicalDatabasesResponseWire = { logical_database_list: demo.tested };
+      return NextResponse.json(demoBody);
+    }
+    const auth = authorize(targetSourceId);
+    if ('error' in auth && auth.error instanceof NextResponse) return auth.error;
+    const body: TestedLogicalDatabasesResponseWire = {
+      logical_database_list: getTestedLatestList(Number(targetSourceId), resourceId),
     };
     return NextResponse.json(body);
   },

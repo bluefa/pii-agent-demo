@@ -10,6 +10,7 @@
  */
 
 import { fetchInfraJson } from '@/app/lib/api/infra';
+import type { TcScope } from '@/app/lib/api/tc-scope';
 import type { z } from 'zod';
 import type { schemas } from '@/lib/generated/install-v1';
 
@@ -62,14 +63,25 @@ const toExcludedLogicalDatabase = (item: SkipItemWire): ExcludedLogicalDatabase 
 
 const base = (targetSourceId: number) => `/target-sources/${targetSourceId}`;
 
-/** GET tested logical DBs (left panel) by resourceId. */
+/**
+ * 이 쌍만 경로 이름이 뒤집혀 있다 — `-latest-` 가 붙은 쪽이 최신 실행(성공 불문)이고,
+ * 안 붙은 쪽이 마지막 성공이다. 다른 두 쌍(latest_version / latest-results)과 반대라
+ * 이름으로 추론하지 말고 이 표를 봐라.
+ */
+const TESTED_SEGMENT: Record<TcScope, string> = {
+  latest: 'tested-latest-logical-databases',
+  latestSuccess: 'tested-logical-databases',
+};
+
+/** GET tested logical DBs (left panel) by resourceId. scope 는 기본값이 없다. */
 export const getTestedLogicalDatabases = async (
   targetSourceId: number,
   resourceId: string,
+  scope: TcScope,
   opts?: { signal?: AbortSignal },
 ): Promise<TestedLogicalDatabase[]> => {
   const raw = await fetchInfraJson<z.infer<typeof schemas.TestedLogicalDatabasesResponse>>(
-    `${base(targetSourceId)}/tested-logical-databases/by-resource-id?resourceId=${encodeURIComponent(resourceId)}`,
+    `${base(targetSourceId)}/${TESTED_SEGMENT[scope]}/by-resource-id?resourceId=${encodeURIComponent(resourceId)}`,
     opts?.signal ? { signal: opts.signal } : undefined,
   );
   return (raw.logical_database_list ?? []).map(toTestedLogicalDatabase);

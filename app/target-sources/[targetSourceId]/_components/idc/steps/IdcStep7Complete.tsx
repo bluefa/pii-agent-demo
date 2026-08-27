@@ -114,7 +114,11 @@ export const IdcStep7Complete = ({
           </p>
         </header>
         <div className={cardStyles.body}>
-          <IdcConfirmedResourcesPanel targetSourceId={project.targetSourceId} state={state} />
+          <IdcConfirmedResourcesPanel
+            targetSourceId={project.targetSourceId}
+            scope="latestSuccess"
+            state={state}
+          />
         </div>
         {/* C-2 action zone: the rewind CTAs dock (sticky) at the card bottom. */}
         <CompleteActionBar

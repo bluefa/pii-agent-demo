@@ -6,6 +6,7 @@ import {
   getExcludedLogicalDatabases,
   getTestedLogicalDatabases,
 } from '@/app/lib/api/logical-db';
+import type { TcScope } from '@/app/lib/api/tc-scope';
 import { buildModalData } from '@/app/target-sources/[targetSourceId]/_components/logical-db/logical-db-deny';
 import type {
   LogicalDbDataHook,
@@ -19,13 +20,18 @@ import type {
  * (`buildModalData`) maps them to the modal's render rows + a seeded initial
  * draft (existing skips pre-applied / greyed-out).
  *
+ * `scope` picks which connection-test run the tested list comes from — Step 5 reads the
+ * latest run, Steps 6·7 read the last one that passed. It is part of the active key: two
+ * scopes on the same resource are two different lists, so a scope change must refetch.
+ *
  * Keeps the loading/ready/error state machine + retry/abort idiom: the active
- * key (`targetSourceId#resourceId#nonce`) resets state to `loading` during
+ * key (`targetSourceId#resourceId#scope#nonce`) resets state to `loading` during
  * render on change, and each fetch is cancelled via an AbortController.
  */
 export const useLogicalDatabases = (
   targetSourceId: number,
   resourceId: string,
+  scope: TcScope,
 ): LogicalDbDataHook => {
   const [retryNonce, setRetryNonce] = useState(0);
   const [state, setState] = useState<LogicalDbDataState>({ status: 'loading' });
@@ -33,7 +39,7 @@ export const useLogicalDatabases = (
   // Track the key the current state corresponds to so we can reset to 'loading'
   // during render when the target/resource or retry nonce changes — avoids a
   // synchronous setState inside useEffect.
-  const fetchKey = `${targetSourceId}#${resourceId}#${retryNonce}`;
+  const fetchKey = `${targetSourceId}#${resourceId}#${scope}#${retryNonce}`;
   const [activeKey, setActiveKey] = useState(fetchKey);
   if (fetchKey !== activeKey) {
     setActiveKey(fetchKey);
@@ -44,7 +50,9 @@ export const useLogicalDatabases = (
     const controller = new AbortController();
 
     void Promise.all([
-      getTestedLogicalDatabases(targetSourceId, resourceId, { signal: controller.signal }),
+      getTestedLogicalDatabases(targetSourceId, resourceId, scope, {
+        signal: controller.signal,
+      }),
       getExcludedLogicalDatabases(targetSourceId, resourceId, { signal: controller.signal }),
     ])
       .then(([tested, excluded]) => {
@@ -59,7 +67,7 @@ export const useLogicalDatabases = (
       });
 
     return () => controller.abort();
-  }, [targetSourceId, resourceId, retryNonce]);
+  }, [targetSourceId, resourceId, scope, retryNonce]);
 
   return {
     state,

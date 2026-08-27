@@ -106,7 +106,9 @@ export const CloudReqApprovalModal = ({
   useEffect(() => {
     if (!isOpen) return;
     const controller = new AbortController();
-    void getLatestTestConnectionResultSummaries(targetSourceId, { signal: controller.signal })
+    void getLatestTestConnectionResultSummaries(targetSourceId, 'latest', {
+      signal: controller.signal,
+    })
       .then((summaries) => {
         if (controller.signal.aborted) return;
         setCounts(buildLogicalDbCountMap(summaries));
