@@ -35,6 +35,7 @@ import {
   updateResourceCredential,
   updateTestConnectionConfirmation,
 } from '@/app/lib/api';
+import { ResourceIdCell } from '@/app/target-sources/[targetSourceId]/_components/shared/ResourceIdCell';
 import { CredentialPickModal } from '@/app/target-sources/[targetSourceId]/_components/layout/CredentialPickModal';
 import { LogicalDbModalLoader } from '@/app/target-sources/[targetSourceId]/_components/logical-db/LogicalDbModalLoader';
 import { CloudReqApprovalModal } from '@/app/target-sources/[targetSourceId]/_components/layout/CloudReqApprovalModal';
@@ -102,24 +103,36 @@ const requiresCredential = (databaseType: string | null): boolean =>
  * step asks of the row. A user arrives here having read the same rows three times already;
  * leading with Database Type made them re-find the anchor they had been scanning by.
  *
- * Resource ID is the one column steps 1·2·3 carry that this step drops. Seven columns at
- * the approval table's 18px gutters wanted 1160px in a 948px card, so one had to go, and
- * this is the only one nothing here is decided by: the row is already named, typed and
- * located by the three columns around it, while every other column is either that anchor
- * or an action. Step 4 drops the same class of column for the same reason.
+ * Resource ID is back (owner, 2026-08-27). This step used to be the ONE resource surface
+ * without it — steps 1·2·3, 4 and 6·7 all carry it at the ledger's 186 — and the old
+ * ruling here ("the row is already named, typed and located") was a width argument, not an
+ * identity one: an Azure ARM id and an AWS ARN are what the reader copies out of this screen
+ * to go look the target up, and step 5 is where they are told a target failed. Step 4 made
+ * the same reversal on 2026-08-24, for the same reason and at the same cost.
  *
  * Floors are the LIN-96 ledger with one owner-ordered correction (2026-08-23):
- * name 162 · dbType 142 · region 156 · cred 264 · conn 104 · logical 118 — Σ **946**,
- * inside the 990px pane. cred was 180, sized in the Key1/Key2 synthetic-name era; real
- * store names run to `kimcs-postgres-analytics-readonly` = 203px measured at 13px/600
- * Pretendard, so 264 = 203 + 36 padding + 25 slack shows every seeded name whole
- * (owner: credential names must not render abbreviated). Resource Name stays the
- * SINGLE flex (ledger footnote ³, closed the same way as LIN-100's IDC table): it is the
- * only column whose values run arbitrarily long on every row, and a forced second flex
- * would hand the sink to a short-valued column (§9(b)).
+ * name 162 · id 186 · dbType 142 · region 156 · cred 264 · conn 104 · logical 118 — Σ **1132**.
+ * cred was 180, sized in the Key1/Key2 synthetic-name era; real store names run to
+ * `kimcs-postgres-analytics-readonly` = 203px measured at 13px/600 Pretendard, so
+ * 264 = 203 + 36 padding + 25 slack shows every seeded name whole (owner: credential
+ * names must not render abbreviated).
+ *
+ * Cost: Σ 946 → 1132 moves the width at which this table starts scrolling horizontally.
+ * Measured on /pass/target-sources/2004 (2026-08-27): the pane is fluid at
+ * `innerWidth − 720` with both rails open, so the no-scroll threshold goes 1666 → 1852;
+ * collapsing the guide rail returns 264px and brings it to 1588. Below that the table
+ * scrolls — which it already did at 1440, floor 946 and all. Accepted with the column, the
+ * same trade step 4 took when its cloud floor went 538 → 836. ⛔ Do not buy the width back
+ * by narrowing cred, name or the ledger floors: they are registered across surfaces, and a
+ * step-5-only width is what breaks reading down the columns.
+ *
+ * name + id are the flex PAIR every other resource table declares: id renders as the sink
+ * (last flex) because the ARN/ARM-id is the longest value on the row and the only one whose
+ * cut costs the reader, and having two makes dragging either behave like a split pane
+ * (ConsoleTable `slackSinkKey`).
  */
-const TC_COLUMN_WIDTHS = { name: 162, dbType: 142, region: 156, cred: 264, conn: 104, logical: 118 } as const;
-const TC_FLEX_KEYS = ['name'] as const;
+const TC_COLUMN_WIDTHS = { name: 162, id: 186, dbType: 142, region: 156, cred: 264, conn: 104, logical: 118 } as const;
+const TC_FLEX_KEYS = ['name', 'id'] as const;
 
 /** "DB" 는 표 전체가 이미 DB 얘기라 붙일 필요가 없었다. 대신 이 열이 무엇을 고르는
  *  것인지는 이름만으로 안 읽히므로 (i) 로 한 번 설명한다. 밝은 variant: 흰 표 위의
@@ -147,6 +160,8 @@ const CREDENTIAL_HEAD = (
 
 const TC_COLUMNS: ConsoleTableColumn[] = [
   { key: 'name', label: 'Resource Name', width: TC_COLUMN_WIDTHS.name, flex: true, headClassName: idcStyles.table.nameCell },
+  // The sink — see TC_COLUMN_WIDTHS.
+  { key: 'id', label: 'Resource ID', width: TC_COLUMN_WIDTHS.id, flex: true },
   { key: 'dbType', label: 'Database Type', width: TC_COLUMN_WIDTHS.dbType },
   { key: 'region', label: 'Region', width: TC_COLUMN_WIDTHS.region },
   { key: 'cred', label: 'Credential', width: TC_COLUMN_WIDTHS.cred, head: CREDENTIAL_HEAD },
@@ -635,6 +650,29 @@ export const ConnectionTestCard = ({
                             </span>
                           )}
                         </td>
+                        {/* The unit's own id: for a folded row that is the REGION id the
+                            result is keyed on (`resultUnitId`), which is exactly the value a
+                            reader chasing this row's verdict needs — not the id of whichever
+                            database happens to be first. For every other row unitId IS
+                            resourceId. Same covered-clip + hover-copy cell steps 2·3·4·6·7
+                            use, so one id reads the same way down the whole flow.
+                            A folded row toggles on click and this cell holds a copy button —
+                            without the guard, copying the region id also opened the fold. */}
+                        <td
+                          className={cn(idcStyles.table.approvalCell, idcStyles.table.consoleCell)}
+                          onClick={unit.folded ? (event) => event.stopPropagation() : undefined}
+                        >
+                          <ResourceIdCell
+                            value={unit.unitId}
+                            label="Resource ID"
+                            // +18px = this cell's own right padding, so the wrapper ends ON the
+                            // column boundary and the overlay copy button anchors there.
+                            maxWidthClass="w-[calc(100%+18px)]"
+                            sizeClass="text-[14px]"
+                            textClassName={cn(textColors.secondary, CELL_LIFT)}
+                            hardClip
+                          />
+                        </td>
                         <td
                           className={cn(
                             idcStyles.table.approvalCell,
@@ -761,6 +799,11 @@ export const ConnectionTestCard = ({
                             >
                               {db.resourceName ?? db.resourceId}
                             </td>
+                            {/* Inside a group the id is dropped — it is the parent's own path
+                                with the child's name tacked on, so the row would repeat the
+                                region's identity and then say its name a second time. Same
+                                rule as the confirmed table. */}
+                            <td className={idcStyles.table.approvalCell} />
                             <td
                               className={cn(
                                 idcStyles.table.approvalCell,
@@ -782,7 +825,7 @@ export const ConnectionTestCard = ({
                   {pageRows.length === 0 && (
                     <tr>
                       <td
-                        colSpan={6}
+                        colSpan={7}
                         className={cn(
                           idcStyles.table.approvalCell,
                           'py-8 text-center text-[12px]',

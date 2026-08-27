@@ -158,14 +158,14 @@ describe('ConnectionTestCard', () => {
   });
 
   // ORDER is the assertion, not just presence: this table shows the same resources steps
-  // 1·2·3 just showed, so it opens on the same anchor (name → attributes → what this step
-  // asks). Resource ID is the one column those steps carry that this one drops — seven
-  // columns at the approval gutters overflow the card, and it is the only one nothing here
-  // is decided by.
-  it('reads in the steps 1·2·3 column order, without their Resource ID', () => {
+  // 1·2·3 just showed, so it opens on the same anchor (identity pair → attributes → what
+  // this step asks). Resource ID sits second, where every other resource table puts it —
+  // it was dropped here on a width argument and restored by the owner (2026-08-27).
+  it('reads in the steps 1·2·3 column order, Resource ID included', () => {
     renderCard([makeResource()]);
     expect(screen.getAllByRole('columnheader').map((th) => th.textContent)).toEqual([
       'Resource Name',
+      'Resource ID',
       'Database Type',
       'Region',
       'Credential',
@@ -340,7 +340,7 @@ describe('ConnectionTestCard', () => {
   );
 
   it('counts Credential-free engines as neither, and the warning line filters the table', () => {
-    // The table names rows by Resource Name (Resource ID is not a column here).
+    // Rows are addressed here by Resource Name; the Resource ID column has its own test.
     renderCard([
       makeResource({ resourceId: 'res-1', resourceName: 'named-cred', credentialId: 'Key1' }),
       makeResource({ resourceId: 'res-2', resourceName: 'named-missing', credentialId: null }),
@@ -367,6 +367,36 @@ describe('ConnectionTestCard', () => {
 
     fireEvent.click(screen.getByRole('button', { name: '전체 보기' }));
     expect(screen.getByText('named-athena')).toBeTruthy();
+  });
+
+  // The id column is keyed on the UNIT, not on the first member: an Athena row stands for a
+  // region and its verdict comes back on `athena_region_resource_id`, so that is the id a
+  // reader chasing this row has to copy. The databases underneath leave the cell empty —
+  // their own ids are the region's path plus the name the row already prints.
+  it('prints the unit id, and drops it inside an Athena fold', async () => {
+    renderCard([
+      makeResource({
+        resourceId: 'athena:acct:ap-northeast-2:AwsDataCatalog/cpn_logs',
+        resourceName: 'cpn_logs',
+        databaseType: 'athena',
+        credentialId: null,
+        athenaRegionResourceId: 'athena:acct:ap-northeast-2/AwsDataCatalog',
+      }),
+      makeResource({ resourceId: 'arn:aws:rds:…:db:space-prod', resourceName: 'space-prod' }),
+    ]);
+    expect(screen.getByText('athena:acct:ap-northeast-2/AwsDataCatalog')).toBeTruthy();
+    expect(screen.getByText('arn:aws:rds:…:db:space-prod')).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: /데이터베이스 목록 펼치기/ }));
+    // The child row is present, and every cell of it after the name is blank — including
+    // the id one, which must exist so the row stays in register with the head.
+    const childName = screen.getByText('cpn_logs');
+    const childRow = childName.closest('tr') as HTMLTableRowElement;
+    expect(childRow.cells).toHaveLength(7);
+    expect(childRow.cells[1].textContent).toBe('');
+    expect(
+      screen.queryByText('athena:acct:ap-northeast-2:AwsDataCatalog/cpn_logs'),
+    ).toBeNull();
   });
 
   // 0 미등록은 정상 상태다 — 그때 경고 줄이 남아 있으면 "할 일 없음"을 상시로 말하게 된다.
@@ -613,20 +643,22 @@ describe('ConnectionTestCard', () => {
 });
 
 /**
- * Console shape (LIN-99) — the LIN-96 ledger, pinned: name 162(flex/sink) · dbType 142 ·
- * region 156 · cred 264 · conn 104 · logical 118, Σ 946 on the table's minWidth. Resource
- * Name is the single flex so it renders `auto`; every other column renders its ledger px.
+ * Console shape (LIN-99) — the LIN-96 ledger, pinned: name 162 · id 186 · dbType 142 ·
+ * region 156 · cred 264 · conn 104 · logical 118, Σ 1132 on the table's minWidth. name and
+ * id are the flex PAIR every other resource table declares, so the SINK is id (the last
+ * flex): it renders `auto` while name renders its share of the floor sum (162/1132) and the
+ * five sized columns render their ledger px.
  * cred 264 is the owner-ordered correction (real store names, longest 203px measured,
  * must render whole — 180 was sized for the retired Key1/Key2 synthetic names).
  */
 describe('ConnectionTestCard — console column spec', () => {
-  it('holds the 946 floor with Resource Name as the sink', async () => {
+  it('holds the 1132 floor with Resource ID as the sink', async () => {
     renderCard([makeResource({})]);
     const table = (await screen.findByRole('table')) as HTMLTableElement;
-    expect(table.style.minWidth).toBe('946px');
+    expect(table.style.minWidth).toBe('1132px');
     const widths = Array.from(table.querySelectorAll('thead th')).map(
       (th) => (th as HTMLElement).style.width,
     );
-    expect(widths).toEqual(['auto', '142px', '156px', '264px', '104px', '118px']);
+    expect(widths).toEqual(['14.311%', 'auto', '142px', '156px', '264px', '104px', '118px']);
   });
 });
