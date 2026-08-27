@@ -21,6 +21,7 @@ import { mockScan } from '@/lib/bff/mock/scan';
 import { mockAws } from '@/lib/bff/mock/aws';
 import { mockOps, mockServiceJiraTickets } from '@/lib/bff/mock/ops';
 import { mockMonitoring } from '@/lib/bff/mock/monitoring';
+import { mockSdu } from '@/lib/bff/mock/sdu';
 import { mockAccess } from '@/lib/bff/mock/access';
 import { mockAzure } from '@/lib/bff/mock/azure';
 import { mockGcp } from '@/lib/bff/mock/gcp';
@@ -154,6 +155,24 @@ export const mockBff: BffClient = {
     },
     endOfService: async (serviceCode) => {
       await unwrap(await mockOps.endOfService(serviceCode));
+    },
+  },
+
+  // SDU 담당자 흐름 — ASSUMED contracts (docs/api/sdu-assumed-contracts.md).
+  // 규칙(권역 잠금·Region 소속·무효화 표·BDC 진행)은 전부 mock 모듈에 산다.
+  sdu: {
+    getDefinition: async (id) => unwrap(await mockSdu.getDefinition(id)),
+    putDefinition: async (id, body) => unwrap(await mockSdu.putDefinition(id, body)),
+    submitDefinition: async (id) => {
+      await unwrap(await mockSdu.submitDefinition(id));
+    },
+    getUpload: async (id) => unwrap(await mockSdu.getUpload(id)),
+    refreshFirewall: async (id) => unwrap(await mockSdu.refreshFirewall(id)),
+    putAcks: async (id, body) => {
+      await unwrap(await mockSdu.putAcks(id, body));
+    },
+    putRecipients: async (id, userIds) => {
+      await unwrap(await mockSdu.putRecipients(id, { user_ids: userIds }));
     },
   },
 

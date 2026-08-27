@@ -1964,8 +1964,11 @@ mockProjects.push({
   awsAccountId: "345678901234",
   awsRegionType: "global",
   isSduType: true,
-  processStatus: ProcessStatus.WAITING_APPROVAL,
-  status: createStatusForProcessStatus(ProcessStatus.WAITING_APPROVAL, {
+  // SDU 는 승인 절차가 없다 — 1단계에서 제출하면 곧바로 업로드 단계(4)다. 이 대상은
+  // 그 한가운데를 그린다: 대상 2건 / Region 2곳(us·eu), 방화벽은 us 만 확인, 수신자 3명.
+  // 그 세부는 SDU 목 스토어에 산다(lib/bff/mock/sdu.ts) — 여기 있는 건 단계뿐이다.
+  processStatus: ProcessStatus.INSTALLING,
+  status: createStatusForProcessStatus(ProcessStatus.INSTALLING, {
     selectedCount: 2,
     excludedCount: 1,
   }),
@@ -1999,6 +2002,51 @@ mockProjects.push({
   terraformState: { serviceTf: "PENDING", bdcTf: "PENDING" },
   createdAt: "2024-02-02T09:00:00Z",
   updatedAt: "2024-02-02T10:00:00Z",
+  isRejected: false,
+});
+
+// 데모: SDU 1단계 대상 둘 — 연동 대상 정의가 비어 있는 출발점. 1101 은 Global,
+// 1102 는 China 다. 권역은 대상소스에 하나인 값이고 SDU 목 스토어가 그 초기값을
+// `isChinaRegion` 에서 읽으므로(lib/bff/mock/sdu.ts), 두 권역의 1단계를 화면으로
+// 보려면 두 대상이 있어야 한다 — China 는 Region 이 하나뿐이라 경로도 언제나 하나다.
+mockProjects.push({
+  id: "aws-proj-sdu-3",
+  targetSourceId: 1101,
+  projectCode: "SDU-003",
+  name: "SDU PII Agent - 광고 로그",
+  description: "SDU 계정 대상(Global, 연동 대상 정의 전).",
+  serviceCode: "SDU",
+  cloudProvider: "AWS",
+  awsAccountId: "456789012345",
+  awsRegionType: "global",
+  isSduType: true,
+  processStatus: ProcessStatus.WAITING_TARGET_CONFIRMATION,
+  status: createStatusForProcessStatus(ProcessStatus.WAITING_TARGET_CONFIRMATION),
+  resources: [],
+  terraformState: { serviceTf: "PENDING", bdcTf: "PENDING" },
+  createdAt: "2024-02-03T09:00:00Z",
+  updatedAt: "2024-02-03T09:00:00Z",
+  isRejected: false,
+});
+
+mockProjects.push({
+  id: "aws-proj-sdu-4",
+  targetSourceId: 1102,
+  projectCode: "SDU-004",
+  name: "SDU PII Agent - 중국 커머스",
+  description: "SDU 계정 대상(China 권역, 연동 대상 정의 전).",
+  serviceCode: "SDU",
+  cloudProvider: "AWS",
+  awsAccountId: "567890123456",
+  awsRegionType: "china",
+  isChinaRegion: true,
+  isSduType: true,
+  processStatus: ProcessStatus.WAITING_TARGET_CONFIRMATION,
+  status: createStatusForProcessStatus(ProcessStatus.WAITING_TARGET_CONFIRMATION),
+  resources: [],
+  terraformState: { serviceTf: "PENDING", bdcTf: "PENDING" },
+  createdAt: "2024-02-03T10:00:00Z",
+  updatedAt: "2024-02-03T10:00:00Z",
   isRejected: false,
 });
 
