@@ -102,10 +102,10 @@ export const opsStyles = {
   fmGroup: 'mt-5',
   /**
    * 블록 머리 — 이름 왼쪽, 여는 큐 오른쪽. **닫는 선은 없다** (오너 2026-08-27
-   * "하단에 구분선을 없애고"). 마스트헤드 워시 위에는 이제 이 화면에서 가장 무거운
-   * 획이 `tabStrip` 의 위 선 하나뿐이고, 그 선이 유일하므로 "여기서 내비게이션이
-   * 시작한다"를 혼자 말한다 — 같은 두께의 선이 위에 두 개 더 있을 때는 셋 중
-   * 하나였다. 블록을 묶는 일은 이름의 크기(16)와 그 아래 간격(22)이 진다.
+   * "하단에 구분선을 없애고"). 이 워시 위의 `--pl-border-strong` 획은 이제 **탭 띠뿐**
+   * 이다 — 위 한 줄과, 그룹마다 끊기는 아래 도막들(`tabGroup`). 전부 한 덩어리로 같은
+   * 한 가지를 말하므로("여기서 내비게이션이 시작한다"), 블록 머리가 같은 획을 쓰면
+   * 그 말이 흐려진다. 블록을 묶는 일은 이름의 크기(16)와 그 아래 간격(22)이 진다.
    */
   fmHead: 'flex items-center justify-between gap-4 pb-1.5',
   fmName: 'flex min-w-0 items-center gap-2',
@@ -304,9 +304,10 @@ export const opsStyles = {
    * 하나의 띠가 된다 — 칠을 하나도 쓰지 않고 묶는다("Structure should be felt not seen").
    *
    * 위 여백은 20px 로, 블록↔블록과 같은 칸이다. 블록 머리의 헤어라인이 사라진 뒤로
-   * (오너 2026-08-27) 이 워시 위에서 `--pl-border-strong` 획은 **이 띠의 두 선뿐**이라,
-   * 마스트헤드의 마지막 사실과 이 띠 사이는 블록이 갈리는 거리만큼 떨어져 있으면 된다 —
-   * 이제 선이 하는 말은 "여기서 내비게이션이 시작한다" 하나다.
+   * (오너 2026-08-27) 이 워시 위에서 `--pl-border-strong` 획은 **이 띠뿐**이다 — 위 한
+   * 줄과, 그룹마다 끊기는 아래 도막들. 그래서 마스트헤드의 마지막 사실과 이 띠 사이는
+   * 블록이 갈리는 거리만큼 떨어져 있으면 되고, 이 획들이 하는 말은 하나다:
+   * "여기서 내비게이션이 시작한다".
    * 탭의 py-2.5 가 선 안쪽 10px 을 위아래로 똑같이 준다 — 띠는 대칭이다.
    *
    * 아래 선만 `tabGroup` 으로 내려갔다 (ops-nav 시안 A). 위 선은 통으로 남아 띠의
@@ -328,6 +329,12 @@ export const opsStyles = {
    * 활성 탭의 `-mb-px` 는 이제 제 그룹의 선을 먹는다(기하는 그대로).
    */
   tabGroup: 'flex items-end gap-1 border-b border-[var(--pl-border-strong)]',
+  /** 스켈레톤에서만 아래 선을 **스트립**이 진다. 구간이 몇 개이고 어디서 끊기는지는 탭
+      구성이고 탭 구성은 데이터라, 도착 전에는 지어낼 수가 없다. `tabGroup` 하나로 감싸면
+      아래 선이 보이지 않는 탭 하나의 폭만 덮어(44px) 도착 순간 세 도막(732px)으로 뛴다 —
+      1px 획이라 레이아웃은 안 움직이지만 잉크가 통째로 바뀐다. 통으로 그어 두면 바뀌는
+      것은 선이 **끊기는 자리**뿐이다. */
+  tabStripLoading: 'border-b border-[var(--pl-border-strong)]',
   /**
    * Geometry is `accessStyles.tab` verbatim (the 접근 권한 page tabs) — the admin
    * console should have one line-tab, not two that differ by a few px.

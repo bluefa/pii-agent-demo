@@ -61,9 +61,19 @@ type TabLabel = OpsTargetTabLabel;
 /**
  * The render order, in three groups — 보기 · 실행 · 승인·근거. The strip draws one
  * hairline per group (`opsStyles.tabGroup`), so this array is what the segmentation
- * is made of, not a label on top of a flat list. Every OPS_TAB_SLUGS entry must
- * appear in exactly one group; `TABS` is derived from here, so a tab left out of
- * these rows never renders.
+ * is made of, not a label on top of a flat list.
+ *
+ * **This is the only list of tabs.** The flat list the strip's selection logic needs
+ * is derived from it (`tabGroups.flat()`), never written a second time: two lists
+ * filtered by two copies of the same predicate agree only by luck, and the round
+ * they stop agreeing, `currentTab` can name a tab that is not rendered — a panel
+ * open under a strip with no active tab, and the URL-repair effect silent because
+ * `currentTab === requestedTab`.
+ *
+ * Every OPS_TAB_SLUGS entry must appear in exactly one group. That is not a comment
+ * anyone has to keep: `OpsTargetView.idc.test.tsx` compares a non-IDC target's strip
+ * against `Object.values(OPS_TAB_SLUGS)`, so a slug added to `lib/routes.ts` and
+ * left out of these rows fails there instead of quietly never rendering.
  *
  * Airflow 확인 (PR #783) landed at the end of the tool run, but it is not a tool:
  * it holds the evidence behind 승인 조건 ③ and is read, not operated.
@@ -73,7 +83,6 @@ const TAB_GROUPS: readonly (readonly TabLabel[])[] = [
   [OPS_TAB_SLUGS.infra, OPS_TAB_SLUGS.tc],
   [OPS_TAB_SLUGS.approval, OPS_TAB_SLUGS.airflow],
 ];
-const TABS = TAB_GROUPS.flat();
 
 /**
  * ProcessStatus → the tab that step is worked in. The second underline (보라) stands
@@ -192,7 +201,9 @@ export function OpsTargetView({ targetSourceId, initialTab }: OpsTargetViewProps
   const tabGroups = isIdc
     ? TAB_GROUPS.map((group) => group.filter((tab) => tab !== OPS_TAB_SLUGS.scan))
     : TAB_GROUPS;
-  const tabs = isIdc ? TABS.filter((tab) => tab !== OPS_TAB_SLUGS.scan) : TABS;
+  // 평평한 목록은 **그린 것에서** 나온다 — 같은 술어를 두 번 적으면 두 목록이 우연히만
+  // 일치하고, 어긋나는 순간 `currentTab` 이 렌더되지 않는 탭을 가리킬 수 있다.
+  const tabs = tabGroups.flat();
   const currentTab = tabs.includes(requestedTab) ? requestedTab : tabs[0];
 
   // A `?tab=scan` link to an IDC target — a bookmark from before the tab was dropped,
@@ -390,15 +401,16 @@ export function OpsTargetView({ targetSourceId, initialTab }: OpsTargetViewProps
               ))}
             </div>
           </div>
-          <div className={opsStyles.tabStrip}>
-            {/* 보이지 않는 탭 하나가 레일 높이를 정확히 잡는다 — 탭 구성은 데이터다.
-                그룹 하나를 두르는 이유는 아래 헤어라인이 거기 걸려 있어서다: 띠는
-                도착 전에도 선 두 개 사이에 있어야 한다. */}
-            <div className={opsStyles.tabGroup}>
-              <span className={cn(opsStyles.tab, 'invisible select-none')} aria-hidden>
-                탭
-              </span>
-            </div>
+          {/* 아래 선은 `tabGroup` 이 아니라 스트립이 긋는다 — 구간이 몇 개이고 어디서
+              끊기는지는 **탭 구성**, 곧 데이터다. 그룹 하나를 두르면 아래 선이 보이지 않는
+              탭 하나의 폭(44px)만 덮어, 도착하는 순간 44px 토막이 세 도막 732px 로 뛴다.
+              모르는 것을 지어내지 않고 통으로 긋는다: 띠는 도착 전에도 선 두 개 사이에 있고,
+              바뀌는 것은 아래 선이 **끊기는 자리**뿐이다. */}
+          <div className={cn(opsStyles.tabStrip, opsStyles.tabStripLoading)}>
+            {/* 보이지 않는 탭 하나가 레일 높이를 정확히 잡는다. */}
+            <span className={cn(opsStyles.tab, 'invisible select-none')} aria-hidden>
+              탭
+            </span>
           </div>
         </div>
         <div className={opsStyles.body}>
@@ -479,7 +491,6 @@ export function OpsTargetView({ targetSourceId, initialTab }: OpsTargetViewProps
                     type="button"
                     role="tab"
                     aria-selected={active}
-                    title={isStep && stepWord ? stepWord : undefined}
                     onClick={() => selectTab(tab)}
                     className={cn(opsStyles.tab, active ? opsStyles.tabActive : opsStyles.tabIdle)}
                   >
@@ -495,7 +506,17 @@ export function OpsTargetView({ targetSourceId, initialTab }: OpsTargetViewProps
                     )}
                     {isStep && (
                       // 흐름 밖이라 슬롯을 예약하지 않는다 — 늦게 도착해도 x 를 밀지 않는다.
-                      <span className={cn(opsStyles.tabCorner, stepDot)} aria-hidden />
+                      //
+                      // `title` 은 버튼이 아니라 **점**이 진다. 버튼에 두면 접근명(내용 =
+                      // 위 `.sr-only` 포함)과 접근설명(title)이 같은 문장이 되어 스크린
+                      // 리더가 두 번 읽는다. 점은 `aria-hidden` 이라 a11y 트리 밖이고,
+                      // 마우스 툴팁만 남는다 — 낱말 쪽은 그대로 둔다(⛔ title 은 낭독이
+                      // 보장되지 않으므로 `.sr-only` 를 title 로 대체할 수 없다).
+                      <span
+                        className={cn(opsStyles.tabCorner, stepDot)}
+                        title={stepWord ?? undefined}
+                        aria-hidden
+                      />
                     )}
                   </button>
                 );

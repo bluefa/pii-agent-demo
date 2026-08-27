@@ -16,6 +16,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 import { OpsTargetView } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/OpsTargetView';
+import { OPS_TAB_SLUGS } from '@/lib/routes';
 
 const getRawTargetSourceDetail = vi.fn();
 
@@ -92,6 +93,24 @@ describe('OpsTargetView — IDC 스캔 탭', () => {
     // 한 행이 셋 다 든다: 키(환경) · 값(사내망) · 태그(IDC).
     expect(env.parentElement?.textContent).toContain('환경');
     expect(env.parentElement?.textContent).toContain('IDC');
+  });
+
+  /**
+   * The strip renders `TAB_GROUPS`, which is hand-written; `OPS_TAB_SLUGS` is where a
+   * tab is actually declared. Nothing in the type system ties the two, so a tab added
+   * to `lib/routes.ts` with a panel wired up compiles, renders nowhere, and takes its
+   * own evidence with it — the `?tab=` deep link falls back to 진행 상태 and then
+   * rewrites the URL. This is the assertion that makes that omission audible.
+   */
+  it('non-IDC 대상의 탭 줄은 OPS_TAB_SLUGS 를 하나도 빠뜨리지 않는다', async () => {
+    getRawTargetSourceDetail.mockResolvedValue(
+      detail({ target_source_id: 1010, cloud_provider: 'AWS' }),
+    );
+    render(<OpsTargetView targetSourceId={1010} initialTab="진행 상태" />);
+    // 라벨만 본다 — 상태가 걸린 탭은 `.sr-only` 낱말을 뒤에 달고 나오므로 textContent
+    // 통짜 비교는 이 단언이 재려는 것(구성)과 상관없는 것(상태)에 묶인다.
+    const labels = (await tabNames()).map((name) => (name ?? '').split(',')[0]);
+    expect(labels).toEqual(Object.values(OPS_TAB_SLUGS));
   });
 
   it('IDC 가 아니면 스캔 탭은 그대로 있다', async () => {
