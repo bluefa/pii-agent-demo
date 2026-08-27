@@ -78,7 +78,25 @@ export interface ApprovalHead {
   /** 연동 완료 CTA 의 잠금을 푼다 — true on exactly one state: 세 조건이 모두 충족.
    *  (버튼 자체는 늘 마운트된다 — 오너 2026-08-26.) */
   canApprove: boolean;
+  /**
+   * 조건이 실제로 미충족인가 — 경고 아이콘이 이 값을 보고 선다.
+   *
+   * `!canApprove` 와 다르다: 조회 중이거나 판정하지 못한 상태는 "충족되지 않았다"가
+   * 아니라 "아직 모른다"이고, 관리자가 할 일도 다르다(기다린다 vs 조건을 푼다).
+   */
+  unmet: boolean;
 }
+
+/**
+ * 미충족 머리 문장 — 하나뿐이다 (오너 2026-08-26).
+ *
+ * 예전에는 막힌 이유마다 다른 문장이 섰다("모니터링이 UNHEALTHY 상태예요 — 설치 완료를
+ * 처리할 수 없어요"). 그 줄은 두 가지를 잘못했다: 계약의 enum 을 그대로 읽어 관리자에게
+ * 필드 이름을 먼저 배우게 했고(wire 어휘는 UI 문장이 아니다), 카드 셋이 이미 조건별로
+ * 말하는 이유를 머리에서 한 번 더 말해 같은 사실이 두 벌이 됐다. 머리는 결정만 진다 —
+ * 무엇이 왜 막혔는지는 그 조건의 카드가 안다.
+ */
+const UNMET = '승인 조건이 충족되지 않았습니다.';
 
 export function foldApprovalHead(
   tcStatus: string | null | undefined,
@@ -95,6 +113,7 @@ export function foldApprovalHead(
       pill: { tone: 'off', label: '결과 확인 중' },
       desc: '연결 테스트 결과를 확인하고 있어요.',
       canApprove: false,
+      unmet: false,
     };
   }
   if (statusFailed) {
@@ -102,22 +121,26 @@ export function foldApprovalHead(
       pill: { tone: 'err', label: '확인 실패' },
       desc: '완료 승인 상태를 확인하지 못했어요.',
       canApprove: false,
+      unmet: false,
     };
   }
   if (tcStatus === TC_REJECTED) {
     return {
       pill: { tone: 'warn', label: '재실행 요청됨' },
-      desc: '재실행을 요청했습니다. 서비스가 다시 완료 승인을 요청하면 처리할 수 있습니다.',
+      desc: UNMET,
       canApprove: false,
+      unmet: true,
     };
   }
   if (tcStatus !== TC_COMPLETED) {
-    // 서비스 쪽 실제 버튼 이름(승인 요청, Step 5 카드)으로 말한다 — 화면에 없는
-    // 이름을 안내하면 관리자가 서비스에 전달할 때 서로 다른 버튼을 찾게 된다.
+    // 버튼 이름 안내(5단계 · 승인 요청)는 조건 ① 카드의 C-1 캡션으로 옮겨졌다 — 머리는
+    // 결정만 지고 여기 desc 는 UNMET 하나라 어느 이름도 부르지 않는다. 그 캡션이 서는
+    // 조건은 `showsHandoffCaption` 이 진다.
     return {
       pill: { tone: 'off', label: '완료 승인 대기' },
-      desc: '서비스가 5단계에서 완료 승인을 요청하면 처리할 수 있습니다.',
+      desc: UNMET,
       canApprove: false,
+      unmet: true,
     };
   }
   // 조건 ② — 최신 실행이 성공이라고 말할 때만 다음 조건으로 넘어간다.
@@ -127,32 +150,37 @@ export function foldApprovalHead(
     case 'failed':
       return {
         pill: { tone: 'err', label: '승인 불가' },
-        desc: '최신 연결 테스트가 실패했어요 — 설치 완료를 처리할 수 없어요.',
+        desc: UNMET,
         canApprove: false,
+        unmet: true,
       };
     case 'open':
       return {
         pill: { tone: 'off', label: '테스트 진행 중' },
-        desc: '연결 테스트가 아직 끝나지 않았어요.',
+        desc: UNMET,
         canApprove: false,
+        unmet: true,
       };
     case 'none':
       return {
         pill: { tone: 'off', label: '결과 없음' },
-        desc: '연결 테스트 실행 기록이 없어 설치 완료를 처리할 수 없어요.',
+        desc: UNMET,
         canApprove: false,
+        unmet: true,
       };
     case 'error':
       return {
         pill: { tone: 'err', label: '확인 실패' },
         desc: '연결 테스트 결과를 확인하지 못했어요.',
         canApprove: false,
+        unmet: false,
       };
     case 'unknown':
       return {
         pill: { tone: 'off', label: '미확인' },
-        desc: '연결 테스트 결과를 판정할 수 없어 설치 완료를 처리할 수 없어요.',
+        desc: '연결 테스트 결과를 판정할 수 없어요.',
         canApprove: false,
+        unmet: false,
       };
   }
   switch (dag.phase) {
@@ -161,12 +189,14 @@ export function foldApprovalHead(
         pill: { tone: 'off', label: '헬스 확인 중' },
         desc: '모니터링 상태를 확인하고 있어요.',
         canApprove: false,
+        unmet: false,
       };
     case 'failed':
       return {
         pill: { tone: 'err', label: '확인 실패' },
         desc: '모니터링 상태를 확인하지 못했어요.',
         canApprove: false,
+        unmet: false,
       };
     case 'loaded': {
       const verdict = healthVerdict(dag.data.healthStatus);
@@ -176,20 +206,23 @@ export function foldApprovalHead(
             pill: { tone: 'ok', label: '처리 대기' },
             desc: '세 조건이 모두 충족됐어요 — 설치를 완료 처리할 수 있어요.',
             canApprove: true,
+            unmet: false,
           };
         case 'unhealthy':
           return {
             pill: { tone: 'err', label: '승인 불가' },
-            desc: '모니터링이 UNHEALTHY 상태예요 — 설치 완료를 처리할 수 없어요.',
+            desc: UNMET,
             canApprove: false,
+            unmet: true,
           };
         case 'unknown':
           // Wire vocabulary (enum raw, field name) never rides in sentence-tier
           // copy — the raw value lives in the checklist row's tooltip channel.
           return {
             pill: { tone: 'off', label: '미확인' },
-            desc: '모니터링 상태를 판정할 수 없어 설치 완료를 처리할 수 없어요.',
+            desc: '모니터링 상태를 판정할 수 없어요.',
             canApprove: false,
+            unmet: false,
           };
       }
     }

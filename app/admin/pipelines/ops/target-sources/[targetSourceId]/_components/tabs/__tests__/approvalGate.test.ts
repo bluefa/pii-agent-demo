@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
 import { describe, it, expect } from 'vitest';
 import {
   aggregateDagStatus,
@@ -44,6 +46,39 @@ const response = (healthStatus: string, dbs: DagDatabaseStatus[] = []): DagStatu
   ],
 });
 
+/**
+ * 주석을 걷어 낸 소스만 남긴다 — 같은 장치가 두 파일에 같은 텍스트로 산다
+ * (health-copy-scope.test.ts · approvalGate.test.ts). 걷지 않으면 다음 라운드가 문장을
+ * 화면에서 지우고 주석에 인용만 남겨도 소스를 읽는 검사가 초록으로 남는다 — **주석이
+ * 화면인 척한다**. 가정이 아니라 관측이다: 첫 실행이 ⛔ 블록 안에 인용해 둔 옛 문구를
+ * 잡고 빨갛게 떨어졌다.
+ *
+ * 줄 주석 패턴에 `^\s*` 앵커를 두지 않는 이유는 꼬리 주석이 더 흔한 갈래이기 때문이다 —
+ * `value: '기록 없음' // 옛 문구 '…'` 는 줄 맨 앞에서 시작하지 않아 앵커 붙은 패턴을
+ * 그대로 빠져나갔다. 대신 이 탐욕스러운 형태는 문자열 리터럴 안의 `//` (URL 같은) 까지
+ * 함께 먹는다. 지금 이 helper 가 걷는 소스(ApprovalTab.tsx · AirflowTab.tsx)에는 `://` 가
+ * 하나도 없어서 안전하지만, 하나라도 들어오면 이 패턴을 다시 봐야 한다.
+ */
+const code = (src: string): string =>
+  src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
+
+/**
+ * 승인 탭의 소스(주석 제외). 머리 문장이 하나로 접히면서(오너 2026-08-26) "무엇이 왜
+ * 막혔는지"는 조건 카드로 이사했는데, 그 문장들은 카드 fold 안의 리터럴이라 부를 손잡이가
+ * 없다. 검사가 지키는 것은 렌더 결과가 아니라 **그 사실들이 화면 어딘가에 남아 있다는
+ * 것**이다.
+ */
+const approvalTabSource = (): string =>
+  code(
+    readFileSync(
+      path.join(
+        process.cwd(),
+        'app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/ApprovalTab.tsx',
+      ),
+      'utf8',
+    ),
+  );
+
 const loaded = (healthStatus: string): DagFetch => ({
   phase: 'loaded',
   data: response(healthStatus),
@@ -54,13 +89,29 @@ const loaded = (healthStatus: string): DagFetch => ({
 // per row. The approve CTA mounts on exactly one of them: ① 완료 승인 ∧ ② 최신 실행
 // 성공 ∧ ③ HEALTHY.
 describe('foldApprovalHead', () => {
-  it('row 1 — TC 미완료: both CTAs unmounted, 서비스 쪽 버튼 이름(완료 승인)으로 말한다', () => {
+  it('row 1 — TC 미완료: CTA 잠김, 머리는 미충족만 말한다', () => {
     const head = foldApprovalHead(null, false, 'success', { phase: 'loading' });
     expect(head.canApprove).toBe(false);
+    expect(head.unmet).toBe(true);
     expect(head.pill).toEqual({ tone: 'off', label: '완료 승인 대기' });
+    // 머리는 결정만 진다 — 어느 단계에서 무엇을 눌러야 하는지는 조건 ① 카드의 것이다.
+    expect(head.desc).not.toContain('5단계');
+  });
+
+  it('서비스 쪽 버튼 이름(5단계 · 승인 요청)은 조건 ① 카드가 계속 안내한다', () => {
     // Step 5 CTA 의 실제 라벨은 "승인 요청" — 화면에 없는 이름을 안내하지 않는다.
-    expect(head.desc).toContain('완료 승인');
-    expect(head.desc).toContain('5단계');
+    // 머리에서 걷어 낸 안내가 카드에도 없으면 관리자는 서비스에 전달할 말을 잃는다.
+    const src = approvalTabSource();
+    expect(src).toContain('5단계 연결 테스트에서 승인 요청');
+    // 문장이 소스에 있다는 것과 화면에 설 수 있다는 것은 다르다 — 이 캡션은
+    // `showsHandoffCaption` 이 참일 때만 나온다. 술어 자체를 여기서 한 번 못 박고,
+    // 그 술어가 캡션의 렌더 게이트에 아직 걸려 있는지도 본다.
+    expect(showsHandoffCaption(null, 'SUCCESS')).toBe(true);
+    // 잡는 것: 게이트를 지우거나 `facts: false && showsHandoffCaption(...)` 처럼 상수로
+    // 무력화해 캡션이 어느 상태에서도 못 서게 만드는 변형.
+    // 못 잡는 것: 호출은 그대로 두고 뜻만 뒤집는 변형(`facts: !showsHandoffCaption(...)`)
+    // 이나, 캡션 JSX 를 렌더하지 않는 다른 경로로 옮기는 변형. 렌더 검사가 아니다.
+    expect(src).toMatch(/facts:\s*showsHandoffCaption\(/);
   });
 
   it('row 2 — REJECTED: both CTAs unmounted regardless of dag state', () => {
@@ -116,11 +167,31 @@ describe('foldApprovalHead', () => {
     }
   });
 
-  it('도착 전·실행 실패·이력 없음·조회 실패는 서로 다른 문장이다 (실패 ≠ 빈 결과 ≠ 모름)', () => {
-    const descs = (['loading', 'failed', 'none', 'error'] as const).map(
-      (run) => foldApprovalHead('TEST_CONNECTION_COMPLETED', false, run, loaded('HEALTHY')).desc,
+  it('머리는 모름과 미충족을 가른다 — 확인 못 한 것을 "충족되지 않았다"고 하지 않는다', () => {
+    const head = (run: Parameters<typeof foldApprovalHead>[2]) =>
+      foldApprovalHead('TEST_CONNECTION_COMPLETED', false, run, loaded('HEALTHY'));
+    // 판정: 조건이 실제로 안 풀린 상태 — 경고 아이콘이 서는 자리다.
+    for (const run of ['failed', 'none', 'open'] as const) expect(head(run).unmet).toBe(true);
+    // 모름: 아직 답이 없거나 조회가 거절됐다. 문장도 따로 서야 한다.
+    for (const run of ['loading', 'error', 'unknown'] as const) {
+      expect(head(run).unmet).toBe(false);
+      expect(head(run).desc).not.toBe(head('failed').desc);
+    }
+    // 셋끼리도 갈라야 한다 — 미충족과만 견주면 '조회 실패'와 '판정할 수 없음'을 같은
+    // 문장으로 접어도 초록으로 남는다.
+    expect(new Set((['loading', 'error', 'unknown'] as const).map((r) => head(r).desc)).size).toBe(
+      3,
     );
-    expect(new Set(descs).size).toBe(4);
+  });
+
+  it('실패 ≠ 빈 결과 ≠ 모름 — 갈라 말하는 자리가 머리에서 조건 ② 카드로 옮겨졌다', () => {
+    const src = approvalTabSource();
+    const evidence = [
+      '연결 실패',
+      '연결 테스트 실행 기록이 없습니다',
+      '실행 정보를 불러오지 못했습니다',
+    ];
+    for (const line of evidence) expect(src).toContain(line);
   });
 
   it('status 조회 실패는 미요청과 다른 문장이다 — 404 가 아닌 거절은 모름이다', () => {
