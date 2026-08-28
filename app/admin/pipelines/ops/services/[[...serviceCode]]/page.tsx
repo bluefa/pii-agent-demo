@@ -7,6 +7,8 @@
  * 서 있고 우측만 갈린다 (이유는 layout.tsx 주석).
  */
 import { cn } from '@/lib/theme';
+import { getMeOrNull } from '@/lib/bff/current-user';
+import { isAdminRole } from '@/lib/roles';
 import { PlEmptyState } from '@/app/admin/pipelines/_components/PlEmptyState';
 import { serviceListStyles as s } from '@/app/admin/pipelines/_services/styles';
 import { ServiceDetailView } from '@/app/admin/pipelines/ops/services/_components/ServiceDetailView';
@@ -37,6 +39,18 @@ export default async function OpsServicesPage({
     );
   }
 
+  // 운영 동작 두 개는 관리자만 본다. `/admin/**` 은 layout 이 이미 서버에서 막지만,
+  // 버튼 자체도 권한을 물어야 한다는 오너 요구다. `getMeOrNull` 은 request-scoped
+  // (`cache`) 라 TopNav 가 이미 부른 응답을 다시 쓴다 — 호출이 늘지 않고, 실패는
+  // 예외가 아니라 null 이므로 "관리자가 아니다" 로 접힌다.
+  const me = await getMeOrNull();
+
   // key 로 갈아끼워 이전 서비스 데이터가 남지 않게 한다.
-  return <ServiceDetailView key={selectedCode} serviceCode={selectedCode} />;
+  return (
+    <ServiceDetailView
+      key={selectedCode}
+      serviceCode={selectedCode}
+      isAdmin={isAdminRole(me?.role)}
+    />
+  );
 }

@@ -251,6 +251,21 @@ export const getOpsTargetSources = (
 export const getOpsService = (serviceCode: string): Promise<OpsServiceDetail> =>
   fetchInfraJson<OpsServiceDetail>(`/admin/ops/services/${encodeURIComponent(serviceCode)}`);
 
+/**
+ * 서비스 운영 상세의 두 동작. 업스트림은 경로의 serviceCode 하나만 받는 본문 없는
+ * 쓰기이고 응답 본문을 선언하지 않는다 — 라우트가 `{ success: true }` 로 접어 주므로
+ * 화면이 읽는 값은 그 한 칸뿐이다. 결과는 화면을 다시 읽어(reload) 확인한다.
+ */
+export const updateServiceInstalled = (serviceCode: string): Promise<{ success: boolean }> =>
+  fetchInfraJson(`/admin/ops/services/${encodeURIComponent(serviceCode)}/service-installed`, {
+    method: 'POST',
+  });
+
+export const endOfService = (serviceCode: string): Promise<{ success: boolean }> =>
+  fetchInfraJson(`/admin/ops/services/${encodeURIComponent(serviceCode)}/end-of-service`, {
+    method: 'POST',
+  });
+
 /* ── Jira Ticket 연결 — REAL contract (docs/api/jira-tickets.md §1) ── */
 
 /** Jira ticket 연결 키. 서비스 1건은 provider 마다 티켓을 최대 1개 갖는다. */
