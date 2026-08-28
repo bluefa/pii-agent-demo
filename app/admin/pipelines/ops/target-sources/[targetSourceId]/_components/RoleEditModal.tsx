@@ -108,7 +108,10 @@ export function RoleEditModal({
         {/* 구분점은 칩과 한 몸이다 — 따로 두면 무표기 권역에서 계정 뒤에 점 하나가 매달린다. */}
         {regionLabel && (
           <>
-            <span className="text-[var(--pl-text-faint)]">·</span>
+            {/* `--pl-text-faint` measures 2.58:1 on white — under any threshold, and this
+                separator is the only thing telling the account id from the partition beside
+                it. `--pl-text-weak` reads 4.97:1 and still recedes behind both values. */}
+            <span className="text-[var(--pl-text-weak)]">·</span>
             <span className="inline-flex items-center rounded bg-[var(--pl-primary-bg)] px-1.5 py-0.5 text-[10px] font-medium text-[var(--pl-primary)]">
               {regionLabel}
             </span>
