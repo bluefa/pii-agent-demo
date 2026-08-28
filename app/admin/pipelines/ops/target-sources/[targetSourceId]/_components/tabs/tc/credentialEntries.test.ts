@@ -4,7 +4,6 @@ import type { ConfirmedIntegrationResourceItem } from '@/app/lib/api';
 import {
   credentialEntries,
   filterCredentials,
-  orderByRequest,
 } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/logic';
 
 const secret = (name: string, lastUpdatedTime = ''): SecretKey => ({ name, lastUpdatedTime });
@@ -90,28 +89,5 @@ describe('filterCredentials', () => {
   it('does not mutate the input array', () => {
     filterCredentials(entries, '');
     expect(entries).toHaveLength(3);
-  });
-});
-
-describe('orderByRequest', () => {
-  const rows = [resource('c', null), resource('a', null), resource('b', null)];
-  const ids = (list: ConfirmedIntegrationResourceItem[]): (string | null | undefined)[] =>
-    list.map((row) => row.resource_id);
-
-  it('restates confirmed rows in the Step 2 request order', () => {
-    expect(ids(orderByRequest(rows, ['a', 'b', 'c']))).toEqual(['a', 'b', 'c']);
-  });
-
-  it('appends resources the request never listed, keeping their relative order', () => {
-    expect(ids(orderByRequest(rows, ['b']))).toEqual(['b', 'c', 'a']);
-  });
-
-  it('keeps the confirmed order when the request could not be loaded', () => {
-    expect(ids(orderByRequest(rows, []))).toEqual(['c', 'a', 'b']);
-  });
-
-  it('does not drop rows whose resource_id is absent', () => {
-    const withBlank = [...rows, resource('', null)];
-    expect(orderByRequest(withBlank, ['a'])).toHaveLength(4);
   });
 });

@@ -38,7 +38,6 @@ import {
 } from '@/app/lib/api';
 import type { SecretKey } from '@/lib/types';
 import type { TcResultRow } from '@/app/lib/api/task-queue-tc';
-import { getApprovalRequestLatest } from '@/app/lib/api/task-queue-requests';
 import { usePlToast } from '@/app/admin/pipelines/_components/usePlToast';
 import { TcLatestRunCard } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/TcLatestRunCard';
 import { TcRunHistoryModal } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/TcRunHistoryModal';
@@ -50,7 +49,6 @@ import {
   bandUnitIds,
   credentialMissingCount,
   isRunOpen,
-  orderByRequest,
   tcFactsByResource,
   toConfirmedUnits,
 } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/logic';
@@ -95,9 +93,6 @@ export function TcTab({
   const reload = useCallback(() => setReloadKey((key) => key + 1), []);
 
   const [confirmedRows, setConfirmedRows] = useState<ConfirmedIntegrationResourceItem[]>([]);
-  // Step 2(연동 요청) 표의 리소스 순서 — 확정 정보를 같은 순서로 세워 두 화면을 행 단위로
-  // 대조할 수 있게 한다.
-  const [requestOrder, setRequestOrder] = useState<string[]>([]);
   const [secrets, setSecrets] = useState<SecretKey[]>([]);
   const [confirmedFailed, setConfirmedFailed] = useState(false);
   const [secretsFailed, setSecretsFailed] = useState(false);
@@ -111,19 +106,12 @@ export function TcTab({
     let cancelled = false;
     (async () => {
       // Best-effort: a failed credential list must not blank the resource table,
-      // and vice versa. The approval request is fetched only for its row ORDER —
-      // losing it leaves the confirmed order, never an empty table.
-      const [confirmed, secretList, request] = await Promise.allSettled([
+      // and vice versa.
+      const [confirmed, secretList] = await Promise.allSettled([
         getConfirmedIntegration(targetSourceId),
         getSecrets(targetSourceId),
-        getApprovalRequestLatest(targetSourceId),
       ]);
       if (cancelled) return;
-      setRequestOrder(
-        request.status === 'fulfilled'
-          ? request.value.resources.map((resource) => resource.resourceId ?? '').filter(Boolean)
-          : [],
-      );
       if (confirmed.status === 'fulfilled') {
         setConfirmedRows(confirmed.value.resource_infos ?? []);
         setConfirmedFailed(false);
@@ -145,12 +133,11 @@ export function TcTab({
   // triggered by a write in the tab keeps the current values on screen instead of
   // blanking every card until the refetch lands.
   const settled = loadedKey !== null;
-  const orderedRows = orderByRequest(confirmedRows, requestOrder);
   // The progress denominator counts what the test reports on, not what the table lists:
   // one Athena region is one result no matter how many databases it holds. Counting rows
   // here would print 진행 5/7 on a run that only ever produces five results — the same
   // miscount the user-side Step 5 card documents (ConnectionTestCard's TestUnit).
-  const units = toConfirmedUnits(orderedRows);
+  const units = toConfirmedUnits(confirmedRows);
   // 밴드의 분모이자 무보고를 셀 수 있게 하는 집합. 확정 조회가 404·실패면 실행이 실제로
   // 보고한 id 로 떨어진다 — 빈 목록이면 `ok === total` 이 저절로 성립해 아무것도 확인하지
   // 않은 실행을 "모두 성공"이라 부르게 된다.
@@ -233,7 +220,7 @@ export function TcTab({
         <ConfirmedInfoCard
           targetSourceId={targetSourceId}
           isIdc={isIdc}
-          rows={orderedRows}
+          rows={confirmedRows}
           secrets={secrets}
           tcResults={statusLoaded ? results : []}
           facts={tcFactsByResource(statusLoaded ? latest : null)}
@@ -259,7 +246,7 @@ export function TcTab({
       {credentialsOpen && (
         <TcCredentialModal
           secrets={secrets}
-          rows={orderedRows}
+          rows={confirmedRows}
           failed={secretsFailed}
           onClose={() => setCredentialsOpen(false)}
         />

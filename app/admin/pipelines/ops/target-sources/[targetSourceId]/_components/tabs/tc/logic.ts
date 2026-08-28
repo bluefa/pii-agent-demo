@@ -234,29 +234,6 @@ export function runDurationSeconds(
   return (end - start) / 1000;
 }
 
-/**
- * 확정 리소스를 Step 2(연동 요청) 표와 같은 순서로 정렬한다. 두 화면이 같은 리소스를
- * 다른 순서로 보여주면 관리자가 행을 눈으로 대조할 수 없다.
- *
- * 요청 목록에 없는 리소스(요청 이후 추가/변경분)는 원래 순서를 유지한 채 뒤에 붙는다 —
- * 임의로 섞거나 숨기지 않는다. 요청 목록을 못 받았으면 확정 순서를 그대로 쓴다.
- */
-export function orderByRequest<T extends { resource_id?: string | null }>(
-  rows: readonly T[],
-  requestOrder: readonly string[],
-): T[] {
-  if (requestOrder.length === 0) return [...rows];
-  const rank = new Map(requestOrder.map((id, index) => [id, index]));
-  return rows
-    .map((row, index) => ({ row, index }))
-    .sort((a, b) => {
-      const ra = rank.get(a.row.resource_id ?? '') ?? Number.MAX_SAFE_INTEGER;
-      const rb = rank.get(b.row.resource_id ?? '') ?? Number.MAX_SAFE_INTEGER;
-      return ra - rb || a.index - b.index;
-    })
-    .map((entry) => entry.row);
-}
-
 /** One credential list row: a contract credential, or an assignment the list lost. */
 export interface CredentialEntry {
   name: string;
