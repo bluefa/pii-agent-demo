@@ -300,13 +300,14 @@ export const WaitingApprovalCard = ({
           <>
             <p className={cn('mt-3', cardStyles.guidance)}>
               <strong className={cn('font-semibold', primaryColors.text)}>
-                관리자 승인을 기다리고 있어요.
+                관리자가 제출된 연동 대상 DB를 확인하고 있어요.
               </strong>{' '}
-              평균 1영업일 내 검토되며, 결과는 이 화면에서 확인할 수 있어요.
+              보통 하루 안에 확인이 완료되며, 이슈가 없으면 다음 단계로 넘어가요. 반려된 경우, 사유를
+              확인한 후 다시 제출해주세요.
             </p>
             {/* mt 없음 — 행간 여백(leading 1.55)만으로 문단을 가른다 (기존 mt-1에서 −4px). */}
             <p className={cardStyles.guidance}>
-              연동 대상을 다시 고르고 싶다면 우측 상단{' '}
+              제출한 연동 대상 DB 정보를 수정하고 싶다면{' '}
               <strong className={cn('font-semibold', textColors.secondary)}>다시 요청하기</strong>를
               눌러주세요.
             </p>

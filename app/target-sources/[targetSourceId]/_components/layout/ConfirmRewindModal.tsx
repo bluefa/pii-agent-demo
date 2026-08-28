@@ -25,8 +25,8 @@ interface ConfirmStepContent {
  */
 const CONTENT: Record<ConfirmRewindKind, ConfirmStepContent> = {
   retest: {
-    // Matches the trigger's wording (연결 재확인) rather than restating the step name.
-    title: '연결을 다시 확인할까요?',
+    // Matches the trigger's wording (연결 테스트 재실행) rather than restating the step name.
+    title: '연결 테스트를 다시 실행할까요?',
     // One sentence, no loss line. What happens IS "you go back to step 5" — the earlier
     // "6 · 7단계 진행 상태는 초기화돼요" restated that in the system's own bookkeeping terms,
     // and the sibling rewind dialog (step 2 → step 1) carries no loss line either.
@@ -63,7 +63,7 @@ interface ConfirmRewindModalProps {
 }
 
 /**
- * Confirm-rewind dialog — the 인프라 변경 / 연결 재확인 actions open this before rewinding
+ * Confirm-rewind dialog — the 인프라 변경 / 연결 테스트 재실행 actions open this before rewinding
  * the step. Runs on the shared ConfirmStepModal chrome (steps 1·2·3 open the same dialog), so
  * this file owns only what is specific to a rewind: the consequence line, the `warning` tone
  * on the commit button, and — for `infra` — the reset reason the API requires. Open when

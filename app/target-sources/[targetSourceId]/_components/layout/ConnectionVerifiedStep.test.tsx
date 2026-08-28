@@ -102,15 +102,15 @@ describe('ConnectionVerifiedStep', () => {
     expect(screen.getByText('6단계')).toBeTruthy();
   });
 
-  it('renders the merged guidance sentence (header subtitle + banner copy were one message)', () => {
+  it('renders the status sentence and what the approval leads to', () => {
     renderStep();
-    expect(screen.getByText('최종 관리자 승인을 기다리고 있어요.')).toBeTruthy();
-    expect(screen.getByText(/PII Agent 운영팀의 승인이 완료되면 모니터링이 즉시 시작됩니다/)).toBeTruthy();
+    expect(screen.getByText('PII Agent 설치 완료 승인을 위해 동작을 점검하고 있어요.')).toBeTruthy();
+    expect(screen.getByText(/승인이 완료되면 PII Agent 연동이 완료돼요/)).toBeTruthy();
   });
 
   it('explains when to press the retest button in the guidance copy', () => {
     renderStep();
-    expect(screen.getByText(/통합 테스트 결과가 잘못됐거나 연결 테스트를 한 번 더 수행하고 싶다면/)).toBeTruthy();
+    expect(screen.getByText(/논리 DB 연동 대상을 수정하거나 연결 테스트를 다시 수행하고 싶다면/)).toBeTruthy();
   });
 
   it('mounts the ConfirmedResourcesSlot', () => {
@@ -118,16 +118,16 @@ describe('ConnectionVerifiedStep', () => {
     expect(screen.getByTestId('confirmed-resources-slot')).toBeTruthy();
   });
 
-  it('renders the 연결 재확인 button', () => {
+  it('renders the 연결 테스트 재실행 button', () => {
     renderStep();
-    expect(screen.getByRole('button', { name: /연결 재확인/ })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /연결 테스트 재실행/ })).toBeTruthy();
   });
 
   it('opens the retest confirm modal on the shared ConfirmStepModal chrome, warning-toned', () => {
     renderStep();
-    fireEvent.click(screen.getByRole('button', { name: /연결 재확인/ }));
+    fireEvent.click(screen.getByRole('button', { name: /연결 테스트 재실행/ }));
     expect(screen.getByRole('dialog')).toBeTruthy();
-    expect(screen.getByText('연결을 다시 확인할까요?')).toBeTruthy();
+    expect(screen.getByText('연결 테스트를 다시 실행할까요?')).toBeTruthy();
     // amber fill (#-less substring: raw hex literals are banned outside theme.ts)
     expect(screen.getByRole('button', { name: '확인' }).className).toContain('B45309');
     // A rewind by one step, not a loss — no second line here (the infra rewind keeps one).
@@ -137,7 +137,7 @@ describe('ConnectionVerifiedStep', () => {
   it('확인 rolls back the acknowledgment (confirmed:false) then refetches the project', async () => {
     const onProjectUpdate = vi.fn();
     renderStep(onProjectUpdate);
-    fireEvent.click(screen.getByRole('button', { name: /연결 재확인/ }));
+    fireEvent.click(screen.getByRole('button', { name: /연결 테스트 재실행/ }));
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: '확인' }));
     });

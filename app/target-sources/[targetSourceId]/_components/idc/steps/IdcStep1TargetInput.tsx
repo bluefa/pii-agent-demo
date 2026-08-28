@@ -272,13 +272,18 @@ export const IdcStep1TargetInput = ({
               <span className={cardStyles.stepTag}>1단계</span>
               <h2 className={cardStyles.cardTitle}>연동 대상 DB 입력</h2>
             </div>
-            {/* Blue marks only what the user has to do by hand (입력·사유) — 승인 is the system's
-                part, so it stays plain. break-keep wraps by word, not by syllable. */}
+            {/* Blue names the two buttons pinned at the header right — the entry points the user
+                has to press. break-keep wraps by word, not by syllable. */}
             <p className={cn('mt-2.5 break-keep', cardStyles.guidance)}>
-              IDC 인프라는 자동 스캔이 지원되지 않아요.{' '}
-              <span className={primaryColors.text}>연동할 DB 접속 정보를 직접 입력</span>하고,
-              제외하는 DB에는 <span className={primaryColors.text}>사유를 남겨주세요</span>. 결과는
-              관리자 승인을 거쳐 확정돼요.
+              PII Agent 연동이 필요한 DB 정보를{' '}
+              <span className={primaryColors.text}>연동 대상 추가</span>에서 입력해주세요. 연동 대상
+              승인 요청으로 제출한 결과는 관리자 승인 후 최종 확정돼요.
+            </p>
+            {/* No top margin — the 1.55 leading is the paragraph break (step-2 grammar). */}
+            <p className={cn('break-keep', cardStyles.guidance)}>
+              설치 절차를 다시 진행하는 상황이라면{' '}
+              <span className={primaryColors.text}>기존 연동 요청 정보 불러오기</span>에서 과거에
+              입력한 정보를 불러올 수 있어요.
             </p>
           </div>
           <div className="flex shrink-0 items-center gap-2.5">

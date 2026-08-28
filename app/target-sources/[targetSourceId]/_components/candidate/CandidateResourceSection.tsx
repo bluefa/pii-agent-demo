@@ -702,10 +702,11 @@ export const CandidateResourceSection = ({
                     행동 두 가지(선택·사유 입력)만 파랑 — 승인은 시스템 몫이라 평문.
                     break-keep: 음절 고아("요."만 다음 줄) 방지, 단어 단위로 감는다. */}
                 <p className={cn('mt-2.5 break-keep', cardStyles.guidance)}>
-                  인프라 스캔으로 {provider} 계정의 리소스를 조회하고,{' '}
-                  <span className={primaryColors.text}>연동할 리소스를 선택</span>해요. 제외하는
-                  리소스에는 <span className={primaryColors.text}>사유가 필요</span>하고, 결과는
-                  관리자 승인을 거쳐 확정돼요.
+                  인프라 스캔을 통해 조회된 {provider} 리소스 중{' '}
+                  <span className={primaryColors.text}>PII Agent를 연동할 데이터베이스를 선택</span>
+                  해주세요. 연동에서 제외할 DB는{' '}
+                  <span className={primaryColors.text}>사유를 입력</span>해야 하며, 연동 대상 승인
+                  요청으로 제출한 결과는 관리자 승인 후 최종 확정돼요.
                 </p>
                 {/* 스캔이 못 찾는 것을 먼저 말하고 그다음 어디를 누르는지 말한다 —
                     버튼 이름만 알려주면 왜 눌러야 하는지는 여전히 모른다. 버튼이
@@ -718,9 +719,9 @@ export const CandidateResourceSection = ({
                     덩어리로 읽혀야 하고, 같은 간격을 주면 별개의 블록으로 갈라진다. */}
                 {ec2AddVisible && (
                   <p className={cn('mt-1 break-keep', cardStyles.guidance)}>
-                    EC2에 직접 설치해 쓰는 데이터베이스는 스캔이 찾지 못해요. 아래 표 오른쪽 위{' '}
-                    <span className={primaryColors.text}>EC2 추가</span>에서 Instance ID로 검색해
-                    연동 대상에 넣을 수 있어요.
+                    EC2에 직접 설치해 운영 중인 데이터베이스는 자동 스캔 대상에 포함되지 않아요. 목록
+                    우측 상단의 <span className={primaryColors.text}>EC2 추가</span>에서 Instance
+                    ID로 검색해 직접 연동 대상으로 추가해주세요.
                   </p>
                 )}
               </header>

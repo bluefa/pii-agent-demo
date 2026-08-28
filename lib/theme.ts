@@ -1686,9 +1686,9 @@ export const idcStyles = {
      *  and text-decoration stops at a flex container's atomic children. */
     linkPrimary: 'inline-flex cursor-pointer items-center gap-1 border-b border-current pb-0.5 text-[13px] font-semibold text-[#0064FF] transition-colors hover:text-[#0050D6]',
     /** `linkPrimary` in the warning tone — a rewind that resets downstream progress (Step 6
-     *  연결 재확인). Text weight rather than a filled block: the step has no primary CTA, so a
-     *  filled amber button reads as the thing to do when the user's job is to wait, and the
-     *  confirm modal already carries the warning. amber-800 on white is 7.4:1. */
+     *  연결 테스트 재실행). Text weight rather than a filled block: the step has no primary CTA,
+     *  so a filled amber button reads as the thing to do when the user's job is to wait, and
+     *  the confirm modal already carries the warning. amber-800 on white is 7.4:1. */
     linkWarn: 'inline-flex cursor-pointer items-center gap-1 border-b border-current pb-0.5 text-[13px] font-semibold text-[#92400E] transition-colors hover:text-[#78350F]',
     /** `linkPrimary` with no hue — an in-cell link that repeats once per row (Step 6 논리 DB
      *  counts). Blue and amber once per row made the two columns the loudest thing on a screen

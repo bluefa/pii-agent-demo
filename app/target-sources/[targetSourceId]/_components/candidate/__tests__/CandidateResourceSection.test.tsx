@@ -180,7 +180,7 @@ describe('CandidateResourceSection', () => {
     );
     await screen.findByRole('heading', { level: 2, name: '연동 대상 DB 선택' });
     expect(screen.getByText('1단계')).toBeTruthy();
-    expect(screen.getByText(/인프라 스캔으로 AWS 계정의 리소스를 조회하고/)).toBeTruthy();
+    expect(screen.getByText(/인프라 스캔을 통해 조회된 AWS 리소스 중/)).toBeTruthy();
   });
 
   // Lifted from CandidateResourceTable: the approve CTA + count hint render once

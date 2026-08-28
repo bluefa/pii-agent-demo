@@ -63,9 +63,13 @@ export const IdcStep3Applying = ({
           {/* Was said twice — this sentence and a green StepBanner right below it. The banner is
               gone; blue marks the status clause only. */}
           <p className={cn('mt-3', cardStyles.guidance)}>
-            <strong className={cn('font-semibold', primaryColors.text)}>승인이 완료됐어요.</strong>{' '}
-            Agent 설치에 필요한 준비를 최대한 빠르게 진행하고 있어요.
+            <strong className={cn('font-semibold', primaryColors.text)}>
+              제출한 연동 대상 DB가 승인 완료됐어요.
+            </strong>{' '}
+            PII Agent 설치에 필요한 준비를 진행하고 있어요.
           </p>
+          {/* No top margin — the 1.55 leading is the paragraph break (step-2 grammar). */}
+          <p className={cardStyles.guidance}>보통 하루 안에 작업이 완료돼요.</p>
           {/* Both come from the approved-integration response the rows came from. They used to be
               a hardcoded name and a hardcoded date fallback — the project payload has no approver,
               which is what made the invention tempting. */}

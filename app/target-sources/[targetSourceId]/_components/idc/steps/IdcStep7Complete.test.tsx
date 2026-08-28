@@ -74,10 +74,8 @@ describe('IdcStep7Complete', () => {
 
   it('renders the status line and the one-sentence CTA guidance (step-6 grammar)', () => {
     renderStep();
-    expect(
-      screen.getByText(/연동된 리소스의 PII 사용 가능성을 모니터링하고 있어요/),
-    ).toBeTruthy();
-    expect(screen.getByText(/인프라 구성이 바뀌었다면 하단/)).toBeTruthy();
+    expect(screen.getByText(/PII Agent 연동 절차가 완료되었어요/)).toBeTruthy();
+    expect(screen.getByText(/PII Agent 연동 대상 인프라가 바뀌었다면/)).toBeTruthy();
   });
 
   it('docks both rewind CTAs in the bottom action bar', () => {

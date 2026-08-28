@@ -38,7 +38,7 @@ interface LogicalDbSummaryModalProps {
  * Read-only on purpose. The Step 5 modal (LogicalDbModal) moves rows between the two
  * panels and PUTs the policy; by Step 6 the completion-approval request is already
  * filed, so editing here would leave the screen disagreeing with what was requested.
- * The way to change it is 연결 재확인, which rewinds to Step 5 — stated in the footer.
+ * The way to change it is 연결 테스트 재실행, which rewinds to Step 5 — stated in the footer.
  *
  * Same data hook as the Step 5 modal, so both screens read one source.
  */
@@ -82,8 +82,8 @@ export const LogicalDbSummaryModal = ({
       footer={
         <div className="flex w-full items-center justify-between gap-3">
           <span className={cn('text-[12px] leading-[1.5]', textColors.tertiary)}>
-            제외 대상을 바꾸려면 <strong className="font-semibold">연결 재확인</strong>으로 5단계에서
-            수정해주세요.
+            제외 대상을 바꾸려면 <strong className="font-semibold">연결 테스트 재실행</strong>으로
+            5단계에서 수정해주세요.
           </span>
           <Button variant="secondary" onClick={onClose}>
             닫기

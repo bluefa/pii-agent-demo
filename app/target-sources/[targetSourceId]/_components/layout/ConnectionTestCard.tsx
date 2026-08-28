@@ -454,9 +454,15 @@ export const ConnectionTestCard = ({
             <span className={cardStyles.stepTag}>5단계</span>
             <h2 className={cardStyles.cardTitle}>연결 테스트</h2>
           </div>
-          <p className={cn('mt-2.5', cardStyles.subtitle)}>
-            지정한 Credential로 각 대상에 실제 접속해 자격 증명, 네트워크(방화벽·보안 그룹), Agent 연결을 한 번에
-            확인합니다.
+          <p className={cn('mt-2.5 break-keep', cardStyles.subtitle)}>
+            연동 대상 DB에 접근하기 위한 PII Agent 리소스가 생성됐어요. DB Credential을 등록한 다음 DB별
+            Key를 지정하면 연결 테스트를 진행할 수 있어요. 테스트가 모두 성공하면 완료 승인 요청을 진행할
+            수 있어요.
+          </p>
+          {/* mt 없음 — 행간 여백(leading 1.55)만으로 문단을 가른다 (다른 스텝 카드와 같은 문법). */}
+          <p className={cn('break-keep', cardStyles.subtitle)}>
+            DB 내에 연동이 불필요한 논리 DB가 있다면 해당 논리 DB는 연동에서 제외할 수 있어요. 이 절차는
+            연결 테스트 완료 후에 진행할 수 있어요.
           </p>
         </div>
       </header>
