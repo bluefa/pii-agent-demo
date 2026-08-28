@@ -7,8 +7,8 @@ import { bff } from '@/lib/bff/client';
  *
  * Same shape as its sibling `service-installed`: upstream
  * `POST /install/v1/service-infos/{serviceCode}/end-of-service` is bodyless both
- * ways, so success is the status and there is no DTO to declare. Neither path is
- * in docs/swagger/install-v1.yaml yet.
+ * ways, so success is the status and there is no DTO to declare. Both paths were
+ * declared by hand in docs/swagger/install-v1.yaml from the owner's spec.
  */
 export const POST = withV1(async (_request, { params }) => {
   await bff.ops.endOfService(String(params.serviceCode));

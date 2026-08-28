@@ -263,28 +263,21 @@ export const mockOps = {
     });
   },
 
-  // POST /service-infos/{serviceCode}/update-service-installed — bodyless, no
-  // declared response. Not in install-v1.yaml, so there is no schema to author
-  // against; the mock records WHEN it ran so a repeat call is distinguishable
-  // from a first one.
+  // POST /service-infos/{serviceCode}/update-service-installed — bodyless, and
+  // install-v1.yaml declares success as a bodyless 204, so there is no schema to
+  // author against; the mock records WHEN it ran so a repeat call is
+  // distinguishable from a first one.
   updateServiceInstalled: async (serviceCode: string) => {
     if (!serviceCodes().includes(serviceCode)) return notFound('서비스를 찾을 수 없습니다.');
     serviceState(serviceCode).serviceInstalledUpdatedAt = minutesAgo(0);
     return new NextResponse(null, { status: 204 });
   },
 
-  // POST /service-infos/{serviceCode}/end-of-service — same shape. 종료는 한 번뿐이라
-  // 이미 종료된 서비스는 409 로 거른다.
+  // POST /service-infos/{serviceCode}/end-of-service — same shape. 종료 시각을
+  // 남겨 두어 종료된 서비스와 운영 중인 서비스가 구분된다.
   endOfService: async (serviceCode: string) => {
     if (!serviceCodes().includes(serviceCode)) return notFound('서비스를 찾을 수 없습니다.');
-    const state = serviceState(serviceCode);
-    if (state.endOfServiceAt) {
-      return NextResponse.json(
-        { error: 'CONFLICT', message: '이미 종료된 서비스입니다.' },
-        { status: 409 },
-      );
-    }
-    state.endOfServiceAt = minutesAgo(0);
+    serviceState(serviceCode).endOfServiceAt = minutesAgo(0);
     return new NextResponse(null, { status: 204 });
   },
 };

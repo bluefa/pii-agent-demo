@@ -442,8 +442,9 @@ export interface BffClient {
      * whole request, and neither endpoint declares a response body — so both
      * return `void` and nothing downstream reads a result.
      *
-     * NOT declared in docs/swagger/install-v1.yaml (owner confirmed 2026-08-28),
-     * so there is no generated zod schema for either one — do not go looking.
+     * Declared by hand in docs/swagger/install-v1.yaml from the owner's spec
+     * (2026-08-28), and the declaration carries no schema — success is a bodyless
+     * 204 — so there is no generated zod schema for either one; do not go looking.
      */
     updateServiceInstalled: (serviceCode: string) => Promise<void>;
     endOfService: (serviceCode: string) => Promise<void>;

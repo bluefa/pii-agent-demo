@@ -419,8 +419,9 @@ export const httpBff: BffClient = {
       const res = await getRaw(`/pipeline-manager/airflow-host?databaseUri=${enc(databaseUri)}`);
       return parseAirflowHostBody(await res.text());
     },
-    // 서비스 운영 상세의 두 버튼. Neither path is declared in install-v1.yaml
-    // (owner confirmed 2026-08-28), so there is no schema to parse against.
+    // 서비스 운영 상세의 두 버튼. Both paths are declared in install-v1.yaml by
+    // hand from the owner's spec (2026-08-28), with a bodyless 204 for success —
+    // so there is still no schema to parse against.
     //
     // `send` directly rather than `post`: these are status-only writes with no
     // declared response body, and `post` cannot pass `emptyBodyOk` — a 200 with

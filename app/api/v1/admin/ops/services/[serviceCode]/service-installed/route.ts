@@ -8,7 +8,7 @@ import { bff } from '@/lib/bff/client';
  * Upstream is `POST /install/v1/service-infos/{serviceCode}/update-service-installed`,
  * a bodyless write with no declared response body: the path is the whole request,
  * and success is the status. Nothing is parsed on the way back, so this route has
- * no DTO — the pair is not declared in docs/swagger/install-v1.yaml yet.
+ * no DTO — docs/swagger/install-v1.yaml declares the pair as a bodyless 204.
  *
  * No role guard here. Authorization is the BFF's, matching every other admin route
  * under this tree (see the comment in app/admin/layout.tsx).

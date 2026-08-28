@@ -3052,6 +3052,136 @@ paths:
                 $ref: "#/components/schemas/ErrorMessage"
         "204":
           description: No Content
+  # Declared by hand from the owner's spec (2026-08-28): both endpoints exist
+  # upstream but the BE api-docs drop we have predates them. Bodyless request
+  # (the path serviceCode is the whole request) and void response; errors follow
+  # the surrounding operations. A regenerated spec supersedes this block.
+  /install/v1/service-infos/{serviceCode}/update-service-installed:
+    post:
+      tags:
+      - Services
+      summary: Update service installation status
+      operationId: updateServiceInstalled
+      parameters:
+      - name: serviceCode
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        "400":
+          description: Bad Request
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "502":
+          description: Bad Gateway
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "500":
+          description: Internal Server Error
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "501":
+          description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "503":
+          description: Service Unavailable
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "404":
+          description: Not Found
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "403":
+          description: Forbidden
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "409":
+          description: Conflict
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "204":
+          description: No Content
+  /install/v1/service-infos/{serviceCode}/end-of-service:
+    post:
+      tags:
+      - Services
+      summary: End service
+      operationId: endOfService
+      parameters:
+      - name: serviceCode
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        "400":
+          description: Bad Request
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "502":
+          description: Bad Gateway
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "500":
+          description: Internal Server Error
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "501":
+          description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "503":
+          description: Service Unavailable
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "404":
+          description: Not Found
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "403":
+          description: Forbidden
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "409":
+          description: Conflict
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "204":
+          description: No Content
   /install/v1/pipelines/{pipelineId}/cancel:
     post:
       tags:
