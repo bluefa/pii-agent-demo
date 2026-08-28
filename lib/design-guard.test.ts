@@ -563,11 +563,6 @@ const TEXT: TextPair[] = [
   // Stepper labels are text; the dots are the state markers, i.e. non-text per 1.4.11.
   { what: 'stepper rest label on the page wash', fg: textOf(classOf(stepperBlock, 'labelRest')), on: canvas },
   { what: 'stepper current label on the page wash', fg: textOf(classOf(stepperBlock, 'labelCurrent')), on: canvas },
-  // A struck step (SDU 2·3·5) is still a sentence the reader has to be able to read — the
-  // strike says it is not on their road, not that it is decoration. #6B7684, the quiet
-  // tier's usual grey, measures 4.22:1 on this wash: the same AA miss that moved the
-  // header's `kvLabel` to #68717F, and the reason this token does not share that grey.
-  { what: 'stepper struck label on the page wash', fg: textOf(classOf(stepperBlock, 'labelSkipped')), on: canvas },
   { what: 'stepper pending dot on the page wash', fg: bgOf(classOf(stepperBlock, 'dotPending')), on: canvas, min: 3.0 },
   { what: 'stepper done dot on the page wash', fg: bgOf(classOf(stepperBlock, 'dotDone')), on: canvas, min: 3.0 },
   { what: 'stepper current dot on the page wash', fg: bgOf(classOf(stepperBlock, 'dotCurrent')), on: canvas, min: 3.0 },

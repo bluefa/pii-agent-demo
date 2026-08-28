@@ -1137,18 +1137,6 @@ export const installStepperStyles = {
   /** Walked and unwalked steps share one label color — the dots already say which is which. */
   labelRest: 'font-medium text-[#4E5968]',
   labelCurrent: 'font-semibold text-[#0050D6]',
-  /**
-   * A step this integration type never walks (SDU: 2·3·5). Struck, and one tint quieter
-   * than `labelRest` — the strike says "not on this road" and the ink says "and it is not
-   * the thing to read here". It is NOT dropped from the list: a reader whose road is
-   * missing 승인 대기 asks why, and a gap answers nothing.
-   *
-   * #68717F, not the #6B7684 the quiet tier reaches for: this label stands on the page
-   * wash (#F4F4FB), where #6B7684 measures 4.22:1 — the same AA miss the header's
-   * `kvLabel` moved off for. 4.51:1 here. ⛔ It is still text, so `quaternary`-class greys
-   * are not available no matter how struck it is.
-   */
-  labelSkipped: 'font-medium text-[#68717F] line-through',
 } as const;
 
 /**

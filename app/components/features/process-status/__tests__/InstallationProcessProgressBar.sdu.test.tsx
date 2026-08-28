@@ -83,9 +83,11 @@ describe('InstallationProcessProgressBar — no slot is struck any more', () => 
       (li) => li.lastElementChild?.className ?? '',
     );
     // ⛔ The line-through tier belonged to the seven-slot road. A four-step road has no
-    // step to strike: every slot on it is one the owner walks.
+    // step to strike: every slot on it is one the owner walks. Matched on the utility
+    // itself, not on a token name — a struck label re-added under any other name still
+    // trips this.
     for (const label of labels) {
-      expect(label).not.toContain(installStepperStyles.labelSkipped);
+      expect(label).not.toContain('line-through');
     }
   });
 });

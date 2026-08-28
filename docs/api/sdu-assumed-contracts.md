@@ -154,8 +154,8 @@ GET /install/v1/target-sources/{targetSourceId}/sdu/upload
      firewall: {
        rows: [{ region, s3_endpoint: string, port: number, destination_ips: string[] }],
        acked: boolean,
-       acked_at: string | null,     // admin-only; the owner screen does not read these
-       acked_by: { id, name, email } | null,
+       acked_at: string | null,     // the owner screen reads this one — see below
+       acked_by: { id, name, email } | null,   // admin evidence row only
      },
      access_key_recipients: {
        users:      [{ id: string, name: string, email: string }],
@@ -225,11 +225,16 @@ recording something the screen never asked.
 `false` is a first-class value, not a missing answer. The upload-step gates block forward
 only — a finished block folds, it does not lock — so every one of them keeps a way back.
 
-A write also stamps `acked_at`/`acked_by` (§4). Taking an answer back stamps them too
-rather than clearing them: undoing is also something somebody did. Those two fields are
-what the admin console's 승인 조건 ① reads as its 근거 — there is **no history endpoint**,
-and the storyboard's accumulating 응답 이력 table is not built (the per-region answers that
-justified it are gone; see the handoff §9.1). The owner's own screen never reads them.
+A write also stamps `acked_at`/`acked_by` (§4) — **including a write of `false`.** Taking an
+answer back stamps them too rather than clearing them: undoing is also something somebody
+did. `acked_by` is what the admin console's 승인 조건 ① reads as its 근거 — there is **no
+history endpoint**, and the storyboard's accumulating 응답 이력 table is not built (the
+per-region answers that justified it are gone; see the handoff §9.1).
+
+`acked_at` the owner's screen *does* read, and not to draw a time: it is the only thing that
+separates 「아니오」 from 「not asked yet」, because `acked` is false in both. `answerOf` in
+`upload/model.ts` folds the two into `true | false | null`. Invalidation (§2) clears the
+stamp, which is why an invalidated block correctly reads as unanswered rather than refused.
 
 Storing either ack also clears `invalidation` (§2).
 
@@ -349,7 +354,7 @@ the pattern `lib/mock-installation.ts` uses for terraform scripts. A `setTimeout
 not survive a hot reload and would keep the test process alive.
 
 Fixtures (`lib/mock-data.ts`): **1100** is mid-upload-step (2 targets / regions `us`+`eu`,
-firewall acked for `us` only, 2 recipients — two of the `SDU` service's three owners, so
+firewall acked (one answer for the whole target source), 2 recipients — two of the `SDU` service's three owners, so
 the picker still has one left to offer); **1101** is Global at Step 1 with an empty
 definition; **1102** is the same at China (`isChinaRegion: true`). **1099** is left alone
 — it is pinned by `OpsTargetView.sdu.test.tsx` and `lib/bff/mock/__tests__/pipeline.test.ts`.

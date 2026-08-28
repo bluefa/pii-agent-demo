@@ -207,9 +207,12 @@ export function SduStep1Define({
           <p className={cn('mt-2.5 break-keep', cardStyles.guidance)}>
             {isReturn ? (
               <>
-                이미 2단계를 진행 중인 대상소스예요. 대상을 고치면 2단계에서 확인하신 내용 중{' '}
-                <span className={primaryColors.text}>Region이 달라지는 부분만</span> 다시
-                확인하시면 돼요. 등록한 수신자와 받으신 S3 Access Key는 그대로예요.
+                이미 2단계를 진행 중인 대상소스예요.{' '}
+                <span className={primaryColors.text}>Region을 추가하면</span> 방화벽 확인과 업로드
+                확인을 다시 하셔야 하고,{' '}
+                <span className={primaryColors.text}>업로드 IP를 바꾸면</span> 방화벽 확인만 다시
+                하시면 돼요. Region을 빼는 것은 아무것도 되돌리지 않고, 등록한 수신자와 받으신 S3
+                Access Key는 그대로예요.
               </>
             ) : (
               <>
