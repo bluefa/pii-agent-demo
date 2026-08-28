@@ -703,8 +703,8 @@ export const CandidateResourceSection = ({
                     break-keep: 음절 고아("요."만 다음 줄) 방지, 단어 단위로 감는다. */}
                 <p className={cn('mt-2.5 break-keep', cardStyles.guidance)}>
                   인프라 스캔을 통해 조회된 {provider} 리소스 중{' '}
-                  <span className={primaryColors.text}>PII Agent를 연동할 데이터베이스를 선택</span>
-                  해주세요. 연동에서 제외할 DB는{' '}
+                  <span className={primaryColors.text}>PII Agent를 연동할 리소스를 선택</span>
+                  해주세요. 연동에서 제외할 리소스는{' '}
                   <span className={primaryColors.text}>사유를 입력</span>해야 하며, 연동 대상 승인
                   요청으로 제출한 결과는 관리자 승인 후 최종 확정돼요.
                 </p>

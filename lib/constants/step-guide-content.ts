@@ -11,7 +11,8 @@
  * The transcription reverses four things this file used to state as house
  * rules, so they are gone rather than reconciled:
  * - Escalation goes to the 협업 채널 card at the top of this rail, not to 담당자.
- * - Durations read 「N일 … (주말·공휴일 제외)」, never 「N영업일」.
+ * - Durations read a plain 「N일」 — no business-day count, and no
+ *   weekend/holiday exclusion qualifier after it.
  * - Step 2 names the control 「다시 요청하기」 — what `WaitingApprovalCancelButton`
  *   renders, in the card header, in the PENDING sub-state this guide describes.
  *   The name it carried before, 「연동 대상 다시 선택하기」, belongs to a different
@@ -127,7 +128,7 @@ const STEP_2_HTML =
   "<blockquote>연동 대상 DB가 잘못 제출된 상태라면 우측 상단 <strong>'다시 요청하기'</strong>를 눌러 " +
   '1단계로 돌아가 재입력 후 다시 제출할 수 있어요.</blockquote>' +
   '<ul>' +
-  '<li>평균 1일 이내 검토가 완료됩니다. (주말·공휴일 제외)</li>' +
+  '<li>평균 1일 이내 검토가 완료됩니다.</li>' +
   '<li>2일 이상 지연 시 <strong>협업 채널</strong>을 통해 문의를 남겨주세요.</li>' +
   '</ul>';
 
@@ -142,7 +143,7 @@ const STEP_3_HTML =
   '(이전에 설치된 PII Agent 리소스 삭제 필요). 조치가 필요한 경우 담당자가 개별 연락드릴 예정입니다.</blockquote>' +
   '<ul>' +
   '<li>최초 연동일 경우, 평균 10분 이내 완료됩니다.</li>' +
-  '<li>재연동일 경우, 평균 1일 소요됩니다. (주말·공휴일 제외)</li>' +
+  '<li>재연동일 경우, 평균 1일 소요됩니다.</li>' +
   '<li>2일 이상 지연 시 <strong>협업 채널</strong>을 통해 문의를 남겨주세요.</li>' +
   '</ul>';
 
@@ -161,7 +162,7 @@ const AWS_INSTALL_HEAD =
  * Two adjacent `<ul>`s would render as one list anyway, with a seam only the markup knows.
  */
 const AWS_INSTALL_TAIL_ITEMS =
-  '<li>BDC 측 리소스 생성까지 평균 2일 소요됩니다. (주말·공휴일 제외)</li>' +
+  '<li>BDC 측 리소스 생성까지 평균 2일 소요됩니다.</li>' +
   '<li>3일 이상 지연 시 <strong>협업 채널</strong>을 통해 문의를 남겨주세요.</li>' +
   '<li>별도 조치가 필요한 경우, 담당자가 개별 연락드릴 예정입니다.</li>' +
   '<li>Agent 설치가 완료되면 다음 단계로 넘어가요.</li>';
@@ -285,7 +286,7 @@ const STEP_6_HTML =
   "<p>정상 수집 여부가 확인되면 <strong>'완료'</strong> 단계로 넘어가요.</p>" +
   '<blockquote>별도 조치가 필요한 경우 담당자가 개별 연락드릴 예정입니다.</blockquote>' +
   '<ul>' +
-  '<li>평균 1일 소요되는 과정입니다. (주말·공휴일 제외)</li>' +
+  '<li>평균 1일 소요되는 과정입니다.</li>' +
   '<li>수집해야 할 데이터가 클 경우, 더 오래 소요될 수 있어요.</li>' +
   '<li>3일 이상 지연 시 <strong>협업 채널</strong>을 통해 문의를 남겨주세요.</li>' +
   '</ul>';
