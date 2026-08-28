@@ -73,7 +73,7 @@ terraform 스크립트 이름 `SDU_BDC_SERVICE_COMMON` / `SDU_BDC_SERVICE`). 연
 | GET | `/install/v1/target-sources/{targetSourceId}/sdu/upload` | 2단계 전체를 **한 응답**으로 — **Region별 방화벽 목적지 IP · Region별 업로드 명령 문자열** · 수신자 · BDC 상태 · 무효화. 서버가 주는 값이 여기 다 있다 |
 | PUT | `/install/v1/target-sources/{targetSourceId}/sdu/upload/firewall/ack` | **방화벽 결재 확인** 답변 |
 | PUT | `/install/v1/target-sources/{targetSourceId}/sdu/upload/commands/ack` | **데이터 업로드 확인** 답변 |
-| PUT | `/install/v1/target-sources/{targetSourceId}/sdu/upload/recipients` | S3 Access Key 수신자 **등록**(발송 아님) |
+| PUT | `/install/v1/target-sources/{targetSourceId}/sdu/upload/access-key-recipients` | S3 Access Key 수신자 **등록**(발송 아님) |
 
 기존 재사용 2건:
 
@@ -175,7 +175,7 @@ terraform 스크립트 이름 `SDU_BDC_SERVICE_COMMON` / `SDU_BDC_SERVICE`). 연
     "acked_at": "2026-08-25T10:40:00Z", // 미답이면 null
     "acked_by": { "id": "user-1", "name": "홍길동", "email": "hong@company.com" }
   },
-  "recipients": {
+  "access_key_recipients": {
     "users": [{ "id": "user-1", "name": "홍길동", "email": "hong@company.com" }],
     "updated_at": "2026-08-24T07:41:00Z"
   },
@@ -222,13 +222,16 @@ CIDR 이다.
 Region → AWS region / endpoint 매핑은 **서버 것**이고 클라이언트는 읽기만 한다. China 는
 다른 파티션(`amazonaws.com.cn`)이라는 점도 서버가 안다.
 
-## 6. 수신자 — `PUT /upload/recipients`
+## 6. 수신자 — `PUT …/sdu/upload/access-key-recipients`
 
 ```
 body { "user_ids": ["user-1", "user-5"] }
 → 204
 → 400  INVALID_PARAMETER   // 모르는 user id
 ```
+
+경로가 **무엇의** 수신자인지 말한다 — 범용 credential 이 아니라 이 대상 소스의 S3 Access
+Key 하나다. §5 응답의 `access_key_recipients` 와 같은 이름이라 쓰기가 읽기를 그대로 비춘다.
 
 **목록이지 발송이 아니다.** 키는 관리자가 메일로 직접 전달한다. 이 엔드포인트는 **누구에게
 가는지만** 기록한다. 이 계약 어디에도 발송 의미는 없고, 화면도 저장이 무언가를 보냈다는
@@ -248,7 +251,7 @@ GET /install/v1/services/{serviceCode}/authorized-users
 200 이다. **이 절에는 BE 에 요청할 것이 없다.**
 
 `user_ids`(§6)에 싣는 값은 이 응답의 `id` 다. 응답이 `id · name · email` 셋뿐이라
-다른 후보가 없고, `/upload/recipients` 는 우리가 쓰는 가정 계약이므로 **받는 키가
+다른 후보가 없고, `/upload/access-key-recipients` 는 우리가 쓰는 가정 계약이므로 **받는 키가
 `authorized-users.id` 라는 것도 이 문서가 정한다.**
 
 ## 7. 확인 답변 — 두 경로
@@ -361,7 +364,7 @@ US·Asia인가"를 관리자가 재구성해야 한다는 것. 답이 대상 소
 | 4 | `GET /sdu/upload` | **담당자** (ADMIN 통과) |
 | 5 | `PUT /sdu/upload/firewall/ack` | **담당자** (ADMIN 통과) |
 | 6 | `PUT /sdu/upload/commands/ack` | **담당자** (ADMIN 통과) |
-| 7 | `PUT /sdu/upload/recipients` | **담당자** (ADMIN 통과) |
+| 7 | `PUT /sdu/upload/access-key-recipients` | **담당자** (ADMIN 통과) |
 
 기준은 **화면이 누구 것인가**이고, 일곱 건 모두 담당자 상세 페이지가 부른다. **ADMIN 전용
 신규 엔드포인트는 없다** — 관리자 콘솔이 필요로 하는 것은 전부 위 여섯 건과 기존

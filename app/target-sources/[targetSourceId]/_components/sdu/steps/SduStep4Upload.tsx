@@ -6,7 +6,7 @@ import {
   getSduUpload,
   putSduCommandsAck,
   putSduFirewallAck,
-  putSduRecipients,
+  putSduAccessKeyRecipients,
 } from '@/app/lib/api/sdu';
 import { useAbortableEffect } from '@/app/hooks/useAbortableEffect';
 import { ErrorState } from '@/app/components/ui/state';
@@ -254,13 +254,13 @@ export function SduStep4Upload({ project, onProjectUpdate }: SduStepProps) {
                 state={stateOf('recipients')}
                 open={openId === 'recipients'}
                 onToggle={done.recipients ? toggle('recipients') : undefined}
-                summary={recipientsSummary(snapshot.upload.recipients.users)}
+                summary={recipientsSummary(snapshot.upload.accessKeyRecipients.users)}
                 action={secondaryAction('수신자 수정', () => setReopened('recipients'))}
               >
                 <RecipientsBlock
                   serviceCode={project.serviceCode}
-                  recipients={snapshot.upload.recipients.users}
-                  onSave={(userIds) => write(() => putSduRecipients(targetSourceId, userIds))}
+                  recipients={snapshot.upload.accessKeyRecipients.users}
+                  onSave={(userIds) => write(() => putSduAccessKeyRecipients(targetSourceId, userIds))}
                 />
               </GateBlock>
 

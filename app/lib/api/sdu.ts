@@ -23,8 +23,8 @@ import type {
   SduFirewallWire,
   SduInvalidation,
   SduInvalidationWire,
-  SduRecipients,
-  SduRecipientsWire,
+  SduAccessKeyRecipients,
+  SduAccessKeyRecipientsWire,
   SduRegion,
   SduTarget,
   SduTargetWire,
@@ -69,7 +69,7 @@ const byRegion = <T extends { region: SduRegion }>(rows: readonly T[]): T[] => {
   return order.flatMap((region) => rows.filter((row) => row.region === region));
 };
 
-const toRecipients = (wire: SduRecipientsWire): SduRecipients => ({
+const toAccessKeyRecipients = (wire: SduAccessKeyRecipientsWire): SduAccessKeyRecipients => ({
   users: wire.users.map((user) => ({ id: user.id, name: user.name, email: user.email })),
   updatedAt: wire.updated_at,
 });
@@ -88,7 +88,7 @@ export const toSduUpload = (wire: SduUploadWire): SduUpload => ({
   submittedAt: wire.submitted_at,
   regions: sortSduRegions(wire.regions),
   firewall: toFirewall(wire.firewall),
-  recipients: toRecipients(wire.recipients),
+  accessKeyRecipients: toAccessKeyRecipients(wire.access_key_recipients),
   commands: toCommands(wire.commands),
   bdc: {
     status: wire.bdc.status,
@@ -179,11 +179,11 @@ export const putSduCommandsAck = (targetSourceId: number, confirmed: boolean): P
  * assumed §6 — S3 Access Key 수신자. 이것은 **목록**이지 발송이 아니다: 키는 관리자가
  * 메일로 직접 전달하고, 화면은 누구 앞으로 가는지만 정한다.
  */
-export const putSduRecipients = async (
+export const putSduAccessKeyRecipients = async (
   targetSourceId: number,
   userIds: readonly string[],
 ): Promise<void> => {
-  await fetchInfraJson<void>(`${base(targetSourceId)}/upload/recipients`, {
+  await fetchInfraJson<void>(`${base(targetSourceId)}/upload/access-key-recipients`, {
     method: 'PUT',
     body: { user_ids: [...userIds] },
   });

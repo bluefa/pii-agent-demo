@@ -12,7 +12,7 @@ const base: SduUpload = {
   submittedAt: '2026-08-24T05:41:00Z',
   regions: ['us', 'eu'],
   firewall: { rows: [], acked: false },
-  recipients: { users: [], updatedAt: null },
+  accessKeyRecipients: { users: [], updatedAt: null },
   commands: { rows: [], acked: false },
   bdc: { status: 'NOT_STARTED', checkedAt: '2026-08-24T07:50:00Z', completedAt: null },
   invalidation: { addedRegions: [], uploadIpChanged: false },
@@ -45,7 +45,7 @@ describe('currentGate', () => {
     const upload: SduUpload = {
       ...base,
       firewall: { ...base.firewall, acked: true },
-      recipients: { users: [{ id: 'u3', name: '박지원', email: 'a@bdc.com' }], updatedAt: null },
+      accessKeyRecipients: { users: [{ id: 'u3', name: '박지원', email: 'a@bdc.com' }], updatedAt: null },
     };
     expect(currentGate(upload, gateDoneStates(upload))).toBe('commands');
   });
@@ -54,7 +54,7 @@ describe('currentGate', () => {
     const upload: SduUpload = {
       ...base,
       firewall: { ...base.firewall, acked: true },
-      recipients: { users: [{ id: 'u3', name: '박지원', email: 'a@bdc.com' }], updatedAt: null },
+      accessKeyRecipients: { users: [{ id: 'u3', name: '박지원', email: 'a@bdc.com' }], updatedAt: null },
       commands: { rows: [], acked: true },
     };
     expect(currentGate(upload, gateDoneStates(upload))).toBeNull();

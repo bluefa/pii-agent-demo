@@ -157,7 +157,7 @@ GET /install/v1/target-sources/{targetSourceId}/sdu/upload
        acked_at: string | null,     // admin-only; the owner screen does not read these
        acked_by: { id, name, email } | null,
      },
-     recipients: {
+     access_key_recipients: {
        users:      [{ id: string, name: string, email: string }],
        updated_at: string | null,
      },
@@ -236,11 +236,15 @@ Storing either ack also clears `invalidation` (§2).
 ## 6. S3 Access Key recipients
 
 ```
-PUT /install/v1/target-sources/{targetSourceId}/sdu/upload/recipients
+PUT /install/v1/target-sources/{targetSourceId}/sdu/upload/access-key-recipients
 body { user_ids: string[] }
 → 204
 → 400  INVALID_PARAMETER   // unknown user id
 ```
+
+The path names **what** they receive — this target source's one S3 Access Key, not a
+generic credential — and matches §4's `access_key_recipients`, so the write mirrors the
+read.
 
 **A list, not a send.** The key is delivered by an administrator over mail; this endpoint
 records who it goes to and nothing else. No section of this contract has sending
@@ -267,7 +271,7 @@ Both facts are confirmed (오너, 2026-08-28), so nothing here is assumed but th
   on ADMIN, which locked the owner out of their own screen; it now uses the gate every
   other owner-facing mock uses — ADMIN or a manager of that service.
 - **the response is `id · name · email`**, so `id` is the only thing to key on and it is
-  what `user_ids` carries. `/upload/recipients` is ours to specify, so that is settled
+  what `user_ids` carries. `/upload/access-key-recipients` is ours to specify, so that is settled
   here rather than asked of the BFF.
 
 ## 7. BDC progression and system reset

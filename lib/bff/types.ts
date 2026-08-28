@@ -479,7 +479,7 @@ export interface BffClient {
     // assumed §5·§6 — 확인 응답과 S3 Access Key 수신자. 둘 다 204.
     putFirewallAck: (id: number, body: SduAckRequestWire) => Promise<void>;
     putCommandsAck: (id: number, body: SduAckRequestWire) => Promise<void>;
-    putRecipients: (id: number, userIds: string[]) => Promise<void>;
+    putAccessKeyRecipients: (id: number, userIds: string[]) => Promise<void>;
   };
 
   /**

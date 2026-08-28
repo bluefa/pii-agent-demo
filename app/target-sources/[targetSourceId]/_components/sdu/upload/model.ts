@@ -36,7 +36,7 @@ export const gateDoneStates = (upload: SduUpload): SduGateStates => ({
   // A block with no region to answer for is not finished — an empty definition would
   // otherwise walk every gate open on an answer about nothing.
   firewall: upload.regions.length > 0 && upload.firewall.acked,
-  recipients: upload.recipients.users.length >= 1,
+  recipients: upload.accessKeyRecipients.users.length >= 1,
   commands: upload.regions.length > 0 && upload.commands.acked,
   bdc: upload.bdc.status === 'COMPLETED',
 });

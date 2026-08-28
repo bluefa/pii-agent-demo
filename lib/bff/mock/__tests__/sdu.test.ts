@@ -43,7 +43,7 @@ const upload = async (id: number): Promise<SduUploadWire> => body(await mockSdu.
 
 /** Walks a target source to "both blocks acknowledged, recipients registered". */
 const ackEverything = async (id: number) => {
-  await mockSdu.putRecipients(id, { user_ids: ['user-3'] });
+  await mockSdu.putAccessKeyRecipients(id, { user_ids: ['user-3'] });
   await mockSdu.putFirewallAck(id, { confirmed: true });
   await mockSdu.putCommandsAck(id, { confirmed: true });
 };
@@ -277,12 +277,12 @@ describe('SDU 업로드 — 조회와 확인 (§4·§5·§6)', () => {
   });
 
   it('수신자는 목이 아는 사용자만 받는다', async () => {
-    expect((await mockSdu.putRecipients(GLOBAL_ID, { user_ids: ['nope'] })).status).toBe(400);
+    expect((await mockSdu.putAccessKeyRecipients(GLOBAL_ID, { user_ids: ['nope'] })).status).toBe(400);
 
-    await mockSdu.putRecipients(GLOBAL_ID, { user_ids: ['user-3', 'user-4'] });
+    await mockSdu.putAccessKeyRecipients(GLOBAL_ID, { user_ids: ['user-3', 'user-4'] });
     const state = await upload(GLOBAL_ID);
-    expect(state.recipients.users.map((user) => user.id)).toEqual(['user-3', 'user-4']);
-    expect(state.recipients.updated_at).not.toBeNull();
+    expect(state.access_key_recipients.users.map((user) => user.id)).toEqual(['user-3', 'user-4']);
+    expect(state.access_key_recipients.updated_at).not.toBeNull();
   });
 });
 
@@ -342,7 +342,7 @@ describe('SDU 시드와 초기화 (§8)', () => {
     expect(state.firewall.acked).toBe(true);
     expect(state.commands.acked).toBe(false);
     // 수신자는 SDU 서비스 담당자 안에서만 고른다 — 셋 중 둘이라 화면에 더 넣을 사람이 남는다.
-    expect(state.recipients.users.map((user) => user.id)).toEqual(['user-1', 'user-5']);
+    expect(state.access_key_recipients.users.map((user) => user.id)).toEqual(['user-1', 'user-5']);
     expect(state.submitted_at).not.toBeNull();
     expect(mockData.getProjectByTargetSourceId(SEEDED_ID)?.processStatus).toBe(ProcessStatus.INSTALLING);
   });
@@ -361,7 +361,7 @@ describe('SDU 시드와 초기화 (§8)', () => {
     const state = await upload(SEEDED_ID);
     expect(state.submitted_at).toBeNull();
     expect(state.firewall.acked).toBe(false);
-    expect(state.recipients.users).toEqual([]);
+    expect(state.access_key_recipients.users).toEqual([]);
     expect(state.bdc.status).toBe('NOT_STARTED');
   });
 });

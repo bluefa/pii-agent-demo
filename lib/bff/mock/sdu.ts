@@ -359,7 +359,7 @@ const toUploadWire = (targetSourceId: number, state: SduState): SduUploadWire =>
     submitted_at: state.submittedAt,
     regions,
     firewall: toFirewallWire(state, regions),
-    recipients: { users, updated_at: state.recipientsUpdatedAt },
+    access_key_recipients: { users, updated_at: state.recipientsUpdatedAt },
     commands: toCommandsWire(targetSourceId, state, regions),
     bdc: {
       status: state.bdcStatus,
@@ -592,8 +592,8 @@ export const mockSdu = {
   putCommandsAck: async (targetSourceId: number, body: SduAckRequestWire) =>
     writeAck(targetSourceId, body, 'commandsAcked'),
 
-  // PUT …/sdu/upload/recipients (assumed §6).
-  putRecipients: async (targetSourceId: number, body: { user_ids: string[] }) => {
+  // PUT …/sdu/upload/access-key-recipients (assumed §6).
+  putAccessKeyRecipients: async (targetSourceId: number, body: { user_ids: string[] }) => {
     const auth = authorize(targetSourceId);
     if ('error' in auth) return auth.error;
 

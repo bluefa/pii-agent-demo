@@ -9,6 +9,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, render, screen } from '@testing-library/react';
 import { ProcessStatus, type CloudTargetSource } from '@/lib/types';
+import type { SduUpload } from '@/lib/types/sdu';
 import { INSTALL_POLL_INTERVAL_MS } from '@/app/hooks/useInstallationStatus';
 
 const getProject = vi.fn<(id: number) => Promise<CloudTargetSource>>();
@@ -40,24 +41,24 @@ const project = (processStatus: ProcessStatus): CloudTargetSource => ({
   isSduType: true,
 });
 
-const UPLOAD = {
+const UPLOAD: SduUpload = {
   submittedAt: '2026-08-24T05:02:00Z',
   regions: ['us', 'eu'],
-  firewall: { rows: [], ackedRegions: [] },
-  recipients: {
+  firewall: { rows: [], acked: true },
+  accessKeyRecipients: {
     users: [
       { id: 'u1', name: '박지원', email: 'a@example.com' },
       { id: 'u2', name: '김하늘', email: 'b@example.com' },
     ],
     updatedAt: null,
   },
-  commands: { rows: [], ackedRegions: [] },
+  commands: { rows: [], acked: true },
   bdc: {
     status: 'IN_PROGRESS',
     checkedAt: '2026-08-25T00:31:00Z',
     completedAt: null,
   },
-  invalidation: { addedRegions: [], removedRegions: [], uploadIpChanged: false },
+  invalidation: { addedRegions: [], uploadIpChanged: false },
 };
 
 /** Let the mount fetches settle — two independent promises, so drain the queue twice. */

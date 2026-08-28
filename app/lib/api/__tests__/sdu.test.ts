@@ -5,7 +5,7 @@ import {
   putSduCommandsAck,
   putSduFirewallAck,
   putSduDefinition,
-  putSduRecipients,
+  putSduAccessKeyRecipients,
   submitSduDefinition,
   toSduDefinitionRequest,
 } from '@/app/lib/api/sdu';
@@ -41,7 +41,7 @@ const UPLOAD_WIRE: SduUploadWire = {
   submitted_at: '2026-08-24T05:41:00Z',
   regions: ['eu', 'us'],
   firewall: FIREWALL_WIRE,
-  recipients: {
+  access_key_recipients: {
     users: [{ id: 'user-3', name: '이영희', email: 'lee@company.com' }],
     updated_at: '2026-08-24T07:41:00Z',
   },
@@ -107,8 +107,8 @@ describe('SDU 어댑터 — snake → camel', () => {
       port: 443,
       destinationIps: ['52.216.0.0/15'],
     });
-    expect(upload.recipients.updatedAt).toBe('2026-08-24T07:41:00Z');
-    expect(upload.recipients.users[0]).toEqual({
+    expect(upload.accessKeyRecipients.updatedAt).toBe('2026-08-24T07:41:00Z');
+    expect(upload.accessKeyRecipients.users[0]).toEqual({
       id: 'user-3',
       name: '이영희',
       email: 'lee@company.com',
@@ -198,7 +198,7 @@ describe('SDU 어댑터 — camel → snake', () => {
 
     vi.unstubAllGlobals();
     const recipientSeen = stubFetch(null, 204);
-    await expect(putSduRecipients(1101, ['user-3', 'user-4'])).resolves.toBeUndefined();
+    await expect(putSduAccessKeyRecipients(1101, ['user-3', 'user-4'])).resolves.toBeUndefined();
     expect(recipientSeen.body).toEqual({ user_ids: ['user-3', 'user-4'] });
   });
 

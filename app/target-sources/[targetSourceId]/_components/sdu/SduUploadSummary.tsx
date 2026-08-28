@@ -55,7 +55,7 @@ export const SduUploadSummary = ({ targetSourceId }: { targetSourceId: number })
   if (!upload) return null;
 
   const regionLabels = upload.regions.map((region) => SDU_REGION_LABEL[region]);
-  const recipientCount = upload.recipients.users.length;
+  const recipientCount = upload.accessKeyRecipients.users.length;
 
   return (
     <div className="flex flex-wrap gap-x-10 gap-y-4">

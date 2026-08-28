@@ -173,8 +173,8 @@ export const mockBff: BffClient = {
     putCommandsAck: async (id, body) => {
       await unwrap(await mockSdu.putCommandsAck(id, body));
     },
-    putRecipients: async (id, userIds) => {
-      await unwrap(await mockSdu.putRecipients(id, { user_ids: userIds }));
+    putAccessKeyRecipients: async (id, userIds) => {
+      await unwrap(await mockSdu.putAccessKeyRecipients(id, { user_ids: userIds }));
     },
   },
 

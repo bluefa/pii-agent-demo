@@ -5,7 +5,7 @@ import { parseTargetSourceId } from '@/app/api/_lib/target-source';
 import { createProblem, problemResponse } from '@/app/api/_lib/problem';
 
 // ASSUMED CONTRACT — docs/api/sdu-assumed-contracts.md §7.
-// PUT …/sdu/upload/recipients { user_ids: string[] } → 204.
+// PUT …/sdu/upload/access-key-recipients { user_ids: string[] } → 204.
 //
 // A LIST, not a send: the S3 Access Key is delivered by an administrator over mail, and
 // this only records who it goes to. Nothing here triggers a notification.
@@ -21,6 +21,6 @@ export const PUT = withV1(async (request, { requestId, params }) => {
     );
   }
 
-  await bff.sdu.putRecipients(parsed.value, userIds);
+  await bff.sdu.putAccessKeyRecipients(parsed.value, userIds);
   return new NextResponse(null, { status: 204 });
 });

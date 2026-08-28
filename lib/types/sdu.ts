@@ -102,13 +102,14 @@ export interface SduFirewallWire {
   acked: boolean;
 }
 
+/** 한 사람. S3 Access Key 를 받을 사람이고, 그 이상의 뜻은 없다. */
 export interface SduRecipientWire {
   id: string;
   name: string;
   email: string;
 }
 
-export interface SduRecipientsWire {
+export interface SduAccessKeyRecipientsWire {
   users: SduRecipientWire[];
   updated_at: string | null;
 }
@@ -148,7 +149,7 @@ export interface SduUploadWire {
   submitted_at: string | null;
   regions: SduRegion[];
   firewall: SduFirewallWire;
-  recipients: SduRecipientsWire;
+  access_key_recipients: SduAccessKeyRecipientsWire;
   commands: SduCommandsWire;
   bdc: SduBdcWire;
   invalidation: SduInvalidationWire;
@@ -201,7 +202,7 @@ export interface SduRecipient {
   email: string;
 }
 
-export interface SduRecipients {
+export interface SduAccessKeyRecipients {
   users: SduRecipient[];
   updatedAt: string | null;
 }
@@ -231,7 +232,7 @@ export interface SduUpload {
   submittedAt: string | null;
   regions: SduRegion[];
   firewall: SduFirewall;
-  recipients: SduRecipients;
+  accessKeyRecipients: SduAccessKeyRecipients;
   commands: SduCommands;
   bdc: SduBdc;
   invalidation: SduInvalidation;

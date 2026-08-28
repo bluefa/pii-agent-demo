@@ -9,7 +9,7 @@ vi.mock('@/lib/bff/client', () => ({
       getUpload: vi.fn(),
       putFirewallAck: vi.fn(),
       putCommandsAck: vi.fn(),
-      putRecipients: vi.fn(),
+      putAccessKeyRecipients: vi.fn(),
     },
   },
 }));
@@ -19,7 +19,7 @@ import { POST as submitDefinition } from '@/app/api/v1/target-sources/[targetSou
 import { GET as getUpload } from '@/app/api/v1/target-sources/[targetSourceId]/sdu/upload/route';
 import { PUT as putFirewallAck } from '@/app/api/v1/target-sources/[targetSourceId]/sdu/upload/firewall/ack/route';
 import { PUT as putCommandsAck } from '@/app/api/v1/target-sources/[targetSourceId]/sdu/upload/commands/ack/route';
-import { PUT as putRecipients } from '@/app/api/v1/target-sources/[targetSourceId]/sdu/upload/recipients/route';
+import { PUT as putRecipients } from '@/app/api/v1/target-sources/[targetSourceId]/sdu/upload/access-key-recipients/route';
 import { bff } from '@/lib/bff/client';
 import { BffError } from '@/lib/bff/errors';
 import type { SduDefinitionWire, SduFirewallWire, SduUploadWire } from '@/lib/types/sdu';
@@ -50,7 +50,7 @@ const UPLOAD: SduUploadWire = {
   submitted_at: '2026-08-24T05:41:00Z',
   regions: ['us'],
   firewall: FIREWALL,
-  recipients: { users: [], updated_at: null },
+  access_key_recipients: { users: [], updated_at: null },
   commands: { rows: [{ region: 'us', command: 'export http_proxy=…' }], acked: false },
   bdc: { status: 'NOT_STARTED', checked_at: '2026-08-24T08:00:00Z', completed_at: null },
   invalidation: { added_regions: [], upload_ip_changed: false },
@@ -64,7 +64,7 @@ beforeEach(() => {
   mocked.getUpload.mockResolvedValue(UPLOAD);
   mocked.putFirewallAck.mockResolvedValue(undefined);
   mocked.putCommandsAck.mockResolvedValue(undefined);
-  mocked.putRecipients.mockResolvedValue(undefined);
+  mocked.putAccessKeyRecipients.mockResolvedValue(undefined);
 });
 
 describe('SDU 라우트 — targetSourceId 검증', () => {
@@ -76,7 +76,7 @@ describe('SDU 라우트 — targetSourceId 검증', () => {
       getUpload(new Request(url('/upload')), params('abc')),
       putFirewallAck(new Request(url('/upload/firewall/ack'), { method: 'PUT', body: '{}' }), params('abc')),
       putCommandsAck(new Request(url('/upload/commands/ack'), { method: 'PUT', body: '{}' }), params('abc')),
-      putRecipients(new Request(url('/upload/recipients'), { method: 'PUT', body: '{}' }), params('abc')),
+      putRecipients(new Request(url('/upload/access-key-recipients'), { method: 'PUT', body: '{}' }), params('abc')),
     ]);
 
     for (const response of responses) {
@@ -158,16 +158,16 @@ describe('SDU 라우트 — 해피 패스', () => {
     expect(mocked.putCommandsAck).toHaveBeenCalledWith(1101, body);
   });
 
-  it('PUT /upload/recipients 는 user_ids 배열만 받는다', async () => {
+  it('PUT /upload/access-key-recipients 는 user_ids 배열만 받는다', async () => {
     const ok = await putRecipients(
-      new Request(url('/upload/recipients'), { method: 'PUT', body: JSON.stringify({ user_ids: ['user-3'] }) }),
+      new Request(url('/upload/access-key-recipients'), { method: 'PUT', body: JSON.stringify({ user_ids: ['user-3'] }) }),
       params('1101'),
     );
     expect(ok.status).toBe(204);
-    expect(mocked.putRecipients).toHaveBeenCalledWith(1101, ['user-3']);
+    expect(mocked.putAccessKeyRecipients).toHaveBeenCalledWith(1101, ['user-3']);
 
     const bad = await putRecipients(
-      new Request(url('/upload/recipients'), { method: 'PUT', body: JSON.stringify({ user_ids: [7] }) }),
+      new Request(url('/upload/access-key-recipients'), { method: 'PUT', body: JSON.stringify({ user_ids: [7] }) }),
       params('1101'),
     );
     expect(bad.status).toBe(400);

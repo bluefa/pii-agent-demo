@@ -9,7 +9,7 @@ const api = vi.hoisted(() => ({
   getSduDefinition: vi.fn(),
   putSduFirewallAck: vi.fn(),
   putSduCommandsAck: vi.fn(),
-  putSduRecipients: vi.fn(),
+  putSduAccessKeyRecipients: vi.fn(),
   getPermissions: vi.fn(),
   getProject: vi.fn(),
 }));
@@ -19,7 +19,7 @@ vi.mock('@/app/lib/api/sdu', () => ({
   getSduDefinition: api.getSduDefinition,
   putSduFirewallAck: api.putSduFirewallAck,
   putSduCommandsAck: api.putSduCommandsAck,
-  putSduRecipients: api.putSduRecipients,
+  putSduAccessKeyRecipients: api.putSduAccessKeyRecipients,
 }));
 vi.mock('@/app/lib/api', () => ({
   getPermissions: api.getPermissions,
@@ -74,7 +74,7 @@ const upload = (over: Partial<SduUpload> = {}): SduUpload => ({
     // 1100's shape: the owner is on the firewall block, with no answer yet.
     acked: false,
   },
-  recipients: { users: RECIPIENTS, updatedAt: '2026-08-24T07:41:00Z' },
+  accessKeyRecipients: { users: RECIPIENTS, updatedAt: '2026-08-24T07:41:00Z' },
   commands: {
     rows: [
       { region: 'us', command: US_COMMAND },
@@ -155,7 +155,7 @@ beforeEach(() => {
   api.getSduDefinition.mockResolvedValue(definition);
   api.putSduFirewallAck.mockResolvedValue(undefined);
   api.putSduCommandsAck.mockResolvedValue(undefined);
-  api.putSduRecipients.mockResolvedValue(undefined);
+  api.putSduAccessKeyRecipients.mockResolvedValue(undefined);
   api.getPermissions.mockResolvedValue({ users: [] });
   api.getProject.mockResolvedValue({ ...project, processStatus: ProcessStatus.WAITING_CONNECTION_TEST });
 });

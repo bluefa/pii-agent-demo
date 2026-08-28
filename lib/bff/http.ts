@@ -456,8 +456,10 @@ export const httpBff: BffClient = {
       put(`/target-sources/${id}/sdu/upload/firewall/ack`, body, { emptyBodyOk: true }),
     putCommandsAck: (id, body) =>
       put(`/target-sources/${id}/sdu/upload/commands/ack`, body, { emptyBodyOk: true }),
-    putRecipients: (id, userIds) =>
-      put(`/target-sources/${id}/sdu/upload/recipients`, { user_ids: userIds }, { emptyBodyOk: true }),
+    putAccessKeyRecipients: (id, userIds) =>
+      put(`/target-sources/${id}/sdu/upload/access-key-recipients`, { user_ids: userIds }, {
+        emptyBodyOk: true,
+      }),
   },
 
   // 서비스 접근 권한 — 오너가 준 백엔드 초안 스펙 그대로
