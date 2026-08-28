@@ -347,7 +347,7 @@ describe('SDU 업로드 — 조회와 확인 (§4·§5·§6)', () => {
   });
 });
 
-describe('SDU 제출과 BDC 진행 (§3·§8)', () => {
+describe('SDU 제출과 BDC 진행 (§3·§7)', () => {
   it('제출은 대상이 없으면 거절되고, 있으면 1단계에서 업로드 단계로 옮긴다', async () => {
     expect((await mockSdu.submitDefinition(GLOBAL_ID)).status).toBe(400);
     expect(mockData.getProjectByTargetSourceId(GLOBAL_ID)?.processStatus).toBe(
@@ -395,7 +395,7 @@ describe('SDU 제출과 BDC 진행 (§3·§8)', () => {
   });
 });
 
-describe('SDU 시드와 초기화 (§8)', () => {
+describe('SDU 시드와 초기화 (§7)', () => {
   it('1100 은 업로드 단계 한가운데다 — Region 2곳, 방화벽만 확인함, 수신자 2명', async () => {
     const state = await upload(SEEDED_ID);
 

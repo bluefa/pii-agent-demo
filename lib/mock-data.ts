@@ -1958,7 +1958,7 @@ mockProjects.push({
   projectCode: "SDU-002",
   name: "SDU PII Agent - 데이터 레이크",
   description:
-    "SDU 계정 대상(승인 대기). 하위 CSP(AWS)와 무관하게 SDU 로 표기됩니다.",
+    "SDU 계정 대상(데이터 업로드 중). 하위 CSP(AWS)와 무관하게 SDU 로 표기됩니다.",
   serviceCode: "SDU",
   cloudProvider: "AWS",
   awsAccountId: "345678901234",

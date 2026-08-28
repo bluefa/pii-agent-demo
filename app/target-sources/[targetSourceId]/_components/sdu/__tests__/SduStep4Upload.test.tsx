@@ -320,6 +320,24 @@ describe('SduStep4Upload', () => {
     expect(api.putSduFirewallAck).not.toHaveBeenCalled();
   });
 
+  it('쓰기 뒤 재조회가 실패하면 낡았다고 말한다 — 성공한 화면과 같아 보이면 안 된다', async () => {
+    await renderStep();
+
+    // 쓰기는 성공하고 그 뒤의 재조회만 실패한다. 스냅샷이 남아 있으므로 에러 화면
+    // (`!snapshot`)은 그려지지 않는다 — 그때 이 줄이 없으면 화면은 성공한 것과 똑같다.
+    api.getSduUpload.mockRejectedValue(new Error('nope'));
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: '예' }));
+    });
+
+    expect(api.putSduFirewallAck).toHaveBeenCalledWith(TARGET_SOURCE_ID, true);
+    expect(
+      screen.getByText(/최신 상태를 불러오지 못했어요/),
+    ).toBeTruthy();
+    expect(screen.getByRole('button', { name: '다시 시도' })).toBeTruthy();
+  });
+
   it('열 수 없는 줄에는 보조 동작을 달지 않는다 — 눌러도 아무 픽셀도 안 바뀌는 버튼', async () => {
     // 제출 직후의 모양: 답도 수신자도 없다. `openId` 가 `done` 을 요구하므로 이 줄들은
     // 펴지지 않는다.
