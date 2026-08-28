@@ -219,7 +219,8 @@ export const Step1CloudAccount = ({
               </span>
               <span
                 className={cn(
-                  'block text-xs',
+                  // break-keep: Korean otherwise wraps mid-word — this line breaks between words.
+                  'block break-keep text-xs',
                   region === 'china' ? primaryColors.textOnLight : textColors.tertiary,
                 )}
               >
