@@ -92,8 +92,8 @@ const NAV_ITEMS: NavItem[] = [
   // the server gate in app/admin/layout.tsx uses.
   {
     label: 'Credentials',
-    href: passRoutes.credentials,
-    disabled: true,
+    href: process.env.NEXT_PUBLIC_CREDENTIALS_URL ?? passRoutes.credentials,
+    disabled: !process.env.NEXT_PUBLIC_CREDENTIALS_URL,
     isActive: () => false,
     icon: (
       <svg {...iconProps} aria-hidden="true">
@@ -104,8 +104,8 @@ const NAV_ITEMS: NavItem[] = [
   },
   {
     label: 'PII Tag mgmt.',
-    href: passRoutes.piiTag,
-    disabled: true,
+    href: process.env.NEXT_PUBLIC_PII_TAG_URL ?? passRoutes.piiTag,
+    disabled: !process.env.NEXT_PUBLIC_PII_TAG_URL,
     isActive: () => false,
     icon: (
       <svg {...iconProps} aria-hidden="true">
@@ -116,8 +116,8 @@ const NAV_ITEMS: NavItem[] = [
   },
   {
     label: 'PII Map',
-    href: passRoutes.piiMap,
-    disabled: true,
+    href: process.env.NEXT_PUBLIC_PII_MAP_URL ?? passRoutes.piiMap,
+    disabled: !process.env.NEXT_PUBLIC_PII_MAP_URL,
     isActive: () => false,
     icon: (
       <svg {...iconProps} aria-hidden="true">
@@ -225,6 +225,24 @@ export const TopNav = ({ user }: { user: UserMeResponse | null }) => {
                   href={item.href}
                   aria-disabled="true"
                   onClick={(e) => handleDisabledClick(e, item.label)}
+                  className={baseClass}
+                >
+                  {item.icon}
+                  {item.label}
+                </a>
+              );
+            }
+
+            // `next/link` is for in-app routes under basePath; an absolute URL is
+            // a plain anchor, and it opens in a new tab so the console the user is
+            // in is not lost.
+            if (item.href.startsWith('http')) {
+              return (
+                <a
+                  key={item.label}
+                  href={item.href}
+                  target="_blank"
+                  rel="noreferrer"
                   className={baseClass}
                 >
                   {item.icon}

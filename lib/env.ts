@@ -26,6 +26,10 @@ export const isMock = (): boolean => process.env.USE_MOCK_DATA === 'true';
 const envSchema = z.object({
   USE_MOCK_DATA: z.string().optional(),
   BFF_API_URL: z.string().url().optional(),
+  // External consoles the top nav links to. Unset ⇒ that nav item stays disabled.
+  NEXT_PUBLIC_CREDENTIALS_URL: z.string().url().optional(),
+  NEXT_PUBLIC_PII_TAG_URL: z.string().url().optional(),
+  NEXT_PUBLIC_PII_MAP_URL: z.string().url().optional(),
 });
 
 function parse(): z.infer<typeof envSchema> {
