@@ -129,9 +129,9 @@ interface OpsServiceState {
   jira: Partial<Record<string, string>>;
   /** cloudProvider → watcher userId 목록 (실계약 watchers POST 의 누적분). */
   watchers: Partial<Record<string, string[]>>;
-  /** 설치 상태 갱신을 마지막으로 실행한 시각 (null = 실행한 적 없음). */
+  /** 화면의 "서비스 PII Agent 설치완료"(update-service-installed)를 마지막으로 실행한 시각. */
   serviceInstalledUpdatedAt: string | null;
-  /** 서비스 종료를 실행한 시각 (null = 운영 중). */
+  /** 화면의 "EOS 처리"(end-of-service)를 실행한 시각 (null = 운영 중). */
   endOfServiceAt: string | null;
 }
 

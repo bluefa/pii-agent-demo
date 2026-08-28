@@ -39,6 +39,7 @@ import {
   type ConfirmStepResult,
 } from '@/app/components/ui/ConfirmStepModal';
 import { safeBrowseUrl } from '@/lib/jira-ticket';
+import { userErrorText } from '@/app/admin/pipelines/ops/services/_components/errorText';
 import { JiraTicketMenu } from '@/app/admin/pipelines/ops/services/_components/JiraTicketMenu';
 import {
   JiraTicketModal,
@@ -350,7 +351,7 @@ function DetailSkeleton(): ReactElement {
 export interface ServiceDetailViewProps {
   serviceCode: string;
   /**
-   * 운영 동작(서비스 PII Agent 설치완료 · 서비스 종료)을 이 사람이 쓸 수 있는지. 서버
+   * 운영 동작(서비스 PII Agent 설치완료 · EOS 처리)을 이 사람이 쓸 수 있는지. 서버
    * (`page.tsx` 의 `isAdminRole`)가 판정해 내려 준다 — 화면은 다시 판정하지 않는다.
    */
   isAdmin: boolean;
@@ -363,16 +364,16 @@ type ServiceActionKind = 'installed' | 'eos';
 const SERVICE_ACTIONS: readonly ServiceActionKind[] = ['installed', 'eos'];
 const ACTION_LABEL: Record<ServiceActionKind, string> = {
   installed: '서비스 PII Agent 설치완료',
-  eos: '서비스 종료',
+  eos: 'EOS 처리',
 };
 /** 모달의 결과 프레임 제목 — 동작 이름과 같은 어휘로 말한다. */
 const SUCCESS_TITLE: Record<ServiceActionKind, string> = {
   installed: 'PII Agent 설치완료로 표시했습니다.',
-  eos: '서비스를 종료했습니다.',
+  eos: 'EOS 처리했습니다.',
 };
 const FAILURE_TITLE: Record<ServiceActionKind, string> = {
   installed: 'PII Agent 설치완료로 표시하지 못했습니다.',
-  eos: '서비스를 종료하지 못했습니다.',
+  eos: 'EOS 처리하지 못했습니다.',
 };
 
 /** 동작 한 번의 결과. 실패는 응답이 준 값을 그대로 담는다. */
@@ -389,6 +390,8 @@ type ActionOutcome =
     };
 /** 실패 가지만 — 모달의 reason 은 이 값에서 곧장 온다. */
 type ActionFailure = Extract<ActionOutcome, { ok: false }>;
+/** 응답에 문장이 없을 때 — `HTTP 500` 을 서버가 한 말인 양 적지 않는다. */
+const NO_SERVER_MESSAGE = '응답에 메시지가 없습니다.';
 
 /**
  * Keep the failed response as it arrived. `useApiAction` types `onError` as `Error`, but
@@ -407,8 +410,16 @@ function failureOf(error: Error): ActionFailure {
       ok: false,
       at,
       status: error.status,
-      code: error.code,
-      message: error.message,
+      // `rawCode` is what the server said; `code` is what fetch-json narrowed it to for
+      // branching. An unknown upstream code (PIPELINE_RUNNING) becomes CONFLICT there, and
+      // pasting CONFLICT into a ticket sends the reader after the wrong thing.
+      code: error.rawCode ?? error.code,
+      // Server detail only. When the body carried no message fetch-json fills `HTTP <n>`,
+      // which no server ever said — the HTTP row already carries the status, so the screen
+      // says plainly that there was no message. A client-side AppError (network, timeout —
+      // status 0) keeps its own sentence: it is the only account of what happened.
+      message:
+        error.status > 0 ? userErrorText(error, NO_SERVER_MESSAGE) : error.message,
       requestId: error.requestId,
       timestamp: error.timestamp,
     };
@@ -1023,7 +1034,7 @@ export function ServiceDetailView({
         onConfirm={() => actionFor && runAction(actionFor)}
         title={
           actionFor === 'eos'
-            ? '서비스를 종료할까요?'
+            ? 'EOS 처리할까요?'
             : '서비스 PII Agent 설치완료로 표시할까요?'
         }
         // install-v1.yaml 의 두 선언은 경로와 204 뿐이다 — 서버가 무엇을 하는지 모른다.
@@ -1032,10 +1043,10 @@ export function ServiceDetailView({
         // 비가역이라는 뜻이 아니다.
         description={
           actionFor === 'eos'
-            ? `${detail.service_name} 서비스를 종료 처리합니다. 이 화면에서는 되돌릴 수 없습니다.`
+            ? `${detail.service_name} 서비스를 EOS 처리합니다. 이 화면에서는 되돌릴 수 없습니다.`
             : `${detail.service_name} 서비스를 PII Agent 설치완료로 표시합니다.`
         }
-        confirmLabel={actionFor === 'eos' ? '서비스 종료' : '설치완료'}
+        confirmLabel={actionFor === 'eos' ? 'EOS 처리' : '설치완료'}
         tone={actionFor === 'eos' ? 'warning' : 'default'}
         isPending={actionPending}
         result={actionResult}

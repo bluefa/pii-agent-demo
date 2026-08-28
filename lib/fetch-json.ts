@@ -99,6 +99,9 @@ async function parseErrorResponse(res: Response): Promise<AppError> {
     timestamp: optionalString(body.timestamp),
     retryAfterMs: Number.isFinite(retryAfterMs) ? retryAfterMs : undefined,
     requestId: body.requestId ?? requestId,
+    // 위 allowlist 를 통과하지 못한 코드도 여기에는 그대로 실린다 — `code` 는 분기용으로
+    // 좁혀 두고, 서버가 말한 문자열은 잃지 않는다.
+    rawCode: optionalString(body.code),
   });
 }
 

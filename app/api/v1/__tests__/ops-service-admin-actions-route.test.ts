@@ -42,7 +42,7 @@ const call = (
 describe('POST …/admin/ops/services/[serviceCode]/{service-installed,end-of-service}', () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it('설치 상태 갱신은 그 서비스코드 그대로 bff.ops.updateServiceInstalled 를 부른다', async () => {
+  it('서비스 PII Agent 설치완료는 그 서비스코드 그대로 bff.ops.updateServiceInstalled 를 부른다', async () => {
     const res = await call(postServiceInstalled, 'service-installed');
 
     expect(vi.mocked(bff.ops.updateServiceInstalled)).toHaveBeenCalledWith(RAW_CODE);
@@ -51,7 +51,7 @@ describe('POST …/admin/ops/services/[serviceCode]/{service-installed,end-of-se
     expect(await res.json()).toEqual({ success: true });
   });
 
-  it('서비스 종료는 그 서비스코드 그대로 bff.ops.endOfService 를 부른다', async () => {
+  it('EOS 처리는 그 서비스코드 그대로 bff.ops.endOfService 를 부른다', async () => {
     const res = await call(postEndOfService, 'end-of-service');
 
     expect(vi.mocked(bff.ops.endOfService)).toHaveBeenCalledWith(RAW_CODE);

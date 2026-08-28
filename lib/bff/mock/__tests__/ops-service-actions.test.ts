@@ -17,11 +17,11 @@ import * as mockData from '@/lib/mock-data';
 const KNOWN_CODE = [...new Set(mockData.mockProjects.map((p) => p.serviceCode))].sort()[0];
 
 describe('mockBff.ops — 본문 없는 두 쓰기', () => {
-  it('설치 상태 갱신은 204 를 성공으로 돌려준다 (파싱하지 않는다)', async () => {
+  it('서비스 PII Agent 설치완료는 204 를 성공으로 돌려준다 (파싱하지 않는다)', async () => {
     await expect(mockBff.ops.updateServiceInstalled(KNOWN_CODE)).resolves.toBeUndefined();
   });
 
-  it('서비스 종료도 마찬가지다', async () => {
+  it('EOS 처리도 마찬가지다', async () => {
     await expect(mockBff.ops.endOfService(KNOWN_CODE)).resolves.toBeUndefined();
   });
 

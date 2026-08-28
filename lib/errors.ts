@@ -53,6 +53,7 @@ export interface AppErrorInit {
   timestamp?: string;
   retryAfterMs?: number;
   requestId?: string;
+  rawCode?: string;
 }
 
 export class AppError extends Error {
@@ -68,6 +69,14 @@ export class AppError extends Error {
   readonly timestamp?: string;
   /** 요청 추적용 ID */
   readonly requestId?: string;
+  /**
+   * 서버가 실제로 보낸 code 문자열 — allowlist 를 거치지 않은 그대로.
+   *
+   * `code` 는 화면이 분기하는 값이라 아는 코드로만 좁혀지고, 모르는 코드는 status 에서
+   * 유도한 값으로 대체된다. 그 대체는 분기에는 옳지만 "서버가 뭐라고 했나"에는 답이
+   * 아니다 — 운영자가 티켓에 옮겨 적는 것은 이쪽이다.
+   */
+  readonly rawCode?: string;
 
   constructor(init: AppErrorInit) {
     super(init.message);
@@ -78,6 +87,7 @@ export class AppError extends Error {
     this.timestamp = init.timestamp;
     this.retryAfterMs = init.retryAfterMs;
     this.requestId = init.requestId;
+    this.rawCode = init.rawCode;
   }
 
   /** 사용자에게 보여줘도 안전한 메시지인지 (서버가 준 detail) */
