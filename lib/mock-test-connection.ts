@@ -528,6 +528,14 @@ const unsettledAgentResults = (
  * 같은 목의 데모 갈래(`getTcLatestResultRows`)는 처음부터 이렇게 동작했다 — 성공한 리소스만
  * 건수를 달고, 실패한 리소스는 필드 자체가 없으며, 실패가 섞여도 배열은 비지 않는다. 두
  * 갈래가 이제 같은 규칙을 쓴다.
+ *
+ * ⚠️ 형제 오퍼레이션은 생겼지만 계약 문장은 아직 이 규칙이 아니다 — swagger
+ * `getLatestTestConnectionResultSummaries` 의 description 은 여전히 "최신 Test Connection이
+ * **성공한 경우** resource/agent별 논리 DB 및 제외 DB 개수를 조회합니다"다. 즉 `latest-results`
+ * 는 계약상 job 단위 성공 전제로 읽히고, 목은 리소스 단위로 거른다. 닫힌 것은 "형제
+ * 오퍼레이션이 필요하다"는 논지뿐이고 이 어긋남은 그대로 남아 있다. 백엔드 합의 전까지
+ * 목이 앞서 있는 상태이며, 클라이언트는 어느 쪽이든 안전하다: `ldbCount` 가 이미 **리소스**
+ * 판정으로 한 번 더 거른다.
  */
 const summariesForJob = (targetSourceId: number, job: TestConnectionJob | undefined) => {
   if (!job) return [];
@@ -741,9 +749,11 @@ export const TC_CARD_FIXTURE = {
   idle: 2101,
   running: 2102,
   /**
-   * FAIL 정착. 앞선 회차(SEED_PRIOR_RUNS 의 prev-2)가 SUCCESS 라, 이 대상 하나가
-   * latest 계열과 latestSuccess 계열이 서로 다른 회차를 가리키는 유일한 시드다:
-   * `latest_version` 은 3회차(FAIL), `latest_success_version` 은 1회차(SUCCESS).
+   * FAIL 정착. 앞선 회차(SEED_PRIOR_RUNS 의 prev-2)가 SUCCESS 라 두 계열이 서로 다른
+   * 회차를 가리킨다: `latest_version` 은 3회차(FAIL), `latest_success_version` 은
+   * 1회차(SUCCESS). 유일한 그런 대상은 아니다 — SEED_PRIOR_RUNS 는 TESTED_STEPS 의 모든
+   * target 에 붙으므로, 최신 실행이 SUCCESS 로 정착하지 않은 대상은 전부 같은 prev-2 로
+   * 물러선다(`running` 2102, `noReportFail` 2108). 여기만 갈린다고 가정하지 마라.
    */
   fail: 2103,
   success: 2104,

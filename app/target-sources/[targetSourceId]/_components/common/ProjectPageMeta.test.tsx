@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { readFileSync } from 'node:fs';
+import type { ReactNode } from 'react';
 import path from 'node:path';
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
@@ -7,9 +8,26 @@ import { ProcessStatus, type TargetSource } from '@/lib/types';
 import { cardStyles, projectHeaderStyles } from '@/lib/theme';
 
 // The flat header mounts the quiet stepper; stub it and surface the step it receives.
+// It also has to render `tcTag`, or the one decision this header makes — which run the
+// verdict tag reports — is thrown away by the stub and nothing can assert it.
 vi.mock('@/app/components/features/process-status', () => ({
-  InstallationProcessProgressBar: ({ currentStep }: { currentStep: unknown }) => (
-    <div data-testid="process-progress-bar" data-step={String(currentStep)} />
+  InstallationProcessProgressBar: ({
+    currentStep,
+    tcTag,
+  }: {
+    currentStep: unknown;
+    tcTag?: ReactNode;
+  }) => (
+    <div data-testid="process-progress-bar" data-step={String(currentStep)}>
+      {tcTag}
+    </div>
+  ),
+}));
+
+// The real tag fetches on mount; only the scope it was handed is under test here.
+vi.mock('@/app/target-sources/[targetSourceId]/_components/common/TcHeaderTag', () => ({
+  TcHeaderTag: ({ scope }: { scope: string }) => (
+    <span data-testid="tc-header-tag" data-scope={scope} />
   ),
 }));
 
@@ -528,5 +546,45 @@ describe('ProjectPageMeta — install progress', () => {
     expect(screen.getByTestId('process-progress-bar').getAttribute('data-step')).toBe(
       String(projectFixture.processStatus),
     );
+  });
+});
+
+/**
+ * `tcScopeFor` is the only branch in the header, and both of its outcomes render the same
+ * component with the same props shape — so picking the wrong run is silent everywhere
+ * else: tsc, lint and every other assertion in this suite pass either way, and the screen
+ * just reports a different run. These three lines are what makes that choice observable.
+ */
+const scopeAt = (status: ProcessStatus): string | null => {
+  const { unmount } = render(
+    <ProjectPageMeta project={{ ...projectFixture, processStatus: status }} identity={awsIdentity} />,
+  );
+  const scope = screen.getByTestId('tc-header-tag').getAttribute('data-scope');
+  unmount();
+  return scope;
+};
+
+describe('ProjectPageMeta — which run the header tag reports', () => {
+  it('Step 5 reports the raw latest run, failure included — fixing it is the user\u2019s job', () => {
+    expect(scopeAt(ProcessStatus.WAITING_CONNECTION_TEST)).toBe('latest');
+  });
+
+  it('Step 6 stands on a run that passed, so it keeps reporting that run', () => {
+    expect(scopeAt(ProcessStatus.CONNECTION_VERIFIED)).toBe('latestSuccess');
+  });
+
+  it('Step 7 likewise reports the last SUCCESS, not a later failure', () => {
+    expect(scopeAt(ProcessStatus.INSTALLATION_COMPLETE)).toBe('latestSuccess');
+  });
+
+  // Steps 1–4 have no passed run to stand on; recording that they fall to `latest`
+  // keeps a future third branch from landing here unnoticed.
+  it.each([
+    ProcessStatus.WAITING_TARGET_CONFIRMATION,
+    ProcessStatus.WAITING_APPROVAL,
+    ProcessStatus.APPLYING_APPROVED,
+    ProcessStatus.INSTALLING,
+  ])('step %s falls back to latest', (status) => {
+    expect(scopeAt(status)).toBe('latest');
   });
 });

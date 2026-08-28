@@ -593,8 +593,9 @@ export const httpBff: BffClient = {
       getSnakeRaw(
         `/target-sources/${id}/tested-logical-databases/by-resource-id?resourceId=${encodeURIComponent(resourceId)}`,
       ),
-    // 이 쌍만 이름이 뒤집혀 있다: `-latest-` 가 붙은 쪽이 최신 실행(성공 불문)이고,
-    // 안 붙은 위쪽이 마지막 성공이다.
+    // 이 쌍만 이름이 뒤집혀 있다: `-latest-` 가 붙은 `tested-latest-logical-databases` 가
+    // 최신 실행(성공 불문)이고, `-latest-` 가 없는 `tested-logical-databases` 가 마지막
+    // 성공이다. 위치가 아니라 이름으로 읽어라 — 함수 순서는 언제든 바뀐다.
     getTestedLatestByResourceId: (id, resourceId) =>
       getSnakeRaw(
         `/target-sources/${id}/tested-latest-logical-databases/by-resource-id?resourceId=${encodeURIComponent(resourceId)}`,
