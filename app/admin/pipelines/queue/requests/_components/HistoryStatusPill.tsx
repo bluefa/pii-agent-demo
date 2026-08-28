@@ -39,6 +39,8 @@ const HISTORY_TONE: Record<string, ToneSpec> = {
     title: '연동 불가 확인 (서비스 측 담당자 확인)',
     tone: 'off',
   },
+  // A reset is an undo, not a verdict — neutral tone, never ok/err.
+  RESET: { label: '초기화', tone: 'off' },
 };
 
 const TONE_CLASS: Record<Tone, { pill: string; dot: string }> = {

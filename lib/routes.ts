@@ -19,6 +19,9 @@ export const OPS_TAB_SLUGS = {
   tc: '연결 테스트',
   approval: '관리자 승인',
   airflow: 'Airflow 확인',
+  /** The reset action (swagger `resetTargetSource`) — it belongs to no step, so the
+   *  slug names what the tab does rather than a stage of the flow. */
+  danger: '연동 초기화',
 } as const;
 
 export type OpsTargetTab = keyof typeof OPS_TAB_SLUGS;

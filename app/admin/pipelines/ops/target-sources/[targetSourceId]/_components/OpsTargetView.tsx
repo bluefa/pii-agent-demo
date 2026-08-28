@@ -46,6 +46,7 @@ import { PipelineTab } from '@/app/admin/pipelines/ops/target-sources/[targetSou
 import { TcTab } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/TcTab';
 import { ApprovalTab } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/ApprovalTab';
 import { AirflowTab } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/AirflowTab';
+import { DangerTab } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/DangerTab';
 import { AppError } from '@/lib/errors';
 import { useAbortableEffect } from '@/app/hooks/useAbortableEffect';
 import { getDagStatus } from '@/app/lib/api/ops';
@@ -59,7 +60,7 @@ import { runStatus } from '@/app/admin/pipelines/ops/target-sources/[targetSourc
 type TabLabel = OpsTargetTabLabel;
 
 /**
- * The render order, in three groups — 보기 · 실행 · 승인·근거. The strip draws one
+ * The render order, in four groups — 보기 · 실행 · 승인·근거 · 초기화. The strip draws one
  * hairline per group (`opsStyles.tabGroup`), so this array is what the segmentation
  * is made of, not a label on top of a flat list.
  *
@@ -77,11 +78,16 @@ type TabLabel = OpsTargetTabLabel;
  *
  * Airflow 확인 (PR #783) landed at the end of the tool run, but it is not a tool:
  * it holds the evidence behind 승인 조건 ③ and is read, not operated.
+ *
+ * 연동 초기화 stands alone in the last group: it undoes the whole run rather than
+ * moving it along, and the strip's own hairline is what keeps it off the end of the
+ * approval group, where it would read as one more step of the same errand.
  */
 const TAB_GROUPS: readonly (readonly TabLabel[])[] = [
   [OPS_TAB_SLUGS.status, OPS_TAB_SLUGS.scan, OPS_TAB_SLUGS.request, OPS_TAB_SLUGS.confirm],
   [OPS_TAB_SLUGS.infra, OPS_TAB_SLUGS.tc],
   [OPS_TAB_SLUGS.approval, OPS_TAB_SLUGS.airflow],
+  [OPS_TAB_SLUGS.danger],
 ];
 
 /**
@@ -600,6 +606,9 @@ export function OpsTargetView({ targetSourceId, initialTab }: OpsTargetViewProps
           )}
           {currentTab === 'Airflow 확인' && (
             <AirflowTab targetSourceId={targetSourceId} isIdc={isIdc} dag={dag} />
+          )}
+          {currentTab === '연동 초기화' && (
+            <DangerTab targetSourceId={targetSourceId} onReset={retry} />
           )}
         </div>
       </div>

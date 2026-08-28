@@ -13,27 +13,9 @@ import { ApprovalRequestDetailModal } from '@/app/components/features/process-st
 import { OpsPagination } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/OpsPagination';
 import { fmtDateTime } from '@/lib/pipeline/format';
 import { opsStyles } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/opsStyles';
+import { HistoryStatusPill } from '@/app/admin/pipelines/queue/requests/_components/HistoryStatusPill';
 
 const PAGE_SIZE = 5;
-
-/** Figma 4:2 — raw wire status as an uppercase tag (APPROVED green, etc.). */
-const STATUS_TAG_TONE: Record<string, string> = {
-  APPROVED: 'bg-[var(--pl-ok-bg)] text-[var(--pl-ok-text)]',
-  CONFIRMED: 'bg-[var(--pl-ok-bg)] text-[var(--pl-ok-text)]',
-  REJECTED: 'bg-[var(--pl-err-bg)] text-[var(--pl-err-text)]',
-  PENDING: 'bg-[var(--pl-warn-bg)] text-[var(--pl-warn-text)]',
-};
-
-const StatusTag = ({ status }: { status: string | null }): ReactElement => (
-  <span
-    className={cn(
-      opsStyles.statusTag,
-      STATUS_TAG_TONE[status ?? ''] ?? 'bg-[var(--pl-off-bg)] text-[var(--pl-off-text)]',
-    )}
-  >
-    {status ?? '-'}
-  </span>
-);
 
 /** Snake wire of one approval-history Page content item (swagger Page is untyped). */
 interface ApprovalHistoryRowWire {
@@ -149,7 +131,7 @@ export function ApprovalHistoryCard({
                     {fmtDateTime(row.request?.requested_at)}
                   </td>
                   <td className={table.cell}>
-                    <StatusTag status={row.result?.status ?? row.request?.status ?? null} />
+                    <HistoryStatusPill status={row.result?.status ?? row.request?.status ?? null} />
                   </td>
                   <td className={table.cell}>
                     {row.request?.requested_by?.user_id ?? '-'}
