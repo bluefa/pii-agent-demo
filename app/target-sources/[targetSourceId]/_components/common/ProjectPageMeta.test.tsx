@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { readFileSync } from 'node:fs';
+import type { ReactNode } from 'react';
 import path from 'node:path';
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
@@ -7,9 +8,26 @@ import { ProcessStatus, type TargetSource } from '@/lib/types';
 import { cardStyles, projectHeaderStyles } from '@/lib/theme';
 
 // The flat header mounts the quiet stepper; stub it and surface the step it receives.
+// It also has to render `tcTag`, or the one decision this header makes — which run the
+// verdict tag reports — is thrown away by the stub and nothing can assert it.
 vi.mock('@/app/components/features/process-status', () => ({
-  InstallationProcessProgressBar: ({ currentStep }: { currentStep: unknown }) => (
-    <div data-testid="process-progress-bar" data-step={String(currentStep)} />
+  InstallationProcessProgressBar: ({
+    currentStep,
+    tcTag,
+  }: {
+    currentStep: unknown;
+    tcTag?: ReactNode;
+  }) => (
+    <div data-testid="process-progress-bar" data-step={String(currentStep)}>
+      {tcTag}
+    </div>
+  ),
+}));
+
+// The real tag fetches on mount; only the scope it was handed is under test here.
+vi.mock('@/app/target-sources/[targetSourceId]/_components/common/TcHeaderTag', () => ({
+  TcHeaderTag: ({ scope }: { scope: string }) => (
+    <span data-testid="tc-header-tag" data-scope={scope} />
   ),
 }));
 
@@ -242,35 +260,49 @@ describe('ProjectPageMeta — path heading', () => {
     const codeLabel = heading.getByText('서비스 코드');
     const code = heading.getByText('SERVICE-A');
 
+    // Fill and stroke are read off `codeChip` instead of spelled out here. The claim is
+    // that both tags wear the SAME two, so `codeChip` is the one place that states them;
+    // a value copied into this file would be free to drift away from the token it names.
+    const fill = projectHeaderStyles.codeChip.match(/bg-\[#[0-9A-F]{6}\]/)?.[0];
+    const stroke = projectHeaderStyles.codeChip.match(/border-\[#[0-9A-F]{6}\]/)?.[0];
+    expect(fill).toBeTruthy();
+    expect(stroke).toBeTruthy();
+
     // Both are tags, not runs of text: a bare label beside the value would read as
     // part of it, which is the thing the reader could not parse in the first place.
     expect(kind.className).toContain('rounded-[6px]');
-    expect(kind.className).toContain('bg-[#EAEEF7]');
-    expect(codeLabel.parentElement?.className).toContain('bg-[#EAEEF7]');
+    expect(kind.className).toContain(fill!);
+    expect(codeLabel.parentElement?.className).toContain(fill!);
     // The code chip holds its own label, so the two live in ONE tag, not two.
     expect(codeLabel.parentElement).toBe(code.parentElement);
     expect(code.className).toContain('font-mono');
     // …and both close on a stroke (오너 15차 지시), the same one.
-    expect(kind.className).toContain('border border-[#D7DBE3]');
-    expect(codeLabel.parentElement?.className).toContain('border border-[#D7DBE3]');
+    expect(kind.className).toContain(`border ${stroke}`);
+    expect(codeLabel.parentElement?.className).toContain(`border ${stroke}`);
   });
 
   it('strokes the path tags two rungs down, on black (오너 15차 지시)', () => {
-    // "Two rungs" is a measurement, not a taste: from the tags' own #EAEEF7 fill, this
-    // repo's existing strokes sit at ΔE00 2.31 (blockHead's hairline) and 4.29 (the card
-    // stroke this header used to have). #D7DBE3 is 4.20 — the second one.
+    // "Two rungs" is a measurement, not a taste: from the tags' own fill, this repo's
+    // existing strokes sit at ΔE00 2.31 (blockHead's hairline) and 4.29 (the card stroke
+    // this header used to have). The one these tags wear is 4.20 — the second.
     //
     // Black, not a darker slate. It is exactly rgba(0,0,0,.08) over the fill, baked
     // opaque because the border box paints over the background anyway and only a hex is
-    // measurable by design-guard. A hex that is NOT the fill scaled by a constant would
-    // be a new hue on a line whose whole point is one vocabulary — so pin the arithmetic.
-    const FILL = [0xea, 0xee, 0xf7];
+    // measurable by design-guard. A stroke that is NOT the fill scaled by a constant
+    // would be a new hue on a line whose whole point is one vocabulary — so pin the
+    // arithmetic. Both ends are read off the tokens: a fill hand-copied into this file
+    // would keep the test green after the token moved, and the relation IS the assertion.
+    const channels = (hex: string) => [0, 2, 4].map((i) => parseInt(hex.slice(i, i + 2), 16));
+    const fill = projectHeaderStyles.codeChip.match(/bg-\[#([0-9A-F]{6})\]/)?.[1];
     const stroke = projectHeaderStyles.crumbKind.match(/border-\[#([0-9A-F]{6})\]/)?.[1];
+    expect(fill).toBeTruthy();
     expect(stroke).toBeTruthy();
-    const rgb = [0, 2, 4].map((i) => parseInt(stroke!.slice(i, i + 2), 16));
-    for (const [i, channel] of rgb.entries()) {
-      expect(channel).toBe(Math.round(FILL[i] * 0.92));
+    const fillRgb = channels(fill!);
+    for (const [i, channel] of channels(stroke!).entries()) {
+      expect(channel).toBe(Math.round(fillRgb[i] * 0.92));
     }
+    // One fill as well, or "two rungs down from the fill" names two different fills.
+    expect(projectHeaderStyles.crumbKind).toContain(`bg-[#${fill}]`);
     // Both tags wear the one stroke — they are one vocabulary or they are noise.
     expect(projectHeaderStyles.codeChip).toContain(`border-[#${stroke}]`);
   });
@@ -528,5 +560,45 @@ describe('ProjectPageMeta — install progress', () => {
     expect(screen.getByTestId('process-progress-bar').getAttribute('data-step')).toBe(
       String(projectFixture.processStatus),
     );
+  });
+});
+
+/**
+ * `tcScopeFor` is the only branch in the header, and both of its outcomes render the same
+ * component with the same props shape — so picking the wrong run is silent everywhere
+ * else: tsc, lint and every other assertion in this suite pass either way, and the screen
+ * just reports a different run. These three lines are what makes that choice observable.
+ */
+const scopeAt = (status: ProcessStatus): string | null => {
+  const { unmount } = render(
+    <ProjectPageMeta project={{ ...projectFixture, processStatus: status }} identity={awsIdentity} />,
+  );
+  const scope = screen.getByTestId('tc-header-tag').getAttribute('data-scope');
+  unmount();
+  return scope;
+};
+
+describe('ProjectPageMeta — which run the header tag reports', () => {
+  it('Step 5 reports the raw latest run, failure included — fixing it is the user\u2019s job', () => {
+    expect(scopeAt(ProcessStatus.WAITING_CONNECTION_TEST)).toBe('latest');
+  });
+
+  it('Step 6 stands on a run that passed, so it keeps reporting that run', () => {
+    expect(scopeAt(ProcessStatus.CONNECTION_VERIFIED)).toBe('latestSuccess');
+  });
+
+  it('Step 7 likewise reports the last SUCCESS, not a later failure', () => {
+    expect(scopeAt(ProcessStatus.INSTALLATION_COMPLETE)).toBe('latestSuccess');
+  });
+
+  // Steps 1–4 have no passed run to stand on; recording that they fall to `latest`
+  // keeps a future third branch from landing here unnoticed.
+  it.each([
+    ProcessStatus.WAITING_TARGET_CONFIRMATION,
+    ProcessStatus.WAITING_APPROVAL,
+    ProcessStatus.APPLYING_APPROVED,
+    ProcessStatus.INSTALLING,
+  ])('step %s falls back to latest', (status) => {
+    expect(scopeAt(status)).toBe('latest');
   });
 });

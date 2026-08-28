@@ -227,8 +227,8 @@ export function OpsTargetView({ targetSourceId, initialTab }: OpsTargetViewProps
     const [statusRow, latest, resultRows] = await Promise.allSettled([
       getTestConnectionDetail(targetSourceId),
       // 404 = 연결 테스트 이력 없음 → null (오류가 아니다).
-      fetchLatestTest(targetSourceId),
-      getTestConnectionResults(targetSourceId),
+      fetchLatestTest(targetSourceId, 'latest'),
+      getTestConnectionResults(targetSourceId, 'latest'),
     ]);
     if (seq !== tcSeq.current) return;
     setTcStatus(statusRow.status === 'fulfilled' ? statusRow.value : null);

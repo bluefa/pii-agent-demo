@@ -8,6 +8,7 @@ import { useLogicalDatabases } from '@/app/target-sources/[targetSourceId]/_comp
 import { isParentDeny } from '@/app/target-sources/[targetSourceId]/_components/logical-db/logical-db-deny';
 import type { LogicalDatabase } from '@/app/target-sources/[targetSourceId]/_components/logical-db/logical-db-types';
 import type { SkipReason } from '@/app/lib/api/logical-db';
+import type { TcScope } from '@/app/lib/api/tc-scope';
 import {
   bgColors,
   borderColors,
@@ -22,6 +23,11 @@ interface LogicalDbSummaryModalProps {
   targetSourceId: number;
   resourceId: string;
   resourceName: string;
+  /**
+   * Which connection-test run to read. The renderer decides: the cloud Steps 6·7 table passes
+   * `latestSuccess`, the IDC panel hands down whatever its own step gave it.
+   */
+  scope: TcScope;
   onClose: () => void;
 }
 
@@ -41,9 +47,10 @@ export const LogicalDbSummaryModal = ({
   targetSourceId,
   resourceId,
   resourceName,
+  scope,
   onClose,
 }: LogicalDbSummaryModalProps) => {
-  const { state, retry } = useLogicalDatabases(targetSourceId, resourceId);
+  const { state, retry } = useLogicalDatabases(targetSourceId, resourceId, scope);
 
   // `databases` already merges the policy-only names (excluded but not discovered), so the
   // split is by membership in the skip set. A SCHEMA under an excluded parent DATABASE is
@@ -84,7 +91,12 @@ export const LogicalDbSummaryModal = ({
         </div>
       }
     >
-      <h2 className="mb-2 text-[20px] font-bold leading-[1.2] tracking-[-0.02em] text-[#191F28]">
+      <h2
+        className={cn(
+          'mb-2 text-[20px] font-bold leading-[1.2] tracking-[-0.02em]',
+          textColors.primary,
+        )}
+      >
         논리 DB 연동 현황
       </h2>
       <div className="mb-2 flex flex-wrap items-center gap-2">
@@ -100,7 +112,7 @@ export const LogicalDbSummaryModal = ({
           {resourceName}
         </span>
       </div>
-      <p className="mb-3.5 text-[12px] font-medium leading-[1.5] text-[#6B7684]">
+      <p className={cn('mb-3.5 text-[12px] font-medium leading-[1.5]', textColors.tertiary)}>
         5단계 연결 테스트가 확인한 결과예요. 제외 대상은 관리자가 설정한 정책이라, 이번 테스트에서
         발견되지 않은 이름이 포함될 수 있어요.
       </p>
@@ -155,7 +167,8 @@ const Panel = ({ label, items, reasons, emptyMessage }: PanelProps) => (
       <span className={cn('text-[13px] font-bold', textColors.primary)}>{label}</span>
       <span
         className={cn(
-          'rounded-full bg-[#F3F4F6] px-[7px] py-px text-[11px] font-bold tabular-nums',
+          'rounded-full px-[7px] py-px text-[11px] font-bold tabular-nums',
+          bgColors.panel,
           textColors.secondary,
         )}
       >
@@ -183,7 +196,8 @@ const Panel = ({ label, items, reasons, emptyMessage }: PanelProps) => (
               <span className="flex shrink-0 items-center gap-1.5">
                 <span
                   className={cn(
-                    'rounded-[5px] bg-[#F1F3F5] px-1.5 py-px text-[10.5px] font-bold',
+                    'rounded-[5px] px-1.5 py-px text-[10.5px] font-bold',
+                    bgColors.panel,
                     textColors.tertiary,
                   )}
                 >

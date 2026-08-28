@@ -104,7 +104,7 @@ export function LdbManageModal({
     let cancelled = false;
     (async () => {
       const [testedList, excludedList] = await Promise.allSettled([
-        getTestedLogicalDatabases(targetSourceId, resourceId),
+        getTestedLogicalDatabases(targetSourceId, resourceId, 'latest'),
         getExcludedLogicalDatabases(targetSourceId, resourceId),
       ]);
       if (cancelled) return;

@@ -113,6 +113,24 @@ export const getLatestJob = (targetSourceId: number): TestConnectionJob | undefi
   return calculateJobStatus(jobs[0]);
 };
 
+/**
+ * 마지막으로 **성공**한 실행. `getLatestJob` 의 짝이며 `latest_success_version` /
+ * `latest-success-results` 가 여기서 갈린다 — 최신 실행이 실패면 그 이전 회차를,
+ * 성공이면 `getLatestJob` 과 같은 실행을 돌려준다. 성공한 실행이 하나도 없으면 undefined.
+ *
+ * 살아 있는(PENDING) 실행도 `calculateJobStatus` 를 지나야 이번 프레임에 SUCCESS 로
+ * 정착했는지 알 수 있다 — 정착한 실행은 그 함수가 그대로 돌려주므로 과거 실행에는
+ * 아무 일도 하지 않는다.
+ */
+export const getLatestSuccessJob = (targetSourceId: number): TestConnectionJob | undefined => {
+  const store = getStore();
+  return store.testConnectionJobs
+    .filter((j) => j.target_source_id === targetSourceId)
+    .sort((a, b) => new Date(b.requested_at).getTime() - new Date(a.requested_at).getTime())
+    .map(calculateJobStatus)
+    .find((j) => j.status === 'SUCCESS');
+};
+
 export const getJobHistory = (
   targetSourceId: number,
   page: number,
@@ -348,9 +366,20 @@ const WIRE_DATE_PLACEHOLDER = '1970-01-01T00:00:00.000Z';
 const fallbackAgentId = (index: number): string =>
   `tc-agent-${String(index + 1).padStart(2, '0')}`;
 
-/** Monotonic run cursor for a target source (one job == one run). */
-const versionForTarget = (targetSourceId: number): number =>
-  getStore().testConnectionJobs.filter((j) => j.target_source_id === targetSourceId).length;
+/**
+ * Monotonic run cursor (one job == one run) — 그 실행이 이 target 의 몇 번째인가.
+ * 가장 오래된 실행이 1이다. 예전에는 target 의 전체 실행 수를 그대로 실었는데, 그러면
+ * 최신 실행이 아닌 실행(마지막 성공)을 투사할 때도 최신 회차 번호를 달아 `latest_version`
+ * 과 `latest_success_version` 이 다른 실행을 같은 회차라고 말한다. 최신 실행에 대해서는
+ * 두 계산이 같은 값이라(연대순 인덱스 == 전체 개수) 기존 응답은 그대로다.
+ */
+const versionForJob = (job: TestConnectionJob): number => {
+  const requestedMs = Date.parse(job.requested_at);
+  return getStore().testConnectionJobs.filter(
+    (j) => j.target_source_id === job.target_source_id
+      && Date.parse(j.requested_at) <= requestedMs,
+  ).length;
+};
 
 /**
  * 접수 후 실제 디스패치까지의 창 — 이 동안 top-level 은 PENDING(시작 대기)으로 나간다.
@@ -402,7 +431,7 @@ const podIdFor = (targetSourceId: number, version: number, resourceId: string): 
 export const toVersionResultResponse = (job: TestConnectionJob) => {
   const queued = isQueued(job);
   const topStatus = toWireTopStatus(job);
-  const version = versionForTarget(job.target_source_id);
+  const version = versionForJob(job);
   const settled = job.resource_results.map((r, index) => {
     const failReason = resourceFailReason(r);
     const wireRow: WireAgentRow = {
@@ -480,29 +509,35 @@ const unsettledAgentResults = (
 };
 
 /**
- * `TestConnectionLatestResultSummaryResponse[]` wire shape
- * (getLatestTestConnectionResultSummaries) — per-resource logical-DB counts from
- * the **latest** run. The real counts come from the logical-DB domain; the mock
- * derives deterministic placeholders keyed off the resource id so the table renders.
+ * `TestConnectionLatestResultSummaryResponse[]` wire shape — 한 실행의 리소스별
+ * 논리 DB 건수. 실제 건수는 논리 DB 도메인이 갖고 있으므로, 목은 resource id 로
+ * 결정적인 자리표를 유도해 표가 그려지게만 한다. 두 오퍼레이션이 이 한 몸을 공유하고
+ * 어느 실행을 넣느냐로만 갈린다(아래 두 래퍼).
  *
  * 게이트는 **리소스**에 있다, job 에 있지 않다 (오너 2026-08-25). 예전에는 `job.status !==
  * 'SUCCESS'` 로 통째로 `[]` 를 냈는데, 그러면 리소스 하나가 실패한 순간 **성공한 나머지
  * 전부의** 건수까지 같이 사라진다 — 부분 실패는 예외가 아니라 평상시라(#2103: 성공 4 ·
  * 실패 2) 표의 논리 DB 열이 상시로 비는 원인이 그것이었다. 오너의 논지는 이름 그대로다:
- * `latest-results` 는 "가장 최신 결과"를 뜻하지 "최신 성공 결과"를 뜻하지 않는다. 후자가
- * 필요하면 `latest-success-results` 를 따로 두는 게 맞다.
+ * `latest-results` 는 "가장 최신 결과"를 뜻하지 "최신 성공 결과"를 뜻하지 않는다.
+ *
+ * 그때 "후자가 필요하면 `latest-success-results` 를 따로 두는 게 맞다"고 적어둔 그
+ * 오퍼레이션이 지금 존재한다(BE 신규). 예고가 아니라 구현이다 — `toLatestSuccessResultSummaries`
+ * 가 마지막 성공 실행을 넣고, `toLatestResultSummaries` 는 최신 실행을 그대로 넣는다.
+ * 최신 실행이 실패한 target 에서는 두 배열의 행 수가 실제로 갈린다.
  *
  * 같은 목의 데모 갈래(`getTcLatestResultRows`)는 처음부터 이렇게 동작했다 — 성공한 리소스만
  * 건수를 달고, 실패한 리소스는 필드 자체가 없으며, 실패가 섞여도 배열은 비지 않는다. 두
  * 갈래가 이제 같은 규칙을 쓴다.
  *
- * ⚠️ 계약 문장은 아직 이 규칙이 아니다 — swagger `getLatestTestConnectionResultSummaries`
- * 의 description 은 "최신 Test Connection이 성공한 경우 … 조회합니다". 백엔드 합의 전까지
- * 목이 앞서 있는 상태이고, 클라이언트는 어느 쪽이든 안전하다: `ldbCount` 가 이미 **리소스**
+ * ⚠️ 형제 오퍼레이션은 생겼지만 계약 문장은 아직 이 규칙이 아니다 — swagger
+ * `getLatestTestConnectionResultSummaries` 의 description 은 여전히 "최신 Test Connection이
+ * **성공한 경우** resource/agent별 논리 DB 및 제외 DB 개수를 조회합니다"다. 즉 `latest-results`
+ * 는 계약상 job 단위 성공 전제로 읽히고, 목은 리소스 단위로 거른다. 닫힌 것은 "형제
+ * 오퍼레이션이 필요하다"는 논지뿐이고 이 어긋남은 그대로 남아 있다. 백엔드 합의 전까지
+ * 목이 앞서 있는 상태이며, 클라이언트는 어느 쪽이든 안전하다: `ldbCount` 가 이미 **리소스**
  * 판정으로 한 번 더 거른다.
  */
-export const toLatestResultSummaries = (targetSourceId: number) => {
-  const job = getLatestJob(targetSourceId);
+const summariesForJob = (targetSourceId: number, job: TestConnectionJob | undefined) => {
   if (!job) return [];
 
   // Athena 리전 하나가 덮는 데이터베이스 수. Athena 는 데이터베이스가 곧 논리 DB 라
@@ -542,6 +577,17 @@ export const toLatestResultSummaries = (targetSourceId: number) => {
       };
     });
 };
+
+/** `latest-results` — 최신 실행 그대로. 실패해도 성공한 리소스는 건수를 낸다. */
+export const toLatestResultSummaries = (targetSourceId: number) =>
+  summariesForJob(targetSourceId, getLatestJob(targetSourceId));
+
+/**
+ * `latest-success-results` — 마지막으로 성공한 실행 기준. 최신 실행이 실패면 그 이전
+ * 회차를 세므로 위 배열과 행 수가 갈리고, 성공한 실행이 하나도 없으면 빈 배열이다.
+ */
+export const toLatestSuccessResultSummaries = (targetSourceId: number) =>
+  summariesForJob(targetSourceId, getLatestSuccessJob(targetSourceId));
 
 // ===== Pod 로그 (DRAFT CONTRACT — StackDriver 캡처본 조회) =====
 
@@ -667,7 +713,7 @@ export const getPodLog = (
 ): TestConnectionPodLogEntry[] | null => {
   const job = getLatestJob(targetSourceId);
   if (!job) return null;
-  const version = versionForTarget(targetSourceId);
+  const version = versionForJob(job);
   const settled = job.resource_results.find(
     (r) =>
       resourceFailReason(r) !== 'POD_CREATION_FAILED' &&
@@ -702,6 +748,13 @@ const SEED_COMPLETED_AT = '2026-06-01T00:04:20.000Z';
 export const TC_CARD_FIXTURE = {
   idle: 2101,
   running: 2102,
+  /**
+   * FAIL 정착. 앞선 회차(SEED_PRIOR_RUNS 의 prev-2)가 SUCCESS 라 두 계열이 서로 다른
+   * 회차를 가리킨다: `latest_version` 은 3회차(FAIL), `latest_success_version` 은
+   * 1회차(SUCCESS). 유일한 그런 대상은 아니다 — SEED_PRIOR_RUNS 는 TESTED_STEPS 의 모든
+   * target 에 붙으므로, 최신 실행이 SUCCESS 로 정착하지 않은 대상은 전부 같은 prev-2 로
+   * 물러선다(`running` 2102, `noReportFail` 2108). 여기만 갈린다고 가정하지 마라.
+   */
   fail: 2103,
   success: 2104,
   policyChanged: 2105,
@@ -731,6 +784,11 @@ const TC_FIXTURE_NO_REPORT_FAILED_AT = '2026-06-01T00:00:30.000Z';
  * (execution-history) table has a trail to show instead of a single row; every one
  * is strictly older than SEED_REQUESTED_AT so `getLatestJob` — and everything
  * derived from it (latest-results, completion-status) — is untouched.
+ *
+ * prev-2 가 SUCCESS 인 것이 latestSuccess 계열의 시드다: 최신 실행이 FAIL 인 대상
+ * (TC_CARD_FIXTURE.fail)에서 `getLatestSuccessJob` 이 여기까지 물러서므로 두 계열이
+ * 화면에서 실제로 갈라진다. 최신 실행이 성공인 나머지 대상은 두 계열이 같은 실행을
+ * 가리키므로 기존 상태가 그대로다.
  */
 const SEED_PRIOR_RUNS: ReadonlyArray<{
   suffix: string;

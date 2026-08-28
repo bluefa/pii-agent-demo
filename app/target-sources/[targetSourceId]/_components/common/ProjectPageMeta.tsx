@@ -1,7 +1,7 @@
 'use client';
 
 import { Fragment, useState } from 'react';
-import type { CloudProvider, TargetSource } from '@/lib/types';
+import { ProcessStatus, type CloudProvider, type TargetSource } from '@/lib/types';
 import { ProviderGlyph } from '@/app/components/ui/CloudProviderIcon';
 import { ChevronDownIcon, CopyIcon, InfoCircleIcon, StatusSuccessIcon } from '@/app/components/ui/icons';
 import { InstallationProcessProgressBar } from '@/app/components/features/process-status';
@@ -10,6 +10,17 @@ import { TIMINGS } from '@/lib/constants/timings';
 import { cn, identityBarStyles, projectHeaderStyles as h } from '@/lib/theme';
 import type { ProjectIdentity } from '@/app/target-sources/[targetSourceId]/_components/common/project-identity';
 import { TcHeaderTag } from '@/app/target-sources/[targetSourceId]/_components/common/TcHeaderTag';
+import type { TcScope } from '@/app/lib/api/tc-scope';
+
+/**
+ * Which connection-test run the header tag reports. Steps 6·7 stand on a run that passed, so
+ * they keep reporting that run even after a later one fails; every other step — Step 5 above
+ * all, where fixing the failure is the user's job — reports the raw latest.
+ */
+const tcScopeFor = (status: TargetSource['processStatus']): TcScope =>
+  status === ProcessStatus.CONNECTION_VERIFIED || status === ProcessStatus.INSTALLATION_COMPLETE
+    ? 'latestSuccess'
+    : 'latest';
 
 /** Ties the disclosure button to the block it opens (`aria-controls`). */
 const META_BLOCK_ID = 'target-source-meta';
@@ -319,7 +330,12 @@ export const ProjectPageMeta = ({ project, identity, action }: ProjectPageMetaPr
           page title. */}
       <InstallationProcessProgressBar
         currentStep={project.processStatus}
-        tcTag={<TcHeaderTag targetSourceId={project.targetSourceId} />}
+        tcTag={
+          <TcHeaderTag
+            targetSourceId={project.targetSourceId}
+            scope={tcScopeFor(project.processStatus)}
+          />
+        }
       />
     </header>
   );

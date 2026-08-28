@@ -10,12 +10,15 @@ import { useLogicalDatabases } from '@/app/target-sources/[targetSourceId]/_comp
 import { draftToExcludedItems } from '@/app/target-sources/[targetSourceId]/_components/logical-db/logical-db-deny';
 import { updateExcludedLogicalDatabases } from '@/app/lib/api/logical-db';
 import type { LogicalDatabase, LogicalDbModalDraft } from '@/app/target-sources/[targetSourceId]/_components/logical-db/logical-db-types';
+import type { TcScope } from '@/app/lib/api/tc-scope';
 
 interface LogicalDbModalLoaderProps {
   open: boolean;
   targetSourceId: number;
   resourceId: string;
   resourceName: string;
+  /** Which connection-test run the discovered list comes from — Step 5 owns this modal, so `latest`. */
+  scope: TcScope;
   /** Called after the skip policy is persisted (success toast + refetch + close). */
   onSaved: () => void;
   /** Called when the PUT fails (failure toast). */
@@ -35,11 +38,12 @@ export const LogicalDbModalLoader = ({
   targetSourceId,
   resourceId,
   resourceName,
+  scope,
   onSaved,
   onError,
   onClose,
 }: LogicalDbModalLoaderProps) => {
-  const { state, retry } = useLogicalDatabases(targetSourceId, resourceId);
+  const { state, retry } = useLogicalDatabases(targetSourceId, resourceId, scope);
   const [saving, setSaving] = useState(false);
 
   const databases: LogicalDatabase[] =

@@ -18,6 +18,7 @@ import {
 } from '@/app/target-sources/[targetSourceId]/_components/confirmed/logical-db-summaries';
 import { getLatestTestConnectionResultSummaries } from '@/app/lib/api';
 import type { IdcResourceView } from '@/app/lib/api/idc';
+import type { TcScope } from '@/app/lib/api/tc-scope';
 import type { UnitTcStatus } from '@/lib/test-connection-summary';
 import type { ResourcesState } from '@/app/hooks/useIdcResources';
 
@@ -26,6 +27,12 @@ const EMPTY_COUNTS: LogicalDbCountMap = new Map();
 
 interface IdcConfirmedResourcesPanelProps {
   targetSourceId: number;
+  /**
+   * Which connection-test run the logical-DB counts (and the read-only list behind them) come
+   * from. The host step decides — Step 5 `latest`, Steps 6·7 `latestSuccess` — because the
+   * panel has no business guessing which step it is mounted under.
+   */
+  scope: TcScope;
   /** Confirmed-integration read owned by the host step (DR3/DR4/DR5/DR7 — one fetch per step). */
   state: ResourcesState;
   /**
@@ -59,6 +66,7 @@ interface IdcConfirmedResourcesPanelProps {
  */
 export const IdcConfirmedResourcesPanel = ({
   targetSourceId,
+  scope,
   state,
   onLogicalOpen,
   credentials,
@@ -74,7 +82,9 @@ export const IdcConfirmedResourcesPanel = ({
   });
   useEffect(() => {
     const controller = new AbortController();
-    void getLatestTestConnectionResultSummaries(targetSourceId, { signal: controller.signal })
+    void getLatestTestConnectionResultSummaries(targetSourceId, scope, {
+      signal: controller.signal,
+    })
       .then((summaries) => {
         if (controller.signal.aborted) return;
         setFetched({ targetSourceId, counts: buildLogicalDbCountMap(summaries) });
@@ -83,7 +93,7 @@ export const IdcConfirmedResourcesPanel = ({
         // No summaries available → leave the map empty so cells render "—".
       });
     return () => controller.abort();
-  }, [targetSourceId]);
+  }, [targetSourceId, scope]);
   // Stamped with the id it was fetched for, so a switch to another target shows "—" until its own
   // counts land. Resource ids can repeat across target sources — a stale map would silently
   // attribute one target's counts to another's rows.
@@ -151,6 +161,7 @@ export const IdcConfirmedResourcesPanel = ({
         <LogicalDbSummaryModal
           open
           targetSourceId={targetSourceId}
+          scope={scope}
           resourceId={logicalTarget.resourceId}
           resourceName={logicalTarget.hosts[0] ?? logicalTarget.resourceId}
           onClose={() => setLogicalTarget(null)}

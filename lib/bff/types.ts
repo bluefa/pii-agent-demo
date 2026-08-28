@@ -310,7 +310,13 @@ export interface BffClient {
   };
 
   logicalDb: {
+    /** 마지막 **성공** 실행이 발견한 논리 DB 목록 (경로에 `-latest-` 가 없는 쪽). */
     getTestedByResourceId: (
+      id: number,
+      resourceId: string,
+    ) => Promise<z.infer<typeof schemas.TestedLogicalDatabasesResponse>>;
+    /** 최신 실행이 발견한 논리 DB 목록 — 성공/실패를 가리지 않는다. 같은 응답 DTO. */
+    getTestedLatestByResourceId: (
       id: number,
       resourceId: string,
     ) => Promise<z.infer<typeof schemas.TestedLogicalDatabasesResponse>>;
@@ -378,9 +384,13 @@ export interface BffClient {
     updateResourceCredential: (id: number, body: unknown) => Promise<unknown>;
     testConnection: (id: number, collectorImageTag?: string) => Promise<z.infer<typeof schemas.TestConnectionTriggerResponse>>;
     getTestConnectionLatest: (id: number) => Promise<z.infer<typeof schemas.TestConnectionVersionResult>>;
+    /** 마지막 성공 실행의 회차/agent 결과 — 최신 실행이 실패면 그 이전 회차가 나온다. */
+    getTestConnectionLatestSuccess: (id: number) => Promise<z.infer<typeof schemas.TestConnectionVersionResult>>;
     /** DRAFT CONTRACT — pod 로그 캡처본 (swagger 미랜딩, 원문 그대로 통과). */
     getTestConnectionPodLog: (id: number, podId: string) => Promise<unknown>;
     getLatestTestConnectionResultSummaries: (id: number) => Promise<z.infer<typeof schemas.TestConnectionLatestResultSummaryResponse>[]>;
+    /** 마지막 성공 실행 기준의 리소스별 논리 DB 건수 — 같은 배열 DTO. */
+    getLatestTestConnectionSuccessResultSummaries: (id: number) => Promise<z.infer<typeof schemas.TestConnectionLatestResultSummaryResponse>[]>;
     getTestConnectionCompletionStatus: (id: number) => Promise<z.infer<typeof schemas.TestConnectionCompletionStatusResponse>>;
     updateTestConnectionConfirmation: (
       id: number,

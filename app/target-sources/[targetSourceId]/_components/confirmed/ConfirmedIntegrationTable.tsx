@@ -53,7 +53,9 @@ export const ConfirmedIntegrationTable = ({
   });
   useEffect(() => {
     const controller = new AbortController();
-    void getLatestTestConnectionResultSummaries(targetSourceId, { signal: controller.signal })
+    void getLatestTestConnectionResultSummaries(targetSourceId, 'latestSuccess', {
+      signal: controller.signal,
+    })
       .then((summaries) => {
         if (controller.signal.aborted) return;
         setFetched({ targetSourceId, counts: buildLogicalDbCountMap(summaries) });
@@ -225,6 +227,7 @@ export const ConfirmedIntegrationTable = ({
         <LogicalDbSummaryModal
           open
           targetSourceId={targetSourceId}
+          scope="latestSuccess"
           resourceId={logicalDbTarget.resourceId}
           resourceName={logicalDbTarget.resourceName || logicalDbTarget.resourceId}
           onClose={() => setLogicalDbTarget(null)}

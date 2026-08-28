@@ -593,6 +593,13 @@ export const httpBff: BffClient = {
       getSnakeRaw(
         `/target-sources/${id}/tested-logical-databases/by-resource-id?resourceId=${encodeURIComponent(resourceId)}`,
       ),
+    // 이 쌍만 이름이 뒤집혀 있다: `-latest-` 가 붙은 `tested-latest-logical-databases` 가
+    // 최신 실행(성공 불문)이고, `-latest-` 가 없는 `tested-logical-databases` 가 마지막
+    // 성공이다. 위치가 아니라 이름으로 읽어라 — 함수 순서는 언제든 바뀐다.
+    getTestedLatestByResourceId: (id, resourceId) =>
+      getSnakeRaw(
+        `/target-sources/${id}/tested-latest-logical-databases/by-resource-id?resourceId=${encodeURIComponent(resourceId)}`,
+      ),
     getExcludedByResourceId: (id, resourceId) =>
       getSnakeRaw(
         `/target-sources/${id}/excluded-databases/by-resource-id?resourceId=${encodeURIComponent(resourceId)}`,
@@ -710,6 +717,11 @@ export const httpBff: BffClient = {
         `/target-sources/${id}/test-connection/latest_version`,
       ),
 
+    getTestConnectionLatestSuccess: (id) =>
+      getSnakeRaw<z.infer<typeof schemas.TestConnectionVersionResult>>(
+        `/target-sources/${id}/test-connection/latest_success_version`,
+      ),
+
     // GET /install/v1/logs/{podId} — Self Installation Tool 이 Infra Manager 의 로그
     // API 를 프록시한다. pod 가 전역 키라 target source 로 스코프되지 않는다(내부 경로만
     // 대상별로 남는다). 응답은 [{timestamp, content, severity}] 리스트 원문 그대로 통과.
@@ -719,6 +731,11 @@ export const httpBff: BffClient = {
     getLatestTestConnectionResultSummaries: (id) =>
       getSnakeRaw<z.infer<typeof schemas.TestConnectionLatestResultSummaryResponse>[]>(
         `/target-sources/${id}/test-connection/latest-results`,
+      ),
+
+    getLatestTestConnectionSuccessResultSummaries: (id) =>
+      getSnakeRaw<z.infer<typeof schemas.TestConnectionLatestResultSummaryResponse>[]>(
+        `/target-sources/${id}/test-connection/latest-success-results`,
       ),
 
     getTestConnectionCompletionStatus: (id) =>

@@ -263,6 +263,10 @@ export const mockBff: BffClient = {
       unwrap<z.infer<typeof schemas.TestedLogicalDatabasesResponse>>(
         await mockLogicalDb.getTestedByResourceId(String(id), resourceId),
       ),
+    getTestedLatestByResourceId: async (id, resourceId) =>
+      unwrap<z.infer<typeof schemas.TestedLogicalDatabasesResponse>>(
+        await mockLogicalDb.getTestedLatestByResourceId(String(id), resourceId),
+      ),
     getExcludedByResourceId: async (id, resourceId) =>
       unwrap<z.infer<typeof schemas.SkipLogicalDatabaseResponse>>(
         await mockLogicalDb.getExcludedByResourceId(String(id), resourceId),
@@ -352,12 +356,22 @@ export const mockBff: BffClient = {
         await mockConfirm.getTestConnectionLatest(String(id)),
       ),
 
+    getTestConnectionLatestSuccess: async (id) =>
+      unwrap<z.infer<typeof schemas.TestConnectionVersionResult>>(
+        await mockConfirm.getTestConnectionLatestSuccess(String(id)),
+      ),
+
     getTestConnectionPodLog: async (id, podId) =>
       unwrap<unknown>(await mockConfirm.getTestConnectionPodLog(String(id), podId)),
 
     getLatestTestConnectionResultSummaries: async (id) =>
       unwrap<z.infer<typeof schemas.TestConnectionLatestResultSummaryResponse>[]>(
         await mockConfirm.getLatestTestConnectionResultSummaries(String(id)),
+      ),
+
+    getLatestTestConnectionSuccessResultSummaries: async (id) =>
+      unwrap<z.infer<typeof schemas.TestConnectionLatestResultSummaryResponse>[]>(
+        await mockConfirm.getLatestTestConnectionSuccessResultSummaries(String(id)),
       ),
 
     getTestConnectionCompletionStatus: async (id) =>

@@ -2186,6 +2186,27 @@ export const mockConfirm = {
     return NextResponse.json(tcFns.toLatestResultSummaries(Number(targetSourceId)));
   },
 
+  getLatestTestConnectionSuccessResultSummaries: async (targetSourceId: string) => {
+    // 데모 fixture 는 실행 이력이 한 회차뿐이다 — 그 한 번이 전부 성공했으면 그것이 곧
+    // 마지막 성공 실행이고, 실패가 섞였다면 성공한 실행은 아직 없다(빈 배열). 실행
+    // 이력을 갖는 store 대상과 달리 뒤로 물러설 회차 자체가 없다.
+    const demoRows = getTcLatestResultRows(Number(targetSourceId));
+    if (demoRows) {
+      const allSucceeded = demoRows.every((r) => r.connection_status === 'SUCCESS');
+      return NextResponse.json(allSucceeded ? demoRows : []);
+    }
+
+    const project = mockData.getProjectByTargetSourceId(Number(targetSourceId));
+    if (!project) {
+      return NextResponse.json(
+        { error: { code: 'TARGET_SOURCE_NOT_FOUND', message: '해당 ID의 Target Source가 존재하지 않습니다.' } },
+        { status: 404 },
+      );
+    }
+
+    return NextResponse.json(tcFns.toLatestSuccessResultSummaries(Number(targetSourceId)));
+  },
+
   getTestConnectionLatest: async (targetSourceId: string) => {
     await tcLatestLatency();
     const project = mockData.getProjectByTargetSourceId(Number(targetSourceId));
@@ -2200,6 +2221,30 @@ export const mockConfirm = {
     if (!job) {
       return NextResponse.json(
         { error: { code: 'TEST_CONNECTION_NOT_FOUND', message: '연결 테스트 이력이 없습니다.' } },
+        { status: 404 },
+      );
+    }
+
+    return NextResponse.json(tcFns.toVersionResultResponse(job));
+  },
+
+  // 마지막으로 성공한 실행. 최신 실행이 실패면 여기서 이전 회차가 나오고, 성공한 실행이
+  // 한 번도 없으면 404 — "실패했다"와 "성공한 적이 없다"는 다른 사실이라 빈 성공 프레임을
+  // 지어내지 않는다.
+  getTestConnectionLatestSuccess: async (targetSourceId: string) => {
+    await tcLatestLatency();
+    const project = mockData.getProjectByTargetSourceId(Number(targetSourceId));
+    if (!project) {
+      return NextResponse.json(
+        { error: { code: 'TARGET_SOURCE_NOT_FOUND', message: '해당 ID의 Target Source가 존재하지 않습니다.' } },
+        { status: 404 },
+      );
+    }
+
+    const job = tcFns.getLatestSuccessJob(Number(targetSourceId));
+    if (!job) {
+      return NextResponse.json(
+        { error: { code: 'TEST_CONNECTION_NOT_FOUND', message: '성공한 연결 테스트 이력이 없습니다.' } },
         { status: 404 },
       );
     }
