@@ -402,23 +402,11 @@ const SURFACES: SurfacePair[] = [
   // pair IS the separation — re-tint `panel` toward white and the card dissolves with
   // nothing else left to mark where it starts.
   { what: 'wizard content card on the dialog panel', top: '#FFFFFF', under: wizardPanel },
-  // The marks the header draws on the bare wash, now that it draws no plane. The
-  // hairline under 설치 대상 is the load-bearing one: it is the only thing left marking
-  // where the named block starts, so a re-tint toward the wash dissolves the block.
-  { what: 'header block rule on the page wash', top: borderOf(classOf(headerBlock, 'blockHead')), under: canvas },
+  // The ONE mark the header still draws on the bare wash (오너 2026-08-28). Both
+  // hairlines and the vertical divider went out with the two-block header, and the two
+  // painted path tags went with them: the 설치 모드 chip is the last fill on this
+  // surface, and the only surface pair the header has left.
   { what: 'header 설치 모드 chip on the page wash', top: bgOf(classOf(headerBlock, 'modeChipAuto')), under: canvas },
-  { what: 'header kv divider on the page wash', top: bgOf(classOf(headerBlock, 'divider')), under: canvas },
-  // The path's two kind tags share one fill with the 설치 모드 chip above — pinned
-  // separately because they stand on the wash rather than inside a block, and because
-  // a future re-tint of either token has to keep clearing it there too.
-  { what: 'header path kind tag on the page wash', top: bgOf(classOf(headerBlock, 'crumbKind')), under: canvas },
-  { what: 'header service-code tag on the page wash', top: bgOf(classOf(headerBlock, 'codeChip')), under: canvas },
-  // Their stroke (오너 15차 지시) — black at 8% over the fill, baked opaque. Pinned on the
-  // FILL, which is the pair deciding whether the edge reads at all; it clears the wash by
-  // more (5.89) simply by being darker, so that side needs no pin of its own. Two tokens,
-  // two pairs: they share a value today and nothing stops them diverging.
-  { what: 'header path kind tag stroke on its own fill', top: borderOf(classOf(headerBlock, 'crumbKind')), under: bgOf(classOf(headerBlock, 'crumbKind')) },
-  { what: 'header service-code tag stroke on its own fill', top: borderOf(classOf(headerBlock, 'codeChip')), under: bgOf(classOf(headerBlock, 'codeChip')) },
   // 설치 진행's step tag, on the house's pale blue rather than the path's slate
   // (오너 14차 지시). It is the one plate on this header that is NOT the shared slate,
   // which is the whole point — so it has to keep clearing the wash on its own.
@@ -540,24 +528,24 @@ const TEXT: TextPair[] = [
   // The install-mode gloss left the wash for a click-tip inside the chip (오너 17차 지시);
   // its icon takes `currentColor`, i.e. the chip ink both plates already pin above.
   { what: 'header 설치 모드 chip label on its chip', fg: textOf(classOf(headerBlock, 'modeChipAuto')), on: bgOf(classOf(headerBlock, 'modeChipAuto')) },
-  // 시안 C's path, and the two kind tags 오너 12차 지시 put on it. The path replaced a
-  // 24px heading, so it is the smallest type here that still has to be read — the one
-  // place a quiet grey is a real decision rather than a default. The tags carry their
-  // own fill, so they answer to it and not to the wash. (crumbSep is decorative; see
-  // its comment.)
+  // The path. It replaced a 24px heading, so it is the smallest type here that still has
+  // to be read — the one place a quiet grey is a real decision rather than a default. Its
+  // service-code segment stands one rung darker, in mono, and on the wash directly now
+  // that the painted tags are gone (오너 2026-08-28). (crumbSep is decorative; see its
+  // comment.)
   { what: 'header path heading on the page wash', fg: textOf(classOf(headerBlock, 'crumb')), on: canvas },
-  { what: 'header path kind tag on its own fill', fg: textOf(classOf(headerBlock, 'crumbKind')), on: bgOf(classOf(headerBlock, 'crumbKind')) },
-  { what: 'header service-code tag label on its own fill', fg: textOf(classOf(headerBlock, 'codeChipLabel')), on: bgOf(classOf(headerBlock, 'codeChip')) },
-  { what: 'header service-code tag value on its own fill', fg: textOf(classOf(headerBlock, 'codeChipValue')), on: bgOf(classOf(headerBlock, 'codeChip')) },
+  { what: 'header path service code on the page wash', fg: textOf(classOf(headerBlock, 'crumbCode')), on: canvas },
   { what: 'header disclosure cue on the page wash', fg: textOf(classOf(headerBlock, 'metaCue')), on: canvas },
+  // A fact the target positively does not have — 「미등록」, 「역할 불필요」. Value-sized, so
+  // it is body text and answers to 4.5:1; it wears `kvLabel`'s tint, which sits ON the AA
+  // floor, and that is the reason both are pinned here rather than only one.
+  { what: 'header absent-fact text on the page wash', fg: textOf(classOf(headerBlock, 'factNone')), on: canvas },
   // `summaryGlyph` is not pinned: it is a brand logotype (ProviderGlyph tone="brand"),
   // which 1.4.11 exempts, and its neutral only applies to IDC·SDU, which have no brand.
   //
-  // 설치 진행 states position twice (오너 14차 지시): on the head row, always, and as the
-  // road behind 「전체 단계」. The row carries no loose text any more (오너 16차 지시) —
-  // 「전체 7단계 중」 was deleted and both digits moved inside the plate — so its only ink
-  // pairs are the block name, pinned above with the other `blockLabel` uses, and this
-  // tag. `tagCount` is not pinned separately: it inherits the tag's ink, which is
+  // The position tag now rides the 설치 대상 head row (오너 2026-08-28) and the road sits
+  // behind the header's one cue, but both still stand on the same wash, so these pairs are
+  // unchanged. `tagCount` is not pinned separately: it inherits the tag's ink, which is
   // exactly what this pair measures.
   { what: 'stepper step tag on its own fill', fg: textOf(classOf(stepperBlock, 'stepTag')), on: bgOf(classOf(stepperBlock, 'stepTag')) },
   // Stepper labels are text; the dots are the state markers, i.e. non-text per 1.4.11.

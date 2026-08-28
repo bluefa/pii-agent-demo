@@ -7,13 +7,18 @@
  * denominator. The wire lattice still has seven statuses, so what is under test here is
  * the FOLD — several statuses landing on one slot — plus the promise that the default
  * seven-step road is untouched by any of it.
+ *
+ * The fold is asserted on `installRoadPosition` rather than on rendered text, because the
+ * position tag left this component for the 설치 대상 head row (오너 2026-08-28). The
+ * numbers are the thing the fold produces; `ProjectPageMeta.test.tsx` covers the tag that
+ * prints them.
  */
 
 import { describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, within } from '@testing-library/react';
+import { render, within } from '@testing-library/react';
 import { ProcessStatus } from '@/lib/types';
-import { installStepperStyles } from '@/lib/theme';
 import { InstallationProcessProgressBar } from '@/app/components/features/process-status/InstallationProcessProgressBar';
+import { installRoadPosition } from '@/app/components/features/process-status/install-road';
 
 vi.stubGlobal('matchMedia', () => ({
   matches: false,
@@ -26,28 +31,23 @@ vi.stubGlobal('matchMedia', () => ({
   dispatchEvent: () => false,
 }));
 
-const block = (currentStep: ProcessStatus, variant?: 'sdu') => {
+const road = (currentStep: ProcessStatus, variant?: 'sdu') => {
   const { container } = render(
     <InstallationProcessProgressBar currentStep={currentStep} variant={variant} />,
   );
-  return within(container).getByRole('region', { name: '설치 진행' });
+  return within(container).getByRole('list', { name: '설치 진행' });
 };
 
-const tag = (el: HTMLElement) =>
-  [...el.querySelectorAll('span')].find((s) => s.className === installStepperStyles.stepTag);
-const row = (el: HTMLElement) => tag(el)?.textContent?.replace(/\s+/g, ' ').trim();
-const cue = (el: HTMLElement) => within(el).getByRole('button', { name: /전체 단계/ });
-
-/** The road, opened — the only state in which the slots are on screen. */
-const opened = (currentStep: ProcessStatus, variant?: 'sdu') => {
-  const el = block(currentStep, variant);
-  fireEvent.click(cue(el));
-  return el;
+/** What the head row would print: 「4단계 중 2단계」, or nothing off the road. */
+const position = (currentStep: ProcessStatus, variant?: 'sdu') => {
+  const { index, total } = installRoadPosition(currentStep, variant);
+  if (index < 0) return undefined;
+  return index === total - 1 ? `${total}단계 모두 완료` : `${total}단계 중 ${index + 1}단계`;
 };
 
 describe('InstallationProcessProgressBar — SDU draws its own four steps', () => {
   it('draws exactly the four, in order, and nothing the owner does not walk', () => {
-    const steps = [...opened(ProcessStatus.INSTALLING, 'sdu').querySelectorAll('li')];
+    const steps = [...road(ProcessStatus.INSTALLING, 'sdu').querySelectorAll('li')];
     expect(steps.map((li) => li.textContent)).toEqual([
       '연동 대상 정의',
       '데이터 업로드',
@@ -57,11 +57,11 @@ describe('InstallationProcessProgressBar — SDU draws its own four steps', () =
     // 승인 대기 · 연동 대상 반영중 · 연결 테스트 are not on this road at all any more —
     // neither struck through nor greyed. They are steps of a different flow.
     expect(steps.filter((li) => li.hasAttribute('title'))).toHaveLength(0);
-    expect(opened(ProcessStatus.INSTALLING, 'sdu').querySelectorAll('i')).toHaveLength(4);
+    expect(road(ProcessStatus.INSTALLING, 'sdu').querySelectorAll('i')).toHaveLength(4);
   });
 
   it('leaves the default road byte-identical', () => {
-    const steps = [...opened(ProcessStatus.INSTALLING).querySelectorAll('li')];
+    const steps = [...road(ProcessStatus.INSTALLING).querySelectorAll('li')];
     expect(steps.map((li) => li.textContent)).toEqual([
       '연동 대상 DB 선택',
       '연동 대상 승인 대기',
@@ -73,13 +73,13 @@ describe('InstallationProcessProgressBar — SDU draws its own four steps', () =
     ]);
     // No slot is struck and none has lost its bead when the variant is absent.
     expect(steps.filter((li) => li.hasAttribute('title'))).toHaveLength(0);
-    expect(opened(ProcessStatus.INSTALLING).querySelectorAll('i')).toHaveLength(7);
+    expect(road(ProcessStatus.INSTALLING).querySelectorAll('i')).toHaveLength(7);
   });
 });
 
 describe('InstallationProcessProgressBar — no slot is struck any more', () => {
   it('draws every SDU label in a walked tier, never the struck one', () => {
-    const labels = [...opened(ProcessStatus.INSTALLING, 'sdu').querySelectorAll('li')].map(
+    const labels = [...road(ProcessStatus.INSTALLING, 'sdu').querySelectorAll('li')].map(
       (li) => li.lastElementChild?.className ?? '',
     );
     // ⛔ The line-through tier belonged to the seven-slot road. A four-step road has no
@@ -92,7 +92,7 @@ describe('InstallationProcessProgressBar — no slot is struck any more', () => 
   });
 });
 
-describe('InstallationProcessProgressBar — SDU counts to 4, and lands on the SDU step', () => {
+describe('installRoadPosition — SDU counts to 4, and lands on the SDU step', () => {
   it.each([
     // The fold: three statuses onto 2, two onto 3.
     ['WAITING_TARGET_CONFIRMATION', ProcessStatus.WAITING_TARGET_CONFIRMATION, 1],
@@ -102,26 +102,24 @@ describe('InstallationProcessProgressBar — SDU counts to 4, and lands on the S
     ['WAITING_CONNECTION_TEST', ProcessStatus.WAITING_CONNECTION_TEST, 3],
     ['CONNECTION_VERIFIED', ProcessStatus.CONNECTION_VERIFIED, 3],
   ] as const)('reports %s as 「4단계 중 %d단계」', (_name, status, sduStep) => {
-    expect(row(block(status, 'sdu'))).toBe(`4단계 중 ${sduStep}단계`);
+    expect(position(status, 'sdu')).toBe(`4단계 중 ${sduStep}단계`);
   });
 
   it('reports completion in the same grammar the seven-step road uses', () => {
-    expect(row(block(ProcessStatus.INSTALLATION_COMPLETE, 'sdu'))).toBe('4단계 모두 완료');
-    expect(row(block(ProcessStatus.INSTALLATION_COMPLETE))).toBe('7단계 모두 완료');
+    expect(position(ProcessStatus.INSTALLATION_COMPLETE, 'sdu')).toBe('4단계 모두 완료');
+    expect(position(ProcessStatus.INSTALLATION_COMPLETE)).toBe('7단계 모두 완료');
   });
 
   it('marks exactly one slot current, and it is the SDU step', () => {
-    const steps = [...opened(ProcessStatus.APPLYING_APPROVED, 'sdu').querySelectorAll('li')];
+    const steps = [...road(ProcessStatus.APPLYING_APPROVED, 'sdu').querySelectorAll('li')];
     expect(steps.filter((li) => li.getAttribute('aria-current') === 'step')).toHaveLength(1);
     // 연동 대상 반영중 is not a slot here — the target is on 2단계 데이터 업로드.
     expect(steps[1].getAttribute('aria-current')).toBe('step');
   });
 
-  it('drops the position on a status outside the seven, and still opens the road', () => {
-    const el = block(99 as ProcessStatus, 'sdu');
-    expect(row(el)).toBeUndefined();
-    fireEvent.click(cue(el));
-    const steps = [...el.querySelectorAll('li')];
+  it('drops the position on a status outside the seven, and still draws the road', () => {
+    expect(position(99 as ProcessStatus, 'sdu')).toBeUndefined();
+    const steps = [...road(99 as ProcessStatus, 'sdu').querySelectorAll('li')];
     expect(steps).toHaveLength(4);
     expect(steps.some((li) => li.getAttribute('aria-current') === 'step')).toBe(false);
   });
