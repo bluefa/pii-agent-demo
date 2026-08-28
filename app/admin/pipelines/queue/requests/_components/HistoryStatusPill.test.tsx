@@ -12,6 +12,7 @@ describe('HistoryStatusPill', () => {
       ['CANCELLED', '취소', '--pl-off-bg'],
       ['UNAVAILABLE', '연동 불가', '--pl-err-bg'],
       ['UNAVAILABLE_ACKNOWLEDGED', '연동 불가 확인', '--pl-off-bg'],
+      ['RESET', '초기화', '--pl-off-bg'],
     ];
     for (const [status, label, tone] of cases) {
       const html = renderToStaticMarkup(<HistoryStatusPill status={status} />);
