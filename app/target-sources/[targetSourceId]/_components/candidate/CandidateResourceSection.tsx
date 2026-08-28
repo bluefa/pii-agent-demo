@@ -698,15 +698,20 @@ export const CandidateResourceSection = ({
                   <span className={cardStyles.stepTag}>1단계</span>
                   <h2 className={cn(cardStyles.cardTitle)}>연동 대상 DB 선택</h2>
                 </div>
-                {/* 2호흡: 스캔→선택 / 사유→승인. 강조는 사용자가 직접 해야 하는
-                    행동 두 가지(선택·사유 입력)만 파랑 — 승인은 시스템 몫이라 평문.
+                {/* 2호흡: 스캔→선택 / 사유→승인 — 한 문단 안의 두 문장이 아니라 문단
+                    둘로 나눈다. 둘째 문단은 위 여백이 없다: 같은 호흡의 이어지는 말이라
+                    1.55 행간이 곧 끊김이다(2·3단계, IdcStep1TargetInput과 같은 문법).
+                    강조는 사용자가 직접 해야 하는 행동 두 가지(선택·사유 입력)만 파랑 —
+                    승인은 시스템 몫이라 평문.
                     break-keep: 음절 고아("요."만 다음 줄) 방지, 단어 단위로 감는다. */}
                 <p className={cn('mt-2.5 break-keep', cardStyles.guidance)}>
                   인프라 스캔을 통해 조회된 {provider} 리소스 중{' '}
                   <span className={primaryColors.text}>PII Agent를 연동할 리소스를 선택</span>
-                  해주세요. 연동에서 제외할 리소스는{' '}
-                  <span className={primaryColors.text}>사유를 입력</span>해야 하며, 연동 대상 승인
-                  요청으로 제출한 결과는 관리자 승인 후 최종 확정돼요.
+                  해주세요.
+                </p>
+                <p className={cn('break-keep', cardStyles.guidance)}>
+                  연동에서 제외할 리소스는 <span className={primaryColors.text}>사유를 입력</span>
+                  해야 하며, 연동 대상 승인 요청으로 제출한 결과는 관리자 승인 후 최종 확정돼요.
                 </p>
                 {/* 스캔이 못 찾는 것을 먼저 말하고 그다음 어디를 누르는지 말한다 —
                     버튼 이름만 알려주면 왜 눌러야 하는지는 여전히 모른다. 버튼이
