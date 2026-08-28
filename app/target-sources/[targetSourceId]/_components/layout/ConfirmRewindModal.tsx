@@ -75,9 +75,10 @@ const CONTENT: Record<ConfirmRewindKind, ConfirmStepContent> = {
         {'로 돌아가, 연동 대상 정의부터 다시 진행해요.'}
       </>
     ),
-    // What this rewind actually destroys for an SDU target: the firewall and upload
-    // confirmations, which are per-Region and have to be given again.
-    note: '지금까지의 업로드 확인 내역은 모두 사라져요.',
+    // What this rewind actually destroys for an SDU target: both confirmations AND the
+    // access-key recipient list (`clearSduUploadState`). The 2단계 return trip keeps the
+    // recipients — this one does not, and two CTAs sharing a label must not share a promise.
+    note: '지금까지의 확인 내역과 등록한 S3 Access Key 수신자가 모두 사라져요.',
     needsReason: true,
   },
 };

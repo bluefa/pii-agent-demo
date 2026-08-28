@@ -258,7 +258,7 @@ export const sduReturnHint = (
     : 'Region 구성은 그대로예요';
 
   const ip = sduUploadIpChanged(baseline, rows)
-    ? ' 업로드 IP가 바뀌어 모든 Region을 다시 확인해요.'
+    ? ' 업로드 IP가 바뀌어 방화벽 확인을 다시 해야 해요.'
     : '';
   return `${head} — ${path}.${ip}`;
 };

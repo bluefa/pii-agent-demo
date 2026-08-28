@@ -127,7 +127,10 @@ bucket policy's allowlist, so a change is not finished by the owner re-confirmin
 half is not in this contract.)
 
 The result is reported back on §4 as `invalidation`, and it is **told once**: the next
-`PUT …/upload/{firewall|commands}/ack` clears it.
+`PUT …/upload/{firewall|commands}/ack` clears it — and **nothing else does.** A later save
+that invalidates nothing must not overwrite a notice still owed to the owner: the answers it
+cleared are still cleared, so dropping the reason leaves an empty block with no explanation.
+Successive saves union `added_regions` and OR `upload_ip_changed`.
 
 ## 3. Submit
 

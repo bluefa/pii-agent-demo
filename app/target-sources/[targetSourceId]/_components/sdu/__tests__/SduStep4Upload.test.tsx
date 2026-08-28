@@ -320,6 +320,37 @@ describe('SduStep4Upload', () => {
     expect(api.putSduFirewallAck).not.toHaveBeenCalled();
   });
 
+  it('열 수 없는 줄에는 보조 동작을 달지 않는다 — 눌러도 아무 픽셀도 안 바뀌는 버튼', async () => {
+    // 제출 직후의 모양: 답도 수신자도 없다. `openId` 가 `done` 을 요구하므로 이 줄들은
+    // 펴지지 않는다.
+    api.getSduUpload.mockResolvedValue(
+      upload({ accessKeyRecipients: { users: [], updatedAt: null } }),
+    );
+    await renderStep();
+
+    expect(screen.queryByRole('button', { name: '수신자 수정' })).toBeNull();
+    expect(screen.queryByRole('button', { name: '명령 다시 보기' })).toBeNull();
+  });
+
+  it('접힌 BDC 줄은 진행 중일 때 완료를 말하지 않는다', async () => {
+    api.getSduUpload.mockResolvedValue(
+      upload({
+        firewall: { ...upload().firewall, acked: true, ackedAt: '2026-08-25T10:40:00Z' },
+        commands: { ...upload().commands, acked: true, ackedAt: '2026-08-25T10:41:00Z' },
+        bdc: { status: 'IN_PROGRESS', checkedAt: '2026-08-24T07:50:00Z', completedAt: null },
+      }),
+    );
+    await renderStep();
+
+    // 끝난 줄을 하나 펴면 BDC 가 접힌다 — 그 접힌 줄이 자기 알약과 다른 말을 하면 안 된다.
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: '수신자 수정' }));
+    });
+
+    expect(screen.queryByText('리소스 생성을 마쳤어요')).toBeNull();
+    expect(screen.getByText('리소스를 만들고 있어요')).toBeTruthy();
+  });
+
   it('hands the refreshed project up when BDC finishes building', async () => {
     vi.useFakeTimers();
     try {

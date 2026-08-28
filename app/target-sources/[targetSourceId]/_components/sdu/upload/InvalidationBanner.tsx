@@ -12,9 +12,9 @@ export interface InvalidationBannerProps {
 /**
  * What the last trip to 1단계 changed, told once.
  *
- * Coming back does NOT restart Step 4 — every answer is stored per Region, so what survives
- * an edit is computed rather than discarded. This banner is the only place that difference is
- * spoken; without it the owner reads a half-answered block as a bug.
+ * Coming back does NOT restart Step 4 — the server computes which answers the edit invalidates
+ * rather than discarding all of them. This banner is the only place that difference is spoken;
+ * without it the owner reads a cleared block as a bug.
  */
 export const InvalidationBanner = ({ invalidation }: InvalidationBannerProps) => {
   const lines = invalidationLines(invalidation);

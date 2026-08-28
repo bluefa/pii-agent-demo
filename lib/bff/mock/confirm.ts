@@ -1867,7 +1867,7 @@ export const mockConfirm = {
     // SDU 업로드 단계도 같은 이유로 버린다 — 방화벽 확인·수신자·BDC 진행은 이번 연동에
     // 대한 답이고, 초기화는 그 연동을 없던 일로 하는 것이다. 연동 대상 정의는 남긴다:
     // 초기화가 되돌리는 자리가 1단계이고, 1단계가 고칠 대상이 바로 그 정의다
-    // (docs/api/sdu-assumed-contracts.md §8).
+    // (docs/api/sdu-assumed-contracts.md §7).
     clearSduUploadState(Number(targetSourceId));
 
     // ADR-019: swagger ApprovalActionResponseDto (snake wire).

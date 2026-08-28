@@ -1965,7 +1965,8 @@ mockProjects.push({
   awsRegionType: "global",
   isSduType: true,
   // SDU 는 승인 절차가 없다 — 1단계에서 제출하면 곧바로 업로드 단계(4)다. 이 대상은
-  // 그 한가운데를 그린다: 대상 2건 / Region 2곳(us·eu), 방화벽은 us 만 확인, 수신자 3명.
+  // 그 한가운데를 그린다: 대상 2건 / Region 2곳(us·eu), 방화벽 확인 완료(답은 대상 소스
+  // 단위 하나다), 수신자 2명.
   // 그 세부는 SDU 목 스토어에 산다(lib/bff/mock/sdu.ts) — 여기 있는 건 단계뿐이다.
   processStatus: ProcessStatus.INSTALLING,
   status: createStatusForProcessStatus(ProcessStatus.INSTALLING, {

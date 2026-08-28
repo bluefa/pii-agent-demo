@@ -436,7 +436,7 @@ export const httpBff: BffClient = {
       }),
   },
 
-  // SDU 담당자 흐름 — ASSUMED contracts (docs/api/sdu-assumed-contracts.md §1–§7).
+  // SDU 담당자 흐름 — ASSUMED contracts (docs/api/sdu-assumed-contracts.md §1–§6).
   //
   // base 는 표준 `/install/v1` 이고 대상소스 아래 `sdu` 로 묶인다 — install-v1 이 SDU
   // 조작을 하나도 선언하지 않으므로 이 경로들은 **전부 우리 제안**이고, 실 BFF 에서는

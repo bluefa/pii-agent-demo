@@ -20,8 +20,13 @@ export interface RecipientsBlockProps {
   onSave: (userIds: string[]) => Promise<void>;
 }
 
-const sameIds = (a: readonly SduRecipient[], b: readonly SduRecipient[]): boolean =>
-  a.length === b.length && a.every((user, index) => user.id === b[index].id);
+/** 수신자는 집합이지 순서가 아니다 — 서버가 순서를 바꿔 돌려줘도 저장 버튼이 켜지면 안 된다. */
+const sameIds = (a: readonly SduRecipient[], b: readonly SduRecipient[]): boolean => {
+  if (a.length !== b.length) return false;
+  const left = a.map((user) => user.id).sort();
+  const right = b.map((user) => user.id).sort();
+  return left.every((id, index) => id === right[index]);
+};
 
 /**
  * 4-2 S3 Access Key 수신자.

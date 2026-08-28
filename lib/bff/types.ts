@@ -458,7 +458,7 @@ export interface BffClient {
 
   /**
    * SDU (Self Data Upload) 담당자 흐름 — ASSUMED contracts
-   * (docs/api/sdu-assumed-contracts.md §1–§7). Same deliberate exception as `ops` above.
+   * (docs/api/sdu-assumed-contracts.md §1–§6). Same deliberate exception as `ops` above.
    *
    * install-v1.yaml 이 SDU 에 대해 말하는 것은 세 가지뿐이다 — `cloud_provider: SDU`,
    * `metadata.is_sdu_type`, `metadata.is_china_region`. **조작은 하나도 선언돼 있지 않다.**
@@ -469,7 +469,7 @@ export interface BffClient {
    * 쓰기 셋(submit·acks·recipients)은 응답 본문이 없다: 화면이 다시 읽는다.
    */
   sdu: {
-    // assumed §1·§2 — 연동 대상 정의(1단계). `region_scope` 는 읽기 전용 파생값이다.
+    // assumed §1·§2 — 연동 대상 정의(1단계). 권역은 이 응답에 없다: 대상 소스가 가진 사실이다.
     getDefinition: (id: number) => Promise<SduDefinitionWire>;
     putDefinition: (id: number, body: SduDefinitionRequestWire) => Promise<SduDefinitionWire>;
     // assumed §3 — 제출. SDU 는 승인 절차가 없어 1단계가 곧바로 업로드 단계로 넘어간다.

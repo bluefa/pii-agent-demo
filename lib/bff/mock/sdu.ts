@@ -521,7 +521,14 @@ const applyInvalidation = (
     state.firewall = blankAck();
   }
 
-  return { added_regions: added, upload_ip_changed: uploadIpChanged };
+  // 이번 저장의 결과를 **덮어쓰지 않고 얹는다.** 답은 이미 지워졌는데 안내만 사라지면,
+  // 담당자는 아무 설명 없이 비어 있는 확인 블록을 본다 — 안내가 막으라고 있는 바로 그
+  // 상태다. 지우는 것은 다음 확인 응답 하나뿐이다(계약 §3.1).
+  const pending = state.invalidation;
+  return {
+    added_regions: sortSduRegions([...pending.added_regions, ...added]),
+    upload_ip_changed: pending.upload_ip_changed || uploadIpChanged,
+  };
 };
 
 /**

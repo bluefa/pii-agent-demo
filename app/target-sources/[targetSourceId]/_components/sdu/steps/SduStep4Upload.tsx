@@ -32,7 +32,7 @@ import {
   regionAckSummary,
   type SduGateId,
 } from '@/app/target-sources/[targetSourceId]/_components/sdu/upload/model';
-import type { SduDefinition, SduUpload } from '@/lib/types/sdu';
+import type { SduBdcStatus, SduDefinition, SduUpload } from '@/lib/types/sdu';
 import {
   buttonStyles,
   cardStyles,
@@ -66,9 +66,17 @@ const GateSkeleton = () => (
  * line it is worth remembering ("US · EU", "박지원 외 2명") plus the action that undoes it.
  *
  * The gates block FORWARD only — including the longest way back, 「연동 대상 수정」, which swaps
- * this card for 1단계 without touching the status. That is affordable because every answer here
- * is stored per Region: coming back recomputes what survives instead of resetting the step.
+ * this card for 1단계 without touching the status. That is affordable because the server
+ * recomputes which answers survive the edit instead of resetting the step — one answer per
+ * block, kept or cleared as a whole (see the invalidation table).
  */
+/** 접힌 4번 줄. 세 상태가 세 문장이다 — 「진행 중」 알약 옆에서 완료를 말하면 줄이 자기와 싸운다. */
+const BDC_SUMMARY: Record<SduBdcStatus, string> = {
+  NOT_STARTED: '앞의 확인이 끝나면 시작돼요',
+  IN_PROGRESS: '리소스를 만들고 있어요',
+  COMPLETED: '리소스 생성을 마쳤어요',
+};
+
 export function SduStep4Upload({ project, onProjectUpdate }: SduStepProps) {
   const { targetSourceId } = project;
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
@@ -265,7 +273,13 @@ export function SduStep4Upload({ project, onProjectUpdate }: SduStepProps) {
                 open={openId === 'recipients'}
                 onToggle={done.recipients ? toggle('recipients') : undefined}
                 summary={recipientsSummary(snapshot.upload.accessKeyRecipients.users)}
-                action={secondaryAction('수신자 수정', () => setReopened('recipients'))}
+                // 끝나지 않은 줄은 펴지지 않는다(`openId` 가 `done` 을 요구한다) — 그런 줄에
+                // 버튼을 달면 눌러도 아무 픽셀도 안 바뀐다. 여는 조건과 같은 조건을 쓴다.
+                action={
+                  done.recipients
+                    ? secondaryAction('수신자 수정', () => setReopened('recipients'))
+                    : undefined
+                }
               >
                 <RecipientsBlock
                   serviceCode={project.serviceCode}
@@ -284,7 +298,11 @@ export function SduStep4Upload({ project, onProjectUpdate }: SduStepProps) {
                   snapshot.upload.regions,
                   snapshot.upload.commands.acked,
                 )}
-                action={secondaryAction('명령 다시 보기', () => setReopened('commands'))}
+                action={
+                  done.commands
+                    ? secondaryAction('명령 다시 보기', () => setReopened('commands'))
+                    : undefined
+                }
               >
                 <UploadCommandsBlock
                   commands={snapshot.upload.commands}
@@ -297,11 +315,7 @@ export function SduStep4Upload({ project, onProjectUpdate }: SduStepProps) {
                 title={SDU_GATE_TITLE.bdc}
                 state={stateOf('bdc')}
                 open={openId === 'bdc'}
-                summary={
-                  snapshot.upload.bdc.status === 'NOT_STARTED'
-                    ? '앞의 확인이 끝나면 시작돼요'
-                    : '리소스 생성을 마쳤어요'
-                }
+                summary={BDC_SUMMARY[snapshot.upload.bdc.status]}
               >
                 <BdcResourceBlock
                   targetSourceId={targetSourceId}

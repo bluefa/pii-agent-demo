@@ -218,6 +218,23 @@ describe('SDU 정의 — 무효화 표 (§2)', () => {
     expect(state.invalidation.upload_ip_changed).toBe(false);
   });
 
+  it('나중의 무관한 저장이 아직 안 읽힌 안내를 지우지 않는다', async () => {
+    await seedAcked();
+    await putDefinition(GLOBAL_ID, [...twoRegions(), target({ target_id: 'c', region: 'asia' })]);
+    expect((await upload(GLOBAL_ID)).invalidation.added_regions).toEqual(['asia']);
+
+    // database_types 만 고친다 — 이 저장은 아무것도 무효화하지 않는다.
+    await putDefinition(GLOBAL_ID, [
+      ...twoRegions(),
+      target({ target_id: 'c', region: 'asia', database_types: ['MySQL', 'PostgreSQL'] }),
+    ]);
+
+    const state = await upload(GLOBAL_ID);
+    // 답은 아직 지워진 채다. 안내까지 사라지면 담당자는 설명 없이 빈 블록을 본다.
+    expect(state.firewall.acked).toBe(false);
+    expect(state.invalidation.added_regions).toEqual(['asia']);
+  });
+
   it('무효화 안내는 다음 확인 응답이 저장되면 지워진다 — 한 번만 말한다', async () => {
     await seedAcked();
     await putDefinition(GLOBAL_ID, [...twoRegions(), target({ target_id: 'c', region: 'asia' })]);

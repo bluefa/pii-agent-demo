@@ -243,8 +243,9 @@ export function SduStep1Define({
                   저장 실패도 여기 선다: 푸터는 sticky 라 카드 아래에 둔 알림을 가릴 수 있다. */}
               {isReturn && (
                 <StepBanner variant="warn">
-                  Region이 바뀌면 그 Region의 방화벽·업로드 확인을 다시 해야 해요. 업로드 IP가
-                  바뀌면 모든 Region을 다시 확인해요.
+                  Region을 추가하면 방화벽 확인과 업로드 확인을 처음부터 다시 해야 하고, 업로드
+                  IP를 바꾸면 방화벽 확인만 다시 하시면 돼요. Region을 빼는 것은 확인 내역을
+                  건드리지 않아요.
                 </StepBanner>
               )}
               {saveError && <StepBanner variant="error">{saveError}</StepBanner>}
