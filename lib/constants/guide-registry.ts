@@ -195,6 +195,29 @@ export const GUIDE_SLOTS = {
     placement: { kind: 'process-step', provider: 'IDC', step: 7, stepLabel: '설치 완료' },
     component: 'GuideCard',
   },
+  // SDU (4) — FOUR slots, numbered 1·2·3·4 (오너 2026-08-27). The owner-facing SDU flow
+  // IS four steps; the shared 7-step ProcessStatus lattice is unchanged on the wire and
+  // `sduStepOf` is the only place the fold from one to the other is written.
+  'process.sdu.1': {
+    guideName: 'SDU_TARGET_DEFINE',
+    placement: { kind: 'process-step', provider: 'SDU', step: 1, stepLabel: '연동 대상 정의' },
+    component: 'GuideCard',
+  },
+  'process.sdu.2': {
+    guideName: 'SDU_UPLOAD',
+    placement: { kind: 'process-step', provider: 'SDU', step: 2, stepLabel: '데이터 업로드' },
+    component: 'GuideCard',
+  },
+  'process.sdu.3': {
+    guideName: 'SDU_INTEGRATING',
+    placement: { kind: 'process-step', provider: 'SDU', step: 3, stepLabel: 'SDU 연동중' },
+    component: 'GuideCard',
+  },
+  'process.sdu.4': {
+    guideName: 'SDU_COMPLETE',
+    placement: { kind: 'process-step', provider: 'SDU', step: 4, stepLabel: '완료' },
+    component: 'GuideCard',
+  },
 } as const satisfies Record<string, GuideSlot>;
 
 export type GuideSlotKey = keyof typeof GUIDE_SLOTS;

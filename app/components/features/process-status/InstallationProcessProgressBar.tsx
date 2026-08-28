@@ -4,6 +4,10 @@ import { useState, type ReactNode } from 'react';
 import { ProcessStatus } from '@/lib/types';
 import { ChevronDownIcon } from '@/app/components/ui/icons';
 import { cn, installStepperStyles as s, projectHeaderStyles } from '@/lib/theme';
+import {
+  SDU_STEP_TITLES,
+  sduStepOf,
+} from '@/app/target-sources/[targetSourceId]/_components/sdu/sdu-steps';
 
 const INSTALL_STEPS = [
   { step: ProcessStatus.WAITING_TARGET_CONFIRMATION, label: '연동 대상 DB 선택' },
@@ -15,10 +19,20 @@ const INSTALL_STEPS = [
   { step: ProcessStatus.INSTALLATION_COMPLETE, label: '완료' },
 ] as const;
 
-/** The step from which a connection-test verdict can describe THIS configuration. */
-const TEST_INDEX = INSTALL_STEPS.findIndex(
-  (it) => it.step === ProcessStatus.WAITING_CONNECTION_TEST,
-);
+/**
+ * SDU's road is its OWN four steps (오너 2026-08-27), not the seven with three struck
+ * through. The owner never walks the missing three, and a road that showed them — struck
+ * or not — made the reader hold two numbering schemes at once.
+ *
+ * The `step` field is only a React key and the 연결 테스트 lookup below; position comes
+ * from `sduStepOf`, because several statuses fold onto one entry here.
+ */
+const SDU_STEPS = [
+  { step: ProcessStatus.WAITING_TARGET_CONFIRMATION, label: SDU_STEP_TITLES[1] },
+  { step: ProcessStatus.INSTALLING, label: SDU_STEP_TITLES[2] },
+  { step: ProcessStatus.WAITING_CONNECTION_TEST, label: SDU_STEP_TITLES[3] },
+  { step: ProcessStatus.INSTALLATION_COMPLETE, label: SDU_STEP_TITLES[4] },
+] as const;
 
 /** Names the 설치 진행 region (`aria-labelledby`), like 설치 대상 above it. */
 const PROGRESS_LABEL_ID = 'install-progress-label';
@@ -41,12 +55,17 @@ interface InstallationProcessProgressBarProps {
    * before the target reaches 연결 테스트, and nothing while the road is shut.
    */
   tcTag?: ReactNode;
+  /**
+   * `'sdu'` swaps the road for SDU's own four steps — 1 연동 대상 정의 · 2 데이터 업로드 ·
+   * 3 SDU 연동중 · 4 완료. The wire lattice is untouched; this is what the owner is told.
+   */
+  variant?: 'sdu';
 }
 
 /**
- * 설치 진행 — one row at rest, the seven-step road behind 「전체 단계」 (오너 14차 지시).
+ * 설치 진행 — one row at rest, the whole road behind 「전체 단계」 (오너 14차 지시).
  *
- * The row states the one fact a mid-install reader came for: 전체 7단계 중 어디인지, as a
+ * The row states the one fact a mid-install reader came for: 전체 몇 단계 중 어디인지, as a
  * tag. It does not name the step — the card head below owns that. The road that names
  * all seven is what a first-time reader wants exactly once, so it opens on request
  * instead of charging every visit ~60px of header for it.
@@ -59,14 +78,25 @@ interface InstallationProcessProgressBarProps {
 export const InstallationProcessProgressBar = ({
   currentStep,
   tcTag,
+  variant,
 }: InstallationProcessProgressBarProps) => {
   const [stepsOpen, setStepsOpen] = useState(false);
-  // ProcessStatus is exactly these seven, but the value arrives over the wire —
-  // an unknown one drops the position line rather than printing 「0단계」. The row used to
-  // hold the matched step for its `.label`; it prints only numbers now, so the index is
-  // the whole guard.
-  const currentIndex = INSTALL_STEPS.findIndex((it) => it.step === currentStep);
-  const done = currentIndex === INSTALL_STEPS.length - 1;
+  // ProcessStatus is exactly seven values, but it arrives over the wire — an unknown one
+  // drops the position line rather than printing 「0단계」. The row used to hold the matched
+  // step for its `.label`; it prints only numbers now, so the index is the whole guard.
+  // SDU folds several statuses onto one of its steps, so its position cannot be read off
+  // the road — `sduStepOf` owns that mapping. It returns `undefined` for a status outside
+  // the seven, which lands on the same -1 the default lookup gives.
+  const steps: readonly { step: ProcessStatus; label: string }[] =
+    variant === 'sdu' ? SDU_STEPS : INSTALL_STEPS;
+  const sduStep = variant === 'sdu' ? sduStepOf(currentStep) : undefined;
+  const currentIndex =
+    variant === 'sdu'
+      ? (sduStep ?? 0) - 1
+      : steps.findIndex((it) => it.step === currentStep);
+  const done = currentIndex === steps.length - 1;
+  /** The step from which a connection-test verdict can describe THIS configuration. */
+  const testIndex = steps.findIndex((it) => it.step === ProcessStatus.WAITING_CONNECTION_TEST);
 
   return (
     <section aria-labelledby={PROGRESS_LABEL_ID} className={s.wrap}>
@@ -84,7 +114,7 @@ export const InstallationProcessProgressBar = ({
                  stays because it is what was completed. */
               <span className={s.stepTag}>
                 <span>
-                  <b className={s.tagCount}>{INSTALL_STEPS.length}</b>단계 모두 완료
+                  <b className={s.tagCount}>{steps.length}</b>단계 모두 완료
                 </span>
               </span>
             ) : (
@@ -100,7 +130,7 @@ export const InstallationProcessProgressBar = ({
                 {/* One span, so both 14px digits baseline-align inside the phrase rather
                     than becoming flex items that have to be aligned against it. */}
                 <span>
-                  <b className={s.tagCount}>{INSTALL_STEPS.length}</b>단계 중{' '}
+                  <b className={s.tagCount}>{steps.length}</b>단계 중{' '}
                   <b className={s.tagCount}>{currentIndex + 1}</b>단계
                 </span>
               </span>
@@ -115,7 +145,7 @@ export const InstallationProcessProgressBar = ({
                  step, so it belongs to the same press that names the steps.
               Neither gate merely hides the tag: `TcHeaderTag` fetches latest_version on
               mount, so not rendering it is also not fetching. */}
-          {stepsOpen && currentIndex >= TEST_INDEX && tcTag && (
+          {stepsOpen && currentIndex >= testIndex && tcTag && (
             <span id={VERDICT_SLOT_ID} className={s.tagSlot}>
               {tcTag}
             </span>
@@ -143,10 +173,10 @@ export const InstallationProcessProgressBar = ({
           id={STEPS_BLOCK_ID}
           role="list"
           className={s.list}
-          style={{ gridTemplateColumns: `repeat(${INSTALL_STEPS.length}, minmax(0, 1fr))` }}
+          style={{ gridTemplateColumns: `repeat(${steps.length}, minmax(0, 1fr))` }}
         >
-          {INSTALL_STEPS.map((it, index) => {
-            const isLast = index === INSTALL_STEPS.length - 1;
+          {steps.map((it, index) => {
+            const isLast = index === steps.length - 1;
             const isCurrent = index === currentIndex;
             const isCompleted = currentIndex > index;
             // A segment is "walked" when it leads INTO a step the user has
@@ -155,7 +185,11 @@ export const InstallationProcessProgressBar = ({
             const leftWalked = index > 0 && index <= currentIndex;
             const rightWalked = index < currentIndex;
             return (
-              <li key={it.step} aria-current={isCurrent ? 'step' : undefined} className={s.item}>
+              <li
+                key={it.step}
+                aria-current={isCurrent ? 'step' : undefined}
+                className={s.item}
+              >
                 <span className={s.track}>
                   {index > 0 && (
                     <span

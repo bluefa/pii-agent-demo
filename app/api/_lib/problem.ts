@@ -155,6 +155,10 @@ const LEGACY_CODE_MAP: Record<string, KnownErrorCode> = {
   FORBIDDEN: 'FORBIDDEN',
   TARGET_SOURCE_NOT_FOUND: 'TARGET_SOURCE_NOT_FOUND',
   VALIDATION_FAILED: 'VALIDATION_FAILED',
+  // Identity entry, same reason as the FAQ block below: without it the status fallback
+  // rewrites an upstream INVALID_PARAMETER into VALIDATION_FAILED (both are 400), and a
+  // caller that branches on the code can never see the one the server actually sent.
+  INVALID_PARAMETER: 'INVALID_PARAMETER',
   CONFLICT_IN_PROGRESS: 'CONFLICT_IN_PROGRESS',
   CONFLICT_APPLYING_IN_PROGRESS: 'CONFLICT_APPLYING_IN_PROGRESS',
   CONFLICT_REQUEST_PENDING: 'CONFLICT_REQUEST_PENDING',

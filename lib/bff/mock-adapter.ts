@@ -21,6 +21,7 @@ import { mockScan } from '@/lib/bff/mock/scan';
 import { mockAws } from '@/lib/bff/mock/aws';
 import { mockOps, mockServiceJiraTickets } from '@/lib/bff/mock/ops';
 import { mockMonitoring } from '@/lib/bff/mock/monitoring';
+import { mockSdu } from '@/lib/bff/mock/sdu';
 import { mockAccess } from '@/lib/bff/mock/access';
 import { mockAzure } from '@/lib/bff/mock/azure';
 import { mockGcp } from '@/lib/bff/mock/gcp';
@@ -40,6 +41,11 @@ async function unwrap<T>(response: NextResponse): Promise<T> {
     throw bffErrorFromBody(response.status, body);
   }
   return await response.json() as T;
+}
+
+/** 본문 없는 성공(204)을 받는다 — `unwrap()` 은 성공 경로에서 JSON 을 파싱하므로 쓸 수 없다. */
+async function voidWrite(response: NextResponse): Promise<void> {
+  if (!response.ok) await unwrap(response);
 }
 
 export const mockBff: BffClient = {
@@ -154,6 +160,28 @@ export const mockBff: BffClient = {
     },
     endOfService: async (serviceCode) => {
       await unwrap(await mockOps.endOfService(serviceCode));
+    },
+  },
+
+  // SDU 담당자 흐름 — ASSUMED contracts (docs/api/sdu-assumed-contracts.md).
+  // 규칙(Region 소속·무효화 표·BDC 진행)은 전부 mock 모듈에 산다.
+  sdu: {
+    getDefinition: async (id) => unwrap(await mockSdu.getDefinition(id)),
+    putDefinition: async (id, body) => unwrap(await mockSdu.putDefinition(id, body)),
+    // 아래 넷은 204 다 — `unwrap()` 의 성공 경로가 `response.json()` 이라 빈 본문에서
+    // 터진다. 오류만 통과시키는 `putDescription` 과 같은 처리를 쓴다.
+    submitDefinition: async (id) => {
+      await voidWrite(await mockSdu.submitDefinition(id));
+    },
+    getUpload: async (id) => unwrap(await mockSdu.getUpload(id)),
+    putFirewallAck: async (id, body) => {
+      await voidWrite(await mockSdu.putFirewallAck(id, body));
+    },
+    putCommandsAck: async (id, body) => {
+      await voidWrite(await mockSdu.putCommandsAck(id, body));
+    },
+    putAccessKeyRecipients: async (id, userIds) => {
+      await voidWrite(await mockSdu.putAccessKeyRecipients(id, { user_ids: userIds }));
     },
   },
 

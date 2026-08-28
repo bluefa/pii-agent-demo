@@ -20,6 +20,7 @@ import {
 } from '@/app/components/features/project-create/Step5Result';
 import { WizardRail } from '@/app/components/features/project-create/WizardRail';
 import {
+  WIZARD_STEPS,
   attachLinkedAccount,
   buildCandidatesInput,
   isStepComplete,
@@ -306,6 +307,10 @@ export const ProjectCreateModal = ({
             )}
           >
             <WizardRail
+              title="인프라 등록"
+              subtitle="PII 모니터링할 인프라를 등록해요."
+              navLabel="등록 단계"
+              steps={WIZARD_STEPS}
               current={step}
               onNavigate={step < 5 ? setStep : undefined}
               titleId="infra-register-modal-title"

@@ -1,22 +1,32 @@
 'use client';
 
-import {
-  WIZARD_STEPS,
-  type WizardStep,
-} from '@/app/components/features/project-create/wizard-model';
 import { bgColors, borderColors, cn, primaryColors, textColors } from '@/lib/theme';
 
-interface WizardRailProps {
-  current: WizardStep;
-  /** Undefined once the rail is frozen (step 5) — completed steps stop being links. */
-  onNavigate?: (step: WizardStep) => void;
+/** One row of the rail. `step` is the wizard's own step value, whatever it numbers them. */
+export interface WizardRailStep<TStep extends number = number> {
+  step: TStep;
+  title: string;
+  sublabel: string;
+}
+
+interface WizardRailProps<TStep extends number> {
+  /** The dialog's title — the rail carries it, so it names the whole flow, not a step. */
+  title: string;
+  /** One line under the title. See the width note below before writing a longer one. */
+  subtitle: string;
+  /** Accessible name for the step nav — it is a second landmark inside the dialog. */
+  navLabel: string;
+  steps: readonly WizardRailStep<TStep>[];
+  current: TStep;
+  /** Undefined once the rail is frozen (a terminal step) — completed steps stop being links. */
+  onNavigate?: (step: TStep) => void;
   /** The dialog's `aria-labelledby` target — the rail carries the modal's title. */
   titleId: string;
 }
 
 /**
  * A connector segment drawn behind the dots. It is what makes the rail's full-height
- * spread mean something: the five rows are far apart because they are points along a
+ * spread mean something: the rows are far apart because they are points along a
  * path, and the blue portion says how much of that path is behind you.
  *
  * Drawn per row rather than as one bar over the whole rail so the geometry stays exact
@@ -37,7 +47,15 @@ const SpineSegment = ({ half, traversed }: { half: 'top' | 'bottom'; traversed: 
   />
 );
 
-export const WizardRail = ({ current, onNavigate, titleId }: WizardRailProps) => (
+export const WizardRail = <TStep extends number>({
+  title,
+  subtitle,
+  navLabel,
+  steps,
+  current,
+  onNavigate,
+  titleId,
+}: WizardRailProps<TStep>) => (
   // Full height, top to bottom. The title used to sit in a banner above both columns,
   // which put a hairline straight across the dialog and started the gray under it at a
   // T-junction. With the column running the whole way, the only division left is its
@@ -51,21 +69,20 @@ export const WizardRail = ({ current, onNavigate, titleId }: WizardRailProps) =>
       {/* 16px against the step heading's 18px: this names the whole flow and the heading
           opposite names the current step, so they must not read as the same rank. */}
       <h2 id={titleId} className={cn('text-base font-bold', textColors.primary)}>
-        인프라 등록
+        {title}
       </h2>
       {/* One line, deliberately. At 14px the column gives this text 200px; the longer
-          「PII 모니터링을 시작할 인프라를 등록해요.」 measures 220 and wrapped. This
-          wording lands at ~181, leaving 18px for a wider fallback face. Note the
-          overflow is silent — the rail has no clipping box, so text that outgrew this
-          would run into the 30px of padding and gutter beside it before touching the
-          card. The margin is the guarantee here, not the box. */}
-      <p className={cn('mt-1 whitespace-nowrap text-sm', textColors.secondary)}>
-        PII 모니터링할 인프라를 등록해요.
-      </p>
+          「PII 모니터링을 시작할 인프라를 등록해요.」 measures 220 and wrapped. 인프라 등록's
+          wording lands at ~181, leaving 18px for a wider fallback face — a caller's
+          subtitle has to fit the same budget. Note the overflow is silent: the rail has
+          no clipping box, so text that outgrew this would run into the 30px of padding
+          and gutter beside it before touching the card. The margin is the guarantee
+          here, not the box. */}
+      <p className={cn('mt-1 whitespace-nowrap text-sm', textColors.secondary)}>{subtitle}</p>
     </div>
 
-    <nav aria-label="등록 단계" className="flex flex-1 flex-col">
-      {WIZARD_STEPS.map(({ step, title, sublabel }) => {
+    <nav aria-label={navLabel} className="flex flex-1 flex-col">
+      {steps.map(({ step, title: stepTitle, sublabel }) => {
       const isActive = step === current;
       const isDone = step < current;
       const canNavigate = isDone && onNavigate !== undefined;
@@ -88,7 +105,7 @@ export const WizardRail = ({ current, onNavigate, titleId }: WizardRailProps) =>
           {/* The segment above the dot belongs to the step before it, the one below to
               the step after — hence the two different comparisons. */}
           {step > 1 && <SpineSegment half="top" traversed={step <= current} />}
-          {step < WIZARD_STEPS.length && (
+          {step < steps.length && (
             <SpineSegment half="bottom" traversed={step < current} />
           )}
 
@@ -126,7 +143,7 @@ export const WizardRail = ({ current, onNavigate, titleId }: WizardRailProps) =>
                 canNavigate && primaryColors.groupTextOnLight,
               )}
             >
-              {title}
+              {stepTitle}
             </span>
             {isActive && <span className={cn('text-xs', textColors.secondary)}>{sublabel}</span>}
           </span>

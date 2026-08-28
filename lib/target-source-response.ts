@@ -99,6 +99,9 @@ export const extractTargetSourceFromSnake = (
   // Both readings of SDU, and the same two-state collapse the CSR adapter makes —
   // this is the SSR path for the detail page, and the two must not disagree.
   const isSduType = asBool(metadata?.is_sdu_type) || isSduProvider(item.cloud_provider);
+  // 권역은 담당자가 고르는 값이 아니라 대상소스가 가진 사실이다 — AWS 와 SDU 의 1단계가
+  // 같은 필드로 갈리므로, 여기서 넘기지 않으면 두 화면 다 Global 로 읽는다.
+  const isChinaRegion = asBool(metadata?.is_china_region);
   const isTerraformExecutionGranted =
     metadata?.grant_service_terraform_execution_permission === true;
   const createdAt = asStr(item.created_at) ?? new Date().toISOString();
@@ -126,5 +129,6 @@ export const extractTargetSourceFromSnake = (
     ...(gcpProjectId ? { gcpProjectId } : {}),
     ...(scanPrincipal ? { scanPrincipal } : {}),
     ...(isSduType !== undefined ? { isSduType } : {}),
+    ...(isChinaRegion !== undefined ? { isChinaRegion } : {}),
   };
 };

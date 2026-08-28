@@ -9,16 +9,26 @@ import { cardStyles, projectHeaderStyles } from '@/lib/theme';
 
 // The flat header mounts the quiet stepper; stub it and surface the step it receives.
 // It also has to render `tcTag`, or the one decision this header makes — which run the
-// verdict tag reports — is thrown away by the stub and nothing can assert it.
+// verdict tag reports — is thrown away by the stub and nothing can assert it. `variant`
+// and the PRESENCE of `tcTag` ride along for the same reason: the header is the only hop
+// that decides either one, and passing `tcTag` then hiding it downstream would still be
+// asking — `TcHeaderTag` fetches on mount.
 vi.mock('@/app/components/features/process-status', () => ({
   InstallationProcessProgressBar: ({
     currentStep,
+    variant,
     tcTag,
   }: {
     currentStep: unknown;
+    variant?: string;
     tcTag?: ReactNode;
   }) => (
-    <div data-testid="process-progress-bar" data-step={String(currentStep)}>
+    <div
+      data-testid="process-progress-bar"
+      data-step={String(currentStep)}
+      data-variant={String(variant)}
+      data-has-tc-tag={String(tcTag !== undefined)}
+    >
       {tcTag}
     </div>
   ),
@@ -557,8 +567,33 @@ describe('ProjectPageMeta — one line per tier', () => {
 describe('ProjectPageMeta — install progress', () => {
   it('mounts the stepper with the project processStatus', () => {
     render(<ProjectPageMeta project={projectFixture} identity={awsIdentity} />);
-    expect(screen.getByTestId('process-progress-bar').getAttribute('data-step')).toBe(
-      String(projectFixture.processStatus),
+    const bar = screen.getByTestId('process-progress-bar');
+    expect(bar.getAttribute('data-step')).toBe(String(projectFixture.processStatus));
+    expect(bar.getAttribute('data-variant')).toBe('undefined');
+    expect(bar.getAttribute('data-has-tc-tag')).toBe('true');
+  });
+});
+
+/**
+ * The two decisions this header makes for an SDU target, and both are invisible to a test
+ * of the stepper alone: the header is the ONLY place either one is made.
+ */
+describe('ProjectPageMeta — SDU', () => {
+  const sduProject: TargetSource = { ...projectFixture, isSduType: true };
+
+  it('hands the stepper the SDU road', () => {
+    render(<ProjectPageMeta project={sduProject} identity={awsIdentity} />);
+    expect(screen.getByTestId('process-progress-bar').getAttribute('data-variant')).toBe('sdu');
+  });
+
+  it('gives it no 연결 테스트 verdict to carry', () => {
+    // ⛔ Not "renders it hidden". 5단계 is struck on the SDU road — the test runs, but in
+    // the Admin console, and a verdict about work this reader cannot see or repeat is
+    // noise. `TcHeaderTag` also fetches on mount, so withholding the node is what makes
+    // this a decision not to ASK rather than a decision not to show.
+    render(<ProjectPageMeta project={sduProject} identity={awsIdentity} />);
+    expect(screen.getByTestId('process-progress-bar').getAttribute('data-has-tc-tag')).toBe(
+      'false',
     );
   });
 });

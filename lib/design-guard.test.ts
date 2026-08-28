@@ -1148,16 +1148,21 @@ describe('step tag rides the title row', () => {
   const byToken = appTsx.filter((f) => read(f).includes(TAG_USE));
 
   it('is worn by every step card there is', () => {
-    // Cloud 1·2·3·4·5·6·7 and IDC 1·2·3·5·6·7 — thirteen heads, one grammar.
+    // Cloud 1·2·3·4·5·6·7, IDC 1·2·3·5·6·7 and SDU 1·4·6·7 — seventeen heads, one grammar.
     // The two sets pin each other: a head that renders a pill without the token, or wears
     // the token in a shape this scan cannot read, breaks the equality rather than hiding.
     //
-    // 13 counts the TAGGED heads, not every card head. `ApprovalUnavailableCard` also
+    // SDU contributes four, not seven: 2·3·5 are struck on its road
+    // (`InstallationProcessProgressBar` variant="sdu"), so there is no card to head. Its
+    // numbers are 1·4·6·7 and NOT 1·2·3·4 — the tag has to name the same position for
+    // every integration type or two people reading 「4단계」 are not reading one place.
+    //
+    // 17 counts the TAGGED heads, not every card head. `ApprovalUnavailableCard` also
     // wears `cardStyles.cardTitle` and carries no tag: it stands in for step 2 when the
     // target is ruled out, and whether that state has a step number is a product question,
     // not a token one. It predates this census — do not read the count as blessing it.
     expect(byToken).toEqual(byPill);
-    expect(byToken).toHaveLength(13);
+    expect(byToken).toHaveLength(17);
   });
 
   it('carries no margin of its own — it is a flex child, not a line', () => {

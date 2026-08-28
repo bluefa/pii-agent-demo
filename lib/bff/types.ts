@@ -29,6 +29,12 @@ export type ConfirmedResourceProvider = 'AWS' | 'GCP' | 'AZURE' | 'IDC';
 import type { AlertTargetKind } from '@/lib/types/task-queue';
 import type { DagStatusResponse } from '@/lib/types/dag-status';
 import type {
+  SduAckRequestWire,
+  SduDefinitionRequestWire,
+  SduDefinitionWire,
+  SduUploadWire,
+} from '@/lib/types/sdu';
+import type {
   AdminPost,
   AdminPostCategory,
   AdminPostSummary,
@@ -448,6 +454,32 @@ export interface BffClient {
      */
     updateServiceInstalled: (serviceCode: string) => Promise<void>;
     endOfService: (serviceCode: string) => Promise<void>;
+  };
+
+  /**
+   * SDU (Self Data Upload) 담당자 흐름 — ASSUMED contracts
+   * (docs/api/sdu-assumed-contracts.md §1–§6). Same deliberate exception as `ops` above.
+   *
+   * install-v1.yaml 이 SDU 에 대해 말하는 것은 세 가지뿐이다 — `cloud_provider: SDU`,
+   * `metadata.is_sdu_type`, `metadata.is_china_region`. **조작은 하나도 선언돼 있지 않다.**
+   * 그래서 아래 타입은 `lib/generated/*` 가 아니라 `lib/types/sdu.ts` 에 손으로 적혀 있고,
+   * 실제 엔드포인트가 나오면 이 블록과 그 파일이 함께 사라진다.
+   *
+   * Wire 는 snake — 이 저장소의 assumed 계약이 install-v1 의 규약을 따르는 것과 같다.
+   * 쓰기 셋(submit·acks·recipients)은 응답 본문이 없다: 화면이 다시 읽는다.
+   */
+  sdu: {
+    // assumed §1·§2 — 연동 대상 정의(1단계). 권역은 이 응답에 없다: 대상 소스가 가진 사실이다.
+    getDefinition: (id: number) => Promise<SduDefinitionWire>;
+    putDefinition: (id: number, body: SduDefinitionRequestWire) => Promise<SduDefinitionWire>;
+    // assumed §3 — 제출. SDU 는 승인 절차가 없어 1단계가 곧바로 업로드 단계로 넘어간다.
+    submitDefinition: (id: number) => Promise<void>;
+    // assumed §4 — 업로드 단계(4단계). 모든 목록이 Region 단위다.
+    getUpload: (id: number) => Promise<SduUploadWire>;
+    // assumed §5·§6 — 확인 응답과 S3 Access Key 수신자. 둘 다 204.
+    putFirewallAck: (id: number, body: SduAckRequestWire) => Promise<void>;
+    putCommandsAck: (id: number, body: SduAckRequestWire) => Promise<void>;
+    putAccessKeyRecipients: (id: number, userIds: string[]) => Promise<void>;
   };
 
   /**

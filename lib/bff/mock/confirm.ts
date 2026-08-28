@@ -9,6 +9,7 @@ import { ProcessStatus, cloudProviderToWireProvider } from '@/lib/types';
 import { createInitialProjectStatus, getCurrentStep } from '@/lib/process';
 import { clearAzureInstallationCache } from '@/lib/mock-azure';
 import { clearGcpInstallationCache } from '@/lib/mock-gcp';
+import { clearSduUploadState } from '@/lib/bff/mock/sdu';
 import { toBffApprovalProcessStatus } from '@/lib/bff/mock/target-sources';
 import {
   applyTqApprovalDecision,
@@ -1863,6 +1864,11 @@ export const mockConfirm = {
     // 키를 지우는 것은 무해하고, 갈래를 두면 프로바이더가 늘 때 이 줄이 조용히 빠진다.
     clearAzureInstallationCache(Number(targetSourceId));
     clearGcpInstallationCache(Number(targetSourceId));
+    // SDU 업로드 단계도 같은 이유로 버린다 — 방화벽 확인·수신자·BDC 진행은 이번 연동에
+    // 대한 답이고, 초기화는 그 연동을 없던 일로 하는 것이다. 연동 대상 정의는 남긴다:
+    // 초기화가 되돌리는 자리가 1단계이고, 1단계가 고칠 대상이 바로 그 정의다
+    // (docs/api/sdu-assumed-contracts.md §7).
+    clearSduUploadState(Number(targetSourceId));
 
     // ADR-019: swagger ApprovalActionResponseDto (snake wire).
     return NextResponse.json({

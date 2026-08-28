@@ -43,7 +43,15 @@ type SharedStep = '2' | '3' | '5' | '6' | '7';
  * whether one authored card really does fit it, not a row to be swept in automatically.
  */
 const slotsForStep = (step: SharedStep) =>
-  (Object.keys(GUIDE_SLOTS) as GuideSlotKey[]).filter((key) => key.endsWith(`.${step}`));
+  (Object.keys(GUIDE_SLOTS) as GuideSlotKey[]).filter(
+    // ⛔ SDU is excluded on purpose, and this filter is the decision the comment above
+    // demands. SDU numbers its own four steps, so its keys END in the same digits as the
+    // shared cards while saying something else entirely — SDU's 3단계 is SDU 연동중 where
+    // the shared 3단계 is 연동 대상 반영중, and SDU's 4단계 is 완료 where the shared one is
+    // Agent 설치. Sweeping them in here would have made "one authored card, every
+    // integration type" quietly false.
+    (key) => key.endsWith(`.${step}`) && !key.startsWith('process.sdu.'),
+  );
 
 /**
  * `bullets` is the flat `<li>` census, and it is only meaningful where the body has no

@@ -6,6 +6,8 @@
 import { GUIDE_SLOTS } from '@/lib/constants/guide-registry';
 
 import type { GuideSlotKey } from '@/lib/constants/guide-registry';
+import { sduStepOf } from '@/app/target-sources/[targetSourceId]/_components/sdu/sdu-steps';
+
 import type { CloudProvider } from '@/lib/types';
 import { ProcessStatus } from '@/lib/types';
 
@@ -18,9 +20,19 @@ const isInRange = (step: ProcessStatus): boolean =>
 export const resolveStepSlot = (
   provider: CloudProvider,
   currentStep: ProcessStatus,
-  opts?: { manualInstall?: boolean },
+  opts?: { manualInstall?: boolean; sdu?: boolean },
 ): GuideSlotKey | null => {
   if (!isInRange(currentStep)) return null;
+
+  // SDU is checked BEFORE the provider, and takes no `provider` of its own: an SDU
+  // target still sits on a CSP (its `cloudProvider` is AWS or whatever it is), so
+  // falling through to the provider branch would hand it the AWS guide for a step it
+  // is not on. The slot is keyed by the SDU step (1·2·3·4), not by the status — several
+  // statuses fold onto one SDU step, and `sduStepOf` owns that fold.
+  if (opts?.sdu) {
+    const key = `process.sdu.${sduStepOf(currentStep)}`;
+    return isSlotKey(key) ? key : null;
+  }
 
   if (provider === 'AWS') {
     // AUTO/MANUAL guides only diverge at step 4 (same guideName elsewhere),
@@ -57,9 +69,13 @@ export const resolveProjectStepSlot = (project: {
   cloudProvider: CloudProvider;
   processStatus: ProcessStatus;
   isTerraformExecutionGranted?: boolean;
+  isSduType?: boolean;
 }): GuideSlotKey | null =>
   resolveStepSlot(project.cloudProvider, project.processStatus, {
     // Same semantics as AwsInstallationInline: only an explicit grant is auto.
     // An account nobody granted the permission to installs manually.
     manualInstall: project.isTerraformExecutionGranted !== true,
+    // `=== true`, not truthiness: the field is optional, and an absent flag is a
+    // cloud target, not an SDU one.
+    sdu: project.isSduType === true,
   });

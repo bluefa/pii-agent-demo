@@ -19,6 +19,9 @@ vi.mock('@/app/target-sources/[targetSourceId]/_components/gcp', () => ({
 vi.mock('@/app/target-sources/[targetSourceId]/_components/idc', () => ({
   IdcProjectPage: () => <div data-testid="idc-page" />,
 }));
+vi.mock('@/app/target-sources/[targetSourceId]/_components/sdu', () => ({
+  SduProjectPage: () => <div data-testid="sdu-page" />,
+}));
 
 vi.mock('@/app/components/features/process-status/GuideCard/resolve-step-slot', () => ({
   resolveStepSlot: vi.fn(() => 'stub-slot-key'),
@@ -105,6 +108,50 @@ describe('ProjectDetail guide rail', () => {
     expect(screen.getByTestId('guide-panel').getAttribute('data-initial-collapsed')).toBe(
       String(railCollapsed),
     );
+  });
+});
+
+/**
+ * SDU used to be a hard gate here: the whole layout was replaced by a full-page
+ * 「아직 지원하지 않는 서비스 타입입니다」 notice, rail and all. The flow exists now, so the
+ * SDU page takes the same slot every other provider page takes.
+ *
+ * The two things worth pinning are the two that a provider `switch` gets wrong on its own.
+ * An SDU target still carries a real `cloudProvider` — these fixtures say `AWS` — so a
+ * branch placed after the switch never runs; and the guide rail has to come back, because
+ * the reason it was withheld (「설치 진행에 대해 할 말이 없다」) expired with the notice.
+ */
+describe('ProjectDetail — SDU', () => {
+  const sduFixture: TargetSource = { ...azureFixture, cloudProvider: 'AWS', isSduType: true };
+
+  it('renders the SDU page instead of the underlying provider’s', () => {
+    render(<ProjectDetail initialProject={sduFixture} jiraTicket={null} railCollapsed={null} />);
+
+    expect(screen.getByTestId('sdu-page')).toBeTruthy();
+    // ⛔ Not the AWS page, even though `cloudProvider` says AWS. SDU names how the data
+    // arrives, not where it lives.
+    expect(screen.queryByTestId('aws-page')).toBeNull();
+  });
+
+  it('gives an SDU target the guide rail back', () => {
+    render(<ProjectDetail initialProject={sduFixture} jiraTicket={null} railCollapsed={null} />);
+
+    expect(screen.getByTestId('guide-panel').getAttribute('data-slot-key')).toBe('stub-slot-key');
+  });
+
+  it('keeps a cloud target on its provider page', () => {
+    // The other half of the branch: the flag is optional, so its absence must not start
+    // routing every AWS target into the SDU page.
+    render(
+      <ProjectDetail
+        initialProject={{ ...azureFixture, cloudProvider: 'AWS' }}
+        jiraTicket={null}
+        railCollapsed={null}
+      />,
+    );
+
+    expect(screen.getByTestId('aws-page')).toBeTruthy();
+    expect(screen.queryByTestId('sdu-page')).toBeNull();
   });
 });
 

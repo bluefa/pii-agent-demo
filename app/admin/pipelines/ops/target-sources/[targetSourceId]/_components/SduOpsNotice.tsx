@@ -11,8 +11,8 @@ import { opsStyles } from '@/app/admin/pipelines/ops/target-sources/[targetSourc
 /**
  * SDU 대상의 운영 상세 자리에 놓이는 화면.
  *
- * 사용자쪽 SduUnsupportedNotice 와 일부러 다른 말을 한다. 서비스 담당자에게 SDU 는
- * "아직 지원하지 않는 타입"이지만, 운영자에게 이 대상은 이미 존재하고 운영되는
+ * 사용자쪽 SDU 화면(SduProjectPage)과 일부러 다른 말을 한다. 서비스 담당자는 자기
+ * 흐름(1·4·6·7단계)을 걷고 있지만, 운영자에게 이 대상은 이미 존재하고 운영되는
  * 대상이다 — 없는 것은 대상이 아니라 이 화면이다. 같은 문구를 돌려쓰면 운영자에게
  * 대상이 없다고 말하게 된다.
  *
