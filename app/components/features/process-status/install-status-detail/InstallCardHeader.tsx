@@ -5,8 +5,9 @@ import { cardStyles, cn, primaryColors } from '@/lib/theme';
 /**
  * Step-4 카드 헤더 — 스텝 카드 문법(1·2·3·6·7과 동일): 단계 태그 · 제목 한 줄 → guidance.
  *
- * 파랑은 **사용자가 직접 해야 하는 행동**에만 붙인다. BDC 자동 설치처럼 시스템이
- * 하는 일은 평문으로 둔다 (Step 1 CandidateResourceSection 의 강조 규칙 그대로).
+ * 파랑은 **사용자가 찾아갈 자리와 거기서 처리할 항목**에 붙인다 — 레일의 '내가 할 일'
+ * 그룹과 그 안의 작업 항목. 뒤따르는 행동(확인·진행)은 그 항목을 잡으면 따라오므로
+ * 평문이고, BDC 자동 설치처럼 시스템이 하는 일도 평문으로 둔다.
  *
  * Provider 표시는 두지 않는다 — 바로 위 identity bar 가 이미 같은 값을 말한다.
  */
@@ -34,9 +35,8 @@ export const InstallCardHeader = ({ action }: { action?: ReactNode }) => (
     {/* 가리키는 대상은 레일의 '내가 할 일' 그룹이다 — 그룹 레일에는 '설치 현황 요약'
         단계가 없으므로, 예전 문구는 화면에 없는 것을 찾으라고 시키고 있었다. */}
     <p className={cn('break-keep', cardStyles.guidance)}>
-      내가 할 일에서{' '}
-      <span className={primaryColors.text}>작업할 항목을 확인한 후 진행</span>해주시고, 모든 절차가
-      완료되면 다음 단계로 넘어가요.
+      <span className={primaryColors.text}>내가 할 일에서 작업할 항목</span>을 확인한 후
+      진행해주시고, 모든 절차가 완료되면 다음 단계로 넘어가요.
     </p>
   </header>
 );
