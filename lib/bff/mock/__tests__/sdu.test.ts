@@ -338,13 +338,14 @@ describe('SDU 제출과 BDC 진행 (§3·§8)', () => {
 });
 
 describe('SDU 시드와 초기화 (§8)', () => {
-  it('1100 은 업로드 단계 한가운데다 — Region 2곳, 방화벽은 us 만, 수신자 3명', async () => {
+  it('1100 은 업로드 단계 한가운데다 — Region 2곳, 방화벽은 us 만, 수신자 2명', async () => {
     const state = await upload(SEEDED_ID);
 
     expect(state.regions).toEqual(['us', 'eu']);
     expect(state.firewall.acked_regions).toEqual(['us']);
     expect(state.commands.acked_regions).toEqual([]);
-    expect(state.recipients.users).toHaveLength(3);
+    // 수신자는 SDU 서비스 담당자 안에서만 고른다 — 셋 중 둘이라 화면에 더 넣을 사람이 남는다.
+    expect(state.recipients.users.map((user) => user.id)).toEqual(['user-1', 'user-5']);
     expect(state.submitted_at).not.toBeNull();
     expect(mockData.getProjectByTargetSourceId(SEEDED_ID)?.processStatus).toBe(ProcessStatus.INSTALLING);
   });

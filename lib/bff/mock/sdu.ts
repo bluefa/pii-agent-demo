@@ -142,7 +142,12 @@ const SEED_1100_TARGETS: SduTargetWire[] = [
   },
 ];
 
-const SEED_1100_RECIPIENTS = ['user-3', 'user-4', 'user-5'];
+/**
+ * 후보는 이 서비스(`SDU`)의 담당자뿐이므로 시드도 그 안에서 고른다 — 담당자가 아닌
+ * 사람이 수신자로 앉아 있으면 화면은 고를 수 없는 상태를 그리게 된다. 셋 중 둘만 넣어
+ * 「더 넣을 사람이 남은」 모양을 만든다.
+ */
+const SEED_1100_RECIPIENTS = ['user-1', 'user-5'];
 
 const blankState = (): SduState => ({
   targets: [],
