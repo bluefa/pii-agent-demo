@@ -47,7 +47,10 @@ describe('IdcConfirmedResourcesPanel — who gets the 관리 door', () => {
   });
 
   it('gives steps 6·7 no 관리 column and a 2-leaf 연동 논리 DB group', async () => {
-    render(<IdcConfirmedResourcesPanel targetSourceId={42} state={state} />);
+    // Steps 6·7 read the last SUCCESSFUL run — the counts on a settled screen must not
+    // follow a later failure. Passed here for the same reason the prop is required:
+    // the panel renders on three steps and must never guess which one it is on.
+    render(<IdcConfirmedResourcesPanel targetSourceId={42} state={state} scope="latestSuccess" />);
 
     await waitFor(() => expect(getSummariesMock).toHaveBeenCalled());
     expect(screen.queryByText('관리하기')).toBeNull();
@@ -56,8 +59,15 @@ describe('IdcConfirmedResourcesPanel — who gets the 관리 door', () => {
   });
 
   it('gives step 5 the 관리 column and a 3-leaf 연동 논리 DB group', async () => {
+    // Step 5 reads the LATEST run, failure included — that is the run the operator is
+    // acting on. `onLogicalOpen` is what raises the 관리 door; the scope is orthogonal.
     render(
-      <IdcConfirmedResourcesPanel targetSourceId={42} state={state} onLogicalOpen={() => {}} />,
+      <IdcConfirmedResourcesPanel
+        targetSourceId={42}
+        state={state}
+        scope="latest"
+        onLogicalOpen={() => {}}
+      />,
     );
 
     await waitFor(() => expect(getSummariesMock).toHaveBeenCalled());
