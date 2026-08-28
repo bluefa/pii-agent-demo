@@ -189,7 +189,7 @@ export const ApplyingApprovedCard = ({ targetSourceId }: ApplyingApprovedCardPro
               PII Agent 설치에 필요한 준비를 진행하고 있어요.
             </p>
             {/* mt 없음 — 행간 여백(leading 1.55)만으로 문단을 가른다 (2·6단계 문법). */}
-            <p className={cardStyles.guidance}>보통 하루 안에 작업이 완료돼요.</p>
+            <p className={cardStyles.guidance}>평균 1일 이내(주말·공휴일 제외)에 완료돼요.</p>
           </>
         ) : (
           /* 안내가 두 문단이 됐으니 스켈레톤도 두 줄이다 — 한 줄짜리 25px 바 하나만 두면
@@ -197,7 +197,7 @@ export const ApplyingApprovedCard = ({ targetSourceId }: ApplyingApprovedCardPro
              25px 는 guidance 의 줄 상자(16px × 1.55)라 두 바가 맞닿아야 실제 높이가 된다. */
           <div className="mt-3 flex flex-col">
             <div className={cn('h-[25px] w-[520px] max-w-full rounded', idcStyles.skeletonBar)} />
-            <div className={cn('h-[25px] w-[220px] max-w-full rounded', idcStyles.skeletonBar)} />
+            <div className={cn('h-[25px] w-[270px] max-w-full rounded', idcStyles.skeletonBar)} />
           </div>
         )}
         {loaded && (view.approvedAt || view.approver) && (

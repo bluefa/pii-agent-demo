@@ -100,8 +100,8 @@ export const IdcStep2WaitingApproval = ({
               <strong className={cn('font-semibold', primaryColors.text)}>
                 관리자가 제출된 연동 대상 DB를 확인하고 있어요.
               </strong>{' '}
-              보통 하루 안에 확인이 완료되며, 이슈가 없으면 다음 단계로 넘어가요. 반려된 경우, 사유를
-              확인한 후 다시 제출해주세요.
+              평균 1일 이내(주말·공휴일 제외)에 확인이 완료되며, 이슈가 없으면 다음 단계로 넘어가요.
+              반려된 경우, 사유를 확인한 후 다시 제출해주세요.
             </p>
             {/* No top margin — the 1.55 leading is the paragraph break (cloud step-2 grammar). */}
             <p className={cardStyles.guidance}>

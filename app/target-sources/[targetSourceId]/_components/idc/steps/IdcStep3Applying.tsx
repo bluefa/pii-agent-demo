@@ -69,7 +69,7 @@ export const IdcStep3Applying = ({
             PII Agent 설치에 필요한 준비를 진행하고 있어요.
           </p>
           {/* No top margin — the 1.55 leading is the paragraph break (step-2 grammar). */}
-          <p className={cardStyles.guidance}>보통 하루 안에 작업이 완료돼요.</p>
+          <p className={cardStyles.guidance}>평균 1일 이내(주말·공휴일 제외)에 완료돼요.</p>
           {/* Both come from the approved-integration response the rows came from. They used to be
               a hardcoded name and a hardcoded date fallback — the project payload has no approver,
               which is what made the invention tempting. */}

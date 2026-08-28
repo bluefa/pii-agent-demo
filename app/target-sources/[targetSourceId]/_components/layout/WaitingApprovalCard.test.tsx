@@ -118,7 +118,7 @@ describe('WaitingApprovalCard', () => {
     expect(await screen.findByText('연동 대상 승인 대기')).toBeTruthy();
     expect(screen.getByText('승인 대기')).toBeTruthy();
     expect(screen.getByText('관리자가 제출된 연동 대상 DB를 확인하고 있어요.')).toBeTruthy();
-    expect(screen.getByText(/보통 하루 안에 확인이 완료되며/)).toBeTruthy();
+    expect(screen.getByText(/평균 1일 이내\(주말·공휴일 제외\)에 확인이 완료되며/)).toBeTruthy();
     expect(screen.getByText(/제출한 연동 대상 DB 정보를 수정하고 싶다면/)).toBeTruthy();
 
     await waitFor(() => {
