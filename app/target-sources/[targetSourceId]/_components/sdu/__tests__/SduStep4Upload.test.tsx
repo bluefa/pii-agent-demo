@@ -9,7 +9,7 @@ const api = vi.hoisted(() => ({
   getSduDefinition: vi.fn(),
   putSduAcks: vi.fn(),
   putSduRecipients: vi.fn(),
-  searchUsers: vi.fn(),
+  getPermissions: vi.fn(),
   getProject: vi.fn(),
 }));
 
@@ -20,7 +20,7 @@ vi.mock('@/app/lib/api/sdu', () => ({
   putSduRecipients: api.putSduRecipients,
 }));
 vi.mock('@/app/lib/api', () => ({
-  searchUsers: api.searchUsers,
+  getPermissions: api.getPermissions,
   getProject: api.getProject,
 }));
 // Slice C owns the body of 1단계 — this test only asks that Step 4 hands over to it, and in
@@ -153,7 +153,7 @@ beforeEach(() => {
   api.getSduDefinition.mockResolvedValue(definition);
   api.putSduAcks.mockResolvedValue(undefined);
   api.putSduRecipients.mockResolvedValue(undefined);
-  api.searchUsers.mockResolvedValue({ users: [] });
+  api.getPermissions.mockResolvedValue({ users: [] });
   api.getProject.mockResolvedValue({ ...project, processStatus: ProcessStatus.WAITING_CONNECTION_TEST });
 });
 
@@ -240,23 +240,28 @@ describe('SduStep4Upload', () => {
     expect(screen.getByText('확인 후 예를 눌러주세요. 다음 블록은 열리지 않아요.')).toBeTruthy();
   });
 
-  it('searches for a recipient with the registered ids excluded', async () => {
-    api.searchUsers.mockResolvedValue({
-      users: [{ id: 'user-9', name: '김도현', email: 'dohyun.kim@bdc.com' }],
+  it('offers the service owners, minus the ones already registered', async () => {
+    api.getPermissions.mockResolvedValue({
+      users: [
+        { id: 'user-9', name: '김도현', email: 'dohyun.kim@bdc.com' },
+        // Already registered — the same person must not be offered a second time.
+        { id: 'user-3', name: '박지원', email: 'jiwon.park@bdc.com' },
+      ],
     });
     await renderStep();
 
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: /S3 Access Key 수신자/ }));
     });
-    fireEvent.change(screen.getByLabelText('수신자 검색'), { target: { value: '김' } });
 
-    await waitFor(() =>
-      expect(api.searchUsers).toHaveBeenCalledWith('김', ['user-3', 'user-4', 'user-5']),
-    );
+    // 이 서비스의 담당자만 후보다 — 전체 사용자 검색이 아니다.
+    await waitFor(() => expect(api.getPermissions).toHaveBeenCalledWith('SERVICE-A'));
     expect(await screen.findByText('김도현')).toBeTruthy();
-    // 이름만으로는 동명이인이 갈리지 않는다 — 결과 행은 이메일을 함께 진다.
+    // 이름만으로는 동명이인이 갈리지 않는다 — 후보 행은 이메일을 함께 진다.
     expect(screen.getByText('dohyun.kim@bdc.com')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: '박지원 제거' })).toBeTruthy();
+    // 등록된 박지원은 칩으로만 서 있고 후보 줄에는 없다 — 「추가」는 김도현 하나뿐이다.
+    expect(screen.getAllByRole('button', { name: '추가' }).length).toBe(1);
   });
 
   it('renders each Region’s three lines verbatim and copies that same string', async () => {

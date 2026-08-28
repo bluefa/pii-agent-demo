@@ -14,6 +14,8 @@ import {
 import type { SduRecipient } from '@/lib/types/sdu';
 
 export interface RecipientsBlockProps {
+  /** 후보 명단의 출처 — 이 대상 소스가 속한 서비스. */
+  serviceCode: string;
   recipients: readonly SduRecipient[];
   onSave: (userIds: string[]) => Promise<void>;
 }
@@ -29,7 +31,7 @@ const sameIds = (a: readonly SduRecipient[], b: readonly SduRecipient[]): boolea
  * 재발송, no 발급 이력 here: a button that claims an act the system cannot observe would be
  * the screen lying about the world.
  */
-export const RecipientsBlock = ({ recipients, onSave }: RecipientsBlockProps) => {
+export const RecipientsBlock = ({ serviceCode, recipients, onSave }: RecipientsBlockProps) => {
   const [chosen, setChosen] = useState<SduRecipient[]>([...recipients]);
   const [saving, setSaving] = useState(false);
 
@@ -88,6 +90,7 @@ export const RecipientsBlock = ({ recipients, onSave }: RecipientsBlockProps) =>
       </div>
 
       <RecipientPicker
+        serviceCode={serviceCode}
         chosen={chosen}
         onAdd={(user) =>
           setChosen((prev) => (prev.some((item) => item.id === user.id) ? prev : [...prev, user]))

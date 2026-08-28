@@ -260,6 +260,7 @@ export function SduStep4Upload({ project, onProjectUpdate }: SduStepProps) {
                 action={secondaryAction('수신자 수정', () => setReopened('recipients'))}
               >
                 <RecipientsBlock
+                  serviceCode={project.serviceCode}
                   recipients={snapshot.upload.recipients.users}
                   onSave={(userIds) => write(() => putSduRecipients(targetSourceId, userIds))}
                 />

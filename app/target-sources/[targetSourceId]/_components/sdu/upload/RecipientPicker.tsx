@@ -1,14 +1,11 @@
 'use client';
 
 import { useState } from 'react';
-import { searchUsers } from '@/app/lib/api';
+import { getPermissions } from '@/app/lib/api';
 import { useAbortableEffect } from '@/app/hooks/useAbortableEffect';
-import { useDebounce } from '@/app/hooks/useDebounce';
-import { SearchIcon } from '@/app/components/ui/icons';
 import {
   borderColors,
   cn,
-  getInputClass,
   primaryColors,
   stackGap,
   textColors,
@@ -16,12 +13,11 @@ import {
 } from '@/lib/theme';
 import type { SduRecipient } from '@/lib/types/sdu';
 
-const SEARCH_DEBOUNCE_MS = 250;
-
 /**
- * `/users/search` answers with `id · name · email`, every field optional in the generated
- * schema. A row missing one of the three cannot be registered (the id is what is written,
- * the email is what tells two 김도현 apart), so it is dropped rather than half-rendered.
+ * `/services/{code}/authorized-users` answers with `id · name · email`, every field optional
+ * in the generated schema. A row missing one of the three cannot be registered (the id is
+ * what is written, the email is what tells two 김도현 apart), so it is dropped rather than
+ * half-rendered.
  */
 const toRecipients = (
   users: readonly { id?: string | null; name?: string | null; email?: string | null }[] | null | undefined,
@@ -33,85 +29,66 @@ const toRecipients = (
   );
 
 export interface RecipientPickerProps {
-  /** Already registered — the contract's `excludeIds` exists exactly for this. */
+  /** The service this target source belongs to — the list is its 담당자, nothing wider. */
+  serviceCode: string;
+  /** Already registered — they are struck from the list rather than offered twice. */
   chosen: readonly SduRecipient[];
   onAdd: (user: SduRecipient) => void;
 }
 
 /**
- * 수신자 검색. Nothing is typed by hand: a free-text email field means the admin mails the
- * key to a typo and nobody finds out. An empty query shows nothing — this is a picker for
- * someone the owner already has in mind, not a directory browser.
+ * 수신자 선택. Nothing is typed by hand and nothing is searched: the candidates are exactly
+ * the service's 담당자, so the whole set is drawn at once. A free-text email field would mail
+ * the key to a typo and nobody would find out; a directory search would offer people who have
+ * no business holding this service's key.
  */
-export const RecipientPicker = ({ chosen, onAdd }: RecipientPickerProps) => {
-  const [query, setQuery] = useState('');
-  const [results, setResults] = useState<SduRecipient[] | null>(null);
+export const RecipientPicker = ({ serviceCode, chosen, onAdd }: RecipientPickerProps) => {
+  const [owners, setOwners] = useState<SduRecipient[] | null>(null);
   const [failed, setFailed] = useState(false);
-  const debounced = useDebounce(query.trim(), SEARCH_DEBOUNCE_MS);
-
-  // Arrays are a new reference every render; the deps key is the CONTENT, and the request is
-  // rebuilt from that same key so the two cannot drift apart.
-  const excludeKey = chosen.map((user) => user.id).join(',');
 
   useAbortableEffect(
     (signal) => {
-      if (!debounced) {
-        setResults(null);
-        setFailed(false);
-        return;
-      }
-      setFailed(false);
-      // `searchUsers` takes no signal, so the response cannot be cancelled — it is discarded
-      // instead. Either way a stale answer never lands on a newer query.
-      return searchUsers(debounced, excludeKey ? excludeKey.split(',') : [])
+      // `getPermissions` takes no signal, so the response cannot be cancelled — it is
+      // discarded instead.
+      return getPermissions(serviceCode)
         .then((response) => {
           if (signal.aborted) return;
-          setResults(toRecipients(response.users));
+          setOwners(toRecipients(response.users));
         })
         .catch(() => {
           if (signal.aborted) return;
-          // A failure drawn as "결과 없음" would read as "그런 사람은 없다" and the owner
-          // would stop looking for someone who exists.
+          // A failure drawn as "담당자가 없어요" would read as "이 서비스엔 아무도 없다" and
+          // the owner would stop looking for someone who exists.
           setFailed(true);
-          setResults(null);
+          setOwners(null);
         });
     },
-    [debounced, excludeKey],
+    [serviceCode],
   );
+
+  const chosenIds = new Set(chosen.map((user) => user.id));
+  const offered = (owners ?? []).filter((user) => !chosenIds.has(user.id));
 
   return (
     <div className={cn('flex flex-col', stackGap.related)}>
-      <div className="relative">
-        <SearchIcon
-          aria-hidden
-          className={cn('pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2', textColors.quaternary)}
-        />
-        <input
-          type="search"
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          aria-label="수신자 검색"
-          placeholder="이름 또는 이메일로 검색"
-          className={cn(getInputClass(), 'pl-11')}
-        />
-      </div>
+      <span className={cn(textStyles.captionStrong, textColors.secondary)}>서비스 담당자</span>
 
-      {debounced && (
-        <div className={cn('overflow-hidden rounded-lg border', borderColors.default)}>
-          {failed ? (
-            <p className={cn('px-4 py-3', textStyles.body, textColors.secondary)}>
-              검색에 실패했어요. 잠시 후 다시 시도해주세요.
-            </p>
-          ) : results === null ? (
-            <p aria-busy="true" className={cn('px-4 py-3', textStyles.body, textColors.tertiary)}>
-              찾는 중이에요
-            </p>
-          ) : results.length === 0 ? (
-            <p className={cn('px-4 py-3', textStyles.body, textColors.tertiary)}>
-              검색 결과가 없어요
-            </p>
-          ) : (
-            results.map((user, index) => (
+      <div className={cn('overflow-hidden rounded-lg border', borderColors.default)}>
+        {failed ? (
+          <p className={cn('px-4 py-3', textStyles.body, textColors.secondary)}>
+            담당자를 불러오지 못했어요. 잠시 후 다시 시도해주세요.
+          </p>
+        ) : owners === null ? (
+          <p aria-busy="true" className={cn('px-4 py-3', textStyles.body, textColors.tertiary)}>
+            불러오는 중이에요
+          </p>
+        ) : offered.length === 0 ? (
+          <p className={cn('px-4 py-3', textStyles.body, textColors.tertiary)}>
+            {owners.length === 0 ? '등록된 담당자가 없어요' : '담당자를 모두 등록했어요'}
+          </p>
+        ) : (
+          <div className="max-h-[220px] overflow-y-auto">
+            {offered.map((user, index) => (
               <div
                 key={user.id}
                 className={cn(
@@ -135,13 +112,13 @@ export const RecipientPicker = ({ chosen, onAdd }: RecipientPickerProps) => {
                   추가
                 </button>
               </div>
-            ))
-          )}
-        </div>
-      )}
+            ))}
+          </div>
+        )}
+      </div>
 
       <p className={cn(textStyles.caption, textColors.tertiary)}>
-        이름 또는 이메일로 검색해주세요. 이미 등록한 분은 결과에 나오지 않아요.
+        이 서비스의 담당자만 S3 Access Key를 받을 수 있어요. 담당자 추가는 접근 권한 화면에서 해주세요.
       </p>
     </div>
   );

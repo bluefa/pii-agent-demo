@@ -10,9 +10,19 @@ export const mockServices = {
     list: async (serviceCode: string) => {
       const user = await mockData.getCurrentUser();
 
-      if (!user || user.role !== 'ADMIN') {
+      if (!user) {
         return NextResponse.json(
-          { error: 'FORBIDDEN', message: '관리자만 권한을 조회할 수 있습니다.' },
+          { error: 'UNAUTHORIZED', message: '로그인이 필요합니다.' },
+          { status: 401 }
+        );
+      }
+
+      // The path is `/services/...`, not `/admin/...` — the admin-side list of the same fact
+      // is a separate endpoint (`/admin/access/services/{code}/owners`). An ADMIN-only gate
+      // here locks the service manager out of a screen that is theirs.
+      if (user.role !== 'ADMIN' && !user.serviceCodePermissions.includes(serviceCode)) {
+        return NextResponse.json(
+          { error: 'FORBIDDEN', message: '해당 서비스에 대한 권한이 없습니다.' },
           { status: 403 }
         );
       }
