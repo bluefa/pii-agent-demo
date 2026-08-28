@@ -154,10 +154,12 @@ export interface SduUploadWire {
   invalidation: SduInvalidationWire;
 }
 
-export type SduAckKind = 'FIREWALL' | 'UPLOAD';
-
-export interface SduAcksRequestWire {
-  kind: SduAckKind;
+/**
+ * 확인 응답의 본문. 어느 확인인지는 **경로가 말한다**(`…/upload/firewall/ack` ·
+ * `…/upload/commands/ack`) — 이 저장소가 쓰기를 가르는 방식이 그것이다
+ * (`approval-requests/{approve|reject}`, `support-raw-data/{enabled|disabled}`).
+ */
+export interface SduAckRequestWire {
   confirmed: boolean;
 }
 

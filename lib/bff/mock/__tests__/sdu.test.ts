@@ -4,7 +4,6 @@ import { resetStore } from '@/lib/mock-store';
 import * as mockData from '@/lib/mock-data';
 import { ProcessStatus } from '@/lib/types';
 import type {
-  SduAcksRequestWire,
   SduDefinitionRequestTargetWire,
   SduDefinitionRequestWire,
   SduDefinitionWire,
@@ -45,8 +44,8 @@ const upload = async (id: number): Promise<SduUploadWire> => body(await mockSdu.
 /** Walks a target source to "both blocks acknowledged, recipients registered". */
 const ackEverything = async (id: number) => {
   await mockSdu.putRecipients(id, { user_ids: ['user-3'] });
-  await mockSdu.putAcks(id, { kind: 'FIREWALL', confirmed: true });
-  await mockSdu.putAcks(id, { kind: 'UPLOAD', confirmed: true });
+  await mockSdu.putFirewallAck(id, { confirmed: true });
+  await mockSdu.putCommandsAck(id, { confirmed: true });
 };
 
 beforeEach(() => {
@@ -206,7 +205,7 @@ describe('SDU 정의 — 무효화 표 (§2)', () => {
     await putDefinition(GLOBAL_ID, [...twoRegions(), target({ target_id: 'c', region: 'asia' })]);
     expect((await upload(GLOBAL_ID)).invalidation.added_regions).toEqual(['asia']);
 
-    await mockSdu.putAcks(GLOBAL_ID, { kind: 'FIREWALL', confirmed: true });
+    await mockSdu.putFirewallAck(GLOBAL_ID, { confirmed: true });
 
     expect((await upload(GLOBAL_ID)).invalidation).toEqual({
       added_regions: [],
@@ -252,26 +251,28 @@ describe('SDU 업로드 — 조회와 확인 (§4·§5·§6)', () => {
     expect(state.firewall.rows[0].port).toBe(443);
   });
 
-  it('본문은 kind 와 confirmed 뿐이다 — 둘 다 없으면 아무것도 기록하지 않는다', async () => {
-    const badKind = await mockSdu.putAcks(GLOBAL_ID, {
-      kind: 'BOTH' as SduAcksRequestWire['kind'],
-      confirmed: true,
-    });
-    const badConfirmed = await mockSdu.putAcks(GLOBAL_ID, {
-      kind: 'FIREWALL',
+  it('본문은 confirmed 하나뿐이다 — 어느 확인인지는 경로가 이미 말했다', async () => {
+    const badConfirmed = await mockSdu.putFirewallAck(GLOBAL_ID, {
       confirmed: 'yes' as unknown as boolean,
     });
 
-    expect(badKind.status).toBe(400);
     expect(badConfirmed.status).toBe(400);
     expect((await upload(GLOBAL_ID)).firewall.acked).toBe(false);
   });
 
+  it('두 확인은 서로를 건드리지 않는다 — 경로가 다르면 답도 다르다', async () => {
+    await mockSdu.putFirewallAck(GLOBAL_ID, { confirmed: true });
+
+    const state = await upload(GLOBAL_ID);
+    expect(state.firewall.acked).toBe(true);
+    expect(state.commands.acked).toBe(false);
+  });
+
   it('confirmed=false 는 확인을 되돌린다 — 끝난 블록은 잠기는 게 아니라 접힐 뿐이다', async () => {
-    await mockSdu.putAcks(GLOBAL_ID, { kind: 'FIREWALL', confirmed: true });
+    await mockSdu.putFirewallAck(GLOBAL_ID, { confirmed: true });
     expect((await upload(GLOBAL_ID)).firewall.acked).toBe(true);
 
-    await mockSdu.putAcks(GLOBAL_ID, { kind: 'FIREWALL', confirmed: false });
+    await mockSdu.putFirewallAck(GLOBAL_ID, { confirmed: false });
     expect((await upload(GLOBAL_ID)).firewall.acked).toBe(false);
   });
 
@@ -304,7 +305,7 @@ describe('SDU 제출과 BDC 진행 (§3·§8)', () => {
     await mockSdu.submitDefinition(GLOBAL_ID);
 
     // 방화벽만으로는 시작하지 않는다.
-    await mockSdu.putAcks(GLOBAL_ID, { kind: 'FIREWALL', confirmed: true });
+    await mockSdu.putFirewallAck(GLOBAL_ID, { confirmed: true });
     expect((await upload(GLOBAL_ID)).bdc.status).toBe('NOT_STARTED');
 
     await ackEverything(GLOBAL_ID);

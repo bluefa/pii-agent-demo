@@ -7,7 +7,8 @@ import type { SduDefinition, SduUpload } from '@/lib/types/sdu';
 const api = vi.hoisted(() => ({
   getSduUpload: vi.fn(),
   getSduDefinition: vi.fn(),
-  putSduAcks: vi.fn(),
+  putSduFirewallAck: vi.fn(),
+  putSduCommandsAck: vi.fn(),
   putSduRecipients: vi.fn(),
   getPermissions: vi.fn(),
   getProject: vi.fn(),
@@ -16,7 +17,8 @@ const api = vi.hoisted(() => ({
 vi.mock('@/app/lib/api/sdu', () => ({
   getSduUpload: api.getSduUpload,
   getSduDefinition: api.getSduDefinition,
-  putSduAcks: api.putSduAcks,
+  putSduFirewallAck: api.putSduFirewallAck,
+  putSduCommandsAck: api.putSduCommandsAck,
   putSduRecipients: api.putSduRecipients,
 }));
 vi.mock('@/app/lib/api', () => ({
@@ -151,7 +153,8 @@ beforeEach(() => {
   vi.clearAllMocks();
   api.getSduUpload.mockResolvedValue(upload());
   api.getSduDefinition.mockResolvedValue(definition);
-  api.putSduAcks.mockResolvedValue(undefined);
+  api.putSduFirewallAck.mockResolvedValue(undefined);
+  api.putSduCommandsAck.mockResolvedValue(undefined);
   api.putSduRecipients.mockResolvedValue(undefined);
   api.getPermissions.mockResolvedValue({ users: [] });
   api.getProject.mockResolvedValue({ ...project, processStatus: ProcessStatus.WAITING_CONNECTION_TEST });
@@ -220,10 +223,7 @@ describe('SduStep4Upload', () => {
       fireEvent.click(screen.getByRole('button', { name: '예' }));
     });
 
-    expect(api.putSduAcks).toHaveBeenCalledWith(TARGET_SOURCE_ID, {
-      kind: 'FIREWALL',
-      confirmed: true,
-    });
+    expect(api.putSduFirewallAck).toHaveBeenCalledWith(TARGET_SOURCE_ID, true);
     // A write is followed by a re-read: the gates are the server's computation.
     expect(api.getSduUpload).toHaveBeenCalledTimes(2);
   });
@@ -235,10 +235,7 @@ describe('SduStep4Upload', () => {
       fireEvent.click(screen.getByRole('button', { name: '아니오' }));
     });
 
-    expect(api.putSduAcks).toHaveBeenCalledWith(TARGET_SOURCE_ID, {
-      kind: 'FIREWALL',
-      confirmed: false,
-    });
+    expect(api.putSduFirewallAck).toHaveBeenCalledWith(TARGET_SOURCE_ID, false);
     expect(screen.getByText('확인 후 예를 눌러주세요. 다음 블록은 열리지 않아요.')).toBeTruthy();
   });
 
@@ -296,10 +293,9 @@ describe('SduStep4Upload', () => {
       fireEvent.click(screen.getByRole('button', { name: '예' }));
     });
 
-    expect(api.putSduAcks).toHaveBeenCalledWith(TARGET_SOURCE_ID, {
-      kind: 'UPLOAD',
-      confirmed: true,
-    });
+    expect(api.putSduCommandsAck).toHaveBeenCalledWith(TARGET_SOURCE_ID, true);
+    // 방화벽 확인은 건드리지 않는다 — 경로가 다르면 답도 다르다.
+    expect(api.putSduFirewallAck).not.toHaveBeenCalled();
   });
 
   it('hands the refreshed project up when BDC finishes building', async () => {

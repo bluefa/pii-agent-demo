@@ -2,7 +2,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   getSduDefinition,
   getSduUpload,
-  putSduAcks,
+  putSduCommandsAck,
+  putSduFirewallAck,
   putSduDefinition,
   putSduRecipients,
   submitSduDefinition,
@@ -183,13 +184,17 @@ describe('SDU 어댑터 — camel → snake', () => {
 
   it('확인 응답과 수신자는 snake 본문으로 나가고 읽을 것이 없다', async () => {
     const ackSeen = stubFetch(null, 204);
-    await expect(
-      putSduAcks(1101, { kind: 'FIREWALL', confirmed: false }),
-    ).resolves.toBeUndefined();
+    await expect(putSduFirewallAck(1101, false)).resolves.toBeUndefined();
     expect(ackSeen.method).toBe('PUT');
-    expect(ackSeen.url).toContain('/target-sources/1101/sdu/upload/acks');
-    // 답은 블록당 하나다 — 본문에 Region 이 실리면 화면이 묻지 않은 것을 보내는 것이다.
-    expect(ackSeen.body).toEqual({ kind: 'FIREWALL', confirmed: false });
+    // 어느 확인인지는 경로가 말한다 — 본문에 판별자가 실리면 경로가 무엇을 쓰는지 말하지 않는다.
+    expect(ackSeen.url).toContain('/target-sources/1101/sdu/upload/firewall/ack');
+    expect(ackSeen.body).toEqual({ confirmed: false });
+
+    vi.unstubAllGlobals();
+    const commandsSeen = stubFetch(null, 204);
+    await expect(putSduCommandsAck(1101, true)).resolves.toBeUndefined();
+    expect(commandsSeen.url).toContain('/target-sources/1101/sdu/upload/commands/ack');
+    expect(commandsSeen.body).toEqual({ confirmed: true });
 
     vi.unstubAllGlobals();
     const recipientSeen = stubFetch(null, 204);

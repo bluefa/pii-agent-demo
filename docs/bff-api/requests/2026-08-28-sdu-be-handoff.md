@@ -17,7 +17,7 @@ terraform 스크립트 이름 `SDU_BDC_SERVICE_COMMON` / `SDU_BDC_SERVICE`). 연
 방화벽 행도, 업로드 명령도, S3 Access Key 수신자도, BDC 리소스 단계도 **엔드포인트가 없다.**
 아래 6건이 요청 범위다.
 
-**신규 6건, 전부 담당자 권한**(§10) **+ 기존 재사용**이고, 재사용 쪽은 경로를 바꾸지
+**신규 7건, 전부 담당자 권한**(§10) **+ 기존 재사용**이고, 재사용 쪽은 경로를 바꾸지
 않는다 — SDU 대상 소스로 불렸을 때 받아 주기만 하면 된다(§9.3). 관리자 콘솔 전용으로
 새로 만들 것은 없다.
 
@@ -34,7 +34,7 @@ terraform 스크립트 이름 `SDU_BDC_SERVICE_COMMON` / `SDU_BDC_SERVICE`). 연
   "status": "BAD_REQUEST",
   "code": "INVALID_PARAMETER",
   "message": "정의에 없는 Region 입니다: cx",
-  "path": "/install/v1/target-sources/1100/sdu/upload/acks"
+  "path": "/install/v1/target-sources/1100/sdu/upload/firewall/ack"
 }
 ```
 
@@ -60,16 +60,20 @@ terraform 스크립트 이름 `SDU_BDC_SERVICE_COMMON` / `SDU_BDC_SERVICE`). 연
   항상 하나다
 - 정렬 기준 순서: `asia, us, eu, cx, china`
 
-## 2. 엔드포인트 — 신규 6건, 전부 담당자 상세 페이지
+## 2. 엔드포인트 — 신규 7건, 전부 담당자 상세 페이지
 
-| Method | Path (base 생략) | 설명 |
+경로를 줄여 적지 않는다. **모든 경로가 `{targetSourceId}` 를 지고 있다** — SDU 상태는
+대상 소스마다 따로이고, 서비스나 사용자에 붙는 값이 아니다.
+
+| Method | Path | 설명 |
 | --- | --- | --- |
-| GET | `/definition` | 연동 대상 정의 읽기 |
-| PUT | `/definition` | 연동 대상 정의 저장 → 무효화 재계산 |
-| POST | `/definition/submit` | 제출 → ProcessStatus 1 → 4 |
-| GET | `/upload` | 2단계 전체를 **한 응답**으로 — **Region별 방화벽 목적지 IP · Region별 업로드 명령 문자열** · 수신자 · BDC 상태 · 무효화. 서버가 주는 값이 여기 다 있다 |
-| PUT | `/upload/acks` | 방화벽·업로드 확인 답변 |
-| PUT | `/upload/recipients` | S3 Access Key 수신자 **등록**(발송 아님) |
+| GET | `/install/v1/target-sources/{targetSourceId}/sdu/definition` | 연동 대상 정의 읽기 |
+| PUT | `/install/v1/target-sources/{targetSourceId}/sdu/definition` | 연동 대상 정의 저장 → 무효화 재계산 |
+| POST | `/install/v1/target-sources/{targetSourceId}/sdu/definition/submit` | 제출 → ProcessStatus 1 → 4 |
+| GET | `/install/v1/target-sources/{targetSourceId}/sdu/upload` | 2단계 전체를 **한 응답**으로 — **Region별 방화벽 목적지 IP · Region별 업로드 명령 문자열** · 수신자 · BDC 상태 · 무효화. 서버가 주는 값이 여기 다 있다 |
+| PUT | `/install/v1/target-sources/{targetSourceId}/sdu/upload/firewall/ack` | **방화벽 결재 확인** 답변 |
+| PUT | `/install/v1/target-sources/{targetSourceId}/sdu/upload/commands/ack` | **데이터 업로드 확인** 답변 |
+| PUT | `/install/v1/target-sources/{targetSourceId}/sdu/upload/recipients` | S3 Access Key 수신자 **등록**(발송 아님) |
 
 기존 재사용 2건:
 
@@ -128,8 +132,8 @@ terraform 스크립트 이름 `SDU_BDC_SERVICE_COMMON` / `SDU_BDC_SERVICE`). 연
   출발지가 바뀌면 모든 규칙이 다른 규칙이 된다. 명령 세 줄에는 출발지 IP 가 없어서
   업로드 확인은 살아남는다
 
-결과는 §5 의 `invalidation` 으로 되돌려 주고, **한 번만 말한다** — 다음 `PUT /upload/acks`
-가 지운다. 삭제된 Region 은 `invalidation` 에 없다: 버린 것이 없으면 할 말도 없다.
+결과는 §5 의 `invalidation` 으로 되돌려 주고, **한 번만 말한다** — 다음 확인 응답(§7, 어느
+경로든)이 지운다. 삭제된 Region 은 `invalidation` 에 없다: 버린 것이 없으면 할 말도 없다.
 
 ## 4. 제출 — `POST /definition/submit`
 
@@ -247,20 +251,29 @@ GET /install/v1/services/{serviceCode}/authorized-users
 다른 후보가 없고, `/upload/recipients` 는 우리가 쓰는 가정 계약이므로 **받는 키가
 `authorized-users.id` 라는 것도 이 문서가 정한다.**
 
-## 7. 확인 답변 — `PUT /upload/acks`
+## 7. 확인 답변 — 두 경로
 
 ```
-body { "kind": "FIREWALL" | "UPLOAD", "confirmed": true }
+PUT /install/v1/target-sources/{targetSourceId}/sdu/upload/firewall/ack    방화벽 결재 확인
+PUT /install/v1/target-sources/{targetSourceId}/sdu/upload/commands/ack    데이터 업로드 확인
+
+body { "confirmed": true }
 → 204
-→ 400  INVALID_PARAMETER   // kind 가 둘 중 하나가 아니거나 confirmed 가 boolean 이 아님
+→ 400  INVALID_PARAMETER   // confirmed 가 boolean 이 아님
 ```
+
+**두 확인은 서로 다른 사실이므로 경로도 둘이다.** 방화벽이 열렸는가와 데이터가 올라갔는가는
+같은 질문의 두 모드가 아니다. 본문 판별자(`kind`)로 한 핸들러에 모으면 경로가 무엇을 쓰는지
+말하지 않게 되고, 이 저장소가 쓰기를 가르는 방식은 경로다 —
+`approval-requests/{approve|reject|cancel}`, `support-raw-data/{enabled|disabled}`.
+경로가 이미 말했으므로 본문에 남는 것은 `confirmed` 하나다.
 
 - **답은 대상 소스 단위로 하나다.** 방화벽 확인도, 업로드 확인도 마찬가지다
 - `confirmed: true` 는 그 블록의 `acked` 를 세우고, `false` 는 내린다
 - **`false` 는 값이지 무응답이 아니다.** 2단계 게이트는 전진만 막는다 — 끝난 블록은
   접히되 잠기지 않고, 모든 블록이 되돌아갈 길을 가진다. `YES/NO` enum 은 이름 둘인 값
   둘이라 boolean 하나와 같다
-- ack 저장은 `invalidation`(§3.1)도 지운다
+- 어느 쪽이든 저장하면 `invalidation`(§3.1)도 지운다
 
 ### 왜 Region 단위가 아닌가
 
@@ -338,7 +351,7 @@ US·Asia인가"를 관리자가 재구성해야 한다는 것. 답이 대상 소
 - `GET /process-status` · `POST /reset`(§8) · 설치 완료 처리
 - Airflow 확인 탭이 쓰는 오퍼레이션
 
-## 10. 권한 — 신규 6건은 전부 담당자
+## 10. 권한 — 신규 7건은 전부 담당자
 
 | # | 엔드포인트 | 권한 |
 | --- | --- | --- |
@@ -346,10 +359,11 @@ US·Asia인가"를 관리자가 재구성해야 한다는 것. 답이 대상 소
 | 2 | `PUT /sdu/definition` | **담당자** (ADMIN 통과) |
 | 3 | `POST /sdu/definition/submit` | **담당자** (ADMIN 통과) |
 | 4 | `GET /sdu/upload` | **담당자** (ADMIN 통과) |
-| 5 | `PUT /sdu/upload/acks` | **담당자** (ADMIN 통과) |
-| 6 | `PUT /sdu/upload/recipients` | **담당자** (ADMIN 통과) |
+| 5 | `PUT /sdu/upload/firewall/ack` | **담당자** (ADMIN 통과) |
+| 6 | `PUT /sdu/upload/commands/ack` | **담당자** (ADMIN 통과) |
+| 7 | `PUT /sdu/upload/recipients` | **담당자** (ADMIN 통과) |
 
-기준은 **화면이 누구 것인가**이고, 여섯 건 모두 담당자 상세 페이지가 부른다. **ADMIN 전용
+기준은 **화면이 누구 것인가**이고, 일곱 건 모두 담당자 상세 페이지가 부른다. **ADMIN 전용
 신규 엔드포인트는 없다** — 관리자 콘솔이 필요로 하는 것은 전부 위 여섯 건과 기존
 오퍼레이션이 이미 답한다(§9).
 
@@ -386,5 +400,7 @@ US·Asia인가"를 관리자가 재구성해야 한다는 것. 답이 대상 소
 2. **`GET /upload` 를 셋으로 쪼개지 않았다.** 2단계는 게이트 사슬이라 상태가 셋에 **걸쳐**
    계산된다 — `bdc` 는 셋을 다 봐야 답할 수 있고 `invalidation` 은 셋을 한 번에 말한다.
    세 번 부르면 화면이 다른 둘이 못 본 정의를 기준으로 게이트를 그린다
-3. **`confirmed: boolean` 하나, Region 배열 없음.** 이름 둘인 값 둘은 값 하나이고(§7),
-   화면이 한 번만 묻는 것을 Region 별로 저장할 이유도 없다
+3. **확인은 두 경로, 본문은 `confirmed` 하나.** 시안 초안은 `PUT …/sdu/acks
+   { kind, regions[], answer: YES|NO }` 였다. 판별자는 경로로 올렸고(§7), `YES/NO` 는
+   이름 둘인 값 둘이라 boolean 하나이며, Region 배열은 화면이 한 번만 묻는 것을 잘게
+   저장하는 자리였다

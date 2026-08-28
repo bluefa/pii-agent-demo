@@ -12,7 +12,7 @@ import {
   sortSduRegions,
 } from '@/lib/types/sdu';
 import type {
-  SduAcksRequestWire,
+  SduAckRequestWire,
   SduBdcStatus,
   SduCommandRowWire,
   SduDefinitionRequestWire,
@@ -489,6 +489,32 @@ const applyInvalidation = (
   return { added_regions: added, upload_ip_changed: uploadIpChanged };
 };
 
+/**
+ * 두 확인이 하는 일은 같다 — 어느 확인인지는 경로가 이미 말했으므로 본문에 남는 것은
+ * `confirmed` 하나다.
+ */
+const writeAck = (
+  targetSourceId: number,
+  body: SduAckRequestWire,
+  field: 'firewallAcked' | 'commandsAcked',
+): NextResponse => {
+  const auth = authorize(targetSourceId);
+  if ('error' in auth) return auth.error;
+
+  if (typeof body?.confirmed !== 'boolean') {
+    return invalidParameter('confirmed는 boolean이어야 합니다.');
+  }
+
+  const state = getState(targetSourceId);
+  state[field] = body.confirmed;
+
+  // 무효화 안내는 한 번만 말한다 — 다음 확인 응답이 들어온 순간 그 안내는 이미 읽힌 것이다.
+  state.invalidation = emptyInvalidation();
+  refreshBdc(targetSourceId, state);
+
+  return noContent();
+};
+
 // ── Handlers ──────────────────────────────────────────────────────────────────
 
 export const mockSdu = {
@@ -558,28 +584,13 @@ export const mockSdu = {
     return NextResponse.json(toUploadWire(targetSourceId, state));
   },
 
-  // PUT …/sdu/upload/acks (assumed §5).
-  putAcks: async (targetSourceId: number, body: SduAcksRequestWire) => {
-    const auth = authorize(targetSourceId);
-    if ('error' in auth) return auth.error;
+  // PUT …/sdu/upload/firewall/ack (assumed §5).
+  putFirewallAck: async (targetSourceId: number, body: SduAckRequestWire) =>
+    writeAck(targetSourceId, body, 'firewallAcked'),
 
-    const state = getState(targetSourceId);
-
-    if (body?.kind !== 'FIREWALL' && body?.kind !== 'UPLOAD') {
-      return invalidParameter('kind는 FIREWALL 또는 UPLOAD여야 합니다.');
-    }
-    if (typeof body.confirmed !== 'boolean') {
-      return invalidParameter('confirmed는 boolean이어야 합니다.');
-    }
-    if (body.kind === 'FIREWALL') state.firewallAcked = body.confirmed;
-    else state.commandsAcked = body.confirmed;
-
-    // 무효화 안내는 한 번만 말한다 — 다음 확인 응답이 들어온 순간 그 안내는 이미 읽힌 것이다.
-    state.invalidation = emptyInvalidation();
-    refreshBdc(targetSourceId, state);
-
-    return noContent();
-  },
+  // PUT …/sdu/upload/commands/ack (assumed §5).
+  putCommandsAck: async (targetSourceId: number, body: SduAckRequestWire) =>
+    writeAck(targetSourceId, body, 'commandsAcked'),
 
   // PUT …/sdu/upload/recipients (assumed §6).
   putRecipients: async (targetSourceId: number, body: { user_ids: string[] }) => {

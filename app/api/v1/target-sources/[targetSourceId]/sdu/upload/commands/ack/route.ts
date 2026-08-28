@@ -3,25 +3,28 @@ import { withV1 } from '@/app/api/_lib/handler';
 import { bff } from '@/lib/bff/client';
 import { parseTargetSourceId } from '@/app/api/_lib/target-source';
 import { createProblem, problemResponse } from '@/app/api/_lib/problem';
-import type { SduAcksRequestWire } from '@/lib/types/sdu';
+import type { SduAckRequestWire } from '@/lib/types/sdu';
 
-// ASSUMED CONTRACT — docs/api/sdu-assumed-contracts.md §6.
-// PUT …/sdu/upload/acks { kind, confirmed } → 204.
+// ASSUMED CONTRACT — docs/api/sdu-assumed-contracts.md §5.
+// PUT …/sdu/upload/commands/ack { confirmed } → 204 — 데이터 업로드 확인.
+//
+// 어느 확인인지는 **경로가 말한다.** 본문의 판별자로 두 확인을 한 핸들러에 모으면 경로가
+// 무엇을 쓰는지 말하지 않게 된다 — 이 저장소가 쓰기를 가르는 방식은 경로다
+// (approval-requests/{approve|reject}, support-raw-data/{enabled|disabled}).
 //
 // `confirmed: false` is a first-class value, not a missing answer: the gates only block
-// forward, so every finished block keeps a way back. One answer per block — the screen
-// asks one question covering every Region, so there is no finer answer to record.
+// forward, so every finished block keeps a way back.
 export const PUT = withV1(async (request, { requestId, params }) => {
   const parsed = parseTargetSourceId(params.targetSourceId, requestId);
   if (!parsed.ok) return problemResponse(parsed.problem);
 
-  const body = (await request.json().catch(() => null)) as SduAcksRequestWire | null;
+  const body = (await request.json().catch(() => null)) as SduAckRequestWire | null;
   if (body === null || typeof body !== 'object') {
     return problemResponse(
       createProblem('VALIDATION_FAILED', '요청 본문은 JSON object여야 합니다.', requestId),
     );
   }
 
-  await bff.sdu.putAcks(parsed.value, body);
+  await bff.sdu.putCommandsAck(parsed.value, body);
   return new NextResponse(null, { status: 204 });
 });

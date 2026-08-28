@@ -1,7 +1,13 @@
 'use client';
 
 import { useCallback, useState } from 'react';
-import { getSduDefinition, getSduUpload, putSduAcks, putSduRecipients } from '@/app/lib/api/sdu';
+import {
+  getSduDefinition,
+  getSduUpload,
+  putSduCommandsAck,
+  putSduFirewallAck,
+  putSduRecipients,
+} from '@/app/lib/api/sdu';
 import { useAbortableEffect } from '@/app/hooks/useAbortableEffect';
 import { ErrorState } from '@/app/components/ui/state';
 import { SduStep1Define } from '@/app/target-sources/[targetSourceId]/_components/sdu/steps/SduStep1Define';
@@ -238,11 +244,7 @@ export function SduStep4Upload({ project, onProjectUpdate }: SduStepProps) {
                   regions={snapshot.upload.regions}
                   firewall={snapshot.upload.firewall}
                   targets={snapshot.definition.targets}
-                  onAnswer={(confirmed) =>
-                    write(() =>
-                      putSduAcks(targetSourceId, { kind: 'FIREWALL', confirmed }),
-                    )
-                  }
+                  onAnswer={(confirmed) => write(() => putSduFirewallAck(targetSourceId, confirmed))}
                 />
               </GateBlock>
 
@@ -276,11 +278,7 @@ export function SduStep4Upload({ project, onProjectUpdate }: SduStepProps) {
               >
                 <UploadCommandsBlock
                   commands={snapshot.upload.commands}
-                  onAnswer={(confirmed) =>
-                    write(() =>
-                      putSduAcks(targetSourceId, { kind: 'UPLOAD', confirmed }),
-                    )
-                  }
+                  onAnswer={(confirmed) => write(() => putSduCommandsAck(targetSourceId, confirmed))}
                 />
               </GateBlock>
 

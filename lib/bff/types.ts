@@ -29,7 +29,7 @@ export type ConfirmedResourceProvider = 'AWS' | 'GCP' | 'AZURE' | 'IDC';
 import type { AlertTargetKind } from '@/lib/types/task-queue';
 import type { DagStatusResponse } from '@/lib/types/dag-status';
 import type {
-  SduAcksRequestWire,
+  SduAckRequestWire,
   SduDefinitionRequestWire,
   SduDefinitionWire,
   SduUploadWire,
@@ -477,7 +477,8 @@ export interface BffClient {
     // assumed §4 — 업로드 단계(4단계). 모든 목록이 Region 단위다.
     getUpload: (id: number) => Promise<SduUploadWire>;
     // assumed §5·§6 — 확인 응답과 S3 Access Key 수신자. 둘 다 204.
-    putAcks: (id: number, body: SduAcksRequestWire) => Promise<void>;
+    putFirewallAck: (id: number, body: SduAckRequestWire) => Promise<void>;
+    putCommandsAck: (id: number, body: SduAckRequestWire) => Promise<void>;
     putRecipients: (id: number, userIds: string[]) => Promise<void>;
   };
 

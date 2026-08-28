@@ -127,7 +127,7 @@ bucket policy's allowlist, so a change is not finished by the owner re-confirmin
 half is not in this contract.)
 
 The result is reported back on §4 as `invalidation`, and it is **told once**: the next
-`PUT …/upload/acks` clears it.
+`PUT …/upload/{firewall|commands}/ack` clears it.
 
 ## 3. Submit
 
@@ -204,11 +204,18 @@ Region → AWS region / endpoint mapping is the **server's**, and the client onl
 ## 5. Confirmation answers
 
 ```
-PUT /install/v1/target-sources/{targetSourceId}/sdu/upload/acks
-body { kind: "FIREWALL" | "UPLOAD", confirmed: boolean }
+PUT /install/v1/target-sources/{targetSourceId}/sdu/upload/firewall/ack    방화벽 결재 확인
+PUT /install/v1/target-sources/{targetSourceId}/sdu/upload/commands/ack    데이터 업로드 확인
+body { confirmed: boolean }
 → 204
-→ 400  INVALID_PARAMETER   // kind is not one of the two, or confirmed is not a boolean
+→ 400  INVALID_PARAMETER   // confirmed is not a boolean
 ```
+
+**Two paths, because they are two different facts** — whether the firewall was opened and
+whether the data arrived are not two modes of one question. A `kind` discriminator in the
+body would leave the path silent about what it writes, and this repo splits writes by path
+(`approval-requests/{approve|reject|cancel}`, `support-raw-data/{enabled|disabled}`). With
+the path already saying which, `confirmed` is all the body has left.
 
 **One answer per block, for the whole target source** — both the firewall and the upload
 confirmation. The screen asks one question ("모든 Region의 …을 확인하셨습니까?") with one
@@ -224,7 +231,7 @@ what the admin console's 승인 조건 ① reads as its 근거 — there is **no
 and the storyboard's accumulating 응답 이력 table is not built (the per-region answers that
 justified it are gone; see the handoff §9.1). The owner's own screen never reads them.
 
-Storing an ack also clears `invalidation` (§2).
+Storing either ack also clears `invalidation` (§2).
 
 ## 6. S3 Access Key recipients
 
@@ -296,9 +303,10 @@ and they are choices, not transcription errors:
    is computed *across* the three — `bdc` cannot be answered without all of them, and
    `invalidation` describes all of them at once. Three calls would let the screen render a
    gate against a definition the other two calls had not seen yet.
-3. **`confirmed: boolean`, not `answer: "YES" | "NO"`, and no `regions[]`.** Two values
-   with two names is one value; and the screen asks once for every region at once, so
-   there is no finer answer to carry.
+3. **Two ack paths, and the body is `confirmed` alone.** The storyboard proposed one
+   `PUT …/sdu/acks { kind, regions[], answer: "YES" | "NO" }`. The discriminator moves up
+   into the path (§5), `YES`/`NO` is two names for one value, and the region array stored
+   a finer answer than any gesture produces.
 
 Also added, with no storyboard counterpart: `§1/§2 definition` (the storyboard draws the
 Step-1 screen but proposes no endpoint for it), `§3 submit`, and the `invalidation` block

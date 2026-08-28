@@ -14,7 +14,6 @@
 import { fetchInfraJson } from '@/app/lib/api/infra';
 import { sortSduRegions } from '@/lib/types/sdu';
 import type {
-  SduAckKind,
   SduCommands,
   SduCommandsWire,
   SduDefinition,
@@ -155,17 +154,26 @@ export const getSduUpload = async (
  * assumed §5 — 확인 응답. 예/아니오는 `confirmed` 하나이고, 되돌릴 수 있다.
  *
  * 한 블록에 답은 하나다. 화면이 "모든 Region의 …을 확인하셨습니까?" 하나만 묻기 때문에,
- * Region 단위로 저장할 답이 애초에 만들어지지 않는다.
+ * Region 단위로 저장할 답이 애초에 만들어지지 않는다. 어느 확인인지는 경로가 말한다.
  */
-export const putSduAcks = async (
+const putAck = async (
   targetSourceId: number,
-  body: { kind: SduAckKind; confirmed: boolean },
+  block: 'firewall' | 'commands',
+  confirmed: boolean,
 ): Promise<void> => {
-  await fetchInfraJson<void>(`${base(targetSourceId)}/upload/acks`, {
+  await fetchInfraJson<void>(`${base(targetSourceId)}/upload/${block}/ack`, {
     method: 'PUT',
-    body: { kind: body.kind, confirmed: body.confirmed },
+    body: { confirmed },
   });
 };
+
+/** 방화벽 결재 확인. */
+export const putSduFirewallAck = (targetSourceId: number, confirmed: boolean): Promise<void> =>
+  putAck(targetSourceId, 'firewall', confirmed);
+
+/** 데이터 업로드 확인. */
+export const putSduCommandsAck = (targetSourceId: number, confirmed: boolean): Promise<void> =>
+  putAck(targetSourceId, 'commands', confirmed);
 
 /**
  * assumed §6 — S3 Access Key 수신자. 이것은 **목록**이지 발송이 아니다: 키는 관리자가
