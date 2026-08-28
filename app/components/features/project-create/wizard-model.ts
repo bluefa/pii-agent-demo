@@ -42,8 +42,8 @@ export const buildCandidatesInput = (state: WizardFormState): CreationCandidates
   return {
     cloudType: PROVIDER_CHIP_BY_KEY[providerKey].cloudType,
     // Common required field. Only the providers that have a China partition can send
-    // true — IDC/기타 are never asked, and GCP has no China region at all, so a China
-    // pick left over from an earlier AWS/Azure selection must not leak onto its wire.
+    // true. GCP has no China region at all, so a China pick left over from an earlier
+    // AWS/Azure selection must not leak onto its wire.
     isChinaRegion: hasChinaRegion(providerKey) && state.region === 'china',
     dbTypes: [...state.dbTypes, ...(state.othersDb ? [OTHERS_DB_TYPE] : [])],
     ...(providerKey === 'aws'

@@ -2,6 +2,7 @@
 
 import { ProviderGlyphTile } from '@/app/components/features/project-create/ProviderGlyphTile';
 import type { OperatingRegion } from '@/app/components/features/project-create/wizard-model';
+import { CheckIcon } from '@/app/components/ui/icons';
 import {
   PROVIDER_CHIPS,
   hasChinaRegion,
@@ -112,7 +113,7 @@ export const Step1CloudAccount = ({
     {/* GCP has no China partition, so it is never asked — a radio pair whose answer is
         fixed is not a choice. The 안내 line below stays on every CSP, though: it is
         about the whole form, not about the region. */}
-    {hasChinaRegion(providerKey) && (
+    {hasChinaRegion(providerKey) && isCspChip(providerKey) && (
       <fieldset className="mb-1.5 border-0 p-0">
         <legend className={cn('mb-2 block text-sm font-semibold', textColors.secondary)}>
           운영 리전 <span className={statusColors.error.text}>*</span>
@@ -172,6 +173,36 @@ export const Step1CloudAccount = ({
           })}
         </div>
       </fieldset>
+    )}
+
+    {/* IDC/기타 reach the same wire field, but not the same question: there is no
+        console host to name and no second account to choose between, only a fact to
+        declare. So it is one quiet opt-in in the slot the card pair would have taken,
+        pitched a full step below the 클라우드 선택 grid it sits under. */}
+    {hasChinaRegion(providerKey) && !isCspChip(providerKey) && (
+      <button
+        type="button"
+        role="checkbox"
+        aria-checked={region === 'china'}
+        onClick={() => onRegionChange(region === 'china' ? 'global' : 'china')}
+        className={cn(
+          'mb-1.5 inline-flex items-center gap-2 text-xs',
+          region === 'china' ? primaryColors.textOnLight : textColors.tertiary,
+        )}
+      >
+        <span
+          aria-hidden="true"
+          className={cn(
+            'inline-flex h-[15px] w-[15px] flex-shrink-0 items-center justify-center rounded border-2',
+            region === 'china'
+              ? cn(primaryColors.border, primaryColors.bg, textColors.inverse)
+              : borderColors.strong,
+          )}
+        >
+          {region === 'china' && <CheckIcon className="h-3 w-3" />}
+        </span>
+        중국 지역에서 운영 중인 경우에만 선택해 주세요
+      </button>
     )}
 
     {isCspChip(providerKey) && (

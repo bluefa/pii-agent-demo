@@ -145,6 +145,9 @@ export const ProjectCreateModal = ({
   const handleProviderChange = (key: ProviderChipKey) => {
     if (key === providerKey) return;
     setProviderKey(key);
+    // A China pick belongs to the provider it was made on. IDC/기타 now put this on
+    // the wire, so carrying it across a chip switch would send a fact nobody stated.
+    setRegion('global');
     setFields({});
     setInstallMode('auto');
     setDbTypes([]);
