@@ -30,7 +30,8 @@ export interface RoleEditModalProps {
   currentArn?: string;
   accountId: string;
   isChinaRegion: boolean;
-  regionLabel: string;
+  /** 권역 칩에 적을 말. null = 표시하지 않는다 (Global 은 무표기). */
+  regionLabel: string | null;
   /** Fired with the composed ARN after a successful save. */
   onSaved: (kind: RoleKind, roleArn: string) => void;
 }
@@ -104,10 +105,15 @@ export function RoleEditModal({
       <div className="mb-3 flex items-center gap-2 text-[12px]">
         <span className="text-[var(--pl-text-faint)]">AWS 계정</span>
         <span className="font-medium text-[var(--pl-text-medium)]">{accountId}</span>
-        <span className="text-[var(--pl-text-faint)]">·</span>
-        <span className="inline-flex items-center rounded bg-[var(--pl-primary-bg)] px-1.5 py-0.5 text-[10px] font-medium text-[var(--pl-primary)]">
-          {regionLabel}
-        </span>
+        {/* 구분점은 칩과 한 몸이다 — 따로 두면 무표기 권역에서 계정 뒤에 점 하나가 매달린다. */}
+        {regionLabel && (
+          <>
+            <span className="text-[var(--pl-text-faint)]">·</span>
+            <span className="inline-flex items-center rounded bg-[var(--pl-primary-bg)] px-1.5 py-0.5 text-[10px] font-medium text-[var(--pl-primary)]">
+              {regionLabel}
+            </span>
+          </>
+        )}
       </div>
 
       <label htmlFor="ops-role-name" className={cn(pipelineStyles.text.subsectionTitle, 'block')}>
