@@ -62,7 +62,7 @@ describe('buildCandidatesInput — creation-candidates request body (35)', () =>
     );
     expect(input.cloudType).toBe('others');
     expect(input.description).toBe('온프레미스 클러스터');
-    // 기타 is never asked for a region.
+    // The China opt-in was left unchecked.
     expect(input.isChinaRegion).toBe(false);
   });
 
@@ -92,9 +92,27 @@ describe('buildCandidatesInput — creation-candidates request body (35)', () =>
     expect(gcp.gcpProjectId).toBe('proj-1');
   });
 
-  it('keeps IDC out of the region question even if a region was picked earlier', () => {
+  // IDC/기타 are asked too, just with a single opt-in instead of the CSP card pair.
+  // Their China answer is a real wire value now, not a leftover to be swallowed.
+  it('sends China for IDC when the opt-in is checked', () => {
     const idc = buildCandidatesInput(
       baseState({ providerKey: 'idc', region: 'china', fields: { description: '판교 IDC' } }),
+    );
+    expect(idc.cloudType).toBe('idc');
+    expect(idc.isChinaRegion).toBe(true);
+  });
+
+  it('sends China for 기타 when the opt-in is checked', () => {
+    const other = buildCandidatesInput(
+      baseState({ providerKey: 'other', region: 'china', fields: { description: '상하이 랙' } }),
+    );
+    expect(other.cloudType).toBe('others');
+    expect(other.isChinaRegion).toBe(true);
+  });
+
+  it('sends false for IDC when the opt-in is left unchecked', () => {
+    const idc = buildCandidatesInput(
+      baseState({ providerKey: 'idc', region: 'global', fields: { description: '판교 IDC' } }),
     );
     expect(idc.cloudType).toBe('idc');
     expect(idc.isChinaRegion).toBe(false);

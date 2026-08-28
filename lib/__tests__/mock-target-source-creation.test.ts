@@ -192,6 +192,40 @@ describe('mockTargetSources.create (36) — round-trip → TargetSourceInfo', ()
     expect(rePreview[0].existing_target_source_id).toBe(created.targetSourceId);
   });
 
+  it('keeps the China region an IDC account declared (not just AWS)', async () => {
+    const candidate: TargetSourceCreationCandidateResponseWire = {
+      status: 'ADD',
+      cloud_type: 'IDC',
+      is_sdu_type: false,
+      is_china_region: true,
+      metadata: { description: '중국 IDC 센터' },
+    };
+
+    const res = await mockTargetSources.create('aws', candidate);
+    expect(res.status).toBe(201);
+
+    const body = (await readJson(res)) as Record<string, unknown>;
+    // The account the user just marked as running in China must not come back Global.
+    expect(body.metadata).toMatchObject({ is_china_region: true });
+    expect(() => schemas.TargetSourceInfo.parse(body)).not.toThrow();
+  });
+
+  it('does not invent an is_china_region for an IDC account that declared none', async () => {
+    const candidate: TargetSourceCreationCandidateResponseWire = {
+      status: 'ADD',
+      cloud_type: 'IDC',
+      is_sdu_type: false,
+      is_china_region: false,
+      metadata: { description: '국내 IDC 센터' },
+    };
+
+    const body = (await readJson(await mockTargetSources.create('aws', candidate))) as {
+      metadata?: Record<string, unknown>;
+    };
+    // Absent, not `false`: the wire keeps omitting the field where it is omitted today.
+    expect(body.metadata?.is_china_region).toBeUndefined();
+  });
+
   it('forbids non-admin users (403)', async () => {
     setCurrentUser('user-1');
     const res = await mockTargetSources.create('aws', {

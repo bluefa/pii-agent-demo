@@ -584,8 +584,15 @@ export const mockTargetSources = {
       updatedAt: now,
       isRejected: false,
       ...(awsAccountId ? { awsAccountId } : {}),
+      // `awsRegionType` is AWS-specific by name and by its readers, so it stays gated on
+      // the provider. `isChinaRegion` is not: AWS keeps recording it either way, as it does
+      // today, and every other provider records it only when the user actually declared
+      // China. Writing an explicit `false` for every non-AWS target source would open
+      // getBffMetadata's `!== undefined` gate and start emitting `is_china_region: false`
+      // on wire payloads that omit the field today — hence `|| isChinaRegion` rather than
+      // dropping the gate.
       ...(normalizedProvider === 'AWS' ? { awsRegionType: isChinaRegion ? 'china' : 'global' } : {}),
-      ...(normalizedProvider === 'AWS' ? { isChinaRegion } : {}),
+      ...(normalizedProvider === 'AWS' || isChinaRegion ? { isChinaRegion } : {}),
       ...(grantTf !== undefined ? { isTerraformExecutionGranted: grantTf } : {}),
       ...(isSduType ? { isSduType } : {}),
       ...(tenantId ? { tenantId } : {}),
@@ -627,7 +634,10 @@ export const mockTargetSources = {
     const existing = getProjectsByServiceCode(serviceCode);
     const metadata = buildCandidateMetadata(request, provider);
     const cloudType = canonicalToResponseCloudType(provider);
-    const isChinaRegion = isCspProvider(provider) && request.is_china_region === true;
+    // Echo what the request stated. IDC/기타 can now declare a China region too, and
+    // 36 re-throws this candidate — dropping the flag here would register as Global
+    // an account the user just said runs in China.
+    const isChinaRegion = request.is_china_region === true;
     const grantTf = request.grant_service_terraform_execution_permission === true;
     const databaseTypes = request.database_types ?? [];
 
@@ -662,7 +672,8 @@ export const mockTargetSources = {
     // whether an account needs a Self Data Upload sibling. Here a China region or
     // an unlisted database ("others") is what makes the agent install unsupported.
     const needsSduSibling =
-      isChinaRegion || databaseTypes.some((dbType) => trim(dbType ?? undefined).toLowerCase() === 'others');
+      (isCspProvider(provider) && isChinaRegion) ||
+      databaseTypes.some((dbType) => trim(dbType ?? undefined).toLowerCase() === 'others');
     const sduCandidate: TargetSourceCreationCandidateResponseWire = {
       status: 'ADD',
       cloud_type: cloudType,

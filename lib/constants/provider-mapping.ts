@@ -45,12 +45,17 @@ export const isCspChip = (key: ProviderChipKey): boolean =>
   key === 'aws' || key === 'azure' || key === 'gcp';
 
 /**
- * Which chips have a China partition worth asking about. GCP has no China region,
- * so the wizard neither asks for one nor ever sends `is_china_region: true` for it —
- * a question with one possible answer is not a question.
+ * Which chips may send `is_china_region: true`. GCP has no China region, so the
+ * wizard neither asks for one nor ever sends true for it — a question with one
+ * possible answer is not a question.
  *
- * Allowlist, not `isCspChip(key) && key !== 'gcp'`: a new provider must opt in
- * deliberately rather than inherit the region question by being a cloud.
+ * The *shape* of the question differs by chip: the CSPs pick between the Global and
+ * China cards, because each partition has its own console host to name. IDC and 기타
+ * have no such host and no account to choose between — they get a single quiet
+ * opt-in instead, one fact to declare rather than a fork to take.
+ *
+ * Allowlist, not `key !== 'gcp'`: a new provider must opt in deliberately rather
+ * than inherit the region question by existing.
  */
 export const hasChinaRegion = (key: ProviderChipKey): boolean =>
-  key === 'aws' || key === 'azure';
+  key === 'aws' || key === 'azure' || key === 'idc' || key === 'other';
