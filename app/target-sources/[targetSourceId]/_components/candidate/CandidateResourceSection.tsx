@@ -17,6 +17,7 @@ import { ScanErrorState } from '@/app/components/features/scan/ScanErrorState';
 import { ScanHeroState } from '@/app/components/features/scan/ScanHeroState';
 import { ScanHistoryModal } from '@/app/components/features/scan/ScanHistoryModal';
 import { ScanRunningState } from '@/app/components/features/scan/ScanRunningState';
+import { ScanStaleState } from '@/app/components/features/scan/ScanStaleState';
 import { ScanStrip } from '@/app/components/features/scan/ScanStrip';
 import { TERMINAL_SCAN_STATUSES } from '@/app/components/features/scan/scan-labels';
 import { useScanPermission } from '@/app/components/features/scan/scan-permission';
@@ -488,14 +489,6 @@ export const CandidateResourceSection = ({
       <ScanController targetSourceId={targetSourceId} onScanComplete={handleScanComplete}>
         {({ state: scanState, latestJob, progress, finalizing, starting, canStart, loading: scanLoading, startScan }) => {
           const initialLoading = scanLoading || state.status === 'loading';
-          const phase = selectPhase({
-            fetchStatus: state.status,
-            scanState,
-            // A manually added instance is a row on its own — a scan that proposed nothing
-            // must still show the table once the user has put something in it.
-            hasCandidates: allCandidates.length > 0,
-            completing: completion.stage !== 'idle',
-          });
           // 종료된 스캔만 "결과"다 — mock BFF는 이력이 없으면 NO_SCAN 센티널 잡을
           // 합성하므로(실 BFF는 404 → latestJob null) 상태 집합으로 걸러낸다.
           const finishedJob = latestJob != null
@@ -504,6 +497,19 @@ export const CandidateResourceSection = ({
             ? latestJob
             : null;
           const neverScanned = finishedJob == null;
+          const scannedAt = finishedJob?.updated_at ?? finishedJob?.created_at ?? null;
+          const phase = selectPhase({
+            fetchStatus: state.status,
+            scanState,
+            // A manually added instance is a row on its own — a scan that proposed nothing
+            // must still show the table once the user has put something in it.
+            hasCandidates: allCandidates.length > 0,
+            completing: completion.stage !== 'idle',
+            // `=== true` and nothing else: the job schema is partial, so a missing field is
+            // `undefined` — reading every falsy value as "fresh" would let a dropped flag
+            // pass silently. No SUCCESS check either: scanning/scanFailed already win above.
+            scanStale: finishedJob?.old_scan === true,
+          });
           // 스트립은 본문이 스캔 결과 위에 서 있을 때만 — scanning 은 러닝 화면이
           // 스스로 말하고, fetch 상태는 프레임 전체를 소유한다. list 에서는 잡이
           // 없어도(목 시드·이력 유실) 렌더한다: 스캔 진입점이 스트립뿐이므로.
@@ -559,6 +565,8 @@ export const CandidateResourceSection = ({
                 return neverScanned ? '' : '발견된 리소스가 없어요.';
               case 'scanFailed':
                 return '인프라 스캔에 실패했어요.';
+              case 'scanStale':
+                return '마지막 스캔이 정책 기한을 지나 다시 스캔해야 해요.';
               default:
                 // fetching·fetchError 는 스켈레톤과 에러 박스가 스스로 말한다.
                 return '';
@@ -599,6 +607,20 @@ export const CandidateResourceSection = ({
                 );
               case 'scanFailed':
                 return <ScanErrorState onRetry={startScan} />;
+              case 'scanStale':
+                // 기한이 지난 결과는 승인 요청의 입력이 될 수 없다 — 목록도 스트립도
+                // 세우지 않고, 이 히어로가 본문 전체와 재스캔 CTA를 소유한다.
+                return (
+                  <ScanStaleState
+                    scannedAt={scannedAt}
+                    permission={permission}
+                    onCheckPermission={handleCheckPermission}
+                    onOpenHistory={historyModal.open}
+                    onStartScan={startScan}
+                    canStart={!scanDisabled}
+                    starting={starting}
+                  />
+                );
               case 'list':
                 // Step 2 표 스택 그대로: 툴바(검색+필터, 상단 라운드) → 무윤곽 표 →
                 // Pagination 마감 바(rounded-b). 윤곽은 Header/Footer 두 세그먼트뿐이다.
