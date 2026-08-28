@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { ConsoleTable, type ConsoleTableColumn } from '@/app/components/ui/ConsoleTable';
 import { YesNoAck } from '@/app/target-sources/[targetSourceId]/_components/sdu/upload/YesNoAck';
-import { regionLabels } from '@/app/target-sources/[targetSourceId]/_components/sdu/upload/model';
+import { answerOf, regionLabels } from '@/app/target-sources/[targetSourceId]/_components/sdu/upload/model';
 import {
   SDU_REGION_LABEL,
   type SduFirewall,
@@ -45,13 +45,11 @@ const CELL = cn(idcStyles.table.approvalCell, 'align-top');
  */
 export const FirewallBlock = ({ regions, firewall, targets, onAnswer }: FirewallBlockProps) => {
   const [answering, setAnswering] = useState(false);
-  const [declined, setDeclined] = useState(false);
 
   const answer = async (confirmed: boolean) => {
     setAnswering(true);
     try {
       await onAnswer(confirmed);
-      setDeclined(!confirmed);
     } catch {
       // The card above says the write failed. The answer is NOT recorded here — a 아니오 note
       // under a request that never landed would be the screen agreeing with itself.
@@ -104,7 +102,7 @@ export const FirewallBlock = ({ regions, firewall, targets, onAnswer }: Firewall
 
       <YesNoAck
         question="모든 Region의 방화벽 결재 내역을 확인하셨습니까?"
-        value={firewall.acked ? true : declined ? false : null}
+        value={answerOf(firewall)}
         onAnswer={answer}
         busy={answering}
       />

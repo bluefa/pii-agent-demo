@@ -91,3 +91,14 @@ export const invalidationLines = (invalidation: SduInvalidation): string[] => {
   }
   return lines;
 };
+
+/**
+ * 그 블록의 답. 서버가 지고 있는 값 하나로만 읽는다 — `acked` 는 예/아니오를, `ackedAt` 은
+ * **답이 있었는지**를 말한다. 둘을 합치지 않으면 저장된 「아니오」가 새로고침 뒤 미답으로
+ * 보이고, 담당자는 자기가 답한 적 없다고 읽는다. 무효화는 도장까지 지우므로 그때는 null 이
+ * 맞다.
+ */
+export const answerOf = (block: { acked: boolean; ackedAt: string | null }): boolean | null => {
+  if (block.acked) return true;
+  return block.ackedAt === null ? null : false;
+};

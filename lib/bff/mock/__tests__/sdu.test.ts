@@ -82,6 +82,25 @@ describe('SDU 정의 — 저장 규칙 (§2)', () => {
     expect(wire.targets).toHaveLength(1);
   });
 
+  it('앞 행을 지우고 새 행을 더해도 target_id 가 겹치지 않는다', async () => {
+    const seeded = await body<SduDefinitionWire>(await mockSdu.getDefinition(SEEDED_ID));
+    const [, second] = seeded.targets;
+
+    // 자리 번호로 id 를 지으면 새 행이 살아남은 행의 번호를 물려받는다.
+    const saved = await body<SduDefinitionWire>(
+      await mockSdu.putDefinition(SEEDED_ID, {
+        targets: [
+          { ...second, database_types: [...second.database_types] },
+          { cloud: 'AWS', region: 'us', upload_ip: '10.20.30.99', database_types: ['MySQL'] },
+        ],
+      }),
+    );
+
+    const ids = saved.targets.map((target) => target.target_id);
+    expect(new Set(ids).size).toBe(ids.length);
+    expect(ids).toContain(second.target_id);
+  });
+
   it('database_types 는 20개·50자 상한을 넘길 수 없다', async () => {
     const twentyOne = Array.from({ length: 21 }, (_, i) => `T${i}`);
     expect((await putDefinition(GLOBAL_ID, [target({ database_types: twentyOne })])).status).toBe(400);

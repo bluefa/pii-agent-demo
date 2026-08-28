@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { CommandBlock } from '@/app/target-sources/[targetSourceId]/_components/sdu/upload/CommandBlock';
 import { YesNoAck } from '@/app/target-sources/[targetSourceId]/_components/sdu/upload/YesNoAck';
+import { answerOf } from '@/app/target-sources/[targetSourceId]/_components/sdu/upload/model';
 import { cn, stackGap, textColors, textStyles } from '@/lib/theme';
 import type { SduCommands } from '@/lib/types/sdu';
 
@@ -17,13 +18,11 @@ export interface UploadCommandsBlockProps {
  */
 export const UploadCommandsBlock = ({ commands, onAnswer }: UploadCommandsBlockProps) => {
   const [answering, setAnswering] = useState(false);
-  const [declined, setDeclined] = useState(false);
 
   const answer = async (confirmed: boolean) => {
     setAnswering(true);
     try {
       await onAnswer(confirmed);
-      setDeclined(!confirmed);
     } catch {
       // The card above says the write failed. The answer is NOT recorded here — a 아니오 note
       // under a request that never landed would be the screen agreeing with itself.
@@ -52,7 +51,7 @@ export const UploadCommandsBlock = ({ commands, onAnswer }: UploadCommandsBlockP
 
       <YesNoAck
         question="모든 Region에 데이터를 업로드하셨습니까?"
-        value={commands.acked ? true : declined ? false : null}
+        value={answerOf(commands)}
         onAnswer={answer}
         busy={answering}
       />

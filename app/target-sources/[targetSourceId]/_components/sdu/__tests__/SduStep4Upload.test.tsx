@@ -73,6 +73,7 @@ const upload = (over: Partial<SduUpload> = {}): SduUpload => ({
     ],
     // 1100's shape: the owner is on the firewall block, with no answer yet.
     acked: false,
+    ackedAt: null,
   },
   accessKeyRecipients: { users: RECIPIENTS, updatedAt: '2026-08-24T07:41:00Z' },
   commands: {
@@ -81,6 +82,7 @@ const upload = (over: Partial<SduUpload> = {}): SduUpload => ({
       { region: 'eu', command: EU_COMMAND },
     ],
     acked: false,
+    ackedAt: null,
   },
   bdc: { status: 'NOT_STARTED', checkedAt: '2026-08-24T07:50:00Z', completedAt: null },
   invalidation: { addedRegions: [], uploadIpChanged: false },
@@ -230,11 +232,32 @@ describe('SduStep4Upload', () => {
   it('아니오 records the answer and says the next block stays shut', async () => {
     await renderStep();
 
+    // 답은 서버가 진다 — 쓰기 다음의 재조회가 도장 찍힌 「아니오」를 돌려준다. 화면이
+    // 자기 안에 답을 들고 있으면 새로고침 한 번에 그 답이 사라진다.
+    api.getSduUpload.mockResolvedValue(
+      upload({
+        firewall: { ...upload().firewall, acked: false, ackedAt: '2026-08-25T10:40:00Z' },
+      }),
+    );
+
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: '아니오' }));
     });
 
     expect(api.putSduFirewallAck).toHaveBeenCalledWith(TARGET_SOURCE_ID, false);
+    expect(screen.getByText('확인 후 예를 눌러주세요. 다음 블록은 열리지 않아요.')).toBeTruthy();
+  });
+
+  it('저장된 아니오는 새로고침해도 아니오다 — 미답으로 돌아가지 않는다', async () => {
+    // 첫 조회부터 도장 찍힌 「아니오」다. 화면 안의 로컬 상태로 그렸다면 여기서 미답이 된다.
+    api.getSduUpload.mockResolvedValue(
+      upload({
+        firewall: { ...upload().firewall, acked: false, ackedAt: '2026-08-25T10:40:00Z' },
+      }),
+    );
+
+    await renderStep();
+
     expect(screen.getByText('확인 후 예를 눌러주세요. 다음 블록은 열리지 않아요.')).toBeTruthy();
   });
 

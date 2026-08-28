@@ -110,6 +110,8 @@ interface SduState {
   submittedAt: string | null;
   firewall: SduAckState;
   commands: SduAckState;
+  /** 마지막으로 발급한 target id 의 일련번호. 되돌아가지 않는다. */
+  targetSeq: number;
   recipientIds: string[];
   recipientsUpdatedAt: string | null;
   bdcStatus: SduBdcStatus;
@@ -174,6 +176,7 @@ const blankState = (): SduState => ({
   submittedAt: null,
   firewall: blankAck(),
   commands: blankAck(),
+  targetSeq: 0,
   recipientIds: [],
   recipientsUpdatedAt: null,
   bdcStatus: 'NOT_STARTED',
@@ -201,6 +204,7 @@ const seedState = (targetSourceId: number): SduState => {
       ...target,
       database_types: [...target.database_types],
     }));
+    state.targetSeq = SEED_1100_TARGETS.length;
     state.definitionUpdatedAt = SEED_DEFINITION_AT;
     state.submittedAt = SEED_SUBMITTED_AT;
     // 방화벽만 답이 있고 업로드 확인은 아직 없다 — 2단계가 반쯤 끝난 모양이다. 답은 대상
@@ -578,7 +582,10 @@ export const mockSdu = {
 
     const normalized: SduTargetWire[] = [];
     for (const [index, raw] of body.targets.entries()) {
-      const result = normalizeTarget(raw, index, scope, `sdu-${targetSourceId}-${index + 1}`);
+      // 자리 번호로 id 를 짓지 않는다 — 앞 행을 지우고 새 행을 더하면 새 행이 남은 행의
+      // 번호를 물려받아 같은 id 가 둘이 된다. 스토어의 카운터는 한 방향으로만 오른다.
+      state.targetSeq += 1;
+      const result = normalizeTarget(raw, index, scope, `sdu-${targetSourceId}-${state.targetSeq}`);
       if ('message' in result) return invalidParameter(result.message);
       normalized.push(result.target);
     }

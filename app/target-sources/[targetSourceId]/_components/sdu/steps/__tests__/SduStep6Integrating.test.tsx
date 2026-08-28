@@ -44,7 +44,7 @@ const project = (processStatus: ProcessStatus): CloudTargetSource => ({
 const UPLOAD: SduUpload = {
   submittedAt: '2026-08-24T05:02:00Z',
   regions: ['us', 'eu'],
-  firewall: { rows: [], acked: true },
+  firewall: { rows: [], acked: true, ackedAt: '2026-08-25T10:40:00Z' },
   accessKeyRecipients: {
     users: [
       { id: 'u1', name: '박지원', email: 'a@example.com' },
@@ -52,7 +52,7 @@ const UPLOAD: SduUpload = {
     ],
     updatedAt: null,
   },
-  commands: { rows: [], acked: true },
+  commands: { rows: [], acked: true, ackedAt: '2026-08-25T10:40:00Z' },
   bdc: {
     status: 'IN_PROGRESS',
     checkedAt: '2026-08-25T00:31:00Z',

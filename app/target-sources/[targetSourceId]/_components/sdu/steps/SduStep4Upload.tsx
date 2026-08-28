@@ -225,6 +225,16 @@ export function SduStep4Upload({ project, onProjectUpdate }: SduStepProps) {
                 {writeError}
               </p>
             )}
+            {/* 스냅샷이 있으면 위의 실패 화면은 그려지지 않는다 — 그때 이 줄이 없으면 다시
+                읽기에 실패한 화면과 성공한 화면이 똑같이 보인다. 낡은 값을 낡았다고 말한다. */}
+            {failed && (
+              <p role="alert" className={cn('mb-4', textStyles.body, statusColors.error.textDark)}>
+                최신 상태를 불러오지 못했어요. 아래는 마지막으로 확인한 내용이에요.{' '}
+                <button type="button" onClick={() => void reload()} className="underline">
+                  다시 시도
+                </button>
+              </p>
+            )}
 
             <div className="flex flex-col gap-3">
               <GateBlock

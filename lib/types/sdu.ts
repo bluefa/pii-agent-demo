@@ -201,9 +201,15 @@ export interface SduFirewallRow {
   destinationIps: string[];
 }
 
+/**
+ * `ackedAt` 는 시각을 그리려고 접는 것이 아니다 — **답이 있었는지**를 말한다. `acked` 만으로는
+ * 「아니오」와 「아직 안 물어봄」이 같은 false 라, 새로고침하면 저장된 아니오가 미답으로 보인다.
+ * (`ackedBy` 는 관리자 근거 행만 읽으므로 여기 없다.)
+ */
 export interface SduFirewall {
   rows: SduFirewallRow[];
   acked: boolean;
+  ackedAt: string | null;
 }
 
 export interface SduRecipient {
@@ -225,6 +231,7 @@ export interface SduCommandRow {
 export interface SduCommands {
   rows: SduCommandRow[];
   acked: boolean;
+  ackedAt: string | null;
 }
 
 export interface SduBdc {

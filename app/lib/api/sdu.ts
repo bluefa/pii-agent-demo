@@ -50,8 +50,9 @@ export const toSduDefinition = (wire: SduDefinitionWire): SduDefinition => ({
 });
 
 /**
- * `acked_at` · `acked_by` 는 접지 않는다 — 관리자 승인 조건의 근거 행이 읽는 값이고, 담당자
- * 화면은 자기가 방금 누른 답에 시각을 붙여 읽지 않는다(계약 §5).
+ * `acked_at` 은 접고 `acked_by` 는 접지 않는다. 화면은 시각을 그리지 않지만 **답이 있었는지**는
+ * 알아야 한다 — `acked: false` 하나로는 「아니오」와 「미답」이 구별되지 않는다. 누가 답했는지는
+ * 관리자 승인 근거 행만 읽는다(계약 §5).
  */
 const toFirewall = (wire: SduFirewallWire): SduFirewall => ({
   rows: byRegion(wire.rows).map((row) => ({
@@ -61,6 +62,7 @@ const toFirewall = (wire: SduFirewallWire): SduFirewall => ({
     destinationIps: [...row.destination_ips],
   })),
   acked: wire.acked,
+  ackedAt: wire.acked_at,
 });
 
 /**
@@ -80,6 +82,7 @@ const toAccessKeyRecipients = (wire: SduAccessKeyRecipientsWire): SduAccessKeyRe
 const toCommands = (wire: SduCommandsWire): SduCommands => ({
   rows: byRegion(wire.rows).map((row) => ({ region: row.region, command: row.command })),
   acked: wire.acked,
+  ackedAt: wire.acked_at,
 });
 
 const toInvalidation = (wire: SduInvalidationWire): SduInvalidation => ({

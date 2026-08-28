@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  answerOf,
   currentGate,
   gateDoneStates,
   invalidationLines,
@@ -11,9 +12,9 @@ import type { SduUpload } from '@/lib/types/sdu';
 const base: SduUpload = {
   submittedAt: '2026-08-24T05:41:00Z',
   regions: ['us', 'eu'],
-  firewall: { rows: [], acked: false },
+  firewall: { rows: [], acked: false, ackedAt: null },
   accessKeyRecipients: { users: [], updatedAt: null },
-  commands: { rows: [], acked: false },
+  commands: { rows: [], acked: false, ackedAt: null },
   bdc: { status: 'NOT_STARTED', checkedAt: '2026-08-24T07:50:00Z', completedAt: null },
   invalidation: { addedRegions: [], uploadIpChanged: false },
 };
@@ -55,7 +56,7 @@ describe('currentGate', () => {
       ...base,
       firewall: { ...base.firewall, acked: true },
       accessKeyRecipients: { users: [{ id: 'u3', name: '박지원', email: 'a@bdc.com' }], updatedAt: null },
-      commands: { rows: [], acked: true },
+      commands: { rows: [], acked: true, ackedAt: '2026-08-25T10:40:00Z' },
     };
     expect(currentGate(upload, gateDoneStates(upload))).toBeNull();
     expect(currentGate({ ...upload, bdc: { ...base.bdc, status: 'IN_PROGRESS' } }, gateDoneStates(upload))).toBe(
@@ -74,5 +75,20 @@ describe('currentGate', () => {
 describe('invalidationLines', () => {
   it('says nothing while nothing has been invalidated', () => {
     expect(invalidationLines(base.invalidation)).toEqual([]);
+  });
+});
+
+describe('answerOf — 저장된 아니오는 미답이 아니다', () => {
+  it('acked=false 라도 도장이 있으면 「아니오」다', () => {
+    // 이 구별이 없으면 새로고침한 담당자는 자기가 답한 적 없다고 읽는다.
+    expect(answerOf({ acked: false, ackedAt: '2026-08-25T10:40:00Z' })).toBe(false);
+  });
+
+  it('도장이 없으면 미답이다 — 무효화가 도장을 지운 뒤가 그 상태다', () => {
+    expect(answerOf({ acked: false, ackedAt: null })).toBeNull();
+  });
+
+  it('acked=true 는 도장과 무관하게 「예」다', () => {
+    expect(answerOf({ acked: true, ackedAt: null })).toBe(true);
   });
 });

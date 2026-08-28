@@ -4,7 +4,7 @@ import { bff } from '@/lib/bff/client';
 import { parseTargetSourceId } from '@/app/api/_lib/target-source';
 import { createProblem, problemResponse } from '@/app/api/_lib/problem';
 
-// ASSUMED CONTRACT — docs/api/sdu-assumed-contracts.md §7.
+// ASSUMED CONTRACT — docs/api/sdu-assumed-contracts.md §6.
 // PUT …/sdu/upload/access-key-recipients { user_ids: string[] } → 204.
 //
 // A LIST, not a send: the S3 Access Key is delivered by an administrator over mail, and
