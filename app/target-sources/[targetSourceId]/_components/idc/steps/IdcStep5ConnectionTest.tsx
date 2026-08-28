@@ -343,7 +343,7 @@ export const IdcStep5ConnectionTest = ({
             </div>
             <p className={cn('mt-2.5 break-keep', cardStyles.subtitle)}>
               연동 대상 DB에 접근하기 위한 PII Agent 리소스가 생성됐어요. DB Credential을 등록한 다음
-              DB별 Key를 지정하면 연결 테스트를 진행할 수 있어요. 테스트가 모두 성공하면 완료 승인
+              리소스별 Key를 지정하면 연결 테스트를 진행할 수 있어요. 테스트가 모두 성공하면 완료 승인
               요청을 진행할 수 있어요.
             </p>
             {/* No top margin — the 1.55 leading is the paragraph break (step-2 grammar). */}
