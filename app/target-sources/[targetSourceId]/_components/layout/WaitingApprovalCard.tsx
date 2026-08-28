@@ -285,9 +285,12 @@ export const WaitingApprovalCard = ({
             `cn` is a plain join, so stacking a size over the subtitle token leaves the winner to CSS
             order — declare the size here instead. */}
         {!resolved ? (
-          <div className="mt-3 flex flex-col gap-2">
-            <div className={cn(idcStyles.skeletonBar, 'h-4 w-[420px] rounded')} />
-            <div className={cn(idcStyles.skeletonBar, 'h-4 w-[300px] rounded')} />
+          /* 안내가 두 문단이니 스켈레톤도 두 줄이다 — 줄 사이 간격은 없다: 25px 는 guidance 의
+             줄 상자(16px × 1.55)라 두 바가 맞닿아야 실제 높이(mt-3 + 50px)가 된다. 16px 바를
+             8px 띄우던 앞 판은 40px 이라, resolve 때 아래 행이 10px 밀렸다. */
+          <div className="mt-3 flex flex-col">
+            <div className={cn(idcStyles.skeletonBar, 'h-[25px] w-[520px] max-w-full rounded')} />
+            <div className={cn(idcStyles.skeletonBar, 'h-[25px] w-[300px] max-w-full rounded')} />
           </div>
         ) : rejected ? (
           <RejectionVerdict
