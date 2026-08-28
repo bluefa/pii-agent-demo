@@ -154,6 +154,8 @@ GET /install/v1/target-sources/{targetSourceId}/sdu/upload
      firewall: {
        rows: [{ region, s3_endpoint: string, port: number, destination_ips: string[] }],
        acked: boolean,
+       acked_at: string | null,     // admin-only; the owner screen does not read these
+       acked_by: { id, name, email } | null,
      },
      recipients: {
        users:      [{ id: string, name: string, email: string }],
@@ -162,6 +164,8 @@ GET /install/v1/target-sources/{targetSourceId}/sdu/upload
      commands: {
        rows:          [{ region, command: string }],
        acked: boolean,
+       acked_at: string | null,
+       acked_by: { id, name, email } | null,
      },
      bdc: {
        status:       "NOT_STARTED" | "IN_PROGRESS" | "COMPLETED",
@@ -213,6 +217,12 @@ recording something the screen never asked.
 
 `false` is a first-class value, not a missing answer. The upload-step gates block forward
 only — a finished block folds, it does not lock — so every one of them keeps a way back.
+
+A write also stamps `acked_at`/`acked_by` (§4). Taking an answer back stamps them too
+rather than clearing them: undoing is also something somebody did. Those two fields are
+what the admin console's 승인 조건 ① reads as its 근거 — there is **no history endpoint**,
+and the storyboard's accumulating 응답 이력 table is not built (the per-region answers that
+justified it are gone; see the handoff §9.1). The owner's own screen never reads them.
 
 Storing an ack also clears `invalidation` (§2).
 

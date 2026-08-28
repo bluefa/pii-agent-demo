@@ -17,8 +17,9 @@ terraform 스크립트 이름 `SDU_BDC_SERVICE_COMMON` / `SDU_BDC_SERVICE`). 연
 방화벽 행도, 업로드 명령도, S3 Access Key 수신자도, BDC 리소스 단계도 **엔드포인트가 없다.**
 아래 6건이 요청 범위다.
 
-**신규 7건**(담당자 6 · ADMIN 1, §10) **+ 기존 재사용**이고, 재사용 쪽은 경로를 바꾸지
-않는다 — SDU 대상 소스로 불렸을 때 받아 주기만 하면 된다(§9.3).
+**신규 6건, 전부 담당자 권한**(§10) **+ 기존 재사용**이고, 재사용 쪽은 경로를 바꾸지
+않는다 — SDU 대상 소스로 불렸을 때 받아 주기만 하면 된다(§9.3). 관리자 콘솔 전용으로
+새로 만들 것은 없다.
 
 ## 1. 공통 규칙
 
@@ -59,7 +60,7 @@ terraform 스크립트 이름 `SDU_BDC_SERVICE_COMMON` / `SDU_BDC_SERVICE`). 연
   항상 하나다
 - 정렬 기준 순서: `asia, us, eu, cx, china`
 
-## 2. 엔드포인트 — 담당자 상세 페이지 6건
+## 2. 엔드포인트 — 신규 6건, 전부 담당자 상세 페이지
 
 | Method | Path (base 생략) | 설명 |
 | --- | --- | --- |
@@ -166,7 +167,9 @@ terraform 스크립트 이름 `SDU_BDC_SERVICE_COMMON` / `SDU_BDC_SERVICE`). 연
       "port": 443,
       "destination_ips": ["52.216.0.0/15", "54.231.0.0/16", "3.5.0.0/19"]
     }],
-    "acked": true                       // 대상 소스 단위 답 하나. §7
+    "acked": true,                      // 대상 소스 단위 답 하나. §7
+    "acked_at": "2026-08-25T10:40:00Z", // 미답이면 null
+    "acked_by": { "id": "user-1", "name": "홍길동", "email": "hong@company.com" }
   },
   "recipients": {
     "users": [{ "id": "user-1", "name": "홍길동", "email": "hong@company.com" }],
@@ -174,7 +177,9 @@ terraform 스크립트 이름 `SDU_BDC_SERVICE_COMMON` / `SDU_BDC_SERVICE`). 연
   },
   "commands": {
     "rows": [{ "region": "us", "command": "export http_proxy=...\n...\naws s3 ls ..." }],
-    "acked": false
+    "acked": false,
+    "acked_at": null,
+    "acked_by": null
   },
   "bdc": {
     "status": "NOT_STARTED",            // NOT_STARTED | IN_PROGRESS | COMPLETED
@@ -188,6 +193,10 @@ terraform 스크립트 이름 `SDU_BDC_SERVICE_COMMON` / `SDU_BDC_SERVICE`). 연
 - `regions` 는 정의에서 파생한다. 업로드 경로는 **Region 단위**이지 database type 단위가
   아니라, 같은 Region 을 쓰는 대상들은 버킷 경로 하나를 공유한다
 - `firewall.rows` 와 `commands.rows` 는 `regions` 와 **정확히 1:1**
+- `acked_at` · `acked_by` 는 **관리자 몫이다.** 담당자 화면은 자기가 방금 누른 답에 시각을
+  붙여 읽지 않는다. 승인 조건 ①의 근거 행이 「방화벽 확인 · 홍길동 · 08-25 10:40」을 쓴다.
+  `confirmed: false` 로 되돌리면 둘 다 그 되돌린 사실로 갱신된다(비우지 않는다 — 되돌린
+  것도 누군가 한 일이다)
 
 ### 5.1 명령은 문자열, 방화벽은 구조
 
@@ -276,7 +285,7 @@ body { "kind": "FIREWALL" | "UPLOAD", "confirmed": true }
 1단계가 바로 정의를 고치는 자리다 — 정의까지 지우면 외워서 다시 타이핑할 빈 화면을 주게
 된다(스캔 결과를 남기는 것과 같은 이유).
 
-## 9. Admin 콘솔 — 대부분은 재사용, 신규는 하나
+## 9. Admin 콘솔 — 신규 엔드포인트 없음
 
 SDU 대상도 운영 콘솔의 **여덟 탭을 전부 받는다.** 지금은 SDU 가 콘솔에 들어오면 안내 한
 장으로 막히는데, 그 전제("우리가 설치하는 계정")가 SDU 에서는 틀렸을 뿐 Terraform·연결
@@ -286,44 +295,29 @@ SDU 대상도 운영 콘솔의 **여덟 탭을 전부 받는다.** 지금은 SDU
 | --- | --- | --- |
 | 진행 상태 | 7단계 레일에서 2·3·5 비활성 | 없음 (화면) |
 | 스캔 | 업로드된 S3 데이터를 훑는다. 권한 카드 자리는 **수신자 목록**이 갖는다 | 기존 scan 이 SDU 대상을 받으면 됨 |
-| 연동 요청 정보 | 담당자 입력(정의·수신자) + **2단계 응답 이력** | **신규 1건** (§9.1) |
+| 연동 요청 정보 | 담당자 입력(정의·수신자·확인 답변) | §3 + §5 를 읽는다 |
 | 확정 정보 | Region별 업로드 경로 · 대상 · 스캔이 찾은 리소스 | **응답 확장** (§9.2) |
 | 인프라 작업 | 집계 대신 작업별 적용 상태. `SDU_BDC_SERVICE_COMMON` · `SDU_BDC_SERVICE` | 기존 `terraform-status` 가 SDU 를 받으면 됨 |
 | 연결 테스트 | 그대로 | 기존 `test-connection/*` 가 SDU 를 받으면 됨 |
-| 관리자 승인 | 조건 3장 유지. ①의 **근거 행**에 담당자 응답이 앉는다 | §9.1 을 읽는다 |
+| 관리자 승인 | 조건 3장 유지. ①의 **근거 행**에 담당자 응답이 앉는다 | §5 를 읽는다 |
 | Airflow 확인 | 그대로 | 기존 오퍼레이션이 SDU 를 받으면 됨 |
 
 Terraform · TC · Airflow 의 **기능은 이미 있다.** SDU 대상이 그 오퍼레이션에 들어가게
 열어 주면 된다 — 경로가 전부 `/target-sources/{id}/...` 로 프로바이더에 묶여 있지 않다.
 
-### 9.1 2단계 응답 이력 — 신규, ADMIN
+### 9.1 응답 이력은 만들지 않는다
 
-```
-GET /install/v1/target-sources/{targetSourceId}/sdu/acks/history
-→ 200 {
-     "rows": [{
-       "kind": "FIREWALL" | "UPLOAD" | "DEFINITION_CHANGED",
-       "round": 2,                       // 그 kind 안에서의 회차. DEFINITION_CHANGED 는 null
-       "confirmed": true,                // DEFINITION_CHANGED 는 null
-       "regions": ["asia"],              // 답한 Region. DEFINITION_CHANGED 는 바뀐 Region
-       "summary": "EU 삭제 · Asia 추가",  // DEFINITION_CHANGED 만. 나머지는 null
-       "actor": { "id", "name", "email" },
-       "created_at": "2026-08-25T10:40:00Z",
-       "invalidated": false              // 뒤의 정의 수정으로 무효가 된 줄
-     }]
-   }
-```
+시안은 이 탭에 「2단계 응답 이력」을 회차 누적 표로 그렸다. **만들지 않는다.**
 
-- **시간 역순으로 쌓고 덮어쓰지 않는다.** 최신 줄만 남기면 "이 대상 소스가 지금 이 모양인
-  이유"를 관리자가 재구성할 수 없다 — 특히 정의 수정 줄이 없으면, 1회차 방화벽 확인이 왜
-  US·EU 였는데 지금은 US·Asia 인지 설명되지 않는다
-- 무효가 된 줄은 **지우지 않고 `invalidated: true` 로 남긴다**
-- 담당자가 언제든 다시 답할 수 있게 열어 준 대가가 이 표다. **승인 조건 ①의 근거**이고,
-  조건 카드의 「상세보기」가 여기로 온다
-- 정의 수정도 한 줄이다(`DEFINITION_CHANGED`) — 그 줄이 없으면 앞뒤 회차가 설명되지 않는다
+그 표를 정당화하던 것은 Region 단위 답이었다 — "1회차 방화벽 확인이 왜 US·EU였는데 지금은
+US·Asia인가"를 관리자가 재구성해야 한다는 것. 답이 대상 소스 단위 하나가 된 지금 회차는
+`예 → 아니오 → 예` 뿐이고, 그걸 위해 append-only 로그를 세우는 것은 값에 비해 비싸다.
 
-§7 의 `PUT /upload/acks` 는 **현재 상태**만 말한다(누가 언제 답했는지 없음). 이 이력은
-같은 쓰기가 남기는 기록이다 — 담당자 화면은 읽지 않는다.
+승인 조건 ①이 실제로 읽는 것은 **현재 상태**다 — 방화벽 확인 · 업로드 확인 · 수신자 수.
+셋 다 §5 가 이미 준다. 거기에 `acked_at` · `acked_by` 두 쌍만 붙으면 근거 행이 완성된다.
+
+되돌린 이력(누가 언제 아니오를 눌렀다가 다시 예를 눌렀는지)은 **잃는다.** 그것이 승인
+판단에 필요하다고 밝혀지면 그때 로그를 만든다 — 지금은 필요하다는 근거가 없다.
 
 ### 9.2 확정 정보 — 기존 경로, SDU 행 모양 정의 필요
 
@@ -344,7 +338,7 @@ GET /install/v1/target-sources/{targetSourceId}/sdu/acks/history
 - `GET /process-status` · `POST /reset`(§8) · 설치 완료 처리
 - Airflow 확인 탭이 쓰는 오퍼레이션
 
-## 10. 권한 — 신규 7건의 구분
+## 10. 권한 — 신규 6건은 전부 담당자
 
 | # | 엔드포인트 | 권한 |
 | --- | --- | --- |
@@ -354,11 +348,10 @@ GET /install/v1/target-sources/{targetSourceId}/sdu/acks/history
 | 4 | `GET /sdu/upload` | **담당자** (ADMIN 통과) |
 | 5 | `PUT /sdu/upload/acks` | **담당자** (ADMIN 통과) |
 | 6 | `PUT /sdu/upload/recipients` | **담당자** (ADMIN 통과) |
-| 7 | `GET /sdu/acks/history` | **ADMIN** |
 
-기준은 **화면이 누구 것인가**다. 1~6 은 담당자 상세 페이지가 부르므로 담당자 권한이 없으면
-그 화면이 성립하지 않는다. 7 은 관리자 콘솔에서만 부르고, 담당자 화면은 자기 이력을 그리지
-않는다.
+기준은 **화면이 누구 것인가**이고, 여섯 건 모두 담당자 상세 페이지가 부른다. **ADMIN 전용
+신규 엔드포인트는 없다** — 관리자 콘솔이 필요로 하는 것은 전부 위 여섯 건과 기존
+오퍼레이션이 이미 답한다(§9).
 
 재사용 2건: `authorized-users` 는 **담당자**(§6.1, 오너 확인), `reset` 은 기존 권한 그대로.
 
