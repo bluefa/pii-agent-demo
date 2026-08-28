@@ -508,6 +508,14 @@ const unsettledAgentResults = (
     });
 };
 
+interface LogicalDbSummaryRow {
+  resource_id: string;
+  agent_id: string;
+  /** 스키마가 `.partial()` 이라 생략할 수 있다 — 생략은 0 이 아니라 "말하지 않았다"다. */
+  logical_database_count?: number;
+  excluded_logical_database_count?: number;
+}
+
 /**
  * `TestConnectionLatestResultSummaryResponse[]` wire shape — 한 실행의 리소스별
  * 논리 DB 건수. 실제 건수는 논리 DB 도메인이 갖고 있으므로, 목은 resource id 로
@@ -537,14 +545,6 @@ const unsettledAgentResults = (
  * 목이 앞서 있는 상태이며, 클라이언트는 어느 쪽이든 안전하다: `ldbCount` 가 이미 **리소스**
  * 판정으로 한 번 더 거른다.
  */
-interface LogicalDbSummaryRow {
-  resource_id: string;
-  agent_id: string;
-  /** 스키마가 `.partial()` 이라 생략할 수 있다 — 생략은 0 이 아니라 "말하지 않았다"다. */
-  logical_database_count?: number;
-  excluded_logical_database_count?: number;
-}
-
 const summariesForJob = (targetSourceId: number, job: TestConnectionJob | undefined) => {
   if (!job) return [];
 

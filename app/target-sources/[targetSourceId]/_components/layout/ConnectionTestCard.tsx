@@ -138,10 +138,13 @@ const requiresCredential = (databaseType: string | null): boolean =>
  * 눈금으로 읽힌다. 그룹은 폭을 갖지 않으므로(ConsoleTable) 이 셋이 바닥의 전부다:
  * 1068 − 118 + 288 = **1238**.
  *
- * 96 이 이 표에서도 성립하는지는 실측으로 확인했다 — 이 표에만 있는 값이 하나 있어서다.
- * `관리` 칸의 `설정 불필요`(논리 DB 개념이 없는 엔진의 답)는 Pretendard 12px/400 에서
- * **54.88px** 이고, 칸의 내용 상자는 96 − 36(px-[18px] 양쪽) = 60px 이라 통째로 든다.
- * 머리 `관리` 는 14px/600 에서 24.20px + 36 = 60.20 이라 드래그 바닥도 96 아래에 있다.
+ * 96 이 이 표에서도 성립하는지는 실측으로 확인했다. `관리` 칸이 그리는 값은 하나뿐이다 —
+ * `관리하기`(`idcStyles.triggerBtn.rowAction`, Pretendard 14px/500, 가로 패딩 없음)는
+ * **48.40px** 이고, 칸의 내용 상자는 96 − 36(px-[18px] 양쪽) = 60px 이라 **11.60px** 이
+ * 남는다. 논리 DB 를 관리하지 않는 엔진의 행은 이 칸을 비우므로 더 긴 값이 들어올 자리는
+ * 없다. 머리 `관리` 는 14px/600 에서 24.20px + 36 = 60.20 이라 드래그 바닥도 96 아래에 있다.
+ * IDC 표(`IDC_COLUMN_WIDTHS.logicalManage = 96`)는 같은 토큰의 같은 버튼을 같은 내용 상자에
+ * 세운다 — 두 표가 같은 조건에서 같은 폭에 서 있다는 것이 이 96 의 정렬 근거다.
  *
  * cred history. 180 was sized in the Key1/Key2 synthetic-name era. On 2026-08-23 the owner
  * raised it to 264 so that every seeded credential name rendered whole — the longest,
@@ -353,8 +356,13 @@ export const ConnectionTestCard = ({
         setFetchedCounts({ targetSourceId, counts: buildLogicalDbCountMap(summaries) });
       })
       .catch(() => {
-        // 조회 실패는 빈 결과가 아니다 — 맵을 비운 채 둬서 모든 수가 `—` 로 남는다. 0 을
-        // 지어내면 "논리 DB 가 없다" 라는, 계약이 답한 적 없는 사실이 화면에 선다.
+        // abort 는 실패가 아니다 — 대상을 갈아타거나 회차가 바뀌어 우리가 끊은 것이고,
+        // 뒤이은 조회가 곧 답한다. 여기서 비우면 그 사이에 수가 한 번 깜빡인다.
+        if (controller.signal.aborted) return;
+        // 조회 실패는 빈 결과가 아니다 — 맵을 비워 모든 수를 `—` 로 되돌린다. 직전 회차의
+        // 수를 그대로 두면 이번 회차가 보고한 값인 양 읽히고, 0 을 지어내면 "논리 DB 가
+        // 없다" 라는, 계약이 답한 적 없는 사실이 화면에 선다.
+        setFetchedCounts({ targetSourceId, counts: EMPTY_COUNTS });
       });
     return () => controller.abort();
   }, [targetSourceId, runVersion, testing]);
@@ -886,6 +894,9 @@ export const ConnectionTestCard = ({
                             단위를 두고 보고한 수 그대로다 — Athena 리전은 제 데이터베이스 수를
                             보고하고, 그것은 접었다 펴면 세어지는 자식 행 수와 같은 수다. */}
                         <td className={idcStyles.table.approvalCell}>
+                          {/* `label` 은 required 지만 이 표에서는 DOM 에 나오지 않는다 —
+                              `LogicalDbCountCell` 이 그것을 쓰는 곳은 `onOpen` 갈래의
+                              aria-label 하나뿐이고, 여기 수는 평문이다. */}
                           <LogicalDbCountCell
                             count={logicalCount.target}
                             label={`${rowName} 연동 대상 논리 DB`}
@@ -903,6 +914,7 @@ export const ConnectionTestCard = ({
                               {NO_EXCLUSION_TEXT}
                             </span>
                           ) : (
+                            // 위 칸과 같다 — required 라 넘길 뿐, 평문 갈래는 `label` 을 쓰지 않는다.
                             <LogicalDbCountCell
                               count={logicalCount.excluded}
                               label={`${rowName} 연동 제외 논리 DB`}

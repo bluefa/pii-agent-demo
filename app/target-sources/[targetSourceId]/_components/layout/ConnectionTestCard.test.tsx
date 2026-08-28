@@ -704,6 +704,143 @@ describe('ConnectionTestCard', () => {
       expect(screen.queryByText('1개')).toBeNull();
     });
 
+    /**
+     * 회차가 바뀌어 다시 읽었는데 그 조회가 실패하면, 화면에 남은 수는 이번 회차가 보고한
+     * 값이 아니다 — 실패는 빈 결과가 아니지만, 낡은 수를 그대로 두는 것은 "이번 실행이 그
+     * 수를 말했다"는 거짓말이다. 맵을 비워 `—` 로 되돌린다.
+     */
+    it('clears the counts to — when the refetch for a new run fails', async () => {
+      getSummariesMock.mockResolvedValue([
+        { resource_id: 'res-1', logical_database_count: 12, excluded_logical_database_count: 3 },
+      ]);
+      const confirmed = [
+        makeResource({ resourceId: 'res-1', resourceName: 'named-counted', credentialId: 'Key1' }),
+      ];
+      pollingState.uiState = 'SUCCESS';
+      pollingState.latestJob = makeJob('SUCCESS', [agentResult('res-1', 'SUCCESS')]);
+      const rerender = renderStable(confirmed);
+
+      const row = () => screen.getByText('named-counted').closest('tr') as HTMLTableRowElement;
+      await waitFor(() => expect(row().cells[6].textContent).toBe('12개'));
+
+      // 다음 회차가 정착 → runVersion 이 바뀌어 effect 가 다시 읽는다. 이번엔 실패.
+      getSummariesMock.mockRejectedValue(new Error('503'));
+      pollingState.latestJob = {
+        ...makeJob('SUCCESS', [agentResult('res-1', 'SUCCESS')]),
+        test_connection_version: 2,
+      };
+      await act(async () => {
+        rerender();
+      });
+
+      await waitFor(() => expect(row().cells[6].textContent).toBe('—'));
+      expect(row().cells[7].textContent).toBe('—');
+    });
+
+    /**
+     * 언제 읽는가는 그려진 수만 봐서는 잠기지 않는다 — 아래 세 테스트는 **호출**을 센다.
+     *
+     * 도는 동안에는 읽지 않는다: 이 회차의 건수는 아직 없고, 폴링은 몇 초마다 돌아온다.
+     * 게이트가 없으면 폴링이 그대로 조회로 번역돼, 실행 한 번이 표를 몇 번이고 다시 읽힌다.
+     */
+    it('does not read the counts while a run is in flight, however often the poll turns', async () => {
+      pollingState.uiState = 'RUNNING';
+      pollingState.latestJob = {
+        ...makeJob('RUNNING', [agentResult('res-1', 'RUNNING')]),
+        test_connection_version: 2,
+      };
+      const rerender = renderStable([
+        makeResource({ resourceId: 'res-1', resourceName: 'named-counted', credentialId: 'Key1' }),
+      ]);
+      expect(await screen.findByText('named-counted')).toBeTruthy();
+      expect(getSummariesMock.mock.calls.length).toBe(0);
+
+      // 폴링이 새 회차를 물고 와 runVersion 이 바뀌어도, 도는 중이면 여전히 읽지 않는다.
+      pollingState.latestJob = {
+        ...makeJob('RUNNING', [agentResult('res-1', 'RUNNING')]),
+        test_connection_version: 3,
+      };
+      await act(async () => {
+        rerender();
+      });
+      expect(getSummariesMock.mock.calls.length).toBe(0);
+    });
+
+    // …그리고 정착하면 읽는다. 게이트는 미루는 것이지 끄는 것이 아니다.
+    it('reads the counts once the in-flight run settles', async () => {
+      pollingState.uiState = 'RUNNING';
+      pollingState.latestJob = {
+        ...makeJob('RUNNING', [agentResult('res-1', 'RUNNING')]),
+        test_connection_version: 2,
+      };
+      const rerender = renderStable([
+        makeResource({ resourceId: 'res-1', resourceName: 'named-counted', credentialId: 'Key1' }),
+      ]);
+      expect(await screen.findByText('named-counted')).toBeTruthy();
+      expect(getSummariesMock.mock.calls.length).toBe(0);
+
+      pollingState.uiState = 'SUCCESS';
+      pollingState.latestJob = {
+        ...makeJob('SUCCESS', [agentResult('res-1', 'SUCCESS')]),
+        test_connection_version: 2,
+      };
+      await act(async () => {
+        rerender();
+      });
+      expect(getSummariesMock.mock.calls.length).toBe(1);
+    });
+
+    /**
+     * 대상을 갈아타면 옛 대상의 수는 새 화면에 서면 안 된다 — resourceId 는 대상 간에 겹칠
+     * 수 있어서, 도장 없는 맵은 남의 수를 이 행에 조용히 붙인다. 새 조회가 답하기 전까지는
+     * 이 행에 대해 아는 것이 없으므로 `—` 다.
+     */
+    it('does not leak the previous target counts into a target it has not read yet', async () => {
+      getSummariesMock.mockResolvedValue([
+        { resource_id: 'res-1', logical_database_count: 8, excluded_logical_database_count: 3 },
+      ]);
+      pollingState.uiState = 'SUCCESS';
+      pollingState.latestJob = makeJob('SUCCESS', [agentResult('res-1', 'SUCCESS')]);
+      const confirmed = [
+        makeResource({ resourceId: 'res-1', resourceName: 'named-counted', credentialId: 'Key1' }),
+      ];
+      // renderStable 은 targetSourceId 를 1 로 붙박아 두므로, 대상을 갈아타는 것은 여기서만 한다.
+      const element = (targetSourceId: number) => (
+        <ConnectionTestCard
+          targetSourceId={targetSourceId}
+          confirmed={confirmed}
+          refreshProject={() => {}}
+          polling={makePolling()}
+        />
+      );
+      const { rerender } = render(element(1));
+
+      const row = () => screen.getByText('named-counted').closest('tr') as HTMLTableRowElement;
+      await waitFor(() => expect(row().cells[6].textContent).toBe('8개'));
+
+      // 대상 2 의 조회는 아직 떠 있다 — 그 사이에 그려지는 것은 1 의 수가 아니다.
+      let answerForTwo: (rows: Record<string, unknown>[]) => void = () => {};
+      getSummariesMock.mockImplementation(
+        () =>
+          new Promise<Record<string, unknown>[]>((resolve) => {
+            answerForTwo = resolve;
+          }),
+      );
+      await act(async () => {
+        rerender(element(2));
+      });
+      expect(row().cells[6].textContent).toBe('—');
+      expect(row().cells[7].textContent).toBe('—');
+
+      // 도장이 맞는 답이 오면 그때 선다 — 게이트는 늦추는 것이지 비우는 것이 아니다.
+      await act(async () => {
+        answerForTwo([
+          { resource_id: 'res-1', logical_database_count: 2, excluded_logical_database_count: 1 },
+        ]);
+      });
+      await waitFor(() => expect(row().cells[6].textContent).toBe('2개'));
+    });
+
     // 논리 DB 가 없는 엔진은 `대상` 도 보고가 있을 때만 그린다 — 없으면 —, 지어내지 않는다.
     it('leaves 대상 blank for an engine with no logical DBs when the run reported nothing', () => {
       renderCard([
