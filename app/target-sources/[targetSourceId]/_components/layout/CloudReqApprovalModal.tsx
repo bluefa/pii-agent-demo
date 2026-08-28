@@ -20,12 +20,13 @@ import {
   ROW_TARGET,
 } from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalTable';
 import { isRdsCluster } from '@/lib/rds-instances';
-import { toTestUnits, type TestUnit } from '@/lib/resource-grouping';
+import { toTestUnits } from '@/lib/resource-grouping';
 import { isEc2Instance } from '@/lib/types';
 import type { AppErrorCode } from '@/lib/errors';
 import type { ConfirmedResource } from '@/lib/types/resources';
 import {
   buildLogicalDbCountMap,
+  unitCounts,
   type LogicalDbCountMap,
 } from '@/app/target-sources/[targetSourceId]/_components/confirmed/logical-db-summaries';
 
@@ -66,19 +67,6 @@ const RESULTS: Record<'success' | 'error', ConfirmStepResult> = {
     description: '연결 테스트 결과와 논리 DB 설정은 그대로 남아 있어요.',
   },
 };
-
-/**
- * 한 행(= 한 테스트 단위)이 커버하는 논리 DB 수.
- *
- * **단위의 id 로 찾는다**(`TestUnit.unitId` = `resultUnitId`). Athena 는 4단계부터 리전이
- * 리소스라 결과가 `athena_region_resource_id` 한 줄로 달려 오고, 데이터베이스 각자의 id 로는
- * 어떤 결과도 키가 잡히지 않는다. 멤버별로 찾던 동안 접힌 Athena 행은 실행이 그 리전의 수를
- * 보고했는데도 늘 `—` 였다. 다른 타입은 `unitId === resourceId` 라 달라지는 게 없다.
- *
- * 없는 값은 0 이 아니다 — 이번 실행이 이 단위를 말하지 않았으면 null 로 남겨 `—` 를 찍는다.
- */
-const unitCounts = (unit: TestUnit, counts: LogicalDbCountMap) =>
-  counts.get(unit.unitId) ?? { target: null, excluded: null };
 
 /**
  * 완료 승인 요청 확인 모달 — 1단계 승인 요청과 같은 확인 문법(ConfirmStepModal)이다:

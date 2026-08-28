@@ -323,6 +323,12 @@ const DEFAULT_EMPTY_MESSAGE = '표시할 리소스가 없습니다.';
 /** 논리 DB 라는 개념이 없는 엔진의 답 — see `hasLogicalDatabases`. */
 export const NO_LOGICAL_DB_TEXT = '설정 불필요';
 
+/**
+ * 같은 엔진의 `연동 제외` 칸이 내는 답. `0개` 가 아니다 — 0 은 "제외한 것이 없다"고
+ * 말하지만, 여기서 말해야 하는 것은 "제외라는 개념이 없다"다.
+ */
+export const NO_EXCLUSION_TEXT = '제외 불가';
+
 const NoLogicalDbCell = () => (
   <span className={cn('whitespace-nowrap text-[14px]', textColors.tertiary)}>
     {NO_LOGICAL_DB_TEXT}

@@ -18,7 +18,8 @@ import {
 } from '@/lib/mock-test-connection';
 import { getStore, resetStore } from '@/lib/mock-store';
 import { mockConfirm } from '@/lib/bff/mock/confirm';
-import { ProcessStatus, type Project } from '@/lib/types';
+import { resultUnitId } from '@/lib/resource-grouping';
+import { hasLogicalDatabases, ProcessStatus, type Project } from '@/lib/types';
 
 // ===== Fixtures =====
 
@@ -400,9 +401,24 @@ describe('mock-test-connection behavior lock-in', () => {
 
       const summaries = toLatestResultSummaries(AWS_TARGET_SOURCE_ID);
       expect(summaries).toHaveLength(selectedCount);
+      // 접히는 단위(Athena 리전)는 제 데이터베이스 수를 보고하므로 자리표 규칙 밖이다.
+      const selected = project.resources.filter((r) => r.isSelected);
+      const noLogicalDbIds = new Set(
+        selected
+          .filter((r) => resultUnitId(r) === r.resourceId && !hasLogicalDatabases(r.databaseType))
+          .map((r) => r.resourceId),
+      );
+      // 규칙이 실제로 걸리는 리소스가 seed 에 있어야 아래 분기가 빈말이 아니다(DynamoDB 2건).
+      expect(noLogicalDbIds.size).toBeGreaterThan(0);
       summaries.forEach((s) => {
         expect(s.resource_id).toBeTruthy();
         expect(s.agent_id).toMatch(/^tc-agent-\d\d$/);
+        if (noLogicalDbIds.has(s.resource_id)) {
+          // 논리 DB 가 없는 엔진에는 자리표 공식을 태우지 않는다 — 0 도 아니고 필드가 없다.
+          expect(s.logical_database_count).toBeUndefined();
+          expect(s.excluded_logical_database_count).toBeUndefined();
+          return;
+        }
         expect(s.logical_database_count).toBeGreaterThanOrEqual(0);
         expect(s.excluded_logical_database_count).toBeGreaterThanOrEqual(0);
       });

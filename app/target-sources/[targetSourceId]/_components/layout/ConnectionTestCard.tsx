@@ -8,7 +8,11 @@ import { getDatabaseShortLabel } from '@/app/components/ui/DatabaseIcon';
 import { Ec2InstanceTag, RdsClusterTag } from '@/app/components/ui/RdsInstanceChips';
 import { isRdsCluster } from '@/lib/rds-instances';
 import { Pagination } from '@/app/components/ui/Pagination';
-import { ConsoleTable, type ConsoleTableColumn } from '@/app/components/ui/ConsoleTable';
+import {
+  ConsoleTable,
+  type ConsoleTableColumn,
+  type ConsoleTableGroup,
+} from '@/app/components/ui/ConsoleTable';
 import { useColumnResize } from '@/app/components/ui/useColumnResize';
 import { useModal } from '@/app/hooks/useModal';
 import { usePagination } from '@/app/hooks/usePagination';
@@ -31,6 +35,7 @@ import {
 } from '@/lib/test-connection-summary';
 import { ERROR_MESSAGES } from '@/lib/constants/messages';
 import {
+  getLatestTestConnectionResultSummaries,
   getSecrets,
   updateResourceCredential,
   updateTestConnectionConfirmation,
@@ -38,6 +43,13 @@ import {
 import { ResourceIdCell } from '@/app/target-sources/[targetSourceId]/_components/shared/ResourceIdCell';
 import { CredentialPickModal } from '@/app/target-sources/[targetSourceId]/_components/layout/CredentialPickModal';
 import { LogicalDbModalLoader } from '@/app/target-sources/[targetSourceId]/_components/logical-db/LogicalDbModalLoader';
+import { LogicalDbCountCell } from '@/app/target-sources/[targetSourceId]/_components/logical-db/LogicalDbCountCell';
+import { LogicalDbGroupHeader } from '@/app/target-sources/[targetSourceId]/_components/logical-db/LogicalDbGroupHeader';
+import {
+  buildLogicalDbCountMap,
+  unitCounts,
+  type LogicalDbCountMap,
+} from '@/app/target-sources/[targetSourceId]/_components/confirmed/logical-db-summaries';
 import { CloudReqApprovalModal } from '@/app/target-sources/[targetSourceId]/_components/layout/CloudReqApprovalModal';
 // This table shows the SAME resources steps 1·2·3 just showed, so it reads in their grammar
 // rather than the db-list one: identity first, one line per cell, and the row-hover lifts that
@@ -46,7 +58,7 @@ import {
   CELL_LIFT,
   CONNECTED_FRAME,
   NAME_LIFT,
-  NO_LOGICAL_DB_TEXT,
+  NO_EXCLUSION_TEXT,
   ROW_BASE,
   ROW_TARGET,
 } from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalTable';
@@ -89,6 +101,9 @@ type CredMap = Record<string, string>;
 const MONO_CELL = 'whitespace-nowrap font-mono text-[12px]';
 const PLACEHOLDER = '—';
 
+/** 아직 아무것도 읽지 못한 상태 — 모든 칸이 `—` 다. 매 렌더 새 Map 을 만들지 않는다. */
+const EMPTY_COUNTS: LogicalDbCountMap = new Map();
+
 const seedCreds = (confirmed: readonly ConfirmedResource[]): CredMap =>
   Object.fromEntries(confirmed.map((r) => [r.resourceId, r.credentialId ?? '']));
 
@@ -111,7 +126,22 @@ const requiresCredential = (databaseType: string | null): boolean =>
  * the same reversal on 2026-08-24, for the same reason and at the same cost.
  *
  * Floors are the LIN-96 ledger with two owner-ordered corrections to cred:
- * name 162 · id 186 · dbType 142 · region 156 · cred 200 · conn 104 · logical 118 — Σ **1068**.
+ * name 162 · id 186 · dbType 142 · region 156 · cred 200 · conn 104 ·
+ * logicalDb 96 · logicalExcl 96 · logicalManage 96 — Σ **1238**.
+ *
+ * 논리 DB 열이 하나(118)에서 셋(96·96·96)이 된 라운드(오너 2026-08-28): 이 표도 IDC step 5
+ * (`IdcResourceTable`)·확정 표(`WaitingApprovalTable`)와 같은 두 단 머리를 쓴다 —
+ * `연동 논리 DB` 그룹 아래 `대상`·`제외`·`관리`. 118 은 `논리 DB 확인` 이라는 긴 라벨을
+ * 담으려던 폭일 뿐이고, 카테고리를 그룹이 이고 가므로 잎 라벨은 한 마디로 짧아진다.
+ * 잎 폭이 96 인 근거는 정렬이다: `IDC_COLUMN_WIDTHS.logicalDb/logicalExcl/logicalManage` 와
+ * `WaitingApprovalTable` 의 confirmed 표가 전부 96 이라, 같은 두 단 머리를 쓰는 표들이 같은
+ * 눈금으로 읽힌다. 그룹은 폭을 갖지 않으므로(ConsoleTable) 이 셋이 바닥의 전부다:
+ * 1068 − 118 + 288 = **1238**.
+ *
+ * 96 이 이 표에서도 성립하는지는 실측으로 확인했다 — 이 표에만 있는 값이 하나 있어서다.
+ * `관리` 칸의 `설정 불필요`(논리 DB 개념이 없는 엔진의 답)는 Pretendard 12px/400 에서
+ * **54.88px** 이고, 칸의 내용 상자는 96 − 36(px-[18px] 양쪽) = 60px 이라 통째로 든다.
+ * 머리 `관리` 는 14px/600 에서 24.20px + 36 = 60.20 이라 드래그 바닥도 96 아래에 있다.
  *
  * cred history. 180 was sized in the Key1/Key2 synthetic-name era. On 2026-08-23 the owner
  * raised it to 264 so that every seeded credential name rendered whole — the longest,
@@ -133,12 +163,13 @@ const requiresCredential = (databaseType: string | null): boolean =>
  * below: the value span carries `truncate` and the button carries `title={full name}`, so an
  * over-long name degrades to an ellipsis plus a native tooltip, never a silent cut.
  *
- * Cost: Σ 946 → 1132 → 1068 moves the width at which this table starts scrolling
+ * Cost: Σ 946 → 1132 → 1068 → 1238 moves the width at which this table starts scrolling
  * horizontally. Measured on /pass/target-sources/2004 (2026-08-27): the pane is fluid at
  * `innerWidth − 720` with both rails open, so the no-scroll threshold goes 1666 → 1852 →
- * 1788, and collapsing the guide rail returns 264px, bringing it 1588 → 1524. Below that
- * the table scrolls — which it already did at 1440, floor 946 and all. Accepted with the
- * column, the same trade step 4 took when its cloud floor went 538 → 836. ⛔ Do not buy
+ * 1788 → **1958**, and collapsing the guide rail returns 264px, bringing it 1588 → 1524 →
+ * **1694**. Below that the table scrolls — which it already did at 1440, floor 946 and all.
+ * Accepted with the column, the same trade step 4 took when its cloud floor went 538 → 836,
+ * and the same trade the IDC step-5 table took for the same three leaves. ⛔ Do not buy
  * width back by narrowing the ledger floors, cred included: 200 is not a padded number, it
  * sits 14.79px clear of the second-longest real credential name, so shaving it starts
  * ellipsizing names that render whole today. (264 was never sacred — 200 is the floor now.)
@@ -150,7 +181,18 @@ const requiresCredential = (databaseType: string | null): boolean =>
  * cut costs the reader, and having two makes dragging either behave like a split pane
  * (ConsoleTable `slackSinkKey`).
  */
-const TC_COLUMN_WIDTHS = { name: 162, id: 186, dbType: 142, region: 156, cred: 200, conn: 104, logical: 118 } as const;
+const TC_COLUMN_WIDTHS = {
+  name: 162,
+  id: 186,
+  dbType: 142,
+  region: 156,
+  cred: 200,
+  conn: 104,
+  // IDC 표·확정 표의 잎 폭과 같은 96 — 셋 다 `연동 논리 DB` 그룹 머리 아래 선다.
+  logicalDb: 96,
+  logicalExcl: 96,
+  logicalManage: 96,
+} as const;
 const TC_FLEX_KEYS = ['name', 'id'] as const;
 
 /** "DB" 는 표 전체가 이미 DB 얘기라 붙일 필요가 없었다. 대신 이 열이 무엇을 고르는
@@ -185,7 +227,25 @@ const TC_COLUMNS: ConsoleTableColumn[] = [
   { key: 'region', label: 'Region', width: TC_COLUMN_WIDTHS.region },
   { key: 'cred', label: 'Credential', width: TC_COLUMN_WIDTHS.cred, head: CREDENTIAL_HEAD },
   { key: 'conn', label: '연결 상태', width: TC_COLUMN_WIDTHS.conn },
-  { key: 'logical', label: '논리 DB 확인', width: TC_COLUMN_WIDTHS.logical },
+  // 셋은 `연동 논리 DB` 그룹 머리 아래 선다(`TC_GROUPS`), IDC step 5 와 같은 문법으로.
+  // 그래서 열 이름이 카테고리를 되풀이하지 않고 `대상`/`제외`/`관리` 한 마디로 짧아진다.
+  { key: 'logicalDb', label: '대상', width: TC_COLUMN_WIDTHS.logicalDb },
+  { key: 'logicalExcl', label: '제외', width: TC_COLUMN_WIDTHS.logicalExcl },
+  { key: 'logicalManage', label: '관리', width: TC_COLUMN_WIDTHS.logicalManage },
+];
+
+/**
+ * 두 tier 헤더 — 셋을 한 이름 아래로 묶는다. `IdcResourceTable` 의 `idcGroups` 와 같은
+ * 구조이고, 머리 내용(`LogicalDbGroupHeader`)은 **같은 컴포넌트**다: 대상과 제외가 서로
+ * 다른 기준으로 세어진다는 문장은 한 곳에만 있어야 한다.
+ */
+const TC_GROUPS: readonly ConsoleTableGroup[] = [
+  {
+    key: 'logicalro',
+    label: '연동 논리 DB',
+    head: <LogicalDbGroupHeader />,
+    columns: ['logicalDb', 'logicalExcl', 'logicalManage'],
+  },
 ];
 
 interface ConnectionTestCardProps {
@@ -270,6 +330,38 @@ export const ConnectionTestCard = ({
   }
 
   const testing = isInFlightUi(uiState);
+
+  // 표의 `연동 논리 DB` 그룹이 읽는 수 — 최신 실행이 리소스별로 보고한 대상/제외 건수.
+  // 한 번의 호출로 표 전체를 채우고, 개별 목록은 관리 모달이 열릴 때만 받아 온다.
+  //
+  // 언제 다시 읽는가: 실행 회차가 바뀌거나, 진행 중이던 실행이 정착할 때. 폴링은 실행
+  // 동안 계속 돌지만 그때마다 때리지 않는다 — 도는 중에는 아직 이 회차의 건수가 없고,
+  // 화면에 남는 것은 직전 회차의 수다(이 열이 말하는 것은 "최근 실행"이다).
+  const runVersion = latestJob?.test_connection_version ?? null;
+  const [fetchedCounts, setFetchedCounts] = useState<{
+    targetSourceId: number;
+    counts: LogicalDbCountMap;
+  }>({ targetSourceId, counts: EMPTY_COUNTS });
+  useEffect(() => {
+    if (testing) return;
+    const controller = new AbortController();
+    void getLatestTestConnectionResultSummaries(targetSourceId, 'latest', {
+      signal: controller.signal,
+    })
+      .then((summaries) => {
+        if (controller.signal.aborted) return;
+        setFetchedCounts({ targetSourceId, counts: buildLogicalDbCountMap(summaries) });
+      })
+      .catch(() => {
+        // 조회 실패는 빈 결과가 아니다 — 맵을 비운 채 둬서 모든 수가 `—` 로 남는다. 0 을
+        // 지어내면 "논리 DB 가 없다" 라는, 계약이 답한 적 없는 사실이 화면에 선다.
+      });
+    return () => controller.abort();
+  }, [targetSourceId, runVersion, testing]);
+  // 어느 대상의 것으로 읽었는지 도장을 찍어 둔다 — resourceId 는 대상 간에 겹칠 수 있어서,
+  // 대상을 갈아탄 직후의 낡은 맵은 남의 수를 이 행에 조용히 붙인다.
+  const logicalDbCounts =
+    fetchedCounts.targetSourceId === targetSourceId ? fetchedCounts.counts : EMPTY_COUNTS;
 
   // Per-unit verdict from the latest poll (hydrates on mount, B3). FAIL-first fold —
   // several agents may report on one unit, and the previous last-write-wins map could
@@ -581,7 +673,7 @@ export const ConnectionTestCard = ({
                 radius clip. 연결 상태 칸이 스켈레톤인 동안은 표가 아직 채워지는 중이다 —
                 보조기술에도 그렇게 말한다(`busy` → 표의 aria-busy). */}
             <div className={cn(CONNECTED_FRAME, 'rounded-t-[12px]')}>
-              <ConsoleTable columns={TC_COLUMNS} resize={resize} busy={loading}>
+              <ConsoleTable columns={TC_COLUMNS} groups={TC_GROUPS} resize={resize} busy={loading}>
                 <tbody className={idcStyles.table.body}>
                   {pageRows.map((unit) => {
                     const cred = unitCred(unit);
@@ -590,6 +682,15 @@ export const ConnectionTestCard = ({
                     const credRequired = requiresCredential(unit.databaseType);
                     const [first] = unit.members;
                     const open = expanded.has(unit.unitId);
+                    // 행마다 반복되는 접근성 이름의 주어 — 관리하기 버튼이 이미 쓰던 것과
+                    // 같은 값이라, 한 행의 세 컨트롤이 같은 이름으로 자기 행을 가리킨다.
+                    const rowName = first.resourceName ?? first.resourceId;
+                    const logicalManaged = hasLogicalDatabases(unit.databaseType);
+                    // 접힌 Athena 행은 **단위 id** 로 찾는다 — 결과가 리전 한 줄로 오므로
+                    // 멤버 id 로는 아무것도 안 잡힌다(logical-db-summaries 의 unitCounts).
+                    // 엔진으로 거르지 않는다: 실행이 이 단위를 두고 보고한 수는 그 엔진이
+                    // 논리 DB 를 관리하든 아니든 사실이고, 보고가 없으면 여기서 이미 null 이다.
+                    const logicalCount = unitCounts(unit, logicalDbCounts);
                     // Only a folded region draws a rail; a flat unit gets no handlers so a
                     // pointer move down the list does not re-render the table for nothing.
                     const rail = unit.folded ? railRow(unit.unitId) : undefined;
@@ -773,32 +874,59 @@ export const ConnectionTestCard = ({
                             loading={loading}
                           />
                         </td>
-                        {/* Athena·DynamoDB are IAM-based and have no logical-DB management at all,
+                        {/* `연동 논리 DB` 그룹의 세 칸 — 수는 **값**이고 행위는 옆 칸의 이름
+                            붙은 버튼이다(IDC step 5 와 같은 문법). 수에 `onOpen` 을 주지
+                            않으므로 평문으로 서고, 문은 하나뿐이다.
+                            Athena·DynamoDB are IAM-based and have no logical-DB management at all,
                             so there is nothing here to configure — the button used to open anyway
                             (it was gated on `connected` alone) onto a screen for a concept that
                             does not exist. Keyed on the engine, not on the Athena fold: DynamoDB
-                            has no region fold to read off. */}
+                            has no region fold to read off.
+                            그 엔진 규칙은 **제외·관리** 두 칸만 소유한다. `대상` 은 실행이 이
+                            단위를 두고 보고한 수 그대로다 — Athena 리전은 제 데이터베이스 수를
+                            보고하고, 그것은 접었다 펴면 세어지는 자식 행 수와 같은 수다. */}
                         <td className={idcStyles.table.approvalCell}>
-                          {!hasLogicalDatabases(unit.databaseType) ? (
+                          <LogicalDbCountCell
+                            count={logicalCount.target}
+                            label={`${rowName} 연동 대상 논리 DB`}
+                          />
+                        </td>
+                        {/* 제외는 정책이지 실행 결과가 아니다 — 논리 DB 가 없는 엔진에는
+                            제외할 대상 자체가 없으므로 미실행·진행 중·성공·실패 어느 회차에서도
+                            같은 답이다. 목이 주는 `excluded_logical_database_count: 0` 은 여기서
+                            쓰지 않는다: 0 은 "제외한 게 없다"고 말할 뿐이다. */}
+                        <td className={idcStyles.table.approvalCell}>
+                          {!logicalManaged ? (
                             <span
                               className={cn('whitespace-nowrap text-[12px]', textColors.tertiary)}
                             >
-                              {NO_LOGICAL_DB_TEXT}
+                              {NO_EXCLUSION_TEXT}
                             </span>
                           ) : (
+                            <LogicalDbCountCell
+                              count={logicalCount.excluded}
+                              label={`${rowName} 연동 제외 논리 DB`}
+                            />
+                          )}
+                        </td>
+                        {/* 한 행에서 같은 사실을 두 번 말하지 않는다 — 옆 칸의 `제외 불가` 가
+                            이미 이 엔진에 제외 정책이 없다고 답했고, `설정 불필요` 는 그 말의
+                            사본이었다. 관리할 것이 없는 행의 관리 칸은 비어 있는 게 맞다. */}
+                        <td className={idcStyles.table.approvalCell}>
+                          {logicalManaged && (
                             <button
                               type="button"
                               disabled={!connected}
                               onClick={() =>
                                 logicalModal.open({
                                   resourceId: first.resourceId,
-                                  resourceName: first.resourceName ?? first.resourceId,
+                                  resourceName: rowName,
                                 })
                               }
                               // The label is the same word on every row, so it carries the row's own
                               // name — ten identically named buttons are indistinguishable in a screen
                               // reader's element list. Same shape the IDC table's action uses.
-                              aria-label={`${first.resourceName ?? first.resourceId} 연동 논리 DB 관리하기`}
+                              aria-label={`${rowName} 연동 논리 DB 관리하기`}
                               className={idcStyles.triggerBtn.rowAction}
                             >
                               관리하기
@@ -849,6 +977,11 @@ export const ConnectionTestCard = ({
                             <td className={idcStyles.table.approvalCell} />
                             <td className={idcStyles.table.approvalCell} />
                             <td className={idcStyles.table.approvalCell} />
+                            {/* 논리 DB 세 칸도 다른 칸과 같이 비운다 — 결과는 리전(= 단위)에
+                                키가 잡히므로 위 행이 이미 답했고, 칸이 하나라도 빠지면 행이
+                                머리와 어긋난다. */}
+                            <td className={idcStyles.table.approvalCell} />
+                            <td className={idcStyles.table.approvalCell} />
                             <td className={idcStyles.table.approvalCell} />
                           </tr>
                         ))}
@@ -858,7 +991,7 @@ export const ConnectionTestCard = ({
                   {pageRows.length === 0 && (
                     <tr>
                       <td
-                        colSpan={7}
+                        colSpan={9}
                         className={cn(
                           idcStyles.table.approvalCell,
                           'py-8 text-center text-[12px]',

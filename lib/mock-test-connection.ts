@@ -1,7 +1,7 @@
 import { getStore } from '@/lib/mock-store';
 import { getCurrentStep } from '@/lib/process';
 import { resultUnitId } from '@/lib/resource-grouping';
-import { ProcessStatus } from '@/lib/types';
+import { hasLogicalDatabases, ProcessStatus } from '@/lib/types';
 import type { Project, MockResource, ConnectionErrorType } from '@/lib/types';
 
 // ===== Types =====
@@ -537,6 +537,14 @@ const unsettledAgentResults = (
  * 목이 앞서 있는 상태이며, 클라이언트는 어느 쪽이든 안전하다: `ldbCount` 가 이미 **리소스**
  * 판정으로 한 번 더 거른다.
  */
+interface LogicalDbSummaryRow {
+  resource_id: string;
+  agent_id: string;
+  /** 스키마가 `.partial()` 이라 생략할 수 있다 — 생략은 0 이 아니라 "말하지 않았다"다. */
+  logical_database_count?: number;
+  excluded_logical_database_count?: number;
+}
+
 const summariesForJob = (targetSourceId: number, job: TestConnectionJob | undefined) => {
   if (!job) return [];
 
@@ -545,9 +553,12 @@ const summariesForJob = (targetSourceId: number, job: TestConnectionJob | undefi
   // 자리표 공식(`8 + seed % 8`)을 그대로 두면 데이터베이스 3개짜리 리전이 8개라고 보고해,
   // 같은 행이 왼쪽에서는 3, 오른쪽에서는 8 이라고 말한다.
   const athenaDatabases = new Map<string, number>();
+  // 같은 순회에서 단위 id → 엔진도 받아 둔다 — 아래 자리표 공식을 태울지 판정하는 데 쓴다.
+  const engineByUnit = new Map<string, string>();
   for (const resource of findProject(targetSourceId)?.resources ?? []) {
     if (!resource.isSelected) continue;
     const unitId = resultUnitId(resource);
+    engineByUnit.set(unitId, resource.databaseType);
     // 접히는 타입은 Athena 뿐 — 나머지는 unitId 가 곧 제 resourceId 다.
     if (unitId === resource.resourceId) continue;
     athenaDatabases.set(unitId, (athenaDatabases.get(unitId) ?? 0) + 1);
@@ -555,7 +566,7 @@ const summariesForJob = (targetSourceId: number, job: TestConnectionJob | undefi
 
   return job.resource_results
     .filter((r) => r.status === 'SUCCESS')
-    .map((r, index) => {
+    .map((r, index): LogicalDbSummaryRow => {
       const agent_id = r.agent_id ?? fallbackAgentId(index);
       const databases = athenaDatabases.get(r.resource_id);
       if (databases != null) {
@@ -565,6 +576,14 @@ const summariesForJob = (targetSourceId: number, job: TestConnectionJob | undefi
           logical_database_count: databases,
           excluded_logical_database_count: 0,
         };
+      }
+      // 논리 DB 가 없는 엔진(DynamoDB)에는 자리표를 태우지 않는다 — 공식은 어떤 id 에서도
+      // 8~15 라는 수를 만들어 내고, 그러면 목이 세는 것이 없는 리소스의 개수를 보고한다.
+      // 0 도 아니다: 필드를 아예 빼야(응답 스키마가 `.partial()`) 클라이언트의
+      // `buildLogicalDbCountMap` 이 null 로 남겨 `—` 를 찍는다.
+      const engine = engineByUnit.get(r.resource_id);
+      if (!hasLogicalDatabases(engine)) {
+        return { resource_id: r.resource_id, agent_id };
       }
       const seed = r.resource_id.length;
       const total = 8 + (seed % 8);
