@@ -89,8 +89,10 @@ describe('IdcReqApprovalModal', () => {
     ]);
     renderModal();
 
+    // 시안 B: 카테고리는 그룹 머리가 한 번 말하고, 잎은 `대상`/`제외` 한 마디다.
     expect(screen.getByText('연동 논리 DB')).toBeTruthy();
-    expect(screen.getByText('연동 제외')).toBeTruthy();
+    expect(screen.getByText('대상')).toBeTruthy();
+    expect(screen.getByText('제외')).toBeTruthy();
     await waitFor(() => expect(screen.getByText('7')).toBeTruthy());
     expect(screen.getByText('2')).toBeTruthy();
   });

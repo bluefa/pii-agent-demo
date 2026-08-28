@@ -1579,11 +1579,16 @@ export const idcStyles = {
    *  read as loud as the identity it was captioning; the row already spends its one
    *  colour on the kind badge. gray-500, not gray-400 — 11.5px semibold is not WCAG
    *  'large text', and gray-400 measures 2.54:1 on white against gray-500's 4.83:1. */
-  epToggle: 'text-[11.5px] font-semibold text-gray-500 hover:underline hover:text-gray-700',
+  /** 11.5px 은 v16 에서 넘어온 반 픽셀 값이라 디자인 가드가 받지 않는다. 행이 14px 한
+   *  눈금으로 정리되면서 이 토글도 같이 올라왔다 (오너 2026-08-27). */
+  epToggle: 'text-[14px] font-semibold text-gray-500 hover:underline hover:text-gray-700',
   /** Oracle SID key — `.idc-sid-k` (10px / 700 / fg-4 / ls .02em; bare, no bg/pad/radius). */
   // gray-500, not gray-400: this is text, and 10px bold is NOT WCAG 'large text'
   // (that starts at 18.66px bold). gray-400 measured 2.54:1 on white; gray-500 is 4.83:1.
-  sidKey: 'text-[10px] font-bold text-gray-500 tracking-[0.02em]',
+  /** IDC 표의 행은 글자 크기 하나(14px)로 읽는다 (오너 2026-08-27) — 이 키도 그 눈금에
+   *  선다. 작을수록 조용하던 자리를 이제 **무게와 색**이 맡는다: bold + gray-500 이
+   *  옆의 14px SID 값(tertiary, 보통 무게)보다 진하되 값보다 짧아 키로 읽힌다. */
+  sidKey: 'text-[14px] font-bold text-gray-500 tracking-[0.02em]',
   /** Field-level warning under an input — `.idc-field-warn` (#B45309 / 11.5px). */
   fieldWarn: 'mt-1 text-[11.5px] text-[#B45309]',
   /** Field-level error under an input — `.idc-field-err` (#DC2626 / 11.5px). */
@@ -1633,6 +1638,44 @@ export const idcStyles = {
     warnOutline: 'inline-flex h-10 items-center gap-1.5 rounded-xl bg-[#FEF3C7] px-[18px] text-[14px] font-semibold tracking-[-0.01em] text-[#92400E] transition-colors hover:bg-[#FDE68A]',
     /** Small blue ghost — v16 `.btn.sm.ghost` (the in-table "set" action). Disabled = opacity-45. */
     ghostSm: 'inline-flex h-8 items-center justify-center gap-1 rounded-[10px] px-3 text-[13px] font-bold text-[#0064FF] transition-colors hover:bg-[#EFF6FF] disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:bg-transparent',
+    /**
+     * The in-row action as TEXT, not as a chrome block (owner 2026-08-27: "설정이 파란색
+     * 버튼이잖아. 텍스트 버튼으로 바꾸자"). `ghostSm` gives every row a small blue face, and
+     * ten of them down a column read as ten offers competing with the values they sit
+     * beside. Stripped to a word, the action rests in the row's own secondary ink and only
+     * claims the brand hue once the row is the one being read.
+     *
+     * `font-medium`, deliberately NOT semibold (owner: "굵기는 다른 행이랑 똑같이 갖고가").
+     * It matches the two `LogicalDbCountCell` counts standing beside it in the same group,
+     * so weight says nothing here — the row-hover hue is the only thing that marks this one
+     * as the actionable cell, and it says it only while the row is being read.
+     *
+     * The hue is spent on ROW hover through the NAMED group (`tableRowLift.base` puts both
+     * `group` and `group/row` on the row): a bare `group-hover:` answers to any `.group`
+     * ancestor anywhere and fires from outside the row.
+     *
+     * The rule is `border-b border-current`, not `underline`: this is an `inline-flex` box
+     * and text-decoration stops at a flex container's atomic children, so an underline would
+     * not survive a trailing icon (the same reason `linkPrimary` below carries a border).
+     * `border-current` also means the rule follows the ink through row hover with no second
+     * declaration to keep in sync.
+     *
+     * The resemblance to `linkNeutralMd` — the Credential cell one column over in this very
+     * row — is deliberate, not a duplicate awaiting a merge: same 14px, same #4E5968, same
+     * border-b underline. They differ exactly where they must, in weight (medium vs semibold,
+     * because Credential is the cell you edit and this one is not) and in what the hover
+     * answers to (the ROW here, the element itself there).
+     *
+     * No focus utilities: `globals.css` paints `*:focus-visible` with a 2px brand outline
+     * from outside Tailwind's layers, so a text action that lost its button face still shows
+     * keyboard focus, and the row's own `focus-within` turns the word blue at the same time.
+     *
+     * Disabled re-pins the resting ink under row hover — the cloud call site disables the
+     * action until the resource is connected, and a greyed word that still turns blue when
+     * the row lights up reads as an offer that was refused.
+     */
+    rowAction:
+      'inline-flex items-center gap-1 whitespace-nowrap border-b border-current pb-0.5 text-[14px] font-medium text-[#4E5968] transition-colors duration-150 group-hover/row:text-[#0064FF] group-focus-within/row:text-[#0064FF] motion-reduce:transition-none disabled:cursor-not-allowed disabled:opacity-45 disabled:group-hover/row:text-[#4E5968] disabled:group-focus-within/row:text-[#4E5968]',
     /** `ghostSm` skeleton with the `primary` face — the Step 5 strip's state CTA slot (시안 A).
      *  In-table action size on purpose: the slot lives inside the summary strip, not the card edge. */
     primarySm: 'inline-flex h-8 items-center justify-center gap-1 rounded-[10px] bg-[#0064FF] px-3 text-[13px] font-bold text-white transition-colors hover:bg-[#0050D6] disabled:cursor-not-allowed disabled:bg-[#EBEEF2] disabled:text-[#8B95A1]', // design-exempt: recreates the measured ghostSm skeleton (13px)
@@ -1736,12 +1779,24 @@ export const idcStyles = {
      * #4E5968 은 **6.67:1** 이다. 14px 는 아직 large text 가 아니라 기준은 4.5:1 그대로다.
      */
     guidance: 'pl-[26px] text-[14px] font-medium leading-[1.5] text-[#4E5968] break-keep',
-    /** The bucket list inside `counts` — dots replace the 가운뎃점 separators, so the
-     *  segments need their own gap (12px between, 6px inside a segment). */
-    countList: 'flex items-center gap-3',
+    /**
+     * The bucket list inside `counts` — dots replace the 가운뎃점 separators, so the
+     * segments need their own gap (12px between, 6px inside a segment).
+     *
+     * 14px, overriding `counts`' 12 (오너 2026-08-27). The size lives HERE and not on
+     * `counts` because that token is worn twice in this card: by this row AND by the
+     * 시각 서브라인 above it ("… 완료 · 소요 4분 20초"). Moving it there would take the
+     * timestamp up with it and flatten the card's 16(제목)/14(안내)/12(메타) ladder — the
+     * exact collapse `guidance` was introduced to undo. The count row is not that meta
+     * tier: it is the card's finding, and it now reads a step above the clock line.
+     */
+    countList: 'flex items-center gap-3 text-[14px]',
     countSeg: 'flex items-center gap-1.5',
-    /** The value, two steps above its 12px label — the number is what the row is for. */
-    countValue: 'text-[14px] font-bold [font-variant-numeric:tabular-nums]',
+    /** The value, one step above its 14px label — the number is what the row is for.
+     *  Moved 14 → 16 with the label's 12 → 14 (오너 2026-08-27), keeping the pair's
+     *  one-step relation. `opsStyles.tcBand.countValueRow` carries the same two sizes on
+     *  the admin band, which is this row ported. */
+    countValue: 'text-[16px] font-bold [font-variant-numeric:tabular-nums]',
     /** 범례 점 — 판정 둘은 `fillColor.success`/`fail` 을 그대로 써서 카운트 줄이 바의 범례를 겸한다
      *  (#21A157 3.07:1, #E5483D 3.63:1 on running).
      *
@@ -1824,11 +1879,23 @@ export const idcStyles = {
     /** Excluded-row tint — v16 `.approval-table tr.row-excluded`. */
     rowExcluded: 'bg-[#F9FAFB]',
     /**
-     * Approval-table header — v16 `.approval-table thead th` (12px/600, bg #F7F8FA; distinct
+     * Approval-table header — v16 `.approval-table thead th` (14px/600, bg #F7F8FA; distinct
      * from the db-list-table 13px/700 header). Text is #4E5968 rather than the v16 #8B95A1,
      * which measures 2.86:1 here — see `tableStyles.header` for the full reasoning.
+     *
+     * Round 20 (owner 2026-08-28): "idc step1도 14픽셀 적용됨?" → "14 적용해." — 12 → 14px.
+     * Round 19 moved `approvalHeaderFlat` 12 → 14 and with it IDC steps 2·3·5·6·7, but this
+     * is a SEPARATE token and stayed at 12, which left IDC step 1 (`IdcTargetListTable`, and
+     * the 연동 요청 조회 preview modal that copies its column grammar) wearing the only smaller
+     * header in the flow. This closes that gap: all seven IDC steps now share one header size.
+     * Same precedent round 19 used — `approvalHeaderDialog` has been 14px since the
+     * confirm-dialog round, for this same table inside a modal.
+     *
+     * Contrast is untouched: same ink (#4E5968) on the same fill (#F7F8FA), and 12px and 14px
+     * both sit UNDER the WCAG large-text threshold (18.66px at bold / 24px), so the pair is
+     * judged against the same 4.5:1 floor before and after.
      */
-    approvalHeader: 'bg-[#F7F8FA] text-left text-[12px] font-semibold text-[#4E5968]',
+    approvalHeader: 'bg-[#F7F8FA] text-left text-[14px] font-semibold text-[#4E5968]',
     /** Body text of a header (i) tooltip — the value-variant Tooltip's white surface. */
     headerTipBody: 'block text-[12px] leading-[1.6] text-[#4E5968]',
     /**
@@ -1855,9 +1922,20 @@ export const idcStyles = {
      * this fill — invisible. `consoleGrid` moves the TH rail to #D9E5F9 (1.17 here),
      * this fill's own partner border elsewhere in the file. The #D1D5DB rule keeps
      * 1.36 and stays the strongest line in the table.
+     *
+     * Round 19 (owner 2026-08-27): "idc step5의 헤더도 14픽셀로 수정하면 안 되냐?" — 12 → 14px,
+     * and EVERY table wearing this shell moves with it (IDC steps 2·3·5·6·7, cloud step 5's
+     * ConnectionTestCard, the candidate table on steps 1–4, confirmed 6·7, and the three
+     * admin tables). That breadth is the decision, not fallout: this token IS the console
+     * header grammar, and a size that holds on one screen only would fork it. Precedent is
+     * already in this file — `approvalHeaderDialog` has been 14px since the confirm-dialog
+     * round, for the same table — so this aligns the flat variant with the dialog one.
+     *
+     * Contrast is untouched (same two colours), and 12px and 14px both sit under the WCAG
+     * large-text threshold, so the guard's 4.5:1 floor for this pair is unchanged.
      */
     approvalHeaderFlat:
-      'bg-[#F1F6FE] text-left text-[12px] font-semibold text-[#4E5968] border-b border-[#D1D5DB]',
+      'bg-[#F1F6FE] text-left text-[14px] font-semibold text-[#4E5968] border-b border-[#D1D5DB]',
     /**
      * Approval-table header, chrome variant — admin P3 only (both provider tables).
      *
@@ -1881,10 +1959,56 @@ export const idcStyles = {
      * 페이지의 표는 위아래로 툴바·필터·다른 카드에 둘러싸여 있어 12px 머리글이 제 자리를
      * 지키지만, 확인 모달 안에서는 표가 본문의 전부다. 26px 제목과 24px 타일 아래에서
      * 12px 은 각주처럼 읽혀, 승인의 근거인 표가 곁다리가 된다.
+     *
+     * ⚠️ 라운드 20(2026-08-28)에서 `approvalHeader` 가 14px 이 되면서 위 대비의 전제가
+     * 사라졌다 — 두 토큰의 문자열이 지금은 완전히 같다. 갈라놓을 이유가 남았는지(합칠지)는
+     * 오너 판단이라 여기서는 기록만 하고 토큰은 그대로 둔다.
      */
     approvalHeaderDialog: 'bg-[#F7F8FA] text-left text-[14px] font-semibold text-[#4E5968]',
     /** Approval-table header cell padding — v16 12px V / 18px H. */
     approvalHeaderCell: 'px-[18px] py-3',
+    /**
+     * The colgroup cell of a two-tier console header (`ConsoleTableGroup`).
+     *
+     * Reads a step BELOW its leaves, not above them. The instinct is to make the group the
+     * louder of the two, but the leaves are what the reader matches a value against while
+     * scanning down — the group only says once what the run is called. So the tier is
+     * carried by SIZE, not by lightness: the leaves keep `approvalHeaderFlat`'s semibold
+     * #4E5968 at 14px, and the group takes the same ink at the same weight, at 12px.
+     *
+     * SIZE joined weight in round 19, when the leaves went 12 → 14px and this cell
+     * deliberately STAYED at 12 (owner's call, recorded here): the rank above was carried
+     * by weight ALONE, and one channel is thin for a rank a reader has to feel in passing.
+     * Two channels saying the same thing is strictly better, and it costs nothing —
+     * lightness, the only channel that would have cost contrast, still does no work here.
+     *
+     * The weight channel then went away again the same day, on the owner's call (2026-08-27:
+     * "연동 논리 DB -> semibold"). This cell moved medium → semibold, which is exactly the
+     * leaves' weight, so the two tiers now differ in SIZE ALONE — 12 against 14. That is a
+     * reversal of the paragraph above on its own terms: the rank is back to a single channel,
+     * and the channel it kept is size rather than weight. Both paragraphs stand, because both
+     * are the record of a decision and the later one changes the conclusion, not the history.
+     * Contrast is unaffected either way — same ink on the same fill, and weight is not an
+     * input to the measured ratio, so the two guard entries for this pair read as before.
+     *
+     * The ink used to be #8B95A1, which measured 2.80:1 on `approvalHeaderFlat`'s #F1F6FE
+     * fill — under the 4.5:1 AA floor for 12px text (owner 2026-08-27: "연동 논리 DB 가
+     * 너무 흐리다. 명도비 맞춰"). The ramp's middle step #6B7684 only reaches 4.24:1 on the
+     * same fill, so it fails too and there is no fourth grey to invent. #4E5968 measures
+     * 6.55:1 there — the value `approvalHeaderFlat` already banked for its own leaves.
+     *
+     * `text-center`: a label over a span belongs to the whole span, and left-aligning it
+     * parks it on the first leaf, which then reads as owning it.
+     *
+     * Vertical padding is shorter than `approvalHeaderCell` (py-2 vs py-3) because this
+     * cell stacks ON TOP of a full-height leaf row — matching them makes a 2-row header
+     * as tall as three body rows and the table stops starting at its data.
+     *
+     * No bottom border: the leaf row under it already carries `approvalHeaderFlat`'s
+     * #D1D5DB rule, and a second line would draw a box around a label.
+     */
+    consoleGroupHeaderCell:
+      'px-[18px] py-2 text-center text-[12px] font-semibold text-[#4E5968] border-b border-[#E5E8EB]',
     /** Approval-table body cell padding — v16 `.approval-table tbody td` 16px V / 18px H. */
     approvalCell: 'px-[18px] py-4',
     /**

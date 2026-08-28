@@ -12,6 +12,13 @@ import { useColumnResize } from '@/app/components/ui/useColumnResize';
 import { required } from '@/lib/test-dom';
 import { tableRowLift, textColors, verdictRail } from '@/lib/theme';
 
+/**
+ * 본문 행만. confirmed variant 는 2026-08-28 부터 두 단 머리를 쓰므로 `<thead>` 가 두 줄이고,
+ * `getAllByRole('row')[1]` 은 첫 행이 아니라 두 번째 머리 줄이다. 머리 모양이 다시 바뀌어도
+ * 이 헬퍼를 쓰는 단언은 흔들리지 않는다.
+ */
+const bodyRows = () => screen.getAllByRole('row').filter((r) => r.closest('thead') === null);
+
 const fixture: WaitingApprovalResource[] = [
   {
     resourceId: 'mysql-prod-01',
@@ -292,7 +299,7 @@ describe('WaitingApprovalTable', () => {
 
       expect(screen.queryByRole('button', { name: /연동 논리 DB 목록 보기/ })).toBeNull();
       expect(screen.queryByRole('button', { name: /연동 제외 대상 보기/ })).toBeNull();
-      const cells = within(screen.getAllByRole('row')[1]).getAllByRole('cell');
+      const cells = within(bodyRows()[0]).getAllByRole('cell');
       expect(cells.slice(-2).map((td) => td.textContent)).toEqual(['8개', '2개']);
     });
 
@@ -315,8 +322,8 @@ describe('WaitingApprovalTable', () => {
       );
 
       expect(screen.queryAllByRole('button', { name: /그룹 (펼치기|접기)$/ })).toHaveLength(0);
-      // Header + the two resource rows, with no parent row inserted between them.
-      expect(screen.getAllByRole('row')).toHaveLength(3);
+      // The two resource rows, with no parent row inserted between them.
+      expect(bodyRows()).toHaveLength(2);
       // Each row keeps its own count cell; nothing is rolled up into an aggregate.
       expect(screen.getByRole('button', { name: 'db_a 연동 논리 DB 목록 보기' })).toBeTruthy();
       expect(screen.getByRole('button', { name: 'db_b 연동 논리 DB 목록 보기' })).toBeTruthy();
@@ -346,12 +353,12 @@ describe('WaitingApprovalTable', () => {
         />,
       );
 
-      const rows = screen.getAllByRole('row');
-      expect(within(rows[1]).getAllByRole('cell').slice(4).map((td) => td.textContent)).toEqual([
+      const rows = bodyRows();
+      expect(within(rows[0]).getAllByRole('cell').slice(4).map((td) => td.textContent)).toEqual([
         '설정 불필요',
         '설정 불필요',
       ]);
-      expect(within(rows[2]).getAllByRole('cell').slice(4).map((td) => td.textContent)).toEqual([
+      expect(within(rows[1]).getAllByRole('cell').slice(4).map((td) => td.textContent)).toEqual([
         '—',
         '—',
       ]);
@@ -377,7 +384,7 @@ describe('WaitingApprovalTable', () => {
         />,
       );
 
-      const cells = within(screen.getAllByRole('row')[1]).getAllByRole('cell').slice(4);
+      const cells = within(bodyRows()[0]).getAllByRole('cell').slice(4);
       expect(cells.map((td) => td.textContent)).not.toContain('설정 불필요');
       expect(screen.getByRole('button', { name: 'db_a 연동 논리 DB 목록 보기' })).toBeTruthy();
     });
@@ -403,7 +410,7 @@ describe('WaitingApprovalTable', () => {
         />,
       );
 
-      const cells = within(screen.getAllByRole('row')[1]).getAllByRole('cell').slice(4);
+      const cells = within(bodyRows()[0]).getAllByRole('cell').slice(4);
       expect(cells.map((td) => td.textContent)).toEqual(['3개', '0개']);
     });
 
@@ -432,19 +439,19 @@ describe('WaitingApprovalTable', () => {
       );
 
       // Closed: the region is one row and says what it is, not what a database is called.
-      expect(screen.getAllByRole('row')).toHaveLength(2);
+      expect(bodyRows()).toHaveLength(1);
       expect(screen.queryByText('sampledb')).toBeNull();
-      const cells = within(screen.getAllByRole('row')[1]).getAllByRole('cell');
+      const cells = within(bodyRows()[0]).getAllByRole('cell');
       expect(cells[0].textContent).toBe('Athena');
       expect(cells[3].textContent).toBe('ap-northeast-1');
 
       fireEvent.click(screen.getByRole('button', { name: /데이터베이스 목록 펼치기$/ }));
 
-      const rows = screen.getAllByRole('row');
-      expect(rows).toHaveLength(4);
+      const rows = bodyRows();
+      expect(rows).toHaveLength(3);
       // Read down the tree: Athena → Database, and the region repeats on every database
       // (owner, 2026-08-13) — a column is read DOWN, and a blank there says "no region".
-      for (const row of rows.slice(2)) {
+      for (const row of rows.slice(1)) {
         const memberCells = within(row).getAllByRole('cell');
         expect(memberCells[2].textContent).toBe('Database');
         expect(memberCells[3].textContent).toBe('ap-northeast-1');
@@ -475,8 +482,8 @@ describe('WaitingApprovalTable', () => {
         />,
       );
 
-      // Both survive — header + region + two children.
-      expect(screen.getAllByRole('row')).toHaveLength(4);
+      // Both survive — the region row + two children.
+      expect(bodyRows()).toHaveLength(3);
       expect(screen.getAllByText('—')).toHaveLength(2);
     });
 
@@ -500,9 +507,9 @@ describe('WaitingApprovalTable', () => {
         />,
       );
 
-      expect(screen.getAllByRole('row')).toHaveLength(2);
+      expect(bodyRows()).toHaveLength(1);
       fireEvent.click(screen.getByRole('button', { name: /Resource ID/ }));
-      expect(screen.getAllByRole('row')).toHaveLength(2);
+      expect(bodyRows()).toHaveLength(1);
       expect(screen.queryByText('sampledb')).toBeNull();
     });
 
@@ -530,7 +537,7 @@ describe('WaitingApprovalTable', () => {
       // open — the opposite of what was pressed. The fold has TWO entry points and both have
       // to go quiet; gating only the chevron left the row itself still writing the state.
       expect(screen.queryByRole('button', { name: /데이터베이스 목록/ })).toBeNull();
-      fireEvent.click(within(screen.getAllByRole('row')[1]).getAllByRole('cell')[3]);
+      fireEvent.click(within(bodyRows()[0]).getAllByRole('cell')[3]);
 
       rerender(<WaitingApprovalTable variant="confirmed" resources={folded} />);
       expect(screen.queryByText('sampledb')).toBeNull();
@@ -560,7 +567,7 @@ describe('WaitingApprovalTable', () => {
         />,
       );
 
-      const cells = within(screen.getAllByRole('row')[1]).getAllByRole('cell');
+      const cells = within(bodyRows()[0]).getAllByRole('cell');
       expect(cells.slice(4).map((td) => td.textContent)).toEqual(['7개', '2개']);
       expect(screen.queryByRole('button', { name: /연동 논리 DB 목록 보기/ })).toBeNull();
       // An unlabelled row would otherwise be a bare chevron with nothing beside it.
@@ -970,7 +977,12 @@ describe('WaitingApprovalTable', () => {
     // neighbour again. Every confirmed header must carry the self-clipping probe span.
     it('wraps every confirmed header label in the clipping floor probe', () => {
       render(<WaitingApprovalTable variant="confirmed" resources={[row()]} />);
-      for (const header of screen.getAllByRole('columnheader')) {
+      // 잎만. 그룹 셀(`scope="colgroup"`)은 폭도 리사이즈 핸들도 갖지 않으므로 잴 바닥이 없다.
+      const leaves = screen
+        .getAllByRole('columnheader')
+        .filter((th) => th.getAttribute('scope') !== 'colgroup');
+      expect(leaves).toHaveLength(6);
+      for (const header of leaves) {
         const label = header.querySelector('[data-resize-label]');
         expect(label).toBeTruthy();
         expect(label?.classList.contains('truncate')).toBe(true);
@@ -1135,20 +1147,56 @@ describe('WaitingApprovalTable', () => {
       expect(table.className).toContain('table-fixed');
       expect(table.className).toContain('linear-gradient(to_left');
       expect(container.querySelector('[data-seam-tracer]')).toBeTruthy();
-      // Σ(162 name + 186 id + 142 dbType + 156 region + 118 논리DB + 96 제외) = 860, and it
+      // Σ(162 name + 186 id + 142 dbType + 156 region + 96 대상 + 96 제외) = 838, and it
       // is the FLOOR, not the width: name and Resource ID both flex, so the table takes the
       // container and those two spend the slack the four sized ones leave. No 종류 column:
       // this fixture is neither an RDS cluster nor an EC2 instance, so `hasKindColumn` says
       // no — and leaving the column OUT of the spec is how "nothing in the roster could
-      // fill it" is expressed.
-      expect((table as HTMLElement).style.minWidth).toBe('860px');
+      // fill it" is expressed. It was 860 until the 연동 논리 DB group head landed
+      // (2026-08-28): the group carries the long label, so its leaf went 118 → 96.
+      expect((table as HTMLElement).style.minWidth).toBe('838px');
       expect((table as HTMLElement).style.width).toBe('');
       expect(table.className).toContain('w-full');
-      // Four declared px, a share for name (162/860), and `auto` on the sink. Asserted here
+      // Four declared px, a share for name (162/838), and `auto` on the sink. Asserted here
       // rather than in ConsoleTable.test because WHICH columns flex is this table's decision
-      // — and the ORDER is load-bearing: Resource ID is last, so it is the sink.
+      // — and the ORDER is load-bearing: Resource ID is last, so it is the sink. The group
+      // head carries NO width (it is a label over a span), which is why it reads '' here and
+      // why the sum above is unchanged by its arrival.
       expect([...table.querySelectorAll('thead th')].map((th) => (th as HTMLElement).style.width))
-        .toEqual(['18.8372%', 'auto', '142px', '156px', '118px', '96px']);
+        .toEqual(['19.3317%', 'auto', '142px', '156px', '', '96px', '96px']);
+    });
+
+    // 오너 2026-08-28 ("idc랑 비슷하게 디자인해"): 나란한 두 카운트 열은 8 중 3 을 뺀 것처럼
+    // 읽힌다 — deny 모델에서 제외는 정책이지 스캔 결과의 부분집합이 아니다. IDC 표가 쓰는
+    // 두 단 머리를 이 표도 쓴다: 관계를 말하는 문장은 그룹이 한 번만 이고 간다.
+    it('두 tier 머리 — 연동 논리 DB 아래 대상·제외 (confirmed variant)', () => {
+      const rows = [row()];
+      const { container } = render(
+        <WaitingApprovalTable
+          variant="confirmed"
+          resources={rows}
+          kindColumn={hasKindColumn(rows)}
+        />,
+      );
+      const group = screen.getByRole('columnheader', { name: '연동 논리 DB' });
+      expect(group.getAttribute('colspan')).toBe('2');
+      expect(group.getAttribute('scope')).toBe('colgroup');
+      // 잎은 두 번째 tier 에 선다. 카테고리를 그룹이 이고 있으므로 이름이 한 마디로 짧다 —
+      // `연동 논리 DB`/`연동 제외` 가 남아 있으면 그룹이 아무 일도 하지 않는다는 뜻이다.
+      const headers = [...container.querySelectorAll('thead th')].map((th) =>
+        th.textContent?.trim(),
+      );
+      expect(headers).toEqual([
+        'Resource Name',
+        'Resource ID',
+        'Database Type',
+        'Region',
+        '연동 논리 DB',
+        '대상',
+        '제외',
+      ]);
+      // 그룹이 없는 갈래는 두 단이 아니다 — 한 tier 뿐인 표에 이 머리가 새면 안 된다.
+      expect(container.querySelectorAll('thead tr')).toHaveLength(2);
     });
 
     it('mounts the console shell for install and plain — no variant is left on the legacy table', () => {
@@ -1168,8 +1216,15 @@ describe('WaitingApprovalTable', () => {
 
     it('gives steps 2·3 the console shell, with the identity pair absorbing', () => {
       // The spec's own decision, so it is asserted here rather than in ConsoleTable.test:
-      // six columns summing to 988 (the confirmed table's floor WITH its 종류 column; without
-      // it confirmed is 860), with flex on the identity pair — Resource ID last, so IT is the sink.
+      // six columns summing to 992, with flex on the identity pair — Resource ID last, so IT
+      // is the sink. It was 988 until round 19, and 988 equalled the confirmed table's floor
+      // with its 종류 column on, so the two began scrolling together on an Athena roster.
+      // The 14px console header made 요청 대상 여부 clip at 112, so that column went to 116
+      // and this table floored 4px above; then the confirmed table took the 연동 논리 DB
+      // group head (2026-08-28) and dropped its logical leaf 118 → 96, moving the confirmed
+      // floors 988 → 966 (종류 on) and 860 → 838 (종류 off). This table is now 26px above the
+      // first and 154px above the second — see APPROVAL_COLUMN_WIDTHS for why neither gap is
+      // bought back.
       // ⛔ 제외 사유 must stay sized: it is blank on every 대상 row and clamped on the rest, so
       // as the sink it would hold 1099px of a 2700px table — 41% — on a mostly-empty column.
       const { container } = render(
@@ -1179,9 +1234,9 @@ describe('WaitingApprovalTable', () => {
       expect(container.querySelector('[data-seam-tracer]')).not.toBeNull();
       expect(table.className).toContain('table-fixed');
       expect(table.className).toContain('w-full');
-      expect((table as HTMLElement).style.minWidth).toBe('988px');
+      expect((table as HTMLElement).style.minWidth).toBe('992px');
       expect([...table.querySelectorAll('thead th')].map((th) => (th as HTMLElement).style.width))
-        .toEqual(['25.3036%', 'auto', '142px', '156px', '112px', '142px']);
+        .toEqual(['25.2016%', 'auto', '142px', '156px', '116px', '142px']);
     });
 
     it('gives step 4 (cloud shape) the install spec — confirmed identity floors plus the install pair', () => {

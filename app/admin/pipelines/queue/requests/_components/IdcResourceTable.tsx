@@ -87,8 +87,14 @@ export interface IdcResourceTableProps {
 /**
  * LIN-96 ledger floors (owner-approved 2026-08-23), corrections landed with the console
  * migration: 접속 주소 260 → 200, Database Type 170 → 172, 출발지 160 → 144, and the
- * previously elastic 제외 사유 gets its number (142). Full set Σ = 200+172+80+112+110+
- * 144+110+142 = 1070; the 확정 variant (no verdict pair, no services) Σ = 706.
+ * previously elastic 제외 사유 gets its number (142). Full set Σ = 200+172+80+116+110+
+ * 144+110+142 = 1074; the 확정 variant (no verdict pair, no services) Σ = 706.
+ *
+ * Round 19 (owner 2026-08-27): 요청 대상 여부 112 → 116. The console header went 12 → 14px
+ * (`approvalHeaderFlat`) and that label was the only one in any console table that stopped
+ * fitting — 77.27px against a 75px content box, clipped to `요청 대상 ...`. 116 is the
+ * smallest floor clearing 77.27 + 36 padding + the 1px rail. It moves the full set 1070 →
+ * 1074 only; the 확정 variant drops the verdict pair, so its 706 is untouched.
  *
  * Flex pair = 접속 주소 + 제외 사유, so the sink is the reason column when it exists —
  * the same slack owner this table always had ("a sentence is the one cell that can spend
@@ -134,7 +140,7 @@ export function IdcResourceTable({
     { key: 'endpoint', label: '접속 주소', width: 200, flex: true },
     { key: 'dbType', label: 'Database Type', width: 172 },
     { key: 'port', label: 'Port', width: 80 },
-    ...(showVerdict ? [{ key: 'target', label: '요청 대상 여부', width: 112 }] : []),
+    ...(showVerdict ? [{ key: 'target', label: '요청 대상 여부', width: 116 }] : []),
     { key: 'nlb', label: 'NLB 배정', width: 110 },
     { key: 'src', label: IDC_SOURCE_LABEL, width: 144, head: <SourceIpHeader /> },
     ...(onShowServices ? [{ key: 'services', label: '사용 서비스', width: 110 }] : []),

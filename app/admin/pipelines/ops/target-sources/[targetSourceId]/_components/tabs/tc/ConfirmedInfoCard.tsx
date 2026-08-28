@@ -30,7 +30,11 @@
  */
 import { Fragment, useMemo, useState, type ReactElement } from 'react';
 import { cn, idcStyles, pipelineStyles } from '@/lib/theme';
-import { ConsoleTable, type ConsoleTableColumn } from '@/app/components/ui/ConsoleTable';
+import {
+  ConsoleTable,
+  type ConsoleTableColumn,
+  type ConsoleTableGroup,
+} from '@/app/components/ui/ConsoleTable';
 import { Pagination } from '@/app/components/ui/Pagination';
 import { useColumnResize } from '@/app/components/ui/useColumnResize';
 import {
@@ -51,6 +55,7 @@ import {
   IdcSourceIpCell,
 } from '@/app/admin/pipelines/queue/requests/_components/idcCells';
 import { SourceIpHeader } from '@/app/target-sources/[targetSourceId]/_components/idc/IdcResourceTable';
+import { LogicalDbGroupHeader } from '@/app/target-sources/[targetSourceId]/_components/logical-db/LogicalDbGroupHeader';
 import { toIdcResourceViewFromConfirmed } from '@/app/lib/api/idc';
 import { IDC_SOURCE_LABEL } from '@/lib/constants/idc';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
@@ -73,6 +78,7 @@ import {
   toConfirmedUnits,
   unitCredentialMissing,
   unitNeedsCredential,
+  type LdbTab,
   type TcResourceFact,
   type TcVerdict,
 } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/logic';
@@ -107,9 +113,16 @@ const CLIP_CELL = cn(CELL, idcStyles.table.consoleCell);
  * (오너 2026-08-25). #729 가 둘씩 한 칸에 포갠 것은 열 10개가 프레임보다 넓어서였는데,
  * 두 쌍만 푸는 8열은 합이 프레임 안에 든다 — 포개기를 유지할 이유가 사라졌다.
  *
- * 합(1104)이 프레임보다 넓어지면 표는 카드 안에서 가로로 스크롤한다 — 셸이 자기 자신을
- * `overflow-x-auto` 로 감싸고 있어서 열이 사라지지는 않는다(1110px 프레임에서 실측).
- * 그래도 스크롤은 비용이라, 열을 넓히려면 다른 열에서 빼는 쪽을 먼저 본다.
+ * 합(1226)은 프레임(1110px 실측)보다 넓어, 표는 카드 안에서 가로로 스크롤한다 — 셸이 자기
+ * 자신을 `overflow-x-auto` 로 감싸고 있어서 열이 사라지지는 않는다. 그래도 스크롤은
+ * 비용이라, 열을 넓히려면 다른 열에서 빼는 쪽을 먼저 본다.
+ *
+ * 안 A (오너 2026-08-28 — IDC 표가 하루 먼저 받은 "시안 B" 와 같은 모양이다): 연동 논리 DB
+ * 가 한 칸(166) → **그룹 머리 + 3열**(대상·제외·관리)이 되면서 두 변종의 합이 같이 움직였다
+ * — 클라우드 1104 → 1226, 온프렘 1066 → 1188. 세 잎은 모두 96 으로, IDC 표가 쓰는 값
+ * (`IDC_COLUMN_WIDTHS.logicalDb · logicalExcl · logicalManage`)이다. 그래서 두 변종 다 이제 프레임을 넘는다 — 온프렘은 이
+ * 라운드에서 처음 넘었다. IDC 표가 step 5 에서 같은 시안을 받으며 스크롤을 받아들인 것과
+ * 같은 거래다.
  *
  * flex 는 **정체 두 열**이다. 셸의 문서가 권하는 짝(둘을 선언하면 한쪽을 끌 때 싱크가
  * 다른 쪽으로 넘어가 분할 창처럼 움직인다)이고, 행마다 임의로 길어지는 값도 이 둘뿐이다
@@ -131,7 +144,8 @@ const COL_W = {
   // (79px)보다 93px 넓은, 표에서 여유가 가장 큰 바닥이었다.
   id: 172,
   // 온프렘 표는 열이 둘 더 붙어(Port · 출발지) 주소 바닥값을 200 으로 낮췄다 — flex 열이라
-  // 표가 프레임 안에 들면 이보다 넓게 그려진다. 합 1066 < 1110.
+  // 표가 프레임 안에 들면 이보다 넓게 그려진다. 합 1188 > 1110 이라 지금은 그 조건이 깨져
+  // 표가 가로로 스크롤하고, 이 열은 자기 바닥값 그대로 선다.
   idcName: 200,
   /** 포트 번호 다섯 자리 — 큐의 IDC 표와 같은 폭. */
   port: 80,
@@ -154,9 +168,16 @@ const COL_W = {
   /** 알약 + tip 표시 한 줄, 그 밑에 로그 입구 한 줄 — pod_id 를 뺀 만큼 좁아졌다.
    *  가장 넓은 내용은 `진행 중` 알약 + tip 표시(실측 ~82px)라 132 는 그 위로 넉넉하다. */
   conn: 132,
-  /** 이름 붙은 건수 두 줄(가장 넓은 `최근 조회 5개` 76px) + 간격 10 + `관리 ↗` 43,
-   *  좌우 패딩 36 을 더해 165 — 166 으로 잡는다. */
-  ldb: 166,
+  /**
+   * 연동 논리 DB 그룹의 세 잎 — 대상 · 제외 · 관리. 값 하나가 `12개` 뿐이고 머리글도 두
+   * 글자라 폭을 정하는 것은 내용이 아니라 **다른 표와의 정렬**이다: IDC 표가 같은 시안에서
+   * 셋 다 96 으로 세웠으므로(`IDC_COLUMN_WIDTHS`) 같은 이름의 열이 두 화면에서 같은 폭으로
+   * 선다. 한 칸이던 시절의 166(= 이름 붙은 건수 두 줄 76 + 간격 10 + `관리 ↗` 43 + 패딩 36)
+   * 은 라벨을 칸 안에 싣던 폭이라 더 필요 없다 — 이름은 이제 열 머리가 든다.
+   */
+  ldbInc: 96,
+  ldbExc: 96,
+  ldbManage: 96,
   cred: 204,
 } as const;
 const FLEX_KEYS = ['name', 'id'] as const;
@@ -190,6 +211,40 @@ const CREDENTIAL_HEAD = (
     </Tooltip>
   </span>
 );
+
+/**
+ * 연동 논리 DB 세 잎 — 두 변종이 **같은 배열**을 편다.
+ *
+ * 클라우드와 온프렘은 나머지 열이 다르지만 이 셋은 같은 사실을 같은 순서로 싣는다. 손으로
+ * 두 번 적으면 census 가 못 보는 사본이 되고(`LogicalDbGroupHeader` 를 공유하는 이유와 같다),
+ * 한쪽만 이름이 바뀌는 날 그룹이 조용히 갈라진다.
+ *
+ * 열 이름이 카테고리를 되풀이하지 않는다 — `연동 논리 DB` 는 위 tier 의 그룹 머리가 한 번
+ * 말하고, 잎은 `대상`·`제외`·`관리` 한 마디씩만 든다 (IDC 표 `idcColumns` 와 같은 문법).
+ */
+const LDB_LEAVES: readonly ConsoleTableColumn[] = [
+  { key: 'ldbInc', label: '대상', width: COL_W.ldbInc },
+  { key: 'ldbExc', label: '제외', width: COL_W.ldbExc },
+  { key: 'ldbManage', label: '관리', width: COL_W.ldbManage },
+];
+
+/**
+ * 위 tier 한 칸 — 셋을 덮는 `연동 논리 DB`.
+ *
+ * 머리 내용은 IDC 표·클라우드 확정 표와 **같은 컴포넌트**(`LogicalDbGroupHeader`)다. 두 수의
+ * 관계(제외는 정책이지 대상의 부분집합이 아니라 더해도 전체가 아니다)는 열 머리 둘로는 말할
+ * 수 없고 행마다 되풀이할 수도 없는 사실이라, 그것을 덮는 그룹 머리가 가진다.
+ *
+ * ⛔ 두 번째 툴팁을 여기에 손으로 쓰지 않는다 — 문구가 바뀌는 날 한쪽만 옛말로 남는다.
+ */
+const LDB_GROUPS: readonly ConsoleTableGroup[] = [
+  {
+    key: 'ldb',
+    label: '연동 논리 DB',
+    head: <LogicalDbGroupHeader />,
+    columns: LDB_LEAVES.map((column) => column.key),
+  },
+];
 
 /**
  * 열 순서 — 오너가 못 박은 척추 다섯: 정체(이름·ID) → 판정 → 규모 → Credential
@@ -227,7 +282,7 @@ const rawConfirmedColumns = (isIdc: boolean): ConsoleTableColumn[] =>
         { key: 'port', label: 'Port', width: COL_W.port },
         { key: 'type', label: 'Database Type', width: COL_W.type },
         { key: 'conn', label: '연결 상태', width: COL_W.conn },
-        { key: 'ldb', label: '연동 논리 DB', width: COL_W.ldb },
+        ...LDB_LEAVES,
         { key: 'cred', label: 'Credential', width: COL_W.cred, head: CREDENTIAL_HEAD },
         { key: 'src', label: IDC_SOURCE_LABEL, width: COL_W.src, head: <SourceIpHeader /> },
       ]
@@ -235,7 +290,7 @@ const rawConfirmedColumns = (isIdc: boolean): ConsoleTableColumn[] =>
         { key: 'name', label: 'Resource Name', width: COL_W.name, flex: true },
         { key: 'id', label: 'Resource ID', width: COL_W.id, flex: true },
         { key: 'conn', label: '연결 상태', width: COL_W.conn },
-        { key: 'ldb', label: '연동 논리 DB', width: COL_W.ldb },
+        ...LDB_LEAVES,
         { key: 'cred', label: 'Credential', width: COL_W.cred, head: CREDENTIAL_HEAD },
         { key: 'type', label: 'Database Type', width: COL_W.type },
         { key: 'region', label: 'Region', width: COL_W.region },
@@ -415,114 +470,93 @@ function PodLogLine({
 }
 
 /**
- * 연동 논리 DB cell — 대상 건수 위, 제외 건수 아래. 두 열이던 것을 한 칸으로 합쳤다.
+ * 연동 논리 DB — 그룹 머리 `연동 논리 DB` 아래 세 잎(대상 · 제외 · 관리). 칸도 셋이다.
  *
- * 두 값은 같은 응답의 같은 게이트에서 온다(최신 실행이 SUCCESS 일 때만). 그래서 나란한 두
- * 열은 같은 사실을 두 번 넓게 벌려 놓은 것이었다. 다만 게이트가 같다고 두 필드가 늘 함께
- * 오는 것은 아니다 — 계약에서 둘 다 optional 이라 한쪽만 실린 행을 한 칸이 삼키면 안 된다.
+ * 한때 한 칸이었다. #729 가 열 10개를 6개로 접을 때 두 건수를 한 칸에 포갠 것인데, 그 이유는
+ * **폭**이었다 — 두 건수는 같은 응답의 같은 게이트에서 오므로 나란한 두 열이 같은 사실을 두
+ * 번 넓게 벌려 놓는 것처럼 보였다. 오너가 2026-08-28 에 그것을 되돌렸다: IDC 5단계가 쓰는
+ * 그룹 머리 문법이면 카테고리 이름을 위 tier 가 한 번 말하므로, 잎은 한 마디씩만 들고도
+ * 각자 제 열에 설 수 있다. 합친 이유(폭)는 기록으로 남기지만 지금 유효한 모양은 셋이다.
  *
- * **문은 언제나 열려 있다** (오너 2026-08-25). 건수는 최신 실행이 성공했을 때만 오는 사실
- * 이지만, 제외 정책은 실행이 말해 주는 것이 아니라 운영자가 쓰는 것이다 — 모달이 대상·제외
- * 목록을 자기 엔드포인트에서 직접 읽어 오므로 실행이 실패했든 아직 안 돌았든 열 수 있다.
- * 예전에는 건수가 없으면(—) 칸이 글자 하나로 끝나 관리 화면에 닿을 길이 없었고, 보고된 0
- * 도 마찬가지였다: 논리 DB 가 0건인 리소스야말로 제외 정책을 손봐야 하는 리소스인데.
+ * **문은 언제나 열려 있다** (오너 2026-08-25, 이 라운드에도 그대로다). 건수는 최신 실행이
+ * 성공했을 때만 오는 사실이지만, 제외 정책은 실행이 말해 주는 것이 아니라 운영자가 쓰는
+ * 것이다 — 모달이 대상·제외 목록을 자기 엔드포인트에서 직접 읽어 오므로 실행이 실패했든 아직
+ * 안 돌았든 열 수 있다. 예전에는 건수가 곧 트리거라 건수가 없으면(—) 관리 화면에 닿을 길이
+ * 없었고, 보고된 0 도 마찬가지였다: 논리 DB 가 0건인 리소스야말로 제외 정책을 손봐야 하는
+ * 리소스인데. 그래서 문은 건수에서 떼어져 **자기 잎**을 갖는다 — 오너가 이번 라운드에 안 A
+ * (관리 잎을 남긴다)를 고른 이유가 바로 이것이고, 안 B(건수가 곧 문, 관리 잎 없음)는 이
+ * 이유로 기각됐다. ⛔ 건수를 다시 트리거로 만들지 않는다: 대상·제외 두 칸이 같은 모달을 열면 방
+ * 하나에 문이 둘이 되고, `—` 가 다시 링크로 위장한다.
  *
- * 그 문은 이제 건수가 아니라 **칸 오른쪽의 `관리 ↗`** 다 (오너 2026-08-25). 값과 행위를
- * 갈라 놓으면 셋이 한꺼번에 풀린다: 건수는 판정과 무관하게 그냥 사실로 남고, 문은 판정과
- * 무관하게 늘 서고, `—`(보고 없음)도 링크로 위장하지 않고 제 글자로 돌아온다. 건수를
- * 트리거로 쓰던 문법(Step 6/7 의 LogicalDbCountCell)은 값이 하나일 때의 처방이라, 두 값이
- * 스택으로 서는 이 칸에서는 "어느 쪽을 눌러야 하나"를 만들고 있었다.
- *
- * 두 줄은 각자 자기 이름을 단다 — 맨 숫자 `5개` 하나로는 무엇을 센 5인지 칸이 말해 주지
- * 않았다. `최근 조회` 는 최신 성공 실행이 찾아낸 논리 DB 수(latest-results), `제외` 는 그중
- * 정책으로 빼 둔 수다.
+ * 잎이 이름을 들고 나니 칸 안의 인라인 라벨(`최근 조회` · `제외`)은 같은 말을 두 번 하는
+ * 것이 되어 뺐다. `최근 조회` 가 말하던 "어느 회차인가"는 사라지지 않았다 — 그룹 머리의
+ * 툴팁이 "대상은 최근 연결 테스트가 찾아낸 논리 DB 수"라고 말하고, 이 화면이 읽는 회차가
+ * 정확히 그 최신 실행(`scope: 'latest'`)이다.
  */
-function LdbCell({
+function LdbCountCell({
   row,
-  label,
+  tab,
   verdict,
   loading,
-  onOpen,
 }: {
   row: TcResultRow | undefined;
-  /** 이 행의 정체 — 접힌 리전은 리전 id, 그 외는 리소스 이름. 버튼 이름표가 쓴다. */
-  label: string;
+  tab: LdbTab;
   verdict: TcVerdict | undefined;
   /** 최신 실행 조회가 아직 안 끝났다 — 건수가 없는 것과 다르다. */
   loading: boolean;
-  onOpen: () => void;
 }): ReactElement {
-  const included = ldbCount(row, 'inc', verdict);
-  const excluded = ldbCount(row, 'exc', verdict);
+  // 조회 중에 `—` 를 그리면 그 자리에서 —는 "보고가 없는 리소스"라는 판정을 뜻하게 된다
+  // (표의 문법이 그렇다) — 아직 물어보는 중에는 자리만 잡아 둔다. 막대 폭은 정착 후 들어설
+  // 값(`12개` ≈ 34px)이다.
+  if (loading) {
+    return (
+      <span
+        className={cn(opsStyles.skeletonBar, 'inline-block h-3 w-[34px] align-middle')}
+        aria-hidden="true"
+      />
+    );
+  }
+  const value = ldbCount(row, tab, verdict);
+  if (value == null) return <Dash />;
+  // 수만 semibold — 이 열에서 눈이 찾는 것은 수다. 한때 16px 로 올려 봤지만 오너가 14px 로
+  // 되돌렸다(2026-08-25): 크기는 표의 규칙(글자 크기는 14px 하나)이 소유하고, 무게만으로도
+  // 수가 이웃 위로 올라선다.
   return (
-    <span className="flex items-center justify-between gap-2.5">
-      {/* 두 줄이 아니라 **작은 표** 하나다 (오너 2026-08-25: "2줄로 표현하니 조금
-          이상하다"). 라벨 길이가 다른 두 줄을 그냥 쌓으면 12 와 3 이 서로 다른 x 에 서서
-          비교가 안 되고, 같은 무게의 문장 둘이 목록처럼 읽힌다. 라벨 열과 수 열을 갈라 수를
-          오른쪽 끝에 맞추면(tabular-nums) 자릿수가 한 기둥에 서고, 칸 전체가 줄 둘이 아니라
-          한 덩어리로 읽힌다.
-
-          **이름은 판정과 무관하게 늘 선다** (오너 2026-08-26). 실패·대기·진행 중이면 예전
-          칸은 `—` 글자 하나로 오그라들었는데, 그러면 이 칸이 무엇을 셀 자리였는지가 사라져
-          제외 정책이 아예 없는 것처럼 읽힌다 — 정책은 실행이 만드는 것이 아니라 운영자가
-          쓴 것이고, 실행이 실패했다고 없어지지 않는다. 이제 칸의 뼈대(이름 둘)는 고정이고
-          국면이 바꾸는 것은 **수 열뿐**이다: 조회 중이면 막대, 보고가 없으면 `—`, 있으면 수. */}
-      <span className="grid grid-cols-[auto_auto] items-baseline gap-x-2 gap-y-0.5">
-        <LdbCount label="최근 조회" value={included} loading={loading} />
-        <LdbCount label="제외" value={excluded} loading={loading} />
-      </span>
-      <button
-        type="button"
-        onClick={onOpen}
-        // 행마다 반복되는 버튼은 자기 행을 이름표에 실어야 한다 — 열 줄짜리 표에서 같은
-        // 이름의 버튼 열 개는 스크린리더 사용자에게 구별되지 않는다. 같은 칸의 Credential·
-        // Pod 로그·펼침 버튼이 이미 그렇게 한다 ([[feedback_fixed_title_needs_meta_in_the_label]]).
-        aria-label={`${label} 연동 논리 DB 관리`}
-        className={opsStyles.manageLink}
-      >
-        관리 ↗
-      </button>
+    <span className="whitespace-nowrap text-[14px] font-semibold tabular-nums text-[var(--pl-text-strong)]">
+      {value}개
     </span>
   );
 }
 
 /**
- * 이름 붙은 건수 한 줄 — 격자의 두 칸(이름, 수)을 낸다.
+ * 관리 잎 — 건수와 무관하게 언제나 서는 문(위 각주).
  *
- * 이름은 언제나 있고 수만 국면을 탄다. 계약에서 두 필드가 각자 optional 이라 한쪽만 실린
- * 응답이 올 수 있는데, 그때도 없는 쪽을 0 으로 지어내지 않고 `—`(보고 없음)로 둔다.
+ * 어휘도 픽셀도 IDC 표의 관리 잎 그대로다(`관리하기` · `idcStyles.triggerBtn.rowAction`):
+ * 같은 그룹 머리 아래 같은 자리에 있는 같은 문이 두 화면에서 다른 낱말을 쓸 이유가 없다.
+ * 예전의 `관리 ↗` 는 행 hover 에서만 opacity 로 드러나는 문이었다 — 칸 오른쪽 끝에 얹힌
+ * 입구라 상시로 서면 표에서 가장 시끄러운 것이 되기 때문이었다. 잎이 제 열을 가지면 그
+ * 계산이 뒤집힌다: 감춘 문은 열 하나를 통째로 비워 두는 것이라, 문은 이제 상시로 선다.
  */
-function LdbCount({
+function LdbManageCell({
   label,
-  value,
-  loading,
+  onOpen,
 }: {
+  /** 이 행의 정체 — 접힌 리전은 리전 id, 그 외는 리소스 이름. 버튼 이름표가 쓴다. */
   label: string;
-  value: number | null;
-  loading: boolean;
+  onOpen: () => void;
 }): ReactElement {
   return (
-    <>
-      <span className="whitespace-nowrap text-[14px] text-[var(--pl-text-weak)]">{label}</span>
-      {/* 수만 semibold — 이 칸에서 눈이 찾는 것은 이름이 아니라 수다. 한때 16px 로 올려
-          봤지만 오너가 14px 로 되돌렸다(2026-08-25): 크기는 표의 규칙(글자 크기는 14px
-          하나)이 소유하고, 무게만으로도 수가 이름 위로 올라선다. */}
-      <span className="whitespace-nowrap text-right text-[14px] font-semibold tabular-nums text-[var(--pl-text-strong)]">
-        {/* 조회 중에 `—` 를 그리면 그 자리에서 —는 "보고가 없는 리소스"라는 판정을 뜻하게
-            된다(표의 문법이 그렇다) — 아직 물어보는 중에는 자리만 잡아 둔다. 막대 폭은
-            정착 후 들어설 값(`12개` ≈ 34px)이다. */}
-        {loading ? (
-          <span
-            className={cn(opsStyles.skeletonBar, 'inline-block h-3 w-[34px] align-middle')}
-            aria-hidden="true"
-          />
-        ) : value == null ? (
-          <Dash />
-        ) : (
-          `${value}개`
-        )}
-      </span>
-    </>
+    <button
+      type="button"
+      onClick={onOpen}
+      // 행마다 반복되는 버튼은 자기 행을 이름표에 실어야 한다 — 열 줄짜리 표에서 같은
+      // 이름의 버튼 열 개는 스크린리더 사용자에게 구별되지 않는다. 같은 행의 Credential·
+      // Pod 로그·펼침 버튼이 이미 그렇게 한다 ([[feedback_fixed_title_needs_meta_in_the_label]]).
+      aria-label={`${label} 연동 논리 DB 관리하기`}
+      className={idcStyles.triggerBtn.rowAction}
+    >
+      관리하기
+    </button>
   );
 }
 
@@ -739,7 +773,7 @@ export function ConfirmedInfoCard({
               사실이 아니고, 그 둘까지 풀면 10열이 되어 #729 가 접었던 폭 문제로 되돌아간다
               (docs/ux/benchmark/tc-confirmed-columns.md). */}
           <div className={TABLE_FRAME}>
-            <ConsoleTable columns={columns} resize={resize} busy={tcLoading}>
+            <ConsoleTable columns={columns} groups={LDB_GROUPS} resize={resize} busy={tcLoading}>
               <tbody className={idcStyles.table.body}>
                 {pageUnits.length === 0 && (
                   <tr>
@@ -855,12 +889,17 @@ export function ConfirmedInfoCard({
                           }
                         />
                       </td>
+                      {/* 연동 논리 DB 그룹의 세 잎 — 값 둘과 문 하나. 문은 건수를 기다리지
+                          않는다(LdbCountCell 각주의 "문은 언제나 열려 있다"). */}
                       <td className={CELL}>
-                        <LdbCell
-                          row={tc}
+                        <LdbCountCell row={tc} tab="inc" verdict={verdict} loading={tcLoading} />
+                      </td>
+                      <td className={CELL}>
+                        <LdbCountCell row={tc} tab="exc" verdict={verdict} loading={tcLoading} />
+                      </td>
+                      <td className={CELL}>
+                        <LdbManageCell
                           label={unit.folded ? unit.unitId : rowLabel(row)}
-                          verdict={verdict}
-                          loading={tcLoading}
                           onOpen={openLdb}
                         />
                       </td>

@@ -525,10 +525,10 @@ export const opsStyles = {
    * `--pl-info` 가 2.94 로 3:1 을 **못 넘어서**(실측) 같은 계열의 다음 칸
    * `--pl-info-text`(5.43)가 진다.
    *
-   * 자리는 늘 잡혀 있고 `opacity` 로만 나타난다 (`manageLink` 와 같은 수법) — TC
-   * 응답은 마스트헤드보다 늦게 도착하는데, 이 점은 라벨 옆 **흐름 안**에 있어서
-   * `display` 로 끼어들면 그때마다 오른쪽 탭들의 x 가 밀린다. 코너 점(`tabCorner`)이
-   * 예약 없이 그냥 나타나도 되는 것은 그쪽이 흐름 밖이기 때문이다.
+   * 자리는 늘 잡혀 있고 `opacity` 로만 나타난다 — 즉 점은 항상 렌더되고 보이지 않는
+   * 동안에도 제 폭을 차지한다. TC 응답은 마스트헤드보다 늦게 도착하는데, 이 점은 라벨 옆
+   * **흐름 안**에 있어서 `display` 로 끼어들면 그때마다 오른쪽 탭들의 x 가 밀린다.
+   * 코너 점(`tabCorner`)이 예약 없이 그냥 나타나도 되는 것은 그쪽이 흐름 밖이기 때문이다.
    */
   tabDot: 'h-2 w-2 flex-none rounded-full transition-opacity',
   tabDotFail: 'bg-[var(--pl-err-solid)]',
@@ -578,31 +578,6 @@ export const opsStyles = {
       mean state, because this link repeats once per row. */
   countLink:
     'inline-flex cursor-pointer items-center border-b border-current pb-px text-[14px] font-semibold tabular-nums text-[var(--pl-text-medium)] transition-colors hover:text-[var(--pl-text-strong)]',
-
-  /**
-   * 칸 오른쪽 끝의 관리 입구 (오너 2026-08-25). `countLink` 와 다른 물건이다: 저쪽은 **값이
-   * 곧 트리거**라 밑줄이 affordance 를 지지만, 이 링크는 값이 아니라 행위라 옆에 세울 값이
-   * 없다. 대신 화살표가 "여기서 끝나지 않고 다른 화면으로 간다"를 말하고, 파랑은 hover
-   * 에서만 든다 — 행마다 반복되는 링크가 상시로 파랗면 표에서 가장 시끄러운 것이 된다.
-   *
-   * 평소엔 **없다** (오너 2026-08-25). 행마다 반복되는 링크가 상시로 서 있으면 표에서
-   * 가장 시끄러운 것이 되는데, 이 칸이 늘 말해야 하는 것은 건수지 입구가 아니다. 행에 눈이
-   * 가는 순간 그 행이 무엇을 할 수 있는지 파랑으로 함께 켜진다 — 같은 행의 Credential 값도
-   * 같이 켜지므로 두 입구가 한 제스처에 답한다.
-   *
-   * 사라지는 것은 `opacity` 지 자리가 아니다 — `hidden` 이면 hover 마다 건수 두 줄이 옆으로
-   * 밀린다. 그리고 `focus-visible` 에서도 켜진다: 키보드로 온 사람에게 안 보이는 버튼에
-   * 포커스가 서면 그 정거장은 사라진 것이나 같다.
-   *
-   * 그룹은 이름 있는 그룹이다(`/row`, `idcStyles.table.row` 가 선언). 맨 `group-hover` 는
-   * 조상 중 아무 `group` 에나 걸려 표 바깥의 group 에서도 샌다
-   * ([[feedback_bare_group_hover_leaks]]).
-   *
-   * 바탕 잉크 `--pl-text-medium` 10.46:1, `--pl-primary` 는 흰 면 5.17:1 · 행 hover 틴트
-   * 4.95:1 로 두 상태 모두 4.5:1 을 넘는다(실측).
-   */
-  manageLink:
-    'inline-flex flex-none cursor-pointer items-center whitespace-nowrap text-[14px] font-semibold text-[var(--pl-text-medium)] opacity-0 transition-[color,opacity] group-hover/row:opacity-100 group-hover/row:text-[var(--pl-primary)] hover:text-[var(--pl-primary)] focus-visible:opacity-100',
 
   /** In-cell text action that opens an editor — the Credential cell. A select box
       per row turns the table into a toolbar and buries the value inside a control,
@@ -768,6 +743,21 @@ export const opsStyles = {
     counts: 'flex items-center gap-3 text-[12px] font-medium tabular-nums text-[var(--pl-text-weak)]',
     countSeg: 'flex items-center gap-1.5',
     countValue: 'text-[14px] font-bold tabular-nums',
+    /**
+     * 실행 밴드의 카운트 줄만 입는 활자 — 라벨 14 / 수 16 (오너 2026-08-27). Step 5 카드가
+     * 같은 줄을 같은 두 값으로 그리고(`idcStyles.connProgress.countList`·`countValue`), 이
+     * 밴드는 그 줄을 이식한 것이라 같이 움직인다.
+     *
+     * ⛔ `counts`·`countValue` 자체를 올리지 않는다. 그 둘은 모니터링 근거 줄
+     * (`MonitoringEvidenceBody` 의 논리 DB 성공/확인 필요)도 같이 입는데, 그 줄은 실행의
+     * 판정이 아니라 카드 본문에 딸린 집계라 12/14 에 남는다(오너가 범위를 그렇게 그었다).
+     *
+     * `counts` 를 통째로 **대신** 한다 — 크기만 덧대면 한 엘리먼트에 text-[12px] 와
+     * text-[14px] 가 같이 서고, `cn` 은 plain join 이라 승자를 Tailwind 의 emit 순서가
+     * 정한다. 나머지 선언은 `counts` 와 글자 그대로 같은 값이다.
+     */
+    countsRow: 'flex items-center gap-3 text-[14px] font-medium tabular-nums text-[var(--pl-text-weak)]',
+    countValueRow: 'text-[16px] font-bold tabular-nums',
     countDot: 'h-2 w-2 rounded-full flex-shrink-0',
     countDotOk: 'bg-[var(--pl-ok)]',
     countDotFail: 'bg-[var(--pl-err)]',

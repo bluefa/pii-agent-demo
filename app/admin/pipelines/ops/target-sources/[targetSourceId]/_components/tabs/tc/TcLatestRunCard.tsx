@@ -420,12 +420,12 @@ export function TcLatestRunCard({
           )}
 
           <div className={cn('flex items-center justify-between gap-3', showTrack && 'mt-[9px]')}>
-            <span className={b.counts}>
+            <span className={b.countsRow}>
               {counts.map((part) => (
                 <span key={part.label} className={b.countSeg}>
                   <span className={cn(b.countDot, part.dot)} />
                   {part.label}
-                  <b className={cn(b.countValue, part.ink)}>{part.value}</b>
+                  <b className={cn(b.countValueRow, part.ink)}>{part.value}</b>
                 </span>
               ))}
             </span>

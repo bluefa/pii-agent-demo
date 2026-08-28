@@ -15,6 +15,13 @@ import { IDC_SOURCE_LABEL } from '@/lib/constants/idc';
  * 않으므로 픽셀로는 못 잡고, 칸 수를 세는 이 단언만이 잡는다.
  */
 vi.mock('@/app/lib/api', () => ({ updateResourceCredential: vi.fn() }));
+// 관리 문이 **열린다**는 단언이 모달을 실제로 띄운다 — 그 모달은 뜨자마자 두 목록을 부른다.
+// 여기서 재는 것은 문이지 목록이 아니므로, 두 조회는 비어 있는 답으로 잠재운다.
+vi.mock('@/app/lib/api/logical-db', () => ({
+  getTestedLogicalDatabases: vi.fn(async () => []),
+  getExcludedLogicalDatabases: vi.fn(async () => []),
+  updateExcludedLogicalDatabases: vi.fn(async () => undefined),
+}));
 
 const ATHENA_REGION = 'athena:1:ap-northeast-1/AwsDataCatalog';
 
@@ -88,8 +95,34 @@ const renderTable = (
 const spanOf = (row: HTMLTableRowElement): number =>
   [...row.querySelectorAll('td')].reduce((sum, cell) => sum + (cell.colSpan || 1), 0);
 
-const headerLabels = (): string[] =>
-  [...document.querySelectorAll('thead th')].map((th) => (th.textContent ?? '').trim());
+/**
+ * 열 이름 — **본문 칸이 서는 순서**로.
+ *
+ * 머리가 두 tier 라 DOM 순서는 열 순서가 아니다: 첫 `<tr>` 이 그룹 밖 열들과 그룹 머리 한
+ * 칸을 싣고, 잎 셋은 두 번째 `<tr>` 에 따로 있다. 그대로 이어 붙이면 잎이 표 끝으로 밀려
+ * "열 순서" 단언이 본문과 어긋난 것을 재게 된다. 그룹 머리 자리에 그 잎들을 도로 끼워
+ * 넣어야 `<td>` 가 실제로 서는 순서가 나온다.
+ */
+const headerLabels = (): string[] => {
+  const tiers = [...document.querySelectorAll('thead tr')];
+  const top = [...(tiers[0]?.querySelectorAll('th') ?? [])];
+  const leaves = [...(tiers[1]?.querySelectorAll('th') ?? [])];
+  let next = 0;
+  return top.flatMap((th) => {
+    if (th.getAttribute('scope') !== 'colgroup') return [(th.textContent ?? '').trim()];
+    const span = (th as HTMLTableCellElement).colSpan;
+    const mine = leaves.slice(next, next + span);
+    next += span;
+    return mine.map((leaf) => (leaf.textContent ?? '').trim());
+  });
+};
+
+/** 위 tier 의 그룹 머리들 — 라벨과 덮는 열 수. */
+const headerGroups = (): { label: string; span: number }[] =>
+  [...document.querySelectorAll('thead th[scope="colgroup"]')].map((th) => ({
+    label: (th.getAttribute('aria-label') ?? '').trim(),
+    span: (th as HTMLTableCellElement).colSpan,
+  }));
 
 describe('확정 정보 표 — 열 구성', () => {
   // 오너가 못 박은 척추 다섯(정체 둘 → 판정 → 규모 → Credential)은 붙어 있어야 하고,
@@ -100,7 +133,9 @@ describe('확정 정보 표 — 열 구성', () => {
       'Resource Name',
       'Resource ID',
       '연결 상태',
-      '연동 논리 DB',
+      '대상',
+      '제외',
+      '관리',
       'Credential',
       'Database Type',
       'Region',
@@ -119,7 +154,9 @@ describe('확정 정보 표 — 열 구성', () => {
       'Port',
       'Database Type',
       '연결 상태',
-      '연동 논리 DB',
+      '대상',
+      '제외',
+      '관리',
       'Credential',
       IDC_SOURCE_LABEL,
     ]);
@@ -151,7 +188,9 @@ describe('확정 정보 표 — 열 구성', () => {
       'Port',
       'Database Type',
       '연결 상태',
-      '연동 논리 DB',
+      '대상',
+      '제외',
+      '관리',
       'Credential',
       IDC_SOURCE_LABEL,
     ]);
@@ -159,7 +198,7 @@ describe('확정 정보 표 — 열 구성', () => {
     expect(cells[0].textContent).toContain('10.20.4.11');
     expect(cells[1].textContent?.trim()).toBe('3306');
     expect(cells[2].textContent).toContain('MySQL');
-    expect(cells[6].textContent).toContain('10.20.9.11');
+    expect(cells[8].textContent).toContain('10.20.9.11');
   });
 
   it('펼친 리전의 자식 행도 열 수를 정확히 채운다 — 한 칸 밀리면 값이 남의 열로 간다', () => {
@@ -226,6 +265,34 @@ describe('확정 정보 표 — 실패 사유', () => {
 });
 
 /**
+ * 연동 논리 DB 는 그룹 머리 하나 아래 잎 셋이다 (오너 2026-08-28, 안 A).
+ *
+ * IDC 5단계가 쓰는 그 문법 그대로다 — 카테고리 이름은 위 tier 가 한 번 말하고, 잎은
+ * `대상`·`제외`·`관리` 한 마디씩 든다. 그룹이 풀리면(콜스팬을 잃거나 잎이 카테고리 이름을
+ * 되풀이하면) 잎 이름 셋만으로는 무엇을 센 수인지 표가 말하지 못한다.
+ */
+describe('확정 정보 표 — 연동 논리 DB 그룹', () => {
+  it.each([false, true])('그룹 머리가 잎 셋을 덮는다 (isIdc=%s)', (isIdc) => {
+    renderTable(isIdc);
+    expect(headerGroups()).toEqual([{ label: '연동 논리 DB', span: 3 }]);
+    // 잎 셋은 그 그룹 바로 아래에, 이 순서로 붙어 선다.
+    const leaves = headerLabels();
+    const at = leaves.indexOf('대상');
+    expect(at).toBeGreaterThan(-1);
+    expect(leaves.slice(at, at + 3)).toEqual(['대상', '제외', '관리']);
+  });
+
+  /** 두 수의 관계는 그룹 머리의 툴팁이 든다 — 손으로 베낀 두 번째 툴팁이 아니라
+   *  `LogicalDbGroupHeader` 공용 컴포넌트다(IDC·클라우드 표와 같은 문구). */
+  it('그룹 머리가 두 수의 관계를 설명한다', () => {
+    renderTable();
+    const marker = screen.getByLabelText('연동 논리 DB 설명');
+    fireEvent.mouseEnter(marker.parentElement as HTMLElement);
+    expect(screen.getByText(/두 수를 더해도 전체가 되지 않아요/)).toBeTruthy();
+  });
+});
+
+/**
  * 논리 DB 관리 화면으로 가는 문은 언제나 열려 있다 (오너 2026-08-25).
  *
  * 건수는 최신 실행이 성공했을 때만 오는 사실이라, 예전 칸은 실행이 실패했거나 아직 안 돈
@@ -233,23 +300,32 @@ describe('확정 정보 표 — 실패 사유', () => {
  * 정책은 실행이 말해 주는 것이 아니라 운영자가 쓰는 것이고, 모달은 자기 엔드포인트에서
  * 목록을 직접 읽어 오므로 판정과 무관하게 열 수 있다.
  *
- * 조용히 깨지는 갈래가 둘이라 둘 다 문다: 무보고(건수 없음)와 **보고된 0**. 0 건인 리소스
- * 야말로 제외 정책을 봐야 하는 리소스인데, 예전에는 "열 것이 없다"며 글자로 남았다.
+ * 문이 **자기 잎**을 갖는 것이 오너가 안 A 를 고른 이유다 — 건수가 곧 문이던 안 B 는
+ * 건수가 `—` 인 행에서 문을 통째로 지운다. 조용히 깨지는 갈래가 셋이라 셋 다 문다:
+ * 무보고(건수 없음) · **보고된 0** · 조회 중.
  */
 describe('확정 정보 표 — 논리 DB 관리 문', () => {
-  const ldbCells = (container: HTMLElement): (HTMLTableCellElement | undefined)[] =>
-    [...container.querySelectorAll('tbody tr')].map((row) => row.querySelectorAll('td')[3]);
+  /** 한 행의 연동 논리 DB 세 칸 — 대상·제외·관리. */
+  const ldbCells = (
+    container: HTMLElement,
+  ): { inc?: HTMLTableCellElement; exc?: HTMLTableCellElement; manage?: HTMLTableCellElement }[] =>
+    [...container.querySelectorAll('tbody tr')].map((row) => {
+      const tds = row.querySelectorAll('td');
+      return { inc: tds[3], exc: tds[4], manage: tds[5] };
+    });
 
   it('판정이 무엇이든 행마다 관리 링크가 하나씩 서고, 이름표가 서로 다르다', () => {
     const { container } = renderTable();
     const cells = ldbCells(container);
     expect(cells.length).toBeGreaterThan(0);
-    const doors = screen.getAllByRole('button', { name: /연동 논리 DB 관리$/ });
+    const doors = screen.getAllByRole('button', { name: /연동 논리 DB 관리하기$/ });
     expect(doors).toHaveLength(cells.length);
     // 같은 이름의 버튼 여럿은 스크린리더에서 구별되지 않는다 — 행 정체가 이름표에 있어야
     // 한다. 이름표를 고정 문자열로 되돌리면 이 집합이 1 로 줄어 빨개진다.
     const names = new Set(doors.map((el) => el.getAttribute('aria-label')));
     expect(names.size).toBe(cells.length);
+    // 문은 자기 잎에 산다 — 건수 칸이 아니라 관리 칸이다.
+    for (const cell of cells) expect(cell.manage?.querySelector('button')).toBeTruthy();
   });
 
   it('보고된 0개도 문이 있다 — 0건인 리소스야말로 제외 정책을 본다', () => {
@@ -261,19 +337,17 @@ describe('확정 정보 표 — 논리 DB 관리 문', () => {
       new Map([[rows[0].resource_id, { verdict: 'SUCCESS', podId: null, failReason: null }]]),
       zero,
     );
-    // 이름·수·단위가 각자 span 이라(무게가 수에만 붙는다) textContent 에는 공백이 없다.
     const cell = ldbCells(container)[0];
-    const flat = (cell?.textContent ?? '').replace(/\s+/g, '');
-    expect(flat).toContain('최근조회0개');
-    expect(flat).toContain('제외3개');
-    expect(cell?.querySelector('button')?.textContent).toContain('관리');
+    expect(cell.inc?.textContent?.trim()).toBe('0개');
+    expect(cell.exc?.textContent?.trim()).toBe('3개');
+    expect(cell.manage?.querySelector('button')?.textContent).toContain('관리하기');
   });
 
   /**
-   * 값과 행위는 갈라져 있다 (오너 2026-08-25). 건수를 다시 트리거로 만들면 칸에 문이 둘이
-   * 되고 — "어느 쪽을 눌러야 하나" — `—` 도 다시 링크로 위장하게 된다.
+   * 값과 행위는 갈라져 있다 (오너 2026-08-25). 건수를 다시 트리거로 만들면 방 하나에 문이
+   * 둘이 되고 — "어느 쪽을 눌러야 하나" — `—` 도 다시 링크로 위장하게 된다.
    */
-  it('건수는 눌리지 않는다 — 칸의 유일한 버튼은 관리다', () => {
+  it('건수는 눌리지 않는다 — 이 그룹의 유일한 버튼은 관리 잎에 있다', () => {
     const counted: TcResultRow[] = [
       { resourceId: rows[0].resource_id, includedCount: 5, excludedCount: 2 },
     ];
@@ -283,42 +357,39 @@ describe('확정 정보 표 — 논리 DB 관리 문', () => {
       counted,
     );
     const cell = ldbCells(container)[0];
-    const buttons = [...(cell?.querySelectorAll('button') ?? [])];
-    expect(buttons).toHaveLength(1);
-    expect(buttons[0].textContent).toContain('관리');
-    // 이름은 이제 행마다 있으므로 전역 조회로는 못 집는다 — 이 칸 안에서 찾는다.
-    const label = [...(cell?.querySelectorAll('span') ?? [])].find(
-      (el) => el.textContent === '최근 조회',
-    );
-    expect(label).toBeTruthy();
-    expect(label?.closest('button')).toBeNull();
-  });
-
-  it('보고가 없으면 건수 자리는 —로 남는다 — 링크로 위장하지 않는다', () => {
-    const { container } = renderTable();
-    expect(ldbCells(container)[0]?.textContent).toContain('—');
+    expect(cell.inc?.querySelectorAll('button')).toHaveLength(0);
+    expect(cell.exc?.querySelectorAll('button')).toHaveLength(0);
+    expect(cell.manage?.querySelectorAll('button')).toHaveLength(1);
   });
 
   /**
-   * 이름은 판정과 무관하게 늘 선다 (오너 2026-08-26). 실패·대기·진행 중에 칸이 `—` 하나로
-   * 오그라들면 이 칸이 무엇을 셀 자리였는지가 사라져, 제외 정책이 아예 없는 것처럼 읽힌다.
-   * 정책은 실행이 만드는 것이 아니라 운영자가 쓴 것이라 실행이 실패해도 남아 있고,
-   * 그래서 그 자리를 여는 문도 남아 있어야 한다.
+   * ⛔ 이 라운드의 핵심 불변식 (오너 2026-08-25 "문은 언제나 열려 있다"): 건수가 `—` 인
+   * 행에도 문이 서고, 눌린다. 안 B(건수가 곧 문)가 기각된 이유가 정확히 이것이다.
    */
   it.each(['FAIL', 'PENDING', 'RUNNING'] as const)(
-    '%s 에서도 두 이름과 관리 문이 모두 선다',
-    (verdict) => {
+    '%s — 건수가 —인 행에도 관리 문이 서고 눌린다',
+    async (verdict) => {
       const { container } = renderTable(
         false,
         new Map([[rows[0].resource_id, { verdict, podId: null, failReason: null }]]),
       );
       const cell = ldbCells(container)[0];
-      const flat = (cell?.textContent ?? '').replace(/\s+/g, '');
-      expect(flat).toContain('최근조회');
-      expect(flat).toContain('제외');
-      expect(cell?.querySelector('button')?.textContent).toContain('관리');
+      expect(cell.inc?.textContent).toContain('—');
+      expect(cell.exc?.textContent).toContain('—');
+      const door = cell.manage?.querySelector('button');
+      expect(door).toBeTruthy();
+      expect(door?.textContent).toContain('관리하기');
+      expect(door?.hasAttribute('disabled')).toBe(false);
+      // 열린다는 것은 모달이 실제로 뜬다는 뜻이다 — 렌더된 문만으로는 죽은 문과 구별되지 않는다.
+      fireEvent.click(door as HTMLElement);
+      expect(await screen.findByRole('dialog')).toBeTruthy();
     },
   );
+
+  it('보고가 없으면 건수 자리는 —로 남는다 — 링크로 위장하지 않는다', () => {
+    const { container } = renderTable();
+    expect(ldbCells(container)[0].inc?.textContent).toContain('—');
+  });
 });
 
 /**
@@ -353,8 +424,8 @@ describe('확정 정보 표 — 연결 상태 로딩', () => {
     expect(container.querySelector('table')?.getAttribute('aria-busy')).toBe('true');
   });
 
-  /** 논리 DB 칸도 같은 규칙이다 (오너 2026-08-25) — 그리고 문은 이 조회를 안 기다린다. */
-  it('논리 DB 칸도 조회 중에는 자리를 잡아 두고, 관리 링크는 그대로 선다', () => {
+  /** 논리 DB 잎도 같은 규칙이다 (오너 2026-08-25) — 그리고 문은 이 조회를 안 기다린다. */
+  it('논리 DB 건수 잎도 조회 중에는 자리를 잡아 두고, 관리 잎은 그대로 선다', () => {
     const { container } = render(
       <ConfirmedInfoCard
         targetSourceId={1}
@@ -370,14 +441,15 @@ describe('확정 정보 표 — 연결 상태 로딩', () => {
         onReload={vi.fn()}
       />,
     );
-    const cells = [...container.querySelectorAll('tbody tr')].map(
-      (row) => row.querySelectorAll('td')[3],
-    );
-    expect(cells.length).toBeGreaterThan(0);
-    for (const cell of cells) {
-      expect(cell?.querySelector('.animate-pulse')).toBeTruthy();
-      expect(cell?.textContent).not.toContain('—');
-      expect(cell?.querySelector('button')?.textContent).toContain('관리');
+    const bodyRows = [...container.querySelectorAll('tbody tr')];
+    expect(bodyRows.length).toBeGreaterThan(0);
+    for (const row of bodyRows) {
+      const tds = row.querySelectorAll('td');
+      for (const count of [tds[3], tds[4]]) {
+        expect(count?.querySelector('.animate-pulse')).toBeTruthy();
+        expect(count?.textContent).not.toContain('—');
+      }
+      expect(tds[5]?.querySelector('button')?.textContent).toContain('관리하기');
     }
   });
 });
@@ -392,6 +464,18 @@ describe('확정 정보 표 — 연결 상태 로딩', () => {
  */
 const SIZE = /^text-\[\d+px\]$|^text-(xs|sm|base|lg|xl|2xl)$/;
 
+/**
+ * 예외 둘째 — 그룹 머리 칸(`consoleGroupHeaderCell`)의 12px.
+ *
+ * 14px 규칙이 소유하는 것은 **표의 글자**다. 그룹 머리는 값도 열 이름도 아니라 열 여럿을
+ * 덮는 한 단 위의 크롬이고, 그 12px 는 잎보다 한 단 위라는 계급을 크기로 말하려고 오너가
+ * 2026-08-27 에 못 박은 값이다(무게 하나로는 얇다). IDC·클라우드 표가 이미 같은 짝
+ * (14px 잎 아래 12px 그룹 머리)을 싣는다 — 여기서만 14 로 올리면 세 표가 갈라진다.
+ *
+ * 예외는 **그 칸에서만** 산다: 다른 곳으로 새는 12px 는 아래 단언이 그대로 잡는다.
+ */
+const GROUP_HEAD_SELECTOR = 'thead th[scope="colgroup"]';
+
 describe('확정 정보 표 — 활자 크기', () => {
 
   /** 온프렘 가지도 같은 규칙이다 — `SourceIpHeader`·`HostCell` 은 남이 소유한 공유
@@ -399,11 +483,15 @@ describe('확정 정보 표 — 활자 크기', () => {
   it('IDC 가지도 14px 하나다', () => {
     const { container } = renderTable(true, new Map(), [], idcRows);
     const table = container.querySelector('table');
-    const painted = [...(table?.querySelectorAll('thead th, thead th *, tbody *') ?? [])];
+    const painted = [...(table?.querySelectorAll('thead th, thead th *, tbody *') ?? [])].filter(
+      (el) => !el.closest(GROUP_HEAD_SELECTOR),
+    );
     const declared = painted.flatMap((el) =>
       [...el.classList].filter((name) => SIZE.test(name)),
     );
     expect([...new Set(declared)]).toEqual(['text-[14px]']);
+    // 예외가 예외인 채로 남는지 — 그룹 머리는 12px 하나다.
+    expect(table?.querySelector(GROUP_HEAD_SELECTOR)?.classList.contains('text-[12px]')).toBe(true);
   });
 
   it('선언된 크기는 14px 하나 — 공유 종류 태그만 예외다', () => {
@@ -417,7 +505,7 @@ describe('확정 정보 표 — 활자 크기', () => {
     // 자기 크기로 덮는다(열마다 headClassName). 재는 것은 실제로 글자를 그리는 칸들이다.
     const painted = [
       ...(table?.querySelectorAll('thead th, thead th *, tbody *') ?? []),
-    ];
+    ].filter((el) => !el.closest(GROUP_HEAD_SELECTOR));
     const declared = painted.flatMap((el) =>
       [...el.classList].filter((name) => SIZE.test(name)),
     );
