@@ -181,12 +181,24 @@ export const ApplyingApprovedCard = ({ targetSourceId }: ApplyingApprovedCardPro
             The banner is gone; blue marks the status clause only. `cn` is a plain join, so the size
             is declared here rather than layered over cardStyles.subtitle. */}
         {loaded ? (
-          <p className={cn('mt-3', cardStyles.guidance)}>
-            <strong className={cn('font-semibold', primaryColors.text)}>승인이 완료됐어요.</strong>{' '}
-            Agent 설치에 필요한 준비를 최대한 빠르게 진행하고 있어요.
-          </p>
+          <>
+            <p className={cn('mt-3', cardStyles.guidance)}>
+              <strong className={cn('font-semibold', primaryColors.text)}>
+                제출한 연동 대상 DB가 승인 완료됐어요.
+              </strong>{' '}
+              PII Agent 설치에 필요한 준비를 진행하고 있어요.
+            </p>
+            {/* mt 없음 — 행간 여백(leading 1.55)만으로 문단을 가른다 (2·6단계 문법). */}
+            <p className={cardStyles.guidance}>평균 1일 이내(주말·공휴일 제외)에 완료돼요.</p>
+          </>
         ) : (
-          <div className={cn('mt-3 h-[25px] w-[520px] max-w-full rounded', idcStyles.skeletonBar)} />
+          /* 안내가 두 문단이 됐으니 스켈레톤도 두 줄이다 — 한 줄짜리 25px 바 하나만 두면
+             resolve 시점에 아래 메타 행이 한 줄(25px)만큼 밀린다. 줄 사이 간격은 없다:
+             25px 는 guidance 의 줄 상자(16px × 1.55)라 두 바가 맞닿아야 실제 높이가 된다. */
+          <div className="mt-3 flex flex-col">
+            <div className={cn('h-[25px] w-[520px] max-w-full rounded', idcStyles.skeletonBar)} />
+            <div className={cn('h-[25px] w-[270px] max-w-full rounded', idcStyles.skeletonBar)} />
+          </div>
         )}
         {loaded && (view.approvedAt || view.approver) && (
           <div className="mt-4 flex flex-wrap gap-8">

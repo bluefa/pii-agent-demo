@@ -99,18 +99,17 @@ export const IdcStep7Complete = ({
           </div>
           <p className={cn('mt-3', cardStyles.guidance)}>
             <strong className={cn('font-semibold', primaryColors.text)}>
-              모든 연동 절차가 완료되었어요.
-            </strong>{' '}
-            연동된 리소스의 PII 사용 가능성을 모니터링하고 있어요.
+              PII Agent 연동 절차가 완료되었어요.
+            </strong>
           </p>
           {/* One sentence for the rewind CTAs (step-6 grammar); the step each one lands on
               is the action bar hint's job. */}
           <p className={cardStyles.guidance}>
-            인프라 구성이 바뀌었다면 하단{' '}
+            PII Agent 연동 대상 인프라가 바뀌었다면{' '}
             <strong className={cn('font-semibold', textColors.secondary)}>인프라 변경</strong>을,
             연결 상태를 다시 점검하고 싶다면{' '}
             <strong className={cn('font-semibold', textColors.secondary)}>연결 테스트 재실행</strong>
-            을 눌러주세요.
+            을 눌러 연동 절차를 다시 진행할 수 있어요.
           </p>
         </header>
         <div className={cardStyles.body}>

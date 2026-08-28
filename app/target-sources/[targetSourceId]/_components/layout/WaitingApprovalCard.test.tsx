@@ -117,9 +117,9 @@ describe('WaitingApprovalCard', () => {
 
     expect(await screen.findByText('연동 대상 승인 대기')).toBeTruthy();
     expect(screen.getByText('승인 대기')).toBeTruthy();
-    expect(screen.getByText('관리자 승인을 기다리고 있어요.')).toBeTruthy();
-    expect(screen.getByText(/평균 1영업일 내 검토되며/)).toBeTruthy();
-    expect(screen.getByText(/연동 대상을 다시 고르고 싶다면/)).toBeTruthy();
+    expect(screen.getByText('관리자가 제출된 연동 대상 DB를 확인하고 있어요.')).toBeTruthy();
+    expect(screen.getByText(/평균 1일 이내\(주말·공휴일 제외\)에 확인이 완료되며/)).toBeTruthy();
+    expect(screen.getByText(/제출한 연동 대상 DB 정보를 수정하고 싶다면/)).toBeTruthy();
 
     await waitFor(() => {
       expect(screen.getByText('mysql-prod-01')).toBeTruthy();
@@ -387,7 +387,7 @@ describe('WaitingApprovalCard', () => {
     );
     expect(screen.getByText('처리자').nextElementSibling?.textContent).toBe('관리자');
     // The waiting copy must be gone.
-    expect(screen.queryByText('관리자 승인을 기다리고 있어요.')).toBeNull();
+    expect(screen.queryByText('관리자가 제출된 연동 대상 DB를 확인하고 있어요.')).toBeNull();
 
     // The targets become a collapsed record, not the open worklist the pending state shows.
     const record = document.querySelector('details');
@@ -483,7 +483,7 @@ describe('WaitingApprovalCard', () => {
     await waitFor(() => {
       expect(screen.getByText('연동 대상 승인 대기')).toBeTruthy();
     });
-    expect(screen.getByText('관리자 승인을 기다리고 있어요.')).toBeTruthy();
+    expect(screen.getByText('관리자가 제출된 연동 대상 DB를 확인하고 있어요.')).toBeTruthy();
     expect(screen.queryByText('반려 사유')).toBeNull();
   });
 });

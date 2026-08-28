@@ -125,8 +125,8 @@ describe('InstallationCompleteStep', () => {
     expect(screen.getByText('7단계')).toBeTruthy();
     expect(screen.getByRole('heading', { level: 2, name: 'PII 모니터링 모듈 연동' })).toBeTruthy();
     expect(screen.getByText('연동 완료')).toBeTruthy();
-    expect(screen.getByText(/연동된 리소스의 PII 사용 가능성을 모니터링하고 있어요/)).toBeTruthy();
-    expect(screen.getByText(/인프라 구성이 바뀌었다면 하단/)).toBeTruthy();
+    expect(screen.getByText('PII Agent 연동 절차가 완료되었어요.')).toBeTruthy();
+    expect(screen.getByText(/PII Agent 연동 대상 인프라가 바뀌었다면/)).toBeTruthy();
   });
 
   it('mounts the ConfirmedResourcesSlot (steps 6·7 shared table)', () => {
@@ -174,7 +174,7 @@ describe('InstallationCompleteStep', () => {
     providerState = { status: 'ready', data: [] };
     renderStep();
     fireEvent.click(screen.getByRole('button', { name: /연결 테스트 재실행/ }));
-    expect(screen.getByText('연결을 다시 확인할까요?')).toBeTruthy();
+    expect(screen.getByText('연결 테스트를 다시 실행할까요?')).toBeTruthy();
   });
 
 

@@ -285,9 +285,12 @@ export const WaitingApprovalCard = ({
             `cn` is a plain join, so stacking a size over the subtitle token leaves the winner to CSS
             order — declare the size here instead. */}
         {!resolved ? (
-          <div className="mt-3 flex flex-col gap-2">
-            <div className={cn(idcStyles.skeletonBar, 'h-4 w-[420px] rounded')} />
-            <div className={cn(idcStyles.skeletonBar, 'h-4 w-[300px] rounded')} />
+          /* 안내가 두 문단이니 스켈레톤도 두 줄이다 — 줄 사이 간격은 없다: 25px 는 guidance 의
+             줄 상자(16px × 1.55)라 두 바가 맞닿아야 실제 높이(mt-3 + 50px)가 된다. 16px 바를
+             8px 띄우던 앞 판은 40px 이라, resolve 때 아래 행이 10px 밀렸다. */
+          <div className="mt-3 flex flex-col">
+            <div className={cn(idcStyles.skeletonBar, 'h-[25px] w-[520px] max-w-full rounded')} />
+            <div className={cn(idcStyles.skeletonBar, 'h-[25px] w-[300px] max-w-full rounded')} />
           </div>
         ) : rejected ? (
           <RejectionVerdict
@@ -300,13 +303,14 @@ export const WaitingApprovalCard = ({
           <>
             <p className={cn('mt-3', cardStyles.guidance)}>
               <strong className={cn('font-semibold', primaryColors.text)}>
-                관리자 승인을 기다리고 있어요.
+                관리자가 제출된 연동 대상 DB를 확인하고 있어요.
               </strong>{' '}
-              평균 1영업일 내 검토되며, 결과는 이 화면에서 확인할 수 있어요.
+              평균 1일 이내(주말·공휴일 제외)에 확인이 완료되며, 이슈가 없으면 다음 단계로 넘어가요.
+              반려된 경우, 사유를 확인한 후 다시 제출해주세요.
             </p>
             {/* mt 없음 — 행간 여백(leading 1.55)만으로 문단을 가른다 (기존 mt-1에서 −4px). */}
             <p className={cardStyles.guidance}>
-              연동 대상을 다시 고르고 싶다면 우측 상단{' '}
+              제출한 연동 대상 DB 정보를 수정하고 싶다면{' '}
               <strong className={cn('font-semibold', textColors.secondary)}>다시 요청하기</strong>를
               눌러주세요.
             </p>

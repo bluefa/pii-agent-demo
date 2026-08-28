@@ -20,7 +20,6 @@ import {
   type TcRunPhase,
 } from '@/lib/test-connection-summary';
 import { ERROR_MESSAGES } from '@/lib/constants/messages';
-import { IDC_SOURCE_LABEL } from '@/lib/constants/idc';
 import {
   getSecrets,
   updateResourceCredential,
@@ -342,9 +341,16 @@ export const IdcStep5ConnectionTest = ({
               <span className={cardStyles.stepTag}>5단계</span>
               <h2 className={cardStyles.cardTitle}>연결 테스트</h2>
             </div>
-            <p className={cn('mt-2.5', cardStyles.subtitle)}>
-              지정한 Credential로 각 대상에 실제 접속해 자격 증명, 접근 허용({IDC_SOURCE_LABEL} → 대상 IP:Port),
-              Agent 연결을 한 번에 확인합니다.
+            <p className={cn('mt-2.5 break-keep', cardStyles.subtitle)}>
+              연동 대상 DB에 접근하기 위한 PII Agent 리소스가 생성됐어요.{' '}
+              <span className={primaryColors.text}>
+                Credential을 등록한 다음 리소스별 Key를 지정하면 연결 테스트
+              </span>를 진행할 수 있어요. 테스트가 모두 성공하면 완료 승인 요청을 진행할 수 있어요.
+            </p>
+            {/* No top margin — the 1.55 leading is the paragraph break (step-2 grammar). */}
+            <p className={cn('break-keep', cardStyles.subtitle)}>
+              DB 내에 연동이 불필요한 논리 DB가 있다면 해당 논리 DB는 연동에서 제외할 수 있어요. 이
+              절차는 연결 테스트 완료 후에 진행할 수 있어요.
             </p>
           </div>
         </header>

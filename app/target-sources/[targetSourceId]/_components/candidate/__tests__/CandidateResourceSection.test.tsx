@@ -168,7 +168,8 @@ describe('CandidateResourceSection', () => {
   });
 
   // Step 2·3 header grammar ported to step 1: step tag above the fixed title,
-  // then the guidance sentence naming the whole flow (scan → select → approval).
+  // then the guidance naming the whole flow (scan → select → approval) as two
+  // paragraphs — one breath each, so both are asserted separately.
   it('renders the 1단계 tag and the detailed guidance sentence', async () => {
     render(
       <CandidateResourceSection
@@ -180,7 +181,8 @@ describe('CandidateResourceSection', () => {
     );
     await screen.findByRole('heading', { level: 2, name: '연동 대상 DB 선택' });
     expect(screen.getByText('1단계')).toBeTruthy();
-    expect(screen.getByText(/인프라 스캔으로 AWS 계정의 리소스를 조회하고/)).toBeTruthy();
+    expect(screen.getByText(/인프라 스캔을 통해 조회된 AWS 리소스 중/)).toBeTruthy();
+    expect(screen.getByText(/연동에서 제외할 리소스는/)).toBeTruthy();
   });
 
   // Lifted from CandidateResourceTable: the approve CTA + count hint render once

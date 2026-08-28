@@ -43,7 +43,7 @@ const ConnectionVerifiedRetestButton = ({
       setConfirmKind(null);
       await onRolledBack();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : '연결 재확인 요청에 실패했습니다.');
+      toast.error(err instanceof Error ? err.message : '연결 테스트 재실행 요청에 실패했습니다.');
     } finally {
       setRollingBack(false);
     }
@@ -57,7 +57,7 @@ const ConnectionVerifiedRetestButton = ({
         onClick={() => setConfirmKind('retest')}
       >
         <ReloadIcon className="w-[13px] h-[13px]" />
-        연결 재확인
+        연결 테스트 재실행
       </button>
       <ConfirmRewindModal
         kind={confirmKind}
@@ -111,19 +111,18 @@ export const ConnectionVerifiedStep = ({
               />
             </div>
           </div>
-          {/* One sentence instead of two: the header subtitle and the info banner said the same
-              thing. Blue marks the status clause only, matching steps 2·3. */}
+          {/* Blue marks the status clause only, matching steps 2·3. */}
           <p className={cn('mt-3', cardStyles.guidance)}>
             <strong className={cn('font-semibold', primaryColors.text)}>
-              최종 관리자 승인을 기다리고 있어요.
+              PII Agent 설치 완료 승인을 위해 동작을 점검하고 있어요.
             </strong>{' '}
-            PII Agent 운영팀의 승인이 완료되면 모니터링이 즉시 시작됩니다.
+            승인이 완료되면 PII Agent 연동이 완료돼요.
           </p>
           {/* No top margin — the 1.55 leading is the paragraph break (step-2 grammar). */}
           <p className={cardStyles.guidance}>
-            통합 테스트 결과가 잘못됐거나 연결 테스트를 한 번 더 수행하고 싶다면 우측 상단{' '}
-            <strong className={cn('font-semibold', textColors.secondary)}>연결 재확인</strong>을
-            눌러주세요.
+            논리 DB 연동 대상을 수정하거나 연결 테스트를 다시 수행하고 싶다면{' '}
+            <strong className={cn('font-semibold', textColors.secondary)}>연결 테스트 재실행</strong>
+            을 눌러주세요.
           </p>
         </header>
         <div className={cardStyles.body}>
