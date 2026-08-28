@@ -3,12 +3,12 @@
 import { useState, type KeyboardEvent } from 'react';
 import { CloseIcon } from '@/app/components/ui/icons';
 import { cn, idcStyles, inputStyles } from '@/lib/theme';
-import { SDU_DB_TYPE_MAX, SDU_DB_TYPE_MAXLEN } from '@/lib/types/sdu';
+import { SDU_DB_TYPE_MAX, SDU_DB_TYPE_MAXLEN, type SduCloud } from '@/lib/types/sdu';
 import {
   SDU_DB_TYPE_DUPLICATE_MESSAGE,
   SDU_DB_TYPE_LEN_MESSAGE,
   SDU_DB_TYPE_MAX_MESSAGE,
-  SDU_QUICK_DB_TYPES,
+  sduDbTypeChoices,
 } from '@/app/target-sources/[targetSourceId]/_components/sdu/step1/model';
 import {
   fieldStyles,
@@ -16,6 +16,8 @@ import {
 } from '@/app/target-sources/[targetSourceId]/_components/sdu/step1/styles';
 
 export interface DatabaseTypeTagInputProps {
+  /** 어떤 이름들을 대신 쳐 줄지 정하는 값 — 클라우드마다 갖는 Database 가 다르다. */
+  cloud: SduCloud;
   values: readonly string[];
   onChange: (next: string[]) => void;
 }
@@ -25,11 +27,14 @@ export interface DatabaseTypeTagInputProps {
  * "지어낸 것"을 구분하지 않는다: 자주 쓰는 타입 줄은 고르는 자리가 아니라 **대신 쳐 주는**
  * 자리라, 들어간 값은 직접 친 값과 같은 토큰이 된다.
  *
+ * 그렇다고 이름을 지어내지는 않는다 — 「자주 쓰는 타입」 줄은 「인프라 등록」이 묻는 것과 같은
+ * 백엔드 열거형에서, 이 대상의 클라우드가 실제로 갖는 이름만 보여준다(`sduDbTypeChoices`).
+ *
  * 두 상한(20개 · 50자)은 조용히 자르지 않고 말한다. 서버도 같은 규칙으로 400 을 돌려주지만
  * (lib/bff/mock/sdu.ts), 자유 입력을 허용한 순간 오타로 만든 이름이 목록을 채우기 때문에
  * 사용자는 저장을 눌러 보기 전에 상한에 닿았다는 사실과 지울 수 있는 상태를 함께 봐야 한다.
  */
-export const DatabaseTypeTagInput = ({ values, onChange }: DatabaseTypeTagInputProps) => {
+export const DatabaseTypeTagInput = ({ cloud, values, onChange }: DatabaseTypeTagInputProps) => {
   const [text, setText] = useState('');
   const [message, setMessage] = useState<string | null>(null);
 
@@ -153,7 +158,7 @@ export const DatabaseTypeTagInput = ({ values, onChange }: DatabaseTypeTagInputP
 
       <div className="mt-2 flex flex-wrap items-center gap-1.5">
         <span className={tokenStyles.quickLabel}>자주 쓰는 타입</span>
-        {SDU_QUICK_DB_TYPES.map((type) => (
+        {sduDbTypeChoices(cloud).map((type) => (
           <button
             key={type}
             type="button"

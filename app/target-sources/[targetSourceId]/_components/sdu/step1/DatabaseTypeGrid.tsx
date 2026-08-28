@@ -3,12 +3,12 @@
 import { useState, type KeyboardEvent } from 'react';
 import { CheckIcon, CloseIcon } from '@/app/components/ui/icons';
 import { cn, idcStyles, inputStyles, primaryColors } from '@/lib/theme';
-import { SDU_DB_TYPE_MAX, SDU_DB_TYPE_MAXLEN } from '@/lib/types/sdu';
+import { SDU_DB_TYPE_MAX, SDU_DB_TYPE_MAXLEN, type SduCloud } from '@/lib/types/sdu';
 import {
   SDU_DB_TYPE_DUPLICATE_MESSAGE,
   SDU_DB_TYPE_LEN_MESSAGE,
   SDU_DB_TYPE_MAX_MESSAGE,
-  SDU_QUICK_DB_TYPES,
+  sduDbTypeChoices,
 } from '@/app/target-sources/[targetSourceId]/_components/sdu/step1/model';
 import {
   dbGridStyles,
@@ -17,11 +17,11 @@ import {
 } from '@/app/target-sources/[targetSourceId]/_components/sdu/step1/styles';
 
 export interface DatabaseTypeGridProps {
+  /** 어떤 이름들을 물을지 정하는 값 — 클라우드마다 갖는 Database 가 다르다. */
+  cloud: SduCloud;
   values: readonly string[];
   onChange: (next: string[]) => void;
 }
-
-const QUICK_LOWER = SDU_QUICK_DB_TYPES.map((type) => type.toLowerCase());
 
 /**
  * Database Type — 자주 쓰는 여섯 개는 판에서 고르고, 나머지는 직접 친다.
@@ -31,14 +31,16 @@ const QUICK_LOWER = SDU_QUICK_DB_TYPES.map((type) => type.toLowerCase());
  * 판이 이름을 갖고 있지 않은 값만 그린다. 그래서 한 값은 언제나 한 자리에만 나타나고, 어느
  * 쪽에서 지우든 같은 목록에서 빠진다.
  *
- * 계약에 열거형이 없으므로 판은 '있는 것'의 목록이 아니라 대신 쳐 주는 자리다. 두 상한
- * (20개 · 50자)은 여기서도 조용히 자르지 않고 말한다.
+ * SDU 의 `database_types` 에는 열거형이 없으므로 판은 '있는 것'의 전부가 아니라 대신 쳐 주는
+ * 자리다. 그래도 이름은 지어내지 않는다 — 판이 묻는 것은 그 클라우드의 백엔드 열거형이
+ * 갖는 이름들이다(`sduDbTypeChoices`). 두 상한(20개 · 50자)은 여기서도 조용히 자르지 않는다.
  */
-export const DatabaseTypeGrid = ({ values, onChange }: DatabaseTypeGridProps) => {
+export const DatabaseTypeGrid = ({ cloud, values, onChange }: DatabaseTypeGridProps) => {
   const [typing, setTyping] = useState(false);
   const [text, setText] = useState('');
   const [message, setMessage] = useState<string | null>(null);
 
+  const choices = sduDbTypeChoices(cloud);
   const full = values.length >= SDU_DB_TYPE_MAX;
   // 길이 초과는 살아 있는 판정이다 — Enter 를 눌러 봐야 알게 두면, 50자가 넘는 이름을
   // 다 친 뒤에 지우게 된다.
@@ -108,23 +110,27 @@ export const DatabaseTypeGrid = ({ values, onChange }: DatabaseTypeGridProps) =>
 
   // 판이 이름을 가진 값은 타일이 이미 말하고 있다 — 칩으로 한 번 더 그리면 같은 값이
   // 두 자리를 차지하고, 20개 세기가 눈으로는 두 번 세어진다.
-  const custom = values.filter((value) => !QUICK_LOWER.includes(value.toLowerCase()));
+  //
+  // 뒤집어 말하면, 클라우드를 바꿔 판에서 이름이 사라진 값은 여기로 내려와 칩이 된다.
+  // 자유 입력이라 그 값은 여전히 유효하고, 고른 적 있는 것을 화면이 조용히 버리지 않는다.
+  const named = choices.map((type) => type.toLowerCase());
+  const custom = values.filter((value) => !named.includes(value.toLowerCase()));
 
   return (
-    <div>
-      <div className="flex items-center gap-2">
+    <div className={dbGridStyles.root}>
+      <div className={dbGridStyles.head}>
         <span className={fieldStyles.label}>Database Type</span>
         <span className={full ? fieldStyles.counterFull : fieldStyles.counter}>
           {values.length} / {SDU_DB_TYPE_MAX}
         </span>
       </div>
-      <p className={fieldStyles.hint}>
+      <p className={cn(fieldStyles.hint, 'flex-none')}>
         목록에 없는 타입은 직접 입력할 수 있어요. 한 대상당 최대 {SDU_DB_TYPE_MAX}개, 이름은{' '}
         {SDU_DB_TYPE_MAXLEN}자까지예요.
       </p>
 
       <div role="group" aria-label="자주 쓰는 Database Type" className={dbGridStyles.grid}>
-        {SDU_QUICK_DB_TYPES.map((type) => {
+        {choices.map((type) => {
           const selected = has(type);
           return (
             <button
@@ -152,73 +158,75 @@ export const DatabaseTypeGrid = ({ values, onChange }: DatabaseTypeGridProps) =>
         })}
       </div>
 
-      {custom.length > 0 && (
-        <ul className="mt-2.5 flex flex-wrap gap-1.5">
-          {custom.map((value) => (
-            <li key={value} className={tokenStyles.chip}>
-              {value}
-              <button
-                type="button"
-                aria-label={`${value} 제거`}
-                onClick={() => removeName(value)}
-                className={tokenStyles.remove}
-              >
-                <CloseIcon className="h-3 w-3" />
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
+      <div className={dbGridStyles.foot}>
+        {custom.length > 0 && (
+          <ul className="mt-2.5 flex flex-wrap gap-1.5">
+            {custom.map((value) => (
+              <li key={value} className={tokenStyles.chip}>
+                {value}
+                <button
+                  type="button"
+                  aria-label={`${value} 제거`}
+                  onClick={() => removeName(value)}
+                  className={tokenStyles.remove}
+                >
+                  <CloseIcon className="h-3 w-3" />
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
 
-      {typing ? (
-        <div className={dbGridStyles.customOpen}>
-          <input
-            value={text}
-            disabled={full}
-            aria-label="Database Type 직접 입력"
-            placeholder="직접 입력 (예: CUBRID)"
-            onChange={(event) => {
-              setText(event.target.value);
-              setMessage(null);
-            }}
-            onKeyDown={onKeyDown}
-            className={cn(
-              inputStyles.base,
-              'max-w-[260px] disabled:cursor-not-allowed disabled:opacity-60',
-              tooLong && inputStyles.error,
+        {typing ? (
+          <div className={dbGridStyles.customOpen}>
+            <input
+              value={text}
+              disabled={full}
+              aria-label="Database Type 직접 입력"
+              placeholder="직접 입력 (예: CUBRID)"
+              onChange={(event) => {
+                setText(event.target.value);
+                setMessage(null);
+              }}
+              onKeyDown={onKeyDown}
+              className={cn(
+                inputStyles.base,
+                'max-w-[260px] disabled:cursor-not-allowed disabled:opacity-60',
+                tooLong && inputStyles.error,
+              )}
+            />
+            <button
+              type="button"
+              disabled={full || tooLong || !text.trim()}
+              onClick={commitTyped}
+              className={idcStyles.triggerBtn.ghostSm}
+            >
+              추가
+            </button>
+            {text.trim().length > 0 && (
+              <span className={tooLong ? fieldStyles.counterFull : fieldStyles.counter}>
+                {text.trim().length} / {SDU_DB_TYPE_MAXLEN}
+              </span>
             )}
-          />
+          </div>
+        ) : (
           <button
             type="button"
-            disabled={full || tooLong || !text.trim()}
-            onClick={commitTyped}
-            className={idcStyles.triggerBtn.ghostSm}
+            aria-expanded={false}
+            onClick={() => setTyping(true)}
+            className={dbGridStyles.customRow}
           >
-            추가
+            목록에 없는 타입을 쓰고 계신가요?{' '}
+            <span className={cn('font-semibold', primaryColors.textOnLight)}>직접 입력 →</span>
           </button>
-          {text.trim().length > 0 && (
-            <span className={tooLong ? fieldStyles.counterFull : fieldStyles.counter}>
-              {text.trim().length} / {SDU_DB_TYPE_MAXLEN}
-            </span>
-          )}
-        </div>
-      ) : (
-        <button
-          type="button"
-          aria-expanded={false}
-          onClick={() => setTyping(true)}
-          className={dbGridStyles.customRow}
-        >
-          목록에 없는 타입을 쓰고 계신가요?{' '}
-          <span className={cn('font-semibold', primaryColors.textOnLight)}>직접 입력 →</span>
-        </button>
-      )}
+        )}
 
-      {(tooLong || full || message) && (
-        <p className={fieldStyles.message}>
-          {tooLong ? SDU_DB_TYPE_LEN_MESSAGE : full ? SDU_DB_TYPE_MAX_MESSAGE : message}
-        </p>
-      )}
+        {(tooLong || full || message) && (
+          <p className={fieldStyles.message}>
+            {tooLong ? SDU_DB_TYPE_LEN_MESSAGE : full ? SDU_DB_TYPE_MAX_MESSAGE : message}
+          </p>
+        )}
+      </div>
     </div>
   );
 };

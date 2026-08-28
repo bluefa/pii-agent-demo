@@ -273,19 +273,27 @@ export const SduAddTargetModal = ({ scope, newKey, onAdd, onClose }: SduAddTarge
                 </div>
               )}
 
+              {/* 목록 길이가 클라우드마다 다르다(GCP 6개 ~ 기타 17개). 판만 늘고 줄도록
+                  단계가 판 높이를 그대로 쓰고, 직접 입력으로 나가는 길은 판 아래
+                  붙박이가 된다 — 목록이 길다고 사라져도 되는 줄이 아니다. */}
               {step === 3 && (
-                <div>
-                  <h3 className={addWizardStyles.stepTitle}>어떤 Database를 올리나요?</h3>
-                  <p className={addWizardStyles.stepLead}>
+                <div className={addWizardStyles.stepFill}>
+                  <h3 className={cn(addWizardStyles.stepTitle, 'flex-none')}>
+                    어떤 Database를 올리나요?
+                  </h3>
+                  <p className={cn(addWizardStyles.stepLead, 'flex-none')}>
                     이 대상에서 올릴 데이터의 종류를 모두 적어주세요.
                   </p>
 
                   <DatabaseTypeGrid
+                    cloud={draft.cloud}
                     values={draft.databaseTypes}
                     onChange={(databaseTypes) => patch({ databaseTypes })}
                   />
                   {dbMissing && (
-                    <p className={fieldStyles.message}>{SDU_DB_TYPE_REQUIRED_MESSAGE}</p>
+                    <p className={cn(fieldStyles.message, 'flex-none')}>
+                      {SDU_DB_TYPE_REQUIRED_MESSAGE}
+                    </p>
                   )}
                 </div>
               )}

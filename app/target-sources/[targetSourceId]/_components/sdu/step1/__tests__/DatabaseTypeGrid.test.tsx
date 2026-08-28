@@ -9,20 +9,23 @@
 import { useState } from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import { SDU_DB_TYPE_MAX, SDU_DB_TYPE_MAXLEN } from '@/lib/types/sdu';
+import { SDU_DB_TYPE_MAX, SDU_DB_TYPE_MAXLEN, type SduCloud } from '@/lib/types/sdu';
 import { DatabaseTypeGrid } from '@/app/target-sources/[targetSourceId]/_components/sdu/step1/DatabaseTypeGrid';
 
 /** 값은 부모가 들고 있는 컴포넌트라, 상한 판정도 "다음 값"이 아니라 현재 값으로 돈다. */
 const Harness = ({
   initial = [],
+  cloud = 'AWS',
   onValues,
 }: {
   initial?: string[];
+  cloud?: SduCloud;
   onValues?: (next: string[]) => void;
 }) => {
   const [values, setValues] = useState<string[]>(initial);
   return (
     <DatabaseTypeGrid
+      cloud={cloud}
       values={values}
       onChange={(next) => {
         setValues(next);
@@ -69,6 +72,41 @@ describe('타일 판', () => {
   });
 });
 
+describe('이름의 출처', () => {
+  it('판이 묻는 이름은 그 클라우드의 백엔드 열거형에서 온다', () => {
+    // 지어낸 목록이 아니다 — 「인프라 등록」이 묻는 것과 같은 `DB_TYPES_BY_PROVIDER` 다.
+    render(<Harness cloud="GCP" />);
+    expect(tile('BigQuery')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'DynamoDB' })).toBeNull();
+    // Redis 는 어느 클라우드의 열거형에도 없다.
+    expect(screen.queryByRole('button', { name: 'Redis' })).toBeNull();
+
+    render(<Harness cloud="AWS" />);
+    expect(screen.getByRole('button', { name: 'DynamoDB' })).toBeTruthy();
+  });
+
+  it('나가는 길은 판의 스크롤러 바깥에 선다 — 목록이 길다고 사라지지 않는다', () => {
+    // 기타는 다섯 클라우드 중 목록이 가장 길다(17개, 다섯 줄). 그때 잘려도 되는 줄과
+    // 잘리면 안 되는 줄을 구조가 갈라 놓는다.
+    render(<Harness cloud="OTHER" />);
+    const board = screen.getByRole('group', { name: '자주 쓰는 Database Type' });
+
+    expect(board.contains(screen.getByRole('button', { name: /직접 입력/ }))).toBe(false);
+    expect(board.contains(screen.getByText(`0 / ${SDU_DB_TYPE_MAX}`))).toBe(false);
+    // 넘치는 몫은 판이 자기 안에서 굴린다. jsdom 은 레이아웃이 없어서 이것만 볼 수 있다.
+    expect(board.className).toContain('overflow-y-auto');
+  });
+
+  it('클라우드를 바꿔 판에서 사라진 이름은 칩으로 남는다 — 조용히 버리지 않는다', () => {
+    // 자유 입력이라 DynamoDB 는 GCP 대상에서도 유효한 값이다. 고른 적 있는 것을
+    // 화면이 마음대로 지우면, 담당자는 지운 적 없는 값이 사라진 것을 보게 된다.
+    render(<Harness cloud="GCP" initial={['DynamoDB']} />);
+
+    expect(screen.getByRole('button', { name: 'DynamoDB 제거' })).toBeTruthy();
+    expect(screen.getByText(`1 / ${SDU_DB_TYPE_MAX}`)).toBeTruthy();
+  });
+});
+
 describe('직접 입력', () => {
   it('판에 없는 이름은 칩이 되고, 칩에서 지우면 목록에서 빠진다', () => {
     const onValues = vi.fn();
@@ -109,10 +147,10 @@ describe('직접 입력', () => {
 
   it('상한에 닿아도 이미 켜진 타일은 끌 수 있다', () => {
     const onValues = vi.fn();
-    render(<Harness initial={[...filled.slice(1), 'Redis']} onValues={onValues} />);
+    render(<Harness initial={[...filled.slice(1), 'Athena']} onValues={onValues} />);
 
-    expect(tile('Redis').disabled).toBe(false);
-    fireEvent.click(tile('Redis'));
+    expect(tile('Athena').disabled).toBe(false);
+    fireEvent.click(tile('Athena'));
     expect(onValues).toHaveBeenLastCalledWith(filled.slice(1));
   });
 

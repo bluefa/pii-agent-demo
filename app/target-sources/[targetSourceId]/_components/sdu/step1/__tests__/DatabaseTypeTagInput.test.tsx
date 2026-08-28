@@ -15,7 +15,7 @@ import { DatabaseTypeTagInput } from '@/app/target-sources/[targetSourceId]/_com
 /** 값은 부모가 들고 있는 컴포넌트라, 상한 판정도 "다음 값"이 아니라 현재 값으로 돈다. */
 const Harness = ({ initial = [] as string[] }) => {
   const [values, setValues] = useState<string[]>(initial);
-  return <DatabaseTypeTagInput values={values} onChange={setValues} />;
+  return <DatabaseTypeTagInput cloud="AWS" values={values} onChange={setValues} />;
 };
 
 const input = () => screen.getByLabelText('Database Type 직접 입력') as HTMLInputElement;

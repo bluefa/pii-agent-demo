@@ -156,6 +156,7 @@ export const TargetRowEditor = ({
         </div>
 
         <DatabaseTypeTagInput
+          cloud={draft.cloud}
           values={draft.databaseTypes}
           onChange={(databaseTypes) => patch({ databaseTypes })}
         />

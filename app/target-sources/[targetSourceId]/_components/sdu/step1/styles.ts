@@ -113,6 +113,11 @@ export const addWizardStyles = {
   cardBody: 'min-h-0 flex-1 overflow-y-auto px-[30px] pt-6 pb-4',
   /** 스크롤러 바깥, 흰 판의 오른쪽 아래. 참조 마법사와 같은 px-[30px] pb-[26px] 다. */
   cardFoot: 'flex flex-none items-center justify-end gap-2 px-[30px] pb-[26px]',
+  /**
+   * 판 높이를 그대로 쓰는 단계. 목록 길이가 클라우드마다 다른 3단계가 이것을 쓴다 —
+   * 넘치는 몫은 타일 판이 자기 안에서 굴리고, 그 아래 줄들은 자리를 잃지 않는다.
+   */
+  stepFill: 'flex h-full min-h-0 flex-col',
   stepTitle: cn('text-[18px] font-bold', textColors.primary),
   stepLead: cn('mt-1 mb-5 text-[14px]', textColors.tertiary),
   /** 확인 단계 — 고치는 자리가 아니므로 네 값을 라벨과 함께 읽어 주기만 한다. */
@@ -145,7 +150,20 @@ export const tokenStyles = {
  * 입력이라 판 아래에 직접 입력하는 길(점선 줄)이 함께 서야 한다.
  */
 export const dbGridStyles = {
-  grid: 'mt-2.5 grid grid-cols-4 gap-2',
+  /**
+   * 이 컴포넌트는 세로 flex 안에서 판만 늘고 주는 것을 전제한다 — 라벨과 안내는 위에,
+   * 직접 입력·칩·상한 줄은 아래에 붙박이고, 가운데 판만 남는 자리를 가진다.
+   */
+  root: 'flex min-h-0 flex-1 flex-col',
+  head: 'flex flex-none items-center gap-2',
+  /**
+   * 판은 자기 안에서 굴린다. 상한 204 = 타일 네 줄(45 × 4 + 8 × 3) — AWS 14개까지가
+   * 네 줄이고, 다섯 줄이 되는 것은 기타(17개)뿐이다. `min-h-0` 이 있어야 좁은 판에서
+   * 이 상자가 먼저 줄고, 아래 줄들이 밀려 잘리지 않는다.
+   */
+  grid: 'mt-2.5 grid min-h-0 max-h-[204px] grid-cols-4 gap-2 overflow-y-auto',
+  /** 판 아래 붙박이 — 자유 입력으로 나가는 길은 어떤 목록 길이에서도 사라지면 안 된다. */
+  foot: 'flex-none',
   tile: 'flex items-center justify-center gap-2 rounded-[10px] border-2 px-2 py-2.5 text-[14px] font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50',
   tileOn: cn(primaryColors.border, primaryColors.bgLight, primaryColors.textOnLight),
   tileOff: cn(

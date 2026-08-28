@@ -12,7 +12,9 @@
  * 권역(scope)은 규칙이 아니라 대상소스가 가진 사실이다 — `project.isChinaRegion` 하나로
  * 정해지고, 화면은 그것을 고르는 자리를 두지 않는다.
  */
+import { DB_TYPES_BY_PROVIDER } from '@/lib/constants/db-types';
 import { isValidIdcIp } from '@/lib/constants/idc';
+import type { ProviderChipKey } from '@/lib/constants/provider-mapping';
 import {
   SDU_DB_TYPE_MAX,
   SDU_DB_TYPE_MAXLEN,
@@ -54,17 +56,29 @@ export const SDU_CLOUD_LABEL: Record<SduCloud, string> = {
 };
 
 /**
- * 한 번 눌러 넣는 흔한 이름들. 목록에서 '고른' 값이 아니라 입력을 대신 쳐 주는 것이므로
- * 들어간 뒤에는 직접 친 값과 구별되지 않는다 — Database Type 은 전부 자유 입력이다.
+ * SDU 의 클라우드는 「인프라 등록」의 프로바이더와 같은 것을 가리킨다. 표로 적는 이유는
+ * `cloud.toLowerCase()` 로 만들면 SduCloud 에 값이 하나 늘 때 조용히 빈 목록이 나오기
+ * 때문이다 — 표는 그때 타입 검사에서 걸린다.
  */
-export const SDU_QUICK_DB_TYPES = [
-  'MySQL',
-  'PostgreSQL',
-  'Oracle',
-  'MSSQL',
-  'MongoDB',
-  'Redis',
-] as const;
+const SDU_CLOUD_PROVIDER_KEY: Record<SduCloud, ProviderChipKey> = {
+  AWS: 'aws',
+  GCP: 'gcp',
+  AZURE: 'azure',
+  IDC: 'idc',
+  OTHER: 'other',
+};
+
+/**
+ * 한 번 눌러 넣는 이름들. 목록은 지어내지 않는다 — 「인프라 등록」이 묻는 것과 같은
+ * 백엔드 열거형(`DB_TYPES_BY_PROVIDER`)에서, 그 클라우드가 실제로 갖는 것만 온다.
+ *
+ * 계약의 wire 값(`mysql`)이 아니라 **이름**(`MySQL`)을 넣는다: SDU 의 `database_types` 는
+ * 자유 입력이라 담당자가 직접 칠 때도 이 이름을 치고, 판에서 고른 값과 친 값이 구별되면
+ * 안 된다. 같은 이유로 `OTHERS_DB_TYPE` 은 쓰지 않는다 — 그것은 열거형을 보내는 쪽의
+ * 계약 값이고, 여기서는 직접 입력이 그 자리를 대신한다.
+ */
+export const sduDbTypeChoices = (cloud: SduCloud): readonly string[] =>
+  DB_TYPES_BY_PROVIDER[SDU_CLOUD_PROVIDER_KEY[cloud]].map((db) => db.label);
 
 export const SDU_IP_INVALID_MESSAGE = '올바른 IPv4 주소가 아니에요';
 export const SDU_DB_TYPE_MAX_MESSAGE = `대상당 ${SDU_DB_TYPE_MAX}개까지 등록할 수 있어요`;
