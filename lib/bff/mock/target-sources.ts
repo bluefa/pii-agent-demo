@@ -584,8 +584,15 @@ export const mockTargetSources = {
       updatedAt: now,
       isRejected: false,
       ...(awsAccountId ? { awsAccountId } : {}),
+      // `awsRegionType` is AWS-specific by name and by its readers, so it stays gated on
+      // the provider. `isChinaRegion` is not: AWS keeps recording it either way, as it does
+      // today, and every other provider records it only when the user actually declared
+      // China. Writing an explicit `false` for every non-AWS target source would open
+      // getBffMetadata's `!== undefined` gate and start emitting `is_china_region: false`
+      // on wire payloads that omit the field today — hence `|| isChinaRegion` rather than
+      // dropping the gate.
       ...(normalizedProvider === 'AWS' ? { awsRegionType: isChinaRegion ? 'china' : 'global' } : {}),
-      ...(normalizedProvider === 'AWS' ? { isChinaRegion } : {}),
+      ...(normalizedProvider === 'AWS' || isChinaRegion ? { isChinaRegion } : {}),
       ...(grantTf !== undefined ? { isTerraformExecutionGranted: grantTf } : {}),
       ...(isSduType ? { isSduType } : {}),
       ...(tenantId ? { tenantId } : {}),
