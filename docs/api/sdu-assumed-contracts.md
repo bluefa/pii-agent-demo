@@ -238,16 +238,14 @@ to one service. The two answer the same `{id, name, email}` shape, so the swap c
 picker nothing but let it drop the debounce, the query field, and the `excludeIds` round
 trip — the already-registered are struck from a list the screen already holds.
 
-Two things the BFF has to confirm, both in
-`docs/bff-api/requests/2026-08-28-sdu-be-handoff.md` §6:
+Both facts are confirmed (오너, 2026-08-28), so nothing here is assumed but the caller:
 
-- **the endpoint must answer a service manager, not only an ADMIN.** The path is not
-  `/admin/...` and the admin-side list of the same fact is a separate endpoint
-  (`/admin/access/services/{code}/owners`), so this one is read as the owner's. The mock
-  gated it on ADMIN and locked the owner out of their own screen; it now uses the gate
-  every other owner-facing mock uses — ADMIN or a manager of that service.
-- **`id` must be the identifier `user_ids` takes.** The mock's are the same value; the
-  real BFF's may not be.
+- **the endpoint is not ADMIN-only** — a service manager gets a 200. The mock had gated it
+  on ADMIN, which locked the owner out of their own screen; it now uses the gate every
+  other owner-facing mock uses — ADMIN or a manager of that service.
+- **the response is `id · name · email`**, so `id` is the only thing to key on and it is
+  what `user_ids` carries. `/upload/recipients` is ours to specify, so that is settled
+  here rather than asked of the BFF.
 
 ## 7. BDC progression and system reset
 
