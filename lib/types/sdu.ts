@@ -23,7 +23,7 @@ export type SduRegionScope = (typeof SDU_REGION_SCOPES)[number];
 
 /**
  * Canonical region order. Every list of regions this domain returns is sorted by it, so
- * the firewall table, the command blocks and the ack lists cannot disagree about order.
+ * the firewall table and the command blocks cannot disagree about order.
  */
 export const SDU_REGION_ORDER = ['asia', 'us', 'eu', 'cx', 'china'] as const;
 export type SduRegion = (typeof SDU_REGION_ORDER)[number];
@@ -98,7 +98,8 @@ export interface SduFirewallRowWire {
 
 export interface SduFirewallWire {
   rows: SduFirewallRowWire[];
-  acked_regions: SduRegion[];
+  /** One answer for the whole step — the screen asks one question for every Region. */
+  acked: boolean;
 }
 
 export interface SduRecipientWire {
@@ -120,7 +121,7 @@ export interface SduCommandRowWire {
 
 export interface SduCommandsWire {
   rows: SduCommandRowWire[];
-  acked_regions: SduRegion[];
+  acked: boolean;
 }
 
 export type SduBdcStatus = 'NOT_STARTED' | 'IN_PROGRESS' | 'COMPLETED';
@@ -134,10 +135,12 @@ export interface SduBdcWire {
 /**
  * What the last definition edit invalidated. Cleared on the next ack write — it exists
  * to be told once, not to be a persistent state.
+ *
+ * A removed region is not here: with one answer per step, dropping a region leaves the
+ * remaining answer true, so there is nothing to tell.
  */
 export interface SduInvalidationWire {
   added_regions: SduRegion[];
-  removed_regions: SduRegion[];
   upload_ip_changed: boolean;
 }
 
@@ -155,7 +158,6 @@ export type SduAckKind = 'FIREWALL' | 'UPLOAD';
 
 export interface SduAcksRequestWire {
   kind: SduAckKind;
-  regions: SduRegion[];
   confirmed: boolean;
 }
 
@@ -188,7 +190,7 @@ export interface SduFirewallRow {
 
 export interface SduFirewall {
   rows: SduFirewallRow[];
-  ackedRegions: SduRegion[];
+  acked: boolean;
 }
 
 export interface SduRecipient {
@@ -209,7 +211,7 @@ export interface SduCommandRow {
 
 export interface SduCommands {
   rows: SduCommandRow[];
-  ackedRegions: SduRegion[];
+  acked: boolean;
 }
 
 export interface SduBdc {
@@ -220,7 +222,6 @@ export interface SduBdc {
 
 export interface SduInvalidation {
   addedRegions: SduRegion[];
-  removedRegions: SduRegion[];
   uploadIpChanged: boolean;
 }
 

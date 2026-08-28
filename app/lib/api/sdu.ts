@@ -52,14 +52,23 @@ export const toSduDefinition = (wire: SduDefinitionWire): SduDefinition => ({
 });
 
 const toFirewall = (wire: SduFirewallWire): SduFirewall => ({
-  rows: wire.rows.map((row) => ({
+  rows: byRegion(wire.rows).map((row) => ({
     region: row.region,
     s3Endpoint: row.s3_endpoint,
     port: row.port,
     destinationIps: [...row.destination_ips],
   })),
-  ackedRegions: sortSduRegions(wire.acked_regions),
+  acked: wire.acked,
 });
+
+/**
+ * 행을 정규 순서로 세운다. 방화벽 표와 명령 블록과 `regions` 가 서로 다른 순서를 말하면
+ * 화면은 같은 Region 을 세 자리에서 다르게 읽는다. 정렬은 여기 한 곳에서만 한다.
+ */
+const byRegion = <T extends { region: SduRegion }>(rows: readonly T[]): T[] => {
+  const order = sortSduRegions(rows.map((row) => row.region));
+  return order.flatMap((region) => rows.filter((row) => row.region === region));
+};
 
 const toRecipients = (wire: SduRecipientsWire): SduRecipients => ({
   users: wire.users.map((user) => ({ id: user.id, name: user.name, email: user.email })),
@@ -67,13 +76,12 @@ const toRecipients = (wire: SduRecipientsWire): SduRecipients => ({
 });
 
 const toCommands = (wire: SduCommandsWire): SduCommands => ({
-  rows: wire.rows.map((row) => ({ region: row.region, command: row.command })),
-  ackedRegions: sortSduRegions(wire.acked_regions),
+  rows: byRegion(wire.rows).map((row) => ({ region: row.region, command: row.command })),
+  acked: wire.acked,
 });
 
 const toInvalidation = (wire: SduInvalidationWire): SduInvalidation => ({
   addedRegions: sortSduRegions(wire.added_regions),
-  removedRegions: sortSduRegions(wire.removed_regions),
   uploadIpChanged: wire.upload_ip_changed,
 });
 
@@ -143,14 +151,19 @@ export const getSduUpload = async (
 ): Promise<SduUpload> =>
   toSduUpload(await fetchInfraJson<SduUploadWire>(`${base(targetSourceId)}/upload`, init));
 
-/** assumed §5 — 확인 응답. 예/아니오는 `confirmed` 하나이고, 되돌릴 수 있다. */
+/**
+ * assumed §5 — 확인 응답. 예/아니오는 `confirmed` 하나이고, 되돌릴 수 있다.
+ *
+ * 한 블록에 답은 하나다. 화면이 "모든 Region의 …을 확인하셨습니까?" 하나만 묻기 때문에,
+ * Region 단위로 저장할 답이 애초에 만들어지지 않는다.
+ */
 export const putSduAcks = async (
   targetSourceId: number,
-  body: { kind: SduAckKind; regions: readonly SduRegion[]; confirmed: boolean },
+  body: { kind: SduAckKind; confirmed: boolean },
 ): Promise<void> => {
   await fetchInfraJson<void>(`${base(targetSourceId)}/upload/acks`, {
     method: 'PUT',
-    body: { kind: body.kind, regions: [...body.regions], confirmed: body.confirmed },
+    body: { kind: body.kind, confirmed: body.confirmed },
   });
 };
 

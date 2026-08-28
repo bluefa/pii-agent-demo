@@ -3,10 +3,7 @@
 import { useState } from 'react';
 import { ConsoleTable, type ConsoleTableColumn } from '@/app/components/ui/ConsoleTable';
 import { YesNoAck } from '@/app/target-sources/[targetSourceId]/_components/sdu/upload/YesNoAck';
-import {
-  missingRegions,
-  regionLabels,
-} from '@/app/target-sources/[targetSourceId]/_components/sdu/upload/model';
+import { regionLabels } from '@/app/target-sources/[targetSourceId]/_components/sdu/upload/model';
 import {
   SDU_REGION_LABEL,
   type SduFirewall,
@@ -50,9 +47,6 @@ export const FirewallBlock = ({ regions, firewall, targets, onAnswer }: Firewall
   const [answering, setAnswering] = useState(false);
   const [declined, setDeclined] = useState(false);
 
-  const missing = missingRegions(regions, firewall.ackedRegions);
-  const answered = regions.filter((region) => firewall.ackedRegions.includes(region));
-
   const answer = async (confirmed: boolean) => {
     setAnswering(true);
     try {
@@ -72,12 +66,6 @@ export const FirewallBlock = ({ regions, firewall, targets, onAnswer }: Firewall
         1단계에서 정의하신 Region은 {regionLabels(regions)} {regions.length}곳입니다. 사내 방화벽에서
         아래 엔드포인트와 목적지 IP로의 아웃바운드가 허용되어 있어야 해요.
       </p>
-
-      {missing.length > 0 && answered.length > 0 && (
-        <p className={cn(textStyles.bodyStrong, textColors.secondary)}>
-          {regionLabels(answered)}는 확인하셨어요. {regionLabels(missing)}가 남았어요.
-        </p>
-      )}
 
       <div className={idcStyles.table.frame}>
         <ConsoleTable columns={COLUMNS}>
@@ -116,7 +104,7 @@ export const FirewallBlock = ({ regions, firewall, targets, onAnswer }: Firewall
 
       <YesNoAck
         question="모든 Region의 방화벽 결재 내역을 확인하셨습니까?"
-        value={missing.length === 0 ? true : declined ? false : null}
+        value={firewall.acked ? true : declined ? false : null}
         onAnswer={answer}
         busy={answering}
       />

@@ -6,11 +6,11 @@ import { createProblem, problemResponse } from '@/app/api/_lib/problem';
 import type { SduAcksRequestWire } from '@/lib/types/sdu';
 
 // ASSUMED CONTRACT — docs/api/sdu-assumed-contracts.md §6.
-// PUT …/sdu/upload/acks { kind, regions[], confirmed } → 204.
+// PUT …/sdu/upload/acks { kind, confirmed } → 204.
 //
 // `confirmed: false` is a first-class value, not a missing answer: the gates only block
-// forward, so every finished block keeps a way back. Membership of `regions` in the
-// current definition is checked server-side — only the stored definition knows it.
+// forward, so every finished block keeps a way back. One answer per block — the screen
+// asks one question covering every Region, so there is no finer answer to record.
 export const PUT = withV1(async (request, { requestId, params }) => {
   const parsed = parseTargetSourceId(params.targetSourceId, requestId);
   if (!parsed.ok) return problemResponse(parsed.problem);

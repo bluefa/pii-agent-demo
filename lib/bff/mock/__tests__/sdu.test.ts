@@ -4,10 +4,10 @@ import { resetStore } from '@/lib/mock-store';
 import * as mockData from '@/lib/mock-data';
 import { ProcessStatus } from '@/lib/types';
 import type {
+  SduAcksRequestWire,
   SduDefinitionRequestTargetWire,
   SduDefinitionRequestWire,
   SduDefinitionWire,
-  SduRegion,
   SduUploadWire,
 } from '@/lib/types/sdu';
 
@@ -42,11 +42,11 @@ const putDefinition = (id: number, targets: SduDefinitionRequestTargetWire[]) =>
 
 const upload = async (id: number): Promise<SduUploadWire> => body(await mockSdu.getUpload(id));
 
-/** Walks a target source to "every region acknowledged, recipients registered". */
-const ackEverything = async (id: number, regions: SduRegion[]) => {
+/** Walks a target source to "both blocks acknowledged, recipients registered". */
+const ackEverything = async (id: number) => {
   await mockSdu.putRecipients(id, { user_ids: ['user-3'] });
-  await mockSdu.putAcks(id, { kind: 'FIREWALL', regions, confirmed: true });
-  await mockSdu.putAcks(id, { kind: 'UPLOAD', regions, confirmed: true });
+  await mockSdu.putAcks(id, { kind: 'FIREWALL', confirmed: true });
+  await mockSdu.putAcks(id, { kind: 'UPLOAD', confirmed: true });
 };
 
 beforeEach(() => {
@@ -130,35 +130,32 @@ describe('SDU 정의 — 무효화 표 (§2)', () => {
 
   const seedAcked = async () => {
     await putDefinition(GLOBAL_ID, twoRegions());
-    await ackEverything(GLOBAL_ID, ['us', 'eu']);
+    await ackEverything(GLOBAL_ID);
   };
 
-  it('Region 추가 — 기존 확인은 살아남고, 새 Region 만 답이 없다', async () => {
+  it('Region 추가 — 답은 하나뿐이라 두 확인이 다시 필요해진다', async () => {
     await seedAcked();
 
     await putDefinition(GLOBAL_ID, [...twoRegions(), target({ target_id: 'c', region: 'asia' })]);
 
     const state = await upload(GLOBAL_ID);
     expect(state.regions).toEqual(['asia', 'us', 'eu']);
-    expect(state.firewall.acked_regions).toEqual(['us', 'eu']);
-    expect(state.commands.acked_regions).toEqual(['us', 'eu']);
-    expect(state.invalidation).toEqual({
-      added_regions: ['asia'],
-      removed_regions: [],
-      upload_ip_changed: false,
-    });
+    // 새 Region 은 아무도 확인하지 않은 방화벽 규칙과 아무도 ls 해 보지 않은 경로를 갖는다.
+    expect(state.firewall.acked).toBe(false);
+    expect(state.commands.acked).toBe(false);
+    expect(state.invalidation).toEqual({ added_regions: ['asia'], upload_ip_changed: false });
   });
 
-  it('Region 삭제 — 그 Region 의 확인만 두 목록에서 폐기된다', async () => {
+  it('Region 삭제 — 남은 답이 아직 참이라 아무것도 폐기하지 않는다', async () => {
     await seedAcked();
 
     await putDefinition(GLOBAL_ID, [target({ target_id: 'a', region: 'us' })]);
 
     const state = await upload(GLOBAL_ID);
     expect(state.regions).toEqual(['us']);
-    expect(state.firewall.acked_regions).toEqual(['us']);
-    expect(state.commands.acked_regions).toEqual(['us']);
-    expect(state.invalidation).toMatchObject({ removed_regions: ['eu'], upload_ip_changed: false });
+    expect(state.firewall.acked).toBe(true);
+    expect(state.commands.acked).toBe(true);
+    expect(state.invalidation).toEqual({ added_regions: [], upload_ip_changed: false });
   });
 
   it('업로드 IP 변경 — 방화벽 확인만 전부 폐기되고 업로드 확인은 남는다', async () => {
@@ -171,9 +168,9 @@ describe('SDU 정의 — 무효화 표 (§2)', () => {
 
     const state = await upload(GLOBAL_ID);
     // 방화벽 규칙은 출발지 → 목적지 한 쌍이라, 출발지가 바뀌면 전 Region 이 다른 규칙이다.
-    expect(state.firewall.acked_regions).toEqual([]);
+    expect(state.firewall.acked).toBe(false);
     // 명령 세 줄에는 출발지 IP 가 없다 — 그래서 살아남는다.
-    expect(state.commands.acked_regions).toEqual(['us', 'eu']);
+    expect(state.commands.acked).toBe(true);
     expect(state.invalidation.upload_ip_changed).toBe(true);
   });
 
@@ -186,13 +183,9 @@ describe('SDU 정의 — 무효화 표 (§2)', () => {
     ]);
 
     const state = await upload(GLOBAL_ID);
-    expect(state.firewall.acked_regions).toEqual(['us', 'eu']);
-    expect(state.commands.acked_regions).toEqual(['us', 'eu']);
-    expect(state.invalidation).toEqual({
-      added_regions: [],
-      removed_regions: [],
-      upload_ip_changed: false,
-    });
+    expect(state.firewall.acked).toBe(true);
+    expect(state.commands.acked).toBe(true);
+    expect(state.invalidation).toEqual({ added_regions: [], upload_ip_changed: false });
   });
 
   it('클라우드만 바뀌면 아무것도 무효가 되지 않는다', async () => {
@@ -204,7 +197,7 @@ describe('SDU 정의 — 무효화 표 (§2)', () => {
     ]);
 
     const state = await upload(GLOBAL_ID);
-    expect(state.firewall.acked_regions).toEqual(['us', 'eu']);
+    expect(state.firewall.acked).toBe(true);
     expect(state.invalidation.upload_ip_changed).toBe(false);
   });
 
@@ -213,11 +206,10 @@ describe('SDU 정의 — 무효화 표 (§2)', () => {
     await putDefinition(GLOBAL_ID, [...twoRegions(), target({ target_id: 'c', region: 'asia' })]);
     expect((await upload(GLOBAL_ID)).invalidation.added_regions).toEqual(['asia']);
 
-    await mockSdu.putAcks(GLOBAL_ID, { kind: 'FIREWALL', regions: ['asia'], confirmed: true });
+    await mockSdu.putAcks(GLOBAL_ID, { kind: 'FIREWALL', confirmed: true });
 
     expect((await upload(GLOBAL_ID)).invalidation).toEqual({
       added_regions: [],
-      removed_regions: [],
       upload_ip_changed: false,
     });
   });
@@ -260,23 +252,27 @@ describe('SDU 업로드 — 조회와 확인 (§4·§5·§6)', () => {
     expect(state.firewall.rows[0].port).toBe(443);
   });
 
-  it('연동 대상에 없는 Region 은 확인할 수 없다', async () => {
-    const rejected = await mockSdu.putAcks(GLOBAL_ID, {
-      kind: 'FIREWALL',
-      regions: ['asia'],
+  it('본문은 kind 와 confirmed 뿐이다 — 둘 다 없으면 아무것도 기록하지 않는다', async () => {
+    const badKind = await mockSdu.putAcks(GLOBAL_ID, {
+      kind: 'BOTH' as SduAcksRequestWire['kind'],
       confirmed: true,
     });
+    const badConfirmed = await mockSdu.putAcks(GLOBAL_ID, {
+      kind: 'FIREWALL',
+      confirmed: 'yes' as unknown as boolean,
+    });
 
-    expect(rejected.status).toBe(400);
-    expect((await upload(GLOBAL_ID)).firewall.acked_regions).toEqual([]);
+    expect(badKind.status).toBe(400);
+    expect(badConfirmed.status).toBe(400);
+    expect((await upload(GLOBAL_ID)).firewall.acked).toBe(false);
   });
 
   it('confirmed=false 는 확인을 되돌린다 — 끝난 블록은 잠기는 게 아니라 접힐 뿐이다', async () => {
-    await mockSdu.putAcks(GLOBAL_ID, { kind: 'FIREWALL', regions: ['us', 'eu'], confirmed: true });
-    expect((await upload(GLOBAL_ID)).firewall.acked_regions).toEqual(['us', 'eu']);
+    await mockSdu.putAcks(GLOBAL_ID, { kind: 'FIREWALL', confirmed: true });
+    expect((await upload(GLOBAL_ID)).firewall.acked).toBe(true);
 
-    await mockSdu.putAcks(GLOBAL_ID, { kind: 'FIREWALL', regions: ['eu'], confirmed: false });
-    expect((await upload(GLOBAL_ID)).firewall.acked_regions).toEqual(['us']);
+    await mockSdu.putAcks(GLOBAL_ID, { kind: 'FIREWALL', confirmed: false });
+    expect((await upload(GLOBAL_ID)).firewall.acked).toBe(false);
   });
 
   it('수신자는 목이 아는 사용자만 받는다', async () => {
@@ -308,10 +304,10 @@ describe('SDU 제출과 BDC 진행 (§3·§8)', () => {
     await mockSdu.submitDefinition(GLOBAL_ID);
 
     // 방화벽만으로는 시작하지 않는다.
-    await mockSdu.putAcks(GLOBAL_ID, { kind: 'FIREWALL', regions: ['us'], confirmed: true });
+    await mockSdu.putAcks(GLOBAL_ID, { kind: 'FIREWALL', confirmed: true });
     expect((await upload(GLOBAL_ID)).bdc.status).toBe('NOT_STARTED');
 
-    await ackEverything(GLOBAL_ID, ['us']);
+    await ackEverything(GLOBAL_ID);
     expect((await upload(GLOBAL_ID)).bdc.status).toBe('IN_PROGRESS');
     expect(mockData.getProjectByTargetSourceId(GLOBAL_ID)?.processStatus).toBe(ProcessStatus.INSTALLING);
 
@@ -327,7 +323,7 @@ describe('SDU 제출과 BDC 진행 (§3·§8)', () => {
 
   it('시작 조건을 잃으면 BDC 는 다시 대기로 돌아간다 — 무효화된 확인은 반쯤 된 것이 아니다', async () => {
     await putDefinition(GLOBAL_ID, [target({ target_id: 'a', region: 'us' })]);
-    await ackEverything(GLOBAL_ID, ['us']);
+    await ackEverything(GLOBAL_ID);
     expect((await upload(GLOBAL_ID)).bdc.status).toBe('IN_PROGRESS');
 
     // 업로드 IP 를 고치면 방화벽 확인이 전부 날아간다.
@@ -338,12 +334,12 @@ describe('SDU 제출과 BDC 진행 (§3·§8)', () => {
 });
 
 describe('SDU 시드와 초기화 (§8)', () => {
-  it('1100 은 업로드 단계 한가운데다 — Region 2곳, 방화벽은 us 만, 수신자 2명', async () => {
+  it('1100 은 업로드 단계 한가운데다 — Region 2곳, 방화벽만 확인함, 수신자 2명', async () => {
     const state = await upload(SEEDED_ID);
 
     expect(state.regions).toEqual(['us', 'eu']);
-    expect(state.firewall.acked_regions).toEqual(['us']);
-    expect(state.commands.acked_regions).toEqual([]);
+    expect(state.firewall.acked).toBe(true);
+    expect(state.commands.acked).toBe(false);
     // 수신자는 SDU 서비스 담당자 안에서만 고른다 — 셋 중 둘이라 화면에 더 넣을 사람이 남는다.
     expect(state.recipients.users.map((user) => user.id)).toEqual(['user-1', 'user-5']);
     expect(state.submitted_at).not.toBeNull();
@@ -363,7 +359,7 @@ describe('SDU 시드와 초기화 (§8)', () => {
 
     const state = await upload(SEEDED_ID);
     expect(state.submitted_at).toBeNull();
-    expect(state.firewall.acked_regions).toEqual([]);
+    expect(state.firewall.acked).toBe(false);
     expect(state.recipients.users).toEqual([]);
     expect(state.bdc.status).toBe('NOT_STARTED');
   });

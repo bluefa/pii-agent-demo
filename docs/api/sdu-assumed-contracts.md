@@ -110,17 +110,21 @@ back.
 
 | edited in Step 1 | firewall acks | recipients | upload acks |
 |---|---|---|---|
-| region added | (nothing to drop — it simply has no ack) | kept | (nothing to drop) |
-| region removed | that region's ack dropped | kept | that region's ack dropped |
-| `upload_ip` changed | **all** dropped | kept | kept |
+| region added | **reset** | kept | **reset** |
+| region removed | kept | kept | kept |
+| `upload_ip` changed | **reset** | kept | kept |
 | `database_types` only | kept | kept | kept |
 | `cloud` only | kept | kept | kept |
 
-`upload_ip` is the only edit with a blast radius wider than its own row, because a
-firewall rule is a **source → destination pair**: a new source makes every rule a
-different rule. The commands do not carry the source IP, so they survive. (The storyboard
-also notes, Q10, that the IP is on the BDC bucket policy's allowlist, so a change is not
-finished by the owner re-confirming — that half is not in this contract.)
+Adding a region resets both answers: the new region arrives with a firewall rule nobody
+has filed and an upload path nobody has run `ls` against. Removing one drops nothing —
+what remains was answered and is still true.
+
+`upload_ip` resets only the firewall, because a firewall rule is a **source → destination
+pair**: a new source makes every rule a different rule. The commands do not carry the
+source IP, so they survive. (The storyboard also notes, Q10, that the IP is on the BDC
+bucket policy's allowlist, so a change is not finished by the owner re-confirming — that
+half is not in this contract.)
 
 The result is reported back on §4 as `invalidation`, and it is **told once**: the next
 `PUT …/upload/acks` clears it.
@@ -149,7 +153,7 @@ GET /install/v1/target-sources/{targetSourceId}/sdu/upload
      regions:      string[],          // distinct, canonical order: asia, us, eu, cx, china
      firewall: {
        rows: [{ region, s3_endpoint: string, port: number, destination_ips: string[] }],
-       acked_regions: string[],
+       acked: boolean,
      },
      recipients: {
        users:      [{ id: string, name: string, email: string }],
@@ -157,7 +161,7 @@ GET /install/v1/target-sources/{targetSourceId}/sdu/upload
      },
      commands: {
        rows:          [{ region, command: string }],
-       acked_regions: string[],
+       acked: boolean,
      },
      bdc: {
        status:       "NOT_STARTED" | "IN_PROGRESS" | "COMPLETED",
@@ -165,7 +169,7 @@ GET /install/v1/target-sources/{targetSourceId}/sdu/upload
        completed_at: string | null,
      },
      invalidation: {
-       added_regions: string[], removed_regions: string[], upload_ip_changed: boolean,
+       added_regions: string[], upload_ip_changed: boolean,
      },
    }
 ```
@@ -197,13 +201,15 @@ Region → AWS region / endpoint mapping is the **server's**, and the client onl
 
 ```
 PUT /install/v1/target-sources/{targetSourceId}/sdu/upload/acks
-body { kind: "FIREWALL" | "UPLOAD", regions: string[], confirmed: boolean }
+body { kind: "FIREWALL" | "UPLOAD", confirmed: boolean }
 → 204
-→ 400  INVALID_PARAMETER   // a region not in the current definition
+→ 400  INVALID_PARAMETER   // kind is not one of the two, or confirmed is not a boolean
 ```
 
-`confirmed: true` adds the regions to the matching `acked_regions`, `false` removes them.
-`regions` must be a subset of §4's `regions`.
+**One answer per block, for the whole target source** — both the firewall and the upload
+confirmation. The screen asks one question ("모든 Region의 …을 확인하셨습니까?") with one
+예 button, so a per-region answer is never produced by any gesture; storing one would be
+recording something the screen never asked.
 
 `false` is a first-class value, not a missing answer. The upload-step gates block forward
 only — a finished block folds, it does not lock — so every one of them keeps a way back.
@@ -280,14 +286,14 @@ and they are choices, not transcription errors:
    is computed *across* the three — `bdc` cannot be answered without all of them, and
    `invalidation` describes all of them at once. Three calls would let the screen render a
    gate against a definition the other two calls had not seen yet.
-3. **`confirmed: boolean`, not `answer: "YES" | "NO"`.** Two values with two names is one
-   value. `NO` and "no answer yet" are already distinguished by the region's absence from
-   `acked_regions`, so the enum's third state would be unreachable.
+3. **`confirmed: boolean`, not `answer: "YES" | "NO"`, and no `regions[]`.** Two values
+   with two names is one value; and the screen asks once for every region at once, so
+   there is no finer answer to carry.
 
 Also added, with no storyboard counterpart: `§1/§2 definition` (the storyboard draws the
 Step-1 screen but proposes no endpoint for it), `§3 submit`, and the `invalidation` block
 (the storyboard states the rules as a table but does not put them on the wire — a screen
-cannot say "이 Region은 다시 확인해주세요" without being told which).
+cannot say why an answer it already gave is being asked for again without being told).
 
 ## Open questions inherited from the storyboard
 

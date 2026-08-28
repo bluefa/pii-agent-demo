@@ -2,7 +2,7 @@
 import { act, fireEvent, render, screen, waitFor, type RenderResult } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ProcessStatus, type CloudTargetSource } from '@/lib/types';
-import type { SduDefinition, SduRegion, SduUpload } from '@/lib/types/sdu';
+import type { SduDefinition, SduUpload } from '@/lib/types/sdu';
 
 const api = vi.hoisted(() => ({
   getSduUpload: vi.fn(),
@@ -30,6 +30,7 @@ vi.mock('@/app/target-sources/[targetSourceId]/_components/sdu/steps/SduStep1Def
 }));
 
 import { SduStep4Upload } from '@/app/target-sources/[targetSourceId]/_components/sdu/steps/SduStep4Upload';
+import { SDU_GATE_TITLE } from '@/app/target-sources/[targetSourceId]/_components/sdu/upload/model';
 
 const TARGET_SOURCE_ID = 1100;
 
@@ -68,8 +69,8 @@ const upload = (over: Partial<SduUpload> = {}): SduUpload => ({
         destinationIps: ['52.218.0.0/17'],
       },
     ],
-    // 1100's shape: US answered, EU not.
-    ackedRegions: ['us'],
+    // 1100's shape: the owner is on the firewall block, with no answer yet.
+    acked: false,
   },
   recipients: { users: RECIPIENTS, updatedAt: '2026-08-24T07:41:00Z' },
   commands: {
@@ -77,14 +78,13 @@ const upload = (over: Partial<SduUpload> = {}): SduUpload => ({
       { region: 'us', command: US_COMMAND },
       { region: 'eu', command: EU_COMMAND },
     ],
-    ackedRegions: [],
+    acked: false,
   },
   bdc: { status: 'NOT_STARTED', checkedAt: '2026-08-24T07:50:00Z', completedAt: null },
-  invalidation: { addedRegions: [], removedRegions: [], uploadIpChanged: false },
+  invalidation: { addedRegions: [], uploadIpChanged: false },
   ...over,
 });
 
-const allAcked: SduRegion[] = ['us', 'eu'];
 
 const definition: SduDefinition = {
   regionScope: 'GLOBAL',
@@ -192,8 +192,11 @@ describe('SduStep4Upload', () => {
     expect(
       screen.getByRole('button', { name: /S3 Access Key 수신자/ }).getAttribute('aria-expanded'),
     ).toBe('true');
-    // ...and the folded firewall row says which Region is still missing.
-    expect(screen.getByText(/US 확인함 · EU 미확인 · 1곳 남음/)).toBeTruthy();
+    // ...and the folded firewall row names the Regions its one answer covers. 두 블록이 같은
+    // 문장을 쓰므로 어느 줄인지까지 짚는다 — 화면 어딘가에 있다는 것만으로는 부족하다.
+    // 미답 블록의 머리는 눌리지 않아 button 이 아니다 — 제목에서 그 줄로 올라간다.
+    const firewallRow = screen.getByText(SDU_GATE_TITLE.firewall).closest('div');
+    expect(firewallRow?.textContent).toContain('미확인 · US · EU');
 
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: /S3 Access Key 수신자/ }));
@@ -201,9 +204,10 @@ describe('SduStep4Upload', () => {
     expect(screen.getByText(FIREWALL_QUESTION)).toBeTruthy();
   });
 
-  it('names the Region still missing inside the open firewall block', async () => {
+  it('names every current Region in the open firewall block, one row each', async () => {
     await renderStep();
-    expect(screen.getByText('US는 확인하셨어요. EU가 남았어요.')).toBeTruthy();
+    // 답은 하나지만 질문은 Region 전부를 덮는다 — 표가 그 전부를 세운다.
+    expect(screen.getByText(/US · EU 2곳입니다/)).toBeTruthy();
     // The 대상 column counts 1단계's targets in that Region (2 in US, 1 in EU).
     expect(screen.getByText('2건')).toBeTruthy();
     expect(screen.getByText('1건')).toBeTruthy();
@@ -218,7 +222,6 @@ describe('SduStep4Upload', () => {
 
     expect(api.putSduAcks).toHaveBeenCalledWith(TARGET_SOURCE_ID, {
       kind: 'FIREWALL',
-      regions: ['us', 'eu'],
       confirmed: true,
     });
     // A write is followed by a re-read: the gates are the server's computation.
@@ -234,7 +237,6 @@ describe('SduStep4Upload', () => {
 
     expect(api.putSduAcks).toHaveBeenCalledWith(TARGET_SOURCE_ID, {
       kind: 'FIREWALL',
-      regions: ['us', 'eu'],
       confirmed: false,
     });
     expect(screen.getByText('확인 후 예를 눌러주세요. 다음 블록은 열리지 않아요.')).toBeTruthy();
@@ -268,7 +270,7 @@ describe('SduStep4Upload', () => {
     const writeText = vi.fn(() => Promise.resolve());
     Object.assign(navigator, { clipboard: { writeText } });
     api.getSduUpload.mockResolvedValue(
-      upload({ firewall: { ...upload().firewall, ackedRegions: allAcked } }),
+      upload({ firewall: { ...upload().firewall, acked: true } }),
     );
 
     const { container } = await renderStep();
@@ -286,7 +288,7 @@ describe('SduStep4Upload', () => {
 
   it('writes the UPLOAD ack from the 데이터 업로드 확인 block', async () => {
     api.getSduUpload.mockResolvedValue(
-      upload({ firewall: { ...upload().firewall, ackedRegions: allAcked } }),
+      upload({ firewall: { ...upload().firewall, acked: true } }),
     );
     await renderStep();
 
@@ -296,7 +298,6 @@ describe('SduStep4Upload', () => {
 
     expect(api.putSduAcks).toHaveBeenCalledWith(TARGET_SOURCE_ID, {
       kind: 'UPLOAD',
-      regions: ['us', 'eu'],
       confirmed: true,
     });
   });
@@ -305,8 +306,8 @@ describe('SduStep4Upload', () => {
     vi.useFakeTimers();
     try {
       const running = upload({
-        firewall: { ...upload().firewall, ackedRegions: allAcked },
-        commands: { ...upload().commands, ackedRegions: allAcked },
+        firewall: { ...upload().firewall, acked: true },
+        commands: { ...upload().commands, acked: true },
         bdc: { status: 'IN_PROGRESS', checkedAt: '2026-08-24T07:50:00Z', completedAt: null },
       });
       api.getSduUpload.mockResolvedValue(running);
@@ -322,8 +323,8 @@ describe('SduStep4Upload', () => {
 
       api.getSduUpload.mockResolvedValue(
         upload({
-          firewall: { ...upload().firewall, ackedRegions: allAcked },
-          commands: { ...upload().commands, ackedRegions: allAcked },
+          firewall: { ...upload().firewall, acked: true },
+          commands: { ...upload().commands, acked: true },
           bdc: {
             status: 'COMPLETED',
             checkedAt: '2026-08-24T07:51:00Z',
@@ -352,25 +353,20 @@ describe('SduStep4Upload', () => {
   it('tells the owner what the last 1단계 edit invalidated', async () => {
     api.getSduUpload.mockResolvedValue(
       upload({
-        invalidation: { addedRegions: ['asia'], removedRegions: ['cx'], uploadIpChanged: true },
+        invalidation: { addedRegions: ['asia'], uploadIpChanged: true },
       }),
     );
     await renderStep();
 
     expect(
-      screen.getByText(
-        'Asia가 추가되어 방화벽 확인과 업로드 확인이 그 Region에 대해서만 다시 필요해요',
-      ),
+      screen.getByText('Asia가 추가되어 방화벽 확인과 업로드 확인을 다시 해야 해요'),
     ).toBeTruthy();
-    expect(screen.getByText('CX의 응답은 폐기했어요')).toBeTruthy();
-    expect(
-      screen.getByText('업로드 IP가 바뀌어 모든 Region의 방화벽 확인을 다시 해야 해요'),
-    ).toBeTruthy();
+    expect(screen.getByText('업로드 IP가 바뀌어 방화벽 확인을 다시 해야 해요')).toBeTruthy();
   });
 
   it('says nothing when the definition has not changed', async () => {
     await renderStep();
-    expect(screen.queryByText(/폐기했어요/)).toBeNull();
+    expect(screen.queryByText(/다시 해야 해요/)).toBeNull();
     expect(screen.queryByText(/추가되어/)).toBeNull();
   });
 

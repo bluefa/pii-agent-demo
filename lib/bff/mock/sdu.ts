@@ -97,8 +97,8 @@ interface SduState {
   targets: SduTargetWire[];
   definitionUpdatedAt: string | null;
   submittedAt: string | null;
-  firewallAcked: SduRegion[];
-  commandsAcked: SduRegion[];
+  firewallAcked: boolean;
+  commandsAcked: boolean;
   recipientIds: string[];
   recipientsUpdatedAt: string | null;
   bdcStatus: SduBdcStatus;
@@ -114,7 +114,6 @@ const globalStore = globalThis as typeof globalThis & {
 
 const NO_INVALIDATION: SduInvalidationWire = {
   added_regions: [],
-  removed_regions: [],
   upload_ip_changed: false,
 };
 
@@ -153,8 +152,8 @@ const blankState = (): SduState => ({
   targets: [],
   definitionUpdatedAt: null,
   submittedAt: null,
-  firewallAcked: [],
-  commandsAcked: [],
+  firewallAcked: false,
+  commandsAcked: false,
   recipientIds: [],
   recipientsUpdatedAt: null,
   bdcStatus: 'NOT_STARTED',
@@ -186,7 +185,7 @@ const seedState = (targetSourceId: number): SduState => {
     state.submittedAt = SEED_SUBMITTED_AT;
     // Firewall confirmed for US only — the half-done shape Step 4 renders as
     // "1곳 확인함" against 2 regions.
-    state.firewallAcked = ['us'];
+    state.firewallAcked = true;
     state.recipientIds = [...SEED_1100_RECIPIENTS];
     state.recipientsUpdatedAt = SEED_RECIPIENTS_AT;
   }
@@ -220,8 +219,8 @@ export const clearSduUploadState = (targetSourceId: number): void => {
   const state = store?.get(targetSourceId);
   if (!state) return;
   state.submittedAt = null;
-  state.firewallAcked = [];
-  state.commandsAcked = [];
+  state.firewallAcked = false;
+  state.commandsAcked = false;
   state.recipientIds = [];
   state.recipientsUpdatedAt = null;
   state.bdcStatus = 'NOT_STARTED';
@@ -281,11 +280,10 @@ const BDC_DURATION_MS = 60_000;
 const refreshBdc = (targetSourceId: number, state: SduState): void => {
   if (state.bdcStatus === 'COMPLETED') return;
 
-  const regions = regionsOf(state);
   const ready =
-    regions.length > 0 &&
-    regions.every((region) => state.firewallAcked.includes(region)) &&
-    regions.every((region) => state.commandsAcked.includes(region)) &&
+    regionsOf(state).length > 0 &&
+    state.firewallAcked &&
+    state.commandsAcked &&
     state.recipientIds.length > 0;
 
   if (!ready) {
@@ -338,16 +336,16 @@ const toFirewallWire = (state: SduState, regions: SduRegion[]): SduFirewallWire 
     port: S3_PORT,
     destination_ips: [...REGION_FACTS[region].destinationIps],
   }));
-  return { rows, acked_regions: sortSduRegions(state.firewallAcked) };
+  return { rows, acked: state.firewallAcked };
 };
 
 const toCommandsWire = (
   targetSourceId: number,
   state: SduState,
   regions: SduRegion[],
-): { rows: SduCommandRowWire[]; acked_regions: SduRegion[] } => ({
+): { rows: SduCommandRowWire[]; acked: boolean } => ({
   rows: regions.map((region) => ({ region, command: buildCommand(region, targetSourceId) })),
-  acked_regions: sortSduRegions(state.commandsAcked),
+  acked: state.commandsAcked,
 });
 
 const toUploadWire = (targetSourceId: number, state: SduState): SduUploadWire => {
@@ -455,14 +453,14 @@ const normalizeTarget = (
  * The invalidation table (storyboard "무엇을 고치면 무엇이 무효가 되나"), applied to the
  * stored acks:
  *
- *   region added        → nothing to drop; it simply has no ack yet
- *   region removed      → its acks go from BOTH lists (they answer a path that is gone)
- *   upload_ip changed   → ALL firewall acks go; command acks stay
+ *   region added        → BOTH answers reset — the new region has a firewall rule nobody
+ *                         has confirmed and an upload path nobody has run `ls` against
+ *   region removed      → nothing; the answer that remains is still true
+ *   upload_ip changed   → the firewall answer resets; the command answer stays
  *   cloud / db types    → nothing
  *
- * The IP is the only edit with a blast radius wider than its own row: a firewall rule is
- * a source→destination PAIR, so a new source makes every rule a different rule. The
- * commands do not carry the source IP, so they survive.
+ * The IP resets only the firewall because a firewall rule is a source→destination PAIR, so
+ * a new source makes every rule a different rule. The commands do not carry the source IP.
  */
 const applyInvalidation = (
   state: SduState,
@@ -473,7 +471,6 @@ const applyInvalidation = (
   const nextRegions = sortSduRegions(next.map((target) => target.region));
 
   const added = nextRegions.filter((region) => !previousRegions.includes(region));
-  const removed = previousRegions.filter((region) => !nextRegions.includes(region));
 
   const previousIps = new Map(previous.map((target) => [target.target_id, target.upload_ip]));
   const uploadIpChanged = next.some((target) => {
@@ -481,15 +478,15 @@ const applyInvalidation = (
     return before !== undefined && before !== target.upload_ip;
   });
 
-  if (removed.length > 0) {
-    state.firewallAcked = state.firewallAcked.filter((region) => !removed.includes(region));
-    state.commandsAcked = state.commandsAcked.filter((region) => !removed.includes(region));
+  if (added.length > 0) {
+    state.firewallAcked = false;
+    state.commandsAcked = false;
   }
   if (uploadIpChanged) {
-    state.firewallAcked = [];
+    state.firewallAcked = false;
   }
 
-  return { added_regions: added, removed_regions: removed, upload_ip_changed: uploadIpChanged };
+  return { added_regions: added, upload_ip_changed: uploadIpChanged };
 };
 
 // ── Handlers ──────────────────────────────────────────────────────────────────
@@ -574,23 +571,8 @@ export const mockSdu = {
     if (typeof body.confirmed !== 'boolean') {
       return invalidParameter('confirmed는 boolean이어야 합니다.');
     }
-    if (!Array.isArray(body.regions) || !body.regions.every(isSduRegion)) {
-      return invalidParameter('regions는 Region 배열이어야 합니다.');
-    }
-
-    const current = regionsOf(state);
-    const offRoster = body.regions.filter((region) => !current.includes(region));
-    if (offRoster.length > 0) {
-      return invalidParameter(`연동 대상에 없는 Region입니다: ${offRoster.join(', ')}`);
-    }
-
-    const target = body.kind === 'FIREWALL' ? state.firewallAcked : state.commandsAcked;
-    const next = body.confirmed
-      ? sortSduRegions([...target, ...body.regions])
-      : target.filter((region) => !body.regions.includes(region));
-
-    if (body.kind === 'FIREWALL') state.firewallAcked = next;
-    else state.commandsAcked = next;
+    if (body.kind === 'FIREWALL') state.firewallAcked = body.confirmed;
+    else state.commandsAcked = body.confirmed;
 
     // 무효화 안내는 한 번만 말한다 — 다음 확인 응답이 들어온 순간 그 안내는 이미 읽힌 것이다.
     state.invalidation = emptyInvalidation();

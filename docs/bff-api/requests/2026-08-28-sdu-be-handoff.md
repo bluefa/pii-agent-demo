@@ -114,20 +114,21 @@ terraform 스크립트 이름 `SDU_BDC_SERVICE_COMMON` / `SDU_BDC_SERVICE`). 연
 
 | 1단계에서 고친 것 | 방화벽 확인 | 수신자 | 업로드 확인 |
 | --- | --- | --- | --- |
-| Region 추가 | (버릴 것 없음 — 답이 아직 없다) | 유지 | (버릴 것 없음) |
-| Region 삭제 | 그 Region 답변 폐기 | 유지 | 그 Region 답변 폐기 |
-| `upload_ip` 변경 | **전부** 폐기 | 유지 | 유지 |
+| Region 추가 | **초기화** | 유지 | **초기화** |
+| Region 삭제 | 유지 | 유지 | 유지 |
+| `upload_ip` 변경 | **초기화** | 유지 | 유지 |
 | `database_types` 만 | 유지 | 유지 | 유지 |
 | `cloud` 만 | 유지 | 유지 | 유지 |
 
-`upload_ip` 만 자기 행보다 넓게 번지는 이유: 방화벽 규칙은 **출발지 → 목적지 쌍**이라
-출발지가 바뀌면 모든 규칙이 다른 규칙이 된다. 명령문에는 출발지 IP 가 없어서 살아남는다.
-
-**답변을 Region 단위로 저장해 달라**는 요청이 여기서 나온다. 블록당 boolean 하나로 두면
-한 번의 수정이 전부를 지우고, 담당자는 되돌아가는 것을 피하게 된다.
+- **Region 추가**는 둘 다 초기화한다. 새 Region 은 아무도 결재하지 않은 방화벽 규칙과,
+  아무도 `ls` 해 보지 않은 업로드 경로를 함께 가져온다
+- **Region 삭제**는 아무것도 버리지 않는다. 남은 답이 아직 참이다
+- **`upload_ip` 변경**은 방화벽만 초기화한다. 방화벽 규칙은 **출발지 → 목적지 쌍**이라
+  출발지가 바뀌면 모든 규칙이 다른 규칙이 된다. 명령 세 줄에는 출발지 IP 가 없어서
+  업로드 확인은 살아남는다
 
 결과는 §5 의 `invalidation` 으로 되돌려 주고, **한 번만 말한다** — 다음 `PUT /upload/acks`
-가 지운다.
+가 지운다. 삭제된 Region 은 `invalidation` 에 없다: 버린 것이 없으면 할 말도 없다.
 
 ## 4. 제출 — `POST /definition/submit`
 
@@ -165,7 +166,7 @@ terraform 스크립트 이름 `SDU_BDC_SERVICE_COMMON` / `SDU_BDC_SERVICE`). 연
       "port": 443,
       "destination_ips": ["52.216.0.0/15", "54.231.0.0/16", "3.5.0.0/19"]
     }],
-    "acked_regions": ["us"]
+    "acked": true                       // 대상 소스 단위 답 하나. §7
   },
   "recipients": {
     "users": [{ "id": "user-1", "name": "홍길동", "email": "hong@company.com" }],
@@ -173,16 +174,14 @@ terraform 스크립트 이름 `SDU_BDC_SERVICE_COMMON` / `SDU_BDC_SERVICE`). 연
   },
   "commands": {
     "rows": [{ "region": "us", "command": "export http_proxy=...\n...\naws s3 ls ..." }],
-    "acked_regions": []
+    "acked": false
   },
   "bdc": {
     "status": "NOT_STARTED",            // NOT_STARTED | IN_PROGRESS | COMPLETED
     "checked_at": "2026-08-24T07:50:00Z",
     "completed_at": null
   },
-  "invalidation": {
-    "added_regions": [], "removed_regions": [], "upload_ip_changed": false
-  }
+  "invalidation": { "added_regions": [], "upload_ip_changed": false }
 }
 ```
 
@@ -242,17 +241,23 @@ GET /install/v1/services/{serviceCode}/authorized-users
 ## 7. 확인 답변 — `PUT /upload/acks`
 
 ```
-body { "kind": "FIREWALL" | "UPLOAD", "regions": ["us"], "confirmed": true }
+body { "kind": "FIREWALL" | "UPLOAD", "confirmed": true }
 → 204
-→ 400  INVALID_PARAMETER   // 현재 정의에 없는 region
+→ 400  INVALID_PARAMETER   // kind 가 둘 중 하나가 아니거나 confirmed 가 boolean 이 아님
 ```
 
-- `confirmed: true` 는 해당 `acked_regions` 에 더하고, `false` 는 뺀다
-- `regions` 는 §5 `regions` 의 부분집합
+- **답은 대상 소스 단위로 하나다.** 방화벽 확인도, 업로드 확인도 마찬가지다
+- `confirmed: true` 는 그 블록의 `acked` 를 세우고, `false` 는 내린다
 - **`false` 는 값이지 무응답이 아니다.** 2단계 게이트는 전진만 막는다 — 끝난 블록은
-  접히되 잠기지 않고, 모든 블록이 되돌아갈 길을 가진다. "아직 답 안 함"은 `acked_regions`
-  에 없는 것으로 이미 구별되므로 `YES/NO` enum 은 세 번째 상태가 닿지 않는다
+  접히되 잠기지 않고, 모든 블록이 되돌아갈 길을 가진다. `YES/NO` enum 은 이름 둘인 값
+  둘이라 boolean 하나와 같다
 - ack 저장은 `invalidation`(§3.1)도 지운다
+
+### 왜 Region 단위가 아닌가
+
+화면은 **"모든 Region의 방화벽 결재 내역을 확인하셨습니까?" 하나만 묻는다.** 예 버튼도
+하나다. Region 단위로 저장할 답이 애초에 만들어지지 않으므로, 배열은 화면이 묻지 않은
+것을 실어 보내는 자리가 된다.
 
 ## 8. BDC 진행과 초기화 — 엔드포인트가 아니라 규칙
 
@@ -388,4 +393,5 @@ GET /install/v1/target-sources/{targetSourceId}/sdu/acks/history
 2. **`GET /upload` 를 셋으로 쪼개지 않았다.** 2단계는 게이트 사슬이라 상태가 셋에 **걸쳐**
    계산된다 — `bdc` 는 셋을 다 봐야 답할 수 있고 `invalidation` 은 셋을 한 번에 말한다.
    세 번 부르면 화면이 다른 둘이 못 본 정의를 기준으로 게이트를 그린다
-3. **`confirmed: boolean`.** 이름 둘인 값 둘은 값 하나다(§7)
+3. **`confirmed: boolean` 하나, Region 배열 없음.** 이름 둘인 값 둘은 값 하나이고(§7),
+   화면이 한 번만 묻는 것을 Region 별로 저장할 이유도 없다

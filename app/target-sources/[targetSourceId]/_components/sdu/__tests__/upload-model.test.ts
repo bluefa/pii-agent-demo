@@ -11,21 +11,21 @@ import type { SduUpload } from '@/lib/types/sdu';
 const base: SduUpload = {
   submittedAt: '2026-08-24T05:41:00Z',
   regions: ['us', 'eu'],
-  firewall: { rows: [], ackedRegions: [] },
+  firewall: { rows: [], acked: false },
   recipients: { users: [], updatedAt: null },
-  commands: { rows: [], ackedRegions: [] },
+  commands: { rows: [], acked: false },
   bdc: { status: 'NOT_STARTED', checkedAt: '2026-08-24T07:50:00Z', completedAt: null },
-  invalidation: { addedRegions: [], removedRegions: [], uploadIpChanged: false },
+  invalidation: { addedRegions: [], uploadIpChanged: false },
 };
 
 describe('regionAckSummary', () => {
-  it('lists the regions once every one of them is answered', () => {
-    expect(regionAckSummary(['us', 'eu'], ['us', 'eu'])).toBe('확인함 · US · EU');
+  it('names the regions the one answer was given for', () => {
+    expect(regionAckSummary(['us', 'eu'], true)).toBe('확인함 · US · EU');
+    expect(regionAckSummary(['us', 'eu'], false)).toBe('미확인 · US · EU');
   });
 
-  it('names what is missing, not just how much', () => {
-    expect(regionAckSummary(['us', 'eu'], ['us'])).toBe('US 확인함 · EU 미확인 · 1곳 남음');
-    expect(regionAckSummary(['us', 'eu'], [])).toBe('US · EU 미확인 · 2곳 남음');
+  it('says there is nothing to answer about rather than 미확인', () => {
+    expect(regionAckSummary([], false)).toBe('연동 대상이 없어요');
   });
 });
 
@@ -44,7 +44,7 @@ describe('currentGate', () => {
   it('walks the chain in causal order', () => {
     const upload: SduUpload = {
       ...base,
-      firewall: { ...base.firewall, ackedRegions: ['us', 'eu'] },
+      firewall: { ...base.firewall, acked: true },
       recipients: { users: [{ id: 'u3', name: '박지원', email: 'a@bdc.com' }], updatedAt: null },
     };
     expect(currentGate(upload, gateDoneStates(upload))).toBe('commands');
@@ -53,9 +53,9 @@ describe('currentGate', () => {
   it('does not make BDC current before BDC has started', () => {
     const upload: SduUpload = {
       ...base,
-      firewall: { ...base.firewall, ackedRegions: ['us', 'eu'] },
+      firewall: { ...base.firewall, acked: true },
       recipients: { users: [{ id: 'u3', name: '박지원', email: 'a@bdc.com' }], updatedAt: null },
-      commands: { rows: [], ackedRegions: ['us', 'eu'] },
+      commands: { rows: [], acked: true },
     };
     expect(currentGate(upload, gateDoneStates(upload))).toBeNull();
     expect(currentGate({ ...upload, bdc: { ...base.bdc, status: 'IN_PROGRESS' } }, gateDoneStates(upload))).toBe(
@@ -64,7 +64,9 @@ describe('currentGate', () => {
   });
 
   it('treats a definition with no region as unanswerable rather than done', () => {
-    const upload: SduUpload = { ...base, regions: [], firewall: { ...base.firewall, ackedRegions: [] } };
+    // 답이 하나뿐이라도 「예」가 무엇에 대한 예인지는 있어야 한다 — Region 이 없으면 없는
+    // 것에 대해 답한 셈이라 게이트가 열려서는 안 된다.
+    const upload: SduUpload = { ...base, regions: [], firewall: { ...base.firewall, acked: true } };
     expect(gateDoneStates(upload).firewall).toBe(false);
   });
 });

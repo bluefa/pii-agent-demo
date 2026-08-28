@@ -229,7 +229,7 @@ export function SduStep4Upload({ project, onProjectUpdate }: SduStepProps) {
                 onToggle={done.firewall ? toggle('firewall') : undefined}
                 summary={regionAckSummary(
                   snapshot.upload.regions,
-                  snapshot.upload.firewall.ackedRegions,
+                  snapshot.upload.firewall.acked,
                 )}
               >
                 {/* 접힌 줄에 보조 동작이 없는 유일한 블록이다 — 되돌아갈 이유가
@@ -240,11 +240,7 @@ export function SduStep4Upload({ project, onProjectUpdate }: SduStepProps) {
                   targets={snapshot.definition.targets}
                   onAnswer={(confirmed) =>
                     write(() =>
-                      putSduAcks(targetSourceId, {
-                        kind: 'FIREWALL',
-                        regions: snapshot.upload.regions,
-                        confirmed,
-                      }),
+                      putSduAcks(targetSourceId, { kind: 'FIREWALL', confirmed }),
                     )
                   }
                 />
@@ -274,20 +270,15 @@ export function SduStep4Upload({ project, onProjectUpdate }: SduStepProps) {
                 onToggle={done.commands ? toggle('commands') : undefined}
                 summary={regionAckSummary(
                   snapshot.upload.regions,
-                  snapshot.upload.commands.ackedRegions,
+                  snapshot.upload.commands.acked,
                 )}
                 action={secondaryAction('명령 다시 보기', () => setReopened('commands'))}
               >
                 <UploadCommandsBlock
-                  regions={snapshot.upload.regions}
                   commands={snapshot.upload.commands}
                   onAnswer={(confirmed) =>
                     write(() =>
-                      putSduAcks(targetSourceId, {
-                        kind: 'UPLOAD',
-                        regions: snapshot.upload.regions,
-                        confirmed,
-                      }),
+                      putSduAcks(targetSourceId, { kind: 'UPLOAD', confirmed }),
                     )
                   }
                 />

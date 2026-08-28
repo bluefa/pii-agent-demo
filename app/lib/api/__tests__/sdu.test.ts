@@ -33,7 +33,7 @@ const FIREWALL_WIRE: SduFirewallWire = {
     { region: 'eu', s3_endpoint: 's3.eu-west-1.amazonaws.com', port: 443, destination_ips: ['52.218.0.0/17'] },
     { region: 'us', s3_endpoint: 's3.us-east-1.amazonaws.com', port: 443, destination_ips: ['52.216.0.0/15'] },
   ],
-  acked_regions: ['eu', 'us'],
+  acked: true,
 };
 
 const UPLOAD_WIRE: SduUploadWire = {
@@ -46,10 +46,10 @@ const UPLOAD_WIRE: SduUploadWire = {
   },
   commands: {
     rows: [{ region: 'us', command: 'export http_proxy=x\nexport https_proxy=x\naws s3 ls s3://b/1/' }],
-    acked_regions: [],
+    acked: false,
   },
   bdc: { status: 'IN_PROGRESS', checked_at: '2026-08-24T08:00:00Z', completed_at: null },
-  invalidation: { added_regions: ['asia'], removed_regions: ['cx'], upload_ip_changed: true },
+  invalidation: { added_regions: ['asia'], upload_ip_changed: true },
 };
 
 interface Seen {
@@ -101,10 +101,10 @@ describe('SDU 어댑터 — snake → camel', () => {
 
     expect(upload.submittedAt).toBe('2026-08-24T05:41:00Z');
     expect(upload.firewall.rows[0]).toEqual({
-      region: 'eu',
-      s3Endpoint: 's3.eu-west-1.amazonaws.com',
+      region: 'us',
+      s3Endpoint: 's3.us-east-1.amazonaws.com',
       port: 443,
-      destinationIps: ['52.218.0.0/17'],
+      destinationIps: ['52.216.0.0/15'],
     });
     expect(upload.recipients.updatedAt).toBe('2026-08-24T07:41:00Z');
     expect(upload.recipients.users[0]).toEqual({
@@ -118,11 +118,7 @@ describe('SDU 어댑터 — snake → camel', () => {
       checkedAt: '2026-08-24T08:00:00Z',
       completedAt: null,
     });
-    expect(upload.invalidation).toEqual({
-      addedRegions: ['asia'],
-      removedRegions: ['cx'],
-      uploadIpChanged: true,
-    });
+    expect(upload.invalidation).toEqual({ addedRegions: ['asia'], uploadIpChanged: true });
   });
 
   it('Region 목록은 정규 순서로 세워진다 — 표·명령·확인이 서로 다른 순서를 말할 수 없다', async () => {
@@ -130,8 +126,9 @@ describe('SDU 어댑터 — snake → camel', () => {
 
     const upload = await getSduUpload(1101);
 
+    // 세 자리가 같은 순서를 말해야 한다 — wire 는 eu·us 로 왔다.
     expect(upload.regions).toEqual(['us', 'eu']);
-    expect(upload.firewall.ackedRegions).toEqual(['us', 'eu']);
+    expect(upload.firewall.rows.map((row) => row.region)).toEqual(['us', 'eu']);
   });
 
   it('명령 문자열은 해석하지 않고 그대로 옮긴다', async () => {
@@ -187,11 +184,12 @@ describe('SDU 어댑터 — camel → snake', () => {
   it('확인 응답과 수신자는 snake 본문으로 나가고 읽을 것이 없다', async () => {
     const ackSeen = stubFetch(null, 204);
     await expect(
-      putSduAcks(1101, { kind: 'FIREWALL', regions: ['us'], confirmed: false }),
+      putSduAcks(1101, { kind: 'FIREWALL', confirmed: false }),
     ).resolves.toBeUndefined();
     expect(ackSeen.method).toBe('PUT');
     expect(ackSeen.url).toContain('/target-sources/1101/sdu/upload/acks');
-    expect(ackSeen.body).toEqual({ kind: 'FIREWALL', regions: ['us'], confirmed: false });
+    // 답은 블록당 하나다 — 본문에 Region 이 실리면 화면이 묻지 않은 것을 보내는 것이다.
+    expect(ackSeen.body).toEqual({ kind: 'FIREWALL', confirmed: false });
 
     vi.unstubAllGlobals();
     const recipientSeen = stubFetch(null, 204);

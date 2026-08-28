@@ -25,20 +25,6 @@ export const SDU_GATE_TITLE: Record<SduGateId, string> = {
 export const regionLabels = (regions: readonly SduRegion[]): string =>
   regions.map((region) => SDU_REGION_LABEL[region]).join(' · ');
 
-/**
- * Regions of the CURRENT definition that carry no answer yet.
- *
- * Answers are stored per region, never as one boolean per block — that is what lets a trip
- * back to 1단계 keep what still applies instead of resetting the step (storyboard §03).
- */
-export const missingRegions = (
-  regions: readonly SduRegion[],
-  acked: readonly SduRegion[],
-): SduRegion[] => regions.filter((region) => !acked.includes(region));
-
-const isRegionListDone = (regions: readonly SduRegion[], acked: readonly SduRegion[]): boolean =>
-  regions.length > 0 && missingRegions(regions, acked).length === 0;
-
 export interface SduGateStates {
   firewall: boolean;
   recipients: boolean;
@@ -47,9 +33,11 @@ export interface SduGateStates {
 }
 
 export const gateDoneStates = (upload: SduUpload): SduGateStates => ({
-  firewall: isRegionListDone(upload.regions, upload.firewall.ackedRegions),
+  // A block with no region to answer for is not finished — an empty definition would
+  // otherwise walk every gate open on an answer about nothing.
+  firewall: upload.regions.length > 0 && upload.firewall.acked,
   recipients: upload.recipients.users.length >= 1,
-  commands: isRegionListDone(upload.regions, upload.commands.ackedRegions),
+  commands: upload.regions.length > 0 && upload.commands.acked,
   bdc: upload.bdc.status === 'COMPLETED',
 });
 
@@ -71,19 +59,12 @@ export const doneCount = (done: SduGateStates): number =>
   SDU_GATE_IDS.filter((id) => done[id]).length;
 
 /**
- * One line for a folded region-scoped block. Which regions are still unanswered is the value
- * the folded row exists to carry — "1곳 남음" alone sends the owner back in to find out which.
+ * One line for a folded ack block. The answer covers every Region at once, so the line names
+ * the regions it was given for rather than splitting them into answered and not.
  */
-export const regionAckSummary = (
-  regions: readonly SduRegion[],
-  acked: readonly SduRegion[],
-): string => {
+export const regionAckSummary = (regions: readonly SduRegion[], acked: boolean): string => {
   if (regions.length === 0) return '연동 대상이 없어요';
-  const missing = missingRegions(regions, acked);
-  if (missing.length === 0) return `확인함 · ${regionLabels(regions)}`;
-  const answered = regions.filter((region) => acked.includes(region));
-  if (answered.length === 0) return `${regionLabels(missing)} 미확인 · ${missing.length}곳 남음`;
-  return `${regionLabels(answered)} 확인함 · ${regionLabels(missing)} 미확인 · ${missing.length}곳 남음`;
+  return acked ? `확인함 · ${regionLabels(regions)}` : `미확인 · ${regionLabels(regions)}`;
 };
 
 /** '3명 등록함 · 박지원 외 2명' — the name is what stops "누구 앞으로 갔더라" being asked again. */
@@ -102,14 +83,11 @@ export const invalidationLines = (invalidation: SduInvalidation): string[] => {
   const lines: string[] = [];
   if (invalidation.addedRegions.length > 0) {
     lines.push(
-      `${regionLabels(invalidation.addedRegions)}가 추가되어 방화벽 확인과 업로드 확인이 그 Region에 대해서만 다시 필요해요`,
+      `${regionLabels(invalidation.addedRegions)}가 추가되어 방화벽 확인과 업로드 확인을 다시 해야 해요`,
     );
   }
-  if (invalidation.removedRegions.length > 0) {
-    lines.push(`${regionLabels(invalidation.removedRegions)}의 응답은 폐기했어요`);
-  }
   if (invalidation.uploadIpChanged) {
-    lines.push('업로드 IP가 바뀌어 모든 Region의 방화벽 확인을 다시 해야 해요');
+    lines.push('업로드 IP가 바뀌어 방화벽 확인을 다시 해야 해요');
   }
   return lines;
 };

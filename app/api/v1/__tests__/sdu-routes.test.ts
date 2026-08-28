@@ -41,7 +41,7 @@ const FIREWALL: SduFirewallWire = {
   rows: [
     { region: 'us', s3_endpoint: 's3.us-east-1.amazonaws.com', port: 443, destination_ips: ['52.216.0.0/15'] },
   ],
-  acked_regions: ['us'],
+  acked: true,
 };
 
 const UPLOAD: SduUploadWire = {
@@ -49,9 +49,9 @@ const UPLOAD: SduUploadWire = {
   regions: ['us'],
   firewall: FIREWALL,
   recipients: { users: [], updated_at: null },
-  commands: { rows: [{ region: 'us', command: 'export http_proxy=…' }], acked_regions: [] },
+  commands: { rows: [{ region: 'us', command: 'export http_proxy=…' }], acked: false },
   bdc: { status: 'NOT_STARTED', checked_at: '2026-08-24T08:00:00Z', completed_at: null },
-  invalidation: { added_regions: [], removed_regions: [], upload_ip_changed: false },
+  invalidation: { added_regions: [], upload_ip_changed: false },
 };
 
 beforeEach(() => {
