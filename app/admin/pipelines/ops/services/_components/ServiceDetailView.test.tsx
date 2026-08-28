@@ -17,10 +17,11 @@
  * The measured side (120px slots, a 388px list across 0/1/2/3/4/7 targets) was
  * verified in the browser; what jsdom can hold is the structure that guarantees it.
  */
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 import { ServiceDetailView } from '@/app/admin/pipelines/ops/services/_components/ServiceDetailView';
+import { AppError } from '@/lib/errors';
 import type {
   OpsServiceDetail,
   OpsServiceTargetRow,
@@ -33,6 +34,8 @@ vi.mock('next/navigation', () => ({
 
 const getOpsService = vi.fn();
 const getServiceJiraTickets = vi.fn();
+const updateServiceInstalled = vi.fn();
+const endOfService = vi.fn();
 
 vi.mock('@/app/lib/api/ops', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/app/lib/api/ops')>();
@@ -40,6 +43,8 @@ vi.mock('@/app/lib/api/ops', async (importOriginal) => {
     ...actual,
     getOpsService: (...args: unknown[]) => getOpsService(...args),
     getServiceJiraTickets: (...args: unknown[]) => getServiceJiraTickets(...args),
+    updateServiceInstalled: (...args: unknown[]) => updateServiceInstalled(...args),
+    endOfService: (...args: unknown[]) => endOfService(...args),
   };
 });
 
@@ -351,5 +356,137 @@ describe('운영 동작 버튼 — 관리자 게이트', () => {
     await renderWith([target(4100)], false);
     expect(screen.queryByRole('button', { name: '설치 상태 갱신' })).toBeNull();
     expect(screen.queryByRole('button', { name: '서비스 종료' })).toBeNull();
+  });
+});
+
+/**
+ * 결과 패널 — 토스트를 걷어낸 자리. 오너 요구의 핵심은 두 가지다: 실패한 응답이 화면에
+ * 글자 그대로 남을 것, 그리고 두 동작이 서로의 결과를 지우지 않을 것. 토스트로는 둘 다
+ * 불가능했다 — 사라지는 알림은 티켓에 붙일 수 없고, 뒤에 온 것이 앞엣것을 덮는다.
+ */
+describe('운영 동작 결과 패널', () => {
+  const panel = () => screen.getByLabelText('운영 동작 실행 결과');
+
+  /** 패널 안에서 그 동작의 칸 하나. 이름이 헤더 버튼과 같아 범위를 좁혀야 한다. */
+  const entryFor = (name: string): HTMLElement => {
+    const entry = Array.from(panel().children).find((el) =>
+      within(el as HTMLElement).queryByText(name),
+    );
+    expect(entry).toBeTruthy();
+    return entry as HTMLElement;
+  };
+
+  /** 헤더 버튼 → 확인 모달 → 확인. 모달의 확인 라벨이 버튼 이름과 겹쳐 dialog 로 좁힌다. */
+  const run = async (button: string, confirmLabel: string) => {
+    fireEvent.click(screen.getByRole('button', { name: button }));
+    const dialog = await screen.findByRole('dialog');
+    // 확인을 누르면 요청이 나가고, 그 promise 가 풀릴 때 결과가 상태로 들어온다 —
+    // act 밖에서 일어나면 React 가 경고한다.
+    await act(async () => {
+      fireEvent.click(within(dialog).getByRole('button', { name: confirmLabel }));
+    });
+  };
+
+  const conflict = () =>
+    new AppError({
+      status: 409,
+      code: 'CONFLICT',
+      message: '진행 중인 파이프라인이 3건 있어 종료할 수 없습니다.',
+      retriable: false,
+      requestId: 'req-7f3a91',
+      timestamp: '2026-08-28T01:02:03Z',
+    });
+
+  it('성공한 동작은 자기 칸에 성공이라고 적는다', async () => {
+    updateServiceInstalled.mockResolvedValue(undefined);
+    await renderWith([target(4200)], true);
+
+    await run('설치 상태 갱신', '갱신');
+
+    await waitFor(() => expect(panel()).toBeTruthy());
+    const entry = entryFor('설치 상태 갱신');
+    expect(within(entry).getByText('성공')).toBeTruthy();
+    // 성공은 상세를 다시 읽는다 — 화면이 사실을 확인한다.
+    await waitFor(() => expect(getOpsService).toHaveBeenCalledTimes(2));
+  });
+
+  it('실패한 동작은 응답의 status·code·message 를 글자 그대로 싣는다', async () => {
+    endOfService.mockRejectedValue(conflict());
+    await renderWith([target(4201)], true);
+
+    await run('서비스 종료', '서비스 종료');
+
+    await waitFor(() => expect(panel()).toBeTruthy());
+    const entry = entryFor('서비스 종료');
+    expect(within(entry).getByText('실패')).toBeTruthy();
+    expect(within(entry).getByText('409')).toBeTruthy();
+    expect(within(entry).getByText('CONFLICT')).toBeTruthy();
+    expect(
+      within(entry).getByText('진행 중인 파이프라인이 3건 있어 종료할 수 없습니다.'),
+    ).toBeTruthy();
+    expect(within(entry).getByText('req-7f3a91')).toBeTruthy();
+    // 서버가 준 시각은 응답의 문자열 그대로다 — 로컬 표기로 다시 그리면 화면이 적는 값이
+    // 더 이상 wire 에 있던 값이 아니게 된다.
+    expect(within(entry).getByText('2026-08-28T01:02:03Z')).toBeTruthy();
+    // 실패하면 다시 읽지 않는다 — 최초 1회뿐.
+    expect(getOpsService).toHaveBeenCalledTimes(1);
+    // 모달은 성공이든 실패든 닫힌다. 에러는 이제 패널이 들고 있다.
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('메시지는 mono 슬롯에 앉지 않는다', async () => {
+    // 한국어 문장이 고정폭 슬롯에 들어가면 문장부호가 전각 칸을 쓴다. 대조하는 값
+    // (status·code·requestId)만 mono 다.
+    endOfService.mockRejectedValue(conflict());
+    await renderWith([target(4202)], true);
+
+    await run('서비스 종료', '서비스 종료');
+    await waitFor(() => expect(panel()).toBeTruthy());
+
+    const entry = entryFor('서비스 종료');
+    const message = within(entry).getByText(
+      '진행 중인 파이프라인이 3건 있어 종료할 수 없습니다.',
+    );
+    expect(message.className).not.toMatch(/font-mono|--pl-font-mono/);
+    expect(within(entry).getByText('409').className).toMatch(/--pl-font-mono/);
+    expect(within(entry).getByText('req-7f3a91').className).toMatch(/--pl-font-mono/);
+    expect(within(entry).getByText('2026-08-28T01:02:03Z').className).toMatch(/--pl-font-mono/);
+  });
+
+  it('한 동작을 실행해도 다른 동작의 결과는 그대로 남는다', async () => {
+    // 오너의 요구가 여기다 — 토스트 하나로는 뒤엣것이 앞엣것을 덮었다.
+    updateServiceInstalled.mockResolvedValue(undefined);
+    endOfService.mockRejectedValue(conflict());
+    await renderWith([target(4203)], true);
+
+    await run('설치 상태 갱신', '갱신');
+    await waitFor(() => expect(panel()).toBeTruthy());
+    await run('서비스 종료', '서비스 종료');
+    await waitFor(() => expect(panel().children).toHaveLength(2));
+
+    const installed = entryFor('설치 상태 갱신');
+    const eos = entryFor('서비스 종료');
+    expect(within(installed).getByText('성공')).toBeTruthy();
+    expect(within(installed).queryByText('409')).toBeNull();
+    expect(within(eos).getByText('실패')).toBeTruthy();
+    expect(within(eos).getByText('409')).toBeTruthy();
+  });
+
+  it('AppError 가 아닌 throw 는 API 응답인 척하지 않는다', async () => {
+    // 네트워크·중단은 API 가 준 적 없는 값이라 status 0 으로 적는다.
+    endOfService.mockRejectedValue(new Error('Failed to fetch'));
+    await renderWith([target(4204)], true);
+
+    await run('서비스 종료', '서비스 종료');
+    await waitFor(() => expect(panel()).toBeTruthy());
+
+    const entry = entryFor('서비스 종료');
+    expect(within(entry).getByText('0')).toBeTruthy();
+    expect(within(entry).getByText('Failed to fetch')).toBeTruthy();
+  });
+
+  it('isAdmin 이 아니면 패널도 없다', async () => {
+    await renderWith([target(4205)], false);
+    expect(screen.queryByLabelText('운영 동작 실행 결과')).toBeNull();
   });
 });
