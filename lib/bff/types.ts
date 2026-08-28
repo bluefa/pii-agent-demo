@@ -437,6 +437,16 @@ export interface BffClient {
      * 객체가 아니라 문자열이라 케이스 경계가 없다.
      */
     getAirflowHost: (databaseUri: string) => Promise<string>;
+    /**
+     * 서비스 단위 운영 동작 두 개. Bodyless writes: the path `serviceCode` is the
+     * whole request, and neither endpoint declares a response body — so both
+     * return `void` and nothing downstream reads a result.
+     *
+     * NOT declared in docs/swagger/install-v1.yaml (owner confirmed 2026-08-28),
+     * so there is no generated zod schema for either one — do not go looking.
+     */
+    updateServiceInstalled: (serviceCode: string) => Promise<void>;
+    endOfService: (serviceCode: string) => Promise<void>;
   };
 
   /**

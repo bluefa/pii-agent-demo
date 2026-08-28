@@ -31,6 +31,9 @@ import type { CloudProvider } from '@/lib/types';
 import { opsStyles } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/opsStyles';
 import { CompletedStampSlot } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/CompletedStamp';
 import { serviceListStyles as s } from '@/app/admin/pipelines/_services/styles';
+import { usePlToast } from '@/app/admin/pipelines/_components/usePlToast';
+import { useApiAction } from '@/app/hooks/useApiMutation';
+import { ConfirmStepModal } from '@/app/components/ui/ConfirmStepModal';
 import { safeBrowseUrl } from '@/lib/jira-ticket';
 import { JiraTicketMenu } from '@/app/admin/pipelines/ops/services/_components/JiraTicketMenu';
 import {
@@ -38,8 +41,10 @@ import {
   type JiraTicketAction,
 } from '@/app/admin/pipelines/ops/services/_components/JiraTicketModal';
 import {
+  endOfService,
   getOpsService,
   getServiceJiraTickets,
+  updateServiceInstalled,
   JIRA_CLOUD_PROVIDERS,
   type JiraCloudProvider,
   type JiraTicket,
@@ -340,9 +345,20 @@ function DetailSkeleton(): ReactElement {
 
 export interface ServiceDetailViewProps {
   serviceCode: string;
+  /**
+   * 운영 동작(설치 상태 갱신 · 서비스 종료)을 이 사람이 쓸 수 있는지. 서버
+   * (`page.tsx` 의 `isAdminRole`)가 판정해 내려 준다 — 화면은 다시 판정하지 않는다.
+   */
+  isAdmin: boolean;
 }
 
-export function ServiceDetailView({ serviceCode }: ServiceDetailViewProps): ReactElement {
+/** 확인 모달이 지금 어느 동작을 물고 있는지. null = 닫힘. */
+type ServiceActionKind = 'installed' | 'eos';
+
+export function ServiceDetailView({
+  serviceCode,
+  isAdmin,
+}: ServiceDetailViewProps): ReactElement {
   const router = useRouter();
   const [detail, setDetail] = useState<OpsServiceDetail | null>(null);
   const [tickets, setTickets] = useState<JiraTicket[]>([]);
@@ -359,6 +375,38 @@ export function ServiceDetailView({ serviceCode }: ServiceDetailViewProps): Reac
 
   const [reloadKey, setReloadKey] = useState(0);
   const reload = useCallback(() => setReloadKey((key) => key + 1), []);
+
+  // 운영 동작 두 개. 둘 다 본문 없는 쓰기라 결과를 읽을 값이 없다 — 성공하면 상세를
+  // 다시 읽어 화면이 사실을 확인한다.
+  const [actionFor, setActionFor] = useState<ServiceActionKind | null>(null);
+  const toast = usePlToast();
+
+  // `useApiAction` 은 같은 훅 모듈의 무인자 형태다 — 두 동작 다 보낼 값이 없다.
+  const installed = useApiAction(() => updateServiceInstalled(serviceCode), {
+    onSuccess: () => {
+      setActionFor(null);
+      toast.show('설치 상태를 갱신했습니다.');
+      reload();
+    },
+    // 이 화면의 문장이다 — 업스트림 메시지는 UI 문구가 아니다 (ADR-008).
+    onError: () => toast.show('설치 상태 갱신에 실패했습니다.'),
+  });
+
+  const eos = useApiAction(() => endOfService(serviceCode), {
+    onSuccess: () => {
+      setActionFor(null);
+      toast.show('서비스를 종료했습니다.');
+      reload();
+    },
+    onError: () => toast.show('서비스 종료에 실패했습니다.'),
+  });
+
+  const actionPending = installed.loading || eos.loading;
+  // 서버가 아니라고 한 사람에게는 버튼이 아예 없다 — 그래도 여기서 한 번 더 막는다.
+  const runAction = (kind: ServiceActionKind) => {
+    if (!isAdmin) return;
+    void (kind === 'installed' ? installed.execute() : eos.execute());
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -428,18 +476,42 @@ export function ServiceDetailView({ serviceCode }: ServiceDetailViewProps): Reac
     // 섹션마다 시트를 따로 두면 그 사이로 바닥이 비쳐 본문이 다시 조각난다 —
     // 구분은 시트 안에서 여백과 가로줄로만 한다.
     <div className={s.sheet}>
-      {/* 좌측 레일이 곧 현재 위치라 breadcrumb 은 두지 않는다. */}
-      <div className="flex min-w-0 flex-col gap-2">
-        {/* 이름보다 먼저 읽히는 분류 — 이 시트가 무엇을 다루는 화면인지. */}
-        <span className={s.pageTag}>서비스 관리</span>
-        <div className="flex items-center gap-2">
-          {/* 페이지의 h1 은 좌측 레일 제목("서비스 운영") — 상세는 그 아래 h2 다. */}
-          <h2 className={cn(text.pageTitle, 'truncate')}>{detail.service_name}</h2>
-          <span className={codeChip}>
-            <span className={codeChipLabel}>서비스코드</span>
-            <span className="[font-family:var(--pl-font-mono)]">{detail.service_code}</span>
-          </span>
+      {/* 좌측 레일이 곧 현재 위치라 breadcrumb 은 두지 않는다. 정체성은 왼쪽,
+          이 서비스에 하는 일은 오른쪽 — 두 버튼은 제목 줄의 바닥선에 앉는다. */}
+      <div className="flex items-end justify-between gap-6">
+        <div className="flex min-w-0 flex-col gap-2">
+          {/* 이름보다 먼저 읽히는 분류 — 이 시트가 무엇을 다루는 화면인지. */}
+          <span className={s.pageTag}>서비스 관리</span>
+          <div className="flex items-center gap-2">
+            {/* 페이지의 h1 은 좌측 레일 제목("서비스 운영") — 상세는 그 아래 h2 다. */}
+            <h2 className={cn(text.pageTitle, 'truncate')}>{detail.service_name}</h2>
+            <span className={codeChip}>
+              <span className={codeChipLabel}>서비스코드</span>
+              <span className="[font-family:var(--pl-font-mono)]">{detail.service_code}</span>
+            </span>
+          </div>
         </div>
+
+        {/* 관리자에게만 있는 자리. 종료는 되돌릴 수 없어 danger 톤이지만 채우지는
+            않는다 — 갱신 옆에서 칠까지 하면 화면에서 가장 큰 것이 된다. */}
+        {isAdmin && (
+          <div className="flex shrink-0 items-center gap-2">
+            <PlButton
+              variant="secondary"
+              disabled={actionPending}
+              onClick={() => setActionFor('installed')}
+            >
+              설치 상태 갱신
+            </PlButton>
+            <PlButton
+              variant="danger"
+              disabled={actionPending}
+              onClick={() => setActionFor('eos')}
+            >
+              서비스 종료
+            </PlButton>
+          </div>
+        )}
       </div>
 
       <hr className={s.sheetRule} />
@@ -762,6 +834,28 @@ export function ServiceDetailView({ serviceCode }: ServiceDetailViewProps): Reac
           onDone={reload}
         />
       )}
+
+      {/* 두 동작이 모달 하나를 나눠 쓴다 — 프레임은 같고 문장과 톤만 갈린다. */}
+      <ConfirmStepModal
+        open={actionFor !== null}
+        onClose={() => setActionFor(null)}
+        onConfirm={() => actionFor && runAction(actionFor)}
+        title={
+          actionFor === 'eos' ? '서비스를 종료할까요?' : '설치 상태를 갱신할까요?'
+        }
+        // 두 경로 다 install-v1.yaml 에 없다 — 서버가 무엇을 하는지 우리는 모른다.
+        // 그래서 문장은 동작 이름을 되풀이할 뿐, 그 안의 기제를 말하지 않는다.
+        // 되돌릴 수 없다는 것도 이 콘솔에 되돌릴 화면이 없다는 뜻이지, 서버가
+        // 비가역이라는 뜻이 아니다.
+        description={
+          actionFor === 'eos'
+            ? `${detail.service_name} 서비스를 종료 처리합니다. 이 화면에서는 되돌릴 수 없습니다.`
+            : `${detail.service_name} 서비스의 설치 상태를 갱신합니다.`
+        }
+        confirmLabel={actionFor === 'eos' ? '서비스 종료' : '갱신'}
+        tone={actionFor === 'eos' ? 'warning' : 'default'}
+        isPending={actionPending}
+      />
     </div>
   );
 }

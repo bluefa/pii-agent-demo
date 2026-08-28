@@ -419,6 +419,20 @@ export const httpBff: BffClient = {
       const res = await getRaw(`/pipeline-manager/airflow-host?databaseUri=${enc(databaseUri)}`);
       return parseAirflowHostBody(await res.text());
     },
+    // 서비스 운영 상세의 두 버튼. Neither path is declared in install-v1.yaml
+    // (owner confirmed 2026-08-28), so there is no schema to parse against.
+    //
+    // `send` directly rather than `post`: these are status-only writes with no
+    // declared response body, and `post` cannot pass `emptyBodyOk` — a 200 with
+    // an empty body would die in JSON.parse. Nothing reads the result either way.
+    updateServiceInstalled: (serviceCode) =>
+      send<void>('POST', `/service-infos/${enc(serviceCode)}/update-service-installed`, undefined, {
+        emptyBodyOk: true,
+      }),
+    endOfService: (serviceCode) =>
+      send<void>('POST', `/service-infos/${enc(serviceCode)}/end-of-service`, undefined, {
+        emptyBodyOk: true,
+      }),
   },
 
   // 서비스 접근 권한 — 오너가 준 백엔드 초안 스펙 그대로

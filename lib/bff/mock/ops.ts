@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import * as mockData from '@/lib/mock-data';
+import { minutesAgo } from '@/lib/bff/mock/clock';
 import { ProcessStatus } from '@/lib/types';
 import type {
   OpsProcessStatusWire,
@@ -128,6 +129,10 @@ interface OpsServiceState {
   jira: Partial<Record<string, string>>;
   /** cloudProvider → watcher userId 목록 (실계약 watchers POST 의 누적분). */
   watchers: Partial<Record<string, string[]>>;
+  /** 설치 상태 갱신을 마지막으로 실행한 시각 (null = 실행한 적 없음). */
+  serviceInstalledUpdatedAt: string | null;
+  /** 서비스 종료를 실행한 시각 (null = 운영 중). */
+  endOfServiceAt: string | null;
 }
 
 const serviceGlobal = globalThis as typeof globalThis & {
@@ -152,7 +157,12 @@ const serviceState = (code: string): OpsServiceState => {
   let state = store.get(code);
   if (!state) {
     const index = serviceCodes().indexOf(code);
-    state = { jira: { ...(SEED_JIRA[index] ?? {}) }, watchers: {} };
+    state = {
+      jira: { ...(SEED_JIRA[index] ?? {}) },
+      watchers: {},
+      serviceInstalledUpdatedAt: null,
+      endOfServiceAt: null,
+    };
     store.set(code, state);
   }
   return state;
@@ -253,6 +263,30 @@ export const mockOps = {
     });
   },
 
+  // POST /service-infos/{serviceCode}/update-service-installed — bodyless, no
+  // declared response. Not in install-v1.yaml, so there is no schema to author
+  // against; the mock records WHEN it ran so a repeat call is distinguishable
+  // from a first one.
+  updateServiceInstalled: async (serviceCode: string) => {
+    if (!serviceCodes().includes(serviceCode)) return notFound('서비스를 찾을 수 없습니다.');
+    serviceState(serviceCode).serviceInstalledUpdatedAt = minutesAgo(0);
+    return new NextResponse(null, { status: 204 });
+  },
+
+  // POST /service-infos/{serviceCode}/end-of-service — same shape. 종료는 한 번뿐이라
+  // 이미 종료된 서비스는 409 로 거른다.
+  endOfService: async (serviceCode: string) => {
+    if (!serviceCodes().includes(serviceCode)) return notFound('서비스를 찾을 수 없습니다.');
+    const state = serviceState(serviceCode);
+    if (state.endOfServiceAt) {
+      return NextResponse.json(
+        { error: 'CONFLICT', message: '이미 종료된 서비스입니다.' },
+        { status: 409 },
+      );
+    }
+    state.endOfServiceAt = minutesAgo(0);
+    return new NextResponse(null, { status: 204 });
+  },
 };
 
 /* ── Jira Tickets tag — REAL contract (install-v1.yaml, docs/api/jira-tickets.md §1) ── */

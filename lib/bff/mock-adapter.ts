@@ -149,6 +149,12 @@ export const mockBff: BffClient = {
       unwrap(await mockOps.getTargetSourceList(query, page, size)),
     getDagStatus: async (id) => unwrap(await mockMonitoring.getDagStatus(id)),
     getAirflowHost: async (databaseUri) => unwrap(await mockMonitoring.getAirflowHost(databaseUri)),
+    updateServiceInstalled: async (serviceCode) => {
+      await unwrap(await mockOps.updateServiceInstalled(serviceCode));
+    },
+    endOfService: async (serviceCode) => {
+      await unwrap(await mockOps.endOfService(serviceCode));
+    },
   },
 
   // 서비스 접근 권한 — 규칙(승인=부여, 400/멱등, 마지막 관리자)은 mock 모듈에 산다.

@@ -97,10 +97,10 @@ const slotCount = () => {
   return { cards: cards.length, ghosts: ghosts.length, total: cards.length + ghosts.length };
 };
 
-const renderWith = async (rows: OpsServiceTargetRow[]) => {
+const renderWith = async (rows: OpsServiceTargetRow[], isAdmin = false) => {
   getOpsService.mockResolvedValue(detail(rows));
   getServiceJiraTickets.mockResolvedValue([]);
-  render(<ServiceDetailView serviceCode="ORD" />);
+  render(<ServiceDetailView serviceCode="ORD" isAdmin={isAdmin} />);
   await screen.findByLabelText('Target Source 목록');
 };
 
@@ -332,5 +332,24 @@ describe('최초 연동 도장', () => {
     ]);
     expect(screen.getByTitle(guid).textContent).toBe(guid);
     expect(screen.getByTitle(tenant).textContent).toBe(tenant);
+  });
+});
+
+/**
+ * 운영 동작 두 개는 관리자만 본다. 서버(`page.tsx`)가 이미 판정해 내려 주지만, 그
+ * 판정이 화면에서 지워지면 관리자가 아닌 사람에게 되돌릴 수 없는 버튼이 뜬다 — 그
+ * 자리가 여기다.
+ */
+describe('운영 동작 버튼 — 관리자 게이트', () => {
+  it('isAdmin 이면 두 버튼이 모두 선다', async () => {
+    await renderWith([target(4100)], true);
+    expect(screen.getByRole('button', { name: '설치 상태 갱신' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: '서비스 종료' })).toBeTruthy();
+  });
+
+  it('isAdmin 이 아니면 두 버튼은 아예 그려지지 않는다', async () => {
+    await renderWith([target(4100)], false);
+    expect(screen.queryByRole('button', { name: '설치 상태 갱신' })).toBeNull();
+    expect(screen.queryByRole('button', { name: '서비스 종료' })).toBeNull();
   });
 });
