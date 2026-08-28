@@ -1152,6 +1152,25 @@ export const inputStyles = {
 /**
  * 모달 스타일
  */
+/* ConfirmStepModal's footer pair and result heads live here, not in the component.
+   They carry raw colour literals (#F7F8FA · #191F28 · #EBEEF2 · #8B95A1 · #B45309 ·
+   #92400E) and this file is the one place the PR gate lets a literal stand; the
+   component would fail `raw-hex` the moment anyone touched it for an unrelated reason.
+   Split into pieces so `modalStyles.confirm` can hand out both the whole button and the
+   fill alone — a test that asks "which tone is this button wearing?" needs the fragment.
+
+   Joined with template strings rather than `cn`: `cn` is declared far below this line and
+   would still be in its TDZ when this object is evaluated. `cn` is `.join(' ')`, so the
+   values here are byte-identical to what the component used to compose. */
+const CONFIRM_FOCUS_RING =
+  'focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)] focus-visible:ring-offset-2';
+const CONFIRM_BTN_BASE =
+  'inline-flex h-10 items-center justify-center gap-2 rounded-[12px] px-5 text-[14px] font-semibold text-white transition-colors disabled:cursor-not-allowed disabled:bg-[#EBEEF2] disabled:text-[#8B95A1]';
+const CONFIRM_PRIMARY_FILL = 'bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)]';
+/** amber-700 fill — 4.72:1 against white text, carrying the same weight as the blue CTA it
+ *  replaces, so the dialog keeps one filled commit button and only its tone changes. */
+const CONFIRM_WARNING_FILL = 'bg-[#B45309] hover:bg-[#92400E]';
+
 export const modalStyles = {
   overlay: 'fixed inset-0 bg-black/50 flex items-center justify-center z-50',
   container: 'bg-white rounded-xl shadow-xl overflow-hidden',
@@ -1192,6 +1211,33 @@ export const modalStyles = {
       title: 'text-[20px] font-extrabold tracking-[-0.03em] leading-[1.3] text-[#191F28]',
       body: 'px-8 pt-6 pb-7',
     },
+  },
+  /**
+   * ConfirmStepModal — the compact two-button confirm, one tier below `toss.*`.
+   *
+   * Footer pair on the in-card `.btn` scale (h40 / radius12 / 14px) — the 52px modalBtn
+   * tier belongs to the tall approval modals and overwhelmed a two-line dialog.
+   * focus-visible = the app's #0064FF halo (`--color-primary`), offset so it reads on the
+   * blue fill too; keyboard focus gets the branded ring, mouse clicks stay ring-free.
+   */
+  confirm: {
+    focusRing: CONFIRM_FOCUS_RING,
+    cancelBtn:
+      'inline-flex h-10 items-center justify-center rounded-[12px] bg-[#F7F8FA] px-5 text-[14px] font-semibold text-[#191F28] transition-colors hover:bg-[#EBEEF2] disabled:cursor-not-allowed disabled:opacity-60 '
+      + CONFIRM_FOCUS_RING,
+    btnBase: CONFIRM_BTN_BASE,
+    /** The fill alone — what a test names when it asks which tone the commit button wears. */
+    primaryFill: CONFIRM_PRIMARY_FILL,
+    warningFill: CONFIRM_WARNING_FILL,
+    primaryBtn: `${CONFIRM_BTN_BASE} ${CONFIRM_PRIMARY_FILL} ${CONFIRM_FOCUS_RING}`,
+    warningBtn: `${CONFIRM_BTN_BASE} ${CONFIRM_WARNING_FILL} ${CONFIRM_FOCUS_RING}`,
+    /** Result frame head — 20px on the compact card. */
+    resultTitle: 'text-[20px] font-bold tracking-[-0.02em] leading-[1.3] text-[#191F28]',
+    /**
+     * `lg` 의 결과 프레임은 한 칸 위 눈금으로 선다 — 760×740 짜리 상자에 같은 눈금을 놓으면
+     * 큰 판 한가운데 붙인 작은 쪽지가 된다. 확인 프레임의 26px 제목은 넘지 않는다.
+     */
+    resultTitleLg: 'text-[24px] font-bold tracking-[-0.02em] leading-[1.3] text-[#191F28]',
   },
   sizes: {
     sm: 'max-w-sm',

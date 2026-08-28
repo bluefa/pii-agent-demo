@@ -3,8 +3,7 @@ import { withV1 } from '@/app/api/_lib/handler';
 import { bff } from '@/lib/bff/client';
 
 /**
- * POST /admin/ops/services/{serviceCode}/end-of-service — 화면의 "EOS 처리" 동작
- * (upstream `end-of-service`).
+ * POST /admin/ops/services/{serviceCode}/end-of-service — 서비스 종료.
  *
  * Same shape as its sibling `service-installed`: upstream
  * `POST /install/v1/service-infos/{serviceCode}/end-of-service` is bodyless both

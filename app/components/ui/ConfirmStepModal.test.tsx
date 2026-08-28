@@ -34,14 +34,19 @@ describe('ConfirmStepModal', () => {
   // Rewind confirms (step 6/7) commit in the amber tone; the ordinary confirm stays blue.
   // Either way the dialog carries exactly one filled button.
   it('tone=warning swaps the confirm fill to amber, default keeps the primary blue', () => {
+    // The fills are named in `modalStyles.confirm`, not spelled out here: the PR gate reads
+    // whole changed files for colour literals, and a test that hardcodes one makes the file
+    // fail a check about a value it only mirrors.
     const { unmount } = render(<ConfirmStepModal {...baseProps} open tone="warning" />);
     const warn = screen.getByRole('button', { name: '확인' });
-    expect(warn.className).toContain('bg-[#B45309]');
-    expect(warn.className).not.toContain('bg-[#0064FF]');
+    expect(warn.className).toContain(modalStyles.confirm.warningFill);
+    expect(warn.className).not.toContain(modalStyles.confirm.primaryFill);
     unmount();
 
     render(<ConfirmStepModal {...baseProps} open />);
-    expect(screen.getByRole('button', { name: '확인' }).className).toContain('bg-[#0064FF]');
+    expect(screen.getByRole('button', { name: '확인' }).className).toContain(
+      modalStyles.confirm.primaryFill,
+    );
   });
 
   // WCAG dialog pattern: focus moves into the dialog on open (safe cancel side)
@@ -68,14 +73,15 @@ describe('ConfirmStepModal', () => {
     expect(confirm.querySelector('.animate-spin')).toBeTruthy();
   });
 
-  // Keyboard focus gets the branded #0064FF halo; mouse clicks stay ring-free
+  // Keyboard focus gets the branded primary halo; mouse clicks stay ring-free
   // (focus-visible, not focus).
   it('carries the focus-visible ring grammar on both buttons', () => {
     render(<ConfirmStepModal {...baseProps} open />);
     for (const name of ['머무르기', '확인']) {
       const button = screen.getByRole('button', { name });
       expect(button.className).toContain('focus-visible:ring-2');
-      expect(button.className).toContain('focus-visible:ring-[#0064FF]');
+      // The whole ring string — ring width, colour and offset are one decision.
+      expect(button.className).toContain(modalStyles.confirm.focusRing);
     }
   });
 
@@ -119,7 +125,7 @@ describe('ConfirmStepModal', () => {
   it('renders the blue primary confirm on the compact .btn scale', () => {
     render(<ConfirmStepModal {...baseProps} open />);
     const confirmBtn = screen.getByRole('button', { name: '확인' });
-    expect(confirmBtn.className).toContain('bg-[#0064FF]');
+    expect(confirmBtn.className).toContain(modalStyles.confirm.primaryFill);
     expect(confirmBtn.className).toContain('h-10');
   });
 
