@@ -167,6 +167,36 @@ export const formatDateTimeLocalDashed = (
   return `${time} ${pick('timeZoneName')}`;
 };
 
+const LOCAL_COMPACT = new Intl.DateTimeFormat('en-CA', {
+  year: '2-digit',
+  month: '2-digit',
+  day: '2-digit',
+  hour: '2-digit',
+  minute: '2-digit',
+  hour12: false,
+});
+
+/**
+ * `YY.MM.DD HH:mm`, 뷰어 로컬 (오너 지정 표기: "26.07.21 04:02").
+ *
+ * 존 꼬리표가 없는 것은 12px 메타 줄용이기 때문이다 — 바로 옆에 선 상대 시각이
+ * 의미("1개월 전")를 말하므로 이 값은 근거만 받치면 되고, 4자리 연도·오전/오후·
+ * 'GMT+9' 는 폭만 차지한다. 기준은 `formatDateTimeLocal` 과 같은 뷰어 로컬이다.
+ *
+ * `formatDateTimeLocalDashed` 와 같은 이유로 `formatToParts` 로 조립하고(엔진마다
+ * 구분자가 다르다), 자정의 '24' 시는 '00' 으로 정규화한다.
+ *
+ * @example
+ * formatDateTimeLocalCompact('2026-07-20T19:02:00Z') // "26.07.21 04:02" (Asia/Seoul)
+ */
+export const formatDateTimeLocalCompact = (dateString: string): string => {
+  const parts = LOCAL_COMPACT.formatToParts(new Date(dateString));
+  const pick = (type: Intl.DateTimeFormatPartTypes): string =>
+    parts.find((part) => part.type === type)?.value ?? '';
+  const hour = pick('hour') === '24' ? '00' : pick('hour');
+  return `${pick('year')}.${pick('month')}.${pick('day')} ${hour}:${pick('minute')}`;
+};
+
 /**
  * 밀리초를 사람이 읽을 수 있는 한국어 소요시간으로 변환합니다.
  *

@@ -7,7 +7,7 @@ import {
   type ScanPermissionState,
 } from '@/app/components/features/scan/scan-permission';
 import { buttonStyles, cn, statusColors, textColors } from '@/lib/theme';
-import { formatDateTimeLocal, formatRelativeTime } from '@/lib/utils/date';
+import { formatDateTimeLocalCompact, formatRelativeTime } from '@/lib/utils/date';
 
 // The threshold lives on the server: the response carries only `old_scan`, never
 // the number of days. Printing 7 here is the owner's copy decision, so it sits in
@@ -81,7 +81,7 @@ export const ScanStaleState = ({
     </p>
     {scannedAt ? (
       <p className={cn('mt-1 text-[12px] tabular-nums', textColors.quaternary)}>
-        마지막 스캔 {formatDateTimeLocal(scannedAt)} ({formatRelativeTime(scannedAt)})
+        마지막 스캔 {formatDateTimeLocalCompact(scannedAt)} ({formatRelativeTime(scannedAt)})
       </p>
     ) : null}
 
