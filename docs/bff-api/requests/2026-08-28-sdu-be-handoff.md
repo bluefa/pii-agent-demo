@@ -17,7 +17,8 @@ terraform 스크립트 이름 `SDU_BDC_SERVICE_COMMON` / `SDU_BDC_SERVICE`). 연
 방화벽 행도, 업로드 명령도, S3 Access Key 수신자도, BDC 리소스 단계도 **엔드포인트가 없다.**
 아래 6건이 요청 범위다.
 
-**신규 6건 + 기존 2건 재사용**이고, 기존 2건은 그대로 쓴다.
+**신규 7건**(담당자 6 · ADMIN 1, §10) **+ 기존 재사용**이고, 재사용 쪽은 경로를 바꾸지
+않는다 — SDU 대상 소스로 불렸을 때 받아 주기만 하면 된다(§9.3).
 
 ## 1. 공통 규칙
 
@@ -58,7 +59,7 @@ terraform 스크립트 이름 `SDU_BDC_SERVICE_COMMON` / `SDU_BDC_SERVICE`). 연
   항상 하나다
 - 정렬 기준 순서: `asia, us, eu, cx, china`
 
-## 2. 엔드포인트 6건
+## 2. 엔드포인트 — 담당자 상세 페이지 6건
 
 | Method | Path (base 생략) | 설명 |
 | --- | --- | --- |
@@ -261,7 +262,93 @@ body { "kind": "FIREWALL" | "UPLOAD", "regions": ["us"], "confirmed": true }
 1단계가 바로 정의를 고치는 자리다 — 정의까지 지우면 외워서 다시 타이핑할 빈 화면을 주게
 된다(스캔 결과를 남기는 것과 같은 이유).
 
-## 9. 확인이 필요한 것
+## 9. Admin 콘솔 — 대부분은 재사용, 신규는 하나
+
+SDU 대상도 운영 콘솔의 **여덟 탭을 전부 받는다.** 지금은 SDU 가 콘솔에 들어오면 안내 한
+장으로 막히는데, 그 전제("우리가 설치하는 계정")가 SDU 에서는 틀렸을 뿐 Terraform·연결
+테스트·Airflow 확인은 SDU 에도 필요하다.
+
+| 탭 | SDU 에서 필요한 것 | BE 작업 |
+| --- | --- | --- |
+| 진행 상태 | 7단계 레일에서 2·3·5 비활성 | 없음 (화면) |
+| 스캔 | 업로드된 S3 데이터를 훑는다. 권한 카드 자리는 **수신자 목록**이 갖는다 | 기존 scan 이 SDU 대상을 받으면 됨 |
+| 연동 요청 정보 | 담당자 입력(정의·수신자) + **2단계 응답 이력** | **신규 1건** (§9.1) |
+| 확정 정보 | Region별 업로드 경로 · 대상 · 스캔이 찾은 리소스 | **응답 확장** (§9.2) |
+| 인프라 작업 | 집계 대신 작업별 적용 상태. `SDU_BDC_SERVICE_COMMON` · `SDU_BDC_SERVICE` | 기존 `terraform-status` 가 SDU 를 받으면 됨 |
+| 연결 테스트 | 그대로 | 기존 `test-connection/*` 가 SDU 를 받으면 됨 |
+| 관리자 승인 | 조건 3장 유지. ①의 **근거 행**에 담당자 응답이 앉는다 | §9.1 을 읽는다 |
+| Airflow 확인 | 그대로 | 기존 오퍼레이션이 SDU 를 받으면 됨 |
+
+Terraform · TC · Airflow 의 **기능은 이미 있다.** SDU 대상이 그 오퍼레이션에 들어가게
+열어 주면 된다 — 경로가 전부 `/target-sources/{id}/...` 로 프로바이더에 묶여 있지 않다.
+
+### 9.1 2단계 응답 이력 — 신규, ADMIN
+
+```
+GET /install/v1/target-sources/{targetSourceId}/sdu/acks/history
+→ 200 {
+     "rows": [{
+       "kind": "FIREWALL" | "UPLOAD" | "DEFINITION_CHANGED",
+       "round": 2,                       // 그 kind 안에서의 회차. DEFINITION_CHANGED 는 null
+       "confirmed": true,                // DEFINITION_CHANGED 는 null
+       "regions": ["asia"],              // 답한 Region. DEFINITION_CHANGED 는 바뀐 Region
+       "summary": "EU 삭제 · Asia 추가",  // DEFINITION_CHANGED 만. 나머지는 null
+       "actor": { "id", "name", "email" },
+       "created_at": "2026-08-25T10:40:00Z",
+       "invalidated": false              // 뒤의 정의 수정으로 무효가 된 줄
+     }]
+   }
+```
+
+- **시간 역순으로 쌓고 덮어쓰지 않는다.** 최신 줄만 남기면 "이 대상 소스가 지금 이 모양인
+  이유"를 관리자가 재구성할 수 없다 — 특히 정의 수정 줄이 없으면, 1회차 방화벽 확인이 왜
+  US·EU 였는데 지금은 US·Asia 인지 설명되지 않는다
+- 무효가 된 줄은 **지우지 않고 `invalidated: true` 로 남긴다**
+- 담당자가 언제든 다시 답할 수 있게 열어 준 대가가 이 표다. **승인 조건 ①의 근거**이고,
+  조건 카드의 「상세보기」가 여기로 온다
+- 정의 수정도 한 줄이다(`DEFINITION_CHANGED`) — 그 줄이 없으면 앞뒤 회차가 설명되지 않는다
+
+§7 의 `PUT /upload/acks` 는 **현재 상태**만 말한다(누가 언제 답했는지 없음). 이 이력은
+같은 쓰기가 남기는 기록이다 — 담당자 화면은 읽지 않는다.
+
+### 9.2 확정 정보 — 기존 경로, SDU 행 모양 정의 필요
+
+`GET /install/v1/target-sources/{targetSourceId}/confirmed-integration` 이 SDU 에서 무엇을
+행으로 갖는지가 정해져 있지 않다. 화면이 그리려는 것은 **Region별 업로드 경로 · 그 Region
+의 대상 · 스캔이 찾은 리소스**다. 신규 경로가 아니라 이 응답의 SDU 케이스를 정의해 달라.
+
+### 9.3 SDU 대상을 받아야 하는 기존 오퍼레이션
+
+경로 변경 없이, **SDU 대상 소스로 호출됐을 때 404/400 이 아니어야** 한다.
+
+- `POST /scan` · `GET /scanJob/latest` · `GET /scan/history`
+- `GET /terraform-status` (작업 이름은 `SDU_BDC_SERVICE_COMMON` · `SDU_BDC_SERVICE`
+  둘뿐이고 **둘 다 BDC 주체**다 — SERVICE 쪽 작업이 없다는 사실 자체가 "담당자가 자기
+  계정에서 돌릴 것이 없다"는 SDU 의 성질이다)
+- `GET /confirmed-integration` (§9.2)
+- `/test-connection/*` 전부
+- `GET /process-status` · `POST /reset`(§8) · 설치 완료 처리
+- Airflow 확인 탭이 쓰는 오퍼레이션
+
+## 10. 권한 — 신규 7건의 구분
+
+| # | 엔드포인트 | 권한 |
+| --- | --- | --- |
+| 1 | `GET /sdu/definition` | **담당자** (ADMIN 통과) |
+| 2 | `PUT /sdu/definition` | **담당자** (ADMIN 통과) |
+| 3 | `POST /sdu/definition/submit` | **담당자** (ADMIN 통과) |
+| 4 | `GET /sdu/upload` | **담당자** (ADMIN 통과) |
+| 5 | `PUT /sdu/upload/acks` | **담당자** (ADMIN 통과) |
+| 6 | `PUT /sdu/upload/recipients` | **담당자** (ADMIN 통과) |
+| 7 | `GET /sdu/acks/history` | **ADMIN** |
+
+기준은 **화면이 누구 것인가**다. 1~6 은 담당자 상세 페이지가 부르므로 담당자 권한이 없으면
+그 화면이 성립하지 않는다. 7 은 관리자 콘솔에서만 부르고, 담당자 화면은 자기 이력을 그리지
+않는다.
+
+재사용 2건: `authorized-users` 는 **담당자**(§6.1, 오너 확인), `reset` 은 기존 권한 그대로.
+
+## 11. 확인이 필요한 것
 
 각 항목이 답에 따라 화면을 바꾼다.
 
@@ -276,11 +363,13 @@ body { "kind": "FIREWALL" | "UPLOAD", "regions": ["us"], "confirmed": true }
 | 7 | `database_types` 만 고친 것이 관리자 스캔 비교에 무엇을 바꾸나 | 여기서는 아무것도 무효화하지 않는데, 그게 "아무 일도 없다"와 같지는 않다 |
 | 8 | ProcessStatus 는 대상 소스당 **한 값**이라 "10건 중 2건만 확인 필요"를 말할 수 없다 | Region/대상 단위 상태가 필요하면 격자 밖에 별도 필드가 있어야 한다 |
 | 9 | BDC 완료 **후에** 대상을 추가하면 BDC 가 다시 도나 | 안 돌면 추가한 대상은 영원히 반영되지 않는다 |
+| 10 | **§9.2** `confirmed-integration` 의 SDU 행이 무엇인가 | 정해지지 않으면 확정 정보 탭이 빈다 |
+| 11 | Terraform 작업 응답에 **적용 시각·실패 사유가 없다** | 「적용 실패」에서 왜로 가는 길이 지금 계약에 없다 |
 
 **이미 답이 나온 것** — `authorized-users` 는 ADMIN 전용이 아니고 응답은
 `id · name · email` 이다(오너, 2026-08-28). §6.1 은 요청이 아니라 기록이다.
 
-## 10. 우리가 정한 것 (계약 형태에 대한 선택)
+## 12. 우리가 정한 것 (계약 형태에 대한 선택)
 
 시안(`design/sdu/sdu-flow-design.html` `#contract`)의 초안과 다른 세 곳이고, 전사 오류가
 아니라 선택이다.
