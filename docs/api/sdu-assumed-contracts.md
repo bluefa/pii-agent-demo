@@ -223,6 +223,32 @@ body { user_ids: string[] }
 records who it goes to and nothing else. No section of this contract has sending
 semantics, and no screen built on it may imply that saving the list dispatched anything.
 
+### Where the candidates come from — not assumed
+
+The people offered are the target source's own service owners, read from a **real**
+contract:
+
+```
+GET /install/v1/services/{serviceCode}/authorized-users
+→ 200 { users: [{ id, name, email }] }
+```
+
+Not `/users/search`: a directory search offers everyone in the company a key that belongs
+to one service. The two answer the same `{id, name, email}` shape, so the swap cost the
+picker nothing but let it drop the debounce, the query field, and the `excludeIds` round
+trip — the already-registered are struck from a list the screen already holds.
+
+Two things the BFF has to confirm, both in
+`docs/bff-api/requests/2026-08-28-sdu-be-handoff.md` §6:
+
+- **the endpoint must answer a service manager, not only an ADMIN.** The path is not
+  `/admin/...` and the admin-side list of the same fact is a separate endpoint
+  (`/admin/access/services/{code}/owners`), so this one is read as the owner's. The mock
+  gated it on ADMIN and locked the owner out of their own screen; it now uses the gate
+  every other owner-facing mock uses — ADMIN or a manager of that service.
+- **`id` must be the identifier `user_ids` takes.** The mock's are the same value; the
+  real BFF's may not be.
+
 ## 7. BDC progression and system reset
 
 Not an endpoint — a rule §4's `bdc` reports.
@@ -297,6 +323,7 @@ the pattern `lib/mock-installation.ts` uses for terraform scripts. A `setTimeout
 not survive a hot reload and would keep the test process alive.
 
 Fixtures (`lib/mock-data.ts`): **1100** is mid-upload-step (2 targets / regions `us`+`eu`,
-firewall acked for `us` only, 3 recipients); **1101** is Global at Step 1 with an empty
+firewall acked for `us` only, 2 recipients — two of the `SDU` service's three owners, so
+the picker still has one left to offer); **1101** is Global at Step 1 with an empty
 definition; **1102** is the same at China (`isChinaRegion: true`). **1099** is left alone
 — it is pinned by `OpsTargetView.sdu.test.tsx` and `lib/bff/mock/__tests__/pipeline.test.ts`.
