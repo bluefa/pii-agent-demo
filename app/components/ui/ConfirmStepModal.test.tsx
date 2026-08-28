@@ -34,14 +34,19 @@ describe('ConfirmStepModal', () => {
   // Rewind confirms (step 6/7) commit in the amber tone; the ordinary confirm stays blue.
   // Either way the dialog carries exactly one filled button.
   it('tone=warning swaps the confirm fill to amber, default keeps the primary blue', () => {
+    // The fills are named in `modalStyles.confirm`, not spelled out here: the PR gate reads
+    // whole changed files for colour literals, and a test that hardcodes one makes the file
+    // fail a check about a value it only mirrors.
     const { unmount } = render(<ConfirmStepModal {...baseProps} open tone="warning" />);
     const warn = screen.getByRole('button', { name: '확인' });
-    expect(warn.className).toContain('bg-[#B45309]');
-    expect(warn.className).not.toContain('bg-[#0064FF]');
+    expect(warn.className).toContain(modalStyles.confirm.warningFill);
+    expect(warn.className).not.toContain(modalStyles.confirm.primaryFill);
     unmount();
 
     render(<ConfirmStepModal {...baseProps} open />);
-    expect(screen.getByRole('button', { name: '확인' }).className).toContain('bg-[#0064FF]');
+    expect(screen.getByRole('button', { name: '확인' }).className).toContain(
+      modalStyles.confirm.primaryFill,
+    );
   });
 
   // WCAG dialog pattern: focus moves into the dialog on open (safe cancel side)
@@ -68,14 +73,15 @@ describe('ConfirmStepModal', () => {
     expect(confirm.querySelector('.animate-spin')).toBeTruthy();
   });
 
-  // Keyboard focus gets the branded #0064FF halo; mouse clicks stay ring-free
+  // Keyboard focus gets the branded primary halo; mouse clicks stay ring-free
   // (focus-visible, not focus).
   it('carries the focus-visible ring grammar on both buttons', () => {
     render(<ConfirmStepModal {...baseProps} open />);
     for (const name of ['머무르기', '확인']) {
       const button = screen.getByRole('button', { name });
       expect(button.className).toContain('focus-visible:ring-2');
-      expect(button.className).toContain('focus-visible:ring-[#0064FF]');
+      // The whole ring string — ring width, colour and offset are one decision.
+      expect(button.className).toContain(modalStyles.confirm.focusRing);
     }
   });
 
@@ -119,7 +125,7 @@ describe('ConfirmStepModal', () => {
   it('renders the blue primary confirm on the compact .btn scale', () => {
     render(<ConfirmStepModal {...baseProps} open />);
     const confirmBtn = screen.getByRole('button', { name: '확인' });
-    expect(confirmBtn.className).toContain('bg-[#0064FF]');
+    expect(confirmBtn.className).toContain(modalStyles.confirm.primaryFill);
     expect(confirmBtn.className).toContain('h-10');
   });
 
@@ -249,6 +255,73 @@ describe('ConfirmStepModal', () => {
     // 누를 것이 없다고 Tab 이 밖으로 새어나가서는 안 된다 — preventDefault 로 삼킨다.
     const notPrevented = fireEvent.keyDown(document, { key: 'Tab' });
     expect(notPrevented).toBe(false);
+  });
+
+  /**
+   * `explicitDismiss` — the opt-in for callers that stay on this page after the result.
+   * Every assertion here has a default-behaviour twin above it: the success frame with no
+   * button, and the error frame that Escape closes. Those twins are the contract for the
+   * other call sites, and they must not move.
+   */
+  it('explicitDismiss grows a 닫기 on the success frame — without it there is none', () => {
+    const onClose = vi.fn();
+    const success = { kind: 'success' as const, title: '보냈어요', description: '곧 이동해요.' };
+    const { rerender } = render(
+      <ConfirmStepModal {...baseProps} open onClose={onClose} result={success} />,
+    );
+    expect(screen.queryAllByRole('button')).toHaveLength(0);
+
+    rerender(
+      <ConfirmStepModal {...baseProps} open onClose={onClose} result={success} explicitDismiss />,
+    );
+    fireEvent.click(screen.getByRole('button', { name: '닫기' }));
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('explicitDismiss locks Escape and the backdrop on the ERROR frame too', () => {
+    // The default releases them there — the error frame is a dead end the user may walk
+    // away from. A caller whose page IS the record needs the press instead.
+    const onClose = vi.fn();
+    const error = { kind: 'error' as const, title: '못 보냈어요', description: '다시 시도해 주세요.' };
+    render(<ConfirmStepModal {...baseProps} open onClose={onClose} result={error} explicitDismiss />);
+
+    fireEvent.keyDown(document, { key: 'Escape' });
+    fireEvent.click(screen.getByTestId('confirm-step-modal-backdrop'));
+    expect(onClose).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('button', { name: '닫기' }));
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('explicitDismiss keeps 다시 요청하기 off the success frame', () => {
+    // onRetry belongs to a failure. On a success frame it would offer to redo what just
+    // succeeded — the dismiss button is the only thing that frame grows.
+    render(
+      <ConfirmStepModal
+        {...baseProps}
+        open
+        onRetry={vi.fn()}
+        result={{ kind: 'success', title: '보냈어요', description: '곧 이동해요.' }}
+        explicitDismiss
+      />,
+    );
+    expect(screen.getByRole('button', { name: '닫기' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: '다시 요청하기' })).toBeNull();
+  });
+
+  it('explicitDismiss holds focus in the dialog when the error frame has no retry', () => {
+    // Nothing else can take it: the confirm pair was unmounted with the question, and
+    // there is no 다시 요청하기. Without the frame taking focus it falls to <body>.
+    const { rerender } = render(<ConfirmStepModal {...baseProps} open />);
+    rerender(
+      <ConfirmStepModal
+        {...baseProps}
+        open
+        result={{ kind: 'error', title: '못 보냈어요', description: '다시 시도해 주세요.' }}
+        explicitDismiss
+      />,
+    );
+    expect(document.activeElement).toBe(screen.getByRole('alert'));
   });
 
   // 실패는 기다리던 사용자를 끊어야 하고, 성공은 끊을 것이 없다.

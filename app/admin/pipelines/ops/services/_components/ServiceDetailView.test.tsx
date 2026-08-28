@@ -17,10 +17,11 @@
  * The measured side (120px slots, a 388px list across 0/1/2/3/4/7 targets) was
  * verified in the browser; what jsdom can hold is the structure that guarantees it.
  */
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 import { ServiceDetailView } from '@/app/admin/pipelines/ops/services/_components/ServiceDetailView';
+import { AppError } from '@/lib/errors';
 import type {
   OpsServiceDetail,
   OpsServiceTargetRow,
@@ -33,6 +34,8 @@ vi.mock('next/navigation', () => ({
 
 const getOpsService = vi.fn();
 const getServiceJiraTickets = vi.fn();
+const updateServiceInstalled = vi.fn();
+const endOfService = vi.fn();
 
 vi.mock('@/app/lib/api/ops', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/app/lib/api/ops')>();
@@ -40,6 +43,8 @@ vi.mock('@/app/lib/api/ops', async (importOriginal) => {
     ...actual,
     getOpsService: (...args: unknown[]) => getOpsService(...args),
     getServiceJiraTickets: (...args: unknown[]) => getServiceJiraTickets(...args),
+    updateServiceInstalled: (...args: unknown[]) => updateServiceInstalled(...args),
+    endOfService: (...args: unknown[]) => endOfService(...args),
   };
 });
 
@@ -343,13 +348,284 @@ describe('최초 연동 도장', () => {
 describe('운영 동작 버튼 — 관리자 게이트', () => {
   it('isAdmin 이면 두 버튼이 모두 선다', async () => {
     await renderWith([target(4100)], true);
-    expect(screen.getByRole('button', { name: '설치 상태 갱신' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: '서비스 종료' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: '서비스 PII Agent 설치완료' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'EOS 처리' })).toBeTruthy();
   });
 
   it('isAdmin 이 아니면 두 버튼은 아예 그려지지 않는다', async () => {
     await renderWith([target(4100)], false);
-    expect(screen.queryByRole('button', { name: '설치 상태 갱신' })).toBeNull();
-    expect(screen.queryByRole('button', { name: '서비스 종료' })).toBeNull();
+    expect(screen.queryByRole('button', { name: '서비스 PII Agent 설치완료' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'EOS 처리' })).toBeNull();
+  });
+});
+
+/**
+ * 결과 패널 — 토스트를 걷어낸 자리. 오너 요구의 핵심은 두 가지다: 실패한 응답이 화면에
+ * 글자 그대로 남을 것, 그리고 두 동작이 서로의 결과를 지우지 않을 것. 토스트로는 둘 다
+ * 불가능했다 — 사라지는 알림은 티켓에 붙일 수 없고, 뒤에 온 것이 앞엣것을 덮는다.
+ */
+describe('운영 동작 결과 패널', () => {
+  const panel = () => screen.getByLabelText('운영 동작 실행 결과');
+
+  /** 패널 안에서 그 동작의 칸 하나. 이름이 헤더 버튼과 같아 범위를 좁혀야 한다. */
+  const entryFor = (name: string): HTMLElement => {
+    const entry = Array.from(panel().children).find((el) =>
+      within(el as HTMLElement).queryByText(name),
+    );
+    expect(entry).toBeTruthy();
+    return entry as HTMLElement;
+  };
+
+  /** 헤더 버튼 → 확인 모달 → 확인. 모달의 확인 라벨이 버튼 이름과 겹쳐 dialog 로 좁힌다. */
+  const run = async (button: string, confirmLabel: string) => {
+    fireEvent.click(screen.getByRole('button', { name: button }));
+    const dialog = await screen.findByRole('dialog');
+    // 확인을 누르면 요청이 나가고, 그 promise 가 풀릴 때 결과가 상태로 들어온다 —
+    // act 밖에서 일어나면 React 가 경고한다.
+    await act(async () => {
+      fireEvent.click(within(dialog).getByRole('button', { name: confirmLabel }));
+    });
+  };
+
+  /** 결과 프레임은 스스로 물러나지 않는다 — 닫기를 눌러야 상자가 치워진다. */
+  const dismiss = () =>
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: '닫기' }));
+
+  const conflict = () =>
+    new AppError({
+      status: 409,
+      code: 'CONFLICT',
+      message: '진행 중인 파이프라인이 3건 있어 종료할 수 없습니다.',
+      retriable: false,
+      requestId: 'req-7f3a91',
+      timestamp: '2026-08-28T01:02:03Z',
+    });
+
+  it('성공한 동작은 자기 칸에 성공이라고 적는다', async () => {
+    updateServiceInstalled.mockResolvedValue(undefined);
+    await renderWith([target(4200)], true);
+
+    await run('서비스 PII Agent 설치완료', '설치완료');
+
+    await waitFor(() => expect(panel()).toBeTruthy());
+    const entry = entryFor('서비스 PII Agent 설치완료');
+    expect(within(entry).getByText('성공')).toBeTruthy();
+    // 성공은 상세를 다시 읽는다 — 화면이 사실을 확인한다.
+    await waitFor(() => expect(getOpsService).toHaveBeenCalledTimes(2));
+  });
+
+  it('성공해도 모달은 열린 채로 결과를 들고 서 있고, 닫기만 그것을 치운다', async () => {
+    // 예전에는 요청이 끝나는 순간 상자가 사라졌다 — 결과를 읽을 틈이 상자 밖에만 있었다.
+    updateServiceInstalled.mockResolvedValue(undefined);
+    await renderWith([target(4206)], true);
+
+    await run('서비스 PII Agent 설치완료', '설치완료');
+
+    const dialog = screen.getByRole('dialog');
+    expect(within(dialog).getByText('PII Agent 설치완료로 표시했습니다.')).toBeTruthy();
+    // 질문은 답으로 갈렸다 — 확인 버튼은 프레임과 함께 사라진다.
+    expect(within(dialog).queryByRole('button', { name: '설치완료' })).toBeNull();
+
+    dismiss();
+    expect(screen.queryByRole('dialog')).toBeNull();
+    // 상자를 치워도 기록은 남는다.
+    expect(within(entryFor('서비스 PII Agent 설치완료')).getByText('성공')).toBeTruthy();
+  });
+
+  it('결과가 선 동안에는 Esc 도 바깥 클릭도 상자를 치우지 못한다 — 두 프레임 모두', async () => {
+    // 성공 프레임은 이미 저지른 일을, 실패 프레임은 방금 받은 응답을 들고 있다. 어느
+    // 쪽도 스쳐 지나간 키 하나로 사라져서는 안 된다.
+    updateServiceInstalled.mockResolvedValue(undefined);
+    endOfService.mockRejectedValue(conflict());
+    await renderWith([target(4207)], true);
+
+    await run('서비스 PII Agent 설치완료', '설치완료');
+    fireEvent.keyDown(document, { key: 'Escape' });
+    fireEvent.click(screen.getByTestId('confirm-step-modal-backdrop'));
+    expect(screen.getByRole('dialog')).toBeTruthy();
+    dismiss();
+
+    await run('EOS 처리', 'EOS 처리');
+    fireEvent.keyDown(document, { key: 'Escape' });
+    fireEvent.click(screen.getByTestId('confirm-step-modal-backdrop'));
+    expect(screen.getByRole('dialog')).toBeTruthy();
+    dismiss();
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('실패한 동작은 응답의 status·code·message 를 글자 그대로 싣는다', async () => {
+    endOfService.mockRejectedValue(conflict());
+    await renderWith([target(4201)], true);
+
+    await run('EOS 처리', 'EOS 처리');
+
+    await waitFor(() => expect(panel()).toBeTruthy());
+    const entry = entryFor('EOS 처리');
+    expect(within(entry).getByText('실패')).toBeTruthy();
+    expect(within(entry).getByText('409')).toBeTruthy();
+    expect(within(entry).getByText('CONFLICT')).toBeTruthy();
+    expect(
+      within(entry).getByText('진행 중인 파이프라인이 3건 있어 종료할 수 없습니다.'),
+    ).toBeTruthy();
+    expect(within(entry).getByText('req-7f3a91')).toBeTruthy();
+    // 서버가 준 시각은 응답의 문자열 그대로다 — 로컬 표기로 다시 그리면 화면이 적는 값이
+    // 더 이상 wire 에 있던 값이 아니게 된다.
+    expect(within(entry).getByText('2026-08-28T01:02:03Z')).toBeTruthy();
+    // 실패하면 다시 읽지 않는다 — 최초 1회뿐.
+    expect(getOpsService).toHaveBeenCalledTimes(1);
+
+    // 모달은 열린 채로 실행할 수 있는 한 줄(서버 문장)을 내민다. 전문은 뒤의 패널이
+    // 계속 들고 있으므로, 닫기를 눌러도 그 기록은 그대로다.
+    const dialog = screen.getByRole('dialog');
+    expect(within(dialog).getByText('EOS 처리하지 못했습니다.')).toBeTruthy();
+    expect(
+      within(dialog).getByText('진행 중인 파이프라인이 3건 있어 종료할 수 없습니다.'),
+    ).toBeTruthy();
+
+    dismiss();
+    expect(screen.queryByRole('dialog')).toBeNull();
+    const kept = entryFor('EOS 처리');
+    expect(within(kept).getByText('409')).toBeTruthy();
+    expect(within(kept).getByText('CONFLICT')).toBeTruthy();
+    expect(within(kept).getByText('req-7f3a91')).toBeTruthy();
+    expect(within(kept).getByText('2026-08-28T01:02:03Z')).toBeTruthy();
+  });
+
+  it('메시지는 mono 슬롯에 앉지 않는다', async () => {
+    // 한국어 문장이 고정폭 슬롯에 들어가면 문장부호가 전각 칸을 쓴다. 대조하는 값
+    // (status·code·requestId)만 mono 다.
+    endOfService.mockRejectedValue(conflict());
+    await renderWith([target(4202)], true);
+
+    await run('EOS 처리', 'EOS 처리');
+    await waitFor(() => expect(panel()).toBeTruthy());
+
+    const entry = entryFor('EOS 처리');
+    const message = within(entry).getByText(
+      '진행 중인 파이프라인이 3건 있어 종료할 수 없습니다.',
+    );
+    expect(message.className).not.toMatch(/font-mono|--pl-font-mono/);
+    expect(within(entry).getByText('409').className).toMatch(/--pl-font-mono/);
+    expect(within(entry).getByText('req-7f3a91').className).toMatch(/--pl-font-mono/);
+    expect(within(entry).getByText('2026-08-28T01:02:03Z').className).toMatch(/--pl-font-mono/);
+  });
+
+  it('한 동작을 실행해도 다른 동작의 결과는 그대로 남는다', async () => {
+    // 오너의 요구가 여기다 — 토스트 하나로는 뒤엣것이 앞엣것을 덮었다.
+    updateServiceInstalled.mockResolvedValue(undefined);
+    endOfService.mockRejectedValue(conflict());
+    await renderWith([target(4203)], true);
+
+    await run('서비스 PII Agent 설치완료', '설치완료');
+    await waitFor(() => expect(panel()).toBeTruthy());
+    dismiss();
+    await run('EOS 처리', 'EOS 처리');
+    await waitFor(() => expect(panel().children).toHaveLength(2));
+    dismiss();
+
+    const installed = entryFor('서비스 PII Agent 설치완료');
+    const eos = entryFor('EOS 처리');
+    expect(within(installed).getByText('성공')).toBeTruthy();
+    expect(within(installed).queryByText('409')).toBeNull();
+    expect(within(eos).getByText('실패')).toBeTruthy();
+    expect(within(eos).getByText('409')).toBeTruthy();
+  });
+
+  it('AppError 가 아닌 throw 는 API 응답인 척하지 않는다', async () => {
+    // 네트워크·중단은 API 가 준 적 없는 값이라 status 0 으로 적는다.
+    endOfService.mockRejectedValue(new Error('Failed to fetch'));
+    await renderWith([target(4204)], true);
+
+    await run('EOS 처리', 'EOS 처리');
+    await waitFor(() => expect(panel()).toBeTruthy());
+
+    const entry = entryFor('EOS 처리');
+    expect(within(entry).getByText('0')).toBeTruthy();
+    expect(within(entry).getByText('Failed to fetch')).toBeTruthy();
+  });
+
+  it('에러 코드 칸은 서버가 보낸 코드를 적는다 — 우리가 좁힌 코드가 아니라', async () => {
+    // fetch-json 은 allowlist 밖의 코드를 status 에서 유도한 값으로 바꿔 `code` 에 담는다.
+    // 그 값은 화면이 분기할 때나 옳지, 티켓에 붙일 값이 아니다.
+    endOfService.mockRejectedValue(
+      new AppError({
+        status: 409,
+        code: 'CONFLICT',
+        rawCode: 'PIPELINE_RUNNING',
+        message: '진행 중인 파이프라인이 3건 있습니다.',
+        retriable: false,
+      }),
+    );
+    await renderWith([target(4209)], true);
+
+    await run('EOS 처리', 'EOS 처리');
+    dismiss();
+
+    const entry = entryFor('EOS 처리');
+    expect(within(entry).getByText('PIPELINE_RUNNING')).toBeTruthy();
+    expect(within(entry).queryByText('CONFLICT')).toBeNull();
+  });
+
+  it('본문 없는 응답에 `HTTP 500` 을 서버가 한 말처럼 적지 않는다', async () => {
+    // fetch-json 은 detail 도 title 도 없을 때 `HTTP <n>` 을 message 에 채운다. 그건
+    // 서버 문장이 아니고, 바로 윗줄 HTTP 칸이 이미 그 숫자를 들고 있다.
+    endOfService.mockRejectedValue(
+      new AppError({ status: 500, code: 'INTERNAL_ERROR', message: 'HTTP 500', retriable: true }),
+    );
+    await renderWith([target(4210)], true);
+
+    await run('EOS 처리', 'EOS 처리');
+
+    // 모달의 한 줄도 같은 문장을 쓴다 — 두 자리가 서로 다른 말을 하지 않는다.
+    expect(
+      within(screen.getByRole('dialog')).getByText('응답에 메시지가 없습니다.'),
+    ).toBeTruthy();
+    dismiss();
+
+    const entry = entryFor('EOS 처리');
+    expect(within(entry).getByText('응답에 메시지가 없습니다.')).toBeTruthy();
+    expect(within(entry).queryByText('HTTP 500')).toBeNull();
+    // 상태는 그대로 자기 칸에 있다.
+    expect(within(entry).getByText('500')).toBeTruthy();
+  });
+
+  it('네트워크 실패는 자기 문장을 잃지 않는다', async () => {
+    // status 0 짜리 클라이언트 에러는 서버 detail 이 있을 수 없다 — 여기서 fallback 으로
+    // 갈아치우면 무슨 일이 났는지에 대한 유일한 설명이 사라진다.
+    endOfService.mockRejectedValue(
+      new AppError({
+        status: 0,
+        code: 'NETWORK',
+        message: '네트워크 연결을 확인해주세요.',
+        retriable: true,
+      }),
+    );
+    await renderWith([target(4211)], true);
+
+    await run('EOS 처리', 'EOS 처리');
+    dismiss();
+
+    const entry = entryFor('EOS 처리');
+    expect(within(entry).getByText('네트워크 연결을 확인해주세요.')).toBeTruthy();
+  });
+
+  it('옛 이름은 화면 어디에도 없다', async () => {
+    // 이름은 오너가 준 문장 그대로다. 버튼·모달·패널이 각각 자기 문자열을 들고 있어서,
+    // 한 군데만 고치면 화면 안에서 같은 동작이 두 이름으로 불린다.
+    updateServiceInstalled.mockResolvedValue(undefined);
+    await renderWith([target(4208)], true);
+    await run('서비스 PII Agent 설치완료', '설치완료');
+    dismiss();
+
+    expect(document.body.textContent).not.toContain('설치 상태 갱신');
+    expect(document.body.textContent).toContain('서비스 PII Agent 설치완료');
+    // EOS 도 같은 규칙 — 버튼·확인 모달·패널이 한 이름으로만 말한다.
+    expect(document.body.textContent).not.toContain('서비스 종료');
+    expect(document.body.textContent).toContain('EOS 처리');
+  });
+
+  it('isAdmin 이 아니면 패널도 없다', async () => {
+    await renderWith([target(4205)], false);
+    expect(screen.queryByLabelText('운영 동작 실행 결과')).toBeNull();
   });
 });

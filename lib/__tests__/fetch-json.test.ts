@@ -113,6 +113,38 @@ describe('fetchJson — ProblemDetails 에러', () => {
     );
   });
 
+  /**
+   * 좁힌 코드와 받은 코드는 서로 다른 질문의 답이다. `code` 는 화면이 분기하는 값이라
+   * allowlist 를 넘지 못하면 status 에서 유도한 값으로 대체되는데, 그 대체를 그대로
+   * 보여주면 운영자는 서버가 한 적 없는 말을 티켓에 옮겨 적는다. `rawCode` 는 대체 전의
+   * 문자열을 들고 있고, `code` 의 동작은 예전 그대로다.
+   */
+  it('미정의 code 도 rawCode 에는 그대로 남는다 — code 는 종전대로 좁혀진다', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    mockFetch(409, { code: 'PIPELINE_RUNNING', detail: '진행 중인 파이프라인이 있습니다.' });
+
+    const err = await expectAppError('/api/v1/test');
+    expect(err.code).toBe('CONFLICT');
+    expect(err.rawCode).toBe('PIPELINE_RUNNING');
+    expect(warn).toHaveBeenCalledWith(
+      expect.stringContaining('Unknown error code: "PIPELINE_RUNNING"'),
+    );
+  });
+
+  it('아는 code 면 둘이 같은 값이고, code 가 없으면 rawCode 도 없다', async () => {
+    mockFetch(404, { code: 'NOT_FOUND', detail: '없습니다.' });
+    const known = await expectAppError('/api/v1/test');
+    expect(known.rawCode).toBe('NOT_FOUND');
+    expect(known.code).toBe('NOT_FOUND');
+
+    vi.restoreAllMocks();
+    // 서버가 code 를 아예 안 보내면 지어내지 않는다 — status fallback 은 `code` 몫이다.
+    mockFetch(403, { detail: '권한 없음' });
+    const bare = await expectAppError('/api/v1/test');
+    expect(bare.rawCode).toBeUndefined();
+    expect(bare.code).toBe('FORBIDDEN');
+  });
+
   it('retriable: 서버 값을 우선한다', async () => {
     mockFetch(500, { code: 'INTERNAL_ERROR', detail: '에러', retriable: false });
 

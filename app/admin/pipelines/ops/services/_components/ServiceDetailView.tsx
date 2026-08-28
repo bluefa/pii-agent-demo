@@ -17,10 +17,12 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState, type ReactElement, type ReactNode } from 'react';
-import { borderColors, cn, pipelineStyles, tableRowLift } from '@/lib/theme';
+import { borderColors, cn, pipelineStyles, statusColors, tableRowLift } from '@/lib/theme';
 import { isSduTarget } from '@/lib/types';
+import { AppError } from '@/lib/errors';
 import { holdFor, SKELETON_MIN_MS } from '@/lib/min-duration';
 import { passRoutes } from '@/lib/routes';
+import { formatDateTimeLocalDashed } from '@/lib/utils/date';
 import { displayProvider, providerLabel } from '@/lib/pipeline/format';
 import { JiraLogo } from '@/app/admin/pipelines/_components/brandMarks';
 import { Icon } from '@/app/admin/pipelines/_components/icons';
@@ -31,10 +33,13 @@ import type { CloudProvider } from '@/lib/types';
 import { opsStyles } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/opsStyles';
 import { CompletedStampSlot } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/CompletedStamp';
 import { serviceListStyles as s } from '@/app/admin/pipelines/_services/styles';
-import { usePlToast } from '@/app/admin/pipelines/_components/usePlToast';
 import { useApiAction } from '@/app/hooks/useApiMutation';
-import { ConfirmStepModal } from '@/app/components/ui/ConfirmStepModal';
+import {
+  ConfirmStepModal,
+  type ConfirmStepResult,
+} from '@/app/components/ui/ConfirmStepModal';
 import { safeBrowseUrl } from '@/lib/jira-ticket';
+import { userErrorText } from '@/app/admin/pipelines/ops/services/_components/errorText';
 import { JiraTicketMenu } from '@/app/admin/pipelines/ops/services/_components/JiraTicketMenu';
 import {
   JiraTicketModal,
@@ -346,7 +351,7 @@ function DetailSkeleton(): ReactElement {
 export interface ServiceDetailViewProps {
   serviceCode: string;
   /**
-   * 운영 동작(설치 상태 갱신 · 서비스 종료)을 이 사람이 쓸 수 있는지. 서버
+   * 운영 동작(서비스 PII Agent 설치완료 · EOS 처리)을 이 사람이 쓸 수 있는지. 서버
    * (`page.tsx` 의 `isAdminRole`)가 판정해 내려 준다 — 화면은 다시 판정하지 않는다.
    */
   isAdmin: boolean;
@@ -354,6 +359,100 @@ export interface ServiceDetailViewProps {
 
 /** 확인 모달이 지금 어느 동작을 물고 있는지. null = 닫힘. */
 type ServiceActionKind = 'installed' | 'eos';
+
+/** 결과 패널이 그리는 순서 — 동작이 실행된 순서가 아니라 늘 같은 순서다. */
+const SERVICE_ACTIONS: readonly ServiceActionKind[] = ['installed', 'eos'];
+const ACTION_LABEL: Record<ServiceActionKind, string> = {
+  installed: '서비스 PII Agent 설치완료',
+  eos: 'EOS 처리',
+};
+/** 모달의 결과 프레임 제목 — 동작 이름과 같은 어휘로 말한다. */
+const SUCCESS_TITLE: Record<ServiceActionKind, string> = {
+  installed: 'PII Agent 설치완료로 표시했습니다.',
+  eos: 'EOS 처리했습니다.',
+};
+const FAILURE_TITLE: Record<ServiceActionKind, string> = {
+  installed: 'PII Agent 설치완료로 표시하지 못했습니다.',
+  eos: 'EOS 처리하지 못했습니다.',
+};
+
+/** 동작 한 번의 결과. 실패는 응답이 준 값을 그대로 담는다. */
+type ActionOutcome =
+  | { ok: true; at: string }
+  | {
+      ok: false;
+      at: string;
+      status: number;
+      code: string;
+      message: string;
+      requestId?: string;
+      timestamp?: string;
+    };
+/** 실패 가지만 — 모달의 reason 은 이 값에서 곧장 온다. */
+type ActionFailure = Extract<ActionOutcome, { ok: false }>;
+/** 응답에 문장이 없을 때 — `HTTP 500` 을 서버가 한 말인 양 적지 않는다. */
+const NO_SERVER_MESSAGE = '응답에 메시지가 없습니다.';
+
+/**
+ * Keep the failed response as it arrived. `useApiAction` types `onError` as `Error`, but
+ * what actually lands here is the `AppError` that `lib/fetch-json.ts` builds from the
+ * ProblemDetails body — that object IS the API error response as this app receives it, and
+ * the owner asked for it verbatim on these two actions (a deliberate ADR-008 exception,
+ * scoped to this admin-only screen: the operator pastes it into a ticket).
+ *
+ * Anything else thrown (network, abort) never came from the API, so it is recorded with
+ * status 0 rather than dressed up as a response.
+ */
+function failureOf(error: Error): ActionFailure {
+  const at = new Date().toISOString();
+  if (error instanceof AppError) {
+    return {
+      ok: false,
+      at,
+      status: error.status,
+      // `rawCode` is what the server said; `code` is what fetch-json narrowed it to for
+      // branching. An unknown upstream code (PIPELINE_RUNNING) becomes CONFLICT there, and
+      // pasting CONFLICT into a ticket sends the reader after the wrong thing.
+      code: error.rawCode ?? error.code,
+      // Server detail only. When the body carried no message fetch-json fills `HTTP <n>`,
+      // which no server ever said — the HTTP row already carries the status, so the screen
+      // says plainly that there was no message. A client-side AppError (network, timeout —
+      // status 0) keeps its own sentence: it is the only account of what happened.
+      message:
+        error.status > 0 ? userErrorText(error, NO_SERVER_MESSAGE) : error.message,
+      requestId: error.requestId,
+      timestamp: error.timestamp,
+    };
+  }
+  return { ok: false, at, status: 0, code: 'UNKNOWN', message: error.message };
+}
+
+/**
+ * 운영 동작 결과 패널 — 두 동작이 각자 한 칸을 갖는다. 토스트를 걷어낸 자리다: 실패한
+ * 응답은 운영자가 티켓에 옮겨 붙이는 값이라, 지나가는 알림이 아니라 화면에 남는 기록이어야
+ * 한다. 한 결과를 토스트와 패널로 두 번 말하면 결과가 둘이 된다.
+ */
+const resultPanel = {
+  base: 'flex flex-col divide-y divide-[var(--pl-border)] rounded-[8px] border border-[var(--pl-border)] bg-[var(--pl-bg-inner)]',
+  entry: 'flex min-w-0 flex-col gap-2 px-4 py-3',
+  head: 'flex min-w-0 flex-wrap items-center gap-2',
+  name: 'text-[14px] font-semibold text-[var(--pl-text-strong)]',
+  /** 실행 시각 — 값이 아니라 값의 때라 한 단 여리게. */
+  at: 'text-[12px] text-[var(--pl-text-weak)]',
+  verdict: 'inline-flex items-center rounded px-1.5 py-0.5 text-[12px] font-semibold',
+  /**
+   * 실패 응답 블록 — 흰 면 위에 붉은 테두리 하나로 선다. 칠을 깔면 그 위에서 고르고
+   * 복사할 글자의 대비를 다시 재야 하고, 이 블록은 읽히는 것보다 옮겨지는 것이 일이다.
+   * `select-text`: 카드가 링크 오버레이 때문에 계정 값을 못 고르게 만든 적이 있다.
+   */
+  raw: 'flex min-w-0 select-text flex-col gap-1.5 rounded-[6px] border bg-[var(--pl-bg-card)] px-3 py-2.5',
+  row: 'flex min-w-0 gap-2',
+  label: 'w-[72px] flex-none text-[12px] text-[var(--pl-text-weak)]',
+  /** status·code·requestId — 한 글자씩 대조하는 값이라 mono. */
+  mono: 'min-w-0 break-words text-[12px] font-medium [font-family:var(--pl-font-mono)] text-[var(--pl-text-strong)]',
+  /** 메시지는 한국어일 수 있다 — 고정폭 슬롯은 문장부호에 전각 칸을 준다. 본문 활자로. */
+  message: 'min-w-0 whitespace-pre-wrap break-words text-[14px] text-[var(--pl-text-strong)]',
+} as const;
 
 export function ServiceDetailView({
   serviceCode,
@@ -379,26 +478,45 @@ export function ServiceDetailView({
   // 운영 동작 두 개. 둘 다 본문 없는 쓰기라 결과를 읽을 값이 없다 — 성공하면 상세를
   // 다시 읽어 화면이 사실을 확인한다.
   const [actionFor, setActionFor] = useState<ServiceActionKind | null>(null);
-  const toast = usePlToast();
+  // 동작마다 자기 결과를 따로 남긴다 — 하나를 실행해도 다른 하나의 기록은 그대로 서 있다.
+  // 서비스를 옮기면 부모(page.tsx)가 key={serviceCode} 로 갈아끼우므로 여기서 지울 일이 없다.
+  const [outcomes, setOutcomes] = useState<Partial<Record<ServiceActionKind, ActionOutcome>>>({});
+  const record = (kind: ServiceActionKind, outcome: ActionOutcome) =>
+    setOutcomes((prev) => ({ ...prev, [kind]: outcome }));
+
+  // 모달이 결과를 들고 서 있는다 — 요청이 끝나도 스스로 닫히지 않고, 닫기(onClose)만 닫는다.
+  const [actionResult, setActionResult] = useState<ConfirmStepResult | null>(null);
+  const succeeded = (kind: ServiceActionKind) => {
+    record(kind, { ok: true, at: new Date().toISOString() });
+    setActionResult({
+      kind: 'success',
+      title: SUCCESS_TITLE[kind],
+      description: '실행 기록은 아래에 남습니다.',
+    });
+    reload();
+  };
+  // reason 은 서버 문장 그대로 — 지금 무엇을 해야 하는지는 그 한 줄에 있다. 전문(status ·
+  // code · requestId · 서버 시각)은 뒤의 패널이 계속 들고 있다.
+  const failedWith = (kind: ServiceActionKind, error: Error) => {
+    const failure = failureOf(error);
+    record(kind, failure);
+    setActionResult({
+      kind: 'error',
+      title: FAILURE_TITLE[kind],
+      description: '응답 전문은 아래 실행 기록에 있습니다.',
+      reason: failure.message,
+    });
+  };
 
   // `useApiAction` 은 같은 훅 모듈의 무인자 형태다 — 두 동작 다 보낼 값이 없다.
   const installed = useApiAction(() => updateServiceInstalled(serviceCode), {
-    onSuccess: () => {
-      setActionFor(null);
-      toast.show('설치 상태를 갱신했습니다.');
-      reload();
-    },
-    // 이 화면의 문장이다 — 업스트림 메시지는 UI 문구가 아니다 (ADR-008).
-    onError: () => toast.show('설치 상태 갱신에 실패했습니다.'),
+    onSuccess: () => succeeded('installed'),
+    onError: (error) => failedWith('installed', error),
   });
 
   const eos = useApiAction(() => endOfService(serviceCode), {
-    onSuccess: () => {
-      setActionFor(null);
-      toast.show('서비스를 종료했습니다.');
-      reload();
-    },
-    onError: () => toast.show('서비스 종료에 실패했습니다.'),
+    onSuccess: () => succeeded('eos'),
+    onError: (error) => failedWith('eos', error),
   });
 
   const actionPending = installed.loading || eos.loading;
@@ -468,6 +586,12 @@ export function ServiceDetailView({
   const totalPages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
   const safePage = Math.min(page, totalPages - 1);
   const pageRows = rows.slice(safePage * PAGE_SIZE, (safePage + 1) * PAGE_SIZE);
+  // 실행된 동작만, 언제나 같은 순서로.
+  const actionResults = SERVICE_ACTIONS.flatMap((kind) => {
+    const outcome = outcomes[kind];
+    return outcome ? [{ kind, outcome }] : [];
+  });
+
   const ticketOf = (provider: JiraCloudProvider): JiraTicket | undefined =>
     tickets.find((ticket) => ticket.cloudProvider.toUpperCase() === provider);
 
@@ -501,20 +625,83 @@ export function ServiceDetailView({
               disabled={actionPending}
               onClick={() => setActionFor('installed')}
             >
-              설치 상태 갱신
+              {ACTION_LABEL.installed}
             </PlButton>
             <PlButton
               variant="danger"
               disabled={actionPending}
               onClick={() => setActionFor('eos')}
             >
-              서비스 종료
+              {ACTION_LABEL.eos}
             </PlButton>
           </div>
         )}
       </div>
 
       <hr className={s.sheetRule} />
+
+      {/* 동작을 한 번이라도 실행한 뒤에만 선다. 두 동작은 각자 자기 칸을 들고, 하나를 다시
+          실행해도 다른 하나의 결과를 지우지 않는다. 버튼과 같은 게이트를 쓴다 — 관리자가
+          아닌 사람에게는 실행할 자리도, 그 기록도 없다. */}
+      {isAdmin && actionResults.length > 0 && (
+        <section aria-label="운영 동작 실행 결과" className={resultPanel.base}>
+          {actionResults.map(({ kind, outcome }) => (
+            <div key={kind} className={resultPanel.entry}>
+              <div className={resultPanel.head}>
+                <span className={resultPanel.name}>{ACTION_LABEL[kind]}</span>
+                <span
+                  className={cn(
+                    resultPanel.verdict,
+                    outcome.ok
+                      ? cn(statusColors.success.bg, statusColors.success.textDark)
+                      : cn(statusColors.error.bg, statusColors.error.textDark),
+                  )}
+                >
+                  {outcome.ok ? '성공' : '실패'}
+                </span>
+                <span className={resultPanel.at}>
+                  {formatDateTimeLocalDashed(outcome.at, true)}
+                </span>
+              </div>
+
+              {/* 실패한 응답을 그대로. 문장으로 옮겨 적으면 운영자가 티켓에 붙일 값이
+                  사라진다 — 이 두 동작에 한해 오너가 승인한 예외다. */}
+              {!outcome.ok && (
+                <div className={cn(resultPanel.raw, statusColors.error.border)}>
+                  <div className={resultPanel.row}>
+                    <span className={resultPanel.label}>HTTP</span>
+                    <span className={resultPanel.mono}>{outcome.status}</span>
+                  </div>
+                  <div className={resultPanel.row}>
+                    <span className={resultPanel.label}>에러 코드</span>
+                    <span className={resultPanel.mono}>{outcome.code}</span>
+                  </div>
+                  <div className={resultPanel.row}>
+                    <span className={resultPanel.label}>메시지</span>
+                    <span className={resultPanel.message}>{outcome.message}</span>
+                  </div>
+                  {outcome.requestId && (
+                    <div className={resultPanel.row}>
+                      <span className={resultPanel.label}>requestId</span>
+                      <span className={resultPanel.mono}>{outcome.requestId}</span>
+                    </div>
+                  )}
+                  {/* 응답이 실어 온 문자열 그대로 — 이 자리에서 로컬 시각으로 다시
+                      그리면 화면이 적는 값은 더 이상 wire 에 있던 값이 아니고, 라벨이
+                      말하는 "서버 시각"과도 어긋난다. 위 실행 시각은 운영자가 버튼을
+                      누른 이 브라우저의 사건이라 그쪽만 로컬 표기를 쓴다. */}
+                  {outcome.timestamp && (
+                    <div className={resultPanel.row}>
+                      <span className={resultPanel.label}>서버 시각</span>
+                      <span className={resultPanel.mono}>{outcome.timestamp}</span>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          ))}
+        </section>
+      )}
 
       {/* 제목·건수·설명은 섹션 머리 — 아래 Jira 섹션과 같은 문법이라 두 섹션이 같은
           높이에서 읽힌다. Target Source = 이 서비스가 가진 인프라라 표시는 CSP 아이콘. */}
@@ -835,13 +1022,20 @@ export function ServiceDetailView({
         />
       )}
 
-      {/* 두 동작이 모달 하나를 나눠 쓴다 — 프레임은 같고 문장과 톤만 갈린다. */}
+      {/* 두 동작이 모달 하나를 나눠 쓴다 — 프레임은 같고 문장과 톤만 갈린다.
+          결과가 나와도 스스로 닫히지 않는다(explicitDismiss): 닫기를 누르는 것만이
+          이 상자를 치우고, 그때 물고 있던 동작과 결과가 함께 풀린다. */}
       <ConfirmStepModal
         open={actionFor !== null}
-        onClose={() => setActionFor(null)}
+        onClose={() => {
+          setActionFor(null);
+          setActionResult(null);
+        }}
         onConfirm={() => actionFor && runAction(actionFor)}
         title={
-          actionFor === 'eos' ? '서비스를 종료할까요?' : '설치 상태를 갱신할까요?'
+          actionFor === 'eos'
+            ? 'EOS 처리할까요?'
+            : '서비스 PII Agent 설치완료로 표시할까요?'
         }
         // install-v1.yaml 의 두 선언은 경로와 204 뿐이다 — 서버가 무엇을 하는지 모른다.
         // 그래서 문장은 동작 이름을 되풀이할 뿐, 그 안의 기제를 말하지 않는다.
@@ -849,12 +1043,14 @@ export function ServiceDetailView({
         // 비가역이라는 뜻이 아니다.
         description={
           actionFor === 'eos'
-            ? `${detail.service_name} 서비스를 종료 처리합니다. 이 화면에서는 되돌릴 수 없습니다.`
-            : `${detail.service_name} 서비스의 설치 상태를 갱신합니다.`
+            ? `${detail.service_name} 서비스를 EOS 처리합니다. 이 화면에서는 되돌릴 수 없습니다.`
+            : `${detail.service_name} 서비스를 PII Agent 설치완료로 표시합니다.`
         }
-        confirmLabel={actionFor === 'eos' ? '서비스 종료' : '갱신'}
+        confirmLabel={actionFor === 'eos' ? 'EOS 처리' : '설치완료'}
         tone={actionFor === 'eos' ? 'warning' : 'default'}
         isPending={actionPending}
+        result={actionResult}
+        explicitDismiss
       />
     </div>
   );

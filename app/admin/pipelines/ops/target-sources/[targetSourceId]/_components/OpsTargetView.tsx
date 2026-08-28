@@ -455,7 +455,9 @@ export function OpsTargetView({ targetSourceId, initialTab }: OpsTargetViewProps
   const isAws = detail.cloud_provider === 'AWS';
   const accountId = meta.aws_account_id ?? '';
   const isChina = meta.is_china_region === true;
-  const regionLabel = isChina ? 'China' : 'Global';
+  // 중국만 이름을 갖는다 — Global 은 표시하지 않는다 (오너 2026-08-28). null 이면 모달이
+  // 칩도 그 앞의 구분점도 그리지 않는다.
+  const regionLabel = isChina ? '중국' : null;
   const activeRole = modal?.type === 'edit' ? modal.kind : null;
 
   return (

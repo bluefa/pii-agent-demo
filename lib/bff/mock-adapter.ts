@@ -155,12 +155,9 @@ export const mockBff: BffClient = {
       unwrap(await mockOps.getTargetSourceList(query, page, size)),
     getDagStatus: async (id) => unwrap(await mockMonitoring.getDagStatus(id)),
     getAirflowHost: async (databaseUri) => unwrap(await mockMonitoring.getAirflowHost(databaseUri)),
-    updateServiceInstalled: async (serviceCode) => {
-      await unwrap(await mockOps.updateServiceInstalled(serviceCode));
-    },
-    endOfService: async (serviceCode) => {
-      await unwrap(await mockOps.endOfService(serviceCode));
-    },
+    updateServiceInstalled: async (serviceCode) =>
+      voidWrite(await mockOps.updateServiceInstalled(serviceCode)),
+    endOfService: async (serviceCode) => voidWrite(await mockOps.endOfService(serviceCode)),
   },
 
   // SDU 담당자 흐름 — ASSUMED contracts (docs/api/sdu-assumed-contracts.md).

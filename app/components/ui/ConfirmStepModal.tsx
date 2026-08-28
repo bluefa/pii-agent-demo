@@ -66,6 +66,17 @@ export interface ConfirmStepModalProps {
   result?: ConfirmStepResult | null;
   /** 다시 요청하기 on the error frame. Without it the frame shows 닫기 alone. */
   onRetry?: () => void;
+  /**
+   * The result frame waits for a press. Opt-in, because every other caller advances off
+   * the result by itself — the step moves on, the list reloads — and for them a success
+   * frame with a button would be a second way to do what already happened.
+   *
+   * Callers that stay put (an admin action whose record is the page behind the dialog)
+   * need the opposite: the success frame grows the same 닫기 the error frame has, and
+   * Escape and the backdrop stop closing anything while EITHER frame stands, so the
+   * result cannot be dismissed by a stray key or a click outside.
+   */
+  explicitDismiss?: boolean;
 }
 
 /** Tighter chrome than modalStyles.toss.* (px-10/pt-9, no footer hairline change): a two-button
@@ -78,30 +89,12 @@ export interface ConfirmStepModalProps {
 const confirmHeader = 'shrink-0 px-6 pt-6 pb-1.5 flex items-start justify-between';
 const confirmFooter = 'shrink-0 px-6 pt-5 pb-6 flex justify-end gap-2.5';
 
-/** Footer pair on the in-card `.btn` scale (h40 / radius12 / 14px) — the 52px modalBtn tier
- *  belongs to the tall approval modals and overwhelmed a two-line dialog.
- *  focus-visible = the app's #0064FF halo, offset so it reads on the blue fill too;
- *  keyboard focus gets the branded ring, mouse clicks stay ring-free. */
-const confirmFocusRing =
-  'focus:outline-none focus-visible:ring-2 focus-visible:ring-[#0064FF] focus-visible:ring-offset-2';
-const confirmCancelBtn = cn(
-  'inline-flex h-10 items-center justify-center rounded-[12px] bg-[#F7F8FA] px-5 text-[14px] font-semibold text-[#191F28] transition-colors hover:bg-[#EBEEF2] disabled:cursor-not-allowed disabled:opacity-60',
-  confirmFocusRing,
-);
-const confirmBtnBase =
-  'inline-flex h-10 items-center justify-center gap-2 rounded-[12px] px-5 text-[14px] font-semibold text-white transition-colors disabled:cursor-not-allowed disabled:bg-[#EBEEF2] disabled:text-[#8B95A1]';
-const confirmPrimaryBtn = cn(
-  confirmBtnBase,
-  'bg-[#0064FF] hover:bg-[#0050D6]',
-  confirmFocusRing,
-);
-/** amber-700 fill — 4.72:1 against white text, carrying the same weight as the blue CTA it
- *  replaces, so the dialog keeps one filled commit button and only its tone changes. */
-const confirmWarningBtn = cn(
-  confirmBtnBase,
-  'bg-[#B45309] hover:bg-[#92400E]',
-  confirmFocusRing,
-);
+/* The footer pair and the two result heads live in `modalStyles.confirm` (lib/theme.ts).
+   They carry raw colour literals, and the PR gate's raw-hex policy judges whole changed
+   files: leaving them here made every future edit to this component fail a check about
+   colours it never touched. The joined values are unchanged — see the note over
+   `CONFIRM_FOCUS_RING` in that file. */
+const { confirm: confirmStyles } = modalStyles;
 
 /** Result frame — one centred column in the space the body and footer had. It takes focus
  *  itself on the success frame (nothing inside it is focusable), so `outline-none`: the
@@ -110,9 +103,8 @@ const resultFrame =
   'flex flex-1 flex-col items-center justify-center px-10 py-10 text-center outline-none';
 
 const resultTile = 'mb-5 grid h-16 w-16 place-items-center rounded-2xl';
-const resultTitle = 'text-[20px] font-bold tracking-[-0.02em] leading-[1.3] text-[#191F28]';
 /** Same quiet tier as `modalStyles.toss.subtitle`, one step down in size — the frame is short. */
-const resultDesc = 'mt-2 text-[13.5px] font-medium leading-[1.6] text-[#6B7280]';
+const resultDesc = 'mt-2 text-[13.5px] font-medium leading-[1.6] text-[var(--fg-3)]';
 /** Reason line — plain text, not a tinted box. A box would be the third bordered surface in a
  *  frame whose whole job is one sentence, and the red tile above already says which kind of
  *  result this is; the colour alone carries the rest. Same token tier as that tile: two
@@ -132,8 +124,7 @@ const resultReason = cn('mt-2.5 max-w-[420px] text-[13px] leading-[1.5]', status
  * 얹으면 어느 쪽이 이길지 클래스 순서가 아니라 Tailwind 가 CSS 에 찍는 순서가 정한다.
  */
 const resultTileLg = 'mb-6 grid h-20 w-20 place-items-center rounded-[20px]';
-const resultTitleLg = 'text-[24px] font-bold tracking-[-0.02em] leading-[1.3] text-[#191F28]';
-const resultDescLg = 'mt-3 text-[16px] font-medium leading-[1.6] text-[#6B7280]';
+const resultDescLg = 'mt-3 text-[16px] font-medium leading-[1.6] text-[var(--fg-3)]';
 const resultReasonLg = cn('mt-3 max-w-[520px] text-[14px] leading-[1.5]', statusColors.error.textDark);
 
 export const ConfirmStepModal = ({
@@ -152,6 +143,7 @@ export const ConfirmStepModal = ({
   tone = 'default',
   result = null,
   onRetry,
+  explicitDismiss = false,
 }: ConfirmStepModalProps) => {
   const cancelRef = useRef<HTMLButtonElement>(null);
   const confirmRef = useRef<HTMLButtonElement>(null);
@@ -160,7 +152,9 @@ export const ConfirmStepModal = ({
   const overlayRef = useRef<HTMLDivElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
   const resultKind = result?.kind ?? null;
-  const locked = isPending || resultKind === 'success';
+  // The success frame always locks: its transition is already committed. `explicitDismiss`
+  // extends that to the error frame too, since there the dialog IS the result.
+  const locked = isPending || (explicitDismiss ? result !== null : resultKind === 'success');
   /** 결과 프레임의 눈금 — 표를 담는 `lg` 상자에서만 한 칸 위(resultTileLg 참고). */
   const roomy = size === 'lg';
 
@@ -185,7 +179,10 @@ export const ConfirmStepModal = ({
     // unmounted with the body — focus would fall to <body> and Tab would walk the page
     // behind an aria-modal dialog. The frame holds it instead.
     if (resultKind === 'success') resultRef.current?.focus();
-  }, [resultKind, isPending]);
+    // A dismiss-only error frame has no 다시 요청하기 to take focus, so the frame holds it
+    // rather than letting it fall to <body>; the Tab trap reaches 닫기 from there.
+    if (explicitDismiss && resultKind === 'error' && !retryRef.current) resultRef.current?.focus();
+  }, [resultKind, isPending, explicitDismiss]);
 
   useEffect(() => {
     if (!open) return;
@@ -290,8 +287,8 @@ export const ConfirmStepModal = ({
                 roomy ? resultTileLg : resultTile,
                 // Both tiles take the dark text tier. `statusColors.error.text` (red-500)
                 // measures ~3.3:1 on its own red-100 — at the WCAG 1.4.11 floor for a mark
-                // that is carrying the result, while the success side's #2A7D52 has room to
-                // spare. textDark (red-800) restores the symmetry.
+                // that is carrying the result, while the success side's dark ink has room
+                // to spare. textDark (red-800) restores the symmetry.
                 result.kind === 'success'
                   ? cn(statusColors.success.bg, statusColors.success.textDark)
                   : cn(statusColors.error.bg, statusColors.error.textDark),
@@ -329,7 +326,7 @@ export const ConfirmStepModal = ({
                 </svg>
               )}
             </div>
-            <h2 id="confirm-step-modal-title" className={roomy ? resultTitleLg : resultTitle}>
+            <h2 id="confirm-step-modal-title" className={roomy ? confirmStyles.resultTitleLg : confirmStyles.resultTitle}>
               {result.title}
             </h2>
             <p id="confirm-step-modal-desc" className={roomy ? resultDescLg : resultDesc}>
@@ -338,21 +335,21 @@ export const ConfirmStepModal = ({
             {result.reason && (
               <p className={roomy ? resultReasonLg : resultReason}>{result.reason}</p>
             )}
-            {result.kind === 'error' && (
+            {(result.kind === 'error' || explicitDismiss) && (
               <div className={cn('flex gap-2.5', roomy ? 'mt-8' : 'mt-6')}>
                 <button
                   type="button"
-                  className={confirmCancelBtn}
+                  className={confirmStyles.cancelBtn}
                   onClick={onClose}
                   disabled={isPending}
                 >
                   닫기
                 </button>
-                {onRetry && (
+                {result.kind === 'error' && onRetry && (
                   <button
                     ref={retryRef}
                     type="button"
-                    className={confirmPrimaryBtn}
+                    className={confirmStyles.primaryBtn}
                     onClick={onRetry}
                     disabled={isPending}
                   >
@@ -390,7 +387,7 @@ export const ConfirmStepModal = ({
               <button
                 ref={cancelRef}
                 type="button"
-                className={confirmCancelBtn}
+                className={confirmStyles.cancelBtn}
                 onClick={onClose}
                 disabled={isPending}
               >
@@ -399,7 +396,7 @@ export const ConfirmStepModal = ({
               <button
                 ref={confirmRef}
                 type="button"
-                className={tone === 'warning' ? confirmWarningBtn : confirmPrimaryBtn}
+                className={tone === 'warning' ? confirmStyles.warningBtn : confirmStyles.primaryBtn}
                 onClick={onConfirm}
                 disabled={isPending || confirmDisabled}
               >

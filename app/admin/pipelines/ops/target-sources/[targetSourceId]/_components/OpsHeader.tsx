@@ -126,19 +126,16 @@ export function OpsHeader({
   const terraformSa = meta.gcp_terraform_service_account;
 
   /**
-   * 파티션 태그 — 「연동 대상」 머리 줄에서 단계 알약 **오른쪽**에 선다 (오너 2026-08-27
-   * "오른쪽에 China 태그 옮겨 … Bold로 강조하자. 파란색으로 선언"). 이 값은 계정 하나의
+   * 파티션 태그 — 「연동 대상」 머리 줄에서 단계 알약 **오른쪽**에 선다. 이 값은 계정 하나의
    * 속성이 아니라 이 대상이 어느 파티션에 있느냐라, 알약과 같이 대상 전체를 말하는 자리에
-   * 선다. IDC 는 파티션이 없으므로 태그도 없다. */
-  const partitionTag = PARTITIONED.has(provider) ? (
-    <span
-      className={cn(
-        opsStyles.partitionTag,
-        isChina ? opsStyles.partitionChina : opsStyles.partitionGlobal,
-      )}
-    >
-      {isChina ? 'China' : 'Global'} Region
-    </span>
+   * 선다.
+   *
+   * 중국일 때만 뜬다 (오너 2026-08-28 "Admin 페이지에서 중국으로 표기하라는거야. Global로
+   * 표현되고 있던 부분이 있으면 이것도 그냥 없애. 따로 보여주지마"). Global 은 이제 표시가
+   * 아니라 표시의 부재다 — 대다수 대상이 Global 이라, 모두가 다는 태그는 아무것도 가르지
+   * 못하면서 머리 줄의 자리만 먹는다. IDC 는 애초에 파티션이 없어 태그도 없다. */
+  const partitionTag = PARTITIONED.has(provider) && isChina ? (
+    <span className={cn(opsStyles.partitionTag, opsStyles.partitionChina)}>중국</span>
   ) : null;
 
   /** 읽기 전용 mono 값 — 전문은 「상세 정보」가 복사와 함께 진다. */

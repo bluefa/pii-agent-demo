@@ -219,7 +219,7 @@ export const opsStyles = {
   fmCellWide: 'col-span-2',
   /** 워시는 램프 한 칸을 잡아먹는다 — `--pl-text-weak` 는 이 gray-100 위에서 4.51:1 로
       AA 바닥이라 12px 라벨에 쓰지 않는다. `--pl-gray-600` 은 같은 자리에서 6.98:1. */
-  /** 라벨 줄 — 이제 라벨 하나만 선다. 파티션 태그(Global/China)는 2026-08-27 에 이 줄을
+  /** 라벨 줄 — 이제 라벨 하나만 선다. 파티션 태그(중국)는 2026-08-27 에 이 줄을
       떠나 「연동 대상」 블록 머리로, 단계 알약 오른쪽에 섰다(오너 지시) — 파티션은 어느 한
       칸의 단서가 아니라 대상 전체를 말하는 사실이라 머리 줄이 임자다. 그래서 "태그가 16px
       이라 줄이 안 자란다"는 옛 근거는 전제가 사라졌고, 이 줄의 높이는 그냥 `fmKey` 의
@@ -351,8 +351,8 @@ export const opsStyles = {
    * 값 밑줄 하나가 되면서 이 그리드에 흰 면 태그가 남지 않는다. 되살릴 일이 생기면
    * 그 규칙("흰 면 = 수정 가능")부터 다시 세워야 한다. metaTagQuiet = the read-only attribute tag,
    * which must NOT wear the white face — that face means "editable value" here.
-   * ⚠️ 2026-08-27: 파티션(China/Global)은 이 토큰을 떠났다 — 블록 머리로 올라가면서 파란
-   * `partitionTag` 를 입는다. 여기 남은 것은 IDC 「환경」 값 줄의 태그 하나뿐이다.
+   * ⚠️ 2026-08-27: 파티션은 이 토큰을 떠났다 — 블록 머리로 올라가면서 `partitionTag` 를
+   * 입는다(08-28 부터 중국에만 선다). 여기 남은 것은 IDC 「환경」 값 줄의 태그 하나뿐이다.
    *
    * 그 태그는 gray-200 이었는데 오너가 "회색은 너무 칙칙해 보임" 이라 했다 (08-26).
    * 이 콘솔에서 옅은 칠은 이미 임자가 있다: `--pl-info-bg` 는 RUNNING·진행 중이고
@@ -370,17 +370,16 @@ export const opsStyles = {
     'inline-flex items-center whitespace-nowrap rounded border border-[var(--pl-current)] bg-[var(--pl-current-bg)] px-1 text-[10px] font-semibold leading-[14px] text-[var(--pl-current-ink)]',
 
   /**
-   * 파티션 태그(Global · China) — 「연동 대상」 블록 머리에서 단계 알약 오른쪽에 선다
-   * (오너 2026-08-27 "오른쪽에 China 태그 옮겨 … 14픽셀로 수정 … Global, China 태그는
-   * Bold로 강조하자. 파란색으로 선언").
+   * 파티션 태그(중국) — 「연동 대상」 블록 머리에서 단계 알약 오른쪽에 선다.
    *
-   * 이 태그는 이제 kv 라벨의 장식이 아니라 **머리 줄의 단서**다. 파티션은 계정·프로젝트·
-   * 구독 어느 한 칸의 속성이 아니라 그 대상이 어느 권역에 사는지의 사실이고, 그래서 단계
-   * 알약("지금 어디")과 같은 줄에 선다 — 둘 다 대상을 통째로 서술한다. 라벨 줄에 있을
-   * 때는 세 프로바이더가 각자 다른 칸(계정/프로젝트/구독)에 같은 사실을 붙이고 있었다.
+   * 다는 대상에만 단다: 중국이면 「중국」, 아니면 아무것도 없다 (오너 2026-08-28 "Admin
+   * 페이지에서 중국으로 표기하라는거야. Global로 표현되고 있던 부분이 있으면 이것도 그냥
+   * 없애. 따로 보여주지마"). Global 은 대다수 대상의 상태라, 모두가 다는 표는 아무것도
+   * 가르지 못하면서 머리 줄의 자리만 먹는다 — 태그의 **부재**가 Global 이다.
    *
-   * 색은 권역이 정한다: Global 은 저채도 파랑(`partitionGlobal`), China 는 저채도 빨강
-   * (`partitionChina`) — 값을 손으로 베끼지 않는 이유는 census 다.
+   * 이 태그는 kv 라벨의 장식이 아니라 **머리 줄의 단서**다. 파티션은 계정·프로젝트·구독
+   * 어느 한 칸의 속성이 아니라 그 대상이 어느 권역에 사는지의 사실이고, 그래서 단계
+   * 알약("지금 어디")과 같은 줄에 선다 — 둘 다 대상을 통째로 서술한다.
    * `metaTagQuiet` 를 돌려쓰지 않은 이유: 그 토큰은 10px 짜리 IDC 속성 태그로 남아 있고,
    * 여기서 필요한 것은 알약과 같은 급의 14px 이다.
    *
@@ -391,15 +390,11 @@ export const opsStyles = {
    */
   partitionTag:
     'inline-flex flex-none items-center whitespace-nowrap rounded-[4px] px-1.5 py-0.5 text-[14px] font-bold leading-4',
-  /** Global — China 와 **같은 채도·명도**의 파랑이다 (오너 2026-08-27 "Global Region 아직도
-      파란색인데"). primary 의 파랑(`bgLight`/`textOnLight`)을 쓰면 이 줄에서 링크와 같은
-      계열이라 태그가 눌리는 것처럼 읽히고, 옆의 저채도 China 와도 가족이 아니게 된다.
-      두 태그는 채도·명도가 같고 색상(hue)만 다르다 — 실측 6.76:1. */
-  partitionGlobal: `${partitionColors.globalBg} ${partitionColors.globalInk}`,
-  /** China — 빨강 (오너 2026-08-27 "China는 빨간색으로 표시하자"). `--pl-err-*` 를 쓰지
-      않는 이유는 그 램프가 **실패**를 말하기 때문이다: 파티션은 실패가 아니라 이 대상의
-      상시 사실이라, 같은 자리에서 오류 배지로 읽히면 안 된다. 그래서 채도·명도를 낮춘
-      짝을 `partitionColors` 에 따로 세웠다(실측 6.59:1). */
+  /** 중국 — 빨강 (오너 2026-08-27 "China는 빨간색으로 표시하자"; 08-28 에 말만 「중국」으로
+      바뀌고 색은 그대로다). `--pl-err-*` 를 쓰지 않는 이유는 그 램프가 **실패**를 말하기
+      때문이다: 파티션은 실패가 아니라 이 대상의 상시 사실이라, 같은 자리에서 오류 배지로
+      읽히면 안 된다. 그래서 채도·명도를 낮춘 짝을 `partitionColors` 에 따로 세웠다
+      (실측 6.59:1). */
   partitionChina: `${partitionColors.chinaBg} ${partitionColors.chinaInk}`,
 
   /**
