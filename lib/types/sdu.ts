@@ -68,9 +68,12 @@ export interface SduTargetWire {
   database_types: string[];
 }
 
+/**
+ * 권역(`region_scope`)은 여기 없다. 대상 소스가 이미 가진 사실(`metadata.is_china_region`,
+ * `project.isChinaRegion`)이라 이 응답이 다시 실어 오면 같은 값의 출처가 둘이 되고, 둘이
+ * 어긋나는 날 화면은 어느 쪽을 믿을지 모른다. 화면은 대상 소스에서 읽는다.
+ */
 export interface SduDefinitionWire {
-  /** Read-only — derived from `metadata.is_china_region`, never written by this screen. */
-  region_scope: SduRegionScope;
   targets: SduTargetWire[];
   updated_at: string | null;
 }
@@ -96,7 +99,18 @@ export interface SduFirewallRowWire {
   destination_ips: string[];
 }
 
-export interface SduFirewallWire {
+/**
+ * `acked_at` · `acked_by` 는 **관리자 몫이다.** 담당자 화면은 자기가 방금 누른 답에 시각을
+ * 붙여 읽지 않고, 승인 조건 ①의 근거 행이 읽는다. 그래서 wire 에는 있고 view 에는 없다
+ * (`app/lib/api/sdu.ts` 가 접지 않는다). 되돌린 답도 갱신이지 비움이 아니다 — 되돌린 것도
+ * 누군가 한 일이다.
+ */
+export interface SduAckStampWire {
+  acked_at: string | null;
+  acked_by: SduRecipientWire | null;
+}
+
+export interface SduFirewallWire extends SduAckStampWire {
   rows: SduFirewallRowWire[];
   /** One answer for the whole step — the screen asks one question for every Region. */
   acked: boolean;
@@ -120,7 +134,7 @@ export interface SduCommandRowWire {
   command: string;
 }
 
-export interface SduCommandsWire {
+export interface SduCommandsWire extends SduAckStampWire {
   rows: SduCommandRowWire[];
   acked: boolean;
 }
@@ -164,9 +178,6 @@ export interface SduAckRequestWire {
   confirmed: boolean;
 }
 
-export interface SduRecipientsRequestWire {
-  user_ids: string[];
-}
 
 // ── View (camelCase) ──────────────────────────────────────────────────────────
 
@@ -179,7 +190,6 @@ export interface SduTarget {
 }
 
 export interface SduDefinition {
-  regionScope: SduRegionScope;
   targets: SduTarget[];
   updatedAt: string | null;
 }

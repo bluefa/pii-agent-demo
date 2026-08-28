@@ -78,9 +78,8 @@ describe('SDU 정의 — 저장 규칙 (§2)', () => {
     } as SduDefinitionRequestWire);
 
     expect(response.status).toBe(200);
-    await expect(body<SduDefinitionWire>(response)).resolves.toMatchObject({
-      region_scope: 'GLOBAL',
-    });
+    const wire = await body<SduDefinitionWire>(response);
+    expect(wire.targets).toHaveLength(1);
   });
 
   it('database_types 는 20개·50자 상한을 넘길 수 없다', async () => {
@@ -111,13 +110,13 @@ describe('SDU 정의 — 저장 규칙 (§2)', () => {
     });
   });
 
-  it('권역은 is_china_region 을 그대로 읽는다 — 저장되는 값이 아니다', async () => {
-    await expect(body<SduDefinitionWire>(await mockSdu.getDefinition(CHINA_ID))).resolves.toMatchObject({
-      region_scope: 'CHINA',
-    });
-    await expect(body<SduDefinitionWire>(await mockSdu.getDefinition(GLOBAL_ID))).resolves.toMatchObject({
-      region_scope: 'GLOBAL',
-    });
+  it('정의 응답은 권역을 말하지 않는다 — 대상소스가 가진 사실이라 두 번 말하지 않는다', async () => {
+    // 권역이 하는 일(어느 Region 을 받을지)은 그대로다 — 위 '권역에 속하지 않는 Region 은
+    // 거절한다' 가 CHINA_ID·GLOBAL_ID 로 그것을 잡는다. 응답에 실어 보내지 않을 뿐이다.
+    for (const id of [CHINA_ID, GLOBAL_ID]) {
+      const wire = await body<SduDefinitionWire>(await mockSdu.getDefinition(id));
+      expect('region_scope' in wire).toBe(false);
+    }
   });
 });
 
@@ -203,7 +202,11 @@ describe('SDU 정의 — 무효화 표 (§2)', () => {
   it('무효화 안내는 다음 확인 응답이 저장되면 지워진다 — 한 번만 말한다', async () => {
     await seedAcked();
     await putDefinition(GLOBAL_ID, [...twoRegions(), target({ target_id: 'c', region: 'asia' })]);
-    expect((await upload(GLOBAL_ID)).invalidation.added_regions).toEqual(['asia']);
+    const invalidated = await upload(GLOBAL_ID);
+    expect(invalidated.invalidation.added_regions).toEqual(['asia']);
+    // 무효화는 사람이 되돌린 것이 아니다 — 아무도 답한 적 없는 질문으로 돌아가므로 도장도 없다.
+    expect(invalidated.firewall.acked_at).toBeNull();
+    expect(invalidated.firewall.acked_by).toBeNull();
 
     await mockSdu.putFirewallAck(GLOBAL_ID, { confirmed: true });
 
@@ -276,6 +279,28 @@ describe('SDU 업로드 — 조회와 확인 (§4·§5·§6)', () => {
     expect((await upload(GLOBAL_ID)).firewall.acked).toBe(false);
   });
 
+  it('확인은 누가·언제를 남긴다 — 되돌린 답도 그 사실로 갱신된다', async () => {
+    await mockSdu.putFirewallAck(GLOBAL_ID, { confirmed: true });
+    const yes = (await upload(GLOBAL_ID)).firewall;
+    expect(yes.acked_by?.id).toBe(mockData.getCurrentUser()?.id);
+    expect(yes.acked_at).not.toBeNull();
+
+    await mockSdu.putFirewallAck(GLOBAL_ID, { confirmed: false });
+    const undone = (await upload(GLOBAL_ID)).firewall;
+    // 되돌린 것도 누군가 한 일이다 — 비우지 않고 갱신한다. 관리자 근거 행이 읽는 값이다.
+    expect(undone.acked).toBe(false);
+    expect(undone.acked_by?.id).toBe(yes.acked_by?.id);
+    expect(undone.acked_at).not.toBeNull();
+  });
+
+  it('본문 없는 세 쓰기는 204다 — 계약이 말하는 그대로', async () => {
+    expect((await mockSdu.putFirewallAck(GLOBAL_ID, { confirmed: true })).status).toBe(204);
+    expect((await mockSdu.putCommandsAck(GLOBAL_ID, { confirmed: true })).status).toBe(204);
+    expect(
+      (await mockSdu.putAccessKeyRecipients(GLOBAL_ID, { user_ids: ['user-3'] })).status,
+    ).toBe(204);
+  });
+
   it('수신자는 목이 아는 사용자만 받는다', async () => {
     expect((await mockSdu.putAccessKeyRecipients(GLOBAL_ID, { user_ids: ['nope'] })).status).toBe(400);
 
@@ -294,7 +319,7 @@ describe('SDU 제출과 BDC 진행 (§3·§8)', () => {
     );
 
     await putDefinition(GLOBAL_ID, [target()]);
-    expect((await mockSdu.submitDefinition(GLOBAL_ID)).status).toBe(200);
+    expect((await mockSdu.submitDefinition(GLOBAL_ID)).status).toBe(204);
 
     // SDU 는 승인 절차가 없다 — 2·3 을 거치지 않고 곧바로 업로드 단계다.
     expect(mockData.getProjectByTargetSourceId(GLOBAL_ID)?.processStatus).toBe(ProcessStatus.INSTALLING);
@@ -356,7 +381,6 @@ describe('SDU 시드와 초기화 (§8)', () => {
     // 1단계가 고칠 목록이 바로 이 정의다 — 지우면 담당자는 빈 화면을 다시 채워야 한다.
     const after = await body<SduDefinitionWire>(await mockSdu.getDefinition(SEEDED_ID));
     expect(after.targets).toEqual(before.targets);
-    expect(after.region_scope).toBe(before.region_scope);
 
     const state = await upload(SEEDED_ID);
     expect(state.submitted_at).toBeNull();

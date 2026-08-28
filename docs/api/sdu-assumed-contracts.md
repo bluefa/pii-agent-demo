@@ -56,8 +56,7 @@ nothing on the wire names them.
 
 ```
 GET /install/v1/target-sources/{targetSourceId}/sdu/definition
-→ 200 {
-     region_scope: "GLOBAL" | "CHINA",   // read-only, derived from metadata.is_china_region
+→ 200 {                                // no region_scope — see below
      targets: [{
        target_id:      string,
        cloud:          "AWS"|"GCP"|"AZURE"|"IDC"|"OTHER",
@@ -69,12 +68,13 @@ GET /install/v1/target-sources/{targetSourceId}/sdu/definition
    }
 ```
 
-`region_scope` (권역) is **read-only and derived**: it is `metadata.is_china_region`
-(`project.isChinaRegion`) read through, exactly as AWS branches on that same field. The
-owner never picks it, so Step 1 has no scope control — it states the scope in one line and
-draws the region choices the scope owns. The `cloud_provider` enum has one `SDU`, not
-`SDU_GLOBAL`/`SDU_CHINA` (storyboard Q1), which is why the value has to be carried here at
-all; it is echoed on §1 so the screen does not have to re-derive it from a second source.
+The 권역 (scope) is **not in this response.** It is `metadata.is_china_region`
+(`project.isChinaRegion`), a fact the target source already carries, and the screen reads it
+there — `SduStep1Define` derives `'CHINA' | 'GLOBAL'` from the project it has loaded anyway.
+Echoing it here would give one value two sources, and the day they disagree the screen has no
+way to pick. The owner never picks the scope either, so Step 1 has no scope control: it states
+the scope in one line and draws the region choices the scope owns. (The `cloud_provider` enum
+has one `SDU`, not `SDU_GLOBAL`/`SDU_CHINA` — storyboard Q1.)
 
 `region` is **our** name, not an AWS region code. GLOBAL owns `asia|us|eu|cx`, CHINA owns
 `china` — a scope owns its regions exclusively, which is why a China target source always
@@ -324,8 +324,8 @@ differently. Full text in `design/sdu/sdu-flow-design.html` §07.
 
 - **Q1** where `region_scope` lives (enum split / separate field / server-derived).
   **Answered (오너, 2026-08-27): server-derived** from `metadata.is_china_region`, so
-  Step 1 has no scope control. What stays open is whether the BFF echoes the field on §1
-  or the screen reads the target source's metadata directly.
+  Step 1 has no scope control. **Closed (2026-08-28): the field is not echoed on §1** —
+  the screen reads the target source's metadata, which is the one source.
 - **Q2** whether cloud and region are per-target or per-target-source. §1 assumes
   per-target — "Region 2곳" only exists if a row can differ.
 - **Q3** the region → bucket/endpoint mapping: fixed, per-target-source, or per-scope.

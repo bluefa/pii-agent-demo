@@ -51,10 +51,13 @@ terraform 스크립트 이름 `SDU_BDC_SERVICE_COMMON` / `SDU_BDC_SERVICE`). 연
 스캔 → Terraform → 연결 테스트 → Airflow 가 담당자에게는 한 문장이기 때문이다.
 2단계 안의 네 블록은 **상태가 아니다** — wire 에 이름이 없다.
 
-### 1.2 권역(region_scope)과 Region
+### 1.2 권역과 Region
 
-- `region_scope` 는 **읽기 전용 파생값**이다. `metadata.is_china_region` 을 그대로 읽는다.
-  AWS 가 같은 필드로 갈리는 것과 같고, **담당자가 고르지 않는다**
+- 권역은 **대상 소스가 이미 가진 사실**이다 — `metadata.is_china_region` 하나가 출처이고,
+  AWS 가 같은 필드로 갈리는 것과 같다. **담당자가 고르지 않는다**
+- 그래서 **SDU 응답 어디에도 `region_scope` 를 싣지 않는다.** 화면은 대상 소스 상세
+  (`GET /install/v1/target-sources/{targetSourceId}`)에서 읽는다. 같은 값을 두 응답이
+  말하면 어긋나는 날이 오고, 그날 화면은 어느 쪽을 믿을지 모른다
 - `region` 은 AWS region 코드가 아니라 **우리 이름**이다. `GLOBAL` 이 `asia|us|eu|cx` 를,
   `CHINA` 가 `china` 를 **배타적으로** 소유한다. 그래서 China 대상 소스의 업로드 경로는
   항상 하나다
@@ -75,10 +78,11 @@ terraform 스크립트 이름 `SDU_BDC_SERVICE_COMMON` / `SDU_BDC_SERVICE`). 연
 | PUT | `/install/v1/target-sources/{targetSourceId}/sdu/upload/commands/ack` | **데이터 업로드 확인** 답변 |
 | PUT | `/install/v1/target-sources/{targetSourceId}/sdu/upload/access-key-recipients` | S3 Access Key 수신자 **등록**(발송 아님) |
 
-기존 재사용 2건:
+기존 재사용 3건 — **경로도 응답도 바꿀 것이 없다**:
 
 | Method | Path | 무엇이 필요한가 |
 | --- | --- | --- |
+| GET | `/install/v1/target-sources/{targetSourceId}` | 그대로. **권역**(`metadata.is_china_region`)과 서비스 코드의 출처다 — SDU 1·2단계 화면이 매번 부른다 (§1.2) |
 | GET | `/install/v1/services/{serviceCode}/authorized-users` | 그대로. 담당자 권한으로 200 (오너 확인, §6) |
 | POST | `/install/v1/target-sources/{targetSourceId}/reset` | SDU 에서는 업로드 상태만 버린다 (§8) |
 
@@ -86,8 +90,7 @@ terraform 스크립트 이름 `SDU_BDC_SERVICE_COMMON` / `SDU_BDC_SERVICE`). 연
 
 ```jsonc
 // GET → 200
-{
-  "region_scope": "GLOBAL",          // 읽기 전용 파생값. §1.2
+{                                    // 권역은 여기 없다 — 대상 소스가 가진 사실이다. §1.2
   "targets": [{
     "target_id":      "t-1",
     "cloud":          "AWS",         // AWS | GCP | AZURE | IDC | OTHER
@@ -101,7 +104,7 @@ terraform 스크립트 이름 `SDU_BDC_SERVICE_COMMON` / `SDU_BDC_SERVICE`). 연
 
 ```jsonc
 // PUT  body { "targets": [...] }        // 한 번도 저장 안 된 행은 target_id 생략 가능
-                                          // region_scope 는 보내지 않는다(보내도 무시)
+                                          // 권역은 요청에도 응답에도 없다
 // → 200  GET 과 같은 모양
 // → 400  INVALID_PARAMETER
 ```
@@ -370,7 +373,8 @@ US·Asia인가"를 관리자가 재구성해야 한다는 것. 답이 대상 소
 신규 엔드포인트는 없다** — 관리자 콘솔이 필요로 하는 것은 전부 위 일곱 건과 기존
 오퍼레이션이 이미 답한다(§9).
 
-재사용 2건: `authorized-users` 는 **담당자**(§6.1, 오너 확인), `reset` 은 기존 권한 그대로.
+재사용 3건: 대상 소스 상세와 `authorized-users` 는 **담당자**(§6.1, 오너 확인), `reset` 은
+기존 권한 그대로.
 
 ## 11. 확인이 필요한 것
 
@@ -378,20 +382,23 @@ US·Asia인가"를 관리자가 재구성해야 한다는 것. 답이 대상 소
 
 | # | 질문 | 다르게 답하면 |
 | --- | --- | --- |
-| 1 | `region_scope` 를 §3 응답에 실어 주나, 화면이 `metadata.is_china_region` 을 직접 읽나 | 후자면 §3 에서 필드가 빠진다 |
-| 2 | cloud·region 이 대상별인가 대상 소스별인가 | 대상 소스별이면 "Region 2곳"이 성립하지 않는다 |
-| 3 | Region → 버킷/엔드포인트 매핑이 고정인가, 대상 소스별인가, 권역별인가 | 고정이 아니면 §5 를 매번 다시 읽어야 한다 |
-| 4 | 목적지 IP 가 정말 구조로 오나 | 문자열이면 §5 방화벽 표가 터미널 블록으로 바뀐다. CIDR 개수 상한도 모른다 |
-| 5 | `upload_ip` 가 계속 스칼라인가, 배열로 열리나 | 배열이면 1단계 행의 입력이 바뀐다 |
-| 6 | `upload_ip` 변경이 우리 쪽에 또 무엇을 요구하나(버킷 정책 allowlist) | 담당자의 재확인만으로 안 끝난다면 화면이 그 절반을 말해야 한다 |
-| 7 | `database_types` 만 고친 것이 관리자 스캔 비교에 무엇을 바꾸나 | 여기서는 아무것도 무효화하지 않는데, 그게 "아무 일도 없다"와 같지는 않다 |
-| 8 | ProcessStatus 는 대상 소스당 **한 값**이라 "10건 중 2건만 확인 필요"를 말할 수 없다 | Region/대상 단위 상태가 필요하면 격자 밖에 별도 필드가 있어야 한다 |
-| 9 | BDC 완료 **후에** 대상을 추가하면 BDC 가 다시 도나 | 안 돌면 추가한 대상은 영원히 반영되지 않는다 |
-| 10 | **§9.2** `confirmed-integration` 의 SDU 행이 무엇인가 | 정해지지 않으면 확정 정보 탭이 빈다 |
-| 11 | Terraform 작업 응답에 **적용 시각·실패 사유가 없다** | 「적용 실패」에서 왜로 가는 길이 지금 계약에 없다 |
+| 1 | cloud·region 이 대상별인가 대상 소스별인가 | 대상 소스별이면 "Region 2곳"이 성립하지 않는다 |
+| 2 | Region → 버킷/엔드포인트 매핑이 고정인가, 대상 소스별인가, 권역별인가 | 고정이 아니면 §5 를 매번 다시 읽어야 한다 |
+| 3 | 목적지 IP 가 정말 구조로 오나 | 문자열이면 §5 방화벽 표가 터미널 블록으로 바뀐다. CIDR 개수 상한도 모른다 |
+| 4 | `upload_ip` 가 계속 스칼라인가, 배열로 열리나 | 배열이면 1단계 행의 입력이 바뀐다 |
+| 5 | `upload_ip` 변경이 우리 쪽에 또 무엇을 요구하나(버킷 정책 allowlist) | 담당자의 재확인만으로 안 끝난다면 화면이 그 절반을 말해야 한다 |
+| 6 | `database_types` 만 고친 것이 관리자 스캔 비교에 무엇을 바꾸나 | 여기서는 아무것도 무효화하지 않는데, 그게 "아무 일도 없다"와 같지는 않다 |
+| 7 | ProcessStatus 는 대상 소스당 **한 값**이라 "10건 중 2건만 확인 필요"를 말할 수 없다 | Region/대상 단위 상태가 필요하면 격자 밖에 별도 필드가 있어야 한다 |
+| 8 | BDC 완료 **후에** 대상을 추가하면 BDC 가 다시 도나 | 안 돌면 추가한 대상은 영원히 반영되지 않는다 |
+| 9 | **§9.2** `confirmed-integration` 의 SDU 행이 무엇인가 | 정해지지 않으면 확정 정보 탭이 빈다 |
+| 10 | Terraform 작업 응답에 **적용 시각·실패 사유가 없다** | 「적용 실패」에서 왜로 가는 길이 지금 계약에 없다 |
 
-**이미 답이 나온 것** — `authorized-users` 는 ADMIN 전용이 아니고 응답은
-`id · name · email` 이다(오너, 2026-08-28). §6.1 은 요청이 아니라 기록이다.
+**이미 답이 나온 것**
+
+- `authorized-users` 는 ADMIN 전용이 아니고 응답은 `id · name · email` 이다(오너,
+  2026-08-28). §6.1 은 요청이 아니라 기록이다
+- 권역을 §3 응답에 실을지는 **싣지 않기로 정했다.** 화면이 이미 대상 소스 상세의
+  `metadata.is_china_region` 을 읽고 있어서, 실어 주면 같은 값의 출처가 둘이 된다 (§1.2)
 
 ## 12. 우리가 정한 것 (계약 형태에 대한 선택)
 

@@ -14,12 +14,13 @@ import {
 import type {
   SduAckRequestWire,
   SduBdcStatus,
-  SduCommandRowWire,
+  SduCommandsWire,
   SduDefinitionRequestWire,
   SduDefinitionWire,
   SduFirewallRowWire,
   SduFirewallWire,
   SduInvalidationWire,
+  SduRecipientWire,
   SduRegion,
   SduRegionScope,
   SduTargetWire,
@@ -93,12 +94,22 @@ const buildCommand = (region: SduRegion, targetSourceId: number): string =>
 
 // ── Store ─────────────────────────────────────────────────────────────────────
 
+/**
+ * 한 확인의 답. `acked` 만으로는 승인 조건 ①의 근거 행(「방화벽 확인 · 홍길동 · 08-25
+ * 10:40」)을 세울 수 없어서 누가·언제를 같이 진다. 되돌린 답도 갱신이지 비움이 아니다.
+ */
+interface SduAckState {
+  acked: boolean;
+  ackedAt: string | null;
+  ackedBy: SduRecipientWire | null;
+}
+
 interface SduState {
   targets: SduTargetWire[];
   definitionUpdatedAt: string | null;
   submittedAt: string | null;
-  firewallAcked: boolean;
-  commandsAcked: boolean;
+  firewall: SduAckState;
+  commands: SduAckState;
   recipientIds: string[];
   recipientsUpdatedAt: string | null;
   bdcStatus: SduBdcStatus;
@@ -119,9 +130,18 @@ const NO_INVALIDATION: SduInvalidationWire = {
 
 const emptyInvalidation = (): SduInvalidationWire => ({ ...NO_INVALIDATION });
 
+const blankAck = (): SduAckState => ({ acked: false, ackedAt: null, ackedBy: null });
+
+/** 시드가 쓰는 사람 하나. 목 사용자 명부 밖의 사람을 근거 행에 앉히지 않는다. */
+const seedUser = (id: string): SduRecipientWire | null => {
+  const user = mockData.mockUsers.find((candidate) => candidate.id === id);
+  return user ? { id: user.id, name: user.name, email: user.email } : null;
+};
+
 const SEED_DEFINITION_AT = '2026-08-24T05:40:00Z';
 const SEED_SUBMITTED_AT = '2026-08-24T05:41:00Z';
 const SEED_RECIPIENTS_AT = '2026-08-24T07:41:00Z';
+const SEED_FIREWALL_ACKED_AT = '2026-08-25T10:40:00Z';
 
 /** Target source 1100 — the mid-Step-4 fixture: 2 targets / 2 regions, firewall US only. */
 const SEED_1100_TARGETS: SduTargetWire[] = [
@@ -152,8 +172,8 @@ const blankState = (): SduState => ({
   targets: [],
   definitionUpdatedAt: null,
   submittedAt: null,
-  firewallAcked: false,
-  commandsAcked: false,
+  firewall: blankAck(),
+  commands: blankAck(),
   recipientIds: [],
   recipientsUpdatedAt: null,
   bdcStatus: 'NOT_STARTED',
@@ -183,9 +203,13 @@ const seedState = (targetSourceId: number): SduState => {
     }));
     state.definitionUpdatedAt = SEED_DEFINITION_AT;
     state.submittedAt = SEED_SUBMITTED_AT;
-    // Firewall confirmed for US only — the half-done shape Step 4 renders as
-    // "1곳 확인함" against 2 regions.
-    state.firewallAcked = true;
+    // 방화벽만 답이 있고 업로드 확인은 아직 없다 — 2단계가 반쯤 끝난 모양이다. 답은 대상
+    // 소스 단위 하나이므로 Region 을 가리지 않는다.
+    state.firewall = {
+      acked: true,
+      ackedAt: SEED_FIREWALL_ACKED_AT,
+      ackedBy: seedUser('user-1'),
+    };
     state.recipientIds = [...SEED_1100_RECIPIENTS];
     state.recipientsUpdatedAt = SEED_RECIPIENTS_AT;
   }
@@ -219,8 +243,8 @@ export const clearSduUploadState = (targetSourceId: number): void => {
   const state = store?.get(targetSourceId);
   if (!state) return;
   state.submittedAt = null;
-  state.firewallAcked = false;
-  state.commandsAcked = false;
+  state.firewall = blankAck();
+  state.commands = blankAck();
   state.recipientIds = [];
   state.recipientsUpdatedAt = null;
   state.bdcStatus = 'NOT_STARTED';
@@ -237,7 +261,8 @@ const errorResponse = (status: number, code: string, message: string): NextRespo
 const invalidParameter = (message: string): NextResponse =>
   errorResponse(400, 'INVALID_PARAMETER', message);
 
-const noContent = (): NextResponse => NextResponse.json({ ok: true });
+/** 본문 없는 성공. 계약이 말하는 204 그대로 — 상류가 실제로 내는 것을 목도 낸다. */
+const noContent = (): NextResponse => new NextResponse(null, { status: 204 });
 
 type AuthResult = { error: NextResponse } | { project: Project };
 
@@ -282,8 +307,8 @@ const refreshBdc = (targetSourceId: number, state: SduState): void => {
 
   const ready =
     regionsOf(state).length > 0 &&
-    state.firewallAcked &&
-    state.commandsAcked &&
+    state.firewall.acked &&
+    state.commands.acked &&
     state.recipientIds.length > 0;
 
   if (!ready) {
@@ -323,10 +348,16 @@ export const completeSduBdcForTest = (targetSourceId: number): void => {
   refreshBdc(targetSourceId, state);
 };
 
-const toDefinitionWire = (targetSourceId: number, state: SduState): SduDefinitionWire => ({
-  region_scope: scopeOf(targetSourceId),
+// 권역은 이 응답에 없다 — 대상 소스가 가진 사실이고, 두 곳에서 말하면 어긋날 자리가 생긴다.
+const toDefinitionWire = (state: SduState): SduDefinitionWire => ({
   targets: state.targets.map((target) => ({ ...target, database_types: [...target.database_types] })),
   updated_at: state.definitionUpdatedAt,
+});
+
+const toAckStampWire = (ack: SduAckState) => ({
+  acked: ack.acked,
+  acked_at: ack.ackedAt,
+  acked_by: ack.ackedBy,
 });
 
 const toFirewallWire = (state: SduState, regions: SduRegion[]): SduFirewallWire => {
@@ -336,16 +367,16 @@ const toFirewallWire = (state: SduState, regions: SduRegion[]): SduFirewallWire 
     port: S3_PORT,
     destination_ips: [...REGION_FACTS[region].destinationIps],
   }));
-  return { rows, acked: state.firewallAcked };
+  return { rows, ...toAckStampWire(state.firewall) };
 };
 
 const toCommandsWire = (
   targetSourceId: number,
   state: SduState,
   regions: SduRegion[],
-): { rows: SduCommandRowWire[]; acked: boolean } => ({
+): SduCommandsWire => ({
   rows: regions.map((region) => ({ region, command: buildCommand(region, targetSourceId) })),
-  acked: state.commandsAcked,
+  ...toAckStampWire(state.commands),
 });
 
 const toUploadWire = (targetSourceId: number, state: SduState): SduUploadWire => {
@@ -479,11 +510,11 @@ const applyInvalidation = (
   });
 
   if (added.length > 0) {
-    state.firewallAcked = false;
-    state.commandsAcked = false;
+    state.firewall = blankAck();
+    state.commands = blankAck();
   }
   if (uploadIpChanged) {
-    state.firewallAcked = false;
+    state.firewall = blankAck();
   }
 
   return { added_regions: added, upload_ip_changed: uploadIpChanged };
@@ -496,7 +527,7 @@ const applyInvalidation = (
 const writeAck = (
   targetSourceId: number,
   body: SduAckRequestWire,
-  field: 'firewallAcked' | 'commandsAcked',
+  block: 'firewall' | 'commands',
 ): NextResponse => {
   const auth = authorize(targetSourceId);
   if ('error' in auth) return auth.error;
@@ -505,8 +536,13 @@ const writeAck = (
     return invalidParameter('confirmed는 boolean이어야 합니다.');
   }
 
+  const user = mockData.getCurrentUser();
   const state = getState(targetSourceId);
-  state[field] = body.confirmed;
+  state[block] = {
+    acked: body.confirmed,
+    ackedAt: new Date().toISOString(),
+    ackedBy: user ? { id: user.id, name: user.name, email: user.email } : null,
+  };
 
   // 무효화 안내는 한 번만 말한다 — 다음 확인 응답이 들어온 순간 그 안내는 이미 읽힌 것이다.
   state.invalidation = emptyInvalidation();
@@ -522,7 +558,7 @@ export const mockSdu = {
   getDefinition: async (targetSourceId: number) => {
     const auth = authorize(targetSourceId);
     if ('error' in auth) return auth.error;
-    return NextResponse.json(toDefinitionWire(targetSourceId, getState(targetSourceId)));
+    return NextResponse.json(toDefinitionWire(getState(targetSourceId)));
   },
 
   // PUT …/sdu/definition (assumed §2).
@@ -553,7 +589,7 @@ export const mockSdu = {
     state.definitionUpdatedAt = new Date().toISOString();
     refreshBdc(targetSourceId, state);
 
-    return NextResponse.json(toDefinitionWire(targetSourceId, state));
+    return NextResponse.json(toDefinitionWire(state));
   },
 
   // POST …/sdu/definition/submit (assumed §3).
@@ -586,11 +622,11 @@ export const mockSdu = {
 
   // PUT …/sdu/upload/firewall/ack (assumed §5).
   putFirewallAck: async (targetSourceId: number, body: SduAckRequestWire) =>
-    writeAck(targetSourceId, body, 'firewallAcked'),
+    writeAck(targetSourceId, body, 'firewall'),
 
   // PUT …/sdu/upload/commands/ack (assumed §5).
   putCommandsAck: async (targetSourceId: number, body: SduAckRequestWire) =>
-    writeAck(targetSourceId, body, 'commandsAcked'),
+    writeAck(targetSourceId, body, 'commands'),
 
   // PUT …/sdu/upload/access-key-recipients (assumed §6).
   putAccessKeyRecipients: async (targetSourceId: number, body: { user_ids: string[] }) => {

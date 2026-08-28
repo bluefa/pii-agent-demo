@@ -46,7 +46,6 @@ const project: CloudTargetSource = {
 const chinaProject: CloudTargetSource = { ...project, isChinaRegion: true };
 
 const definition = (over: Partial<SduDefinition> = {}): SduDefinition => ({
-  regionScope: 'GLOBAL',
   targets: [],
   updatedAt: null,
   ...over,

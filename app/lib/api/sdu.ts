@@ -45,11 +45,14 @@ const toTarget = (wire: SduTargetWire): SduTarget => ({
 });
 
 export const toSduDefinition = (wire: SduDefinitionWire): SduDefinition => ({
-  regionScope: wire.region_scope,
   targets: wire.targets.map(toTarget),
   updatedAt: wire.updated_at,
 });
 
+/**
+ * `acked_at` · `acked_by` 는 접지 않는다 — 관리자 승인 조건의 근거 행이 읽는 값이고, 담당자
+ * 화면은 자기가 방금 누른 답에 시각을 붙여 읽지 않는다(계약 §5).
+ */
 const toFirewall = (wire: SduFirewallWire): SduFirewall => ({
   rows: byRegion(wire.rows).map((row) => ({
     region: row.region,

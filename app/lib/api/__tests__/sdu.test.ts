@@ -21,7 +21,6 @@ import type { SduDefinitionWire, SduFirewallWire, SduUploadWire } from '@/lib/ty
  */
 
 const DEFINITION_WIRE: SduDefinitionWire = {
-  region_scope: 'GLOBAL',
   targets: [
     { target_id: 't1', cloud: 'AWS', region: 'us', upload_ip: '10.20.30.40', database_types: ['MySQL'] },
   ],
@@ -35,6 +34,9 @@ const FIREWALL_WIRE: SduFirewallWire = {
     { region: 'us', s3_endpoint: 's3.us-east-1.amazonaws.com', port: 443, destination_ips: ['52.216.0.0/15'] },
   ],
   acked: true,
+  // 관리자 몫 — 담당자 뷰는 이 둘을 접지 않는다.
+  acked_at: '2026-08-25T10:40:00Z',
+  acked_by: { id: 'user-1', name: '김철수', email: 'kim@company.com' },
 };
 
 const UPLOAD_WIRE: SduUploadWire = {
@@ -48,6 +50,8 @@ const UPLOAD_WIRE: SduUploadWire = {
   commands: {
     rows: [{ region: 'us', command: 'export http_proxy=x\nexport https_proxy=x\naws s3 ls s3://b/1/' }],
     acked: false,
+    acked_at: null,
+    acked_by: null,
   },
   bdc: { status: 'IN_PROGRESS', checked_at: '2026-08-24T08:00:00Z', completed_at: null },
   invalidation: { added_regions: ['asia'], upload_ip_changed: true },
@@ -81,7 +85,6 @@ describe('SDU 어댑터 — snake → camel', () => {
     stubFetch(DEFINITION_WIRE);
 
     await expect(getSduDefinition(1101)).resolves.toEqual({
-      regionScope: 'GLOBAL',
       targets: [
         {
           targetId: 't1',

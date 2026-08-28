@@ -89,7 +89,6 @@ const upload = (over: Partial<SduUpload> = {}): SduUpload => ({
 
 
 const definition: SduDefinition = {
-  regionScope: 'GLOBAL',
   updatedAt: '2026-08-24T05:40:00Z',
   targets: [
     {

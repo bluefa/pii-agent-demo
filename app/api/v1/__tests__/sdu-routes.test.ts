@@ -32,7 +32,6 @@ const params = (targetSourceId: string) => ({ params: Promise.resolve({ targetSo
 const url = (path: string) => `http://localhost/pass/api/v1/target-sources/1101/sdu${path}`;
 
 const DEFINITION: SduDefinitionWire = {
-  region_scope: 'GLOBAL',
   targets: [
     { target_id: 't1', cloud: 'AWS', region: 'us', upload_ip: '10.20.30.40', database_types: ['MySQL'] },
   ],
@@ -44,6 +43,8 @@ const FIREWALL: SduFirewallWire = {
     { region: 'us', s3_endpoint: 's3.us-east-1.amazonaws.com', port: 443, destination_ips: ['52.216.0.0/15'] },
   ],
   acked: true,
+  acked_at: '2026-08-25T10:40:00Z',
+  acked_by: { id: 'user-1', name: '김철수', email: 'kim@company.com' },
 };
 
 const UPLOAD: SduUploadWire = {
@@ -51,7 +52,12 @@ const UPLOAD: SduUploadWire = {
   regions: ['us'],
   firewall: FIREWALL,
   access_key_recipients: { users: [], updated_at: null },
-  commands: { rows: [{ region: 'us', command: 'export http_proxy=…' }], acked: false },
+  commands: {
+    rows: [{ region: 'us', command: 'export http_proxy=…' }],
+    acked: false,
+    acked_at: null,
+    acked_by: null,
+  },
   bdc: { status: 'NOT_STARTED', checked_at: '2026-08-24T08:00:00Z', completed_at: null },
   invalidation: { added_regions: [], upload_ip_changed: false },
 };
@@ -156,6 +162,17 @@ describe('SDU 라우트 — 해피 패스', () => {
     );
     expect(commands.status).toBe(204);
     expect(mocked.putCommandsAck).toHaveBeenCalledWith(1101, body);
+  });
+
+  it('confirmed 가 boolean 이 아니면 상류에 닿기 전에 400 이다', async () => {
+    const response = await putFirewallAck(
+      new Request(url('/upload/firewall/ack'), { method: 'PUT', body: JSON.stringify({ confirmed: 'yes' }) }),
+      params('1101'),
+    );
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toMatchObject({ code: 'VALIDATION_FAILED' });
+    expect(mocked.putFirewallAck).not.toHaveBeenCalled();
   });
 
   it('PUT /upload/access-key-recipients 는 user_ids 배열만 받는다', async () => {

@@ -19,9 +19,9 @@ export const PUT = withV1(async (request, { requestId, params }) => {
   if (!parsed.ok) return problemResponse(parsed.problem);
 
   const body = (await request.json().catch(() => null)) as SduAckRequestWire | null;
-  if (body === null || typeof body !== 'object') {
+  if (typeof body?.confirmed !== 'boolean') {
     return problemResponse(
-      createProblem('VALIDATION_FAILED', '요청 본문은 JSON object여야 합니다.', requestId),
+      createProblem('VALIDATION_FAILED', 'confirmed는 boolean이어야 합니다.', requestId),
     );
   }
 
