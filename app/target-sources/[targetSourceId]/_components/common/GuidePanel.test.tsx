@@ -163,6 +163,15 @@ describe('GuidePanel — collab-channel card states', () => {
     // the sentence above it is read (12/17). It was a flat 1.5 for both, i.e. 18 and 21:
     // line boxes off the grid, on a ramp where the bigger the type the more air it took.
     expect(link.className).toContain('text-[14px]');
+    // ⛔ 600, and it is the payload's RANK (오너 지시 2026-08-28, 시안 A). At 400 this key was
+    // Carbon's `bodyCompact01` — the token for a value inside a component — sitting under a
+    // 16/700 head, and Carbon's rule is that a lighter face outranks a bold one only when it
+    // is «significantly larger»; 16/14 = 1.14x does not clear it, so the label took size AND
+    // weight and the only clickable ink in the card was its quietest. 600 is `heading01`.
+    // ⛔ Weight, NOT size: 16 here would tie the head and collapse the 12/14/16 tier ladder.
+    // This assertion exists because removing `font-semibold` left all 35 tests green — a
+    // pixel-changing decision nothing was holding.
+    expect(link.className).toContain('font-semibold');
     expect(screen.getByText(CHANNEL_LINE).className).toContain('leading-[17px]');
 
     // ⛔ No label row. It was 「협업 채널 링크」, then 「이슈 키」, and then nothing: a single
@@ -673,6 +682,16 @@ describe('GuidePanel — the folded strip says what it is', () => {
     expect((container.querySelector('aside > div') as HTMLElement).className).toContain('gap-3');
     expect(railStyles.bubbleTail).toContain('after:h-2');
     expect(railStyles.bubbleTail).toContain('polygon(0_0,100%_0,0_100%)');
+    // ⛔ `p-4` and `after:left-4` are ONE measurement written across two files: the tail has to
+    // spring from the content edge, so the card's padding and the tail's offset move together
+    // (오너 지시 2026-08-28, 시안 E — it was `p-3`/`left-3`). Asserting the pair here is what
+    // makes that couple structural instead of two files agreeing by eye.
+    // ⛔ `p-3` must not come back. It was a 수치 위반, not a preference: this card is
+    // `rounded-xl`, so at 12 its padding EQUALLED its corner radius and the content rode the
+    // curve. Both halves were silently revertible before this assertion existed.
+    expect(channelZone.className).toContain('p-4');
+    expect(channelZone.className).not.toContain('p-3');
+    expect(railStyles.bubbleTail).toContain('after:left-4');
   });
 
   /**
