@@ -127,10 +127,14 @@ const scopeBlock = () => screen.getByRole('region', { name: '설치 대상' });
  * claim below is a RELATION between two tokens.
  */
 const COLOUR = '(#[0-9A-Fa-f]{3,8}|var\\([^)]*\\))';
+// Rest state only. A token that declares a hover ink carries two `text-[…]` runs, and a
+// pair measured on the wrong one reports a colour the reader never sees at rest.
+const REST = '(?<!hover:)(?<!focus-visible:)(?<!group-hover:)';
 // ⛔ Colour-shaped only. `text-[…]` is also how this repo spells a font SIZE, so a
 // permissive `[^\]]+` reads `text-[14px]` off `factNone` and compares a size to a tint.
-const inkOf = (cls: string) => cls.match(new RegExp(`text-\\[${COLOUR}\\]`))?.[1];
-const fillOf = (cls: string) => cls.match(new RegExp(`bg-\\[${COLOUR}\\]`))?.[1];
+const inkOf = (cls: string) => cls.match(new RegExp(`${REST}text-\\[${COLOUR}\\]`))?.[1];
+const fillOf = (cls: string) => cls.match(new RegExp(`${REST}bg-\\[${COLOUR}\\]`))?.[1];
+const hoverInkOf = (cls: string) => cls.match(new RegExp(`hover:text-\\[${COLOUR}\\]`))?.[1];
 
 /**
  * What `opsStyles.pathLinkId` actually paints — the ops path's identifier segment, and
@@ -201,6 +205,42 @@ describe('ProjectPageMeta — one block, one cue, no rules', () => {
     expect(screen.queryByRole('button', { name: /전체 단계/ })).toBeNull();
     expect(screen.queryByRole('button', { name: '설명' })).toBeNull();
     expect(cue().textContent).toBe('상세 정보');
+  });
+
+  it('keeps the cue out of blue — it opens reference, not work (오너 2026-08-28)', () => {
+    // ⛔ Blue in this palette also reads as 「you must look at this」, and what this cue
+    // opens is read-once reference. It joins the chrome family instead: the same ink the
+    // path and the block name wear. Not a legibility trade — on the header's ground the
+    // new ink is slightly STRONGER than the blue it replaced (6.50:1 vs 6.15:1); the
+    // measurement itself lives in `design-guard.test.ts`, which pairs this token's rest
+    // ink against the canvas.
+    expect(inkOf(projectHeaderStyles.metaCue)).toBe(inkOf(projectHeaderStyles.blockLabel));
+    expect(inkOf(projectHeaderStyles.metaCue)).toBe(inkOf(projectHeaderStyles.crumb));
+    // ⛔ And it is not the position plate's blue, which is the one thing on this row the
+    // eye IS meant to land on.
+    expect(inkOf(projectHeaderStyles.metaCue)).not.toBe(inkOf(installStepperStyles.stepTag));
+    expect(fillOf(projectHeaderStyles.metaCue)).toBeUndefined();
+  });
+
+  it('declares pressability by hover and the chevron, not by hue', () => {
+    // The grammar `opsStyles.pathLink` already uses one screen over: 「누를 수 있다는
+    // 것은 hover 가 말한다」. Hover darkens to the value ink and underlines, and keyboard
+    // focus gets the same treatment — a reader who never touches a pointer must not be
+    // the one reader with no affordance.
+    expect(hoverInkOf(projectHeaderStyles.metaCue)).toBe(
+      inkOf(projectHeaderStyles.summaryValue),
+    );
+    expect(projectHeaderStyles.metaCue).toContain('hover:underline');
+    expect(projectHeaderStyles.metaCue).toContain('focus-visible:underline');
+    // The focus ring stays as it was: a focus indicator appears only for the reader who
+    // asked for it, so it is not attention-seeking colour.
+    expect(projectHeaderStyles.metaCue).toContain('focus-visible:ring-2');
+    // The chevron takes the cue's own ink, so it darkens with it and needs no pair.
+    render(<ProjectPageMeta project={projectFixture} identity={awsIdentity} />);
+    expect(cue().querySelector('svg')?.getAttribute('class')).toBe(
+      projectHeaderStyles.metaToggleIcon,
+    );
+    expect(projectHeaderStyles.metaToggleIcon).not.toMatch(/text-\[/);
   });
 
   it('is no longer gated — the road is always behind it', () => {

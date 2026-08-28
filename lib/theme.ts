@@ -996,22 +996,39 @@ export const projectHeaderStyles = {
   summaryValueText: 'min-w-0 truncate',
   summaryValueMono: 'font-mono tracking-[-0.02em] tabular-nums',
   /**
-   * Blue, because in this palette blue is the one colour that means "clickable" —
-   * and it names what opens, which the chevron alone cannot. It rides the block
-   * head: the grid below it holds copy buttons, so the grid cannot itself be the
-   * press, and a named block's one control belongs beside the name.
+   * ⛔ **Not blue** (오너 2026-08-28). This token wore `#0050D6` on the argument that blue
+   * is the one colour in this palette meaning "clickable". That argument is retired: in
+   * this palette blue also reads as *you must look at this*, and what this cue opens is
+   * read-once reference — a description and the route. It must not compete for attention
+   * it has not earned.
    *
-   * The name is 「상세 정보」 again (오너 2026-08-28), and it is the header's ONLY cue.
-   * It was narrowed to 「설명」 when the fold held one paragraph; the fold now holds the
-   * description AND the seven-step road, so a cue naming only the paragraph understates
-   * its body — the opposite error, and the same one. It matches `opsStyles.fmCue` on the
-   * ops side of the same target.
+   * So the cue joins the chrome family instead: the same `#4E5968` the path and the block
+   * name wear. Pressability is declared by the chevron beside it and by hover, which is
+   * the grammar `opsStyles.pathLink` already uses on the ops side of the same target
+   * (「누를 수 있다는 것은 hover 가 말한다」) — hover darkens to `#191F28` and underlines.
+   *
+   * This is not a legibility trade. Measured on the header's ground `#F4F4FB`:
+   * **#4E5968 = 6.50:1** against the outgoing **#0050D6 = 6.15:1**. The new ink is
+   * slightly stronger; only the hue is quieter. Hover lands at 15.13:1.
+   *
+   * The focus ring stays blue. A focus indicator is not attention-seeking colour — it
+   * appears only for the reader who asked for it, and it is the app's one focus signal.
+   * Keyboard focus takes the hover ink and underline too: a reader who never touches a
+   * pointer must not be the one reader left with no affordance.
+   *
+   * It rides the block head: the grid below it holds copy buttons, so the grid cannot
+   * itself be the press, and a named block's one control belongs beside the name.
+   *
+   * The name is 「상세 정보」 (오너 2026-08-28), and it is the header's ONLY cue. It was
+   * narrowed to 「설명」 when the fold held one paragraph; the fold now holds the
+   * description AND the road, so a cue naming only the paragraph understates its body —
+   * the opposite error, and the same one. It matches `opsStyles.fmCue`.
    *
    * ⛔ It is no longer gated. The road always exists, so the drawer is never empty and
    * the old `hasFold` check would only ever be true.
    */
   metaCue:
-    'flex flex-none items-center gap-1 rounded-[6px] text-[12px] font-semibold text-[#0050D6] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0050D6]/40',
+    'flex flex-none items-center gap-1 rounded-[6px] text-[12px] font-semibold text-[#4E5968] transition-colors hover:text-[#191F28] hover:underline focus-visible:text-[#191F28] focus-visible:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0050D6]/40 motion-reduce:transition-none',
   metaToggleIcon: 'h-3.5 w-3.5 transition-transform motion-reduce:transition-none',
   metaToggleIconOpen: 'rotate-180',
   /** Distance, not a rule: the header draws none at all now, and a rule here would put
@@ -1055,9 +1072,10 @@ export const installStepperStyles = {
    * `design-guard.test.ts` parses these strings as source and cannot follow a `${}` —
    * a test pins the two tokens equal instead. 5.92:1.
    *
-   * The cue at the other end of the row wears the same `#0050D6`, and that is
-   * survivable where the card clash was not: the cue has no fill, carries a chevron,
-   * sits at the opposite edge, and is not the same fact.
+   * The cue at the other end of the row used to wear this same `#0050D6`; it does not any
+   * more (오너 2026-08-28 — see `projectHeaderStyles.metaCue`). That leaves this plate as
+   * the row's ONE blue, which is the state the plate always wanted: it is the fact the eye
+   * should land on, and it no longer has to be survivable beside a second blue.
    *
    * `items-baseline`, so the 14px digits and the 12px words sit on one line inside the
    * tag and the tag itself lands on the block name's baseline. No `gap`: the plate held

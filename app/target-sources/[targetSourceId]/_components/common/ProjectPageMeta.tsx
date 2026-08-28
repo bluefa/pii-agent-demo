@@ -280,7 +280,10 @@ export const ProjectPageMeta = ({ project, identity, action }: ProjectPageMetaPr
             )}
           </span>
           {/* The header's one cue. Not gated any more: the road always exists, so the
-              body is never empty and the old `hasFold` check could only ever be true. */}
+              body is never empty and the old `hasFold` check could only ever be true.
+              ⛔ Not blue (오너 2026-08-28) — it opens read-once reference, and blue in this
+              palette also reads as 「you must look at this」. Hover and the chevron say it
+              is pressable; see `projectHeaderStyles.metaCue` for the measured ratios. */}
           <button
             type="button"
             onClick={() => setMetaOpen((open) => !open)}
