@@ -175,34 +175,60 @@ export const Step1CloudAccount = ({
       </fieldset>
     )}
 
-    {/* IDC/기타 reach the same wire field, but not the same question: there is no
-        console host to name and no second account to choose between, only a fact to
-        declare. So it is one quiet opt-in in the slot the card pair would have taken,
-        pitched a full step below the 클라우드 선택 grid it sits under. */}
+    {/* IDC/기타 reach the same wire field, so they keep the card shape the CSP pair
+        wears — but the control is a checkbox, not a radio. There is no console host to
+        name and no second account to choose between: this is one fact to declare, not a
+        fork to take. Hence a single card and no required marker. */}
     {hasChinaRegion(providerKey) && !isCspChip(providerKey) && (
-      <button
-        type="button"
-        role="checkbox"
-        aria-checked={region === 'china'}
-        onClick={() => onRegionChange(region === 'china' ? 'global' : 'china')}
-        className={cn(
-          'mb-1.5 inline-flex items-center gap-2 text-xs',
-          region === 'china' ? primaryColors.textOnLight : textColors.tertiary,
-        )}
-      >
-        <span
-          aria-hidden="true"
-          className={cn(
-            'inline-flex h-[15px] w-[15px] flex-shrink-0 items-center justify-center rounded border-2',
-            region === 'china'
-              ? cn(primaryColors.border, primaryColors.bg, textColors.inverse)
-              : borderColors.strong,
-          )}
-        >
-          {region === 'china' && <CheckIcon className="h-3 w-3" />}
-        </span>
-        중국 지역에서 운영 중인 경우에만 선택해 주세요
-      </button>
+      <fieldset className="mb-1.5 border-0 p-0">
+        <legend className={cn('mb-2 block text-sm font-semibold', textColors.secondary)}>
+          운영 리전
+        </legend>
+        <div className="grid max-w-[520px] grid-cols-2 gap-2">
+          <button
+            type="button"
+            role="checkbox"
+            aria-checked={region === 'china'}
+            onClick={() => onRegionChange(region === 'china' ? 'global' : 'china')}
+            className={cn(
+              'flex items-start gap-2.5 rounded-xl border-2 px-3.5 py-3 text-left transition-colors',
+              region === 'china'
+                ? cn(primaryColors.border, primaryColors.bgLight)
+                : cn(borderColors.default, bgColors.surface, interactiveColors.unselectedBorder),
+            )}
+          >
+            <span
+              aria-hidden="true"
+              className={cn(
+                'mt-1 inline-flex h-[15px] w-[15px] flex-shrink-0 items-center justify-center rounded border-2',
+                region === 'china'
+                  ? cn(primaryColors.border, primaryColors.bg, textColors.inverse)
+                  : borderColors.strong,
+              )}
+            >
+              {region === 'china' && <CheckIcon className="h-3 w-3" />}
+            </span>
+            <span>
+              <span
+                className={cn(
+                  'block text-sm font-semibold',
+                  region === 'china' ? primaryColors.textOnLight : textColors.primary,
+                )}
+              >
+                China
+              </span>
+              <span
+                className={cn(
+                  'block text-xs',
+                  region === 'china' ? primaryColors.textOnLight : textColors.tertiary,
+                )}
+              >
+                중국 지역에서 운영 중인 경우에만 선택해 주세요
+              </span>
+            </span>
+          </button>
+        </div>
+      </fieldset>
     )}
 
     {isCspChip(providerKey) && (

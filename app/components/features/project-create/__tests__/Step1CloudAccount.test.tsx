@@ -42,6 +42,17 @@ describe('Step1CloudAccount — how each chip is asked about China', () => {
     expect(optIn?.getAttribute('aria-checked')).toBe('false');
   });
 
+  it.each(['idc', 'other'] as const)(
+    'labels the %s opt-in 운영 리전 with no required mark',
+    (providerKey) => {
+      renderStep(providerKey);
+      // Exact-string name match: a `*` in the legend would land in the accessible name,
+      // so this only passes while the opt-in legend stays unmarked.
+      expect(screen.queryByRole('group', { name: '운영 리전' })).not.toBeNull();
+      expect(screen.queryByRole('group', { name: /운영 리전\s*\*/ })).toBeNull();
+    },
+  );
+
   it.each(['idc', 'other'] as const)('checks %s into China on click', (providerKey) => {
     const { onRegionChange } = renderStep(providerKey);
     fireEvent.click(screen.getByRole('checkbox', { name: /중국/ }));
