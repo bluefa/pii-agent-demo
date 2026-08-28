@@ -2463,6 +2463,39 @@ export const railStyles = {
    */
   card: 'rounded-xl bg-white',
   /**
+   * The 협업 채널 card's tail — what makes that card the 말풍선 the folded strip already
+   * draws as a 20px `ChatIcon` (오너 지시 2026-08-27: 펼친 상태도 같은 말풍선으로, 크게).
+   * The card IS the enlarged glyph, so this is not decoration: it is the half of that
+   * glyph a rectangle cannot say. Compose it with `card`.
+   *
+   * Direction is the glyph's, not a pick. `ChatIcon`'s path (`M21 15a2 2 0 0 1-2 2H7l-4 4V5…`)
+   * leaves the bubble's bottom edge at x=7, drops to (3,21) and returns up the left edge —
+   * a right triangle whose vertical side is flush with the bubble's left edge and whose
+   * apex points down-and-LEFT. `polygon(0 0, 100% 0, 0 100%)` is that triangle at 1:1.
+   * ⛔ Any other direction contradicts the icon this enlarges.
+   *
+   * 8px, not 12. The zones sit in a `gap-3` (12px) column, so an 8px tail leaves 4px of
+   * clearance above the guide card; at 12 it would land ON that card and read as a join
+   * between two zones rather than a tail on one. ⛔ Clearance is a gap, not a contact.
+   *
+   * `left-4` matches the card's own `p-4`, i.e. the tail starts where the content starts.
+   * ⛔ It moves WITH that padding — it was `left-3` against `p-3` until 오너 지시 2026-08-28
+   * (시안 E). These two are one measurement written in two files; changing either alone
+   * detaches the tail from the content edge it is supposed to spring from.
+   * It also has to start somewhere past 12: `card` is `rounded-xl`, so the bottom-left
+   * corner's curve occupies x 0–12 and a tail flush with the edge would hang off a curve.
+   *
+   * ⛔ Plain `bg-white`, no border and no shadow — and that is possible only because `card`
+   * has neither, deliberately (see its comment: white on #E2E7EA is already a 1.28 step).
+   * There is no edge to carry round the corner and no seam to hide, so the triangle joins
+   * the card invisibly. If a hairline is ever added to `card` this is a rewrite, not an
+   * inherit: the tail's two outer sides would need that hairline and its top side must not
+   * have it. A pseudo-element is out of the accessibility tree already, so the tail needs
+   * no `aria-hidden` of its own.
+   */
+  bubbleTail:
+    "relative after:absolute after:left-4 after:top-full after:h-2 after:w-2 after:bg-white after:content-[''] after:[clip-path:polygon(0_0,100%_0,0_100%)]",
+  /**
    * 56px. It was 48 — a 32px hit target and nothing else — and a strip that holds only
    * a direction chevron does not say WHICH panel it puts back. 56 buys a 12px label
    * under a 20px glyph, and 12px is the design guide's floor, not a value to shave.
@@ -2526,6 +2559,14 @@ export const railStyles = {
    * idiom. That argument no longer holds — at 16px this is a section HEADING, not a nav
    * label, so it is deliberately its own thing.
    *
+   * ⚠️ BOTH heads wear this, and that is the settled state. The 협업 채널 card had its own
+   * `channelZoneLabel` for one commit, at 20/24 (오너 지시 2026-08-27), and 오너 지시
+   * 2026-08-28 brought it back to 16 — at which point the second token was byte-identical to
+   * this one, i.e. a duplicate carrying no delta, so it is deleted. ⛔ Do not re-introduce a
+   * per-zone head token to change one head's SPACING: the benchmark's five narrow-rail
+   * references all unify head treatment across sections regardless of section size, and the
+   * gap under a head is the margin's business, not the type's.
+   *
    * T1 of the rail's three tiers (오너 2026-08-24: 12 / 14 / 16, and a leading per group).
    * It was 600 #4E5968 at leading 1.5, and the guide's own `<h4>` two lines below it was
    * 14px **700** #111827 at 1.72 — a 24.08px line box against this label's 24.00, i.e. the
@@ -2579,31 +2620,6 @@ export const railStyles = {
    */
   zoneMark: 'text-[#F59E0B]', // design-exempt: 장식 글리프 — 뜻은 옆의 「N단계 가이드」와 스트립 aria-label 이 전부 싣는다. 텍스트 4.5:1 도, 1.4.11 의 3:1 도 대상이 아님
   /**
-   * The 협업 채널 zone's mark — the SAME `ChatIcon` the folded strip carries, at the same
-   * 20px (오너 지시 2026-08-23; the rule the 가이드 전구 already follows — folding changes
-   * how much of a zone you see, not what it looks like).
-   *
-   * `text-gray-700` is what the strip's `entry` gives that glyph by inheritance, so the
-   * two states match: 8.27:1 on the rail plane there, 9.06:1 on the card here.
-   *
-   * ⛔ Adding this REQUIRED taking the glyph off the link row — the two would sit ~56px
-   * apart inside one card, the same bubble twice at two sizes. It also puts both zone
-   * heads on one geometry (20 mark + 8 gap + label), which is what finally aligns the
-   * two labels; they were 28px out.
-   *
-   * ⛔ The ink is a PAIR and the head wears whichever one the folded strip is wearing.
-   * "Same mark in both states" has to survive the DATA too: with no ticket mapped the
-   * strip goes quiet, so a head fixed at full strength would match on 1007 and break on
-   * 1003, and a rule that holds for some rows is not a rule.
-   *
-   * ⛔ Nor is the glyph the whole mark. Render it through `RailMark`, which carries the
-   * state dot with it — the first attempt at this matched the SVG exactly and still
-   * looked wrong, because the folded strip draws that glyph with a dot on it.
-   */
-  zoneMarkChannel: 'text-gray-700',
-  /** The quiet half of the pair above — #4E5968, 7.11:1 on the zone card's white. */
-  zoneMarkChannelQuiet: 'text-[#4E5968]',
-  /**
    * Hairline between the size control and the entries — half the strip, so it reads as
    * a seam. #D2D8DC is the left rail's `divider`, i.e. the value already chosen for a
    * seam on this exact plane. ⛔ It was gray-100, which was lighter than the rail it now
@@ -2650,8 +2666,12 @@ export const railStyles = {
    * `entryLabel`'s 5.40, so it is quieter than both yet still comfortably AA. ⛔ Not
    * gray-400 (1.9) or gray-500 (3.88): "muted" on THIS plane bottoms out at #4E5968.
    *
-   * The pair also drops the state dot at the call site. Green says reachable and red says
-   * broken; absence is neither, and a dot on a zone with no state is decoration.
+   * ⚠️ The pair used to drop the state dot at the call site as well, on the argument that
+   * green says reachable and red says broken, so absence is neither. 오너 지시 2026-08-27
+   * reversed that half: 미연결 keeps a dot and it is `statusColors.pending.dot` (gray-400),
+   * so the zone answers with a dot in all three states instead of one of them answering by
+   * omission. The INK is still what withdraws the promise; the fill only says which of the
+   * three answers this is.
    *
    * ⛔ Full duplicates of `entry`/`entryLabel`, not modifiers — `cn` has no tailwind-merge,
    * so an appended `text-*` would sit next to the one it means to replace and lose.
