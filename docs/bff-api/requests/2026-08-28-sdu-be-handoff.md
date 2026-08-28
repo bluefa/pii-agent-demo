@@ -66,7 +66,7 @@ terraform 스크립트 이름 `SDU_BDC_SERVICE_COMMON` / `SDU_BDC_SERVICE`). 연
 | GET | `/definition` | 연동 대상 정의 읽기 |
 | PUT | `/definition` | 연동 대상 정의 저장 → 무효화 재계산 |
 | POST | `/definition/submit` | 제출 → ProcessStatus 1 → 4 |
-| GET | `/upload` | 2단계 전체를 **한 응답**으로 |
+| GET | `/upload` | 2단계 전체를 **한 응답**으로 — **Region별 방화벽 목적지 IP · Region별 업로드 명령 문자열** · 수신자 · BDC 상태 · 무효화. 서버가 주는 값이 여기 다 있다 |
 | PUT | `/upload/acks` | 방화벽·업로드 확인 답변 |
 | PUT | `/upload/recipients` | S3 Access Key 수신자 **등록**(발송 아님) |
 
@@ -143,6 +143,15 @@ terraform 스크립트 이름 `SDU_BDC_SERVICE_COMMON` / `SDU_BDC_SERVICE`). 연
 ## 5. 데이터 업로드 단계 — `GET /upload`
 
 **한 응답이다.** 안의 모든 목록은 region 으로 키를 잡는다.
+
+이 절이 **서버가 담당자에게 내려 주는 값 전부**를 담는다 — 특히 둘:
+
+- `firewall.rows[].destination_ips` — **Region별 목적지 IP 목록.** 담당자가 사내 방화벽
+  결재를 올릴 때 그대로 옮겨 적는 값이다. 엔드포인트·포트도 같은 행에 있다
+- `commands.rows[].command` — **Region별 업로드 확인 명령**(`aws s3 ls …`). 담당자가
+  올린 파일이 실제로 도착했는지 확인하는 세 줄이다
+
+둘 다 **서버만 아는 값**이다(§5.1). 화면은 만들지 않고 받아서 그린다.
 
 ```jsonc
 // → 200
