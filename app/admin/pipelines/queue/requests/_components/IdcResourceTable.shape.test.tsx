@@ -45,15 +45,20 @@ describe('admin IdcResourceTable — console column spec', () => {
     };
   };
 
-  it('full request view holds the 1070 floor with 제외 사유 as the sink', () => {
+  it('full request view holds the 1074 floor with 제외 사유 as the sink', () => {
     const { minWidth, widths } = shape({ onShowServices: () => {} });
-    expect(minWidth).toBe('1070px');
+    expect(minWidth).toBe('1074px');
     // endpoint(flex, %) · dbType · port · target · nlb · src · services · reason(auto sink)
+    // 요청 대상 여부 112 → 116 (round 19, the 14px console header) took the full set 1070 →
+    // 1074. The 확정 variant below has no verdict pair, so its 706 is unmoved.
     expect(widths).toEqual([
-      `${((200 / 1070) * 100).toFixed(4)}%`,
+      // `Number(...)` because CSSOM drops the trailing zero `toFixed(4)` emits here:
+      // 200/1074 rounds to 18.6220, which the style attribute reads back as `18.622%`.
+      // (At the old 1070 the fourth decimal was a 6, so the raw template happened to match.)
+      `${Number(((200 / 1074) * 100).toFixed(4))}%`,
       '172px',
       '80px',
-      '112px',
+      '116px',
       '110px',
       '144px',
       '110px',

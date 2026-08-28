@@ -61,7 +61,7 @@ const HEADERS: ReadonlyArray<{ label: string; className?: string }> = [
 
 /**
  * Step 1 editable target table. Same skin as the cloud step-1 candidate table: no frame of its
- * own (the toolbar above owns the rounded top, the pager below the rounded bottom), the 12px/600
+ * own (the toolbar above owns the rounded top, the pager below the rounded bottom), the 14px/600
  * approval header, and the row hover/focus lift that marks the row a user is working in.
  * Excluded rows carry a left rail and a clickable reason; row hover reveals 수정 / 삭제.
  */

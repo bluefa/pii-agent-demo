@@ -644,21 +644,24 @@ describe('ConnectionTestCard', () => {
 
 /**
  * Console shape (LIN-99) — the LIN-96 ledger, pinned: name 162 · id 186 · dbType 142 ·
- * region 156 · cred 264 · conn 104 · logical 118, Σ 1132 on the table's minWidth. name and
+ * region 156 · cred 200 · conn 104 · logical 118, Σ 1068 on the table's minWidth. name and
  * id are the flex PAIR every other resource table declares, so the SINK is id (the last
- * flex): it renders `auto` while name renders its share of the floor sum (162/1132) and the
+ * flex): it renders `auto` while name renders its share of the floor sum (162/1068) and the
  * five sized columns render their ledger px.
- * cred 264 is the owner-ordered correction (real store names, longest 203px measured,
- * must render whole — 180 was sized for the retired Key1/Key2 synthetic names).
+ * cred is 200 by owner order (2026-08-27), down from the 264 ordered on 2026-08-23: at the
+ * 14px row the longest seeded name measures 219.74px, so 264 was down to 8.26px of slack,
+ * and the next-longest name is 149.21 — a 70px cliff. 200 = 149.21 + 36 padding + 14.79,
+ * which fits every seeded name but that one outlier, and the outlier ellipsizes with a
+ * `title` tooltip. 180 was the retired Key1/Key2 synthetic-name width.
  */
 describe('ConnectionTestCard — console column spec', () => {
-  it('holds the 1132 floor with Resource ID as the sink', async () => {
+  it('holds the 1068 floor with Resource ID as the sink', async () => {
     renderCard([makeResource({})]);
     const table = (await screen.findByRole('table')) as HTMLTableElement;
-    expect(table.style.minWidth).toBe('1132px');
+    expect(table.style.minWidth).toBe('1068px');
     const widths = Array.from(table.querySelectorAll('thead th')).map(
       (th) => (th as HTMLElement).style.width,
     );
-    expect(widths).toEqual(['14.311%', 'auto', '142px', '156px', '264px', '104px', '118px']);
+    expect(widths).toEqual(['15.1685%', 'auto', '142px', '156px', '200px', '104px', '118px']);
   });
 });

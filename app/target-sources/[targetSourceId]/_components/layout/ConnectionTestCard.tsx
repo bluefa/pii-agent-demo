@@ -110,28 +110,47 @@ const requiresCredential = (databaseType: string | null): boolean =>
  * to go look the target up, and step 5 is where they are told a target failed. Step 4 made
  * the same reversal on 2026-08-24, for the same reason and at the same cost.
  *
- * Floors are the LIN-96 ledger with one owner-ordered correction (2026-08-23):
- * name 162 · id 186 · dbType 142 · region 156 · cred 264 · conn 104 · logical 118 — Σ **1132**.
- * cred was 180, sized in the Key1/Key2 synthetic-name era; real store names run to
- * `kimcs-postgres-analytics-readonly` = 203px measured at 13px/600 Pretendard, so
- * 264 = 203 + 36 padding + 25 slack shows every seeded name whole (owner: credential
- * names must not render abbreviated).
+ * Floors are the LIN-96 ledger with two owner-ordered corrections to cred:
+ * name 162 · id 186 · dbType 142 · region 156 · cred 200 · conn 104 · logical 118 — Σ **1068**.
  *
- * Cost: Σ 946 → 1132 moves the width at which this table starts scrolling horizontally.
- * Measured on /pass/target-sources/2004 (2026-08-27): the pane is fluid at
- * `innerWidth − 720` with both rails open, so the no-scroll threshold goes 1666 → 1852;
- * collapsing the guide rail returns 264px and brings it to 1588. Below that the table
- * scrolls — which it already did at 1440, floor 946 and all. Accepted with the column, the
- * same trade step 4 took when its cloud floor went 538 → 836. ⛔ Do not buy the width back
- * by narrowing cred, name or the ledger floors: they are registered across surfaces, and a
- * step-5-only width is what breaks reading down the columns.
+ * cred history. 180 was sized in the Key1/Key2 synthetic-name era. On 2026-08-23 the owner
+ * raised it to 264 so that every seeded credential name rendered whole — the longest,
+ * `kimcs-postgres-analytics-readonly`, measured 203.37px at 13px/600 Pretendard, and
+ * 264 = 203 + 36 padding + 25 slack. That decision stands as the reason this column is wider
+ * than its header, but its arithmetic no longer holds, and this is a correction to the old
+ * record rather than a new fact: the 14px row round silently ate the slack. Re-measured
+ * in-browser at the cell's real computed style (14px/600 Pretendard) on
+ * /pass/target-sources/1024, the same name is **219.74px** — the 13px figure reproduced
+ * exactly, so the old record was sound; the cell simply got bigger. 219.74 + 36 = 255.74,
+ * which left 264 holding **8.26px** of slack. The column was already near-tight, not generous.
+ *
+ * cred 264 → 200 (owner 2026-08-27). There is a **70px cliff** between the longest seeded
+ * name and the next one: 219.74 against `jhpark-mssql-payments` at 149.21, then 141.71 ·
+ * 132.27 · 126.07. The column therefore either carries the outlier or it does not, and every
+ * value between ~200 and ~256 buys nothing. 200 = 149.21 + 36 padding + **14.79 slack**:
+ * every seeded name fits whole except `kimcs-postgres-analytics-readonly`, which ellipsizes.
+ * That is what makes 200 acceptable — the ellipsis path is already built and still wired
+ * below: the value span carries `truncate` and the button carries `title={full name}`, so an
+ * over-long name degrades to an ellipsis plus a native tooltip, never a silent cut.
+ *
+ * Cost: Σ 946 → 1132 → 1068 moves the width at which this table starts scrolling
+ * horizontally. Measured on /pass/target-sources/2004 (2026-08-27): the pane is fluid at
+ * `innerWidth − 720` with both rails open, so the no-scroll threshold goes 1666 → 1852 →
+ * 1788, and collapsing the guide rail returns 264px, bringing it 1588 → 1524. Below that
+ * the table scrolls — which it already did at 1440, floor 946 and all. Accepted with the
+ * column, the same trade step 4 took when its cloud floor went 538 → 836. ⛔ Do not buy
+ * width back by narrowing the ledger floors, cred included: 200 is not a padded number, it
+ * sits 14.79px clear of the second-longest real credential name, so shaving it starts
+ * ellipsizing names that render whole today. (264 was never sacred — 200 is the floor now.)
+ * The floors are registered across surfaces, and a step-5-only width is what breaks reading
+ * down the columns.
  *
  * name + id are the flex PAIR every other resource table declares: id renders as the sink
  * (last flex) because the ARN/ARM-id is the longest value on the row and the only one whose
  * cut costs the reader, and having two makes dragging either behave like a split pane
  * (ConsoleTable `slackSinkKey`).
  */
-const TC_COLUMN_WIDTHS = { name: 162, id: 186, dbType: 142, region: 156, cred: 264, conn: 104, logical: 118 } as const;
+const TC_COLUMN_WIDTHS = { name: 162, id: 186, dbType: 142, region: 156, cred: 200, conn: 104, logical: 118 } as const;
 const TC_FLEX_KEYS = ['name', 'id'] as const;
 
 /** "DB" 는 표 전체가 이미 DB 얘기라 붙일 필요가 없었다. 대신 이 열이 무엇을 고르는
@@ -713,8 +732,11 @@ export const ConnectionTestCard = ({
                               aria-label={`${first.resourceName ?? first.resourceId} Credential 수정 — 현재 ${cred || '미설정'}`}
                               title={cred || undefined}
                               // 컷은 열이 소유한다(max-w-full): 픽셀 캡이 남아 있으면 열을 드래그로
-                              // 늘려도 이름이 더 안 보이는 리사이즈 벽이 된다. 264 열은 시드 실명
-                              // 전부를 통째로 보여주고, 그보다 긴 운영 이름만 말줄임된다.
+                              // 늘려도 이름이 더 안 보이는 리사이즈 벽이 된다. 200 열은 시드 실명
+                              // 대부분을 통째로 보여주고, 가장 긴 하나만 말줄임된다 —
+                              // `kimcs-postgres-analytics-readonly` 는 14px 에서 219.74px 라 149.21px 인
+                              // 다음 이름과 70px 떨어져 있고, 그 하나를 위해 열이 매 행 64px 를 들고
+                              // 있을 값이 아니었다. 잘린 값은 `title` 툴팁이 통째로 되돌려 준다.
                               className={cn(idcStyles.triggerBtn.linkNeutral, 'max-w-full')}
                             >
                               {cred ? (

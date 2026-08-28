@@ -1,7 +1,6 @@
 'use client';
 
-import { InfoTooltip, Tooltip } from '@/app/components/ui/Tooltip';
-import { InfoCircleIcon } from '@/app/components/ui/icons';
+import { InfoTooltip } from '@/app/components/ui/Tooltip';
 import { Pagination } from '@/app/components/ui/Pagination';
 import { usePagination } from '@/app/hooks/usePagination';
 import { ReasonChipInline } from '@/app/components/ui/ReasonChipInline';
@@ -20,6 +19,7 @@ import {
   IdcSourceIpCell,
 } from '@/app/target-sources/[targetSourceId]/_components/idc/cells';
 import { LogicalDbCountCell } from '@/app/target-sources/[targetSourceId]/_components/logical-db/LogicalDbCountCell';
+import { LogicalDbGroupHeader } from '@/app/target-sources/[targetSourceId]/_components/logical-db/LogicalDbGroupHeader';
 import { TcStatusTag } from '@/app/components/features/process-status/TcStatusTag';
 import type { UnitTcStatus } from '@/lib/test-connection-summary';
 import {
@@ -123,10 +123,18 @@ export const SourceIpHeader = () => (
  * sums, so a width change here is checked against every surface at once:
  *
  *   [logicalro]                 승인 모달   200+80+172+96+96           =  644
- *   [excl]                      step 2     200+80+172+112+142         =  706
- *   [src,excl]                  step 3     200+80+172+144+112+142     =  850
- *   [cred,conn,logicalro,src]   step 5     200+80+172+264+104+96+96+96+144 = 1252
- *   [logicalro,src]             steps 6·7  200+80+172+96+96+96+144    =  884
+ *   [excl]                      step 2     200+80+172+116+142         =  710
+ *   [src,excl]                  step 3     200+80+172+144+116+142     =  854
+ *   [cred,conn,logicalro,src]   step 5     200+80+172+200+104+96+96+96+144 = 1188
+ *   [logicalro,src]  +관리      (없음)     200+80+172+96+96+96+144    =  884
+ *   [logicalro,src]  -관리      steps 6·7  200+80+172+96+96+144       =  788
+ *
+ * ⚠️ `cols` alone does NOT fix the sum. The 관리 열 is decided by `onLogicalOpen`, not by
+ * `cols` (`canManageLogical` below), so `[logicalro,src]` has TWO floors — 884 with the
+ * handler, 788 without. Steps 6·7 are the only callers of that combo and they pass no
+ * handler, so the number that ships on those screens is 788; 884 is the arithmetic of the
+ * same combo WITH a handler and no surface renders it today. Grep the combo and you get
+ * two rows on purpose.
  *
  * 시안 B (오너 2026-08-27): 연동 논리 DB 가 2열 → **그룹 머리 + 3열**(대상·제외·관리) 이
  * 되면서 이 세 줄이 움직였다. 열 머리가 이제 `대상`/`제외` 라 118 은 `연동 논리 DB` 를
@@ -135,15 +143,51 @@ export const SourceIpHeader = () => (
  * 2열이고, 합이 666 → 644 로 오히려 줄어 712px 판의 여유가 46 → 68 이 된다.
  * step 5 는 1178 → 1252 다. 가로 스크롤이 더 일찍 시작되는 것을 안건과 함께 받아들였다.
  *
+ * Round 19 (owner 2026-08-27): the console header went 12 → 14px (`approvalHeaderFlat`), and
+ * `요청 대상 여부` — the ONLY label in any of these tables that no longer fit — measured 77.27px
+ * against a 75px content box and clipped to `요청 대상 ...`. The label stays (shortening it to
+ * `요청 대상` was put to the owner and rejected), so `target` goes 112 → 116: 77.27 + 36 padding
+ * + the 1px rail = 114.27, and 116 is the smallest value that clears it. Only the two rows
+ * carrying `target` move — [excl] 706 → 710 and [src,excl] 850 → 854. 승인 모달 644, step 5
+ * 1252 and the [logicalro,src] 884 have no `target` column and are arithmetically untouched.
+ *
+ * 오너 2026-08-27 (같은 날, 뒤): "6,7단계에서는 관리하기가 없어." step 5 의 `onLogicalOpen`
+ * 은 정책을 **쓰는** LogicalDbModal 을 열지만(IdcStep5ConnectionTest 의 handleLogicalOpen +
+ * handleLogicalSaved), 6·7 단계에는 쓸 것이 없다 — 승인 뒤의 두 수는 기록이지 조작 대상이
+ * 아니다. 아무것도 관리하지 않는 `관리하기` 문은 그 행이 할 수 있는 일에 대한 거짓말이라,
+ * IdcConfirmedResourcesPanel 이 만들어 내던 대체 핸들러를 걷어냈다. 그래서 6·7 단계가
+ * 884 → 788 로 움직였다(관리 96 을 뺀 값). 움직이지 않은 줄: 승인 모달 644 는 애초에 관리
+ * 열이 없었고, step 5 1252 는 관리 열을 그대로 지킨다.
+ *
  * Ledger corrections landed with the migration: 연동 논리 DB 120 → 118, and the two
  * previously UN-declared columns get numbers (제외 사유 142 · 연동 제외 96) — under
- * table-fixed an undeclared column is not "auto slack", it is a bug. cred 180 → 264
- * followed by owner order (2026-08-23): 180 was sized for Key1/Key2 synthetic names,
- * and the longest real store name measures 203px at 13px/600 (+36 padding +25 slack).
+ * table-fixed an undeclared column is not "auto slack", it is a bug. cred went 180 → 264
+ * by owner order (2026-08-23) and 264 → 200 by owner order (2026-08-27); the paragraph
+ * below carries both, and the second corrects the first's arithmetic.
  *
- * ⚠️ Step 5's 1178 exceeds the panel at common widths — ConsoleTable's own wrapper is
+ * cred 264 → 200 (오너 2026-08-27, "Credential width를 좀 줄이자"). 264 는 가장 긴 시드 이름
+ * `kimcs-postgres-analytics-readonly` 를 통째로 보이려던 폭이었고 그 근거는 13px/600 실측
+ * 203.37px + 패딩 36 + 여유 25 였다. 14px 행 라운드가 그 여유를 조용히 먹었다 — 같은 이름을
+ * 셀의 실제 계산 스타일(14px/600 Pretendard)로 /pass/target-sources/1024 에서 다시 재면
+ * **219.74px** 이고(13px 값도 그대로 재현됐으니 옛 기록 자체는 옳았다, 셀이 커진 것이다),
+ * 219.74 + 36 = 255.74 라 264 에 남은 여유는 **8.26px** 이었다. 즉 이것은 새 사실이 아니라
+ * 옛 기록의 정정이다: 이 열은 넉넉했던 적이 없다.
+ *
+ * 그리고 가장 긴 시드 이름과 그 다음 이름 사이에는 **70px 절벽**이 있다 — 219.74 대
+ * `jhpark-mssql-payments` 149.21, 이어서 141.71 · 132.27 · 126.07. 열은 그 이상치를 싣거나
+ * 싣지 않거나 둘 중 하나이고, ~200 과 ~256 사이의 어떤 값도 사는 것이 없다. 200 = 149.21 +
+ * 패딩 36 + **여유 14.79** 라 `kimcs-postgres-analytics-readonly` 하나만 말줄임되고 나머지
+ * 시드 이름은 전부 통째로 든다. 200 이 받아들일 만한 이유는 말줄임 경로가 이미 서 있기
+ * 때문이다 — 값 span 이 `truncate`, 버튼이 `title={전체 이름}` 을 들고 있어(아래 cred 칸)
+ * 긴 이름은 말줄임 + 네이티브 툴팁으로 내려앉지 조용히 잘리지 않는다.
+ *
+ * step 5 는 1252 → **1188** 이다(cred 만 움직였으므로 정확히 −64). `cred` 열이 없는 줄은
+ * 산술적으로 그대로다: 승인 모달 644, step 2 710, step 3 854, [logicalro,src] 884/788.
+ * ⚠️ 위 라운드 문단들의 1178·1252 는 그 라운드 당시의 값이다 — 지금 유효한 바닥은 원장 표다.
+ *
+ * ⚠️ Step 5's 1188 exceeds the panel at common widths — ConsoleTable's own wrapper is
  * the overflow-x-auto escape hatch the legacy frame never had (ledger ⚠️⁴). The 승인
- * 모달 combo (666) fits its 712px pane with ~46px of slack for the flex column.
+ * 모달 combo (644) fits its 712px pane with ~68px of slack for the flex column.
  */
 /**
  * 열 폭. Airflow 확인 탭의 리소스 표가 IDC 대상에서 이 표의 정체 열(접속 주소·Port·
@@ -155,9 +199,9 @@ export const IDC_COLUMN_WIDTHS = {
   port: 80,
   dbType: 172,
   src: 144,
-  target: 112,
+  target: 116,
   reason: 142,
-  cred: 264,
+  cred: 200,
   conn: 104,
   logicalDb: 96,
   logicalExcl: 96,
@@ -215,32 +259,6 @@ const idcColumns = (
     ...(has('src') && srcAtEnd ? [src] : []),
   ];
 };
-
-/**
- * 그룹 머리의 설명 — 두 수의 **관계**를 여기서 한 번만 말한다.
- *
- * `대상`과 `제외`가 나란히 서면 8 중 3 을 뺀 것처럼 읽힌다. 이 앱의 deny 모델에서 제외는
- * 정책이지 스캔 결과의 부분집합이 아니라, 두 수를 더해도 무엇의 전체도 되지 않는다.
- * 열 머리 두 개로는 말할 수 없고 행마다 되풀이할 수도 없는 사실이라, 그것을 덮는 그룹
- * 머리가 가진다.
- */
-const LogicalDbGroupHeader = () => (
-  <span className="inline-flex items-center gap-1">
-    연동 논리 DB
-    <Tooltip
-      variant="value"
-      size="lg"
-      content={
-        <span className={idcStyles.table.headerTipBody}>
-          대상은 최근 연결 테스트가 찾아낸 논리 DB 수, 제외는 모니터링에서 빼 두도록 설정한
-          수예요. 서로 다른 기준으로 세기 때문에 두 수를 더해도 전체가 되지 않아요.
-        </span>
-      }
-    >
-      <InfoCircleIcon className={cn('h-3.5 w-3.5', textColors.tertiary)} aria-label="연동 논리 DB 설명" />
-    </Tooltip>
-  </span>
-);
 
 /** 두 tier 헤더 — 셋(또는 관리 없이 둘)을 한 이름 아래로 묶는다. */
 const idcGroups = (has: (c: IdcTableCol) => boolean, canManage: boolean): ConsoleTableGroup[] =>
@@ -376,8 +394,11 @@ export const IdcResourceTable = ({
                       aria-label={`${r.hosts[0] ?? r.resourceId} Credential 수정 — 현재 ${credentials?.[r.resourceId] || '미설정'}`}
                       title={credentials?.[r.resourceId] || undefined}
                       // 컷은 열이 소유한다(max-w-full): 픽셀 캡이 남아 있으면 열을 드래그로
-                      // 늘려도 이름이 더 안 보이는 리사이즈 벽이 된다. 264 열은 시드 실명
-                      // 전부를 통째로 보여주고, 그보다 긴 운영 이름만 말줄임된다.
+                      // 늘려도 이름이 더 안 보이는 리사이즈 벽이 된다. 200 열은 시드 실명
+                      // 대부분을 통째로 보여주고, 가장 긴 하나만 말줄임된다 —
+                      // `kimcs-postgres-analytics-readonly` 는 14px 에서 219.74px 라 149.21px 인
+                      // 다음 이름과 70px 떨어져 있고, 그 하나를 위해 열이 매 행 64px 를 들고
+                      // 있을 값이 아니었다. 잘린 값은 `title` 툴팁이 통째로 되돌려 준다.
                       // linkNeutralMd = linkNeutral at 14px. 행이 한 눈금으로 읽히도록
                       // 옮겼다 (오너 2026-08-27) — `linkNeutral`(13px) 자체는 5·6단계
                       // 카드의 링크들이 계속 들고 있어 건드리지 않는다.

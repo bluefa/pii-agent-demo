@@ -47,13 +47,16 @@ describe('ConfirmedIntegrationTable', () => {
         <ConfirmedIntegrationTable confirmed={[makeResource()]} targetSourceId={42} />,
       );
       const headers = Array.from(container.querySelectorAll('thead th')).map((th) => th.textContent);
+      // 두 단 머리(2026-08-28, IDC 표와 같은 문법): 카테고리는 그룹이 한 번 이고,
+      // 잎은 `대상`/`제외` 한 마디다.
       expect(headers).toEqual([
         'Resource Name',
         'Resource ID',
         'Database Type',
         'Region',
         '연동 논리 DB',
-        '연동 제외',
+        '대상',
+        '제외',
       ]);
     });
 

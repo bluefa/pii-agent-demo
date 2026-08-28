@@ -11,7 +11,6 @@ import {
   IDC_FILTER_EMPTY_MESSAGE,
   IDC_SEARCH_PLACEHOLDER,
 } from '@/app/target-sources/[targetSourceId]/_components/idc/steps/step-copy';
-import { LogicalDbSummaryModal } from '@/app/target-sources/[targetSourceId]/_components/logical-db/LogicalDbSummaryModal';
 import {
   buildLogicalDbCountMap,
   type LogicalDbCountMap,
@@ -36,9 +35,11 @@ interface IdcConfirmedResourcesPanelProps {
   /** Confirmed-integration read owned by the host step (DR3/DR4/DR5/DR7 — one fetch per step). */
   state: ResourcesState;
   /**
-   * Step 5 only. The logical-DB exclusion policy is still editable there, so that step owns
-   * the modal (LogicalDbModalLoader, which writes) and the panel only reports the click.
-   * Steps 6·7 omit it and get the read-only summary rendered below.
+   * Step 5 only, and it decides the 관리 column: the logical-DB exclusion policy is still
+   * editable there, so that step owns the modal (LogicalDbModalLoader, which writes) and the
+   * panel only reports the click. Steps 6·7 omit it and get no 관리 column — after approval
+   * the two counts are a record, not a control, and a 관리하기 door onto a read-only summary
+   * would name an action the row cannot perform.
    */
   onLogicalOpen?: (resource: IdcResourceView) => void;
   /**
@@ -62,7 +63,7 @@ interface IdcConfirmedResourcesPanelProps {
  * Confirmed-resources block shared by IDC Steps 5·6·7 — the IDC counterpart of the
  * cloud ConfirmedResourcesSlot. The step owns the confirmed-integration fetch;
  * the panel owns the table chrome: search/filter toolbar, the `src` + logical-DB
- * table, pagination, the Step-5 logical-DB count map and the per-resource modal.
+ * table, pagination and the Step-5 logical-DB count map.
  */
 export const IdcConfirmedResourcesPanel = ({
   targetSourceId,
@@ -99,9 +100,6 @@ export const IdcConfirmedResourcesPanel = ({
   // attribute one target's counts to another's rows.
   const logicalDbCounts = fetched.targetSourceId === targetSourceId ? fetched.counts : EMPTY_COUNTS;
 
-  // The resource whose logical-DB list is open. null = closed.
-  const [logicalTarget, setLogicalTarget] = useState<IdcResourceView | null>(null);
-
   // Search / filter / paging shared with the cloud step-6 table, via the same IDC projection
   // steps 1·2·3 use.
   const resources = state.status === 'ready' ? state.resources : EMPTY_RESOURCES;
@@ -136,7 +134,7 @@ export const IdcConfirmedResourcesPanel = ({
             connectionStatusByResource={connectionStatus}
             connectionLoading={connectionLoading}
             connectionHasRun={connectionHasRun}
-            onLogicalOpen={onLogicalOpen ?? setLogicalTarget}
+            onLogicalOpen={onLogicalOpen}
             credentials={credentials}
             onCredentialOpen={onCredentialOpen}
             connected
@@ -154,18 +152,6 @@ export const IdcConfirmedResourcesPanel = ({
             />
           )}
         </>
-      )}
-      {/* Mounted only while open so the hook fetches on open and drops its state on close.
-          Never reached when the step owns the modal — `logicalTarget` stays null then. */}
-      {logicalTarget && (
-        <LogicalDbSummaryModal
-          open
-          targetSourceId={targetSourceId}
-          scope={scope}
-          resourceId={logicalTarget.resourceId}
-          resourceName={logicalTarget.hosts[0] ?? logicalTarget.resourceId}
-          onClose={() => setLogicalTarget(null)}
-        />
       )}
     </>
   );

@@ -669,7 +669,9 @@ const TEXT: TextPair[] = [
   // `approvalHeaderFlat` 채움 위에 그냥 앉으므로, 줄 단위로 재는 훅은 이 짝을 영영 못 본다.
   // 잉크는 #8B95A1 이었고 그 면에서 2.80:1 이었다 — 12px 이라 큰 글자 예외가 없다. 램프의
   // 가운데 칸 #6B7684 도 여기선 4.24:1 로 같이 떨어져서, 더 조용한 회색이라는 선택지가 아예
-  // 없다. 그래서 그룹과 잎의 단은 밝기가 아니라 **굵기**가 진다(잎 semibold · 그룹 medium).
+  // 없다. 그래서 그룹과 잎의 단은 밝기가 아니라 **크기**가 진다(잎 semibold 14px ·
+  // 그룹 semibold 12px — 잎이 14 로 커진 라운드 19 에서도 이 셀은 12 에 남았고, 굵기는
+  // 2026-08-27 오너 지시로 잎과 같은 semibold 가 되어 채널에서 빠졌다).
   {
     what: '연동 논리 DB 그룹 머리 on the approval header fill',
     fg: textOf(classOf(idcTableBlock, 'consoleGroupHeaderCell')),

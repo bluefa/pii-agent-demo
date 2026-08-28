@@ -1879,11 +1879,23 @@ export const idcStyles = {
     /** Excluded-row tint — v16 `.approval-table tr.row-excluded`. */
     rowExcluded: 'bg-[#F9FAFB]',
     /**
-     * Approval-table header — v16 `.approval-table thead th` (12px/600, bg #F7F8FA; distinct
+     * Approval-table header — v16 `.approval-table thead th` (14px/600, bg #F7F8FA; distinct
      * from the db-list-table 13px/700 header). Text is #4E5968 rather than the v16 #8B95A1,
      * which measures 2.86:1 here — see `tableStyles.header` for the full reasoning.
+     *
+     * Round 20 (owner 2026-08-28): "idc step1도 14픽셀 적용됨?" → "14 적용해." — 12 → 14px.
+     * Round 19 moved `approvalHeaderFlat` 12 → 14 and with it IDC steps 2·3·5·6·7, but this
+     * is a SEPARATE token and stayed at 12, which left IDC step 1 (`IdcTargetListTable`, and
+     * the 연동 요청 조회 preview modal that copies its column grammar) wearing the only smaller
+     * header in the flow. This closes that gap: all seven IDC steps now share one header size.
+     * Same precedent round 19 used — `approvalHeaderDialog` has been 14px since the
+     * confirm-dialog round, for this same table inside a modal.
+     *
+     * Contrast is untouched: same ink (#4E5968) on the same fill (#F7F8FA), and 12px and 14px
+     * both sit UNDER the WCAG large-text threshold (18.66px at bold / 24px), so the pair is
+     * judged against the same 4.5:1 floor before and after.
      */
-    approvalHeader: 'bg-[#F7F8FA] text-left text-[12px] font-semibold text-[#4E5968]',
+    approvalHeader: 'bg-[#F7F8FA] text-left text-[14px] font-semibold text-[#4E5968]',
     /** Body text of a header (i) tooltip — the value-variant Tooltip's white surface. */
     headerTipBody: 'block text-[12px] leading-[1.6] text-[#4E5968]',
     /**
@@ -1910,9 +1922,20 @@ export const idcStyles = {
      * this fill — invisible. `consoleGrid` moves the TH rail to #D9E5F9 (1.17 here),
      * this fill's own partner border elsewhere in the file. The #D1D5DB rule keeps
      * 1.36 and stays the strongest line in the table.
+     *
+     * Round 19 (owner 2026-08-27): "idc step5의 헤더도 14픽셀로 수정하면 안 되냐?" — 12 → 14px,
+     * and EVERY table wearing this shell moves with it (IDC steps 2·3·5·6·7, cloud step 5's
+     * ConnectionTestCard, the candidate table on steps 1–4, confirmed 6·7, and the three
+     * admin tables). That breadth is the decision, not fallout: this token IS the console
+     * header grammar, and a size that holds on one screen only would fork it. Precedent is
+     * already in this file — `approvalHeaderDialog` has been 14px since the confirm-dialog
+     * round, for the same table — so this aligns the flat variant with the dialog one.
+     *
+     * Contrast is untouched (same two colours), and 12px and 14px both sit under the WCAG
+     * large-text threshold, so the guard's 4.5:1 floor for this pair is unchanged.
      */
     approvalHeaderFlat:
-      'bg-[#F1F6FE] text-left text-[12px] font-semibold text-[#4E5968] border-b border-[#D1D5DB]',
+      'bg-[#F1F6FE] text-left text-[14px] font-semibold text-[#4E5968] border-b border-[#D1D5DB]',
     /**
      * Approval-table header, chrome variant — admin P3 only (both provider tables).
      *
@@ -1936,6 +1959,10 @@ export const idcStyles = {
      * 페이지의 표는 위아래로 툴바·필터·다른 카드에 둘러싸여 있어 12px 머리글이 제 자리를
      * 지키지만, 확인 모달 안에서는 표가 본문의 전부다. 26px 제목과 24px 타일 아래에서
      * 12px 은 각주처럼 읽혀, 승인의 근거인 표가 곁다리가 된다.
+     *
+     * ⚠️ 라운드 20(2026-08-28)에서 `approvalHeader` 가 14px 이 되면서 위 대비의 전제가
+     * 사라졌다 — 두 토큰의 문자열이 지금은 완전히 같다. 갈라놓을 이유가 남았는지(합칠지)는
+     * 오너 판단이라 여기서는 기록만 하고 토큰은 그대로 둔다.
      */
     approvalHeaderDialog: 'bg-[#F7F8FA] text-left text-[14px] font-semibold text-[#4E5968]',
     /** Approval-table header cell padding — v16 12px V / 18px H. */
@@ -1946,8 +1973,23 @@ export const idcStyles = {
      * Reads a step BELOW its leaves, not above them. The instinct is to make the group the
      * louder of the two, but the leaves are what the reader matches a value against while
      * scanning down — the group only says once what the run is called. So the tier is
-     * carried by WEIGHT, not by lightness: the leaves keep `approvalHeaderFlat`'s semibold
-     * #4E5968 and the group takes the same ink at medium.
+     * carried by SIZE, not by lightness: the leaves keep `approvalHeaderFlat`'s semibold
+     * #4E5968 at 14px, and the group takes the same ink at the same weight, at 12px.
+     *
+     * SIZE joined weight in round 19, when the leaves went 12 → 14px and this cell
+     * deliberately STAYED at 12 (owner's call, recorded here): the rank above was carried
+     * by weight ALONE, and one channel is thin for a rank a reader has to feel in passing.
+     * Two channels saying the same thing is strictly better, and it costs nothing —
+     * lightness, the only channel that would have cost contrast, still does no work here.
+     *
+     * The weight channel then went away again the same day, on the owner's call (2026-08-27:
+     * "연동 논리 DB -> semibold"). This cell moved medium → semibold, which is exactly the
+     * leaves' weight, so the two tiers now differ in SIZE ALONE — 12 against 14. That is a
+     * reversal of the paragraph above on its own terms: the rank is back to a single channel,
+     * and the channel it kept is size rather than weight. Both paragraphs stand, because both
+     * are the record of a decision and the later one changes the conclusion, not the history.
+     * Contrast is unaffected either way — same ink on the same fill, and weight is not an
+     * input to the measured ratio, so the two guard entries for this pair read as before.
      *
      * The ink used to be #8B95A1, which measured 2.80:1 on `approvalHeaderFlat`'s #F1F6FE
      * fill — under the 4.5:1 AA floor for 12px text (owner 2026-08-27: "연동 논리 DB 가
@@ -1966,7 +2008,7 @@ export const idcStyles = {
      * #D1D5DB rule, and a second line would draw a box around a label.
      */
     consoleGroupHeaderCell:
-      'px-[18px] py-2 text-center text-[12px] font-medium text-[#4E5968] border-b border-[#E5E8EB]',
+      'px-[18px] py-2 text-center text-[12px] font-semibold text-[#4E5968] border-b border-[#E5E8EB]',
     /** Approval-table body cell padding — v16 `.approval-table tbody td` 16px V / 18px H. */
     approvalCell: 'px-[18px] py-4',
     /**

@@ -14,6 +14,7 @@ import {
   ResourceGroupRow,
 } from '@/app/target-sources/[targetSourceId]/_components/shared/ResourceGroupRow';
 import { LogicalDbCountCell } from '@/app/target-sources/[targetSourceId]/_components/logical-db/LogicalDbCountCell';
+import { LogicalDbGroupHeader } from '@/app/target-sources/[targetSourceId]/_components/logical-db/LogicalDbGroupHeader';
 import {
   GROUPED_CHILD_KIND_LABEL,
   groupResourceRows,
@@ -35,6 +36,7 @@ import { useColumnResize, type ColumnResize } from '@/app/components/ui/useColum
 import {
   ConsoleTable,
   type ConsoleTableColumn,
+  type ConsoleTableGroup,
 } from '@/app/components/ui/ConsoleTable';
 import { hasLogicalDatabases, isEc2Instance, resolveExclusionReason } from '@/lib/types';
 import {
@@ -421,10 +423,18 @@ const ReasonCell = ({ resource }: { resource: WaitingApprovalResource }) => {
  * filter over a record.
  *
  * `id` is the FLOOR of the flex column, not its width — see `confirmedColumns`. It reads
- * 186 rather than the audit's 312 because the other six sum to 802 and the table has to
+ * 186 rather than the audit's 312 because the other six sum to 780 and the table has to
  * fit a 990px content column (measured: 1710px browser minus the two rails' 720px). 312
  * put the table at 1114 and hid 연동 제외 outright on that screen; as a floor, 186 keeps
  * every column on screen there and still renders past 1000px wherever there is room.
+ *
+ * 오너 2026-08-28 ("idc랑 비슷하게 디자인해"): 이 표의 두 카운트 열도 IDC 표와 같은 두 단
+ * 머리를 쓴다 — `연동 논리 DB` 그룹 아래 `대상`·`제외`(`confirmedGroups`). 카테고리를
+ * 그룹이 이고 가므로 118 은 `연동 논리 DB` 라는 긴 라벨을 담으려던 폭일 뿐이고, IDC 의
+ * 잎 폭 96 으로 내려앉는다: **logicalDb 118 → 96**. 그룹은 폭을 갖지 않으므로(ConsoleTable)
+ * 이 한 칸이 바닥의 전부다. 종류 없는 바닥 860 → 838, 종류 켠 바닥 988 → 966.
+ * 위 1745px 감사 목록(162·312·142·156·118·96)은 그 날의 실측 기록이라 그대로 둔다 —
+ * 312 가 이미 지금 값이 아닌 것과 같은 이유다.
  */
 const CONFIRMED_COLUMN_WIDTHS = {
   name: 162,
@@ -432,7 +442,8 @@ const CONFIRMED_COLUMN_WIDTHS = {
   kind: 128,
   dbType: 142,
   region: 156,
-  logicalDb: 118,
+  // IDC 표의 잎 폭과 같은 96 — 두 표가 같은 두 단 머리를 쓰므로 같은 눈금으로 읽힌다.
+  logicalDb: 96,
   excluded: 96,
 } as const;
 
@@ -471,17 +482,54 @@ const confirmedColumns = (regionLabel: string, withKind: boolean): ConsoleTableC
   ...(withKind ? [{ key: 'kind', label: '종류', width: CONFIRMED_COLUMN_WIDTHS.kind }] : []),
   { key: 'dbType', label: 'Database Type', width: CONFIRMED_COLUMN_WIDTHS.dbType },
   { key: 'region', label: regionLabel, width: CONFIRMED_COLUMN_WIDTHS.region },
-  { key: 'logicalDb', label: '연동 논리 DB', width: CONFIRMED_COLUMN_WIDTHS.logicalDb },
-  { key: 'excluded', label: '연동 제외', width: CONFIRMED_COLUMN_WIDTHS.excluded },
+  // 둘은 `연동 논리 DB` 그룹 머리 아래 선다(`confirmedGroups`), IDC 표와 같은 문법으로.
+  // 그래서 열 이름이 카테고리를 되풀이하지 않고 `대상`/`제외` 한 마디로 짧아진다.
+  { key: 'logicalDb', label: '대상', width: CONFIRMED_COLUMN_WIDTHS.logicalDb },
+  { key: 'excluded', label: '제외', width: CONFIRMED_COLUMN_WIDTHS.excluded },
 ];
 
 /**
- * Steps 2·3 column widths, summing to 988. That equals the confirmed table's floor only with
- * its 종류 column on; without it confirmed is 860 and this table scrolls first, so the two line
- * up on an Athena roster and not on an RDS/EC2 one. `dbType` and `region` keep the confirmed
- * table's own numbers, which are
- * also what their values measure; `target` is IdcResourceTable's 요청 대상 여부 (`w-[112px]`),
- * the same question asked of the same kind of row.
+ * 두 tier 헤더 — 두 카운트 열을 한 이름 아래로 묶는다. `IdcResourceTable` 의 `idcGroups`
+ * 와 같은 구조이고, 머리 내용(`LogicalDbGroupHeader`)은 **같은 컴포넌트**다: 두 수의
+ * 관계를 말하는 문장은 한 곳에만 있어야 한다.
+ *
+ * 이 표에는 IDC 의 `관리` 잎이 없다. 여기 두 수는 그 자체가 문이고(카운트를 누르면
+ * `onLogicalDbOpen` 이 요약을 연다), 오너가 요청한 것은 머리 디자인이지 행동이 아니다.
+ */
+const confirmedGroups: readonly ConsoleTableGroup[] = [
+  {
+    key: 'logicalro',
+    label: '연동 논리 DB',
+    head: <LogicalDbGroupHeader />,
+    columns: ['logicalDb', 'excluded'],
+  },
+];
+
+/**
+ * Steps 2·3 column widths, summing to 992. `dbType` and `region` keep the confirmed table's
+ * own numbers, which are also what their values measure; `target` is IdcResourceTable's
+ * 요청 대상 여부 (116), the same question asked of the same kind of row.
+ *
+ * ⚠️ This sum was 988 until round 19, and 988 EQUALLED the confirmed table's floor with its
+ * 종류 column on, so on an Athena roster the two tables began scrolling at the same width —
+ * deliberately. TWO rounds have since taken that away, and the equality is not coming back:
+ *
+ * - Round 19: the console header went 12 → 14px (`approvalHeaderFlat`), at which `요청 대상
+ *   여부` measures 77.27px against a 75px content box and clips to `요청 대상 ...`, and the
+ *   only fix that keeps the label whole is `target` 112 → 116 (77.27 + 36 padding + the 1px
+ *   rail = 114.27; 116 is the smallest value clearing it). That put this table 4px above.
+ * - 2026-08-28: the confirmed table took the two-tier `연동 논리 DB` head, and its logical
+ *   column went 118 → 96 because the group now carries the long label. The confirmed floors
+ *   moved 988 → 966 (종류 on) and 860 → 838 (종류 off).
+ *
+ * So this table floors 26px above the confirmed one on an Athena roster (992 vs 966) and
+ * 154px above it elsewhere (992 vs 838). Both divergences were priced, not drifted, and
+ * neither is a fact about THIS table's widths — every floor below still stands on its own
+ * measurement.
+ *
+ * ⛔ Do not restore the equality by shaving pixels off another column here. Every floor below
+ * was measured for its own reason — trading one for another to protect a number is how a
+ * ledger stops meaning anything.
  *
  * The split between the remaining three follows the owner's ranking (2026-08-23: "resource
  * name, resource id가 더 중요해" / "resource name은 축약어로 보여지는 현상"), measured on
@@ -507,7 +555,7 @@ const APPROVAL_COLUMN_WIDTHS = {
   id: CONFIRMED_COLUMN_WIDTHS.id,
   dbType: CONFIRMED_COLUMN_WIDTHS.dbType,
   region: CONFIRMED_COLUMN_WIDTHS.region,
-  target: 112,
+  target: 116,
   reason: 142,
 } as const;
 
@@ -520,8 +568,8 @@ const APPROVAL_COLUMN_WIDTHS = {
  * at all on a 대상 row (`ReasonCell` returns null when `selected`), and on an excluded row it
  * renders a chip carrying `clampReason(...)` — a summary with its own expansion. Widening it
  * reveals nothing; and a sink takes ALL the slack above the floors, so as the sink this column
- * would hold 1099px of a 2700px table — 41% of it, mostly empty. (2700 − name 683 − id 508 −
- * the three sized 410; the two shares are 250/988 and 186/988 of the pane.) A sink has to be a
+ * would hold 1100px of a 2700px table — 41% of it, mostly empty. (2700 − name 680 − id 506 −
+ * the three sized 414; the two shares are 250/992 and 186/992 of the pane.) A sink has to be a
  * column where the pixels pay.
  */
 export const APPROVAL_FLEX_KEYS = ['name', 'id'] as const;
@@ -1388,6 +1436,8 @@ export const WaitingApprovalTable = memo(
                   ? plainColumns(regionLabel)
                   : approvalColumns(regionLabel)
           }
+          // 두 단 머리는 confirmed variant 만 쓴다 — 두 카운트 열이 서는 유일한 shape 다.
+          groups={confirmedVariant ? confirmedGroups : undefined}
           resize={columns}
         >
           {bodies}

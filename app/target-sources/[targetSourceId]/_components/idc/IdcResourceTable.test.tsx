@@ -273,8 +273,8 @@ describe('IdcResourceTable — step-6 logicalro', () => {
  * ledger px. A sum drifting here means a width changed without re-checking every surface.
  */
 describe('IdcResourceTable — console column spec', () => {
-  // `onLogicalOpen` 은 관리 열의 존재를 정한다 — 실제 5·6·7단계 패널은 언제나 준다.
-  // 주지 않는 조합(확인 모달)은 아래에서 따로 잰다.
+  // `onLogicalOpen` 은 관리 열의 존재를 정한다 — 5단계만 준다. 주지 않는 표면(6·7단계와
+  // 확인 모달)은 아래에서 따로 잰다.
   const shape = (
     cols: React.ComponentProps<typeof IdcResourceTable>['cols'],
     canManage = true,
@@ -302,29 +302,39 @@ describe('IdcResourceTable — console column spec', () => {
     };
   };
 
-  it('step 5 combo holds the 1252 floor with 접속 주소 as the sink', () => {
+  it('step 5 combo holds the 1188 floor with 접속 주소 as the sink', () => {
     const { minWidth, widths } = shape(['cred', 'conn', 'logicalro', 'src']);
-    expect(minWidth).toBe('1252px');
-    // 시안 B: 논리 DB 가 그룹 머리 + 3열(96·96·96)이 되면서 1178 → 1252.
+    expect(minWidth).toBe('1188px');
+    // 시안 B: 논리 DB 가 그룹 머리 + 3열(96·96·96)이 되면서 1178 → 1252. cred 264 → 200
+    // (오너 2026-08-27)이 그 뒤 정확히 64 를 돌려주어 1252 → 1188.
     // 첫 줄은 그룹 머리를 뺀 rowSpan=2 열들, 그 다음이 그룹의 잎 셋이다 — 폭은 잎이 진다.
-    // endpoint(auto sink) · port · dbType · cred(264) · conn · src ‖ 대상 · 제외 · 관리
+    // endpoint(auto sink) · port · dbType · cred(200) · conn · src ‖ 대상 · 제외 · 관리
     expect(widths).toEqual([
-      // 첫 줄(rowSpan=2): endpoint(auto sink) · port · dbType · cred(264) · conn · src
-      'auto', '80px', '172px', '264px', '104px', '144px',
+      // 첫 줄(rowSpan=2): endpoint(auto sink) · port · dbType · cred(200) · conn · src
+      'auto', '80px', '172px', '200px', '104px', '144px',
       // 둘째 줄: 대상 · 제외 · 관리
       '96px', '96px', '96px',
     ]);
   });
 
-  it('step 2 combo holds 706, with the two once-undeclared columns now numbered', () => {
+  it('step 2 combo holds 710, with the two once-undeclared columns now numbered', () => {
     const { minWidth, widths } = shape(['excl']);
-    expect(minWidth).toBe('706px');
+    expect(minWidth).toBe('710px');
     // 제외 사유 142 — under table-fixed an undeclared column is a bug, not "auto slack".
-    expect(widths).toEqual(['auto', '80px', '172px', '112px', '142px']);
+    // 요청 대상 여부 112 → 116 (round 19): the 14px header made the label clip at 112, so the
+    // combo went 706 → 710. The combos without a `target` column below are unmoved.
+    expect(widths).toEqual(['auto', '80px', '172px', '116px', '142px']);
   });
 
-  it('steps 6·7 combo holds 884 and the 승인 모달 combo 644', () => {
+  // 같은 `cols` 가 두 모양을 낸다 — 관리 열은 `cols` 가 아니라 `onLogicalOpen` 이 정한다.
+  // 짝으로 두는 것이 요점이다: 한 줄만 남으면 grep 한 사람이 절반은 틀린 수를 읽는다.
+  it('the [logicalro,src] combo holds 884 with the 관리 door and 788 without', () => {
     expect(shape(['logicalro', 'src']).minWidth).toBe('884px');
+    // 6·7단계가 실제로 그리는 모양 — 핸들러를 주지 않으므로 관리 96 이 빠진다.
+    expect(shape(['logicalro', 'src'], false).minWidth).toBe('788px');
+  });
+
+  it('the 승인 모달 combo holds 644', () => {
     // 관리 열이 없는 조합은 오히려 666 → 644 로 줄어, 712px 판의 여유가 46 → 68 이 된다.
     expect(shape(['logicalro'], false).minWidth).toBe('644px');
   });
