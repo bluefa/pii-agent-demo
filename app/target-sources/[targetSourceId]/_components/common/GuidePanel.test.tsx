@@ -621,9 +621,16 @@ describe('GuidePanel — the folded strip says what it is', () => {
     // when the CARD became the enlarged `ChatIcon`; only the dot half of that mark came
     // back (오너 지시 2026-08-28). An enlarged icon may not contain a small copy of itself.
     expect(head.querySelector('svg')).toBeNull();
-    // ⛔ `justify-between` is what puts the dot on the card's own padding edge with no second
-    // measurement, so it is part of the instruction, not a styling detail.
-    expect(head.className).toContain('justify-between');
+    // ⛔ The dot rides the LABEL — `gap-1.5`, 6px (오너 지시 2026-08-28, 시안 C). This reverses
+    // the same day's 「우측 끝에」, so it is the instruction itself and not a styling detail.
+    // ⛔ `justify-between` must NOT come back: it is the grammar for two unrelated things at
+    // opposite ends, and pinned there the dot sat 206px from the label whose state it reports
+    // — 26x the widest label→indicator distance in the three systems this was benchmarked
+    // against (Cloudscape KVP 0px, Ant Descriptions 8px, Primer ActionList a leading column).
+    // Those same three reserve the far edge for an ACTION or leave it empty; none pins a
+    // modifier there. Asserting both directions because the regression is a one-word revert.
+    expect(head.className).toContain('gap-1.5');
+    expect(head.className).not.toContain('justify-between');
 
     // 16/20, and BOTH heads wear the same token — the card's and the guide zone's.
     // ⚠️ This head was 20/24 through a `channelZoneLabel` of its own for one commit (오너

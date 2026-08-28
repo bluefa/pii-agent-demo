@@ -2478,7 +2478,10 @@ export const railStyles = {
    * clearance above the guide card; at 12 it would land ON that card and read as a join
    * between two zones rather than a tail on one. ⛔ Clearance is a gap, not a contact.
    *
-   * `left-3` matches the card's own `p-3`, i.e. the tail starts where the content starts.
+   * `left-4` matches the card's own `p-4`, i.e. the tail starts where the content starts.
+   * ⛔ It moves WITH that padding — it was `left-3` against `p-3` until 오너 지시 2026-08-28
+   * (시안 E). These two are one measurement written in two files; changing either alone
+   * detaches the tail from the content edge it is supposed to spring from.
    * It also has to start somewhere past 12: `card` is `rounded-xl`, so the bottom-left
    * corner's curve occupies x 0–12 and a tail flush with the edge would hang off a curve.
    *
@@ -2491,7 +2494,7 @@ export const railStyles = {
    * no `aria-hidden` of its own.
    */
   bubbleTail:
-    "relative after:absolute after:left-3 after:top-full after:h-2 after:w-2 after:bg-white after:content-[''] after:[clip-path:polygon(0_0,100%_0,0_100%)]",
+    "relative after:absolute after:left-4 after:top-full after:h-2 after:w-2 after:bg-white after:content-[''] after:[clip-path:polygon(0_0,100%_0,0_100%)]",
   /**
    * 56px. It was 48 — a 32px hit target and nothing else — and a strip that holds only
    * a direction chevron does not say WHICH panel it puts back. 56 buys a 12px label

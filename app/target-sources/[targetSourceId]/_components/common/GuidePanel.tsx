@@ -101,7 +101,28 @@ const CollabChannelCard = ({ jiraTicket }: { jiraTicket: JiraTicketState }) => {
   // padding), and Korean's default break-anywhere left 「요.」 alone on line two. It breaks
   // between 어절 now, the way `DuplicateAddressNotice` and `accessStyles` already do it.
   const sentence = 'text-[12px] leading-[17px] tracking-normal break-keep';
-  const channelKey = 'font-mono text-[14px] leading-[17px] tracking-[-0.01em]';
+  // ⛔ `font-semibold` (600) is the whole of 시안 A, and it is the payload's rank, not a
+  // decoration. At 400 this key was byte-for-byte Carbon's `bodyCompact01` (14/400) — the
+  // token for a VALUE INSIDE a component — while the head above it wore 16/700. Carbon's own
+  // rule is that «a bold weight will always have more emphasis than a lighter weight font of
+  // the same size», and that a lighter face outranks a bold one only when it is
+  // «significantly larger»; 16/14 = 1.14x does not clear that, so the label won on BOTH
+  // channels at once and the thing the user clicks was the quietest ink in the card.
+  // 600 is `heading01`, Carbon's own compact section-header weight, and Atlassian arrives at
+  // the same value from the other side: «don't use heading text in components, instead use
+  // body text with a heavier font weight to create greater contrast».
+  // ⛔ Raise the WEIGHT, not the size. 16 here would collide with the head's 16 and leave
+  // weight as the only separator between a coordinate and a payload — and it would break the
+  // 12/14/16 tier ladder the rail already runs on (오너 2026-08-24).
+  //
+  // ⚠️ `font-mono` is DEAD and is deliberately left standing: `--font-mono` is aliased to the
+  // sans face in `globals.css`, so it changes no pixel (verified in-browser: the anchor's
+  // resolved family is `pretendard`). `plStyles.typeTag` already deleted its own mono
+  // declaration for exactly this reason, so the precedent for removing this one exists — it
+  // was simply not part of 오너 지시 2026-08-28 (「A,C,E적용」), and a zero-pixel cleanup is
+  // not something to smuggle into a design commit.
+  const channelKey =
+    'font-mono text-[14px] font-semibold leading-[17px] tracking-[-0.01em]';
   const href =
     jiraTicket && jiraTicket !== 'error' ? safeBrowseUrl(jiraTicket.browseUrl) : null;
 
@@ -486,7 +507,7 @@ export const GuidePanel = ({
 
               The channel is still first — it is the escape hatch for every step, so it
               holds the top of the rail and the guide scrolls underneath it. */}
-          <div className={cn(railStyles.card, railStyles.bubbleTail, 'shrink-0 p-3')}>
+          <div className={cn(railStyles.card, railStyles.bubbleTail, 'shrink-0 p-4')}>
             {/* The zone head: the zone's name, and nothing else. No glyph, no control, no
                 dot.
 
@@ -516,10 +537,28 @@ export const GuidePanel = ({
                 something the corner does not: leading indented the value and broke the
                 card's single left edge, trailing floated 183px short of the right edge.
 
-                `justify-between`, so the dot lands on the card's own padding edge — the
-                label's 20px line box puts it optically on the corner, and a longer label
-                pushes nothing. `items-center` keeps the row 20px: the 8px dot is smaller
-                than the label's line box, so both ink gaps around the head are unaffected.
+                `gap-1.5` (6px), so the dot rides the LABEL — 오너 지시 2026-08-28 (시안 C),
+                which reverses the 「우측 끝에」 of the same day. ⛔ Not `justify-between`: that
+                grammar is for two unrelated things at opposite ends, and this dot is not
+                unrelated to 「협업 채널」 — it is that channel's state. Pinned to the far edge it
+                measured 206px from the label it modifies, and nothing bridged the run, so it
+                read as a loose mark rather than as the label's own status.
+
+                The distance is a benchmark value, not a taste: Cloudscape's KeyValuePairs puts
+                the indicator 0px under its label, Ant's Descriptions 8px after it, and Primer's
+                ActionList in a leading column to its LEFT — three systems, no exception, and
+                6px sits inside that band. What the same three reserve for the container's far
+                edge is an ACTION (chevron, button, counter) or nothing at all; none of them
+                pins a modifier there. 206 was 26x the widest of those distances.
+
+                ⛔ The 209px to the right of the head is now deliberately EMPTY, and that is the
+                supported state rather than a gap waiting to be filled: Cloudscape recommends
+                exactly this — a flush-left stack with an unoccupied right field — and what
+                carries the grouping there is vertical spacing, which this card already runs at
+                12.5 / 28 (2.24x). Emptiness reads as margin once nothing is left hanging in it.
+
+                `items-center` keeps the row 20px: the 8px dot is smaller than the label's line
+                box, so both ink gaps around the head are unaffected by this move.
 
                 ⛔ The dot is `aria-hidden`, and it is allowed to be ONLY because every state
                 is stated in words in the rows below — the issue key itself, 「아직 연결된 협업
@@ -536,12 +575,28 @@ export const GuidePanel = ({
                 so both ink gaps around the head are measured off that 20: `p-3` + (20 − 16)
                 / 2 = 14 above, and 2 + `mt-2` + 2.5 = 12.5 below.
 
-                ⚠️ Above > below by 1.5px, which satisfies `/design-guide` 여백 7원칙 #2 (제목의
-                위 여백 > 아래 여백) and only just. This is known, not missed: the only lever
-                is the card's top padding — `p-4` would make it 18 — and the owner asked for
-                the gap UNDER the title, not for the card's padding. Leave `p-3` alone until
-                they do. */}
-            <div className="flex items-center justify-between">
+                Above > below is now 18 vs 12.5, a 5.5px margin on `/design-guide` 여백 7원칙 #2
+                (제목의 위 여백 > 아래 여백). It was 14 vs 12.5 — 1.5px, satisfied and only just —
+                until 오너 지시 2026-08-28 (시안 E) took the card to `p-4`. The earlier note here
+                said to leave `p-3` alone «until they ask», and they have.
+
+                ⛔ `p-4` is not a taste call; `p-3` was a 수치 위반. `/design-guide` §1 sets card
+                padding at 상 20 · 좌우 24 · 하 24, and 여백 7원칙 #4 says the larger the radius the
+                further in the content must sit for the grouping to close. This card is
+                `rounded-xl`, so at `p-3` its padding EQUALLED its 12px corner radius and the
+                content rode the curve — which is the 「조잡해 보인다」 the owner reported, and it
+                is a different defect from the 강약 that 시안 A fixes. One lever cannot do both.
+
+                ⚠️ COUPLED: `railStyles.bubbleTail` carries `after:left-4` so the tail still
+                springs from the content edge. Those two numbers are one measurement split
+                across two files — move one and you must move the other.
+
+                ⚠️ The guide card below still runs `p-3`, so the two zones no longer share a
+                padding. That pair break is deliberate and is the owner's open question (시안 E
+                의 결정 3): raising the guide card too costs 8px of the rail's vertical budget
+                and shortens its scroller by the same. ⛔ Do not «fix» the asymmetry by
+                reverting this card. */}
+            <div className="flex items-center gap-1.5">
               <span className={railStyles.zoneLabel}>협업 채널</span>
               <span aria-hidden className={cn('h-2 w-2 shrink-0 rounded-full', collab.dot)} />
             </div>
