@@ -116,38 +116,53 @@ describe('GuidePanel — collab-channel card states', () => {
     expect(surfaceOf(link)).toEqual([]);
 
     // The key carries the AA-safe blue. #0064FF measures 4.33:1 on #E8F1FF; it was only
-    // ever legal because a white row sat under it.
+    // ever legal because a white row sat under it. The ink is on the ANCHOR, which the icon
+    // inherits through `currentColor`; the span under it owns only the underline.
     const key = screen.getByText('PII-42');
-    expect(key.className).toContain('text-[#0050D6]');
-    expect(key.className).not.toContain('text-[#0064FF]');
+    expect(key.className).toContain('underline');
+    expect(link.className).toContain('text-[#0050D6]');
+    expect(link.className).not.toContain('text-[#0064FF]');
 
     // ⛔ The anchor is the VALUE's box, and there are now TWO ways it could stop being one.
     //
     // Content: it once wrapped the row's label too, so the clickable rectangle was
     // 271.46 × 36 where the underline was 271.46 × 20 — a hit area 16px taller and ~186px
-    // wider than the thing it underlined. The label is gone entirely, so "does not contain
-    // the label" has nothing left to catch; the claim it becomes is that the anchor holds
-    // the key text and NOTHING else.
+    // wider than the thing it underlined. The label is gone entirely, so the claim is that
+    // the anchor's TEXT is the key and nothing else, and that its elements are exactly the
+    // underlined key and the external-link icon — no third thing smuggled in.
     expect(link.textContent).toBe('PII-42');
-    expect(link.childNodes).toHaveLength(1);
-    expect(link.firstChild?.nodeType).toBe(Node.TEXT_NODE);
+    expect(link.children).toHaveLength(2);
+    expect(link.children[0].textContent).toBe('PII-42');
+    expect(link.children[1].tagName.toLowerCase()).toBe('svg');
 
     // Geometry: jsdom measures nothing, so the box is guarded by what it may not DECLARE.
-    // The anchor is shrink-to-fit only while it is a flex item that neither grows nor
-    // stretches — measured 84.41 × 17 against the row's 271, one origin with the underlined
-    // run. Any of these hands the column's full width back and puts the 36px-tall hit area
+    // The anchor is shrink-to-fit only while it neither grows nor stretches — measured
+    // 84.41 × 17 against the row's 271 before the icon, and still far short of the row with
+    // it. Any of these hands the column's full width back and puts the 36px-tall hit area
     // straight into a card that no longer has a label to blame for it.
+    //
+    // ⚠️ `inline-flex` is NOT on the list, and it is the one exception. The list exists to
+    // stop a FULL-WIDTH anchor — the original defect was `block` — and `inline-flex` is
+    // shrink-to-fit, which is exactly the invariant. It is what lets the icon sit beside the
+    // key without the underline running under it. `flex` stays banned: on this row it would
+    // behave the same, but it is a block-level declaration and would take the row's width
+    // the moment the anchor is rendered anywhere else.
     const takesTheRow = (el: Element) =>
       (el.getAttribute('class') ?? '')
         .split(/\s+/)
-        .filter((c) => /^(block|flex|inline-flex|w-full|flex-1|grow|basis-full|self-stretch)$/.test(c));
+        .filter((c) => /^(block|flex|w-full|flex-1|grow|basis-full|self-stretch)$/.test(c));
     expect(takesTheRow(link)).toEqual([]);
+    expect(link.className).toContain('inline-flex');
     expect(link.parentElement?.className).toContain('flex');
+
+    // ⛔ The underline is on the KEY's span, not on the anchor: anchor-level text-decoration
+    // draws through inline children, so it would strike through the icon too.
+    expect(link.className).not.toContain('underline');
 
     // A leading per ROLE (오너 2026-08-24): the key is a one-line machine value (14/17) and
     // the sentence above it is read (12/17). It was a flat 1.5 for both, i.e. 18 and 21:
     // line boxes off the grid, on a ramp where the bigger the type the more air it took.
-    expect(key.className).toContain('text-[14px]');
+    expect(link.className).toContain('text-[14px]');
     expect(screen.getByText(CHANNEL_LINE).className).toContain('leading-[17px]');
 
     // ⛔ No label row. It was 「협업 채널 링크」, then 「이슈 키」, and then nothing: a single
@@ -161,7 +176,7 @@ describe('GuidePanel — collab-channel card states', () => {
     // computed LENGTH, so `body`'s single −0.288px lands on 12px text as −0.024em and on
     // 16px as −0.018em — tightest exactly where Carbon and Material are loosest. Every
     // tier declares its own now: T3 normal → T2 −0.01em → T1 −0.02em.
-    expect(key.className).toContain('tracking-[-0.01em]');
+    expect(link.className).toContain('tracking-[-0.01em]');
     expect(screen.getByText(CHANNEL_LINE).className).toContain('tracking-normal');
     expect(railStyles.zoneLabel).toContain('tracking-[-0.02em]');
   });
@@ -529,11 +544,11 @@ const openZones = (root: HTMLElement) =>
 const channelHead = (root: HTMLElement) => openZones(root)[0].firstElementChild as HTMLElement;
 
 /**
- * Every state dot in the open card — which must be NONE of them (시안 E, 오너 지시
- * 2026-08-27). It is a search of the whole card on purpose: the dot has already been on the
- * head's corner (`justify-between`) and on the value row (leading, then trailing), so a
- * query aimed at either place would miss it coming back in the other. The strip's dot lives
- * outside `openZones` and is not in scope here — see `channelMark`.
+ * Every state dot in the open card — there must be exactly one, and it must be on the head
+ * (오너 지시 2026-08-28). It searches the whole card on purpose: the dot has been on the
+ * head's corner, leading the value row, trailing it, and absent, so a query aimed at any one
+ * of those would miss a stray copy in another. Counting is what catches two. The strip's dot
+ * lives outside `openZones` and is not in scope here — see `channelMark`.
  */
 const cardDots = (root: HTMLElement) =>
   Array.from(
@@ -588,7 +603,7 @@ describe('GuidePanel — the folded strip says what it is', () => {
    * "No glyph anywhere in the rail" would fail the same way from the other side — the
    * folded strip's ChatIcon lives in a subtree this claim is not about.
    */
-  it('leaves the open zone head its label and nothing else — no glyph', async () => {
+  it('leaves the open zone head its label and its state dot — no glyph', async () => {
     const { container } = render(
       <GuidePanel
         {...baseProps}
@@ -598,14 +613,17 @@ describe('GuidePanel — the folded strip says what it is', () => {
     await settled();
 
     const head = channelHead(container as HTMLElement);
-    // The label, and it IS the head — no wrapper row left to hang a second child on.
+    // Two children and no more: the label, then the state dot.
     expect(head.textContent).toBe('협업 채널');
-    expect(head.children).toHaveLength(0);
+    expect(head.children).toHaveLength(2);
+    expect(head.children[0].textContent).toBe('협업 채널');
+    // ⛔ Still no GLYPH. The 2026-08-23 `RailMark` (전구-style mark, glyph + dot + ink) died
+    // when the CARD became the enlarged `ChatIcon`; only the dot half of that mark came
+    // back (오너 지시 2026-08-28). An enlarged icon may not contain a small copy of itself.
     expect(head.querySelector('svg')).toBeNull();
-    // ⛔ And no dot on it either (오너 지시 2026-08-27). It went to the value row and then
-    // off the card; a dot back on this head would be the zone reporting a state it does not
-    // have. `justify-between` is what put it on the corner, so its absence is the tripwire.
-    expect(head.className).not.toContain('justify-between');
+    // ⛔ `justify-between` is what puts the dot on the card's own padding edge with no second
+    // measurement, so it is part of the instruction, not a styling detail.
+    expect(head.className).toContain('justify-between');
 
     // 16/20, and BOTH heads wear the same token — the card's and the guide zone's.
     // ⚠️ This head was 20/24 through a `channelZoneLabel` of its own for one commit (오너
@@ -614,7 +632,7 @@ describe('GuidePanel — the folded strip says what it is', () => {
     // all treat every section head alike whatever the section's size.
     // ⛔ Nobody may open the gap under this head by growing its line box instead: 20 is the
     // design guide's 120% for a 제목, and both ink gaps around the head are measured off it.
-    expect(head.className).toContain(railStyles.zoneLabel);
+    expect(head.children[0].className).toContain(railStyles.zoneLabel);
     expect(railStyles.zoneLabel).toContain('text-[16px]');
     expect(railStyles.zoneLabel).toContain('leading-[20px]');
     const guideHead = screen.getByText('가이드');
@@ -682,7 +700,11 @@ describe('GuidePanel — the folded strip says what it is', () => {
     const boxMargin = (el: HTMLElement) => Number(el.className.match(/\bmt-(\d+)\b/)?.[1] ?? 0) * 4;
     // The card's children: the head, then the body. The body's `mt-1` is the internal gap.
     const body = openZones(container as HTMLElement)[0].children[1] as HTMLElement;
-    const valueRow = screen.getByText('PII-42').parentElement as HTMLElement;
+    // ⛔ Off the ANCHOR's parent, not the key's: the key is now a span inside the anchor
+    // (the underline had to stop running under the external-link icon), so `getByText`'s
+    // parent is the anchor itself and would have measured a margin that is not there.
+    const valueRow = screen.getByTitle('협업 채널 — Jira에서 논의하기')
+      .parentElement as HTMLElement;
 
     const internalInk = 2 + boxMargin(body) + 2.5;
     const sectionInk = 2.5 + boxMargin(valueRow) + 1.5;
@@ -695,21 +717,26 @@ describe('GuidePanel — the folded strip says what it is', () => {
   });
 
   /**
-   * ⛔ The CARD draws no state dot, and ⛔ the folded STRIP still draws one. Both halves are
-   * the claim; either alone is worthless.
+   * ⛔ The card draws EXACTLY ONE state dot, on the head row, and ⛔ the folded strip still
+   * draws its own. Both halves are the claim; either alone is worthless.
    *
-   * 시안 E, 오너 지시 2026-08-27 — reversing that same day's instruction that every state
-   * must draw a dot, which this file previously asserted here. Two rounds went into where
-   * the dot belonged (the head's corner, then trailing the value) and neither answered what
-   * it ADDED: 미연결 and 실패 state it in words on the row itself, and 연결됨 states it by
-   * having a clickable key. So the card's states are read back from its TEXT here — that is
-   * what makes "the dot was redundant" a checked claim rather than an assertion.
+   * The dot has been on this corner, leading the value row, trailing it, and gone
+   * altogether (시안 E) — 오너 지시 2026-08-28 puts it back here. What every round agreed on
+   * is that there is ONE of it and that its fill is the state: those are what this test
+   * pins, plus the place, because the place is what kept changing.
    *
-   * ⛔ The strip half is the tripwire that matters. Deleting the strip's dot as well would
-   * satisfy "no dot in the card" perfectly, and it would take the only state signal a 56px
-   * strip has: there are no rows out there to carry the words.
+   * ⛔ The rows still have to say each state in WORDS. That is not a leftover from the
+   * dotless round — it is the only reason the dot may be `aria-hidden`, so it is asserted
+   * here beside the dot rather than in a test of its own.
+   *
+   * ⛔ The strip half is the tripwire that matters most. Deleting the strip's dot would
+   * satisfy everything above and take the only state signal a 56px strip has: there are no
+   * rows out there to carry the words.
    */
-  it('takes the state dot off the card, and keeps it on the folded strip', async () => {
+  it('puts one state dot on the card’s head, and keeps the strip’s own', async () => {
+    const fillOf = (dot: Element) => dot.className.split(/\s+/).find((c) => c.startsWith('bg-'));
+    const fills: Array<string | undefined> = [];
+
     for (const [ticket, says] of [
       [{ issueKey: 'PII-42', browseUrl: 'https://jira.example.com/browse/PII-42' }, 'PII-42'],
       [null, '아직 연결된 협업 채널이 없어요'],
@@ -717,10 +744,17 @@ describe('GuidePanel — the folded strip says what it is', () => {
     ] as const) {
       const open = render(<GuidePanel {...baseProps} jiraTicket={ticket} />);
       await settled();
-      const zone = openZones(open.container as HTMLElement)[0];
-      expect(cardDots(open.container as HTMLElement)).toHaveLength(0);
-      // …and the state is still stated, which is why the dot could go.
-      expect(zone.textContent).toContain(says);
+      const root = open.container as HTMLElement;
+
+      const dots = cardDots(root);
+      expect(dots).toHaveLength(1);
+      const [dot] = dots;
+      expect(channelHead(root).contains(dot)).toBe(true);
+      expect(dot.getAttribute('aria-hidden')).toBe('true');
+      expect(dot.className).toContain('rounded-full');
+      // …and the words the `aria-hidden` depends on are still in the rows below.
+      expect(openZones(root)[0].textContent).toContain(says);
+      fills.push(fillOf(dot));
       open.unmount();
 
       const strip = await folded(ticket);
@@ -730,20 +764,37 @@ describe('GuidePanel — the folded strip says what it is', () => {
       expect(stripDot).toBeTruthy();
       strip.unmount();
     }
+
+    // Three states, three fills — compared to each other, not to literals.
+    expect(fills.every(Boolean)).toBe(true);
+    expect(new Set(fills).size).toBe(3);
   });
 
-  // ⛔ The rows still carry no glyph, and the reason has grown rather than gone: the head
-  // displaced it in 2026-08-23, and since 2026-08-27 the CARD is the bubble — so a 24px
-  // ChatIcon on a row would be a small copy of the bubble it is sitting inside.
+  // ⛔ No ChatIcon on the rows, and the reason has grown rather than gone: the head displaced
+  // it in 2026-08-23, and since 2026-08-27 the CARD is the bubble — so a 24px ChatIcon on a
+  // row would be a small copy of the bubble it is sitting inside.
+  //
+  // ⚠️ It can no longer be "no svg in the link", because the link legitimately carries one
+  // now (`OpenExternalIcon`, 오너 지시 2026-08-28). The bubble is identified by its PATH, the
+  // same way `draws the channel zone as a speech bubble` identifies the tail's direction —
+  // both ChatIcon and OpenExternalIcon draw at viewBox 24, so size cannot tell them apart.
   it('keeps the ChatIcon off the link row — the card is the bubble', async () => {
-    render(
+    const { container } = render(
       <GuidePanel
         {...baseProps}
         jiraTicket={{ issueKey: 'PII-42', browseUrl: 'https://jira.example.com/browse/PII-42' }}
       />,
     );
     await settled();
-    expect(screen.getByTitle('협업 채널 — Jira에서 논의하기').querySelector('svg')).toBeNull();
+
+    const card = openZones(container as HTMLElement)[0];
+    const paths = [...card.querySelectorAll('path')].map((el) => el.getAttribute('d') ?? '');
+    expect(paths.some((d) => d.startsWith('M21 15a2 2 0 0 1-2 2H7l-4 4V5'))).toBe(false);
+
+    // …and the one glyph the card DOES carry is the link's own, inside the anchor.
+    const link = screen.getByTitle('협업 채널 — Jira에서 논의하기');
+    expect(card.querySelectorAll('svg')).toHaveLength(1);
+    expect(link.querySelectorAll('svg')).toHaveLength(1);
   });
 
   // Same rule on the strip: three states, three fills, and ⛔ none of them answers by

@@ -1,7 +1,7 @@
 'use client';
 
 import { GuideCardContainer } from '@/app/components/features/process-status/GuideCard/GuideCardContainer';
-import { ChatIcon, GuideIcon } from '@/app/components/ui/icons';
+import { ChatIcon, GuideIcon, OpenExternalIcon } from '@/app/components/ui/icons';
 import {
   RailEntry,
   RailMark,
@@ -106,23 +106,17 @@ const CollabChannelCard = ({ jiraTicket }: { jiraTicket: JiraTicketState }) => {
     jiraTicket && jiraTicket !== 'error' ? safeBrowseUrl(jiraTicket.browseUrl) : null;
 
   /**
-   * ⛔ NO state dot on this card — 시안 E, 오너 지시 2026-08-27 (which reverses that same
-   * day's earlier instruction that every state must draw one).
+   * ⛔ No state dot on any ROW here. The card has one again, but it belongs to the zone head
+   * (`GuidePanel`, which owns `collab`) — see the history recorded there.
    *
-   * Its placement was settled twice before it was removed, and both rounds are why: the
-   * head's far corner first (it rides the folded glyph's corner, and the CARD is that glyph
-   * enlarged), then trailing the value (the corner made a failed fetch look like the whole
-   * zone had failed, while a leading dot indented the value and broke the card's one left
-   * edge). Neither round ever answered what the dot ADDED. It never carried information the
-   * row did not already carry: 미연결 and 실패 say it in words on that very line, and
-   * 연결됨 says it by having a clickable key at all. What it did carry was 8px after a
-   * variable-length string, 183px from the card's right edge — floating, by measurement.
+   * What the rows must keep doing is saying each state in WORDS: 미연결 and 실패 in their own
+   * sentence, 연결됨 by having a clickable key at all. That is not decoration — it is the
+   * whole reason the head's dot is allowed to be `aria-hidden`, so a row that stops speaking
+   * takes the dot's exemption down with it.
    *
-   * ⛔ The FOLDED STRIP keeps its dot, and the asymmetry is the point. On a 56px strip the
-   * rows do not exist: `RailEntry`'s dot is the only thing that says whether the channel is
-   * reachable, which is why `collab.dot` and `collab.hint` stay in `GuidePanel`. The card
-   * drops the dot because its rows already speak; the strip keeps it because they are not
-   * there to.
+   * ⛔ The FOLDED STRIP keeps its own dot as well, which is why `collab.dot` and
+   * `collab.hint` both stay in `GuidePanel`. Out there the rows do not exist at all, so
+   * `RailEntry`'s dot is not a second channel but the only one.
    */
   // Two gaps, and they are deliberately UNEQUAL — measured in INK, half-leadings included:
   //   12.5  zone head → 문장   (2 + mt-2 8 + 2.5)    the name and what it is for
@@ -182,11 +176,11 @@ const CollabChannelCard = ({ jiraTicket }: { jiraTicket: JiraTicketState }) => {
         </div>
       ) : (
         <>
-          {/* One child now that the dot has gone, and still `flex`: the row must have no
-              strut of its own, or an inline anchor would sit in a line box sized by whatever
-              leading the card inherits and the 20px ink gap above would be measured off the
-              wrong box. `flex` also keeps the anchor shrink-to-fit. The row holds no type —
-              the value carries it. */}
+          {/* One child, and still `flex`: the row must have no strut of its own, or an
+              inline anchor would sit in a line box sized by whatever leading the card
+              inherits and the 28px ink gap above would be measured off the wrong box. `flex`
+              also keeps the anchor shrink-to-fit. The row holds no type — the value carries
+              it. */}
           <div className="mt-6 flex">
             {href ? (
               /* Owner ask: the issue key reads as a classic hyperlink — blue + underline.
@@ -198,11 +192,31 @@ const CollabChannelCard = ({ jiraTicket }: { jiraTicket: JiraTicketState }) => {
                  label as well — the label this card no longer has at all — so the clickable
                  rectangle measured 271.46 × 36 where the underline measured 271.46 × 20:
                  underline, hit area and hover were three different shapes, and the widest of
-                 them was the whole column. As a flex item that neither grows nor stretches
-                 it is shrink-to-fit: measured at 1440, the anchor's box is 84.41 × 17 at the
-                 same origin as the underlined run's 84.41 × 16 — one width, one left edge,
-                 and the 1px is the line box over the text run inside it. Nothing may put it
-                 back to the column's width: no `w-full`, no `flex-1`, no `grow`.
+                 them was the whole column. `inline-flex` neither grows nor stretches, so the
+                 box is still the value's own: key + `gap-1` + icon, and nothing of the 271px
+                 column it sits in. ⛔ Nothing may hand that width back — no `w-full`, no
+                 `flex-1`, no `grow`, no `block`.
+
+                 `OpenExternalIcon`, 12px, `currentColor` (오너 지시 2026-08-28: 「BDCDIP-1002
+                 에 우상향 화살표 넣어보자」). ⚠️ The owner named the SHAPE and this picks by
+                 INTENT, which is the repo's rule and each icon's own doc comment:
+                 `ArrowUpRightIcon` is «a forward jump to another in-app screen»,
+                 `OpenExternalIcon` is «opens a link in a new tab / external destination
+                 (Jira, docs, etc.)» — literally this case. Its glyph is an arrow leaving a
+                 box, so it is still an up-right arrow. First usage in the app. 12 is the
+                 component's native size; the 13px at `WaitingApprovalReselectButton` is that
+                 screen's business, not a precedent.
+
+                 ⛔ The underline is on a SPAN around the text, not on the anchor. Anchor-level
+                 `text-decoration` draws through inline children, so it would strike through
+                 the icon too; scoping it structurally is the only way that survives an icon
+                 changing size. The anchor holds the type and the ink, the span holds the
+                 line, the icon inherits the colour.
+
+                 ⚠️ Underline AND icon now say "leaves this page" twice. Carbon drops the
+                 underline on a standalone link precisely BECAUSE the icon carries it, so the
+                 icon arrived first and the underline is the outstanding half of that pattern
+                 — an owner's call, not a tidy-up.
 
                  ⛔ No `hover:` ink on it. `primaryColors.textHover` IS `textOnLight` — the
                  rail keeps one blue, so the hover state it used to declare changed no pixel
@@ -214,9 +228,14 @@ const CollabChannelCard = ({ jiraTicket }: { jiraTicket: JiraTicketState }) => {
                 target="_blank"
                 rel="noopener noreferrer"
                 title="협업 채널 — Jira에서 논의하기"
-                className={cn(channelKey, 'underline', primaryColors.textOnLight)}
+                className={cn(
+                  channelKey,
+                  'inline-flex items-center gap-1',
+                  primaryColors.textOnLight,
+                )}
               >
-                {jiraTicket.issueKey}
+                <span className="underline">{jiraTicket.issueKey}</span>
+                <OpenExternalIcon className="h-3 w-3 shrink-0" />
               </a>
             ) : (
               // browseUrl 이 없으면(또는 http 가 아니면) 링크를 지어내지 않고 키만 보여준다.
@@ -482,30 +501,50 @@ export const GuidePanel = ({
                 오너 지시 2026-08-27 — the CARD is the 말풍선 the folded strip draws as a 20px
                 `ChatIcon`, enlarged (`railStyles.bubbleTail` carries the tail). That is what
                 took the glyph off this head: an enlarged icon cannot also contain a small
-                copy of itself.
+                copy of itself. `railStyles.zoneMarkChannel`/`…Quiet`, the ink pair that
+                existed only to colour that glyph, went with it.
 
-                ⚠️ The state dot was here too, on that same argument: it rides the glyph's
-                top-right corner, so `justify-between` put it on the CARD's corner. It then
-                moved onto the value row, and has since come off the card altogether (시안 E,
-                same owner, same day — see `CollabChannelCard`, which records why). The three
-                rounds all REVERSE 오너 지시 2026-08-23, which put `RailMark` here precisely so
-                the head and the strip drew one identical mark, glyph + dot + ink. That rule
-                was right that the state had to move with the data; what it could not survive
-                is the card itself becoming the mark, and then the rows saying in words what
-                the dot was saying in colour. `railStyles.zoneMarkChannel`/`…Quiet`, the ink
-                pair that existed only to colour that glyph, went with the glyph.
+                The DOT, in one record rather than four. It arrived here with the glyph, on
+                the same geometry: the dot rides the folded `ChatIcon`'s top-right corner, so
+                `justify-between` puts it on the enlarged card's. It then spent three rounds
+                elsewhere — leading the value row, then trailing it, then off the card
+                entirely (시안 E) — and 오너 지시 2026-08-28 brings it back to this corner.
+                What each move was arguing about was whether the dot describes the VALUE's
+                reachability or the ZONE's state; the card reads as a 말풍선 for one channel,
+                so the head is a fair place to hang that channel's state, and the corner is
+                the only spot that needs no second measurement. The row placements each cost
+                something the corner does not: leading indented the value and broke the
+                card's single left edge, trailing floated 183px short of the right edge.
 
-                `block`, so the label's own 20px line box is the head's box. As a bare inline
-                span it would sit in a line box sized by the card's inherited leading, and
-                both ink gaps around it are measured off that 20: `p-3` + (20 − 16) / 2 = 14
-                above, and 2 + `mt-2` + 2.5 = 12.5 below.
+                `justify-between`, so the dot lands on the card's own padding edge — the
+                label's 20px line box puts it optically on the corner, and a longer label
+                pushes nothing. `items-center` keeps the row 20px: the 8px dot is smaller
+                than the label's line box, so both ink gaps around the head are unaffected.
+
+                ⛔ The dot is `aria-hidden`, and it is allowed to be ONLY because every state
+                is stated in words in the rows below — the issue key itself, 「아직 연결된 협업
+                채널이 없어요」, 「협업 채널 정보를 불러오지 못했어요」. Colour is a second
+                channel on those, never the only one, which is the same exemption
+                `railStyles.zoneMark` documents.
+
+                ⚠️ All of this REVERSES 오너 지시 2026-08-23, which put `RailMark` here so the
+                head and the strip drew one identical mark, glyph + dot + ink. That rule was
+                right that the state had to move with the data; what it could not survive is
+                the card itself becoming the mark.
+
+                The row IS the label's 20px line box — `flex` gives it no strut of its own,
+                so both ink gaps around the head are measured off that 20: `p-3` + (20 − 16)
+                / 2 = 14 above, and 2 + `mt-2` + 2.5 = 12.5 below.
 
                 ⚠️ Above > below by 1.5px, which satisfies `/design-guide` 여백 7원칙 #2 (제목의
                 위 여백 > 아래 여백) and only just. This is known, not missed: the only lever
                 is the card's top padding — `p-4` would make it 18 — and the owner asked for
                 the gap UNDER the title, not for the card's padding. Leave `p-3` alone until
                 they do. */}
-            <span className={cn('block', railStyles.zoneLabel)}>협업 채널</span>
+            <div className="flex items-center justify-between">
+              <span className={railStyles.zoneLabel}>협업 채널</span>
+              <span aria-hidden className={cn('h-2 w-2 shrink-0 rounded-full', collab.dot)} />
+            </div>
             {/* 8, and the ink it buys is 12.5 (오너 지시 2026-08-28: 「타이틀과 보조 텍스트가
                 너무 붙어있다」 — it was 4, i.e. 8.5 of ink). The head's 16px ink sits in a
                 20px line box, leaving 2 below; the sentence's 12px ink sits in a 17px box,
