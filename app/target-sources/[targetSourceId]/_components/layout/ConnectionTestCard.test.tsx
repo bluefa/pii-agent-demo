@@ -76,10 +76,16 @@ const getCompletionStatusMock = vi.fn(
     test_connection_status: 'LATEST_TEST_CONNECTION_SUCCESS',
   }),
 );
+// 표의 `연동 논리 DB` 그룹이 읽는 리소스별 건수. 기본은 빈 목록 — 어느 유닛도 보고되지
+// 않았으므로 두 수는 0 이 아니라 `—` 다.
+const getSummariesMock = vi.fn(
+  async (..._args: unknown[]): Promise<Record<string, unknown>[]> => [],
+);
 vi.mock('@/app/lib/api', () => ({
   updateResourceCredential: (...args: unknown[]) => updateResourceCredentialMock(...args),
   getSecrets: (...args: unknown[]) => getSecretsMock(...args),
   getTestConnectionCompletionStatus: (...args: unknown[]) => getCompletionStatusMock(...args),
+  getLatestTestConnectionResultSummaries: (...args: unknown[]) => getSummariesMock(...args),
 }));
 // The rejection notice + run-history modal fetch on their own — quiet, empty defaults.
 vi.mock('@/app/lib/api/task-queue-tc', () => ({
@@ -154,6 +160,8 @@ describe('ConnectionTestCard', () => {
     // next test — reset drains the queue, then restore the default open verdict.
     getCompletionStatusMock.mockReset();
     getCompletionStatusMock.mockResolvedValue({ test_connection_status: 'LATEST_TEST_CONNECTION_SUCCESS' });
+    getSummariesMock.mockReset();
+    getSummariesMock.mockResolvedValue([]);
     approvalModalProps.mockClear();
   });
 
@@ -163,6 +171,7 @@ describe('ConnectionTestCard', () => {
   // it was dropped here on a width argument and restored by the owner (2026-08-27).
   it('reads in the steps 1·2·3 column order, Resource ID included', () => {
     renderCard([makeResource()]);
+    // 두 단 머리 — 위 줄은 그룹이 자기 세 잎을 삼키고, 잎은 아래 줄에 선다.
     expect(screen.getAllByRole('columnheader').map((th) => th.textContent)).toEqual([
       'Resource Name',
       'Resource ID',
@@ -170,7 +179,10 @@ describe('ConnectionTestCard', () => {
       'Region',
       'Credential',
       '연결 상태',
-      '논리 DB 확인',
+      '연동 논리 DB',
+      '대상',
+      '제외',
+      '관리',
     ]);
   });
 
@@ -392,7 +404,7 @@ describe('ConnectionTestCard', () => {
     // the id one, which must exist so the row stays in register with the head.
     const childName = screen.getByText('cpn_logs');
     const childRow = childName.closest('tr') as HTMLTableRowElement;
-    expect(childRow.cells).toHaveLength(7);
+    expect(childRow.cells).toHaveLength(9);
     expect(childRow.cells[1].textContent).toBe('');
     expect(
       screen.queryByText('athena:acct:ap-northeast-2:AwsDataCatalog/cpn_logs'),
@@ -624,6 +636,246 @@ describe('ConnectionTestCard', () => {
     expect(screen.queryByText(/완료 상태 조회에 실패했습니다/)).toBeNull();
   });
 
+  /**
+   * 시안 B — `연동 논리 DB` 는 한 열이 아니라 그룹 머리이고, 그 아래 대상·제외·관리가 선다.
+   * 수는 최신 실행의 리소스별 요약에서 오고, **없는 값은 0 이 아니다**: 이번 실행이 그
+   * 유닛을 말하지 않았으면 `—` 다.
+   */
+  describe('연동 논리 DB 그룹', () => {
+    it('spans 대상·제외·관리 with one group head', async () => {
+      renderCard([makeResource({ credentialId: 'Key1' })]);
+      const group = await screen.findByRole('columnheader', { name: '연동 논리 DB' });
+      expect(group.getAttribute('colspan')).toBe('3');
+      expect(group.getAttribute('scope')).toBe('colgroup');
+    });
+
+    it('draws the reported counts, and — (not 0) for a unit the run never mentioned', async () => {
+      getSummariesMock.mockResolvedValue([
+        { resource_id: 'res-1', logical_database_count: 8, excluded_logical_database_count: 3 },
+      ]);
+      renderCard([
+        makeResource({ resourceId: 'res-1', resourceName: 'named-counted', credentialId: 'Key1' }),
+        makeResource({ resourceId: 'res-2', resourceName: 'named-silent', credentialId: 'Key1' }),
+      ]);
+
+      const counted = (await screen.findByText('named-counted')).closest(
+        'tr',
+      ) as HTMLTableRowElement;
+      expect(counted.cells[6].textContent).toBe('8개');
+      expect(counted.cells[7].textContent).toBe('3개');
+      // 관리 칸은 건수와 무관하게 언제나 문이다.
+      expect(within(counted.cells[8]).getByRole('button', { name: /관리하기/ })).toBeTruthy();
+
+      const silent = screen.getByText('named-silent').closest('tr') as HTMLTableRowElement;
+      expect(silent.cells[6].textContent).toBe('—');
+      expect(silent.cells[7].textContent).toBe('—');
+    });
+
+    /**
+     * Athena 는 4단계부터 리전이 리소스라 결과가 리전 id(`athena_region_resource_id`) 한 줄로
+     * 달려 온다. 조회는 **단위 id** 로 한다(`unitCounts`). 실행이 그 리전을 두고 보고한 수는
+     * 엔진이 논리 DB 를 관리하든 아니든 사실이므로 `대상` 은 그 수를 그대로 그린다 —
+     * 접힌 자식 행을 펴서 세는 수와 같은 수다.
+     */
+    it('draws the reported count on a folded Athena row, keyed on the region id', async () => {
+      getSummariesMock.mockResolvedValue([
+        {
+          resource_id: 'athena:acct:ap-northeast-2/AwsDataCatalog',
+          logical_database_count: 5,
+          excluded_logical_database_count: 1,
+        },
+      ]);
+      renderCard([
+        makeResource({
+          resourceId: 'athena:acct:ap-northeast-2:AwsDataCatalog/cpn_logs',
+          resourceName: 'cpn_logs',
+          databaseType: 'athena',
+          credentialId: null,
+          athenaRegionResourceId: 'athena:acct:ap-northeast-2/AwsDataCatalog',
+        }),
+      ]);
+
+      const unitRow = (
+        await screen.findByText('athena:acct:ap-northeast-2/AwsDataCatalog')
+      ).closest('tr') as HTMLTableRowElement;
+      await waitFor(() => expect(unitRow.cells[6].textContent).toBe('5개'));
+      // 제외는 실행이 1 이라고 보고해도 정책이 이긴다 — 제외라는 개념이 없는 엔진이다.
+      expect(unitRow.cells[7].textContent).toBe('제외 불가');
+      expect(screen.queryByText('1개')).toBeNull();
+    });
+
+    /**
+     * 회차가 바뀌어 다시 읽었는데 그 조회가 실패하면, 화면에 남은 수는 이번 회차가 보고한
+     * 값이 아니다 — 실패는 빈 결과가 아니지만, 낡은 수를 그대로 두는 것은 "이번 실행이 그
+     * 수를 말했다"는 거짓말이다. 맵을 비워 `—` 로 되돌린다.
+     */
+    it('clears the counts to — when the refetch for a new run fails', async () => {
+      getSummariesMock.mockResolvedValue([
+        { resource_id: 'res-1', logical_database_count: 12, excluded_logical_database_count: 3 },
+      ]);
+      const confirmed = [
+        makeResource({ resourceId: 'res-1', resourceName: 'named-counted', credentialId: 'Key1' }),
+      ];
+      pollingState.uiState = 'SUCCESS';
+      pollingState.latestJob = makeJob('SUCCESS', [agentResult('res-1', 'SUCCESS')]);
+      const rerender = renderStable(confirmed);
+
+      const row = () => screen.getByText('named-counted').closest('tr') as HTMLTableRowElement;
+      await waitFor(() => expect(row().cells[6].textContent).toBe('12개'));
+
+      // 다음 회차가 정착 → runVersion 이 바뀌어 effect 가 다시 읽는다. 이번엔 실패.
+      getSummariesMock.mockRejectedValue(new Error('503'));
+      pollingState.latestJob = {
+        ...makeJob('SUCCESS', [agentResult('res-1', 'SUCCESS')]),
+        test_connection_version: 2,
+      };
+      await act(async () => {
+        rerender();
+      });
+
+      await waitFor(() => expect(row().cells[6].textContent).toBe('—'));
+      expect(row().cells[7].textContent).toBe('—');
+    });
+
+    /**
+     * 언제 읽는가는 그려진 수만 봐서는 잠기지 않는다 — 아래 세 테스트는 **호출**을 센다.
+     *
+     * 도는 동안에는 읽지 않는다: 이 회차의 건수는 아직 없고, 폴링은 몇 초마다 돌아온다.
+     * 게이트가 없으면 폴링이 그대로 조회로 번역돼, 실행 한 번이 표를 몇 번이고 다시 읽힌다.
+     */
+    it('does not read the counts while a run is in flight, however often the poll turns', async () => {
+      pollingState.uiState = 'RUNNING';
+      pollingState.latestJob = {
+        ...makeJob('RUNNING', [agentResult('res-1', 'RUNNING')]),
+        test_connection_version: 2,
+      };
+      const rerender = renderStable([
+        makeResource({ resourceId: 'res-1', resourceName: 'named-counted', credentialId: 'Key1' }),
+      ]);
+      expect(await screen.findByText('named-counted')).toBeTruthy();
+      expect(getSummariesMock.mock.calls.length).toBe(0);
+
+      // 폴링이 새 회차를 물고 와 runVersion 이 바뀌어도, 도는 중이면 여전히 읽지 않는다.
+      pollingState.latestJob = {
+        ...makeJob('RUNNING', [agentResult('res-1', 'RUNNING')]),
+        test_connection_version: 3,
+      };
+      await act(async () => {
+        rerender();
+      });
+      expect(getSummariesMock.mock.calls.length).toBe(0);
+    });
+
+    // …그리고 정착하면 읽는다. 게이트는 미루는 것이지 끄는 것이 아니다.
+    it('reads the counts once the in-flight run settles', async () => {
+      pollingState.uiState = 'RUNNING';
+      pollingState.latestJob = {
+        ...makeJob('RUNNING', [agentResult('res-1', 'RUNNING')]),
+        test_connection_version: 2,
+      };
+      const rerender = renderStable([
+        makeResource({ resourceId: 'res-1', resourceName: 'named-counted', credentialId: 'Key1' }),
+      ]);
+      expect(await screen.findByText('named-counted')).toBeTruthy();
+      expect(getSummariesMock.mock.calls.length).toBe(0);
+
+      pollingState.uiState = 'SUCCESS';
+      pollingState.latestJob = {
+        ...makeJob('SUCCESS', [agentResult('res-1', 'SUCCESS')]),
+        test_connection_version: 2,
+      };
+      await act(async () => {
+        rerender();
+      });
+      expect(getSummariesMock.mock.calls.length).toBe(1);
+    });
+
+    /**
+     * 대상을 갈아타면 옛 대상의 수는 새 화면에 서면 안 된다 — resourceId 는 대상 간에 겹칠
+     * 수 있어서, 도장 없는 맵은 남의 수를 이 행에 조용히 붙인다. 새 조회가 답하기 전까지는
+     * 이 행에 대해 아는 것이 없으므로 `—` 다.
+     */
+    it('does not leak the previous target counts into a target it has not read yet', async () => {
+      getSummariesMock.mockResolvedValue([
+        { resource_id: 'res-1', logical_database_count: 8, excluded_logical_database_count: 3 },
+      ]);
+      pollingState.uiState = 'SUCCESS';
+      pollingState.latestJob = makeJob('SUCCESS', [agentResult('res-1', 'SUCCESS')]);
+      const confirmed = [
+        makeResource({ resourceId: 'res-1', resourceName: 'named-counted', credentialId: 'Key1' }),
+      ];
+      // renderStable 은 targetSourceId 를 1 로 붙박아 두므로, 대상을 갈아타는 것은 여기서만 한다.
+      const element = (targetSourceId: number) => (
+        <ConnectionTestCard
+          targetSourceId={targetSourceId}
+          confirmed={confirmed}
+          refreshProject={() => {}}
+          polling={makePolling()}
+        />
+      );
+      const { rerender } = render(element(1));
+
+      const row = () => screen.getByText('named-counted').closest('tr') as HTMLTableRowElement;
+      await waitFor(() => expect(row().cells[6].textContent).toBe('8개'));
+
+      // 대상 2 의 조회는 아직 떠 있다 — 그 사이에 그려지는 것은 1 의 수가 아니다.
+      let answerForTwo: (rows: Record<string, unknown>[]) => void = () => {};
+      getSummariesMock.mockImplementation(
+        () =>
+          new Promise<Record<string, unknown>[]>((resolve) => {
+            answerForTwo = resolve;
+          }),
+      );
+      await act(async () => {
+        rerender(element(2));
+      });
+      expect(row().cells[6].textContent).toBe('—');
+      expect(row().cells[7].textContent).toBe('—');
+
+      // 도장이 맞는 답이 오면 그때 선다 — 게이트는 늦추는 것이지 비우는 것이 아니다.
+      await act(async () => {
+        answerForTwo([
+          { resource_id: 'res-1', logical_database_count: 2, excluded_logical_database_count: 1 },
+        ]);
+      });
+      await waitFor(() => expect(row().cells[6].textContent).toBe('2개'));
+    });
+
+    // 논리 DB 가 없는 엔진은 `대상` 도 보고가 있을 때만 그린다 — 없으면 —, 지어내지 않는다.
+    it('leaves 대상 blank for an engine with no logical DBs when the run reported nothing', () => {
+      renderCard([
+        makeResource({
+          resourceId: 'dynamo-1',
+          resourceName: 'named-dynamo',
+          databaseType: 'dynamodb',
+          credentialId: null,
+        }),
+      ]);
+      const row = screen.getByText('named-dynamo').closest('tr') as HTMLTableRowElement;
+      expect(row.cells[6].textContent).toBe('—');
+      expect(row.cells[7].textContent).toBe('제외 불가');
+    });
+
+    /**
+     * 관리 칸은 빈 칸이다 — 한 행에서 같은 사실을 두 번 말하지 않는다. 옆 칸의 `제외 불가`
+     * 가 이미 이 엔진에 제외 정책이 없다고 답했고, `설정 불필요` 는 그 말의 사본이었다.
+     */
+    it('leaves 관리 empty — no 관리하기 button and no 설정 불필요 note — for those engines', () => {
+      renderCard([
+        makeResource({
+          resourceId: 'dynamo-1',
+          resourceName: 'named-dynamo',
+          databaseType: 'dynamodb',
+          credentialId: null,
+        }),
+      ]);
+      const row = screen.getByText('named-dynamo').closest('tr') as HTMLTableRowElement;
+      expect(row.cells[8].textContent).toBe('');
+      expect(within(row.cells[8]).queryByRole('button', { name: /관리하기/ })).toBeNull();
+      expect(screen.queryByText('설정 불필요')).toBeNull();
+    });
+  });
+
   // Step 5 has its own table (not WaitingApprovalTable), so the cluster tag had to be added
   // here separately — the type comes from the confirmed row, never from the engine.
   describe('RDS cluster tag', () => {
@@ -644,24 +896,38 @@ describe('ConnectionTestCard', () => {
 
 /**
  * Console shape (LIN-99) — the LIN-96 ledger, pinned: name 162 · id 186 · dbType 142 ·
- * region 156 · cred 200 · conn 104 · logical 118, Σ 1068 on the table's minWidth. name and
- * id are the flex PAIR every other resource table declares, so the SINK is id (the last
- * flex): it renders `auto` while name renders its share of the floor sum (162/1068) and the
- * five sized columns render their ledger px.
+ * region 156 · cred 200 · conn 104 · logicalDb 96 · logicalExcl 96 · logicalManage 96,
+ * Σ 1238 on the table's minWidth. name and id are the flex PAIR every other resource table
+ * declares, so the SINK is id (the last flex): it renders `auto` while name renders its share
+ * of the floor sum (162/1238) and the seven sized columns render their ledger px.
  * cred is 200 by owner order (2026-08-27), down from the 264 ordered on 2026-08-23: at the
  * 14px row the longest seeded name measures 219.74px, so 264 was down to 8.26px of slack,
  * and the next-longest name is 149.21 — a 70px cliff. 200 = 149.21 + 36 padding + 14.79,
  * which fits every seeded name but that one outlier, and the outlier ellipsizes with a
  * `title` tooltip. 180 was the retired Key1/Key2 synthetic-name width.
+ * The three logical leaves are 96 because IDC's are (IDC_COLUMN_WIDTHS) and so are the
+ * confirmed table's — the tables that share this two-tier head share its gauge.
  */
 describe('ConnectionTestCard — console column spec', () => {
-  it('holds the 1068 floor with Resource ID as the sink', async () => {
+  it('holds the 1238 floor with Resource ID as the sink', async () => {
     renderCard([makeResource({})]);
     const table = (await screen.findByRole('table')) as HTMLTableElement;
-    expect(table.style.minWidth).toBe('1068px');
+    expect(table.style.minWidth).toBe('1238px');
+    // 그룹 셀은 폭을 갖지 않는다(빈 문자열) — 바닥은 잎이 전부 진다.
     const widths = Array.from(table.querySelectorAll('thead th')).map(
       (th) => (th as HTMLElement).style.width,
     );
-    expect(widths).toEqual(['15.1685%', 'auto', '142px', '156px', '200px', '104px', '118px']);
+    expect(widths).toEqual([
+      '13.0856%',
+      'auto',
+      '142px',
+      '156px',
+      '200px',
+      '104px',
+      '',
+      '96px',
+      '96px',
+      '96px',
+    ]);
   });
 });
