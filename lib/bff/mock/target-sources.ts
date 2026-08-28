@@ -627,7 +627,10 @@ export const mockTargetSources = {
     const existing = getProjectsByServiceCode(serviceCode);
     const metadata = buildCandidateMetadata(request, provider);
     const cloudType = canonicalToResponseCloudType(provider);
-    const isChinaRegion = isCspProvider(provider) && request.is_china_region === true;
+    // Echo what the request stated. IDC/기타 can now declare a China region too, and
+    // 36 re-throws this candidate — dropping the flag here would register as Global
+    // an account the user just said runs in China.
+    const isChinaRegion = request.is_china_region === true;
     const grantTf = request.grant_service_terraform_execution_permission === true;
     const databaseTypes = request.database_types ?? [];
 
@@ -662,7 +665,8 @@ export const mockTargetSources = {
     // whether an account needs a Self Data Upload sibling. Here a China region or
     // an unlisted database ("others") is what makes the agent install unsupported.
     const needsSduSibling =
-      isChinaRegion || databaseTypes.some((dbType) => trim(dbType ?? undefined).toLowerCase() === 'others');
+      (isCspProvider(provider) && isChinaRegion) ||
+      databaseTypes.some((dbType) => trim(dbType ?? undefined).toLowerCase() === 'others');
     const sduCandidate: TargetSourceCreationCandidateResponseWire = {
       status: 'ADD',
       cloud_type: cloudType,
