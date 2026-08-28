@@ -348,13 +348,13 @@ describe('최초 연동 도장', () => {
 describe('운영 동작 버튼 — 관리자 게이트', () => {
   it('isAdmin 이면 두 버튼이 모두 선다', async () => {
     await renderWith([target(4100)], true);
-    expect(screen.getByRole('button', { name: '설치 상태 갱신' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: '서비스 PII Agent 설치완료' })).toBeTruthy();
     expect(screen.getByRole('button', { name: '서비스 종료' })).toBeTruthy();
   });
 
   it('isAdmin 이 아니면 두 버튼은 아예 그려지지 않는다', async () => {
     await renderWith([target(4100)], false);
-    expect(screen.queryByRole('button', { name: '설치 상태 갱신' })).toBeNull();
+    expect(screen.queryByRole('button', { name: '서비스 PII Agent 설치완료' })).toBeNull();
     expect(screen.queryByRole('button', { name: '서비스 종료' })).toBeNull();
   });
 });
@@ -387,6 +387,10 @@ describe('운영 동작 결과 패널', () => {
     });
   };
 
+  /** 결과 프레임은 스스로 물러나지 않는다 — 닫기를 눌러야 상자가 치워진다. */
+  const dismiss = () =>
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: '닫기' }));
+
   const conflict = () =>
     new AppError({
       status: 409,
@@ -401,13 +405,52 @@ describe('운영 동작 결과 패널', () => {
     updateServiceInstalled.mockResolvedValue(undefined);
     await renderWith([target(4200)], true);
 
-    await run('설치 상태 갱신', '갱신');
+    await run('서비스 PII Agent 설치완료', '설치완료');
 
     await waitFor(() => expect(panel()).toBeTruthy());
-    const entry = entryFor('설치 상태 갱신');
+    const entry = entryFor('서비스 PII Agent 설치완료');
     expect(within(entry).getByText('성공')).toBeTruthy();
     // 성공은 상세를 다시 읽는다 — 화면이 사실을 확인한다.
     await waitFor(() => expect(getOpsService).toHaveBeenCalledTimes(2));
+  });
+
+  it('성공해도 모달은 열린 채로 결과를 들고 서 있고, 닫기만 그것을 치운다', async () => {
+    // 예전에는 요청이 끝나는 순간 상자가 사라졌다 — 결과를 읽을 틈이 상자 밖에만 있었다.
+    updateServiceInstalled.mockResolvedValue(undefined);
+    await renderWith([target(4206)], true);
+
+    await run('서비스 PII Agent 설치완료', '설치완료');
+
+    const dialog = screen.getByRole('dialog');
+    expect(within(dialog).getByText('PII Agent 설치완료로 표시했습니다.')).toBeTruthy();
+    // 질문은 답으로 갈렸다 — 확인 버튼은 프레임과 함께 사라진다.
+    expect(within(dialog).queryByRole('button', { name: '설치완료' })).toBeNull();
+
+    dismiss();
+    expect(screen.queryByRole('dialog')).toBeNull();
+    // 상자를 치워도 기록은 남는다.
+    expect(within(entryFor('서비스 PII Agent 설치완료')).getByText('성공')).toBeTruthy();
+  });
+
+  it('결과가 선 동안에는 Esc 도 바깥 클릭도 상자를 치우지 못한다 — 두 프레임 모두', async () => {
+    // 성공 프레임은 이미 저지른 일을, 실패 프레임은 방금 받은 응답을 들고 있다. 어느
+    // 쪽도 스쳐 지나간 키 하나로 사라져서는 안 된다.
+    updateServiceInstalled.mockResolvedValue(undefined);
+    endOfService.mockRejectedValue(conflict());
+    await renderWith([target(4207)], true);
+
+    await run('서비스 PII Agent 설치완료', '설치완료');
+    fireEvent.keyDown(document, { key: 'Escape' });
+    fireEvent.click(screen.getByTestId('confirm-step-modal-backdrop'));
+    expect(screen.getByRole('dialog')).toBeTruthy();
+    dismiss();
+
+    await run('서비스 종료', '서비스 종료');
+    fireEvent.keyDown(document, { key: 'Escape' });
+    fireEvent.click(screen.getByTestId('confirm-step-modal-backdrop'));
+    expect(screen.getByRole('dialog')).toBeTruthy();
+    dismiss();
+    expect(screen.queryByRole('dialog')).toBeNull();
   });
 
   it('실패한 동작은 응답의 status·code·message 를 글자 그대로 싣는다', async () => {
@@ -430,8 +473,22 @@ describe('운영 동작 결과 패널', () => {
     expect(within(entry).getByText('2026-08-28T01:02:03Z')).toBeTruthy();
     // 실패하면 다시 읽지 않는다 — 최초 1회뿐.
     expect(getOpsService).toHaveBeenCalledTimes(1);
-    // 모달은 성공이든 실패든 닫힌다. 에러는 이제 패널이 들고 있다.
+
+    // 모달은 열린 채로 실행할 수 있는 한 줄(서버 문장)을 내민다. 전문은 뒤의 패널이
+    // 계속 들고 있으므로, 닫기를 눌러도 그 기록은 그대로다.
+    const dialog = screen.getByRole('dialog');
+    expect(within(dialog).getByText('서비스를 종료하지 못했습니다.')).toBeTruthy();
+    expect(
+      within(dialog).getByText('진행 중인 파이프라인이 3건 있어 종료할 수 없습니다.'),
+    ).toBeTruthy();
+
+    dismiss();
     expect(screen.queryByRole('dialog')).toBeNull();
+    const kept = entryFor('서비스 종료');
+    expect(within(kept).getByText('409')).toBeTruthy();
+    expect(within(kept).getByText('CONFLICT')).toBeTruthy();
+    expect(within(kept).getByText('req-7f3a91')).toBeTruthy();
+    expect(within(kept).getByText('2026-08-28T01:02:03Z')).toBeTruthy();
   });
 
   it('메시지는 mono 슬롯에 앉지 않는다', async () => {
@@ -459,12 +516,14 @@ describe('운영 동작 결과 패널', () => {
     endOfService.mockRejectedValue(conflict());
     await renderWith([target(4203)], true);
 
-    await run('설치 상태 갱신', '갱신');
+    await run('서비스 PII Agent 설치완료', '설치완료');
     await waitFor(() => expect(panel()).toBeTruthy());
+    dismiss();
     await run('서비스 종료', '서비스 종료');
     await waitFor(() => expect(panel().children).toHaveLength(2));
+    dismiss();
 
-    const installed = entryFor('설치 상태 갱신');
+    const installed = entryFor('서비스 PII Agent 설치완료');
     const eos = entryFor('서비스 종료');
     expect(within(installed).getByText('성공')).toBeTruthy();
     expect(within(installed).queryByText('409')).toBeNull();
@@ -483,6 +542,18 @@ describe('운영 동작 결과 패널', () => {
     const entry = entryFor('서비스 종료');
     expect(within(entry).getByText('0')).toBeTruthy();
     expect(within(entry).getByText('Failed to fetch')).toBeTruthy();
+  });
+
+  it('옛 이름은 화면 어디에도 없다', async () => {
+    // 이름은 오너가 준 문장 그대로다. 버튼·모달·패널이 각각 자기 문자열을 들고 있어서,
+    // 한 군데만 고치면 화면 안에서 같은 동작이 두 이름으로 불린다.
+    updateServiceInstalled.mockResolvedValue(undefined);
+    await renderWith([target(4208)], true);
+    await run('서비스 PII Agent 설치완료', '설치완료');
+    dismiss();
+
+    expect(document.body.textContent).not.toContain('설치 상태 갱신');
+    expect(document.body.textContent).toContain('서비스 PII Agent 설치완료');
   });
 
   it('isAdmin 이 아니면 패널도 없다', async () => {

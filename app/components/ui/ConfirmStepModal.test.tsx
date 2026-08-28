@@ -251,6 +251,73 @@ describe('ConfirmStepModal', () => {
     expect(notPrevented).toBe(false);
   });
 
+  /**
+   * `explicitDismiss` — the opt-in for callers that stay on this page after the result.
+   * Every assertion here has a default-behaviour twin above it: the success frame with no
+   * button, and the error frame that Escape closes. Those twins are the contract for the
+   * other call sites, and they must not move.
+   */
+  it('explicitDismiss grows a 닫기 on the success frame — without it there is none', () => {
+    const onClose = vi.fn();
+    const success = { kind: 'success' as const, title: '보냈어요', description: '곧 이동해요.' };
+    const { rerender } = render(
+      <ConfirmStepModal {...baseProps} open onClose={onClose} result={success} />,
+    );
+    expect(screen.queryAllByRole('button')).toHaveLength(0);
+
+    rerender(
+      <ConfirmStepModal {...baseProps} open onClose={onClose} result={success} explicitDismiss />,
+    );
+    fireEvent.click(screen.getByRole('button', { name: '닫기' }));
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('explicitDismiss locks Escape and the backdrop on the ERROR frame too', () => {
+    // The default releases them there — the error frame is a dead end the user may walk
+    // away from. A caller whose page IS the record needs the press instead.
+    const onClose = vi.fn();
+    const error = { kind: 'error' as const, title: '못 보냈어요', description: '다시 시도해 주세요.' };
+    render(<ConfirmStepModal {...baseProps} open onClose={onClose} result={error} explicitDismiss />);
+
+    fireEvent.keyDown(document, { key: 'Escape' });
+    fireEvent.click(screen.getByTestId('confirm-step-modal-backdrop'));
+    expect(onClose).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('button', { name: '닫기' }));
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('explicitDismiss keeps 다시 요청하기 off the success frame', () => {
+    // onRetry belongs to a failure. On a success frame it would offer to redo what just
+    // succeeded — the dismiss button is the only thing that frame grows.
+    render(
+      <ConfirmStepModal
+        {...baseProps}
+        open
+        onRetry={vi.fn()}
+        result={{ kind: 'success', title: '보냈어요', description: '곧 이동해요.' }}
+        explicitDismiss
+      />,
+    );
+    expect(screen.getByRole('button', { name: '닫기' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: '다시 요청하기' })).toBeNull();
+  });
+
+  it('explicitDismiss holds focus in the dialog when the error frame has no retry', () => {
+    // Nothing else can take it: the confirm pair was unmounted with the question, and
+    // there is no 다시 요청하기. Without the frame taking focus it falls to <body>.
+    const { rerender } = render(<ConfirmStepModal {...baseProps} open />);
+    rerender(
+      <ConfirmStepModal
+        {...baseProps}
+        open
+        result={{ kind: 'error', title: '못 보냈어요', description: '다시 시도해 주세요.' }}
+        explicitDismiss
+      />,
+    );
+    expect(document.activeElement).toBe(screen.getByRole('alert'));
+  });
+
   // 실패는 기다리던 사용자를 끊어야 하고, 성공은 끊을 것이 없다.
   it('announces the result — assertive on error, polite on success', () => {
     const { rerender } = render(

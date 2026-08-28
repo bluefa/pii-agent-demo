@@ -66,6 +66,17 @@ export interface ConfirmStepModalProps {
   result?: ConfirmStepResult | null;
   /** 다시 요청하기 on the error frame. Without it the frame shows 닫기 alone. */
   onRetry?: () => void;
+  /**
+   * The result frame waits for a press. Opt-in, because every other caller advances off
+   * the result by itself — the step moves on, the list reloads — and for them a success
+   * frame with a button would be a second way to do what already happened.
+   *
+   * Callers that stay put (an admin action whose record is the page behind the dialog)
+   * need the opposite: the success frame grows the same 닫기 the error frame has, and
+   * Escape and the backdrop stop closing anything while EITHER frame stands, so the
+   * result cannot be dismissed by a stray key or a click outside.
+   */
+  explicitDismiss?: boolean;
 }
 
 /** Tighter chrome than modalStyles.toss.* (px-10/pt-9, no footer hairline change): a two-button
@@ -152,6 +163,7 @@ export const ConfirmStepModal = ({
   tone = 'default',
   result = null,
   onRetry,
+  explicitDismiss = false,
 }: ConfirmStepModalProps) => {
   const cancelRef = useRef<HTMLButtonElement>(null);
   const confirmRef = useRef<HTMLButtonElement>(null);
@@ -160,7 +172,9 @@ export const ConfirmStepModal = ({
   const overlayRef = useRef<HTMLDivElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
   const resultKind = result?.kind ?? null;
-  const locked = isPending || resultKind === 'success';
+  // The success frame always locks: its transition is already committed. `explicitDismiss`
+  // extends that to the error frame too, since there the dialog IS the result.
+  const locked = isPending || (explicitDismiss ? result !== null : resultKind === 'success');
   /** 결과 프레임의 눈금 — 표를 담는 `lg` 상자에서만 한 칸 위(resultTileLg 참고). */
   const roomy = size === 'lg';
 
@@ -185,7 +199,10 @@ export const ConfirmStepModal = ({
     // unmounted with the body — focus would fall to <body> and Tab would walk the page
     // behind an aria-modal dialog. The frame holds it instead.
     if (resultKind === 'success') resultRef.current?.focus();
-  }, [resultKind, isPending]);
+    // A dismiss-only error frame has no 다시 요청하기 to take focus, so the frame holds it
+    // rather than letting it fall to <body>; the Tab trap reaches 닫기 from there.
+    if (explicitDismiss && resultKind === 'error' && !retryRef.current) resultRef.current?.focus();
+  }, [resultKind, isPending, explicitDismiss]);
 
   useEffect(() => {
     if (!open) return;
@@ -338,7 +355,7 @@ export const ConfirmStepModal = ({
             {result.reason && (
               <p className={roomy ? resultReasonLg : resultReason}>{result.reason}</p>
             )}
-            {result.kind === 'error' && (
+            {(result.kind === 'error' || explicitDismiss) && (
               <div className={cn('flex gap-2.5', roomy ? 'mt-8' : 'mt-6')}>
                 <button
                   type="button"
@@ -348,7 +365,7 @@ export const ConfirmStepModal = ({
                 >
                   닫기
                 </button>
-                {onRetry && (
+                {result.kind === 'error' && onRetry && (
                   <button
                     ref={retryRef}
                     type="button"

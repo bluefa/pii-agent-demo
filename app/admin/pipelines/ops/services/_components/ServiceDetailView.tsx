@@ -34,7 +34,10 @@ import { opsStyles } from '@/app/admin/pipelines/ops/target-sources/[targetSourc
 import { CompletedStampSlot } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/CompletedStamp';
 import { serviceListStyles as s } from '@/app/admin/pipelines/_services/styles';
 import { useApiAction } from '@/app/hooks/useApiMutation';
-import { ConfirmStepModal } from '@/app/components/ui/ConfirmStepModal';
+import {
+  ConfirmStepModal,
+  type ConfirmStepResult,
+} from '@/app/components/ui/ConfirmStepModal';
 import { safeBrowseUrl } from '@/lib/jira-ticket';
 import { JiraTicketMenu } from '@/app/admin/pipelines/ops/services/_components/JiraTicketMenu';
 import {
@@ -347,7 +350,7 @@ function DetailSkeleton(): ReactElement {
 export interface ServiceDetailViewProps {
   serviceCode: string;
   /**
-   * 운영 동작(설치 상태 갱신 · 서비스 종료)을 이 사람이 쓸 수 있는지. 서버
+   * 운영 동작(서비스 PII Agent 설치완료 · 서비스 종료)을 이 사람이 쓸 수 있는지. 서버
    * (`page.tsx` 의 `isAdminRole`)가 판정해 내려 준다 — 화면은 다시 판정하지 않는다.
    */
   isAdmin: boolean;
@@ -359,8 +362,17 @@ type ServiceActionKind = 'installed' | 'eos';
 /** 결과 패널이 그리는 순서 — 동작이 실행된 순서가 아니라 늘 같은 순서다. */
 const SERVICE_ACTIONS: readonly ServiceActionKind[] = ['installed', 'eos'];
 const ACTION_LABEL: Record<ServiceActionKind, string> = {
-  installed: '설치 상태 갱신',
+  installed: '서비스 PII Agent 설치완료',
   eos: '서비스 종료',
+};
+/** 모달의 결과 프레임 제목 — 동작 이름과 같은 어휘로 말한다. */
+const SUCCESS_TITLE: Record<ServiceActionKind, string> = {
+  installed: 'PII Agent 설치완료로 표시했습니다.',
+  eos: '서비스를 종료했습니다.',
+};
+const FAILURE_TITLE: Record<ServiceActionKind, string> = {
+  installed: 'PII Agent 설치완료로 표시하지 못했습니다.',
+  eos: '서비스를 종료하지 못했습니다.',
 };
 
 /** 동작 한 번의 결과. 실패는 응답이 준 값을 그대로 담는다. */
@@ -375,6 +387,8 @@ type ActionOutcome =
       requestId?: string;
       timestamp?: string;
     };
+/** 실패 가지만 — 모달의 reason 은 이 값에서 곧장 온다. */
+type ActionFailure = Extract<ActionOutcome, { ok: false }>;
 
 /**
  * Keep the failed response as it arrived. `useApiAction` types `onError` as `Error`, but
@@ -386,7 +400,7 @@ type ActionOutcome =
  * Anything else thrown (network, abort) never came from the API, so it is recorded with
  * status 0 rather than dressed up as a response.
  */
-function failureOf(error: Error): ActionOutcome {
+function failureOf(error: Error): ActionFailure {
   const at = new Date().toISOString();
   if (error instanceof AppError) {
     return {
@@ -459,30 +473,39 @@ export function ServiceDetailView({
   const record = (kind: ServiceActionKind, outcome: ActionOutcome) =>
     setOutcomes((prev) => ({ ...prev, [kind]: outcome }));
 
+  // 모달이 결과를 들고 서 있는다 — 요청이 끝나도 스스로 닫히지 않고, 닫기(onClose)만 닫는다.
+  const [actionResult, setActionResult] = useState<ConfirmStepResult | null>(null);
+  const succeeded = (kind: ServiceActionKind) => {
+    record(kind, { ok: true, at: new Date().toISOString() });
+    setActionResult({
+      kind: 'success',
+      title: SUCCESS_TITLE[kind],
+      description: '실행 기록은 아래에 남습니다.',
+    });
+    reload();
+  };
+  // reason 은 서버 문장 그대로 — 지금 무엇을 해야 하는지는 그 한 줄에 있다. 전문(status ·
+  // code · requestId · 서버 시각)은 뒤의 패널이 계속 들고 있다.
+  const failedWith = (kind: ServiceActionKind, error: Error) => {
+    const failure = failureOf(error);
+    record(kind, failure);
+    setActionResult({
+      kind: 'error',
+      title: FAILURE_TITLE[kind],
+      description: '응답 전문은 아래 실행 기록에 있습니다.',
+      reason: failure.message,
+    });
+  };
+
   // `useApiAction` 은 같은 훅 모듈의 무인자 형태다 — 두 동작 다 보낼 값이 없다.
-  // 결과는 아래 패널이 말한다: 성공이든 실패든 모달은 닫고, 실패해도 다시 읽지 않는다.
   const installed = useApiAction(() => updateServiceInstalled(serviceCode), {
-    onSuccess: () => {
-      setActionFor(null);
-      record('installed', { ok: true, at: new Date().toISOString() });
-      reload();
-    },
-    onError: (error) => {
-      setActionFor(null);
-      record('installed', failureOf(error));
-    },
+    onSuccess: () => succeeded('installed'),
+    onError: (error) => failedWith('installed', error),
   });
 
   const eos = useApiAction(() => endOfService(serviceCode), {
-    onSuccess: () => {
-      setActionFor(null);
-      record('eos', { ok: true, at: new Date().toISOString() });
-      reload();
-    },
-    onError: (error) => {
-      setActionFor(null);
-      record('eos', failureOf(error));
-    },
+    onSuccess: () => succeeded('eos'),
+    onError: (error) => failedWith('eos', error),
   });
 
   const actionPending = installed.loading || eos.loading;
@@ -591,14 +614,14 @@ export function ServiceDetailView({
               disabled={actionPending}
               onClick={() => setActionFor('installed')}
             >
-              설치 상태 갱신
+              {ACTION_LABEL.installed}
             </PlButton>
             <PlButton
               variant="danger"
               disabled={actionPending}
               onClick={() => setActionFor('eos')}
             >
-              서비스 종료
+              {ACTION_LABEL.eos}
             </PlButton>
           </div>
         )}
@@ -988,13 +1011,20 @@ export function ServiceDetailView({
         />
       )}
 
-      {/* 두 동작이 모달 하나를 나눠 쓴다 — 프레임은 같고 문장과 톤만 갈린다. */}
+      {/* 두 동작이 모달 하나를 나눠 쓴다 — 프레임은 같고 문장과 톤만 갈린다.
+          결과가 나와도 스스로 닫히지 않는다(explicitDismiss): 닫기를 누르는 것만이
+          이 상자를 치우고, 그때 물고 있던 동작과 결과가 함께 풀린다. */}
       <ConfirmStepModal
         open={actionFor !== null}
-        onClose={() => setActionFor(null)}
+        onClose={() => {
+          setActionFor(null);
+          setActionResult(null);
+        }}
         onConfirm={() => actionFor && runAction(actionFor)}
         title={
-          actionFor === 'eos' ? '서비스를 종료할까요?' : '설치 상태를 갱신할까요?'
+          actionFor === 'eos'
+            ? '서비스를 종료할까요?'
+            : '서비스 PII Agent 설치완료로 표시할까요?'
         }
         // install-v1.yaml 의 두 선언은 경로와 204 뿐이다 — 서버가 무엇을 하는지 모른다.
         // 그래서 문장은 동작 이름을 되풀이할 뿐, 그 안의 기제를 말하지 않는다.
@@ -1003,11 +1033,13 @@ export function ServiceDetailView({
         description={
           actionFor === 'eos'
             ? `${detail.service_name} 서비스를 종료 처리합니다. 이 화면에서는 되돌릴 수 없습니다.`
-            : `${detail.service_name} 서비스의 설치 상태를 갱신합니다.`
+            : `${detail.service_name} 서비스를 PII Agent 설치완료로 표시합니다.`
         }
-        confirmLabel={actionFor === 'eos' ? '서비스 종료' : '갱신'}
+        confirmLabel={actionFor === 'eos' ? '서비스 종료' : '설치완료'}
         tone={actionFor === 'eos' ? 'warning' : 'default'}
         isPending={actionPending}
+        result={actionResult}
+        explicitDismiss
       />
     </div>
   );
