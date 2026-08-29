@@ -1412,13 +1412,17 @@ export const navStyles = {
    * contrast left to draw a boundary with, so the boundary is a line, not a
    * shade — the pattern AWS Cloudscape hardcodes (`borderBlockEnd`) after
    * flagging the missing seam as a component bug on the same overlap layout
-   * (header stacked over sidebar). `white/10` matches the alpha this bar
-   * already spends elsewhere (`link.active` = white/10, `divider` = white/15).
-   * Composited over navStyles.bg the line renders #28303E, 1.33:1 against it
-   * (measured in-browser) — a hairline, not a fill; it is meant to be found,
-   * not read.
+   * (header stacked over sidebar). `white/15` matches the alpha `divider`
+   * already spends on this bar, so the two rules that structure the chrome —
+   * the vertical one between nav clusters and this horizontal one under the
+   * whole bar — are drawn at the same strength.
+   * Composited over navStyles.bg the line renders #343B48, 1.58:1 against it
+   * (measured in-browser). A step above the 1.19-1.36 band the measured
+   * references sit in (Sentry 1.19, Grafana 1.31, Stripe 1.36) and below
+   * Primer's 2.15 — deliberate: the seam only ever has a 216px dark sidebar
+   * under it, and at white/10 the line was legible but easy to miss there.
    */
-  seam: 'border-b border-white/10',
+  seam: 'border-b border-white/15',
   brand: {
     /** PA — the ink half of the wordmark. */
     wordmarkInk: 'fill-white', // design-exempt: brand logotype on navStyles.bg
