@@ -207,12 +207,9 @@ export const ServiceListPanel = ({ currentService }: ServiceListPanelProps) => {
       // failed, and moving the page out from under that frame is the exact thing this
       // deadline exists to prevent.
       if (timedOut) return;
-      // URL-driven selection: the services page reads `?service_code=`. Preserve
-      // the original casing — the target-sources lookup is case-sensitive (404 on
-      // a wrong-case code).
-      router.push(
-        `${passRoutes.services}?service_code=${encodeURIComponent(data.code)}`,
-      );
+      // URL-driven selection — the query IS the service's deep link, and the casing
+      // rule that goes with it lives on `passRoutes.service`.
+      router.push(passRoutes.service(data.code));
     } catch {
       if (timedOut) return;
       // Pending clears, the failure stays: the dialog swaps to its error frame, whose

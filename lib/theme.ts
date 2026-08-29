@@ -770,8 +770,13 @@ export const projectHeaderStyles = {
    * stepper's text at 336 with no inset at all, while every step card below typed at
    * 364 — so the eye read a wobble down the left edge of the page. Nothing in this
    * header carries its own horizontal padding any more; the column provides it once.
+   *
+   * `pb-[18px]` is the header's floor (오너 2026-08-28). It used to come from the 설치
+   * 진행 block's own `pb`, which was always rendered; the road now lives behind the
+   * drawer, so without a floor here the header's bottom gap changed depending on whether
+   * the reader had opened it.
    */
-  inner: 'px-[48px] pt-[18px]',
+  inner: 'px-[48px] pt-[18px] pb-[18px]',
   /** The path and any page action. No plane under it — see `targetGroup`. */
   titleRow: 'flex items-start justify-between gap-4',
   /**
@@ -782,7 +787,11 @@ export const projectHeaderStyles = {
    *
    * Same grammar as the ops side of the same target (`opsStyles.path`): 12px, a
    * 280px clamp on the name, the last segment closing the path as "you are here".
-   * Nothing here links, so this is a heading SHAPED like a path, not a breadcrumb.
+   *
+   * It is a REAL breadcrumb now (오너 2026-08-29). This doc used to end 「nothing here
+   * links, so this is a heading SHAPED like a path」 — that is retired: the first two
+   * segments navigate, so the line takes the `<nav aria-label="경로">` landmark that a
+   * heading did not need, and the last segment carries `aria-current="page"`.
    */
   crumb: 'flex min-w-0 flex-wrap items-center gap-1.5 text-[12px] leading-[1.5] text-[#4E5968]',
   /** 「PII Agent 설치」 — semibold (오너 13차 지시), 14px (오너 16차 지시). Size and weight,
@@ -792,54 +801,47 @@ export const projectHeaderStyles = {
       header NAMES (this root and the two `blockLabel` blocks) now sit one step above
       everything they name, where before every name shared 12px with the values. */
   crumbRoot: 'flex-none text-[14px] font-semibold',
-  crumbSep: 'flex-none text-[#A6ADBB]', // design-exempt: decorative path glyph, the labels around it carry the reading
+  crumbSep: 'flex-none text-[#A6ADBB]',
+  /**
+   * The interaction half of a path segment, composed onto `crumbRoot`/`crumbName` —
+   * ⛔ not a segment style of its own. Each segment keeps the ink and size it already
+   * had; this only says what happens when the reader reaches for it.
+   *
+   * **Links do not turn blue** (오너 2026-08-29), the same call as
+   * `projectHeaderStyles.metaCue` and for the same reason: hue in this header must not
+   * claim attention, and a path is the quietest thing on the page. Pressability is
+   * declared on interaction — `opsStyles.pathLink`'s grammar
+   * (「누를 수 있다는 것은 hover 가 말한다」) — and the hover ink is the one `metaCue`
+   * already darkens to, so the header has one "you are touching this" tone, not two.
+   *
+   * ⛔ No hand-drawn focus ring. `globals.css` paints `*:focus-visible` OUTSIDE the
+   * cascade layer, so a Tailwind ring here would be drawn alongside the global outline
+   * rather than instead of it, and `focus-visible:outline-none` cannot turn that off
+   * (see `opsStyles.fmCue`). The ink and underline are what this token adds on top.
+   */
+  crumbLink:
+    'cursor-pointer transition-colors hover:text-[#191F28] hover:underline focus-visible:text-[#191F28] focus-visible:underline motion-reduce:transition-none', // design-exempt: decorative path glyph, the labels around it carry the reading
   crumbName: 'max-w-[280px] truncate',
   /**
-   * 「서비스」 — the kind marker in front of the name (오너 12차 지시). A path segment
-   * states a value and says nothing about what KIND of value it is, which is fine for
-   * a location a reader recognises and useless for one they do not: `/ DLV` told a
-   * first-time reader nothing at all. Naming the kind is the one thing a breadcrumb
-   * cannot do and a tag can.
+   * The service CODE, closing the path (오너 2026-08-28). It is the identifier segment,
+   * so it wears the one lever this line gives an identifier: mono, medium, and one rung
+   * darker than the words around it — exactly `opsStyles.pathLinkId` on the ops side of
+   * the same target, minus the link affordances, because nothing on this heading is
+   * clickable.
    *
-   * The same shell as `codeChip` below, minus the value — one slate vocabulary for the
-   * whole line. Slate, not blue: in this palette blue means "clickable" and nothing on
-   * this heading is.
+   * ⛔ No painted tag, and no 「서비스」/「서비스 코드」 kind labels in front of the two
+   * segments. Those tags were the header's fourth and fifth planes, and this round
+   * removed every plane it could: the path root already names what the line is about,
+   * and mono says "identifier" without a fill. #344054 is `--pl-text-medium`, 9.4:1 on
+   * the lavender wash.
    *
-   * Both path tags carry `tagStroke` (오너 15차 지시). See that token for the value.
+   * ⛔ This segment does NOT link, and takes no `crumbLink` (오너 2026-08-29). It is the
+   * identifier of where the reader already stands, and the segment before it goes to the
+   * same service — two adjacent links to one destination is one link too many, which is
+   * the exact flaw the ops path removed on 2026-08-26. It carries `aria-current="page"`
+   * instead, which is what actually answers 「where am I」 for a screen reader.
    */
-  crumbKind:
-    'inline-flex flex-none items-center rounded-[6px] border border-[#D7DBE3] bg-[#EAEEF7] px-2 py-[3px] text-[12px] font-medium text-[#55617A]',
-  /**
-   * The service code as a tag, carrying its own label (오너 12차 지시). Restored from
-   * the token this file held until `dddad0da`, when the code moved into the path's
-   * last segment and emptied the slot — same radius, same padding, same label and
-   * value tints, so this is the old chip and not a new one.
-   *
-   * The one thing that did NOT come back is its own fill. `#E9EEF9` measures ΔE 1.08
-   * from `modeChipAuto`'s `#EAEEF7` and both sit at L* 94.0 — restoring it would have
-   * put two indistinguishable slates on one header behind two tokens. The two chips
-   * separate on the value's mono, which is the difference that carries meaning.
-   *
-   * `items-baseline`, so the 12px label and the mono value sit on one line however
-   * the mono face's metrics differ from the body face.
-   *
-   * `#D7DBE3` is a **stroke on black**, two rungs down from the fill (오너 15차 지시).
-   * It is literally `rgba(0,0,0,.08)` over `#EAEEF7`, baked opaque — the border box
-   * paints over the fill anyway, so the two render identically, and only the hex form
-   * is measurable by `design-guard.test.ts`. Black rather than a darker slate: the
-   * fill already carries the blue cast, and a second blue rung would have made the
-   * edge read as more chip rather than as an edge.
-   *
-   * "Two rungs" is measured, not chosen. From this fill, the repo's own strokes sit at
-   * ΔE00 2.31 (`blockHead`'s hairline) and 4.29 (the card stroke that used to house
-   * this header); `#D7DBE3` is **4.20** — the second rung, and 5.89 from the page wash,
-   * so the tag keeps a silhouette on both sides of its edge. ⛔ Don't reach for the
-   * third rung (`#C6CCD6`, ΔE 7.84): these tags sit in a 12px path, not on a card.
-   */
-  codeChip:
-    'inline-flex flex-none items-baseline gap-1.5 rounded-[6px] border border-[#D7DBE3] bg-[#EAEEF7] px-2 py-[3px]',
-  codeChipLabel: 'text-[12px] font-medium text-[#55617A]',
-  codeChipValue: 'font-mono text-[12px] font-semibold text-[#2C3A55]',
+  crumbCode: 'flex-none font-mono text-[12px] font-medium text-[#344054]',
   /**
    * 시안 2 (P2): task-first H1 — the service identity demotes to this line, and
    * that line is now the disclosure itself: the facts on it ARE the summary of
@@ -863,29 +865,40 @@ export const projectHeaderStyles = {
    * the shadow and the fill never made it read as a summary: the surface was not too
    * weak, it was saying the wrong thing.
    *
-   * What the owner's original complaint actually wanted was a NAME, and the header
-   * already had one in this exact grammar — 「설치 진행」. So this block gets its
-   * sibling: `blockLabel` above, one hairline under it, and the 6/18px distance ratio
-   * these tokens already carried doing the grouping. It is a `<section>` with an
-   * accessible name, which is more than the card ever had.
+   * What the owner's original complaint actually wanted was a NAME, and this block is
+   * now the header's ONLY one (오너 2026-08-28). 「설치 진행」 was dissolved: it spent a
+   * whole block — a name, a hairline and ~70px — carrying one tag, so the tag moved onto
+   * this block's head row and its road moved behind this block's drawer. It is a
+   * `<section>` with an accessible name, which is more than the card ever had.
    *
-   * 18px from the path above — the block separation this file already uses, and the
-   * `18 : 6` ratio is now the only thing grouping these tiers. No width cap: `inner`
-   * already lands the content box on the step card's own text column (364..1314 at
-   * 1710px), and an 860px cap stopped the rules 118px short of it, which read as the
-   * header having a right margin nothing else on the page had.
+   * 18px from the path above — the block separation this file already uses. No width
+   * cap: `inner` already lands the content box on the step card's own text column
+   * (364..1314 at 1710px), and an 860px cap stopped it 118px short of that, which read
+   * as the header having a right margin nothing else on the page had.
    */
   targetGroup: 'mt-[18px]',
   /**
-   * The block's name and its one control, on the line the hairline closes. The rule
-   * lives on this row rather than on a divider of its own: one line, drawn once,
-   * marking where the named block starts — not a second box.
+   * The block's name and its one control — and **no rule** (오너 2026-08-28). The
+   * hairline that used to close this row was the last of three: the header drew two
+   * horizontal rules and one vertical divider on a wash it otherwise painted nothing on,
+   * and the horizontal one measured 1.16:1 against `#F4F4FB` — a mark too faint to group
+   * anything, spending a full tier of the header's chrome budget to do it.
    *
-   * Shared with 설치 진행 (`InstallationProcessProgressBar`), which is the point: the
-   * header is two blocks in one grammar, and a rule under only one of them would make
-   * them look like different kinds of thing.
+   * Grouping is carried by the name (16px, one rung above everything under it) and the
+   * 22px gap beneath it, which is exactly what `opsStyles.fmHead` does one screen over
+   * after the same instruction. There is now one block, so there is nothing left for a
+   * rule to separate it FROM.
+   *
+   * ⛔ Do not re-add `border-b`. It is not a hairline this header is missing; it is the
+   * reason the header read as a stack of boxes with the boxes taken away.
    */
-  blockHead: 'flex items-center justify-between gap-4 border-b border-[#E1E4EB] pb-1.5',
+  blockHead: 'flex items-center justify-between gap-4 pb-1.5',
+  /** The block's left half — mark, name, position tag, and the 연결 테스트 verdict when
+      the drawer is open. `justify-between` on `blockHead` gives the cue the right half,
+      so a fourth child hung directly off that row would drift into the middle instead of
+      staying beside the name it belongs to. `items-center`, not baseline: the provider
+      mark is a 28px box, not a line of type. */
+  blockName: 'flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1',
   /**
    * Block eyebrow (설명 / 설치 진행) — the stronger of the two label tiers, always
    * on a line of its own above the content it names.
@@ -901,15 +914,19 @@ export const projectHeaderStyles = {
    * that replaced the card is the same tier as the block names beside it, which is
    * the whole reason the header now reads as named blocks (오너 11차 지시).
    *
-   * 14px (오너 16차 지시), with `crumbRoot`. A name that shares its size with the values
-   * under it is only a name by position; this header has exactly three things that NAME
-   * something — the path's root and these two blocks — and they now stand one rung above
-   * everything they introduce. 14 is the ramp's existing upper rung, not a new value.
+   * 16px (오너 2026-08-28) — up from 14. 「설치 대상」 is now the ONLY name in this header
+   * apart from the path's root, and the path root reads at 14: a name that shares its
+   * size with the line above it introduces nothing. This is the same rung and the same
+   * three-tier ramp `opsStyles.fmLabel` took after the same instruction (16 name /
+   * 14 value / 12 label), so the two screens' block heads read as one grammar.
    */
-  blockLabel: 'whitespace-nowrap text-[14px] font-semibold tracking-[0.02em] text-[#4E5968]',
+  blockLabel: 'whitespace-nowrap text-[16px] font-semibold tracking-[0.02em] text-[#4E5968]',
   block: 'mt-[18px]',
-  /** Description body — 2-line clamp; the whole block is skipped when empty. */
-  descText: 'mt-1.5 max-w-[82ch] text-[14px] font-medium leading-[1.5] text-[#4E5968] line-clamp-2',
+  /** Description body. No clamp any more (오너 2026-08-28): the description is the FIRST
+      thing the drawer opens and the only thing in it that carries a label, so a reader
+      who pressed 「상세 정보」 to read it must get all of it. The `82ch` measure is what
+      keeps a long one readable. The block is skipped when empty. */
+  descText: 'mt-1.5 max-w-[82ch] text-[14px] font-medium leading-[1.5] text-[#4E5968]',
   /** The provider's name in ink — IDC and SDU only, now that the branded clouds let
       their logo say it (오너 8차 지시). leading is explicit on BOTH line boxes — see
       summaryValue. */
@@ -917,9 +934,9 @@ export const projectHeaderStyles = {
   /** Plain-language gloss after a bare token (IDC → 사내망). */
   providerGloss: 'text-[#4E5968]',
   providerGlossBar: 'mx-1.5 text-[#C6CCD6]', // design-exempt: decorative separator glyph, not text
-  divider: 'w-px flex-none self-stretch bg-[#E4E5EE]',
-  /** Field name — every row of the fact column runs through here: AWS Account ID,
-      GCP Project ID, Azure Subscription/Tenant ID, 설치 모드. The quieter of the two
+  /** Field name — every cell of the fact grid runs through here (계정 · 스캔 역할 ·
+      테라폼 역할 · 설치 모드 on AWS), and so does the drawer's 「계정 설명」, which is a
+      field name and not a block name. The quieter of the two
       label tiers and the one sitting nearest the AA floor; see blockLabel for the
       pair. Semibold like blockLabel, so the two tiers separate on colour and
       tracking, never on weight.
@@ -960,40 +977,121 @@ export const projectHeaderStyles = {
       only carries leading and the block box. Mirrors `idcStyles.table.headerTipBody`. */
   modeTipBody: 'block leading-[1.6]',
   /**
-   * The block's whole scope area: the provider on the left as the subject, every
-   * identifier it owns listed to its right. Plain content, not a press — the
-   * identifiers carry copy buttons and nothing interactive may sit inside a
-   * `<button>`, so the disclosure is the cue up on the block head instead.
+   * The facts, as a kv grid: label ABOVE value, one cell per fact (오너 2026-08-28,
+   * Cloudscape key-value pairs — the same shape `opsStyles.fmGrid` uses for the same
+   * target). It replaces a row that put the provider mark on the left as a subject and
+   * stacked `label · value` pairs to its right behind a vertical divider: three planes'
+   * worth of structure for four facts, and it could only ever say what ONE provider
+   * owned before the row ran out of width.
    *
-   * Centered, not top-aligned (오너 9차 지시): the mark is the subject of the whole
-   * fact block, not a bullet on its first line, and `items-start` was reading it as
-   * the latter — 28px pinned to the top of a 50px stack left it 11px high. The
-   * divider opts out with `self-stretch`, and the stack is the tallest item, so this
-   * moves the mark and nothing else.
+   * `auto-fit` between 200 and 240px, NOT a fixed four (오너 2026-08-28 — the ops grid's
+   * `repeat(4,minmax(0,240px))` cannot be copied here). The ops masthead has the whole
+   * window; this header stands in a column with a guide rail beside it, and at that
+   * width a fixed fourth track squeezes a cell to 94px — narrow enough to ellipsis a
+   * role name that fits everywhere else. Column count follows width, so the grid wraps
+   * to two rows instead of shrinking a cell below its content.
    *
-   * No horizontal padding of its own any more — `inner` owns the one keyline.
+   * 18px between columns and 22px above the first row: both from `opsStyles.fmGrid`,
+   * where 22 is what took over from the hairline this round also removed.
    */
-  summaryRow: 'flex items-center gap-3 pb-1 pt-2.5',
+  factGrid:
+    'grid grid-cols-[repeat(auto-fit,minmax(200px,240px))] gap-x-[18px] gap-y-3 pt-[22px] pb-1',
+  /** One fact — its label, then its value under it. 4px binds the pair; `min-w-0` is what
+      lets the value inside truncate rather than push the column wide. */
+  factCell: 'flex min-w-0 flex-col gap-1',
   /**
-   * The provider cell — a bare mark for the branded clouds, mark plus name at the
-   * house's 6px for IDC and SDU. Explicit `flex-none` at the call site, never baked
-   * in: `flex: none` pins flex-shrink to 0, which is right here and silently fatal on
-   * the identifier column, where it would defeat the truncation and let the row
-   * overflow the card instead.
-   */
-  summaryFact: 'flex items-center gap-1.5',
-  /**
-   * Every identifier the target owns, one per row (오너 6차 지시: Azure 는 sub·tenant
-   * 를 2줄로). A grid, not a wrapping flex row: `auto` sizes the label column to the
-   * longest label so 「Subscription ID」 and 「Tenant ID」 start their values on the
-   * same x, which is the whole reason two lines read as a list rather than as a
-   * line that ran out of room. Rows are structural, so the second one appears
-   * because a second identifier exists — never because the viewport shrank.
+   * The same fact when it is the grid's ONLY one (오너 2026-08-29) — label beside value,
+   * on one line.
    *
-   * 6px binds a label to its value, 4px separates two identifiers: tighter than the
-   * blocks' 1:3 because these rows are one field repeated, not distinct groups.
+   * A label stands ABOVE its value so that labels line up across the columns beside it;
+   * that alignment is the whole return on the stack. A lone cell has no neighbouring
+   * column to line up with, so the stack buys nothing and spends a line: measured at 46px
+   * (18 label + 4 gap + 24 value) inside a 72px grid block, against ~24px inline.
+   *
+   * ⛔ A structural rule, not a provider's. It happens to fire only for GCP today (AWS
+   * has four cells, Azure two, IDC and SDU none so the grid does not render at all) — but
+   * ⛔ do not turn it into a provider-keyed grid variant. The ops screen carries exactly
+   * that debt in `fmGrid` vs `fmGridGcp`, and one grid that reads its own contents is
+   * cheaper than two that have to be kept in step.
+   *
+   * `grid-cols-[auto_1fr]` is this header's own earlier `summaryIds`, restored: the label
+   * column takes the label's width and the value takes the rest, so the value still
+   * truncates. `items-baseline`, because the pair is 12px beside 14px and only a shared
+   * baseline makes that read as one line.
+   *
+   * `col-span-2` for the same reason the cell is inline at all. One track is sized to hold
+   * a label OR a value; inline asks it to hold BOTH, and it cannot — 「GCP Project ID」 and
+   * its 6px gap take 110px of a 240px track, leaving the value 130px where it needed 137,
+   * and it clipped by 7px (measured). A lone cell has no neighbour to push, so the two
+   * tracks cost nothing: the value gets ~388px, which holds a GCP project id at its
+   * 30-character maximum with room to spare.
+   *
+   * ⛔ This is why `wide` is a no-op on an inline cell — it already spans two. Do not
+   * "fix" a future inline overflow by raising `WIDE_CELL_MIN_CHARS`; that threshold
+   * measures the value alone and knows nothing about the label sitting beside it.
    */
-  summaryIds: 'grid min-w-0 grid-cols-[auto_1fr] items-center gap-x-1.5 gap-y-1',
+  factCellInline: 'col-span-2 grid min-w-0 grid-cols-[auto_1fr] items-center gap-x-1.5',
+  /**
+   * The label of a LONE fact, as a small white tag (오너 2026-08-29).
+   *
+   * ⛔ Only the inline form. The stacked labels (`kvLabel`) stay plain text, and that is
+   * not an inconsistency to "fix" later: in the stacked form the label is marked by its
+   * POSITION — a line of its own above the value — while inline it stands shoulder to
+   * shoulder with the value and has nothing but itself to say "this is a field name".
+   * A boundary is what replaces the line break.
+   *
+   * On this header's ground `#F4F4FB`:
+   *   white fill 1.09:1 · stroke `#C6CCD6` 1.47:1 · `#D7DBE3` 1.27:1
+   *   text `#4E5968` on white 7.11:1 (`#68717F` would be 4.93:1)
+   *
+   * The fill carries NOTHING at 1.09 — the tag's whole silhouette rests on the stroke,
+   * which is the `흰 면 + stroke` case `tableRowLift.chipEdge` already reasons about. So
+   * the stroke takes the darker rung and the text keeps the reading at 7.11:1: a faint
+   * stroke only has to draw a boundary, never legibility.
+   *
+   * ⚠️ `#C6CCD6` was once prohibited by the removed `codeChip` doc — 「don't reach for the
+   * third rung; these tags sit in a 12px path, not on a card」. That premise was a tag in
+   * the PATH LINE, competing with two neighbouring segments. This tag is in the fact row
+   * and is the only thing marking a field name there, so the premise is gone and the
+   * ruling does not bind. It is recorded rather than silently contradicted; `#D7DBE3`
+   * (1.27:1) is the fallback if this ever reads heavy.
+   *
+   * **12px** (오너 2026-08-29 correction — it shipped at 10 for one round). The size is
+   * the reason this can be a tag at all: it sits ONE rung below the 14px value it labels,
+   * not two. At 10 it read as chrome — a caption for the value rather than a name for it —
+   * and at 14 it would have competed with the value itself.
+   *
+   * That puts it on `kvLabel`'s 12px, which is right: it is the same tier of thing, and
+   * the two are never adjacent (the tag only appears when there is exactly one cell, and
+   * `kvLabel` only when there are two or more). What separates them is the box, not the
+   * size.
+   *
+   * `leading-[18px]` keeps the 10px precedent's 1.5 ratio, so the box grows with the type
+   * instead of gripping it: 18 + two 1px strokes = a 20px tag beside a 24px value line, so
+   * the cell height and the fact block do not move. `px-1.5` for the same reason — 4px of
+   * side padding reads cramped against an 18px line box. ⛔ Do not grow the padding
+   * further; the shape has to stay a tag and not become a button.
+   */
+  factLabelTag:
+    'inline-flex items-center whitespace-nowrap rounded border border-[#C6CCD6] bg-[#FFFFFF] px-1.5 leading-[18px] text-[12px] font-semibold text-[#4E5968]',
+  /**
+   * A fact too long for one track (오너 2026-08-29) — the same answer `opsStyles.fmCellWide`
+   * gives the same values one screen over. Two tracks plus the 18px gap is 498px against
+   * the ~215px a single track leaves for a value: Azure's 36-char UUIDs needed 280px and
+   * got 217, and AWS's 39-char Terraform role needed 247. See `WIDE_CELL_MIN_CHARS` for
+   * the measurements and the character threshold derived from them.
+   *
+   * ⛔ A span, not a wider track. Raising `factGrid`'s max to 320px fixes it at full width
+   * and fails with the guide rail open (~744px lane), where `auto-fit` then resolves three
+   * ~236px tracks and both values clip again. A 2-track span still measures ~490px there.
+   * ⛔ So do not touch `minmax(200px,240px)` to solve this.
+   */
+  factCellWide: 'col-span-2',
+  /** A cell whose fact is positively absent — 「미등록」, 「역할 불필요」. Value size, so the
+      cell keeps its shape, in `kvLabel`'s ink so it never reads as a value: 4.51:1 on the
+      wash, the same AA-floor tint, which is why ⛔ it must not be lightened either.
+      Mirrors `opsStyles.fmNone` on the ops side of the same target. */
+  factNone: 'text-[14px] font-medium text-[#68717F]',
   /** The brand mark (`ProviderGlyph` tone="brand", 오너 지시) — one provider looks the
       same everywhere in the product. Bare, no plate: brand colour is the emphasis,
       and a grey tile only muted it. IDC and SDU have no brand and fall back to this
@@ -1015,57 +1113,62 @@ export const projectHeaderStyles = {
   summaryValueText: 'min-w-0 truncate',
   summaryValueMono: 'font-mono tracking-[-0.02em] tabular-nums',
   /**
-   * Blue, because in this palette blue is the one colour that means "clickable" —
-   * and it names what opens, which the chevron alone cannot. It rides the block
-   * head: the scope below it holds copy buttons, so the scope cannot itself be the
-   * press, and a named block's one control belongs beside the name.
+   * ⛔ **Not blue** (오너 2026-08-28). This token wore `#0050D6` on the argument that blue
+   * is the one colour in this palette meaning "clickable". That argument is retired: in
+   * this palette blue also reads as *you must look at this*, and what this cue opens is
+   * read-once reference — a description and the route. It must not compete for attention
+   * it has not earned.
    *
-   * The name is 「설명」, not 「설치 대상 정보」 (오너 11차 지시). Three rounds of moving
-   * essentials onto the face emptied the fold down to a single paragraph, and a cue
-   * that promises 「정보」 over one paragraph is a cue that overstates its body. It is
-   * also gated now: no description, no cue — an empty disclosure is worse than none.
+   * So the cue joins the chrome family instead: the same `#4E5968` the path and the block
+   * name wear. Pressability is declared by the chevron beside it and by hover, which is
+   * the grammar `opsStyles.pathLink` already uses on the ops side of the same target
+   * (「누를 수 있다는 것은 hover 가 말한다」) — hover darkens to `#191F28` and underlines.
+   *
+   * This is not a legibility trade. Measured on the header's ground `#F4F4FB`:
+   * **#4E5968 = 6.50:1** against the outgoing **#0050D6 = 6.15:1**. The new ink is
+   * slightly stronger; only the hue is quieter. Hover lands at 15.13:1.
+   *
+   * The focus ring stays blue. A focus indicator is not attention-seeking colour — it
+   * appears only for the reader who asked for it, and it is the app's one focus signal.
+   * Keyboard focus takes the hover ink and underline too: a reader who never touches a
+   * pointer must not be the one reader left with no affordance.
+   *
+   * It rides the block head: the grid below it holds copy buttons, so the grid cannot
+   * itself be the press, and a named block's one control belongs beside the name.
+   *
+   * The name is 「상세 정보」 (오너 2026-08-28), and it is the header's ONLY cue. It was
+   * narrowed to 「설명」 when the fold held one paragraph; the fold now holds the
+   * description AND the road, so a cue naming only the paragraph understates its body —
+   * the opposite error, and the same one. It matches `opsStyles.fmCue`.
+   *
+   * ⛔ It is no longer gated. The road always exists, so the drawer is never empty and
+   * the old `hasFold` check would only ever be true.
    */
   metaCue:
-    'flex flex-none items-center gap-1 rounded-[6px] text-[12px] font-semibold text-[#0050D6] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0050D6]/40',
+    'flex flex-none items-center gap-1 rounded-[6px] text-[12px] font-semibold text-[#4E5968] transition-colors hover:text-[#191F28] hover:underline focus-visible:text-[#191F28] focus-visible:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0050D6]/40 motion-reduce:transition-none',
   metaToggleIcon: 'h-3.5 w-3.5 transition-transform motion-reduce:transition-none',
   metaToggleIconOpen: 'rotate-180',
-  /** Distance, not a second rule: the block already draws one line under its name,
-      and a rule here would put the fold in a box of its own — which is the habit
-      this whole round was about. `block` inside supplies the 18px. */
+  /** Distance, not a rule: the header draws none at all now, and a rule here would put
+      the drawer in a box of its own — the habit every round of this header has been
+      about. `block` inside supplies the 18px. */
   targetBody: 'pb-1',
 } as const;
 
 /**
- * 설치 진행 — one row at rest, the seven-step road behind a disclosure (오너 14차 지시).
+ * The install road, and the position tag that reports where the target stands on it.
  *
- * The road named every step so a first-time reader could see the whole route, and
- * charged ~60px of header for it on every visit after the first. 오너 13차 지시 cut it
- * to a sentence on its own line under the block name; this round folds that sentence
- * up ONTO the block name — 설치 진행 · 전체 7단계 중 [4단계 Agent 설치] — and gives the
- * road back to the reader who wants it, on the same 「name + cue + body」 grammar
- * 설치 대상 uses one block above. Nothing was deleted this time, only ranked: the one
- * fact a mid-install reader needs is always on screen, and the route is one click.
+ * The two no longer live together. 설치 진행 used to be a named block of its own — name,
+ * hairline, position tag, 「전체 단계」 cue, road — standing under 설치 대상, and the whole
+ * block spent ~70px stating one tag. 오너 2026-08-28 dissolved it: the tag moved onto the
+ * 설치 대상 head row (`ProjectPageMeta`, where the ops masthead puts its `StepPill`), the
+ * verdict slot went with it, and the road became one of the two things behind the one
+ * remaining cue. So `stepTag`·`tagCount`·`tagSlot` are rendered by the header and the
+ * road tokens by `InstallationProcessProgressBar`.
  *
- * Position is carried by the NUMBERS, which is why they are the only thing that steps
- * up a size: 14px in a 12px row, on the same 12/14 pair the block labels and values
- * already use.
+ * Position is carried by the NUMBERS, which is why they are the only thing in the tag
+ * that steps up a size: 14px in a 12px plate.
  */
 export const installStepperStyles = {
-  wrap: 'mt-[18px] pb-[18px]',
-  /**
-   * The block's name and its position, on ONE row (오너 14차 지시), as the left half of
-   * the shared `blockHead` — the cue takes the right half.
-   *
-   * A container of its own rather than hanging the children off `blockHead`: that row
-   * is `justify-between`, so a third child would be pushed into the middle of the row
-   * instead of staying beside the name it belongs to.
-   *
-   * There is no loose prose left here to separate (오너 16차 지시) — name, then plate,
-   * then the verdict plate. `items-baseline` still, so the 14px name sits on the same
-   * line as the tags' text; wraps rather than truncates, because the 연결 테스트 verdict
-   * rides this row too and at 520px the two do not fit.
-   */
-  head: 'flex min-w-0 flex-wrap items-baseline gap-x-3 gap-y-1',
   /**
    * 「7단계 중 1단계」 — the position, as one tag (오너 16차 지시). The total used to stand
    * outside it as loose 12px prose (「전체 7단계 중」); the owner deleted that, so the plate
@@ -1086,9 +1189,10 @@ export const installStepperStyles = {
    * `design-guard.test.ts` parses these strings as source and cannot follow a `${}` —
    * a test pins the two tokens equal instead. 5.92:1.
    *
-   * The cue at the other end of the row wears the same `#0050D6`, and that is
-   * survivable where the card clash was not: the cue has no fill, carries a chevron,
-   * sits at the opposite edge, and is not the same fact.
+   * The cue at the other end of the row used to wear this same `#0050D6`; it does not any
+   * more (오너 2026-08-28 — see `projectHeaderStyles.metaCue`). That leaves this plate as
+   * the row's ONE blue, which is the state the plate always wanted: it is the fact the eye
+   * should land on, and it no longer has to be survivable beside a second blue.
    *
    * `items-baseline`, so the 14px digits and the 12px words sit on one line inside the
    * tag and the tag itself lands on the block name's baseline. No `gap`: the plate held
@@ -1103,10 +1207,10 @@ export const installStepperStyles = {
       one statement. `tabular-nums` so the line does not shift as the target advances. */
   tagCount: 'text-[14px] font-semibold tabular-nums',
   /**
-   * Verdict slot for 연결 테스트 — in flow, following the step tag on the head row,
-   * and only while the road is open (오너 14차 지시 후속). It is detail about one step,
-   * so it comes with the press that names the steps rather than standing on the
-   * always-visible row.
+   * Verdict slot for 연결 테스트 — in flow, following the step tag on the 설치 대상 head
+   * row, and only while the drawer is open (오너 14차 지시 후속, unchanged by the
+   * 2026-08-28 round). It is detail about one step, so it comes with the press that
+   * names the steps rather than standing on the always-visible row.
    *
    * ⛔ Never `absolute` again. It used to hang from `top-full` under the 연결 테스트
    * dot, so it reflowed nothing and would silently overlap the first card if the
@@ -1117,8 +1221,10 @@ export const installStepperStyles = {
   tagSlot: 'inline-flex items-center',
   /** Left-anchored, capped width — 7 steps don't need the full column; ~120px
       per step keeps the road compact while the longest label still fits.
-      10px under the block rule: the name is no longer touching the road. */
-  list: 'mt-2.5 grid w-full max-w-[860px] list-none p-0',
+      18px above, the same step `projectHeaderStyles.block` gives the description: inside
+      the drawer the road and the description are siblings, so they space as siblings.
+      This carries the road's own spacing now that the section wrapper is gone. */
+  list: 'mt-[18px] grid w-full max-w-[860px] list-none p-0',
   item: 'flex min-w-0 flex-col items-center gap-1.5',
   track: 'relative flex h-[10px] w-full items-center justify-center',
   lineBase: 'absolute top-1/2 -mt-px h-[2px]',

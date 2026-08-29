@@ -38,6 +38,17 @@ export const opsTabSlug = (label: OpsTargetTabLabel): OpsTargetTab =>
 
 export const passRoutes = {
   services: '/services',
+  /**
+   * One service's own page. `/services` is URL-driven — `ServiceManagementView`
+   * reads `?service_code=` as the single source of truth for which service is
+   * selected — so a service has no path of its own; this query IS its deep link.
+   *
+   * ⛔ Preserve the caller's casing. `/services/{code}/target-sources` matches
+   * case-sensitively and 404s on a wrong-case code, which is why this only
+   * encodes and never normalizes.
+   */
+  service: (serviceCode: string) =>
+    `/services?service_code=${encodeURIComponent(serviceCode)}`,
   adminDashboard: '/admin/dashboard',
   taskAdmin: '/task_admin',
   targetSource: (targetSourceId: number | string) => `/target-sources/${targetSourceId}`,
