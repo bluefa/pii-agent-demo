@@ -630,6 +630,95 @@ describe('ProjectPageMeta — the fact grid', () => {
     expect(projectHeaderStyles.factGrid).toContain('minmax(200px,240px)');
   });
 
+  it('lays a LONE fact out inline, and two or more stacked (오너 2026-08-29)', () => {
+    // The stack exists so labels line up across the columns beside them. With one cell
+    // there is no neighbouring column, so the stack buys nothing and spends a line —
+    // measured 46px per cell (18 label + 4 gap + 24 value) against 24px inline, and a
+    // 72px grid block against 50px.
+    //
+    // ⛔ Counted, never keyed on the provider. It fires for GCP today only because GCP
+    // happens to own one fact; the ops screen keys its grid on the provider name
+    // (`fmGrid` vs `fmGridGcp`) and that is the debt this avoids.
+    const lone: ProjectIdentity = {
+      cloudProvider: 'GCP',
+      identifiers: [{ label: 'GCP Project ID', value: 'pii-agent-prod-12345', mono: true }],
+    };
+    const { unmount } = render(<ProjectPageMeta project={{ ...projectFixture, cloudProvider: 'GCP' }} identity={lone} />);
+    const inlineCell = within(scopeBlock()).getByText('GCP Project ID').parentElement;
+    expect(inlineCell?.className).toBe(projectHeaderStyles.factCellInline);
+    expect(projectHeaderStyles.factCellInline).toContain('grid-cols-[auto_1fr]');
+    unmount();
+
+    // Two facts and the neighbour is back, so the stack earns its line again.
+    render(<ProjectPageMeta project={projectFixture} identity={azureIdentity} />);
+    for (const label of ['Subscription ID', 'Tenant ID']) {
+      expect(within(scopeBlock()).getByText(label).parentElement?.className).toBe(
+        projectHeaderStyles.factCell,
+      );
+    }
+  });
+
+  it('counts the 설치 모드 cell — a fact beside it is a neighbour', () => {
+    // The mode is a cell like any other, so an identifier PLUS the mode is two, and both
+    // stack. One identifier and no mode is one, and it goes inline. ⛔ Counting only
+    // `identifiers` would put a stacked cell beside an inline one.
+    const { unmount } = render(
+      <ProjectPageMeta
+        project={projectFixture}
+        identity={{
+          cloudProvider: 'GCP',
+          identifiers: [{ label: 'GCP Project ID', value: 'p-1', mono: true }],
+          installMode: 'auto',
+        }}
+      />,
+    );
+    expect(within(scopeBlock()).getByText('GCP Project ID').parentElement?.className).toBe(
+      projectHeaderStyles.factCell,
+    );
+    expect(within(scopeBlock()).getByText('설치 모드').parentElement?.className).toBe(
+      projectHeaderStyles.factCell,
+    );
+    unmount();
+
+    // The mode alone is also a lone cell.
+    render(
+      <ProjectPageMeta
+        project={{ ...projectFixture, cloudProvider: 'IDC' }}
+        identity={{ ...idcIdentity, installMode: 'auto' }}
+      />,
+    );
+    expect(within(scopeBlock()).getByText('설치 모드').parentElement?.className).toBe(
+      projectHeaderStyles.factCellInline,
+    );
+  });
+
+  it('gives the inline cell two tracks — one holds a label OR a value, not both', () => {
+    // ⛔ Measured, not assumed: 「GCP Project ID」 plus its gap takes 110px of a 240px
+    // track, which left the value 130px where it needed 137 and it clipped by 7px. The
+    // lone cell has no neighbour to push, so the second track is free.
+    expect(projectHeaderStyles.factCellInline).toContain('col-span-2');
+    // …which is also why `wide` cannot rescue an inline cell — that threshold measures
+    // the value alone and knows nothing about the label beside it.
+    expect(projectHeaderStyles.factCellWide).toBe('col-span-2');
+  });
+
+  it('keeps copy and truncation working in the inline form', () => {
+    render(
+      <ProjectPageMeta
+        project={{ ...projectFixture, cloudProvider: 'GCP' }}
+        identity={{
+          cloudProvider: 'GCP',
+          identifiers: [{ label: 'GCP Project ID', value: 'pii-agent-prod-12345', mono: true }],
+        }}
+      />,
+    );
+    const card = within(scopeBlock());
+    expect(card.getByRole('button', { name: 'GCP Project ID 복사' })).toBeTruthy();
+    const value = card.getByText('pii-agent-prod-12345');
+    expect(value.className).toContain('truncate');
+    expect(value.className).toContain('min-w-0');
+  });
+
   it('lets the column count follow the width — a fixed four squeezes a cell to 94px', () => {
     // ⛔ Do not copy `opsStyles.fmGrid`'s `repeat(4,minmax(0,240px))`. The ops masthead
     // has the whole window; this header stands in a column with a guide rail beside it,

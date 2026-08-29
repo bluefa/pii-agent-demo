@@ -190,6 +190,11 @@ export const ProjectPageMeta = ({ project, identity, action }: ProjectPageMetaPr
     (id) => (id.value ?? '').trim() !== '' || !!id.emptyText,
   );
   const autoInstall = identity.installMode === 'auto';
+  // A lone fact lays out label BESIDE value (오너 2026-08-29). The stack exists so labels
+  // line up across neighbouring columns; with one cell there is no neighbour, so it only
+  // costs a line. Counted, not switched on the provider — see `factCellInline`.
+  const cellCount = facts.length + (identity.installMode ? 1 : 0);
+  const factClass = cellCount === 1 ? h.factCellInline : h.factCell;
 
   return (
     <header className={cn(h.surface, h.inner)}>
@@ -359,7 +364,7 @@ export const ProjectPageMeta = ({ project, identity, action }: ProjectPageMetaPr
         {(facts.length > 0 || identity.installMode) && (
           <div className={h.factGrid}>
             {facts.map((fact) => (
-              <div key={fact.label} className={cn(h.factCell, fact.wide && h.factCellWide)}>
+              <div key={fact.label} className={cn(factClass, fact.wide && h.factCellWide)}>
                 <span className={h.kvLabel}>{fact.label}</span>
                 {fact.value ? (
                   /* `display` is what is PRINTED, `value` is what gets copied and what the
@@ -382,7 +387,7 @@ export const ProjectPageMeta = ({ project, identity, action }: ProjectPageMetaPr
                 anything to do on this screen (오너 7차 지시), so it stays on the face. Last
                 cell: the identifiers say WHAT this is, the mode says how it runs. */}
             {identity.installMode && (
-              <div className={h.factCell}>
+              <div className={factClass}>
                 <span className={h.kvLabel}>설치 모드</span>
                 <span className={h.modeRow}>
                   <span className={autoInstall ? h.modeChipAuto : h.modeChipManual}>

@@ -1000,6 +1000,38 @@ export const projectHeaderStyles = {
       lets the value inside truncate rather than push the column wide. */
   factCell: 'flex min-w-0 flex-col gap-1',
   /**
+   * The same fact when it is the grid's ONLY one (오너 2026-08-29) — label beside value,
+   * on one line.
+   *
+   * A label stands ABOVE its value so that labels line up across the columns beside it;
+   * that alignment is the whole return on the stack. A lone cell has no neighbouring
+   * column to line up with, so the stack buys nothing and spends a line: measured at 46px
+   * (18 label + 4 gap + 24 value) inside a 72px grid block, against ~24px inline.
+   *
+   * ⛔ A structural rule, not a provider's. It happens to fire only for GCP today (AWS
+   * has four cells, Azure two, IDC and SDU none so the grid does not render at all) — but
+   * ⛔ do not turn it into a provider-keyed grid variant. The ops screen carries exactly
+   * that debt in `fmGrid` vs `fmGridGcp`, and one grid that reads its own contents is
+   * cheaper than two that have to be kept in step.
+   *
+   * `grid-cols-[auto_1fr]` is this header's own earlier `summaryIds`, restored: the label
+   * column takes the label's width and the value takes the rest, so the value still
+   * truncates. `items-baseline`, because the pair is 12px beside 14px and only a shared
+   * baseline makes that read as one line.
+   *
+   * `col-span-2` for the same reason the cell is inline at all. One track is sized to hold
+   * a label OR a value; inline asks it to hold BOTH, and it cannot — 「GCP Project ID」 and
+   * its 6px gap take 110px of a 240px track, leaving the value 130px where it needed 137,
+   * and it clipped by 7px (measured). A lone cell has no neighbour to push, so the two
+   * tracks cost nothing: the value gets ~388px, which holds a GCP project id at its
+   * 30-character maximum with room to spare.
+   *
+   * ⛔ This is why `wide` is a no-op on an inline cell — it already spans two. Do not
+   * "fix" a future inline overflow by raising `WIDE_CELL_MIN_CHARS`; that threshold
+   * measures the value alone and knows nothing about the label sitting beside it.
+   */
+  factCellInline: 'col-span-2 grid min-w-0 grid-cols-[auto_1fr] items-baseline gap-x-1.5',
+  /**
    * A fact too long for one track (오너 2026-08-29) — the same answer `opsStyles.fmCellWide`
    * gives the same values one screen over. Two tracks plus the 18px gap is 498px against
    * the ~215px a single track leaves for a value: Azure's 36-char UUIDs needed 280px and
