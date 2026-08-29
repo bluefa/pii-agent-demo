@@ -66,7 +66,7 @@ bash scripts/dev.sh <TARGET>
 1. `bootstrap-worktree.sh` 로 node_modules 검증/install
 2. `.next/dev/lock` 정리
 3. 같은 워크트리 서버가 이미 떠 있으면 그 포트 보고하고 exit (재기동 X)
-4. 빈 포트 탐색 (3000-3100)
+4. 3000-8000 랜덤 포트 한 발 (시간 시드). 그 포트가 사용 중이면 에러로 종료 — 재시도 없음
 5. `npx next dev -p <port>` 실행
 
 ### Step 4 — 기동 검증

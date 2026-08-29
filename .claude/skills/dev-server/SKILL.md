@@ -1,6 +1,6 @@
 ---
 name: dev-server
-description: Worktree dev 서버 실행. lock 정리 + 빈 포트 자동 탐색.
+description: Worktree dev 서버 실행. lock 정리 + 랜덤 포트(3000-8000).
 user_invocable: true
 ---
 
@@ -29,7 +29,7 @@ Worktree 경로에서 Next.js dev 서버를 실행합니다.
 
 - Dev server setup
 - Testing changes locally
-- Running next dev with auto port-finding
+- Running next dev on a random port
 
 ## Usage Example
 
@@ -49,7 +49,7 @@ Task({
     3. Wait 3-5 seconds and check output for:
        - "✅ 이미 이 워크트리의 서버가" → already running, report port
        - "Dev server: http://localhost:<port>" → new server started
-       - "ERROR" or "⚠️" → report error to user
+       - "ERROR" → report error to user
     4. Report: port number and worktree path confirmation
 
     If "next: command not found" occurs:
@@ -64,10 +64,9 @@ Task({
 The `scripts/dev.sh` script (invoked by Haiku):
 1. Runs `scripts/bootstrap-worktree.sh` for dependency verification
 2. Removes `.next/dev/lock` file if exists
-3. Checks existing servers: if same worktree already running, reports and exits
-4. Warns if port is occupied by a different worktree server
-5. Auto-finds available port from 3000-3100
-6. Starts `npx next dev -p <port>`
+3. Checks existing servers: if same worktree already running, reports its port and exits
+4. Picks one time-seeded random port in 3000-8000; if that port is taken, exits with an error and does not retry
+5. Starts `npx next dev -p <port>`
 
 ## Rules
 
