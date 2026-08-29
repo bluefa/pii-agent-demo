@@ -9761,6 +9761,8 @@ components:
           - NETWORK_ERROR
           - SERVICE_ERROR
           - UNKNOWN
+        old_scan:
+          type: boolean
     TargetSourceResetRequestDto:
       required:
       - reason

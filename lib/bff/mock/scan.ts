@@ -89,6 +89,23 @@ const isAggregating = (completedAt: string): boolean => {
   return Number.isFinite(finishedAt) && Date.now() - finishedAt < AGGREGATION_WINDOW_MS;
 };
 
+/**
+ * Demo seed: these targets answer with a scan past its policy age (one per provider) so
+ * the stale state is reachable without waiting out the real threshold. Deriving it from
+ * completedAt is not an option — every fixture timestamp is already months old, which
+ * would put every step-1 screen into the stale state at once.
+ */
+const STALE_SCAN_TARGET_SOURCE_IDS = new Set([
+  // AWS — 미디어서비스(1430): step-1 with resources, and only the admin task queue
+  // names it, so no step-1 walkthrough loses its screen to the stale hero.
+  1430,
+  // Azure — VM+MySQL(1005): the only Azure fixture standing at step 1 with resources,
+  // so the provider has no less-referenced alternative.
+  1005,
+  // GCP — 회원서비스(1980): step-1 with resources, task-queue-only like its AWS twin.
+  1980,
+]);
+
 export const mockScan = {
   get: async (projectId: string, scanId: string) => {
     const user = await mockData.getCurrentUser();
@@ -307,6 +324,7 @@ export const mockScan = {
           duration_seconds: 0,
           resource_count_by_resource_type: null,
           scan_error: null,
+          old_scan: false,
         });
       }
     }
@@ -329,6 +347,12 @@ export const mockScan = {
         resource_count_by_resource_type:
           last.result && !aggregating ? demoCountMap(last.provider, last.version) : null,
         scan_error: last.error ?? null,
+        // Only while the seed scan is still the latest one: a real rescan writes a new
+        // job id, so the flag clears the way the server would clear it — the demo can
+        // walk out of the state.
+        old_scan:
+          STALE_SCAN_TARGET_SOURCE_IDS.has(targetSourceId) &&
+          last.scanId === `seed-scan-job-${targetSourceId}`,
       });
     }
 
@@ -343,6 +367,7 @@ export const mockScan = {
       duration_seconds: 0,
       resource_count_by_resource_type: null,
       scan_error: null,
+      old_scan: false,
     });
   },
 };

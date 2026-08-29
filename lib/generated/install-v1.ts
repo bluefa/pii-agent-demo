@@ -244,6 +244,7 @@ const ScanJobResponse = z
     duration_seconds: Num,
     resource_count_by_resource_type: z.record(Num).nullable(),
     scan_error: Str,
+    old_scan: Bool,
   })
   .partial().passthrough();
 const TaskSummary = z

@@ -70,3 +70,24 @@ describe('formatDateTimeLocal', () => {
     );
   });
 });
+
+describe('formatDateTimeLocalCompact', () => {
+  it('2자리 연도·마침표·24시간제로 줄이고, 존 꼬리표를 붙이지 않는다', async () => {
+    // 오너 지시 표기 — "마지막 스캔 26.07.21 04:02 (1개월 전)" 의 앞자리.
+    const wire = '2026-07-20T19:02:00Z';
+    expect((await loadIn('Asia/Seoul')).formatDateTimeLocalCompact(wire)).toBe('26.07.21 04:02');
+    expect((await loadIn('UTC')).formatDateTimeLocalCompact(wire)).toBe('26.07.20 19:02');
+  });
+
+  it('뷰어의 존으로 렌더한다 (Asia/Seoul 고정이 아니다)', async () => {
+    expect((await loadIn('America/New_York')).formatDateTimeLocalCompact(WIRE)).toBe(
+      '26.08.20 05:31',
+    );
+  });
+
+  it('자정의 24시는 00시로 정규화한다', async () => {
+    const { formatDateTimeLocalCompact } = await loadIn('Asia/Seoul');
+    // 2026-08-19T15:00:00Z === 2026-08-20 00:00 KST
+    expect(formatDateTimeLocalCompact('2026-08-19T15:00:00Z')).toBe('26.08.20 00:00');
+  });
+});
