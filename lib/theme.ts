@@ -1385,27 +1385,49 @@ export const badgeStyles = {
 } as const;
 
 /**
- * TopNav 스타일 — PASS 프로토타입 전용 (slate-900 shell + PASS 워드마크 로고)
+ * TopNav 스타일 — PASS 프로토타입 전용 (--pl-gray-900 shell + PASS 워드마크 로고)
  *
  * brand 의 raw hex 는 로고 색으로 예외 허용.
  * 소비 측에서 이 상수만 참조하고 문자열을 중복 정의하지 말 것 — 유일한 소비자는 PassLogo.
  *
  * The brand blue needs a DARK-SURFACE FORM here: the ink value #0064FF scores
- * only 3.63:1 on slate-900, so the wordmark uses the lifted form below. Keep the
- * two in sync — they are the same colour, not different ones.
+ * only 3.61:1 on navStyles.bg (measured in-browser), so the wordmark uses the
+ * lifted form below. Keep the two in sync — they are the same colour, not
+ * different ones.
  *
  * The descriptor row ("PII Agent Self Service") and its three fills are gone with
  * the second lockup line; see PassLogo.
  */
 export const navStyles = {
-  bg: 'bg-slate-900',
+  // Was bg-slate-900 (#0F172A) — 1.006:1 against the sidebar's --pl-gray-900
+  // (#101828), close enough to read as one slab with no edge. Matching the
+  // value exactly (1.000:1, measured in-browser) brings this bar's last
+  // off-ramp fill into the --pl-gray ramp; the seam below carries the
+  // separation instead of colour.
+  bg: 'bg-[var(--pl-gray-900)]',
   /** Thin vertical separator between nav clusters on the dark bar. */
   divider: 'h-5 w-px shrink-0 bg-white/15',
+  /**
+   * Header/sidebar seam. Same-colour stacked panes (see `bg` above) have no
+   * contrast left to draw a boundary with, so the boundary is a line, not a
+   * shade — the pattern AWS Cloudscape hardcodes (`borderBlockEnd`) after
+   * flagging the missing seam as a component bug on the same overlap layout
+   * (header stacked over sidebar). `white/15` matches the alpha `divider`
+   * already spends on this bar, so the two rules that structure the chrome —
+   * the vertical one between nav clusters and this horizontal one under the
+   * whole bar — are drawn at the same strength.
+   * Composited over navStyles.bg the line renders #343B48, 1.58:1 against it
+   * (measured in-browser). A step above the 1.19-1.36 band the measured
+   * references sit in (Sentry 1.19, Grafana 1.31, Stripe 1.36) and below
+   * Primer's 2.15 — deliberate: the seam only ever has a 216px dark sidebar
+   * under it, and at white/10 the line was legible but easy to miss there.
+   */
+  seam: 'border-b border-white/15',
   brand: {
     /** PA — the ink half of the wordmark. */
-    wordmarkInk: 'fill-white', // design-exempt: brand logotype on navStyles.bg (slate-900)
-    /** SS — the verdict half. Dark-surface form of the CTA blue #0064FF (3.63:1 → 5.41:1). */
-    wordmarkAccent: 'fill-[#4D94FF]', // design-exempt: brand logotype on navStyles.bg (slate-900)
+    wordmarkInk: 'fill-white', // design-exempt: brand logotype on navStyles.bg
+    /** SS — the verdict half. Dark-surface form of the CTA blue #0064FF (3.61:1 → 5.91:1, measured in-browser). */
+    wordmarkAccent: 'fill-[#4D94FF]', // design-exempt: brand logotype on navStyles.bg
   },
   link: {
     inactive: 'text-slate-300 hover:bg-white/5 hover:text-white',

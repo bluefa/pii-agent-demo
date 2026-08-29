@@ -188,6 +188,7 @@ export const TopNav = ({ user }: { user: UserMeResponse | null }) => {
           //   app/target-sources/[targetSourceId]/_components/ProjectDetail.tsx  (×2)
           'sticky top-0 z-40 h-[64px] flex items-center gap-4 xl:gap-8 px-6 text-white',
           navStyles.bg,
+          navStyles.seam,
         )}
       >
         {/* Natural width — deliberately NOT a fixed column. The logo used to own
@@ -324,7 +325,7 @@ export const TopNav = ({ user }: { user: UserMeResponse | null }) => {
             aria-label={`${LOCALE_CONTROL[locale]}: ${LOCALE_LABEL[locale]}`}
             title={`${LOCALE_CONTROL[locale]}: ${LOCALE_LABEL[locale]}`}
             className={cn(
-              'inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-[13px] font-medium whitespace-nowrap transition-colors', // design-exempt: same class as the sibling utility links, text on navStyles.bg (slate-900)
+              'inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-[13px] font-medium whitespace-nowrap transition-colors', // design-exempt: same class as the sibling utility links, text on navStyles.bg
               navStyles.link.inactive,
             )}
           >
