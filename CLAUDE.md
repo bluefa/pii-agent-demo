@@ -91,6 +91,7 @@ Next.js 14 (App Router) · TypeScript · TailwindCSS · Desktop only · 한국�
 - **⛔ push/PR 전**: `git fetch origin main && git rebase origin/main` 필수
 - **개발 완료 즉시 commit & rebase & push** — 사용자 확인 대기 없이 바로 수행
 - PR Merge 이전 문서화 필수
+- After every implementation, start the dev server via a haiku subagent and hand over the full URL list (`/dev-server`) — never a bare port
 
 ## Reference Docs
 

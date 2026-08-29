@@ -111,7 +111,19 @@ During implementation, run focused checks only when they materially reduce risk
 for the changed files. Report both the checks run locally and the checks left to
 those workflows. Preserve intentionally quiet hook success behavior.
 
-## 7. Completion
+## 7. Hand Over The Screens
+
+Every implementation ends by showing the user the result, not by describing it.
+Start the dev server through a haiku subagent (`bash scripts/dev.sh <worktree>`,
+which prints `DEV_URL=`) and hand over the **full URL list** — one complete
+`http://localhost:<port>/pass/...` URL per axis the change splits on (cloud
+provider, install step, install mode, tab query), never a bare port and never a
+path fragment. Verify each URL with `curl` first; a dead link is not a report.
+
+See `/dev-server` for the subagent call, the output contract, and the verified
+fixture ids per provider and step.
+
+## 8. Completion
 
 - Remove only unused artifacts introduced by your own change.
 - Keep unrelated issues out of the diff; mention them instead.

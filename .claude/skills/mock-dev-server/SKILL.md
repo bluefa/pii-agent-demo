@@ -54,47 +54,39 @@ elif ! grep -q "^USE_MOCK_DATA=" "$ENV_FILE"; then
 fi
 ```
 
-### Step 3 — `bash scripts/dev.sh <TARGET>` 백그라운드 실행
+### Step 3 — Start the server
 
-`Bash` 도구를 `run_in_background: true` 로 호출:
-
-```
+```bash
 bash scripts/dev.sh <TARGET>
 ```
 
-`dev.sh` 가 내부에서:
-1. `bootstrap-worktree.sh` 로 node_modules 검증/install
-2. `.next/dev/lock` 정리
-3. 같은 워크트리 서버가 이미 떠 있으면 그 포트 보고하고 exit (재기동 X)
-4. 빈 포트 탐색 (3000-3100)
-5. `npx next dev -p <port>` 실행
+Run it in the **foreground** and read stdout. The script detaches the server
+itself and returns in ~1-4s, so there is nothing to background and nothing to
+sleep for. It owns the port logic (random port in 3000-8000, single `lsof`
+check), the `.next/dev/lock` cleanup, the already-running short-circuit, and the
+HTTP readiness poll — this skill does not repeat any of it. See `/dev-server`.
 
-### Step 4 — 기동 검증
+### Step 4 — Read the result
 
-백그라운드 출력을 3-5초 내에 `BashOutput` 으로 확인. 다음 패턴 매칭:
+| stdout | Meaning | Action |
+|--------|---------|--------|
+| `DEV_URL=http://localhost:<port>/pass` | Ready (new or reused server) | Continue to Step 5 |
+| `ERROR: ...` + log tail | Startup failed | Report verbatim. Do NOT retry |
+| `IS_MOCK: true` in the log after the first API call | Mock mode confirmed | Normal |
+| `IS_MOCK: false` / `USE_MOCK_DATA: undefined` in the log | env not applied | Kill the server (`kill $DEV_PID`) and report |
+| `TurbopackInternalError: Symlink node_modules is invalid` | symlinked node_modules | Report. Guide: `rm node_modules && npm install` |
+| `error TS2307` in `.next/types/validator.ts` | stale route cache | `rm -rf .next/types`, one retry allowed |
 
-| 출력 | 해석 | 액션 |
-|------|------|------|
-| `✅ 이미 이 워크트리의 서버가 포트 N에서 실행 중` | 기존 서버 재사용 | 포트 보고 후 종료 |
-| `Dev server: http://localhost:N` + `Ready` (Next.js) | 신규 기동 성공 | 포트 + URL 보고 |
-| `IS_MOCK: true` (첫 API 호출 후 로그) | mock 활성 확인 | 정상 |
-| `IS_MOCK: false` 또는 `USE_MOCK_DATA: undefined` | env 미반영 | dev 서버 종료, 사용자에게 보고 |
-| `next: command not found` | node_modules 누락 | 사용자에게 보고 (재시도 X) |
-| `TurbopackInternalError: Symlink node_modules is invalid` | symlink node_modules 사용 중 | 사용자에게 보고. `rm node_modules && npm install` 가이드 |
-| `error TS2307` in `.next/types/validator.ts` | 라우트 stale 캐시 | `rm -rf .next/types` 후 재시도 1회 허용 |
+### Step 5 — Hand over the URL list
 
-### Step 5 — 보고
-
-사용자에게 한 줄로 보고:
-
-```
-Mock dev server: http://localhost:<port> (TARGET)
-```
+Report the full URL list per `/dev-server`, not a bare port — every URL complete
+with the `/pass` base path and any query the screen needs, each verified with
+`curl`.
 
 ## Rules
 
 - **재시도 금지** (예외: `.next/types` stale 만 1회 허용)
-- 백그라운드 실행 필수 (`run_in_background: true`)
+- `scripts/dev.sh` detaches the server on its own — do not wrap it in `run_in_background`
 - `.env.local` 의 다른 키는 **건드리지 않음** — `USE_MOCK_DATA` 만 추가/검증
 - 사용자가 명시적으로 BFF 모드 의도를 밝힌 경우에는 이 스킬을 쓰지 말고 `/dev-server` 사용
 
