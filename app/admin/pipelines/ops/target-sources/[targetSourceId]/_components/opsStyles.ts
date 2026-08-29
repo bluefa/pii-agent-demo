@@ -109,10 +109,10 @@ export const opsStyles = {
   fmGroup: 'mt-5',
   /**
    * 블록 머리 — 이름 왼쪽, 여는 큐 오른쪽. **닫는 선은 없다** (오너 2026-08-27
-   * "하단에 구분선을 없애고"). 이 워시 위의 `--pl-border-strong` 획은 이제 **탭 띠뿐**
-   * 이다 — 위 한 줄과, 그룹마다 끊기는 아래 도막들(`tabGroup`). 전부 한 덩어리로 같은
-   * 한 가지를 말하므로("여기서 내비게이션이 시작한다"), 블록 머리가 같은 획을 쓰면
-   * 그 말이 흐려진다. 블록을 묶는 일은 이름의 크기(16)와 그 아래 간격(22)이 진다.
+   * "하단에 구분선을 없애고"). 이 바닥 위에서 탭 띠는 `--pl-gray-400` 한 칸 위의 획을
+   * 쓴다 — 위 한 줄과, 그룹마다 끊기는 아래 도막들(`tabGroup`). 전부 한 덩어리로 같은
+   * 한 가지를 말하므로("여기서 내비게이션이 시작한다"), 블록 머리가 획을 하나라도
+   * 얹으면 그 말이 흐려진다. 블록을 묶는 일은 이름의 크기(16)와 그 아래 간격(22)이 진다.
    */
   fmHead: 'flex items-center justify-between gap-4 pb-1.5',
   fmName: 'flex min-w-0 items-center gap-2',
@@ -149,8 +149,11 @@ export const opsStyles = {
       획을 오른쪽 패널의 `border-l` 로 주지 않는 이유: `aboutPanel` 은 200px 고정 폭이라
       테두리와 padding 이 그만큼 링크 폭을 먹는다(제로섬 열). 제 폭 1px 말고는 아무것도
       차지하지 않는 요소를 따로 세우고, `self-stretch` 로 두 단 중 높은 쪽 높이를 따른다.
-      `--pl-border` 다 — 이 워시 위의 `--pl-border-strong` 획은 탭 띠의 것으로 남는다. */
-  fmSplitRule: 'w-px flex-none self-stretch bg-[var(--pl-border)]',
+      획의 값은 아래 줄이 정한다 — 바닥이 바뀌면서 이 자리도 같이 움직였다. */
+  /** ⚠️ 이 룰은 `border-*` 가 아니라 **칠**로 그린다(1px 짜리 `<span>` 의 배경). 그래서
+      바닥이 gray-200 이 된 뒤 `--pl-border` 로 두면 1.000 으로 통째로 사라진다 — 그 토큰이
+      gray-200 과 **같은 값**이기 때문이다. 획으로 그린 것만 찾아서는 이 자리를 못 찾는다. */
+  fmSplitRule: 'w-px flex-none self-stretch bg-[var(--pl-border-strong)]',
   /** 200px — kv 열(240px)보다 좁게 잡는다: 이 단은 대조하는 값이 아니라 이정표라
       제 이름 두 개가 들어가는 만큼만 있으면 되고, 남는 폭은 그리드 쪽에 남는다. */
   aboutPanel: 'w-[200px] flex-none',
@@ -327,8 +330,8 @@ export const opsStyles = {
       대신 접힌다 — 14px 에서 Service Account 전문은 433px 이고 @1900 폴드 한 열이
       441px 이라 한 줄에 선다. */
   fmValueFull: 'break-all text-[14px] font-medium leading-5 text-[var(--pl-text-strong)]',
-  /** 복사 — 값 옆의 아이콘 하나. 글자가 아니라 그래픽이라 3:1 기준이고, weak 는 이
-      워시에서 4.51:1 로 그 위다. */
+  /** 복사 — 값 옆의 아이콘 하나. 글자가 아니라 그래픽이라 3:1 기준이다. 바닥이
+      gray-200 이 된 뒤 weak 는 4.01 이라 램프 한 칸 아래 gray-600(6.20)이 진다. */
   fmCopy:
     'inline-flex flex-none cursor-pointer items-center rounded p-0.5 text-[var(--pl-gray-600)] transition-colors hover:text-[var(--pl-primary-hover)]',
 
@@ -345,9 +348,9 @@ export const opsStyles = {
    * 이 화면에서 "만질 수 있는 값"에만 남는다 — 그 문법을 이 칩이 진다. 값의 밑줄이
    * affordance 를 지고(countLink 규칙) 색은 상태(StepPill)에 남는다.
    *
-   * 대비 실측: 글자(--pl-text-strong) on 면(--pl-bg-card) = 17.85:1. 면은 캔버스
-   * (--pl-bg-canvas) 위에서 ΔE00 4.12, 카드 hover 틴트 위에서 8.92 (tableRowLift.card
-   * 주석의 실측치와 같은 쌍).
+   * 대비 실측: 글자(--pl-text-strong) on 면(--pl-bg-card) = 17.85:1. 면은 이 화면의
+   * 바닥(--pl-gray-200) 위에서 ΔE00 5.66 — 옛 라벤더 캔버스에서의 4.12 보다 벌어졌다.
+   * 카드 hover 틴트 위에서는 8.92 그대로 (tableRowLift.card 주석의 실측치와 같은 쌍).
    */
   rawDataTag: 'inline-flex items-center whitespace-nowrap rounded px-1.5 py-0.5 text-[12px] font-semibold border border-[var(--pl-border-strong)] bg-[var(--pl-bg-card)] text-[var(--pl-text-strong)]',
   /**
@@ -441,7 +444,7 @@ export const opsStyles = {
    * 하나의 띠가 된다 — 칠을 하나도 쓰지 않고 묶는다("Structure should be felt not seen").
    *
    * 위 여백은 20px 로, 블록↔블록과 같은 칸이다. 블록 머리의 헤어라인이 사라진 뒤로
-   * (오너 2026-08-27) 이 워시 위에서 `--pl-border-strong` 획은 **이 띠뿐**이다 — 위 한
+   * (오너 2026-08-27) 이 바닥 위에서 `--pl-gray-400` 획은 **이 띠뿐**이다 — 위 한
    * 줄과, 그룹마다 끊기는 아래 도막들. 그래서 마스트헤드의 마지막 사실과 이 띠 사이는
    * 블록이 갈리는 거리만큼 떨어져 있으면 되고, 이 획들이 하는 말은 하나다:
    * "여기서 내비게이션이 시작한다".
@@ -473,25 +476,10 @@ export const opsStyles = {
    * 그룹 안의 `gap-1` 아래로도 선은 이어진다 — 선이 끊기는 곳은 오직 그룹 사이다.
    * 활성 탭의 `-mb-px` 는 이제 제 그룹의 선을 먹는다(기하는 그대로).
    */
-  tabGroup: 'flex min-w-0 basis-0 items-end gap-1 border-b border-[var(--pl-gray-400)]',
-  /**
-   * 아홉 탭은 **같은 폭**이다 (오너 2026-08-29 "각 navigation 메뉴마다 일정한 width가
-   * 할당되지 않았음"). 내용 폭으로 두면 「스캔」 47.8 ↔ 「연동 요청 정보」 101.5 로 **2.12배**
-   * 벌어지고, 아홉이 840px 만 덮어 1422px 열의 **582px(41%)** 가 꼬리로 남았다. 그 꼬리가
-   * 두 번째 문제였다: 위 선은 통으로 그어지는데 아래 선은 그룹이 지므로, 꼬리 구간에는
-   * 천장만 있고 바닥이 없어 띠가 오른쪽으로 열려 있었다.
-   *
-   * `flex-1 basis-0` 이 그 둘을 한 번에 닫는다 — 셀이 열을 채우면 꼬리가 사라지고, 아래
-   * 선이 그룹 갭(22px 세 칸)만 빼고 끝까지 따라간다. 갭에서 끊기는 것은 그대로라 구간은
-   * 계속 읽힌다.
-   *
-   * `min-width:auto` 는 그대로 둔다 — 열이 좁아져 균등 폭이 가장 긴 라벨보다 작아지면
-   * 셀은 균등을 포기하고 내용 폭으로 돌아간다. 좁은 화면에서 글자가 잘리는 대신 오늘의
-   * 행동으로 되돌아가는 쪽이 맞다.
-   *
-   * 라벨은 가운데로 온다. 균등 셀에서 왼쪽 정렬은 라벨마다 오른쪽 여백이 달라져 셀의
-   * 리듬이 아니라 낱말 길이가 보인다.
-   */
+  /** ⛔ `min-w-0` 를 주지 않는다. 탭은 `min-width:auto` 라 내용 밑으로 줄지 않으므로,
+      그룹만 줄 수 있게 하면 탭이 제 그룹 상자를 넘고 **그룹이 긋는 아래 선이 탭보다 짧아진다**.
+      그룹도 내용 폭에서 멈추면, 열이 좁아졌을 때 균등 폭을 포기하고 오늘의 행동으로 돌아간다. */
+  tabGroup: 'flex basis-0 items-end gap-1 border-b border-[var(--pl-gray-400)]',
   /** 스켈레톤에서만 아래 선을 **스트립**이 진다. 구간이 몇 개이고 어디서 끊기는지는 탭
       구성이고 탭 구성은 데이터라, 도착 전에는 지어낼 수가 없다. `tabGroup` 하나로 감싸면
       아래 선이 보이지 않는 탭 하나의 폭만 덮어(44px) 도착 순간 세 도막(732px)으로 뛴다 —
@@ -508,6 +496,29 @@ export const opsStyles = {
       굵기는 활성·비활성이 같이 진다: 활성은 이미 잉크와 밑줄 두 레버를 들고 있어서,
       굵기까지 가져가면 비활성이 한 단 더 내려앉고 선택이 아니라 나머지가 흐려진 것처럼
       읽힌다. */
+  /**
+   * 셀은 **한 폭을 나눠 가진다** (오너 2026-08-29 "각 navigation 메뉴마다 일정한 width가
+   * 할당되지 않았음"). 내용 폭으로 두면 「스캔」 47.8 ↔ 「연동 요청 정보」 101.5 로 **2.12배**
+   * 벌어지고, 아홉이 840px 만 덮어 1422px 열의 **582px(41%)** 가 꼬리로 남았다. 그 꼬리가
+   * 두 번째 문제였다: 위 선은 통으로 그어지는데 아래 선은 그룹이 지므로, 꼬리 구간에는
+   * 천장만 있고 바닥이 없어 띠가 오른쪽으로 열려 있었다.
+   *
+   * `flex-1 basis-0` + 그룹의 `growOf`(탭 수)가 그 둘을 한 번에 닫는다 — 셀이 열을 채우면
+   * 꼬리가 사라지고, 아래 선이 그룹 갭(22px 세 칸)만 빼고 끝까지 따라간다. 갭에서 끊기는
+   * 것은 그대로라 구간은 계속 읽힌다.
+   *
+   * ⚠️ 정확히 같지는 않다. 그룹 안의 `gap-1`(4px)은 grow 비율 밖이라 갭 수가 다른 그룹의
+   * 셀이 조금 넓다 — @1422 열에서 **147.67 / 148.67 / 150.67px**(실측, 편차 1.020배).
+   * 2.12배를 1.02배로 줄인 것이지 0 으로 만든 것이 아니다. 3px 을 마저 없애려면 갭을
+   * 빼야 하는데, 그러면 활성 탭의 2px 밑줄이 옆 탭과 맞닿아 세그먼트 컨트롤로 읽힌다.
+   *
+   * `min-width:auto` 는 그대로 둔다 — 열이 좁아져 균등 폭이 가장 긴 라벨보다 작아지면
+   * 셀은 균등을 포기하고 내용 폭으로 돌아간다. 좁은 화면에서 글자가 잘리는 대신 오늘의
+   * 행동으로 되돌아가는 쪽이 맞다.
+   *
+   * 라벨은 가운데로 온다. 균등 셀에서 왼쪽 정렬은 라벨마다 오른쪽 여백이 달라져 셀의
+   * 리듬이 아니라 낱말 길이가 보인다.
+   */
   tab: 'relative flex flex-1 basis-0 cursor-pointer items-center justify-center gap-1.5 whitespace-nowrap border-b-2 -mb-px px-3 py-2.5 text-[14px] font-semibold transition-colors',
   /** 잉크 + 밑줄. The face is gone, so 파랑 is the only thing marking the tab that
       is open. gray-200 바닥 위에서 --pl-primary 는 4.17 로 AA 아래라, 램프의 다음 칸
@@ -801,6 +812,18 @@ export const opsStyles = {
     countDot: 'h-2 w-2 rounded-full flex-shrink-0',
     countDotOk: 'bg-[var(--pl-ok)]',
     countDotFail: 'bg-[var(--pl-err)]',
+    /**
+     * 같은 두 점의 **바닥 위** 짝 — `MonitoringEvidenceBody` 의 근거 줄만 입는다. 위의 둘은
+     * 흰 카드 위(`TcLatestRunCard`)에 남는다.
+     *
+     * 8px 이라 글자가 아니라 그래픽이고 기준은 3:1 이다. 바닥이 gray-200 이 되면서
+     * `--pl-ok` 는 2.395 → **2.116**, `--pl-err` 는 3.432 → **3.031** 로 내려왔다 — 초록은
+     * 원래부터 그 아래였고 빨강은 여백이 0.03 만 남았다. 그래서 둘 다 램프에서 한 칸씩
+     * 내려간다: `--pl-ok-text` 4.366 · `--pl-err-solid` 3.897. 탭 옆 점(`tabDotFail`)이
+     * 같은 이유로 `-solid` 를 쓰는 것과 같은 판단이다.
+     */
+    countDotOkGround: 'bg-[var(--pl-ok-text)]',
+    countDotFailGround: 'bg-[var(--pl-err-solid)]',
     countDotRest: 'bg-[var(--pl-text-faint)]',
     /** 값이 없다는 사실은 색이 아니라 형태가 말한다 — 채운 점이 아니라 파선 링. */
     countDotMissing: 'h-2.5 w-2.5 rounded-full border-2 border-dashed border-[var(--pl-warn-text)] flex-shrink-0',

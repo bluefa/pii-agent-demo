@@ -47,8 +47,9 @@ export function MonitoringEvidenceBody({
   // ("성공 기록이 없는 논리 DB가 있어요")이 세는 집합과 같다 — 문장과 수가 같은 것을
   // 가리키지 않던 것이 이 줄의 오래된 문제였다.
   const buckets: { label: string; value: number; dot: string; ink?: string }[] = [
-    { label: '성공', value: agg.succeeded, dot: b.countDotOk, ink: b.okValue },
-    { label: '확인 필요', value: attentionCount(agg), dot: b.countDotFail, ink: b.failValue },
+    // 이 줄은 카드가 아니라 바닥 위에 선다 — 점도 바닥용 짝을 입는다(3:1 그래픽 기준).
+    { label: '성공', value: agg.succeeded, dot: b.countDotOkGround, ink: b.okValue },
+    { label: '확인 필요', value: attentionCount(agg), dot: b.countDotFailGround, ink: b.failValue },
   ];
 
   return (

@@ -522,10 +522,10 @@ export function ApprovalTab({
           {/* 이 줄은 opsStyles.cardDesc 를 떠났다 (오너 2026-08-26) — `cn` 은 단순 join 이라
               `text-[14px]` 위에 `text-[16px]` 를 얹으면 둘 다 남고 어느 쪽이 이기는지는 CSS
               순서가 정한다. 토큰을 덮어쓰는 게 아니라 벗어나야 한다. cardDesc 자체는 건드리지
-              않는다: ops 탭 10곳이 그 토큰을 쓴다. 잉크가 `--pl-gray-600`(#475467)인 이유는
-              캔버스(#F4F4FB) 위에서 7.02:1 로 5:1 을 넘기면서도 제목(`--pl-text-strong`,
-              16.21:1)보다 한 칸 아래라 두 줄의 순서가 뒤집히지 않기 때문 — 기존
-              `--pl-text-weak` 는 4.54:1 로 미달이었다. */}
+              않는다: ops 탭 10곳이 그 토큰을 쓴다. 잉크가 `--pl-gray-600` 인 이유는 이 화면의
+              바닥 위에서 6.20:1 로 5:1 을 넘기면서도 제목(`--pl-text-strong`, 14.32:1)보다
+              한 칸 아래라 두 줄의 순서가 뒤집히지 않기 때문 — `--pl-text-weak` 는 4.01 로
+              미달이다. (바닥이 라벤더 캔버스이던 시절의 값은 7.02 / 16.21 / 4.54 였다.) */}
           <p className="mt-3 flex items-center gap-1.5 text-[16px] text-[var(--pl-gray-600)]">
             {head.unmet && (
               <Icon
@@ -546,11 +546,16 @@ export function ApprovalTab({
           <PlButton
             variant="primary"
             disabled={!head.canApprove || approve.loading}
-            // 잠긴 CTA 는 캔버스 위에 선다 — primary 의 disabled 면(gray-100)은 이 라벤더
-            // 바탕에서 거의 사라져 버튼이 아니라 흐린 글자로 읽힌다(브라우저 실측). 획을
-            // 하나 두면 눌리지 않는 동안에도 버튼의 모양이 남는다. 카드 위에 서는 다른
-            // disabled primary 들은 흰 면에서 이미 보이므로 전역 토큰은 건드리지 않는다.
-            className="disabled:border-[var(--pl-border-strong)]"
+            // 잠긴 CTA 는 바닥 위에 선다 — primary 의 disabled 면(gray-100)은 이 바닥에서
+            // 거의 사라져 버튼이 아니라 흐린 글자로 읽힌다(브라우저 실측). 획을 하나 두면
+            // 눌리지 않는 동안에도 버튼의 모양이 남는다. 카드 위에 서는 다른 disabled
+            // primary 들은 흰 면에서 이미 보이므로 전역 토큰은 건드리지 않는다.
+            //
+            // 획이 gray-400 인 것은 탭 띠와 **같은 이유**다: 이 획의 일은 바닥 위에서 모양을
+            // 남기는 것 하나뿐이고, 바닥이 gray-200 이 되면서 `--pl-border-strong` 은
+            // 1.347(옛 라벤더 캔버스) → 1.189 로 주저앉았다. 제자리로 돌아가는 게 아니라
+            // 한 칸 올라간다 — 2.078.
+            className="disabled:border-[var(--pl-gray-400)]"
             onClick={() => setApproveOpen(true)}
           >
             연동 완료
