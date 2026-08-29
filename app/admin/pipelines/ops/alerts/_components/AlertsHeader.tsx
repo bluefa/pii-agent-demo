@@ -83,7 +83,7 @@ function TileFace({
     <span className={cn(alertsHeader.face, pending && alertsHeader.pending)}>
       <span className={alertsHeader.summaryLabel}>
         <span className={alertsHeader.summaryLabelGlyph}>
-          {icon === 'terraform' ? <TerraformLogo size={14} /> : <Icon name={icon} size={14} />}
+          {icon === 'terraform' ? <TerraformLogo size={18} /> : <Icon name={icon} size={18} />}
         </span>
         {label}
       </span>
