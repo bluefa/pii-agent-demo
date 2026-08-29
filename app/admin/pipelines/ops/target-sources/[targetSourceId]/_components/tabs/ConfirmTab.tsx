@@ -71,7 +71,9 @@ const styles = {
   verdict: 'flex items-start gap-2.5',
   verdictDot: 'mt-[9px] h-2 w-2 flex-none rounded-full',
   verdictHead: 'text-[20px] font-bold leading-[1.34] tracking-[-0.028em] text-[var(--pl-text-strong)]',
-  verdictSub: 'ml-[18px] mt-1 max-w-[76ch] text-[14px] text-[var(--pl-text-weak)]',
+  /** 판정 아래 한 줄 — 카드가 아니라 바닥 위에 선다. 바닥(gray-200)에서 weak 는 4.01 로
+      AA 아래라 한 칸 내려간 gray-600(6.20)이 진다. */
+  verdictSub: 'ml-[18px] mt-1 max-w-[76ch] text-[14px] text-[var(--pl-gray-600)]',
   /** 화면에서 테두리를 가진 유일한 표면. */
   shell:
     'mt-5 overflow-hidden rounded-[12px] border border-[var(--pl-border-strong)] bg-[var(--pl-bg-card)] shadow-[var(--pl-shadow-sm)]',
