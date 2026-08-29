@@ -195,6 +195,9 @@ export const ProjectPageMeta = ({ project, identity, action }: ProjectPageMetaPr
   // costs a line. Counted, not switched on the provider — see `factCellInline`.
   const cellCount = facts.length + (identity.installMode ? 1 : 0);
   const factClass = cellCount === 1 ? h.factCellInline : h.factCell;
+  // Inline, the label loses the line break that used to mark it, so it takes a boundary
+  // of its own instead — see `factLabelTag`. Stacked labels keep the plain `kvLabel`.
+  const labelClass = cellCount === 1 ? h.factLabelTag : h.kvLabel;
 
   return (
     <header className={cn(h.surface, h.inner)}>
@@ -365,7 +368,7 @@ export const ProjectPageMeta = ({ project, identity, action }: ProjectPageMetaPr
           <div className={h.factGrid}>
             {facts.map((fact) => (
               <div key={fact.label} className={cn(factClass, fact.wide && h.factCellWide)}>
-                <span className={h.kvLabel}>{fact.label}</span>
+                <span className={labelClass}>{fact.label}</span>
                 {fact.value ? (
                   /* `display` is what is PRINTED, `value` is what gets copied and what the
                      title spells out — a role reads as its role name in a 240px cell while
@@ -388,7 +391,7 @@ export const ProjectPageMeta = ({ project, identity, action }: ProjectPageMetaPr
                 cell: the identifiers say WHAT this is, the mode says how it runs. */}
             {identity.installMode && (
               <div className={factClass}>
-                <span className={h.kvLabel}>설치 모드</span>
+                <span className={labelClass}>설치 모드</span>
                 <span className={h.modeRow}>
                   <span className={autoInstall ? h.modeChipAuto : h.modeChipManual}>
                     {autoInstall ? '자동 설치' : '수동 설치'}

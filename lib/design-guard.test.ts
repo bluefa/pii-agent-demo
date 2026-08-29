@@ -407,6 +407,11 @@ const SURFACES: SurfacePair[] = [
   // painted path tags went with them: the 설치 모드 chip is the last fill on this
   // surface, and the only surface pair the header has left.
   { what: 'header 설치 모드 chip on the page wash', top: bgOf(classOf(headerBlock, 'modeChipAuto')), under: canvas },
+  // The lone-fact label tag is a WHITE plate, so its fill measures 1.09 on this ground and
+  // carries nothing — the stroke is the entire silhouette, which is why only the stroke is
+  // pinned here. Re-tint the stroke toward the wash and the tag dissolves; the fill can be
+  // anything the text below still clears.
+  { what: 'header inline fact-label tag stroke on the page wash', top: borderOf(classOf(headerBlock, 'factLabelTag')), under: canvas },
   // 설치 진행's step tag, on the house's pale blue rather than the path's slate
   // (오너 14차 지시). It is the one plate on this header that is NOT the shared slate,
   // which is the whole point — so it has to keep clearing the wash on its own.
@@ -536,6 +541,9 @@ const TEXT: TextPair[] = [
   { what: 'header path heading on the page wash', fg: textOf(classOf(headerBlock, 'crumb')), on: canvas },
   { what: 'header path service code on the page wash', fg: textOf(classOf(headerBlock, 'crumbCode')), on: canvas },
   { what: 'header disclosure cue on the page wash', fg: textOf(classOf(headerBlock, 'metaCue')), on: canvas },
+  // …and the tag's own ink, on its own fill. This pair is what keeps the READING on the
+  // text: the stroke around it is 1.47 on the wash and could never carry it.
+  { what: 'header inline fact-label tag on its own fill', fg: textOf(classOf(headerBlock, 'factLabelTag')), on: bgOf(classOf(headerBlock, 'factLabelTag')) },
   // A fact the target positively does not have — 「미등록」, 「역할 불필요」. Value-sized, so
   // it is body text and answers to 4.5:1; it wears `kvLabel`'s tint, which sits ON the AA
   // floor, and that is the reason both are pinned here rather than only one.

@@ -692,6 +692,52 @@ describe('ProjectPageMeta — the fact grid', () => {
     );
   });
 
+  it('marks the lone label as a tag, and leaves stacked labels plain (오너 2026-08-29)', () => {
+    // ⛔ The two treatments differ for a reason, and it is not an oversight to tidy up.
+    // Stacked, the label is marked by POSITION — a line of its own above the value.
+    // Inline it stands shoulder to shoulder with the value and has nothing but itself to
+    // say "field name", so a boundary replaces the line break.
+    const lone: ProjectIdentity = {
+      cloudProvider: 'GCP',
+      identifiers: [{ label: 'GCP Project ID', value: 'pii-agent-prod-12345', mono: true }],
+    };
+    const { unmount } = render(
+      <ProjectPageMeta project={{ ...projectFixture, cloudProvider: 'GCP' }} identity={lone} />,
+    );
+    expect(within(scopeBlock()).getByText('GCP Project ID').className).toBe(
+      projectHeaderStyles.factLabelTag,
+    );
+    unmount();
+
+    render(<ProjectPageMeta project={projectFixture} identity={awsIdentity} />);
+    for (const label of ['계정', '스캔 역할', '테라폼 역할', '설치 모드']) {
+      expect(within(scopeBlock()).getByText(label).className).toBe(projectHeaderStyles.kvLabel);
+    }
+    // Not one bordered 10px label anywhere in a stacked grid.
+    expect(projectHeaderStyles.kvLabel).not.toContain('border');
+    expect(projectHeaderStyles.kvLabel).not.toContain('text-[10px]');
+  });
+
+  it('lets the tag stand on its stroke, and the reading on its ink', () => {
+    // The fill measures 1.09:1 on this header's ground — it carries nothing, and the whole
+    // silhouette is the stroke (the 흰 면 + stroke case `tableRowLift.chipEdge` reasons
+    // about). So the ink is the darker of the two candidates: 7.11:1 on white against
+    // `kvLabel`'s 4.93:1. Both pairs are measured in `design-guard.test.ts`; what is
+    // pinned here is that the tag HAS a stroke and does not borrow the label ramp's ink.
+    expect(projectHeaderStyles.factLabelTag).toContain('border-[');
+    expect(fillOf(projectHeaderStyles.factLabelTag)).toBe('#FFFFFF');
+    expect(inkOf(projectHeaderStyles.factLabelTag)).not.toBe(inkOf(projectHeaderStyles.kvLabel));
+    expect(inkOf(projectHeaderStyles.factLabelTag)).toBe(inkOf(projectHeaderStyles.blockLabel));
+    // 「태그는 작게」 — the ramp's bottom rung. ⛔ 10 is even; the design-guard hook rejects 11.
+    expect(projectHeaderStyles.factLabelTag).toContain('text-[10px]');
+    expect(projectHeaderStyles.factLabelTag).toContain('leading-[15px]');
+  });
+
+  it('centres the inline row — a bordered box sits by its middle, not its baseline', () => {
+    expect(projectHeaderStyles.factCellInline).toContain('items-center');
+    expect(projectHeaderStyles.factCellInline).not.toContain('items-baseline');
+  });
+
   it('gives the inline cell two tracks — one holds a label OR a value, not both', () => {
     // ⛔ Measured, not assumed: 「GCP Project ID」 plus its gap takes 110px of a 240px
     // track, which left the value 130px where it needed 137 and it clipped by 7px. The

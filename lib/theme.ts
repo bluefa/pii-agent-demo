@@ -1030,7 +1030,37 @@ export const projectHeaderStyles = {
    * "fix" a future inline overflow by raising `WIDE_CELL_MIN_CHARS`; that threshold
    * measures the value alone and knows nothing about the label sitting beside it.
    */
-  factCellInline: 'col-span-2 grid min-w-0 grid-cols-[auto_1fr] items-baseline gap-x-1.5',
+  factCellInline: 'col-span-2 grid min-w-0 grid-cols-[auto_1fr] items-center gap-x-1.5',
+  /**
+   * The label of a LONE fact, as a small white tag (오너 2026-08-29).
+   *
+   * ⛔ Only the inline form. The stacked labels (`kvLabel`) stay plain text, and that is
+   * not an inconsistency to "fix" later: in the stacked form the label is marked by its
+   * POSITION — a line of its own above the value — while inline it stands shoulder to
+   * shoulder with the value and has nothing but itself to say "this is a field name".
+   * A boundary is what replaces the line break.
+   *
+   * On this header's ground `#F4F4FB`:
+   *   white fill 1.09:1 · stroke `#C6CCD6` 1.47:1 · `#D7DBE3` 1.27:1
+   *   text `#4E5968` on white 7.11:1 (`#68717F` would be 4.93:1)
+   *
+   * The fill carries NOTHING at 1.09 — the tag's whole silhouette rests on the stroke,
+   * which is the `흰 면 + stroke` case `tableRowLift.chipEdge` already reasons about. So
+   * the stroke takes the darker rung and the text keeps the reading at 7.11:1: a faint
+   * stroke only has to draw a boundary, never legibility.
+   *
+   * ⚠️ `#C6CCD6` was once prohibited by the removed `codeChip` doc — 「don't reach for the
+   * third rung; these tags sit in a 12px path, not on a card」. That premise was a tag in
+   * the PATH LINE, competing with two neighbouring segments. This tag is in the fact row
+   * and is the only thing marking a field name there, so the premise is gone and the
+   * ruling does not bind. It is recorded rather than silently contradicted; `#D7DBE3`
+   * (1.27:1) is the fallback if this ever reads heavy.
+   *
+   * 10px is the ramp's bottom rung (「태그는 작게」) and the shape is `infraSideTag`'s,
+   * already in this file. ⛔ 10 is even — the design-guard hook rejects 11.
+   */
+  factLabelTag:
+    'inline-flex items-center whitespace-nowrap rounded border border-[#C6CCD6] bg-[#FFFFFF] px-1 leading-[15px] text-[10px] font-semibold text-[#4E5968]',
   /**
    * A fact too long for one track (오너 2026-08-29) — the same answer `opsStyles.fmCellWide`
    * gives the same values one screen over. Two tracks plus the 18px gap is 498px against
