@@ -45,8 +45,10 @@ export type IconName =
   | 'copy'
   | 'refresh'
   | 'clipboard-check'
+  | 'clipboard-list'
   | 'link'
   | 'shield-check'
+  | 'stamp'
   | 'dots-v'
   | 'table';
 
@@ -218,6 +220,14 @@ const ICON_PATHS: Record<IconName, ReactElement> = {
       <path d="m9.2 12.8 2.3 2.3 4.3-4.6" />
     </>
   ),
+  /* 확정 진행 중 — nothing is ticked off yet, so the lines stay a list; the check belongs to the last bucket. */
+  'clipboard-list': (
+    <>
+      <rect x="5" y="4.5" width="14" height="16" rx="2" />
+      <path d="M9 4.5V3h6v1.5" />
+      <path d="M9.5 11.5h5M9.5 15.5h3" />
+    </>
+  ),
   link: (
     <>
       <path d="M10 13.5a3.5 3.5 0 0 0 5 0l3-3a3.5 3.5 0 0 0-5-5l-1 1" />
@@ -228,6 +238,14 @@ const ICON_PATHS: Record<IconName, ReactElement> = {
     <>
       <path d="M12 3.5 18.5 6v5.2c0 4.3-2.6 7.3-6.5 9.3-3.9-2-6.5-5-6.5-9.3V6Z" />
       <path d="m9.2 11.8 2.1 2.1 3.9-4.2" />
+    </>
+  ),
+  /* 완료 승인 — the stamp is the act the last bucket asks for. */
+  stamp: (
+    <>
+      <path d="M5 22h14" />
+      <path d="M19.3 13.7a2.5 2.5 0 0 0-1.8-.7h-11A2.5 2.5 0 0 0 4 15.5V17a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-1.5c0-.7-.3-1.3-.7-1.8Z" />
+      <path d="M14 13V8.5C14 7 15 7 15 5a3 3 0 0 0-6 0c0 2 1 2 1 3.5V13" />
     </>
   ),
   /* Rows in a frame — the 목록 section marker. */
