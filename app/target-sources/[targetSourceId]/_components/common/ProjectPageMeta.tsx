@@ -67,6 +67,20 @@ interface ProviderDisplay {
    * for IDC and SDU, which own no cloud account — the target itself.
    */
   descLabel: string;
+  /**
+   * Whether the drawer starts open (오너 2026-08-29).
+   *
+   * ⛔ Not an arbitrary list of provider names. The rule is **how much the fact grid
+   * already holds**: a drawer that pushes the page down to show reference beside four
+   * facts already on screen is not worth its height, and one that opens beside nothing
+   * costs nothing. AWS fills four cells and Azure three, so they start shut; GCP has one
+   * (Project ID) and IDC has none at all (`identifiers: []`, 결정 #49), so they start
+   * open.
+   *
+   * This REPLACED a step rule — 「open at `WAITING_TARGET_CONFIRMATION`, shut after」.
+   * ⛔ Do not stack the two: AWS at step 1 is shut like every other AWS step.
+   */
+  drawerOpen: boolean;
 }
 
 // The mark itself comes from `ProviderGlyph`, the same source the ops dashboard
@@ -77,13 +91,16 @@ interface ProviderDisplay {
 // no brand, so their glyphs are generic outlines — a server rack and an upload arrow,
 // which name nothing on their own. Those two keep their name in ink.
 const PROVIDER_DISPLAY: Record<CloudProvider, ProviderDisplay> = {
-  AWS: { name: 'AWS Cloud', brandMark: true, descLabel: '계정 설명' },
-  Azure: { name: 'Azure Cloud', brandMark: true, descLabel: '계정 설명' },
-  GCP: { name: 'Google Cloud', brandMark: true, descLabel: '프로젝트 설명' },
-  IDC: { name: 'IDC', gloss: '사내망', descLabel: '대상 설명' },
+  AWS: { name: 'AWS Cloud', brandMark: true, descLabel: '계정 설명', drawerOpen: false },
+  Azure: { name: 'Azure Cloud', brandMark: true, descLabel: '계정 설명', drawerOpen: false },
+  GCP: { name: 'Google Cloud', brandMark: true, descLabel: '프로젝트 설명', drawerOpen: true },
+  IDC: { name: 'IDC', gloss: '사내망', descLabel: '대상 설명', drawerOpen: true },
 };
 
-const SDU_DISPLAY: ProviderDisplay = { name: 'SDU', descLabel: '대상 설명' };
+// `drawerOpen: true` here is INFERRED, not an owner call — the owner named GCP·IDC open
+// and Azure·AWS shut, and said nothing about SDU. It sits with IDC because it owns the
+// same number of facts: none. Reverse this line alone if the owner decides otherwise.
+const SDU_DISPLAY: ProviderDisplay = { name: 'SDU', descLabel: '대상 설명', drawerOpen: true };
 
 /** Copy affordance on mono identifiers — hover-reveal (TargetSourceIdentifier.mono spec). */
 const CopyButton = ({ value, label }: { value: string; label: string }) => {
@@ -147,18 +164,16 @@ const CopyButton = ({ value, label }: { value: string; label: string }) => {
  * facts, and three of them had nowhere to go.
  */
 export const ProjectPageMeta = ({ project, identity, action }: ProjectPageMetaProps) => {
-  // Open at step 1, closed after (오너 2026-08-28). 연동 대상 DB 선택 IS the first-time
-  // reader's state: they have not seen the road and have not been told what the target
-  // is. From step 2 on they have, and the drawer is reference they can call back.
-  // Deliberately not persisted — re-opening the page at step 1 re-opens it, which is
-  // accepted: a cookie would make the header's shape depend on history the reader
-  // cannot see.
-  const [metaOpen, setMetaOpen] = useState(
-    project.processStatus === ProcessStatus.WAITING_TARGET_CONFIRMATION,
-  );
   // SDU wins over the underlying CSP (metadata.is_sdu_type, owner call) — the
-  // account has no CSP identifiers, so fact cells drop out on their own.
+  // account has no CSP identifiers, so fact cells drop out on their own. It has to be
+  // resolved before the drawer's initial state, which reads off it.
   const display = project.isSduType ? SDU_DISPLAY : PROVIDER_DISPLAY[identity.cloudProvider];
+  // The drawer's default is the PROVIDER's (오너 2026-08-29) — see `ProviderDisplay.
+  // drawerOpen` for why that is a statement about how full the grid is, not a list of
+  // names. It supersedes the step rule that opened this at 1단계 and shut it after.
+  // Deliberately not persisted, as before: a cookie would make the header's shape depend
+  // on history the reader cannot see.
+  const [metaOpen, setMetaOpen] = useState(display.drawerOpen);
 
   // The normalizer falls serviceName back to the code, so the line is never empty.
   const serviceTitle = project.serviceName || project.serviceCode;
@@ -338,70 +353,75 @@ export const ProjectPageMeta = ({ project, identity, action }: ProjectPageMetaPr
             Read-only, all of it. On the ops screen these same values are buttons opening
             an edit modal; here the service owner may copy them and nothing else, so
             ⛔ no blue, no underline, no CTA. */}
-        <div className={h.factGrid}>
-          {facts.map((fact) => (
-            <div key={fact.label} className={cn(h.factCell, fact.wide && h.factCellWide)}>
-              <span className={h.kvLabel}>{fact.label}</span>
-              {fact.value ? (
-                /* `display` is what is PRINTED, `value` is what gets copied and what the
-                   title spells out — a role reads as its role name in a 240px cell while
-                   the full ARN stays one hover or one copy away. */
-                <span className={h.summaryValue} title={fact.value}>
-                  <span className={cn(h.summaryValueText, fact.mono && h.summaryValueMono)}>
-                    {fact.display ?? fact.value}
+        {/* ⛔ No grid when there are no facts. IDC and SDU contribute no cells at all
+            (`identifiers: []`, and no 설치 모드), and an empty grid still charges its
+            `pt-[22px]` + `pb-1` — 26px of nothing between the block name and the drawer. */}
+        {(facts.length > 0 || identity.installMode) && (
+          <div className={h.factGrid}>
+            {facts.map((fact) => (
+              <div key={fact.label} className={cn(h.factCell, fact.wide && h.factCellWide)}>
+                <span className={h.kvLabel}>{fact.label}</span>
+                {fact.value ? (
+                  /* `display` is what is PRINTED, `value` is what gets copied and what the
+                     title spells out — a role reads as its role name in a 240px cell while
+                     the full ARN stays one hover or one copy away. */
+                  <span className={h.summaryValue} title={fact.value}>
+                    <span className={cn(h.summaryValueText, fact.mono && h.summaryValueMono)}>
+                      {fact.display ?? fact.value}
+                    </span>
+                    {fact.mono && <CopyButton value={fact.value} label={`${fact.label} 복사`} />}
                   </span>
-                  {fact.mono && <CopyButton value={fact.value} label={`${fact.label} 복사`} />}
-                </span>
-              ) : (
-                <span className={h.factNone} title={fact.emptyHint}>
-                  {fact.emptyText}
-                </span>
-              )}
-            </div>
-          ))}
-          {/* 자동/수동 is not reference material — it decides whether the reader has
-              anything to do on this screen (오너 7차 지시), so it stays on the face. Last
-              cell: the identifiers say WHAT this is, the mode says how it runs. */}
-          {identity.installMode && (
-            <div className={h.factCell}>
-              <span className={h.kvLabel}>설치 모드</span>
-              <span className={h.modeRow}>
-                <span className={autoInstall ? h.modeChipAuto : h.modeChipManual}>
-                  {autoInstall ? '자동 설치' : '수동 설치'}
-                  {/* The gloss that used to sit beside the chip (「Terraform 권한 위임」/
-                      「설치 스크립트 직접 실행」) is behind this icon (오너 17차 지시) — four
-                      words never said what the mode MEANT, and a tip has room for the
-                      sentence that does. One sentence, and it is the one the reader is
-                      standing in: what the mode costs them AT THE INSTALL STEP
-                      (오너 18차 지시).
-                      `openOn="click"` is the pin, not the only way in: hover and keyboard
-                      focus reveal it, and a press keeps it up for a reader whose pointer
-                      drifts off the 14px target. */}
-                  <Tooltip
-                    openOn="click"
-                    variant="value"
-                    position="bottom"
-                    content={
-                      <span className={h.modeTipBody}>
-                        {autoInstall
-                          ? '설치 단계에서 BDC 측에 Terraform 수행 권한을 위임해요.'
-                          : '설치 단계에서 제공되는 설치 스크립트를 받아 직접 실행해야 해요.'}
-                      </span>
-                    }
-                  >
-                    <button
-                      type="button"
-                      className={h.modeTipButton}
-                      aria-label={`${autoInstall ? '자동 설치' : '수동 설치'} 설명`}
+                ) : (
+                  <span className={h.factNone} title={fact.emptyHint}>
+                    {fact.emptyText}
+                  </span>
+                )}
+              </div>
+            ))}
+            {/* 자동/수동 is not reference material — it decides whether the reader has
+                anything to do on this screen (오너 7차 지시), so it stays on the face. Last
+                cell: the identifiers say WHAT this is, the mode says how it runs. */}
+            {identity.installMode && (
+              <div className={h.factCell}>
+                <span className={h.kvLabel}>설치 모드</span>
+                <span className={h.modeRow}>
+                  <span className={autoInstall ? h.modeChipAuto : h.modeChipManual}>
+                    {autoInstall ? '자동 설치' : '수동 설치'}
+                    {/* The gloss that used to sit beside the chip (「Terraform 권한 위임」/
+                        「설치 스크립트 직접 실행」) is behind this icon (오너 17차 지시) — four
+                        words never said what the mode MEANT, and a tip has room for the
+                        sentence that does. One sentence, and it is the one the reader is
+                        standing in: what the mode costs them AT THE INSTALL STEP
+                        (오너 18차 지시).
+                        `openOn="click"` is the pin, not the only way in: hover and keyboard
+                        focus reveal it, and a press keeps it up for a reader whose pointer
+                        drifts off the 14px target. */}
+                    <Tooltip
+                      openOn="click"
+                      variant="value"
+                      position="bottom"
+                      content={
+                        <span className={h.modeTipBody}>
+                          {autoInstall
+                            ? '설치 단계에서 BDC 측에 Terraform 수행 권한을 위임해요.'
+                            : '설치 단계에서 제공되는 설치 스크립트를 받아 직접 실행해야 해요.'}
+                        </span>
+                      }
                     >
-                      <InfoCircleIcon className="h-3.5 w-3.5" aria-hidden="true" />
-                    </button>
-                  </Tooltip>
+                      <button
+                        type="button"
+                        className={h.modeTipButton}
+                        aria-label={`${autoInstall ? '자동 설치' : '수동 설치'} 설명`}
+                      >
+                        <InfoCircleIcon className="h-3.5 w-3.5" aria-hidden="true" />
+                      </button>
+                    </Tooltip>
+                  </span>
                 </span>
-              </span>
-            </div>
-          )}
-        </div>
+              </div>
+            )}
+          </div>
+        )}
 
         {metaOpen && (
           <div id={META_BLOCK_ID} className={h.targetBody}>

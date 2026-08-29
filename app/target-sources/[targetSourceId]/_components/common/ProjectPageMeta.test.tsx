@@ -289,46 +289,109 @@ describe('ProjectPageMeta — one block, one cue, no rules', () => {
  * not seen the road and have not been told what the target is — and every later step is
  * one they have already walked through.
  */
+/**
+ * Which state the reader arrives in. It is the PROVIDER's call (오너 2026-08-29), and the
+ * provider is standing in for one fact: how full the grid above the drawer already is.
+ *
+ * ⛔ This SUPERSEDES the step rule — 「open at WAITING_TARGET_CONFIRMATION, shut after」.
+ * The two are not stacked; AWS at step 1 is shut like every other AWS step, and the tests
+ * that pinned the step behaviour are gone rather than relaxed.
+ */
 describe('ProjectPageMeta — the drawer’s default state', () => {
-  it('opens by itself at 연동 대상 DB 선택, and only there', () => {
-    render(
-      <ProjectPageMeta
-        project={{ ...projectFixture, processStatus: ProcessStatus.WAITING_TARGET_CONFIRMATION }}
-        identity={awsIdentity}
-      />,
-    );
+  const gcpIdentity: ProjectIdentity = {
+    cloudProvider: 'GCP',
+    identifiers: [{ label: 'Project ID', value: 'my-project-1', mono: true }],
+  };
+
+  it.each([
+    ['GCP — one fact', { cloudProvider: 'GCP' as const }, gcpIdentity],
+    ['IDC — no facts at all', { cloudProvider: 'IDC' as const }, idcIdentity],
+    ['SDU — no facts at all', { isSduType: true }, idcIdentity],
+  ])('opens by itself for %s', (_name, patch, identity) => {
+    render(<ProjectPageMeta project={{ ...projectFixture, ...patch }} identity={identity} />);
     expect(cue().getAttribute('aria-expanded')).toBe('true');
-    expect(screen.getByText('desc')).toBeTruthy();
     expect(screen.getByTestId('process-progress-bar')).toBeTruthy();
   });
 
   it.each([
-    ['WAITING_APPROVAL', ProcessStatus.WAITING_APPROVAL],
-    ['APPLYING_APPROVED', ProcessStatus.APPLYING_APPROVED],
-    ['INSTALLING', ProcessStatus.INSTALLING],
-    ['WAITING_CONNECTION_TEST', ProcessStatus.WAITING_CONNECTION_TEST],
-    ['CONNECTION_VERIFIED', ProcessStatus.CONNECTION_VERIFIED],
-    ['INSTALLATION_COMPLETE', ProcessStatus.INSTALLATION_COMPLETE],
-  ])('stays shut at %s — the reader has walked past it', (_name, status) => {
-    render(
-      <ProjectPageMeta project={{ ...projectFixture, processStatus: status }} identity={awsIdentity} />,
-    );
+    ['AWS — four facts', { cloudProvider: 'AWS' as const }, awsIdentity],
+    ['Azure — three facts', { cloudProvider: 'Azure' as const }, azureIdentity],
+  ])('stays shut for %s', (_name, patch, identity) => {
+    render(<ProjectPageMeta project={{ ...projectFixture, ...patch }} identity={identity} />);
     expect(cue().getAttribute('aria-expanded')).toBe('false');
     expect(screen.queryByTestId('process-progress-bar')).toBeNull();
   });
 
-  it('is a first render, not a memory — closing it at step 1 sticks for that visit', () => {
-    // ⛔ Deliberately unpersisted: no cookie, no localStorage. Re-opening the page at
-    // step 1 re-opens the drawer, and that is accepted — the alternative makes the
-    // header's shape depend on history the reader cannot see.
+  it.each([
+    ['WAITING_TARGET_CONFIRMATION', ProcessStatus.WAITING_TARGET_CONFIRMATION],
+    ['WAITING_APPROVAL', ProcessStatus.WAITING_APPROVAL],
+    ['INSTALLING', ProcessStatus.INSTALLING],
+    ['INSTALLATION_COMPLETE', ProcessStatus.INSTALLATION_COMPLETE],
+  ])('ignores the step entirely — AWS is shut at %s', (_name, status) => {
+    // ⛔ The regression this guards is the OLD rule creeping back as a second condition.
+    // 1단계 was the one step that used to open it, so it is the one that must now be shut
+    // like the rest.
     render(
-      <ProjectPageMeta
-        project={{ ...projectFixture, processStatus: ProcessStatus.WAITING_TARGET_CONFIRMATION }}
-        identity={awsIdentity}
-      />,
+      <ProjectPageMeta project={{ ...projectFixture, processStatus: status }} identity={awsIdentity} />,
+    );
+    expect(cue().getAttribute('aria-expanded')).toBe('false');
+  });
+
+  it.each([
+    ['WAITING_TARGET_CONFIRMATION', ProcessStatus.WAITING_TARGET_CONFIRMATION],
+    ['INSTALLATION_COMPLETE', ProcessStatus.INSTALLATION_COMPLETE],
+  ])('…and GCP is open at %s for the same reason', (_name, status) => {
+    render(
+      <ProjectPageMeta project={{ ...projectFixture, cloudProvider: 'GCP', processStatus: status }} identity={gcpIdentity} />,
+    );
+    expect(cue().getAttribute('aria-expanded')).toBe('true');
+  });
+
+  it('is a first render, not a memory — closing an open one sticks for that visit', () => {
+    // ⛔ Deliberately unpersisted: no cookie, no localStorage. Re-opening the page opens
+    // it again, and that is accepted — the alternative makes the header's shape depend on
+    // history the reader cannot see.
+    render(
+      <ProjectPageMeta project={{ ...projectFixture, cloudProvider: 'GCP' }} identity={gcpIdentity} />,
     );
     fireEvent.click(cue());
     expect(cue().getAttribute('aria-expanded')).toBe('false');
+  });
+
+  it('draws no grid at all when the provider contributes no facts', () => {
+    // ⛔ An empty grid still charges `pt-[22px]` + `pb-1` — 26px of nothing between the
+    // block name and the drawer, on exactly the two providers whose drawer is open by
+    // default, so the gap would land in the middle of the header.
+    const { container } = render(
+      <ProjectPageMeta
+        project={{ ...projectFixture, cloudProvider: 'IDC' }}
+        identity={idcIdentity}
+      />,
+    );
+    // Matched on the class string, not a CSS selector — this jsdom has no `CSS.escape`,
+    // and `pt-[22px]` cannot go into `querySelector` unescaped.
+    expect(
+      [...container.querySelectorAll('*')].filter((el) =>
+        String(el.className).includes('pt-[22px]'),
+      ),
+    ).toHaveLength(0);
+    expect(
+      [...container.querySelectorAll('div')].filter((d) =>
+        d.className === projectHeaderStyles.factGrid,
+      ),
+    ).toHaveLength(0);
+    // The 설치 모드 cell alone is enough to bring the grid back — it is a fact too.
+    const { container: withMode } = render(
+      <ProjectPageMeta
+        project={{ ...projectFixture, cloudProvider: 'IDC' }}
+        identity={{ ...idcIdentity, installMode: 'manual' }}
+      />,
+    );
+    expect(
+      [...withMode.querySelectorAll('div')].filter((d) =>
+        d.className === projectHeaderStyles.factGrid,
+      ),
+    ).toHaveLength(1);
   });
 });
 
