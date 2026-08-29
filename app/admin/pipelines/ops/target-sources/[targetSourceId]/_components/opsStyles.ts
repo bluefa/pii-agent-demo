@@ -7,18 +7,24 @@ import { partitionColors, primaryColors } from '@/lib/theme';
 export const opsStyles = {
   /**
    * R1 page root (docs/ux/benchmark/ops-detail-ia-redesign.md) — escapes
-   * layout.contentFluid's padding (the dash.bleed escape hatch) so the masthead
-   * wash and the lavender canvas both reach the viewport edges. The canvas is
-   * painted HERE, not on --pl-bg-page: that token is the section's, and every
-   * sibling pipelines screen stands on it.
+   * layout.contentFluid's padding (the dash.bleed escape hatch) so the ground
+   * reaches the viewport edges. It is painted HERE, not on --pl-bg-page: that
+   * token is the section's, and every sibling pipelines screen stands on it.
+   *
+   * gray-200, and the masthead no longer paints its own. 워시(gray-100)와 라벤더
+   * 캔버스(--pl-bg-canvas)는 **1.006:1** 로, 갈라진 적이 없다 — ΔE00 2.46 이 유일한
+   * 분리자였고 크롬은 톤이 셋이었다. 그 셋을 하나로 합치면 흰 카드가 1.240 으로 제
+   * 힘으로 서고(Backstage·GitHub·Carbon 전부 한 칸만 쓴다), 헤더↔본문 이음매는 선이
+   * 아니라 **흰색이 시작되는 자리**가 된다. 바닥이 한 칸 내려간 만큼, 이 면 **위에
+   * 직접 서는** 잉크는 전부 한 칸씩 따라 내려갔다 (path·tab·fm*, 아래 각 줄).
    */
-  page: '-mx-8 -mt-6 -mb-12 flex min-h-[calc(100vh_-_64px)] flex-col bg-[var(--pl-bg-canvas)]',
+  page: '-mx-8 -mt-6 -mb-12 flex min-h-[calc(100vh_-_64px)] flex-col bg-[var(--pl-gray-200)]',
   /**
-   * Masthead — one gray-100 wash holding the path line + FrontMeta block + the tab
-   * strip, closed by that strip's hairline (tabStrip). The wash separates from the
-   * canvas on chroma, not luminance (ΔE00 2.46, guard-pinned).
+   * Masthead — 칠이 없다. 경로 줄 + FrontMeta 블록 + 탭 스트립을 담되 제 면을 그리지
+   * 않고 `page` 의 바닥 위에 그대로 선다. 워시가 하던 일(머리를 본문과 가르기)은 이제
+   * 카드가 한다 — 흰색이 나타나는 첫 지점이 본문의 시작이다.
    */
-  masthead: 'bg-[var(--pl-gray-100)] px-8 pt-4',
+  masthead: 'px-8 pt-4',
 
   /**
    * 경로 한 줄 — Linear 문법 (오너 2026-08-26 2차: "너무 어지럽다. 정보정리가 안 된듯.
@@ -41,8 +47,9 @@ export const opsStyles = {
    *  2. **굵은 것은 하나뿐이다.** 서 있는 곳의 식별자만 14/600 이고 나머지는 전부 12/400.
    *     크기와 무게 두 레버가 같은 요소에 실린다(design-guide §3 "인접 계층은 레버 2개").
    *  3. **칠을 걷고 구분자에 하중을 넘긴다.** 상자가 지던 묶음을 이제 `/` 와 간격이 진다
-   *     ("Structure should be felt not seen"). 칠이 사라졌으므로 구분자는 faint(워시 위
-   *     2.34:1)에서 weak(4.53:1)로 올라간다 — 유일한 묶음 장치가 안 보이면 안 된다.
+   *     ("Structure should be felt not seen"). 칠이 사라졌으므로 구분자는 faint 에서 한 칸
+   *     올라간다 — 유일한 묶음 장치가 안 보이면 안 된다. 바닥이 gray-200 이 된 뒤로 그 칸은
+   *     weak(4.01, AA 아래)이 아니라 **gray-600**(6.20)이다.
    *
    * ⛔ 파랑은 **지나온 마디**에서 빠졌다. 링크는 색이 아니라 hover 로 말한다 — 세 마디 중
    * 둘이 링크라 거기에 파랑을 쓰면 줄의 3분의 2가 파래진다.
@@ -51,20 +58,20 @@ export const opsStyles = {
    * 줄에서 눈이 가장 먼저 닿는 곳이 "지금 보고 있는 대상"이 된다.
    */
   pathLine: 'flex flex-wrap items-baseline gap-x-3 gap-y-1',
-  path: 'flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-1 text-[12px] leading-[1.5] text-[var(--pl-text-weak)]',
-  /** 구분자 — 칠이 없어진 뒤로 이 줄의 유일한 묶음 장치다. 워시 위 4.53:1. */
-  pathSep: 'flex-none text-[var(--pl-text-weak)]',
+  path: 'flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-1 text-[12px] leading-[1.5] text-[var(--pl-gray-600)]',
+  /** 구분자 — 칠이 없어진 뒤로 이 줄의 유일한 묶음 장치다. 바닥 위 6.20:1. */
+  pathSep: 'flex-none text-[var(--pl-gray-600)]',
   /** 지나온 마디. 색도 굵기도 없고, 누를 수 있다는 것은 hover 가 말한다. */
   pathLink:
-    'flex-none cursor-pointer text-[12px] text-[var(--pl-text-weak)] transition-colors hover:text-[var(--pl-text-strong)] hover:underline',
+    'flex-none cursor-pointer text-[12px] text-[var(--pl-gray-600)] transition-colors hover:text-[var(--pl-text-strong)] hover:underline',
   /** 지나온 마디 중 **식별자**인 것(서비스 코드) — 낱말보다 한 단 진하다. */
   pathLinkId:
     'flex-none cursor-pointer text-[12px] font-medium text-[var(--pl-text-medium)] transition-colors hover:text-[var(--pl-text-strong)] hover:underline',
   /** 서 있는 곳 — 종류(옅은 낱말) + 식별자(줄에서 유일하게 굵고 큰 것). */
   pathHere: 'flex flex-none items-baseline gap-1.5',
-  pathHereKind: 'text-[12px] text-[var(--pl-text-weak)]',
+  pathHereKind: 'text-[12px] text-[var(--pl-gray-600)]',
   pathHereId:
-    '[font-family:var(--pl-font-mono)] text-[14px] font-semibold tabular-nums text-[var(--pl-primary)]',
+    '[font-family:var(--pl-font-mono)] text-[14px] font-semibold tabular-nums text-[var(--pl-primary-hover)]',
   pathChipLabel: 'text-[12px] font-medium text-[var(--pl-gray-600)]',
   pathChipValue:
     '[font-family:var(--pl-font-mono)] text-[12px] font-semibold text-[var(--pl-text-strong)]',
@@ -102,10 +109,10 @@ export const opsStyles = {
   fmGroup: 'mt-5',
   /**
    * 블록 머리 — 이름 왼쪽, 여는 큐 오른쪽. **닫는 선은 없다** (오너 2026-08-27
-   * "하단에 구분선을 없애고"). 이 워시 위의 `--pl-border-strong` 획은 이제 **탭 띠뿐**
-   * 이다 — 위 한 줄과, 그룹마다 끊기는 아래 도막들(`tabGroup`). 전부 한 덩어리로 같은
-   * 한 가지를 말하므로("여기서 내비게이션이 시작한다"), 블록 머리가 같은 획을 쓰면
-   * 그 말이 흐려진다. 블록을 묶는 일은 이름의 크기(16)와 그 아래 간격(22)이 진다.
+   * "하단에 구분선을 없애고"). 이 바닥 위에서 탭 띠는 `--pl-gray-400` 한 칸 위의 획을
+   * 쓴다 — 위 한 줄과, 그룹마다 끊기는 아래 도막들(`tabGroup`). 전부 한 덩어리로 같은
+   * 한 가지를 말하므로("여기서 내비게이션이 시작한다"), 블록 머리가 획을 하나라도
+   * 얹으면 그 말이 흐려진다. 블록을 묶는 일은 이름의 크기(16)와 그 아래 간격(22)이 진다.
    */
   fmHead: 'flex items-center justify-between gap-4 pb-1.5',
   fmName: 'flex min-w-0 items-center gap-2',
@@ -142,8 +149,11 @@ export const opsStyles = {
       획을 오른쪽 패널의 `border-l` 로 주지 않는 이유: `aboutPanel` 은 200px 고정 폭이라
       테두리와 padding 이 그만큼 링크 폭을 먹는다(제로섬 열). 제 폭 1px 말고는 아무것도
       차지하지 않는 요소를 따로 세우고, `self-stretch` 로 두 단 중 높은 쪽 높이를 따른다.
-      `--pl-border` 다 — 이 워시 위의 `--pl-border-strong` 획은 탭 띠의 것으로 남는다. */
-  fmSplitRule: 'w-px flex-none self-stretch bg-[var(--pl-border)]',
+      획의 값은 아래 줄이 정한다 — 바닥이 바뀌면서 이 자리도 같이 움직였다. */
+  /** ⚠️ 이 룰은 `border-*` 가 아니라 **칠**로 그린다(1px 짜리 `<span>` 의 배경). 그래서
+      바닥이 gray-200 이 된 뒤 `--pl-border` 로 두면 1.000 으로 통째로 사라진다 — 그 토큰이
+      gray-200 과 **같은 값**이기 때문이다. 획으로 그린 것만 찾아서는 이 자리를 못 찾는다. */
+  fmSplitRule: 'w-px flex-none self-stretch bg-[var(--pl-border-strong)]',
   /** 200px — kv 열(240px)보다 좁게 잡는다: 이 단은 대조하는 값이 아니라 이정표라
       제 이름 두 개가 들어가는 만큼만 있으면 되고, 남는 폭은 그리드 쪽에 남는다. */
   aboutPanel: 'w-[200px] flex-none',
@@ -270,7 +280,7 @@ export const opsStyles = {
       500 으로 남아 라벨과의 레버가 크기 하나로 줄었다(실측으로 잡음). */
   fmMono: '[font-family:var(--pl-font-mono)]',
   fmLink:
-    'inline-flex cursor-pointer items-center gap-0.5 whitespace-nowrap text-[12px] font-semibold text-[var(--pl-primary)] underline underline-offset-2 decoration-[var(--pl-primary-ring)] hover:decoration-[var(--pl-primary)]',
+    'inline-flex cursor-pointer items-center gap-0.5 whitespace-nowrap text-[12px] font-semibold text-[var(--pl-primary-hover)] underline underline-offset-2 decoration-[var(--pl-primary-ring)] hover:decoration-[var(--pl-primary-hover)]',
 
   /**
    * 「상세 정보」 접힘 — 3열이라 열려도 사실이 세로로 쌓이지 않는다. 236px 레일이 지고
@@ -320,10 +330,10 @@ export const opsStyles = {
       대신 접힌다 — 14px 에서 Service Account 전문은 433px 이고 @1900 폴드 한 열이
       441px 이라 한 줄에 선다. */
   fmValueFull: 'break-all text-[14px] font-medium leading-5 text-[var(--pl-text-strong)]',
-  /** 복사 — 값 옆의 아이콘 하나. 글자가 아니라 그래픽이라 3:1 기준이고, weak 는 이
-      워시에서 4.51:1 로 그 위다. */
+  /** 복사 — 값 옆의 아이콘 하나. 글자가 아니라 그래픽이라 3:1 기준이다. 바닥이
+      gray-200 이 된 뒤 weak 는 4.01 이라 램프 한 칸 아래 gray-600(6.20)이 진다. */
   fmCopy:
-    'inline-flex flex-none cursor-pointer items-center rounded p-0.5 text-[var(--pl-text-weak)] transition-colors hover:text-[var(--pl-primary)]',
+    'inline-flex flex-none cursor-pointer items-center rounded p-0.5 text-[var(--pl-gray-600)] transition-colors hover:text-[var(--pl-primary-hover)]',
 
   /** Neutral tag / region tag — shared with SduOpsNotice·ServiceDetailView
       (Figma 49:4/34:4). */
@@ -338,9 +348,9 @@ export const opsStyles = {
    * 이 화면에서 "만질 수 있는 값"에만 남는다 — 그 문법을 이 칩이 진다. 값의 밑줄이
    * affordance 를 지고(countLink 규칙) 색은 상태(StepPill)에 남는다.
    *
-   * 대비 실측: 글자(--pl-text-strong) on 면(--pl-bg-card) = 17.85:1. 면은 캔버스
-   * (--pl-bg-canvas) 위에서 ΔE00 4.12, 카드 hover 틴트 위에서 8.92 (tableRowLift.card
-   * 주석의 실측치와 같은 쌍).
+   * 대비 실측: 글자(--pl-text-strong) on 면(--pl-bg-card) = 17.85:1. 면은 이 화면의
+   * 바닥(--pl-gray-200) 위에서 ΔE00 5.66 — 옛 라벤더 캔버스에서의 4.12 보다 벌어졌다.
+   * 카드 hover 틴트 위에서는 8.92 그대로 (tableRowLift.card 주석의 실측치와 같은 쌍).
    */
   rawDataTag: 'inline-flex items-center whitespace-nowrap rounded px-1.5 py-0.5 text-[12px] font-semibold border border-[var(--pl-border-strong)] bg-[var(--pl-bg-card)] text-[var(--pl-text-strong)]',
   /**
@@ -398,18 +408,22 @@ export const opsStyles = {
   partitionChina: `${partitionColors.chinaBg} ${partitionColors.chinaInk}`,
 
   /**
-   * Line tabs on the masthead wash (design-benchmark `ops-tab-band.md` 시안 A) —
-   * no band. The tabs stand on the same --pl-gray-100 the masthead does, closed
-   * by hairlines in --pl-border-strong. That token used to draw the 「연동 대상」
+   * Line tabs on the ops ground (design-benchmark `ops-tab-band.md` 시안 A) —
+   * no band. The tabs stand on the same gray-200 the masthead does, closed
+   * by hairlines in --pl-gray-400. That token used to draw the 「연동 대상」
    * block head too, so the masthead ended on the same stroke its own blocks did;
    * the block heads gave their hairline up (오너 2026-08-27), which leaves these
    * the only --pl-border-strong strokes on the wash.
    *
    * The band (08-20 셋째 조정) existed because the masthead had no way to close
    * itself: the wash ran into the canvas and something had to draw the seam. The
-   * FrontMeta rewrite gave the wash a hairline vocabulary, so that premise is
-   * spent — and the band cost real contrast, dropping --pl-primary to 4.17 (AA
-   * fail) where it measures 4.69 on the wash.
+   * FrontMeta rewrite gave it a hairline vocabulary, so that premise is spent.
+   *
+   * ⚠️ 밴드를 기각한 근거 중 하나("밴드 위에서 --pl-primary 가 4.17 로 AA 실패")는
+   * **바닥이 gray-200 이 되면서 만료됐다** — 이제 그 4.17 이 이 화면의 사실이다.
+   * 죽은 것은 띠가 아니라 파란 잉크였고, 그래서 활성 탭은 --pl-primary-hover(5.41)로
+   * 내려갔다. GitHub 의 UnderlineNav 도 활성·비활성이 같은 잉크를 쓰고 굵기와 2px
+   * 표시자로만 가른다.
    *
    * The full bleed goes with it. `-mx-8 … px-8` made this strip the only thing on
    * the screen reaching the wash's own edges while every fact above and every card
@@ -430,7 +444,7 @@ export const opsStyles = {
    * 하나의 띠가 된다 — 칠을 하나도 쓰지 않고 묶는다("Structure should be felt not seen").
    *
    * 위 여백은 20px 로, 블록↔블록과 같은 칸이다. 블록 머리의 헤어라인이 사라진 뒤로
-   * (오너 2026-08-27) 이 워시 위에서 `--pl-border-strong` 획은 **이 띠뿐**이다 — 위 한
+   * (오너 2026-08-27) 이 바닥 위에서 `--pl-gray-400` 획은 **이 띠뿐**이다 — 위 한
    * 줄과, 그룹마다 끊기는 아래 도막들. 그래서 마스트헤드의 마지막 사실과 이 띠 사이는
    * 블록이 갈리는 거리만큼 떨어져 있으면 되고, 이 획들이 하는 말은 하나다:
    * "여기서 내비게이션이 시작한다".
@@ -439,12 +453,20 @@ export const opsStyles = {
    * 아래 선만 `tabGroup` 으로 내려갔다 (ops-nav 시안 A). 위 선은 통으로 남아 띠의
    * 천장을 진다 — 두 선 중 하나가 끊기면 나머지가 띠를 계속 붙들고 있어야 한다.
    *
+   * 획은 `--pl-border-strong` 이 아니라 **gray-400** 이다. 바닥이 gray-200 이 되면서
+   * `--pl-border-strong` 은 1.338(옛 워시 위) → **1.189** 로 주저앉았다 — 칠이 사라진 자리에서
+   * 헤어라인이 하중을 넘겨받는데, 정작 그 획이 옅어진 것이다. 되돌리는 것으로는 모자란다:
+   * 워시가 있던 시절엔 워시의 경계가 띠를 같이 붙들었지만 이제 **이 두 선이 내비게이션의
+   * 전부**이므로(오너 08-27 "위 아래 구분선이 Navigation이다라는 느낌만 주게"), 획은
+   * 제자리로 돌아가는 게 아니라 한 칸 올라간다 — gray-400 은 바닥 위 **2.078** 이다.
+   * hover 밑줄도 같이 올라간다: 띠의 선보다 옅은 hover 는 순서가 뒤집힌 것이다.
+   *
    * `gap-[22px]` 는 램프 밖의 값이지만 임의로 고른 것이 아니다 — 스페이서 `<span>`
    * (w-3.5) 이 `gap-1` 두 칸 사이에 서 있던 옛 구조의 실제 거리(4+14+4)를 그대로
    * 옮긴 값이다. 구간이 갈리는 거리는 시안 A 에서 **변경 대상이 아니었다**: 바뀌는
    * 것은 그 갭에서 선이 끊긴다는 것 하나뿐이다. `gap-5`(20)·`gap-6`(24)로 반올림하면
    * 조정한 적 없는 간격이 조용히 움직인다. */
-  tabStrip: 'mt-5 flex items-end gap-[22px] border-t border-[var(--pl-border-strong)]',
+  tabStrip: 'mt-5 flex items-stretch gap-[22px] border-t border-[var(--pl-gray-400)]',
   /**
    * 구간 헤어라인 — 아래 선을 그룹마다 따로 긋는다. 아홉 탭은 네 가지 일이고
    * (보기 · 실행 · 승인·근거 · 초기화), 그 경계는 지금까지 빈 칸 하나로만 서 있었다. 선이
@@ -454,13 +476,16 @@ export const opsStyles = {
    * 그룹 안의 `gap-1` 아래로도 선은 이어진다 — 선이 끊기는 곳은 오직 그룹 사이다.
    * 활성 탭의 `-mb-px` 는 이제 제 그룹의 선을 먹는다(기하는 그대로).
    */
-  tabGroup: 'flex items-end gap-1 border-b border-[var(--pl-border-strong)]',
+  /** ⛔ `min-w-0` 를 주지 않는다. 탭은 `min-width:auto` 라 내용 밑으로 줄지 않으므로,
+      그룹만 줄 수 있게 하면 탭이 제 그룹 상자를 넘고 **그룹이 긋는 아래 선이 탭보다 짧아진다**.
+      그룹도 내용 폭에서 멈추면, 열이 좁아졌을 때 균등 폭을 포기하고 오늘의 행동으로 돌아간다. */
+  tabGroup: 'flex basis-0 items-end gap-1 border-b border-[var(--pl-gray-400)]',
   /** 스켈레톤에서만 아래 선을 **스트립**이 진다. 구간이 몇 개이고 어디서 끊기는지는 탭
       구성이고 탭 구성은 데이터라, 도착 전에는 지어낼 수가 없다. `tabGroup` 하나로 감싸면
       아래 선이 보이지 않는 탭 하나의 폭만 덮어(44px) 도착 순간 세 도막(732px)으로 뛴다 —
       1px 획이라 레이아웃은 안 움직이지만 잉크가 통째로 바뀐다. 통으로 그어 두면 바뀌는
       것은 선이 **끊기는 자리**뿐이다. */
-  tabStripLoading: 'border-b border-[var(--pl-border-strong)]',
+  tabStripLoading: 'border-b border-[var(--pl-gray-400)]',
   /**
    * Geometry is `accessStyles.tab` verbatim (the 접근 권한 page tabs) — the admin
    * console should have one line-tab, not two that differ by a few px.
@@ -471,14 +496,38 @@ export const opsStyles = {
       굵기는 활성·비활성이 같이 진다: 활성은 이미 잉크와 밑줄 두 레버를 들고 있어서,
       굵기까지 가져가면 비활성이 한 단 더 내려앉고 선택이 아니라 나머지가 흐려진 것처럼
       읽힌다. */
-  tab: 'relative flex cursor-pointer items-center gap-1.5 whitespace-nowrap border-b-2 -mb-px px-3 py-2.5 text-[14px] font-semibold transition-colors',
+  /**
+   * 셀은 **한 폭을 나눠 가진다** (오너 2026-08-29 "각 navigation 메뉴마다 일정한 width가
+   * 할당되지 않았음"). 내용 폭으로 두면 「스캔」 47.8 ↔ 「연동 요청 정보」 101.5 로 **2.12배**
+   * 벌어지고, 아홉이 840px 만 덮어 1422px 열의 **582px(41%)** 가 꼬리로 남았다. 그 꼬리가
+   * 두 번째 문제였다: 위 선은 통으로 그어지는데 아래 선은 그룹이 지므로, 꼬리 구간에는
+   * 천장만 있고 바닥이 없어 띠가 오른쪽으로 열려 있었다.
+   *
+   * `flex-1 basis-0` + 그룹의 `growOf`(탭 수)가 그 둘을 한 번에 닫는다 — 셀이 열을 채우면
+   * 꼬리가 사라지고, 아래 선이 그룹 갭(22px 세 칸)만 빼고 끝까지 따라간다. 갭에서 끊기는
+   * 것은 그대로라 구간은 계속 읽힌다.
+   *
+   * ⚠️ 정확히 같지는 않다. 그룹 안의 `gap-1`(4px)은 grow 비율 밖이라 갭 수가 다른 그룹의
+   * 셀이 조금 넓다 — @1422 열에서 **147.67 / 148.67 / 150.67px**(실측, 편차 1.020배).
+   * 2.12배를 1.02배로 줄인 것이지 0 으로 만든 것이 아니다. 3px 을 마저 없애려면 갭을
+   * 빼야 하는데, 그러면 활성 탭의 2px 밑줄이 옆 탭과 맞닿아 세그먼트 컨트롤로 읽힌다.
+   *
+   * `min-width:auto` 는 그대로 둔다 — 열이 좁아져 균등 폭이 가장 긴 라벨보다 작아지면
+   * 셀은 균등을 포기하고 내용 폭으로 돌아간다. 좁은 화면에서 글자가 잘리는 대신 오늘의
+   * 행동으로 되돌아가는 쪽이 맞다.
+   *
+   * 라벨은 가운데로 온다. 균등 셀에서 왼쪽 정렬은 라벨마다 오른쪽 여백이 달라져 셀의
+   * 리듬이 아니라 낱말 길이가 보인다.
+   */
+  tab: 'relative flex flex-1 basis-0 cursor-pointer items-center justify-center gap-1.5 whitespace-nowrap border-b-2 -mb-px px-3 py-2.5 text-[14px] font-semibold transition-colors',
   /** 잉크 + 밑줄. The face is gone, so 파랑 is the only thing marking the tab that
-      is open — 4.69:1 on the wash (실측). */
-  tabActive: 'text-[var(--pl-primary)] border-[var(--pl-primary)]',
-  /** 워시는 램프 한 칸을 잡아먹는다 — `--pl-text-weak` (accessStyles' idle ink) is
-      only 4.51 here, so idle stays at medium: 9.49:1 (실측). */
+      is open. gray-200 바닥 위에서 --pl-primary 는 4.17 로 AA 아래라, 램프의 다음 칸
+      --pl-primary-hover 가 진다 — 5.41:1 (실측). */
+  tabActive: 'text-[var(--pl-primary-hover)] border-[var(--pl-primary-hover)]',
+  /** 바닥은 램프 한 칸을 잡아먹는다 — `--pl-text-weak` (accessStyles' idle ink) is
+      only 4.01 here, so idle stays at medium: 8.44:1 (실측). */
   tabIdle:
-    'text-[var(--pl-text-medium)] border-transparent hover:text-[var(--pl-text-strong)] hover:border-[var(--pl-border-strong)]',
+    'text-[var(--pl-text-medium)] border-transparent hover:text-[var(--pl-text-strong)] hover:border-[var(--pl-gray-400)]',
   /**
    * 걸린 단계의 마크 — 탭 **우상단 코너의 점** (오너 2026-08-27 "보라색 밑줄 말고
    * 확인 필요처럼 보이는 시각적 요소를 써볼까? 우상단의 빨간색 점은 어때?").
@@ -494,32 +543,32 @@ export const opsStyles = {
    */
   tabCorner: 'absolute right-1 top-1 h-2 w-2 rounded-full',
   /**
-   * 빨강은 **관리자 차례일 때만** 켜진다 — 6단계(CONNECTED, 관리자 승인 대기)가
-   * 관리자가 실제로 막혀 있는 유일한 자리다. 모든 대상은 늘 어떤 단계엔가 서 있으므로,
-   * 걸렸다는 사실 전체에 빨강을 주면 이 콘솔에서 빨강이 상시 켜져 아무 말도 하지 않게
-   * 된다. `--pl-err-solid` 는 워시 위 4.38 (실측) 로 그래픽 3:1 위다.
+   * 코너 점은 **한 색이다** (오너 2026-08-29 "색상은 모두 빨간색으로 통일해").
    *
-   * 같은 빨강을 `tabDotFail` 도 쓰지만 뜻이 겹치지 않는다: 저쪽은 라벨 옆 인라인이고
-   * 이쪽은 코너다 — 자리가 두 사실을 가른다(실행이 실패했다 vs 당신 차례다).
+   * 08-27 에는 둘이었다 — 6단계(CONNECTED, 관리자 승인 대기)만 빨강이고 2·3·4·5 는
+   * `--pl-current` 보라였다. 그 갈래의 근거는 "걸렸다는 사실 전체에 빨강을 주면 빨강이
+   * 상시 켜져 아무 말도 하지 않게 된다" 였는데, 오너가 그 대가를 받기로 했다: 점이
+   * 말하는 것은 한 가지("이 대상은 여기 걸려 있다")이고, 색이 둘이면 읽는 사람이
+   * 색부터 해석해야 한다. 어느 단계인지는 색이 아니라 **점이 붙은 탭**이 말한다.
+   *
+   * 갈래는 낱말에 남는다 — 6단계만 「확인 필요」, 나머지는 「현재 N단계」다(`stepWord`).
+   * 그쪽은 화면의 소리를 늘리지 않으면서 스크린 리더에 사실을 그대로 전한다.
+   *
+   * `--pl-err-solid` 는 바닥 위 3.90 (실측) 로 그래픽 3:1 위다. 같은 빨강을 `tabDotFail`
+   * 도 쓰지만 뜻이 겹치지 않는다: 저쪽은 라벨 옆 인라인이고 이쪽은 코너다 — 자리가 두
+   * 사실을 가른다(실행이 실패했다 vs 이 대상이 여기 서 있다).
    */
   tabCornerAlert: 'bg-[var(--pl-err-solid)]',
-  /**
-   * 나머지 단계(2·3·4·5)는 보라 — "지금 여기"이지 문제가 아니다. `--pl-current` 는
-   * 이 콘솔에서 상태도 링크도 아닌 정체 쪽 어휘라(서비스 레일의 현재 위치,
-   * `metaTagQuiet` 의 속성 태그와 같은 가족) 판정 계열과 부딪히지 않는다.
-   * 워시 위 4.50:1 (실측).
-   */
-  tabCornerStep: 'bg-[var(--pl-current)]',
   /**
    * 「연결 테스트」 탭의 상태 점 — 8px, the size this screen's own dots already use
    * (`tcBand.countDot`, ConfirmEditorModal). It says only that the latest run
    * failed or is still open; the tab itself says the rest. No count badges: a
    * number on a tab claims the tab is a worklist (#735).
    *
-   * 색은 그래픽이라 3:1 기준이다. `--pl-err` 는 워시 위 3.41 로 그 위지만, 이 점은
-   * 8px 이라 램프를 한 칸 더 내려 `--pl-err-solid`(4.38, 실측)를 쓴다. 진행 중은
-   * `--pl-info` 가 2.94 로 3:1 을 **못 넘어서**(실측) 같은 계열의 다음 칸
-   * `--pl-info-text`(5.43)가 진다.
+   * 색은 그래픽이라 3:1 기준이다. `--pl-err` 는 바닥 위 3.03 으로 겨우 그 위라, 이 점은
+   * 8px 이라 램프를 한 칸 더 내려 `--pl-err-solid`(3.90, 실측)를 쓴다. 진행 중은
+   * `--pl-info` 가 2.61 로 3:1 을 **못 넘어서**(실측) 같은 계열의 다음 칸
+   * `--pl-info-text`(4.83)가 진다.
    *
    * 자리는 늘 잡혀 있고 `opacity` 로만 나타난다 — 즉 점은 항상 렌더되고 보이지 않는
    * 동안에도 제 폭을 차지한다. TC 응답은 마스트헤드보다 늦게 도착하는데, 이 점은 라벨 옆
@@ -535,9 +584,10 @@ export const opsStyles = {
   body: 'flex flex-1 flex-col px-8 pt-6 pb-12',
   content: 'flex min-w-0 flex-1 flex-col gap-4',
 
-  /** Skeleton bar ON THE WASH — the gray-100 `skeletonBar` vanishes there (same
-      value as the wash), so masthead skeletons step one ramp deeper. */
-  skeletonWash: 'animate-pulse rounded-[6px] bg-[var(--pl-gray-200)]',
+  /** Skeleton bar ON THE GROUND — 바닥이 gray-200 이 되면서 이 자리의 gray-200 은
+      바닥과 **같은 값**이 됐다(1.000). 그래서 한 칸 더 내려간다: gray-300, 바닥 위 1.19
+      로 gray-100 이 흰 카드 위에서 내던 단차와 같은 급이다. */
+  skeletonWash: 'animate-pulse rounded-[6px] bg-[var(--pl-gray-300)]',
   /** Side-by-side cards — grid rows stretch so the pair is always equal height. */
   cardsRow: 'grid grid-cols-2 gap-4',
   /** 20px — at 16px the card title reads the same tier as in-card block headers (ops feedback, scan tab). */
@@ -735,8 +785,13 @@ export const opsStyles = {
     track: 'relative h-2 overflow-hidden rounded-full bg-[var(--pl-gray-200)]',
     fillOk: 'h-full transition-[width] duration-[250ms] ease-out bg-[var(--pl-ok)]',
     fillFail: 'h-full transition-[width] duration-[250ms] ease-out bg-[var(--pl-err)]',
-    /** 카운트 줄 — 세그먼트 문법(점 · 라벨 · 굵은 수). */
-    counts: 'flex items-center gap-3 text-[12px] font-medium tabular-nums text-[var(--pl-text-weak)]',
+    /** 카운트 줄 — 세그먼트 문법(점 · 라벨 · 굵은 수).
+     *
+     * 잉크가 gray-600 인 것은 이 줄의 유일한 임자(`MonitoringEvidenceBody`)가 카드가 아니라
+     * **바닥 위에** 서기 때문이다 (AirflowTab: "판정·수·표가 바닥에 바로 서고, 제 표면을
+     * 갖는 것은 표뿐이다"). 바닥이 gray-200 이라 weak 는 4.01 로 AA 아래고, 램프의 다음
+     * 칸이 6.20 을 낸다. */
+    counts: 'flex items-center gap-3 text-[12px] font-medium tabular-nums text-[var(--pl-gray-600)]',
     countSeg: 'flex items-center gap-1.5',
     countValue: 'text-[14px] font-bold tabular-nums',
     /**
@@ -757,6 +812,18 @@ export const opsStyles = {
     countDot: 'h-2 w-2 rounded-full flex-shrink-0',
     countDotOk: 'bg-[var(--pl-ok)]',
     countDotFail: 'bg-[var(--pl-err)]',
+    /**
+     * 같은 두 점의 **바닥 위** 짝 — `MonitoringEvidenceBody` 의 근거 줄만 입는다. 위의 둘은
+     * 흰 카드 위(`TcLatestRunCard`)에 남는다.
+     *
+     * 8px 이라 글자가 아니라 그래픽이고 기준은 3:1 이다. 바닥이 gray-200 이 되면서
+     * `--pl-ok` 는 2.395 → **2.116**, `--pl-err` 는 3.432 → **3.031** 로 내려왔다 — 초록은
+     * 원래부터 그 아래였고 빨강은 여백이 0.03 만 남았다. 그래서 둘 다 램프에서 한 칸씩
+     * 내려간다: `--pl-ok-text` 4.366 · `--pl-err-solid` 3.897. 탭 옆 점(`tabDotFail`)이
+     * 같은 이유로 `-solid` 를 쓰는 것과 같은 판단이다.
+     */
+    countDotOkGround: 'bg-[var(--pl-ok-text)]',
+    countDotFailGround: 'bg-[var(--pl-err-solid)]',
     countDotRest: 'bg-[var(--pl-text-faint)]',
     /** 값이 없다는 사실은 색이 아니라 형태가 말한다 — 채운 점이 아니라 파선 링. */
     countDotMissing: 'h-2.5 w-2.5 rounded-full border-2 border-dashed border-[var(--pl-warn-text)] flex-shrink-0',

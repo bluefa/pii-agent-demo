@@ -100,6 +100,23 @@ const TAB_GROUPS: readonly (readonly TabLabel[])[] = [
  * 사실이 아니고, 7단계는 대응하는 탭 자체가 없다. 없는 자리를 가장 가까운 탭으로
  * 반올림하면 밑줄이 매번 거짓말을 한다.
  */
+/**
+ * 그룹이 탭 줄에서 가져가는 몫 = 그 그룹이 든 탭 수. 그래야 넷·둘·둘·하나로 갈린 그룹을
+ * 지나도 아홉 셀의 폭이 서로 같다.
+ *
+ * 리터럴 표다 — 인라인 `style` 객체는 렌더마다 새로 만들어지고(AP-E2), 클래스 문자열은
+ * 완전한 리터럴이어야 한다(동적 조합 금지). 값의 범위는 데이터가 정하지만 **유한하다**:
+ * `TAB_GROUPS` 의 그룹은 넷·둘·둘·하나이고, IDC 가 「스캔」을 빼면 첫 그룹만 셋이 된다.
+ *
+ * 표가 아니라 **튜플**인 것이 요점이다. 키 있는 객체로 두면 범위 밖의 길이가 `undefined`
+ * 를 돌려주고, `cn` 이 그걸 삼켜 그룹은 `flex-grow: 0` + `basis-0` 으로 **폭 0** 이 된다 —
+ * 탭이 통째로 넘치는데 화면은 아무 말도 하지 않는다. 클램프해 두면 최악이 "폭이 조금
+ * 좁다"로 끝난다. 슬러그가 어느 그룹에도 없는 경우는 `OpsTargetView.idc.test.tsx` 가
+ * 이미 그 자리에서 깨뜨린다(`TAB_GROUPS` 주석 참조).
+ */
+const GROUP_GROW = ['grow', 'grow-[2]', 'grow-[3]', 'grow-[4]'] as const;
+const growOf = (n: number) => GROUP_GROW[Math.min(Math.max(n, 1), GROUP_GROW.length) - 1];
+
 const STEP_TAB = new Map<ProcessStatus, TabLabel>([
   ['PENDING', OPS_TAB_SLUGS.request],
   ['CONFIRMING', OPS_TAB_SLUGS.confirm],
@@ -353,13 +370,12 @@ export function OpsTargetView({ targetSourceId, initialTab }: OpsTargetViewProps
   const stepTab = processStatus ? STEP_TAB.get(processStatus) ?? null : null;
   const stepInfo = processStatus ? STEP[processStatus] : null;
   /**
-   * 빨강은 6단계 하나에만 (오너 2026-08-27). 그 단계만 관리자가 실제로 막혀 있고,
-   * 나머지는 다른 누군가의 차례이거나 파이프라인이 돌고 있는 중이다 — 걸렸다는 사실
-   * 전체를 빨강으로 칠하면 모든 대상이 늘 어떤 단계엔가 있으므로 빨강이 상시 켜진다.
-   * 낱말도 같이 갈린다: 빨강만 「확인 필요」라고 말한다.
+   * 점의 **색**은 더 이상 갈리지 않는다 (오너 2026-08-29 "색상은 모두 빨간색으로 통일해") —
+   * 갈래는 낱말에만 남는다. 6단계(CONNECTED)만 관리자가 실제로 막혀 있는 자리라
+   * 「확인 필요」라고 말하고, 나머지는 다른 누군가의 차례이거나 파이프라인이 도는
+   * 중이라 「현재 N단계」다.
    */
   const stepAlert = processStatus === 'CONNECTED';
-  const stepDot = stepAlert ? opsStyles.tabCornerAlert : opsStyles.tabCornerStep;
   const stepWord = stepInfo
     ? `${stepAlert ? '확인 필요 — ' : '현재 '}${stepInfo.n}단계 · ${stepInfo.label}`
     : null;
@@ -483,7 +499,7 @@ export function OpsTargetView({ targetSourceId, initialTab }: OpsTargetViewProps
             // 한 그룹 = 아래 헤어라인 한 도막. 그룹 사이 22px 에서 선이 끊긴다(실측).
             // `role="presentation"` — 그룹은 선을 긋는 상자일 뿐이라, tablist 가 소유하는
             // 것은 계속 탭 버튼이어야 한다.
-            <div key={group[0]} role="presentation" className={opsStyles.tabGroup}>
+            <div key={group[0]} role="presentation" className={cn(opsStyles.tabGroup, growOf(group.length))}>
               {group.map((tab) => {
                 const active = tab === currentTab;
                 const isStep = tab === stepTab;
@@ -521,7 +537,7 @@ export function OpsTargetView({ targetSourceId, initialTab }: OpsTargetViewProps
                       // 마우스 툴팁만 남는다 — 낱말 쪽은 그대로 둔다(⛔ title 은 낭독이
                       // 보장되지 않으므로 `.sr-only` 를 title 로 대체할 수 없다).
                       <span
-                        className={cn(opsStyles.tabCorner, stepDot)}
+                        className={cn(opsStyles.tabCorner, opsStyles.tabCornerAlert)}
                         title={stepWord ?? undefined}
                         aria-hidden
                       />

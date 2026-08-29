@@ -359,17 +359,29 @@ const SURFACES: SurfacePair[] = [
   // The PR #624 P1: tinting --pl-bg-page made it byte-identical to --pl-gray-100 and the
   // borderless ops-alerts summary tiles (bg gray-100 straight on the page ground) vanished.
   { what: 'ops-alerts tile (gray-100) on page ground', top: resolve('var(--pl-gray-100)'), under: resolve('var(--pl-bg-page)') },
-  // R1 ops target-source detail — a three-tone chrome: gray-100 masthead wash, a
-  // gray-200 tab band closing it, then the lavender canvas (--pl-bg-canvas); layers
-  // separate on chroma/ramp, not luminance. The white faces are the content cards,
-  // the rail's interactive chips, and the active card tab ON the band.
-  { what: 'ops masthead wash on the R1 canvas', top: resolve('var(--pl-gray-100)'), under: resolve('var(--pl-bg-canvas)') },
-  { what: 'white card / rail chip on the R1 canvas', top: '#FFFFFF', under: resolve('var(--pl-bg-canvas)') },
+  // R1 ops target-source detail — **한 면**이다. 마스트헤드의 gray-100 워시와 라벤더
+  // 캔버스(--pl-bg-canvas)는 1.006:1 로 갈라진 적이 없었고(ΔE00 2.46 이 유일한 분리자),
+  // 크롬이 세 톤이라 흰 카드가 설 자리가 없었다. 둘을 gray-200 하나로 합치면 크롬은
+  // 두 톤이 되고, 카드의 흰 면이 1.240 으로 제 힘으로 선다. 남은 짝은 그 하나다.
+  { what: 'white card / rail chip on the ops ground', top: '#FFFFFF', under: resolve('var(--pl-gray-200)') },
+  // FrontMeta 의 세로 룰은 `border-*` 가 아니라 **칠**이다 — 1px 짜리 span 의 배경이라
+  // 획을 찾는 눈에도, 잉크를 재는 짝에도 걸리지 않았다. --pl-border 가 이 바닥과 같은
+  // 값이라 그대로 두면 1.000 으로 사라진다. 면이므로 여기가 그 자리다.
+  { what: 'ops FrontMeta split rule on the ops ground', top: bgOf(classOf(opsSrc, 'fmSplitRule')), under: resolve('var(--pl-gray-200)') },
+  // 내비게이션은 이 화면에서 칠을 하나도 쓰지 않는다 — 위·아래 두 획이 띠의 전부다.
+  // 바닥이 한 칸 내려가면 그 획이 하는 일은 늘고 대비는 줄어서, 다음 사람이 램프를
+  // 되돌리기 가장 쉬운 자리다. 획은 면이므로 여기서 잰다.
+  { what: 'ops tab band top stroke on the ops ground', top: borderOf(classOf(opsSrc, 'tabStrip')), under: resolve('var(--pl-gray-200)') },
+  { what: 'ops tab band group stroke on the ops ground', top: borderOf(classOf(opsSrc, 'tabGroup')), under: resolve('var(--pl-gray-200)') },
+  // 마스트헤드 스켈레톤은 **1.000 으로 사라진 적이 있다** — gray-200 이 바닥이 되는
+  // 순간 제 값과 같아졌고, 테스트가 아니라 눈이 잡았다. 같은 실패가 다시 오면 여기서
+  // 걸린다. 그것이 이 게이트가 있는 이유다.
+  { what: 'ops masthead skeleton on the ops ground', top: bgOf(classOf(opsSrc, 'skeletonWash')), under: resolve('var(--pl-gray-200)') },
   // 탭 밴드가 사라졌다 (ops-tab-band.md 시안 A) — 탭은 워시 위에 바로 서고 헤어라인
   // 하나가 마스트헤드를 닫는다. 밴드가 지던 면 쌍 셋(밴드↔워시 · 밴드↔캔버스 · 흰 활성
   // 면↔밴드)은 임자가 없어졌고, 그 자리는 TEXT 의 잉크 쌍이 대신 받는다. 상태 점도
   // 거기 있다 — 점이 워시에서 견디는지는 ΔE00 이 아니라 대비의 문제다(8px 그래픽 3:1).
-  { what: 'ops region tag on the masthead wash', top: bgOf(classOf(opsSrc, 'metaTagQuiet')), under: resolve('var(--pl-gray-100)') },
+  { what: 'ops region tag on the ops ground', top: bgOf(classOf(opsSrc, 'metaTagQuiet')), under: resolve('var(--pl-gray-200)') },
   // The card's hover fill is a surface too — it replaces white under the cursor, so it
   // has to separate from the canvas the card sits on or the hovered card dissolves into
   // the page. `bg-gray-50` here measured 1.20 from the card it replaced.
@@ -437,46 +449,50 @@ const TEXT: TextPair[] = [
   // (오너 08-20 넷째 조정) 태그에는 hover 채움이 없다. 12px 이라 큰 글자 예외가
   // 없다. (키는 행이 말하므로 태그 안에는 값만 산다 — R1.)
   { what: '리전 태그 값 on the gray-200 tag', fg: textOf(classOf(opsSrc, 'metaTagQuiet')), on: bgOf(classOf(opsSrc, 'metaTagQuiet')) },
-  { what: 'ops path on the masthead wash', fg: textOf(classOf(opsSrc, 'path')), on: resolve('var(--pl-gray-100)') },
-  { what: 'ops path ancestor link on the masthead wash', fg: textOf(classOf(opsSrc, 'pathLink')), on: resolve('var(--pl-gray-100)') },
-  { what: 'ops path service-code crumb on the masthead wash', fg: textOf(classOf(opsSrc, 'pathLinkId')), on: resolve('var(--pl-gray-100)') },
+  { what: 'ops path on the ops ground', fg: textOf(classOf(opsSrc, 'path')), on: resolve('var(--pl-gray-200)') },
+  { what: 'ops path ancestor link on the ops ground', fg: textOf(classOf(opsSrc, 'pathLink')), on: resolve('var(--pl-gray-200)') },
+  { what: 'ops path service-code crumb on the ops ground', fg: textOf(classOf(opsSrc, 'pathLinkId')), on: resolve('var(--pl-gray-200)') },
   // 칠한 마디 태그가 사라지면서 구분자가 이 줄의 유일한 묶음 장치가 됐다 — faint 로는
   // 그 하중을 못 진다(워시 위 2.34:1). 여기 걸어 두면 다시 옅어질 때 잡힌다.
-  { what: 'ops path separator on the masthead wash', fg: textOf(classOf(opsSrc, 'pathSep')), on: resolve('var(--pl-gray-100)') },
+  { what: 'ops path separator on the ops ground', fg: textOf(classOf(opsSrc, 'pathSep')), on: resolve('var(--pl-gray-200)') },
   // 서 있는 마디 — 종류는 옅고 식별자만 굵다. 둘 다 워시 위에 직접 산다(칩 면이 없다).
-  { what: 'ops path current kind on the masthead wash', fg: textOf(classOf(opsSrc, 'pathHereKind')), on: resolve('var(--pl-gray-100)') },
-  { what: 'ops path current id on the masthead wash', fg: textOf(classOf(opsSrc, 'pathHereId')), on: resolve('var(--pl-gray-100)') },
+  { what: 'ops path current kind on the ops ground', fg: textOf(classOf(opsSrc, 'pathHereKind')), on: resolve('var(--pl-gray-200)') },
+  { what: 'ops path current id on the ops ground', fg: textOf(classOf(opsSrc, 'pathHereId')), on: resolve('var(--pl-gray-200)') },
   // 탭 둘 다 워시 위에 직접 산다 — 밴드 위에서 --pl-primary 는 4.17 로 AA 아래였고,
   // 워시로 올라오면서 4.69 가 됐다(그 점이 시안 A 를 고른 이유 중 하나다). idle 은
   // 워시가 램프 한 칸을 먹으므로 weak 가 아니라 medium 이다.
-  { what: 'ops active tab ink on the masthead wash', fg: textOf(classOf(opsSrc, 'tabActive')), on: resolve('var(--pl-gray-100)') },
-  { what: 'ops idle tab on the masthead wash', fg: textOf(classOf(opsSrc, 'tabIdle')), on: resolve('var(--pl-gray-100)') },
+  { what: 'ops active tab ink on the ops ground', fg: textOf(classOf(opsSrc, 'tabActive')), on: resolve('var(--pl-gray-200)') },
+  { what: 'ops idle tab on the ops ground', fg: textOf(classOf(opsSrc, 'tabIdle')), on: resolve('var(--pl-gray-200)') },
   // 걸린 단계의 코너 점 — 8px 이라 글자가 아니라 **그래픽**이고 기준은 3:1 이다.
-  // 빨강(관리자 차례)은 4.38, 보라(그 외 단계)는 4.50 으로 둘 다 그 위에 선다.
+  // 색은 하나다 (오너 2026-08-29) — 보라 짝은 임자가 사라져 함께 걷혔다.
   // SURFACES 에 넣으면 안 된다 — 거기는 ΔE00 를 재지 대비를 재지 않아서, 3:1 아래로
   // 내려가도 초록으로 통과한다(전례: --pl-info 2.94).
-  { what: 'ops step corner dot (관리자 차례) on the masthead wash', fg: bgOf(classOf(opsSrc, 'tabCornerAlert')), on: resolve('var(--pl-gray-100)'), min: 3 },
-  { what: 'ops step corner dot (그 외 단계) on the masthead wash', fg: bgOf(classOf(opsSrc, 'tabCornerStep')), on: resolve('var(--pl-gray-100)'), min: 3 },
+  { what: 'ops step corner dot on the ops ground', fg: bgOf(classOf(opsSrc, 'tabCornerAlert')), on: resolve('var(--pl-gray-200)'), min: 3 },
+  // 근거 줄의 8px 점 — `MonitoringEvidenceBody` 는 카드 없이 바닥 위에 서므로 이 둘도
+  // 그래픽 3:1 을 바닥에서 넘어야 한다. 공용 `countDot*` 는 흰 카드(`TcLatestRunCard`)
+  // 쪽에 남아 있고, 여기 걸리는 것은 바닥용 짝이다.
+  { what: 'ops evidence dot (성공) on the ops ground', fg: bgOf(classOf(opsSrc, 'countDotOkGround')), on: resolve('var(--pl-gray-200)'), min: 3 },
+  { what: 'ops evidence dot (확인 필요) on the ops ground', fg: bgOf(classOf(opsSrc, 'countDotFailGround')), on: resolve('var(--pl-gray-200)'), min: 3 },
   // 「연결 테스트」 탭의 8px 상태 점 — 글자가 아니라 그래픽이라 3:1 이다. `--pl-err` 는
   // 이 워시에서 3.41, `--pl-info` 는 2.94 로 **떨어진다**: 두 계열이 램프에서 한 칸씩
   // 다른 곳에 서 있는 이유가 그것이고, 여기 걸어 두지 않으면 다음 사람이 짝을 맞추려고
   // info 를 되돌리는 순간 진행 중 점만 조용히 사라진다.
-  { what: 'ops tc tab dot (fail) on the masthead wash', fg: bgOf(classOf(opsSrc, 'tabDotFail')), on: resolve('var(--pl-gray-100)'), min: 3 },
-  { what: 'ops tc tab dot (running) on the masthead wash', fg: bgOf(classOf(opsSrc, 'tabDotRunning')), on: resolve('var(--pl-gray-100)'), min: 3 },
+  { what: 'ops tc tab dot (fail) on the ops ground', fg: bgOf(classOf(opsSrc, 'tabDotFail')), on: resolve('var(--pl-gray-200)'), min: 3 },
+  { what: 'ops tc tab dot (running) on the ops ground', fg: bgOf(classOf(opsSrc, 'tabDotRunning')), on: resolve('var(--pl-gray-200)'), min: 3 },
   // FrontMeta (ops-target-frontmeta.md 시안 C) — 236px 레일이 사라져 이 화면의 메타 글자는
-  // 전부 마스트헤드 워시 위에 산다. 그 워시는 램프 한 칸을 잡아먹으므로(--pl-text-weak 는
-  // 여기서 4.51:1) 라벨 계단이 gray-600 에서 시작한다.
-  { what: 'ops FrontMeta block label on the masthead wash', fg: textOf(classOf(opsSrc, 'fmLabel')), on: resolve('var(--pl-gray-100)') },
-  { what: 'ops FrontMeta kv key on the masthead wash', fg: textOf(classOf(opsSrc, 'fmKey')), on: resolve('var(--pl-gray-100)') },
-  { what: 'ops FrontMeta kv value on the masthead wash', fg: textOf(classOf(opsSrc, 'fmValue')), on: resolve('var(--pl-gray-100)') },
-  { what: 'ops FrontMeta 미등록 on the masthead wash', fg: textOf(classOf(opsSrc, 'fmNone')), on: resolve('var(--pl-gray-100)') },
-  { what: 'ops FrontMeta disclosure cue on the masthead wash', fg: textOf(classOf(opsSrc, 'fmCue')), on: resolve('var(--pl-gray-100)') },
-  { what: 'ops FrontMeta fold group label on the masthead wash', fg: textOf(classOf(opsSrc, 'fmFoldLabel')), on: resolve('var(--pl-gray-100)') },
-  { what: 'ops FrontMeta description prose on the masthead wash', fg: textOf(classOf(opsSrc, 'fmProse')), on: resolve('var(--pl-gray-100)') },
-  { what: 'ops FrontMeta full identifier on the masthead wash', fg: textOf(classOf(opsSrc, 'fmValueFull')), on: resolve('var(--pl-gray-100)') },
-  { what: 'ops role edit link on the masthead wash', fg: textOf(classOf(opsSrc, 'fmLink')), on: resolve('var(--pl-gray-100)') },
-  { what: 'ops 관련 페이지 About link on the masthead wash', fg: textOf(classOf(opsSrc, 'aboutLink')), on: resolve('var(--pl-gray-100)') },
-  { what: 'ops fold copy glyph on the masthead wash', fg: textOf(classOf(opsSrc, 'fmCopy')), on: resolve('var(--pl-gray-100)') },
+  // 전부 바닥 위에 직접 산다. 그 바닥은 램프 한 칸을 잡아먹으므로(--pl-text-weak 는
+  // 여기서 4.01:1 로 AA 아래다) 라벨 계단이 gray-600(6.20)에서 시작한다.
+  { what: 'ops FrontMeta block label on the ops ground', fg: textOf(classOf(opsSrc, 'fmLabel')), on: resolve('var(--pl-gray-200)') },
+  { what: 'ops FrontMeta kv key on the ops ground', fg: textOf(classOf(opsSrc, 'fmKey')), on: resolve('var(--pl-gray-200)') },
+  { what: 'ops FrontMeta kv value on the ops ground', fg: textOf(classOf(opsSrc, 'fmValue')), on: resolve('var(--pl-gray-200)') },
+  { what: 'ops FrontMeta 미등록 on the ops ground', fg: textOf(classOf(opsSrc, 'fmNone')), on: resolve('var(--pl-gray-200)') },
+  { what: 'ops FrontMeta disclosure cue on the ops ground', fg: textOf(classOf(opsSrc, 'fmCue')), on: resolve('var(--pl-gray-200)') },
+  { what: 'ops FrontMeta fold group label on the ops ground', fg: textOf(classOf(opsSrc, 'fmFoldLabel')), on: resolve('var(--pl-gray-200)') },
+  { what: 'ops FrontMeta description prose on the ops ground', fg: textOf(classOf(opsSrc, 'fmProse')), on: resolve('var(--pl-gray-200)') },
+  { what: 'ops FrontMeta full identifier on the ops ground', fg: textOf(classOf(opsSrc, 'fmValueFull')), on: resolve('var(--pl-gray-200)') },
+  { what: 'ops role edit link on the ops ground', fg: textOf(classOf(opsSrc, 'fmLink')), on: resolve('var(--pl-gray-200)') },
+  { what: 'ops 관련 페이지 About link on the ops ground', fg: textOf(classOf(opsSrc, 'aboutLink')), on: resolve('var(--pl-gray-200)') },
+  { what: 'ops fold copy glyph on the ops ground', fg: textOf(classOf(opsSrc, 'fmCopy')), on: resolve('var(--pl-gray-200)') },
   { what: 'rail section label on rail', fg: textOf(classOf(railBlock, 'sectionLabel')), on: rail },
   { what: 'rail footer page on rail', fg: textOf(classOf(railBlock, 'footerPage')), on: rail },
   { what: 'rail pager glyph on rail', fg: textOf(classOf(railBlock, 'pagerBtn')), on: rail },

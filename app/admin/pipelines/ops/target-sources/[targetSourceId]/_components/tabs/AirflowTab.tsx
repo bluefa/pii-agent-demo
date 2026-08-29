@@ -118,12 +118,15 @@ export function AirflowTab({ targetSourceId, isIdc, dag }: AirflowTabProps): Rea
               Airflow 확인
               <TcPill tone={head.pill.tone} label={head.pill.label} />
             </h2>
-            <p className={opsStyles.cardDesc} title={head.titleHint}>
+            {/* `opsStyles.cardDesc` 를 벗어난다 (ApprovalTab 의 선례와 같은 이유: `cn` 은
+                plain join 이라 토큰을 덧대면 승자를 Tailwind 의 emit 순서가 정한다). 이
+                문장은 카드가 아니라 바닥 위에 서고, 바닥에서 weak 는 4.01 로 AA 아래다. */}
+            <p className="mt-3 text-[14px] text-[var(--pl-gray-600)]" title={head.titleHint}>
               {verdictSentence(dag)}
             </p>
           </div>
           {dag.phase === 'loaded' && (
-            <p className="mt-1 flex flex-none items-center gap-2 text-[12px] tabular-nums text-[var(--pl-text-weak)]">
+            <p className="mt-1 flex flex-none items-center gap-2 text-[12px] tabular-nums text-[var(--pl-gray-600)]">
               {/* 스코프는 태그, 시각은 값 (오너 2026-08-25). 셋을 가운뎃점으로 잇던 줄은
                   세 값을 같은 무게로 세워서, 이 탭 전체가 최근 7일치라는 사실이 시각의
                   각주처럼 읽혔다.
