@@ -85,7 +85,9 @@ export interface ConfirmStepModalProps {
  *  as cutting the dialog in half. The taller approval modals keep the shared tokens.
  *  It carries no background either: the card is already white, and an opaque footer painted
  *  over the shadow of whatever the body ends with (the approval stat tiles), chopping it into
- *  a hard full-width edge — the very divider this footer set out not to draw. */
+ *  a hard full-width edge — the very divider this footer set out not to draw. The third cause is
+ *  the body itself: its scroll box has to carry bottom padding for what it holds, or its clip
+ *  edge draws the same line. */
 const confirmHeader = 'shrink-0 px-6 pt-6 pb-1.5 flex items-start justify-between';
 const confirmFooter = 'shrink-0 px-6 pt-5 pb-6 flex justify-end gap-2.5';
 
@@ -381,9 +383,9 @@ export const ConfirmStepModal = ({
             {/* The only part that gives when the card hits the viewport ceiling: `min-h-0`
                 lets it shrink past its content (a flex item's default floor is its content),
                 and the header and footer hold their size so the footer pair stays reachable. */}
-            {children && <div className="min-h-0 overflow-y-auto px-6 pt-4">{children}</div>}
+            {children && <div className="min-h-0 overflow-y-auto px-6 pt-4 pb-5">{children}</div>}
 
-            <div className={confirmFooter}>
+            <div className={cn(confirmFooter, !!children && 'pt-0')}>
               <button
                 ref={cancelRef}
                 type="button"
