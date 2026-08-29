@@ -21,7 +21,13 @@ import type { ReactElement } from 'react';
 import { cn, pipelineStyles } from '@/lib/theme';
 import { passRoutes } from '@/lib/routes';
 import type { AlertTargetKind } from '@/lib/types/task-queue';
-import { ALERT_BUCKETS, type AlertCounts } from '@/app/admin/pipelines/ops/alerts/_components/buckets';
+import {
+  ALERT_BUCKETS,
+  type AlertCounts,
+  type AlertStageIcon,
+} from '@/app/admin/pipelines/ops/alerts/_components/buckets';
+import { Icon } from '@/app/admin/pipelines/_components/icons';
+import { TerraformLogo } from '@/app/admin/pipelines/_components/brandMarks';
 
 const alertsHeader = {
   head: 'flex items-start justify-between gap-6',
@@ -43,7 +49,10 @@ const alertsHeader = {
    *  `bucketTileActive` levers, so "this tile filters the list" reads the same
    *  way in both screens. */
   summaryActive: 'border-[var(--pl-primary)] bg-[var(--pl-bg-card)] shadow-[var(--pl-shadow-sm)]',
-  summaryLabel: 'text-[14px] leading-[1.4] text-[var(--pl-text-weak)]',
+  /** 버킷 글리프가 라벨 텍스트와 같은 행에 선다 — 목록 메타 줄(`WorklistMeta`)과 같은 문법. */
+  summaryLabel: 'flex items-center gap-1.5 text-[14px] leading-[1.4] text-[var(--pl-text-weak)]',
+  /** 장식이라 색을 따로 주지 않는다 — 라벨색을 그대로 상속받는다. */
+  summaryLabelGlyph: 'flex-none',
   summaryValue:
     'text-[40px] font-bold leading-[1.2] tracking-[-0.02em] tabular-nums text-[var(--pl-text-strong)]',
   summaryNeed: 'text-[12px] leading-[1.4] text-[var(--pl-text-weak)]',
@@ -61,16 +70,23 @@ function TileFace({
   label,
   count,
   need,
+  icon,
 }: {
   label: string;
   /** null = 요약 실패. 자리는 지키되 값은 지어내지 않는다. */
   count: number | null;
   need: string;
+  icon: AlertStageIcon;
 }): ReactElement {
   const { pending } = useLinkStatus();
   return (
     <span className={cn(alertsHeader.face, pending && alertsHeader.pending)}>
-      <span className={alertsHeader.summaryLabel}>{label}</span>
+      <span className={alertsHeader.summaryLabel}>
+        <span className={alertsHeader.summaryLabelGlyph}>
+          {icon === 'terraform' ? <TerraformLogo size={14} /> : <Icon name={icon} size={14} />}
+        </span>
+        {label}
+      </span>
       <span className={alertsHeader.summaryValue}>{count ?? '—'}</span>
       <span className={alertsHeader.summaryNeed}>{need}</span>
     </span>
@@ -124,6 +140,7 @@ export function AlertsHeader({
                 label={bucket.label}
                 count={counts ? (bucket.count(counts) ?? 0) : null}
                 need={bucket.need}
+                icon={bucket.icon}
               />
             </Link>
           );
