@@ -74,12 +74,6 @@ export const passRoutes = {
    */
   pipelines: {
     dashboard: '/admin/pipelines',
-    services: '/admin/pipelines/services',
-    // Service-scoped deep link (R20 — code in the path, no query context). The
-    // list route above stays valid: the page is an optional catch-all serving
-    // both `/services` and `/services/{code}`.
-    service: (serviceCode: string) =>
-      `/admin/pipelines/services/${encodeURIComponent(serviceCode)}`,
     pipeline: (pipelineId: number | string) =>
       `/admin/pipelines/${encodeURIComponent(String(pipelineId))}`,
     /** Admin Task Queue (design/pipeline/admin-taskqueue-storyboard.md). The

@@ -4,8 +4,8 @@
  * Admin Pipeline section layout (LIN-25) — dark 216px sidebar + light content
  * area (design-inventory §1). Nests inside app/integration/admin/layout.tsx
  * (which renders the real TopNav); the prototype's decorative "PII Admin"
- * topnav is intentionally NOT ported. Dashboard / services are the only sidebar
- * items — target & pipeline detail are drill-downs (no active item).
+ * topnav is intentionally NOT ported. Dashboard is the only 인프라 작업 sidebar
+ * item — target & pipeline detail are drill-downs (no active item).
  */
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -48,17 +48,6 @@ const SIDEBAR_GROUPS = [
         ),
         href: passRoutes.pipelines.dashboard,
         exact: true,
-      },
-      {
-        label: '서비스·대상 검색',
-        icon: (
-          <svg {...NAV_ICON_PROPS} aria-hidden="true">
-            <circle cx="11" cy="11" r="5.5" />
-            <path d="M15.2 15.2 20 20" />
-          </svg>
-        ),
-        href: passRoutes.pipelines.services,
-        exact: false,
       },
     ],
   },
@@ -263,16 +252,17 @@ export default function PipelinesLayout({ children }: { children: ReactNode }) {
     return () => controller.abort();
   }, [pathname, nonce]);
   const isDashboard = pathname === passRoutes.pipelines.dashboard;
-  // Pipeline detail = a single dynamic segment under the base (not `services`,
-  // not `targets/…`); it gets the fluid full-height column so its flow canvas
-  // fills the viewport. Dashboard is fluid too; everything else stays capped.
+  // Pipeline detail = a single dynamic segment under the base (not one of the
+  // section segments below, not `targets/…`); it gets the fluid full-height
+  // column so its flow canvas fills the viewport. Dashboard is fluid too;
+  // everything else stays capped.
   const rest = pathname.startsWith(`${passRoutes.pipelines.dashboard}/`)
     ? pathname.slice(passRoutes.pipelines.dashboard.length + 1)
     : '';
   // 단일 세그먼트 중 파이프라인 id 가 아닌 것들은 빼야 한다. 빼지 않으면 게시판
   // 목록이 상한 없는 `contentDetail` 을 받아 넓은 화면에서 카드 두 장이 1440 을
   // 넘어가고, 바로 아래 `posts/new` 는 상한을 받아 두 화면 폭이 어긋난다.
-  const SECTION_SEGMENTS = ['services', 'queue', 'posts'];
+  const SECTION_SEGMENTS = ['queue', 'posts'];
   const isDetail = rest !== '' && !rest.includes('/') && !SECTION_SEGMENTS.includes(rest);
   // Task Queue pages are fluid like the dashboard — they must grow/shrink with
   // the viewport instead of capping at layout.content's max-width.
@@ -284,8 +274,6 @@ export default function PipelinesLayout({ children }: { children: ReactNode }) {
   // vertical seam on wide monitors, which is the exact thing the layered
   // treatment exists to remove.
   const isSplit =
-    rest === 'services' ||
-    rest.startsWith('services/') ||
     rest.startsWith('ops/services') ||
     // 서비스별 권한 uses the same rail | sheet split, so it needs the same fluid width.
     rest.startsWith('access/services');
