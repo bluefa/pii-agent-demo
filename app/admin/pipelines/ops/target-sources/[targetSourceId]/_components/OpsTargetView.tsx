@@ -353,13 +353,12 @@ export function OpsTargetView({ targetSourceId, initialTab }: OpsTargetViewProps
   const stepTab = processStatus ? STEP_TAB.get(processStatus) ?? null : null;
   const stepInfo = processStatus ? STEP[processStatus] : null;
   /**
-   * 빨강은 6단계 하나에만 (오너 2026-08-27). 그 단계만 관리자가 실제로 막혀 있고,
-   * 나머지는 다른 누군가의 차례이거나 파이프라인이 돌고 있는 중이다 — 걸렸다는 사실
-   * 전체를 빨강으로 칠하면 모든 대상이 늘 어떤 단계엔가 있으므로 빨강이 상시 켜진다.
-   * 낱말도 같이 갈린다: 빨강만 「확인 필요」라고 말한다.
+   * 점의 **색**은 더 이상 갈리지 않는다 (오너 2026-08-29 "색상은 모두 빨간색으로 통일해") —
+   * 갈래는 낱말에만 남는다. 6단계(CONNECTED)만 관리자가 실제로 막혀 있는 자리라
+   * 「확인 필요」라고 말하고, 나머지는 다른 누군가의 차례이거나 파이프라인이 도는
+   * 중이라 「현재 N단계」다.
    */
   const stepAlert = processStatus === 'CONNECTED';
-  const stepDot = stepAlert ? opsStyles.tabCornerAlert : opsStyles.tabCornerStep;
   const stepWord = stepInfo
     ? `${stepAlert ? '확인 필요 — ' : '현재 '}${stepInfo.n}단계 · ${stepInfo.label}`
     : null;
@@ -530,7 +529,7 @@ export function OpsTargetView({ targetSourceId, initialTab }: OpsTargetViewProps
                       // 마우스 툴팁만 남는다 — 낱말 쪽은 그대로 둔다(⛔ title 은 낭독이
                       // 보장되지 않으므로 `.sr-only` 를 title 로 대체할 수 없다).
                       <span
-                        className={cn(opsStyles.tabCorner, stepDot)}
+                        className={cn(opsStyles.tabCorner, opsStyles.tabCornerAlert)}
                         title={stepWord ?? undefined}
                         aria-hidden
                       />

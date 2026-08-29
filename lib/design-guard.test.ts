@@ -451,11 +451,10 @@ const TEXT: TextPair[] = [
   { what: 'ops active tab ink on the ops ground', fg: textOf(classOf(opsSrc, 'tabActive')), on: resolve('var(--pl-gray-200)') },
   { what: 'ops idle tab on the ops ground', fg: textOf(classOf(opsSrc, 'tabIdle')), on: resolve('var(--pl-gray-200)') },
   // 걸린 단계의 코너 점 — 8px 이라 글자가 아니라 **그래픽**이고 기준은 3:1 이다.
-  // 빨강(관리자 차례)은 4.38, 보라(그 외 단계)는 4.50 으로 둘 다 그 위에 선다.
+  // 색은 하나다 (오너 2026-08-29) — 보라 짝은 임자가 사라져 함께 걷혔다.
   // SURFACES 에 넣으면 안 된다 — 거기는 ΔE00 를 재지 대비를 재지 않아서, 3:1 아래로
   // 내려가도 초록으로 통과한다(전례: --pl-info 2.94).
-  { what: 'ops step corner dot (관리자 차례) on the ops ground', fg: bgOf(classOf(opsSrc, 'tabCornerAlert')), on: resolve('var(--pl-gray-200)'), min: 3 },
-  { what: 'ops step corner dot (그 외 단계) on the ops ground', fg: bgOf(classOf(opsSrc, 'tabCornerStep')), on: resolve('var(--pl-gray-200)'), min: 3 },
+  { what: 'ops step corner dot on the ops ground', fg: bgOf(classOf(opsSrc, 'tabCornerAlert')), on: resolve('var(--pl-gray-200)'), min: 3 },
   // 「연결 테스트」 탭의 8px 상태 점 — 글자가 아니라 그래픽이라 3:1 이다. `--pl-err` 는
   // 이 워시에서 3.41, `--pl-info` 는 2.94 로 **떨어진다**: 두 계열이 램프에서 한 칸씩
   // 다른 곳에 서 있는 이유가 그것이고, 여기 걸어 두지 않으면 다음 사람이 짝을 맞추려고
