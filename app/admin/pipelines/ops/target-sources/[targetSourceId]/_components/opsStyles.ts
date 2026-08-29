@@ -463,7 +463,7 @@ export const opsStyles = {
    * 옮긴 값이다. 구간이 갈리는 거리는 시안 A 에서 **변경 대상이 아니었다**: 바뀌는
    * 것은 그 갭에서 선이 끊긴다는 것 하나뿐이다. `gap-5`(20)·`gap-6`(24)로 반올림하면
    * 조정한 적 없는 간격이 조용히 움직인다. */
-  tabStrip: 'mt-5 flex items-end gap-[22px] border-t border-[var(--pl-gray-400)]',
+  tabStrip: 'mt-5 flex items-stretch gap-[22px] border-t border-[var(--pl-gray-400)]',
   /**
    * 구간 헤어라인 — 아래 선을 그룹마다 따로 긋는다. 아홉 탭은 네 가지 일이고
    * (보기 · 실행 · 승인·근거 · 초기화), 그 경계는 지금까지 빈 칸 하나로만 서 있었다. 선이
@@ -473,7 +473,25 @@ export const opsStyles = {
    * 그룹 안의 `gap-1` 아래로도 선은 이어진다 — 선이 끊기는 곳은 오직 그룹 사이다.
    * 활성 탭의 `-mb-px` 는 이제 제 그룹의 선을 먹는다(기하는 그대로).
    */
-  tabGroup: 'flex items-end gap-1 border-b border-[var(--pl-gray-400)]',
+  tabGroup: 'flex min-w-0 basis-0 items-end gap-1 border-b border-[var(--pl-gray-400)]',
+  /**
+   * 아홉 탭은 **같은 폭**이다 (오너 2026-08-29 "각 navigation 메뉴마다 일정한 width가
+   * 할당되지 않았음"). 내용 폭으로 두면 「스캔」 47.8 ↔ 「연동 요청 정보」 101.5 로 **2.12배**
+   * 벌어지고, 아홉이 840px 만 덮어 1422px 열의 **582px(41%)** 가 꼬리로 남았다. 그 꼬리가
+   * 두 번째 문제였다: 위 선은 통으로 그어지는데 아래 선은 그룹이 지므로, 꼬리 구간에는
+   * 천장만 있고 바닥이 없어 띠가 오른쪽으로 열려 있었다.
+   *
+   * `flex-1 basis-0` 이 그 둘을 한 번에 닫는다 — 셀이 열을 채우면 꼬리가 사라지고, 아래
+   * 선이 그룹 갭(22px 세 칸)만 빼고 끝까지 따라간다. 갭에서 끊기는 것은 그대로라 구간은
+   * 계속 읽힌다.
+   *
+   * `min-width:auto` 는 그대로 둔다 — 열이 좁아져 균등 폭이 가장 긴 라벨보다 작아지면
+   * 셀은 균등을 포기하고 내용 폭으로 돌아간다. 좁은 화면에서 글자가 잘리는 대신 오늘의
+   * 행동으로 되돌아가는 쪽이 맞다.
+   *
+   * 라벨은 가운데로 온다. 균등 셀에서 왼쪽 정렬은 라벨마다 오른쪽 여백이 달라져 셀의
+   * 리듬이 아니라 낱말 길이가 보인다.
+   */
   /** 스켈레톤에서만 아래 선을 **스트립**이 진다. 구간이 몇 개이고 어디서 끊기는지는 탭
       구성이고 탭 구성은 데이터라, 도착 전에는 지어낼 수가 없다. `tabGroup` 하나로 감싸면
       아래 선이 보이지 않는 탭 하나의 폭만 덮어(44px) 도착 순간 세 도막(732px)으로 뛴다 —
@@ -490,7 +508,7 @@ export const opsStyles = {
       굵기는 활성·비활성이 같이 진다: 활성은 이미 잉크와 밑줄 두 레버를 들고 있어서,
       굵기까지 가져가면 비활성이 한 단 더 내려앉고 선택이 아니라 나머지가 흐려진 것처럼
       읽힌다. */
-  tab: 'relative flex cursor-pointer items-center gap-1.5 whitespace-nowrap border-b-2 -mb-px px-3 py-2.5 text-[14px] font-semibold transition-colors',
+  tab: 'relative flex flex-1 basis-0 cursor-pointer items-center justify-center gap-1.5 whitespace-nowrap border-b-2 -mb-px px-3 py-2.5 text-[14px] font-semibold transition-colors',
   /** 잉크 + 밑줄. The face is gone, so 파랑 is the only thing marking the tab that
       is open. gray-200 바닥 위에서 --pl-primary 는 4.17 로 AA 아래라, 램프의 다음 칸
       --pl-primary-hover 가 진다 — 5.41:1 (실측). */

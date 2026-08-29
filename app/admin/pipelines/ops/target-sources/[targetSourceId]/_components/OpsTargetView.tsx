@@ -483,7 +483,16 @@ export function OpsTargetView({ targetSourceId, initialTab }: OpsTargetViewProps
             // 한 그룹 = 아래 헤어라인 한 도막. 그룹 사이 22px 에서 선이 끊긴다(실측).
             // `role="presentation"` — 그룹은 선을 긋는 상자일 뿐이라, tablist 가 소유하는
             // 것은 계속 탭 버튼이어야 한다.
-            <div key={group[0]} role="presentation" className={opsStyles.tabGroup}>
+            // `flexGrow` 는 그룹이 든 탭 수다 — 그래야 넷·둘·둘·하나로 갈린 그룹을 지나도
+            // 아홉 셀의 폭이 서로 같다. Tailwind 클래스로 쓸 수 없는 이유는 값이 데이터에서
+            // 오기 때문이다(IDC 는 「스캔」이 빠져 그룹이 셋·둘·둘·하나가 된다) — 클래스
+            // 문자열은 완전한 리터럴이어야 한다(동적 조합 금지).
+            <div
+              key={group[0]}
+              role="presentation"
+              className={opsStyles.tabGroup}
+              style={{ flexGrow: group.length }}
+            >
               {group.map((tab) => {
                 const active = tab === currentTab;
                 const isStep = tab === stepTab;
