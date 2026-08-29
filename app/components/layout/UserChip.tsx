@@ -116,13 +116,13 @@ export const UserChip = ({ user }: { user: UserMeResponse | null }) => {
                   viewBox="0 0 24 24"
                   fill="none"
                   stroke="currentColor"
-                  strokeWidth="2"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
                   className={navStyles.user.menu.itemIcon}
                 >
-                  <circle cx="4.5" cy="12" r="2.3" />
-                  <circle cx="12" cy="12" r="2.3" />
-                  <circle cx="19.5" cy="12" r="2.3" />
-                  <path d="M6.8 12h2.9m4.6 0h2.9" />
+                  <circle cx="12" cy="8" r="3.8" />
+                  <path d="M4.5 20.5c.8-3.6 3.9-5.5 7.5-5.5s6.7 1.9 7.5 5.5" />
                 </svg>
                 관리자
               </Link>
