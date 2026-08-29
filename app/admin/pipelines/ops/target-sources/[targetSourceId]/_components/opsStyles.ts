@@ -407,7 +407,7 @@ export const opsStyles = {
   /**
    * Line tabs on the ops ground (design-benchmark `ops-tab-band.md` 시안 A) —
    * no band. The tabs stand on the same gray-200 the masthead does, closed
-   * by hairlines in --pl-border-strong. That token used to draw the 「연동 대상」
+   * by hairlines in --pl-gray-400. That token used to draw the 「연동 대상」
    * block head too, so the masthead ended on the same stroke its own blocks did;
    * the block heads gave their hairline up (오너 2026-08-27), which leaves these
    * the only --pl-border-strong strokes on the wash.
@@ -450,12 +450,20 @@ export const opsStyles = {
    * 아래 선만 `tabGroup` 으로 내려갔다 (ops-nav 시안 A). 위 선은 통으로 남아 띠의
    * 천장을 진다 — 두 선 중 하나가 끊기면 나머지가 띠를 계속 붙들고 있어야 한다.
    *
+   * 획은 `--pl-border-strong` 이 아니라 **gray-400** 이다. 바닥이 gray-200 이 되면서
+   * `#D0D5DD` 는 1.338(옛 워시 위) → **1.189** 로 주저앉았다 — 칠이 사라진 자리에서
+   * 헤어라인이 하중을 넘겨받는데, 정작 그 획이 옅어진 것이다. 되돌리는 것으로는 모자란다:
+   * 워시가 있던 시절엔 워시의 경계가 띠를 같이 붙들었지만 이제 **이 두 선이 내비게이션의
+   * 전부**이므로(오너 08-27 "위 아래 구분선이 Navigation이다라는 느낌만 주게"), 획은
+   * 제자리로 돌아가는 게 아니라 한 칸 올라간다 — gray-400 은 바닥 위 **2.078** 이다.
+   * hover 밑줄도 같이 올라간다: 띠의 선보다 옅은 hover 는 순서가 뒤집힌 것이다.
+   *
    * `gap-[22px]` 는 램프 밖의 값이지만 임의로 고른 것이 아니다 — 스페이서 `<span>`
    * (w-3.5) 이 `gap-1` 두 칸 사이에 서 있던 옛 구조의 실제 거리(4+14+4)를 그대로
    * 옮긴 값이다. 구간이 갈리는 거리는 시안 A 에서 **변경 대상이 아니었다**: 바뀌는
    * 것은 그 갭에서 선이 끊긴다는 것 하나뿐이다. `gap-5`(20)·`gap-6`(24)로 반올림하면
    * 조정한 적 없는 간격이 조용히 움직인다. */
-  tabStrip: 'mt-5 flex items-end gap-[22px] border-t border-[var(--pl-border-strong)]',
+  tabStrip: 'mt-5 flex items-end gap-[22px] border-t border-[var(--pl-gray-400)]',
   /**
    * 구간 헤어라인 — 아래 선을 그룹마다 따로 긋는다. 아홉 탭은 네 가지 일이고
    * (보기 · 실행 · 승인·근거 · 초기화), 그 경계는 지금까지 빈 칸 하나로만 서 있었다. 선이
@@ -465,13 +473,13 @@ export const opsStyles = {
    * 그룹 안의 `gap-1` 아래로도 선은 이어진다 — 선이 끊기는 곳은 오직 그룹 사이다.
    * 활성 탭의 `-mb-px` 는 이제 제 그룹의 선을 먹는다(기하는 그대로).
    */
-  tabGroup: 'flex items-end gap-1 border-b border-[var(--pl-border-strong)]',
+  tabGroup: 'flex items-end gap-1 border-b border-[var(--pl-gray-400)]',
   /** 스켈레톤에서만 아래 선을 **스트립**이 진다. 구간이 몇 개이고 어디서 끊기는지는 탭
       구성이고 탭 구성은 데이터라, 도착 전에는 지어낼 수가 없다. `tabGroup` 하나로 감싸면
       아래 선이 보이지 않는 탭 하나의 폭만 덮어(44px) 도착 순간 세 도막(732px)으로 뛴다 —
       1px 획이라 레이아웃은 안 움직이지만 잉크가 통째로 바뀐다. 통으로 그어 두면 바뀌는
       것은 선이 **끊기는 자리**뿐이다. */
-  tabStripLoading: 'border-b border-[var(--pl-border-strong)]',
+  tabStripLoading: 'border-b border-[var(--pl-gray-400)]',
   /**
    * Geometry is `accessStyles.tab` verbatim (the 접근 권한 page tabs) — the admin
    * console should have one line-tab, not two that differ by a few px.
@@ -490,7 +498,7 @@ export const opsStyles = {
   /** 바닥은 램프 한 칸을 잡아먹는다 — `--pl-text-weak` (accessStyles' idle ink) is
       only 4.01 here, so idle stays at medium: 8.44:1 (실측). */
   tabIdle:
-    'text-[var(--pl-text-medium)] border-transparent hover:text-[var(--pl-text-strong)] hover:border-[var(--pl-border-strong)]',
+    'text-[var(--pl-text-medium)] border-transparent hover:text-[var(--pl-text-strong)] hover:border-[var(--pl-gray-400)]',
   /**
    * 걸린 단계의 마크 — 탭 **우상단 코너의 점** (오너 2026-08-27 "보라색 밑줄 말고
    * 확인 필요처럼 보이는 시각적 요소를 써볼까? 우상단의 빨간색 점은 어때?").
