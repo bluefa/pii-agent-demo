@@ -68,6 +68,30 @@ These guidelines are working if: fewer unnecessary changes in diffs, fewer rewri
 
 Next.js 14 (App Router) · TypeScript · TailwindCSS · Desktop only · 한국어 UI
 
+## Verification & Observation Budget
+
+Cost scales with change size. These are in-loop rules only — `pre-commit` still runs the full
+lint + tsc + test + build gate on every commit, so nothing here weakens the gate.
+
+### Test tiering (in-loop)
+
+| Change | Run in loop | Why |
+|---|---|---|
+| Token/style 1-2 lines, copy, markdown | nothing | pre-commit runs the full suite |
+| One component or route | `npm run test:changed` | related tests only — 6.6s vs 40.7s |
+| Contract, mock, shared `lib/` module | `npm run test:run` | blast radius is wide |
+
+Never call bare `npx vitest run` in the loop. There is exactly one full gate: `pre-commit`.
+
+### Observation budget
+
+- **Never read a number off a screenshot.** Color, contrast, width, spacing and font size come
+  from `javascript_tool` (`getComputedStyle` / `getBoundingClientRect`). A screenshot costs
+  ~58KB of context; the measured number costs ~0.5KB.
+- Screenshot only for judgement — is the layout broken, does the design read as intended.
+  **Max 3 per turn.**
+- Responsive checks measure every width in one `javascript_tool` batch, not one capture per width.
+
 ## Skill 라우팅
 
 | 작업 | Skill | 트리거 |
