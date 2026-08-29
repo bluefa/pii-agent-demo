@@ -728,9 +728,13 @@ describe('ProjectPageMeta — the fact grid', () => {
     expect(fillOf(projectHeaderStyles.factLabelTag)).toBe('#FFFFFF');
     expect(inkOf(projectHeaderStyles.factLabelTag)).not.toBe(inkOf(projectHeaderStyles.kvLabel));
     expect(inkOf(projectHeaderStyles.factLabelTag)).toBe(inkOf(projectHeaderStyles.blockLabel));
-    // 「태그는 작게」 — the ramp's bottom rung. ⛔ 10 is even; the design-guard hook rejects 11.
-    expect(projectHeaderStyles.factLabelTag).toContain('text-[10px]');
-    expect(projectHeaderStyles.factLabelTag).toContain('leading-[15px]');
+    // 12px — ONE rung below the 14px value it labels, not two (오너 2026-08-29). That is
+    // what lets it be a tag: at 10 it read as chrome, at 14 it would compete with the
+    // value. It shares `kvLabel`'s size on purpose; the box is what separates them, and
+    // the two are never adjacent anyway.
+    expect(projectHeaderStyles.factLabelTag).toContain('text-[12px]');
+    expect(projectHeaderStyles.factLabelTag).toContain('leading-[18px]');
+    expect(projectHeaderStyles.summaryValue).toContain('text-[14px]');
   });
 
   it('centres the inline row — a bordered box sits by its middle, not its baseline', () => {

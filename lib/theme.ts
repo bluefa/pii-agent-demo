@@ -1056,11 +1056,24 @@ export const projectHeaderStyles = {
    * ruling does not bind. It is recorded rather than silently contradicted; `#D7DBE3`
    * (1.27:1) is the fallback if this ever reads heavy.
    *
-   * 10px is the ramp's bottom rung (「태그는 작게」) and the shape is `infraSideTag`'s,
-   * already in this file. ⛔ 10 is even — the design-guard hook rejects 11.
+   * **12px** (오너 2026-08-29 correction — it shipped at 10 for one round). The size is
+   * the reason this can be a tag at all: it sits ONE rung below the 14px value it labels,
+   * not two. At 10 it read as chrome — a caption for the value rather than a name for it —
+   * and at 14 it would have competed with the value itself.
+   *
+   * That puts it on `kvLabel`'s 12px, which is right: it is the same tier of thing, and
+   * the two are never adjacent (the tag only appears when there is exactly one cell, and
+   * `kvLabel` only when there are two or more). What separates them is the box, not the
+   * size.
+   *
+   * `leading-[18px]` keeps the 10px precedent's 1.5 ratio, so the box grows with the type
+   * instead of gripping it: 18 + two 1px strokes = a 20px tag beside a 24px value line, so
+   * the cell height and the fact block do not move. `px-1.5` for the same reason — 4px of
+   * side padding reads cramped against an 18px line box. ⛔ Do not grow the padding
+   * further; the shape has to stay a tag and not become a button.
    */
   factLabelTag:
-    'inline-flex items-center whitespace-nowrap rounded border border-[#C6CCD6] bg-[#FFFFFF] px-1 leading-[15px] text-[10px] font-semibold text-[#4E5968]',
+    'inline-flex items-center whitespace-nowrap rounded border border-[#C6CCD6] bg-[#FFFFFF] px-1.5 leading-[18px] text-[12px] font-semibold text-[#4E5968]',
   /**
    * A fact too long for one track (오너 2026-08-29) — the same answer `opsStyles.fmCellWide`
    * gives the same values one screen over. Two tracks plus the 18px gap is 498px against
