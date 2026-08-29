@@ -5,6 +5,7 @@ import { fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import { ProcessStatus, type TargetSource } from '@/lib/types';
 import { cardStyles, installStepperStyles, projectHeaderStyles } from '@/lib/theme';
+import { passRoutes } from '@/lib/routes';
 
 // The header mounts the road; stub it and surface the props it receives. The road is the
 // second half of what the one cue opens, so whether it is on screen at all is a fact
@@ -343,13 +344,84 @@ describe('ProjectPageMeta — path heading', () => {
     expect(heading.textContent).not.toContain('서비스 코드');
   });
 
-  it('is a heading shaped like a path — nothing links, and it is no landmark', () => {
-    const { container } = render(
-      <ProjectPageMeta project={projectFixture} identity={awsIdentity} />,
+  it('navigates — the root to the service list, the name to that service', () => {
+    // 오너 2026-08-29, reversing 「nothing here links」. The service segment had to take
+    // the reader to their own service. Both destinations already existed; ⛔ neither is
+    // spelled out here — the hrefs are read off `passRoutes`, so a route that moves moves
+    // this assertion with it instead of leaving a green test pointing nowhere.
+    render(<ProjectPageMeta project={projectFixture} identity={awsIdentity} />);
+    const crumb = within(screen.getByRole('heading', { level: 1 }));
+    expect(crumb.getByRole('link', { name: 'PII Agent 설치' }).getAttribute('href')).toBe(
+      passRoutes.services,
     );
+    expect(crumb.getByRole('link', { name: 'Service A' }).getAttribute('href')).toBe(
+      passRoutes.service(projectFixture.serviceCode),
+    );
+  });
+
+  it('percent-encodes the service code into the deep link', () => {
+    // `/services` is URL-driven, so the code lands in a query string. A code with a
+    // reserved character would otherwise end the query early and select nothing.
+    render(
+      <ProjectPageMeta
+        project={{ ...projectFixture, serviceCode: 'a b&c' }}
+        identity={awsIdentity}
+      />,
+    );
+    const href = screen.getByRole('link', { name: 'Service A' }).getAttribute('href');
+    expect(href).toBe(passRoutes.service('a b&c'));
+    expect(href).toContain('a%20b%26c');
+  });
+
+  it('leaves the code segment unlinked and marks it as where you are', () => {
+    // ⛔ Two adjacent links to one destination is one link too many — the segment before
+    // it already goes to this service. That is the exact flaw the ops path removed on
+    // 2026-08-26, and `aria-current` is what actually answers 「where am I」.
+    render(<ProjectPageMeta project={projectFixture} identity={awsIdentity} />);
     const heading = screen.getByRole('heading', { level: 1 });
-    expect(heading.querySelectorAll('a')).toHaveLength(0);
-    expect(container.querySelector('nav')).toBeNull();
+    expect(within(heading).getAllByRole('link')).toHaveLength(2);
+    const code = within(heading).getByText('SERVICE-A');
+    expect(code.tagName).toBe('SPAN');
+    expect(code.closest('a')).toBeNull();
+    expect(code.getAttribute('aria-current')).toBe('page');
+  });
+
+  it('takes the landmark that comes with the links', () => {
+    // ⛔ Links without a landmark is the accessibility gap this screen's ops sibling
+    // still has; a heading shaped like a path needed none, a breadcrumb does. The `<h1>`
+    // survives inside it — the page has exactly one, and it is this line.
+    render(<ProjectPageMeta project={projectFixture} identity={awsIdentity} />);
+    const nav = screen.getByRole('navigation', { name: '경로' });
+    expect(nav.contains(screen.getByRole('heading', { level: 1 }))).toBe(true);
+    // `min-w-0` or the 280px clamp on the name stops truncating — the nav is the flex
+    // child now, and a flex item refuses to shrink below its content without it.
+    expect(nav.className).toContain('min-w-0');
+  });
+
+  it('keeps the links out of blue — hue in this header claims no attention', () => {
+    // ⛔ Same call as the cue (오너 2026-08-29), same reason. Each segment keeps the ink
+    // it already had; `crumbLink` adds only what happens when the reader reaches for it,
+    // and it darkens to the ink the cue darkens to, so the header has ONE "you are
+    // touching this" tone rather than two.
+    expect(inkOf(projectHeaderStyles.crumbLink)).toBeUndefined();
+    expect(hoverInkOf(projectHeaderStyles.crumbLink)).toBe(
+      hoverInkOf(projectHeaderStyles.metaCue),
+    );
+    expect(projectHeaderStyles.crumbLink).toContain('hover:underline');
+    // Keyboard reaches it too — hue is gone, so a pointer-only affordance would leave a
+    // keyboard reader with nothing at all.
+    expect(projectHeaderStyles.crumbLink).toContain('focus-visible:underline');
+    // ⛔ No hand-drawn ring: `globals.css` paints `*:focus-visible` outside the cascade
+    // layer, so a Tailwind ring is drawn ALONGSIDE the global outline, not instead of it.
+    expect(projectHeaderStyles.crumbLink).not.toContain('ring');
+    expect(projectHeaderStyles.crumbLink).not.toContain('outline-none');
+
+    render(<ProjectPageMeta project={projectFixture} identity={awsIdentity} />);
+    for (const name of ['PII Agent 설치', 'Service A']) {
+      expect(screen.getByRole('link', { name }).className).toContain(
+        projectHeaderStyles.crumbLink,
+      );
+    }
   });
 
   it('makes the service code the identifier segment — mono, one rung darker', () => {

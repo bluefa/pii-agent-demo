@@ -1,7 +1,9 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { ProcessStatus, type CloudProvider, type TargetSource } from '@/lib/types';
+import { passRoutes } from '@/lib/routes';
 import { ProviderGlyph } from '@/app/components/ui/CloudProviderIcon';
 import { ChevronDownIcon, CopyIcon, InfoCircleIcon, StatusSuccessIcon } from '@/app/components/ui/icons';
 import { InstallationProcessProgressBar } from '@/app/components/features/process-status';
@@ -118,7 +120,7 @@ const CopyButton = ({ value, label }: { value: string; label: string }) => {
  * rules at all (확정형 — 경로 A + 합안 ㄱ + 시안 1 + AWS 격자, 오너 2026-08-28,
  * `docs/ux/benchmark/ts-header-aws-grid.md`).
  *
- * Four things changed, and they only work together:
+ * Five things changed; the first four only work together:
  *
  * 1. **The second block is gone.** 설치 진행 was a name, a hairline and ~70px spent
  *    stating one tag. The tag moved onto this block's head row — the slot `OpsHeader`
@@ -132,9 +134,13 @@ const CopyButton = ({ value, label }: { value: string; label: string }) => {
  *    gap under it do now, exactly as `opsStyles.fmHead` does after the same instruction.
  * 4. **The path's painted tags are gone.** 「서비스」 and 「서비스 코드」 were the header's
  *    last two fills. The code is the identifier segment, so it says so in mono
- *    (`opsStyles.pathLinkId`'s value) instead of in a box. Nothing here links: this is a
- *    heading SHAPED like a path, not a breadcrumb, and it takes no `<nav>` landmark.
+ *    (`opsStyles.pathLinkId`'s value) instead of in a box.
  *    ⛔ No `Target Source #{id}` segment — the id is a database key (오너 지시).
+ * 5. **The path navigates** (오너 2026-08-29, reversing what 4 originally said — that
+ *    nothing here links). The service segment had to take the reader to their own
+ *    service, so the line is a real breadcrumb: `<nav aria-label="경로">`, two links, and
+ *    `aria-current="page"` on the code. The links stay out of blue for the same reason
+ *    the cue did — see `projectHeaderStyles.crumbLink`.
  *
  * The facts became a kv grid, label above value, because the old `provider | label·value`
  * row could only state what ONE provider owned before it ran out of width — AWS owns four
@@ -175,24 +181,50 @@ export const ProjectPageMeta = ({ project, identity, action }: ProjectPageMetaPr
       {/* Page chrome: the job, and which service it is being done for. WHAT it is
           being installed into is the named block below, not part of this line. */}
       <div className={h.titleRow}>
-        {/* The heading is the path. 「PII Agent 설치」 states the page's job at the weight
-            of a location instead of a 24px title, and the service name gets the width it
-            needs — clamped, because there is no contract maximum on it (swagger
-            `service_name` declares no maxLength). Three segments, `/` separators, and one
-            identifier among them: the code, in mono. */}
-        <h1 className={h.crumb}>
-          <span className={h.crumbRoot}>PII Agent 설치</span>
-          <span className={h.crumbSep} aria-hidden="true">
-            /
-          </span>
-          <span className={h.crumbName} title={serviceTitle}>
-            {serviceTitle}
-          </span>
-          <span className={h.crumbSep} aria-hidden="true">
-            /
-          </span>
-          <span className={h.crumbCode}>{project.serviceCode}</span>
-        </h1>
+        {/* The heading is the path, and the path now NAVIGATES (오너 2026-08-29). 「PII
+            Agent 설치」 states the page's job at the weight of a location instead of a
+            24px title, and the service name gets the width it needs — clamped, because
+            there is no contract maximum on it (swagger `service_name` declares no
+            maxLength). Three segments, `/` separators, one identifier among them.
+
+            The landmark comes with the links: a heading shaped like a path needed none,
+            a breadcrumb does. ⛔ Do not ship the links without it — that is the gap this
+            screen's ops sibling still has, and we are not copying it.
+
+            No `<ol>`: the list markup a breadcrumb usually wants cannot hold this `<h1>`
+            (a heading may not live inside a list item without splitting the page's only
+            h1, and an `<ol>` may not live inside the heading at all). The landmark plus
+            `aria-current` is what a reader actually needs here. */}
+        <nav aria-label="경로" className="min-w-0">
+          <h1 className={h.crumb}>
+            <Link href={passRoutes.services} className={cn(h.crumbRoot, h.crumbLink)}>
+              PII Agent 설치
+            </Link>
+            <span className={h.crumbSep} aria-hidden="true">
+              /
+            </span>
+            {/* The reader's own service. `passRoutes.service` owns the shape of this
+                deep link — `/services` is URL-driven, so `?service_code=` IS the
+                service's address, and the two places that already push it use the same
+                helper. */}
+            <Link
+              href={passRoutes.service(project.serviceCode)}
+              className={cn(h.crumbName, h.crumbLink)}
+              title={serviceTitle}
+            >
+              {serviceTitle}
+            </Link>
+            <span className={h.crumbSep} aria-hidden="true">
+              /
+            </span>
+            {/* ⛔ Not a link. It names where the reader already is, and the segment
+                before it goes to that same service — two adjacent links to one
+                destination is one link too many. `aria-current` says "here" instead. */}
+            <span className={h.crumbCode} aria-current="page">
+              {project.serviceCode}
+            </span>
+          </h1>
+        </nav>
         {action}
       </div>
 

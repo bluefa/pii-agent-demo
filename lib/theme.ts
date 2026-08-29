@@ -787,7 +787,11 @@ export const projectHeaderStyles = {
    *
    * Same grammar as the ops side of the same target (`opsStyles.path`): 12px, a
    * 280px clamp on the name, the last segment closing the path as "you are here".
-   * Nothing here links, so this is a heading SHAPED like a path, not a breadcrumb.
+   *
+   * It is a REAL breadcrumb now (오너 2026-08-29). This doc used to end 「nothing here
+   * links, so this is a heading SHAPED like a path」 — that is retired: the first two
+   * segments navigate, so the line takes the `<nav aria-label="경로">` landmark that a
+   * heading did not need, and the last segment carries `aria-current="page"`.
    */
   crumb: 'flex min-w-0 flex-wrap items-center gap-1.5 text-[12px] leading-[1.5] text-[#4E5968]',
   /** 「PII Agent 설치」 — semibold (오너 13차 지시), 14px (오너 16차 지시). Size and weight,
@@ -797,7 +801,26 @@ export const projectHeaderStyles = {
       header NAMES (this root and the two `blockLabel` blocks) now sit one step above
       everything they name, where before every name shared 12px with the values. */
   crumbRoot: 'flex-none text-[14px] font-semibold',
-  crumbSep: 'flex-none text-[#A6ADBB]', // design-exempt: decorative path glyph, the labels around it carry the reading
+  crumbSep: 'flex-none text-[#A6ADBB]',
+  /**
+   * The interaction half of a path segment, composed onto `crumbRoot`/`crumbName` —
+   * ⛔ not a segment style of its own. Each segment keeps the ink and size it already
+   * had; this only says what happens when the reader reaches for it.
+   *
+   * **Links do not turn blue** (오너 2026-08-29), the same call as
+   * `projectHeaderStyles.metaCue` and for the same reason: hue in this header must not
+   * claim attention, and a path is the quietest thing on the page. Pressability is
+   * declared on interaction — `opsStyles.pathLink`'s grammar
+   * (「누를 수 있다는 것은 hover 가 말한다」) — and the hover ink is the one `metaCue`
+   * already darkens to, so the header has one "you are touching this" tone, not two.
+   *
+   * ⛔ No hand-drawn focus ring. `globals.css` paints `*:focus-visible` OUTSIDE the
+   * cascade layer, so a Tailwind ring here would be drawn alongside the global outline
+   * rather than instead of it, and `focus-visible:outline-none` cannot turn that off
+   * (see `opsStyles.fmCue`). The ink and underline are what this token adds on top.
+   */
+  crumbLink:
+    'cursor-pointer transition-colors hover:text-[#191F28] hover:underline focus-visible:text-[#191F28] focus-visible:underline motion-reduce:transition-none', // design-exempt: decorative path glyph, the labels around it carry the reading
   crumbName: 'max-w-[280px] truncate',
   /**
    * The service CODE, closing the path (오너 2026-08-28). It is the identifier segment,
@@ -811,6 +834,12 @@ export const projectHeaderStyles = {
    * removed every plane it could: the path root already names what the line is about,
    * and mono says "identifier" without a fill. #344054 is `--pl-text-medium`, 9.4:1 on
    * the lavender wash.
+   *
+   * ⛔ This segment does NOT link, and takes no `crumbLink` (오너 2026-08-29). It is the
+   * identifier of where the reader already stands, and the segment before it goes to the
+   * same service — two adjacent links to one destination is one link too many, which is
+   * the exact flaw the ops path removed on 2026-08-26. It carries `aria-current="page"`
+   * instead, which is what actually answers 「where am I」 for a screen reader.
    */
   crumbCode: 'flex-none font-mono text-[12px] font-medium text-[#344054]',
   /**

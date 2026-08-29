@@ -357,9 +357,9 @@ export const ServiceManagementView = () => {
 
   const handleSelectService = useCallback(
     (code: string) => {
-      // Preserve the original casing — /services/{code}/target-sources matches
-      // case-sensitively (a wrong-case code 404s).
-      router.push(`${passRoutes.services}?service_code=${encodeURIComponent(code)}`);
+      // The query IS this service's deep link; `passRoutes.service` owns its shape
+      // and the casing rule behind it.
+      router.push(passRoutes.service(code));
     },
     [router],
   );

@@ -5,6 +5,7 @@
   (`ProjectPageMeta` + `InstallationProcessProgressBar` + `lib/theme.ts` 의 `projectHeaderStyles`/`installStepperStyles`)
 - **아티팩트** https://claude.ai/code/artifact/2695d8a3-40d1-40c3-969a-2bb49c3be84b (§05·06·07)
 - **채택안** 「확정형 — 경로 A + 합안 ㄱ + 시안 1 + AWS 격자」 — 오너 2026-08-28 채택
+- **후속 지시** 2026-08-28 큐는 파랑이 아니다 · 2026-08-29 경로 마디는 링크다(§번복)
 - **구현 PR** #813
 - **적용 범위** AWS. 컴포넌트는 공유라 Azure·GCP·IDC·SDU 도 같은 골격을 받지만,
   격자에 담기는 사실의 목록은 AWS 만 이번 라운드에서 정했다
@@ -40,8 +41,14 @@
 네 가지를 **함께** 바꾼다. 하나만 하면 나머지가 그 자리를 도로 채운다.
 
 **(A) 경로 A — 칠 없는 세 마디.** `PII Agent 설치 / {serviceName} / {serviceCode}`.
-코드는 mono 12/500 `#344054`(R4). ⛔ 링크 없음, `<nav>` 랜드마크 없음 — 경로 **모양**의 제목이다.
+코드는 mono 12/500 `#344054`(R4).
 ⛔ `Target Source #{id}` 마디는 넣지 않는다(오너: 「단순 id」).
+
+> **번복 (오너 2026-08-29): 마디는 링크다.** 08-28 판은 「⛔ 링크 없음, `<nav>` 랜드마크 없음
+> — 경로 **모양**의 제목」이었다. 오너 지시로 뒤집는다: 서비스 마디는 **읽는 사람을 제 서비스로
+> 데려가야 한다**. 자세한 것은 아래 §번복 절.
+
+
 
 **(B) 합안 ㄱ — 블록 하나, 신호 하나, 선 없음.** 「설치 진행」을 해체한다. 위치 태그는
 「설치 대상」 머리 줄로(R2), 마크도 같은 줄로(R1) — 그래서 `divider` 가 필요 없어진다.
@@ -79,6 +86,34 @@ CSP 는 **칸을 안 받는다** — 머리 줄의 로고가 그 진술이다(�
 | 새 활자 크기 | **0** — 16 은 `opsStyles.fmLabel` 이 이미 쓰는 칸이다 |
 | 지워진 토큰 | 9 — `crumbKind` · `codeChip` · `codeChipLabel` · `codeChipValue` · `divider` · `summaryRow` · `summaryIds` · `summaryFact` · `installStepperStyles.head` |
 
+### 번복 — 경로가 링크가 된다 (오너 2026-08-29)
+
+08-28 판의 근거는 「이 줄은 위치를 말할 뿐 아무 데도 가지 않는다」였다. 오너가 그 전제를
+철회했다: 서비스 담당자는 이 화면에서 **제 서비스로 돌아갈 길**이 필요하다. 전제가 사라졌으므로
+기각 판례도 같이 만료된다([[feedback_rejection_expires_with_its_premise]]).
+
+| 마디 | 목적지 | 근거 |
+|------|--------|------|
+| 「PII Agent 설치」 | `passRoutes.services` | 이 흐름의 뿌리 — 서비스 목록 |
+| 「{serviceName}」 | `passRoutes.service(serviceCode)` | 그 서비스의 제 화면. `/services` 는 URL 주도라 `?service_code=` 가 곧 서비스의 주소다 |
+| 「{serviceCode}」 | **링크 아님** + `aria-current="page"` | 서 있는 곳의 식별자다. 바로 앞 마디가 **같은 서비스**로 가므로, 링크를 하나 더 두면 한 목적지에 인접 링크가 둘이 된다 — 운영 경로가 08-26 에 걷어낸 바로 그 결함이다 |
+
+**새 라우트는 없다.** 두 목적지 다 이미 있었고, 서비스 딥링크는 `ServiceListPanel` 과
+`ServiceManagementView` 가 이미 같은 문자열을 `router.push` 하고 있었다. 그 shape 를
+`passRoutes.service(code)` 로 뽑아 **세 호출부가 한 철자를 공유**한다(한 목적지, 한 철자).
+
+**랜드마크가 링크와 함께 온다.** 경로 **모양**의 제목에는 필요 없던 `<nav aria-label="경로">` 를
+이제 두른다. ⛔ 랜드마크 없는 링크는 이 화면의 운영 형제가 아직 가진 결함(P10)이고, 베끼지 않는다.
+`<ol>` 은 쓰지 않았다 — `<h1>` 을 리스트 항목 안에 넣으면 페이지의 유일한 h1 이 쪼개지고,
+`<ol>` 을 `<h1>` 안에 넣는 것은 애초에 유효하지 않다. 랜드마크 + `aria-current` 가 읽는 사람이
+실제로 필요로 하는 것이다.
+
+**링크는 파랗게 하지 않는다** — 큐와 같은 결정, 같은 이유(위 (C) 절). 쉬는 상태의 잉크는 그대로고,
+`crumbLink` 는 **손이 닿을 때 무엇이 일어나는지**만 얹는다: hover·focus 에서 `#191F28` + 밑줄.
+그 잉크는 `metaCue` 가 어두워지는 잉크와 **같다** — 헤더의 "지금 이걸 만지고 있다" 톤이 둘이 아니라
+하나여야 한다. ⛔ 포커스 링을 손으로 그리지 않는다: `globals.css` 의 `*:focus-visible` 은 cascade
+layer **밖**이라, Tailwind 링을 두면 전역 아웃라인을 대체하는 게 아니라 **나란히** 그려진다.
+
 ### 격자 열 규칙 — 운영 것을 그대로 못 베낀 한 곳
 
 `opsStyles.fmGrid` 는 `repeat(4,minmax(0,240px))` 로 **고정 4열**이다. 이 화면은 못 쓴다:
@@ -103,3 +138,5 @@ CSP 는 **칸을 안 받는다** — 머리 줄의 로고가 그 진술이다(�
 - `npm test` — 339 files / 3487 tests passed
 - 브라우저 확인 — `/pass/target-sources/1029`(1단계, 수동)과 `/pass/target-sources/1008`(4단계, 자동):
   세 마디 경로 · 큐 하나 · **선 0개**(`border-[btlrxy]`·`w-px`·`h-px` 전부 0) · kv 네 칸
+- 08-29 번복분 — 두 마디의 `href` 는 `passRoutes` 에서 읽어 비교하고(손복사 금지), 코드 마디는
+  앵커 0개 + `aria-current="page"`, `<nav aria-label="경로">` 안에 `<h1>` 이 그대로 산다
