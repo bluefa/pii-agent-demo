@@ -9,6 +9,7 @@
     "lint": "eslint",
     "test": "vitest",
     "test:run": "vitest run",
+    "test:changed": "vitest run --changed",
     "gen:api": "node scripts/gen-api.mjs",
     "design:lint": "npx --no-install @google/design.md lint DESIGN.md",
     "design:check": "npm run design:lint"

@@ -46,7 +46,8 @@ Allowed branch prefixes: `feat/`, `fix/`, `docs/`, `refactor/`, `chore/`, `test/
 - Convert requests into verifiable checks.
 - For bug fixes, add/adjust tests when feasible.
 - Before finishing, run relevant checks and report results:
-  - `npm run test:run`
+  - `npm run test:changed` (related tests only; `npm run test:run` when contracts, mocks, or
+    shared `lib/` modules changed) — see CLAUDE.md "Verification & Observation Budget"
   - `npm run lint`
   - `npm run build` (if build impact exists)
 
