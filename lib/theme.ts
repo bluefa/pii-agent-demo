@@ -999,6 +999,19 @@ export const projectHeaderStyles = {
   /** One fact — its label, then its value under it. 4px binds the pair; `min-w-0` is what
       lets the value inside truncate rather than push the column wide. */
   factCell: 'flex min-w-0 flex-col gap-1',
+  /**
+   * A fact too long for one track (오너 2026-08-29) — the same answer `opsStyles.fmCellWide`
+   * gives the same values one screen over. Two tracks plus the 18px gap is 498px against
+   * the ~215px a single track leaves for a value: Azure's 36-char UUIDs needed 280px and
+   * got 217, and AWS's 39-char Terraform role needed 247. See `WIDE_CELL_MIN_CHARS` for
+   * the measurements and the character threshold derived from them.
+   *
+   * ⛔ A span, not a wider track. Raising `factGrid`'s max to 320px fixes it at full width
+   * and fails with the guide rail open (~744px lane), where `auto-fit` then resolves three
+   * ~236px tracks and both values clip again. A 2-track span still measures ~490px there.
+   * ⛔ So do not touch `minmax(200px,240px)` to solve this.
+   */
+  factCellWide: 'col-span-2',
   /** A cell whose fact is positively absent — 「미등록」, 「역할 불필요」. Value size, so the
       cell keeps its shape, in `kvLabel`'s ink so it never reads as a value: 4.51:1 on the
       wash, the same AA-floor tint, which is why ⛔ it must not be lightened either.

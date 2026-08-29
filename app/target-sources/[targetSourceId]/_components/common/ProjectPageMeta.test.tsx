@@ -4,7 +4,7 @@ import path from 'node:path';
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import { ProcessStatus, type TargetSource } from '@/lib/types';
-import { cardStyles, installStepperStyles, projectHeaderStyles } from '@/lib/theme';
+import { cardStyles, cn, installStepperStyles, projectHeaderStyles } from '@/lib/theme';
 import { passRoutes } from '@/lib/routes';
 
 // The header mounts the road; stub it and surface the props it receives. The road is the
@@ -534,6 +534,37 @@ describe('ProjectPageMeta — the fact grid', () => {
     }
     // The label sits ABOVE its value, so it is the cell's first child, not its sibling.
     expect(card.getByText('계정').previousElementSibling).toBeNull();
+  });
+
+  it('gives a wide fact two tracks, and a short one one (오너 2026-08-29)', () => {
+    // Measured before the fix: Azure's 36-char UUID needed 280px inside a track that
+    // left it 217px, and AWS's 39-char role needed 247px against 215px. Two tracks plus
+    // the 18px gap is 498px, which clears both.
+    render(
+      <ProjectPageMeta
+        project={projectFixture}
+        identity={{
+          cloudProvider: 'AWS',
+          identifiers: [
+            { label: '계정', value: '482915736204', mono: true },
+            { label: 'Subscription ID', value: '12345678-abcd-ef01-2345-6789abcdef01', mono: true, wide: true },
+          ],
+        }}
+      />,
+    );
+    const card = within(scopeBlock());
+    expect(card.getByText('계정').parentElement?.className).toBe(projectHeaderStyles.factCell);
+    expect(card.getByText('Subscription ID').parentElement?.className).toBe(
+      cn(projectHeaderStyles.factCell, projectHeaderStyles.factCellWide),
+    );
+    expect(projectHeaderStyles.factCellWide).toBe('col-span-2');
+  });
+
+  it('solves the overflow by spanning, ⛔ never by widening the track', () => {
+    // A 320px track max fixes it at full width and fails with the guide rail open
+    // (~744px lane), where `auto-fit` then resolves three ~236px tracks and both values
+    // clip again. A 2-track span still measures ~490px there.
+    expect(projectHeaderStyles.factGrid).toContain('minmax(200px,240px)');
   });
 
   it('lets the column count follow the width — a fixed four squeezes a cell to 94px', () => {

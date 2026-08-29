@@ -2,9 +2,10 @@
 import { render, screen } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import { ProcessStatus, type CloudTargetSource } from '@/lib/types';
-import type {
-  ProjectIdentity,
-  TargetSourceIdentifier,
+import {
+  WIDE_CELL_MIN_CHARS,
+  type ProjectIdentity,
+  type TargetSourceIdentifier,
 } from '@/app/target-sources/[targetSourceId]/_components/common/project-identity';
 
 /**
@@ -170,5 +171,43 @@ describe('AwsProjectPage — 테라폼 역할 in both modes', () => {
     // blanking the row on an absent key hid the mode.
     expect(identityOf({ isTerraformExecutionGranted: false }).installMode).toBe('manual');
     expect(identityOf({ isTerraformExecutionGranted: true }).installMode).toBe('auto');
+  });
+});
+
+/**
+ * The grid gives a fact two tracks when its PRINTED string cannot fit one. Measured on
+ * the running app before the fix: `bdc-infra-terraform-worker-service-role` needed 247px
+ * and got 215px inside a 240px track — clipped by 32px (오너 2026-08-29).
+ */
+describe('AwsProjectPage — the long role takes two tracks', () => {
+  it('widens the role name, and nothing shorter', () => {
+    const identity = identityOf({
+      isTerraformExecutionGranted: true,
+      awsTerraformExecutionRoleArn: TF_ARN,
+      scanPrincipal: SCAN_ARN,
+    });
+    expect(identity.identifiers.map((it) => [it.label, it.wide ?? false])).toEqual([
+      // 12 digits.
+      ['계정', false],
+      // 19 characters — `BDCPIIInfraScanRole` fits, and the ARN it copies does not count:
+      // the rule measures what the cell PRINTS, or a role cell would always be wide.
+      ['스캔 역할', false],
+      // 39 characters.
+      ['테라폼 역할', true],
+    ]);
+  });
+
+  it('measures the printed name, not the ARN behind it', () => {
+    // ⛔ The full ARN is ~60 characters and is never on screen — it lives in the copy
+    // button and the title. Widening on it would spend two tracks on nothing.
+    const scan = factNamed(identityOf({ scanPrincipal: SCAN_ARN }), '스캔 역할');
+    expect(scan.value!.length).toBeGreaterThan(WIDE_CELL_MIN_CHARS);
+    expect(scan.display!.length).toBeLessThan(WIDE_CELL_MIN_CHARS);
+    expect(scan.wide).toBeUndefined();
+  });
+
+  it('leaves an absent role narrow — 「역할 불필요」 fits anywhere', () => {
+    expect(factNamed(identityOf({ isTerraformExecutionGranted: false }), '테라폼 역할').wide)
+      .toBeUndefined();
   });
 });

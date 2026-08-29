@@ -3,6 +3,7 @@
 import { CloudTargetSource } from '@/lib/types';
 import { awsRoleArnDisplay } from '@/lib/constants/aws-role';
 import {
+  widenLongValues,
   type ProjectIdentity,
   type TargetSourceIdentifier,
 } from '@/app/target-sources/[targetSourceId]/_components/common';
@@ -44,7 +45,10 @@ export const AwsProjectPage = ({
     // would cross a layer for two words — but they are kept identical to
     // `ROLE_META.scan.short` / `ROLE_META.execution.short` so both screens name the same
     // role the same way.
-    identifiers: [
+    // `widenLongValues` gives a second grid track to whatever is too long for one — the
+    // Terraform role name is the field that needs it today (39 chars), and the rule is on
+    // the list rather than on that field so the next long name gets it for free.
+    identifiers: widenLongValues([
       { label: '계정', value: project.awsAccountId ?? null, mono: true },
       roleFact('스캔 역할', project.scanPrincipal),
       autoInstall
@@ -60,7 +64,7 @@ export const AwsProjectPage = ({
             emptyHint:
               '수동 설치는 제공된 설치 스크립트를 직접 실행하므로, BDC 가 대신 수행할 Terraform 실행 Role 을 등록하지 않아요.',
           },
-    ],
+    ]),
     // The header renders it as the InstallModeModal vocabulary (자동/수동 설치) —
     // "TF 실행 권한" was internal jargon, not a user-facing name.
     installMode: autoInstall ? 'auto' : 'manual',

@@ -340,7 +340,7 @@ export const ProjectPageMeta = ({ project, identity, action }: ProjectPageMetaPr
             ⛔ no blue, no underline, no CTA. */}
         <div className={h.factGrid}>
           {facts.map((fact) => (
-            <div key={fact.label} className={h.factCell}>
+            <div key={fact.label} className={cn(h.factCell, fact.wide && h.factCellWide)}>
               <span className={h.kvLabel}>{fact.label}</span>
               {fact.value ? (
                 /* `display` is what is PRINTED, `value` is what gets copied and what the

@@ -1,7 +1,10 @@
 'use client';
 
 import { CloudTargetSource } from '@/lib/types';
-import { type ProjectIdentity } from '@/app/target-sources/[targetSourceId]/_components/common';
+import {
+  widenLongValues,
+  type ProjectIdentity,
+} from '@/app/target-sources/[targetSourceId]/_components/common';
 import { CloudTargetSourceLayout } from '@/app/target-sources/[targetSourceId]/_components/layout/CloudTargetSourceLayout';
 
 interface AzureProjectPageProps {
@@ -15,13 +18,17 @@ export const AzureProjectPage = ({
 }: AzureProjectPageProps) => {
   const identity: ProjectIdentity = {
     cloudProvider: 'Azure',
-    identifiers: [
+    // Both UUIDs are 36 characters and neither fits one 240px track — measured at 280px
+    // needed against 217px shown before `widenLongValues` gave each of them two
+    // (오너 2026-08-29). The rule reads the value's length, so nothing here is
+    // hand-marked.
+    identifiers: widenLongValues([
       { label: 'Subscription ID', value: project.subscriptionId ?? null, mono: true },
       // tenant_id is a declared TargetSourceMetadata field the normalizer already
       // maps — the old "credential modal only" placement was a v16 display call,
       // not a contract limit, so the header shows it beside the subscription.
       { label: 'Tenant ID', value: project.tenantId ?? null, mono: true },
-    ],
+    ]),
   };
 
   return (

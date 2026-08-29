@@ -2,11 +2,18 @@
 import { render, screen } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import { ProcessStatus, type CloudTargetSource } from '@/lib/types';
+import type { ProjectIdentity } from '@/app/target-sources/[targetSourceId]/_components/common/project-identity';
 
+/** The layout is a sentinel, but the identity is built HERE — nothing downstream can be
+ *  asked which cells got a second grid track. */
+const seen: { identity?: ProjectIdentity } = {};
 vi.mock(
   '@/app/target-sources/[targetSourceId]/_components/layout/CloudTargetSourceLayout',
   () => ({
-    CloudTargetSourceLayout: () => <div data-testid="cloud-target-source-layout-sentinel" />,
+    CloudTargetSourceLayout: ({ identity }: { identity: ProjectIdentity }) => {
+      seen.identity = identity;
+      return <div data-testid="cloud-target-source-layout-sentinel" />;
+    },
   }),
 );
 
@@ -47,5 +54,36 @@ describe('AzureProjectPage routing', () => {
       />,
     );
     expect(screen.getByTestId('cloud-target-source-layout-sentinel')).toBeTruthy();
+  });
+});
+
+/**
+ * Both Azure identifiers are 36-character UUIDs. Measured on the running app before the
+ * fix: each needed 280px and got 217px inside a 240px track — clipped by 63px. The cell
+ * takes two tracks now (오너 2026-08-29).
+ */
+describe('AzureProjectPage — a 36-char UUID does not fit one track', () => {
+  const identityOf = (patch: Partial<CloudTargetSource> = {}) => {
+    const { unmount } = render(
+      <AzureProjectPage project={{ ...azureBaseFixture, ...patch }} onProjectUpdate={() => {}} />,
+    );
+    const identity = seen.identity;
+    unmount();
+    if (!identity) throw new Error('identity was never handed to the layout');
+    return identity;
+  };
+
+  it('gives both UUIDs a second track', () => {
+    expect(identityOf().identifiers.map((it) => [it.label, it.wide])).toEqual([
+      ['Subscription ID', true],
+      ['Tenant ID', true],
+    ]);
+  });
+
+  it('reads the length, so a short id keeps one track', () => {
+    // ⛔ The rule is not a hand-marked list of fields — the same field is narrow when its
+    // value is. That is what stops the list rotting when a value changes shape.
+    const identity = identityOf({ subscriptionId: 'sub-1', tenantId: 'ten-1' });
+    expect(identity.identifiers.every((it) => it.wide === undefined)).toBe(true);
   });
 });
