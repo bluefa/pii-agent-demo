@@ -54,7 +54,7 @@ export function MonitoringEvidenceBody({
   return (
     <div className={cn(b.counts, 'flex-wrap gap-y-1.5')}>
       {/* 줄의 주어 — 이 수의 단위가 무엇인지 한 번만 말하고, 나머지는 그 몫이다. */}
-      {/* 구분선은 --pl-border 가 아니다 — 그 토큰은 #E4E7EC 로 이 줄이 서 있는 바닥과
+      {/* 구분선은 --pl-border 가 아니다 — 그 토큰은 이 줄이 서 있는 바닥(--pl-gray-200)과
           **같은 값**이라(1.000) 선이 통째로 사라진다. 한 칸 더 진한 획이 진다. */}
       <span className="flex items-center gap-1.5 border-r border-[var(--pl-border-strong)] pr-3">
         논리 DB<b className={b.countValue}>{n(agg.dbTotal)}</b>
