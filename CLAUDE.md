@@ -92,6 +92,23 @@ Never call bare `npx vitest run` in the loop. There is exactly one full gate: `p
   **Max 3 per turn.**
 - Responsive checks measure every width in one `javascript_tool` batch, not one capture per width.
 
+### Navigation budget
+
+A file over ~1,000 lines is found, not read. `lib/theme.ts` is 4,407 lines across 63 export
+blocks; over 45 sessions its 808 tool calls ran 3:1 navigate-to-edit, and 390 of them were
+broad greps. `text-[` hits 385 times across that file and 74 inside a single block, so a
+class-fragment grep returns a haystack and buys another grep.
+
+Take the index once, then jump straight to the block:
+
+```bash
+grep -n '^export const' lib/theme.ts   # 63 blocks, 2.5KB — the whole map
+sed -n '1434,2269p' lib/theme.ts       # the one block the map named
+```
+
+Do not grep a large file for a class fragment (`card`, `border`, `text-[`, `hover`, `bg-`)
+before the map has told you which block owns it.
+
 ## Skill 라우팅
 
 | 작업 | Skill | 트리거 |
