@@ -12,6 +12,14 @@
  *   대상     the target's own prose and dates — 설명(전문 + 수정) · 생성일 · 최초 연동
  *   식별자   every mono identifier IN FULL, with copy
  *
+ * Azure is the exception since 2026-08-30, when the owner rejected truncating its
+ * three UUID identifiers: each of them now takes two of the strip's four columns,
+ * so the strip only uses the 248 and 764 column lines. The fold has to follow —
+ * 서비스 and 대상 take two columns each as well, which makes Azure's fold two rows
+ * instead of one band. The extra row is what the alignment rule costs here: every
+ * group still starts on a line the strip above uses, and opening the fold continues
+ * the same columns downward. Same reasoning as GCP's `fmFoldGcp`, other grid.
+ *
  * The 식별자 group repeats values the strip above already shows, and that is the
  * point: the strip is read at a glance (an ARN folds to its role name, a long id
  * ellipses), while this group is the place the whole string can be selected and
@@ -79,6 +87,7 @@ export function OpsDetailFold({
     is_sdu_type: meta.is_sdu_type,
     cloud_provider: detail.cloud_provider,
   });
+  const isAzure = !isSdu && provider === 'Azure';
 
   // 프로바이더마다 갖는 mono 식별자를 한 줄로 모은다 — 없는 값은 행째로 빠진다
   // (빈 값을 '-' 로 그리면 화면이 읽지도 못한 사실을 단정한다).
@@ -105,7 +114,7 @@ export function OpsDetailFold({
       push('Project ID', meta.gcp_project_id);
       push('Scan Service Account', meta.gcp_scan_service_account);
       push('Terraform Service Account', meta.gcp_terraform_service_account);
-    } else if (provider === 'Azure') {
+    } else if (isAzure) {
       push('Subscription ID', meta.subscription_id);
       push('Tenant ID', meta.tenant_id);
       push('Scan App ID', meta.azure_scan_app_id);
@@ -121,7 +130,7 @@ export function OpsDetailFold({
       id={id}
       className={!isSdu && provider === 'GCP' ? opsStyles.fmFoldGcp : opsStyles.fmFold}
     >
-      <Group label="서비스">
+      <Group label="서비스" wide={isAzure}>
         <Cell label="이름">
           <span className={opsStyles.fmValue}>
             <span className={opsStyles.fmValueText} title={detail.service_name ?? undefined}>
@@ -154,7 +163,7 @@ export function OpsDetailFold({
         )}
       </Group>
 
-      <Group label="대상">
+      <Group label="대상" wide={isAzure}>
         <div className={opsStyles.fmCell}>
           <span className={opsStyles.fmKey}>
             설명
@@ -193,7 +202,9 @@ export function OpsDetailFold({
 
       {identifiers.length > 0 && (
         // 3등분 위에서는 한 열이 이미 전문을 받는다 — GCP 만 1열, 나머지는 지금처럼
-        // 2열 병합으로 ARN 전문을 한 줄에 세운다.
+        // 2열 병합으로 ARN 전문을 한 줄에 세운다. On Azure this is no longer the only
+        // merged group: all three are 2 columns wide so they land on the strip's own
+        // 248/764 lines (see the header comment), which puts this one on a second row.
         <Group label="식별자" wide={provider !== 'GCP'}>
           {identifiers.map(({ label, value }) => (
             <div key={label} className={opsStyles.fmCell}>
