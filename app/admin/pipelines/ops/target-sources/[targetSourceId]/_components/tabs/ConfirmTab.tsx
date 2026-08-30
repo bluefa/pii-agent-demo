@@ -1,9 +1,14 @@
 'use client';
 
 /**
- * 확정 정보 tab — 연동 요청 확인 → 확정 → 설치 세 축을 한 화면에서 확인하는 워크벤치.
+ * 확정 정보 tab — 연동 요청 확인 → 확정 두 축을 한 화면에서 확인하는 워크벤치.
  *
- * 골격은 표면 하나다. 테두리 있는 컨테이너 한 개, 그 머리를 세 칸 밴드가 차지하고,
+ * 설치(Terraform) 축은 여기 없다. 2026-08-30 오너 지시 — "확정 정보 탭에서 테라폼 설치
+ * 정보 조회하는 건 없앤다". 같은 릴리스에서 인프라 작업 탭이 연동 정보 카드 + Terraform
+ * task 행으로 그 상태를 소유했고, 여기 셋째 축은 같은 사실을 더 나쁜 자리에서 한 번 더
+ * 말하는 것이었다.
+ *
+ * 골격은 표면 하나다. 테두리 있는 컨테이너 한 개, 그 머리를 두 칸 밴드가 차지하고,
  * 아래 pane 이 고정된 슬롯 문법으로 내용을 채운다 — 카드 셋을 나란히 놓으면 등급을
  * 아무리 매겨도 형제 셋일 뿐이라 계층이 생기지 않는다(계층 = 포함).
  *
@@ -16,7 +21,11 @@
  * 비교한다는 건지"가 전달되지 않았고, 확정 pane 은 현재 확정 정보만 보여 준다.
  *
  * 로드는 진입 3콜(요청·확정·terraform)이고 서로 독립이라 하나가 실패해도 나머지
- * 칸은 그대로 그린다.
+ * 칸은 그대로 그린다. 화면이 Terraform 을 하나도 그리지 않는데 terraform-status 를
+ * 계속 부르는 이유는 하나뿐이다 — **`latest_confirmed_at`(확정 시각)**. 확정 계약
+ * `BffConfirmedIntegration` 은 `{ resource_infos }` 뿐이라 자기 시각이 없고, 이 화면의
+ * 확정 시각은 그 응답에만 있다. 대신 이 콜의 실패는 오류 배너를 올리지 않는다:
+ * 잃는 것은 밴드 부제와 확정 pane 의 날짜 한 칸뿐이다.
  *
  * 쓰기 경로는 조회와 이름이 다르다: 확정 정보의 등록·삭제는 `confirmed-integration`
  * 이 아니라 CSP 별 `…/{aws|gcp|azure|idc}-resources` 의 POST·DELETE 다(swagger
@@ -47,10 +56,8 @@ import {
   deriveConfirmVerdict,
   type RequestFacet,
 } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/confirm/verdict';
-import { metaOf } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/terraformState';
 import {
   ConfirmPane,
-  InstallPane,
   RequestPane,
 } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/confirm/panes';
 import { ConfirmEditorModal } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/confirm/ConfirmEditorModal';
@@ -58,7 +65,7 @@ import { ConfirmEditorModal } from '@/app/admin/pipelines/ops/target-sources/[ta
 /** `data: null` = 스냅샷이 아직 없다(404). 실패가 아니다. */
 type Load<T> = { state: 'loading' } | { state: 'ready'; data: T | null } | { state: 'failed' };
 
-type CellKey = 'request' | 'confirm' | 'install';
+type CellKey = 'request' | 'confirm';
 /** 초록 = 단계 끝남 · 회색 = 아직 · 빨강 = API 가 실패라고 말한 것. 경고색은 없다. */
 type Dot = 'done' | 'idle' | 'failed';
 
@@ -78,7 +85,7 @@ const styles = {
   shell:
     'mt-5 overflow-hidden rounded-[12px] border border-[var(--pl-border-strong)] bg-[var(--pl-bg-card)] shadow-[var(--pl-shadow-sm)]',
   /** 밴드가 컨테이너의 머리다 — 탭 스트립과 내용은 붙어 있어야 소속을 말한다. */
-  band: 'grid grid-cols-3 bg-[var(--pl-gray-50)]',
+  band: 'grid grid-cols-2 bg-[var(--pl-gray-50)]',
   cell:
     'relative min-w-0 cursor-pointer border-b border-l border-[var(--pl-border)] px-[18px] pb-[15px] pt-3.5 text-left first:border-l-0',
   cellOn:
@@ -173,7 +180,7 @@ export interface ConfirmTabProps {
   detail: RawTargetSourceDetail;
   /** 판정 문장의 두 입력 중 하나 (다른 하나는 "확정 데이터가 있는가"). */
   processStatus: ProcessStatus | null;
-  /** 설치 pane 의 유일한 액션 — 실행은 인프라 작업 탭이 소유한다. */
+  /** 확정 편집 모달이 Terraform 게이트에 걸렸을 때의 유일한 출구 — 실행은 인프라 작업 탭이 소유한다. */
   onOpenInfra: () => void;
 }
 
@@ -238,7 +245,8 @@ export function ConfirmTab({
 
   // 세 로드 중 하나라도 도는 동안은 스켈레톤이다 — 로딩 중의 확정 0건이 "미등록" 판정과
   // 빈 pane 으로 그려지는 거짓 프레임을 막는다. 진입·재시도·대상 전환 모두 loading 을
-  // 지나므로 이 게이트 하나로 덮인다.
+  // 지나므로 이 게이트 하나로 덮인다. terraform 이 이 셋에 남아 있는 것도 같은 이유다 —
+  // 확정 시각이 프레임이 정착한 뒤에 뒤늦게 튀어나오지 않게 한다.
   const booting =
     request.state === 'loading' || confirmed.state === 'loading' || terraform.state === 'loading';
   if (booting) {
@@ -256,7 +264,7 @@ export function ConfirmTab({
         <div className={cn(opsStyles.skeletonWash, 'ml-[18px] mt-1 h-[21px] w-[430px] max-w-[76ch]')} />
         <div className={styles.shell}>
           <div className={cn(styles.band, 'pointer-events-none')}>
-            {(['request', 'confirm', 'install'] as const).map((key, index) => (
+            {(['request', 'confirm'] as const).map((key, index) => (
               <div key={key} className={styles.cell}>
                 <span className={styles.cellTitle}>
                   <span className={cn(styles.dot, DOT_FILL.idle)} />
@@ -294,6 +302,8 @@ export function ConfirmTab({
   // pane 이 읽기 전용으로 그려진다. 판정 규칙은 writeProvider.ts 한 곳에 있다.
   const writeProvider = resolveWriteProvider(detail);
   const terraformData = terraform.state === 'ready' ? terraform.data : null;
+  // 이 응답에서 읽는 필드는 이것 하나다 — 확정 계약에 시각이 없어서 남은 콜이다.
+  // 나머지(overall_state·tasks)는 인프라 작업 탭이 그린다.
   const confirmedAt = terraformData?.latest_confirmed_at || null;
   // 정규화해서 비교한다 — RequestTab·OpsTargetView 와 같은 규칙이다. 원문 비교가 casing
   // 하나에 뒤집히면 IDC 행이 클라우드용 표로 떨어진다(요청 pane 은 NLB 조회까지 잃는다).
@@ -322,19 +332,11 @@ export function ConfirmTab({
     request: requestFacet,
   });
 
-  // ── 밴드 세 칸 — 각 칸은 그 축의 결말만 말한다.
+  // ── 밴드 두 칸 — 각 칸은 그 축의 결말만 말한다.
   const requestDot: Dot =
     requestStatus == null ? 'idle'
       : requestStatus === 'REJECTED' ? 'failed'
         : APPROVED_STATUSES.has(requestStatus) ? 'done'
-          : 'idle';
-
-  const overall = metaOf(terraformData?.overall_state);
-  const tasks = terraformData?.tasks ?? [];
-  const installDot: Dot =
-    terraformData == null ? 'idle'
-      : overall.tone === 'err' ? 'failed'
-        : terraformData.overall_state === 'APPLIED' ? 'done'
           : 'idle';
 
   // 요청 칸의 부제 — 현재 상태는 태그로, 신원(#id·건수·처리자·날짜)은 그 옆의 텍스트로.
@@ -380,24 +382,11 @@ export function ConfirmTab({
             ? joinDots(`리소스 ${confirmedRows.length}건`, shortDate(confirmedAt))
             : '미등록',
     },
-    {
-      key: 'install',
-      title: '설치 (Terraform)',
-      dot: installDot,
-      sub:
-        terraform.state === 'failed'
-          ? '불러오지 못함'
-          : joinDots(
-              overall.label,
-              tasks.length > 0
-                ? `task ${tasks.filter((task) => task.state === 'APPLIED').length}/${tasks.length}`
-                : null,
-            ),
-    },
   ];
 
-  const anyFailed =
-    request.state === 'failed' || confirmed.state === 'failed' || terraform.state === 'failed';
+  // terraform 은 빠진다 — 이 화면이 그리는 것 중 그 응답에 달린 것은 확정 시각 한 칸뿐이라
+  // 조회 실패가 탭 전체의 오류 배너를 올릴 값이 아니다.
+  const anyFailed = request.state === 'failed' || confirmed.state === 'failed';
 
   return (
     <div>
@@ -460,7 +449,6 @@ export function ConfirmTab({
             onEdit={writeProvider ? editorModal.open : undefined}
           />
         )}
-        {cell === 'install' && <InstallPane status={terraformData} onOpenInfra={onOpenInfra} />}
       </div>
 
       {/* 마운트가 곧 열림이다 — 열릴 때마다 초기화하는 효과 대신 새 인스턴스를 만든다. */}
