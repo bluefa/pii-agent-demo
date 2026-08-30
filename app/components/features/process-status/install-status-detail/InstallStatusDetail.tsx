@@ -922,7 +922,7 @@ export const InstallStatusDetail = ({
               항목 카드들의 윤곽, 그리고 이 열 경계선.
               경계선은 `light`(gray-100) 가 아니라 `strong`(gray-300) 이다. `light` 는
               칠(gray-100)과 **같은 색**이라 border-r 이 그려져도 보이지 않았고, 한 단
-              올린 `default`(gray-200)는 흰 바닥에서 1.24:1 — 항목 카드의 윤곽(#D6DBE6,
+              올린 `default`(gray-200)는 흰 바닥에서 1.24:1 — 항목 카드의 윤곽(`borderColors.card`,
               1.39:1)보다도 흐렸다. 열의 경계가 그 안쪽 항목의 경계보다 약할 수는 없다. */}
           <nav
             className={cn(
