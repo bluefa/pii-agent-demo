@@ -275,6 +275,19 @@ describe('SduAckCard — BDC 구축 완료 단언 (델타 §1·§3)', () => {
     expect(line).toContain('SDU_BDC_SERVICE 미적용');
   });
 
+  it('조회가 거절된 항목은 판정 잉크를 얻지 못한다 — 못 읽은 것은 초록이 아니다', async () => {
+    getTerraformStatus.mockRejectedValue(new Error('rejected'));
+    draw();
+    fireEvent.click(await screen.findByRole('button', { name: 'BDC 구축 완료 처리' }));
+
+    const terraform = await screen.findByText('Terraform 동작');
+    const line = terraform.parentElement?.nextElementSibling as HTMLElement;
+    await waitFor(() => expect(line.textContent).toBe('조회 실패'));
+    // `STATE_INK.ok` 은 strong 이다 — 모르는 것이 그 잉크를 쓰면 읽은 것처럼 보인다.
+    expect(line.className).toContain('text-[var(--pl-text-weak)]');
+    expect(line.className).not.toContain('text-[var(--pl-text-strong)]');
+  });
+
   it('되돌리기는 클릭 한 번으로 나가지 않는다 — 제 확인창을 갖는다', async () => {
     getSduUpload.mockResolvedValue(completed());
     draw();
