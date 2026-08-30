@@ -264,6 +264,32 @@ describe('SduAckCard — BDC 구축 완료 단언 (델타 §1·§3)', () => {
     expect(screen.queryByText('세 가지를 모두 확인하셨나요?')).toBeNull();
   });
 
+  /**
+   * 전제의 **세 항이 각각** 잠금을 걸 수 있어야 한다 (델타 §4).
+   *
+   * ⛔ 한 픽스처로 셋을 한꺼번에 비우면 이 축은 아무것도 지키지 못한다: 다른 두 항이 이미
+   * 막고 있어서 어느 하나를 화면이 세지 않아도 CTA 는 여전히 잠겨 보인다. 그래서 케이스마다
+   * **정확히 하나만** 빼고 나머지 둘은 갖춰 둔다. 놓쳤을 때의 증상은 서버가 400 으로 거절할
+   * 요청을 CTA 가 열어 주는 것이고, 수신자는 이 카드가 아니라 옆 카드에 있어서 특히 쉽게
+   * 빠진다.
+   */
+  const MISSING_ONE: ReadonlyArray<[string, Partial<SduUpload>]> = [
+    ['방화벽 결재 확인이 「아니오」', { firewall: { rows: [], acked: false, ackedAt: '2026-08-25T10:40:00Z', ackedBy: null } }],
+    ['데이터 업로드 확인이 「아니오」', { commands: { rows: [], acked: false, ackedAt: '2026-08-26T09:00:00Z', ackedBy: null } }],
+    ['S3 Access Key 수신자가 없음', { accessKeyRecipients: { users: [], updatedAt: null } }],
+  ];
+
+  it.each(MISSING_ONE)('%s 하나만으로도 CTA 가 잠긴다', async (_label, missing) => {
+    getSduUpload.mockResolvedValue({ ...assertable(), ...missing });
+    draw();
+
+    const cta = (await screen.findByRole('button', {
+      name: 'BDC 구축 완료 처리',
+    })) as HTMLButtonElement;
+    expect(cta.disabled).toBe(true);
+    expect(screen.getByText(/처리할 수 있어요/)).toBeTruthy();
+  });
+
   it('전제를 갖추면 잠금과 이유가 함께 사라진다', async () => {
     getSduUpload.mockResolvedValue(assertable());
     draw();
