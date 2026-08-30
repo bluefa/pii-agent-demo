@@ -153,6 +153,17 @@ export interface ConfirmPaneProps {
   /** IDC 는 확정 리소스의 정체가 이름·id 가 아니라 접속 주소라 표 자체가 다르다. */
   isIdc: boolean;
   /**
+   * 이 대상에 승인 축이 있는가. 빈 상태의 문장이 이것 하나로 갈린다 — SDU 에는 승인이
+   * 없어서(계약 §0) 「승인된 리소스를 기준으로」가 참일 수 없다.
+   */
+  hasApproval: boolean;
+  /**
+   * 확정은 읽혔는데 `latest_confirmed_at`(terraform 응답)만 없다. 밴드가 서는 대상에서는
+   * 확정 칸이 그 말을 하므로 넘기지 않는다 — SDU 처럼 밴드가 없는 대상에서만 참으로 온다.
+   * 없으면 머리가 시각을 그냥 생략해 「시각 없는 확정」과 구별되지 않는다.
+   */
+  confirmedAtFailed?: boolean;
+  /**
    * 확정 정보 입력·수정·삭제 — 계약이 쓰기 경로를 주는 provider 에서만 내려온다.
    * 삭제는 편집기 안의 영역 교체이므로 pane 에 두 번째 입구를 두지 않는다.
    */
@@ -166,7 +177,14 @@ export interface ConfirmPaneProps {
  * ("뭘 비교한다는 건지"가 전달되지 않았다). 승인 내역이 필요하면 옆 칸(연동 요청
  * 확인)이 원문까지 가지고 있다.
  */
-export function ConfirmPane({ wire, confirmedAt, isIdc, onEdit }: ConfirmPaneProps): ReactElement {
+export function ConfirmPane({
+  wire,
+  confirmedAt,
+  isIdc,
+  hasApproval,
+  confirmedAtFailed,
+  onEdit,
+}: ConfirmPaneProps): ReactElement {
   const resources = wire?.resource_infos ?? [];
   const empty = resources.length === 0;
   // Step 6·7 과 같은 표가 도메인 타입을 읽는다 — 같은 응답을 같은 매퍼로 넘긴다.
@@ -182,7 +200,9 @@ export function ConfirmPane({ wire, confirmedAt, isIdc, onEdit }: ConfirmPanePro
           <span className={paneStyles.headSub}>
             {empty
               ? '미등록'
-              : `리소스 ${resources.length}건${confirmedAt ? ` · ${fmtDateTime(confirmedAt)} 등록` : ''}`}
+              : confirmedAtFailed
+                ? `리소스 ${resources.length}건 · 확정 시각 불러오지 못함`
+                : `리소스 ${resources.length}건${confirmedAt ? ` · ${fmtDateTime(confirmedAt)} 등록` : ''}`}
           </span>
         </p>
         {onEdit && (
@@ -198,9 +218,13 @@ export function ConfirmPane({ wire, confirmedAt, isIdc, onEdit }: ConfirmPanePro
         <div className={cn(paneStyles.bleed, paneStyles.paneEmpty, 'mt-5')}>
           <p className={paneStyles.emptyTitle}>아직 확정된 리소스가 없습니다</p>
           <p className={paneStyles.emptyDesc}>
+            {/* 기준이 될 승인이 없는 대상에서는 그 절만 빠진다 — 무엇이 대신 기준인지는
+                계약이 아직 말하지 않으므로(§9.2) 지어내지 않는다. */}
             {onEdit
               ? '승인된 리소스를 기준으로 확정 정보를 입력하세요.'
-              : '승인된 리소스를 기준으로 확정 정보가 등록되면 여기에 표시됩니다.'}
+              : hasApproval
+                ? '승인된 리소스를 기준으로 확정 정보가 등록되면 여기에 표시됩니다.'
+                : '확정 정보가 등록되면 여기에 표시됩니다.'}
           </p>
         </div>
       ) : isIdc ? (

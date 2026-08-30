@@ -101,9 +101,8 @@ export interface SduFirewallRowWire {
 
 /**
  * `acked_at` · `acked_by` 는 **관리자 몫이다.** 담당자 화면은 자기가 방금 누른 답에 시각을
- * 붙여 읽지 않고, 승인 조건 ①의 근거 행이 읽는다. 그래서 wire 에는 있고 view 에는 없다
- * (`app/lib/api/sdu.ts` 가 접지 않는다). 되돌린 답도 갱신이지 비움이 아니다 — 되돌린 것도
- * 누군가 한 일이다.
+ * 붙여 읽지 않고, 승인 조건 ①의 근거 행과 운영 콘솔의 「담당자 입력 정보」가 읽는다.
+ * 되돌린 답도 갱신이지 비움이 아니다 — 되돌린 것도 누군가 한 일이다.
  */
 export interface SduAckStampWire {
   acked_at: string | null;
@@ -204,12 +203,16 @@ export interface SduFirewallRow {
 /**
  * `ackedAt` 는 시각을 그리려고 접는 것이 아니다 — **답이 있었는지**를 말한다. `acked` 만으로는
  * 「아니오」와 「아직 안 물어봄」이 같은 false 라, 새로고침하면 저장된 아니오가 미답으로 보인다.
- * (`ackedBy` 는 관리자 근거 행만 읽으므로 여기 없다.)
+ *
+ * `ackedBy` 는 담당자 화면이 아니라 **관리자**의 것이다(계약 §5) — 운영 콘솔의 근거 행이
+ * 「방화벽 확인 · 홍길동 · 08-25 10:40」을 쓴다. 오래 뷰에서 빠져 있었는데, 그때는 이 응답을
+ * 읽는 화면이 담당자쪽 하나뿐이었기 때문이다.
  */
 export interface SduFirewall {
   rows: SduFirewallRow[];
   acked: boolean;
   ackedAt: string | null;
+  ackedBy: SduRecipient | null;
 }
 
 export interface SduRecipient {
@@ -232,6 +235,7 @@ export interface SduCommands {
   rows: SduCommandRow[];
   acked: boolean;
   ackedAt: string | null;
+  ackedBy: SduRecipient | null;
 }
 
 export interface SduBdc {
@@ -254,6 +258,40 @@ export interface SduUpload {
   bdc: SduBdc;
   invalidation: SduInvalidation;
 }
+
+// ── Ack answer ────────────────────────────────────────────────────────────────
+
+/**
+ * 한 확인 블록의 답 — 계약 §5 의 규칙 하나를 담는 유일한 자리.
+ *
+ * `acked: false` 는 **두 가지 뜻**이다: 담당자가 「아니오」라고 답했거나, 아무도 아직
+ * 답하지 않았거나. 가르는 것은 `ackedAt` 이다 — 확인 답변은 `false` 를 쓸 때도 반드시
+ * 시각을 남기므로, 시각이 없다는 것은 답한 적이 없다는 뜻이다(무효화 §3.1 은 답과 도장을
+ * 함께 비우므로 그때는 null 이 맞다). 저장된 「아니오」를 미답으로 그리면 담당자는 자기가
+ * 답한 적 없다고 읽고, 관리자의 근거 행은 없는 사실을 말한다.
+ *
+ * 이 판정이 이 파일에 사는 이유는 **읽는 화면이 셋**이기 때문이다 — 담당자 2단계 블록,
+ * 운영 콘솔의 「담당자 입력 정보」, 그리고 승인 조건 ①. 손으로 옮겨 적으면 갈라지고,
+ * 갈라지는 지점이 정확히 위 문단이 막으려는 버그다.
+ *
+ * @returns `true` 예 · `false` 아니오 · `null` 미답
+ */
+export const sduAckAnswer = (block: {
+  acked: boolean;
+  ackedAt: string | null;
+}): boolean | null => {
+  // `acked` 가 참이면 도장을 보지 않는다 — 도장을 빠뜨린 응답에서 「예」를 미답으로
+  // 되돌리는 것은 있는 답을 지우는 쪽이고, 그 방향의 오류가 더 나쁘다.
+  if (block.acked) return true;
+  return block.ackedAt === null ? null : false;
+};
+
+/**
+ * 그 답을 부르는 낱말. `SDU_REGION_LABEL` 과 같은 자리에 두는 이유도 같다 — 두 화면이
+ * (담당자 2단계·운영 콘솔 조건 ①) 같은 값을 다른 낱말로 부르면 근거 행이 갈린다.
+ */
+export const sduAckLabel = (answer: boolean | null): string =>
+  answer === null ? '미답' : answer ? '예' : '아니오';
 
 // ── Guards ────────────────────────────────────────────────────────────────────
 

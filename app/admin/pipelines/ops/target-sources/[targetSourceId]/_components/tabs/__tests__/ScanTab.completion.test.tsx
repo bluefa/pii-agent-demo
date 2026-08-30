@@ -80,7 +80,7 @@ describe('ScanTab — 완료 확인 전환', () => {
   afterEach(() => vi.useRealTimers());
 
   it('완료 신호를 받으면 진행 → 확인 → 결과 순으로 넘어간다', async () => {
-    render(<ScanTab targetSourceId={1005} detail={detail} />);
+    render(<ScanTab targetSourceId={1005} detail={detail} isSdu={false} />);
     // 마운트 이펙트의 이력 조회를 흘려보낸다 — 큐에 남은 상태 업데이트 위에서
     // 단언하지 않도록(같은 디렉터리 useScanPolling.test.ts 와 같은 문법).
     await act(async () => {});
@@ -120,7 +120,7 @@ describe('ScanTab — 완료 확인 전환', () => {
   });
 
   it('이력 리로드를 전환이 끝난 뒤로 미룬다', async () => {
-    render(<ScanTab targetSourceId={1005} detail={detail} />);
+    render(<ScanTab targetSourceId={1005} detail={detail} isSdu={false} />);
     await act(async () => {});
     getScanHistory.mockClear();
 

@@ -149,7 +149,7 @@ export function OpsHeader({
    *
    * SDU 는 여기서만 `isSdu` 가 이기지 **않는다** — 밑에 깔린 CSP 가 `PARTITIONED` 안에
    * 있으므로 중국 SDU 대상은 「중국」을 그대로 단다. 계정은 우리 것이 아니어도 데이터가
-   * 어느 권역에 사는지는 이 대상의 사실이고, `SduOpsNotice` 도 이미 그 태그를 달고 있었다. */
+   * 어느 권역에 사는지는 이 대상의 사실이다. */
   const partitionTag = PARTITIONED.has(provider) && isChina ? (
     <span className={cn(opsStyles.partitionTag, opsStyles.partitionChina)}>중국</span>
   ) : null;

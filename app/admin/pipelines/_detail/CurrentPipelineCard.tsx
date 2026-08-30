@@ -39,7 +39,7 @@ import { Icon } from '@/app/admin/pipelines/_components/icons';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
 import { detailStyles } from '@/app/admin/pipelines/_detail/detailStyles';
 import { opsStyles } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/opsStyles';
-import type { GateStage } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/gateStage';
+import type { GateAction, GateStage } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/gateStage';
 import type { OpsTargetTabLabel } from '@/lib/routes';
 import {
   canCancel,
@@ -344,7 +344,7 @@ function GateActionControl({
   action,
   onSelectTab,
 }: {
-  action: GateStage['action'];
+  action: GateAction;
   onSelectTab: (tab: OpsTargetTabLabel) => void;
 }): ReactElement {
   if (action.kind === 'href') {
@@ -418,7 +418,9 @@ export function EmptyPipelineCard({
                 <Icon name="play" size="sm" />
                 작업 시작
               </PlButton>
-              <GateActionControl action={gate.action} onSelectTab={onSelectTab} />
+              {/* 내놓을 수가 없으면 자리도 비운다 — 게이트가 지시가 아니라 기다림을
+                  말할 때는 옆에 설 버튼이 없다(SDU 의 확정 대기, gateStage.ts). */}
+              {gate.action && <GateActionControl action={gate.action} onSelectTab={onSelectTab} />}
             </div>
           </div>
         ) : (

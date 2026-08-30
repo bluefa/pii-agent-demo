@@ -22,6 +22,11 @@ export interface ConfirmVerdict {
 /**
  * 최신 연동 요청의 결말 — `unknown` 은 로드 전/실패라 아직 아무것도 단정할 수 없는 상태.
  *
+ * `absent` 는 그것과 다르다: **이 대상에는 요청 축이 없다.** SDU 는 승인 단계 자체가 없어
+ * (계약 §0) 요청이 만들어지지 않으므로, 모르는 것도 아니고 아직 없는 것도 아니다. 그래서
+ * 판정 문장은 승인을 입에 담지 않는다 — `none` 의 「아직 승인 요청이 없습니다」도,
+ * 기본 문장의 「승인된 리소스를 기준으로」도 그 대상에서는 거짓이다.
+ *
  * `pending` 은 계약이 대기라고 말한 것만이다. 승인 없이 끝난 요청(취소·연동 불가)은
  * `closed` 다 — 그것을 대기로 부르면 이미 끝난 요청을 아직 처리 중이라고 말하게 된다.
  * `closed.label` 이 없으면 그 상태의 어휘가 레포에 없다는 뜻이고, 그 때는 요청에 대해
@@ -29,6 +34,7 @@ export interface ConfirmVerdict {
  */
 export type RequestFacet =
   | { kind: 'unknown' }
+  | { kind: 'absent' }
   | { kind: 'none' }
   | { kind: 'pending'; requestId: number | null }
   | { kind: 'rejected' }
@@ -72,18 +78,21 @@ export function deriveConfirmVerdict(input: {
     dot: 'idle',
     head: '확정 정보가 필요합니다',
     sub:
-      request.kind === 'approved' && request.requestId != null
-        ? `승인 #${request.requestId}에 선택된 ${request.count}건을 기준으로 확정 정보가 등록됩니다.`
-        : request.kind === 'pending'
-          ? request.requestId != null
-            ? `요청 #${request.requestId}이 아직 처리되지 않았습니다 — 처리 결과를 기준으로 확정합니다.`
-            : '요청이 아직 처리되지 않았습니다 — 처리 결과를 기준으로 확정합니다.'
-          : request.kind === 'none'
-            ? '아직 승인 요청이 없습니다 — 승인된 리소스를 기준으로 등록됩니다.'
-            : // 승인 없이 끝난 요청 — 반려처럼 빨강으로 올리지는 않는다(취소·연동 불가는
-              // 실패가 아니다). 어휘가 없으면 요청 얘기를 빼고 기본 문장으로 돌아간다.
-              request.kind === 'closed' && request.label != null
-              ? `최신 요청이 ${request.label}로 처리되어 확정할 기준이 없습니다 — 재요청을 기다리거나 직접 등록할 수 있습니다.`
-              : '승인된 리소스를 기준으로 확정 정보가 등록됩니다.',
+      // 축이 없으면 확정이 무엇을 위한 것인지만 말한다 — 기준이 될 승인은 이 대상에 없다.
+      request.kind === 'absent'
+        ? '설치(Terraform)는 확정 정보를 기준으로 진행됩니다.'
+        : request.kind === 'approved' && request.requestId != null
+          ? `승인 #${request.requestId}에 선택된 ${request.count}건을 기준으로 확정 정보가 등록됩니다.`
+          : request.kind === 'pending'
+            ? request.requestId != null
+              ? `요청 #${request.requestId}이 아직 처리되지 않았습니다 — 처리 결과를 기준으로 확정합니다.`
+              : '요청이 아직 처리되지 않았습니다 — 처리 결과를 기준으로 확정합니다.'
+            : request.kind === 'none'
+              ? '아직 승인 요청이 없습니다 — 승인된 리소스를 기준으로 등록됩니다.'
+              : // 승인 없이 끝난 요청 — 반려처럼 빨강으로 올리지는 않는다(취소·연동 불가는
+                // 실패가 아니다). 어휘가 없으면 요청 얘기를 빼고 기본 문장으로 돌아간다.
+                request.kind === 'closed' && request.label != null
+                ? `최신 요청이 ${request.label}로 처리되어 확정할 기준이 없습니다 — 재요청을 기다리거나 직접 등록할 수 있습니다.`
+                : '승인된 리소스를 기준으로 확정 정보가 등록됩니다.',
   };
 }

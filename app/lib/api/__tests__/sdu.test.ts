@@ -110,6 +110,17 @@ describe('SDU 어댑터 — snake → camel', () => {
       port: 443,
       destinationIps: ['52.216.0.0/15'],
     });
+    // 확인 도장 셋 — `acked` 만으로는 「아니오」와 「미답」이 같은 값이라 `ackedAt` 이
+    // 그 둘을 가르고, `ackedBy` 는 관리자 근거 행이 읽는다(계약 §5).
+    expect(upload.firewall.acked).toBe(true);
+    expect(upload.firewall.ackedAt).toBe('2026-08-25T10:40:00Z');
+    expect(upload.firewall.ackedBy).toEqual({
+      id: 'user-1',
+      name: '김철수',
+      email: 'kim@company.com',
+    });
+    expect(upload.commands.ackedAt).toBeNull();
+    expect(upload.commands.ackedBy).toBeNull();
     expect(upload.accessKeyRecipients.updatedAt).toBe('2026-08-24T07:41:00Z');
     expect(upload.accessKeyRecipients.users[0]).toEqual({
       id: 'user-3',

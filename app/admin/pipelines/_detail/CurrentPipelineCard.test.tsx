@@ -154,7 +154,7 @@ describe('EmptyPipelineCard — 확정 정보 gate', () => {
       <EmptyPipelineCard
         sectionTitle="현재 작업"
         onStart={vi.fn()}
-        gate={gateStage('CONFIRMING', 1029)}
+        gate={gateStage('CONFIRMING', 1029, false)}
         onSelectTab={onSelectTab}
       />,
     );
@@ -172,6 +172,30 @@ describe('EmptyPipelineCard — 확정 정보 gate', () => {
     expect(onSelectTab).toHaveBeenCalledWith('확정 정보');
   });
 
+  /**
+   * SDU 의 확정 대기에는 내놓을 수가 없다 — 확정 정보 탭이 그 대상에서 읽기 전용이라
+   * (계약에 쓰기 path 가 없다) 보내 봐야 누를 것이 없다. 카드는 문장만 세우고, 옆자리는
+   * 비운다: 누를 것이 없는 곳으로 보내는 버튼은 버튼이 없는 것보다 나쁘다.
+   */
+  it('내놓을 수가 없는 게이트는 문장만 세우고 버튼을 만들지 않는다', () => {
+    render(
+      <EmptyPipelineCard
+        sectionTitle="현재 작업"
+        onStart={vi.fn()}
+        gate={gateStage('CONFIRMING', 1029, true)}
+        onSelectTab={vi.fn()}
+      />,
+    );
+
+    // `GateSentence` 는 「작업 시작」을 굵게 하려고 문장을 쪼갠다 — 그래서 그 낱말을
+    // 건너뛰는 매처는 노드 경계에 걸린다. 이어 붙인 텍스트로 잰다.
+    expect(document.body.textContent).toContain('확정되면 여기서 작업 시작이 열립니다');
+    expect(document.body.textContent).not.toContain('확정 정보 탭에서 확정하면');
+    expect(screen.queryByRole('button', { name: /확정 정보 탭으로/ })).toBeNull();
+    // 잠긴 작업 시작은 그대로 선다 — 사라지는 것은 게이트의 이동 버튼 하나다.
+    expect(startButton().disabled).toBe(true);
+  });
+
   it('offers 작업 시작 as a DISABLED button while 확정 정보 is missing', () => {
     // 오너 2026-08-27 2차 — the gated card shows the control in its blocked
     // condition rather than hiding it, superseding the earlier removal.
@@ -180,7 +204,7 @@ describe('EmptyPipelineCard — 확정 정보 gate', () => {
       <EmptyPipelineCard
         sectionTitle="현재 작업"
         onStart={onStart}
-        gate={gateStage('CONFIRMING', 1029)}
+        gate={gateStage('CONFIRMING', 1029, false)}
         onSelectTab={vi.fn()}
       />,
     );
@@ -198,7 +222,7 @@ describe('EmptyPipelineCard — 확정 정보 gate', () => {
       <EmptyPipelineCard
         sectionTitle="현재 작업"
         onStart={vi.fn()}
-        gate={gateStage('IDLE', 1029)}
+        gate={gateStage('IDLE', 1029, false)}
         onSelectTab={vi.fn()}
       />,
     );

@@ -19,6 +19,7 @@ import { normalizeCloudProvider } from '@/lib/types';
 import type { RawTargetSourceDetail } from '@/app/lib/api/pipeline-target';
 import { opsStyles } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/opsStyles';
 import { ScanCredentialCard } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/ScanCredentialCard';
+import { SduRecipientsCard } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/SduRecipientsCard';
 import type { RoleKind } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/roleMeta';
 import { RecentScanCard, type TypeEntry } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/RecentScanCard';
 import { ScanHistoryCard, SCAN_HISTORY_PAGE_SIZE } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/ScanHistoryCard';
@@ -28,6 +29,12 @@ import { sortResourceCounts, totalOf, type ScanJob } from '@/app/admin/pipelines
 export interface ScanTabProps {
   targetSourceId: number;
   detail: RawTargetSourceDetail;
+  /**
+   * SDU 대상인가 — **부르는 쪽이 판정해서 내려준다.** 여기서 `provider` 로 다시 세울 수
+   * 없다: SDU 는 `CloudProvider` 가 아니라 `normalizeCloudProvider` 가 'AWS' 로 접으므로,
+   * 이 안에서 다시 물으면 SDU 대상이 AWS 라고 대답한다 (`isSduTarget`, `@/lib/types`).
+   */
+  isSdu: boolean;
   /** Action CTA of the permission card — passed down because OpsTargetView owns
       RoleEditModal. Only AWS, the one provider with a register/edit contract, sends it. */
   onEditRole?: (role: RoleKind) => void;
@@ -38,6 +45,7 @@ export interface ScanTabProps {
 export function ScanTab({
   targetSourceId,
   detail,
+  isSdu,
   onEditRole,
   credentialReloadKey,
 }: ScanTabProps): ReactElement {
@@ -186,17 +194,25 @@ export function ScanTab({
 
   return (
     <>
-      {/* IDC has no cloud scan credential — skip that card; recent scan takes the full row. */}
-      {provider === 'IDC' ? (
+      {/* IDC has no cloud scan credential — skip that card; recent scan takes the full row.
+          SDU 가 밑에 깔린 CSP 를 이긴다(이 화면 전체의 규칙) — `is_sdu_type` 과 raw `IDC` 를
+          함께 든 대상이 이 갈래로 떨어지면 수신자 카드가 통째로 사라진다. */}
+      {provider === 'IDC' && !isSdu ? (
         recentScanCard
       ) : (
         <div className={opsStyles.cardsRow}>
-          <ScanCredentialCard
-            provider={provider}
-            targetSourceId={targetSourceId}
-            onEditRole={onEditRole}
-            reloadKey={credentialReloadKey}
-          />
+          {/* SDU 도 그 자리에 검증할 role 이 없다 — 우리가 훑는 계정이 아니라 담당자가 올린
+              버킷이라서다. 자리는 남고 질문만 바뀐다: 그 키를 누가 들고 있는가(계약 §9). */}
+          {isSdu ? (
+            <SduRecipientsCard targetSourceId={targetSourceId} />
+          ) : (
+            <ScanCredentialCard
+              provider={provider}
+              targetSourceId={targetSourceId}
+              onEditRole={onEditRole}
+              reloadKey={credentialReloadKey}
+            />
+          )}
           {recentScanCard}
         </div>
       )}
