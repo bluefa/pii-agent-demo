@@ -11,31 +11,19 @@ import type { z } from 'zod';
 import type { schemas } from '@/lib/generated/install-v1';
 import { cn, pipelineStyles } from '@/lib/theme';
 import type { CloudProvider } from '@/lib/types';
+import {
+  SCAN_STATE,
+  type ScanTone,
+} from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/scanState';
 
 export type ScanJob = z.infer<typeof schemas.ScanJobResponse>;
 
-type Tone = 'ok' | 'info' | 'err' | 'off';
-
 // Dot-free tinted pill — label + color already say the state; a dot repeats it (ops feedback).
-const TONE_CLASS: Record<Tone, string> = {
+const TONE_CLASS: Record<ScanTone, string> = {
   ok: 'bg-[var(--pl-ok-bg)] text-[var(--pl-ok-text)]',
   info: 'bg-[var(--pl-info-bg)] text-[var(--pl-info-text)]',
   err: 'bg-[var(--pl-err-bg)] text-[var(--pl-err-text)]',
   off: 'bg-[var(--pl-off-bg)] text-[var(--pl-off-text)]',
-};
-
-/**
- * ScanStatus (app/api/_lib/v1-types.ts) → tone + Korean label. FINALIZING is
- * not a contract status: it is the UI's name for SUCCESS whose count map has
- * not landed yet, and a green 성공 pill over an empty result would be a lie.
- */
-const SCAN_STATUS: Record<string, { tone: Tone; label: string }> = {
-  SUCCESS: { tone: 'ok', label: '성공' },
-  SCANNING: { tone: 'info', label: '스캔 중' },
-  FINALIZING: { tone: 'info', label: '마무리 중' },
-  FAIL: { tone: 'err', label: '실패' },
-  TIMEOUT: { tone: 'err', label: '타임아웃' },
-  CANCELED: { tone: 'off', label: '취소' },
 };
 
 const SCAN_ERROR_LABEL: Record<string, string> = {
@@ -49,7 +37,7 @@ const SCAN_ERROR_LABEL: Record<string, string> = {
 export const errorLabel = (code: string): string => SCAN_ERROR_LABEL[code] ?? SCAN_ERROR_LABEL.UNKNOWN;
 
 export function ScanStatusPill({ status }: { status: string | null | undefined }): ReactElement {
-  const spec = (status && SCAN_STATUS[status]) || { tone: 'off' as Tone, label: status ?? '-' };
+  const spec = (status && SCAN_STATE[status]) || { tone: 'off' as ScanTone, label: status ?? '-' };
   return (
     <span className={cn(pipelineStyles.pill.base, pipelineStyles.pill.md, TONE_CLASS[spec.tone])}>
       {spec.label}

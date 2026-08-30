@@ -56,7 +56,7 @@ describe('OpsTargetView — 관련 페이지의 Jira 티켓', () => {
       issueKey: 'BDCDIP-1353',
       browseUrl: 'https://jira.example.com/browse/BDCDIP-1353',
     });
-    render(<OpsTargetView targetSourceId={1018} initialTab="진행 상태" />);
+    render(<OpsTargetView targetSourceId={1018} initialTab="진행 상태" statusSlot={<div data-testid="status-slot" />} />);
     // 링크 이름이 곧 티켓 번호다 — 「Jira Ticket」 이라는 낱말은 마크가 대신한다.
     const link = await screen.findByRole('link', { name: /BDCDIP-1353/ });
     expect(link.getAttribute('href')).toBe('https://jira.example.com/browse/BDCDIP-1353');
@@ -64,14 +64,14 @@ describe('OpsTargetView — 관련 페이지의 Jira 티켓', () => {
 
   it('열 주소가 없으면 링크 대신 티켓 번호가 남는다', async () => {
     getTargetJiraTicket.mockResolvedValue({ issueKey: 'BDCDIP-1353', browseUrl: null });
-    render(<OpsTargetView targetSourceId={1018} initialTab="진행 상태" />);
+    render(<OpsTargetView targetSourceId={1018} initialTab="진행 상태" statusSlot={<div data-testid="status-slot" />} />);
     expect(await screen.findByText('BDCDIP-1353')).toBeTruthy();
     expect(screen.queryByRole('link', { name: /BDCDIP/ })).toBeNull();
   });
 
   it('http(s) 가 아닌 주소도 링크가 아니다 — 스킴 가드', async () => {
     getTargetJiraTicket.mockResolvedValue({ issueKey: 'BDCDIP-9', browseUrl: '/browse/BDCDIP-9' });
-    render(<OpsTargetView targetSourceId={1018} initialTab="진행 상태" />);
+    render(<OpsTargetView targetSourceId={1018} initialTab="진행 상태" statusSlot={<div data-testid="status-slot" />} />);
     expect(await screen.findByText('BDCDIP-9')).toBeTruthy();
     expect(screen.queryByRole('link', { name: /BDCDIP/ })).toBeNull();
   });

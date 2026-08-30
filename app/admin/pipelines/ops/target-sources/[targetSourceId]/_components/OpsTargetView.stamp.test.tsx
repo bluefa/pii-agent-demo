@@ -57,7 +57,7 @@ describe('OpsTargetView — 최초 연동 도장', () => {
     getRawTargetSourceDetail.mockResolvedValue(
       detail({ pii_agent_first_installed_at: '2026-02-01T05:00:00Z' }),
     );
-    render(<OpsTargetView targetSourceId={1013} initialTab="진행 상태" />);
+    render(<OpsTargetView targetSourceId={1013} initialTab="진행 상태" statusSlot={<div data-testid="status-slot" />} />);
 
     expect(await screen.findByText(STAMP_LABEL)).toBeTruthy();
     // 서울 기준 날짜. 값이 헤더까지 온 것만이 아니라 **그 값**이 온 것을 확인한다.
@@ -71,7 +71,7 @@ describe('OpsTargetView — 최초 연동 도장', () => {
     getRawTargetSourceDetail.mockResolvedValue(
       detail({ piiAgentFirstInstalledAt: '2026-02-01T05:00:00Z' }),
     );
-    render(<OpsTargetView targetSourceId={1013} initialTab="진행 상태" />);
+    render(<OpsTargetView targetSourceId={1013} initialTab="진행 상태" statusSlot={<div data-testid="status-slot" />} />);
 
     // 헤더가 다 그려질 때까지 기다린 뒤에 판정한다 — 도장이 늦게 오는 것과 아예
     // 안 오는 것을 구분하기 위해서다.
@@ -81,7 +81,7 @@ describe('OpsTargetView — 최초 연동 도장', () => {
 
   it('값이 없으면 침묵한다 — "미완료"라고 쓰지 않는다', async () => {
     getRawTargetSourceDetail.mockResolvedValue(detail());
-    render(<OpsTargetView targetSourceId={1013} initialTab="진행 상태" />);
+    render(<OpsTargetView targetSourceId={1013} initialTab="진행 상태" statusSlot={<div data-testid="status-slot" />} />);
 
     // 헤더가 다 그려질 때까지 기다린 뒤에 판정한다 — 도장이 늦게 오는 것과 아예
     // 안 오는 것을 구분하기 위해서다.

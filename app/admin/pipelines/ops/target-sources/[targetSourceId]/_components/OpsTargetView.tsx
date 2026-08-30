@@ -7,7 +7,7 @@
  * (OpsHeader), so the tab content owns the full content width: the 236px meta
  * rail folded into that header's 「상세 정보」 disclosure.
  */
-import { useCallback, useEffect, useRef, useState, type ReactElement } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactElement, type ReactNode } from 'react';
 import { cn, pipelineStyles } from '@/lib/theme';
 import {
   OPS_TAB_SLUGS,
@@ -28,9 +28,7 @@ import type { TestConnectionStatusRow } from '@/lib/types/task-queue';
 import { STEP, type ProcessStatus } from '@/app/admin/pipelines/queue/_components/StepStack';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
 import { OpsHeader } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/OpsHeader';
-import { ProcessCard } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/ProcessCard';
 import { ApprovalHistoryCard } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/ApprovalHistoryCard';
-import { StatusHistoryCard } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/StatusHistoryCard';
 import { InstallModeModal } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/InstallModeModal';
 import { RoleEditModal } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/RoleEditModal';
 import { RawDataModal } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/RawDataModal';
@@ -39,6 +37,7 @@ import { type RoleKind } from '@/app/admin/pipelines/ops/target-sources/[targetS
 import { isSduTarget, normalizeCloudProvider, readSupportRawData } from '@/lib/types';
 import { opsStyles } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/opsStyles';
 import { SduOpsNotice } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/SduOpsNotice';
+import { OpsTabNavContext } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/status/StatusRowActions';
 import { ScanTab } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/ScanTab';
 import { RequestTab } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/RequestTab';
 import { ConfirmTab } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/ConfirmTab';
@@ -136,9 +135,17 @@ export interface OpsTargetViewProps {
   targetSourceId: number;
   /** Tab from the `?tab=` deep link (server-resolved; defaults to 진행 상태). */
   initialTab: TabLabel;
+  /**
+   * 연동 현황 카드 — **서버가 그려서 내려보낸 엘리먼트**다 (`page.tsx` 의 `Suspense`
+   * 슬롯). 이 뷰는 자리에 놓기만 하고 아무것도 조회하지 않는다. 함수 prop 이 아니라
+   * 완성된 노드인 이유는 Server Component 를 client 경계 너머로 건네는 방법이 이것뿐
+   * 이기 때문이다 — 그 안의 「상세보기」 버튼은 아래 `OpsTabNavContext` 로 이 뷰의
+   * `selectTab` 을 꺼내 쓴다.
+   */
+  statusSlot: ReactNode;
 }
 
-export function OpsTargetView({ targetSourceId, initialTab }: OpsTargetViewProps): ReactElement {
+export function OpsTargetView({ targetSourceId, initialTab, statusSlot }: OpsTargetViewProps): ReactElement {
   const [detail, setDetail] = useState<RawTargetSourceDetail | null>(null);
   const [detailFailed, setDetailFailed] = useState(false);
   const [processStatus, setProcessStatus] = useState<ProcessStatus | null>(null);
@@ -480,6 +487,8 @@ export function OpsTargetView({ targetSourceId, initialTab }: OpsTargetViewProps
   const activeRole = modal?.type === 'edit' ? modal.kind : null;
 
   return (
+    // 서버가 그린 연동 현황 카드 안의 「상세보기」가 이 뷰의 탭 전환을 꺼내 쓴다.
+    <OpsTabNavContext.Provider value={selectTab}>
     <div className={opsStyles.page}>
       <div className={opsStyles.masthead}>
         <OpsHeader
@@ -566,21 +575,16 @@ export function OpsTargetView({ targetSourceId, initialTab }: OpsTargetViewProps
             <SduOpsNotice />
           ) : (
             <>
+              {/* 두 칸. 왼쪽이 이 대상에 대한 **기록**(승인 요청), 오른쪽이 **현재**(연동 현황)다.
+                  「현재 Process」 카드는 사라졌다 — 7칸 레일이 말하던 단계는 마스트헤드의 단계
+                  태그가 이미 말하고 있었고, 그 카드가 173px 을 써서 더하는 사실은 없었다.
+                  「상태 변경 이력」도 사라졌다: 전이 로그의 마지막 행이 곧 현재 단계라 레일의
+                  산문 버전이었고, 뒷받침 엔드포인트가 계약에 없었다(assumed §1). */}
               {currentTab === '진행 상태' && (
-                <>
-                  {processStatus ? (
-                    <ProcessCard status={processStatus} />
-                  ) : (
-                    <section className={pipelineStyles.card.base} aria-label="현재 Process">
-                      <h2 className={opsStyles.cardTitle}>현재 Process</h2>
-                      <p className={cn(pipelineStyles.text.meta, 'mt-3')}>상태 정보를 불러오지 못했습니다.</p>
-                    </section>
-                  )}
-                  <div className={opsStyles.cardsRow}>
-                    <ApprovalHistoryCard targetSourceId={targetSourceId} isIdc={isIdc} />
-                    <StatusHistoryCard targetSourceId={targetSourceId} />
-                  </div>
-                </>
+                <div className={opsStyles.cardsRow}>
+                  <ApprovalHistoryCard targetSourceId={targetSourceId} isIdc={isIdc} />
+                  {statusSlot}
+                </div>
               )}
               {currentTab === '스캔' && (
                 <ScanTab
@@ -692,5 +696,6 @@ export function OpsTargetView({ targetSourceId, initialTab }: OpsTargetViewProps
         />
       )}
     </div>
+    </OpsTabNavContext.Provider>
   );
 }
