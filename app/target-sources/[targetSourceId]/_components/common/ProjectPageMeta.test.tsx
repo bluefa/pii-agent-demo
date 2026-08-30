@@ -4,7 +4,7 @@ import path from 'node:path';
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import { ProcessStatus, type TargetSource } from '@/lib/types';
-import { cardStyles, cn, installStepperStyles, projectHeaderStyles } from '@/lib/theme';
+import { cardStyles, cn, colorRaw, installStepperStyles, projectHeaderStyles } from '@/lib/theme';
 import { passRoutes } from '@/lib/routes';
 
 // The header mounts the road; stub it and surface the props it receives. The road is the
@@ -725,7 +725,7 @@ describe('ProjectPageMeta — the fact grid', () => {
     // `kvLabel`'s 4.93:1. Both pairs are measured in `design-guard.test.ts`; what is
     // pinned here is that the tag HAS a stroke and does not borrow the label ramp's ink.
     expect(projectHeaderStyles.factLabelTag).toContain('border-[');
-    expect(fillOf(projectHeaderStyles.factLabelTag)).toBe('#FFFFFF');
+    expect(fillOf(projectHeaderStyles.factLabelTag)).toBe(colorRaw.white);
     expect(inkOf(projectHeaderStyles.factLabelTag)).not.toBe(inkOf(projectHeaderStyles.kvLabel));
     expect(inkOf(projectHeaderStyles.factLabelTag)).toBe(inkOf(projectHeaderStyles.blockLabel));
     // 12px — ONE rung below the 14px value it labels, not two (오너 2026-08-29). That is
