@@ -1572,32 +1572,196 @@ export const tagStyles = {
 } as const;
 
 /**
- * 논리 DB 목록 모달 (Step 5) — Database ▸ Schema 트리 전용 토큰.
+ * 방금 담긴 행을 한 번 훑는 틴트 스윕. 두 화면(EC2 인스턴스 추가 · 논리 DB 손입력)이
+ * 같은 사실("방금 이 행이 생겼다")을 말하므로 값은 하나다 — 한쪽만 손대면 같은 뜻이
+ * 두 속도로 흐른다. `ec2-row-tint` 는 background-image 라 행의 배경색을 덮지 않는다.
+ */
+const ROW_TINT_SWEEP = 'animate-[ec2-row-tint_1100ms_ease-in-out] motion-reduce:animate-none';
+
+/**
+ * 논리 DB 목록 모달 (Step 5) — Database ▸ Schema 를 콘솔 표로 그릴 때 쓰는 토큰.
  *
- * The rails/guides are ORIENTATION channels (which region an exclusion covers), so they
- * run at ~40% tone; full-saturation amber stays on the content channels (제외 chip, reason
- * sub-line). Saved exclusions rail amber, staged (unsaved) ones rail the primary blue.
+ * The list is a `ConsoleTable` now, so the row grammar (hairlines, column strokes, the
+ * covered clip) comes from `idcStyles.table`. What lives here is what only this screen
+ * has: the SPINE that draws one parent→child run inside the 이름 열, and the calm status
+ * dot that replaced the filled 제외/저장 전 pills.
+ *
+ * ⛔ THE TWO AMBERS ARE ONE VALUE. `spineExcluded` and `statusDotDeny` are both #D97706:
+ * the rail says "this run is excluded" and the dot says "this row is excluded", and the
+ * moment they differ the rail is claiming something the dot denies. Change one, change both.
  */
 export const logicalDbStyles = {
-  /** Database 그룹 행 밴드 — 카드 위 한 단계 가라앉은 표면. 텍스트는 secondary 이상. */
-  dbRow: 'bg-gray-50',
-  /** staged(저장 전) 행 틴트 — 파랑 계열, 확정 제외의 빨강과 구분. */
+  /** staged(저장 전) 행 틴트 — 파랑 계열, 확정 제외의 amber 와 구분. */
   stagedRow: 'bg-blue-50',
-  /** 확정 제외 레일 — 부모~자식을 잇는 3px 인셋 스트라이프 (amber-600 @ 40%). */
-  railDeny: 'shadow-[inset_3px_0_0_0_rgba(217,119,6,0.4)]',
-  /** 저장 전 제외 레일 — primary @ 40%. */
-  railStaged: 'shadow-[inset_3px_0_0_0_rgba(0,100,255,0.4)]',
-  /** 트리 세로 가이드선 (중립 / 제외 영역 / staged 영역). */
-  guide: 'bg-gray-200',
-  guideDeny: 'bg-amber-600/30',
-  guideStaged: 'bg-[#0064FF]/30',
-  /** `└` 커넥터 — 상속 제외 시 레일과 같은 계열로 물든다. */
-  branch: 'text-gray-400',
-  branchDeny: 'text-amber-600/60',
-  branchStaged: 'text-[#0064FF]/60',
-  /** 이름 아래 한 줄 사유 문장 — 확정(amber-800, AA on white/blue-50) / 예정(primary dark). */
+  /** 사유 문장 — ReasonPanel 의 흡수 경고(amber-800, AA on white/blue-50). */
   subDeny: 'text-amber-800',
-  subPending: 'text-[#0050D6]',
+  /**
+   * 이름 열의 기하. `idcStyles.table.nameCell` 의 30px 좌패딩 위에서 재고, 콘솔 표들이
+   * 이미 쓰는 좌표를 그대로 앵커한다(`idcStyles.table.group.childCell` 과 같은 눈금):
+   *
+   *   8..24    부모 행의 chevron 상자 — 30px 패딩 안에 매달린다(흐름 밖, `group.toggle`)
+   *   15..17   SPINE 세로줄 2px       — chevron 중심(16)에 얹힌 들여쓰기 트랙
+   *   15..39   자식 엘보 2px          — 행 높이의 50%, 글자 baseline 이 아니다. 길이 24 는
+   *                                    들여쓰기 한 칸과 같은 값이라 선이 그 칸을 그린다
+   *   30       부모 이름 x            (`nameCell`)
+   *   54       자식 이름 x            → 30 + 들여쓰기 24 (`spineChild`)
+   *
+   * 레일이 이름 x(30)가 아니라 트랙(16)에 서는 이유: 부모 마디는 행 중앙부터 아래로
+   * 흐르는데, 30 에 두면 그 구간이 부모 이름 첫 글자를 관통한다.
+   *
+   * 좌표는 전부 셀의 좌패딩에서 재므로 열을 드래그해도 레일이 들여쓰기에서 떨어져 나갈 수
+   * 없다 — 폭이 변하는 건 셀의 오른쪽 끝이다.
+   *
+   * ⚠️ 깊이는 둘(Database ▸ Schema)뿐이다. 엘보 사슬도, N단계 일반화도 없다.
+   * ⚠️ 이 기하는 행 높이가 일정할 때만 성립한다 — 이름이 두 줄로 접히면 엘보가 어긋난다.
+   *    그래서 이름 셀은 한 줄로 자른다(`truncate`).
+   */
+  /**
+   * 부모 행이 지는 첫 마디 — 행 중앙에서 아래로. 펼쳐진 그룹에만 붙인다(접힌 그룹 밑에는
+   * 이을 자식이 없어 선이 허공을 가리킨다). `-bottom-px` 는 행 사이 헤어라인을 1px 겹쳐
+   * 확대해도 이음매가 벌어지지 않게 한다.
+   */
+  spineParent:
+    "relative after:absolute after:-bottom-px after:left-[15px] after:top-1/2 after:w-[2px] after:bg-[var(--ldb-spine,#EDF0F4)] after:content-['']",
+  /** 자식 행 — 세로줄이 행을 관통하고 엘보가 이름 쪽으로 뻗는다. */
+  spineChild:
+    "relative pl-[54px] before:absolute before:-top-px before:bottom-0 before:left-[15px] before:w-[2px] before:bg-[var(--ldb-spine,#EDF0F4)] before:content-[''] after:absolute after:left-[15px] after:top-1/2 after:h-[2px] after:w-[24px] after:bg-[var(--ldb-spine,#EDF0F4)] after:content-['']",
+  /**
+   * 그룹 안에 낀 전폭(colSpan) 행 — 사유 패널 — 이 잇는 세로줄만. 엘보도 들여쓰기도 없다:
+   * 패널은 run 의 구성원이 아니라 구성원 사이에 낀 편집기라, 레일은 지나가기만 한다.
+   */
+  spineBridge:
+    "relative before:absolute before:-top-px before:bottom-0 before:left-[15px] before:w-[2px] before:bg-[var(--ldb-spine,#EDF0F4)] before:content-['']",
+  /**
+   * 마지막 자식 — 세로줄이 자기 엘보에서 끝나 그룹의 바닥을 그린다. 절대 배치된 가상
+   * 요소라 길이를 줄여도 흐름에 있는 글자는 1px 도 움직이지 않는다(브리프가 지목한
+   * `border-color: transparent` 가 지키려던 그 불변식을, 애초에 흐름 밖이라 공짜로 얻는다).
+   */
+  spineChildLast: 'before:bottom-1/2',
+  /**
+   * 제외된 run — 부모부터 마지막 자식까지, 언제나 보인다. `statusDotDeny` 와 같은 값.
+   *
+   * 커넥터 선의 색을 발표하는 디자인 시스템은 없다(GitHub Primer 도 규칙만 말하고 값은
+   * 말하지 않는다). 그래서 이 두 값은 우리가 고른 것이다: amber 는 제외 점과 같은 값,
+   * 중립 #EDF0F4 는 행 구분선(#EBEEF2) 바로 옆 칸이라 표의 선 문법 안에 머문다.
+   */
+  spineExcluded: '[--ldb-spine:#D97706]',
+  /**
+   * 제외되지 않은 subtree — 평상시엔 없고 표에 hover/focus 가 닿을 때만 배어 나온다
+   * (Primer: 아직 주목을 얻지 않은 행에 중첩선을 상시 노출하지 않는다).
+   *
+   * 변수를 **평상시에 선언하지 않는다** — 기본 잉크는 `var(--ldb-spine,#EDF0F4)` 의
+   * 폴백이 진다. 그래서 hover 가 되는 기기에서만 `transparent` 한 선언이 서고, 같은
+   * 명시도의 선언끼리 순서를 다툴 일이 없다(cn 은 단순 join 이라 승자를 Tailwind 의 emit
+   * 순서가 정한다 — 그 판돈을 아예 만들지 않는다). hover 가 없는 기기에서는 선언이 하나도
+   * 서지 않으므로 레일이 상시 보인다.
+   *
+   * ⚠️ 이름 있는 group(`group/ldb-table`) 을 쓴다 — 맨 `group-hover` 는 안쪽 group 으로 샌다.
+   */
+  spineIdle:
+    '[@media(hover:hover)]:[--ldb-spine:transparent] group-hover/ldb-table:[--ldb-spine:#EDF0F4] group-focus-within/ldb-table:[--ldb-spine:#EDF0F4]',
+  /**
+   * 상태 열 — 8px 점 + 글자. PR #746 의 카운트 줄(`idcStyles.connProgress.countDot`) 문법
+   * 그대로다: 크기도 8px, 점 옆에는 언제나 낱말이 선다. 채운 알약을 행마다 놓으면 표의
+   * 80% 를 차지하는 `수집` 이 화면에서 가장 시끄러운 것이 된다.
+   */
+  statusCell: 'inline-flex items-center gap-1.5',
+  statusDot: 'h-2 w-2 flex-shrink-0 rounded-full',
+  /** 수집 — 행의 대부분이라 가장 조용해야 한다. 카운트 줄의 중립 점과 같은 값. */
+  statusDotKeep: 'bg-[#8B95A1]',
+  /** 제외 — `spineExcluded` 와 같은 값. */
+  statusDotDeny: 'bg-[#D97706]',
+  /** 저장 전 — 앱의 단일 상호작용 색. */
+  statusDotStaged: 'bg-[#0064FF]',
+  /**
+   * 표 위의 알림 띠 — 이번 실행의 조회 목록을 못 읽은 채 열렸다는 한 줄. 면은 `result.nextBox`
+   * 와 같은 amber(#FFF6E8 / #FBDCA7)라 이 모달의 알림은 한 색으로만 말하고, 잉크만 한 단
+   * 진하다(#B45309 — 흰 면 대비 4.72:1): 여기서는 면이 아니라 문장이 내용 전부다.
+   */
+  notice:
+    'mt-4 rounded-lg border border-[#FBDCA7] bg-[#FFF6E8] px-4 py-2.5 text-[14px] font-medium leading-[1.5] text-[#B45309]',
+  /**
+   * 전체 교체 경고 — 운영자 화면에만 선다. 면을 칠하지 않는다: amber 면은 위의 `notice` 가
+   * 쥐고 있어서, 둘이 겹쳐 서면 같은 색 상자 두 개 중 어느 쪽이 지금의 사실인지 흐려진다.
+   */
+  replaceWarn: 'mt-2 text-[14px] font-medium leading-[1.5] text-[#4E5968]',
+  /**
+   * 손으로 제외를 더하는 줄 (운영자 전용). 표 **밖**, 목적 문장과 표 사이에 선다 — 표에는
+   * 필터와 페이저가 있어서, 표 끝에 매단 입력 행은 그 둘 아래로 사라진다.
+   */
+  manual: {
+    box: 'mt-4 rounded-lg border border-[#E5E8EB] bg-[#F7F8FA] px-4 py-3',
+    label: 'text-[12px] font-semibold text-[#6B7684]',
+    row: 'mt-2 flex flex-wrap items-center gap-2',
+    field:
+      'h-9 rounded-lg border border-[#E5E8EB] bg-white px-3 text-[14px] text-[#191F28] placeholder:text-[#6B7684] focus:border-transparent focus:outline-none focus:ring-2 focus:ring-[#0064FF]',
+    /** database 는 이름이 길다 — schema 보다 한 칸 넓게 준다. */
+    fieldDatabase: 'w-[186px] font-mono',
+    fieldSchema: 'w-[160px] font-mono',
+    /** 사유 select — 한국어 라벨이 앉으므로 mono 슬롯이 아니다. */
+    select:
+      'h-9 rounded-lg border border-[#E5E8EB] bg-white px-2 text-[14px] text-[#191F28] focus:border-transparent focus:outline-none focus:ring-2 focus:ring-[#0064FF]',
+    hint: 'text-[12px] text-[#6B7684]',
+    error: 'mt-2 text-[12px] font-medium text-[#B42318]',
+  },
+  /** 방금 손으로 더한 행 — 어디에 앉았는지 한 번 훑고 만다. EC2 추가 행과 같은 값. */
+  flashRow: ROW_TINT_SWEEP,
+  /**
+   * 저장 결과 프레임 — 표와 푸터가 있던 자리에 서는 한 칸. 저장은 이 모달 안에서 끝나는
+   * 일이라 결과도 이 모달 안에서 말한다(toast 는 모달 뒤에 떠서, 방금 고른 목록 옆에
+   * 결과를 세울 수 없었다).
+   *
+   * 눈금은 `modalStyles.confirm` 의 `lg` 결과 프레임 그대로다 — 80px 타일, 24px 제목.
+   * 920px 상자에서 그보다 작은 눈금은 큰 판 한가운데 붙인 쪽지가 된다.
+   */
+  result: {
+    /**
+     * 프레임은 인라인 min/maxHeight 로 편집 상태에서 잰 바닥에 못박힌다 — 상자는 움직이지
+     * 않는다. 그 안에서 줄어들 수 있는 것은 원장 하나뿐이라(나머지는 전부 `shrink-0`),
+     * 남는 방이 모자라면 목록이 먼저 양보하고 스크롤한다.
+     */
+    frame: 'flex flex-col items-center justify-center px-10 py-10 text-center',
+    tile: 'mb-6 grid h-20 w-20 shrink-0 place-items-center rounded-[20px]',
+    title: 'shrink-0 text-[24px] font-bold leading-[1.3] tracking-[-0.02em] text-[#191F28]',
+    desc: 'mt-3 shrink-0 text-[16px] font-medium leading-[1.6] text-[#6B7684]',
+    /** 실패 사유 — 타일과 같은 잉크 계열. 한 단계 다른 빨강 둘은 위계가 아니라 실수로 읽힌다. */
+    reason: 'mt-3 max-w-[420px] shrink-0 text-[14px] leading-[1.5] text-[#991B1B]',
+    /**
+     * 저장된 변경 원장 — 프레임에서 **유일하게 줄어드는** 칸(형제는 전부 `shrink-0`). 목록만
+     * 스크롤한다: 20건을 저장해도 아래 버튼이 프레임 밖으로 밀려나면 안 되고, 프레임째
+     * 스크롤하면 하나뿐인 답 아래에서 닫기가 접힌 자리로 내려간다.
+     *
+     * ⛔ `flex-1` 을 여기 얹지 말 것. `flex: 1 1 0%` 는 줄어들 뿐 아니라 **자라므로**, 1건짜리
+     * 저장이 텅 빈 큰 상자로 렌더된다. 줄어들 자격은 `min-h-0` 하나로 충분하다.
+     *
+     * `min-h-0` 은 장식이 아니다 — flex 항목의 기본 바닥은 제 내용이라, 프레임과 원장 양쪽에
+     * 이것이 없으면 스크롤 상자가 내용 밑으로 못 줄어들고 프레임이 넘친다.
+     */
+    ledger:
+      'mt-6 flex min-h-0 w-full max-w-[560px] flex-col overflow-hidden rounded-[10px] border border-[#E5E8EB]',
+    ledgerHead:
+      'flex shrink-0 items-center justify-between bg-[#F7F8FA] px-4 py-2 text-[12px] font-semibold text-[#4E5968]',
+    /**
+     * 목록에는 천장이 없다 — 천장은 프레임이 쥔다. 여기 고정값을 하나 더 두면 방이 얼마나
+     * 남았는지와 무관한 숫자가 되고(Resource ID 가 두 줄로 접히면 바닥이 움직인다), 둘 중
+     * 어느 쪽이 이겼는지 코드를 읽어야 알게 된다.
+     *
+     * 바닥은 있다: 74px = 두 줄(37px 실측 × 2). 유난히 높은 머리가 목록을 0 으로 눌러
+     * 없애지 못하게 하는 최소치이고, 이보다 좁으면 프레임이 천장을 놓는다(LogicalDbModal
+     * 의 pin 참고) — 읽을 수 없는 원장은 움직인 상자보다 나쁘다.
+     */
+    ledgerList: 'min-h-[74px] flex-1 overflow-y-auto',
+    ledgerRow: 'flex items-center gap-2 px-4 py-2 text-left',
+    ledgerName: 'min-w-0 flex-1 truncate text-[14px] font-semibold text-[#191F28]',
+    ledgerValue: 'shrink-0 text-[12px] text-[#4E5968]',
+    /** 다음 할 일 — 정책은 다음 연결 테스트부터 반영된다는 한 줄. */
+    nextBox:
+      'mt-4 w-full max-w-[560px] shrink-0 rounded-lg border border-[#FBDCA7] bg-[#FFF6E8] px-4 py-3 text-left text-[14px] leading-[1.5] text-[#4E5968]',
+    /** 실패 프레임의 중립 상자 — 고른 변경이 아직 화면에 남아 있다는 사실만 말한다. */
+    keptBox:
+      'mt-4 w-full max-w-[560px] shrink-0 rounded-lg border border-[#E5E8EB] bg-[#F7F8FA] px-4 py-3 text-left text-[14px] leading-[1.5] text-[#4E5968]',
+    actions: 'mt-8 flex shrink-0 gap-2.5',
+  },
 } as const;
 
 /**
@@ -2665,7 +2829,7 @@ export const ec2Styles = {
    * 에서는 애니메이션만 끄고 배지는 그대로 서 있으므로, 움직임을 끈 사용자도 정보를
    * 잃지 않는다.
    */
-  rowJustAdded: 'animate-[ec2-row-tint_1100ms_ease-in-out] motion-reduce:animate-none',
+  rowJustAdded: ROW_TINT_SWEEP,
   newBadge: `ml-2 inline-flex shrink-0 items-center rounded-full bg-[#E8F1FF] px-2 py-px text-[11.5px] font-bold text-[#1747B5] animate-[ec2-new-badge_4000ms_ease-out_forwards] motion-reduce:animate-none ${tableRowLift.chipEdge}`, // design-exempt: mirrors idcStyles.kindBadge 11.5px token
   /** Step1 행의 정체성 스택 (EC2 태그 → instance id → Private IP). */
   rowStack: 'flex flex-col items-start gap-1',

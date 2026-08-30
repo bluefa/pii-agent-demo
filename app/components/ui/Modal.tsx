@@ -21,7 +21,7 @@ export interface ModalProps {
   /** 헤더 아이콘 (선택) */
   icon?: ReactNode;
   /** 모달 크기 */
-  size?: 'sm' | 'md' | 'lg' | 'xl' | '2xl' | '3xl' | 'logical' | 'logical-tree' | 'wide';
+  size?: 'sm' | 'md' | 'lg' | 'xl' | '2xl' | '3xl' | 'logical' | 'wide';
   /**
    * Modal chrome. 'default' keeps the shared app styling — byte-identical for
    * existing callers (AWS/Azure/GCP). 'toss' opts into the IDC-only prototype
@@ -64,6 +64,12 @@ export interface ModalProps {
   closeOnBackdropClick?: boolean;
   /** ESC 키로 닫기 허용 여부 */
   closeOnEscape?: boolean;
+  /**
+   * The card element itself, for a caller that has to MEASURE it — the 논리 DB 모달 pins the
+   * height it had while it was still the table, so the save result lands in the same box.
+   * Read-only by contract: the shell owns the card's classes.
+   */
+  cardRef?: React.RefObject<HTMLDivElement | null>;
 }
 
 const SIZE_CLASSES: Record<string, string> = {
@@ -77,9 +83,6 @@ const SIZE_CLASSES: Record<string, string> = {
   '3xl': 'max-w-[1160px]',
   // v16 `.logical-modal` — 1040px wide (논리 DB 확인). Additive: no existing size changes.
   logical: 'max-w-[1040px]',
-  // 논리 DB 목록 (tree redesign) — 720px: one tree column instead of two panels,
-  // so the v16 1040 width would just stretch the name column. Additive.
-  'logical-tree': 'max-w-[720px]',
   // 이전 연동 요청 불러오기 — the step-1 table's five fixed columns are 616px, and the
   // toss chrome spends 80 on its own padding, so 920 leaves the 접속 주소 column the
   // ~220px it needs to print a host without truncating. Additive.
@@ -122,6 +125,7 @@ export const Modal = ({
   footerDivider = true,
   closeOnBackdropClick = true,
   closeOnEscape = true,
+  cardRef,
 }: ModalProps) => {
   const overlayRef = useRef<HTMLDivElement>(null);
 
@@ -208,6 +212,7 @@ export const Modal = ({
   return (
     <div ref={overlayRef} className={modalStyles.overlay} onClick={handleBackdropClick}>
       <div
+        ref={cardRef}
         className={containerCls}
         role="dialog"
         aria-modal="true"

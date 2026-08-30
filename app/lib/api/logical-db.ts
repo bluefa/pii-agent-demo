@@ -100,12 +100,20 @@ export const getExcludedLogicalDatabases = async (
   return (raw.skip_logical_database_list ?? []).map(toExcludedLogicalDatabase);
 };
 
-/** PUT the skip policy (full replace) by resourceId. Body authored snake (D3). */
+/**
+ * PUT the skip policy (full replace) by resourceId. Body authored snake (D3).
+ *
+ * Resolves with the refreshed policy, or **`null` when the write landed and only the
+ * read-back failed**. `null` is not an empty policy (that is `[]`) and it is not a failed
+ * save: the PUT is committed the moment it resolves, so a rejection from the refresh must
+ * never reach the caller as an error — a caller that reported it as one would tell the
+ * user the policy is unchanged and invite the same write a second time.
+ */
 export const updateExcludedLogicalDatabases = async (
   targetSourceId: number,
   resourceId: string,
   items: ExcludedLogicalDatabase[],
-): Promise<ExcludedLogicalDatabase[]> => {
+): Promise<ExcludedLogicalDatabase[] | null> => {
   const body: z.infer<typeof schemas.UpdateSkipLogicalDatabaseRequest> = {
     skip_logical_database_list: items.map((it) => ({
       database_name: it.databaseName,
@@ -121,5 +129,12 @@ export const updateExcludedLogicalDatabases = async (
   // The PUT response body is not trustworthy — upstream answers 200 with no
   // body despite declaring SkipLogicalDatabaseResponse. Re-read the policy so
   // the caller always gets what the server actually stored.
-  return getExcludedLogicalDatabases(targetSourceId, resourceId);
+  //
+  // ⛔ The write is DONE above. Everything past this line is a refresh, so its failure is
+  // reported as a missing list (`null`), never as a rejection.
+  try {
+    return await getExcludedLogicalDatabases(targetSourceId, resourceId);
+  } catch {
+    return null;
+  }
 };

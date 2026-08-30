@@ -69,12 +69,39 @@ describe('useLogicalDatabases', () => {
     expect(getExcluded).toHaveBeenCalledWith(1020, 'srv-1', expect.objectContaining({}));
   });
 
-  it('surfaces an error state when a fetch rejects', async () => {
+  // ⛔ The PUT is a full replace: saving over a policy we never read would delete
+  // exclusions nobody asked to delete. This failure keeps the modal out of the table.
+  it('an unreadable EXCLUDED list is an error — the one that blocks saving', async () => {
     getExcluded.mockRejectedValue(new Error('boom'));
     const { result } = renderHook(() => useLogicalDatabases(1020, 'srv-1', 'latest'));
     await waitFor(() => expect(result.current.state.status).toBe('error'));
     if (result.current.state.status !== 'error') throw new Error('expected error');
     expect(result.current.state.message).toBe('논리 DB 정보를 불러오지 못했습니다.');
+  });
+
+  it('…even when the tested list came back fine', async () => {
+    getExcluded.mockRejectedValue(new Error('boom'));
+    getTested.mockResolvedValue(TESTED);
+    const { result } = renderHook(() => useLogicalDatabases(1020, 'srv-1', 'latest'));
+    await waitFor(() => expect(result.current.state.status).toBe('error'));
+  });
+
+  // The other half of the pair: the run's list is gone, the policy is in hand. That is a
+  // different screen, so it must be a different state — `Promise.all` made it one.
+  it('an unreadable TESTED list is partial — the policy alone, still editable', async () => {
+    getTested.mockRejectedValue(new Error('boom'));
+    const { result } = renderHook(() => useLogicalDatabases(1020, 'srv-1', 'latest'));
+    await waitFor(() => expect(result.current.state.status).toBe('partial'));
+    if (result.current.state.status !== 'partial') throw new Error('expected partial');
+
+    // Both excluded items become rows; nothing else does.
+    expect(result.current.state.databases.map((d) => d.id).sort()).toEqual(['legacy', 'stg']);
+    expect(result.current.state.databases.every((d) => d.untested)).toBe(true);
+    expect(Array.from(result.current.state.initialDraft.excludedIds).sort()).toEqual([
+      'legacy',
+      'stg',
+    ]);
+    expect(result.current.state.initialDraft.reasons.stg).toBe('STG');
   });
 
   // scope 는 fetchKey 의 일부다 — 같은 리소스라도 계열이 바뀌면 다른 목록이라, 다시 읽지
