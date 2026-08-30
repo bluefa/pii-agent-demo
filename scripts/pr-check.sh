@@ -250,6 +250,12 @@ if (( skip_heavy_checks == 1 )); then
     echo "[pr-check] reusing pre-commit validation @ ${current_head:0:12}"
   fi
 else
+  # shellcheck source=/dev/null
+  [ -f "${repo_root}/scripts/gate-lock.sh" ] && . "${repo_root}/scripts/gate-lock.sh"
+  if declare -f gate_lock_acquire >/dev/null; then
+    [[ "${QUIET}" != "1" ]] && echo "[pr-check] waiting for the machine-wide gate lock..."
+    gate_lock_acquire 900 || echo "[pr-check] lock wait timed out (15m) -- running unlocked" >&2
+  fi
   run_parallel_heavy_checks
 fi
 

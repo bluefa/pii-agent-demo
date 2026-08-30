@@ -57,6 +57,13 @@ if [[ "$code_changed" -eq 0 ]]; then
   exit 0
 fi
 
+# shellcheck source=/dev/null
+[ -f "${repo_root}/scripts/gate-lock.sh" ] && . "${repo_root}/scripts/gate-lock.sh"
+if declare -f gate_lock_acquire >/dev/null; then
+  echo "[pre-commit] waiting for the machine-wide gate lock..."
+  gate_lock_acquire 900 || echo "[pre-commit] lock wait timed out (15m) -- running unlocked" >&2
+fi
+
 LABELS=(lint type-check test-run build)
 CHILD_PIDS=()
 
