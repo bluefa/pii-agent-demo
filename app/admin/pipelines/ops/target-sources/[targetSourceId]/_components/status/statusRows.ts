@@ -12,21 +12,33 @@
  *    「실행 없음」이나 ✕ 로 접히지 않는다. 못 읽은 것을 읽은 척하면 멀쩡한 대상이
  *    고장 난 것으로 읽힌다 — `tcRunGate` 가 NOT_FOUND(미실행)와 그 밖의 거절을
  *    가르는 것과 같은 이유다.
- * 2. **미도달은 실패가 아니다.** 1단계 대상은 다섯 행이 전부 「아직」이다. 그 자리에
- *    빨간 ✕ 다섯 개가 서면 안 된다 — `idle` 이 그 자리의 마크다.
- * 3. **Airflow 는 §10 을 부르지 않는다.** 한 대상의 dag-status 응답이 MB 단위까지
- *    가므로(논리 DB 1만 행) 이 카드는 그것을 조회하지 않고 `processStatus` 만 읽어
- *    「어디까지 왔는가」를 적는다. 판정 전부는 Airflow 확인 탭의 것이다.
+ * 2. **미도달은 실패가 아니다.** 아무것도 실행된 적 없는 대상은 다섯 행이 전부 「없음」이다.
+ *    그 자리에 빨간 ✕ 다섯 개가 서면 안 된다 — `idle` 이 그 자리의 마크다.
+ * 3. **다섯 행 어디에도 단계(`processStatus`)가 없다** (오너 2026-08-30 "단계 상관없어").
+ *    각 행은 제 조회가 돌려준 것만 말한다 — 대상이 몇 단계인지는 마스트헤드의 단계 태그가
+ *    이미 말하고 있고, 행이 그것을 한 번 더 적으면 이 카드가 지우려던 중복이 돌아온다.
+ *    그래서 이 카드는 process-status 를 **부르지도 않는다**.
+ *
+ *    Airflow 도 같은 규칙이다. 앞선 라운드는
+ *    §10 응답이 MB 단위(논리 DB 1만 행)라는 이유로 6단계 게이트 뒤에서만 판정을 실었는데,
+ *    오너가 그 게이트를 걷어냈다. 그래서 이 행도 나머지와 같은 모양이다 — 단계와 무관하게
+ *    묻고, 답이 없으면(404) 「기록 없음」, 거절되면 「조회 실패」다.
+ *    ⚠️ 대가는 카드의 도착 시각이다: 다섯 조회가 병렬이라도 이 한 건이 가장 느리면
+ *    카드 전체가 그만큼 기다린다. 판정의 **근거**는 여전히 Airflow 확인 탭의 것이다.
  */
 import type { z } from 'zod';
 
 import type { schemas } from '@/lib/generated/install-v1';
 import { OPS_TAB_SLUGS, type OpsTargetTabLabel } from '@/lib/routes';
 import { fmtDateTime } from '@/lib/pipeline/format';
-import { STEP, type ProcessStatus } from '@/app/admin/pipelines/queue/_components/StepStack';
 import { runStatus } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/logic';
 import { metaOf } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/terraformState';
 import { SCAN_STATE } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/scanState';
+import {
+  aggregateDagStatus,
+  healthVerdict,
+} from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/approvalGate';
+import type { DagStatusResponse } from '@/lib/types/dag-status';
 
 type ScanJob = z.infer<typeof schemas.ScanJobResponse>;
 type TcLatest = z.infer<typeof schemas.TestConnectionVersionResult>;
@@ -58,7 +70,8 @@ export interface StatusInputs {
   scan: Settled<ScanJob | null>;
   tc: Settled<TcLatest | null>;
   terraform: Settled<TerraformStatus>;
-  processStatus: ProcessStatus | null;
+  /** §10 dag-status — 없음(404)은 `value: null`, 거절은 `ok:false`. */
+  dag: Settled<DagStatusResponse | null>;
   /** IDC 는 스캔 탭이 없다 (`OpsTargetView` 의 `isIdc`) — 행도 서지 않는다. */
   isIdc: boolean;
 }
@@ -151,10 +164,7 @@ const infraRow = (terraform: Settled<TerraformStatus>): StatusRow => {
   return { ...base, mark: 'idle', value: '미적용' };
 };
 
-const confirmRow = (
-  terraform: Settled<TerraformStatus>,
-  processStatus: ProcessStatus | null,
-): StatusRow => {
+const confirmRow = (terraform: Settled<TerraformStatus>): StatusRow => {
   if (!terraform.ok) return rejected(OPS_TAB_SLUGS.confirm, OPS_TAB_SLUGS.confirm);
   const base = { name: OPS_TAB_SLUGS.confirm, tab: OPS_TAB_SLUGS.confirm, failed: false };
   const confirmed = terraform.value.has_confirmed_infra;
@@ -164,22 +174,40 @@ const confirmRow = (
   // 계약은 LOOSE 라 필드가 통째로 빠질 수 있다. **아는 false 만** 미확정이다 —
   // 없는 값을 false 로 접으면 모르는 것을 사실로 바꿔 말하게 된다.
   if (confirmed !== false) return { ...base, mark: 'unknown', value: '알 수 없음', sub: null };
-  const step = processStatus ? STEP[processStatus] : null;
-  // 미확정은 정상 흐름의 한 단계다 — 어디까지 왔는지를 대신 적는다 (InfraStatusHead 판례).
-  return { ...base, mark: 'warn', value: '미확정', sub: step ? `${step.n}단계 · ${step.label}` : null };
+  // 미확정은 정상 흐름의 한 자리다 — 그래서 색은 값에만 실리고 면을 물들이지 않는다.
+  // ⛔ 「N단계 · 이름」을 여기 붙이지 않는다 (오너 2026-08-30): 마스트헤드 단계 태그가
+  // 이미 말하는 것이고, 이 카드가 지우려던 중복이 그대로 돌아온다.
+  return { ...base, mark: 'warn', value: '미확정', sub: null };
 };
 
-/** 모니터링이 존재하기 시작하는 지점 — 6단계에 닿아야 DAG 가 돈다. */
-const AIRFLOW_REACHED: ReadonlySet<ProcessStatus> = new Set<ProcessStatus>(['CONNECTED', 'COMPLETED']);
+const AIRFLOW = 'Airflow';
 
-const airflowRow = (processStatus: ProcessStatus | null): StatusRow => {
-  const base = { name: 'Airflow', tab: OPS_TAB_SLUGS.airflow, failed: false };
-  // ponytail: 판정(healthVerdict)을 여기 싣지 않는 것은 §10 응답이 MB 단위여서다.
-  // 그 응답이 요약되거나 페이지화되면 이 행이 판정을 지면 된다 — 그때까지는 위치만.
-  if (processStatus && AIRFLOW_REACHED.has(processStatus)) {
-    return { ...base, mark: 'idle', value: '확인 가능', sub: null };
+const airflowRow = (dag: Settled<DagStatusResponse | null>): StatusRow => {
+  if (!dag.ok) return rejected(AIRFLOW, OPS_TAB_SLUGS.airflow);
+  const base = { name: AIRFLOW, tab: OPS_TAB_SLUGS.airflow, failed: false };
+  // 아직 도는 DAG 가 없는 대상은 응답 자체가 없다 — 미도달이지 실패가 아니다.
+  if (!dag.value) return { ...base, mark: 'idle', value: '기록 없음', sub: null };
+
+  const verdict = healthVerdict(dag.value.healthStatus);
+  // HEALTHY/UNHEALTHY 는 승인 조건 ③ 과 Airflow 확인 탭이 이미 화면 어휘로 굳힌 표기다.
+  // 한 대상을 두 화면이 다른 낱말로 부르면 안 되므로 그대로 쓰고, 그 밖의 값만 미확인이다.
+  if (verdict.kind === 'unknown') {
+    return { ...base, mark: 'unknown', value: '미확인', sub: '판정할 수 없는 값' };
   }
-  return { ...base, mark: 'idle', value: '아직 도달하지 않음', sub: '6단계 완료 확인 후' };
+  // 세는 줄도 같은 한 벌 — 확인 필요는 성공의 여집합이라 조건 카드와 수가 어긋나지 않는다.
+  const agg = aggregateDagStatus(dag.value);
+  const attention = agg.dbTotal - agg.succeeded;
+  return {
+    ...base,
+    mark: verdict.kind === 'healthy' ? 'ok' : 'err',
+    value: verdict.kind === 'healthy' ? 'HEALTHY' : 'UNHEALTHY',
+    sub:
+      agg.dbTotal === 0
+        ? null
+        : attention === 0
+          ? `논리 DB ${agg.dbTotal}개 전부 성공`
+          : `논리 DB ${agg.dbTotal}개 · ${attention}개 확인 필요`,
+  };
 };
 
 export function statusRows(input: StatusInputs): StatusRow[] {
@@ -187,8 +215,8 @@ export function statusRows(input: StatusInputs): StatusRow[] {
     scanRow(input.scan),
     tcRow(input.tc),
     infraRow(input.terraform),
-    confirmRow(input.terraform, input.processStatus),
-    airflowRow(input.processStatus),
+    confirmRow(input.terraform),
+    airflowRow(input.dag),
   ];
   // IDC 는 손으로 등록하는 대상이라 훑을 계정이 없다 — 탭 줄이 「스캔」을 빼는 것과
   // 같은 술어로 행도 뺀다. 남기면 영영 「실행 없음」인 행이 하나 선다.

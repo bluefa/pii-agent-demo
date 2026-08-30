@@ -11,8 +11,10 @@
  * 사라진다 — 네 조회는 각각 `settle` 되고, 거절된 것만 제 행에서 「조회 실패」라고
  * 말한다 (ADR-008: 하나의 실패가 화면을 내리지 않는다).
  *
- * ⛔ dag-status(§10) 는 부르지 않는다 — 응답이 MB 단위라 첫 바이트를 통째로 잡아먹는다.
- * Airflow 행이 무엇을 대신 말하는지는 `statusRows.ts` 규칙 3.
+ * dag-status(§10) 도 부른다 (오너 2026-08-30 "6단계 상관없이 그냥 조회해"). 응답이 MB 단위라
+ * 다섯 조회 중 가장 느릴 수 있고, 그만큼 **이 카드만** 늦는다 — 경계 밖의 셸과 탭 줄은 이미
+ * 나가 있다. process-status 는 반대로 **부르지 않는다**: 어느 행도 단계를 말하지 않는다
+ * (`statusRows.ts` 규칙 3).
  */
 import type { ReactElement, ReactNode } from 'react';
 
@@ -33,7 +35,6 @@ import {
   TabLink,
 } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/status/StatusRowActions';
 import { OPS_TAB_SLUGS } from '@/lib/routes';
-import type { ProcessStatus } from '@/app/admin/pipelines/queue/_components/StepStack';
 
 const TITLE = '연동 현황';
 const DESC = '각 단계가 마지막으로 남긴 결과입니다.';
@@ -154,11 +155,11 @@ async function settle<T>(what: string, run: Promise<T>): Promise<Settled<T | nul
 }
 
 export async function StatusCard({ targetSourceId }: { targetSourceId: number }): Promise<ReactElement> {
-  const [scan, tc, terraform, process] = await Promise.all([
+  const [scan, tc, terraform, dag] = await Promise.all([
     settle('scan-history', bff.scan.getHistory(targetSourceId, { page: 0, size: 1 })),
     settle('test-connection-latest', bff.confirm.getTestConnectionLatest(targetSourceId)),
     settle('terraform-status', bff.confirm.getTerraformStatus(targetSourceId)),
-    settle('process-status', bff.confirm.getProcessStatus(targetSourceId)),
+    settle('dag-status', bff.ops.getDagStatus(targetSourceId)),
   ]);
 
   // IDC 판정은 terraform-status 가 이미 싣고 오는 `cloud_provider` 로 한다 — 대상 상세를
@@ -173,7 +174,7 @@ export async function StatusCard({ targetSourceId }: { targetSourceId: number })
     tc,
     // terraform 은 404 를 '없음'으로 접을 자리가 없다 — 값이 없으면 두 행이 모르는 것이다.
     terraform: terraform.ok && terraform.value != null ? { ok: true, value: terraform.value } : { ok: false },
-    processStatus: (process.ok ? (process.value?.process_status as ProcessStatus | undefined) : undefined) ?? null,
+    dag,
     isIdc,
   });
 

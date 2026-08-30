@@ -1,8 +1,8 @@
 /**
  * 연동 현황 다섯 행의 판정 — 이 파일이 지키는 것은 세 규칙이다.
  *   1. 조회 실패는 실패가 아니다 (거절 ≠ ✕)
- *   2. 미도달은 실패가 아니다 (1단계 대상에 ✕ 다섯 개가 서면 안 된다)
- *   3. Airflow 는 §10 을 부르지 않는다 (입력이 processStatus 뿐이다)
+ *   2. 미도달은 실패가 아니다 (아무것도 실행 안 된 대상에 ✕ 다섯 개가 서면 안 된다)
+ *   3. 어느 행도 단계를 말하지 않는다 (`StatusInputs` 에 processStatus 가 없다)
  */
 import { describe, expect, it } from 'vitest';
 
@@ -11,14 +11,40 @@ import { statusRows, type StatusInputs } from '@/app/admin/pipelines/ops/target-
 const ok = <T,>(value: T) => ({ ok: true, value }) as const;
 const rejected = { ok: false } as const;
 
-/** 아무것도 실행된 적 없는 1단계 대상 — 다섯 행이 전부 「아직」인 자리. */
+/** 아무것도 실행된 적 없는 대상 — 다섯 행이 전부 「없음」인 자리. */
 const idle: StatusInputs = {
   scan: ok(null),
   tc: ok(null),
   terraform: ok({ has_confirmed_infra: false, tasks: [], cloud_provider: 'AWS' }),
-  processStatus: 'IDLE',
+  dag: ok(null),
   isIdc: false,
 };
+
+/** 논리 DB 넷 중 하나가 이번 주 성공 기록이 없는 대상. */
+const dagWith = (healthStatus: string, succeeded: number, total: number) => ({
+  targetSourceId: 1,
+  connectionStatus: 'SUCCESS',
+  healthStatus,
+  timezone: 'Asia/Seoul',
+  agents: [
+    {
+      agentId: 'a1',
+      resourceId: 'r1',
+      gcpRegion: null,
+      connectionStatus: 'SUCCESS',
+      databaseStatuses: Array.from({ length: total }, (_, i) => ({
+        databaseUri: `db-${i}`,
+        databaseName: null,
+        schemaName: null,
+        dagName: null,
+        namespace: null,
+        succeededThisWeek: i < succeeded,
+        lastSuccessAt: null,
+        days: [],
+      })),
+    },
+  ],
+});
 
 const valueOf = (rows: ReturnType<typeof statusRows>, name: string) =>
   rows.find((row) => row.name === name);
@@ -34,7 +60,7 @@ describe('statusRows', () => {
     ]);
   });
 
-  it('1단계 대상에는 실패 마크가 하나도 없다', () => {
+  it('아무것도 실행 안 된 대상에는 실패 마크가 하나도 없다', () => {
     expect(statusRows(idle).some((row) => row.mark === 'err')).toBe(false);
   });
 
@@ -66,11 +92,11 @@ describe('statusRows', () => {
     expect(valueOf(rows, '확정 정보')).toMatchObject({ mark: 'unknown', value: '알 수 없음' });
   });
 
-  it('아는 false 만 미확정이고, 그때 어디까지 왔는지를 적는다', () => {
+  it('아는 false 만 미확정이고, 단계는 적지 않는다', () => {
     expect(valueOf(statusRows(idle), '확정 정보')).toMatchObject({
       mark: 'warn',
       value: '미확정',
-      sub: '1단계 · 연동 대상 DB 선택',
+      sub: null,
     });
   });
 
@@ -108,13 +134,33 @@ describe('statusRows', () => {
     expect(rows.map((row) => row.name)).toEqual(['연결 테스트', '인프라 작업', '확정 정보', 'Airflow']);
   });
 
-  it('Airflow 는 processStatus 만 읽는다 — 6단계에 닿기 전에는 위치만 말한다', () => {
+  it('Airflow 는 단계와 무관하게 dag-status 가 돌려준 것만 말한다', () => {
+    // 기록 없음(404) — 미도달이지 실패가 아니다.
     expect(valueOf(statusRows(idle), 'Airflow')).toMatchObject({
-      value: '아직 도달하지 않음',
-      sub: '6단계 완료 확인 후',
+      mark: 'idle',
+      value: '기록 없음',
+      failed: false,
     });
-    expect(valueOf(statusRows({ ...idle, processStatus: 'CONNECTED' }), 'Airflow')).toMatchObject({
-      value: '확인 가능',
+    // 판정은 승인 조건 ③ · Airflow 확인 탭과 같은 낱말이다.
+    expect(valueOf(statusRows({ ...idle, dag: ok(dagWith('HEALTHY', 4, 4)) }), 'Airflow')).toMatchObject({
+      mark: 'ok',
+      value: 'HEALTHY',
+      sub: '논리 DB 4개 전부 성공',
+    });
+    expect(valueOf(statusRows({ ...idle, dag: ok(dagWith('UNHEALTHY', 3, 4)) }), 'Airflow')).toMatchObject({
+      mark: 'err',
+      value: 'UNHEALTHY',
+      sub: '논리 DB 4개 · 1개 확인 필요',
+    });
+    // 계약 밖의 값은 정상으로도 비정상으로도 세지 않는다.
+    expect(valueOf(statusRows({ ...idle, dag: ok(dagWith('DEGRADED', 4, 4)) }), 'Airflow')).toMatchObject({
+      mark: 'unknown',
+      value: '미확인',
+    });
+    // 거절은 그 행만 「조회 실패」다.
+    expect(valueOf(statusRows({ ...idle, dag: rejected }), 'Airflow')).toMatchObject({
+      value: '조회 실패',
+      failed: true,
     });
   });
 });
