@@ -21,7 +21,7 @@ import type { ReactElement, ReactNode } from 'react';
 import { bff } from '@/lib/bff/client';
 import { BffError } from '@/lib/bff/errors';
 import { cn, pipelineStyles } from '@/lib/theme';
-import { isSduTarget, normalizeCloudProvider } from '@/lib/types';
+import { normalizeCloudProvider } from '@/lib/types';
 import { Icon, type IconName } from '@/app/admin/pipelines/_components/icons';
 import { opsStyles } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/opsStyles';
 import {
@@ -162,25 +162,21 @@ export async function StatusCard({
   targetSourceId,
 }: {
   targetSourceId: number;
-}): Promise<ReactElement | null> {
+}): Promise<ReactElement> {
   /**
-   * 대상 상세가 **먼저** 온다. 한 홉을 직렬로 더 쓰는 대신 두 가지를 산다.
+   * 대상 상세가 **먼저** 온다. 한 홉을 직렬로 더 쓰고 스캔 행의 존재 여부(IDC)를 산다.
+   * terraform-status 의 `cloud_provider` 로 재느라 그 조회가 거절되면 IDC 대상에 스캔 행이
+   * 서던 자리였다 — 탭 줄은 그 탭을 숨기고 있으므로 그 행의 「상세보기」는 눌러도 아무 일이
+   * 없는 죽은 버튼이 된다.
    *
-   * 1. SDU 는 이 카드를 아예 그리지 않는다(`SduOpsNotice` 가 본문을 통째로 대신한다).
-   *    슬롯은 prop 이라 서버에서는 어느 탭이든 렌더되므로, 여기서 갈라 두지 않으면 화면에
-   *    나오지도 않을 카드를 위해 네 건 — 그중 하나가 MB 급 §10 — 을 쏜다.
-   * 2. 스캔 행의 존재 여부(IDC)가 여기서 나온다. terraform-status 의 `cloud_provider`
-   *    로 재느라 그 조회가 거절되면 IDC 대상에 스캔 행이 서던 자리였다 — 탭 줄은 그 탭을
-   *    숨기고 있으므로 그 행의 「상세보기」는 눌러도 아무 일이 없는 죽은 버튼이 된다.
+   * ⛔ 여기 SDU 조기 반환이 있었다. 그 근거는 「SDU 는 본문이 안내 한 장이라 이 카드가
+   * 화면에 나오지도 않는다」였는데, 그 안내가 사라지고 SDU 도 여덟 탭을 받는 지금은
+   * 전제가 없다. 되살리면 SDU 의 진행 상태 탭은 오른쪽 칸이 빈 채로 선다. 다섯 행이
+   * 가리키는 탭(스캔·연결 테스트·인프라 작업·확정 정보·Airflow)은 SDU 에도 전부 있고,
+   * 그 오퍼레이션들도 SDU 대상을 받는다(계약 §9).
    */
   const detail = await settle('target-source', bff.targetSources.get(targetSourceId));
   const meta = detail.ok ? detail.value : null;
-  if (
-    meta
-    && isSduTarget({ is_sdu_type: meta.metadata?.is_sdu_type, cloud_provider: meta.cloud_provider })
-  ) {
-    return null;
-  }
 
   const [scan, tc, terraform, dag] = await Promise.all([
     settle('scan-history', bff.scan.getHistory(targetSourceId, { page: 0, size: 1 })),

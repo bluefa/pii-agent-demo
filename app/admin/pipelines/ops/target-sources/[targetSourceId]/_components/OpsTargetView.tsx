@@ -36,7 +36,9 @@ import { DescriptionEditModal } from '@/app/services/_components/DescriptionEdit
 import { type RoleKind } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/roleMeta';
 import { isSduTarget, normalizeCloudProvider, readSupportRawData } from '@/lib/types';
 import { opsStyles } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/opsStyles';
-import { SduOpsNotice } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/SduOpsNotice';
+import { SduDefinitionCard } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/SduDefinitionCard';
+import { SduAckCard } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/SduAckCard';
+import { SduRecipientsCard } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/SduRecipientsCard';
 import { OpsTabNavContext } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/status/StatusRowActions';
 import { ScanTab } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/ScanTab';
 import { RequestTab } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/RequestTab';
@@ -213,31 +215,59 @@ export function OpsTargetView({ targetSourceId, initialTab, statusSlot }: OpsTar
   }, []);
 
   /**
+   * SDU 판정이 **먼저** 온다 — 아래 `isIdc` 가 이것을 읽는다.
+   *
+   * 계약이 SDU 를 말하는 두 자리를 모두 본다 — `metadata.is_sdu_type` 과 `cloud_provider`
+   * enum 의 `SDU`. 프로바이더만 비교하면 절대 안 된다: SDU 는 `CloudProvider` 가 아니라
+   * `normalizeCloudProvider` 가 'AWS' 로 접는다.
+   *
+   * 훅 뒤·로딩 조기 반환 위에 선다 — 탭 구성이 이것을 읽고, `detail` 은 첫 렌더에서 null
+   * 이라 그때는 어느 탭도 빠지지 않는다.
+   */
+  const isSdu =
+    detail != null
+    && isSduTarget({ is_sdu_type: detail.metadata?.is_sdu_type, cloud_provider: detail.cloud_provider });
+  /**
    * IDC targets have no 스캔 tab — scanning walks a CSP account for candidates, and an
-   * IDC target is registered by hand, so there is no account to walk. Unlike SDU this
-   * drops one tab rather than the whole screen; every other tab still applies.
+   * IDC target is registered by hand, so there is no account to walk. Every other tab
+   * still applies.
    *
    * Normalized, not compared raw: the contract types cloud_provider as a plain string
    * (install-v1 `Str`), so casing is not guaranteed, and the ScanTab this hides reads
    * the same field the same way. An unknown value normalizes to AWS and keeps the tab.
    *
-   * Sits above the loading / SDU early returns so the effect below can join the other
-   * hooks; `detail` is null on the first render, which just leaves every tab in place.
+   * **SDU 가 밑에 깔린 CSP 를 이긴다** — 이 화면이 `isAws` 를 쓰는 방식과 같다. 둘을 따로
+   * 재면 `is_sdu_type: true` + `cloud_provider: 'IDC'` 인 대상이 두 필터를 모두 맞아 일곱
+   * 탭으로 떨어지고, 스캔 탭이 통째로 사라져 수신자 카드가 설 자리를 잃는다. SDU 에서
+   * 훑는 것은 담당자가 올린 S3 이지 사내망이 아니다.
    */
-  const isIdc = detail != null && normalizeCloudProvider(detail.cloud_provider) === 'IDC';
-  // IDC 분기는 **그룹 안에서** 일어난다 — 「스캔」이 빠져도 그룹은 셋 그대로고,
-  // 보기 그룹만 넷에서 셋이 된다. 평평한 목록에서 걸러 낸 뒤 다시 묶으면 그룹이
-  // 사라지는 경우를 따로 다뤄야 하는데, 이 화면에는 그런 경우가 없다.
-  const tabGroups = isIdc
-    ? TAB_GROUPS.map((group) => group.filter((tab) => tab !== OPS_TAB_SLUGS.scan))
-    : TAB_GROUPS;
+  const isIdc =
+    !isSdu && detail != null && normalizeCloudProvider(detail.cloud_provider) === 'IDC';
+  /**
+   * 대상 종류가 거두어 가는 탭들. IDC 는 「스캔」, SDU 는 「연동 요청 정보」 — SDU 에는
+   * 승인이 없어(계약 §0) 그 탭이 그릴 요청 자체가 만들어지지 않는다. 나머지 여덟은 SDU
+   * 에서도 참이다: 스캔·Terraform·연결 테스트·Airflow 는 전부 대상 소스에 붙은
+   * 오퍼레이션이지 프로바이더에 붙은 것이 아니다(§9).
+   */
+  const hiddenTabs: readonly TabLabel[] = [
+    ...(isIdc ? [OPS_TAB_SLUGS.scan] : []),
+    ...(isSdu ? [OPS_TAB_SLUGS.request] : []),
+  ];
+  // 걸러 내는 일은 **그룹 안에서** 일어난다 — 탭 하나가 빠져도 그룹은 넷 그대로고, 그
+  // 그룹만 한 칸 줄어든다. 평평한 목록에서 걸러 낸 뒤 다시 묶으면 그룹이 사라지는 경우를
+  // 따로 다뤄야 하는데, 이 화면에는 그런 경우가 없다.
+  const tabGroups =
+    hiddenTabs.length > 0
+      ? TAB_GROUPS.map((group) => group.filter((tab) => !hiddenTabs.includes(tab)))
+      : TAB_GROUPS;
   // 평평한 목록은 **그린 것에서** 나온다 — 같은 술어를 두 번 적으면 두 목록이 우연히만
   // 일치하고, 어긋나는 순간 `currentTab` 이 렌더되지 않는 탭을 가리킬 수 있다.
   const tabs = tabGroups.flat();
   const currentTab = tabs.includes(requestedTab) ? requestedTab : tabs[0];
 
-  // A `?tab=scan` link to an IDC target — a bookmark from before the tab was dropped,
-  // or an AWS link with the id swapped — renders 진행 상태. Rewrite the URL to match,
+  // A link to a tab this target does not have (`?tab=scan` on IDC, `?tab=request` on
+  // SDU) — a bookmark from before the tab was dropped, or another target's link with the
+  // id swapped — renders 진행 상태. Rewrite the URL to match,
   // or reload and re-share keep pointing at a tab that is not on the screen. Only the
   // URL moves: `currentTab` already renders the right panel, so correcting the state
   // too would just be a second render for the same result.
@@ -298,20 +328,13 @@ export function OpsTargetView({ targetSourceId, initialTab, statusSlot }: OpsTar
       setGrantTfExecution(loaded.metadata?.grant_service_terraform_execution_permission === true);
       setSupportRawData(readSupportRawData(loaded));
 
-      // SDU 가 건너뛰는 것은 이제 **연결 테스트 하나**다. 규칙은 그리는 사람이 있느냐
-      // 하나로 갈린다: 진행 상태와 Jira 티켓은 마스트헤드가 읽는다 — 「연동 대상」 머리
-      // 줄의 단계 알약과 「관련 페이지」 패널이고, SDU 도 그 마스트헤드를 그대로 쓴다.
-      // 예전에 이 둘까지 막았던 것은 SDU 가 화면 전체를 안내 한 장으로 바꾸던 시절의
-      // 규칙이라 전제가 사라졌다. 반면 TC 세 응답은 「연결 테스트」·「관리자 승인」 두
-      // 탭만 읽는데 SDU 는 탭이 서지 않으므로, 받아도 읽을 사람이 없다.
-      // 판정은 렌더 게이트와 같은 규칙이다 (계약이 SDU 를 말하는 두 자리).
-      const sdu = isSduTarget({
-        is_sdu_type: loaded.metadata?.is_sdu_type,
-        cloud_provider: loaded.cloud_provider,
-      });
-
       // Secondary loads are independent and best-effort — each block renders its
       // own fallback, so one failure must not blank the page.
+      //
+      // TC 도 대상 종류를 가리지 않는다. SDU 가 연결 테스트를 건너뛰던 시절의 게이트가
+      // 여기 있었는데, 그때 SDU 는 탭이 하나도 서지 않아 받아도 읽을 사람이 없었다.
+      // SDU 도 ProcessStatus 5 에 도착하고(계약 §8) 「연결 테스트」·「관리자 승인」 두
+      // 탭을 그대로 받으므로, 이제 읽을 사람이 있다.
       void getProcessStatus(targetSourceId)
         .then((status) => !cancelled && setProcessStatus(status.process_status as ProcessStatus))
         .catch(() => !cancelled && setProcessStatus(null));
@@ -319,7 +342,7 @@ export function OpsTargetView({ targetSourceId, initialTab, statusSlot }: OpsTar
         .then((loaded) => !cancelled && setJiraTicket(loaded))
         .catch(() => !cancelled && setJiraTicket(null))
         .finally(() => !cancelled && setTicketLoaded(true));
-      if (!sdu) void loadTc();
+      void loadTc();
     })();
     return () => {
       cancelled = true;
@@ -333,8 +356,17 @@ export function OpsTargetView({ targetSourceId, initialTab, statusSlot }: OpsTar
    *   Airflow 확인 탭    본문 전체가 이 응답이다
    * 완료 승인된 대상에서는 이 값이 계속 true 라 승인 ↔ Airflow 를 오가도 deps 가 그대로다
    * — 탭 전환으로는 다시 부르지 않는다.
+   *
+   * **SDU 의 독자는 다른 사실이 부른다.** 「완료 승인」은 SDU 담당자가 누를 수 없는
+   * 버튼이라(계약 §0), 그것을 독자의 조건으로 두면 조건 ③ 은 헬스를 영영 보지 못하고
+   * ①·② 를 통과한 대상의 연동 완료가 잠긴 채로 굳는다 — 조건 ① 이 겪었던 것과 같은
+   * 막다른 길이다. SDU 에서 독자는 **승인 탭이 열려 있다는 사실** 자체다: 늦춤의 목적
+   * (아무도 읽지 않을 MB 응답을 받지 않는다)은 그대로 지키면서, 어느 탭을 먼저 들렀는지가
+   * CTA 의 잠금을 바꾸는 일도 없어진다.
    */
-  const needsDag = tcStatus?.status === TC_COMPLETED || currentTab === OPS_TAB_SLUGS.airflow;
+  const needsDag = isSdu
+    ? currentTab === OPS_TAB_SLUGS.approval || currentTab === OPS_TAB_SLUGS.airflow
+    : tcStatus?.status === TC_COMPLETED || currentTab === OPS_TAB_SLUGS.airflow;
   useAbortableEffect(
     (signal) => {
       if (!needsDag) return;
@@ -457,24 +489,6 @@ export function OpsTargetView({ targetSourceId, initialTab, statusSlot }: OpsTar
 
   const meta = detail.metadata ?? {};
 
-  /**
-   * SDU 는 **탭만** 잃는다 — 마스트헤드는 선다.
-   *
-   * 스캔·연동 요청·설치 상태는 전부 "우리가 설치하는 계정"을 전제로 만든 화면인데,
-   * SDU 는 담당자가 데이터를 직접 올리는 대상이라 그 전제가 성립하지 않는다. 탭을
-   * 남겨 두면 눌러서 빈 화면을 여는 것이 동작처럼 보이고, 그 안에서 각 탭이 제 몫의
-   * 요청을 쏘고 나서야 할 말이 없다는 걸 알게 된다. 그래서 탭 줄도, 그 아래 어떤
-   * 패널도 SDU 에서는 마운트되지 않는다.
-   *
-   * 반대로 마스트헤드가 말하는 것은 전부 SDU 에도 참이다 — 이 대상이 어느 서비스의
-   * 몇 번인지, 지금 몇 단계인지, 어느 권역에 사는지, 어디로 나갈 수 있는지. 예전에는
-   * 그것까지 안내 한 장이 제 손으로 다시 적고 있었다.
-   *
-   * 계약이 SDU 를 말하는 두 자리를 모두 본다 — metadata.is_sdu_type 과 cloudProvider
-   * enum 의 SDU. 플래그만 보면 provider 로 SDU 가 오는 대상이 이 게이트를 통과한다.
-   */
-  const isSdu = isSduTarget({ is_sdu_type: meta.is_sdu_type, cloud_provider: detail.cloud_provider });
-
   // SDU 가 밑에 깔린 CSP 를 이긴다 — `cloud_provider` 는 'AWS' 여도 그 계정은 우리가
   // 설치하는 계정이 아니라, 계정·role·설치모드는 이 대상에 대해 아무 말도 하지 못한다
   // (담당자쪽 헤더가 `project.isSduType` 으로 내리는 것과 같은 판단, 결정 #49).
@@ -506,147 +520,168 @@ export function OpsTargetView({ targetSourceId, initialTab, statusSlot }: OpsTar
           onOpenRawData={() => setModal({ type: 'raw' })}
           onEditDescription={() => setModal({ type: 'description' })}
         />
-        {/* 탭 줄은 SDU 에서 통째로 빠진다 — 아홉 탭이 전부 설치 진행을 전제로 만든
-            화면이라, 눌리는 탭을 남겨 두면 빈 화면을 여는 것이 동작처럼 보인다. */}
-        {!isSdu && (
-          <div className={opsStyles.tabStrip} role="tablist" aria-label="Target Source 운영 탭">
-            {tabGroups.map((group) => (
-              // 한 그룹 = 아래 헤어라인 한 도막. 그룹 사이 22px 에서 선이 끊긴다(실측).
-              // `role="presentation"` — 그룹은 선을 긋는 상자일 뿐이라, tablist 가 소유하는
-              // 것은 계속 탭 버튼이어야 한다.
-              <div key={group[0]} role="presentation" className={cn(opsStyles.tabGroup, growOf(group.length))}>
-                {group.map((tab) => {
-                  const active = tab === currentTab;
-                  const isStep = tab === stepTab;
-                  // 한 탭이 두 마크를 동시에 들 수 있다 — 라벨 옆 인라인 점은 「연결 테스트」의
-                  // 실행 결과, 우상단 코너 점은 걸린 단계다. 뜻이 다른 두 사실이라 자리로 갈린다.
-                  const words = [
-                    tab === OPS_TAB_SLUGS.tc ? tcWord : null,
-                    isStep ? stepWord : null,
-                  ].filter((word): word is string => word !== null);
-                  return (
-                    <button
-                      key={tab}
-                      type="button"
-                      role="tab"
-                      aria-selected={active}
-                      onClick={() => selectTab(tab)}
-                      className={cn(opsStyles.tab, active ? opsStyles.tabActive : opsStyles.tabIdle)}
-                    >
-                      {tab}
-                      {/* 낱말이 마크를 대신한다 — 점은 둘 다 aria-hidden 이라, 상태는 탭의
-                          접근명에 실려야 스크린 리더에 도착한다. */}
-                      {words.length > 0 && <span className="sr-only">, {words.join(', ')}</span>}
-                      {tab === OPS_TAB_SLUGS.tc && (
-                        <span
-                          className={cn(opsStyles.tabDot, tcDot, tcDot ? 'opacity-100' : 'opacity-0')}
-                          aria-hidden
-                        />
-                      )}
-                      {isStep && (
-                        // 흐름 밖이라 슬롯을 예약하지 않는다 — 늦게 도착해도 x 를 밀지 않는다.
-                        //
-                        // `title` 은 버튼이 아니라 **점**이 진다. 버튼에 두면 접근명(내용 =
-                        // 위 `.sr-only` 포함)과 접근설명(title)이 같은 문장이 되어 스크린
-                        // 리더가 두 번 읽는다. 점은 `aria-hidden` 이라 a11y 트리 밖이고,
-                        // 마우스 툴팁만 남는다 — 낱말 쪽은 그대로 둔다(⛔ title 은 낭독이
-                        // 보장되지 않으므로 `.sr-only` 를 title 로 대체할 수 없다).
-                        <span
-                          className={cn(opsStyles.tabCorner, opsStyles.tabCornerAlert)}
-                          title={stepWord ?? undefined}
-                          aria-hidden
-                        />
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
-            ))}
-          </div>
-        )}
+        <div className={opsStyles.tabStrip} role="tablist" aria-label="Target Source 운영 탭">
+          {tabGroups.map((group) => (
+            // 한 그룹 = 아래 헤어라인 한 도막. 그룹 사이 22px 에서 선이 끊긴다(실측).
+            // `role="presentation"` — 그룹은 선을 긋는 상자일 뿐이라, tablist 가 소유하는
+            // 것은 계속 탭 버튼이어야 한다.
+            <div key={group[0]} role="presentation" className={cn(opsStyles.tabGroup, growOf(group.length))}>
+              {group.map((tab) => {
+                const active = tab === currentTab;
+                const isStep = tab === stepTab;
+                // 한 탭이 두 마크를 동시에 들 수 있다 — 라벨 옆 인라인 점은 「연결 테스트」의
+                // 실행 결과, 우상단 코너 점은 걸린 단계다. 뜻이 다른 두 사실이라 자리로 갈린다.
+                const words = [
+                  tab === OPS_TAB_SLUGS.tc ? tcWord : null,
+                  isStep ? stepWord : null,
+                ].filter((word): word is string => word !== null);
+                return (
+                  <button
+                    key={tab}
+                    type="button"
+                    role="tab"
+                    aria-selected={active}
+                    onClick={() => selectTab(tab)}
+                    className={cn(opsStyles.tab, active ? opsStyles.tabActive : opsStyles.tabIdle)}
+                  >
+                    {tab}
+                    {/* 낱말이 마크를 대신한다 — 점은 둘 다 aria-hidden 이라, 상태는 탭의
+                        접근명에 실려야 스크린 리더에 도착한다. */}
+                    {words.length > 0 && <span className="sr-only">, {words.join(', ')}</span>}
+                    {tab === OPS_TAB_SLUGS.tc && (
+                      <span
+                        className={cn(opsStyles.tabDot, tcDot, tcDot ? 'opacity-100' : 'opacity-0')}
+                        aria-hidden
+                      />
+                    )}
+                    {isStep && (
+                      // 흐름 밖이라 슬롯을 예약하지 않는다 — 늦게 도착해도 x 를 밀지 않는다.
+                      //
+                      // `title` 은 버튼이 아니라 **점**이 진다. 버튼에 두면 접근명(내용 =
+                      // 위 `.sr-only` 포함)과 접근설명(title)이 같은 문장이 되어 스크린
+                      // 리더가 두 번 읽는다. 점은 `aria-hidden` 이라 a11y 트리 밖이고,
+                      // 마우스 툴팁만 남는다 — 낱말 쪽은 그대로 둔다(⛔ title 은 낭독이
+                      // 보장되지 않으므로 `.sr-only` 를 title 로 대체할 수 없다).
+                      <span
+                        className={cn(opsStyles.tabCorner, opsStyles.tabCornerAlert)}
+                        title={stepWord ?? undefined}
+                        aria-hidden
+                      />
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          ))}
+        </div>
       </div>
 
       <div className={opsStyles.body}>
         <div className={opsStyles.content}>
-          {/* SDU 는 안내 한 장이고 **그 밖에는 아무것도 마운트되지 않는다** — 탭 하나가
-              살아 있으면 그 패널이 제 몫의 요청을 쏘고 나서야 할 말이 없다는 걸 알게 된다.
-              삼항이라 `currentTab === …` 아홉 갈래가 SDU 에서는 평가조차 되지 않는다. */}
-          {isSdu ? (
-            <SduOpsNotice />
-          ) : (
-            <>
-              {/* 두 칸. 왼쪽이 이 대상에 대한 **기록**(승인 요청), 오른쪽이 **현재**(연동 현황)다.
-                  「현재 Process」 카드는 사라졌다 — 7칸 레일이 말하던 단계는 마스트헤드의 단계
-                  태그가 이미 말하고 있었고, 그 카드가 173px 을 써서 더하는 사실은 없었다.
-                  「상태 변경 이력」도 사라졌다: 전이 로그의 마지막 행이 곧 현재 단계라 레일의
-                  산문 버전이었고, 뒷받침 엔드포인트가 계약에 없었다(assumed §1). */}
-              {currentTab === '진행 상태' && (
+          {/* 두 칸. 왼쪽이 이 대상에 대한 **기록**(승인 요청), 오른쪽이 **현재**(연동 현황)다.
+              「현재 Process」 카드는 사라졌다 — 7칸 레일이 말하던 단계는 마스트헤드의 단계
+              태그가 이미 말하고 있었고, 그 카드가 173px 을 써서 더하는 사실은 없었다.
+              「상태 변경 이력」도 사라졌다: 전이 로그의 마지막 행이 곧 현재 단계라 레일의
+              산문 버전이었고, 뒷받침 엔드포인트가 계약에 없었다(assumed §1). */}
+          {currentTab === '진행 상태' &&
+            /* SDU 에는 승인이 없어(계약 §0) 「승인 요청 내역」이 어느 대상에서도 영원히 빈
+               표다. 그 자리는 담당자가 무엇을 입력했는지가 갖는데, 그것은 한 카드에 담기지
+               않는다 — 정의(§3) · 확인(§5) · 수신자(§6) 셋을 한 카드 안에서 제목 굵기로만
+               가르면 절 제목과 kv 라벨이 형제로 읽힌다. 그래서 카드가 그룹을 진다(오너 결정).
+               두 칸 행을 두 번 쓴다: 새 격자를 만들 이유가 없다.
+                 [연동 대상 정의][연동 현황]
+                 [담당자 확인  ][수신자    ]
+               SDU 가 아닌 대상은 그대로 한 행이다. */
+            (isSdu ? (
+              <>
                 <div className={opsStyles.cardsRow}>
-                  <ApprovalHistoryCard targetSourceId={targetSourceId} isIdc={isIdc} />
+                  <SduDefinitionCard targetSourceId={targetSourceId} />
                   {statusSlot}
                 </div>
-              )}
-              {currentTab === '스캔' && (
-                <ScanTab
-                  targetSourceId={targetSourceId}
-                  detail={detail}
-                  // This screen owns the modal the permission card's CTA opens. The
-                  // register/edit contract is AWS-only, so no other provider gets it.
-                  onEditRole={isAws ? (kind) => setModal({ type: 'edit', kind }) : undefined}
-                  credentialReloadKey={savedRoleArns.scan}
-                />
-              )}
-              {currentTab === '연동 요청 정보' && <RequestTab targetSourceId={targetSourceId} detail={detail} />}
-              {currentTab === '확정 정보' && (
-                <ConfirmTab
-                  targetSourceId={targetSourceId}
-                  detail={detail}
-                  processStatus={processStatus}
-                  onOpenInfra={() => selectTab('인프라 작업')}
-                />
-              )}
-              {currentTab === '인프라 작업' && (
-                <PipelineTab
-                  targetSourceId={targetSourceId}
-                  detail={detail}
-                  processStatus={processStatus}
-                  onSelectTab={selectTab}
-                />
-              )}
-              {currentTab === '연결 테스트' && (
-                <TcTab
-                  targetSourceId={targetSourceId}
-                  isIdc={isIdc}
-                  latest={tcLatest}
-                  results={tcResults}
-                  statusLoaded={tcLoaded}
-                  latestFailed={tcLatestFailed}
-                  onStatusReload={reloadTc}
-                />
-              )}
-              {currentTab === '관리자 승인' && (
-                <ApprovalTab
-                  targetSourceId={targetSourceId}
-                  detail={detail}
-                  status={tcStatus}
-                  latest={tcLatest}
-                  latestFailed={tcLatestFailed}
-                  tcLoaded={tcLoaded}
-                  statusFailed={tcStatusFailed}
-                  results={tcResults}
-                  dag={dag}
-                  onDecided={retry}
-                  onOpenTcTab={() => selectTab('연결 테스트')}
-                  onOpenAirflowTab={() => selectTab('Airflow 확인')}
-                />
-              )}
-              {currentTab === 'Airflow 확인' && (
-                <AirflowTab targetSourceId={targetSourceId} isIdc={isIdc} dag={dag} />
-              )}
-              {currentTab === '연동 초기화' && (
-                <DangerTab targetSourceId={targetSourceId} onReset={retry} />
-              )}
-            </>
+                <div className={cn(opsStyles.cardsRow, 'mt-4')}>
+                  <SduAckCard targetSourceId={targetSourceId} />
+                  {/* 스캔 탭이 쓰는 그 카드다 — 한 명부를 두 벌 그리지 않는다. */}
+                  <SduRecipientsCard targetSourceId={targetSourceId} />
+                </div>
+              </>
+            ) : (
+              <div className={opsStyles.cardsRow}>
+                <ApprovalHistoryCard targetSourceId={targetSourceId} isIdc={isIdc} />
+                {statusSlot}
+              </div>
+            ))}
+          {currentTab === '스캔' && (
+            <ScanTab
+              targetSourceId={targetSourceId}
+              detail={detail}
+              // 탭이 `detail` 에서 다시 세우지 않는다 — provider 는 SDU 대상에서도 'AWS'
+              // 라고 대답한다. 판정은 이 화면이 이미 내렸다.
+              isSdu={isSdu}
+              // This screen owns the modal the permission card's CTA opens. The
+              // register/edit contract is AWS-only, so no other provider gets it.
+              onEditRole={isAws ? (kind) => setModal({ type: 'edit', kind }) : undefined}
+              credentialReloadKey={savedRoleArns.scan}
+            />
+          )}
+          {currentTab === '연동 요청 정보' && <RequestTab targetSourceId={targetSourceId} detail={detail} />}
+          {currentTab === '확정 정보' && (
+            <ConfirmTab
+              targetSourceId={targetSourceId}
+              detail={detail}
+              processStatus={processStatus}
+              // 워크벤치의 세 축 중 「연동 요청 확인」은 SDU 에 없다 — 승인이 없어(§0)
+              // 요청이 만들어지지 않으므로. 판정은 여기서 내린 것을 그대로 받는다.
+              isSdu={isSdu}
+              onOpenInfra={() => selectTab('인프라 작업')}
+            />
+          )}
+          {currentTab === '인프라 작업' && (
+            <PipelineTab
+              targetSourceId={targetSourceId}
+              detail={detail}
+              processStatus={processStatus}
+              // 작업 시작 게이트의 마지막 갈래가 이 값으로 갈린다 — SDU 에는 확정 정보를
+              // 직접 넣는 경로가 없어 「확정 정보 탭에서 확정하면」이 참이 아니다.
+              isSdu={isSdu}
+              onSelectTab={selectTab}
+            />
+          )}
+          {currentTab === '연결 테스트' && (
+            <TcTab
+              targetSourceId={targetSourceId}
+              isIdc={isIdc}
+              latest={tcLatest}
+              results={tcResults}
+              statusLoaded={tcLoaded}
+              latestFailed={tcLatestFailed}
+              onStatusReload={reloadTc}
+            />
+          )}
+          {currentTab === '관리자 승인' && (
+            <ApprovalTab
+              targetSourceId={targetSourceId}
+              detail={detail}
+              // 조건 ① 이 무슨 사실을 읽는지가 이 값으로 갈린다 — SDU 담당자는 완료 승인
+              // 요청을 누르는 화면 자체를 걷지 않는다(계약 §0).
+              isSdu={isSdu}
+              status={tcStatus}
+              latest={tcLatest}
+              latestFailed={tcLatestFailed}
+              tcLoaded={tcLoaded}
+              statusFailed={tcStatusFailed}
+              results={tcResults}
+              dag={dag}
+              onDecided={retry}
+              onOpenTcTab={() => selectTab('연결 테스트')}
+              onOpenAirflowTab={() => selectTab('Airflow 확인')}
+            />
+          )}
+          {currentTab === 'Airflow 확인' && (
+            <AirflowTab targetSourceId={targetSourceId} isIdc={isIdc} dag={dag} />
+          )}
+          {currentTab === '연동 초기화' && (
+            // 초기화가 무엇을 버리는가는 대상 종류가 정한다(계약 §8).
+            <DangerTab targetSourceId={targetSourceId} isSdu={isSdu} onReset={retry} />
           )}
         </div>
       </div>

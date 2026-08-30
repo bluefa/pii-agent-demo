@@ -10,7 +10,7 @@
  * `latest_confirmed_at`(확정 시각) 하나라는 것. 확정 계약(`{ resource_infos }`)에는
  * 시각이 없어서 이 화면의 확정 시각은 그 응답에만 있다.
  */
-import { render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { RawTargetSourceDetail } from '@/app/lib/api/pipeline-target';
 import type { ConfirmedIntegrationResponse, TerraformStatusResponse } from '@/app/lib/api';
@@ -41,6 +41,15 @@ vi.mock('@/app/lib/api', async (importOriginal) => {
 import { ConfirmTab } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/ConfirmTab';
 
 const CSP: RawTargetSourceDetail = { cloud_provider: 'AWS' };
+/**
+ * SDU 대상. `cloud_provider` 는 여전히 'AWS' 다 — 계약이 SDU 를 말하는 자리는 둘이고
+ * (`metadata.is_sdu_type` · enum 의 `SDU`), 밑에 깔린 CSP 는 그대로 온다. 이 대상에는
+ * 확정 리소스 **쓰기 경로가 없어서**(`resolveWriteProvider`) pane 이 읽기 전용으로 선다.
+ */
+const SDU: RawTargetSourceDetail = {
+  cloud_provider: 'AWS',
+  metadata: { is_sdu_type: true },
+} as RawTargetSourceDetail;
 
 const confirmedRow = (index: number): ConfirmedIntegrationResponse['resource_infos'][number] => ({
   resource_id: `res-${index}`,
@@ -73,8 +82,17 @@ const terraformStatus = (): TerraformStatusResponse => ({
   ],
 });
 
-const mount = () =>
-  render(<ConfirmTab targetSourceId={1642} detail={CSP} processStatus="CONNECTED" onOpenInfra={vi.fn()} />);
+/** 기본은 **SDU 가 아닌** 대상이다 — 이 파일의 밴드 단언이 서는 유일한 조건이다. */
+const mount = (isSdu = false, processStatus: 'CONNECTED' | 'CONFIRMING' = 'CONNECTED') =>
+  render(
+    <ConfirmTab
+      targetSourceId={1642}
+      detail={isSdu ? SDU : CSP}
+      processStatus={processStatus}
+      isSdu={isSdu}
+      onOpenInfra={vi.fn()}
+    />,
+  );
 
 describe('ConfirmTab 밴드', () => {
   beforeEach(() => {
@@ -144,5 +162,134 @@ describe('ConfirmTab 밴드', () => {
     mount();
 
     expect(await screen.findByText('일부 정보를 불러오지 못했습니다.')).toBeTruthy();
+  });
+});
+
+/**
+ * SDU 에는 밴드가 없다.
+ *
+ * 승인 단계가 없어(계약 §0, 제출이 곧 1 → 4) 요청이 만들어지지 않으므로 그 축은 비어 있는
+ * 것이 아니라 **존재하지 않는다**. 남는 한 축을 위해 밴드를 세우면 누를 때마다 이미 보고
+ * 있는 것을 다시 고르는 tablist 가 되고, 그것은 열리지 않는 버튼과 같은 결함이다. pane 이
+ * 제 머리(제목 · 건수 · 시각)를 이미 가지고 있어 잃는 사실도 없다.
+ *
+ * 축을 거두는 일은 조회를 건너뛰는 일이기도 해서 두 파생값이 함께 걸린다: `booting` 이
+ * 요청 상태를 읽고(로딩으로 두면 탭이 영영 스켈레톤), 실패 배너도 그 상태를 읽는다
+ * (부르지 않은 조회는 실패가 아니다).
+ */
+describe('ConfirmTab — SDU 에는 밴드가 없다', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    getApprovalRequestLatest.mockResolvedValue(null);
+    getConfirmedIntegration.mockResolvedValue({
+      resource_infos: [confirmedRow(0), confirmedRow(1)],
+    });
+    getTerraformStatus.mockResolvedValue(terraformStatus());
+  });
+
+  it('밴드도 칸도 없고, pane 이 곧 탭 본문이다', async () => {
+    mount(true);
+
+    // pane 은 선다.
+    expect(await screen.findByText('확정 정보')).toBeTruthy();
+    // 밴드는 서지 않는다 — 한 칸짜리 tablist 도 만들지 않는다.
+    expect(screen.queryByRole('tablist', { name: '확정 정보 축' })).toBeNull();
+    expect(screen.queryByRole('tab')).toBeNull();
+    expect(screen.queryByText('연동 요청 확인 (1,2단계)')).toBeNull();
+    // 없는 축에 대해 사실을 말하지 않는다 — 「요청 없음」은 승인이 가능한 대상의 말이다.
+    expect(screen.queryByText('요청 없음')).toBeNull();
+  });
+
+  it('없는 축을 부르지 않는다', async () => {
+    mount(true);
+
+    await screen.findByText('확정 정보');
+    expect(getApprovalRequestLatest).not.toHaveBeenCalled();
+    expect(getConfirmedIntegration).toHaveBeenCalled();
+  });
+
+  it('부르지 않은 조회가 로딩으로도 실패로도 읽히지 않는다', async () => {
+    mount(true);
+
+    await waitFor(() => expect(screen.queryByText('불러오는 중')).toBeNull());
+    expect(screen.queryByText('일부 정보를 불러오지 못했습니다.')).toBeNull();
+  });
+
+  it('판정 문장이 승인을 입에 담지 않는다', async () => {
+    // 설치 전 · 확정 0건 — 판정이 요청 축을 읽는 유일한 갈래다(설치가 끝나면 다른 모든
+    // 입력을 이긴다).
+    getConfirmedIntegration.mockResolvedValue({ resource_infos: [] });
+    mount(true, 'CONFIRMING');
+
+    expect(await screen.findByText('확정 정보가 필요합니다')).toBeTruthy();
+    // 기본 문장(「승인된 리소스를 기준으로…」)도, 빈 pane 의 안내도 이 대상에서는 거짓이다.
+    expect(screen.queryByText(/승인된 리소스를 기준으로/)).toBeNull();
+    expect(screen.queryByText(/아직 승인 요청이 없습니다/)).toBeNull();
+  });
+
+  /**
+   * 밴드가 나르던 사실 하나가 pane 으로 옮겨 왔다. 확정은 읽혔는데 `latest_confirmed_at`
+   * 만 없는 상태를 pane 머리가 그냥 생략하면 「시각 없는 확정」과 구별되지 않는다 —
+   * `리소스 2건` 만 남은 프레임이 정확히 그 모양이다.
+   */
+  it('확정 시각만 못 읽었을 때 pane 이 그 자리에서 말한다', async () => {
+    getTerraformStatus.mockRejectedValue(new Error('boom'));
+    mount(true);
+
+    // 건수는 그대로 서고, 빈 날짜 자리가 왜 비었는지를 그 옆에서 말한다.
+    expect(await screen.findByText('리소스 2건 · 확정 시각 불러오지 못함')).toBeTruthy();
+    // 그리고 이 실패는 탭 전체의 배너를 올리지 않는다(잃는 것이 날짜 한 칸이다).
+    expect(screen.queryByText('일부 정보를 불러오지 못했습니다.')).toBeNull();
+  });
+
+  /**
+   * 스켈레톤은 정착 프레임의 컨테이너를 그대로 쓴다 — 그래서 **없는 머리도 그리면 안 된다.**
+   * 그리면 도착하는 순간 pane 이 밴드 높이만큼 위로 뛴다.
+   */
+  it('도착 전에도 밴드 자리를 잡아 두지 않는다', async () => {
+    // 영영 안 오는 응답 — `booting` 프레임을 붙잡아 둔다.
+    getConfirmedIntegration.mockReturnValue(new Promise(() => {}));
+    const { container } = mount(true);
+
+    expect(await screen.findByText('불러오는 중')).toBeTruthy();
+    // `styles.band` 의 트랙 클래스. 이 프레임에서 그것을 쓰는 것은 밴드뿐이다.
+    expect(container.querySelector('.grid-cols-2')).toBeNull();
+  });
+
+  /**
+   * 같은 인스턴스가 다른 대상을 받는 경로(라우트 파라미터만 바뀐다). 요청 칸을 고른 채로
+   * 축이 빠지면 고른 칸은 화면에 없고, 아무 pane 도 조건을 맞추지 못해 셸 안이 통째로 빈다.
+   */
+  it('요청 칸을 고른 채 SDU 로 바뀌어도 pane 은 선다', async () => {
+    const { rerender } = mount(false);
+
+    fireEvent.click(await screen.findByRole('tab', { name: /연동 요청 확인/ }));
+    // 이 describe 의 픽스처는 요청이 없는 대상이라 RequestPane 은 제 빈 상태로 선다 —
+    // 그 문장이 이 pane 이 화면에 있다는 표시다.
+    expect(await screen.findByText('승인 요청 이력이 없습니다.')).toBeTruthy();
+
+    rerender(
+      <ConfirmTab
+        targetSourceId={1642}
+        detail={SDU}
+        processStatus="CONNECTED"
+        isSdu
+        onOpenInfra={vi.fn()}
+      />,
+    );
+
+    expect(await screen.findByText('확정 정보')).toBeTruthy();
+    expect(screen.queryByRole('tablist', { name: '확정 정보 축' })).toBeNull();
+    expect(screen.queryByText('승인 요청 이력이 없습니다.')).toBeNull();
+  });
+
+  it('밴드가 서는 대상에서는 pane 이 그 말을 되풀이하지 않는다', async () => {
+    // 그 대상에서는 확정 칸이 이미 말한다 — pane 이 또 적으면 같은 사실이 두 벌이 된다.
+    getTerraformStatus.mockRejectedValue(new Error('boom'));
+    mount(false);
+
+    const band = await screen.findByRole('tablist', { name: '확정 정보 축' });
+    expect(within(band).getByText(/확정 시각 불러오지 못함/)).toBeTruthy();
+    expect(screen.getAllByText(/확정 시각 불러오지 못함/)).toHaveLength(1);
   });
 });

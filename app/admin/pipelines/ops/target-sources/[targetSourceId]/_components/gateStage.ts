@@ -31,12 +31,24 @@ export type GateAction =
 export interface GateStage {
   /** One sentence: what is happening, and what opens 작업 시작. */
   sentence: string;
-  action: GateAction;
+  /**
+   * The move, when there is one to offer. Absent on SDU's 확정 대기: 확정 정보 탭은
+   * 그 대상에서 읽기 전용이라(계약에 쓰기 path 가 없다) 보내 봐야 누를 것이 없고,
+   * 누를 것이 없는 곳으로 보내는 버튼은 버튼이 없는 것보다 나쁘다.
+   */
+  action?: GateAction;
 }
 
 export function gateStage(
   processStatus: ProcessStatus | null,
   targetSourceId: number | string,
+  /**
+   * SDU 대상인가 — 부르는 쪽이 판정해 내려준다. 마지막 갈래의 **문장이 바뀐다**: 다른
+   * 대상에서는 관리자가 확정 정보 탭에서 직접 확정할 수 있어 그 지시가 참이지만, SDU 에는
+   * 그 쓰기 경로가 없다. 그래서 지시 대신 **무엇을 기다리는지**만 말한다. 기다림의 주체가
+   * 누구인지는 적지 않는다 — 계약이 SDU 의 확정 정보를 아직 정의하지 않았다(§9.2).
+   */
+  isSdu: boolean,
 ): GateStage {
   switch (processStatus) {
     case 'IDLE':
@@ -58,13 +70,15 @@ export function gateStage(
         },
       };
     default:
-      return {
-        sentence: '아직 확정된 연동 정보가 없습니다. 확정 정보 탭에서 확정하면 작업 시작이 열립니다.',
-        action: {
-          kind: 'tab',
-          tab: OPS_TAB_SLUGS.confirm,
-          label: `${OPS_TAB_SLUGS.confirm} 탭으로`,
-        },
-      };
+      return isSdu
+        ? { sentence: '아직 확정된 연동 정보가 없습니다. 확정되면 여기서 작업 시작이 열립니다.' }
+        : {
+            sentence: '아직 확정된 연동 정보가 없습니다. 확정 정보 탭에서 확정하면 작업 시작이 열립니다.',
+            action: {
+              kind: 'tab',
+              tab: OPS_TAB_SLUGS.confirm,
+              label: `${OPS_TAB_SLUGS.confirm} 탭으로`,
+            },
+          };
   }
 }

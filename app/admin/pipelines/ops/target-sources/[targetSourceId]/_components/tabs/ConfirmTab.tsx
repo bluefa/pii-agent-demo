@@ -35,6 +35,17 @@
  * 크기가 아니다. 그래도 침묵하지는 않는다: 확정 칸 부제가 그 자리에서
  * `확정 시각 불러오지 못함` 이라고 말한다(빈 슬롯이 왜 비었는지는 말해야 한다).
  *
+ * **SDU 에는 밴드가 없다.** 승인 단계가 없어(계약 §0, 제출이 곧 1 → 4) 요청이 만들어지지
+ * 않으므로 그 축은 비어 있는 것이 아니라 **존재하지 않고**, 남는 한 축을 위해 밴드를
+ * 세우면 누를 때마다 이미 보고 있는 것을 다시 고르는 tablist 가 된다. 그래서 SDU 에서는
+ * `ConfirmPane` 이 곧 탭 본문이다 — pane 이 제 머리(「확정 정보」 + 건수·시각)를 이미
+ * 가지고 있어, 한 칸짜리 밴드는 같은 사실을 두 번 적는 일이기도 하다.
+ *
+ * 밴드가 사라지면서 그 칸이 나르던 사실 하나가 갈 곳을 잃는다: 확정은 읽혔는데
+ * `latest_confirmed_at` 만 없는 상태(`확정 시각 불러오지 못함`). pane 의 머리는 시각이
+ * 없으면 그냥 생략하므로 「시각 없는 확정」과 구별되지 않는다 — 그래서 그 문구를 pane 으로
+ * 들고 갔다(`confirmedAtFailed`). SDU 에서만 내려간다: 다른 대상에서는 밴드가 이미 말한다.
+ *
  * 쓰기 경로는 조회와 이름이 다르다: 확정 정보의 등록·삭제는 `confirmed-integration`
  * 이 아니라 CSP 별 `…/{aws|gcp|azure|idc}-resources` 의 POST·DELETE 다(swagger
  * `create/delete{Csp}ConfirmedResource`). SDU 에는 그 path 가 없어 액션이 내려가지 않는다.
@@ -72,6 +83,13 @@ import { ConfirmEditorModal } from '@/app/admin/pipelines/ops/target-sources/[ta
 
 /** `data: null` = 스냅샷이 아직 없다(404). 실패가 아니다. */
 type Load<T> = { state: 'loading' } | { state: 'ready'; data: T | null } | { state: 'failed' };
+
+/**
+ * 요청 축의 상태. `absent` 는 조회의 결과가 아니라 **축의 부재**다 — 부르지 않았고, 부를
+ * 것도 없다. 로딩으로 두면 `booting` 이 끝나지 않아 탭이 영영 스켈레톤이고, 실패로 두면
+ * 없는 것을 못 불러왔다고 말한다. 가짜 ready 데이터로 덮는 것도 같은 거짓말이다.
+ */
+type RequestLoad = Load<ApprovalRequestDetail> | { state: 'absent' };
 
 type CellKey = 'request' | 'confirm';
 /** 초록 = 단계 끝남 · 회색 = 아직 · 빨강 = API 가 실패라고 말한 것. 경고색은 없다. */
@@ -188,6 +206,12 @@ export interface ConfirmTabProps {
   detail: RawTargetSourceDetail;
   /** 판정 문장의 두 입력 중 하나 (다른 하나는 "확정 데이터가 있는가"). */
   processStatus: ProcessStatus | null;
+  /**
+   * 요청 축이 있는가. 화면이 이미 내린 판정을 받는다 — 탭이 `detail` 에서 다시 세우면
+   * 안 된다: `normalizeCloudProvider('SDU')` 는 'AWS' 라, provider 비교로는 SDU 가
+   * 잡히지 않는다.
+   */
+  isSdu: boolean;
   /** 확정 편집 모달이 Terraform 게이트에 걸렸을 때의 유일한 출구 — 실행은 인프라 작업 탭이 소유한다. */
   onOpenInfra: () => void;
 }
@@ -196,9 +220,10 @@ export function ConfirmTab({
   targetSourceId,
   detail,
   processStatus,
+  isSdu,
   onOpenInfra,
 }: ConfirmTabProps): ReactElement {
-  const [request, setRequest] = useState<Load<ApprovalRequestDetail>>({ state: 'loading' });
+  const [fetched, setFetched] = useState<Load<ApprovalRequestDetail>>({ state: 'loading' });
   const [confirmed, setConfirmed] = useState<Load<ConfirmedIntegrationResponse>>({ state: 'loading' });
   const [terraform, setTerraform] = useState<Load<TerraformStatusResponse>>({ state: 'loading' });
   // 기본 선택은 주제(확정 정보), 칸의 순서는 생성 흐름. 비활성 칸은 두지 않는다.
@@ -212,17 +237,23 @@ export function ConfirmTab({
     const controller = new AbortController();
     const alive = (): boolean => !controller.signal.aborted;
 
-    void (async () => {
-      setRequest({ state: 'loading' });
-      try {
-        const loaded = await getApprovalRequestLatest(targetSourceId, { signal: controller.signal });
-        if (alive()) setRequest({ state: 'ready', data: loaded });
-      } catch (error) {
-        if (!alive()) return;
-        const absent = error instanceof AppError && error.code === 'NOT_FOUND';
-        setRequest(absent ? { state: 'ready', data: null } : { state: 'failed' });
-      }
-    })();
+    // 없는 축은 부르지 않는다 — 그리지 않을 답을 받자고 요청을 보낼 이유가 없고, 404 를
+    // 실패로 그릴 위험만 남는다.
+    if (!isSdu) {
+      void (async () => {
+        setFetched({ state: 'loading' });
+        try {
+          const loaded = await getApprovalRequestLatest(targetSourceId, {
+            signal: controller.signal,
+          });
+          if (alive()) setFetched({ state: 'ready', data: loaded });
+        } catch (error) {
+          if (!alive()) return;
+          const absent = error instanceof AppError && error.code === 'NOT_FOUND';
+          setFetched(absent ? { state: 'ready', data: null } : { state: 'failed' });
+        }
+      })();
+    }
 
     void (async () => {
       setConfirmed({ state: 'loading' });
@@ -249,7 +280,14 @@ export function ConfirmTab({
     })();
 
     return () => controller.abort();
-  }, [targetSourceId, reloadKey]);
+  }, [targetSourceId, reloadKey, isSdu]);
+
+  /**
+   * 요청 축의 상태. 축이 없는 대상에서는 조회 상태를 **읽지 않는다** — 부르지 않았으므로
+   * 그 값(`loading` 초기값)은 이 대상에 대해 아무 뜻도 없다. 파생값이라 효과 안에서 상태를
+   * 되돌릴 일도 없고, 첫 렌더부터 밴드가 없다.
+   */
+  const request: RequestLoad = isSdu ? { state: 'absent' } : fetched;
 
   // 세 로드 중 하나라도 도는 동안은 스켈레톤이다 — 로딩 중의 확정 0건이 "미등록" 판정과
   // 빈 pane 으로 그려지는 거짓 프레임을 막는다. 진입·재시도·대상 전환 모두 loading 을
@@ -271,6 +309,9 @@ export function ConfirmTab({
             (gray-100)가 아니라 바닥용 `skeletonWash` 가 진다. */}
         <div className={cn(opsStyles.skeletonWash, 'ml-[18px] mt-1 h-[21px] w-[430px] max-w-[76ch]')} />
         <div className={styles.shell}>
+          {/* 밴드가 없는 대상에서는 그 자리도 비워 둔다 — 스켈레톤이 정착 프레임에 없는
+              머리를 그리면 도착하는 순간 pane 이 통째로 위로 뛴다. */}
+          {!isSdu && (
           <div className={cn(styles.band, 'pointer-events-none')}>
             {(['request', 'confirm'] as const).map((key, index) => (
               <div key={key} className={styles.cell}>
@@ -291,6 +332,7 @@ export function ConfirmTab({
               </div>
             ))}
           </div>
+          )}
           <div className="px-[22px] pb-6 pt-5">
             <div className="flex items-center justify-between">
               <span className={cn(opsStyles.skeletonBar, 'h-[22px] w-[150px]')} />
@@ -326,7 +368,11 @@ export function ConfirmTab({
   const requestSpec = requestStatus != null ? REQUEST_STATUS[requestStatus] : undefined;
   const selectedCount = requestData?.resources.filter((row) => row.selected).length ?? 0;
 
-  const requestFacet: RequestFacet = requestFacetOf({
+  // 축이 없으면 요청에 대한 사실도 없다 — `unknown`(아직 모름)도 `none`(요청이 없음)도
+  // 이 대상에서는 참이 아니라, 판정 문장이 승인 얘기를 꺼내지 않게 만드는 제 값이 있다.
+  const requestFacet: RequestFacet = request.state === 'absent'
+    ? { kind: 'absent' }
+    : requestFacetOf({
     loaded: request.state === 'ready',
     present: requestData != null,
     status: requestStatus,
@@ -424,6 +470,10 @@ export function ConfirmTab({
       )}
 
       <div className={styles.shell}>
+        {/* 축이 하나뿐인 대상에는 밴드를 세우지 않는다 — 누를 때마다 이미 보고 있는 것을
+            다시 고르는 tablist 는 열리지 않는 버튼과 같은 결함이고, pane 이 제 머리로
+            같은 두 사실(제목 · 건수와 시각)을 이미 말한다. */}
+        {!isSdu && (
         <div className={styles.band} role="tablist" aria-label="확정 정보 축">
           {cells.map((item) => {
             const active = item.key === cell;
@@ -450,8 +500,9 @@ export function ConfirmTab({
             );
           })}
         </div>
+        )}
 
-        {cell === 'request' && (
+        {!isSdu && cell === 'request' && (
           <RequestPane
             detail={requestData}
             wire={requestData?.wire ?? null}
@@ -459,11 +510,16 @@ export function ConfirmTab({
             targetSourceId={targetSourceId}
           />
         )}
-        {cell === 'confirm' && (
+        {/* 밴드가 없으면 고를 것도 없다 — pane 이 곧 탭 본문이다. */}
+        {(isSdu || cell === 'confirm') && (
           <ConfirmPane
             wire={confirmedWire}
             confirmedAt={confirmedAt}
             isIdc={isIdc}
+            hasApproval={request.state !== 'absent'}
+            // 밴드의 확정 칸이 나르던 문구를 pane 이 대신 진다 — **밴드가 없는 대상에서만**.
+            // 다른 대상에서는 그 칸이 이미 말하므로 여기서 또 적으면 같은 사실이 두 벌이 된다.
+            confirmedAtFailed={isSdu && terraform.state === 'failed'}
             onEdit={writeProvider ? editorModal.open : undefined}
           />
         )}

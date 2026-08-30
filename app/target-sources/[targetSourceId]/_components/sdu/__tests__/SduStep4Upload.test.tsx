@@ -74,6 +74,7 @@ const upload = (over: Partial<SduUpload> = {}): SduUpload => ({
     // 1100's shape: the owner is on the firewall block, with no answer yet.
     acked: false,
     ackedAt: null,
+    ackedBy: null,
   },
   accessKeyRecipients: { users: RECIPIENTS, updatedAt: '2026-08-24T07:41:00Z' },
   commands: {
@@ -83,6 +84,7 @@ const upload = (over: Partial<SduUpload> = {}): SduUpload => ({
     ],
     acked: false,
     ackedAt: null,
+    ackedBy: null,
   },
   bdc: { status: 'NOT_STARTED', checkedAt: '2026-08-24T07:50:00Z', completedAt: null },
   invalidation: { addedRegions: [], uploadIpChanged: false },

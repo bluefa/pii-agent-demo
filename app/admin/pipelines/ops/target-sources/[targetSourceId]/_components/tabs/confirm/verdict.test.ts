@@ -121,6 +121,20 @@ describe('deriveConfirmVerdict — 문구 전수표의 아홉 행', () => {
     expect(verdict.sub).toBe('승인된 리소스를 기준으로 확정 정보가 등록됩니다.');
   });
 
+  it('요청 축이 없는 대상에서는 승인을 입에 담지 않는다', () => {
+    // 모름(`unknown`)도 없음(`none`)도 아니다 — SDU 에는 승인 단계가 없어서(계약 §0)
+    // 기준이 될 승인이 생길 수 없다. 두 어휘 중 어느 쪽을 써도 없는 것을 기다리게 만든다.
+    const verdict = deriveConfirmVerdict({
+      installed: false,
+      confirmedCount: 0,
+      request: { kind: 'absent' },
+    });
+    expect(verdict.dot).toBe('idle');
+    expect(verdict.head).toBe('확정 정보가 필요합니다');
+    expect(verdict.sub).toBe('설치(Terraform)는 확정 정보를 기준으로 진행됩니다.');
+    expect(verdict.sub).not.toContain('승인');
+  });
+
   it('요청을 아직 모르면 "요청 없음"이라고 말하지 않는다', () => {
     const verdict = deriveConfirmVerdict({
       installed: false,

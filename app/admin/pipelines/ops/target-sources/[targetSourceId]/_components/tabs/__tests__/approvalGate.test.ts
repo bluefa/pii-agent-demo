@@ -2,15 +2,19 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { describe, it, expect } from 'vitest';
 import {
+  TC_COMPLETED,
+  TC_REJECTED,
   aggregateDagStatus,
   classifyDb,
   foldApprovalHead,
   monitoringEvidenceHead,
+  sduHandoffGate,
   showsHandoffCaption,
   tcRunGate,
   type DagFetch,
 } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/approvalGate';
 import type { DagDatabaseStatus, DagStatusResponse } from '@/lib/types/dag-status';
+import type { SduUpload } from '@/lib/types/sdu';
 
 const day = (status: string, successTime: string | null = null) => ({
   day: '2026-08-19',
@@ -347,5 +351,155 @@ describe('aggregateDagStatus', () => {
       noSuccess: 2,
     });
     expect(agg.succeeded + agg.failed + agg.running + agg.unscheduled + agg.other).toBe(agg.dbTotal);
+  });
+});
+
+/**
+ * SDU 의 승인 조건 ① — 계약 §9.1 이 정한 대체.
+ *
+ * 다른 대상에서 ① 은 담당자가 5단계에서 누른 완료 승인 요청이다. SDU 담당자는 그 화면을
+ * 걷지 않으므로(스캔도 승인 요청도 없는 흐름), `TC_COMPLETED` 를 기다리면 SDU 대상은
+ * 영원히 6단계에 선 채 설치 완료 처리 CTA 가 열리지 않는다 — 기능적 막다른 길이다.
+ */
+const upload = (over: Partial<SduUpload> = {}): SduUpload => ({
+  submittedAt: '2026-08-24T05:41:00Z',
+  regions: ['us'],
+  firewall: { rows: [], acked: true, ackedAt: '2026-08-25T10:40:00Z', ackedBy: null },
+  accessKeyRecipients: {
+    users: [{ id: 'user-1', name: '홍길동', email: 'hong@company.com' }],
+    updatedAt: '2026-08-24T07:41:00Z',
+  },
+  commands: { rows: [], acked: true, ackedAt: '2026-08-25T11:00:00Z', ackedBy: null },
+  bdc: { status: 'COMPLETED', checkedAt: '2026-08-24T07:50:00Z', completedAt: '2026-08-25T12:00:00Z' },
+  invalidation: { addedRegions: [], uploadIpChanged: false },
+  ...over,
+});
+
+describe('sduHandoffGate — 조건 ① 은 §5 의 현재 상태 셋이다', () => {
+  it('방화벽 · 업로드 · 수신자가 모두 서면 충족', () => {
+    expect(sduHandoffGate(upload(), false)).toBe('met');
+  });
+
+  it('셋 중 하나라도 빠지면 미충족', () => {
+    expect(
+      sduHandoffGate(upload({ firewall: { rows: [], acked: false, ackedAt: null, ackedBy: null } }), false),
+    ).toBe('unmet');
+    expect(
+      sduHandoffGate(upload({ commands: { rows: [], acked: false, ackedAt: null, ackedBy: null } }), false),
+    ).toBe('unmet');
+    expect(
+      sduHandoffGate(upload({ accessKeyRecipients: { users: [], updatedAt: null } }), false),
+    ).toBe('unmet');
+  });
+
+  it('저장된 「아니오」도 미충족이다 — 미답과 판정은 같고 낱말만 다르다', () => {
+    const no = upload({
+      firewall: { rows: [], acked: false, ackedAt: '2026-08-25T10:40:00Z', ackedBy: null },
+    });
+    expect(sduHandoffGate(no, false)).toBe('unmet');
+  });
+
+  it('조회 실패는 미충족이 아니라 모름이다', () => {
+    expect(sduHandoffGate(null, true)).toBe('failed');
+    // 도착 전의 null 도 미충족이 아니다 — 한 프레임 동안 거짓을 단정하지 않는다.
+    expect(sduHandoffGate(null, false)).toBe('loading');
+  });
+});
+
+/**
+ * 도착 전에는 **아무 조건도 판정하지 않는다.**
+ *
+ * TC 세 응답은 한 번에 오므로 `run === 'loading'` 이면 `tcStatus` 도 아직 null 이다. 그
+ * 상태에서 조건 ① 을 먼저 읽으면 「완료 승인 대기」(`unmet: true`, 경고 아이콘)가 나오는데,
+ * 그것은 "아직 안 왔다"가 아니라 "충족되지 않았다"는 단정이라 데이터가 도착하기 전 한
+ * 프레임 동안 거짓 미충족이 번쩍인다.
+ *
+ * 그래서 로딩 가드는 조건 ① 보다 **위에** 서야 한다. 순서가 곧 규칙이라 순서를 재는
+ * 단언이 없으면 아무도 그것을 지키지 않는다 — 두 갈래(tcStatus · handoff)가 각각
+ * 로딩을 이겨야 하므로 케이스도 둘이다.
+ */
+describe('foldApprovalHead — 로딩은 조건 ① 보다 먼저 답한다', () => {
+  const healthy: DagFetch = {
+    phase: 'loaded',
+    data: response('HEALTHY'),
+    fetchedAt: '2026-08-25T12:00:00Z',
+  };
+
+  it('tcStatus 가 미요청인 채 로딩이면 「결과 확인 중」이지 「완료 승인 대기」가 아니다', () => {
+    const head = foldApprovalHead(null, false, 'loading', healthy);
+    expect(head.pill).toEqual({ tone: 'off', label: '결과 확인 중' });
+    // 모름은 미충족이 아니다 — 경고 아이콘이 이 값을 보고 선다.
+    expect(head.unmet).toBe(false);
+    expect(head.canApprove).toBe(false);
+  });
+
+  it('status 조회 실패까지 겹쳐도 로딩이 이긴다', () => {
+    // `statusFailed` 분기도 조건 ① 안에 있다 — 가드가 아래로 내려가면 이쪽이 먼저 걸려
+    // 「확인 실패」가 뜬다. 아직 오지 않은 것을 실패라고 부르는 셈이다.
+    const head = foldApprovalHead(null, true, 'loading', healthy);
+    expect(head.pill.label).toBe('결과 확인 중');
+    expect(head.unmet).toBe(false);
+  });
+
+  it('SDU 도 같다 — 로딩은 판정이 끝난 handoff 도 이긴다', () => {
+    const head = foldApprovalHead(null, false, 'loading', healthy, 'unmet');
+    expect(head.pill).toEqual({ tone: 'off', label: '결과 확인 중' });
+    expect(head.unmet).toBe(false);
+  });
+});
+
+describe('foldApprovalHead — SDU 조건 ①', () => {
+  const healthy: DagFetch = {
+    phase: 'loaded',
+    data: response('HEALTHY'),
+    fetchedAt: '2026-08-25T12:00:00Z',
+  };
+
+  it('완료 승인 요청이 영원히 오지 않아도 CTA 가 열린다', () => {
+    // 이것이 이 fix 의 요점이다 — tcStatus 는 null 인 채로 세 조건이 충족된다.
+    const head = foldApprovalHead(null, false, 'success', healthy, 'met');
+    expect(head.canApprove).toBe(true);
+    expect(head.unmet).toBe(false);
+  });
+
+  it('담당자 확인이 덜 찼으면 잠기고, 미충족이라고 말한다', () => {
+    const head = foldApprovalHead(null, false, 'success', healthy, 'unmet');
+    expect(head.canApprove).toBe(false);
+    expect(head.unmet).toBe(true);
+    expect(head.pill.label).toBe('담당자 확인 대기');
+  });
+
+  it('§5 조회 실패는 「모름」이다 — unmet 을 세우지 않는다', () => {
+    const head = foldApprovalHead(null, false, 'success', healthy, 'failed');
+    expect(head.canApprove).toBe(false);
+    expect(head.unmet).toBe(false);
+  });
+
+  it('조건 ②·③ 은 그대로 잠근다 — ① 만 갈아 끼운 것이다', () => {
+    expect(foldApprovalHead(null, false, 'failed', healthy, 'met').canApprove).toBe(false);
+    expect(
+      foldApprovalHead(null, false, 'success', { phase: 'failed' }, 'met').canApprove,
+    ).toBe(false);
+  });
+
+  /**
+   * 회귀 — SDU 아닌 대상의 판정은 한 글자도 달라지지 않는다. `handoff` 를 넘기지 않는
+   * 호출은 예전 사슬 그대로 돈다.
+   */
+  it('handoff 를 넘기지 않으면 tcStatus 사슬이 예전 그대로다', () => {
+    const notRequested = foldApprovalHead(null, false, 'success', healthy);
+    expect(notRequested.canApprove).toBe(false);
+    expect(notRequested.pill).toEqual({ tone: 'off', label: '완료 승인 대기' });
+
+    const completed = foldApprovalHead(TC_COMPLETED, false, 'success', healthy);
+    expect(completed.canApprove).toBe(true);
+
+    const rejected = foldApprovalHead(TC_REJECTED, false, 'success', healthy);
+    expect(rejected.pill).toEqual({ tone: 'warn', label: '재실행 요청됨' });
+    expect(rejected.unmet).toBe(true);
+
+    const failed = foldApprovalHead(null, true, 'success', healthy);
+    expect(failed.pill).toEqual({ tone: 'err', label: '확인 실패' });
+    expect(failed.unmet).toBe(false);
   });
 });

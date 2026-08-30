@@ -1,5 +1,6 @@
 import {
   SDU_REGION_LABEL,
+  sduAckAnswer,
   type SduInvalidation,
   type SduRecipient,
   type SduRegion,
@@ -93,12 +94,10 @@ export const invalidationLines = (invalidation: SduInvalidation): string[] => {
 };
 
 /**
- * 그 블록의 답. 서버가 지고 있는 값 하나로만 읽는다 — `acked` 는 예/아니오를, `ackedAt` 은
- * **답이 있었는지**를 말한다. 둘을 합치지 않으면 저장된 「아니오」가 새로고침 뒤 미답으로
- * 보이고, 담당자는 자기가 답한 적 없다고 읽는다. 무효화는 도장까지 지우므로 그때는 null 이
- * 맞다.
+ * 그 블록의 답 — 판정은 `sduAckAnswer` 하나뿐이다(`@/lib/types/sdu`, 계약 §5).
+ *
+ * 이 이름은 이 화면의 호출부들이 부르던 것이라 그대로 두고, 규칙만 공유본을 가리킨다.
+ * 규칙이 여기 한 벌 더 있으면 관리자 쪽(승인 조건 ①·「담당자 입력 정보」)과 갈라지고,
+ * 갈라지는 지점이 정확히 §5 가 막으려는 버그다.
  */
-export const answerOf = (block: { acked: boolean; ackedAt: string | null }): boolean | null => {
-  if (block.acked) return true;
-  return block.ackedAt === null ? null : false;
-};
+export const answerOf = sduAckAnswer;

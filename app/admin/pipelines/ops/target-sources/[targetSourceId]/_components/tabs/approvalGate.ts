@@ -11,6 +11,7 @@
  * 탭이 가진다. 여기서 나오는 것은 판정과 그 판정을 만든 근거로 가는 길뿐이다.
  */
 import type { DagDatabaseStatus, DagStatusResponse } from '@/lib/types/dag-status';
+import { sduAckAnswer, type SduUpload } from '@/lib/types/sdu';
 import type { TcExecutionStatus } from '@/app/lib/api/task-queue-tc';
 import type { TcTone } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/bits';
 
@@ -72,6 +73,42 @@ export function tcRunGate(run: TcExecutionStatus, hasLatest: boolean, latestFail
   }
 }
 
+/**
+ * 승인 조건 ① 의 **SDU 판정**.
+ *
+ * 다른 대상에서 이 조건은 담당자가 5단계에서 누른 완료 승인 요청(`TC_COMPLETED`)이다.
+ * SDU 담당자는 그 버튼을 누르는 화면 자체를 걷지 않는다 — 스캔도 승인 요청도 없는 흐름이라
+ * (`SduStep1Define` 의 주석), `TC_COMPLETED` 를 기다리면 SDU 대상은 영원히 6단계에 선 채
+ * 설치 완료 처리 CTA 가 열리지 않는다.
+ *
+ * 계약이 그 대체를 이미 정했다 — §9.1: 「승인 조건 ①이 실제로 읽는 것은 **현재 상태**다 —
+ * 방화벽 확인 · 업로드 확인 · 수신자 수. 셋 다 §5 가 이미 준다.」 그래서 셋이 조건이다.
+ *
+ * 조건 ②·③ 은 손대지 않는다. SDU 도 ProcessStatus 5 에 도착하고(§8) 진짜 연결 테스트를
+ * 돌리므로 그 둘은 다른 대상과 같은 사실을 읽는다.
+ *
+ * 「아니오」와 「미답」을 여기서 다시 가르지 않는다 — 판정은 `sduAckAnswer` 하나다(§5).
+ * 어느 쪽이든 조건은 미충족이지만, 근거 행이 그 둘을 같은 낱말로 말하면 안 되기 때문에
+ * 그 규칙이 한 곳에 있어야 한다.
+ */
+export type SduHandoffGate =
+  /** §5 응답이 아직 안 왔다 — 미충족이라고 단정하기 전의 자리. */
+  | 'loading'
+  /** 조회가 거절됐다. 모름이지 미충족이 아니다 (`statusFailed` 와 같은 갈래). */
+  | 'failed'
+  | 'met'
+  | 'unmet';
+
+export function sduHandoffGate(upload: SduUpload | null, failed: boolean): SduHandoffGate {
+  if (failed) return 'failed';
+  if (!upload) return 'loading';
+  const met =
+    sduAckAnswer(upload.firewall) === true
+    && sduAckAnswer(upload.commands) === true
+    && upload.accessKeyRecipients.users.length > 0;
+  return met ? 'met' : 'unmet';
+}
+
 export interface ApprovalHead {
   pill: { tone: TcTone; label: string };
   desc: string;
@@ -98,24 +135,16 @@ export interface ApprovalHead {
  */
 const UNMET = '승인 조건이 충족되지 않았습니다.';
 
-export function foldApprovalHead(
+/**
+ * 조건 ① — 담당자의 완료 승인 요청. **SDU 가 아닌 모든 대상**의 판정이고, 문장도 판정도
+ * 예전 `foldApprovalHead` 안에 있던 것 그대로다(옮기기만 했다).
+ *
+ * 충족이면 null — 머리는 조건 ② 로 넘어간다.
+ */
+function tcGate1Head(
   tcStatus: string | null | undefined,
-  /** status 조회가 404 아닌 이유로 거절됐는가 — 조회 실패를 '미요청'으로 읽지 않기 위해. */
   statusFailed: boolean,
-  run: TcRunGate,
-  dag: DagFetch,
-): ApprovalHead {
-  // 'loading' 은 최신 실행만 모르는 상태가 아니다 — TC 세 응답이 한 번에 오므로
-  // tcStatus 도 아직 모른다. tcStatus 를 읽는 분기보다 먼저 답해야 "완료 승인 대기"
-  // 같은 사실을 도착 전에 단정하지 않는다.
-  if (run === 'loading') {
-    return {
-      pill: { tone: 'off', label: '결과 확인 중' },
-      desc: '연결 테스트 결과를 확인하고 있어요.',
-      canApprove: false,
-      unmet: false,
-    };
-  }
+): ApprovalHead | null {
   if (statusFailed) {
     return {
       pill: { tone: 'err', label: '확인 실패' },
@@ -143,6 +172,70 @@ export function foldApprovalHead(
       unmet: true,
     };
   }
+  return null;
+}
+
+/**
+ * 조건 ① 의 SDU 판정 — 담당자가 5단계 승인 요청을 누르는 대신 2단계 확인 셋을 채운다
+ * (`sduHandoffGate`). `tcStatus` 는 이 대상에서 아무것도 말하지 못하므로 읽지 않는다.
+ */
+function sduGate1Head(handoff: SduHandoffGate): ApprovalHead | null {
+  switch (handoff) {
+    case 'loading':
+      return {
+        pill: { tone: 'off', label: '결과 확인 중' },
+        desc: '담당자 확인 내역을 확인하고 있어요.',
+        canApprove: false,
+        unmet: false,
+      };
+    case 'failed':
+      // 모름이지 미충족이 아니다 — `statusFailed` 와 같은 갈래.
+      return {
+        pill: { tone: 'err', label: '확인 실패' },
+        desc: '담당자 확인 내역을 확인하지 못했어요.',
+        canApprove: false,
+        unmet: false,
+      };
+    case 'unmet':
+      return {
+        pill: { tone: 'off', label: '담당자 확인 대기' },
+        desc: UNMET,
+        canApprove: false,
+        unmet: true,
+      };
+    case 'met':
+      return null;
+  }
+}
+
+export function foldApprovalHead(
+  tcStatus: string | null | undefined,
+  /** status 조회가 404 아닌 이유로 거절됐는가 — 조회 실패를 '미요청'으로 읽지 않기 위해. */
+  statusFailed: boolean,
+  run: TcRunGate,
+  dag: DagFetch,
+  /**
+   * 조건 ① 을 **대신하는** 판정 — SDU 만 넘긴다(`sduHandoffGate`). 넘기지 않는 대상은
+   * 아래 `tcStatus` 사슬이 예전 그대로 돈다: 이 인자는 그 갈래에 손대지 않는다.
+   */
+  handoff?: SduHandoffGate,
+): ApprovalHead {
+  // 'loading' 은 최신 실행만 모르는 상태가 아니다 — TC 세 응답이 한 번에 오므로
+  // tcStatus 도 아직 모른다. tcStatus 를 읽는 분기보다 먼저 답해야 "완료 승인 대기"
+  // 같은 사실을 도착 전에 단정하지 않는다.
+  if (run === 'loading') {
+    return {
+      pill: { tone: 'off', label: '결과 확인 중' },
+      desc: '연결 테스트 결과를 확인하고 있어요.',
+      canApprove: false,
+      unmet: false,
+    };
+  }
+  // 조건 ① — 대상 종류가 이 조건이 **무슨 사실인지** 정한다. 막히면 여기서 끝나고,
+  // 충족이면 null 이 나와 아래 ②·③ 으로 넘어간다.
+  const gate1 = handoff !== undefined ? sduGate1Head(handoff) : tcGate1Head(tcStatus, statusFailed);
+  if (gate1) return gate1;
+
   // 조건 ② — 최신 실행이 성공이라고 말할 때만 다음 조건으로 넘어간다.
   switch (run) {
     case 'success':

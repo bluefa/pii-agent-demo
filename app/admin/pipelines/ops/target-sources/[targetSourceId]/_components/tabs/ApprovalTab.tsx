@@ -61,9 +61,14 @@ import {
   monitoringEvidenceHead,
   type CountSegment,
   showsHandoffCaption,
+  sduHandoffGate,
   tcRunGate,
   type DagFetch,
+  type SduHandoffGate,
 } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/approvalGate';
+import { useAbortableEffect } from '@/app/hooks/useAbortableEffect';
+import { getSduUpload } from '@/app/lib/api/sdu';
+import { sduAckAnswer, sduAckLabel, type SduUpload } from '@/lib/types/sdu';
 
 const n = (value: number): string => value.toLocaleString('ko-KR');
 
@@ -211,7 +216,7 @@ function GateCard({
         'flex h-full flex-col border',
         // 판정을 카드 둘레까지 끌고 나온다 (오너 2026-08-26). 아이콘 하나는 20px 이라
         // 세 카드를 훑을 때 눈이 먼저 세는 것은 획이다. 잉크는 알약이 쓰는 옅은 칸
-        // (#A6F4C5 / #FDA29B) 이라 면을 물들이지 않고 테두리에서 멎는다 — 미충족이
+        // (`--pl-ok-border` / `--pl-err-border`) 이라 면을 물들이지 않고 테두리에서 멎는다 — 미충족이
         // 정상 흐름의 대부분인 화면에서 진한 빨강은 매번 사고를 알리게 된다.
         // 오너 지시는 충족 vs 미충족을 가른 것이라, 모름(`warn`)과 조회 중은 어느 색도
         // 갖지 않고 중립 획으로 선다.
@@ -284,10 +289,55 @@ function GateCard({
   );
 }
 
+/**
+ * 승인 조건 ① 의 **SDU 근거 행** — 계약 §9 「①의 근거 행에 담당자 응답이 앉는다」.
+ *
+ * 세 줄이 그대로 조건이다(§9.1: 방화벽 확인 · 업로드 확인 · 수신자 수). 확인 두 줄은 답과
+ * 함께 **누가·언제**를 싣는다 — `acked_by` 가 계약에 있는 이유가 이 줄이다(§5, 「방화벽
+ * 확인 · 홍길동 · 08-25 10:40」).
+ *
+ * 「아니오」와 「미답」은 절대 같은 낱말로 서지 않는다 — 판정도 낱말도 공유본을 쓴다.
+ */
+function sduAckRow(
+  handoff: SduHandoffGate | undefined,
+  upload: SduUpload | null,
+): { state: GateRowState; facts: readonly GateFact[] } {
+  if (handoff === 'loading' || handoff === undefined) return { state: 'loading', facts: [] };
+  if (handoff === 'failed' || !upload)
+    // 모름 — 조회가 거절됐을 뿐 "담당자가 답하지 않았다"를 관측한 게 아니다.
+    return { state: 'warn', facts: [{ value: '담당자 확인 내역을 불러오지 못했습니다' }] };
+
+  const stamped = (block: { ackedBy: { name: string } | null; ackedAt: string | null }): string =>
+    [block.ackedBy?.name, block.ackedAt ? fmtDateTimeShort(block.ackedAt) : null]
+      .filter((part): part is string => part != null && part !== '')
+      .join(' · ');
+
+  const ackFact = (label: string, block: SduUpload['firewall'] | SduUpload['commands']): GateFact => {
+    const answer = sduAckAnswer(block);
+    const stamp = answer === null ? '' : stamped(block);
+    return { label, value: stamp ? `${sduAckLabel(answer)} · ${stamp}` : sduAckLabel(answer) };
+  };
+
+  const recipients = upload.accessKeyRecipients.users;
+  return {
+    state: handoff === 'met' ? 'ok' : 'pending',
+    facts: [
+      ackFact('방화벽 결재 확인', upload.firewall),
+      ackFact('데이터 업로드 확인', upload.commands),
+      { label: 'S3 Access Key 수신자', value: `${recipients.length}명` },
+    ],
+  };
+}
+
 export interface ApprovalTabProps {
   targetSourceId: number;
   detail: RawTargetSourceDetail;
-  /** Service acknowledgment row — gate ① (fetched by the page). */
+  /**
+   * SDU 대상인가 — 부르는 쪽이 판정해 내려준다(`isSduTarget`). 조건 ① 이 **무슨 사실을
+   * 읽는가**가 이 값으로 갈린다: SDU 는 담당자의 완료 승인 요청이 아니라 2단계 확인 셋이다.
+   */
+  isSdu: boolean;
+  /** Service acknowledgment row — gate ① (fetched by the page). SDU 에서는 읽히지 않는다. */
   status: TestConnectionStatusRow | null;
   /** 최신 실행 — 회차·상태·시각 + 리소스별 판정 (fetched by the page; 404 → null). */
   latest: TestConnectionVersionResult | null;
@@ -312,6 +362,7 @@ export interface ApprovalTabProps {
 export function ApprovalTab({
   targetSourceId,
   detail,
+  isSdu,
   status,
   latest,
   latestFailed,
@@ -386,7 +437,34 @@ export function ApprovalTab({
   // 도착 전에는 아무 사실도 말하지 않는다 — 로딩 중의 null 을 '이력 없음'으로 읽으면
   // 체크리스트가 한 프레임 동안 거짓을 단정한다.
   const gate = tcLoaded ? tcRunGate(run, latest !== null, latestFailed) : 'loading';
-  const head = foldApprovalHead(status?.status, statusFailed, gate, dag);
+
+  /**
+   * SDU 조건 ① 이 읽는 §5 한 벌. 이 탭이 열렸을 때만 마운트되므로 조회도 그때 한 번이다.
+   * SDU 가 아니면 아예 부르지 않는다 — 다른 대상에서 이 응답은 404 다.
+   */
+  const [upload, setUpload] = useState<SduUpload | null>(null);
+  const [uploadFailed, setUploadFailed] = useState(false);
+  useAbortableEffect(
+    (signal) => {
+      if (!isSdu) return;
+      setUploadFailed(false);
+      return getSduUpload(targetSourceId, { signal })
+        .then((loaded) => {
+          if (signal.aborted) return;
+          setUpload(loaded);
+        })
+        .catch(() => {
+          // 취소는 실패가 아니다. 조회 실패는 **미충족이 아니라 모름**이라, 게이트가
+          // 그것을 조건 미충족으로 접으면 안 된다 (`statusFailed` 와 같은 규칙).
+          if (signal.aborted) return;
+          setUploadFailed(true);
+        });
+    },
+    [isSdu, targetSourceId],
+  );
+
+  const handoff = isSdu ? sduHandoffGate(upload, uploadFailed) : undefined;
+  const head = foldApprovalHead(status?.status, statusFailed, gate, dag, handoff);
 
   // 승인 조건 ① — 도착 전 · 조회 실패 · 미요청 · 요청됨. 제목은 나머지 둘과 같은 요건문
   // 하나로 고정이라 이 fold 는 판정과 근거만 진다: 요청이 도착했다는 소식은 제목이 아니라
@@ -395,6 +473,7 @@ export function ApprovalTab({
     state: GateRowState;
     facts: readonly GateFact[];
   } => {
+    if (isSdu) return sduAckRow(handoff, upload);
     if (!tcLoaded) return { state: 'loading', facts: [] };
     if (statusFailed)
       // 모름 — 조회가 거절됐을 뿐 "요청이 없었다"는 사실을 관측한 게 아니다
@@ -440,12 +519,23 @@ export function ApprovalTab({
   } => {
     const prose = (line: string | null): readonly GateFact[] => (line ? [{ value: line }] : []);
     if (!tcLoaded) return { state: 'loading', facts: [] };
+    // §5 가 아직 안 왔다 — ① 의 입력이 도착하기 전이라 ③ 의 차례인지도 말할 수 없다.
+    if (handoff === 'loading') return { state: 'loading', facts: [] };
     // 모름 — §10 dag-status 는 읽는 사람이 생겼을 때만 가져오므로 이 상태에서는 헬스를
     // 아직 보지도 않았다. 미요청·기록 없음·진행 중이 `pending`(✗)을 입는 것은 그것들이
     // 관측된 사실이기 때문이다(요청이 없었다, 실행이 없었다). 이 줄은 DAG 에 대한 사실이
     // 아니라 우리가 아직 안 봤다는 말이라, ✗ 를 달면 마크는 "미충족"이라 하고 바로 옆
     // 문장은 "아직 점검 전"이라 하며 서로를 부정한다.
-    if (!tcCompleted) return { state: 'warn', facts: [{ value: '완료 승인 후 점검합니다' }] };
+    //
+    // **무엇이 ① 인가**는 대상 종류가 정한다(§9.1) — 다른 대상은 담당자의 완료 승인
+    // 요청이고, SDU 는 2단계 확인 셋이다. SDU 에서 `tcCompleted` 를 기다리면 이 줄은
+    // 아무도 누를 수 없는 버튼을 가리킨 채 굳어, 머리가 「세 조건이 모두 충족됐어요」라고
+    // 말하는 순간에도 카드만 미점검이라고 우긴다.
+    if (isSdu ? handoff !== 'met' : !tcCompleted)
+      return {
+        state: 'warn',
+        facts: [{ value: isSdu ? '담당자 확인 후 점검합니다' : '완료 승인 후 점검합니다' }],
+      };
     switch (dag.phase) {
       case 'loading':
         return { state: 'loading', facts: [] };
@@ -589,7 +679,14 @@ export function ApprovalTab({
         <GateCard
           ordinal={GATE_ORDINALS[0]}
           state={ackRow.state}
-          text="연결 테스트 완료 승인을 요청해야 합니다"
+          // 요건문은 대상 종류를 따른다 — SDU 담당자는 완료 승인 요청을 누르는 화면
+          // 자체를 걷지 않으므로(계약 §0), 그 이름을 부르면 있지도 않은 버튼을 기다리게
+          // 만든다. SDU 가 채우는 것은 2단계 확인 셋이다(§9.1).
+          text={
+            isSdu
+              ? '담당자 확인과 수신자 등록이 완료되어야 합니다'
+              : '연결 테스트 완료 승인을 요청해야 합니다'
+          }
           facts={ackRow.facts}
         />
         <GateCard

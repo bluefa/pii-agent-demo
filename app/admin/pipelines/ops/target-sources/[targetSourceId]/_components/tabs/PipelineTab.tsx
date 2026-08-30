@@ -31,17 +31,43 @@ import { PreviewModal } from '@/app/admin/pipelines/_detail/PreviewModal';
 import { TargetPipelineSections } from '@/app/admin/pipelines/_detail/TargetPipelineSections';
 import { wireProvider } from '@/app/admin/pipelines/_detail/customBuilder';
 import { providerKey } from '@/lib/pipeline/format';
+import { isSduTarget } from '@/lib/types';
 import { gateStage } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/gateStage';
 import { getTerraformStatus, type TerraformStatusResponse } from '@/app/lib/api';
 import type { ProcessStatus } from '@/app/admin/pipelines/queue/_components/StepStack';
 import type { OpsTargetTabLabel } from '@/lib/routes';
 import type { RawTargetSourceDetail } from '@/app/lib/api/pipeline-target';
 
+/**
+ * 이 대상의 terraform 작업 카탈로그를 고르는 키.
+ *
+ * SDU 는 밑에 깔린 CSP 를 이긴다(오너 결정) — 그 계정은 우리가 설치하는 계정이 아니고,
+ * SDU 의 작업은 `SDU_BDC_SERVICE_COMMON` · `SDU_BDC_SERVICE` 둘뿐이라 AWS 의 카탈로그를
+ * 물려받으면 존재하지 않는 작업 이름을 그린다.
+ *
+ * 판정은 `isSduTarget` 하나로 한다. 계약이 SDU 를 말하는 자리는 **둘**이고
+ * (`metadata.is_sdu_type` · `cloud_provider` enum 의 `SDU`), 플래그만 읽으면 provider
+ * 로만 SDU 가 오는 대상이 조용히 밑의 CSP 것을 받는다.
+ */
+export const pipelineProviderKey = (detail: RawTargetSourceDetail): string =>
+  isSduTarget({
+    is_sdu_type: detail.metadata?.is_sdu_type,
+    cloud_provider: detail.cloud_provider,
+  })
+    ? 'sdu'
+    : providerKey(detail.cloud_provider ?? '');
+
 export interface PipelineTabProps {
   targetSourceId: number;
   detail: RawTargetSourceDetail;
   /** Which step the target is at — names the stage the gate is waiting on. */
   processStatus: ProcessStatus | null;
+  /**
+   * 게이트의 마지막 갈래가 이 값으로 갈린다 — SDU 에는 관리자가 확정 정보를 직접 넣는
+   * 경로가 없어(계약에 쓰기 path 가 없다) 그 탭으로 보내는 지시가 참이 아니다. 판정은
+   * 부르는 쪽이 내린다: provider 비교로는 SDU 가 잡히지 않는다.
+   */
+  isSdu: boolean;
   /** Opens another tab of this screen — the gate's next step (승인 / 확정 정보). */
   onSelectTab: (tab: OpsTargetTabLabel) => void;
 }
@@ -50,6 +76,7 @@ export function PipelineTab({
   targetSourceId,
   detail,
   processStatus,
+  isSdu,
   onSelectTab,
 }: PipelineTabProps): ReactElement {
   const [status, setStatus] = useState<TerraformStatusResponse | null>(null);
@@ -92,14 +119,12 @@ export function PipelineTab({
   const startGate = useMemo(
     () =>
       status != null && !status.has_confirmed_infra
-        ? gateStage(processStatus, targetSourceId)
+        ? gateStage(processStatus, targetSourceId, isSdu)
         : null,
-    [status, processStatus, targetSourceId],
+    [status, processStatus, targetSourceId, isSdu],
   );
 
-  // An SDU account is surfaced as SDU regardless of its underlying CSP
-  // (metadata.is_sdu_type wins over cloud_provider — owner call).
-  const provider = detail.metadata?.is_sdu_type ? 'sdu' : providerKey(detail.cloud_provider ?? '');
+  const provider = pipelineProviderKey(detail);
   const orchProvider = wireProvider(provider);
 
   return (

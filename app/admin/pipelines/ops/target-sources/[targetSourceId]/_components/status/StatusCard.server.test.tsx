@@ -65,13 +65,28 @@ describe('StatusCard — 서버가 무엇을 묻는가', () => {
     expect(getTestConnectionLatest).toHaveBeenCalledTimes(1);
   });
 
-  it('SDU 대상은 카드를 그리지 않고, 비싼 네 건을 아예 쏘지 않는다', async () => {
+  /**
+   * 뒤집힌 단언이다. 이 카드는 SDU 에서 조기 반환하며 「본문이 안내 한 장이라 나오지도
+   * 않는다」고 적고 있었는데, 그 안내가 사라지고 SDU 도 진행 상태 탭을 받는다. 조기
+   * 반환이 살아 있으면 그 탭의 오른쪽 칸이 빈 채로 선다 — 화면에서만 보이고 타입은
+   * 통과하는 자리라, 배선을 보는 이 축이 아니면 아무도 못 잡는다.
+   */
+  it('SDU 대상도 카드를 받고, 다섯 행이 읽는 네 건을 그대로 쏜다', async () => {
     get.mockResolvedValue({ target_source_id: 1029, cloud_provider: 'AWS', metadata: { is_sdu_type: true } });
-    expect(await StatusCard({ targetSourceId: 1029 })).toBeNull();
-    expect(getDagStatus).not.toHaveBeenCalled();
-    expect(getHistory).not.toHaveBeenCalled();
-    expect(getTerraformStatus).not.toHaveBeenCalled();
-    expect(getTestConnectionLatest).not.toHaveBeenCalled();
+    await draw();
+    expect(screen.getByRole('region', { name: '연동 현황' })).toBeTruthy();
+    expect(getDagStatus).toHaveBeenCalledTimes(1);
+    expect(getHistory).toHaveBeenCalledTimes(1);
+    expect(getTerraformStatus).toHaveBeenCalledTimes(1);
+    expect(getTestConnectionLatest).toHaveBeenCalledTimes(1);
+  });
+
+  it('cloud_provider 가 SDU 로 와도 스캔 행은 선다 — SDU 는 스캔 탭을 잃지 않는다', async () => {
+    // normalizeCloudProvider('SDU') 는 'AWS' 라 IDC 판정에 걸리지 않는다. 다섯 행이
+    // 가리키는 탭은 SDU 에도 전부 있다(계약 §9).
+    get.mockResolvedValue({ target_source_id: 1099, cloud_provider: 'SDU', metadata: { is_sdu_type: true } });
+    await draw();
+    expect(screen.getByText('스캔')).toBeTruthy();
   });
 
   it('404 는 「없음」이고 그 밖의 거절만 「조회 실패」다', async () => {

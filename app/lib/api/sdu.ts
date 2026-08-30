@@ -14,6 +14,7 @@
 import { fetchInfraJson } from '@/app/lib/api/infra';
 import { sortSduRegions } from '@/lib/types/sdu';
 import type {
+  SduAckStampWire,
   SduCommands,
   SduCommandsWire,
   SduDefinition,
@@ -50,10 +51,20 @@ export const toSduDefinition = (wire: SduDefinitionWire): SduDefinition => ({
 });
 
 /**
- * `acked_at` 은 접고 `acked_by` 는 접지 않는다. 화면은 시각을 그리지 않지만 **답이 있었는지**는
- * 알아야 한다 — `acked: false` 하나로는 「아니오」와 「미답」이 구별되지 않는다. 누가 답했는지는
- * 관리자 승인 근거 행만 읽는다(계약 §5).
+ * 확인 한 블록의 답 — `acked` · `acked_at` · `acked_by` 셋이 한 사실이라 한 자리에서 접는다.
+ *
+ * 담당자 화면이 `acked_at` 을 읽는 것은 시각을 그리려는 것이 아니라 **답이 있었는지**를 알기
+ * 위해서다 — `acked: false` 하나로는 「아니오」와 「미답」이 구별되지 않는다. `acked_by` 는
+ * 관리자 쪽이 읽는다: 승인 조건 ①의 근거 행과 운영 콘솔의 「담당자 입력 정보」다(계약 §5).
  */
+const toAckStamp = (wire: SduAckStampWire & { acked: boolean }) => ({
+  acked: wire.acked,
+  ackedAt: wire.acked_at,
+  ackedBy: wire.acked_by
+    ? { id: wire.acked_by.id, name: wire.acked_by.name, email: wire.acked_by.email }
+    : null,
+});
+
 const toFirewall = (wire: SduFirewallWire): SduFirewall => ({
   rows: byRegion(wire.rows).map((row) => ({
     region: row.region,
@@ -61,8 +72,7 @@ const toFirewall = (wire: SduFirewallWire): SduFirewall => ({
     port: row.port,
     destinationIps: [...row.destination_ips],
   })),
-  acked: wire.acked,
-  ackedAt: wire.acked_at,
+  ...toAckStamp(wire),
 });
 
 /**
@@ -81,8 +91,7 @@ const toAccessKeyRecipients = (wire: SduAccessKeyRecipientsWire): SduAccessKeyRe
 
 const toCommands = (wire: SduCommandsWire): SduCommands => ({
   rows: byRegion(wire.rows).map((row) => ({ region: row.region, command: row.command })),
-  acked: wire.acked,
-  ackedAt: wire.acked_at,
+  ...toAckStamp(wire),
 });
 
 const toInvalidation = (wire: SduInvalidationWire): SduInvalidation => ({

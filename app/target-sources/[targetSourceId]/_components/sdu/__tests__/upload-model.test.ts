@@ -7,14 +7,14 @@ import {
   recipientsSummary,
   regionAckSummary,
 } from '@/app/target-sources/[targetSourceId]/_components/sdu/upload/model';
-import type { SduUpload } from '@/lib/types/sdu';
+import { sduAckAnswer, type SduUpload } from '@/lib/types/sdu';
 
 const base: SduUpload = {
   submittedAt: '2026-08-24T05:41:00Z',
   regions: ['us', 'eu'],
-  firewall: { rows: [], acked: false, ackedAt: null },
+  firewall: { rows: [], acked: false, ackedAt: null, ackedBy: null },
   accessKeyRecipients: { users: [], updatedAt: null },
-  commands: { rows: [], acked: false, ackedAt: null },
+  commands: { rows: [], acked: false, ackedAt: null, ackedBy: null },
   bdc: { status: 'NOT_STARTED', checkedAt: '2026-08-24T07:50:00Z', completedAt: null },
   invalidation: { addedRegions: [], uploadIpChanged: false },
 };
@@ -56,7 +56,7 @@ describe('currentGate', () => {
       ...base,
       firewall: { ...base.firewall, acked: true },
       accessKeyRecipients: { users: [{ id: 'u3', name: '박지원', email: 'a@bdc.com' }], updatedAt: null },
-      commands: { rows: [], acked: true, ackedAt: '2026-08-25T10:40:00Z' },
+      commands: { rows: [], acked: true, ackedAt: '2026-08-25T10:40:00Z', ackedBy: null },
     };
     expect(currentGate(upload, gateDoneStates(upload))).toBeNull();
     expect(currentGate({ ...upload, bdc: { ...base.bdc, status: 'IN_PROGRESS' } }, gateDoneStates(upload))).toBe(
@@ -90,5 +90,14 @@ describe('answerOf — 저장된 아니오는 미답이 아니다', () => {
 
   it('acked=true 는 도장과 무관하게 「예」다', () => {
     expect(answerOf({ acked: true, ackedAt: null })).toBe(true);
+  });
+
+  /**
+   * 규칙은 **한 벌**이다. 담당자 2단계 블록·운영 콘솔의 「담당자 입력 정보」·승인 조건 ①
+   * 이 같은 §5 규칙을 읽는데, 손으로 옮겨 적으면 갈라지고 갈라지는 지점이 정확히 위 세
+   * 케이스가 막으려는 버그다. 이 화면의 이름(`answerOf`)은 그 공유본을 가리키기만 한다.
+   */
+  it('이 화면의 answerOf 는 공유 판정 그 자체다 — 두 번째 사본이 아니다', () => {
+    expect(answerOf).toBe(sduAckAnswer);
   });
 });

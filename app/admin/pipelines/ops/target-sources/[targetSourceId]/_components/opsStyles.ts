@@ -335,8 +335,7 @@ export const opsStyles = {
   fmCopy:
     'inline-flex flex-none cursor-pointer items-center rounded p-0.5 text-[var(--pl-gray-600)] transition-colors hover:text-[var(--pl-primary-hover)]',
 
-  /** Neutral tag / region tag — shared with SduOpsNotice·ServiceDetailView
-      (Figma 49:4/34:4). */
+  /** Neutral tag / region tag — shared with ServiceDetailView (Figma 49:4/34:4). */
   tag: 'inline-flex items-center rounded px-2 py-1 text-[12px] font-semibold bg-[var(--pl-gray-100)] text-[var(--pl-text-medium)] whitespace-nowrap',
   regionTag: 'inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium bg-[var(--pl-gray-100)] text-[var(--pl-text-weak)]',
   /**
