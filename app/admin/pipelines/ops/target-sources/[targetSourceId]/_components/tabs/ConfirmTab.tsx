@@ -21,11 +21,19 @@
  * 비교한다는 건지"가 전달되지 않았고, 확정 pane 은 현재 확정 정보만 보여 준다.
  *
  * 로드는 진입 3콜(요청·확정·terraform)이고 서로 독립이라 하나가 실패해도 나머지
- * 칸은 그대로 그린다. 화면이 Terraform 을 하나도 그리지 않는데 terraform-status 를
- * 계속 부르는 이유는 하나뿐이다 — **`latest_confirmed_at`(확정 시각)**. 확정 계약
- * `BffConfirmedIntegration` 은 `{ resource_infos }` 뿐이라 자기 시각이 없고, 이 화면의
- * 확정 시각은 그 응답에만 있다. 대신 이 콜의 실패는 오류 배너를 올리지 않는다:
- * 잃는 것은 밴드 부제와 확정 pane 의 날짜 한 칸뿐이다.
+ * 칸은 그대로 그린다. 이 탭이 Terraform 을 하나도 그리지 않는데 terraform-status 를
+ * 계속 부르는 이유는 **소비자가 둘 남아서**다:
+ *   - `latest_confirmed_at`(확정 시각) — 밴드의 확정 칸 부제와 `ConfirmPane` 이 쓴다.
+ *     확정 계약 `BffConfirmedIntegration` 은 `{ resource_infos }` 뿐이라 자기 시각이
+ *     없고, 이 화면의 확정 시각은 그 응답에만 있다.
+ *   - `overall_state` — 응답 객체째로 `ConfirmEditorModal` 에 넘어가 **삭제 게이트의
+ *     초기값**이 된다. 모달이 삭제를 열 때 다시 조회하므로 이 초기값이 낡아도 판정은
+ *     바로잡히지만, 그렇다고 안 읽는 것은 아니다.
+ * 이 콜을 "날짜 하나짜리 헬퍼"로 줄이려면 모달의 게이트 초기값을 먼저 옮겨야 한다.
+ *
+ * 대신 이 콜의 실패는 오류 배너를 올리지 않는다 — 잃는 것이 날짜 한 칸이라 배너의
+ * 크기가 아니다. 그래도 침묵하지는 않는다: 확정 칸 부제가 그 자리에서
+ * `확정 시각 불러오지 못함` 이라고 말한다(빈 슬롯이 왜 비었는지는 말해야 한다).
  *
  * 쓰기 경로는 조회와 이름이 다르다: 확정 정보의 등록·삭제는 `confirmed-integration`
  * 이 아니라 CSP 별 `…/{aws|gcp|azure|idc}-resources` 의 POST·DELETE 다(swagger
@@ -302,8 +310,10 @@ export function ConfirmTab({
   // pane 이 읽기 전용으로 그려진다. 판정 규칙은 writeProvider.ts 한 곳에 있다.
   const writeProvider = resolveWriteProvider(detail);
   const terraformData = terraform.state === 'ready' ? terraform.data : null;
-  // 이 응답에서 읽는 필드는 이것 하나다 — 확정 계약에 시각이 없어서 남은 콜이다.
-  // 나머지(overall_state·tasks)는 인프라 작업 탭이 그린다.
+  // 이 탭이 직접 읽는 필드는 이것 하나다 — 확정 계약에 시각이 없어서 남은 콜이다.
+  // 다만 응답 객체는 통째로 ConfirmEditorModal 에도 넘어가고 거기서 overall_state 가
+  // 삭제 게이트 초기값으로 쓰인다(파일 머리 주석 참조). tasks 만 아무도 안 읽는다 —
+  // 그건 인프라 작업 탭이 그린다.
   const confirmedAt = terraformData?.latest_confirmed_at || null;
   // 정규화해서 비교한다 — RequestTab·OpsTargetView 와 같은 규칙이다. 원문 비교가 casing
   // 하나에 뒤집히면 IDC 행이 클라우드용 표로 떨어진다(요청 pane 은 NLB 조회까지 잃는다).
@@ -376,10 +386,18 @@ export function ConfirmTab({
       key: 'confirm',
       title: '확정 정보',
       dot: hasConfirmed ? 'done' : 'idle',
+      // 확정 시각은 terraform 응답에 실려 오므로 그 조회가 실패하면 날짜가 빈다. 배너를
+      // 올릴 크기는 아니지만(파일 머리 주석) 침묵할 일도 아니다 — `리소스 2건` 만 남은
+      // 프레임은 "시각이 없는 확정"과 구분되지 않는다. 문구가 맨 `불러오지 못함` 이면
+      // 이 칸의 확정 조회 실패·요청 칸의 실패와 같은 말이 되므로 무엇이 없는지까지 적는다.
+      // 확정이 없으면 빌 날짜도 없어서 이 문구는 `hasConfirmed` 일 때만 선다.
       sub:
         confirmed.state === 'failed' ? '불러오지 못함'
           : hasConfirmed
-            ? joinDots(`리소스 ${confirmedRows.length}건`, shortDate(confirmedAt))
+            ? joinDots(
+                `리소스 ${confirmedRows.length}건`,
+                terraform.state === 'failed' ? '확정 시각 불러오지 못함' : shortDate(confirmedAt),
+              )
             : '미등록',
     },
   ];

@@ -99,8 +99,7 @@ describe('ConfirmTab 밴드', () => {
     mount();
 
     const band = await screen.findByRole('tablist', { name: '확정 정보 축' });
-    const tabs = within(band).getAllByRole('tab');
-    expect(tabs.map((tab) => tab.textContent)).toHaveLength(2);
+    expect(within(band).getAllByRole('tab')).toHaveLength(2);
     expect(within(band).getByRole('tab', { name: /연동 요청 확인/ })).toBeTruthy();
     expect(within(band).getByRole('tab', { name: /확정 정보/ })).toBeTruthy();
     expect(within(band).queryByRole('tab', { name: /설치/ })).toBeNull();
@@ -127,14 +126,17 @@ describe('ConfirmTab 밴드', () => {
     expect(getTerraformStatus).toHaveBeenCalledWith(1642);
   });
 
-  it('terraform 조회가 실패해도 오류 배너를 올리지 않는다', async () => {
+  it('terraform 조회가 실패하면 배너 대신 그 칸이 무엇이 없는지 말한다', async () => {
     getTerraformStatus.mockRejectedValue(new Error('boom'));
     mount();
 
     const band = await screen.findByRole('tablist', { name: '확정 정보 축' });
-    // 잃는 것은 날짜 한 칸뿐이다.
-    expect(within(band).getByRole('tab', { name: /확정 정보/ }).textContent).toContain('리소스 2건');
+    const confirmCell = within(band).getByRole('tab', { name: /확정 정보/ });
+    // 잃는 것은 날짜 한 칸이라 배너를 올리지 않는다.
+    expect(confirmCell.textContent).toContain('리소스 2건');
     expect(screen.queryByText('일부 정보를 불러오지 못했습니다.')).toBeNull();
+    // 그렇다고 침묵하지도 않는다 — `리소스 2건` 만 남으면 "시각 없는 확정"과 구분이 안 된다.
+    expect(confirmCell.textContent).toContain('확정 시각 불러오지 못함');
   });
 
   it('요청 조회가 실패하면 오류 배너를 올린다', async () => {

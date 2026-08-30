@@ -111,11 +111,13 @@ describe('InfraStatusHead — Terraform 작업', () => {
   it('renders no column-header row above the tasks', () => {
     // At most three rows ever land here (AWS 3 · GCP/IDC/SDU 2 · Azure 1), so a
     // header would cost a line and buy nothing — the card title names the list.
-    renderHead(THREE_TASKS);
+    // Asserted structurally, not by three literal strings: a re-added header is
+    // as likely to read `Task` or `구분` as `작업`, and a string list would let
+    // those through while claiming the row is gone.
+    const { container } = renderHead(THREE_TASKS);
 
-    expect(screen.queryByText('작업')).toBeNull();
-    expect(screen.queryByText('실행 주체')).toBeNull();
-    expect(screen.queryByText('상태')).toBeNull();
+    expect(container.querySelector('thead')).toBeNull();
+    expect(screen.queryAllByRole('columnheader')).toHaveLength(0);
   });
 });
 

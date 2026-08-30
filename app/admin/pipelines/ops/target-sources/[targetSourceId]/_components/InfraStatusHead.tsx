@@ -14,9 +14,9 @@
  *
  * The state used to be a full-width `1fr 2fr` grey strip with two slots, and the
  * measurements said the split was wrong twice over:
- *   - the 연동 정보 verdict was set at 16px/700 — larger and bolder than the
- *     page's own section titles (14px/600) — so a precondition outranked the
- *     subject it is a precondition FOR;
+ *   - the 연동 정보 verdict was set at 16px/700, the loudest thing on the tab, so
+ *     a precondition outranked the subject it is a precondition FOR (the sibling
+ *     cards name themselves in a 12px tag);
  *   - a task row was 912px wide but only 241px of it was ink, leaving 793px of
  *     blank between a task name and its own status pill.
  *
@@ -27,9 +27,13 @@
  * value, so nothing about whose verdict it is needs a second device to say it.
  *
  * What the card holds, top to bottom:
- *   - the 카드 head — the blue `Terraform 적용 상태` tag the sibling 현재 작업 /
- *     작업 이력 cards wear, and 조회 시각 at the far end of the same row. No task
- *     count: the rows underneath already are the count.
+ *   - the 카드 head — `Terraform 적용 상태` as plain 16px/700 text, and 조회 시각 at
+ *     the far end of the same row. NOT the blue 12px tag the sibling 현재 작업 /
+ *     작업 이력 cards wear (owner 2026-08-30): that tag exists to name a card and
+ *     then defer to the card's own subject a row or two below, and 현재 작업 has a
+ *     run name to defer to. This card has no second line — the title IS its
+ *     subject, so it is set as one. No task count either: the rows underneath
+ *     already are the count.
  *   - the 연동 정보 line — 확정됨 / 미확정, the precondition every run depends on.
  *     확정됨 carries a link into the 확정 정보 tab instead of a date: the confirmed
  *     detail — including WHEN it was confirmed — is that tab's whole subject, and
@@ -199,10 +203,14 @@ export function InfraStatusHead({
         <section aria-label="Terraform 적용 상태" className={cn(pipelineStyles.card.flush, 'mt-4')}>
           <div className={detailStyles.sectionCard.head}>
             <div className={detailStyles.sectionCard.titleRow}>
-              {/* The same blue tag the sibling cards carry as their first line —
-                  `detailStyles.sectionCard` verbatim, never hand-copied: a copy is
-                  what stays behind as a second blue the day the token moves. */}
-              <h3 className={detailStyles.sectionCard.title}>Terraform 적용 상태</h3>
+              {/* Plain text at 16px/700, not the blue scopeTag the sibling cards
+                  wear (owner 2026-08-30). The tag exists to declare what a card IS
+                  and then get out of the way of the card's own subject — 현재 작업
+                  has a run name two rows down to defer to. This card has no such
+                  second line: the title IS its subject, so it is set as one. */}
+              <h3 className="text-[16px] font-bold leading-[1.3] text-[var(--pl-text-strong)]">
+                Terraform 적용 상태
+              </h3>
               {/* 조회 qualifies the whole list, so it rides the title row; under
                   the rows it read as a footnote to whichever task was last. */}
               {status.checked_at && (
