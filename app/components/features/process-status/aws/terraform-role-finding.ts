@@ -90,5 +90,20 @@ export const terraformRoleFinding = (data: AwsRoleVerification): TerraformRoleFi
   return { ...base, rawCode: reason };
 };
 
+/**
+ * 실시간 응답이 **통과라고 말했는가**. VALID / COMPLETED 둘뿐이다.
+ *
+ * `terraformRoleFinding(data) === null` 은 통과와 같은 뜻이 아니다: IN_PROGRESS 도,
+ * 문장 없는 미매핑 status 도 null 을 준다("할 말이 없으면 블록을 그리지 않는다").
+ * 없는 말을 합격으로 번역하면 화면이 응답에 없는 사실을 만들어 낸다 — 화면이
+ * 「막힌 곳은 없었어요」라고 말할 수 있는 것은 응답이 그렇게 말했을 때뿐이다.
+ *
+ * 판정 어휘가 이 파일에 있는 이유는 검증 API 의 status enum(VALID/INVALID/…)을 아는
+ * 곳이 여기이기 때문이다. 패널이 status 문자열을 직접 분기하면 같은 enum 이 두 군데서
+ * 해석된다.
+ */
+export const terraformRolePassed = (data: AwsRoleVerification): boolean =>
+  data.status === 'VALID' || data.status === 'COMPLETED';
+
 /** 테스트가 두 맵의 키 집합을 대조한다 — 계약에 코드가 붙으면 한쪽만 늘어나지 않도록. */
 export const TERRAFORM_ROLE_REASON_CODES = Object.keys(REASONS);

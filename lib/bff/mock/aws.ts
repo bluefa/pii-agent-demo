@@ -51,6 +51,20 @@ const DEMO_FAIL_BY_ROLE_NAME: ReadonlyArray<readonly [RegExp, string]> = [
 ].map(([needle, reason]) => [new RegExp(needle, 'i'), reason] as const);
 
 /**
+ * Fixture `terraformState.roleVerify` → the installation-status wire value.
+ *
+ * The fixture speaks TerraformStatus (COMPLETED / FAILED / PENDING); the wire speaks
+ * CloudInstallationStepStatusDto.status. FAILED is the whole point of the table — the
+ * Step-4 role-verify panel now reads its verdict off this enum, so a fixture must be
+ * able to declare a failed verification and have the screen say so on entry.
+ */
+const ROLE_VERIFY_WIRE_STATUS: Readonly<Record<'COMPLETED' | 'FAILED' | 'PENDING', string>> = {
+  COMPLETED: 'COMPLETED',
+  FAILED: 'FAIL',
+  PENDING: 'IN_PROGRESS',
+};
+
+/**
  * Per-target default scenario — pinned so all four verdicts are reachable from a
  * link alone. Every other AWS target (1006, 1007, 1018 …) stays VALID, so the
  * happy path survives. The name rules above override this table, so one target
@@ -65,6 +79,11 @@ const DEMO_FAIL_BY_TARGET: Readonly<Record<number, string>> = {
   // 아닙니다")가 바로 위에 뜬 ARN 을 가리켜 오히려 읽힌다.
   // ROLE_NOT_CONFIGURED 는 이름 규칙(DEMO_FAIL_BY_ROLE_NAME)으로 계속 재현할 수 있다.
   1008: 'SCAN_ROLE_NOT_ASSUMABLE',
+  // 1019 is the fixture whose installation status declares roleVerify FAILED. The
+  // header pill says 실패 on entry; pressing 권한 확인 must then be able to say why,
+  // so its default reason is one the registered ARN is compatible with (the ARN is
+  // well-formed and shown above — IAM just does not have that role).
+  1019: 'ROLE_NOT_FOUND',
   1010: 'INVALID_ROLE_ARN',
   1011: 'ROLE_VERIFICATION_UNAVAILABLE',
   // Unmapped code — checks that the screen falls back to status and still shows the code.
@@ -127,8 +146,15 @@ export const mockAws = {
     // 권한 검증은 TF 적용보다 앞선 단계 — roleVerify 를 명시한 프로젝트는 설치가
     // 진행 중이어도 이 단계만 먼저 끝난 상태("내가 할 일 0")를 만든다. 명시하면 그 값이
     // 곧 답이고(serviceTf 가 덮지 않는다), 미지정이면 종전대로 serviceTf 를 따른다.
-    const roleVerify = project.terraformState?.roleVerify;
-    const roleVerified = roleVerify ? roleVerify === 'COMPLETED' : completed;
+    //
+    // The fixture enum and the wire enum are different vocabularies, so this is a
+    // translation and not a boolean. Collapsing it to `=== 'COMPLETED'` served a
+    // fixture declaring FAILED as IN_PROGRESS, which left the failed role-verify
+    // screen unreachable from any link.
+    const roleVerifyStatus =
+      ROLE_VERIFY_WIRE_STATUS[
+        project.terraformState?.roleVerify ?? (completed ? 'COMPLETED' : 'PENDING')
+      ];
 
     // Derive per-resource step states from the project's selected resources so
     // resource_id joins against the confirmed integration (region/DB type in the
@@ -187,7 +213,7 @@ export const mockAws = {
       },
       resources,
       terraform_execution_role_verify: {
-        status: roleVerified ? 'COMPLETED' : 'IN_PROGRESS',
+        status: roleVerifyStatus,
         role_arn: `arn:aws:iam::${project.awsAccountId ?? project.id.replace(/\D/g, '').padStart(12, '1').slice(0, 12)}:role/exec`,
       },
     });
