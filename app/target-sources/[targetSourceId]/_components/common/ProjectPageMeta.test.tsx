@@ -4,7 +4,7 @@ import path from 'node:path';
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import { ProcessStatus, type TargetSource } from '@/lib/types';
-import { cardStyles, cn, installStepperStyles, projectHeaderStyles } from '@/lib/theme';
+import { cardStyles, cn, colorRaw, installStepperStyles, projectHeaderStyles } from '@/lib/theme';
 import { passRoutes } from '@/lib/routes';
 
 // The header mounts the road; stub it and surface the props it receives. The road is the
@@ -725,7 +725,7 @@ describe('ProjectPageMeta — the fact grid', () => {
     // `kvLabel`'s 4.93:1. Both pairs are measured in `design-guard.test.ts`; what is
     // pinned here is that the tag HAS a stroke and does not borrow the label ramp's ink.
     expect(projectHeaderStyles.factLabelTag).toContain('border-[');
-    expect(fillOf(projectHeaderStyles.factLabelTag)).toBe('#FFFFFF');
+    expect(fillOf(projectHeaderStyles.factLabelTag)).toBe(colorRaw.white);
     expect(inkOf(projectHeaderStyles.factLabelTag)).not.toBe(inkOf(projectHeaderStyles.kvLabel));
     expect(inkOf(projectHeaderStyles.factLabelTag)).toBe(inkOf(projectHeaderStyles.blockLabel));
     // 12px — ONE rung below the 14px value it labels, not two (오너 2026-08-29). That is
@@ -907,10 +907,10 @@ describe('ProjectPageMeta — the fact grid', () => {
 
     const tip = screen.getByRole('button', { name: '수동 설치 설명' });
     fireEvent.click(tip);
-    expect(screen.getByText(/설치 스크립트를 받아 직접 실행해야 해요/)).toBeTruthy();
+    expect(screen.getByText(/테라폼 스크립트를 직접 실행해 설치해야 해요/)).toBeTruthy();
     // Press again and it closes — a hover tip has no way back once it is pinned open.
     fireEvent.click(tip);
-    expect(screen.queryByText(/설치 스크립트를 받아 직접 실행해야 해요/)).toBeNull();
+    expect(screen.queryByText(/테라폼 스크립트를 직접 실행해 설치해야 해요/)).toBeNull();
   });
 
   it('opens the same tip on hover, and the press only pins it (오너 18차 지시)', () => {
@@ -924,17 +924,17 @@ describe('ProjectPageMeta — the fact grid', () => {
     const wrapper = screen.getByRole('button', { name: '수동 설치 설명' }).parentElement!;
 
     fireEvent.mouseEnter(wrapper);
-    expect(screen.getByText(/설치 스크립트를 받아 직접 실행해야 해요/)).toBeTruthy();
+    expect(screen.getByText(/테라폼 스크립트를 직접 실행해 설치해야 해요/)).toBeTruthy();
     // Unpinned, so leaving closes it — hover costs the reader nothing to dismiss.
     fireEvent.mouseLeave(wrapper);
-    expect(screen.queryByText(/설치 스크립트를 받아 직접 실행해야 해요/)).toBeNull();
+    expect(screen.queryByText(/테라폼 스크립트를 직접 실행해 설치해야 해요/)).toBeNull();
 
     // Hover then press: the pin has to survive the pointer leaving the 14px target,
     // which is the whole reason the press exists alongside hover.
     fireEvent.mouseEnter(wrapper);
     fireEvent.click(wrapper);
     fireEvent.mouseLeave(wrapper);
-    expect(screen.getByText(/설치 스크립트를 받아 직접 실행해야 해요/)).toBeTruthy();
+    expect(screen.getByText(/테라폼 스크립트를 직접 실행해 설치해야 해요/)).toBeTruthy();
   });
 
   it('says only what the mode costs at the install step (오너 18차 지시)', () => {
@@ -943,7 +943,7 @@ describe('ProjectPageMeta — the fact grid', () => {
     render(<ProjectPageMeta project={projectFixture} identity={awsIdentity} />);
     fireEvent.click(screen.getByRole('button', { name: '자동 설치 설명' }));
     expect(
-      screen.getByText('설치 단계에서 BDC 측에 Terraform 수행 권한을 위임해요.'),
+      screen.getByText('설치 단계에서 테라폼 설치 권한을 부여하면, PASS 담당자가 테라폼 스크립트를 대신 실행해 설치해 줘요.'),
     ).toBeTruthy();
     expect(screen.queryByText(/Agent 를 설치하고 구성해요/)).toBeNull();
   });

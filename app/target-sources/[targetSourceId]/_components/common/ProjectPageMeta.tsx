@@ -411,8 +411,8 @@ export const ProjectPageMeta = ({ project, identity, action }: ProjectPageMetaPr
                       content={
                         <span className={h.modeTipBody}>
                           {autoInstall
-                            ? '설치 단계에서 BDC 측에 Terraform 수행 권한을 위임해요.'
-                            : '설치 단계에서 제공되는 설치 스크립트를 받아 직접 실행해야 해요.'}
+                            ? '설치 단계에서 테라폼 설치 권한을 부여하면, PASS 담당자가 테라폼 스크립트를 대신 실행해 설치해 줘요.'
+                            : '설치 단계에서 제공되는 테라폼 스크립트를 직접 실행해 설치해야 해요.'}
                         </span>
                       }
                     >
