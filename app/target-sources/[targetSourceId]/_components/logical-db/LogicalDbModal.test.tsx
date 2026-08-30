@@ -164,8 +164,8 @@ describe('LogicalDbModal (tree redesign)', () => {
     fireEvent.click(screen.getByRole('button', { name: '제외 (저장 전에 추가)' }));
 
     const stagedRow = rowOf('live.public');
-    // 상태 열은 점 + 낱말, 사유는 자기 열에 선다 — 잘린 문장의 꼬리가 아니다.
-    expect(within(stagedRow).getByText('제외 · 저장 전')).toBeTruthy();
+    // 상태 열은 낱말 하나, 사유는 자기 열에 선다 — 잘린 문장의 꼬리가 아니다.
+    expect(within(stagedRow).getByText('제외 예정')).toBeTruthy();
     expect(within(stagedRow).getByText('개발용')).toBeTruthy();
     expect(within(stagedRow).getByText('Schema')).toBeTruthy();
     // Footer diff names the change; save becomes possible.
@@ -210,9 +210,30 @@ describe('LogicalDbModal (tree redesign)', () => {
     fireEvent.click(within(prdRow).getByRole('button', { name: '복원' }));
 
     const stagedRow = rowOf('prd');
-    expect(within(stagedRow).getByText('복원 · 저장 전')).toBeTruthy();
+    expect(within(stagedRow).getByText('복원 예정')).toBeTruthy();
     fireEvent.click(within(stagedRow).getByRole('button', { name: '실행 취소' }));
     expect(within(rowOf('prd')).getByRole('button', { name: '복원' })).toBeTruthy();
+  });
+
+  /**
+   * 상태는 낱말이 말하고, 색은 그 낱말이 입는다(오너 지시). 점은 같은 60px 안에서 같은 말을
+   * 두 번 했고, 그 두 번째가 모양이었다 — 표가 가장 못 내주는 채널이다.
+   */
+  it('상태 칸에 점은 없고, 낱말이 제 잉크를 입는다', () => {
+    renderModal();
+    // `제외` 는 이 행의 버튼 라벨이기도 하다 — 상태 칸의 낱말만 집는다.
+    const denyWord = within(rowOf('prd')).getByText('제외', { selector: 'span' });
+    const denyCell = denyWord.closest('td') as HTMLElement;
+    expect(denyCell.querySelectorAll('[aria-hidden]').length).toBe(0);
+    expect(denyWord.className).toContain(logicalDbStyles.statusText.deny);
+
+    // 수집은 열의 중립을 지킨다 — 대부분의 행이라, 가장 조용한 사실이 가장 큰 잉크일 수 없다.
+    expect(screen.getAllByText('수집')[0].className).not.toContain(logicalDbStyles.statusText.deny);
+
+    fireEvent.click(within(rowOf('prd')).getByRole('button', { name: '복원' }));
+    const restore = screen.getByText('복원 예정');
+    expect(restore.className).toContain(logicalDbStyles.statusText.restore);
+    expect((restore.closest('td') as HTMLElement).querySelectorAll('[aria-hidden]').length).toBe(0);
   });
 
   it('policy-only entries read as 미조회, neutrally, and stay restorable', () => {
@@ -398,6 +419,15 @@ describe('LogicalDbModal — save result frames', () => {
     }
   });
 
+  it('원장도 같은 문법이다 — 점 없이 낱말이 색을 쥔다', () => {
+    const view = stageAndSave();
+    view.rerenderWith({ result: { kind: 'success' } });
+    const value = screen.getByText(/^제외( \(|$)/, { selector: 'span' });
+    expect(value.className).toContain(logicalDbStyles.statusText.deny);
+    const ledger = value.closest('div') as HTMLElement;
+    expect(ledger.querySelectorAll('[aria-hidden]').length).toBe(0);
+  });
+
   it('while the success frame stands, ESC does not close the modal', () => {
     const view = stageAndSave();
     view.rerenderWith({ result: { kind: 'success' } });
@@ -501,7 +531,7 @@ describe('LogicalDbModal — 손으로 더한 제외 (manualEntry)', () => {
     const row = rowOf('shadow');
     // 미조회 — 실행이 못 본 이름이라는 사실. excluded-only 행과 같은 표시다.
     expect(within(row).getByText('미조회')).toBeTruthy();
-    expect(within(row).getByText('제외 · 저장 전')).toBeTruthy();
+    expect(within(row).getByText('제외 예정')).toBeTruthy();
     expect(within(row).getByText('TEMP · 임시')).toBeTruthy();
     // 방금 앉은 자리를 한 번 훑는다.
     expect(row.className).toContain(logicalDbStyles.flashRow);
@@ -522,7 +552,7 @@ describe('LogicalDbModal — 손으로 더한 제외 (manualEntry)', () => {
   /**
    * ⛔ THE P1. 손으로 적은 schema 의 DATABASE 부모는 트리의 자리표시자였을 뿐 `allRows` 에
    * 없었다. 그 그룹 행을 제외하면 자식 id 는 지워지고 부모 id 는 행이 없어, `저장 전 변경`
-   * 도 PUT 몸통도 통째로 비었다 — 표만 `제외 · 저장 전` 이라고 말하는 화면.
+   * 도 PUT 몸통도 통째로 비었다 — 표만 `제외 예정` 이라고 말하는 화면.
    */
   it('손으로 더한 schema 의 DB 전체를 제외해도 그 제외가 남는다', () => {
     const { onSave } = renderModal({ manualEntry: true });

@@ -988,16 +988,16 @@ const SaveResultFrame = ({
               <div className={logicalDbStyles.result.ledgerList}>
                 {changes.map((change) => (
                   <div key={change.id} className={logicalDbStyles.result.ledgerRow}>
+                    <span className={logicalDbStyles.result.ledgerName}>{change.name}</span>
+                    {/* 표와 같은 문법 — 원장에도 점은 없고, 낱말이 제 잉크를 입는다. */}
                     <span
                       className={cn(
-                        logicalDbStyles.statusDot,
+                        logicalDbStyles.result.ledgerValue,
                         change.action === 'exclude'
-                          ? logicalDbStyles.statusDotDeny
-                          : logicalDbStyles.statusDotKeep,
+                          ? logicalDbStyles.statusText.deny
+                          : logicalDbStyles.statusText.restore,
                       )}
-                    />
-                    <span className={logicalDbStyles.result.ledgerName}>{change.name}</span>
-                    <span className={logicalDbStyles.result.ledgerValue}>
+                    >
                       {change.action === 'exclude'
                         ? `제외${change.reason ? ` (${reasonLabel(change.reason, { withCode: rawReason })})` : ''}`
                         : '복원'}
@@ -1270,21 +1270,21 @@ const DbGroup = ({
 };
 
 /**
- * The 상태 cell — an 8px dot plus the word, the count-row grammar PR #746 shipped
- * (`idcStyles.connProgress.countDot`). The filled 제외/저장 전 pills are gone: 수집 is ~80%
- * of the rows, and a filled chip on every one of them made the quietest fact the loudest
- * thing on screen. The word is never dropped — the dot is a second channel, not the only one.
+ * The 상태 cell is the word, and the word carries the ink (owner, 2026-08-30). The 8px dot
+ * that used to sit beside it said the same thing twice in the same 60px — and it said it
+ * in a shape, which is the channel a table has least room for. 수집 keeps the column's
+ * neutral: it is ~80% of the rows, and the quietest fact must not be the loudest ink.
  */
-const statusDot = (status: LogicalDbRowStatus): string => {
+const statusInk = (status: LogicalDbRowStatus): string | undefined => {
   switch (status) {
     case 'deny':
-    case 'inherited':
-      return logicalDbStyles.statusDotDeny;
     case 'staged-exclude':
+    case 'inherited':
+      return logicalDbStyles.statusText.deny;
     case 'staged-restore':
-      return logicalDbStyles.statusDotStaged;
+      return logicalDbStyles.statusText.restore;
     default:
-      return logicalDbStyles.statusDotKeep;
+      return undefined;
   }
 };
 
@@ -1301,9 +1301,9 @@ const statusText = (
     case 'deny':
       return '제외';
     case 'staged-exclude':
-      return '제외 · 저장 전';
+      return '제외 예정';
     case 'staged-restore':
-      return '복원 · 저장 전';
+      return '복원 예정';
     case 'inherited':
       return `제외 · ${parentName ?? '상위'}`;
     default:
@@ -1402,10 +1402,7 @@ const Row = ({
       </td>
       <td className={cn(CELL, 'text-[12px]', textColors.tertiary)}>{isDb ? 'Database' : 'Schema'}</td>
       <td className={cn(CELL, 'text-[12px]', textColors.secondary)}>
-        <span className={logicalDbStyles.statusCell}>
-          <span aria-hidden className={cn(logicalDbStyles.statusDot, statusDot(status))} />
-          {statusText(status, parentName)}
-        </span>
+        <span className={statusInk(status)}>{statusText(status, parentName)}</span>
       </td>
       <td className={cn(CELL, 'text-[12px]', status === 'inherited' ? textColors.tertiary : textColors.secondary)}>
         {shownReason}

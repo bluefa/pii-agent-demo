@@ -1583,12 +1583,13 @@ const ROW_TINT_SWEEP = 'animate-[ec2-row-tint_1100ms_ease-in-out] motion-reduce:
  *
  * The list is a `ConsoleTable` now, so the row grammar (hairlines, column strokes, the
  * covered clip) comes from `idcStyles.table`. What lives here is what only this screen
- * has: the SPINE that draws one parent→child run inside the 이름 열, and the calm status
- * dot that replaced the filled 제외/저장 전 pills.
+ * has: the SPINE that draws one parent→child run inside the 이름 열, and the ink the
+ * status word wears where the filled 제외/저장 전 pills used to be.
  *
- * ⛔ THE TWO AMBERS ARE ONE VALUE. `spineExcluded` and `statusDotDeny` are both #D97706:
- * the rail says "this run is excluded" and the dot says "this row is excluded", and the
- * moment they differ the rail is claiming something the dot denies. Change one, change both.
+ * ⛔ THE RAIL AND THE WORD ARE TWO AMBERS ON PURPOSE. `spineExcluded` is #D97706 (a 2px
+ * rule, which that value carries) and `statusText.deny` is #B45309 (12px type, where
+ * #D97706 measures 3.0:1 and cannot go). Same statement, two sizes, so the same value
+ * would fail one of them — this is the one place in this file where the amber splits.
  */
 export const logicalDbStyles = {
   /** staged(저장 전) 행 틴트 — 파랑 계열, 확정 제외의 amber 와 구분. */
@@ -1639,10 +1640,11 @@ export const logicalDbStyles = {
    */
   spineChildLast: 'before:bottom-1/2',
   /**
-   * 제외된 run — 부모부터 마지막 자식까지, 언제나 보인다. `statusDotDeny` 와 같은 값.
+   * 제외된 run — 부모부터 마지막 자식까지, 언제나 보인다. #D97706 — 상태 낱말의
+   * #B45309 보다 한 단 밝다(선은 글자와 같은 대비 기준을 쓰지 않는다).
    *
    * 커넥터 선의 색을 발표하는 디자인 시스템은 없다(GitHub Primer 도 규칙만 말하고 값은
-   * 말하지 않는다). 그래서 이 두 값은 우리가 고른 것이다: amber 는 제외 점과 같은 값,
+   * 말하지 않는다). 그래서 이 두 값은 우리가 고른 것이다: amber 는 이 모달의 제외 계열,
    * 중립 #EDF0F4 는 행 구분선(#EBEEF2) 바로 옆 칸이라 표의 선 문법 안에 머문다.
    */
   spineExcluded: '[--ldb-spine:#D97706]',
@@ -1665,14 +1667,28 @@ export const logicalDbStyles = {
    * 그대로다: 크기도 8px, 점 옆에는 언제나 낱말이 선다. 채운 알약을 행마다 놓으면 표의
    * 80% 를 차지하는 `수집` 이 화면에서 가장 시끄러운 것이 된다.
    */
-  statusCell: 'inline-flex items-center gap-1.5',
-  statusDot: 'h-2 w-2 flex-shrink-0 rounded-full',
-  /** 수집 — 행의 대부분이라 가장 조용해야 한다. 카운트 줄의 중립 점과 같은 값. */
-  statusDotKeep: 'bg-[#8B95A1]',
-  /** 제외 — `spineExcluded` 와 같은 값. */
-  statusDotDeny: 'bg-[#D97706]',
-  /** 저장 전 — 앱의 단일 상호작용 색. */
-  statusDotStaged: 'bg-[#0064FF]',
+  /**
+   * 상태 낱말의 잉크. 점을 지운 자리를 색이 대신한다 — 8px 원 하나가 12px 낱말 옆에서
+   * 같은 말을 두 번 하고 있었고, 오너는 그 원을 지우고 색으로 말하라고 했다.
+   *
+   * 낱말은 그대로 남으므로 색은 여전히 두 번째 채널이다(색각 이상에서도 `제외`/`수집`은
+   * 읽힌다). `font-medium` 이 같은 열의 나머지와 낱말을 갈라 세운다.
+   *
+   * ⛔ 점의 값(#D97706)을 그대로 옮기면 안 된다 — 브라우저 실측 흰 면 3.19:1 이라 2px
+   * 선이나 8px 원에는 되지만 글자로는 못 쓴다. 제외는 `notice` 와 같은 잉크 #B45309:
+   * 흰 면 5.02:1, staged 틴트(#EFF6FF) 4.61:1, hover 틴트(#F7F8FA) 4.73:1 — 세 면 모두
+   * AA 4.5:1 위다.
+   *
+   * 복원이 앱의 단일 상호작용 색(#0064FF)이 아닌 이유는 대비가 아니다. 그 값도 staged
+   * 틴트에서 4.52:1 로 통과한다 — 다만 0.02 의 여유이고, 무엇보다 그 파랑은 이 표에서
+   * **누를 수 있는 것**의 색이다(같은 행에 `복원` 버튼이 서 있다). 색만 입은 낱말이 그
+   * 파랑이면 링크처럼 읽힌다. 한 단 아래 #0050CC 는 같은 계열이면서 그 역할과 갈라지고,
+   * staged 6.39:1 / 흰 면 6.96:1 로 여유도 크다.
+   */
+  statusText: {
+    deny: 'font-medium text-[#B45309]',
+    restore: 'font-medium text-[#0050CC]',
+  },
   /**
    * 표 위의 알림 띠 — 이번 실행의 조회 목록을 못 읽은 채 열렸다는 한 줄. 면은 `result.nextBox`
    * 와 같은 amber(#FFF6E8 / #FBDCA7)라 이 모달의 알림은 한 색으로만 말하고, 잉크만 한 단
@@ -1753,7 +1769,9 @@ export const logicalDbStyles = {
     ledgerList: 'min-h-[74px] flex-1 overflow-y-auto',
     ledgerRow: 'flex items-center gap-2 px-4 py-2 text-left',
     ledgerName: 'min-w-0 flex-1 truncate text-[14px] font-semibold text-[#191F28]',
-    ledgerValue: 'shrink-0 text-[12px] text-[#4E5968]',
+    /** 잉크는 행마다 다르다(`statusText`) — 여기에 색을 두면 어느 쪽이 이기는지 두 값의
+     *  선언 순서가 정하게 된다. */
+    ledgerValue: 'shrink-0 text-[12px]',
     /** 다음 할 일 — 정책은 다음 연결 테스트부터 반영된다는 한 줄. */
     nextBox:
       'mt-4 w-full max-w-[560px] shrink-0 rounded-lg border border-[#FBDCA7] bg-[#FFF6E8] px-4 py-3 text-left text-[14px] leading-[1.5] text-[#4E5968]',

@@ -142,7 +142,7 @@ describe('LogicalDbModalLoader', () => {
   /**
    * ⛔ 손으로 적은 schema 의 DATABASE 부모는 트리의 자리표시자일 뿐 `allRows` 에 없었다.
    * 그 그룹 행을 제외하면 자식 id 는 지워지고, 부모 id 는 행이 없어 `listStagedChanges` 와
-   * `draftToExcludedItems` 양쪽에서 사라진다 — 표는 `제외 · 저장 전` 이라고 하는데 푸터는
+   * `draftToExcludedItems` 양쪽에서 사라진다 — 표는 `제외 예정` 이라고 하는데 푸터는
    * `변경 없음` 이 되고 저장이 잠긴다.
    */
   it('손으로 더한 schema 의 DB 전체를 제외해도 그 제외가 살아남는다', async () => {
