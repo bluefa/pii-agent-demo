@@ -117,6 +117,8 @@ interface SduState {
   recipientsUpdatedAt: string | null;
   bdcStatus: SduBdcStatus;
   bdcCompletedAt: string | null;
+  /** 완료를 단언한 사람 (델타 §2). 파생값에는 저자가 없고 단언에는 있다. */
+  bdcCompletedBy: SduRecipientWire | null;
   invalidation: SduInvalidationWire;
 }
 
@@ -180,6 +182,7 @@ const blankState = (): SduState => ({
   recipientsUpdatedAt: null,
   bdcStatus: 'NOT_STARTED',
   bdcCompletedAt: null,
+  bdcCompletedBy: null,
   invalidation: emptyInvalidation(),
 });
 
@@ -249,8 +252,12 @@ export const clearSduUploadState = (targetSourceId: number): void => {
   state.commands = blankAck();
   state.recipientIds = [];
   state.recipientsUpdatedAt = null;
+  // 단언된 완료도 **무조건** 버린다 (델타 §5). 파생값이던 시절에는 조건이 사라지면 완료도
+  // 따라 사라졌지만, 단언은 스스로 남으려 하므로 여기서 이름을 불러 지워야 한다 — 누가
+  // 언제 단언했든 초기화가 봐줄 이유가 없다.
   state.bdcStatus = 'NOT_STARTED';
   state.bdcCompletedAt = null;
+  state.bdcCompletedBy = null;
   state.invalidation = emptyInvalidation();
 };
 
@@ -380,6 +387,7 @@ const toUploadWire = (targetSourceId: number, state: SduState): SduUploadWire =>
       status: state.bdcStatus,
       checked_at: new Date().toISOString(),
       completed_at: state.bdcCompletedAt,
+      completed_by: state.bdcCompletedBy,
     },
     invalidation: { ...state.invalidation },
   };
@@ -627,6 +635,11 @@ export const mockSdu = {
    *
    * 완료는 파생이 아니라 **단언**이다. `true` 는 세우고 단계를 5로 밀고, `false` 는 단언을
    * 지워 §8 의 파생으로 되돌린다 — 지우기가 아니라 **다시 세기**다.
+   *
+   * **전제가 없다** (오너 2026-08-30, 델타 §4). 두 방향 모두 언제든 열려 있고 조건 미충족을
+   * 이유로 거절하지 않는다 — 잘못 누르는 것을 막는 자리는 서버의 400 이 아니라 확인 모달이다.
+   * 모달은 스캔·확정·Terraform 의 **실제 상태를 옆에 적으므로**, 400 이 못 하는 일까지 한다:
+   * 관리자에게 자기가 무엇을 덮어쓰는지 보여준다.
    */
   putBdcCompletion: async (targetSourceId: number, body: SduBdcCompletionRequestWire) => {
     const auth = authorizeAdmin(targetSourceId);
@@ -644,20 +657,15 @@ export const mockSdu = {
       // 테스트가 돌았을 수 있고, 되돌리기가 취소하는 것은 단언이지 그 뒤에 일어난 일이 아니다.
       state.bdcStatus = 'NOT_STARTED';
       state.bdcCompletedAt = null;
+      state.bdcCompletedBy = null;
       refreshBdc(state);
       return noContent();
     }
 
-    // 담당자가 아직 2단계 질문에 답하는 중인 대상을 5단계로 올리면 두 화면이 다른 대상을
-    // 말하게 된다. 그리고 BDC 는 아무도 확인하지 않은 방화벽 위에 무엇을 만든 적이 없다.
-    if (!bdcReady(state)) {
-      return invalidParameter(
-        'BDC 진행 조건을 갖추지 못했습니다 — 방화벽 결재 확인과 데이터 업로드 확인, S3 Access Key 수신자 1명 이상이 필요합니다.',
-      );
-    }
-
+    const user = mockData.getCurrentUser();
     state.bdcStatus = 'COMPLETED';
     state.bdcCompletedAt = new Date().toISOString();
+    state.bdcCompletedBy = user ? { id: user.id, name: user.name, email: user.email } : null;
     // 이미 5 이상인 대상은 옮기지 않는다 — 6·7단계를 5로 끌어내리는 것은 전진이 아니다.
     if (auth.project.processStatus < ProcessStatus.WAITING_CONNECTION_TEST) {
       mockData.updateProject(auth.project.id, {

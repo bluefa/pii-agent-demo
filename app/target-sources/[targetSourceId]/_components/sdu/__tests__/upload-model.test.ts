@@ -15,7 +15,7 @@ const base: SduUpload = {
   firewall: { rows: [], acked: false, ackedAt: null, ackedBy: null },
   accessKeyRecipients: { users: [], updatedAt: null },
   commands: { rows: [], acked: false, ackedAt: null, ackedBy: null },
-  bdc: { status: 'NOT_STARTED', checkedAt: '2026-08-24T07:50:00Z', completedAt: null },
+  bdc: { status: 'NOT_STARTED', checkedAt: '2026-08-24T07:50:00Z', completedAt: null, completedBy: null },
   invalidation: { addedRegions: [], uploadIpChanged: false },
 };
 

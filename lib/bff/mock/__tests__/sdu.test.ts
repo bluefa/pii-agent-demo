@@ -415,15 +415,50 @@ describe('SDU BDC 완료 단언 (델타 §1·§3·§4)', () => {
     );
   });
 
-  it('전제를 못 갖추면 400 이고 단계도 그대로다 — 두 화면이 다른 대상을 말하지 않는다', async () => {
+  it('전제가 없다 — 아무것도 확인되지 않은 대상에서도 단언은 통과한다', async () => {
+    // 오너 2026-08-30: 두 방향 모두 언제든 열려 있다. 잘못 누르는 것을 막는 자리는 서버의
+    // 400 이 아니라 확인 모달이고, 모달은 스캔·확정·Terraform 의 실제 상태를 옆에 적는다.
     await putDefinition(GLOBAL_ID, [target({ target_id: 'a', region: 'us' })]);
     await mockSdu.submitDefinition(GLOBAL_ID);
-    // 확인 하나와 수신자가 없다.
-    await mockSdu.putFirewallAck(GLOBAL_ID, { confirmed: true });
-
-    expect((await complete(GLOBAL_ID, true)).status).toBe(400);
+    // 확인도 수신자도 없다 — 파생이라면 NOT_STARTED 인 자리다.
     expect((await upload(GLOBAL_ID)).bdc.status).toBe('NOT_STARTED');
-    expect(mockData.getProjectByTargetSourceId(GLOBAL_ID)?.processStatus).toBe(ProcessStatus.INSTALLING);
+
+    expect((await complete(GLOBAL_ID, true)).status).toBe(204);
+    expect((await upload(GLOBAL_ID)).bdc.status).toBe('COMPLETED');
+    expect(mockData.getProjectByTargetSourceId(GLOBAL_ID)?.processStatus).toBe(
+      ProcessStatus.WAITING_CONNECTION_TEST,
+    );
+  });
+
+  it('단언은 저자를 남기고, 되돌리기가 시각과 함께 지운다', async () => {
+    await putDefinition(GLOBAL_ID, [target({ target_id: 'a', region: 'us' })]);
+    await ackEverything(GLOBAL_ID);
+    await complete(GLOBAL_ID, true);
+
+    // 파생값에는 저자가 없었다. 단언에는 있다 — 두 확인이 `acked_by` 를 지는 것과 같다.
+    const done = await upload(GLOBAL_ID);
+    expect(done.bdc.completed_by?.id).toBe('admin-1');
+
+    await complete(GLOBAL_ID, false);
+    const back = await upload(GLOBAL_ID);
+    expect(back.bdc.completed_by).toBeNull();
+    expect(back.bdc.completed_at).toBeNull();
+  });
+
+  it('초기화는 단언된 완료도 무조건 버린다', async () => {
+    await putDefinition(GLOBAL_ID, [target({ target_id: 'a', region: 'us' })]);
+    await ackEverything(GLOBAL_ID);
+    await complete(GLOBAL_ID, true);
+    expect((await upload(GLOBAL_ID)).bdc.status).toBe('COMPLETED');
+
+    clearSduUploadState(GLOBAL_ID);
+
+    // 파생값이던 시절에는 조건이 사라지면 완료도 따라 사라졌다. 단언은 스스로 남으려 하므로
+    // 초기화가 이름을 불러 지워야 한다 — 셋 다 (델타 §5).
+    const after = await upload(GLOBAL_ID);
+    expect(after.bdc.status).toBe('NOT_STARTED');
+    expect(after.bdc.completed_at).toBeNull();
+    expect(after.bdc.completed_by).toBeNull();
   });
 
   it('되돌리기는 §8 의 파생으로 돌아가고, 단계는 움직이지 않는다', async () => {
@@ -451,7 +486,7 @@ describe('SDU BDC 완료 단언 (델타 §1·§3·§4)', () => {
     expect((await upload(GLOBAL_ID)).bdc.status).toBe('NOT_STARTED');
   });
 
-  it('completed 가 boolean 이 아니면 400 이다', async () => {
+  it('completed 가 boolean 이 아니면 400 이다 — 모양은 여전히 본다', async () => {
     await putDefinition(GLOBAL_ID, [target({ target_id: 'a', region: 'us' })]);
     await ackEverything(GLOBAL_ID);
 

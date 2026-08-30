@@ -144,6 +144,12 @@ export interface SduBdcWire {
   status: SduBdcStatus;
   checked_at: string;
   completed_at: string | null;
+  /**
+   * 완료를 **단언한 사람** (2026-08-30 델타 §2). 파생값이던 시절에는 저자가 없었지만,
+   * 단언에는 있다 — 그리고 그 단언 하나가 대상 소스를 ProcessStatus 5 로 옮긴다. 두 확인이
+   * `acked_by` 를 지는 것과 같은 이유이고 같은 모양이다. 되돌리기와 초기화가 함께 비운다.
+   */
+  completed_by: SduRecipientWire | null;
 }
 
 /**
@@ -254,6 +260,7 @@ export interface SduBdc {
   status: SduBdcStatus;
   checkedAt: string;
   completedAt: string | null;
+  completedBy: SduRecipient | null;
 }
 
 export interface SduInvalidation {

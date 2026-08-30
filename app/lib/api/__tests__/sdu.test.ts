@@ -53,7 +53,13 @@ const UPLOAD_WIRE: SduUploadWire = {
     acked_at: null,
     acked_by: null,
   },
-  bdc: { status: 'IN_PROGRESS', checked_at: '2026-08-24T08:00:00Z', completed_at: null },
+  bdc: {
+    status: 'IN_PROGRESS',
+    checked_at: '2026-08-24T08:00:00Z',
+    completed_at: '2026-08-30T07:41:00Z',
+    // 단언의 저자 (델타 §3.1) — `acked_by` 와 같은 모양이라 같은 경계를 지나야 한다.
+    completed_by: { id: 'admin-1', name: '관리자', email: 'admin@company.com' },
+  },
   invalidation: { added_regions: ['asia'], upload_ip_changed: true },
 };
 
@@ -131,7 +137,8 @@ describe('SDU 어댑터 — snake → camel', () => {
     expect(upload.bdc).toEqual({
       status: 'IN_PROGRESS',
       checkedAt: '2026-08-24T08:00:00Z',
-      completedAt: null,
+      completedAt: '2026-08-30T07:41:00Z',
+      completedBy: { id: 'admin-1', name: '관리자', email: 'admin@company.com' },
     });
     expect(upload.invalidation).toEqual({ addedRegions: ['asia'], uploadIpChanged: true });
   });

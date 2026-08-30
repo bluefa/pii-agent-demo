@@ -40,10 +40,8 @@ describe('SDU 목 어댑터 — 본문 없는 쓰기', () => {
     ).resolves.toBeUndefined();
   });
 
-  it('BDC 완료 단언도 204 를 성공으로 받는다', async () => {
-    // 1100 은 방화벽만 확인된 채라 완료 전제를 못 갖췄다(델타 §4) — 먼저 갖춰 놓는다.
-    await mockBff.sdu.putCommandsAck(SEEDED_ID, { confirmed: true });
-
+  it('BDC 완료 단언도 204 를 성공으로 받는다 — 두 방향 다', async () => {
+    // 1100 은 데이터 업로드 확인이 아직 없다. 전제가 없으므로(델타 §4) 그대로 통과한다.
     await expect(
       mockBff.sdu.putBdcCompletion(SEEDED_ID, { completed: true }),
     ).resolves.toBeUndefined();
@@ -55,9 +53,11 @@ describe('SDU 목 어댑터 — 본문 없는 쓰기', () => {
 
   it('실패는 그대로 던진다 — 빈 본문 처리가 오류까지 삼키지 않는다', async () => {
     await expect(mockBff.sdu.putAccessKeyRecipients(SEEDED_ID, ['nope'])).rejects.toThrow();
-    // 전제 미충족(400)도 마찬가지다. 1100 은 데이터 업로드 확인이 아직 없다.
+    // 남은 400 은 본문의 모양뿐이다. 전제 미충족은 더 이상 거절 사유가 아니다.
     await expect(
-      mockBff.sdu.putBdcCompletion(SEEDED_ID, { completed: true }),
+      mockBff.sdu.putBdcCompletion(SEEDED_ID, { completed: 'yes' } as unknown as {
+        completed: boolean;
+      }),
     ).rejects.toThrow();
   });
 });

@@ -60,7 +60,7 @@ const UPLOAD: SduUploadWire = {
     acked_at: null,
     acked_by: null,
   },
-  bdc: { status: 'NOT_STARTED', checked_at: '2026-08-24T08:00:00Z', completed_at: null },
+  bdc: { status: 'NOT_STARTED', checked_at: '2026-08-24T08:00:00Z', completed_at: null, completed_by: null },
   invalidation: { added_regions: [], upload_ip_changed: false },
 };
 

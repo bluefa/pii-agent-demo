@@ -142,6 +142,12 @@ export function SduAckCard({ targetSourceId, onBdcChanged }: SduAckCardProps): R
     },
   );
 
+  // 단언이 없으면 붙일 사람도 시각도 없다 — 미답에 구분자를 세우지 않는 것과 같다.
+  const bdcStamp = [
+    upload?.bdc.completedBy?.name,
+    upload?.bdc.completedAt ? fmtDateTime(upload.bdc.completedAt) : null,
+  ].filter((part): part is string => part != null && part !== '');
+
   const invalidation = upload?.invalidation;
   const invalidated =
     invalidation != null && (invalidation.addedRegions.length > 0 || invalidation.uploadIpChanged);
@@ -188,12 +194,14 @@ export function SduAckCard({ targetSourceId, onBdcChanged }: SduAckCardProps): R
             <dl className="grid grid-cols-[140px_1fr] items-baseline gap-x-4">
               <KvRow label="BDC 구축">
                 {BDC_LABEL[upload.bdc.status]}
-                {upload.bdc.completedAt && (
+                {/* 단언의 저자와 시각 — 위 두 확인의 `acked_by` 와 **같은 문법**이다. 한
+                    카드 안에서 세 줄 중 둘만 사람을 말하면 셋째 줄은 저자가 없는 사실로
+                    읽히는데, 이건 파생값이던 시절의 이야기다(델타 §2). 구분자가 글자 흐름
+                    안에 있는 이유도 `AckValue` 와 같다. */}
+                {bdcStamp.length > 0 && (
                   <>
                     {' · '}
-                    <span className={pipelineStyles.text.meta}>
-                      {fmtDateTime(upload.bdc.completedAt)}
-                    </span>
+                    <span className={pipelineStyles.text.meta}>{bdcStamp.join(' · ')}</span>
                   </>
                 )}
               </KvRow>

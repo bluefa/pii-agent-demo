@@ -291,7 +291,8 @@ lists and there is at least one recipient. Losing any of those conditions before
 completion returns it to `NOT_STARTED`: an invalidated ack means BDC is waiting again, not
 that it is half-done.
 
-`COMPLETED` is **not derived** — §8 says who sets it.
+`COMPLETED` is **not derived** — §8 says who sets it, and §8's reset rule below is now
+explicit rather than a consequence of the derivation.
 
 The existing `POST …/reset` (Step 4 완료's 연동 대상 수정) clears the SDU **upload** state —
 acks, recipients, BDC — and **keeps the definition**. Reset returns the target to Step 1,
@@ -307,22 +308,33 @@ Delta of 2026-08-30 (owner). Full request:
 PUT /install/v1/target-sources/{targetSourceId}/sdu/upload/bdc/completion
 body { "completed": true }        // false rolls the assertion back
 → 204
-→ 400  INVALID_PARAMETER   // not a boolean · preconditions unmet
+→ 400  INVALID_PARAMETER   // not a boolean — the only 400
 → 403  FORBIDDEN           // 담당자 권한
+→ 404                      // not an SDU target source
 ```
 
-Three things separate it from §1–§7.
+Four things separate it from §1–§7.
 
 1. **ADMIN only.** Every other endpoint here is 담당자 (ADMIN passes). This one is the
    admin console asserting a fact about BDC-side work, and a 담당자 who could press it
    would advance their own install — SDU has no approval step in front of it.
 2. **One path, both directions.** `completed: true` sets `COMPLETED`, stamps
-   `bdc.completed_at`, and moves the target source to ProcessStatus 5
-   (`WAITING_CONNECTION_TEST`) if it is below 5. `false` clears the stamp and returns
+   `bdc.completed_at` and `bdc.completed_by`, and moves the target source to ProcessStatus
+   5 (`WAITING_CONNECTION_TEST`) if it is below 5. `false` clears both stamps and returns
    `bdc.status` to whatever §7's derivation currently says, and does **not** move
    ProcessStatus back — a connection test may already have run against step 5.
-3. **`true` requires §7's `IN_PROGRESS` conditions**, or it is a 400. BDC has not built
-   anything on a firewall nobody approved and a path nobody ran `ls` against.
+3. **No preconditions.** Both directions are open at any time (owner 2026-08-30); §7's
+   `IN_PROGRESS` conditions are not required. The guard moved to the confirmation modal,
+   which shows the console's real scan / 확정 / Terraform state beside each item — a server
+   400 says "no", the modal says what you are overriding, and the console cannot read
+   every BDC-side fact anyway (Glue).
+4. **`bdc.completed_by`** joins `completed_at` in §4's shape, same `{ id, name, email }`
+   as `acked_by`. A derived value has no author; an assertion that moves an install to
+   step 5 does.
+
+`POST …/reset` clears the assertion unconditionally — `status`, `completed_at` and
+`completed_by` — regardless of who asserted it or when (§7 said reset drops BDC, but that
+used to fall out of the derivation and now has to be done by name).
 
 The screen never moves ProcessStatus. After either write it re-reads §4 and
 `GET /process-status`.

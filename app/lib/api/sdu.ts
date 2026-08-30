@@ -109,6 +109,15 @@ export const toSduUpload = (wire: SduUploadWire): SduUpload => ({
     status: wire.bdc.status,
     checkedAt: wire.bdc.checked_at,
     completedAt: wire.bdc.completed_at,
+    // 단언의 저자 (델타 §2). `acked_by` 와 같은 모양이라 같은 매퍼가 접어도 되지만, 그쪽은
+    // `acked`·`acked_at` 과 한 묶음이라 여기서는 세 필드만 따로 옮긴다.
+    completedBy: wire.bdc.completed_by
+      ? {
+          id: wire.bdc.completed_by.id,
+          name: wire.bdc.completed_by.name,
+          email: wire.bdc.completed_by.email,
+        }
+      : null,
   },
   invalidation: toInvalidation(wire.invalidation),
 });

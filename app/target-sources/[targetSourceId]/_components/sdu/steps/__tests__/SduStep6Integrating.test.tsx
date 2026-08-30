@@ -57,6 +57,7 @@ const UPLOAD: SduUpload = {
     status: 'IN_PROGRESS',
     checkedAt: '2026-08-25T00:31:00Z',
     completedAt: null,
+    completedBy: null,
   },
   invalidation: { addedRegions: [], uploadIpChanged: false },
 };

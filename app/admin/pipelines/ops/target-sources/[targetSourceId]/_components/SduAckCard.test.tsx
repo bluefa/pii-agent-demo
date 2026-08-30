@@ -51,7 +51,7 @@ const upload = (over: Partial<SduUpload> = {}): SduUpload => ({
     updatedAt: '2026-08-24T07:41:00Z',
   },
   commands: { rows: [], acked: false, ackedAt: null, ackedBy: null },
-  bdc: { status: 'NOT_STARTED', checkedAt: '2026-08-24T07:50:00Z', completedAt: null },
+  bdc: { status: 'NOT_STARTED', checkedAt: '2026-08-24T07:50:00Z', completedAt: null, completedBy: null },
   invalidation: { addedRegions: [], uploadIpChanged: false },
   ...over,
 });
@@ -208,6 +208,7 @@ describe('SduAckCard — BDC 구축 완료 단언 (델타 §1·§3)', () => {
         status: 'COMPLETED',
         checkedAt: '2026-08-30T00:00:00Z',
         completedAt: '2026-08-29T08:00:00Z',
+        completedBy: { id: 'admin-1', name: '관리자', email: 'admin@company.com' },
       },
     });
 
@@ -286,6 +287,17 @@ describe('SduAckCard — BDC 구축 완료 단언 (델타 §1·§3)', () => {
     // `STATE_INK.ok` 은 strong 이다 — 모르는 것이 그 잉크를 쓰면 읽은 것처럼 보인다.
     expect(line.className).toContain('text-[var(--pl-text-weak)]');
     expect(line.className).not.toContain('text-[var(--pl-text-strong)]');
+  });
+
+  it('단언한 사람이 두 확인과 같은 문법으로 선다 — 저자 없는 사실로 읽히지 않는다', async () => {
+    // 파생값이던 시절에는 저자가 없었다. 단언에는 있고(델타 §2), 한 카드 안에서 세 줄 중
+    // 둘만 사람을 말하면 셋째 줄만 출처가 없는 것처럼 보인다.
+    getSduUpload.mockResolvedValue(completed());
+    draw();
+
+    const value = (await screen.findByText('BDC 구축')).nextElementSibling;
+    expect(value?.textContent).toContain('구축 완료 · 관리자');
+    expect(value?.textContent).not.toContain('구축 완료관리자');
   });
 
   it('되돌리기는 클릭 한 번으로 나가지 않는다 — 제 확인창을 갖는다', async () => {
