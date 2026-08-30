@@ -372,3 +372,29 @@ describe('CurrentPipelineCard — section head', () => {
     expect(document.body.textContent).not.toContain('Terraform을 실행해 인프라를 생성하거나');
   });
 });
+
+describe('CurrentPipelineCard — task flow', () => {
+  it('opens the clicked task, and stays a picture when no handler is given', () => {
+    const onOpenTask = vi.fn();
+    const detail = makeTerminalDetail('FAILED', ['DONE', 'FAILED']);
+    const { unmount } = renderCard(detail, { sectionTitle: '최근 작업', onOpenTask });
+
+    fireEvent.click(screen.getByRole('button', { name: '작업 정의 2 · FAILED · 상세 열기' }));
+    expect(onOpenTask).toHaveBeenCalledWith(detail.tasks[1]);
+
+    unmount();
+    renderCard(detail, { sectionTitle: '최근 작업' });
+    expect(screen.queryByRole('button', { name: /상세 열기/ })).toBeNull();
+  });
+
+  it('carries the run status on the card frame, not only in the pill', () => {
+    const { container } = renderCard(makeTerminalDetail('FAILED', ['DONE', 'FAILED']), {
+      sectionTitle: '최근 작업',
+    });
+
+    // The stroke IS the status here (pipeline 현황 flow grammar): a task that
+    // ended must not wear the same neutral frame as one that never ran.
+    const cards = Array.from(container.querySelectorAll('.rtc'));
+    expect(cards.map((c) => c.className)).toEqual(['rtc done', 'rtc failed']);
+  });
+});

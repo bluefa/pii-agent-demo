@@ -60,7 +60,7 @@ import {
   RestartBadge,
   RunTaskCard,
 } from '@/app/admin/pipelines/_detail/r24Task';
-import type { PipelineDetail, TaskCatalogEntry } from '@/lib/pipeline/types';
+import type { PipelineDetail, TaskCatalogEntry, TaskSummary } from '@/lib/pipeline/types';
 
 const CARD_SHELL =
   'overflow-hidden rounded-[12px] border border-[var(--pl-border)] bg-[var(--pl-bg-card)] text-[var(--pl-text-strong)] shadow-[var(--pl-shadow-xs)]';
@@ -96,6 +96,8 @@ export interface CurrentPipelineCardProps {
   onStartNew: () => void;
   /** Disables the terminal CTAs and states why. */
   blockedReason?: string | null;
+  /** Opens one task's 상세·로그 modal. Omit to leave the flow non-interactive. */
+  onOpenTask?: (task: TaskSummary) => void;
 }
 
 export function CurrentPipelineCard({
@@ -108,6 +110,7 @@ export function CurrentPipelineCard({
   onRestart,
   onStartNew,
   blockedReason = null,
+  onOpenTask,
 }: CurrentPipelineCardProps): ReactElement {
   const live = isLivePipeline(detail.status);
   // 재시작 resumes an interrupted run — a DONE one has nothing left to resume,
@@ -278,6 +281,7 @@ export function CurrentPipelineCard({
                   status={task.status}
                   seq={i + 1}
                   retry={task.sequence === retrySeq ? retry : null}
+                  onOpen={onOpenTask ? () => onOpenTask(task) : undefined}
                 />
               </Fragment>
             );

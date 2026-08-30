@@ -23,7 +23,6 @@
  * a usable path. Same resume point either way — this one just doesn't blow up.
  */
 import { Fragment, useCallback, useEffect, useState, type ReactElement } from 'react';
-import { useRouter } from 'next/navigation';
 import { cn, pipelineStyles } from '@/lib/theme';
 import { ModalShell } from '@/app/admin/pipelines/_components/ModalShell';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
@@ -38,10 +37,8 @@ import {
   TypePill,
   TypeTile,
 } from '@/app/admin/pipelines/_detail/r24Task';
-import { passRoutes } from '@/lib/routes';
 import { taskInfraSide } from '@/lib/pipeline/format';
 import {
-  getLatestPipelineByTarget,
   getRestartPreview,
   getTaskDefinitions,
   restartPipeline,
@@ -52,7 +49,7 @@ import type { CloudProvider, RestartPreview, TaskCatalogEntry } from '@/lib/pipe
 const TITLE_ID = 'pl-restart-title';
 const MODAL_H3 = 'mb-3 text-[18px] font-bold leading-[1.3] tracking-[-0.018em] text-[var(--pl-text-strong)]';
 
-/** Server states that mean "this screen is stale" — all three route to the latest run. */
+/** Server states that mean "this screen is stale" — all three refetch the run set. */
 const STALE_CODES = new Set([
   'ORCHESTRATION_PIPELINE_NOT_RESTARTABLE',
   'ORCHESTRATION_PIPELINE_NOT_LATEST',
@@ -80,6 +77,9 @@ export interface RestartModalProps {
   showToast: (message: string) => void;
   /** Fired when the server rejected as stale — the caller refetches its latest. */
   onStale?: () => void;
+  /** Fired once the restart exists — the caller refetches in place (owner: a
+   *  restart must not throw the operator off the tab it was started from). */
+  onStarted?: () => void;
 }
 
 export function RestartModal({
@@ -90,8 +90,8 @@ export function RestartModal({
   provider,
   showToast,
   onStale,
+  onStarted,
 }: RestartModalProps): ReactElement | null {
-  const router = useRouter();
   const { modal } = pipelineStyles;
 
   const [preview, setPreview] = useState<RestartPreview | null>(null);
@@ -100,18 +100,13 @@ export function RestartModal({
   const [names, setNames] = useState<ReadonlyMap<string, TaskCatalogEntry>>(new Map());
 
   // A stale rejection is the same wherever it comes from (preview or execution):
-  // close, tell the operator, and hand them the run that IS current.
-  const goToLatest = useCallback(async (): Promise<void> => {
+  // close, tell the operator, and let the caller refetch — the card under this
+  // modal is the run that IS current, so there is nowhere to send them.
+  const goToLatest = useCallback((): void => {
     onClose();
     onStale?.();
-    showToast('작업 상태가 바뀌었습니다. 최신 작업으로 이동합니다.');
-    try {
-      const latest = await getLatestPipelineByTarget(targetSourceId);
-      if (latest) router.push(passRoutes.pipelines.pipeline(latest.pipeline_id));
-    } catch {
-      /* the toast already told them; the caller's refetch fixes the screen */
-    }
-  }, [onClose, onStale, showToast, targetSourceId, router]);
+    showToast('작업 상태가 바뀌었습니다. 최신 작업으로 갱신합니다.');
+  }, [onClose, onStale, showToast]);
 
   // Preview (#13) — fetched on mount. Callers mount this modal only while it is
   // open, so every open is a fresh component: a stale screen fails HERE, and no
@@ -126,7 +121,7 @@ export function RestartModal({
       } catch (err: unknown) {
         if (cancelled) return;
         if (isStale(err)) {
-          void goToLatest();
+          goToLatest();
           return;
         }
         setLoadError(err instanceof Error ? err.message : '재시작 미리보기를 불러오지 못했습니다');
@@ -162,14 +157,14 @@ export function RestartModal({
     });
   }, {
     suppressAlert: true,
-    onSuccess: (detail) => {
+    onSuccess: () => {
       onClose();
       showToast('멈춘 지점부터 재시작했습니다.');
-      router.push(passRoutes.pipelines.pipeline(detail.pipeline_id));
+      onStarted?.();
     },
     onError: (err) => {
       if (isStale(err)) {
-        void goToLatest();
+        goToLatest();
         return;
       }
       setRunError(err.message);

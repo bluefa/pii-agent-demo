@@ -53,6 +53,10 @@ export function PipelineTab({
   onSelectTab,
 }: PipelineTabProps): ReactElement {
   const [status, setStatus] = useState<TerraformStatusResponse | null>(null);
+  // Bumped when a run is created from the modal: starting a job no longer leaves
+  // this tab for the run's 현황 page (owner), so the sections have to pick the new
+  // run up in place.
+  const [startedKey, setStartedKey] = useState(0);
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
   const toast = usePlToast();
@@ -114,6 +118,7 @@ export function PipelineTab({
         startGate={startGate}
         onSelectTab={onSelectTab}
         onRunsChanged={load}
+        refreshKey={startedKey}
       />
 
       <PreviewModal
@@ -122,6 +127,7 @@ export function PipelineTab({
         targetSourceId={String(targetSourceId)}
         provider={orchProvider}
         showToast={toast.show}
+        onStarted={() => setStartedKey((k) => k + 1)}
       />
     </div>
   );

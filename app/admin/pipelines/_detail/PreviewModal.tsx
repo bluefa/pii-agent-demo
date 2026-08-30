@@ -28,7 +28,6 @@
  * feedback goes through the caller's PlToast (`showToast`).
  */
 import { Fragment, useEffect, useState, type ReactElement, type ReactNode } from 'react';
-import { useRouter } from 'next/navigation';
 import { cn, pipelineStyles } from '@/lib/theme';
 import { ModalShell } from '@/app/admin/pipelines/_components/ModalShell';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
@@ -44,7 +43,6 @@ import {
   TypePill,
   TypeTile,
 } from '@/app/admin/pipelines/_detail/r24Task';
-import { passRoutes } from '@/lib/routes';
 import { taskInfraSide, typeKo, type InfraSide } from '@/lib/pipeline/format';
 import {
   createCustomPipeline,
@@ -174,6 +172,10 @@ export interface PreviewModalProps {
   /** Orchestrator wire provider; null = custom execution unsupported (e.g. SDU). */
   provider: CloudProvider | null;
   showToast: (message: string) => void;
+  /** Called once a run exists — the caller refetches in place. Starting a job
+   *  used to navigate to its 현황 page, which threw the operator off the tab they
+   *  were working in (owner). */
+  onStarted: () => void;
 }
 
 export function PreviewModal({
@@ -182,8 +184,8 @@ export function PreviewModal({
   targetSourceId,
   provider,
   showToast,
+  onStarted,
 }: PreviewModalProps): ReactElement | null {
-  const router = useRouter();
   const { modal } = pipelineStyles;
 
   const [step, setStep] = useState<PreviewStep>('choose');
@@ -262,23 +264,24 @@ export function PreviewModal({
         : createPipeline(targetSourceId, { type: type ?? 'INSTALL' }),
     {
       suppressAlert: true,
-      onSuccess: (detail) => {
+      onSuccess: () => {
         onClose();
         showToast(`${label} 작업이 실행됐어요`);
-        router.push(passRoutes.pipelines.pipeline(detail.pipeline_id));
+        onStarted();
       },
       onError: (err) => {
         if (err instanceof OrchestratorApiError && err.code === ALREADY_ACTIVE) {
-          // 409 = a run is already active (contract gap ③): refetch the latest run
-          // and navigate to it. The refetch itself can fail (or 204 → null when the
-          // active run terminated in between) — never hang silently on that path.
+          // 409 = a run is already active (contract gap ③): confirm there IS one
+          // and let the caller refetch — the card below is already showing it. The
+          // check itself can fail (or 204 → null when the active run terminated in
+          // between) — never hang silently on that path.
           void (async () => {
             try {
               const latest = await getLatestPipelineByTarget(targetSourceId);
               if (latest) {
                 onClose();
-                showToast('이미 진행 중인 작업으로 이동합니다');
-                router.push(passRoutes.pipelines.pipeline(latest.pipeline_id));
+                showToast('이미 진행 중인 작업이 있습니다');
+                onStarted();
                 return;
               }
             } catch {

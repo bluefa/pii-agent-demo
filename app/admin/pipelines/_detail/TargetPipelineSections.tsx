@@ -31,6 +31,7 @@ import {
   CurrentPipelineCard,
   EmptyPipelineCard,
 } from '@/app/admin/pipelines/_detail/CurrentPipelineCard';
+import { TaskDetailModal } from '@/app/admin/pipelines/_detail/TaskDetailModal';
 import { OpsPagination } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/OpsPagination';
 import { opsStyles } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/opsStyles';
 import type { GateStage } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/gateStage';
@@ -52,6 +53,7 @@ import type {
   PipelineSummary,
   SpringPage,
   TaskCatalogEntry,
+  TaskSummary,
 } from '@/lib/pipeline/types';
 
 const HISTORY_SIZE = 5;
@@ -81,6 +83,8 @@ export interface TargetPipelineSectionsProps {
   /** Fired when a run reaches a terminal state, so the caller can refetch
    *  anything derived from it (the tab's Terraform status). */
   onRunsChanged?: () => void;
+  /** Bump to refetch the run set — the caller started a run from a modal it owns. */
+  refreshKey?: number;
 }
 
 export function TargetPipelineSections({
@@ -90,6 +94,7 @@ export function TargetPipelineSections({
   startGate = null,
   onSelectTab,
   onRunsChanged,
+  refreshKey = 0,
 }: TargetPipelineSectionsProps): ReactElement {
   const router = useRouter();
   const toast = usePlToast();
@@ -108,6 +113,9 @@ export function TargetPipelineSections({
   // Repo rule: modal open/close flows go through useModal.
   const restartModal = useModal();
   const cancelModal = useModal();
+  // The task the 상세·로그 modal is open for. A task, not an id: the modal needs
+  // the definition name too, and the flow card already holds the row.
+  const [openTask, setOpenTask] = useState<TaskSummary | null>(null);
 
   // History page (server pagination; 5/page).
   useEffect(() => {
@@ -118,7 +126,7 @@ export function TargetPipelineSections({
     return () => {
       cancelled = true;
     };
-  }, [targetSourceId, page, runsKey]);
+  }, [targetSourceId, page, runsKey, refreshKey]);
 
   // Latest run — live/idle switch for the 현재 작업 section.
   useEffect(() => {
@@ -137,7 +145,7 @@ export function TargetPipelineSections({
     return () => {
       cancelled = true;
     };
-  }, [targetSourceId, runsKey]);
+  }, [targetSourceId, runsKey, refreshKey]);
 
   const live = latest != null && isLivePipeline(latest.status);
   const liveId = live ? latest.pipeline_id : null;
@@ -227,6 +235,7 @@ export function TargetPipelineSections({
               onCancel={() => cancelModal.open()}
               onRestart={() => restartModal.open()}
               onStartNew={onStart}
+              onOpenTask={setOpenTask}
             />
           ) : focusDetail ? (
             /* The latest run has ended: the same card, so its Task flow stays on
@@ -242,6 +251,7 @@ export function TargetPipelineSections({
               onRestart={() => restartModal.open()}
               onStartNew={onStart}
               blockedReason={startGate ? RESTART_BLOCKED_REASON : null}
+              onOpenTask={setOpenTask}
             />
           ) : !latestLoaded || focusId != null ? (
             <div className={cn(detailStyles.skeleton, 'h-full min-h-[320px]')} aria-hidden="true" />
@@ -394,6 +404,17 @@ export function TargetPipelineSections({
         </div>
       </div>
 
+      {/* Keyed per task so the fetch + attempt picker start clean on every open. */}
+      {openTask && focusId != null && (
+        <TaskDetailModal
+          key={openTask.task_id}
+          pipelineId={focusId}
+          taskId={openTask.task_id}
+          displayName={defs.get(openTask.task_definition)?.display_name ?? openTask.task_definition}
+          onClose={() => setOpenTask(null)}
+        />
+      )}
+
       {/* Two-phase cancel (contract gap ⑤): the response may still be RUNNING
           with cancel_requested set, so the returned detail is rendered verbatim
           instead of assuming CANCELLED, and the run set is refetched either way. */}
@@ -421,6 +442,7 @@ export function TargetPipelineSections({
           provider={provider}
           showToast={toast.show}
           onStale={() => setRunsKey((k) => k + 1)}
+          onStarted={() => setRunsKey((k) => k + 1)}
         />
       )}
     </div>
