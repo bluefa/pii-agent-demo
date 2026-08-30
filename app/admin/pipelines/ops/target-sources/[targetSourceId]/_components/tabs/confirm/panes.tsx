@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * 확정 정보 워크벤치의 pane 문법과 세 pane.
+ * 확정 정보 워크벤치의 pane 문법과 두 pane.
  *
  * pane 은 네 슬롯 고정이다 — ① 머리(제목 + 카운터 + 액션) ② 정체(kv 2~3열, 테두리
  * 없음) ③ 실체(테이블 하나, 전폭) ④ 원본(우상단 렌즈 토글). 순서는 불변이고, 채울
@@ -16,17 +16,11 @@ import { fmtDateTime } from '@/lib/pipeline/format';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
 import { PlEmptyState } from '@/app/admin/pipelines/_components/PlEmptyState';
 import { SegControl } from '@/app/admin/pipelines/_components/SegControl';
-import { opsStyles } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/opsStyles';
-import {
-  TONE,
-  SIDE_LABEL,
-  metaOf,
-} from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/terraformState';
 import { ResourceList } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/RequestTab';
 import { ConfirmedResourceTable } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/confirm/ConfirmedResourceTable';
 import { ConfirmedIdcTable } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/confirm/ConfirmedIdcTable';
 import { confirmedIntegrationToConfirmed } from '@/lib/resource-catalog';
-import type { ConfirmedIntegrationResponse, TerraformStatusResponse } from '@/app/lib/api';
+import type { ConfirmedIntegrationResponse } from '@/app/lib/api';
 import type { ApprovalRequestDetail } from '@/app/lib/api/task-queue-requests';
 
 export const paneStyles = {
@@ -213,87 +207,6 @@ export function ConfirmPane({ wire, confirmedAt, isIdc, onEdit }: ConfirmPanePro
         <ConfirmedIdcTable rows={resources} className="mt-6 pb-6" />
       ) : (
         <ConfirmedResourceTable resources={structureRows} className="mt-6 pb-6" />
-      )}
-    </div>
-  );
-}
-
-// ── ③ 설치 (Terraform) ───────────────────────────────────────────────────────
-
-/**
- * 원본이 없는 pane — 렌즈 토글이 아예 나타나지 않는다. 여기는 정체 슬롯이 있는
- * 유일한 pane 이다(특정할 사실이 셋 있다).
- *
- * TerraformTaskStatusResponse 가 주는 것은 이름·상태·실행 주체뿐이므로 대상과 완료
- * 시각 열은 두지 않는다. 값은 InfraManager 의 DB 기록이고 Cloud SDK 를 부르지 않는다.
- */
-export function InstallPane({
-  status,
-  onOpenInfra,
-}: {
-  status: TerraformStatusResponse | null;
-  onOpenInfra: () => void;
-}): ReactElement {
-  const tasks = status?.tasks ?? [];
-  const applied = tasks.filter((task) => task.state === 'APPLIED').length;
-  const overall = metaOf(status?.overall_state);
-
-  return (
-    <div className={paneStyles.pane}>
-      <div className={paneStyles.slot1}>
-        <p className={paneStyles.head}>
-          설치 (Terraform)
-          <span className={paneStyles.headSub}>
-            task {applied} / {tasks.length}
-          </span>
-        </p>
-        {/* 실행은 인프라 작업 탭이 소유한다 — 같은 동작의 두 번째 입구를 만들지 않는다. */}
-        <button type="button" onClick={onOpenInfra} className={opsStyles.detailLink}>
-          인프라 작업 탭에서 실행
-        </button>
-      </div>
-
-      <div className={paneStyles.slot2}>
-        <Kv label="적용 상태" value={overall.label} />
-        <Kv label="최근 확정 시각" value={fmtDateTime(status?.latest_confirmed_at)} />
-        <Kv label="마지막 점검" value={fmtDateTime(status?.checked_at)} note="DB 기록" />
-      </div>
-
-      {tasks.length === 0 ? (
-        <PlEmptyState icon="install" message="실행된 Terraform 작업이 없습니다." className="my-10" />
-      ) : (
-        <div className={cn(paneStyles.bleed, paneStyles.bleedTop)}>
-          <table className={opsStyles.table.base}>
-            <thead>
-              <tr>
-                <th className={cn(opsStyles.table.headCell, 'pl-[30px]')}>Task</th>
-                <th className={opsStyles.table.headCell}>상태</th>
-                <th className={opsStyles.table.headCell}>실행 주체</th>
-              </tr>
-            </thead>
-            <tbody>
-              {tasks.map((task, index) => {
-                const meta = metaOf(task.state);
-                return (
-                  <tr
-                    key={`${task.terraform_task_name ?? 'task'}-${index}`}
-                    className={opsStyles.table.rowHover}
-                  >
-                    <td className={cn(opsStyles.table.cell, 'pl-[30px] font-semibold')}>
-                      {task.terraform_task_name ?? '—'}
-                    </td>
-                    <td className={cn(opsStyles.table.cell, 'font-semibold', TONE[meta.tone].text)}>
-                      {meta.label}
-                    </td>
-                    <td className={opsStyles.table.cell}>
-                      {SIDE_LABEL[task.terraform_execution_side ?? ''] ?? '—'}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
       )}
     </div>
   );

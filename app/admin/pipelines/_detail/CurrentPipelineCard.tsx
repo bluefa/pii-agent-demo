@@ -164,10 +164,12 @@ export function CurrentPipelineCard({
         <div className="flex flex-wrap items-start gap-x-4 gap-y-2">
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-              {/* 18px against the section title's 16px: the run is the subject
-                  of this card and the section label is chrome, so they must not
-                  read at one rank two rows apart. */}
-              <b className="text-[18px] font-semibold tracking-[-0.02em] text-[var(--pl-text-strong)]">
+              {/* 16px (owner 2026-08-30, down from 18px). The 18px was set when
+                  the run had to out-rank a 16px section title two rows above it;
+                  that title is a 12px tag now, so the run no longer needs the
+                  extra step to win — and 16px puts it level with the neighbouring
+                  Terraform 적용 상태 card's title, which is the same rank of fact. */}
+              <b className="text-[16px] font-semibold tracking-[-0.02em] text-[var(--pl-text-strong)]">
                 {title}
               </b>
               {/* --pl-text-weak, not faint: at 12px the faint grey reads 2.58:1

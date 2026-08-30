@@ -1,15 +1,18 @@
 // @vitest-environment jsdom
 /**
- * The head's job after the owner call "각 작업이 어떤 상태인지 보여주도록 하자.
- * 조합 상태는 필요없음":
+ * The head's job after two owner calls:
+ *
+ *   "각 작업이 어떤 상태인지 보여주도록 하자. 조합 상태는 필요없음" (2026-08-27)
+ *   "연동 확정 정보와 Terraform 상태를 하나의 카드로, 확정 정보는 라벨로" (2026-08-30)
  *
  *   1. Every task in the response is on screen with ITS OWN state. A rolled-up
  *      pill cannot say which of three tasks failed.
  *   2. 미확정 is a stage, not an absence — it names the step the target sits at.
  *   3. Neither the combined 적용 상태 pill nor the 설치 현황 modal link comes back.
- *   4. Each slot's label row carries the slot-wide qualifier: 조회 on the right of
- *      Terraform 작업, the 확정 정보 link on the right of 연동 정보 — and the link
- *      only when there IS confirmed detail to open.
+ *   4. The card head carries the list-wide qualifier (조회), and the 연동 정보
+ *      label line carries the verdict plus the 확정 정보 link — the link only when
+ *      there IS confirmed detail to open.
+ *   5. Both facts live in ONE card, and the rows carry no column header.
  */
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
@@ -75,24 +78,24 @@ describe('InfraStatusHead — Terraform 작업', () => {
   });
 
   it('drops the combined pill and the modal link the rows replaced', () => {
+    // `적용 상태` alone was the combined pill's label. The card's own title reads
+    // `Terraform 적용 상태`, a different string, so it is not that pill returning.
     renderHead(THREE_TASKS);
 
     expect(screen.queryByText('적용 상태')).toBeNull();
     expect(screen.queryByRole('button', { name: /설치 현황 보기/ })).toBeNull();
   });
 
-  it('hangs 조회 on the label row, not under the last task', () => {
+  it('hangs 조회 on the card head, not under the last task', () => {
     renderHead(THREE_TASKS);
 
     // The lookup time qualifies the whole list. Under the rows it read as a
     // footnote to whichever task happened to be last.
     const checked = screen.getByText(/^조회 /);
-    const term = checked.closest('dt');
-    expect(term).not.toBeNull();
-    expect(term?.textContent).toContain('Terraform 작업');
+    expect(checked.parentElement?.textContent).toContain('Terraform 적용 상태');
   });
 
-  it('leaves the label row alone when the response has no 조회 시각', () => {
+  it('leaves the head alone when the response has no 조회 시각', () => {
     renderHead({ ...THREE_TASKS, checked_at: null });
 
     expect(screen.queryByText(/^조회 /)).toBeNull();
@@ -104,6 +107,18 @@ describe('InfraStatusHead — Terraform 작업', () => {
 
     expect(screen.getByText('작업 정보가 없습니다.')).toBeTruthy();
   });
+
+  it('renders no column-header row above the tasks', () => {
+    // At most three rows ever land here (AWS 3 · GCP/IDC/SDU 2 · Azure 1), so a
+    // header would cost a line and buy nothing — the card title names the list.
+    // Asserted structurally, not by three literal strings: a re-added header is
+    // as likely to read `Task` or `구분` as `작업`, and a string list would let
+    // those through while claiming the row is gone.
+    const { container } = renderHead(THREE_TASKS);
+
+    expect(container.querySelector('thead')).toBeNull();
+    expect(screen.queryAllByRole('columnheader')).toHaveLength(0);
+  });
 });
 
 describe('InfraStatusHead — 연동 정보', () => {
@@ -111,8 +126,8 @@ describe('InfraStatusHead — 연동 정보', () => {
     renderHead(UNCONFIRMED, 'IDLE');
 
     expect(screen.getByText('미확정')).toBeTruthy();
-    expect(screen.getByText('1단계 · 연동 대상 DB 선택')).toBeTruthy();
-    // The banner that used to shout this is gone — the slot states it once.
+    expect(screen.getByText(/1단계 · 연동 대상 DB 선택/)).toBeTruthy();
+    // The banner that used to shout this is gone — the line states it once.
     expect(screen.queryByText('확정된 연동 정보가 없습니다')).toBeNull();
   });
 
@@ -123,6 +138,19 @@ describe('InfraStatusHead — 연동 정보', () => {
     expect(screen.queryByText(/단계 ·/)).toBeNull();
   });
 
+  it('states the verdict as a label/value pair, not a tag', () => {
+    renderHead(THREE_TASKS);
+
+    // The label stands in front of the value — that pairing is why this round
+    // chose a label line over a tag, and it survives in the a11y tree only as
+    // real dt/dd.
+    const value = screen.getByText('확정됨');
+    const pair = value.closest('dl');
+    expect(pair).not.toBeNull();
+    expect(pair?.querySelector('dt')?.textContent).toBe('연동 정보');
+    expect(value.closest('dd')).not.toBeNull();
+  });
+
   it('reads 확정됨 and offers the 확정 정보 tab as its detail', () => {
     const onSelectTab = vi.fn();
     renderHead(THREE_TASKS, 'INSTALLED', onSelectTab);
@@ -130,8 +158,8 @@ describe('InfraStatusHead — 연동 정보', () => {
     expect(screen.getByText('확정됨')).toBeTruthy();
     const detail = detailButton();
     expect(detail).not.toBeNull();
-    // It sits on the label row, like 조회 in the sibling slot.
-    expect(detail?.closest('dt')?.textContent).toContain('연동 정보');
+    // It follows the value on the same 연동 정보 line.
+    expect(detail?.closest('dl')?.textContent).toContain('연동 정보');
 
     fireEvent.click(detail as HTMLElement);
     expect(onSelectTab).toHaveBeenCalledWith('확정 정보');
@@ -147,5 +175,15 @@ describe('InfraStatusHead — 연동 정보', () => {
     renderHead(UNCONFIRMED, 'IDLE');
 
     expect(detailButton()).toBeNull();
+  });
+
+  it('keeps the verdict and the task rows inside ONE card', () => {
+    // Owner call 2026-08-30: 하나의 카드. Splitting the verdict back out into its
+    // own container fails here.
+    renderHead(THREE_TASKS);
+
+    const card = screen.getByText('확정됨').closest('section');
+    expect(card).not.toBeNull();
+    expect(screen.getByText('aws-vpc-peering').closest('section')).toBe(card);
   });
 });

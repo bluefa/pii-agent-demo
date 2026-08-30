@@ -1,7 +1,12 @@
 /**
- * Terraform state vocabulary — shared by the 인프라 작업 head strip (one overall
- * pill) and the 설치 현황 modal (one pill per task). It lives outside both so the
- * head can import the modal without the modal importing back into the head.
+ * Terraform state vocabulary — one pill per task, plus the tone/label lookup the
+ * delete gate reads. Consumers are `InfraStatusHead` (the 인프라 작업 card's task
+ * rows) and `ConfirmEditorModal` (the delete gate's `overall_state`).
+ *
+ * It lives outside both so neither has to import the other. The 설치 현황 modal it
+ * was originally written for is gone, and so is the combined `overall_state` pill
+ * this file's header used to name — the head shows every task's own state instead
+ * (owner 2026-08-27).
  */
 import type { IconName } from '@/app/admin/pipelines/_components/icons';
 
