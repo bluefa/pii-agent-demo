@@ -400,7 +400,7 @@ describe('SDU BDC 완료 단언 (델타 §1·§3·§4)', () => {
   const complete = (id: number, completed: boolean) =>
     mockSdu.putBdcCompletion(id, { completed });
 
-  it('단언이 완료를 세우고 대상 소스를 5단계로 옮긴다', async () => {
+  it('단언이 완료를 세우고 대상 소스를 6단계로 옮긴다 — 5는 건너뛴다', async () => {
     await putDefinition(GLOBAL_ID, [target({ target_id: 'a', region: 'us' })]);
     await mockSdu.submitDefinition(GLOBAL_ID);
     await ackEverything(GLOBAL_ID);
@@ -410,24 +410,46 @@ describe('SDU BDC 완료 단언 (델타 §1·§3·§4)', () => {
     const done = await upload(GLOBAL_ID);
     expect(done.bdc.status).toBe('COMPLETED');
     expect(done.bdc.completed_at).not.toBeNull();
+    // SDU 는 1 → 4 → 6 → 7 이다. 5(WAITING_CONNECTION_TEST)는 건너뛴다 — 08-28 §9 의
+    // 「2·3·5 비활성」이 §8 의 「ProcessStatus 5」를 이긴다(오너 2026-08-30 2차).
     expect(mockData.getProjectByTargetSourceId(GLOBAL_ID)?.processStatus).toBe(
+      ProcessStatus.CONNECTION_VERIFIED,
+    );
+    expect(mockData.getProjectByTargetSourceId(GLOBAL_ID)?.processStatus).not.toBe(
       ProcessStatus.WAITING_CONNECTION_TEST,
     );
   });
 
-  it('전제가 없다 — 아무것도 확인되지 않은 대상에서도 단언은 통과한다', async () => {
-    // 오너 2026-08-30: 두 방향 모두 언제든 열려 있다. 잘못 누르는 것을 막는 자리는 서버의
-    // 400 이 아니라 확인 모달이고, 모달은 스캔·확정·Terraform 의 실제 상태를 옆에 적는다.
+  it('시작조차 못 한 BDC 는 끝났다고 말할 수 없다 — 전제 미충족은 400', async () => {
+    // 오너 2026-08-30 2차: 「이거 다 미답이면 구축 완료를 못 하게 해」. 단언 방향에만 §8 의
+    // 진입 조건이 붙는다 — 두 확인 「예」 + 수신자 1명 이상.
     await putDefinition(GLOBAL_ID, [target({ target_id: 'a', region: 'us' })]);
     await mockSdu.submitDefinition(GLOBAL_ID);
-    // 확인도 수신자도 없다 — 파생이라면 NOT_STARTED 인 자리다.
     expect((await upload(GLOBAL_ID)).bdc.status).toBe('NOT_STARTED');
 
+    expect((await complete(GLOBAL_ID, true)).status).toBe(400);
+    expect((await upload(GLOBAL_ID)).bdc.status).toBe('NOT_STARTED');
+    // 단계도 그대로다 — 거절된 쓰기가 설치를 밀지 않는다.
+    expect(mockData.getProjectByTargetSourceId(GLOBAL_ID)?.processStatus).toBe(ProcessStatus.INSTALLING);
+  });
+
+  it('전제는 셋 다 필요하다 — 확인 둘만으로도, 수신자만으로도 서지 않는다', async () => {
+    await putDefinition(GLOBAL_ID, [target({ target_id: 'a', region: 'us' })]);
+
+    // 확인 둘, 수신자 없음.
+    await mockSdu.putFirewallAck(GLOBAL_ID, { confirmed: true });
+    await mockSdu.putCommandsAck(GLOBAL_ID, { confirmed: true });
+    expect((await complete(GLOBAL_ID, true)).status).toBe(400);
+
+    // 수신자를 더하면 그때 선다.
+    await mockSdu.putAccessKeyRecipients(GLOBAL_ID, { user_ids: ['user-3'] });
     expect((await complete(GLOBAL_ID, true)).status).toBe(204);
-    expect((await upload(GLOBAL_ID)).bdc.status).toBe('COMPLETED');
-    expect(mockData.getProjectByTargetSourceId(GLOBAL_ID)?.processStatus).toBe(
-      ProcessStatus.WAITING_CONNECTION_TEST,
-    );
+  });
+
+  it('되돌리기에는 전제가 없다 — 오너의 「언제든」은 그쪽에 남는다', async () => {
+    // 아무 확인도 없는 대상에서도 거절하지 않는다. 단언 방향만 게이트가 있다.
+    await putDefinition(GLOBAL_ID, [target({ target_id: 'a', region: 'us' })]);
+    expect((await complete(GLOBAL_ID, false)).status).toBe(204);
   });
 
   it('단언은 저자를 남기고, 되돌리기가 시각과 함께 지운다', async () => {
@@ -473,9 +495,9 @@ describe('SDU BDC 완료 단언 (델타 §1·§3·§4)', () => {
     const back = await upload(GLOBAL_ID);
     expect(back.bdc.status).toBe('IN_PROGRESS');
     expect(back.bdc.completed_at).toBeNull();
-    // 그 사이 연결 테스트가 돌았을 수 있다 — 되돌리기가 취소하는 것은 단언뿐이다.
+    // 단언이 밀어 둔 6단계는 그대로다 — 되돌리기가 취소하는 것은 단언뿐이다.
     expect(mockData.getProjectByTargetSourceId(GLOBAL_ID)?.processStatus).toBe(
-      ProcessStatus.WAITING_CONNECTION_TEST,
+      ProcessStatus.CONNECTION_VERIFIED,
     );
   });
 

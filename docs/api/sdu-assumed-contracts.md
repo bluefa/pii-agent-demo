@@ -287,7 +287,8 @@ Both facts are confirmed (오너, 2026-08-28), so nothing here is assumed but th
 Not an endpoint — a rule §4's `bdc` reports.
 
 `bdc.status` becomes `IN_PROGRESS` when **every** current region is acknowledged on both
-lists and there is at least one recipient. Losing any of those conditions before
+lists and there is at least one recipient — the same condition §8 requires before it will
+accept an assertion. Losing any of those conditions before
 completion returns it to `NOT_STARTED`: an invalidated ack means BDC is waiting again, not
 that it is half-done.
 
@@ -308,7 +309,7 @@ Delta of 2026-08-30 (owner). Full request:
 PUT /install/v1/target-sources/{targetSourceId}/sdu/upload/bdc/completion
 body { "completed": true }        // false rolls the assertion back
 → 204
-→ 400  INVALID_PARAMETER   // not a boolean — the only 400
+→ 400  INVALID_PARAMETER   // not a boolean · assertion preconditions unmet
 → 403  FORBIDDEN           // 담당자 권한
 → 404                      // not an SDU target source
 ```
@@ -320,14 +321,22 @@ Four things separate it from §1–§7.
    would advance their own install — SDU has no approval step in front of it.
 2. **One path, both directions.** `completed: true` sets `COMPLETED`, stamps
    `bdc.completed_at` and `bdc.completed_by`, and moves the target source to ProcessStatus
-   5 (`WAITING_CONNECTION_TEST`) if it is below 5. `false` clears both stamps and returns
-   `bdc.status` to whatever §7's derivation currently says, and does **not** move
-   ProcessStatus back — a connection test may already have run against step 5.
-3. **No preconditions.** Both directions are open at any time (owner 2026-08-30); §7's
-   `IN_PROGRESS` conditions are not required. The guard moved to the confirmation modal,
-   which shows the console's real scan / 확정 / Terraform state beside each item — a server
-   400 says "no", the modal says what you are overriding, and the console cannot read
-   every BDC-side fact anyway (Glue).
+   **6** (`CONNECTION_VERIFIED`) if it is below 6 — **not 5**. `false` clears both stamps
+   and returns `bdc.status` to whatever §7's derivation currently says, and does **not**
+   move ProcessStatus back.
+
+   §7 above used to say 5 (`WAITING_CONNECTION_TEST`), and the 08-28 handoff says it too
+   (its §8). **That line is the error**; the handoff's §9 — "진행 상태: 7단계 레일에서
+   2·3·5 비활성" — is authoritative (owner 2026-08-30). The SDU flow is **1 → 4 → 6 → 7**:
+   5 means "it is the connection test's turn", 6 means "verified, awaiting the admin's
+   확정", and the second is what an asserted BDC completion actually produces.
+3. **`true` requires §7's `IN_PROGRESS` conditions** — both acks 「예」 and ≥1 recipient —
+   or it is a 400 that changes nothing (owner 2026-08-30, second pass). Work that could
+   not have *started* cannot have *finished*. **`false` is ungated**: withdrawing a claim
+   needs no precondition. The confirmation modal still shows the console's real scan /
+   확정 / Terraform state beside each item — the 400 blocks what §7 says cannot be true,
+   the modal shows what §7 does not know, and the console cannot read every BDC-side fact
+   anyway (Glue). The CTA is disabled with its reason written out when the gate is unmet.
 4. **`bdc.completed_by`** joins `completed_at` in §4's shape, same `{ id, name, email }`
    as `acked_by`. A derived value has no author; an assertion that moves an install to
    step 5 does. The ops console's 「담당자 확인」 card draws it in the BDC row, in the same

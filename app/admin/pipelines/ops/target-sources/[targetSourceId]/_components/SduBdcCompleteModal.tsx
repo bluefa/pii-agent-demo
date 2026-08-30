@@ -192,7 +192,7 @@ export function SduBdcCompleteModal({
       onClose={onClose}
       onConfirm={() => void mutate()}
       title="BDC 구축 완료로 처리할까요?"
-      description="완료로 처리하면 이 Target Source는 5단계(연결 테스트 대기)로 넘어갑니다."
+      description="완료로 처리하면 이 Target Source는 6단계(연결 확인 완료)로 넘어갑니다."
       confirmLabel="완료 처리"
       size="md"
       isPending={loading}

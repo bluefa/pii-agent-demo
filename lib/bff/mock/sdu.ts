@@ -636,10 +636,12 @@ export const mockSdu = {
    * 완료는 파생이 아니라 **단언**이다. `true` 는 세우고 단계를 5로 밀고, `false` 는 단언을
    * 지워 §8 의 파생으로 되돌린다 — 지우기가 아니라 **다시 세기**다.
    *
-   * **전제가 없다** (오너 2026-08-30, 델타 §4). 두 방향 모두 언제든 열려 있고 조건 미충족을
-   * 이유로 거절하지 않는다 — 잘못 누르는 것을 막는 자리는 서버의 400 이 아니라 확인 모달이다.
-   * 모달은 스캔·확정·Terraform 의 **실제 상태를 옆에 적으므로**, 400 이 못 하는 일까지 한다:
-   * 관리자에게 자기가 무엇을 덮어쓰는지 보여준다.
+   * **단언에는 전제가 있다** (오너 2026-08-30 2차, 델타 §4): §8 의 진입 조건 — 두 확인 「예」
+   * + 수신자 1명 이상. 시작조차 할 수 없었던 BDC 가 **끝났다**고 말하는 것은 앞뒤가 맞지
+   * 않는다. 모달이 스캔·확정·Terraform 의 실제 상태를 옆에 적는 것은 그대로이고(무엇을
+   * 덮어쓰는지 보여준다), 다만 그것이 유일한 방어선은 아니다.
+   *
+   * **되돌리기는 전제가 없다.** 오너의 「언제든」은 그쪽 방향에 그대로 남는다.
    */
   putBdcCompletion: async (targetSourceId: number, body: SduBdcCompletionRequestWire) => {
     const auth = authorizeAdmin(targetSourceId);
@@ -662,14 +664,23 @@ export const mockSdu = {
       return noContent();
     }
 
+    // 시작 조건을 못 갖춘 BDC 는 끝났을 수가 없다 (델타 §4).
+    if (!bdcReady(state)) {
+      return invalidParameter(
+        'BDC 진행 조건을 갖추지 못했습니다 — 방화벽 결재 확인과 데이터 업로드 확인, S3 Access Key 수신자 1명 이상이 필요합니다.',
+      );
+    }
+
     const user = mockData.getCurrentUser();
     state.bdcStatus = 'COMPLETED';
     state.bdcCompletedAt = new Date().toISOString();
     state.bdcCompletedBy = user ? { id: user.id, name: user.name, email: user.email } : null;
-    // 이미 5 이상인 대상은 옮기지 않는다 — 6·7단계를 5로 끌어내리는 것은 전진이 아니다.
-    if (auth.project.processStatus < ProcessStatus.WAITING_CONNECTION_TEST) {
+    // **6이지 5가 아니다** (오너 2026-08-30 2차). SDU 는 1 → 4 → 6 → 7 이고 5도 건너뛴다 —
+    // 08-28 §9 의 「2·3·5 비활성」이 옳고 §8 의 「ProcessStatus 5」가 오기였다(델타 §3.2).
+    // 이미 6 이상인 대상은 옮기지 않는다: 7단계를 6으로 끌어내리는 것은 전진이 아니다.
+    if (auth.project.processStatus < ProcessStatus.CONNECTION_VERIFIED) {
       mockData.updateProject(auth.project.id, {
-        processStatus: ProcessStatus.WAITING_CONNECTION_TEST,
+        processStatus: ProcessStatus.CONNECTION_VERIFIED,
       });
     }
     return noContent();

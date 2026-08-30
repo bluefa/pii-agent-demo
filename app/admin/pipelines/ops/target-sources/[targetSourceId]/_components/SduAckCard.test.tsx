@@ -190,6 +190,31 @@ describe('SduAckCard — 조회 실패', () => {
  *     세우면 400 뒤에도 완료가 그려진다.
  */
 describe('SduAckCard — BDC 구축 완료 단언 (델타 §1·§3)', () => {
+  /** 두 확인 「예」 + 수신자 1명 — 서버가 단언을 받아 주는 최소 상태 (델타 §4). */
+  const assertable = (): SduUpload =>
+    upload({
+      firewall: {
+        rows: [],
+        acked: true,
+        ackedAt: '2026-08-25T10:40:00Z',
+        ackedBy: { id: 'user-1', name: '홍길동', email: 'hong@company.com' },
+      },
+      commands: {
+        rows: [],
+        acked: true,
+        ackedAt: '2026-08-26T09:00:00Z',
+        ackedBy: { id: 'user-1', name: '홍길동', email: 'hong@company.com' },
+      },
+      bdc: { status: 'IN_PROGRESS', checkedAt: '2026-08-30T00:00:00Z', completedAt: null, completedBy: null },
+    });
+
+  /** 모달을 여는 케이스가 쓰는 채비 — CTA 는 전제를 갖춰야 눌린다. */
+  const openModal = async (): Promise<void> => {
+    getSduUpload.mockResolvedValue(assertable());
+    draw();
+    fireEvent.click(await screen.findByRole('button', { name: 'BDC 구축 완료 처리' }));
+  };
+
   const completed = (): SduUpload =>
     upload({
       firewall: {
@@ -213,6 +238,7 @@ describe('SduAckCard — BDC 구축 완료 단언 (델타 §1·§3)', () => {
     });
 
   it('완료 전에는 완료 CTA 만, 완료 뒤에는 되돌리기 CTA 만 선다', async () => {
+    getSduUpload.mockResolvedValue(assertable());
     draw();
     expect(await screen.findByRole('button', { name: 'BDC 구축 완료 처리' })).toBeTruthy();
     expect(screen.queryByRole('button', { name: '구축 완료 되돌리기' })).toBeNull();
@@ -222,9 +248,35 @@ describe('SduAckCard — BDC 구축 완료 단언 (델타 §1·§3)', () => {
     expect(await screen.findByRole('button', { name: '구축 완료 되돌리기' })).toBeTruthy();
   });
 
-  it('세 항목을 다 체크해야 완료 처리가 열린다', async () => {
+  it('전제를 못 갖추면 CTA 가 잠기고, 무엇을 기다려야 하는지 말한다', async () => {
+    // 기본 픽스처는 방화벽 「아니오」 · 업로드 미답이다 — 시작조차 못 한 BDC 다 (델타 §4).
     draw();
-    fireEvent.click(await screen.findByRole('button', { name: 'BDC 구축 완료 처리' }));
+
+    const cta = (await screen.findByRole('button', {
+      name: 'BDC 구축 완료 처리',
+    })) as HTMLButtonElement;
+    expect(cta.disabled).toBe(true);
+    // ⛔ 이유 없는 비활성 버튼은 이 저장소가 반복해서 지적해 온 결함이다.
+    expect(screen.getByText(/처리할 수 있어요/).textContent).toContain('S3 Access Key 수신자');
+
+    // 눌러도 모달은 서지 않는다 — 잠긴 버튼이 잠긴 것처럼 굴어야 한다.
+    fireEvent.click(cta);
+    expect(screen.queryByText('세 가지를 모두 확인하셨나요?')).toBeNull();
+  });
+
+  it('전제를 갖추면 잠금과 이유가 함께 사라진다', async () => {
+    getSduUpload.mockResolvedValue(assertable());
+    draw();
+
+    const cta = (await screen.findByRole('button', {
+      name: 'BDC 구축 완료 처리',
+    })) as HTMLButtonElement;
+    expect(cta.disabled).toBe(false);
+    expect(screen.queryByText(/처리할 수 있어요/)).toBeNull();
+  });
+
+  it('세 항목을 다 체크해야 완료 처리가 열린다', async () => {
+    await openModal();
 
     await screen.findByText('세 가지를 모두 확인하셨나요?');
     const commit = screen.getByRole('button', { name: '완료 처리' }) as HTMLButtonElement;
@@ -240,6 +292,9 @@ describe('SduAckCard — BDC 구축 완료 단언 (델타 §1·§3)', () => {
     fireEvent.click(boxes[2]);
     expect(commit.disabled).toBe(false);
 
+    // 6단계다 — SDU 는 5를 건너뛴다 (오너 2026-08-30 2차).
+    expect(screen.getByText(/6단계\(연결 확인 완료\)로 넘어갑니다/)).toBeTruthy();
+
     fireEvent.click(commit);
     await waitFor(() => expect(putSduBdcCompletion).toHaveBeenCalledWith(1100, true));
     // 단언이 무엇이 됐는지는 서버가 안다 — 카드도 뷰도 다시 읽는다.
@@ -248,8 +303,7 @@ describe('SduAckCard — BDC 구축 완료 단언 (델타 §1·§3)', () => {
   });
 
   it('콘솔이 모르는 항목은 판정 대신 못 읽는다고 말한다', async () => {
-    draw();
-    fireEvent.click(await screen.findByRole('button', { name: 'BDC 구축 완료 처리' }));
+    await openModal();
 
     const glue = await screen.findByText('Glue 설정 확인');
     expect(glue.parentElement?.nextElementSibling?.textContent).toContain(
@@ -258,8 +312,7 @@ describe('SduAckCard — BDC 구축 완료 단언 (델타 §1·§3)', () => {
   });
 
   it('나머지 둘은 「연동 현황」 카드와 같은 낱말을 쓴다', async () => {
-    draw();
-    fireEvent.click(await screen.findByRole('button', { name: 'BDC 구축 완료 처리' }));
+    await openModal();
 
     const scan = await screen.findByText('Scan & 확정');
     await waitFor(() => {
@@ -278,8 +331,7 @@ describe('SduAckCard — BDC 구축 완료 단언 (델타 §1·§3)', () => {
 
   it('조회가 거절된 항목은 판정 잉크를 얻지 못한다 — 못 읽은 것은 초록이 아니다', async () => {
     getTerraformStatus.mockRejectedValue(new Error('rejected'));
-    draw();
-    fireEvent.click(await screen.findByRole('button', { name: 'BDC 구축 완료 처리' }));
+    await openModal();
 
     const terraform = await screen.findByText('Terraform 동작');
     const line = terraform.parentElement?.nextElementSibling as HTMLElement;

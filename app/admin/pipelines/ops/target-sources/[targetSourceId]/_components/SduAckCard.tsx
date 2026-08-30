@@ -44,6 +44,14 @@ const KV_GRID = 'grid grid-cols-[140px_1fr] items-baseline gap-x-4 gap-y-2.5 mt-
  *  일이라, 같은 kv 격자에 넣으면 세 번째 확인 답변으로 읽힌다. */
 const BDC_BLOCK = 'mt-5 border-t border-[var(--pl-border)] pt-4';
 
+/**
+ * 단언의 전제가 아직 아닐 때 버튼 밑에 서는 줄 (델타 §4). 비활성 버튼만 두고 이유를 안 쓰면
+ * 관리자는 무엇을 기다려야 하는지 알 수 없다 — 서버가 세는 셋을 그대로 이름 부른다.
+ * 수신자는 옆 카드에 있어서 이 줄이 아니면 여기서 언급될 자리가 없다.
+ */
+const BDC_BLOCKED =
+  '방화벽 결재 확인과 데이터 업로드 확인이 모두 「예」이고 S3 Access Key 수신자가 1명 이상이면 처리할 수 있어요.';
+
 /** 완료 단언의 두 방향 — 계약이 하나의 값으로 말하듯 화면도 한 자리에서 갈린다. */
 const BDC_LABEL: Record<SduUpload['bdc']['status'], string> = {
   NOT_STARTED: '대기 중',
@@ -142,6 +150,17 @@ export function SduAckCard({ targetSourceId, onBdcChanged }: SduAckCardProps): R
     },
   );
 
+  /**
+   * 서버가 단언을 받아 주는 조건 (델타 §4) — 계약 §8 의 BDC 진입 조건 그대로다. 화면이
+   * 따로 세는 것이 아니라 **같은 셋을 본다**: 이 카드가 이미 그리는 두 확인과, 옆 카드가
+   * 그리는 수신자. 시작조차 못 한 BDC 를 「끝났다」고 말할 수 없다.
+   */
+  const bdcAssertable =
+    upload != null &&
+    upload.firewall.acked &&
+    upload.commands.acked &&
+    upload.accessKeyRecipients.users.length > 0;
+
   // 단언이 없으면 붙일 사람도 시각도 없다 — 미답에 구분자를 세우지 않는 것과 같다.
   const bdcStamp = [
     upload?.bdc.completedBy?.name,
@@ -217,9 +236,20 @@ export function SduAckCard({ targetSourceId, onBdcChanged }: SduAckCardProps): R
                   구축 완료 되돌리기
                 </PlButton>
               ) : (
-                <PlButton variant="primary" onClick={() => setConfirming('complete')}>
-                  BDC 구축 완료 처리
-                </PlButton>
+                <>
+                  <PlButton
+                    variant="primary"
+                    disabled={!bdcAssertable}
+                    onClick={() => setConfirming('complete')}
+                  >
+                    BDC 구축 완료 처리
+                  </PlButton>
+                  {/* 잠긴 이유는 버튼 옆이 아니라 **밑에** 선다 — 이유가 없는 비활성 버튼은
+                      이 저장소가 반복해서 지적해 온 결함이다. */}
+                  {!bdcAssertable && (
+                    <p className={cn(pipelineStyles.text.meta, 'mt-2')}>{BDC_BLOCKED}</p>
+                  )}
+                </>
               )}
             </div>
           </div>
