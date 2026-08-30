@@ -10,6 +10,7 @@ vi.mock('@/lib/bff/client', () => ({
       putFirewallAck: vi.fn(),
       putCommandsAck: vi.fn(),
       putAccessKeyRecipients: vi.fn(),
+      putBdcCompletion: vi.fn(),
     },
   },
 }));
@@ -20,6 +21,7 @@ import { GET as getUpload } from '@/app/api/v1/target-sources/[targetSourceId]/s
 import { PUT as putFirewallAck } from '@/app/api/v1/target-sources/[targetSourceId]/sdu/upload/firewall/ack/route';
 import { PUT as putCommandsAck } from '@/app/api/v1/target-sources/[targetSourceId]/sdu/upload/commands/ack/route';
 import { PUT as putRecipients } from '@/app/api/v1/target-sources/[targetSourceId]/sdu/upload/access-key-recipients/route';
+import { PUT as putBdcCompletion } from '@/app/api/v1/target-sources/[targetSourceId]/sdu/upload/bdc/completion/route';
 import { bff } from '@/lib/bff/client';
 import { BffError } from '@/lib/bff/errors';
 import type { SduDefinitionWire, SduFirewallWire, SduUploadWire } from '@/lib/types/sdu';
@@ -71,6 +73,7 @@ beforeEach(() => {
   mocked.putFirewallAck.mockResolvedValue(undefined);
   mocked.putCommandsAck.mockResolvedValue(undefined);
   mocked.putAccessKeyRecipients.mockResolvedValue(undefined);
+  mocked.putBdcCompletion.mockResolvedValue(undefined);
 });
 
 describe('SDU 라우트 — targetSourceId 검증', () => {
@@ -83,6 +86,7 @@ describe('SDU 라우트 — targetSourceId 검증', () => {
       putFirewallAck(new Request(url('/upload/firewall/ack'), { method: 'PUT', body: '{}' }), params('abc')),
       putCommandsAck(new Request(url('/upload/commands/ack'), { method: 'PUT', body: '{}' }), params('abc')),
       putRecipients(new Request(url('/upload/access-key-recipients'), { method: 'PUT', body: '{}' }), params('abc')),
+      putBdcCompletion(new Request(url('/upload/bdc/completion'), { method: 'PUT', body: '{}' }), params('abc')),
     ]);
 
     for (const response of responses) {
@@ -189,6 +193,28 @@ describe('SDU 라우트 — 해피 패스', () => {
     );
     expect(bad.status).toBe(400);
     await expect(bad.json()).resolves.toMatchObject({ code: 'VALIDATION_FAILED' });
+  });
+
+  it('BDC 완료는 한 경로가 두 방향을 진다 — 본문의 boolean 만 다르다 (델타 §1)', async () => {
+    for (const completed of [true, false]) {
+      const response = await putBdcCompletion(
+        new Request(url('/upload/bdc/completion'), { method: 'PUT', body: JSON.stringify({ completed }) }),
+        params('1101'),
+      );
+      expect(response.status).toBe(204);
+      expect(mocked.putBdcCompletion).toHaveBeenCalledWith(1101, { completed });
+    }
+  });
+
+  it('completed 가 boolean 이 아니면 상류에 닿기 전에 400 이다', async () => {
+    const response = await putBdcCompletion(
+      new Request(url('/upload/bdc/completion'), { method: 'PUT', body: JSON.stringify({ completed: 'yes' }) }),
+      params('1101'),
+    );
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toMatchObject({ code: 'VALIDATION_FAILED' });
+    expect(mocked.putBdcCompletion).not.toHaveBeenCalled();
   });
 });
 

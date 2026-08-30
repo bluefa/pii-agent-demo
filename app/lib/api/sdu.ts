@@ -203,3 +203,20 @@ export const putSduAccessKeyRecipients = async (
     body: { user_ids: [...userIds] },
   });
 };
+
+/**
+ * 2026-08-30 델타 §1 — BDC 구축 완료 단언. **관리자 콘솔만 부른다**(델타 §2).
+ *
+ * 한 경로가 두 방향을 진다: `true` 는 완료로 세우고, `false` 는 그 단언을 지워 §8 의 파생으로
+ * 되돌린다. 응답 본문이 없으므로 화면은 `getSduUpload` 와 process-status 를 **다시 읽어**
+ * 무엇이 됐는지 안다 — 단계를 움직이는 것은 서버지 이 함수가 아니다.
+ */
+export const putSduBdcCompletion = async (
+  targetSourceId: number,
+  completed: boolean,
+): Promise<void> => {
+  await fetchInfraJson<void>(`${base(targetSourceId)}/upload/bdc/completion`, {
+    method: 'PUT',
+    body: { completed },
+  });
+};

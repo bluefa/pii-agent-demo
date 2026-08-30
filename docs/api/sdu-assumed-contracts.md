@@ -287,15 +287,45 @@ Both facts are confirmed (오너, 2026-08-28), so nothing here is assumed but th
 Not an endpoint — a rule §4's `bdc` reports.
 
 `bdc.status` becomes `IN_PROGRESS` when **every** current region is acknowledged on both
-lists and there is at least one recipient, and `COMPLETED` 60 s later, which moves the
-target source to ProcessStatus 5 (`WAITING_CONNECTION_TEST`). Losing any of those
-conditions before completion returns it to `NOT_STARTED`: an invalidated ack means BDC is
-waiting again, not that it is half-done.
+lists and there is at least one recipient. Losing any of those conditions before
+completion returns it to `NOT_STARTED`: an invalidated ack means BDC is waiting again, not
+that it is half-done.
+
+`COMPLETED` is **not derived** — §8 says who sets it.
 
 The existing `POST …/reset` (Step 4 완료's 연동 대상 수정) clears the SDU **upload** state —
 acks, recipients, BDC — and **keeps the definition**. Reset returns the target to Step 1,
 and Step 1 is where the definition is edited; wiping it would hand the owner an empty
 screen to re-type from memory, which is the same reasoning that keeps the scan results.
+
+## 8. BDC completion — asserted, not derived
+
+Delta of 2026-08-30 (owner). Full request:
+`docs/bff-api/requests/2026-08-30-sdu-bdc-completion.md`.
+
+```
+PUT /install/v1/target-sources/{targetSourceId}/sdu/upload/bdc/completion
+body { "completed": true }        // false rolls the assertion back
+→ 204
+→ 400  INVALID_PARAMETER   // not a boolean · preconditions unmet
+→ 403  FORBIDDEN           // 담당자 권한
+```
+
+Three things separate it from §1–§7.
+
+1. **ADMIN only.** Every other endpoint here is 담당자 (ADMIN passes). This one is the
+   admin console asserting a fact about BDC-side work, and a 담당자 who could press it
+   would advance their own install — SDU has no approval step in front of it.
+2. **One path, both directions.** `completed: true` sets `COMPLETED`, stamps
+   `bdc.completed_at`, and moves the target source to ProcessStatus 5
+   (`WAITING_CONNECTION_TEST`) if it is below 5. `false` clears the stamp and returns
+   `bdc.status` to whatever §7's derivation currently says, and does **not** move
+   ProcessStatus back — a connection test may already have run against step 5.
+3. **`true` requires §7's `IN_PROGRESS` conditions**, or it is a 400. BDC has not built
+   anything on a firewall nobody approved and a path nobody ran `ls` against.
+
+The screen never moves ProcessStatus. After either write it re-reads §4 and
+`GET /process-status`.
 
 ## Deltas from the storyboard's proposed shapes
 
@@ -348,13 +378,14 @@ differently. Full text in `design/sdu/sdu-flow-design.html` §07.
 
 `lib/bff/mock/sdu.ts` — a `globalThis`-guarded `Map<number, SduState>`
 (`__sduMockStore`), lazily seeded per target source. `resetSduMockStore()` clears it for
-tests; `completeSduBdcForTest(id)` backdates the BDC start past its duration and
-re-evaluates, so a test drives the same transition a real minute drives rather than
-setting the terminal state by hand.
+tests.
 
-BDC progression is evaluated **on read and on every write**, comparing elapsed time —
-the pattern `lib/mock-installation.ts` uses for terraform scripts. A `setTimeout` would
-not survive a hot reload and would keep the test process alive.
+BDC progression is evaluated **on read and on every write** and says only two things:
+`IN_PROGRESS` when the conditions hold, `NOT_STARTED` when they do not. The 60 s timer
+that used to produce `COMPLETED` is gone — §8 made completion an assertion, and a mock
+that still completed by itself would model the old contract and let the install advance
+with nobody pressing the button. An asserted `COMPLETED` survives a later loss of the
+conditions; that is the one thing §8's open question #1 could reverse, and it is one line.
 
 Fixtures (`lib/mock-data.ts`): **1100** is mid-upload-step (2 targets / regions `us`+`eu`,
 firewall acked (one answer for the whole target source), 2 recipients — two of the `SDU` service's three owners, so

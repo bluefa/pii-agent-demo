@@ -599,7 +599,9 @@ export function OpsTargetView({ targetSourceId, initialTab, statusSlot }: OpsTar
                   {statusSlot}
                 </div>
                 <div className={cn(opsStyles.cardsRow, 'mt-4')}>
-                  <SduAckCard targetSourceId={targetSourceId} />
+                  {/* BDC 완료 단언이 대상 소스를 5단계로 옮긴다(델타 §3) — 화면은 그것을
+                      스스로 계산하지 않고 process-status 를 다시 읽어 안다. */}
+                  <SduAckCard targetSourceId={targetSourceId} onBdcChanged={retry} />
                   {/* 스캔 탭이 쓰는 그 카드다 — 한 명부를 두 벌 그리지 않는다. */}
                   <SduRecipientsCard targetSourceId={targetSourceId} />
                 </div>

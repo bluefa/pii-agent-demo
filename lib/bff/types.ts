@@ -30,6 +30,7 @@ import type { AlertTargetKind } from '@/lib/types/task-queue';
 import type { DagStatusResponse } from '@/lib/types/dag-status';
 import type {
   SduAckRequestWire,
+  SduBdcCompletionRequestWire,
   SduDefinitionRequestWire,
   SduDefinitionWire,
   SduUploadWire,
@@ -480,6 +481,11 @@ export interface BffClient {
     putFirewallAck: (id: number, body: SduAckRequestWire) => Promise<void>;
     putCommandsAck: (id: number, body: SduAckRequestWire) => Promise<void>;
     putAccessKeyRecipients: (id: number, userIds: string[]) => Promise<void>;
+    /**
+     * 2026-08-30 델타 §1 — BDC 구축 완료 단언. 이 도메인에서 **유일하게 ADMIN 전용**이고
+     * (델타 §2), `completed: true` 는 대상 소스를 ProcessStatus 5 로 옮긴다. 204.
+     */
+    putBdcCompletion: (id: number, body: SduBdcCompletionRequestWire) => Promise<void>;
   };
 
   /**

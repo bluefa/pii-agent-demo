@@ -107,7 +107,9 @@ const scanStateKey = (job: ScanJob): string =>
 
 const SCAN_MARK: Record<string, RowMark> = { ok: 'ok', info: 'run', err: 'err', off: 'idle' };
 
-const scanRow = (scan: Settled<ScanJob | null>): StatusRow => {
+/** 카드 밖에서도 읽는다 — BDC 완료 모달이 「Scan & 확정」 옆에 세우는 문장이 이 판정이다.
+ *  같은 사실을 두 화면이 다른 낱말로 부르지 않게 하려면 판정도 하나여야 한다. */
+export const scanRow = (scan: Settled<ScanJob | null>): StatusRow => {
   if (!scan.ok) return rejected(OPS_TAB_SLUGS.scan, OPS_TAB_SLUGS.scan);
   const job = scan.value;
   if (!job) {
@@ -181,7 +183,8 @@ const infraRow = (terraform: Settled<TerraformStatus>): StatusRow => {
   return { ...base, sub: null, mark: 'idle', value: '인프라 작업 기록 없음' };
 };
 
-const confirmRow = (terraform: Settled<TerraformStatus>): StatusRow => {
+/** 같은 이유로 밖에서도 읽는다 (`scanRow` 주석 참고). */
+export const confirmRow = (terraform: Settled<TerraformStatus>): StatusRow => {
   if (!terraform.ok) return rejected(OPS_TAB_SLUGS.confirm, OPS_TAB_SLUGS.confirm);
   const base = { name: OPS_TAB_SLUGS.confirm, tab: OPS_TAB_SLUGS.confirm, failed: false };
   const confirmed = terraform.value.has_confirmed_infra;

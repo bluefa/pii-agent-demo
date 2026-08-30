@@ -13,6 +13,7 @@ import {
 } from '@/lib/types/sdu';
 import type {
   SduAckRequestWire,
+  SduBdcCompletionRequestWire,
   SduBdcStatus,
   SduCommandsWire,
   SduDefinitionRequestWire,
@@ -115,8 +116,6 @@ interface SduState {
   recipientIds: string[];
   recipientsUpdatedAt: string | null;
   bdcStatus: SduBdcStatus;
-  /** Epoch ms the BDC step entered IN_PROGRESS; null otherwise. */
-  bdcStartedAtMs: number | null;
   bdcCompletedAt: string | null;
   invalidation: SduInvalidationWire;
 }
@@ -180,7 +179,6 @@ const blankState = (): SduState => ({
   recipientIds: [],
   recipientsUpdatedAt: null,
   bdcStatus: 'NOT_STARTED',
-  bdcStartedAtMs: null,
   bdcCompletedAt: null,
   invalidation: emptyInvalidation(),
 });
@@ -252,7 +250,6 @@ export const clearSduUploadState = (targetSourceId: number): void => {
   state.recipientIds = [];
   state.recipientsUpdatedAt = null;
   state.bdcStatus = 'NOT_STARTED';
-  state.bdcStartedAtMs = null;
   state.bdcCompletedAt = null;
   state.invalidation = emptyInvalidation();
 };
@@ -288,68 +285,51 @@ const authorize = (targetSourceId: number): AuthResult => {
   return { project };
 };
 
+/**
+ * 여덟 번째 쓰기만 ADMIN 이다 (델타 §2). 앞의 일곱은 담당자가 **자기 쪽 사실**을 보고하는
+ * 것이고, 이것은 BDC 쪽 작업에 대한 단언이라 담당자가 누르면 제 설치를 스스로 다음 단계로
+ * 밀어내게 된다 — SDU 에는 그 앞을 막아 줄 승인 단계가 없다.
+ */
+const authorizeAdmin = (targetSourceId: number): AuthResult => {
+  const auth = authorize(targetSourceId);
+  if ('error' in auth) return auth;
+  if (mockData.getCurrentUser()?.role !== 'ADMIN') {
+    return { error: errorResponse(403, 'FORBIDDEN', '관리자만 BDC 완료를 처리할 수 있습니다.') };
+  }
+  return auth;
+};
+
 // ── Derived reads ─────────────────────────────────────────────────────────────
 
 /** Distinct regions the definition references, in canonical order. */
 const regionsOf = (state: SduState): SduRegion[] =>
   sortSduRegions(state.targets.map((target) => target.region));
 
-const BDC_DURATION_MS = 60_000;
+/**
+ * BDC 진입 조건 (계약 §8) — 현재 정의의 모든 Region 이 두 목록 모두에서 확인됐고, S3 Access
+ * Key 수신자가 1명 이상. `putBdcCompletion` 의 전제이기도 하다 (델타 §4).
+ */
+const bdcReady = (state: SduState): boolean =>
+  regionsOf(state).length > 0 &&
+  state.firewall.acked &&
+  state.commands.acked &&
+  state.recipientIds.length > 0;
 
 /**
- * BDC progression, evaluated on every read and every write rather than on a timer.
- * A `setTimeout` would not survive a hot reload and would keep the node process alive in
- * tests; elapsed time is the same fact measured where it is read (the pattern
- * `lib/mock-installation.ts` uses for terraform scripts).
+ * BDC 진행 — 읽을 때마다, 쓸 때마다 다시 센다.
  *
- * Entry condition: every current region acknowledged on BOTH lists, and at least one key
- * recipient. Losing any of those before completion sends it back to NOT_STARTED — an
- * invalidated ack means BDC is waiting again, not that it is half-done.
+ * **완료는 여기서 나오지 않는다** (2026-08-30 델타 §0). 예전에는 조건을 갖춘 뒤 60초가 지나면
+ * 이 함수가 스스로 COMPLETED 로 넘어갔는데, 완료가 관리자의 단언이 된 지금 그 경로를 남겨 두면
+ * 목이 버튼 없이도 설치를 밀어내 계약과 다른 것을 모델링하게 된다. 이 함수가 말하는 것은
+ * 둘뿐이다 — 조건을 갖췄으면 IN_PROGRESS, 잃었으면 NOT_STARTED.
+ *
+ * 이미 단언된 COMPLETED 는 조건이 깨져도 살아남는다. 단언은 사실의 보고이지 조건의 요약이
+ * 아니라서인데, **계약이 아직 답하지 않은 질문**이다 — 반대로 답이 오면 바뀌는 것은 아래 한
+ * 줄이다 (요청서 `2026-08-30-sdu-bdc-completion.md` §5 #1).
  */
-const refreshBdc = (targetSourceId: number, state: SduState): void => {
+const refreshBdc = (state: SduState): void => {
   if (state.bdcStatus === 'COMPLETED') return;
-
-  const ready =
-    regionsOf(state).length > 0 &&
-    state.firewall.acked &&
-    state.commands.acked &&
-    state.recipientIds.length > 0;
-
-  if (!ready) {
-    state.bdcStatus = 'NOT_STARTED';
-    state.bdcStartedAtMs = null;
-    return;
-  }
-
-  if (state.bdcStatus === 'NOT_STARTED') {
-    state.bdcStatus = 'IN_PROGRESS';
-    state.bdcStartedAtMs = Date.now();
-    return;
-  }
-
-  if (state.bdcStartedAtMs !== null && Date.now() - state.bdcStartedAtMs >= BDC_DURATION_MS) {
-    state.bdcStatus = 'COMPLETED';
-    state.bdcCompletedAt = new Date().toISOString();
-    const project = mockData.getProjectByTargetSourceId(targetSourceId);
-    if (project && project.processStatus < ProcessStatus.WAITING_CONNECTION_TEST) {
-      mockData.updateProject(project.id, {
-        processStatus: ProcessStatus.WAITING_CONNECTION_TEST,
-      });
-    }
-  }
-};
-
-/**
- * Test hook — backdates the BDC start past its duration and re-evaluates, so a test can
- * observe the completion transition without waiting 60 s of wall clock. It drives the
- * SAME code path a real elapsed minute drives; it does not set COMPLETED by hand.
- */
-export const completeSduBdcForTest = (targetSourceId: number): void => {
-  const state = getState(targetSourceId);
-  refreshBdc(targetSourceId, state);
-  if (state.bdcStartedAtMs === null) return;
-  state.bdcStartedAtMs -= BDC_DURATION_MS;
-  refreshBdc(targetSourceId, state);
+  state.bdcStatus = bdcReady(state) ? 'IN_PROGRESS' : 'NOT_STARTED';
 };
 
 // 권역은 이 응답에 없다 — 대상 소스가 가진 사실이고, 두 곳에서 말하면 어긋날 자리가 생긴다.
@@ -557,7 +537,7 @@ const writeAck = (
 
   // 무효화 안내는 한 번만 말한다 — 다음 확인 응답이 들어온 순간 그 안내는 이미 읽힌 것이다.
   state.invalidation = emptyInvalidation();
-  refreshBdc(targetSourceId, state);
+  refreshBdc(state);
 
   return noContent();
 };
@@ -601,7 +581,7 @@ export const mockSdu = {
     state.invalidation = applyInvalidation(state, previous, normalized);
     state.targets = normalized;
     state.definitionUpdatedAt = new Date().toISOString();
-    refreshBdc(targetSourceId, state);
+    refreshBdc(state);
 
     return NextResponse.json(toDefinitionWire(state));
   },
@@ -630,7 +610,7 @@ export const mockSdu = {
     if ('error' in auth) return auth.error;
 
     const state = getState(targetSourceId);
-    refreshBdc(targetSourceId, state);
+    refreshBdc(state);
     return NextResponse.json(toUploadWire(targetSourceId, state));
   },
 
@@ -641,6 +621,51 @@ export const mockSdu = {
   // PUT …/sdu/upload/commands/ack (assumed §5).
   putCommandsAck: async (targetSourceId: number, body: SduAckRequestWire) =>
     writeAck(targetSourceId, body, 'commands'),
+
+  /**
+   * PUT …/sdu/upload/bdc/completion (2026-08-30 델타 §1).
+   *
+   * 완료는 파생이 아니라 **단언**이다. `true` 는 세우고 단계를 5로 밀고, `false` 는 단언을
+   * 지워 §8 의 파생으로 되돌린다 — 지우기가 아니라 **다시 세기**다.
+   */
+  putBdcCompletion: async (targetSourceId: number, body: SduBdcCompletionRequestWire) => {
+    const auth = authorizeAdmin(targetSourceId);
+    if ('error' in auth) return auth.error;
+
+    if (typeof body?.completed !== 'boolean') {
+      return invalidParameter('completed는 boolean이어야 합니다.');
+    }
+
+    const state = getState(targetSourceId);
+
+    if (!body.completed) {
+      // COMPLETED 가 아니었어도 거절하지 않는다 — 결과가 이미 그 값이라, 관리자가 할 수 있는
+      // 일이 없는 거절이 된다. ProcessStatus 는 움직이지 않는다(델타 §3): 그 사이 연결
+      // 테스트가 돌았을 수 있고, 되돌리기가 취소하는 것은 단언이지 그 뒤에 일어난 일이 아니다.
+      state.bdcStatus = 'NOT_STARTED';
+      state.bdcCompletedAt = null;
+      refreshBdc(state);
+      return noContent();
+    }
+
+    // 담당자가 아직 2단계 질문에 답하는 중인 대상을 5단계로 올리면 두 화면이 다른 대상을
+    // 말하게 된다. 그리고 BDC 는 아무도 확인하지 않은 방화벽 위에 무엇을 만든 적이 없다.
+    if (!bdcReady(state)) {
+      return invalidParameter(
+        'BDC 진행 조건을 갖추지 못했습니다 — 방화벽 결재 확인과 데이터 업로드 확인, S3 Access Key 수신자 1명 이상이 필요합니다.',
+      );
+    }
+
+    state.bdcStatus = 'COMPLETED';
+    state.bdcCompletedAt = new Date().toISOString();
+    // 이미 5 이상인 대상은 옮기지 않는다 — 6·7단계를 5로 끌어내리는 것은 전진이 아니다.
+    if (auth.project.processStatus < ProcessStatus.WAITING_CONNECTION_TEST) {
+      mockData.updateProject(auth.project.id, {
+        processStatus: ProcessStatus.WAITING_CONNECTION_TEST,
+      });
+    }
+    return noContent();
+  },
 
   // PUT …/sdu/upload/access-key-recipients (assumed §6).
   putAccessKeyRecipients: async (targetSourceId: number, body: { user_ids: string[] }) => {
@@ -661,7 +686,7 @@ export const mockSdu = {
     const state = getState(targetSourceId);
     state.recipientIds = resolved;
     state.recipientsUpdatedAt = new Date().toISOString();
-    refreshBdc(targetSourceId, state);
+    refreshBdc(state);
 
     return noContent();
   },

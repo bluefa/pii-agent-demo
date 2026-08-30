@@ -177,6 +177,18 @@ export interface SduAckRequestWire {
   confirmed: boolean;
 }
 
+/**
+ * BDC 구축 완료 **단언**의 본문 (2026-08-30 델타 §1).
+ *
+ * 완료와 되돌리기는 같은 사실의 두 값이라 경로가 하나이고 본문이 boolean 하나다 — 확인
+ * 답변이 두 경로인 것은 방화벽과 업로드가 서로 다른 사실이기 때문이었지 값이 둘이어서가
+ * 아니다. 이름이 `confirmed` 가 아닌 이유도 같다: 확인은 담당자의 어휘이고, 이것은 관리자가
+ * BDC 쪽 작업에 대해 하는 말이다.
+ */
+export interface SduBdcCompletionRequestWire {
+  completed: boolean;
+}
+
 
 // ── View (camelCase) ──────────────────────────────────────────────────────────
 

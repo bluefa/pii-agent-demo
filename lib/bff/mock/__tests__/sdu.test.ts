@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { mockSdu, resetSduMockStore, clearSduUploadState, completeSduBdcForTest } from '@/lib/bff/mock/sdu';
+import { mockSdu, resetSduMockStore, clearSduUploadState } from '@/lib/bff/mock/sdu';
 import { resetStore } from '@/lib/mock-store';
 import * as mockData from '@/lib/mock-data';
 import { ProcessStatus } from '@/lib/types';
@@ -361,7 +361,7 @@ describe('SDU 제출과 BDC 진행 (§3·§7)', () => {
     expect(mockData.getProjectByTargetSourceId(GLOBAL_ID)?.processStatus).toBe(ProcessStatus.INSTALLING);
   });
 
-  it('BDC 는 전 Region 확인 + 수신자 1명 이상에서 시작하고, 60초 뒤 연결 테스트 단계로 넘긴다', async () => {
+  it('BDC 는 전 Region 확인 + 수신자 1명 이상에서 시작하고, 거기서 스스로 완료되지 않는다', async () => {
     await putDefinition(GLOBAL_ID, [target({ target_id: 'a', region: 'us' })]);
     await mockSdu.submitDefinition(GLOBAL_ID);
 
@@ -373,14 +373,9 @@ describe('SDU 제출과 BDC 진행 (§3·§7)', () => {
     expect((await upload(GLOBAL_ID)).bdc.status).toBe('IN_PROGRESS');
     expect(mockData.getProjectByTargetSourceId(GLOBAL_ID)?.processStatus).toBe(ProcessStatus.INSTALLING);
 
-    completeSduBdcForTest(GLOBAL_ID);
-
-    const done = await upload(GLOBAL_ID);
-    expect(done.bdc.status).toBe('COMPLETED');
-    expect(done.bdc.completed_at).not.toBeNull();
-    expect(mockData.getProjectByTargetSourceId(GLOBAL_ID)?.processStatus).toBe(
-      ProcessStatus.WAITING_CONNECTION_TEST,
-    );
+    // 다시 읽어도 IN_PROGRESS 다 — 완료는 파생이 아니라 단언이라(델타 §0) 조회가 만들지 못한다.
+    expect((await upload(GLOBAL_ID)).bdc.status).toBe('IN_PROGRESS');
+    expect(mockData.getProjectByTargetSourceId(GLOBAL_ID)?.processStatus).toBe(ProcessStatus.INSTALLING);
   });
 
   it('시작 조건을 잃으면 BDC 는 다시 대기로 돌아간다 — 무효화된 확인은 반쯤 된 것이 아니다', async () => {
@@ -392,6 +387,93 @@ describe('SDU 제출과 BDC 진행 (§3·§7)', () => {
     await putDefinition(GLOBAL_ID, [target({ target_id: 'a', region: 'us', upload_ip: '10.1.1.1' })]);
 
     expect((await upload(GLOBAL_ID)).bdc.status).toBe('NOT_STARTED');
+  });
+});
+
+/**
+ * 2026-08-30 델타 — 완료는 관리자가 단언한다.
+ *
+ * 이 블록이 지키는 것은 셋이다: 단언만이 COMPLETED 를 만들고, 그 단언이 **설치를 한 칸
+ * 밀어내며**(ProcessStatus 5), 되돌리기는 지우기가 아니라 §8 의 파생으로 **다시 세기**다.
+ */
+describe('SDU BDC 완료 단언 (델타 §1·§3·§4)', () => {
+  const complete = (id: number, completed: boolean) =>
+    mockSdu.putBdcCompletion(id, { completed });
+
+  it('단언이 완료를 세우고 대상 소스를 5단계로 옮긴다', async () => {
+    await putDefinition(GLOBAL_ID, [target({ target_id: 'a', region: 'us' })]);
+    await mockSdu.submitDefinition(GLOBAL_ID);
+    await ackEverything(GLOBAL_ID);
+
+    expect((await complete(GLOBAL_ID, true)).status).toBe(204);
+
+    const done = await upload(GLOBAL_ID);
+    expect(done.bdc.status).toBe('COMPLETED');
+    expect(done.bdc.completed_at).not.toBeNull();
+    expect(mockData.getProjectByTargetSourceId(GLOBAL_ID)?.processStatus).toBe(
+      ProcessStatus.WAITING_CONNECTION_TEST,
+    );
+  });
+
+  it('전제를 못 갖추면 400 이고 단계도 그대로다 — 두 화면이 다른 대상을 말하지 않는다', async () => {
+    await putDefinition(GLOBAL_ID, [target({ target_id: 'a', region: 'us' })]);
+    await mockSdu.submitDefinition(GLOBAL_ID);
+    // 확인 하나와 수신자가 없다.
+    await mockSdu.putFirewallAck(GLOBAL_ID, { confirmed: true });
+
+    expect((await complete(GLOBAL_ID, true)).status).toBe(400);
+    expect((await upload(GLOBAL_ID)).bdc.status).toBe('NOT_STARTED');
+    expect(mockData.getProjectByTargetSourceId(GLOBAL_ID)?.processStatus).toBe(ProcessStatus.INSTALLING);
+  });
+
+  it('되돌리기는 §8 의 파생으로 돌아가고, 단계는 움직이지 않는다', async () => {
+    await putDefinition(GLOBAL_ID, [target({ target_id: 'a', region: 'us' })]);
+    await mockSdu.submitDefinition(GLOBAL_ID);
+    await ackEverything(GLOBAL_ID);
+    await complete(GLOBAL_ID, true);
+
+    expect((await complete(GLOBAL_ID, false)).status).toBe(204);
+
+    // 조건은 아직 갖춰져 있다 — 그래서 NOT_STARTED 가 아니라 IN_PROGRESS 다.
+    const back = await upload(GLOBAL_ID);
+    expect(back.bdc.status).toBe('IN_PROGRESS');
+    expect(back.bdc.completed_at).toBeNull();
+    // 그 사이 연결 테스트가 돌았을 수 있다 — 되돌리기가 취소하는 것은 단언뿐이다.
+    expect(mockData.getProjectByTargetSourceId(GLOBAL_ID)?.processStatus).toBe(
+      ProcessStatus.WAITING_CONNECTION_TEST,
+    );
+  });
+
+  it('완료가 아니었어도 되돌리기는 거절하지 않는다 — 결과가 이미 그 값이다', async () => {
+    await putDefinition(GLOBAL_ID, [target({ target_id: 'a', region: 'us' })]);
+
+    expect((await complete(GLOBAL_ID, false)).status).toBe(204);
+    expect((await upload(GLOBAL_ID)).bdc.status).toBe('NOT_STARTED');
+  });
+
+  it('completed 가 boolean 이 아니면 400 이다', async () => {
+    await putDefinition(GLOBAL_ID, [target({ target_id: 'a', region: 'us' })]);
+    await ackEverything(GLOBAL_ID);
+
+    const response = await mockSdu.putBdcCompletion(GLOBAL_ID, {
+      completed: 'yes',
+    } as unknown as { completed: boolean });
+
+    expect(response.status).toBe(400);
+    expect((await upload(GLOBAL_ID)).bdc.status).toBe('IN_PROGRESS');
+  });
+
+  it('담당자는 제 설치를 밀어낼 수 없다 — 이 한 건만 ADMIN 이다 (델타 §2)', async () => {
+    await putDefinition(SEEDED_ID, [target({ target_id: 'a', region: 'us' })]);
+    await ackEverything(SEEDED_ID);
+
+    // user-1 은 이 서비스의 담당자다 — 앞의 일곱 건은 통과한다.
+    mockData.setCurrentUser('user-1');
+    expect((await mockSdu.putFirewallAck(SEEDED_ID, { confirmed: true })).status).toBe(204);
+    expect((await complete(SEEDED_ID, true)).status).toBe(403);
+
+    mockData.setCurrentUser('admin-1');
+    expect((await upload(SEEDED_ID)).bdc.status).toBe('IN_PROGRESS');
   });
 });
 
