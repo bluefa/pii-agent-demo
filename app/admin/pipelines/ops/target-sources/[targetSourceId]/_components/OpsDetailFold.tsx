@@ -23,7 +23,7 @@ import { type ReactElement, type ReactNode } from 'react';
 import { cn } from '@/lib/theme';
 import { passRoutes } from '@/lib/routes';
 import { fmtDate } from '@/lib/pipeline/format';
-import { normalizeCloudProvider } from '@/lib/types';
+import { isSduTarget, normalizeCloudProvider } from '@/lib/types';
 import type { RawTargetSourceDetail } from '@/app/lib/api/pipeline-target';
 import type { RoleKind } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/roleMeta';
 import { CopyButton } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/CopyButton';
@@ -75,33 +75,52 @@ export function OpsDetailFold({
   const meta = detail.metadata ?? {};
   const provider = normalizeCloudProvider(detail.cloud_provider);
   const description = (detail.description ?? '').trim();
+  const isSdu = isSduTarget({
+    is_sdu_type: meta.is_sdu_type,
+    cloud_provider: detail.cloud_provider,
+  });
 
   // 프로바이더마다 갖는 mono 식별자를 한 줄로 모은다 — 없는 값은 행째로 빠진다
   // (빈 값을 '-' 로 그리면 화면이 읽지도 못한 사실을 단정한다).
+  //
+  // SDU 는 하나도 싣지 않는다. 그 키들은 없거나, 있어도 아무도 설치하지 않는 계정을
+  // 가리킨다 — 전문을 복사 버튼과 함께 펴 두면 운영자가 그 값을 콘솔에서 대조할 것처럼
+  // 읽힌다. `normalizeCloudProvider` 가 SDU 를 밑에 깔린 CSP 로 접으므로 프로바이더
+  // 비교만으로는 안 걸린다. 식별자가 비면 「식별자」 묶음은 통째로 빠진다(아래).
   const identifiers: Array<{ label: string; value: string }> = [];
   const push = (label: string, value: string | null | undefined): void => {
     if (value && value.trim() !== '') identifiers.push({ label, value });
   };
-  if (provider === 'AWS') {
-    push('계정 ID', meta.aws_account_id);
-    push('Scan Role ARN', savedRoleArns.scan ?? meta.aws_scan_role_arn);
-    if (grantTfExecution) {
-      push('Terraform Role ARN', savedRoleArns.execution ?? meta.aws_terraform_execution_role_arn);
+  if (!isSdu) {
+    if (provider === 'AWS') {
+      push('계정 ID', meta.aws_account_id);
+      push('Scan Role ARN', savedRoleArns.scan ?? meta.aws_scan_role_arn);
+      if (grantTfExecution) {
+        push(
+          'Terraform Role ARN',
+          savedRoleArns.execution ?? meta.aws_terraform_execution_role_arn,
+        );
+      }
+    } else if (provider === 'GCP') {
+      push('Project ID', meta.gcp_project_id);
+      push('Scan Service Account', meta.gcp_scan_service_account);
+      push('Terraform Service Account', meta.gcp_terraform_service_account);
+    } else if (provider === 'Azure') {
+      push('Subscription ID', meta.subscription_id);
+      push('Tenant ID', meta.tenant_id);
+      push('Scan App ID', meta.azure_scan_app_id);
     }
-  } else if (provider === 'GCP') {
-    push('Project ID', meta.gcp_project_id);
-    push('Scan Service Account', meta.gcp_scan_service_account);
-    push('Terraform Service Account', meta.gcp_terraform_service_account);
-  } else if (provider === 'Azure') {
-    push('Subscription ID', meta.subscription_id);
-    push('Tenant ID', meta.tenant_id);
-    push('Scan App ID', meta.azure_scan_app_id);
   }
 
   return (
     // GCP 는 위 kv 스트립이 3등분이라 폴드도 같은 3등분에 선다 (오너 2026-08-27 "gcp
     // 더보기도 동일하게 정렬 맞춰") — 세 묶음이 정확히 세 열이다. 나머지는 4 × 240 그대로.
-    <div id={id} className={provider === 'GCP' ? opsStyles.fmFoldGcp : opsStyles.fmFold}>
+    // SDU 는 위 스트립이 4열이므로(OpsHeader 의 `isGcp`) 폴드도 4열에 선다 — 밑에 깔린
+    // CSP 가 GCP 여도 두 격자가 갈리지 않게 같은 판정을 쓴다.
+    <div
+      id={id}
+      className={!isSdu && provider === 'GCP' ? opsStyles.fmFoldGcp : opsStyles.fmFold}
+    >
       <Group label="서비스">
         <Cell label="이름">
           <span className={opsStyles.fmValue}>

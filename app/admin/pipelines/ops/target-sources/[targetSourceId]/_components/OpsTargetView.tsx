@@ -291,13 +291,17 @@ export function OpsTargetView({ targetSourceId, initialTab }: OpsTargetViewProps
       setGrantTfExecution(loaded.metadata?.grant_service_terraform_execution_permission === true);
       setSupportRawData(readSupportRawData(loaded));
 
-      // SDU 는 여기서 멈춘다. 아래 부수 로드는 전부 탭이 그릴 것을 미리 받아 두는
-      // 것인데, SDU 는 그 탭들이 통째로 안내 한 장으로 대체되므로 받아도 그릴 곳이
-      // 없다. 진행 상태·Jira 티켓·연결 테스트·AWS role 네 갈래가 대상마다 헛돈다.
+      // SDU 가 건너뛰는 것은 이제 **연결 테스트 하나**다. 규칙은 그리는 사람이 있느냐
+      // 하나로 갈린다: 진행 상태와 Jira 티켓은 마스트헤드가 읽는다 — 「연동 대상」 머리
+      // 줄의 단계 알약과 「관련 페이지」 패널이고, SDU 도 그 마스트헤드를 그대로 쓴다.
+      // 예전에 이 둘까지 막았던 것은 SDU 가 화면 전체를 안내 한 장으로 바꾸던 시절의
+      // 규칙이라 전제가 사라졌다. 반면 TC 세 응답은 「연결 테스트」·「관리자 승인」 두
+      // 탭만 읽는데 SDU 는 탭이 서지 않으므로, 받아도 읽을 사람이 없다.
       // 판정은 렌더 게이트와 같은 규칙이다 (계약이 SDU 를 말하는 두 자리).
-      if (isSduTarget({ is_sdu_type: loaded.metadata?.is_sdu_type, cloud_provider: loaded.cloud_provider })) {
-        return;
-      }
+      const sdu = isSduTarget({
+        is_sdu_type: loaded.metadata?.is_sdu_type,
+        cloud_provider: loaded.cloud_provider,
+      });
 
       // Secondary loads are independent and best-effort — each block renders its
       // own fallback, so one failure must not blank the page.
@@ -308,7 +312,7 @@ export function OpsTargetView({ targetSourceId, initialTab }: OpsTargetViewProps
         .then((loaded) => !cancelled && setJiraTicket(loaded))
         .catch(() => !cancelled && setJiraTicket(null))
         .finally(() => !cancelled && setTicketLoaded(true));
-      void loadTc();
+      if (!sdu) void loadTc();
     })();
     return () => {
       cancelled = true;
@@ -447,28 +451,27 @@ export function OpsTargetView({ targetSourceId, initialTab }: OpsTargetViewProps
   const meta = detail.metadata ?? {};
 
   /**
-   * SDU 는 여기서 끊는다 — 아래 탭들이 마운트되기 전에.
+   * SDU 는 **탭만** 잃는다 — 마스트헤드는 선다.
    *
    * 스캔·연동 요청·설치 상태는 전부 "우리가 설치하는 계정"을 전제로 만든 화면인데,
    * SDU 는 담당자가 데이터를 직접 올리는 대상이라 그 전제가 성립하지 않는다. 탭을
    * 남겨 두면 눌러서 빈 화면을 여는 것이 동작처럼 보이고, 그 안에서 각 탭이 제 몫의
-   * 요청을 쏘고 나서야 할 말이 없다는 걸 알게 된다.
+   * 요청을 쏘고 나서야 할 말이 없다는 걸 알게 된다. 그래서 탭 줄도, 그 아래 어떤
+   * 패널도 SDU 에서는 마운트되지 않는다.
+   *
+   * 반대로 마스트헤드가 말하는 것은 전부 SDU 에도 참이다 — 이 대상이 어느 서비스의
+   * 몇 번인지, 지금 몇 단계인지, 어느 권역에 사는지, 어디로 나갈 수 있는지. 예전에는
+   * 그것까지 안내 한 장이 제 손으로 다시 적고 있었다.
    *
    * 계약이 SDU 를 말하는 두 자리를 모두 본다 — metadata.is_sdu_type 과 cloudProvider
    * enum 의 SDU. 플래그만 보면 provider 로 SDU 가 오는 대상이 이 게이트를 통과한다.
    */
-  if (isSduTarget({ is_sdu_type: meta.is_sdu_type, cloud_provider: detail.cloud_provider })) {
-    return (
-      <SduOpsNotice
-        targetSourceId={targetSourceId}
-        serviceName={detail.service_name ?? '-'}
-        serviceCode={detail.service_code ?? null}
-        isChinaRegion={meta.is_china_region === true}
-      />
-    );
-  }
+  const isSdu = isSduTarget({ is_sdu_type: meta.is_sdu_type, cloud_provider: detail.cloud_provider });
 
-  const isAws = detail.cloud_provider === 'AWS';
+  // SDU 가 밑에 깔린 CSP 를 이긴다 — `cloud_provider` 는 'AWS' 여도 그 계정은 우리가
+  // 설치하는 계정이 아니라, 계정·role·설치모드는 이 대상에 대해 아무 말도 하지 못한다
+  // (담당자쪽 헤더가 `project.isSduType` 으로 내리는 것과 같은 판단, 결정 #49).
+  const isAws = !isSdu && detail.cloud_provider === 'AWS';
   const accountId = meta.aws_account_id ?? '';
   const isChina = meta.is_china_region === true;
   // 중국만 이름을 갖는다 — Global 은 표시하지 않는다 (오너 2026-08-28). null 이면 모달이
@@ -494,139 +497,152 @@ export function OpsTargetView({ targetSourceId, initialTab }: OpsTargetViewProps
           onOpenRawData={() => setModal({ type: 'raw' })}
           onEditDescription={() => setModal({ type: 'description' })}
         />
-        <div className={opsStyles.tabStrip} role="tablist" aria-label="Target Source 운영 탭">
-          {tabGroups.map((group) => (
-            // 한 그룹 = 아래 헤어라인 한 도막. 그룹 사이 22px 에서 선이 끊긴다(실측).
-            // `role="presentation"` — 그룹은 선을 긋는 상자일 뿐이라, tablist 가 소유하는
-            // 것은 계속 탭 버튼이어야 한다.
-            <div key={group[0]} role="presentation" className={cn(opsStyles.tabGroup, growOf(group.length))}>
-              {group.map((tab) => {
-                const active = tab === currentTab;
-                const isStep = tab === stepTab;
-                // 한 탭이 두 마크를 동시에 들 수 있다 — 라벨 옆 인라인 점은 「연결 테스트」의
-                // 실행 결과, 우상단 코너 점은 걸린 단계다. 뜻이 다른 두 사실이라 자리로 갈린다.
-                const words = [
-                  tab === OPS_TAB_SLUGS.tc ? tcWord : null,
-                  isStep ? stepWord : null,
-                ].filter((word): word is string => word !== null);
-                return (
-                  <button
-                    key={tab}
-                    type="button"
-                    role="tab"
-                    aria-selected={active}
-                    onClick={() => selectTab(tab)}
-                    className={cn(opsStyles.tab, active ? opsStyles.tabActive : opsStyles.tabIdle)}
-                  >
-                    {tab}
-                    {/* 낱말이 마크를 대신한다 — 점은 둘 다 aria-hidden 이라, 상태는 탭의
-                        접근명에 실려야 스크린 리더에 도착한다. */}
-                    {words.length > 0 && <span className="sr-only">, {words.join(', ')}</span>}
-                    {tab === OPS_TAB_SLUGS.tc && (
-                      <span
-                        className={cn(opsStyles.tabDot, tcDot, tcDot ? 'opacity-100' : 'opacity-0')}
-                        aria-hidden
-                      />
-                    )}
-                    {isStep && (
-                      // 흐름 밖이라 슬롯을 예약하지 않는다 — 늦게 도착해도 x 를 밀지 않는다.
-                      //
-                      // `title` 은 버튼이 아니라 **점**이 진다. 버튼에 두면 접근명(내용 =
-                      // 위 `.sr-only` 포함)과 접근설명(title)이 같은 문장이 되어 스크린
-                      // 리더가 두 번 읽는다. 점은 `aria-hidden` 이라 a11y 트리 밖이고,
-                      // 마우스 툴팁만 남는다 — 낱말 쪽은 그대로 둔다(⛔ title 은 낭독이
-                      // 보장되지 않으므로 `.sr-only` 를 title 로 대체할 수 없다).
-                      <span
-                        className={cn(opsStyles.tabCorner, opsStyles.tabCornerAlert)}
-                        title={stepWord ?? undefined}
-                        aria-hidden
-                      />
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-          ))}
-        </div>
+        {/* 탭 줄은 SDU 에서 통째로 빠진다 — 아홉 탭이 전부 설치 진행을 전제로 만든
+            화면이라, 눌리는 탭을 남겨 두면 빈 화면을 여는 것이 동작처럼 보인다. */}
+        {!isSdu && (
+          <div className={opsStyles.tabStrip} role="tablist" aria-label="Target Source 운영 탭">
+            {tabGroups.map((group) => (
+              // 한 그룹 = 아래 헤어라인 한 도막. 그룹 사이 22px 에서 선이 끊긴다(실측).
+              // `role="presentation"` — 그룹은 선을 긋는 상자일 뿐이라, tablist 가 소유하는
+              // 것은 계속 탭 버튼이어야 한다.
+              <div key={group[0]} role="presentation" className={cn(opsStyles.tabGroup, growOf(group.length))}>
+                {group.map((tab) => {
+                  const active = tab === currentTab;
+                  const isStep = tab === stepTab;
+                  // 한 탭이 두 마크를 동시에 들 수 있다 — 라벨 옆 인라인 점은 「연결 테스트」의
+                  // 실행 결과, 우상단 코너 점은 걸린 단계다. 뜻이 다른 두 사실이라 자리로 갈린다.
+                  const words = [
+                    tab === OPS_TAB_SLUGS.tc ? tcWord : null,
+                    isStep ? stepWord : null,
+                  ].filter((word): word is string => word !== null);
+                  return (
+                    <button
+                      key={tab}
+                      type="button"
+                      role="tab"
+                      aria-selected={active}
+                      onClick={() => selectTab(tab)}
+                      className={cn(opsStyles.tab, active ? opsStyles.tabActive : opsStyles.tabIdle)}
+                    >
+                      {tab}
+                      {/* 낱말이 마크를 대신한다 — 점은 둘 다 aria-hidden 이라, 상태는 탭의
+                          접근명에 실려야 스크린 리더에 도착한다. */}
+                      {words.length > 0 && <span className="sr-only">, {words.join(', ')}</span>}
+                      {tab === OPS_TAB_SLUGS.tc && (
+                        <span
+                          className={cn(opsStyles.tabDot, tcDot, tcDot ? 'opacity-100' : 'opacity-0')}
+                          aria-hidden
+                        />
+                      )}
+                      {isStep && (
+                        // 흐름 밖이라 슬롯을 예약하지 않는다 — 늦게 도착해도 x 를 밀지 않는다.
+                        //
+                        // `title` 은 버튼이 아니라 **점**이 진다. 버튼에 두면 접근명(내용 =
+                        // 위 `.sr-only` 포함)과 접근설명(title)이 같은 문장이 되어 스크린
+                        // 리더가 두 번 읽는다. 점은 `aria-hidden` 이라 a11y 트리 밖이고,
+                        // 마우스 툴팁만 남는다 — 낱말 쪽은 그대로 둔다(⛔ title 은 낭독이
+                        // 보장되지 않으므로 `.sr-only` 를 title 로 대체할 수 없다).
+                        <span
+                          className={cn(opsStyles.tabCorner, opsStyles.tabCornerAlert)}
+                          title={stepWord ?? undefined}
+                          aria-hidden
+                        />
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className={opsStyles.body}>
         <div className={opsStyles.content}>
-          {currentTab === '진행 상태' && (
+          {/* SDU 는 안내 한 장이고 **그 밖에는 아무것도 마운트되지 않는다** — 탭 하나가
+              살아 있으면 그 패널이 제 몫의 요청을 쏘고 나서야 할 말이 없다는 걸 알게 된다.
+              삼항이라 `currentTab === …` 아홉 갈래가 SDU 에서는 평가조차 되지 않는다. */}
+          {isSdu ? (
+            <SduOpsNotice />
+          ) : (
             <>
-              {processStatus ? (
-                <ProcessCard status={processStatus} />
-              ) : (
-                <section className={pipelineStyles.card.base} aria-label="현재 Process">
-                  <h2 className={opsStyles.cardTitle}>현재 Process</h2>
-                  <p className={cn(pipelineStyles.text.meta, 'mt-3')}>상태 정보를 불러오지 못했습니다.</p>
-                </section>
+              {currentTab === '진행 상태' && (
+                <>
+                  {processStatus ? (
+                    <ProcessCard status={processStatus} />
+                  ) : (
+                    <section className={pipelineStyles.card.base} aria-label="현재 Process">
+                      <h2 className={opsStyles.cardTitle}>현재 Process</h2>
+                      <p className={cn(pipelineStyles.text.meta, 'mt-3')}>상태 정보를 불러오지 못했습니다.</p>
+                    </section>
+                  )}
+                  <div className={opsStyles.cardsRow}>
+                    <ApprovalHistoryCard targetSourceId={targetSourceId} isIdc={isIdc} />
+                    <StatusHistoryCard targetSourceId={targetSourceId} />
+                  </div>
+                </>
               )}
-              <div className={opsStyles.cardsRow}>
-                <ApprovalHistoryCard targetSourceId={targetSourceId} isIdc={isIdc} />
-                <StatusHistoryCard targetSourceId={targetSourceId} />
-              </div>
+              {currentTab === '스캔' && (
+                <ScanTab
+                  targetSourceId={targetSourceId}
+                  detail={detail}
+                  // This screen owns the modal the permission card's CTA opens. The
+                  // register/edit contract is AWS-only, so no other provider gets it.
+                  onEditRole={isAws ? (kind) => setModal({ type: 'edit', kind }) : undefined}
+                  credentialReloadKey={savedRoleArns.scan}
+                />
+              )}
+              {currentTab === '연동 요청 정보' && <RequestTab targetSourceId={targetSourceId} detail={detail} />}
+              {currentTab === '확정 정보' && (
+                <ConfirmTab
+                  targetSourceId={targetSourceId}
+                  detail={detail}
+                  processStatus={processStatus}
+                  onOpenInfra={() => selectTab('인프라 작업')}
+                />
+              )}
+              {currentTab === '인프라 작업' && (
+                <PipelineTab
+                  targetSourceId={targetSourceId}
+                  detail={detail}
+                  processStatus={processStatus}
+                  onSelectTab={selectTab}
+                />
+              )}
+              {currentTab === '연결 테스트' && (
+                <TcTab
+                  targetSourceId={targetSourceId}
+                  isIdc={isIdc}
+                  latest={tcLatest}
+                  results={tcResults}
+                  statusLoaded={tcLoaded}
+                  latestFailed={tcLatestFailed}
+                  onStatusReload={reloadTc}
+                />
+              )}
+              {currentTab === '관리자 승인' && (
+                <ApprovalTab
+                  targetSourceId={targetSourceId}
+                  detail={detail}
+                  status={tcStatus}
+                  latest={tcLatest}
+                  latestFailed={tcLatestFailed}
+                  tcLoaded={tcLoaded}
+                  statusFailed={tcStatusFailed}
+                  results={tcResults}
+                  dag={dag}
+                  onDecided={retry}
+                  onOpenTcTab={() => selectTab('연결 테스트')}
+                  onOpenAirflowTab={() => selectTab('Airflow 확인')}
+                />
+              )}
+              {currentTab === 'Airflow 확인' && (
+                <AirflowTab targetSourceId={targetSourceId} isIdc={isIdc} dag={dag} />
+              )}
+              {currentTab === '연동 초기화' && (
+                <DangerTab targetSourceId={targetSourceId} onReset={retry} />
+              )}
             </>
-          )}
-          {currentTab === '스캔' && (
-            <ScanTab
-              targetSourceId={targetSourceId}
-              detail={detail}
-              // This screen owns the modal the permission card's CTA opens. The
-              // register/edit contract is AWS-only, so no other provider gets it.
-              onEditRole={isAws ? (kind) => setModal({ type: 'edit', kind }) : undefined}
-              credentialReloadKey={savedRoleArns.scan}
-            />
-          )}
-          {currentTab === '연동 요청 정보' && <RequestTab targetSourceId={targetSourceId} detail={detail} />}
-          {currentTab === '확정 정보' && (
-            <ConfirmTab
-              targetSourceId={targetSourceId}
-              detail={detail}
-              processStatus={processStatus}
-              onOpenInfra={() => selectTab('인프라 작업')}
-            />
-          )}
-          {currentTab === '인프라 작업' && (
-            <PipelineTab
-              targetSourceId={targetSourceId}
-              detail={detail}
-              processStatus={processStatus}
-              onSelectTab={selectTab}
-            />
-          )}
-          {currentTab === '연결 테스트' && (
-            <TcTab
-              targetSourceId={targetSourceId}
-              isIdc={isIdc}
-              latest={tcLatest}
-              results={tcResults}
-              statusLoaded={tcLoaded}
-              latestFailed={tcLatestFailed}
-              onStatusReload={reloadTc}
-            />
-          )}
-          {currentTab === '관리자 승인' && (
-            <ApprovalTab
-              targetSourceId={targetSourceId}
-              detail={detail}
-              status={tcStatus}
-              latest={tcLatest}
-              latestFailed={tcLatestFailed}
-              tcLoaded={tcLoaded}
-              statusFailed={tcStatusFailed}
-              results={tcResults}
-              dag={dag}
-              onDecided={retry}
-              onOpenTcTab={() => selectTab('연결 테스트')}
-              onOpenAirflowTab={() => selectTab('Airflow 확인')}
-            />
-          )}
-          {currentTab === 'Airflow 확인' && (
-            <AirflowTab targetSourceId={targetSourceId} isIdc={isIdc} dag={dag} />
-          )}
-          {currentTab === '연동 초기화' && (
-            <DangerTab targetSourceId={targetSourceId} onReset={retry} />
           )}
         </div>
       </div>

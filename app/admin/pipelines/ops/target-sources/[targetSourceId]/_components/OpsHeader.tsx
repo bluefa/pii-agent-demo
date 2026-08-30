@@ -39,7 +39,7 @@ import Link from 'next/link';
 import { useId, useState, type ReactElement, type ReactNode } from 'react';
 import { cn } from '@/lib/theme';
 import { passRoutes } from '@/lib/routes';
-import { normalizeCloudProvider } from '@/lib/types';
+import { isSduTarget, normalizeCloudProvider } from '@/lib/types';
 import { awsRoleArnDisplay } from '@/lib/constants/aws-role';
 import { gcpServiceAccountDisplay } from '@/lib/constants/gcp-service-account';
 import { safeBrowseUrl } from '@/lib/jira-ticket';
@@ -100,6 +100,16 @@ export function OpsHeader({
 
   const meta = detail.metadata ?? {};
   const provider = normalizeCloudProvider(detail.cloud_provider);
+  /**
+   * SDU 는 정규화된 프로바이더를 **이긴다**. SDU 는 `CloudProvider` 가 아니라 데이터가
+   * 어떻게 도착하는지의 이름이라(lib/types.ts), `normalizeCloudProvider` 가 SDU 대상을
+   * 그 밑에 깔린 CSP(대개 AWS)로 접는다 — 그대로 두면 이 격자가 아무도 설치하지 않는
+   * 계정의 ID·role 을 사실처럼 적는다. 판정은 손으로 옮겨 적지 않는다(lib/types.ts:56).
+   */
+  const isSdu = isSduTarget({
+    is_sdu_type: meta.is_sdu_type,
+    cloud_provider: detail.cloud_provider,
+  });
   const jiraHref = jiraTicket ? safeBrowseUrl(jiraTicket.browseUrl) : null;
   const isChina = meta.is_china_region === true;
   // 세 상태를 항상 그린다: 값이 없는 것을 "미포함"으로 적으면 화면이 읽지도 못한
@@ -121,7 +131,9 @@ export function OpsHeader({
     </div>
   );
 
-  const isGcp = provider === 'GCP';
+  // SDU 는 3등분 격자를 고르지 않는다 — GCP 로 접힌 SDU 대상까지 그 배치로 가면
+  // 서지 않을 셀 셋을 전제한 열 폭이 된다.
+  const isGcp = !isSdu && provider === 'GCP';
   const scanSa = meta.gcp_scan_service_account;
   const terraformSa = meta.gcp_terraform_service_account;
 
@@ -133,7 +145,11 @@ export function OpsHeader({
    * 중국일 때만 뜬다 (오너 2026-08-28 "Admin 페이지에서 중국으로 표기하라는거야. Global로
    * 표현되고 있던 부분이 있으면 이것도 그냥 없애. 따로 보여주지마"). Global 은 이제 표시가
    * 아니라 표시의 부재다 — 대다수 대상이 Global 이라, 모두가 다는 태그는 아무것도 가르지
-   * 못하면서 머리 줄의 자리만 먹는다. IDC 는 애초에 파티션이 없어 태그도 없다. */
+   * 못하면서 머리 줄의 자리만 먹는다. IDC 는 애초에 파티션이 없어 태그도 없다.
+   *
+   * SDU 는 여기서만 `isSdu` 가 이기지 **않는다** — 밑에 깔린 CSP 가 `PARTITIONED` 안에
+   * 있으므로 중국 SDU 대상은 「중국」을 그대로 단다. 계정은 우리 것이 아니어도 데이터가
+   * 어느 권역에 사는지는 이 대상의 사실이고, `SduOpsNotice` 도 이미 그 태그를 달고 있었다. */
   const partitionTag = PARTITIONED.has(provider) && isChina ? (
     <span className={cn(opsStyles.partitionTag, opsStyles.partitionChina)}>중국</span>
   ) : null;
@@ -289,9 +305,11 @@ export function OpsHeader({
               {/* 마크는 이름을 대신하지 않는다 — 블록 이름이 읽히는 문자열이라
                   글리프는 장식으로 남는다. */}
               <span aria-hidden className="flex">
+                {/* 플래그만 읽으면 `cloudProvider: 'SDU'` 로 오는 대상이 밑에 깔린 CSP
+                    글리프를 단다 — 격자와 같은 판정을 쓴다. */}
                 <ProviderGlyph
                   provider={provider}
-                  isSdu={meta.is_sdu_type === true}
+                  isSdu={isSdu}
                   className={opsStyles.fmGlyph}
                 />
               </span>
@@ -326,13 +344,13 @@ export function OpsHeader({
               값이고, 접어 두면 프로바이더마다 다른 깊이에 숨는다. */}
           <div className={isGcp ? opsStyles.fmGridGcp : opsStyles.fmGrid}>
             {isAws && monoCell('계정', meta.aws_account_id)}
-            {provider === 'GCP' && gcpCell('프로젝트', meta.gcp_project_id)}
+            {!isSdu && provider === 'GCP' && gcpCell('프로젝트', meta.gcp_project_id)}
             {/* Azure 는 계정 자리가 구독이고, 테넌트가 그 옆에 선다 (오너 2026-08-26).
                 Q3 에서는 UUID 두 개가 스코프 줄을 468px 쓴다고 접힘에 두자고 했는데,
                 4열 그리드는 값 폭이 아니라 셀 수로 서는 배치라 그 근거가 없다 — 둘이
                 나란히 서면 한 행이 정확히 4칸으로 찬다. */}
-            {provider === 'Azure' && monoCell('구독(Subscription)', meta.subscription_id)}
-            {provider === 'Azure' && monoCell('테넌트(Tenant)', meta.tenant_id)}
+            {!isSdu && provider === 'Azure' && monoCell('구독(Subscription)', meta.subscription_id)}
+            {!isSdu && provider === 'Azure' && monoCell('테넌트(Tenant)', meta.tenant_id)}
             {/* Scan App takes ONE column, like 구독 and 테넌트 (owner, 2026-08-26 —
                 「설정」 must stand on the same row as Scan App). All three are UUIDs of
                 the same length, so the 2-column Scan App was an inconsistency rather
@@ -341,15 +359,30 @@ export function OpsHeader({
                 identifier in full with a copy button. Azure now packs 구독·테넌트·Scan
                 App·설정 into exactly four slots — one row, the shape AWS already has.
                 GCP 는 이 격자를 아예 쓰지 않는다 — 3등분(`fmGridGcp`)에 따로 선다. */}
-            {provider === 'Azure' && monoCell('Scan App', meta.azure_scan_app_id)}
+            {!isSdu && provider === 'Azure' && monoCell('Scan App', meta.azure_scan_app_id)}
             {/* IDC 는 계정이 없는 게 정상이다 — 빈 칸을 두는 대신 그 대상이 무엇인지
                 말한다 (ServiceDetailView glossOf 의 어휘 그대로). */}
-            {provider === 'IDC'
+            {!isSdu
+              && provider === 'IDC'
               && cell(
                 '환경',
                 <>
                   사내망
                   <span className={opsStyles.metaTagQuiet}>IDC</span>
+                </>,
+              )}
+            {/* SDU 도 계정이 없는 게 정상이다 — 밑에 깔린 CSP 계정은 있지만 우리가 설치하는
+                계정이 아니라, 여기 적으면 이 화면의 어느 동작도 건드리지 않는 값을 사실처럼
+                말하게 된다 (`SduProjectPage` 가 담당자쪽 헤더에서 내린 것과 같은 판단, 결정
+                #49). 그래서 IDC 와 같은 자리·같은 문법으로 **무엇인지**를 적는다 — 어휘는
+                콘솔이 이미 SDU 를 부르는 말이다(ServiceDetailView glossOf: 「서비스 담당자가
+                데이터를 직접 업로드」). 셀은 한 트랙이라 그중 동사만 싣는다. */}
+            {isSdu
+              && cell(
+                '환경',
+                <>
+                  데이터 직접 업로드
+                  <span className={opsStyles.metaTagQuiet}>SDU</span>
                 </>,
               )}
             {/* 주체는 계정 바로 옆에 선다 (오너 08-26) — 운영자가 콘솔과 대조하는 순서가
@@ -422,7 +455,7 @@ export function OpsHeader({
                 있으므로 전제가 사라졌다. AWS 역할 칸도 같은 결정을 받았다.
                 라벨도 한국어다 (오너 2026-08-27) — 「상세 정보」의 식별자 목록은 Project ID
                 와 짝이라 영문 그대로 둔다. */}
-            {provider === 'GCP' && (
+            {!isSdu && provider === 'GCP' && (
               <>
                 {gcpCell('스캔 서비스 계정', scanSa && gcpServiceAccountDisplay(scanSa), scanSa)}
                 {gcpCell(
