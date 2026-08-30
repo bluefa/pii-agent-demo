@@ -248,7 +248,8 @@ describe('WaitingApprovalCard', () => {
     });
 
     expect(screen.getByLabelText('다음 페이지').hasAttribute('disabled')).toBe(true);
-    expect(screen.getByLabelText('끝 페이지').hasAttribute('disabled')).toBe(true);
+    // "끝 페이지" 는 2026-08-26 부터 기본 컨트롤이 아니다 (페이저 푸터 벤치마크 시안 C).
+    expect(screen.queryByLabelText('끝 페이지')).toBeNull();
   });
 
   it('empty response renders zero-count stats and the table empty state', async () => {

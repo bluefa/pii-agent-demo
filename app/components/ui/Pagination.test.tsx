@@ -59,15 +59,15 @@ describe('Pagination', () => {
     expect(screen.getByText(/0–0/)).toBeTruthy();
   });
 
-  it('renders first/prev/next/last edge controls by default', () => {
+  it('renders prev/next only by default — no first/last double-chevrons', () => {
     renderPagination({ page: 1, pageSize: 10, totalCount: 100 });
-    expect(screen.getByLabelText('처음 페이지')).toBeTruthy();
     expect(screen.getByLabelText('이전 페이지')).toBeTruthy();
     expect(screen.getByLabelText('다음 페이지')).toBeTruthy();
-    expect(screen.getByLabelText('끝 페이지')).toBeTruthy();
+    expect(screen.queryByLabelText('처음 페이지')).toBeNull();
+    expect(screen.queryByLabelText('끝 페이지')).toBeNull();
   });
 
-  it('drops first/last double-chevrons with controls="prevNext" (v16 IDC pager)', () => {
+  it('restores the first/last double-chevrons with controls="full"', () => {
     render(
       <Pagination
         page={1}
@@ -75,12 +75,35 @@ describe('Pagination', () => {
         totalCount={100}
         onPageChange={vi.fn()}
         onPageSizeChange={vi.fn()}
-        controls="prevNext"
+        controls="full"
       />,
     );
-    expect(screen.getByLabelText('이전 페이지')).toBeTruthy();
-    expect(screen.getByLabelText('다음 페이지')).toBeTruthy();
-    expect(screen.queryByLabelText('처음 페이지')).toBeNull();
-    expect(screen.queryByLabelText('끝 페이지')).toBeNull();
+    expect(screen.getByLabelText('처음 페이지')).toBeTruthy();
+    expect(screen.getByLabelText('끝 페이지')).toBeTruthy();
+  });
+
+  // 끝 페이지는 double-chevron 없이도 한 번에 닿는다 — `buildVisiblePages` 가 마지막
+  // 인덱스를 항상 그리기 때문이다. 이게 무너지면 기본값에서 그 버튼을 뺀 결정도 무너진다.
+  it('keeps the last page one click away without the 끝 페이지 button', () => {
+    const { onPageChange } = renderPagination({ page: 0, pageSize: 10, totalCount: 200 });
+    fireEvent.click(screen.getByLabelText('20 페이지'));
+    expect(onPageChange).toHaveBeenLastCalledWith(19);
+  });
+
+  // 비활성은 투명도가 아니라 색이어야 한다 — `opacity-35` 는 이 바 위에서 1.89:1 이었다.
+  it('dims a disabled edge control with a colour, never opacity', () => {
+    renderPagination({ page: 0, pageSize: 10, totalCount: 100 });
+    const prev = screen.getByLabelText('이전 페이지');
+    expect(prev.className).not.toMatch(/opacity-/);
+    expect(prev.className).toContain('disabled:text-[var(--pl-text-weak)]');
+  });
+
+  // 셀렉트 화살표는 브라우저가 그린다. `appearance-none` 이 다시 붙으면 커스텀 화살표가
+  // 있어야 하는데, 그 커스텀 화살표(data-URI)는 Tailwind v4 에서 컴파일되지 않아
+  // 아무것도 그려지지 않았다 — 화살표 없는 55px 상자가 그렇게 나왔다.
+  it('leaves the page-size select on its native arrow', () => {
+    renderPagination({ page: 0, pageSize: 10, totalCount: 100 });
+    const select = screen.getByLabelText('페이지당 표시 건수');
+    expect(select.className).not.toContain('appearance-none');
   });
 });
