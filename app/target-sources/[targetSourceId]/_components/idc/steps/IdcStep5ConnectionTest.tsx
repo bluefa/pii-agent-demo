@@ -289,19 +289,16 @@ export const IdcStep5ConnectionTest = ({
     },
     [logicalModal],
   );
+  // 모달의 결과 프레임이 닫힌 뒤에 돈다 — PUT 이 끝난 순간이 아니다. onProjectUpdate 는 이
+  // 5단계 컴포넌트를 통째로 갈아치우므로, 그때 갱신하면 사용자가 읽어야 할 프레임이 보이기
+  // 전에 언마운트된다. 닫는 것도 모달의 일이다(프레임의 닫기가 유일한 출구).
   const handleLogicalSaved = useCallback(async () => {
-    toast.success('논리 DB 제외 정책을 저장했습니다. 연결 테스트를 다시 실행해야 반영됩니다.');
-    logicalModal.close();
     // completion-status 가 LOGICAL_DATABASE_RECENTLY_UPDATED 로 넘어갔는지 다시 읽는다 —
-    // 토스트가 사라져도 카드가 정책 변경 상태로 남는다.
+    // 카드가 정책 변경 상태로 남는다.
     refreshCompletion();
     const updated = await getProject(targetSourceId);
     onProjectUpdate(updated);
-  }, [logicalModal, toast, onProjectUpdate, targetSourceId, refreshCompletion]);
-
-  const handleLogicalError = useCallback(() => {
-    toast.error('논리 DB 제외 정책 저장에 실패했습니다.');
-  }, [toast]);
+  }, [onProjectUpdate, targetSourceId, refreshCompletion]);
 
   const canRequestApproval =
     liveResources.length > 0 &&
@@ -507,8 +504,8 @@ export const IdcStep5ConnectionTest = ({
               scope="latest"
               resourceId={logicalModal.data.resourceId}
               resourceName={logicalModal.data.resourceName}
+              completedAt={latestJob?.completed_at ?? null}
               onSaved={handleLogicalSaved}
-              onError={handleLogicalError}
               onClose={logicalModal.close}
             />
           )}

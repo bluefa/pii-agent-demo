@@ -7,7 +7,7 @@
  * which lists the RUNS. Mounted per open, so every open starts on page 0 with a fresh
  * fetch; writes cannot happen while the overlay is up.
  *
- * Presentation mirrors the sibling LdbManageModal grammar: tqStyles.appTable rows
+ * Presentation mirrors the sibling LdbViewModal grammar: tqStyles.appTable rows
  * in a task-width shell with PlPagination below — the full trail is reachable
  * page by page. An unmapped status renders its raw wire string on a neutral
  * tag rather than being folded into a known state.

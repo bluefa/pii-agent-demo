@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { AppError } from '@/lib/errors';
 import {
   getExcludedLogicalDatabases,
   getTestedLogicalDatabases,
@@ -24,7 +23,7 @@ import type {
  * latest run, Steps 6·7 read the last one that passed. It is part of the active key: two
  * scopes on the same resource are two different lists, so a scope change must refetch.
  *
- * Keeps the loading/ready/error state machine + retry/abort idiom: the active
+ * Keeps the loading/ready/partial/error state machine + retry/abort idiom: the active
  * key (`targetSourceId#resourceId#scope#nonce`) resets state to `loading` during
  * render on change, and each fetch is cancelled via an AbortController.
  */
@@ -49,22 +48,36 @@ export const useLogicalDatabases = (
   useEffect(() => {
     const controller = new AbortController();
 
-    void Promise.all([
+    // allSettled, not all: the two fetches fail into two different screens. `all` collapsed
+    // them into one `error`, which blocked editing a policy we were holding in our hand.
+    void Promise.allSettled([
       getTestedLogicalDatabases(targetSourceId, resourceId, scope, {
         signal: controller.signal,
       }),
       getExcludedLogicalDatabases(targetSourceId, resourceId, { signal: controller.signal }),
-    ])
-      .then(([tested, excluded]) => {
-        if (controller.signal.aborted) return;
-        const { databases, initialDraft } = buildModalData(tested, excluded);
-        setState({ status: 'ready', databases, initialDraft });
-      })
-      .catch((error: unknown) => {
-        if (error instanceof AppError && error.code === 'ABORTED') return;
-        if (controller.signal.aborted) return;
+    ]).then(([tested, excluded]) => {
+      // 한 signal 을 두 fetch 가 나눠 쓰므로 이 한 줄이 취소를 전부 걸러낸다 — 아래의 두
+      // rejected 갈래에 ABORTED 검사를 따로 두면 절대 참이 되지 않는 조건이 된다.
+      if (controller.signal.aborted) return;
+
+      // ⛔ The PUT is a FULL REPLACE. Saving over a policy we could not read would delete
+      // exclusions nobody asked to delete, so this failure keeps the modal out of the table.
+      if (excluded.status === 'rejected') {
         setState({ status: 'error', message: '논리 DB 정보를 불러오지 못했습니다.' });
-      });
+        return;
+      }
+
+      if (tested.status === 'rejected') {
+        // Policy only — `buildModalData([], …)` already renders exactly that: every excluded
+        // item as an `untested` row, plus the draft seeded from it.
+        const { databases, initialDraft } = buildModalData([], excluded.value);
+        setState({ status: 'partial', databases, initialDraft });
+        return;
+      }
+
+      const { databases, initialDraft } = buildModalData(tested.value, excluded.value);
+      setState({ status: 'ready', databases, initialDraft });
+    });
 
     return () => controller.abort();
   }, [targetSourceId, resourceId, scope, retryNonce]);

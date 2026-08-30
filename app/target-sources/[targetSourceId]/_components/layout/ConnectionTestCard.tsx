@@ -487,18 +487,16 @@ export const ConnectionTestCard = ({
 
   // On save the skip policy persists, which flips completion-status
   // (LATEST_TEST_CONNECTION_SUCCESS → LOGICAL_DATABASE_RECENTLY_UPDATED, spec §7);
-  // re-reading it closes the CTA and flips the card into the policy-changed
-  // state — the toast is no longer the only trace of "you must re-run".
+  // re-reading it closes the CTA and flips the card into the policy-changed state.
+  //
+  // The modal reports its own outcome now, so this runs when its result frame is
+  // DISMISSED, not when the PUT lands: refreshProject() re-renders this card and would
+  // unmount the frame before it could be read. Closing is the modal's own job too — the
+  // frame's 닫기 is the way out.
   const handleSaved = useCallback(() => {
-    toast.success('논리 DB 제외 정책을 저장했습니다. 연결 테스트를 다시 실행해야 반영됩니다.');
-    logicalModal.close();
     refreshCompletion();
     refreshProject();
-  }, [logicalModal, toast, refreshCompletion, refreshProject]);
-
-  const handleSaveError = useCallback(() => {
-    toast.error('논리 DB 제외 정책 저장에 실패했습니다.');
-  }, [toast]);
+  }, [refreshCompletion, refreshProject]);
 
   // 요청 → 확인 프레임 → 전환. 1단계 승인 요청과 같은 훅이다: PUT 이 성공해도 화면을
   // 곧바로 갱신하지 않는다 — refreshProject() 가 상태를 CONNECTION_VERIFIED 로 바꾸는
@@ -1055,8 +1053,8 @@ export const ConnectionTestCard = ({
             scope="latest"
             resourceId={logicalModal.data.resourceId}
             resourceName={logicalModal.data.resourceName}
+            completedAt={latestJob?.completed_at ?? null}
             onSaved={handleSaved}
-            onError={handleSaveError}
             onClose={logicalModal.close}
           />
         )}

@@ -1,12 +1,12 @@
 'use client';
 
 /**
- * 논리 DB 목록 (읽기 전용) — LdbManageModal 의 검토 절반.
+ * 논리 DB 목록 (읽기 전용) — 검토 절반.
  *
  * 관리자 승인 탭의 검토 표에서 개수를 클릭하면 열린다. 승인 탭은 읽고 결정하는
  * 화면이라 쓰기 표면(제외 정책 편집·추가 폼·저장)은 들이지 않는다 — 고칠 게 보이면
- * 연결 테스트 탭의 논리 DB 관리로 간다(푸터가 그 경로를 말한다). 데이터는 편집
- * 모달과 같은 두 GET 이라 두 화면이 같은 목록을 읽는다.
+ * 연결 테스트 탭의 논리 DB 관리(LogicalDbModalLoader)로 간다(푸터가 그 경로를 말한다).
+ * 데이터는 그 모달과 같은 두 GET 이라 두 화면이 같은 목록을 읽는다.
  */
 import { useEffect, useState, type ReactElement } from 'react';
 import { cn, pipelineStyles } from '@/lib/theme';
@@ -14,7 +14,6 @@ import { getDatabaseShortLabel } from '@/app/components/ui/DatabaseIcon';
 import { ModalShell } from '@/app/admin/pipelines/_components/ModalShell';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
 import { tqStyles } from '@/app/admin/pipelines/queue/_components/tqStyles';
-import { ldbPanel as panel } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/LdbManageModal';
 import {
   getTestedLogicalDatabases,
   getExcludedLogicalDatabases,
@@ -23,6 +22,21 @@ import {
 } from '@/app/lib/api/logical-db';
 
 const TITLE_ID = 'ops-ldb-view-title';
+
+/**
+ * 목록 패널의 옷. 편집 절반(LdbManageModal)이 5단계의 논리 DB 관리 모달로 대체되면서 이
+ * 문법을 쓰는 화면은 여기 하나만 남았다 — 그래서 값도 여기 산다.
+ */
+const panel = {
+  wrap: 'flex min-h-[280px] flex-col rounded-lg border border-[var(--pl-border)]',
+  head: 'flex items-center justify-between gap-2 border-b border-[var(--pl-border)] px-3.5 py-2.5',
+  title: 'text-[14px] font-semibold text-[var(--pl-text-strong)]',
+  count: 'text-[12px] text-[var(--pl-text-weak)] tabular-nums',
+  body: 'max-h-[260px] flex-1 overflow-y-auto px-3.5 py-1',
+  row: 'flex items-center justify-between gap-2 border-b border-[var(--pl-gray-100)] py-2 last:border-b-0',
+  name: 'text-[12px] text-[var(--pl-text-strong)] [font-family:var(--pl-font-mono)] break-all',
+  placeholder: 'py-6 text-center text-[14px] text-[var(--pl-text-faint)]',
+} as const;
 
 /** Row identity = database[.schema] — 편집 모달과 같은 표기. */
 const itemKey = (database: string, schema?: string): string =>

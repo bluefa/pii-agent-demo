@@ -67,7 +67,7 @@ import {
   TcPill,
   TC_TONE_FILL,
 } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/bits';
-import { LdbManageModal } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/LdbManageModal';
+import { LogicalDbModalLoader } from '@/app/target-sources/[targetSourceId]/_components/logical-db/LogicalDbModalLoader';
 import { TcPodLogModal } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/TcPodLogModal';
 import { failReasonView } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/failReason';
 import { CredentialAssignModal } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/CredentialAssignModal';
@@ -1089,13 +1089,21 @@ export function ConfirmedInfoCard({
         />
       )}
 
+      {/* 요청자 화면(5단계)과 같은 모달을 그대로 연다 — 같은 두 GET, 같은 전체 교체 PUT 이라
+          운영자용 두 패널 폼을 따로 둘 이유가 없었다. `manualEntry` 만 이 화면의 것이다:
+          연결 테스트가 찾지 못한 DB 를 손으로 더할 수 있는 건 운영자뿐이다.
+          `completedAt` 은 이 표에 없다 — 없는 시각을 지어내는 대신 머리에서 뺀다. */}
       {ldbRow && (
-        <LdbManageModal
+        <LogicalDbModalLoader
           key={`ldb-${ldbRow.resource_id}`}
+          open
           targetSourceId={targetSourceId}
           resourceId={ldbRow.resource_id}
-          resourceLabel={rowLabel(ldbRow)}
+          resourceName={rowLabel(ldbRow)}
           databaseType={ldbRow.database_type}
+          completedAt={null}
+          scope="latest"
+          manualEntry
           onClose={() => setLdbRow(null)}
           onSaved={onReload}
         />

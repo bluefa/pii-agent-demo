@@ -57,23 +57,74 @@ export const toRenderRow = (item: TestedLogicalDatabase): LogicalDatabase | unde
 };
 
 /**
+ * The shape of a row this run's Tested list does not contain. `untested` is stamped HERE
+ * and nowhere else: two callers below produce such a row (policy that outlived a run, and
+ * policy a hand typed in), and the mark that makes the UI render `미조회` needs one owner.
+ */
+const untestedRow = (
+  parts: { database: string; schema?: string },
+  type: LogicalDatabase['type'],
+): LogicalDatabase => {
+  const id = denyId(parts);
+  return {
+    id,
+    name: id,
+    type,
+    database: parts.database,
+    ...(parts.schema ? { schema: parts.schema } : {}),
+    untested: true,
+  };
+};
+
+/**
  * Map an Excluded item to a render row (excluded-only items). `untested` marks it
  * as policy-only: absent from this run's Tested list, which is the *expected*
  * consequence of an exclusion (the next Test Connection simply does not collect
  * an excluded DB) — the UI renders it neutrally, never as a warning.
  */
-const excludedToRenderRow = (item: ExcludedLogicalDatabase): LogicalDatabase => {
-  const id = denyId({ database: item.databaseName, schema: item.schemaName });
-  return {
-    id,
-    name: id,
-    type: toRenderType(item.type),
-    database: item.databaseName,
-    ...(item.schemaName ? { schema: item.schemaName } : {}),
-    existingDenyReason: item.skipReason,
-    untested: true,
-  };
-};
+const excludedToRenderRow = (item: ExcludedLogicalDatabase): LogicalDatabase => ({
+  ...untestedRow(
+    { database: item.databaseName, schema: item.schemaName },
+    toRenderType(item.type),
+  ),
+  existingDenyReason: item.skipReason,
+});
+
+/**
+ * A logical DB the operator typed in by hand — a DB the connection test never discovered,
+ * so it wears the same `미조회` mark as an excluded-only row. Scope follows the schema
+ * field: empty schema means the whole database.
+ *
+ * No `existingDenyReason` — this row is not in the saved policy yet, which is exactly what
+ * makes the modal render it as `저장 전` rather than as an exclusion already in force.
+ */
+export const manualDenyRow = (parts: {
+  database: string;
+  schema?: string;
+}): LogicalDatabase => untestedRow(parts, parts.schema ? 'schema' : 'db');
+
+/**
+ * The DATABASE row a schema-only database has to borrow. Real PG targets report SCHEMA
+ * rows only, and a hand-typed exclusion can name a schema of a database nobody listed —
+ * either way the tree draws a group header for it, and that header is a DATABASE-scope
+ * exclusion target. `virtual` says the row was synthesized rather than reported.
+ *
+ * ⛔ It must be a ROW, not just a tree placeholder: `listStagedChanges` and
+ * `draftToExcludedItems` both look the id up in the row list and silently drop what they
+ * cannot find, so excluding a placeholder header voids the change instead of saving it.
+ */
+export const virtualParentRow = (
+  database: string,
+  opts?: { existingDenyReason?: SkipReason; untested?: boolean },
+): LogicalDatabase => ({
+  id: denyId({ database }),
+  name: database,
+  type: 'db',
+  database,
+  virtual: true,
+  ...(opts?.untested ? { untested: true } : {}),
+  ...(opts?.existingDenyReason ? { existingDenyReason: opts.existingDenyReason } : {}),
+});
 
 /** Row id is already in the current excluded set → left "제외" is a grey no-op. */
 export const isAlreadyDeny = (rowId: string, excludedIds: ReadonlySet<string>): boolean =>
@@ -153,23 +204,16 @@ export const buildModalData = (
     seen.add(id);
   }
 
-  // Real PG targets report SCHEMA rows only, so the DATABASE that contains them
-  // has no row of its own. Synthesize a `virtual` DATABASE parent per such
-  // database: the tree needs a group header, and DATABASE-scope exclusion needs
-  // a row for `draftToExcludedItems` to serialize (its id must be in `databases`).
+  // Real PG targets report SCHEMA rows only, so the DATABASE that contains them has no row
+  // of its own — synthesize one per such database (`virtualParentRow` says why).
   for (const row of [...testedRows]) {
     if (row.type !== 'schema') continue;
     const parentId = denyId({ database: row.database });
     if (seen.has(parentId)) continue;
     const parentReason = reasons[parentId];
-    testedRows.push({
-      id: parentId,
-      name: row.database,
-      type: 'db',
-      database: row.database,
-      virtual: true,
-      ...(parentReason ? { existingDenyReason: parentReason } : {}),
-    });
+    testedRows.push(
+      virtualParentRow(row.database, parentReason ? { existingDenyReason: parentReason } : undefined),
+    );
     seen.add(parentId);
   }
 
