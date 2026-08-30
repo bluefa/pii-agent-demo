@@ -168,30 +168,14 @@ const aggregateCells = (cells: InstallStepValue[]): StepAggregate => {
 };
 
 /**
- * 주체 태그 (서비스측 리소스 생성 / BDC측 리소스 생성) — top-right of every step,
- * color-coded by owner so the two sides read apart at a glance (owner ask).
- * Adapters phrase the label; the "BDC" prefix is the color key.
- */
-const SideTag = ({ side }: { side: string }) => (
-  <span
-    className={cn(
-      TABLE_TAG_PILL,
-      'whitespace-nowrap font-bold',
-      side.startsWith('BDC') ? tagStyles.indigo : tagStyles.info,
-    )}
-  >
-    {side}
-  </span>
-);
-
-/**
  * 주체를 글자로 — 정보는 앞머리 한 단어(서비스측 / BDC측)에 있으므로 거기에만 색이
  * 붙고, 뒤따르는 설명("리소스 생성", "승인")은 회색으로 남는다.
  */
 const SideText = ({ side }: { side: string }) => {
   const [owner, ...rest] = side.split(' ');
   return (
-    // secondary — panel(gray-100) 표면 위라 tertiary 는 AA 미달.
+    // secondary — 레일의 panel(gray-100) 표면 위에서 tertiary 가 AA 미달이라 고른 값이고,
+    // pane 머리의 흰 면에서도 그대로 선다. 한 값이 두 면에서 두 잉크를 갖지 않는다.
     <span className={textColors.secondary}>
       <span className={cn('font-semibold', side.startsWith('BDC') ? sideTextColors.bdc : sideTextColors.service)}>
         {owner}
@@ -687,20 +671,24 @@ export const InstallStatusDetail = ({
    * "use whitespace or borders instead", "don't use raised to group content").
    * 프레임 테두리를 지운 앞 라운드는 결과를 지웠고 원인은 남겨 뒀다.
    *
-   * 그래서 제목을 12/700 섹션 라벨로 내린다. 단계 이름은 이제 레일의 선택 항목이
-   * 소유한다(Cloudscape details pattern: 선택 장치가 이름을 갖고 내용은 다시 쓰지
-   * 않는다). legacy 배치는 여전히 테두리 있는 프레임 안이라 제목이 필요하다 — 끄지 않는다.
+   * 이 머리의 제목은 단계의 이름이고 이 판이 스스로 이고 있는 머리다 — 그래서 16px
+   * 제목 계단에 선다. 굵기만 semibold 로 한 단 내린다: 바깥 카드 머리("4단계 Agent
+   * 설치")가 이미 한 단 위에 있는데, 같은 굵기의 제목 둘이 나란히 서면 어느 쪽이 위인지
+   * 말하지 못하고 서로 주목을 다툰다.
    */
   const paneHead = (compact: boolean) => (
     <div className="flex items-start justify-between gap-3">
-      {/* title↔subtitle = tight 4px */}
-      <div className={cn('min-w-0 flex flex-col', stackGap.tight)}>
+      {/* title↔subtitle = related 8px — 16px 제목은 자기 24px 줄 상자만으로 이미 한
+          덩어리로 읽히므로, 4px 미세 간격은 계단을 갈라 주지 못하고 두 줄이 한 줄처럼
+          이어졌다. 세트의 다음 칸이 related 8px 이다. */}
+      <div className={cn('min-w-0 flex flex-col', stackGap.related)}>
         {compact ? (
-          // 12/700 + tracking — 같은 화면의 조치 항목(ActionItem)·원인 블록이 이미
-          // 쓰는 라벨 값이다. 크기가 같아진 만큼 라벨과 설명은 잉크·굵기 두 레버로
-          // 갈린다: primary/700 vs tertiary/400. secondary 로 두었더니 두 12px 줄이
-          // 한 계층으로 뭉쳐 읽혔다.
-          <h3 className={cn('text-[12px] font-bold tracking-[0.02em]', textColors.primary)}>
+          <h3
+            className={cn(
+              'text-[16px] font-semibold leading-[24px] tracking-[-0.01em]',
+              textColors.primary,
+            )}
+          >
             {active.title}
           </h3>
         ) : (
@@ -721,7 +709,15 @@ export const InstallStatusDetail = ({
         )}
       </div>
       <span className="flex items-center gap-2 flex-shrink-0">
-        {active.side && <SideTag side={active.side} />}
+        {/* 머리에 남는 채운 알약은 변하는 값 하나 — 30초마다 다시 계산되는 집계뿐이다.
+            주체는 계약이 정한 안 바뀌는 속성이라 칩을 내놓고 글자로 내려가고, 소유의
+            색 열쇠(파랑=서비스측 / 남색=BDC측)만 앞머리 한 단어에 남는다. 왼쪽 레일이
+            같은 이유로 이미 SideText 를 쓴다. */}
+        {active.side && (
+          <span className={cn(textStyles.caption, 'whitespace-nowrap')}>
+            <SideText side={active.side} />
+          </span>
+        )}
         {active.action}
         {!isSummary && activeAggregate && (
           <span className={cn(TABLE_TAG_PILL, activeAggregate.tag, 'whitespace-nowrap')}>
@@ -954,8 +950,8 @@ export const InstallStatusDetail = ({
               ),
             )}
             {/* BDC 는 인디고 — 새 색이 아니라 이 화면이 이미 'BDC측'에 쓰고 있는 색이다
-                (SideTag 의 tagStyles.indigo, sideTextColors.bdc). 그룹 이름과 행 태그가
-                같은 색을 말해야 "이 묶음이 곧 BDC 측"으로 읽힌다. */}
+                (SideText 의 sideTextColors.bdc). 그룹 이름과 행 태그가 같은 색을 말해야
+                "이 묶음이 곧 BDC 측"으로 읽힌다. */}
             {railGroup(
               'auto',
               'BDC 진행',

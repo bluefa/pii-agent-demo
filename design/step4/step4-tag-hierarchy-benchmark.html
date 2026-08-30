@@ -1,0 +1,1323 @@
+<title>서비스측 확인 vs 진행중</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gothic+A1:wght@700;800&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+KR:wght@400;500;600&display=swap">
+<style>
+  :root {
+    --ground: #EFF1F5;
+    --surface: #FFFFFF;
+    --surface-2: #F7F8FB;
+    --ink: #10141F;
+    --ink-2: #414B60;
+    --ink-3: #6B7488;
+    --line: #D8DDE7;
+    --line-soft: #E6EAF1;
+    --accent: #0064FF;
+    --attr: #3730A3;
+    --warn: #B45309;
+    --bad: #B42318;
+    --ok: #2A7D52;
+    --plate: #FFFFFF;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #0E1117;
+      --surface: #161A22;
+      --surface-2: #1D222C;
+      --ink: #E8EBF2;
+      --ink-2: #A9B2C4;
+      --ink-3: #7B8497;
+      --line: #2A3140;
+      --line-soft: #222836;
+      --accent: #6AA3FF;
+      --attr: #A5B4FC;
+      --warn: #E0A458;
+      --bad: #F0857D;
+      --ok: #6DD3A0;
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground: #0E1117;
+    --surface: #161A22;
+    --surface-2: #1D222C;
+    --ink: #E8EBF2;
+    --ink-2: #A9B2C4;
+    --ink-3: #7B8497;
+    --line: #2A3140;
+    --line-soft: #222836;
+    --accent: #6AA3FF;
+    --attr: #A5B4FC;
+    --warn: #E0A458;
+    --bad: #F0857D;
+    --ok: #6DD3A0;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: "IBM Plex Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+    font-size: 16px;
+    line-height: 1.7;
+    margin: 0;
+    -webkit-font-smoothing: antialiased;
+    word-break: keep-all;
+  }
+
+  .shell {
+    display: grid;
+    grid-template-columns: 214px minmax(0, 1fr);
+    gap: 56px;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 40px 140px;
+  }
+  @media (max-width: 960px) {
+    .shell { grid-template-columns: minmax(0, 1fr); gap: 0; padding: 0 24px 80px; }
+    .rail { position: static; padding-top: 0; }
+  }
+
+  /* ---------- masthead ---------- */
+  .masthead {
+    grid-column: 1 / -1;
+    border-bottom: 1px solid var(--line);
+    padding: 72px 0 32px;
+    margin-bottom: 56px;
+  }
+  .eyebrow {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 12px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    margin: 0 0 18px;
+  }
+  h1 {
+    font-family: "Gothic A1", "IBM Plex Sans KR", sans-serif;
+    font-weight: 800;
+    font-size: 46px;
+    line-height: 1.14;
+    letter-spacing: -0.025em;
+    margin: 0 0 20px;
+    text-wrap: balance;
+    max-width: 18ch;
+  }
+  .standfirst {
+    font-size: 18px;
+    color: var(--ink-2);
+    max-width: 62ch;
+    margin: 0 0 34px;
+  }
+  .facts {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+    gap: 1px;
+    background: var(--line);
+    border: 1px solid var(--line);
+  }
+  .fact { background: var(--surface); padding: 14px 16px; }
+  .fact dt {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    margin: 0 0 5px;
+  }
+  .fact dd {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--ink);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* ---------- index rail ---------- */
+  .rail {
+    position: sticky;
+    top: 0;
+    align-self: start;
+    padding-top: 4px;
+    font-size: 14px;
+  }
+  .rail h2 {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    font-weight: 500;
+    margin: 0 0 14px;
+  }
+  .rail ol { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 9px; }
+  .rail a {
+    color: var(--ink-2);
+    text-decoration: none;
+    display: grid;
+    grid-template-columns: 22px minmax(0, 1fr);
+    gap: 6px;
+    line-height: 1.4;
+  }
+  .rail a:hover, .rail a:focus-visible { color: var(--accent); }
+  .rail a span:first-child {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 12px;
+    color: var(--ink-3);
+  }
+
+  /* ---------- sections ---------- */
+  main { min-width: 0; }
+  section { margin-bottom: 84px; scroll-margin-top: 24px; }
+  section > h2 {
+    font-family: "Gothic A1", sans-serif;
+    font-weight: 800;
+    font-size: 14px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    margin: 0 0 10px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid var(--ink);
+  }
+  section > h3 {
+    font-family: "Gothic A1", sans-serif;
+    font-weight: 700;
+    font-size: 28px;
+    line-height: 1.25;
+    letter-spacing: -0.02em;
+    margin: 0 0 16px;
+    text-wrap: balance;
+  }
+  p { max-width: 66ch; }
+  h4 {
+    font-family: "Gothic A1", sans-serif;
+    font-weight: 700;
+    font-size: 18px;
+    margin: 34px 0 8px;
+    letter-spacing: -0.01em;
+  }
+  a { color: var(--accent); }
+
+  code, .mono {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 0.875em;
+  }
+  code {
+    background: var(--surface-2);
+    border: 1px solid var(--line-soft);
+    border-radius: 3px;
+    padding: 0.5px 4px;
+  }
+
+  /* ---------- finding blocks ---------- */
+  .finding {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-left: 3px solid var(--ink);
+    padding: 20px 22px;
+    margin-bottom: 14px;
+  }
+  .finding.is-measured { border-left-color: var(--bad); }
+  .finding.is-heuristic { border-left-color: var(--accent); }
+  .finding.is-opinion { border-left-color: var(--ink-3); }
+  .finding-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 10px;
+    margin-bottom: 8px;
+  }
+  .finding-id {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--ink-3);
+  }
+  .finding-title {
+    font-family: "Gothic A1", sans-serif;
+    font-weight: 700;
+    font-size: 18px;
+    letter-spacing: -0.01em;
+    flex: 1 1 260px;
+    min-width: 0;
+  }
+  .grade {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 10px;
+    letter-spacing: 0.06em;
+    padding: 2px 7px;
+    border: 1px solid currentColor;
+    white-space: nowrap;
+  }
+  .grade.g-num { color: var(--bad); }
+  .grade.g-ux { color: var(--accent); }
+  .grade.g-op { color: var(--ink-3); }
+  .finding p { margin: 0 0 8px; font-size: 14px; color: var(--ink-2); }
+  .finding p:last-child { margin-bottom: 0; }
+  .finding strong { color: var(--ink); font-weight: 600; }
+
+  /* ---------- tables ---------- */
+  .tw { overflow-x: auto; margin: 18px 0 8px; border: 1px solid var(--line); background: var(--surface); }
+  table { border-collapse: collapse; width: 100%; font-size: 14px; }
+  th, td { text-align: left; padding: 9px 13px; border-bottom: 1px solid var(--line-soft); vertical-align: top; }
+  thead th {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    font-weight: 500;
+    background: var(--surface-2);
+    border-bottom: 1px solid var(--line);
+    white-space: nowrap;
+  }
+  tbody tr:last-child td { border-bottom: none; }
+  td.num, th.num { font-family: "IBM Plex Mono", monospace; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .same { color: var(--bad); font-weight: 600; }
+  .caption {
+    font-size: 12px;
+    color: var(--ink-3);
+    margin: 0 0 26px;
+    max-width: 72ch;
+  }
+
+  /* ---------- specimen plate (reproduces the app's light UI) ---------- */
+  .plate {
+    color-scheme: light;
+    background: #FFFFFF;
+    border: 1px solid var(--line);
+    margin: 16px 0 8px;
+  }
+  .plate-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 12px;
+    background: #F3F4F7;
+    border-bottom: 1px solid #E1E5EC;
+    padding: 7px 14px;
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #6B7488;
+  }
+  .plate-body { padding: 20px 22px; overflow-x: auto; }
+
+  /* app-lookalike primitives — literal hex, they reproduce the product */
+  .app { font-family: "IBM Plex Sans KR", sans-serif; color: #101828; min-width: 420px; }
+  .app-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+  .app-left { min-width: 0; display: flex; flex-direction: column; }
+  .app-title-12 { font-size: 12px; font-weight: 700; letter-spacing: 0.02em; color: #101828; line-height: 18px; }
+  .app-title-16 { font-size: 16px; font-weight: 600; letter-spacing: -0.01em; color: #101828; line-height: 24px; }
+  .app-desc { font-size: 12px; font-weight: 400; line-height: 16px; color: #6A7282; }
+  .gap4 { gap: 4px; } .gap8 { gap: 8px; }
+  .app-right { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+  .pill {
+    display: inline-flex; align-items: center;
+    padding: 2px 8px; border-radius: 8px;
+    font-size: 12px; font-weight: 600; line-height: 16px; letter-spacing: -0.01em;
+    white-space: nowrap;
+  }
+  .pill.blue { background: #DBEAFE; color: #193CB8; }
+  .pill.gray { background: #F3F4F6; color: #364153; }
+  .pill.green { background: #DCFCE7; color: #016630; }
+  .pill.red { background: #FFE2E2; color: #9F0712; }
+  .pill.ring-blue { background: #FFFFFF; color: #193CB8; box-shadow: inset 0 0 0 1px #93C5FD; }
+  .pill.ring-indigo { background: #FFFFFF; color: #372AAC; box-shadow: inset 0 0 0 1px #A5B4FC; }
+  .sidetext { font-size: 12px; line-height: 16px; color: #364153; white-space: nowrap; }
+  .sidetext b { font-weight: 600; color: #193CB8; }
+  .sidetext.bdc b { color: #372AAC; }
+  .eyebrow-owner { font-size: 12px; font-weight: 600; line-height: 16px; color: #364153; }
+  .eyebrow-owner b { color: #193CB8; }
+
+  /* reference mini-mockups */
+  .ref-ui { font-family: "IBM Plex Sans KR", sans-serif; color: #101828; font-size: 14px; min-width: 380px; }
+  .gh-state {
+    display: inline-flex; align-items: center; gap: 5px;
+    background: #1F883D; color: #fff; border-radius: 999px;
+    padding: 4px 11px; font-size: 12px; font-weight: 600;
+  }
+  .gh-label {
+    display: inline-flex; align-items: center;
+    border: 1px solid #D0D7DE; border-radius: 999px;
+    padding: 1px 8px; font-size: 12px; color: #57606A; background: #fff;
+  }
+  .cs-status { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; color: #0F1B2A; }
+  .cs-dot { width: 9px; height: 9px; border-radius: 50%; background: #0972D3; flex: none; }
+  .cs-dot.ok { background: #037F0C; }
+  .cs-badge { display: inline-flex; background: #414D5C; color: #fff; border-radius: 999px; padding: 1px 8px; font-size: 12px; font-weight: 500; }
+  .kv { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; }
+  .kv dt { font-size: 12px; color: #5F6B7A; margin-bottom: 2px; }
+  .kv dd { margin: 0; font-size: 14px; color: #0F1B2A; }
+  .lin-row { display: flex; align-items: center; gap: 10px; font-size: 14px; }
+  .lin-ico { width: 13px; height: 13px; border-radius: 50%; border: 2px solid #E2A336; flex: none; background: linear-gradient(90deg, #E2A336 50%, transparent 50%); }
+  .lin-av { width: 18px; height: 18px; border-radius: 50%; background: #5E6AD2; color: #fff; font-size: 10px; display: grid; place-items: center; flex: none; }
+  .loz { display: inline-flex; border-radius: 3px; padding: 1px 6px; font-size: 10px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; }
+  .loz.bold { background: #0052CC; color: #fff; }
+  .loz.subtle { background: #DEEBFF; color: #0747A6; }
+  .pol { display: inline-flex; align-items: center; gap: 5px; background: #AEE9D1; color: #0C5132; border-radius: 8px; padding: 2px 8px; font-size: 12px; font-weight: 500; }
+  .pol.warn { background: #FFD79D; color: #5E4200; }
+
+  /* ---------- ascii ---------- */
+  pre.ascii {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 12px;
+    line-height: 1.65;
+    background: var(--surface-2);
+    border: 1px solid var(--line-soft);
+    padding: 14px 16px;
+    overflow-x: auto;
+    margin: 14px 0;
+    color: var(--ink-2);
+  }
+
+  /* ---------- reference cards ---------- */
+  .ref {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    padding: 22px 24px 24px;
+    margin-bottom: 18px;
+  }
+  .ref.is-refuter { border-color: var(--warn); border-width: 2px; }
+  .ref-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px; margin-bottom: 4px; }
+  .ref-n { font-family: "IBM Plex Mono", monospace; font-size: 12px; color: var(--ink-3); }
+  .ref-name { font-family: "Gothic A1", sans-serif; font-weight: 700; font-size: 20px; letter-spacing: -0.01em; flex: 1 1 240px; }
+  .verify {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 10px; letter-spacing: 0.06em;
+    padding: 2px 7px; white-space: nowrap;
+    border: 1px solid currentColor;
+  }
+  .verify.v-yes { color: var(--ok); }
+  .verify.v-mem { color: var(--warn); }
+  .ref-url { display: block; font-family: "IBM Plex Mono", monospace; font-size: 12px; margin-bottom: 14px; word-break: break-all; }
+  .takeaway {
+    margin-top: 14px;
+    padding-top: 12px;
+    border-top: 1px dashed var(--line);
+    font-size: 14px;
+  }
+  .takeaway b { font-family: "Gothic A1", sans-serif; font-weight: 700; }
+
+  /* ---------- proposal ---------- */
+  .prop {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    margin-bottom: 22px;
+  }
+  .prop-head {
+    display: flex; flex-wrap: wrap; align-items: baseline; gap: 12px;
+    padding: 18px 24px 14px;
+    border-bottom: 1px solid var(--line);
+  }
+  .prop-letter {
+    font-family: "Gothic A1", sans-serif; font-weight: 800; font-size: 30px;
+    line-height: 1; color: var(--accent);
+  }
+  .prop-name { font-family: "Gothic A1", sans-serif; font-weight: 700; font-size: 22px; letter-spacing: -0.015em; flex: 1 1 240px; }
+  .prop-channel {
+    font-family: "IBM Plex Mono", monospace; font-size: 12px;
+    color: var(--ink-3); border: 1px solid var(--line); padding: 3px 8px; white-space: nowrap;
+  }
+  .prop-body { padding: 20px 24px 24px; }
+  .pc { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 0; border: 1px solid var(--line); margin-top: 20px; }
+  .pc > div { padding: 14px 16px; border-right: 1px solid var(--line); }
+  .pc > div:last-child { border-right: none; }
+  .pc h5 {
+    font-family: "IBM Plex Mono", monospace; font-size: 10px; letter-spacing: 0.09em;
+    text-transform: uppercase; color: var(--ink-3); font-weight: 500; margin: 0 0 8px;
+  }
+  .pc ul { margin: 0; padding-left: 17px; font-size: 14px; color: var(--ink-2); }
+  .pc li { margin-bottom: 5px; }
+  .pc .fail { color: var(--bad); }
+
+  .verdict {
+    background: var(--ink);
+    color: var(--ground);
+    padding: 32px 34px;
+    border: none;
+  }
+  .verdict h3 { font-family: "Gothic A1", sans-serif; font-weight: 800; font-size: 26px; margin: 0 0 14px; letter-spacing: -0.02em; color: var(--ground); }
+  .verdict p { color: var(--ground); opacity: 0.86; max-width: 64ch; }
+  .verdict .mech {
+    font-size: 18px; line-height: 1.55; opacity: 1;
+    border-left: 3px solid var(--accent); padding-left: 16px; margin: 18px 0 22px;
+    font-weight: 500;
+  }
+  .verdict code { background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.16); color: inherit; }
+
+  .note {
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    padding: 16px 18px;
+    font-size: 14px;
+    color: var(--ink-2);
+    margin: 18px 0;
+  }
+  .note strong { color: var(--ink); }
+  ul.plain { padding-left: 18px; font-size: 14px; color: var(--ink-2); max-width: 66ch; }
+  ul.plain li { margin-bottom: 7px; }
+  ul.plain strong { color: var(--ink); font-weight: 600; }
+
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+
+<div class="shell">
+  <header class="masthead">
+    <p class="eyebrow">Design benchmark · Step 4 설치 진행 · 2026-08-30</p>
+    <h1>서비스측 확인 vs 진행중</h1>
+    <p class="standfirst">
+      한 줄에 놓인 두 알약이 같은 계층으로 읽힌다는 오너 지적에서 출발한다. 실측해 보니 계층이
+      <em>부족한</em> 것이 아니라, 둘을 가를 수 있는 시각 채널을 <strong>하나도 쓰지 않았다</strong>.
+      여섯 채널 중 여섯이 동일하고, 코드가 쓰려 했던 유일한 레버는 실제로 적용조차 되지 않는다.
+    </p>
+    <dl class="facts">
+      <div class="fact"><dt>Target</dt><dd>/pass/target-sources/1008</dd></div>
+      <div class="fact"><dt>Component</dt><dd>InstallStatusDetail · paneHead(compact)</dd></div>
+      <div class="fact"><dt>Surface</dt><dd>#FFFFFF (카드 흰 바닥)</dd></div>
+      <div class="fact"><dt>측정</dt><dd>getComputedStyle @ localhost:5417</dd></div>
+      <div class="fact"><dt>Branch</dt><dd>fix/step4-panel-head · c31f2881</dd></div>
+    </dl>
+  </header>
+
+  <nav class="rail" aria-label="목차">
+    <h2>Contents</h2>
+    <ol>
+      <li><a href="#diagnosis"><span>01</span><span>진단 7건</span></a></li>
+      <li><a href="#ledger"><span>02</span><span>채널 원장</span></a></li>
+      <li><a href="#precedent"><span>03</span><span>앱 안의 선례</span></a></li>
+      <li><a href="#refs"><span>04</span><span>레퍼런스 7</span></a></li>
+      <li><a href="#proposals"><span>05</span><span>시안 A · B · C</span></a></li>
+      <li><a href="#compare"><span>06</span><span>비교표</span></a></li>
+      <li><a href="#recommend"><span>07</span><span>추천</span></a></li>
+    </ol>
+  </nav>
+
+  <main>
+    <!-- ============ 01 ============ -->
+    <section id="diagnosis">
+      <h2>01 — 진단</h2>
+      <h3>계층이 약한 게 아니라, 계층을 만들 채널을 하나도 안 썼다</h3>
+      <p class="caption">
+        근거 등급 — <span class="grade g-num">수치 위반</span> 실측·세트 위반(객관) ·
+        <span class="grade g-ux">UX 원칙</span> 일반 휴리스틱 ·
+        <span class="grade g-op">제안</span> 주관 판단.
+      </p>
+
+      <div class="plate">
+        <div class="plate-bar"><span>현재 상태 · paneHead(compact=true)</span><span>as measured</span></div>
+        <div class="plate-body">
+          <div class="app">
+            <div class="app-head">
+              <div class="app-left gap4">
+                <div class="app-title-12">Terraform 권한 부여 확인</div>
+                <div class="app-desc">대상 AWS 계정에 Terraform 실행을 위한 IAM Role / AssumeRole 권한이 부여되었는지 검증합니다.</div>
+              </div>
+              <div class="app-right">
+                <span class="pill blue">서비스측 확인</span>
+                <span class="pill blue">진행중</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <p class="caption">
+        왼쪽은 12/700 제목(이번 라운드에 16/600 으로 올라간다) + 12px 설명. 오른쪽 두 알약은
+        <code>SideTag</code> 와 집계 상태 알약이다.
+      </p>
+
+      <div class="finding is-measured">
+        <div class="finding-head">
+          <span class="finding-id">D1</span>
+          <span class="finding-title">여섯 채널 중 여섯이 같다 — 차이는 폭뿐</span>
+          <span class="grade g-num">수치 위반</span>
+        </div>
+        <p>
+          두 알약을 <code>getComputedStyle</code> 로 재면 <strong>면·잉크·크기·무게·높이·라운드가 전부 동일</strong>하다.
+          유일한 차이는 글자 수에서 나온 폭이다. 사람이 "구분할 방법이 없다"고 말한 것은 정확한 관찰이다 — 물리적으로 구분 신호가 0이다.
+        </p>
+        <div class="tw">
+          <table>
+            <thead><tr><th>채널</th><th>서비스측 확인 (속성)</th><th>진행중 (판정)</th><th>판정</th></tr></thead>
+            <tbody>
+              <tr><td>면</td><td class="num">lab(92.03 −2.25 −11.65) = blue-100 #DBEAFE</td><td class="num">동일</td><td class="same">같음</td></tr>
+              <tr><td>잉크</td><td class="num">lab(30.25 27.79 −70.27) = blue-800 #193CB8</td><td class="num">동일</td><td class="same">같음</td></tr>
+              <tr><td>크기</td><td class="num">12px</td><td class="num">12px</td><td class="same">같음</td></tr>
+              <tr><td>무게</td><td class="num">600</td><td class="num">600</td><td class="same">같음</td></tr>
+              <tr><td>높이</td><td class="num">20.0px</td><td class="num">20.0px</td><td class="same">같음</td></tr>
+              <tr><td>라운드</td><td class="num">8px</td><td class="num">8px</td><td class="same">같음</td></tr>
+              <tr><td>폭</td><td class="num">80.2px</td><td class="num">46.7px</td><td>글자 수의 결과</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>대비 실측(흰 면 기준): blue-100 면 <span class="mono">1.22:1</span> · blue-800 잉크 <span class="mono">8.82:1</span> (blue-100 위에서는 <span class="mono">7.23:1</span>). 대비는 문제가 아니다 — <strong>변별</strong>이 문제다.</p>
+      </div>
+
+      <div class="finding is-measured">
+        <div class="finding-head">
+          <span class="finding-id">D2</span>
+          <span class="finding-title">코드가 쓰려던 단 하나의 레버가 실제로는 안 걸린다</span>
+          <span class="grade g-num">수치 위반</span>
+        </div>
+        <p>
+          <code>SideTag</code> 는 <code>TABLE_TAG_PILL + 'whitespace-nowrap font-bold'</code> 로 굵기를 한 단 올리려 한다.
+          그런데 <code>TABLE_TAG_PILL</code> 안에는 이미 <code>textStyles.captionStrong</code>(<code>font-semibold</code>)이 들어 있고,
+          Tailwind 유틸리티는 <strong>클래스 나열 순서가 아니라 스타일시트 순서</strong>로 이긴다.
+          실측 <code>font-weight: 600</code> — <code>font-bold</code> 는 죽어 있다.
+        </p>
+        <p>
+          결과적으로 지금 화면은 "레버를 하나 썼는데 부족한" 상태가 아니라 <strong>아무 레버도 안 쓴</strong> 상태다.
+          이 사실이 중요한 이유: "굵기를 더 올려보자"는 손쉬운 다음 수가 이미 실패한 수라는 뜻이다.
+        </p>
+      </div>
+
+      <div class="finding is-heuristic">
+        <div class="finding-head">
+          <span class="finding-id">D3</span>
+          <span class="finding-title">두 값은 종류가 다르다 — 사실과 판정</span>
+          <span class="grade g-ux">UX 원칙</span>
+        </div>
+        <p>
+          <code>side</code> 는 계약 필드 <code>terraform_execution_side</code>(<code>SERVICE</code>/<code>BDC</code>)에서 어댑터가 문구로 옮긴
+          <strong>불변 속성</strong>이다. 이 단계가 존재하는 한 절대 안 바뀐다.
+          <code>aggregate</code> 는 <code>aggregateCells()</code> 가 셀 배열에서 매 폴(30s)마다 다시 계산하는 <strong>판정</strong>이다 —
+          이 화면에 온 이유 그 자체다.
+        </p>
+        <p>
+          같은 모양은 "둘 다 같은 빈도로 지켜봐야 한다"고 말한다. 30초마다 바뀔 수 있는 값과 영영 안 바뀌는 값에
+          같은 주목을 요구하는 것이 계층 붕괴의 내용적 정체다.
+        </p>
+      </div>
+
+      <div class="finding is-heuristic">
+        <div class="finding-head">
+          <span class="finding-id">D4</span>
+          <span class="finding-title">두 알약 모두 레일이 240px 왼쪽에서 이미 한 말이다</span>
+          <span class="grade g-ux">UX 원칙</span>
+        </div>
+        <p>DOM 실측 — 같은 화면 레일의 내용:</p>
+        <pre class="ascii">그룹 밴드 ▸ 내가 할 일 (1)          ← 소유(파란 밴드 = 서비스측 차례)
+  항목    ▸ Terraform 권한 부여 확인
+            진행중                  ← 판정 (파란 12px 글자, 채운 면 없음)
+  항목    ▸ 서비스 측 Terraform 자동 적용 / 진행중
+그룹 밴드 ▸ BDC 진행                ← 남색 밴드 = BDC측</pre>
+        <p>
+          페인 머리의 오른쪽 두 알약은 새 정보가 아니라 <strong>재진술</strong>인데, 화면에서 가장 시끄러운 채널
+          (채운 칩 두 개)을 쓴다. 레일은 같은 두 사실을 <strong>색 있는 글자</strong>와 <strong>그룹 밴드</strong>라는
+          더 조용한 채널로 이미 말하고 있다.
+        </p>
+      </div>
+
+      <div class="finding is-measured">
+        <div class="finding-head">
+          <span class="finding-id">D5</span>
+          <span class="finding-title">오너가 이미 내린 결정이 페인 머리에만 미적용</span>
+          <span class="grade g-num">수치 위반</span>
+        </div>
+        <p>
+          Step 4 레이아웃 v3.1 결정(기록: <code>project_step4_ux_research</code>) —
+          <strong>"주체·상태를 필→글자로(색은 실패·진행에만), pane 헤더만 옅은 필 1개"</strong>.
+        </p>
+        <p>
+          레일은 이 결정을 구현했다: <code>SideText</code>(칩 폐기, 앞머리 한 단어에만 색),
+          <code>NAV_STATUS_TEXT</code>/<code>NAV_STATUS_WEIGHT</code>(failed·running 만 색+600, 나머지는 gray-700/400).
+          <strong>페인 머리만 칩 두 개가 남았다.</strong> 이건 새 디자인 문제가 아니라 <strong>한 곳에 안 간 배선</strong>이다.
+        </p>
+      </div>
+
+      <div class="finding is-opinion">
+        <div class="finding-head">
+          <span class="finding-id">D6</span>
+          <span class="finding-title">제목이 16/600 으로 커져도 칩끼리의 대비는 그대로 0</span>
+          <span class="grade g-op">제안</span>
+        </div>
+        <p>
+          실측: 16/600 「Terraform 권한 부여 확인」 = <span class="mono">162.4px</span>, 머리 행 폭 <span class="mono">1228px</span> —
+          공간은 남는다. 제목이 커지면 제목↔칩의 대비는 커지지만 <strong>칩↔칩의 대비는 여전히 0</strong>이다.
+          크기 레버는 이 문제를 못 고친다. 다만 제목이 16/600 이 되면 오른쪽 두 칩이 상대적으로
+          "작은 것 두 개 한 덩어리"로 더 강하게 뭉쳐 보인다 — 문제는 완화되지 않고 <em>악화</em>된다.
+        </p>
+      </div>
+
+      <div class="finding is-opinion">
+        <div class="finding-head">
+          <span class="finding-id">D7</span>
+          <span class="finding-title">가운데 <code>action</code> 슬롯은 죽어 있다</span>
+          <span class="grade g-op">제안</span>
+        </div>
+        <p>
+          <code>paneHead</code> 우측 그룹은 <code>[SideTag] [action] [상태 알약]</code> 3슬롯인데,
+          <code>InstallTableStep.action</code> 을 채우는 어댑터가 AWS·Azure·GCP·IDC 어디에도 없다.
+          배치를 바꿀 때 이 슬롯을 그대로 옮겨 다닐 이유는 없다 — 다만 <strong>삭제도 하지 않는다</strong>(이번 라운드 범위 밖).
+        </p>
+      </div>
+    </section>
+
+    <!-- ============ 02 ============ -->
+    <section id="ledger">
+      <h2>02 — 채널 원장</h2>
+      <h3>무엇이 팔렸고 무엇이 비어 있나</h3>
+      <p>
+        계층은 채널을 나눠 만든다(<code>feedback_rank_by_splitting_channels</code>: "무게를 한 채널에 몰면 둘 다 1등이 된다").
+        그래서 시안을 고르기 전에 <em>쓸 수 있는 채널</em>부터 센다.
+      </p>
+      <div class="tw">
+        <table>
+          <thead><tr><th>채널</th><th>상태</th><th>근거</th></tr></thead>
+          <tbody>
+            <tr><td><strong>면</strong> (fill)</td><td class="same">팔림</td><td>둘 다 blue-100</td></tr>
+            <tr><td><strong>잉크</strong> (hue)</td><td class="same">팔림 + 영구 봉쇄</td><td>둘 다 blue-800. 게다가 판정 알약은 tone 전체를 순회한다(success·info·error·neutral·amber) — 속성에 어떤 계열을 줘도 <strong>언젠가 겹친다</strong>. <code>feedback_status_pill_owns_every_tone</code></td></tr>
+            <tr><td><strong>크기</strong></td><td class="same">팔림 (바닥)</td><td>둘 다 12px. 디자인 가이드 폰트 세트의 최소값이라 아래 칸이 없다</td></tr>
+            <tr><td><strong>무게</strong></td><td class="same">명목상 팔림, 실사용 0</td><td>D2 — <code>font-bold</code> 가 안 걸린다. 살려도 600↔700 은 12px 에서 "1px 차이는 계층이 아니라 오차"(design-guide §3)</td></tr>
+            <tr><td><strong>형태</strong> (칠 vs 획)</td><td style="color:var(--ok);font-weight:600">비어 있음</td><td>흰 면 + stroke 는 이 줄에서 아무도 안 쓰는 채널 (<code>feedback_white_plus_stroke_survives_both_rows</code>) → <strong>시안 C</strong></td></tr>
+            <tr><td><strong>위치</strong> (축)</td><td style="color:var(--ok);font-weight:600">비어 있음</td><td>둘 다 오른쪽 한 줄. 세로 축은 제목·설명이 쓰고 오른쪽 끝은 통째로 비었다 → <strong>시안 B</strong></td></tr>
+            <tr><td><strong>요소 종류</strong> (칩 vs 글자)</td><td style="color:var(--ok);font-weight:600">비어 있음 (앱 선례 있음)</td><td>레일이 이미 이 채널로 같은 두 값을 갈랐다 → <strong>시안 A</strong></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="note">
+        <strong>잉크 채널이 봉쇄된 것이 이 문제의 핵심이다.</strong> 상태 알약 하나가 다섯 tone 을 돌려 쓰는 줄에서는
+        "속성 칩만 다른 색으로" 가 성립하지 않는다 — 정지 화면 한 장에서 안 겹치는 색을 골라도 다른 상태에서 무너진다.
+        <strong>색을 바꾸지 말고 채널을 바꿔야 한다.</strong>
+      </div>
+    </section>
+
+    <!-- ============ 03 ============ -->
+    <section id="precedent">
+      <h2>03 — 앱 안의 선례</h2>
+      <h3>레일은 왜 태그를 버렸고, 페인 머리는 왜 안 버렸나</h3>
+
+      <h4>① <code>SideText</code> — 레일이 이미 내놓은 답 (같은 파일 191행)</h4>
+      <p>
+        legacy 레일의 주석이 이유를 그대로 적어 뒀다:
+        <em>"목차 한 줄에 채운 태그가 둘씩 반복되면 색이 내용을 이긴다. 여기서는 상태도 주체도 글자로 쓰고,
+        색은 '봐야 하는가'(실패·진행중)에만 남긴다."</em>
+      </p>
+      <p>
+        <code>SideText</code> 는 <code>side</code> 문자열을 공백으로 쪼개 <strong>앞머리 한 단어에만</strong> 색을 준다
+        (<code>sideTextColors.service</code> = blue-800 / <code>.bdc</code> = indigo-800), 뒤따르는 설명은
+        <code>textColors.secondary</code> 로 남긴다. 정보는 「서비스측/BDC측」에 있고 「확인」·「리소스 생성」에는 없기 때문이다.
+      </p>
+      <p>
+        <strong>왜 레일만 했나:</strong> 레일은 항목이 5개라 칩 두 개가 <em>다섯 번</em> 반복됐다 — 반복이 강제한 결정이다.
+        페인 머리는 한 번뿐이라 같은 압력을 안 받았고, v3.1 결정이 레일에 적용되는 동안 그냥 지나갔다.
+        <em>한 번이라 안 아팠을 뿐, 규칙이 다른 것은 아니다.</em>
+      </p>
+
+      <h4>② Step 5 <code>TcHeaderTag</code> — 판정 + 상대시각</h4>
+      <p>
+        5단계 머리에서 판정은 <strong>알약 하나</strong>(<code>idcStyles.tag.green/red/orange</code>)고,
+        그 옆의 시각은 <strong>12/500 tertiary 글자</strong>다. 즉 이 앱은 이미
+        <strong>"채운 알약은 판정 하나만 갖는다"</strong>는 문법을 5단계에서 쓰고 있다. 4단계만 그 문법 밖에 있다.
+      </p>
+
+      <h4>③ 그룹 밴드의 파랑/남색 = 앱의 소유 어휘 (⛔ 지켜야 함)</h4>
+      <p>
+        <code>docs/ux/benchmark/step4-rail-grouping.md:94</code> — 시안 E 기각 사유가
+        <em>"라벨의 파랑/남색은 <code>SideTag</code>(서비스측/BDC측)와 같은 색이라 레일과 표가 같은 어휘를 말하고 있었다"</em>.
+        <strong>파랑=서비스측 / 남색=BDC측의 색 열쇠는 폐기 대상이 아니다.</strong> 세 시안 모두 이 hue 를 유지한다.
+      </p>
+
+      <h4>⛔ 재제안 금지 — 이 영역의 기각·보류 판례</h4>
+      <ul class="plain">
+        <li><strong>상태 태그를 카드 머리(바깥)로 올리기</strong> — 오너 <em>보류</em>. 카드 머리 오른쪽은 이미 <code>StampLines</code> 2줄이 쓰고 있고, @1440 실측 없이 금지.</li>
+        <li><strong>행 확장 드로어 / 상세 모달 재도입</strong> — v3.1 기각.</li>
+        <li><strong>그룹 라벨 삭제 + 항목별 주체 칩</strong> — <code>step4-rail-grouping.md</code> 기각 판례 3번.</li>
+        <li><strong>full-bleed 회색 트레이 / <code>bgColors.tray</code></strong> — 재도입 금지.</li>
+        <li><strong>레일 plane 색 변경</strong> — <code>project_guide_rail_hierarchy</code> 의 이중 기각(hover 가 선택행보다 튄다). 이 시안들은 레일을 건드리지 않는다.</li>
+      </ul>
+    </section>
+
+    <!-- ============ 04 ============ -->
+    <section id="refs">
+      <h2>04 — 레퍼런스</h2>
+      <h3>한 머리에서 소유와 판정을 다른 층에 놓는 일곱 가지 방법</h3>
+      <p class="caption">
+        <span class="verify v-yes">확인함</span> 이번 세션에 실제로 열어 확인 ·
+        <span class="verify v-mem">기억 기반</span> 학습 지식, 재검증 안 함. 링크는 전부 실주소다.
+      </p>
+
+      <!-- R1 -->
+      <div class="ref">
+        <div class="ref-head">
+          <span class="ref-n">R1</span>
+          <span class="ref-name">GitHub Primer — StateLabel vs Label</span>
+          <span class="verify v-yes">확인함</span>
+        </div>
+        <a class="ref-url" href="https://primer.style/product/components/state-label/">https://primer.style/product/components/state-label/</a>
+        <p>
+          Primer 는 이 구분을 <strong>두 개의 다른 컴포넌트</strong>로 못 박았다.
+          <code>StateLabel</code> 은 "이슈·PR 의 상태를 렌더링"하는 데만 쓰고 — 아이콘이 붙은 채운 알약, 객체당 하나 —
+          <code>Label</code> 은 "상태·분류·기타 메타데이터를 더하는 시각적 래퍼"로 테두리형이다.
+          같은 컴포넌트를 색만 바꿔 두 번 쓰는 선택지가 시스템 차원에서 존재하지 않는다.
+        </p>
+        <div class="plate">
+          <div class="plate-bar"><span>GitHub PR 머리 (재현)</span><span>state = 채운 알약 · metadata = 획</span></div>
+          <div class="plate-body">
+            <div class="ref-ui">
+              <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+                <span class="gh-state">● Open</span>
+                <span style="color:#57606A;font-size:12px;">chulyonga wants to merge 3 commits</span>
+              </div>
+              <div style="margin-top:12px;display:flex;gap:6px;flex-wrap:wrap;">
+                <span class="gh-label">design</span>
+                <span class="gh-label">step-4</span>
+                <span class="gh-label">needs review</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <p class="takeaway"><b>가져올 것 —</b> 판정은 <strong>채운 면 + 아이콘</strong>, 속성은 <strong>흰 면 + 획</strong>. 두 종류를 한 부품의 두 색으로 만들지 않는다.</p>
+      </div>
+
+      <!-- R2 -->
+      <div class="ref">
+        <div class="ref-head">
+          <span class="ref-n">R2</span>
+          <span class="ref-name">GitLab Pajamas — Badge</span>
+          <span class="verify v-yes">확인함</span>
+        </div>
+        <a class="ref-url" href="https://design.gitlab.com/components/badge">https://design.gitlab.com/components/badge</a>
+        <p>
+          정의부터가 우리 문제의 언어다 — <em>"배지는 더 큰 객체의 <strong>속성</strong>으로서 시스템이 생성한 메타데이터를 강조한다."</em>
+          그리고 쓰지 말아야 할 때를 명시한다: <strong>"메타데이터가 강조를 필요로 하지 않으면, 정적 아이콘이나 일반 텍스트를 대신 쓴다."</strong>
+        </p>
+        <p>
+          즉 <em>칩에서 글자로 내려가는 길</em>이 디자인 시스템 차원에서 문서화된 정규 경로다 — 우리 레일이 이미 걸어간 그 길.
+        </p>
+        <p class="takeaway"><b>가져올 것 —</b> 「강조가 필요한가?」를 칩 여부의 기준으로 삼는다. <code>서비스측 확인</code> 은 레일 그룹 밴드가 이미 강조했으므로 두 번 강조할 이유가 없다.</p>
+      </div>
+
+      <!-- R3 -->
+      <div class="ref">
+        <div class="ref-head">
+          <span class="ref-n">R3</span>
+          <span class="ref-name">AWS Cloudscape — Status indicator vs Badge</span>
+          <span class="verify v-yes">확인함</span>
+        </div>
+        <a class="ref-url" href="https://cloudscape.design/components/status-indicator/">https://cloudscape.design/components/status-indicator/</a>
+        <p>
+          Cloudscape 의 <strong>Status indicator</strong> 는 "리소스의 상태를 카드·테이블·목록·<strong>헤더 뷰</strong>에 쉽게 심을 수 있는 압축된 형태로 전달"한다 —
+          형태는 <strong>아이콘 + 색 글자, 면 없음</strong>이다.
+          반면 <strong>Badge</strong>(<a href="https://cloudscape.design/components/badge/">/components/badge/</a>)는 "항목을 라벨링·분류·조직하거나 심각도를 표시하는 색 코드된 작은 요소" — <strong>채운</strong> 알약이다.
+        </p>
+        <p>
+          우리 직관과 <em>반대</em>라는 점이 중요하다. AWS 는 <strong>판정을 면 없는 채널</strong>에, <strong>분류를 채운 면</strong>에 둔다.
+          면은 "이것이 무엇인가"를, 색 글자는 "지금 어떤가"를 맡는다. 둘이 절대 안 겹치는 이유가 여기 있다.
+        </p>
+        <div class="plate">
+          <div class="plate-bar"><span>Cloudscape 리소스 상세 머리 (재현)</span><span>status = 점+글자 · badge = 채운 면</span></div>
+          <div class="plate-body">
+            <div class="ref-ui">
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-bottom:16px;">
+                <strong style="font-size:18px;">terraform-exec-role</strong>
+                <span class="cs-status"><span class="cs-dot"></span>In progress</span>
+              </div>
+              <dl class="kv">
+                <div><dt>Managed by</dt><dd><span class="cs-badge">Service</span></dd></div>
+                <div><dt>Region</dt><dd>ap-northeast-2</dd></div>
+                <div><dt>Created</dt><dd>2026-08-24</dd></div>
+              </dl>
+            </div>
+          </div>
+        </div>
+        <p class="takeaway"><b>가져올 것 —</b> "누가 관리하는가"는 <strong>라벨 붙은 속성</strong>으로, "지금 어떤가"는 <strong>헤더 오른쪽 상태 표시</strong>로. 축이 다르면 절대 안 뭉친다.</p>
+      </div>
+
+      <!-- R4 -->
+      <div class="ref">
+        <div class="ref-head">
+          <span class="ref-n">R4</span>
+          <span class="ref-name">Atlassian — Lozenge (standard vs subtle)</span>
+          <span class="verify v-yes">확인함</span>
+        </div>
+        <span class="ref-url">
+          <a href="https://aui.atlassian.com/aui/6.1/docs/lozenges.html">https://aui.atlassian.com/aui/6.1/docs/lozenges.html</a>
+          &nbsp;·&nbsp;
+          <a href="https://atlassian.design/components/lozenge/">https://atlassian.design/components/lozenge/</a>
+        </span>
+        <p>
+          AUI 문서: <em>"주로 상태 표시를 위한 색 글자 로젠지. 표준형과 <strong>subtle</strong> 변형이 있다."</em>
+          현행 ADS 는 로젠지를 "사람이 객체를 이해·우선순위화·처리하는 방식에 영향을 주는 <strong>의미 있는 속성</strong>을 전달하는
+          두드러진 압축 라벨"로 정의한다.
+        </p>
+        <p>
+          <strong>subtle 변형이 존재하는 이유가 정확히 우리 상황이다</strong> — 한 줄에 로젠지가 둘 이상 필요할 때
+          하나를 subtle 로 내려 순위를 만든다. 두 개를 모두 bold 로 두는 것이 오용이다.
+        </p>
+        <div class="plate">
+          <div class="plate-bar"><span>Atlassian Lozenge</span><span>bold ↔ subtle 로 순위</span></div>
+          <div class="plate-body">
+            <div class="ref-ui" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+              <span class="loz bold">In progress</span>
+              <span class="loz subtle">Service</span>
+              <span style="color:#5E6C84;font-size:12px;">← 같은 부품, 두 단계</span>
+            </div>
+          </div>
+        </div>
+        <p class="takeaway"><b>가져올 것 —</b> 같은 부품을 유지하려면 <strong>강도 변형</strong>이 있어야 한다. 우리 <code>tagStyles</code> 에는 subtle 계열이 없다 — 그래서 시안 C 는 토큰 신설을 요구한다.</p>
+      </div>
+
+      <!-- R5 -->
+      <div class="ref">
+        <div class="ref-head">
+          <span class="ref-n">R5</span>
+          <span class="ref-name">AWS Cloudscape — Key-value pairs</span>
+          <span class="verify v-yes">확인함</span>
+        </div>
+        <a class="ref-url" href="https://cloudscape.design/components/key-value-pairs/">https://cloudscape.design/components/key-value-pairs/</a>
+        <p>
+          <em>"키-값 쌍은 속성(라벨)과 그에 대응하는 값의 목록이다."</em>
+          안 변하는 속성이 갈 자리는 판정 옆이 아니라 <strong>라벨이 붙은 속성 슬롯</strong>이라는 것 —
+          이 앱의 <code>feedback_hierarchy_is_containment</code> RULE 18(상세 pane 4슬롯: 머리 · 정체 · 실체 · 원본)과 같은 말이다.
+          <code>서비스측 확인</code> 은 <strong>정체</strong> 슬롯의 값이지 <strong>머리</strong>의 값이 아니다.
+        </p>
+        <p class="takeaway"><b>가져올 것 —</b> 속성에 라벨을 붙이면(<code>수행 주체</code>) 판정과 <em>문법 자체가</em> 달라져 겹칠 수 없다. 다만 12px 라벨 한 줄이 더 붙는 비용이 있다 — 시안 B 가 이 비용을 아이브로우 한 줄로 줄인 형태다.</p>
+      </div>
+
+      <!-- R6 -->
+      <div class="ref">
+        <div class="ref-head">
+          <span class="ref-n">R6</span>
+          <span class="ref-name">Linear — 이슈 상태 ↔ 담당자</span>
+          <span class="verify v-mem">기억 기반</span>
+        </div>
+        <a class="ref-url" href="https://linear.app/docs/assigning-issues">https://linear.app/docs/assigning-issues (속성 목록은 확인함 · 시각 형태는 기억 기반)</a>
+        <p>
+          Linear 는 상태와 담당자를 <strong>서로 다른 형태소</strong>로 그린다 — 상태는 원형 진행 글리프 + 글자,
+          담당자는 아바타. 알약이 아예 없다. 문서상 확인되는 것은 두 값이 별개의 이슈 속성이라는 점이고
+          (<a href="https://linear.app/docs/display-options">display-options</a>에 status·assignee 가 각각 나열),
+          시각 형태는 재검증하지 않았다.
+        </p>
+        <div class="plate">
+          <div class="plate-bar"><span>Linear 이슈 머리 (재현)</span><span>글리프 ↔ 아바타</span></div>
+          <div class="plate-body">
+            <div class="ref-ui">
+              <div class="lin-row">
+                <span class="lin-ico" aria-hidden="true"></span>
+                <span style="font-weight:500;">In Progress</span>
+                <span style="color:#8A8F98;">·</span>
+                <span class="lin-av" aria-hidden="true">C</span>
+                <span style="color:#6B6F76;">chulyonga</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <p class="takeaway"><b>가져올 것 —</b> 형태소가 다르면 색이 같아도 안 뭉친다. 우리는 아바타가 없으므로 대체 형태소가 <strong>「칩 vs 맨 글자」</strong>다 — 시안 A.</p>
+      </div>
+
+      <!-- R7 refuter -->
+      <div class="ref is-refuter">
+        <div class="ref-head">
+          <span class="ref-n">R7</span>
+          <span class="ref-name">⚠️ 반증 — Shopify Polaris Badge: 알약 둘이 나란히 서도 된다</span>
+          <span class="verify v-yes">확인함</span>
+        </div>
+        <span class="ref-url">
+          <a href="https://ownego.github.io/polaris-vue/components/Badge">https://ownego.github.io/polaris-vue/components/Badge</a>
+          (Polaris 문서 미러) &nbsp;·&nbsp;
+          <a href="https://shopify.dev/docs/api/polaris">shopify.dev/docs/api/polaris</a>
+        </span>
+        <p>
+          Polaris 주문 화면은 <strong>채운 배지 두 개를 나란히</strong> 놓는다 — <code>Paid</code> + <code>Unfulfilled</code>.
+          같은 부품, 같은 크기, 같은 라운드, 색만 다르다. 그리고 <strong>잘 작동한다.</strong>
+          문서 정의: <em>"배지는 객체의 tone 또는 취해진 조치를 상인에게 알린다."</em>
+          작성 규칙: <em>"객체의 tone 을 한 단어로 쓴다. 복잡한 상태를 설명해야 할 때만 두 단어."</em>
+        </p>
+        <div class="plate">
+          <div class="plate-bar"><span>Polaris 주문 머리 (재현)</span><span>같은 층이 맞는 경우</span></div>
+          <div class="plate-body">
+            <div class="ref-ui" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+              <strong style="font-size:16px;margin-right:6px;">#1008</strong>
+              <span class="pol">Paid</span>
+              <span class="pol warn">Unfulfilled</span>
+            </div>
+          </div>
+        </div>
+        <p>
+          <strong>왜 저기서는 되는가 — 전제 두 개.</strong>
+          ① 둘 다 <strong>같은 종류</strong>다: 한 주문의 상태를 이루는 두 면(결제·이행). 둘 다 변하고, 둘 다 지켜볼 값이다.
+          ② 둘 다 <strong>한 단어의 tone</strong>이다 — 문서가 명시적으로 요구하는 형식.
+          같은 층으로 읽히는 것이 <em>맞기 때문에</em> 같은 모양이 옳다. 이건 계층 붕괴가 아니라 <strong>병렬</strong>이다.
+        </p>
+        <p>
+          <strong>여기서는 그 전제가 둘 다 깨진다.</strong>
+          ① <code>서비스측 확인</code> 은 tone 이 아니라 <strong>불변 속성</strong>이다(D3) — 변하지 않으므로 지켜볼 것이 아니다.
+          ② 한 단어도 아니다: 실제 값은 <code>서비스측 확인</code>·<code>서비스측 리소스 생성</code>·<code>BDC측 리소스 생성</code>·<code>서비스측 승인</code> —
+          최장 <span class="mono">111.8px</span> 의 <strong>구</strong>다.
+          <strong>Polaris 는 "알약 둘"을 허가하지 않는다 — "같은 종류의 tone 둘"을 허가한다.</strong>
+        </p>
+        <p class="takeaway"><b>가져올 것 —</b> 판정 알약 <em>둘</em>이 필요해지는 날(예: 판정 + 재시도 필요)에는 지금 모양이 정답이다. 그날을 위해 <strong>알약 = 판정</strong>이라는 슬롯을 비워 둬야 한다.</p>
+      </div>
+    </section>
+
+    <!-- ============ 05 ============ -->
+    <section id="proposals">
+      <h2>05 — 시안</h2>
+      <h3>세 가지 채널, 세 가지 값</h3>
+      <p class="caption">
+        세 시안 모두 제목 16/600 + 제목↔설명 8px 를 전제로 그렸다. 표면은 흰색(#FFFFFF)이고,
+        대비는 전부 브라우저 실측값이다. 파랑=서비스측 / 남색=BDC측의 색 열쇠는 셋 다 유지한다.
+      </p>
+
+      <!-- A -->
+      <div class="prop">
+        <div class="prop-head">
+          <span class="prop-letter">A</span>
+          <span class="prop-name">주체를 글자로 내린다 — <code>SideText</code> 이식</span>
+          <span class="prop-channel">채널 = 요소 종류 (칩 → 글자)</span>
+        </div>
+        <div class="prop-body">
+          <p>
+            레일이 이미 쓰고 있는 <code>SideText</code> 를 페인 머리로 그대로 옮긴다. 머리의 채운 알약은
+            <strong>변하는 값 하나</strong>만 남는다. 주체는 12px 맨 글자가 되고, 색은 앞머리 한 단어에만 붙는다.
+            새 컴포넌트도, 새 토큰도 없다.
+          </p>
+          <pre class="ascii">┌────────────────────────────────────────────────────────────────────┐
+│ Terraform 권한 부여 확인                    서비스측 확인  ▐ 진행중 ▌ │
+│ 대상 AWS 계정에 Terraform 실행을 위한 IAM Role …                     │
+└────────────────────────────────────────────────────────────────────┘
+   16/600 primary                       12px 글자(파랑 한 단어)  채운 알약 1개</pre>
+
+          <div class="plate">
+            <div class="plate-bar"><span>시안 A</span><span>채운 면 1개 · 실패/대기 변형 포함</span></div>
+            <div class="plate-body">
+              <div class="app" style="display:flex;flex-direction:column;gap:22px;">
+                <div class="app-head">
+                  <div class="app-left gap8">
+                    <div class="app-title-16">Terraform 권한 부여 확인</div>
+                    <div class="app-desc">대상 AWS 계정에 Terraform 실행을 위한 IAM Role / AssumeRole 권한이 부여되었는지 검증합니다.</div>
+                  </div>
+                  <div class="app-right">
+                    <span class="sidetext"><b>서비스측</b> 확인</span>
+                    <span class="pill blue">진행중</span>
+                  </div>
+                </div>
+                <div class="app-head">
+                  <div class="app-left gap8">
+                    <div class="app-title-16">BDC 공통 영역</div>
+                    <div class="app-desc">BDC 측 공통 인프라에 대한 Terraform 작업을 수행합니다.</div>
+                  </div>
+                  <div class="app-right">
+                    <span class="sidetext bdc"><b>BDC측</b> 리소스 생성</span>
+                    <span class="pill gray">대기</span>
+                  </div>
+                </div>
+                <div class="app-head">
+                  <div class="app-left gap8">
+                    <div class="app-title-16">서비스 측 Terraform 자동 적용</div>
+                    <div class="app-desc">확정된 리소스에 Terraform 을 적용합니다.</div>
+                  </div>
+                  <div class="app-right">
+                    <span class="sidetext"><b>서비스측</b> 리소스 생성</span>
+                    <span class="pill red">실패</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <h4>정확한 클래스 — 신규 토큰 0</h4>
+          <div class="tw">
+            <table>
+              <thead><tr><th>슬롯</th><th>클래스 / 토큰</th><th class="num">흰 면 대비</th></tr></thead>
+              <tbody>
+                <tr><td>주체 (앞머리)</td><td><code>font-semibold</code> + <code>sideTextColors.service</code> (blue-800) / <code>.bdc</code> (indigo-800)</td><td class="num">8.82:1 / 10.05:1</td></tr>
+                <tr><td>주체 (꼬리)</td><td><code>textColors.secondary</code> (gray-700)</td><td class="num">10.30:1</td></tr>
+                <tr><td>주체 (컨테이너)</td><td><code>textStyles.caption</code> (12/400/16)</td><td class="num">—</td></tr>
+                <tr><td>판정</td><td><code>TABLE_TAG_PILL</code> + <code>activeAggregate.tag</code> — 변경 없음</td><td class="num">tone별 7.13~8.45:1 (잉크/면)</td></tr>
+                <tr><td>간격</td><td>기존 <code>gap-2</code>(8px) 유지</td><td class="num">—</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="caption">
+            <code>SideText</code> 주석은 secondary 를 고른 이유로 "레일 표면이 gray-100 이라 tertiary 는 AA 미달"을 든다.
+            흰 면에서는 tertiary(4.84:1)도 통과하지만 <strong>문법을 하나로 유지하기 위해 secondary 를 그대로 쓴다</strong> —
+            같은 값이 두 표면에서 다른 잉크를 갖는 편이 더 비싸다.
+          </p>
+
+          <div class="pc">
+            <div>
+              <h5>Pros</h5>
+              <ul>
+                <li>신규 토큰 0 · 신규 컴포넌트 0 — <code>SideTag</code> 를 <code>SideText</code> 로 교체하는 한 줄</li>
+                <li>v3.1 오너 결정("pane 헤더만 옅은 필 1개")을 <strong>이행</strong>한다</li>
+                <li>레일↔페인이 같은 문법을 말한다 — 사용자가 이미 학습한 어휘</li>
+                <li>레버 3개 차이(형태·면·무게) — design-guide "인접 계층은 레버 2개 이상" 충족</li>
+                <li>폭 −16px (79 → 63px) — 긴 <code>side</code> 값에도 여유</li>
+              </ul>
+            </div>
+            <div>
+              <h5>Cons</h5>
+              <ul>
+                <li>주체의 "훑어서 잡히는" 성질이 약해진다 — 색 있는 한 단어에만 의존</li>
+                <li><code>SideTag</code> 가 완전히 죽는다(다른 소비처 없음) — 삭제 여부는 별건</li>
+                <li>오른쪽 끝이 여전히 두 종류를 담는다(위치 채널은 안 씀)</li>
+              </ul>
+            </div>
+            <div>
+              <h5 class="fail">Failure mode</h5>
+              <ul>
+                <li class="fail"><strong>극성 역전:</strong> 판정이 <code>neutral</code>(대기·해당 없음·BDC 설치 대기)일 때 면은 gray-100(<span class="mono">1.10:1</span>)까지 내려가는데 주체 글자는 blue-800(<span class="mono">8.82:1</span>)로 남는다 → 조용한 판정 옆에서 <strong>주체가 더 크게 외친다</strong>.</li>
+                <li class="fail">완화책은 앱에 이미 있다 — 레일의 <code>NAV_STATUS_WEIGHT</code> 처럼 "볼 것 없는" 판정을 굵기로 내리는 대신, 여기서는 <strong>알약이라는 형태 자체</strong>가 최후의 순위 신호로 남는다. 실사용 화면(1008/1009/1003/2009/1023)에서 눈으로 확인 필요.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- B -->
+      <div class="prop">
+        <div class="prop-head">
+          <span class="prop-letter">B</span>
+          <span class="prop-name">주체를 제목 위 아이브로우로 — 축을 나눈다</span>
+          <span class="prop-channel">채널 = 위치 (수평 → 수직)</span>
+        </div>
+        <div class="prop-body">
+          <p>
+            주체는 제목을 <em>수식하는 속성</em>이므로 제목 위로 올라가고, 오른쪽 끝은 <strong>판정 전용</strong>이 된다.
+            Cloudscape 의 키-값 문법과 Linear 의 속성 배치를 합친 형태 — 두 값이 <strong>서로 다른 축</strong>에 서므로
+            물리적으로 겹칠 수 없다.
+          </p>
+          <pre class="ascii">┌────────────────────────────────────────────────────────────────────┐
+│ 서비스측 확인                                              ▐ 진행중 ▌ │
+│ Terraform 권한 부여 확인                                             │
+│ 대상 AWS 계정에 Terraform 실행을 위한 IAM Role …                     │
+└────────────────────────────────────────────────────────────────────┘
+   12/600 아이브로우      ← 4px →  16/600 제목  ← 8px →  12/400 설명</pre>
+
+          <div class="plate">
+            <div class="plate-bar"><span>시안 B</span><span>오른쪽 끝 = 판정 전용</span></div>
+            <div class="plate-body">
+              <div class="app" style="display:flex;flex-direction:column;gap:22px;">
+                <div class="app-head">
+                  <div class="app-left" style="gap:0;">
+                    <div class="eyebrow-owner" style="margin-bottom:4px;"><b>서비스측</b> 확인</div>
+                    <div class="app-title-16" style="margin-bottom:8px;">Terraform 권한 부여 확인</div>
+                    <div class="app-desc">대상 AWS 계정에 Terraform 실행을 위한 IAM Role / AssumeRole 권한이 부여되었는지 검증합니다.</div>
+                  </div>
+                  <div class="app-right"><span class="pill blue">진행중</span></div>
+                </div>
+                <div class="app-head">
+                  <div class="app-left" style="gap:0;">
+                    <div class="eyebrow-owner" style="margin-bottom:4px;"><b style="color:#372AAC;">BDC측</b> 리소스 생성</div>
+                    <div class="app-title-16" style="margin-bottom:8px;">BDC 공통 영역</div>
+                    <div class="app-desc">BDC 측 공통 인프라에 대한 Terraform 작업을 수행합니다.</div>
+                  </div>
+                  <div class="app-right"><span class="pill gray">대기</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <h4>정확한 클래스 — 신규 토큰 0</h4>
+          <div class="tw">
+            <table>
+              <thead><tr><th>슬롯</th><th>클래스 / 토큰</th><th class="num">흰 면 대비</th></tr></thead>
+              <tbody>
+                <tr><td>아이브로우</td><td><code>textStyles.captionStrong</code>(12/600/16) + <code>SideText</code> 잉크 규칙 그대로</td><td class="num">8.82 / 10.05 / 10.30:1</td></tr>
+                <tr><td>아이브로우↔제목</td><td><code>stackGap.tight</code> (4px)</td><td class="num">—</td></tr>
+                <tr><td>제목↔설명</td><td><code>stackGap.related</code> (8px, 이번 라운드 값)</td><td class="num">—</td></tr>
+                <tr><td>판정</td><td>변경 없음 · 오른쪽 그룹의 유일한 자식</td><td class="num">—</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="caption">
+            간격이 4 → 8 로 <em>커지는</em> 것이 핵심이다 — 아이브로우가 제목에 더 붙어 "이 제목의 성질"로 읽히고,
+            설명은 한 칸 떨어져 별개 문장이 된다(여백 7원칙 ②: 비대칭 그룹핑).
+          </p>
+
+          <div class="pc">
+            <div>
+              <h5>Pros</h5>
+              <ul>
+                <li>분리가 가장 강하다 — 다른 축이라 어떤 tone 조합에서도 안 겹친다</li>
+                <li>오른쪽 끝이 <strong>단일 목적</strong>이 된다: 이 화면에서 눈이 상태를 찾는 좌표가 하나로 고정</li>
+                <li>Polaris 반증이 말한 "판정 알약 둘"이 미래에 필요해져도 오른쪽이 비어 있다</li>
+                <li>신규 토큰 0</li>
+              </ul>
+            </div>
+            <div>
+              <h5>Cons</h5>
+              <ul>
+                <li>머리 높이 +20px (16px 줄 + 4px 간격) — 560px 셀 예산에서 본문이 그만큼 줄어든다</li>
+                <li>아이브로우는 관례적으로 <strong>분류·경로</strong>를 뜻한다. 「서비스측 확인」은 책임이라 "이 단계는 〈서비스측 확인〉 카테고리다"로 미끄러질 수 있다</li>
+                <li>레일↔페인의 문법이 갈린다(레일은 제목 아래, 페인은 제목 위)</li>
+              </ul>
+            </div>
+            <div>
+              <h5 class="fail">Failure mode</h5>
+              <ul>
+                <li class="fail"><code>activeNote</code>(역참조 한 줄)가 있는 단계에서 왼쪽 열이 <strong>4줄</strong>이 된다 — 아이브로우 + 제목 + 설명 + 참조. 패널 단계의 짧은 본문과 합쳐지면 머리가 본문보다 커지는 역전이 난다.</li>
+                <li class="fail">긴 제목(「서비스 측 Terraform 자동 적용」)이 감기면 5줄. 실측 필요.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- C -->
+      <div class="prop">
+        <div class="prop-head">
+          <span class="prop-letter">C</span>
+          <span class="prop-name">두 칩을 유지하고 표면을 가른다 — 칠 vs 획</span>
+          <span class="prop-channel">채널 = 형태 (fill vs stroke)</span>
+        </div>
+        <div class="prop-body">
+          <p>
+            둘 다 칩으로 남기되, 주체를 <strong>흰 면 + 1px 링</strong>으로 바꾼다. Atlassian 의 subtle 변형,
+            Primer 의 Label(획) vs StateLabel(칠), 그리고 이 앱의
+            <code>feedback_white_plus_stroke_survives_both_rows</code> 가 같은 곳을 가리킨다.
+          </p>
+          <pre class="ascii">┌────────────────────────────────────────────────────────────────────┐
+│ Terraform 권한 부여 확인                  ⌐서비스측 확인¬ ▐ 진행중 ▌ │
+│ 대상 AWS 계정에 Terraform 실행을 위한 IAM Role …                     │
+└────────────────────────────────────────────────────────────────────┘
+   16/600 제목                        흰 면 + 파란 링      채운 면</pre>
+
+          <div class="plate">
+            <div class="plate-bar"><span>시안 C</span><span>⚠️ neutral tone 에서 역전이 난다</span></div>
+            <div class="plate-body">
+              <div class="app" style="display:flex;flex-direction:column;gap:22px;">
+                <div class="app-head">
+                  <div class="app-left gap8">
+                    <div class="app-title-16">Terraform 권한 부여 확인</div>
+                    <div class="app-desc">대상 AWS 계정에 Terraform 실행을 위한 IAM Role / AssumeRole 권한이 부여되었는지 검증합니다.</div>
+                  </div>
+                  <div class="app-right">
+                    <span class="pill ring-blue">서비스측 확인</span>
+                    <span class="pill blue">진행중</span>
+                  </div>
+                </div>
+                <div class="app-head">
+                  <div class="app-left gap8">
+                    <div class="app-title-16">BDC 공통 영역</div>
+                    <div class="app-desc">BDC 측 공통 인프라에 대한 Terraform 작업을 수행합니다. ← 판정이 neutral 일 때</div>
+                  </div>
+                  <div class="app-right">
+                    <span class="pill ring-indigo">BDC측 리소스 생성</span>
+                    <span class="pill gray">대기</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <h4>⚠️ 신규 토큰이 필요하다 — 2건</h4>
+          <p>
+            <code>tagStyles</code> 에는 획 계열이 없다. 아래 두 값을 <code>lib/theme.ts</code> 에 신설해야 한다
+            (테두리가 아니라 <strong>링</strong>이다 — <code>feedback_ring_not_border_preserves_keyline</code>: border-box 가 내용을 1px 민다):
+          </p>
+          <div class="tw">
+            <table>
+              <thead><tr><th>신규 토큰</th><th>값</th><th class="num">획 : 흰 면</th><th class="num">잉크 : 흰 면</th></tr></thead>
+              <tbody>
+                <tr><td><code>tagStyles.outlineService</code></td><td><code>bg-white ring-1 ring-inset ring-blue-300 text-blue-800</code></td><td class="num">1.80:1</td><td class="num">8.82:1</td></tr>
+                <tr><td><code>tagStyles.outlineBdc</code></td><td><code>bg-white ring-1 ring-inset ring-indigo-300 text-indigo-800</code></td><td class="num">1.99:1</td><td class="num">10.05:1</td></tr>
+                <tr><td>(강한 변형)</td><td><code>ring-blue-500</code> 로 올리면</td><td class="num">3.76:1</td><td class="num">—</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="caption">
+            잉크가 뜻을 나르므로 링은 WCAG 1.4.11(3:1)의 대상이 아니다 — 링을 지워도 정보는 안 사라진다.
+            다만 1.80:1 은 <strong>약한 분리</strong>이고, 3:1 을 넘기려 <code>blue-500</code>(3.76:1)까지 올리면
+            20px 칩에 채도 높은 1px 링이 붙어 <em>입력 필드</em>처럼 읽힌다. 이 시안은 두 값 사이에 안전지대가 없다.
+          </p>
+
+          <div class="pc">
+            <div>
+              <h5>Pros</h5>
+              <ul>
+                <li>두 값 모두 칩으로 남아 훑기 성질을 잃지 않는다</li>
+                <li>줄 높이·폭 변화 0 — 레이아웃 리스크가 가장 작다</li>
+                <li>파랑/남색 색 열쇠를 가장 직접적으로 유지</li>
+              </ul>
+            </div>
+            <div>
+              <h5>Cons</h5>
+              <ul>
+                <li>신규 토큰 2건 — "새 값이 필요해 보이면 역할 배정을 재검토하라"(design-guide §1)에 정면으로 걸린다</li>
+                <li>잉크가 여전히 blue-800 대 blue-800 (판정이 <code>info</code>일 때) — 색 가족은 계속 겹친다</li>
+                <li>v3.1 결정("필 1개")을 이행하지 않고 우회한다</li>
+              </ul>
+            </div>
+            <div>
+              <h5 class="fail">Failure mode</h5>
+              <ul>
+                <li class="fail"><strong>측정된 순위 역전.</strong> 판정이 <code>neutral</code> 일 때 면은 gray-100 = <span class="mono">1.10:1</span>. 주체의 링은 blue-300 = <span class="mono">1.80:1</span>. <strong>속성 칩의 경계가 판정 칩의 면보다 진하다</strong> → 안 변하는 값이 지켜볼 값보다 강해진다. AWS 1008 은 <code>대기</code>·<code>해당 없음</code> 단계를 실제로 갖는다.</li>
+                <li class="fail"><code>feedback_status_pill_owns_every_tone</code> 이 예고한 함정 그대로 — 정지 화면 한 장에서 고른 값이 다른 상태에서 무너진다.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ 06 ============ -->
+    <section id="compare">
+      <h2>06 — 비교</h2>
+      <h3>진단 커버리지 · 비용 · 일관성</h3>
+      <div class="tw">
+        <table>
+          <thead>
+            <tr><th>축</th><th>A · 글자로 강등</th><th>B · 아이브로우</th><th>C · 칠 vs 획</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>D1 채널 동일</td><td>해결 (형태+면+무게)</td><td>해결 (축)</td><td>부분 (면만, 잉크 잔존)</td></tr>
+            <tr><td>D2 죽은 무게 레버</td><td>무관해짐</td><td>무관해짐</td><td>무관해짐</td></tr>
+            <tr><td>D3 사실 vs 판정</td><td>해결 — 형태가 종류를 말함</td><td>해결 — 축이 종류를 말함</td><td>약함 — 둘 다 칩이라 "두 판정"으로도 읽힘</td></tr>
+            <tr><td>D4 레일과 중복</td><td>완화 — 소리를 낮춤</td><td>완화</td><td>미해결 — 여전히 칩 둘</td></tr>
+            <tr><td>D5 v3.1 결정</td><td><strong>이행</strong></td><td><strong>이행</strong></td><td>우회</td></tr>
+            <tr><td>D6 제목 16/600</td><td>영향 없음</td><td>영향 없음</td><td>영향 없음</td></tr>
+            <tr><td class="num">신규 토큰</td><td class="num">0</td><td class="num">0</td><td class="num">2</td></tr>
+            <tr><td class="num">신규 컴포넌트</td><td class="num">0 (기존 <code>SideText</code>)</td><td class="num">0</td><td class="num">0</td></tr>
+            <tr><td class="num">레이아웃 리스크</td><td class="num">낮음 (폭 −16px)</td><td class="num">중간 (+20px 높이 · 4~5줄 가능)</td><td class="num">없음</td></tr>
+            <tr><td>기존 화면 일관성</td><td>레일·5단계와 동일 문법</td><td>이 앱에 선례 없음</td><td>이 앱에 선례 없음</td></tr>
+            <tr><td>tone 전 계열 견딤</td><td>부분 (neutral 에서 주의)</td><td><strong>전부</strong></td><td><strong>실패</strong> (neutral 역전, 실측)</td></tr>
+            <tr><td>기각 판례 저촉</td><td>없음</td><td>없음</td><td>design-guide §1 (토큰 신설)</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ============ 07 ============ -->
+    <section id="recommend">
+      <h2>07 — 추천</h2>
+      <div class="verdict">
+        <h3>시안 A — 주체를 글자로 내린다</h3>
+        <p class="mech">
+          머리에 남는 채운 알약은 <strong>변하는 값 하나</strong>뿐이다 — 주체는 안 변하므로 칩을 내놓고
+          글자로 내려가고, 소유의 색 열쇠(파랑/남색)만 앞머리 한 단어에 남는다.
+        </p>
+        <p>
+          표가 A 를 가리키는 이유는 취향이 아니라 세 가지다.
+          ① 진단 6건 중 5건을 덮으면서 <strong>신규 토큰 0·신규 컴포넌트 0</strong>이다.
+          ② 이 앱이 <em>이미 두 곳에서</em> 쓰는 문법이다 — 레일의 <code>SideText</code>/<code>NAV_STATUS_TEXT</code>,
+          5단계의 <code>TcHeaderTag</code>(알약 하나 + 맨 글자). 페인 머리만 이 문법 밖에 서 있었다.
+          ③ 오너가 v3.1 에서 이미 내린 결정("pane 헤더만 옅은 필 1개")의 <strong>미이행분</strong>이다 —
+          새 방향을 제안하는 게 아니라 안 간 배선을 잇는 것이다.
+        </p>
+        <p>
+          <strong>구현은 <code>&lt;SideTag&gt;</code> → <code>&lt;SideText&gt;</code> 교체 한 지점</strong>
+          (<code>InstallStatusDetail.tsx:724</code>), 컨테이너에 <code>textStyles.caption</code> 한 겹.
+          <code>SideTag</code> 는 소비처가 사라지므로 함께 지운다.
+        </p>
+        <p>
+          <strong>착수 전 확인할 것 하나 —</strong> A 의 실패 모드(neutral 판정 옆에서 파란 주체가 더 외침)는
+          실측으로 판정해야 한다. 확인 링크: AWS <code>1008</code>(진행중) · <code>1009</code>(실패) ·
+          Azure <code>1003</code> · GCP <code>2009</code> · IDC <code>1023</code>.
+          역전이 실제로 보이면 <strong>B 로 승급</strong>한다 — B 는 축을 나누므로 tone 전 계열을 견디는 유일한 안이고,
+          비용은 머리 높이 20px 다. <strong>C 는 채택하지 않는다</strong>: neutral 에서의 순위 역전이 실측으로 확인됐고
+          (링 1.80:1 &gt; 면 1.10:1), 그것을 피하려면 토큰을 더 만들어야 한다.
+        </p>
+      </div>
+
+      <div class="note" style="margin-top:26px;">
+        <strong>이 라운드에서 하지 않는 것</strong> — 상태 알약을 카드 머리(바깥)로 올리는 안(오너 보류, @1440 실측 필요),
+        <code>action</code> 죽은 슬롯 삭제(범위 밖), 레일 표면·색 변경(기각 판례).
+        본 문서는 연구용이며 애플리케이션 소스는 수정하지 않았다.
+      </div>
+    </section>
+  </main>
+</div>

@@ -2,6 +2,7 @@
 
 import type { ReactNode } from 'react';
 import { cn, statusColors, textColors, textStyles } from '@/lib/theme';
+import { Tooltip } from '@/app/components/ui/Tooltip';
 import { ClockIcon } from '@/app/components/ui/icons';
 import { useNowTick } from '@/app/hooks/useNowTick';
 import { fmtElapsedAgo } from '@/lib/pipeline/format';
@@ -9,17 +10,17 @@ import { formatDateTimeKstCompact } from '@/lib/utils/date';
 import type { InstallLastCheck } from '@/app/components/features/process-status/install-status-detail/model';
 
 /**
- * Step-4 시각 표기 — "3분 20초 전 확인", 그 뒤에 정확한 시각.
+ * Step-4 시각 표기 — 정확한 시각, 그 뒤에 "3분 20초 전 확인".
  *
  * 이 줄은 프레임 위에 홀로 우측 정렬돼 있었다. 원래는 메타바의 오른쪽 절반이었고,
  * 왼쪽 절반("설치 진행 상황")이 카드 제목과 겹친다는 이유로 지워지면서 정렬의 기준을
  * 잃었다 — 위아래 어느 쪽 소속인지 말하지 못하는 한 줄. 카드에 대한 한 줄의 자리는
  * 카드 이름 옆이고, 5단계가 이미 그렇게 한다(TcHeaderTag: 판정 + 상대시각).
  *
- * 두 값을 나눠 적고 무게를 다르게 준다(오너 지시). 설치 중에 묻는 것은 "몇 시에 읽은
- * 값인가"가 아니라 "이 값이 아직 유효한가"이므로 경과가 앞에 서고 굵기를 갖는다.
- * 절대 시각은 지우지 않고 뒤에 붙인다 — 상대 표기만 남긴 제품들이 "그래서 언제냐"는
- * 요청을 받았다(GitLab #14560).
+ * 두 값을 나눠 적고 무게를 다르게 준다(오너 지시). 절대 시각이 앞에 서고 굵기를 갖는다 —
+ * 시계 글리프가 붙는 값이 그것이다. 경과는 지우지 않고 뒤에 붙인다: 상대 표기만 남긴
+ * 제품들이 "그래서 언제냐"는 요청을 받았고(GitLab #14560), 절대 시각만 남기면 이 값이
+ * 아직 유효한지를 독자가 직접 빼야 한다.
  */
 
 export interface RelativeStamp {
@@ -47,46 +48,38 @@ export const useRelativeStamp = (iso: string | null | undefined): RelativeStamp 
 };
 
 /**
- * 두 층 + 시계 — 5단계 시각 메타(`TcSummaryCard` 의 meta 줄)의 문법을 그대로 옮긴 것(오너 지시).
- * 빌려 온 것은 셋이다: 12px 시계 글리프가 시각 앞에 서고, 글자는 12px 한 계단 옅은 잉크,
- * 숫자는 tabular. 마지막 것이 이 화면에선 5단계보다 더 필요하다 — 이 수는 매 초 다시
- * 그려지므로, 비례폭 숫자면 초가 바뀔 때마다 줄 폭이 흔들린다.
+ * 한 줄 — 시계 글리프, 절대 시각, 가운뎃점, 경과.
  *
- * 시계는 위층(경과)에 맞춰 세운다. 두 줄의 가운데에 걸면 어느 값의 글리프인지 흐려지고,
- * 이 자리에서 답이 되는 값은 경과다. 12px 글리프를 16px 줄에 맞추는 2px 이 `mt-0.5`.
+ * 시계는 절대 시각의 글리프라 그 값 바로 왼쪽에 선다. 경과는 같은 줄의 주석이므로
+ * 가운뎃점 뒤에 한 단 옅게 따라온다. `tabular-nums` 는 남긴다 — 경과가 매 초 다시
+ * 그려지므로, 비례폭 숫자면 초가 바뀔 때마다 줄 폭이 흔들린다.
  */
-const StampLines = ({
+const Stamp = ({
   stamp,
   verb,
-  align,
   suffix,
   className,
 }: {
   stamp: RelativeStamp;
   /** 경과 뒤에 붙는 동사 — 카드 헤더는 확인, 권한 패널은 검증. */
   verb: string;
-  align: 'start' | 'end';
   suffix?: ReactNode;
   className?: string;
 }) => (
   <span
     className={cn(
-      'inline-flex items-start gap-1.5 whitespace-nowrap [font-variant-numeric:tabular-nums]',
+      'inline-flex items-center gap-1.5 whitespace-nowrap [font-variant-numeric:tabular-nums]',
       textColors.tertiary,
       className,
     )}
   >
-    <ClockIcon className="h-3 w-3 mt-0.5 flex-shrink-0" />
-    <span className={cn('inline-flex flex-col', align === 'end' ? 'items-end' : 'items-start')}>
-      {/* 위층 = 이 줄에서 답이 되는 값. 12/600, 한 단 진한 잉크. */}
-      {stamp.elapsed && (
-        <span className={cn(textStyles.captionStrong, textColors.secondary)}>
-          {stamp.elapsed} {verb}
-          {suffix}
-        </span>
-      )}
-      {/* 아래층 = 근거. 같은 크기, 한 단 옅게. 경과가 없으면 이쪽이 유일한 값이 된다. */}
-      <span className={textStyles.caption}>{stamp.absolute}</span>
+    <ClockIcon className="h-3 w-3 flex-shrink-0" />
+    {/* 글리프와 값 사이만 gap 이 벌린다. 그 뒤는 한 줄의 글이라, 가운뎃점 좌우 간격은
+        이 저장소의 인라인 구분자와 같은 ' · ' 공백으로 준다. */}
+    <span className={textStyles.caption}>
+      <span className={cn(textStyles.captionStrong, textColors.secondary)}>{stamp.absolute}</span>
+      {stamp.elapsed && ` · ${stamp.elapsed} ${verb}`}
+      {suffix}
     </span>
   </span>
 );
@@ -96,7 +89,7 @@ export const LastCheckStamp = ({
   className,
 }: {
   lastCheck: InstallLastCheck;
-  /** 정렬 override — 기본은 헤더 우측(items-end). 왼쪽으로 흐르는 줄에서만 넘긴다. */
+  /** 줄 자체에 얹는 추가 클래스 — 기본 배치는 카드 헤더의 우측 슬롯이 정한다. */
   className?: string;
 }) => {
   const stamp = useRelativeStamp(lastCheck.checkedAt);
@@ -113,25 +106,29 @@ export const LastCheckStamp = ({
     ) : null;
   }
 
-  // 한 줄로 이으면 "25일 8시간 전 확인 2026. 07. 30. 오후 02:46 (KST)" 가 되어 제목
-  // 옆 슬롯을 다 먹는다(오너). 두 층으로 쌓으면 각 줄이 짧아지고, 답(경과)과 근거
-  // (정확한 시각)가 위아래로 갈려 크기·굵기 말고 위치로도 구분된다.
+  // 줄이 말할 수 있는 것은 "언제 읽은 값인가"까지다. 그 값이 지금과 다를 수 있다는
+  // 사실은 줄을 늘리는 대신 툴팁으로 내린다. 이 줄은 카드 머리의 우상단이라 위로 열면
+  // 카드를 벗어나므로 아래로 연다.
   return (
-    <StampLines
-      stamp={stamp}
-      verb="확인"
-      align="end"
-      className={className}
-      suffix={
-        failed ? (
-          <span className={cn('ml-1', statusColors.error.textDark)}>· 상태 확인 실패</span>
-        ) : null
-      }
-    />
+    <Tooltip
+      position="bottom"
+      content="설치 상태를 마지막으로 확인한 시각이에요. 화면에 보이는 값은 이때 확인한 결과라, 지금 상태와는 다를 수 있어요."
+    >
+      <Stamp
+        stamp={stamp}
+        verb="확인"
+        className={className}
+        suffix={
+          failed ? (
+            <span className={cn('ml-1', statusColors.error.textDark)}>· 상태 확인 실패</span>
+          ) : null
+        }
+      />
+    </Tooltip>
   );
 };
 
-/** 권한 패널의 마지막 검증 시각 — 같은 문법, 왼쪽으로 흐르는 줄이라 정렬만 뒤집는다. */
+/** 권한 패널의 마지막 검증 시각 — 같은 한 줄 문법, 동사만 다르다. */
 export const LastVerifyStamp = ({ stamp }: { stamp: RelativeStamp }) => (
-  <StampLines stamp={stamp} verb="검증" align="start" />
+  <Stamp stamp={stamp} verb="검증" />
 );
