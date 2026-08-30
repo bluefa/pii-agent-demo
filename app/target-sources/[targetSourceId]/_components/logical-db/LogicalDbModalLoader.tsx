@@ -17,6 +17,8 @@ interface LogicalDbModalLoaderProps {
   targetSourceId: number;
   resourceId: string;
   resourceName: string;
+  /** Completion instant of that run (`latestJob.completed_at`), shown as the header's provenance line. */
+  completedAt: string | null;
   /** Which connection-test run the discovered list comes from — Step 5 owns this modal, so `latest`. */
   scope: TcScope;
   /** Called after the skip policy is persisted (success toast + refetch + close). */
@@ -38,6 +40,7 @@ export const LogicalDbModalLoader = ({
   targetSourceId,
   resourceId,
   resourceName,
+  completedAt,
   scope,
   onSaved,
   onError,
@@ -70,7 +73,9 @@ export const LogicalDbModalLoader = ({
     return (
       <LogicalDbModal
         open={open}
+        resourceId={resourceId}
         resourceName={resourceName}
+        completedAt={completedAt}
         databases={state.databases}
         initialDraft={state.initialDraft}
         onSave={handleSave}
@@ -84,7 +89,7 @@ export const LogicalDbModalLoader = ({
       isOpen={open}
       onClose={onClose}
       size="2xl"
-      title={`논리 DB 목록 · ${resourceName}`}
+      title={`논리 DB 관리 · ${resourceName}`}
     >
       {state.status === 'loading' ? (
         <ResourceTableSkeleton />

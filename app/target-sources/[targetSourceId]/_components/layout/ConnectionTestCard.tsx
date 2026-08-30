@@ -1064,6 +1064,7 @@ export const ConnectionTestCard = ({
             scope="latest"
             resourceId={logicalModal.data.resourceId}
             resourceName={logicalModal.data.resourceName}
+            completedAt={latestJob?.completed_at ?? null}
             onSaved={handleSaved}
             onError={handleSaveError}
             onClose={logicalModal.close}

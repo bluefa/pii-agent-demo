@@ -3,7 +3,9 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { Modal } from '@/app/components/ui/Modal';
 import { Button } from '@/app/components/ui/Button';
+import { InfoTooltip } from '@/app/components/ui/Tooltip';
 import { ChevronDownIcon, SearchIcon } from '@/app/components/ui/icons';
+import { fmtRelativeTime } from '@/lib/pipeline/format';
 import {
   bgColors,
   borderColors,
@@ -18,6 +20,7 @@ import {
   textColors,
 } from '@/lib/theme';
 import type { SkipReason } from '@/app/lib/api/logical-db';
+import { ResourceIdCell } from '@/app/target-sources/[targetSourceId]/_components/shared/ResourceIdCell';
 import {
   abbrevMiddle,
   buildLogicalDbTree,
@@ -58,11 +61,15 @@ const fmt = (n: number): string => n.toLocaleString('ko-KR');
 type ListFilter = 'all' | 'keep' | 'deny';
 
 const chipCls = 'inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2 py-0.5 text-[12px] font-semibold';
+/** Field label of the identifier stack — same type as the `Resource` label it replaces. */
+const identLabelCls = 'shrink-0 text-[12px] font-bold uppercase tracking-[0.06em]';
 const rowBtnCls = 'inline-flex h-7 items-center rounded-lg px-2.5 text-[12px] font-semibold';
 
 export const LogicalDbModal = ({
   open,
+  resourceId,
   resourceName,
+  completedAt,
   databases,
   initialDraft = EMPTY_DRAFT,
   onSave,
@@ -228,11 +235,16 @@ export const LogicalDbModal = ({
     setSchemaPages({});
   };
 
-  const unitDesc =
+  /**
+   * The unit-specific rule, now the tooltip body rather than a header layer. The old
+   * paragraph opened with "Test Connection으로 조회된 논리 DB와 제외 목록이에요" — that half is
+   * the screen's purpose and stays visible in the header; only the rule moves in here.
+   */
+  const unitTip =
     unit === 'schema'
-      ? 'Test Connection으로 조회된 논리 DB와 제외 목록이에요. Database 행에서 제외하면 하위 Schema까지, Schema 행에서 제외하면 그 스키마만 빠져요.'
+      ? 'Database 행에서 제외하면 하위 Schema까지, Schema 행에서 제외하면 그 스키마만 빠져요.'
       : unit === 'database'
-        ? 'Test Connection으로 조회된 논리 DB와 제외 목록이에요. 이 대상은 Database 단위로 조회·제외돼요.'
+        ? '이 대상은 Database 단위로 조회·제외돼요.'
         : databases.length > 0
           ? '이번 Test Connection에서 조회된 논리 DB가 없어요. 아래 제외 목록만 남아 있어요 — 복원하면 다음 테스트부터 다시 조회돼요.'
           : '이번 Test Connection에서 조회된 논리 DB가 없어요.';
@@ -243,7 +255,7 @@ export const LogicalDbModal = ({
       onClose={onClose}
       size="logical-tree"
       chrome="bare"
-      ariaLabel="논리 DB 목록"
+      ariaLabel="논리 DB 관리"
       footer={
         <div className="flex w-full items-center justify-between gap-3">
           <span className={cn('min-w-0 truncate text-[12px]', textColors.tertiary)}>
@@ -285,23 +297,46 @@ export const LogicalDbModal = ({
     >
       {/* bare chrome: this block is the modal's own header. */}
       <h2 className={cn('text-[20px] font-bold leading-[1.2] tracking-[-0.02em]', textColors.primary)}>
-        논리 DB 목록
+        논리 DB 관리
       </h2>
-      <div className="mt-3 flex flex-wrap items-center gap-2">
-        <span className={cn('shrink-0 text-[12px] font-bold uppercase tracking-[0.06em]', textColors.tertiary)}>
-          Resource
-        </span>
-        <span className={cn('break-all font-mono text-[14px] font-semibold', textColors.primary)}>
-          {resourceName}
-        </span>
+      {/* Provenance in the `[명사][동사] [상대시각]` grammar Step 4/5 already use
+          (`fmtRelativeTime`): this list is whatever one connection-test run found, so the
+          header names that run. No freshness judgment — the elapsed time is the whole
+          statement. Dropped, not guessed, when the caller has no settled run. */}
+      {completedAt && (
+        <p className={cn('mt-1 text-[12px] font-medium', textColors.tertiary)}>
+          연결 테스트 완료 · {fmtRelativeTime(completedAt)}
+        </p>
+      )}
+      {/* Identifier stack in the table's grammar — truncate + tooltip + copy (ResourceIdCell).
+          A `title` alone would leave the full value out of reach for keyboard and screen
+          readers, and the id is the only thing that distinguishes two same-named resources. */}
+      <div className="mt-3 grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-3 gap-y-1">
+        {resourceName && (
+          <>
+            <span className={cn(identLabelCls, textColors.tertiary)}>Resource Name</span>
+            <ResourceIdCell
+              value={resourceName}
+              label="Resource Name"
+              maxWidthClass="max-w-full"
+              sizeClass="text-[14px]"
+              textClassName={cn(textColors.primary, 'font-semibold')}
+            />
+          </>
+        )}
+        <span className={cn(identLabelCls, textColors.tertiary)}>Resource ID</span>
+        <ResourceIdCell
+          value={resourceId}
+          label="Resource ID"
+          maxWidthClass="max-w-full"
+          sizeClass="text-[14px]"
+        />
       </div>
-      <div className="mt-2 flex flex-wrap items-center gap-1.5">
+      <div className="mt-3 flex flex-wrap items-center gap-1.5">
         {/* Unit is judged from tested rows only (never the excluded policy). When
             nothing was tested there is no judgment — plain state text.
             TODO(contract): once the backend declares the unit per resource
-            (e.g. `logical_database_unit`), promote the judgment to that field
-            and reinstate an explanatory tooltip — until then a frontend
-            engine→unit mapping would be invented, off-contract knowledge. */}
+            (e.g. `logical_database_unit`), promote the judgment to that field. */}
         <span className={cn(chipCls, tagStyles.gray)}>
           {unit === 'schema'
             ? 'Schema 단위 조회'
@@ -309,12 +344,23 @@ export const LogicalDbModal = ({
               ? 'Database 단위 조회'
               : '조회된 논리 DB 없음'}
         </span>
-        {/* Entry is gated on a successful run (설정 buttons disable until connected). */}
-        <span className={cn(chipCls, statusColors.success.bg, statusColors.success.text)}>
-          연결 테스트 성공
-        </span>
+        {/* Light `value` box, not the dark default: the identifier tooltips beside it are
+            light, and one header should not answer two hovers in two popover languages. */}
+        <InfoTooltip
+          variant="value"
+          iconSize={14}
+          label="논리 DB 조회·제외 안내"
+          content={
+            <div className="space-y-1.5">
+              <p>{unitTip}</p>
+              <p>제외한 DB는 다음 테스트부터 조회되지 않지만, 제외 목록에는 계속 남아 복원할 수 있어요.</p>
+            </div>
+          }
+        />
+        <p className={cn('text-[14px] font-medium leading-[1.5]', textColors.secondary)}>
+          조회된 논리 DB를 확인하고, 수집에서 제외할 DB를 골라요.
+        </p>
       </div>
-      <p className={cn('mt-2 text-[14px] font-medium leading-[1.5]', textColors.secondary)}>{unitDesc}</p>
 
       <div className="mt-4 flex items-center gap-3">
         <div className={segmentedControlStyles.container} role="group" aria-label="상태 필터">
@@ -345,10 +391,6 @@ export const LogicalDbModal = ({
           />
         </div>
       </div>
-      <p className={cn('mt-2 text-[12px]', textColors.tertiary)}>
-        제외한 DB는 다음 테스트부터 조회되지 않지만, 제외 목록에는 계속 남아 복원할 수 있어요.
-      </p>
-
       <div className={cn('mt-3 h-[380px] overflow-y-auto rounded-lg border', borderColors.default)}>
         {windowNodes.length === 0 ? (
           <p className={cn('px-3 py-8 text-center text-[14px]', textColors.tertiary)}>

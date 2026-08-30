@@ -51,7 +51,15 @@ export interface LogicalDbModalDraft {
 
 export interface LogicalDbModalProps {
   open: boolean;
+  /** Physical resource key — the one identifier that is always present. */
+  resourceId: string;
   resourceName: string;
+  /**
+   * Completion instant of the connection-test run this list came from (ISO-8601 UTC string,
+   * `latestJob.completed_at`). `null` when the caller has no settled run — the header then
+   * omits the provenance line rather than naming a time it does not have.
+   */
+  completedAt: string | null;
   /** loaded list. UI does not fetch — caller passes data in. */
   databases: ReadonlyArray<LogicalDatabase>;
   /** initial draft (defaults to empty if omitted) */

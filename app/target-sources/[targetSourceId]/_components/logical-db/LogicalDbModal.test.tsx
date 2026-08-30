@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { render, screen, within, fireEvent } from '@testing-library/react';
+import { render, screen, within, fireEvent, act } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import { LogicalDbModal } from '@/app/target-sources/[targetSourceId]/_components/logical-db/LogicalDbModal';
 import type {
@@ -30,13 +30,18 @@ const mysqlDatabases: LogicalDatabase[] = [
   { id: 'reporting', name: 'reporting', type: 'db', database: 'reporting' },
 ];
 
+/** 3h before the render, so the provenance line reads a stable '3시간 전'. */
+const COMPLETED_AT = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString();
+
 const renderModal = (overrides: Partial<React.ComponentProps<typeof LogicalDbModal>> = {}) => {
   const onSave = vi.fn();
   const onClose = vi.fn();
   const result = render(
     <LogicalDbModal
       open
+      resourceId="arn:aws:rds:ap-northeast-2:123456789012:cluster:pg-cluster-prod-01"
       resourceName="pg-cluster-prod-01"
+      completedAt={COMPLETED_AT}
       databases={pgDatabases}
       initialDraft={pgDraft}
       onSave={onSave}
@@ -45,6 +50,17 @@ const renderModal = (overrides: Partial<React.ComponentProps<typeof LogicalDbMod
     />,
   );
   return { ...result, onSave, onClose };
+};
+
+/**
+ * The ⓘ trigger's wrapper owns the reveal handler, so hover it, not the button. The popover
+ * commits its measured coords in a microtask, so the hover is flushed inside `act`.
+ */
+const openUnitTip = async (): Promise<void> => {
+  const trigger = screen.getByLabelText('논리 DB 조회·제외 안내');
+  await act(async () => {
+    fireEvent.mouseEnter(trigger.parentElement as HTMLElement);
+  });
 };
 
 const rowOf = (name: string): HTMLElement => {
@@ -57,12 +73,53 @@ const rowOf = (name: string): HTMLElement => {
 describe('LogicalDbModal (tree redesign)', () => {
   it('renders the title, unit chip, and full-set counts', () => {
     renderModal();
-    expect(screen.getByText('논리 DB 목록')).toBeTruthy();
+    expect(screen.getByText('논리 DB 관리')).toBeTruthy();
     expect(screen.getByText('Schema 단위 조회')).toBeTruthy();
+    // The old hardcoded verdict chip read no verdict — it is gone.
+    expect(screen.queryByText('연결 테스트 성공')).toBeNull();
     // 6 entries total; prd(deny) + prd.main(inherited) + legacy(deny) are 제외.
     expect(screen.getByRole('button', { name: '전체 6' })).toBeTruthy();
     expect(screen.getByRole('button', { name: '수집 대상 3' })).toBeTruthy();
     expect(screen.getByRole('button', { name: '제외 3' })).toBeTruthy();
+  });
+
+  it('names the run the list came from, in relative time', () => {
+    renderModal();
+    expect(screen.getByText(/연결 테스트 완료 · 3시간 전/)).toBeTruthy();
+  });
+
+  it('omits the provenance line when no run completion time is known', () => {
+    renderModal({ completedAt: null });
+    expect(screen.queryByText(/연결 테스트 완료/)).toBeNull();
+  });
+
+  it('heads the resource with a Name + ID stack, each copyable', () => {
+    renderModal();
+    expect(screen.getByText('Resource Name')).toBeTruthy();
+    expect(screen.getByText('Resource ID')).toBeTruthy();
+    expect(
+      screen.getByText('arn:aws:rds:ap-northeast-2:123456789012:cluster:pg-cluster-prod-01'),
+    ).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Resource ID 복사' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Resource Name 복사' })).toBeTruthy();
+  });
+
+  it('the ID row stands alone when the resource has no name', () => {
+    renderModal({ resourceName: '' });
+    expect(screen.queryByText('Resource Name')).toBeNull();
+    expect(screen.getByText('Resource ID')).toBeTruthy();
+  });
+
+  it('keeps one purpose sentence visible and the exclusion rules behind the ⓘ', async () => {
+    renderModal();
+    expect(screen.getByText('조회된 논리 DB를 확인하고, 수집에서 제외할 DB를 골라요.')).toBeTruthy();
+    expect(screen.queryByText(/제외 목록에는 계속 남아 복원할 수 있어요/)).toBeNull();
+
+    await openUnitTip();
+    expect(
+      screen.getByText(/Database 행에서 제외하면 하위 Schema까지/),
+    ).toBeTruthy();
+    expect(screen.getByText(/제외 목록에는 계속 남아 복원할 수 있어요/)).toBeTruthy();
   });
 
   it('flat MySQL list shows the Database-unit chip and no chevrons', () => {
@@ -177,7 +234,7 @@ describe('LogicalDbModal (tree redesign)', () => {
     expect(within(rowOf('live.public')).getByRole('button', { name: '제외' })).toBeTruthy();
   });
 
-  it('policy-only data (nothing tested) shows no unit chip and no tooltip', () => {
+  it('policy-only data (nothing tested) is not judged as a unit; the state sentence moved into the ⓘ', async () => {
     // Everything was excluded, so the next test collected nothing: only policy
     // rows remain. The unit must not be judged from them.
     renderModal({
@@ -190,17 +247,16 @@ describe('LogicalDbModal (tree redesign)', () => {
       },
     });
     expect(screen.queryByText(/단위 조회/)).toBeNull();
-    expect(screen.queryByLabelText('논리 DB 설명')).toBeNull();
     expect(screen.getByText('조회된 논리 DB 없음')).toBeTruthy();
+    await openUnitTip();
     expect(screen.getByText(/제외 목록만 남아 있어요/)).toBeTruthy();
     // The policy row itself stays listed and restorable.
     expect(within(rowOf('analytics_archive')).getByRole('button', { name: '복원' })).toBeTruthy();
   });
 
-  it('a fully empty result renders the empty state without chip or tooltip', () => {
+  it('a fully empty result renders the empty state and is not judged as a unit', () => {
     renderModal({ databases: [], initialDraft: undefined });
     expect(screen.queryByText(/단위 조회/)).toBeNull();
-    expect(screen.queryByLabelText('논리 DB 설명')).toBeNull();
     expect(screen.getByText('조회된 논리 DB 없음')).toBeTruthy();
     expect(screen.getByText('조회된 논리 DB가 없어요.')).toBeTruthy();
   });

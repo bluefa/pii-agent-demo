@@ -515,6 +515,7 @@ export const IdcStep5ConnectionTest = ({
               scope="latest"
               resourceId={logicalModal.data.resourceId}
               resourceName={logicalModal.data.resourceName}
+              completedAt={latestJob?.completed_at ?? null}
               onSaved={handleLogicalSaved}
               onError={handleLogicalError}
               onClose={logicalModal.close}
