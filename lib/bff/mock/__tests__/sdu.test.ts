@@ -449,6 +449,24 @@ describe('SDU BDC 완료 단언 (델타 §1·§3·§4)', () => {
     expect((await complete(GLOBAL_ID, false)).status).toBe(204);
   });
 
+  it('이미 5 이상인 대상은 끌어내리지 않는다 — 전이는 전진뿐이다', async () => {
+    // ⛔ 이 케이스가 없으면 게이트를 `if (true)` 로 바꿔도 아무 테스트가 안 깨진다.
+    // 증상은 조용하고 나쁘다: 7단계(설치 완료) 대상에 단언이 들어오면 5로 끌려 내려가
+    // 이미 끝난 연결 테스트와 완료 승인이 도달할 수 없는 단계의 산물이 된다.
+    await putDefinition(GLOBAL_ID, [target({ target_id: 'a', region: 'us' })]);
+    await ackEverything(GLOBAL_ID);
+    const project = mockData.getProjectByTargetSourceId(GLOBAL_ID)!;
+    mockData.updateProject(project.id, { processStatus: ProcessStatus.INSTALLATION_COMPLETE });
+
+    expect((await complete(GLOBAL_ID, true)).status).toBe(204);
+
+    // 단언은 서고, 단계는 그대로다.
+    expect((await upload(GLOBAL_ID)).bdc.status).toBe('COMPLETED');
+    expect(mockData.getProjectByTargetSourceId(GLOBAL_ID)?.processStatus).toBe(
+      ProcessStatus.INSTALLATION_COMPLETE,
+    );
+  });
+
   it('단언은 저자를 남기고, 되돌리기가 시각과 함께 지운다', async () => {
     await putDefinition(GLOBAL_ID, [target({ target_id: 'a', region: 'us' })]);
     await ackEverything(GLOBAL_ID);
