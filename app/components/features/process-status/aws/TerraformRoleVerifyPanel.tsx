@@ -176,8 +176,15 @@ export const TerraformRoleVerifyPanel = ({
   const checkStamp = useRelativeStamp(lastCheckedAt);
   const verifying = state.phase === 'loading';
   // COMPLETED/SKIP — the contract has already answered, so the live check is a
-  // second opinion. Everything below hangs off this one boolean.
+  // second opinion. This decides what the slot above says, and the label below.
   const settled = isSettledInstallStatus(verifyStatus);
+  // The button's weight measures whether there is something to act on, which is not
+  // the same question. A live finding has just contradicted a settled verdict — the
+  // enum can say COMPLETED simply because the last installation-status poll predates
+  // the permission being revoked — and at that moment `settled` no longer describes
+  // the situation. Ghost weight is for "the contract answered and nothing has
+  // contradicted it"; anything else gets the outline.
+  const heavy = !settled || Boolean(finding);
 
   return (
     // 라벨↔값은 한 덩어리(tight), 항목끼리는 형제(related), 블록 사이는 group.
@@ -232,12 +239,13 @@ export const TerraformRoleVerifyPanel = ({
           onClick={verifyNow}
           disabled={verifying}
           className={
-            settled
-              // The contract already answered, so this is a second opinion — it steps
-              // back out of button chrome (ScanStrip's 권한 확인 uses the same weight).
-              ? cn(buttonStyles.ghostText, textColors.secondary)
+            heavy
               // 채운 버튼은 카드에 하나뿐이어야 하므로 outline (PR #666 에서 오너가 고른 CTA 무게).
-              : cn(getButtonClass('outline'), 'whitespace-nowrap')
+              ? cn(getButtonClass('outline'), 'whitespace-nowrap')
+              // Nothing to act on — the contract answered and no live check has said
+              // otherwise, so this is a second opinion and steps back out of button
+              // chrome (ScanStrip's 권한 확인 uses the same weight).
+              : cn(buttonStyles.ghostText, textColors.secondary)
           }
         >
           {verifying ? '확인 중...' : settled || data ? '다시 확인' : '권한 확인'}

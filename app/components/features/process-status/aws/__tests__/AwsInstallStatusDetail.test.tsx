@@ -12,6 +12,8 @@ vi.mock('@/app/lib/api/aws', () => ({
 import { AwsInstallStatusDetail } from '@/app/components/features/process-status/aws/AwsInstallStatusDetail';
 import { getAwsRoleVerification } from '@/app/lib/api/aws';
 import { required } from '@/lib/test-dom';
+// 무게는 토큰으로 단언한다 — 클래스 문자열을 손으로 베끼면 토큰이 바뀌어도 초록이다.
+import { buttonStyles, getButtonClass } from '@/lib/theme';
 import type { ConfirmedResource } from '@/lib/types/resources';
 import type {
   AwsInstallationStatus,
@@ -369,6 +371,40 @@ describe('AwsInstallStatusDetail', () => {
     // The prompt gave its slot to the result, and the label now says this is a repeat.
     expect(screen.queryByText('약 30초 걸려요')).toBeNull();
     expect(screen.getByRole('button', { name: '다시 확인' })).toBeTruthy();
+  });
+
+  // The enum can say COMPLETED simply because the last installation-status poll
+  // predates the permission being revoked. When a live check contradicts it, the
+  // button's weight follows what there is to act on, not what the contract had said.
+  it('a live finding on a settled verdict takes the button back to the heavier weight', async () => {
+    vi.mocked(getAwsRoleVerification).mockResolvedValue({
+      status: 'INVALID',
+      fail_reason: 'ROLE_NOT_FOUND',
+    });
+
+    openRoleVerifyPanel({ roleVerify: { status: 'COMPLETED', roleArn: null } });
+    const before = screen.getByRole('button', { name: '다시 확인' });
+    expect(before.className).toContain(buttonStyles.ghostText);
+
+    fireEvent.click(before);
+    expect(await screen.findByText(/AWS IAM 에서 해당 Role 을 찾지 못했습니다/)).toBeTruthy();
+
+    // Same button, same row — only its weight moved.
+    const after = screen.getByRole('button', { name: '다시 확인' });
+    expect(after.className).not.toContain(buttonStyles.ghostText);
+    expect(after.className).toContain(getButtonClass('outline'));
+  });
+
+  it('a clean live result leaves the settled button at the ghost weight', async () => {
+    vi.mocked(getAwsRoleVerification).mockResolvedValue({ status: 'VALID' });
+
+    openRoleVerifyPanel({ roleVerify: { status: 'COMPLETED', roleArn: null } });
+    fireEvent.click(screen.getByRole('button', { name: '다시 확인' }));
+
+    expect(await screen.findByText('방금 확인했고, 막힌 곳은 없었어요.')).toBeTruthy();
+    expect(screen.getByRole('button', { name: '다시 확인' }).className).toContain(
+      buttonStyles.ghostText,
+    );
   });
 
   it('a clean live result says so in one line, without a verdict pill', async () => {
