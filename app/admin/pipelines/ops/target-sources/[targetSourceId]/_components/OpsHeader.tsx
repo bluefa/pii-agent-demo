@@ -347,19 +347,18 @@ export function OpsHeader({
             {!isSdu && provider === 'GCP' && gcpCell('프로젝트', meta.gcp_project_id)}
             {/* Azure 는 계정 자리가 구독이고, 테넌트가 그 옆에 선다 (오너 2026-08-26).
                 Q3 에서는 UUID 두 개가 스코프 줄을 468px 쓴다고 접힘에 두자고 했는데,
-                4열 그리드는 값 폭이 아니라 셀 수로 서는 배치라 그 근거가 없다 — 둘이
-                나란히 서면 한 행이 정확히 4칸으로 찬다. */}
-            {!isSdu && provider === 'Azure' && monoCell('구독(Subscription)', meta.subscription_id)}
-            {!isSdu && provider === 'Azure' && monoCell('테넌트(Tenant)', meta.tenant_id)}
-            {/* Scan App takes ONE column, like 구독 and 테넌트 (owner, 2026-08-26 —
-                「설정」 must stand on the same row as Scan App). All three are UUIDs of
-                the same length, so the 2-column Scan App was an inconsistency rather
-                than a need: its neighbours already truncate with a `title` in one column
-                each, and truncation is safe here because 「상세 정보」 prints every
-                identifier in full with a copy button. Azure now packs 구독·테넌트·Scan
-                App·설정 into exactly four slots — one row, the shape AWS already has.
+                4열 그리드는 값 폭이 아니라 셀 수로 서는 배치라 그 근거가 없다. */}
+            {!isSdu && provider === 'Azure' && monoCell('구독(Subscription)', meta.subscription_id, true)}
+            {!isSdu && provider === 'Azure' && monoCell('테넌트(Tenant)', meta.tenant_id, true)}
+            {/* All three Azure identifiers take TWO columns (reverses the 2026-08-26 note
+                above): the owner rejected the truncation on 2026-08-30 — they are 36-char
+                UUIDs in mono 14px, so each of them ellipsed inside one 240px column and
+                the strip showed no identifier in full. Azure is therefore two rows:
+                구독·테넌트 fill the first, Scan App and 「설정」 the second — 「설정」 still
+                stands on the same row as Scan App, which is the constraint the 08-26 note
+                actually protected.
                 GCP 는 이 격자를 아예 쓰지 않는다 — 3등분(`fmGridGcp`)에 따로 선다. */}
-            {!isSdu && provider === 'Azure' && monoCell('Scan App', meta.azure_scan_app_id)}
+            {!isSdu && provider === 'Azure' && monoCell('Scan App', meta.azure_scan_app_id, true)}
             {/* IDC 는 계정이 없는 게 정상이다 — 빈 칸을 두는 대신 그 대상이 무엇인지
                 말한다 (ServiceDetailView glossOf 의 어휘 그대로). */}
             {!isSdu
