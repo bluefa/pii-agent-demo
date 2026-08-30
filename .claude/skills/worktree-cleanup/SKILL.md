@@ -20,7 +20,7 @@ PR merge가 끝난 worktree를 안전하게 정리합니다.
 **Manual workflow** (This skill is NOT auto-invoked):
 
 1. Read this guide
-2. **You call Task tool** with Haiku subagent to cleanup worktree
+2. **You call the Agent tool** with Haiku subagent to cleanup worktree
 3. Haiku runs cleanup script and reports result
 
 **Why manual:** Worktree cleanup is destructive and must be explicitly requested.
@@ -32,11 +32,14 @@ PR merge가 끝난 worktree를 안전하게 정리합니다.
 
 ## Usage Example
 
-When you want to cleanup a merged worktree, **you** should call Task tool:
+When you want to cleanup a merged worktree, **you** should call the Agent tool:
+
+> Delegate from the main session only. A subagent that lands here should run the
+> commands directly instead of spawning another agent -- a nested spawn does not
+> inherit the caller's model.
 
 ```typescript
-Task({
-  subagent_type: "Bash",
+Agent({
   model: "haiku",
   description: "Cleanup merged worktree (Haiku)",
   prompt: `

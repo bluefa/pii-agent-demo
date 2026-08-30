@@ -25,7 +25,7 @@ user_invocable: true
 **Manual workflow** (This skill is NOT auto-invoked):
 
 1. Read this guide
-2. **You call Task tool** with Haiku subagent to setup worktree
+2. **You call the Agent tool** with Haiku subagent to setup worktree
 3. Haiku runs git/bash commands and reports final path + branch
 
 **Why manual:** Worktree creation is a setup operation that must be explicit. Once created, you continue work in that worktree.
@@ -37,11 +37,14 @@ user_invocable: true
 
 ## Usage Example
 
-When you want to setup a worktree, **you** should call Task tool:
+When you want to setup a worktree, **you** should call the Agent tool:
+
+> Delegate from the main session only. A subagent that lands here should run the
+> commands directly instead of spawning another agent -- a nested spawn does not
+> inherit the caller's model.
 
 ```typescript
-Task({
-  subagent_type: "Bash",
+Agent({
   model: "haiku",
   description: "Setup feature worktree (Haiku)",
   prompt: `
