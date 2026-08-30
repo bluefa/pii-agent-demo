@@ -1,7 +1,9 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import {
+  borderColors,
+  buttonStyles,
   cn,
   getButtonClass,
   idcStyles,
@@ -16,10 +18,12 @@ import {
   LastVerifyStamp,
   useRelativeStamp,
 } from '@/app/components/features/process-status/install-status-detail/LastCheckStamp';
+import { isSettledInstallStatus } from '@/app/components/features/process-status/install-status-detail/model';
 import {
   terraformRoleFinding,
   type TerraformRoleFinding,
 } from '@/app/components/features/process-status/aws/terraform-role-finding';
+import type { AwsInstallStepValue } from '@/lib/types';
 
 /**
  * Terraform 권한 부여 확인 단계의 오른쪽 패널.
@@ -37,6 +41,17 @@ import {
  * 걸고 있어서, 여기에 두 번째 판정을 두면 같은 단계가 두 어휘로 서로 다른 말을 하게
  * 된다(설치 상태는 COMPLETED/FAIL/…, 검증 API 는 VALID/INVALID/…). 이 패널이 더하는
  * 것은 판정이 아니라 그 판정의 근거다.
+ *
+ * That is also why the 30-second live call no longer fires on mount. Opening the step
+ * used to spend it before anyone asked, and it bought nothing the header had not
+ * already said: `terraform_execution_role_verify.status` arrives free with the
+ * installation status and covers the verdict for every entry — COMPLETED, SKIP, FAIL,
+ * IN_PROGRESS. What the enum cannot carry is the reason, so the reason is what the
+ * button is for, and pressing it is the only thing that calls verify-execution-role.
+ *
+ * The division of labour that follows: **the header pill owns the verdict; the body
+ * says what the header cannot** — the age of that verdict when it has settled, or the
+ * invitation to find out why when it has not.
  */
 
 const IDENTITY_LABEL_WIDTH = 'w-24'; // 96px — 이 패널이 원래 쓰던 라벨 폭 그대로.
@@ -81,13 +96,53 @@ const FindingBlock = ({ finding }: { finding: TerraformRoleFinding }) => (
   </div>
 );
 
+/**
+ * The idle slot — what stands here before anyone has asked for a live check.
+ *
+ * Structurally distinct from the finding block on purpose (Cloudscape: don't use an
+ * empty state for an error). The glyph is a neutral dashed outline, never an
+ * error/warning colour: nothing has gone wrong here, the question simply has not
+ * been asked yet.
+ */
+const IdlePrompt = () => (
+  <div className={cn('flex flex-col items-center text-center', stackGap.related)}>
+    <span
+      aria-hidden="true"
+      className={cn('h-7 w-7 rounded-full border-[1.5px] border-dashed', borderColors.strong)}
+    />
+    <span className={cn('flex flex-col', stackGap.tight)}>
+      <span className={cn(textStyles.body, textColors.secondary)}>
+        권한을 직접 확인하면 막힌 원인까지 알 수 있어요
+      </span>
+      <span className={cn(textStyles.caption, textColors.tertiary)}>약 30초 걸려요</span>
+    </span>
+  </div>
+);
+
 type LoadState =
+  | { phase: 'idle' }
   | { phase: 'loading' }
   | { phase: 'error' }
   | { phase: 'done'; data: AwsRoleVerification };
 
 interface TerraformRoleVerifyPanelProps {
   targetSourceId: number;
+  /**
+   * `terraform_execution_role_verify.status` — the verdict the installation status
+   * already carries, and the same value the panel header's pill hangs on.
+   *
+   * The body never restates it. It reads only whether that verdict has settled
+   * (COMPLETED/SKIP), which decides what the result slot says and how heavy the
+   * button below it is.
+   */
+  verifyStatus: AwsInstallStepValue;
+  /**
+   * `last_check.checked_at` — how old the header's verdict is.
+   *
+   * The contract carries no timestamp for the role verification itself; the moment
+   * the installation status was last read is the age of everything it said.
+   */
+  lastCheckedAt: string | null;
   /** metadata.aws_account_id — 어느 계정을 검증했는지가 조치의 출발점이다. */
   awsAccountId: string | null;
   /**
@@ -103,37 +158,31 @@ interface TerraformRoleVerifyPanelProps {
 
 export const TerraformRoleVerifyPanel = ({
   targetSourceId,
+  verifyStatus,
+  lastCheckedAt,
   awsAccountId,
   roleArn,
 }: TerraformRoleVerifyPanelProps) => {
-  const [state, setState] = useState<LoadState>({ phase: 'loading' });
-  // 재검증 트리거. 스켈레톤 전환은 이벤트 핸들러에서 일으킨다 — 이펙트 본문에서
-  // 상태를 세우면 렌더가 연쇄한다.
-  const [attempt, setAttempt] = useState(0);
+  const [state, setState] = useState<LoadState>({ phase: 'idle' });
 
-  useEffect(() => {
-    let cancelled = false;
-    getAwsRoleVerification(targetSourceId, 'execution')
-      .then((data) => {
-        if (!cancelled) setState({ phase: 'done', data });
-      })
-      .catch(() => {
-        if (!cancelled) setState({ phase: 'error' });
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [targetSourceId, attempt]);
-
+  // The fetch lives in the handler, not in an effect: there is exactly one trigger
+  // (the button), so an effect would only add a keyed counter to stop it firing on
+  // the first render.
   const verifyNow = useCallback(() => {
     setState({ phase: 'loading' });
-    setAttempt((n) => n + 1);
-  }, []);
+    getAwsRoleVerification(targetSourceId, 'execution')
+      .then((data) => setState({ phase: 'done', data }))
+      .catch(() => setState({ phase: 'error' }));
+  }, [targetSourceId]);
 
   const data = state.phase === 'done' ? state.data : null;
   const finding = data ? terraformRoleFinding(data) : null;
   const stamp = useRelativeStamp(data?.last_verified_at);
+  const checkStamp = useRelativeStamp(lastCheckedAt);
   const verifying = state.phase === 'loading';
+  // COMPLETED/SKIP — the contract has already answered, so the live check is a
+  // second opinion. Everything below hangs off this one boolean.
+  const settled = isSettledInstallStatus(verifyStatus);
 
   return (
     // 라벨↔값은 한 덩어리(tight), 항목끼리는 형제(related), 블록 사이는 group.
@@ -147,6 +196,9 @@ export const TerraformRoleVerifyPanel = ({
         <IdentityRow label="Terraform Role" value={roleArn} />
       </div>
 
+      {/* One slot, and its content is the whole of what the body says. A live result
+          replaces whatever the enum said; before that, the enum decides between the
+          age of the verdict and the invitation to go get one. */}
       {verifying ? (
         // 검증은 최대 30초까지 걸린다(라우트 expectedDuration). 그동안 이 자리를 비워
         // 두면 "원인 없음"과 구분되지 않으므로, 원인 블록이 설 자리를 그대로 세운다.
@@ -160,19 +212,40 @@ export const TerraformRoleVerifyPanel = ({
         </p>
       ) : finding ? (
         <FindingBlock finding={finding} />
-      ) : null}
+      ) : data ? (
+        <p className={cn(textStyles.body, textColors.secondary)}>
+          방금 확인했고, 막힌 곳은 없었어요.
+        </p>
+      ) : settled ? (
+        // The header pill already said 완료/해당 없음. All the body can add is when
+        // that was true — no pill, no glyph, and no second verdict word.
+        checkStamp && (
+          <p className={cn(textStyles.caption, textColors.tertiary)}>
+            마지막 확인은 {checkStamp.absolute} 기준이에요.
+          </p>
+        )
+      ) : (
+        <IdlePrompt />
+      )}
 
       {/* 액션과 그 액션이 마지막으로 남긴 시각은 한 줄이다 — 버튼을 누르면 바뀌는 값이
-          바로 옆에 있어야 눌린 것이 보인다. 채운 버튼은 카드에 하나뿐이어야 하므로
-          outline (PR #666 에서 오너가 고른 CTA 무게). */}
+          바로 옆에 있어야 눌린 것이 보인다. This row is fixed: the slot above changes
+          with the state, the button does not move (owner's condition on this design). */}
       <div className="flex items-center gap-3 flex-wrap">
         <button
           type="button"
           onClick={verifyNow}
           disabled={verifying}
-          className={cn(getButtonClass('outline'), 'whitespace-nowrap')}
+          className={
+            settled
+              // The contract already answered, so this is a second opinion — it steps
+              // back out of button chrome (ScanStrip's 권한 확인 uses the same weight).
+              ? cn(buttonStyles.ghostText, textColors.secondary)
+              // 채운 버튼은 카드에 하나뿐이어야 하므로 outline (PR #666 에서 오너가 고른 CTA 무게).
+              : cn(getButtonClass('outline'), 'whitespace-nowrap')
+          }
         >
-          {verifying ? '확인 중...' : '지금 확인'}
+          {verifying ? '확인 중...' : settled || data ? '다시 확인' : '권한 확인'}
         </button>
         {/* 카드 헤더의 확인 시각과 같은 문법 — 시계 + 두 층, 경과가 위. */}
         {stamp && <LastVerifyStamp stamp={stamp} />}

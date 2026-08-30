@@ -146,6 +146,11 @@ export const AwsInstallStatusDetail = ({
               panel: (
                 <TerraformRoleVerifyPanel
                   targetSourceId={targetSourceId}
+                  // The same value the step's `status` above hangs the header pill on.
+                  // The panel reads it to know whether that verdict has settled — it
+                  // never draws a second one.
+                  verifyStatus={status.roleVerify.status}
+                  lastCheckedAt={status.lastCheck.checkedAt ?? null}
                   awsAccountId={awsAccountId}
                   roleArn={awsTerraformExecutionRoleArn}
                 />

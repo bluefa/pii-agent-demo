@@ -37,9 +37,10 @@ describe('targetSourceId — seed 데이터', () => {
     expect(new Set(ids).size).toBe(ids.length);
   });
 
-  it('seed 데이터는 66개 프로젝트를 포함한다 (cloud 19 + step-coverage 13 + IDC 데모 9 + SDU 데모 4 + TC 큐 5 + TC 카드 상태 8 + 운영 알림 드릴다운 8)', () => {
-    // cloud 19 = 기존 15 + 중국 리전 AWS 대상 1018 + 권한 확인만 끝난 Step 4 AWS 대상 1009
-    // + 스캔한 적 없는 1단계 짝 Azure 1030 · AWS 1029 (GCP 는 1002 가 이미 그 자리다).
+  it('seed 데이터는 67개 프로젝트를 포함한다 (cloud 20 + step-coverage 13 + IDC 데모 9 + SDU 데모 4 + TC 큐 5 + TC 카드 상태 8 + 운영 알림 드릴다운 8)', () => {
+    // cloud 20 = 기존 15 + 중국 리전 AWS 대상 1018 + 권한 확인만 끝난 Step 4 AWS 대상 1009
+    // + 권한 확인이 실패로 끝난 그 짝 1019 + 스캔한 적 없는 1단계 짝 Azure 1030 · AWS 1029
+    // (GCP 는 1002 가 이미 그 자리다).
     // TC 카드 상태 8 = 21xx fixture (시안 A 슬롯 폴딩 6종 + 시작 대기 2107 + 무보고 실패
     // 2108, lib/mock-test-connection.ts TC_CARD_FIXTURE).
     // 운영 알림 드릴다운 8 = 모니터 픽스처(PROC)의 알림 대상 11건 중 카탈로그에 없던 것들.
@@ -48,7 +49,7 @@ describe('targetSourceId — seed 데이터', () => {
     // SDU 데모 4 = 1099(완료·중국) + 1100(업로드 단계 한가운데) + 1101·1102(연동 대상
     // 정의 전 — Global 과 China 한 벌씩). 권역은 고를 수 있는 값이 아니라 SDU 목이
     // isChinaRegion 에서 읽는 파생값이므로, 두 권역의 1단계를 보려면 대상이 둘이어야 한다.
-    expect(mockProjects).toHaveLength(66);
+    expect(mockProjects).toHaveLength(67);
   });
 });
 

@@ -1,8 +1,9 @@
 // @vitest-environment jsdom
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-// 권한 패널은 마운트되는 순간 실시간 검증을 부른다 — 그 오퍼레이션이 이 스위트의
-// 유일한 네트워크 의존이라 모듈째 세운다(TF 스크립트 다운로드도 같은 모듈).
+// 권한 패널은 버튼을 눌러야만 실시간 검증을 부른다 — 그 오퍼레이션이 이 스위트의
+// 유일한 네트워크 의존이라 모듈째 세운다(TF 스크립트 다운로드도 같은 모듈). 마운트에서
+// 부르지 않는다는 사실 자체가 단언 대상이므로, 목은 호출 여부를 세는 자리이기도 하다.
 vi.mock('@/app/lib/api/aws', () => ({
   getAwsRoleVerification: vi.fn(),
   getAwsTerraformScript: vi.fn(),
@@ -288,7 +289,66 @@ describe('AwsInstallStatusDetail', () => {
     expect(within(filters).getByText('us-east-1')).toBeTruthy();
   });
 
-  it('shows the role-verify panel (검증 대상 + 지금 확인, no resource table) when selected', async () => {
+  const openRoleVerifyPanel = (
+    overrides: Partial<AwsInstallationStatus> = {},
+  ) => {
+    render(
+      <AwsInstallStatusDetail
+        status={buildStatus([resource('r-1', 'IN_PROGRESS')], overrides)}
+        confirmed={[]}
+        manualInstall={false}
+        targetSourceId={1008}
+        awsAccountId="123456789012"
+        awsTerraformExecutionRoleArn="arn:aws:iam::123456789012:role/exec"
+      />,
+    );
+    fireEvent.click(screen.getByRole('button', { name: /Terraform 권한 부여 확인/ }));
+  };
+
+  // The 30-second live verification is the reason this panel exists, and the reason it
+  // must not run on its own: the verdict already rode in on installation-status, so
+  // spending the call on entry bought a number nobody had asked for.
+  it('opening the role-verify panel does not call verify-execution-role', () => {
+    openRoleVerifyPanel({ roleVerify: { status: 'FAIL', roleArn: null } });
+
+    expect(vi.mocked(getAwsRoleVerification)).not.toHaveBeenCalled();
+    // 무엇을 검증했는지가 먼저다 — 계정과 Role 이 있어야 사용자가 자기 콘솔에서
+    // 무엇을 열어야 할지 안다.
+    expect(screen.getByText('123456789012')).toBeTruthy();
+    expect(screen.getByText('arn:aws:iam::123456789012:role/exec')).toBeTruthy();
+    expect(screen.queryByRole('columnheader', { name: 'Region' })).toBeNull();
+  });
+
+  // Not settled: the enum says the step is not done, so the slot invites the check.
+  it('an unsettled verdict shows the idle prompt and no 마지막 확인 caption', () => {
+    openRoleVerifyPanel({ roleVerify: { status: 'FAIL', roleArn: null } });
+
+    expect(screen.getByText('권한을 직접 확인하면 막힌 원인까지 알 수 있어요')).toBeTruthy();
+    expect(screen.getByText('약 30초 걸려요')).toBeTruthy();
+    expect(screen.queryByText(/마지막 확인은/)).toBeNull();
+    expect(screen.getByRole('button', { name: '권한 확인' })).toBeTruthy();
+  });
+
+  // Settled: the header pill already said 완료. The body adds the one thing the pill
+  // cannot — how old that answer is — and never a second verdict.
+  it('a settled verdict shows the 마지막 확인 caption and no idle prompt', () => {
+    openRoleVerifyPanel({ roleVerify: { status: 'COMPLETED', roleArn: null } });
+
+    // lastCheck.checkedAt = 2026-07-29T14:02:00Z → KST.
+    expect(screen.getByText('마지막 확인은 26. 07. 29. 23:02 기준이에요.')).toBeTruthy();
+    expect(screen.queryByText('권한을 직접 확인하면 막힌 원인까지 알 수 있어요')).toBeNull();
+    // The second opinion steps out of button chrome; the label says it is a repeat.
+    expect(screen.getByRole('button', { name: '다시 확인' })).toBeTruthy();
+  });
+
+  it('SKIP counts as settled — 해당 없음 is an answer, not a pending check', () => {
+    openRoleVerifyPanel({ roleVerify: { status: 'SKIP', roleArn: null } });
+
+    expect(screen.getByText(/마지막 확인은/)).toBeTruthy();
+    expect(screen.queryByText('약 30초 걸려요')).toBeNull();
+  });
+
+  it('pressing the button fires exactly one verification and fills in the reason', async () => {
     // 검증 응답에는 role_arn 이 없다 — 등록 사실을 말하는 것은 메타데이터뿐이고,
     // 화면은 검증이 무엇을 봤는지가 아니라 이 대상에 무엇이 등록됐는지를 그린다.
     vi.mocked(getAwsRoleVerification).mockResolvedValue({
@@ -297,29 +357,28 @@ describe('AwsInstallStatusDetail', () => {
       last_verified_at: '2026-07-29T14:00:00Z',
     });
 
-    render(
-      <AwsInstallStatusDetail
-        status={buildStatus([resource('r-1', 'IN_PROGRESS')])}
-        confirmed={[]}
-        manualInstall={false}
-        targetSourceId={1008}
-        awsAccountId="123456789012"
-        awsTerraformExecutionRoleArn="arn:aws:iam::123456789012:role/exec"
-      />,
-    );
+    openRoleVerifyPanel({ roleVerify: { status: 'FAIL', roleArn: null } });
+    fireEvent.click(screen.getByRole('button', { name: '권한 확인' }));
 
-    fireEvent.click(screen.getByRole('button', { name: /Terraform 권한 부여 확인/ }));
-    // 무엇을 검증했는지가 먼저다 — 계정과 Role 이 있어야 사용자가 자기 콘솔에서
-    // 무엇을 열어야 할지 안다.
-    expect(screen.getByText('123456789012')).toBeTruthy();
-    expect(screen.getByText('arn:aws:iam::123456789012:role/exec')).toBeTruthy();
-    expect(screen.queryByRole('columnheader', { name: 'Region' })).toBeNull();
+    expect(vi.mocked(getAwsRoleVerification)).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(getAwsRoleVerification)).toHaveBeenCalledWith(1008, 'execution');
 
     // 사유는 설치 상태가 아니라 실시간 검증이 갖고 있다 — 여섯 코드 중 하나를 문장으로.
     expect(await screen.findByText(/Scan Role 을 넘겨받지 못했습니다/)).toBeTruthy();
     expect(screen.getByText('등록된 Terraform Role ARN 은 원인이 아닙니다.')).toBeTruthy();
-    // 검증이 끝나야 버튼이 다시 눌린다 — 그 전에는 '확인 중...' 으로 잠겨 있다.
-    expect(screen.getByRole('button', { name: '지금 확인' })).toBeTruthy();
+    // The prompt gave its slot to the result, and the label now says this is a repeat.
+    expect(screen.queryByText('약 30초 걸려요')).toBeNull();
+    expect(screen.getByRole('button', { name: '다시 확인' })).toBeTruthy();
+  });
+
+  it('a clean live result says so in one line, without a verdict pill', async () => {
+    vi.mocked(getAwsRoleVerification).mockResolvedValue({ status: 'VALID' });
+
+    openRoleVerifyPanel({ roleVerify: { status: 'FAIL', roleArn: null } });
+    fireEvent.click(screen.getByRole('button', { name: '권한 확인' }));
+
+    expect(await screen.findByText('방금 확인했고, 막힌 곳은 없었어요.')).toBeTruthy();
+    expect(screen.queryByText('확인 필요')).toBeNull();
   });
 
   it('manual install hides the role-verify step and relabels the service step', () => {

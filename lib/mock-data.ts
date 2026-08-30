@@ -1168,6 +1168,39 @@ export const mockProjects: Project[] = [
     isRejected: false,
   },
   {
+    // The other side of 1009 — a Step 4 whose role verification finished and did NOT
+    // pass. The panel now speaks its verdict from the installation-status enum alone,
+    // and that path is only observable if some fixture declares FAILED. The mock's
+    // reason table (DEMO_FAIL_BY_TARGET) pins ROLE_NOT_FOUND to the same target so
+    // pressing 권한 확인 fills in why.
+    id: "proj-3c",
+    targetSourceId: 1019,
+    projectCode: "OTHER-005",
+    name: "PII Agent 설치 - 정산 리포트 적재",
+    description:
+      "Step 4. 권한 확인이 실패로 끝난 화면을 검증합니다. 들어오자마자 헤더 태그가 실패를 말하고, 막힌 원인은 '권한 확인'을 눌러야 채워집니다.",
+    serviceCode: "aws",
+    cloudProvider: "AWS",
+    awsAccountId: AWS_WIRE_CONFIRMED_ACCOUNT_ID,
+    awsRegionType: "global",
+    // 자동 설치 모드 — 권한 확인 단계는 이 모드에만 있다.
+    isTerraformExecutionGranted: true,
+    processStatus: ProcessStatus.INSTALLING,
+    status: createStatusForProcessStatus(ProcessStatus.INSTALLING, {
+      selectedCount: 4,
+      excludedCount: 1,
+    }),
+    resources: awsWireSampleResources,
+    terraformState: {
+      roleVerify: "FAILED",
+      serviceTf: "PENDING",
+      bdcTf: "PENDING",
+    },
+    createdAt: "2024-01-20T08:00:00Z",
+    updatedAt: "2024-01-20T09:30:00Z",
+    isRejected: false,
+  },
+  {
     id: "proj-5",
     targetSourceId: 1010,
     projectCode: "DATA-005",
