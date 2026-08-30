@@ -675,12 +675,14 @@ export const mockSdu = {
     state.bdcStatus = 'COMPLETED';
     state.bdcCompletedAt = new Date().toISOString();
     state.bdcCompletedBy = user ? { id: user.id, name: user.name, email: user.email } : null;
-    // **6이지 5가 아니다** (오너 2026-08-30 2차). SDU 는 1 → 4 → 6 → 7 이고 5도 건너뛴다 —
-    // 08-28 §9 의 「2·3·5 비활성」이 옳고 §8 의 「ProcessStatus 5」가 오기였다(델타 §3.2).
-    // 이미 6 이상인 대상은 옮기지 않는다: 7단계를 6으로 끌어내리는 것은 전진이 아니다.
-    if (auth.project.processStatus < ProcessStatus.CONNECTION_VERIFIED) {
+    // **5다** (오너 2026-08-30 3차, 「1->4->5->7」). 08-28 §8 의 「ProcessStatus 5」가 옳고
+    // §9 의 「2·3·5 비활성」에서 5 가 오기였다(델타 §3.2). 대상은 실제로 「연결 테스트 필요」에
+    // 앉고, 그래야 승인 조건 ②(최신 TC 성공)를 무언가가 만족시킬 수 있다.
+    // 이미 5 이상인 대상은 옮기지 않는다: 6·7단계를 5로 끌어내리는 것은 전진이 아니다.
+    // 5 → 6 → 7 은 이 엔드포인트의 일이 아니다 — 관리자 승인 CTA 가 그 구간을 진다.
+    if (auth.project.processStatus < ProcessStatus.WAITING_CONNECTION_TEST) {
       mockData.updateProject(auth.project.id, {
-        processStatus: ProcessStatus.CONNECTION_VERIFIED,
+        processStatus: ProcessStatus.WAITING_CONNECTION_TEST,
       });
     }
     return noContent();

@@ -400,7 +400,7 @@ describe('SDU BDC 완료 단언 (델타 §1·§3·§4)', () => {
   const complete = (id: number, completed: boolean) =>
     mockSdu.putBdcCompletion(id, { completed });
 
-  it('단언이 완료를 세우고 대상 소스를 6단계로 옮긴다 — 5는 건너뛴다', async () => {
+  it('단언이 완료를 세우고 대상 소스를 5단계로 옮긴다', async () => {
     await putDefinition(GLOBAL_ID, [target({ target_id: 'a', region: 'us' })]);
     await mockSdu.submitDefinition(GLOBAL_ID);
     await ackEverything(GLOBAL_ID);
@@ -410,12 +410,9 @@ describe('SDU BDC 완료 단언 (델타 §1·§3·§4)', () => {
     const done = await upload(GLOBAL_ID);
     expect(done.bdc.status).toBe('COMPLETED');
     expect(done.bdc.completed_at).not.toBeNull();
-    // SDU 는 1 → 4 → 6 → 7 이다. 5(WAITING_CONNECTION_TEST)는 건너뛴다 — 08-28 §9 의
-    // 「2·3·5 비활성」이 §8 의 「ProcessStatus 5」를 이긴다(오너 2026-08-30 2차).
+    // SDU 는 1 → 4 → 5 → 7 이다(오너 2026-08-30 3차). 대상은 실제로 「연결 테스트 필요」에
+    // 앉고, 5 → 6 → 7 은 관리자 승인 CTA 의 구간이지 이 쓰기의 일이 아니다.
     expect(mockData.getProjectByTargetSourceId(GLOBAL_ID)?.processStatus).toBe(
-      ProcessStatus.CONNECTION_VERIFIED,
-    );
-    expect(mockData.getProjectByTargetSourceId(GLOBAL_ID)?.processStatus).not.toBe(
       ProcessStatus.WAITING_CONNECTION_TEST,
     );
   });
@@ -495,9 +492,9 @@ describe('SDU BDC 완료 단언 (델타 §1·§3·§4)', () => {
     const back = await upload(GLOBAL_ID);
     expect(back.bdc.status).toBe('IN_PROGRESS');
     expect(back.bdc.completed_at).toBeNull();
-    // 단언이 밀어 둔 6단계는 그대로다 — 되돌리기가 취소하는 것은 단언뿐이다.
+    // 단언이 밀어 둔 5단계는 그대로다 — 되돌리기가 취소하는 것은 단언뿐이다.
     expect(mockData.getProjectByTargetSourceId(GLOBAL_ID)?.processStatus).toBe(
-      ProcessStatus.CONNECTION_VERIFIED,
+      ProcessStatus.WAITING_CONNECTION_TEST,
     );
   });
 

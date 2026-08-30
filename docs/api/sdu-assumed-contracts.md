@@ -321,15 +321,15 @@ Four things separate it from §1–§7.
    would advance their own install — SDU has no approval step in front of it.
 2. **One path, both directions.** `completed: true` sets `COMPLETED`, stamps
    `bdc.completed_at` and `bdc.completed_by`, and moves the target source to ProcessStatus
-   **6** (`CONNECTION_VERIFIED`) if it is below 6 — **not 5**. `false` clears both stamps
-   and returns `bdc.status` to whatever §7's derivation currently says, and does **not**
-   move ProcessStatus back.
+   **5** (`WAITING_CONNECTION_TEST`) if it is below 5. `false` clears both stamps and
+   returns `bdc.status` to whatever §7's derivation currently says, and does **not** move
+   ProcessStatus back — a connection test may already have run against step 5.
 
-   §7 above used to say 5 (`WAITING_CONNECTION_TEST`), and the 08-28 handoff says it too
-   (its §8). **That line is the error**; the handoff's §9 — "진행 상태: 7단계 레일에서
-   2·3·5 비활성" — is authoritative (owner 2026-08-30). The SDU flow is **1 → 4 → 6 → 7**:
-   5 means "it is the connection test's turn", 6 means "verified, awaiting the admin's
-   확정", and the second is what an asserted BDC completion actually produces.
+   The 08-28 handoff contradicts itself here: its §8 says 5, its §9 says the rail shows
+   "2·3·5 비활성". **§8 is authoritative and the `5` in §9's list is the error** (owner
+   2026-08-30, "step1->4->5->7"). SDU skips 2 and 3 only. The target really does sit at
+   「연결 테스트 필요」, which is what gives 승인 조건 ② (latest TC succeeded) an act that
+   something can perform. 5 → 6 → 7 belongs to the 관리자 승인 CTA, not to this endpoint.
 3. **`true` requires §7's `IN_PROGRESS` conditions** — both acks 「예」 and ≥1 recipient —
    or it is a 400 that changes nothing (owner 2026-08-30, second pass). Work that could
    not have *started* cannot have *finished*. **`false` is ungated**: withdrawing a claim

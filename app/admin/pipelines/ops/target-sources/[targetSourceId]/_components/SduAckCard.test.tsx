@@ -318,8 +318,8 @@ describe('SduAckCard — BDC 구축 완료 단언 (델타 §1·§3)', () => {
     fireEvent.click(boxes[2]);
     expect(commit.disabled).toBe(false);
 
-    // 6단계다 — SDU 는 5를 건너뛴다 (오너 2026-08-30 2차).
-    expect(screen.getByText(/6단계\(연결 확인 완료\)로 넘어갑니다/)).toBeTruthy();
+    // 5단계다 — 대상은 「연결 테스트 필요」에 앉는다 (오너 2026-08-30 3차, 1→4→5→7).
+    expect(screen.getByText(/5단계\(연결 테스트 대기\)로 넘어갑니다/)).toBeTruthy();
 
     fireEvent.click(commit);
     await waitFor(() => expect(putSduBdcCompletion).toHaveBeenCalledWith(1100, true));
