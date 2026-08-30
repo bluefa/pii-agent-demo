@@ -33,7 +33,7 @@ Commit 전에 코드 품질 검증을 수행합니다.
 **Manual workflow** (This skill is NOT auto-invoked):
 
 1. Read this guide
-2. **You call Task tool** with Haiku subagent to run pre-commit checks
+2. **You call the Agent tool** with Haiku subagent to run pre-commit checks
 3. Haiku runs lint, tsc, test, build and contract validations
 4. Haiku reports pass/fail results
 
@@ -47,11 +47,14 @@ Commit 전에 코드 품질 검증을 수행합니다.
 
 ## Usage Example
 
-When you want to check code quality before committing, **you** should call Task tool:
+When you want to check code quality before committing, **you** should call the Agent tool:
+
+> Delegate from the main session only. A subagent that lands here should run the
+> commands directly instead of spawning another agent -- a nested spawn does not
+> inherit the caller's model.
 
 ```typescript
-Task({
-  subagent_type: "Bash",
+Agent({
   model: "haiku",
   description: "Run pre-commit checks (Haiku)",
   prompt: `
