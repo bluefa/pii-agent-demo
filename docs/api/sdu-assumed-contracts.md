@@ -330,7 +330,9 @@ Four things separate it from §1–§7.
    every BDC-side fact anyway (Glue).
 4. **`bdc.completed_by`** joins `completed_at` in §4's shape, same `{ id, name, email }`
    as `acked_by`. A derived value has no author; an assertion that moves an install to
-   step 5 does.
+   step 5 does. The ops console's 「담당자 확인」 card draws it in the BDC row, in the same
+   grammar the two acks already use — one card cannot name a person on two rows and leave
+   the third looking authorless.
 
 `POST …/reset` clears the assertion unconditionally — `status`, `completed_at` and
 `completed_by` — regardless of who asserted it or when (§7 said reset drops BDC, but that
