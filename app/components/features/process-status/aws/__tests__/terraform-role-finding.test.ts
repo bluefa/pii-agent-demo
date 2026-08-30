@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   terraformRoleFinding,
+  terraformRolePassed,
   TERRAFORM_ROLE_REASON_CODES,
 } from '@/app/components/features/process-status/aws/terraform-role-finding';
 import { ROLE_VERIFICATION_REASON_CODES } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/roleVerification';
@@ -33,6 +34,30 @@ describe('terraformRoleFinding — 계약 여섯 코드', () => {
   it('코드가 없으면 fail_message 가 문장을 대신한다', () => {
     const finding = terraformRoleFinding({ status: 'FAIL', fail_message: '업스트림이 준 문장' });
     expect(finding?.message).toBe('업스트림이 준 문장');
+  });
+});
+
+/**
+ * 「원인이 없다」와 「통과했다」는 다른 말이다. 전자는 화면이 그릴 것이 없다는 뜻이고,
+ * 후자는 응답이 결론을 냈다는 뜻이다. 둘을 같게 두면 진행 중인 검증이 합격으로 읽힌다.
+ */
+describe('terraformRolePassed — 통과라고 말한 응답만', () => {
+  it.each(['VALID', 'COMPLETED'])('%s 는 통과다', (status) => {
+    expect(terraformRolePassed({ status })).toBe(true);
+  });
+
+  it.each(['IN_PROGRESS', 'UNVERIFIED', 'INVALID', 'FAIL'])('%s 는 통과가 아니다', (status) => {
+    expect(terraformRolePassed({ status })).toBe(false);
+  });
+
+  it('원인 블록이 없다고 통과인 것은 아니다 — 진행 중이 그 반례다', () => {
+    const running = { status: 'IN_PROGRESS' };
+    expect(terraformRoleFinding(running)).toBeNull();
+    expect(terraformRolePassed(running)).toBe(false);
+  });
+
+  it('status 가 없으면 통과가 아니다', () => {
+    expect(terraformRolePassed({})).toBe(false);
   });
 });
 

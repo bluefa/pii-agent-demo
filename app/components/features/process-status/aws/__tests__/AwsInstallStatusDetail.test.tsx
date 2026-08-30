@@ -291,6 +291,11 @@ describe('AwsInstallStatusDetail', () => {
     expect(within(filters).getByText('us-east-1')).toBeTruthy();
   });
 
+  // 결과 문장은 화면용과 낭독용(sr-only 라이브 리전) 두 벌로 존재한다 — 시각 단언은
+  // 보이는 쪽만 센다.
+  const visible = (pattern: RegExp | string) =>
+    screen.queryAllByText(pattern).filter((el) => !el.className.includes('sr-only'));
+
   const openRoleVerifyPanel = (
     overrides: Partial<AwsInstallationStatus> = {},
   ) => {
@@ -321,16 +326,16 @@ describe('AwsInstallStatusDetail', () => {
     expect(screen.queryByRole('columnheader', { name: 'Region' })).toBeNull();
   });
 
-  // Not settled: the enum says the step is not done, so the slot invites the check.
-  it('an unsettled verdict shows the idle prompt and no 마지막 확인 caption', () => {
+  // FAIL 만이 「확인 필요」가 참인 상태다 — 계약이 이 단계가 막혔다고 말했다.
+  it('FAIL shows the lead line, the invitation, and the outline button', () => {
     openRoleVerifyPanel({ roleVerify: { status: 'FAIL', roleArn: null } });
 
     const lead = screen.getByText('Terraform 권한 확인 필요');
     expect(lead).toBeTruthy();
-    expect(screen.getByText('권한을 직접 확인하면 막힌 원인까지 알 수 있어요')).toBeTruthy();
-    expect(screen.getByText('약 30초 걸려요')).toBeTruthy();
-    expect(screen.queryByText(/마지막 확인은/)).toBeNull();
-    expect(screen.getByRole('button', { name: '권한 확인' })).toBeTruthy();
+    expect(screen.getByText('지금 확인하면 권한 상태와 막힌 원인까지 알 수 있어요')).toBeTruthy();
+    expect(screen.getByRole('button', { name: '권한 확인' }).className).toContain(
+      getButtonClass('outline'),
+    );
 
     // 이 줄은 원인 블록의 「확인 필요」 라벨과 낱말을 공유한다 — 활자까지 같아지면
     // 대기 슬롯이 오류 슬롯의 회색 복사본이 된다. 리드 줄이지 상태 라벨이 아니다.
@@ -339,24 +344,79 @@ describe('AwsInstallStatusDetail', () => {
     expect(lead.className).not.toContain(statusColors.error.textDark);
   });
 
-  // Settled: the header pill already said 완료. The body adds the one thing the pill
-  // cannot — how old that answer is — and never a second verdict.
-  it('a settled verdict shows the 마지막 확인 caption and no idle prompt', () => {
+  // IN_PROGRESS 는 "확인이 돌고 있다"는 뜻일 수 없다: enum 에 '아직 안 함' 값이 없고,
+  // 실시간 검증은 눌러야 나가는 GET 이라 백그라운드로 도는 것이 없다. 화면은 진행
+  // 중이라고도, 사용자가 조치해야 한다고도 말하지 않는다 — 초대만 한다.
+  // UNKNOWN 은 어댑터의 정규화 싱크라 아는 것이 더 없다. 같은 취급.
+  it.each<AwsInstallStepValue>(['IN_PROGRESS', 'UNKNOWN'])(
+    '%s invites the check without the 확인 필요 lead line, and keeps the ghost weight',
+    (status) => {
+      openRoleVerifyPanel({ roleVerify: { status, roleArn: null } });
+
+      expect(screen.getByText('지금 확인하면 권한 상태와 막힌 원인까지 알 수 있어요')).toBeTruthy();
+      expect(screen.queryByText('Terraform 권한 확인 필요')).toBeNull();
+      expect(screen.getByRole('button', { name: '권한 확인' }).className).toContain(
+        buttonStyles.ghostText,
+      );
+    },
+  );
+
+  // 계약이 답했거나(COMPLETED/SKIP) 지금은 남의 차례거나(BDC_INSTALL_REQUIRED) —
+  // 몸이 더할 말이 없다. 30초짜리 호출로의 초대는 남의 블로커에 쓰라는 말이 된다.
+  it.each<AwsInstallStepValue>(['COMPLETED', 'SKIP', 'BDC_INSTALL_REQUIRED'])(
+    '%s says nothing in the result slot and keeps the ghost weight',
+    (status) => {
+      openRoleVerifyPanel({ roleVerify: { status, roleArn: null } });
+
+      expect(screen.queryByText('Terraform 권한 확인 필요')).toBeNull();
+      expect(screen.queryByText('지금 확인하면 권한 상태와 막힌 원인까지 알 수 있어요')).toBeNull();
+      expect(
+        screen.getByRole('button', { name: status === 'BDC_INSTALL_REQUIRED' ? '권한 확인' : '다시 확인' })
+          .className,
+      ).toContain(buttonStyles.ghostText);
+    },
+  );
+
+  // 이 자리에 「마지막 확인은 … 기준이에요」가 있었다. 그 숫자는 `last_check.checked_at`,
+  // 곧 **설치 상태**를 읽은 시각이지 Role 을 검증한 시각이 아니었고, Role 을 검증하는
+  // 버튼 바로 위에 앉아 있었다. 같은 시각은 카드 머리가 그 구분을 설명하는 툴팁과 함께
+  // 이미 걸고 있다.
+  it('never reprints last_check.checked_at as a caption of its own', () => {
     openRoleVerifyPanel({ roleVerify: { status: 'COMPLETED', roleArn: null } });
 
-    // lastCheck.checkedAt = 2026-07-29T14:02:00Z → KST.
-    expect(screen.getByText('마지막 확인은 26. 07. 29. 23:02 기준이에요.')).toBeTruthy();
-    expect(screen.queryByText('Terraform 권한 확인 필요')).toBeNull();
-    expect(screen.queryByText('권한을 직접 확인하면 막힌 원인까지 알 수 있어요')).toBeNull();
-    // The second opinion steps out of button chrome; the label says it is a repeat.
-    expect(screen.getByRole('button', { name: '다시 확인' })).toBeTruthy();
+    expect(screen.queryByText(/마지막 확인은/)).toBeNull();
+    expect(screen.queryByText(/26\. 07\. 29\. 23:02/)).toBeNull();
   });
 
-  it('SKIP counts as settled — 해당 없음 is an answer, not a pending check', () => {
-    openRoleVerifyPanel({ roleVerify: { status: 'SKIP', roleArn: null } });
+  // `LastCheckInfoDto` 에 required 가 없다 — checked_at 은 안 올 수 있다. 캡션이 있던
+  // 시절에는 이 경우 결과 슬롯이 통째로 비었고, 머리는 완료라고 말하고 있었다.
+  it('a settled verdict with no checked_at still draws the panel', () => {
+    openRoleVerifyPanel({
+      roleVerify: { status: 'COMPLETED', roleArn: null },
+      lastCheck: { status: 'SUCCESS' },
+    });
 
-    expect(screen.getByText(/마지막 확인은/)).toBeTruthy();
+    expect(screen.getByText('123456789012')).toBeTruthy();
+    expect(screen.getByRole('button', { name: '다시 확인' })).toBeTruthy();
+    expect(screen.getByText('최대 30초까지 걸릴 수 있어요')).toBeTruthy();
+  });
+
+  // 소요 시간은 행동의 성질이라 버튼 옆에 상주한다 — 결과 슬롯을 따라 나타났다
+  // 사라지지 않는다. 상한으로 적는 이유는 30000ms 가 라우트의 타임아웃 예산이지
+  // 관측값이 아니기 때문(실측 748ms).
+  it('the duration sits by the button in every state, and steps aside while verifying', async () => {
+    openRoleVerifyPanel({ roleVerify: { status: 'FAIL', roleArn: null } });
+
+    const duration = screen.getByText('최대 30초까지 걸릴 수 있어요');
+    expect(duration.className).toContain(textStyles.caption);
+    expect(duration.className).toContain(textColors.tertiary);
     expect(screen.queryByText('약 30초 걸려요')).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: '권한 확인' }));
+    // 누르는 동안에는 스켈레톤이 진행 중이라고 말한다.
+    expect(screen.queryByText('최대 30초까지 걸릴 수 있어요')).toBeNull();
+
+    expect(await screen.findByText('최대 30초까지 걸릴 수 있어요')).toBeTruthy();
   });
 
   it('pressing the button fires exactly one verification and fills in the reason', async () => {
@@ -375,10 +435,15 @@ describe('AwsInstallStatusDetail', () => {
     expect(vi.mocked(getAwsRoleVerification)).toHaveBeenCalledWith(1008, 'execution');
 
     // 사유는 설치 상태가 아니라 실시간 검증이 갖고 있다 — 여섯 코드 중 하나를 문장으로.
-    expect(await screen.findByText(/Scan Role 을 넘겨받지 못했습니다/)).toBeTruthy();
+    await screen.findAllByText(/Scan Role 을 넘겨받지 못했습니다/);
+    expect(visible(/Scan Role 을 넘겨받지 못했습니다/)).toHaveLength(1);
     expect(screen.getByText('등록된 Terraform Role ARN 은 원인이 아닙니다.')).toBeTruthy();
+    // 낭독용 리전이 같은 결론을 한 번 말한다 — 누른 사람이 화면을 보고 있지 않을 수 있다.
+    expect(document.querySelector('[aria-live="polite"]')?.textContent).toContain(
+      'Scan Role 을 넘겨받지 못했습니다',
+    );
     // The prompt gave its slot to the result, and the label now says this is a repeat.
-    expect(screen.queryByText('약 30초 걸려요')).toBeNull();
+    expect(screen.queryByText('지금 확인하면 권한 상태와 막힌 원인까지 알 수 있어요')).toBeNull();
     expect(screen.getByRole('button', { name: '다시 확인' })).toBeTruthy();
   });
 
@@ -396,7 +461,7 @@ describe('AwsInstallStatusDetail', () => {
     expect(before.className).toContain(buttonStyles.ghostText);
 
     fireEvent.click(before);
-    expect(await screen.findByText(/AWS IAM 에서 해당 Role 을 찾지 못했습니다/)).toBeTruthy();
+    await screen.findAllByText(/AWS IAM 에서 해당 Role 을 찾지 못했습니다/);
 
     // Same button, same row — only its weight moved.
     const after = screen.getByRole('button', { name: '다시 확인' });
@@ -410,7 +475,7 @@ describe('AwsInstallStatusDetail', () => {
     openRoleVerifyPanel({ roleVerify: { status: 'COMPLETED', roleArn: null } });
     fireEvent.click(screen.getByRole('button', { name: '다시 확인' }));
 
-    expect(await screen.findByText('방금 확인했고, 막힌 곳은 없었어요.')).toBeTruthy();
+    await screen.findAllByText('방금 확인했고, 막힌 곳은 없었어요.');
     expect(screen.getByRole('button', { name: '다시 확인' }).className).toContain(
       buttonStyles.ghostText,
     );
@@ -422,8 +487,41 @@ describe('AwsInstallStatusDetail', () => {
     openRoleVerifyPanel({ roleVerify: { status: 'FAIL', roleArn: null } });
     fireEvent.click(screen.getByRole('button', { name: '권한 확인' }));
 
-    expect(await screen.findByText('방금 확인했고, 막힌 곳은 없었어요.')).toBeTruthy();
+    await screen.findAllByText('방금 확인했고, 막힌 곳은 없었어요.');
+    expect(visible('방금 확인했고, 막힌 곳은 없었어요.')).toHaveLength(1);
     expect(screen.queryByText('확인 필요')).toBeNull();
+    // 화면을 보지 않는 사용자도 결과를 듣는다.
+    expect(document.querySelector('[aria-live="polite"]')?.textContent).toBe(
+      '방금 확인했고, 막힌 곳은 없었어요.',
+    );
+  });
+
+  // 통과는 응답이 통과라고 **말한** 경우뿐이다. `terraformRoleFinding` 은 IN_PROGRESS 에
+  // 대해서도 null 을 주므로("할 말이 없으면 블록을 그리지 않는다"), 원인 없음을 합격으로
+  // 번역하면 화면이 응답에 없는 사실을 만든다.
+  it('a live IN_PROGRESS is not an all-clear — the slot stays silent', async () => {
+    vi.mocked(getAwsRoleVerification).mockResolvedValue({ status: 'IN_PROGRESS' });
+
+    openRoleVerifyPanel({ roleVerify: { status: 'FAIL', roleArn: null } });
+    fireEvent.click(screen.getByRole('button', { name: '권한 확인' }));
+
+    expect(await screen.findByRole('button', { name: '다시 확인' })).toBeTruthy();
+    expect(screen.queryByText('방금 확인했고, 막힌 곳은 없었어요.')).toBeNull();
+    expect(screen.queryByText('확인 필요')).toBeNull();
+    expect(document.querySelector('[aria-live="polite"]')?.textContent).toBe('');
+  });
+
+  // 요청이 실패한 순간이야말로 버튼을 다시 눌러야 하는 순간이다 — 가장 약해질 수 없다.
+  it('a failed request takes the button to the outline weight', async () => {
+    vi.mocked(getAwsRoleVerification).mockRejectedValue(new Error('boom'));
+
+    openRoleVerifyPanel({ roleVerify: { status: 'COMPLETED', roleArn: null } });
+    fireEvent.click(screen.getByRole('button', { name: '다시 확인' }));
+
+    expect(await screen.findByRole('alert')).toBeTruthy();
+    expect(screen.getByRole('button', { name: '다시 확인' }).className).toContain(
+      getButtonClass('outline'),
+    );
   });
 
   it('manual install hides the role-verify step and relabels the service step', () => {

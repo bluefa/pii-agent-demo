@@ -20,6 +20,7 @@ import {
 import { isSettledInstallStatus } from '@/app/components/features/process-status/install-status-detail/model';
 import {
   terraformRoleFinding,
+  terraformRolePassed,
   type TerraformRoleFinding,
 } from '@/app/components/features/process-status/aws/terraform-role-finding';
 import type { AwsInstallStepValue } from '@/lib/types';
@@ -49,8 +50,17 @@ import type { AwsInstallStepValue } from '@/lib/types';
  * button is for, and pressing it is the only thing that calls verify-execution-role.
  *
  * The division of labour that follows: **the header pill owns the verdict; the body
- * says what the header cannot** — the age of that verdict when it has settled, or the
- * invitation to find out why when it has not.
+ * says what the header cannot** — the reason, once the live call has one, and before
+ * that the invitation to go get it.
+ *
+ * ⛔ The body says nothing at all for COMPLETED / SKIP / BDC_INSTALL_REQUIRED. It is
+ * tempting to fill that slot with the age of the verdict, and this panel did: a
+ * caption reading 마지막 확인은 {시각} 기준이에요. The number was `last_check.checked_at`
+ * — when the *installation status* was polled, not when the Role was verified — and it
+ * sat above a button that verifies the Role. The card header already carries that
+ * instant (`LastCheckStamp`) **with the tooltip that draws exactly that distinction**;
+ * reprinting it here dropped the qualifier and advanced on every 30s poll while
+ * nothing re-verified.
  */
 
 const IDENTITY_LABEL_WIDTH = 'w-24'; // 96px — 이 패널이 원래 쓰던 라벨 폭 그대로.
@@ -98,7 +108,7 @@ const FindingBlock = ({ finding }: { finding: TerraformRoleFinding }) => (
 /**
  * The idle slot — what stands here before anyone has asked for a live check.
  *
- * Three lines of plain text, in the same left-aligned column as the identity rows
+ * Plain text, in the same left-aligned column as the identity rows
  * above and the button row below. That plainness is the whole distinction from the
  * finding block (Cloudscape: don't use an empty state for an error) — the error case
  * is marked by its 3px red rule and its 확인 필요 label, so nothing has to be added
@@ -113,15 +123,19 @@ const FindingBlock = ({ finding }: { finding: TerraformRoleFinding }) => (
  * lead line, not a status label: same size as the sentence under it, one step up in
  * weight and colour.
  */
-const IdlePrompt = () => (
+const IdlePrompt = ({ lead }: { lead: boolean }) => (
   <div className={cn('flex flex-col', stackGap.tight)}>
-    <span className={cn(textStyles.bodyStrong, textColors.primary)}>
-      Terraform 권한 확인 필요
-    </span>
+    {/* 리드 줄은 FAIL 에서만 선다 — 아래 `blocked` 참조. */}
+    {lead && (
+      <span className={cn(textStyles.bodyStrong, textColors.primary)}>
+        Terraform 권한 확인 필요
+      </span>
+    )}
+    {/* 막힌 것이 있다고 전제하지 않는 문장. IN_PROGRESS/UNKNOWN 에서는 막혔는지조차
+        모르는 상태이므로, 확인이 가져다주는 것을 그대로 적는다(상태 + 막힌 원인). */}
     <span className={cn(textStyles.body, textColors.secondary)}>
-      권한을 직접 확인하면 막힌 원인까지 알 수 있어요
+      지금 확인하면 권한 상태와 막힌 원인까지 알 수 있어요
     </span>
-    <span className={cn(textStyles.caption, textColors.tertiary)}>약 30초 걸려요</span>
   </div>
 );
 
@@ -137,18 +151,10 @@ interface TerraformRoleVerifyPanelProps {
    * `terraform_execution_role_verify.status` — the verdict the installation status
    * already carries, and the same value the panel header's pill hangs on.
    *
-   * The body never restates it. It reads only whether that verdict has settled
-   * (COMPLETED/SKIP), which decides what the result slot says and how heavy the
-   * button below it is.
+   * The body never restates it. It reads the enum only to decide whether it has
+   * anything of its own to say, and how heavy the button below it is.
    */
   verifyStatus: AwsInstallStepValue;
-  /**
-   * `last_check.checked_at` — how old the header's verdict is.
-   *
-   * The contract carries no timestamp for the role verification itself; the moment
-   * the installation status was last read is the age of everything it said.
-   */
-  lastCheckedAt: string | null;
   /** metadata.aws_account_id — 어느 계정을 검증했는지가 조치의 출발점이다. */
   awsAccountId: string | null;
   /**
@@ -165,7 +171,6 @@ interface TerraformRoleVerifyPanelProps {
 export const TerraformRoleVerifyPanel = ({
   targetSourceId,
   verifyStatus,
-  lastCheckedAt,
   awsAccountId,
   roleArn,
 }: TerraformRoleVerifyPanelProps) => {
@@ -183,19 +188,38 @@ export const TerraformRoleVerifyPanel = ({
 
   const data = state.phase === 'done' ? state.data : null;
   const finding = data ? terraformRoleFinding(data) : null;
+  // A live response counts as an all-clear only when it says so. Absence of a finding
+  // is not a pass — see `terraformRolePassed`.
+  const passed = data ? terraformRolePassed(data) : false;
   const stamp = useRelativeStamp(data?.last_verified_at);
-  const checkStamp = useRelativeStamp(lastCheckedAt);
   const verifying = state.phase === 'loading';
-  // COMPLETED/SKIP — the contract has already answered, so the live check is a
-  // second opinion. This decides what the slot above says, and the label below.
+
+  // ⛔ What the body says is decided by **positive** predicates over the six values of
+  // `AwsInstallStepValue`, never by `!settled`. `settled` is COMPLETED|SKIP, so its
+  // negation admits FAIL, IN_PROGRESS, UNKNOWN **and** BDC_INSTALL_REQUIRED — four
+  // situations that do not share a sentence.
+  //
+  // • FAIL — the contract says the step is blocked. Only here is 확인 필요 true.
+  // • IN_PROGRESS / UNKNOWN — the enum has no not-started value and nothing schedules
+  //   a background verification (the live check is an on-demand GET), so the frontend
+  //   cannot tell "running" from "never run". It must therefore claim neither that
+  //   something is in flight nor that the user must act. UNKNOWN is the adapter's
+  //   normalization sink for an unrecognised wire value, and the live call is the only
+  //   source of information there. Both get the invitation, without the lead line.
+  // • BDC_INSTALL_REQUIRED — not the service owner's turn. Inviting a 30-second call
+  //   asks them to spend it on someone else's blocker.
+  // • COMPLETED / SKIP — the header pill already answered; the body has nothing to add.
+  const blocked = verifyStatus === 'FAIL';
+  const invitesCheck =
+    blocked || verifyStatus === 'IN_PROGRESS' || verifyStatus === 'UNKNOWN';
+  // The button's weight measures whether there is something to act on. A live finding
+  // contradicts a settled verdict (the enum can say COMPLETED simply because the last
+  // installation-status poll predates the permission being revoked), and a failed
+  // request is the one moment the button must be pressed again — it cannot be the
+  // moment the button is weakest.
+  const heavy = blocked || Boolean(finding) || state.phase === 'error';
+  // 「다시」인가 「처음」인가 — 이것만은 계약이 답했는지가 진짜 질문이라 settled 를 쓴다.
   const settled = isSettledInstallStatus(verifyStatus);
-  // The button's weight measures whether there is something to act on, which is not
-  // the same question. A live finding has just contradicted a settled verdict — the
-  // enum can say COMPLETED simply because the last installation-status poll predates
-  // the permission being revoked — and at that moment `settled` no longer describes
-  // the situation. Ghost weight is for "the contract answered and nothing has
-  // contradicted it"; anything else gets the outline.
-  const heavy = !settled || Boolean(finding);
 
   return (
     // 라벨↔값은 한 덩어리(tight), 항목끼리는 형제(related), 블록 사이는 group.
@@ -209,9 +233,20 @@ export const TerraformRoleVerifyPanel = ({
         <IdentityRow label="Terraform Role" value={roleArn} />
       </div>
 
+      {/* 낭독용 한 줄 — 결과는 이제 사용자가 눌러서 오는 것이라, 화면을 보지 않는
+          사용자에게는 누른 뒤 무엇이 왔는지 말해 줄 자리가 필요하다. 불러오기 실패는
+          아래 줄이 role="alert" 로 이미 알리므로 여기서 두 번 말하지 않는다. */}
+      <p className="sr-only" aria-live="polite">
+        {finding
+          ? `확인 필요. ${finding.message}`
+          : passed
+            ? '방금 확인했고, 막힌 곳은 없었어요.'
+            : ''}
+      </p>
+
       {/* One slot, and its content is the whole of what the body says. A live result
-          replaces whatever the enum said; before that, the enum decides between the
-          age of the verdict and the invitation to go get one. */}
+          replaces whatever the enum said; before that, only the statuses that are the
+          service owner's turn get an invitation, and the rest get nothing. */}
       {verifying ? (
         // 검증은 최대 30초까지 걸린다(라우트 expectedDuration). 그동안 이 자리를 비워
         // 두면 "원인 없음"과 구분되지 않으므로, 원인 블록이 설 자리를 그대로 세운다.
@@ -225,21 +260,17 @@ export const TerraformRoleVerifyPanel = ({
         </p>
       ) : finding ? (
         <FindingBlock finding={finding} />
-      ) : data ? (
+      ) : passed ? (
         <p className={cn(textStyles.body, textColors.secondary)}>
           방금 확인했고, 막힌 곳은 없었어요.
         </p>
-      ) : settled ? (
-        // The header pill already said 완료/해당 없음. All the body can add is when
-        // that was true — no pill, no glyph, and no second verdict word.
-        checkStamp && (
-          <p className={cn(textStyles.caption, textColors.tertiary)}>
-            마지막 확인은 {checkStamp.absolute} 기준이에요.
-          </p>
-        )
-      ) : (
-        <IdlePrompt />
-      )}
+      ) : data ? (
+        // 응답은 왔는데 원인도 통과도 말하지 않았다(진행 중이거나 미매핑 status).
+        // 할 말이 없으면 그리지 않는다 — 침묵을 합격으로 번역하지 않는다.
+        null
+      ) : invitesCheck ? (
+        <IdlePrompt lead={blocked} />
+      ) : null}
 
       {/* 액션과 그 액션이 마지막으로 남긴 시각은 한 줄이다 — 버튼을 누르면 바뀌는 값이
           바로 옆에 있어야 눌린 것이 보인다. This row is fixed: the slot above changes
@@ -261,6 +292,17 @@ export const TerraformRoleVerifyPanel = ({
         >
           {verifying ? '확인 중...' : settled || data ? '다시 확인' : '권한 확인'}
         </button>
+        {/* 소요 시간은 **행동의 성질**이라 결과 슬롯이 아니라 버튼 옆에 산다 — 슬롯을
+            따라 나타났다 사라지면 같은 버튼이 어떤 상태에서는 시간을 말하고 어떤
+            상태에서는 말하지 않는다. 30000ms 는 라우트의 expectedDuration, 곧 타임아웃
+            예산이지 관측값이 아니다(실측 748ms). 그래서 「약 30초」가 아니라 상한으로
+            적는다 — 근거 없는 평균을 약속하지 않는다(docs/redesign/step3-applying-approved.md).
+            누르는 동안에는 감춘다: 스켈레톤이 이미 진행 중이라고 말하고 있다. */}
+        {!verifying && (
+          <span className={cn(textStyles.caption, textColors.tertiary)}>
+            최대 30초까지 걸릴 수 있어요
+          </span>
+        )}
         {/* 카드 헤더의 확인 시각과 같은 문법 — 시계 + 두 층, 경과가 위. */}
         {stamp && <LastVerifyStamp stamp={stamp} />}
       </div>
