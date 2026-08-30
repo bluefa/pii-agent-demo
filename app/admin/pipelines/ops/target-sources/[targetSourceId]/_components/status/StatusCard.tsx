@@ -21,7 +21,7 @@ import type { ReactElement, ReactNode } from 'react';
 import { bff } from '@/lib/bff/client';
 import { BffError } from '@/lib/bff/errors';
 import { cn, pipelineStyles } from '@/lib/theme';
-import { normalizeCloudProvider } from '@/lib/types';
+import { isSduTarget, normalizeCloudProvider } from '@/lib/types';
 import { Icon, type IconName } from '@/app/admin/pipelines/_components/icons';
 import { opsStyles } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/opsStyles';
 import {
@@ -93,8 +93,12 @@ function Row({ row }: { row: StatusRow }): ReactElement {
   return (
     <div className={ROW}>
       <dt className="flex min-w-0 items-center gap-2">
-        <span className={cn('flex-none', mark.ink)}>
-          <Icon name={mark.icon} size="md" className={mark.spin ? 'animate-spin motion-reduce:animate-none' : undefined} />
+        {/* 회전은 **감싼 span** 이 진다 — `Icon` 은 className 을 svg 에 그대로 얹는데,
+            svg 에 걸린 애니메이션은 렌더러에 따라 죽는다 (sit-recurring-checks #1). */}
+        <span
+          className={cn('flex-none', mark.ink, mark.spin && 'animate-spin motion-reduce:animate-none')}
+        >
+          <Icon name={mark.icon} size="md" />
         </span>
         <span className={NAME}>{row.name}</span>
       </dt>
@@ -104,7 +108,7 @@ function Row({ row }: { row: StatusRow }): ReactElement {
           {row.sub && (
             <span className="truncate text-[12px] tabular-nums text-[var(--pl-text-weak)]">{row.sub}</span>
           )}
-          {row.failed && <StatusRetryButton />}
+          {row.failed && <StatusRetryButton label={row.name} />}
         </span>
         <TabLink tab={row.tab} />
       </dd>
@@ -154,7 +158,30 @@ async function settle<T>(what: string, run: Promise<T>): Promise<Settled<T | nul
   }
 }
 
-export async function StatusCard({ targetSourceId }: { targetSourceId: number }): Promise<ReactElement> {
+export async function StatusCard({
+  targetSourceId,
+}: {
+  targetSourceId: number;
+}): Promise<ReactElement | null> {
+  /**
+   * 대상 상세가 **먼저** 온다. 한 홉을 직렬로 더 쓰는 대신 두 가지를 산다.
+   *
+   * 1. SDU 는 이 카드를 아예 그리지 않는다(`SduOpsNotice` 가 본문을 통째로 대신한다).
+   *    슬롯은 prop 이라 서버에서는 어느 탭이든 렌더되므로, 여기서 갈라 두지 않으면 화면에
+   *    나오지도 않을 카드를 위해 네 건 — 그중 하나가 MB 급 §10 — 을 쏜다.
+   * 2. 스캔 행의 존재 여부(IDC)가 여기서 나온다. terraform-status 의 `cloud_provider`
+   *    로 재느라 그 조회가 거절되면 IDC 대상에 스캔 행이 서던 자리였다 — 탭 줄은 그 탭을
+   *    숨기고 있으므로 그 행의 「상세보기」는 눌러도 아무 일이 없는 죽은 버튼이 된다.
+   */
+  const detail = await settle('target-source', bff.targetSources.get(targetSourceId));
+  const meta = detail.ok ? detail.value : null;
+  if (
+    meta
+    && isSduTarget({ is_sdu_type: meta.metadata?.is_sdu_type, cloud_provider: meta.cloud_provider })
+  ) {
+    return null;
+  }
+
   const [scan, tc, terraform, dag] = await Promise.all([
     settle('scan-history', bff.scan.getHistory(targetSourceId, { page: 0, size: 1 })),
     settle('test-connection-latest', bff.confirm.getTestConnectionLatest(targetSourceId)),
@@ -162,12 +189,10 @@ export async function StatusCard({ targetSourceId }: { targetSourceId: number })
     settle('dag-status', bff.ops.getDagStatus(targetSourceId)),
   ]);
 
-  // IDC 판정은 terraform-status 가 이미 싣고 오는 `cloud_provider` 로 한다 — 대상 상세를
-  // 한 번 더 받으면 다섯 번째 요청이 되고, 이 카드가 아는 것은 그것뿐이면 충분하다.
-  const isIdc =
-    terraform.ok && terraform.value != null
-      ? normalizeCloudProvider(terraform.value.cloud_provider) === 'IDC'
-      : false;
+  // 상세를 못 읽었을 때만 terraform-status 의 같은 필드로 물러선다 — 둘 다 거절되면
+  // 어차피 모든 행이 「조회 실패」라, 그 상태에서 행 하나가 더 서는 것은 최악이 아니다.
+  const provider = meta?.cloud_provider ?? (terraform.ok ? terraform.value?.cloud_provider : null);
+  const isIdc = normalizeCloudProvider(provider) === 'IDC';
 
   const rows = statusRows({
     scan: scan.ok ? { ok: true, value: scan.value?.content?.[0] ?? null } : { ok: false },

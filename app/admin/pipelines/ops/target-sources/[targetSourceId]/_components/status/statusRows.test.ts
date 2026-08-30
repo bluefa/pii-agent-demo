@@ -166,6 +166,28 @@ describe('statusRows', () => {
     expect(valueOf(rows, '인프라 작업')?.sub).toContain('조회');
   });
 
+  it('없는 시각은 「-」로 실리지 않는다 — 계약이 LOOSE 라 어느 시각이든 빠질 수 있다', () => {
+    const rows = statusRows({
+      ...idle,
+      // 확정은 됐는데 확정 시각이 빠진 응답 — `.partial()` 이 허용하는 모양이다.
+      terraform: ok({ has_confirmed_infra: true, cloud_provider: 'AWS', tasks: [] }),
+      scan: ok({ scan_status: 'SUCCESS', resource_count_by_resource_type: { RDS: 2 } }),
+    });
+    expect(valueOf(rows, '확정 정보')).toMatchObject({ value: '확정됨', sub: null });
+    expect(valueOf(rows, '스캔')?.sub).toBe('리소스 2개');
+  });
+
+  it('DRAFT 인 dag-status 의 모양이 어긋나도 던지지 않는다 — 그 행만 미확인이다', () => {
+    // §10 은 파싱 없이 캐스팅되어 온다(raw). `agents` 없는 200 이 접기에서 터지면
+    // 서버 렌더가 죽어 라우트 전체가 에러 화면이 된다.
+    const rows = statusRows({
+      ...idle,
+      dag: ok({ healthStatus: 'HEALTHY' } as never),
+    });
+    expect(valueOf(rows, 'Airflow')).toMatchObject({ mark: 'unknown', value: '미확인' });
+    expect(rows).toHaveLength(5);
+  });
+
   it('IDC 는 스캔 행이 서지 않는다 — 탭 줄과 같은 술어', () => {
     const rows = statusRows({ ...idle, isIdc: true });
     expect(rows.map((row) => row.name)).toEqual(['연결 테스트', '인프라 작업', '확정 정보', 'Airflow']);

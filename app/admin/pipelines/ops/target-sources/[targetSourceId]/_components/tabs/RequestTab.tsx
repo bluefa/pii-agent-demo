@@ -75,10 +75,6 @@ const TONE: Record<Tone, { fill: string; dot: string }> = {
   off: { fill: 'bg-[var(--pl-off-bg)] text-[var(--pl-off-text)]', dot: 'bg-[var(--pl-gray-300)]' },
 };
 
-/** Database Type tag — mockup `.tag.blue` (opsStyles.tag in primary tones). */
-
-
-
 const dash = (): ReactElement => <span className={pipelineStyles.text.muted}>—</span>;
 
 function StatusTag({ status }: { status: string | null }): ReactElement {
@@ -242,59 +238,57 @@ export function RequestTab({ targetSourceId, detail }: RequestTabProps): ReactEl
   );
 
   return (
-    <>
-      <section className={pipelineStyles.card.base} aria-label="최근 승인 요청">
-        <h2 className={opsStyles.cardTitle}>최근 승인 요청</h2>
-        <p className={opsStyles.cardDesc}>
-          {summary?.requestId != null
-            ? `요청 ID #${summary.requestId}`
-            : '서비스가 제출한 연동 요청의 승인 정보입니다.'}
+    <section className={pipelineStyles.card.base} aria-label="최근 승인 요청">
+      <h2 className={opsStyles.cardTitle}>최근 승인 요청</h2>
+      <p className={opsStyles.cardDesc}>
+        {summary?.requestId != null
+          ? `요청 ID #${summary.requestId}`
+          : '서비스가 제출한 연동 요청의 승인 정보입니다.'}
+      </p>
+
+      {request.state === 'loading' ? (
+        <p className={cn(pipelineStyles.empty.base, 'mt-2')} aria-busy>
+          불러오는 중…
         </p>
-
-        {request.state === 'loading' ? (
-          <p className={cn(pipelineStyles.empty.base, 'mt-2')} aria-busy>
-            불러오는 중…
-          </p>
-        ) : request.state === 'failed' ? (
-          <div className={cn(pipelineStyles.empty.base, 'mt-2')}>
-            <p>승인 요청 정보를 불러오지 못했습니다.</p>
-            {retryButton}
+      ) : request.state === 'failed' ? (
+        <div className={cn(pipelineStyles.empty.base, 'mt-2')}>
+          <p>승인 요청 정보를 불러오지 못했습니다.</p>
+          {retryButton}
+        </div>
+      ) : summary == null ? (
+        <PlEmptyState icon="inbox" message="승인 요청 이력이 없습니다." className="mt-2" />
+      ) : (
+        <>
+          {/* One card, one request. The KV table that used to state these same facts
+              in its own card above meant the operator read a summary and then
+              scrolled to the thing it summarised. Same header row as the 승인 요청
+              상세 modal: the verdict once as a tag, the rest as label-over-value. */}
+          <div className="mt-4 flex flex-wrap items-center gap-x-8 gap-y-3">
+            <StatusTag status={summary.status} />
+            <MetaField label="요청자" value={summary.requestedBy ?? '—'} />
+            <MetaField label="요청일시" value={fmtDateTime(summary.requestedAt)} />
+            {processedRow?.by && <MetaField label="처리자" value={processedRow.by} />}
+            {processedRow?.at && <MetaField label="처리일시" value={fmtDateTime(processedRow.at)} />}
           </div>
-        ) : summary == null ? (
-          <PlEmptyState icon="inbox" message="승인 요청 이력이 없습니다." className="mt-2" />
-        ) : (
-          <>
-            {/* One card, one request. The KV table that used to state these same facts
-                in its own card above meant the operator read a summary and then
-                scrolled to the thing it summarised. Same header row as the 승인 요청
-                상세 modal: the verdict once as a tag, the rest as label-over-value. */}
-            <div className="mt-4 flex flex-wrap items-center gap-x-8 gap-y-3">
-              <StatusTag status={summary.status} />
-              <MetaField label="요청자" value={summary.requestedBy ?? '—'} />
-              <MetaField label="요청일시" value={fmtDateTime(summary.requestedAt)} />
-              {processedRow?.by && <MetaField label="처리자" value={processedRow.by} />}
-              {processedRow?.at && <MetaField label="처리일시" value={fmtDateTime(processedRow.at)} />}
-            </div>
 
-            {rows.length === 0 ? (
-              <PlEmptyState icon="inbox" message="요청 리소스가 없습니다." className="mt-4" />
-            ) : (
-              /* Keyed per request so the filter/search/page state below belongs to ONE
-                 request — this tab is not guaranteed to remount when the route's target
-                 source changes under a soft navigation. requestId is contractually
-                 nullable, so the target id joins the key: two id-less requests on
-                 different targets would otherwise share a key and inherit each other's
-                 query. */
-              <ResourceList
-                key={`${targetSourceId}:${summary.requestId ?? 'latest'}`}
-                targetSourceId={targetSourceId}
-                rows={rows}
-                isIdc={isIdc}
-              />
-            )}
-          </>
-        )}
-      </section>
-    </>
+          {rows.length === 0 ? (
+            <PlEmptyState icon="inbox" message="요청 리소스가 없습니다." className="mt-4" />
+          ) : (
+            /* Keyed per request so the filter/search/page state below belongs to ONE
+               request — this tab is not guaranteed to remount when the route's target
+               source changes under a soft navigation. requestId is contractually
+               nullable, so the target id joins the key: two id-less requests on
+               different targets would otherwise share a key and inherit each other's
+               query. */
+            <ResourceList
+              key={`${targetSourceId}:${summary.requestId ?? 'latest'}`}
+              targetSourceId={targetSourceId}
+              rows={rows}
+              isIdc={isIdc}
+            />
+          )}
+        </>
+      )}
+    </section>
   );
 }

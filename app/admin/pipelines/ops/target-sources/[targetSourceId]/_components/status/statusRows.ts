@@ -76,6 +76,16 @@ export interface StatusInputs {
   isIdc: boolean;
 }
 
+/**
+ * `fmtDateTime` 은 없거나 못 읽은 시각에 `'-'` 를 돌려준다 — 그건 값이 아니라 자리표시라,
+ * 보조 줄에 그대로 실으면 「확정됨  -」 이나 「- · 리소스 41개」 가 된다. 계약이 LOOSE
+ * (`.partial()`) 라 어느 시각이든 통째로 빠질 수 있으므로, 없는 것은 없는 것으로 접는다.
+ */
+const at = (iso: string | null | undefined): string | null => {
+  const text = fmtDateTime(iso);
+  return text === '-' ? null : text;
+};
+
 /** 규칙 1의 모양 — 거절된 조회는 어느 행에서나 같은 문장을 쓴다. */
 const rejected = (name: string, tab: OpsTargetTabLabel): StatusRow => ({
   name,
@@ -108,14 +118,15 @@ const scanRow = (scan: Settled<ScanJob | null>): StatusRow => {
   // 리소스 합계는 성공한 스캔에만 있다 — 없으면 그 조각이 빠질 뿐 시각은 남는다.
   const counts = job.resource_count_by_resource_type;
   const total = counts ? Object.values(counts).reduce<number>((sum, n) => sum + (n ?? 0), 0) : null;
-  const at = fmtDateTime(job.updated_at ?? job.created_at);
   return {
     name: OPS_TAB_SLUGS.scan,
     tab: OPS_TAB_SLUGS.scan,
     // enum 밖의 값은 성공으로도 실패로도 세지 않는다.
     mark: state ? SCAN_MARK[state.tone] : 'unknown',
     value: state?.label ?? '알 수 없음',
-    sub: [at, total === null ? null : `리소스 ${total}개`].filter(Boolean).join(' · ') || null,
+    sub: [at(job.updated_at ?? job.created_at), total === null ? null : `리소스 ${total}개`]
+      .filter(Boolean)
+      .join(' · ') || null,
     failed: false,
   };
 };
@@ -135,13 +146,14 @@ const tcRow = (tc: Settled<TcLatest | null>): StatusRow => {
     PENDING: { mark: 'run', value: '대기 중' },
     UNKNOWN: { mark: 'unknown', value: '알 수 없음' },
   };
-  const at = fmtDateTime(latest.completed_at ?? latest.requested_at);
   const version = latest.test_connection_version;
   return {
     name: OPS_TAB_SLUGS.tc,
     tab: OPS_TAB_SLUGS.tc,
     ...spec[status],
-    sub: [at, version == null ? null : `${version}회차`].filter(Boolean).join(' · ') || null,
+    sub: [at(latest.completed_at ?? latest.requested_at), version == null ? null : `${version}회차`]
+      .filter(Boolean)
+      .join(' · ') || null,
     failed: false,
   };
 };
@@ -152,7 +164,8 @@ const infraRow = (terraform: Settled<TerraformStatus>): StatusRow => {
   const base = { name: OPS_TAB_SLUGS.infra, tab: OPS_TAB_SLUGS.infra, failed: false };
   /** 조회 시각은 **읽을 값이 있을 때만** 붙는다 — 아무것도 안 돈 행에서 「언제 봤는지」는
    *  그 자리에 답이 없다는 사실에 아무것도 더하지 않는다 (오너 2026-08-30). */
-  const sub = terraform.value.checked_at ? `조회 ${fmtDateTime(terraform.value.checked_at)}` : null;
+  const checked = at(terraform.value.checked_at);
+  const sub = checked ? `조회 ${checked}` : null;
   // 조합 상태(`overall_state`)는 쓰지 않는다 — 어느 작업이 걸렸는지 못 말하기 때문에
   // 인프라 작업 탭이 이미 그것을 버렸다 (InfraStatusHead). 여기서는 세기만 한다.
   const tones = tasks.map((task) => metaOf(task.state).tone);
@@ -173,7 +186,7 @@ const confirmRow = (terraform: Settled<TerraformStatus>): StatusRow => {
   const base = { name: OPS_TAB_SLUGS.confirm, tab: OPS_TAB_SLUGS.confirm, failed: false };
   const confirmed = terraform.value.has_confirmed_infra;
   if (confirmed === true) {
-    return { ...base, mark: 'ok', value: '확정됨', sub: fmtDateTime(terraform.value.latest_confirmed_at) || null };
+    return { ...base, mark: 'ok', value: '확정됨', sub: at(terraform.value.latest_confirmed_at) };
   }
   // 계약은 LOOSE 라 필드가 통째로 빠질 수 있다. **아는 false 만** 미확정이다 —
   // 없는 값을 false 로 접으면 모르는 것을 사실로 바꿔 말하게 된다.
@@ -199,7 +212,19 @@ const airflowRow = (dag: Settled<DagStatusResponse | null>): StatusRow => {
     return { ...base, mark: 'unknown', value: '미확인', sub: '판정할 수 없는 값' };
   }
   // 세는 줄도 같은 한 벌 — 확인 필요는 성공의 여집합이라 조건 카드와 수가 어긋나지 않는다.
-  const agg = aggregateDagStatus(dag.value);
+  //
+  // ⛔ 접기를 감싸는 이유: §10 은 DRAFT 라 `http.ts` 가 `raw: true` 로 **파싱 없이** 캐스팅해
+  // 넘긴다. `agents` 나 `databaseStatuses` 가 빠진 200 이 오면 `aggregateDagStatus` 가
+  // TypeError 를 던지는데, 여기는 Server Component 렌더 안이고 셸은 이미 나간 뒤라 그
+  // throw 는 이 행이 아니라 **라우트 전체**를 에러로 만든다 (`app/admin/**` 에 error.tsx 도
+  // 없다). 조회는 `settle` 이 감쌌지만 접기는 그 밖에 있었다.
+  let agg;
+  try {
+    agg = aggregateDagStatus(dag.value);
+  } catch (err) {
+    console.warn('[ops/status] dag-status 응답의 모양이 계약과 다르다 — 판정하지 않는다', err);
+    return { ...base, mark: 'unknown', value: '미확인', sub: '판정할 수 없는 값' };
+  }
   const attention = agg.dbTotal - agg.succeeded;
   return {
     ...base,

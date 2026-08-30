@@ -42,10 +42,16 @@ export function TabLink({ tab }: { tab: OpsTargetTabLabel }): ReactElement {
 /**
  * 거절된 조회 하나를 다시 부른다. 새 CSR 헬퍼를 만들지 않는다 — `router.refresh()` 가
  * 라우트를 서버에서 다시 렌더해 RSC 페이로드만 새로 보내므로, 열려 있던 탭·폴링 같은
- * 클라이언트 상태는 그대로 살아 있다. 라우트 전체가 다시 도는 것이 값이지만, 이 카드가
- * 부르는 네 건이 전부라 그 값은 작다.
+ * 클라이언트 상태는 그대로 살아 있다.
+ *
+ * ⚠️ 값은 작지 않다: 라우트가 통째로 다시 돌므로 카드의 다섯 조회가 전부 다시 나가고,
+ * 그중 하나는 MB 급 §10 이다. 한 행만 다시 부르는 정밀 재시도가 필요해지면 그 행만 CSR
+ * 로 내려 주면 된다 — 지금은 실패가 드물고 코드가 한 줄이라 이쪽이 싸다.
+ *
+ * `label` 은 행 이름이다. 두 행이 함께 거절되면(같은 응답이 채우는 인프라 작업·확정 정보)
+ * 같은 낱말의 버튼이 둘 서므로, 접근명은 어느 행의 것인지까지 말해야 한다.
  */
-export function StatusRetryButton(): ReactElement {
+export function StatusRetryButton({ label }: { label: string }): ReactElement {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   return (
@@ -53,6 +59,7 @@ export function StatusRetryButton(): ReactElement {
       type="button"
       disabled={pending}
       onClick={() => startTransition(() => router.refresh())}
+      aria-label={`${label} 다시 조회`}
       className={cn(opsStyles.detailLink, 'text-[12px] font-normal disabled:cursor-default disabled:opacity-60')}
     >
       {pending ? '불러오는 중' : '다시 시도'}
