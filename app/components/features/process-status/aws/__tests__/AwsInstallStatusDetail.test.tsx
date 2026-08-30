@@ -13,7 +13,7 @@ import { AwsInstallStatusDetail } from '@/app/components/features/process-status
 import { getAwsRoleVerification } from '@/app/lib/api/aws';
 import { required } from '@/lib/test-dom';
 // 무게는 토큰으로 단언한다 — 클래스 문자열을 손으로 베끼면 토큰이 바뀌어도 초록이다.
-import { buttonStyles, getButtonClass } from '@/lib/theme';
+import { buttonStyles, getButtonClass, statusColors, textColors, textStyles } from '@/lib/theme';
 import type { ConfirmedResource } from '@/lib/types/resources';
 import type {
   AwsInstallationStatus,
@@ -325,10 +325,18 @@ describe('AwsInstallStatusDetail', () => {
   it('an unsettled verdict shows the idle prompt and no 마지막 확인 caption', () => {
     openRoleVerifyPanel({ roleVerify: { status: 'FAIL', roleArn: null } });
 
+    const lead = screen.getByText('Terraform 권한 확인 필요');
+    expect(lead).toBeTruthy();
     expect(screen.getByText('권한을 직접 확인하면 막힌 원인까지 알 수 있어요')).toBeTruthy();
     expect(screen.getByText('약 30초 걸려요')).toBeTruthy();
     expect(screen.queryByText(/마지막 확인은/)).toBeNull();
     expect(screen.getByRole('button', { name: '권한 확인' })).toBeTruthy();
+
+    // 이 줄은 원인 블록의 「확인 필요」 라벨과 낱말을 공유한다 — 활자까지 같아지면
+    // 대기 슬롯이 오류 슬롯의 회색 복사본이 된다. 리드 줄이지 상태 라벨이 아니다.
+    expect(lead.className).toContain(textStyles.bodyStrong);
+    expect(lead.className).toContain(textColors.primary);
+    expect(lead.className).not.toContain(statusColors.error.textDark);
   });
 
   // Settled: the header pill already said 완료. The body adds the one thing the pill
@@ -338,6 +346,7 @@ describe('AwsInstallStatusDetail', () => {
 
     // lastCheck.checkedAt = 2026-07-29T14:02:00Z → KST.
     expect(screen.getByText('마지막 확인은 26. 07. 29. 23:02 기준이에요.')).toBeTruthy();
+    expect(screen.queryByText('Terraform 권한 확인 필요')).toBeNull();
     expect(screen.queryByText('권한을 직접 확인하면 막힌 원인까지 알 수 있어요')).toBeNull();
     // The second opinion steps out of button chrome; the label says it is a repeat.
     expect(screen.getByRole('button', { name: '다시 확인' })).toBeTruthy();

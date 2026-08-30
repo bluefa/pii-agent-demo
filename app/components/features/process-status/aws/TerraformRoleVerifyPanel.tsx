@@ -98,15 +98,26 @@ const FindingBlock = ({ finding }: { finding: TerraformRoleFinding }) => (
 /**
  * The idle slot — what stands here before anyone has asked for a live check.
  *
- * Two lines of plain text, in the same left-aligned column as the identity rows above
- * and the button row below. That plainness is the whole distinction from the finding
- * block (Cloudscape: don't use an empty state for an error) — the error case is marked
- * by its 3px red rule and its 확인 필요 label, so nothing has to be added here to say
- * this is not one. A dashed glyph stood here and could not earn its place: legible
- * enough to see is legible enough to read as a status mark, which the body does not own.
+ * Three lines of plain text, in the same left-aligned column as the identity rows
+ * above and the button row below. That plainness is the whole distinction from the
+ * finding block (Cloudscape: don't use an empty state for an error) — the error case
+ * is marked by its 3px red rule and its 확인 필요 label, so nothing has to be added
+ * here to say this is not one. A dashed glyph stood here and could not earn its place:
+ * legible enough to see is legible enough to read as a status mark, which the body
+ * does not own.
+ *
+ * ⛔ The lead line must NOT borrow the finding label's type. That label is 12px bold
+ * `tracking-[0.02em]` in `statusColors.error.textDark`, and the two lines share the
+ * words 확인 필요 — give them the same treatment and the idle slot becomes a greyed-out
+ * copy of the error slot, which is the collapse the glyph was removed to avoid. It is a
+ * lead line, not a status label: same size as the sentence under it, one step up in
+ * weight and colour.
  */
 const IdlePrompt = () => (
   <div className={cn('flex flex-col', stackGap.tight)}>
+    <span className={cn(textStyles.bodyStrong, textColors.primary)}>
+      Terraform 권한 확인 필요
+    </span>
     <span className={cn(textStyles.body, textColors.secondary)}>
       권한을 직접 확인하면 막힌 원인까지 알 수 있어요
     </span>
