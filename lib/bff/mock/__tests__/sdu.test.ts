@@ -410,7 +410,7 @@ describe('SDU BDC 완료 단언 (델타 §1·§3·§4)', () => {
     const done = await upload(GLOBAL_ID);
     expect(done.bdc.status).toBe('COMPLETED');
     expect(done.bdc.completed_at).not.toBeNull();
-    // SDU 는 1 → 4 → 5 → 7 이다(오너 2026-08-30 3차). 대상은 실제로 「연결 테스트 필요」에
+    // SDU 는 1 → 4 → 5 → 7 이다(오너 2026-08-30). 대상은 실제로 「연결 테스트 필요」에
     // 앉고, 5 → 6 → 7 은 관리자 승인 CTA 의 구간이지 이 쓰기의 일이 아니다.
     expect(mockData.getProjectByTargetSourceId(GLOBAL_ID)?.processStatus).toBe(
       ProcessStatus.WAITING_CONNECTION_TEST,
@@ -418,7 +418,7 @@ describe('SDU BDC 완료 단언 (델타 §1·§3·§4)', () => {
   });
 
   it('시작조차 못 한 BDC 는 끝났다고 말할 수 없다 — 전제 미충족은 400', async () => {
-    // 오너 2026-08-30 2차: 「이거 다 미답이면 구축 완료를 못 하게 해」. 단언 방향에만 §8 의
+    // 오너 2026-08-30: 「이거 다 미답이면 구축 완료를 못 하게 해」. 단언 방향에만 §8 의
     // 진입 조건이 붙는다 — 두 확인 「예」 + 수신자 1명 이상.
     await putDefinition(GLOBAL_ID, [target({ target_id: 'a', region: 'us' })]);
     await mockSdu.submitDefinition(GLOBAL_ID);

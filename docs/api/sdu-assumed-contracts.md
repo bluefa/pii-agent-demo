@@ -329,7 +329,13 @@ Four things separate it from §1–§7.
    "2·3·5 비활성". **§8 is authoritative and the `5` in §9's list is the error** (owner
    2026-08-30, "step1->4->5->7"). SDU skips 2 and 3 only. The target really does sit at
    「연결 테스트 필요」, which is what gives 승인 조건 ② (latest TC succeeded) an act that
-   something can perform. 5 → 6 → 7 belongs to the 관리자 승인 CTA, not to this endpoint.
+   something can perform.
+
+   `lib/process/calculator.ts` settles it independently: there, **6 means a connection
+   test has passed** (`status.connectionTest.passedAt`), and an asserted BDC completion has
+   passed none — writing 6 would record as true something the rest of the system defines as
+   false, and any recompute would collapse it back to 5. 5 → 6 → 7 belongs to the 관리자
+   승인 CTA; 6 arrives when a test actually passes.
 3. **`true` requires §7's `IN_PROGRESS` conditions** — both acks 「예」 and ≥1 recipient —
    or it is a 400 that changes nothing (owner 2026-08-30, second pass). Work that could
    not have *started* cannot have *finished*. **`false` is ungated**: withdrawing a claim
