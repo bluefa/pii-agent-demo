@@ -1852,6 +1852,14 @@ export const idcStyles = {
     /** `ghostSm` skeleton with the `primary` face — the Step 5 strip's state CTA slot (시안 A).
      *  In-table action size on purpose: the slot lives inside the summary strip, not the card edge. */
     primarySm: 'inline-flex h-8 items-center justify-center gap-1 rounded-[10px] bg-[#0064FF] px-3 text-[13px] font-bold text-white transition-colors hover:bg-[#0050D6] disabled:cursor-not-allowed disabled:bg-[#EBEEF2] disabled:text-[#8B95A1]', // design-exempt: recreates the measured ghostSm skeleton (13px)
+    /**
+     * `primarySm` wearing its own disabled face at REST — the slot's CTA when the run is
+     * closed for a reason the screen states (Credential 미설정). The button stays focusable
+     * and hoverable (`aria-disabled`, not `disabled`) so its tooltip is reachable, which is
+     * exactly why the face cannot be a `disabled:` variant, and why it replaces `primarySm`
+     * rather than layering on it — `cn` only joins, so two fills would race in the stylesheet.
+     */
+    primarySmBlocked: 'inline-flex h-8 cursor-not-allowed items-center justify-center gap-1 rounded-[10px] bg-[#EBEEF2] px-3 text-[13px] font-bold text-[#8B95A1]', // design-exempt: disabled control face (WCAG 1.4.3), 13px matches primarySm
     /** `ghostSm` skeleton with the `soft` face — the slot while a test runs (always disabled). */
     softSm: 'inline-flex h-8 items-center justify-center gap-1 rounded-[10px] bg-[#E8F1FF] px-3 text-[13px] font-bold text-[#0050D6] disabled:cursor-not-allowed disabled:opacity-45', // design-exempt: recreates the measured ghostSm skeleton (13px)
     /** Underlined blue text action docked in a content group's footer (e.g. the rejected-reason
@@ -1868,6 +1876,11 @@ export const idcStyles = {
      *  whose job is to wait; the header already says which column is which, so the underline
      *  carries the affordance and color goes back to meaning state. #4E5968 is 7.5:1 on white. */
     linkNeutral: 'inline-flex cursor-pointer items-center gap-1 border-b border-current pb-0.5 text-[13px] font-semibold text-[#4E5968] transition-colors hover:text-[#191F28]',
+    /** `linkNeutral` closed at rest — the `primarySmBlocked` rule for the text-weight run CTA
+     *  (Step 5 success slot's 다시 실행): same face the `disabled:` variant used to paint, but
+     *  resting, since a blocked run stays focusable to carry its tooltip. No hover ink: the
+     *  link answers nothing while it is closed. */
+    linkNeutralBlocked: 'inline-flex cursor-not-allowed items-center gap-1 border-b border-current pb-0.5 text-[13px] font-semibold text-[#4E5968] opacity-45', // design-exempt: disabled control face (WCAG 1.4.3), 13px matches linkNeutral
     /**
      * `linkNeutral` at 14px — `LogicalDbCountCell` 전용.
      *
@@ -4039,6 +4052,14 @@ export const pipelineStyles = {
      *  in-context secondary destructive actions. */
     dangerSolid:
       'border border-transparent bg-[var(--pl-err-solid)] text-[var(--pl-white)] shadow-[var(--pl-shadow-xs)] enabled:hover:bg-[var(--pl-err-solid-hover)] disabled:bg-[var(--pl-gray-100)] disabled:text-[var(--pl-text-faint)] disabled:shadow-none',
+    /**
+     * The `primary` disabled face as a RESTING face — `PlButton blocked`. It is not a
+     * `disabled:` variant because the button is enabled as far as CSS is concerned: it stays
+     * focusable and hoverable so the tooltip explaining the block can be reached. It replaces
+     * the variant, so no `enabled:hover:` fill survives underneath it.
+     */
+    blocked:
+      'border border-transparent bg-[var(--pl-gray-100)] text-[var(--pl-text-faint)] shadow-none cursor-not-allowed', // design-exempt: disabled control face (WCAG 1.4.3 exempts inactive controls)
   },
 
   /** PlTable — th h34 12/600/.03em; td h44 14 tabular; row hover; chev cell. */

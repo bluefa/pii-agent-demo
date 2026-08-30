@@ -51,6 +51,8 @@ import {
   HourglassIcon,
   StatusWarningIcon,
 } from '@/app/components/ui/icons';
+import { Tooltip } from '@/app/components/ui/Tooltip';
+import { CredentialMissingNotice } from '@/app/components/features/process-status/CredentialMissingNotice';
 import type { TestConnectionVersionResult } from '@/app/lib/api';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
 import { Icon } from '@/app/admin/pipelines/_components/icons';
@@ -268,8 +270,10 @@ export function TcLatestRunCard({
   // 게이트를 걸고 있어(`runDisabled = !canRunTest || !allCredsSet`) 두 화면이 같은 조건에서
   // 같은 답을 한다.
   //
-  // ⛔ 이유 없이 잠긴 버튼은 만들지 않는다. 잠금의 사유는 카드 첫 줄의 경고가 이미 말하고
-  //   있고(건수 + 도달 링크), 버튼 자신도 title 로 그 말을 진다.
+  // ⛔ 이유 없이 잠긴 버튼은 만들지 않는다. 잠금의 사유는 카드 첫 줄의 알림이 이미 말하고
+  //   있고(건수 + 도달 링크), 버튼 자신도 흰 툴팁으로 그 말을 진다 — native `title` 은
+  //   버렸다(오너 2026-08-30): OS 가 1초쯤 뒤에 자기 서체로 그리는 상자라 화면의 나머지와
+  //   같은 물건이 아니었고, 툴팁과 나란히 두면 한 잠금에 상자가 둘 뜬다.
   const credBlocked = credentialMissing > 0;
   const blockedHint = credBlocked
     ? `Credential 미설정 ${credentialMissing}건 — 지정해야 연결 테스트를 실행할 수 있습니다`
@@ -292,12 +296,15 @@ export function TcLatestRunCard({
       );
     // 성공한 실행에 남은 일은 서비스의 승인 요청이라, 여기서 다시 돌리는 것은 선택지지
     // 다음 행동이 아니다 — 그 하나만 한 단 낮춘다.
-    return (
+    const runBtn = (
       <PlButton
         variant={phase === 'success' ? 'secondary' : 'primary'}
         size="sm"
-        disabled={running || credBlocked}
-        title={blockedHint}
+        // 사유가 있는 잠금은 `blocked` 다 — 얼굴은 disabled 그대로지만 포커스와 hover 를
+        // 잃지 않아, 아래 툴팁이 마우스로도 키보드로도 닿는다. 실행이 도는 중이라 잠긴
+        // 것은 할 말이 없으므로 native disabled 그대로 둔다.
+        disabled={running && !credBlocked}
+        blocked={credBlocked}
         onClick={onRunTest}
       >
         {/* 정착한 실행 뒤의 낱말은 `다시 실행` 이 아니라 `연결 테스트` 다 (오너
@@ -305,6 +312,12 @@ export function TcLatestRunCard({
             회차는 이미 밴드의 시각 줄과 실행 기록이 센다. */}
         {phase === 'idle' ? '연결 테스트 실행' : '연결 테스트'}
       </PlButton>
+    );
+    if (!blockedHint) return runBtn;
+    return (
+      <Tooltip content={blockedHint} variant="value" triggerClassName="shrink-0">
+        {runBtn}
+      </Tooltip>
     );
   })();
 
@@ -333,28 +346,18 @@ export function TcLatestRunCard({
           "모든 리소스가 연결에 성공했어요" 라는 초록 헤드라인에 딸린 각주처럼 읽힌다 —
           정작 그 성공은 배정된 리소스들만의 것이다. 밖으로 꺼내면 어느 국면에서도 같은
           자리에 서고, 카드를 연 사람이 판정보다 먼저 읽는다.
-          0 건이면 줄 자체가 없다: 할 일이 없다는 말이 상시로 자리를 차지하지 않는다.
-          줄의 링크가 곧 아래 표의 필터라 요약과 도달 수단이 한 물건이고, 실행을 잠그지는
-          않는다 — 관리자 화면은 서비스가 막혔을 때의 우회로다. */}
-      {credentialMissing > 0 && (
-        <div className={b.cardNote}>
-          <StatusWarningIcon className="mt-0.5 h-4 w-4 flex-none" />
-          {/* 문안은 잠금의 사유다 — 예고("실패합니다")가 아니라 지금 무엇이 막혀 있고 무엇을
-              하면 풀리는지. 어휘는 서비스 화면 Step 5 의 같은 줄 그대로다. */}
-          <span className="break-keep">
-            Credential 미설정 <b className="font-bold tabular-nums">{credentialMissing}건</b> —
-            지정해야 연결 테스트를 실행할 수 있어요
-          </span>
-          <button
-            type="button"
-            onClick={onToggleCredFilter}
-            aria-pressed={credFilterOn}
-            className={b.noteAction}
-          >
-            {credFilterOn ? '전체 보기' : '미설정만 보기'}
-          </button>
-        </div>
-      )}
+          0 건이면 아무것도 없다: 할 일이 없다는 말이 상시로 자리를 차지하지 않는다.
+          알림 안의 링크가 곧 아래 표의 필터라 요약과 도달 수단이 한 물건이다.
+          모양은 상자다 (오너 2026-08-30, 시안 A) — 서비스 화면 Step 5 둘과 한 컴포넌트를
+          쓴다. 맨 줄이던 시절의 "카드 안에 상자를 또 두지 않는다" 는 이 알림에 한해 뒤집혔다:
+          이것은 카드의 각주가 아니라 카드의 primary 가 왜 닫혀 있는지의 사유다. 바로 위
+          triggerFailed 의 err 워시 상자가 그 무게의 선례다. */}
+      <CredentialMissingNotice
+        count={credentialMissing}
+        filterOn={credFilterOn}
+        onToggleFilter={onToggleCredFilter}
+        className="mt-4"
+      />
 
       {loading && !latest ? (
         <BandSkeleton />

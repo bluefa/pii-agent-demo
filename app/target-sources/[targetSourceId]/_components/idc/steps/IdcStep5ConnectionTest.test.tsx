@@ -13,11 +13,15 @@ vi.mock('@/app/target-sources/[targetSourceId]/_components/common', () => ({
   ProjectPageMeta: () => null,
   RejectionAlert: () => null,
 }));
-vi.mock('@/app/components/ui/Tooltip', () => ({
-  InfoTooltip: () => null,
-  IdentifierTip: () => null,
-  Tooltip: ({ children }: { children: React.ReactNode }) => children,
-}));
+// The two icon/identifier helpers stay stubbed to keep the chrome light, but `Tooltip`
+// itself is real: the run CTA's block reason now lives in it, and a pass-through stub would
+// assert nothing about whether that reason is reachable.
+vi.mock('@/app/components/ui/Tooltip', async () => {
+  const actual = await vi.importActual<typeof import('@/app/components/ui/Tooltip')>(
+    '@/app/components/ui/Tooltip',
+  );
+  return { ...actual, InfoTooltip: () => null, IdentifierTip: () => null };
+});
 vi.mock('@/app/components/ui/toast', () => ({
   useToast: () => ({ info: vi.fn() }),
 }));
@@ -212,11 +216,24 @@ describe('IdcStep5ConnectionTest — pre-test idle strip (regression)', () => {
     renderStep();
 
     await screen.findByText('10.20.30.40');
-    // Row2 has no credential. The warning line names the count and the row's own cell is
+    // Row2 has no credential. The notice names the count and the row's own cell is
     // where it gets fixed — the run CTA does not detour through a bulk dialog.
-    expect((await screen.findByText(/Credential 미설정/)).textContent).toContain('1건');
-    expect(screen.getByRole('button', { name: '실행' })).toHaveProperty('disabled', true);
+    expect(await screen.findByText('Credential 미설정 알림')).toBeTruthy();
+    expect(screen.getByText(/지정되지 않았어요/).textContent).toContain('1건');
     expect(screen.getByRole('button', { name: '미설정만 보기' })).toBeTruthy();
+    // Closed, but with a reason to state: aria-disabled keeps it focusable so the tooltip
+    // carrying that reason is reachable by mouse AND keyboard. Pressing it starts nothing.
+    const run = screen.getByRole('button', { name: '실행' });
+    expect(run.getAttribute('aria-disabled')).toBe('true');
+    expect(run.getAttribute('title')).toBeNull();
+    fireEvent.click(run);
+    expect(triggerMock).not.toHaveBeenCalled();
+    // async act — the tooltip defers its coordinate commit to a microtask.
+    await act(async () => {
+      run.focus();
+    });
+    expect(document.activeElement).toBe(run);
+    expect(screen.getByText(/Credential 미설정 1건 —/)).toBeTruthy();
   });
 });
 

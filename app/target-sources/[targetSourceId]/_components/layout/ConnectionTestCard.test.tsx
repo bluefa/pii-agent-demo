@@ -321,8 +321,25 @@ describe('ConnectionTestCard', () => {
     // Connection Status only ever says what the agent reported — nothing ran, so no verdict.
     expect(within(screen.getByRole('table')).queryByText('성공')).toBeNull();
     expect(screen.queryByText('자격 증명 필요')).toBeNull();
-    expect(screen.getByRole('button', { name: '실행' })).toHaveProperty('disabled', true);
+    // A block that has a reason to state keeps the button focusable (aria-disabled) so the
+    // tooltip carrying it is reachable; pressing it still starts nothing.
+    const run = screen.getByRole('button', { name: '실행' });
+    expect(run.getAttribute('aria-disabled')).toBe('true');
+    fireEvent.click(run);
+    expect(triggerMock).not.toHaveBeenCalled();
     expect(screen.getByRole('button', { name: /연동 논리 DB 관리하기/ })).toHaveProperty('disabled', true);
+  });
+
+  it('carries the block reason in a tooltip the keyboard can reach', async () => {
+    renderCard([makeResource({ credentialId: null })]);
+    const run = screen.getByRole('button', { name: '실행' });
+    expect(run.getAttribute('title')).toBeNull();
+    // async act — the tooltip defers its coordinate commit to a microtask.
+    await act(async () => {
+      run.focus();
+    });
+    expect(document.activeElement).toBe(run);
+    expect(screen.getByText(/Credential 미설정 1건 —/)).toBeTruthy();
   });
 
   it('enables the run CTA when every row has a credential selected', () => {
@@ -347,11 +364,11 @@ describe('ConnectionTestCard', () => {
       renderCard([makeResource({ resourceId: `${databaseType}-1`, databaseType, credentialId: null })]);
       expect(screen.queryByText('불필요')).toBeNull();
       expect(screen.getByRole('button', { name: /Credential 수정 — 현재 미설정/ })).toBeTruthy();
-      expect(screen.getByRole('button', { name: '실행' })).toHaveProperty('disabled', true);
+      expect(screen.getByRole('button', { name: '실행' }).getAttribute('aria-disabled')).toBe('true');
     },
   );
 
-  it('counts Credential-free engines as neither, and the warning line filters the table', () => {
+  it('counts Credential-free engines as neither, and the notice filters the table', () => {
     // Rows are addressed here by Resource Name; the Resource ID column has its own test.
     renderCard([
       makeResource({ resourceId: 'res-1', resourceName: 'named-cred', credentialId: 'Key1' }),
@@ -370,7 +387,8 @@ describe('ConnectionTestCard', () => {
       }),
     ]);
     // Athena / DynamoDB are not counted — only the credential-requiring res-2 is missing one.
-    expect(screen.getByText(/Credential 미설정/).textContent).toContain('1건');
+    expect(screen.getByText('Credential 미설정 알림')).toBeTruthy();
+    expect(screen.getByText(/지정되지 않았어요/).textContent).toContain('1건');
 
     fireEvent.click(screen.getByRole('button', { name: '미설정만 보기' }));
     expect(screen.getByText('named-missing')).toBeTruthy();
@@ -411,8 +429,8 @@ describe('ConnectionTestCard', () => {
     ).toBeNull();
   });
 
-  // 0 미등록은 정상 상태다 — 그때 경고 줄이 남아 있으면 "할 일 없음"을 상시로 말하게 된다.
-  it('draws no warning line when every credential-requiring row has one', () => {
+  // 0 미등록은 정상 상태다 — 그때 알림이 남아 있으면 "할 일 없음"을 상시로 말하게 된다.
+  it('draws no notice when every credential-requiring row has one', () => {
     renderCard([
       makeResource({ resourceId: 'res-1', resourceName: 'named-cred', credentialId: 'Key1' }),
       makeResource({

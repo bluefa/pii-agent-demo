@@ -1,8 +1,8 @@
 'use client';
 
 import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
-import { cardStyles, cn, idcStyles, primaryColors, statusColors, textColors } from '@/lib/theme';
-import { ChevronRightIcon, InfoCircleIcon, StatusWarningIcon } from '@/app/components/ui/icons';
+import { cardStyles, cn, idcStyles, primaryColors, textColors } from '@/lib/theme';
+import { ChevronRightIcon, InfoCircleIcon } from '@/app/components/ui/icons';
 import { IdentifierTip, Tooltip } from '@/app/components/ui/Tooltip';
 import { getDatabaseShortLabel } from '@/app/components/ui/DatabaseIcon';
 import { Ec2InstanceTag, RdsClusterTag } from '@/app/components/ui/RdsInstanceChips';
@@ -19,6 +19,7 @@ import { usePagination } from '@/app/hooks/usePagination';
 import { useRailHover } from '@/app/hooks/useRailHover';
 import { useToast } from '@/app/components/ui/toast';
 import { TcSummaryCard, TcSummaryCardSkeleton } from '@/app/components/features/process-status/TcSummaryCard';
+import { CredentialMissingNotice } from '@/app/components/features/process-status/CredentialMissingNotice';
 import { TcStatusTag } from '@/app/components/features/process-status/TcStatusTag';
 import { TcRejectionNotice } from '@/app/components/features/process-status/TcRejectionNotice';
 import { TcRunHistoryModal } from '@/app/components/features/process-status/TcRunHistoryModal';
@@ -456,6 +457,12 @@ export const ConnectionTestCard = ({
   // 누를 수 있는지는 훅이 한 사실로 답한다(canRunTest). 여기서 조건을 다시 조립하지 않는다 —
   // 항을 하나 빠뜨리면 그 자리가 곧 "아직 모르는데 누를 수 있는" 창이 된다.
   const runDisabled = !canRunTest || !allCredsSet;
+  // 잠긴 CTA 가 스스로 사유를 진다 — 미설정이 있을 때만이다. 실행이 도는 중이라 잠긴 버튼은
+  // 기다리면 풀리므로 할 말이 없고, 그 국면의 슬롯은 아예 다른 버튼이다.
+  const runBlockedTip =
+    missingCount > 0
+      ? `Credential 미설정 ${missingCount}건 — 지정해야 연결 테스트를 실행할 수 있습니다`
+      : undefined;
   const runTest = useCallback(async () => {
     if (runDisabled) return;
     await trigger();
@@ -593,6 +600,7 @@ export const ConnectionTestCard = ({
             drawCheck={settledLive}
             onRunTest={() => void runTest()}
             runDisabled={runDisabled}
+            runBlockedTip={runBlockedTip}
             onRequestApproval={openApproval}
             approvalDisabled={!canRequestApproval}
             historyAction={
@@ -649,32 +657,15 @@ export const ConnectionTestCard = ({
           {/* 미등록이 0 인 것이 정상 상태다. 그 사실을 말하려고 상시 카드 세 장을 두었더니, 아무 할
               일이 없다는 말이 화면의 90px 을 차지했고 (전체 = 지정 + 미등록) 도 성립하지 않았다 —
               Athena·DynamoDB 처럼 Credential 이 "불필요" 한 행은 어느 카드에도 안 잡히기 때문이다.
-              조치가 필요할 때만 한 줄이 생긴다. 그 줄의 링크가 곧 필터이므로 요약과 도달 수단이 한
+              조치가 필요할 때만 알림이 생긴다. 그 안의 링크가 곧 필터이므로 요약과 도달 수단이 한
               물건이고, 분류를 세지 않으니 합계가 어긋날 수도 없다. */}
-          {/* Bare row in the table group — this is the table's own missing-value notice, so
-              it sits 8px above the stack it filters instead of boxing itself (proposal A). */}
-          {missingCount > 0 && (
-            <div className={cn('flex items-center gap-2 text-[14px]', statusColors.warning.textDark)}>
-              {/* 경고를 색만으로 말하지 않는다(WCAG 1.4.1) — 마크가 색 없이도 같은 뜻을 진다. */}
-              <StatusWarningIcon className="h-4 w-4 shrink-0" />
-              {/* IDC step 5 와 같은 어휘(미설정) — 같은 스텝이 CSP 마다 다른 말을 쓰지 않는다. */}
-              <span className="break-keep">
-                Credential 미설정 <strong className="font-bold">{missingCount}건</strong> — 지정해야 연결
-                테스트를 실행할 수 있어요
-              </span>
-              <button
-                type="button"
-                onClick={() => handleCredFilter(credFilter === 'missing' ? 'all' : 'missing')}
-                aria-pressed={credFilter === 'missing'}
-                className={cn(
-                  'ml-auto shrink-0 whitespace-nowrap font-semibold underline underline-offset-2',
-                  primaryColors.focusRing,
-                )}
-              >
-                {credFilter === 'missing' ? '전체 보기' : '미설정만 보기'}
-              </button>
-            </div>
-          )}
+          {/* 상자다 (오너 2026-08-30, 시안 A). 맨 줄이던 것을 세 화면이 같은 컴포넌트로 함께
+              바꾼다 — 어휘도 모양도 CSP 마다 갈리지 않는다. */}
+          <CredentialMissingNotice
+            count={missingCount}
+            filterOn={credFilter === 'missing'}
+            onToggleFilter={() => handleCredFilter(credFilter === 'missing' ? 'all' : 'missing')}
+          />
           <div>
             {/* The console shell owns the scroll box (its wrapper is the overflow-x-auto
                 escape), the header row, and the resize grammar; the frame above it keeps the

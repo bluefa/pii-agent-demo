@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import type { TestConnectionVersionResult } from '@/app/lib/api';
 import { computeTcBuckets, foldAgentStatuses } from '@/lib/test-connection-summary';
@@ -60,15 +60,16 @@ const renderCard = (over: Partial<Parameters<typeof TcLatestRunCard>[0]> = {}) =
   return { ...render(<TcLatestRunCard {...props} />), props };
 };
 
-describe('TcLatestRunCard — Credential 미설정 곁줄', () => {
-  it('0 건이면 줄 자체가 없다 — 할 일이 없다는 말이 자리를 차지하지 않는다', () => {
+describe('TcLatestRunCard — Credential 미설정 알림', () => {
+  it('0 건이면 알림 자체가 없다 — 할 일이 없다는 말이 자리를 차지하지 않는다', () => {
     renderCard({ credentialMissing: 0 });
     expect(screen.queryByText(/Credential 미설정/)).toBeNull();
   });
 
-  it('건수를 말하고, 그 줄의 링크가 곧 표의 필터다', () => {
+  it('건수를 말하고, 그 안의 링크가 곧 표의 필터다', () => {
     const { props } = renderCard({ credentialMissing: 3 });
-    expect(screen.getByText(/Credential 미설정/)).toBeTruthy();
+    expect(screen.getByText('Credential 미설정 알림')).toBeTruthy();
+    expect(screen.getByText(/지정되지 않았어요/).textContent).toContain('3건');
     const toggle = screen.getByRole('button', { name: '미설정만 보기' });
     expect(toggle.getAttribute('aria-pressed')).toBe('false');
     fireEvent.click(toggle);
@@ -81,18 +82,35 @@ describe('TcLatestRunCard — Credential 미설정 곁줄', () => {
   });
 
   it('실행을 잠근다 — 결과가 SECRET_NOT_FOUND 로 정해진 실행은 시작시키지 않는다', () => {
+    const { props } = renderCard({ credentialMissing: 3, latest: null });
+    const run = screen.getByRole('button', { name: '연결 테스트 실행' });
+    // 사유가 있는 잠금은 aria-disabled 다 — 눌러도 아무 일이 없지만 포커스와 hover 를
+    // 잃지 않아서, 그 사유를 든 툴팁에 마우스로도 키보드로도 닿는다.
+    expect(run.getAttribute('aria-disabled')).toBe('true');
+    fireEvent.click(run);
+    expect(props.onRunTest).not.toHaveBeenCalled();
+    // ⛔ 이유 없이 잠긴 버튼은 만들지 않는다 — 사유는 카드 첫 줄과 버튼 자신이 함께 진다.
+    expect(screen.getByText(/지정해야 연결 테스트를 실행할 수 있어요/)).toBeTruthy();
+  });
+
+  it('잠금의 사유는 툴팁이 들고, native title 은 없다 — 한 잠금에 상자 하나', async () => {
     renderCard({ credentialMissing: 3, latest: null });
     const run = screen.getByRole('button', { name: '연결 테스트 실행' });
-    expect(run.hasAttribute('disabled')).toBe(true);
-    // ⛔ 이유 없이 잠긴 버튼은 만들지 않는다 — 사유는 카드 첫 줄과 버튼 자신이 함께 진다.
-    expect(run.getAttribute('title')).toContain('Credential 미설정 3건');
-    expect(screen.getByText(/지정해야 연결 테스트를 실행할 수 있어요/)).toBeTruthy();
+    expect(run.getAttribute('title')).toBeNull();
+    // 키보드 경로: 잠긴 버튼도 포커스를 받고, 그 포커스가 툴팁을 연다.
+    // async act — 툴팁은 좌표 커밋을 microtask 로 미루므로, 그것까지 이 act 안에서 흘린다.
+    await act(async () => {
+      run.focus();
+    });
+    expect(document.activeElement).toBe(run);
+    expect(screen.getByText(/Credential 미설정 3건 —/)).toBeTruthy();
   });
 
   it('배정이 다 끝나면 잠금도 사유도 없다', () => {
     renderCard({ credentialMissing: 0, latest: null });
     const run = screen.getByRole('button', { name: '연결 테스트 실행' });
     expect(run.hasAttribute('disabled')).toBe(false);
+    expect(run.hasAttribute('aria-disabled')).toBe(false);
     expect(run.getAttribute('title')).toBeNull();
   });
 });

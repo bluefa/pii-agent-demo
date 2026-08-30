@@ -10,6 +10,7 @@ import {
   HourglassIcon,
   StatusWarningIcon,
 } from '@/app/components/ui/icons';
+import { Tooltip } from '@/app/components/ui/Tooltip';
 import { fmtDateTime, fmtRelativeTime } from '@/lib/pipeline/format';
 import { useNowTick } from '@/app/hooks/useNowTick';
 import {
@@ -90,6 +91,55 @@ const RunGlyph = () => (
   </svg>
 );
 
+/**
+ * The slot's run CTA, in its two conditions.
+ *
+ * A run closed for a reason the card can state (Credential 미설정) keeps `aria-disabled`
+ * instead of the native `disabled`, and guards its own click: Chrome dispatches no pointer
+ * event on a disabled button and drops it from the tab order, so a tooltip attached to it
+ * would be unreachable by mouse AND keyboard. Everything else that closes the CTA — a run
+ * already in flight, a status the screen has not fetched yet — has nothing to say and stays
+ * natively `disabled`, exactly as before.
+ */
+const RunCta = ({
+  face,
+  blockedFace,
+  className,
+  disabled,
+  blockedTip,
+  onRun,
+  children,
+}: {
+  face: string;
+  blockedFace: string;
+  className?: string;
+  disabled: boolean;
+  blockedTip?: ReactNode;
+  onRun: () => void;
+  children: ReactNode;
+}) => {
+  const blocked = disabled && !!blockedTip;
+  const button = (
+    <button
+      type="button"
+      onClick={blocked ? undefined : onRun}
+      disabled={disabled && !blocked}
+      aria-disabled={blocked || undefined}
+      className={cn(blocked ? blockedFace : face, className)}
+    >
+      {children}
+    </button>
+  );
+  if (!blocked) return button;
+  // `shrink-0` moves to the wrapper: the trigger is an inline-flex box that now stands in the
+  // slot's place inside the counts row, so it is the box the row may not squeeze.
+  return (
+    <Tooltip content={blockedTip} variant="value" triggerClassName="shrink-0">
+      {button}
+    </Tooltip>
+  );
+};
+
 interface TcSummaryCardProps {
   state: TcCardState;
   buckets: TcBuckets;
@@ -107,6 +157,12 @@ interface TcSummaryCardProps {
   /** 슬롯의 실행 CTA (실행 / 다시 실행) — disabled 는 카드의 runDisabled 게이트 그대로. */
   onRunTest: () => void;
   runDisabled: boolean;
+  /**
+   * 잠금의 사유 — 있을 때만 실행 CTA 가 흰 툴팁으로 그것을 진다. Credential 미설정처럼
+   * 사용자가 지금 풀 수 있는 잠금에만 준다: 실행이 도는 중이라 잠긴 버튼은 기다리면 풀리므로
+   * 할 말이 없다. 없으면 CTA 는 예전 그대로 native disabled 다.
+   */
+  runBlockedTip?: ReactNode;
   /** 슬롯의 전이 CTA (승인 요청) — success 상태에서만 선다. */
   onRequestApproval: () => void;
   approvalDisabled: boolean;
@@ -129,6 +185,7 @@ export const TcSummaryCard = ({
   drawCheck,
   onRunTest,
   runDisabled,
+  runBlockedTip,
   onRequestApproval,
   approvalDisabled,
 }: TcSummaryCardProps) => {
@@ -249,18 +306,20 @@ export const TcSummaryCard = ({
     switch (state) {
       case 'idle':
         return (
-          <button
-            type="button"
-            onClick={onRunTest}
+          <RunCta
+            face={idcStyles.triggerBtn.primarySm}
+            blockedFace={idcStyles.triggerBtn.primarySmBlocked}
+            className="shrink-0 whitespace-nowrap"
             disabled={runDisabled}
-            className={cn(idcStyles.triggerBtn.primarySm, 'shrink-0 whitespace-nowrap')}
+            blockedTip={runBlockedTip}
+            onRun={onRunTest}
           >
             <RunGlyph />
             {/* `다시 실행` 과 같은 버튼·같은 글리프·같은 핸들러다 — 첫 회차라고 해서 다른
                 언어를 쓸 이유가 없다. 앱의 나머지도 이 동작을 `실행` 하나로 부른다:
                 토스트 `연결 테스트 실행을 요청했습니다`, 상태 `연결 테스트 재실행`. */}
             실행
-          </button>
+          </RunCta>
         );
       case 'queued':
         return (
@@ -285,30 +344,34 @@ export const TcSummaryCard = ({
       case 'fail':
       case 'policy-changed':
         return (
-          <button
-            type="button"
-            onClick={onRunTest}
+          <RunCta
+            face={idcStyles.triggerBtn.primarySm}
+            blockedFace={idcStyles.triggerBtn.primarySmBlocked}
+            className="shrink-0 whitespace-nowrap"
             disabled={runDisabled}
-            className={cn(idcStyles.triggerBtn.primarySm, 'shrink-0 whitespace-nowrap')}
+            blockedTip={runBlockedTip}
+            onRun={onRunTest}
           >
             <RunGlyph />
             다시 실행
-          </button>
+          </RunCta>
         );
       case 'success':
         return (
           <span className="flex shrink-0 items-center gap-2.5">
-            <button
-              type="button"
-              onClick={onRunTest}
-              disabled={runDisabled}
-              className={cn(
+            <RunCta
+              face={cn(
                 idcStyles.triggerBtn.linkNeutral,
-                'whitespace-nowrap text-[12px] disabled:cursor-not-allowed disabled:opacity-45',
+                'disabled:cursor-not-allowed disabled:opacity-45',
               )}
+              blockedFace={idcStyles.triggerBtn.linkNeutralBlocked}
+              className="whitespace-nowrap text-[12px]"
+              disabled={runDisabled}
+              blockedTip={runBlockedTip}
+              onRun={onRunTest}
             >
               다시 실행
-            </button>
+            </RunCta>
             <button
               type="button"
               onClick={onRequestApproval}
@@ -375,7 +438,8 @@ export const TcSummaryCard = ({
           {metaBelowTitle && (
             <span
               className={cn(
-                // pending 표면에서 #6B7684 는 4.37:1 로 AA 미달 — 정책 변경의 메타는 경고 판이다.
+                // pending 표면에서 `counts` 의 잉크는 4.37:1 로 AA 미달 — 정책 변경의 메타는
+                // 경고 판이라 `countsWarn` 이 받는다 (두 값의 근거는 idcStyles.connProgress).
                 state === 'policy-changed' ? s.countsWarn : s.counts,
                 'flex items-center gap-2',
               )}
