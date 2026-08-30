@@ -298,6 +298,9 @@ describe('SduAckCard — BDC 구축 완료 단언 (델타 §1·§3)', () => {
     const value = (await screen.findByText('BDC 구축')).nextElementSibling;
     expect(value?.textContent).toContain('구축 완료 · 관리자');
     expect(value?.textContent).not.toContain('구축 완료관리자');
+    // 사람과 시각 **사이**의 구분자도 글자 흐름 안에 있어야 한다 — 여백만으로 가르면
+    // 낭독과 복사가 「관리자2026…」 한 낱말을 읽는다 (`AckValue` 와 같은 규칙).
+    expect(value?.textContent).toMatch(/관리자 · \d/);
   });
 
   it('되돌리기는 클릭 한 번으로 나가지 않는다 — 제 확인창을 갖는다', async () => {
