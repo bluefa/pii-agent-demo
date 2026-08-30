@@ -149,19 +149,23 @@ const tcRow = (tc: Settled<TcLatest | null>): StatusRow => {
 const infraRow = (terraform: Settled<TerraformStatus>): StatusRow => {
   if (!terraform.ok) return rejected(OPS_TAB_SLUGS.infra, OPS_TAB_SLUGS.infra);
   const tasks = terraform.value.tasks ?? [];
+  const base = { name: OPS_TAB_SLUGS.infra, tab: OPS_TAB_SLUGS.infra, failed: false };
+  /** 조회 시각은 **읽을 값이 있을 때만** 붙는다 — 아무것도 안 돈 행에서 「언제 봤는지」는
+   *  그 자리에 답이 없다는 사실에 아무것도 더하지 않는다 (오너 2026-08-30). */
   const sub = terraform.value.checked_at ? `조회 ${fmtDateTime(terraform.value.checked_at)}` : null;
-  const base = { name: OPS_TAB_SLUGS.infra, tab: OPS_TAB_SLUGS.infra, sub, failed: false };
-  if (tasks.length === 0) return { ...base, mark: 'idle', value: '작업 없음' };
   // 조합 상태(`overall_state`)는 쓰지 않는다 — 어느 작업이 걸렸는지 못 말하기 때문에
   // 인프라 작업 탭이 이미 그것을 버렸다 (InfraStatusHead). 여기서는 세기만 한다.
   const tones = tasks.map((task) => metaOf(task.state).tone);
   const failed = tones.filter((tone) => tone === 'err').length;
   const running = tones.filter((tone) => tone === 'info').length;
   const applied = tones.filter((tone) => tone === 'ok').length;
-  if (failed > 0) return { ...base, mark: 'err', value: `${failed}개 실패` };
-  if (running > 0) return { ...base, mark: 'run', value: `${running}개 작업 중` };
-  if (applied > 0) return { ...base, mark: 'ok', value: `${applied}개 적용 완료` };
-  return { ...base, mark: 'idle', value: '미적용' };
+  if (failed > 0) return { ...base, sub, mark: 'err', value: `${failed}개 실패` };
+  if (running > 0) return { ...base, sub, mark: 'run', value: `${running}개 작업 중` };
+  if (applied > 0) return { ...base, sub, mark: 'ok', value: `${applied}개 적용 완료` };
+  // 작업 목록이 비었든(계약이 0건) 전부 NEVER_APPLIED 든 운영자에게는 같은 사실이다 —
+  // 이 대상에서 Terraform 이 아직 한 번도 돌지 않았다. 「작업 없음」과 「미적용」을 갈라
+  // 두면 아무도 행동을 달리할 수 없는 구분에 낱말 둘을 쓰게 된다 (오너 2026-08-30).
+  return { ...base, sub: null, mark: 'idle', value: '인프라 작업 기록 없음' };
 };
 
 const confirmRow = (terraform: Settled<TerraformStatus>): StatusRow => {

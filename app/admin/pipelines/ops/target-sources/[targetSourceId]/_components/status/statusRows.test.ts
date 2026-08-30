@@ -129,6 +129,43 @@ describe('statusRows', () => {
     expect(valueOf(rows, '인프라 작업')).toMatchObject({ mark: 'err', value: '1개 실패' });
   });
 
+  it('아직 아무것도 안 돈 인프라는 작업 0건이든 전부 미적용이든 같은 한 문장이고, 조회 시각을 안 단다', () => {
+    const empty = statusRows({
+      ...idle,
+      terraform: ok({ has_confirmed_infra: false, cloud_provider: 'AWS', tasks: [], checked_at: '2026-08-30T09:56:00Z' }),
+    });
+    const neverApplied = statusRows({
+      ...idle,
+      terraform: ok({
+        has_confirmed_infra: false,
+        cloud_provider: 'AWS',
+        checked_at: '2026-08-30T09:56:00Z',
+        tasks: [{ state: 'NEVER_APPLIED' }, { state: 'NEVER_APPLIED' }],
+      }),
+    });
+    for (const rows of [empty, neverApplied]) {
+      expect(valueOf(rows, '인프라 작업')).toMatchObject({
+        mark: 'idle',
+        value: '인프라 작업 기록 없음',
+        sub: null,
+      });
+    }
+  });
+
+  it('읽을 값이 있는 인프라 행은 조회 시각을 단다', () => {
+    const rows = statusRows({
+      ...idle,
+      terraform: ok({
+        has_confirmed_infra: true,
+        cloud_provider: 'AWS',
+        checked_at: '2026-08-30T09:56:00Z',
+        tasks: [{ state: 'APPLIED' }, { state: 'APPLIED' }],
+      }),
+    });
+    expect(valueOf(rows, '인프라 작업')?.value).toBe('2개 적용 완료');
+    expect(valueOf(rows, '인프라 작업')?.sub).toContain('조회');
+  });
+
   it('IDC 는 스캔 행이 서지 않는다 — 탭 줄과 같은 술어', () => {
     const rows = statusRows({ ...idle, isIdc: true });
     expect(rows.map((row) => row.name)).toEqual(['연결 테스트', '인프라 작업', '확정 정보', 'Airflow']);
