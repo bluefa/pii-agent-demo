@@ -35,10 +35,10 @@
  * 것도 사용자가 누른다. 뒤 화면 갱신(`onDone`)은 그래서 **닫을 때** 한 번이다 —
  * 이유는 `closeAndSync`.
  *
- * 진입 콜은 1회(추천값 유무 확인)다. 현재 확정·terraform 은 부모 탭이 이미 들고 있다.
+ * 진입 콜은 없다 — 추천값은 [추천값 불러오기]를 누를 때만 조회한다. 현재 확정·terraform 은
+ * 부모 탭이 이미 들고 있다.
  */
 import {
-  useCallback,
   useEffect,
   useMemo,
   useRef,
@@ -69,9 +69,6 @@ import {
 /** 서버가 준 말이 있으면 그것을, 없으면 한 줄 폴백 — 원인을 지어내지 않는다. */
 const message = (error: unknown): string =>
   error instanceof Error && error.message ? error.message : '알 수 없는 오류가 발생했습니다.';
-
-/** 확정도 없이 열렸을 때의 뼈대 — 조회 응답의 모양만 빌린다. */
-const BLANK = `{\n  "resource_infos": []\n}`;
 
 const pretty = (value: unknown): string => JSON.stringify(value, null, 2);
 
@@ -107,6 +104,8 @@ export const isRecommendationAbsent = (error: unknown): boolean =>
   error instanceof AppError && error.status === 404;
 
 type RecommendationLoad =
+  /** 아직 부르지 않았다 — 조회는 버튼이 시킨다. */
+  | { state: 'idle' }
   | { state: 'loading' }
   | { state: 'ready'; text: string; count: number | null }
   /** 추천할 것이 없다(404). 오류가 아니라 부재다. */
@@ -416,10 +415,10 @@ export function ConfirmEditorModal({
     [current],
   );
 
-  // 초안은 즉시 열린다 — 추천값을 기다리지 않는다. 편집이 어떤 조회에도 볼모잡히지
-  // 않는 것이 이 화면의 규칙이다.
-  const [draft, setDraft] = useState<string>(() => currentText ?? BLANK);
-  const [recommendation, setRecommendation] = useState<RecommendationLoad>({ state: 'loading' });
+  // 초안은 빈 칸에서 열린다 — 신규든 수정이든 되불러오는 것이 없다. 편집이 어떤 조회에도
+  // 볼모잡히지 않는 것이 이 화면의 규칙이다.
+  const [draft, setDraft] = useState<string>('');
+  const [recommendation, setRecommendation] = useState<RecommendationLoad>({ state: 'idle' });
   const [armedSwap, setArmedSwap] = useState(false);
   const [applyNlb, setApplyNlb] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -435,27 +434,9 @@ export function ConfirmEditorModal({
   // (마운트가 곧 열림이라 재설정할 일이 없고, setter 는 그래서 버린다).
   const [initialDraft] = useState(draft);
 
-  // 진입 1콜 — 초안에 넣기 위해서가 아니라 **버튼 옆에 유무를 적기 위해** 미리 본다.
-  // 부재(404)는 실패가 아니고, 실패해도 편집·저장은 그대로 간다.
-  const fetchRecommendation = useCallback(
-    (signal?: AbortSignal): Promise<void> =>
-      getApprovedRecommendations(targetSourceId, provider, { signal })
-        .then((doc) => {
-          if (signal?.aborted) return;
-          setRecommendation({ state: 'ready', text: pretty(doc), count: countOf(doc) });
-        })
-        .catch((loadError: unknown) => {
-          if (signal?.aborted) return;
-          setRecommendation({ state: isRecommendationAbsent(loadError) ? 'absent' : 'failed' });
-        }),
-    [targetSourceId, provider],
-  );
-
-  useEffect(() => {
-    const controller = new AbortController();
-    void fetchRecommendation(controller.signal);
-    return () => controller.abort();
-  }, [fetchRecommendation]);
+  // 진행 중인 추천값 조회 — 클릭마다 새로 만들고 언마운트에서 끊는다.
+  const loadRef = useRef<AbortController | null>(null);
+  useEffect(() => () => loadRef.current?.abort(), []);
 
   const parse = useMemo(() => {
     try {
@@ -468,6 +449,8 @@ export function ConfirmEditorModal({
   // 셀 수 있는 0건 저장은 삭제와 같은 결말이다 — 삭제에는 게이트(입력 확인 + terraform
   // APPLIED 차단)가 있으므로, 저장이 그 옆의 게이트 없는 문이 되지 않게 여기서 막는다.
   const emptyDraft = parse.ok && parse.count === 0;
+  // 빈 칸은 오류가 아니라 시작점이다 — 파싱 실패보다 먼저 갈린다.
+  const blank = draft.trim() === '';
 
   const dirty = draft !== initialDraft;
   const creating = currentText == null;
@@ -482,19 +465,36 @@ export function ConfirmEditorModal({
   // AWS POST 에만 두므로, 다른 provider·삭제 모드에서는 Parameters 구역째 없다.
   const hasParams = provider === 'AWS' && mode === 'edit';
 
+  // 친 글이 있으면 바로 갈아 끼우지 않는다 — 확인은 같은 바 안의 영역 교체다.
+  const swapDraft = (text: string): void => {
+    if (dirty && draft !== text) setArmedSwap(true);
+    else setDraft(text);
+  };
+
   const loadRecommendation = (): void => {
-    if (recommendation.state === 'failed') {
-      setRecommendation({ state: 'loading' });
-      void fetchRecommendation();
+    if (recommendation.state === 'loading' || recommendation.state === 'absent') return;
+    // 이미 받아 둔 것이 있으면 다시 부르지 않는다.
+    if (recommendation.state === 'ready') {
+      swapDraft(recommendation.text);
       return;
     }
-    if (recommendation.state !== 'ready') return;
-    // 친 글이 있으면 바로 갈아 끼우지 않는다 — 확인은 같은 바 안의 영역 교체다.
-    if (dirty && draft !== recommendation.text) {
-      setArmedSwap(true);
-      return;
-    }
-    setDraft(recommendation.text);
+    // idle·failed — 여기서 처음(또는 다시) 조회한다. 누른 것이 곧 "불러오기"이므로 받은
+    // 자리에서 초안에 꽂는다. 부재(404)는 실패가 아니고, 실패해도 편집·저장은 그대로 간다.
+    loadRef.current?.abort();
+    const controller = new AbortController();
+    loadRef.current = controller;
+    setRecommendation({ state: 'loading' });
+    void getApprovedRecommendations(targetSourceId, provider, { signal: controller.signal })
+      .then((doc) => {
+        if (controller.signal.aborted) return;
+        const text = pretty(doc);
+        setRecommendation({ state: 'ready', text, count: countOf(doc) });
+        swapDraft(text);
+      })
+      .catch((loadError: unknown) => {
+        if (controller.signal.aborted) return;
+        setRecommendation({ state: isRecommendationAbsent(loadError) ? 'absent' : 'failed' });
+      });
   };
 
   /**
@@ -664,16 +664,19 @@ export function ConfirmEditorModal({
               : '아직 바뀐 내용이 없습니다',
           };
 
+  // 조회 전에는 유무를 모른다 — idle 은 아무 문구도 내지 않는다.
   const recommendationMeta =
-    recommendation.state === 'loading'
-      ? '추천값 확인 중…'
-      : recommendation.state === 'ready'
-        ? recommendation.count != null
-          ? `추천 ${recommendation.count}건`
-          : '추천값 준비됨'
-        : recommendation.state === 'absent'
-          ? '불러올 추천값이 없습니다'
-          : '추천값을 확인하지 못했습니다';
+    recommendation.state === 'idle'
+      ? null
+      : recommendation.state === 'loading'
+        ? '추천값 확인 중…'
+        : recommendation.state === 'ready'
+          ? recommendation.count != null
+            ? `추천 ${recommendation.count}건`
+            : '추천값 준비됨'
+          : recommendation.state === 'absent'
+            ? '불러올 추천값이 없습니다'
+            : '추천값을 확인하지 못했습니다';
 
   return (
     <ModalShell open onClose={requestClose} variant="editor" labelledBy="confirm-editor-title">
@@ -761,7 +764,7 @@ export function ConfirmEditorModal({
             <PlButton
               variant="primary"
               onClick={save}
-              disabled={busy || !parse.ok || emptyDraft || (creating && !dirty)}
+              disabled={busy || blank || !parse.ok || emptyDraft || (creating && !dirty)}
             >
               {busy ? `${did} 중…` : did}
             </PlButton>
@@ -826,23 +829,27 @@ export function ConfirmEditorModal({
                   <span
                     className={cn(
                       styles.secStatus,
-                      !parse.ok || (emptyDraft && !creating)
-                        ? styles.errText
-                        : parse.ok && !emptyDraft
-                          ? styles.secOk
-                          : undefined,
+                      blank
+                        ? undefined
+                        : !parse.ok || (emptyDraft && !creating)
+                          ? styles.errText
+                          : parse.ok && !emptyDraft
+                            ? styles.secOk
+                            : undefined,
                     )}
-                    title={parse.ok ? undefined : parse.message}
+                    title={blank || parse.ok ? undefined : parse.message}
                   >
-                    {!parse.ok
-                      ? `JSON 파싱 실패 — ${parse.message}`
-                      : emptyDraft
-                        ? creating
-                          ? '리소스 0건 — 작성하거나 추천값을 불러오세요'
-                          : '리소스 0건 — 비우려면 삭제를 사용하세요'
-                        : parse.count != null
-                          ? `파싱 정상 · ${parse.count}건`
-                          : '파싱 정상'}
+                    {blank
+                      ? '비어 있음 — 직접 작성하거나 추천값을 불러오세요'
+                      : !parse.ok
+                        ? `JSON 파싱 실패 — ${parse.message}`
+                        : emptyDraft
+                          ? creating
+                            ? '리소스 0건 — 작성하거나 추천값을 불러오세요'
+                            : '리소스 0건 — 비우려면 삭제를 사용하세요'
+                          : parse.count != null
+                            ? `파싱 정상 · ${parse.count}건`
+                            : '파싱 정상'}
                   </span>
                 </div>
               )}
@@ -888,7 +895,9 @@ export function ConfirmEditorModal({
                       >
                         {recommendation.state === 'failed' ? '다시 확인' : '추천값 불러오기'}
                       </PlButton>
-                      <span className={styles.barMeta}>{recommendationMeta}</span>
+                      {recommendationMeta && (
+                        <span className={styles.barMeta}>{recommendationMeta}</span>
+                      )}
                     </>
                   )}
                 </div>
