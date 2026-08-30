@@ -758,25 +758,10 @@ export const opsStyles = {
      * 생겼다. 대신 글리프를 제목과 같은 18px 열에 넣어 세 줄이 한 세로선에서 시작한다.
      */
     note: 'flex items-start gap-2 text-[14px] leading-[1.5] break-keep',
-    /**
-     * 카드 등급의 경고 줄 — 밴드 **밖**, 설명문과 밴드 사이. 여기 서는 것은 실행의 판정이
-     * 아니라 다음 실행의 전제다(Credential 미설정). 상자가 아니라 맨 줄인 것은 밴드와 같은
-     * 이유고, 들여쓰기(pl)는 없다 — 밴드에 딸린 줄이 아니라 카드의 줄이다.
-     */
-    cardNote:
-      'mt-4 flex items-start gap-2 text-[14px] leading-[1.5] break-keep text-[var(--pl-warn-text)]',
     noteWarn: 'text-[var(--pl-warn-text)]',
     noteWeak: 'text-[var(--pl-text-medium)]',
     /** 곁줄 안의 원문 enum — 라벨과 같은 줄에 mono 로 병기한다. */
     noteRaw: 'text-[12px] text-[var(--pl-text-weak)]',
-    /**
-     * 곁줄의 토글 링크 — 밑줄이 affordance 를 지고 색은 줄에서 상속한다.
-     *
-     * 문장 **바로 뒤**에 붙는다. 카드 폭 끝으로 밀면(ml-auto) 1000px 건너편에 서서, 무엇을
-     * 거르는 링크인지 문장과 함께 읽히지 않는다 — Step 5 는 이 줄이 자기가 거르는 표 바로
-     * 위에 있어서 우측 정렬이 표의 컨트롤로 읽히지만, 여기선 위에 표가 없다.
-     */
-    noteAction: 'shrink-0 cursor-pointer whitespace-nowrap text-[14px] font-semibold underline underline-offset-2',
     /**
      * 진행 트랙. 바닥값(`--pl-gray-200`)이 Step 5 트랙과 **같은 값**이라, 위에 깔리는 행진
      * 무늬(`idcStyles.connProgress.trackMarch`)의 대비 1.42:1 이 그대로 보존된다 —

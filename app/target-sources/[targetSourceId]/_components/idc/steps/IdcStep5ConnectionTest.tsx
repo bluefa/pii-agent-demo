@@ -2,11 +2,11 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AppError } from '@/lib/errors';
-import { cardStyles, cn, idcStyles, primaryColors, statusColors, textColors } from '@/lib/theme';
+import { cardStyles, cn, idcStyles, primaryColors, textColors } from '@/lib/theme';
 import { TcSummaryCard, TcSummaryCardSkeleton } from '@/app/components/features/process-status/TcSummaryCard';
+import { CredentialMissingNotice } from '@/app/components/features/process-status/CredentialMissingNotice';
 import { TcRejectionNotice } from '@/app/components/features/process-status/TcRejectionNotice';
 import { TcRunHistoryModal } from '@/app/components/features/process-status/TcRunHistoryModal';
-import { StatusWarningIcon } from '@/app/components/ui/icons';
 import { useToast } from '@/app/components/ui/toast';
 import { useModal } from '@/app/hooks/useModal';
 import { isInFlightUi, useTestConnectionPolling } from '@/app/hooks/useTestConnectionPolling';
@@ -180,6 +180,12 @@ export const IdcStep5ConnectionTest = ({
   const allCredsSet = !noTargets && missingCount === 0;
   // 누를 수 있는지는 훅이 한 사실로 답한다(canRunTest) — 클라우드 step 5 와 같은 처리.
   const runDisabled = !ready || !canRunTest || !allCredsSet;
+  // 잠긴 CTA 가 스스로 사유를 진다 — 미설정이 있을 때만이다. 대상 0건도 실행을 막지만 그것은
+  // 이 문장이 아니라 위의 안내 줄이 든다.
+  const runBlockedTip =
+    missingCount > 0
+      ? `Credential 미설정 ${missingCount}건 — 지정해야 연결 테스트를 실행할 수 있습니다`
+      : undefined;
   // 마지막 하나를 지정하면 경고 줄이 사라진다 — 필터를 그대로 두면 표가 비고, 그것을 되돌릴
   // 컨트롤도 같이 사라진 뒤다.
   if (credFilterOn && missingCount === 0) setCredFilterOn(false);
@@ -381,6 +387,7 @@ export const IdcStep5ConnectionTest = ({
                 drawCheck={settledLive}
                 onRunTest={() => void runTest()}
                 runDisabled={runDisabled}
+                runBlockedTip={runBlockedTip}
                 onRequestApproval={openApproval}
                 approvalDisabled={!canRequestApproval}
                 historyAction={
@@ -426,37 +433,22 @@ export const IdcStep5ConnectionTest = ({
               )}
             </div>
           )}
-          {/* 미설정 0 이 정상 상태다 — 그때는 아무것도 그리지 않는다. 조치가 필요할 때만 한 줄이
-              생기고, 그 줄의 링크가 곧 필터라 요약과 도달 수단이 한 물건이다. */}
+          {/* 미설정 0 이 정상 상태다 — 그때는 아무것도 그리지 않는다. 조치가 필요할 때만 알림이
+              서고, 그 안의 링크가 곧 필터라 요약과 도달 수단이 한 물건이다. */}
           {ready && noTargets && (
             <p className={cn('text-[14px]', textColors.tertiary)}>
               연동 대상이 없어 연결 테스트를 실행할 수 없어요. 2단계에서 대상을 확정해 주세요.
             </p>
           )}
           <div className="space-y-2">
-            {/* Bare row in the table group — the table's own missing-value notice sits 8px
-                above the stack it filters instead of boxing itself (proposal A). */}
-            {ready && missingCount > 0 && (
-              <div
-                className={cn('flex items-center gap-2 text-[14px]', statusColors.warning.textDark)}
-              >
-                <StatusWarningIcon className="h-4 w-4 shrink-0" />
-                <span className="break-keep">
-                  Credential 미설정 <strong className="font-bold">{missingCount}건</strong> — 지정해야 연결
-                  테스트를 실행할 수 있어요
-                </span>
-                <button
-                  type="button"
-                  onClick={() => setCredFilterOn((on) => !on)}
-                  aria-pressed={credFilterOn}
-                  className={cn(
-                    'ml-auto shrink-0 whitespace-nowrap font-semibold underline underline-offset-2',
-                    primaryColors.focusRing,
-                  )}
-                >
-                  {credFilterOn ? '전체 보기' : '미설정만 보기'}
-                </button>
-              </div>
+            {/* 상자다 (오너 2026-08-30, 시안 A) — 클라우드 Step 5·운영 콘솔과 한 컴포넌트를
+                쓴다. 같은 스텝이 CSP 마다 다른 말도 다른 모양도 갖지 않는다. */}
+            {ready && (
+              <CredentialMissingNotice
+                count={missingCount}
+                filterOn={credFilterOn}
+                onToggleFilter={() => setCredFilterOn((on) => !on)}
+              />
             )}
             {/* Toolbar, table and pagination are one card, so the group's space-y must not
                 get between them — the wrapper absorbs it. */}
