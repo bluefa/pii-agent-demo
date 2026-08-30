@@ -10,7 +10,8 @@ vi.mock('@/app/lib/api/aws', () => ({
 }));
 
 import { AwsInstallStatusDetail } from '@/app/components/features/process-status/aws/AwsInstallStatusDetail';
-import { getAwsRoleVerification } from '@/app/lib/api/aws';
+import { RESULT_SLOT_MIN_HEIGHT } from '@/app/components/features/process-status/aws/TerraformRoleVerifyPanel';
+import { getAwsRoleVerification, type AwsRoleVerification } from '@/app/lib/api/aws';
 import { required } from '@/lib/test-dom';
 // 무게는 토큰으로 단언한다 — 클래스 문자열을 손으로 베끼면 토큰이 바뀌어도 초록이다.
 import { buttonStyles, getButtonClass, statusColors, textColors, textStyles } from '@/lib/theme';
@@ -332,7 +333,7 @@ describe('AwsInstallStatusDetail', () => {
 
     const lead = screen.getByText('Terraform 권한 확인 필요');
     expect(lead).toBeTruthy();
-    expect(screen.getByText('지금 확인하면 권한 상태와 막힌 원인까지 알 수 있어요')).toBeTruthy();
+    expect(screen.getByText('지금 확인하면 권한 상태와 막힌 원인까지 확인할 수 있어요.')).toBeTruthy();
     expect(screen.getByRole('button', { name: '권한 확인' }).className).toContain(
       getButtonClass('outline'),
     );
@@ -353,7 +354,7 @@ describe('AwsInstallStatusDetail', () => {
     (status) => {
       openRoleVerifyPanel({ roleVerify: { status, roleArn: null } });
 
-      expect(screen.getByText('지금 확인하면 권한 상태와 막힌 원인까지 알 수 있어요')).toBeTruthy();
+      expect(screen.getByText('지금 확인하면 권한 상태와 막힌 원인까지 확인할 수 있어요.')).toBeTruthy();
       expect(screen.queryByText('Terraform 권한 확인 필요')).toBeNull();
       expect(screen.getByRole('button', { name: '권한 확인' }).className).toContain(
         buttonStyles.ghostText,
@@ -369,11 +370,11 @@ describe('AwsInstallStatusDetail', () => {
       openRoleVerifyPanel({ roleVerify: { status, roleArn: null } });
 
       expect(screen.queryByText('Terraform 권한 확인 필요')).toBeNull();
-      expect(screen.queryByText('지금 확인하면 권한 상태와 막힌 원인까지 알 수 있어요')).toBeNull();
-      expect(
-        screen.getByRole('button', { name: status === 'BDC_INSTALL_REQUIRED' ? '권한 확인' : '다시 확인' })
-          .className,
-      ).toContain(buttonStyles.ghostText);
+      expect(screen.queryByText('지금 확인하면 권한 상태와 막힌 원인까지 확인할 수 있어요.')).toBeNull();
+      // 「다시」가 아니다 — 이 사람은 아직 아무것도 누르지 않았다(항목 11).
+      expect(screen.getByRole('button', { name: '권한 확인' }).className).toContain(
+        buttonStyles.ghostText,
+      );
     },
   );
 
@@ -397,7 +398,7 @@ describe('AwsInstallStatusDetail', () => {
     });
 
     expect(screen.getByText('123456789012')).toBeTruthy();
-    expect(screen.getByRole('button', { name: '다시 확인' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: '권한 확인' })).toBeTruthy();
     expect(screen.getByText('최대 30초까지 걸릴 수 있어요')).toBeTruthy();
   });
 
@@ -443,7 +444,7 @@ describe('AwsInstallStatusDetail', () => {
       'Scan Role 을 넘겨받지 못했습니다',
     );
     // The prompt gave its slot to the result, and the label now says this is a repeat.
-    expect(screen.queryByText('지금 확인하면 권한 상태와 막힌 원인까지 알 수 있어요')).toBeNull();
+    expect(screen.queryByText('지금 확인하면 권한 상태와 막힌 원인까지 확인할 수 있어요.')).toBeNull();
     expect(screen.getByRole('button', { name: '다시 확인' })).toBeTruthy();
   });
 
@@ -457,7 +458,7 @@ describe('AwsInstallStatusDetail', () => {
     });
 
     openRoleVerifyPanel({ roleVerify: { status: 'COMPLETED', roleArn: null } });
-    const before = screen.getByRole('button', { name: '다시 확인' });
+    const before = screen.getByRole('button', { name: '권한 확인' });
     expect(before.className).toContain(buttonStyles.ghostText);
 
     fireEvent.click(before);
@@ -473,9 +474,9 @@ describe('AwsInstallStatusDetail', () => {
     vi.mocked(getAwsRoleVerification).mockResolvedValue({ status: 'VALID' });
 
     openRoleVerifyPanel({ roleVerify: { status: 'COMPLETED', roleArn: null } });
-    fireEvent.click(screen.getByRole('button', { name: '다시 확인' }));
+    fireEvent.click(screen.getByRole('button', { name: '권한 확인' }));
 
-    await screen.findAllByText('방금 확인했고, 막힌 곳은 없었어요.');
+    await screen.findAllByText('방금 확인했을 때는 막힌 곳이 없었어요.');
     expect(screen.getByRole('button', { name: '다시 확인' }).className).toContain(
       buttonStyles.ghostText,
     );
@@ -487,12 +488,12 @@ describe('AwsInstallStatusDetail', () => {
     openRoleVerifyPanel({ roleVerify: { status: 'FAIL', roleArn: null } });
     fireEvent.click(screen.getByRole('button', { name: '권한 확인' }));
 
-    await screen.findAllByText('방금 확인했고, 막힌 곳은 없었어요.');
-    expect(visible('방금 확인했고, 막힌 곳은 없었어요.')).toHaveLength(1);
+    await screen.findAllByText('방금 확인했을 때는 막힌 곳이 없었어요.');
+    expect(visible('방금 확인했을 때는 막힌 곳이 없었어요.')).toHaveLength(1);
     expect(screen.queryByText('확인 필요')).toBeNull();
     // 화면을 보지 않는 사용자도 결과를 듣는다.
     expect(document.querySelector('[aria-live="polite"]')?.textContent).toBe(
-      '방금 확인했고, 막힌 곳은 없었어요.',
+      '방금 확인했을 때는 막힌 곳이 없었어요.',
     );
   });
 
@@ -506,7 +507,7 @@ describe('AwsInstallStatusDetail', () => {
     fireEvent.click(screen.getByRole('button', { name: '권한 확인' }));
 
     expect(await screen.findByRole('button', { name: '다시 확인' })).toBeTruthy();
-    expect(screen.queryByText('방금 확인했고, 막힌 곳은 없었어요.')).toBeNull();
+    expect(screen.queryByText('방금 확인했을 때는 막힌 곳이 없었어요.')).toBeNull();
     expect(screen.queryByText('확인 필요')).toBeNull();
     expect(document.querySelector('[aria-live="polite"]')?.textContent).toBe('');
   });
@@ -516,13 +517,98 @@ describe('AwsInstallStatusDetail', () => {
     vi.mocked(getAwsRoleVerification).mockRejectedValue(new Error('boom'));
 
     openRoleVerifyPanel({ roleVerify: { status: 'COMPLETED', roleArn: null } });
-    fireEvent.click(screen.getByRole('button', { name: '다시 확인' }));
+    fireEvent.click(screen.getByRole('button', { name: '권한 확인' }));
 
     expect(await screen.findByRole('alert')).toBeTruthy();
-    expect(screen.getByRole('button', { name: '다시 확인' }).className).toContain(
+    // 실패한 요청은 결과가 아니다 — 라벨은 아직 「권한 확인」이고, 무게만 올라간다.
+    expect(screen.getByRole('button', { name: '권한 확인' }).className).toContain(
       getButtonClass('outline'),
     );
   });
+
+  // 「다시 확인」은 이 사람이 눌러 본 적이 있을 때만 참이다. 계약이 확인한 사실은 이
+  // 사람의 행동이 아니다.
+  it('a settled target says 권한 확인 until this user has actually pressed it', async () => {
+    vi.mocked(getAwsRoleVerification).mockResolvedValue({ status: 'VALID' });
+
+    openRoleVerifyPanel({ roleVerify: { status: 'COMPLETED', roleArn: null } });
+    fireEvent.click(screen.getByRole('button', { name: '권한 확인' }));
+
+    expect(await screen.findByRole('button', { name: '다시 확인' })).toBeTruthy();
+  });
+
+  // ⛔ `disabled` 는 포커스를 <body> 로 떨어뜨린다 — 누른 사람이 서 있던 자리를 잃고,
+  // 30초 뒤 자기가 없는 곳에서 DOM 이 바뀐다. aria-disabled 는 포커스를 남기므로,
+  // 재진입은 핸들러의 가드가 막는다.
+  it('keeps focus on the button while verifying, and refuses the second press', async () => {
+    let resolve: ((v: AwsRoleVerification) => void) | undefined;
+    vi.mocked(getAwsRoleVerification).mockReturnValue(
+      new Promise<AwsRoleVerification>((r) => {
+        resolve = r;
+      }),
+    );
+
+    openRoleVerifyPanel({ roleVerify: { status: 'FAIL', roleArn: null } });
+    const button = screen.getByRole('button', { name: '권한 확인' });
+    button.focus();
+    fireEvent.click(button);
+
+    const busy = screen.getByRole('button', { name: '확인 중...' });
+    expect(busy.getAttribute('aria-disabled')).toBe('true');
+    expect(busy.hasAttribute('disabled')).toBe(false);
+    expect(document.activeElement).toBe(busy);
+
+    // aria-disabled 는 클릭을 막지 않는다 — 두 번째 요청이 나가지 않는 것은 가드의 일.
+    fireEvent.click(busy);
+    expect(vi.mocked(getAwsRoleVerification)).toHaveBeenCalledTimes(1);
+
+    resolve?.({ status: 'VALID' });
+    await screen.findAllByText('방금 확인했을 때는 막힌 곳이 없었어요.');
+  });
+
+  // aria-busy 는 전이가 존재 이유다 — 결과와 함께 사라지는 노드에 걸면 false 가 되는
+  // 순간이 없다. 상주 컨테이너가 갖는다.
+  it('aria-busy flips to false on the same element the result lands in', async () => {
+    vi.mocked(getAwsRoleVerification).mockResolvedValue({ status: 'VALID' });
+
+    openRoleVerifyPanel({ roleVerify: { status: 'FAIL', roleArn: null } });
+    const slot = required(document.querySelector('[aria-busy]'), '결과 슬롯');
+    expect(slot.getAttribute('aria-busy')).toBe('false');
+    // role 없는 컨테이너의 고아 이름은 읽히지 않는다 — 결과는 라이브 리전이 말한다.
+    expect(slot.getAttribute('aria-label')).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: '권한 확인' }));
+    expect(slot.getAttribute('aria-busy')).toBe('true');
+
+    await screen.findAllByText('방금 확인했을 때는 막힌 곳이 없었어요.');
+    expect(document.querySelector('[aria-busy]')).toBe(slot);
+    expect(slot.getAttribute('aria-busy')).toBe('false');
+    expect(slot.textContent).toContain('방금 확인했을 때는 막힌 곳이 없었어요.');
+  });
+
+  // 오너 조건은 "버튼은 움직이지 않는다"였다. 버튼이 슬롯 바깥에 있다는 사실만으로는
+  // 그 약속이 지켜지지 않는다 — 슬롯이 높이를 예약하지 않으면 슬롯 내용이 곧 버튼의
+  // y 다. 결과가 오기 전 가장 높은 상태(리드 줄 있는 대기 = 44px)를 바닥으로 깐다.
+  it.each<AwsInstallStepValue>(['FAIL', 'IN_PROGRESS', 'COMPLETED'])(
+    'reserves the result slot height on %s, so the press does not move the button',
+    (status) => {
+      openRoleVerifyPanel({ roleVerify: { status, roleArn: null } });
+
+      // 빈 문자열은 `toContain` 을 언제나 통과시킨다 — 토큰이 실제로 높이를 예약하는
+      // 클래스인지부터 본다. jsdom 은 레이아웃이 없으므로 여기서 증명되는 것은
+      // "그 클래스가 두 상태 모두에 걸려 있다"까지다.
+      expect(RESULT_SLOT_MIN_HEIGHT).toMatch(/^min-h-\d/);
+
+      const slot = required(document.querySelector('[aria-busy]'), '결과 슬롯');
+      expect(slot.className.split(' ')).toContain(RESULT_SLOT_MIN_HEIGHT);
+
+      fireEvent.click(screen.getByRole('button', { name: '권한 확인' }));
+      // 스켈레톤이 서도 같은 바닥을 쓴다 — 누르는 순간 포인터 아래에서 움직이지 않는다.
+      expect(
+        required(document.querySelector('[aria-busy]'), '결과 슬롯').className.split(' '),
+      ).toContain(RESULT_SLOT_MIN_HEIGHT);
+    },
+  );
 
   it('manual install hides the role-verify step and relabels the service step', () => {
     render(

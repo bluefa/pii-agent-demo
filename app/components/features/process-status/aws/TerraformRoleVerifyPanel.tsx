@@ -17,7 +17,6 @@ import {
   LastVerifyStamp,
   useRelativeStamp,
 } from '@/app/components/features/process-status/install-status-detail/LastCheckStamp';
-import { isSettledInstallStatus } from '@/app/components/features/process-status/install-status-detail/model';
 import {
   terraformRoleFinding,
   terraformRolePassed,
@@ -64,6 +63,27 @@ import type { AwsInstallStepValue } from '@/lib/types';
  */
 
 const IDENTITY_LABEL_WIDTH = 'w-24'; // 96px — 이 패널이 원래 쓰던 라벨 폭 그대로.
+
+/**
+ * 결과 슬롯이 늘 차지하는 최소 높이 — 44px(`min-h-11`).
+ *
+ * 오너가 이 설계에 붙인 조건은 "버튼은 움직이지 않는다"였다. 버튼이 슬롯 **바깥**의
+ * 고정된 줄에 있으면 DOM 상으로는 그렇지만, 슬롯이 높이를 예약하지 않으면 슬롯 내용이
+ * 곧 버튼의 y 다 — 누르는 순간 포인터 아래에서 버튼이 올라간다.
+ *
+ * 그래서 **결과가 오기 전** 상태들 중 가장 높은 것을 바닥으로 깐다:
+ *
+ * | 상태 | 높이 |
+ * |---|---|
+ * | 리드 줄 있는 대기(FAIL) | 20 + 4 + 20 = **44px** (`bodyStrong`·`body` 줄높이 20, `stackGap.tight`) |
+ * | 리드 줄 없는 대기 | 20px |
+ * | 스켈레톤 | 12 + 6 + 20 = 38px |
+ *
+ * 결과가 온 뒤 원인 블록이 더 커지는 것은 막지 않는다 — 그것은 포인터 아래의 이동이
+ * 아니라 사용자가 요청한 내용의 도착이다. 조용한 상태(COMPLETED/SKIP/BDC)에도 똑같이
+ * 건다: 대상마다 버튼의 높이가 달라지는 편이 여백 44px 보다 나쁘다.
+ */
+export const RESULT_SLOT_MIN_HEIGHT = 'min-h-11';
 
 const IdentityRow = ({ label, value }: { label: string; value: string | null }) => (
   <div className={cn('flex items-center', stackGap.group, textStyles.body)}>
@@ -132,9 +152,12 @@ const IdlePrompt = ({ lead }: { lead: boolean }) => (
       </span>
     )}
     {/* 막힌 것이 있다고 전제하지 않는 문장. IN_PROGRESS/UNKNOWN 에서는 막혔는지조차
-        모르는 상태이므로, 확인이 가져다주는 것을 그대로 적는다(상태 + 막힌 원인). */}
+        모르는 상태이므로, 확인이 가져다주는 것을 그대로 적는다(상태 + 막힌 원인).
+        「알 수 있어요」가 아니라 「확인할 수 있어요」인 이유: 검증이 늘 원인을 주지는
+        않는다 — ROLE_VERIFICATION_UNAVAILABLE 은 "지금은 확정할 수 없습니다"이고
+        미매핑 코드는 일반 문장으로 떨어진다. 결과를 약속하지 않고 행동만 말한다. */}
     <span className={cn(textStyles.body, textColors.secondary)}>
-      지금 확인하면 권한 상태와 막힌 원인까지 알 수 있어요
+      지금 확인하면 권한 상태와 막힌 원인까지 확인할 수 있어요.
     </span>
   </div>
 );
@@ -179,12 +202,16 @@ export const TerraformRoleVerifyPanel = ({
   // The fetch lives in the handler, not in an effect: there is exactly one trigger
   // (the button), so an effect would only add a keyed counter to stop it firing on
   // the first render.
+  //
+  // 재진입은 `disabled` 가 아니라 여기서 막는다 — 아래 버튼이 aria-disabled 를 쓰는
+  // 이유(포커스 유지)를 참고. aria-disabled 는 클릭을 막지 않으므로 가드가 필요하다.
   const verifyNow = useCallback(() => {
+    if (state.phase === 'loading') return;
     setState({ phase: 'loading' });
     getAwsRoleVerification(targetSourceId, 'execution')
       .then((data) => setState({ phase: 'done', data }))
       .catch(() => setState({ phase: 'error' }));
-  }, [targetSourceId]);
+  }, [targetSourceId, state.phase]);
 
   const data = state.phase === 'done' ? state.data : null;
   const finding = data ? terraformRoleFinding(data) : null;
@@ -218,8 +245,13 @@ export const TerraformRoleVerifyPanel = ({
   // request is the one moment the button must be pressed again — it cannot be the
   // moment the button is weakest.
   const heavy = blocked || Boolean(finding) || state.phase === 'error';
-  // 「다시」인가 「처음」인가 — 이것만은 계약이 답했는지가 진짜 질문이라 settled 를 쓴다.
-  const settled = isSettledInstallStatus(verifyStatus);
+  const weightClass = heavy
+    ? // 채운 버튼은 카드에 하나뿐이어야 하므로 outline (PR #666 에서 오너가 고른 CTA 무게).
+      cn(getButtonClass('outline'), 'whitespace-nowrap')
+    : // Nothing to act on — the contract answered and no live check has said otherwise,
+      // so this is a second opinion and steps back out of button chrome (ScanStrip's
+      // 권한 확인 uses the same weight).
+      cn(buttonStyles.ghostText, textColors.secondary);
 
   return (
     // 라벨↔값은 한 덩어리(tight), 항목끼리는 형제(related), 블록 사이는 group.
@@ -240,19 +272,26 @@ export const TerraformRoleVerifyPanel = ({
         {finding
           ? `확인 필요. ${finding.message}`
           : passed
-            ? '방금 확인했고, 막힌 곳은 없었어요.'
+            ? '방금 확인했을 때는 막힌 곳이 없었어요.'
             : ''}
       </p>
 
       {/* One slot, and its content is the whole of what the body says. A live result
           replaces whatever the enum said; before that, only the statuses that are the
-          service owner's turn get an invitation, and the rest get nothing. */}
-      {verifying ? (
-        // 검증은 최대 30초까지 걸린다(라우트 expectedDuration). 그동안 이 자리를 비워
-        // 두면 "원인 없음"과 구분되지 않으므로, 원인 블록이 설 자리를 그대로 세운다.
-        <div aria-busy="true" aria-label="권한 검증 중" className="flex flex-col gap-1.5">
-          <div className={cn(idcStyles.skeletonBar, 'h-3 w-20 rounded')} />
-          <div className={cn(idcStyles.skeletonBar, 'h-5 w-[60%] rounded')} />
+          service owner's turn get an invitation, and the rest get nothing.
+
+          aria-busy 는 이 **상주 컨테이너**가 갖는다. 스켈레톤 div 에 걸었을 때는 결과가
+          도착하는 순간 그 노드가 통째로 사라져서 true → false 전이가 일어나지 않았다 —
+          전이가 속성의 존재 이유인데. 고아 aria-label 도 함께 걷어냈다(role 없는 일반
+          컨테이너의 이름은 대부분의 보조기술이 읽지 않는다). 결과 자체는 위의
+          aria-live 리전이 말한다. */}
+      <div aria-busy={verifying} className={RESULT_SLOT_MIN_HEIGHT}>
+        {verifying ? (
+          // 검증은 최대 30초까지 걸린다(라우트 expectedDuration). 그동안 이 자리를 비워
+          // 두면 "원인 없음"과 구분되지 않으므로, 원인 블록이 설 자리를 그대로 세운다.
+          <div className="flex flex-col gap-1.5">
+            <div className={cn(idcStyles.skeletonBar, 'h-3 w-20 rounded')} />
+            <div className={cn(idcStyles.skeletonBar, 'h-5 w-[60%] rounded')} />
         </div>
       ) : state.phase === 'error' ? (
         <p role="alert" className={cn(textStyles.body, statusColors.error.textDark)}>
@@ -261,8 +300,12 @@ export const TerraformRoleVerifyPanel = ({
       ) : finding ? (
         <FindingBlock finding={finding} />
       ) : passed ? (
+        // 「~했을 때는」 — 이 줄은 관측을 보고하지 판정을 내리지 않는다. 헤더 알약이
+        // 실패라고 말하는 대상에서도 실시간 응답은 VALID 일 수 있고(계약 판정이 폴링
+        // 시점에 묶여 있다), 그때 몸이 「막힌 곳은 없었어요」라고 단정하면 한 사실에
+        // 화자가 둘이 된다. 판정은 알약이 갖고, 다음 폴링이 알약을 옮긴다.
         <p className={cn(textStyles.body, textColors.secondary)}>
-          방금 확인했고, 막힌 곳은 없었어요.
+          방금 확인했을 때는 막힌 곳이 없었어요.
         </p>
       ) : data ? (
         // 응답은 왔는데 원인도 통과도 말하지 않았다(진행 중이거나 미매핑 status).
@@ -271,26 +314,32 @@ export const TerraformRoleVerifyPanel = ({
       ) : invitesCheck ? (
         <IdlePrompt lead={blocked} />
       ) : null}
+      </div>
 
       {/* 액션과 그 액션이 마지막으로 남긴 시각은 한 줄이다 — 버튼을 누르면 바뀌는 값이
-          바로 옆에 있어야 눌린 것이 보인다. This row is fixed: the slot above changes
-          with the state, the button does not move (owner's condition on this design). */}
+          바로 옆에 있어야 눌린 것이 보인다. 이 줄은 고정이다 — 위 슬롯이 상태마다
+          바뀌어도 버튼은 제자리에 있어야 한다(오너 조건). 그 약속을 지키는 것은 DOM
+          순서가 아니라 슬롯의 예약 높이다(RESULT_SLOT_MIN_HEIGHT). */}
       <div className="flex items-center gap-3 flex-wrap">
         <button
           type="button"
           onClick={verifyNow}
-          disabled={verifying}
-          className={
-            heavy
-              // 채운 버튼은 카드에 하나뿐이어야 하므로 outline (PR #666 에서 오너가 고른 CTA 무게).
-              ? cn(getButtonClass('outline'), 'whitespace-nowrap')
-              // Nothing to act on — the contract answered and no live check has said
-              // otherwise, so this is a second opinion and steps back out of button
-              // chrome (ScanStrip's 권한 확인 uses the same weight).
-              : cn(buttonStyles.ghostText, textColors.secondary)
-          }
+          // ⛔ `disabled` 가 아니다. 이 버튼은 눌린 직후 포커스를 갖고 있고, 포커스된
+          // 요소가 disabled 가 되면 브라우저는 포커스를 <body> 로 옮긴다 — 되돌려
+          // 놓는 코드는 없다. 키보드 사용자는 누르고, 서 있던 자리를 잃고, 30초 뒤
+          // 자기가 없는 곳에서 DOM 이 바뀐다. aria-disabled 는 포커스를 남긴다.
+          // 클릭을 막지 않으므로 재진입 가드는 verifyNow 안에 있다.
+          aria-disabled={verifying}
+          className={cn(
+            weightClass,
+            // 눌린 동안의 시각 처리 — 종전 `disabled:` 변형이 주던 값 그대로.
+            verifying && 'cursor-not-allowed opacity-60',
+          )}
         >
-          {verifying ? '확인 중...' : settled || data ? '다시 확인' : '권한 확인'}
+          {/* 「다시」는 이 사람이 눌러 본 적이 있을 때만 참이다. 계약이 이미 확인했다는
+              사실은 이 사람의 행동이 아니다 — 정착한 대상에 처음 들어온 사용자에게
+              「다시 확인」이라고 말하면 하지 않은 일을 했다고 하는 것이다. */}
+          {verifying ? '확인 중...' : data ? '다시 확인' : '권한 확인'}
         </button>
         {/* 소요 시간은 **행동의 성질**이라 결과 슬롯이 아니라 버튼 옆에 산다 — 슬롯을
             따라 나타났다 사라지면 같은 버튼이 어떤 상태에서는 시간을 말하고 어떤
