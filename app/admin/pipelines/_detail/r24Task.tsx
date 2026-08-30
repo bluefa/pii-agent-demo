@@ -20,7 +20,7 @@
  * grammar is a scoped <style> string (FLOW_CSS precedent); every color is a
  * `--pl-*` token.
  */
-import type { ReactElement, ReactNode } from 'react';
+import type { KeyboardEvent, ReactElement, ReactNode } from 'react';
 import { cn } from '@/lib/theme';
 import { Icon, type IconName } from '@/app/admin/pipelines/_components/icons';
 import { TerraformLogo } from '@/app/admin/pipelines/_components/brandMarks';
@@ -243,7 +243,7 @@ export function R24TaskNode({ kind, name, desc, action, side, seq, state, footer
  * -------------------------------------------------------------------------- */
 
 export const R24_RUN_CSS = `
-.rtc{position:relative;display:flex;align-items:center;gap:12px;width:248px;flex:none;background:var(--pl-bg-card);border:1px solid var(--pl-border);border-radius:12px;padding:12px 16px 12px 12px;box-shadow:var(--pl-shadow-xs)}
+.rtc{position:relative;display:flex;align-items:center;gap:12px;width:248px;flex:none;background:var(--pl-bg-card);border:1px solid var(--pl-border-strong);border-radius:12px;padding:12px 16px 12px 12px;box-shadow:var(--pl-shadow-xs);text-align:left}
 .rtc-tile{flex:none;width:44px;height:44px;border-radius:10px;display:flex;align-items:center;justify-content:center;background:var(--pl-gray-50)}
 .rtc-tile svg{width:26px;height:26px}
 .rtc-tile.tf{background:color-mix(in srgb,var(--pl-type-custom) 9%,var(--pl-bg-card));color:var(--pl-brand-tf)}
@@ -257,7 +257,12 @@ export const R24_RUN_CSS = `
 .rtc.pend .rtc-nm{color:var(--pl-text-weak)}
 .rtc.pend .rtc-ds{color:var(--pl-text-faint)}
 .rtc.pend .rtc-tile{background:var(--pl-gray-50);color:var(--pl-text-faint)}
-.rtc.failed{border-color:var(--pl-err-border)}
+.rtc.done{border-color:var(--pl-ok-border)}
+.rtc.cancelled{border-color:var(--pl-border-strong);background:var(--pl-flow-idle-bg)}
+.rtc.failed{border-color:var(--pl-err-border);box-shadow:0 0 0 4px var(--pl-flow-failed-halo)}
+.rtc.click{cursor:pointer;transition:border-color .15s,box-shadow .15s}
+.rtc.click:hover{border-color:var(--pl-text-weak)}
+.rtc.click:focus-visible{outline:2px solid var(--pl-primary);outline-offset:2px}
 .rtc-corner{position:absolute;top:-8px;right:-8px;width:20px;height:20px;border-radius:50%;display:grid;place-items:center;box-shadow:0 0 0 2px var(--pl-bg-inner);font-family:var(--pl-font-mono);font-size:12px;font-weight:700;font-variant-numeric:tabular-nums}
 .rtc-corner svg{width:12px;height:12px;stroke-width:3}
 .rtc-corner.done{background:var(--pl-text-strong);color:var(--pl-white)}
@@ -342,11 +347,16 @@ export interface RunTaskCardProps {
   /** '시도 1 / 3' — the current task's retry budget (IN_PROGRESS, or READY
    *  while waiting between retry attempts). */
   retry?: string | null;
+  /** Opens the task's 상세·로그 modal. Omit for a card that is only a picture. */
+  onOpen?: () => void;
 }
 
 /** Live-pipeline task card — tile + status corner + status pill (R24 run flow). */
-export function RunTaskCard({ kind, name, desc, action, side, status, seq, retry }: RunTaskCardProps): ReactElement {
+export function RunTaskCard({ kind, name, desc, action, side, status, seq, retry, onOpen }: RunTaskCardProps): ReactElement {
   const view = STATUS_VIEW[status];
+  // The frame carries the verdict, on the same status strokes the pipeline
+  // 현황 flow uses (TaskFlow `s-*`): green done, red failed + halo, dashed
+  // pending, and the black current ring this card already had.
   const cardState =
     view.key === 'running'
       ? 'cur'
@@ -354,10 +364,27 @@ export function RunTaskCard({ kind, name, desc, action, side, status, seq, retry
         ? 'pend'
         : view.key === 'failed'
           ? 'failed'
-          : undefined;
+          : view.key === 'cancelled'
+            ? 'cancelled'
+            : 'done';
   const cornerIcon = CORNER_ICON[view.key];
   return (
-    <div className={cn('rtc', cardState)}>
+    <div
+      className={cn('rtc', cardState, onOpen && 'click')}
+      {...(onOpen
+        ? {
+            role: 'button' as const,
+            tabIndex: 0,
+            'aria-label': `${name} · ${view.label} · 상세 열기`,
+            onClick: onOpen,
+            onKeyDown: (e: KeyboardEvent<HTMLDivElement>) => {
+              if (e.key !== 'Enter' && e.key !== ' ') return;
+              e.preventDefault();
+              onOpen();
+            },
+          }
+        : {})}
+    >
       <span className={cn('rtc-corner', view.key)} aria-hidden="true">
         {view.key === 'running' ? (
           <span className="rtc-spin" />
