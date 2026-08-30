@@ -671,6 +671,10 @@ export const InstallStatusDetail = ({
    * "use whitespace or borders instead", "don't use raised to group content").
    * 프레임 테두리를 지운 앞 라운드는 결과를 지웠고 원인은 남겨 뒀다.
    *
+   * ⚠️ 위 문단은 #778 의 진단이고, 지금의 규칙이 아니다 — 오너가 뒤집었고 구분선은
+   * 돌아왔다. 되돌리기 전에 읽어야 할 사유는 paneHead(true) 를 감싸는 머리 상자의
+   * 주석에 있다.
+   *
    * 이 머리의 제목은 단계의 이름이고 이 판이 스스로 이고 있는 머리다 — 그래서 16px
    * 제목 계단에 선다. 굵기만 semibold 로 한 단 내린다: 바깥 카드 머리("4단계 Agent
    * 설치")가 이미 한 단 위에 있는데, 같은 굵기의 제목 둘이 나란히 서면 어느 쪽이 위인지
@@ -1016,11 +1020,19 @@ export const InstallStatusDetail = ({
               </div>
             ) : (
               <>
-                {/* 헤어라인 삭제 — 폭 전체를 가로지르는 1px 은 이 셀을 "제목 + 구분선 +
-                    본문"으로 만들어, 테두리를 지운 뒤에도 두 번째 카드로 읽히게 하던
-                    마지막 신호였다. 가르는 일은 여백이 한다(머리↔본문 = related 8px). */}
-                <div className="flex-none px-5 pt-4 pb-2">{paneHead(true)}</div>
-                <div className="flex-1 min-h-0 overflow-y-auto px-5 pb-5">{paneBody}</div>
+                {/* 이 선은 #778 에서 한 번 지워졌다 — 제목 → 구분선 → 본문이라는 배치가 안쪽을
+                    독립한 카드로 읽히게 한다는 사유였다. 오너가 그 판단을 뒤집었다: 제목이 16/600 으로
+                    돌아온 지금, 머리(메타데이터)와 본문은 가르는 표시를 갖는다. 선 위아래는 각각
+                    16px — 머리 안쪽 간격(8px)의 두 배라, 가르는 일을 선 혼자 하지 않는다.
+
+                    2px 는 오너가 램프를 보고 대가까지 알고 고른 값이다: app/** 의 가로 구분선은
+                    전부 1px 이고 2px 규칙은 파이프라인 표 th 밑줄(theme.ts)과 로딩 스피너뿐이라 이
+                    선은 관례 밖이며, 카드 외곽선이 같은 `borderColors.card` 를 1px 로 쓰므로 안쪽의 이 선이
+                    바깥 테두리보다 진하게 읽힌다. */}
+                <div className={cn('flex-none px-5 pt-4 pb-4 border-b-2', borderColors.card)}>
+                  {paneHead(true)}
+                </div>
+                <div className="flex-1 min-h-0 overflow-y-auto px-5 pt-4 pb-5">{paneBody}</div>
               </>
             )}
           </div>
