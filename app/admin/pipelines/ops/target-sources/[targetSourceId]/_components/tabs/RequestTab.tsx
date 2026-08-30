@@ -4,28 +4,26 @@
  * 연동 요청 정보 tab — mirrors the approved mockup
  * (design/pipeline/ops-target-source-tabs.html `tabRequest`), with 최근 승인 요청
  * folded into ONE card — the request's facts as a header row over the resource
- * list itself, the same shape the 승인 요청 상세 modal uses — and 확정 정보 below it.
+ * list itself, the same shape the 승인 요청 상세 modal uses.
+ *
+ * ⛔ 확정 정보 카드는 여기 없다 (오너 2026-08-30). 확정 정보는 제 탭이 통째로 갖고 있고,
+ * 진행 상태 탭의 연동 현황 행이 확정 여부와 그 탭으로 가는 문을 이미 진다 — 같은 사실이
+ * 세 자리에 있을 이유가 없다.
  *
  * Reads are independent and best-effort so a failing card never blanks its
  * sibling:
  *   - 최근 승인 요청 / 요청 리소스 → …/approval-requests/latest
- *   - 확정 정보                    → …/confirmed-integration (현재 확정 상태)
  *   - 처리 (처리자 · 처리 일시)     → …/approval-history (latest page item)
  * A missing snapshot (404) is an empty state, not a failure.
  */
-import { useCallback, useEffect, useState, type ReactElement, type ReactNode } from 'react';
+import { useCallback, useEffect, useState, type ReactElement } from 'react';
 import { cn, pipelineStyles } from '@/lib/theme';
-import { AppError, isMissingConfirmedIntegrationError } from '@/lib/errors';
+import { AppError } from '@/lib/errors';
 import { normalizeCloudProvider } from '@/lib/types';
 import { fmtDateTime } from '@/lib/pipeline/format';
-import { getDatabaseShortLabel } from '@/app/components/ui/DatabaseIcon';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
 import { PlEmptyState } from '@/app/admin/pipelines/_components/PlEmptyState';
-import {
-  getApprovalHistory,
-  getConfirmedIntegration,
-  type ConfirmedIntegrationResourceItem,
-} from '@/app/lib/api';
+import { getApprovalHistory } from '@/app/lib/api';
 import {
   getApprovalRequestLatest,
   getNlbIndexMappings,
@@ -45,10 +43,6 @@ import { opsStyles } from '@/app/admin/pipelines/ops/target-sources/[targetSourc
 
 /** `data: null` = the snapshot does not exist yet (404), not a failure. */
 type Load<T> = { state: 'loading' } | { state: 'ready'; data: T | null } | { state: 'failed' };
-
-/** 확정 정보 source — confirmed-integration rows (contract carries resources only,
- *  no 확정 일시/확정자, so the card scopes down to what the wire declares). */
-type ConfirmedRows = ConfirmedIntegrationResourceItem[];
 
 /** 처리 source — one …/approval-history content item. CONTRACT GAP: the swagger
  *  200 is the generic `Page`, so the item shape is off-contract (same local wire
@@ -81,25 +75,7 @@ const TONE: Record<Tone, { fill: string; dot: string }> = {
   off: { fill: 'bg-[var(--pl-off-bg)] text-[var(--pl-off-text)]', dot: 'bg-[var(--pl-gray-300)]' },
 };
 
-/** Database Type tag — mockup `.tag.blue` (opsStyles.tag in primary tones). */
-const DB_TAG =
-  'inline-flex items-center rounded px-2 py-0.5 text-[12px] font-semibold bg-[var(--pl-primary-bg)] text-[var(--pl-primary)] whitespace-nowrap';
-
-const KV_GRID = 'grid grid-cols-[140px_1fr] items-center gap-x-4 gap-y-2.5 mt-3.5';
-
-const NOTE_WARN =
-  'flex gap-2.5 rounded-lg px-3.5 py-3 mt-4 text-[14px] leading-[1.5] bg-[var(--pl-warn-bg)] text-[var(--pl-warn-text)]';
-
 const dash = (): ReactElement => <span className={pipelineStyles.text.muted}>—</span>;
-
-function KvRow({ label, children }: { label: string; children: ReactNode }): ReactElement {
-  return (
-    <>
-      <dt className={pipelineStyles.text.kvKey}>{label}</dt>
-      <dd className={pipelineStyles.text.kvValue}>{children}</dd>
-    </>
-  );
-}
 
 function StatusTag({ status }: { status: string | null }): ReactElement {
   if (!status) return dash();
@@ -196,7 +172,6 @@ export interface RequestTabProps {
 
 export function RequestTab({ targetSourceId, detail }: RequestTabProps): ReactElement {
   const [request, setRequest] = useState<Load<ApprovalRequestDetail>>({ state: 'loading' });
-  const [confirmed, setConfirmed] = useState<Load<ConfirmedRows>>({ state: 'loading' });
   const [processed, setProcessed] = useState<ProcessedInfo | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
   const retry = useCallback(() => setReloadKey((key) => key + 1), []);
@@ -217,24 +192,6 @@ export function RequestTab({ targetSourceId, detail }: RequestTabProps): ReactEl
       }
     })();
 
-    // 확정 정보 — the confirmed-integration state (the current confirmed truth;
-    // an absent snapshot 404s and an empty list both read as "not confirmed yet").
-    void (async () => {
-      setConfirmed({ state: 'loading' });
-      try {
-        const data = await getConfirmedIntegration(targetSourceId);
-        if (cancelled) return;
-        const rows = data.resource_infos ?? [];
-        setConfirmed({ state: 'ready', data: rows.length > 0 ? rows : null });
-      } catch (error) {
-        if (cancelled) return;
-        setConfirmed(
-          isMissingConfirmedIntegrationError(error)
-            ? { state: 'ready', data: null }
-            : { state: 'failed' },
-        );
-      }
-    })();
 
     // 처리자 · 처리 일시 — the latest approval-history record. Best-effort
     // decoration of the 최근 승인 요청 card: a failure just hides the row.
@@ -263,17 +220,6 @@ export function RequestTab({ targetSourceId, detail }: RequestTabProps): ReactEl
   // and would hand IDC rows to the cloud table — the exact defect this tab just fixed.
   const isIdc = normalizeCloudProvider(detail.cloud_provider) === 'IDC';
 
-  const confirmedDbTypes =
-    confirmed.state === 'ready' && confirmed.data
-      ? [
-          ...new Set(
-            confirmed.data
-              .map((row) => row.database_type)
-              .filter((type): type is string => !!type)
-              .map(getDatabaseShortLabel),
-          ),
-        ]
-      : [];
 
   const summary = request.state === 'ready' ? request.data?.request ?? null : null;
   const rows = request.state === 'ready' ? request.data?.resources ?? [] : [];
@@ -292,101 +238,57 @@ export function RequestTab({ targetSourceId, detail }: RequestTabProps): ReactEl
   );
 
   return (
-    <>
-      <section className={pipelineStyles.card.base} aria-label="최근 승인 요청">
-        <h2 className={opsStyles.cardTitle}>최근 승인 요청</h2>
-        <p className={opsStyles.cardDesc}>
-          {summary?.requestId != null
-            ? `요청 ID #${summary.requestId}`
-            : '서비스가 제출한 연동 요청의 승인 정보입니다.'}
+    <section className={pipelineStyles.card.base} aria-label="최근 승인 요청">
+      <h2 className={opsStyles.cardTitle}>최근 승인 요청</h2>
+      <p className={opsStyles.cardDesc}>
+        {summary?.requestId != null
+          ? `요청 ID #${summary.requestId}`
+          : '서비스가 제출한 연동 요청의 승인 정보입니다.'}
+      </p>
+
+      {request.state === 'loading' ? (
+        <p className={cn(pipelineStyles.empty.base, 'mt-2')} aria-busy>
+          불러오는 중…
         </p>
-
-        {request.state === 'loading' ? (
-          <p className={cn(pipelineStyles.empty.base, 'mt-2')} aria-busy>
-            불러오는 중…
-          </p>
-        ) : request.state === 'failed' ? (
-          <div className={cn(pipelineStyles.empty.base, 'mt-2')}>
-            <p>승인 요청 정보를 불러오지 못했습니다.</p>
-            {retryButton}
+      ) : request.state === 'failed' ? (
+        <div className={cn(pipelineStyles.empty.base, 'mt-2')}>
+          <p>승인 요청 정보를 불러오지 못했습니다.</p>
+          {retryButton}
+        </div>
+      ) : summary == null ? (
+        <PlEmptyState icon="inbox" message="승인 요청 이력이 없습니다." className="mt-2" />
+      ) : (
+        <>
+          {/* One card, one request. The KV table that used to state these same facts
+              in its own card above meant the operator read a summary and then
+              scrolled to the thing it summarised. Same header row as the 승인 요청
+              상세 modal: the verdict once as a tag, the rest as label-over-value. */}
+          <div className="mt-4 flex flex-wrap items-center gap-x-8 gap-y-3">
+            <StatusTag status={summary.status} />
+            <MetaField label="요청자" value={summary.requestedBy ?? '—'} />
+            <MetaField label="요청일시" value={fmtDateTime(summary.requestedAt)} />
+            {processedRow?.by && <MetaField label="처리자" value={processedRow.by} />}
+            {processedRow?.at && <MetaField label="처리일시" value={fmtDateTime(processedRow.at)} />}
           </div>
-        ) : summary == null ? (
-          <PlEmptyState icon="inbox" message="승인 요청 이력이 없습니다." className="mt-2" />
-        ) : (
-          <>
-            {/* One card, one request. The KV table that used to state these same facts
-                in its own card above meant the operator read a summary and then
-                scrolled to the thing it summarised. Same header row as the 승인 요청
-                상세 modal: the verdict once as a tag, the rest as label-over-value. */}
-            <div className="mt-4 flex flex-wrap items-center gap-x-8 gap-y-3">
-              <StatusTag status={summary.status} />
-              <MetaField label="요청자" value={summary.requestedBy ?? '—'} />
-              <MetaField label="요청일시" value={fmtDateTime(summary.requestedAt)} />
-              {processedRow?.by && <MetaField label="처리자" value={processedRow.by} />}
-              {processedRow?.at && <MetaField label="처리일시" value={fmtDateTime(processedRow.at)} />}
-            </div>
 
-            {rows.length === 0 ? (
-              <PlEmptyState icon="inbox" message="요청 리소스가 없습니다." className="mt-4" />
-            ) : (
-              /* Keyed per request so the filter/search/page state below belongs to ONE
-                 request — this tab is not guaranteed to remount when the route's target
-                 source changes under a soft navigation. requestId is contractually
-                 nullable, so the target id joins the key: two id-less requests on
-                 different targets would otherwise share a key and inherit each other's
-                 query. */
-              <ResourceList
-                key={`${targetSourceId}:${summary.requestId ?? 'latest'}`}
-                targetSourceId={targetSourceId}
-                rows={rows}
-                isIdc={isIdc}
-              />
-            )}
-          </>
-        )}
-      </section>
-
-      <section className={pipelineStyles.card.base} aria-label="확정 정보">
-        <h2 className={opsStyles.cardTitle}>확정 정보</h2>
-        <p className={opsStyles.cardDesc}>
-          승인 후 확정된 연동 대상입니다. 설치 파이프라인의 입력이 됩니다.
-        </p>
-
-        {confirmed.state === 'loading' ? (
-          <p className={cn(pipelineStyles.empty.base, 'mt-2')} aria-busy>
-            불러오는 중…
-          </p>
-        ) : confirmed.state === 'failed' ? (
-          <div className={cn(pipelineStyles.empty.base, 'mt-2')}>
-            <p>확정 정보를 불러오지 못했습니다.</p>
-            {retryButton}
-          </div>
-        ) : confirmed.data == null ? (
-          <PlEmptyState icon="install" message="확정된 연동 정보가 없습니다." className="mt-2" />
-        ) : (
-          <>
-            <dl className={KV_GRID}>
-              <KvRow label="확정 리소스">{confirmed.data.length}개</KvRow>
-              <KvRow label="Database Type">
-                {confirmedDbTypes.length > 0 ? (
-                  <span className="inline-flex flex-wrap gap-1.5">
-                    {confirmedDbTypes.map((type) => (
-                      <span key={type} className={DB_TAG}>
-                        {type}
-                      </span>
-                    ))}
-                  </span>
-                ) : (
-                  dash()
-                )}
-              </KvRow>
-            </dl>
-            <p className={NOTE_WARN}>
-              확정 정보를 삭제하면 재승인 절차를 처음부터 다시 진행해야 합니다.
-            </p>
-          </>
-        )}
-      </section>
-    </>
+          {rows.length === 0 ? (
+            <PlEmptyState icon="inbox" message="요청 리소스가 없습니다." className="mt-4" />
+          ) : (
+            /* Keyed per request so the filter/search/page state below belongs to ONE
+               request — this tab is not guaranteed to remount when the route's target
+               source changes under a soft navigation. requestId is contractually
+               nullable, so the target id joins the key: two id-less requests on
+               different targets would otherwise share a key and inherit each other's
+               query. */
+            <ResourceList
+              key={`${targetSourceId}:${summary.requestId ?? 'latest'}`}
+              targetSourceId={targetSourceId}
+              rows={rows}
+              isIdc={isIdc}
+            />
+          )}
+        </>
+      )}
+    </section>
   );
 }

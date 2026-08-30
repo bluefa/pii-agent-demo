@@ -12,7 +12,7 @@
  * string, so casing is not guaranteed. Reverting to a raw compare breaks the
  * lowercase case below.
  */
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 import { OpsTargetView } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/OpsTargetView';
@@ -72,7 +72,7 @@ beforeEach(() => {
 describe('OpsTargetView — IDC 스캔 탭', () => {
   it('IDC 대상에는 스캔 탭이 없다', async () => {
     getRawTargetSourceDetail.mockResolvedValue(detail());
-    render(<OpsTargetView targetSourceId={1583} initialTab="진행 상태" />);
+    render(<OpsTargetView targetSourceId={1583} initialTab="진행 상태" statusSlot={<div data-testid="status-slot" />} />);
     // The whole list, not just the absence: only 스캔 leaves, and the other eight keep
     // their order. Asserting absence alone lets a broadened filter pass.
     expect(await tabNames()).toEqual([
@@ -89,7 +89,7 @@ describe('OpsTargetView — IDC 스캔 탭', () => {
 
   it('IDC 마스트헤드는 환경 행(사내망 · IDC 태그)을 말한다', async () => {
     getRawTargetSourceDetail.mockResolvedValue(detail({ cloud_provider: 'IDC' }));
-    render(<OpsTargetView targetSourceId={1026} initialTab="진행 상태" />);
+    render(<OpsTargetView targetSourceId={1026} initialTab="진행 상태" statusSlot={<div data-testid="status-slot" />} />);
     const env = await screen.findByText('사내망');
     // 한 행이 셋 다 든다: 키(환경) · 값(사내망) · 태그(IDC).
     expect(env.parentElement?.textContent).toContain('환경');
@@ -107,7 +107,7 @@ describe('OpsTargetView — IDC 스캔 탭', () => {
     getRawTargetSourceDetail.mockResolvedValue(
       detail({ target_source_id: 1010, cloud_provider: 'AWS' }),
     );
-    render(<OpsTargetView targetSourceId={1010} initialTab="진행 상태" />);
+    render(<OpsTargetView targetSourceId={1010} initialTab="진행 상태" statusSlot={<div data-testid="status-slot" />} />);
     // 라벨만 본다 — 상태가 걸린 탭은 `.sr-only` 낱말을 뒤에 달고 나오므로 textContent
     // 통짜 비교는 이 단언이 재려는 것(구성)과 상관없는 것(상태)에 묶인다.
     const labels = (await tabNames()).map((name) => (name ?? '').split(',')[0]);
@@ -118,20 +118,20 @@ describe('OpsTargetView — IDC 스캔 탭', () => {
     getRawTargetSourceDetail.mockResolvedValue(
       detail({ target_source_id: 1010, cloud_provider: 'AWS' }),
     );
-    render(<OpsTargetView targetSourceId={1010} initialTab="진행 상태" />);
+    render(<OpsTargetView targetSourceId={1010} initialTab="진행 상태" statusSlot={<div data-testid="status-slot" />} />);
     expect(await tabNames()).toContain('스캔');
   });
 
   it('cloud_provider 대소문자가 달라도 걸러진다', async () => {
     getRawTargetSourceDetail.mockResolvedValue(detail({ cloud_provider: 'idc' }));
-    render(<OpsTargetView targetSourceId={1583} initialTab="진행 상태" />);
+    render(<OpsTargetView targetSourceId={1583} initialTab="진행 상태" statusSlot={<div data-testid="status-slot" />} />);
     expect(await tabNames()).not.toContain('스캔');
   });
 
   it('?tab=scan 으로 들어오면 진행 상태로 떨어지고 URL 도 따라 정리된다', async () => {
     window.history.replaceState(null, '', '/admin/pipelines/ops/target-sources/1583?tab=scan');
     getRawTargetSourceDetail.mockResolvedValue(detail());
-    render(<OpsTargetView targetSourceId={1583} initialTab="스캔" />);
+    render(<OpsTargetView targetSourceId={1583} initialTab="스캔" statusSlot={<div data-testid="status-slot" />} />);
 
     const status = await screen.findByRole('tab', { name: '진행 상태' });
     await waitFor(() => expect(status.getAttribute('aria-selected')).toBe('true'));
@@ -146,10 +146,26 @@ describe('OpsTargetView — IDC 스캔 탭', () => {
     // target that has no scan concept. Only a request assertion catches that.
     window.history.replaceState(null, '', '/admin/pipelines/ops/target-sources/1583?tab=scan');
     getRawTargetSourceDetail.mockResolvedValue(detail());
-    render(<OpsTargetView targetSourceId={1583} initialTab="스캔" />);
+    render(<OpsTargetView targetSourceId={1583} initialTab="스캔" statusSlot={<div data-testid="status-slot" />} />);
 
     await screen.findByRole('tab', { name: '진행 상태' });
     await waitFor(() => expect(getRawTargetSourceDetail).toHaveBeenCalled());
     expect(getScanHistory).not.toHaveBeenCalled();
+  });
+
+  /**
+   * 배선 하나 — 연동 현황 카드는 **서버가 그려서 prop 으로 내려보낸 노드**라, 이 뷰가
+   * 그것을 진행 상태 탭에 실제로 꽂는지는 순수 판정 테스트(`statusRows.test.ts`)가
+   * 볼 수 없는 자리다. 슬롯을 놓는 줄이 사라지면 카드가 통째로 화면에서 빠지는데
+   * 타입은 여전히 통과한다.
+   */
+  it('연동 현황 슬롯은 진행 상태 탭에 서고, 다른 탭에서는 서지 않는다', async () => {
+    getRawTargetSourceDetail.mockResolvedValue(detail());
+    render(<OpsTargetView targetSourceId={1583} initialTab="진행 상태" statusSlot={<div data-testid="status-slot" />} />);
+
+    expect(await screen.findByTestId('status-slot')).toBeTruthy();
+
+    fireEvent.click(await screen.findByRole('tab', { name: '연동 요청 정보' }));
+    await waitFor(() => expect(screen.queryByTestId('status-slot')).toBeNull());
   });
 });

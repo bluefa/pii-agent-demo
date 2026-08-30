@@ -256,7 +256,7 @@ export function TargetPipelineSections({
         </div>
 
         <div className="min-w-0">
-          {/* pagedCard skeleton (StatusHistoryCard·ApprovalHistoryCard): a floor
+          {/* pagedCard skeleton (ApprovalHistoryCard): a floor
               under the body so a card holding one run is not shorter than one
               holding five, `flex-1` to absorb whatever height the taller sibling
               sets, and the pager pinned to the bottom. */}

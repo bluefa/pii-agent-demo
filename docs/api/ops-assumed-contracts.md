@@ -360,10 +360,22 @@ The same response also feeds the **Airflow 확인** tab (`?tab=airflow`), which 
 weekly board, the agent table, and the DAG detail modal. The page owns the fetch and
 hands the result to both tabs, so switching between them does not re-request §10.
 
-It is fetched lazily — a single target's response reaches MB scale (10k 논리 DB rows,
-BE open issue below), so the page only asks once a reader exists: the target is
-완료 승인 (조건 ③ gates on it) or the Airflow 확인 tab is open. Targets earlier in the
-process never request it.
+A single target's response reaches MB scale (10k 논리 DB rows, BE open issue below).
+Two readers ask for it, on different rules:
+
+- **The client page** (`OpsTargetView`) still asks lazily — only once a reader exists:
+  the target is 완료 승인 (조건 ③ gates on it) or the Airflow 확인 tab is open. It hands
+  the one result to both tabs, so switching between them does not re-request.
+- **The 연동 현황 card** (`status/StatusCard.tsx`, Server Component) asks **on every
+  render, at every step** — owner call 2026-08-30 ("6단계 상관없이 그냥 조회해"), which
+  reversed the step gate that row used to sit behind. Its Airflow row prints whatever
+  came back rather than a position in the process.
+
+So a 완료 승인 target fetches §10 **twice per page load** — once server-side for the
+card, once client-side for 조건 ③ — through different transports and with nothing
+deduping them. That is the accepted cost of the owner call. It collapses when the
+screen's `detail` moves to the server and the client stops fetching (see PR #832
+"Known follow-up"), or when BE bounds the response (open issue below).
 
 ```
 GET /install/v1/target-sources/{targetSourceId}/dag-status

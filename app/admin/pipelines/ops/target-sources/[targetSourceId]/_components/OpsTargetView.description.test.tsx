@@ -65,7 +65,7 @@ beforeEach(() => {
 describe('OpsTargetView — 「상세 정보」 설명', () => {
   it('접힘을 열기 전에는 설명이 화면에 없다', async () => {
     getRawTargetSourceDetail.mockResolvedValue(detail({ description: '접힌 설명' }));
-    render(<OpsTargetView targetSourceId={1018} initialTab="진행 상태" />);
+    render(<OpsTargetView targetSourceId={1018} initialTab="진행 상태" statusSlot={<div data-testid="status-slot" />} />);
     // 큐가 떴다는 것은 마스트헤드가 도착했다는 뜻이다 — "아직 로딩" 이 아니다.
     await screen.findByRole('button', { name: '상세 정보' });
     expect(screen.queryByText('접힌 설명')).toBeNull();
@@ -75,14 +75,14 @@ describe('OpsTargetView — 「상세 정보」 설명', () => {
     // 레일이 236px 였을 때의 규칙이 여기 남아 있으면 140자가 100자+…로 잘린다.
     const long = 'a'.repeat(140);
     getRawTargetSourceDetail.mockResolvedValue(detail({ description: long }));
-    render(<OpsTargetView targetSourceId={1018} initialTab="진행 상태" />);
+    render(<OpsTargetView targetSourceId={1018} initialTab="진행 상태" statusSlot={<div data-testid="status-slot" />} />);
     await openFold();
     expect((await screen.findByText(long)).textContent).toBe(long);
   });
 
   it('설명이 없으면 없음 + 등록하기', async () => {
     getRawTargetSourceDetail.mockResolvedValue(detail());
-    render(<OpsTargetView targetSourceId={1018} initialTab="진행 상태" />);
+    render(<OpsTargetView targetSourceId={1018} initialTab="진행 상태" statusSlot={<div data-testid="status-slot" />} />);
     await openFold();
     // '등록하기'는 역할 셀에도 있다 — 설명은 title 로 잡는다. 그리고 '없음'은 같은
     // 그룹의 「최초 연동」에도 있으므로 셀까지 좁혀야 이 단언이 죽지 않는다.
@@ -95,7 +95,7 @@ describe('OpsTargetView — 「상세 정보」 설명', () => {
 
   it('수정 → 저장이 API 를 부르고 접힘의 문단을 그 값으로 갱신한다', async () => {
     getRawTargetSourceDetail.mockResolvedValue(detail({ description: '이전 설명' }));
-    render(<OpsTargetView targetSourceId={1018} initialTab="진행 상태" />);
+    render(<OpsTargetView targetSourceId={1018} initialTab="진행 상태" statusSlot={<div data-testid="status-slot" />} />);
     await openFold();
     fireEvent.click(await screen.findByTitle('설명 수정'));
     const textarea = await screen.findByLabelText('설명');

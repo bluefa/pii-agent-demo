@@ -69,13 +69,13 @@ beforeEach(() => {
 describe('OpsTargetView — Terraform Role 칸', () => {
   it('자동 설치면 등록된 role 을 그린다', async () => {
     getRawTargetSourceDetail.mockResolvedValue(detail(true));
-    render(<OpsTargetView targetSourceId={1006} initialTab="진행 상태" />);
+    render(<OpsTargetView targetSourceId={1006} initialTab="진행 상태" statusSlot={<div data-testid="status-slot" />} />);
     expect(await tfValue()).toContain('bdc-infra-terraform-worker-service-role');
   });
 
   it('수동 설치여도 칸은 사라지지 않고, 왜 비었는지를 적는다', async () => {
     getRawTargetSourceDetail.mockResolvedValue(detail(false));
-    render(<OpsTargetView targetSourceId={1006} initialTab="진행 상태" />);
+    render(<OpsTargetView targetSourceId={1006} initialTab="진행 상태" statusSlot={<div data-testid="status-slot" />} />);
     // 「미등록」이 아니다 — 등록을 빠뜨린 게 아니라 이 모드에 필요하지 않은 것이다.
     expect(await tfValue()).toBe('역할 불필요');
   });

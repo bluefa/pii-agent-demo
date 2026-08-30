@@ -62,13 +62,13 @@ beforeEach(() => {
 describe('OpsTargetView — 실데이터 칩', () => {
   it('true 는 포함', async () => {
     getRawTargetSourceDetail.mockResolvedValue(detail({ supportRawData: true }));
-    render(<OpsTargetView targetSourceId={1013} initialTab="진행 상태" />);
+    render(<OpsTargetView targetSourceId={1013} initialTab="진행 상태" statusSlot={<div data-testid="status-slot" />} />);
     expect(await chip()).toBe('포함');
   });
 
   it('false 는 미포함', async () => {
     getRawTargetSourceDetail.mockResolvedValue(detail({ supportRawData: false }));
-    render(<OpsTargetView targetSourceId={1013} initialTab="진행 상태" />);
+    render(<OpsTargetView targetSourceId={1013} initialTab="진행 상태" statusSlot={<div data-testid="status-slot" />} />);
     expect(await chip()).toBe('미포함');
   });
 
@@ -76,13 +76,13 @@ describe('OpsTargetView — 실데이터 칩', () => {
     // 계약 반영 전 실서버가 이 모양이다. 여기서 "미포함" 이 나오면 화면이 받은 적 없는
     // 사실을 말하는 것이고, 운영자는 그걸 확인된 값으로 읽는다.
     getRawTargetSourceDetail.mockResolvedValue(detail());
-    render(<OpsTargetView targetSourceId={1013} initialTab="진행 상태" />);
+    render(<OpsTargetView targetSourceId={1013} initialTab="진행 상태" statusSlot={<div data-testid="status-slot" />} />);
     expect(await chip()).toBe('미확인');
   });
 
   it('boolean 이 아닌 값도 미확인이다', async () => {
     getRawTargetSourceDetail.mockResolvedValue(detail({ supportRawData: 'true' }));
-    render(<OpsTargetView targetSourceId={1013} initialTab="진행 상태" />);
+    render(<OpsTargetView targetSourceId={1013} initialTab="진행 상태" statusSlot={<div data-testid="status-slot" />} />);
     expect(await chip()).toBe('미확인');
   });
 });

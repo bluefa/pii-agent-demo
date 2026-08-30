@@ -86,7 +86,7 @@ beforeEach(() => {
 describe('OpsTargetView — SDU 게이트', () => {
   it('metadata.is_sdu_type 이면 안내로 간다', async () => {
     getRawTargetSourceDetail.mockResolvedValue(detail());
-    render(<OpsTargetView targetSourceId={1099} initialTab="진행 상태" />);
+    render(<OpsTargetView targetSourceId={1099} initialTab="진행 상태" statusSlot={<div data-testid="status-slot" />} />);
     expect(await screen.findByText(NOTICE)).toBeTruthy();
   });
 
@@ -94,7 +94,7 @@ describe('OpsTargetView — SDU 게이트', () => {
     getRawTargetSourceDetail.mockResolvedValue(
       detail({ cloud_provider: 'SDU', metadata: { is_sdu_type: false } }),
     );
-    render(<OpsTargetView targetSourceId={1099} initialTab="진행 상태" />);
+    render(<OpsTargetView targetSourceId={1099} initialTab="진행 상태" statusSlot={<div data-testid="status-slot" />} />);
     expect(await screen.findByText(NOTICE)).toBeTruthy();
   });
 
@@ -102,7 +102,7 @@ describe('OpsTargetView — SDU 게이트', () => {
     // 안내 한 장이던 시절에는 이 화면에 마스트헤드가 없었다. 이제 대상 식별은 전부
     // 마스트헤드가 지므로, 그것이 서지 않으면 안내만 남아 어느 대상인지 알 수 없다.
     getRawTargetSourceDetail.mockResolvedValue(detail());
-    render(<OpsTargetView targetSourceId={1099} initialTab="진행 상태" />);
+    render(<OpsTargetView targetSourceId={1099} initialTab="진행 상태" statusSlot={<div data-testid="status-slot" />} />);
     expect(await screen.findByText('#1099')).toBeTruthy();
     // IDC 「환경」 셀과 같은 문법이다 (OpsTargetView.idc.test.tsx) — 한 행이 셋 다 든다:
     // 키(환경) · 값(데이터 직접 업로드) · 태그(SDU).
@@ -116,7 +116,7 @@ describe('OpsTargetView — SDU 게이트', () => {
     // 우리가 설치하는 계정이 아니라, 격자에 적으면 이 화면의 어느 동작도 건드리지
     // 않는 값을 대조 가능한 사실처럼 말하게 된다.
     getRawTargetSourceDetail.mockResolvedValue(detail());
-    render(<OpsTargetView targetSourceId={1099} initialTab="진행 상태" />);
+    render(<OpsTargetView targetSourceId={1099} initialTab="진행 상태" statusSlot={<div data-testid="status-slot" />} />);
     await screen.findByText(NOTICE);
     expect(screen.queryByText('계정')).toBeNull();
     expect(screen.queryByText('210987654321')).toBeNull();
@@ -126,7 +126,7 @@ describe('OpsTargetView — SDU 게이트', () => {
     // 탭은 오지 않는 것이 결정이다. 마스트헤드를 세우면서 탭 줄까지 딸려 오면 아홉
     // 탭이 전부 빈 화면을 여는 버튼이 된다.
     getRawTargetSourceDetail.mockResolvedValue(detail());
-    render(<OpsTargetView targetSourceId={1099} initialTab="진행 상태" />);
+    render(<OpsTargetView targetSourceId={1099} initialTab="진행 상태" statusSlot={<div data-testid="status-slot" />} />);
     await screen.findByText(NOTICE);
     expect(screen.queryByRole('tablist')).toBeNull();
     expect(screen.queryAllByRole('tab')).toHaveLength(0);
@@ -141,7 +141,7 @@ describe('OpsTargetView — SDU 게이트', () => {
         metadata: { is_sdu_type: false, aws_account_id: '451814760281' },
       }),
     );
-    render(<OpsTargetView targetSourceId={1006} initialTab="진행 상태" />);
+    render(<OpsTargetView targetSourceId={1006} initialTab="진행 상태" statusSlot={<div data-testid="status-slot" />} />);
     await waitFor(() => expect(getRawTargetSourceDetail).toHaveBeenCalled());
     await waitFor(() => expect(screen.queryByText(NOTICE)).toBeNull());
     expect(screen.getByText('진행 상태')).toBeTruthy();
@@ -150,7 +150,7 @@ describe('OpsTargetView — SDU 게이트', () => {
   it('SDU 경로에서는 탭이 제 요청을 쏘지 않는다 — 마스트헤드의 둘만 돈다', async () => {
     // 게이트를 detail 도착 직후에 둔 이유 — 탭이 마운트되면 각자 제 몫을 불러온다.
     getRawTargetSourceDetail.mockResolvedValue(detail());
-    render(<OpsTargetView targetSourceId={1099} initialTab="진행 상태" />);
+    render(<OpsTargetView targetSourceId={1099} initialTab="진행 상태" statusSlot={<div data-testid="status-slot" />} />);
     await screen.findByText(NOTICE);
     await expectHeaderLoadsOnly();
   });

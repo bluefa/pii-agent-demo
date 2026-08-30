@@ -59,7 +59,7 @@ export function PipelineTab({
   // R21 §A1 — the type choice happens INSIDE the modal, so there is no payload to ride.
   const previewModal = useModal();
 
-  // Latest-request-wins (StatusHistoryCard pattern): a response for a previous
+  // Latest-request-wins (ApprovalHistoryCard pattern): a response for a previous
   // target source must not commit over the current one.
   const loadSeq = useRef(0);
   const load = useCallback(async (): Promise<void> => {

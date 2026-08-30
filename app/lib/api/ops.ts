@@ -11,21 +11,6 @@ import type { DagStatusResponse } from '@/lib/types/dag-status';
 import type { z } from 'zod';
 import type { schemas } from '@/lib/generated/install-v1';
 
-export interface StatusHistoryItem {
-  changed_at: string;
-  from_status: BffProcessStatus | null;
-  to_status: BffProcessStatus;
-  actor: string;
-}
-
-export interface StatusHistoryPage {
-  totalElements: number;
-  totalPages: number;
-  size: number;
-  number: number;
-  content: StatusHistoryItem[];
-}
-
 /**
  * 이 대상에 매핑된 Jira 티켓 (실계약 `GET /target-sources/{id}/jira-ticket`, read-only).
  * 연결이 없으면 null — 계약의 404 를 라우트가 200 null 로 정규화한다. 티켓의 연결·해제는
@@ -36,15 +21,6 @@ export interface TargetJiraTicket {
   issueKey: string;
   browseUrl: string | null;
 }
-
-export const getStatusHistory = (
-  targetSourceId: number,
-  page = 0,
-  size = 10,
-): Promise<StatusHistoryPage> =>
-  fetchInfraJson<StatusHistoryPage>(
-    `/target-sources/${targetSourceId}/status-history?page=${page}&size=${size}`,
-  );
 
 /**
  * DAG weekly health status (docs/api/ops-assumed-contracts.md §10) — the
