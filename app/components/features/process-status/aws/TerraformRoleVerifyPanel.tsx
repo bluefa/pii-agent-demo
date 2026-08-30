@@ -2,7 +2,6 @@
 
 import { useCallback, useState } from 'react';
 import {
-  borderColors,
   buttonStyles,
   cn,
   getButtonClass,
@@ -99,23 +98,19 @@ const FindingBlock = ({ finding }: { finding: TerraformRoleFinding }) => (
 /**
  * The idle slot — what stands here before anyone has asked for a live check.
  *
- * Structurally distinct from the finding block on purpose (Cloudscape: don't use an
- * empty state for an error). The glyph is a neutral dashed outline, never an
- * error/warning colour: nothing has gone wrong here, the question simply has not
- * been asked yet.
+ * Two lines of plain text, in the same left-aligned column as the identity rows above
+ * and the button row below. That plainness is the whole distinction from the finding
+ * block (Cloudscape: don't use an empty state for an error) — the error case is marked
+ * by its 3px red rule and its 확인 필요 label, so nothing has to be added here to say
+ * this is not one. A dashed glyph stood here and could not earn its place: legible
+ * enough to see is legible enough to read as a status mark, which the body does not own.
  */
 const IdlePrompt = () => (
-  <div className={cn('flex flex-col items-center text-center', stackGap.related)}>
-    <span
-      aria-hidden="true"
-      className={cn('h-7 w-7 rounded-full border-[1.5px] border-dashed', borderColors.strong)}
-    />
-    <span className={cn('flex flex-col', stackGap.tight)}>
-      <span className={cn(textStyles.body, textColors.secondary)}>
-        권한을 직접 확인하면 막힌 원인까지 알 수 있어요
-      </span>
-      <span className={cn(textStyles.caption, textColors.tertiary)}>약 30초 걸려요</span>
+  <div className={cn('flex flex-col', stackGap.tight)}>
+    <span className={cn(textStyles.body, textColors.secondary)}>
+      권한을 직접 확인하면 막힌 원인까지 알 수 있어요
     </span>
+    <span className={cn(textStyles.caption, textColors.tertiary)}>약 30초 걸려요</span>
   </div>
 );
 
