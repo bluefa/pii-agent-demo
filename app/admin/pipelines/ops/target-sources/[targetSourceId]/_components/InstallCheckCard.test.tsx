@@ -49,9 +49,11 @@ describe('InstallCheckCard', () => {
     );
 
     expect(screen.getByText('미완료')).toBeTruthy();
-    // 그룹 머리글 + 행의 주체 태그 — 두 자리 모두 같은 낱말이다.
-    expect(screen.getAllByText('서비스 측').length).toBeGreaterThan(1);
-    expect(screen.getAllByText('BDC 측').length).toBeGreaterThan(1);
+    // 머리글은 문장 자리라 온전한 낱말, 행의 태그는 위 Terraform 카드와 같은 두 낱말이다.
+    expect(screen.getByText('서비스 측')).toBeTruthy();
+    expect(screen.getByText('BDC 측')).toBeTruthy();
+    expect(screen.getAllByText('서비스')).toHaveLength(1);
+    expect(screen.getAllByText('BDC')).toHaveLength(2);
     expect(screen.getByText('서비스 측 Terraform 자동 적용')).toBeTruthy();
     expect(screen.getByText('0/1')).toBeTruthy();
   });
@@ -63,6 +65,20 @@ describe('InstallCheckCard', () => {
     // 세 단계 모두 해당 없음이라 n/N 이 하나도 그려지지 않는다.
     expect(screen.queryByText('1/1')).toBeNull();
     expect(screen.getAllByText('해당 없음')).toHaveLength(3);
+  });
+
+  it('확인하지 못했으면 판정만 서고 단계 행은 그리지 않는다', () => {
+    renderCard({
+      kind: 'unknown',
+      steps: [
+        { id: 'service', title: '서비스 측 Terraform 자동 적용', side: 'service', required: true, worst: 'UNKNOWN', done: 0, total: 0, na: false },
+      ],
+    });
+
+    expect(screen.getByText('확인할 수 없음')).toBeTruthy();
+    // 「확인 중 · 0/0」 은 못 읽었다는 사실을 단계 수만큼 반복할 뿐이다.
+    expect(screen.queryByText('서비스 측 Terraform 자동 적용')).toBeNull();
+    expect(screen.queryByText('0/0')).toBeNull();
   });
 
   it('조회에 실패하면 카드가 한 줄로 줄고, 다시 시도가 재조회를 부른다', () => {

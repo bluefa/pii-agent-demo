@@ -9,14 +9,27 @@
 import { INSTALL_COPY } from '@/app/components/features/process-status/install-copy';
 import type { InstallStepValue } from '@/app/components/features/process-status/install-status-detail/model';
 import type { IconName } from '@/app/admin/pipelines/_components/icons';
-import type { TONE } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/terraformState';
+import {
+  SIDE_LABEL,
+  type TONE,
+} from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/terraformState';
 import type {
   InstallGateStep,
   InstallSide,
 } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/installGate';
 
-/** 주체 — Terraform 작업 행의 `SIDE_LABEL` 과 같은 두 낱말이다. */
-export const INSTALL_SIDE_LABEL: Record<InstallSide, string> = {
+/**
+ * 행의 주체 태그 — 바로 위 Terraform 카드의 그 낱말이다. 두 카드가 같은 자리에 같은 폭의
+ * 태그를 두고 다른 낱말을 쓰면, 다르다는 것 자체가 뜻으로 읽힌다. 출처도 그 카드의
+ * `SIDE_LABEL` 하나로 둔다.
+ */
+export const INSTALL_SIDE_TAG_LABEL: Record<InstallSide, string> = {
+  service: SIDE_LABEL.SERVICE,
+  bdc: SIDE_LABEL.BDC,
+};
+
+/** 그룹 머리글 — 태그가 아니라 문장 자리라 조사를 받는 온전한 낱말로 선다. */
+export const INSTALL_SIDE_GROUP_LABEL: Record<InstallSide, string> = {
   service: '서비스 측',
   bdc: 'BDC 측',
 };

@@ -207,7 +207,9 @@ export function useInstallCheck(
             // 같은 자리로 떨어진다 — 로딩 중의 판정은 unknown 이고, unknown 은 경고하지 않는다.
             detail: failed ? null : detail,
           }),
-    lastCheck: detail?.lastCheck ?? null,
+    // 실패했으면 시각도 사유도 내놓지 않는다 — 직전 성공의 `fail_reason` 을 이번 실패의
+    // 사유로 찍는 것이 이 한 줄을 두는 이유다(스냅샷은 남기되 그 위에 얹어 말하지 않는다).
+    lastCheck: failed ? null : (detail?.lastCheck ?? null),
     loading,
     failed,
     reload,

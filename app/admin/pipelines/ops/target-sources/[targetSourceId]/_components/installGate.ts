@@ -71,7 +71,14 @@ export interface InstallGateStep extends InstallGateStepDef {
   na: boolean;
 }
 
-export type InstallGateKind = 'complete' | 'incomplete' | 'unknown';
+/**
+ * 판정 넷.
+ *
+ * `unconstrained` 는 `complete` 와 다른 사실이다 — 필수 단계가 하나도 없는 프로바이더
+ * (GCP)에서는 「끝났다」고 말할 것이 없고, 실제로 단계 행들은 진행중을 그리고 있을 수
+ * 있다. 그 화면에서 완료라 부르면 카드가 자기 행과 어긋난 말을 한다.
+ */
+export type InstallGateKind = 'complete' | 'unconstrained' | 'incomplete' | 'unknown';
 
 export interface InstallGateResult {
   kind: InstallGateKind;
@@ -210,8 +217,9 @@ export interface InstallGateInput {
  * no detail, a FAILED last_check, `installation_status_unavailable`, or zero resources —
  * the answer is `unknown`, which is the one verdict that never warns.
  *
- * A provider with NO required steps (GCP) is therefore `complete` as soon as the status
- * is readable: there is no constraint to fail, so there is nothing to warn about.
+ * A provider with NO required steps (GCP) is `unconstrained`, never `complete`: nothing
+ * here can fail the connection test, but its steps may well still be running, and a
+ * verdict of 완료 over rows reading 진행중 is the card contradicting itself.
  */
 export const installGate = ({
   provider,
@@ -235,10 +243,10 @@ export const installGate = ({
   }
 
   const steps = defs.map((def) => aggregate(def, detail.resources));
-  const settled = steps
-    .filter((step) => step.required)
-    .every((step) => step.done === step.total);
+  const required = steps.filter((step) => step.required);
+  if (required.length === 0) return { kind: 'unconstrained', steps };
 
+  const settled = required.every((step) => step.done === step.total);
   return { kind: settled ? 'complete' : 'incomplete', steps };
 };
 
@@ -251,13 +259,13 @@ export const openRequiredSteps = (result: InstallGateResult): InstallGateStep[] 
 /**
  * 전체 진척 — 판정이 걸려 있는 단계만 센다. 제약이 아닌 단계의 진행이 판정을 흐리지 않는다.
  *
- * 필수 단계가 하나도 없는 프로바이더(GCP)는 전 단계를 센다: 0/0 은 진척이 아니라 세지
- * 않았다는 뜻이고, 그 화면이 말하려는 것은 「제약이 없다」이지 「아무것도 없다」가 아니다.
+ * 필수 단계가 없으면 0/0 이고, 그 수는 화면에 서지 않는다 — `unconstrained` 는 셀 것이
+ * 없다는 뜻이지 아무것도 안 했다는 뜻이 아니라, 진척으로 그리면 거짓이 된다.
  */
-export const requiredProgress = (result: InstallGateResult): { done: number; total: number } => {
-  const required = result.steps.filter((step) => step.required);
-  return (required.length > 0 ? required : result.steps).reduce(
-    (acc, step) => ({ done: acc.done + step.done, total: acc.total + step.total }),
-    { done: 0, total: 0 },
-  );
-};
+export const requiredProgress = (result: InstallGateResult): { done: number; total: number } =>
+  result.steps
+    .filter((step) => step.required)
+    .reduce(
+      (acc, step) => ({ done: acc.done + step.done, total: acc.total + step.total }),
+      { done: 0, total: 0 },
+    );

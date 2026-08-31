@@ -78,21 +78,30 @@ describe('installGate — Azure는 VM 두 단계만 제약이다', () => {
 });
 
 describe('installGate — GCP는 제약이 없다', () => {
-  it('Subnet 생성이 실패해도 완료다 — 상태는 보여주되 경고하지 않는다', () => {
+  it('Subnet 생성이 실패해도 경고하지 않는다 — 다만 완료라 부르지도 않는다', () => {
     const result = installGate(
       input('gcp', [resource('sql-1', { subnet: 'FAIL', service: 'FAIL', bdc: 'IN_PROGRESS' })]),
     );
-    expect(result.kind).toBe('complete');
+    expect(result.kind).toBe('unconstrained');
     expect(openRequiredSteps(result)).toEqual([]);
-    // 판정은 완료여도 단계의 사실은 그대로 선다.
+    // 판정이 무엇이든 단계의 사실은 그대로 선다.
     expect(result.steps.find((step) => step.id === 'subnet')?.worst).toBe('FAIL');
   });
 
-  it('필수 단계가 없으면 진척은 전 단계를 센다 — 0/0 을 그리지 않는다', () => {
+  it('단계가 전부 끝나 있어도 complete 가 아니다 — 여기서 끝났다고 말할 것이 없다', () => {
+    const result = installGate(
+      input('gcp', [
+        resource('sql-1', { subnet: 'COMPLETED', service: 'COMPLETED', bdc: 'COMPLETED' }),
+      ]),
+    );
+    expect(result.kind).toBe('unconstrained');
+  });
+
+  it('셀 필수 단계가 없으므로 진척은 0/0 이다 — 화면은 이 수를 그리지 않는다', () => {
     const result = installGate(
       input('gcp', [resource('sql-1', { subnet: 'COMPLETED', service: 'COMPLETED', bdc: 'FAIL' })]),
     );
-    expect(requiredProgress(result)).toEqual({ done: 2, total: 3 });
+    expect(requiredProgress(result)).toEqual({ done: 0, total: 0 });
   });
 });
 

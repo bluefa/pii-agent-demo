@@ -47,6 +47,11 @@ vi.mock('@/app/lib/api/aws', () => ({
   getAwsInstallationStatus: (id: number) => getAwsInstallationStatus(id),
 }));
 
+const getGcpInstallationStatus = vi.fn();
+vi.mock('@/app/lib/api/gcp', () => ({
+  getGcpInstallationStatus: (id: number) => getGcpInstallationStatus(id),
+}));
+
 const { TcTab } = await import(
   '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/TcTab'
 );
@@ -70,7 +75,7 @@ const installStatus = (serviceTerraform: AwsInstallStepValue): AwsInstallationSt
 
 const onOpenInfraTab = vi.fn();
 
-const renderTab = () =>
+const renderTab = (provider = 'aws') =>
   render(
     <TcTab
       targetSourceId={1}
@@ -80,7 +85,7 @@ const renderTab = () =>
       statusLoaded
       latestFailed={false}
       onStatusReload={vi.fn()}
-      provider="aws"
+      provider={provider}
       manualInstall={false}
       onOpenInfraTab={onOpenInfraTab}
     />,
@@ -92,6 +97,7 @@ beforeEach(() => {
   triggerTestConnection.mockClear();
   onOpenInfraTab.mockClear();
   getAwsInstallationStatus.mockReset();
+  getGcpInstallationStatus.mockReset();
 });
 
 describe('TcTab — 설치가 덜 끝난 채로 실행하기', () => {
@@ -162,5 +168,47 @@ describe('TcTab — 설치가 덜 끝난 채로 실행하기', () => {
     fireEvent.click(runButton());
     expect(screen.queryByText('설치가 끝나기 전에 실행할까요?')).toBeNull();
     await waitFor(() => expect(triggerTestConnection).toHaveBeenCalledWith(1));
+  });
+
+  it('실패한 재조회는 직전 성공의 사유를 물려 쓰지 않는다', async () => {
+    // 첫 조회는 「점검이 실패했다」고 사유까지 말한다.
+    getAwsInstallationStatus.mockResolvedValueOnce({
+      ...installStatus('COMPLETED'),
+      lastCheck: { status: 'FAILED', checkedAt: '2026-08-31T01:00:00Z', failReason: 'AWS_TIMEOUT' },
+    });
+    renderTab();
+    await screen.findByText(/AWS_TIMEOUT/);
+
+    // 두 번째는 조회 자체가 실패한다 — 그때 화면에 남아 있던 사유는 이번 일의 사유가 아니다.
+    getAwsInstallationStatus.mockRejectedValueOnce(new Error('boom'));
+    fireEvent.click(screen.getByRole('button', { name: '다시 확인' }));
+
+    await screen.findByText(/상태 확인 실패/);
+    expect(screen.queryByText(/AWS_TIMEOUT/)).toBeNull();
+  });
+});
+
+describe('TcTab — 제약이 없는 프로바이더', () => {
+  it('GCP 는 완료라 말하지 않는다 — 셀 것이 없으므로 n/N 도 없다', async () => {
+    getGcpInstallationStatus.mockResolvedValue({
+      last_check: { status: 'SUCCESS', checked_at: '2026-08-31T01:00:00Z' },
+      resources: [
+        {
+          resource_id: 'sql-1',
+          resource_name: 'sql-1',
+          installation_status: 'IN_PROGRESS',
+          service_side_subnet_creation: { status: 'COMPLETED' },
+          service_side_terraform_apply: { status: 'IN_PROGRESS' },
+          bdc_side_terraform_apply: { status: 'IN_PROGRESS' },
+        },
+      ],
+    });
+    renderTab('gcp');
+
+    await screen.findByText('제약 없음');
+    expect(screen.queryByText('완료')).toBeNull();
+    expect(screen.queryByText(/^· \d+\/\d+$/)).toBeNull();
+    // 경고하지 않는다: 여기서 미완료인 단계는 연결 테스트를 막지 않는다.
+    expect(screen.queryByText('설치가 아직 끝나지 않았습니다')).toBeNull();
   });
 });

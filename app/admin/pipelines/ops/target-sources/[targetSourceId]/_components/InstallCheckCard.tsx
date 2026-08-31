@@ -31,7 +31,8 @@ import { detailStyles } from '@/app/admin/pipelines/_detail/detailStyles';
 import { opsStyles } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/opsStyles';
 import { TONE } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/terraformState';
 import {
-  INSTALL_SIDE_LABEL,
+  INSTALL_SIDE_GROUP_LABEL,
+  INSTALL_SIDE_TAG_LABEL,
   INSTALL_STATUS_META,
   installStatusLabel,
 } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/installCheckStyles';
@@ -47,6 +48,9 @@ import type { InstallLastCheck } from '@/app/components/features/process-status/
 /** 판정 한 낱말 — 값만 색을 갖는다. */
 const VERDICT: Record<InstallGateResult['kind'], { word: string; ink: string }> = {
   complete: { word: '완료', ink: 'text-[var(--pl-text-strong)]' },
+  // 완료가 아니다 — 이 프로바이더에는 연결 테스트를 막는 단계가 없다는 뜻이고, 아래 행은
+  // 여전히 진행중일 수 있다. 「완료」라 쓰면 카드가 제 행과 다른 말을 한다.
+  unconstrained: { word: '제약 없음', ink: 'text-[var(--pl-text-medium)]' },
   incomplete: { word: '미완료', ink: 'text-[var(--pl-warn-text)]' },
   unknown: { word: '확인할 수 없음', ink: 'text-[var(--pl-text-weak)]' },
 };
@@ -77,7 +81,7 @@ function StepRow({ step, first }: { step: InstallGateStep; first: boolean }): Re
       >
         {step.title}
       </span>
-      <span className={SIDE_TAG}>{INSTALL_SIDE_LABEL[step.side]}</span>
+      <span className={SIDE_TAG}>{INSTALL_SIDE_TAG_LABEL[step.side]}</span>
       <span
         className={cn(
           pipelineStyles.pill.base,
@@ -126,9 +130,8 @@ export function InstallCheckCard({
     /* 가장 키가 큰 경우를 잡아 둔다 — 위 카드와 같은 규칙이다: 도착한 답이 이보다
        작으면 위로 줄어들 뿐이고, 그쪽은 아래 카드를 덮지 않는 방향이다.
 
-       ⚠️ 브라우저에서 잰 값이 아니라 위 카드의 실측(193px = 머리 103 + 30px 행 셋)에서
-       유도한 값이다: 같은 머리 103 + 네 행 120(Azure 가 최대) + 그룹 머리글 둘 52 +
-       그룹 사이 여백 8. 실측할 기회가 생기면 그때 고친다. */
+       실측값(1440 뷰포트): Azure 278px(네 단계) · AWS 248px(세 단계). 283 은 그 위로
+       5px — 판정 줄에 fail_reason 이 붙어 한 줄이 접히는 경우까지 덮는다. */
     return <div className="mt-4 h-[283px]" aria-busy />;
   }
 
@@ -180,6 +183,10 @@ export function InstallCheckCard({
         </dl>
       </div>
 
+      {/* 확인하지 못한 상태에서는 행을 그리지 않는다 — 단계마다 「확인 중 · 0/0」을 세 번
+          찍는 것은 아무것도 못 읽었다는 사실을 셋으로 늘려 말하는 것이고, 「확인 중」은
+          우리가 하고 있지도 않은 점검이 도는 중이라 주장한다. 판정 한 줄이면 족하다. */}
+      {gate.kind !== 'unknown' && (
       <div className="border-t border-[var(--pl-border)] px-6 py-2">
         {gate.steps.length === 0 ? (
           <p className="flex min-h-[30px] items-center text-[12px] text-[var(--pl-text-weak)]">
@@ -194,7 +201,7 @@ export function InstallCheckCard({
                 {/* 주체는 그룹이 말한다 — 행마다 같은 태그를 네 번 찍는 대신 머리글 한 줄.
                     태그는 행에도 남는다: 그룹이 접히거나 한 행만 읽힐 때도 주체는 사실이다. */}
                 <p className="py-1 text-[12px] font-medium text-[var(--pl-text-weak)]">
-                  {INSTALL_SIDE_LABEL[side]}
+                  {INSTALL_SIDE_GROUP_LABEL[side]}
                 </p>
                 {steps.map((step, index) => (
                   <StepRow key={step.id} step={step} first={index === 0} />
@@ -204,6 +211,7 @@ export function InstallCheckCard({
           })
         )}
       </div>
+      )}
     </section>
   );
 }

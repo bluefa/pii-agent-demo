@@ -22,7 +22,7 @@ import { cn } from '@/lib/theme';
 import { StatusWarningIcon } from '@/app/components/ui/icons';
 import { fmtDateTimeShort } from '@/lib/pipeline/format';
 import {
-  INSTALL_SIDE_LABEL,
+  INSTALL_SIDE_GROUP_LABEL,
   installStatusLabel,
 } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/installCheckStyles';
 import {
@@ -81,16 +81,21 @@ export function InstallCheckNotice({
     );
   }
 
-  if (gate.kind === 'complete') {
+  if (gate.kind === 'complete' || gate.kind === 'unconstrained') {
     const progress = requiredProgress(gate);
     return (
       <dl className={cn(QUIET_LINE, className)}>
         <dt className={QUIET_TERM}>설치 상태</dt>
         <dd className="flex flex-wrap items-baseline gap-x-2 gap-y-1 text-[var(--pl-text-weak)]">
-          <span className="font-semibold text-[var(--pl-text-strong)]">완료</span>
-          <span className="tabular-nums">
-            · {progress.done}/{progress.total}
+          <span className="font-semibold text-[var(--pl-text-strong)]">
+            {gate.kind === 'complete' ? '완료' : '제약 없음'}
           </span>
+          {/* 셀 것이 없으면 세지 않는다 — `제약 없음` 옆의 0/0 은 진척이 아니라 잡음이다. */}
+          {gate.kind === 'complete' && (
+            <span className="tabular-nums">
+              · {progress.done}/{progress.total}
+            </span>
+          )}
           {lastCheck?.checkedAt && <span>· {fmtDateTimeShort(lastCheck.checkedAt)} 확인</span>}
           <button type="button" onClick={onOpenInfraTab} className={QUIET_LINK}>
             인프라 작업 탭 ↗
@@ -122,7 +127,7 @@ export function InstallCheckNotice({
         {open.map((step) => (
           <li key={step.id} className="flex flex-wrap items-baseline gap-x-2">
             <span className="font-semibold">{step.title}</span>
-            <span>· {INSTALL_SIDE_LABEL[step.side]}</span>
+            <span>· {INSTALL_SIDE_GROUP_LABEL[step.side]}</span>
             <span className="tabular-nums">
               · {step.done}/{step.total}
             </span>
