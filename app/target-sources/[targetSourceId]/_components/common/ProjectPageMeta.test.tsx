@@ -1262,3 +1262,29 @@ describe('ProjectPageMeta — which run the header tag reports', () => {
     expect(scopeAt(ProcessStatus.INSTALLATION_COMPLETE)).toBe('latestSuccess');
   });
 });
+
+/**
+ * 중국 리전 — the partition the data lives in belongs to the TARGET, so it survives the
+ * SDU title even though every other fact on this row hides the CSP underneath it.
+ */
+describe('ProjectPageMeta — 중국 리전', () => {
+  it('SDU 대상이어도 중국이면 태그를 단다', () => {
+    render(
+      <ProjectPageMeta
+        project={{ ...projectFixture, isChinaRegion: true, isSduType: true }}
+        identity={awsIdentity}
+      />,
+    );
+    expect(screen.getByText('중국 리전')).toBeTruthy();
+  });
+
+  it('중국이 아니면 태그도 없다', () => {
+    render(
+      <ProjectPageMeta
+        project={{ ...projectFixture, isChinaRegion: false }}
+        identity={awsIdentity}
+      />,
+    );
+    expect(screen.queryByText('중국 리전')).toBeNull();
+  });
+});

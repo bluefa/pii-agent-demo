@@ -85,9 +85,11 @@ export const InfraRow = ({ project, onOpenDetail, onManageAction }: InfraRowProp
   const showTenant =
     project.cloudProvider === 'Azure' && !project.isSduType && Boolean(project.tenantId);
   // 중국 리전 is AWS-only too: no other CSP treats the China partition as a separate
-  // account, so tagging their rows would show a distinction that does not exist.
-  const showChinaRegion =
-    project.cloudProvider === 'AWS' && project.isChinaRegion && !project.isSduType;
+  // account, so tagging their rows would show a distinction that does not exist. This is
+  // the one place an SDU row does NOT hide its underlying CSP: the partition the data
+  // lives in is a fact about the TARGET, not about who owns the account, so a China
+  // target keeps its tag even under the SDU title (same rule the ops masthead states).
+  const showChinaRegion = project.cloudProvider === 'AWS' && project.isChinaRegion;
   const hasSecondLayer =
     showTenant || showInstallMode || Boolean(identity.gloss) || Boolean(identity.secondValue);
   // Both controls repeat once per card, so their labels have to carry which card they
