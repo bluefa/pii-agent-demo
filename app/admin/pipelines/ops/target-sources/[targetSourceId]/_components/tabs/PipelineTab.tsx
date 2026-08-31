@@ -145,6 +145,14 @@ export function PipelineTab({
         : { result: install.gate, lastCheck: install.lastCheck },
     [install.gate, install.lastCheck],
   );
+  // Stable on purpose: `TargetPipelineSections` lists this callback in the deps of the
+  // effect that polls the live run, so a fresh function per render would restart that
+  // poll (and refetch the pipeline) on every render of this tab.
+  const installReload = install.reload;
+  const onRunsChanged = useCallback(() => {
+    void load();
+    installReload();
+  }, [load, installReload]);
 
   return (
     <div>
@@ -162,10 +170,7 @@ export function PipelineTab({
         startGate={startGate}
         serviceWork={serviceWork}
         onSelectTab={onSelectTab}
-        onRunsChanged={() => {
-          void load();
-          install.reload();
-        }}
+        onRunsChanged={onRunsChanged}
         refreshKey={startedKey}
       />
 
