@@ -40,6 +40,11 @@ const ko = {
     selected: '선택됨',
     instanceCount: (total: number) => `인스턴스 ${total}건`,
     exclusionReason: '제외 사유',
+    // Shared by three admin surfaces (the service-detail target card, the ops
+    // masthead partition tag, the role modal's region label), so it belongs to
+    // none of them. Not `services.chinaRegion` — that key is the longer
+    // `중국 리전` / `China region` wording the /services list uses.
+    china: '중국',
     notifications: '알림',
     help: '도움말',
     copyValue: (value: string) => `${value} 복사`,
@@ -400,6 +405,7 @@ const en: typeof ko = {
     // dictionary carries — there is exactly one counted noun in this namespace.
     instanceCount: (total: number) => `${total} instance${total === 1 ? '' : 's'}`,
     exclusionReason: 'Exclusion reason',
+    china: 'China',
     notifications: 'Notifications',
     help: 'Help',
     copyValue: (value: string) => `Copy ${value}`,

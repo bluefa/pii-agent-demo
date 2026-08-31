@@ -44,6 +44,8 @@ import { awsRoleArnDisplay } from '@/lib/constants/aws-role';
 import { gcpServiceAccountDisplay } from '@/lib/constants/gcp-service-account';
 import { safeBrowseUrl } from '@/lib/jira-ticket';
 import { ProviderGlyph } from '@/app/components/ui/CloudProviderIcon';
+import { useLocale } from '@/app/components/LocaleProvider';
+import { COPY } from '@/lib/copy';
 import { Icon } from '@/app/admin/pipelines/_components/icons';
 import { JiraLogo } from '@/app/admin/pipelines/_components/brandMarks';
 import type { RawTargetSourceDetail } from '@/app/lib/api/pipeline-target';
@@ -93,6 +95,8 @@ export function OpsHeader({
   onOpenRawData,
   onEditDescription,
 }: OpsHeaderProps): ReactElement {
+  const { locale } = useLocale();
+  const t = COPY[locale].common;
   const [open, setOpen] = useState(false);
   const labelId = useId();
   const foldId = useId();
@@ -151,7 +155,7 @@ export function OpsHeader({
    * 있으므로 중국 SDU 대상은 「중국」을 그대로 단다. 계정은 우리 것이 아니어도 데이터가
    * 어느 권역에 사는지는 이 대상의 사실이다. */
   const partitionTag = PARTITIONED.has(provider) && isChina ? (
-    <span className={cn(opsStyles.partitionTag, opsStyles.partitionChina)}>중국</span>
+    <span className={cn(opsStyles.partitionTag, opsStyles.partitionChina)}>{t.china}</span>
   ) : null;
 
   /** 읽기 전용 mono 값 — 전문은 「상세 정보」가 복사와 함께 진다. */
