@@ -1,6 +1,8 @@
 'use client';
 
 import { bgColors, borderColors, cardStyles, cn, idcStyles, stackGap } from '@/lib/theme';
+import { useLocale } from '@/app/components/LocaleProvider';
+import { INSTALL_COPY } from '@/app/components/features/process-status/install-copy';
 
 type InstallationLoadingViewProps = { provider: string } & (
   | {
@@ -45,12 +47,15 @@ const Bar = ({ className, tone }: { className: string; tone?: string }) => (
  * materialize. Nor is the step description's second line, which wraps or not
  * depending on the provider's copy.
  */
-export const InstallationLoadingView = (props: InstallationLoadingViewProps) =>
-  props.grouped ? (
+export const InstallationLoadingView = (props: InstallationLoadingViewProps) => {
+  const { locale } = useLocale();
+  const label = INSTALL_COPY[locale].inline.loading(props.provider);
+
+  return props.grouped ? (
     <div
       aria-busy="true"
       aria-live="polite"
-      aria-label={`${props.provider} 설치 상태 확인 중`}
+      aria-label={label}
       className={cn('flex flex-col', cardStyles.bodyBleed)}
     >
       {/* No last-check bar: that line lives in the card header now, and the header
@@ -103,7 +108,7 @@ export const InstallationLoadingView = (props: InstallationLoadingViewProps) =>
       </div>
     </div>
   ) : (
-    <div aria-busy="true" aria-live="polite" aria-label={`${props.provider} 설치 상태 확인 중`}>
+    <div aria-busy="true" aria-live="polite" aria-label={label}>
       <div className={cn('grid grid-cols-[224px_minmax(0,1fr)] rounded-xl border overflow-hidden', borderColors.light)}>
         {/* 레일 — 24px 인덱스 원 + 제목, 두 번째 줄은 상태·주체(pl-[34px] 정렬) */}
         <div className={cn('flex flex-col gap-0.5 p-2 border-r', bgColors.panel, borderColors.light)}>
@@ -143,3 +148,4 @@ export const InstallationLoadingView = (props: InstallationLoadingViewProps) =>
       </div>
     </div>
   );
+};

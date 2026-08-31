@@ -1,4 +1,5 @@
 import type { ProviderChipKey } from '@/lib/constants/provider-mapping';
+import { COPY } from '@/lib/copy';
 import {
   sanitizeDigits,
   validateAwsAccountId,
@@ -19,7 +20,13 @@ export interface CredentialFieldDef {
   validate?: (value: string) => string | null;
 }
 
+/** The wizard dictionary, so the field builders below can take it as a parameter. */
+type WizardCopy = (typeof COPY)['ko']['wizard'];
+
+// `lib/validation/infra-credentials.ts` stays locale-free: it decides whether a value
+// is wrong, and the dictionary supplies the wording for the verdict.
 const awsAccountField = (
+  t: WizardCopy,
   name: string,
   label: string,
   helper: string,
@@ -32,76 +39,90 @@ const awsAccountField = (
   maxLength: 12,
   optional,
   sanitize: (v) => sanitizeDigits(v, 12),
-  validate: (v) => (optional && !v ? null : validateAwsAccountId(v)),
+  validate: (v) => {
+    if (optional && !v) return null;
+    return validateAwsAccountId(v) === null ? null : t.aws12Digits;
+  },
 });
 
-const azureGuidField = (name: string, label: string, helper: string): CredentialFieldDef => ({
+const azureGuidField = (
+  t: WizardCopy,
+  name: string,
+  label: string,
+  helper: string,
+): CredentialFieldDef => ({
   name,
   label,
   placeholder: 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx',
   helper,
-  validate: validateGuid,
+  validate: (v) => (validateGuid(v) === null ? null : t.badGuid),
 });
 
-// `subject` carries its own 조사: a CSP row identifies an account, an IDC row an 인프라.
-const descriptionField = (label: string, subject: string): CredentialFieldDef => ({
+// The placeholder is one whole-sentence key rather than a subject fragment: Korean
+// puts the subject before the verb and English after it, so no fragment survives both.
+const descriptionField = (
+  t: WizardCopy,
+  label: string,
+  placeholder: string,
+): CredentialFieldDef => ({
   name: 'description',
   label,
-  placeholder: `${subject} 식별할 수 있는 설명을 입력해 주세요`,
-  helper: 'N-IRP/SW-PLM 과제라면 과제 코드를 입력해 주세요',
+  placeholder,
+  helper: t.descHelper,
   full: true,
 });
 
-export const CREDENTIAL_FIELDS: Record<ProviderChipKey, CredentialFieldDef[]> = {
+export const credentialFields = (
+  t: WizardCopy,
+): Record<ProviderChipKey, CredentialFieldDef[]> => ({
   aws: [
+    awsAccountField(t, 'payerAccount', 'Payer Account', t.awsPayerHelper),
     awsAccountField(
-      'payerAccount',
-      'Payer Account',
-      'AWS 조직의 결제 계정 ID(숫자 12자리) — 콘솔 우상단 계정 메뉴에서 확인',
-    ),
-    awsAccountField(
+      t,
       'linkedAccount',
       'Linked Account',
       // 하위 계정을 쓰지 않는 조직도 있어 이 안내가 붙는다 — 필수로 바뀐 이상 그 경우를
       // 열어 두지 않으면 단일 계정 사용자는 2단계를 통과할 방법이 없다.
-      '리소스가 있는 하위 계정 ID(숫자 12자리) — 하위 계정을 쓰지 않으면 Payer Account와 같은 값',
+      t.awsMemberHelper,
     ),
-    descriptionField('설명', '해당 계정을'),
+    descriptionField(t, t.descLabel, t.descPlaceholderAccount),
   ],
   azure: [
-    azureGuidField('tenantId', 'Tenant ID', 'Microsoft Entra ID의 테넌트 식별자'),
-    azureGuidField('subscriptionId', 'Subscription ID', '연결할 구독의 식별자'),
-    descriptionField('설명', '해당 계정을'),
+    azureGuidField(t, 'tenantId', 'Tenant ID', t.azureTenantHelper),
+    azureGuidField(t, 'subscriptionId', 'Subscription ID', t.azureSubHelper),
+    descriptionField(t, t.descLabel, t.descPlaceholderAccount),
   ],
   gcp: [
     {
       name: 'projectId',
       label: 'GCP Project ID',
       placeholder: 'my-project-id',
-      helper: 'Project Number가 아닌 Project ID를 입력해 주세요',
+      helper: t.gcpProjectHelper,
       full: true,
     },
-    descriptionField('설명', '해당 계정을'),
+    descriptionField(t, t.descLabel, t.descPlaceholderAccount),
   ],
-  idc: [descriptionField('인프라 설명', '이 인프라를')],
-  other: [descriptionField('인프라 설명', '이 인프라를')],
-};
+  idc: [descriptionField(t, t.infraDescLabel, t.descPlaceholderInfra)],
+  other: [descriptionField(t, t.infraDescLabel, t.descPlaceholderInfra)],
+});
 
 export const credentialFieldError = (
+  t: WizardCopy,
   field: CredentialFieldDef,
   rawValue: string,
 ): string | null => {
   const value = rawValue.trim();
-  if (!value) return field.optional ? null : `${field.label}을(를) 입력해 주세요`;
+  if (!value) return field.optional ? null : t.required(field.label);
   return field.validate?.(value) ?? null;
 };
 
 /** Field name → message. Empty object means the step may advance. */
 export const getCredentialErrors = (
+  t: WizardCopy,
   chipKey: ProviderChipKey,
   values: Record<string, string>,
 ): Record<string, string> =>
-  CREDENTIAL_FIELDS[chipKey].reduce<Record<string, string>>((acc, field) => {
-    const error = credentialFieldError(field, values[field.name] ?? '');
+  credentialFields(t)[chipKey].reduce<Record<string, string>>((acc, field) => {
+    const error = credentialFieldError(t, field, values[field.name] ?? '');
     return error ? { ...acc, [field.name]: error } : acc;
   }, {});

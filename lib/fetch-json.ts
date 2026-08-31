@@ -10,6 +10,7 @@
 
 import { AppError, isKnownErrorCode } from '@/lib/errors';
 import type { AppErrorCode } from '@/lib/errors';
+import { DEFAULT_LOCALE, LOCALE_COOKIE_NAME, parseLocaleCookie, type Locale } from '@/lib/locale';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -38,9 +39,61 @@ interface ErrorBody {
 
 const DEFAULT_TIMEOUT_MS = 30_000;
 
+/**
+ * The sentence a transport failure carries, per language.
+ *
+ * These four are UI copy, not wire text: this module authors them for failures that never
+ * reached a server, so nothing upstream has an opinion about their wording. The word is a
+ * default rendering of the `code` stamped beside it, which is why the table is keyed the
+ * same way the throw sites are.
+ *
+ * `network` and `unknown` are verbatim from `app/components/ui/confirm-failures.ts`, which
+ * words the same two codes: one failure must not be told two different ways by a toast and
+ * by the approval modal.
+ *
+ * `timeout` deliberately differs from that table's TIMEOUT row, and the two English strings
+ * for one code are intentional. `FAILURES_EN.TIMEOUT` renders in a dialog that owns a retry
+ * button, so it can end with "try again in a moment"; these messages ride a toast, which
+ * offers no such affordance, and an English string that instructs where the Korean beside it
+ * only states is a copy defect rather than a consistency win. The Korean pair already splits
+ * the same way — a sentence may only ask for the action its own surface can perform.
+ */
+const ko = {
+  timeout: '요청 시간이 초과되었습니다.',
+  aborted: '요청이 취소되었습니다.',
+  network: '네트워크 연결을 확인해주세요.',
+  unknown: '알 수 없는 오류가 발생했습니다.',
+};
+
+const en: typeof ko = {
+  timeout: 'The request timed out.',
+  aborted: 'The request was cancelled.',
+  network: 'Check your network connection.',
+  unknown: 'Something went wrong.',
+};
+
+const TRANSPORT_MESSAGES: Record<Locale, typeof ko> = { ko, en };
+
+const LOCALE_COOKIE_RE = new RegExp(`(?:^|;\\s*)${LOCALE_COOKIE_NAME}=([^;]*)`);
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
+
+/**
+ * The reader's language, from the cookie that seeds `LocaleProvider`.
+ *
+ * A plain module has no provider to ask and must not take a hook, so it reads the one
+ * source the provider itself is seeded from rather than growing a second answer. On the
+ * server, and in any test that never wrote the cookie, this is Korean exactly as before.
+ */
+const readerLocale = (): Locale => {
+  if (typeof document === 'undefined') return DEFAULT_LOCALE;
+  return parseLocaleCookie(LOCALE_COOKIE_RE.exec(document.cookie)?.[1]);
+};
+
+/** Read per throw rather than per call: a transport failure is the rare path. */
+const transportMessage = (key: keyof typeof ko): string => TRANSPORT_MESSAGES[readerLocale()][key];
 
 /** status code → fallback AppErrorCode (응답 body에 code가 없을 때만 사용) */
 function statusToCode(status: number): AppErrorCode {
@@ -188,7 +241,7 @@ export async function fetchJson<T>(url: string, options: FetchJsonOptions = {}):
       throw new AppError({
         status: 0,
         code: isTimeout ? 'TIMEOUT' : 'ABORTED',
-        message: isTimeout ? '요청 시간이 초과되었습니다.' : '요청이 취소되었습니다.',
+        message: transportMessage(isTimeout ? 'timeout' : 'aborted'),
         retriable: isTimeout,
       });
     }
@@ -198,7 +251,7 @@ export async function fetchJson<T>(url: string, options: FetchJsonOptions = {}):
       throw new AppError({
         status: 0,
         code: 'NETWORK',
-        message: '네트워크 연결을 확인해주세요.',
+        message: transportMessage('network'),
         retriable: true,
       });
     }
@@ -206,7 +259,8 @@ export async function fetchJson<T>(url: string, options: FetchJsonOptions = {}):
     throw new AppError({
       status: 0,
       code: 'UNKNOWN',
-      message: err instanceof Error ? err.message : '알 수 없는 오류가 발생했습니다.',
+      // Only the fallback half — `err.message` is an arbitrary caught error, not our copy.
+      message: err instanceof Error ? err.message : transportMessage('unknown'),
       retriable: false,
     });
   } finally {

@@ -7,6 +7,8 @@ import { useAbortableEffect } from '@/app/hooks/useAbortableEffect';
 import { AppError } from '@/lib/errors';
 import { StepBanner } from '@/app/components/ui/StepBanner';
 import { CheckIcon } from '@/app/components/ui/icons';
+import { useLocale } from '@/app/components/LocaleProvider';
+import { STATUS_COPY } from '@/app/components/features/process-status/status-copy';
 
 interface ApprovalApplyingBannerProps {
   targetSourceId?: number;
@@ -15,6 +17,8 @@ interface ApprovalApplyingBannerProps {
 export const ApprovalApplyingBanner = ({
   targetSourceId,
 }: ApprovalApplyingBannerProps) => {
+  const { locale } = useLocale();
+  const t = STATUS_COPY[locale].banner;
   const [latestResponse, setLatestResponse] = useState<ApprovalRequestLatestResponse | null>(null);
   const totalCount = latestResponse?.request?.resource_selected_count ?? 0;
 
@@ -33,13 +37,13 @@ export const ApprovalApplyingBanner = ({
 
   return (
     <StepBanner variant="success" icon={<CheckIcon className="w-[18px] h-[18px]" />}>
-      <strong className="font-bold">승인이 완료되어 시스템에 반영 중입니다.</strong>
+      <strong className="font-bold">{t.applied}</strong>
       {totalCount > 0 ? (
         <>
-          {' '}전체 <span className="tabular-nums">{totalCount}</span>건 · 평균 5분 내외 소요
+          {' '}{t.totalPrefix}<span className="tabular-nums">{totalCount}</span>{t.totalSuffix}
         </>
       ) : (
-        <>{' '}평균 5분 내외 소요</>
+        <>{' '}{t.eta}</>
       )}
     </StepBanner>
   );

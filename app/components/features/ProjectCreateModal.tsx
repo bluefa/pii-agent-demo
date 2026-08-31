@@ -20,17 +20,19 @@ import {
 } from '@/app/components/features/project-create/Step5Result';
 import { WizardRail } from '@/app/components/features/project-create/WizardRail';
 import {
-  WIZARD_STEPS,
   attachLinkedAccount,
   buildCandidatesInput,
   isStepComplete,
   type AwsInstallMode,
   type OperatingRegion,
   type WizardStep,
+  wizardSteps,
 } from '@/app/components/features/project-create/wizard-model';
 import type { DbType } from '@/lib/constants/db-types';
 import type { ProviderChipKey } from '@/lib/constants/provider-mapping';
 import { bgColors, borderColors, cn, modalStyles, textColors } from '@/lib/theme';
+import { useLocale } from '@/app/components/LocaleProvider';
+import { COPY } from '@/lib/copy';
 
 interface ProjectCreateModalProps {
   selectedServiceCode: string;
@@ -43,6 +45,8 @@ export const ProjectCreateModal = ({
   onClose,
   onCreated,
 }: ProjectCreateModalProps) => {
+  const { locale } = useLocale();
+  const t = COPY[locale].wizard;
   const [step, setStep] = useState<WizardStep>(1);
   const [providerKey, setProviderKey] = useState<ProviderChipKey>('aws');
   const [region, setRegion] = useState<OperatingRegion>('global');
@@ -176,7 +180,7 @@ export const ProjectCreateModal = ({
       if (!mountedRef.current || seq !== candidateSeqRef.current) return;
       // The inline card on step 4 is the error surface; a toast on top of it says
       // the same sentence twice and leaves as the card stays.
-      setCandidatesError(err instanceof Error ? err.message : '연동 구성을 확인하지 못했어요.');
+      setCandidatesError(err instanceof Error ? err.message : t.configFailed);
     } finally {
       if (mountedRef.current && seq === candidateSeqRef.current) setCandidatesBusy(false);
     }
@@ -212,7 +216,7 @@ export const ProjectCreateModal = ({
           );
           updateRow(key, 'done');
         } catch (err) {
-          updateRow(key, 'failed', err instanceof Error ? err.message : '등록 실패');
+          updateRow(key, 'failed', err instanceof Error ? err.message : t.registerFailed);
         }
       }),
     );
@@ -259,13 +263,13 @@ export const ProjectCreateModal = ({
   const primaryLabel =
     step === 4
       ? candidatesError !== null
-        ? '다시 시도'
-        : '등록하기'
+        ? t.retry
+        : t.register
       : step === 5
         ? registrationComplete
-          ? '닫기'
-          : '등록 중…'
-        : '다음';
+          ? t.close
+          : t.registering
+        : t.next;
   const primaryDisabled =
     step === 4
       ? candidatesBusy || (candidatesError === null && addCount === 0)
@@ -307,10 +311,10 @@ export const ProjectCreateModal = ({
             )}
           >
             <WizardRail
-              title="인프라 등록"
-              subtitle="PII 모니터링할 인프라를 등록해요."
-              navLabel="등록 단계"
-              steps={WIZARD_STEPS}
+              title={t.title}
+              subtitle={t.subtitle}
+              navLabel={t.navLabel}
+              steps={wizardSteps(t)}
               current={step}
               onNavigate={step < 5 ? setStep : undefined}
               titleId="infra-register-modal-title"
@@ -393,7 +397,7 @@ export const ProjectCreateModal = ({
                     type="button"
                     onClick={() => setStep((prev) => (prev - 1) as WizardStep)}
                   >
-                    이전
+                    {t.back}
                   </Button>
                 )}
                 <Button type="button" onClick={handleNext} disabled={primaryDisabled}>
@@ -409,10 +413,10 @@ export const ProjectCreateModal = ({
         open={closeConfirm.isOpen}
         onClose={closeConfirm.close}
         onConfirm={onClose}
-        title="등록을 그만두시겠어요?"
-        description="지금 닫으면 입력한 내용이 사라져요."
-        cancelLabel="계속 작성"
-        confirmLabel="닫기"
+        title={t.quitTitle}
+        description={t.quitBody}
+        cancelLabel={t.quitStay}
+        confirmLabel={t.quitClose}
       />
     </>
   );

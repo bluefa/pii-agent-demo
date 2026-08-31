@@ -1,7 +1,11 @@
+'use client';
+
 import type { ReactNode } from 'react';
 import { formatDate } from '@/lib/utils/date';
 import { MetaField } from '@/app/target-sources/[targetSourceId]/_components/shared/MetaField';
 import { cn, statusColors, textColors } from '@/lib/theme';
+import { useLocale } from '@/app/components/LocaleProvider';
+import { LAYOUT_COPY } from '@/app/target-sources/[targetSourceId]/_components/layout/copy';
 
 interface RejectionVerdictProps {
   /** The admin's words. Empty when the verdict carried no reason. */
@@ -26,13 +30,15 @@ export const RejectionVerdict = ({
   processedBy,
   action,
 }: RejectionVerdictProps) => {
+  const { locale } = useLocale();
+  const t = LAYOUT_COPY[locale].verdict;
   // Labelled pairs, not a bare "누가 · 언제" byline: an unlabelled line leaves the reader to infer
   // which date it is (반려일시? 요청일시?) on a screen that carries both. Two fields at 32px is the
   // pending header's row — safe stacked, unlike the five-field record row below it.
   const meta = (
     <div className="flex flex-wrap gap-8">
-      {processedAt && <MetaField label="반려일시" value={formatDate(processedAt, 'datetime')} />}
-      {processedBy && <MetaField label="처리자" value={processedBy} />}
+      {processedAt && <MetaField label={t.processedAt} value={formatDate(processedAt, 'datetime', locale)} />}
+      {processedBy && <MetaField label={t.processedBy} value={processedBy} />}
     </div>
   );
 
@@ -57,7 +63,7 @@ export const RejectionVerdict = ({
           <p
             className={cn('text-[12px] font-bold tracking-[0.02em]', statusColors.warning.textDark)}
           >
-            반려 사유
+            {t.reasonTag}
           </p>
           {/* Body scale — the tag above stays smaller than its payload, and the primary tone
               (darkest on the card) carries the emphasis instead of size. */}
@@ -70,7 +76,7 @@ export const RejectionVerdict = ({
         <>
           {/* No reason → nothing to quote, so the sentence carries the verdict on its own. */}
           <p className={cn('text-[14px] font-medium leading-[1.55]', textColors.tertiary)}>
-            관리자가 승인 요청을 반려했어요. 연동 대상을 다시 선택한 뒤 승인을 다시 요청해주세요.
+            {t.noReason}
           </p>
           {signature}
         </>

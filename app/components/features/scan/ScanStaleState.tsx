@@ -6,6 +6,8 @@ import {
   ScanPermissionResult,
   type ScanPermissionState,
 } from '@/app/components/features/scan/scan-permission';
+import { useLocale } from '@/app/components/LocaleProvider';
+import { SCAN_COPY } from '@/app/components/features/scan/copy';
 import { buttonStyles, cn, statusColors, textColors } from '@/lib/theme';
 import { formatDateTimeLocalCompact, formatRelativeTime } from '@/lib/utils/date';
 
@@ -47,88 +49,93 @@ export const ScanStaleState = ({
   onStartScan,
   canStart,
   starting,
-}: ScanStaleStateProps) => (
-  <div className="px-5 py-12 text-center">
-    <div
-      className={cn(
-        'mx-auto mb-5 grid h-16 w-16 place-items-center rounded-2xl',
-        statusColors.warning.bg,
-        // Not the error tone: the scan itself did not break, its result simply aged out.
-        // textDark is the foreground `bg` pairs with — orange-800 holds 5.5:1 on orange-100.
-        statusColors.warning.textDark,
-      )}
-    >
-      <svg
-        className="h-8 w-8"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth={1.8}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        aria-hidden="true"
-      >
-        <path d="M3 12a9 9 0 1 0 3-6.7L3 8" />
-        <polyline points="3 3 3 8 8 8" />
-        <polyline points="12 7.5 12 12 15 13.8" />
-      </svg>
-    </div>
-    <h3 className={cn('text-lg font-bold', textColors.primary)}>다시 스캔해 주세요</h3>
-    {/* 규칙 한 줄, 사실 한 줄 — 정책은 왜 막혔는지를, 메타는 언제의 결과였는지를
-        각자 자기 행에서 말한다. */}
-    <p className={cn(POLICY_LINE, textColors.tertiary)}>
-      정책상 스캔한 지 {SCAN_STALE_DAYS}일이 지나면 다시 스캔해야 해요.
-    </p>
-    {scannedAt ? (
-      <p className={cn('mt-1 text-[12px] tabular-nums', textColors.quaternary)}>
-        마지막 스캔 {formatDateTimeLocalCompact(scannedAt)} ({formatRelativeTime(scannedAt)})
-      </p>
-    ) : null}
+}: ScanStaleStateProps) => {
+  const { locale } = useLocale();
+  const t = SCAN_COPY[locale];
 
-    <div className="mt-7">
-      <Button
-        variant="primary"
-        disabled={!canStart}
-        onClick={onStartScan}
-        className={CTA_BUTTON}
-      >
-        {starting ? (
-          <>
-            <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-t-transparent" />
-            시작 중...
-          </>
-        ) : (
-          <>
-            <ReloadIcon className="h-4 w-4" />
-            다시 스캔
-          </>
+  return (
+    <div className="px-5 py-12 text-center">
+      <div
+        className={cn(
+          'mx-auto mb-5 grid h-16 w-16 place-items-center rounded-2xl',
+          statusColors.warning.bg,
+          // Not the error tone: the scan itself did not break, its result simply aged out.
+          // textDark is the foreground `bg` pairs with — orange-800 holds 5.5:1 on orange-100.
+          statusColors.warning.textDark,
         )}
-      </Button>
-    </div>
+      >
+        <svg
+          className="h-8 w-8"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={1.8}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden="true"
+        >
+          <path d="M3 12a9 9 0 1 0 3-6.7L3 8" />
+          <polyline points="3 3 3 8 8 8" />
+          <polyline points="12 7.5 12 12 15 13.8" />
+        </svg>
+      </div>
+      <h3 className={cn('text-lg font-bold', textColors.primary)}>{t.staleTitle}</h3>
+      {/* 규칙 한 줄, 사실 한 줄 — 정책은 왜 막혔는지를, 메타는 언제의 결과였는지를
+          각자 자기 행에서 말한다. */}
+      <p className={cn(POLICY_LINE, textColors.tertiary)}>
+        {t.stalePolicy(SCAN_STALE_DAYS)}
+      </p>
+      {scannedAt ? (
+        <p className={cn('mt-1 text-[12px] tabular-nums', textColors.quaternary)}>
+          {t.staleLastScan(formatDateTimeLocalCompact(scannedAt), formatRelativeTime(scannedAt, locale))}
+        </p>
+      ) : null}
 
-    {/* 스트립이 서지 않는 화면이라 그 보조 행동 둘을 여기서 잇는다. 스트립과 같은
-        고스트 문법 — 이 블록의 버튼 크롬은 재스캔 하나만 갖는다. */}
-    <div className="mt-4 flex items-center justify-center gap-5">
-      <button
-        type="button"
-        onClick={onOpenHistory}
-        className={cn(buttonStyles.ghostText, textColors.secondary)}
-      >
-        스캔 이력
-      </button>
-      <button
-        type="button"
-        onClick={onCheckPermission}
-        disabled={permission.status === 'checking'}
-        className={cn(buttonStyles.ghostText, textColors.secondary)}
-      >
-        {permission.status === 'checking' ? '확인 중...' : '권한 확인'}
-      </button>
+      <div className="mt-7">
+        <Button
+          variant="primary"
+          disabled={!canStart}
+          onClick={onStartScan}
+          className={CTA_BUTTON}
+        >
+          {starting ? (
+            <>
+              <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-t-transparent" />
+              {t.starting}
+            </>
+          ) : (
+            <>
+              <ReloadIcon className="h-4 w-4" />
+              {t.rescan}
+            </>
+          )}
+        </Button>
+      </div>
+
+      {/* 스트립이 서지 않는 화면이라 그 보조 행동 둘을 여기서 잇는다. 스트립과 같은
+          고스트 문법 — 이 블록의 버튼 크롬은 재스캔 하나만 갖는다. */}
+      <div className="mt-4 flex items-center justify-center gap-5">
+        <button
+          type="button"
+          onClick={onOpenHistory}
+          className={cn(buttonStyles.ghostText, textColors.secondary)}
+        >
+          {t.scanHistory}
+        </button>
+        <button
+          type="button"
+          onClick={onCheckPermission}
+          disabled={permission.status === 'checking'}
+          className={cn(buttonStyles.ghostText, textColors.secondary)}
+        >
+          {permission.status === 'checking' ? t.checking : t.checkPermission}
+        </button>
+      </div>
+      {/* 확인 결과가 앉을 자리 — 스트립에서는 링크 옆 배지가 받던 것이다. idle 이면
+          아무것도 그리지 않으므로(ScanPermissionResult) 평소엔 3행 규격 그대로다. */}
+      <div className="mt-3 flex justify-center empty:mt-0">
+        <ScanPermissionResult state={permission} />
+      </div>
     </div>
-    {/* 확인 결과가 앉을 자리 — 스트립에서는 링크 옆 배지가 받던 것이다. idle 이면
-        아무것도 그리지 않으므로(ScanPermissionResult) 평소엔 3행 규격 그대로다. */}
-    <div className="mt-3 flex justify-center empty:mt-0">
-      <ScanPermissionResult state={permission} />
-    </div>
-  </div>
-);
+  );
+};

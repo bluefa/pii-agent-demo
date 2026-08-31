@@ -2,14 +2,11 @@
 
 import { useState, type KeyboardEvent } from 'react';
 import { CloseIcon } from '@/app/components/ui/icons';
+import { useLocale } from '@/app/components/LocaleProvider';
 import { cn, idcStyles, inputStyles } from '@/lib/theme';
 import { SDU_DB_TYPE_MAX, SDU_DB_TYPE_MAXLEN, type SduCloud } from '@/lib/types/sdu';
-import {
-  SDU_DB_TYPE_DUPLICATE_MESSAGE,
-  SDU_DB_TYPE_LEN_MESSAGE,
-  SDU_DB_TYPE_MAX_MESSAGE,
-  sduDbTypeChoices,
-} from '@/app/target-sources/[targetSourceId]/_components/sdu/step1/model';
+import { SDU_COPY } from '@/app/target-sources/[targetSourceId]/_components/sdu/copy';
+import { sduDbTypeChoices } from '@/app/target-sources/[targetSourceId]/_components/sdu/step1/model';
 import {
   fieldStyles,
   tokenStyles,
@@ -35,6 +32,8 @@ export interface DatabaseTypeTagInputProps {
  * 사용자는 저장을 눌러 보기 전에 상한에 닿았다는 사실과 지울 수 있는 상태를 함께 봐야 한다.
  */
 export const DatabaseTypeTagInput = ({ cloud, values, onChange }: DatabaseTypeTagInputProps) => {
+  const { locale } = useLocale();
+  const t = SDU_COPY[locale].define;
   const [text, setText] = useState('');
   const [message, setMessage] = useState<string | null>(null);
 
@@ -61,11 +60,11 @@ export const DatabaseTypeTagInput = ({ cloud, values, onChange }: DatabaseTypeTa
       if (!value) continue;
       const reason =
         value.length > SDU_DB_TYPE_MAXLEN
-          ? SDU_DB_TYPE_LEN_MESSAGE
+          ? t.dbTypeLen
           : next.length >= SDU_DB_TYPE_MAX
-            ? SDU_DB_TYPE_MAX_MESSAGE
+            ? t.dbTypeMax
             : next.some((existing) => existing.toLowerCase() === value.toLowerCase())
-              ? SDU_DB_TYPE_DUPLICATE_MESSAGE
+              ? t.dbTypeDuplicate
               : null;
       if (reason) {
         error ??= reason;
@@ -101,10 +100,7 @@ export const DatabaseTypeTagInput = ({ cloud, values, onChange }: DatabaseTypeTa
           {values.length} / {SDU_DB_TYPE_MAX}
         </span>
       </div>
-      <p className={fieldStyles.hint}>
-        목록에 없는 타입은 직접 입력할 수 있어요. 한 대상당 최대 {SDU_DB_TYPE_MAX}개, 이름은{' '}
-        {SDU_DB_TYPE_MAXLEN}자까지예요.
-      </p>
+      <p className={fieldStyles.hint}>{t.dbTypeHint}</p>
 
       {values.length > 0 && (
         <ul className="mt-2.5 flex flex-wrap gap-1.5">
@@ -113,7 +109,7 @@ export const DatabaseTypeTagInput = ({ cloud, values, onChange }: DatabaseTypeTa
               {value}
               <button
                 type="button"
-                aria-label={`${value} 제거`}
+                aria-label={t.removeValue(value)}
                 onClick={() => remove(index)}
                 className={tokenStyles.remove}
               >
@@ -128,8 +124,8 @@ export const DatabaseTypeTagInput = ({ cloud, values, onChange }: DatabaseTypeTa
         <input
           value={text}
           disabled={full}
-          aria-label="Database Type 직접 입력"
-          placeholder="직접 입력 (예: CUBRID)"
+          aria-label={t.dbTypeCustomAria}
+          placeholder={t.dbTypeCustomPlaceholder}
           onChange={(event) => {
             setText(event.target.value);
             setMessage(null);
@@ -147,7 +143,7 @@ export const DatabaseTypeTagInput = ({ cloud, values, onChange }: DatabaseTypeTa
           onClick={commitTyped}
           className={idcStyles.triggerBtn.ghostSm}
         >
-          추가
+          {t.add}
         </button>
         {text.trim().length > 0 && (
           <span className={tooLong ? fieldStyles.counterFull : fieldStyles.counter}>
@@ -157,7 +153,7 @@ export const DatabaseTypeTagInput = ({ cloud, values, onChange }: DatabaseTypeTa
       </div>
 
       <div className="mt-2 flex flex-wrap items-center gap-1.5">
-        <span className={tokenStyles.quickLabel}>자주 쓰는 타입</span>
+        <span className={tokenStyles.quickLabel}>{t.dbTypeQuickLabel}</span>
         {sduDbTypeChoices(cloud).map((type) => (
           <button
             key={type}
@@ -173,7 +169,7 @@ export const DatabaseTypeTagInput = ({ cloud, values, onChange }: DatabaseTypeTa
 
       {(tooLong || full || message) && (
         <p className={fieldStyles.message}>
-          {tooLong ? SDU_DB_TYPE_LEN_MESSAGE : full ? SDU_DB_TYPE_MAX_MESSAGE : message}
+          {tooLong ? t.dbTypeLen : full ? t.dbTypeMax : message}
         </p>
       )}
     </div>

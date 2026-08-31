@@ -1156,7 +1156,20 @@ describe('step tag rides the title row', () => {
   /** The token's own geometry, minus its `${…}` colour holes. Drifts with the token. */
   const TAG_GEOMETRY = classOf(blockOf('cardStyles'), 'stepTag').split('${')[0].trim();
 
-  const byPill = appTsx.filter((f) => PILL.test(read(f)));
+  /**
+   * A head wears the tag if it mounts the token, hand-writes the token's geometry, or
+   * hard-codes 「N단계」 in the markup.
+   *
+   * The middle case is the one this census exists for — `ConnectionVerifiedStep` spelled
+   * the classes out and sat out a move invisibly. The last used to be the WHOLE detector,
+   * but the pill's text now comes from the locale dictionaries (`{t.step(1)}`), so a grep
+   * of the markup no longer finds it; it stays because a head that writes the Korean by
+   * hand is still exactly the drift this guards against.
+   */
+  const wearsTag = (src: string): boolean =>
+    src.includes(TAG_USE) || src.includes(TAG_GEOMETRY) || PILL.test(src);
+
+  const byPill = appTsx.filter((f) => wearsTag(read(f)));
   const byToken = appTsx.filter((f) => read(f).includes(TAG_USE));
 
   it('is worn by every step card there is', () => {

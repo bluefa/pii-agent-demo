@@ -2,6 +2,17 @@ import Link from 'next/link';
 import { passRoutes } from '@/lib/routes';
 import { bgColors, cn, getButtonClass, textColors } from '@/lib/theme';
 import { LockIcon } from '@/app/components/ui/icons';
+import { DEFAULT_LOCALE, type Locale } from '@/lib/locale';
+import { TS_COPY } from '@/app/target-sources/[targetSourceId]/_components/copy';
+
+interface AccessDeniedStateProps {
+  /**
+   * 읽는 사람의 언어. **프롭이지 `useLocale()` 이 아니다** — 이 화면은 page.tsx(서버
+   * 컴포넌트)가 렌더하므로 컨텍스트 훅을 부를 수 없다. 서버는 쿠키로 이미 언어를 알고
+   * 있고(`parseLocaleCookie`), 넘기지 않으면 기본값(한국어)으로 그린다.
+   */
+  locale?: Locale;
+}
 
 /**
  * 접근 권한이 없어 연동 대상을 열지 못했을 때의 전면 상태.
@@ -20,39 +31,40 @@ import { LockIcon } from '@/app/components/ui/icons';
  *
  * 훅도 bff 의존도 없다 — page.tsx(서버)와 error.tsx(클라이언트) 양쪽에서 쓴다.
  */
-export const AccessDeniedState = () => (
-  <div className={cn('flex min-h-screen items-center justify-center', bgColors.muted)}>
-    <div className="max-w-md px-6 text-center">
-      <div
-        className={cn(
-          'mx-auto mb-4 grid h-16 w-16 place-items-center rounded-full',
-          bgColors.panel,
-          textColors.secondary,
-        )}
-      >
-        <LockIcon className="h-8 w-8" />
-      </div>
-      <p className={cn('mb-2 font-medium', textColors.primary)}>
-        이 연동 대상에 접근할 권한이 없어요
-      </p>
-      <p className={cn('mb-5 text-sm leading-relaxed', textColors.tertiary)}>
-        이 대상이 속한 서비스의 접근 권한이 필요해요. 권한을 요청하면 관리자가 검토한 뒤
-        승인하거나 반려해요.
-      </p>
-      <div className="flex items-center justify-center gap-2">
-        <Link
-          href={passRoutes.accessRequests}
-          className={cn('inline-block', getButtonClass('primary'))}
+export const AccessDeniedState = ({ locale = DEFAULT_LOCALE }: AccessDeniedStateProps) => {
+  const t = TS_COPY[locale].common;
+
+  return (
+    <div lang={locale} className={cn('flex min-h-screen items-center justify-center', bgColors.muted)}>
+      <div className="max-w-md px-6 text-center">
+        <div
+          className={cn(
+            'mx-auto mb-4 grid h-16 w-16 place-items-center rounded-full',
+            bgColors.panel,
+            textColors.secondary,
+          )}
         >
-          권한 요청하기
-        </Link>
-        <Link
-          href={passRoutes.services}
-          className={cn('inline-block', getButtonClass('secondary'))}
-        >
-          Service 목록
-        </Link>
+          <LockIcon className="h-8 w-8" />
+        </div>
+        <p className={cn('mb-2 font-medium', textColors.primary)}>{t.accessDeniedTitle}</p>
+        <p className={cn('mb-5 text-sm leading-relaxed', textColors.tertiary)}>
+          {t.accessDeniedBody}
+        </p>
+        <div className="flex items-center justify-center gap-2">
+          <Link
+            href={passRoutes.accessRequests}
+            className={cn('inline-block', getButtonClass('primary'))}
+          >
+            {t.requestAccess}
+          </Link>
+          <Link
+            href={passRoutes.services}
+            className={cn('inline-block', getButtonClass('secondary'))}
+          >
+            {t.servicesLink}
+          </Link>
+        </div>
       </div>
     </div>
-  </div>
-);
+  );
+};

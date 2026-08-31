@@ -141,20 +141,30 @@ export function fmtTimeMs(iso: string | null | undefined): string {
 }
 
 /**
- * ISO-8601 UTC instant → Korean relative time from `now` (default Date.now()):
+ * ISO-8601 UTC instant → relative time from `now` (default Date.now()):
  * '방금 전' (<1m), 'N분 전' (<1h), 'N시간 전' (<1d), else 'N일 전'.
  * `null`/invalid → '-'. `now` is injectable so the derivation stays testable.
+ *
+ * `locale` is last and defaults to Korean, the same shape `fmtElapsedAgo` uses below:
+ * every existing caller — the tests among them — keeps the sentence it had, and only a
+ * caller that knows the reader's language asks for the other one.
  */
-export function fmtRelativeTime(iso: string | null | undefined, now: number = Date.now()): string {
+export function fmtRelativeTime(
+  iso: string | null | undefined,
+  now: number = Date.now(),
+  locale: 'ko' | 'en' = 'ko',
+): string {
   if (!iso) return '-';
   const then = new Date(iso).getTime();
   if (Number.isNaN(then)) return '-';
+  const en = locale === 'en';
   const diffMin = Math.floor((now - then) / 60_000);
-  if (diffMin < 1) return '방금 전';
-  if (diffMin < 60) return `${diffMin}분 전`;
+  if (diffMin < 1) return en ? 'just now' : '방금 전';
+  if (diffMin < 60) return en ? `${diffMin}m ago` : `${diffMin}분 전`;
   const diffHour = Math.floor(diffMin / 60);
-  if (diffHour < 24) return `${diffHour}시간 전`;
-  return `${Math.floor(diffHour / 24)}일 전`;
+  if (diffHour < 24) return en ? `${diffHour}h ago` : `${diffHour}시간 전`;
+  const diffDay = Math.floor(diffHour / 24);
+  return en ? `${diffDay}d ago` : `${diffDay}일 전`;
 }
 
 /**
@@ -168,19 +178,33 @@ export function fmtRelativeTime(iso: string | null | undefined, now: number = Da
  * 게시물 시각에 맞고, 이쪽은 초까지 내려가 폴링 사이에도 값이 움직인다 — 화면이
  * 살아 있다고 말할 수 있는 유일한 수다. 음수/NaN → null (호출부가 문장을 접는다).
  */
-export function fmtElapsedAgo(ms: number): string | null {
+export function fmtElapsedAgo(ms: number, locale: 'ko' | 'en' = 'ko'): string | null {
   if (!Number.isFinite(ms) || ms < 0) return null;
+  const en = locale === 'en';
+  // Korean glues the unit to the number and closes with 전; English spaces the unit and
+  // opens with "ago" at the end. One template cannot hold both, so each language pairs
+  // its own — the arithmetic above is what the two share.
   const pair = (head: string, rest: number, unit: string): string =>
-    rest > 0 ? `${head} ${rest}${unit} 전` : `${head} 전`;
+    en
+      ? rest > 0
+        ? `${head} ${rest}${unit} ago`
+        : `${head} ago`
+      : rest > 0
+        ? `${head} ${rest}${unit} 전`
+        : `${head} 전`;
 
   const sec = Math.floor(ms / 1000);
-  if (sec < 1) return '방금 전';
-  if (sec < 60) return `${sec}초 전`;
+  if (sec < 1) return en ? 'just now' : '방금 전';
+  if (sec < 60) return en ? `${sec}s ago` : `${sec}초 전`;
   const min = Math.floor(sec / 60);
-  if (min < 60) return pair(`${min}분`, sec % 60, '초');
+  if (min < 60) return pair(en ? `${min}m` : `${min}분`, sec % 60, en ? 's' : '초');
   const hour = Math.floor(min / 60);
-  if (hour < 24) return pair(`${hour}시간`, min % 60, '분');
-  return pair(`${Math.floor(hour / 24)}일`, hour % 24, '시간');
+  if (hour < 24) return pair(en ? `${hour}h` : `${hour}시간`, min % 60, en ? 'm' : '분');
+  return pair(
+    en ? `${Math.floor(hour / 24)}d` : `${Math.floor(hour / 24)}일`,
+    hour % 24,
+    en ? 'h' : '시간',
+  );
 }
 
 const ISO_DURATION = /^P(?:T(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?)?$/;

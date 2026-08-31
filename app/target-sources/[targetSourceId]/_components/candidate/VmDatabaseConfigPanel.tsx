@@ -1,11 +1,13 @@
 'use client';
 
 import { useState } from 'react';
+import { useLocale } from '@/app/components/LocaleProvider';
 import { cn, statusColors, primaryColors, textColors, bgColors, borderColors, buttonStyles } from '@/lib/theme';
 import { Badge } from '@/app/components/ui/Badge';
 import { VM_DATABASE_TYPES, DEFAULT_PORTS, validatePort as validatePortValue } from '@/lib/constants/vm-database';
 import type { VmDatabaseType, VmDatabaseConfig } from '@/lib/types';
 import type { AzureVmNic } from '@/lib/types/azure';
+import { CANDIDATE_COPY } from '@/app/target-sources/[targetSourceId]/_components/candidate/copy';
 
 interface VmDatabaseConfigPanelProps {
   resourceId: string;
@@ -25,6 +27,8 @@ export const VmDatabaseConfigPanel = ({
   onSave,
   onCancel,
 }: VmDatabaseConfigPanelProps) => {
+  const { locale } = useLocale();
+  const t = CANDIDATE_COPY[locale].vmConfig;
   const nicList = nics ?? [];
   const hasNics = nicList.length > 0;
 
@@ -72,10 +76,12 @@ export const VmDatabaseConfigPanel = ({
     }
   };
 
+  // `lib/constants/vm-database.ts` stays locale-free: it decides whether the value is wrong,
+  // and the only two ways it can be wrong are told apart by whether anything was typed at all.
   const validatePort = (value: string): boolean => {
-    const error = validatePortValue(value);
-    setPortError(error);
-    return error === null;
+    const invalid = validatePortValue(value) !== null;
+    setPortError(invalid ? (value ? t.portRange : t.portRequired) : null);
+    return !invalid;
   };
 
   const handlePortChange = (value: string) => {
@@ -118,7 +124,7 @@ export const VmDatabaseConfigPanel = ({
                 <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
               </svg>
               <span className="text-sm font-medium text-amber-800">
-                VM 데이터베이스 설정이 필요합니다
+                {t.notConfigured}
               </span>
             </div>
           )}
@@ -135,7 +141,7 @@ export const VmDatabaseConfigPanel = ({
                   </svg>
                 </div>
                 <span className={cn('text-sm font-semibold', textColors.primary)}>
-                  {hasNics ? '네트워크 및 데이터베이스 설정' : '데이터베이스 연결 설정'}
+                  {hasNics ? t.titleWithNic : t.titleWithoutNic}
                 </span>
               </div>
             </div>
@@ -146,7 +152,7 @@ export const VmDatabaseConfigPanel = ({
               {hasNics && (
                 <div className="mb-4">
                   <label className={cn('block text-xs font-semibold uppercase tracking-wide mb-2', textColors.tertiary)}>
-                    Network Interface 선택
+                    {t.nicSection}
                   </label>
                   <div className={cn('border rounded-lg overflow-hidden divide-y', statusColors.pending.border, borderColors.default.replace('border-', 'divide-'))}>
                     {nicList.map((nic, idx) => (
@@ -168,7 +174,7 @@ export const VmDatabaseConfigPanel = ({
                         <span className={cn('font-mono text-sm', textColors.primary)}>{nic.name}</span>
                         <span className={cn('text-sm', textColors.tertiary)}>{nic.privateIp}</span>
                         {nicList.length > 1 && idx === 0 && (
-                          <Badge variant="info" size="sm">추천</Badge>
+                          <Badge variant="info" size="sm">{t.nicRecommended}</Badge>
                         )}
                       </label>
                     ))}
@@ -180,7 +186,7 @@ export const VmDatabaseConfigPanel = ({
                 {/* Database Type - Dropdown */}
                 <div className="w-44">
                   <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2">
-                    데이터베이스 타입 <span className="text-red-500">*</span>
+                    {t.databaseType} <span className="text-red-500">*</span>
                   </label>
                   <select
                     value={databaseType ?? ''}
@@ -193,7 +199,7 @@ export const VmDatabaseConfigPanel = ({
                         : 'border-amber-300 bg-amber-50 text-slate-900 focus:border-amber-500',
                     )}
                   >
-                    <option value="">선택하세요</option>
+                    <option value="">{t.selectPlaceholder}</option>
                     {VM_DATABASE_TYPES.map((type) => (
                       <option key={type.value} value={type.value}>{type.label}</option>
                     ))}
@@ -219,15 +225,17 @@ export const VmDatabaseConfigPanel = ({
                           ? 'border-amber-300 bg-amber-50 text-slate-900 focus:border-amber-500'
                           : 'border-slate-200 bg-white text-slate-900 focus:border-[#0064FF]',
                       )}
-                      placeholder={hasNics ? 'NIC에서 자동 설정됨' : 'ip-10-0-1-100.ec2.internal'}
+                      placeholder={hasNics ? t.hostPlaceholderNic : 'ip-10-0-1-100.ec2.internal'}
                     />
-                    <p className="mt-1 text-xs text-slate-400">{hasNics ? '선택한 NIC의 Private IP' : 'Private DNS Name 또는 IP'}</p>
+                    <p className="mt-1 text-xs text-slate-400">
+                      {hasNics ? t.hostHelperNic : t.hostHelper}
+                    </p>
                   </div>
 
                   {/* Port */}
                   <div className="w-28">
                     <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2">
-                      포트
+                      {t.port}
                     </label>
                     <div className="relative">
                       <input
@@ -244,7 +252,7 @@ export const VmDatabaseConfigPanel = ({
                             ? 'border-red-300 bg-red-50 text-red-900 focus:border-red-500'
                             : 'border-slate-200 bg-white text-slate-900 focus:border-[#0064FF]',
                         )}
-                        placeholder="포트"
+                        placeholder={t.portPlaceholder}
                       />
                       {portError && (
                         <p className="absolute -bottom-5 left-0 text-xs font-medium text-red-600">{portError}</p>
@@ -268,10 +276,10 @@ export const VmDatabaseConfigPanel = ({
                             ? 'border-amber-300 bg-amber-50 text-slate-900 focus:border-amber-500'
                             : 'border-slate-200 bg-white text-slate-900 focus:border-[#0064FF]',
                         )}
-                        placeholder="예: ORCL"
+                        placeholder={t.serviceIdPlaceholder}
                       />
                       {!oracleServiceId && (
-                        <p className="mt-1 text-xs font-medium text-amber-600">필수 입력</p>
+                        <p className="mt-1 text-xs font-medium text-amber-600">{t.required}</p>
                       )}
                     </div>
                   )}
@@ -285,14 +293,14 @@ export const VmDatabaseConfigPanel = ({
                 onClick={onCancel}
                 className="px-4 py-2 text-sm font-medium text-slate-600 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 hover:text-slate-800 transition-colors"
               >
-                취소
+                {t.cancel}
               </button>
               <button
                 onClick={handleSave}
                 disabled={!isValid}
                 className={cn(buttonStyles.base, buttonStyles.variants.primary, 'text-sm disabled:bg-slate-300')}
               >
-                설정 저장
+                {t.save}
               </button>
             </div>
           </div>

@@ -22,6 +22,8 @@ import { cardStyles, statusColors, cn } from '@/lib/theme';
 import type { ConfirmedResource } from '@/lib/types/resources';
 import { InstallCardHeader } from '@/app/components/features/process-status/install-status-detail/InstallCardHeader';
 import { LastCheckStamp } from '@/app/components/features/process-status/install-status-detail/LastCheckStamp';
+import { useLocale } from '@/app/components/LocaleProvider';
+import { INSTALL_COPY } from '@/app/components/features/process-status/install-copy';
 
 interface AzureInstallationInlineProps {
   targetSourceId: number;
@@ -46,35 +48,37 @@ interface AzureInstallationInlineProps {
  * BDC 가 도는 구간은 bdc 하나뿐이다. side 는 그룹 머리글이 대신 말하므로 그룹
  * 레일에서는 항목마다 다시 찍지 않는다.
  */
-const AZURE_STEPS: InstallTableStep[] = [
+type AzureCopy = (typeof INSTALL_COPY)['ko'];
+
+const azureSteps = (t: AzureCopy): InstallTableStep[] => [
   {
     id: 'vmSubnet',
-    title: 'VM Subnet 생성',
-    side: '서비스측 리소스 생성',
+    title: t.azure.vmSubnetTitle,
+    side: t.side.serviceResource,
     group: 'todo',
-    desc: 'VM 연동용 Subnet을 생성합니다. VM이 아닌 리소스는 해당 없음으로 표시됩니다.',
+    desc: t.azure.vmSubnetDesc,
   },
   {
     id: 'vmApply',
-    title: 'VM Terraform 적용',
-    side: '서비스측 리소스 생성',
+    title: t.azure.vmApplyTitle,
+    side: t.side.serviceResource,
     group: 'todo',
-    desc: 'VM 연동에 필요한 서비스 측 리소스를 Terraform으로 적용합니다.',
+    desc: t.azure.vmApplyDesc,
   },
   {
     id: 'bdc',
-    title: 'BDC측 Terraform 적용',
-    side: 'BDC측 리소스 생성',
+    title: t.azure.bdcTitle,
+    side: t.side.bdcResource,
     group: 'auto',
-    desc: 'BDC측에서 PII Agent 구성을 위한 Terraform 작업을 수행합니다.',
+    desc: t.azure.bdcDesc,
   },
   {
     id: 'pe',
-    title: 'Private Endpoint 승인',
-    side: '서비스측 승인',
+    title: t.azure.peTitle,
+    side: t.side.serviceApproval,
     group: 'todo',
-    serviceAction: 'Azure Portal에서 BDC가 요청한 Private Endpoint 연결을 승인해 주세요.',
-    desc: 'BDC가 요청한 Private Endpoint 연결을 Azure Portal에서 승인하는 단계입니다.',
+    serviceAction: t.azure.peAction,
+    desc: t.azure.peDesc,
   },
 ];
 
@@ -84,14 +88,23 @@ export const AzureInstallationInline = ({
   confirmedLoading = false,
   onInstallComplete,
 }: AzureInstallationInlineProps) => {
+  const { locale } = useLocale();
+  const copy = INSTALL_COPY[locale];
+  const steps = useMemo(() => azureSteps(copy), [copy]);
+
   // Must be stable: useInstallationStatus re-runs its fetch effect whenever
   // getFn's identity changes. An inline (unmemoized) getFn made the mount-only
   // fetch effect re-run every render → unbounded refetch loop, most visibly a
   // tight loop of retries when the endpoint keeps returning 500 (nothing
   // unmounts the component to break the cycle).
+  //
+  // `copy.azure` is a frozen module constant, so the dependency only changes when
+  // the reader switches language — which is exactly when the PE pill labels the
+  // adapter bakes in have to be rebuilt.
   const getStatus = useCallback(
-    (id: number) => getAzureInstallationStatus(id).then(buildAzureInstallDetail),
-    [],
+    (id: number) =>
+      getAzureInstallationStatus(id).then((wire) => buildAzureInstallDetail(wire, copy.azure)),
+    [copy.azure],
   );
   const { status, loading, error, fetchStatus } =
     useInstallationStatus<AzureInstallDetail>({
@@ -130,7 +143,9 @@ export const AzureInstallationInline = ({
       <div className={cn(cardStyles.body, 'space-y-3')}>
         {hasSyncFailure && status && (
           <div className={cn('px-4 py-2 rounded-lg border text-sm', statusColors.error.bg, statusColors.error.border, statusColors.error.textDark)}>
-            상태 확인 실패: {status.lastCheck.failReason ?? '최근 설치 상태 확인에 실패했습니다.'}
+            {copy.inline.statusCheckFailed(
+              status.lastCheck.failReason ?? copy.inline.statusCheckFailedFallback,
+            )}
           </div>
         )}
         {/* 에러가 먼저다 — confirmedLoading 이 OR 로 붙은 뒤로는 순서가 의미를 갖는다.
@@ -145,7 +160,7 @@ export const AzureInstallationInline = ({
           <InstallStatusDetail
             lastCheck={status.lastCheck}
             resources={status.resources}
-            steps={AZURE_STEPS}
+            steps={steps}
             meta={meta}
           />
         ) : null}

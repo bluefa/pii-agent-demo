@@ -2,6 +2,11 @@
 
 import { useState } from 'react';
 import { ConsoleTable, type ConsoleTableColumn } from '@/app/components/ui/ConsoleTable';
+import { useLocale } from '@/app/components/LocaleProvider';
+import {
+  SDU_COPY,
+  type SduUploadCopy,
+} from '@/app/target-sources/[targetSourceId]/_components/sdu/copy';
 import { YesNoAck } from '@/app/target-sources/[targetSourceId]/_components/sdu/upload/YesNoAck';
 import { answerOf, regionLabels } from '@/app/target-sources/[targetSourceId]/_components/sdu/upload/model';
 import {
@@ -26,11 +31,11 @@ export interface FirewallBlockProps {
  * 둘 다 `flex` — 셸의 문서가 권하는 짝(하나를 끌면 싱크가 다른 쪽으로 넘어간다)이다.
  * 나머지 둘의 바닥은 자기 머리글이 잘리지 않는 폭이다.
  */
-const COLUMNS: ConsoleTableColumn[] = [
+const columnsOf = (t: SduUploadCopy): ConsoleTableColumn[] => [
   { key: 'region', label: 'Region', width: 108 },
-  { key: 'endpoint', label: '엔드포인트', width: 320, flex: true },
-  { key: 'ips', label: '목적지 IP', width: 240, flex: true },
-  { key: 'targets', label: '대상', width: 88 },
+  { key: 'endpoint', label: t.colEndpoint, width: 320, flex: true },
+  { key: 'ips', label: t.colDestinationIps, width: 240, flex: true },
+  { key: 'targets', label: t.colTargets, width: 88 },
 ];
 
 const CELL = cn(idcStyles.table.approvalCell, 'align-top');
@@ -44,6 +49,8 @@ const CELL = cn(idcStyles.table.approvalCell, 'align-top');
  * form line is one CIDR; comma-joined, one gets dropped in transcription.
  */
 export const FirewallBlock = ({ regions, firewall, targets, onAnswer }: FirewallBlockProps) => {
+  const { locale } = useLocale();
+  const t = SDU_COPY[locale].upload;
   const [answering, setAnswering] = useState(false);
 
   const answer = async (confirmed: boolean) => {
@@ -61,12 +68,11 @@ export const FirewallBlock = ({ regions, firewall, targets, onAnswer }: Firewall
   return (
     <div className={cn('flex flex-col', stackGap.group)}>
       <p className={cn(textStyles.body, textColors.secondary)}>
-        1단계에서 정의하신 Region은 {regionLabels(regions)} {regions.length}곳입니다. 사내 방화벽에서
-        아래 엔드포인트와 목적지 IP로의 아웃바운드가 허용되어 있어야 해요.
+        {t.firewallIntro(regionLabels(regions), regions.length)}
       </p>
 
       <div className={idcStyles.table.frame}>
-        <ConsoleTable columns={COLUMNS}>
+        <ConsoleTable columns={columnsOf(t)}>
           <tbody>
             {firewall.rows.map((row) => (
               <tr key={row.region}>
@@ -91,7 +97,9 @@ export const FirewallBlock = ({ regions, firewall, targets, onAnswer }: Firewall
                 </td>
                 <td className={CELL}>
                   <span className={cn(textStyles.body, textColors.secondary)}>
-                    {targets.filter((target) => target.region === row.region).length}건
+                    {t.targetCount(
+                      targets.filter((target) => target.region === row.region).length,
+                    )}
                   </span>
                 </td>
               </tr>
@@ -101,7 +109,7 @@ export const FirewallBlock = ({ regions, firewall, targets, onAnswer }: Firewall
       </div>
 
       <YesNoAck
-        question="모든 Region의 방화벽 결재 내역을 확인하셨습니까?"
+        question={t.firewallQuestion}
         value={answerOf(firewall)}
         onAnswer={answer}
         busy={answering}

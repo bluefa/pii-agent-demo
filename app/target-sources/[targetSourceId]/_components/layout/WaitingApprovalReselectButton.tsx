@@ -6,6 +6,8 @@ import { useApiMutation } from '@/app/hooks/useApiMutation';
 import { useModal } from '@/app/hooks/useModal';
 import { confirmApprovalUnavailable } from '@/app/lib/api';
 import { cn, idcStyles, primaryColors } from '@/lib/theme';
+import { useLocale } from '@/app/components/LocaleProvider';
+import { LAYOUT_COPY } from '@/app/target-sources/[targetSourceId]/_components/layout/copy';
 
 interface WaitingApprovalReselectButtonProps {
   targetSourceId: number;
@@ -25,10 +27,12 @@ export const WaitingApprovalReselectButton = ({
   onSuccess,
 }: WaitingApprovalReselectButtonProps) => {
   const modal = useModal();
+  const { locale } = useLocale();
+  const copy = LAYOUT_COPY[locale];
 
   const { mutate, loading } = useApiMutation<void, Awaited<ReturnType<typeof confirmApprovalUnavailable>>>(
     () => confirmApprovalUnavailable(targetSourceId),
-    { errorMessage: '처리에 실패했습니다. 다시 시도해주세요.' },
+    { errorMessage: copy.common.genericFailure },
   );
 
   const handleConfirm = async () => {
@@ -47,7 +51,7 @@ export const WaitingApprovalReselectButton = ({
         className={idcStyles.triggerBtn.linkPrimary}
         onClick={() => modal.open()}
       >
-        연동 대상 다시 선택하기
+        {copy.waiting.reselect}
         <ArrowUpRightIcon className="h-[13px] w-[13px]" />
       </button>
 
@@ -64,19 +68,21 @@ export const WaitingApprovalReselectButton = ({
         onConfirm={() => {
           void handleConfirm();
         }}
-        title="반려 사유를 확인하셨나요?"
+        title={copy.waiting.reselectTitle}
         description={
           // The payload is "you go BACK to step 1" — so the emphasis sits on 1단계 (a short
           // token, so no particle-boundary mush) in brand blue, and the sentence links the
           // 확인 button to its consequence directly. The screen name doubles as the restart
           // activity.
           <>
-            {'확인을 누르면 '}
-            <strong className={cn('font-semibold', primaryColors.text)}>1단계</strong>
-            {'로 돌아가, 연동 대상 DB 선택부터 다시 진행해요.'}
+            {copy.rewindTo.targetDb.lead}
+            <strong className={cn('font-semibold', primaryColors.text)}>
+              {copy.common.step(1)}
+            </strong>
+            {copy.rewindTo.targetDb.tail}
           </>
         }
-        confirmLabel="확인"
+        confirmLabel={copy.common.ok}
         isPending={loading}
       />
     </>

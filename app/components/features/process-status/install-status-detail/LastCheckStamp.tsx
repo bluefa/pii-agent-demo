@@ -8,6 +8,8 @@ import { useNowTick } from '@/app/hooks/useNowTick';
 import { fmtElapsedAgo } from '@/lib/pipeline/format';
 import { formatDateTimeKstCompact } from '@/lib/utils/date';
 import type { InstallLastCheck } from '@/app/components/features/process-status/install-status-detail/model';
+import { useLocale } from '@/app/components/LocaleProvider';
+import { INSTALL_COPY } from '@/app/components/features/process-status/install-copy';
 
 /**
  * Step-4 시각 표기 — 정확한 시각, 그 뒤에 "3분 20초 전 확인".
@@ -40,9 +42,12 @@ export interface RelativeStamp {
 export const useRelativeStamp = (iso: string | null | undefined): RelativeStamp | null => {
   // 훅은 조건 없이 부른다. 켜고 끄는 판단은 훅 자신의 `active` 게이트가 한다.
   const now = useNowTick(Boolean(iso));
+  // The elapsed span is a sentence ('12분 20초 전' / '12m 20s ago'), so it needs the
+  // reader's language — the absolute stamp beside it is a number and does not.
+  const { locale } = useLocale();
   if (!iso) return null;
   return {
-    elapsed: now === null ? null : fmtElapsedAgo(now - Date.parse(iso)),
+    elapsed: now === null ? null : fmtElapsedAgo(now - Date.parse(iso), locale),
     absolute: formatDateTimeKstCompact(iso),
   };
 };
@@ -56,13 +61,16 @@ export const useRelativeStamp = (iso: string | null | undefined): RelativeStamp 
  */
 const Stamp = ({
   stamp,
-  verb,
+  format,
   suffix,
   className,
 }: {
   stamp: RelativeStamp;
-  /** 경과 뒤에 붙는 동사 — 카드 헤더는 확인, 권한 패널은 검증. */
-  verb: string;
+  /**
+   * 경과를 한 마디로 — 카드 헤더는 확인, 권한 패널은 검증. 동사 하나가 아니라
+   * 포맷터인 이유는 영어가 그 동사를 경과 **앞**에 놓기 때문이다.
+   */
+  format: (elapsed: string) => string;
   suffix?: ReactNode;
   className?: string;
 }) => (
@@ -78,7 +86,7 @@ const Stamp = ({
         이 저장소의 인라인 구분자와 같은 ' · ' 공백으로 준다. */}
     <span className={textStyles.caption}>
       <span className={cn(textStyles.captionStrong, textColors.secondary)}>{stamp.absolute}</span>
-      {stamp.elapsed && ` · ${stamp.elapsed} ${verb}`}
+      {stamp.elapsed && ` · ${format(stamp.elapsed)}`}
       {suffix}
     </span>
   </span>
@@ -92,6 +100,8 @@ export const LastCheckStamp = ({
   /** 줄 자체에 얹는 추가 클래스 — 기본 배치는 카드 헤더의 우측 슬롯이 정한다. */
   className?: string;
 }) => {
+  const { locale } = useLocale();
+  const t = INSTALL_COPY[locale].stamp;
   const stamp = useRelativeStamp(lastCheck.checkedAt);
   const failed = lastCheck.status === 'FAILED';
 
@@ -101,7 +111,7 @@ export const LastCheckStamp = ({
       <span
         className={cn('whitespace-nowrap font-semibold', textStyles.caption, statusColors.error.textDark)}
       >
-        상태 확인 실패
+        {t.statusCheckFailed}
       </span>
     ) : null;
   }
@@ -110,17 +120,16 @@ export const LastCheckStamp = ({
   // 사실은 줄을 늘리는 대신 툴팁으로 내린다. 이 줄은 카드 머리의 우상단이라 위로 열면
   // 카드를 벗어나므로 아래로 연다.
   return (
-    <Tooltip
-      position="bottom"
-      content="설치 상태를 마지막으로 확인한 시각이에요. 화면에 보이는 값은 이때 확인한 결과라, 지금 상태와는 다를 수 있어요."
-    >
+    <Tooltip position="bottom" content={t.tooltip}>
       <Stamp
         stamp={stamp}
-        verb="확인"
+        format={t.checkedAgo}
         className={className}
         suffix={
           failed ? (
-            <span className={cn('ml-1', statusColors.error.textDark)}>· 상태 확인 실패</span>
+            <span className={cn('ml-1', statusColors.error.textDark)}>
+              · {t.statusCheckFailed}
+            </span>
           ) : null
         }
       />
@@ -129,6 +138,7 @@ export const LastCheckStamp = ({
 };
 
 /** 권한 패널의 마지막 검증 시각 — 같은 한 줄 문법, 동사만 다르다. */
-export const LastVerifyStamp = ({ stamp }: { stamp: RelativeStamp }) => (
-  <Stamp stamp={stamp} verb="검증" />
-);
+export const LastVerifyStamp = ({ stamp }: { stamp: RelativeStamp }) => {
+  const { locale } = useLocale();
+  return <Stamp stamp={stamp} format={INSTALL_COPY[locale].stamp.verifiedAgo} />;
+};

@@ -7,10 +7,8 @@ import { ResourceTableSkeleton } from '@/app/target-sources/[targetSourceId]/_co
 import { WaitingApprovalToolbar } from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalToolbar';
 import { IdcResourceTable } from '@/app/target-sources/[targetSourceId]/_components/idc/IdcResourceTable';
 import { useIdcApprovalTable } from '@/app/target-sources/[targetSourceId]/_components/idc/approval-table';
-import {
-  IDC_FILTER_EMPTY_MESSAGE,
-  IDC_SEARCH_PLACEHOLDER,
-} from '@/app/target-sources/[targetSourceId]/_components/idc/steps/step-copy';
+import { useLocale } from '@/app/components/LocaleProvider';
+import { IDC_COPY } from '@/app/target-sources/[targetSourceId]/_components/idc/copy';
 import {
   buildLogicalDbCountMap,
   type LogicalDbCountMap,
@@ -76,6 +74,7 @@ export const IdcConfirmedResourcesPanel = ({
   connectionLoading = false,
   connectionHasRun = false,
 }: IdcConfirmedResourcesPanelProps) => {
+  const t = IDC_COPY[useLocale().locale];
   // Step 5 counts for the whole table in one call; the per-resource lists load only on open.
   const [fetched, setFetched] = useState<{ targetSourceId: number; counts: LogicalDbCountMap }>({
     targetSourceId,
@@ -108,7 +107,7 @@ export const IdcConfirmedResourcesPanel = ({
   return (
     <>
       {state.status === 'loading' && <ResourceTableSkeleton />}
-      {state.status === 'error' && <ErrorState message="연동 대상을 불러오지 못했습니다." />}
+      {state.status === 'error' && <ErrorState message={t.loadFailed} />}
       {state.status === 'ready' && (
         <>
           <WaitingApprovalToolbar
@@ -120,7 +119,7 @@ export const IdcConfirmedResourcesPanel = ({
             onRegionChange={table.onRegionChange}
             dbTypeOptions={table.dbTypeOptions}
             regionOptions={table.regionOptions}
-            searchPlaceholder={IDC_SEARCH_PLACEHOLDER}
+            searchPlaceholder={t.searchPlaceholder}
           />
           <IdcResourceTable
             resources={visibleResources}
@@ -138,7 +137,7 @@ export const IdcConfirmedResourcesPanel = ({
             credentials={credentials}
             onCredentialOpen={onCredentialOpen}
             connected
-            emptyMessage={IDC_FILTER_EMPTY_MESSAGE}
+            emptyMessage={t.filterEmpty}
           />
           {table.filteredCount > 0 && (
             <Pagination

@@ -5,7 +5,8 @@ import { CopyButton } from '@/app/components/ui/CopyButton';
 import { IdentifierTip, Tooltip } from '@/app/components/ui/Tooltip';
 import { cn, idcStyles, primaryColors, textColors, verdictText } from '@/lib/theme';
 import { ExcludedIcon } from '@/app/components/ui/icons';
-import { IDC_ACCESS_ALLOWED, IDC_ACCESS_DENIED, IDC_SOURCE_LABEL } from '@/lib/constants/idc';
+import { useLocale } from '@/app/components/LocaleProvider';
+import { IDC_COPY } from '@/app/target-sources/[targetSourceId]/_components/idc/copy';
 import { CELL_LIFT } from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalTable';
 import type {
   IdcInstallStatus,
@@ -53,33 +54,36 @@ const HostCell = ({
   maxWidthClass?: string;
   /** 값 글자색 — 기본은 이 표의 본문 색. 강조가 필요한 열만 바꿔 넣는다. */
   textClassName?: string;
-}) => (
-  <span className={cn('group/host inline-flex items-center gap-1.5 min-w-0', maxWidthClass)}>
-    <Tooltip
-      content={<IdentifierTip label={label} value={value} />}
-      variant="value"
-      size="md"
-      triggerClassName="min-w-0 overflow-hidden"
-      truncatedOnly
-    >
-      <span
-        className={cn(
-          // 14px — 행이 글자 크기 하나로 읽힌다 (오너 2026-08-27). 12.5 는 v16 에서 넘어온
-          // 반 픽셀 값이라 디자인 가드가 받지 않는 값이기도 했다.
-          'min-w-0 overflow-hidden text-ellipsis whitespace-nowrap font-mono text-[14px] text-left [direction:ltr]',
-          textClassName,
-        )}
+}) => {
+  const t = IDC_COPY[useLocale().locale];
+  return (
+    <span className={cn('group/host inline-flex items-center gap-1.5 min-w-0', maxWidthClass)}>
+      <Tooltip
+        content={<IdentifierTip label={label} value={value} />}
+        variant="value"
+        size="md"
+        triggerClassName="min-w-0 overflow-hidden"
+        truncatedOnly
       >
-        {value}
-      </span>
-    </Tooltip>
-    <CopyButton
-      value={value}
-      label={`${label} 복사`}
-      className="shrink-0 opacity-0 group-hover/host:opacity-100"
-    />
-  </span>
-);
+        <span
+          className={cn(
+            // 14px — 행이 글자 크기 하나로 읽힌다 (오너 2026-08-27). 12.5 는 v16 에서 넘어온
+            // 반 픽셀 값이라 디자인 가드가 받지 않는 값이기도 했다.
+            'min-w-0 overflow-hidden text-ellipsis whitespace-nowrap font-mono text-[14px] text-left [direction:ltr]',
+            textClassName,
+          )}
+        >
+          {value}
+        </span>
+      </Tooltip>
+      <CopyButton
+        value={value}
+        label={t.copyOf(label)}
+        className="shrink-0 opacity-0 group-hover/host:opacity-100"
+      />
+    </span>
+  );
+};
 
 /** 접속 주소 cell — host(s) only (no port). Multiple IP collapses behind a toggle.
  *  `maxWidthClass` forwards to every HostCell — see its doc for the two width modes. */
@@ -90,6 +94,7 @@ export const IdcEndpointCell = ({
   resource: IdcResourceView;
   maxWidthClass?: string;
 }) => {
+  const t = IDC_COPY[useLocale().locale];
   const [expanded, setExpanded] = useState(false);
   const { hosts, kind } = resource;
 
@@ -117,7 +122,7 @@ export const IdcEndpointCell = ({
         onClick={() => setExpanded((v) => !v)}
         className={idcStyles.epToggle}
       >
-        {expanded ? '접기 ▴' : `IP ${extra}개 더보기 ▾`}
+        {expanded ? t.collapseIps : t.showMoreIps(extra)}
       </button>
     </span>
   );
@@ -166,43 +171,46 @@ export const IdcDbTypeCell = ({
    *  is the column-width control in legacy auto tables, and console (`table-fixed`) callers
    *  pass `max-w-full` so the COLUMN owns the truncation point. */
   sidMaxWidthClass?: string;
-}) => (
-  <div className="flex flex-col items-start gap-1">
-    {/* Plain text, matching the CSP approval table: the engine name is an attribute,
-        not a state, so a chip per row spends emphasis on the least decisive column. */}
-    {/* CELL_LIFT is inert unless the row carries `group` (the CSP approval skin), so the same
-        cell serves both table skins. */}
-    <span className={cn('text-[14px]', textColors.secondary, CELL_LIFT)}>
-      {resource.databaseTypeLabel}
-    </span>
-    {resource.oracleSid ? (
-      <span className={cn('group/sid inline-flex items-center gap-1 min-w-0', sidMaxWidthClass)}>
-        <span className={idcStyles.sidKey}>SID</span>
-        <Tooltip
-          content={<IdentifierTip label="Oracle SID" value={resource.oracleSid} />}
-          variant="value"
-          size="md"
-          triggerClassName="min-w-0 overflow-hidden"
-          truncatedOnly
-        >
-          <span
-            className={cn(
-              'min-w-0 overflow-hidden text-ellipsis whitespace-nowrap font-mono text-[14px] text-left',
-              textColors.tertiary,
-            )}
-          >
-            {resource.oracleSid}
-          </span>
-        </Tooltip>
-        <CopyButton
-          value={resource.oracleSid}
-          label="Oracle SID 복사"
-          className="shrink-0 opacity-0 group-hover/sid:opacity-100"
-        />
+}) => {
+  const t = IDC_COPY[useLocale().locale];
+  return (
+    <div className="flex flex-col items-start gap-1">
+      {/* Plain text, matching the CSP approval table: the engine name is an attribute,
+          not a state, so a chip per row spends emphasis on the least decisive column. */}
+      {/* CELL_LIFT is inert unless the row carries `group` (the CSP approval skin), so the same
+          cell serves both table skins. */}
+      <span className={cn('text-[14px]', textColors.secondary, CELL_LIFT)}>
+        {resource.databaseTypeLabel}
       </span>
-    ) : null}
-  </div>
-);
+      {resource.oracleSid ? (
+        <span className={cn('group/sid inline-flex items-center gap-1 min-w-0', sidMaxWidthClass)}>
+          <span className={idcStyles.sidKey}>SID</span>
+          <Tooltip
+            content={<IdentifierTip label="Oracle SID" value={resource.oracleSid} />}
+            variant="value"
+            size="md"
+            triggerClassName="min-w-0 overflow-hidden"
+            truncatedOnly
+          >
+            <span
+              className={cn(
+                'min-w-0 overflow-hidden text-ellipsis whitespace-nowrap font-mono text-[14px] text-left',
+                textColors.tertiary,
+              )}
+            >
+              {resource.oracleSid}
+            </span>
+          </Tooltip>
+          <CopyButton
+            value={resource.oracleSid}
+            label={t.copyOf('Oracle SID')}
+            className="shrink-0 opacity-0 group-hover/sid:opacity-100"
+          />
+        </span>
+      ) : null}
+    </div>
+  );
+};
 
 export const IdcSourceIpCell = ({
   sourceIps,
@@ -215,6 +223,7 @@ export const IdcSourceIpCell = ({
   /** HostCell 로 전달 — 두 폭 모드는 HostCell 문서 참조. */
   maxWidthClass?: string;
 }) => {
+  const t = IDC_COPY[useLocale().locale];
   // Blank, not an em-dash. The BDC assigns source IPs to integration targets only, so an empty
   // value means the row is not one — the same reason the 제외 사유 cell of a 대상 row is blank.
   // An em-dash would read as "this row should have had one and it is missing".
@@ -225,7 +234,7 @@ export const IdcSourceIpCell = ({
         <HostCell
           key={ip}
           value={ip}
-          label={IDC_SOURCE_LABEL}
+          label={t.sourceLabel}
           maxWidthClass={maxWidthClass}
           {...(emphasis && {
             // hover 리프트를 같이 건다 — 0064FF 는 흰 바탕 4.92:1 이지만 행 hover 틴트
@@ -250,15 +259,16 @@ export const IdcSourceIpCell = ({
  * 인용하므로 둘이 갈라지면 안내가 없는 상태를 가리키게 된다.
  */
 export const IdcFirewallBadge = ({ status }: { status: IdcInstallStatus | undefined }) => {
+  const t = IDC_COPY[useLocale().locale];
   switch (status) {
     case 'COMPLETED':
-      return <span className={cn(idcStyles.tag.base, idcStyles.tag.green)}>{IDC_ACCESS_ALLOWED}</span>;
+      return <span className={cn(idcStyles.tag.base, idcStyles.tag.green)}>{t.accessAllowed}</span>;
     case 'FAIL':
-      return <span className={cn(idcStyles.tag.base, idcStyles.tag.red)}>{IDC_ACCESS_DENIED}</span>;
+      return <span className={cn(idcStyles.tag.base, idcStyles.tag.red)}>{t.accessDenied}</span>;
     case 'IN_PROGRESS':
-      return <span className={cn(idcStyles.tag.base, idcStyles.tag.orange)}>허용 확인 중</span>;
+      return <span className={cn(idcStyles.tag.base, idcStyles.tag.orange)}>{t.accessChecking}</span>;
     default:
-      return <span className={cn(idcStyles.tag.base, idcStyles.tag.gray)}>BDC측 확인 필요</span>;
+      return <span className={cn(idcStyles.tag.base, idcStyles.tag.gray)}>{t.accessBdcCheck}</span>;
   }
 };
 
@@ -266,32 +276,35 @@ export const IdcFirewallBadge = ({ status }: { status: IdcInstallStatus | undefi
  * 이전 요청 불러오기 모달 전용 판정 — 공유 `TargetPill` 과 같은 형태(아이콘 + 글자, verdictText)를
  * 쓰되 어휘는 이 화면의 것(비대상)을 유지한다. 어휘 통일은 별건이다.
  */
-export const IdcTargetPill = ({ excluded }: { excluded: boolean }) =>
-  excluded ? (
+export const IdcTargetPill = ({ excluded }: { excluded: boolean }) => {
+  const t = IDC_COPY[useLocale().locale];
+  return excluded ? (
     <span className={cn(verdictText.base, verdictText.excluded)}>
       <ExcludedIcon className={verdictText.icon} />
-      비대상
+      {t.notTarget}
     </span>
   ) : (
-    <span className={cn(verdictText.base, verdictText.target)}>대상</span>
+    <span className={cn(verdictText.base, verdictText.target)}>{t.isTarget}</span>
   );
+};
 
 /** Credential-aware connection status — reflects the live test-connection result:
  *  no cred -> 자격 증명 필요; SUCCESS -> 성공; FAIL -> 실패; RUNNING -> 진행 중;
  *  else 대기 (gray). 어휘는 `TcStatusTag` 와 같아야 한다 — 이 셀은 승인 요청 모달의
  *  표에 서고, 같은 모달의 경고문과 그 뒤 step 5 표가 모두 그 어휘로 말한다. */
 export const IdcConnStatusCell = ({ resource }: { resource: IdcResourceView }) => {
+  const t = IDC_COPY[useLocale().locale];
   if (!resource.credentialId) {
-    return <span className={cn(idcStyles.tag.base, idcStyles.tag.gray)}>자격 증명 필요</span>;
+    return <span className={cn(idcStyles.tag.base, idcStyles.tag.gray)}>{t.credRequired}</span>;
   }
   switch (resource.connection) {
     case 'SUCCESS':
-      return <span className={cn(idcStyles.tag.base, idcStyles.tag.green)}>성공</span>;
+      return <span className={cn(idcStyles.tag.base, idcStyles.tag.green)}>{t.connSuccess}</span>;
     case 'FAIL':
-      return <span className={cn(idcStyles.tag.base, idcStyles.tag.red)}>실패</span>;
+      return <span className={cn(idcStyles.tag.base, idcStyles.tag.red)}>{t.connFail}</span>;
     case 'RUNNING':
-      return <span className={cn(idcStyles.tag.base, idcStyles.tag.orange)}>진행 중</span>;
+      return <span className={cn(idcStyles.tag.base, idcStyles.tag.orange)}>{t.connRunning}</span>;
     default:
-      return <span className={cn(idcStyles.tag.base, idcStyles.tag.gray)}>대기</span>;
+      return <span className={cn(idcStyles.tag.base, idcStyles.tag.gray)}>{t.connPending}</span>;
   }
 };

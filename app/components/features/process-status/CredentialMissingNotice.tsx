@@ -2,6 +2,8 @@
 
 import { cn } from '@/lib/theme';
 import { StatusWarningIcon } from '@/app/components/ui/icons';
+import { useLocale } from '@/app/components/LocaleProvider';
+import { STATUS_COPY } from '@/app/components/features/process-status/status-copy';
 
 interface CredentialMissingNoticeProps {
   /** Rows that still need a credential. 0 draws nothing — that is the normal state. */
@@ -33,6 +35,9 @@ export const CredentialMissingNotice = ({
   onToggleFilter,
   className,
 }: CredentialMissingNoticeProps) => {
+  const { locale } = useLocale();
+  const t = STATUS_COPY[locale].credential;
+
   if (count <= 0) return null;
 
   return (
@@ -45,12 +50,12 @@ export const CredentialMissingNotice = ({
       {/* 경고를 색만으로 말하지 않는다(WCAG 1.4.1) — 마크가 색 없이도 같은 뜻을 진다. */}
       <div className="flex items-center gap-2 text-[14px] font-semibold text-[var(--pl-warn-text)]">
         <StatusWarningIcon className="h-4 w-4 shrink-0" />
-        Credential 미설정 알림
+        {t.title}
       </div>
       {/* 제목의 글리프 열(16px + gap-2)에 본문을 맞춘다 — 상자 안에서 두 줄이 한 글 열에 선다. */}
       <p className="mt-1.5 break-keep pl-6 text-[14px] leading-[1.5] text-[var(--pl-warn-text)]">
-        <b className="font-bold tabular-nums">{count}건</b>이 지정되지 않았어요. 지정해야 연결
-        테스트를 실행할 수 있어요.
+        <b className="font-bold tabular-nums">{t.count(count)}</b>
+        {t.body}
       </p>
       <button
         type="button"
@@ -58,7 +63,7 @@ export const CredentialMissingNotice = ({
         aria-pressed={filterOn}
         className="mt-2 ml-6 cursor-pointer whitespace-nowrap text-[14px] font-semibold text-[var(--pl-warn-text)] underline underline-offset-2"
       >
-        {filterOn ? '전체 보기' : '미설정만 보기'}
+        {filterOn ? t.showAll : t.showMissingOnly}
       </button>
     </div>
   );

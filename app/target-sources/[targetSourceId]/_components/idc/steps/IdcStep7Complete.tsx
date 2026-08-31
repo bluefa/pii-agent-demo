@@ -13,6 +13,8 @@ import { IdcConfirmedResourcesPanel } from '@/app/target-sources/[targetSourceId
 import type { IdcStepProps } from '@/app/target-sources/[targetSourceId]/_components/idc/types';
 import { getIdcConfirmedResources } from '@/app/lib/api/idc';
 import { useIdcResources } from '@/app/hooks/useIdcResources';
+import { useLocale } from '@/app/components/LocaleProvider';
+import { IDC_COPY } from '@/app/target-sources/[targetSourceId]/_components/idc/copy';
 
 /** 클라우드 Step 7 과 같은 잠금 — 갱신이 도는 동안 되돌리기 버튼을 다시 누르지 못하게 한다. */
 const REWIND_BTN_DISABLED = 'disabled:cursor-not-allowed disabled:opacity-45';
@@ -31,10 +33,11 @@ const CompleteActionBar = ({
   targetSourceId: number;
   onProjectUpdate: (project: CloudTargetSource) => void;
 }) => {
+  const t = IDC_COPY[useLocale().locale];
   const rewind = useRewindStep(targetSourceId, onProjectUpdate);
 
   return (
-    <CardActionBar hint="※ 인프라 변경은 1단계, 연결 테스트 재실행은 5단계로 되돌아가 프로세스를 다시 진행해요.">
+    <CardActionBar hint={t.step7Hint}>
       <button
         type="button"
         disabled={rewind.pending}
@@ -42,7 +45,7 @@ const CompleteActionBar = ({
         onClick={() => rewind.open('infra')}
       >
         <EditIcon className="w-3.5 h-3.5" />
-        인프라 변경
+        {t.changeInfra}
       </button>
       <button
         type="button"
@@ -51,7 +54,7 @@ const CompleteActionBar = ({
         onClick={() => rewind.open('retest')}
       >
         <ReloadIcon className="w-3.5 h-3.5" />
-        연결 테스트 재실행
+        {t.retestCta}
       </button>
       <ConfirmRewindModal
         kind={rewind.confirmKind}
@@ -75,6 +78,7 @@ export const IdcStep7Complete = ({
   project,
   onProjectUpdate,
 }: IdcStepProps) => {
+  const t = IDC_COPY[useLocale().locale];
 
   // Step 7 source: the confirmed list (confirmed-integration), same as cloud steps 4–7.
   const { state } = useIdcResources(project.targetSourceId, getIdcConfirmedResources);
@@ -85,8 +89,8 @@ export const IdcStep7Complete = ({
       <section className={cardStyles.base}>
         <header className={cardStyles.header}>
           <div className="flex items-center gap-2">
-            <span className={cardStyles.stepTag}>7단계</span>
-            <h2 className={cardStyles.cardTitle}>PII 모니터링 모듈 연동</h2>
+            <span className={cardStyles.stepTag}>{t.step(7)}</span>
+            <h2 className={cardStyles.cardTitle}>{t.step7Title}</h2>
             <span
               className={cn(
                 cardStyles.stepBadge,
@@ -94,22 +98,20 @@ export const IdcStep7Complete = ({
                 statusColors.success.textDark,
               )}
             >
-              연동 완료
+              {t.badgeComplete}
             </span>
           </div>
           <p className={cn('mt-3', cardStyles.guidance)}>
-            <strong className={cn('font-semibold', primaryColors.text)}>
-              PII Agent 연동 절차가 완료되었어요.
-            </strong>
+            <strong className={cn('font-semibold', primaryColors.text)}>{t.step7GuideEm}</strong>
           </p>
           {/* One sentence for the rewind CTAs (step-6 grammar); the step each one lands on
               is the action bar hint's job. */}
           <p className={cardStyles.guidance}>
-            PII Agent 연동 대상 인프라가 바뀌었다면{' '}
-            <strong className={cn('font-semibold', textColors.secondary)}>인프라 변경</strong>을,
-            연결 상태를 다시 점검하고 싶다면{' '}
-            <strong className={cn('font-semibold', textColors.secondary)}>연결 테스트 재실행</strong>
-            을 눌러 연동 절차를 다시 진행할 수 있어요.
+            {t.step7GuideBefore}{' '}
+            <strong className={cn('font-semibold', textColors.secondary)}>{t.changeInfra}</strong>
+            {t.step7GuideBetween}{' '}
+            <strong className={cn('font-semibold', textColors.secondary)}>{t.retestCta}</strong>
+            {t.step7GuideAfter}
           </p>
         </header>
         <div className={cardStyles.body}>

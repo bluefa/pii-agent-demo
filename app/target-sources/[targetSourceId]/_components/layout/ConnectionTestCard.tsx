@@ -34,7 +34,6 @@ import {
   foldTcCardState,
   type TcRunPhase,
 } from '@/lib/test-connection-summary';
-import { ERROR_MESSAGES } from '@/lib/constants/messages';
 import {
   getLatestTestConnectionResultSummaries,
   getSecrets,
@@ -59,10 +58,14 @@ import {
   CELL_LIFT,
   CONNECTED_FRAME,
   NAME_LIFT,
-  NO_EXCLUSION_TEXT,
   ROW_BASE,
   ROW_TARGET,
 } from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalTable';
+import { useLocale } from '@/app/components/LocaleProvider';
+import {
+  LAYOUT_COPY,
+  type LayoutCopy,
+} from '@/app/target-sources/[targetSourceId]/_components/layout/copy';
 import type { ConfirmedResource } from '@/lib/types/resources';
 import {
   hasLogicalDatabases,
@@ -202,7 +205,7 @@ const TC_FLEX_KEYS = ['name', 'id'] as const;
 /** "DB" 는 표 전체가 이미 DB 얘기라 붙일 필요가 없었다. 대신 이 열이 무엇을 고르는
  *  것인지는 이름만으로 안 읽히므로 (i) 로 한 번 설명한다. 밝은 variant: 흰 표 위의
  *  검은 상자는 다른 시스템의 UI 처럼 보인다. */
-const CREDENTIAL_HEAD = (
+const credentialHead = (t: LayoutCopy['tc']) => (
   <span className="inline-flex items-center gap-1">
     Credential
     {/* 엔진을 열거하지 않는다 — 목록(lib/types.ts NO_CREDENTIAL_ENGINES)은 엔진이
@@ -211,31 +214,29 @@ const CREDENTIAL_HEAD = (
     <Tooltip
       variant="value"
       size="lg"
-      content={
-        <span className={idcStyles.table.headerTipBody}>
-          해당 DB에 접속할 때 사용할 계정 정보예요. Credentials 메뉴에서 등록한 것 중에서 고르고,
-          불필요로 표시된 대상은 이 단계에서 지정하지 않아요.
-        </span>
-      }
+      content={<span className={idcStyles.table.headerTipBody}>{t.credentialTip}</span>}
     >
-      <InfoCircleIcon className={cn('h-3.5 w-3.5', textColors.tertiary)} aria-label="Credential 설명" />
+      <InfoCircleIcon
+        className={cn('h-3.5 w-3.5', textColors.tertiary)}
+        aria-label={t.credentialTipLabel}
+      />
     </Tooltip>
   </span>
 );
 
-const TC_COLUMNS: ConsoleTableColumn[] = [
+const tcColumns = (t: LayoutCopy['tc']): ConsoleTableColumn[] => [
   { key: 'name', label: 'Resource Name', width: TC_COLUMN_WIDTHS.name, flex: true, headClassName: idcStyles.table.nameCell },
   // The sink — see TC_COLUMN_WIDTHS.
   { key: 'id', label: 'Resource ID', width: TC_COLUMN_WIDTHS.id, flex: true },
   { key: 'dbType', label: 'Database Type', width: TC_COLUMN_WIDTHS.dbType },
   { key: 'region', label: 'Region', width: TC_COLUMN_WIDTHS.region },
-  { key: 'cred', label: 'Credential', width: TC_COLUMN_WIDTHS.cred, head: CREDENTIAL_HEAD },
-  { key: 'conn', label: '연결 상태', width: TC_COLUMN_WIDTHS.conn },
-  // 셋은 `연동 논리 DB` 그룹 머리 아래 선다(`TC_GROUPS`), IDC step 5 와 같은 문법으로.
+  { key: 'cred', label: 'Credential', width: TC_COLUMN_WIDTHS.cred, head: credentialHead(t) },
+  { key: 'conn', label: t.colConn, width: TC_COLUMN_WIDTHS.conn },
+  // 셋은 `연동 논리 DB` 그룹 머리 아래 선다(`tcGroups`), IDC step 5 와 같은 문법으로.
   // 그래서 열 이름이 카테고리를 되풀이하지 않고 `대상`/`제외`/`관리` 한 마디로 짧아진다.
-  { key: 'logicalDb', label: '대상', width: TC_COLUMN_WIDTHS.logicalDb },
-  { key: 'logicalExcl', label: '제외', width: TC_COLUMN_WIDTHS.logicalExcl },
-  { key: 'logicalManage', label: '관리', width: TC_COLUMN_WIDTHS.logicalManage },
+  { key: 'logicalDb', label: t.colTarget, width: TC_COLUMN_WIDTHS.logicalDb },
+  { key: 'logicalExcl', label: t.colExcluded, width: TC_COLUMN_WIDTHS.logicalExcl },
+  { key: 'logicalManage', label: t.colManage, width: TC_COLUMN_WIDTHS.logicalManage },
 ];
 
 /**
@@ -243,10 +244,10 @@ const TC_COLUMNS: ConsoleTableColumn[] = [
  * 구조이고, 머리 내용(`LogicalDbGroupHeader`)은 **같은 컴포넌트**다: 대상과 제외가 서로
  * 다른 기준으로 세어진다는 문장은 한 곳에만 있어야 한다.
  */
-const TC_GROUPS: readonly ConsoleTableGroup[] = [
+const tcGroups = (label: string): readonly ConsoleTableGroup[] => [
   {
     key: 'logicalro',
-    label: '연동 논리 DB',
+    label,
     head: <LogicalDbGroupHeader />,
     columns: ['logicalDb', 'logicalExcl', 'logicalManage'],
   },
@@ -282,6 +283,9 @@ export const ConnectionTestCard = ({
   refreshProject,
   polling,
 }: ConnectionTestCardProps) => {
+  const { locale } = useLocale();
+  const copy = LAYOUT_COPY[locale];
+  const t = copy.tc;
   const { latestJob, uiState, loading, canRunTest, retry, trigger, triggerError, fetchError } = polling;
   const [creds, setCreds] = useState<CredMap>(() => seedCreds(confirmed));
   const [approvalOpen, setApprovalOpen] = useState(false);
@@ -459,10 +463,7 @@ export const ConnectionTestCard = ({
   const runDisabled = !canRunTest || !allCredsSet;
   // 잠긴 CTA 가 스스로 사유를 진다 — 미설정이 있을 때만이다. 실행이 도는 중이라 잠긴 버튼은
   // 기다리면 풀리므로 할 말이 없고, 그 국면의 슬롯은 아예 다른 버튼이다.
-  const runBlockedTip =
-    missingCount > 0
-      ? `Credential 미설정 ${missingCount}건 — 지정해야 연결 테스트를 실행할 수 있습니다`
-      : undefined;
+  const runBlockedTip = missingCount > 0 ? t.runBlocked(missingCount) : undefined;
   const runTest = useCallback(async () => {
     if (runDisabled) return;
     await trigger();
@@ -476,14 +477,14 @@ export const ConnectionTestCard = ({
     try {
       await updateResourceCredential(targetSourceId, target.resourceId, next);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Credential 변경에 실패했습니다.');
+      toast.error(err instanceof Error ? err.message : t.credChangeFailed);
       return;
     } finally {
       setSavingCred(false);
     }
     setCreds((prev) => ({ ...prev, [target.resourceId]: next }));
     credModal.close();
-  }, [targetSourceId, toast, credModal]);
+  }, [targetSourceId, toast, credModal, t.credChangeFailed]);
 
   // On save the skip policy persists, which flips completion-status
   // (LATEST_TEST_CONNECTION_SUCCESS → LOGICAL_DATABASE_RECENTLY_UPDATED, spec §7);
@@ -556,20 +557,16 @@ export const ConnectionTestCard = ({
       <header className={cardStyles.header}>
         <div>
           <div className="flex items-center gap-2">
-            <span className={cardStyles.stepTag}>5단계</span>
-            <h2 className={cardStyles.cardTitle}>연결 테스트</h2>
+            <span className={cardStyles.stepTag}>{copy.common.step(5)}</span>
+            <h2 className={cardStyles.cardTitle}>{t.title}</h2>
           </div>
           <p className={cn('mt-2.5 break-keep', cardStyles.subtitle)}>
-            연동 대상 DB에 접근하기 위한 PII Agent 리소스가 생성됐어요.{' '}
-            <span className={primaryColors.text}>
-              Credential을 등록한 다음 리소스별 Key를 지정하면 연결 테스트
-            </span>를 진행할 수 있어요. 테스트가 모두 성공하면 완료 승인 요청을 진행할 수 있어요.
+            {t.introLead}
+            <span className={primaryColors.text}>{t.introStrong}</span>
+            {t.introTail}
           </p>
           {/* mt 없음 — 행간 여백(leading 1.55)만으로 문단을 가른다 (다른 스텝 카드와 같은 문법). */}
-          <p className={cn('break-keep', cardStyles.subtitle)}>
-            DB 내에 연동이 불필요한 논리 DB가 있다면 해당 논리 DB는 연동에서 제외할 수 있어요. 이 절차는
-            연결 테스트 완료 후에 진행할 수 있어요.
-          </p>
+          <p className={cn('break-keep', cardStyles.subtitle)}>{t.exclusionNote}</p>
         </div>
       </header>
       {/* Two groups, not one even stack: distance carries ownership (proposal A). Inside a
@@ -607,7 +604,7 @@ export const ConnectionTestCard = ({
                 onClick={() => setHistoryOpen(true)}
                 className={cn(idcStyles.triggerBtn.linkNeutral, 'whitespace-nowrap text-[12px]')}
               >
-                실행 이력
+                {t.runHistory}
               </button>
             }
           />
@@ -616,13 +613,13 @@ export const ConnectionTestCard = ({
               승인 버튼만 남는다. fetchError 와 같은 문법: 한 줄 + 재시도. */}
           {completionFailed && (
             <p className={cn('flex items-center gap-2 text-[12px]', idcStyles.tag.red, 'bg-transparent px-0')}>
-              {ERROR_MESSAGES.TEST_CONNECTION_COMPLETION_FETCH_FAILED}
+              {t.completionFetchFailed}
               <button
                 type="button"
                 onClick={refreshCompletion}
                 className={cn(idcStyles.triggerBtn.linkNeutral, 'text-[12px]')}
               >
-                다시 시도
+                {copy.common.tryAgain}
               </button>
             </p>
           )}
@@ -633,13 +630,13 @@ export const ConnectionTestCard = ({
               길은 조회 성공뿐이라, 폴링이 포기한 뒤에는 이 버튼이 유일한 출구다. */}
           {fetchError && (
             <p className={cn('flex items-center gap-2 text-[12px]', idcStyles.tag.red, 'bg-transparent px-0')}>
-              {ERROR_MESSAGES.TEST_CONNECTION_FETCH_FAILED}
+              {t.fetchFailed}
               <button
                 type="button"
                 onClick={() => void retry()}
                 className={cn(idcStyles.triggerBtn.linkNeutral, 'text-[12px]')}
               >
-                다시 시도
+                {copy.common.tryAgain}
               </button>
             </p>
           )}
@@ -670,7 +667,12 @@ export const ConnectionTestCard = ({
                 radius clip. 연결 상태 칸이 스켈레톤인 동안은 표가 아직 채워지는 중이다 —
                 보조기술에도 그렇게 말한다(`busy` → 표의 aria-busy). */}
             <div className={cn(CONNECTED_FRAME, 'rounded-t-[12px]')}>
-              <ConsoleTable columns={TC_COLUMNS} groups={TC_GROUPS} resize={resize} busy={loading}>
+              <ConsoleTable
+                columns={tcColumns(t)}
+                groups={tcGroups(copy.common.logicalDbGroup)}
+                resize={resize}
+                busy={loading}
+              >
                 <tbody className={idcStyles.table.body}>
                   {pageRows.map((unit) => {
                     const cred = unitCred(unit);
@@ -725,7 +727,7 @@ export const ConnectionTestCard = ({
                               <button
                                 type="button"
                                 aria-expanded={open}
-                                aria-label={`${unit.region ?? ''} 데이터베이스 목록 ${open ? '접기' : '펼치기'}`}
+                                aria-label={t.regionFold(unit.region ?? '', open)}
                                 onClick={(event) => {
                                   event.stopPropagation();
                                   toggleUnit(unit.unitId);
@@ -834,7 +836,10 @@ export const ConnectionTestCard = ({
                                   current: cred,
                                 })
                               }
-                              aria-label={`${first.resourceName ?? first.resourceId} Credential 수정 — 현재 ${cred || '미설정'}`}
+                              aria-label={t.credEdit(
+                                first.resourceName ?? first.resourceId,
+                                cred || t.credUnset,
+                              )}
                               title={cred || undefined}
                               // 컷은 열이 소유한다(max-w-full): 픽셀 캡이 남아 있으면 열을 드래그로
                               // 늘려도 이름이 더 안 보이는 리사이즈 벽이 된다. 200 열은 시드 실명
@@ -847,14 +852,14 @@ export const ConnectionTestCard = ({
                               {cred ? (
                                 <span className="min-w-0 truncate font-mono">{cred}</span>
                               ) : (
-                                <span className="font-sans">미설정</span>
+                                <span className="font-sans">{t.credUnset}</span>
                               )}
                             </button>
                           ) : (
                             <span
                               className={cn('whitespace-nowrap text-[12px]', textColors.tertiary)}
                             >
-                              불필요
+                              {t.credNotRequired}
                             </span>
                           )}
                         </td>
@@ -888,7 +893,7 @@ export const ConnectionTestCard = ({
                               aria-label 하나뿐이고, 여기 수는 평문이다. */}
                           <LogicalDbCountCell
                             count={logicalCount.target}
-                            label={`${rowName} 연동 대상 논리 DB`}
+                            label={t.countLabelTarget(rowName)}
                           />
                         </td>
                         {/* 제외는 정책이지 실행 결과가 아니다 — 논리 DB 가 없는 엔진에는
@@ -900,13 +905,13 @@ export const ConnectionTestCard = ({
                             <span
                               className={cn('whitespace-nowrap text-[12px]', textColors.tertiary)}
                             >
-                              {NO_EXCLUSION_TEXT}
+                              {copy.table.noExclusion}
                             </span>
                           ) : (
                             // 위 칸과 같다 — required 라 넘길 뿐, 평문 갈래는 `label` 을 쓰지 않는다.
                             <LogicalDbCountCell
                               count={logicalCount.excluded}
-                              label={`${rowName} 연동 제외 논리 DB`}
+                              label={t.countLabelExcluded(rowName)}
                             />
                           )}
                         </td>
@@ -927,10 +932,10 @@ export const ConnectionTestCard = ({
                               // The label is the same word on every row, so it carries the row's own
                               // name — ten identically named buttons are indistinguishable in a screen
                               // reader's element list. Same shape the IDC table's action uses.
-                              aria-label={`${rowName} 연동 논리 DB 관리하기`}
+                              aria-label={t.manageLabel(rowName)}
                               className={idcStyles.triggerBtn.rowAction}
                             >
-                              관리하기
+                              {t.manage}
                             </button>
                           )}
                         </td>
@@ -999,7 +1004,7 @@ export const ConnectionTestCard = ({
                           textColors.tertiary,
                         )}
                       >
-                        조건에 맞는 결과가 없어요.
+                        {copy.common.filterEmpty}
                       </td>
                     </tr>
                   )}

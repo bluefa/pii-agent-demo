@@ -6,9 +6,10 @@ import {
   type WizardFormState,
 } from '@/app/components/features/project-create/wizard-model';
 import {
-  CREDENTIAL_FIELDS,
+  credentialFields,
   getCredentialErrors,
 } from '@/app/components/features/project-create/credential-fields';
+import { COPY } from '@/lib/copy';
 import {
   candidateDescriptionLine,
   candidateIdentity,
@@ -17,6 +18,13 @@ import {
   candidateTitle,
 } from '@/app/components/features/project-create/candidate-display';
 import type { TargetSourceCreationCandidateResponse } from '@/app/lib/api';
+
+/**
+ * The dictionary the candidate/credential helpers now take. Korean, so every
+ * assertion below keeps the exact string it asserted before the wizard learned
+ * a second language.
+ */
+const t = COPY.ko.wizard;
 
 const candidate = (
   overrides: Partial<TargetSourceCreationCandidateResponse> = {},
@@ -176,7 +184,7 @@ describe('isStepComplete — step gating', () => {
       fields: { payerAccount: '123456789012', description: '결제 운영계' },
     });
     expect(isStepComplete(2, withoutLinked)).toBe(false);
-    expect(getCredentialErrors('aws', withoutLinked.fields).linkedAccount).toBe(
+    expect(getCredentialErrors(t, 'aws', withoutLinked.fields).linkedAccount).toBe(
       'Linked Account을(를) 입력해 주세요',
     );
 
@@ -256,7 +264,7 @@ describe('isStepComplete — step gating', () => {
   });
 
   it('marks Linked Account as required in the field definition', () => {
-    const linked = CREDENTIAL_FIELDS.aws.find((field) => field.name === 'linkedAccount');
+    const linked = credentialFields(t).aws.find((field) => field.name === 'linkedAccount');
     expect(linked?.optional).toBeFalsy();
     // The label renders (선택) off `optional`, so the helper must not promise optional either.
     expect(linked?.helper).not.toContain('선택');
@@ -290,7 +298,7 @@ describe('candidate display mapping', () => {
 
   it('titles an SDU candidate by its upload method, not by its underlying cloud', () => {
     expect(
-      candidateTitle({
+      candidateTitle(t, {
         status: 'ADD',
         cloud_type: 'AWS',
         is_sdu_type: true,
@@ -299,7 +307,7 @@ describe('candidate display mapping', () => {
       }),
     ).toBe('Self Data Upload 계정');
     expect(
-      candidateTitle({
+      candidateTitle(t, {
         status: 'ADD',
         cloud_type: 'UNKNOWN',
         is_sdu_type: false,
@@ -313,11 +321,12 @@ describe('candidate display mapping', () => {
 describe('candidateIdentity — /services row anatomy, response-derived only', () => {
   it('leads with the provider name and names the id that follows it', () => {
     expect(
-      candidateIdentity(candidate({ metadata: { aws_account_id: '123456789012' } })),
+      candidateIdentity(t, candidate({ metadata: { aws_account_id: '123456789012' } })),
     ).toEqual({ name: 'AWS', kind: 'Account', value: '123456789012' });
 
     expect(
       candidateIdentity(
+      t,
         candidate({ cloud_type: 'AZURE', metadata: { subscription_id: 'sub-1' } }),
       ),
     ).toEqual({ name: 'Azure', kind: 'Subscription', value: 'sub-1' });
@@ -325,28 +334,29 @@ describe('candidateIdentity — /services row anatomy, response-derived only', (
 
   it('drops GCP onto its own second line, where a long project id has the width', () => {
     expect(
-      candidateIdentity(candidate({ cloud_type: 'GCP', metadata: { project_id: 'proj-1' } })),
+      candidateIdentity(t, candidate({ cloud_type: 'GCP', metadata: { project_id: 'proj-1' } })),
     ).toEqual({ name: 'GCP', secondKind: 'Project', secondValue: 'proj-1' });
   });
 
   it('shows the provider name alone when the response carried no id', () => {
-    const identity = candidateIdentity(candidate({ metadata: {} }));
+    const identity = candidateIdentity(t, candidate({ metadata: {} }));
     expect(identity.name).toBe('AWS');
     expect(identity.value).toBeUndefined();
   });
 
   it('uses the description as the gloss for IDC and 기타 — they own no account id', () => {
     expect(
-      candidateIdentity(candidate({ cloud_type: 'IDC', metadata: { description: '판교 IDC' } })),
+      candidateIdentity(t, candidate({ cloud_type: 'IDC', metadata: { description: '판교 IDC' } })),
     ).toEqual({ name: 'IDC 인프라', gloss: '판교 IDC' });
     expect(
-      candidateIdentity(candidate({ cloud_type: 'UNKNOWN', metadata: { description: '온프레미스' } })),
+      candidateIdentity(t, candidate({ cloud_type: 'UNKNOWN', metadata: { description: '온프레미스' } })),
     ).toEqual({ name: '기타 인프라', gloss: '온프레미스' });
   });
 
   it('hides the underlying CSP behind the SDU identity', () => {
     expect(
       candidateIdentity(
+      t,
         candidate({ is_sdu_type: true, metadata: { aws_account_id: '123456789012' } }),
       ),
     ).toEqual({ name: 'SDU', gloss: '서비스 담당자가 데이터를 직접 업로드' });

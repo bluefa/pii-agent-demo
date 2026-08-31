@@ -218,6 +218,24 @@ describe('step 2 — the control the guide points at', () => {
    * quietly starts pointing at a control nobody can find.
    */
   it('says the same word the button source does', async () => {
+    // The word itself moved out of the component and into the locale dictionary, so that
+    // is where "the same word" now lives. Both halves of the couple are still pinned: the
+    // dictionary has to hold the word under the key the button mounts, and the button has
+    // to mount that key — otherwise the guide points at a label this test never read.
+    //
+    // The component half matches `t.reRequest`, not the bare key: an identifier that also
+    // reads as an English word will sooner or later appear in a comment in its own file,
+    // and on that day a bare match survives the button being deleted. The scan-button test
+    // below found exactly that hole with 'rescan'.
+    const dictionary = await readFile(
+      new URL(
+        '../../../app/target-sources/[targetSourceId]/_components/layout/copy.ts',
+        import.meta.url,
+      ),
+      'utf8',
+    );
+    expect(dictionary).toContain(`reRequest: '${PENDING_CONTROL}'`);
+
     const source = await readFile(
       new URL(
         '../../../app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalCancelButton.tsx',
@@ -225,7 +243,7 @@ describe('step 2 — the control the guide points at', () => {
       ),
       'utf8',
     );
-    expect(source).toContain(PENDING_CONTROL);
+    expect(source).toContain('t.reRequest');
     expect(bodyFor('process.aws.auto.2')).toContain(`<strong>'${PENDING_CONTROL}'</strong>`);
   });
 });
@@ -328,18 +346,34 @@ describe('step 1 — the VM row is the only thing that splits the cloud copy', (
    * first leaves everyone past their first scan looking for a control that is not there —
    * the same defect the step-2 name carried, caught before it shipped this time.
    *
-   * Coupled to the component source for the same reason as step 2's: nothing else in the
-   * repo ties the guide's words to the button's, and a rename would leave every other
-   * check green.
+   * Coupled to TWO files, for the same reason step 2's is. The words moved out of the
+   * component and into the locale dictionary, and neither file alone can carry the claim in
+   * this test's name: a dictionary holding the word says nothing about whether the strip
+   * still mounts it, and a strip mounting a key says nothing about what that key reads. So
+   * both halves are pinned — dictionary key → word, component → key. Nothing else in the
+   * repo ties the guide's words to the button's, and a rename on either side would leave
+   * every other check green.
+   *
+   * The component half matches `t.<key>` rather than the bare key: 'rescan' also appears in
+   * a prose comment in that file, so a bare match would survive the button being deleted —
+   * a tripwire that cannot be tripped.
    */
   it('names both scan buttons, because the strip renders both', async () => {
+    const dictionary = await readFile(
+      new URL('../../../app/components/features/scan/copy.ts', import.meta.url),
+      'utf8',
+    );
     const source = await readFile(
       new URL('../../../app/components/features/scan/ScanStrip.tsx', import.meta.url),
       'utf8',
     );
     const html = bodyFor('process.aws.auto.1');
-    for (const label of ['스캔 시작', '다시 스캔']) {
-      expect(source, `ScanStrip no longer renders ${label}`).toContain(`'${label}'`);
+    const KEY_FOR: Record<string, string> = { '스캔 시작': 'startScan', '다시 스캔': 'rescan' };
+    for (const [label, key] of Object.entries(KEY_FOR)) {
+      expect(dictionary, `the scan dictionary no longer reads ${label}`).toContain(
+        `${key}: '${label}'`,
+      );
+      expect(source, `ScanStrip no longer mounts ${label}`).toContain(`t.${key}`);
       expect(html).toContain(`'${label}'`);
     }
   });

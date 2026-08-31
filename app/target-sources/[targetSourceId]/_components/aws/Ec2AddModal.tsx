@@ -6,6 +6,8 @@ import { ChevronDownIcon, CloseIcon, LockIcon, PlusIcon, SearchIcon } from '@/ap
 import { EC2_SEARCH_LIMIT, searchEc2Instances, type Ec2Instance } from '@/app/lib/api/ec2';
 import { VM_DATABASE_TYPES, vmDatabaseTypeByValue } from '@/lib/constants/vm-database';
 import { cn, ec2Styles, idcStyles, primaryColors, statusColors } from '@/lib/theme';
+import { useLocale } from '@/app/components/LocaleProvider';
+import { TS_COPY } from '@/app/target-sources/[targetSourceId]/_components/copy';
 import { SectionLabel } from '@/app/target-sources/[targetSourceId]/_components/idc/modals/IdcTargetFormModal';
 import type { Ec2ConnectionConfig } from '@/app/target-sources/[targetSourceId]/_components/candidate/manual-ec2';
 
@@ -27,9 +29,6 @@ interface SearchState {
 }
 
 const IDLE: SearchState = { status: 'idle', results: [] };
-
-/** 왜 안 보이는지 — 이 검색이 뒤지는 것은 최근 스캔 결과뿐이다. */
-const NO_RESULT_HINT = '최근 스캔에서 발견된 인스턴스만 검색돼요';
 
 export interface Ec2AddModalProps {
   targetSourceId: number;
@@ -59,6 +58,8 @@ export const Ec2AddModal = ({
   onAdd,
   onClose,
 }: Ec2AddModalProps) => {
+  const { locale } = useLocale();
+  const t = TS_COPY[locale].aws;
   const [picked, setPicked] = useState<Ec2Instance | null>(editing?.instance ?? null);
   const [query, setQuery] = useState('');
   const [search, setSearch] = useState<SearchState>(IDLE);
@@ -88,10 +89,10 @@ export const Ec2AddModal = ({
       setSearch({
         status: 'error',
         results: [],
-        message: error instanceof Error ? error.message : '검색에 실패했어요.',
+        message: error instanceof Error ? error.message : t.searchFailed,
       });
     }
-  }, [targetSourceId]);
+  }, [targetSourceId, t]);
 
   const handleQueryChange = useCallback((value: string) => {
     setQuery(value);
@@ -167,12 +168,12 @@ export const Ec2AddModal = ({
       // 경계 자체가 없다.
       footerDivider={false}
       title={
-        onConfigStep ? (editing ? '접속 정보 수정' : '접속 정보 설정') : 'EC2 인스턴스 추가'
+        onConfigStep ? (editing ? t.editConnection : t.setConnection) : t.addInstance
       }
       subtitle={
         onConfigStep && picked
-          ? `${picked.instanceId} · 데이터베이스 접속 정보를 입력해주세요.`
-          : '스캔에서 발견된 EC2 인스턴스를 Instance ID로 검색해 연동 대상으로 추가해주세요.'
+          ? t.configSubtitle(picked.instanceId)
+          : t.searchSubtitle
       }
       footer={
         onConfigStep ? (
@@ -183,7 +184,7 @@ export const Ec2AddModal = ({
               className={idcStyles.modalBtn.outline}
               onClick={editing ? onClose : () => setPicked(null)}
             >
-              {editing ? '취소' : '이전'}
+              {editing ? t.cancel : t.back}
             </button>
             <button
               type="button"
@@ -191,12 +192,12 @@ export const Ec2AddModal = ({
               disabled={!configValid}
               onClick={handleSubmitConfig}
             >
-              {editing ? '저장' : '추가 완료'}
+              {editing ? t.save : t.addDone}
             </button>
           </>
         ) : (
           <button type="button" className={idcStyles.modalBtn.outline} onClick={onClose}>
-            닫기
+            {t.close}
           </button>
         )
       }
@@ -205,22 +206,19 @@ export const Ec2AddModal = ({
       {onConfigStep && picked ? (
         <div className="space-y-5">
           <section>
-            <SectionLabel num={1}>접속 주소</SectionLabel>
+            <SectionLabel num={1}>{t.address}</SectionLabel>
             <input
               readOnly
               value={picked.privateIpAddress}
-              aria-label="접속 주소 (Private IP)"
+              aria-label={t.addressLabel}
               className={cn(idcStyles.input, ec2Styles.lockedInput)}
             />
             {/* 잠금이 주 정보, 이유는 보조 — 별도 배너 카드 없이 텍스트 위계로만 말한다. */}
             <p className={ec2Styles.lockNote}>
               <LockIcon className="h-3.5 w-3.5" aria-hidden="true" />
-              수정 불가
+              {t.locked}
             </p>
-            <p className={ec2Styles.lockDesc}>
-              Private IP는 스캔에서 확인된 값으로 직접 수정할 수 없어요. Load Balancer를 구성해
-              접속하고 계시다면 담당자에게 연락 부탁드립니다.
-            </p>
+            <p className={ec2Styles.lockDesc}>{t.lockedWhy}</p>
           </section>
 
           <section>
@@ -232,7 +230,7 @@ export const Ec2AddModal = ({
                 aria-label="Database Type"
                 className={cn(idcStyles.input, ec2Styles.selectField)}
               >
-                <option value="">Database Type 선택…</option>
+                <option value="">{t.dbTypePlaceholder}</option>
                 {VM_DATABASE_TYPES.map((type) => (
                   <option key={type.value} value={type.value}>
                     {type.label}
@@ -247,12 +245,12 @@ export const Ec2AddModal = ({
             {needsServiceId && (
               <div className="mt-3">
                 <label htmlFor="ec2-oracle-sid" className={ec2Styles.fieldLabel}>
-                  Oracle SID <span className={statusColors.error.text}>*필수</span>
+                  Oracle SID <span className={statusColors.error.text}>{t.requiredMark}</span>
                 </label>
                 <input
                   id="ec2-oracle-sid"
                   value={oracleServiceId}
-                  placeholder="예: ORCL"
+                  placeholder={t.sidPlaceholder}
                   maxLength={ORACLE_SID_MAXLEN}
                   onChange={(event) => setOracleServiceId(event.target.value)}
                   className={cn(idcStyles.input, ec2Styles.revealedField)}
@@ -268,13 +266,13 @@ export const Ec2AddModal = ({
               min={1}
               max={65535}
               value={port}
-              placeholder="예: 3306"
+              placeholder={t.portPlaceholder}
               aria-label="Port"
               onChange={(event) => setPort(event.target.value)}
               className={idcStyles.input}
             />
             {port !== '' && !portOk && (
-              <p className={idcStyles.fieldError}>1–65535 범위의 포트를 입력해주세요</p>
+              <p className={idcStyles.fieldError}>{t.portRange}</p>
             )}
           </section>
         </div>
@@ -286,18 +284,18 @@ export const Ec2AddModal = ({
             <input
               autoFocus
               value={query}
-              aria-label="Instance ID 검색"
+              aria-label={t.searchLabel}
               // instance id 는 `i-` + 17 hex = 19자다. 50 은 그 위로 넉넉히 둔 상한 —
               // 붙여넣기 사고로 긴 문자열이 그대로 질의에 실려 나가는 것만 막는다.
               maxLength={EC2_QUERY_MAXLEN}
-              placeholder="i-0a1b2c3d4e5f67890 형식의 Instance ID로 검색"
+              placeholder={t.searchPlaceholder}
               onChange={(event) => handleQueryChange(event.target.value)}
               className={cn(ec2Styles.searchField, ec2Styles.searchPlaceholder)}
             />
             {query !== '' && (
               <button
                 type="button"
-                aria-label="검색어 지우기"
+                aria-label={t.clearSearch}
                 onClick={clearQuery}
                 className={ec2Styles.searchClear}
               >
@@ -305,7 +303,7 @@ export const Ec2AddModal = ({
               </button>
             )}
           </div>
-          <p className={ec2Styles.helper}>최대 {EC2_SEARCH_LIMIT}건 표시</p>
+          <p className={ec2Styles.helper}>{t.limitHint(EC2_SEARCH_LIMIT)}</p>
 
           <div className="mt-4 min-h-0 flex-1">
             <Ec2SearchResults
@@ -340,11 +338,14 @@ const Ec2SearchResults = ({
   addedInstanceIds: ReadonlySet<string>;
   onPick: (instance: Ec2Instance) => void;
 }) => {
+  const { locale } = useLocale();
+  const t = TS_COPY[locale].aws;
+  // `t.noResultHint` says why nothing is there: this search only looks at the latest scan.
   // 입력 전과 0건은 화면에 같은 사실이다 — 보여줄 결과가 없다. 입력을 재촉하는
   // 문구는 방금 입력하고 0건을 받은 사람에게는 틀린 말이 되므로 한 문장으로 합친다.
   if (search.status === 'idle') {
     return (
-      <StateBlock title="검색 결과가 없어요" description={NO_RESULT_HINT} />
+      <StateBlock title={t.noResults} description={t.noResultHint} />
     );
   }
   if (search.status === 'loading') {
@@ -366,17 +367,17 @@ const Ec2SearchResults = ({
             <path d="M12 3a9 9 0 0 1 9 9" />
           </svg>
         </div>
-        <p className={cn(ec2Styles.stateTitle, 'mt-3')}>검색하고 있어요</p>
+        <p className={cn(ec2Styles.stateTitle, 'mt-3')}>{t.searching}</p>
       </div>
     );
   }
   if (search.status === 'error') {
     return (
-      <StateBlock title="검색하지 못했어요" description={search.message ?? '잠시 후 다시 시도해주세요'} />
+      <StateBlock title={t.searchError} description={search.message ?? t.tryAgainLater} />
     );
   }
   if (search.results.length === 0) {
-    return <StateBlock title="검색 결과가 없어요" description={NO_RESULT_HINT} />;
+    return <StateBlock title={t.noResults} description={t.noResultHint} />;
   }
 
   return (
@@ -406,6 +407,8 @@ const Ec2ResultRow = ({
   added: boolean;
   onPick: () => void;
 }) => {
+  const { locale } = useLocale();
+  const t = TS_COPY[locale].aws;
   // The matched head is highlighted so the user can see how far their input carried.
   // Length, not indexOf: the endpoint matches on a prefix, and a case-insensitive one.
   const matchLength = instance.instanceId.toLowerCase().startsWith(query.toLowerCase())
@@ -437,15 +440,15 @@ const Ec2ResultRow = ({
 
       <div className="flex shrink-0 items-center gap-2">
         {added ? (
-          <span className={ec2Styles.addedBtn}>✓ 추가됨</span>
+          <span className={ec2Styles.addedBtn}>{t.added}</span>
         ) : !addressable ? (
-          <span className={ec2Styles.addedBtn} title="Private IP가 없어 접속 주소를 만들 수 없어요">
-            주소 없음
+          <span className={ec2Styles.addedBtn} title={t.noAddressWhy}>
+            {t.noAddress}
           </span>
         ) : (
           <button type="button" onClick={onPick} className={idcStyles.triggerBtn.ghostSm}>
             <PlusIcon className="h-3 w-3" />
-            추가
+            {t.add}
           </button>
         )}
       </div>

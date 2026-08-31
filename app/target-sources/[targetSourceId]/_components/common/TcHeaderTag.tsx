@@ -7,6 +7,8 @@ import { fetchLatestTest } from '@/app/hooks/useTestConnectionPolling';
 import type { TestConnectionVersionResult } from '@/app/lib/api';
 import type { TcScope } from '@/app/lib/api/tc-scope';
 import { foldAgentStatuses } from '@/lib/test-connection-summary';
+import { useLocale } from '@/app/components/LocaleProvider';
+import { TS_COPY } from '@/app/target-sources/[targetSourceId]/_components/copy';
 
 interface TcHeaderTagProps {
   targetSourceId: number;
@@ -43,6 +45,8 @@ interface TcHeaderTagProps {
  * steps, here is where it goes back.
  */
 export const TcHeaderTag = ({ targetSourceId, scope }: TcHeaderTagProps) => {
+  const { locale } = useLocale();
+  const t = TS_COPY[locale].common;
   const [job, setJob] = useState<TestConnectionVersionResult | null>(null);
 
   useEffect(() => {
@@ -75,20 +79,20 @@ export const TcHeaderTag = ({ targetSourceId, scope }: TcHeaderTagProps) => {
 
   let label: string;
   if (status === 'SUCCESS') {
-    label = lastSuccessScope ? '마지막 성공' : '최근 테스트 성공';
+    label = lastSuccessScope ? t.tcLastSuccess : t.tcLatestSuccess;
   } else if (status === 'FAIL') {
     const folded = foldAgentStatuses(job.test_connection_agent_results ?? []);
     const failCount = [...folded.values()].filter((s) => s === 'FAIL').length;
     // 마지막 성공 회차가 FAIL 로 올 리는 없지만, connection_status 는 느슨한 `string` 이라
     // 계약이 그것을 막아주지 않는다. 분기를 늘리지 않고, 뒷받침 못 하는 최근만 뺀다.
-    const lead = lastSuccessScope ? '테스트 실패' : '최근 테스트 실패';
-    label = failCount > 0 ? `${lead} ${failCount}건` : lead;
+    const lead = lastSuccessScope ? t.tcFailed : t.tcLatestFailed;
+    label = failCount > 0 ? t.tcFailCount(lead, failCount) : lead;
   } else if (status === 'PENDING') {
     // 접수만 되고 아직 아무것도 돌지 않는다 — 카드의 시작 대기와 같은 어휘.
-    label = '테스트 시작 대기';
+    label = t.tcPending;
   } else {
     // No 최근 on a run that is still going — it is happening now, not recently.
-    label = '테스트 진행 중';
+    label = t.tcRunning;
   }
 
   const timestamp = job.completed_at ?? job.requested_at;
@@ -98,7 +102,8 @@ export const TcHeaderTag = ({ targetSourceId, scope }: TcHeaderTagProps) => {
       <span className={cn(idcStyles.tag.base, tagClass)}>{label}</span>
       {timestamp && (
         <span className={cn('text-[12px] font-medium', textColors.tertiary)}>
-          {fmtRelativeTime(timestamp)}
+          {/* `now` keeps its default — only the language is being chosen here. */}
+          {fmtRelativeTime(timestamp, undefined, locale)}
         </span>
       )}
     </span>

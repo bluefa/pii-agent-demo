@@ -1,8 +1,6 @@
 import { ProcessStatus } from '@/lib/types';
-import {
-  SDU_STEP_TITLES,
-  sduStepOf,
-} from '@/app/target-sources/[targetSourceId]/_components/sdu/sdu-steps';
+import { sduStepOf } from '@/app/target-sources/[targetSourceId]/_components/sdu/sdu-steps';
+import { INSTALL_COPY } from '@/app/components/features/process-status/install-copy';
 
 export interface InstallRoadStep {
   step: ProcessStatus;
@@ -12,14 +10,17 @@ export interface InstallRoadStep {
 /** `'sdu'` swaps the seven-step road for SDU's own four. */
 export type InstallRoadVariant = 'sdu';
 
-const INSTALL_STEPS: readonly InstallRoadStep[] = [
-  { step: ProcessStatus.WAITING_TARGET_CONFIRMATION, label: '연동 대상 DB 선택' },
-  { step: ProcessStatus.WAITING_APPROVAL, label: '연동 대상 승인 대기' },
-  { step: ProcessStatus.APPLYING_APPROVED, label: '연동 대상 반영중' },
-  { step: ProcessStatus.INSTALLING, label: 'Agent 설치' },
-  { step: ProcessStatus.WAITING_CONNECTION_TEST, label: '연결 테스트' },
-  { step: ProcessStatus.CONNECTION_VERIFIED, label: '관리자 승인 대기' },
-  { step: ProcessStatus.INSTALLATION_COMPLETE, label: '완료' },
+/** The road's labels in one language — see `installRoadSteps`. */
+export type InstallRoadCopy = (typeof INSTALL_COPY)['ko']['road'];
+
+const installSteps = (t: InstallRoadCopy): readonly InstallRoadStep[] => [
+  { step: ProcessStatus.WAITING_TARGET_CONFIRMATION, label: t.targetSelect },
+  { step: ProcessStatus.WAITING_APPROVAL, label: t.targetApproval },
+  { step: ProcessStatus.APPLYING_APPROVED, label: t.applying },
+  { step: ProcessStatus.INSTALLING, label: t.installing },
+  { step: ProcessStatus.WAITING_CONNECTION_TEST, label: t.connectionTest },
+  { step: ProcessStatus.CONNECTION_VERIFIED, label: t.adminApproval },
+  { step: ProcessStatus.INSTALLATION_COMPLETE, label: t.complete },
 ];
 
 /**
@@ -30,16 +31,24 @@ const INSTALL_STEPS: readonly InstallRoadStep[] = [
  * The `step` field is only a React key and the 연결 테스트 lookup below; position comes
  * from `sduStepOf`, because several statuses fold onto one entry here.
  */
-const SDU_STEPS: readonly InstallRoadStep[] = [
-  { step: ProcessStatus.WAITING_TARGET_CONFIRMATION, label: SDU_STEP_TITLES[1] },
-  { step: ProcessStatus.INSTALLING, label: SDU_STEP_TITLES[2] },
-  { step: ProcessStatus.WAITING_CONNECTION_TEST, label: SDU_STEP_TITLES[3] },
-  { step: ProcessStatus.INSTALLATION_COMPLETE, label: SDU_STEP_TITLES[4] },
+const sduSteps = (t: InstallRoadCopy): readonly InstallRoadStep[] => [
+  { step: ProcessStatus.WAITING_TARGET_CONFIRMATION, label: t.sdu1 },
+  { step: ProcessStatus.INSTALLING, label: t.sdu2 },
+  { step: ProcessStatus.WAITING_CONNECTION_TEST, label: t.sdu3 },
+  { step: ProcessStatus.INSTALLATION_COMPLETE, label: t.sdu4 },
 ];
 
-/** The steps a road draws, in order. */
-export const installRoadSteps = (variant?: InstallRoadVariant): readonly InstallRoadStep[] =>
-  variant === 'sdu' ? SDU_STEPS : INSTALL_STEPS;
+/**
+ * The steps a road draws, in order.
+ *
+ * `t` defaults to Korean so a caller that has no locale in hand — `installRoadPosition`
+ * below only needs the positions — keeps working unchanged. A caller that renders the
+ * labels passes `INSTALL_COPY[locale].road`.
+ */
+export const installRoadSteps = (
+  variant?: InstallRoadVariant,
+  t: InstallRoadCopy = INSTALL_COPY.ko.road,
+): readonly InstallRoadStep[] => (variant === 'sdu' ? sduSteps(t) : installSteps(t));
 
 export interface InstallRoadPosition {
   /** Zero-based place on the road, `-1` for a status that is not on it. */

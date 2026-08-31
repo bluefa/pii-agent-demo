@@ -28,6 +28,8 @@ import {
 import { useConfirmedIntegration } from '@/app/target-sources/[targetSourceId]/_components/data/ConfirmedIntegrationDataProvider';
 import { InstallCardHeader } from '@/app/components/features/process-status/install-status-detail/InstallCardHeader';
 import { LastCheckStamp } from '@/app/components/features/process-status/install-status-detail/LastCheckStamp';
+import { useLocale } from '@/app/components/LocaleProvider';
+import { INSTALL_COPY } from '@/app/components/features/process-status/install-copy';
 
 interface GcpInstallationInlineProps {
   targetSourceId: number;
@@ -48,27 +50,29 @@ interface GcpInstallationInlineProps {
  * 는 AWS 자동 설치와 같이 BDC 가 서비스 프로젝트에 대신 적용한다. 그래서 side 는
  * '서비스측'인데 group 은 'auto' 다 — AWS 의 service 단계와 같은 형태의 어긋남이다.
  */
-const GCP_STEPS: InstallTableStep[] = [
+type GcpCopy = (typeof INSTALL_COPY)['ko'];
+
+const gcpSteps = (t: GcpCopy): InstallTableStep[] => [
   {
     id: 'subnet',
-    title: 'PSC용 Subnet 생성',
-    side: '서비스측 리소스 생성',
+    title: t.gcp.subnetTitle,
+    side: t.side.serviceResource,
     group: 'todo',
-    desc: 'PSC(Private Service Connect) 연결에 사용할 Subnet을 생성합니다. Region마다 하나가 필요합니다.',
+    desc: t.gcp.subnetDesc,
   },
   {
     id: 'service',
-    title: '서비스측 Terraform 적용',
-    side: '서비스측 리소스 생성',
+    title: t.gcp.serviceTitle,
+    side: t.side.serviceResource,
     group: 'auto',
-    desc: '서비스 프로젝트 측 리소스를 Terraform으로 적용합니다.',
+    desc: t.gcp.serviceDesc,
   },
   {
     id: 'bdc',
-    title: 'BDC측 Terraform 적용',
-    side: 'BDC측 리소스 생성',
+    title: t.gcp.bdcTitle,
+    side: t.side.bdcResource,
     group: 'auto',
-    desc: 'BDC측에서 PII Agent 구성을 위한 Terraform 작업을 수행합니다.',
+    desc: t.gcp.bdcDesc,
   },
 ];
 
@@ -76,6 +80,10 @@ export const GcpInstallationInline = ({
   targetSourceId,
   onInstallComplete,
 }: GcpInstallationInlineProps) => {
+  const { locale } = useLocale();
+  const copy = INSTALL_COPY[locale];
+  const t = copy.inline;
+  const steps = useMemo(() => gcpSteps(copy), [copy]);
   const { state: confirmedState, retry: retryConfirmed } = useConfirmedIntegration();
 
   // Must be stable: useInstallationStatus re-runs its fetch effect whenever
@@ -120,7 +128,7 @@ export const GcpInstallationInline = ({
       <div className={cn(cardStyles.body, 'space-y-3')}>
         {status?.lastCheck.status === 'FAILED' && status.lastCheck.failReason && (
           <div className={cn('px-4 py-2 rounded-lg border text-sm', statusColors.error.bg, statusColors.error.border, statusColors.error.textDark)}>
-            상태 확인 실패: {status.lastCheck.failReason}
+            {t.statusCheckFailed(status.lastCheck.failReason)}
           </div>
         )}
         {confirmedState.status === 'loading' && (
@@ -131,7 +139,7 @@ export const GcpInstallationInline = ({
               textColors.tertiary,
             )}
           >
-            리소스 정보 불러오는 중...
+            {t.confirmedLoadingEllipsis}
           </div>
         )}
         {confirmedState.status === 'error' && (
@@ -143,13 +151,13 @@ export const GcpInstallationInline = ({
               statusColors.error.textDark,
             )}
           >
-            <span>리소스 정보 불러오기 실패: {confirmedState.message}</span>
+            <span>{t.confirmedError(confirmedState.message)}</span>
             <button
               type="button"
               onClick={retryConfirmed}
               className={cn('text-xs font-semibold underline', statusColors.error.textDark)}
             >
-              재시도
+              {t.confirmedRetry}
             </button>
           </div>
         )}
@@ -161,7 +169,7 @@ export const GcpInstallationInline = ({
           <InstallStatusDetail
             lastCheck={status.lastCheck}
             resources={status.resources}
-            steps={GCP_STEPS}
+            steps={steps}
             meta={meta}
           />
         ) : null}

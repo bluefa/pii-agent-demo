@@ -2,7 +2,9 @@
 
 import { CandidateCard } from '@/app/components/features/project-create/CandidateCard';
 import type { AwsInstallMode } from '@/app/components/features/project-create/wizard-model';
+import { useLocale } from '@/app/components/LocaleProvider';
 import type { TargetSourceCreationCandidateResponse } from '@/app/lib/api';
+import { COPY } from '@/lib/copy';
 import {
   bgColors,
   borderColors,
@@ -23,20 +25,20 @@ interface Step4ReviewProps {
 
 export const Step4Review = ({ candidates, installMode, busy, error }: Step4ReviewProps) => {
   const addCount = candidates.filter((candidate) => candidate.status === 'ADD').length;
+  const { locale } = useLocale();
+  const t = COPY[locale].wizard;
 
   return (
     <div>
-      <h2 className={cn('text-lg font-bold', textColors.primary)}>이대로 등록할까요?</h2>
-      <p className={cn('mt-1 mb-5 text-sm', textColors.tertiary)}>
-        입력하신 내용으로 아래 연동 구성을 추천해요.
-      </p>
+      <h2 className={cn('text-lg font-bold', textColors.primary)}>{t.s4Title}</h2>
+      <p className={cn('mt-1 mb-5 text-sm', textColors.tertiary)}>{t.s4Sub}</p>
 
       {busy && (
         // Mirrors the settled layout below — count line, then candidate cards at the
         // /services row geometry — so nothing reflows when the response lands. Two
         // frames because the outcome is at most two accounts; the skeleton must not
         // answer how many, so both stay identical and unnumbered.
-        <div role="status" aria-busy="true" aria-label="연동 구성을 확인하는 중">
+        <div role="status" aria-busy="true" aria-label={t.s4Loading}>
           <div
             className={cn(
               idcStyles.skeletonBar,
@@ -88,7 +90,7 @@ export const Step4Review = ({ candidates, installMode, busy, error }: Step4Revie
               primaryColors.textOnLight,
             )}
           >
-            총 {addCount}개의 계정이 등록됩니다.
+            {t.s4Count(addCount)}
           </p>
 
           <div className="flex max-w-[640px] flex-col gap-2.5">
@@ -102,7 +104,7 @@ export const Step4Review = ({ candidates, installMode, busy, error }: Step4Revie
           </div>
 
           <p className={cn('mt-3.5 max-w-[640px] text-xs', textColors.tertiary)}>
-            구성이 예상과 다르다면 이전 단계로 돌아가 입력을 수정할 수 있어요.
+            {t.s4Footer}
           </p>
         </>
       )}

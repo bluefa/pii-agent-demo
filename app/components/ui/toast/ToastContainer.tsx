@@ -3,6 +3,8 @@
 import { useSyncExternalStore } from 'react';
 import { createPortal } from 'react-dom';
 import { Toast, type ToastVariant } from './Toast';
+import { useLocale } from '@/app/components/LocaleProvider';
+import { COPY } from '@/lib/copy';
 
 const subscribe = () => () => {};
 const getClientSnapshot = () => true;
@@ -21,13 +23,14 @@ interface ToastContainerProps {
 }
 
 export const ToastContainer = ({ toasts, onDismiss }: ToastContainerProps) => {
+  const { locale } = useLocale();
   const mounted = useSyncExternalStore(subscribe, getClientSnapshot, getServerSnapshot);
 
   if (!mounted) return null;
 
   return createPortal(
     <ul
-      aria-label="알림"
+      aria-label={COPY[locale].common.notifications}
       className="fixed top-4 right-4 z-50 flex flex-col gap-2 pointer-events-none [&>li]:pointer-events-auto"
     >
       {toasts.map((toast) => (

@@ -15,9 +15,8 @@
 import { DB_TYPES_BY_PROVIDER } from '@/lib/constants/db-types';
 import { isValidIdcIp } from '@/lib/constants/idc';
 import type { ProviderChipKey } from '@/lib/constants/provider-mapping';
+import type { SduDefineCopy } from '@/app/target-sources/[targetSourceId]/_components/sdu/copy';
 import {
-  SDU_DB_TYPE_MAX,
-  SDU_DB_TYPE_MAXLEN,
   SDU_REGION_LABEL,
   SDU_REGIONS_BY_SCOPE,
   sortSduRegions,
@@ -46,14 +45,14 @@ export interface SduTargetDraft {
   removed: boolean;
 }
 
-/** 화면에서 부르는 이름. 계약의 `OTHER` 는 사용자에게 '기타'다. */
-export const SDU_CLOUD_LABEL: Record<SduCloud, string> = {
+/** 화면에서 부르는 이름. 계약의 `OTHER` 만 번역되는 이름이고 나머지 넷은 고유명사다. */
+export const sduCloudLabels = (t: SduDefineCopy): Record<SduCloud, string> => ({
   AWS: 'AWS',
   GCP: 'GCP',
   AZURE: 'Azure',
   IDC: 'IDC',
-  OTHER: '기타',
-};
+  OTHER: t.cloudOther,
+});
 
 /**
  * SDU 의 클라우드는 「인프라 등록」의 프로바이더와 같은 것을 가리킨다. 표로 적는 이유는
@@ -80,19 +79,14 @@ const SDU_CLOUD_PROVIDER_KEY: Record<SduCloud, ProviderChipKey> = {
 export const sduDbTypeChoices = (cloud: SduCloud): readonly string[] =>
   DB_TYPES_BY_PROVIDER[SDU_CLOUD_PROVIDER_KEY[cloud]].map((db) => db.label);
 
-export const SDU_IP_INVALID_MESSAGE = '올바른 IPv4 주소가 아니에요';
-export const SDU_DB_TYPE_MAX_MESSAGE = `대상당 ${SDU_DB_TYPE_MAX}개까지 등록할 수 있어요`;
-export const SDU_DB_TYPE_LEN_MESSAGE = `Database Type은 ${SDU_DB_TYPE_MAXLEN}자까지 입력할 수 있어요`;
-export const SDU_DB_TYPE_DUPLICATE_MESSAGE = '이미 추가한 타입이에요';
-export const SDU_DB_TYPE_REQUIRED_MESSAGE = 'Database Type을 하나 이상 추가해 주세요';
 /**
  * 목록 위 한 줄. 고를 수 없는 값이므로 컨트롤이 아니라 문장이고, 이미 정해진 권역과
  * 그 권역에서 Region 이 어떻게 되는지 두 가지만 말한다.
  */
-export const SDU_SCOPE_NOTE: Record<SduRegionScope, string> = {
-  GLOBAL: '권역 Global · Region은 Asia · US · EU · CX 중에서 골라요',
-  CHINA: '권역 China · Region은 China로 고정돼요',
-};
+export const sduScopeNotes = (t: SduDefineCopy): Record<SduRegionScope, string> => ({
+  GLOBAL: t.scopeGlobal,
+  CHINA: t.scopeChina,
+});
 
 export const toSduTargetDrafts = (targets: readonly SduTarget[]): SduTargetDraft[] =>
   targets.map((target) => ({
@@ -141,8 +135,8 @@ export const sduDraftDbTypeCount = (rows: readonly SduTargetDraft[]): number =>
  * 20종까지 가질 수 있고, 그때 행은 읽는 자리가 아니라 벽이 된다. 세는 규칙은 머리줄의
  * 「n종」과 같은 것을 쓴다: 두 자리가 같은 목록을 두고 다른 수를 말하면 안 된다.
  */
-export const sduDbTypeSummary = (types: readonly string[]): string =>
-  `${dbTypeSpecies(types)}개 데이터베이스 선택`;
+export const sduDbTypeSummary = (t: SduDefineCopy, types: readonly string[]): string =>
+  t.dbTypeSummary(dbTypeSpecies(types));
 
 /** PUT 본문에 실리는 대상 — 삭제 표시된 행은 여기서 빠지면서 실제로 사라진다. */
 export const toSduPutTargets = (rows: readonly SduTargetDraft[]): SduTarget[] =>
@@ -159,12 +153,12 @@ const sameTypes = (a: readonly string[], b: readonly string[]): boolean =>
 
 export type SduRowDiff = 'same' | 'changed' | 'added' | 'removed';
 
-export const SDU_ROW_DIFF_LABEL: Record<SduRowDiff, string> = {
-  same: '변경 없음',
-  changed: '수정함',
-  added: '추가함',
-  removed: '삭제함',
-};
+export const sduRowDiffLabels = (t: SduDefineCopy): Record<SduRowDiff, string> => ({
+  same: t.diffSame,
+  changed: t.diffChanged,
+  added: t.diffAdded,
+  removed: t.diffRemoved,
+});
 
 /**
  * 2단계에서 돌아온 화면의 행 상태. 기준은 **불러온 정의**다 — 저장 전까지 서버는
@@ -213,52 +207,26 @@ export const sduUploadIpChanged = (
     return !!before && before.uploadIp !== row.uploadIp;
   });
 
-/*
- * 조사는 '가' 하나면 된다. 이 화면이 부르는 Region 이름은 다섯뿐이고
- * (Asia · US · EU · CX · China) 다섯 다 읽으면 받침 없이 끝난다 —
- * 아시아 · 유에스 · 이유 · 씨엑스 · 차이나. 이름이 늘면 여기부터 다시 볼 것.
- */
-const regionNames = (regions: readonly SduRegion[]): string =>
-  regions.map((region) => SDU_REGION_LABEL[region]).join(' · ');
+const regionNames = (regions: readonly SduRegion[]): string[] =>
+  regions.map((region) => SDU_REGION_LABEL[region]);
 
 /**
  * 2단계로 돌아가기 직전의 한 줄 — 이 저장이 2단계의 무엇을 다시 묻게 만드는지.
  *
- * 경로 수가 같아도 "2개 → 2개"라고 굳이 말한다: 수가 같다고 같은 경로가 아니다.
+ * This file computes the FACTS; the sentence built from them lives in the dictionary,
+ * because Korean links its clauses with an ending English does not have.
  */
 export const sduReturnHint = (
+  t: SduDefineCopy,
   baseline: readonly SduTarget[],
   rows: readonly SduTargetDraft[],
 ): string => {
   const { added, removed, beforeCount, afterCount } = sduRegionDelta(baseline, rows);
-  const path =
-    added.length || removed.length
-      ? `업로드 경로 ${beforeCount}개 → ${afterCount}개`
-      : `업로드 경로 ${afterCount}개`;
-
-  // 이어지는 절과 끝나는 절의 어미가 다르다 ('없어지고' / '없어져요'). 어간에 어미를
-  // 붙여 만들면 '없어지어요' 가 나오므로, 두 형태를 각각 적어 둔다.
-  const clauses: { linked: string; final: string }[] = [];
-  if (added.length) {
-    clauses.push({
-      linked: `${regionNames(added)}가 새로 생기고`,
-      final: `${regionNames(added)}가 새로 생겨요`,
-    });
-  }
-  if (removed.length) {
-    clauses.push({
-      linked: `${regionNames(removed)}가 없어지고`,
-      final: `${regionNames(removed)}가 없어져요`,
-    });
-  }
-  const head = clauses.length
-    ? clauses
-        .map((clause, index) => (index === clauses.length - 1 ? clause.final : clause.linked))
-        .join(' ')
-    : 'Region 구성은 그대로예요';
-
-  const ip = sduUploadIpChanged(baseline, rows)
-    ? ' 업로드 IP가 바뀌어 방화벽 확인을 다시 해야 해요.'
-    : '';
-  return `${head} — ${path}.${ip}`;
+  return t.returnHint({
+    added: regionNames(added),
+    removed: regionNames(removed),
+    beforeCount,
+    afterCount,
+    uploadIpChanged: sduUploadIpChanged(baseline, rows),
+  });
 };

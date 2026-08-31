@@ -8,6 +8,8 @@ import { ProjectDetail } from '@/app/target-sources/[targetSourceId]/_components
 import { AccessDeniedState, ErrorState } from '@/app/target-sources/[targetSourceId]/_components/common';
 import { classifyTargetSourceLoad } from '@/app/target-sources/[targetSourceId]/load-error';
 import { RAIL_COOKIE_NAME, parseRailCookie } from '@/lib/rail-preference';
+import { COPY } from '@/lib/copy';
+import { LOCALE_COOKIE_NAME, parseLocaleCookie } from '@/lib/locale';
 import type { JiraTicketState } from '@/app/target-sources/[targetSourceId]/_components/common/GuidePanel';
 
 interface PageProps {
@@ -31,9 +33,12 @@ const fetchJiraTicket = async (targetSourceId: number): Promise<JiraTicketState>
 
 export default async function ProjectDetailPage({ params }: PageProps) {
   const targetSourceId = Number((await params).targetSourceId);
+  // Read before the first `return`: both failure screens below are sentences, and a
+  // server component has no provider to ask — the cookie is the only language it sees.
+  const locale = parseLocaleCookie((await cookies()).get(LOCALE_COOKIE_NAME)?.value);
 
   if (!Number.isInteger(targetSourceId) || targetSourceId <= 0) {
-    return <ErrorState message="주소의 연동 대상 번호가 올바르지 않아요." />;
+    return <ErrorState message={COPY[locale].common.badTargetSourceId} locale={locale} />;
   }
 
   // Caught HERE, not in error.tsx. This is the last place the failure still has a
@@ -52,7 +57,7 @@ export default async function ProjectDetailPage({ params }: PageProps) {
     jiraTicket = ticket;
   } catch (err) {
     // 진단은 서버 로그로. 사용자에게는 상태 코드로 고른 문구만 간다.
-    const failure = classifyTargetSourceLoad(err);
+    const failure = classifyTargetSourceLoad(err, locale);
     if (failure.unexpected) {
       console.error(`[target-sources/${targetSourceId}] 상세 조회 실패`, err);
     } else {
@@ -62,7 +67,11 @@ export default async function ProjectDetailPage({ params }: PageProps) {
       console.warn(`[target-sources/${targetSourceId}] 상세 조회 ${status} — 안내 화면으로 대체`);
     }
     // 권한 없음은 오류 화면이 아니라 요청으로 이어지는 화면을 받는다.
-    return failure.kind === 'forbidden' ? <AccessDeniedState /> : <ErrorState message={failure.message} />;
+    return failure.kind === 'forbidden' ? (
+      <AccessDeniedState locale={locale} />
+    ) : (
+      <ErrorState message={failure.message} locale={locale} />
+    );
   }
 
   // Read HERE, not in the rail. The rail's width is settled during this render, and a

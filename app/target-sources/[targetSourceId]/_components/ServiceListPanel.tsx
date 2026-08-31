@@ -18,6 +18,8 @@ import { useModal } from '@/app/hooks/useModal';
 import { getServicesPage } from '@/app/lib/api';
 import { passRoutes } from '@/lib/routes';
 import { bgColors, borderColors, cn, serviceSidebarStyles, textColors } from '@/lib/theme';
+import { useLocale } from '@/app/components/LocaleProvider';
+import { TS_COPY } from '@/app/target-sources/[targetSourceId]/_components/copy';
 
 const ServiceMoveConfirmModal = dynamic(
   () =>
@@ -37,7 +39,12 @@ interface PanelState {
 type PanelAction =
   | ServiceListAction
   | { type: 'FETCH_LOADING' }
-  | { type: 'FETCH_ERROR'; message: string };
+  /**
+   * `message` is what the UPSTREAM said, and it is optional because upstream does not
+   * always say anything. The generic fallback is not stored — it is chosen at the render
+   * site, where the reader's language is known.
+   */
+  | { type: 'FETCH_ERROR'; message?: string };
 
 const buildInitialPanelState = (): PanelState => ({
   list: buildInitialServiceListState(),
@@ -69,8 +76,6 @@ const SERVICE_PAGE_SIZE = SERVICE_RAIL_PAGE_SIZE;
 const SEARCH_DEBOUNCE_MS = 300;
 /** How long the move waits for the destination to answer before it gives up. */
 const NAV_TIMEOUT_MS = 5000;
-const NAV_TIMEOUT_REASON = '5초 동안 응답이 오지 않았습니다.';
-const NAV_FAILED_REASON = '서버가 응답하지 못했습니다.';
 
 interface ServiceListPanelProps {
   /** The service this target source belongs to — pinned to the top of the list. */
@@ -78,6 +83,8 @@ interface ServiceListPanelProps {
 }
 
 export const ServiceListPanel = ({ currentService }: ServiceListPanelProps) => {
+  const { locale } = useLocale();
+  const t = TS_COPY[locale].detail;
   const router = useRouter();
   const [state, dispatch] = useReducer(panelReducer, undefined, buildInitialPanelState);
   const { services, query, pageInfo } = state.list;
@@ -140,7 +147,7 @@ export const ServiceListPanel = ({ currentService }: ServiceListPanelProps) => {
       if (controller.signal.aborted) return;
       dispatch({
         type: 'FETCH_ERROR',
-        message: err instanceof Error ? err.message : '서비스 목록을 불러오지 못했습니다.',
+        message: err instanceof Error ? err.message : undefined,
       });
     }
   }, []);
@@ -199,7 +206,7 @@ export const ServiceListPanel = ({ currentService }: ServiceListPanelProps) => {
       timedOut = true;
       controller.abort();
       setNavPending(false);
-      setNavError(NAV_TIMEOUT_REASON);
+      setNavError(t.navTimeout);
     }, NAV_TIMEOUT_MS);
     try {
       await getServicesPage(0, SERVICE_PAGE_SIZE, undefined, { signal: controller.signal });
@@ -215,11 +222,11 @@ export const ServiceListPanel = ({ currentService }: ServiceListPanelProps) => {
       // Pending clears, the failure stays: the dialog swaps to its error frame, whose
       // 다시 요청하기 runs this same handler again.
       setNavPending(false);
-      setNavError(NAV_FAILED_REASON);
+      setNavError(t.navFailed);
     } finally {
       clearTimeout(deadline);
     }
-  }, [confirmModal.data, router]);
+  }, [confirmModal.data, router, t]);
 
   // Closing discards the attempt — a reopened dialog must not inherit the last failure.
   const handleMoveClose = useCallback(() => {
@@ -248,7 +255,7 @@ export const ServiceListPanel = ({ currentService }: ServiceListPanelProps) => {
         )}
       >
         <p className={cn('text-sm text-center', textColors.secondary)}>
-          {fetchState.message ?? '서비스 목록을 불러오지 못했습니다.'}
+          {fetchState.message ?? t.servicesFailed}
         </p>
         <button
           type="button"
@@ -261,7 +268,7 @@ export const ServiceListPanel = ({ currentService }: ServiceListPanelProps) => {
             textColors.secondary,
           )}
         >
-          다시 시도
+          {t.retry}
         </button>
       </aside>
     );

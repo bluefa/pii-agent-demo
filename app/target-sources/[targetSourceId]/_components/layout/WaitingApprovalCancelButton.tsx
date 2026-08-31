@@ -6,6 +6,8 @@ import { useApiMutation } from '@/app/hooks/useApiMutation';
 import { useModal } from '@/app/hooks/useModal';
 import { cancelApprovalRequest } from '@/app/lib/api';
 import { cn, idcStyles, primaryColors } from '@/lib/theme';
+import { useLocale } from '@/app/components/LocaleProvider';
+import { LAYOUT_COPY } from '@/app/target-sources/[targetSourceId]/_components/layout/copy';
 
 interface WaitingApprovalCancelButtonProps {
   targetSourceId: number;
@@ -18,11 +20,14 @@ export const WaitingApprovalCancelButton = ({
   onSuccess,
 }: WaitingApprovalCancelButtonProps) => {
   const modal = useModal();
+  const { locale } = useLocale();
+  const copy = LAYOUT_COPY[locale];
+  const t = copy.waiting;
 
   const { mutate, loading } = useApiMutation<void, { success: boolean }>(
     () => cancelApprovalRequest(targetSourceId),
     {
-      errorMessage: '승인 요청 취소에 실패했습니다. 다시 시도해주세요.',
+      errorMessage: t.cancelFailed,
     },
   );
 
@@ -43,7 +48,7 @@ export const WaitingApprovalCancelButton = ({
         onClick={() => modal.open()}
       >
         <ReloadIcon className="w-[13px] h-[13px]" />
-        다시 요청하기
+        {t.reRequest}
       </button>
 
       {/* Same grammar as the rejected-state reselect modal: question title, one cause→effect
@@ -59,17 +64,19 @@ export const WaitingApprovalCancelButton = ({
         onConfirm={() => {
           void handleConfirm();
         }}
-        title="승인 요청을 취소할까요?"
+        title={t.cancelTitle}
         description={
           // Kept to one rendered line in the 480px dialog: '진행 중인' and the screen name are
           // dropped — the request can only be the current one, and 1단계 already names the place.
           <>
-            {'확인을 누르면 승인 요청이 취소되고, '}
-            <strong className={cn('font-semibold', primaryColors.text)}>1단계</strong>
-            {'부터 다시 진행해요.'}
+            {copy.rewindTo.afterCancel.lead}
+            <strong className={cn('font-semibold', primaryColors.text)}>
+              {copy.common.step(1)}
+            </strong>
+            {copy.rewindTo.afterCancel.tail}
           </>
         }
-        confirmLabel="확인"
+        confirmLabel={copy.common.ok}
         isPending={loading}
       />
     </>

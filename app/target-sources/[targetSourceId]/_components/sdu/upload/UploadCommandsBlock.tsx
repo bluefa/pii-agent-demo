@@ -1,6 +1,8 @@
 'use client';
 
 import { useState } from 'react';
+import { useLocale } from '@/app/components/LocaleProvider';
+import { SDU_COPY } from '@/app/target-sources/[targetSourceId]/_components/sdu/copy';
 import { CommandBlock } from '@/app/target-sources/[targetSourceId]/_components/sdu/upload/CommandBlock';
 import { YesNoAck } from '@/app/target-sources/[targetSourceId]/_components/sdu/upload/YesNoAck';
 import { answerOf } from '@/app/target-sources/[targetSourceId]/_components/sdu/upload/model';
@@ -17,6 +19,8 @@ export interface UploadCommandsBlockProps {
  * the same path is shared by every target in that Region and Database Type never splits it.
  */
 export const UploadCommandsBlock = ({ commands, onAnswer }: UploadCommandsBlockProps) => {
+  const { locale } = useLocale();
+  const t = SDU_COPY[locale].upload;
   const [answering, setAnswering] = useState(false);
 
   const answer = async (confirmed: boolean) => {
@@ -33,10 +37,7 @@ export const UploadCommandsBlock = ({ commands, onAnswer }: UploadCommandsBlockP
 
   return (
     <div className={cn('flex flex-col', stackGap.group)}>
-      <p className={cn(textStyles.body, textColors.secondary)}>
-        관리자가 메일로 전달한 S3 Access Key로 데이터를 업로드해주세요. Region마다 아래 세 줄을 그대로
-        실행하면 올라간 파일을 확인할 수 있어요 — 프록시 설정 두 줄과 조회 명령 한 줄이에요.
-      </p>
+      <p className={cn(textStyles.body, textColors.secondary)}>{t.commandsIntro}</p>
 
       <div className={cn('flex flex-col', stackGap.related)}>
         {commands.rows.map((row) => (
@@ -50,7 +51,7 @@ export const UploadCommandsBlock = ({ commands, onAnswer }: UploadCommandsBlockP
       </div>
 
       <YesNoAck
-        question="모든 Region에 데이터를 업로드하셨습니까?"
+        question={t.commandsQuestion}
         value={answerOf(commands)}
         onAnswer={answer}
         busy={answering}

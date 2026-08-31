@@ -37,8 +37,13 @@ export default async function RootLayout({
   // The language rides in a cookie so this first paint already speaks it — see lib/locale.ts.
   const locale = parseLocaleCookie((await cookies()).get(LOCALE_COOKIE_NAME)?.value);
   return (
-    // Only the notice screens speak the chosen language today; the localised subtree
-    // stamps its own `lang` so the Korean-only screens are not announced as English.
+    // The root stays at the default because not every screen follows the toggle: the step
+    // guide is Korean by decision, and the admin console is not localised at all. Each
+    // localised subtree therefore declares its own `lang` on its outermost element (TopNav,
+    // the service list, the access screens, the notice board, the install screen), and the
+    // Korean-only ones keep the root's — so neither is announced in the other's voice.
+    // ⛔ Do not switch this to `locale`: the guide and the admin screens would then be
+    // English-declared Korean text. It moves only when every screen speaks the choice.
     <html lang={DEFAULT_LOCALE}>
       <body
         className={cn(pretendard.variable, 'antialiased')}

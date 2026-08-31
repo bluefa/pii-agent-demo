@@ -6,6 +6,8 @@ import { getProject, updateTestConnectionConfirmation } from '@/app/lib/api';
 import { ReloadIcon } from '@/app/components/ui/icons';
 import { useToast } from '@/app/components/ui/toast';
 import { cardStyles, cn, idcStyles, primaryColors, statusColors, textColors } from '@/lib/theme';
+import { useLocale } from '@/app/components/LocaleProvider';
+import { LAYOUT_COPY } from '@/app/target-sources/[targetSourceId]/_components/layout/copy';
 import {
   RejectionAlert,
 } from '@/app/target-sources/[targetSourceId]/_components/common';
@@ -29,6 +31,8 @@ const ConnectionVerifiedRetestButton = ({
   onRolledBack: () => Promise<void>;
 }) => {
   const toast = useToast();
+  const { locale } = useLocale();
+  const t = LAYOUT_COPY[locale].verified;
   const [confirmKind, setConfirmKind] = useState<ConfirmRewindKind | null>(null);
   const [rollingBack, setRollingBack] = useState(false);
 
@@ -43,7 +47,7 @@ const ConnectionVerifiedRetestButton = ({
       setConfirmKind(null);
       await onRolledBack();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : '연결 테스트 재실행 요청에 실패했습니다.');
+      toast.error(err instanceof Error ? err.message : t.retestFailed);
     } finally {
       setRollingBack(false);
     }
@@ -57,7 +61,7 @@ const ConnectionVerifiedRetestButton = ({
         onClick={() => setConfirmKind('retest')}
       >
         <ReloadIcon className="w-[13px] h-[13px]" />
-        연결 테스트 재실행
+        {t.retest}
       </button>
       <ConfirmRewindModal
         kind={confirmKind}
@@ -72,6 +76,9 @@ export const ConnectionVerifiedStep = ({
   project,
   onProjectUpdate,
 }: ConnectionVerifiedStepProps) => {
+  const { locale } = useLocale();
+  const copy = LAYOUT_COPY[locale];
+  const t = copy.verified;
 
   const refreshProject = useCallback(async () => {
     const updated = await getProject(project.targetSourceId);
@@ -90,8 +97,8 @@ export const ConnectionVerifiedStep = ({
           <div className="flex items-center justify-between gap-4">
             <div className="flex items-center gap-2">
               {/* Step position, matching INSTALL_STEPS order in InstallationProcessProgressBar. */}
-              <span className={cardStyles.stepTag}>6단계</span>
-              <h2 className={cardStyles.cardTitle}>완료 여부 관리자 승인 대기</h2>
+              <span className={cardStyles.stepTag}>{copy.common.step(6)}</span>
+              <h2 className={cardStyles.cardTitle}>{t.title}</h2>
               <span
                 className={cn(
                   'inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium',
@@ -99,7 +106,7 @@ export const ConnectionVerifiedStep = ({
                   statusColors.warning.textDark,
                 )}
               >
-                승인 대기
+                {t.badge}
               </span>
             </div>
             {/* C-3: auxiliary retest action pinned to the header right. When to press it is
@@ -114,15 +121,15 @@ export const ConnectionVerifiedStep = ({
           {/* Blue marks the status clause only, matching steps 2·3. */}
           <p className={cn('mt-3', cardStyles.guidance)}>
             <strong className={cn('font-semibold', primaryColors.text)}>
-              PII Agent 설치 완료 승인을 위해 동작을 점검하고 있어요.
+              {t.guidanceStrong}
             </strong>{' '}
-            승인이 완료되면 PII Agent 연동이 완료돼요.
+            {t.guidanceTail}
           </p>
           {/* No top margin — the 1.55 leading is the paragraph break (step-2 grammar). */}
           <p className={cardStyles.guidance}>
-            논리 DB 연동 대상을 수정하거나 연결 테스트를 다시 수행하고 싶다면{' '}
-            <strong className={cn('font-semibold', textColors.secondary)}>연결 테스트 재실행</strong>
-            을 눌러주세요.
+            {t.retestHintLead}
+            <strong className={cn('font-semibold', textColors.secondary)}>{t.retest}</strong>
+            {t.retestHintTail}
           </p>
         </header>
         <div className={cardStyles.body}>

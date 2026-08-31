@@ -1,6 +1,8 @@
 'use client';
 
 import { borderColors, cn, getButtonClass, idcStyles, statusColors } from '@/lib/theme';
+import { useLocale } from '@/app/components/LocaleProvider';
+import { TS_COPY } from '@/app/target-sources/[targetSourceId]/_components/copy';
 
 /** Skeleton frame shown while a resource table loads — mirrors the table shape. */
 export const ResourceTableSkeleton = () => (
@@ -26,11 +28,15 @@ interface ErrorRowProps {
   onRetry: () => void;
 }
 
-export const ErrorRow = ({ message, onRetry }: ErrorRowProps) => (
-  <div className={cn('px-6 py-6 space-y-3', statusColors.error.bg)}>
-    <p className={cn('text-sm font-medium', statusColors.error.textDark)}>{message}</p>
-    <button onClick={onRetry} className={getButtonClass('secondary', 'sm')}>
-      다시 시도
-    </button>
-  </div>
-);
+export const ErrorRow = ({ message, onRetry }: ErrorRowProps) => {
+  const { locale } = useLocale();
+
+  return (
+    <div className={cn('px-6 py-6 space-y-3', statusColors.error.bg)}>
+      <p className={cn('text-sm font-medium', statusColors.error.textDark)}>{message}</p>
+      <button onClick={onRetry} className={getButtonClass('secondary', 'sm')}>
+        {TS_COPY[locale].shared.retry}
+      </button>
+    </div>
+  );
+};

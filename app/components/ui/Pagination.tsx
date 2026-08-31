@@ -2,6 +2,8 @@
 
 import type { ReactNode } from 'react';
 import { cn, numericFeatures } from '@/lib/theme';
+import { useLocale } from '@/app/components/LocaleProvider';
+import { COPY } from '@/lib/copy';
 
 interface PaginationProps {
   /** 0-based page index */
@@ -89,6 +91,7 @@ export const Pagination = ({
   const start = totalCount === 0 ? 0 : page * pageSize + 1;
   const end = Math.min(totalCount, (page + 1) * pageSize);
   const visible = buildVisiblePages(page, totalPages);
+  const t = COPY[useLocale().locale].common;
   const md = size === 'md';
   // The size reaches the CONTROLS too: the select and the page buttons carry their own,
   // so leaving them at 12 would put two sizes in one bar.
@@ -96,7 +99,7 @@ export const Pagination = ({
 
   const sizePicker = (
     <div className="inline-flex items-center gap-1.5">
-      <span>표시</span>
+      <span>{t.pagerShow}</span>
       <select
         value={pageSize}
         onChange={(e) => onPageSizeChange(Number(e.target.value))}
@@ -108,7 +111,7 @@ export const Pagination = ({
           controlText,
           SELECT_CHEVRON_BG,
         )}
-        aria-label="페이지당 표시 건수"
+        aria-label={t.pagerPerPage}
       >
         {options.map((opt) => (
           <option key={opt} value={opt}>
@@ -116,7 +119,7 @@ export const Pagination = ({
           </option>
         ))}
       </select>
-      <span>건씩</span>
+      <span>{t.pagerPer}</span>
     </div>
   );
 
@@ -125,8 +128,9 @@ export const Pagination = ({
       <strong className="font-semibold text-[#111827]">
         {start}–{end}
       </strong>{' '}
-      / 전체{' '}
-      <strong className="font-semibold text-[#111827]">{totalCount}</strong>건
+      {t.pagerOf}{' '}
+      <strong className="font-semibold text-[#111827]">{totalCount}</strong>
+      {t.pagerUnit}
     </span>
   );
 
@@ -137,11 +141,11 @@ export const Pagination = ({
           IDC step tables pass controls="prevNext" to drop the first/last
           double-chevrons (v16 IDC pager is 이전 / [1] / 다음). */}
       {controls === 'full' && (
-          <PageBtn active={false} disabled={page <= 0} onClick={() => onPageChange(0)} ariaLabel="처음 페이지">
+          <PageBtn active={false} disabled={page <= 0} onClick={() => onPageChange(0)} ariaLabel={t.firstPage}>
             ‹‹
           </PageBtn>
         )}
-        <PageBtn active={false} disabled={page <= 0} onClick={() => onPageChange(page - 1)} ariaLabel="이전 페이지">
+        <PageBtn active={false} disabled={page <= 0} onClick={() => onPageChange(page - 1)} ariaLabel={t.prevPage}>
           ‹
         </PageBtn>
         {visible.map((entry, index) =>
@@ -158,17 +162,17 @@ export const Pagination = ({
               key={entry}
               active={entry === page}
               onClick={() => onPageChange(entry)}
-              ariaLabel={`${entry + 1} 페이지`}
+              ariaLabel={t.pageN(entry + 1)}
             >
               {entry + 1}
             </PageBtn>
           ),
         )}
-        <PageBtn active={false} disabled={page >= totalPages - 1} onClick={() => onPageChange(page + 1)} ariaLabel="다음 페이지">
+        <PageBtn active={false} disabled={page >= totalPages - 1} onClick={() => onPageChange(page + 1)} ariaLabel={t.nextPage}>
           ›
         </PageBtn>
         {controls === 'full' && (
-          <PageBtn active={false} disabled={page >= totalPages - 1} onClick={() => onPageChange(totalPages - 1)} ariaLabel="끝 페이지">
+          <PageBtn active={false} disabled={page >= totalPages - 1} onClick={() => onPageChange(totalPages - 1)} ariaLabel={t.lastPage}>
             ››
           </PageBtn>
         )}

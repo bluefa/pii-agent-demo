@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { FilterIcon, SearchIcon } from '@/app/components/ui/icons';
 import { cn } from '@/lib/theme';
+import { useLocale } from '@/app/components/LocaleProvider';
+import { LAYOUT_COPY } from '@/app/target-sources/[targetSourceId]/_components/layout/copy';
 
 export type ApprovalFilter = 'all' | 'target' | 'excluded';
 
@@ -108,6 +110,9 @@ export const FilterMenu = ({
   groups: ReadonlyArray<FilterGroup>;
   pinRight?: boolean;
 }) => {
+  const { locale } = useLocale();
+  const copy = LAYOUT_COPY[locale];
+  const t = copy.toolbar;
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
   // A group with nothing to choose from is dropped rather than rendered as a lone 전체 — IDC rows
@@ -141,7 +146,7 @@ export const FilterMenu = ({
         onClick={() => setOpen((prev) => !prev)}
         aria-expanded={open}
         aria-haspopup="true"
-        aria-label="필터"
+        aria-label={t.filter}
         className={cn(
           // 16px glyph, 32x32 hit area (WCAG 2.5.8 asks for at least 24x24).
           // The default 1.4 stroke reads too faint alone (IconProps only accepts className).
@@ -155,13 +160,13 @@ export const FilterMenu = ({
       {open && (
         <div
           role="group"
-          aria-label="필터 옵션"
+          aria-label={t.filterOptions}
           className="absolute right-0 top-[26px] z-20 w-[220px] rounded-[10px] border border-[#E5E7EB] bg-white py-1.5 shadow-[0_8px_24px_rgba(17,24,39,0.10)]"
         >
           {/* The list scrolls so the panel height is fixed however many options arrive; group headers stick. */}
           <div className="max-h-[280px] overflow-y-auto">
             {groups.map((group) => (
-              <div key={group.key} aria-label={`${group.label} 필터`} role="radiogroup">
+              <div key={group.key} aria-label={t.groupFilter(group.label)} role="radiogroup">
                 {/* Header sits on a tinted strip with rules above and below: options are a level
                     below it, which same-surface text alone did not convey. */}
                 <p className="sticky top-0 z-10 border-y border-[#F1F3F5] bg-[#F9FAFB] px-3 py-[5px] text-[12px] font-bold tracking-[0.02em] text-[#6B7280] first:border-t-0">
@@ -169,7 +174,7 @@ export const FilterMenu = ({
                 </p>
                 <div className="py-1">
                   <FilterOption active={!group.value} onClick={() => group.onChange('')}>
-                    전체
+                    {copy.common.all}
                   </FilterOption>
                   {group.options.map((option) => (
                     <FilterOption
@@ -233,12 +238,10 @@ interface SearchBoxProps {
 
 // .tt-search — relative wrapper, flex 1 1 260px, min 220 / max 360 (v15 lines 2592–2611).
 // Exported alongside FilterMenu for the confirmed tables' flat counter band.
-export const SearchBox = ({
-  value,
-  onChange,
-  placeholder = 'Resource ID 또는 Resource Name 검색',
-  label = '리소스 검색',
-}: SearchBoxProps) => (
+export const SearchBox = ({ value, onChange, placeholder, label }: SearchBoxProps) => {
+  const { locale } = useLocale();
+  const t = LAYOUT_COPY[locale].toolbar;
+  return (
   <div className="relative min-w-[220px] max-w-[360px] flex-[1_1_260px]">
     {/* icon — absolute left 10, #9CA3AF, no pointer events. */}
     <SearchIcon
@@ -250,9 +253,10 @@ export const SearchBox = ({
       type="text"
       value={value}
       onChange={(e) => onChange(e.target.value)}
-      placeholder={placeholder}
+      placeholder={placeholder ?? t.searchPlaceholder}
       className="h-8 w-full rounded-[8px] border border-[#E5E7EB] bg-white pl-[32px] pr-[12px] text-[14px] text-[#111827] outline-none focus:border-[#0064FF] focus:shadow-[0_0_0_3px_rgba(0,100,255,0.08)]"
-      aria-label={label}
+      aria-label={label ?? t.searchLabel}
     />
   </div>
-);
+  );
+};

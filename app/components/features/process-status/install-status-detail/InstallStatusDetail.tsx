@@ -32,7 +32,6 @@ import { WaitingApprovalToolbar } from '@/app/target-sources/[targetSourceId]/_c
 import { useApprovalTableState } from '@/app/target-sources/[targetSourceId]/_components/layout/useApprovalTableState';
 import { formatDateTime } from '@/lib/utils/date';
 import {
-  INSTALL_STATUS_LABEL,
   isSettledInstallStatus,
   type InstallDetailResource,
   type InstallLastCheck,
@@ -42,6 +41,8 @@ import {
   type InstallStepValue,
   type InstallTableStep,
 } from '@/app/components/features/process-status/install-status-detail/model';
+import { useLocale } from '@/app/components/LocaleProvider';
+import { INSTALL_COPY } from '@/app/components/features/process-status/install-copy';
 
 /**
  * Step-4 install status — provider-agnostic master-detail layout. Left rail
@@ -50,6 +51,13 @@ import {
  * step's per-resource table (name / id / region joined via `meta`) with
  * pagination.
  */
+
+/**
+ * This screen's dictionary. The module-level helpers below take it as a parameter
+ * rather than reading a locale themselves — same shape as `AccessPills`, and the
+ * only way a plain function can produce a translated word.
+ */
+type DetailCopy = (typeof INSTALL_COPY)['ko'];
 
 const STATUS_TAG: Record<InstallStepValue, string> = {
   COMPLETED: tagStyles.success,
@@ -136,35 +144,35 @@ const kindOfValue = (value: InstallStepValue): AggregateKind =>
       : isSettledInstallStatus(value) ? 'done'
         : 'waiting';
 
-const aggregateCells = (cells: InstallStepValue[]): StepAggregate => {
+const aggregateCells = (cells: InstallStepValue[], t: DetailCopy): StepAggregate => {
   const settled = cells.filter(isSettledInstallStatus).length;
   const count = `${settled}/${cells.length}`;
   if (cells.includes('FAIL')) {
-    return { label: '실패', tag: tagStyles.error, count, kind: 'failed' };
+    return { label: t.aggregate.failed, tag: tagStyles.error, count, kind: 'failed' };
   }
   if (cells.includes('IN_PROGRESS')) {
-    return { label: '진행중', tag: tagStyles.info, count, kind: 'running' };
+    return { label: t.aggregate.running, tag: tagStyles.info, count, kind: 'running' };
   }
   // done 보다 먼저다 — SKIP 은 settled 로 세므로, 순서를 뒤집으면 전부-SKIP 이 '완료'로 샌다.
   // 개수를 달지 않는다: 세는 대상이 없는데 "해당 없음 12/12"는 진척으로 읽힌다.
   if (cells.length > 0 && cells.every((c) => c === 'SKIP')) {
-    return { label: INSTALL_STATUS_LABEL.SKIP, tag: tagStyles.neutral, count: null, kind: 'na' };
+    return { label: t.stepValue.SKIP, tag: tagStyles.neutral, count: null, kind: 'na' };
   }
   if (cells.length > 0 && settled === cells.length) {
-    return { label: '완료', tag: tagStyles.success, count, kind: 'done' };
+    return { label: t.aggregate.done, tag: tagStyles.success, count, kind: 'done' };
   }
   // 여기까지 왔으면 미완료 셀은 BDC_INSTALL_REQUIRED 아니면 UNKNOWN 이다.
   // 전부 전자면 서비스 측이 할 수 있는 일이 없다 — 개수는 남긴다(진행을 기다리는 건수).
   const unsettled = cells.filter((c) => !isSettledInstallStatus(c));
   if (unsettled.length > 0 && unsettled.every((c) => c === 'BDC_INSTALL_REQUIRED')) {
     return {
-      label: INSTALL_STATUS_LABEL.BDC_INSTALL_REQUIRED,
+      label: t.stepValue.BDC_INSTALL_REQUIRED,
       tag: tagStyles.neutral,
       count,
       kind: 'blocked',
     };
   }
-  return { label: '대기', tag: tagStyles.neutral, count, kind: 'waiting' };
+  return { label: t.aggregate.waiting, tag: tagStyles.neutral, count, kind: 'waiting' };
 };
 
 /**
@@ -195,8 +203,6 @@ interface ResourceRow {
   cell: InstallStepCell;
 }
 
-const FILTER_EMPTY_MESSAGE = '조건에 맞는 결과가 없어요.';
-
 /**
  * Per-resource table for the selected step — the steps 2·3 approval table with the
  * verdict/reason pair swapped for install status + guidance (`install` variant). Every
@@ -206,9 +212,11 @@ const FILTER_EMPTY_MESSAGE = '조건에 맞는 결과가 없어요.';
 const StepResourceTable = ({
   rows,
   identityColumns,
+  t,
 }: {
   rows: ResourceRow[];
   identityColumns?: ApprovalIdentityColumns;
+  t: DetailCopy;
 }) => {
   const approvalRows = useMemo<readonly WaitingApprovalResource[]>(
     () =>
@@ -254,7 +262,7 @@ const StepResourceTable = ({
   if (rows.length === 0) {
     return (
       <div className={cn('px-4 py-3 rounded-lg border', textStyles.body, borderColors.default, textColors.tertiary)}>
-        설치 대상 리소스가 없습니다.
+        {t.detail.noResources}
       </div>
     );
   }
@@ -277,7 +285,7 @@ const StepResourceTable = ({
         resources={table.visibleResources}
         variant="install"
         connected
-        emptyMessage={FILTER_EMPTY_MESSAGE}
+        emptyMessage={t.detail.filterEmpty}
         identityColumns={identityColumns}
         columns={resize}
       />
@@ -298,12 +306,12 @@ const StepResourceTable = ({
 
 const SUMMARY_ID = '__summary__';
 
-const SUMMARY_STEP: InstallTableStep = {
+const summaryStep = (t: DetailCopy): InstallTableStep => ({
   id: SUMMARY_ID,
-  title: '설치 현황 요약',
+  title: t.detail.summaryTitle,
   side: null,
-  desc: '전체 진행 상황과, 서비스 측에서 확인해야 할 항목을 모아 보여줍니다.',
-};
+  desc: t.detail.summaryDesc,
+});
 
 /** 한 단계의 요약 표시에 필요한 것 전부. */
 interface StepView {
@@ -323,7 +331,15 @@ interface StepView {
  * 상태를 색면 ~800px² 로 말한다. 크기 계층도 Step 2 와 같다: 12px 태그가 블록의 이름,
  * 17px 문장이 payload — 사용자가 실제로 해야 하는 일이 이 블록에서 가장 큰 글자다.
  */
-const ActionItem = ({ view, onOpen }: { view: StepView; onOpen: () => void }) => {
+const ActionItem = ({
+  view,
+  onOpen,
+  t,
+}: {
+  view: StepView;
+  onOpen: () => void;
+  t: DetailCopy;
+}) => {
   const failed = view.aggregate.kind === 'failed';
   const tone = failed ? statusColors.error : statusColors.warning;
   // 조치 문구가 없는 단계(자동 진행 중 실패 등)는 계약이 준 사유 첫 줄이 payload 다.
@@ -346,7 +362,7 @@ const ActionItem = ({ view, onOpen }: { view: StepView; onOpen: () => void }) =>
         {payload}
         {payloadCount !== null && (
           <span className={cn('ml-2 font-semibold tabular-nums', textStyles.caption, textColors.tertiary)}>
-            {payloadCount}건
+            {t.detail.count(payloadCount)}
           </span>
         )}
       </p>
@@ -359,7 +375,7 @@ const ActionItem = ({ view, onOpen }: { view: StepView; onOpen: () => void }) =>
               <span className="min-w-0">
                 {reason.text}
                 <span className={cn('ml-1 font-semibold tabular-nums', textColors.tertiary)}>
-                  {reason.count}건
+                  {t.detail.count(reason.count)}
                 </span>
               </span>
             </li>
@@ -378,7 +394,7 @@ const ActionItem = ({ view, onOpen }: { view: StepView; onOpen: () => void }) =>
             primaryColors.text,
           )}
         >
-          {view.step.title} 단계로 이동
+          {t.detail.goToStep(view.step.title)}
         </button>
       </div>
     </div>
@@ -386,14 +402,25 @@ const ActionItem = ({ view, onOpen }: { view: StepView; onOpen: () => void }) =>
 };
 
 /** 조회 시각 한 줄 — 요약에서는 지표 카드 안, 단계 표에서는 표 아래에 선다. */
-const LastCheckLine = ({ lastCheck }: { lastCheck: InstallLastCheck }) => (
-  <div className={cn(textStyles.caption, textColors.tertiary)}>
-    {lastCheck.checkedAt && <>마지막 확인 {formatDateTime(lastCheck.checkedAt)}</>}
-    {lastCheck.status === 'FAILED' && (
-      <span className={cn('font-semibold', statusColors.error.textDark)}> · 상태 확인 실패</span>
-    )}
-  </div>
-);
+// The sentence arrives as `t`, but the stamp inside it needs the locale itself, and a
+// dictionary object cannot say which language it is. Read here rather than threaded as a
+// prop: one of the two render sites sits in `InstallSummaryPanel`, which has no locale of
+// its own, so threading would add a prop to three components for one timestamp.
+const LastCheckLine = ({ lastCheck, t }: { lastCheck: InstallLastCheck; t: DetailCopy }) => {
+  const { locale } = useLocale();
+
+  return (
+    <div className={cn(textStyles.caption, textColors.tertiary)}>
+      {lastCheck.checkedAt && t.detail.lastChecked(formatDateTime(lastCheck.checkedAt, locale))}
+      {lastCheck.status === 'FAILED' && (
+        <span className={cn('font-semibold', statusColors.error.textDark)}>
+          {' '}
+          · {t.detail.statusCheckFailed}
+        </span>
+      )}
+    </div>
+  );
+};
 
 /** 요약의 지표 한 칸 — 숫자가 라벨보다 크다(숫자가 내용, 라벨은 주석). */
 const RollupStat = ({
@@ -425,12 +452,14 @@ const InstallSummaryPanel = ({
   rollup,
   lastCheck,
   onOpen,
+  t,
 }: {
   views: readonly StepView[];
   /** 리소스별 전체 상태(installation_status) 집계. */
   rollup: { total: number; done: number; running: number; failed: number };
   lastCheck: InstallLastCheck;
   onOpen: (stepId: string) => void;
+  t: DetailCopy;
 }) => {
   const action = views.filter((v) => v.actionable);
 
@@ -441,38 +470,39 @@ const InstallSummaryPanel = ({
           가진 유일한 블록이고, 조치 항목은 아래에서 인용 룰이 대신 묶는다. */}
       <div className={cn('rounded-xl border px-5 py-4 flex flex-col', stackGap.related, borderColors.light)}>
         <div className="flex items-start gap-8">
-          <RollupStat label="전체 리소스" value={rollup.total} />
-          <RollupStat label="완료" value={rollup.done} />
-          <RollupStat label="진행중" value={rollup.running} tone={statusColors.info.textDark} />
+          <RollupStat label={t.detail.statTotal} value={rollup.total} />
+          <RollupStat label={t.detail.statDone} value={rollup.done} />
           <RollupStat
-            label="실패"
+            label={t.detail.statRunning}
+            value={rollup.running}
+            tone={statusColors.info.textDark}
+          />
+          <RollupStat
+            label={t.detail.statFailed}
             value={rollup.failed}
             {...(rollup.failed > 0 && { tone: statusColors.error.textDark })}
           />
         </div>
-        <LastCheckLine lastCheck={lastCheck} />
+        <LastCheckLine lastCheck={lastCheck} t={t} />
       </div>
 
       {/* 제목은 조건부다 — 확인할 게 없는데 "확인이 필요합니다"를 띄워놓고 그 아래에서
           "없어요"라고 하면 한 섹션이 서로 반대말을 한다. */}
       {action.length === 0 ? (
-        <p className={cn(textStyles.body, textColors.secondary)}>
-          지금 서비스 측에서 확인할 항목은 없어요. 나머지 단계는 BDC가 처리 중이며, 왼쪽
-          목록에서 진행 상황을 볼 수 있어요.
-        </p>
+        <p className={cn(textStyles.body, textColors.secondary)}>{t.detail.nothingToCheck}</p>
       ) : (
         // 판을 두르지 않는다 — 묶음은 각 항목의 인용 룰이 말한다(Step 2 문법).
         <section className={cn('flex flex-col', stackGap.related)}>
           {/* 섹션 라벨은 한 단 내려 쓴다 — 항목 제목과 같은 14/700 이면 둘 중 무엇이
               상위인지 화면이 답하지 못한다(인접 계층은 크기·색 두 축이 달라야 한다). */}
           <h4 className={cn(textStyles.captionStrong, textColors.tertiary)}>
-            지금 서비스 측에서 확인이 필요합니다
+            {t.detail.actionSectionTitle}
           </h4>
           {/* 여러 건일 수 있으므로 목록이다 — 스크린리더도 "N개 항목"으로 읽는다. */}
           <ul className={cn('flex flex-col', stackGap.section)}>
             {action.map((view) => (
               <li key={view.step.id}>
-                <ActionItem view={view} onOpen={() => onOpen(view.step.id)} />
+                <ActionItem view={view} onOpen={() => onOpen(view.step.id)} t={t} />
               </li>
             ))}
           </ul>
@@ -512,6 +542,8 @@ export const InstallStatusDetail = ({
   reference,
   identityColumns,
 }: InstallStatusDetailProps) => {
+  const { locale } = useLocale();
+  const t = INSTALL_COPY[locale];
   // Grouped rail (v2) — on only when EVERY step declares a group (AWS first).
   // A half-migrated adapter (some steps missing `group`) falls back to the
   // legacy layout: the grouped rail partitions by group and would silently
@@ -524,8 +556,8 @@ export const InstallStatusDetail = ({
   // The grouped rail has no summary step — its rail lists the steps directly, so
   // `rollup` stays unrendered there (owner removed the footer that used to show it).
   const navSteps: InstallTableStep[] = useMemo(
-    () => (grouped ? [...panelSteps, ...steps] : [SUMMARY_STEP, ...panelSteps, ...steps]),
-    [grouped, panelSteps, steps],
+    () => (grouped ? [...panelSteps, ...steps] : [summaryStep(t), ...panelSteps, ...steps]),
+    [grouped, panelSteps, steps, t],
   );
 
   const cellOf = useMemo(() => {
@@ -541,17 +573,20 @@ export const InstallStatusDetail = ({
       const panelStep = panelSteps.find((p) => p.id === step.id);
       if (panelStep) {
         map.set(step.id, {
-          label: INSTALL_STATUS_LABEL[panelStep.status],
+          label: t.stepValue[panelStep.status],
           tag: STATUS_TAG[panelStep.status],
           count: null,
           kind: kindOfValue(panelStep.status),
         });
       } else {
-        map.set(step.id, aggregateCells(resources.map((r) => cellOf(r, step.id).status)));
+        map.set(
+          step.id,
+          aggregateCells(resources.map((r) => cellOf(r, step.id).status), t),
+        );
       }
     }
     return map;
-  }, [navSteps, panelSteps, resources, cellOf]);
+  }, [navSteps, panelSteps, resources, cellOf, t]);
 
   // Step views for the summary panel / banner — nav order, summary itself excluded.
   const views = useMemo<StepView[]>(() => {
@@ -738,19 +773,25 @@ export const InstallStatusDetail = ({
   const paneBody = activePanel ? (
     activePanel.panel
   ) : isSummary ? (
-    <InstallSummaryPanel views={views} rollup={rollup} lastCheck={lastCheck} onOpen={setSelected} />
+    <InstallSummaryPanel
+      views={views}
+      rollup={rollup}
+      lastCheck={lastCheck}
+      onOpen={setSelected}
+      t={t}
+    />
   ) : naWithoutGuides ? (
     // 전부 '해당 없음'이고 사유도 없는 단계에 표를 그리면, 같은 한 단어를 N행으로
     // 반복한 뒤 검색·필터·페이지네이션까지 붙여 "훑을 것이 있다"고 말한다. 없다고 말한다.
     // 이유는 쓰지 않는다 — 여기 오는 셀은 guide 가 비어 있고, 없는 근거를 지어내지 않는다.
     <EmptyState
       variant="card"
-      title="이 단계에 해당하는 리소스가 없어요"
-      description={`연동 대상 ${resources.length}건 모두 이 단계에 해당하지 않아, 수행할 작업이 없습니다.`}
+      title={t.detail.naTitle}
+      description={t.detail.naDesc(resources.length)}
     />
   ) : (
     // key resets pagination when switching steps
-    <StepResourceTable key={active.id} rows={rows} identityColumns={identityColumns} />
+    <StepResourceTable key={active.id} rows={rows} identityColumns={identityColumns} t={t} />
   );
 
   // ---------------------------------------------------------------------------
@@ -935,11 +976,11 @@ export const InstallStatusDetail = ({
               'flex flex-col gap-6 p-2 border-r overflow-y-auto min-h-0 max-h-[560px]',
               borderColors.strong,
             )}
-            aria-label="설치 단계"
+            aria-label={t.detail.navLabel}
           >
             {railGroup(
               'todo',
-              `내가 할 일 (${openTodoCount})`,
+              t.detail.groupTodo(openTodoCount),
               // 끝난 그룹은 브랜드 색을 놓는다 — 남은 조치가 없는 묶음이 레일에서 가장
               // 밝은 면이면 "여기를 보라"가 거짓이 된다.
               openTodoCount > 0 ? installRailGroupStyles.todo : installRailGroupStyles.todoDone,
@@ -949,7 +990,7 @@ export const InstallStatusDetail = ({
               // "자동으로 진행돼요"는 바로 아래 'BDC 진행' 라벨이 이미 말한다.
               todoAllDone && (
                 <span className={cn('ml-auto flex-shrink-0', textStyles.caption, statusColors.success.textDark)}>
-                  모두 완료
+                  {t.detail.groupTodoAllDone}
                 </span>
               ),
             )}
@@ -958,7 +999,7 @@ export const InstallStatusDetail = ({
                 "이 묶음이 곧 BDC 측"으로 읽힌다. */}
             {railGroup(
               'auto',
-              'BDC 진행',
+              t.detail.groupAuto,
               installRailGroupStyles.bdc,
               autoSteps.map((s) => railItem(s)),
             )}
@@ -969,7 +1010,7 @@ export const InstallStatusDetail = ({
             {reference &&
               railGroup(
                 'reference',
-                '설치 스크립트',
+                t.detail.groupReference,
                 installRailGroupStyles.reference,
                 referenceItem(reference),
               )}
@@ -1056,7 +1097,7 @@ export const InstallStatusDetail = ({
       <div className={cn('grid grid-cols-[224px_minmax(0,1fr)] rounded-xl border overflow-hidden', borderColors.light)}>
       <nav
         className={cn('flex flex-col gap-0.5 p-2 border-r', bgColors.panel, borderColors.light)}
-        aria-label="설치 단계"
+        aria-label={t.detail.navLabel}
       >
         {navSteps.map((step, index) => {
           const aggregate = aggregates.get(step.id)!;
@@ -1127,7 +1168,7 @@ export const InstallStatusDetail = ({
         {/* 표 아래 조회 시각 — 요약에서는 지표 카드가 이미 갖고 있으므로 여기서는 뺀다. */}
         {!activePanel && !isSummary && (
           <div className="mt-4">
-            <LastCheckLine lastCheck={lastCheck} />
+            <LastCheckLine lastCheck={lastCheck} t={t} />
           </div>
         )}
       </div>

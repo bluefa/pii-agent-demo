@@ -2,6 +2,8 @@
 
 import { ReactNode } from 'react';
 import { cn } from '@/lib/theme';
+import { useLocale } from '@/app/components/LocaleProvider';
+import { COPY } from '@/lib/copy';
 
 export interface TableColumn<T> {
   /** 컬럼 키 (고유 식별자) */
@@ -72,12 +74,14 @@ export const Table = <T,>({
   columns,
   keyExtractor,
   onRowClick,
-  emptyMessage = '데이터가 없습니다.',
+  emptyMessage,
   emptyIcon,
   rowClassName,
   hoverable = true,
   className = '',
 }: TableProps<T>) => {
+  const { locale } = useLocale();
+
   // 빈 상태 렌더링
   if (data.length === 0) {
     return (
@@ -89,7 +93,7 @@ export const Table = <T,>({
             </svg>
           </div>
         )}
-        <p className="text-gray-500">{emptyMessage}</p>
+        <p className="text-gray-500">{emptyMessage ?? COPY[locale].common.noData}</p>
       </div>
     );
   }

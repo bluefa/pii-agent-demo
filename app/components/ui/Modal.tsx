@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, ReactNode } from 'react';
 import { bgColors, borderColors, cn, interactiveColors, modalStyles, statusColors, textColors } from '@/lib/theme';
+import { useLocale } from '@/app/components/LocaleProvider';
+import { COPY } from '@/lib/copy';
 
 export interface ModalProps {
   /** 모달 표시 여부 */
@@ -127,6 +129,7 @@ export const Modal = ({
   closeOnEscape = true,
   cardRef,
 }: ModalProps) => {
+  const { locale } = useLocale();
   const overlayRef = useRef<HTMLDivElement>(null);
 
   // Keep the latest onClose in a ref so the keydown listener doesn't re-bind on
@@ -236,7 +239,7 @@ export const Modal = ({
               <button
                 onClick={onClose}
                 className={cn('p-2', interactiveColors.closeButton, 'rounded-lg transition-colors')}
-                aria-label="닫기"
+                aria-label={COPY[locale].common.close}
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />

@@ -2,6 +2,8 @@ import Link from 'next/link';
 import { passRoutes } from '@/lib/routes';
 import { bgColors, cn, getButtonClass, statusColors, textColors } from '@/lib/theme';
 import { StatusErrorIcon } from '@/app/components/ui/icons';
+import { DEFAULT_LOCALE, type Locale } from '@/lib/locale';
+import { TS_COPY } from '@/app/target-sources/[targetSourceId]/_components/copy';
 
 /**
  * 이유를 특정하지 못했을 때의 한 줄. 이 컴포넌트가 자기 기본값으로 쓰고,
@@ -11,8 +13,7 @@ import { StatusErrorIcon } from '@/app/components/ui/icons';
  * (`docs/api/boundaries.md`) `load-error.ts` 를 거쳐 `@/lib/bff/*` 를 끌어오면 안 된다.
  * 이 파일은 훅도 bff 의존도 없어 서버·클라이언트 양쪽이 안전하게 읽는다.
  */
-export const TARGET_SOURCE_LOAD_FALLBACK =
-  '연동 대상 정보를 불러오지 못했어요. 잠시 후 다시 시도해 주세요.';
+export const TARGET_SOURCE_LOAD_FALLBACK = TS_COPY.ko.common.loadFallback;
 
 interface ErrorStateProps {
   /**
@@ -20,6 +21,12 @@ interface ErrorStateProps {
    * 넘기지 말 것(ADR-008): 문구는 호출자가 상태 코드로 고른다(load-error.ts).
    */
   message?: string | null;
+  /**
+   * 읽는 사람의 언어. **프롭이지 `useLocale()` 이 아니다** — 이 컴포넌트는 page.tsx(서버
+   * 컴포넌트)가 직접 렌더하므로 컨텍스트 훅을 부를 수 없다(위 주석의 경계 이유와 같다).
+   * 넘기지 않으면 기본값(한국어)으로, 즉 언어 기능이 붙기 전과 똑같이 그린다.
+   */
+  locale?: Locale;
 }
 
 /**
@@ -31,28 +38,31 @@ interface ErrorStateProps {
  * 주소로 바로 들어왔거나 새로고침한 경우 앱 밖으로 나가거나 방금 실패한 URL 로 다시
  * 들어온다. 실패한 화면의 탈출구는 확정된 목적지여야 한다.
  */
-export const ErrorState = ({ message }: ErrorStateProps) => (
-  <div
-    role="alert"
-    className={cn('flex min-h-screen items-center justify-center', bgColors.muted)}
-  >
-    <div className="text-center">
-      <div
-        className={cn(
-          'mx-auto mb-4 grid h-16 w-16 place-items-center rounded-full',
-          statusColors.error.bg,
-          statusColors.error.text,
-        )}
-      >
-        <StatusErrorIcon className="h-8 w-8" />
+export const ErrorState = ({ message, locale = DEFAULT_LOCALE }: ErrorStateProps) => {
+  const t = TS_COPY[locale].common;
+
+  return (
+    <div
+      lang={locale}
+      role="alert"
+      className={cn('flex min-h-screen items-center justify-center', bgColors.muted)}
+    >
+      <div className="text-center">
+        <div
+          className={cn(
+            'mx-auto mb-4 grid h-16 w-16 place-items-center rounded-full',
+            statusColors.error.bg,
+            statusColors.error.text,
+          )}
+        >
+          <StatusErrorIcon className="h-8 w-8" />
+        </div>
+        <p className={cn('mb-2 font-medium', textColors.primary)}>{t.errorTitle}</p>
+        <p className={cn('mb-4 text-sm', textColors.tertiary)}>{message || t.loadFallback}</p>
+        <Link href={passRoutes.services} className={cn('inline-block', getButtonClass('secondary'))}>
+          {t.backToServices}
+        </Link>
       </div>
-      <p className={cn('mb-2 font-medium', textColors.primary)}>오류가 발생했어요</p>
-      <p className={cn('mb-4 text-sm', textColors.tertiary)}>
-        {message || TARGET_SOURCE_LOAD_FALLBACK}
-      </p>
-      <Link href={passRoutes.services} className={cn('inline-block', getButtonClass('secondary'))}>
-        Service 목록으로 돌아가기
-      </Link>
     </div>
-  </div>
-);
+  );
+};

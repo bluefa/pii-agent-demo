@@ -23,6 +23,8 @@ import {
   ROW_TARGET,
 } from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalTable';
 import { TableEmptyState } from '@/app/target-sources/[targetSourceId]/_components/shared/TableEmptyState';
+import { useLocale } from '@/app/components/LocaleProvider';
+import { IDC_COPY, type IdcCopy } from '@/app/target-sources/[targetSourceId]/_components/idc/copy';
 
 /** Working-list row = domain view + whether the exclusion reason is custom. */
 export interface IdcStep1Row extends IdcResourceView {
@@ -49,13 +51,13 @@ interface IdcTargetListTableProps {
 // re-flowed them and dumped the slack into Database Type (the only auto column). Port and 구분
 // take the step-6 table's numbers for the same columns; the identity column is the one left auto,
 // because hosts are the unbounded value here.
-const HEADERS: ReadonlyArray<{ label: string; className?: string }> = [
+const headers = (t: IdcCopy): ReadonlyArray<{ label: string; className?: string }> => [
   { label: '', className: 'w-[52px]' },
   // 구분은 열이 아니다 — Domain 행에만 붙는 태그가 주소 위에 얹힌다(IdcEndpointWithKindCell).
-  { label: '접속 주소' },
+  { label: t.colEndpoint },
   { label: 'Port', className: 'w-[80px]' },
   { label: 'Database Type', className: 'w-[140px]' },
-  { label: '제외 사유', className: 'w-[190px]' },
+  { label: t.colReason, className: 'w-[190px]' },
   { label: '', className: 'w-[84px]' },
 ];
 
@@ -73,8 +75,9 @@ export const IdcTargetListTable = ({
   onDelete,
   emptyMessage,
 }: IdcTargetListTableProps) => {
+  const t = IDC_COPY[useLocale().locale];
   if (rows.length === 0) {
-    return <TableEmptyState message={emptyMessage ?? '표시할 연동 대상이 없습니다.'} />;
+    return <TableEmptyState message={emptyMessage ?? t.noTargetsToShow} />;
   }
 
   return (
@@ -83,7 +86,7 @@ export const IdcTargetListTable = ({
         <table className="w-full text-[13px]">
           <thead className={idcStyles.table.approvalHeader}>
             <tr className="whitespace-nowrap">
-              {HEADERS.map((h, i) => (
+              {headers(t).map((h, i) => (
                 <th key={i} className={cn(idcStyles.table.approvalHeaderCell, h.className)}>
                   {h.label}
                 </th>
@@ -107,7 +110,7 @@ export const IdcTargetListTable = ({
                     <input
                       type="checkbox"
                       checked={!row.excluded}
-                      aria-label="연동 대상 여부"
+                      aria-label={t.targetToggleLabel}
                       onChange={(e) => onToggle(row.resourceId, e.target.checked, e.currentTarget)}
                       className={cn(
                         'h-4 w-4 cursor-pointer rounded',
@@ -137,7 +140,7 @@ export const IdcTargetListTable = ({
                     {row.excluded && row.exclusionReason ? (
                       <button
                         type="button"
-                        aria-label="제외 사유 수정"
+                        aria-label={t.editReason}
                         onClick={(e) => onReasonChipClick(row.resourceId, e.currentTarget)}
                         className="text-left"
                       >
@@ -150,11 +153,11 @@ export const IdcTargetListTable = ({
                   </td>
                   <td className={idcStyles.table.approvalCell}>
                     <span className="flex items-center justify-end gap-1 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
-                      <RowActionButton label="수정" onClick={() => onEdit(row.resourceId)}>
+                      <RowActionButton label={t.edit} onClick={() => onEdit(row.resourceId)}>
                         <EditIcon className="h-3.5 w-3.5" />
                       </RowActionButton>
                       <RowActionButton
-                        label="삭제"
+                        label={t.delete}
                         variant="delete"
                         onClick={() => onDelete(row.resourceId)}
                       >

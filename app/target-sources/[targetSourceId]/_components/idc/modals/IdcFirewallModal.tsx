@@ -4,7 +4,8 @@ import { Modal } from '@/app/components/ui/Modal';
 import { Pagination } from '@/app/components/ui/Pagination';
 import { usePagination } from '@/app/hooks/usePagination';
 import { cn, idcStyles, textColors } from '@/lib/theme';
-import { IDC_SOURCE_LABEL } from '@/lib/constants/idc';
+import { useLocale } from '@/app/components/LocaleProvider';
+import { IDC_COPY } from '@/app/target-sources/[targetSourceId]/_components/idc/copy';
 import type { IdcInstallStatus, IdcResourceView } from '@/app/lib/api/idc';
 import {
   IdcEndpointCell,
@@ -39,6 +40,7 @@ export const IdcFirewallModal = ({
   resources,
   firewallStatusByResource,
 }: IdcFirewallModalProps) => {
+  const t = IDC_COPY[useLocale().locale];
   const rows = resources.filter((r) => !r.excluded);
 
   const { page, pageSize, setPage, setPageSize, pageItems: pageRows } = usePagination(rows, {
@@ -49,15 +51,15 @@ export const IdcFirewallModal = ({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="접근 허용 확인"
-      subtitle={`${IDC_SOURCE_LABEL} → 접속 주소 접근 허용 여부를 확인합니다.`}
+      title={t.fwTitle}
+      subtitle={t.fwSubtitle(t.sourceLabel)}
       size="2xl"
       chrome="toss"
-      footer={<button type="button" className={idcStyles.modalBtn.primary} onClick={onClose}>확인</button>}
+      footer={<button type="button" className={idcStyles.modalBtn.primary} onClick={onClose}>{t.ok}</button>}
     >
       {rows.length === 0 ? (
         <div className={cn('px-2 py-8 text-center text-sm', textColors.tertiary)}>
-          확인할 연동 대상이 없습니다.
+          {t.fwEmpty}
         </div>
       ) : (
         <>
@@ -65,11 +67,11 @@ export const IdcFirewallModal = ({
             <table className="w-full">
               <thead className={idcStyles.table.header}>
                 <tr>
-                  <th className={cn(idcStyles.table.headerCell, 'w-[160px]')}>{IDC_SOURCE_LABEL}</th>
+                  <th className={cn(idcStyles.table.headerCell, 'w-[160px]')}>{t.sourceLabel}</th>
                   <th className={cn(idcStyles.table.headerCell, 'w-[30px]')} aria-hidden="true" />
-                  <th className={cn(idcStyles.table.headerCell, 'w-[220px]')}>접속 주소</th>
+                  <th className={cn(idcStyles.table.headerCell, 'w-[220px]')}>{t.colEndpoint}</th>
                   <th className={cn(idcStyles.table.headerCell, 'w-[70px]')}>Port</th>
-                  <th className={cn(idcStyles.table.headerCell, 'w-[170px]')}>허용 여부</th>
+                  <th className={cn(idcStyles.table.headerCell, 'w-[170px]')}>{t.colAllowed}</th>
                 </tr>
               </thead>
               <tbody className={idcStyles.table.body}>

@@ -2,6 +2,8 @@
 
 import { StepBanner } from '@/app/components/ui/StepBanner';
 import { StatusWarningIcon } from '@/app/components/ui/icons';
+import { useLocale } from '@/app/components/LocaleProvider';
+import { SDU_COPY } from '@/app/target-sources/[targetSourceId]/_components/sdu/copy';
 import { invalidationLines } from '@/app/target-sources/[targetSourceId]/_components/sdu/upload/model';
 import type { SduInvalidation } from '@/lib/types/sdu';
 
@@ -17,7 +19,8 @@ export interface InvalidationBannerProps {
  * without it the owner reads a cleared block as a bug.
  */
 export const InvalidationBanner = ({ invalidation }: InvalidationBannerProps) => {
-  const lines = invalidationLines(invalidation);
+  const { locale } = useLocale();
+  const lines = invalidationLines(SDU_COPY[locale].upload, invalidation);
   if (lines.length === 0) return null;
 
   return (

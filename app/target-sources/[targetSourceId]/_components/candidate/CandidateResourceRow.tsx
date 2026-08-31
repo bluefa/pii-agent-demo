@@ -1,6 +1,7 @@
 'use client';
 
 import { createPortal } from 'react-dom';
+import { useLocale } from '@/app/components/LocaleProvider';
 import { getDatabaseShortLabel } from '@/app/components/ui/DatabaseIcon';
 import {
   ChevronRightIcon,
@@ -50,6 +51,7 @@ import {
   resolveRdsInstanceResourceId,
 } from '@/app/target-sources/[targetSourceId]/_components/candidate/candidate-resource-behavior';
 import { isManualEc2Candidate } from '@/app/target-sources/[targetSourceId]/_components/candidate/manual-ec2';
+import { CANDIDATE_COPY } from '@/app/target-sources/[targetSourceId]/_components/candidate/copy';
 
 /** Row-level interaction callbacks, grouped so the table/row prop lists stay small. */
 export interface CandidateRowActions {
@@ -87,15 +89,19 @@ const NAME_LIFT = primaryColors.textGroupHover;
 /** 값 칸의 덮개 — 넘친 값은 열 경계에서 끊긴다 (steps 2·3 의 coveredCell 그대로). */
 const COVERED_CELL = idcStyles.table.consoleCell;
 
+type CandidateCopy = (typeof CANDIDATE_COPY)['ko']['candidate'];
+
 // integration_category(시스템의 사실) → 설치-계열 표기. 선택(사용자의 결정)과
 // 단어 가족을 나눠 갖지 않도록 "설치"로만 말한다 — 승인 요청/상세 모달 라벨과
 // 같은 계열. NO_INSTALL_NEEDED는 "설치가 선택사항"(VM·EC2는 DB 외 용도가 많아
 // 필수 대상이 아니고, DB 서버를 운영 중일 때만 연동 대상)이라 설치 선택으로 쓴다.
-const CATEGORY_LABELS: Record<CandidateResource['integrationCategory'], string> = {
-  TARGET: '설치 대상',
-  NO_INSTALL_NEEDED: '설치 선택',
-  INSTALL_INELIGIBLE: '설치 불가',
-};
+const categoryLabels = (
+  t: CandidateCopy,
+): Record<CandidateResource['integrationCategory'], string> => ({
+  TARGET: t.categoryTarget,
+  NO_INSTALL_NEEDED: t.categoryOptional,
+  INSTALL_INELIGIBLE: t.categoryIneligible,
+});
 
 interface CandidateResourceRowProps {
   candidate: CandidateResource;
@@ -138,6 +144,9 @@ export const CandidateResourceRow = ({
   instancesExpanded = false,
   onInstancesToggle,
 }: CandidateResourceRowProps) => {
+  const { locale } = useLocale();
+  const t = CANDIDATE_COPY[locale].candidate;
+  const categories = categoryLabels(t);
   const ineligibleModal = useModal();
   const behavior = getCandidateBehavior(candidate);
   const requiresEndpointConfig = behavior.configKind === 'endpoint';
@@ -154,7 +163,7 @@ export const CandidateResourceRow = ({
   // exclusion_reason / 스캔의 recommend_fail_reason) 한 줄로 풀고, 원문 코드는 팁에만 둔다.
   // 코드가 없는 설치 불가(AWS·IDC)는 null 이라 칸이 비고, 그것이 steps 2·3 과 같은 표기다.
   const ineligibleReason = isIneligible
-    ? resolveExclusionReason(exclusionReason, candidate.recommendFailReason)
+    ? resolveExclusionReason(exclusionReason, candidate.recommendFailReason, locale)
     : null;
   const hasEndpointConfig = behavior.isConfigured(candidate, drafts);
   const showConfigNeeded = requiresEndpointConfig && isSelected && !hasEndpointConfig;
@@ -300,7 +309,7 @@ export const CandidateResourceRow = ({
                 // is worse than the optional attribute's absence (APG disclosure: aria-expanded
                 // alone is conforming).
                 aria-expanded={instancesExpanded}
-                aria-label={`${displayName} 인스턴스 목록 ${instancesExpanded ? '접기' : '펼치기'}`}
+                aria-label={t.instanceListToggle(displayName, instancesExpanded)}
                 onClick={(event) => {
                   event.stopPropagation();
                   onInstancesToggle?.();
@@ -343,7 +352,7 @@ export const CandidateResourceRow = ({
                   이름은 잘릴 수 있으므로 배지를 밀어내지 않는 자리에 둔다. */}
               <span className="flex items-center">
                 <Ec2InstanceTag />
-                {justAdded && <span className={ec2Styles.newBadge}>방금 추가</span>}
+                {justAdded && <span className={ec2Styles.newBadge}>{t.justAdded}</span>}
               </span>
               <Tooltip
                 content={<IdentifierTip label="Resource Name" value={displayName} />}
@@ -428,7 +437,9 @@ export const CandidateResourceRow = ({
             <span className="flex items-center gap-1.5 whitespace-nowrap">
               {effectiveDbType ? getDatabaseShortLabel(effectiveDbType) : '—'}
               {showConfigNeeded && (
-                <span className={cn('text-[14px]', statusColors.warning.textDark)}>(DB 설정 필요)</span>
+                <span className={cn('text-[14px]', statusColors.warning.textDark)}>
+                  {t.dbConfigNeeded}
+                </span>
               )}
             </span>
           )}
@@ -464,21 +475,21 @@ export const CandidateResourceRow = ({
                 'inline-flex items-center gap-1 whitespace-nowrap text-[14px] font-semibold underline decoration-dotted underline-offset-2',
                 statusColors.warning.textDark,
               )}
-              aria-label="설치 불가 사유 안내 보기"
+              aria-label={t.ineligibleGuideLabel}
             >
               <StatusWarningIcon className="h-3.5 w-3.5" />
-              설치 불가
+              {t.categoryIneligible}
             </button>
           ) : candidate.integrationCategory === 'NO_INSTALL_NEEDED' ? (
             // 설치가 선택인 행(VM·EC2)은 사용자의 판단이 필요한 예외라 태그로 세운다.
             // 기본값인 설치 대상은 평문으로 남겨야 이 강조가 산다. 제외된 행에서도
             // 흐리지 않는다 — 판단이 필요한 이유는 페이드를 견뎌야 한다.
             <span className={cn(idcStyles.tag.base, idcStyles.tag.orange)}>
-              {CATEGORY_LABELS.NO_INSTALL_NEEDED}
+              {categories.NO_INSTALL_NEEDED}
             </span>
           ) : (
             <span className={cn('whitespace-nowrap', textColors.secondary, CELL_LIFT)}>
-              {CATEGORY_LABELS[candidate.integrationCategory]}
+              {categories[candidate.integrationCategory]}
             </span>
           )}
         </td>
@@ -490,8 +501,8 @@ export const CandidateResourceRow = ({
               <span className="flex items-center justify-end gap-1 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
                 <button
                   type="button"
-                  aria-label="접속 정보 수정"
-                  title="접속 정보 수정"
+                  aria-label={t.editConnection}
+                  title={t.editConnection}
                   onClick={() => actions.editManualEc2(candidate.id)}
                   className={ec2Styles.rowAction}
                 >
@@ -499,8 +510,8 @@ export const CandidateResourceRow = ({
                 </button>
                 <button
                   type="button"
-                  aria-label="연동 대상에서 삭제"
-                  title="연동 대상에서 삭제"
+                  aria-label={t.removeFromTargets}
+                  title={t.removeFromTargets}
                   onClick={() => actions.deleteManualEc2(candidate.id)}
                   className={ec2Styles.rowActionDelete}
                 >
@@ -524,7 +535,7 @@ export const CandidateResourceRow = ({
             ) : !isSelected && exclusionReason ? (
               <button
                 type="button"
-                aria-label="제외 사유 수정"
+                aria-label={t.editExclusionReason}
                 onClick={(event) => actions.reasonChipClick(candidate.id, event.currentTarget)}
                 className={cn('text-left', REASON_CLAMP)}
               >
@@ -535,11 +546,11 @@ export const CandidateResourceRow = ({
               // until one exists, so give a direct entry point to the reason picker.
               <button
                 type="button"
-                aria-label="제외 사유 입력"
+                aria-label={t.enterExclusionReason}
                 onClick={(event) => actions.reasonChipClick(candidate.id, event.currentTarget)}
                 className={cn('text-[14px] underline decoration-dotted underline-offset-2', statusColors.warning.textDark)}
               >
-                사유 입력
+                {t.enterReason}
               </button>
             ) : null}
           </td>

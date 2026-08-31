@@ -1,3 +1,4 @@
+import type { SduUploadCopy } from '@/app/target-sources/[targetSourceId]/_components/sdu/copy';
 import {
   SDU_REGION_LABEL,
   sduAckAnswer,
@@ -15,12 +16,12 @@ import {
 export const SDU_GATE_IDS = ['firewall', 'recipients', 'commands', 'bdc'] as const;
 export type SduGateId = (typeof SDU_GATE_IDS)[number];
 
-export const SDU_GATE_TITLE: Record<SduGateId, string> = {
-  firewall: '방화벽 결재 확인',
-  recipients: 'S3 Access Key 수신자',
-  commands: '데이터 업로드 확인',
-  bdc: 'BDC 리소스 생성',
-};
+export const sduGateTitles = (t: SduUploadCopy): Record<SduGateId, string> => ({
+  firewall: t.gateFirewall,
+  recipients: t.gateRecipients,
+  commands: t.gateCommands,
+  bdc: t.gateBdc,
+});
 
 /** 'US · EU'. Every region list in this step reads in the canonical order the view types sort by. */
 export const regionLabels = (regions: readonly SduRegion[]): string =>
@@ -63,32 +64,36 @@ export const doneCount = (done: SduGateStates): number =>
  * One line for a folded ack block. The answer covers every Region at once, so the line names
  * the regions it was given for rather than splitting them into answered and not.
  */
-export const regionAckSummary = (regions: readonly SduRegion[], acked: boolean): string => {
-  if (regions.length === 0) return '연동 대상이 없어요';
-  return acked ? `확인함 · ${regionLabels(regions)}` : `미확인 · ${regionLabels(regions)}`;
+export const regionAckSummary = (
+  t: SduUploadCopy,
+  regions: readonly SduRegion[],
+  acked: boolean,
+): string => {
+  if (regions.length === 0) return t.ackNoTargets;
+  return acked ? t.ackChecked(regionLabels(regions)) : t.ackUnchecked(regionLabels(regions));
 };
 
 /** '3명 등록함 · 박지원 외 2명' — the name is what stops "누구 앞으로 갔더라" being asked again. */
-export const recipientsSummary = (users: readonly SduRecipient[]): string => {
-  if (users.length === 0) return '등록된 분이 없어요';
+export const recipientsSummary = (t: SduUploadCopy, users: readonly SduRecipient[]): string => {
+  if (users.length === 0) return t.recipientsNone;
   const [first, ...rest] = users;
-  const names = rest.length === 0 ? first.name : `${first.name} 외 ${rest.length}명`;
-  return `${users.length}명 등록함 · ${names}`;
+  return t.recipientsSummary(users.length, first.name, rest.length);
 };
 
 /**
  * What the last 1단계 edit invalidated, as sentences. Told once and only while the server
  * still reports it — this is a notice, not a state the screen keeps.
  */
-export const invalidationLines = (invalidation: SduInvalidation): string[] => {
+export const invalidationLines = (
+  t: SduUploadCopy,
+  invalidation: SduInvalidation,
+): string[] => {
   const lines: string[] = [];
   if (invalidation.addedRegions.length > 0) {
-    lines.push(
-      `${regionLabels(invalidation.addedRegions)}가 추가되어 방화벽 확인과 업로드 확인을 다시 해야 해요`,
-    );
+    lines.push(t.invalidatedByRegions(regionLabels(invalidation.addedRegions)));
   }
   if (invalidation.uploadIpChanged) {
-    lines.push('업로드 IP가 바뀌어 방화벽 확인을 다시 해야 해요');
+    lines.push(t.invalidatedByIp);
   }
   return lines;
 };

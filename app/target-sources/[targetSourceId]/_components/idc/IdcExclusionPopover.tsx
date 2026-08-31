@@ -4,6 +4,8 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { EditIcon } from '@/app/components/ui/icons';
 import { IDC_EXCL_PRESETS } from '@/lib/constants/idc';
 import { cn, idcStyles } from '@/lib/theme';
+import { useLocale } from '@/app/components/LocaleProvider';
+import { IDC_COPY } from '@/app/target-sources/[targetSourceId]/_components/idc/copy';
 
 interface IdcExclusionPopoverProps {
   /** Element the popover anchors to (the unchecked checkbox or reason chip). */
@@ -36,6 +38,7 @@ export const IdcExclusionPopover = ({
   onPickCustom,
   onDismiss,
 }: IdcExclusionPopoverProps) => {
+  const t = IDC_COPY[useLocale().locale];
   const popRef = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState<{ top: number; left: number }>({ top: -9999, left: -9999 });
 
@@ -79,11 +82,11 @@ export const IdcExclusionPopover = ({
     <div
       ref={popRef}
       role="menu"
-      aria-label="제외 사유 선택"
+      aria-label={t.exclPick}
       style={{ top: pos.top, left: pos.left }}
       className={idcStyles.popover.container}
     >
-      <div className={idcStyles.popover.title}>제외 사유 선택</div>
+      <div className={idcStyles.popover.title}>{t.exclPick}</div>
       {/* 프리셋은 값(칩), 직접 입력은 행동(행) — 어포던스를 다르게 가져가
           "고를 수 있는 토큰"과 "다음 단계로 가는 행동"이 한눈에 갈린다. */}
       <div className={idcStyles.popover.chipRow}>
@@ -101,7 +104,7 @@ export const IdcExclusionPopover = ({
                 active ? idcStyles.popover.chipSelected : idcStyles.popover.chipRest,
               )}
             >
-              {reason}
+              {t.exclPresetLabel(reason)}
             </button>
           );
         })}
@@ -116,7 +119,7 @@ export const IdcExclusionPopover = ({
         )}
       >
         <EditIcon className="h-3 w-3" />
-        사유 직접 입력
+        {t.exclCustom}
       </button>
     </div>
   );

@@ -32,7 +32,11 @@ vi.mock('@/app/target-sources/[targetSourceId]/_components/sdu/steps/SduStep1Def
 }));
 
 import { SduStep4Upload } from '@/app/target-sources/[targetSourceId]/_components/sdu/steps/SduStep4Upload';
-import { SDU_GATE_TITLE } from '@/app/target-sources/[targetSourceId]/_components/sdu/upload/model';
+import { sduGateTitles } from '@/app/target-sources/[targetSourceId]/_components/sdu/upload/model';
+import { SDU_COPY } from '@/app/target-sources/[targetSourceId]/_components/sdu/copy';
+
+/** Korean, matching what this screen renders with no LocaleProvider above it. */
+const SDU_GATE_TITLE = sduGateTitles(SDU_COPY.ko.upload);
 
 const TARGET_SOURCE_ID = 1100;
 

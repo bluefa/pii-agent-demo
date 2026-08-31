@@ -2,6 +2,8 @@
 
 import { useState } from 'react';
 import { CloseIcon } from '@/app/components/ui/icons';
+import { useLocale } from '@/app/components/LocaleProvider';
+import { SDU_COPY } from '@/app/target-sources/[targetSourceId]/_components/sdu/copy';
 import { RecipientPicker } from '@/app/target-sources/[targetSourceId]/_components/sdu/upload/RecipientPicker';
 import {
   borderColors,
@@ -37,6 +39,8 @@ const sameIds = (a: readonly SduRecipient[], b: readonly SduRecipient[]): boolea
  * the screen lying about the world.
  */
 export const RecipientsBlock = ({ serviceCode, recipients, onSave }: RecipientsBlockProps) => {
+  const { locale } = useLocale();
+  const t = SDU_COPY[locale].upload;
   const [chosen, setChosen] = useState<SduRecipient[]>([...recipients]);
   const [saving, setSaving] = useState(false);
 
@@ -56,13 +60,11 @@ export const RecipientsBlock = ({ serviceCode, recipients, onSave }: RecipientsB
 
   return (
     <div className={cn('flex flex-col', stackGap.group)}>
-      <p className={cn(textStyles.body, textColors.secondary)}>
-        업로드에 사용할 S3 Access Key를 받으실 분을 등록해주세요. 여러 명을 등록할 수 있어요.
-      </p>
+      <p className={cn(textStyles.body, textColors.secondary)}>{t.recipientsIntro}</p>
 
       <div className={cn('flex flex-col', stackGap.related)}>
         <span className={cn(textStyles.captionStrong, textColors.secondary)}>
-          수신자 {chosen.length}명
+          {t.recipientsCount(chosen.length)}
         </span>
         {chosen.length > 0 && (
           <ul className="flex flex-wrap gap-2">
@@ -79,7 +81,7 @@ export const RecipientsBlock = ({ serviceCode, recipients, onSave }: RecipientsB
                 <span className={cn(textStyles.caption, textColors.tertiary)}>{user.email}</span>
                 <button
                   type="button"
-                  aria-label={`${user.name} 제거`}
+                  aria-label={t.removeUser(user.name)}
                   onClick={() => setChosen((prev) => prev.filter((item) => item.id !== user.id))}
                   className={cn(
                     'inline-grid h-6 w-6 place-items-center rounded-md',
@@ -109,11 +111,9 @@ export const RecipientsBlock = ({ serviceCode, recipients, onSave }: RecipientsB
           disabled={saving || !dirty}
           className={getButtonClass('primary', 'sm')}
         >
-          {saving ? '저장 중...' : '수신자 저장'}
+          {saving ? t.saving : t.saveRecipients}
         </button>
-        <span className={cn(textStyles.caption, textColors.tertiary)}>
-          등록된 분들께 관리자가 메일로 S3 Access Key를 직접 전달해요. 이 화면에서 보내지는 않아요.
-        </span>
+        <span className={cn(textStyles.caption, textColors.tertiary)}>{t.recipientsNote}</span>
       </div>
     </div>
   );

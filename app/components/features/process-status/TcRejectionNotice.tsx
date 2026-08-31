@@ -5,6 +5,8 @@ import { cn, statusColors, textColors } from '@/lib/theme';
 import { StatusWarningIcon } from '@/app/components/ui/icons';
 import { fmtDateTime } from '@/lib/pipeline/format';
 import { getTestConnectionDetail } from '@/app/lib/api/task-queue-tc';
+import { useLocale } from '@/app/components/LocaleProvider';
+import { STATUS_COPY } from '@/app/components/features/process-status/status-copy';
 
 interface RejectionInfo {
   reason: string | null;
@@ -28,6 +30,8 @@ interface TcRejectionNoticeProps {
  * 있어서, 침묵하면 반려된 사용자가 사유 없이 막힌다.
  */
 export const TcRejectionNotice = ({ targetSourceId, runVersion }: TcRejectionNoticeProps) => {
+  const { locale } = useLocale();
+  const t = STATUS_COPY[locale].tcRejection;
   const [info, setInfo] = useState<RejectionInfo | null>(null);
   const [failed, setFailed] = useState(false);
 
@@ -54,7 +58,7 @@ export const TcRejectionNotice = ({ targetSourceId, runVersion }: TcRejectionNot
   if (failed) {
     return (
       <p className={cn('text-[12px]', textColors.tertiary)}>
-        관리자 반려 여부를 확인하지 못했어요 — 새로고침 후 다시 확인해 주세요.
+        {t.checkFailed}
       </p>
     );
   }
@@ -69,7 +73,7 @@ export const TcRejectionNotice = ({ targetSourceId, runVersion }: TcRejectionNot
       <StatusWarningIcon className="mt-0.5 h-4 w-4 shrink-0" />
       <div className="min-w-0">
         <p className="font-bold">
-          관리자가 연결 테스트 재실행을 요청했어요
+          {t.rerunRequested}
           {info.rejectedAt && (
             <span className="ml-2 text-[12px] font-medium opacity-80">{fmtDateTime(info.rejectedAt)}</span>
           )}

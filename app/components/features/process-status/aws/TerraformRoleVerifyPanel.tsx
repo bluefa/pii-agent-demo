@@ -23,6 +23,8 @@ import {
   type TerraformRoleFinding,
 } from '@/app/components/features/process-status/aws/terraform-role-finding';
 import type { AwsInstallStepValue } from '@/lib/types';
+import { useLocale } from '@/app/components/LocaleProvider';
+import { INSTALL_COPY } from '@/app/components/features/process-status/install-copy';
 
 /**
  * Terraform 권한 부여 확인 단계의 오른쪽 패널.
@@ -62,6 +64,9 @@ import type { AwsInstallStepValue } from '@/lib/types';
  * nothing re-verified.
  */
 
+/** This panel's slice of the install dictionary — the leaves take it as a prop. */
+type RolePanelCopy = (typeof INSTALL_COPY)['ko']['rolePanel'];
+
 const IDENTITY_LABEL_WIDTH = 'w-24'; // 96px — 이 패널이 원래 쓰던 라벨 폭 그대로.
 
 /**
@@ -85,7 +90,15 @@ const IDENTITY_LABEL_WIDTH = 'w-24'; // 96px — 이 패널이 원래 쓰던 라
  */
 export const RESULT_SLOT_MIN_HEIGHT = 'min-h-11';
 
-const IdentityRow = ({ label, value }: { label: string; value: string | null }) => (
+const IdentityRow = ({
+  label,
+  value,
+  t,
+}: {
+  label: string;
+  value: string | null;
+  t: RolePanelCopy;
+}) => (
   <div className={cn('flex items-center', stackGap.group, textStyles.body)}>
     <span className={cn(IDENTITY_LABEL_WIDTH, 'flex-shrink-0', textColors.tertiary)}>{label}</span>
     {value ? (
@@ -93,7 +106,7 @@ const IdentityRow = ({ label, value }: { label: string; value: string | null }) 
         <span className={cn('font-mono break-all', textStyles.caption, textColors.primary)}>
           {value}
         </span>
-        <CopyButton value={value} label={`${label} 복사`} className="opacity-0 group-hover:opacity-100" />
+        <CopyButton value={value} label={t.copy(label)} className="opacity-0 group-hover:opacity-100" />
       </span>
     ) : (
       <span className={textColors.tertiary}>—</span>
@@ -105,10 +118,10 @@ const IdentityRow = ({ label, value }: { label: string; value: string | null }) 
  * 원인 블록 — Step 2 반려 사유와 같은 인용 룰 문법(3px 룰 + 12px 태그 + 문장).
  * 채운 판을 쓰지 않는 이유도 같다: 카드 폭 그대로 선 색면은 "두 번째 카드"로 읽힌다.
  */
-const FindingBlock = ({ finding }: { finding: TerraformRoleFinding }) => (
+const FindingBlock = ({ finding, t }: { finding: TerraformRoleFinding; t: RolePanelCopy }) => (
   <div className={cn('border-l-[3px] pl-4', statusColors.error.borderStrong)}>
     <p className={cn('text-[12px] font-bold tracking-[0.02em]', statusColors.error.textDark)}>
-      확인 필요
+      {t.findingLabel}
       {/* 매핑되지 않은 코드는 그대로 — 뭉개면 아무도 보고하지 못한다. */}
       {finding.rawCode && (
         <span className={cn('ml-1.5 font-mono font-semibold', textColors.tertiary)}>
@@ -143,22 +156,18 @@ const FindingBlock = ({ finding }: { finding: TerraformRoleFinding }) => (
  * lead line, not a status label: same size as the sentence under it, one step up in
  * weight and colour.
  */
-const IdlePrompt = ({ lead }: { lead: boolean }) => (
+const IdlePrompt = ({ lead, t }: { lead: boolean; t: RolePanelCopy }) => (
   <div className={cn('flex flex-col', stackGap.tight)}>
     {/* 리드 줄은 FAIL 에서만 선다 — 아래 `blocked` 참조. */}
     {lead && (
-      <span className={cn(textStyles.bodyStrong, textColors.primary)}>
-        Terraform 권한 확인 필요
-      </span>
+      <span className={cn(textStyles.bodyStrong, textColors.primary)}>{t.idleLead}</span>
     )}
     {/* 막힌 것이 있다고 전제하지 않는 문장. IN_PROGRESS/UNKNOWN 에서는 막혔는지조차
         모르는 상태이므로, 확인이 가져다주는 것을 그대로 적는다(상태 + 막힌 원인).
         「알 수 있어요」가 아니라 「확인할 수 있어요」인 이유: 검증이 늘 원인을 주지는
         않는다 — ROLE_VERIFICATION_UNAVAILABLE 은 "지금은 확정할 수 없습니다"이고
         미매핑 코드는 일반 문장으로 떨어진다. 결과를 약속하지 않고 행동만 말한다. */}
-    <span className={cn(textStyles.body, textColors.secondary)}>
-      지금 확인하면 권한 상태와 막힌 원인까지 확인할 수 있어요.
-    </span>
+    <span className={cn(textStyles.body, textColors.secondary)}>{t.idleBody}</span>
   </div>
 );
 
@@ -197,6 +206,8 @@ export const TerraformRoleVerifyPanel = ({
   awsAccountId,
   roleArn,
 }: TerraformRoleVerifyPanelProps) => {
+  const { locale } = useLocale();
+  const t = INSTALL_COPY[locale].rolePanel;
   const [state, setState] = useState<LoadState>({ phase: 'idle' });
 
   // The fetch lives in the handler, not in an effect: there is exactly one trigger
@@ -214,7 +225,7 @@ export const TerraformRoleVerifyPanel = ({
   }, [targetSourceId, state.phase]);
 
   const data = state.phase === 'done' ? state.data : null;
-  const finding = data ? terraformRoleFinding(data) : null;
+  const finding = data ? terraformRoleFinding(data, INSTALL_COPY[locale].roleFinding) : null;
   // A live response counts as an all-clear only when it says so. Absence of a finding
   // is not a pass — see `terraformRolePassed`.
   const passed = data ? terraformRolePassed(data) : false;
@@ -261,19 +272,15 @@ export const TerraformRoleVerifyPanel = ({
           경계선이 없는 만큼 묶는 일은 여백이 한다: 라벨↔값은 96px 열로 정렬되고,
           두 줄 사이는 related, 아래 원인 블록과는 group 으로 벌어진다. */}
       <div className={cn('flex flex-col', stackGap.related)}>
-        <IdentityRow label="AWS 계정" value={awsAccountId} />
-        <IdentityRow label="Terraform Role" value={roleArn} />
+        <IdentityRow label={t.awsAccount} value={awsAccountId} t={t} />
+        <IdentityRow label={t.roleArn} value={roleArn} t={t} />
       </div>
 
       {/* 낭독용 한 줄 — 결과는 이제 사용자가 눌러서 오는 것이라, 화면을 보지 않는
           사용자에게는 누른 뒤 무엇이 왔는지 말해 줄 자리가 필요하다. 불러오기 실패는
           아래 줄이 role="alert" 로 이미 알리므로 여기서 두 번 말하지 않는다. */}
       <p className="sr-only" aria-live="polite">
-        {finding
-          ? `확인 필요. ${finding.message}`
-          : passed
-            ? '방금 확인했을 때는 막힌 곳이 없었어요.'
-            : ''}
+        {finding ? t.findingAnnounce(finding.message) : passed ? t.passed : ''}
       </p>
 
       {/* One slot, and its content is the whole of what the body says. A live result
@@ -295,24 +302,22 @@ export const TerraformRoleVerifyPanel = ({
         </div>
       ) : state.phase === 'error' ? (
         <p role="alert" className={cn(textStyles.body, statusColors.error.textDark)}>
-          권한 검증 결과를 불러오지 못했습니다.
+          {t.loadFailed}
         </p>
       ) : finding ? (
-        <FindingBlock finding={finding} />
+        <FindingBlock finding={finding} t={t} />
       ) : passed ? (
         // 「~했을 때는」 — 이 줄은 관측을 보고하지 판정을 내리지 않는다. 헤더 알약이
         // 실패라고 말하는 대상에서도 실시간 응답은 VALID 일 수 있고(계약 판정이 폴링
         // 시점에 묶여 있다), 그때 몸이 「막힌 곳은 없었어요」라고 단정하면 한 사실에
         // 화자가 둘이 된다. 판정은 알약이 갖고, 다음 폴링이 알약을 옮긴다.
-        <p className={cn(textStyles.body, textColors.secondary)}>
-          방금 확인했을 때는 막힌 곳이 없었어요.
-        </p>
+        <p className={cn(textStyles.body, textColors.secondary)}>{t.passed}</p>
       ) : data ? (
         // 응답은 왔는데 원인도 통과도 말하지 않았다(진행 중이거나 미매핑 status).
         // 할 말이 없으면 그리지 않는다 — 침묵을 합격으로 번역하지 않는다.
         null
       ) : invitesCheck ? (
-        <IdlePrompt lead={blocked} />
+        <IdlePrompt lead={blocked} t={t} />
       ) : null}
       </div>
 
@@ -339,7 +344,7 @@ export const TerraformRoleVerifyPanel = ({
           {/* 「다시」는 이 사람이 눌러 본 적이 있을 때만 참이다. 계약이 이미 확인했다는
               사실은 이 사람의 행동이 아니다 — 정착한 대상에 처음 들어온 사용자에게
               「다시 확인」이라고 말하면 하지 않은 일을 했다고 하는 것이다. */}
-          {verifying ? '확인 중...' : data ? '다시 확인' : '권한 확인'}
+          {verifying ? t.checking : data ? t.verifyAgain : t.verify}
         </button>
         {/* 소요 시간은 **행동의 성질**이라 결과 슬롯이 아니라 버튼 옆에 산다 — 슬롯을
             따라 나타났다 사라지면 같은 버튼이 어떤 상태에서는 시간을 말하고 어떤
@@ -348,9 +353,7 @@ export const TerraformRoleVerifyPanel = ({
             적는다 — 근거 없는 평균을 약속하지 않는다(docs/redesign/step3-applying-approved.md).
             누르는 동안에는 감춘다: 스켈레톤이 이미 진행 중이라고 말하고 있다. */}
         {!verifying && (
-          <span className={cn(textStyles.caption, textColors.tertiary)}>
-            최대 30초까지 걸릴 수 있어요
-          </span>
+          <span className={cn(textStyles.caption, textColors.tertiary)}>{t.duration}</span>
         )}
         {/* 카드 헤더의 확인 시각과 같은 문법 — 시계 + 두 층, 경과가 위. */}
         {stamp && <LastVerifyStamp stamp={stamp} />}

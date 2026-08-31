@@ -5,7 +5,9 @@ import { useEffect, useRef, useState } from 'react';
 import { cn, navStyles } from '@/lib/theme';
 import { passRoutes } from '@/lib/routes';
 import { isAdminRole } from '@/lib/roles';
+import { COPY } from '@/lib/copy';
 import type { UserMeResponse } from '@/app/lib/api';
+import { useLocale } from '@/app/components/LocaleProvider';
 
 /**
  * Current-user avatar in the TopNav (Google account-chip pattern):
@@ -22,6 +24,8 @@ import type { UserMeResponse } from '@/app/lib/api';
  * `app/admin/layout.tsx` uses, so the menu can never offer what the gate blocks.
  */
 export const UserChip = ({ user }: { user: UserMeResponse | null }) => {
+  const { locale } = useLocale();
+  const t = COPY[locale].nav;
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
 
@@ -52,7 +56,7 @@ export const UserChip = ({ user }: { user: UserMeResponse | null }) => {
     <div ref={rootRef} className="relative">
       <button
         type="button"
-        aria-label={`${display} 계정`}
+        aria-label={t.account(display)}
         aria-haspopup="true"
         aria-expanded={open}
         onClick={() => setOpen((prev) => !prev)}
@@ -62,7 +66,7 @@ export const UserChip = ({ user }: { user: UserMeResponse | null }) => {
       </button>
 
       {open && (
-        <div role="dialog" aria-label="계정 정보" className={navStyles.user.menu.container}>
+        <div role="dialog" aria-label={t.accountInfo} className={navStyles.user.menu.container}>
           <div className={navStyles.user.menu.identity}>
             <div aria-hidden="true" className={navStyles.user.menu.avatar}>
               {initial}
@@ -96,7 +100,7 @@ export const UserChip = ({ user }: { user: UserMeResponse | null }) => {
               <rect x="4" y="10.5" width="16" height="10" rx="2" />
               <path d="M8 10.5V7a4 4 0 0 1 8 0v3.5" />
             </svg>
-            내 권한 요청
+            {t.myAccessRequests}
           </Link>
 
           {isAdminRole(user.role) && (
@@ -124,7 +128,7 @@ export const UserChip = ({ user }: { user: UserMeResponse | null }) => {
                   <circle cx="12" cy="8" r="3.8" />
                   <path d="M4.5 20.5c.8-3.6 3.9-5.5 7.5-5.5s6.7 1.9 7.5 5.5" />
                 </svg>
-                관리자
+                {t.admin}
               </Link>
             </>
           )}

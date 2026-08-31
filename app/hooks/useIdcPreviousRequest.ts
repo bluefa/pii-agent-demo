@@ -1,8 +1,10 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { AppError } from '@/lib/errors';
 import { getIdcPreviousRequest, type IdcResourceView } from '@/app/lib/api/idc';
+import { useLocale } from '@/app/components/LocaleProvider';
+import { HOOKS_COPY } from '@/app/hooks/copy';
 
 export interface UseIdcPreviousRequestResult {
   resources: IdcResourceView[];
@@ -11,8 +13,6 @@ export interface UseIdcPreviousRequestResult {
 }
 
 const isAbort = (err: unknown): boolean => err instanceof AppError && err.code === 'ABORTED';
-
-const FETCH_ERROR = '기존 연동 정보를 불러오지 못했어요. 잠시 후 다시 시도해주세요.';
 
 /**
  * "기존 연동 요청 정보 불러오기" — fetches the previous integration request for a
@@ -26,6 +26,15 @@ const FETCH_ERROR = '기존 연동 정보를 불러오지 못했어요. 잠시 �
  * a synchronous reset; results are committed only inside the async callbacks.
  */
 export function useIdcPreviousRequest(targetSourceId: number): UseIdcPreviousRequestResult {
+  const { locale } = useLocale();
+  // A ref, not an effect dependency: fetching the previous request again because the
+  // reader flipped the language toggle would be a second round-trip for the same rows.
+  // The wording is only read when the fetch actually fails, so the ref holds the
+  // language in force at that moment.
+  const fetchErrorRef = useRef(HOOKS_COPY[locale].idcPreviousRequest.fetchFailed);
+  useEffect(() => {
+    fetchErrorRef.current = HOOKS_COPY[locale].idcPreviousRequest.fetchFailed;
+  }, [locale]);
   const [resources, setResources] = useState<IdcResourceView[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -55,7 +64,7 @@ export function useIdcPreviousRequest(targetSourceId: number): UseIdcPreviousReq
           setLoading(false);
           return;
         }
-        setError(FETCH_ERROR);
+        setError(fetchErrorRef.current);
         setLoading(false);
       });
 

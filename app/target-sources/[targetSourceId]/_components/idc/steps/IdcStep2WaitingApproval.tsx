@@ -15,10 +15,8 @@ import { WaitingApprovalToolbar } from '@/app/target-sources/[targetSourceId]/_c
 import { ApprovalUnavailableCard } from '@/app/target-sources/[targetSourceId]/_components/layout/ApprovalUnavailableCard';
 import { IdcResourceTable } from '@/app/target-sources/[targetSourceId]/_components/idc/IdcResourceTable';
 import { useIdcApprovalTable } from '@/app/target-sources/[targetSourceId]/_components/idc/approval-table';
-import {
-  IDC_FILTER_EMPTY_MESSAGE,
-  IDC_SEARCH_PLACEHOLDER,
-} from '@/app/target-sources/[targetSourceId]/_components/idc/steps/step-copy';
+import { useLocale } from '@/app/components/LocaleProvider';
+import { IDC_COPY } from '@/app/target-sources/[targetSourceId]/_components/idc/copy';
 import type { IdcStepProps } from '@/app/target-sources/[targetSourceId]/_components/idc/types';
 import { getProject } from '@/app/lib/api';
 import {
@@ -49,6 +47,8 @@ export const IdcStep2WaitingApproval = ({
   project,
   onProjectUpdate,
 }: IdcStepProps) => {
+  const { locale } = useLocale();
+  const t = IDC_COPY[locale];
   const { targetSourceId } = project;
 
   // Step 2 source: approval-requests/latest — the request as submitted. Rows, verdict and
@@ -74,8 +74,8 @@ export const IdcStep2WaitingApproval = ({
           <header className={cardStyles.header}>
             <div className="flex items-start justify-between gap-4">
               <div className="flex items-center gap-2">
-                <span className={cardStyles.stepTag}>2단계</span>
-                <h2 className={cardStyles.cardTitle}>연동 대상 승인 대기</h2>
+                <span className={cardStyles.stepTag}>{t.step(2)}</span>
+                <h2 className={cardStyles.cardTitle}>{t.step2Title}</h2>
                 <span
                   className={cn(
                     cardStyles.stepBadge,
@@ -83,7 +83,7 @@ export const IdcStep2WaitingApproval = ({
                     statusColors.warning.textDark,
                   )}
                 >
-                  승인 대기
+                  {t.badgePending}
                 </span>
               </div>
               {/* Card CTA sits beside the title — in a bottom dock the user only meets it past
@@ -97,30 +97,27 @@ export const IdcStep2WaitingApproval = ({
             </div>
             {/* Blue marks the status sentence only; the rest drops to the secondary tone. */}
             <p className={cn('mt-3', cardStyles.guidance)}>
-              <strong className={cn('font-semibold', primaryColors.text)}>
-                관리자가 제출된 연동 대상 DB를 확인하고 있어요.
-              </strong>{' '}
-              평균 1일 이내(주말·공휴일 제외)에 확인이 완료되며, 이슈가 없으면 다음 단계로 넘어가요.
-              반려된 경우, 사유를 확인한 후 다시 제출해주세요.
+              <strong className={cn('font-semibold', primaryColors.text)}>{t.step2GuideEm}</strong>{' '}
+              {t.step2GuideRest}
             </p>
             {/* No top margin — the 1.55 leading is the paragraph break (cloud step-2 grammar). */}
             <p className={cardStyles.guidance}>
-              제출한 연동 대상 DB 정보를 수정하고 싶다면{' '}
-              <strong className={cn('font-semibold', textColors.secondary)}>다시 요청하기</strong>를
-              눌러주세요.
+              {t.step2RetryBefore}
+              <strong className={cn('font-semibold', textColors.secondary)}>{t.retryRequest}</strong>
+              {t.step2RetryAfter}
             </p>
             {view.requestedAt && view.requestedBy && (
               // 24px above it — the widest gap in the header, marking the boundary between
               // "what happened / what to do" and reference facts.
               <div className="mt-6 flex flex-wrap gap-8">
-                <MetaField label="요청일시" value={formatDate(view.requestedAt, 'datetime')} />
-                <MetaField label="요청자" value={view.requestedBy} />
+                <MetaField label={t.metaRequestedAt} value={formatDate(view.requestedAt, 'datetime', locale)} />
+                <MetaField label={t.metaRequestedBy} value={view.requestedBy} />
               </div>
             )}
           </header>
           <div className={cardStyles.body}>
             {state.status === 'loading' && <ResourceTableSkeleton />}
-            {state.status === 'error' && <ErrorState message="연동 대상을 불러오지 못했습니다." />}
+            {state.status === 'error' && <ErrorState message={t.loadFailed} />}
             {state.status === 'ready' && (
               <>
                 {/* Tiles carry the all/target/excluded counts and double as that filter. */}
@@ -141,7 +138,7 @@ export const IdcStep2WaitingApproval = ({
                   onRegionChange={table.onRegionChange}
                   dbTypeOptions={table.dbTypeOptions}
                   regionOptions={table.regionOptions}
-                  searchPlaceholder={IDC_SEARCH_PLACEHOLDER}
+                  searchPlaceholder={t.searchPlaceholder}
                 />
                 <IdcResourceTable
                   resources={visibleResources}
@@ -149,7 +146,7 @@ export const IdcStep2WaitingApproval = ({
                   // 승인 대기 the column would be empty on every row. Step 3 onward shows it.
                   cols={['excl']}
                   connected
-                  emptyMessage={IDC_FILTER_EMPTY_MESSAGE}
+                  emptyMessage={t.filterEmpty}
                 />
                 {table.filteredCount > 0 && (
                   <Pagination

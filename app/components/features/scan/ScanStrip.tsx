@@ -1,7 +1,9 @@
 'use client';
 
 import { Button } from '@/app/components/ui/Button';
-import { SCAN_ERROR_LABELS } from '@/app/components/features/scan/scan-labels';
+import { useLocale } from '@/app/components/LocaleProvider';
+import { SCAN_COPY } from '@/app/components/features/scan/copy';
+import { scanErrorLabels } from '@/app/components/features/scan/scan-labels';
 import {
   ScanPermissionResult,
   type ScanPermissionState,
@@ -167,6 +169,8 @@ export const ScanStrip = ({
   starting,
   funnel,
 }: ScanStripProps) => {
+  const { locale } = useLocale();
+  const t = SCAN_COPY[locale];
   // The counts need a scan behind them: with none on record, number cells make an
   // absent result read like a result and push the one true fact ("no scan yet")
   // below them. The band is that single line instead.
@@ -176,8 +180,8 @@ export const ScanStrip = ({
   const scannedAt = job?.updated_at ?? job?.created_at ?? null;
 
   const mainText = job == null
-    ? '아직 스캔한 적이 없어요'
-    : `${succeeded ? '마지막 스캔' : '마지막 스캔 실패'}${scannedAt ? ` ${formatRelativeTime(scannedAt)}` : ''}`;
+    ? t.noScanYet
+    : `${succeeded ? t.lastScan : t.lastScanFailed}${scannedAt ? ` ${formatRelativeTime(scannedAt, locale)}` : ''}`;
   const dotClass = job == null
     // 기록 없음은 상태가 아니라 부재 — pending(대기) 도트 토큰을 그대로 쓴다.
     ? statusColors.pending.dot
@@ -187,15 +191,15 @@ export const ScanStrip = ({
 
   const metaParts: string[] = [];
   if (job != null) {
-    if (scannedAt) metaParts.push(formatDateTimeLocal(scannedAt));
+    if (scannedAt) metaParts.push(formatDateTimeLocal(scannedAt, locale));
     if (succeeded) {
-      if (typeof job.duration_seconds === 'number') metaParts.push(`${Math.round(job.duration_seconds)}초 소요`);
+      if (typeof job.duration_seconds === 'number') metaParts.push(t.durationMeta(Math.round(job.duration_seconds)));
       // Meta carries the scan's own facts only (time, duration). Counts belong to
       // the cells above, in the candidate-DB unit.
-      if (!showFunnel && newCount > 0) metaParts.push(`신규 ${newCount}`);
+      if (!showFunnel && newCount > 0) metaParts.push(t.newCount(newCount));
     } else if (!failedByPermission && job.scan_error) {
       // 권한 오류는 아래 배지가 전담 — 그 외 실패 사유만 메타로 흘린다.
-      metaParts.push(SCAN_ERROR_LABELS[job.scan_error] ?? job.scan_error);
+      metaParts.push(scanErrorLabels(t)[job.scan_error] ?? job.scan_error);
     }
   }
 
@@ -211,17 +215,17 @@ export const ScanStrip = ({
     >
       {showFunnel && funnel && (
         <div className={cn('grid grid-cols-3 divide-x', borderColors.light)}>
-          <FunnelCell label="연동 가능 DB" value={funnel.eligible} emphasis />
+          <FunnelCell label={t.funnelEligible} value={funnel.eligible} emphasis />
           <FunnelCell
-            label="선택함"
+            label={t.funnelSelected}
             value={funnel.selected}
             pressed={funnel.filter === 'target'}
             onPress={() => funnel.onFilterChange(funnel.filter === 'target' ? 'all' : 'target')}
           />
           <FunnelCell
-            label="제외함"
+            label={t.funnelExcluded}
             value={funnel.excluded}
-            sub={funnel.missingReasons > 0 ? `사유 ${funnel.missingReasons}건 미입력` : undefined}
+            sub={funnel.missingReasons > 0 ? t.funnelMissingReasons(funnel.missingReasons) : undefined}
             subWarn={funnel.missingReasons > 0}
             pressed={funnel.filter === 'excluded'}
             onPress={() => funnel.onFilterChange(funnel.filter === 'excluded' ? 'all' : 'excluded')}
@@ -254,7 +258,7 @@ export const ScanStrip = ({
                 statusColors.error.textDark,
               )}
             >
-              스캔 권한 오류 — 설정 확인 필요
+              {t.permissionErrorBadge}
             </span>
           )}
           <ScanPermissionResult state={permission} />
@@ -262,7 +266,7 @@ export const ScanStrip = ({
 
         <div className="flex flex-shrink-0 items-center gap-4">
           <button type="button" onClick={onOpenHistory} className={cn(GHOST_BUTTON, textColors.secondary)}>
-            스캔 이력
+            {t.scanHistory}
           </button>
           <button
             type="button"
@@ -270,7 +274,7 @@ export const ScanStrip = ({
             disabled={permission.status === 'checking'}
             className={cn(GHOST_BUTTON, textColors.secondary)}
           >
-            {permission.status === 'checking' ? '확인 중...' : '권한 확인'}
+            {permission.status === 'checking' ? t.checking : t.checkPermission}
           </button>
           {showScanButton && (
             <Button
@@ -282,12 +286,12 @@ export const ScanStrip = ({
               {starting ? (
                 <>
                   <span className="h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                  시작 중...
+                  {t.starting}
                 </>
               ) : job == null ? (
-                '스캔 시작'
+                t.startScan
               ) : (
-                '다시 스캔'
+                t.rescan
               )}
             </Button>
           )}

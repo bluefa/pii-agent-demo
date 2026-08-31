@@ -55,6 +55,12 @@ import {
   verdictText,
   cn,
 } from '@/lib/theme';
+import { useLocale } from '@/app/components/LocaleProvider';
+import { INSTALL_COPY } from '@/app/components/features/process-status/install-copy';
+import {
+  LAYOUT_COPY,
+  type LayoutCopy,
+} from '@/app/target-sources/[targetSourceId]/_components/layout/copy';
 
 export interface WaitingApprovalResource {
   resourceId: string;
@@ -318,22 +324,19 @@ export const NAME_TEXT = 'block whitespace-nowrap';
 // 행이다 — 누락을 잡으라고 만든 화면이 누락을 읽기 어렵게 만들고 있었다. 원래 이 처리가 있었던
 // 이유는 배경 틴트(1.05:1)가 아무것도 말하지 못해서였고, 그 일은 이제 `verdictRail` 이 맡는다.
 
-const DEFAULT_EMPTY_MESSAGE = '표시할 리소스가 없습니다.';
-
-/** 논리 DB 라는 개념이 없는 엔진의 답 — see `hasLogicalDatabases`. */
-export const NO_LOGICAL_DB_TEXT = '설정 불필요';
-
 /**
- * 같은 엔진의 `연동 제외` 칸이 내는 답. `0개` 가 아니다 — 0 은 "제외한 것이 없다"고
- * 말하지만, 여기서 말해야 하는 것은 "제외라는 개념이 없다"다.
+ * 논리 DB 라는 개념이 없는 엔진의 답 (`table.noLogicalDb`, see `hasLogicalDatabases`), and the
+ * answer the same engine's `연동 제외` 칸 gives (`table.noExclusion`). The latter is not `0개` —
+ * 0 은 "제외한 것이 없다"고 말하지만, 여기서 말해야 하는 것은 "제외라는 개념이 없다"다.
  */
-export const NO_EXCLUSION_TEXT = '제외 불가';
-
-const NoLogicalDbCell = () => (
-  <span className={cn('whitespace-nowrap text-[14px]', textColors.tertiary)}>
-    {NO_LOGICAL_DB_TEXT}
-  </span>
-);
+const NoLogicalDbCell = () => {
+  const { locale } = useLocale();
+  return (
+    <span className={cn('whitespace-nowrap text-[14px]', textColors.tertiary)}>
+      {LAYOUT_COPY[locale].table.noLogicalDb}
+    </span>
+  );
+};
 
 const PLACEHOLDER = '—';
 
@@ -356,19 +359,23 @@ export const TargetPill = ({
   excluded: boolean;
   ineligible?: boolean;
 }) => {
+  const { locale } = useLocale();
+  const t = LAYOUT_COPY[locale].table;
   if (ineligible) {
     return (
       <span className={cn(verdictText.base, verdictText.ineligible)}>
         <StatusWarningIcon className={verdictText.icon} />
-        연동 불가
+        {t.pillIneligible}
       </span>
     );
   }
-  if (!excluded) return <span className={cn(verdictText.base, verdictText.target)}>대상</span>;
+  if (!excluded) {
+    return <span className={cn(verdictText.base, verdictText.target)}>{t.pillTarget}</span>;
+  }
   return (
     <span className={cn(verdictText.base, verdictText.excluded)}>
       <ExcludedIcon className={verdictText.icon} />
-      제외
+      {t.pillExcluded}
     </span>
   );
 };
@@ -384,13 +391,16 @@ const INSTALL_STATUS_TEXT: Record<InstallStepValue, string> = {
   UNKNOWN: textColors.tertiary,
 };
 
-const InstallStatusText = ({ cell }: { cell: InstallStepCell }) => (
-  // Size stated, not inherited: unset, this lands on the 16px body size and the status
-  // outgrows the row. 14px is the single size every cell in this table now shares.
-  <span className={cn('whitespace-nowrap text-[14px] font-semibold', INSTALL_STATUS_TEXT[cell.status])}>
-    {cell.label ?? INSTALL_STATUS_LABEL[cell.status]}
-  </span>
-);
+const InstallStatusText = ({ cell }: { cell: InstallStepCell }) => {
+  const { locale } = useLocale();
+  return (
+    // Size stated, not inherited: unset, this lands on the 16px body size and the status
+    // outgrows the row. 14px is the single size every cell in this table now shares.
+    <span className={cn('whitespace-nowrap text-[14px] font-semibold', INSTALL_STATUS_TEXT[cell.status])}>
+      {cell.label ?? INSTALL_COPY[locale].stepValue[cell.status]}
+    </span>
+  );
+};
 
 // The chip's own 40-char default overruns this six-column table and forces horizontal
 // scroll (Azure step 3 reasons run past it). Clamp here — the full text is in the hover tip.
@@ -405,8 +415,15 @@ export const clampReason = (reason: string): string =>
 // carries it (the request adapter writes it there), but older requests predate that and only
 // have `recommend_fail_reason`, so read both.
 const ReasonCell = ({ resource }: { resource: WaitingApprovalResource }) => {
+  const { locale } = useLocale();
   if (resource.selected) return null;
-  const resolved = resolveExclusionReason(resource.exclusionReason, resource.recommendFailReason);
+  // Only the verdict LABEL has a language here — `exclusionReason` is prose the server
+  // wrote, and it comes back untranslated on purpose.
+  const resolved = resolveExclusionReason(
+    resource.exclusionReason,
+    resource.recommendFailReason,
+    locale,
+  );
   if (!resolved) return null;
   return (
     <ReasonChipInline
@@ -468,7 +485,11 @@ export const CONFIRMED_FLEX_KEYS = ['name', 'id'] as const;
 
 /** The confirmed table's column spec. `kind` only exists when a visible row can fill it —
  *  Azure/GCP rows carry no kind today, and a permanently blank column is dead space. */
-const confirmedColumns = (regionLabel: string, withKind: boolean): ConsoleTableColumn[] => [
+const confirmedColumns = (
+  t: LayoutCopy['table'],
+  regionLabel: string,
+  withKind: boolean,
+): ConsoleTableColumn[] => [
   {
     key: 'name',
     label: 'Resource Name',
@@ -485,13 +506,13 @@ const confirmedColumns = (regionLabel: string, withKind: boolean): ConsoleTableC
   { key: 'id', label: 'Resource ID', width: CONFIRMED_COLUMN_WIDTHS.id, flex: true },
   // Round 9 (owner): "종류를 resource id 오른쪽으로" — the kind leaves the leading anchor
   // slot and files in with the other attributes, after the identity pair (name → id).
-  ...(withKind ? [{ key: 'kind', label: '종류', width: CONFIRMED_COLUMN_WIDTHS.kind }] : []),
+  ...(withKind ? [{ key: 'kind', label: t.colKind, width: CONFIRMED_COLUMN_WIDTHS.kind }] : []),
   { key: 'dbType', label: 'Database Type', width: CONFIRMED_COLUMN_WIDTHS.dbType },
   { key: 'region', label: regionLabel, width: CONFIRMED_COLUMN_WIDTHS.region },
   // 둘은 `연동 논리 DB` 그룹 머리 아래 선다(`confirmedGroups`), IDC 표와 같은 문법으로.
   // 그래서 열 이름이 카테고리를 되풀이하지 않고 `대상`/`제외` 한 마디로 짧아진다.
-  { key: 'logicalDb', label: '대상', width: CONFIRMED_COLUMN_WIDTHS.logicalDb },
-  { key: 'excluded', label: '제외', width: CONFIRMED_COLUMN_WIDTHS.excluded },
+  { key: 'logicalDb', label: t.colTarget, width: CONFIRMED_COLUMN_WIDTHS.logicalDb },
+  { key: 'excluded', label: t.colExcluded, width: CONFIRMED_COLUMN_WIDTHS.excluded },
 ];
 
 /**
@@ -502,10 +523,10 @@ const confirmedColumns = (regionLabel: string, withKind: boolean): ConsoleTableC
  * 이 표에는 IDC 의 `관리` 잎이 없다. 여기 두 수는 그 자체가 문이고(카운트를 누르면
  * `onLogicalDbOpen` 이 요약을 연다), 오너가 요청한 것은 머리 디자인이지 행동이 아니다.
  */
-const confirmedGroups: readonly ConsoleTableGroup[] = [
+const confirmedGroups = (label: string): readonly ConsoleTableGroup[] => [
   {
     key: 'logicalro',
-    label: '연동 논리 DB',
+    label,
     head: <LogicalDbGroupHeader />,
     columns: ['logicalDb', 'excluded'],
   },
@@ -594,7 +615,7 @@ export const useApprovalColumnResize = (): ColumnResize =>
   });
 
 /** The steps-2·3 column spec. Six columns, matching `ResourceGroupRow`'s colSpan. */
-const approvalColumns = (regionLabel: string): ConsoleTableColumn[] => [
+const approvalColumns = (t: LayoutCopy['table'], regionLabel: string): ConsoleTableColumn[] => [
   {
     key: 'name',
     label: 'Resource Name',
@@ -607,9 +628,9 @@ const approvalColumns = (regionLabel: string): ConsoleTableColumn[] => [
   { key: 'id', label: 'Resource ID', width: APPROVAL_COLUMN_WIDTHS.id, flex: true },
   { key: 'dbType', label: 'Database Type', width: APPROVAL_COLUMN_WIDTHS.dbType },
   { key: 'region', label: regionLabel, width: APPROVAL_COLUMN_WIDTHS.region },
-  { key: 'target', label: '요청 대상 여부', width: APPROVAL_COLUMN_WIDTHS.target },
+  { key: 'target', label: t.colRequested, width: APPROVAL_COLUMN_WIDTHS.target },
   // Sized, not flex — see APPROVAL_FLEX_KEYS for the measurement that rejected it as the sink.
-  { key: 'reason', label: '제외 사유', width: APPROVAL_COLUMN_WIDTHS.reason },
+  { key: 'reason', label: t.colReason, width: APPROVAL_COLUMN_WIDTHS.reason },
 ];
 
 /**
@@ -665,7 +686,10 @@ export const PLAIN_FLEX_KEYS = CONFIRMED_FLEX_KEYS;
  * steps 4 and 6·7 read down the same columns at the same widths. IDC keeps only the
  * caller's cells: its identity already ends in a Database Type, and it has no region.
  */
-const installColumns = (identity?: ApprovalIdentityColumns): ConsoleTableColumn[] => [
+const installColumns = (
+  t: LayoutCopy['table'],
+  identity?: ApprovalIdentityColumns,
+): ConsoleTableColumn[] => [
   ...(identity
     ? identity.columns.map((cell, index) => ({
         key: cell.key,
@@ -694,7 +718,7 @@ const installColumns = (identity?: ApprovalIdentityColumns): ConsoleTableColumn[
         { key: 'dbType', label: 'Database Type', width: INSTALL_COLUMN_WIDTHS.dbType },
         { key: 'region', label: 'Region', width: INSTALL_COLUMN_WIDTHS.region },
       ]),
-  { key: 'status', label: '상태', width: INSTALL_COLUMN_WIDTHS.status },
+  { key: 'status', label: t.colStatus, width: INSTALL_COLUMN_WIDTHS.status },
 ];
 
 /**
@@ -747,6 +771,9 @@ export const WaitingApprovalTable = memo(
     columns,
     kindColumn = false,
   }: WaitingApprovalTableProps) => {
+    const { locale } = useLocale();
+    const copy = LAYOUT_COPY[locale];
+    const t = copy.table;
     // Athena arrives as many rows of one catalog family per region; grouping restores the
     // parent it belongs to (LIN-85). Groups start CLOSED (owner, 2026-08-23) — the rationale and
     // the one thing that overrides it are at the `collapsed` binding further down.
@@ -801,7 +828,7 @@ export const WaitingApprovalTable = memo(
       });
 
     if (resources.length === 0) {
-      return <TableEmptyState message={emptyMessage ?? DEFAULT_EMPTY_MESSAGE} />;
+      return <TableEmptyState message={emptyMessage ?? t.empty} />;
     }
 
     const confirmedVariant = variant === 'confirmed';
@@ -865,7 +892,7 @@ export const WaitingApprovalTable = memo(
       const foldLabel = getDatabaseShortLabel(resource.resourceType) || PLACEHOLDER;
       // The visible fallback is a glyph; speech gets a word. An em-dash read aloud in place of
       // an engine name says nothing a listener can use.
-      const foldSpokenLabel = getDatabaseShortLabel(resource.resourceType) || '유형 미상';
+      const foldSpokenLabel = getDatabaseShortLabel(resource.resourceType) || t.unknownType;
       // An RDS cluster's member instances (steps 2·3). Reader-first display order is applied
       // here; the caller holds the wire array, which the approval payload echoes verbatim.
       const instances = variant === 'approval' && resource.rdsInstanceCandidates?.length
@@ -986,7 +1013,7 @@ export const WaitingApprovalTable = memo(
                   // would dangle half the time — worse than the optional attribute's absence
                   // (APG disclosure: aria-expanded alone is conforming).
                   aria-expanded={instancesOpen}
-                  aria-label={`${resource.resourceName} 인스턴스 목록 ${instancesOpen ? '접기' : '펼치기'}`}
+                  aria-label={t.instanceFold(resource.resourceName, instancesOpen)}
                   onClick={(event) => {
                     event.stopPropagation();
                     instanceFold.toggle();
@@ -1046,7 +1073,7 @@ export const WaitingApprovalTable = memo(
                   <button
                     type="button"
                     aria-expanded={open}
-                    aria-label={`${foldSpokenLabel} ${resource.region} 데이터베이스 목록 ${open ? '접기' : '펼치기'}`}
+                    aria-label={t.regionFold(foldSpokenLabel, resource.region, open)}
                     onClick={(event) => {
                       event.stopPropagation();
                       toggleFold(rowKey);
@@ -1212,7 +1239,7 @@ export const WaitingApprovalTable = memo(
                 <td className={cn(idcStyles.table.approvalCell, coveredCell)}>
                   <LogicalDbCountCell
                     count={resource.logicalDbCount}
-                    label={`${resource.resourceName || resource.resourceId} 연동 논리 DB 목록 보기`}
+                    label={t.countLabelTarget(resource.resourceName || resource.resourceId)}
                     onOpen={
                       // 화살표 함수는 언제나 truthy 다 — `onLogicalDbOpen` 을 안 준 호출자(5개 중
                       // 4개)는 눌러도 아무 일 없는 버튼을 얻는다. IDC 쪽 쌍둥이는 0dc43bd7 에서
@@ -1224,7 +1251,7 @@ export const WaitingApprovalTable = memo(
                 <td className={cn(idcStyles.table.approvalCell, coveredCell)}>
                   <LogicalDbCountCell
                     count={resource.excludedLogicalDbCount}
-                    label={`${resource.resourceName || resource.resourceId} 연동 제외 대상 보기`}
+                    label={t.countLabelExcluded(resource.resourceName || resource.resourceId)}
                     onOpen={
                       // 화살표 함수는 언제나 truthy 다 — `onLogicalDbOpen` 을 안 준 호출자(5개 중
                       // 4개)는 눌러도 아무 일 없는 버튼을 얻는다. IDC 쪽 쌍둥이는 0dc43bd7 에서
@@ -1435,15 +1462,15 @@ export const WaitingApprovalTable = memo(
         <ConsoleTable
           columns={
             confirmedVariant
-              ? confirmedColumns(regionLabel, confirmedKindColumn)
+              ? confirmedColumns(t, regionLabel, confirmedKindColumn)
               : installVariant
-                ? installColumns(identityColumns)
+                ? installColumns(t, identityColumns)
                 : plainVariant
                   ? plainColumns(regionLabel)
-                  : approvalColumns(regionLabel)
+                  : approvalColumns(t, regionLabel)
           }
           // 두 단 머리는 confirmed variant 만 쓴다 — 두 카운트 열이 서는 유일한 shape 다.
-          groups={confirmedVariant ? confirmedGroups : undefined}
+          groups={confirmedVariant ? confirmedGroups(copy.common.logicalDbGroup) : undefined}
           resize={columns}
         >
           {bodies}

@@ -11,7 +11,8 @@ import {
 } from '@/app/components/ui/ConsoleTable';
 import { useColumnResize } from '@/app/components/ui/useColumnResize';
 import { cn, idcStyles, textColors, verdictRailClass } from '@/lib/theme';
-import { IDC_SOURCE_IP_TOOLTIP, IDC_SOURCE_LABEL } from '@/lib/constants/idc';
+import { useLocale } from '@/app/components/LocaleProvider';
+import { IDC_COPY, type IdcCopy } from '@/app/target-sources/[targetSourceId]/_components/idc/copy';
 import type { IdcResourceView } from '@/app/lib/api/idc';
 import {
   IdcDbTypeCell,
@@ -94,29 +95,30 @@ interface IdcResourceTableProps {
   connected?: boolean;
 }
 
-const [TIP_TITLE, ...TIP_REST] = IDC_SOURCE_IP_TOOLTIP.split('\n');
-
 /** Exported so the admin's P3 request table heads the column identically — the
  *  "접근 허용 필요" note answers the same question on both surfaces. */
-export const SourceIpHeader = () => (
-  <span className="inline-flex items-center gap-1">
-    {IDC_SOURCE_LABEL}
-    <InfoTooltip
-      // Light `value` box, the same one the 접속 주소 cell tooltip uses — one table should not
-      // answer a hover with a dark popover in one column and a light one in another.
-      variant="value"
-      // 17px — the table-header (?) size set by CSP step 1 (CandidateResourceTable). The
-      // component default is 13, which reads as a different control next to the same header.
-      iconSize={17}
-      content={
-        <div className="space-y-1">
-          <div className="font-bold">{TIP_TITLE}</div>
-          <div>{TIP_REST.join(' ')}</div>
-        </div>
-      }
-    />
-  </span>
-);
+export const SourceIpHeader = () => {
+  const t = IDC_COPY[useLocale().locale];
+  return (
+    <span className="inline-flex items-center gap-1">
+      {t.sourceLabel}
+      <InfoTooltip
+        // Light `value` box, the same one the 접속 주소 cell tooltip uses — one table should not
+        // answer a hover with a dark popover in one column and a light one in another.
+        variant="value"
+        // 17px — the table-header (?) size set by CSP step 1 (CandidateResourceTable). The
+        // component default is 13, which reads as a different control next to the same header.
+        iconSize={17}
+        content={
+          <div className="space-y-1">
+            <div className="font-bold">{t.srcTipTitle}</div>
+            <div>{t.srcTipBody}</div>
+          </div>
+        }
+      />
+    </span>
+  );
+};
 
 /**
  * Column floors — the LIN-96 ledger, verbatim (owner-approved 2026-08-23). Per-combination
@@ -221,6 +223,7 @@ const IDC_FLEX_KEYS = ['endpoint'] as const;
  * the sink over — Cloudscape's behaviour, acceptable here.
  */
 const idcColumns = (
+  t: IdcCopy,
   has: (c: IdcTableCol) => boolean,
   srcAtEnd: boolean,
   /** 관리 열은 열 곳이 있을 때만 선다 — 확인 모달은 `onLogicalOpen` 을 주지 않는다. */
@@ -228,31 +231,31 @@ const idcColumns = (
 ): ConsoleTableColumn[] => {
   const src: ConsoleTableColumn = {
     key: 'src',
-    label: IDC_SOURCE_LABEL,
+    label: t.sourceLabel,
     width: IDC_COLUMN_WIDTHS.src,
     head: <SourceIpHeader />,
   };
   return [
-    { key: 'endpoint', label: '접속 주소', width: IDC_COLUMN_WIDTHS.endpoint, flex: true },
+    { key: 'endpoint', label: t.colEndpoint, width: IDC_COLUMN_WIDTHS.endpoint, flex: true },
     { key: 'port', label: 'Port', width: IDC_COLUMN_WIDTHS.port },
     { key: 'dbType', label: 'Database Type', width: IDC_COLUMN_WIDTHS.dbType },
     ...(has('src') && !srcAtEnd ? [src] : []),
     ...(has('excl')
       ? [
-          { key: 'target', label: '요청 대상 여부', width: IDC_COLUMN_WIDTHS.target },
-          { key: 'reason', label: '제외 사유', width: IDC_COLUMN_WIDTHS.reason },
+          { key: 'target', label: t.colTarget, width: IDC_COLUMN_WIDTHS.target },
+          { key: 'reason', label: t.colReason, width: IDC_COLUMN_WIDTHS.reason },
         ]
       : []),
     ...(has('cred') ? [{ key: 'cred', label: 'Credential', width: IDC_COLUMN_WIDTHS.cred }] : []),
-    ...(has('conn') ? [{ key: 'conn', label: '연결 상태', width: IDC_COLUMN_WIDTHS.conn }] : []),
+    ...(has('conn') ? [{ key: 'conn', label: t.colConn, width: IDC_COLUMN_WIDTHS.conn }] : []),
     // 시안 B — 셋은 `연동 논리 DB` 그룹 머리 아래 선다(`idcGroups`). 그래서 열 이름이
     // 카테고리를 되풀이하지 않고 `대상`/`제외`/`관리` 한 마디로 짧아진다.
     ...(has('logicalro')
       ? [
-          { key: 'logicalDb', label: '대상', width: IDC_COLUMN_WIDTHS.logicalDb },
-          { key: 'logicalExcl', label: '제외', width: IDC_COLUMN_WIDTHS.logicalExcl },
+          { key: 'logicalDb', label: t.colLogicalTarget, width: IDC_COLUMN_WIDTHS.logicalDb },
+          { key: 'logicalExcl', label: t.colLogicalExcluded, width: IDC_COLUMN_WIDTHS.logicalExcl },
           ...(canManage
-            ? [{ key: 'logicalManage', label: '관리', width: IDC_COLUMN_WIDTHS.logicalManage }]
+            ? [{ key: 'logicalManage', label: t.colLogicalManage, width: IDC_COLUMN_WIDTHS.logicalManage }]
             : []),
         ]
       : []),
@@ -261,12 +264,16 @@ const idcColumns = (
 };
 
 /** 두 tier 헤더 — 셋(또는 관리 없이 둘)을 한 이름 아래로 묶는다. */
-const idcGroups = (has: (c: IdcTableCol) => boolean, canManage: boolean): ConsoleTableGroup[] =>
+const idcGroups = (
+  t: IdcCopy,
+  has: (c: IdcTableCol) => boolean,
+  canManage: boolean,
+): ConsoleTableGroup[] =>
   has('logicalro')
     ? [
         {
           key: 'logicalro',
-          label: '연동 논리 DB',
+          label: t.groupLogicalDb,
           head: <LogicalDbGroupHeader />,
           columns: canManage
             ? ['logicalDb', 'logicalExcl', 'logicalManage']
@@ -291,6 +298,7 @@ export const IdcResourceTable = ({
   connectionHasRun = false,
   connected = false,
 }: IdcResourceTableProps) => {
+  const t = IDC_COPY[useLocale().locale];
   const has = (c: IdcTableCol) => cols.includes(c);
   // Step 2·3 (`excl`) show excluded rows too; Step 4~7 show integration targets only.
   const rows = has('excl') ? resources : resources.filter((r) => !r.excluded);
@@ -311,8 +319,8 @@ export const IdcResourceTable = ({
   // step 3 은 아직 대상을 고르는 화면이라 앞자리를 지킨다.
   const srcAtEnd = cols[cols.length - 1] === 'src';
   const canManageLogical = has('logicalro') && !!onLogicalOpen;
-  const columns = idcColumns(has, srcAtEnd, canManageLogical);
-  const groups = idcGroups(has, canManageLogical);
+  const columns = idcColumns(t, has, srcAtEnd, canManageLogical);
+  const groups = idcGroups(t, has, canManageLogical);
 
   // One store for every step surface — cross-step alignment of the shared identity columns
   // (접속/Port/Database Type/출발지) is this table's founding complaint, so a width chosen on
@@ -328,7 +336,7 @@ export const IdcResourceTable = ({
   if (rows.length === 0) {
     return (
       <div className={cn('px-6 py-10 text-center text-sm', textColors.tertiary)}>
-        {emptyMessage ?? '표시할 연동 대상이 없습니다.'}
+        {emptyMessage ?? t.noTargetsToShow}
       </div>
     );
   }
@@ -391,7 +399,10 @@ export const IdcResourceTable = ({
                     <button
                       type="button"
                       onClick={() => onCredentialOpen?.(r)}
-                      aria-label={`${r.hosts[0] ?? r.resourceId} Credential 수정 — 현재 ${credentials?.[r.resourceId] || '미설정'}`}
+                      aria-label={t.credEditLabel(
+                        r.hosts[0] ?? r.resourceId,
+                        credentials?.[r.resourceId] || t.notSet,
+                      )}
                       title={credentials?.[r.resourceId] || undefined}
                       // 컷은 열이 소유한다(max-w-full): 픽셀 캡이 남아 있으면 열을 드래그로
                       // 늘려도 이름이 더 안 보이는 리사이즈 벽이 된다. 200 열은 시드 실명
@@ -407,7 +418,7 @@ export const IdcResourceTable = ({
                       {credentials?.[r.resourceId] ? (
                         <span className="min-w-0 truncate font-mono">{credentials[r.resourceId]}</span>
                       ) : (
-                        <span className="font-sans">미설정</span>
+                        <span className="font-sans">{t.notSet}</span>
                       )}
                     </button>
                   </td>
@@ -432,13 +443,13 @@ export const IdcResourceTable = ({
                     <td className={idcStyles.table.approvalCell}>
                       <LogicalDbCountCell
                         count={logicalDbCounts?.get(r.resourceId)?.target ?? null}
-                        label={`${r.hosts[0] ?? r.resourceId} 연동 대상 논리 DB`}
+                        label={t.logicalTargetLabel(r.hosts[0] ?? r.resourceId)}
                       />
                     </td>
                     <td className={idcStyles.table.approvalCell}>
                       <LogicalDbCountCell
                         count={logicalDbCounts?.get(r.resourceId)?.excluded ?? null}
-                        label={`${r.hosts[0] ?? r.resourceId} 연동 제외 논리 DB`}
+                        label={t.logicalExcludedLabel(r.hosts[0] ?? r.resourceId)}
                       />
                     </td>
                     {/* 건수와 무관하게 언제나 선다. 제외 정책은 실행이 만드는 것이 아니라
@@ -452,10 +463,10 @@ export const IdcResourceTable = ({
                           onClick={() => onLogicalOpen?.(r)}
                           // 행마다 반복되는 버튼은 자기 행을 이름표에 실어야 한다 — 같은
                           // 이름의 버튼 열 개는 스크린리더에서 구별되지 않는다.
-                          aria-label={`${r.hosts[0] ?? r.resourceId} 연동 논리 DB 관리하기`}
+                          aria-label={t.logicalManageLabel(r.hosts[0] ?? r.resourceId)}
                           className={idcStyles.triggerBtn.rowAction}
                         >
-                          관리하기
+                          {t.manage}
                         </button>
                       </td>
                     )}

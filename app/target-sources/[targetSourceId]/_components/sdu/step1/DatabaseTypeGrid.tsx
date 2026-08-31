@@ -2,14 +2,11 @@
 
 import { useState, type KeyboardEvent } from 'react';
 import { CheckIcon, CloseIcon } from '@/app/components/ui/icons';
+import { useLocale } from '@/app/components/LocaleProvider';
 import { cn, idcStyles, inputStyles, primaryColors } from '@/lib/theme';
 import { SDU_DB_TYPE_MAX, SDU_DB_TYPE_MAXLEN, type SduCloud } from '@/lib/types/sdu';
-import {
-  SDU_DB_TYPE_DUPLICATE_MESSAGE,
-  SDU_DB_TYPE_LEN_MESSAGE,
-  SDU_DB_TYPE_MAX_MESSAGE,
-  sduDbTypeChoices,
-} from '@/app/target-sources/[targetSourceId]/_components/sdu/step1/model';
+import { SDU_COPY } from '@/app/target-sources/[targetSourceId]/_components/sdu/copy';
+import { sduDbTypeChoices } from '@/app/target-sources/[targetSourceId]/_components/sdu/step1/model';
 import {
   dbGridStyles,
   fieldStyles,
@@ -36,6 +33,8 @@ export interface DatabaseTypeGridProps {
  * 갖는 이름들이다(`sduDbTypeChoices`). 두 상한(20개 · 50자)은 여기서도 조용히 자르지 않는다.
  */
 export const DatabaseTypeGrid = ({ cloud, values, onChange }: DatabaseTypeGridProps) => {
+  const { locale } = useLocale();
+  const t = SDU_COPY[locale].define;
   const [typing, setTyping] = useState(false);
   const [text, setText] = useState('');
   const [message, setMessage] = useState<string | null>(null);
@@ -81,11 +80,11 @@ export const DatabaseTypeGrid = ({ cloud, values, onChange }: DatabaseTypeGridPr
       if (!value) continue;
       const reason =
         value.length > SDU_DB_TYPE_MAXLEN
-          ? SDU_DB_TYPE_LEN_MESSAGE
+          ? t.dbTypeLen
           : next.length >= SDU_DB_TYPE_MAX
-            ? SDU_DB_TYPE_MAX_MESSAGE
+            ? t.dbTypeMax
             : next.some((existing) => existing.toLowerCase() === value.toLowerCase())
-              ? SDU_DB_TYPE_DUPLICATE_MESSAGE
+              ? t.dbTypeDuplicate
               : null;
       if (reason) {
         error ??= reason;
@@ -124,12 +123,9 @@ export const DatabaseTypeGrid = ({ cloud, values, onChange }: DatabaseTypeGridPr
           {values.length} / {SDU_DB_TYPE_MAX}
         </span>
       </div>
-      <p className={cn(fieldStyles.hint, 'flex-none')}>
-        목록에 없는 타입은 직접 입력할 수 있어요. 한 대상당 최대 {SDU_DB_TYPE_MAX}개, 이름은{' '}
-        {SDU_DB_TYPE_MAXLEN}자까지예요.
-      </p>
+      <p className={cn(fieldStyles.hint, 'flex-none')}>{t.dbTypeHint}</p>
 
-      <div role="group" aria-label="자주 쓰는 Database Type" className={dbGridStyles.grid}>
+      <div role="group" aria-label={t.dbTypeGridAria} className={dbGridStyles.grid}>
         {choices.map((type) => {
           const selected = has(type);
           return (
@@ -166,7 +162,7 @@ export const DatabaseTypeGrid = ({ cloud, values, onChange }: DatabaseTypeGridPr
                 {value}
                 <button
                   type="button"
-                  aria-label={`${value} 제거`}
+                  aria-label={t.removeValue(value)}
                   onClick={() => removeName(value)}
                   className={tokenStyles.remove}
                 >
@@ -182,8 +178,8 @@ export const DatabaseTypeGrid = ({ cloud, values, onChange }: DatabaseTypeGridPr
             <input
               value={text}
               disabled={full}
-              aria-label="Database Type 직접 입력"
-              placeholder="직접 입력 (예: CUBRID)"
+              aria-label={t.dbTypeCustomAria}
+              placeholder={t.dbTypeCustomPlaceholder}
               onChange={(event) => {
                 setText(event.target.value);
                 setMessage(null);
@@ -201,7 +197,7 @@ export const DatabaseTypeGrid = ({ cloud, values, onChange }: DatabaseTypeGridPr
               onClick={commitTyped}
               className={idcStyles.triggerBtn.ghostSm}
             >
-              추가
+              {t.add}
             </button>
             {text.trim().length > 0 && (
               <span className={tooLong ? fieldStyles.counterFull : fieldStyles.counter}>
@@ -216,14 +212,16 @@ export const DatabaseTypeGrid = ({ cloud, values, onChange }: DatabaseTypeGridPr
             onClick={() => setTyping(true)}
             className={dbGridStyles.customRow}
           >
-            목록에 없는 타입을 쓰고 계신가요?{' '}
-            <span className={cn('font-semibold', primaryColors.textOnLight)}>직접 입력 →</span>
+            {t.dbTypeCustomPrompt}{' '}
+            <span className={cn('font-semibold', primaryColors.textOnLight)}>
+              {t.dbTypeCustomCta}
+            </span>
           </button>
         )}
 
         {(tooLong || full || message) && (
           <p className={fieldStyles.message}>
-            {tooLong ? SDU_DB_TYPE_LEN_MESSAGE : full ? SDU_DB_TYPE_MAX_MESSAGE : message}
+            {tooLong ? t.dbTypeLen : full ? t.dbTypeMax : message}
           </p>
         )}
       </div>

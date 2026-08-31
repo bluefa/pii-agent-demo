@@ -11,6 +11,8 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from 'react';
 import { idcStyles } from '@/lib/theme';
+import { useLocale } from '@/app/components/LocaleProvider';
+import { COPY } from '@/lib/copy';
 
 /** 값이 아니라 말줄임표만 남기 시작하는 폭 — 이보다 좁아지면 열이 있으나 마나다. */
 const MIN_COLUMN_WIDTH = 56;
@@ -134,6 +136,7 @@ const headerFloor = (th: HTMLTableCellElement): number => {
  */
 export const useColumnResize = (options?: ColumnResizeOptions): ColumnResize => {
   const { clampToContent = false, storageKey, ephemeralKeys } = options ?? {};
+  const { locale } = useLocale();
   // Joined, not the array: callers write it inline (`[CONFIRMED_FLEX_KEY]`), so a fresh
   // identity arrives on every render and an array in a dep list would re-run the effects
   // — including the hydration one, which re-arms its gate.
@@ -293,7 +296,7 @@ export const useColumnResize = (options?: ColumnResizeOptions): ColumnResize => 
       handleProps: (key, label) => ({
         role: 'separator',
         'aria-orientation': 'vertical',
-        'aria-label': `${label} 열 너비 조절`,
+        'aria-label': COPY[locale].common.resizeColumn(label),
         tabIndex: 0,
         onPointerDown: onPointerDown(key),
         // 헤더 전체가 정렬 버튼인 표가 있다 — 손잡이에서 올라간 클릭은 정렬이 아니다.
@@ -307,5 +310,5 @@ export const useColumnResize = (options?: ColumnResizeOptions): ColumnResize => 
           : idcStyles.table.resizeHandle,
       }),
     };
-  }, [widths, lastResizedKey, clampToContent]);
+  }, [widths, lastResizedKey, clampToContent, locale]);
 };

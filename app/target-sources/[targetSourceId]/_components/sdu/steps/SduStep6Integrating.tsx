@@ -8,6 +8,8 @@ import {
   INSTALL_POLL_INTERVAL_MS,
   useInstallationStatus,
 } from '@/app/hooks/useInstallationStatus';
+import { useLocale } from '@/app/components/LocaleProvider';
+import { SDU_COPY } from '@/app/target-sources/[targetSourceId]/_components/sdu/copy';
 import { sduStepOf } from '@/app/target-sources/[targetSourceId]/_components/sdu/sdu-steps';
 import { SduUploadSummary } from '@/app/target-sources/[targetSourceId]/_components/sdu/SduUploadSummary';
 import type { SduStepProps } from '@/app/target-sources/[targetSourceId]/_components/sdu/types';
@@ -27,6 +29,9 @@ import type { SduStepProps } from '@/app/target-sources/[targetSourceId]/_compon
  * start, retry or interpret, and naming them would invite all three.
  */
 export const SduStep6Integrating = ({ project, onProjectUpdate }: SduStepProps) => {
+  const { locale } = useLocale();
+  const t = SDU_COPY[locale].integrating;
+
   /**
    * `useCallback` with no deps is load-bearing, not decoration: `useInstallationStatus`
    * keys its mount effect AND its poll interval on `getFn`'s identity, so a function
@@ -56,14 +61,12 @@ export const SduStep6Integrating = ({ project, onProjectUpdate }: SduStepProps) 
     <section className={cardStyles.base}>
       <header className={cardStyles.header}>
         <div className="flex items-center gap-2">
-          <span className={cardStyles.stepTag}>3단계</span>
-          <h2 className={cardStyles.cardTitle}>업로드하신 데이터를 연동하고 있어요</h2>
+          <span className={cardStyles.stepTag}>{t.stepTag}</span>
+          <h2 className={cardStyles.cardTitle}>{t.title}</h2>
         </div>
         <p className={cn('mt-3', cardStyles.guidance)}>
-          <strong className={cn('font-semibold', primaryColors.text)}>
-            담당자가 하실 일은 없어요.
-          </strong>{' '}
-          연동이 끝나면 완료 단계로 넘어가요.
+          <strong className={cn('font-semibold', primaryColors.text)}>{t.guidanceStrong}</strong>{' '}
+          {t.guidanceRest}
         </p>
       </header>
       <div className={cardStyles.body}>

@@ -4,12 +4,16 @@ import { cardStyles, cn, textColors } from '@/lib/theme';
 import { ConfirmedIntegrationTable } from '@/app/target-sources/[targetSourceId]/_components/confirmed/ConfirmedIntegrationTable';
 import { ErrorRow, ResourceTableSkeleton } from '@/app/target-sources/[targetSourceId]/_components/shared/async-state-views';
 import { useConfirmedIntegration } from '@/app/target-sources/[targetSourceId]/_components/data/ConfirmedIntegrationDataProvider';
+import { useLocale } from '@/app/components/LocaleProvider';
+import { LAYOUT_COPY } from '@/app/target-sources/[targetSourceId]/_components/layout/copy';
 
 interface ConfirmedResourcesSlotProps {
   bare?: boolean;
 }
 
 export const ConfirmedResourcesSlot = ({ bare }: ConfirmedResourcesSlotProps = {}) => {
+  const { locale } = useLocale();
+  const t = LAYOUT_COPY[locale].confirmedSlot;
   const { state, retry, targetSourceId } = useConfirmedIntegration();
 
   const body =
@@ -30,10 +34,10 @@ export const ConfirmedResourcesSlot = ({ bare }: ConfirmedResourcesSlotProps = {
       <section className={cn(cardStyles.base, 'overflow-hidden')}>
         <header className={cardStyles.header}>
           <h2 className={cn('text-[15px] font-semibold', textColors.primary)}>
-            연동 대상 정보
+            {t.title}
           </h2>
           <p className={cn('mt-1 text-xs', textColors.tertiary)}>
-            관리자 확정된 연동 대상 DB 목록입니다.
+            {t.subtitle}
           </p>
         </header>
         {body}

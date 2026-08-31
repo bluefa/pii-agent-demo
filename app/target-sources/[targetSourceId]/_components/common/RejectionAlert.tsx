@@ -1,11 +1,18 @@
+'use client';
+
 import { TargetSource } from '@/lib/types';
 import { cn, statusColors } from '@/lib/theme';
+import { useLocale } from '@/app/components/LocaleProvider';
+import { TS_COPY } from '@/app/target-sources/[targetSourceId]/_components/copy';
 
 interface RejectionAlertProps {
   project: TargetSource;
 }
 
 export const RejectionAlert = ({ project }: RejectionAlertProps) => {
+  const { locale } = useLocale();
+  const t = TS_COPY[locale].common;
+
   if (!project.isRejected) return null;
 
   return (
@@ -17,13 +24,19 @@ export const RejectionAlert = ({ project }: RejectionAlertProps) => {
           </svg>
         </div>
         <div>
-          <h4 className={cn('font-medium', statusColors.error.textDark)}>승인 요청이 반려되었습니다</h4>
+          <h4 className={cn('font-medium', statusColors.error.textDark)}>{t.rejectedTitle}</h4>
           {project.rejectionReason && (
-            <p className={cn('text-sm mt-1', statusColors.error.text)}>사유: {project.rejectionReason}</p>
+            <p className={cn('text-sm mt-1', statusColors.error.text)}>
+              {t.rejectedReason(project.rejectionReason)}
+            </p>
           )}
           {project.rejectedAt && (
             <p className={cn('text-xs mt-1', statusColors.error.text)}>
-              반려일시: {new Date(project.rejectedAt).toLocaleString('ko-KR')}
+              {/* The stamp follows the reader's language too — a ko-KR string prints its
+                  own 오전/오후 marker, which is Korean text on an English screen. */}
+              {t.rejectedAt(
+                new Date(project.rejectedAt).toLocaleString(locale === 'en' ? 'en-US' : 'ko-KR'),
+              )}
             </p>
           )}
         </div>

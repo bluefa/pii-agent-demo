@@ -8,6 +8,8 @@
  * - 'short': 짧은 형식 (예: 1월 15일 14:30)
  */
 
+import { DEFAULT_LOCALE, type Locale } from '@/lib/locale';
+
 export type DateFormat = 'date' | 'datetime' | 'datetime-seconds' | 'short';
 
 const FORMAT_OPTIONS: Record<DateFormat, Intl.DateTimeFormatOptions> = {
@@ -40,10 +42,19 @@ const FORMAT_OPTIONS: Record<DateFormat, Intl.DateTimeFormatOptions> = {
 };
 
 /**
+ * UI locale → the BCP-47 tag `Intl` wants. A stamp has to follow the reader's language
+ * the same way a sentence does: `ko-KR` writes its own 오전/오후 marker and orders the
+ * parts `2026. 08. 20.`, which is Korean text sitting on an English screen. Same
+ * mapping `RejectionAlert` makes inline.
+ */
+const intlLocale = (locale: Locale): string => (locale === 'en' ? 'en-US' : 'ko-KR');
+
+/**
  * 날짜 문자열을 지정된 형식으로 포맷팅합니다.
  *
  * @param dateString - ISO 8601 형식의 날짜 문자열
  * @param format - 출력 형식 (기본값: 'date')
+ * @param locale - 읽는 사람의 언어 (기본값: 한국어)
  * @returns 포맷팅된 날짜 문자열
  *
  * @example
@@ -51,10 +62,21 @@ const FORMAT_OPTIONS: Record<DateFormat, Intl.DateTimeFormatOptions> = {
  * formatDate('2024-01-15T14:30:45Z', 'datetime')       // "2024. 01. 15. 14:30"
  * formatDate('2024-01-15T14:30:45Z', 'datetime-seconds') // "2024. 01. 15. 14:30:45"
  * formatDate('2024-01-15T14:30:45Z', 'short')          // "1월 15일 14:30"
+ * formatDate('2024-01-15T14:30:45Z', 'short', 'en')    // "Jan 15, 02:30 PM"
+ *
+ * `locale` is last and defaults to Korean, the same shape `formatRelativeTime` below
+ * uses: every existing caller — the tests among them — keeps the stamp it had, and only
+ * a caller that knows the reader's language asks for the other one. Every `DateFormat`
+ * member follows, because the options table holds no locale-specific literal — `short`
+ * is the one that changes most (`1월 15일` → `Jan 15`).
  */
-export const formatDate = (dateString: string, format: DateFormat = 'date'): string => {
+export const formatDate = (
+  dateString: string,
+  format: DateFormat = 'date',
+  locale: Locale = DEFAULT_LOCALE,
+): string => {
   const date = new Date(dateString);
-  return date.toLocaleString('ko-KR', FORMAT_OPTIONS[format]);
+  return date.toLocaleString(intlLocale(locale), FORMAT_OPTIONS[format]);
 };
 
 /**
@@ -66,9 +88,15 @@ export const formatDateOnly = (dateString: string): string => {
 
 /**
  * 날짜와 시간을 포맷팅하는 헬퍼 함수
+ *
+ * Forwards `locale` to `formatDate`, and defaults the same way, so a caller that
+ * never knew about language keeps the stamp it had.
  */
-export const formatDateTime = (dateString: string): string => {
-  return formatDate(dateString, 'datetime');
+export const formatDateTime = (
+  dateString: string,
+  locale: Locale = DEFAULT_LOCALE,
+): string => {
+  return formatDate(dateString, 'datetime', locale);
 };
 
 /**
@@ -124,9 +152,16 @@ export const formatDateTimeKstCompact = (dateString: string): string => {
  *
  * @example
  * formatDateTimeLocal('2026-08-20T09:31:31Z') // "2026. 08. 20. 오후 06:31 GMT+9" (Asia/Seoul)
+ * formatDateTimeLocal('2026-08-20T09:31:31Z', 'en') // "08/20/2026, 06:31 PM GMT+9"
+ *
+ * `locale` picks the language of the stamp only. The zone is the viewer's either way —
+ * that is this function's whole point, and it is not a language question.
  */
-export const formatDateTimeLocal = (dateString: string): string => {
-  return new Date(dateString).toLocaleString('ko-KR', {
+export const formatDateTimeLocal = (
+  dateString: string,
+  locale: Locale = DEFAULT_LOCALE,
+): string => {
+  return new Date(dateString).toLocaleString(intlLocale(locale), {
     ...FORMAT_OPTIONS.datetime,
     timeZoneName: 'shortOffset',
   });
@@ -217,18 +252,31 @@ export const formatDuration = (ms: number): string => {
  *
  * @example
  * formatRelativeTime('2026-07-31T14:20:00Z')  // "3분 전" (14:23 기준)
+ * formatRelativeTime('2026-07-31T14:20:00Z', 'en')  // "3m ago"
+ *
+ * `locale` is last and defaults to Korean, the same shape `fmtRelativeTime` and
+ * `fmtElapsedAgo` in `lib/pipeline/format.ts` use: this is a plain module with no
+ * provider to read, so every existing caller — the tests among them — keeps the
+ * words it had, and only a caller that knows the reader's language asks for the
+ * other set. The English units are that file's, not new ones; `mo` rather than a
+ * second `m` because minutes already own that letter.
  */
-export const formatRelativeTime = (dateString: string): string => {
+export const formatRelativeTime = (
+  dateString: string,
+  locale: Locale = DEFAULT_LOCALE,
+): string => {
   const then = new Date(dateString).getTime();
   if (Number.isNaN(then)) return '';
+  const en = locale === 'en';
   const minutes = Math.floor((Date.now() - then) / 60_000);
-  if (minutes < 1) return '방금 전';
-  if (minutes < 60) return `${minutes}분 전`;
+  if (minutes < 1) return en ? 'just now' : '방금 전';
+  if (minutes < 60) return en ? `${minutes}m ago` : `${minutes}분 전`;
   const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}시간 전`;
+  if (hours < 24) return en ? `${hours}h ago` : `${hours}시간 전`;
   const days = Math.floor(hours / 24);
-  if (days < 30) return `${days}일 전`;
+  if (days < 30) return en ? `${days}d ago` : `${days}일 전`;
   const months = Math.floor(days / 30);
-  if (months < 12) return `${months}개월 전`;
-  return `${Math.floor(months / 12)}년 전`;
+  if (months < 12) return en ? `${months}mo ago` : `${months}개월 전`;
+  const years = Math.floor(months / 12);
+  return en ? `${years}y ago` : `${years}년 전`;
 };

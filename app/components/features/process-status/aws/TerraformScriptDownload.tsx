@@ -3,6 +3,8 @@
 import { useCallback, useState } from 'react';
 import { getAwsTerraformScript } from '@/app/lib/api/aws';
 import { cn, getButtonClass, statusColors, textStyles } from '@/lib/theme';
+import { useLocale } from '@/app/components/LocaleProvider';
+import { INSTALL_COPY } from '@/app/components/features/process-status/install-copy';
 
 /**
  * Terraform Script 다운로드 컨트롤.
@@ -16,6 +18,8 @@ import { cn, getButtonClass, statusColors, textStyles } from '@/lib/theme';
  * 바꾸는 액션의 몫이다. 테두리와 글자만으로 CTA 무게를 낸다.
  */
 export const TerraformScriptDownload = ({ targetSourceId }: { targetSourceId: number }) => {
+  const { locale } = useLocale();
+  const t = INSTALL_COPY[locale].aws;
   const [downloading, setDownloading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -31,11 +35,11 @@ export const TerraformScriptDownload = ({ targetSourceId }: { targetSourceId: nu
       anchor.click();
       URL.revokeObjectURL(url);
     } catch {
-      setError('다운로드에 실패했습니다. 잠시 후 다시 시도해 주세요.');
+      setError(t.downloadFailed);
     } finally {
       setDownloading(false);
     }
-  }, [targetSourceId]);
+  }, [targetSourceId, t.downloadFailed]);
 
   return (
     <span className="inline-flex flex-col items-center gap-1.5">
@@ -45,7 +49,7 @@ export const TerraformScriptDownload = ({ targetSourceId }: { targetSourceId: nu
         disabled={downloading}
         className={cn(getButtonClass('outline'), 'whitespace-nowrap')}
       >
-        {downloading ? '다운로드 중...' : 'Terraform Script 다운로드'}
+        {downloading ? t.downloading : t.downloadScript}
       </button>
 
       {/* 실패는 박스가 아니라 캡션이다 — 단계 헤더의 좁은 슬롯에서도 레이아웃을 밀지 않는다. */}

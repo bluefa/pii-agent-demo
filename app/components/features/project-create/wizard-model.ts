@@ -6,15 +6,23 @@ import {
   hasChinaRegion,
   type ProviderChipKey,
 } from '@/lib/constants/provider-mapping';
+import { COPY } from '@/lib/copy';
+import { DEFAULT_LOCALE } from '@/lib/locale';
 
 export type WizardStep = 1 | 2 | 3 | 4 | 5;
 
-export const WIZARD_STEPS: Array<{ step: WizardStep; title: string; sublabel: string }> = [
-  { step: 1, title: '클라우드 계정', sublabel: '운영 환경 선택' },
-  { step: 2, title: '계정 정보', sublabel: '연결할 계정 입력' },
-  { step: 3, title: '사용하는 Database 확인', sublabel: '운영 중인 DB 선택' },
-  { step: 4, title: '등록 내용 확인', sublabel: '연동 구성 확인' },
-  { step: 5, title: '등록 결과', sublabel: '완료' },
+/** The wizard dictionary, so the step list can take it as a parameter. */
+type WizardCopy = (typeof COPY)['ko']['wizard'];
+
+/** The `step` values are identity, not copy — only the two labels come from `t`. */
+export const wizardSteps = (
+  t: WizardCopy,
+): Array<{ step: WizardStep; title: string; sublabel: string }> => [
+  { step: 1, title: t.step1Title, sublabel: t.step1Sub },
+  { step: 2, title: t.step2Title, sublabel: t.step2Sub },
+  { step: 3, title: t.step3Title, sublabel: t.step3Sub },
+  { step: 4, title: t.step4Title, sublabel: t.step4Sub },
+  { step: 5, title: t.step5Title, sublabel: t.step5Sub },
 ];
 
 /** Global = 일반 리전, China = 별도 파티션. Drives the required `is_china_region`. */
@@ -93,7 +101,14 @@ export const isStepComplete = (step: WizardStep, state: WizardFormState): boolea
       // A provider is always selected and the region defaults to Global.
       return true;
     case 2:
-      return Object.keys(getCredentialErrors(state.providerKey, state.fields)).length === 0;
+      // Only the COUNT of errors gates the step, never their text, so this reads a
+      // fixed dictionary instead of taking the reader's language as an argument. A
+      // form that could advance in one language and not in the other would be a bug.
+      return (
+        Object.keys(
+          getCredentialErrors(COPY[DEFAULT_LOCALE].wizard, state.providerKey, state.fields),
+        ).length === 0
+      );
     case 3:
       return state.dbTypes.length > 0 || state.othersDb;
     case 4:

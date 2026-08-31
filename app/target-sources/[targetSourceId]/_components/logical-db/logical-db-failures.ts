@@ -1,4 +1,5 @@
 import type { AppErrorCode } from '@/lib/errors';
+import { DEFAULT_LOCALE, type Locale } from '@/lib/locale';
 import type { FailureCopy } from '@/app/components/ui/confirm-failures';
 
 /**
@@ -14,7 +15,9 @@ import type { FailureCopy } from '@/app/components/ui/confirm-failures';
  * 그대로 다시 PUT 하므로, 권한·입력·대상 문제는 같은 손으로 다시 눌러도 같은 실패다.
  * CONFLICT 는 진행 중인 연결 테스트가 끝나면 풀리므로 다시 눌러볼 값어치가 있다.
  */
-const FAILURES: Partial<Record<AppErrorCode, FailureCopy>> = {
+type FailureTable = Partial<Record<AppErrorCode, FailureCopy>>;
+
+const FAILURES: FailureTable = {
   CONFLICT: { reason: '이미 진행 중인 연결 테스트가 있어요.', retry: true },
   FORBIDDEN: { reason: '이 연동 대상의 제외 설정을 바꿀 권한이 없어요.', retry: false },
   UNAUTHORIZED: { reason: '로그인이 만료됐어요. 새로고침한 뒤 다시 시도해 주세요.', retry: false },
@@ -29,5 +32,33 @@ const FAILURES: Partial<Record<AppErrorCode, FailureCopy>> = {
 /** 분류할 수 없는 실패는 다시 눌러볼 값어치가 있다 — 일시적일 수 있다는 게 유일한 정보다. */
 const UNKNOWN_FAILURE: FailureCopy = { reason: '알 수 없는 오류가 발생했어요.', retry: true };
 
-export const logicalDbFailureCopy = (code: AppErrorCode | undefined): FailureCopy =>
-  (code && FAILURES[code]) ?? UNKNOWN_FAILURE;
+/**
+ * The same table in English. `retry` is duplicated rather than shared because it belongs to
+ * the row, not to the sentence — the same call `confirm-failures.ts` makes.
+ */
+const FAILURES_EN: FailureTable = {
+  CONFLICT: { reason: 'A connection test is already running.', retry: true },
+  FORBIDDEN: { reason: 'You are not allowed to change the exclusions for this target.', retry: false },
+  UNAUTHORIZED: { reason: 'Your session expired. Refresh the page and try again.', retry: false },
+  NOT_FOUND: { reason: 'That resource no longer exists.', retry: false },
+  BAD_REQUEST: { reason: 'The server did not accept the exclusion list you sent.', retry: false },
+  NETWORK: { reason: 'Check your network connection and try again.', retry: true },
+  TIMEOUT: { reason: 'The response took too long. Try again in a moment.', retry: true },
+  RATE_LIMITED: { reason: 'Requests are piling up. Try again in a moment.', retry: true },
+  INTERNAL_ERROR: { reason: 'The server hit a problem. Try again in a moment.', retry: true },
+};
+
+const UNKNOWN_FAILURE_EN: FailureCopy = { reason: 'Something went wrong.', retry: true };
+
+/**
+ * `locale` is optional and defaults to Korean so every existing caller and test keeps the
+ * sentence it had; the modal that renders this passes the reader's language.
+ */
+export const logicalDbFailureCopy = (
+  code: AppErrorCode | undefined,
+  locale: Locale = DEFAULT_LOCALE,
+): FailureCopy => {
+  const table = locale === 'en' ? FAILURES_EN : FAILURES;
+  const unknown = locale === 'en' ? UNKNOWN_FAILURE_EN : UNKNOWN_FAILURE;
+  return (code && table[code]) ?? unknown;
+};

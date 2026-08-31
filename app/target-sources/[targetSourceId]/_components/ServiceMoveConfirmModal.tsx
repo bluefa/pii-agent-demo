@@ -1,6 +1,8 @@
 'use client';
 
 import { ConfirmStepModal } from '@/app/components/ui/ConfirmStepModal';
+import { useLocale } from '@/app/components/LocaleProvider';
+import { TS_COPY } from '@/app/target-sources/[targetSourceId]/_components/copy';
 
 interface ServiceMoveConfirmModalProps {
   isOpen: boolean;
@@ -30,30 +32,35 @@ export const ServiceMoveConfirmModal = ({
   onRetry,
   isPending = false,
   errorReason = null,
-}: ServiceMoveConfirmModalProps) => (
-  <ConfirmStepModal
-    open={isOpen}
-    onClose={onClose}
-    onConfirm={onConfirm}
-    onRetry={onRetry}
-    isPending={isPending}
-    // The failure says what did not happen and how long it waited. It does not tell the
-    // user to try later or to ask someone — 다시 요청하기 is right there, and the wait is
-    // the only fact this dialog actually knows.
-    result={
-      errorReason
-        ? {
-            kind: 'error',
-            title: '이동하지 못했어요',
-            description: '서비스 인프라 목록을 여는 데 실패했습니다.',
-            reason: errorReason,
-          }
-        : null
-    }
-    // The sidebar's current-service row opens this dialog too, so neither line can claim
-    // the destination is a *different* service.
-    title="서비스 인프라 목록으로 이동할까요?"
-    description="선택한 서비스의 인프라 목록으로 이동합니다."
-    confirmLabel="이동하기"
-  />
-);
+}: ServiceMoveConfirmModalProps) => {
+  const { locale } = useLocale();
+  const t = TS_COPY[locale].detail;
+
+  return (
+    <ConfirmStepModal
+      open={isOpen}
+      onClose={onClose}
+      onConfirm={onConfirm}
+      onRetry={onRetry}
+      isPending={isPending}
+      // The failure says what did not happen and how long it waited. It does not tell the
+      // user to try later or to ask someone — 다시 요청하기 is right there, and the wait is
+      // the only fact this dialog actually knows.
+      result={
+        errorReason
+          ? {
+              kind: 'error',
+              title: t.moveFailedTitle,
+              description: t.moveFailedDesc,
+              reason: errorReason,
+            }
+          : null
+      }
+      // The sidebar's current-service row opens this dialog too, so neither line can claim
+      // the destination is a *different* service.
+      title={t.moveTitle}
+      description={t.moveDesc}
+      confirmLabel={t.moveConfirm}
+    />
+  );
+};

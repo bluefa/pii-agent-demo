@@ -1,17 +1,17 @@
 export {
-  CREDENTIAL_FIELDS,
+  credentialFields,
   credentialFieldError,
   getCredentialErrors,
   type CredentialFieldDef,
 } from '@/app/components/features/project-create/credential-fields';
 export {
-  WIZARD_STEPS,
   buildCandidatesInput,
   isStepComplete,
   type AwsInstallMode,
   type OperatingRegion,
   type WizardFormState,
   type WizardStep,
+  wizardSteps,
 } from '@/app/components/features/project-create/wizard-model';
 export {
   candidateDescriptionLine,

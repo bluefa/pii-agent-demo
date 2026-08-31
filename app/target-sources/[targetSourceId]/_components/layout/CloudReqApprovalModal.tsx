@@ -29,6 +29,11 @@ import {
   unitCounts,
   type LogicalDbCountMap,
 } from '@/app/target-sources/[targetSourceId]/_components/confirmed/logical-db-summaries';
+import { useLocale } from '@/app/components/LocaleProvider';
+import {
+  LAYOUT_COPY,
+  type LayoutCopy,
+} from '@/app/target-sources/[targetSourceId]/_components/layout/copy';
 
 /** 이름 셀과 같은 14px — 모달 안의 표는 머리글부터 한 눈금으로 읽는다. */
 const MONO_CELL = 'whitespace-nowrap font-mono text-[14px]';
@@ -53,20 +58,20 @@ interface CloudReqApprovalModalProps {
  * 프레임별 결과 문구. 확인 프레임은 건수를 다시 말하지 않는다 — 방금 그 숫자를 보고 누른
  * 사용자에게 같은 수를 되돌려주는 대신, 다음에 무슨 일이 일어나는지만 말한다.
  */
-const RESULTS: Record<'success' | 'error', ConfirmStepResult> = {
+const resultsOf = (t: LayoutCopy['cloudApproval']): Record<'success' | 'error', ConfirmStepResult> => ({
   success: {
     kind: 'success',
-    title: '승인 요청을 보냈어요',
-    description: '잠시 후 관리자 승인 대기 단계로 이동해요.',
+    title: t.successTitle,
+    description: t.successDescription,
   },
   error: {
     kind: 'error',
-    title: '승인 요청을 보내지 못했어요',
+    title: t.errorTitle,
     // 실패가 지운 것이 없다는 말이 먼저다 — 다시 실행해야 하는 줄 알면 사용자는 통과한
     // 회차를 버리고 처음부터 다시 돌린다.
-    description: '연결 테스트 결과와 논리 DB 설정은 그대로 남아 있어요.',
+    description: t.errorDescription,
   },
-};
+});
 
 /**
  * 완료 승인 요청 확인 모달 — 1단계 승인 요청과 같은 확인 문법(ConfirmStepModal)이다:
@@ -87,6 +92,9 @@ export const CloudReqApprovalModal = ({
   onRetry,
   onClose,
 }: CloudReqApprovalModalProps) => {
+  const { locale } = useLocale();
+  const copy = LAYOUT_COPY[locale];
+  const t = copy.cloudApproval;
   // 최신 실행의 리소스별 논리 DB 수(연동 / 제외). 비어 있다는 것은 **아직 못 읽었거나
   // 이번 실행이 말하지 않았다**는 뜻이고, 둘 다 0 이 아니다 — 합계가 0 에서 시작하던
   // 시절 이 모달은 응답을 기다리는 2초 동안 "제외한 논리 DB 0개"라고 단정했다.
@@ -125,7 +133,8 @@ export const CloudReqApprovalModal = ({
     { target: null, excluded: null },
   );
 
-  const failure = approvalFailureCopy(errorCode);
+  const failure = approvalFailureCopy(errorCode, locale);
+  const results = resultsOf(t);
 
   return (
     <ConfirmStepModal
@@ -135,28 +144,41 @@ export const CloudReqApprovalModal = ({
       isPending={pending}
       result={
         phase === 'success'
-          ? RESULTS.success
+          ? results.success
           : phase === 'error'
-            ? { ...RESULTS.error, reason: failure.reason }
+            ? { ...results.error, reason: failure.reason }
             : null
       }
       onRetry={failure.retry ? onRetry : undefined}
-      title="연동 완료 승인을 요청할까요?"
+      title={t.title}
       description={
         <>
-          <span className={primaryColors.text}>
-            연동 대상 {units.length}건의 연결 테스트 결과로 완료 승인을 요청해요
-          </span>
-          . 요청 후에는 관리자 검토가 시작되고, 변경하려면 요청을 취소하고 다시 제출해야 해요.
+          <span className={primaryColors.text}>{t.descriptionStrong(units.length)}</span>
+          {t.descriptionTail}
         </>
       }
-      confirmLabel="요청하기"
+      confirmLabel={t.confirmLabel}
       size="lg"
     >
       <div className="grid grid-cols-3 gap-3">
-        <StatTile label="연동 대상" value={units.length} unit="건" scale="dialog" />
-        <StatTile label="연동 논리 DB" value={totals.target} unit="개" scale="dialog" />
-        <StatTile label="제외한 논리 DB" value={totals.excluded} unit="개" scale="dialog" />
+        <StatTile
+          label={t.tileTargets}
+          value={units.length}
+          unit={copy.common.unitCases}
+          scale="dialog"
+        />
+        <StatTile
+          label={t.tileLogicalDb}
+          value={totals.target}
+          unit={copy.common.unitItems}
+          scale="dialog"
+        />
+        <StatTile
+          label={t.tileExcluded}
+          value={totals.excluded}
+          unit={copy.common.unitItems}
+          scale="dialog"
+        />
       </div>
 
       <div className="mt-4">
@@ -182,8 +204,12 @@ export const CloudReqApprovalModal = ({
                       찍었는데, 위의 타일은 같은 이름으로 연동만 세고 있어서 한 모달이 두
                       수를 말했다. deny 모델에서 제외 목록은 정책이지 스캔의 부분집합이
                       아니라, 그 합은 애초에 무엇의 개수도 아니다. */}
-                  <th className={cn(idcStyles.table.approvalHeaderCell, 'text-right')}>연동 논리 DB</th>
-                  <th className={cn(idcStyles.table.approvalHeaderCell, 'text-right')}>연동 제외</th>
+                  <th className={cn(idcStyles.table.approvalHeaderCell, 'text-right')}>
+                    {t.colLogicalDb}
+                  </th>
+                  <th className={cn(idcStyles.table.approvalHeaderCell, 'text-right')}>
+                    {t.colExcluded}
+                  </th>
                 </tr>
               </thead>
               <tbody className={idcStyles.table.body}>
@@ -221,7 +247,7 @@ export const CloudReqApprovalModal = ({
                                   textColors.tertiary,
                                 )}
                               >
-                                데이터베이스 {unit.members.length}개
+                                {t.databaseCount(unit.members.length)}
                               </span>
                             )}
                           </span>
@@ -277,10 +303,10 @@ export const CloudReqApprovalModal = ({
                           실행이 그 수를 말하지 않았다는 뜻이다), 두 열 다 중립색이다 —
                           어느 쪽이 연동이고 어느 쪽이 제외인지는 머리글이 이미 말했다. */}
                       <td className={cn(idcStyles.table.approvalCell, 'text-right')}>
-                        <LogicalDbCountCell count={c.target} label="연동 논리 DB" />
+                        <LogicalDbCountCell count={c.target} label={t.countLabelTarget} />
                       </td>
                       <td className={cn(idcStyles.table.approvalCell, 'text-right')}>
-                        <LogicalDbCountCell count={c.excluded} label="연동 제외 논리 DB" />
+                        <LogicalDbCountCell count={c.excluded} label={t.countLabelExcluded} />
                       </td>
                     </tr>
                   );

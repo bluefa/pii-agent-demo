@@ -25,13 +25,12 @@ import {
 } from '@/app/target-sources/[targetSourceId]/_components/shared/async-state-views';
 import type { AsyncState } from '@/app/target-sources/[targetSourceId]/_components/shared/async-state';
 import { cardStyles, cn, idcStyles, primaryColors, statusColors } from '@/lib/theme';
+import { useLocale } from '@/app/components/LocaleProvider';
+import { LAYOUT_COPY } from '@/app/target-sources/[targetSourceId]/_components/layout/copy';
 
 interface ApplyingApprovedCardProps {
   targetSourceId: number;
 }
-
-const FETCH_ERROR_MESSAGE = '반영 정보를 불러오지 못했습니다.';
-const FILTER_EMPTY_MESSAGE = '조건에 맞는 결과가 없어요.';
 
 const toSelectedRow = (item: ApprovedIntegrationResourceItem): WaitingApprovalResource => ({
   resourceId: item.resource_id,
@@ -98,6 +97,9 @@ const EMPTY_VIEW: ApplyingView = { resources: [], approvedAt: null, approver: nu
  * (advance to step 4 surfaces on the user's next refresh).
  */
 export const ApplyingApprovedCard = ({ targetSourceId }: ApplyingApprovedCardProps) => {
+  const { locale } = useLocale();
+  const copy = LAYOUT_COPY[locale];
+  const t = copy.applying;
   const [state, setState] = useState<AsyncState<ApplyingView>>({ status: 'loading' });
   const [retryNonce, setRetryNonce] = useState(0);
 
@@ -128,11 +130,11 @@ export const ApplyingApprovedCard = ({ targetSourceId }: ApplyingApprovedCardPro
           setState({ status: 'ready', data: EMPTY_VIEW });
           return;
         }
-        setState({ status: 'error', message: FETCH_ERROR_MESSAGE });
+        setState({ status: 'error', message: t.fetchError });
       });
 
     return () => controller.abort();
-  }, [targetSourceId, retryNonce]);
+  }, [targetSourceId, retryNonce, t.fetchError]);
 
   const handleRetry = useCallback(() => {
     setState({ status: 'loading' });
@@ -158,8 +160,8 @@ export const ApplyingApprovedCard = ({ targetSourceId }: ApplyingApprovedCardPro
             card does not jump when they arrive. */}
         <div className="flex items-center gap-2">
           {/* Step position, matching INSTALL_STEPS order in InstallationProcessProgressBar. */}
-          <span className={cardStyles.stepTag}>3단계</span>
-          <h2 className={cn(cardStyles.cardTitle)}>연동 대상 반영중</h2>
+          <span className={cardStyles.stepTag}>{copy.common.step(3)}</span>
+          <h2 className={cn(cardStyles.cardTitle)}>{t.title}</h2>
           {loaded ? (
             <span
               className={cn(
@@ -168,7 +170,7 @@ export const ApplyingApprovedCard = ({ targetSourceId }: ApplyingApprovedCardPro
                 statusColors.warning.textDark,
               )}
             >
-              반영중
+              {t.badge}
             </span>
           ) : (
             /* 24px, not 26: the title's line box is 20 × 1.2 since the tag moved onto this row,
@@ -184,12 +186,12 @@ export const ApplyingApprovedCard = ({ targetSourceId }: ApplyingApprovedCardPro
           <>
             <p className={cn('mt-3', cardStyles.guidance)}>
               <strong className={cn('font-semibold', primaryColors.text)}>
-                제출한 연동 대상 DB가 승인 완료됐어요.
+                {t.approvedLead}
               </strong>{' '}
-              PII Agent 설치에 필요한 준비를 진행하고 있어요.
+              {t.approvedTail}
             </p>
             {/* mt 없음 — 행간 여백(leading 1.55)만으로 문단을 가른다 (2·6단계 문법). */}
-            <p className={cardStyles.guidance}>평균 1일 이내(주말·공휴일 제외)에 완료돼요.</p>
+            <p className={cardStyles.guidance}>{t.eta}</p>
           </>
         ) : (
           /* 안내가 두 문단이 됐으니 스켈레톤도 두 줄이다 — 한 줄짜리 25px 바 하나만 두면
@@ -203,9 +205,9 @@ export const ApplyingApprovedCard = ({ targetSourceId }: ApplyingApprovedCardPro
         {loaded && (view.approvedAt || view.approver) && (
           <div className="mt-4 flex flex-wrap gap-8">
             {view.approvedAt && (
-              <MetaField label="승인일시" value={formatDate(view.approvedAt, 'datetime')} />
+              <MetaField label={t.approvedAt} value={formatDate(view.approvedAt, 'datetime', locale)} />
             )}
-            {view.approver && <MetaField label="승인자" value={view.approver} />}
+            {view.approver && <MetaField label={t.approver} value={view.approver} />}
           </div>
         )}
       </div>
@@ -240,7 +242,7 @@ export const ApplyingApprovedCard = ({ targetSourceId }: ApplyingApprovedCardPro
               resources={table.visibleResources}
               connected
               raisedRows
-              emptyMessage={showFilterEmpty ? FILTER_EMPTY_MESSAGE : undefined}
+              emptyMessage={showFilterEmpty ? copy.common.filterEmpty : undefined}
               // Same as step 2 — see WaitingApprovalCard: closed groups must not swallow what a
               // filter narrowed to, and the group's count line describes the filtered set.
               expandFolds={
