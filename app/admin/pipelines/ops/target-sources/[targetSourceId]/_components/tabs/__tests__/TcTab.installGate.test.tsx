@@ -68,6 +68,8 @@ const installStatus = (serviceTerraform: AwsInstallStepValue): AwsInstallationSt
   ],
 });
 
+const onOpenInfraTab = vi.fn();
+
 const renderTab = () =>
   render(
     <TcTab
@@ -80,7 +82,7 @@ const renderTab = () =>
       onStatusReload={vi.fn()}
       provider="aws"
       manualInstall={false}
-      onOpenInfraTab={vi.fn()}
+      onOpenInfraTab={onOpenInfraTab}
     />,
   );
 
@@ -88,6 +90,7 @@ const runButton = () => screen.getByRole('button', { name: '연결 테스트 실
 
 beforeEach(() => {
   triggerTestConnection.mockClear();
+  onOpenInfraTab.mockClear();
   getAwsInstallationStatus.mockReset();
 });
 
@@ -109,6 +112,21 @@ describe('TcTab — 설치가 덜 끝난 채로 실행하기', () => {
 
     fireEvent.click(screen.getByRole('button', { name: '그래도 실행' }));
     await waitFor(() => expect(triggerTestConnection).toHaveBeenCalledWith(1));
+  });
+
+  it('경고 상자의 두 길이 실제로 닿는다 — 탭 전환과 재조회', async () => {
+    getAwsInstallationStatus.mockResolvedValue(installStatus('IN_PROGRESS'));
+    renderTab();
+
+    await screen.findByText('설치가 아직 끝나지 않았습니다');
+    expect(getAwsInstallationStatus).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(screen.getByRole('button', { name: '인프라 작업 탭에서 확인' }));
+    expect(onOpenInfraTab).toHaveBeenCalledTimes(1);
+
+    // 다시 확인은 같은 GET 을 다시 부른다 — 계약에 재점검을 시키는 오퍼레이션이 없다.
+    fireEvent.click(screen.getByRole('button', { name: '다시 확인' }));
+    await waitFor(() => expect(getAwsInstallationStatus).toHaveBeenCalledTimes(2));
   });
 
   it('취소하면 아무 요청도 나가지 않는다', async () => {

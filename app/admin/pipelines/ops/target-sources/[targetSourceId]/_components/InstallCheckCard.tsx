@@ -123,9 +123,13 @@ export function InstallCheckCard({
   const verdict = VERDICT[gate.kind];
 
   if (loading) {
-    // 위 카드와 같은 규칙으로 자리를 잡아 둔다 — 머리(제목+판정 줄) 약 96px 에
-    // 그룹 머리글 둘과 최대 네 행(AWS 3 · Azure 4). 도착하면 위로만 줄어든다.
-    return <div className="mt-4 h-[226px]" aria-busy />;
+    /* 가장 키가 큰 경우를 잡아 둔다 — 위 카드와 같은 규칙이다: 도착한 답이 이보다
+       작으면 위로 줄어들 뿐이고, 그쪽은 아래 카드를 덮지 않는 방향이다.
+
+       ⚠️ 브라우저에서 잰 값이 아니라 위 카드의 실측(193px = 머리 103 + 30px 행 셋)에서
+       유도한 값이다: 같은 머리 103 + 네 행 120(Azure 가 최대) + 그룹 머리글 둘 52 +
+       그룹 사이 여백 8. 실측할 기회가 생기면 그때 고친다. */
+    return <div className="mt-4 h-[283px]" aria-busy />;
   }
 
   if (failed) {
