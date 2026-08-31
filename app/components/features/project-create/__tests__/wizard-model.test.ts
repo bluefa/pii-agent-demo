@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import {
-  attachLinkedAccount,
   buildCandidatesInput,
   isStepComplete,
   type WizardFormState,
@@ -217,17 +216,33 @@ describe('isStepComplete — step gating', () => {
    * 게이트가 값을 받아내는 것과 그 값이 실제로 나가는 것은 다른 일이다. 둘을 따로 두는
    * 이유는 단순하다 — 필수 검증만 있고 배선이 없던 동안 위 테스트들은 전부 통과했다.
    */
-  it('carries the linked account into the request input, not just the form state', () => {
+  it('fills the single contract account slot with the linked account', () => {
     const input = buildCandidatesInput(
       baseState({
         fields: { payerAccount: '123456789012', linkedAccount: '210987654321' },
       }),
     );
-    expect(input.awsAccountId).toBe('123456789012');
-    expect(input.awsLinkedAccountId).toBe('210987654321');
+    expect(input.awsAccountId).toBe('210987654321');
   });
 
-  it('does not send a linked account for non-AWS providers', () => {
+  /**
+   * 규칙의 트립와이어다. payer 는 폼이 묻고 검증까지 하지만 어디로도 나가지 않는다 —
+   * 누가 다시 배선하면 이 테스트가 그 값을 요청 바디에서 찾아내 깨진다.
+   */
+  it('never lets the payer account reach the request input', () => {
+    const input = buildCandidatesInput(
+      baseState({
+        fields: {
+          payerAccount: '123456789012',
+          linkedAccount: '210987654321',
+          description: '결제 운영계',
+        },
+      }),
+    );
+    expect(JSON.stringify(input)).not.toContain('123456789012');
+  });
+
+  it('does not send an AWS account for non-AWS providers', () => {
     // 폼이 묻지도 않는 값이 provider 를 바꿨다고 따라 나가면 안 된다.
     const azure = buildCandidatesInput(
       baseState({
@@ -235,32 +250,7 @@ describe('isStepComplete — step gating', () => {
         fields: { tenantId: 't', subscriptionId: 's', linkedAccount: '210987654321' },
       }),
     );
-    expect(azure.awsLinkedAccountId).toBeUndefined();
-  });
-
-  /**
-   * 35 에 실었다고 끝이 아니다 — 36 은 35 응답을 되던지므로, 응답이 키를 떨구면 등록
-   * 요청에는 payer 만 남는다. mock 의 `buildCandidateMetadata` 가 실제로 그렇게 떨군다.
-   */
-  it('re-attaches the linked account to a candidate whose metadata came back without it', () => {
-    const returned = candidate({ metadata: { aws_account_id: '123456789012' } });
-    const posted = attachLinkedAccount(
-      returned,
-      baseState({ fields: { payerAccount: '123456789012', linkedAccount: '210987654321' } }),
-    );
-    expect(posted.metadata).toEqual({
-      aws_account_id: '123456789012',
-      aws_linked_account_id: '210987654321',
-    });
-  });
-
-  it('leaves a non-AWS candidate untouched when re-attaching', () => {
-    const returned = candidate({ cloud_type: 'AZURE', metadata: { tenant_id: 't' } });
-    const posted = attachLinkedAccount(
-      returned,
-      baseState({ providerKey: 'azure', fields: { linkedAccount: '210987654321' } }),
-    );
-    expect(posted).toBe(returned);
+    expect(azure.awsAccountId).toBeUndefined();
   });
 
   it('marks Linked Account as required in the field definition', () => {

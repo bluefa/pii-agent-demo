@@ -176,8 +176,8 @@ describe('mockTargetSources.create (36) — round-trip → TargetSourceInfo', ()
       targetSourceId: number;
     };
 
-    // Duplicate identity is the account, so naming the same payer again is a
-    // duplicate even though a different database was selected the second time.
+    // Duplicate identity is the account, so naming the same linked account again is
+    // a duplicate even though a different database was selected the second time.
     const rePreview = (await readJson(
       await mockTargetSources.previewRegistration('aws', {
         cloud_type: 'aws',

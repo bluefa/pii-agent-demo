@@ -76,6 +76,8 @@ export const credentialFields = (
   t: WizardCopy,
 ): Record<ProviderChipKey, CredentialFieldDef[]> => ({
   aws: [
+    // 운영자 본인 참고용으로만 받는 값이다. 계약의 계정 칸은 linked 계정이 채우므로
+    // payer 는 어떤 요청에도 실리지 않는다 — ⛔ 와이어에 배선하지 말 것.
     awsAccountField(t, 'payerAccount', 'Payer Account', t.awsPayerHelper),
     awsAccountField(
       t,
