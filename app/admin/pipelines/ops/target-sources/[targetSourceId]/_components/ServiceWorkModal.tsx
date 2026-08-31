@@ -15,15 +15,16 @@
  * ⛔ 계약에는 재점검을 **시키는** 오퍼레이션이 없다(install-v1.yaml 은 GET 하나뿐이다) —
  * `다시 확인` 은 같은 GET 을 다시 부를 뿐, 새 점검을 돌리지 않는다.
  *
- * 열 드래그는 없다. `useColumnResize` 의 저장 키는 한 화면의 한 표에 매인 것이고, 이 표는
- * 잠깐 열렸다 닫히는 모달의 것이라 되살릴 다음 방문이 없다 — 셸은 `resize` 없이도 제 격자와
- * 싱크 열을 그린다.
+ * 열 드래그는 있고, 저장은 없다 — `useColumnResize` 의 주석이 못 박은 그대로다(「모달 표의
+ * 폭은 모달과 함께 죽어도 되니 storageKey 를 생략하라」). 정체 두 열(name·id)이 `flex` 쌍이라
+ * 한쪽을 끌면 다른 쪽이 싱크를 넘겨받아 분할 창처럼 움직인다.
  */
 import { type ReactElement } from 'react';
 import { cn, idcStyles, pipelineStyles } from '@/lib/theme';
 import { ModalShell } from '@/app/admin/pipelines/_components/ModalShell';
 import { Icon, type IconName } from '@/app/admin/pipelines/_components/icons';
 import { ConsoleTable, type ConsoleTableColumn } from '@/app/components/ui/ConsoleTable';
+import { useColumnResize } from '@/app/components/ui/useColumnResize';
 import { ResourceIdCell } from '@/app/target-sources/[targetSourceId]/_components/shared/ResourceIdCell';
 import { opsStyles } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/opsStyles';
 import { TONE } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/terraformState';
@@ -57,16 +58,26 @@ const CELL = cn(
 const CLIP_CELL = cn(CELL, idcStyles.table.consoleCell);
 
 /**
- * 합(670)이 모달 안폭(720 − 좌우 24)에 든다 — 이 표는 가로로 스크롤하지 않는다.
- * 정체 두 열이 `flex`: 길어지는 값은 이름과 ARN 이고, 상태·안내는 자기 폭으로 족하다.
+ * 합(1052)이 모달 안폭(1100 − 좌우 24)과 정확히 같다 — 이 표는 가로로 스크롤하지 않는다.
+ *
+ * 정체 두 열이 `flex` 쌍이다(셸이 문서로 권하는 짝): 길어지는 값은 이름과 ARN 이고, 한쪽을
+ * 끌면 싱크가 다른 쪽으로 넘어가 둘이 분할 창처럼 움직인다. 340 은 바닥일 뿐 — 남는 폭은
+ * 둘이 나눠 갖는다.
+ *
+ * 안내는 **마지막이고, 접힌다**. 운영자가 이 모달을 여는 이유가 그 문장이라 잘라 낼 수 없고,
+ * 마지막 열이라 아래로 자라도 다음 열을 밀지 않는다. 나머지 셋은 덮어 자르는 칸 그대로다.
+ *
  * 머리글 14px 은 셸의 기본 12px 을 덮는다 — 확정 정보 표와 같은 규칙(표 안은 전부 14px).
  */
 const COLUMNS: readonly ConsoleTableColumn[] = [
-  { key: 'name', label: 'Resource Name', width: 170, flex: true, headClassName: 'text-[14px]' },
-  { key: 'id', label: 'Resource ID', width: 210, flex: true, headClassName: 'text-[14px]' },
+  { key: 'name', label: 'Resource Name', width: 340, flex: true, headClassName: 'text-[14px]' },
+  { key: 'id', label: 'Resource ID', width: 340, flex: true, headClassName: 'text-[14px]' },
   { key: 'status', label: '상태', width: 110, headClassName: 'text-[14px]' },
-  { key: 'guide', label: '안내', width: 180, headClassName: 'text-[14px]' },
+  { key: 'guide', label: '안내', width: 262, headClassName: 'text-[14px]' },
 ];
+
+/** 접히는 칸 — `consoleCell` 의 nowrap 을 쓰지 않는다. 값이 길면 아래로 자란다. */
+const WRAP_CELL = cn(CELL, 'whitespace-normal break-keep');
 
 export interface ServiceWorkModalProps {
   result: ServiceWorkResult;
@@ -85,16 +96,16 @@ export function ServiceWorkModal({
   // 정착한 행은 이 목록의 것이 아니다 — 게이트가 이미 안 끝난 것을 앞으로 정렬해 두었지만,
   // 자르는 것은 여기서 한 번 더 한다: 「필요한 리소스」라는 제목이 곧 이 필터다.
   const rows = result.rows.filter((row) => !isSettledInstallStatus(row.status));
+  // 저장 키 없음 — 이 표의 폭은 모달과 함께 죽는다(`useColumnResize` 의 지시). 그래서
+  // `ephemeralKeys` 도 필요 없다: 애초에 되살아날 폭이 없다.
+  const resize = useColumnResize({ clampToContent: true });
 
   return (
     <ModalShell
       open
       onClose={onClose}
-      variant="wide"
+      variant="table"
       labelledBy={TITLE_ID}
-      // `wide` 는 제 max-height 가 없다(시작 모달은 내용이 고정이라 필요가 없었다). 이 표는
-      // 행 수가 대상에 달렸으므로 TaskDetailModal 과 같은 천장을 얹고 본문만 스크롤시킨다.
-      className="max-h-[86vh]"
     >
       <h3 id={TITLE_ID} className={pipelineStyles.modal.title}>
         서비스 측 작업이 필요한 리소스
@@ -119,7 +130,7 @@ export function ServiceWorkModal({
         {/* `frame`, not `framePaged`: 아래를 닫는 페이저 바가 없다(이 목록은 페이지를 나누지
             않는다), 그래서 표가 제 아래 모서리를 스스로 닫는다. */}
         <div className={idcStyles.table.frame}>
-          <ConsoleTable columns={COLUMNS}>
+          <ConsoleTable columns={COLUMNS} resize={resize}>
             <tbody className={idcStyles.table.body}>
               {rows.map((row) => {
                 const meta = STATUS_META[row.status];
@@ -153,7 +164,7 @@ export function ServiceWorkModal({
                     </td>
                     {/* 안내가 없으면 빈 칸이다 — `—` 는 「없음」이라는 사실을 주장하는데,
                         여기서 없는 것은 계약이 이 리소스에 붙여 준 문장뿐이다. */}
-                    <td className={CLIP_CELL}>{row.guide}</td>
+                    <td className={WRAP_CELL}>{row.guide}</td>
                   </tr>
                 );
               })}

@@ -4172,6 +4172,16 @@ export const pipelineStyles = {
     /** Custom builder — the drag canvas + docked catalog panel need more room
      *  than the mini-flow steps (owner: modal too cramped when adding Tasks). */
     dialogXWide: 'w-[960px] max-w-[92vw] min-h-[480px] flex flex-col',
+    /**
+     * 콘솔 리소스 표를 담는 모달 — `dialogTask` 와 같은 모양(세로 flex + 천장, 본문만
+     * 스크롤)에 폭만 다르다. 960(xwide)으로도 모자란 표가 있어서다: ARN 한 값이 14px 에서
+     * ~500px 을 먹으므로 정체 두 열만으로 680, 거기에 상태와 안내가 붙는다. 실측 720 에서는
+     * 네 칸이 전부 잘려 Resource Name 과 Resource ID 가 똑같이 `arn:aws:rds:ap-northeast`
+     * 로만 보였다. 1100 − 좌우 24 = 안폭 1052 가 그 네 열의 합이다.
+     *
+     * `dialog` 의 `max-w-[90vw]` 가 그대로 천장이라 좁은 화면에서 밖으로 나가지 않는다.
+     */
+    dialogTable: 'w-[1100px] flex flex-col max-h-[min(760px,86vh)]',
     /** Task Queue app-modal shell (admin-taskqueue.html `.modal.app`) — r20, no
      *  padding (am-header/body/footer own it), inner scroll to 88vh. Width lives
      *  in the caller (TqModal 720 / wide 840) so this base stays width-free and
