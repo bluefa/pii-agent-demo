@@ -8,7 +8,8 @@ import { cn } from '@/lib/theme';
 import { fmtDateTime, KIND_POLICY, statusKo } from '@/lib/pipeline/format';
 import { AttemptDetail } from '@/app/admin/pipelines/_detail/AttemptDetail';
 import { DrawerPicker } from '@/app/admin/pipelines/_detail/DrawerPicker';
-import type { JobVerdict } from '@/app/admin/pipelines/_detail/jobRows';
+import { jobTallyKo, type JobVerdict } from '@/app/admin/pipelines/_detail/jobRows';
+import { TIMEOUT_VERDICT, verdictSummary } from '@/app/admin/pipelines/_detail/statusModel';
 import {
   conditionVerdict,
   d,
@@ -42,6 +43,8 @@ function Verdict({
   label,
   code,
   pick,
+  summary,
+  apiPath,
   facts,
 }: {
   tone: JobVerdict;
@@ -50,6 +53,12 @@ function Verdict({
   /** Retry budget + the attempt picker, on the hero's last line (owner
    *  2026-08-16) — below the judgment and the times it applies to. */
   pick?: ReactNode;
+  /** One sentence of what the judgment counted — the job tally, and the limit it
+   *  ran out of. A bare code says a job failed; this says how many. */
+  summary?: string | null;
+  /** The status endpoint the judgment polled — only worth naming when the run
+   *  ended because that polling ran out of time. */
+  apiPath?: string | null;
   facts?: string;
 }): ReactElement {
   return (
@@ -64,6 +73,12 @@ function Verdict({
             short word and 300px of empty panel to its right. */}
         {pick}
       </div>
+      {summary && <p className={d.verdictSummary}>{summary}</p>}
+      {apiPath && (
+        <p className={d.verdictApi}>
+          상태 확인 <span className={d.verdictApiPath}>{apiPath}</span>
+        </p>
+      )}
       {/* No facts, no line — a first-attempt task says nothing here that the
           flow card has not already said. */}
       {facts && <p className={d.verdictFacts}>{facts}</p>}
@@ -93,12 +108,30 @@ export function TerraformExec({
   // Job list rather than the hero (시안 C) — it is the window those jobs ran in,
   // and under the hero nothing said which of the two it belonged to.
   const runWindow = attempts.length > 1 && current ? <RunWindow attempt={current} /> : null;
+  // The hero speaks for the TASK, not for the attempt the picker happens to be on,
+  // so its summary counts the jobs of the attempt the task's verdict was made on —
+  // the last one. `attempts` above is reversed for the picker; this is not.
+  const failed = detail.status === 'FAILED';
+  const timedOut = failed && detail.error_code === 'EXECUTION_TIMEOUT';
+  const lastAttempt = detail.attempts[detail.attempts.length - 1] ?? null;
+  const summary = failed
+    ? verdictSummary(
+        detail.error_code,
+        detail.effective_execution_timeout,
+        lastAttempt ? jobTallyKo(lastAttempt, detail.operation) : null,
+      )
+    : null;
+  // `definition` is null when the definition name no longer resolves (deleted or
+  // renamed) — then the endpoint is simply not named.
+  const statusApi = timedOut ? detail.definition?.status_api.trim() || null : null;
   return (
     <>
       <OperatorDescription detail={detail} />
       <Verdict
         tone={STATUS_TONE[detail.status]}
-        label={statusKo(detail.status)}
+        label={timedOut ? TIMEOUT_VERDICT : statusKo(detail.status)}
+        summary={summary}
+        apiPath={statusApi}
         // No error code (design-benchmark 2026-08-16 시안 C): JOB_FAILED was
         // printed four times on one screen. The failure strip states it at the
         // top of the page and the flow card beside this panel repeats it in

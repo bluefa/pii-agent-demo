@@ -156,8 +156,23 @@ export const improvedStyles = {
    *  that column to scroll internally, which is a layout change of its own; the
    *  flow card beside the drawer states the cause in prose either way. */
   failStrip:
-    'sticky top-[64px] z-10 flex items-center gap-2 border-b border-[var(--pl-border)] bg-[var(--pl-err-bg)] px-10 py-2.5 text-[14px] text-[var(--pl-err-text)]',
-  failStripRight: 'ml-auto flex items-center gap-1.5 whitespace-nowrap',
+    'sticky top-[64px] z-10 flex items-start gap-2 border-b border-[var(--pl-border)] bg-[var(--pl-err-bg)] px-10 py-2.5 text-[14px] text-[var(--pl-err-text)]',
+  /** One line per piece of information (owner 2026-08-31): what failed, how the
+   *  jobs under it ended, and — only when it applies — why restart is elsewhere.
+   *  The superseded note used to float right on line 1, which read as a second
+   *  clause of the failure sentence rather than a note about this page. */
+  failStripBody: 'flex min-w-0 flex-col',
+  /** The raw failure code, verbatim — a chip, not the tail of a sentence. White
+   *  face + err stroke (the drawer's `verdictCode` grammar) so the code reads as
+   *  a machine value against the strip's tinted bed. */
+  failStripCode:
+    'ml-1.5 inline-flex items-center align-middle rounded px-1.5 py-0.5 text-[12px] font-medium [font-family:var(--pl-font-mono)] bg-[var(--pl-bg-card)] text-[var(--pl-err-text)] ring-1 ring-inset ring-[var(--pl-err-border)]',
+  /** Line 2 — the job tally. The counted numbers carry the emphasis. */
+  failStripTally: 'mt-1',
+  /** Line 3 — restart lives on the newer run. A tier down, under a hairline: it
+   *  is a note about this page, not part of what failed. */
+  failStripSuper:
+    'mt-1 flex items-center gap-1.5 border-t border-[var(--pl-err-border)] pt-1.5 text-[12px]',
   failStripLink: 'font-semibold underline hover:no-underline',
 
   /** Content region below the band: flow canvas (flex-1) + docked drawer. */
@@ -275,6 +290,14 @@ export const improvedStyles = {
      *  panel and the toned head text it sits beside. */
     verdictCode:
       'inline-flex items-center rounded-full border border-[var(--pl-border)] bg-[var(--pl-bg-card)] px-2 py-0.5 text-[12px] font-semibold tracking-normal text-[var(--pl-text-medium)] [font-family:var(--pl-font-mono)]',
+    /** One sentence under the verdict head — what the judgment counted (the job
+     *  tally, and the limit it ran out of). A statement of fact, so it holds the
+     *  body tier; the supporting facts below it still drop one. */
+    verdictSummary: 'text-[14px] leading-[1.6] text-[var(--pl-text-strong)] tabular-nums',
+    /** Which endpoint the judgment polled — facts tier, one step smaller, since it
+     *  is where the timeout was observed rather than what was observed. */
+    verdictApi: 'text-[12px] leading-[1.6] text-[var(--pl-text-weak)]',
+    verdictApiPath: '[font-family:var(--pl-font-mono)] break-all',
     /** Supporting facts under the verdict — attempts used, next poll, external state. */
     verdictFacts: 'text-[14px] leading-[1.6] text-[var(--pl-text-weak)] tabular-nums',
 

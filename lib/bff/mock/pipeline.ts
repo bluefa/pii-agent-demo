@@ -505,6 +505,48 @@ function seedPipelines(): MockPipeline[] {
   });
 
   return [
+    // ── 133 FAILED (EXECUTION_TIMEOUT — the limit expired, no job ever failed) — AWS target 1009. ──
+    //     The apply attempt polled for the full PT30M `effective_execution_timeout`:
+    //     five jobs completed, three were still RUNNING at the last poll, and with no
+    //     FAILED observation the judgment is EXECUTION_TIMEOUT, not JOB_FAILED. The
+    //     only run on its target, so the failure strip carries no superseded note and
+    //     the exec band offers 재시작.
+    {
+      pipeline_id: 133, type: 'INSTALL', target_source_id: '1009', ...resolveService('1009'), cloud_provider: 'AWS',
+      recipe_definition: 'AWS_INSTALL_V1', status: 'FAILED',
+      created_at: ago(4 * 60), last_activity_at: ago(BATCH_133_MIN_AGO), next_due_at: null,
+      leased: false, cancel_requested: false, due_lag_millis: 0,
+      tasks: [
+        mkTask(133, 0, 'AWS_SERVICE_PLAN_V1', 'DONE', {
+          started_at: ago(4 * 60), finished_at: ago(4 * 60 - 3),
+          attempts: [attempt(1, 'DONE', null, 4 * 60, '{"job_id":"tf-t00","terraformState":"COMPLETED"}', 4 * 60 - 3)],
+        }),
+        mkTask(133, 1, 'AWS_SERVICE_APPLY_V1', 'FAILED', {
+          fail_count: 1, error_code: 'EXECUTION_TIMEOUT',
+          started_at: ago(4 * 60 - 4), finished_at: ago(BATCH_133_MIN_AGO),
+          attempts: [
+            attempt(1, 'FAILED', 'EXECUTION_TIMEOUT', 4 * 60 - 4,
+              JSON.stringify(BATCH_133.map((b) => b.job)), BATCH_133_MIN_AGO,
+              check(30, 0, 0, 0, 'RUNNING', BATCH_133_MIN_AGO), {
+                failure_detail:
+                  `execution timeout ${TERRAFORM_TIMEOUT} exceeded; jobs still running: `
+                  + `[${BATCH_133.filter((b) => b.running).map((b) => b.job).join(', ')}]`,
+                terraform_results: BATCH_133.filter((b) => !b.running).map((b) => ({
+                  job_id: b.job, succeeded: true, truncated: false, has_body: true,
+                  created_at: ago(BATCH_133_MIN_AGO),
+                })),
+                job_states: BATCH_133.map((b) => ({
+                  job_id: b.job, last_state: b.running ? 'RUNNING' : 'COMPLETED',
+                  last_fail_reason: null, last_error: null,
+                  poll_count: 30, last_polled_at: ago(BATCH_133_MIN_AGO),
+                })),
+              }),
+          ],
+        }),
+        mkTask(133, 2, 'AWS_BDC_COMMON_PLAN_V1', 'BLOCKED'),
+        mkTask(133, 3, 'AWS_BDC_COMMON_APPLY_V1', 'BLOCKED'),
+      ],
+    },
     // ── 132 FAILED (JOB_FAILED, five of eight jobs) — AWS target 1007. ──
     //     One attempt where a whole batch failed at once, not a single job: the 실패
     //     bucket holds five rows, each with a differently-shaped terraform error
@@ -1266,12 +1308,49 @@ const batch132Log = (reason: string | null): string =>
     : `aws_iam_role.pii_agent_scan: Creating...\n\n${red(bold('Error:'))} `
       + `${bold(reason.replace(/^Error:\s*/, ''))}\n\n  on main.tf line 22\n\nApply cancelled.`;
 
+/** 133's apply batch — five jobs finished clean and three were STILL RUNNING when the
+ *  PT30M execution limit expired. There is no FAILED observation anywhere in the
+ *  attempt, which is exactly what makes the verdict EXECUTION_TIMEOUT rather than
+ *  JOB_FAILED, and what the strip counts as `3개 timeout`. */
+const BATCH_133: ReadonlyArray<{ job: string; running: boolean }> = [
+  { job: '1051', running: false },
+  { job: '1052', running: false },
+  { job: '1053', running: false },
+  { job: '1054', running: true },
+  { job: '1055', running: false },
+  { job: '1056', running: true },
+  { job: '1057', running: false },
+  { job: '1058', running: true },
+];
+
+/** When the limit expired — one stamp for the whole attempt. */
+const BATCH_133_MIN_AGO = 4 * 60 - 34;
+
+const batch133Log = (running: boolean): string =>
+  running
+    ? 'aws_glue_catalog_table.bdc_common["tbl_0912"]: Creating...\n'
+      + 'aws_glue_catalog_table.bdc_common["tbl_0912"]: Still creating... [28m10s elapsed]'
+    : 'aws_glue_catalog_database.service_level: Creating...\n'
+      + `aws_glue_catalog_database.service_level: ${green('Creation complete after 3s')}\n\n`
+      + green(bold('Apply complete! Resources: 46 added, 0 changed, 0 destroyed.'));
+
 const RESULT_FIXTURES: Record<string, Omit<TerraformJobResultDetail, 'task_id' | 'attempt_number' | 'job_id'>> = {
   ...Object.fromEntries(
     BATCH_132.map(({ job, reason }) => [
       `13201:1:${job}`,
       { succeeded: reason === null, truncated: false, source: 'stored', created_at: jobAgo(BATCH_132_MIN_AGO),
         fetch_error: null, content: batch132Log(reason) },
+    ]),
+  ),
+  ...Object.fromEntries(
+    BATCH_133.map(({ job, running }) => [
+      `13301:1:${job}`,
+      running
+        // Never judged — the limit expired first, so there is no stored result row.
+        ? { succeeded: null, truncated: false, source: 'live', created_at: null, fetch_error: null,
+            content: batch133Log(true) }
+        : { succeeded: true, truncated: false, source: 'stored', created_at: jobAgo(BATCH_133_MIN_AGO),
+            fetch_error: null, content: batch133Log(false) },
     ]),
   ),
   // task 12401 · attempt 1 — live read-through (no stored rows yet at timeout)
@@ -1333,6 +1412,14 @@ const STATE_FIXTURES: Record<string, Omit<TerraformJobStateDetail, 'task_id' | '
       { last_state: reason === null ? 'COMPLETED' : 'FAILED', last_fail_reason: reason, last_error: null,
         last_response: stateJson(reason === null ? 'COMPLETED' : 'FAILED', reason),
         poll_count: 9, last_polled_at: jobAgo(BATCH_132_MIN_AGO) },
+    ]),
+  ),
+  ...Object.fromEntries(
+    BATCH_133.map(({ job, running }) => [
+      `13301:1:${job}`,
+      { last_state: running ? 'RUNNING' : 'COMPLETED', last_fail_reason: null, last_error: null,
+        last_response: stateJson(running ? 'RUNNING' : 'COMPLETED', null),
+        poll_count: 30, last_polled_at: jobAgo(BATCH_133_MIN_AGO) },
     ]),
   ),
   '12401:1:1019': { last_state: 'COMPLETED', last_fail_reason: null, last_error: null,

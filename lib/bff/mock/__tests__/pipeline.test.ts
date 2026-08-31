@@ -36,10 +36,11 @@ describe('mockPipeline (in-memory orchestrator)', () => {
 
     it('computes period statistics within the window', () => {
       const week = mockPipeline.statistics('7d').body as PipelineStatistics;
-      expect(week.total_count).toBe(10);
+      expect(week.total_count).toBe(11);
       expect(week.done_count).toBe(2);
       // 124 (one job) + 131 (dispatch-call failure) + 132 (five jobs at once)
-      expect(week.failed_count).toBe(3);
+      // + 133 (execution limit expired with three jobs still running)
+      expect(week.failed_count).toBe(4);
       expect(week.cancelled_count).toBe(1);
       expect(week.running_count).toBe(3);
       expect(week.pending_count).toBe(1);

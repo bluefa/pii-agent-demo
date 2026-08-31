@@ -4,7 +4,7 @@
  * lives in one tested place. (R20: the target-page status bar is gone —
  * currentTaskInfo drives the pipeline page's flow-card header rows.)
  */
-import { currentTask, currentTaskLabel, fmtDateTimeSec } from '@/lib/pipeline/format';
+import { currentTask, currentTaskLabel, fmtDateTimeSec, fmtDuration } from '@/lib/pipeline/format';
 import type { PipelineStatus, TaskDetail, TaskSummary } from '@/lib/pipeline/types';
 
 /** Minimal shape both TaskSummary and RecipePreviewStep-ish rows satisfy. */
@@ -97,4 +97,63 @@ export function changedTaskIds(
       return !p || p.status !== t.status || p.fail_count !== t.fail_count;
     })
     .map((t) => t.task_id);
+}
+
+/**
+ * The Terraform execution limit in words — `30분 시간제한`. null when the task
+ * detail that carries `effective_execution_timeout` is not loaded (or the
+ * contract left it null): an unknown limit is not stated, not guessed.
+ */
+export function timeoutLimitLabel(executionTimeout: string | null | undefined): string | null {
+  const duration = fmtDuration(executionTimeout);
+  return duration === '-' ? null : `${duration} 시간제한`;
+}
+
+/** EXECUTION_TIMEOUT in words. 'FAILED' is the shape of every other failure too. */
+export const TIMEOUT_VERDICT = '실행 시간 만료';
+
+/** `실행 시간 만료 (30분 시간제한)`, or the bare verdict when the limit is unknown. */
+export function timeoutLabel(executionTimeout: string | null | undefined): string {
+  const limit = timeoutLimitLabel(executionTimeout);
+  return limit ? `${TIMEOUT_VERDICT} (${limit})` : TIMEOUT_VERDICT;
+}
+
+/**
+ * Failure-strip line 1, after the bold task name. EXECUTION_TIMEOUT did not fail
+ * a job — it ran out of time, so a fail_count sentence would name the wrong
+ * event; every other code keeps the count it earned. The code itself is not in
+ * this line: the strip prints it as a chip beside it.
+ */
+export function failStripHeadline(
+  failCount: number,
+  errorCode: string | null,
+  executionTimeout: string | null | undefined,
+): string {
+  if (errorCode === 'EXECUTION_TIMEOUT') return `태스크 ${timeoutLabel(executionTimeout)}`;
+  return `태스크가 ${failCount}회 실패했습니다`;
+}
+
+/** Flow-node subtitle for a FAILED task — the same split, one tier shorter. */
+export function failedTaskMeta(
+  failCount: number,
+  errorCode: string | null,
+  executionTimeout: string | null | undefined,
+): string {
+  if (errorCode === 'EXECUTION_TIMEOUT') return timeoutLabel(executionTimeout);
+  return `${failCount}회 실패했습니다. 원인은 ${errorCode ?? '기록되지 않았습니다'}.`;
+}
+
+/**
+ * Drawer verdict summary — the job tally, and for EXECUTION_TIMEOUT the limit it
+ * ran out of first (`30분 시간제한 · job 8개 중 5개 성공, 3개 timeout`). null when
+ * there is nothing to say: no jobs and no known limit.
+ */
+export function verdictSummary(
+  errorCode: string | null,
+  executionTimeout: string | null | undefined,
+  tally: string | null,
+): string | null {
+  if (errorCode !== 'EXECUTION_TIMEOUT') return tally;
+  const parts = [timeoutLimitLabel(executionTimeout), tally].filter((p): p is string => p !== null);
+  return parts.length === 0 ? null : parts.join(' · ');
 }
