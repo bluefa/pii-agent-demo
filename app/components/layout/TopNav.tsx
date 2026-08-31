@@ -28,7 +28,6 @@ type NavItem = {
    */
   labelKey?: 'services';
   href: string;
-  disabled?: boolean;
   icon: React.ReactNode;
   isActive: (pathname: string) => boolean;
 };
@@ -45,8 +44,8 @@ const iconProps = {
 } as const;
 
 // Help/announcement links — live in the top nav so they are reachable from
-// every page. An item without an `href` is still a placeholder and shows the
-// same "준비 중" toast as the disabled primary items.
+// every page. An item without an `href` is still a placeholder and answers a
+// click with the "준비 중" toast instead of navigating.
 const UTILITY_ITEMS: Array<{ label: string; icon: React.ReactNode; href?: string }> = [
   {
     label: 'Notice',
@@ -103,7 +102,6 @@ const NAV_ITEMS: NavItem[] = [
   {
     label: 'Credentials',
     href: process.env.NEXT_PUBLIC_CREDENTIALS_URL ?? passRoutes.credentials,
-    disabled: !process.env.NEXT_PUBLIC_CREDENTIALS_URL,
     isActive: () => false,
     icon: (
       <svg {...iconProps} aria-hidden="true">
@@ -115,7 +113,6 @@ const NAV_ITEMS: NavItem[] = [
   {
     label: 'PII Tag mgmt.',
     href: process.env.NEXT_PUBLIC_PII_TAG_URL ?? passRoutes.piiTag,
-    disabled: !process.env.NEXT_PUBLIC_PII_TAG_URL,
     isActive: () => false,
     icon: (
       <svg {...iconProps} aria-hidden="true">
@@ -127,7 +124,6 @@ const NAV_ITEMS: NavItem[] = [
   {
     label: 'PII Map',
     href: process.env.NEXT_PUBLIC_PII_MAP_URL ?? passRoutes.piiMap,
-    disabled: !process.env.NEXT_PUBLIC_PII_MAP_URL,
     isActive: () => false,
     icon: (
       <svg {...iconProps} aria-hidden="true">
@@ -229,23 +225,7 @@ export const TopNav = ({ user }: { user: UserMeResponse | null }) => {
             const baseClass = cn(
               'inline-flex h-10 items-center gap-2 px-3.5 rounded-md text-base font-medium whitespace-nowrap transition-colors',
               active ? navStyles.link.active : navStyles.link.inactive,
-              item.disabled && 'opacity-50 cursor-not-allowed',
             );
-
-            if (item.disabled) {
-              return (
-                <a
-                  key={item.label}
-                  href={item.href}
-                  aria-disabled="true"
-                  onClick={(e) => handleDisabledClick(e, label)}
-                  className={baseClass}
-                >
-                  {item.icon}
-                  {label}
-                </a>
-              );
-            }
 
             // `next/link` is for in-app routes under basePath; an absolute URL is
             // a plain anchor, and it opens in a new tab so the console the user is
