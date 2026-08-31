@@ -8,6 +8,7 @@ import {
   IDC_DOMAIN_MAXLEN,
   IDC_DOMAIN_RE,
   IDC_MAX_IPS,
+  IDC_SID_MAXLEN,
   IDC_TRAILING_WS_RE,
   idcDbTypeByLabel,
   isValidIdcIp,
@@ -353,6 +354,7 @@ export const IdcTargetFormModal = ({ isOpen, initial, onSubmit, onClose }: IdcTa
                   <input
                     value={oracleSid}
                     placeholder={t.formSidPlaceholder}
+                    maxLength={IDC_SID_MAXLEN}
                     onChange={(e) => {
                       setOracleSid(e.target.value);
                       setSidTouched(true);

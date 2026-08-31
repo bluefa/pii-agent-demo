@@ -8,14 +8,13 @@
 import { z } from 'zod';
 // IP 판정은 입력 모달과 같은 주인을 쓴다 — 폼이 통과시킨 값을 서버가 되돌려
 // 보내면 그 자리가 곧 false positive 다.
-import { isValidIdcIp } from '@/lib/constants/idc';
+import { IDC_SID_MAXLEN, isValidIdcIp } from '@/lib/constants/idc';
 
 /**
- * 한 요청이 실을 수 있는 행 수. 매퍼는 고른 것만이 아니라 후보 **전부**(선택·제외·
- * 연동 불가)를 싣는다 — 그래서 이 상한은 선택 규모가 아니라 스캔 규모에 걸린다.
- * 스캔이 수백 건이면 수백 행이 그대로 올라오므로 여유를 크게 둔다.
+ * 한 요청이 실을 수 있는 행 수. 화면은 후보 **전부**(선택·제외·연동 불가)를 싣고 제 상한이
+ * 없다 — 그러니 이 숫자는 정책이 아니라 화면이 닿을 수 없어야 하는 sanity 상한이다.
  */
-const MAX_RESOURCES = 2000;
+const MAX_RESOURCES = 10000;
 /**
  * 제외 사유 길이. 입력 폼(`CandidateResourceSection`)이 쓰는 값과 **같은 상수**여야
  * 한다 — 폼이 받아 준 글자를 서버가 되돌려 보내면 그 자리가 곧 false positive 다.
@@ -40,7 +39,10 @@ const EndpointInput = z
     port: z.number().int().min(0).max(65535).optional(),
     database_type: z.string().min(1).max(64).optional(),
     oracle_service_id: z.string().min(1).max(128).optional(),
-    network_interface_id: z.string().min(1).max(256).optional(),
+    // 스캔이 준 값이다. Azure NIC 리소스 id
+    // (`/subscriptions/{guid}/resourceGroups/{≤90}/providers/Microsoft.Network/networkInterfaces/{≤80}`)
+    // 는 256 을 넘는다 — 와이어 값이 닿을 수 있는 상한은 검증이 아니라 막다른 길이다.
+    network_interface_id: z.string().min(1).max(1024).optional(),
   })
   .strict();
 
@@ -69,8 +71,11 @@ const IdcInput = z
     // 되싣는다. enum 으로 좁히면 그 왕복이 깨지므로 길이만 본다.
     database_type: z.string().min(1).max(64).optional(),
     port: z.number().int().min(1).max(65535).optional(),
-    oracle_service_id: z.string().min(1).max(128).optional(),
-    credential_id: z.string().min(1).max(64).optional(),
+    // 모달 input 의 `maxLength` 가 읽는 바로 그 상수다.
+    oracle_service_id: z.string().min(1).max(IDC_SID_MAXLEN).optional(),
+    // 와이어가 발급한 id 이고 형식은 프론트가 모른다. 폼은 이 값을 만들지 않는다 —
+    // 이전 요청 불러오기만 싣는다. sanity 상한이다.
+    credential_id: z.string().min(1).max(256).optional(),
   })
   .strict()
   .superRefine((value, ctx) => {
@@ -97,13 +102,14 @@ export const ApprovalSelectionInput = z
         z
           .object({
             // 빈 문자열도 받는다: 와이어가 resource_id 없이 준 행을 어댑터가 `''` 로
-            // 싣는다(`app/lib/api/index.ts`). 리졸버가 교집합에서 걸러 낸다.
-            resource_id: z.string().max(512),
+            // 싣는다(`app/lib/api/index.ts`). 리졸버가 교집합에서 걸러 낸다. 프론트가
+            // 짓지 않는 와이어 값을 가리키는 포인터라 상한은 sanity 일 뿐이다.
+            resource_id: z.string().max(1024),
             selected: z.boolean(),
             /** 사용자가 적은 제외 사유. 스캔 판정(recommend_fail_reason)은 서버가 붙인다. */
             exclusion_reason: z.string().max(EXCLUSION_REASON_MAXLEN).optional(),
             /** RDS 클러스터에서 고른 멤버. 서버가 후보 목록 안에 있는지 확인한다. */
-            selected_rds_instance_resource_id: z.string().min(1).max(512).optional(),
+            selected_rds_instance_resource_id: z.string().min(1).max(1024).optional(),
             /** VM 계열 수기 접속 정보. */
             endpoint: EndpointInput.optional(),
             /**

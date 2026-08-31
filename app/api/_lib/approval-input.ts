@@ -221,21 +221,27 @@ export const resolveApprovalInput = async (
   cloudProvider: string,
   input: ApprovalSelection,
 ): Promise<ResolveResult> => {
-  // id 없는 행은 연동 대상이 아니다 — 와이어가 resource_id 없이 준 행을 어댑터가 `''` 로
-  // 싣고(`app/lib/api/index.ts`), 매퍼는 후보를 전부 보내므로 그 행이 매 제출에 딸려 온다.
-  // 거부하면 새로고침해도 같은 와이어를 다시 읽어 영원히 같은 자리에서 막힌다. 떨군다 —
-  // `ec2.ts` 가 instance id 없는 검색 결과에 쓰는 것과 같은 규칙이다("the id IS the
-  // identity this flow adds"). 중복 검사보다 먼저 떨어내야 `''` 두 개가 중복으로 걸리지 않는다.
-  const rows = input.resources.filter((row) => row.resource_id !== '');
+  // 한 번에 둘을 접는다.
+  // ① id 없는 행은 연동 대상이 아니다 — 와이어가 resource_id 없이 준 행을 어댑터가 `''` 로
+  //    싣고(`app/lib/api/index.ts`), 매퍼는 후보를 전부 보내므로 그 행이 매 제출에 딸려 온다.
+  //    거부하면 새로고침해도 같은 와이어를 다시 읽어 영원히 같은 자리에서 막힌다. 떨군다 —
+  //    `ec2.ts` 가 instance id 없는 검색 결과에 쓰는 것과 같은 규칙이다("the id IS the
+  //    identity this flow adds").
+  // ② 같은 id 가 두 번 오면 첫 행만 남긴다 — 와이어가 같은 id 를 두 번 주면 화면도 한 선택
+  //    상태(선택 집합·사유·드래프트가 전부 id 키)를 두 행에 그리므로 첫 행이 곧 화면이 뜻한
+  //    것이고, 거부는 새로고침으로 고칠 수 없는 막다른 길이다. 조작된 본문의 중복도 같은
+  //    규칙으로 접는다.
+  const byId = new Map<string, SelectionRow>();
+  for (const row of input.resources) {
+    if (row.resource_id !== '' && !byId.has(row.resource_id)) byId.set(row.resource_id, row);
+  }
+  const rows = [...byId.values()];
 
   // 스키마의 `.min(1)` 을 필터 뒤에 한 번 더 적용한다. 실 UI 는 여기 못 온다 — 매퍼가
   // 먼저 걸러 내므로 빈 목록은 라우트의 스키마에서 400 으로 끝난다. 남는 도달 경로는
   // 조작된 본문뿐이고, 그때 리소스 0개짜리 승인 요청(상태 전이 + 빈 큐 항목)이 상류에
   // 생기게 둘 이유가 없다.
   if (rows.length === 0) return fail('연동할 리소스가 없습니다.');
-
-  const ids = rows.map((row) => row.resource_id);
-  if (new Set(ids).size !== ids.length) return fail('같은 리소스가 두 번 담겼습니다.');
 
   if (isIdcProvider(cloudProvider)) {
     const resources: ResourceItem[] = [];

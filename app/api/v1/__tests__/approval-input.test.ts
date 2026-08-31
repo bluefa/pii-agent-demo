@@ -6,6 +6,7 @@ vi.mock('@/lib/bff/client', () => ({
 
 import { ApprovalSelectionInput, resolveApprovalInput } from '@/app/api/_lib/approval-input';
 import { bff } from '@/lib/bff/client';
+import { IDC_SID_MAXLEN } from '@/lib/constants/idc';
 
 const getResources = vi.mocked(bff.confirm.getResources);
 
@@ -76,15 +77,18 @@ describe('선택형 — 스캔 집합이 사실을 소유한다', () => {
     expect(result.failure.status).toBe(409);
   });
 
-  it('같은 리소스를 두 번 담으면 거부한다', async () => {
+  it('같은 id 가 두 번 오면 첫 행만 남고 거부하지 않는다', async () => {
     const result = await resolveApprovalInput(1, 'AWS', parse({
       resources: [
         { resource_id: 'db-1', selected: true },
-        { resource_id: 'db-1', selected: false },
+        { resource_id: 'db-1', selected: false, exclusion_reason: '둘째 행' },
       ],
     }));
 
-    expect(result.ok).toBe(false);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.resources).toHaveLength(1);
+    expect(result.value.resources?.[0]?.selected).toBe(true);
   });
 
   it('제외 행은 사용자 사유가 없으면 스캔 판정으로 채워진다', async () => {
@@ -223,7 +227,7 @@ describe('false positive 경계 — 폼이 받아 준 값은 서버도 받는다
     expect(result.failure.status).toBe(400);
   });
 
-  it('id 없는 행이 둘이어도 중복으로 걸리지 않는다', async () => {
+  it('id 없는 행이 둘이어도 함께 조용히 빠진다', async () => {
     const result = await resolveApprovalInput(1, 'AWS', parse({
       resources: [
         { resource_id: '', selected: false },
@@ -235,14 +239,39 @@ describe('false positive 경계 — 폼이 받아 준 값은 서버도 받는다
     expect(result.ok).toBe(true);
   });
 
-  it('스캔 결과가 수백 건이어도 상한에 걸리지 않는다', () => {
+  it('스캔 결과가 수천 건이어도 상한에 걸리지 않는다 — 화면은 후보 전부를 싣고 상한이 없다', () => {
     const parsed = ApprovalSelectionInput.safeParse({
-      resources: Array.from({ length: 800 }, (_, i) => ({
+      resources: Array.from({ length: 5000 }, (_, i) => ({
         resource_id: `res-${i}`,
         selected: false,
       })),
     });
     expect(parsed.success).toBe(true);
+  });
+
+  it('와이어가 준 긴 값(Azure NIC 리소스 id)은 상한에 걸리지 않는다', () => {
+    const nic = `/subscriptions/${'0'.repeat(36)}/resourceGroups/${'g'.repeat(90)}/providers/Microsoft.Network/networkInterfaces/${'n'.repeat(80)}`;
+    expect(nic.length).toBeGreaterThan(256);
+    const parsed = ApprovalSelectionInput.safeParse({
+      resources: [{ resource_id: 'vm-1', selected: true, endpoint: { network_interface_id: nic } }],
+    });
+    expect(parsed.success).toBe(true);
+  });
+
+  it('모델에 없는 키는 어느 깊이에서든 같은 거부다 — 새 필드는 모양·리졸버·매퍼를 함께 고친다', () => {
+    const row = { resource_id: 'db-1', selected: true };
+    const bodies: unknown[] = [
+      { resources: [row], extra: 1 },
+      { resources: [{ ...row, resource_name: 'x' }] },
+      { resources: [{ ...row, endpoint: { host: 'h', subnet_id: 'x' } }] },
+      { resources: [{ ...row, manual_ec2: { region: 'x' } }] },
+      { resources: [{ ...row, idc: { host_format: 'IP', hosts: ['10.0.0.1'], nlb_index: 1 } }] },
+    ];
+    for (const body of bodies) {
+      const parsed = ApprovalSelectionInput.safeParse(body);
+      expect(parsed.success).toBe(false);
+      expect(parsed.success ? '' : parsed.error.issues[0]?.message).toMatch(/^Unrecognized key/);
+    }
   });
 });
 
@@ -465,5 +494,17 @@ describe('IDC — 대조할 집합이 없으므로 형식만 본다', () => {
     }));
 
     expect(result.ok).toBe(false);
+  });
+
+  it('Oracle SID 상한은 모달 input 과 같은 상수다', () => {
+    const at = (n: number) => ApprovalSelectionInput.safeParse({
+      resources: [{
+        resource_id: 'r',
+        selected: true,
+        idc: { host_format: 'IP', hosts: ['10.0.0.1'], oracle_service_id: 's'.repeat(n) },
+      }],
+    }).success;
+    expect(at(IDC_SID_MAXLEN)).toBe(true);
+    expect(at(IDC_SID_MAXLEN + 1)).toBe(false);
   });
 });
