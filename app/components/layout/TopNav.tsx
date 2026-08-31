@@ -28,6 +28,15 @@ type NavItem = {
    */
   labelKey?: 'services';
   href: string;
+  /**
+   * Opens in a new tab, so the page the user is standing on is not lost.
+   * These items lead to a console of their own, and that is a property of
+   * the destination rather than of how its URL happens to be spelled — a
+   * `href.startsWith('http')` sniff would silently drop the new tab on any
+   * deployment that has not set NEXT_PUBLIC_*_URL and so falls back to the
+   * in-app path.
+   */
+  external?: boolean;
   icon: React.ReactNode;
   isActive: (pathname: string) => boolean;
 };
@@ -102,6 +111,7 @@ const NAV_ITEMS: NavItem[] = [
   {
     label: 'Credentials',
     href: process.env.NEXT_PUBLIC_CREDENTIALS_URL ?? passRoutes.credentials,
+    external: true,
     isActive: () => false,
     icon: (
       <svg {...iconProps} aria-hidden="true">
@@ -113,6 +123,7 @@ const NAV_ITEMS: NavItem[] = [
   {
     label: 'PII Tag mgmt.',
     href: process.env.NEXT_PUBLIC_PII_TAG_URL ?? passRoutes.piiTag,
+    external: true,
     isActive: () => false,
     icon: (
       <svg {...iconProps} aria-hidden="true">
@@ -124,6 +135,7 @@ const NAV_ITEMS: NavItem[] = [
   {
     label: 'PII Map',
     href: process.env.NEXT_PUBLIC_PII_MAP_URL ?? passRoutes.piiMap,
+    external: true,
     isActive: () => false,
     icon: (
       <svg {...iconProps} aria-hidden="true">
@@ -227,10 +239,11 @@ export const TopNav = ({ user }: { user: UserMeResponse | null }) => {
               active ? navStyles.link.active : navStyles.link.inactive,
             );
 
-            // `next/link` is for in-app routes under basePath; an absolute URL is
-            // a plain anchor, and it opens in a new tab so the console the user is
-            // in is not lost.
-            if (item.href.startsWith('http')) {
+            // The item declares the new tab; the URL does not get a vote. Whether
+            // the destination is the configured absolute URL or the fallback path,
+            // the item leaves this app, so it is a plain anchor rather than
+            // `next/link` — everything else in the bar is an in-app route.
+            if (item.external) {
               return (
                 <a
                   key={item.label}
