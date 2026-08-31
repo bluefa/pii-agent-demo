@@ -7,7 +7,11 @@ import {
   recipientsSummary,
   regionAckSummary,
 } from '@/app/target-sources/[targetSourceId]/_components/sdu/upload/model';
+import { SDU_COPY } from '@/app/target-sources/[targetSourceId]/_components/sdu/copy';
 import { sduAckAnswer, type SduUpload } from '@/lib/types/sdu';
+
+/** Korean, so every sentence asserted below is the one this step rendered before it had a second language. */
+const t = SDU_COPY.ko.upload;
 
 const base: SduUpload = {
   submittedAt: '2026-08-24T05:41:00Z',
@@ -21,12 +25,12 @@ const base: SduUpload = {
 
 describe('regionAckSummary', () => {
   it('names the regions the one answer was given for', () => {
-    expect(regionAckSummary(['us', 'eu'], true)).toBe('확인함 · US · EU');
-    expect(regionAckSummary(['us', 'eu'], false)).toBe('미확인 · US · EU');
+    expect(regionAckSummary(t, ['us', 'eu'], true)).toBe('확인함 · US · EU');
+    expect(regionAckSummary(t, ['us', 'eu'], false)).toBe('미확인 · US · EU');
   });
 
   it('says there is nothing to answer about rather than 미확인', () => {
-    expect(regionAckSummary([], false)).toBe('연동 대상이 없어요');
+    expect(regionAckSummary(t, [], false)).toBe('연동 대상이 없어요');
   });
 });
 
@@ -34,10 +38,10 @@ describe('recipientsSummary', () => {
   const user = (name: string, id: string) => ({ id, name, email: `${id}@bdc.com` });
 
   it('carries a name so "누구 앞으로 갔더라" is not asked again', () => {
-    expect(recipientsSummary([user('박지원', 'u3'), user('최민수', 'u4'), user('이서연', 'u5')])).toBe(
+    expect(recipientsSummary(t, [user('박지원', 'u3'), user('최민수', 'u4'), user('이서연', 'u5')])).toBe(
       '3명 등록함 · 박지원 외 2명',
     );
-    expect(recipientsSummary([user('박지원', 'u3')])).toBe('1명 등록함 · 박지원');
+    expect(recipientsSummary(t, [user('박지원', 'u3')])).toBe('1명 등록함 · 박지원');
   });
 });
 
@@ -74,7 +78,7 @@ describe('currentGate', () => {
 
 describe('invalidationLines', () => {
   it('says nothing while nothing has been invalidated', () => {
-    expect(invalidationLines(base.invalidation)).toEqual([]);
+    expect(invalidationLines(t, base.invalidation)).toEqual([]);
   });
 });
 

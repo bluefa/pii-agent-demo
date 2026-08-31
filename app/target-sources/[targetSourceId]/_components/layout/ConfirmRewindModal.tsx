@@ -3,6 +3,11 @@
 import { useRef, useState, type ReactNode } from 'react';
 import { ConfirmStepModal } from '@/app/components/ui/ConfirmStepModal';
 import { cn, idcStyles, primaryColors, statusColors, textColors } from '@/lib/theme';
+import { useLocale } from '@/app/components/LocaleProvider';
+import {
+  LAYOUT_COPY,
+  type LayoutCopy,
+} from '@/app/target-sources/[targetSourceId]/_components/layout/copy';
 
 /**
  * `sduRedefine` is the same API call as `infra` (POST …/reset) told in the words of a flow
@@ -37,51 +42,51 @@ interface ConfirmStepContent {
  * brand blue. A second line only where the rewind destroys work — `infra` unwinds a finished
  * installation, `retest` just moves the source back a step.
  */
-const CONTENT: Record<ConfirmRewindKind, ConfirmStepContent> = {
+const contentOf = (copy: LayoutCopy): Record<ConfirmRewindKind, ConfirmStepContent> => ({
   retest: {
     // Matches the trigger's wording (연결 테스트 재실행) rather than restating the step name.
-    title: '연결 테스트를 다시 실행할까요?',
+    title: copy.rewind.retestTitle,
     // One sentence, no loss line. What happens IS "you go back to step 5" — the earlier
     // "6 · 7단계 진행 상태는 초기화돼요" restated that in the system's own bookkeeping terms,
     // and the sibling rewind dialog (step 2 → step 1) carries no loss line either.
     desc: (
       <>
-        {'확인을 누르면 '}
-        <strong className={cn('font-semibold', primaryColors.text)}>5단계</strong>
-        {'로 돌아가, 연결 테스트부터 다시 진행해요.'}
+        {copy.rewindTo.connectionTest.lead}
+        <strong className={cn('font-semibold', primaryColors.text)}>{copy.common.step(5)}</strong>
+        {copy.rewindTo.connectionTest.tail}
       </>
     ),
   },
   infra: {
-    title: '인프라를 변경할까요?',
+    title: copy.rewind.infraTitle,
     desc: (
       <>
-        {'확인을 누르면 '}
-        <strong className={cn('font-semibold', primaryColors.text)}>1단계</strong>
-        {'로 돌아가, 연동 대상 DB 선택부터 다시 진행해요.'}
+        {copy.rewindTo.targetDb.lead}
+        <strong className={cn('font-semibold', primaryColors.text)}>{copy.common.step(1)}</strong>
+        {copy.rewindTo.targetDb.tail}
       </>
     ),
     // Kept: this rewind throws away a completed installation, which the sentence above
     // does not imply.
-    note: '이미 끝난 Agent 설치와 승인은 모두 사라져요.',
+    note: copy.rewind.infraNote,
     needsReason: true,
   },
   sduRedefine: {
-    title: '연동 대상을 수정할까요?',
+    title: copy.rewind.sduRedefineTitle,
     desc: (
       <>
-        {'확인을 누르면 '}
-        <strong className={cn('font-semibold', primaryColors.text)}>1단계</strong>
-        {'로 돌아가, 연동 대상 정의부터 다시 진행해요.'}
+        {copy.rewindTo.targetDefinition.lead}
+        <strong className={cn('font-semibold', primaryColors.text)}>{copy.common.step(1)}</strong>
+        {copy.rewindTo.targetDefinition.tail}
       </>
     ),
     // What this rewind actually destroys for an SDU target: both confirmations AND the
     // access-key recipient list (`clearSduUploadState`). The 2단계 return trip keeps the
     // recipients — this one does not, and two CTAs sharing a label must not share a promise.
-    note: '지금까지의 확인 내역과 등록한 S3 Access Key 수신자가 모두 사라져요.',
+    note: copy.rewind.sduRedefineNote,
     needsReason: true,
   },
-};
+});
 
 interface ConfirmRewindModalProps {
   kind: ConfirmRewindKind | null;
@@ -105,6 +110,8 @@ export const ConfirmRewindModal = ({
   onConfirm,
   isPending = false,
 }: ConfirmRewindModalProps) => {
+  const { locale } = useLocale();
+  const copy = LAYOUT_COPY[locale];
   const [reason, setReason] = useState('');
   const reasonRef = useRef<HTMLTextAreaElement>(null);
   // 다른 되돌리기를 열면 앞서 쓰던 사유가 남아 있으면 안 된다. `kind` 가 null 이어도 이
@@ -117,7 +124,7 @@ export const ConfirmRewindModal = ({
   }
 
   if (!kind) return null;
-  const content = CONTENT[kind];
+  const content = contentOf(copy)[kind];
   // 사유는 초기화 API 의 required 필드이고 감사 로그에 남는다 — 되돌릴 수 없는 쪽만 묻는다.
   const needsReason = content.needsReason === true;
   const trimmedReason = reason.trim();
@@ -145,7 +152,7 @@ export const ConfirmRewindModal = ({
           )}
         </>
       }
-      confirmLabel="확인"
+      confirmLabel={copy.common.ok}
       tone="warning"
       isPending={isPending}
       confirmDisabled={needsReason && trimmedReason === ''}
@@ -159,7 +166,7 @@ export const ConfirmRewindModal = ({
             htmlFor="rewind-reset-reason"
             className={cn('block text-[12px] font-medium', textColors.tertiary)}
           >
-            초기화 사유
+            {copy.rewind.reasonLabel}
           </label>
           <textarea
             id="rewind-reset-reason"
@@ -169,7 +176,7 @@ export const ConfirmRewindModal = ({
             rows={3}
             disabled={isPending}
             onChange={(event) => setReason(event.target.value)}
-            placeholder="예: 운영 DB를 신규 VPC로 이전해 연동 대상 구성을 다시 잡아야 합니다."
+            placeholder={copy.rewind.reasonPlaceholder}
             className={idcStyles.textarea}
           />
           {/* 두 톤 카운터 — 변하는 수(현재 길이)만 진하게, 고정 분모는 흐리게. 한도에 닿으면
@@ -183,7 +190,11 @@ export const ConfirmRewindModal = ({
             >
               {reason.length.toLocaleString()}
             </span>
-            <span className={textColors.tertiary}> / {RESET_REASON_MAXLEN.toLocaleString()}자</span>
+            <span className={textColors.tertiary}>
+              {' / '}
+              {RESET_REASON_MAXLEN.toLocaleString()}
+              {copy.common.unitChars}
+            </span>
           </div>
         </div>
       )}

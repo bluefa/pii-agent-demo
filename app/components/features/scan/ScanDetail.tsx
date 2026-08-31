@@ -1,6 +1,8 @@
 'use client';
 
-import { SCAN_ERROR_LABELS } from '@/app/components/features/scan/scan-labels';
+import { useLocale } from '@/app/components/LocaleProvider';
+import { SCAN_COPY } from '@/app/components/features/scan/copy';
+import { scanErrorLabels } from '@/app/components/features/scan/scan-labels';
 import {
   fmtScanCount,
   scanDurationText,
@@ -43,35 +45,38 @@ const TimeField = ({ label, value }: { label: string; value: string }) => (
  * modal's scrollport it floats mid-list and covers rows.
  */
 export const ScanDetail = ({ job, provider }: { job: ScanJob; provider: CloudProvider }) => {
+  const { locale } = useLocale();
+  const t = SCAN_COPY[locale];
+  const errorLabels = scanErrorLabels(t);
   const counts = sortedCounts(job);
   const total = counts.reduce((sum, [, count]) => sum + count, 0);
 
   return (
     <div>
       <span className={cn(idcStyles.tag.base, scanStatusTagClass(job.scan_status))}>
-        {scanStatusLabel(job)}
+        {scanStatusLabel(job, t)}
       </span>
 
       {job.scan_status === 'SUCCESS' && (
         <div className="mt-4">
           {counts.length === 0 ? (
-            <p className={cn('text-sm', textColors.tertiary)}>발견된 리소스가 없어요.</p>
+            <p className={cn('text-sm', textColors.tertiary)}>{t.detailNoResources}</p>
           ) : (
             <>
               <p className={cn('text-[14px]', textColors.tertiary)}>
-                총{' '}
+                {t.detailFoundBefore}{' '}
                 <b className={cn('text-[20px] font-bold tabular-nums', primaryColors.text)}>
                   {fmtScanCount(total)}
                 </b>
-                개를 발견했어요.
+                {t.detailFoundAfter}
               </p>
               {/* border-separate: border-collapse drops cell borders inside a scrollport. */}
               <div className="mt-3">
                 <table className="w-full border-separate border-spacing-0">
                   <thead>
                     <tr className="whitespace-nowrap">
-                      <th className={cn(HEAD_CELL, 'border-b', borderColors.default)}>리소스 타입</th>
-                      <th className={cn(HEAD_CELL, 'border-b text-right', borderColors.default)}>개수</th>
+                      <th className={cn(HEAD_CELL, 'border-b', borderColors.default)}>{t.columnResourceType}</th>
+                      <th className={cn(HEAD_CELL, 'border-b text-right', borderColors.default)}>{t.columnCount}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -116,14 +121,14 @@ export const ScanDetail = ({ job, provider }: { job: ScanJob; provider: CloudPro
           )}
         >
           <span className="font-mono font-semibold">{job.scan_error}</span>
-          <span className="ml-2">{SCAN_ERROR_LABELS[job.scan_error] ?? SCAN_ERROR_LABELS.UNKNOWN}</span>
+          <span className="ml-2">{errorLabels[job.scan_error] ?? errorLabels.UNKNOWN}</span>
         </p>
       )}
 
       <div className={cn('mt-5 flex flex-wrap gap-x-10 gap-y-3 border-t pt-3.5', borderColors.light)}>
-        <TimeField label="실행 시각" value={job.created_at ? formatDateTimeLocal(job.created_at) : ''} />
-        <TimeField label="완료 시각" value={job.updated_at ? formatDateTimeLocal(job.updated_at) : ''} />
-        <TimeField label="소요 시간" value={scanDurationText(job)} />
+        <TimeField label={t.fieldRunTime} value={job.created_at ? formatDateTimeLocal(job.created_at, locale) : ''} />
+        <TimeField label={t.fieldFinishTime} value={job.updated_at ? formatDateTimeLocal(job.updated_at, locale) : ''} />
+        <TimeField label={t.fieldDuration} value={scanDurationText(job, t)} />
       </div>
     </div>
   );

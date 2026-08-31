@@ -21,6 +21,8 @@ import {
   primaryColors,
   textColors,
 } from '@/lib/theme';
+import { useLocale } from '@/app/components/LocaleProvider';
+import { STATUS_COPY } from '@/app/components/features/process-status/status-copy';
 
 interface Props {
   currentStep: number;
@@ -28,12 +30,13 @@ interface Props {
 }
 
 export const ProcessTimelineCompact = ({ currentStep, totalSteps }: Props) => {
+  const { locale } = useLocale();
   const steps = Array.from({ length: totalSteps }, (_, idx) => idx + 1);
 
   return (
     <div
       role="img"
-      aria-label={`${currentStep}단계 / 총 ${totalSteps}단계`}
+      aria-label={STATUS_COPY[locale].timeline.label(currentStep, totalSteps)}
       className={cn(
         'flex flex-col gap-2 px-1 pt-3 pb-4 mb-3.5 border-b',
         borderColors.light,

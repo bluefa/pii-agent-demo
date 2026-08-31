@@ -2,10 +2,12 @@
 
 import { useState } from 'react';
 import {
-  CREDENTIAL_FIELDS,
   credentialFieldError,
+  credentialFields,
 } from '@/app/components/features/project-create/credential-fields';
+import { useLocale } from '@/app/components/LocaleProvider';
 import type { ProviderChipKey } from '@/lib/constants/provider-mapping';
+import { COPY } from '@/lib/copy';
 import { cn, getInputClass, statusColors, textColors } from '@/lib/theme';
 
 interface ProviderCredentialFormProps {
@@ -23,12 +25,15 @@ export const ProviderCredentialForm = ({
   showRequiredErrors,
 }: ProviderCredentialFormProps) => {
   const [touched, setTouched] = useState<Record<string, boolean>>({});
+  const { locale } = useLocale();
+  const t = COPY[locale].wizard;
+  const fields = credentialFields(t)[chipKey];
 
   return (
     <div className="grid max-w-[640px] grid-cols-2 gap-x-[18px] gap-y-4">
-      {CREDENTIAL_FIELDS[chipKey].map((field) => {
+      {fields.map((field) => {
         const value = values[field.name] ?? '';
-        const error = credentialFieldError(field, value);
+        const error = credentialFieldError(t, field, value);
         // A field the user has not filled in yet is not wrong yet: while typing, only
         // format errors speak; "required" waits until 다음 is refused.
         const visibleError =
@@ -45,7 +50,9 @@ export const ProviderCredentialForm = ({
             >
               {field.label}
               {field.optional ? (
-                <span className={cn('ml-1 text-xs font-normal', textColors.tertiary)}>(선택)</span>
+                <span className={cn('ml-1 text-xs font-normal', textColors.tertiary)}>
+                  {t.optional}
+                </span>
               ) : (
                 <span className={cn('ml-1', statusColors.error.text)}>*</span>
               )}

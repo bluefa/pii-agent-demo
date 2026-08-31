@@ -1,22 +1,27 @@
 'use client';
 
 import { ProcessStatus } from '@/lib/types';
+import { useLocale } from '@/app/components/LocaleProvider';
+import { SCAN_COPY, type ScanCopy } from '@/app/components/features/scan/copy';
 import { statusColors, primaryColors, cn } from '@/lib/theme';
 
 interface StepIndicatorProps {
   currentStep: ProcessStatus;
 }
 
-const steps = [
-  { step: ProcessStatus.WAITING_TARGET_CONFIRMATION, label: '연동 대상 확정 대기' },
-  { step: ProcessStatus.WAITING_APPROVAL, label: '승인 대기' },
-  { step: ProcessStatus.APPLYING_APPROVED, label: '연동대상 반영 중' },
-  { step: ProcessStatus.INSTALLING, label: '설치 진행 중' },
-  { step: ProcessStatus.WAITING_CONNECTION_TEST, label: '연결 테스트 필요' },
-  { step: ProcessStatus.INSTALLATION_COMPLETE, label: '설치 완료' },
+const stepList = (t: ScanCopy) => [
+  { step: ProcessStatus.WAITING_TARGET_CONFIRMATION, label: t.stepTargetConfirmation },
+  { step: ProcessStatus.WAITING_APPROVAL, label: t.stepApproval },
+  { step: ProcessStatus.APPLYING_APPROVED, label: t.stepApplying },
+  { step: ProcessStatus.INSTALLING, label: t.stepInstalling },
+  { step: ProcessStatus.WAITING_CONNECTION_TEST, label: t.stepConnectionTest },
+  { step: ProcessStatus.INSTALLATION_COMPLETE, label: t.stepComplete },
 ];
 
 export const StepIndicator = ({ currentStep }: StepIndicatorProps) => {
+  const { locale } = useLocale();
+  const steps = stepList(SCAN_COPY[locale]);
+
   return (
     <div className="bg-white rounded-xl shadow-sm p-6">
       <div className="flex items-center justify-between">

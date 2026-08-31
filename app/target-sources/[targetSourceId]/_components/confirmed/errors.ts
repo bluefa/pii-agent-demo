@@ -1,7 +1,13 @@
 import { AppError } from '@/lib/errors';
+import { TS_COPY } from '@/app/target-sources/[targetSourceId]/_components/copy';
+import { DEFAULT_LOCALE, type Locale } from '@/lib/locale';
 
-export const getConfirmedErrorMessage = (error: unknown): string => {
+/** `locale` is optional so the existing callers and tests keep the Korean they asserted. */
+export const getConfirmedErrorMessage = (
+  error: unknown,
+  locale: Locale = DEFAULT_LOCALE,
+): string => {
   if (error instanceof AppError && error.isUserFacing) return error.message;
   if (error instanceof Error) return error.message;
-  return '연동 대상 정보를 불러오지 못했습니다.';
+  return TS_COPY[locale].common.confirmedLoadFailed;
 };

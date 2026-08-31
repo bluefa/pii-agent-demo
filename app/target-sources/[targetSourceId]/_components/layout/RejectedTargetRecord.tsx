@@ -1,3 +1,5 @@
+'use client';
+
 import type { ReactNode } from 'react';
 import { formatDate } from '@/lib/utils/date';
 import { ChevronDownIcon } from '@/app/components/ui/icons';
@@ -11,6 +13,8 @@ import {
   textColors,
   verdictText,
 } from '@/lib/theme';
+import { useLocale } from '@/app/components/LocaleProvider';
+import { LAYOUT_COPY } from '@/app/target-sources/[targetSourceId]/_components/layout/copy';
 
 /**
  * One count in the summary row — NOT a `MetaField`.
@@ -28,10 +32,12 @@ import {
 const CountField = ({
   label,
   count,
+  unit,
   excluded = false,
 }: {
   label: string;
   count: number;
+  unit: string;
   excluded?: boolean;
 }) => (
   // `items-baseline` carries the size mix: the 14px digit and the 12px 건 share one baseline, and
@@ -52,7 +58,8 @@ const CountField = ({
         !excluded && textColors.secondary,
       )}
     >
-      <span className={cn('text-[14px]', numericFeatures.tabular)}>{count}</span>건
+      <span className={cn('text-[14px]', numericFeatures.tabular)}>{count}</span>
+      {unit}
     </span>
   </div>
 );
@@ -81,7 +88,11 @@ export const RejectedTargetRecord = ({
   excludedCount,
   request,
   children,
-}: RejectedTargetRecordProps) => (
+}: RejectedTargetRecordProps) => {
+  const { locale } = useLocale();
+  const copy = LAYOUT_COPY[locale];
+  const t = copy.rejectedRecord;
+  return (
   // mx-1: the card body runs at px-6 while its header runs at px-[28px]. The bordered tiles hid
   // that 4px, but this block opens with plain text directly under the header's, so the two text
   // edges have to line up.
@@ -92,7 +103,7 @@ export const RejectedTargetRecord = ({
     <summary className="flex cursor-pointer list-none flex-col gap-2.5 [&::-webkit-details-marker]:hidden">
       <div className="flex items-center justify-between gap-4">
         <span className={cn('text-[14px] font-semibold', textColors.secondary)}>
-          이 요청에 포함된 연동 대상
+          {t.title}
         </span>
         {/* Blue: this is the only action in the block, and the neutral gray it used to carry read
             as another label rather than something to click. */}
@@ -102,8 +113,8 @@ export const RejectedTargetRecord = ({
             primaryColors.text,
           )}
         >
-          <span className="group-open:hidden">목록 보기</span>
-          <span className="hidden group-open:inline">접기</span>
+          <span className="group-open:hidden">{t.open}</span>
+          <span className="hidden group-open:inline">{copy.common.collapse}</span>
           <ChevronDownIcon className="h-3.5 w-3.5 transition-transform group-open:rotate-180" />
         </span>
       </div>
@@ -118,9 +129,14 @@ export const RejectedTargetRecord = ({
         {/* Dropped once open: the stat tiles below carry the same three numbers, and showing them
             twice is what made the old screen read as duplicated. */}
         <div className="flex flex-wrap gap-x-5 gap-y-2 group-open:hidden">
-          <CountField label="전체" count={totalCount} />
-          <CountField label="연동 대상" count={selectedCount} />
-          <CountField label="제외" count={excludedCount} excluded />
+          <CountField label={t.countAll} count={totalCount} unit={copy.common.unitCases} />
+          <CountField label={t.countTarget} count={selectedCount} unit={copy.common.unitCases} />
+          <CountField
+            label={t.countExcluded}
+            count={excludedCount}
+            unit={copy.common.unitCases}
+            excluded
+          />
         </div>
         {request && (
           <>
@@ -132,8 +148,12 @@ export const RejectedTargetRecord = ({
                 pending header's 요청일시/요청자) — a group that flips it makes the reader re-parse
                 which field is which. */}
             <div className="flex flex-wrap gap-x-5 gap-y-2">
-              <MetaField inline label="요청일시" value={formatDate(request.requestedAt, 'datetime')} />
-              <MetaField inline label="요청자" value={request.requestedBy} />
+              <MetaField
+                inline
+                label={copy.common.requestedAt}
+                value={formatDate(request.requestedAt, 'datetime', locale)}
+              />
+              <MetaField inline label={copy.common.requester} value={request.requestedBy} />
             </div>
           </>
         )}
@@ -141,4 +161,5 @@ export const RejectedTargetRecord = ({
     </summary>
     <div className="mt-4">{children}</div>
   </details>
-);
+  );
+};

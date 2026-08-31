@@ -2,6 +2,8 @@
 
 import { Tooltip } from '@/app/components/ui/Tooltip';
 import { InfoCircleIcon } from '@/app/components/ui/icons';
+import { useLocale } from '@/app/components/LocaleProvider';
+import { CANDIDATE_COPY } from '@/app/target-sources/[targetSourceId]/_components/candidate/copy';
 import { cn, idcStyles, textColors } from '@/lib/theme';
 
 /**
@@ -16,20 +18,23 @@ import { cn, idcStyles, textColors } from '@/lib/theme';
  * 컴포넌트를 그린다. 손으로 베낀 두 번째 툴팁은 census 가 못 보는 사본이고, 문구가 바뀌는
  * 날 한쪽만 옛말로 남는다.
  */
-export const LogicalDbGroupHeader = () => (
-  <span className="inline-flex items-center gap-1">
-    연동 논리 DB
-    <Tooltip
-      variant="value"
-      size="lg"
-      content={
-        <span className={idcStyles.table.headerTipBody}>
-          대상은 최근 연결 테스트가 찾아낸 논리 DB 수, 제외는 모니터링에서 빼 두도록 설정한
-          수예요. 서로 다른 기준으로 세기 때문에 두 수를 더해도 전체가 되지 않아요.
-        </span>
-      }
-    >
-      <InfoCircleIcon className={cn('h-3.5 w-3.5', textColors.tertiary)} aria-label="연동 논리 DB 설명" />
-    </Tooltip>
-  </span>
-);
+export const LogicalDbGroupHeader = () => {
+  const { locale } = useLocale();
+  const t = CANDIDATE_COPY[locale].logicalDb;
+
+  return (
+    <span className="inline-flex items-center gap-1">
+      {t.groupTitle}
+      <Tooltip
+        variant="value"
+        size="lg"
+        content={<span className={idcStyles.table.headerTipBody}>{t.groupTip}</span>}
+      >
+        <InfoCircleIcon
+          className={cn('h-3.5 w-3.5', textColors.tertiary)}
+          aria-label={t.groupTipLabel}
+        />
+      </Tooltip>
+    </span>
+  );
+};

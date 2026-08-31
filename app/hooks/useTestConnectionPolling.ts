@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   triggerTestConnection,
   getTestConnectionLatest,
@@ -7,6 +7,8 @@ import type { TestConnectionVersionResult } from '@/app/lib/api';
 import type { TcScope } from '@/app/lib/api/tc-scope';
 import { AppError } from '@/lib/errors';
 import { usePollingBase } from '@/app/hooks/usePollingBase';
+import { useLocale } from '@/app/components/LocaleProvider';
+import { HOOKS_COPY } from '@/app/hooks/copy';
 
 // QUEUED(접수됨, 아직 아무것도 안 돎)와 RUNNING(실제 진행)은 다른 프레임이다 — 예전엔
 // 둘을 'PENDING' 하나로 접어서 top-level PENDING 이 "진행 중 0%"로 그려졌다.
@@ -88,6 +90,15 @@ export const useTestConnectionPolling = (
   scope: TcScope,
   interval = 4_000,
 ): UseTestConnectionPollingReturn => {
+  const { locale } = useLocale();
+  // A ref, not a dependency of `trigger`: this hook polls, and the run button's callback
+  // identity must not change because the reader flipped the language toggle. The wording
+  // is only read when a trigger is refused, so the ref holds the language in force at
+  // that moment.
+  const copyRef = useRef(HOOKS_COPY[locale].testConnection);
+  useEffect(() => {
+    copyRef.current = HOOKS_COPY[locale].testConnection;
+  }, [locale]);
   const [loading, setLoading] = useState(true);
   const [triggerError, setTriggerError] = useState<string | null>(null);
   const [triggering, setTriggering] = useState(false);
@@ -143,9 +154,9 @@ export const useTestConnectionPolling = (
       const appErr = err as AppError;
       started = false;
       if (appErr.status === 409) {
-        setTriggerError('이미 진행 중인 테스트가 있습니다');
+        setTriggerError(copyRef.current.alreadyRunning);
       } else {
-        setTriggerError(appErr.message || '연결 테스트 실행에 실패했습니다');
+        setTriggerError(appErr.message || copyRef.current.triggerFailed);
         // 응답을 못 받은 실패(NETWORK·TIMEOUT)는 서버가 요청을 받지 않았다는 증거가 아니다 —
         // 잠금을 여기서 풀지 않고, 조회가 실제로 무엇이 있는지 말해 줄 때까지 기다린다.
         setTriggering(false);

@@ -1,5 +1,7 @@
 'use client';
 
+import { useLocale } from '@/app/components/LocaleProvider';
+import { SCAN_COPY, type ScanCopy } from '@/app/components/features/scan/copy';
 import { bgColors, cn, primaryColors, scanTransition, statusColors, textColors } from '@/lib/theme';
 
 /**
@@ -16,21 +18,23 @@ interface ScanRunningStateProps {
   stage: ScanHeroStage;
 }
 
-const COPY: Record<ScanHeroStage, { title: string; description: React.ReactNode }> = {
+const stageCopy = (
+  t: ScanCopy,
+): Record<ScanHeroStage, { title: string; description: React.ReactNode }> => ({
   scanning: {
-    title: '인프라 스캔 진행중입니다',
+    title: t.runningTitle,
     description: (
-      <>인프라 스캔은 약 <strong>5분</strong> 이내 소요되는 편이며, 리소스가 많을 경우 길어질 수 있어요.</>
+      <>{t.runningDescBefore}<strong>{t.runningDescStrong}</strong>{t.runningDescAfter}</>
     ),
   },
   finalizing: {
-    title: '스캔 마무리 중이에요',
-    description: '리소스 탐색은 끝났고 결과를 집계하고 있어요. 잠시만 기다려 주세요.',
+    title: t.finalizingTitle,
+    description: t.finalizingDesc,
   },
   complete: {
     // 형제 프레임들이 해요체다(ScanErrorState "인프라 스캔에 실패하였어요",
     // 빈 상태 "발견된 리소스가 없어요") — 명사형 "스캔 완료"만 튀었다.
-    title: '인프라 스캔이 끝났어요',
+    title: t.completeTitle,
     /*
      * 건수를 말하지 않는다. 이 프레임이 댈 수 있는 숫자는 스캔 잡의 발견 총계
      * (리소스 타입 전체 합)인데, 바로 다음 화면의 깔때기는 연동 가능 DB 수를
@@ -43,9 +47,9 @@ const COPY: Record<ScanHeroStage, { title: string; description: React.ReactNode 
      * 프레임이 이미 "집계하고 있어요"라고 말한 뒤였다. "연동할 대상이 표시돼요"도
      * 0건으로 끝나는 스캔에는 지키지 못할 약속이라 결과로 바꾼다.
      */
-    description: '잠시 후 결과를 보여드릴게요.',
+    description: t.completeDesc,
   },
-};
+});
 
 /**
  * 스캔이 도는 동안과 끝난 직후를 같은 블록이 그린다. 완료 프레임을 별도
@@ -54,10 +58,11 @@ const COPY: Record<ScanHeroStage, { title: string; description: React.ReactNode 
  * 안의 내용만 바뀐다.
  */
 export const ScanRunningState = ({ progress, stage }: ScanRunningStateProps) => {
+  const { locale } = useLocale();
   const done = stage === 'complete';
   // 완료 프레임의 바는 항상 가득 — 이 시점의 scan_progress 는 정보가 아니다.
   const clamped = done ? 100 : Math.min(100, Math.max(0, progress));
-  const { title, description } = COPY[stage];
+  const { title, description } = stageCopy(SCAN_COPY[locale])[stage];
 
   return (
     <div className="py-[60px] px-5 text-center">
@@ -119,7 +124,7 @@ export const ScanRunningState = ({ progress, stage }: ScanRunningStateProps) => 
       <div
         className={cn('mx-auto mt-6 max-w-[520px] rounded-full h-[10px] overflow-hidden', bgColors.panel)}
         role="progressbar"
-        aria-label="인프라 스캔 진행률"
+        aria-label={SCAN_COPY[locale].progressLabel}
         aria-valuenow={clamped}
         aria-valuemin={0}
         aria-valuemax={100}

@@ -3,6 +3,8 @@
 import { CopyButton } from '@/app/components/ui/CopyButton';
 import { IdentifierTip, Tooltip } from '@/app/components/ui/Tooltip';
 import { cn, idcStyles, textColors } from '@/lib/theme';
+import { useLocale } from '@/app/components/LocaleProvider';
+import { TS_COPY } from '@/app/target-sources/[targetSourceId]/_components/copy';
 
 interface ResourceIdCellProps {
   value: string;
@@ -41,57 +43,61 @@ export const ResourceIdCell = ({
   textClassName,
   sizeClass = 'text-[12px]',
   hardClip = false,
-}: ResourceIdCellProps) => (
-  <span
-    className={cn(
-      'group/resid min-w-0',
-      // hardClip: block + relative, no gap column — the text owns the full run to the
-      // boundary and the button positions against the boundary, not against a reserve.
-      hardClip ? 'relative block' : 'inline-flex items-center gap-1.5',
-      maxWidthClass,
-    )}
-  >
-    {/* Long ids are the norm here, but short ones exist — no tooltip when the value already fits. */}
-    <Tooltip
-      content={<IdentifierTip label={label} value={value} />}
-      variant="value"
-      size="md"
-      // hardClip: the TD is the clipper (round 4) — the trigger only bounds the
-      // truncation probe, the same recipe as the Resource Name cell beside it. An
-      // overflow-hidden trigger here would move the cut back to the content box.
-      triggerClassName={hardClip ? 'min-w-0 w-full' : 'min-w-0 overflow-hidden'}
-      truncatedOnly
-    >
-      {/* Truncates from the RIGHT, like the Resource Name cell beside it: one
-          abbreviation grammar per table (`Prefix…`). The full value is one hover
-          away and the copy button hands over the exact string.
+}: ResourceIdCellProps) => {
+  const { locale } = useLocale();
 
-          Truncation box and text are ONE element on purpose — the browser draws the
-          ellipsis in the box's own font and colour, so a styled child under a plain
-          wrapper gets an inherited grey `…` detached from the mono id. */}
-      <span
-        className={cn(
-          'block min-w-0 text-left font-mono',
-          hardClip ? 'whitespace-nowrap' : 'truncate',
-          sizeClass,
-          textClassName ?? textColors.secondary,
-        )}
-      >
-        {value}
-      </span>
-    </Tooltip>
-    <CopyButton
-      value={value}
-      label={`${label} 복사`}
+  return (
+    <span
       className={cn(
-        'opacity-0 group-hover/resid:opacity-100',
-        // right-2 keeps the 22px button clear of the seam's ±8px resize/tracer zone.
-        // The chip's own surface is what covers the tail underneath it — round 15
-        // removed the mask that used to fade the id instead (see the token).
-        hardClip
-          ? cn('absolute right-2 top-1/2 -translate-y-1/2', idcStyles.table.copyOverlayChip)
-          : 'shrink-0',
+        'group/resid min-w-0',
+        // hardClip: block + relative, no gap column — the text owns the full run to the
+        // boundary and the button positions against the boundary, not against a reserve.
+        hardClip ? 'relative block' : 'inline-flex items-center gap-1.5',
+        maxWidthClass,
       )}
-    />
-  </span>
-);
+    >
+      {/* Long ids are the norm here, but short ones exist — no tooltip when the value already fits. */}
+      <Tooltip
+        content={<IdentifierTip label={label} value={value} />}
+        variant="value"
+        size="md"
+        // hardClip: the TD is the clipper (round 4) — the trigger only bounds the
+        // truncation probe, the same recipe as the Resource Name cell beside it. An
+        // overflow-hidden trigger here would move the cut back to the content box.
+        triggerClassName={hardClip ? 'min-w-0 w-full' : 'min-w-0 overflow-hidden'}
+        truncatedOnly
+      >
+        {/* Truncates from the RIGHT, like the Resource Name cell beside it: one
+            abbreviation grammar per table (`Prefix…`). The full value is one hover
+            away and the copy button hands over the exact string.
+
+            Truncation box and text are ONE element on purpose — the browser draws the
+            ellipsis in the box's own font and colour, so a styled child under a plain
+            wrapper gets an inherited grey `…` detached from the mono id. */}
+        <span
+          className={cn(
+            'block min-w-0 text-left font-mono',
+            hardClip ? 'whitespace-nowrap' : 'truncate',
+            sizeClass,
+            textClassName ?? textColors.secondary,
+          )}
+        >
+          {value}
+        </span>
+      </Tooltip>
+      <CopyButton
+        value={value}
+        label={TS_COPY[locale].shared.copy(label)}
+        className={cn(
+          'opacity-0 group-hover/resid:opacity-100',
+          // right-2 keeps the 22px button clear of the seam's ±8px resize/tracer zone.
+          // The chip's own surface is what covers the tail underneath it — round 15
+          // removed the mask that used to fade the id instead (see the token).
+          hardClip
+            ? cn('absolute right-2 top-1/2 -translate-y-1/2', idcStyles.table.copyOverlayChip)
+            : 'shrink-0',
+        )}
+      />
+    </span>
+  );
+};

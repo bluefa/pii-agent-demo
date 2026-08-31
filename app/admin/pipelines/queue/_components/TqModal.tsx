@@ -10,6 +10,8 @@
 
 import { useId, type ReactElement, type ReactNode } from 'react';
 import { cn } from '@/lib/theme';
+import { useLocale } from '@/app/components/LocaleProvider';
+import { COPY } from '@/lib/copy';
 import { ModalShell } from '@/app/admin/pipelines/_components/ModalShell';
 import { Icon } from '@/app/admin/pipelines/_components/icons';
 import { tqStyles } from '@/app/admin/pipelines/queue/_components/tqStyles';
@@ -52,6 +54,7 @@ export function TqModal({
 }: TqModalProps): ReactElement | null {
   const titleId = useId();
   const metaId = useId();
+  const { locale } = useLocale();
   const { modal } = tqStyles;
   return (
     <ModalShell
@@ -71,7 +74,7 @@ export function TqModal({
           <button
             type="button"
             onClick={onClose}
-            aria-label="닫기"
+            aria-label={COPY[locale].common.close}
             // Inset from the shell, not from the header's padding box: right-0/top-0 put
             // it in the r20 corner itself, half-outside the rounded edge.
             className="absolute right-4 top-4 inline-grid h-8 w-8 place-items-center rounded-md text-[var(--pl-text-weak)] transition-colors hover:bg-[var(--pl-gray-100)] hover:text-[var(--pl-text-medium)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--pl-primary)]"

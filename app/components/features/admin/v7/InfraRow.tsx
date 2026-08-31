@@ -21,6 +21,8 @@ import {
   KindWord,
   MetaPair,
 } from '@/app/components/features/admin/v7/RowIdentityText';
+import { useLocale } from '@/app/components/LocaleProvider';
+import { COPY } from '@/lib/copy';
 
 export type InfraRowAction = 'view' | 'editDescription' | 'copyId' | 'delete';
 
@@ -50,9 +52,12 @@ interface RowIdentity {
   gloss?: string;
 }
 
-const identityOf = (project: ProjectSummary): RowIdentity => {
+const identityOf = (
+  project: ProjectSummary,
+  t: (typeof COPY)['ko']['services'],
+): RowIdentity => {
   if (project.isSduType) {
-    return { name: 'SDU', gloss: '서비스 담당자가 데이터를 직접 업로드' };
+    return { name: 'SDU', gloss: t.selfUpload };
   }
   switch (project.cloudProvider) {
     case 'AWS':
@@ -62,12 +67,14 @@ const identityOf = (project: ProjectSummary): RowIdentity => {
     case 'GCP':
       return { name: 'GCP', secondKind: 'Project', secondValue: project.gcpProjectId };
     case 'IDC':
-      return { name: 'IDC 인프라', gloss: '사내망' };
+      return { name: t.idcInfra, gloss: t.intranet };
   }
 };
 
 export const InfraRow = ({ project, onOpenDetail, onManageAction }: InfraRowProps) => {
-  const identity = identityOf(project);
+  const { locale } = useLocale();
+  const t = COPY[locale].services;
+  const identity = identityOf(project, t);
   // 설치 모드 is AWS-only — Terraform 실행 권한은 AWS 계정에만 존재하는 개념이라
   // 다른 CSP 행에 칩을 달면 없는 선택지를 있는 것처럼 보이게 한다. AWS 행이면 항상
   // 붙는다: 권한은 허용됐거나 아니거나 둘 중 하나이고, 안 붙어 있으면 허용된 적이
@@ -147,7 +154,7 @@ export const InfraRow = ({ project, onOpenDetail, onManageAction }: InfraRowProp
                 'border',
               )}
             >
-              중국 리전
+              {t.chinaRegion}
             </span>
           )}
         </div>
@@ -184,7 +191,7 @@ export const InfraRow = ({ project, onOpenDetail, onManageAction }: InfraRowProp
               </MetaPair>
             )}
             {showInstallMode && (
-              <MetaPair label="설치 모드">
+              <MetaPair label={t.installMode}>
                 <span
                   className={cn(
                     chipStyles.base,
@@ -193,7 +200,7 @@ export const InfraRow = ({ project, onOpenDetail, onManageAction }: InfraRowProp
                       : chipStyles.variant.manual,
                   )}
                 >
-                  {project.isTerraformExecutionGranted ? '자동 설치' : '수동 설치'}
+                  {project.isTerraformExecutionGranted ? t.autoInstall : t.manualInstall}
                 </span>
               </MetaPair>
             )}
@@ -203,7 +210,7 @@ export const InfraRow = ({ project, onOpenDetail, onManageAction }: InfraRowProp
         {project.description && (
           <div className="flex gap-1.5 min-w-0 pl-0.5">
             <span className={cn('flex-none pt-0.5 text-[12px]', rowLabelColor)}>
-              설명
+              {t.description}
             </span>
             <span className={cn('truncate text-[14px]', textColors.secondary)}>
               {project.description}
@@ -271,6 +278,8 @@ const RowMenu = ({
   onCopyId,
   onDelete,
 }: RowMenuProps) => {
+  const { locale } = useLocale();
+  const t = COPY[locale].services;
   const [open, setOpen] = useState(false);
 
   const run = (action: () => void) => () => {
@@ -291,7 +300,7 @@ const RowMenu = ({
       <button
         type="button"
         onClick={() => setOpen((prev) => !prev)}
-        aria-label={`${rowName} 추가 작업`}
+        aria-label={t.rowMenu(rowName)}
         aria-haspopup="true"
         aria-expanded={open}
         className={cn(
@@ -316,7 +325,7 @@ const RowMenu = ({
               onClick={run(onViewDetail)}
               className={cn(rowMenuStyles.item, textColors.secondary, bgColors.mutedHover)}
             >
-              상세 보기
+              {t.viewDetail}
             </button>
             {/* The row already shows 설명; this is where it gets written. It sits with
                 상세 보기 rather than next to 계정 삭제 — both edit what the row says,
@@ -327,14 +336,14 @@ const RowMenu = ({
               onClick={run(onEditDescription)}
               className={cn(rowMenuStyles.item, textColors.secondary, bgColors.mutedHover)}
             >
-              설명 수정
+              {t.editDescription}
             </button>
             <button
               type="button"
               onClick={run(onCopyId)}
               className={cn(rowMenuStyles.item, textColors.secondary, bgColors.mutedHover)}
             >
-              Target Source ID 복사
+              {t.copyTargetSourceId}
             </button>
             <div className={cn('h-px my-1', bgColors.divider)} />
             <button
@@ -342,7 +351,7 @@ const RowMenu = ({
               onClick={run(onDelete)}
               className={cn(rowMenuStyles.item, statusColors.error.textDark, bgColors.mutedHover)}
             >
-              계정 삭제
+              {t.deleteAccount}
             </button>
           </div>
         </>

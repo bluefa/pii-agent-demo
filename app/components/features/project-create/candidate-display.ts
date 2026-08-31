@@ -4,6 +4,7 @@ import {
   isCspChip,
   type ProviderChipKey,
 } from '@/lib/constants/provider-mapping';
+import { COPY } from '@/lib/copy';
 
 /**
  * Response `cloud_type` (AWS|GCP|AZURE|IDC|SDU|UNKNOWN, loose casing) → chip key.
@@ -30,10 +31,23 @@ export const candidateProviderKey = (raw?: string | null): ProviderChipKey => {
 export const isSduCandidate = (candidate: TargetSourceCreationCandidateResponse): boolean =>
   candidate.is_sdu_type === true;
 
-export const candidateTitle = (candidate: TargetSourceCreationCandidateResponse): string =>
+/** The wizard dictionary, so the display builders below can take it as a parameter. */
+type WizardCopy = (typeof COPY)['ko']['wizard'];
+
+/**
+ * `PROVIDER_CHIP_BY_KEY` is a plain constants module and keeps its Korean defaults,
+ * so the one label of its five that is a word rather than a brand is swapped here.
+ */
+const providerLabel = (t: WizardCopy, key: ProviderChipKey): string =>
+  key === 'other' ? t.other : PROVIDER_CHIP_BY_KEY[key].label;
+
+export const candidateTitle = (
+  t: WizardCopy,
+  candidate: TargetSourceCreationCandidateResponse,
+): string =>
   isSduCandidate(candidate)
-    ? 'Self Data Upload 계정'
-    : `${PROVIDER_CHIP_BY_KEY[candidateProviderKey(candidate.cloud_type)].label} 계정`;
+    ? t.sduAccount
+    : t.accountOf(providerLabel(t, candidateProviderKey(candidate.cloud_type)));
 
 /**
  * The step-4 card's identity block, in the anatomy the /services list uses
@@ -59,11 +73,12 @@ export interface CandidateIdentity {
 }
 
 export const candidateIdentity = (
+  t: WizardCopy,
   candidate: TargetSourceCreationCandidateResponse,
 ): CandidateIdentity => {
   const meta = candidate.metadata ?? {};
   if (isSduCandidate(candidate)) {
-    return { name: 'SDU', gloss: '서비스 담당자가 데이터를 직접 업로드' };
+    return { name: 'SDU', gloss: t.sduUploadGloss };
   }
   switch (candidateProviderKey(candidate.cloud_type)) {
     case 'aws':
@@ -75,9 +90,9 @@ export const candidateIdentity = (
     // IDC/기타 own no account id — the description IS how the user names the box, so
     // it takes the gloss slot rather than repeating under a 설명 label.
     case 'idc':
-      return { name: 'IDC 인프라', gloss: meta.description || '사내망' };
+      return { name: t.idcInfra, gloss: meta.description || t.intranet };
     case 'other':
-      return { name: '기타 인프라', gloss: meta.description || '그 외 환경' };
+      return { name: t.otherInfra, gloss: meta.description || t.otherEnv };
   }
 };
 

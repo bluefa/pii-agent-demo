@@ -15,6 +15,8 @@ import { TerraformScriptDownload } from '@/app/components/features/process-statu
 import { TerraformRoleVerifyPanel } from '@/app/components/features/process-status/aws/TerraformRoleVerifyPanel';
 import type { ConfirmedResource } from '@/lib/types/resources';
 import type { AwsInstallationStatus } from '@/lib/types';
+import { useLocale } from '@/app/components/LocaleProvider';
+import { INSTALL_COPY } from '@/app/components/features/process-status/install-copy';
 
 /**
  * AWS Step-4 install status — maps the AWS domain (resource-centric
@@ -42,49 +44,45 @@ const athenaCatalogName = (resourceId: string): string | null =>
   // name and render the row's empty-value placeholder instead of falling back to the wire.
   resourceId.startsWith('athena:') ? resourceId.split('/')[1] || null : null;
 
+type AwsCopy = (typeof INSTALL_COPY)['ko'];
+
 /** 서비스 측 TF 단계 이름 — 단계 배열과 참고 항목의 링크 라벨이 같은 출처를 쓴다. */
-const serviceStepTitle = (manualInstall: boolean) =>
-  manualInstall ? 'Terraform 직접 적용' : '서비스 측 Terraform 자동 적용';
+const serviceStepTitle = (manualInstall: boolean, t: AwsCopy) =>
+  manualInstall ? t.aws.serviceTitleManual : t.aws.serviceTitleAuto;
 
 // Execution order = service-side TF → BDC common → BDC service (common before
 // service — confirmed step order).
-const buildSteps = (manualInstall: boolean): InstallTableStep[] => [
+const buildSteps = (manualInstall: boolean, t: AwsCopy): InstallTableStep[] => [
   {
     id: 'service',
-    title: serviceStepTitle(manualInstall),
-    side: '서비스측 리소스 생성',
+    title: serviceStepTitle(manualInstall, t),
+    side: t.side.serviceResource,
     // Only manual mode is executed by the service owner — in auto mode BDC
     // deploys, so the step joins the 'auto' group with no action copy.
     group: manualInstall ? 'todo' : 'auto',
-    serviceAction: manualInstall
-      ? '다운로드한 Terraform 스크립트를 서비스 AWS 계정에 직접 적용해 주세요.'
-      : undefined,
-    desc: manualInstall
-      ? '다운로드한 Terraform 스크립트를 서비스 AWS 계정에 직접 적용합니다.'
-      : '리소스별 Private Endpoint / IAM Role / Glue Policy 설정을 Terraform으로 자동 배포합니다.',
+    serviceAction: manualInstall ? t.aws.serviceActionManual : undefined,
+    desc: manualInstall ? t.aws.serviceDescManual : t.aws.serviceDescAuto,
     // 두 모드 모두 참고 항목을 가리킨다. 무게는 텍스트 링크까지다(오너 지시) —
     // h40 버튼을 단계 헤더에 얹으면 12px 태그 두 개 사이에서 혼자 커진다.
     // 수동은 거기서 받고, 자동은 BDC 가 무엇을 적용하는지 본다.
     note: {
-      link: { label: 'Terraform Script', stepId: TF_SCRIPT_ID },
-      text: manualInstall
-        ? '에서 스크립트를 내려받을 수 있습니다.'
-        : '에서 자세한 설치 사항을 확인할 수 있습니다.',
+      link: { label: t.aws.referenceTitle, stepId: TF_SCRIPT_ID },
+      text: manualInstall ? t.aws.serviceNoteManual : t.aws.serviceNoteAuto,
     },
   },
   {
     id: 'bdcCommon',
-    title: 'BDC 공통 영역',
-    side: 'BDC측 리소스 생성',
+    title: t.aws.bdcCommonTitle,
+    side: t.side.bdcResource,
     group: 'auto',
-    desc: 'BDC측에서 PII Agent 구성을 위한 Terraform 작업을 수행합니다.',
+    desc: t.aws.bdcDesc,
   },
   {
     id: 'bdcService',
-    title: 'BDC 서비스 영역',
-    side: 'BDC측 리소스 생성',
+    title: t.aws.bdcServiceTitle,
+    side: t.side.bdcResource,
     group: 'auto',
-    desc: 'BDC측에서 PII Agent 구성을 위한 Terraform 작업을 수행합니다.',
+    desc: t.aws.bdcDesc,
   },
 ];
 
@@ -114,7 +112,9 @@ export const AwsInstallStatusDetail = ({
   awsAccountId,
   awsTerraformExecutionRoleArn,
 }: AwsInstallStatusDetailProps) => {
-  const steps = useMemo(() => buildSteps(manualInstall), [manualInstall]);
+  const { locale } = useLocale();
+  const t = INSTALL_COPY[locale];
+  const steps = useMemo(() => buildSteps(manualInstall, t), [manualInstall, t]);
 
   // 설명은 실제 단계 이름을 인용한다 — 수동 설치에서는 그 단계가 'Terraform 직접 적용'
   // 이라, 자동 설치 문구를 박아두면 화면이 절반의 경우에 거짓말을 한다.
@@ -122,12 +122,12 @@ export const AwsInstallStatusDetail = ({
   const reference = useMemo<InstallReferenceStep>(
     () => ({
       id: TF_SCRIPT_ID,
-      title: 'Terraform Script',
-      desc: '단계에서 수행하는 Terraform 작업 내역을 미리 확인할 수 있습니다.',
-      descLink: { label: serviceStepTitle(manualInstall), stepId: 'service' },
+      title: t.aws.referenceTitle,
+      desc: t.aws.referenceDesc,
+      descLink: { label: serviceStepTitle(manualInstall, t), stepId: 'service' },
       panel: <TerraformScriptDownload targetSourceId={targetSourceId} />,
     }),
-    [manualInstall, targetSourceId],
+    [manualInstall, targetSourceId, t],
   );
 
   const panelSteps = useMemo<InstallPanelStep[]>(
@@ -137,11 +137,11 @@ export const AwsInstallStatusDetail = ({
         : [
             {
               id: 'perm',
-              title: 'Terraform 권한 부여 확인',
-              side: '서비스측 확인',
+              title: t.aws.permTitle,
+              side: t.side.serviceCheck,
               group: 'todo',
-              serviceAction: '대상 AWS 계정에 Terraform 실행용 IAM Role / AssumeRole 권한을 부여해 주세요.',
-              desc: '대상 AWS 계정에 Terraform 실행을 위한 IAM Role / AssumeRole 권한이 부여되었는지 검증합니다.',
+              serviceAction: t.aws.permAction,
+              desc: t.aws.permDesc,
               status: status.roleVerify.status,
               panel: (
                 <TerraformRoleVerifyPanel
@@ -156,7 +156,7 @@ export const AwsInstallStatusDetail = ({
               ),
             },
           ],
-    [manualInstall, status, targetSourceId, awsAccountId, awsTerraformExecutionRoleArn],
+    [manualInstall, status, targetSourceId, awsAccountId, awsTerraformExecutionRoleArn, t],
   );
 
   const resources = useMemo<InstallDetailResource[]>(

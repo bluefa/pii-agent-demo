@@ -19,13 +19,14 @@ import {
   foldTcCardState,
   type TcRunPhase,
 } from '@/lib/test-connection-summary';
-import { ERROR_MESSAGES } from '@/lib/constants/messages';
 import {
   getSecrets,
   updateResourceCredential,
   updateTestConnectionConfirmation,
 } from '@/app/lib/api';
 import { RejectionAlert } from '@/app/target-sources/[targetSourceId]/_components/common';
+import { useLocale } from '@/app/components/LocaleProvider';
+import { IDC_COPY } from '@/app/target-sources/[targetSourceId]/_components/idc/copy';
 import { IdcConfirmedResourcesPanel } from '@/app/target-sources/[targetSourceId]/_components/idc/IdcConfirmedResourcesPanel';
 import { CredentialPickModal } from '@/app/target-sources/[targetSourceId]/_components/layout/CredentialPickModal';
 import { IdcReqApprovalModal } from '@/app/target-sources/[targetSourceId]/_components/idc/IdcReqApprovalModal';
@@ -80,6 +81,7 @@ export const IdcStep5ConnectionTest = ({
   project,
   onProjectUpdate,
 }: IdcStepProps) => {
+  const t = IDC_COPY[useLocale().locale];
   const { targetSourceId } = project;
 
   const [state, setState] = useState<ResourcesState>({ status: 'loading' });
@@ -182,10 +184,7 @@ export const IdcStep5ConnectionTest = ({
   const runDisabled = !ready || !canRunTest || !allCredsSet;
   // 잠긴 CTA 가 스스로 사유를 진다 — 미설정이 있을 때만이다. 대상 0건도 실행을 막지만 그것은
   // 이 문장이 아니라 위의 안내 줄이 든다.
-  const runBlockedTip =
-    missingCount > 0
-      ? `Credential 미설정 ${missingCount}건 — 지정해야 연결 테스트를 실행할 수 있습니다`
-      : undefined;
+  const runBlockedTip = missingCount > 0 ? t.credMissingTip(missingCount) : undefined;
   // 마지막 하나를 지정하면 경고 줄이 사라진다 — 필터를 그대로 두면 표가 비고, 그것을 되돌릴
   // 컨트롤도 같이 사라진 뒤다.
   if (credFilterOn && missingCount === 0) setCredFilterOn(false);
@@ -235,12 +234,12 @@ export const IdcStep5ConnectionTest = ({
         setCredsDirty(true);
         credModal.close();
       } catch (err) {
-        toast.error(err instanceof Error ? err.message : 'Credential 변경에 실패했습니다.');
+        toast.error(err instanceof Error ? err.message : t.credSaveFailed);
       } finally {
         setSavingCred(false);
       }
     },
-    [targetSourceId, toast, credModal],
+    [targetSourceId, toast, credModal, t],
   );
 
   const handleCredOpen = useCallback(
@@ -341,20 +340,16 @@ export const IdcStep5ConnectionTest = ({
         <header className={cardStyles.header}>
           <div>
             <div className="flex items-center gap-2">
-              <span className={cardStyles.stepTag}>5단계</span>
-              <h2 className={cardStyles.cardTitle}>연결 테스트</h2>
+              <span className={cardStyles.stepTag}>{t.step(5)}</span>
+              <h2 className={cardStyles.cardTitle}>{t.step5Title}</h2>
             </div>
             <p className={cn('mt-2.5 break-keep', cardStyles.subtitle)}>
-              연동 대상 DB에 접근하기 위한 PII Agent 리소스가 생성됐어요.{' '}
-              <span className={primaryColors.text}>
-                Credential을 등록한 다음 리소스별 Key를 지정하면 연결 테스트
-              </span>를 진행할 수 있어요. 테스트가 모두 성공하면 완료 승인 요청을 진행할 수 있어요.
+              {t.step5GuideBefore}{' '}
+              <span className={primaryColors.text}>{t.step5GuideEm}</span>
+              {t.step5GuideAfter}
             </p>
             {/* No top margin — the 1.55 leading is the paragraph break (step-2 grammar). */}
-            <p className={cn('break-keep', cardStyles.subtitle)}>
-              DB 내에 연동이 불필요한 논리 DB가 있다면 해당 논리 DB는 연동에서 제외할 수 있어요. 이
-              절차는 연결 테스트 완료 후에 진행할 수 있어요.
-            </p>
+            <p className={cn('break-keep', cardStyles.subtitle)}>{t.step5LogicalGuide}</p>
           </div>
         </header>
         {/* Two groups, not one even stack: distance carries ownership (proposal A). Inside a
@@ -393,7 +388,7 @@ export const IdcStep5ConnectionTest = ({
                     onClick={() => setHistoryOpen(true)}
                     className={cn(idcStyles.triggerBtn.linkNeutral, 'whitespace-nowrap text-[12px]')}
                   >
-                    실행 이력
+                    {t.runHistory}
                   </button>
                 }
               />
@@ -402,13 +397,13 @@ export const IdcStep5ConnectionTest = ({
                   카드와 같은 문법: 한 줄 + 재시도. */}
               {completionFailed && (
                 <p className={cn('flex items-center gap-2 text-[12px]', idcStyles.tag.red, 'bg-transparent px-0')}>
-                  {ERROR_MESSAGES.TEST_CONNECTION_COMPLETION_FETCH_FAILED}
+                  {t.tcCompletionFetchFailed}
                   <button
                     type="button"
                     onClick={refreshCompletion}
                     className={cn(idcStyles.triggerBtn.linkNeutral, 'text-[12px]')}
                   >
-                    다시 시도
+                    {t.tryAgain}
                   </button>
                 </p>
               )}
@@ -418,13 +413,13 @@ export const IdcStep5ConnectionTest = ({
               {/* 클라우드 step 5 와 같은 출구 — 조회 실패로 잠긴 실행 CTA 를 되살리는 유일한 길. */}
               {fetchError && (
                 <p className={cn('flex items-center gap-2 text-[12px]', idcStyles.tag.red, 'bg-transparent px-0')}>
-                  {ERROR_MESSAGES.TEST_CONNECTION_FETCH_FAILED}
+                  {t.tcFetchFailed}
                   <button
                     type="button"
                     onClick={() => void retry()}
                     className={cn(idcStyles.triggerBtn.linkNeutral, 'text-[12px]')}
                   >
-                    다시 시도
+                    {t.tryAgain}
                   </button>
                 </p>
               )}
@@ -434,7 +429,7 @@ export const IdcStep5ConnectionTest = ({
               서고, 그 안의 링크가 곧 필터라 요약과 도달 수단이 한 물건이다. */}
           {ready && noTargets && (
             <p className={cn('text-[14px]', textColors.tertiary)}>
-              연동 대상이 없어 연결 테스트를 실행할 수 없어요. 2단계에서 대상을 확정해 주세요.
+              {t.step5NoTargets}
             </p>
           )}
           <div className="space-y-2">
@@ -472,7 +467,7 @@ export const IdcStep5ConnectionTest = ({
             <CredentialPickModal
               isOpen={credModal.isOpen}
               onClose={credModal.close}
-              target={{ label: '접속 주소', value: credModal.data.label }}
+              target={{ label: t.colEndpoint, value: credModal.data.label }}
               value={credModal.data.current}
               options={credOptions}
               saving={savingCred}

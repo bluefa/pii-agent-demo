@@ -15,6 +15,11 @@ import { toRequestResourceRow } from '@/app/lib/api/task-queue-requests';
 import { ResourceSection } from '@/app/admin/pipelines/queue/requests/_components/ResourceSection';
 import { useResourceListState } from '@/app/admin/pipelines/queue/requests/_resourceQuery';
 import { borderColors, cn, getButtonClass, statusColors, textColors } from '@/lib/theme';
+import { useLocale } from '@/app/components/LocaleProvider';
+import {
+  STATUS_COPY,
+  type StatusCopy,
+} from '@/app/components/features/process-status/status-copy';
 
 interface ApprovalHistoryItem {
   request: {
@@ -56,22 +61,22 @@ type ResultStatus = string | undefined;
 const NOOP = (): void => {};
 
 /** Header badge only — the verdict is stated once, not restated as a filled panel. */
-const getResultMeta = (status: ResultStatus) => {
+const getResultMeta = (t: StatusCopy, status: ResultStatus) => {
   switch (status) {
     case 'APPROVED':
-      return { badgeVariant: 'success' as const, badgeLabel: '승인 완료' };
+      return { badgeVariant: 'success' as const, badgeLabel: t.detail.resultApproved };
     case 'AUTO_APPROVED':
-      return { badgeVariant: 'success' as const, badgeLabel: '자동 승인' };
+      return { badgeVariant: 'success' as const, badgeLabel: t.detail.resultAutoApproved };
     case 'REJECTED':
-      return { badgeVariant: 'error' as const, badgeLabel: '반려됨' };
+      return { badgeVariant: 'error' as const, badgeLabel: t.detail.resultRejected };
     case 'CANCELLED':
-      return { badgeVariant: 'pending' as const, badgeLabel: '요청 취소' };
+      return { badgeVariant: 'pending' as const, badgeLabel: t.detail.resultCancelled };
     case 'SYSTEM_ERROR':
-      return { badgeVariant: 'error' as const, badgeLabel: '처리 오류' };
+      return { badgeVariant: 'error' as const, badgeLabel: t.detail.resultError };
     case 'COMPLETED':
-      return { badgeVariant: 'success' as const, badgeLabel: '적용 완료' };
+      return { badgeVariant: 'success' as const, badgeLabel: t.detail.resultCompleted };
     default:
-      return { badgeVariant: 'info' as const, badgeLabel: '승인 대기' };
+      return { badgeVariant: 'info' as const, badgeLabel: t.detail.resultPending };
   }
 };
 
@@ -132,6 +137,8 @@ export const ApprovalRequestDetailModal = ({
   targetSourceId,
   isIdc = false,
 }: ApprovalRequestDetailModalProps) => {
+  const { locale } = useLocale();
+  const t = STATUS_COPY[locale];
   // Resource lists: latest responses carry them inline; history items need the
   // per-request detail fetch (GET …/approval-requests/{requestId}).
   // `rows: null` marks a failed fetch for that id; loading is derived, never set.
@@ -177,14 +184,14 @@ export const ApprovalRequestDetailModal = ({
   const data = latestResponse
     ? toSummaryViewFromLatest(latestResponse)
     : toSummaryViewFromHistory(item!);
-  const resultMeta = getResultMeta(data.resultStatus);
+  const resultMeta = getResultMeta(t, data.resultStatus);
 
   return (
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="승인 요청 상세"
-      subtitle={`요청 ID ${data.requestId}`}
+      title={t.detail.title}
+      subtitle={t.detail.subtitle(data.requestId)}
       size="3xl"
       icon={
         <svg className={cn('w-5 h-5', statusColors.info.text)} fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -193,7 +200,7 @@ export const ApprovalRequestDetailModal = ({
       }
       footer={
         <button onClick={onClose} className={getButtonClass('secondary')}>
-          닫기
+          {t.common.close}
         </button>
       }
     >
@@ -203,17 +210,22 @@ export const ApprovalRequestDetailModal = ({
         <Badge variant={resultMeta.badgeVariant} dot>
           {resultMeta.badgeLabel}
         </Badge>
-        <MetaField label="요청자" value={data.requestedBy} />
+        <MetaField label={t.detail.requester} value={data.requestedBy} />
         {/* requested_at is optional in the contract, and `new Date('')` renders the
             literal string "Invalid Date" — say nothing rather than that. */}
         {data.requestedAt && (
-          <MetaField label="요청일시" value={formatDate(data.requestedAt, 'datetime')} />
+          <MetaField label={t.detail.requestedAt} value={formatDate(data.requestedAt, 'datetime', locale)} />
         )}
         {/* A null processor means the request was approved automatically (ADR-006),
             which is a fact worth stating — hiding the field reads as "not processed". */}
-        {data.processedAt && <MetaField label="처리자" value={data.processedBy ?? '시스템'} />}
         {data.processedAt && (
-          <MetaField label="처리일시" value={formatDate(data.processedAt, 'datetime')} />
+          <MetaField
+            label={t.detail.processedBy}
+            value={data.processedBy ?? t.detail.systemProcessor}
+          />
+        )}
+        {data.processedAt && (
+          <MetaField label={t.detail.processedAt} value={formatDate(data.processedAt, 'datetime', locale)} />
         )}
       </div>
 
@@ -222,7 +234,7 @@ export const ApprovalRequestDetailModal = ({
       {data.reason && (
         <div className={cn('mt-5 border-l-[3px] pl-4', statusColors.warning.borderStrong)}>
           <p className={cn('text-[12px] font-bold tracking-[0.02em]', statusColors.warning.textDark)}>
-            처리 사유
+            {t.detail.reasonHeading}
           </p>
           <p className={cn('mt-1.5 text-[17px] font-semibold leading-[1.5]', textColors.primary)}>
             {data.reason}
@@ -237,7 +249,7 @@ export const ApprovalRequestDetailModal = ({
       <div className="mt-6">
         {fetchLoading ? (
           <p className={cn('rounded-lg border p-6 text-center text-sm', borderColors.default, textColors.tertiary)}>
-            리소스 목록을 불러오는 중…
+            {t.detail.loadingResources}
           </p>
         ) : resources != null ? (
           <ResourceSection
@@ -252,9 +264,21 @@ export const ApprovalRequestDetailModal = ({
              by) — the summary counts still answer "얼마나", in the tiles the list would
              have used. */
           <div className="grid grid-cols-3 gap-3">
-            <StatTile label="전체 요청" value={data.totalCount} unit="건" />
-            <StatTile label="연동 요청 대상" value={data.selectedCount} unit="건" />
-            <StatTile label="연동 요청 제외대상" value={data.excludedCount} unit="건" />
+            <StatTile
+              label={t.detail.statTotal}
+              value={data.totalCount}
+              unit={t.common.unitCases}
+            />
+            <StatTile
+              label={t.detail.statTarget}
+              value={data.selectedCount}
+              unit={t.common.unitCases}
+            />
+            <StatTile
+              label={t.detail.statExcluded}
+              value={data.excludedCount}
+              unit={t.common.unitCases}
+            />
           </div>
         )}
       </div>

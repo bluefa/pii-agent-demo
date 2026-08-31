@@ -3,16 +3,18 @@
 import type { ReactNode } from 'react';
 import { DatabaseIcon, PlusIcon } from '@/app/components/ui/icons';
 import { EmptyState } from '@/app/components/ui/state';
+import { useLocale } from '@/app/components/LocaleProvider';
 import { cn, idcStyles } from '@/lib/theme';
 import { SDU_REGION_LABEL, type SduTarget } from '@/lib/types/sdu';
+import { SDU_COPY } from '@/app/target-sources/[targetSourceId]/_components/sdu/copy';
 import {
   activeSduDrafts,
-  SDU_CLOUD_LABEL,
-  SDU_ROW_DIFF_LABEL,
+  sduCloudLabels,
   sduDbTypeSummary,
   sduDraftDbTypeCount,
   sduDraftRegions,
   sduRowDiff,
+  sduRowDiffLabels,
   type SduTargetDraft,
 } from '@/app/target-sources/[targetSourceId]/_components/sdu/step1/model';
 import {
@@ -57,6 +59,10 @@ export const TargetRowList = ({
   onRestore,
   onAdd,
 }: TargetRowListProps) => {
+  const { locale } = useLocale();
+  const t = SDU_COPY[locale].define;
+  const cloudLabel = sduCloudLabels(t);
+  const diffLabel = sduRowDiffLabels(t);
   const active = activeSduDrafts(rows);
   const regions = sduDraftRegions(rows);
   const editingNewRow = editingKey !== null && !rows.some((row) => row.key === editingKey);
@@ -64,10 +70,10 @@ export const TargetRowList = ({
   return (
     <section>
       <div className={listStyles.bar}>
-        <h3 className={listStyles.barTitle}>연동 대상</h3>
-        <span className={listStyles.barCount}>{active.length}건</span>
+        <h3 className={listStyles.barTitle}>{t.listTitle}</h3>
+        <span className={listStyles.barCount}>{t.listCount(active.length)}</span>
         <span className={listStyles.barStat}>
-          Region {regions.length}곳 · Database Type {sduDraftDbTypeCount(rows)}종
+          {t.listStat(regions.length, sduDraftDbTypeCount(rows))}
         </span>
       </div>
 
@@ -75,11 +81,11 @@ export const TargetRowList = ({
         <EmptyState
           variant="card"
           icon={<DatabaseIcon className="h-7 w-7" />}
-          title="연동 대상을 추가해주세요"
-          description="대상마다 클라우드 · Region · 업로드 IP · Database Type을 입력해요"
+          title={t.emptyTitle}
+          description={t.emptyDescription}
           action={
             <button type="button" onClick={onAdd} className={idcStyles.triggerBtn.primary}>
-              대상 추가
+              {t.addTarget}
             </button>
           }
         />
@@ -100,13 +106,13 @@ export const TargetRowList = ({
                 )}
               >
                 <span className={listStyles.index}>{number}</span>
-                <span className={listStyles.cloud}>{SDU_CLOUD_LABEL[row.cloud]}</span>
+                <span className={listStyles.cloud}>{cloudLabel[row.cloud]}</span>
                 <span className={listStyles.region}>{SDU_REGION_LABEL[row.region]}</span>
                 <span className={listStyles.ip}>{row.uploadIp}</span>
-                <span className={listStyles.types}>{sduDbTypeSummary(row.databaseTypes)}</span>
+                <span className={listStyles.types}>{sduDbTypeSummary(t, row.databaseTypes)}</span>
                 <span className={listStyles.actions}>
                   {showDiff && (
-                    <span className={rowDiffPill[diff]}>{SDU_ROW_DIFF_LABEL[diff]}</span>
+                    <span className={rowDiffPill[diff]}>{diffLabel[diff]}</span>
                   )}
                   {row.removed ? (
                     <button
@@ -114,7 +120,7 @@ export const TargetRowList = ({
                       onClick={() => onRestore(row.key)}
                       className={idcStyles.triggerBtn.ghostSm}
                     >
-                      되돌리기
+                      {t.restore}
                     </button>
                   ) : (
                     <>
@@ -124,7 +130,7 @@ export const TargetRowList = ({
                         onClick={() => onEdit(row.key)}
                         className={idcStyles.triggerBtn.ghostSm}
                       >
-                        편집
+                        {t.edit}
                       </button>
                       <button
                         type="button"
@@ -132,7 +138,7 @@ export const TargetRowList = ({
                         onClick={() => onDelete(row.key)}
                         className={idcStyles.triggerBtn.linkNeutral}
                       >
-                        삭제
+                        {t.remove}
                       </button>
                     </>
                   )}
@@ -149,7 +155,7 @@ export const TargetRowList = ({
       {editingKey === null && rows.length > 0 && (
         <button type="button" onClick={onAdd} className={cn(listStyles.addButton, 'mt-2')}>
           <PlusIcon className="h-3.5 w-3.5" />
-          대상 추가
+          {t.addTarget}
         </button>
       )}
     </section>

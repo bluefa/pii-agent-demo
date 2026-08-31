@@ -3,6 +3,8 @@
 import { useCallback, useRef, useState } from 'react';
 import { Modal } from '@/app/components/ui/Modal';
 import { Button } from '@/app/components/ui/Button';
+import { useLocale } from '@/app/components/LocaleProvider';
+import { CANDIDATE_COPY } from '@/app/target-sources/[targetSourceId]/_components/candidate/copy';
 import { cn, statusColors } from '@/lib/theme';
 import { ResourceTableSkeleton } from '@/app/target-sources/[targetSourceId]/_components/shared/async-state-views';
 import { LogicalDbModal } from '@/app/target-sources/[targetSourceId]/_components/logical-db/LogicalDbModal';
@@ -16,13 +18,6 @@ import type {
   LogicalDbSaveResult,
 } from '@/app/target-sources/[targetSourceId]/_components/logical-db/logical-db-types';
 import type { TcScope } from '@/app/lib/api/tc-scope';
-
-/**
- * What `partial` says above the table: the run's list is missing, the policy is not. Names
- * both halves, because the operator has to know which of the two they are looking at.
- */
-const PARTIAL_NOTICE =
-  '최근 연결 테스트의 논리 DB 조회가 안 되나, 논리 DB 제외 목록은 편집하고 수정할 수 있어요.';
 
 interface LogicalDbModalLoaderProps {
   open: boolean;
@@ -71,6 +66,8 @@ export const LogicalDbModalLoader = ({
   onSaved,
   onClose,
 }: LogicalDbModalLoaderProps) => {
+  const { locale } = useLocale();
+  const t = CANDIDATE_COPY[locale].logicalDb;
   const { state, retry } = useLogicalDatabases(targetSourceId, resourceId, scope);
   const [saving, setSaving] = useState(false);
   const [result, setResult] = useState<LogicalDbSaveResult | null>(null);
@@ -141,7 +138,9 @@ export const LogicalDbModalLoader = ({
         completedAt={completedAt}
         databases={state.databases}
         initialDraft={state.initialDraft}
-        notice={state.status === 'partial' ? PARTIAL_NOTICE : undefined}
+        // What `partial` says above the table: the run's list is missing, the policy is not.
+        // Names both halves, because the operator has to know which of the two they see.
+        notice={state.status === 'partial' ? t.partialNotice : undefined}
         manualEntry={manualEntry}
         onSave={handleSave}
         saving={saving}
@@ -159,7 +158,7 @@ export const LogicalDbModalLoader = ({
       // 준비된 모달과 같은 폭이다 — 스켈레톤 672 에서 표 920 으로 벌어지면, 열릴 때마다
       // 상자가 한 번 튄다. 로딩·오류·준비가 한 폭 안에서 갈아입는다.
       size="wide"
-      title={`논리 DB 관리 · ${resourceName}`}
+      title={t.loaderTitle(resourceName)}
     >
       {state.status === 'loading' ? (
         <ResourceTableSkeleton />
@@ -169,7 +168,7 @@ export const LogicalDbModalLoader = ({
             {state.message}
           </p>
           <Button variant="secondary" onClick={retry}>
-            다시 시도
+            {t.retry}
           </Button>
         </div>
       )}

@@ -1,6 +1,8 @@
 'use client';
 
 import { useCallback, useState } from 'react';
+import { useLocale } from '@/app/components/LocaleProvider';
+import { SCAN_COPY } from '@/app/components/features/scan/copy';
 import { getAwsRoleVerification } from '@/app/lib/api/aws';
 import { getAzureScanApp } from '@/app/lib/api/azure';
 import { getGcpScanServiceAccount } from '@/app/lib/api/gcp';
@@ -20,8 +22,6 @@ export type ScanPermissionState =
   | { status: 'pending' }
   | { status: 'fail'; message: string };
 
-const FALLBACK_FAIL_MESSAGE = '권한을 확인하지 못했어요. 가이드 문서를 참고해 설정을 점검해주세요.';
-
 // 세 프로바이더의 검증 응답이 같은 형태를 공유한다: { status, fail_reason,
 // fail_message, last_verified_at }. VALID = 통과, IN_PROGRESS = 새 자격이 아직
 // 검증 중(AWS), 그 외(UNVERIFIED 등)는 실패로 취급한다.
@@ -40,6 +40,8 @@ const verifyByProvider = (provider: CloudProvider, targetSourceId: number) => {
 };
 
 export const useScanPermission = (provider: CloudProvider, targetSourceId: number) => {
+  const { locale } = useLocale();
+  const t = SCAN_COPY[locale];
   const [state, setState] = useState<ScanPermissionState>({ status: 'idle' });
 
   const check = useCallback(async () => {
@@ -47,18 +49,18 @@ export const useScanPermission = (provider: CloudProvider, targetSourceId: numbe
     try {
       const res = await verifyByProvider(provider, targetSourceId);
       if (!res?.status) {
-        setState({ status: 'fail', message: FALLBACK_FAIL_MESSAGE });
+        setState({ status: 'fail', message: t.permissionCheckFailed });
       } else if (res.status === 'VALID') {
         setState({ status: 'ok', checkedAt: new Date().toISOString() });
       } else if (res.status === 'IN_PROGRESS') {
         setState({ status: 'pending' });
       } else {
-        setState({ status: 'fail', message: res.fail_message ?? res.fail_reason ?? FALLBACK_FAIL_MESSAGE });
+        setState({ status: 'fail', message: res.fail_message ?? res.fail_reason ?? t.permissionCheckFailed });
       }
     } catch {
-      setState({ status: 'fail', message: FALLBACK_FAIL_MESSAGE });
+      setState({ status: 'fail', message: t.permissionCheckFailed });
     }
-  }, [provider, targetSourceId]);
+  }, [provider, targetSourceId, t]);
 
   return { state, check };
 };
@@ -68,6 +70,9 @@ export const useScanPermission = (provider: CloudProvider, targetSourceId: numbe
  * 그리지 않는다: 오래된 확인을 보증처럼 상시 표시하는 것이 이 UI가 피하려는 것.
  */
 export const ScanPermissionResult = ({ state }: { state: ScanPermissionState }) => {
+  const { locale } = useLocale();
+  const t = SCAN_COPY[locale];
+
   if (state.status === 'ok') {
     return (
       <span
@@ -81,12 +86,12 @@ export const ScanPermissionResult = ({ state }: { state: ScanPermissionState }) 
         <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
           <polyline points="20 6 9 17 4 12" />
         </svg>
-        권한 확인됨 · {formatRelativeTime(state.checkedAt)}
+        {t.permissionVerified(formatRelativeTime(state.checkedAt, locale))}
       </span>
     );
   }
   if (state.status === 'pending') {
-    return <span className={cn('text-[12px] font-medium whitespace-nowrap', textColors.tertiary)}>자격 검증이 진행 중이에요</span>;
+    return <span className={cn('text-[12px] font-medium whitespace-nowrap', textColors.tertiary)}>{t.permissionInProgress}</span>;
   }
   if (state.status === 'fail') {
     return (

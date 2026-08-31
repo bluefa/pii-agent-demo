@@ -1,5 +1,9 @@
+'use client';
+
 import type { ApprovalFilter } from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalToolbar';
 import { borderColors, cn, numericFeatures, primaryColors, textColors, tossShadow } from '@/lib/theme';
+import { useLocale } from '@/app/components/LocaleProvider';
+import { LAYOUT_COPY } from '@/app/target-sources/[targetSourceId]/_components/layout/copy';
 
 interface WaitingApprovalStatsProps {
   totalCount: number;
@@ -16,31 +20,36 @@ export const WaitingApprovalStats = ({
   excludedCount,
   filter,
   onFilterChange,
-}: WaitingApprovalStatsProps) => (
-  <div className="grid grid-cols-3 gap-3 mb-[18px]" role="group" aria-label="대상 필터">
+}: WaitingApprovalStatsProps) => {
+  const { locale } = useLocale();
+  const copy = LAYOUT_COPY[locale];
+  const t = copy.stats;
+  return (
+  <div className="grid grid-cols-3 gap-3 mb-[18px]" role="group" aria-label={t.filterLabel}>
     <StatTile
-      label="전체 요청"
+      label={t.total}
       value={totalCount}
-      unit="건"
+      unit={copy.common.unitCases}
       active={filter === 'all'}
       onClick={() => onFilterChange('all')}
     />
     <StatTile
-      label="연동 요청 대상"
+      label={t.target}
       value={selectedCount}
-      unit="건"
+      unit={copy.common.unitCases}
       active={filter === 'target'}
       onClick={() => onFilterChange('target')}
     />
     <StatTile
-      label="연동 요청 제외대상"
+      label={t.excluded}
       value={excludedCount}
-      unit="건"
+      unit={copy.common.unitCases}
       active={filter === 'excluded'}
       onClick={() => onFilterChange('excluded')}
     />
   </div>
-);
+  );
+};
 
 export interface StatTileProps {
   label: string;
@@ -114,7 +123,7 @@ export const StatTile = ({
       {/* 12px, not the 13 this line carried before the variant fold: the design guard
           only admits even sizes, and 12 is the tier the removed `modal` variant already
           used for this very suffix. */}
-      {value != null && (
+      {value != null && unit !== '' && (
         <span className={cn('ml-1 text-[12px] font-medium', textColors.tertiary)}>{unit}</span>
       )}
     </div>

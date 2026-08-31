@@ -13,6 +13,8 @@
  */
 import { useCallback, useState, type ReactElement, type ReactNode } from 'react';
 import { cn } from '@/lib/theme';
+import { useLocale } from '@/app/components/LocaleProvider';
+import { COPY } from '@/lib/copy';
 import { useAbortableEffect } from '@/app/hooks/useAbortableEffect';
 import { Icon, type IconName } from '@/app/admin/pipelines/_components/icons';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
@@ -145,6 +147,8 @@ export function PagedCard<T>({
   children,
   className,
 }: PagedCardProps<T>): ReactElement {
+  const { locale } = useLocale();
+  const t = COPY[locale].access;
   const { paged, loading, error, page, setPage, reload } = state;
   const rows = paged?.content ?? [];
   /** 열이 없는 목록도 상태 행은 한 칸을 차지한다 — colspan 0 은 셀이 없다는 뜻이다. */
@@ -166,7 +170,7 @@ export function PagedCard<T>({
             // 로딩 중에는 숨긴다 — 스켈레톤 옆의 '0건'은 아직 모르는 수를 단언하는 것.
             paged != null && (
               <span className={cn(a.badge, TONE_BADGE[tone])}>
-                {paged.totalElements.toLocaleString()}건
+                {t.count(paged.totalElements.toLocaleString())}
               </span>
             )
           )}
@@ -179,7 +183,7 @@ export function PagedCard<T>({
 
       {/* 행은 flex div 라 표 의미를 명시적으로 선언한다 — 스크린리더가 "이메일:
           hong@company.com" 으로 읽는다. 메시지 상태들도 표 안의 행으로 남는다. */}
-      <div role="table" aria-label={`${title} 목록`}>
+      <div role="table" aria-label={t.listOf(title)}>
         {columns.length > 0 && (
           <div className={a.headRow} role="row">
             {columns.map((col, index) => (
@@ -198,13 +202,13 @@ export function PagedCard<T>({
             <div role="cell" aria-colspan={colSpan} className={a.state}>
               <span className="min-w-0 truncate">{errorMessage(error)}</span>
               <PlButton variant="secondary" size="sm" onClick={reload}>
-                재시도
+                {t.retry}
               </PlButton>
             </div>
           </div>
         ) : loading ? (
           skeleton ?? (
-            <div role="rowgroup" aria-busy="true" aria-label="목록을 불러오는 중">
+            <div role="rowgroup" aria-busy="true" aria-label={t.loadingList}>
               {Array.from({ length: ACCESS_PAGE_SIZE }, (_, row) => (
                 <div key={row} className={a.row} role="row" aria-hidden="true">
                   {columns.map((col, index) => (

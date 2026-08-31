@@ -11,7 +11,11 @@ import {
   type TcExecutionPage,
   type TcExecutionStatus,
 } from '@/app/lib/api/task-queue-tc';
-import { tcElapsedLabel } from '@/lib/test-connection-summary';
+import { useLocale } from '@/app/components/LocaleProvider';
+import {
+  STATUS_COPY,
+  type StatusCopy,
+} from '@/app/components/features/process-status/status-copy';
 
 // Same page numbers as ScanHistoryModal, the history-modal precedent this one
 // follows: 5 per page pages a retention-scale trail, 10 is the dense option.
@@ -30,13 +34,15 @@ const FRAME_MIN_H: Record<number, string> = {
   10: 'min-h-[688px]',
 };
 
-const STATUS_TAG: Record<TcExecutionStatus, { className: string; label: string }> = {
-  SUCCESS: { className: idcStyles.tag.green, label: '성공' },
-  FAIL: { className: idcStyles.tag.red, label: '실패' },
-  RUNNING: { className: idcStyles.tag.orange, label: '진행 중' },
-  PENDING: { className: idcStyles.tag.gray, label: '대기' },
-  UNKNOWN: { className: idcStyles.tag.gray, label: '미확인' },
-};
+const statusTag = (
+  t: StatusCopy,
+): Record<TcExecutionStatus, { className: string; label: string }> => ({
+  SUCCESS: { className: idcStyles.tag.green, label: t.verdict.success },
+  FAIL: { className: idcStyles.tag.red, label: t.verdict.fail },
+  RUNNING: { className: idcStyles.tag.orange, label: t.verdict.running },
+  PENDING: { className: idcStyles.tag.gray, label: t.verdict.pending },
+  UNKNOWN: { className: idcStyles.tag.gray, label: t.verdict.unknown },
+});
 
 // Card-less list (ScanHistoryModal's table grammar): the modal body already
 // insets the content, so only the outer columns drop their horizontal padding.
@@ -58,6 +64,9 @@ interface TcRunHistoryModalProps {
  * 계약이 주는 것이 그 네 가지뿐이라 표도 거기서 멈춘다 (회차 클릭 드릴다운 없음).
  */
 export const TcRunHistoryModal = ({ open, targetSourceId, onClose }: TcRunHistoryModalProps) => {
+  const { locale } = useLocale();
+  const t = STATUS_COPY[locale];
+  const tags = statusTag(t);
   const [page, setPage] = useState(0);
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
   // Fetched pages are keyed by size:page; the current key missing from the
@@ -126,11 +135,11 @@ export const TcRunHistoryModal = ({ open, targetSourceId, onClose }: TcRunHistor
       onClose={handleClose}
       chrome="toss"
       size="2xl"
-      title="연결 테스트 실행 이력"
-      subtitle="최근 실행된 연결 테스트 기록이에요."
+      title={t.tcHistory.title}
+      subtitle={t.tcHistory.subtitle}
       footer={
         <Button variant="secondary" onClick={handleClose}>
-          닫기
+          {t.common.close}
         </Button>
       }
     >
@@ -146,10 +155,10 @@ export const TcRunHistoryModal = ({ open, targetSourceId, onClose }: TcRunHistor
         {state.status === 'error' && (
           <div className="flex flex-1 flex-col items-center justify-center">
             <p className={cn('text-sm', textColors.tertiary)}>
-              실행 이력을 불러오지 못했어요. 잠시 후 다시 시도해 주세요.
+              {t.tcHistory.loadError}
             </p>
             <Button variant="secondary" onClick={retry} className="mt-4 text-sm">
-              다시 시도
+              {t.common.tryAgain}
             </Button>
           </div>
         )}
@@ -159,8 +168,8 @@ export const TcRunHistoryModal = ({ open, targetSourceId, onClose }: TcRunHistor
         {state.status === 'ready' && state.data.content.length === 0 && (
           <p className={cn('flex flex-1 items-center justify-center text-sm', textColors.tertiary)}>
             {state.data.totalElements === 0
-              ? '아직 실행한 연결 테스트가 없어요.'
-              : '이 페이지에는 기록이 없어요.'}
+              ? t.tcHistory.empty
+              : t.tcHistory.emptyPage}
           </p>
         )}
 
@@ -172,16 +181,16 @@ export const TcRunHistoryModal = ({ open, targetSourceId, onClose }: TcRunHistor
             <table className={cn('w-full border-b', borderColors.default)}>
               <thead>
                 <tr className={cn('whitespace-nowrap border-b', borderColors.default)}>
-                  <th className={HEAD_CELL}>실행</th>
-                  <th className={HEAD_CELL}>판정</th>
-                  <th className={HEAD_CELL}>요청</th>
-                  <th className={HEAD_CELL}>완료</th>
-                  <th className={HEAD_CELL}>소요</th>
+                  <th className={HEAD_CELL}>{t.tcHistory.colRun}</th>
+                  <th className={HEAD_CELL}>{t.tcHistory.colVerdict}</th>
+                  <th className={HEAD_CELL}>{t.tcHistory.colRequested}</th>
+                  <th className={HEAD_CELL}>{t.tcHistory.colCompleted}</th>
+                  <th className={HEAD_CELL}>{t.tcHistory.colElapsed}</th>
                 </tr>
               </thead>
               <tbody className={idcStyles.table.body}>
                 {state.data.content.map((row, index) => {
-                  const tag = STATUS_TAG[row.status];
+                  const tag = tags[row.status];
                   return (
                     <tr key={`${row.version ?? 'v'}-${index}`}>
                       <td className={cn(BODY_CELL, 'font-mono text-[14px]', textColors.primary)}>
@@ -197,7 +206,7 @@ export const TcRunHistoryModal = ({ open, targetSourceId, onClose }: TcRunHistor
                         {fmtDateTime(row.completedAt)}
                       </td>
                       <td className={cn(BODY_CELL, 'whitespace-nowrap font-mono text-[12px]', textColors.secondary)}>
-                        {tcElapsedLabel(row.requestedAt, row.completedAt) ?? '—'}
+                        {t.tcCard.elapsed(row.requestedAt, row.completedAt) ?? '—'}
                       </td>
                     </tr>
                   );

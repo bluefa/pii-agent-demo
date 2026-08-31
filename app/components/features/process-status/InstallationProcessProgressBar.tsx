@@ -7,6 +7,9 @@ import {
   installRoadSteps,
   type InstallRoadVariant,
 } from '@/app/components/features/process-status/install-road';
+import { useLocale } from '@/app/components/LocaleProvider';
+import { STATUS_COPY } from '@/app/components/features/process-status/status-copy';
+import { INSTALL_COPY } from '@/app/components/features/process-status/install-copy';
 
 interface InstallationProcessProgressBarProps {
   currentStep: ProcessStatus;
@@ -39,13 +42,14 @@ export const InstallationProcessProgressBar = ({
   currentStep,
   variant,
 }: InstallationProcessProgressBarProps) => {
-  const steps = installRoadSteps(variant);
+  const { locale } = useLocale();
+  const steps = installRoadSteps(variant, INSTALL_COPY[locale].road);
   const { index: currentIndex } = installRoadPosition(currentStep, variant);
 
   return (
     <ol
       role="list"
-      aria-label="설치 진행"
+      aria-label={STATUS_COPY[locale].road.label}
       className={s.list}
       style={{ gridTemplateColumns: `repeat(${steps.length}, minmax(0, 1fr))` }}
     >

@@ -12,6 +12,8 @@ import {
   buildLogicalDbCountMap,
   type LogicalDbCountMap,
 } from '@/app/target-sources/[targetSourceId]/_components/confirmed/logical-db-summaries';
+import { useLocale } from '@/app/components/LocaleProvider';
+import { IDC_COPY, type IdcCopy } from '@/app/target-sources/[targetSourceId]/_components/idc/copy';
 import type { IdcResourceView } from '@/app/lib/api/idc';
 import type { AppErrorCode } from '@/lib/errors';
 
@@ -28,18 +30,18 @@ interface IdcReqApprovalModalProps {
   onClose: () => void;
 }
 
-const RESULTS: Record<'success' | 'error', ConfirmStepResult> = {
+const resultFrames = (t: IdcCopy): Record<'success' | 'error', ConfirmStepResult> => ({
   success: {
     kind: 'success',
-    title: '승인 요청을 보냈어요',
-    description: '잠시 후 관리자 승인 대기 단계로 이동해요.',
+    title: t.approvalSentTitle,
+    description: t.reqApprovalSuccessDesc,
   },
   error: {
     kind: 'error',
-    title: '승인 요청을 보내지 못했어요',
-    description: '연결 테스트 결과와 논리 DB 설정은 그대로 남아 있어요.',
+    title: t.approvalSendFailedTitle,
+    description: t.reqApprovalErrorDesc,
   },
-};
+});
 
 /**
  * IDC 완료 승인 요청 — 클라우드(CloudReqApprovalModal)·1단계 승인 요청과 같은 확인 문법이다.
@@ -59,6 +61,9 @@ export const IdcReqApprovalModal = ({
   onRetry,
   onClose,
 }: IdcReqApprovalModalProps) => {
+  const { locale } = useLocale();
+  const t = IDC_COPY[locale];
+  const frames = resultFrames(t);
   // 클라우드 모달과 같은 출처. 비어 있다는 것은 아직 못 읽었거나 이번 실행이 말하지
   // 않았다는 뜻이고, 둘 다 0 이 아니다 — 셀이 `—` 를 찍는다.
   const [counts, setCounts] = useState<LogicalDbCountMap>(() => new Map());
@@ -82,7 +87,7 @@ export const IdcReqApprovalModal = ({
   const total = live.length;
   const ok = live.filter((r) => !!r.credentialId && r.connection === 'SUCCESS').length;
   const waiting = total - ok;
-  const failure = approvalFailureCopy(errorCode);
+  const failure = approvalFailureCopy(errorCode, locale);
 
   return (
     <ConfirmStepModal
@@ -97,28 +102,26 @@ export const IdcReqApprovalModal = ({
       // 두지 않는다: 그 상태에 빠진 사용자는 무엇을 고쳐야 하는지 알 길이 없다.
       result={
         phase === 'success'
-          ? RESULTS.success
+          ? frames.success
           : phase === 'error'
-            ? { ...RESULTS.error, reason: failure.reason }
+            ? { ...frames.error, reason: failure.reason }
             : null
       }
       onRetry={failure.retry ? onRetry : undefined}
-      title="연동 완료 승인을 요청할까요?"
+      title={t.reqApprovalTitle}
       description={
         <>
-          <span className={primaryColors.text}>
-            연동 대상 {total}건의 연결 테스트 결과로 완료 승인을 요청해요
-          </span>
-          . 요청 후에는 관리자 검토가 시작되고, 변경하려면 요청을 취소하고 다시 제출해야 해요.
+          <span className={primaryColors.text}>{t.reqApprovalDescEm(total)}</span>
+          {t.reqApprovalDescAfter}
         </>
       }
-      confirmLabel="요청하기"
+      confirmLabel={t.request}
       size="lg"
     >
       <div className="grid grid-cols-3 gap-3">
-        <StatTile label="연동 대상" value={total} unit="건" scale="dialog" />
-        <StatTile label="연결 성공" value={ok} unit="건" scale="dialog" />
-        <StatTile label="연결 대기" value={waiting} unit="건" scale="dialog" />
+        <StatTile label={t.statTargets} value={total} unit={t.unitCount} scale="dialog" />
+        <StatTile label={t.statConnOk} value={ok} unit={t.unitCount} scale="dialog" />
+        <StatTile label={t.statConnWaiting} value={waiting} unit={t.unitCount} scale="dialog" />
       </div>
 
       <div className="mt-4">

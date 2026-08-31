@@ -15,6 +15,8 @@ import { GcpProjectPage } from '@/app/target-sources/[targetSourceId]/_component
 import { IdcProjectPage } from '@/app/target-sources/[targetSourceId]/_components/idc';
 import { SduProjectPage } from '@/app/target-sources/[targetSourceId]/_components/sdu';
 import { ServiceListPanel } from '@/app/target-sources/[targetSourceId]/_components/ServiceListPanel';
+import { useLocale } from '@/app/components/LocaleProvider';
+import { TS_COPY } from '@/app/target-sources/[targetSourceId]/_components/copy';
 
 // The middle column is the page's only scroller — the row above it is height-fixed
 // so the rails stay put. `relative` is what holds that promise: without a positioned
@@ -39,6 +41,8 @@ export const ProjectDetail = ({
   jiraTicket,
   railCollapsed,
 }: ProjectDetailProps) => {
+  const { locale } = useLocale();
+  const t = TS_COPY[locale].detail;
   const [project, setProject] = useState<TargetSource>(initialProject);
 
   // Right column wrapper is a <div> (not <main>) — provider pages already
@@ -83,12 +87,12 @@ export const ProjectDetail = ({
           />
         );
       default:
-        return <ErrorState message="지원하지 않는 클라우드 프로바이더예요." />;
+        return <ErrorState message={t.unsupportedProvider} locale={locale} />;
     }
   };
 
   return (
-    <div className="flex h-[calc(100vh-64px)]">
+    <div lang={locale} className="flex h-[calc(100vh-64px)]">
       <ServiceListPanel
         currentService={{ code: project.serviceCode, name: project.serviceName }}
       />

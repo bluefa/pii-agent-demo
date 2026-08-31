@@ -7,6 +7,8 @@ import { getDatabaseShortLabel } from '@/app/components/ui/DatabaseIcon';
 import { GROUPED_CHILD_KIND_LABEL } from '@/lib/resource-grouping';
 import { cn, idcStyles, primaryColors, verdictText } from '@/lib/theme';
 import type { RailRowProps } from '@/app/hooks/useRailHover';
+import { useLocale } from '@/app/components/LocaleProvider';
+import { TS_COPY } from '@/app/target-sources/[targetSourceId]/_components/copy';
 
 interface ResourceGroupRowProps {
   /** Resource type the group is keyed on — rendered through the shared short label (`ATHENA` → "Athena"). */
@@ -68,6 +70,8 @@ export const ResourceGroupRow = ({
   colSpan,
   toggleable = true,
 }: ResourceGroupRowProps) => {
+  const { locale } = useLocale();
+  const t = TS_COPY[locale].shared;
   const label = getDatabaseShortLabel(type);
   return (
     <tr
@@ -109,7 +113,7 @@ export const ResourceGroupRow = ({
               type="button"
               aria-expanded={expanded}
               aria-controls={controls}
-              aria-label={`${label} ${region} 그룹 ${expanded ? '접기' : '펼치기'}`}
+              aria-label={t.groupToggle(label, region, expanded)}
               onClick={(event) => {
                 event.stopPropagation();
                 onToggle();
@@ -171,12 +175,17 @@ export const ResourceGroupCount = ({
 }: {
   targetCount: number;
   excludedCount: number;
-}) => (
-  <span className={idcStyles.table.group.meta}>
-    데이터베이스 · 대상 <span className={idcStyles.table.group.metaValue}>{targetCount}</span> ·
-    제외 <span className={idcStyles.table.group.metaValue}>{excludedCount}</span>
-  </span>
-);
+}) => {
+  const t = TS_COPY[useLocale().locale].shared;
+
+  return (
+    <span className={idcStyles.table.group.meta}>
+      {t.groupUnit} · {t.groupTarget}{' '}
+      <span className={idcStyles.table.group.metaValue}>{targetCount}</span> · {t.groupExcluded}{' '}
+      <span className={idcStyles.table.group.metaValue}>{excludedCount}</span>
+    </span>
+  );
+};
 
 /**
  * The same third line, framed as a subtraction — "Database 총 N개 중 M개 제외" (owner, 2026-08-23).
@@ -204,17 +213,23 @@ export const GroupExclusionCount = ({
 }: {
   totalCount: number;
   excludedCount: number;
-}) => (
-  <span className={idcStyles.table.group.meta}>
-    {`${GROUPED_CHILD_KIND_LABEL} 총 `}
-    <span className={idcStyles.table.group.metaValue}>{totalCount}</span>개
-    {excludedCount > 0 && (
-      <>
-        {' 중 '}
-        <span className={verdictText.excluded}>
-          <span className={idcStyles.table.group.metaValue}>{excludedCount}</span>개 제외
-        </span>
-      </>
-    )}
-  </span>
-);
+}) => {
+  const t = TS_COPY[useLocale().locale].shared;
+
+  return (
+    <span className={idcStyles.table.group.meta}>
+      {t.totalLead(GROUPED_CHILD_KIND_LABEL)}
+      <span className={idcStyles.table.group.metaValue}>{totalCount}</span>
+      {t.totalUnit}
+      {excludedCount > 0 && (
+        <>
+          {t.between}
+          <span className={verdictText.excluded}>
+            <span className={idcStyles.table.group.metaValue}>{excludedCount}</span>
+            {t.excludedUnit}
+          </span>
+        </>
+      )}
+    </span>
+  );
+};

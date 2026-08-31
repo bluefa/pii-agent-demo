@@ -19,6 +19,11 @@ import {
 import type { ProjectIdentity } from '@/app/target-sources/[targetSourceId]/_components/common/project-identity';
 import { TcHeaderTag } from '@/app/target-sources/[targetSourceId]/_components/common/TcHeaderTag';
 import type { TcScope } from '@/app/lib/api/tc-scope';
+import { useLocale } from '@/app/components/LocaleProvider';
+import { TS_COPY } from '@/app/target-sources/[targetSourceId]/_components/copy';
+
+/** This screen's shared dictionary, so the maps below can take it as a parameter. */
+type CommonCopy = (typeof TS_COPY)['ko']['common'];
 
 /**
  * Which connection-test run the header tag reports. Steps 6·7 stand on a run that passed, so
@@ -90,17 +95,21 @@ interface ProviderDisplay {
 // `brandMark` tracks BRAND_BY_KEY in CloudProviderIcon: IDC and SDU are ours and have
 // no brand, so their glyphs are generic outlines — a server rack and an upload arrow,
 // which name nothing on their own. Those two keep their name in ink.
-const PROVIDER_DISPLAY: Record<CloudProvider, ProviderDisplay> = {
-  AWS: { name: 'AWS Cloud', brandMark: true, descLabel: '계정 설명', drawerOpen: false },
-  Azure: { name: 'Azure Cloud', brandMark: true, descLabel: '계정 설명', drawerOpen: false },
-  GCP: { name: 'Google Cloud', brandMark: true, descLabel: '프로젝트 설명', drawerOpen: true },
-  IDC: { name: 'IDC', gloss: '사내망', descLabel: '대상 설명', drawerOpen: true },
-};
+const providerDisplay = (t: CommonCopy): Record<CloudProvider, ProviderDisplay> => ({
+  AWS: { name: 'AWS Cloud', brandMark: true, descLabel: t.accountDesc, drawerOpen: false },
+  Azure: { name: 'Azure Cloud', brandMark: true, descLabel: t.accountDesc, drawerOpen: false },
+  GCP: { name: 'Google Cloud', brandMark: true, descLabel: t.projectDesc, drawerOpen: true },
+  IDC: { name: 'IDC', gloss: t.intranet, descLabel: t.targetDesc, drawerOpen: true },
+});
 
 // `drawerOpen: true` here is INFERRED, not an owner call — the owner named GCP·IDC open
 // and Azure·AWS shut, and said nothing about SDU. It sits with IDC because it owns the
 // same number of facts: none. Reverse this line alone if the owner decides otherwise.
-const SDU_DISPLAY: ProviderDisplay = { name: 'SDU', descLabel: '대상 설명', drawerOpen: true };
+const sduDisplay = (t: CommonCopy): ProviderDisplay => ({
+  name: 'SDU',
+  descLabel: t.targetDesc,
+  drawerOpen: true,
+});
 
 /** Copy affordance on mono identifiers — hover-reveal (TargetSourceIdentifier.mono spec). */
 const CopyButton = ({ value, label }: { value: string; label: string }) => {
@@ -164,10 +173,14 @@ const CopyButton = ({ value, label }: { value: string; label: string }) => {
  * facts, and three of them had nowhere to go.
  */
 export const ProjectPageMeta = ({ project, identity, action }: ProjectPageMetaProps) => {
+  const { locale } = useLocale();
+  const t = TS_COPY[locale].common;
   // SDU wins over the underlying CSP (metadata.is_sdu_type, owner call) — the
   // account has no CSP identifiers, so fact cells drop out on their own. It has to be
   // resolved before the drawer's initial state, which reads off it.
-  const display = project.isSduType ? SDU_DISPLAY : PROVIDER_DISPLAY[identity.cloudProvider];
+  const display = project.isSduType
+    ? sduDisplay(t)
+    : providerDisplay(t)[identity.cloudProvider];
   // The drawer's default is the PROVIDER's (오너 2026-08-29) — see `ProviderDisplay.
   // drawerOpen` for why that is a statement about how full the grid is, not a list of
   // names. It supersedes the step rule that opened this at 1단계 and shut it after.
@@ -182,6 +195,11 @@ export const ProjectPageMeta = ({ project, identity, action }: ProjectPageMetaPr
   const roadVariant = project.isSduType ? 'sdu' : undefined;
   const road = installRoadPosition(project.processStatus, roadVariant);
   const roadDone = road.index === road.total - 1;
+  // Both numbers are `<b>` elements, so the phrase is fragments around two slots — and the
+  // slots swap order between languages («N단계 중 M단계» vs «Step M of N»).
+  const [roadFirst, roadSecond] = t.roadCurrentFirst
+    ? [road.index + 1, road.total]
+    : [road.total, road.index + 1];
 
   // A cell drops only when it has neither a value nor something to say in its place:
   // IDC·SDU own no CSP account, and an empty slot is the truthful rendering (결정 #49).
@@ -218,10 +236,10 @@ export const ProjectPageMeta = ({ project, identity, action }: ProjectPageMetaPr
             (a heading may not live inside a list item without splitting the page's only
             h1, and an `<ol>` may not live inside the heading at all). The landmark plus
             `aria-current` is what a reader actually needs here. */}
-        <nav aria-label="경로" className="min-w-0">
+        <nav aria-label={t.breadcrumb} className="min-w-0">
           <h1 className={h.crumb}>
             <Link href={passRoutes.services} className={cn(h.crumbRoot, h.crumbLink)}>
-              PII Agent 설치
+              {t.installRoot}
             </Link>
             <span className={h.crumbSep} aria-hidden="true">
               /
@@ -283,7 +301,7 @@ export const ProjectPageMeta = ({ project, identity, action }: ProjectPageMetaPr
               )}
             </span>
             <span id={TARGET_LABEL_ID} className={h.blockLabel}>
-              설치 대상
+              {t.installTarget}
             </span>
             {/* Position, on the block's own head row (오너 2026-08-28). It answers 「어디」
                 and stops: the step's NAME belongs to the card head below, which prints it
@@ -299,7 +317,9 @@ export const ProjectPageMeta = ({ project, identity, action }: ProjectPageMetaPr
                    is what got completed. */
                 <span className={s.stepTag}>
                   <span>
-                    <b className={s.tagCount}>{road.total}</b>단계 모두 완료
+                    {t.roadDoneLead}
+                    <b className={s.tagCount}>{road.total}</b>
+                    {t.roadDoneTail}
                   </span>
                 </span>
               ) : (
@@ -307,8 +327,11 @@ export const ProjectPageMeta = ({ project, identity, action }: ProjectPageMetaPr
                   {/* One span, so both 14px digits baseline-align inside the phrase rather
                       than becoming flex items that have to be aligned against it. */}
                   <span>
-                    <b className={s.tagCount}>{road.total}</b>단계 중{' '}
-                    <b className={s.tagCount}>{road.index + 1}</b>단계
+                    {t.roadLead}
+                    <b className={s.tagCount}>{roadFirst}</b>
+                    {t.roadMid}
+                    <b className={s.tagCount}>{roadSecond}</b>
+                    {t.roadTail}
                   </span>
                 </span>
               ))}
@@ -346,7 +369,7 @@ export const ProjectPageMeta = ({ project, identity, action }: ProjectPageMetaPr
             aria-controls={`${META_BLOCK_ID} ${VERDICT_SLOT_ID}`}
             className={h.metaCue}
           >
-            상세 정보
+            {t.details}
             <ChevronDownIcon
               className={cn(h.metaToggleIcon, metaOpen && h.metaToggleIconOpen)}
               aria-hidden="true"
@@ -377,7 +400,7 @@ export const ProjectPageMeta = ({ project, identity, action }: ProjectPageMetaPr
                     <span className={cn(h.summaryValueText, fact.mono && h.summaryValueMono)}>
                       {fact.display ?? fact.value}
                     </span>
-                    {fact.mono && <CopyButton value={fact.value} label={`${fact.label} 복사`} />}
+                    {fact.mono && <CopyButton value={fact.value} label={t.copyFact(fact.label)} />}
                   </span>
                 ) : (
                   <span className={h.factNone} title={fact.emptyHint}>
@@ -391,10 +414,10 @@ export const ProjectPageMeta = ({ project, identity, action }: ProjectPageMetaPr
                 cell: the identifiers say WHAT this is, the mode says how it runs. */}
             {identity.installMode && (
               <div className={factClass}>
-                <span className={labelClass}>설치 모드</span>
+                <span className={labelClass}>{t.installMode}</span>
                 <span className={h.modeRow}>
                   <span className={autoInstall ? h.modeChipAuto : h.modeChipManual}>
-                    {autoInstall ? '자동 설치' : '수동 설치'}
+                    {autoInstall ? t.autoInstall : t.manualInstall}
                     {/* The gloss that used to sit beside the chip (「Terraform 권한 위임」/
                         「설치 스크립트 직접 실행」) is behind this icon (오너 17차 지시) — four
                         words never said what the mode MEANT, and a tip has room for the
@@ -410,16 +433,14 @@ export const ProjectPageMeta = ({ project, identity, action }: ProjectPageMetaPr
                       position="bottom"
                       content={
                         <span className={h.modeTipBody}>
-                          {autoInstall
-                            ? '설치 단계에서 테라폼 설치 권한을 부여하면, PASS 담당자가 테라폼 스크립트를 대신 실행해 설치해 줘요.'
-                            : '설치 단계에서 제공되는 테라폼 스크립트를 직접 실행해 설치해야 해요.'}
+                          {autoInstall ? t.autoInstallTip : t.manualInstallTip}
                         </span>
                       }
                     >
                       <button
                         type="button"
                         className={h.modeTipButton}
-                        aria-label={`${autoInstall ? '자동 설치' : '수동 설치'} 설명`}
+                        aria-label={t.modeInfo(autoInstall ? t.autoInstall : t.manualInstall)}
                       >
                         <InfoCircleIcon className="h-3.5 w-3.5" aria-hidden="true" />
                       </button>
@@ -454,8 +475,8 @@ export const ProjectPageMeta = ({ project, identity, action }: ProjectPageMetaPr
                 install mode are all in the grid above. */}
             {project.isSduType && (
               <div className={h.block}>
-                <div className={h.kvLabel}>연동 방식</div>
-                <p className={h.descText}>고객사가 데이터를 직접 업로드</p>
+                <div className={h.kvLabel}>{t.sduMethod}</div>
+                <p className={h.descText}>{t.sduMethodValue}</p>
               </div>
             )}
           </div>

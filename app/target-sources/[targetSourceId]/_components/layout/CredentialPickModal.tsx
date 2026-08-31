@@ -26,6 +26,8 @@ import {
   type CredentialSortKey,
   type SortDirection,
 } from '@/app/target-sources/[targetSourceId]/_components/layout/credential-rows';
+import { useLocale } from '@/app/components/LocaleProvider';
+import { LAYOUT_COPY } from '@/app/target-sources/[targetSourceId]/_components/layout/copy';
 
 /**
  * 목록의 높이는 후보 수와 무관하게 이 값이다 — 20개든 3개든 모달이 같은 크기로 열린다.
@@ -73,6 +75,9 @@ export const CredentialPickModal = ({
   saving,
   onSubmit,
 }: CredentialPickModalProps) => {
+  const { locale } = useLocale();
+  const copy = LAYOUT_COPY[locale];
+  const t = copy.credentialPick;
   const [picked, setPicked] = useState(value);
   const [query, setQuery] = useState('');
   // 기본 정렬은 최종 수정 시각 최신순 — 방금 만들었거나 방금 고친 Credential 을 쓰러 오는
@@ -111,7 +116,7 @@ export const CredentialPickModal = ({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="DB Credential 지정"
+      title={t.title}
       // 대상을 문장 안에 끼워 넣으면 리소스 이름이 조사와 붙어 한 덩어리로 읽힌다. 라벨·값·안내
       // 세 단으로 갈라 둔다 — 무엇에 거는지(값)가 안내 문장보다 위에 있어야 한다.
       subtitle={
@@ -127,7 +132,7 @@ export const CredentialPickModal = ({
           {/* 파랑은 지시문에는 쓰지 않는다 — 지시문에 칠하면 링크로 읽힌다. 이 모달에서 파랑은
               이미 선택된 행·저장 CTA·상단 "현재 선택" 상태 라벨의 뜻이다. */}
           <span className={cn('mt-2 block text-[14px] font-normal', textColors.secondary)}>
-            사용할 DB 접속 자격 증명을 선택하세요.
+            {t.subtitle}
           </span>
         </>
       }
@@ -138,7 +143,7 @@ export const CredentialPickModal = ({
       footer={
         <>
           <button onClick={onClose} className={getButtonClass('secondary')}>
-            취소
+            {copy.common.cancel}
           </button>
           <button
             onClick={() => onSubmit(picked)}
@@ -146,7 +151,7 @@ export const CredentialPickModal = ({
             className={cn(getButtonClass('primary'), 'flex items-center gap-2')}
           >
             {saving && <LoadingSpinner />}
-            저장
+            {copy.common.save}
           </button>
         </>
       }
@@ -157,8 +162,8 @@ export const CredentialPickModal = ({
         <EmptyState
           variant="card"
           icon={<StatusWarningIcon className={cn('h-7 w-7', statusColors.warning.textDark)} />}
-          title="등록된 Credential이 없어요"
-          description="DB 접속 자격 증명이 아직 하나도 등록되지 않았어요. 관리자에게 등록을 요청해 주세요."
+          title={t.emptyTitle}
+          description={t.emptyDescription}
         />
       ) : (
         <div className="flex flex-col">
@@ -168,7 +173,9 @@ export const CredentialPickModal = ({
           <span className={cn('mb-2 flex items-baseline gap-1.5 text-[12px]', textColors.tertiary)}>
             {picked ? (
               <>
-                <span className={cn('shrink-0 font-semibold', primaryColors.text)}>현재 선택</span>
+                <span className={cn('shrink-0 font-semibold', primaryColors.text)}>
+                  {t.currentPick}
+                </span>
                 <strong
                   title={picked}
                   className={cn('min-w-0 truncate font-mono font-semibold', textColors.secondary)}
@@ -177,7 +184,7 @@ export const CredentialPickModal = ({
                 </strong>
               </>
             ) : (
-              '선택된 Credential이 없어요'
+              t.noPick
             )}
           </span>
 
@@ -201,15 +208,16 @@ export const CredentialPickModal = ({
                 type="text"
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
-                placeholder="User ID 또는 Credential 이름 검색"
-                aria-label="Credential 검색"
+                placeholder={t.searchPlaceholder}
+                aria-label={t.searchLabel}
                 className={cn(getInputClass(), 'h-8 bg-white py-0 pl-[32px] pr-3 text-[14px]')}
               />
             </div>
             <span className={cn('ml-auto text-[12px]', numericFeatures.tabular, textColors.tertiary)}>
               <strong className={cn('font-semibold', textColors.secondary)}>{sorted.length}</strong>
               {' / '}
-              {options.length}개
+              {options.length}
+              {copy.common.unitItems}
             </span>
           </div>
 
@@ -219,7 +227,7 @@ export const CredentialPickModal = ({
               <thead className={cn(idcStyles.table.header, 'sticky top-0 z-10')}>
                 <tr>
                   <th className={cn(idcStyles.table.headerCell, 'w-[40px]')}>
-                    <span className="sr-only">선택</span>
+                    <span className="sr-only">{t.selectHeader}</span>
                   </th>
                   {/* 112px 는 8글자에서 끊겼다 — 사내 User ID 는 그보다 길어 160 으로 늘렸다.
                       (한때 Step 5 표의 Credential 캡 160 과도 정렬돼 있었으나, 그 캡은
@@ -234,7 +242,7 @@ export const CredentialPickModal = ({
                     columns={columns}
                   />
                   <SortHeader
-                    label="Credential 이름"
+                    label={t.nameColumn}
                     columnKey="label"
                     sortKey={sortKey}
                     sortDir={sortDir}
@@ -245,7 +253,7 @@ export const CredentialPickModal = ({
                       값을 두 화면이 다른 문법으로 적으면 비교가 되지 않는다. 폭은 그 한 줄이
                       접히지 않는 값. */}
                   <SortHeader
-                    label="최종 수정일"
+                    label={t.updatedColumn}
                     columnKey="updatedAt"
                     sortKey={sortKey}
                     sortDir={sortDir}
@@ -262,7 +270,7 @@ export const CredentialPickModal = ({
                       colSpan={4}
                       className={cn(idcStyles.table.cell, 'py-8 text-center text-[12px]', textColors.tertiary)}
                     >
-                      검색 결과가 없어요.
+                      {t.noResults}
                     </td>
                   </tr>
                 )}

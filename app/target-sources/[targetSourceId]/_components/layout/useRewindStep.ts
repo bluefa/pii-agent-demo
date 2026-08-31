@@ -10,26 +10,33 @@ import {
 import { useApiMutation } from '@/app/hooks/useApiMutation';
 import { useToast } from '@/app/components/ui/toast';
 import type { ConfirmRewindKind } from '@/app/target-sources/[targetSourceId]/_components/layout/ConfirmRewindModal';
+import { useLocale } from '@/app/components/LocaleProvider';
+import {
+  LAYOUT_COPY,
+  type LayoutCopy,
+} from '@/app/target-sources/[targetSourceId]/_components/layout/copy';
 
 /**
  * 되돌리기가 실패했을 때 — 무엇을 하려다 실패했는지까지 말한다. AppError.message 는
  * 진단용이라 화면에 그대로 싣지 않는다(ADR-008): 사용자가 읽는 문장은 이 표가 소유한다.
  */
-const FAILURE_MESSAGE: Record<ConfirmRewindKind, string> = {
-  infra: '인프라 변경(연동 상태 초기화)에 실패했습니다.',
-  retest: '연결 테스트 재실행 요청에 실패했습니다.',
-  sduRedefine: '연동 대상 수정(연동 상태 초기화)에 실패했습니다.',
-};
+const failureMessage = (t: LayoutCopy['rewindFailure']): Record<ConfirmRewindKind, string> => ({
+  infra: t.infra,
+  retest: t.retest,
+  sduRedefine: t.sduRedefine,
+});
 
 /**
  * 되돌리기는 됐는데 화면만 못 따라간 경우. "실패했습니다"로 뭉뚱그리면 사용자가 다시
  * 누르는데, 그때는 이미 되돌아간 뒤라 두 번째 요청이 엉뚱한 단계에서 나간다.
  */
-const REFRESH_FAILURE_MESSAGE: Record<ConfirmRewindKind, string> = {
-  infra: '인프라 변경은 처리됐지만 화면을 갱신하지 못했어요. 새로고침해 주세요.',
-  retest: '연결 테스트 재실행은 처리됐지만 화면을 갱신하지 못했어요. 새로고침해 주세요.',
-  sduRedefine: '연동 대상 수정은 처리됐지만 화면을 갱신하지 못했어요. 새로고침해 주세요.',
-};
+const refreshFailureMessage = (
+  t: LayoutCopy['rewindFailure'],
+): Record<ConfirmRewindKind, string> => ({
+  infra: t.infraRefresh,
+  retest: t.retestRefresh,
+  sduRedefine: t.sduRedefineRefresh,
+});
 
 interface RewindArgs {
   kind: ConfirmRewindKind;
@@ -64,6 +71,8 @@ export const useRewindStep = (
   onProjectUpdate: (project: CloudTargetSource) => void,
 ): RewindStep => {
   const toast = useToast();
+  const { locale } = useLocale();
+  const t = LAYOUT_COPY[locale].rewindFailure;
   const [confirmKind, setConfirmKind] = useState<ConfirmRewindKind | null>(null);
   /** 뮤테이션이 끝난 뒤 project 를 다시 읽는 구간 — 훅의 loading 이 이미 내려간 뒤다. */
   const [refreshing, setRefreshing] = useState(false);
@@ -102,7 +111,7 @@ export const useRewindStep = (
         const ok = await mutate({ kind, reason });
         if (!ok) {
           // 되돌리기 자체가 안 나갔다 — 대화상자는 열어 둔다. 다시 누르는 것이 옳은 행동이다.
-          toast.error(FAILURE_MESSAGE[kind]);
+          toast.error(failureMessage(t)[kind]);
           return;
         }
 
@@ -114,7 +123,7 @@ export const useRewindStep = (
         try {
           onProjectUpdate(await getProject(targetSourceId));
         } catch {
-          toast.error(REFRESH_FAILURE_MESSAGE[kind]);
+          toast.error(refreshFailureMessage(t)[kind]);
         } finally {
           setRefreshing(false);
         }
@@ -122,7 +131,7 @@ export const useRewindStep = (
         inFlightRef.current = false;
       }
     },
-    [mutate, targetSourceId, onProjectUpdate, toast],
+    [mutate, targetSourceId, onProjectUpdate, toast, t],
   );
 
   const pending = loading || refreshing;

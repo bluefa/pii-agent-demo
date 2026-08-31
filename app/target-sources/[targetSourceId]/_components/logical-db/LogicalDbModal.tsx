@@ -1,6 +1,7 @@
 'use client';
 
 import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useLocale } from '@/app/components/LocaleProvider';
 import { Modal } from '@/app/components/ui/Modal';
 import { Button } from '@/app/components/ui/Button';
 import { LoadingSpinner } from '@/app/components/ui/LoadingSpinner';
@@ -27,6 +28,7 @@ import {
 } from '@/lib/theme';
 import type { SkipReason } from '@/app/lib/api/logical-db';
 import { ResourceIdCell } from '@/app/target-sources/[targetSourceId]/_components/shared/ResourceIdCell';
+import { CANDIDATE_COPY } from '@/app/target-sources/[targetSourceId]/_components/candidate/copy';
 import {
   abbrevMiddle,
   buildLogicalDbTree,
@@ -56,12 +58,10 @@ const EMPTY_DRAFT: LogicalDbModalDraft = {
   reasons: {},
 };
 
-/** Contract enum + the Korean labels it never had. The enum stays visible (admin/logs match on it). */
-const REASON_OPTIONS: ReadonlyArray<{ value: SkipReason; label: string }> = [
-  { value: 'STG', label: '스테이징' },
-  { value: 'DEV', label: '개발용' },
-  { value: 'TEMP', label: '임시' },
-];
+type LogicalDbCopy = (typeof CANDIDATE_COPY)['ko']['logicalDb'];
+
+/** Contract enum, in display order. The enum stays visible (admin/logs match on it). */
+const REASON_VALUES: ReadonlyArray<SkipReason> = ['STG', 'DEV', 'TEMP'];
 
 /**
  * 사유 한 줄. `withCode` 면 wire enum 이 앞에 선다 — `TEMP · 임시`.
@@ -69,19 +69,29 @@ const REASON_OPTIONS: ReadonlyArray<{ value: SkipReason; label: string }> = [
  * 운영자 화면에서만 켠다: 로그와 BE 는 `STG`/`DEV`/`TEMP` 로 말하므로 그 둘을 맞춰보는
  * 사람에게 한국어만 주면 매번 머릿속에서 옮겨 적어야 한다. 요청자는 enum 을 쓸 일이 없으니
  * 라벨만 본다. 코드가 앞인 이유도 그것이다 — 맞춰보는 눈이 먼저 닿는 쪽이 코드다.
+ *
+ * An unknown code prints itself rather than vanishing — the same fallback the labels always had.
  */
 const reasonLabel = (
+  t: LogicalDbCopy,
   reason: SkipReason | undefined,
   opts?: { withCode?: boolean },
 ): string => {
-  const label = REASON_OPTIONS.find((r) => r.value === reason)?.label ?? reason ?? '';
+  const label =
+    reason === 'STG'
+      ? t.reasonStaging
+      : reason === 'DEV'
+        ? t.reasonDev
+        : reason === 'TEMP'
+          ? t.reasonTemp
+          : (reason ?? '');
   return reason && opts?.withCode ? `${reason} · ${label}` : label;
 };
 
-/** 이 select 가 내놓을 수 있는 값은 REASON_OPTIONS 뿐이다 — DOM 문자열을 계약 enum 으로
+/** 이 select 가 내놓을 수 있는 값은 REASON_VALUES 뿐이다 — DOM 문자열을 계약 enum 으로
  *  단언하는 대신 그 목록에 물어보고, 아닌 값은 받지 않는다. */
 const isSkipReason = (value: string): value is SkipReason =>
-  REASON_OPTIONS.some((option) => option.value === value);
+  REASON_VALUES.some((option) => option === value);
 
 /** Client-side windowing: the fetched lists are unpaginated, but the DOM must not be. */
 const DB_PAGE_SIZE = 10;
@@ -106,12 +116,12 @@ type ListFilter = 'all' | 'keep' | 'deny';
  * 비지 않는다: 이름은 언제나 flex 이고, 끌고 있는 동안에도 `flex[flex.length - 1]` 폴백이
  * 역할을 그대로 쥔다.
  */
-const LDB_COLUMNS: readonly ConsoleTableColumn[] = [
-  { key: 'name', label: '이름', width: 240, flex: true, headClassName: idcStyles.table.nameCell },
-  { key: 'unit', label: '단위', width: 96 },
-  { key: 'status', label: '상태', width: 120 },
-  { key: 'reason', label: '제외 사유', width: 96 },
-  { key: 'action', label: '액션', width: 132 },
+const ldbColumns = (t: LogicalDbCopy): readonly ConsoleTableColumn[] => [
+  { key: 'name', label: t.colName, width: 240, flex: true, headClassName: idcStyles.table.nameCell },
+  { key: 'unit', label: t.colUnit, width: 96 },
+  { key: 'status', label: t.colStatus, width: 120 },
+  { key: 'reason', label: t.colReason, width: 96 },
+  { key: 'action', label: t.colAction, width: 132 },
 ];
 
 const chipCls = 'inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2 py-0.5 text-[12px] font-semibold';
@@ -120,8 +130,9 @@ const identLabelCls = 'shrink-0 text-[12px] font-bold uppercase tracking-[0.06em
 const rowBtnCls = 'inline-flex h-7 items-center rounded-lg px-2.5 text-[12px] font-semibold';
 const outlineBtnCls = cn(rowBtnCls, 'border', interactiveColors.unselectedBorder, textColors.secondary);
 const CELL = cn(idcStyles.table.approvalCell, idcStyles.table.consoleCell);
-/** Full-width rows inside a group (reason editor, schema pager) — they span every column. */
-const SPAN_ALL = LDB_COLUMNS.length;
+/** Full-width rows inside a group (reason editor, schema pager) — they span every column.
+ *  Every language declares the same five, so the count is read off one of them. */
+const SPAN_ALL = ldbColumns(CANDIDATE_COPY.ko.logicalDb).length;
 
 /** A computed-style length as a number; jsdom hands back '' for anything it did not lay out. */
 const cssPx = (value: string): number => {
@@ -145,6 +156,9 @@ export const LogicalDbModal = ({
   onRetry,
   onClose,
 }: LogicalDbModalProps) => {
+  const { locale } = useLocale();
+  const t = CANDIDATE_COPY[locale].logicalDb;
+  const columns = useMemo(() => ldbColumns(t), [t]);
   const [excludedIds, setExcludedIds] = useState<ReadonlySet<string>>(
     initialDraft.excludedIds,
   );
@@ -423,12 +437,12 @@ export const LogicalDbModal = ({
     const database = manualDatabase.trim();
     const schema = manualSchema.trim() || undefined;
     if (!database) {
-      setManualError('Database 이름을 입력해 주세요.');
+      setManualError(t.manualNeedsDatabase);
       return;
     }
     const id = denyId({ database, schema });
     if (allRows.some((row) => row.id === id)) {
-      setManualError('이미 목록에 있습니다.');
+      setManualError(t.manualDuplicate);
       return;
     }
     setManualRows((prev) => [
@@ -486,17 +500,17 @@ export const LogicalDbModal = ({
    */
   const unitTip =
     unit === 'schema'
-      ? 'Database 행에서 제외하면 하위 Schema까지, Schema 행에서 제외하면 그 스키마만 빠져요.'
+      ? t.unitSchemaDesc
       : unit === 'database'
-        ? '이 대상은 Database 단위로 조회·제외돼요.'
+        ? t.unitDatabaseDesc
         : discoveryUnavailable
-          ? '최근 연결 테스트의 조회 결과를 읽지 못해 단위를 판정할 수 없어요.'
+          ? t.unitUnavailableDesc
           : // One sentence for "this run found nothing", whatever else the list holds. The
             // branch that used to split on `databases.length > 0` told the reader the rows
             // below were the skip policy — but that list can be empty too, and then the
             // sentence promised a list that was not there. Only the first clause is true in
             // both cases, so only the first clause is said.
-            '이번 Test Connection에서 조회된 논리 DB가 없어요.';
+            t.unitNoneDesc;
 
   return (
     <Modal
@@ -508,7 +522,7 @@ export const LogicalDbModal = ({
       // is the complaint this redesign started from. 872 gives it ~428.
       size="wide"
       chrome="bare"
-      ariaLabel="논리 DB 관리"
+      ariaLabel={t.modalLabel}
       // 결과가 서 있는 동안, 그리고 저장이 나가 있는 동안에는 닫기만이 나가는 길이다: 스치는
       // ESC 나 바깥 클릭 한 번에 방금 벌어진 일이 사라져서는 안 되고, 비활성화된 취소 옆에서
       // 살아 있는 ESC 는 같은 화면이 두 말을 하는 것이다.
@@ -519,11 +533,11 @@ export const LogicalDbModal = ({
         <div className="flex w-full items-center justify-between gap-3">
           <span className={cn('min-w-0 truncate text-[12px]', textColors.tertiary)}>
             {pendingCount === 0 ? (
-              '변경 없음'
+              t.noChanges
             ) : (
               <>
                 <strong className={cn('tabular-nums', textColors.primary)}>
-                  저장 전 변경 {pendingCount}건
+                  {t.pendingCount(pendingCount)}
                 </strong>
                 {' — '}
                 {staged.map((change, i) => (
@@ -531,8 +545,10 @@ export const LogicalDbModal = ({
                     {i > 0 && ', '}
                     <span className="font-mono">{abbrevMiddle(change.name, 12, 8)}</span>{' '}
                     {change.action === 'exclude'
-                      ? `제외(${reasonLabel(reasons[change.id], { withCode: manualEntry })})`
-                      : '복원'}
+                      ? t.stagedExclude(
+                          reasonLabel(t, reasons[change.id], { withCode: manualEntry }),
+                        )
+                      : t.stagedRestore}
                   </span>
                 ))}
               </>
@@ -541,11 +557,11 @@ export const LogicalDbModal = ({
           <div className="flex shrink-0 gap-2">
             {pendingCount > 0 && (
               <Button variant="secondary" disabled={saving} onClick={revertAll}>
-                되돌리기
+                {t.revertAll}
               </Button>
             )}
             <Button variant="secondary" disabled={saving} onClick={onClose}>
-              취소
+              {t.cancel}
             </Button>
             {/* 저장 중은 프레임이 아니라 버튼의 상태다 — 표는 있던 자리에 그대로 있고,
                 방금 누른 손 아래에서 아무것도 움직이지 않는다. */}
@@ -556,7 +572,7 @@ export const LogicalDbModal = ({
               onClick={handleSave}
             >
               {saving && <LoadingSpinner size="sm" />}
-              {saving ? '저장 중' : '저장'}
+              {saving ? t.saving : t.save}
             </Button>
           </div>
         </div>
@@ -568,7 +584,7 @@ export const LogicalDbModal = ({
           that names the resource it happened to. */}
       <div ref={headRef}>
       <h2 className={cn('text-[20px] font-bold leading-[1.2] tracking-[-0.02em]', textColors.primary)}>
-        논리 DB 관리
+        {t.modalTitle}
       </h2>
       {/* Provenance in the `[명사][동사] [상대시각]` grammar Step 4/5 already use
           (`fmtRelativeTime`): this list is whatever one connection-test run found, so the
@@ -576,7 +592,7 @@ export const LogicalDbModal = ({
           statement. Dropped, not guessed, when the caller has no settled run. */}
       {completedAt && (
         <p className={cn('mt-1 text-[12px] font-medium', textColors.tertiary)}>
-          연결 테스트 완료 · {fmtRelativeTime(completedAt)}
+          {t.completedStamp(fmtRelativeTime(completedAt))}
         </p>
       )}
       {/* Identifier stack in the table's grammar — truncate + tooltip + copy (ResourceIdCell).
@@ -616,28 +632,28 @@ export const LogicalDbModal = ({
             (e.g. `logical_database_unit`), promote the judgment to that field. */}
         <span className={cn(chipCls, tagStyles.gray)}>
           {unit === 'schema'
-            ? 'Schema 단위 조회'
+            ? t.unitSchemaChip
             : unit === 'database'
-              ? 'Database 단위 조회'
+              ? t.unitDatabaseChip
               : discoveryUnavailable
-                ? '조회 결과 미확인'
-                : '조회된 논리 DB 없음'}
+                ? t.unitUnknownChip
+                : t.unitNoneChip}
         </span>
         {/* Light `value` box, not the dark default: the identifier tooltips beside it are
             light, and one header should not answer two hovers in two popover languages. */}
         <InfoTooltip
           variant="value"
           iconSize={14}
-          label="논리 DB 조회·제외 안내"
+          label={t.headerTipLabel}
           content={
             <div className="space-y-1.5">
               <p>{unitTip}</p>
-              <p>제외한 DB는 다음 테스트부터 조회되지 않지만, 제외 목록에는 계속 남아 복원할 수 있어요.</p>
+              <p>{t.restoreNote}</p>
             </div>
           }
         />
         <p className={cn('text-[14px] font-medium leading-[1.5]', textColors.secondary)}>
-          조회된 논리 DB를 확인하고, 수집에서 제외할 DB를 골라요.
+          {t.headerLead}
         </p>
       </div>
       </div>
@@ -650,7 +666,7 @@ export const LogicalDbModal = ({
           여백이 남는다 — 상자는 움직이지 않아야 한다. */}
       {manualEntry && !result && (
         <p className={logicalDbStyles.replaceWarn}>
-          저장하면 제외 목록 전체가 교체돼요. 목록에서 뺀 항목은 제외가 해제됩니다.
+          {t.replaceWarn}
         </p>
       )}
 
@@ -675,10 +691,10 @@ export const LogicalDbModal = ({
           사라진다. 여기서는 어떤 필터를 걸어도 같은 자리에 있다. */}
       {manualEntry && (
         <div className={logicalDbStyles.manual.box}>
-          <div className={logicalDbStyles.manual.label}>제외 추가</div>
+          <div className={logicalDbStyles.manual.label}>{t.manualLabel}</div>
           <div className={logicalDbStyles.manual.row}>
             <input
-              aria-label="Database 이름"
+              aria-label={t.manualDatabaseLabel}
               value={manualDatabase}
               onChange={(e) => {
                 setManualDatabase(e.target.value);
@@ -693,7 +709,7 @@ export const LogicalDbModal = ({
               className={cn(logicalDbStyles.manual.field, logicalDbStyles.manual.fieldDatabase)}
             />
             <input
-              aria-label="Schema 이름 (선택)"
+              aria-label={t.manualSchemaLabel}
               value={manualSchema}
               onChange={(e) => {
                 setManualSchema(e.target.value);
@@ -702,7 +718,7 @@ export const LogicalDbModal = ({
               onKeyDown={(e) => {
                 if (e.key === 'Enter') addManualRow();
               }}
-              placeholder="schema (선택)"
+              placeholder={t.manualSchemaPlaceholder}
               autoComplete="off"
               spellCheck={false}
               className={cn(logicalDbStyles.manual.field, logicalDbStyles.manual.fieldSchema)}
@@ -710,16 +726,16 @@ export const LogicalDbModal = ({
             {/* 사유는 이 모달이 이미 쓰는 한국어 라벨이다 — 같은 화면에서 같은 사유가 한 번은
                 `임시`, 한 번은 `TEMP` 로 불리면 두 가지처럼 읽힌다. */}
             <select
-              aria-label="추가할 제외 사유"
+              aria-label={t.manualReasonLabel}
               value={manualReason}
               onChange={(e) => {
                 if (isSkipReason(e.target.value)) setManualReason(e.target.value);
               }}
               className={logicalDbStyles.manual.select}
             >
-              {REASON_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {reasonLabel(option.value, { withCode: true })}
+              {REASON_VALUES.map((value) => (
+                <option key={value} value={value}>
+                  {reasonLabel(t, value, { withCode: true })}
                 </option>
               ))}
             </select>
@@ -728,9 +744,9 @@ export const LogicalDbModal = ({
               {manualSchema.trim() ? 'SCHEMA' : 'DATABASE'}
             </span>
             <Button variant="secondary" onClick={addManualRow}>
-              추가
+              {t.manualAdd}
             </Button>
-            <span className={logicalDbStyles.manual.hint}>schema를 비우면 database 전체</span>
+            <span className={logicalDbStyles.manual.hint}>{t.manualHint}</span>
           </div>
           {manualError && (
             <p role="alert" className={logicalDbStyles.manual.error}>
@@ -740,15 +756,15 @@ export const LogicalDbModal = ({
         </div>
       )}
       <div className="mt-4 flex items-center gap-3">
-        <div className={segmentedControlStyles.container} role="group" aria-label="상태 필터">
+        <div className={segmentedControlStyles.container} role="group" aria-label={t.filterLabel}>
           <FilterButton active={filter === 'all'} onClick={() => setListFilter('all')}>
-            전체 {fmt(counts.total)}
+            {t.filterAll(fmt(counts.total))}
           </FilterButton>
           <FilterButton active={filter === 'keep'} onClick={() => setListFilter('keep')}>
-            수집 대상 {fmt(counts.keep)}
+            {t.filterKeep(fmt(counts.keep))}
           </FilterButton>
           <FilterButton active={filter === 'deny'} onClick={() => setListFilter('deny')}>
-            제외 {fmt(counts.deny)}
+            {t.filterDeny(fmt(counts.deny))}
           </FilterButton>
         </div>
         <div
@@ -762,9 +778,11 @@ export const LogicalDbModal = ({
           <input
             value={query}
             onChange={(e) => onQueryChange(e.target.value)}
-            placeholder={tree.hasSchemaUnit ? 'Database / Schema 검색' : 'Database 검색'}
+            placeholder={
+              tree.hasSchemaUnit ? t.searchPlaceholderSchema : t.searchPlaceholderDatabase
+            }
             className={cn('w-full bg-transparent text-[14px] outline-none', textColors.primary)}
-            aria-label="논리 DB 검색"
+            aria-label={t.searchLabel}
           />
         </div>
       </div>
@@ -776,18 +794,18 @@ export const LogicalDbModal = ({
           borderColors.default,
         )}
       >
-        <ConsoleTable columns={LDB_COLUMNS} resize={resize}>
+        <ConsoleTable columns={columns} resize={resize}>
           {windowNodes.length === 0 ? (
             <tbody className={idcStyles.table.body}>
               <tr>
                 <td colSpan={SPAN_ALL} className={cn('px-[18px] py-8 text-center text-[14px]', textColors.tertiary)}>
                   {databases.length > 0
-                    ? '조건에 맞는 결과가 없어요.'
+                    ? t.emptyNoFilterMatch
                     : discoveryUnavailable
                       ? // 표가 비었다고 이번 실행이 아무것도 못 찾았다고 말할 수는 없다 —
                         // 우리가 읽지 못한 것이다.
-                        '조회 결과를 읽지 못했어요.'
-                      : '조회된 논리 DB가 없어요.'}
+                        t.emptyUnavailable
+                      : t.emptyNoneFound}
                 </td>
               </tr>
             </tbody>
@@ -839,7 +857,7 @@ export const LogicalDbModal = ({
             disabled={dbPageClamped === 0}
             onClick={() => setDbPage(dbPageClamped - 1)}
           >
-            이전
+            {t.prevPage}
           </button>
           <button
             type="button"
@@ -847,20 +865,20 @@ export const LogicalDbModal = ({
             disabled={dbPageClamped === dbMaxPage}
             onClick={() => setDbPage(dbPageClamped + 1)}
           >
-            다음
+            {t.nextPage}
           </button>
           <span className="tabular-nums">
             Database {fmt(dbPageClamped * DB_PAGE_SIZE + 1)}–
             {fmt(dbPageClamped * DB_PAGE_SIZE + windowNodes.length)} / {fmt(visibleNodes.length)}
           </span>
-          <span className={cn('ml-auto', textColors.tertiary)}>목록이 길면 검색으로 좁히는 게 빨라요</span>
+          <span className={cn('ml-auto', textColors.tertiary)}>{t.searchIsFaster}</span>
         </div>
       )}
 
       {pendingCount > 0 && (
         <div className={cn('mt-3 rounded-lg px-4 py-2.5 text-[14px]', statusColors.warning.bgSoft, textColors.secondary)}>
-          <strong className={textColors.primary}>저장하면 연결 테스트를 다시 실행해야 해요.</strong>{' '}
-          지금 보이는 결과는 제외가 반영되기 전 상태예요.
+          <strong className={textColors.primary}>{t.rerunLead}</strong>{' '}
+          {t.rerunTail}
         </div>
       )}
       </>
@@ -887,14 +905,14 @@ interface SaveResultFrameProps {
 
 /** `제외 2건 · 복원 1건이 정책에 반영됐어요.` — a clause that counted nothing is dropped
  *  rather than printed as `0건`, which would name a change that never happened. */
-const savedSummary = (changes: ReadonlyArray<SavedChange>): string => {
+const savedSummary = (t: LogicalDbCopy, changes: ReadonlyArray<SavedChange>): string => {
   const excluded = changes.filter((change) => change.action === 'exclude').length;
   const restored = changes.length - excluded;
   const clauses: string[] = [];
-  if (excluded > 0) clauses.push(`제외 ${fmt(excluded)}건`);
-  if (restored > 0) clauses.push(`복원 ${fmt(restored)}건`);
-  if (clauses.length === 0) return '제외 설정이 정책에 반영됐어요.';
-  return `${clauses.join(' · ')}이 정책에 반영됐어요.`;
+  if (excluded > 0) clauses.push(t.savedSummaryExcluded(fmt(excluded)));
+  if (restored > 0) clauses.push(t.savedSummaryRestored(fmt(restored)));
+  if (clauses.length === 0) return t.savedSummaryNone;
+  return t.savedSummaryApplied(clauses.join(' · '));
 };
 
 /**
@@ -915,9 +933,11 @@ const SaveResultFrame = ({
   onRetry,
   onClose,
 }: SaveResultFrameProps) => {
+  const { locale } = useLocale();
+  const t = CANDIDATE_COPY[locale].logicalDb;
   const closeRef = useRef<HTMLButtonElement>(null);
   const retryRef = useRef<HTMLButtonElement>(null);
-  const failure = result.kind === 'error' ? logicalDbFailureCopy(result.code) : null;
+  const failure = result.kind === 'error' ? logicalDbFailureCopy(result.code, locale) : null;
   /**
    * 저장이 서버에 남았는가 — `stale` 도 남았다(PUT 은 끝났고 그 뒤의 재조회만 실패했다).
    * 원장과 "다음 연결 테스트부터" 는 이 사실에 달려 있지, 목록을 다시 읽었는지에 달려 있지 않다.
@@ -964,17 +984,17 @@ const SaveResultFrame = ({
       </div>
       <h3 className={logicalDbStyles.result.title}>
         {result.kind === 'success'
-          ? '논리 DB 제외 설정을 저장했어요'
+          ? t.resultSuccessTitle
           : result.kind === 'stale'
-            ? '저장은 됐지만 목록을 다시 읽지 못했어요'
-            : '제외 설정을 저장하지 못했어요'}
+            ? t.resultStaleTitle
+            : t.resultErrorTitle}
       </h3>
       <p className={logicalDbStyles.result.desc}>
         {result.kind === 'success'
-          ? savedSummary(changes)
+          ? savedSummary(t, changes)
           : result.kind === 'stale'
-            ? '제외 설정은 저장됐어요. 최신 목록은 모달을 다시 열면 보여요.'
-            : '서버의 제외 정책은 그대로예요.'}
+            ? t.resultStaleDesc
+            : t.resultErrorDesc}
       </p>
       {failure && <p className={logicalDbStyles.result.reason}>{failure.reason}</p>}
       {wrote ? (
@@ -982,8 +1002,8 @@ const SaveResultFrame = ({
           {changes.length > 0 && (
             <div className={logicalDbStyles.result.ledger}>
               <div className={logicalDbStyles.result.ledgerHead}>
-                <span>저장된 변경</span>
-                <span className="tabular-nums">{fmt(changes.length)}건</span>
+                <span>{t.ledgerHead}</span>
+                <span className="tabular-nums">{t.ledgerCount(fmt(changes.length))}</span>
               </div>
               <div className={logicalDbStyles.result.ledgerList}>
                 {changes.map((change) => (
@@ -999,8 +1019,10 @@ const SaveResultFrame = ({
                       )}
                     >
                       {change.action === 'exclude'
-                        ? `제외${change.reason ? ` (${reasonLabel(change.reason, { withCode: rawReason })})` : ''}`
-                        : '복원'}
+                        ? t.ledgerExclude(
+                            change.reason ? reasonLabel(t, change.reason, { withCode: rawReason }) : '',
+                          )
+                        : t.ledgerRestore}
                     </span>
                   </div>
                 ))}
@@ -1008,13 +1030,14 @@ const SaveResultFrame = ({
             </div>
           )}
           <p className={logicalDbStyles.result.nextBox}>
-            이 정책은 <strong className="font-semibold">다음 연결 테스트부터</strong> 반영돼요.
-            지금 적용하려면 연결 테스트를 다시 실행해 주세요.
+            {t.nextLead}
+            <strong className="font-semibold">{t.nextEmphasis}</strong>
+            {t.nextTail}
           </p>
         </>
       ) : (
         <p className={logicalDbStyles.result.keptBox}>
-          고른 변경 {fmt(changes.length)}건은 그대로 있어요. 닫으면 사라져요.
+          {t.keptChanges(fmt(changes.length))}
         </p>
       )}
       <div className={logicalDbStyles.result.actions}>
@@ -1025,7 +1048,7 @@ const SaveResultFrame = ({
           disabled={saving}
           onClick={onClose}
         >
-          닫기
+          {t.resultClose}
         </button>
         {canRetry && (
           <button
@@ -1038,7 +1061,7 @@ const SaveResultFrame = ({
             {/* 재시도는 이 프레임 위에서 돈다 — 스피너가 프레임이 아니라 라벨 옆을 대신하므로
                 아래의 아무것도 움직이지 않는다. */}
             {saving && <LoadingSpinner size="sm" />}
-            다시 저장하기
+            {t.resultRetry}
           </button>
         )}
       </div>
@@ -1122,6 +1145,8 @@ const DbGroup = ({
   rawReason,
   popRef,
 }: DbGroupProps) => {
+  const { locale } = useLocale();
+  const t = CANDIDATE_COPY[locale].logicalDb;
   const dbStatus = statusOf(node.row.id);
   /**
    * The excluded RUN — the only thing that lights the spine amber. An individually excluded
@@ -1161,7 +1186,7 @@ const DbGroup = ({
               type="button"
               onClick={onToggle}
               aria-expanded={open}
-              aria-label={open ? `${node.row.name} 접기` : `${node.row.name} 펼치기`}
+              aria-label={t.rowToggle(node.row.name, open)}
               className={cn(
                 idcStyles.table.group.toggle,
                 open ? idcStyles.table.group.toggleOpen : idcStyles.table.group.toggleClosed,
@@ -1247,7 +1272,7 @@ const DbGroup = ({
                 disabled={pageClamped === 0}
                 onClick={() => onSchemaPage(pageClamped - 1)}
               >
-                이전
+                {t.prevPage}
               </button>
               <button
                 type="button"
@@ -1255,7 +1280,7 @@ const DbGroup = ({
                 disabled={pageClamped === maxSchemaPage}
                 onClick={() => onSchemaPage(pageClamped + 1)}
               >
-                다음
+                {t.nextPage}
               </button>
               <span className={cn('text-[12px] tabular-nums', textColors.secondary)}>
                 {fmt(pageClamped * SCHEMA_PAGE_SIZE + 1)}–
@@ -1294,20 +1319,21 @@ const statusInk = (status: LogicalDbRowStatus): string | undefined => {
  * `↳ 상위 Database 제외에 포함` chip said the same thing without ever saying WHICH database.
  */
 const statusText = (
+  t: LogicalDbCopy,
   status: LogicalDbRowStatus,
   parentName: string | undefined,
 ): string => {
   switch (status) {
     case 'deny':
-      return '제외';
+      return t.statusDeny;
     case 'staged-exclude':
-      return '제외 예정';
+      return t.statusStagedExclude;
     case 'staged-restore':
-      return '복원 예정';
+      return t.statusStagedRestore;
     case 'inherited':
-      return `제외 · ${parentName ?? '상위'}`;
+      return t.statusInherited(parentName ?? t.statusInheritedFallback);
     default:
-      return '수집';
+      return t.statusAllow;
   }
 };
 
@@ -1358,21 +1384,23 @@ const Row = ({
   onRestore,
   onUndo,
 }: RowProps) => {
+  const { locale } = useLocale();
+  const t = CANDIDATE_COPY[locale].logicalDb;
   const staged = status === 'staged-exclude' || status === 'staged-restore';
   const dimmed = status === 'inherited' || (row.untested && status !== 'staged-restore');
   // `미조회` rides beside the name, not in 상태: it is a fact about this NAME (the policy
   // outlived the run that would have listed it), while 상태 answers "collected or not".
   const meta = [
-    isDb && hasSchemaUnit && schemaCount > 0 ? `스키마 ${fmt(schemaCount)}` : null,
-    row.untested ? '미조회' : null,
+    isDb && hasSchemaUnit && schemaCount > 0 ? t.metaSchemaCount(fmt(schemaCount)) : null,
+    row.untested ? t.metaUntested : null,
   ]
     .filter(Boolean)
     .join(' · ');
   const shownReason =
     status === 'deny' || status === 'staged-exclude'
-      ? reasonLabel(reason, { withCode: rawReason })
+      ? reasonLabel(t, reason, { withCode: rawReason })
       : status === 'inherited'
-        ? reasonLabel(parentReason, { withCode: rawReason })
+        ? reasonLabel(t, parentReason, { withCode: rawReason })
         : '';
 
   return (
@@ -1402,7 +1430,7 @@ const Row = ({
       </td>
       <td className={cn(CELL, 'text-[12px]', textColors.tertiary)}>{isDb ? 'Database' : 'Schema'}</td>
       <td className={cn(CELL, 'text-[12px]', textColors.secondary)}>
-        <span className={statusInk(status)}>{statusText(status, parentName)}</span>
+        <span className={statusInk(status)}>{statusText(t, status, parentName)}</span>
       </td>
       <td className={cn(CELL, 'text-[12px]', status === 'inherited' ? textColors.tertiary : textColors.secondary)}>
         {shownReason}
@@ -1410,7 +1438,7 @@ const Row = ({
       <td className={cn(CELL, 'text-right')}>
         {status === 'allow' && (
           <button type="button" onClick={() => onOpenPick(row.id)} className={outlineBtnCls}>
-            제외
+            {t.exclude}
           </button>
         )}
         {status === 'deny' && (
@@ -1419,12 +1447,12 @@ const Row = ({
             onClick={() => onRestore(row.id)}
             className={cn(rowBtnCls, buttonStyles.variants.soft)}
           >
-            복원
+            {t.restore}
           </button>
         )}
         {staged && (
           <button type="button" onClick={() => onUndo(row.id, status)} className={outlineBtnCls}>
-            실행 취소
+            {t.undo}
           </button>
         )}
         {/* An inherited child cannot be restored on its own — the exclusion is the parent's —
@@ -1435,10 +1463,10 @@ const Row = ({
           <button
             type="button"
             onClick={() => onRestore(parentId)}
-            title={`${parentName} 제외를 복원해요 — ${row.name} 포함`}
+            title={t.restoreFromParentTitle(parentName ?? t.statusInheritedFallback, row.name)}
             className={outlineBtnCls}
           >
-            상위에서 복원
+            {t.restoreFromParent}
           </button>
         )}
       </td>
@@ -1478,7 +1506,11 @@ const ReasonPanel = ({
   onCancelPick,
   onConfirmPick,
   popRef,
-}: ReasonPanelProps) => (
+}: ReasonPanelProps) => {
+  const { locale } = useLocale();
+  const t = CANDIDATE_COPY[locale].logicalDb;
+
+  return (
   <tr>
     <td
       colSpan={SPAN_ALL}
@@ -1499,41 +1531,43 @@ const ReasonPanel = ({
           }
         }}
       >
-        <p className={cn('text-[14px] font-bold', textColors.primary)}>제외 사유</p>
+        <p className={cn('text-[14px] font-bold', textColors.primary)}>{t.reasonTitle}</p>
         <p className={cn('mt-1 text-[12px] leading-[1.5]', textColors.secondary)}>
           {isDb ? (
             <>
-              <strong className="font-mono">{abbrevMiddle(row.name, 16, 12)}</strong> 전체가 제외돼요
-              {hasSchemaUnit && schemaCount > 0 ? ` — 하위 스키마 ${fmt(schemaCount)}개 포함` : ''}
+              <strong className="font-mono">{abbrevMiddle(row.name, 16, 12)}</strong>
+              {t.excludeWholeDbTail}
+              {hasSchemaUnit && schemaCount > 0 ? t.excludeWholeDbSchemas(fmt(schemaCount)) : ''}
             </>
           ) : (
             <>
-              <strong className="font-mono">{abbrevMiddle(row.name, 16, 12)}</strong> 스키마만 제외돼요
+              <strong className="font-mono">{abbrevMiddle(row.name, 16, 12)}</strong>
+              {t.excludeSchemaTail}
             </>
           )}
         </p>
         {isDb && absorbedCount > 0 && (
           <p className={cn('mt-1 text-[12px] font-semibold', logicalDbStyles.subDeny)}>
-            기존 Schema 제외 {absorbedCount}건은 Database 제외로 합쳐져요.
+            {t.absorbedSchemas(absorbedCount)}
           </p>
         )}
         <fieldset className="mt-2">
-          <legend className="sr-only">제외 사유 선택</legend>
+          <legend className="sr-only">{t.reasonLegend}</legend>
           <div className="flex items-center gap-4">
-            {REASON_OPTIONS.map((opt) => (
+            {REASON_VALUES.map((value) => (
               <label
-                key={opt.value}
+                key={value}
                 className={cn('flex cursor-pointer items-center gap-1.5 py-1 text-[14px]', textColors.secondary)}
               >
                 <input
                   type="radio"
                   name="logical-db-skip-reason"
-                  value={opt.value}
-                  checked={pickedReason === opt.value}
-                  onChange={() => onPickReason(opt.value)}
+                  value={value}
+                  checked={pickedReason === value}
+                  onChange={() => onPickReason(value)}
                 />
-                {opt.label}
-                <span className={cn('text-[12px]', textColors.tertiary)}>({opt.value})</span>
+                {reasonLabel(t, value)}
+                <span className={cn('text-[12px]', textColors.tertiary)}>({value})</span>
               </label>
             ))}
           </div>
@@ -1544,17 +1578,18 @@ const ReasonPanel = ({
             onClick={onCancelPick}
             className={cn(rowBtnCls, 'border', borderColors.default, textColors.secondary)}
           >
-            취소
+            {t.cancel}
           </button>
           <button
             type="button"
             onClick={onConfirmPick}
             className={cn(rowBtnCls, primaryColors.bg, primaryColors.bgHover, textColors.inverse)}
           >
-            제외 (저장 전에 추가)
+            {t.confirmExclude}
           </button>
         </div>
       </div>
     </td>
   </tr>
-);
+  );
+};

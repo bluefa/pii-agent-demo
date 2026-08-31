@@ -2,6 +2,11 @@
 
 import { useId, type ReactNode } from 'react';
 import { CheckIcon, ChevronDownIcon } from '@/app/components/ui/icons';
+import { useLocale } from '@/app/components/LocaleProvider';
+import {
+  SDU_COPY,
+  type SduUploadCopy,
+} from '@/app/target-sources/[targetSourceId]/_components/sdu/copy';
 import {
   borderColors,
   cardStyles,
@@ -13,11 +18,11 @@ import {
 
 export type GateState = 'done' | 'current' | 'waiting';
 
-const STATE_LABEL: Record<GateState, string> = {
-  done: '완료',
-  current: '진행 중',
-  waiting: '대기',
-};
+const stateLabels = (t: SduUploadCopy): Record<GateState, string> => ({
+  done: t.stateDone,
+  current: t.stateCurrent,
+  waiting: t.stateWaiting,
+});
 
 const STATE_PILL: Record<GateState, string> = {
   done: cn(statusColors.success.bg, statusColors.success.textDark),
@@ -65,6 +70,8 @@ export const GateBlock = ({
   action,
   children,
 }: GateBlockProps) => {
+  const { locale } = useLocale();
+  const stateLabel = stateLabels(SDU_COPY[locale].upload);
   const bodyId = useId();
   const head = (
     <>
@@ -90,7 +97,7 @@ export const GateBlock = ({
         {title}
       </span>
       <span className={cn(cardStyles.stepBadge, 'flex-shrink-0', STATE_PILL[state])}>
-        {STATE_LABEL[state]}
+        {stateLabel[state]}
       </span>
       {!open && summary && (
         <span className={cn('min-w-0 truncate', textStyles.body, textColors.secondary)}>

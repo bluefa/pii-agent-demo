@@ -3,6 +3,8 @@
 import { useState, useCallback } from 'react';
 import { CheckIcon, CopyIcon } from '@/app/components/ui/icons';
 import { TIMINGS } from '@/lib/constants/timings';
+import { useLocale } from '@/app/components/LocaleProvider';
+import { COPY } from '@/lib/copy';
 import { cn } from '@/lib/theme';
 
 interface CopyButtonProps {
@@ -12,6 +14,7 @@ interface CopyButtonProps {
 }
 
 export const CopyButton = ({ value, label, className }: CopyButtonProps) => {
+  const { locale } = useLocale();
   const [copied, setCopied] = useState(false);
 
   const handleCopy = useCallback(async () => {
@@ -28,7 +31,7 @@ export const CopyButton = ({ value, label, className }: CopyButtonProps) => {
     <button
       type="button"
       onClick={handleCopy}
-      aria-label={label ?? `${value} 복사`}
+      aria-label={label ?? COPY[locale].common.copyValue(value)}
       className={cn(
         'inline-grid h-[22px] w-[22px] place-items-center rounded-[5px]',
         'transition-opacity transition-colors',

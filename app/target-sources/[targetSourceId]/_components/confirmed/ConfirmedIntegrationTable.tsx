@@ -23,13 +23,14 @@ import {
   buildLogicalDbCountMap,
   type LogicalDbCountMap,
 } from '@/app/target-sources/[targetSourceId]/_components/confirmed/logical-db-summaries';
+import { useLocale } from '@/app/components/LocaleProvider';
+import { TS_COPY } from '@/app/target-sources/[targetSourceId]/_components/copy';
 
 interface ConfirmedIntegrationTableProps {
   confirmed: readonly ConfirmedResource[];
   targetSourceId: number;
 }
 
-const FILTER_EMPTY_MESSAGE = '조건에 맞는 결과가 없어요.';
 const EMPTY_COUNTS: LogicalDbCountMap = new Map();
 
 /**
@@ -44,6 +45,8 @@ export const ConfirmedIntegrationTable = ({
   confirmed,
   targetSourceId,
 }: ConfirmedIntegrationTableProps) => {
+  const { locale } = useLocale();
+  const t = TS_COPY[locale].confirmed;
   // Real per-resource logical-DB counts (연동 대상 / 연동 제외) from the latest
   // test-connection result summaries, rendered as links into the read-only list.
   // A resource with no summary entry renders "—" rather than a fabricated 0.
@@ -162,7 +165,7 @@ export const ConfirmedIntegrationTable = ({
   if (confirmed.length === 0) {
     return (
       <div className={cn('px-6 py-12 text-sm text-center', textColors.tertiary)}>
-        확정된 연동 대상 DB 가 없습니다.
+        {t.noConfirmed}
       </div>
     );
   }
@@ -204,7 +207,7 @@ export const ConfirmedIntegrationTable = ({
         kindColumn={hasKindColumn(approvalRows)}
         onLogicalDbOpen={setLogicalDbTarget}
         connected
-        emptyMessage={FILTER_EMPTY_MESSAGE}
+        emptyMessage={t.filterEmpty}
         // While the list is narrowed, a region may be here because of a database inside its
         // fold. Leaving it shut shows a row that does not visibly contain what was typed.
         expandFolds={!!table.searchValue.trim() || !!table.dbType || !!table.region}

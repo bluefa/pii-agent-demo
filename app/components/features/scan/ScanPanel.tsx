@@ -2,6 +2,8 @@
 
 import { isScanFinalizing, useScanPolling } from '@/app/hooks/useScanPolling';
 import { useApiAction } from '@/app/hooks/useApiMutation';
+import { useLocale } from '@/app/components/LocaleProvider';
+import { SCAN_COPY } from '@/app/components/features/scan/copy';
 import { startScan } from '@/app/lib/api/scan';
 import type { ScanResult, ResourceType } from '@/lib/types';
 import type { z } from 'zod';
@@ -56,6 +58,7 @@ const uiStateToScanUiState = (uiState: 'IDLE' | 'IN_PROGRESS' | 'COMPLETED' | 'F
 };
 
 export const ScanController = ({ targetSourceId, onScanComplete, children }: ScanControllerProps) => {
+  const { locale } = useLocale();
   const { latestJob, uiState, loading, refresh, startPolling, expectCompletion } = useScanPolling(targetSourceId, {
     onScanComplete,
   });
@@ -74,7 +77,7 @@ export const ScanController = ({ targetSourceId, onScanComplete, children }: Sca
       await minSpinnerDelay;
     },
     {
-      errorMessage: '스캔을 시작할 수 없습니다.',
+      errorMessage: SCAN_COPY[locale].startFailed,
     }
   );
 

@@ -7,6 +7,11 @@ import { LoadingSpinner } from '@/app/components/ui/LoadingSpinner';
 import { getDatabaseLabel } from '@/app/components/ui/DatabaseIcon';
 import { borderColors, cn, statusColors, tableStyles, textColors, getInputClass } from '@/lib/theme';
 import type { IntegrationCategory, VmDatabaseType } from '@/lib/types';
+import { useLocale } from '@/app/components/LocaleProvider';
+import {
+  STATUS_COPY,
+  type StatusCopy,
+} from '@/app/components/features/process-status/status-copy';
 
 // ===== Types =====
 
@@ -36,11 +41,11 @@ interface ApprovalRequestModalProps {
 
 // ===== Helpers =====
 
-const getCategoryLabel = (category: IntegrationCategory): string => {
+const getCategoryLabel = (t: StatusCopy, category: IntegrationCategory): string => {
   switch (category) {
-    case 'TARGET': return '연동 대상';
-    case 'NO_INSTALL_NEEDED': return '설치 선택';
-    case 'INSTALL_INELIGIBLE': return '연동 불가';
+    case 'TARGET': return t.request.categoryTarget;
+    case 'NO_INSTALL_NEEDED': return t.request.categoryNoInstall;
+    case 'INSTALL_INELIGIBLE': return t.request.categoryIneligible;
   }
 };
 
@@ -74,6 +79,8 @@ export const ApprovalRequestModal = ({
   loading,
   error,
 }: ApprovalRequestModalProps) => {
+  const { locale } = useLocale();
+  const t = STATUS_COPY[locale];
   const [defaultReason, setDefaultReason] = useState('');
 
   const includedResources = useMemo(
@@ -110,13 +117,16 @@ export const ApprovalRequestModal = ({
     onClose();
   };
 
-  const subtitle = `포함 ${includedResources.length}건${hasExcluded ? `, 제외 ${excludedResources.length}건` : ''}`;
+  const subtitle = t.request.subtitle(
+    includedResources.length,
+    hasExcluded ? excludedResources.length : null,
+  );
 
   return (
     <Modal
       isOpen={isOpen}
       onClose={handleClose}
-      title="승인 요청"
+      title={t.request.title}
       subtitle={subtitle}
       size="2xl"
       closeOnBackdropClick={!loading}
@@ -124,11 +134,11 @@ export const ApprovalRequestModal = ({
       footer={
         <>
           <Button variant="secondary" onClick={handleClose} disabled={loading}>
-            취소
+            {t.common.cancel}
           </Button>
           <Button onClick={handleSubmit} disabled={!canSubmit}>
             {loading && <LoadingSpinner size="sm" />}
-            승인 요청
+            {t.request.submit}
           </Button>
         </>
       }
@@ -138,7 +148,7 @@ export const ApprovalRequestModal = ({
         {includedResources.length === 0 && (
           <div className={cn('p-3 rounded-lg border', statusColors.warning.bg, statusColors.warning.border)}>
             <p className={cn('text-sm', statusColors.warning.textDark)}>
-              포함할 리소스를 1개 이상 선택하세요
+              {t.request.noneSelected}
             </p>
           </div>
         )}
@@ -147,16 +157,16 @@ export const ApprovalRequestModal = ({
         {includedResources.length > 0 && (
           <div>
             <h3 className={cn('text-sm font-semibold mb-2', textColors.primary)}>
-              포함 리소스 ({includedResources.length}건)
+              {t.request.includedHeading(includedResources.length)}
             </h3>
             <div className={cn('border rounded-lg overflow-hidden', borderColors.default)}>
               <table className="w-full text-sm">
                 <thead>
                   <tr className={tableStyles.header}>
-                    <th className={tableStyles.headerCell}>리소스 ID</th>
-                    <th className={tableStyles.headerCell}>타입</th>
-                    <th className={tableStyles.headerCell}>DB 종류</th>
-                    <th className={tableStyles.headerCell}>엔드포인트</th>
+                    <th className={tableStyles.headerCell}>{t.request.colResourceId}</th>
+                    <th className={tableStyles.headerCell}>{t.request.colType}</th>
+                    <th className={tableStyles.headerCell}>{t.request.colDbType}</th>
+                    <th className={tableStyles.headerCell}>{t.request.colEndpoint}</th>
                   </tr>
                 </thead>
                 <tbody className={tableStyles.body}>
@@ -186,15 +196,15 @@ export const ApprovalRequestModal = ({
         {hasExcluded && (
           <div>
             <h3 className={cn('text-sm font-semibold mb-2', textColors.primary)}>
-              제외 리소스 ({excludedResources.length}건)
+              {t.request.excludedHeading(excludedResources.length)}
             </h3>
             <div className={cn('border rounded-lg overflow-hidden', borderColors.default)}>
               <table className="w-full text-sm">
                 <thead>
                   <tr className={tableStyles.header}>
-                    <th className={tableStyles.headerCell}>리소스 ID</th>
-                    <th className={tableStyles.headerCell}>타입</th>
-                    <th className={tableStyles.headerCell}>분류</th>
+                    <th className={tableStyles.headerCell}>{t.request.colResourceId}</th>
+                    <th className={tableStyles.headerCell}>{t.request.colType}</th>
+                    <th className={tableStyles.headerCell}>{t.request.colCategory}</th>
                   </tr>
                 </thead>
                 <tbody className={tableStyles.body}>
@@ -208,7 +218,7 @@ export const ApprovalRequestModal = ({
                       </td>
                       <td className={tableStyles.cell}>
                         <span className={getCategoryBadgeClass(r.integrationCategory)}>
-                          {getCategoryLabel(r.integrationCategory)}
+                          {getCategoryLabel(t, r.integrationCategory)}
                         </span>
                       </td>
                     </tr>
@@ -220,12 +230,12 @@ export const ApprovalRequestModal = ({
             {/* Default exclusion reason */}
             <div className="mt-4">
               <label className={cn('block text-sm font-medium mb-1.5', textColors.secondary)}>
-                제외 사유
+                {t.request.exclusionReasonLabel}
               </label>
               <textarea
                 value={defaultReason}
                 onChange={(e) => setDefaultReason(e.target.value)}
-                placeholder="제외 사유를 입력하세요"
+                placeholder={t.request.exclusionReasonPlaceholder}
                 rows={2}
                 className={cn(getInputClass(), 'resize-none')}
               />

@@ -6,6 +6,7 @@ import { ConfirmStepModal } from '@/app/components/ui/ConfirmStepModal';
 import { Modal } from '@/app/components/ui/Modal';
 import { LockIcon } from '@/app/components/ui/icons';
 import { useModal } from '@/app/hooks/useModal';
+import { useLocale } from '@/app/components/LocaleProvider';
 import {
   WizardRail,
   type WizardRailStep,
@@ -21,12 +22,14 @@ import {
 } from '@/lib/types/sdu';
 import { DatabaseTypeGrid } from '@/app/target-sources/[targetSourceId]/_components/sdu/step1/DatabaseTypeGrid';
 import {
+  SDU_COPY,
+  type SduDefineCopy,
+} from '@/app/target-sources/[targetSourceId]/_components/sdu/copy';
+import {
   newSduTargetDraft,
-  SDU_CLOUD_LABEL,
-  SDU_DB_TYPE_REQUIRED_MESSAGE,
-  SDU_IP_INVALID_MESSAGE,
-  SDU_SCOPE_NOTE,
+  sduCloudLabels,
   sduDbTypeSummary,
+  sduScopeNotes,
   type SduTargetDraft,
 } from '@/app/target-sources/[targetSourceId]/_components/sdu/step1/model';
 import {
@@ -38,11 +41,11 @@ import {
 
 type AddStep = 1 | 2 | 3 | 4;
 
-const ADD_STEPS: readonly WizardRailStep<AddStep>[] = [
-  { step: 1, title: '연동 위치', sublabel: '클라우드와 Region' },
-  { step: 2, title: '업로드 IP', sublabel: '데이터가 나가는 주소' },
-  { step: 3, title: 'Database Type', sublabel: '업로드할 데이터의 종류' },
-  { step: 4, title: '확인', sublabel: '추가할 대상' },
+const addSteps = (t: SduDefineCopy): readonly WizardRailStep<AddStep>[] => [
+  { step: 1, title: t.addStep1Title, sublabel: t.addStep1Sub },
+  { step: 2, title: t.addStep2Title, sublabel: t.addStep2Sub },
+  { step: 3, title: t.addStep3Title, sublabel: t.addStep3Sub },
+  { step: 4, title: t.addStep4Title, sublabel: t.addStep4Sub },
 ];
 
 /** 단계 이동표. `(step + 1) as AddStep` 대신 표를 두는 이유는 캐스트를 쓰지 않기 위해서다. */
@@ -71,6 +74,9 @@ export interface SduAddTargetModalProps {
  * 이 모달은 API 를 부르지 않는다. 저장은 1단계의 제출 / 저장 버튼이 하던 그대로다.
  */
 export const SduAddTargetModal = ({ scope, newKey, onAdd, onClose }: SduAddTargetModalProps) => {
+  const { locale } = useLocale();
+  const t = SDU_COPY[locale].define;
+  const cloudLabel = sduCloudLabels(t);
   const [step, setStep] = useState<AddStep>(1);
   const [draft, setDraft] = useState<SduTargetDraft>(() => newSduTargetDraft(newKey, scope));
   /**
@@ -130,17 +136,17 @@ export const SduAddTargetModal = ({ scope, newKey, onAdd, onClose }: SduAddTarge
         size="wide"
         // 레일이 이 모달의 제목을 들고 있으므로 공용 헤더를 그리지 않는다.
         chrome="bare"
-        ariaLabel="연동 대상 추가"
+        ariaLabel={t.addTargetTitle}
         // 확인창이 열려 있는 동안 ESC 는 그쪽 것이다. 둘 다 들으면 확인창을 닫는 ESC 가
         // 곧바로 확인창을 다시 연다.
         closeOnEscape={!closeConfirm.isOpen}
       >
         <div className={addWizardStyles.ground}>
           <WizardRail
-            title="연동 대상 추가"
-            subtitle="데이터가 어디에 있는지 알려주세요."
-            navLabel="대상 추가 단계"
-            steps={ADD_STEPS}
+            title={t.addTargetTitle}
+            subtitle={t.addWizardSubtitle}
+            navLabel={t.addWizardNavLabel}
+            steps={addSteps(t)}
             current={step}
             onNavigate={setStep}
             titleId={TITLE_ID}
@@ -150,23 +156,18 @@ export const SduAddTargetModal = ({ scope, newKey, onAdd, onClose }: SduAddTarge
             <div className={addWizardStyles.cardBody}>
               {step === 1 && (
                 <div>
-                  <h3 className={addWizardStyles.stepTitle}>어디에 있는 데이터인가요?</h3>
-                  <p className={addWizardStyles.stepLead}>
-                    Region이 이후 업로드 경로를 가르는 축이에요.
-                  </p>
+                  <h3 className={addWizardStyles.stepTitle}>{t.addWhereTitle}</h3>
+                  <p className={addWizardStyles.stepLead}>{t.addWhereLead}</p>
                   {/* 권역은 담당자가 정하는 값이 아니므로 목록 화면과 같은 한 줄로만 말한다. */}
-                  <p className={listStyles.scopeNote}>{SDU_SCOPE_NOTE[scope]}</p>
+                  <p className={listStyles.scopeNote}>{sduScopeNotes(t)[scope]}</p>
 
                   <div className="space-y-5">
                     <div>
-                      <p className={fieldStyles.label}>데이터가 있는 클라우드</p>
-                      <p className={fieldStyles.hint}>
-                        업로드할 데이터가 원래 어디에서 운영되고 있는지예요. 연동 타입(SDU)과는
-                        별개예요.
-                      </p>
+                      <p className={fieldStyles.label}>{t.cloudLabel}</p>
+                      <p className={fieldStyles.hint}>{t.cloudHint}</p>
                       <div
                         role="radiogroup"
-                        aria-label="클라우드"
+                        aria-label={t.cloudAria}
                         className="mt-2 flex flex-wrap gap-1.5"
                       >
                         {SDU_CLOUDS.map((cloud: SduCloud) => {
@@ -183,7 +184,7 @@ export const SduAddTargetModal = ({ scope, newKey, onAdd, onClose }: SduAddTarge
                                 selected ? choiceChipStyles.on : choiceChipStyles.off,
                               )}
                             >
-                              {SDU_CLOUD_LABEL[cloud]}
+                              {cloudLabel[cloud]}
                             </button>
                           );
                         })}
@@ -191,31 +192,25 @@ export const SduAddTargetModal = ({ scope, newKey, onAdd, onClose }: SduAddTarge
                     </div>
 
                     <div>
-                      <p className={fieldStyles.label}>Region</p>
+                      <p className={fieldStyles.label}>{t.regionLabel}</p>
                       {/* China 권역의 선택지는 하나뿐이다. 답이 하나인 질문을 칩으로 그리면
                           담당자는 "다른 답도 있나" 하고 한 번 멈추므로, 고르는 자리를 지우고
                           확정된 값을 보여준다. */}
                       {regions.length === 1 ? (
                         <>
-                          <p className={fieldStyles.hint}>
-                            China 권역이라 Region은 China로 고정돼요. 대상마다 다르게 고를 수
-                            없어요.
-                          </p>
+                          <p className={fieldStyles.hint}>{t.regionFixedHint}</p>
                           <p className={cn(choiceChipStyles.base, choiceChipStyles.on, 'mt-2 gap-1.5')}>
                             {SDU_REGION_LABEL[regions[0]]}
                             <LockIcon className="h-3.5 w-3.5" />
-                            <span className="text-[12px] font-semibold">고정</span>
+                            <span className="text-[12px] font-semibold">{t.regionFixed}</span>
                           </p>
                         </>
                       ) : (
                         <>
-                          <p className={fieldStyles.hint}>
-                            업로드 경로가 갈리는 축이에요. 같은 Region을 고른 대상들은 같은 S3 경로
-                            하나를 함께 써요.
-                          </p>
+                          <p className={fieldStyles.hint}>{t.regionHint}</p>
                           <div
                             role="radiogroup"
-                            aria-label="Region"
+                            aria-label={t.regionAria}
                             className="mt-2 flex flex-wrap gap-1.5"
                           >
                             {regions.map((region) => {
@@ -246,21 +241,17 @@ export const SduAddTargetModal = ({ scope, newKey, onAdd, onClose }: SduAddTarge
 
               {step === 2 && (
                 <div>
-                  <h3 className={addWizardStyles.stepTitle}>업로드는 어느 IP에서 하나요?</h3>
-                  <p className={addWizardStyles.stepLead}>
-                    한 대상에 한 주소예요. 여러 곳에서 올린다면 대상을 나눠 추가해주세요.
-                  </p>
+                  <h3 className={addWizardStyles.stepTitle}>{t.addIpTitle}</h3>
+                  <p className={addWizardStyles.stepLead}>{t.addIpLead}</p>
 
                   <label htmlFor={ipInputId} className={fieldStyles.label}>
-                    업로드 IP
+                    {t.uploadIpLabel}
                   </label>
-                  <p className={fieldStyles.hint}>
-                    S3에 데이터를 올릴 때 나가는 IP 주소예요. 이 주소에서만 업로드가 허용돼요.
-                  </p>
+                  <p className={fieldStyles.hint}>{t.uploadIpHint}</p>
                   <input
                     id={ipInputId}
                     value={draft.uploadIp}
-                    placeholder="예: 10.20.30.40"
+                    placeholder={t.uploadIpPlaceholder}
                     onChange={(event) => patch({ uploadIp: event.target.value })}
                     className={cn(
                       inputStyles.base,
@@ -269,7 +260,7 @@ export const SduAddTargetModal = ({ scope, newKey, onAdd, onClose }: SduAddTarge
                       ipInvalid && inputStyles.error,
                     )}
                   />
-                  {ipInvalid && <p className={fieldStyles.message}>{SDU_IP_INVALID_MESSAGE}</p>}
+                  {ipInvalid && <p className={fieldStyles.message}>{t.ipInvalid}</p>}
                 </div>
               )}
 
@@ -278,12 +269,8 @@ export const SduAddTargetModal = ({ scope, newKey, onAdd, onClose }: SduAddTarge
                   붙박이가 된다 — 목록이 길다고 사라져도 되는 줄이 아니다. */}
               {step === 3 && (
                 <div className={addWizardStyles.stepFill}>
-                  <h3 className={cn(addWizardStyles.stepTitle, 'flex-none')}>
-                    어떤 Database를 올리나요?
-                  </h3>
-                  <p className={cn(addWizardStyles.stepLead, 'flex-none')}>
-                    이 대상에서 올릴 데이터의 종류를 모두 적어주세요.
-                  </p>
+                  <h3 className={cn(addWizardStyles.stepTitle, 'flex-none')}>{t.addDbTitle}</h3>
+                  <p className={cn(addWizardStyles.stepLead, 'flex-none')}>{t.addDbLead}</p>
 
                   <DatabaseTypeGrid
                     cloud={draft.cloud}
@@ -291,32 +278,28 @@ export const SduAddTargetModal = ({ scope, newKey, onAdd, onClose }: SduAddTarge
                     onChange={(databaseTypes) => patch({ databaseTypes })}
                   />
                   {dbMissing && (
-                    <p className={cn(fieldStyles.message, 'flex-none')}>
-                      {SDU_DB_TYPE_REQUIRED_MESSAGE}
-                    </p>
+                    <p className={cn(fieldStyles.message, 'flex-none')}>{t.dbTypeRequired}</p>
                   )}
                 </div>
               )}
 
               {step === 4 && (
                 <div>
-                  <h3 className={addWizardStyles.stepTitle}>이대로 추가할까요?</h3>
-                  <p className={addWizardStyles.stepLead}>
-                    고칠 내용이 있으면 이전 단계로 돌아가 수정할 수 있어요.
-                  </p>
+                  <h3 className={addWizardStyles.stepTitle}>{t.addReviewTitle}</h3>
+                  <p className={addWizardStyles.stepLead}>{t.addReviewLead}</p>
 
                   <dl className={addWizardStyles.summary}>
-                    <dt className={addWizardStyles.summaryTerm}>클라우드</dt>
-                    <dd className={addWizardStyles.summaryValue}>{SDU_CLOUD_LABEL[draft.cloud]}</dd>
-                    <dt className={addWizardStyles.summaryTerm}>Region</dt>
+                    <dt className={addWizardStyles.summaryTerm}>{t.summaryCloud}</dt>
+                    <dd className={addWizardStyles.summaryValue}>{cloudLabel[draft.cloud]}</dd>
+                    <dt className={addWizardStyles.summaryTerm}>{t.regionLabel}</dt>
                     <dd className={addWizardStyles.summaryValue}>
                       {SDU_REGION_LABEL[draft.region]}
                     </dd>
-                    <dt className={addWizardStyles.summaryTerm}>업로드 IP</dt>
+                    <dt className={addWizardStyles.summaryTerm}>{t.uploadIpLabel}</dt>
                     <dd className={addWizardStyles.summaryIp}>{draft.uploadIp}</dd>
-                    <dt className={addWizardStyles.summaryTerm}>Database Type</dt>
+                    <dt className={addWizardStyles.summaryTerm}>{t.summaryDbType}</dt>
                     <dd className={addWizardStyles.summaryValue}>
-                      {sduDbTypeSummary(draft.databaseTypes)}
+                      {sduDbTypeSummary(t, draft.databaseTypes)}
                     </dd>
                   </dl>
                 </div>
@@ -327,10 +310,10 @@ export const SduAddTargetModal = ({ scope, newKey, onAdd, onClose }: SduAddTarge
             <div className={addWizardStyles.cardFoot}>
               {step > 1 && (
                 <Button variant="secondary" onClick={() => setStep(PREV_STEP[step])}>
-                  이전
+                  {t.back}
                 </Button>
               )}
-              <Button onClick={handleNext}>{step === 4 ? '대상 추가' : '다음'}</Button>
+              <Button onClick={handleNext}>{step === 4 ? t.addTarget : t.next}</Button>
             </div>
           </div>
         </div>
@@ -340,10 +323,10 @@ export const SduAddTargetModal = ({ scope, newKey, onAdd, onClose }: SduAddTarge
         open={closeConfirm.isOpen}
         onClose={closeConfirm.close}
         onConfirm={onClose}
-        title="대상 추가를 그만두시겠어요?"
-        description="지금 닫으면 입력한 내용이 사라져요."
-        cancelLabel="계속 작성"
-        confirmLabel="닫기"
+        title={t.abandonTitle}
+        description={t.abandonDescription}
+        cancelLabel={t.abandonCancel}
+        confirmLabel={t.abandonConfirm}
       />
     </>
   );

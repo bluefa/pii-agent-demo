@@ -1,6 +1,8 @@
 'use client';
 
 import { bgColors, borderColors, cn, primaryColors, textColors } from '@/lib/theme';
+import { useLocale } from '@/app/components/LocaleProvider';
+import { COPY } from '@/lib/copy';
 
 /** One row of the rail. `step` is the wizard's own step value, whatever it numbers them. */
 export interface WizardRailStep<TStep extends number = number> {
@@ -55,101 +57,106 @@ export const WizardRail = <TStep extends number>({
   current,
   onNavigate,
   titleId,
-}: WizardRailProps<TStep>) => (
-  // Full height, top to bottom. The title used to sit in a banner above both columns,
-  // which put a hairline straight across the dialog and started the gray under it at a
-  // T-junction. With the column running the whole way, the only division left is its
-  // own edge — and the dialog's title stops competing with the step's heading opposite.
-  // No surface and no border of its own: the column sits straight on the dialog's gray
-  // ground, and the 16px gutter to the content card is the whole separation. 248/px-14
-  // keeps the same 168px text column the old 256/px-18 had, now that the gutter and the
-  // card's own padding do the spacing the border used to.
-  <div className="flex w-[248px] flex-shrink-0 flex-col px-[14px] pb-[22px] pt-6">
-    <div className="px-2.5 pb-5">
-      {/* 16px against the step heading's 18px: this names the whole flow and the heading
-          opposite names the current step, so they must not read as the same rank. */}
-      <h2 id={titleId} className={cn('text-base font-bold', textColors.primary)}>
-        {title}
-      </h2>
-      {/* One line, deliberately. At 14px the column gives this text 200px; the longer
-          「PII 모니터링을 시작할 인프라를 등록해요.」 measures 220 and wrapped. 인프라 등록's
-          wording lands at ~181, leaving 18px for a wider fallback face — a caller's
-          subtitle has to fit the same budget. Note the overflow is silent: the rail has
-          no clipping box, so text that outgrew this would run into the 30px of padding
-          and gutter beside it before touching the card. The margin is the guarantee
-          here, not the box. */}
-      <p className={cn('mt-1 whitespace-nowrap text-sm', textColors.secondary)}>{subtitle}</p>
-    </div>
+}: WizardRailProps<TStep>) => {
+  const { locale } = useLocale();
+  const t = COPY[locale].wizard;
 
-    <nav aria-label={navLabel} className="flex flex-1 flex-col">
-      {steps.map(({ step, title: stepTitle, sublabel }) => {
-      const isActive = step === current;
-      const isDone = step < current;
-      const canNavigate = isDone && onNavigate !== undefined;
+  return (
+    // Full height, top to bottom. The title used to sit in a banner above both columns,
+    // which put a hairline straight across the dialog and started the gray under it at a
+    // T-junction. With the column running the whole way, the only division left is its
+    // own edge — and the dialog's title stops competing with the step's heading opposite.
+    // No surface and no border of its own: the column sits straight on the dialog's gray
+    // ground, and the 16px gutter to the content card is the whole separation. 248/px-14
+    // keeps the same 168px text column the old 256/px-18 had, now that the gutter and the
+    // card's own padding do the spacing the border used to.
+    <div className="flex w-[248px] flex-shrink-0 flex-col px-[14px] pb-[22px] pt-6">
+      <div className="px-2.5 pb-5">
+        {/* 16px against the step heading's 18px: this names the whole flow and the heading
+            opposite names the current step, so they must not read as the same rank. */}
+        <h2 id={titleId} className={cn('text-base font-bold', textColors.primary)}>
+          {title}
+        </h2>
+        {/* One line, deliberately. At 14px the column gives this text 200px; the longer
+            「PII 모니터링을 시작할 인프라를 등록해요.」 measures 220 and wrapped. 인프라 등록's
+            wording lands at ~181, leaving 18px for a wider fallback face — a caller's
+            subtitle has to fit the same budget. Note the overflow is silent: the rail has
+            no clipping box, so text that outgrew this would run into the 30px of padding
+            and gutter beside it before touching the card. The margin is the guarantee
+            here, not the box. */}
+        <p className={cn('mt-1 whitespace-nowrap text-sm', textColors.secondary)}>{subtitle}</p>
+      </div>
 
-      return (
-        <button
-          key={step}
-          type="button"
-          disabled={!canNavigate}
-          aria-current={isActive ? 'step' : undefined}
-          onClick={canNavigate ? () => onNavigate(step) : undefined}
-          className={cn(
-            // No surface, no shadow: the active step is marked by the filled dot and
-            // the weight of its label. A card here would be a 110px box around 58px of
-            // text — it read as a mis-sized container rather than as emphasis.
-            'group relative flex w-full flex-1 items-center gap-2.5 px-2.5 py-2.5 text-left',
-            canNavigate ? 'cursor-pointer' : 'cursor-default',
-          )}
-        >
-          {/* The segment above the dot belongs to the step before it, the one below to
-              the step after — hence the two different comparisons. */}
-          {step > 1 && <SpineSegment half="top" traversed={step <= current} />}
-          {step < steps.length && (
-            <SpineSegment half="bottom" traversed={step < current} />
-          )}
+      <nav aria-label={navLabel} className="flex flex-1 flex-col">
+        {steps.map(({ step, title: stepTitle, sublabel }) => {
+        const isActive = step === current;
+        const isDone = step < current;
+        const canNavigate = isDone && onNavigate !== undefined;
 
-          <span
-            aria-hidden="true"
+        return (
+          <button
+            key={step}
+            type="button"
+            disabled={!canNavigate}
+            aria-current={isActive ? 'step' : undefined}
+            onClick={canNavigate ? () => onNavigate(step) : undefined}
             className={cn(
-              // `relative`: the dot's own fill is what masks the line running behind it.
-              'relative inline-flex h-[22px] w-[22px] flex-shrink-0 items-center justify-center rounded-full border-2 text-xs font-bold',
-              isActive && cn(primaryColors.bg, primaryColors.border, textColors.inverse),
-              isDone && cn(primaryColors.bgLight, 'border-transparent', primaryColors.textOnLight),
-              !isActive && !isDone && cn(borderColors.strong, bgColors.surface, textColors.tertiary),
+              // No surface, no shadow: the active step is marked by the filled dot and
+              // the weight of its label. A card here would be a 110px box around 58px of
+              // text — it read as a mis-sized container rather than as emphasis.
+              'group relative flex w-full flex-1 items-center gap-2.5 px-2.5 py-2.5 text-left',
+              canNavigate ? 'cursor-pointer' : 'cursor-default',
             )}
           >
-            {isDone ? '✓' : step}
-          </span>
-          <span className="relative flex flex-col gap-px">
-            {/* The dot is aria-hidden, so without this a completed row announces as
-                bare title text with no sign it is done or that it can be revisited. */}
-            <span className="sr-only">{isDone ? '완료' : isActive ? '진행 중' : '대기'}</span>
+            {/* The segment above the dot belongs to the step before it, the one below to
+                the step after — hence the two different comparisons. */}
+            {step > 1 && <SpineSegment half="top" traversed={step <= current} />}
+            {step < steps.length && (
+              <SpineSegment half="bottom" traversed={step < current} />
+            )}
+
             <span
+              aria-hidden="true"
               className={cn(
-                'text-sm transition-colors',
-                // Every tier is secondary or darker: this column sits on gray-100, where
-                // tertiary is 4.37:1 and under AA (see the `bgColors.panel` token). The
-                // three tiers separate by weight instead — the dot and the spine already
-                // carry done-vs-pending, so the text does not have to.
-                textColors.secondary,
-                isActive
-                  ? cn('font-bold', textColors.primary)
-                  : isDone
-                    ? 'font-semibold'
-                    : 'font-normal',
-                // The label carries the go-back affordance now that no row background
-                // does — a 110px hover block would bring the card problem back.
-                canNavigate && primaryColors.groupTextOnLight,
+                // `relative`: the dot's own fill is what masks the line running behind it.
+                'relative inline-flex h-[22px] w-[22px] flex-shrink-0 items-center justify-center rounded-full border-2 text-xs font-bold',
+                isActive && cn(primaryColors.bg, primaryColors.border, textColors.inverse),
+                isDone && cn(primaryColors.bgLight, 'border-transparent', primaryColors.textOnLight),
+                !isActive && !isDone && cn(borderColors.strong, bgColors.surface, textColors.tertiary),
               )}
             >
-              {stepTitle}
+              {isDone ? '✓' : step}
             </span>
-            {isActive && <span className={cn('text-xs', textColors.secondary)}>{sublabel}</span>}
-          </span>
-        </button>
-        );
-      })}
-    </nav>
-  </div>
-);
+            <span className="relative flex flex-col gap-px">
+              {/* The dot is aria-hidden, so without this a completed row announces as
+                  bare title text with no sign it is done or that it can be revisited. */}
+              <span className="sr-only">{isDone ? t.stepDone : isActive ? t.stepActive : t.stepWaiting}</span>
+              <span
+                className={cn(
+                  'text-sm transition-colors',
+                  // Every tier is secondary or darker: this column sits on gray-100, where
+                  // tertiary is 4.37:1 and under AA (see the `bgColors.panel` token). The
+                  // three tiers separate by weight instead — the dot and the spine already
+                  // carry done-vs-pending, so the text does not have to.
+                  textColors.secondary,
+                  isActive
+                    ? cn('font-bold', textColors.primary)
+                    : isDone
+                      ? 'font-semibold'
+                      : 'font-normal',
+                  // The label carries the go-back affordance now that no row background
+                  // does — a 110px hover block would bring the card problem back.
+                  canNavigate && primaryColors.groupTextOnLight,
+                )}
+              >
+                {stepTitle}
+              </span>
+              {isActive && <span className={cn('text-xs', textColors.secondary)}>{sublabel}</span>}
+            </span>
+          </button>
+          );
+        })}
+      </nav>
+    </div>
+  );
+};

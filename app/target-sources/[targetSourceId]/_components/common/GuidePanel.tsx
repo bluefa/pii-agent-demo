@@ -20,6 +20,8 @@ import {
 
 import { GUIDE_SLOTS, type GuideSlotKey } from '@/lib/constants/guide-registry';
 import { safeBrowseUrl } from '@/lib/jira-ticket';
+import { useLocale } from '@/app/components/LocaleProvider';
+import { TS_COPY } from '@/app/target-sources/[targetSourceId]/_components/copy';
 
 /**
  * Collab-channel ticket state for the rail card, resolved server-side
@@ -39,6 +41,8 @@ const RAIL_ID = 'guide-rail';
  * is not misread as "no channel".
  */
 const CollabChannelCard = ({ jiraTicket }: { jiraTicket: JiraTicketState }) => {
+  const { locale } = useLocale();
+  const t = TS_COPY[locale].collab;
   /**
    * The channel zone's content, and nothing else — no fill, no border, no radius of its
    * own, in either place it renders. Containment is the CALLER's, and it differs: on the
@@ -179,9 +183,7 @@ const CollabChannelCard = ({ jiraTicket }: { jiraTicket: JiraTicketState }) => {
           because a step screen is where this rail lives. The 「…할 수 있어요」 register is
           the app's own and the guide-copy transcription round settled it, so that part does
           not move. Measured after the cut: the `<p>` is 17px tall, not 34. */}
-      <p className={cn(sentence, textColors.secondary)}>
-        막히는 부분을 바로 문의할 수 있어요.
-      </p>
+      <p className={cn(sentence, textColors.secondary)}>{t.sentence}</p>
       {/* The two empty states are back on `tertiary`. They were moved up to `secondary`
           only because a #E8F1FF band stood under them, where gray-500 is 4.25:1. No band
           survives here: 시안 A puts this row inside the zone's white card, where it is
@@ -189,11 +191,11 @@ const CollabChannelCard = ({ jiraTicket }: { jiraTicket: JiraTicketState }) => {
           out-weigh the real link. */}
       {jiraTicket === 'error' ? (
         <div className={cn('mt-6', sentence, 'font-medium', textColors.tertiary)}>
-          협업 채널 정보를 불러오지 못했어요
+          {t.loadFailed}
         </div>
       ) : jiraTicket === null ? (
         <div className={cn('mt-6', sentence, 'font-medium', textColors.tertiary)}>
-          아직 연결된 협업 채널이 없어요
+          {t.notConnected}
         </div>
       ) : (
         <>
@@ -248,7 +250,7 @@ const CollabChannelCard = ({ jiraTicket }: { jiraTicket: JiraTicketState }) => {
                 href={href}
                 target="_blank"
                 rel="noopener noreferrer"
-                title="협업 채널 — Jira에서 논의하기"
+                title={t.linkTitle}
                 className={cn(
                   channelKey,
                   'inline-flex items-center gap-1',
@@ -314,6 +316,8 @@ export const GuidePanel = ({
   jiraTicket,
   initialCollapsed,
 }: GuidePanelProps) => {
+  const { locale } = useLocale();
+  const t = TS_COPY[locale].collab;
   const { collapsed, toggle, presses } = useRailCollapse(initialCollapsed);
 
   /**
@@ -353,14 +357,14 @@ export const GuidePanel = ({
    */
   const collab: { dot: string; quiet?: boolean; hint: string } =
     jiraTicket === 'error'
-      ? { dot: statusColors.error.dot, hint: '협업 채널 — 정보를 불러오지 못했어요' }
+      ? { dot: statusColors.error.dot, hint: t.hintError }
       : jiraTicket === null
         ? {
             dot: statusColors.pending.dot,
             quiet: true,
-            hint: '협업 채널 — 아직 연결되지 않았어요',
+            hint: t.hintNone,
           }
-        : { dot: statusColors.success.dot, hint: `협업 채널 — ${jiraTicket.issueKey}` };
+        : { dot: statusColors.success.dot, hint: t.hintKey(jiraTicket.issueKey) };
 
   /**
    * 「2단계 가이드」 rather than 「가이드」 (오너 지시 2026-08-23). The rail is docked beside
@@ -374,7 +378,7 @@ export const GuidePanel = ({
    */
   const placement = slotKey ? GUIDE_SLOTS[slotKey].placement : null;
   const guideZoneLabel =
-    placement?.kind === 'process-step' ? `${placement.step}단계 가이드` : '가이드';
+    placement?.kind === 'process-step' ? t.guideStep(placement.step) : t.guide;
 
 
   // While `collapsed` is null the media query paints the default — the same markup the
@@ -403,7 +407,7 @@ export const GuidePanel = ({
       /* One name for the panel, and it is the one on the strip. It used to be called
          three things — this label, 「가이드 펼치기」 on the button, and 「가이드 / 진행
          내역」 on the tabs — which is fine until the folded rail has to carry ONE word. */
-      aria-label="가이드"
+      aria-label={t.guide}
       className={cn(
         railWidth,
         // `default`, matching the left rail's `border-r` — the two rails are the same
@@ -428,7 +432,7 @@ export const GuidePanel = ({
         <div className={cn(stripShown, railStyles.strip)}>
           <RailToggle
             direction="left"
-            label="가이드 펼치기"
+            label={t.expandGuide}
             expanded={false}
             controls={RAIL_ID}
             presses={presses}
@@ -437,7 +441,7 @@ export const GuidePanel = ({
           <span aria-hidden className={railStyles.divider} />
           <RailEntry
             icon={<ChatIcon className="h-5 w-5" />}
-            label="채널"
+            label={t.stripChannel}
             hint={collab.hint}
             dot={collab.dot}
             quiet={collab.quiet}
@@ -448,8 +452,8 @@ export const GuidePanel = ({
               looks like, only how much of it there is. */}
           <RailEntry
             icon={<GuideIcon className={cn('h-5 w-5', railStyles.zoneMark)} />}
-            label="가이드"
-            hint={`${guideZoneLabel} — 펼치기`}
+            label={t.guide}
+            hint={t.expandHint(guideZoneLabel)}
             onClick={toggle}
           />
         </div>
@@ -482,7 +486,7 @@ export const GuidePanel = ({
           <div className="flex shrink-0 justify-end">
             <RailToggle
               direction="right"
-              label="가이드 접기"
+              label={t.collapseGuide}
               expanded
               controls={RAIL_ID}
               presses={presses}
@@ -597,7 +601,7 @@ export const GuidePanel = ({
                 and shortens its scroller by the same. ⛔ Do not «fix» the asymmetry by
                 reverting this card. */}
             <div className="flex items-center gap-1.5">
-              <span className={railStyles.zoneLabel}>협업 채널</span>
+              <span className={railStyles.zoneLabel}>{t.zoneLabel}</span>
               <span aria-hidden className={cn('h-2 w-2 shrink-0 rounded-full', collab.dot)} />
             </div>
             {/* 8, and the ink it buys is 12.5 (오너 지시 2026-08-28: 「타이틀과 보조 텍스트가
@@ -649,7 +653,7 @@ export const GuidePanel = ({
                 <GuideCardContainer slotKey={slotKey} bare />
               ) : (
                 <p className={cn('py-4 text-center text-[12px]', textColors.tertiary)}>
-                  이 단계에는 표시할 가이드가 없습니다.
+                  {t.noGuide}
                 </p>
               )}
             </div>

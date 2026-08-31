@@ -1,10 +1,11 @@
 'use client';
 
-import { createContext, useCallback, useContext, useEffect, useState, type FC, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useRef, useState, type FC, type ReactNode } from 'react';
 import { getConfirmedIntegration } from '@/app/lib/api';
 import { AppError, isMissingConfirmedIntegrationError } from '@/lib/errors';
 import { confirmedIntegrationToConfirmed } from '@/lib/resource-catalog';
 import { getConfirmedErrorMessage } from '@/app/target-sources/[targetSourceId]/_components/confirmed/errors';
+import { useLocale } from '@/app/components/LocaleProvider';
 import type { AsyncState } from '@/app/target-sources/[targetSourceId]/_components/shared/async-state';
 import type { ConfirmedResource } from '@/lib/types/resources';
 
@@ -26,6 +27,14 @@ interface ProviderProps {
 export const ConfirmedIntegrationDataProvider: FC<ProviderProps> = ({ targetSourceId, children }) => {
   const [state, setState] = useState<AsyncState<readonly ConfirmedResource[]>>({ status: 'loading' });
   const [retryNonce, setRetryNonce] = useState(0);
+  const { locale } = useLocale();
+  // Held in a ref, not read from the closure: the language only decides how a failure
+  // READS, so putting it in the effect's deps would refetch the whole integration
+  // every time the reader flips the toggle.
+  const localeRef = useRef(locale);
+  useEffect(() => {
+    localeRef.current = locale;
+  }, [locale]);
   const [activeId, setActiveId] = useState(targetSourceId);
 
   // Reset to loading during render on id change — React idiom for derived state
@@ -50,7 +59,7 @@ export const ConfirmedIntegrationDataProvider: FC<ProviderProps> = ({ targetSour
           setState({ status: 'ready', data: [] });
           return;
         }
-        setState({ status: 'error', message: getConfirmedErrorMessage(error) });
+        setState({ status: 'error', message: getConfirmedErrorMessage(error, localeRef.current) });
       });
 
     return () => controller.abort();

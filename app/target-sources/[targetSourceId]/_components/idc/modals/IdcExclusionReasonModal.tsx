@@ -4,6 +4,8 @@ import { useRef, useState } from 'react';
 import { ConfirmStepModal } from '@/app/components/ui/ConfirmStepModal';
 import { IDC_REASON_MAXLEN } from '@/lib/constants/idc';
 import { cn, idcStyles, primaryColors, statusColors, textColors } from '@/lib/theme';
+import { useLocale } from '@/app/components/LocaleProvider';
+import { IDC_COPY } from '@/app/target-sources/[targetSourceId]/_components/idc/copy';
 
 interface IdcExclusionReasonModalProps {
   isOpen: boolean;
@@ -33,6 +35,7 @@ export const IdcExclusionReasonModal = ({
   onSave,
   onClose,
 }: IdcExclusionReasonModalProps) => {
+  const t = IDC_COPY[useLocale().locale];
   const [text, setText] = useState(initialReason);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -45,16 +48,18 @@ export const IdcExclusionReasonModal = ({
       open={isOpen}
       onClose={onClose}
       onConfirm={() => onSave(trimmed)}
-      title="제외 사유 직접 입력"
+      title={t.exclCustomTitle}
       // 한 문장·한 줄 — 중간 줄바꿈이 생기던 두 문장 안내를 접었다. 대상은 DB가
       // 아니라 리소스이고, 강조는 승인 모달 문법대로 핵심 구절 하나만 파랑.
       description={
         <>
-          리소스 제외 사유는 <span className={primaryColors.text}>관리자 승인 시 함께 전달</span>돼요.
+          {t.exclCustomDescBefore}
+          <span className={primaryColors.text}>{t.exclCustomDescEm}</span>
+          {t.exclCustomDescAfter}
         </>
       }
-      confirmLabel="저장"
-      cancelLabel="취소"
+      confirmLabel={t.save}
+      cancelLabel={t.cancel}
       confirmDisabled={!canSave}
       initialFocus={textareaRef}
     >
@@ -65,7 +70,7 @@ export const IdcExclusionReasonModal = ({
           maxLength={maxLen}
           rows={4}
           onChange={(e) => setText(e.target.value)}
-          placeholder="예: Stg 환경 DB이며 운영 데이터가 아닌 익명화된 샘플 데이터만 보관하고 있어 제외합니다."
+          placeholder={t.exclReasonPlaceholder}
           className={idcStyles.textarea}
         />
         {/* 두 톤 카운터 — 변하는 수(현재 길이)만 진하게, 고정 분모는 흐리게.
@@ -74,7 +79,11 @@ export const IdcExclusionReasonModal = ({
           <span className={cn('font-semibold', atLimit ? statusColors.error.text : textColors.secondary)}>
             {text.length.toLocaleString()}
           </span>
-          <span className={textColors.tertiary}> / {maxLen.toLocaleString()}자</span>
+          <span className={textColors.tertiary}>
+            {' '}
+            / {maxLen.toLocaleString()}
+            {t.charUnit}
+          </span>
         </div>
       </div>
     </ConfirmStepModal>

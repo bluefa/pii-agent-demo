@@ -1,4 +1,5 @@
 import type { AppErrorCode } from '@/lib/errors';
+import { DEFAULT_LOCALE, type Locale } from '@/lib/locale';
 
 /**
  * 실패 한 건당 사유 한 줄과, **다시 눌러서 풀리는 실패인지**.
@@ -23,7 +24,9 @@ export interface FailureCopy {
   retry: boolean;
 }
 
-const FAILURES: Partial<Record<AppErrorCode, FailureCopy>> = {
+type FailureTable = Partial<Record<AppErrorCode, FailureCopy>>;
+
+const FAILURES: FailureTable = {
   CONFLICT: { reason: '이미 진행 중인 승인 요청이 있어요.', retry: true },
   INTERNAL_ERROR: { reason: '서버에서 오류가 발생했어요.', retry: true },
   RATE_LIMITED: { reason: '요청이 잠시 몰렸어요. 잠시 후 다시 요청해 주세요.', retry: true },
@@ -38,5 +41,34 @@ const FAILURES: Partial<Record<AppErrorCode, FailureCopy>> = {
 /** 분류할 수 없는 실패는 다시 눌러볼 값어치가 있다 — 일시적일 수 있다는 게 유일한 정보다. */
 const UNKNOWN_FAILURE: FailureCopy = { reason: '알 수 없는 오류가 발생했어요.', retry: true };
 
-export const approvalFailureCopy = (code: AppErrorCode | undefined): FailureCopy =>
-  (code && FAILURES[code]) ?? UNKNOWN_FAILURE;
+/**
+ * The same table in English. `retry` is duplicated rather than shared because it belongs to
+ * the row, not to the sentence — splitting them would let one language answer "is this worth
+ * pressing again?" differently from the other, which is a behaviour, not a translation.
+ */
+const FAILURES_EN: FailureTable = {
+  CONFLICT: { reason: 'An approval request is already in progress.', retry: true },
+  INTERNAL_ERROR: { reason: 'The server hit an error.', retry: true },
+  RATE_LIMITED: { reason: 'Requests are piling up. Try again in a moment.', retry: true },
+  NETWORK: { reason: 'Check your network connection.', retry: true },
+  TIMEOUT: { reason: 'The response is taking too long. Try again in a moment.', retry: true },
+  BAD_REQUEST: { reason: 'Check what you are sending.', retry: false },
+  UNAUTHORIZED: { reason: 'Your session expired. Refresh the page and try again.', retry: false },
+  FORBIDDEN: { reason: 'You are not allowed to request approval for this target.', retry: false },
+  NOT_FOUND: { reason: 'That target no longer exists. Refresh the page and try again.', retry: false },
+};
+
+const UNKNOWN_FAILURE_EN: FailureCopy = { reason: 'Something went wrong.', retry: true };
+
+/**
+ * `locale` is optional and defaults to Korean so every existing caller and test keeps the
+ * sentence it had; the four approval modals that render this pass the reader's language.
+ */
+export const approvalFailureCopy = (
+  code: AppErrorCode | undefined,
+  locale: Locale = DEFAULT_LOCALE,
+): FailureCopy => {
+  const table = locale === 'en' ? FAILURES_EN : FAILURES;
+  const unknown = locale === 'en' ? UNKNOWN_FAILURE_EN : UNKNOWN_FAILURE;
+  return (code && table[code]) ?? unknown;
+};

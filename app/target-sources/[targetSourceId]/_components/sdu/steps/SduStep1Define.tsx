@@ -6,13 +6,14 @@ import { getSduDefinition, putSduDefinition, submitSduDefinition } from '@/app/l
 import { useAbortableEffect } from '@/app/hooks/useAbortableEffect';
 import { useConfirmSubmit } from '@/app/hooks/useConfirmSubmit';
 import { useToast } from '@/app/components/ui/toast';
+import { useLocale } from '@/app/components/LocaleProvider';
 import { ErrorState, LoadingState } from '@/app/components/ui/state';
 import { StepBanner } from '@/app/components/ui/StepBanner';
 import { ProcessStatus } from '@/lib/types';
 import { cardStyles, chipStyles, cn, idcStyles, primaryColors } from '@/lib/theme';
 import type { SduDefinition } from '@/lib/types/sdu';
 import { CardActionBar } from '@/app/target-sources/[targetSourceId]/_components/common';
-import { SDU_STEP_TITLES } from '@/app/target-sources/[targetSourceId]/_components/sdu/sdu-steps';
+import { SDU_COPY } from '@/app/target-sources/[targetSourceId]/_components/sdu/copy';
 import type { SduStepProps } from '@/app/target-sources/[targetSourceId]/_components/sdu/types';
 import { SduAddTargetModal } from '@/app/target-sources/[targetSourceId]/_components/sdu/step1/SduAddTargetModal';
 import { SduSubmitModal } from '@/app/target-sources/[targetSourceId]/_components/sdu/step1/SduSubmitModal';
@@ -21,9 +22,9 @@ import { TargetRowList } from '@/app/target-sources/[targetSourceId]/_components
 import {
   activeSduDrafts,
   isSduDraftComplete,
-  SDU_SCOPE_NOTE,
   sduDraftRegions,
   sduReturnHint,
+  sduScopeNotes,
   toSduPutTargets,
   toSduTargetDrafts,
   type SduTargetDraft,
@@ -45,9 +46,6 @@ interface EditingRow {
   draft: SduTargetDraft;
 }
 
-const LOAD_ERROR_MESSAGE = '연동 대상 정의를 불러오지 못했어요.';
-const SAVE_ERROR_MESSAGE = '연동 대상을 저장하지 못했어요. 잠시 후 다시 시도해 주세요.';
-
 /**
  * Step 1 — 연동 대상 정의.
  *
@@ -65,6 +63,8 @@ export function SduStep1Define({
   mode = 'initial',
   onReturn,
 }: SduStep1DefineProps) {
+  const { locale } = useLocale();
+  const t = SDU_COPY[locale].define;
   const targetSourceId = project.targetSourceId;
   const isReturn = mode === 'return';
   // 권역은 고르는 값이 아니라 대상소스가 가진 값이다 — AWS 가 갈리는 것과 같은 필드
@@ -127,7 +127,7 @@ export function SduStep1Define({
       try {
         onProjectUpdate(await getProject(targetSourceId));
       } catch {
-        toast.warning('제출은 접수됐어요. 화면을 새로고침해 최신 상태를 확인해 주세요.');
+        toast.warning(t.submitAccepted);
       } finally {
         setSubmitOpen(false);
       }
@@ -178,7 +178,7 @@ export function SduStep1Define({
       setRows(toSduTargetDrafts(saved.targets));
       onReturn?.();
     } catch {
-      setSaveError(SAVE_ERROR_MESSAGE);
+      setSaveError(t.saveError);
     } finally {
       setSaving(false);
     }
@@ -196,42 +196,42 @@ export function SduStep1Define({
       <section className={cardStyles.base}>
         <header className={cardStyles.header}>
           <div className="flex items-center gap-2">
-            <span className={cardStyles.stepTag}>1단계</span>
-            <h2 className={cardStyles.cardTitle}>{SDU_STEP_TITLES[1]}</h2>
+            <span className={cardStyles.stepTag}>{t.stepTag}</span>
+            <h2 className={cardStyles.cardTitle}>{t.cardTitle}</h2>
             {isReturn && (
               <span className={cn(chipStyles.base, chipStyles.variant.manual)}>
-                2단계에서 돌아옴
+                {t.returnedChip}
               </span>
             )}
           </div>
           <p className={cn('mt-2.5 break-keep', cardStyles.guidance)}>
             {isReturn ? (
               <>
-                이미 2단계를 진행 중인 대상소스예요.{' '}
-                <span className={primaryColors.text}>Region을 추가하면</span> 방화벽 확인과 업로드
-                확인을 다시 하셔야 하고,{' '}
-                <span className={primaryColors.text}>업로드 IP를 바꾸면</span> 방화벽 확인만 다시
-                하시면 돼요. Region을 빼는 것은 아무것도 되돌리지 않고, 등록한 수신자와 받으신 S3
-                Access Key는 그대로예요.
+                {t.returnGuidance.head}
+                <span className={primaryColors.text}>{t.returnGuidance.addRegion}</span>
+                {t.returnGuidance.middle}
+                <span className={primaryColors.text}>{t.returnGuidance.changeIp}</span>
+                {t.returnGuidance.tail}
               </>
             ) : (
               <>
-                SDU는 인프라를 스캔하지 않아요.{' '}
-                <span className={primaryColors.text}>연동할 대상을 직접 입력</span>해 주세요. 대상
-                한 건은 클라우드 · Region · 업로드 IP · Database Type 네 가지이고,{' '}
-                <span className={primaryColors.text}>Region이 업로드 경로를 가르는 축</span>이에요.
+                {t.initialGuidance.head}
+                <span className={primaryColors.text}>{t.initialGuidance.enterTargets}</span>
+                {t.initialGuidance.middle}
+                <span className={primaryColors.text}>{t.initialGuidance.regionAxis}</span>
+                {t.initialGuidance.tail}
               </>
             )}
           </p>
         </header>
 
         <div className={cardStyles.body}>
-          {status === 'loading' && <LoadingState label="연동 대상 정의를 불러오는 중…" />}
+          {status === 'loading' && <LoadingState label={t.loading} />}
 
           {status === 'error' && (
             <ErrorState
-              title="불러오지 못했어요"
-              message={LOAD_ERROR_MESSAGE}
+              title={t.loadErrorTitle}
+              message={t.loadError}
               onRetry={() => setReloadNonce((nonce) => nonce + 1)}
             />
           )}
@@ -242,18 +242,14 @@ export function SduStep1Define({
                   아래 묶음의 `space-y` 안에 넣지 않는다 — 두 규칙이 겹치면 간격이 두 번 선다.
                   저장 실패도 여기 선다: 푸터는 sticky 라 카드 아래에 둔 알림을 가릴 수 있다. */}
               {isReturn && (
-                <StepBanner variant="warn">
-                  Region을 추가하면 방화벽 확인과 업로드 확인을 처음부터 다시 해야 하고, 업로드
-                  IP를 바꾸면 방화벽 확인만 다시 하시면 돼요. Region을 빼는 것은 확인 내역을
-                  건드리지 않아요.
-                </StepBanner>
+                <StepBanner variant="warn">{t.returnBanner}</StepBanner>
               )}
               {saveError && <StepBanner variant="error">{saveError}</StepBanner>}
 
               <div>
                 {/* 권역은 담당자가 정하는 값이 아니므로 컨트롤이 아니라 한 줄이다 — 목록
                     머리줄과 같은 톤으로, 무엇이 이미 정해져 있는지만 말한다. */}
-                <p className={listStyles.scopeNote}>{SDU_SCOPE_NOTE[scope]}</p>
+                <p className={listStyles.scopeNote}>{sduScopeNotes(t)[scope]}</p>
 
                 <TargetRowList
                   rows={rows}
@@ -287,8 +283,8 @@ export function SduStep1Define({
           <CardActionBar
             hint={
               isReturn
-                ? sduReturnHint(baseline, rows)
-                : `대상 ${active.length}건 · Region ${regions.length}곳 → 업로드 경로 ${regions.length}개`
+                ? sduReturnHint(t, baseline, rows)
+                : t.initialHint(active.length, regions.length)
             }
           >
             {isReturn ? (
@@ -298,7 +294,7 @@ export function SduStep1Define({
                 onClick={handleReturnSave}
                 className={idcStyles.triggerBtn.primary}
               >
-                저장하고 2단계로 돌아가기
+                {t.saveAndReturn}
               </button>
             ) : (
               <button
@@ -307,7 +303,7 @@ export function SduStep1Define({
                 onClick={handleOpenSubmit}
                 className={idcStyles.triggerBtn.primary}
               >
-                제출하고 업로드 단계로
+                {t.submitAndUpload}
               </button>
             )}
           </CardActionBar>

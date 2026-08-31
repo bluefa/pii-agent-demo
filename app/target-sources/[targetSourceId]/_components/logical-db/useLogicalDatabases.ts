@@ -1,6 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { useLocale } from '@/app/components/LocaleProvider';
+import { CANDIDATE_COPY } from '@/app/target-sources/[targetSourceId]/_components/candidate/copy';
 import {
   getExcludedLogicalDatabases,
   getTestedLogicalDatabases,
@@ -32,6 +34,14 @@ export const useLogicalDatabases = (
   resourceId: string,
   scope: TcScope,
 ): LogicalDbDataHook => {
+  const { locale } = useLocale();
+  // A ref, not an effect dependency: making the fetch depend on the language would refetch
+  // the whole list every time the reader flips the toggle. The wording is only read when a
+  // request actually fails, so the ref is always the language in force at that moment.
+  const loadFailedRef = useRef(CANDIDATE_COPY[locale].logicalDb.loadFailed);
+  useEffect(() => {
+    loadFailedRef.current = CANDIDATE_COPY[locale].logicalDb.loadFailed;
+  }, [locale]);
   const [retryNonce, setRetryNonce] = useState(0);
   const [state, setState] = useState<LogicalDbDataState>({ status: 'loading' });
 
@@ -63,7 +73,7 @@ export const useLogicalDatabases = (
       // ⛔ The PUT is a FULL REPLACE. Saving over a policy we could not read would delete
       // exclusions nobody asked to delete, so this failure keeps the modal out of the table.
       if (excluded.status === 'rejected') {
-        setState({ status: 'error', message: '논리 DB 정보를 불러오지 못했습니다.' });
+        setState({ status: 'error', message: loadFailedRef.current });
         return;
       }
 

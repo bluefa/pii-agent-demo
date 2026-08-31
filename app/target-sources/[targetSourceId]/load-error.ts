@@ -1,4 +1,7 @@
 import { BffError } from '@/lib/bff/errors';
+import { COPY } from '@/lib/copy';
+import { TS_COPY } from '@/app/target-sources/[targetSourceId]/_components/copy';
+import { DEFAULT_LOCALE, type Locale } from '@/lib/locale';
 import { TARGET_SOURCE_LOAD_FALLBACK } from '@/app/target-sources/[targetSourceId]/_components/common/ErrorState';
 
 /**
@@ -39,12 +42,20 @@ export interface TargetSourceLoadFailure {
   unexpected: boolean;
 }
 
-export const classifyTargetSourceLoad = (error: unknown): TargetSourceLoadFailure => {
+/**
+ * `locale` is optional and defaults to Korean: this runs on the server, where there
+ * is no provider to read, and every caller that does not care about language — the
+ * tests among them — keeps the sentence it had.
+ */
+export const classifyTargetSourceLoad = (
+  error: unknown,
+  locale: Locale = DEFAULT_LOCALE,
+): TargetSourceLoadFailure => {
   if (error instanceof BffError) {
     if (error.status === 404) {
       return {
         kind: 'other',
-        message: '요청하신 연동 대상을 찾을 수 없어요. 삭제되었거나 주소가 잘못되었을 수 있어요.',
+        message: COPY[locale].common.targetSourceNotFound,
         unexpected: false,
       };
     }
@@ -53,5 +64,5 @@ export const classifyTargetSourceLoad = (error: unknown): TargetSourceLoadFailur
       return { kind: 'forbidden', message: '', unexpected: false };
     }
   }
-  return { kind: 'other', message: TARGET_SOURCE_LOAD_FALLBACK, unexpected: true };
+  return { kind: 'other', message: TS_COPY[locale].common.loadFallback, unexpected: true };
 };

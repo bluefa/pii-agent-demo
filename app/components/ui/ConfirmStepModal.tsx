@@ -4,6 +4,8 @@ import { useEffect, useRef, type ReactNode } from 'react';
 import { LoadingSpinner } from '@/app/components/ui/LoadingSpinner';
 import { ReloadIcon } from '@/app/components/ui/icons';
 import { cn, modalStyles, scanTransition, statusColors } from '@/lib/theme';
+import { useLocale } from '@/app/components/LocaleProvider';
+import { COPY } from '@/lib/copy';
 
 /**
  * What the request ended as. Set it and the dialog swaps its body for the result
@@ -136,7 +138,7 @@ export const ConfirmStepModal = ({
   title,
   description,
   confirmLabel,
-  cancelLabel = '머무르기',
+  cancelLabel,
   isPending = false,
   children,
   size = 'sm',
@@ -147,6 +149,8 @@ export const ConfirmStepModal = ({
   onRetry,
   explicitDismiss = false,
 }: ConfirmStepModalProps) => {
+  const { locale } = useLocale();
+  const t = COPY[locale].common;
   const cancelRef = useRef<HTMLButtonElement>(null);
   const confirmRef = useRef<HTMLButtonElement>(null);
   const retryRef = useRef<HTMLButtonElement>(null);
@@ -345,7 +349,7 @@ export const ConfirmStepModal = ({
                   onClick={onClose}
                   disabled={isPending}
                 >
-                  닫기
+                  {t.close}
                 </button>
                 {result.kind === 'error' && onRetry && (
                   <button
@@ -358,7 +362,7 @@ export const ConfirmStepModal = ({
                     {/* The retry stays on this frame while it runs — the spinner replaces the
                         reload mark rather than the frame, so nothing under it moves. */}
                     {isPending ? <LoadingSpinner size="sm" /> : <ReloadIcon className="h-[15px] w-[15px]" />}
-                    다시 요청하기
+                    {t.retryRequest}
                   </button>
                 )}
               </div>
@@ -393,7 +397,7 @@ export const ConfirmStepModal = ({
                 onClick={onClose}
                 disabled={isPending}
               >
-                {cancelLabel}
+                {cancelLabel ?? t.stay}
               </button>
               <button
                 ref={confirmRef}

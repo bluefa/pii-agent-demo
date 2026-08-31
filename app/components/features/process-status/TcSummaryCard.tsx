@@ -11,14 +11,11 @@ import {
   StatusWarningIcon,
 } from '@/app/components/ui/icons';
 import { Tooltip } from '@/app/components/ui/Tooltip';
-import { fmtDateTime, fmtRelativeTime } from '@/lib/pipeline/format';
+import { fmtDateTime } from '@/lib/pipeline/format';
 import { useNowTick } from '@/app/hooks/useNowTick';
-import {
-  tcElapsedLabel,
-  tcSummarySentence,
-  type TcBuckets,
-  type TcCardState,
-} from '@/lib/test-connection-summary';
+import type { TcBuckets, TcCardState } from '@/lib/test-connection-summary';
+import { useLocale } from '@/app/components/LocaleProvider';
+import { STATUS_COPY } from '@/app/components/features/process-status/status-copy';
 
 export interface TcSummaryRun {
   requestedAt: string | null;
@@ -189,10 +186,14 @@ export const TcSummaryCard = ({
   onRequestApproval,
   approvalDisabled,
 }: TcSummaryCardProps) => {
+  const { locale } = useLocale();
+  const t = STATUS_COPY[locale].tcCard;
+  // The row-level verdict words the table's status cell also uses — one family, one wording.
+  const v = STATUS_COPY[locale].verdict;
   const s = idcStyles.connProgress;
   const surface = SURFACE[state];
-  const sentence = tcSummarySentence(state, buckets);
-  const elapsed = tcElapsedLabel(run?.requestedAt, run?.completedAt);
+  const sentence = t.sentence(state, buckets);
+  const elapsed = t.elapsed(run?.requestedAt, run?.completedAt);
   const settled = state === 'success' || state === 'fail';
 
   // 시안 B — 아직 끝나지 않은 실행의 경과는 브라우저의 지금으로 잰다. 계약에 진행률도
@@ -201,28 +202,28 @@ export const TcSummaryCard = ({
   // 준 completed_at 을 그대로 쓰고 시계는 멈춘다.
   const inFlight = state === 'running' || state === 'queued';
   const now = useNowTick(inFlight && !!run?.requestedAt);
-  const runningElapsed = tcElapsedLabel(run?.requestedAt, now);
+  const runningElapsed = t.elapsed(run?.requestedAt, now);
 
   const metaParts: string[] = [];
   if (state === 'confirmed') {
-    if (run) metaParts.push('최근 수행 결과 기준');
+    if (run) metaParts.push(t.metaConfirmed);
   } else if (state === 'policy-changed') {
     // 계약이 짝지은 두 시각으로 "실행이 뒤처짐"을 구체화한다 — 변경이 실행보다 최신이다.
-    if (policyChangedAt) metaParts.push(`정책 변경 ${fmtDateTime(policyChangedAt)}`);
+    if (policyChangedAt) metaParts.push(t.metaPolicyChanged(fmtDateTime(policyChangedAt)));
     const lastRun = run?.completedAt ?? run?.requestedAt;
-    if (lastRun) metaParts.push(`마지막 실행 ${fmtDateTime(lastRun)}`);
+    if (lastRun) metaParts.push(t.metaLastRun(fmtDateTime(lastRun)));
   } else {
     // 실행 #N 은 카드에선 소음 — 회차는 실행 이력 모달이 가진다 (TcHeaderTag 와 같은 결정).
     if (settled && run?.completedAt) {
-      metaParts.push(`${fmtDateTime(run.completedAt)} 완료 (${fmtRelativeTime(run.completedAt)})`);
-      if (elapsed) metaParts.push(`소요 ${elapsed}`);
+      metaParts.push(t.metaCompleted(fmtDateTime(run.completedAt), t.relative(run.completedAt)));
+      if (elapsed) metaParts.push(t.metaElapsed(elapsed));
     } else if (inFlight && run?.requestedAt) {
-      metaParts.push(`${fmtDateTime(run.requestedAt)} 요청`);
+      metaParts.push(t.metaRequested(fmtDateTime(run.requestedAt)));
       // 폴 사이 4초 동안 카드에서 유일하게 스스로 변하는 값. 애니메이션이 "돌고 있다"를
       // 연출하는 것과 달리 이 수는 사실을 하나 더 말한다 — 얼마나 기다렸는지는 계속
       // 기다릴지 판단하는 유일한 근거고, 끝을 모르는 대기에서 사용자가 물어보는 것이
       // 그것뿐이다(NN/g, Designing for Long Waits).
-      if (runningElapsed) metaParts.push(`${runningElapsed} 경과`);
+      if (runningElapsed) metaParts.push(t.metaRunning(runningElapsed));
     }
   }
 
@@ -244,7 +245,7 @@ export const TcSummaryCard = ({
   // 그 국면의 다음 행동은 제목과 `다시 실행` 이 이미 들고 있다.
   const guidance =
     state === 'success' && !approvalDisabled
-      ? '관리자에게 승인을 요청하면 다음 단계로 넘어가요. 모니터링에서 제외할 논리 DB는 요청 전에 정리해 주세요.'
+      ? t.guidance
       : null;
 
   // 판정이 하나도 없는 국면: 미실행·시작 대기, 그리고 보고 0건으로 정착·확정된 실행.
@@ -262,11 +263,11 @@ export const TcSummaryCard = ({
     // 로 두면 점도 굵은 수도 없어 같은 자리에 다른 종족이 서고, 국면이 바뀔 때마다 줄이
     // 통째로 갈아끼워지는 것처럼 읽힌다. 중립 점은 `남음` 의 선례를 그대로 쓴다: 판정이
     // 아니라 "아직 답이 없다" 를 가리키는 자리이고, 여기선 그게 전부에 해당한다.
-    countParts.push({ label: '대상 리소스', value: buckets.total, tone: 'rest' });
+    countParts.push({ label: t.countTargets, value: buckets.total, tone: 'rest' });
   } else {
     countParts.push(
-      { label: '성공', value: buckets.ok, tone: 'ok', className: statusColors.success.textDark },
-      { label: '실패', value: buckets.fail, tone: 'fail', className: statusColors.error.textDark },
+      { label: v.success, value: buckets.ok, tone: 'ok', className: statusColors.success.textDark },
+      { label: v.fail, value: buckets.fail, tone: 'fail', className: statusColors.error.textDark },
     );
     if (state === 'running') {
       // 진행 중·대기·미보고는 이 국면의 독자에게 같은 한 사실이다 — 아직 답이 없다.
@@ -275,18 +276,18 @@ export const TcSummaryCard = ({
       // 그대로 남는다 — 카드가 순위를 매기지 않을 뿐이다. 정착한 실행에서는 접지 않는다:
       // 그때 미보고는 실제 이상신호다.
       const rest = buckets.running + buckets.waiting + buckets.unreported;
-      if (rest > 0) countParts.push({ label: '남음', value: rest, tone: 'rest' });
+      if (rest > 0) countParts.push({ label: t.countRest, value: rest, tone: 'rest' });
     } else {
       if (buckets.running > 0)
-        countParts.push({ label: '진행 중', value: buckets.running, tone: 'rest' });
+        countParts.push({ label: v.running, value: buckets.running, tone: 'rest' });
       if (buckets.waiting > 0)
-        countParts.push({ label: '대기', value: buckets.waiting, tone: 'rest' });
+        countParts.push({ label: v.pending, value: buckets.waiting, tone: 'rest' });
       if (buckets.unreported > 0)
-        countParts.push({ label: '미보고', value: buckets.unreported, tone: 'missing' });
+        countParts.push({ label: v.unreported, value: buckets.unreported, tone: 'missing' });
     }
     // 계약 밖 값은 어느 국면에서도 접지 않는다 — 보고는 됐는데 읽을 수 없다는 뜻이다.
     if (buckets.unknown > 0)
-      countParts.push({ label: '미확인', value: buckets.unknown, tone: 'missing' });
+      countParts.push({ label: v.unknown, value: buckets.unknown, tone: 'missing' });
   }
 
   const okPct = buckets.total > 0 ? (buckets.ok / buckets.total) * 100 : 0;
@@ -318,7 +319,7 @@ export const TcSummaryCard = ({
             {/* `다시 실행` 과 같은 버튼·같은 글리프·같은 핸들러다 — 첫 회차라고 해서 다른
                 언어를 쓸 이유가 없다. 앱의 나머지도 이 동작을 `실행` 하나로 부른다:
                 토스트 `연결 테스트 실행을 요청했습니다`, 상태 `연결 테스트 재실행`. */}
-            실행
+            {t.ctaRun}
           </RunCta>
         );
       case 'queued':
@@ -328,7 +329,7 @@ export const TcSummaryCard = ({
             disabled
             className={cn(idcStyles.triggerBtn.softSm, 'shrink-0 whitespace-nowrap')}
           >
-            시작 대기…
+            {t.ctaQueued}
           </button>
         );
       case 'running':
@@ -338,7 +339,7 @@ export const TcSummaryCard = ({
             disabled
             className={cn(idcStyles.triggerBtn.softSm, 'shrink-0 whitespace-nowrap')}
           >
-            진행 중…
+            {t.ctaRunning}
           </button>
         );
       case 'fail':
@@ -353,7 +354,7 @@ export const TcSummaryCard = ({
             onRun={onRunTest}
           >
             <RunGlyph />
-            다시 실행
+            {t.ctaRerun}
           </RunCta>
         );
       case 'success':
@@ -370,7 +371,7 @@ export const TcSummaryCard = ({
               blockedTip={runBlockedTip}
               onRun={onRunTest}
             >
-              다시 실행
+              {t.ctaRerun}
             </RunCta>
             <button
               type="button"
@@ -378,7 +379,7 @@ export const TcSummaryCard = ({
               disabled={approvalDisabled}
               className={cn(idcStyles.triggerBtn.primarySm, 'whitespace-nowrap')}
             >
-              승인 요청
+              {t.ctaApproval}
             </button>
           </span>
         );
@@ -490,7 +491,7 @@ export const TcSummaryCard = ({
           {/* 정책 변경만 수가 아니라 지시를 싣는다 — 셀 대상이 아니라 할 일이 답이라서다.
               나머지 국면은 판정이 있든 없든 전부 아래 세그먼트 문법 하나로 간다. */}
           {state === 'policy-changed' ? (
-            <>연결 테스트를 다시 수행해야 합니다</>
+            <>{t.policyChangedInstruction}</>
           ) : (
             /* 시안 C: 가운뎃점 대신 범례 점. 판정 둘은 트랙의 채움 색을 그대로 쓴다 — 바가
                서 있는 진행 중엔 이 줄이 그 범례를 겸하고, 바가 물러난 정착 뒤에도 같은 두

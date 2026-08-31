@@ -1,6 +1,8 @@
 'use client';
 
 import { statusColors, interactiveColors, cn } from '@/lib/theme';
+import { useLocale } from '@/app/components/LocaleProvider';
+import { COPY } from '@/lib/copy';
 import {
   StatusErrorIcon,
   StatusInfoIcon,
@@ -26,6 +28,7 @@ const VARIANT_ICON = {
 } as const;
 
 export const Toast = ({ id, variant, message, dismissible, onDismiss }: ToastProps) => {
+  const { locale } = useLocale();
   const colors = statusColors[variant];
   const Icon = VARIANT_ICON[variant];
 
@@ -45,7 +48,7 @@ export const Toast = ({ id, variant, message, dismissible, onDismiss }: ToastPro
         <button
           type="button"
           onClick={() => onDismiss(id)}
-          aria-label="닫기"
+          aria-label={COPY[locale].common.close}
           className={cn('p-1 -m-1 rounded transition-colors', interactiveColors.closeButton)}
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>

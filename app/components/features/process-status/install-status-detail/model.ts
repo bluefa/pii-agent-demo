@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import type { DatabaseType } from '@/lib/types';
+import { INSTALL_COPY } from '@/app/components/features/process-status/install-copy';
 
 /**
  * Provider-agnostic Step-4 install-status detail model. Every cloud provider's
@@ -37,14 +38,16 @@ export const normalizeInstallStepValue = (
     ? (status as InstallStepValue)
     : 'UNKNOWN';
 
-export const INSTALL_STATUS_LABEL: Record<InstallStepValue, string> = {
-  COMPLETED: '완료',
-  IN_PROGRESS: '진행중',
-  FAIL: '실패',
-  SKIP: '해당 없음',
-  BDC_INSTALL_REQUIRED: 'BDC 설치 대기',
-  UNKNOWN: '확인 중',
-};
+/**
+ * Korean status words, for callers that have no locale in hand.
+ *
+ * The words themselves live in `INSTALL_COPY[locale].stepValue`, which is keyed
+ * by exactly this union — a component holding `t` reads `t.stepValue` and gets
+ * the same record in the reader's language. This alias stays so that callers
+ * outside the install screen keep compiling; it is not a second source.
+ */
+export const INSTALL_STATUS_LABEL: Record<InstallStepValue, string> =
+  INSTALL_COPY.ko.stepValue;
 
 /** COMPLETED/SKIP count as settled (done) in aggregates and completion checks. */
 export const isSettledInstallStatus = (status: InstallStepValue): boolean =>

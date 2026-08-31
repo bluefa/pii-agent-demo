@@ -15,6 +15,8 @@ import { borderColors, cardStyles, cn, idcStyles, stackGap, statusColors, textSt
 import type { AwsInstallationStatus } from '@/lib/types';
 import { InstallCardHeader } from '@/app/components/features/process-status/install-status-detail/InstallCardHeader';
 import { LastCheckStamp } from '@/app/components/features/process-status/install-status-detail/LastCheckStamp';
+import { useLocale } from '@/app/components/LocaleProvider';
+import { INSTALL_COPY } from '@/app/components/features/process-status/install-copy';
 
 interface AwsInstallationInlineProps {
   targetSourceId: number;
@@ -38,6 +40,8 @@ export const AwsInstallationInline = ({
   awsTerraformExecutionRoleArn,
   onInstallComplete,
 }: AwsInstallationInlineProps) => {
+  const { locale } = useLocale();
+  const t = INSTALL_COPY[locale].inline;
   const isManualInstall = terraformExecutionGranted !== true;
   const completionNotifiedRef = useRef(false);
   const { state: confirmedState, retry: retryConfirmed } = useConfirmedIntegration();
@@ -81,7 +85,7 @@ export const AwsInstallationInline = ({
             제공하되(오너 요구) 단계 위에 얹지 않는다. */}
         {status?.lastCheck.status === 'FAILED' && status.lastCheck.failReason && (
           <div className={cn('px-4 py-2 rounded-lg border', textStyles.body, statusColors.error.bg, statusColors.error.border, statusColors.error.textDark)}>
-            상태 확인 실패: {status.lastCheck.failReason}
+            {t.statusCheckFailed(status.lastCheck.failReason)}
           </div>
         )}
         {/* 설치 상태 스켈레톤이 떠 있는 동안에는 안 그린다 — 프레임 위에 또 프레임을
@@ -90,7 +94,7 @@ export const AwsInstallationInline = ({
         {confirmedState.status === 'loading' && !loading && (
           <div
             aria-busy="true"
-            aria-label="리소스 정보 불러오는 중"
+            aria-label={t.confirmedLoading}
             className={cn('px-4 py-2 rounded-lg border', borderColors.default)}
           >
             <div className={cn(idcStyles.skeletonBar, 'h-4 w-48 rounded')} />
@@ -106,13 +110,13 @@ export const AwsInstallationInline = ({
               statusColors.error.textDark,
             )}
           >
-            <span>리소스 정보 불러오기 실패: {confirmedState.message}</span>
+            <span>{t.confirmedError(confirmedState.message)}</span>
             <button
               type="button"
               onClick={retryConfirmed}
               className={cn(textStyles.captionStrong, 'underline', statusColors.error.textDark)}
             >
-              재시도
+              {t.confirmedRetry}
             </button>
           </div>
         )}

@@ -10,8 +10,12 @@ import {
 } from '@/app/lib/api/sdu';
 import { useAbortableEffect } from '@/app/hooks/useAbortableEffect';
 import { ErrorState } from '@/app/components/ui/state';
+import { useLocale } from '@/app/components/LocaleProvider';
 import { SduStep1Define } from '@/app/target-sources/[targetSourceId]/_components/sdu/steps/SduStep1Define';
-import { SDU_STEP_TITLES } from '@/app/target-sources/[targetSourceId]/_components/sdu/sdu-steps';
+import {
+  SDU_COPY,
+  type SduUploadCopy,
+} from '@/app/target-sources/[targetSourceId]/_components/sdu/copy';
 import type { SduStepProps } from '@/app/target-sources/[targetSourceId]/_components/sdu/types';
 import { BdcResourceBlock } from '@/app/target-sources/[targetSourceId]/_components/sdu/upload/BdcResourceBlock';
 import { FirewallBlock } from '@/app/target-sources/[targetSourceId]/_components/sdu/upload/FirewallBlock';
@@ -24,12 +28,12 @@ import { RecipientsBlock } from '@/app/target-sources/[targetSourceId]/_componen
 import { UploadCommandsBlock } from '@/app/target-sources/[targetSourceId]/_components/sdu/upload/UploadCommandsBlock';
 import {
   SDU_GATE_IDS,
-  SDU_GATE_TITLE,
   currentGate,
   doneCount,
   gateDoneStates,
   recipientsSummary,
   regionAckSummary,
+  sduGateTitles,
   type SduGateId,
 } from '@/app/target-sources/[targetSourceId]/_components/sdu/upload/model';
 import type { SduBdcStatus, SduDefinition, SduUpload } from '@/lib/types/sdu';
@@ -71,13 +75,16 @@ const GateSkeleton = () => (
  * block, kept or cleared as a whole (see the invalidation table).
  */
 /** 접힌 4번 줄. 세 상태가 세 문장이다 — 「진행 중」 알약 옆에서 완료를 말하면 줄이 자기와 싸운다. */
-const BDC_SUMMARY: Record<SduBdcStatus, string> = {
-  NOT_STARTED: '앞의 확인이 끝나면 시작돼요',
-  IN_PROGRESS: '리소스를 만들고 있어요',
-  COMPLETED: '리소스 생성을 마쳤어요',
-};
+const bdcSummaries = (t: SduUploadCopy): Record<SduBdcStatus, string> => ({
+  NOT_STARTED: t.bdcNotStarted,
+  IN_PROGRESS: t.bdcInProgress,
+  COMPLETED: t.bdcCompleted,
+});
 
 export function SduStep4Upload({ project, onProjectUpdate }: SduStepProps) {
+  const { locale } = useLocale();
+  const t = SDU_COPY[locale].upload;
+  const gateTitle = sduGateTitles(t);
   const { targetSourceId } = project;
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
   const [failed, setFailed] = useState(false);
@@ -143,13 +150,13 @@ export function SduStep4Upload({ project, onProjectUpdate }: SduStepProps) {
       try {
         await run();
       } catch {
-        setWriteError('변경 사항을 저장하지 못했어요.');
+        setWriteError(t.writeError);
         throw new Error('sdu upload write failed');
       }
       setReopened(null);
       await reload();
     },
-    [reload],
+    [reload, t],
   );
 
   if (editing) {
@@ -193,13 +200,13 @@ export function SduStep4Upload({ project, onProjectUpdate }: SduStepProps) {
       <header className={cardStyles.header}>
         <div className="flex items-start justify-between gap-4">
           <div className="flex items-center gap-2">
-            <span className={cardStyles.stepTag}>2단계</span>
-            <h2 className={cardStyles.cardTitle}>{SDU_STEP_TITLES[2]}</h2>
+            <span className={cardStyles.stepTag}>{t.stepTag}</span>
+            <h2 className={cardStyles.cardTitle}>{t.cardTitle}</h2>
           </div>
           <div className="flex flex-shrink-0 items-center gap-3">
             {done && (
               <span className={cn(textStyles.bodyStrong, textColors.secondary)}>
-                4개 중 {doneCount(done)}개 완료
+                {t.doneCount(doneCount(done))}
               </span>
             )}
             {/* 되돌아가기는 가능해야 하지만 권하는 행동은 아니다 — 이 카드의 채운 버튼은
@@ -209,19 +216,16 @@ export function SduStep4Upload({ project, onProjectUpdate }: SduStepProps) {
               onClick={() => setEditing(true)}
               className={getButtonClass('ghost', 'sm')}
             >
-              연동 대상 수정
+              {t.editTargets}
             </button>
           </div>
         </div>
-        <p className={cn('mt-3', cardStyles.guidance)}>
-          네 가지 확인을 순서대로 마치면 BDC측 리소스 생성이 시작돼요. 이미 마친 항목도 언제든 다시
-          하실 수 있어요.
-        </p>
+        <p className={cn('mt-3', cardStyles.guidance)}>{t.guidance}</p>
       </header>
 
       <div className={cardStyles.body}>
         {failed && !snapshot && (
-          <ErrorState message="데이터 업로드 정보를 불러오지 못했어요." onRetry={() => void reload()} />
+          <ErrorState message={t.loadError} onRetry={() => void reload()} />
         )}
         {!failed && !snapshot && <GateSkeleton />}
 
@@ -237,9 +241,9 @@ export function SduStep4Upload({ project, onProjectUpdate }: SduStepProps) {
                 읽기에 실패한 화면과 성공한 화면이 똑같이 보인다. 낡은 값을 낡았다고 말한다. */}
             {failed && (
               <p role="alert" className={cn('mb-4', textStyles.body, statusColors.error.textDark)}>
-                최신 상태를 불러오지 못했어요. 아래는 마지막으로 확인한 내용이에요.{' '}
+                {t.staleNotice}{' '}
                 <button type="button" onClick={() => void reload()} className="underline">
-                  다시 시도
+                  {t.retry}
                 </button>
               </p>
             )}
@@ -247,11 +251,12 @@ export function SduStep4Upload({ project, onProjectUpdate }: SduStepProps) {
             <div className="flex flex-col gap-3">
               <GateBlock
                 index={1}
-                title={SDU_GATE_TITLE.firewall}
+                title={gateTitle.firewall}
                 state={stateOf('firewall')}
                 open={openId === 'firewall'}
                 onToggle={done.firewall ? toggle('firewall') : undefined}
                 summary={regionAckSummary(
+                  t,
                   snapshot.upload.regions,
                   snapshot.upload.firewall.acked,
                 )}
@@ -268,16 +273,16 @@ export function SduStep4Upload({ project, onProjectUpdate }: SduStepProps) {
 
               <GateBlock
                 index={2}
-                title={SDU_GATE_TITLE.recipients}
+                title={gateTitle.recipients}
                 state={stateOf('recipients')}
                 open={openId === 'recipients'}
                 onToggle={done.recipients ? toggle('recipients') : undefined}
-                summary={recipientsSummary(snapshot.upload.accessKeyRecipients.users)}
+                summary={recipientsSummary(t, snapshot.upload.accessKeyRecipients.users)}
                 // 끝나지 않은 줄은 펴지지 않는다(`openId` 가 `done` 을 요구한다) — 그런 줄에
                 // 버튼을 달면 눌러도 아무 픽셀도 안 바뀐다. 여는 조건과 같은 조건을 쓴다.
                 action={
                   done.recipients
-                    ? secondaryAction('수신자 수정', () => setReopened('recipients'))
+                    ? secondaryAction(t.editRecipients, () => setReopened('recipients'))
                     : undefined
                 }
               >
@@ -290,17 +295,18 @@ export function SduStep4Upload({ project, onProjectUpdate }: SduStepProps) {
 
               <GateBlock
                 index={3}
-                title={SDU_GATE_TITLE.commands}
+                title={gateTitle.commands}
                 state={stateOf('commands')}
                 open={openId === 'commands'}
                 onToggle={done.commands ? toggle('commands') : undefined}
                 summary={regionAckSummary(
+                  t,
                   snapshot.upload.regions,
                   snapshot.upload.commands.acked,
                 )}
                 action={
                   done.commands
-                    ? secondaryAction('명령 다시 보기', () => setReopened('commands'))
+                    ? secondaryAction(t.showCommands, () => setReopened('commands'))
                     : undefined
                 }
               >
@@ -312,10 +318,10 @@ export function SduStep4Upload({ project, onProjectUpdate }: SduStepProps) {
 
               <GateBlock
                 index={4}
-                title={SDU_GATE_TITLE.bdc}
+                title={gateTitle.bdc}
                 state={stateOf('bdc')}
                 open={openId === 'bdc'}
-                summary={BDC_SUMMARY[snapshot.upload.bdc.status]}
+                summary={bdcSummaries(t)[snapshot.upload.bdc.status]}
               >
                 <BdcResourceBlock
                   targetSourceId={targetSourceId}

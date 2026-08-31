@@ -5,6 +5,8 @@ import { Button } from '@/app/components/ui/Button';
 import { Modal } from '@/app/components/ui/Modal';
 import { Pagination } from '@/app/components/ui/Pagination';
 import { ArrowUpRightIcon } from '@/app/components/ui/icons';
+import { useLocale } from '@/app/components/LocaleProvider';
+import { SCAN_COPY } from '@/app/components/features/scan/copy';
 import { ScanDetail } from '@/app/components/features/scan/ScanDetail';
 import {
   scanDurationText,
@@ -62,6 +64,8 @@ interface ScanHistoryModalProps {
  * modal keeps one owner for ESC and backdrop clicks.
  */
 export const ScanHistoryModal = ({ targetSourceId, provider, onClose }: ScanHistoryModalProps) => {
+  const { locale } = useLocale();
+  const t = SCAN_COPY[locale];
   const [state, setState] = useState<AsyncState<HistoryPage>>({ status: 'loading' });
   const [page, setPage] = useState(0);
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
@@ -86,12 +90,12 @@ export const ScanHistoryModal = ({ targetSourceId, provider, onClose }: ScanHist
         }
       })
       .catch(() => {
-        if (!cancelled) setState({ status: 'error', message: '스캔 이력을 불러오지 못했어요.' });
+        if (!cancelled) setState({ status: 'error', message: t.historyLoadFailed });
       });
     return () => {
       cancelled = true;
     };
-  }, [targetSourceId, page, pageSize, retryNonce]);
+  }, [targetSourceId, page, pageSize, retryNonce, t]);
 
   // Derived, not synced: the rows on screen are stale while they answer for a
   // different page than the pager now shows. They dim instead of unmounting —
@@ -114,13 +118,13 @@ export const ScanHistoryModal = ({ targetSourceId, provider, onClose }: ScanHist
       onClose={onClose}
       chrome="toss"
       size="xl"
-      title={detail ? `스캔 결과 #${detail.scan_version ?? '-'}` : '스캔 이력'}
-      subtitle={detail ? undefined : '최근 실행된 인프라 스캔 기록이에요.'}
+      title={detail ? t.historyDetailTitle(String(detail.scan_version ?? '-')) : t.scanHistory}
+      subtitle={detail ? undefined : t.historySubtitle}
       footer={
         detail ? (
-          <Button variant="secondary" onClick={backToList}>목록으로</Button>
+          <Button variant="secondary" onClick={backToList}>{t.backToList}</Button>
         ) : (
-          <Button variant="secondary" onClick={onClose}>닫기</Button>
+          <Button variant="secondary" onClick={onClose}>{t.close}</Button>
         )
       }
     >
@@ -140,7 +144,7 @@ export const ScanHistoryModal = ({ targetSourceId, provider, onClose }: ScanHist
             <div className="py-6 text-center">
               <p className={cn('text-sm', textColors.tertiary)}>{state.message}</p>
               <Button variant="secondary" onClick={retry} className="mt-4 text-sm">
-                다시 시도
+                {t.tryAgain}
               </Button>
             </div>
           )}
@@ -150,7 +154,7 @@ export const ScanHistoryModal = ({ targetSourceId, provider, onClose }: ScanHist
               reading past the total is not a state to render. */}
           {state.status === 'ready' && state.data.jobs.length === 0 && (
             <p className={cn('py-8 text-center text-sm', textColors.tertiary)}>
-              {state.data.total === 0 ? '아직 실행된 스캔이 없어요.' : '이 페이지에는 기록이 없어요.'}
+              {state.data.total === 0 ? t.historyEmpty : t.historyPageEmpty}
             </p>
           )}
 
@@ -162,10 +166,10 @@ export const ScanHistoryModal = ({ targetSourceId, provider, onClose }: ScanHist
               <table className={cn('w-full border-b', borderColors.default)}>
                 <thead>
                   <tr className={cn('whitespace-nowrap border-b', borderColors.default)}>
-                    <th className={HEAD_CELL}>실행 시각</th>
-                    <th className={HEAD_CELL}>상태</th>
-                    <th className={HEAD_CELL}>소요</th>
-                    <th className={HEAD_CELL}>결과</th>
+                    <th className={HEAD_CELL}>{t.fieldRunTime}</th>
+                    <th className={HEAD_CELL}>{t.columnStatus}</th>
+                    <th className={HEAD_CELL}>{t.columnDuration}</th>
+                    <th className={HEAD_CELL}>{t.columnResult}</th>
                     {/* Arrow column: no header — the row itself is the control. */}
                     <th className={cn(HEAD_CELL, 'w-6')} aria-hidden="true" />
                   </tr>
@@ -173,7 +177,7 @@ export const ScanHistoryModal = ({ targetSourceId, provider, onClose }: ScanHist
                 <tbody className={idcStyles.table.body}>
                   {state.data.jobs.map((job, index) => {
                     const rowKey = String(job.id ?? index);
-                    const scannedAt = job.created_at ? formatDateTimeLocal(job.created_at) : '';
+                    const scannedAt = job.created_at ? formatDateTimeLocal(job.created_at, locale) : '';
                     return (
                       // Row-as-button (role + Enter/Space), the DashRow pattern the
                       // admin history table already uses.
@@ -187,7 +191,7 @@ export const ScanHistoryModal = ({ targetSourceId, provider, onClose }: ScanHist
                         }}
                         role="button"
                         tabIndex={0}
-                        aria-label={scannedAt ? `${scannedAt} 스캔 상세 보기` : '스캔 상세 보기'}
+                        aria-label={scannedAt ? t.rowLabelAt(scannedAt) : t.rowLabel}
                         onClick={() => {
                           pendingFocusKey.current = rowKey;
                           setDetail(job);
@@ -208,14 +212,14 @@ export const ScanHistoryModal = ({ targetSourceId, provider, onClose }: ScanHist
                         </td>
                         <td className={BODY_CELL}>
                           <span className={cn(idcStyles.tag.base, scanStatusTagClass(job.scan_status))}>
-                            {scanStatusLabel(job)}
+                            {scanStatusLabel(job, t)}
                           </span>
                         </td>
                         <td className={cn(BODY_CELL, 'whitespace-nowrap font-mono text-[12px]', textColors.secondary)}>
-                          {scanDurationText(job)}
+                          {scanDurationText(job, t)}
                         </td>
                         <td className={cn(BODY_CELL, 'text-[13px]', textColors.secondary)}>
-                          {scanResultText(job)}
+                          {scanResultText(job, t)}
                         </td>
                         <td className={cn(BODY_CELL, 'w-6 text-right')}>
                           {/* Hover/focus affordance: this row leads somewhere. */}

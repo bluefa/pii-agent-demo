@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useLocale } from '@/app/components/LocaleProvider';
 import { getConfirmResources } from '@/app/lib/api';
 import { catalogToCandidates } from '@/lib/resource-catalog';
 import { AppError } from '@/lib/errors';
@@ -7,6 +8,7 @@ import { IDC_EXCL_PRESETS } from '@/lib/constants/idc';
 import type { CandidateResource } from '@/lib/types/resources';
 import type { AsyncState } from '@/app/target-sources/[targetSourceId]/_components/shared/async-state';
 import { getCandidateErrorMessage } from '@/app/target-sources/[targetSourceId]/_components/candidate/errors';
+import { CANDIDATE_COPY } from '@/app/target-sources/[targetSourceId]/_components/candidate/copy';
 import {
   fetchResourcesWithRetry,
   isTransientError,
@@ -32,6 +34,14 @@ const RESOURCE_RETRY_DELAY_MS = 800;
  * exclusion state seeded from the response's `selected` / `exclusion_reason`.
  */
 export const useCandidateResources = (targetSourceId: number) => {
+  const { locale } = useLocale();
+  // A ref, not an effect dependency: fetching again because the reader flipped the language
+  // toggle would be a second round-trip for the same list. The wording is only read when a
+  // request actually fails, so the ref holds the language in force at that moment.
+  const loadFailedRef = useRef(CANDIDATE_COPY[locale].candidate.loadFailed);
+  useEffect(() => {
+    loadFailedRef.current = CANDIDATE_COPY[locale].candidate.loadFailed;
+  }, [locale]);
   const [state, setState] = useState<AsyncState<CandidateResource[]>>({ status: 'loading' });
   const [retryNonce, setRetryNonce] = useState(0);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
@@ -104,7 +114,7 @@ export const useCandidateResources = (targetSourceId: number) => {
       .catch((error: unknown) => {
         if (error instanceof AppError && error.code === 'ABORTED') return;
         if (controller.signal.aborted) return;
-        setState({ status: 'error', message: getCandidateErrorMessage(error) });
+        setState({ status: 'error', message: getCandidateErrorMessage(error, loadFailedRef.current) });
       });
 
     return () => controller.abort();

@@ -18,7 +18,9 @@ import {
   isSduCandidate,
 } from '@/app/components/features/project-create/candidate-display';
 import type { AwsInstallMode } from '@/app/components/features/project-create/wizard-model';
+import { useLocale } from '@/app/components/LocaleProvider';
 import type { ProviderChipKey } from '@/lib/constants/provider-mapping';
+import { COPY } from '@/lib/copy';
 import type { TargetSourceCreationCandidateResponse } from '@/app/lib/api';
 import type { CloudProvider } from '@/lib/types';
 import {
@@ -31,14 +33,11 @@ import {
   textColors,
 } from '@/lib/theme';
 
-const SDU_EXPLAINER =
-  'Self Data Upload — PII Agent를 설치하는 대신, 데이터를 직접 업로드해 모니터링하는 방식이에요.';
-
-const SduBadge = () => (
+const SduBadge = ({ explainer }: { explainer: string }) => (
   <>
     {/* `value`: the white popover. The dark one is the app's state-explainer box and
         over a white card it reads as UI from another system. */}
-    <Tooltip content={SDU_EXPLAINER} variant="value">
+    <Tooltip content={explainer} variant="value">
       <button
         type="button"
         aria-describedby="sdu-badge-explainer"
@@ -54,7 +53,7 @@ const SduBadge = () => (
     {/* The visual tip is portaled, so it carries no id a trigger can point at. This
         copy of the sentence is what a screen reader announces. */}
     <span id="sdu-badge-explainer" className="sr-only">
-      {SDU_EXPLAINER}
+      {explainer}
     </span>
   </>
 );
@@ -75,17 +74,19 @@ const CANDIDATE_CLOUD_PROVIDER: Record<ProviderChipKey, CloudProvider | null> = 
 const CandidateLogo = ({
   providerKey,
   isSdu,
+  otherLabel,
   className,
 }: {
   providerKey: ProviderChipKey;
   isSdu: boolean;
+  otherLabel: string;
   className?: string;
 }) => {
   const provider = CANDIDATE_CLOUD_PROVIDER[providerKey];
   if (provider === null) {
     return (
       <span
-        aria-label={isSdu ? 'SDU' : '기타'}
+        aria-label={isSdu ? 'SDU' : otherLabel}
         className={cn(
           'inline-flex h-16 w-16 items-center justify-center rounded-lg',
           textColors.secondary,
@@ -113,10 +114,12 @@ interface CandidateCardProps {
 
 /** The step-4/step-5 candidate row, at the /services list's card anatomy. */
 export const CandidateCard = ({ candidate, installMode, trailing }: CandidateCardProps) => {
+  const { locale } = useLocale();
+  const t = COPY[locale].wizard;
   const providerKey = candidateProviderKey(candidate.cloud_type);
   const isSdu = isSduCandidate(candidate);
   const isDuplicate = candidate.status !== 'ADD';
-  const identity = candidateIdentity(candidate);
+  const identity = candidateIdentity(t, candidate);
   const description = candidateDescriptionLine(candidate);
 
   // Same three rules the /services row follows: 설치 모드 and 중국 리전 are both
@@ -145,6 +148,7 @@ export const CandidateCard = ({ candidate, installMode, trailing }: CandidateCar
       <CandidateLogo
         providerKey={providerKey}
         isSdu={isSdu}
+        otherLabel={t.other}
         className={cn('flex-none self-center', isDuplicate && 'opacity-60')}
       />
 
@@ -176,10 +180,10 @@ export const CandidateCard = ({ candidate, installMode, trailing }: CandidateCar
                 'border',
               )}
             >
-              중국 리전
+              {t.chinaRegion}
             </span>
           )}
-          {isSdu && !isDuplicate && <SduBadge />}
+          {isSdu && !isDuplicate && <SduBadge explainer={t.sduGloss} />}
         </div>
 
         {hasSecondLayer && (
@@ -205,14 +209,14 @@ export const CandidateCard = ({ candidate, installMode, trailing }: CandidateCar
               </MetaPair>
             )}
             {showInstallMode && (
-              <MetaPair label="설치 모드">
+              <MetaPair label={t.installMode}>
                 <span
                   className={cn(
                     chipStyles.base,
                     isAutoInstall ? chipStyles.variant.auto : chipStyles.variant.manual,
                   )}
                 >
-                  {isAutoInstall ? '자동 설치' : '수동 설치'}
+                  {isAutoInstall ? t.autoInstall : t.manualInstall}
                 </span>
               </MetaPair>
             )}
@@ -221,7 +225,9 @@ export const CandidateCard = ({ candidate, installMode, trailing }: CandidateCar
 
         {description && (
           <div className="flex min-w-0 gap-1.5 pl-0.5">
-            <span className={cn('flex-none pt-0.5 text-[12px]', rowLabelColor)}>설명</span>
+            <span className={cn('flex-none pt-0.5 text-[12px]', rowLabelColor)}>
+              {t.description}
+            </span>
             <span className={cn('truncate text-[14px]', textColors.secondary)}>{description}</span>
           </div>
         )}
@@ -235,11 +241,7 @@ export const CandidateCard = ({ candidate, installMode, trailing }: CandidateCar
             textColors.secondary,
           )}
         >
-          {isDuplicate
-            ? '이미 등록된 계정이라 제외돼요.'
-            : isSdu
-              ? 'PII Agent 설치 방식을 지원하지 않는 Region·Cloud·Database가 포함되어 있어 Self Data Upload 방식을 추천했어요.'
-              : '선택하신 계정에 PII Agent를 설치해 모니터링해요.'}
+          {isDuplicate ? t.alreadyRegistered : isSdu ? t.sduRecommended : t.agentInstall}
         </div>
       </div>
 

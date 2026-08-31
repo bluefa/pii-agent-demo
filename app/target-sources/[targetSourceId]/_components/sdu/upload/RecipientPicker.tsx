@@ -3,6 +3,8 @@
 import { useState } from 'react';
 import { getPermissions } from '@/app/lib/api';
 import { useAbortableEffect } from '@/app/hooks/useAbortableEffect';
+import { useLocale } from '@/app/components/LocaleProvider';
+import { SDU_COPY } from '@/app/target-sources/[targetSourceId]/_components/sdu/copy';
 import {
   borderColors,
   cn,
@@ -43,6 +45,8 @@ export interface RecipientPickerProps {
  * no business holding this service's key.
  */
 export const RecipientPicker = ({ serviceCode, chosen, onAdd }: RecipientPickerProps) => {
+  const { locale } = useLocale();
+  const t = SDU_COPY[locale].upload;
   const [owners, setOwners] = useState<SduRecipient[] | null>(null);
   const [failed, setFailed] = useState(false);
 
@@ -71,20 +75,20 @@ export const RecipientPicker = ({ serviceCode, chosen, onAdd }: RecipientPickerP
 
   return (
     <div className={cn('flex flex-col', stackGap.related)}>
-      <span className={cn(textStyles.captionStrong, textColors.secondary)}>서비스 담당자</span>
+      <span className={cn(textStyles.captionStrong, textColors.secondary)}>{t.ownersLabel}</span>
 
       <div className={cn('overflow-hidden rounded-lg border', borderColors.default)}>
         {failed ? (
           <p className={cn('px-4 py-3', textStyles.body, textColors.secondary)}>
-            담당자를 불러오지 못했어요. 잠시 후 다시 시도해주세요.
+            {t.ownersFailed}
           </p>
         ) : owners === null ? (
           <p aria-busy="true" className={cn('px-4 py-3', textStyles.body, textColors.tertiary)}>
-            불러오는 중이에요
+            {t.ownersLoading}
           </p>
         ) : offered.length === 0 ? (
           <p className={cn('px-4 py-3', textStyles.body, textColors.tertiary)}>
-            {owners.length === 0 ? '등록된 담당자가 없어요' : '담당자를 모두 등록했어요'}
+            {owners.length === 0 ? t.ownersEmpty : t.ownersAllAdded}
           </p>
         ) : (
           <div className="max-h-[220px] overflow-y-auto">
@@ -109,7 +113,7 @@ export const RecipientPicker = ({ serviceCode, chosen, onAdd }: RecipientPickerP
                     primaryColors.bgLightActive,
                   )}
                 >
-                  추가
+                  {t.addOwner}
                 </button>
               </div>
             ))}
@@ -117,9 +121,7 @@ export const RecipientPicker = ({ serviceCode, chosen, onAdd }: RecipientPickerP
         )}
       </div>
 
-      <p className={cn(textStyles.caption, textColors.tertiary)}>
-        이 서비스의 담당자만 S3 Access Key를 받을 수 있어요. 담당자 추가는 접근 권한 화면에서 해주세요.
-      </p>
+      <p className={cn(textStyles.caption, textColors.tertiary)}>{t.ownersNote}</p>
     </div>
   );
 };

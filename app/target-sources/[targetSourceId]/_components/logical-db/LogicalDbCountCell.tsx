@@ -1,5 +1,7 @@
 'use client';
 
+import { useLocale } from '@/app/components/LocaleProvider';
+import { CANDIDATE_COPY } from '@/app/target-sources/[targetSourceId]/_components/candidate/copy';
 import { cn, idcStyles, numericFeatures, textColors } from '@/lib/theme';
 
 /**
@@ -30,6 +32,9 @@ export const LogicalDbCountCell = ({
   label: string;
   onOpen?: () => void;
 }) => {
+  const { locale } = useLocale();
+  const t = CANDIDATE_COPY[locale].logicalDb;
+
   if (count == null) return <span className={textColors.tertiary}>—</span>;
   if (count === 0 || !onOpen) {
     // tertiary, not the quaternary used for the — placeholder: a reported count is content, and
@@ -42,7 +47,7 @@ export const LogicalDbCountCell = ({
     return (
       <span className={cn('text-[14px] font-medium', numericFeatures.tabular, textColors.tertiary)}>
         {count}
-        <span className="ml-px">개</span>
+        {t.countUnit ? <span className="ml-px">{t.countUnit}</span> : null}
       </span>
     );
   }
@@ -54,7 +59,7 @@ export const LogicalDbCountCell = ({
       className={cn(idcStyles.triggerBtn.linkNeutralMd, numericFeatures.tabular)}
     >
       {count}
-      <span className="font-medium">개</span>
+      {t.countUnit ? <span className="font-medium">{t.countUnit}</span> : null}
     </button>
   );
 };

@@ -6,6 +6,8 @@ import {
   INSTALL_POLL_INTERVAL_MS,
   useInstallationStatus,
 } from '@/app/hooks/useInstallationStatus';
+import { useLocale } from '@/app/components/LocaleProvider';
+import { SDU_COPY } from '@/app/target-sources/[targetSourceId]/_components/sdu/copy';
 import { cn, stackGap, textColors, textStyles } from '@/lib/theme';
 import type { CloudTargetSource } from '@/lib/types';
 import type { SduBdc, SduUpload } from '@/lib/types/sdu';
@@ -32,6 +34,8 @@ const isBdcComplete = (upload: SduUpload): boolean => upload.bdc.status === 'COM
  * poll means the button would mostly do nothing visible.
  */
 export const BdcResourceBlock = ({ targetSourceId, bdc, onProjectUpdate }: BdcResourceBlockProps) => {
+  const { locale } = useLocale();
+  const t = SDU_COPY[locale].upload;
   const { status } = useInstallationStatus<SduUpload>({
     targetSourceId,
     getFn: getSduUpload,
@@ -51,18 +55,14 @@ export const BdcResourceBlock = ({ targetSourceId, bdc, onProjectUpdate }: BdcRe
 
   if (live.status === 'NOT_STARTED') {
     return (
-      <p className={cn(textStyles.body, textColors.tertiary)}>앞의 확인이 끝나면 시작돼요.</p>
+      <p className={cn(textStyles.body, textColors.tertiary)}>{t.bdcWaiting}</p>
     );
   }
 
   return (
     <div className={cn('flex flex-col items-center py-8 text-center', stackGap.related)}>
-      <h4 className={cn(textStyles.sectionTitle, textColors.primary)}>
-        BDC측에서 설치를 위해 리소스를 생성하고 있습니다
-      </h4>
-      <p className={cn(textStyles.body, textColors.secondary)}>
-        담당자가 하실 일은 없어요. 생성이 끝나면 다음 단계로 넘어가요.
-      </p>
+      <h4 className={cn(textStyles.sectionTitle, textColors.primary)}>{t.bdcHeroTitle}</h4>
+      <p className={cn(textStyles.body, textColors.secondary)}>{t.bdcHeroBody}</p>
     </div>
   );
 };

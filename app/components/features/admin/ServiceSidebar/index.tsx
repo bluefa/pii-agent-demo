@@ -15,6 +15,8 @@ import {
   cn,
   getInputClass,
 } from '@/lib/theme';
+import { useLocale } from '@/app/components/LocaleProvider';
+import { COPY } from '@/lib/copy';
 
 interface ServicePageInfo {
   totalElements: number;
@@ -93,15 +95,19 @@ interface ServiceSidebarProps {
  * "권한 요청", not "권한 신청": the screen it opens is titled 내 권한 요청 and the
  * modal on it is 접근 권한 요청, so the action keeps one noun end to end.
  */
-const RequestAccessLink = () => (
-  <Link
-    href={passRoutes.accessRequests}
-    className={cn('inline-flex items-center gap-0.5', serviceSidebarStyles.emptyAction)}
-  >
-    권한 요청하기
-    <ChevronRightIcon className="h-3.5 w-3.5" />
-  </Link>
-);
+const RequestAccessLink = () => {
+  const { locale } = useLocale();
+
+  return (
+    <Link
+      href={passRoutes.accessRequests}
+      className={cn('inline-flex items-center gap-0.5', serviceSidebarStyles.emptyAction)}
+    >
+      {COPY[locale].services.requestAccess}
+      <ChevronRightIcon className="h-3.5 w-3.5" />
+    </Link>
+  );
+};
 
 export const ServiceSidebar = ({
   services,
@@ -114,6 +120,8 @@ export const ServiceSidebar = ({
   loading = false,
   showAccessHint = false,
 }: ServiceSidebarProps) => {
+  const { locale } = useLocale();
+  const t = COPY[locale].services;
   const { totalElements } = pageInfo;
 
   // Every service the page returned is listed, including the current one — it is
@@ -150,7 +158,7 @@ export const ServiceSidebar = ({
         serviceSidebarStyles.surface,
         borderColors.default,
       )}
-      aria-label="서비스 목록"
+      aria-label={t.railTitle}
     >
       {/* Title + total. The pill is the rail's only count — during a search it is
           the hit count, which is why it is no longer hidden then.
@@ -159,7 +167,7 @@ export const ServiceSidebar = ({
           the page's first line start on the same y. At pt-4 they sat 8px apart:
           near enough to read as a misalignment rather than as two zones. */}
       <div className="flex items-center gap-2 px-3 pt-6 pb-2.5">
-        <h2 className={serviceSidebarStyles.title}>서비스 목록</h2>
+        <h2 className={serviceSidebarStyles.title}>{t.railTitle}</h2>
         {!loading && totalElements > 0 && (
           <span className={serviceSidebarStyles.count}>{totalElements}</span>
         )}
@@ -180,8 +188,8 @@ export const ServiceSidebar = ({
             type="search"
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
-            placeholder="서비스 이름 또는 코드"
-            aria-label="서비스 검색"
+            placeholder={t.searchPlaceholder}
+            aria-label={t.searchLabel}
             className={cn(
               getInputClass(),
               // 32px control on a 6px radius: the shared input's 48px pill is form
@@ -196,7 +204,7 @@ export const ServiceSidebar = ({
             <button
               type="button"
               onClick={() => onSearchChange('')}
-              aria-label="검색어 지우기"
+              aria-label={t.clearSearch}
               className={cn(
                 'absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-full cursor-pointer transition-colors',
                 // tertiary, unlike the decorative magnifier: this glyph *is* the control,
@@ -223,7 +231,7 @@ export const ServiceSidebar = ({
             result is a different list, so that one still says so. */}
         {searchQuery && (loading || listed.length > 0) && (
           <div className={cn('px-3 pt-3 pb-1.5 shrink-0', serviceSidebarStyles.sectionLabel)}>
-            검색 결과
+            {t.searchResults}
           </div>
         )}
 
@@ -270,9 +278,7 @@ export const ServiceSidebar = ({
               {/* Rail-scoped tokens, not the page-wide `tertiary`/`primary` pair: both of
                   those are measured against white and read 3.88:1 / 3.95:1 on this rail. */}
               <p className={serviceSidebarStyles.emptyText}>
-                {searchQuery
-                  ? `‘${searchQuery}’와 일치하는 서비스가 없습니다`
-                  : '서비스가 없습니다'}
+                {searchQuery ? t.noSearchMatch(searchQuery) : t.noServices}
               </p>
               {searchQuery && (
                 <button
@@ -280,7 +286,7 @@ export const ServiceSidebar = ({
                   onClick={() => onSearchChange('')}
                   className={cn('mt-2', serviceSidebarStyles.emptyAction)}
                 >
-                  검색어 지우기
+                  {t.clearSearch}
                 </button>
               )}
             </li>
@@ -338,7 +344,7 @@ export const ServiceSidebar = ({
               )}
             >
               <p className={serviceSidebarStyles.hintText}>
-                담당 시스템/서비스가 조회되지 않나요?
+                {t.railAccessHint}
               </p>
               <RequestAccessLink />
             </div>

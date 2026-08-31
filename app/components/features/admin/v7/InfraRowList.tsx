@@ -14,6 +14,8 @@ import type { ProjectSummary } from '@/lib/types';
 import { Button } from '@/app/components/ui/Button';
 import { EmptyBoxIcon } from '@/app/components/ui/icons';
 import { InfraRow, type InfraRowAction } from '@/app/components/features/admin/v7/InfraRow';
+import { useLocale } from '@/app/components/LocaleProvider';
+import { COPY } from '@/lib/copy';
 
 interface InfraRowListProps {
   /** `null` until the request resolves — `[]` is the answer "there are none". */
@@ -43,43 +45,48 @@ const PAGE_SIZE = 5;
  * Deliberately blank: the count pill's number and the pager's arrows. Both state
  * facts that are not known yet, and a skeleton must not answer a question.
  */
-const InfraRowListSkeleton = () => (
-  // `role="status"` + a named region: `aria-busy` is a property, not a live region, and
-  // every bar below is aria-hidden — without this a screen reader hears nothing at all
-  // between picking a service and the rows arriving.
-  <div className="flex flex-1 min-h-0 flex-col" role="status" aria-busy="true" aria-label="연동 대상 계정 목록을 불러오는 중">
-    <div className="flex shrink-0 items-center gap-2 pl-1 pb-3">
-      <div className={cn(idcStyles.skeletonBar, 'h-5 w-[86px] rounded')} />
-      <div className={cn(idcStyles.skeletonBar, 'h-[22px] w-[44px] rounded-full')} />
-    </div>
+const InfraRowListSkeleton = () => {
+  const { locale } = useLocale();
+  const t = COPY[locale].services;
 
-    <div className="min-h-0 flex-1 overflow-y-auto -mx-1 flex flex-col gap-3.5 px-1 pb-1">
-      {Array.from({ length: PAGE_SIZE }).map((_, i) => (
-        <div
-          key={i}
-          aria-hidden="true"
-          className={cn(
-            'flex shrink-0 items-center gap-3.5 px-[21px] py-[19px] rounded-[12px] border',
-            bgColors.surface,
-            // The settled card's border, not `default` — they are ΔE00 4.20 apart, so the
-            // outline visibly changed tone when the data landed.
-            borderColors.card,
-          )}
-        >
-          <div className={cn(idcStyles.skeletonBar, 'h-16 w-16 shrink-0 rounded-[12px]')} />
-          <div className="flex-1 min-w-0 flex flex-col gap-1.5">
-            <div className={cn(idcStyles.skeletonBar, 'h-6 w-[300px] max-w-full rounded')} />
-            <div className={cn(idcStyles.skeletonBar, 'h-[21px] w-[240px] max-w-full rounded')} />
-            <div className={cn(idcStyles.skeletonBar, 'h-[21px] w-[440px] max-w-full rounded')} />
+  return (
+    // `role="status"` + a named region: `aria-busy` is a property, not a live region, and
+    // every bar below is aria-hidden — without this a screen reader hears nothing at all
+    // between picking a service and the rows arriving.
+    <div className="flex flex-1 min-h-0 flex-col" role="status" aria-busy="true" aria-label={t.rowsLoading}>
+      <div className="flex shrink-0 items-center gap-2 pl-1 pb-3">
+        <div className={cn(idcStyles.skeletonBar, 'h-5 w-[86px] rounded')} />
+        <div className={cn(idcStyles.skeletonBar, 'h-[22px] w-[44px] rounded-full')} />
+      </div>
+
+      <div className="min-h-0 flex-1 overflow-y-auto -mx-1 flex flex-col gap-3.5 px-1 pb-1">
+        {Array.from({ length: PAGE_SIZE }).map((_, i) => (
+          <div
+            key={i}
+            aria-hidden="true"
+            className={cn(
+              'flex shrink-0 items-center gap-3.5 px-[21px] py-[19px] rounded-[12px] border',
+              bgColors.surface,
+              // The settled card's border, not `default` — they are ΔE00 4.20 apart, so the
+              // outline visibly changed tone when the data landed.
+              borderColors.card,
+            )}
+          >
+            <div className={cn(idcStyles.skeletonBar, 'h-16 w-16 shrink-0 rounded-[12px]')} />
+            <div className="flex-1 min-w-0 flex flex-col gap-1.5">
+              <div className={cn(idcStyles.skeletonBar, 'h-6 w-[300px] max-w-full rounded')} />
+              <div className={cn(idcStyles.skeletonBar, 'h-[21px] w-[240px] max-w-full rounded')} />
+              <div className={cn(idcStyles.skeletonBar, 'h-[21px] w-[440px] max-w-full rounded')} />
+            </div>
+            <div className={cn(idcStyles.skeletonBar, 'h-8 w-8 shrink-0 rounded')} />
           </div>
-          <div className={cn(idcStyles.skeletonBar, 'h-8 w-8 shrink-0 rounded')} />
-        </div>
-      ))}
-    </div>
+        ))}
+      </div>
 
-    <div className={cn('shrink-0 h-[52px] border-t', borderColors.light)} />
-  </div>
-);
+      <div className={cn('shrink-0 h-[52px] border-t', borderColors.light)} />
+    </div>
+  );
+};
 
 /**
  * A fetch that failed, which is NOT the same screen as a service with no accounts.
@@ -88,17 +95,22 @@ const InfraRowListSkeleton = () => (
  * that announced the failure is gone by the time the user reads this, so the
  * recovery has to live here.
  */
-const InfraRowListError = ({ message, onRetry }: { message: string; onRetry: () => void }) => (
-  <div className="flex flex-1 min-h-0 flex-col items-center justify-center gap-3 px-6 py-16 text-center">
-    <p className={cn('text-[16px] font-medium', textColors.primary)}>
-      연동 대상 계정을 불러오지 못했습니다
-    </p>
-    <p className={cn('text-[14px]', textColors.secondary)}>{message}</p>
-    <Button variant="secondary" onClick={onRetry} className="mt-2">
-      다시 시도
-    </Button>
-  </div>
-);
+const InfraRowListError = ({ message, onRetry }: { message: string; onRetry: () => void }) => {
+  const { locale } = useLocale();
+  const t = COPY[locale].services;
+
+  return (
+    <div className="flex flex-1 min-h-0 flex-col items-center justify-center gap-3 px-6 py-16 text-center">
+      <p className={cn('text-[16px] font-medium', textColors.primary)}>
+        {t.rowsFailed}
+      </p>
+      <p className={cn('text-[14px]', textColors.secondary)}>{message}</p>
+      <Button variant="secondary" onClick={onRetry} className="mt-2">
+        {t.retry}
+      </Button>
+    </div>
+  );
+};
 
 export const InfraRowList = ({
   projects,
@@ -108,6 +120,8 @@ export const InfraRowList = ({
   onOpenDetail,
   onManageAction,
 }: InfraRowListProps) => {
+  const { locale } = useLocale();
+  const t = COPY[locale].services;
   const [page, setPage] = useState(0);
 
   if (error !== null) return <InfraRowListError message={error} onRetry={onRetry} />;
@@ -160,7 +174,7 @@ export const InfraRowList = ({
           textColors.secondary,
         )}
       >
-        연동 대상 계정
+        {t.rowsTitle}
         <span
           className={cn(
             'rounded-full px-2.5 py-0.5 text-[12px] font-bold',
@@ -169,7 +183,7 @@ export const InfraRowList = ({
             numericFeatures.tabular,
           )}
         >
-          {projects.length}건
+          {t.count(projects.length)}
         </span>
       </div>
 
@@ -197,7 +211,7 @@ export const InfraRowList = ({
             {/* 글자보다 한 단 조용하게 — 아이콘은 상태를 되풀이할 뿐 새 정보가 아니다. */}
             <EmptyBoxIcon className={cn('h-10 w-10', textColors.quaternary)} />
             <p className={cn('text-[24px] font-medium', textColors.tertiary)}>
-              등록된 인프라가 없습니다.
+              {t.rowsEmpty}
             </p>
           </div>
         ) : (
@@ -221,7 +235,7 @@ export const InfraRowList = ({
         )}
       >
         <PageArrow
-          label="이전 페이지"
+          label={t.prevPage}
           disabled={safePage <= 0}
           onClick={() => setPage(safePage - 1)}
         >
@@ -230,10 +244,10 @@ export const InfraRowList = ({
         <span
           className={cn('text-[14px] font-medium', textColors.secondary, numericFeatures.tabular)}
         >
-          {safePage + 1}/{totalPages} 페이지
+          {t.rowsPageOf(safePage + 1, totalPages)}
         </span>
         <PageArrow
-          label="다음 페이지"
+          label={t.nextPage}
           disabled={safePage >= totalPages - 1}
           onClick={() => setPage(safePage + 1)}
         >

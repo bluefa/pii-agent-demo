@@ -1,6 +1,10 @@
+'use client';
+
 import type { ReactElement } from 'react';
 import { cn, idcStyles } from '@/lib/theme';
 import type { UnitTcStatus } from '@/lib/test-connection-summary';
+import { useLocale } from '@/app/components/LocaleProvider';
+import { STATUS_COPY } from '@/app/components/features/process-status/status-copy';
 
 /**
  * 연결 상태 칸의 내용 — Step 5 의 표가 한 리소스에 대해 말하는 판정 하나.
@@ -46,6 +50,8 @@ export function TcStatusTag({
   /** 첫 폴링 응답 전 — 판정 대신 스켈레톤. */
   loading?: boolean;
 }): ReactElement {
+  const { locale } = useLocale();
+  const t = STATUS_COPY[locale].verdict;
   if (loading) {
     return (
       <span
@@ -56,22 +62,22 @@ export function TcStatusTag({
   }
   switch (status) {
     case 'SUCCESS':
-      return <span className={cn(idcStyles.tag.base, idcStyles.tag.green)}>성공</span>;
+      return <span className={cn(idcStyles.tag.base, idcStyles.tag.green)}>{t.success}</span>;
     case 'FAIL':
-      return <span className={cn(idcStyles.tag.base, idcStyles.tag.red)}>실패</span>;
+      return <span className={cn(idcStyles.tag.base, idcStyles.tag.red)}>{t.fail}</span>;
     case 'RUNNING':
-      return <span className={cn(idcStyles.tag.base, idcStyles.tag.orange)}>진행 중</span>;
+      return <span className={cn(idcStyles.tag.base, idcStyles.tag.orange)}>{t.running}</span>;
     case 'PENDING':
-      return <span className={cn(idcStyles.tag.base, idcStyles.tag.gray)}>대기</span>;
+      return <span className={cn(idcStyles.tag.base, idcStyles.tag.gray)}>{t.pending}</span>;
     case 'UNKNOWN':
-      return <span className={cn(idcStyles.tag.base, idcStyles.tag.gray)}>미확인</span>;
+      return <span className={cn(idcStyles.tag.base, idcStyles.tag.gray)}>{t.unknown}</span>;
     default:
       return (
         <span className={cn(idcStyles.tag.base, idcStyles.tag.gray)}>
           {/* 셋 다 중립 회색이다. 조회 실패는 붉힐 만한 사실이지만, 그 경보는 표 위의 배너
               (TEST_CONNECTION_FETCH_FAILED + 다시 시도)가 이미 한 번 울렸다 — 같은 실패를
               행 수만큼 붉게 반복하면 배너보다 표가 더 크게 소리친다. */}
-          {hasRun === null ? '조회 실패' : hasRun ? '미보고' : '미실행'}
+          {hasRun === null ? t.lookupFailed : hasRun ? t.unreported : t.notRun}
         </span>
       );
   }

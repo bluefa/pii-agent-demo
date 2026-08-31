@@ -2,6 +2,11 @@
 
 import { ConfirmStepModal, type ConfirmStepResult } from '@/app/components/ui/ConfirmStepModal';
 import { approvalFailureCopy } from '@/app/components/ui/confirm-failures';
+import { useLocale } from '@/app/components/LocaleProvider';
+import {
+  SDU_COPY,
+  type SduDefineCopy,
+} from '@/app/target-sources/[targetSourceId]/_components/sdu/copy';
 import type { ConfirmSubmitPhase } from '@/app/hooks/useConfirmSubmit';
 import type { AppErrorCode } from '@/lib/errors';
 import { cn, numericFeatures, primaryColors, textColors } from '@/lib/theme';
@@ -23,20 +28,20 @@ export interface SduSubmitModalProps {
  * 데이터 업로드 단계로 넘어가는 일이다. 그래서 확인 문장이 말해야 할 것은 "누가 볼지"가
  * 아니라 **무엇이 만들어지는지**(Region 곳수 = 업로드 경로 수)다.
  */
-const RESULTS: Record<'success' | 'error', ConfirmStepResult> = {
+const results = (t: SduDefineCopy): Record<'success' | 'error', ConfirmStepResult> => ({
   success: {
     kind: 'success',
-    title: '연동 대상을 제출했어요',
-    description: '잠시 후 데이터 업로드 단계로 이동해요.',
+    title: t.submitSuccessTitle,
+    description: t.submitSuccessDescription,
   },
   error: {
     kind: 'error',
-    title: '연동 대상을 제출하지 못했어요',
+    title: t.submitErrorTitle,
     // 실패가 지운 것이 없다는 말이 먼저다 — 입력한 대상이 그대로라는 것을 모르면
     // 사용자는 다시 제출하기보다 화면을 처음부터 확인하려 든다.
-    description: '입력하신 대상은 그대로 남아 있어요.',
+    description: t.submitErrorDescription,
   },
-};
+});
 
 export const SduSubmitModal = ({
   isOpen,
@@ -49,7 +54,10 @@ export const SduSubmitModal = ({
   onRetry,
   onClose,
 }: SduSubmitModalProps) => {
-  const failure = approvalFailureCopy(errorCode);
+  const { locale } = useLocale();
+  const t = SDU_COPY[locale].define;
+  const frames = results(t);
+  const failure = approvalFailureCopy(errorCode, locale);
   return (
     <ConfirmStepModal
       open={isOpen}
@@ -58,25 +66,25 @@ export const SduSubmitModal = ({
       isPending={pending}
       result={
         phase === 'success'
-          ? RESULTS.success
+          ? frames.success
           : phase === 'error'
-            ? { ...RESULTS.error, reason: failure.reason }
+            ? { ...frames.error, reason: failure.reason }
             : null
       }
       onRetry={failure.retry ? onRetry : undefined}
-      title="연동 대상을 제출할까요?"
+      title={t.submitTitle}
       description={
         <>
-          대상 {targetCount}건 · Region {regionCount}곳으로{' '}
-          <span className={primaryColors.text}>업로드 경로 {regionCount}개가 만들어져요</span>.
-          SDU는 승인 절차가 없어 제출하면 바로 데이터 업로드 단계로 넘어가요.
+          {t.submitDescriptionHead(targetCount, regionCount)}
+          <span className={primaryColors.text}>{t.submitDescriptionPaths(regionCount)}</span>
+          {t.submitDescriptionTail}
         </>
       }
-      confirmLabel="제출하기"
+      confirmLabel={t.submitConfirm}
       size="sm"
     >
       <p className={cn('text-[14px] font-medium', numericFeatures.tabular, textColors.tertiary)}>
-        제출한 뒤에도 2단계에서 연동 대상을 고치러 이 화면으로 돌아올 수 있어요.
+        {t.submitFootnote}
       </p>
     </ConfirmStepModal>
   );

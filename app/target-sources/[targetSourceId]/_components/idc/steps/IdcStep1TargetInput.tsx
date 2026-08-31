@@ -23,10 +23,8 @@ import {
 } from '@/app/target-sources/[targetSourceId]/_components/common';
 import { WaitingApprovalToolbar } from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalToolbar';
 import { useIdcApprovalTable } from '@/app/target-sources/[targetSourceId]/_components/idc/approval-table';
-import {
-  IDC_FILTER_EMPTY_MESSAGE,
-  IDC_SEARCH_PLACEHOLDER,
-} from '@/app/target-sources/[targetSourceId]/_components/idc/steps/step-copy';
+import { useLocale } from '@/app/components/LocaleProvider';
+import { IDC_COPY } from '@/app/target-sources/[targetSourceId]/_components/idc/copy';
 import type { IdcStepProps } from '@/app/target-sources/[targetSourceId]/_components/idc/types';
 import {
   IdcTargetListTable,
@@ -116,6 +114,7 @@ export const IdcStep1TargetInput = ({
   project,
   onProjectUpdate,
 }: IdcStepProps) => {
+  const t = IDC_COPY[useLocale().locale];
   const targetSourceId = project.targetSourceId;
 
   // Step 1 starts EMPTY: IDC is manual input, so the working list begins blank and
@@ -160,7 +159,7 @@ export const IdcStep1TargetInput = ({
       try {
         await refreshProject();
       } catch {
-        toast.warning('승인 요청은 접수됐어요. 화면을 새로고침해 최신 상태를 확인해 주세요.');
+        toast.warning(t.submitAcceptedRefresh);
       } finally {
         setSubmitOpen(false);
       }
@@ -269,27 +268,27 @@ export const IdcStep1TargetInput = ({
         <header className={cn(cardStyles.header, 'flex items-start justify-between gap-4')}>
           <div>
             <div className="flex items-center gap-2">
-              <span className={cardStyles.stepTag}>1단계</span>
-              <h2 className={cardStyles.cardTitle}>연동 대상 DB 입력</h2>
+              <span className={cardStyles.stepTag}>{t.step(1)}</span>
+              <h2 className={cardStyles.cardTitle}>{t.step1Title}</h2>
             </div>
             {/* Blue names the two buttons pinned at the header right — the entry points the user
                 has to press. break-keep wraps by word, not by syllable. */}
             <p className={cn('mt-2.5 break-keep', cardStyles.guidance)}>
-              PII Agent 연동이 필요한 DB 정보를{' '}
-              <span className={primaryColors.text}>연동 대상 추가</span>에서 입력해주세요. 연동 대상
-              승인 요청으로 제출한 결과는 관리자 승인 후 최종 확정돼요.
+              {t.step1GuideBefore}
+              <span className={primaryColors.text}>{t.addTarget}</span>
+              {t.step1GuideAfter}
             </p>
             {/* No top margin — the 1.55 leading is the paragraph break (step-2 grammar). */}
             <p className={cn('break-keep', cardStyles.guidance)}>
-              설치 절차를 다시 진행하는 상황이라면{' '}
-              <span className={primaryColors.text}>기존 연동 요청 정보 불러오기</span>에서 과거에
-              입력한 정보를 불러올 수 있어요.
+              {t.step1LoadGuideBefore}
+              <span className={primaryColors.text}>{t.loadPrevCta}</span>
+              {t.step1LoadGuideAfter}
             </p>
           </div>
           <div className="flex shrink-0 items-center gap-2.5">
             <button type="button" onClick={() => setLoadOpen(true)} className={idcStyles.triggerBtn.warnOutline}>
               <ReloadIcon className="h-3.5 w-3.5" />
-              기존 연동 요청 정보 불러오기
+              {t.loadPrevCta}
             </button>
             <button
               type="button"
@@ -300,7 +299,7 @@ export const IdcStep1TargetInput = ({
               className={idcStyles.triggerBtn.soft}
             >
               <PlusIcon className="h-3.5 w-3.5" />
-              연동 대상 추가
+              {t.addTarget}
             </button>
           </div>
         </header>
@@ -312,8 +311,8 @@ export const IdcStep1TargetInput = ({
             <EmptyState
               variant="block"
               icon={<DatabaseIcon className="h-7 w-7" aria-hidden="true" />}
-              title="연동 대상을 추가해주세요"
-              description="IP 또는 Domain 기반의 DB 접속 정보를 등록할 수 있어요"
+              title={t.step1EmptyTitle}
+              description={t.step1EmptyDesc}
               action={
                 <button
                   type="button"
@@ -323,7 +322,7 @@ export const IdcStep1TargetInput = ({
                   }}
                   className={idcStyles.triggerBtn.primary}
                 >
-                  연동 대상 추가
+                  {t.addTarget}
                 </button>
               }
             />
@@ -339,7 +338,7 @@ export const IdcStep1TargetInput = ({
                 onRegionChange={onViewChange(table.onRegionChange)}
                 dbTypeOptions={table.dbTypeOptions}
                 regionOptions={table.regionOptions}
-                searchPlaceholder={IDC_SEARCH_PLACEHOLDER}
+                searchPlaceholder={t.searchPlaceholder}
               />
               <IdcTargetListTable
                 rows={pagedRows}
@@ -350,7 +349,7 @@ export const IdcStep1TargetInput = ({
                   setFormOpen(true);
                 }}
                 onDelete={(resourceId) => setRows((prev) => prev.filter((r) => r.resourceId !== resourceId))}
-                emptyMessage={IDC_FILTER_EMPTY_MESSAGE}
+                emptyMessage={t.filterEmpty}
               />
               {table.filteredCount > 0 && (
                 <Pagination
@@ -371,11 +370,15 @@ export const IdcStep1TargetInput = ({
           <CardActionBar
             hint={
               <>
-                총 <strong className={textColors.primary}>{total}</strong>건 · 연동{' '}
-                <strong className={primaryColors.text}>{liveCount}</strong>건
+                {t.hintTotal} <strong className={textColors.primary}>{total}</strong>
+                {t.unitCount} · {t.hintLive}{' '}
+                <strong className={primaryColors.text}>{liveCount}</strong>
+                {t.unitCount}
                 {excludedCount > 0 && (
                   <>
-                    {' '}· 제외 <strong className={statusColors.error.textDark}>{excludedCount}</strong>건
+                    {' '}· {t.hintExcluded}{' '}
+                    <strong className={statusColors.error.textDark}>{excludedCount}</strong>
+                    {t.unitCount}
                   </>
                 )}
               </>
@@ -391,7 +394,7 @@ export const IdcStep1TargetInput = ({
                   onClick={handleOpenSubmit}
                   className={cn(idcStyles.triggerBtn.primary, 'disabled:pointer-events-none')}
                 >
-                  연동 대상 승인 요청
+                  {t.step1SubmitCta}
                 </button>
               );
               return liveCount === 0 ? (
@@ -401,8 +404,8 @@ export const IdcStep1TargetInput = ({
                   triggerClassName="cursor-not-allowed"
                   content={
                     <div>
-                      <p className="font-semibold">연동할 DB가 없어요</p>
-                      <p className="mt-1">1건 이상을 연동 대상으로 남기면 승인을 요청할 수 있어요.</p>
+                      <p className="font-semibold">{t.step1BlockedTitle}</p>
+                      <p className="mt-1">{t.step1BlockedBody}</p>
                     </div>
                   }
                 >

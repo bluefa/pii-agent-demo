@@ -38,6 +38,8 @@ import {
   statusColors,
   textColors,
 } from '@/lib/theme';
+import { useLocale } from '@/app/components/LocaleProvider';
+import { LAYOUT_COPY } from '@/app/target-sources/[targetSourceId]/_components/layout/copy';
 
 interface WaitingApprovalCardProps {
   targetSourceId: number;
@@ -67,9 +69,6 @@ const toVerdict = (response: ApprovalRequestLatestResponse): Verdict | null => {
   }
   return null;
 };
-
-const FETCH_ERROR_MESSAGE = '승인 요청 정보를 불러오지 못했습니다.';
-const FILTER_EMPTY_MESSAGE = '조건에 맞는 결과가 없어요.';
 
 // Step 2 sources its table from approval-requests/latest.resources (which the BFF
 // already returns alongside the request meta), split by `selected` — so the separate
@@ -112,6 +111,9 @@ export const WaitingApprovalCard = ({
   reselectSlot,
   onReselected,
 }: WaitingApprovalCardProps) => {
+  const { locale } = useLocale();
+  const copy = LAYOUT_COPY[locale];
+  const t = copy.waiting;
   const [state, setState] = useState<AsyncState<WaitingApprovalResource[]>>({ status: 'loading' });
   const [retryNonce, setRetryNonce] = useState(0);
   const [requestSummary, setRequestSummary] = useState<RequestSummary | null>(null);
@@ -135,11 +137,11 @@ export const WaitingApprovalCard = ({
           setVerdict(null);
           return;
         }
-        setState({ status: 'error', message: FETCH_ERROR_MESSAGE });
+        setState({ status: 'error', message: t.fetchError });
       });
 
     return () => controller.abort();
-  }, [targetSourceId, retryNonce]);
+  }, [targetSourceId, retryNonce, t.fetchError]);
 
   const handleRetry = useCallback(() => {
     setState({ status: 'loading' });
@@ -207,7 +209,7 @@ export const WaitingApprovalCard = ({
         resources={table.visibleResources}
         connected
         raisedRows
-        emptyMessage={showFilterEmpty ? FILTER_EMPTY_MESSAGE : undefined}
+        emptyMessage={showFilterEmpty ? copy.common.filterEmpty : undefined}
         // Any narrowing opens the groups. Closed by default, a search that matched only a
         // database inside one drew a shut group and none of the text that was typed.
         //
@@ -245,13 +247,13 @@ export const WaitingApprovalCard = ({
             <div className="flex items-center gap-2">
               {/* Outside the ternary: the step number is known before the fetch, so it renders
                   while the title is still a skeleton. */}
-              <span className={cardStyles.stepTag}>2단계</span>
+              <span className={cardStyles.stepTag}>{copy.common.step(2)}</span>
               {/* The verdict arrives with the fetch, so title and badge stay unresolved until then —
                   rendering the pending copy first makes every rejected load flash 승인 대기 → 반려. */}
               {resolved ? (
                 <>
                   {/* Fixed step name, matching the progress bar — the badge alone carries state. */}
-                  <h2 className={cn(cardStyles.cardTitle)}>연동 대상 승인 대기</h2>
+                  <h2 className={cn(cardStyles.cardTitle)}>{t.title}</h2>
                   <span
                     className={cn(
                       // Rejected matches the 반려 사유 tag in the quote below, so the two marks read
@@ -263,7 +265,7 @@ export const WaitingApprovalCard = ({
                       statusColors.warning.textDark,
                     )}
                   >
-                    {rejected ? '반려' : '승인 대기'}
+                    {rejected ? t.badgeRejected : t.badgePending}
                   </span>
                 </>
               ) : (
@@ -303,16 +305,15 @@ export const WaitingApprovalCard = ({
           <>
             <p className={cn('mt-3', cardStyles.guidance)}>
               <strong className={cn('font-semibold', primaryColors.text)}>
-                관리자가 제출된 연동 대상 DB를 확인하고 있어요.
+                {t.guidanceStrong}
               </strong>{' '}
-              평균 1일 이내(주말·공휴일 제외)에 확인이 완료되며, 이슈가 없으면 다음 단계로 넘어가요.
-              반려된 경우, 사유를 확인한 후 다시 제출해주세요.
+              {t.guidanceTail}
             </p>
             {/* mt 없음 — 행간 여백(leading 1.55)만으로 문단을 가른다 (기존 mt-1에서 −4px). */}
             <p className={cardStyles.guidance}>
-              제출한 연동 대상 DB 정보를 수정하고 싶다면{' '}
-              <strong className={cn('font-semibold', textColors.secondary)}>다시 요청하기</strong>를
-              눌러주세요.
+              {t.reRequestLead}
+              <strong className={cn('font-semibold', textColors.secondary)}>{t.reRequest}</strong>
+              {t.reRequestTail}
             </p>
           </>
         )}
@@ -324,8 +325,11 @@ export const WaitingApprovalCard = ({
           // Rejected does not repeat it here: the submission meta moves into the record block's
           // summary line below, where it belongs to the list it describes.
           <div className="mt-6 flex flex-wrap gap-8">
-            <MetaField label="요청일시" value={formatDate(requestSummary.requestedAt, 'datetime')} />
-            <MetaField label="요청자" value={requestSummary.requestedBy} />
+            <MetaField
+              label={copy.common.requestedAt}
+              value={formatDate(requestSummary.requestedAt, 'datetime', locale)}
+            />
+            <MetaField label={copy.common.requester} value={requestSummary.requestedBy} />
           </div>
         )}
       </div>

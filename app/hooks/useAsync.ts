@@ -1,5 +1,7 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { toastGlobal } from '@/app/components/ui/toast/toastBus';
+import { useLocale } from '@/app/components/LocaleProvider';
+import { HOOKS_COPY } from '@/app/hooks/copy';
 
 interface UseAsyncOptions<T> {
   onSuccess?: (data: T) => void;
@@ -20,6 +22,14 @@ export const useAsync = <T, Args extends unknown[] = []>(
 ): UseAsyncReturn<T, Args> => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
+  const { locale } = useLocale();
+  // A ref, not a dependency of `execute`: callers put `execute` in their own dependency
+  // lists, so flipping the language toggle would rebuild their callbacks. The wording is
+  // only read when the call fails, so the ref holds the language in force at that moment.
+  const failedRef = useRef(HOOKS_COPY[locale].asyncAction.failed);
+  useEffect(() => {
+    failedRef.current = HOOKS_COPY[locale].asyncAction.failed;
+  }, [locale]);
 
   const { onSuccess, onError, errorMessage } = options;
 
@@ -38,7 +48,7 @@ export const useAsync = <T, Args extends unknown[] = []>(
         if (onError) {
           onError(error);
         } else {
-          toastGlobal()?.error(errorMessage || error.message || '작업에 실패했습니다.');
+          toastGlobal()?.error(errorMessage || error.message || failedRef.current);
         }
         return undefined;
       } finally {

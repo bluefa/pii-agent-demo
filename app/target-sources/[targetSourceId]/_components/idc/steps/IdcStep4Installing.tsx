@@ -28,8 +28,8 @@ import {
   IdcSourceIpCell,
 } from '@/app/target-sources/[targetSourceId]/_components/idc/cells';
 import { SourceIpHeader } from '@/app/target-sources/[targetSourceId]/_components/idc/IdcResourceTable';
-import { IDC_SEARCH_PLACEHOLDER } from '@/app/target-sources/[targetSourceId]/_components/idc/steps/step-copy';
-import { IDC_SOURCE_LABEL } from '@/lib/constants/idc';
+import { useLocale } from '@/app/components/LocaleProvider';
+import { IDC_COPY } from '@/app/target-sources/[targetSourceId]/_components/idc/copy';
 import { IdcFirewallModal } from '@/app/target-sources/[targetSourceId]/_components/idc/modals/IdcFirewallModal';
 import type { IdcStepProps } from '@/app/target-sources/[targetSourceId]/_components/idc/types';
 import { InstallCardHeader } from '@/app/components/features/process-status/install-status-detail/InstallCardHeader';
@@ -71,6 +71,7 @@ const toInstallLastCheck = (
 export const IdcStep4Installing = ({
   project,
 }: IdcStepProps) => {
+  const t = IDC_COPY[useLocale().locale];
   const { targetSourceId } = project;
   const { status, error, refresh } = useIdcInstallationStatus(targetSourceId);
 
@@ -158,7 +159,7 @@ export const IdcStep4Installing = ({
       return resource ? render(resource) : <span className={textColors.tertiary}>—</span>;
     };
     return {
-      searchPlaceholder: IDC_SEARCH_PLACEHOLDER,
+      searchPlaceholder: t.searchPlaceholder,
       // Database Type 열이 IDC 라벨(MSSQL)을 찍으므로 필터 옵션도 같은 글자여야 한다 —
       // 훅의 기본 접근자는 클라우드 라벨 맵이라 같은 값을 SQL Server 라 부른다.
       dbTypeLabel: (row: { resourceId: string }) => byId.get(row.resourceId)?.databaseTypeLabel ?? '',
@@ -172,7 +173,7 @@ export const IdcStep4Installing = ({
           // 주어다 — 맨 왼쪽에 서고 혼자 색을 갖는다. 바로 옆이 도착지(접속 주소)라
           // 한 행이 곧 열어야 할 한 경로로 읽힌다.
           key: 'src',
-          label: IDC_SOURCE_LABEL,
+          label: t.sourceLabel,
           // 150 이 아니다 — 공유 표(IdcResourceTable)의 144 를 "그대로 가져온다"는 것이
           // 원래 의도였고, 6px 는 드리프트였다 (LIN-96 원장 §3-1 교정).
           width: 144,
@@ -196,7 +197,7 @@ export const IdcStep4Installing = ({
         },
         {
           key: 'endpoint',
-          label: '접속 주소',
+          label: t.colEndpoint,
           // 폭도 셀도 steps 2·3·5·6·7 의 그 열 그대로 — 단계끼리 어긋나지 않게.
           // max-w-full 만 다르다: sink 인 이 열의 존재 이유가 남는 픽셀로 호스트를
           // 드러내는 것이라, 셀의 200px 자체 클램프(auto 레이아웃의 열 폭 통제)를
@@ -227,32 +228,32 @@ export const IdcStep4Installing = ({
         },
       ],
     };
-  }, [resources]);
+  }, [resources, t]);
 
   // group 은 **누가 실행하는가**다(AWS/Azure/GCP 와 같은 규칙). IDC 는 두 Terraform
   // 구간을 BDC 가 돌리고, 서비스 측이 하는 일은 접근 허용·확인 하나뿐이다.
   const steps: InstallTableStep[] = [
     {
       id: 'cx',
-      title: 'BDC CX 영역',
-      side: 'BDC측 리소스 생성',
+      title: t.step4CxTitle,
+      side: t.step4BdcSide,
       group: 'auto',
-      desc: 'BDC측에서 PII Agent 구성을 위한 Terraform 작업을 수행합니다.',
+      desc: t.step4TerraformDesc,
     },
     {
       id: 'bdp',
-      title: 'BDC BDP 영역',
-      side: 'BDC측 리소스 생성',
+      title: t.step4BdpTitle,
+      side: t.step4BdcSide,
       group: 'auto',
-      desc: 'BDC측에서 PII Agent 구성을 위한 Terraform 작업을 수행합니다.',
+      desc: t.step4TerraformDesc,
     },
     {
       id: 'firewall',
-      title: '접근 허용',
-      side: '서비스측 확인',
+      title: t.step4FirewallTitle,
+      side: t.step4ServiceSide,
       group: 'todo',
-      serviceAction: `${IDC_SOURCE_LABEL}에서 연동 대상으로의 접근을 허용한 뒤 확인해 주세요.`,
-      desc: `${IDC_SOURCE_LABEL} → 연동 대상 접근 허용 여부를 점검하는 단계입니다.`,
+      serviceAction: t.step4FirewallAction(t.sourceLabel),
+      desc: t.step4FirewallDesc(t.sourceLabel),
       action: (
         <button
           type="button"
@@ -264,7 +265,7 @@ export const IdcStep4Installing = ({
             bgColors.mutedHover,
           )}
         >
-          접근 허용 확인
+          {t.fwTitle}
         </button>
       ),
     },
@@ -298,7 +299,7 @@ export const IdcStep4Installing = ({
             <>
               {status?.lastCheck?.status === 'FAIL' && status.lastCheck.failReason && (
                 <div className={cn('mb-3 px-4 py-2 rounded-lg border text-sm', statusColors.error.bg, statusColors.error.border, statusColors.error.textDark)}>
-                  상태 확인 실패: {status.lastCheck.failReason}
+                  {t.step4StatusCheckFailed}: {status.lastCheck.failReason}
                 </div>
               )}
               <InstallStatusDetail

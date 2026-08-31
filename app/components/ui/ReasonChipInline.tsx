@@ -3,6 +3,8 @@
 import { useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { StatusInfoIcon } from '@/app/components/ui/icons';
+import { useLocale } from '@/app/components/LocaleProvider';
+import { COPY } from '@/lib/copy';
 import { cn, idcStyles } from '@/lib/theme';
 
 interface ReasonChipInlineProps {
@@ -71,9 +73,11 @@ export const ReasonChipInline = ({
   reason,
   summary,
   meta,
-  label = '제외 사유',
+  label,
   code,
 }: ReasonChipInlineProps) => {
+  const { locale } = useLocale();
+  const tipLabel = label ?? COPY[locale].common.exclusionReason;
   const displaySummary = summary ?? deriveSummary(reason);
   const chipRef = useRef<HTMLSpanElement>(null);
   const tipRef = useRef<HTMLDivElement>(null);
@@ -151,7 +155,7 @@ export const ReasonChipInline = ({
               )}
             >
               <span className={cn('h-1 w-1 rounded-full', idcStyles.reasonChip.tipLabelDot)} aria-hidden="true" />
-              {label}
+              {tipLabel}
             </span>
             {/* break-words, because a reason is not always prose. `recommend_fail_reason`
                 arrives as one unbroken token (AZURE_RESOURCE_VNET_INTEGRATED_MODE)

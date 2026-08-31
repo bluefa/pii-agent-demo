@@ -16,6 +16,8 @@ import type { IdcStepProps } from '@/app/target-sources/[targetSourceId]/_compon
 import { getProject, updateTestConnectionConfirmation } from '@/app/lib/api';
 import { getIdcConfirmedResources } from '@/app/lib/api/idc';
 import { useIdcResources } from '@/app/hooks/useIdcResources';
+import { useLocale } from '@/app/components/LocaleProvider';
+import { IDC_COPY } from '@/app/target-sources/[targetSourceId]/_components/idc/copy';
 
 /** 연결 테스트 재실행 — opens the confirm-rewind modal (mirrors the cloud sibling). */
 const ConnectionVerifiedRetestButton = ({
@@ -25,6 +27,7 @@ const ConnectionVerifiedRetestButton = ({
   targetSourceId: number;
   onProjectUpdate: IdcStepProps['onProjectUpdate'];
 }) => {
+  const t = IDC_COPY[useLocale().locale];
   const toast = useToast();
   const [confirmKind, setConfirmKind] = useState<ConfirmRewindKind | null>(null);
 
@@ -37,7 +40,7 @@ const ConnectionVerifiedRetestButton = ({
       await updateTestConnectionConfirmation(targetSourceId, false);
       onProjectUpdate(await getProject(targetSourceId));
     } catch {
-      toast.error('연결 테스트 재실행 요청에 실패했습니다.');
+      toast.error(t.retestFailed);
     }
   };
 
@@ -49,7 +52,7 @@ const ConnectionVerifiedRetestButton = ({
         onClick={() => setConfirmKind('retest')}
       >
         <ReloadIcon className="w-[13px] h-[13px]" />
-        연결 테스트 재실행
+        {t.retestCta}
       </button>
       <ConfirmRewindModal
         kind={confirmKind}
@@ -74,6 +77,7 @@ export const IdcStep6ConnectionVerified = ({
   project,
   onProjectUpdate,
 }: IdcStepProps) => {
+  const t = IDC_COPY[useLocale().locale];
   const { targetSourceId } = project;
 
   // Step 6 source: the confirmed list (confirmed-integration), same as cloud steps 4–7.
@@ -86,8 +90,8 @@ export const IdcStep6ConnectionVerified = ({
         <header className={cardStyles.header}>
           <div className="flex items-center justify-between gap-4">
             <div className="flex items-center gap-2">
-              <span className={cardStyles.stepTag}>6단계</span>
-              <h2 className={cardStyles.cardTitle}>완료 여부 관리자 승인 대기</h2>
+              <span className={cardStyles.stepTag}>{t.step(6)}</span>
+              <h2 className={cardStyles.cardTitle}>{t.step6Title}</h2>
               <span
                 className={cn(
                   cardStyles.stepBadge,
@@ -95,7 +99,7 @@ export const IdcStep6ConnectionVerified = ({
                   statusColors.warning.textDark,
                 )}
               >
-                승인 대기
+                {t.badgePending}
               </span>
             </div>
             {/* C-3: auxiliary retest action pinned to the header right. When to press it is
@@ -110,16 +114,14 @@ export const IdcStep6ConnectionVerified = ({
           {/* The header subtitle and the info banner said the same thing; the banner is gone.
               Blue marks the status clause only, matching steps 2·3. */}
           <p className={cn('mt-3', cardStyles.guidance)}>
-            <strong className={cn('font-semibold', primaryColors.text)}>
-              PII Agent 설치 완료 승인을 위해 동작을 점검하고 있어요.
-            </strong>{' '}
-            승인이 완료되면 PII Agent 연동이 완료돼요.
+            <strong className={cn('font-semibold', primaryColors.text)}>{t.step6GuideEm}</strong>{' '}
+            {t.step6GuideRest}
           </p>
           {/* No top margin — the 1.55 leading is the paragraph break (step-2 grammar). */}
           <p className={cardStyles.guidance}>
-            논리 DB 연동 대상을 수정하거나 연결 테스트를 다시 수행하고 싶다면{' '}
-            <strong className={cn('font-semibold', textColors.secondary)}>연결 테스트 재실행</strong>
-            을 눌러주세요.
+            {t.step6RetestBefore}
+            <strong className={cn('font-semibold', textColors.secondary)}>{t.retestCta}</strong>
+            {t.step6RetestAfter}
           </p>
         </header>
         <div className={cardStyles.body}>

@@ -5,6 +5,8 @@ import { useRef, useState } from 'react';
 import { ConfirmStepModal } from '@/app/components/ui/ConfirmStepModal';
 import { updateTargetSourceDescription } from '@/app/lib/api';
 import { cn, idcStyles, statusColors, textColors } from '@/lib/theme';
+import { useLocale } from '@/app/components/LocaleProvider';
+import { COPY } from '@/lib/copy';
 
 /** ASSUMED contract (docs/api/ops-assumed-contracts.md §8) description 의 maxLength. */
 const DESCRIPTION_MAXLEN = 1000;
@@ -41,6 +43,8 @@ export const DescriptionEditModal = ({
   onSaved,
   onClose,
 }: DescriptionEditModalProps) => {
+  const { locale } = useLocale();
+  const t = COPY[locale].services;
   const [text, setText] = useState(initialDescription);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -60,7 +64,7 @@ export const DescriptionEditModal = ({
       // 아무것도 보태지 못한다. "잠시 후 다시" 라고도 하지 않는다: 이 엔드포인트는
       // 아직 계약이 없어(assumed §8) 실서버에서는 404 가 영구적이고, 그 문구는
       // 될 리 없는 재시도를 권한다. 재시도는 열어 두되 약속하지는 않는다.
-      setError('설명을 저장하지 못했습니다. 문제가 계속되면 담당자에게 알려 주세요.');
+      setError(t.descSaveFailed);
     } finally {
       setSaving(false);
     }
@@ -71,10 +75,10 @@ export const DescriptionEditModal = ({
       open
       onClose={onClose}
       onConfirm={() => void save()}
-      title="설명 수정"
-      description="이 연동 대상이 무엇인지 한 줄로 적어 두면 목록에서 계정을 구분하기 쉬워요."
-      confirmLabel="저장"
-      cancelLabel="취소"
+      title={t.descModalTitle}
+      description={t.descModalSubtitle}
+      confirmLabel={t.save}
+      cancelLabel={t.cancel}
       isPending={saving}
       confirmDisabled={!changed}
       initialFocus={textareaRef}
@@ -86,9 +90,9 @@ export const DescriptionEditModal = ({
           maxLength={DESCRIPTION_MAXLEN}
           rows={3}
           onChange={(e) => setText(e.target.value)}
-          placeholder="예: Azure SQL, PostgreSQL, MySQL 리소스에 PII Agent 설치"
+          placeholder={t.descPlaceholder}
           className={idcStyles.textarea}
-          aria-label="설명"
+          aria-label={t.description}
         />
         <div className="flex items-start justify-between gap-3">
           {error ? (
@@ -99,7 +103,7 @@ export const DescriptionEditModal = ({
             // 비우고 저장하면 설명이 사라진다는 것을 미리 말한다 — 빈 입력이 유효한 값인
             // 화면에서, 그 사실은 저장을 누른 뒤에 알게 되면 늦다.
             <p className={cn('text-[12px]', textColors.tertiary)}>
-              비워 두고 저장하면 설명이 지워집니다.
+              {t.descClears}
             </p>
           )}
           {/* 두 톤 카운터 (ConfirmRewindModal 과 같은 형태) — 변하는 수만 진하게, 고정
@@ -114,7 +118,9 @@ export const DescriptionEditModal = ({
             >
               {text.length.toLocaleString()}
             </span>
-            <span className={textColors.tertiary}> / {DESCRIPTION_MAXLEN.toLocaleString()}자</span>
+            <span className={textColors.tertiary}>
+              {` / ${DESCRIPTION_MAXLEN.toLocaleString()}${t.charUnit}`}
+            </span>
           </div>
         </div>
       </div>

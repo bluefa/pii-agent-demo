@@ -1,6 +1,7 @@
 'use client';
 
 import { Fragment, useMemo } from 'react';
+import { useLocale } from '@/app/components/LocaleProvider';
 import { cn, idcStyles, tipTiers } from '@/lib/theme';
 import { groupResourceRows } from '@/lib/resource-grouping';
 import { useClusterFold } from '@/app/hooks/useClusterFold';
@@ -16,6 +17,9 @@ import {
 import { useRailHover, type RailRowProps } from '@/app/hooks/useRailHover';
 import { TableEmptyState } from '@/app/target-sources/[targetSourceId]/_components/shared/TableEmptyState';
 import { ResourceGroupRow } from '@/app/target-sources/[targetSourceId]/_components/shared/ResourceGroupRow';
+import { CANDIDATE_COPY } from '@/app/target-sources/[targetSourceId]/_components/candidate/copy';
+
+type CandidateCopy = (typeof CANDIDATE_COPY)['ko']['candidate'];
 
 // 설치 구분 = 스캔이 판정한 시스템 사실(사용자 변경 불가). 값의 뜻만이 아니라
 // 각 값이 선택에 거는 규칙(대상 제외 시 사유 필수, 불가는 선택 자체 불가)까지가
@@ -25,33 +29,19 @@ import { ResourceGroupRow } from '@/app/target-sources/[targetSourceId]/_compone
 // 캡션(회색 제목) < 본문(tipTiers.body) < 용어(bold, tipTiers.term) — 로
 // 용어가 제목보다 크게 읽힌다: 사용자가 찾으러 온 것은 "안내"가 아니라 자기
 // 행에 찍힌 그 단어다. 제목 구역과 용어 구역은 헤어라인으로 가른다.
-const CATEGORY_TERMS = [
-  {
-    term: '설치 대상',
-    description:
-      '연동하려면 Agent 설치(4단계)가 진행되는 DB예요. 연동에서 제외하려면 제외 사유를 입력해야 해요.',
-  },
-  {
-    term: '설치 선택',
-    description:
-      'VM·EC2처럼 DB 외 다른 용도로도 쓰는 리소스라 필수 연동 대상은 아니에요. DB 서버를 운영하고 있다면 연동 대상이 맞아요. 행을 펼쳐 데이터베이스 설정을 저장하면 선택할 수 있어요.',
-  },
-  {
-    term: '설치 불가',
-    description:
-      '네트워크 구성 제약으로 Agent를 설치할 수 없는 리소스예요. 선택할 수 없고, 행의 설치 불가 라벨을 누르면 상세 사유를 확인할 수 있어요.',
-  },
-] as const;
+const categoryTerms = (t: CandidateCopy) => [
+  { term: t.categoryTarget, description: t.categoryTargetDesc },
+  { term: t.categoryOptional, description: t.categoryOptionalDesc },
+  { term: t.categoryIneligible, description: t.categoryIneligibleDesc },
+];
 
-const CATEGORY_TOOLTIP_CONTENT = (
+const categoryTooltipContent = (t: CandidateCopy) => (
   <div className="leading-[1.55]">
-    <span className={cn('block', tipTiers.title)}>설치 구분 안내</span>
-    <p className={cn('mt-[4px]', tipTiers.body)}>
-      스캔 결과를 바탕으로 시스템이 판정하는 값이라 직접 변경할 수 없어요.
-    </p>
+    <span className={cn('block', tipTiers.title)}>{t.categoryTipTitle}</span>
+    <p className={cn('mt-[4px]', tipTiers.body)}>{t.categoryTipBody}</p>
     <div className={cn('my-[10px]', tipTiers.hairline)} aria-hidden="true" />
     <div className="space-y-[10px]">
-      {CATEGORY_TERMS.map(({ term, description }) => (
+      {categoryTerms(t).map(({ term, description }) => (
         <div key={term}>
           <span className={cn('block', tipTiers.term)}>{term}</span>
           <p className={cn('mt-[2px]', tipTiers.body)}>{description}</p>
@@ -110,7 +100,7 @@ const CANDIDATE_FLEX_KEYS = ['name', 'id'] as const;
  * selection speaks 연동 요청-. The checkbox IS the selection verdict, so there is no
  * 대상/비대상 badge column.
  */
-const candidateColumns = (withDecisionColumns: boolean): ConsoleTableColumn[] => [
+const candidateColumns = (withDecisionColumns: boolean, t: CandidateCopy): ConsoleTableColumn[] => [
   ...(withDecisionColumns
     ? [
         {
@@ -118,7 +108,7 @@ const candidateColumns = (withDecisionColumns: boolean): ConsoleTableColumn[] =>
           // the header stays visually empty (`head` renders nothing; the spec test pins its
           // textContent as '') while `label` still names the column for assistive tech.
           key: 'select',
-          label: '선택',
+          label: t.columnSelect,
           head: <></>,
           width: CANDIDATE_COLUMN_WIDTHS.select,
           resizable: false,
@@ -139,17 +129,19 @@ const candidateColumns = (withDecisionColumns: boolean): ConsoleTableColumn[] =>
   { key: 'region', label: 'Region', width: CANDIDATE_COLUMN_WIDTHS.region },
   {
     key: 'category',
-    label: '설치 구분',
+    // The accessible name stays the full phrase; `categoryHead` is what the 112px column can
+    // actually paint (the header truncates itself), and in Korean the two are the same string.
+    label: t.columnCategory,
     width: CANDIDATE_COLUMN_WIDTHS.category,
     head: (
       <span className="inline-flex items-center gap-1">
-        설치 구분
+        {t.categoryHead}
         <InfoTooltip
-          content={CATEGORY_TOOLTIP_CONTENT}
+          content={categoryTooltipContent(t)}
           position="top"
           size="md"
           variant="value"
-          label="설치 구분 안내"
+          label={t.categoryTipLabel}
           iconSize={17}
         />
       </span>
@@ -159,7 +151,7 @@ const candidateColumns = (withDecisionColumns: boolean): ConsoleTableColumn[] =>
     ? [
         {
           key: 'reason',
-          label: '제외 사유',
+          label: t.columnReason,
           width: CANDIDATE_COLUMN_WIDTHS.reason,
         } satisfies ConsoleTableColumn,
       ]
@@ -203,6 +195,8 @@ export const CandidateResourceTable = ({
   emptyMessage,
   expandFolds = false,
 }: CandidateResourceTableProps) => {
+  const { locale } = useLocale();
+  const t = CANDIDATE_COPY[locale].candidate;
   const totalCount = candidates.length;
   const showCheckboxColumn = !readonly;
 
@@ -240,10 +234,10 @@ export const CandidateResourceTable = ({
     storageKey: 'pii:colw:v1:candidate-resources',
     ephemeralKeys: CANDIDATE_FLEX_KEYS,
   });
-  const columns = useMemo(() => candidateColumns(showCheckboxColumn), [showCheckboxColumn]);
+  const columns = useMemo(() => candidateColumns(showCheckboxColumn, t), [showCheckboxColumn, t]);
 
   if (totalCount === 0) {
-    return <TableEmptyState message={emptyMessage ?? '발견된 리소스가 없습니다'} />;
+    return <TableEmptyState message={emptyMessage ?? t.noResources} />;
   }
 
   return (

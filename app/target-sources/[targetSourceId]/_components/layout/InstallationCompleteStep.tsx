@@ -3,6 +3,8 @@
 import type { CloudTargetSource } from '@/lib/types';
 import { EditIcon, ReloadIcon } from '@/app/components/ui/icons';
 import { cardStyles, cn, primaryColors, statusColors, textColors } from '@/lib/theme';
+import { useLocale } from '@/app/components/LocaleProvider';
+import { LAYOUT_COPY } from '@/app/target-sources/[targetSourceId]/_components/layout/copy';
 import {
   CardActionBar,
   RejectionAlert,
@@ -41,9 +43,11 @@ const InstallationCompleteActionBar = ({
   onProjectUpdate: (project: CloudTargetSource) => void;
 }) => {
   const rewind = useRewindStep(targetSourceId, onProjectUpdate);
+  const { locale } = useLocale();
+  const t = LAYOUT_COPY[locale].complete;
 
   return (
-    <CardActionBar hint="※ 인프라 변경은 1단계, 연결 테스트 재실행은 5단계로 되돌아가 프로세스를 다시 진행해요.">
+    <CardActionBar hint={t.actionHint}>
       <button
         type="button"
         disabled={rewind.pending}
@@ -51,7 +55,7 @@ const InstallationCompleteActionBar = ({
         onClick={() => rewind.open('infra')}
       >
         <EditIcon className="w-[13px] h-[13px]" />
-        인프라 변경
+        {t.changeInfra}
       </button>
       <button
         type="button"
@@ -60,7 +64,7 @@ const InstallationCompleteActionBar = ({
         onClick={() => rewind.open('retest')}
       >
         <ReloadIcon className="w-[13px] h-[13px]" />
-        연결 테스트 재실행
+        {t.retest}
       </button>
       <ConfirmRewindModal
         kind={rewind.confirmKind}
@@ -83,6 +87,9 @@ export const InstallationCompleteStep = ({
   project,
   onProjectUpdate,
 }: InstallationCompleteStepProps) => {
+  const { locale } = useLocale();
+  const copy = LAYOUT_COPY[locale];
+  const t = copy.complete;
 
   return (
     <ConfirmedIntegrationDataProvider targetSourceId={project.targetSourceId}>
@@ -97,8 +104,8 @@ export const InstallationCompleteStep = ({
       <section className={cardStyles.base}>
         <header className={cardStyles.header}>
           <div className="flex items-center gap-2">
-            <span className={cardStyles.stepTag}>7단계</span>
-            <h2 className={cardStyles.cardTitle}>PII 모니터링 모듈 연동</h2>
+            <span className={cardStyles.stepTag}>{copy.common.step(7)}</span>
+            <h2 className={cardStyles.cardTitle}>{t.title}</h2>
             <span
               className={cn(
                 cardStyles.stepBadge,
@@ -106,22 +113,22 @@ export const InstallationCompleteStep = ({
                 statusColors.success.textDark,
               )}
             >
-              연동 완료
+              {t.badge}
             </span>
           </div>
           <p className={cn('mt-3', cardStyles.guidance)}>
             <strong className={cn('font-semibold', primaryColors.text)}>
-              PII Agent 연동 절차가 완료되었어요.
+              {t.guidanceStrong}
             </strong>
           </p>
           {/* One sentence for the rewind CTAs (step-6 grammar); the step each one lands on
               is the action bar hint's job. */}
           <p className={cardStyles.guidance}>
-            PII Agent 연동 대상 인프라가 바뀌었다면{' '}
-            <strong className={cn('font-semibold', textColors.secondary)}>인프라 변경</strong>을,
-            연결 상태를 다시 점검하고 싶다면{' '}
-            <strong className={cn('font-semibold', textColors.secondary)}>연결 테스트 재실행</strong>
-            을 눌러 연동 절차를 다시 진행할 수 있어요.
+            {t.rewindLead}
+            <strong className={cn('font-semibold', textColors.secondary)}>{t.changeInfra}</strong>
+            {t.rewindMid}
+            <strong className={cn('font-semibold', textColors.secondary)}>{t.retest}</strong>
+            {t.rewindTail}
           </p>
         </header>
         <div className={cardStyles.body}>

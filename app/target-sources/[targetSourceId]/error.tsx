@@ -3,6 +3,7 @@
 import { useEffect } from 'react';
 
 import { ErrorState } from '@/app/target-sources/[targetSourceId]/_components/common';
+import { useLocale } from '@/app/components/LocaleProvider';
 
 /**
  * 마지막 그물. 조회 실패는 page.tsx 가 상태 코드까지 보고 처리하므로, 여기까지 오는 건
@@ -20,6 +21,8 @@ export default function ProjectDetailError({
 }: {
   error: Error & { digest?: string };
 }) {
+  const { locale } = useLocale();
+
   // 렌더 본문이 아니라 effect 에서 남긴다. 렌더는 부수효과 없이 몇 번이고 다시 돌 수 있고
   // (StrictMode 는 개발에서 일부러 두 번 돌린다), 그때마다 같은 실패를 다시 찍으면 로그가
   // 실제 발생 횟수를 말해주지 못한다.
@@ -27,5 +30,5 @@ export default function ProjectDetailError({
     console.error('[target-sources] 상세 화면 렌더 실패', error.digest ?? error);
   }, [error]);
 
-  return <ErrorState />;
+  return <ErrorState locale={locale} />;
 }

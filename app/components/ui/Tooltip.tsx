@@ -3,6 +3,8 @@
 import { useState, useRef, useEffect, useLayoutEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { cn, primaryColors } from '@/lib/theme';
+import { useLocale } from '@/app/components/LocaleProvider';
+import { COPY } from '@/lib/copy';
 
 type TooltipSize = 'sm' | 'md' | 'lg' | 'xl';
 
@@ -355,7 +357,9 @@ interface InfoTooltipProps {
   iconSize?: number;
 }
 
-export const InfoTooltip = ({ content, position = 'top', size = 'lg', variant = 'status', label = '도움말', iconSize = 13 }: InfoTooltipProps) => {
+export const InfoTooltip = ({ content, position = 'top', size = 'lg', variant = 'status', label, iconSize = 13 }: InfoTooltipProps) => {
+  const { locale } = useLocale();
+
   return (
     <Tooltip content={content} position={position} size={size} variant={variant}>
       {/* tabIndex makes the trigger keyboard-focusable so the :focus reveal path
@@ -363,7 +367,7 @@ export const InfoTooltip = ({ content, position = 'top', size = 'lg', variant = 
       <button
         type="button"
         tabIndex={0}
-        aria-label={label}
+        aria-label={label ?? COPY[locale].common.help}
         className={cn('inline-flex items-center justify-center text-[#6B7280] transition-colors', primaryColors.textHoverBase)}
       >
         <svg

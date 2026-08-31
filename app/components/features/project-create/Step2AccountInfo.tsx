@@ -2,7 +2,9 @@
 
 import { ProviderCredentialForm } from '@/app/components/features/project-create/ProviderCredentialForm';
 import type { AwsInstallMode } from '@/app/components/features/project-create/wizard-model';
+import { useLocale } from '@/app/components/LocaleProvider';
 import { isCspChip, type ProviderChipKey } from '@/lib/constants/provider-mapping';
+import { COPY } from '@/lib/copy';
 import {
   bgColors,
   borderColors,
@@ -13,19 +15,23 @@ import {
   textColors,
 } from '@/lib/theme';
 
+/** The wizard dictionary, so the map below can take it as a parameter. */
+type WizardCopy = (typeof COPY)['ko']['wizard'];
+
 // 자동 sits on the right and is the default: it is the path we recommend, and a
 // segmented pair reads left→right as "the other option, then the one we mean".
-const INSTALL_OPTIONS: Array<{ value: AwsInstallMode; title: string; description: string }> = [
+const installOptions = (
+  t: WizardCopy,
+): Array<{ value: AwsInstallMode; title: string; description: string }> => [
   {
     value: 'manual',
-    title: '수동 설치',
-    description: '제공되는 테라폼 스크립트를 직접 실행하여 설치하는 방식이에요.',
+    title: t.manualInstall,
+    description: t.manualInstallDesc,
   },
   {
     value: 'auto',
-    title: '자동 설치',
-    description:
-      'PASS 담당자에게 테라폼 설치 권한을 부여하면, PASS 담당자가 테라폼 스크립트를 직접 실행해 설치해 주는 방식이에요.',
+    title: t.autoInstall,
+    description: t.autoInstallDesc,
   },
 ];
 
@@ -45,69 +51,72 @@ export const Step2AccountInfo = ({
   showRequiredErrors,
   installMode,
   onInstallModeChange,
-}: Step2AccountInfoProps) => (
-  <div>
-    <h2 className={cn('text-lg font-bold', textColors.primary)}>
-      {isCspChip(providerKey) ? '계정 정보를 알려주세요' : '인프라 정보를 알려주세요'}
-    </h2>
-    <p className={cn('mt-1 mb-5 text-sm', textColors.tertiary)}>
-      연결할 계정을 확인하는 데 사용해요.
-    </p>
+}: Step2AccountInfoProps) => {
+  const { locale } = useLocale();
+  const t = COPY[locale].wizard;
 
-    <ProviderCredentialForm
-      chipKey={providerKey}
-      values={values}
-      onChange={onChange}
-      showRequiredErrors={showRequiredErrors}
-    />
+  return (
+    <div>
+      <h2 className={cn('text-lg font-bold', textColors.primary)}>
+        {isCspChip(providerKey) ? t.s2TitleCsp : t.s2TitleOther}
+      </h2>
+      <p className={cn('mt-1 mb-5 text-sm', textColors.tertiary)}>{t.s2Sub}</p>
 
-    {providerKey === 'aws' && (
-      <fieldset className="mt-5 border-0 p-0">
-        <legend className={cn('mb-2 block text-sm font-semibold', textColors.secondary)}>
-          설치 방식 <span className={statusColors.error.text}>*</span>
-        </legend>
-        <div
-          role="radiogroup"
-          aria-label="설치 방식"
-          className="grid max-w-[520px] grid-cols-2 gap-2"
-        >
-          {INSTALL_OPTIONS.map((option) => {
-            const isSelected = installMode === option.value;
-            return (
-              <button
-                key={option.value}
-                type="button"
-                role="radio"
-                aria-checked={isSelected}
-                onClick={() => onInstallModeChange(option.value)}
-                className={cn(
-                  'rounded-xl border-2 px-3.5 py-3 text-left transition-colors',
-                  isSelected
-                    ? cn(primaryColors.border, primaryColors.bgLight)
-                    : cn(borderColors.default, bgColors.surface, interactiveColors.unselectedBorder),
-                )}
-              >
-                <span
+      <ProviderCredentialForm
+        chipKey={providerKey}
+        values={values}
+        onChange={onChange}
+        showRequiredErrors={showRequiredErrors}
+      />
+
+      {providerKey === 'aws' && (
+        <fieldset className="mt-5 border-0 p-0">
+          <legend className={cn('mb-2 block text-sm font-semibold', textColors.secondary)}>
+            {t.installMethod} <span className={statusColors.error.text}>*</span>
+          </legend>
+          <div
+            role="radiogroup"
+            aria-label={t.installMethod}
+            className="grid max-w-[520px] grid-cols-2 gap-2"
+          >
+            {installOptions(t).map((option) => {
+              const isSelected = installMode === option.value;
+              return (
+                <button
+                  key={option.value}
+                  type="button"
+                  role="radio"
+                  aria-checked={isSelected}
+                  onClick={() => onInstallModeChange(option.value)}
                   className={cn(
-                    'block text-sm font-semibold',
-                    isSelected ? primaryColors.textOnLight : textColors.primary,
+                    'rounded-xl border-2 px-3.5 py-3 text-left transition-colors',
+                    isSelected
+                      ? cn(primaryColors.border, primaryColors.bgLight)
+                      : cn(borderColors.default, bgColors.surface, interactiveColors.unselectedBorder),
                   )}
                 >
-                  {option.title}
-                </span>
-                <span
-                  className={cn(
-                    'block text-xs',
-                    isSelected ? primaryColors.textOnLight : textColors.tertiary,
-                  )}
-                >
-                  {option.description}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-      </fieldset>
-    )}
-  </div>
-);
+                  <span
+                    className={cn(
+                      'block text-sm font-semibold',
+                      isSelected ? primaryColors.textOnLight : textColors.primary,
+                    )}
+                  >
+                    {option.title}
+                  </span>
+                  <span
+                    className={cn(
+                      'block text-xs',
+                      isSelected ? primaryColors.textOnLight : textColors.tertiary,
+                    )}
+                  >
+                    {option.description}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </fieldset>
+      )}
+    </div>
+  );
+};

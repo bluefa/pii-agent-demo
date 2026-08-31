@@ -4,8 +4,10 @@ import {
   DB_TYPES_BY_PROVIDER,
   type DbType,
 } from '@/lib/constants/db-types';
+import { useLocale } from '@/app/components/LocaleProvider';
 import { CheckIcon } from '@/app/components/ui/icons';
 import { PROVIDER_CHIP_BY_KEY, type ProviderChipKey } from '@/lib/constants/provider-mapping';
+import { COPY } from '@/lib/copy';
 import {
   bgColors,
   borderColors,
@@ -34,24 +36,22 @@ export const Step3Databases = ({
   onOthersToggle,
   showError,
 }: Step3DatabasesProps) => {
+  const { locale } = useLocale();
+  const t = COPY[locale].wizard;
   // 기타 환경 has no vendor to name, so the sentence talks about the environment itself.
-  const scopeName = providerKey === 'other' ? '해당 환경' : PROVIDER_CHIP_BY_KEY[providerKey].label;
+  const scopeName = providerKey === 'other' ? t.s3Scope : PROVIDER_CHIP_BY_KEY[providerKey].label;
 
   return (
     <div>
-      <h2 className={cn('text-lg font-bold', textColors.primary)}>
-        사용 중인 Database를 확인해 주세요
-      </h2>
+      <h2 className={cn('text-lg font-bold', textColors.primary)}>{t.s3Title}</h2>
       <p className={cn('mt-1 mb-5 text-sm', textColors.tertiary)}>
-        {scopeName}에서 사용 중인 Database를 모두 선택해 주세요.{' '}
-        <span className={cn('font-semibold', textColors.secondary)}>
-          선택 개수와 등록 건수는 무관해요.
-        </span>
+        {t.s3Sub(scopeName)}{' '}
+        <span className={cn('font-semibold', textColors.secondary)}>{t.s3SubTail}</span>
       </p>
 
       <div
         role="group"
-        aria-label="사용 중인 Database"
+        aria-label={t.s3Aria}
         className="grid max-w-[640px] grid-cols-4 gap-2"
       >
         {DB_TYPES_BY_PROVIDER[providerKey].map((db) => {
@@ -104,24 +104,22 @@ export const Step3Databases = ({
       >
         {othersSelected ? (
           <>
-            <span className="font-semibold">✓ Others</span> — 목록에 없는 Database를 사용하고 있어요
+            <span className="font-semibold">✓ Others</span> — {t.othersHint}
           </>
         ) : (
           <>
-            찾으시는 DB가 없으신가요?{' '}
-            <span className={cn('font-semibold', primaryColors.textOnLight)}>Others로 선택 →</span>
+            {t.dbNotFound}{' '}
+            <span className={cn('font-semibold', primaryColors.textOnLight)}>{t.pickOthers}</span>
           </>
         )}
       </button>
 
       {showError ? (
         <p className={cn('mt-2.5 max-w-[640px] text-xs', statusColors.error.textDark)}>
-          사용 중인 Database를 1개 이상 선택해 주세요. 목록에 없다면 Others를 선택해 주세요.
+          {t.s3Error}
         </p>
       ) : (
-        <p className={cn('mt-2.5 max-w-[640px] text-xs', textColors.tertiary)}>
-          선택하신 Database는 PII 모니터링 연동 방식을 판단하는 데 사용해요.
-        </p>
+        <p className={cn('mt-2.5 max-w-[640px] text-xs', textColors.tertiary)}>{t.s3Footer}</p>
       )}
     </div>
   );

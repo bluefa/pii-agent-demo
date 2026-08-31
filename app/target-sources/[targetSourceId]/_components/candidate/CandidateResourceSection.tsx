@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useLocale } from '@/app/components/LocaleProvider';
 import { createApprovalRequest } from '@/app/lib/api';
 import { Button } from '@/app/components/ui/Button';
 import { LoadingSpinner } from '@/app/components/ui/LoadingSpinner';
@@ -59,6 +60,7 @@ import { Ec2AddModal } from '@/app/target-sources/[targetSourceId]/_components/a
 import { IdcSubmitModal } from '@/app/target-sources/[targetSourceId]/_components/idc/modals/IdcSubmitModal';
 import { IdcExclusionPopover } from '@/app/target-sources/[targetSourceId]/_components/idc/IdcExclusionPopover';
 import { IdcExclusionReasonModal } from '@/app/target-sources/[targetSourceId]/_components/idc/modals/IdcExclusionReasonModal';
+import { CANDIDATE_COPY } from '@/app/target-sources/[targetSourceId]/_components/candidate/copy';
 
 interface CandidateResourceSectionProps {
   targetSourceId: number;
@@ -113,6 +115,8 @@ export const CandidateResourceSection = ({
   readonly,
   refreshProject,
 }: CandidateResourceSectionProps) => {
+  const { locale } = useLocale();
+  const t = CANDIDATE_COPY[locale].candidate;
   const toast = useToast();
   const approvalModal = useModal();
   const historyModal = useModal();
@@ -214,20 +218,20 @@ export const CandidateResourceSection = ({
   const approvalBlockReason = useMemo(() => {
     if (selectedIds.size === 0) {
       return {
-        title: '연동할 DB를 선택해주세요',
-        detail: '목록에서 1개 이상 선택하면 승인 요청을 보낼 수 있어요.',
+        title: t.blockedNoSelectionTitle,
+        detail: t.blockedNoSelectionDetail,
       };
     }
     if (missingReasonResources.length > 0) {
       const preview = missingReasonResources.slice(0, 2).map((c) => c.resourceName).join(', ');
       const rest = missingReasonResources.length - 2;
       return {
-        title: `제외 사유 미입력 ${missingReasonResources.length}건`,
-        detail: `제외한 설치 대상에는 사유가 필요해요: ${preview}${rest > 0 ? ` 외 ${rest}건` : ''}`,
+        title: t.blockedMissingReasonTitle(missingReasonResources.length),
+        detail: t.blockedMissingReasonDetail(preview, rest),
       };
     }
     return null;
-  }, [missingReasonResources, selectedIds.size]);
+  }, [missingReasonResources, selectedIds.size, t]);
 
   const select = useCallback((resourceId: string) => {
     setSelectedIds((previous) => new Set(previous).add(resourceId));
@@ -307,7 +311,7 @@ export const CandidateResourceSection = ({
       try {
         await refreshProject();
       } catch {
-        toast.warning('승인 요청은 접수됐어요. 화면을 새로고침해 최신 상태를 확인해 주세요.');
+        toast.warning(t.approvalFiledRefresh);
       } finally {
         approvalModal.close();
         setExpandedResourceId(null);
@@ -439,22 +443,18 @@ export const CandidateResourceSection = ({
         && !getCandidateBehavior(candidate).isConfigured(candidate, drafts),
     );
     if (unconfigured.length > 0) {
-      toast.warning(
-        `다음 리소스의 설정이 필요합니다: ${unconfigured.map((candidate) => candidate.resourceId).join(', ')}`,
-      );
+      toast.warning(t.needsConfig(unconfigured.map((candidate) => candidate.resourceId).join(', ')));
       return;
     }
     // Exclusion reason is required (docs/cloud-provider-states.md) — every unselected TARGET needs one.
     const missingReasons = listMissingExclusionReasons(allCandidates, selectedIds, exclusionReasons);
     if (missingReasons.length > 0) {
-      toast.warning(
-        `제외 사유 입력이 필요합니다: ${missingReasons.map((candidate) => candidate.resourceId).join(', ')}`,
-      );
+      toast.warning(t.needsReason(missingReasons.map((candidate) => candidate.resourceId).join(', ')));
       return;
     }
     approval.reset();
     approvalModal.open();
-  }, [approval, approvalModal, allCandidates, drafts, exclusionReasons, selectedIds, toast]);
+  }, [approval, approvalModal, allCandidates, drafts, exclusionReasons, selectedIds, t, toast]);
 
   const beginCompletion = completion.begin;
   const handleScanComplete = useCallback(async () => {
@@ -554,19 +554,17 @@ export const CandidateResourceSection = ({
           const liveMessage = ((): string => {
             switch (phase) {
               case 'scanning':
-                return finalizing ? '스캔 결과를 집계하고 있어요.' : '인프라 스캔을 진행하고 있어요.';
+                return finalizing ? t.liveAggregating : t.liveScanning;
               case 'completing':
-                return completion.stage === 'settling'
-                  ? '스캔 결과를 집계하고 있어요.'
-                  : '인프라 스캔이 끝났어요.';
+                return completion.stage === 'settling' ? t.liveAggregating : t.liveScanDone;
               case 'list':
-                return `연동 대상 ${candidates.length}건을 불러왔어요.`;
+                return t.liveLoaded(candidates.length);
               case 'empty':
-                return neverScanned ? '' : '발견된 리소스가 없어요.';
+                return neverScanned ? '' : t.liveEmpty;
               case 'scanFailed':
-                return '인프라 스캔에 실패했어요.';
+                return t.liveScanFailed;
               case 'scanStale':
-                return '마지막 스캔이 정책 기한을 지나 다시 스캔해야 해요.';
+                return t.liveScanStale;
               default:
                 // fetching·fetchError 는 스켈레톤과 에러 박스가 스스로 말한다.
                 return '';
@@ -584,7 +582,7 @@ export const CandidateResourceSection = ({
                       {state.status === 'error' ? state.message : ''}
                     </p>
                     <button onClick={refetch} className={getButtonClass('secondary')}>
-                      다시 시도
+                      {t.retry}
                     </button>
                   </div>
                 );
@@ -649,7 +647,7 @@ export const CandidateResourceSection = ({
                           className={idcStyles.triggerBtn.ghostSm}
                         >
                           <PlusIcon className="h-3 w-3" />
-                          EC2 추가
+                          {t.addEc2}
                         </button>
                       ) : undefined}
                     />
@@ -662,7 +660,7 @@ export const CandidateResourceSection = ({
                       readonly={readonly}
                       actions={rowActions}
                       justAddedResourceId={justAddedEc2Id}
-                      emptyMessage="조건에 맞는 결과가 없어요."
+                      emptyMessage={t.noFilterMatch}
                       // 검색·필터·깔때기 타일이 목록을 좁히는 동안은 그룹을 전부 연다 —
                       // 일치 행이 접힌 그룹 안에 숨으면 친 검색어가 빈 화면을 돌려받는다
                       // (steps 2·3·6·7 의 expandFolds 계약 그대로).
@@ -700,7 +698,7 @@ export const CandidateResourceSection = ({
                   />
                 ) : (
                   <p className={cn('px-6 py-10 text-center text-sm', textColors.tertiary)}>
-                    발견된 리소스가 없어요. 다시 스캔으로 최신 상태를 확인해보세요.
+                    {t.emptyAfterScan}
                   </p>
                 );
               default:
@@ -717,8 +715,8 @@ export const CandidateResourceSection = ({
                   primary CTA는 하단 승인 요청 하나뿐이고, 스캔은 보조 밴드로 물러난다. */}
               <header className={cardStyles.header}>
                 <div className="flex items-center gap-2">
-                  <span className={cardStyles.stepTag}>1단계</span>
-                  <h2 className={cn(cardStyles.cardTitle)}>연동 대상 DB 선택</h2>
+                  <span className={cardStyles.stepTag}>{t.stepTag}</span>
+                  <h2 className={cn(cardStyles.cardTitle)}>{t.cardTitle}</h2>
                 </div>
                 {/* 2호흡: 스캔→선택 / 사유→승인 — 한 문단 안의 두 문장이 아니라 문단
                     둘로 나눈다. 둘째 문단은 위 여백이 없다: 같은 호흡의 이어지는 말이라
@@ -727,13 +725,14 @@ export const CandidateResourceSection = ({
                     승인은 시스템 몫이라 평문.
                     break-keep: 음절 고아("요."만 다음 줄) 방지, 단어 단위로 감는다. */}
                 <p className={cn('mt-2.5 break-keep', cardStyles.guidance)}>
-                  인프라 스캔을 통해 조회된 {provider} 리소스 중{' '}
-                  <span className={primaryColors.text}>PII Agent를 연동할 리소스를 선택</span>
-                  해주세요.
+                  {t.guideScanLead(provider)}
+                  <span className={primaryColors.text}>{t.guideScanEmphasis}</span>
+                  {t.guideScanTail}
                 </p>
                 <p className={cn('break-keep', cardStyles.guidance)}>
-                  연동에서 제외할 리소스는 <span className={primaryColors.text}>사유를 입력</span>
-                  해야 하며, 연동 대상 승인 요청으로 제출한 결과는 관리자 승인 후 최종 확정돼요.
+                  {t.guideReasonLead}
+                  <span className={primaryColors.text}>{t.guideReasonEmphasis}</span>
+                  {t.guideReasonTail}
                 </p>
                 {/* 스캔이 못 찾는 것을 먼저 말하고 그다음 어디를 누르는지 말한다 —
                     버튼 이름만 알려주면 왜 눌러야 하는지는 여전히 모른다. 버튼이
@@ -746,9 +745,9 @@ export const CandidateResourceSection = ({
                     덩어리로 읽혀야 하고, 같은 간격을 주면 별개의 블록으로 갈라진다. */}
                 {ec2AddVisible && (
                   <p className={cn('mt-1 break-keep', cardStyles.guidance)}>
-                    EC2에 직접 설치해 운영 중인 데이터베이스는 자동 스캔 대상에 포함되지 않아요. 목록
-                    우측 상단의 <span className={primaryColors.text}>EC2 추가</span>에서 Instance
-                    ID로 검색해 직접 연동 대상으로 추가해주세요.
+                    {t.guideEc2Lead}
+                    <span className={primaryColors.text}>{t.guideEc2Emphasis}</span>
+                    {t.guideEc2Tail}
                   </p>
                 )}
               </header>
@@ -783,8 +782,11 @@ export const CandidateResourceSection = ({
                 <CardActionBar
                   hint={
                     <>
-                      총 <strong className={textColors.primary}>{allCandidates.length}</strong>건 ·{' '}
-                      <strong className={primaryColors.text}>{selectedIds.size}</strong>건 선택됨
+                      {t.hintLead}
+                      <strong className={textColors.primary}>{allCandidates.length}</strong>
+                      {t.hintMid}
+                      <strong className={primaryColors.text}>{selectedIds.size}</strong>
+                      {t.hintTail}
                     </>
                   }
                 >
@@ -800,7 +802,7 @@ export const CandidateResourceSection = ({
                         className="flex items-center gap-2 disabled:pointer-events-none"
                       >
                         {approval.pending && <LoadingSpinner />}
-                        연동 대상 승인 요청
+                        {t.requestApproval}
                       </Button>
                     );
                     return approvalBlockReason ? (
@@ -873,7 +875,7 @@ export const CandidateResourceSection = ({
       {/* 틴트도 배지도 보지 못하는 사용자에게 같은 사실을 말한다 — 시각 신호와
           같은 자리에서 한 번만. */}
       <p aria-live="polite" className="sr-only">
-        {justAddedEc2Id === null ? '' : `EC2 인스턴스 ${justAddedEc2Id}을(를) 연동 대상 목록에 추가했어요.`}
+        {justAddedEc2Id === null ? '' : t.liveEc2Added(justAddedEc2Id)}
       </p>
 
       {/* Mounted per open so the search query, the results and the form start fresh; the

@@ -12,6 +12,8 @@ import { TqModal } from '@/app/admin/pipelines/queue/_components/TqModal';
 import { CharCount } from '@/app/admin/pipelines/queue/_components/bits';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
 import { SearchBox } from '@/app/admin/pipelines/_components/SearchBox';
+import { useLocale } from '@/app/components/LocaleProvider';
+import { COPY } from '@/lib/copy';
 import { tqStyles } from '@/app/admin/pipelines/queue/_components/tqStyles';
 import { useAbortableEffect } from '@/app/hooks/useAbortableEffect';
 import { searchAccessUsers, type AccessUser } from '@/app/lib/api/access';
@@ -85,6 +87,8 @@ export function UserPickerModal({
   submitLabel,
   onSubmit,
 }: UserPickerModalProps): ReactElement {
+  const { locale } = useLocale();
+  const t = COPY[locale].access;
   const [query, setQuery] = useState('');
   const [debounced, setDebounced] = useState('');
   const [users, setUsers] = useState<AccessUser[] | null>(null);
@@ -165,7 +169,7 @@ export function UserPickerModal({
       footer={
         <>
           <PlButton variant="secondary" onClick={onClose} disabled={submitting}>
-            취소
+            {t.cancel}
           </PlButton>
           <PlButton
             variant="primary"
@@ -180,29 +184,29 @@ export function UserPickerModal({
       <div className={a.pickerSearch}>
         <SearchBox
           wrapClassName="block w-full"
-          placeholder="Knox ID · 이메일 검색"
+          placeholder={t.userSearchPlaceholder}
           value={query}
           onChange={(event) => setQuery(event.target.value)}
-          aria-label="사용자 검색"
+          aria-label={t.userSearchLabel}
         />
       </div>
       <div className={a.pickerList}>
         {!debounced ? (
           // 검색 전에는 아무도 보여주지 않는다 — 위 effect 의 이유와 같다.
-          <div className={a.pickerEmpty}>Knox ID 나 이메일로 검색해 주세요</div>
+          <div className={a.pickerEmpty}>{t.userSearchPrompt}</div>
         ) : error != null ? (
           <div className={a.pickerError}>
             <span className="min-w-0 truncate">{errorMessage(error)}</span>
             <PlButton variant="secondary" size="sm" onClick={() => setRetry((n) => n + 1)}>
-              재시도
+              {t.retry}
             </PlButton>
           </div>
         ) : users == null ? (
           <div className={a.pickerEmpty} aria-busy="true">
-            찾는 중이에요
+            {t.searching}
           </div>
         ) : users.length === 0 ? (
-          <div className={a.pickerEmpty}>검색 결과가 없어요</div>
+          <div className={a.pickerEmpty}>{t.noResults}</div>
         ) : (
           users.map((user) => (
             <label key={user.email} className={a.pickerRow}>
@@ -218,7 +222,7 @@ export function UserPickerModal({
           ))
         )}
       </div>
-      <div className={a.pickerCount}>{picked.length}명 선택됨</div>
+      <div className={a.pickerCount}>{t.pickedCount(picked.length)}</div>
     </TqModal>
   );
 }
@@ -267,6 +271,7 @@ function TextModal({
   meta,
   onSubmit,
 }: TextModalProps): ReactElement {
+  const { locale } = useLocale();
   const [text, setText] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const { modal } = tqStyles;
@@ -294,7 +299,7 @@ function TextModal({
       footer={
         <>
           <PlButton variant="secondary" onClick={onClose} disabled={submitting}>
-            취소
+            {COPY[locale].access.cancel}
           </PlButton>
           <PlButton
             variant={danger ? 'dangerSolid' : 'primary'}
@@ -335,15 +340,17 @@ export function ApproveAccessModal({
   subject,
   onSubmit,
 }: VerdictModalProps): ReactElement {
+  const { locale } = useLocale();
+  const t = COPY[locale].access;
   return (
     <TextModal
       open={open}
       onClose={onClose}
-      title="접근 권한 요청 승인"
-      sub={`${subject}을 승인해요. 승인하는 즉시 해당 서비스 권한이 부여돼요.`}
-      label="승인 메시지 · 선택"
-      placeholder="요청자에게 전달할 메시지를 남길 수 있어요"
-      submitLabel="승인"
+      title={t.approveTitle}
+      sub={t.approveSubtitle(subject)}
+      label={t.approveMessageLabel}
+      placeholder={t.approveMessagePlaceholder}
+      submitLabel={t.approve}
       onSubmit={onSubmit}
     />
   );
@@ -355,15 +362,17 @@ export function RejectAccessModal({
   subject,
   onSubmit,
 }: VerdictModalProps): ReactElement {
+  const { locale } = useLocale();
+  const t = COPY[locale].access;
   return (
     <TextModal
       open={open}
       onClose={onClose}
-      title="접근 권한 요청 반려"
-      sub={`${subject}을 반려해요. 사유는 요청자에게 그대로 전달돼요.`}
-      label="반려 사유 · 필수"
-      placeholder="요청자가 무엇을 보완해 다시 요청해야 하는지 적어 주세요"
-      submitLabel="반려"
+      title={t.rejectTitle}
+      sub={t.rejectSubtitle(subject)}
+      label={t.rejectReasonLabel}
+      placeholder={t.rejectReasonPlaceholder}
+      submitLabel={t.reject}
       required
       danger
       onSubmit={onSubmit}
@@ -392,6 +401,7 @@ export function ConfirmDangerModal({
   children,
   onConfirm,
 }: ConfirmModalProps): ReactElement {
+  const { locale } = useLocale();
   const [submitting, setSubmitting] = useState(false);
 
   const submit = async (): Promise<void> => {
@@ -412,7 +422,7 @@ export function ConfirmDangerModal({
       footer={
         <>
           <PlButton variant="secondary" onClick={onClose} disabled={submitting}>
-            취소
+            {COPY[locale].access.cancel}
           </PlButton>
           <PlButton variant="dangerSolid" onClick={submit} disabled={submitting}>
             {confirmLabel}
@@ -478,6 +488,8 @@ export function OwnersModal({
   owners,
   ownerCount,
 }: OwnersModalProps): ReactElement {
+  const { locale } = useLocale();
+  const t = COPY[locale].access;
   const [query, setQuery] = useState('');
 
   // 닫힌 모달이 검색어를 들고 있으면 다음에 열릴 때 걸러진 목록으로 열린다. effect 가
@@ -502,21 +514,21 @@ export function OwnersModal({
     <TqModal
       open={open}
       onClose={onClose}
-      title="담당자 확인"
+      title={t.ownersTitle}
       meta={<ServiceLine serviceCode={serviceCode} serviceName={serviceName} />}
-      sub="이 서비스의 접근 권한 요청을 검토하는 사람들이에요."
+      sub={t.ownersSubtitle}
     >
       {/* 인원수는 지금 그려진 수다 — 걸러 낸 상태에서 전체를 말하면 화면과 어긋난다. */}
       <div className={a.ownerBar}>
-        <span className={a.ownerCount}>{q ? shown.length : ownerCount}명</span>
+        <span className={a.ownerCount}>{t.ownerCount(q ? shown.length : ownerCount)}</span>
         {searchable && (
           <div className={a.ownerSearch}>
             <SearchBox
               wrapClassName="block w-full"
-              placeholder="Knox ID 검색"
+              placeholder={t.ownersSearchPlaceholder}
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-              aria-label="담당자 검색"
+              aria-label={t.ownersSearchLabel}
             />
           </div>
         )}
@@ -527,9 +539,7 @@ export function OwnersModal({
         // 안 온 채로 수는 5 인 응답이 가능하다 — 그때 검색어 없이 ‘’와 일치하는 담당자가
         // 없습니다 를 그리면 하지도 않은 검색이 실패한 것처럼 읽힌다. 수만 말한다.
         <div className={a.pickerEmpty}>
-          {q
-            ? `‘${query}’와 일치하는 담당자가 없습니다`
-            : `담당자 ${ownerCount}명이 있지만 이름이 오지 않았어요`}
+          {q ? t.ownersNoMatch(query) : t.ownersNamesMissing(ownerCount)}
         </div>
       ) : (
         <div className={a.ownerFlow}>
@@ -544,7 +554,7 @@ export function OwnersModal({
           밖이라 목록이 길어도 첫 화면에서 보인다. `여기` 가 비어 있으면 이 문장은 가리킬
           곳이 없다 — 그 경우는 위의 빈 상태가 수를 통째로 들고 간다. */}
       {hidden > 0 && sorted.length > 0 && (
-        <p className={a.ownerNote}>여기 없는 담당자가 {hidden}명 더 있어요</p>
+        <p className={a.ownerNote}>{t.ownersHidden(hidden)}</p>
       )}
     </TqModal>
   );
@@ -567,16 +577,18 @@ export function RequestAccessModal({
   serviceName,
   onSubmit,
 }: RequestAccessModalProps): ReactElement {
+  const { locale } = useLocale();
+  const t = COPY[locale].access;
   return (
     <TextModal
       open={open}
       onClose={onClose}
-      title="접근 권한 요청"
+      title={t.requestTitle}
       meta={<ServiceLine serviceCode={serviceCode} serviceName={serviceName} />}
-      sub="관리자가 검토한 뒤 승인하거나 반려해요. 결과는 내 요청 내역에서 확인할 수 있어요."
-      label="요청 사유 · 필수"
-      placeholder="어떤 업무 때문에 이 서비스 접근이 필요한지 적어 주세요"
-      submitLabel="요청"
+      sub={t.requestSubtitle}
+      label={t.requestReasonLabel}
+      placeholder={t.requestReasonPlaceholder}
+      submitLabel={t.request}
       required
       max={MAX_REASON}
       onSubmit={onSubmit}

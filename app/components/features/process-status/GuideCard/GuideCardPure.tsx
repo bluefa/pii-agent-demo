@@ -79,7 +79,12 @@ export const GuideCardPure = ({
       // `break-keep`: 271px of column is narrow enough that Korean's default
       // break-anywhere was splitting words mid-어절 (「인프라 스 / 캔을」), and 14px wraps
       // more often than 13 did. Latin runs still break at their own boundaries.
-      <div className="prose-guide prose-guide-rail break-keep text-[14px] leading-[20px] tracking-[-0.01em] text-[var(--fg-2)]">
+      //
+      // `lang="ko"` is hard-coded, not `locale`: the guide was kept out of localisation, so
+      // this text is Korean whatever the reader picked. The screen around it now declares
+      // `en` for an English reader, and without this stamp the guide would inherit that and
+      // be announced by an English voice — the failure app/layout.tsx's root comment names.
+      <div lang="ko" className="prose-guide prose-guide-rail break-keep text-[14px] leading-[20px] tracking-[-0.01em] text-[var(--fg-2)]">
         {rendered}
       </div>
     );
@@ -88,7 +93,9 @@ export const GuideCardPure = ({
   return (
     <GuideCardChrome>
       {showHeader && <CardHeader />}
+      {/* Korean for the same reason as the bare branch. */}
       <div
+        lang="ko"
         className={cn(
           // v16 .guide-content: 13px / line-height 1.72 / color --fg-2 (gray-700 #374151)
           'px-6 py-5 prose-guide text-[13px] leading-[1.72] text-[#374151]',

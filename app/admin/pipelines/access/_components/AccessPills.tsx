@@ -1,3 +1,5 @@
+'use client';
+
 /**
  * 접근 권한 화면의 상태 배지들. 모르는 enum 값은 회색 위에 원문 그대로 (정직한 폴백:
  * 라벨을 지어내면 계약이 바뀐 걸 화면이 숨긴다).
@@ -12,6 +14,8 @@
  */
 import type { ReactElement } from 'react';
 import { cn } from '@/lib/theme';
+import { useLocale } from '@/app/components/LocaleProvider';
+import { COPY } from '@/lib/copy';
 import type { AccessHistoryType, AccessRequestStatus } from '@/app/lib/api/access';
 
 type Tone = 'off' | 'warn' | 'ok' | 'err' | 'info';
@@ -45,11 +49,16 @@ function Pill({
   );
 }
 
-const REQUEST_TONE: Record<AccessRequestStatus, { label: string; tone: Tone }> = {
-  PENDING: { label: '승인 대기', tone: 'warn' },
-  APPROVED: { label: '승인', tone: 'ok' },
-  REJECTED: { label: '반려', tone: 'err' },
-};
+/** The access dictionary, so the label maps below can take it as a parameter. */
+type AccessCopy = (typeof COPY)['ko']['access'];
+
+const requestTone = (
+  t: AccessCopy,
+): Record<AccessRequestStatus, { label: string; tone: Tone }> => ({
+  PENDING: { label: t.pillPending, tone: 'warn' },
+  APPROVED: { label: t.pillApproved, tone: 'ok' },
+  REJECTED: { label: t.pillRejected, tone: 'err' },
+});
 
 export function RequestStatusPill({
   status,
@@ -58,7 +67,8 @@ export function RequestStatusPill({
   status: AccessRequestStatus | string | null;
   className?: string;
 }): ReactElement {
-  const spec = (status && REQUEST_TONE[status as AccessRequestStatus]) || {
+  const { locale } = useLocale();
+  const spec = (status && requestTone(COPY[locale].access)[status as AccessRequestStatus]) || {
     label: status ?? '—',
     tone: 'off' as const,
   };
@@ -70,14 +80,16 @@ export function RequestStatusPill({
  * 정해져서(owner decision 2026-08-13), "요청 승인이었나 직접 부여였나"는 목록의 열이
  * 아니라 아래 이력의 이벤트(`OWNER_GRANTED` vs `REQUEST_APPROVED`)로만 답한다.
  */
-const HISTORY_TONE: Record<AccessHistoryType, { label: string; tone: Tone }> = {
-  REQUEST_APPROVED: { label: '요청 승인', tone: 'ok' },
-  REQUEST_REJECTED: { label: '요청 반려', tone: 'err' },
-  OWNER_GRANTED: { label: '직접 부여', tone: 'info' },
-  OWNER_REVOKED: { label: '권한 해제', tone: 'off' },
-  ADMIN_GRANTED: { label: '관리자 부여', tone: 'info' },
-  ADMIN_REVOKED: { label: '관리자 회수', tone: 'off' },
-};
+const historyTone = (
+  t: AccessCopy,
+): Record<AccessHistoryType, { label: string; tone: Tone }> => ({
+  REQUEST_APPROVED: { label: t.historyApproved, tone: 'ok' },
+  REQUEST_REJECTED: { label: t.historyRejected, tone: 'err' },
+  OWNER_GRANTED: { label: t.historyGranted, tone: 'info' },
+  OWNER_REVOKED: { label: t.historyRevoked, tone: 'off' },
+  ADMIN_GRANTED: { label: t.historyAdminGranted, tone: 'info' },
+  ADMIN_REVOKED: { label: t.historyAdminRevoked, tone: 'off' },
+});
 
 export function HistoryTypePill({
   type,
@@ -86,7 +98,8 @@ export function HistoryTypePill({
   type: AccessHistoryType | string | null;
   className?: string;
 }): ReactElement {
-  const spec = (type && HISTORY_TONE[type as AccessHistoryType]) || {
+  const { locale } = useLocale();
+  const spec = (type && historyTone(COPY[locale].access)[type as AccessHistoryType]) || {
     label: type ?? '—',
     tone: 'off' as const,
   };

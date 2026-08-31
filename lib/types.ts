@@ -349,6 +349,17 @@ export const RECOMMEND_FAIL_REASON_LABEL: Record<RecommendFailReason, string> = 
 };
 
 /**
+ * The English twin, held to the same rule the Korean map documents above: the chip shows
+ * only the first 15 characters, so the three values have to differ inside that prefix.
+ * `Public IP in u` / `Internal LB-onl` / `VNet-integrated` do.
+ */
+const RECOMMEND_FAIL_REASON_LABEL_EN: Record<RecommendFailReason, string> = {
+  GCP_CLOUD_SQL_HAS_PUBLIC_IP: 'Public IP in use',
+  GCP_CLOUD_SQL_HAS_INTERNAL_HTTP_LOAD_BALANCER_SUBNET: 'Internal LB-only subnet',
+  AZURE_RESOURCE_VNET_INTEGRATED_MODE: 'VNet-integrated mode',
+};
+
+/**
  * 제외 사유 칩이 보여줄 것 — 사람이 읽는 한 줄(`text`)과, 팁에만 붙는 원문 판정 코드(`code`).
  *
  * 두 필드를 모두 보는 이유: 요청 어댑터가 판정 코드를 `exclusion_reason` 에 그대로 써 넣기도
@@ -366,6 +377,7 @@ export const RECOMMEND_FAIL_REASON_LABEL: Record<RecommendFailReason, string> = 
 export const resolveExclusionReason = (
   reason?: string | null,
   recommendFailReason?: string | null,
+  locale: 'ko' | 'en' = 'ko',
 ): { text: string; code?: RecommendFailReason } | null => {
   // 코드는 두 필드 어디에 실려 왔든 찾는다 — 요청 어댑터가 `exclusion_reason` 에 그대로
   // 써 넣는 경로가 있다.
@@ -373,7 +385,10 @@ export const resolveExclusionReason = (
     normalizeRecommendFailReason(recommendFailReason) ?? normalizeRecommendFailReason(reason);
   // `reason` 이 코드 그 자체이면 사람이 쓴 문장이 아니다 — 그 경우만 라벨에 자리를 내준다.
   const prose = normalizeRecommendFailReason(reason) ? null : reason;
-  const text = prose || (code ? RECOMMEND_FAIL_REASON_LABEL[code] : recommendFailReason);
+  // Only the label has a language. `prose` is what the server wrote, and translating
+  // upstream text here would be inventing a sentence nobody sent.
+  const labels = locale === 'en' ? RECOMMEND_FAIL_REASON_LABEL_EN : RECOMMEND_FAIL_REASON_LABEL;
+  const text = prose || (code ? labels[code] : recommendFailReason);
   return text ? { text, code: code ?? undefined } : null;
 };
 

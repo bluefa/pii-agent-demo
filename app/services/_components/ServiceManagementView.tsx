@@ -29,12 +29,12 @@ import {
   buildInitialServiceListState,
   serviceListReducer,
 } from '@/app/components/features/admin-dashboard/serviceListReducer';
+import { useLocale } from '@/app/components/LocaleProvider';
+import { COPY } from '@/lib/copy';
 
 // Page size belongs to the rail, not to this page — see SERVICE_RAIL_PAGE_SIZE.
 const SERVICE_PAGE_SIZE = SERVICE_RAIL_PAGE_SIZE;
 const SEARCH_DEBOUNCE_MS = 300;
-// 실패 패널의 본문. 제목이 이미 "불러오지 못했습니다"를 말하므로 여기서는 다음 행동만 남긴다.
-const PANEL_RETRY_HINT = '잠시 후 다시 시도해 주세요.';
 
 /**
  * EOS 여부를 계약에 **없는** 필드에서 읽는다.
@@ -79,27 +79,31 @@ export const readIsEosService = (item: unknown): boolean | undefined => {
  * those two and double the other; a skeleton that grows into its content, centred
  * both times, promises neither outcome.
  */
-const PaneLoadingFrame = () => (
-  // aria-busy has to sit on an element that is still IN the tree — announcing the wait
-  // is the whole point, and aria-hidden on the same node deletes the announcement with
-  // it. The shapes below are what is decorative, so that is where the hiding belongs.
-  <div
-    role="status"
-    aria-busy="true"
-    aria-label="서비스 정보를 불러오는 중"
-    className="h-full flex items-center justify-center"
-  >
-    <div className="px-6" aria-hidden="true">
-      <div
-        className={cn(
-          'w-12 h-12 mx-auto mb-4 rounded-[10px]',
-          serviceSidebarStyles.canvasSkeletonBar,
-        )}
-      />
-      <div className={cn('h-5 w-64 rounded', serviceSidebarStyles.canvasSkeletonBar)} />
+const PaneLoadingFrame = () => {
+  const { locale } = useLocale();
+
+  return (
+    // aria-busy has to sit on an element that is still IN the tree — announcing the wait
+    // is the whole point, and aria-hidden on the same node deletes the announcement with
+    // it. The shapes below are what is decorative, so that is where the hiding belongs.
+    <div
+      role="status"
+      aria-busy="true"
+      aria-label={COPY[locale].services.loadingService}
+      className="h-full flex items-center justify-center"
+    >
+      <div className="px-6" aria-hidden="true">
+        <div
+          className={cn(
+            'w-12 h-12 mx-auto mb-4 rounded-[10px]',
+            serviceSidebarStyles.canvasSkeletonBar,
+          )}
+        />
+        <div className={cn('h-5 w-64 rounded', serviceSidebarStyles.canvasSkeletonBar)} />
+      </div>
     </div>
-  </div>
-);
+  );
+};
 
 /**
  * The content pane when the account has access to no service at all.
@@ -125,37 +129,42 @@ const PaneLoadingFrame = () => (
  * control. The two blues are a tier apart on purpose: the mark carries the hue, the
  * link carries the darker value it needs to be read at 16px.
  */
-const NoServiceAccessState = () => (
-  <div className="h-full flex items-center justify-center">
-    {/* `break-keep` 은 제목이 갈리는 자리를 어절 경계로 묶는 안전망이다 — 한글은 기본
-        규칙에서 "없습니/다" 처럼 낱말 한가운데가 끊긴다. 24px 시절 이 판이 실제로 그렇게
-        갈렸다. */}
-    <div className="max-w-[560px] px-6 text-center">
-      <ShieldIcon className={cn('w-12 h-12 mx-auto mb-4', primaryColors.text)} />
-      {/* 20 / 16 두 단(오너 지시). 제목만 semibold 라 계층이 크기와 무게 두 채널에
-          실린다 — 4px 차이 하나로는 두 줄이 같은 단으로 읽힌다. */}
-      <p className={cn('text-[20px] font-semibold leading-7 break-keep', textColors.primary)}>
-        아직 접근 권한이 있는 서비스가 없습니다
-      </p>
-      <p className={cn('mt-3 text-[16px] leading-6', textColors.secondary)}>
-        담당하시는 서비스가 있다면 권한 요청을 해주세요.
-        <br />
-        관리자가 확인 후 승인해드립니다.
-      </p>
-      {/* 행동은 사유보다 작지 않다 — 본문과 같은 16px 에 둔다. */}
-      <Link
-        href={passRoutes.accessRequests}
-        className={cn(
-          'mt-5 inline-flex items-center gap-0.5 text-[16px] hover:underline',
-          primaryColors.textOnLight,
-        )}
-      >
-        권한 요청하기
-        <ChevronRightIcon className="h-4 w-4" />
-      </Link>
+const NoServiceAccessState = () => {
+  const { locale } = useLocale();
+  const t = COPY[locale].services;
+
+  return (
+    <div className="h-full flex items-center justify-center">
+      {/* `break-keep` 은 제목이 갈리는 자리를 어절 경계로 묶는 안전망이다 — 한글은 기본
+          규칙에서 "없습니/다" 처럼 낱말 한가운데가 끊긴다. 24px 시절 이 판이 실제로 그렇게
+          갈렸다. */}
+      <div className="max-w-[560px] px-6 text-center">
+        <ShieldIcon className={cn('w-12 h-12 mx-auto mb-4', primaryColors.text)} />
+        {/* 20 / 16 두 단(오너 지시). 제목만 semibold 라 계층이 크기와 무게 두 채널에
+            실린다 — 4px 차이 하나로는 두 줄이 같은 단으로 읽힌다. */}
+        <p className={cn('text-[20px] font-semibold leading-7 break-keep', textColors.primary)}>
+          {t.noAccessTitle}
+        </p>
+        <p className={cn('mt-3 text-[16px] leading-6', textColors.secondary)}>
+          {t.noAccessBody1}
+          <br />
+          {t.noAccessBody2}
+        </p>
+        {/* 행동은 사유보다 작지 않다 — 본문과 같은 16px 에 둔다. */}
+        <Link
+          href={passRoutes.accessRequests}
+          className={cn(
+            'mt-5 inline-flex items-center gap-0.5 text-[16px] hover:underline',
+            primaryColors.textOnLight,
+          )}
+        >
+          {t.requestAccess}
+          <ChevronRightIcon className="h-4 w-4" />
+        </Link>
+      </div>
     </div>
-  </div>
-);
+  );
+};
 
 /**
  * A resolved panel and the service it resolved for. Exactly one of `items`/`error`
@@ -172,6 +181,8 @@ export const ServiceManagementView = () => {
   const router = useRouter();
   const searchParams = useSearchParams();
   const toast = useToast();
+  const { locale } = useLocale();
+  const t = COPY[locale].services;
 
   const selectedService = searchParams.get('service_code');
   // Read by `loadProjects` when its request finally settles, which can be long after
@@ -264,13 +275,13 @@ export const ServiceManagementView = () => {
       // 업스트림 message 를 그대로 싣지 않는다. 조회 실패에 사용자가 할 수 있는 일은
       // 재시도뿐인데, 게이트웨이 문구("backend service unavailable")는 그 판단에
       // 아무것도 보태지 못한 채 영어 원문으로 노출된다.
-      toast.error('서비스 목록을 불러오지 못했습니다.');
+      toast.error(t.listFailed);
     } finally {
       // Also on failure: a rail stuck in skeleton forever tells the user less than
       // the empty state does, and the toast already carried the error.
       if (!controller.signal.aborted) setServicesLoaded(true);
     }
-  }, [toast]);
+  }, [toast, t]);
 
   // Initial sidebar load (runs once) — always page 0, unfiltered. A deep-linked
   // ?service_code= used to pre-fill the search box with the code so the selection
@@ -330,7 +341,7 @@ export const ServiceManagementView = () => {
         // 업스트림 원문은 여기서도 버린다. 패널은 제목이 이미 실패를 말하므로
         // (InfraRowList 의 실패 화면) 본문에는 다음 행동만 남기고, 실패 사실은
         // 토스트가 문장으로 말한다.
-        setProjects({ code, error: PANEL_RETRY_HINT });
+        setProjects({ code, error: t.retryHint });
         toast.error(failureMessage);
       } finally {
         // Stale too: a response for a code the user has since left must not clear the
@@ -338,7 +349,7 @@ export const ServiceManagementView = () => {
         setLoading((prev) => (code === selectedServiceRef.current ? false : prev));
       }
     },
-    [toast],
+    [toast, t],
   );
 
   useEffect(() => {
@@ -347,13 +358,13 @@ export const ServiceManagementView = () => {
       return;
     }
     setProjects(null);
-    void loadProjects(selectedService, '연동 대상 계정을 불러오지 못했습니다.');
-  }, [selectedService, loadProjects]);
+    void loadProjects(selectedService, t.projectsFailed);
+  }, [selectedService, loadProjects, t]);
 
   const refreshProjects = useCallback(async () => {
     if (!selectedService) return;
-    await loadProjects(selectedService, '연동 대상 계정을 새로고침하지 못했습니다.');
-  }, [selectedService, loadProjects]);
+    await loadProjects(selectedService, t.projectsRefreshFailed);
+  }, [selectedService, loadProjects, t]);
 
   const handleSelectService = useCallback(
     (code: string) => {
@@ -408,17 +419,17 @@ export const ServiceManagementView = () => {
           void (async () => {
             try {
               await navigator.clipboard.writeText(String(targetSourceId));
-              toast.success(`Target Source ID ${targetSourceId} 복사됨`);
+              toast.success(t.idCopied(String(targetSourceId)));
             } catch {
-              toast.error('클립보드 복사 실패');
+              toast.error(t.copyFailed);
             }
           })();
           return;
         case 'delete':
-          toast.info('삭제 미구현');
+          toast.info(t.deleteNotImplemented);
       }
     },
-    [router, toast],
+    [router, toast, t],
   );
 
   const openCreateModal = useCallback(() => {
@@ -435,9 +446,9 @@ export const ServiceManagementView = () => {
 
   const handleDescriptionSaved = useCallback(() => {
     setDescribingId(null);
-    toast.success('설명을 저장했습니다.');
+    toast.success(t.descriptionSaved);
     void refreshProjects();
-  }, [refreshProjects, toast]);
+  }, [refreshProjects, toast, t]);
 
   // Resolved at render off the list the row is drawn from, so the dialog and the row
   // can never hold different text. A row that vanished under an open dialog (a reload
@@ -451,7 +462,7 @@ export const ServiceManagementView = () => {
     // 바닥은 gray-50 이 아니라 앱 캔버스 — /target-sources 가 쓰는 바닥과 같아야
     // 같은 레일이 두 화면에서 같은 대비를 갖는다. gray-50 위에서는 흰 카드가
     // ΔE00 1.20(식별 한계 아래)이라 테두리에만 기대고 있었다.
-    <div className={cn('h-[calc(100vh-64px)]', serviceSidebarStyles.canvas)}>
+    <div lang={locale} className={cn('h-[calc(100vh-64px)]', serviceSidebarStyles.canvas)}>
       <div className="flex h-full">
         <ServiceSidebar
           services={services}
@@ -529,7 +540,7 @@ export const ServiceManagementView = () => {
                     there is nothing for it to sit quietly behind. `tertiary` is
                     for text that yields to something louder nearby. */}
                 <p className={cn('text-[24px] leading-8', textColors.primary)}>
-                  서비스를 선택하세요
+                  {t.selectService}
                 </p>
               </div>
             </div>

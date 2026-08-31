@@ -13,10 +13,8 @@ import { WaitingApprovalStats } from '@/app/target-sources/[targetSourceId]/_com
 import { WaitingApprovalToolbar } from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalToolbar';
 import { IdcResourceTable } from '@/app/target-sources/[targetSourceId]/_components/idc/IdcResourceTable';
 import { useIdcApprovalTable } from '@/app/target-sources/[targetSourceId]/_components/idc/approval-table';
-import {
-  IDC_FILTER_EMPTY_MESSAGE,
-  IDC_SEARCH_PLACEHOLDER,
-} from '@/app/target-sources/[targetSourceId]/_components/idc/steps/step-copy';
+import { useLocale } from '@/app/components/LocaleProvider';
+import { IDC_COPY } from '@/app/target-sources/[targetSourceId]/_components/idc/copy';
 import type { IdcStepProps } from '@/app/target-sources/[targetSourceId]/_components/idc/types';
 import {
   getIdcApprovedIntegration,
@@ -37,6 +35,8 @@ const EMPTY_VIEW: IdcApprovedIntegrationView = { resources: [], approvedAt: null
 export const IdcStep3Applying = ({
   project,
 }: IdcStepProps) => {
+  const { locale } = useLocale();
+  const t = IDC_COPY[locale];
   // Step 3 source: the approved list + its approval signature (approved-integration).
   const { state } = useIdcRead(project.targetSourceId, getIdcApprovedIntegration);
 
@@ -48,8 +48,8 @@ export const IdcStep3Applying = ({
       <section className={cn(cardStyles.base, 'overflow-hidden')}>
         <header className={cardStyles.header}>
           <div className="flex items-center gap-2">
-            <span className={cardStyles.stepTag}>3단계</span>
-            <h2 className={cardStyles.cardTitle}>연동 대상 반영중</h2>
+            <span className={cardStyles.stepTag}>{t.step(3)}</span>
+            <h2 className={cardStyles.cardTitle}>{t.step3Title}</h2>
             <span
               className={cn(
                 cardStyles.stepBadge,
@@ -57,34 +57,32 @@ export const IdcStep3Applying = ({
                 statusColors.warning.textDark,
               )}
             >
-              반영중
+              {t.badgeApplying}
             </span>
           </div>
           {/* Was said twice — this sentence and a green StepBanner right below it. The banner is
               gone; blue marks the status clause only. */}
           <p className={cn('mt-3', cardStyles.guidance)}>
-            <strong className={cn('font-semibold', primaryColors.text)}>
-              제출한 연동 대상 DB가 승인 완료됐어요.
-            </strong>{' '}
-            PII Agent 설치에 필요한 준비를 진행하고 있어요.
+            <strong className={cn('font-semibold', primaryColors.text)}>{t.step3GuideEm}</strong>{' '}
+            {t.step3GuideRest}
           </p>
           {/* No top margin — the 1.55 leading is the paragraph break (step-2 grammar). */}
-          <p className={cardStyles.guidance}>평균 1일 이내(주말·공휴일 제외)에 완료돼요.</p>
+          <p className={cardStyles.guidance}>{t.step3GuideEta}</p>
           {/* Both come from the approved-integration response the rows came from. They used to be
               a hardcoded name and a hardcoded date fallback — the project payload has no approver,
               which is what made the invention tempting. */}
           {(view.approvedAt || view.approver) && (
             <div className="mt-4 flex flex-wrap gap-8">
               {view.approvedAt && (
-                <MetaField label="승인일시" value={formatDate(view.approvedAt, 'datetime')} />
+                <MetaField label={t.metaApprovedAt} value={formatDate(view.approvedAt, 'datetime', locale)} />
               )}
-              {view.approver && <MetaField label="승인자" value={view.approver} />}
+              {view.approver && <MetaField label={t.metaApprover} value={view.approver} />}
             </div>
           )}
         </header>
         <div className={cardStyles.body}>
           {state.status === 'loading' && <ResourceTableSkeleton />}
-          {state.status === 'error' && <ErrorState message="연동 대상을 불러오지 못했습니다." />}
+          {state.status === 'error' && <ErrorState message={t.loadFailed} />}
           {state.status === 'ready' && (
             <>
               <WaitingApprovalStats
@@ -103,13 +101,13 @@ export const IdcStep3Applying = ({
                 onRegionChange={table.onRegionChange}
                 dbTypeOptions={table.dbTypeOptions}
                 regionOptions={table.regionOptions}
-                searchPlaceholder={IDC_SEARCH_PLACEHOLDER}
+                searchPlaceholder={t.searchPlaceholder}
               />
               <IdcResourceTable
                 resources={visibleResources}
                 cols={['src', 'excl']}
                 connected
-                emptyMessage={IDC_FILTER_EMPTY_MESSAGE}
+                emptyMessage={t.filterEmpty}
               />
               {table.filteredCount > 0 && (
                 <Pagination

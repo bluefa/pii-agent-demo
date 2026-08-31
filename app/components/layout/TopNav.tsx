@@ -10,6 +10,7 @@ import { UserChip } from '@/app/components/layout/UserChip';
 import type { UserMeResponse } from '@/app/lib/api';
 import { PassLogo } from '@/app/components/layout/PassLogo';
 import { useLocale } from '@/app/components/LocaleProvider';
+import { COPY } from '@/lib/copy';
 
 /** What the language button shows — the language the page is in, not the one it would switch to. */
 const LOCALE_LABEL = { ko: '한국어', en: 'English' } as const;
@@ -17,7 +18,15 @@ const LOCALE_LABEL = { ko: '한국어', en: 'English' } as const;
 const LOCALE_CONTROL = { ko: '언어', en: 'Language' } as const;
 
 type NavItem = {
+  /** Stable identity: the React key, and the drawn label for items that read the same in both languages. */
   label: string;
+  /**
+   * Set where the drawn label is localised. NAV_ITEMS is module-level and so
+   * cannot read `useLocale()`; the component resolves this key at render, and
+   * `label` stays the React key so flipping the language re-labels the item
+   * rather than remounting it.
+   */
+  labelKey?: 'services';
   href: string;
   disabled?: boolean;
   icon: React.ReactNode;
@@ -70,7 +79,8 @@ const NAV_ITEMS: NavItem[] = [
     ),
   },
   {
-    label: '서비스 목록',
+    label: 'Services',
+    labelKey: 'services',
     href: passRoutes.services,
     isActive: (pathname) =>
       pathname.startsWith('/services') ||
@@ -132,6 +142,7 @@ const NAV_ITEMS: NavItem[] = [
 export const TopNav = ({ user }: { user: UserMeResponse | null }) => {
   const pathname = usePathname() ?? '';
   const { locale, setLocale } = useLocale();
+  const t = COPY[locale].nav;
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   useEffect(() => {
@@ -142,12 +153,13 @@ export const TopNav = ({ user }: { user: UserMeResponse | null }) => {
 
   const handleDisabledClick = (event: React.MouseEvent, label: string) => {
     event.preventDefault();
-    setToastMessage(`${label} — 준비 중입니다`);
+    setToastMessage(t.notReady(label));
   };
 
   return (
     <>
       <header
+        lang={locale}
         className={cn(
           // Sticky chrome — the admin nav must not scroll away with the page.
           //
@@ -213,6 +225,7 @@ export const TopNav = ({ user }: { user: UserMeResponse | null }) => {
         <nav className="flex items-center gap-1">
           {NAV_ITEMS.map((item) => {
             const active = item.isActive(pathname);
+            const label = item.labelKey ? t[item.labelKey] : item.label;
             const baseClass = cn(
               'inline-flex h-10 items-center gap-2 px-3.5 rounded-md text-base font-medium whitespace-nowrap transition-colors',
               active ? navStyles.link.active : navStyles.link.inactive,
@@ -225,11 +238,11 @@ export const TopNav = ({ user }: { user: UserMeResponse | null }) => {
                   key={item.label}
                   href={item.href}
                   aria-disabled="true"
-                  onClick={(e) => handleDisabledClick(e, item.label)}
+                  onClick={(e) => handleDisabledClick(e, label)}
                   className={baseClass}
                 >
                   {item.icon}
-                  {item.label}
+                  {label}
                 </a>
               );
             }
@@ -247,7 +260,7 @@ export const TopNav = ({ user }: { user: UserMeResponse | null }) => {
                   className={baseClass}
                 >
                   {item.icon}
-                  {item.label}
+                  {label}
                 </a>
               );
             }
@@ -260,7 +273,7 @@ export const TopNav = ({ user }: { user: UserMeResponse | null }) => {
                 aria-current={active ? 'page' : undefined}
               >
                 {item.icon}
-                {item.label}
+                {label}
               </Link>
             );
           })}
@@ -275,7 +288,7 @@ export const TopNav = ({ user }: { user: UserMeResponse | null }) => {
 
         {/* Help/announcement group — now the head of the RIGHT cluster rather than
             a tail on the primary items. */}
-        <nav aria-label="도움말" className="flex items-center gap-0.5">
+        <nav aria-label={t.help} className="flex items-center gap-0.5">
           {UTILITY_ITEMS.map((item) => {
             // Below xl these fall back to their icons. The label goes off the screen,
             // not off the element: `aria-label` is unconditional so the accessible

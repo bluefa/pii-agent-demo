@@ -7,6 +7,7 @@ import {
   type InstallStepCell,
   type InstallStepValue,
 } from '@/app/components/features/process-status/install-status-detail/model';
+import { INSTALL_COPY } from '@/app/components/features/process-status/install-copy';
 
 /**
  * Azure installation-status wire (`AzureInstallationStatusResponse`, zod-codegen
@@ -31,14 +32,17 @@ const LAST_CHECK_TO_UI: Record<LastCheckStatus, InstallLastCheck['status']> = {
   FAILED: 'FAILED',
 };
 
+/** The Azure wording in one language — `buildAzureInstallDetail` takes it as a parameter. */
+export type AzureInstallCopy = (typeof INSTALL_COPY)['ko']['azure'];
+
 // PE-approval pill wording per status bucket (PRIVATE_ENDPOINT_STATUS_LABELS
 // semantics on the shared step enum).
-const PE_LABELS: Partial<Record<InstallStepValue, string>> = {
-  COMPLETED: '승인 완료',
-  IN_PROGRESS: 'Azure Portal에서 승인 필요',
-  FAIL: 'BDC측 재신청 필요',
-  UNKNOWN: 'BDC측 확인 필요',
-};
+const peLabels = (t: AzureInstallCopy): Partial<Record<InstallStepValue, string>> => ({
+  COMPLETED: t.peApproved,
+  IN_PROGRESS: t.pePending,
+  FAIL: t.peFailed,
+  UNKNOWN: t.peUnknown,
+});
 
 const toCell = (step: WireStep): InstallStepCell => ({
   status: normalizeInstallStepValue(step?.status),
@@ -49,12 +53,13 @@ const toCell = (step: WireStep): InstallStepCell => ({
 const toVmCell = (step: WireStep): InstallStepCell =>
   step ? toCell(step) : { status: 'SKIP', guide: null };
 
-const toPeCell = (resource: WireResource): InstallStepCell => {
+const toPeCell = (resource: WireResource, t: AzureInstallCopy): InstallStepCell => {
   const pe = resource.service_side_private_endpoint_approval;
   const status = normalizeInstallStepValue(pe?.status);
+  const label = peLabels(t)[status];
   return {
     status,
-    ...(PE_LABELS[status] && { label: PE_LABELS[status] }),
+    ...(label && { label }),
     guide: pe?.guide ?? null,
   };
 };
@@ -64,7 +69,10 @@ export interface AzureInstallDetail {
   resources: InstallDetailResource[];
 }
 
-export const buildAzureInstallDetail = (wire: WireResponse): AzureInstallDetail => ({
+export const buildAzureInstallDetail = (
+  wire: WireResponse,
+  t: AzureInstallCopy = INSTALL_COPY.ko.azure,
+): AzureInstallDetail => ({
   lastCheck: {
     status: LAST_CHECK_TO_UI[wire.last_check?.status ?? 'IN_PROGRESS'] ?? 'IN_PROGRESS',
     ...(wire.last_check?.checked_at && { checkedAt: wire.last_check.checked_at }),
@@ -75,7 +83,7 @@ export const buildAzureInstallDetail = (wire: WireResponse): AzureInstallDetail 
     resourceName: r.resource_name ?? null,
     rollup: { status: normalizeInstallStepValue(r.installation_status), guide: null },
     cells: {
-      pe: toPeCell(r),
+      pe: toPeCell(r, t),
       vmSubnet: toVmCell(r.azure_virtual_machine_subnet_creation),
       vmApply: toVmCell(r.azure_virtual_machine_terraform_apply),
       bdc: toCell(r.bdc_side_terraform_apply),

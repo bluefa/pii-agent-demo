@@ -1,3 +1,5 @@
+'use client';
+
 import {
   memberRole,
   memberRoleLabel,
@@ -12,6 +14,8 @@ import {
   tagStyles,
   textColors,
 } from '@/lib/theme';
+import { useLocale } from '@/app/components/LocaleProvider';
+import { COPY } from '@/lib/copy';
 
 // `chipEdge` is inert outside a `tableRowLift.base` row — it is a `group-hover:` rule, so a
 // chip rendered anywhere without that ancestor draws no ring. Every chip here can appear in a
@@ -80,9 +84,15 @@ export const RdsMemberChip = ({ role }: { role?: string }) => {
  * Quiet primary-tint marker on the instance the cluster connects through. Read-only surfaces
  * only (step 1 read-only, steps 2·3, admin): where radios exist, the checked radio says it.
  */
-export const RdsSelectionChip = () => (
-  <span className={cn(CHIP_BASE, primaryColors.bgLight, primaryColors.textOnLight)}>선택됨</span>
-);
+export const RdsSelectionChip = () => {
+  const { locale } = useLocale();
+
+  return (
+    <span className={cn(CHIP_BASE, primaryColors.bgLight, primaryColors.textOnLight)}>
+      {COPY[locale].common.selected}
+    </span>
+  );
+};
 
 /**
  * The cluster identity's third line — the member the agent connects through.
@@ -106,16 +116,20 @@ export const RdsChosenInstanceLine = ({
 }: {
   chosen: RdsInstanceCandidate | undefined;
   total: number;
-}) => (
-  <span className={cn('flex min-w-0 max-w-full items-center gap-1.5 text-[12px]', textColors.secondary)}>
-    <span aria-hidden="true">↳</span>
-    {chosen ? (
-      <>
-        <RdsMemberChip role={chosen.cluster_member_role} />
-        <span className="min-w-0 truncate font-mono">{rdsInstanceLabel(chosen)}</span>
-      </>
-    ) : (
-      <span className="whitespace-nowrap">{`인스턴스 ${total}건`}</span>
-    )}
-  </span>
-);
+}) => {
+  const { locale } = useLocale();
+
+  return (
+    <span className={cn('flex min-w-0 max-w-full items-center gap-1.5 text-[12px]', textColors.secondary)}>
+      <span aria-hidden="true">↳</span>
+      {chosen ? (
+        <>
+          <RdsMemberChip role={chosen.cluster_member_role} />
+          <span className="min-w-0 truncate font-mono">{rdsInstanceLabel(chosen)}</span>
+        </>
+      ) : (
+        <span className="whitespace-nowrap">{COPY[locale].common.instanceCount(total)}</span>
+      )}
+    </span>
+  );
+};

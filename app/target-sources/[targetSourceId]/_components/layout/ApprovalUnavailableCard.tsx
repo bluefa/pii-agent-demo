@@ -8,6 +8,8 @@ import { StatusWarningIcon } from '@/app/components/ui/icons';
 import { useApiMutation } from '@/app/hooks/useApiMutation';
 import { useModal } from '@/app/hooks/useModal';
 import { cardStyles, cn, confirmModalStyles, primaryColors, statusColors, textColors } from '@/lib/theme';
+import { useLocale } from '@/app/components/LocaleProvider';
+import { LAYOUT_COPY } from '@/app/target-sources/[targetSourceId]/_components/layout/copy';
 
 interface ApprovalUnavailableCardProps {
   targetSourceId: number;
@@ -27,9 +29,12 @@ export const ApprovalUnavailableCard = ({
   onReselected,
 }: ApprovalUnavailableCardProps) => {
   const modal = useModal();
+  const { locale } = useLocale();
+  const copy = LAYOUT_COPY[locale];
+  const t = copy.unavailable;
   const { mutate, loading } = useApiMutation<void, Awaited<ReturnType<typeof confirmApprovalUnavailable>>>(
     () => confirmApprovalUnavailable(targetSourceId),
-    { errorMessage: '처리에 실패했습니다. 다시 시도해주세요.' },
+    { errorMessage: copy.common.genericFailure },
   );
 
   const handleConfirm = useCallback(async () => {
@@ -43,9 +48,9 @@ export const ApprovalUnavailableCard = ({
     <section className={cn(cardStyles.base, 'overflow-hidden')}>
       <div className={cn(cardStyles.header, 'flex items-center justify-between')}>
         <div>
-          <h2 className={cn(cardStyles.cardTitle)}>연동 대상 연동 불가</h2>
+          <h2 className={cn(cardStyles.cardTitle)}>{t.title}</h2>
           <p className={cn('mt-2.5', cardStyles.subtitle)}>
-            관리자가 요청하신 연동 대상을 연동할 수 없다고 판정했어요.
+            {t.subtitle}
           </p>
         </div>
         <span
@@ -56,18 +61,18 @@ export const ApprovalUnavailableCard = ({
           )}
         >
           <span className={cn('w-1.5 h-1.5 rounded-full', statusColors.error.dot)} />
-          연동 불가
+          {t.badge}
         </span>
       </div>
 
       <div className="p-6">
         <StepBanner variant="error" icon={<StatusWarningIcon className="w-[18px] h-[18px]" />}>
-          <strong className="font-semibold">선택하신 연동 대상은 연동할 수 없습니다.</strong>
-          {reason ? <>{' · '}사유: {reason}</> : null}
+          <strong className="font-semibold">{t.bannerStrong}</strong>
+          {reason ? <>{' · '}{t.reasonPrefix}{reason}</> : null}
         </StepBanner>
 
         <p className={cn('mt-4 text-sm', textColors.secondary)}>
-          연동 대상 DB 선택 단계로 돌아가 대상을 다시 구성해주세요.
+          {t.guidance}
         </p>
 
         <div className="flex justify-end mt-4">
@@ -76,7 +81,7 @@ export const ApprovalUnavailableCard = ({
             className={cn(confirmModalStyles.outlineButton, 'gap-1.5 text-[13px]')}
             onClick={() => modal.open()}
           >
-            뒤로 이동
+            {t.goBack}
           </button>
         </div>
       </div>
@@ -92,15 +97,17 @@ export const ApprovalUnavailableCard = ({
         onConfirm={() => {
           void handleConfirm();
         }}
-        title="연동 불가 사유를 확인하셨나요?"
+        title={t.confirmTitle}
         description={
           <>
-            {'확인을 누르면 '}
-            <strong className={cn('font-semibold', primaryColors.text)}>1단계</strong>
-            {'로 돌아가, 연동 대상 DB 선택부터 다시 진행해요.'}
+            {copy.rewindTo.targetDb.lead}
+            <strong className={cn('font-semibold', primaryColors.text)}>
+              {copy.common.step(1)}
+            </strong>
+            {copy.rewindTo.targetDb.tail}
           </>
         }
-        confirmLabel="확인"
+        confirmLabel={copy.common.ok}
         isPending={loading}
       />
     </section>

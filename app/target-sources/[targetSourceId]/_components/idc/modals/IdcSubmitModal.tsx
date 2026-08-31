@@ -4,6 +4,8 @@ import { ConfirmStepModal, type ConfirmStepResult } from '@/app/components/ui/Co
 import { approvalFailureCopy } from '@/app/components/ui/confirm-failures';
 import type { ConfirmSubmitPhase } from '@/app/hooks/useConfirmSubmit';
 import type { AppErrorCode } from '@/lib/errors';
+import { useLocale } from '@/app/components/LocaleProvider';
+import { IDC_COPY, type IdcCopy } from '@/app/target-sources/[targetSourceId]/_components/idc/copy';
 import {
   borderColors,
   cn,
@@ -37,20 +39,20 @@ interface IdcSubmitModalProps {
  * 보고 누른 사용자에게 같은 수를 되돌려주는 대신, 다음에 무슨 일이 일어나는지만
  * 말한다(스캔 완료 프레임이 발견 건수를 말하지 않는 것과 같은 이유).
  */
-const RESULTS: Record<'success' | 'error', ConfirmStepResult> = {
+const resultFrames = (t: IdcCopy): Record<'success' | 'error', ConfirmStepResult> => ({
   success: {
     kind: 'success',
-    title: '승인 요청을 보냈어요',
-    description: '잠시 후 승인 대기 단계로 이동해요.',
+    title: t.approvalSentTitle,
+    description: t.submitSuccessDesc,
   },
   error: {
     kind: 'error',
-    title: '승인 요청을 보내지 못했어요',
+    title: t.approvalSendFailedTitle,
     // 실패가 지운 것이 없다는 말이 먼저다 — 입력·선택·제외 사유가 그대로라는 것을
     // 모르면 사용자는 다시 요청하기보다 화면을 처음부터 확인하려 든다.
-    description: '연동 대상은 그대로 남아 있어요.',
+    description: t.submitErrorDesc,
   },
-};
+});
 
 interface StatProps {
   label: string;
@@ -63,18 +65,22 @@ interface StatProps {
 // the blue number already marks the one count that matters.
 // White card + toss shadow(lg) + default stroke — the hairline closes the card
 // where the soft shadow alone leaves the edge fuzzy.
-const Stat = ({ label, value, valueClass }: StatProps) => (
-  <div className={cn('rounded-xl border bg-white px-4 py-4 text-center', borderColors.default, tossShadow.lg)}>
-    {/* medium보다 한 단계 위(semibold)만 — 숫자(bold)와의 위계는 유지한다. */}
-    <div className={cn('text-[14px] font-semibold', textColors.tertiary)}>
-      {label}
+const Stat = ({ label, value, valueClass }: StatProps) => {
+  const { locale } = useLocale();
+  const t = IDC_COPY[locale];
+  return (
+    <div className={cn('rounded-xl border bg-white px-4 py-4 text-center', borderColors.default, tossShadow.lg)}>
+      {/* medium보다 한 단계 위(semibold)만 — 숫자(bold)와의 위계는 유지한다. */}
+      <div className={cn('text-[14px] font-semibold', textColors.tertiary)}>
+        {label}
+      </div>
+      <div className={cn('mt-1 text-[40px] font-bold leading-[1.2]', numericFeatures.tabular, valueClass ?? textColors.primary)}>
+        {value}
+        <span className={cn('ml-1 text-[13px] font-medium', textColors.tertiary)}>{t.unitCount}</span>
+      </div>
     </div>
-    <div className={cn('mt-1 text-[40px] font-bold leading-[1.2]', numericFeatures.tabular, valueClass ?? textColors.primary)}>
-      {value}
-      <span className={cn('ml-1 text-[13px] font-medium', textColors.tertiary)}>건</span>
-    </div>
-  </div>
-);
+  );
+};
 
 /**
  * Approval-request confirmation on the unified step-flow confirm grammar
@@ -93,7 +99,10 @@ export const IdcSubmitModal = ({
   onRetry,
   onClose,
 }: IdcSubmitModalProps) => {
-  const failure = approvalFailureCopy(errorCode);
+  const { locale } = useLocale();
+  const t = IDC_COPY[locale];
+  const frames = resultFrames(t);
+  const failure = approvalFailureCopy(errorCode, locale);
   return (
   <ConfirmStepModal
     open={isOpen}
@@ -102,33 +111,33 @@ export const IdcSubmitModal = ({
     isPending={pending}
     result={
       phase === 'success'
-        ? RESULTS.success
+        ? frames.success
         : phase === 'error'
-          ? { ...RESULTS.error, reason: failure.reason }
+          ? { ...frames.error, reason: failure.reason }
           : null
     }
     // 다시 눌러도 같은 실패인 것에는 버튼을 주지 않는다 — 지키지 못할 약속이고,
     // "새로고침한 뒤 다시 요청해 주세요" 옆의 다시 요청하기는 그 자체로 모순이다.
     onRetry={failure.retry ? onRetry : undefined}
-    title="연동 대상을 승인 요청할까요?"
+    title={t.submitTitle}
     // 꼭 알아야 하는 정보만 파란색으로, 굵기는 본문과 동일하게 — 강조는 행동
     // 문구("N건을 연동 대상으로 요청해요") 하나뿐이다. 취소 경로 문장은 평문.
     description={
       <>
-        전체 {total}건 중{' '}
-        <span className={primaryColors.text}>{live}건을 연동 대상으로 요청해요</span>.
-        요청 후에는 관리자 검토가 시작되고, 변경하려면 취소 후 다시 요청해야 해요.
+        {t.submitDescBefore(total)}{' '}
+        <span className={primaryColors.text}>{t.submitDescEm(live)}</span>.
+        {' '}{t.submitDescAfter}
       </>
     }
-    confirmLabel="요청하기"
+    confirmLabel={t.request}
     size="md"
   >
     {/* 타일 라벨은 Step 2 통계(WaitingApprovalStats)와 동일한 용어를 쓴다:
         전체 요청 / 연동 요청 대상 / 연동 요청 제외대상. */}
     <div className="grid grid-cols-3 gap-3">
-      <Stat label="전체 요청" value={total} />
-      <Stat label="연동 요청 대상" value={live} valueClass={primaryColors.text} />
-      <Stat label="연동 요청 제외대상" value={excluded} />
+      <Stat label={t.statTotalRequested} value={total} />
+      <Stat label={t.statRequestedTargets} value={live} valueClass={primaryColors.text} />
+      <Stat label={t.statRequestedExcluded} value={excluded} />
     </div>
   </ConfirmStepModal>
   );

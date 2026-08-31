@@ -1,6 +1,8 @@
 'use client';
 
 import { tableStyles, cn, primaryColors } from '@/lib/theme';
+import { useLocale } from '@/app/components/LocaleProvider';
+import { COPY } from '@/lib/copy';
 
 export interface HistoryColumn<T> {
   key: string;
@@ -25,10 +27,12 @@ export const HistoryTable = <T,>({
   columns,
   keyExtractor,
   onRowClick,
-  emptyMessage = '이력이 없습니다.',
+  emptyMessage,
   emptyDescription,
   loading = false,
 }: HistoryTableProps<T>) => {
+  const { locale } = useLocale();
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -45,7 +49,7 @@ export const HistoryTable = <T,>({
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
           </svg>
         </div>
-        <p className="text-gray-500">{emptyMessage}</p>
+        <p className="text-gray-500">{emptyMessage ?? COPY[locale].common.noHistory}</p>
         {emptyDescription && (
           <p className="text-sm text-gray-400 mt-1">{emptyDescription}</p>
         )}

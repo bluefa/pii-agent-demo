@@ -22,6 +22,8 @@ import {
   textColors,
 } from '@/lib/theme';
 import type { IdcKind } from '@/app/lib/api/idc';
+import { useLocale } from '@/app/components/LocaleProvider';
+import { IDC_COPY } from '@/app/target-sources/[targetSourceId]/_components/idc/copy';
 
 type IdcInputMode = 'ip' | 'domain';
 
@@ -94,6 +96,7 @@ const FieldWarn = ({ children }: { children: React.ReactNode }) => (
  * Inline errors only; 추가/저장 disabled until valid (v15 validateIdcTargetForm).
  */
 export const IdcTargetFormModal = ({ isOpen, initial, onSubmit, onClose }: IdcTargetFormModalProps) => {
+  const t = IDC_COPY[useLocale().locale];
   // Initialised from `initial` on mount — the parent mounts this modal only
   // while open (and afresh per open), so these initializers run with the right
   // prefill instead of syncing props→state in an effect.
@@ -176,8 +179,8 @@ export const IdcTargetFormModal = ({ isOpen, initial, onSubmit, onClose }: IdcTa
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title={isEdit ? '연동 대상 수정' : '연동 대상 추가'}
-      subtitle="PII 모니터링 모듈 연동이 필요한 IDC DB의 접속 정보를 입력해주세요."
+      title={isEdit ? t.formEditTitle : t.formAddTitle}
+      subtitle={t.formSubtitle}
       size="2xl"
       chrome="toss"
       // 닫는 길은 푸터의 취소가 이미 갖고 있다 — 헤더 ✕ 는 같은 말을 두 번(IdcLoadRequestModal 과 같은 규칙).
@@ -186,10 +189,10 @@ export const IdcTargetFormModal = ({ isOpen, initial, onSubmit, onClose }: IdcTa
       footer={
         <>
           <button type="button" className={idcStyles.modalBtn.outline} onClick={onClose}>
-            취소
+            {t.cancel}
           </button>
           <button type="button" className={idcStyles.modalBtn.primary} disabled={!valid} onClick={handleSubmit}>
-            {isEdit ? '저장' : '추가'}
+            {isEdit ? t.save : t.add}
           </button>
         </>
       }
@@ -197,12 +200,12 @@ export const IdcTargetFormModal = ({ isOpen, initial, onSubmit, onClose }: IdcTa
       <div className="space-y-5">
         {/* 1. 입력 방식 선택 */}
         <section>
-          <SectionLabel num={1}>입력 방식 선택</SectionLabel>
-          <div role="radiogroup" aria-label="입력 방식" className="grid grid-cols-2 gap-2">
+          <SectionLabel num={1}>{t.formSection1}</SectionLabel>
+          <div role="radiogroup" aria-label={t.formInputMode} className="grid grid-cols-2 gap-2">
             {(
               [
-                { value: 'ip', title: 'IP', desc: '고정 IP로 DB에 접속 (권장)' },
-                { value: 'domain', title: 'Domain', desc: 'DB IP가 유동적으로 변경되는 경우에만 권장' },
+                { value: 'ip', title: 'IP', desc: t.formIpDesc },
+                { value: 'domain', title: 'Domain', desc: t.formDomainDesc },
               ] as const
             ).map((opt) => {
               const selected = mode === opt.value;
@@ -235,24 +238,26 @@ export const IdcTargetFormModal = ({ isOpen, initial, onSubmit, onClose }: IdcTa
         <div className="grid grid-cols-[1fr_220px] gap-5">
           {/* 2. 접속 정보 */}
           <section>
-            <SectionLabel num={2}>접속 정보</SectionLabel>
+            <SectionLabel num={2}>{t.formSection2}</SectionLabel>
 
             {mode === 'ip' ? (
               <div>
-                <label className={cn('mb-1.5 block text-[12.5px] font-medium', textColors.secondary)}>IP 주소</label>
+                <label className={cn('mb-1.5 block text-[12.5px] font-medium', textColors.secondary)}>
+                  {t.formIpLabel}
+                </label>
                 <div className="space-y-2">
                   {ips.map((ip, index) => (
                     <div key={ip.id} className="flex items-center gap-2">
                       <input
                         value={ip.value}
-                        placeholder="예: 10.20.30.40"
+                        placeholder={t.formIpPlaceholder}
                         onChange={(e) => updateIp(ip.id, e.target.value)}
                         className={idcStyles.input}
                       />
                       {index > 0 && (
                         <button
                           type="button"
-                          aria-label="IP 삭제"
+                          aria-label={t.formRemoveIp}
                           onClick={() => removeIp(ip.id)}
                           className={idcStyles.removeIp}
                         >
@@ -267,25 +272,26 @@ export const IdcTargetFormModal = ({ isOpen, initial, onSubmit, onClose }: IdcTa
                   type="button"
                   onClick={addIp}
                   disabled={ipFull}
-                  title={ipFull ? `IP는 최대 ${IDC_MAX_IPS}개까지 등록할 수 있어요` : undefined}
+                  title={ipFull ? t.formIpMax(IDC_MAX_IPS) : undefined}
                   className={idcStyles.addIp}
                 >
                   <PlusIcon className="h-3 w-3" />
-                  IP 추가
+                  {t.formAddIp}
                 </button>
 
                 {ips.length > 1 && (
                   <div className={cn(idcStyles.warnBanner, 'mt-2.5')}>
                     <StatusWarningIcon className="mt-px h-4 w-4 flex-shrink-0" />
                     <span>
-                      여러 IP 등록은 멀티 노드 구성(예: Oracle RAC)에서만 권장돼요. 가능하면 <strong>단일 IP</strong>로
-                      등록해주세요.
+                      {t.formMultiIpWarnBefore}
+                      <strong>{t.formMultiIpWarnEm}</strong>
+                      {t.formMultiIpWarnAfter}
                     </span>
                   </div>
                 )}
-                {ipTrailingSpace && <FieldWarn>입력값 끝에 공백 문자가 포함되어 있어요. 공백을 제거해주세요.</FieldWarn>}
-                {showIpFormatErr && <FieldError>올바른 IPv4 형식으로 입력해주세요 (예: 10.20.30.40)</FieldError>}
-                {ipDup && <FieldError>중복된 IP가 있어요. 같은 IP는 한 번만 입력할 수 있어요</FieldError>}
+                {ipTrailingSpace && <FieldWarn>{t.formTrailingSpace}</FieldWarn>}
+                {showIpFormatErr && <FieldError>{t.formIpFormatErr}</FieldError>}
+                {ipDup && <FieldError>{t.formIpDupErr}</FieldError>}
               </div>
             ) : (
               <div>
@@ -293,19 +299,22 @@ export const IdcTargetFormModal = ({ isOpen, initial, onSubmit, onClose }: IdcTa
                 <input
                   value={domain}
                   maxLength={IDC_DOMAIN_MAXLEN}
-                  placeholder="예: db.svc-a.io"
+                  placeholder={t.formDomainPlaceholder}
                   onChange={(e) => setDomain(e.target.value)}
                   className={idcStyles.input}
                 />
                 {domainTrailingSpace && (
-                  <FieldWarn>입력값 끝에 공백 문자가 포함되어 있어요. 공백을 제거해주세요.</FieldWarn>
+                  <FieldWarn>{t.formTrailingSpace}</FieldWarn>
                 )}
-                {showDomainErr && <FieldError>올바른 도메인 형식으로 입력해주세요 (예: db.svc-a.io)</FieldError>}
+                {showDomainErr && <FieldError>{t.formDomainErr}</FieldError>}
                 <div className={cn(idcStyles.warnBanner, 'mt-2.5')}>
                   <StatusWarningIcon className="mt-px h-4 w-4 flex-shrink-0" />
                   <span>
-                    Web Server가 아닌 <strong>DB에 대한 주소</strong>를 입력해야 해요. DB에 Domain을 연결하는 것은{' '}
-                    <strong>DB IP가 유동적으로 변경되는 경우에만</strong> 권장돼요.
+                    {t.formDomainWarn1}
+                    <strong>{t.formDomainWarnEm1}</strong>
+                    {t.formDomainWarn2}{' '}
+                    <strong>{t.formDomainWarnEm2}</strong>
+                    {t.formDomainWarn3}
                   </span>
                 </div>
               </div>
@@ -314,7 +323,7 @@ export const IdcTargetFormModal = ({ isOpen, initial, onSubmit, onClose }: IdcTa
 
           {/* 3. DB Type */}
           <section>
-            <SectionLabel num={3}>DB Type 선택</SectionLabel>
+            <SectionLabel num={3}>{t.formSection3}</SectionLabel>
             <div className="space-y-3.5">
               <div>
                 <select
@@ -323,7 +332,7 @@ export const IdcTargetFormModal = ({ isOpen, initial, onSubmit, onClose }: IdcTa
                   aria-label="Database Type"
                   className={idcStyles.input}
                 >
-                  <option value="">DB Type 선택…</option>
+                  <option value="">{t.formDbTypePlaceholder}</option>
                   {dbTypeOptions.map((label) => (
                     <option key={label} value={label}>
                       {label}
@@ -335,18 +344,18 @@ export const IdcTargetFormModal = ({ isOpen, initial, onSubmit, onClose }: IdcTa
               {isOracle && (
                 <div>
                   <label className={cn('mb-1.5 block text-[12.5px] font-medium', textColors.secondary)}>
-                    Oracle SID <span className={statusColors.error.text}>*필수</span>
+                    Oracle SID <span className={statusColors.error.text}>{t.required}</span>
                   </label>
                   <input
                     value={oracleSid}
-                    placeholder="예: ORCL"
+                    placeholder={t.formSidPlaceholder}
                     onChange={(e) => {
                       setOracleSid(e.target.value);
                       setSidTouched(true);
                     }}
                     className={idcStyles.input}
                   />
-                  {showSidErr && <FieldError>Oracle 선택 시 SID는 필수예요</FieldError>}
+                  {showSidErr && <FieldError>{t.formSidErr}</FieldError>}
                 </div>
               )}
 
@@ -357,11 +366,11 @@ export const IdcTargetFormModal = ({ isOpen, initial, onSubmit, onClose }: IdcTa
                   min={1}
                   max={65535}
                   value={port}
-                  placeholder="예: 3306"
+                  placeholder={t.formPortPlaceholder}
                   onChange={(e) => setPort(e.target.value)}
                   className={idcStyles.input}
                 />
-                {showPortErr && <FieldError>1–65535 범위의 포트를 입력해주세요</FieldError>}
+                {showPortErr && <FieldError>{t.formPortErr}</FieldError>}
               </div>
             </div>
           </section>

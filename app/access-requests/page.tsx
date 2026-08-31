@@ -37,6 +37,8 @@
  */
 import { useCallback, useEffect, useState, type ReactElement } from 'react';
 import { cn } from '@/lib/theme';
+import { useLocale } from '@/app/components/LocaleProvider';
+import { COPY } from '@/lib/copy';
 import { useAbortableEffect } from '@/app/hooks/useAbortableEffect';
 import { fmtDateTime } from '@/lib/pipeline/format';
 
@@ -100,6 +102,9 @@ const VERDICT_STATUSES: readonly AccessRequestStatus[] = ['PENDING', 'APPROVED',
 
 type VerdictCounts = { pending: number; approved: number; rejected: number };
 
+/** The access dictionary — module-level column and skeleton builders take it as a parameter. */
+type AccessCopy = (typeof COPY)['ko']['access'];
+
 /**
  * 서비스 두 탭의 열 — 코드와 이름을 각자 제 열에 세운다(오너 지시 2026-08-17).
  *
@@ -112,9 +117,9 @@ type VerdictCounts = { pending: number; approved: number; rejected: number };
  *
  * 마지막 열은 라벨이 없다(꼬리) — 버튼 그룹 자리다.
  */
-const SERVICE_COLUMNS: readonly Column[] = [
-  { label: '서비스 코드', className: a.code },
-  { label: '서비스 이름', className: a.name },
+const serviceColumns = (t: AccessCopy): readonly Column[] => [
+  { label: t.colCode, className: a.code },
+  { label: t.colName, className: a.name },
   { className: a.svcActionCell },
 ];
 
@@ -124,8 +129,8 @@ const SERVICE_COLUMNS: readonly Column[] = [
  * 회색 버튼이 섰다가 사라지고 행이 52 → 40 으로 내려앉는다. 진입 탭이라 매 방문 처음
  * 보는 화면이다. 스켈레톤은 도착할 행의 모양이지 표의 모양이 아니다.
  */
-const serviceSkeleton = (withAction: boolean): ReactElement => (
-  <div role="rowgroup" aria-busy="true" aria-label="목록을 불러오는 중" className={a.tableBody}>
+const serviceSkeleton = (withAction: boolean, loadingLabel: string): ReactElement => (
+  <div role="rowgroup" aria-busy="true" aria-label={loadingLabel} className={a.tableBody}>
     {Array.from({ length: ACCESS_PAGE_SIZE }, (_, row) => (
       <div key={row} role="row" className={a.rowMid} aria-hidden="true">
         <span role="cell" className={cn(a.code, a.skeletonBar)} />
@@ -148,6 +153,8 @@ const hasOwners = (row: UserServiceRow): row is ServiceRow => 'owners' in row;
  * 이 문장 하나 때문에 화면이 모든 장을 훑게 된다.
  */
 function HeaderVerdict({ counts }: { counts: VerdictCounts | 'error' | null }): ReactElement | null {
+  const { locale } = useLocale();
+  const t = COPY[locale].access;
   // 못 셌으면 아무것도 쓰지 않는다 — 틀린 수를 말하느니 말하지 않는다. 실패 자체는
   // 아래 목록 카드가 재시도와 함께 말한다.
   if (counts === 'error') return null;
@@ -165,12 +172,7 @@ function HeaderVerdict({ counts }: { counts: VerdictCounts | 'error' | null }): 
     // 탭을 이름으로 부른다. '아래 목록'이라고 쓰던 때는 첫 탭이 요청할 수 있는 서비스라
     // 그 말이 맞았는데, 첫 탭이 접근할 수 있는 서비스로 바뀌면서(오너 지시 2026-08-18)
     // 바로 아래 목록에는 요청할 것이 없어졌다 — 버튼 그룹은 요청 탭에만 그려진다.
-    return (
-      <p className={a.pageDesc}>
-        아직 요청한 권한이 없어요 — &lsquo;요청할 수 있는 서비스&rsquo; 탭에서 골라 요청해
-        보세요
-      </p>
-    );
+    return <p className={a.pageDesc}>{t.noRequestsYetLong}</p>;
   }
 
   // 판정 문장은 없다(오너 지시 2026-08-17). 문장이 고른 한 상태를 크게 말하고 나머지
@@ -178,9 +180,9 @@ function HeaderVerdict({ counts }: { counts: VerdictCounts | 'error' | null }): 
   // 셋이 같은 줄에 같은 급으로 선다 — 급한 순서(반려 → 대기 → 승인)는 그대로다.
   // 0건인 상태는 쓰지 않는다.
   const items = [
-    { label: '반려', value: rejected },
-    { label: '대기', value: pending },
-    { label: '승인', value: approved },
+    { label: t.rejected, value: rejected },
+    { label: t.pending, value: pending },
+    { label: t.approved, value: approved },
   ].filter((item) => item.value > 0);
 
   return (
@@ -206,17 +208,17 @@ function HeaderVerdict({ counts }: { counts: VerdictCounts | 'error' | null }): 
  * 붙이면 코드가 이름 길이만큼 밀려 행마다 다른 x 에 서고, 코드로 훑을 수가 없다.
  * 마지막 열은 라벨이 없다(꼬리) — 반려된 요청에만 서는 [다시 요청] 자리다.
  */
-const MINE_COLUMNS: readonly Column[] = [
-  { label: '서비스 코드', className: a.code },
-  { label: '서비스 이름', className: a.name },
-  { label: '요청 사유', className: a.reason },
+const mineColumns = (t: AccessCopy): readonly Column[] => [
+  { label: t.colCode, className: a.code },
+  { label: t.colName, className: a.name },
+  { label: t.colReason, className: a.reason },
   // 이 열의 머리만 8px 들여 쓴다. 값이 pill 이라 글자가 자기 면 안쪽으로 px-2 만큼
   // 들어가 있고, 눈이 열을 맞추는 기준은 옅은 면의 가장자리가 아니라 글자다 — 머리를
   // 상자 왼쪽에 두면 이 열만 8px 어긋나 보인다(실측: 머리 991, pill 글자 999).
   // 반대로 pill 을 왼쪽으로 당기지 않는 이유는 열 사이 간격이 12px 뿐이라, 8px 을
   // 당기면 사유 열 글자와 pill 면 사이가 4px 로 붙어 버린다.
-  { label: '상태', className: cn(a.status, 'pl-2') },
-  { label: '요청 일시', className: a.when },
+  { label: t.colStatus, className: cn(a.status, 'pl-2') },
+  { label: t.colRequestedAt, className: a.when },
   { className: a.svcAction },
 ];
 
@@ -225,11 +227,11 @@ const MINE_COLUMNS: readonly Column[] = [
  * 그린다. 기본 스켈레톤은 `row`(위아래 10px)를 쓰는데, 도착한 행은 16px 이라 목록이
  * 행마다 12px 씩 올라온다.
  */
-const MINE_SKELETON = (
-  <div role="rowgroup" aria-busy="true" aria-label="목록을 불러오는 중" className={a.tableBody}>
+const mineSkeleton = (columns: readonly Column[], loadingLabel: string): ReactElement => (
+  <div role="rowgroup" aria-busy="true" aria-label={loadingLabel} className={a.tableBody}>
     {Array.from({ length: ACCESS_PAGE_SIZE }, (_, row) => (
       <div key={row} role="row" className={a.rowTop} aria-hidden="true">
-        {MINE_COLUMNS.map((col, index) => (
+        {columns.map((col, index) => (
           <span
             key={col.label ?? `tail-${index}`}
             role="cell"
@@ -244,6 +246,8 @@ const MINE_SKELETON = (
 type TabKey = 'owned' | 'services' | 'mine';
 
 export default function MyAccessRequestsPage(): ReactElement {
+  const { locale } = useLocale();
+  const t = COPY[locale].access;
   const [tab, setTab] = useState<TabKey>('owned');
   const [query, setQuery] = useState('');
   const [debounced, setDebounced] = useState('');
@@ -337,7 +341,7 @@ export default function MyAccessRequestsPage(): ReactElement {
     if (!target) return;
     try {
       await createAccessRequest(target.serviceCode, reason);
-      toast.show(`${target.serviceName} 접근 권한을 요청했어요`);
+      toast.show(t.requested(target.serviceName));
       setTarget(null);
       // 요청한 서비스는 후보에서 빠지고 내역에 나타난다 — 둘 다 다시 읽는다.
       // 접근 가능 목록은 승인이 나야 바뀌므로 여기서는 건드리지 않는다.
@@ -364,12 +368,12 @@ export default function MyAccessRequestsPage(): ReactElement {
    * 기본값이기도 하다.
    */
   const tabs: { key: TabKey; label: string; count?: number }[] = [
-    { key: 'owned', label: '내가 접근할 수 있는 서비스' },
-    { key: 'services', label: '요청할 수 있는 서비스' },
-    { key: 'mine', label: '내 요청 내역', count: mine.paged?.totalElements },
+    { key: 'owned', label: t.tabOwned },
+    { key: 'services', label: t.tabRequestable },
+    { key: 'mine', label: t.tabMine, count: mine.paged?.totalElements },
   ];
   const tabStrip = (
-    <div className={a.pageTabStrip} role="tablist" aria-label="내 권한 요청 탭">
+    <div className={a.pageTabStrip} role="tablist" aria-label={t.tabsLabel}>
       {tabs.map((item) => {
         const active = item.key === tab;
         return (
@@ -392,9 +396,11 @@ export default function MyAccessRequestsPage(): ReactElement {
 
   const requestTab = tab === 'services';
 
+  const mineColumnList = mineColumns(t);
+
   return (
-    <div>
-      <h1 className={a.pageTitle}>내 권한 요청</h1>
+    <div lang={locale}>
+      <h1 className={a.pageTitle}>{COPY[locale].nav.myAccessRequests}</h1>
       <HeaderVerdict counts={verdict} />
       {tabStrip}
 
@@ -408,42 +414,36 @@ export default function MyAccessRequestsPage(): ReactElement {
         <PagedCard
           className="mt-4"
           head={null}
-          title={requestTab ? '요청할 수 있는 서비스' : '내가 접근할 수 있는 서비스'}
-          desc={
-            requestTab
-              ? '아직 접근 권한이 없는 서비스예요 — 사유를 적어 요청하면 관리자가 검토해요'
-              : '이미 권한이 있어 바로 들어갈 수 있는 서비스예요'
-          }
+          title={requestTab ? t.tabRequestable : t.tabOwned}
+          desc={requestTab ? t.requestableCaption : t.ownedCaption}
           icon={requestTab ? 'compass' : 'shield-check'}
           tone={requestTab ? 'primary' : 'muted'}
           state={requestTab ? requestable : owned}
           search={
             <SearchBox
               wrapClassName="block w-full"
-              placeholder="서비스 코드/이름 검색"
-              aria-label="서비스 코드/이름 검색"
+              placeholder={t.serviceSearch}
+              aria-label={t.serviceSearch}
               value={query}
               onChange={(event) => setQuery(event.target.value)}
             />
           }
-          columns={SERVICE_COLUMNS}
-          skeleton={serviceSkeleton(requestTab)}
+          columns={serviceColumns(t)}
+          skeleton={serviceSkeleton(requestTab, t.loadingList)}
           empty={
             debounced
               ? {
-                  title: '검색 결과가 없어요',
-                  caption: requestTab
-                    ? '이미 권한이 있거나 요청해 둔 서비스는 여기 나오지 않아요'
-                    : '권한이 있는 서비스 중에는 검색어와 맞는 것이 없어요',
+                  title: t.noSearchResult,
+                  caption: requestTab ? t.noSearchResultRequestable : t.noSearchResultOwned,
                 }
               : requestTab
               ? {
-                  title: '요청할 서비스가 없어요',
-                  caption: '모든 서비스에 권한이 있거나, 이미 요청해 두었어요',
+                  title: t.nothingToRequest,
+                  caption: t.nothingToRequestCaption,
                 }
               : {
-                  title: '접근할 수 있는 서비스가 없어요',
-                  caption: "'요청할 수 있는 서비스' 탭에서 골라 권한을 요청해 보세요",
+                  title: t.noAccessibleService,
+                  caption: t.pickOnRequestTab,
                 }
           }
         >
@@ -472,7 +472,7 @@ export default function MyAccessRequestsPage(): ReactElement {
                           className={a.svcActionBtn}
                           onClick={() => setOwners(row)}
                         >
-                          {row.ownerCount > 0 ? '담당자 보기' : '담당자 없음'}
+                          {row.ownerCount > 0 ? t.viewOwners : t.noOwners}
                         </button>
                         <button
                           type="button"
@@ -480,7 +480,7 @@ export default function MyAccessRequestsPage(): ReactElement {
                           aria-haspopup="dialog"
                           onClick={() => setTarget(row)}
                         >
-                          권한 요청
+                          {t.requestAccess}
                         </button>
                       </span>
                     )}
@@ -501,15 +501,15 @@ export default function MyAccessRequestsPage(): ReactElement {
         <PagedCard
           className="mt-4"
           head={null}
-          title="내 요청 내역"
+          title={t.tabMine}
           icon="clock"
           tone="muted"
           state={mine}
-          columns={MINE_COLUMNS}
-          skeleton={MINE_SKELETON}
+          columns={mineColumnList}
+          skeleton={mineSkeleton(mineColumnList, t.loadingList)}
           empty={{
-            title: '요청한 내역이 없어요',
-            caption: "'요청할 수 있는 서비스' 탭에서 골라 권한을 요청해 보세요",
+            title: t.noRequestsYet,
+            caption: t.pickOnRequestTab,
           }}
         >
           {(rows) => (
@@ -548,7 +548,7 @@ export default function MyAccessRequestsPage(): ReactElement {
                         aria-haspopup="dialog"
                         onClick={() => setTarget(row)}
                       >
-                        다시 요청
+                        {t.requestAgain}
                       </button>
                     )}
                   </span>

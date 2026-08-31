@@ -12,6 +12,9 @@ import {
   statusColors,
   textColors,
 } from '@/lib/theme';
+import { DEFAULT_LOCALE, type Locale } from '@/lib/locale';
+import { useLocale } from '@/app/components/LocaleProvider';
+import { TS_COPY } from '@/app/target-sources/[targetSourceId]/_components/copy';
 
 /**
  * RDS cluster member instances — the accordion body the cluster row opens.
@@ -99,8 +102,13 @@ const INDENT_WITHOUT_CHECKBOX = 'pl-[54px]';
  *
  * The name carries the CLUSTER, because step 1 can hold several open at once and three tables
  * all named "접속 인스턴스 목록" are three tables a screen-reader user cannot tell apart.
+ *
+ * `locale` is optional and defaults to Korean, so a caller that only needs the accessible
+ * name to match — the tests that find this band by role and name — keeps calling it with
+ * the cluster alone.
  */
-export const rdsInstanceBandLabel = (clusterName: string) => `${clusterName} 접속 인스턴스 목록`;
+export const rdsInstanceBandLabel = (clusterName: string, locale: Locale = DEFAULT_LOCALE) =>
+  TS_COPY[locale].shared.instanceBand(clusterName);
 
 export const RdsInstancePanel = ({
   clusterId,
@@ -112,135 +120,140 @@ export const RdsInstancePanel = ({
   selectable,
   readonly,
   onSelect,
-}: RdsInstancePanelProps) => (
-  <tr>
-    <td colSpan={colSpan} className="px-0 py-0">
-      {/* Bottom padding is deliberately larger than the top one (owner, 2026-08-12): the body
-          belongs to the cluster ABOVE it, so sitting tight under that row and leaving room
-          before the next resource is what says so. 16 → 24, both on the spacing set. The top
-          16 rides the header strip rather than this box, so the rail can be drawn through it —
-          on the container the trunk would start below the padding and leave a gap under the
-          cluster's own segment. */}
-      <div
-        className={cn(
-          'border-b pr-[18px] pb-6',
-          borderColors.default,
-          // gray-100, not gray-50: the open state has to be SEEN, and gray-50 measures ΔE00 1.20
-          // from white — under the ~2.3 at which two colours read as different at all, so the
-          // body and the header would have been bound by a tint nobody can see. `bgColors.panel`
-          // carries a contract with it: nothing on this surface may sit at `tertiary` (4.37:1,
-          // under AA), which is why the labels and the endpoint below read at `secondary`.
-          bgColors.panel,
-          showCheckboxColumn ? INDENT_WITH_CHECKBOX : INDENT_WITHOUT_CHECKBOX,
-        )}
-        role="table"
-        aria-label={rdsInstanceBandLabel(clusterName)}
-      >
-        {/* No title strip. The row above already names the cluster and the count, and the
-            guidance repeated what the checked radio and the Reader-first order say by
-            themselves — the body opens straight into the list (owner, 2026-08-12). */}
+}: RdsInstancePanelProps) => {
+  const { locale } = useLocale();
+  const t = TS_COPY[locale].shared;
+
+  return (
+    <tr>
+      <td colSpan={colSpan} className="px-0 py-0">
+        {/* Bottom padding is deliberately larger than the top one (owner, 2026-08-12): the body
+            belongs to the cluster ABOVE it, so sitting tight under that row and leaving room
+            before the next resource is what says so. 16 → 24, both on the spacing set. The top
+            16 rides the header strip rather than this box, so the rail can be drawn through it —
+            on the container the trunk would start below the padding and leave a gap under the
+            cluster's own segment. */}
         <div
           className={cn(
-            'pt-4 pb-2 text-[12px]',
-            LINE_GRID,
-            idcStyles.table.instanceBand.headerStrip,
-            textColors.secondary,
+            'border-b pr-[18px] pb-6',
+            borderColors.default,
+            // gray-100, not gray-50: the open state has to be SEEN, and gray-50 measures ΔE00 1.20
+            // from white — under the ~2.3 at which two colours read as different at all, so the
+            // body and the header would have been bound by a tint nobody can see. `bgColors.panel`
+            // carries a contract with it: nothing on this surface may sit at `tertiary` (4.37:1,
+            // under AA), which is why the labels and the endpoint below read at `secondary`.
+            bgColors.panel,
+            showCheckboxColumn ? INDENT_WITH_CHECKBOX : INDENT_WITHOUT_CHECKBOX,
           )}
-          role="row"
+          role="table"
+          aria-label={rdsInstanceBandLabel(clusterName, locale)}
         >
-          <span role="columnheader">인스턴스</span>
-          <span role="columnheader">가용 영역</span>
-          <span role="columnheader">엔드포인트</span>
-        </div>
-
-        <div role="rowgroup">
-          {instances.map((instance, index) => {
-            const identifier = rdsInstanceLabel(instance);
-            const chosen = instance.resource_id === chosenResourceId;
-            const endpoint = typeof instance.host === 'string' && instance.host
-              ? `${instance.host}${instance.port ? `:${instance.port}` : ''}`
-              : null;
-
-            const body = (
-              <>
-                <span role="cell" className="relative flex min-w-0 items-center gap-2">
-                  {selectable && (
-                    <input
-                      type="radio"
-                      name={`rds-instance-${clusterId}`}
-                      value={instance.resource_id}
-                      checked={chosen}
-                      onChange={() => onSelect?.(instance.resource_id)}
-                      aria-label={`접속 인스턴스 ${identifier} 선택`}
-                      className={cn(
-                        idcStyles.table.instanceBand.radio,
-                        statusColors.pending.border,
-                        primaryColors.text,
-                        primaryColors.focusRing,
-                      )}
-                    />
-                  )}
-                  <span className={cn('min-w-0 truncate font-mono text-[14px]', textColors.primary)}>
-                    {identifier}
-                  </span>
-                  <RdsMemberChip role={instance.cluster_member_role} />
-                  {readonly && chosen && <RdsSelectionChip />}
-                </span>
-                <span role="cell" className={cn('truncate font-mono text-[12px]', textColors.secondary)}>
-                  {instance.availability_zone ?? '—'}
-                </span>
-                {/* The endpoint is the longest value on the line and the reason the column
-                    exists, so truncation must not be where it disappears — the app's own
-                    truncated-value tip carries the whole string, and only when it is clipped. */}
-                <span role="cell" className={cn('min-w-0 font-mono text-[12px]', textColors.secondary)}>
-                  {endpoint ? (
-                    <Tooltip
-                      content={<IdentifierTip label="엔드포인트" value={endpoint} />}
-                      variant="value"
-                      size="md"
-                      triggerClassName="block min-w-0 max-w-full"
-                      truncatedOnly
-                    >
-                      <span className="block truncate">{endpoint}</span>
-                    </Tooltip>
-                  ) : (
-                    '—'
-                  )}
-                </span>
-              </>
-            );
-
-            // A line carries NO fill of its own — not for the chosen one, and not on hover. The
-            // radio says which instance is chosen, and where there is no radio (read-only) the
-            // 선택됨 chip does. A fill would also break the role chip: it is a grey pill
-            // (`statusColors.pending.bg`), the SAME grey as this body's surface, so the one
-            // lifted line would be the only one whose chip stopped reading as a chip.
-            //
-            // The rule rides each line rather than `divide-y` on the list: `divide-*` colours
-            // through the children's inherited border-color, which preflight has already set
-            // to the default grey — the token on the container would be silently ignored.
-            const lineClass = cn(
+          {/* No title strip. The row above already names the cluster and the count, and the
+              guidance repeated what the checked radio and the Reader-first order say by
+              themselves — the body opens straight into the list (owner, 2026-08-12). */}
+          <div
+            className={cn(
+              'pt-4 pb-2 text-[12px]',
               LINE_GRID,
-              'border-t py-3 pr-3',
-              borderColors.default,
-              idcStyles.table.instanceBand.line,
-              index === instances.length - 1 && idcStyles.table.instanceBand.lineLast,
-            );
+              idcStyles.table.instanceBand.headerStrip,
+              textColors.secondary,
+            )}
+            role="row"
+          >
+            <span role="columnheader">{t.instance}</span>
+            <span role="columnheader">{t.availabilityZone}</span>
+            <span role="columnheader">{t.endpoint}</span>
+          </div>
 
-            // No radio → nothing to label, so the line is a plain block rather than a
-            // `<label>` pointing at an input that does not exist.
-            return selectable ? (
-              <label key={instance.resource_id} role="row" className={cn(lineClass, 'cursor-pointer')}>
-                {body}
-              </label>
-            ) : (
-              <div key={instance.resource_id} role="row" className={lineClass}>
-                {body}
-              </div>
-            );
-          })}
+          <div role="rowgroup">
+            {instances.map((instance, index) => {
+              const identifier = rdsInstanceLabel(instance);
+              const chosen = instance.resource_id === chosenResourceId;
+              const endpoint = typeof instance.host === 'string' && instance.host
+                ? `${instance.host}${instance.port ? `:${instance.port}` : ''}`
+                : null;
+
+              const body = (
+                <>
+                  <span role="cell" className="relative flex min-w-0 items-center gap-2">
+                    {selectable && (
+                      <input
+                        type="radio"
+                        name={`rds-instance-${clusterId}`}
+                        value={instance.resource_id}
+                        checked={chosen}
+                        onChange={() => onSelect?.(instance.resource_id)}
+                        aria-label={t.selectInstance(identifier)}
+                        className={cn(
+                          idcStyles.table.instanceBand.radio,
+                          statusColors.pending.border,
+                          primaryColors.text,
+                          primaryColors.focusRing,
+                        )}
+                      />
+                    )}
+                    <span className={cn('min-w-0 truncate font-mono text-[14px]', textColors.primary)}>
+                      {identifier}
+                    </span>
+                    <RdsMemberChip role={instance.cluster_member_role} />
+                    {readonly && chosen && <RdsSelectionChip />}
+                  </span>
+                  <span role="cell" className={cn('truncate font-mono text-[12px]', textColors.secondary)}>
+                    {instance.availability_zone ?? '—'}
+                  </span>
+                  {/* The endpoint is the longest value on the line and the reason the column
+                      exists, so truncation must not be where it disappears — the app's own
+                      truncated-value tip carries the whole string, and only when it is clipped. */}
+                  <span role="cell" className={cn('min-w-0 font-mono text-[12px]', textColors.secondary)}>
+                    {endpoint ? (
+                      <Tooltip
+                        content={<IdentifierTip label={t.endpoint} value={endpoint} />}
+                        variant="value"
+                        size="md"
+                        triggerClassName="block min-w-0 max-w-full"
+                        truncatedOnly
+                      >
+                        <span className="block truncate">{endpoint}</span>
+                      </Tooltip>
+                    ) : (
+                      '—'
+                    )}
+                  </span>
+                </>
+              );
+
+              // A line carries NO fill of its own — not for the chosen one, and not on hover. The
+              // radio says which instance is chosen, and where there is no radio (read-only) the
+              // 선택됨 chip does. A fill would also break the role chip: it is a grey pill
+              // (`statusColors.pending.bg`), the SAME grey as this body's surface, so the one
+              // lifted line would be the only one whose chip stopped reading as a chip.
+              //
+              // The rule rides each line rather than `divide-y` on the list: `divide-*` colours
+              // through the children's inherited border-color, which preflight has already set
+              // to the default grey — the token on the container would be silently ignored.
+              const lineClass = cn(
+                LINE_GRID,
+                'border-t py-3 pr-3',
+                borderColors.default,
+                idcStyles.table.instanceBand.line,
+                index === instances.length - 1 && idcStyles.table.instanceBand.lineLast,
+              );
+
+              // No radio → nothing to label, so the line is a plain block rather than a
+              // `<label>` pointing at an input that does not exist.
+              return selectable ? (
+                <label key={instance.resource_id} role="row" className={cn(lineClass, 'cursor-pointer')}>
+                  {body}
+                </label>
+              ) : (
+                <div key={instance.resource_id} role="row" className={lineClass}>
+                  {body}
+                </div>
+              );
+            })}
+          </div>
         </div>
-      </div>
-    </td>
-  </tr>
-);
+      </td>
+    </tr>
+  );
+};

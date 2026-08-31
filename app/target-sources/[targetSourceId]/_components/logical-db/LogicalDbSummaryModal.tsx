@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo } from 'react';
+import { useLocale } from '@/app/components/LocaleProvider';
 import { Modal } from '@/app/components/ui/Modal';
 import { Button } from '@/app/components/ui/Button';
 import { ResourceTableSkeleton } from '@/app/target-sources/[targetSourceId]/_components/shared/async-state-views';
@@ -9,6 +10,7 @@ import { isParentDeny } from '@/app/target-sources/[targetSourceId]/_components/
 import type { LogicalDatabase } from '@/app/target-sources/[targetSourceId]/_components/logical-db/logical-db-types';
 import type { SkipReason } from '@/app/lib/api/logical-db';
 import type { TcScope } from '@/app/lib/api/tc-scope';
+import { CANDIDATE_COPY } from '@/app/target-sources/[targetSourceId]/_components/candidate/copy';
 import {
   bgColors,
   borderColors,
@@ -50,6 +52,8 @@ export const LogicalDbSummaryModal = ({
   scope,
   onClose,
 }: LogicalDbSummaryModalProps) => {
+  const { locale } = useLocale();
+  const t = CANDIDATE_COPY[locale].logicalDb;
   const { state, retry } = useLogicalDatabases(targetSourceId, resourceId, scope);
 
   // `databases` already merges the policy-only names (excluded but not discovered), so the
@@ -78,15 +82,16 @@ export const LogicalDbSummaryModal = ({
       // element so the two screens read as the same object in two modes.
       chrome="bare"
       // The bare chrome renders no header, so the dialog carries its name directly.
-      ariaLabel={`${resourceName} 논리 DB 연동 현황`}
+      ariaLabel={t.summaryLabel(resourceName)}
       footer={
         <div className="flex w-full items-center justify-between gap-3">
           <span className={cn('text-[12px] leading-[1.5]', textColors.tertiary)}>
-            제외 대상을 바꾸려면 <strong className="font-semibold">연결 테스트 재실행</strong>으로
-            5단계에서 수정해주세요.
+            {t.summaryFooterLead}
+            <strong className="font-semibold">{t.summaryFooterEmphasis}</strong>
+            {t.summaryFooterTail}
           </span>
           <Button variant="secondary" onClick={onClose}>
-            닫기
+            {t.summaryClose}
           </Button>
         </div>
       }
@@ -97,7 +102,7 @@ export const LogicalDbSummaryModal = ({
           textColors.primary,
         )}
       >
-        논리 DB 연동 현황
+        {t.summaryTitle}
       </h2>
       <div className="mb-2 flex flex-wrap items-center gap-2">
         <span
@@ -113,8 +118,7 @@ export const LogicalDbSummaryModal = ({
         </span>
       </div>
       <p className={cn('mb-3.5 text-[12px] font-medium leading-[1.5]', textColors.tertiary)}>
-        5단계 연결 테스트가 확인한 결과예요. 제외 대상은 관리자가 설정한 정책이라, 이번 테스트에서
-        발견되지 않은 이름이 포함될 수 있어요.
+        {t.summaryNote}
       </p>
 
       {state.status === 'loading' && <ResourceTableSkeleton />}
@@ -122,22 +126,24 @@ export const LogicalDbSummaryModal = ({
         <div className="space-y-3 py-8 text-center">
           <p className={cn('text-sm font-medium', statusColors.error.textDark)}>{state.message}</p>
           <Button variant="secondary" onClick={retry}>
-            다시 시도
+            {t.retry}
           </Button>
         </div>
       )}
       {state.status === 'ready' && (
         <div className="grid grid-cols-2 gap-3">
           <Panel
-            label="연동 논리 DB"
+            label={t.summaryIncluded}
             items={included}
-            emptyMessage="연동 대상 논리 DB가 없어요."
+            emptyMessage={t.summaryIncludedEmpty}
+            countLabel={t.summaryCount}
           />
           <Panel
-            label="연동 제외 대상"
+            label={t.summaryExcluded}
             items={excluded}
             reasons={reasons}
-            emptyMessage="연동 제외 대상이 없어요."
+            emptyMessage={t.summaryExcludedEmpty}
+            countLabel={t.summaryCount}
           />
         </div>
       )}
@@ -151,9 +157,11 @@ interface PanelProps {
   /** Excluded panel only — the skip reason rendered per row. */
   reasons?: Readonly<Record<string, SkipReason>>;
   emptyMessage: string;
+  /** Korean counts with a unit and English does not, so the caller's dictionary owns the badge. */
+  countLabel: (count: number) => string;
 }
 
-const Panel = ({ label, items, reasons, emptyMessage }: PanelProps) => (
+const Panel = ({ label, items, reasons, emptyMessage, countLabel }: PanelProps) => (
   <div
     className={cn(
       'flex max-h-[400px] min-h-[280px] flex-col overflow-hidden rounded-lg border',
@@ -172,7 +180,7 @@ const Panel = ({ label, items, reasons, emptyMessage }: PanelProps) => (
           textColors.secondary,
         )}
       >
-        {items.length}개
+        {countLabel(items.length)}
       </span>
     </header>
     <div className="flex-1 overflow-y-auto">

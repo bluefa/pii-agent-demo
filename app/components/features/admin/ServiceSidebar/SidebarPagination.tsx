@@ -2,6 +2,8 @@
 
 import { cn, serviceSidebarStyles } from '@/lib/theme';
 import { ChevronLeftIcon, ChevronRightIcon } from '@/app/components/ui/icons';
+import { useLocale } from '@/app/components/LocaleProvider';
+import { COPY } from '@/lib/copy';
 
 interface SidebarPaginationProps {
   pageInfo: {
@@ -25,6 +27,8 @@ interface SidebarPaginationProps {
  * with nowhere to go, and it was the awkward part of every short search result.
  */
 export const SidebarPagination = ({ pageInfo, onPageChange }: SidebarPaginationProps) => {
+  const { locale } = useLocale();
+  const t = COPY[locale].services;
   const { totalPages, number: currentPage } = pageInfo;
   if (totalPages <= 1) return null;
 
@@ -35,19 +39,19 @@ export const SidebarPagination = ({ pageInfo, onPageChange }: SidebarPaginationP
         onClick={() => onPageChange(Math.max(0, currentPage - 1))}
         disabled={currentPage === 0}
         className={cn('cursor-pointer', serviceSidebarStyles.pagerBtn)}
-        aria-label="이전 페이지"
+        aria-label={t.prevPage}
       >
         <ChevronLeftIcon />
       </button>
       <span className={serviceSidebarStyles.footerPage}>
-        {currentPage + 1} / {totalPages} 페이지
+        {t.railPageOf(currentPage + 1, totalPages)}
       </span>
       <button
         type="button"
         onClick={() => onPageChange(Math.min(totalPages - 1, currentPage + 1))}
         disabled={currentPage >= totalPages - 1}
         className={cn('cursor-pointer', serviceSidebarStyles.pagerBtn)}
-        aria-label="다음 페이지"
+        aria-label={t.nextPage}
       >
         <ChevronRightIcon />
       </button>
