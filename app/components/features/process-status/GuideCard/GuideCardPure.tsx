@@ -5,6 +5,8 @@ import { useMemo } from 'react';
 import { GuideCardChrome } from '@/app/components/features/process-status/GuideCard/GuideCardChrome';
 import { GuideCardInvalidState } from '@/app/components/features/process-status/GuideCard/GuideCardInvalidState';
 import { renderGuideAst } from '@/app/components/features/process-status/GuideCard/render-guide-ast';
+import { GUIDE_CARD_COPY } from '@/app/components/features/process-status/GuideCard/copy';
+import { useLocale } from '@/app/components/LocaleProvider';
 import { GuideIcon } from '@/app/components/ui/icons';
 import { cardStyles, cn } from '@/lib/theme';
 import { GUIDE_VALIDATE_OPTIONS, validateGuideHtml } from '@/lib/utils/validate-guide-html';
@@ -17,7 +19,7 @@ interface Props {
   invalidVariant?: 'admin' | 'enduser';
 }
 
-const CardHeader = () => (
+const CardHeader = ({ title }: { title: string }) => (
   <div className={cn('px-6 py-4', cardStyles.warmVariant.header)}>
     {/* v16 guide title inherits `.card-header h2`: 26px / 800 / -0.045em / 1.2 */}
     <h2
@@ -34,7 +36,7 @@ const CardHeader = () => (
       >
         <GuideIcon className="w-3.5 h-3.5" />
       </span>
-      가이드
+      {title}
     </h2>
   </div>
 );
@@ -45,6 +47,8 @@ export const GuideCardPure = ({
   bare = false,
   invalidVariant = 'enduser',
 }: Props) => {
+  const { locale } = useLocale();
+  const t = GUIDE_CARD_COPY[locale];
   // Provider pages re-render on status polls; memo keeps DOM parsing
   // and AST allocation off the hot path while content is unchanged.
   const result = useMemo(() => validateGuideHtml(content, GUIDE_VALIDATE_OPTIONS), [content]);
@@ -80,11 +84,12 @@ export const GuideCardPure = ({
       // break-anywhere was splitting words mid-어절 (「인프라 스 / 캔을」), and 14px wraps
       // more often than 13 did. Latin runs still break at their own boundaries.
       //
-      // `lang="ko"` is hard-coded, not `locale`: the guide was kept out of localisation, so
-      // this text is Korean whatever the reader picked. The screen around it now declares
-      // `en` for an English reader, and without this stamp the guide would inherit that and
-      // be announced by an English voice — the failure app/layout.tsx's root comment names.
-      <div lang="ko" className="prose-guide prose-guide-rail break-keep text-[14px] leading-[20px] tracking-[-0.01em] text-[var(--fg-2)]">
+      // `lang` follows the reader, because the body does: `GuideCardContainer` picks the
+      // Korean or the English twin from `STEP_GUIDE_HTML[locale]`, and the stamp has to name
+      // the language actually rendered or a screen reader announces it in the wrong voice —
+      // the failure app/layout.tsx's root comment names. It was hard-coded `ko` only while
+      // the guide was the one body kept out of localisation.
+      <div lang={locale} className="prose-guide prose-guide-rail break-keep text-[14px] leading-[20px] tracking-[-0.01em] text-[var(--fg-2)]">
         {rendered}
       </div>
     );
@@ -92,10 +97,10 @@ export const GuideCardPure = ({
 
   return (
     <GuideCardChrome>
-      {showHeader && <CardHeader />}
-      {/* Korean for the same reason as the bare branch. */}
+      {showHeader && <CardHeader title={t.title} />}
+      {/* Follows the reader for the same reason as the bare branch. */}
       <div
-        lang="ko"
+        lang={locale}
         className={cn(
           // v16 .guide-content: 13px / line-height 1.72 / color --fg-2 (gray-700 #374151)
           'px-6 py-5 prose-guide text-[13px] leading-[1.72] text-[#374151]',

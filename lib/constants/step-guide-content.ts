@@ -49,11 +49,30 @@
  *
  * Markup must satisfy `validateGuideHtml` under `GUIDE_VALIDATE_OPTIONS` —
  * asserted by `__tests__/step-guide-content.test.ts`.
+ *
+ * ## The English twin
+ *
+ * Every body below is authored twice: the Korean transcription, and an `…_EN`
+ * constant beside it. The English is a TRANSLATION of the Korean, never an
+ * edit of it — the Korean stays the owner's verbatim transcription, so a
+ * sentence that reads oddly is fixed upstream in the source screens and then
+ * re-translated here, not rewritten on this side.
+ *
+ * Two rules the translations follow:
+ * - The markup is identical. The renderer styles by TAG, so a `<mark>` that
+ *   comes out as plain text in English loses the pill, not just a word.
+ * - Every app control the guide names is spelled with that control's OWN
+ *   English label, taken from the locale dictionaries (`lib/copy.ts`,
+ *   `app/components/features/{scan,process-status}/…`, and the per-area
+ *   `copy.ts` files under `app/target-sources/[targetSourceId]/_components/`).
+ *   A guide that calls a button something the button does not say is worse
+ *   than an untranslated guide.
  */
 
 import { SDU_DB_TYPE_MAX, SDU_DB_TYPE_MAXLEN } from '@/lib/types/sdu';
 
 import type { GuideName } from '@/lib/types/guide';
+import type { Locale } from '@/lib/locale';
 
 /** 참고 가이드 바 — the source's `.accordion`, which carries a label and no body. */
 const refBar = (label: string): string => `<details><summary>${label}</summary></details>`;
@@ -100,6 +119,29 @@ const step1Cloud = ({ vmRows }: { vmRows: boolean }): string =>
   "<li><strong>연동 대상 DB 선택을 완료하였다면 '연동 대상 승인 요청'을 통해 제출해주세요.</strong></li>" +
   '</ol>';
 
+/**
+ * ⚠️ 「VM DB 등록」 is the source document's name for the control, and no screen in this app
+ * draws it: AWS step 1 offers 「EC2 추가」 / 'Add EC2' (`CANDIDATE_COPY.candidate.guideEc2Emphasis`).
+ * The English keeps the source's name rather than silently repointing the sentence — the
+ * mismatch is upstream's to settle, and settling it here would hide it.
+ */
+const step1CloudEn = ({ vmRows }: { vmRows: boolean }): string =>
+  '<ol>' +
+  "<li><strong>Press 'Start scan' or 'Rescan' to run the infrastructure scan.</strong>" +
+  refBar('Infra Scan permission setup guide (do this when the scan cannot run)') +
+  '</li>' +
+  '<li><strong>Exclude any scanned DB you do not need to integrate. (Submit PRD DBs only)</strong>' +
+  '<ul>' +
+  '<li>Clear the checkbox, then enter an exclusion reason.' +
+  '<ul><li>Dev DB / Stg DB / Temp DB / DB used by another system / Other (type it in)</li></ul></li>' +
+  (vmRows
+    ? '<li>The infrastructure scan does not cover a DB running on a VM. Register those target DBs ' +
+      "yourself with <strong>'Register VM DB'</strong>.</li>"
+    : '') +
+  '</ul></li>' +
+  "<li><strong>Once you have chosen the target DBs, submit them with 'Request target approval'.</strong></li>" +
+  '</ol>';
+
 const IDC_TARGET_INPUT_HTML =
   '<h4>연동 대상 DB의 접속 정보를 입력해주세요.</h4>' +
   "<blockquote>이전에 요청한 적이 있다면 '기존 연동 요청 정보 불러오기'를 통해 " +
@@ -118,6 +160,24 @@ const IDC_TARGET_INPUT_HTML =
   "<li><strong>연동 대상 DB 선택을 완료하였다면 '연동 대상 승인 요청'을 통해 제출해주세요.</strong></li>" +
   '</ol>';
 
+const IDC_TARGET_INPUT_HTML_EN =
+  '<h4>Enter the connection details of the DBs you want to integrate.</h4>' +
+  "<blockquote>If you have made a request before, 'Load a previous request' brings those values " +
+  'back.</blockquote>' +
+  '<ol>' +
+  "<li><strong>Click '+ Add integration target'</strong></li>" +
+  '<li><strong>Choose the DB connection type (IP, Domain)</strong>' +
+  '<ul>' +
+  '<li><strong>Domain</strong>: DB endpoint link (only a Cloud DB on the CX network can be integrated)</li>' +
+  "<li>If the DB is a cluster, <strong>'Add IP'</strong> lets you enter more IP addresses.</li>" +
+  '</ul></li>' +
+  '<li><strong>Enter the DB Type and Port</strong>' +
+  '<ul><li>For Oracle/Tibero, also enter the SID (Service ID) used to reach the DB.</li></ul></li>' +
+  '<li><strong>If any DB you entered is a dev/stg/temporary DB, clear its checkbox to leave it out ' +
+  'of the integration.</strong></li>' +
+  "<li><strong>Once you have chosen the target DBs, submit them with 'Request target approval'.</strong></li>" +
+  '</ol>';
+
 // ---------------------------------------------------------------------------
 // Step 2 — approval pending (shared)
 // ---------------------------------------------------------------------------
@@ -131,6 +191,22 @@ const STEP_2_HTML =
   '<ul>' +
   '<li>평균 1일 이내 검토가 완료됩니다. (주말·공휴일 제외)</li>' +
   '<li>2일 이상 지연 시 <strong>협업 채널</strong>을 통해 문의를 남겨주세요.</li>' +
+  '</ul>';
+
+/**
+ * 「(주말·공휴일 제외)」 comes out as '(weekends and holidays excluded)' rather than the
+ * longer 'public holidays': that is the phrase the card beside this rail already prints
+ * (`LAYOUT_COPY.applying.eta`), and one screen gets one wording for one fact.
+ */
+const STEP_2_HTML_EN =
+  '<h4>The PII Agent owner is reviewing your request.</h4>' +
+  '<p>The owner is going through the list of target DBs you submitted, one at a time. ' +
+  'If the review turns up no issues, you move to the next step.</p>' +
+  "<blockquote>If the wrong target DBs were submitted, press <strong>'Try again'</strong> at the " +
+  'top right to go back to Step 1, re-enter them and submit again.</blockquote>' +
+  '<ul>' +
+  '<li>A review is done within a day on average. (weekends and holidays excluded)</li>' +
+  '<li>If it is delayed more than 2 days, leave a question in the <strong>Collab channel</strong>.</li>' +
   '</ul>';
 
 // ---------------------------------------------------------------------------
@@ -148,6 +224,18 @@ const STEP_3_HTML =
   '<li>2일 이상 지연 시 <strong>협업 채널</strong>을 통해 문의를 남겨주세요.</li>' +
   '</ul>';
 
+const STEP_3_HTML_EN =
+  '<h4>The owner is setting up the environment for the integration.</h4>' +
+  '<p>Once everything is ready to connect, you move to the next step.</p>' +
+  '<blockquote>If this is a re-integration rather than a first integration, the system owner may ' +
+  'have to act (the PII Agent resources installed earlier have to be deleted). The owner will ' +
+  'contact you directly if anything is needed.</blockquote>' +
+  '<ul>' +
+  '<li>A first integration is done within 10 minutes on average.</li>' +
+  '<li>A re-integration takes a day on average. (weekends and holidays excluded)</li>' +
+  '<li>If it is delayed more than 2 days, leave a question in the <strong>Collab channel</strong>.</li>' +
+  '</ul>';
+
 // ---------------------------------------------------------------------------
 // Step 4 — install (per provider)
 // ---------------------------------------------------------------------------
@@ -156,6 +244,11 @@ const AWS_INSTALL_HEAD =
   '<h4>선택하신 설치 방식에 따라 진행해야 할 작업이 달라요.</h4>' +
   '<blockquote>설치 방식(자동 설치/수동 설치) 전환이 필요하다면, ' +
   '상단 Jira 티켓 내 코멘트를 통해 변경을 요청해주세요.</blockquote>';
+
+const AWS_INSTALL_HEAD_EN =
+  '<h4>What you have to do depends on the install method you chose.</h4>' +
+  '<blockquote>To switch the install method (Automatic install / Manual install), ask for the ' +
+  'change in a comment on the Jira ticket at the top.</blockquote>';
 
 /**
  * The bullets the source prints BELOW the branch grid — they belong to both branches,
@@ -168,6 +261,12 @@ const AWS_INSTALL_TAIL_ITEMS =
   '<li>별도 조치가 필요한 경우, 담당자가 개별 연락드릴 예정입니다.</li>' +
   '<li>Agent 설치가 완료되면 다음 단계로 넘어가요.</li>';
 
+const AWS_INSTALL_TAIL_ITEMS_EN =
+  '<li>Creating the resources on the BDC side takes 2 days on average. (weekends and holidays excluded)</li>' +
+  '<li>If it is delayed more than 3 days, leave a question in the <strong>Collab channel</strong>.</li>' +
+  '<li>If anything else is needed, the owner will contact you directly.</li>' +
+  '<li>Once the Agent install is finished, you move to the next step.</li>';
+
 const AWS_AUTO_INSTALLING_HTML =
   AWS_INSTALL_HEAD +
   '<p><mark>자동 설치</mark><br />가이드를 참고하여 Terraform 실행 권한을 부여해주세요.</p>' +
@@ -175,6 +274,15 @@ const AWS_AUTO_INSTALLING_HTML =
   refBar('실행 권한 부여 가이드') +
   `<ul>${AWS_INSTALL_TAIL_ITEMS}</ul>` +
   refBar('이 단계에서 어떤 작업이 진행되나요');
+
+const AWS_AUTO_INSTALLING_HTML_EN =
+  AWS_INSTALL_HEAD_EN +
+  '<p><mark>Automatic install</mark><br />Follow the guide and grant Terraform execution ' +
+  'permission.</p>' +
+  '<p>Granting Terraform execution permission (creating an IAM Role)</p>' +
+  refBar('Execution permission guide') +
+  `<ul>${AWS_INSTALL_TAIL_ITEMS_EN}</ul>` +
+  refBar('What happens at this step');
 
 const AWS_MANUAL_INSTALLING_HTML =
   AWS_INSTALL_HEAD +
@@ -185,6 +293,15 @@ const AWS_MANUAL_INSTALLING_HTML =
   `<ul>${AWS_INSTALL_TAIL_ITEMS}</ul>` +
   refBar('이 단계에서 어떤 작업이 진행되나요');
 
+const AWS_MANUAL_INSTALLING_HTML_EN =
+  AWS_INSTALL_HEAD_EN +
+  '<p><mark>Manual install</mark><br />Follow the guide and run Terraform yourself.</p>' +
+  '<p>Creating the service account resources (creating them with the attached Terraform)</p>' +
+  '<ul><li>Follow the guide below and run the script yourself.</li></ul>' +
+  refBar('Terraform Script run guide') +
+  `<ul>${AWS_INSTALL_TAIL_ITEMS_EN}</ul>` +
+  refBar('What happens at this step');
+
 const AZURE_INSTALLING_HTML =
   '<h4>VM DB 연동 여부에 따라 필요한 설치 작업이 달라집니다.</h4>' +
   '<p>VM DB를 사용하는 경우, Private Networking에 필요한 리소스(Subnet, NSG 등) 생성을 위해 ' +
@@ -194,6 +311,16 @@ const AZURE_INSTALLING_HTML =
   '<p><mark>Private Endpoint 승인</mark><br />Azure Portal에서 BDC가 요청한 ' +
   'Private Endpoint 연결 요청을 승인해주시는 단계입니다.</p>' +
   refBar('Private Endpoint 승인 가이드');
+
+const AZURE_INSTALLING_HTML_EN =
+  '<h4>Which install work is needed depends on whether you integrate a VM DB.</h4>' +
+  '<p>If you use a VM DB, run the steps below so the resources Private Networking needs ' +
+  '(Subnet, NSG and so on) can be created.</p>' +
+  '<blockquote>If there is no VM DB, this is skipped.</blockquote>' +
+  refBar('Permission setup for creating the VM Subnet') +
+  '<p><mark>Private Endpoint approval</mark><br />At this step you approve the Private Endpoint ' +
+  'connection request BDC made, in the Azure Portal.</p>' +
+  refBar('Private Endpoint approval guide');
 
 const GCP_INSTALLING_HTML =
   '<h4>DB Type에 따라 필요한 설치 작업이 달라집니다.</h4>' +
@@ -219,6 +346,18 @@ const GCP_INSTALLING_HTML =
 // hand. What it alone added — Pending as the observable signal — cannot be restored
 // without reintroducing the connection the owner removed.
 
+const GCP_INSTALLING_HTML_EN =
+  '<h4>Which install work is needed depends on the DB Type.</h4>' +
+  '<p>You may need only some of the 2 tasks below, or none of them.</p>' +
+  '<p><mark>Service Side Subnet creation</mark><br />This checks whether the GCP Project on the ' +
+  'other side has a Regional Managed Proxy Subnet.</p>' +
+  '<p><mark>Service Side Terraform</mark><br />This creates PSC and its related resources in the ' +
+  'GCP Project on the other side (for BIGQUERY, it grants IAM permissions).</p>' +
+  '<blockquote><strong>For a PSC integration (PRIVATE_IP_MODE · PSC_MODE)</strong>, register the ' +
+  'BDC project in the <code>consumerAcceptLists</code> of the Service Attachment on the other ' +
+  'side at this step and it connects automatically, with no approval. If it is not registered, ' +
+  'the owner on the other side has to approve it once by hand.</blockquote>';
+
 /**
  * ⚠️ 「Source IP」 is the source document's word for the far end of the firewall
  * rule. This app's own name for it is `IDC_SOURCE_LABEL` ('BDC측 출발지'), which
@@ -235,6 +374,19 @@ const IDC_INSTALLING_HTML =
   '<ul><li>SDS에서 운영하는 DB인 경우, DC Manager를 통해 접근 허용 등</li></ul></li>' +
   '</ul>' +
   '<blockquote>방화벽 등록까지 완료되면 다음 단계로 넘어가요.</blockquote>';
+
+/** 「Source IP」 stays the source document's word here too — see the note on the Korean above. */
+const IDC_INSTALLING_HTML_EN =
+  '<h4>At this step BDC creates the resources that reach the DB, and then the firewall ' +
+  'registration is checked.</h4>' +
+  '<p>While the collection module is being installed on the BDC side, your side has to open the ' +
+  'firewall for Source IP → integration target (IP:Port).</p>' +
+  '<ul>' +
+  '<li>Once the BDC resources are created, the firewall registration can be checked.</li>' +
+  '<li>If you have a firewall registration process other than it4u, run that one too.' +
+  '<ul><li>For a DB operated by SDS, allow access through DC Manager, for example</li></ul></li>' +
+  '</ul>' +
+  '<blockquote>Once the firewall registration is done too, you move to the next step.</blockquote>';
 
 // ---------------------------------------------------------------------------
 // Step 5 — connection test (shared)
@@ -278,6 +430,40 @@ const STEP_5_HTML =
   '</ul></li>' +
   '</ol>';
 
+const STEP_5_HTML_EN =
+  '<h4>At this step you register the DB Credential used to access each DB yourself, and check ' +
+  'that every DB can be reached.</h4>' +
+  '<ol>' +
+  '<li><strong>Register a DB Credential</strong>' +
+  '<ul>' +
+  '<li>Follow the guide to create the DB user and grant its permissions, then register the DB ' +
+  'Credential.</li>' +
+  extLink('Guide to creating a user per DB Type') +
+  extLink('DB Credential registration page') +
+  '</ul>' +
+  refBar('Guide to the DB Credential registration page') +
+  '</li>' +
+  '<li><strong>Assign a Credential Key per DB</strong>' +
+  '<ul>' +
+  '<li>In the DB Credential field on the left, pick the DB credential you registered.</li>' +
+  '<li>It is shown as the DB Account Name you registered.</li>' +
+  '</ul></li>' +
+  '<li><strong>Run the connection test</strong>' +
+  '<ul>' +
+  '<li>This checks that the DB can be reached with the Key you entered or picked.</li>' +
+  '<li>Connection Status tells you whether it succeeded or failed.</li>' +
+  '</ul></li>' +
+  '<li><strong>Set up the Logical DB integration</strong>' +
+  '<ul>' +
+  "<li>When Connection Status is Success, press the count in the <strong>'Logical DB'</strong> " +
+  'column to exclude any Logical DB you do not need to integrate.</li>' +
+  '<li>These are the DBs you can exclude.' +
+  '<ul><li>DEV DB, STG DB, Temp DB, DB used by another system</li></ul></li>' +
+  "<li>If you changed the Logical DB settings, run the connection test again with <strong>'Run " +
+  "again'</strong> before you go on to <strong>'Request approval'</strong>.</li>" +
+  '</ul></li>' +
+  '</ol>';
+
 // ---------------------------------------------------------------------------
 // Step 6 — final admin approval (shared)
 // ---------------------------------------------------------------------------
@@ -290,6 +476,16 @@ const STEP_6_HTML =
   '<li>평균 1일 소요되는 과정입니다. (주말·공휴일 제외)</li>' +
   '<li>수집해야 할 데이터가 클 경우, 더 오래 소요될 수 있어요.</li>' +
   '<li>3일 이상 지연 시 <strong>협업 채널</strong>을 통해 문의를 남겨주세요.</li>' +
+  '</ul>';
+
+const STEP_6_HTML_EN =
+  '<h4>The owner is checking that PII Agent collects meta/sample data correctly.</h4>' +
+  "<p>Once that is confirmed, you move to the <strong>'Complete'</strong> step.</p>" +
+  '<blockquote>If anything else is needed, the owner will contact you directly.</blockquote>' +
+  '<ul>' +
+  '<li>This takes a day on average. (weekends and holidays excluded)</li>' +
+  '<li>If there is a lot of data to collect, it can take longer.</li>' +
+  '<li>If it is delayed more than 3 days, leave a question in the <strong>Collab channel</strong>.</li>' +
   '</ul>';
 
 // ---------------------------------------------------------------------------
@@ -331,6 +527,41 @@ const STEP_7_HTML =
   'DB 또는 Credential Key의 변동사항이 없다면 걸림 사유 원인은 <strong>협업 채널</strong>을 통해 ' +
   '문의를 남겨주세요.</blockquote>';
 
+const STEP_7_HTML_EN =
+  '<h4>The PII Agent integration is complete.</h4>' +
+  '<p>You can check the PII monitoring integration status on this page.</p>' +
+  '<ul>' +
+  '<li><strong>Healthy</strong>: working normally</li>' +
+  '<li><strong>Unhealthy</strong>: meta/sample data collection has been failing for more than 3 days' +
+  '<ul><li>If the DB is still in use, it has to be integrated again.</li></ul></li>' +
+  '</ul>' +
+  '<ol>' +
+  '<li><strong>If the DB Credential Key changed</strong>' +
+  '<ul>' +
+  "<li>To change the DB Credential Key, press <strong>'Rerun connection test'</strong> to go back " +
+  "to the <strong>'Connection test'</strong> step and register it again.</li>" +
+  "<li>If the password of a registered Key changed, update the Key value under <strong>'DB " +
+  "Credential'</strong>.</li>" +
+  extLink('DB Credential page') +
+  '</ul></li>' +
+  '<li><strong>If a Logical DB has to be added or removed inside a DB the Agent is installed on</strong>' +
+  '<ul>' +
+  "<li><strong>'Rerun connection test'</strong> takes you back to the <strong>'Connection " +
+  "test'</strong> step, where you can set the Logical DBs again.</li>" +
+  '<li>If a Logical DB was created after the integration, use this to integrate it.</li>' +
+  '</ul></li>' +
+  '<li><strong>If a DB was added or removed after the integration</strong>' +
+  '<ul>' +
+  "<li><strong>'Change infrastructure'</strong> takes you back to the <strong>'Select target " +
+  "DBs'</strong> step — run the infrastructure scan again from there.</li>" +
+  '<li>The Agent resources already installed have to be deleted and the integration redone, so ' +
+  'you have to go through the Agent install again.</li>' +
+  '</ul></li>' +
+  '</ol>' +
+  '<blockquote>An issue in the BDC infrastructure can turn the integration status Unhealthy. If ' +
+  'nothing has changed about the DB or the Credential Key on the system you own, leave a question ' +
+  'about the cause in the <strong>Collab channel</strong>.</blockquote>';
+
 // ---------------------------------------------------------------------------
 // SDU — the four steps the owner walks (1 · 2 · 3 · 4)
 // ---------------------------------------------------------------------------
@@ -364,6 +595,28 @@ const SDU_TARGET_DEFINE_HTML =
   "<li><strong>'제출'을 누르면 업로드 준비 단계로 넘어가요.</strong></li>" +
   '</ol>';
 
+/**
+ * ⚠️ 「권역은 연동 대상 정보를 따라요」 — the source's own sentence, and the one place the English
+ * had to guess at the Korean rather than at a word. 권역 is the target source's Global/China
+ * scope (`SDU_COPY.define.regionFixedHint`: 「China 권역이라 Region은 China로 고정돼요」), so the
+ * translation keeps the Korean's own vagueness about what 「연동 대상 정보」 names.
+ */
+const SDU_TARGET_DEFINE_HTML_EN =
+  '<h4>Define the targets to connect yourself.</h4>' +
+  '<blockquote>SDU has no target approval step. Submit and you go straight to the data upload ' +
+  'step.</blockquote>' +
+  '<ol>' +
+  '<li><strong>The scope follows the integration target information.</strong>' +
+  '<ul><li>Global can pick Asia · US · EU · CX, and China can only pick China.</li></ul></li>' +
+  '<li><strong>Add the targets you want to connect.</strong>' +
+  '<ul><li>Each target takes a cloud · Region · upload IP · Database Type.</li></ul></li>' +
+  '<li><strong>The upload IP is the IP the data is uploaded to S3 from.</strong>' +
+  '<ul><li>Uploads are allowed only from this address, so enter it exactly.</li></ul></li>' +
+  '<li><strong>A Database Type that is not in the list can be typed in.</strong>' +
+  `<ul><li>Up to ${SDU_DB_TYPE_MAX} per target, and a name can be up to ${SDU_DB_TYPE_MAXLEN} characters.</li></ul></li>` +
+  "<li><strong>Press 'Submit' and you move to the data upload step.</strong></li>" +
+  '</ol>';
+
 const SDU_UPLOAD_HTML =
   '<h4>데이터를 업로드하고, 올라간 파일을 확인해주세요.</h4>' +
   '<blockquote>이미 마친 항목도 언제든 다시 하실 수 있어요. 연동 대상을 고치려면 ' +
@@ -378,10 +631,29 @@ const SDU_UPLOAD_HTML =
   '<li><strong>BDC 측 리소스 생성이 완료되면 다음 단계로 넘어가요.</strong></li>' +
   '</ol>';
 
+const SDU_UPLOAD_HTML_EN =
+  '<h4>Upload the data, then check the files that landed.</h4>' +
+  '<blockquote>You can redo anything you have already finished at any time. To change the ' +
+  "targets, go to Step 1 with <strong>'Edit integration targets'</strong>.</blockquote>" +
+  '<ol>' +
+  '<li><strong>Check that the firewall approval is done.</strong>' +
+  '<ul><li>Access to the S3 region you upload to has to be open.</li></ul></li>' +
+  '<li><strong>Register the people who should receive the S3 Access Key.</strong>' +
+  '<ul><li>You can register more than one. An admin emails the key to them directly.</li></ul></li>' +
+  '<li><strong>Upload the data and check it.</strong>' +
+  '<ul><li>The three upload-check commands for each Region show you the files that landed.</li></ul></li>' +
+  '<li><strong>Once BDC has finished creating the resources, you move to the next step.</strong></li>' +
+  '</ol>';
+
 const SDU_INTEGRATING_HTML =
   '<h4>업로드하신 데이터를 연동하고 있어요.</h4>' +
   '<p>BDC 측에서 업로드된 데이터를 확인하고 연동하고 있어요. 담당자가 하실 일은 없어요.</p>' +
   '<blockquote>연동이 끝나면 완료 단계로 넘어가요.</blockquote>';
+
+const SDU_INTEGRATING_HTML_EN =
+  '<h4>We are connecting the data you uploaded.</h4>' +
+  '<p>BDC is checking the uploaded data and connecting it. There is nothing for you to do.</p>' +
+  '<blockquote>You move to the completed step when the integration finishes.</blockquote>';
 
 const SDU_COMPLETE_HTML =
   '<h4>SDU 연동이 완료되었어요.</h4>' +
@@ -392,6 +664,17 @@ const SDU_COMPLETE_HTML =
   '</ul>' +
   '<blockquote>1단계로 돌아가면 지금까지의 업로드 확인 내역은 사라져요.</blockquote>';
 
+const SDU_COMPLETE_HTML_EN =
+  '<h4>The SDU integration is complete.</h4>' +
+  '<p>The data you uploaded is now integrated for PII monitoring.</p>' +
+  '<ul>' +
+  '<li><strong>If the targets to upload or the upload IP changed</strong>' +
+  "<ul><li>Press <strong>'Edit integration targets'</strong> below to go back to Step 1 and " +
+  'submit the definition again.</li></ul></li>' +
+  '</ul>' +
+  '<blockquote>Going back to Step 1 discards everything you have confirmed about the upload so ' +
+  'far.</blockquote>';
+
 // ---------------------------------------------------------------------------
 // Assembly — one entry per GuideName
 // ---------------------------------------------------------------------------
@@ -399,7 +682,10 @@ const SDU_COMPLETE_HTML =
 const CLOUD_STEP_1_HTML = step1Cloud({ vmRows: true });
 const GCP_STEP_1_HTML = step1Cloud({ vmRows: false });
 
-export const STEP_GUIDE_HTML: Record<GuideName, string> = {
+const CLOUD_STEP_1_HTML_EN = step1CloudEn({ vmRows: true });
+const GCP_STEP_1_HTML_EN = step1CloudEn({ vmRows: false });
+
+const ko: Record<GuideName, string> = {
   // AWS (8) — AUTO/MANUAL share every step except step 4.
   AWS_TARGET_CONFIRM: CLOUD_STEP_1_HTML,
   AWS_APPROVAL_PENDING: STEP_2_HTML,
@@ -439,3 +725,46 @@ export const STEP_GUIDE_HTML: Record<GuideName, string> = {
   SDU_INTEGRATING: SDU_INTEGRATING_HTML,
   SDU_COMPLETE: SDU_COMPLETE_HTML,
 };
+
+/**
+ * `typeof ko` rather than a fresh literal: the compiler, not a reviewer, is what catches a
+ * slot English forgot. `ko` itself stays annotated `Record<GuideName, string>` so a NEW
+ * guide name still fails on both sides.
+ */
+const en: typeof ko = {
+  AWS_TARGET_CONFIRM: CLOUD_STEP_1_HTML_EN,
+  AWS_APPROVAL_PENDING: STEP_2_HTML_EN,
+  AWS_APPLYING: STEP_3_HTML_EN,
+  AWS_AUTO_INSTALLING: AWS_AUTO_INSTALLING_HTML_EN,
+  AWS_MANUAL_INSTALLING: AWS_MANUAL_INSTALLING_HTML_EN,
+  AWS_CONNECTION_TEST: STEP_5_HTML_EN,
+  AWS_ADMIN_APPROVAL: STEP_6_HTML_EN,
+  AWS_COMPLETED: STEP_7_HTML_EN,
+  AZURE_TARGET_CONFIRM: CLOUD_STEP_1_HTML_EN,
+  AZURE_APPROVAL_PENDING: STEP_2_HTML_EN,
+  AZURE_APPLYING: STEP_3_HTML_EN,
+  AZURE_INSTALLING: AZURE_INSTALLING_HTML_EN,
+  AZURE_CONNECTION_TEST: STEP_5_HTML_EN,
+  AZURE_ADMIN_APPROVAL: STEP_6_HTML_EN,
+  AZURE_COMPLETED: STEP_7_HTML_EN,
+  GCP_TARGET_CONFIRM: GCP_STEP_1_HTML_EN,
+  GCP_APPROVAL_PENDING: STEP_2_HTML_EN,
+  GCP_APPLYING: STEP_3_HTML_EN,
+  GCP_INSTALLING: GCP_INSTALLING_HTML_EN,
+  GCP_CONNECTION_TEST: STEP_5_HTML_EN,
+  GCP_ADMIN_APPROVAL: STEP_6_HTML_EN,
+  GCP_COMPLETED: STEP_7_HTML_EN,
+  IDC_TARGET_INPUT: IDC_TARGET_INPUT_HTML_EN,
+  IDC_APPROVAL_PENDING: STEP_2_HTML_EN,
+  IDC_APPLYING: STEP_3_HTML_EN,
+  IDC_INSTALLING: IDC_INSTALLING_HTML_EN,
+  IDC_CONNECTION_TEST: STEP_5_HTML_EN,
+  IDC_CONNECTION_VERIFIED: STEP_6_HTML_EN,
+  IDC_COMPLETE: STEP_7_HTML_EN,
+  SDU_TARGET_DEFINE: SDU_TARGET_DEFINE_HTML_EN,
+  SDU_UPLOAD: SDU_UPLOAD_HTML_EN,
+  SDU_INTEGRATING: SDU_INTEGRATING_HTML_EN,
+  SDU_COMPLETE: SDU_COMPLETE_HTML_EN,
+};
+
+export const STEP_GUIDE_HTML: Record<Locale, typeof ko> = { ko, en };
