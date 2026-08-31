@@ -10,12 +10,17 @@
  * ⛔ 회차별 「응답 이력」 표는 만들지 않는다(§9.1). 답이 대상 소스 단위 하나가 된 뒤로
  * 회차는 `예 → 아니오 → 예` 뿐이라, 그것을 위해 누적 로그를 세우는 것은 값에 비해 비싸다.
  * 승인 조건 ①이 실제로 읽는 것도 **현재 상태**다.
+ *
+ * **BDC 구축 완료 처리도 이 카드가 진다** (2026-08-30 델타). 완료의 전제가 바로 이 카드가
+ * 그리는 두 확인이고(델타 §4), 그 단언이 대상 소스를 5단계로 밀어낸다 — 조건을 읽는 자리와
+ * 그 조건 위에서 누르는 자리가 같아야 관리자가 두 화면을 오가지 않는다.
  */
-import { useState, type ReactElement, type ReactNode } from 'react';
+import { useCallback, useState, type ReactElement, type ReactNode } from 'react';
 import { cn, pipelineStyles } from '@/lib/theme';
 import { fmtDateTime } from '@/lib/pipeline/format';
 import { useAbortableEffect } from '@/app/hooks/useAbortableEffect';
-import { getSduUpload } from '@/app/lib/api/sdu';
+import { useApiMutation } from '@/app/hooks/useApiMutation';
+import { getSduUpload, putSduBdcCompletion } from '@/app/lib/api/sdu';
 import {
   SDU_REGION_LABEL,
   sduAckAnswer,
@@ -23,13 +28,36 @@ import {
   type SduRecipient,
   type SduUpload,
 } from '@/lib/types/sdu';
+import { ConfirmStepModal } from '@/app/components/ui/ConfirmStepModal';
+import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
+import { usePlToast } from '@/app/admin/pipelines/_components/usePlToast';
 import { opsStyles } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/opsStyles';
+import { SduBdcCompleteModal } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/SduBdcCompleteModal';
 
 /** 확인 답변이 무효화된 이유 — §3.1 이 정한 두 원인만 말한다. */
 const NOTE_WARN =
   'flex flex-col gap-1 rounded-lg px-3.5 py-3 mt-4 text-[14px] leading-[1.5] bg-[var(--pl-warn-bg)] text-[var(--pl-warn-text)]';
 
 const KV_GRID = 'grid grid-cols-[140px_1fr] items-baseline gap-x-4 gap-y-2.5 mt-4';
+
+/** 두 확인과 BDC 사이의 이음매. BDC 는 담당자가 답한 것이 아니라 그 답들 **위에서** 일어난
+ *  일이라, 같은 kv 격자에 넣으면 세 번째 확인 답변으로 읽힌다. */
+const BDC_BLOCK = 'mt-5 border-t border-[var(--pl-border)] pt-4';
+
+/**
+ * 단언의 전제가 아직 아닐 때 버튼 밑에 서는 줄 (델타 §4). 비활성 버튼만 두고 이유를 안 쓰면
+ * 관리자는 무엇을 기다려야 하는지 알 수 없다 — 서버가 세는 셋을 그대로 이름 부른다.
+ * 수신자는 옆 카드에 있어서 이 줄이 아니면 여기서 언급될 자리가 없다.
+ */
+const BDC_BLOCKED =
+  '방화벽 결재 확인과 데이터 업로드 확인이 모두 「예」이고 S3 Access Key 수신자가 1명 이상이면 처리할 수 있어요.';
+
+/** 완료 단언의 두 방향 — 계약이 하나의 값으로 말하듯 화면도 한 자리에서 갈린다. */
+const BDC_LABEL: Record<SduUpload['bdc']['status'], string> = {
+  NOT_STARTED: '대기 중',
+  IN_PROGRESS: '진행 중',
+  COMPLETED: '구축 완료',
+};
 
 function KvRow({ label, children }: { label: string; children: ReactNode }): ReactElement {
   return (
@@ -67,12 +95,21 @@ function AckValue({
 
 export interface SduAckCardProps {
   targetSourceId: number;
+  /**
+   * BDC 완료/되돌리기가 저장됐다 — 뷰가 **process-status 를 다시 읽는다.** 화면은 단계를
+   * 스스로 옮기지 않는다(델타 §3): 서버가 무엇으로 정했는지는 다시 읽어야만 안다.
+   */
+  onBdcChanged?: () => void;
 }
 
-export function SduAckCard({ targetSourceId }: SduAckCardProps): ReactElement {
+export function SduAckCard({ targetSourceId, onBdcChanged }: SduAckCardProps): ReactElement {
   const [upload, setUpload] = useState<SduUpload | null>(null);
   const [failed, setFailed] = useState(false);
   const [loaded, setLoaded] = useState(false);
+  /** 쓰기가 끝날 때마다 오른다 — 이 카드의 조회를 다시 돌리는 유일한 손잡이다. */
+  const [reloadKey, setReloadKey] = useState(0);
+  const [confirming, setConfirming] = useState<'complete' | 'rollback' | null>(null);
+  const toast = usePlToast();
 
   useAbortableEffect(
     (signal) => {
@@ -91,8 +128,44 @@ export function SduAckCard({ targetSourceId }: SduAckCardProps): ReactElement {
           setLoaded(true);
         });
     },
-    [targetSourceId],
+    [targetSourceId, reloadKey],
   );
+
+  // 단언이 무엇이 됐는지는 **서버가 안다.** 낙관적 갱신 없이 둘 다 다시 읽는다 —
+  // 여기서 `bdc.status` 를 손으로 세우면 전제를 못 갖춘 400 뒤에도 완료가 그려진다.
+  const reread = useCallback(() => {
+    setConfirming(null);
+    setReloadKey((key) => key + 1);
+    onBdcChanged?.();
+  }, [onBdcChanged]);
+
+  const { mutate: rollback, loading: rollingBack } = useApiMutation<void, void>(
+    () => putSduBdcCompletion(targetSourceId, false),
+    {
+      onSuccess: () => {
+        toast.show('BDC 구축 완료를 되돌렸습니다.');
+        reread();
+      },
+      onError: () => toast.show('BDC 구축 완료 되돌리기에 실패했습니다.'),
+    },
+  );
+
+  /**
+   * 서버가 단언을 받아 주는 조건 (델타 §4) — 계약 §8 의 BDC 진입 조건 그대로다. 화면이
+   * 따로 세는 것이 아니라 **같은 셋을 본다**: 이 카드가 이미 그리는 두 확인과, 옆 카드가
+   * 그리는 수신자. 시작조차 못 한 BDC 를 「끝났다」고 말할 수 없다.
+   */
+  const bdcAssertable =
+    upload != null &&
+    upload.firewall.acked &&
+    upload.commands.acked &&
+    upload.accessKeyRecipients.users.length > 0;
+
+  // 단언이 없으면 붙일 사람도 시각도 없다 — 미답에 구분자를 세우지 않는 것과 같다.
+  const bdcStamp = [
+    upload?.bdc.completedBy?.name,
+    upload?.bdc.completedAt ? fmtDateTime(upload.bdc.completedAt) : null,
+  ].filter((part): part is string => part != null && part !== '');
 
   const invalidation = upload?.invalidation;
   const invalidated =
@@ -133,6 +206,72 @@ export function SduAckCard({ targetSourceId }: SduAckCardProps): ReactElement {
               )}
             </div>
           )}
+
+          {/* BDC 구축 — 위의 두 답 **위에서** 일어난 일이라 격자 밖에 선다. 완료는 파생이
+              아니라 관리자의 단언이고(델타 §0), 그 단언 하나가 대상 소스를 5단계로 옮긴다. */}
+          <div className={BDC_BLOCK}>
+            <dl className="grid grid-cols-[140px_1fr] items-baseline gap-x-4">
+              <KvRow label="BDC 구축">
+                {BDC_LABEL[upload.bdc.status]}
+                {/* 단언의 저자와 시각 — 위 두 확인의 `acked_by` 와 **같은 문법**이다. 한
+                    카드 안에서 세 줄 중 둘만 사람을 말하면 셋째 줄은 저자가 없는 사실로
+                    읽히는데, 이건 파생값이던 시절의 이야기다(델타 §2). 구분자가 글자 흐름
+                    안에 있는 이유도 `AckValue` 와 같다. */}
+                {bdcStamp.length > 0 && (
+                  <>
+                    {' · '}
+                    <span className={pipelineStyles.text.meta}>{bdcStamp.join(' · ')}</span>
+                  </>
+                )}
+              </KvRow>
+            </dl>
+            <div className="mt-3.5">
+              {upload.bdc.status === 'COMPLETED' ? (
+                // 되돌리기는 눌러서 지나가는 자리가 아니다 — 제 확인창을 갖는다.
+                <PlButton
+                  variant="secondary"
+                  disabled={rollingBack}
+                  onClick={() => setConfirming('rollback')}
+                >
+                  구축 완료 되돌리기
+                </PlButton>
+              ) : (
+                <>
+                  <PlButton
+                    variant="primary"
+                    disabled={!bdcAssertable}
+                    onClick={() => setConfirming('complete')}
+                  >
+                    BDC 구축 완료 처리
+                  </PlButton>
+                  {/* 잠긴 이유는 버튼 옆이 아니라 **밑에** 선다 — 이유가 없는 비활성 버튼은
+                      이 저장소가 반복해서 지적해 온 결함이다. */}
+                  {!bdcAssertable && (
+                    <p className={cn(pipelineStyles.text.meta, 'mt-2')}>{BDC_BLOCKED}</p>
+                  )}
+                </>
+              )}
+            </div>
+          </div>
+
+          <SduBdcCompleteModal
+            targetSourceId={targetSourceId}
+            open={confirming === 'complete'}
+            onClose={() => setConfirming(null)}
+            onCompleted={reread}
+          />
+          <ConfirmStepModal
+            open={confirming === 'rollback'}
+            onClose={() => setConfirming(null)}
+            onConfirm={() => void rollback()}
+            title="BDC 구축 완료를 되돌릴까요?"
+            // 무엇이 되돌아가고 무엇이 남는지를 둘 다 말한다 — 단계까지 되돌아간다고 믿으면
+            // 관리자는 눌러야 할 때 누르지 않는다 (델타 §3).
+            description="BDC 구축 상태만 되돌아가고, 진행 단계는 그대로 남습니다."
+            confirmLabel="되돌리기"
+            tone="warning"
+            isPending={rollingBack}
+          />
         </>
       )}
     </section>

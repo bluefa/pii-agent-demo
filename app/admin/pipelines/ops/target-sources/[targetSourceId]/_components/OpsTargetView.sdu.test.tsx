@@ -135,7 +135,7 @@ const UPLOAD: SduUpload = {
     updatedAt: '2026-08-24T07:41:00Z',
   },
   commands: { rows: [], acked: false, ackedAt: null, ackedBy: null },
-  bdc: { status: 'NOT_STARTED', checkedAt: '2026-08-24T07:50:00Z', completedAt: null },
+  bdc: { status: 'NOT_STARTED', checkedAt: '2026-08-24T07:50:00Z', completedAt: null, completedBy: null },
   invalidation: { addedRegions: [], uploadIpChanged: false },
 };
 

@@ -370,7 +370,7 @@ const upload = (over: Partial<SduUpload> = {}): SduUpload => ({
     updatedAt: '2026-08-24T07:41:00Z',
   },
   commands: { rows: [], acked: true, ackedAt: '2026-08-25T11:00:00Z', ackedBy: null },
-  bdc: { status: 'COMPLETED', checkedAt: '2026-08-24T07:50:00Z', completedAt: '2026-08-25T12:00:00Z' },
+  bdc: { status: 'COMPLETED', checkedAt: '2026-08-24T07:50:00Z', completedAt: '2026-08-25T12:00:00Z' , completedBy: null },
   invalidation: { addedRegions: [], uploadIpChanged: false },
   ...over,
 });

@@ -35,7 +35,7 @@ const upload = (over: Partial<SduUpload['accessKeyRecipients']> = {}): SduUpload
     ...over,
   },
   commands: { rows: [], acked: true, ackedAt: '2026-08-25T11:00:00Z', ackedBy: null },
-  bdc: { status: 'IN_PROGRESS', checkedAt: '2026-08-24T07:50:00Z', completedAt: null },
+  bdc: { status: 'IN_PROGRESS', checkedAt: '2026-08-24T07:50:00Z', completedAt: null, completedBy: null },
   invalidation: { addedRegions: [], uploadIpChanged: false },
 });
 

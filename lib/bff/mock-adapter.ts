@@ -165,7 +165,7 @@ export const mockBff: BffClient = {
   sdu: {
     getDefinition: async (id) => unwrap(await mockSdu.getDefinition(id)),
     putDefinition: async (id, body) => unwrap(await mockSdu.putDefinition(id, body)),
-    // 아래 넷은 204 다 — `unwrap()` 의 성공 경로가 `response.json()` 이라 빈 본문에서
+    // 아래 다섯은 204 다 — `unwrap()` 의 성공 경로가 `response.json()` 이라 빈 본문에서
     // 터진다. 오류만 통과시키는 `putDescription` 과 같은 처리를 쓴다.
     submitDefinition: async (id) => {
       await voidWrite(await mockSdu.submitDefinition(id));
@@ -179,6 +179,9 @@ export const mockBff: BffClient = {
     },
     putAccessKeyRecipients: async (id, userIds) => {
       await voidWrite(await mockSdu.putAccessKeyRecipients(id, { user_ids: userIds }));
+    },
+    putBdcCompletion: async (id, body) => {
+      await voidWrite(await mockSdu.putBdcCompletion(id, body));
     },
   },
 

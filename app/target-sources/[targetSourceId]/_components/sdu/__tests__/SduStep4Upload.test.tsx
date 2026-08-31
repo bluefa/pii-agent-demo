@@ -86,7 +86,7 @@ const upload = (over: Partial<SduUpload> = {}): SduUpload => ({
     ackedAt: null,
     ackedBy: null,
   },
-  bdc: { status: 'NOT_STARTED', checkedAt: '2026-08-24T07:50:00Z', completedAt: null },
+  bdc: { status: 'NOT_STARTED', checkedAt: '2026-08-24T07:50:00Z', completedAt: null, completedBy: null },
   invalidation: { addedRegions: [], uploadIpChanged: false },
   ...over,
 });
@@ -357,7 +357,7 @@ describe('SduStep4Upload', () => {
       upload({
         firewall: { ...upload().firewall, acked: true, ackedAt: '2026-08-25T10:40:00Z' },
         commands: { ...upload().commands, acked: true, ackedAt: '2026-08-25T10:41:00Z' },
-        bdc: { status: 'IN_PROGRESS', checkedAt: '2026-08-24T07:50:00Z', completedAt: null },
+        bdc: { status: 'IN_PROGRESS', checkedAt: '2026-08-24T07:50:00Z', completedAt: null, completedBy: null },
       }),
     );
     await renderStep();
@@ -377,7 +377,7 @@ describe('SduStep4Upload', () => {
       const running = upload({
         firewall: { ...upload().firewall, acked: true },
         commands: { ...upload().commands, acked: true },
-        bdc: { status: 'IN_PROGRESS', checkedAt: '2026-08-24T07:50:00Z', completedAt: null },
+        bdc: { status: 'IN_PROGRESS', checkedAt: '2026-08-24T07:50:00Z', completedAt: null, completedBy: null },
       });
       api.getSduUpload.mockResolvedValue(running);
       const onProjectUpdate = vi.fn();
@@ -398,6 +398,7 @@ describe('SduStep4Upload', () => {
             status: 'COMPLETED',
             checkedAt: '2026-08-24T07:51:00Z',
             completedAt: '2026-08-24T07:51:00Z',
+            completedBy: null,
           },
         }),
       );

@@ -287,15 +287,82 @@ Both facts are confirmed (오너, 2026-08-28), so nothing here is assumed but th
 Not an endpoint — a rule §4's `bdc` reports.
 
 `bdc.status` becomes `IN_PROGRESS` when **every** current region is acknowledged on both
-lists and there is at least one recipient, and `COMPLETED` 60 s later, which moves the
-target source to ProcessStatus 5 (`WAITING_CONNECTION_TEST`). Losing any of those
-conditions before completion returns it to `NOT_STARTED`: an invalidated ack means BDC is
-waiting again, not that it is half-done.
+lists and there is at least one recipient — the same condition §8 requires before it will
+accept an assertion. Losing any of those conditions before
+completion returns it to `NOT_STARTED`: an invalidated ack means BDC is waiting again, not
+that it is half-done.
+
+`COMPLETED` is **not derived** — §8 says who sets it, and §8's reset rule below is now
+explicit rather than a consequence of the derivation.
 
 The existing `POST …/reset` (Step 4 완료's 연동 대상 수정) clears the SDU **upload** state —
 acks, recipients, BDC — and **keeps the definition**. Reset returns the target to Step 1,
 and Step 1 is where the definition is edited; wiping it would hand the owner an empty
 screen to re-type from memory, which is the same reasoning that keeps the scan results.
+
+## 8. BDC completion — asserted, not derived
+
+Delta of 2026-08-30 (owner). Full request:
+`docs/bff-api/requests/2026-08-30-sdu-bdc-completion.md`.
+
+```
+PUT /install/v1/target-sources/{targetSourceId}/sdu/upload/bdc/completion
+body { "completed": true }        // false rolls the assertion back
+→ 204
+→ 400  INVALID_PARAMETER   // not a boolean · assertion preconditions unmet
+→ 403  FORBIDDEN           // 담당자 권한
+→ 404                      // not an SDU target source
+```
+
+Four things separate it from §1–§7.
+
+1. **ADMIN only.** Every other endpoint here is 담당자 (ADMIN passes). This one is the
+   admin console asserting a fact about BDC-side work, and a 담당자 who could press it
+   would advance their own install — SDU has no approval step in front of it.
+2. **One path, both directions.** `completed: true` sets `COMPLETED`, stamps
+   `bdc.completed_at` and `bdc.completed_by`, and moves the target source to ProcessStatus
+   **5** (`WAITING_CONNECTION_TEST`) if it is below 5. `false` clears both stamps and
+   returns `bdc.status` to whatever §7's derivation currently says, and does **not** move
+   ProcessStatus back — a connection test may already have run against step 5.
+
+   The 08-28 handoff contradicts itself here: its §8 says 5, its §9 says the rail shows
+   "2·3·5 비활성". **§8 is authoritative and the `5` in §9's list is the error** (owner
+   2026-08-30, "step1->4->5->7"). The target really does sit at 「연결 테스트 필요」, which
+   is what gives 승인 조건 ② (latest TC succeeded) an act that something can perform.
+
+   **That quote answers "which step does the button land on", not "which steps does SDU
+   occupy".** SDU skips **2 and 3 only**; the states it passes through are
+   **1 · 4 · 5 · 6 · 7**. 6 is reached by the connection test passing — `calculator.ts`
+   has no path from 5 to 7 (`passedAt` → 6, then `operationConfirmed` → 7), and
+   `sdu-steps.ts` maps `CONNECTION_VERIFIED` to owner step 3 explicitly. The owner screen
+   shows **four** steps because §1.1 folds 5 and 6 onto step 3: five internal states, four
+   screens. Both numbers are right; they count different scales, and anything sent to BE
+   uses the ProcessStatus one.
+
+   `lib/process/calculator.ts` settles it independently: there, **6 means a connection
+   test has passed** (`status.connectionTest.passedAt`), and an asserted BDC completion has
+   passed none — writing 6 would record as true something the rest of the system defines as
+   false, and any recompute would collapse it back to 5. 5 → 6 → 7 belongs to the 관리자
+   승인 CTA; 6 arrives when a test actually passes.
+3. **`true` requires §7's `IN_PROGRESS` conditions** — both acks 「예」 and ≥1 recipient —
+   or it is a 400 that changes nothing (owner 2026-08-30, second pass). Work that could
+   not have *started* cannot have *finished*. **`false` is ungated**: withdrawing a claim
+   needs no precondition. The confirmation modal still shows the console's real scan /
+   확정 / Terraform state beside each item — the 400 blocks what §7 says cannot be true,
+   the modal shows what §7 does not know, and the console cannot read every BDC-side fact
+   anyway (Glue). The CTA is disabled with its reason written out when the gate is unmet.
+4. **`bdc.completed_by`** joins `completed_at` in §4's shape, same `{ id, name, email }`
+   as `acked_by`. A derived value has no author; an assertion that moves an install to
+   step 5 does. The ops console's 「담당자 확인」 card draws it in the BDC row, in the same
+   grammar the two acks already use — one card cannot name a person on two rows and leave
+   the third looking authorless.
+
+`POST …/reset` clears the assertion unconditionally — `status`, `completed_at` and
+`completed_by` — regardless of who asserted it or when (§7 said reset drops BDC, but that
+used to fall out of the derivation and now has to be done by name).
+
+The screen never moves ProcessStatus. After either write it re-reads §4 and
+`GET /process-status`.
 
 ## Deltas from the storyboard's proposed shapes
 
@@ -348,13 +415,14 @@ differently. Full text in `design/sdu/sdu-flow-design.html` §07.
 
 `lib/bff/mock/sdu.ts` — a `globalThis`-guarded `Map<number, SduState>`
 (`__sduMockStore`), lazily seeded per target source. `resetSduMockStore()` clears it for
-tests; `completeSduBdcForTest(id)` backdates the BDC start past its duration and
-re-evaluates, so a test drives the same transition a real minute drives rather than
-setting the terminal state by hand.
+tests.
 
-BDC progression is evaluated **on read and on every write**, comparing elapsed time —
-the pattern `lib/mock-installation.ts` uses for terraform scripts. A `setTimeout` would
-not survive a hot reload and would keep the test process alive.
+BDC progression is evaluated **on read and on every write** and says only two things:
+`IN_PROGRESS` when the conditions hold, `NOT_STARTED` when they do not. The 60 s timer
+that used to produce `COMPLETED` is gone — §8 made completion an assertion, and a mock
+that still completed by itself would model the old contract and let the install advance
+with nobody pressing the button. An asserted `COMPLETED` survives a later loss of the
+conditions; that is the one thing §8's open question #1 could reverse, and it is one line.
 
 Fixtures (`lib/mock-data.ts`): **1100** is mid-upload-step (2 targets / regions `us`+`eu`,
 firewall acked (one answer for the whole target source), 2 recipients — two of the `SDU` service's three owners, so

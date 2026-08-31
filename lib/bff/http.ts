@@ -460,6 +460,9 @@ export const httpBff: BffClient = {
       put(`/target-sources/${id}/sdu/upload/access-key-recipients`, { user_ids: userIds }, {
         emptyBodyOk: true,
       }),
+    // 2026-08-30 델타 §1 — 경로가 §5 응답의 블록 이름(`bdc`)을 그대로 따라간다.
+    putBdcCompletion: (id, body) =>
+      put(`/target-sources/${id}/sdu/upload/bdc/completion`, body, { emptyBodyOk: true }),
   },
 
   // 서비스 접근 권한 — 오너가 준 백엔드 초안 스펙 그대로

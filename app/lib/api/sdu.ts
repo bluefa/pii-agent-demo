@@ -109,6 +109,15 @@ export const toSduUpload = (wire: SduUploadWire): SduUpload => ({
     status: wire.bdc.status,
     checkedAt: wire.bdc.checked_at,
     completedAt: wire.bdc.completed_at,
+    // 단언의 저자 (델타 §2). `acked_by` 와 같은 모양이라 같은 매퍼가 접어도 되지만, 그쪽은
+    // `acked`·`acked_at` 과 한 묶음이라 여기서는 세 필드만 따로 옮긴다.
+    completedBy: wire.bdc.completed_by
+      ? {
+          id: wire.bdc.completed_by.id,
+          name: wire.bdc.completed_by.name,
+          email: wire.bdc.completed_by.email,
+        }
+      : null,
   },
   invalidation: toInvalidation(wire.invalidation),
 });
@@ -201,5 +210,22 @@ export const putSduAccessKeyRecipients = async (
   await fetchInfraJson<void>(`${base(targetSourceId)}/upload/access-key-recipients`, {
     method: 'PUT',
     body: { user_ids: [...userIds] },
+  });
+};
+
+/**
+ * 2026-08-30 델타 §1 — BDC 구축 완료 단언. **관리자 콘솔만 부른다**(델타 §2).
+ *
+ * 한 경로가 두 방향을 진다: `true` 는 완료로 세우고, `false` 는 그 단언을 지워 §8 의 파생으로
+ * 되돌린다. 응답 본문이 없으므로 화면은 `getSduUpload` 와 process-status 를 **다시 읽어**
+ * 무엇이 됐는지 안다 — 단계를 움직이는 것은 서버지 이 함수가 아니다.
+ */
+export const putSduBdcCompletion = async (
+  targetSourceId: number,
+  completed: boolean,
+): Promise<void> => {
+  await fetchInfraJson<void>(`${base(targetSourceId)}/upload/bdc/completion`, {
+    method: 'PUT',
+    body: { completed },
   });
 };

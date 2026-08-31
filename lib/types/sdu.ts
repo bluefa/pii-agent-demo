@@ -144,6 +144,12 @@ export interface SduBdcWire {
   status: SduBdcStatus;
   checked_at: string;
   completed_at: string | null;
+  /**
+   * 완료를 **단언한 사람** (2026-08-30 델타 §2). 파생값이던 시절에는 저자가 없었지만,
+   * 단언에는 있다 — 그리고 그 단언 하나가 대상 소스를 ProcessStatus 5 로 옮긴다. 두 확인이
+   * `acked_by` 를 지는 것과 같은 이유이고 같은 모양이다. 되돌리기와 초기화가 함께 비운다.
+   */
+  completed_by: SduRecipientWire | null;
 }
 
 /**
@@ -175,6 +181,18 @@ export interface SduUploadWire {
  */
 export interface SduAckRequestWire {
   confirmed: boolean;
+}
+
+/**
+ * BDC 구축 완료 **단언**의 본문 (2026-08-30 델타 §1).
+ *
+ * 완료와 되돌리기는 같은 사실의 두 값이라 경로가 하나이고 본문이 boolean 하나다 — 확인
+ * 답변이 두 경로인 것은 방화벽과 업로드가 서로 다른 사실이기 때문이었지 값이 둘이어서가
+ * 아니다. 이름이 `confirmed` 가 아닌 이유도 같다: 확인은 담당자의 어휘이고, 이것은 관리자가
+ * BDC 쪽 작업에 대해 하는 말이다.
+ */
+export interface SduBdcCompletionRequestWire {
+  completed: boolean;
 }
 
 
@@ -242,6 +260,7 @@ export interface SduBdc {
   status: SduBdcStatus;
   checkedAt: string;
   completedAt: string | null;
+  completedBy: SduRecipient | null;
 }
 
 export interface SduInvalidation {
