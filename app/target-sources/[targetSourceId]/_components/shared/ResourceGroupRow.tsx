@@ -87,7 +87,11 @@ export const ResourceGroupRow = ({
           idcStyles.table.approvalCell,
           'py-5',
           idcStyles.table.nameCell,
-          expanded && idcStyles.table.group.parentCell,
+          // The trunk starts where the chevron ends, so it follows the chevron's 12px push below.
+          expanded &&
+            (inlineMeta == null
+              ? idcStyles.table.group.parentCellLow
+              : idcStyles.table.group.parentCell),
         )}
       >
         {/* Three tiers, one per channel — the same stack the RDS cluster row two rows down
