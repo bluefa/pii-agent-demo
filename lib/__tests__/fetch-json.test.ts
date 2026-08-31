@@ -1,6 +1,20 @@
+// @vitest-environment jsdom
+// The 401 branch is browser-only (`typeof window`), so this file needs a window to
+// prove it fires. Nothing else here reads the DOM: under jsdom the locale cookie is
+// empty, which is the Korean default these tests already assume.
+
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { fetchJson } from '@/lib/fetch-json';
 import { AppError } from '@/lib/errors';
+
+const { redirectToSsoLoginMock } = vi.hoisted(() => ({ redirectToSsoLoginMock: vi.fn() }));
+
+// Mocked rather than observed through `window.location`: jsdom refuses a real
+// navigation. What the wrapper hands off to is pinned in lib/__tests__/sso-login.test.ts.
+vi.mock('@/lib/sso-login', () => ({
+  redirectToSsoLogin: redirectToSsoLoginMock,
+  ssoLoginPath: (returnTo: string) => `/sso/login?returnTo=${encodeURIComponent(returnTo)}`,
+}));
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -384,4 +398,42 @@ describe('fetchJson — FormData 본문', () => {
     expect(spy.mock.calls[0][1]?.body).toBe(form);
   });
 
+});
+
+/**
+ * ADR-008 §91: 401 is *always* an expired/absent SSO session, never a permission
+ * verdict. `proxy.ts` only checks that the cookie exists, so an expired one walks
+ * past the gate and surfaces here — and a background poller (installation status
+ * every 30s, TC every 4s) would otherwise paint an error card for a session that
+ * only needs renewing.
+ */
+describe('fetchJson — 401 은 재로그인으로 이어진다', () => {
+  beforeEach(() => {
+    redirectToSsoLoginMock.mockClear();
+  });
+
+  it('401 이면 SSO 로그인으로 보내고, 그래도 AppError 를 던진다', async () => {
+    mockFetch(401, { code: 'BFF_AUTHENTICATION_FAILED', detail: 'token expired' });
+
+    // 리다이렉트만으로는 부족하다 — 호출자는 멈춰야 하고, 멈추게 하는 건 throw 다.
+    const err = await expectAppError('/api/v1/test');
+    expect(err.code).toBe('UNAUTHORIZED');
+    expect(err.status).toBe(401);
+    expect(redirectToSsoLoginMock).toHaveBeenCalledTimes(1);
+  });
+
+  // 401 만이 만료다. 403 은 판정이고, 로그인을 다시 해도 답이 바뀌지 않는다.
+  it.each([400, 403, 404, 409, 500, 503])('%d 는 로그인으로 보내지 않는다', async (status) => {
+    mockFetch(status, { detail: 'nope' });
+
+    await expectAppError('/api/v1/test');
+    expect(redirectToSsoLoginMock).not.toHaveBeenCalled();
+  });
+
+  it('성공 응답은 아무 데도 보내지 않는다', async () => {
+    mockFetch(200, { ok: true });
+
+    await fetchJson('/api/v1/test');
+    expect(redirectToSsoLoginMock).not.toHaveBeenCalled();
+  });
 });

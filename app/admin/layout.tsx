@@ -1,7 +1,11 @@
+import { redirect } from 'next/navigation';
+
 import { TopNav } from '@/app/components/layout/TopNav';
 import { LockIcon, StatusWarningIcon } from '@/app/components/ui/icons';
+import { BffError } from '@/lib/bff/errors';
 import { getMe } from '@/lib/bff/current-user';
 import { consoleUrls } from '@/lib/env';
+import { ssoLoginPath } from '@/lib/sso-login';
 import { isAdminRole } from '@/lib/roles';
 import { cn, textColors } from '@/lib/theme';
 
@@ -59,7 +63,16 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   let reachable = true;
   try {
     me = await getMe();
-  } catch {
+  } catch (err) {
+    // ADR-008 §91: 401 is an expired SSO session — not an outage, not a verdict.
+    // It gets the login, not the "권한을 확인하지 못했어요" notice. `redirect` throws,
+    // and throwing from a catch body propagates normally.
+    // ponytail: returnTo is the admin root, not the deep link — this layout does not
+    // know the request path. Add a pathname header from proxy.ts if returning to the
+    // exact admin page matters.
+    if (err instanceof BffError && err.status === 401) {
+      redirect(ssoLoginPath('/pass/admin'));
+    }
     reachable = false;
   }
 

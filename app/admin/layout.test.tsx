@@ -1,9 +1,18 @@
 // @vitest-environment jsdom
 import { render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { BffError } from '@/lib/bff/errors';
 
-const { meMock } = vi.hoisted(() => ({ meMock: vi.fn() }));
+const { meMock, redirectMock } = vi.hoisted(() => ({
+  meMock: vi.fn(),
+  // Throws, like the real one: `redirect()` unwinds the render, so a session that
+  // expired never reaches a notice.
+  redirectMock: vi.fn((url: string): never => {
+    throw new Error(`NEXT_REDIRECT:${url}`);
+  }),
+}));
 
+vi.mock('next/navigation', () => ({ redirect: redirectMock }));
 vi.mock('@/lib/bff/current-user', () => ({ getMe: meMock }));
 // Rendered, not stubbed to null: TopNav is the denied user's only way off this
 // page (the notice carries no link of its own), so its presence is an assertion.
@@ -59,14 +68,29 @@ describe('AdminLayout role gate', () => {
   // 조회 실패는 닫되, 권한 판정으로 말하지 않는다. 장애 중인 진짜 관리자에게
   // "당신은 관리자가 아니다"라고 하면 이미 가진 권한을 요청하러 가게 된다.
   it.each([
-    ['401 (SSO 만료)', new Error('401')],
-    ['5xx (BFF 장애)', new Error('500')],
+    ['상태를 모르는 실패', new Error('401')],
+    ['5xx (BFF 장애)', new BffError(500, 'UPSTREAM', 'boom')],
   ])('%s 는 차단하되 장애로 안내한다', async (_label, err) => {
     meMock.mockRejectedValue(err);
     await renderGate();
     expect(screen.queryByText('admin content')).toBeNull();
     expect(screen.getByText(UNAVAILABLE)).toBeTruthy();
     expect(screen.queryByText(DENIED)).toBeNull();
+    // 장애는 로그인으로 보내지 않는다 — 다시 로그인해도 BFF 는 여전히 죽어 있다.
+    expect(redirectMock).not.toHaveBeenCalled();
+  });
+
+  /**
+   * 401 은 장애도 판정도 아니라 만료다(ADR-008 §91). 여기서 "권한을 확인하지 못했어요" 를
+   * 띄우면 세션만 상한 관리자가 장애 제보를 하러 간다 — 필요한 건 재로그인이다.
+   *
+   * returnTo 가 admin 루트인 건 의도다: 레이아웃은 요청 경로를 모른다.
+   */
+  it('401 은 안내 대신 SSO 로그인으로 되돌린다', async () => {
+    meMock.mockRejectedValue(new BffError(401, 'UNAUTHORIZED', 'token expired'));
+    await expect(renderGate()).rejects.toThrow(
+      'NEXT_REDIRECT:/sso/login?returnTo=%2Fpass%2Fadmin',
+    );
   });
 
   // 차단 화면에는 자체 링크가 없다. TopNav 가 유일한 탈출구라서, 차단 분기
