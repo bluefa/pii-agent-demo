@@ -49,4 +49,21 @@ describe('IDC install status — UNKNOWN → 작업중', () => {
     expect(view.lastCheck?.checkedAt).toBe('2026-06-23T04:00:00Z');
     expect(view.lastCheck?.status).toBe('COMPLETED');
   });
+
+  // `installation_status_unavailable` says the upstream cannot answer for this target —
+  // "not read", not "done" and not "not done". Dropping it here would let every reader
+  // downstream treat whatever cells came along as a reading of the install.
+  it('lastCheck carries installation_status_unavailable, and only when true', () => {
+    const unavailable = toIdcInstallationView({
+      last_check: { status: 'COMPLETED', installation_status_unavailable: true },
+      resources: [],
+    });
+    expect(unavailable.lastCheck?.unavailable).toBe(true);
+
+    const available = toIdcInstallationView({
+      last_check: { status: 'COMPLETED', installation_status_unavailable: false },
+      resources: [],
+    });
+    expect(available.lastCheck).not.toHaveProperty('unavailable');
+  });
 });

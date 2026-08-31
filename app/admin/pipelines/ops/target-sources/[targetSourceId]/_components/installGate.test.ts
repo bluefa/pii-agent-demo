@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
+  installPendingGate,
+  installStepTitle,
   serviceWorkGate,
   serviceWorkStep,
+  type InstallPendingInput,
   type ServiceWorkInput,
 } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/installGate';
 import type {
@@ -142,5 +145,177 @@ describe('serviceWorkGate — 그 한 단계의 판정과 행', () => {
     expect(result.kind).toBe('unknown');
     expect(result.rows).toEqual([]);
     expect(result.total).toBe(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// installPendingGate — 설치 전체
+// ---------------------------------------------------------------------------
+
+const pending = (
+  resources: readonly InstallDetailResource[],
+  over: Partial<InstallPendingInput> = {},
+): ReturnType<typeof installPendingGate> =>
+  installPendingGate({
+    provider: 'aws',
+    manualInstall: true,
+    detail: {
+      lastCheck: { status: 'SUCCESS', checkedAt: '2026-08-31T01:00:00Z' },
+      unavailable: false,
+      resources,
+    },
+    ...over,
+  });
+
+describe('installStepTitle — 셀 키가 무슨 단계인가', () => {
+  it('AWS 는 설치 모드가 이름을 가른다', () => {
+    expect(installStepTitle('aws', true, 'service')).toBe('서비스 측 Terraform 적용');
+    expect(installStepTitle('aws', false, 'service')).toBe('서비스 측 Terraform 자동 적용');
+    expect(installStepTitle('aws', true, 'bdcService')).toBe('BDC 서비스 영역');
+    expect(installStepTitle('aws', true, 'bdcCommon')).toBe('BDC 공통 영역');
+  });
+
+  it('나머지 셋은 각 화면의 이름 그대로다', () => {
+    expect(installStepTitle('gcp', true, 'subnet')).toBe('PSC용 Subnet 생성');
+    expect(installStepTitle('azure', true, 'pe')).toBe('Private Endpoint 승인');
+    expect(installStepTitle('azure', true, 'vmApply')).toBe('VM Terraform 적용');
+    expect(installStepTitle('idc', true, 'cx')).toBe('BDC CX 영역');
+    expect(installStepTitle('idc', true, 'firewall')).toBe('접근 허용');
+  });
+
+  it('모르는 키는 원문 그대로다 — 모르는 것을 아는 이름으로 부르지 않는다', () => {
+    expect(installStepTitle('aws', true, 'brandNewStep')).toBe('brandNewStep');
+    expect(installStepTitle('sdu', true, 'cx')).toBe('cx');
+  });
+});
+
+describe('installPendingGate — 못 읽었으면 아무 말도 하지 않는다', () => {
+  it('조회 전·조회 실패(detail null)는 unknown 이고 행이 없다', () => {
+    expect(pending([], { detail: null })).toEqual({
+      kind: 'unknown',
+      open: 0,
+      total: 0,
+      rows: [],
+    });
+  });
+
+  it('unavailable 은 unknown 이다 — 딸려 온 셀은 설치의 판독이 아니다', () => {
+    const result = installPendingGate({
+      provider: 'aws',
+      manualInstall: true,
+      detail: {
+        lastCheck: { status: 'SUCCESS' },
+        unavailable: true,
+        resources: [resource('rds-1', { service: 'IN_PROGRESS' })],
+      },
+    });
+
+    expect(result.kind).toBe('unknown');
+    expect(result.rows).toEqual([]);
+  });
+
+  it('FAILED last_check 도 unknown 이다', () => {
+    const result = pending([resource('rds-1', { service: 'IN_PROGRESS' })], {
+      detail: {
+        lastCheck: { status: 'FAILED', failReason: 'TIMEOUT' },
+        unavailable: false,
+        resources: [resource('rds-1', { service: 'IN_PROGRESS' })],
+      },
+    });
+
+    expect(result.kind).toBe('unknown');
+  });
+
+  it('리소스 0건은 done 이 아니라 unknown 이다 — 빈 집합의 「전부 완료」는 사실이 아니다', () => {
+    expect(pending([]).kind).toBe('unknown');
+  });
+});
+
+describe('installPendingGate — 판정과 행', () => {
+  it('모든 셀이 COMPLETED·SKIP 이면 done 이고 행이 없다', () => {
+    const result = pending([
+      resource('rds-1', { service: 'COMPLETED', bdcService: 'SKIP', bdcCommon: 'COMPLETED' }),
+      resource('rds-2', { service: 'SKIP', bdcService: 'SKIP', bdcCommon: 'SKIP' }),
+    ]);
+
+    expect(result).toEqual({ kind: 'done', open: 0, total: 2, rows: [] });
+  });
+
+  it('셀 하나가 안 끝나면 needed 다 — 어느 단계든, 누구의 단계든', () => {
+    const result = pending([
+      resource('rds-1', { service: 'COMPLETED', bdcService: 'BDC_INSTALL_REQUIRED' }),
+    ]);
+
+    expect(result.kind).toBe('needed');
+    expect(result.open).toBe(1);
+    expect(result.rows).toHaveLength(1);
+    expect(result.rows[0].stepTitle).toBe('BDC 서비스 영역');
+  });
+
+  it('한 리소스의 안 끝난 셀이 둘이면 행도 둘, 그래도 open 은 1 이다', () => {
+    const result = pending([
+      resource('rds-1', { service: 'IN_PROGRESS', bdcService: 'UNKNOWN', bdcCommon: 'COMPLETED' }),
+    ]);
+
+    // 상자가 세는 것은 리소스이고(운영자가 기다리는 것의 수), 표가 세는 것은 셀이다.
+    expect(result.open).toBe(1);
+    expect(result.total).toBe(1);
+    expect(result.rows).toHaveLength(2);
+    expect(result.rows.map((row) => row.stepTitle)).toEqual([
+      '서비스 측 Terraform 적용',
+      'BDC 서비스 영역',
+    ]);
+  });
+
+  it('행 순서는 리소스 순서, 그 안에서 어댑터가 낸 셀 순서다', () => {
+    const result = pending([
+      resource('rds-1', { service: 'IN_PROGRESS', bdcCommon: 'FAIL' }),
+      resource('rds-2', { bdcService: 'IN_PROGRESS' }),
+    ]);
+
+    expect(result.rows.map((row) => `${row.resourceId}/${row.stepTitle}`)).toEqual([
+      'rds-1/서비스 측 Terraform 적용',
+      'rds-1/BDC 공통 영역',
+      'rds-2/BDC 서비스 영역',
+    ]);
+    expect(result.open).toBe(2);
+  });
+
+  it('행은 상태·안내·이름을 그대로 나른다', () => {
+    const result = installPendingGate({
+      provider: 'gcp',
+      manualInstall: false,
+      detail: {
+        lastCheck: { status: 'SUCCESS' },
+        unavailable: false,
+        resources: [
+          {
+            resourceId: 'gcp-1',
+            resourceName: 'sql-primary',
+            rollup: { status: 'IN_PROGRESS', guide: null },
+            cells: { subnet: { status: 'FAIL', guide: 'Subnet 대역이 겹칩니다.' } },
+          },
+        ],
+      },
+    });
+
+    expect(result.rows[0]).toEqual({
+      resourceId: 'gcp-1',
+      resourceName: 'sql-primary',
+      stepTitle: 'PSC용 Subnet 생성',
+      status: 'FAIL',
+      guide: 'Subnet 대역이 겹칩니다.',
+    });
+  });
+
+  it('total 은 읽은 리소스 전체다 — 안 끝난 것만 세지 않는다', () => {
+    const result = pending([
+      resource('rds-1', { service: 'COMPLETED' }),
+      resource('rds-2', { service: 'IN_PROGRESS' }),
+      resource('rds-3', { service: 'COMPLETED' }),
+    ]);
+
+    expect(result.total).toBe(3);
+    expect(result.open).toBe(1);
   });
 });

@@ -43,7 +43,11 @@ import { OpsTabNavContext } from '@/app/admin/pipelines/ops/target-sources/[targ
 import { ScanTab } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/ScanTab';
 import { RequestTab } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/RequestTab';
 import { ConfirmTab } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/ConfirmTab';
-import { PipelineTab } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/PipelineTab';
+import {
+  PipelineTab,
+  isManualInstall,
+  pipelineProviderKey,
+} from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/PipelineTab';
 import { TcTab } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/TcTab';
 import { ApprovalTab } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/ApprovalTab';
 import { AirflowTab } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/AirflowTab';
@@ -655,6 +659,10 @@ export function OpsTargetView({ targetSourceId, initialTab, statusSlot }: OpsTar
             <TcTab
               targetSourceId={targetSourceId}
               isIdc={isIdc}
+              // 설치가 끝났는지를 어느 계약에서 읽을지가 이 둘로 갈린다 — 인프라 작업 탭이
+              // 쓰는 그 판정 두 벌을 그대로 쓴다(같은 대상이 두 탭에서 다르게 읽히지 않도록).
+              provider={pipelineProviderKey(detail)}
+              manualInstall={isManualInstall(detail)}
               latest={tcLatest}
               results={tcResults}
               statusLoaded={tcLoaded}

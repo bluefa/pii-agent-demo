@@ -28,9 +28,17 @@ import {
   type InstallStepValue,
 } from '@/app/components/features/process-status/install-status-detail/model';
 import { INSTALL_COPY } from '@/app/components/features/process-status/install-copy';
+import { IDC_COPY } from '@/app/target-sources/[targetSourceId]/_components/idc/copy';
 
 /** Admin ops is Korean-only (the language toggle does not reach this console). */
 const t = INSTALL_COPY.ko;
+
+/**
+ * This console's name for the AWS manual-install step. The user-facing Step 4 calls it
+ * `Terraform 직접 적용`; the operator needs to read WHO applies, and both admin tabs
+ * (인프라 작업 · 연결 테스트) must name the same cell with the same words.
+ */
+const AWS_SERVICE_MANUAL_TITLE = '서비스 측 Terraform 적용';
 
 /** 서비스가 직접 하는 그 한 단계. */
 export interface ServiceWorkStep {
@@ -59,7 +67,7 @@ export const serviceWorkStep = (
   manualInstall: boolean,
 ): ServiceWorkStep | null => {
   if (provider === 'aws') {
-    return manualInstall ? { id: 'service', title: '서비스 측 Terraform 적용' } : null;
+    return manualInstall ? { id: 'service', title: AWS_SERVICE_MANUAL_TITLE } : null;
   }
   if (provider === 'gcp') return { id: 'subnet', title: t.gcp.subnetTitle };
   return null;
@@ -137,5 +145,138 @@ export const serviceWorkGate = ({ step, detail }: ServiceWorkInput): ServiceWork
     total: rows.length,
     // 안 끝난 것이 위로. 같은 무리 안에서는 들어온 순서 그대로다(정렬은 안정 정렬).
     rows: [...rows].sort((a, b) => Number(settled(a)) - Number(settled(b))),
+  };
+};
+
+// ---------------------------------------------------------------------------
+// 설치 전체 게이트 — 연결 테스트 탭의 것
+// ---------------------------------------------------------------------------
+
+/**
+ * 위의 `serviceWorkStep`/`serviceWorkGate` 는 **서비스가 손댈 한 단계**만 본다. 여기 아래는
+ * 다른 질문이다: **이 대상의 설치가 통째로 끝났는가**.
+ *
+ * 연결 테스트는 설치가 세운 것에 접속하는 동작이라, 안 끝난 리소스는 이번 회차에서 반드시
+ * 실패한다. 그래서 이 판정은 프로바이더를 가리지 않는다 — 누가 하는 일이냐는 여기서 상관이
+ * 없고, 셀 하나라도 정착하지 않았으면 그 리소스는 연결에 실패할 리소스다.
+ *
+ * ⛔ 같은 세 가지를 지킨다. `unknown` 은 경고하지 않고(조회 실패·`unavailable`·FAILED
+ * last_check·리소스 0건), `done` 도 아무 말도 하지 않는다. 못 읽은 것을 근거로 실행을
+ * 막아설 수 없고, 끝난 일은 소식이 아니다.
+ *
+ * ⛔ 이것도 게이트가 아니라 예보다. 실행 버튼을 잠그는 것은 Credential 미설정 하나뿐이고,
+ * 이 판정은 확인 모달 한 겹으로만 선다.
+ */
+
+/** 셀 키 → 이 단계의 이름. 이름은 서비스 화면 Step 4 가 쓰는 그 문자열이다. */
+const STEP_TITLES: Record<string, Record<string, string>> = {
+  gcp: { subnet: t.gcp.subnetTitle, service: t.gcp.serviceTitle, bdc: t.gcp.bdcTitle },
+  azure: {
+    pe: t.azure.peTitle,
+    vmSubnet: t.azure.vmSubnetTitle,
+    vmApply: t.azure.vmApplyTitle,
+    bdc: t.azure.bdcTitle,
+  },
+  // IDC 의 이름은 `install-copy` 가 아니라 IDC 화면 자신의 카피에 있다 — 그 화면이 쓰는 낱말
+  // 그대로다(BDC CX 영역 · BDC BDP 영역 · 접근 허용).
+  idc: {
+    cx: IDC_COPY.ko.step4CxTitle,
+    bdp: IDC_COPY.ko.step4BdpTitle,
+    firewall: IDC_COPY.ko.step4FirewallTitle,
+  },
+};
+
+/**
+ * AWS 만 설치 모드로 이름이 갈린다(자동/수동) — 나머지는 모드가 없다.
+ *
+ * 매핑에 없는 키는 **원문 그대로** 남긴다. 계약이 단계를 하나 더 늘리면 이 화면은 그 단계를
+ * 모르는 채로도 「무언가 안 끝났다」는 사실만은 옳게 말해야 하고, 모르는 것을 아는 이름으로
+ * 바꿔 부르는 것보다 키를 그대로 보이는 편이 정직하다.
+ */
+export const installStepTitle = (
+  provider: string,
+  manualInstall: boolean,
+  cellKey: string,
+): string => {
+  if (provider === 'aws') {
+    const aws: Record<string, string> = {
+      service: manualInstall ? AWS_SERVICE_MANUAL_TITLE : t.aws.serviceTitleAuto,
+      bdcService: t.aws.bdcServiceTitle,
+      bdcCommon: t.aws.bdcCommonTitle,
+    };
+    return aws[cellKey] ?? cellKey;
+  }
+  return STEP_TITLES[provider]?.[cellKey] ?? cellKey;
+};
+
+/** 안 끝난 셀 하나 — 목록의 한 행. 한 리소스에 둘이 남으면 행도 둘이다. */
+export interface InstallPendingRow {
+  resourceId: string;
+  resourceName: string | null;
+  stepTitle: string;
+  status: InstallStepValue;
+  guide: string | null;
+}
+
+export type InstallPendingKind = 'needed' | 'done' | 'unknown';
+
+export interface InstallPendingResult {
+  kind: InstallPendingKind;
+  /** 안 끝난 **리소스** 수 — 행 수가 아니다(한 리소스가 여러 행을 낼 수 있다). */
+  open: number;
+  /** 이번 조회가 읽은 전체 리소스 수. */
+  total: number;
+  rows: InstallPendingRow[];
+}
+
+export interface InstallPendingInput {
+  /** Already normalized by the screen (`pipelineProviderKey`). */
+  provider: string;
+  /** AWS only — 단계 이름이 설치 모드로 갈린다. */
+  manualInstall: boolean;
+  /** The adapter output. `null` = not read yet, or the fetch failed. */
+  detail: {
+    lastCheck: InstallLastCheck | null;
+    unavailable: boolean;
+    resources: readonly InstallDetailResource[];
+  } | null;
+}
+
+export const installPendingGate = ({
+  provider,
+  manualInstall,
+  detail,
+}: InstallPendingInput): InstallPendingResult => {
+  const unknown: InstallPendingResult = { kind: 'unknown', open: 0, total: 0, rows: [] };
+
+  if (detail === null || detail.unavailable || detail.lastCheck?.status === 'FAILED') {
+    return unknown;
+  }
+  // 리소스가 0건이면 확인한 것이 없다 — 빈 집합에서 「전부 끝났다」는 저절로 참이 되고,
+  // 그건 사실이 아니라 확인할 것이 없었다는 뜻이다(위 게이트와 같은 규칙).
+  if (detail.resources.length === 0) return unknown;
+
+  const rows: InstallPendingRow[] = [];
+  const openIds = new Set<string>();
+  for (const resource of detail.resources) {
+    // 셀의 순서는 어댑터가 내놓은 순서 그대로다 — 그것이 곧 Step 4 레일의 단계 순서다.
+    for (const [key, cell] of Object.entries(resource.cells)) {
+      if (isSettledInstallStatus(cell.status)) continue;
+      openIds.add(resource.resourceId);
+      rows.push({
+        resourceId: resource.resourceId,
+        resourceName: resource.resourceName,
+        stepTitle: installStepTitle(provider, manualInstall, key),
+        status: cell.status,
+        guide: cell.guide,
+      });
+    }
+  }
+
+  return {
+    kind: rows.length === 0 ? 'done' : 'needed',
+    open: openIds.size,
+    total: detail.resources.length,
+    rows,
   };
 };

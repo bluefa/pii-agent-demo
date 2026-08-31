@@ -27,7 +27,7 @@
  * the tab (논리 DB 정책 / Credential 배정). The 승인·반려 이력 modal mounts per open,
  * so it always fetches fresh.
  */
-import { useCallback, useEffect, useRef, useState, type ReactElement } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactElement } from 'react';
 import { isMissingConfirmedIntegrationError } from '@/lib/errors';
 import {
   getConfirmedIntegration,
@@ -52,6 +52,12 @@ import {
   tcFactsByResource,
   toConfirmedUnits,
 } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/logic';
+import { useInstallPending } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/useInstallCheck';
+import {
+  InstallPendingNotice,
+  type InstallPendingNoticeData,
+} from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/InstallPendingNotice';
+import { InstallPendingConfirmModal } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/InstallPendingConfirmModal';
 
 /** Same cadence as the user-side Step 5 poll (useTestConnectionPolling). */
 const POLL_MS = 4_000;
@@ -60,6 +66,13 @@ export interface TcTabProps {
   targetSourceId: number;
   /** Picks 확정 정보's identity columns — an IDC row has an address, not a name/region. */
   isIdc: boolean;
+  /**
+   * Already normalized by the screen (`pipelineProviderKey`). 설치 상태를 어느 계약에서
+   * 읽을지가 이 값으로 갈리고, 'sdu' 는 읽을 설치 상태가 없어 아무것도 조회하지 않는다.
+   */
+  provider: string;
+  /** AWS only — 설치 단계 이름이 설치 모드로 갈린다 (`isManualInstall`). */
+  manualInstall: boolean;
   /** 최신 실행 (latest_version) — 실행 이력이 없으면 null. Fetched by the page. */
   latest: TestConnectionVersionResult | null;
   /** 리소스별 논리 DB 건수 (latest-results) — fetched by the page. */
@@ -75,6 +88,8 @@ export interface TcTabProps {
 export function TcTab({
   targetSourceId,
   isIdc,
+  provider,
+  manualInstall,
   latest,
   results,
   statusLoaded,
@@ -159,14 +174,30 @@ export function TcTab({
   // so the settle edge reloads both — the poll tick that observed SUCCESS can race
   // the results write. The ref starts false, so mounting on an already-settled run
   // does not double-fetch.
+  // 설치는 이 탭 밖에서 진행되므로, 실행이 정착하는 그 순간이 이 화면이 설치 상태를 다시
+  // 물을 유일한 계기다(폴링은 없다 — 이 탭은 설치를 지켜보는 화면이 아니다).
+  const installPendingState = useInstallPending(targetSourceId, provider, manualInstall);
+  const installReload = installPendingState.reload;
+
   const wasRunning = useRef(false);
   useEffect(() => {
     if (wasRunning.current && !running) {
       reload();
       onStatusReload();
+      installReload();
     }
     wasRunning.current = running;
-  }, [running, reload, onStatusReload]);
+  }, [running, reload, onStatusReload, installReload]);
+
+  const installPending = installPendingState.pending;
+  // 카드까지 내려가는 한 묶음 — 그릴지 말지는 상자가 정한다(`startGate` 와 같은 길).
+  const installPendingNotice = useMemo<InstallPendingNoticeData | null>(
+    () =>
+      installPending === null
+        ? null
+        : { result: installPending, lastCheck: installPendingState.lastCheck },
+    [installPending, installPendingState.lastCheck],
+  );
 
   // 마지막 하나를 배정하면 경고 줄이 사라진다 — 필터를 그대로 두면 표가 빈 화면이 되고,
   // 그것을 되돌릴 컨트롤(경고 줄의 토글)도 같이 사라진 뒤다. 사라질 때 같이 푼다.
@@ -174,10 +205,11 @@ export function TcTab({
 
   const [triggering, setTriggering] = useState(false);
   const [triggerFailed, setTriggerFailed] = useState(false);
+  const [pendingConfirmOpen, setPendingConfirmOpen] = useState(false);
   // The server owns eligibility (409 while running / 4xx before install), so this
   // just reports; the button is disabled while a run is open to spare a request
   // that can only be refused.
-  const runTest = useCallback(async (): Promise<void> => {
+  const startRun = useCallback(async (): Promise<void> => {
     // 버튼이 이미 잠겨 있지만 게이트는 값에도 둔다 — 배정을 지우는 쓰기가 이 화면에서
     // 일어나므로(Credential 배정 모달), 눌린 순간과 세어진 순간 사이가 벌어질 수 있다.
     if (credentialMissing > 0) return;
@@ -194,6 +226,24 @@ export function TcTab({
       setTriggering(false);
     }
   }, [targetSourceId, credentialMissing, onStatusReload, toast]);
+
+  /**
+   * 단추가 부르는 것. 두 게이트가 순서를 갖는다:
+   *
+   *   Credential 미설정  잠금이다 — 여기서 끝난다(단추도 이미 `blocked` 라 대개 못 온다).
+   *   설치 미완료        예보다 — 확인 한 겹을 세우고 판단은 운영자에게 넘긴다.
+   *
+   * `unknown`·`done` 은 아무것도 세우지 않는다: 못 읽은 것을 근거로 한 겹을 더 두면 그
+   * 확인은 곧 의미 없는 관문이 되고, 진짜 예보일 때의 무게까지 같이 깎는다.
+   */
+  const runTest = useCallback((): void => {
+    if (credentialMissing > 0) return;
+    if (installPending?.kind === 'needed') {
+      setPendingConfirmOpen(true);
+      return;
+    }
+    void startRun();
+  }, [credentialMissing, installPending, startRun]);
 
   return (
     <>
@@ -212,10 +262,13 @@ export function TcTab({
         running={running}
         triggering={triggering}
         triggerFailed={triggerFailed}
-        onRunTest={() => void runTest()}
+        onRunTest={runTest}
         onOpenRunHistory={() => setRunHistoryOpen(true)}
         onOpenDecisionHistory={() => setHistoryOpen(true)}
         onOpenCredentials={() => setCredentialsOpen(true)}
+        installPendingSlot={
+          <InstallPendingNotice data={installPendingNotice} className="mt-4" />
+        }
       >
         <ConfirmedInfoCard
           targetSourceId={targetSourceId}
@@ -231,6 +284,17 @@ export function TcTab({
           onReload={reload}
         />
       </TcLatestRunCard>
+
+      {pendingConfirmOpen && installPending?.kind === 'needed' && (
+        <InstallPendingConfirmModal
+          result={installPending}
+          triggering={triggering}
+          onConfirm={() => {
+            void startRun().finally(() => setPendingConfirmOpen(false));
+          }}
+          onClose={() => setPendingConfirmOpen(false)}
+        />
+      )}
 
       {runHistoryOpen && (
         <TcRunHistoryModal

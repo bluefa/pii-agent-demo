@@ -1,16 +1,20 @@
 'use client';
 
 /**
- * 서비스 측 작업이 필요한 리소스 — 경고 상자의 `상세 정보 보기` 가 여는 목록.
+ * 설치가 걸린 리소스 목록 — 경고 상자의 링크가 여는 표. 두 경고가 같은 표를 쓴다.
  *
- * 경고는 낱말 하나와 건수 하나로 서고(그 자리는 `작업 시작` 위라 그 이상 자랄 수 없다),
+ *   인프라 작업 탭   `ServiceWorkNotice` → 서비스 측 한 단계가 안 끝난 리소스
+ *   연결 테스트 탭   `InstallPendingNotice` → 설치가 통째로 안 끝난 리소스(단계 열이 선다)
+ *
+ * 경고는 낱말 하나와 건수 하나로 서고(그 자리는 동작 바로 위라 그 이상 자랄 수 없다),
  * **어느 리소스인가**는 여기서 답한다. 운영자가 서비스에 연락할 때 그대로 옮겨 적는 값이
  * 행이 되므로 표는 이 콘솔의 리소스 표 그대로다 — `ConsoleTable` 셸을 `ConfirmedInfoCard`
  * 와 같은 방식으로 쓴다(덮어 자르는 셀, 싱크 열, 머리 레일).
  *
- * 행은 **아직 정착하지 않은 리소스만**이다. 끝난 리소스까지 실으면 이 모달이 답하는 질문이
- * 「이 단계는 어떻게 됐나」로 바뀌는데, 그건 서비스 화면 Step 4 의 질문이고 그 화면이 이미
- * 전부를 그린다. 여기서 묻는 것은 「누구를 기다리는가」다.
+ * 행은 **아직 정착하지 않은 것만**이고, 거르는 일은 부르는 쪽이 한다 — 이 모달은 받은 것을
+ * 그린다. 끝난 리소스까지 실으면 이 모달이 답하는 질문이 「이 단계는 어떻게 됐나」로 바뀌는데,
+ * 그건 서비스 화면 Step 4 의 질문이고 그 화면이 이미 전부를 그린다. 여기서 묻는 것은
+ * 「무엇이 걸려 있는가」다.
  *
  * ⛔ 계약에는 재점검을 **시키는** 오퍼레이션이 없다(install-v1.yaml 은 GET 하나뿐이다). 그래서
  * 이 모달은 다시 읽는 단추를 두지 않는다 — 같은 GET 을 다시 부르는 단추는 새 점검을 돌린다고
@@ -31,10 +35,9 @@ import { useColumnResize } from '@/app/components/ui/useColumnResize';
 import { ResourceIdCell } from '@/app/target-sources/[targetSourceId]/_components/shared/ResourceIdCell';
 import { INSTALL_COPY } from '@/app/components/features/process-status/install-copy';
 import { fmtDateTimeShort } from '@/lib/pipeline/format';
-import { isSettledInstallStatus, type InstallLastCheck, type InstallStepValue } from '@/app/components/features/process-status/install-status-detail/model';
-import type { ServiceWorkResult } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/installGate';
+import type { InstallLastCheck, InstallStepValue } from '@/app/components/features/process-status/install-status-detail/model';
 
-const TITLE_ID = 'pl-service-work-title';
+const TITLE_ID = 'pl-install-resource-list-title';
 /** 한 장에 싣는 수의 첫 값 — 이 콘솔의 리소스 목록이 쓰는 10(`RESOURCE_PAGE_SIZE`).
  *  바의 `표시 N 건씩` 이 이 값을 바꾼다. */
 const PAGE_SIZE = 10;
@@ -78,33 +81,55 @@ const CLIP_CELL = cn(CELL, idcStyles.table.consoleCell);
  *
  * 머리글 14px 은 셸의 기본 12px 을 덮는다 — 확정 정보 표와 같은 규칙(표 안은 전부 14px).
  */
-const COLUMNS: readonly ConsoleTableColumn[] = [
-  { key: 'name', label: 'Resource Name', width: 340, flex: true, headClassName: 'text-[14px]' },
-  { key: 'id', label: 'Resource ID', width: 340, flex: true, headClassName: 'text-[14px]' },
-  { key: 'status', label: '상태', width: 110, headClassName: 'text-[14px]' },
-  { key: 'guide', label: '안내', width: 260, headClassName: 'text-[14px]' },
-];
+const columnsFor = (stepColumn: boolean): readonly ConsoleTableColumn[] => {
+  // 단계 열이 서면 그 160 은 정체성 두 열에서 나온다 — 합은 1050 그대로다. 프레임이
+  // overflow-hidden 이라 넘기면 마지막 열이 잘리지 지면이 넓어지지 않는다.
+  const identity = stepColumn ? 260 : 340;
+  return [
+    { key: 'name', label: 'Resource Name', width: identity, flex: true, headClassName: 'text-[14px]' },
+    { key: 'id', label: 'Resource ID', width: identity, flex: true, headClassName: 'text-[14px]' },
+    ...(stepColumn
+      ? [{ key: 'step', label: '설치 단계', width: 160, headClassName: 'text-[14px]' } as const]
+      : []),
+    { key: 'status', label: '상태', width: 110, headClassName: 'text-[14px]' },
+    { key: 'guide', label: '안내', width: 260, headClassName: 'text-[14px]' },
+  ];
+};
 
 /** 접히는 칸 — `consoleCell` 의 nowrap 을 쓰지 않는다. 값이 길면 아래로 자란다. */
 const WRAP_CELL = cn(CELL, 'whitespace-normal break-keep');
 
-export interface ServiceWorkModalProps {
-  result: ServiceWorkResult;
+/** 한 행 — 리소스 하나의 한 단계. 같은 리소스가 두 단계에서 걸려 있으면 행도 둘이다. */
+export interface InstallResourceListRow {
+  resourceId: string;
+  resourceName: string | null;
+  /** `설치 단계` 열의 값 — 단계 열을 세우는 부르는 쪽만 채운다. */
+  stepTitle?: string;
+  status: InstallStepValue;
+  guide: string | null;
+}
+
+export interface InstallResourceListModalProps {
+  /** 목록의 정체 — 이 표가 무엇을 답하는지는 제목이 진다. */
+  title: string;
+  rows: readonly InstallResourceListRow[];
+  /** `설치 단계` 열을 세운다. 값이 아니라 부르는 쪽의 결정이다 — 빈 목록에서도 표 모양이 같다. */
+  stepColumn?: boolean;
   lastCheck: InstallLastCheck | null;
   onClose: () => void;
 }
 
-export function ServiceWorkModal({
-  result,
+export function InstallResourceListModal({
+  title,
+  rows,
+  stepColumn = false,
   lastCheck,
   onClose,
-}: ServiceWorkModalProps): ReactElement {
-  // 정착한 행은 이 목록의 것이 아니다 — 게이트가 이미 안 끝난 것을 앞으로 정렬해 두었지만,
-  // 자르는 것은 여기서 한 번 더 한다: 「필요한 리소스」라는 제목이 곧 이 필터다.
-  const rows = result.rows.filter((row) => !isSettledInstallStatus(row.status));
+}: InstallResourceListModalProps): ReactElement {
   // 저장 키 없음 — 이 표의 폭은 모달과 함께 죽는다(`useColumnResize` 의 지시). 그래서
   // `ephemeralKeys` 도 필요 없다: 애초에 되살아날 폭이 없다.
   const resize = useColumnResize({ clampToContent: true });
+  const columns = columnsFor(stepColumn);
   const [page, setPage] = useState(0);
   const [pageSize, setPageSize] = useState(PAGE_SIZE);
 
@@ -126,7 +151,7 @@ export function ServiceWorkModal({
       className="text-left"
     >
       <h3 id={TITLE_ID} className={pipelineStyles.modal.titleLg}>
-        서비스 측 작업이 필요한 리소스
+        {title}
       </h3>
       {/* 이 답이 **언제** 읽힌 것인지 한 줄. 단계 이름은 여기 없다 — 그 문장은 이 모달을 연
           경고 상자가 이미 말했고, 제목이 목록의 정체를 이미 진다. 시각이 없으면 줄도 없다:
@@ -144,12 +169,13 @@ export function ServiceWorkModal({
             라운드와 그림자로 아래를 닫아, 바가 이어진 게 아니라 끝난 카드 밑에 매달린
             것처럼 보인다. */}
         <div className={idcStyles.table.framePaged}>
-          <ConsoleTable columns={COLUMNS} resize={resize}>
+          <ConsoleTable columns={columns} resize={resize}>
             <tbody className={idcStyles.table.body}>
               {pageRows.map((row) => {
                 const label = STATUS_LABEL[row.status];
                 return (
-                  <tr key={row.resourceId} className={idcStyles.table.row}>
+                  // 한 리소스가 두 단계에서 걸리면 행이 둘이라, 키도 그 둘을 갈라야 한다.
+                  <tr key={`${row.resourceId}:${row.stepTitle ?? ''}`} className={idcStyles.table.row}>
                     <td className={CLIP_CELL}>{row.resourceName ?? row.resourceId}</td>
                     <td className={CLIP_CELL}>
                       <ResourceIdCell
@@ -160,6 +186,7 @@ export function ServiceWorkModal({
                         hardClip
                       />
                     </td>
+                    {stepColumn && <td className={CLIP_CELL}>{row.stepTitle}</td>}
                     <td className={CELL}>
                       <span className={label?.className ?? 'text-[var(--pl-text-weak)]'}>
                         {label?.text ?? INSTALL_COPY.ko.stepValue[row.status]}

@@ -107,7 +107,14 @@ export interface IdcResourceInstallView {
 }
 
 export interface IdcInstallationView {
-  lastCheck?: { status: IdcInstallStatus; checkedAt?: string; failReason?: string };
+  lastCheck?: {
+    status: IdcInstallStatus;
+    checkedAt?: string;
+    failReason?: string;
+    /** `installation_status_unavailable` — upstream says it cannot answer for this target.
+     *  Only present when the wire sets it true (same rule as the cloud adapters). */
+    unavailable?: boolean;
+  };
   resources: IdcResourceInstallView[];
 }
 
@@ -389,6 +396,7 @@ export const toIdcInstallationView = (
         status: wire.last_check.status ?? 'UNKNOWN',
         checkedAt: wire.last_check.checked_at ?? undefined,
         failReason: wire.last_check.fail_reason ?? undefined,
+        ...(wire.last_check.installation_status_unavailable && { unavailable: true }),
       }
     : undefined,
   resources: (wire.resources ?? []).map((r) => ({
