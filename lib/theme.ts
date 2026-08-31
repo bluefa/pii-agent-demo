@@ -3768,6 +3768,10 @@ const pipelineText = {
   subsectionTitle: 'text-[14px] font-semibold text-[var(--pl-text-medium)]',
   /** modal h3 — 16 / 700 / 1.2 / strong. */
   modalTitle: 'text-[16px] font-bold leading-[1.2] text-[var(--pl-text-strong)]',
+  /** modal h3, large — 20 / 700 / 1.2 / strong. For a modal whose body is a full
+   *  console table: at 16 the title sat at the same size as the table's own head
+   *  rail and stopped reading as the dialog's name (owner 2026-08-31). */
+  modalTitleLg: 'text-[20px] font-bold leading-[1.2] text-[var(--pl-text-strong)]',
   /** idbar pname — 16 / 700 / 1.2 / -.02em / strong. */
   identityName: 'text-[16px] font-bold leading-[1.2] tracking-[-0.02em] text-[var(--pl-text-strong)]',
   /** body / td / note — 14 / medium. */
@@ -4205,6 +4209,8 @@ export const pipelineStyles = {
     dialogPanel:
       'w-[960px] max-w-[92vw] h-full flex flex-col overflow-hidden border-l border-[var(--pl-border)] bg-[var(--pl-bg-card)] shadow-[var(--pl-shadow-lg)]',
     title: cn(pipelineText.modalTitle, 'mb-3'),
+    /** 20px title — same rhythm (`mb-3`), for table-width dialogs. */
+    titleLg: cn(pipelineText.modalTitleLg, 'mb-3'),
     desc: 'text-[14px] leading-[1.4] text-[var(--pl-text-medium)] mb-3.5',
     body: 'overflow-y-auto min-h-0 mt-1',
     foot: 'flex justify-end gap-2 mt-[18px]',

@@ -20,18 +20,24 @@
  * 폭은 모달과 함께 죽어도 되니 storageKey 를 생략하라」). 정체 두 열(name·id)이 `flex` 쌍이라
  * 한쪽을 끌면 다른 쪽이 싱크를 넘겨받아 분할 창처럼 움직인다.
  */
-import { type ReactElement } from 'react';
+import { useState, type ReactElement } from 'react';
 import { cn, idcStyles, pipelineStyles } from '@/lib/theme';
 import { ModalShell } from '@/app/admin/pipelines/_components/ModalShell';
+import { Icon } from '@/app/admin/pipelines/_components/icons';
+import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
 import { ConsoleTable, type ConsoleTableColumn } from '@/app/components/ui/ConsoleTable';
+import { Pagination } from '@/app/components/ui/Pagination';
 import { useColumnResize } from '@/app/components/ui/useColumnResize';
 import { ResourceIdCell } from '@/app/target-sources/[targetSourceId]/_components/shared/ResourceIdCell';
 import { INSTALL_COPY } from '@/app/components/features/process-status/install-copy';
-import { fmtDateTime } from '@/lib/pipeline/format';
+import { fmtDateTimeShort } from '@/lib/pipeline/format';
 import { isSettledInstallStatus, type InstallLastCheck, type InstallStepValue } from '@/app/components/features/process-status/install-status-detail/model';
 import type { ServiceWorkResult } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/installGate';
 
 const TITLE_ID = 'pl-service-work-title';
+/** 한 장에 싣는 수의 첫 값 — 이 콘솔의 리소스 목록이 쓰는 10(`RESOURCE_PAGE_SIZE`).
+ *  바의 `표시 N 건씩` 이 이 값을 바꾼다. */
+const PAGE_SIZE = 10;
 
 /**
  * 상태 → 낱말과 그 색. 알약도 글리프도 없다(오너 2026-08-31): 한 열에 같은 모양의 배지가
@@ -61,7 +67,7 @@ const CELL = cn(
 const CLIP_CELL = cn(CELL, idcStyles.table.consoleCell);
 
 /**
- * 합(1052)이 모달 안폭(1100 − 좌우 24)과 정확히 같다 — 이 표는 가로로 스크롤하지 않는다.
+ * 합(1050)이 모달 안폭(1100 − 좌우 24 = 1052)에서 프레임 테두리 1px 씩을 뺀 폭이다 — 이 표는 가로로 스크롤하지 않는다(실측: 1052 는 1px 넘쳐 스크롤바가 섰다).
  *
  * 정체 두 열이 `flex` 쌍이다(셸이 문서로 권하는 짝): 길어지는 값은 이름과 ARN 이고, 한쪽을
  * 끌면 싱크가 다른 쪽으로 넘어가 둘이 분할 창처럼 움직인다. 340 은 바닥일 뿐 — 남는 폭은
@@ -76,7 +82,7 @@ const COLUMNS: readonly ConsoleTableColumn[] = [
   { key: 'name', label: 'Resource Name', width: 340, flex: true, headClassName: 'text-[14px]' },
   { key: 'id', label: 'Resource ID', width: 340, flex: true, headClassName: 'text-[14px]' },
   { key: 'status', label: '상태', width: 110, headClassName: 'text-[14px]' },
-  { key: 'guide', label: '안내', width: 262, headClassName: 'text-[14px]' },
+  { key: 'guide', label: '안내', width: 260, headClassName: 'text-[14px]' },
 ];
 
 /** 접히는 칸 — `consoleCell` 의 nowrap 을 쓰지 않는다. 값이 길면 아래로 자란다. */
@@ -99,6 +105,14 @@ export function ServiceWorkModal({
   // 저장 키 없음 — 이 표의 폭은 모달과 함께 죽는다(`useColumnResize` 의 지시). 그래서
   // `ephemeralKeys` 도 필요 없다: 애초에 되살아날 폭이 없다.
   const resize = useColumnResize({ clampToContent: true });
+  const [page, setPage] = useState(0);
+  const [pageSize, setPageSize] = useState(PAGE_SIZE);
+
+  // 렌더는 clamp 로 안전하지만 `page` 자체도 되돌린다 — 목록이 줄었다 늘 때 누른 적 없는
+  // 자리로 돌아가지 않도록(`AgentDagTable` 과 같은 규칙).
+  const safePage = Math.min(page, Math.max(0, Math.ceil(rows.length / pageSize) - 1));
+  if (page !== safePage) setPage(safePage);
+  const pageRows = rows.slice(safePage * pageSize, safePage * pageSize + pageSize);
 
   return (
     <ModalShell
@@ -111,23 +125,28 @@ export function ServiceWorkModal({
       // 칸(`approvalCell` 은 정렬을 선언하지 않는다)이 가운데로 남으므로 모달 전체에 건다.
       className="text-left"
     >
-      <h3 id={TITLE_ID} className={pipelineStyles.modal.title}>
+      <h3 id={TITLE_ID} className={pipelineStyles.modal.titleLg}>
         서비스 측 작업이 필요한 리소스
       </h3>
-      {/* 어느 단계의 목록인지와, 그 답이 언제 읽힌 것인지 — 한 줄. 시각이 없으면 그 마디도
-          없다(계약이 checked_at 을 안 줄 수 있고, 없는 시각을 「방금」으로 읽히게 둘 수 없다). */}
-      <p className={pipelineStyles.modal.desc}>
-        {`<${result.step.title}>`}
-        {lastCheck?.checkedAt && ` · 마지막 확인 ${fmtDateTime(lastCheck.checkedAt)}`}
-      </p>
+      {/* 이 답이 **언제** 읽힌 것인지 한 줄. 단계 이름은 여기 없다 — 그 문장은 이 모달을 연
+          경고 상자가 이미 말했고, 제목이 목록의 정체를 이미 진다. 시각이 없으면 줄도 없다:
+          계약이 checked_at 을 안 줄 수 있고, 없는 시각을 「방금」으로 읽히게 둘 수 없다. */}
+      {lastCheck?.checkedAt && (
+        <p className="mb-3.5 inline-flex items-center gap-1 text-[12px] text-[var(--pl-text-weak)]">
+          <Icon name="clock" size="sm" />
+          마지막 확인시간 {fmtDateTimeShort(lastCheck.checkedAt)}
+        </p>
+      )}
 
       <div className={cn(pipelineStyles.modal.body, 'flex-1')}>
-        {/* `frame`, not `framePaged`: 아래를 닫는 페이저 바가 없다(이 목록은 페이지를 나누지
-            않는다), 그래서 표가 제 아래 모서리를 스스로 닫는다. */}
-        <div className={idcStyles.table.frame}>
+        {/* 표는 맨몸이고 윤곽은 프레임과 페이저 바가 나눠 진다 — 프레임이 상단 라운드와
+            옆선을, 바가 하단 라운드를 그린다(`framePaged` 의 계약). `frame` 은 제 12px
+            라운드와 그림자로 아래를 닫아, 바가 이어진 게 아니라 끝난 카드 밑에 매달린
+            것처럼 보인다. */}
+        <div className={idcStyles.table.framePaged}>
           <ConsoleTable columns={COLUMNS} resize={resize}>
             <tbody className={idcStyles.table.body}>
-              {rows.map((row) => {
+              {pageRows.map((row) => {
                 const label = STATUS_LABEL[row.status];
                 return (
                   <tr key={row.resourceId} className={idcStyles.table.row}>
@@ -155,9 +174,29 @@ export function ServiceWorkModal({
             </tbody>
           </ConsoleTable>
         </div>
-        <p className="mt-2 text-right text-[12px] tabular-nums text-[var(--pl-text-weak)]">
-          총 {rows.length}건
-        </p>
+        {/* Step 1~7 이 쓰는 그 푸터다 — 표시 건수·범위·페이저가 한 바에 들고, 바가 표를
+            아래에서 닫는다. 스크롤하는 본문 안에 두는 것은 바가 표의 아랫변이기 때문이다:
+            바깥에 두면 표가 스크롤될 때 그 한 상자가 둘로 갈린다. 콘솔 표의 문자 크기는
+            14px 고정(`size="md"` — `Pagination.mounts.test.ts` 가 강제한다).
+            페이지가 하나여도 선다: 나타났다 사라지는 바는 없는 바로 읽힌다. */}
+        <Pagination
+          size="md"
+          page={safePage}
+          pageSize={pageSize}
+          totalCount={rows.length}
+          onPageChange={setPage}
+          onPageSizeChange={(next) => {
+            setPageSize(next);
+            // 페이지 크기가 커지면 지금 페이지 번호가 끝을 넘길 수 있다 — 첫 장으로.
+            setPage(0);
+          }}
+        />
+      </div>
+
+      <div className={pipelineStyles.modal.foot}>
+        <PlButton variant="secondary" onClick={onClose}>
+          닫기
+        </PlButton>
       </div>
     </ModalShell>
   );
