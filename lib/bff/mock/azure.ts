@@ -112,13 +112,36 @@ export const mockAzure = {
       };
     });
 
+    // VM 은 DB 목록과 서로소다 — 도메인 목이 리소스를 `isDbResource` / `isVmResource` 로
+    // 갈라 담기 때문에 위의 join 은 어떤 대상에서도 맞은 적이 없고, 그래서 VM 두 단계가
+    // 늘 SKIP 으로만 나갔다(계약은 그 둘을 갖고 있는데 화면이 도달하지 못하는 상태).
+    // 붙지 않은 VM 을 자기 행으로 덧붙여, 서비스 측 VM 단계가 실제로 서게 한다.
+    const vmRows = (vmResult.data?.vms ?? [])
+      .filter((vm) => !resources.some((r) => r.resource_id === vm.vmId))
+      .map((vm) => ({
+        resource_id: vm.vmId,
+        resource_name: vm.vmName,
+        installation_status:
+          vm.subnetExists && vm.loadBalancer.installed ? 'COMPLETED' : 'IN_PROGRESS',
+        azure_virtual_machine_subnet_creation: {
+          status: vm.subnetExists ? 'COMPLETED' : 'IN_PROGRESS',
+        },
+        azure_virtual_machine_terraform_apply: {
+          status: vm.loadBalancer.installed ? 'COMPLETED' : 'IN_PROGRESS',
+        },
+        // VM 의 BDC 차례는 서비스 측 두 단계가 끝나야 온다 — DB 행과 같은 인과다.
+        bdc_side_terraform_apply: {
+          status: vm.subnetExists && vm.loadBalancer.installed ? 'COMPLETED' : 'IN_PROGRESS',
+        },
+      }));
+
     return NextResponse.json({
       last_check: {
         status: dbResult.data?.installed ? 'COMPLETED' : 'IN_PROGRESS',
         checked_at: minutesAgo(3),
         fail_reason: null,
       },
-      resources,
+      resources: [...resources, ...vmRows],
     });
   },
 

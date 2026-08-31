@@ -89,7 +89,7 @@ const JOB = 'font-semibold text-[var(--pl-text-strong)]';
  *  label the contract can produce (SIDE_LABEL is SERVICE → 서비스, BDC → BDC).
  *  A floor rather than a fixed width: an unmapped wire value is passed through
  *  raw, and it should widen the tag rather than be clipped inside it. */
-const SIDE_TAG =
+export const SIDE_TAG =
   'inline-flex min-w-[48px] flex-none items-center justify-center rounded-[4px] border border-[var(--pl-border)] bg-[var(--pl-bg-card)] px-1.5 py-0.5 text-[12px] font-medium text-[var(--pl-text-weak)]';
 
 /** One Terraform task: what it is, who runs it, what state it is in. */

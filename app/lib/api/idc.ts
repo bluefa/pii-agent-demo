@@ -107,7 +107,13 @@ export interface IdcResourceInstallView {
 }
 
 export interface IdcInstallationView {
-  lastCheck?: { status: IdcInstallStatus; checkedAt?: string; failReason?: string };
+  lastCheck?: {
+    status: IdcInstallStatus;
+    checkedAt?: string;
+    failReason?: string;
+    /** `installation_status_unavailable` — upstream cannot answer; the cells are not a reading. */
+    unavailable?: boolean;
+  };
   resources: IdcResourceInstallView[];
 }
 
@@ -389,6 +395,7 @@ export const toIdcInstallationView = (
         status: wire.last_check.status ?? 'UNKNOWN',
         checkedAt: wire.last_check.checked_at ?? undefined,
         failReason: wire.last_check.fail_reason ?? undefined,
+        unavailable: wire.last_check.installation_status_unavailable ?? undefined,
       }
     : undefined,
   resources: (wire.resources ?? []).map((r) => ({

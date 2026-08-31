@@ -143,6 +143,12 @@ export interface InstallLastCheck {
   status: 'SUCCESS' | 'IN_PROGRESS' | 'FAILED';
   checkedAt?: string;
   failReason?: string;
+  /**
+   * `installation_status_unavailable` — upstream says it cannot answer for this target.
+   * Distinct from FAILED (a check that ran and failed): the cells that came with it, if
+   * any, are not a reading of the install. Only present when the wire sets it true.
+   */
+  unavailable?: boolean;
 }
 
 /** Install is complete when every resource's every cell is COMPLETED/SKIP. */

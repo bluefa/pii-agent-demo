@@ -43,7 +43,7 @@ import { OpsTabNavContext } from '@/app/admin/pipelines/ops/target-sources/[targ
 import { ScanTab } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/ScanTab';
 import { RequestTab } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/RequestTab';
 import { ConfirmTab } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/ConfirmTab';
-import { PipelineTab } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/PipelineTab';
+import { PipelineTab, pipelineProviderKey } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/PipelineTab';
 import { TcTab } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/TcTab';
 import { ApprovalTab } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/ApprovalTab';
 import { AirflowTab } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/AirflowTab';
@@ -660,6 +660,12 @@ export function OpsTargetView({ targetSourceId, initialTab, statusSlot }: OpsTar
               statusLoaded={tcLoaded}
               latestFailed={tcLatestFailed}
               onStatusReload={reloadTc}
+              // 설치 확인이 어느 계약을 부를지 — 인프라 작업 탭이 쓰는 그 키다(SDU 가 밑에
+              // 깔린 CSP 를 이긴다). 계약에 없는 종류(SDU)면 탭은 아무 말도 하지 않는다.
+              provider={pipelineProviderKey(detail)}
+              // 저장 직후의 값까지 반영된 설치 모드 — AWS 서비스 측 단계의 이름만 가른다.
+              manualInstall={!grantTfExecution}
+              onOpenInfraTab={() => selectTab(OPS_TAB_SLUGS.infra)}
             />
           )}
           {currentTab === '관리자 승인' && (

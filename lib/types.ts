@@ -893,6 +893,8 @@ export interface V1LastCheck {
   status: 'SUCCESS' | 'IN_PROGRESS' | 'FAILED';
   checkedAt?: string;
   failReason?: string;
+  /** `installation_status_unavailable` — upstream cannot answer; the cells are not a reading. */
+  unavailable?: boolean;
 }
 
 /**
