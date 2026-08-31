@@ -25,8 +25,8 @@ const scanJob = {
 
 let capturedOnScanComplete: (() => void) | undefined;
 
-// 폴링 훅만 대역으로 세우고 isScanFinalizing 은 실물을 그대로 쓴다 — 상수로 박으면
-// 집계 구간이 통합 경로에서 사라져, settling 의 100% 고정이 그 상수에 가려진다.
+// 폴링 훅만 대역으로 세우고 isScanSaving 은 실물을 그대로 쓴다 — 상수로 박으면
+// 저장 구간이 통합 경로에서 사라져, settling 의 100% 고정이 그 상수에 가려진다.
 vi.mock('@/app/hooks/useScanPolling', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/app/hooks/useScanPolling')>();
   return {

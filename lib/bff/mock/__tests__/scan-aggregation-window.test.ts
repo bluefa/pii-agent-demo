@@ -4,7 +4,10 @@ vi.mock('@/lib/mock-data', () => ({
   getCurrentUser: vi.fn(),
   getProjectByTargetSourceId: vi.fn(),
 }));
-vi.mock('@/lib/mock-scan', () => ({
+// Only the two store readers are stubbed — isSavingWindow is the predicate under
+// test, so it stays real. Stubbing it would make these assertions tautological.
+vi.mock('@/lib/mock-scan', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/mock-scan')>()),
   getLatestScanForProject: vi.fn(),
   getScanHistory: vi.fn(),
 }));
@@ -41,12 +44,19 @@ const latestScanBody = async (): Promise<Record<string, unknown>> => {
   return response.json();
 };
 
+const historyRowBody = async (): Promise<Record<string, unknown>> => {
+  const response = await mockScan.getHistory(String(TARGET_SOURCE_ID), { limit: 10, offset: 0 });
+  const page = (await response.json()) as { content: Record<string, unknown>[] };
+  return page.content[0];
+};
+
 /**
- * The mock reproduces the BFF's aggregation tail: a scan reports SUCCESS a beat
- * before its counts are readable. Without it the finalizing state the UI draws
- * ("스캔 마무리 중") is unreachable in demo mode.
+ * The mock reproduces the BFF's saving tail: SCANNING → SAVING → SUCCESS. Between
+ * discovery ending and the totals being written the job reports SAVING with a full
+ * progress bar and no counts; only SUCCESS carries the numbers. Without this window
+ * the state the UI draws ("스캔 마무리 중") is unreachable in demo mode.
  */
-describe('mockScan.getStatus aggregation window', () => {
+describe('mockScan saving window', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     const admin: User = {
@@ -64,19 +74,39 @@ describe('mockScan.getStatus aggregation window', () => {
     vi.mocked(scanFns.getLatestScanForProject).mockReturnValue(undefined);
   });
 
-  it('answers SUCCESS with null counts for the first 3s after completion', async () => {
+  it('answers SAVING with no counts for the first 3s after discovery ends', async () => {
     seedHistory(500);
     const body = await latestScanBody();
 
-    expect(body.scan_status).toBe('SUCCESS');
+    expect(body.scan_status).toBe('SAVING');
     expect(body.resource_count_by_resource_type).toBeNull();
+    // Every resource type is scanned by now — the bar is full while the write runs.
+    expect(body.scan_progress).toBe(100);
   });
 
-  it('answers the counts once the window has passed', async () => {
+  it('answers SUCCESS with the counts once the window has passed', async () => {
     seedHistory(4_000);
     const body = await latestScanBody();
 
     expect(body.scan_status).toBe('SUCCESS');
     expect(Object.keys(body.resource_count_by_resource_type as object).length).toBeGreaterThan(0);
+  });
+
+  // The card and the history table share a screen: one row cannot read 마무리 중 in
+  // one and 성공 with numbers in the other for the same three seconds.
+  it('reports the same row as SAVING in the history page', async () => {
+    seedHistory(500);
+    const row = await historyRowBody();
+
+    expect(row.scan_status).toBe('SAVING');
+    expect(row.resource_count_by_resource_type).toBeNull();
+  });
+
+  it('reports the settled row as SUCCESS in the history page', async () => {
+    seedHistory(4_000);
+    const row = await historyRowBody();
+
+    expect(row.scan_status).toBe('SUCCESS');
+    expect(Object.keys(row.resource_count_by_resource_type as object).length).toBeGreaterThan(0);
   });
 });

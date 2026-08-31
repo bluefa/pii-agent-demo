@@ -100,12 +100,21 @@ describe('statusRows', () => {
     });
   });
 
-  it('SUCCESS 인데 건수 맵이 없으면 성공이 아니라 마무리 중이다', () => {
+  it('마무리 중은 SAVING 이 말한다 — 계약 상태를 그대로 읽는다', () => {
+    const rows = statusRows({
+      ...idle,
+      scan: ok({ scan_status: 'SAVING', resource_count_by_resource_type: null, updated_at: '2026-08-28T05:02:00Z' }),
+    });
+    expect(valueOf(rows, '스캔')).toMatchObject({ mark: 'run', value: '마무리 중' });
+  });
+
+  it('건수 맵이 없어도 SUCCESS 는 성공이다 — 합계 조각만 빠진다', () => {
     const rows = statusRows({
       ...idle,
       scan: ok({ scan_status: 'SUCCESS', resource_count_by_resource_type: null, updated_at: '2026-08-28T05:02:00Z' }),
     });
-    expect(valueOf(rows, '스캔')).toMatchObject({ mark: 'run', value: '마무리 중' });
+    expect(valueOf(rows, '스캔')).toMatchObject({ mark: 'ok', value: '성공' });
+    expect(valueOf(rows, '스캔')?.sub).not.toContain('리소스');
   });
 
   it('성공한 스캔은 리소스 합계를 싣는다', () => {

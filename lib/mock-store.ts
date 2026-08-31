@@ -54,8 +54,9 @@ const buildSeedScanHistory = (projects: Project[]): ScanHistory[] =>
       startedAt: project.createdAt,
       completedAt: project.updatedAt,
       duration: 8,
-      // null 이면 최신 잡이 "counts 없는 SUCCESS" 가 되고, UI 는 그걸 집계 중으로 읽어
-      // 진행 프레임에 영영 머문다(isScanFinalizing). 끝난 스캔은 셈을 갖고 있어야 한다.
+      // null 이면 최신 잡이 "counts 없는 SUCCESS" 가 된다. 그건 이제 진행 중이 아니라
+      // 완료지만, 잰 숫자가 없어 모든 표면이 건수 자리에 '—' 를 적는다 — 데모의 끝난
+      // 스캔은 셈을 갖고 있어야 결과 화면이 결과처럼 읽힌다.
       result: { totalFound: project.resources.length, byResourceType: [] },
       resourceCountBefore: 0,
       resourceCountAfter: project.resources.length,
