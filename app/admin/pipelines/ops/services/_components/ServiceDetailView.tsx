@@ -29,6 +29,8 @@ import { Icon } from '@/app/admin/pipelines/_components/icons';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
 import { ProvTag } from '@/app/admin/pipelines/_components/ProvTag';
 import { ProviderLogo } from '@/app/components/features/admin/v7';
+import { useLocale } from '@/app/components/LocaleProvider';
+import { COPY } from '@/lib/copy';
 import type { CloudProvider } from '@/lib/types';
 import { opsStyles } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/opsStyles';
 import { CompletedStampSlot } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/CompletedStamp';
@@ -458,6 +460,8 @@ export function ServiceDetailView({
   serviceCode,
   isAdmin,
 }: ServiceDetailViewProps): ReactElement {
+  const { locale } = useLocale();
+  const t = COPY[locale].common;
   const router = useRouter();
   const [detail, setDetail] = useState<OpsServiceDetail | null>(null);
   const [tickets, setTickets] = useState<JiraTicket[]>([]);
@@ -785,7 +789,7 @@ export function ServiceDetailView({
                     {/* is_china_region 이 참이면 언제나 — provider 가 무엇이든, 계정
                         식별자가 있든 없든. 중국 리전은 계정의 성질이 아니라 대상의
                         성질이고, 운영자가 먼저 알아야 하는 값이다. */}
-                    {china && <span className={opsStyles.regionTag}>중국</span>}
+                    {china && <span className={opsStyles.regionTag}>{t.china}</span>}
                     {/* 계약이 명시적으로 true 라고 말할 때만 (readSupportRawData).
                         1층에 두는 이유는 중국 태그와 같다 — 이 대상이 무엇을 다루는지는
                         계정보다 먼저 읽혀야 하는 성질이다. */}

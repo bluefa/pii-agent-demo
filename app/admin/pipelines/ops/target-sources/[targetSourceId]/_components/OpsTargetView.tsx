@@ -50,6 +50,8 @@ import { AirflowTab } from '@/app/admin/pipelines/ops/target-sources/[targetSour
 import { DangerTab } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/DangerTab';
 import { AppError } from '@/lib/errors';
 import { useAbortableEffect } from '@/app/hooks/useAbortableEffect';
+import { useLocale } from '@/app/components/LocaleProvider';
+import { COPY } from '@/lib/copy';
 import { getDagStatus } from '@/app/lib/api/ops';
 import {
   TC_COMPLETED,
@@ -148,6 +150,7 @@ export interface OpsTargetViewProps {
 }
 
 export function OpsTargetView({ targetSourceId, initialTab, statusSlot }: OpsTargetViewProps): ReactElement {
+  const { locale } = useLocale();
   const [detail, setDetail] = useState<RawTargetSourceDetail | null>(null);
   const [detailFailed, setDetailFailed] = useState(false);
   const [processStatus, setProcessStatus] = useState<ProcessStatus | null>(null);
@@ -497,7 +500,7 @@ export function OpsTargetView({ targetSourceId, initialTab, statusSlot }: OpsTar
   const isChina = meta.is_china_region === true;
   // 중국만 이름을 갖는다 — Global 은 표시하지 않는다 (오너 2026-08-28). null 이면 모달이
   // 칩도 그 앞의 구분점도 그리지 않는다.
-  const regionLabel = isChina ? '중국' : null;
+  const regionLabel = isChina ? COPY[locale].common.china : null;
   const activeRole = modal?.type === 'edit' ? modal.kind : null;
 
   return (

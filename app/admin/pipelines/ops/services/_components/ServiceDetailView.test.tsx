@@ -21,6 +21,7 @@ import { act, fireEvent, render, screen, waitFor, within } from '@testing-librar
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 import { ServiceDetailView } from '@/app/admin/pipelines/ops/services/_components/ServiceDetailView';
+import { LocaleProvider } from '@/app/components/LocaleProvider';
 import { AppError } from '@/lib/errors';
 import type {
   OpsServiceDetail,
@@ -257,6 +258,23 @@ describe('중국 리전 · SDU 표기', () => {
   it('is_china_region 이 거짓이면 칩을 달지 않는다', async () => {
     await renderWith([target(4111, { metadata: meta({ aws_account_id: '000000000011' }) })]);
     const card = screen.getByLabelText('Target Source 목록').querySelector('div.group') as HTMLElement;
+    expect(within(card).queryByText('중국')).toBeNull();
+  });
+
+  it('영어로 읽으면 같은 칩이 China 로 선다 (#842)', async () => {
+    // 태그는 손으로 적은 한국어였다 — 언어 토글을 올려도 이 자리만 한국어로 남았다.
+    getOpsService.mockResolvedValue(
+      detail([target(4113, { metadata: meta({ is_china_region: true }) })]),
+    );
+    getServiceJiraTickets.mockResolvedValue([]);
+    render(
+      <LocaleProvider initial="en">
+        <ServiceDetailView serviceCode="ORD" isAdmin={false} />
+      </LocaleProvider>,
+    );
+    await screen.findByLabelText('Target Source 목록');
+    const card = screen.getByLabelText('Target Source 목록').querySelector('div.group') as HTMLElement;
+    expect(within(card).getByText('China')).toBeTruthy();
     expect(within(card).queryByText('중국')).toBeNull();
   });
 
