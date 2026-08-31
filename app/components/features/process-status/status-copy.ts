@@ -257,7 +257,10 @@ const en: typeof ko = {
     exclusionReasonPlaceholder: 'Enter an exclusion reason',
     categoryTarget: 'Integration target',
     categoryNoInstall: 'Install optional',
-    categoryIneligible: 'Cannot connect',
+    /** Same word as `LAYOUT_COPY.table.pillIneligible`, and the same measurement — step 1's
+     *  `CANDIDATE_COLUMN_WIDTHS.category` is 112, measured against the Korean, and
+     *  `Cannot connect` needs 155.5 there. See that key for the numbers. */
+    categoryIneligible: 'Ineligible',
   },
 
   detail: {

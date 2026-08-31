@@ -326,7 +326,7 @@ const en: typeof ko = {
   unavailable: {
     title: 'Targets cannot be connected',
     subtitle: 'An admin decided the targets you requested cannot be connected.',
-    badge: 'Cannot connect',
+    badge: 'Ineligible',
     bannerStrong: 'The targets you selected cannot be connected.',
     reasonPrefix: 'Reason: ',
     guidance: 'Go back to the target DB step and put the targets together again.',
@@ -526,7 +526,20 @@ const en: typeof ko = {
     empty: 'No resources to show.',
     noLogicalDb: 'Not needed',
     noExclusion: 'Cannot exclude',
-    pillIneligible: 'Cannot connect',
+    /**
+     * `Ineligible`, not `Cannot connect`. Two reasons, and the second is a hard constraint.
+     *
+     * It is the verdict column — `Target` / `Excluded` / `Ineligible` are one register, and
+     * the codebase already calls this state `ineligible` (`INSTALL_INELIGIBLE`). "Cannot
+     * connect" names a reason, and not always the right one.
+     *
+     * And it has to fit: `APPROVAL_COLUMN_WIDTHS.target` is 116, measured against the KOREAN
+     * header. Measured in the browser at 14px semibold with the icon and its 6px gap —
+     * `Cannot connect` needs 119.48 + 36 padding + the 1px rail = 156.48 and overflowed the
+     * cell by 39.5px; `Ineligible` needs 112.32 and clears it. For scale, `Excluded` ships
+     * with 1.74px of room, so this is not the tight one.
+     */
+    pillIneligible: 'Ineligible',
     pillTarget: 'Target',
     pillExcluded: 'Excluded',
     colKind: 'Kind',
