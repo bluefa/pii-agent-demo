@@ -2715,6 +2715,19 @@ export const idcStyles = {
       parentCell:
         "relative after:absolute after:-bottom-px after:left-[16px] after:top-[calc(50%_+_8px)] after:w-px after:bg-[var(--rail,#C4CEDA)] after:content-['']",
       /**
+       * The same trunk for a parent whose chevron is pushed 12px below the row's centre — a
+       * `ResourceGroupRow` without `inlineMeta`, where the two-line identity leaves the box's
+       * middle in the gap above the name. That chevron spans 50%+4..50%+20, so the segment
+       * starts at 50%+20px: the same "start where the glyph ends" rule `parentCell` states,
+       * re-derived off the pushed anchor. On `parentCell`'s 50%+8 the line ran through the
+       * arrow's lower 12px.
+       *
+       * A full duplicate rather than a modifier on `parentCell`: `cn` has no tailwind-merge, so
+       * two `after:top-*` utilities in one class list would be settled by stylesheet order.
+       */
+      parentCellLow:
+        "relative after:absolute after:-bottom-px after:left-[16px] after:top-[calc(50%_+_20px)] after:w-px after:bg-[var(--rail,#C4CEDA)] after:content-['']",
+      /**
        * Rail lit — put on every `<tr>` of ONE group while its parent row is hovered, so the
        * trunk and each elbow answer together and the group says which rows it owns. The rail
        * reads its colour from `--rail`, inherited through the row, because parent and children
