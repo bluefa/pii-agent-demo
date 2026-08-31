@@ -2,6 +2,7 @@
 import { render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { BffError } from '@/lib/bff/errors';
+import { passRoutes } from '@/lib/routes';
 
 const { meMock, redirectMock } = vi.hoisted(() => ({
   meMock: vi.fn(),
@@ -84,13 +85,20 @@ describe('AdminLayout role gate', () => {
    * 401 은 장애도 판정도 아니라 만료다(ADR-008 §91). 여기서 "권한을 확인하지 못했어요" 를
    * 띄우면 세션만 상한 관리자가 장애 제보를 하러 간다 — 필요한 건 재로그인이다.
    *
-   * returnTo 가 admin 루트인 건 의도다: 레이아웃은 요청 경로를 모른다.
+   * returnTo 는 깊은 링크가 아니라 콘솔 대시보드다 — 레이아웃은 요청 경로를 모른다.
+   * `/pass/admin` 이 아닌 건 그 자리에 페이지가 없어서다: 재로그인 뒤 404 로 떨어진다.
    */
   it('401 은 안내 대신 SSO 로그인으로 되돌린다', async () => {
     meMock.mockRejectedValue(new BffError(401, 'UNAUTHORIZED', 'token expired'));
     await expect(renderGate()).rejects.toThrow(
-      'NEXT_REDIRECT:/sso/login?returnTo=%2Fpass%2Fadmin',
+      `NEXT_REDIRECT:/sso/login?returnTo=${encodeURIComponent(`/pass${passRoutes.pipelines.dashboard}`)}`,
     );
+  });
+
+  // 그 대시보드가 실재하는 페이지인지까지 고정한다 — 상수만 따라가면 둘이 같이 틀려도
+  // 초록이다. 이 문자열이 곧 재로그인 뒤 도착지다.
+  it('돌아갈 대시보드는 실제로 존재하는 경로다', () => {
+    expect(passRoutes.pipelines.dashboard).toBe('/admin/pipelines');
   });
 
   // 차단 화면에는 자체 링크가 없다. TopNav 가 유일한 탈출구라서, 차단 분기
