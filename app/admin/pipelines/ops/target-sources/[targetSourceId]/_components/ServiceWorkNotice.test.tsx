@@ -13,7 +13,7 @@ import type {
 
 vi.mock('next/navigation', () => ({ usePathname: () => '/admin/pipelines/ops/target-sources/1006' }));
 
-const STEP = { id: 'service', title: 'Terraform 직접 적용' };
+const STEP = { id: 'service', title: '서비스 측 Terraform 적용' };
 
 const resource = (
   resourceId: string,
@@ -36,17 +36,12 @@ const gateOf = (resources: readonly InstallDetailResource[]): ServiceWorkResult 
     },
   });
 
-const renderNotice = (result: ServiceWorkResult, onReload = vi.fn()) => {
+const renderNotice = (result: ServiceWorkResult): void => {
   render(
     <ServiceWorkNotice
-      data={{
-        result,
-        lastCheck: { status: 'SUCCESS', checkedAt: '2026-08-31T01:00:00Z' },
-        onReload,
-      }}
+      data={{ result, lastCheck: { status: 'SUCCESS', checkedAt: '2026-08-31T01:00:00Z' } }}
     />,
   );
-  return onReload;
 };
 
 describe('ServiceWorkNotice', () => {
@@ -60,7 +55,6 @@ describe('ServiceWorkNotice', () => {
         data={{
           result: gateOf([resource('rds-1', 'COMPLETED')]),
           lastCheck: null,
-          onReload: vi.fn(),
         }}
       />,
     );
@@ -79,7 +73,8 @@ describe('ServiceWorkNotice', () => {
     expect(screen.getByText('설치 작업 전에 서비스 측 대응이 먼저 필요합니다')).toBeTruthy();
     // 분모(3)가 아니라 남은 수(2)다 — 운영자가 연락해야 할 리소스의 수.
     expect(screen.getByText('2건')).toBeTruthy();
-    expect(screen.getByText(/Terraform 직접 적용/)).toBeTruthy();
+    // 단계 이름은 홑화살괄호 안에 든다 — 겹화살괄호(«»)가 아니다.
+    expect(screen.getByText(/<서비스 측 Terraform 적용>이 끝나지 않은 리소스/)).toBeTruthy();
   });
 
   it('상세 정보 보기가 모달을 열고, 정착하지 않은 행만 실린다', () => {
@@ -102,19 +97,21 @@ describe('ServiceWorkNotice', () => {
     expect(screen.queryByText('rds-3-name')).toBeNull();
     expect(screen.queryByText('rds-4-name')).toBeNull();
     expect(screen.getByText('총 2건')).toBeTruthy();
-    expect(screen.getByText('실패')).toBeTruthy();
-    expect(screen.getByText('진행중')).toBeTruthy();
+    // 상태는 이 콘솔의 낱말이다 — 서비스 화면의 「실패」·「진행중」이 아니다.
+    expect(screen.getByText('조회실패')).toBeTruthy();
+    expect(screen.getByText('작업필요')).toBeTruthy();
+    expect(screen.queryByText('실패')).toBeNull();
+    expect(screen.queryByText('진행중')).toBeNull();
+    expect(screen.getByText(/^<서비스 측 Terraform 적용> · 마지막 확인 /)).toBeTruthy();
     expect(screen.getByText('Terraform 스크립트를 다시 적용해 주세요.')).toBeTruthy();
   });
 
-  it('다시 확인은 같은 조회를 다시 부르고, Esc 는 모달을 닫는다', () => {
-    const onReload = renderNotice(gateOf([resource('rds-1', 'FAIL')]));
+  it('다시 읽는 단추는 없고, Esc 는 모달을 닫는다', () => {
+    renderNotice(gateOf([resource('rds-1', 'FAIL')]));
 
     fireEvent.click(screen.getByRole('button', { name: /상세 정보 보기/ }));
-    fireEvent.click(screen.getByRole('button', { name: '다시 확인' }));
-    expect(onReload).toHaveBeenCalledTimes(1);
-    // 재조회는 모달을 닫지 않는다 — 답이 바뀌면 이 표가 그 자리에서 바뀐다.
-    expect(screen.getByRole('dialog')).toBeTruthy();
+    // 계약에 재점검 트리거가 없다 — 같은 GET 을 다시 부르는 단추를 두지 않는다.
+    expect(screen.queryByRole('button', { name: '다시 확인' })).toBeNull();
 
     fireEvent.keyDown(document, { key: 'Escape' });
     expect(screen.queryByRole('dialog')).toBeNull();

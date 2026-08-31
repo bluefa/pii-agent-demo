@@ -36,8 +36,6 @@ import type { InstallLastCheck } from '@/app/components/features/process-status/
 export interface ServiceWorkNoticeData {
   result: ServiceWorkResult;
   lastCheck: InstallLastCheck | null;
-  /** 같은 GET 을 다시 부른다 — 모달의 `다시 확인`. */
-  onReload: () => void;
 }
 
 export interface ServiceWorkNoticeProps {
@@ -51,7 +49,7 @@ export function ServiceWorkNotice({ data, className }: ServiceWorkNoticeProps): 
   const detailModal = useModal();
 
   if (data === null || data.result.kind !== 'needed') return null;
-  const { result, lastCheck, onReload } = data;
+  const { result, lastCheck } = data;
   const open = result.total - result.done;
 
   return (
@@ -69,7 +67,7 @@ export function ServiceWorkNotice({ data, className }: ServiceWorkNoticeProps): 
         </div>
         {/* 제목의 글리프 열(16px + gap-2)에 본문을 맞춘다 — 상자 안에서 두 줄이 한 글 열에 선다. */}
         <p className="mt-1.5 break-keep pl-6 text-[14px] leading-[1.5] text-[var(--pl-warn-text)]">
-          «{result.step.title}»이 끝나지 않은 리소스{' '}
+          {`<${result.step.title}>`}이 끝나지 않은 리소스{' '}
           <b className="font-bold tabular-nums">{open}건</b>이 있습니다. 서비스 측에서 완료한 뒤
           설치 작업을 시작하세요.
         </p>
@@ -84,12 +82,7 @@ export function ServiceWorkNotice({ data, className }: ServiceWorkNoticeProps): 
       </div>
 
       {detailModal.isOpen && (
-        <ServiceWorkModal
-          result={result}
-          lastCheck={lastCheck}
-          onReload={onReload}
-          onClose={detailModal.close}
-        />
+        <ServiceWorkModal result={result} lastCheck={lastCheck} onClose={detailModal.close} />
       )}
     </>
   );

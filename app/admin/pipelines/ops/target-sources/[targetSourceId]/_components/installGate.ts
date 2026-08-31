@@ -47,8 +47,10 @@ export interface ServiceWorkStep {
  * 이 대상에 서비스 측 작업 단계가 있는가. 없으면 `null` 이고, 부르는 쪽은 조회조차 하지
  * 않는다 — 그릴 것이 없는 화면을 위해 요청을 보내지 않는다.
  *
- * 이름은 서비스 화면 Step 4 가 쓰는 그 문자열이다(`install-copy`). 두 화면이 같은 단계를
- * 다른 이름으로 부르면 운영자와 서비스가 같은 일을 두 이름으로 말하게 된다.
+ * 이름은 서비스 화면 Step 4 가 쓰는 그 문자열이다(`install-copy`) — GCP 는 그대로 쓴다.
+ * AWS 수동 설치만 이 콘솔의 이름을 갖는다(오너 2026-08-31): Step 4 는 제 화면을 보는
+ * 사람에게 「Terraform 직접 적용」이라고 말하지만, 운영자가 읽어야 하는 것은 **누가**
+ * 적용하는가다. `install-copy` 는 그 화면의 것이므로 여기서 건드리지 않는다.
  */
 export const serviceWorkStep = (
   /** Already normalized by the screen (`pipelineProviderKey`). */
@@ -57,7 +59,7 @@ export const serviceWorkStep = (
   manualInstall: boolean,
 ): ServiceWorkStep | null => {
   if (provider === 'aws') {
-    return manualInstall ? { id: 'service', title: t.aws.serviceTitleManual } : null;
+    return manualInstall ? { id: 'service', title: '서비스 측 Terraform 적용' } : null;
   }
   if (provider === 'gcp') return { id: 'subnet', title: t.gcp.subnetTitle };
   return null;

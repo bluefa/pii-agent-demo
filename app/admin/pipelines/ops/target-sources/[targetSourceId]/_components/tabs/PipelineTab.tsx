@@ -142,8 +142,8 @@ export function PipelineTab({
     () =>
       install.gate === null
         ? null
-        : { result: install.gate, lastCheck: install.lastCheck, onReload: install.reload },
-    [install.gate, install.lastCheck, install.reload],
+        : { result: install.gate, lastCheck: install.lastCheck },
+    [install.gate, install.lastCheck],
   );
 
   return (

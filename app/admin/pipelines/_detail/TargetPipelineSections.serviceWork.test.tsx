@@ -32,13 +32,12 @@ vi.mock('@/app/lib/api/pipeline', () => ({
 const NEEDED: ServiceWorkNoticeData = {
   result: {
     kind: 'needed',
-    step: { id: 'service', title: 'Terraform 직접 적용' },
+    step: { id: 'service', title: '서비스 측 Terraform 적용' },
     done: 0,
     total: 1,
     rows: [{ resourceId: 'rds-1', resourceName: 'rds-1', status: 'FAIL', guide: null }],
   },
   lastCheck: { status: 'SUCCESS', checkedAt: '2026-08-31T01:00:00Z' },
-  onReload: vi.fn(),
 };
 
 describe('TargetPipelineSections — serviceWork 는 카드까지 간다', () => {

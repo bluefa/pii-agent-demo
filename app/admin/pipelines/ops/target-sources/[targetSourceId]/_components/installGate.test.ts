@@ -22,7 +22,8 @@ const resource = (
   ),
 });
 
-const AWS_STEP = { id: 'service', title: 'Terraform 직접 적용' };
+// 이름은 이 콘솔의 것이다 — 서비스 화면 Step 4 의 「Terraform 직접 적용」이 아니다.
+const AWS_STEP = { id: 'service', title: '서비스 측 Terraform 적용' };
 const GCP_STEP = { id: 'subnet', title: 'PSC용 Subnet 생성' };
 
 const gate = (

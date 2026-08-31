@@ -432,7 +432,7 @@ describe('CurrentPipelineCard — task flow', () => {
 const NEEDED: ServiceWorkNoticeData = {
   result: {
     kind: 'needed',
-    step: { id: 'service', title: 'Terraform 직접 적용' },
+    step: { id: 'service', title: '서비스 측 Terraform 적용' },
     done: 1,
     total: 3,
     rows: [
@@ -442,7 +442,6 @@ const NEEDED: ServiceWorkNoticeData = {
     ],
   },
   lastCheck: { status: 'SUCCESS', checkedAt: '2026-08-31T01:00:00Z' },
-  onReload: vi.fn(),
 };
 
 const NOTICE = '설치 작업 전에 서비스 측 대응이 먼저 필요합니다';

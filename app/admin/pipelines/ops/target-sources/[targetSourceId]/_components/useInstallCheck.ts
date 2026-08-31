@@ -19,7 +19,7 @@
  * `AwsInstallStatusDetail` keys it, so a step id means the same cell on both screens.
  *
  * 폴링은 없다. 이 탭은 설치를 지켜보는 화면이 아니라 실행 전에 한 번 확인하는 화면이라,
- * 다시 읽는 것은 `reload`(다시 확인)와 작업 변화(onRunsChanged)뿐이다 — 서비스 화면
+ * 다시 읽는 것은 작업 변화(onRunsChanged)뿐이다 — 서비스 화면
  * Step 4 의 30초 폴은 설치가 도는 동안 그 카드를 보고 있는 사람의 것이다.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -105,7 +105,7 @@ export function useInstallCheck(
   const fetcher = step ? FETCHERS[provider] : undefined;
 
   // Latest-request-wins, the pattern PipelineTab's own `load()` uses: a response for a
-  // previous target source (or a superseded 다시 확인) must not commit over the current one.
+  // previous target source (or a superseded reload) must not commit over the current one.
   const seqRef = useRef(0);
   const load = useCallback(async (): Promise<void> => {
     const seq = ++seqRef.current;
