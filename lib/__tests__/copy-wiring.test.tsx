@@ -46,7 +46,7 @@ interface Surface {
 
 const SURFACES: Record<string, Surface> = {
   TopNav: {
-    ui: <TopNav user={null} />,
+    ui: <TopNav user={null} consoleUrls={{}} />,
     ko: '서비스 목록',
     en: 'Services',
   },

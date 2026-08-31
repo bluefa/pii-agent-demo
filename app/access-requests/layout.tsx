@@ -1,5 +1,6 @@
 import { TopNav } from '@/app/components/layout/TopNav';
 import { getMeOrNull } from '@/lib/bff/current-user';
+import { consoleUrls } from '@/lib/env';
 import { PlToastProvider } from '@/app/admin/pipelines/_components/PlToastProvider';
 
 /**
@@ -46,7 +47,7 @@ const CONTENT = 'mx-auto w-full max-w-[960px] px-8 pt-6 pb-12';
 export default async function AccessRequestsLayout({ children }: { children: React.ReactNode }) {
   return (
     <>
-      <TopNav user={await getMeOrNull()} />
+      <TopNav user={await getMeOrNull()} consoleUrls={consoleUrls()} />
       <main className={CONTENT}>
         <PlToastProvider>{children}</PlToastProvider>
       </main>
