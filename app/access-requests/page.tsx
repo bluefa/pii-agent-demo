@@ -124,10 +124,14 @@ const serviceColumns = (t: AccessCopy): readonly Column[] => [
 ];
 
 /**
- * 그 표의 로딩 자리. 꼬리 칸의 막대는 버튼 그룹의 실제 크기(140×32)라 **요청 탭에만**
- * 그린다 — 접근 가능 탭의 행은 그 칸이 비어 있어서, 늘 그리면 첫 그림에 다섯 줄 끝마다
- * 회색 버튼이 섰다가 사라지고 행이 52 → 40 으로 내려앉는다. 진입 탭이라 매 방문 처음
- * 보는 화면이다. 스켈레톤은 도착할 행의 모양이지 표의 모양이 아니다.
+ * 그 표의 로딩 자리. 꼬리 칸의 막대는 **요청 탭에만** 그린다 — 접근 가능 탭의 행은 그 칸이
+ * 비어 있어서, 늘 그리면 첫 그림에 다섯 줄 끝마다 회색 버튼이 섰다가 사라지고 행이
+ * 52 → 40 으로 내려앉는다. 진입 탭이라 매 방문 처음 보는 화면이다. 스켈레톤은 도착할
+ * 행의 모양이지 표의 모양이 아니다.
+ *
+ * 막대는 꼬리 트랙을 통째로 차지한다(`w-full`) — 폭은 토큰이 정하고, 높이만 버튼 그룹에
+ * 맞춘 32px 로 남긴다. 폭을 손으로 박아 두면 토큰이 넓어질 때 그 숫자만 옛 값에 남고,
+ * 애초에 두 로케일에 다 맞는 숫자도 없다(한국어 그룹 ~140px, 영어 191px).
  */
 const serviceSkeleton = (withAction: boolean, loadingLabel: string): ReactElement => (
   <div role="rowgroup" aria-busy="true" aria-label={loadingLabel} className={a.tableBody}>
@@ -136,7 +140,7 @@ const serviceSkeleton = (withAction: boolean, loadingLabel: string): ReactElemen
         <span role="cell" className={cn(a.code, a.skeletonBar)} />
         <span role="cell" className={cn(a.name, a.skeletonBar)} />
         <span role="cell" className={a.svcActionCell}>
-          {withAction && <span className={cn(a.skeletonBar, 'h-8 w-[140px]')} />}
+          {withAction && <span className={cn(a.skeletonBar, 'h-8 w-full')} />}
         </span>
       </div>
     ))}
