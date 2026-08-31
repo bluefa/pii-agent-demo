@@ -581,8 +581,23 @@ export const tableRowLift = {
 export const composerMark = { node: 'var(--pl-pv-gcp)', link: '#669DF6' } as const;
 
 export const cardStyles = {
-  /** v15 Toss card — radius 20 + 2-layer toss-shadow-sm. */
-  base: 'bg-white rounded-[20px] shadow-[0_1px_2px_rgba(17,24,39,0.04),0_4px_16px_-8px_rgba(17,24,39,0.06)]',
+  /**
+   * v15 Toss card — radius 20 + 2-layer toss-shadow-sm + a 1px outline.
+   *
+   * The outline is a `ring`, not a `border`, because `bodyBleed` exists: a border eats
+   * the border-box, so the bled child (step 4's left rail) would stop at 1px inside the
+   * card's corner and read as a plane floating on the card instead of the card's own
+   * column. A ring is painted OUTSIDE the padding box, so bled children stay flush.
+   *
+   * Why it is there at all: the card's edge used to be the white fill against the
+   * `--pl-bg-canvas` ground alone, which measures 1.095:1 (ΔE00 4.12), and the two
+   * shadow layers are 4%/6% alpha — on a bright display the whole outline disappears.
+   * `#D6DBE6` (`borderColors.card`) reads 1.27:1 on the canvas and 1.39:1 on the card.
+   *
+   * ⛔ 1px, and the colour is the lever. Widening to 2px does not make a 1.27:1 line
+   * visible — it makes it a table rule. If it still reads faint, darken the hex.
+   */
+  base: 'bg-white rounded-[20px] ring-1 ring-[#D6DBE6] shadow-[0_1px_2px_rgba(17,24,39,0.04),0_4px_16px_-8px_rgba(17,24,39,0.06)]',
   padding: {
     none: '',
     sm: 'p-4',
