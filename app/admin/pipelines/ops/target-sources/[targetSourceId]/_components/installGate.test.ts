@@ -1,224 +1,145 @@
 import { describe, expect, it } from 'vitest';
 import {
-  installGate,
-  openRequiredSteps,
-  requiredProgress,
-  type InstallGateInput,
+  serviceWorkGate,
+  serviceWorkStep,
+  type ServiceWorkInput,
 } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/installGate';
 import type {
   InstallDetailResource,
   InstallStepValue,
 } from '@/app/components/features/process-status/install-status-detail/model';
 
+/** 한 리소스 — 관심 있는 단계의 셀만 든다(다른 셀은 이 판정에 들어가지 않는다). */
 const resource = (
-  id: string,
+  resourceId: string,
   cells: Record<string, InstallStepValue>,
 ): InstallDetailResource => ({
-  resourceId: id,
-  resourceName: id,
+  resourceId,
+  resourceName: resourceId,
   rollup: { status: 'IN_PROGRESS', guide: null },
   cells: Object.fromEntries(
     Object.entries(cells).map(([key, status]) => [key, { status, guide: null }]),
   ),
 });
 
-const input = (
-  provider: InstallGateInput['provider'],
-  resources: InstallDetailResource[],
-  overrides: Partial<NonNullable<InstallGateInput['detail']>> = {},
-): InstallGateInput => ({
-  provider,
-  manualInstall: false,
-  detail: {
-    lastCheck: { status: 'SUCCESS', checkedAt: '2026-08-31T01:00:00Z' },
-    unavailable: false,
-    resources,
-    ...overrides,
-  },
-});
+const AWS_STEP = { id: 'service', title: 'Terraform 직접 적용' };
+const GCP_STEP = { id: 'subnet', title: 'PSC용 Subnet 생성' };
 
-const azureResource = (cells: Partial<Record<'pe' | 'vmSubnet' | 'vmApply' | 'bdc', InstallStepValue>>) =>
-  resource('vm-1', {
-    pe: cells.pe ?? 'COMPLETED',
-    vmSubnet: cells.vmSubnet ?? 'COMPLETED',
-    vmApply: cells.vmApply ?? 'COMPLETED',
-    bdc: cells.bdc ?? 'COMPLETED',
+const gate = (
+  step: { id: string; title: string },
+  resources: readonly InstallDetailResource[],
+): ReturnType<typeof serviceWorkGate> =>
+  serviceWorkGate({
+    step,
+    detail: {
+      lastCheck: { status: 'SUCCESS', checkedAt: '2026-08-31T01:00:00Z' },
+      unavailable: false,
+      resources,
+    },
   });
 
-describe('installGate — Azure는 VM 두 단계만 제약이다', () => {
-  it('PE 승인이 남아 있어도 VM 단계가 정착했으면 완료다', () => {
-    const result = installGate(input('azure', [azureResource({ pe: 'IN_PROGRESS' })]));
-    expect(result.kind).toBe('complete');
+describe('serviceWorkStep — 서비스가 손댈 단계가 있는 대상만', () => {
+  it('AWS 수동 설치와 GCP 만 단계를 가진다', () => {
+    expect(serviceWorkStep('aws', true)).toEqual(AWS_STEP);
+    expect(serviceWorkStep('gcp', false)).toEqual(GCP_STEP);
+    // GCP 는 설치 모드와 무관하다 — Subnet 은 언제나 서비스가 만든다.
+    expect(serviceWorkStep('gcp', true)).toEqual(GCP_STEP);
   });
 
-  it('BDC측 Terraform 이 진행 중이어도 완료다 — 제약이 아니다', () => {
-    const result = installGate(input('azure', [azureResource({ bdc: 'IN_PROGRESS' })]));
-    expect(result.kind).toBe('complete');
-  });
-
-  it('VM Subnet 이 진행 중이면 미완료다', () => {
-    const result = installGate(input('azure', [azureResource({ vmSubnet: 'IN_PROGRESS' })]));
-    expect(result.kind).toBe('incomplete');
-    expect(openRequiredSteps(result).map((step) => step.id)).toEqual(['vmSubnet']);
-  });
-
-  it('VM Terraform 적용이 실패면 미완료이고, 그 단계의 worst 가 FAIL 이다', () => {
-    const result = installGate(input('azure', [azureResource({ vmApply: 'FAIL' })]));
-    expect(result.kind).toBe('incomplete');
-    expect(result.steps.find((step) => step.id === 'vmApply')?.worst).toBe('FAIL');
-  });
-
-  it('VM 이 아닌 리소스의 SKIP 은 정착이다 — 해당 없음이 진행을 막지 않는다', () => {
-    const result = installGate(
-      input('azure', [azureResource({ vmSubnet: 'SKIP', vmApply: 'SKIP' })]),
-    );
-    expect(result.kind).toBe('complete');
-    expect(result.steps.find((step) => step.id === 'vmSubnet')?.na).toBe(true);
+  it('AWS 자동 설치·Azure·IDC·SDU 는 null — 조회조차 하지 않는다', () => {
+    // 자동 설치는 BDC 가 스크립트를 적용한다: 서비스가 기다릴 단계가 없다.
+    expect(serviceWorkStep('aws', false)).toBeNull();
+    expect(serviceWorkStep('azure', true)).toBeNull();
+    expect(serviceWorkStep('idc', true)).toBeNull();
+    expect(serviceWorkStep('sdu', true)).toBeNull();
   });
 });
 
-describe('installGate — GCP는 제약이 없다', () => {
-  it('Subnet 생성이 실패해도 경고하지 않는다 — 다만 완료라 부르지도 않는다', () => {
-    const result = installGate(
-      input('gcp', [resource('sql-1', { subnet: 'FAIL', service: 'FAIL', bdc: 'IN_PROGRESS' })]),
-    );
-    expect(result.kind).toBe('unconstrained');
-    expect(openRequiredSteps(result)).toEqual([]);
-    // 판정이 무엇이든 단계의 사실은 그대로 선다.
-    expect(result.steps.find((step) => step.id === 'subnet')?.worst).toBe('FAIL');
+describe('serviceWorkGate — 그 한 단계의 판정과 행', () => {
+  it('AWS 수동 설치에 안 끝난 리소스가 있으면 needed 이고, 그 리소스가 맨 위다', () => {
+    const result = gate(AWS_STEP, [
+      resource('rds-done', { service: 'COMPLETED' }),
+      resource('rds-fail', { service: 'FAIL' }),
+      resource('rds-run', { service: 'IN_PROGRESS' }),
+    ]);
+
+    expect(result.kind).toBe('needed');
+    expect(result.done).toBe(1);
+    expect(result.total).toBe(3);
+    // 안 끝난 둘이 먼저, 같은 무리 안에서는 들어온 순서 그대로(안정 정렬).
+    expect(result.rows.map((row) => row.resourceId)).toEqual(['rds-fail', 'rds-run', 'rds-done']);
+    expect(result.rows[0].status).toBe('FAIL');
   });
 
-  it('단계가 전부 끝나 있어도 complete 가 아니다 — 여기서 끝났다고 말할 것이 없다', () => {
-    const result = installGate(
-      input('gcp', [
-        resource('sql-1', { subnet: 'COMPLETED', service: 'COMPLETED', bdc: 'COMPLETED' }),
-      ]),
-    );
-    expect(result.kind).toBe('unconstrained');
+  it('GCP Subnet 이 전부 정착했으면 done — 경고할 것이 없다', () => {
+    const result = gate(GCP_STEP, [
+      resource('vm-1', { subnet: 'COMPLETED' }),
+      // SKIP 은 해당 없음이라 정착으로 센다 — 기다릴 사람이 없다.
+      resource('vm-2', { subnet: 'SKIP' }),
+    ]);
+
+    expect(result.kind).toBe('done');
+    expect(result.done).toBe(2);
+    expect(result.total).toBe(2);
   });
 
-  it('셀 필수 단계가 없으므로 진척은 0/0 이다 — 화면은 이 수를 그리지 않는다', () => {
-    const result = installGate(
-      input('gcp', [resource('sql-1', { subnet: 'COMPLETED', service: 'COMPLETED', bdc: 'FAIL' })]),
-    );
-    expect(requiredProgress(result)).toEqual({ done: 0, total: 0 });
-  });
-});
+  it('판정은 제 셀만 읽는다 — 다른 단계의 실패를 물려받지 않는다', () => {
+    const result = gate(AWS_STEP, [
+      resource('rds-1', { service: 'COMPLETED', bdcService: 'FAIL', bdcCommon: 'FAIL' }),
+    ]);
 
-describe('installGate — AWS는 세 단계 모두 제약이다', () => {
-  it('서비스 측 Terraform 이 진행 중이면 미완료다', () => {
-    const result = installGate(
-      input('aws', [
-        resource('rds-1', {
-          service: 'IN_PROGRESS',
-          bdcCommon: 'COMPLETED',
-          bdcService: 'COMPLETED',
-        }),
-      ]),
-    );
-    expect(result.kind).toBe('incomplete');
-    expect(openRequiredSteps(result).map((step) => step.id)).toEqual(['service']);
+    expect(result.kind).toBe('done');
+    expect(result.rows).toHaveLength(1);
   });
 
-  it('BDC 설치 대기도 정착이 아니다', () => {
-    const result = installGate(
-      input('aws', [
-        resource('rds-1', {
-          service: 'COMPLETED',
-          bdcCommon: 'COMPLETED',
-          bdcService: 'BDC_INSTALL_REQUIRED',
-        }),
-      ]),
-    );
-    expect(result.kind).toBe('incomplete');
-    expect(result.steps.find((step) => step.id === 'bdcService')?.worst).toBe(
-      'BDC_INSTALL_REQUIRED',
-    );
-  });
+  it.each<[string, ServiceWorkInput]>([
+    ['조회 자체가 실패했다', { step: AWS_STEP, detail: null }],
+    [
+      'last_check 가 FAILED 다',
+      {
+        step: AWS_STEP,
+        detail: {
+          lastCheck: { status: 'FAILED', failReason: 'assume role denied' },
+          unavailable: false,
+          resources: [resource('rds-1', { service: 'FAIL' })],
+        },
+      },
+    ],
+    [
+      'installation_status_unavailable 이다',
+      {
+        step: AWS_STEP,
+        detail: {
+          lastCheck: { status: 'SUCCESS' },
+          unavailable: true,
+          resources: [resource('rds-1', { service: 'FAIL' })],
+        },
+      },
+    ],
+    [
+      '리소스가 0건이다',
+      {
+        step: AWS_STEP,
+        detail: { lastCheck: { status: 'SUCCESS' }, unavailable: false, resources: [] },
+      },
+    ],
+    [
+      '이 단계의 셀을 가진 리소스가 하나도 없다',
+      {
+        step: AWS_STEP,
+        detail: {
+          lastCheck: { status: 'SUCCESS' },
+          unavailable: false,
+          resources: [resource('rds-1', { bdcCommon: 'FAIL' })],
+        },
+      },
+    ],
+  ])('%s 면 unknown 이고, 절대 needed 가 아니다', (_name, input) => {
+    const result = serviceWorkGate(input);
 
-  it('한 리소스만 남아도 미완료다 — 집계는 worst-wins 다', () => {
-    const done = { service: 'COMPLETED', bdcCommon: 'COMPLETED', bdcService: 'COMPLETED' } as const;
-    const result = installGate(
-      input('aws', [
-        resource('rds-1', done),
-        resource('rds-2', { ...done, service: 'FAIL' }),
-        resource('rds-3', done),
-      ]),
-    );
-    expect(result.kind).toBe('incomplete');
-    const service = result.steps.find((step) => step.id === 'service');
-    expect(service?.worst).toBe('FAIL');
-    expect(service).toMatchObject({ done: 2, total: 3 });
-  });
-
-  it('전부 완료면 complete 이고 남은 단계가 없다', () => {
-    const result = installGate(
-      input('aws', [
-        resource('rds-1', {
-          service: 'COMPLETED',
-          bdcCommon: 'COMPLETED',
-          bdcService: 'SKIP',
-        }),
-      ]),
-    );
-    expect(result.kind).toBe('complete');
-    expect(openRequiredSteps(result)).toEqual([]);
-    expect(requiredProgress(result)).toEqual({ done: 3, total: 3 });
-  });
-
-  it('수동 설치는 서비스 측 단계의 이름이 다르다', () => {
-    const resources = [
-      resource('rds-1', { service: 'COMPLETED', bdcCommon: 'COMPLETED', bdcService: 'COMPLETED' }),
-    ];
-    const auto = installGate(input('aws', resources));
-    const manual = installGate({ ...input('aws', resources), manualInstall: true });
-    expect(auto.steps[0].title).toBe('서비스 측 Terraform 자동 적용');
-    expect(manual.steps[0].title).toBe('Terraform 직접 적용');
-  });
-});
-
-describe('installGate — IDC는 세 단계 모두 제약이다 (오너 지시 없음, 가정)', () => {
-  it('접근 허용 확인이 남으면 미완료다', () => {
-    const result = installGate(
-      input('idc', [resource('nlb-1', { cx: 'COMPLETED', bdp: 'COMPLETED', firewall: 'UNKNOWN' })]),
-    );
-    expect(result.kind).toBe('incomplete');
-    expect(openRequiredSteps(result).map((step) => step.id)).toEqual(['firewall']);
-  });
-});
-
-describe('installGate — 확인할 수 없는 것은 경고하지 않는다', () => {
-  it('조회 결과가 없으면 unknown 이다', () => {
-    const result = installGate({ provider: 'aws', manualInstall: false, detail: null });
+    // 못 읽은 것은 「안 끝났다」도 「끝났다」도 아니다 — 그래서 경고하지 않는다.
     expect(result.kind).toBe('unknown');
-    expect(openRequiredSteps(result)).toEqual([]);
-    // 단계 골격은 남는다 — 무엇을 확인하지 못했는지는 말할 수 있다.
-    expect(result.steps).toHaveLength(3);
-    expect(result.steps.every((step) => step.worst === 'UNKNOWN')).toBe(true);
-  });
-
-  it('installation_status_unavailable 이면 unknown 이다', () => {
-    const result = installGate(
-      input('aws', [resource('rds-1', { service: 'FAIL', bdcCommon: 'FAIL', bdcService: 'FAIL' })], {
-        unavailable: true,
-      }),
-    );
-    expect(result.kind).toBe('unknown');
-  });
-
-  it('last_check 가 FAILED 면 unknown 이다', () => {
-    const result = installGate(
-      input(
-        'azure',
-        [azureResource({ vmSubnet: 'IN_PROGRESS' })],
-        { lastCheck: { status: 'FAILED', failReason: 'TIMEOUT' } },
-      ),
-    );
-    expect(result.kind).toBe('unknown');
-  });
-
-  it('리소스가 하나도 없으면 unknown 이다 — 빈 집합의 「전부 완료」는 사실이 아니다', () => {
-    const result = installGate(input('aws', []));
-    expect(result.kind).toBe('unknown');
+    expect(result.rows).toEqual([]);
+    expect(result.total).toBe(0);
   });
 });

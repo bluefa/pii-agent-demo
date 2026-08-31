@@ -40,6 +40,10 @@ import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
 import { detailStyles } from '@/app/admin/pipelines/_detail/detailStyles';
 import { opsStyles } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/opsStyles';
 import type { GateAction, GateStage } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/gateStage';
+import {
+  ServiceWorkNotice,
+  type ServiceWorkNoticeData,
+} from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/ServiceWorkNotice';
 import type { OpsTargetTabLabel } from '@/lib/routes';
 import {
   canCancel,
@@ -96,6 +100,12 @@ export interface CurrentPipelineCardProps {
   onStartNew: () => void;
   /** Disables the terminal CTAs and states why. */
   blockedReason?: string | null;
+  /**
+   * 서비스 측 작업 조회 결과. 설치 작업을 시작하기 전에 서비스가 끝내야 할 단계가 남았다면
+   * 그 사실이 시작 동작 바로 위에 한 상자로 선다 — 잠그지는 않는다(주의이지 게이트가 아니다).
+   * 실행 중인 카드는 받아도 그리지 않는다: 그 국면의 동작은 `작업 중단` 이지 시작이 아니다.
+   */
+  serviceWork?: ServiceWorkNoticeData | null;
   /** Opens one task's 상세·로그 modal. Omit to leave the flow non-interactive. */
   onOpenTask?: (task: TaskSummary) => void;
 }
@@ -110,6 +120,7 @@ export function CurrentPipelineCard({
   onRestart,
   onStartNew,
   blockedReason = null,
+  serviceWork = null,
   onOpenTask,
 }: CurrentPipelineCardProps): ReactElement {
   const live = isLivePipeline(detail.status);
@@ -161,6 +172,9 @@ export function CurrentPipelineCard({
           pt-4, not pt-5: the head above lost its caption line, and the tag wants
           the run name closer to it than a section heading did. */}
       <div className="px-6 pt-4 pb-1">
+        {/* 시작 동작을 가진 국면에서만, 그 동작을 가진 행 바로 위에. 실행 중인 카드의 CTA 는
+            `작업 중단` 이라 이 문장이 말을 걸 상대가 없다. */}
+        {!live && <ServiceWorkNotice data={serviceWork} className="mb-4" />}
         <div className="flex flex-wrap items-start gap-x-4 gap-y-2">
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
@@ -313,6 +327,9 @@ export interface EmptyPipelineCardProps {
    * one move that opens it (see ops `gateStage`). Null = the run can start.
    */
   gate?: GateStage | null;
+  /** 서비스 측 작업 경고 — `작업 시작` 바로 위. 게이트 문장과 함께 설 때는 그 아래에 쌓인다:
+   *  게이트는 이 버튼이 왜 안 눌리는지를 말하고, 이것은 눌러도 될지를 말한다. */
+  serviceWork?: ServiceWorkNoticeData | null;
   /** Performs the gate's tab jump, when its action is one. */
   onSelectTab: (tab: OpsTargetTabLabel) => void;
 }
@@ -390,6 +407,7 @@ export function EmptyPipelineCard({
   sectionTitle,
   onStart,
   gate = null,
+  serviceWork = null,
   onSelectTab,
 }: EmptyPipelineCardProps): ReactElement {
   return (
@@ -408,6 +426,8 @@ export function EmptyPipelineCard({
                 <GateSentence sentence={gate.sentence} />
               </div>
             </div>
+            {/* 게이트 문장은 제자리를 지킨다 — 이 상자는 그 아래, 버튼 바로 위에 쌓인다. */}
+            <ServiceWorkNotice data={serviceWork} />
             {/* The same control the open card offers, in its other condition —
                 same variant, same glyph, same words — so the two states read as
                 one button rather than two designs. The gate's move keeps its own
@@ -433,6 +453,9 @@ export function EmptyPipelineCard({
             <p className="mt-2 max-w-[468px] text-[14px] leading-[1.6] text-[var(--pl-text-weak)]">
               작업을 시작하면 Terraform이 실행되어 실제 인프라가 생성되거나 삭제됩니다.
             </p>
+            {/* 가운데 정렬된 빈 상태 안에서도 상자는 글 상자다 — 폭을 위 문단에 맞추고
+                본문은 왼쪽으로 읽힌다. */}
+            <ServiceWorkNotice data={serviceWork} className="mt-5 w-full max-w-[468px]" />
             <PlButton variant="primary" className="mt-5" onClick={onStart}>
               <Icon name="play" size="sm" />
               작업 시작

@@ -44,10 +44,6 @@ import { TcRunHistoryModal } from '@/app/admin/pipelines/ops/target-sources/[tar
 import { ConfirmedInfoCard } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/ConfirmedInfoCard';
 import { TcHistoryModal } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/TcHistoryModal';
 import { TcCredentialModal } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/TcCredentialModal';
-import { InstallCheckNotice } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/InstallCheckNotice';
-import { ConfirmStepModal } from '@/app/components/ui/ConfirmStepModal';
-import { useInstallCheck } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/useInstallCheck';
-import { openRequiredSteps } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/installGate';
 import {
   bandBuckets,
   bandUnitIds,
@@ -74,12 +70,6 @@ export interface TcTabProps {
   latestFailed: boolean;
   /** Reload the page-level TC fetch (status + latest + results). */
   onStatusReload: () => void;
-  /** 이미 정규화된 provider 키 (`pipelineProviderKey`) — 설치 확인이 어느 계약을 부를지 고른다. */
-  provider: string;
-  /** AWS 수동 설치 — 설치 확인의 서비스 측 단계 이름이 이 값으로 갈린다. */
-  manualInstall: boolean;
-  /** 인프라 작업 탭으로 — 설치의 전모는 그 탭의 `설치 확인` 카드가 든다. */
-  onOpenInfraTab: () => void;
 }
 
 export function TcTab({
@@ -90,9 +80,6 @@ export function TcTab({
   statusLoaded,
   latestFailed,
   onStatusReload,
-  provider,
-  manualInstall,
-  onOpenInfraTab,
 }: TcTabProps): ReactElement {
   const toast = usePlToast();
   const [reloadKey, setReloadKey] = useState(0);
@@ -185,13 +172,6 @@ export function TcTab({
   // 그것을 되돌릴 컨트롤(경고 줄의 토글)도 같이 사라진 뒤다. 사라질 때 같이 푼다.
   if (credMissingOnly && credentialMissing === 0) setCredMissingOnly(false);
 
-  // 탭은 서로 독립이라 이 조회는 이 탭의 것이다 — 한 번에 한 탭만 마운트되므로(OpsTargetView)
-  // 인프라 작업 탭의 같은 조회와 동시에 도는 일은 없다.
-  const install = useInstallCheck(targetSourceId, provider, manualInstall);
-  // 설치가 덜 끝난 채로 실행하려 할 때 한 번 되묻는 창. 잠그지는 않는다 — 그 리소스만
-  // 실패할 뿐, 나머지를 확인하려는 실행은 정당하다.
-  const [confirmOpen, setConfirmOpen] = useState(false);
-
   const [triggering, setTriggering] = useState(false);
   const [triggerFailed, setTriggerFailed] = useState(false);
   // The server owns eligibility (409 while running / 4xx before install), so this
@@ -215,20 +195,6 @@ export function TcTab({
     }
   }, [targetSourceId, credentialMissing, onStatusReload, toast]);
 
-  // 판정이 미완료일 때만 되묻는다. 확인할 수 없는 상태는 창을 띄우지 않는다 — 우리가
-  // 확인하지 못한 것을 근거로 운영자에게 결정을 요구할 수는 없다.
-  const requestRun = useCallback((): void => {
-    if (install.gate.kind === 'incomplete') {
-      setConfirmOpen(true);
-      return;
-    }
-    void runTest();
-  }, [install.gate.kind, runTest]);
-
-  const openSteps = openRequiredSteps(install.gate);
-  const openService = openSteps.filter((step) => step.side === 'service').length;
-  const openBdc = openSteps.filter((step) => step.side === 'bdc').length;
-
   return (
     <>
       {/* 집계는 밴드로, 사실은 표로 — 한 카드 안에서 밴드가 위, 확정 정보 표가 아래다.
@@ -246,22 +212,10 @@ export function TcTab({
         running={running}
         triggering={triggering}
         triggerFailed={triggerFailed}
-        onRunTest={requestRun}
+        onRunTest={() => void runTest()}
         onOpenRunHistory={() => setRunHistoryOpen(true)}
         onOpenDecisionHistory={() => setHistoryOpen(true)}
         onOpenCredentials={() => setCredentialsOpen(true)}
-        installNotice={
-          install.supported ? (
-            <InstallCheckNotice
-              gate={install.gate}
-              lastCheck={install.lastCheck}
-              loading={install.loading}
-              onOpenInfraTab={onOpenInfraTab}
-              onReload={install.reload}
-              className={install.gate.kind === 'incomplete' && !install.loading ? 'mt-4' : undefined}
-            />
-          ) : null
-        }
       >
         <ConfirmedInfoCard
           targetSourceId={targetSourceId}
@@ -288,23 +242,6 @@ export function TcTab({
       {historyOpen && (
         <TcHistoryModal targetSourceId={targetSourceId} onClose={() => setHistoryOpen(false)} />
       )}
-
-      <ConfirmStepModal
-        open={confirmOpen}
-        onClose={() => setConfirmOpen(false)}
-        onConfirm={() => {
-          setConfirmOpen(false);
-          void runTest();
-        }}
-        size="sm"
-        // 되돌릴 수 없는 실행이 아니라 결과가 정해진 실행이다 — 파란 CTA 가 「이대로 가는
-        // 길」로 읽히지 않도록 경고 색을 commit 버튼이 진다.
-        tone="warning"
-        title="설치가 끝나기 전에 실행할까요?"
-        description={`서비스 측 단계 ${openService}건, BDC 측 단계 ${openBdc}건이 아직 완료되지 않았습니다. 그 리소스는 이번 회차에서 연결에 실패합니다.`}
-        confirmLabel="그래도 실행"
-        cancelLabel="취소"
-      />
 
       {credentialsOpen && (
         <TcCredentialModal

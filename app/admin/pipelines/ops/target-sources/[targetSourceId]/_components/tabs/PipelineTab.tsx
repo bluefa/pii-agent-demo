@@ -27,8 +27,8 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactElement } 
 import { useModal } from '@/app/hooks/useModal';
 import { usePlToast } from '@/app/admin/pipelines/_components/usePlToast';
 import { InfraStatusHead } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/InfraStatusHead';
-import { InstallCheckCard } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/InstallCheckCard';
 import { useInstallCheck } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/useInstallCheck';
+import type { ServiceWorkNoticeData } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/ServiceWorkNotice';
 import { PreviewModal } from '@/app/admin/pipelines/_detail/PreviewModal';
 import { TargetPipelineSections } from '@/app/admin/pipelines/_detail/TargetPipelineSections';
 import { wireProvider } from '@/app/admin/pipelines/_detail/customBuilder';
@@ -128,12 +128,22 @@ export function PipelineTab({
 
   const provider = pipelineProviderKey(detail);
   const orchProvider = wireProvider(provider);
-  // 설치 확인은 terraform-status 와 **다른 출처**다 — 우리 쪽 작업 기록이 아니라 CSP 에
-  // 실제로 무엇이 서 있는지를 묻는다. 같은 탭에서 나란히 조회하되 카드는 둘로 남는다.
+  // 서비스 측 작업은 terraform-status 와 **다른 출처**다 — 우리 쪽 작업 기록이 아니라 CSP 에
+  // 실제로 무엇이 서 있는지를 묻는다(installation-status). 서비스가 손댈 단계가 있는 두
+  // 경우에만 조회하고, 그 밖의 대상에서는 요청 자체가 나가지 않는다.
   const install = useInstallCheck(
     targetSourceId,
     provider,
     detail.metadata?.grant_service_terraform_execution_permission !== true,
+  );
+  // `startGate` 와 같은 길로 내려간다 — 판정은 여기서 나고, 그것을 문장으로 만드는 일은
+  // 그 문장이 붙는 동작(작업 시작)을 가진 카드가 한다.
+  const serviceWork = useMemo<ServiceWorkNoticeData | null>(
+    () =>
+      install.gate === null
+        ? null
+        : { result: install.gate, lastCheck: install.lastCheck, onReload: install.reload },
+    [install.gate, install.lastCheck, install.reload],
   );
 
   return (
@@ -145,21 +155,12 @@ export function PipelineTab({
         processStatus={processStatus}
         onSelectTab={onSelectTab}
       />
-      {/* SDU 는 계약에 installation-status 가 없다 — 카드 자체가 서지 않는다. */}
-      {install.supported && (
-        <InstallCheckCard
-          gate={install.gate}
-          lastCheck={install.lastCheck}
-          loading={install.loading}
-          failed={install.failed}
-          onReload={install.reload}
-        />
-      )}
       <TargetPipelineSections
         targetSourceId={String(targetSourceId)}
         provider={orchProvider}
         onStart={previewModal.open}
         startGate={startGate}
+        serviceWork={serviceWork}
         onSelectTab={onSelectTab}
         onRunsChanged={() => {
           void load();

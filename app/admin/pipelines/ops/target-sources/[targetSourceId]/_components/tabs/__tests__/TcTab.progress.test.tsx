@@ -43,9 +43,6 @@ vi.mock('@/app/lib/api', () => ({
   triggerTestConnection: vi.fn(),
 }));
 
-// 설치 확인 조회는 이 테스트의 관심 밖이다 — 진짜로 부르면 jsdom 에서 네트워크로 나간다.
-vi.mock('@/app/lib/api/aws', () => ({ getAwsInstallationStatus: vi.fn().mockRejectedValue(new Error('n/a')) }));
-
 vi.mock('@/app/lib/api/task-queue-requests', () => ({
   getApprovalRequestLatest: vi.fn().mockRejectedValue(new Error('no request')),
 }));
@@ -81,9 +78,6 @@ describe('TcTab — 진행률 분모', () => {
         statusLoaded
         latestFailed={false}
         onStatusReload={vi.fn()}
-        provider="aws"
-        manualInstall={false}
-        onOpenInfraTab={vi.fn()}
       />,
     );
 

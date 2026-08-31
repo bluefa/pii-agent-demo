@@ -104,11 +104,6 @@ export interface TcLatestRunCardProps {
   onOpenDecisionHistory: () => void;
   /** Credential 목록 modal — 카드 머리의 텍스트 버튼이 연다. */
   onOpenCredentials: () => void;
-  /**
-   * 실행 전 설치 확인 — Credential 알림 바로 위, 카드 설명 아래. 국면에 따라 조용한 한 줄
-   * 이거나 경고 상자다(`InstallCheckNotice`). 판정은 TcTab 이 들고, 이 카드는 자리만 준다.
-   */
-  installNotice?: ReactNode;
   /** 확정 정보 표 — 밴드·승인 요청 줄 아래, 같은 카드 안. */
   children: ReactNode;
 }
@@ -204,7 +199,6 @@ export function TcLatestRunCard({
   onOpenRunHistory,
   onOpenDecisionHistory,
   onOpenCredentials,
-  installNotice,
   children,
 }: TcLatestRunCardProps): ReactElement {
   const b = opsStyles.tcBand;
@@ -340,10 +334,6 @@ export function TcLatestRunCard({
         <b className="font-semibold text-[var(--pl-primary)]">Credential 값을 클릭하면 배정을 수정</b>
         할 수 있습니다.
       </p>
-
-      {/* 설치 확인은 Credential 알림보다 **위**다 — 둘 다 실행의 전제지만, 설치가 없으면
-          Credential 을 맞춰도 그 리소스는 붙지 않는다. 순서가 곧 인과다. */}
-      {installNotice}
 
       {triggerFailed && (
         <p className="mt-4 rounded-lg bg-[var(--pl-err-bg)] px-3 py-2.5 text-[14px] text-[var(--pl-err-text)]">
