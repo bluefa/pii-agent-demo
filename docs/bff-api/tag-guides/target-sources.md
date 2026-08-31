@@ -2179,6 +2179,15 @@ components:
 | GET | `/install/v1/target-sources/{targetSourceId}` | `{`<br>`  "target_source_id": "long",`<br>`  "description": "string",`<br>`  "service_code": "string",`<br>`  "process_status": "IDLE / PENDING / CONFIRMING / CONFIRMED / INSTALLED / CONNECTED / COMPLETED",`<br>`  "cloud_provider": "AWS / GCP / AZURE / IDC / UNKNOWN",`<br>`  "created_at": "datetime",`<br>`  "metadata": "object"`<br>`}` | `{`<br>`  "target_source_id": "long",`<br>`  "description": "string",`<br>`  "service_code": "string",`<br>`  "process_status": "IDLE / PENDING / CONFIRMING / CONFIRMED / INSTALLED / CONNECTED / COMPLETED",`<br>`  "cloud_provider": "AWS / GCP / AZURE / IDC / UNKNOWN",`<br>`  "auto_install": "boolean",`<br>`  "created_at": "datetime",`<br>`  "division": "string",`<br>`  "business_entity": "string",`<br>`  "related_systems": ["string"],`<br>`  "managers": ["string"],`<br>`  "metadata": "object"`<br>`}` | `auto_install`, `division`, `business_entity`, `related_systems`, `managers` 추가 필요 |
 | GET | `/install/v1/target-sources/services/{serviceCode}` | `[`<br>`  {`<br>`    "target_source_id": "long",`<br>`    "description": "string",`<br>`    "service_code": "string",`<br>`    "process_status": "IDLE / PENDING / CONFIRMING / CONFIRMED / INSTALLED / CONNECTED / COMPLETED",`<br>`    "cloud_provider": "AWS / GCP / AZURE / IDC / UNKNOWN",`<br>`    "created_at": "datetime",`<br>`    "metadata": "object"`<br>`  }`<br>`]` | `[`<br>`  {`<br>`    "target_source_id": "long",`<br>`    "description": "string",`<br>`    "service_code": "string",`<br>`    "process_status": "IDLE / PENDING / CONFIRMING / CONFIRMED / INSTALLED / CONNECTED / COMPLETED",`<br>`    "cloud_provider": "AWS / GCP / AZURE / IDC / UNKNOWN",`<br>`    "auto_install": "boolean",`<br>`    "created_at": "datetime",`<br>`    "division": "string",`<br>`    "business_entity": "string",`<br>`    "related_systems": ["string"],`<br>`    "managers": ["string"],`<br>`    "metadata": "object"`<br>`  }`<br>`]` | 목록 item인 `TargetSourceDetail`에 `auto_install`, `division`, `business_entity`, `related_systems`, `managers` 추가 필요 |
 
+### 3. 계약에 없는 필드 (linked account)
+
+| Schema | 필드 | 실제 계약 |
+| --- | --- | --- |
+| `CreateTargetSourceRequest` / `RegistrationPreviewRequest` | `awsLinkedAccountId` | 배포된 `docs/swagger/install-v1.yaml` 에 없음 |
+| `RegistrationPreviewItemCommon` | `aws_linked_account_id` | 배포된 계약에 없음 |
+
+배포된 계약이 선언하는 AWS 계정 칸은 `aws_account_id` 하나뿐이며, 그 칸을 채우는 값은 리소스를 가진 **linked 계정**이다. Payer 계정은 등록 폼이 입력받되 어떤 요청에도 싣지 않는다. 위 Draft 스키마의 2키 모델은 구현되지 않았다.
+
 ## 3. API 목록
 
 | Method | Path | 설명 | 상태 |

@@ -70,8 +70,12 @@ mentions it. Count the hops before you claim a field is sent, and assert the bod
 the first returned — `creation-candidates` (35) returns a candidate, `createTargetSource` (36)
 posts that same candidate. A key the contract does not declare **cannot survive the turnaround**:
 the upstream has no reason to echo it, and the mock deletes it outright (`buildCandidateMetadata`
-in `lib/bff/mock/target-sources.ts` rebuilds `metadata` from a fixed whitelist). The value must be
-re-attached from local state right before the second post — see `attachLinkedAccount` (PR #704).
+in `lib/bff/mock/target-sources.ts` rebuilds `metadata` from a fixed whitelist). Re-attaching the
+value from local state before the second post hides the symptom and keeps the bug — the wizard did
+exactly that for `aws_linked_account_id` (PR #704). That key was invented to carry the AWS linked
+account, which is what the contract's own `aws_account_id` slot is for; the slot was being filled
+with the payer instead. The fix was to put the right value in the declared slot and delete the
+invented key.
 
 This bug shape is silent and passes review, because every test is green:
 
@@ -84,11 +88,14 @@ Rules:
 - **Count the call sites.** `grep` the wire key across the whole flow. One hit for a two-call flow
   is a bug, not a wiring.
 - **Test the persisting call.** Assert the body of the call that creates/updates, not just preview.
-- **Never rely on echo for an undeclared key.** If the contract does not declare it, assume every
-  response drops it and re-attach from the source of truth (form/domain state).
+- **An undeclared key is the wrong question.** Before working out how to make one survive, ask
+  which declared field the value belongs in. A second key for something the contract already
+  models is the bug itself.
 - **When an endpoint is swapped or renamed, diff the old request body field-by-field.** The
   original loss here came from #507 replacing `registration-preview` with `creation-candidates`:
-  `awsLinkedAccountId` had no counterpart in the new DTO and vanished with no test to notice.
+  `awsLinkedAccountId` had no counterpart in the new DTO and vanished with no test to notice. The
+  new DTO modelled one AWS account, so the question was which account it must hold — not how to
+  add a second one back.
 
 ## Checklist before any boundary change
 

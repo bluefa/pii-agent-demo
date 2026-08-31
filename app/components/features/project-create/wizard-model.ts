@@ -56,10 +56,10 @@ export const buildCandidatesInput = (state: WizardFormState): CreationCandidates
     dbTypes: [...state.dbTypes, ...(state.othersDb ? [OTHERS_DB_TYPE] : [])],
     ...(providerKey === 'aws'
       ? {
-          awsAccountId: field('payerAccount'),
-          // payer 는 결제 루트일 뿐이고 스캔 대상 리소스는 하위 계정에 있다. 폼이 두 칸을
-          // 묻는 이상 둘 다 나가야 한다 — 배선 전까지 이 값은 state 에만 남아 있었다.
-          awsLinkedAccountId: field('linkedAccount'),
+          // 계약의 계정 칸(`aws_account_id`)은 리소스가 실제로 있는 linked 계정이 채운다.
+          // payer 는 결제 루트일 뿐이라 계약의 계정 칸에 실리지 않는다 — 폼은 여전히
+          // 묻지만 와이어로는 나가지 않는다.
+          awsAccountId: field('linkedAccount'),
           // AWS only: 자동 delegates Terraform execution, 수동 keeps the script with the admin.
           isTerraformExecutionGranted: state.installMode === 'auto',
         }
@@ -70,25 +70,6 @@ export const buildCandidatesInput = (state: WizardFormState): CreationCandidates
     ...(providerKey === 'gcp' ? { gcpProjectId: field('projectId') } : {}),
     ...(description ? { description } : {}),
   };
-};
-
-/**
- * 36 (createTargetSource) 은 35 가 돌려준 candidate 를 그대로 되던진다. 그런데
- * `aws_linked_account_id` 는 아직 계약에 없는 키라 업스트림이 응답에 실어 줄 이유가
- * 없고, mock 은 `buildCandidateMetadata` 화이트리스트에서 실제로 떨군다. 되던지기 전에
- * 폼이 가진 값을 다시 붙여야 등록 요청까지 linked 계정이 살아서 간다 — 35 에만 실리고
- * 36 에서 payer 만 남는 게 지금 증상이다.
- *
- * BFF 가 이 키를 선언하고 echo 하기 시작하면 이 함수는 같은 값을 덮어쓰는 no-op 이 된다.
- */
-export const attachLinkedAccount = <T extends { metadata?: { [k: string]: unknown } | null }>(
-  candidate: T,
-  state: WizardFormState,
-): T => {
-  if (state.providerKey !== 'aws') return candidate;
-  const linked = state.fields.linkedAccount?.trim();
-  if (!linked) return candidate;
-  return { ...candidate, metadata: { ...candidate.metadata, aws_linked_account_id: linked } };
 };
 
 /**
