@@ -327,9 +327,17 @@ Four things separate it from §1–§7.
 
    The 08-28 handoff contradicts itself here: its §8 says 5, its §9 says the rail shows
    "2·3·5 비활성". **§8 is authoritative and the `5` in §9's list is the error** (owner
-   2026-08-30, "step1->4->5->7"). SDU skips 2 and 3 only. The target really does sit at
-   「연결 테스트 필요」, which is what gives 승인 조건 ② (latest TC succeeded) an act that
-   something can perform.
+   2026-08-30, "step1->4->5->7"). The target really does sit at 「연결 테스트 필요」, which
+   is what gives 승인 조건 ② (latest TC succeeded) an act that something can perform.
+
+   **That quote answers "which step does the button land on", not "which steps does SDU
+   occupy".** SDU skips **2 and 3 only**; the states it passes through are
+   **1 · 4 · 5 · 6 · 7**. 6 is reached by the connection test passing — `calculator.ts`
+   has no path from 5 to 7 (`passedAt` → 6, then `operationConfirmed` → 7), and
+   `sdu-steps.ts` maps `CONNECTION_VERIFIED` to owner step 3 explicitly. The owner screen
+   shows **four** steps because §1.1 folds 5 and 6 onto step 3: five internal states, four
+   screens. Both numbers are right; they count different scales, and anything sent to BE
+   uses the ProcessStatus one.
 
    `lib/process/calculator.ts` settles it independently: there, **6 means a connection
    test has passed** (`status.connectionTest.passedAt`), and an asserted BDC completion has
