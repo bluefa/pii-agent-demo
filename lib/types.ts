@@ -496,7 +496,6 @@ export interface CloudTargetSource extends BaseTargetSource {
   serviceName: string;
 
   awsAccountId?: string;
-  awsLinkedAccountId?: string;
   awsRegionType?: 'global' | 'china';
   isChinaRegion?: boolean;
   isTerraformExecutionGranted: boolean;
@@ -539,7 +538,6 @@ export type Project = BaseTargetSource & {
   terraformState: TerraformState;
   resources: MockResource[];
   awsAccountId?: string;
-  awsLinkedAccountId?: string;
   awsRegionType?: 'global' | 'china';
   isChinaRegion?: boolean;
   isTerraformExecutionGranted?: boolean;

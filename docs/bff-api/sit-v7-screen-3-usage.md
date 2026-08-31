@@ -161,8 +161,8 @@ React (CSR)
 |---|---|---|
 | `chipKey === 'aws'` + `awsRegion === 'china'` | `isChinaRegion: true` + `awsRegionType: 'china'` | 신구 필드 동시 전송 (한시 호환) |
 | `installMode === 'auto'` | `isTerraformExecutionGranted: true` | AWS 한정 |
-| `fields.payerAccount` | `awsAccountId` | |
-| `fields.linkedAccount` (옵셔널) | `awsLinkedAccountId` | 미입력 시 생략 — BFF가 Payer=Linked 처리 |
+| `fields.linkedAccount` | `awsAccountId` → `metadata.aws_account_id` | 계약이 선언한 AWS 계정 칸은 이 하나뿐이고, 리소스를 가진 linked 계정이 채운다 |
+| `fields.payerAccount` | (없음) | 폼이 묻고 검증도 하지만 어떤 요청에도 실리지 않는다 — 운영자 참고용 |
 | `chipKey === 'idc'` 또는 `'other'` | `cloudProvider: 'IDC'` + `description` | `'other'` chip은 IDC alias (스펙 enum에 Other 없음) |
 | 요청 시점의 `dbType` (preview row의 dbType과 동일) | `dbType` | 싱귤러 |
 

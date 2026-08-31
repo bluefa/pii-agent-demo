@@ -98,6 +98,13 @@ UI 작업(마크업, 토큰 적용, 라우팅)은 별도 PR로 진행하며, 이
 
 ### D. AWS Payer / Linked Account 모델링 + TF 권한 부여 플래그
 
+> **정정 (2026-08-31)**: 아래 «결정» 중 Payer/Linked 2키 모델은 배포된 계약에 반영되지 않았다.
+> `docs/swagger/install-v1.yaml` 의 `TargetSourceMetadata` / `TargetSourceCreationCandidateMetadata`
+> 는 AWS 계정 칸을 `aws_account_id` **하나만** 선언하며, linked 계정 키는 어디에도 없다. 그 한 칸을
+> 채우는 값은 리소스를 가진 **linked 계정**이고, payer 는 전송되지 않는다. 따라서 이 문서에서
+> `aws_account_id` 를 "Payer" 로 라벨한 자리(§1-2 제안 목록, §I 요청·응답 예시)와 `aws_linked_account_id`
+> 신규 필드 제안은 모두 만료된 기록으로 읽어야 한다.
+
 - **현황**: 도메인은 `awsAccountId`(단일 12자리)만 보유. 설치 모드는 `AwsInstallationMode = 'AUTO' | 'MANUAL'` enum.
 - **v7 요구**: Payer Account / Linked Account 두 값 표시 + 인프라 등록 모달에서도 두 필드 입력. AUTO/MANUAL 의미를 의미를 더 잘 드러내는 이름으로 변경.
 - **참고**: legacy 스펙(`swagger-yaml.yaml#InfrastructureInfo.provider_details`)에 `aws_payer_account` / `aws_linked_account` 필드는 정의되어 있으나 실제 사용 엔드포인트 없음 (phantom schema).

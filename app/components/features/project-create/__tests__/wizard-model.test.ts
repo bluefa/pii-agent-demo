@@ -230,16 +230,19 @@ describe('isStepComplete — step gating', () => {
    * 누가 다시 배선하면 이 테스트가 그 값을 요청 바디에서 찾아내 깨진다.
    */
   it('never lets the payer account reach the request input', () => {
-    const input = buildCandidatesInput(
-      baseState({
-        fields: {
-          payerAccount: '123456789012',
-          linkedAccount: '210987654321',
-          description: '결제 운영계',
-        },
-      }),
+    const state = baseState({
+      fields: {
+        payerAccount: '123456789012',
+        linkedAccount: '210987654321',
+        description: '결제 운영계',
+      },
+    });
+    // 두 픽스처가 같아지면 아래 어서션은 payer 배선을 더 이상 가려낼 수 없다. 조용히
+    // 무력해지는 대신 여기서 먼저 깨지도록, 값을 하드코딩하지 않고 state 에서 읽는다.
+    expect(state.fields.payerAccount).not.toBe(state.fields.linkedAccount);
+    expect(JSON.stringify(buildCandidatesInput(state))).not.toContain(
+      state.fields.payerAccount,
     );
-    expect(JSON.stringify(input)).not.toContain('123456789012');
   });
 
   it('does not send an AWS account for non-AWS providers', () => {
