@@ -505,26 +505,46 @@ export function stripTerraformAction(name: string, action: TerraformAction | nul
 }
 
 /**
- * 흐름 카드의 실행 요약 — 시작·완료 시각과 소요를 태스크 타임스탬프에서 유도한다
- * (design-benchmark 2026-08-14 시안 F). 판정은 담지 않는다: 카드 테두리와 코너
- * 배지가 이미 상태를 말하고 있어 '완료/실행 중'을 글자로 되풀이하지 않는다(오너).
- * 소요는 양끝이 다 있을 때만 확정된다 — 진행 중인 태스크의 경과는 실행 밴드가
- * 라이브로 담당하므로 카드에 두 번째 시계를 두지 않는다. 시각은 fmtDateTime이
- * 그대로 '-'를 돌려주므로 빈 갈래를 따로 두지 않는다.
+ * 흐름 카드의 실행 요약 — 시작·완료 시각과 경과/소요를 태스크 타임스탬프에서
+ * 유도한다 (design-benchmark 2026-08-14 시안 F). 판정은 담지 않는다: 카드 테두리와
+ * 코너 배지가 이미 상태를 말하고 있어 '완료/실행 중'을 글자로 되풀이하지 않는다(오너).
+ *
+ * 끝난 태스크의 소요는 양끝에서 확정된다. 도는 태스크는 `now`를 받은 만큼만
+ * 경과를 말한다(`live: true`) — 예전에는 이 자리를 비워두고 경과를 실행 밴드에만
+ * 맡겼으나, 그 결정은 만료됐다(오너 2026-08-31: 경과가 빈 실행 중 카드는 멈춘 것으로
+ * 읽힌다). 카드는 제 타이머를 갖지 않는다: 페이지의 30초 시계를 빌려 쓰므로 `now`가
+ * 없으면 예전과 똑같이 비운다. 시각은 fmtDateTime이 그대로 '-'를 돌려주므로 빈
+ * 갈래를 따로 두지 않는다.
  */
-export function taskRunLine(task: TaskSummary): {
+export function taskRunLine(
+  task: TaskSummary,
+  now?: number | null,
+): {
   startedAt: string;
   finishedAt: string;
   elapsed: string | null;
+  /** 경과(도는 중)인가 소요(끝남)인가 — 라벨이 갈린다. */
+  live: boolean;
 } {
+  const startedMs = task.started_at ? Date.parse(task.started_at) : Number.NaN;
+  const nowMs = typeof now === 'number' ? now : Number.NaN;
+  const running =
+    task.status === 'IN_PROGRESS' && task.started_at != null && task.finished_at == null;
+  // Clamped: `now` is the BROWSER clock read against a server start, so
+  // server-ahead skew must read as 0초, not the '-' a negative span gives.
+  const liveElapsed =
+    running && Number.isFinite(nowMs) && Number.isFinite(startedMs)
+      ? fmtElapsedMs(Math.max(0, nowMs - startedMs))
+      : '-';
   const elapsed =
     task.started_at && task.finished_at
-      ? fmtElapsedMs(Date.parse(task.finished_at) - Date.parse(task.started_at))
-      : '-';
+      ? fmtElapsedMs(Date.parse(task.finished_at) - startedMs)
+      : liveElapsed;
   return {
     startedAt: fmtDateTime(task.started_at),
     finishedAt: fmtDateTime(task.finished_at),
     elapsed: elapsed === '-' ? null : elapsed,
+    live: liveElapsed !== '-',
   };
 }
 

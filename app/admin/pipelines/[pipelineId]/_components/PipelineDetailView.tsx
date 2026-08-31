@@ -662,6 +662,7 @@ export function PipelineDetailView(): ReactElement {
         tasks={detail.tasks}
         resolveName={resolveName}
         resolveMeta={resolveMeta}
+        now={now}
         selectedId={selected?.task_id ?? null}
         onOpen={(t) => setSelected((prev) => (prev?.task_id === t.task_id ? null : t))}
         panel={
