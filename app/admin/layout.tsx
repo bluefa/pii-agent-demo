@@ -1,6 +1,7 @@
 import { TopNav } from '@/app/components/layout/TopNav';
 import { LockIcon, StatusWarningIcon } from '@/app/components/ui/icons';
 import { getMe } from '@/lib/bff/current-user';
+import { consoleUrls } from '@/lib/env';
 import { isAdminRole } from '@/lib/roles';
 import { cn, textColors } from '@/lib/theme';
 
@@ -65,7 +66,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   if (!reachable) {
     return (
       <>
-        <TopNav user={null} />
+        <TopNav user={null} consoleUrls={consoleUrls()} />
         <FullPageNotice
           icon={<StatusWarningIcon className={cn('mb-4 h-12 w-12', textColors.tertiary)} />}
           title="권한을 확인하지 못했어요"
@@ -81,7 +82,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
 
   return (
     <>
-      <TopNav user={me} />
+      <TopNav user={me} consoleUrls={consoleUrls()} />
       {isAdmin ? (
         children
       ) : (

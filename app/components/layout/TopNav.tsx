@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { cn, navStyles, textColors } from '@/lib/theme';
+import type { ConsoleUrls } from '@/lib/env';
 import { passRoutes } from '@/lib/routes';
 import { BellIcon, BookIcon, GlobeIcon, QuestionCircleIcon } from '@/app/components/ui/icons';
 import { UserChip } from '@/app/components/layout/UserChip';
@@ -27,14 +28,24 @@ type NavItem = {
    * rather than remounting it.
    */
   labelKey?: 'services';
+  /** Where the item goes; for an external item this is only the fallback. */
   href: string;
+  /**
+   * Which configured console URL wins over `href`. The URL is read on the
+   * SERVER at request time (`consoleUrls()` in lib/env) and handed to this
+   * component as a prop — a `NEXT_PUBLIC_*` read here would be inlined at
+   * `next build`, so a deployment that supplies the value at runtime would
+   * render the real URL from the server and the fallback path from the client
+   * bundle: one anchor, two answers.
+   */
+  urlKey?: keyof ConsoleUrls;
   /**
    * Opens in a new tab, so the page the user is standing on is not lost.
    * These items lead to a console of their own, and that is a property of
    * the destination rather than of how its URL happens to be spelled — a
    * `href.startsWith('http')` sniff would silently drop the new tab on any
-   * deployment that has not set NEXT_PUBLIC_*_URL and so falls back to the
-   * in-app path.
+   * deployment that has not configured the console URL and so falls back to
+   * the in-app path.
    */
   external?: boolean;
   icon: React.ReactNode;
@@ -110,7 +121,8 @@ const NAV_ITEMS: NavItem[] = [
   // the server gate in app/admin/layout.tsx uses.
   {
     label: 'Credentials',
-    href: process.env.NEXT_PUBLIC_CREDENTIALS_URL ?? passRoutes.credentials,
+    href: passRoutes.credentials,
+    urlKey: 'credentials',
     external: true,
     isActive: () => false,
     icon: (
@@ -122,7 +134,8 @@ const NAV_ITEMS: NavItem[] = [
   },
   {
     label: 'PII Tag mgmt.',
-    href: process.env.NEXT_PUBLIC_PII_TAG_URL ?? passRoutes.piiTag,
+    href: passRoutes.piiTag,
+    urlKey: 'piiTag',
     external: true,
     isActive: () => false,
     icon: (
@@ -134,7 +147,8 @@ const NAV_ITEMS: NavItem[] = [
   },
   {
     label: 'PII Map',
-    href: process.env.NEXT_PUBLIC_PII_MAP_URL ?? passRoutes.piiMap,
+    href: passRoutes.piiMap,
+    urlKey: 'piiMap',
     external: true,
     isActive: () => false,
     icon: (
@@ -147,7 +161,14 @@ const NAV_ITEMS: NavItem[] = [
   },
 ];
 
-export const TopNav = ({ user }: { user: UserMeResponse | null }) => {
+export const TopNav = ({
+  user,
+  consoleUrls,
+}: {
+  user: UserMeResponse | null;
+  /** Resolved on the server per request — see `consoleUrls()` in lib/env. */
+  consoleUrls: ConsoleUrls;
+}) => {
   const pathname = usePathname() ?? '';
   const { locale, setLocale } = useLocale();
   const t = COPY[locale].nav;
@@ -234,6 +255,8 @@ export const TopNav = ({ user }: { user: UserMeResponse | null }) => {
           {NAV_ITEMS.map((item) => {
             const active = item.isActive(pathname);
             const label = item.labelKey ? t[item.labelKey] : item.label;
+            // Resolved at render from the prop, so server and client agree.
+            const href = (item.urlKey ? consoleUrls[item.urlKey] : undefined) ?? item.href;
             const baseClass = cn(
               'inline-flex h-10 items-center gap-2 px-3.5 rounded-md text-base font-medium whitespace-nowrap transition-colors',
               active ? navStyles.link.active : navStyles.link.inactive,
@@ -247,7 +270,7 @@ export const TopNav = ({ user }: { user: UserMeResponse | null }) => {
               return (
                 <a
                   key={item.label}
-                  href={item.href}
+                  href={href}
                   target="_blank"
                   rel="noreferrer"
                   className={baseClass}
@@ -261,7 +284,7 @@ export const TopNav = ({ user }: { user: UserMeResponse | null }) => {
             return (
               <Link
                 key={item.label}
-                href={item.href}
+                href={href}
                 className={baseClass}
                 aria-current={active ? 'page' : undefined}
               >

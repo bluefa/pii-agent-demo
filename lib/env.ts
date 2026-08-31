@@ -26,10 +26,30 @@ export const isMock = (): boolean => process.env.USE_MOCK_DATA === 'true';
 const envSchema = z.object({
   USE_MOCK_DATA: z.string().optional(),
   BFF_API_URL: z.string().url().optional(),
-  // External consoles the top nav links to. Unset ⇒ that nav item stays disabled.
-  NEXT_PUBLIC_CREDENTIALS_URL: z.string().url().optional(),
-  NEXT_PUBLIC_PII_TAG_URL: z.string().url().optional(),
-  NEXT_PUBLIC_PII_MAP_URL: z.string().url().optional(),
+  // External consoles the top nav links to. Unset ⇒ that nav item falls back to
+  // an in-app path (`passRoutes.credentials` etc.), which no page serves.
+  CREDENTIALS_URL: z.string().url().optional(),
+  PII_TAG_URL: z.string().url().optional(),
+  PII_MAP_URL: z.string().url().optional(),
+});
+
+/** The three external console URLs, as the top nav consumes them. */
+export type ConsoleUrls = {
+  credentials?: string;
+  piiTag?: string;
+  piiMap?: string;
+};
+
+/**
+ * Read at request time on the server and passed down as a prop — see TopNav.
+ * Deliberately not `NEXT_PUBLIC_*`: those are inlined at `next build`, so a
+ * value supplied only at runtime (container env) would reach the server render
+ * but not the client bundle, and the same anchor would resolve two ways.
+ */
+export const consoleUrls = (): ConsoleUrls => ({
+  credentials: process.env.CREDENTIALS_URL,
+  piiTag: process.env.PII_TAG_URL,
+  piiMap: process.env.PII_MAP_URL,
 });
 
 function parse(): z.infer<typeof envSchema> {

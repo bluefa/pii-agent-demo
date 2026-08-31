@@ -1,5 +1,6 @@
 import { TopNav } from '@/app/components/layout/TopNav';
 import { getMeOrNull } from '@/lib/bff/current-user';
+import { consoleUrls } from '@/lib/env';
 import { cn } from '@/lib/theme';
 
 export default async function ProjectDetailLayout({ children }: { children: React.ReactNode }) {
@@ -7,7 +8,7 @@ export default async function ProjectDetailLayout({ children }: { children: Reac
   // (--pl-bg-canvas) — the literal tripped the raw-hex policy gate.
   return (
     <div className={cn('min-h-screen', 'bg-[var(--pl-bg-canvas)]')}>
-      <TopNav user={await getMeOrNull()} />
+      <TopNav user={await getMeOrNull()} consoleUrls={consoleUrls()} />
       {children}
     </div>
   );
