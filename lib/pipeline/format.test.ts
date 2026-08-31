@@ -490,6 +490,7 @@ describe('taskRunLine — 카드 실행 요약 (시안 F)', () => {
       startedAt: '2026-08-14 19:41',
       finishedAt: '2026-08-14 19:43',
       elapsed: '2분',
+      live: false,
     });
   });
 
@@ -501,6 +502,7 @@ describe('taskRunLine — 카드 실행 요약 (시안 F)', () => {
         startedAt: '2026-08-14 19:41',
         finishedAt: '2026-08-14 19:43',
         elapsed: '2분',
+        live: false,
       });
     }
   });
@@ -510,19 +512,51 @@ describe('taskRunLine — 카드 실행 요약 (시안 F)', () => {
       startedAt: '-',
       finishedAt: '-',
       elapsed: null,
+      live: false,
     });
   });
 
-  it('진행 중이면 완료 시각과 소요가 비고 시작 시각만 찬다 — 경과 시계는 실행 밴드 몫', () => {
+  // 오너 2026-08-31 — 경과가 빈 실행 중 카드는 멈춘 것으로 읽힌다. 카드는 제 타이머를
+  // 갖지 않고 페이지의 30초 시계(`now`)를 빌리므로, 시계가 없으면 예전대로 비운다.
+  it('도는 태스크는 now를 받은 만큼 경과를 말한다', () => {
+    const started = '2026-08-14T10:41:00Z';
     expect(
-      taskRunLine(summary({ status: 'IN_PROGRESS', started_at: '2026-08-14T10:41:00Z' })),
-    ).toEqual({ startedAt: '2026-08-14 19:41', finishedAt: '-', elapsed: null });
+      taskRunLine(summary({ status: 'IN_PROGRESS', started_at: started }), Date.parse(started) + 7 * 60_000),
+    ).toEqual({ startedAt: '2026-08-14 19:41', finishedAt: '-', elapsed: '7분', live: true });
   });
 
-  it('종료 시각이 비어 온 FAILED도 같은 갈래로 떨어진다', () => {
+  it('시계가 없으면 도는 태스크도 비운다 — 카드가 제 시간을 지어내지는 않는다', () => {
+    const task = summary({ status: 'IN_PROGRESS', started_at: '2026-08-14T10:41:00Z' });
+    const blank = { startedAt: '2026-08-14 19:41', finishedAt: '-', elapsed: null, live: false };
+    expect(taskRunLine(task)).toEqual(blank);
+    expect(taskRunLine(task, null)).toEqual(blank);
+    expect(taskRunLine(task, Number.NaN)).toEqual(blank);
+  });
+
+  it('경과는 IN_PROGRESS 몫이다 — 대기 중인 태스크는 시계를 줘도 비운다', () => {
+    // READY 는 시작 시각이 붙어 있어도 도는 중이 아니다(재시도 사이의 대기).
     expect(
-      taskRunLine(summary({ status: 'FAILED', fail_count: 2, started_at: '2026-08-14T08:20:00Z' })),
-    ).toEqual({ startedAt: '2026-08-14 17:20', finishedAt: '-', elapsed: null });
+      taskRunLine(
+        summary({ status: 'READY', fail_count: 1, started_at: '2026-08-14T10:41:00Z' }),
+        Date.parse('2026-08-14T10:48:00Z'),
+      ),
+    ).toEqual({ startedAt: '2026-08-14 19:41', finishedAt: '-', elapsed: null, live: false });
+  });
+
+  it('서버가 앞선 시계는 0초로 눌린다 — 음수 경과를 -로 흘리지 않는다', () => {
+    const started = '2026-08-14T10:41:00Z';
+    expect(
+      taskRunLine(summary({ status: 'IN_PROGRESS', started_at: started }), Date.parse(started) - 5_000),
+    ).toEqual({ startedAt: '2026-08-14 19:41', finishedAt: '-', elapsed: '0초', live: true });
+  });
+
+  it('종료 시각이 비어 온 FAILED도 같은 갈래로 떨어진다 — 시계를 줘도 경과가 붙지 않는다', () => {
+    expect(
+      taskRunLine(
+        summary({ status: 'FAILED', fail_count: 2, started_at: '2026-08-14T08:20:00Z' }),
+        Date.parse('2026-08-14T08:30:00Z'),
+      ),
+    ).toEqual({ startedAt: '2026-08-14 17:20', finishedAt: '-', elapsed: null, live: false });
   });
 
   it('종료가 시작보다 이르면 소요를 지어내지 않고 비운다', () => {

@@ -103,3 +103,72 @@ describe('TerraformExec — attempt picker', () => {
     expect(html(detail([]))).toContain('아직 시도 없음');
   });
 });
+
+// The hero used to say only "실패" + a bare code. It now says what the judgment
+// counted, and — for the expiry — the limit it ran out of and where it watched.
+describe('TerraformExec — failure verdict in words', () => {
+  it('counts the LAST attempt\'s jobs under a JOB_FAILED verdict', () => {
+    const out = html(
+      detail([
+        // An older attempt with a different shape — the hero speaks for the task,
+        // so it must not be what gets counted.
+        attempt(1, { job_states: [jobState({ job_id: 'old', last_state: 'FAILED' })] }),
+        attempt(2, {
+          error_code: 'JOB_FAILED',
+          job_states: [
+            jobState({ job_id: 'j1', last_state: 'COMPLETED' }),
+            jobState({ job_id: 'j2', last_state: 'COMPLETED' }),
+            jobState({ job_id: 'j3', last_state: 'FAILED' }),
+            jobState({ job_id: 'j4', last_state: 'RUNNING' }),
+          ],
+        }),
+      ]),
+    );
+    expect(out).toContain('job 4개 중 2개 성공, 1개 실패, 1개 timeout');
+    expect(out).toContain('실패');
+    expect(out).not.toContain('시간제한');
+  });
+
+  it('names the expiry, its limit and the endpoint it polled on EXECUTION_TIMEOUT', () => {
+    const base = detail([
+      attempt(1, {
+        error_code: 'EXECUTION_TIMEOUT',
+        job_states: [
+          jobState({ job_id: 'j1', last_state: 'COMPLETED' }),
+          jobState({ job_id: 'j2', last_state: 'RUNNING' }),
+        ],
+      }),
+    ]);
+    const out = html({
+      ...base,
+      error_code: 'EXECUTION_TIMEOUT',
+      effective_execution_timeout: 'PT30M',
+      definition: {
+        name: 'AWS_SERVICE_APPLY_V1',
+        display_name: 'AWS Service Level 테라폼 Apply',
+        description: '',
+        status_api: 'GET /infra/terraform-jobs/apply/{terraformJobId}',
+        success_policy: '',
+        result_storage: '',
+      },
+    });
+    expect(out).toContain('실행 시간 만료');
+    expect(out).toContain('30분 시간제한 · job 2개 중 1개 성공, 1개 timeout');
+    expect(out).toContain('상태 확인');
+    expect(out).toContain('GET /infra/terraform-jobs/apply/{terraformJobId}');
+  });
+
+  it('omits the limit and the endpoint the contract did not give it', () => {
+    // `definition` is null when the name no longer resolves; a null timeout is the
+    // contract's own absence. Neither is guessed.
+    const out = html({
+      ...detail([attempt(1, { error_code: 'EXECUTION_TIMEOUT', job_states: [] })]),
+      error_code: 'EXECUTION_TIMEOUT',
+      effective_execution_timeout: null,
+    });
+    expect(out).toContain('실행 시간 만료');
+    expect(out).not.toContain('시간제한');
+    expect(out).not.toContain('상태 확인');
+    expect(out).not.toContain('job ');
+  });
+});

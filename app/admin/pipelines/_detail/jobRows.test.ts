@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { jobRows, jobVerdict, type JobRow } from '@/app/admin/pipelines/_detail/jobRows';
+import { jobRows, jobTally, jobTallyKo, jobVerdict, type JobRow } from '@/app/admin/pipelines/_detail/jobRows';
 import type {
   TaskAttemptView,
   TerraformJobResultSummary,
@@ -88,5 +88,54 @@ describe('jobVerdict', () => {
     expect(jobVerdict(row(null, state('COMPLETE')))).toBe('success');
     expect(jobVerdict(row(null, state('CREATED')), null)).toBe('success');
     expect(jobVerdict(row(null, state('RUNNING')), 'NETWORK_READY')).toBe('running');
+  });
+});
+
+describe('jobTally', () => {
+  const state = (job_id: string, last_state: string | null): TerraformJobStateSummary => ({
+    job_id, last_state, last_fail_reason: null, last_error: null, poll_count: 1, last_polled_at: null,
+  });
+  const result = (job_id: string, succeeded: boolean | null): TerraformJobResultSummary => ({
+    job_id, succeeded, truncated: false, has_body: true, created_at: 'x',
+  });
+
+  it('counts each verdict and keeps 성공 · 실패 · timeout in that order', () => {
+    const t = jobTally(
+      attempt({
+        job_states: [
+          state('1', 'COMPLETED'), state('2', 'COMPLETED'), state('3', 'COMPLETED'), state('4', 'COMPLETED'),
+          state('5', 'FAILED'), state('6', 'FAILED'), state('7', 'FAILED'),
+          state('8', 'RUNNING'),
+        ],
+      }),
+      'AWS_SERVICE_TF_APPLY',
+    );
+    expect(t.total).toBe(8);
+    expect(t.parts).toEqual(['4개 성공', '3개 실패', '1개 timeout']);
+    expect(jobTallyKo(attempt({ job_states: [state('1', 'COMPLETED'), state('2', 'FAILED')] })))
+      .toBe('job 2개 중 1개 성공, 1개 실패');
+  });
+
+  it('omits a bucket nobody landed in', () => {
+    const t = jobTally(
+      attempt({
+        terraform_results: [result('1', true), result('2', true)],
+        job_states: [state('1', 'COMPLETED'), state('2', 'COMPLETED'), state('3', 'RUNNING')],
+      }),
+      'AWS_SERVICE_TF_APPLY',
+    );
+    expect(t.parts).toEqual(['2개 성공', '1개 timeout']);
+  });
+
+  it('counts an unobserved job as timeout, not as a missing row', () => {
+    // No result and no state = the judgment never resolved it — the same bucket
+    // as a job still RUNNING when the execution limit expired.
+    const t = jobTally(attempt({ terraform_results: [result('9', null)] }));
+    expect(t).toEqual({ total: 1, parts: ['1개 timeout'] });
+  });
+
+  it('says nothing when the attempt ran no jobs', () => {
+    expect(jobTally(attempt({}))).toEqual({ total: 0, parts: [] });
+    expect(jobTallyKo(attempt({}))).toBeNull();
   });
 });

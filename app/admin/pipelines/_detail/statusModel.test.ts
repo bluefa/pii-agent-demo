@@ -2,9 +2,14 @@ import { describe, expect, it } from 'vitest';
 import {
   changedTaskIds,
   currentTaskInfo,
+  failedTaskMeta,
+  failStripHeadline,
   findFailedTask,
   retrySuffix,
   taskDisplayName,
+  timeoutLabel,
+  timeoutLimitLabel,
+  verdictSummary,
 } from '@/app/admin/pipelines/_detail/statusModel';
 import type { TaskDetail, TaskSummary } from '@/lib/pipeline/types';
 
@@ -124,5 +129,49 @@ describe('changedTaskIds — R23 polling diff', () => {
   it('returns [] when nothing moved', () => {
     const tasks = [mkTask({ sequence: 0, status: 'DONE' }), mkTask({ sequence: 1, status: 'READY' })];
     expect(changedTaskIds(tasks, tasks)).toEqual([]);
+  });
+});
+
+describe('EXECUTION_TIMEOUT copy', () => {
+  it('states the contract limit when the task detail carrying it is loaded', () => {
+    expect(timeoutLimitLabel('PT30M')).toBe('30분 시간제한');
+    expect(timeoutLabel('PT30M')).toBe('실행 시간 만료 (30분 시간제한)');
+    expect(timeoutLabel('PT1H30M')).toBe('실행 시간 만료 (1시간 30분 시간제한)');
+  });
+
+  it('drops the parenthetical rather than guessing an unknown limit', () => {
+    expect(timeoutLimitLabel(null)).toBeNull();
+    expect(timeoutLimitLabel(undefined)).toBeNull();
+    expect(timeoutLabel(null)).toBe('실행 시간 만료');
+    expect(timeoutLabel('nonsense')).toBe('실행 시간 만료');
+  });
+
+  it('names the expiry instead of a fail_count in the strip and the node', () => {
+    expect(failStripHeadline(1, 'EXECUTION_TIMEOUT', 'PT30M')).toBe('태스크 실행 시간 만료 (30분 시간제한)');
+    expect(failStripHeadline(1, 'EXECUTION_TIMEOUT', null)).toBe('태스크 실행 시간 만료');
+    expect(failedTaskMeta(1, 'EXECUTION_TIMEOUT', 'PT30M')).toBe('실행 시간 만료 (30분 시간제한)');
+  });
+
+  it('leaves every other code on the count sentence it earned', () => {
+    expect(failStripHeadline(3, 'JOB_FAILED', 'PT30M')).toBe('태스크가 3회 실패했습니다');
+    expect(failedTaskMeta(3, 'JOB_FAILED', 'PT30M')).toBe('3회 실패했습니다. 원인은 JOB_FAILED.');
+    expect(failedTaskMeta(1, null, 'PT30M')).toBe('1회 실패했습니다. 원인은 기록되지 않았습니다.');
+  });
+});
+
+describe('verdictSummary', () => {
+  const tally = 'job 8개 중 5개 성공, 3개 timeout';
+
+  it('puts the limit before the tally for an expiry', () => {
+    expect(verdictSummary('EXECUTION_TIMEOUT', 'PT30M', tally)).toBe(`30분 시간제한 · ${tally}`);
+    expect(verdictSummary('EXECUTION_TIMEOUT', null, tally)).toBe(tally);
+    expect(verdictSummary('EXECUTION_TIMEOUT', 'PT30M', null)).toBe('30분 시간제한');
+    expect(verdictSummary('EXECUTION_TIMEOUT', null, null)).toBeNull();
+  });
+
+  it('is the tally alone for every other code', () => {
+    expect(verdictSummary('JOB_FAILED', 'PT30M', tally)).toBe(tally);
+    // A dispatch failure observed no jobs — nothing to count, so nothing is said.
+    expect(verdictSummary('CHECK_ERROR', 'PT30M', null)).toBeNull();
   });
 });

@@ -210,6 +210,12 @@ export interface TaskFlowProps {
   /** R18 §7-3 — task_id whose inline panel is open (primary ring highlight). */
   selectedId?: number | null;
   /**
+   * The page's shared 30s clock, for the running card's 경과 readout. The card
+   * borrows it rather than owning a timer of its own, so every node on the canvas
+   * counts off the same instant. Without it a running card simply says nothing.
+   */
+  now?: number | null;
+  /**
    * R19.5 — right-docked detail panel (TaskDrawer), rendered flush at the
    * canvas edge OUTSIDE the horizontal scroll region so it can never block
    * left/right scrolling (owner mandate).
@@ -251,6 +257,7 @@ export function TaskFlow({
   resolveMeta,
   onOpen,
   selectedId,
+  now,
   panel,
   className,
 }: TaskFlowProps): ReactElement {
@@ -291,7 +298,7 @@ export function TaskFlow({
           // Verdict + timing (시안 F): the run window moves out of the 500px drawer
           // onto the card, which had room to spare — so the drawer's first block can
           // lead with the judgment instead of a timestamp.
-          const run = taskRunLine(task);
+          const run = taskRunLine(task, now);
           // Status stays a stroke/badge signal on the card (owner) — but a border color
           // is silent, so the accessible name is where the verdict gets spelled out.
           const verdict = statusKo(task.status);
@@ -351,7 +358,9 @@ export function TaskFlow({
                     <span className="nd-run-k">완료 시간</span>
                     <span className="nd-run-v">{run.finishedAt}</span>
                     {run.elapsed && (
-                      <span className="nd-run-el">소요 {elapsedDigits(run.elapsed)}</span>
+                      <span className="nd-run-el">
+                        {run.live ? '경과' : '소요'} {elapsedDigits(run.elapsed)}
+                      </span>
                     )}
                   </div>
                 </div>

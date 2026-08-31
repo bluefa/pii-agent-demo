@@ -39,10 +39,13 @@ import { improvedStyles } from '@/app/admin/pipelines/_detail/detailImprovedStyl
 import {
   changedTaskIds,
   currentTaskInfo,
+  failedTaskMeta,
+  failStripHeadline,
   findFailedTask,
   taskDisplayName,
   retrySuffix,
 } from '@/app/admin/pipelines/_detail/statusModel';
+import { jobTally } from '@/app/admin/pipelines/_detail/jobRows';
 import {
   canCancel,
   displayProvider,
@@ -281,7 +284,13 @@ export function PipelineDetailView(): ReactElement {
   const resolveMeta = useCallback(
     (t: TaskSummary): string => {
       if (t.status === 'FAILED') {
-        return `${t.fail_count}회 실패했습니다. 원인은 ${t.error_code ?? '기록되지 않았습니다'}.`;
+        // EXECUTION_TIMEOUT reads as the expiry it is, with the contract limit when
+        // the task detail carrying it is already loaded (never a fetch of its own).
+        return failedTaskMeta(
+          t.fail_count,
+          t.error_code,
+          detailMap.get(t.task_id)?.effective_execution_timeout,
+        );
       }
       if (t.fail_count > 0 && (t.status === 'IN_PROGRESS' || t.status === 'READY')) {
         const max =
@@ -293,7 +302,7 @@ export function PipelineDetailView(): ReactElement {
       }
       return descMap.get(t.task_definition) || t.description || taskMetaLine(t, null);
     },
-    [descMap, detail],
+    [descMap, detail, detailMap],
   );
 
   const retrySelectedDetail = async (): Promise<void> => {
@@ -385,6 +394,16 @@ export function PipelineDetailView(): ReactElement {
     latest.pipeline_id !== detail.pipeline_id
       ? latest.pipeline_id
       : null;
+  // The failed task's detail is already in hand — the load-time landing selects that
+  // task and the lazy effect fetches it — so the strip reads it rather than fetching.
+  const failedDetail = failedTask ? detailMap.get(failedTask.task_id) ?? null : null;
+  // A CONDITION_CHECK dispatches no terraform jobs, and a failed dispatch observed
+  // none: in both cases the strip says nothing about jobs rather than "0개".
+  const failedAttempt =
+    failedDetail?.kind === 'TERRAFORM_JOB'
+      ? failedDetail.attempts[failedDetail.attempts.length - 1] ?? null
+      : null;
+  const failTally = failedAttempt ? jobTally(failedAttempt, failedDetail?.operation) : null;
 
   return (
     <div className={improvedStyles.bleed}>
@@ -584,33 +603,42 @@ export function PipelineDetailView(): ReactElement {
         ) : null}
       </div>
 
-      {/* 실패 스트립 (시안 1 — Step Functions error-banner 문법): 원인 요약과, CTA가
-          없을 때 그 사유(최신 실행이 따로 있음)를 한 줄로. 상세 드로어는 로드 시
-          자동으로 열린다. */}
+      {/* 실패 스트립 (시안 1 — Step Functions error-banner 문법): 무엇이 실패했는지,
+          그 아래 job이 어떻게 끝났는지, CTA가 없을 때 그 사유(최신 실행이 따로 있음)를
+          한 줄에 하나씩. 상세 드로어는 로드 시 자동으로 열린다. */}
       {failedTask && (
         <div className={improvedStyles.failStrip}>
           <span aria-hidden="true">⚠</span>
-          <span>
-            <b className="font-semibold">{resolveName(failedTask)}</b> 태스크가{' '}
-            {failedTask.fail_count}회 실패했습니다
-            {failedTask.error_code && (
-              <>
-                {' · 원인 '}
-                <b className="font-semibold">{failedTask.error_code}</b>
-              </>
-            )}
-          </span>
-          {supersededBy != null && (
-            <span className={improvedStyles.failStripRight}>
-              재시작은 최신 실행에서만 가능합니다
-              <Link
-                href={passRoutes.pipelines.pipeline(supersededBy)}
-                className={improvedStyles.failStripLink}
-              >
-                #{supersededBy} 열기
-              </Link>
+          <div className={improvedStyles.failStripBody}>
+            <span>
+              <b className="font-semibold">{resolveName(failedTask)}</b>{' '}
+              {failStripHeadline(
+                failedTask.fail_count,
+                failedTask.error_code,
+                failedDetail?.effective_execution_timeout,
+              )}
+              {failedTask.error_code && (
+                <span className={improvedStyles.failStripCode}>{failedTask.error_code}</span>
+              )}
             </span>
-          )}
+            {failTally && failTally.total > 0 && (
+              <span className={improvedStyles.failStripTally}>
+                job {failTally.total}개 중{' '}
+                <b className="font-semibold">{failTally.parts.join(', ')}</b>
+              </span>
+            )}
+            {supersededBy != null && (
+              <span className={improvedStyles.failStripSuper}>
+                재시작은 최신 실행에서만 가능합니다 ·
+                <Link
+                  href={passRoutes.pipelines.pipeline(supersededBy)}
+                  className={improvedStyles.failStripLink}
+                >
+                  #{supersededBy} 열기
+                </Link>
+              </span>
+            )}
+          </div>
         </div>
       )}
 
@@ -634,6 +662,7 @@ export function PipelineDetailView(): ReactElement {
         tasks={detail.tasks}
         resolveName={resolveName}
         resolveMeta={resolveMeta}
+        now={now}
         selectedId={selected?.task_id ?? null}
         onOpen={(t) => setSelected((prev) => (prev?.task_id === t.task_id ? null : t))}
         panel={

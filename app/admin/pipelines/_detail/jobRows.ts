@@ -86,3 +86,37 @@ export function jobVerdict(row: JobRow, operation?: TaskOperation | null): JobVe
   const successStates: readonly string[] = type ? TF_SUCCESS_STATES[type] : ANY_TF_SUCCESS_STATE;
   return successStates.includes(state) ? 'success' : 'running';
 }
+
+/**
+ * The attempt's jobs counted by verdict, as the words the failure surfaces speak:
+ * `success`/`failed` are the judged buckets, and everything the judgment never
+ * resolved (`running`/`none`) is what the execution limit ran out on — `timeout`.
+ * Parts stay in this fixed order and a zero bucket is dropped, so the caller can
+ * join them or emphasise them without re-deriving the order.
+ */
+export function jobTally(
+  attempt: TaskAttemptView,
+  operation?: TaskOperation | null,
+): { total: number; parts: string[] } {
+  let success = 0;
+  let failed = 0;
+  let timeout = 0;
+  const rows = jobRows(attempt);
+  for (const row of rows) {
+    const verdict = jobVerdict(row, operation);
+    if (verdict === 'success') success += 1;
+    else if (verdict === 'failed') failed += 1;
+    else timeout += 1;
+  }
+  const parts: string[] = [];
+  if (success) parts.push(`${success}개 성공`);
+  if (failed) parts.push(`${failed}개 실패`);
+  if (timeout) parts.push(`${timeout}개 timeout`);
+  return { total: rows.length, parts };
+}
+
+/** `job 8개 중 4개 성공, 3개 실패, 1개 timeout` — null when the attempt ran no jobs. */
+export function jobTallyKo(attempt: TaskAttemptView, operation?: TaskOperation | null): string | null {
+  const { total, parts } = jobTally(attempt, operation);
+  return total === 0 ? null : `job ${total}개 중 ${parts.join(', ')}`;
+}
