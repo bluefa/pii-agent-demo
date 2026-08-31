@@ -76,7 +76,7 @@ describe('ScanTab — 건수 맵 없는 SUCCESS', () => {
   });
 
   it('직전 스캔과의 증감을 지어내지 않는다', async () => {
-    render(<ScanTab targetSourceId={1005} detail={detail} />);
+    render(<ScanTab targetSourceId={1005} detail={detail} isSdu={false} />);
     await act(async () => {});
 
     // 건수 맵이 없다는 건 "0건을 쟀다"가 아니라 "재지 않았다"이다.
@@ -86,7 +86,7 @@ describe('ScanTab — 건수 맵 없는 SUCCESS', () => {
   });
 
   it('직전 성공에만 있던 리소스 타입을 0개짜리 타일로 부활시키지 않는다', async () => {
-    render(<ScanTab targetSourceId={1005} detail={detail} />);
+    render(<ScanTab targetSourceId={1005} detail={detail} isSdu={false} />);
     await act(async () => {});
 
     // union(현재 ∪ 직전) 로 타일을 만들면 12개의 0짜리 타일이 생긴다. 그리고 맵의
@@ -97,7 +97,7 @@ describe('ScanTab — 건수 맵 없는 SUCCESS', () => {
   });
 
   it('이력 행을 열어도 건수 없는 성공을 0으로 말하지 않는다', async () => {
-    render(<ScanTab targetSourceId={1005} detail={detail} />);
+    render(<ScanTab targetSourceId={1005} detail={detail} isSdu={false} />);
     await act(async () => {});
 
     const row = screen

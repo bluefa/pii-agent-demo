@@ -12,7 +12,7 @@
  */
 import { useCallback, useEffect, useRef, useState, type ReactElement } from 'react';
 import { getScanHistory, startScan } from '@/app/lib/api/scan';
-import { isScanFinalizing, useScanPolling } from '@/app/hooks/useScanPolling';
+import { isScanSaving, useScanPolling } from '@/app/hooks/useScanPolling';
 import { useModal } from '@/app/hooks/useModal';
 import { useScanCompletionTransition } from '@/app/hooks/useScanCompletionTransition';
 import { normalizeCloudProvider } from '@/lib/types';
@@ -104,7 +104,7 @@ export function ScanTab({
   const scanning = latestJob?.scan_status === 'SCANNING';
   // SAVING is the writing tail, not an outcome — the card keeps its running
   // treatment until the job actually settles.
-  const finalizing = isScanFinalizing(latestJob);
+  const finalizing = isScanSaving(latestJob);
   const running = scanning || finalizing;
 
   // A finished scan adds a history row whatever its outcome, so reload on the

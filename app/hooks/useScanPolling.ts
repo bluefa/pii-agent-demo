@@ -43,7 +43,7 @@ export interface UseScanPollingReturn {
  * null (owner's call, 2026-08-19). The predicate exists so the surfaces that draw
  * this stage do not each spell the status out.
  */
-export const isScanFinalizing = (job: ScanJob | null): boolean =>
+export const isScanSaving = (job: ScanJob | null): boolean =>
   job?.scan_status === 'SAVING';
 
 /**
@@ -52,11 +52,11 @@ export const isScanFinalizing = (job: ScanJob | null): boolean =>
  * 리소스 응답(`CloudResourceResponse`)에는 어느 스캔에서 나온 행인지 말해 주는 칸이
  * 없다(계약에 `scan_version`·`scanned_at` 없음). 그래서 "표를 그려도 되는가"는 표가
  * 아니라 스캔 잡이 답해야 한다: 성공한 스캔이 없는 화면의 표는 무엇의 결과인지
- * 말할 수 없다. 집계 꼬리(SUCCESS인데 counts 미도착)는 `isScanFinalizing` 이 아직
- * 진행 중으로 보므로 여기서도 빠진다 — 그 구간의 조회는 빈 목록을 받는다.
+ * 말할 수 없다. 저장 구간은 아직 SUCCESS 가 아니라 SAVING 이므로 여기서 저절로
+ * 빠진다 — 건수 맵은 표시용이지 판정이 아니다(오너 확정).
  */
 export const hasScanResults = (job: ScanJob | null): boolean =>
-  job?.scan_status === 'SUCCESS' && !isScanFinalizing(job);
+  job?.scan_status === 'SUCCESS';
 // ⚠️ 이건 **최신 잡** 의 규칙이고, 상류의 보관 규칙("성공이 한 번이라도 있었나")보다 좁다.
 // FAIL·TIMEOUT 에서는 차이가 화면에 안 나온다 — selectPhase 가 그 프레임을 먼저 가져가 표는
 // 어차피 안 보인다. 남는 갈래는 CANCELED 뿐인데 우리 앱에도 목에도 스캔 취소 경로가 없다.
@@ -64,7 +64,7 @@ export const hasScanResults = (job: ScanJob | null): boolean =>
 
 /** Still working — actively scanning, or scanned and aggregating. */
 const isScanRunning = (job: ScanJob | null): boolean =>
-  job?.scan_status === 'SCANNING' || isScanFinalizing(job);
+  job?.scan_status === 'SCANNING' || isScanSaving(job);
 
 const computeUIState = (job: ScanJob | null): ScanUIState => {
   if (!job) return 'IDLE';

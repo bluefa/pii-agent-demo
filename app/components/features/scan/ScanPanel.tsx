@@ -1,6 +1,6 @@
 'use client';
 
-import { isScanFinalizing, useScanPolling } from '@/app/hooks/useScanPolling';
+import { isScanSaving, useScanPolling } from '@/app/hooks/useScanPolling';
 import { useApiAction } from '@/app/hooks/useApiMutation';
 import { useLocale } from '@/app/components/LocaleProvider';
 import { SCAN_COPY } from '@/app/components/features/scan/copy';
@@ -88,7 +88,7 @@ export const ScanController = ({ targetSourceId, onScanComplete, children }: Sca
   const state = uiStateToScanUiState(uiState);
   // 집계 대기 구간에는 scan_progress가 없다(스캔 자체는 끝났으므로) — 바는 가득 찬
   // 채로 두고 문구가 남은 일을 말한다.
-  const finalizing = isScanFinalizing(latestJob);
+  const finalizing = isScanSaving(latestJob);
   const progress = finalizing
     ? 100
     : isInProgress

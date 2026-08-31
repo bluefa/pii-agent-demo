@@ -547,13 +547,23 @@ describe('CandidateResourceSection — 스캔 게이트', () => {
     expect(getConfirmResources).not.toHaveBeenCalled();
   });
 
-  // 집계 꼬리 — SUCCESS 인데 건수 맵이 아직 없다. 화면은 이 구간을 진행 중으로 그리고
-  // (#635), 조회도 같은 판정을 따른다. 결과는 완료를 관찰한 뒤 재조회로 들어온다.
-  it('집계 중인 SUCCESS 는 아직 결과가 아니다', async () => {
-    getLatestScanJob.mockResolvedValue({ ...SUCCESS_JOB, resource_count_by_resource_type: null });
+  // 저장 꼬리는 이제 계약이 이름을 갖는다 — SAVING. 화면은 이 구간을 진행 중으로
+  // 그리고(#635), 조회도 같은 판정을 따른다. 결과는 완료를 관찰한 뒤 재조회로 들어온다.
+  it('SAVING 은 아직 결과가 아니다', async () => {
+    getLatestScanJob.mockResolvedValue({ ...SUCCESS_JOB, scan_status: 'SAVING', resource_count_by_resource_type: null });
     renderSection();
     await settle();
     expect(getConfirmResources).not.toHaveBeenCalled();
+  });
+
+  // 건수 맵의 부재는 상태가 아니다: SUCCESS 는 맵이 없어도 끝난 스캔이고(오너 확정),
+  // 그 화면의 표는 조회할 결과가 있다. 여기서 막으면 아무것도 발견하지 못한 스캔이
+  // 영영 표를 못 연다.
+  it('건수 맵이 없어도 SUCCESS 면 조회한다', async () => {
+    getLatestScanJob.mockResolvedValue({ ...SUCCESS_JOB, resource_count_by_resource_type: null });
+    renderSection();
+    await settle();
+    expect(getConfirmResources).toHaveBeenCalledTimes(1);
   });
 
   // 잡을 못 읽은 것은 "성공을 확인하지 못한" 것이다 — 확인되지 않은 성공 위에 표를
