@@ -10,6 +10,7 @@ import {
   hasVmResources,
   hasDbResources,
 } from '@/lib/mock-azure';
+import { mockAzure } from '@/lib/bff/mock/azure';
 import { getStore } from '@/lib/mock-store';
 import { Project, ProcessStatus } from '@/lib/types';
 import { createInitialProjectStatus } from '@/lib/process';
@@ -381,5 +382,97 @@ describe('mock-azure', () => {
       expect(hasVmResources(NONEXISTENT_TARGET_SOURCE_ID)).toBe(false);
       expect(hasDbResources(NONEXISTENT_TARGET_SOURCE_ID)).toBe(false);
     });
+  });
+});
+
+/**
+ * BFF wire layer (`lib/bff/mock/azure.ts`) — the VM rows.
+ *
+ * 도메인 목은 리소스를 DB(`isDbResource`)와 VM(`isVmResource`)으로 갈라 담고 두 타입
+ * 집합은 서로소다. 그래서 wire 층이 VM 상태를 DB 행에 resource_id 로 join 하던 것은
+ * 어떤 대상에서도 맞은 적이 없었고, 계약이 가진 VM 두 단계가 늘 SKIP 으로만 나갔다.
+ * 붙지 않은 VM 은 제 행으로 선다 — 이 두 테스트가 그 행과, 겹칠 때 겹치지 않음을 잡는다.
+ */
+interface WireStep {
+  status: string;
+}
+
+interface WireRow {
+  resource_id: string;
+  azure_virtual_machine_subnet_creation?: WireStep;
+  azure_virtual_machine_terraform_apply?: WireStep;
+  service_side_private_endpoint_approval?: { status: string };
+}
+
+const installationRows = async (targetSourceId: number): Promise<WireRow[]> => {
+  const response = await mockAzure.getInstallationStatus(String(targetSourceId));
+  expect(response.status).toBe(200);
+  const body = (await response.json()) as { resources: WireRow[] };
+  return body.resources;
+};
+
+describe('mockAzure.getInstallationStatus — VM 행', () => {
+  beforeEach(() => {
+    resetStore();
+  });
+
+  it('DB 목록에 없는 VM 은 제 행으로 서고, 두 단계가 subnet·LB 에서 나온다', async () => {
+    getStore().projects.push(createAzureProjectWithVm());
+
+    const rows = await installationRows(AZURE_VM_TARGET_SOURCE_ID);
+    const vms = getAzureVmInstallationStatus(AZURE_VM_TARGET_SOURCE_ID).data?.vms ?? [];
+    expect(vms.length).toBeGreaterThan(0);
+
+    for (const vm of vms) {
+      const row = rows.find((r) => r.resource_id === vm.vmId);
+      expect(row).toBeDefined();
+      // 값을 손으로 적지 않는다 — 목의 subnet/LB 가 곧 이 두 칸의 출처라는 것이 요지다.
+      expect(row?.azure_virtual_machine_subnet_creation?.status).toBe(
+        vm.subnetExists ? 'COMPLETED' : 'IN_PROGRESS',
+      );
+      expect(row?.azure_virtual_machine_terraform_apply?.status).toBe(
+        vm.loadBalancer.installed ? 'COMPLETED' : 'IN_PROGRESS',
+      );
+    }
+
+    // DB 행은 VM 이 아니므로 그 두 칸을 갖지 않는다 — 어댑터가 없는 칸을 SKIP 으로 읽는다.
+    const dbRow = rows.find((r) => r.resource_id === 'synapse-test-001');
+    expect(dbRow?.azure_virtual_machine_subnet_creation).toBeUndefined();
+  });
+
+  it('VM 이 DB 행과 같은 id 를 쓰면 행이 둘로 늘지 않는다', async () => {
+    const sharedId = 'shared-test-001';
+    getStore().projects.push(
+      createAzureProjectWithVm({
+        targetSourceId: AZURE_VM_TARGET_SOURCE_ID,
+        resources: [
+          {
+            id: 'res-db-shared',
+            type: 'AZURE_MSSQL',
+            resourceId: sharedId,
+            databaseType: 'MSSQL',
+            connectionStatus: 'PENDING',
+            isSelected: true,
+            integrationCategory: 'TARGET',
+          },
+          {
+            id: 'res-vm-shared',
+            type: 'AZURE_VM',
+            resourceId: sharedId,
+            databaseType: 'MSSQL',
+            connectionStatus: 'PENDING',
+            isSelected: true,
+            integrationCategory: 'NO_INSTALL_NEEDED',
+          },
+        ],
+      }),
+    );
+
+    const rows = await installationRows(AZURE_VM_TARGET_SOURCE_ID);
+    expect(rows.filter((r) => r.resource_id === sharedId)).toHaveLength(1);
+    // 겹치면 원래의 join 이 맞으므로, 그 한 행이 PE 와 VM 두 단계를 함께 진다.
+    const row = rows.find((r) => r.resource_id === sharedId);
+    expect(row?.service_side_private_endpoint_approval).toBeDefined();
+    expect(row?.azure_virtual_machine_subnet_creation).toBeDefined();
   });
 });

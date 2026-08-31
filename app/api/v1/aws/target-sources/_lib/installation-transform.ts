@@ -71,6 +71,7 @@ export const transformAwsInstallationStatus = (
       status: LAST_CHECK_TO_UI[lastCheckRaw?.status ?? 'IN_PROGRESS'] ?? 'IN_PROGRESS',
       ...(lastCheckRaw?.checked_at && { checkedAt: lastCheckRaw.checked_at }),
       ...(lastCheckRaw?.fail_reason && { failReason: lastCheckRaw.fail_reason }),
+      ...(lastCheckRaw?.installation_status_unavailable && { unavailable: true }),
     },
     roleVerify: {
       status: toStepValue(roleVerify?.status),

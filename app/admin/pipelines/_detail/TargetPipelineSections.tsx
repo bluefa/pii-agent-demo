@@ -35,6 +35,7 @@ import { TaskDetailModal } from '@/app/admin/pipelines/_detail/TaskDetailModal';
 import { OpsPagination } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/OpsPagination';
 import { opsStyles } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/opsStyles';
 import type { GateStage } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/gateStage';
+import type { ServiceWorkNoticeData } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/ServiceWorkNotice';
 import { passRoutes, type OpsTargetTabLabel } from '@/lib/routes';
 import {
   fmtDateTime,
@@ -78,6 +79,11 @@ export interface TargetPipelineSectionsProps {
    * that opens it. Null (the default) allows starting.
    */
   startGate?: GateStage | null;
+  /**
+   * 서비스 측 작업 조회 결과 — `startGate` 와 같은 길로, 같은 이유로 내려온다: 시작 동작에
+   * 대한 한 문장은 그 동작을 가진 카드 안에 선다. Null = 이 대상에는 서비스 측 단계가 없다.
+   */
+  serviceWork?: ServiceWorkNoticeData | null;
   /** Performs the gate's tab jump (the tab strip lives above this component). */
   onSelectTab: (tab: OpsTargetTabLabel) => void;
   /** Fired when a run reaches a terminal state, so the caller can refetch
@@ -92,6 +98,7 @@ export function TargetPipelineSections({
   provider,
   onStart,
   startGate = null,
+  serviceWork = null,
   onSelectTab,
   onRunsChanged,
   refreshKey = 0,
@@ -251,6 +258,7 @@ export function TargetPipelineSections({
               onRestart={() => restartModal.open()}
               onStartNew={onStart}
               blockedReason={startGate ? RESTART_BLOCKED_REASON : null}
+              serviceWork={serviceWork}
               onOpenTask={setOpenTask}
             />
           ) : !latestLoaded || focusId != null ? (
@@ -260,6 +268,7 @@ export function TargetPipelineSections({
               sectionTitle="현재 작업"
               onStart={onStart}
               gate={startGate}
+              serviceWork={serviceWork}
               onSelectTab={onSelectTab}
             />
           )}

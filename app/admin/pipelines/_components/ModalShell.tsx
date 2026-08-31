@@ -23,7 +23,7 @@ import { cn, pipelineStyles } from '@/lib/theme';
 export interface ModalShellProps {
   open: boolean;
   onClose: () => void;
-  variant?: 'default' | 'task' | 'wide' | 'xwide' | 'app' | 'editor' | 'panel';
+  variant?: 'default' | 'task' | 'wide' | 'xwide' | 'table' | 'app' | 'editor' | 'panel';
   children: ReactNode;
   /** id of the heading element that labels the dialog. */
   labelledBy?: string;
@@ -141,7 +141,9 @@ export function ModalShell({
                     ? modal.dialogWide
                     : variant === 'xwide'
                       ? modal.dialogXWide
-                      : modal.dialogDefault,
+                      : variant === 'table'
+                        ? modal.dialogTable
+                        : modal.dialogDefault,
                 className,
               )
         }

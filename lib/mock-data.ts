@@ -1201,6 +1201,43 @@ export const mockProjects: Project[] = [
     isRejected: false,
   },
   {
+    // 1008 의 반대편 — 같은 Step 4 인데 **수동 설치**라 service_terraform 을 서비스가 제
+    // 계정에 직접 적용한다. 운영 콘솔 인프라 작업 탭의 `현재 작업` 카드가 「설치 작업 전
+    // 서비스 측 대응 필요」 알림을 그리는 유일한 조건(AWS · 수동 설치 · 작업 이력 없음 ·
+    // service_terraform 미완)을 이 대상 하나가 모두 만족한다. 파이프라인은 일부러 두지
+    // 않는다 — 알림이 붙는 자리가 `작업 시작` 을 가진 빈 카드다.
+    id: "proj-3d",
+    targetSourceId: 1034,
+    projectCode: "OTHER-006",
+    name: "PII Agent 설치 - 주문 이력 적재",
+    description:
+      "Step 4. 수동 설치 진행 중 — 운영 콘솔 인프라 작업 탭의 '설치 작업 전 서비스 측 대응 필요' 알림 데모입니다. 서비스가 직접 적용하는 service_terraform 이 아직 끝나지 않아, 작업 시작 위에 그 사실이 섭니다.",
+    serviceCode: "aws",
+    cloudProvider: "AWS",
+    awsAccountId: AWS_WIRE_APPROVAL_ACCOUNT_ID,
+    awsRegionType: "global",
+    // 데모: TF 실행 권한 미허용 → 수동 설치 모드
+    isTerraformExecutionGranted: false,
+    processStatus: ProcessStatus.INSTALLING,
+    status: createStatusForProcessStatus(ProcessStatus.INSTALLING, {
+      selectedCount: 9,
+      excludedCount: 0,
+    }),
+    // 전 건 선택 — 설치 상태 목은 선택 리소스에서 단계 상태를 만들고(index % 4), 네 건
+    // 이상이라야 FAIL·IN_PROGRESS 가 함께 나온다. 캡처 자체는 손대지 않는다.
+    resources: awsWireApprovalResources.map((resource) => ({
+      ...resource,
+      isSelected: true,
+    })),
+    terraformState: {
+      serviceTf: "PENDING",
+      bdcTf: "PENDING",
+    },
+    createdAt: "2024-01-20T08:00:00Z",
+    updatedAt: "2024-01-20T10:00:00Z",
+    isRejected: false,
+  },
+  {
     id: "proj-5",
     targetSourceId: 1010,
     projectCode: "DATA-005",

@@ -24,6 +24,7 @@ import {
 } from '@/app/admin/pipelines/_detail/CurrentPipelineCard';
 import { gateStage } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/gateStage';
 import { opsStyles } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/opsStyles';
+import type { ServiceWorkNoticeData } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/ServiceWorkNotice';
 import type {
   PipelineDetail,
   PipelineStatus,
@@ -420,5 +421,88 @@ describe('CurrentPipelineCard — task flow', () => {
     // ended must not wear the same neutral frame as one that never ran.
     const cards = Array.from(container.querySelectorAll('.rtc'));
     expect(cards.map((c) => c.className)).toEqual(['rtc done', 'rtc failed']);
+  });
+});
+
+/**
+ * 서비스 측 작업 경고의 **자리**. 판정 자체는 `installGate.test.ts` 가, 상자와 모달은
+ * `ServiceWorkNotice.test.tsx` 가 잡는다 — 여기서 잡는 것은 그 상자가 시작 동작을 가진
+ * 카드에만 서고, 그 동작을 잠그지 않는다는 것뿐이다.
+ */
+const NEEDED: ServiceWorkNoticeData = {
+  result: {
+    kind: 'needed',
+    step: { id: 'service', title: '서비스 측 Terraform 적용' },
+    done: 1,
+    total: 3,
+    rows: [
+      { resourceId: 'rds-1', resourceName: 'rds-1', status: 'FAIL', guide: null },
+      { resourceId: 'rds-2', resourceName: 'rds-2', status: 'IN_PROGRESS', guide: null },
+      { resourceId: 'rds-3', resourceName: 'rds-3', status: 'COMPLETED', guide: null },
+    ],
+  },
+  lastCheck: { status: 'SUCCESS', checkedAt: '2026-08-31T01:00:00Z' },
+};
+
+const NOTICE = '설치 작업 전에 서비스 측 대응이 먼저 필요합니다';
+
+describe('서비스 측 작업 경고 — 시작 동작을 가진 카드에만', () => {
+  it('최근 작업 카드에는 서고, 실행 중인 카드에는 서지 않는다', () => {
+    const { unmount } = renderCard(makeTerminalDetail('DONE', ['DONE']), {
+      sectionTitle: '최근 작업',
+      serviceWork: NEEDED,
+    });
+    expect(screen.getByText(NOTICE)).toBeTruthy();
+    // 남은 건수는 분모가 아니라 안 끝난 수다.
+    expect(screen.getByText('2건')).toBeTruthy();
+    unmount();
+
+    // 실행 중인 카드의 CTA 는 `작업 중단` 이다 — 시작에 대한 문장이 말을 걸 상대가 없다.
+    renderCard(makeDetail(['APPLY']), { sectionTitle: '현재 작업', serviceWork: NEEDED });
+    expect(screen.queryByText(NOTICE)).toBeNull();
+  });
+
+  it('빈 카드에서 새 작업 시작을 잠그지 않는다 — 게이트가 아니라 주의다', () => {
+    render(
+      <EmptyPipelineCard
+        sectionTitle="현재 작업"
+        onStart={vi.fn()}
+        serviceWork={NEEDED}
+        onSelectTab={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText(NOTICE)).toBeTruthy();
+    expect(startButton().disabled).toBe(false);
+  });
+
+  it('확정 정보 게이트와 함께 서면 게이트 문장이 제자리를 지킨다', () => {
+    render(
+      <EmptyPipelineCard
+        sectionTitle="현재 작업"
+        onStart={vi.fn()}
+        gate={gateStage('CONFIRMING', 1029, false)}
+        serviceWork={NEEDED}
+        onSelectTab={vi.fn()}
+      />,
+    );
+
+    // 둘 다 선다. 게이트가 여전히 버튼을 잠그고(그건 게이트의 일이다), 주의는 그 위에 쌓인다.
+    expect(screen.getByText(/아직 확정된 연동 정보가 없습니다/)).toBeTruthy();
+    expect(screen.getByText(NOTICE)).toBeTruthy();
+    expect(startButton().disabled).toBe(true);
+  });
+
+  it('done·unknown·해당 없음은 아무 자리도 차지하지 않는다', () => {
+    const detail = makeTerminalDetail('DONE', ['DONE']);
+    const { unmount } = renderCard(detail, { sectionTitle: '최근 작업', serviceWork: null });
+    expect(screen.queryByText(NOTICE)).toBeNull();
+    unmount();
+
+    renderCard(detail, {
+      sectionTitle: '최근 작업',
+      serviceWork: { ...NEEDED, result: { ...NEEDED.result, kind: 'unknown', rows: [] } },
+    });
+    expect(screen.queryByText(NOTICE)).toBeNull();
   });
 });

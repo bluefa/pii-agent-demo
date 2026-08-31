@@ -41,6 +41,7 @@ export const buildGcpInstallDetail = (wire: WireResponse): GcpInstallDetail => (
     status: LAST_CHECK_TO_UI[wire.last_check?.status ?? 'IN_PROGRESS'] ?? 'IN_PROGRESS',
     ...(wire.last_check?.checked_at && { checkedAt: wire.last_check.checked_at }),
     ...(wire.last_check?.fail_reason && { failReason: wire.last_check.fail_reason }),
+    ...(wire.last_check?.installation_status_unavailable && { unavailable: true }),
   },
   resources: (wire.resources ?? []).map((r) => ({
     resourceId: r.resource_id ?? '',
