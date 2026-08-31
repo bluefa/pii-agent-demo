@@ -10,6 +10,7 @@ import { describe, expect, it } from 'vitest';
 
 import { GUIDE_SLOTS, resolveSlot } from '@/lib/constants/guide-registry';
 import { STEP_GUIDE_HTML } from '@/lib/constants/step-guide-content';
+import { LOCALES } from '@/lib/locale';
 import { GUIDE_NAMES } from '@/lib/types/guide';
 import { GUIDE_VALIDATE_OPTIONS, validateGuideHtml } from '@/lib/utils/validate-guide-html';
 
@@ -17,18 +18,28 @@ import type { GuideSlotKey } from '@/lib/constants/guide-registry';
 import type { GuideName } from '@/lib/types/guide';
 import type { GuideNode } from '@/lib/utils/validate-guide-html';
 
+/**
+ * Every slot in every language. The reader's locale picks the body, so an invalid English
+ * body swaps the guide for the invalid-state card exactly as an invalid Korean one does —
+ * the checks that are about MARKUP rather than about wording run over both.
+ */
+const EVERY_LOCALISED_BODY = LOCALES.flatMap((locale) =>
+  GUIDE_NAMES.map((name) => [`${locale} ${name}`, STEP_GUIDE_HTML[locale][name]] as const),
+);
+
 describe('STEP_GUIDE_HTML', () => {
-  it.each(GUIDE_NAMES)('%s passes validateGuideHtml', (name) => {
+  it.each(EVERY_LOCALISED_BODY)('%s passes validateGuideHtml', (_label, html) => {
     // Same options `GuideCardPure` renders with — validating a guide under the post
     // rules would reject the 안내 박스 the guides use.
-    const result = validateGuideHtml(STEP_GUIDE_HTML[name], GUIDE_VALIDATE_OPTIONS);
+    const result = validateGuideHtml(html, GUIDE_VALIDATE_OPTIONS);
     expect(result).toMatchObject({ valid: true });
   });
 });
 
-const bodyFor = (key: GuideSlotKey) => STEP_GUIDE_HTML[resolveSlot(key).guideName];
+/** The Korean body. Every copy assertion below reads the transcription, not its translation. */
+const bodyFor = (key: GuideSlotKey) => STEP_GUIDE_HTML.ko[resolveSlot(key).guideName];
 
-const EVERY_BODY = GUIDE_NAMES.map((name) => [name, STEP_GUIDE_HTML[name]] as const);
+const EVERY_BODY = GUIDE_NAMES.map((name) => [name, STEP_GUIDE_HTML.ko[name]] as const);
 
 // ---------------------------------------------------------------------------
 // The shared steps — one authored card each, reaching every integration type
@@ -552,10 +563,13 @@ describe('the source draws shapes, not only sentences', () => {
     return count;
   };
 
-  it.each(GUIDE_NAMES)('%s opens every numbered step with a 600-weight title', (name) => {
-    const result = validateGuideHtml(STEP_GUIDE_HTML[name], GUIDE_VALIDATE_OPTIONS);
-    expect(result.valid).toBe(true);
-    if (!result.valid) return;
-    expect(untitledSteps(result.ast)).toBe(0);
-  });
+  it.each(EVERY_LOCALISED_BODY)(
+    '%s opens every numbered step with a 600-weight title',
+    (_label, html) => {
+      const result = validateGuideHtml(html, GUIDE_VALIDATE_OPTIONS);
+      expect(result.valid).toBe(true);
+      if (!result.valid) return;
+      expect(untitledSteps(result.ast)).toBe(0);
+    },
+  );
 });
