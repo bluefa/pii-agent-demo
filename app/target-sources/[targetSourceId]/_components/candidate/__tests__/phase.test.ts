@@ -31,10 +31,13 @@ describe('selectPhase', () => {
     [{ fetchStatus: 'ready', scanState: 'SUCCESS', hasCandidates: true, completing: false, scanStale: true }, 'scanStale'],
     // 0건도 이긴다: 비어 있다는 사실보다 기한이 지났다는 사실이 지금 할 일을 말한다.
     [{ fetchStatus: 'ready', scanState: 'EMPTY', hasCandidates: false, completing: false, scanStale: true }, 'scanStale'],
-    // 새 스캔이 도는 중이면 러닝 화면이 이긴다 — 낡은 결과는 곧 대체된다.
-    [{ fetchStatus: 'ready', scanState: 'IN_PROGRESS', hasCandidates: true, completing: false, scanStale: true }, 'scanning'],
-    // 실패도 먼저다: 방금 시도가 깨졌다는 것이 낡았다는 것보다 최신 사실이다.
-    [{ fetchStatus: 'ready', scanState: 'FAILED', hasCandidates: true, completing: false, scanStale: true }, 'scanFailed'],
+    // 새 스캔이 도는 중이어도 기한이 지났다는 사실이 이긴다 — 지금 화면에 남은 결과는
+    // 여전히 승인 요청의 입력이 될 수 없다.
+    [{ fetchStatus: 'ready', scanState: 'IN_PROGRESS', hasCandidates: true, completing: false, scanStale: true }, 'scanStale'],
+    // 실패한 스캔도 마찬가지다: `scan_status` 가 무엇이든 기한이 지난 결과는 기한이 지났다.
+    [{ fetchStatus: 'ready', scanState: 'FAILED', hasCandidates: true, completing: false, scanStale: true }, 'scanStale'],
+    // 조회 프레임은 여전히 위다 — 아직 무엇을 읽었는지 모르는 화면에 기한 안내를 세우지 않는다.
+    [{ fetchStatus: 'loading', scanState: 'SUCCESS', hasCandidates: true, completing: false, scanStale: true }, 'fetching'],
   ];
 
   it.each(cases)('returns %j -> %s', (input, expected) => {

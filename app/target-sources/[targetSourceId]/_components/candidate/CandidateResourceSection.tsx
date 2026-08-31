@@ -507,8 +507,10 @@ export const CandidateResourceSection = ({
             completing: completion.stage !== 'idle',
             // `=== true` and nothing else: the job schema is partial, so a missing field is
             // `undefined` — reading every falsy value as "fresh" would let a dropped flag
-            // pass silently. No SUCCESS check either: scanning/scanFailed already win above.
-            scanStale: finishedJob?.old_scan === true,
+            // pass silently. Read off the raw latest job rather than the terminal-status
+            // filtered `finishedJob`: an aged result stays aged whatever `scan_status` the
+            // job carries.
+            scanStale: latestJob?.old_scan === true,
           });
           // 스트립은 본문이 스캔 결과 위에 서 있을 때만 — scanning 은 러닝 화면이
           // 스스로 말하고, fetch 상태는 프레임 전체를 소유한다. list 에서는 잡이

@@ -22,9 +22,10 @@ export interface SelectPhaseInput {
    */
   completing: boolean;
   /**
-   * 마지막 스캔이 정책 기한을 넘겼다(`old_scan`). 성공한 스캔이어도 그 결과는
-   * 승인 요청의 입력이 될 수 없으므로 목록보다 먼저 판정된다 — 후보가 0건이어도
-   * 마찬가지다: 기한이 지난 결과는 비어 있어도 여전히 기한이 지난 것이다.
+   * 마지막 스캔이 정책 기한을 넘겼다(`old_scan`). 그 결과는 승인 요청의 입력이 될 수
+   * 없으므로 목록보다도, 스캔 상태 프레임보다도 먼저 판정된다 — `scan_status` 와
+   * 무관하게 기한이 지난 결과는 기한이 지난 것이다. 후보가 0건이어도 마찬가지다:
+   * 기한이 지난 결과는 비어 있어도 여전히 기한이 지난 것이다.
    */
   scanStale: boolean;
 }
@@ -39,8 +40,8 @@ export const selectPhase = ({
   if (completing) return 'completing';
   if (fetchStatus === 'loading') return 'fetching';
   if (fetchStatus === 'error') return 'fetchError';
+  if (scanStale) return 'scanStale';
   if (scanState === 'IN_PROGRESS') return 'scanning';
   if (scanState === 'FAILED') return 'scanFailed';
-  if (scanStale) return 'scanStale';
   return hasCandidates ? 'list' : 'empty';
 };
