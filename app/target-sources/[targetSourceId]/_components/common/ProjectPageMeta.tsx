@@ -11,10 +11,12 @@ import { installRoadPosition } from '@/app/components/features/process-status/in
 import { Tooltip } from '@/app/components/ui/Tooltip';
 import { TIMINGS } from '@/lib/constants/timings';
 import {
+  chipStyles,
   cn,
   identityBarStyles,
   installStepperStyles as s,
   projectHeaderStyles as h,
+  statusColors,
 } from '@/lib/theme';
 import type { ProjectIdentity } from '@/app/target-sources/[targetSourceId]/_components/common/project-identity';
 import { TcHeaderTag } from '@/app/target-sources/[targetSourceId]/_components/common/TcHeaderTag';
@@ -192,6 +194,12 @@ export const ProjectPageMeta = ({ project, identity, action }: ProjectPageMetaPr
   const serviceTitle = project.serviceName || project.serviceCode;
   const description = project.description.trim();
 
+  // 중국 리전 is AWS-only — no other CSP treats the China partition as a separate
+  // account. No `isSduType` term: an SDU target still keeps this tag, because which
+  // partition the data lives in is a fact about the TARGET, not about who owns the
+  // account (the same rule the ops masthead states).
+  const showChinaRegion = identity.cloudProvider === 'AWS' && project.isChinaRegion;
+
   const roadVariant = project.isSduType ? 'sdu' : undefined;
   const road = installRoadPosition(project.processStatus, roadVariant);
   const roadDone = road.index === road.total - 1;
@@ -303,6 +311,24 @@ export const ProjectPageMeta = ({ project, identity, action }: ProjectPageMetaPr
             <span id={TARGET_LABEL_ID} className={h.blockLabel}>
               {t.installTarget}
             </span>
+            {/* Region, on the block's own head row — the same slot logic as the step tag
+                beside it: it answers 「어디」 about this target and stops. The chip recipe
+                is the list row's verbatim, so a reader arriving from /services sees the
+                identical chip. It stays on SDU targets: the partition belongs to the
+                target's data, not to the account SDU hides. */}
+            {showChinaRegion && (
+              <span
+                className={cn(
+                  chipStyles.base,
+                  statusColors.error.bg,
+                  statusColors.error.textDark,
+                  statusColors.error.border,
+                  'border',
+                )}
+              >
+                {t.chinaRegion}
+              </span>
+            )}
             {/* Position, on the block's own head row (오너 2026-08-28). It answers 「어디」
                 and stops: the step's NAME belongs to the card head below, which prints it
                 at 20px beside its own 「N단계」 tag, and carrying it here too put one

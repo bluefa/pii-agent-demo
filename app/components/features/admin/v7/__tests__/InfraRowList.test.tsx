@@ -99,3 +99,23 @@ describe('InfraRowList — 인프라가 0건일 때', () => {
 vi.mock('@/app/components/features/admin/v7/InfraRow', () => ({
   InfraRow: ({ project: p }: { project: ProjectSummary }) => <div>{p.projectCode}</div>,
 }));
+
+/**
+ * SDU hides the underlying CSP everywhere else on the row, but not the partition: which
+ * region the data lives in is a fact about the TARGET, not about who owns the account.
+ * The row component is mocked out for the list cases above, so this one reaches the real
+ * one through `importActual`.
+ */
+it('keeps 중국 리전 on an SDU row', async () => {
+  const { InfraRow } = await vi.importActual<
+    typeof import('@/app/components/features/admin/v7/InfraRow')
+  >('@/app/components/features/admin/v7/InfraRow');
+  const { container } = render(
+    <InfraRow
+      project={{ ...project(1), isChinaRegion: true, isSduType: true }}
+      onOpenDetail={noop}
+      onManageAction={noop}
+    />,
+  );
+  expect(container.textContent).toContain('중국 리전');
+});
