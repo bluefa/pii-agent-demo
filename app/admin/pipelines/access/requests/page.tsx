@@ -18,7 +18,7 @@
  */
 import { useCallback, useState, type ReactElement, type ReactNode } from 'react';
 import { cn, serviceSidebarStyles } from '@/lib/theme';
-import { fmtDateTime } from '@/lib/pipeline/format';
+import { fmtDateTime, WAIT_WARN_DAYS, waitedDays } from '@/lib/pipeline/format';
 import { useAbortableEffect } from '@/app/hooks/useAbortableEffect';
 import { serviceTileClass } from '@/app/components/features/admin/ServiceSidebar/ServiceRow';
 
@@ -101,19 +101,6 @@ const HISTORY_COLUMNS: readonly Column[] = [
 ];
 
 type RequestTab = 'pending' | 'rejected' | 'history';
-
-/**
- * 며칠부터 "오래 기다린 요청"인가 — 계약에 SLA 가 없으므로 **우리 값**이다.
- * 넘긴 요청만 잉크가 바뀐다. 전부 바뀌면 아무것도 안 바뀐 것과 같다.
- */
-const WAIT_WARN_DAYS = 3;
-
-/** 요청이 기다린 일수. */
-function waitedDays(iso: string): number {
-  const then = new Date(iso).getTime();
-  if (Number.isNaN(then)) return 0;
-  return Math.max(0, Math.floor((Date.now() - then) / 86_400_000));
-}
 
 export default function AccessRequestsPage(): ReactElement {
   const pending = usePagedSection(fetchPending);

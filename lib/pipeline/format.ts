@@ -60,6 +60,22 @@ export function fmtDateTime(iso: string | null | undefined): string {
 }
 
 /**
+ * 며칠부터 "오래 기다린 요청"인가 — 계약에 SLA 가 없으므로 **우리 값**이다.
+ * 넘긴 요청만 잉크가 바뀐다. 전부 바뀌면 아무것도 안 바뀐 것과 같다.
+ *
+ * Shared by the two request queues that show a 대기 column (접근 권한 요청 and
+ * 연동 요청) so one threshold answers "is this late" on both screens.
+ */
+export const WAIT_WARN_DAYS = 3;
+
+/** 요청이 기다린 일수. */
+export function waitedDays(iso: string): number {
+  const then = new Date(iso).getTime();
+  if (Number.isNaN(then)) return 0;
+  return Math.max(0, Math.floor((Date.now() - then) / 86_400_000));
+}
+
+/**
  * ISO-8601 UTC instant → 'YYYY-MM-DD' in Asia/Seoul. `null`/invalid → '-'.
  * For places that carry a date as a value rather than as a timestamp — the
  * 연동 완료 도장 is one: it reads at 20px, and a 16-character instant there is a
