@@ -127,7 +127,7 @@ EC2 되짚기가 빠지고 IDC 합격선을 폼과 맞춘 뒤, 남은 거부 경
 
 | 거부 | 언제 | 성격 |
 |---|---|---|
-| 409 오래된 목록 | 화면 로드 후 스캔이 재실행되어 리소스가 사라짐 | **의도된 동작.** 사용자에겐 FP 로 보이지만, 사라진 리소스를 조용히 올려 보내는 쪽이 나쁘다 |
+| 409 오래된 목록 (`CONFLICT_STALE_TARGET_LIST`) | 화면 로드 후 스캔이 재실행되어 리소스가 사라짐 | **의도된 동작.** 화면은 '연동 대상 목록이 바뀌었어요. 새로고침한 뒤 다시 선택해 주세요.' 를 다시 요청하기 없이 낸다 — 사라진 리소스를 조용히 올려 보내는 쪽이 나쁘다 |
 | 400 IPv4 아님 | IDC IP 칸에 IPv4 가 아닌 값 | **의도된 동작** (D4). 모달이 사전 고지한다 |
 | 400 알 수 없는 키 | 클라이언트가 모델에 없는 키를 보냄 | 현재 매퍼가 보내는 키 집합과 스키마가 일치한다 |
 | **409** RDS 멤버 아님 | 재스캔이 멤버 목록을 바꿔 화면의 기본 선택이 사라진 멤버를 가리킴 | 오래된 화면이지 잘못된 입력이 아니다 |
@@ -148,6 +148,9 @@ D6 를 지키는 일이 생각보다 어렵다는 증거로 남겨 둔다. 전�
 | `resource_id` | 와이어가 id 없으면 `''` | ~~`.min(1)`~~ → **행을 떨군다**(아래) |
 | 행 수 | 스캔 전부, 화면엔 상한 없음 | ~~500~~ → ~~2000~~ → 10000 (sanity) |
 | IDC 이전 요청 IP | `''` 원소가 섞일 수 있음 | 왕복 매퍼에서 걸러 냄 |
+| sanity 상한 전부 (행 수 10000 · IDC hosts 32 · `resource_id` 1024 · RDS 멤버 id 1024 · IDC `database_type` 64 · `credential_id` 256) | 프론트가 짓지 않는 값 — 이전 요청 왕복·대형 스캔이 그대로 되싣는다 | **제거.** 보호 효과가 0 이다(본문은 `request.json()` 이 이미 다 읽었고 리졸버는 Map 하나를 훑는다) — 남는 것은 새로고침으로 못 고치는 거부뿐이었다 |
+| id 없는 행이 `selected: true` 로 옴 | 와이어가 그렇게 준다 | 목록에 올라 CTA 가 세는데 매퍼가 떨궈 `{ resources: [] }` 가 나가 400 이었다 → **어댑터가 목록에서 떨군다** |
+| 409 오래된 화면이 코드 없이 나감 | — | `fetchJson` 이 status 로 접어 CONFLICT → '이미 진행 중인 승인 요청이 있어요' + 다시 요청하기(같은 본문을 다시 보내 같은 409) → **제 코드 `CONFLICT_STALE_TARGET_LIST`** + 새로고침 문구, 다시 요청하기 없음 |
 | 같은 id 두 번 | 와이어가 같은 id 를 두 번 주면 화면은 한 선택 상태를 두 행에 그린다 | ~~400~~ → 첫 행만 남긴다 |
 | Azure NIC id | 와이어 값, 300자를 넘을 수 있음 | ~~256~~ → 1024 → 필드 제거(스캔 행은 접속 정보를 보내지 않는다) |
 | `credential_id` / `resource_id` | 와이어 값, 형식은 프론트가 모름 | ~~64 / 512~~ → 256 / 1024 |
@@ -179,24 +182,24 @@ id 없는 와이어 행이 매 제출에 딸려 오는데, 교집합은 그 행�
 |---|---|---|---|
 | 본문 | 객체가 아님 / `resources` 없음 | 모양 | `Expected object, received …` / `Required` |
 | 본문·행·`idc`·`manual_ec2` | 모델에 없는 키 | `.strict()` | `Unrecognized key(s) in object: 'x'` |
-| `resources` | 1 ≤ 길이 ≤ 10000 | sanity — 화면은 후보 **전부**를 싣고 상한이 없다 | `Array must contain at least 1 / at most 10000 element(s)` |
-| `resource_id` | 문자열 ≤ 1024 (`''` 허용 — §2 ① 에서 떨군다) | sanity (와이어 값) | |
+| `resources` | 1 개 이상, **상한 없음** | 화면은 후보 **전부**를 싣고 제 상한이 없다 — 숫자를 적으면 그보다 큰 스캔은 영영 못 보낸다 | `Array must contain at least 1 element(s)` |
+| `resource_id` | 문자열, 길이 상한 없음 (`''` 허용 — 어댑터가 목록에서 먼저 떨구고 §2 ① 이 방어) | 스캔이 정하는 값이라 프론트가 길이를 모른다 | |
 | `selected` | boolean 필수 | 모양 | `Required` |
 | `exclusion_reason` | ≤ 1000 | **폼** — 클라우드 폼이 `EXCLUSION_REASON_MAXLEN` 을 읽는다. IDC 폼은 200(`IDC_REASON_MAXLEN`) | |
-| `selected_rds_instance_resource_id` | 1..1024 | sanity (와이어 값) | |
+| `selected_rds_instance_resource_id` | 1자 이상 | 스캔이 준 후보 id — 길이는 §2 ⑦ 이 목록 대조로 대신 본다 | |
 | `manual_ec2.resource_name` | ≤ 253, `''` 허용 | 정상 범위(DNS) — 검색 와이어가 private DNS 없이 오면 `''` | |
 | `manual_ec2.host` | 1..253 | 정상 범위(DNS) — 검색 결과의 private IP | |
 | `manual_ec2.port` | 정수 1..65535 | **폼과 같은 범위** — `Ec2AddModal` (`portOk`) | |
 | `manual_ec2.database_type` | `VM_DATABASE_TYPES` 를 `toWireDatabaseType` 로 내린 소문자 집합 | **폼과 같은 상수** — `Ec2AddModal` 의 select 에서 파생 | `지원하지 않는 데이터베이스 타입입니다: <값>` |
 | `manual_ec2.oracle_service_id` | 1..128 | 정상 범위 — 모달 `ORACLE_SID_MAXLEN`=100 ≤ 128 | |
 | `idc.host_format` | `HOST` \| `IP` | 계약 enum | |
-| `idc.hosts` | 0..32 개, 각 1..253 | sanity ≥ 폼(`IDC_MAX_IPS`=6, `IDC_DOMAIN_MAXLEN`=100). **빈 배열 허용** — 이전 요청 불러오기가 host 없는 행을 `[]` 로 싣는다 | |
+| `idc.hosts` | 각 1..253, **개수 상한 없음**, 빈 배열 허용 | 폼은 6개(`IDC_MAX_IPS`)까지 만들지만 이전 요청은 그때 저장된 만큼을 되싣는다 — 그 수를 프론트가 정한 적이 없다 | |
 | `idc.hosts[]` (IP) | `isValidIdcIp` — IPv4 만 | **폼과 같은 함수** — 모달이 `IPv4만 등록할 수 있어요` 로 사전 고지 | `IP 주소 형식이 아닙니다: <값>` |
 | `idc.hosts[]` (HOST) | `HOSTNAME` — 폼 `IDC_DOMAIN_RE` 의 상위집합(점 없는 이름·밑줄까지) | 폼보다 넓게 — 이전 요청 왕복은 폼을 거치지 않는다 | `호스트명 형식이 아닙니다: <값>` |
-| `idc.database_type` | 1..64 | 정상 범위 — enum 으로 좁히지 않는다(이전 요청이 enum 밖 값을 되싣는다) | |
+| `idc.database_type` | 1자 이상 | enum 으로도 길이로도 좁히지 않는다 — 이전 요청이 enum 밖 값을 되싣는다 | |
 | `idc.port` | 정수 1..65535 | **폼과 같은 범위**(모달 `portOk`) | |
 | `idc.oracle_service_id` | 1..`IDC_SID_MAXLEN`(128) | **폼과 같은 상수** — 모달 input `maxLength` | |
-| `idc.credential_id` | 1..256 | sanity — 폼은 이 값을 만들지 않는다(이전 요청에서만 온다) | |
+| `idc.credential_id` | 1자 이상 | 와이어가 발급한 id — 폼은 만들지 않고 형식도 길이도 프론트가 모른다 | |
 
 ### 2. 판정 — `resolveApprovalInput` (400 · 409 · title `연동 대상을 확인하지 못했습니다.`)
 
@@ -205,18 +208,20 @@ id 없는 와이어 행이 매 제출에 딸려 오는데, 교집합은 그 행�
 
 | 순서 | 조건 | 결과 | 화면에서 도달? |
 |---|---|---|---|
-| ① | `resource_id === ''` 인 행 | **떨군다**(거부 아님) | 와이어가 id 없는 행을 주면 매 제출에 딸려 온다 — 그래서 거부하지 않는다 |
+| ① | `resource_id === ''` 인 행 | **떨군다**(거부 아님) | 아니오 — 어댑터(`getConfirmResources`)가 목록에서 먼저 떨군다. 매퍼·리졸버의 필터는 방어다 |
 | ② | 같은 `resource_id` 가 두 번 | **첫 행만 남긴다**(거부 아님) | 와이어가 같은 id 를 두 번 주면 화면도 한 선택 상태를 두 행에 그린다 — 첫 행이 곧 화면이 뜻한 것 |
-| ③ | ①②를 거치고 한 행도 없음 | 400 `연동할 리소스가 없습니다.` | 사실상 아니오 — 매퍼가 먼저 거르고 CTA 는 선택 0 이면 잠긴다. id 없는 행만 골랐을 때뿐 |
+| ③ | ①②를 거치고 한 행도 없음 | 400 `연동할 리소스가 없습니다.` | 아니오 — id 없는 행은 목록에 오르지 않고, CTA 는 선택 0 이면 잠긴다 |
 | ④ IDC | 행에 `idc` 없음 | 400 `IDC 연동 대상에는 접속 정보가 필요합니다.` | 아니오 — IDC 매퍼는 모든 행에 `idc` 를 붙인다 |
 | ④ IDC | 행에 `manual_ec2` | 400 | 아니오 |
 | ⑤ 클라우드 | 어떤 행에든 `idc` | 400 `IDC 접속 정보는 IDC 연동에서만 보낼 수 있습니다.` | 아니오 |
-| ⑥ 클라우드 | 스캔 목록에 있는 id 에 `manual_ec2` | **409** 오래된 화면 | 예 — 수기 추가 뒤 재스캔이 같은 인스턴스를 후보로 올린 경우. 새로고침이 고친다 |
-| ⑦ 클라우드 | `selected_rds_instance_resource_id` 가 그 행의 `rds_instance_candidates` 에 없음 | **409** 오래된 화면 | 예 — 재스캔이 멤버 목록을 바꾼 경우. 새로고침이 고친다 |
+| ⑥ 클라우드 | 스캔 목록에 있는 id 에 `manual_ec2` | **409** `CONFLICT_STALE_TARGET_LIST` | 예 — 수기 추가 뒤 재스캔이 같은 인스턴스를 후보로 올린 경우. 새로고침이 고친다 |
+| ⑦ 클라우드 | `selected_rds_instance_resource_id` 가 그 행의 `rds_instance_candidates` 에 없음 | **409** `CONFLICT_STALE_TARGET_LIST` | 예 — 재스캔이 멤버 목록을 바꾼 경우. 새로고침이 고친다 |
 | ⑧ 클라우드 | 스캔 목록에 없는 id + `manual_ec2` + 화면이 AWS 로 그리는 대상 | 통과(수기 EC2 조립) | 정상 경로 |
-| ⑨ 클라우드 | 스캔 목록에 없는 id, 그 외 | **409** 오래된 화면 | 예 — 재스캔이 리소스를 지운 경우. 새로고침이 고친다 |
+| ⑨ 클라우드 | 스캔 목록에 없는 id, 그 외 | **409** `CONFLICT_STALE_TARGET_LIST` | 예 — 재스캔이 리소스를 지운 경우. 새로고침이 고친다 |
 
 409 셋은 전부 "다시 읽으면 달라진다" 이고, 400 은 전부 실 UI 가 만들 수 없는 본문이다.
+세 자리 모두 `CONFLICT_STALE_TARGET_LIST` 코드를 달고 나가, 화면은 "연동 대상 목록이
+바뀌었어요. 새로고침한 뒤 다시 선택해 주세요." 를 **다시 요청하기 없이** 낸다.
 
 역방향(스캔에는 있는데 본문에 없는 id)은 검사하지 않는다 — 스캔이 자란 경우이고, 사용자가
 본 목록이 곧 요청이다.
@@ -226,6 +231,79 @@ id 없는 와이어 행이 매 제출에 딸려 오는데, 교집합은 그 행�
 `targetSources.get` · `confirm.getResources` 가 던지면 `withV1` 이 `BffError` 를 problem 응답으로
 그대로 옮긴다 — 이 문서의 조건이 아니다. 제출 한 번에 늘어난 상류 왕복은 클라우드 갈래가
 둘(대상 조회 + 후보 조회), IDC 는 하나(대상 조회)다 — IDC 는 후보 조회 전에 돌아온다.
+
+## 타입별 검증 항목
+
+한 행이 어느 갈래로 가는지는 본문이 아니라 `TargetSourceDetail.cloud_provider` 를 `normalizeCloudProvider` 에 넣은 값이 정한다. 아래 표는 갈래별로 **브라우저가 보내는 것 · 서버가 검증하는 것 · 서버가 채우는 것** 이다. 전체 거부 조건의 필드순 목록은 위 §"검증 조건 전체 목록".
+
+### 공통 (모든 행)
+
+| 항목 | 검증 | 실패 |
+|---|---|---|
+| 본문 | `{ resources: [...] }` 객체, 행 1개 이상 | 400 |
+| 모델 밖 키 (본문·행·`manual_ec2`·`idc` 어느 깊이든) | `.strict()` | 400 `Unrecognized key(s)` |
+| `resource_id` | 문자열 필수. `''` 는 어댑터가 목록에서 떨구고 리졸버도 떨군다 | — |
+| `selected` | boolean 필수 — `null`·문자열·숫자·누락 전부 거부 | 400 |
+| `exclusion_reason` | ≤ `EXCLUSION_REASON_MAXLEN`(1000, 폼과 같은 상수). 선택 행에서는 무시 | 400 |
+| 같은 `resource_id` 두 번 | 첫 행만 남긴다 | — |
+
+### ① 스캔 행 — AWS · Azure · GCP · SDU (`/resources` 에 있는 리소스)
+
+브라우저가 보내는 것: `resource_id` · `selected` · `exclusion_reason?` · `selected_rds_instance_resource_id?`. **접속 정보·이름·타입·리전·카테고리를 실을 자리가 없다** — 키가 있으면 400.
+
+| 항목 | 검증 | 실패 |
+|---|---|---|
+| `resource_id` | 서버가 `confirm.getResources` 를 다시 읽은 집합에 있어야 한다 | 409 `CONFLICT_STALE_TARGET_LIST` |
+| `manual_ec2` 동봉 | 스캔 목록에 있는 id 에 붙으면 거부 | 409 |
+| `idc` 동봉 | 클라우드 대상에서는 거부 | 400 |
+| `selected_rds_instance_resource_id` | 그 행의 `metadata.rds_instance_candidates[].resource_id` 중 하나 | 409 |
+| 진위 | 스캔이 찾은 리소스만 통과 — 정체성·속성 모두 서버 것 | |
+
+서버가 채우는 것: `resource_name` · `resource_type` · `integration_category` · `recommend_fail_reason` · `metadata.{provider, region, database_type(소문자), resource_type, rds_instance_candidates}` · `metadata.selected_rds_instance_role`(고른 멤버에서). 제외 행의 `exclusion_reason` = 사용자 사유, 없으면 스캔 판정(`recommend_fail_reason`). 스캔의 `selected`·`scan_status`·이전 `exclusion_reason` 은 되싣지 않는다.
+
+### ② 수기 추가 EC2 — 화면이 AWS 로 그리는 대상에서만 (`/resources` 에 없는 id + `manual_ec2`)
+
+브라우저가 보내는 것: 공통 + `manual_ec2 { resource_name?, host?, port?, database_type?, oracle_service_id? }` (제외된 행은 표시만: `manual_ec2 { resource_name? }`).
+
+| 항목 | 검증 | 출처 | 실패 |
+|---|---|---|---|
+| `resource_id` | 스캔 목록에 **없어야** 한다(있으면 오래된 화면) · 대상이 AWS 갈래여야 한다 | 갈래 | 409 |
+| `resource_name` | ≤ 253, `''` 허용(키 생략) | DNS | 400 |
+| `host` | 1..253 | DNS | 400 |
+| `port` | 정수 1..65535 | 폼 `Ec2AddModal portOk` 와 같은 판정 | 400 |
+| `database_type` | `VM_DATABASE_TYPES`(15개)를 `toWireDatabaseType` 로 내린 소문자 집합 | 폼 select 와 같은 상수 | 400 `지원하지 않는 데이터베이스 타입입니다: <값>` |
+| `oracle_service_id` | 1..128 | 폼 `ORACLE_SID_MAXLEN`=100 ≤ 128 | 400 |
+| 진위 | 보지 않는다 — 인스턴스 실재·주소는 **BFF** 가 판정 | 오너 결정 D3 | |
+
+서버가 붙이는 것: `resource_type: AWS_EC2_INSTANCE` · `integration_category: NO_INSTALL_NEEDED` · `metadata.provider: AWS` · `metadata.resource_type: AWS_EC2_INSTANCE`; 접속 정보는 `manual_ec2` 값을 그대로 `metadata.{host, port, database_type, oracle_service_id}` 로.
+
+### ③ IDC — IDC 대상에서만 (스캔 없음)
+
+브라우저가 보내는 것: 공통 + `idc { host_format, hosts[], database_type?, port?, oracle_service_id?, credential_id? }`. 모든 행에 `idc` 가 있어야 하고(없으면 400), `manual_ec2` 는 거부(400). 서버는 `/resources` 를 읽지 않는다 — 대조할 집합이 없다.
+
+| 항목 | 검증 | 출처 | 실패 |
+|---|---|---|---|
+| `host_format` | `HOST` \| `IP` | 계약 enum | 400 |
+| `hosts[]` (IP) | `isValidIdcIp` — IPv4 만 | 폼과 같은 함수, 모달이 사전 고지 | 400 `IP 주소 형식이 아닙니다: <값>` |
+| `hosts[]` (HOST) | `HOSTNAME` 정규식(폼 `IDC_DOMAIN_RE` 의 상위집합), 각 1..253 | 폼보다 넓게 | 400 `호스트명 형식이 아닙니다: <값>` |
+| `hosts` 개수 | 상한 없음, 빈 배열 허용 | 이전 요청 왕복 | |
+| `database_type` | 1자 이상 — enum 으로 좁히지 않는다 | 이전 요청 왕복 | 400 |
+| `port` | 정수 1..65535 | 폼 `portOk` 와 같은 판정 | 400 |
+| `oracle_service_id` | 1..`IDC_SID_MAXLEN`(128) | 폼 input `maxLength` 와 같은 상수 | 400 |
+| `credential_id` | 1자 이상 — 폼은 만들지 않고 이전 요청만 싣는다 | | 400 |
+| 모델 밖 키 (`idc_source_ips`·`nlb_index` 등 Step2 소유) | `.strict()` | | 400 |
+| 진위 | 보지 않는다 — "이 주소가 이 서비스 것인가" 는 승인 단계·상류의 몫 | 오너 결정 D4 | |
+
+서버가 붙이는 것: `metadata.provider: IDC` · `idc_host_format` · `idc_host`(도메인 첫 호스트) / `idc_ips`(목록이 비면 키 없음) · 나머지는 값 그대로.
+
+### 실패가 화면에 닿는 모양
+
+| 실패 | 응답 | 화면 (`confirm-failures.ts`, 코드로 고른다) |
+|---|---|---|
+| 모양 위반 (§1) | 400, title `연동 대상 정보를 읽지 못했습니다.`, code 없음 | `BAD_REQUEST` → "요청 내용을 다시 확인해 주세요." · 다시 요청하기 없음 — 실 UI 는 도달 불가 |
+| 판정 위반 400 (§2 ③④⑤) | 400, title `연동 대상을 확인하지 못했습니다.` | 같음 — 실 UI 는 도달 불가 |
+| 오래된 화면 (§2 ⑥⑦⑨) | 409, code `CONFLICT_STALE_TARGET_LIST` | "연동 대상 목록이 바뀌었어요. 새로고침한 뒤 다시 선택해 주세요." · 다시 요청하기 없음 |
+| BFF 의 409 (`CONFLICT_REQUEST_PENDING`) | 409, code 는 allowlist 밖이라 status 로 접힘 | `CONFLICT` → "이미 진행 중인 승인 요청이 있어요." · 다시 요청하기(진행 상태 재확인 후 다음 단계로) |
 
 ## BFF 에 필드가 생기면
 
@@ -287,6 +365,9 @@ rds_instance_candidates 만). "새 필드가 빠진다" 는 이 작업이 만든
 | `recommend_fail_reason` · 제외 사유 대체값 | 별칭 정규화 값 | 스캔 원문 |
 | 수기 EC2 `metadata.resource_type` | 보내지 않음 | `AWS_EC2_INSTANCE` |
 | 스캔 VM 행(`EC2`·`AZURE_VM` 철자)의 endpoint 드래프트 | metadata 로 병합 | 보내지 않음 — 와이어 enum 에서 도달 불가한 경로 |
+| `resource_id: ''` 행 | 그대로 보냄(교집합이 못 찾아 요청 전체가 막혔다) | 어댑터가 목록에서 떨군다 — 애초에 화면에 오르지 않는다 |
+| 제외 사유 공백 | 공백만 있는 사유도 그대로 보냄 | `trim`, 비면 키 생략 → 서버가 스캔 판정(`recommend_fail_reason`)으로 채운다 |
+| IDC 이전 요청의 `''` IP | 그대로 되싣음 | 왕복 매퍼가 걸러 낸다 |
 | IDC 행 | 동일 | 동일 |
 
 ## 하지 말 것
