@@ -48,7 +48,7 @@ const ko = {
     requiredMark: '*필수',
     sidPlaceholder: '예: ORCL',
     portPlaceholder: '예: 3306',
-    portRange: '1–65535 범위의 포트를 입력해주세요',
+    portRange: '1–65535 범위의 정수 포트를 입력해주세요',
 
     // Ec2AddModal — search and its states.
     searchLabel: 'Instance ID 검색',
@@ -240,7 +240,7 @@ const en: typeof ko = {
     requiredMark: '*Required',
     sidPlaceholder: 'e.g. ORCL',
     portPlaceholder: 'e.g. 3306',
-    portRange: 'Enter a port between 1 and 65535',
+    portRange: 'Enter an integer port between 1 and 65535',
 
     searchLabel: 'Search by Instance ID',
     searchPlaceholder: 'Search by Instance ID, e.g. i-0a1b2c3d4e5f67890',

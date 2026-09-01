@@ -180,7 +180,7 @@ const ko = {
   formSidPlaceholder: '예: ORCL',
   formSidErr: 'Oracle 선택 시 SID는 필수예요',
   formPortPlaceholder: '예: 3306',
-  formPortErr: '1–65535 범위의 포트를 입력해주세요',
+  formPortErr: '1–65535 범위의 정수 포트를 입력해주세요',
 
   // --- step 1 -------------------------------------------------------------
   step1Title: '연동 대상 DB 입력',
@@ -420,7 +420,7 @@ const en: typeof ko = {
   formSidPlaceholder: 'e.g. ORCL',
   formSidErr: 'SID is required when Oracle is selected',
   formPortPlaceholder: 'e.g. 3306',
-  formPortErr: 'Enter a port between 1 and 65535',
+  formPortErr: 'Enter an integer port between 1 and 65535',
 
   // --- step 1 -------------------------------------------------------------
   step1Title: 'Enter the target DBs',
