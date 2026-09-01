@@ -124,7 +124,9 @@ export const IdcTargetFormModal = ({ isOpen, initial, onSubmit, onClose }: IdcTa
 
   // --- validation (v15 validateIdcTargetForm) ---
   const portNum = Number(port);
-  const portOk = port !== '' && Number.isFinite(portNum) && portNum >= 1 && portNum <= 65535;
+  // 정수만 — 서버(lib/approval-selection.ts 의 .int())·EC2 추가 모달(Ec2AddModal portOk)과
+  // 같은 판정. type=number 입력은 80.5 를 그대로 넘긴다.
+  const portOk = port !== '' && Number.isInteger(portNum) && portNum >= 1 && portNum <= 65535;
 
   const ipTrailingSpace = ips.some((ip) => IDC_TRAILING_WS_RE.test(ip.value));
   const filledIps = ips.map((s) => s.value.trim()).filter((s) => s !== '');

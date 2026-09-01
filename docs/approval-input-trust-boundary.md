@@ -66,7 +66,7 @@ swagger 는 **Next↔BFF** 를 규정하고, **브라우저↔Next** 는 우리 
   규칙을 틀린 뒤가 아니라 치기 전에 말한다.
 - **도메인**: 서버는 폼(`IDC_DOMAIN_RE`)보다 한 칸 **넓게** 본다. 이전 요청 왕복이
   폼을 거치지 않은 값을 되싣기 때문이다.
-- **포트**: 1..65535.
+- **포트**: 정수 1..65535 — 모달 `portOk` 와 같은 판정(`Number.isInteger`).
 - 계약에 없는 키는 거부(`.strict()`). `idc_source_ips`·`nlb_index` 같은 Step2 소유
   필드 주입을 막는 유일한 지점이고, 값 판정이 아니라 "이 필드를 보낼 수 있는가"다.
 
@@ -74,6 +74,9 @@ swagger 는 **Next↔BFF** 를 규정하고, **브라우저↔Next** 는 우리 
 
 스캔 행에는 접속 정보를 실을 자리가 없다 — 모양에 키가 없다. 값은 추가 모달이 친 것이고
 대조할 원본이 없다. 포트는 추가 모달과 같은 1..65535 만 본다.
+
+서버가 보는 것은 폼이 이미 보는 것과 같다: 포트는 정수 1..65535, DB 타입은 추가 모달
+select 목록(`VM_DATABASE_TYPES`)이다. 진위 — 그 인스턴스가 실재하는가 — 는 BFF 의 몫이다.
 
 ### D6. 좁히는 것은 "무엇을 보낼 수 있는가"이지 "무엇이 유효한가"가 아니다
 
@@ -149,6 +152,7 @@ D6 를 지키는 일이 생각보다 어렵다는 증거로 남겨 둔다. 전�
 | Azure NIC id | 와이어 값, 300자를 넘을 수 있음 | ~~256~~ → 1024 → 필드 제거(스캔 행은 접속 정보를 보내지 않는다) |
 | `credential_id` / `resource_id` | 와이어 값, 형식은 프론트가 모름 | ~~64 / 512~~ → 256 / 1024 |
 | IDC Oracle SID | 모달에 상한이 없었음 | 서버 128 → **모달도 같은 상수** `IDC_SID_MAXLEN` |
+| IDC 포트 소수 | 모달 `portOk` 가 `Number.isFinite` 라 `80.5` 를 통과시켰고 서버 `.int()` 가 거부 | **모달을 `Number.isInteger` 로** (EC2 모달과 같은 판정) — 서버는 그대로 |
 
 `resource_id` 는 스키마를 푸는 것만으로는 부족했다. 매퍼가 후보를 **전부** 싣기 때문에
 id 없는 와이어 행이 매 제출에 딸려 오는데, 교집합은 그 행을 거르는 게 아니라 **요청
@@ -183,7 +187,7 @@ id 없는 와이어 행이 매 제출에 딸려 오는데, 교집합은 그 행�
 | `manual_ec2.resource_name` | ≤ 253, `''` 허용 | 정상 범위(DNS) — 검색 와이어가 private DNS 없이 오면 `''` | |
 | `manual_ec2.host` | 1..253 | 정상 범위(DNS) — 검색 결과의 private IP | |
 | `manual_ec2.port` | 정수 1..65535 | **폼과 같은 범위** — `Ec2AddModal` (`portOk`) | |
-| `manual_ec2.database_type` | 1..64 | 정상 범위 — select 값(`VM_DATABASE_TYPES`) | |
+| `manual_ec2.database_type` | `VM_DATABASE_TYPES` 를 `toWireDatabaseType` 로 내린 소문자 집합 | **폼과 같은 상수** — `Ec2AddModal` 의 select 에서 파생 | `지원하지 않는 데이터베이스 타입입니다: <값>` |
 | `manual_ec2.oracle_service_id` | 1..128 | 정상 범위 — 모달 `ORACLE_SID_MAXLEN`=100 ≤ 128 | |
 | `idc.host_format` | `HOST` \| `IP` | 계약 enum | |
 | `idc.hosts` | 0..32 개, 각 1..253 | sanity ≥ 폼(`IDC_MAX_IPS`=6, `IDC_DOMAIN_MAXLEN`=100). **빈 배열 허용** — 이전 요청 불러오기가 host 없는 행을 `[]` 로 싣는다 | |

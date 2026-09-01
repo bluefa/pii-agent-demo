@@ -14,6 +14,8 @@ import { z } from 'zod';
 // IP 판정은 입력 모달과 같은 주인을 쓴다 — 폼이 통과시킨 값을 서버가 되돌려
 // 보내면 그 자리가 곧 false positive 다.
 import { IDC_SID_MAXLEN, isValidIdcIp } from '@/lib/constants/idc';
+import { VM_DATABASE_TYPES } from '@/lib/constants/vm-database';
+import { toWireDatabaseType } from '@/lib/types';
 
 /**
  * 한 요청이 실을 수 있는 행 수. 화면은 후보 **전부**(선택·제외·연동 불가)를 싣고 제 상한이
@@ -33,12 +35,23 @@ const MAX_IDC_HOSTS = 32;
 const HOSTNAME = /^[A-Za-z0-9]([A-Za-z0-9._-]*[A-Za-z0-9])?$/;
 
 /**
+ * 수기 EC2 의 DB 타입. 추가 모달 select(`VM_DATABASE_TYPES`)와 **같은 상수**에서 매퍼와 같은
+ * 변환(`toWireDatabaseType`)으로 내린 집합이다 — 폼이 고를 수 있는 값이 곧 서버가 받는 값이라
+ * 둘이 어긋날 수 없다.
+ */
+const MANUAL_EC2_DATABASE_TYPES = new Set(
+  VM_DATABASE_TYPES.map((type) => toWireDatabaseType(type.value)),
+);
+
+/**
  * 수기 추가 EC2 행이 스스로 말하는 것. 이름(Private DNS)은 추가 모달이 검색 결과에서
  * 받은 값이고, 서버가 다시 확인하지 않는다 — 이 경로의 진위는 BFF 가 막는다.
  *
  * 클라우드 갈래에서 클라이언트가 접속 정보를 저작하는 자리는 여기 하나다. 폼은
- * `Ec2AddModal` 이고(포트 1..65535, SID `ORACLE_SID_MAXLEN`=100 ≤ 128, host 는 검색 결과의
- * private IP), 값은 어느 집합에도 대조하지 않는다 — 형식만 본다.
+ * `Ec2AddModal`(host 는 검색 결과의 private IP, SID `ORACLE_SID_MAXLEN`=100 ≤ 128)이고,
+ * 서버가 보는 것은 폼이 이미 보는 것과 같다 — 포트는 정수 1..65535, DB 타입은 추가 모달
+ * select 목록, host·SID·이름은 형식과 길이. 진위(그 인스턴스가 실재하는가, 그 주소가
+ * 맞는가)는 여전히 BFF 가 막는다.
  */
 const ManualEc2Input = z
   .object({
@@ -48,7 +61,13 @@ const ManualEc2Input = z
     host: z.string().min(1).max(253).optional(),
     // 추가 모달과 같은 범위다(`portOk`: 정수 1..65535).
     port: z.number().int().min(1).max(65535).optional(),
-    database_type: z.string().min(1).max(64).optional(),
+    database_type: z
+      .string()
+      .refine(
+        (value) => MANUAL_EC2_DATABASE_TYPES.has(value),
+        (value) => ({ message: `지원하지 않는 데이터베이스 타입입니다: ${value}` }),
+      )
+      .optional(),
     oracle_service_id: z.string().min(1).max(128).optional(),
   })
   .strict();

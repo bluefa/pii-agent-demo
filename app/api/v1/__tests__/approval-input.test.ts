@@ -7,6 +7,8 @@ vi.mock('@/lib/bff/client', () => ({
 import { ApprovalSelectionInput, resolveApprovalInput } from '@/app/api/_lib/approval-input';
 import { bff } from '@/lib/bff/client';
 import { IDC_SID_MAXLEN } from '@/lib/constants/idc';
+import { VM_DATABASE_TYPES } from '@/lib/constants/vm-database';
+import { toWireDatabaseType } from '@/lib/types';
 
 const getResources = vi.mocked(bff.confirm.getResources);
 
@@ -362,6 +364,31 @@ describe('VM — 표시가 갈래를 고르고, 진위는 BFF 가 막는다', ()
     expect(at(70000)).toBe(false);
     expect(at(0)).toBe(false);
     expect(at(1)).toBe(true);
+  });
+
+  // 두 목록이 같은 상수에서 나온다 — 폼이 고를 수 있는 값이 곧 서버가 받는 값이다.
+  it('수기 EC2 의 database_type 은 추가 모달 select 와 같은 목록이다', () => {
+    const parseWith = (databaseType: string) => ApprovalSelectionInput.safeParse({
+      resources: [
+        {
+          resource_id: 'i-abc',
+          selected: true,
+          manual_ec2: { host: '10.0.0.1', port: 3306, database_type: databaseType },
+        },
+      ],
+    });
+
+    for (const type of VM_DATABASE_TYPES) {
+      expect(parseWith(toWireDatabaseType(type.value)).success).toBe(true);
+    }
+
+    // 매퍼는 `toWireDatabaseType` 를 거쳐 소문자만 보낸다 — 대문자도 목록 밖이다.
+    expect(parseWith('MYSQL').success).toBe(false);
+    const rejected = parseWith('sqlite');
+    expect(rejected.success).toBe(false);
+    expect(rejected.success ? '' : rejected.error.issues[0]?.message).toMatch(
+      /지원하지 않는 데이터베이스 타입입니다: sqlite/,
+    );
   });
 });
 
