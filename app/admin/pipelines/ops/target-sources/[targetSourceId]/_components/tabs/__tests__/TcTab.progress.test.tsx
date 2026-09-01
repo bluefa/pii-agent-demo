@@ -47,6 +47,12 @@ vi.mock('@/app/lib/api/task-queue-requests', () => ({
   getApprovalRequestLatest: vi.fn().mockRejectedValue(new Error('no request')),
 }));
 
+// 설치 상태 조회는 이 테스트의 관심 밖이다 — 못 읽은 판정(unknown)은 아무것도 그리지 않고
+// 실행을 막지도 않으므로, 분모를 보는 이 단언에 끼어들지 않는다.
+vi.mock('@/app/lib/api/aws', () => ({
+  getAwsInstallationStatus: vi.fn().mockRejectedValue(new Error('not under test')),
+}));
+
 // 확정 정보 표는 이 테스트의 관심 밖이고 자기 몫의 조회를 또 건다.
 vi.mock(
   '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/ConfirmedInfoCard',
@@ -73,6 +79,8 @@ describe('TcTab — 진행률 분모', () => {
       <TcTab
         targetSourceId={1}
         isIdc={false}
+        provider="aws"
+        manualInstall={false}
         latest={null}
         results={[]}
         statusLoaded

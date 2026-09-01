@@ -37,20 +37,22 @@ describe('targetSourceId — seed 데이터', () => {
     expect(new Set(ids).size).toBe(ids.length);
   });
 
-  it('seed 데이터는 68개 프로젝트를 포함한다 (cloud 21 + step-coverage 13 + IDC 데모 9 + SDU 데모 4 + TC 큐 5 + TC 카드 상태 8 + 운영 알림 드릴다운 8)', () => {
+  it('seed 데이터는 69개 프로젝트를 포함한다 (cloud 21 + step-coverage 13 + IDC 데모 9 + SDU 데모 4 + TC 큐 5 + TC 카드 상태 9 + 운영 알림 드릴다운 8)', () => {
     // cloud 21 = 기존 15 + 중국 리전 AWS 대상 1018 + 권한 확인만 끝난 Step 4 AWS 대상 1009
     // + 권한 확인이 실패로 끝난 그 짝 1019 + 스캔한 적 없는 1단계 짝 Azure 1030 · AWS 1029
     // (GCP 는 1002 가 이미 그 자리다) + 수동 설치 Step 4 AWS 대상 1034(운영 콘솔의
     // '설치 작업 전 서비스 측 대응 필요' 알림이 서는 유일한 조건을 갖춘 대상).
-    // TC 카드 상태 8 = 21xx fixture (시안 A 슬롯 폴딩 6종 + 시작 대기 2107 + 무보고 실패
-    // 2108, lib/mock-test-connection.ts TC_CARD_FIXTURE).
+    // TC 카드 상태 9 = 21xx fixture (시안 A 슬롯 폴딩 6종 + 시작 대기 2107 + 무보고 실패
+    // 2108, lib/mock-test-connection.ts TC_CARD_FIXTURE) + 설치 미완료 2109 (나머지 21xx 는
+    // serviceTf 를 COMPLETED 로 물려받아 설치가 통째로 끝나 있으므로, 운영 콘솔 연결 테스트
+    // 탭의 실패 예보가 서는 AWS 대상이 하나도 없었다).
     // 운영 알림 드릴다운 8 = 모니터 픽스처(PROC)의 알림 대상 11건 중 카탈로그에 없던 것들.
     // 없으면 알림 행을 눌러도 /target-sources/{id} 가 404 다.
     // IDC 데모 9 = 1020~1027 + 1028(이전 요청이 없는 1단계 짝 — 불러오기 모달의 빈 상태).
     // SDU 데모 4 = 1099(완료·중국) + 1100(업로드 단계 한가운데) + 1101·1102(연동 대상
     // 정의 전 — Global 과 China 한 벌씩). 권역은 고를 수 있는 값이 아니라 SDU 목이
     // isChinaRegion 에서 읽는 파생값이므로, 두 권역의 1단계를 보려면 대상이 둘이어야 한다.
-    expect(mockProjects).toHaveLength(68);
+    expect(mockProjects).toHaveLength(69);
   });
 });
 

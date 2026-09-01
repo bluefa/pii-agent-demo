@@ -1925,7 +1925,26 @@ tcCardConfirmedFixture.status = {
   connectionTest: { status: "PASSED", passedAt: "2026-06-01T00:10:00.000Z" },
 };
 
+/**
+ * 설치가 안 끝난 채로 5단계에 선 대상 — 운영 콘솔의 연결 테스트 탭이 「지금 실행하면
+ * 실패한다」를 예고하는 그 상태.
+ *
+ * 나머지 21xx 는 전부 `serviceTf: COMPLETED` 를 물려받아 설치가 통째로 끝나 있으므로
+ * (설치 상태 목이 그 한 칸으로 전 리소스를 COMPLETED 로 접는다) 예보를 볼 수 있는 대상이
+ * 하나도 없었다. 여기서는 그 칸만 되돌려, 목이 index%4 로 섞어 내는 미정착 셀
+ * (SKIP·FAIL·IN_PROGRESS·BDC_INSTALL_REQUIRED·UNKNOWN)이 실제로 서게 한다.
+ */
+const tcCardInstallPendingFixture = tcCardStateClone({
+  targetSourceId: 2109,
+  key: "install-pending",
+  name: "TC 카드 - 설치 미완료",
+  description:
+    "Step 5 TC 카드 상태 fixture — 설치 미완료. 설치가 끝나지 않은 채 5단계에 서 있어, 운영 콘솔 연결 테스트 탭이 실패를 예고하고 실행 전 확인을 세우는 것을 검증합니다.",
+});
+tcCardInstallPendingFixture.terraformState = { serviceTf: "PENDING", bdcTf: "PENDING" };
+
 mockProjects.push(
+  tcCardInstallPendingFixture,
   tcCardStateClone({
     targetSourceId: 2101,
     key: "idle",

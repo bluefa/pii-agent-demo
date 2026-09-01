@@ -59,6 +59,19 @@ export const pipelineProviderKey = (detail: RawTargetSourceDetail): string =>
     ? 'sdu'
     : providerKey(detail.cloud_provider ?? '');
 
+/**
+ * 이 대상의 설치를 **서비스가 직접** 적용하는가 (AWS 수동 설치).
+ *
+ * 계약이 말하는 것은 그 반대의 허가다 — `grant_service_terraform_execution_permission` 가
+ * true 면 BDC 가 서비스 계정에 스크립트를 적용한다(자동). 그래서 판정은 `!== true` 이지
+ * `=== false` 가 아니다: 필드가 없는 대상은 허가한 적 없는 대상이므로 수동이다.
+ *
+ * 두 탭이 같은 답을 읽는다(인프라 작업의 서비스 측 단계 이름 · 연결 테스트의 설치 단계
+ * 이름). 한쪽이 반대로 읽으면 같은 대상의 같은 단계가 두 탭에서 다른 이름을 갖는다.
+ */
+export const isManualInstall = (detail: RawTargetSourceDetail): boolean =>
+  detail.metadata?.grant_service_terraform_execution_permission !== true;
+
 export interface PipelineTabProps {
   targetSourceId: number;
   detail: RawTargetSourceDetail;
@@ -131,11 +144,7 @@ export function PipelineTab({
   // 서비스 측 작업은 terraform-status 와 **다른 출처**다 — 우리 쪽 작업 기록이 아니라 CSP 에
   // 실제로 무엇이 서 있는지를 묻는다(installation-status). 서비스가 손댈 단계가 있는 두
   // 경우에만 조회하고, 그 밖의 대상에서는 요청 자체가 나가지 않는다.
-  const install = useInstallCheck(
-    targetSourceId,
-    provider,
-    detail.metadata?.grant_service_terraform_execution_permission !== true,
-  );
+  const install = useInstallCheck(targetSourceId, provider, isManualInstall(detail));
   // `startGate` 와 같은 길로 내려간다 — 판정은 여기서 나고, 그것을 문장으로 만드는 일은
   // 그 문장이 붙는 동작(작업 시작)을 가진 카드가 한다.
   const serviceWork = useMemo<ServiceWorkNoticeData | null>(

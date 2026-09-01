@@ -104,6 +104,12 @@ export interface TcLatestRunCardProps {
   onOpenDecisionHistory: () => void;
   /** Credential 목록 modal — 카드 머리의 텍스트 버튼이 연다. */
   onOpenCredentials: () => void;
+  /**
+   * 설치 미완료 예보 상자 — Credential 알림 **아래**, 밴드 위. 카드는 자리만 주고 그릴지
+   * 말지는 그 상자가 정한다(`InstallPendingNotice`). 순서가 곧 무게다: 미설정은 실행을
+   * 잠그는 사유이고, 이것은 실행은 되지만 결과가 정해진다는 예보다.
+   */
+  installPendingSlot?: ReactNode;
   /** 확정 정보 표 — 밴드·승인 요청 줄 아래, 같은 카드 안. */
   children: ReactNode;
 }
@@ -199,6 +205,7 @@ export function TcLatestRunCard({
   onOpenRunHistory,
   onOpenDecisionHistory,
   onOpenCredentials,
+  installPendingSlot,
   children,
 }: TcLatestRunCardProps): ReactElement {
   const b = opsStyles.tcBand;
@@ -358,6 +365,8 @@ export function TcLatestRunCard({
         onToggleFilter={onToggleCredFilter}
         className="mt-4"
       />
+
+      {installPendingSlot}
 
       {loading && !latest ? (
         <BandSkeleton />

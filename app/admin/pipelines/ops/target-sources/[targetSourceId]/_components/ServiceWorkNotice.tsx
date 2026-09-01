@@ -25,9 +25,15 @@ import { useModal } from '@/app/hooks/useModal';
 import { Icon } from '@/app/admin/pipelines/_components/icons';
 import { StatusWarningIcon } from '@/app/components/ui/icons';
 import { opsStyles } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/opsStyles';
-import { ServiceWorkModal } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/ServiceWorkModal';
+import {
+  InstallResourceListModal,
+  type InstallResourceListRow,
+} from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/InstallResourceListModal';
 import type { ServiceWorkResult } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/installGate';
-import type { InstallLastCheck } from '@/app/components/features/process-status/install-status-detail/model';
+import {
+  isSettledInstallStatus,
+  type InstallLastCheck,
+} from '@/app/components/features/process-status/install-status-detail/model';
 
 /**
  * 조회 결과 한 묶음 — `startGate` 가 그러듯 `PipelineTab` 이 만들어 카드까지 내려보낸다.
@@ -51,6 +57,16 @@ export function ServiceWorkNotice({ data, className }: ServiceWorkNoticeProps): 
   if (data === null || data.result.kind !== 'needed') return null;
   const { result, lastCheck } = data;
   const open = result.total - result.done;
+  // 정착한 행은 이 목록의 것이 아니다 — 게이트가 안 끝난 것을 앞으로 정렬해 두었지만,
+  // 자르는 것은 여기서 한다: 「필요한 리소스」라는 제목이 곧 이 필터다.
+  const rows: InstallResourceListRow[] = result.rows
+    .filter((row) => !isSettledInstallStatus(row.status))
+    .map((row) => ({
+      resourceId: row.resourceId,
+      resourceName: row.resourceName,
+      status: row.status,
+      guide: row.guide,
+    }));
 
   return (
     <>
@@ -82,7 +98,12 @@ export function ServiceWorkNotice({ data, className }: ServiceWorkNoticeProps): 
       </div>
 
       {detailModal.isOpen && (
-        <ServiceWorkModal result={result} lastCheck={lastCheck} onClose={detailModal.close} />
+        <InstallResourceListModal
+          title="서비스 측 작업이 필요한 리소스"
+          rows={rows}
+          lastCheck={lastCheck}
+          onClose={detailModal.close}
+        />
       )}
     </>
   );
