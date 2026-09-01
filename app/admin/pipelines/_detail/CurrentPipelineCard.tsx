@@ -222,7 +222,9 @@ export function CurrentPipelineCard({
                 작업 이력 row already shows for this run. The clock marks 시작 only:
                 경과 is read off the same glyph, and a second one would make two
                 clocks out of one line. */}
-            <p className="mt-2 flex flex-wrap items-center gap-1 text-[12px] tabular-nums text-[var(--pl-text-weak)]">
+            {/* break-keep: Hangul breaks between syllables by default, so on a
+                narrow card 수행 담당자 could split mid-word or strand its ·. */}
+            <p className="mt-2 flex flex-wrap items-center gap-1 break-keep text-[12px] tabular-nums text-[var(--pl-text-weak)]">
               <Icon name="clock" size="sm" className="flex-none" />
               시작 {fmtDateTimeShortSec(detail.created_at)} · 경과{' '}
               {fmtElapsedMs(elapsedMs(detail.status, detail.created_at, detail.last_activity_at))}

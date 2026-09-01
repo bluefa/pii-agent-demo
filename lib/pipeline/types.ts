@@ -167,7 +167,7 @@ export interface PipelineDetail {
   /** Who asked for this run: the account the BFF verified from its session, or
    *  `SYSTEM_REQUESTER` when the BFF started the run itself. Detail only — the
    *  upstream keeps it out of `PipelineSummary`. Optional: absent on a backend
-   *  without request context (pipeline-orchestrator PR #52). */
+   *  without request context (pipeline-orchestrator PR #53). */
   requested_by?: string | null;
   /** Free-text note the requester left for the approver (≤200). Same optionality. */
   request_note?: string | null;

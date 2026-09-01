@@ -421,7 +421,7 @@ interface MockPipeline {
   tasks: MockTask[];
   /** Request context — who asked for the run (SYSTEM_REQUESTER for the BFF's own
    *  auto-installs) and the note they left. Absent on rows seeded before the
-   *  feature, exactly like a pre-#52 upstream row. */
+   *  feature, exactly like a pre-#53 upstream row. */
   requested_by?: string | null;
   request_note?: string | null;
   /** Restart provenance (write-once display metadata) — the origin pipeline. */
