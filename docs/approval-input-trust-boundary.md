@@ -201,7 +201,7 @@ id 없는 와이어 행이 매 제출에 딸려 오는데, 교집합은 그 행�
 | `idc.oracle_service_id` | 1..`IDC_SID_MAXLEN`(128) | **폼과 같은 상수** — 모달 input `maxLength` | |
 | `idc.credential_id` | 1자 이상 | 와이어가 발급한 id — 폼은 만들지 않고 형식도 길이도 프론트가 모른다 | |
 
-### 2. 판정 — `resolveApprovalInput` (400 · 409 · title `연동 대상을 확인하지 못했습니다.`)
+### 2. 판정 — `resolveApprovalInput` (400 title `연동 대상을 확인하지 못했습니다.` · 409 code `CONFLICT_STALE_TARGET_LIST`, title `Target List Changed`)
 
 갈래는 본문이 아니라 `TargetSourceDetail.cloud_provider` 를 `normalizeCloudProvider` 에 넣은
 값으로만 고른다.
