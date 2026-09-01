@@ -3,23 +3,43 @@
 /**
  * CloudResourceTable — P3 비-IDC (AWS 등) 연동 대상 리소스.
  *
- * Uses the app-side approval table itself — `idcStyles.table` chrome, the shared
- * ROW_* hover/lift tokens and ReasonChipInline — so the admin and the service owner
- * read one request through one design. Column order is Step 2's: identity (name →
- * id) → attributes (type · region) → decision (verdict → reason).
+ * Wears the console grammar every resource table shares (`ConsoleTable`: the
+ * `approvalHeaderFlat` header, a `table-fixed` column ledger, drag-resize, `consoleGrid`
+ * rails, the covered-clip cell) and reuses the SERVICE OWNER'S ledger itself —
+ * `APPROVAL_COLUMN_WIDTHS` / `APPROVAL_FLEX_KEYS` from `WaitingApprovalTable`, whose steps
+ * 2·3 table asks these same six questions of these same rows. So the admin and the service
+ * owner read one request through one design, down to the pixels each column gets, and the
+ * shared ROW_* hover/lift tokens and ReasonChipInline carry the rest of it. Column order is
+ * Step 2's: identity (name → id) → attributes (type · region) → decision (verdict → reason).
+ *
+ * The resize STORE is this screen's own key, not the owner's: a storage key names one
+ * screen (repo rule), so a width dragged in the queue does not follow the requester home.
+ *
+ * The name column no longer carries its hand-set 360px. That width was bought with an
+ * auto-layout argument — "Resource ID's text caps at 300px, so its column sits on ~150px it
+ * cannot use, spend it on the name instead" — and auto layout is what left: under
+ * `table-fixed` the ledger declares every width and `id` is the flex sink, so it absorbs all
+ * the slack there is and there is no stranded width for the name column to rescue. The 300px
+ * cap that stranded it goes too (the id cell switches to `hardClip`), for the same reason.
  *
  * Database Type carries no chip: it is a repeating attribute, not a status.
  */
 import { Fragment, type ReactElement } from 'react';
 import { bgColors, cn, idcStyles, primaryColors, textColors, verdictRail } from '@/lib/theme';
+import { ConsoleTable, type ConsoleTableColumn } from '@/app/components/ui/ConsoleTable';
+import { useColumnResize } from '@/app/components/ui/useColumnResize';
 import { useClusterFold } from '@/app/hooks/useClusterFold';
 import { ChevronRightIcon } from '@/app/components/ui/icons';
 import { getDatabaseShortLabel } from '@/app/components/ui/DatabaseIcon';
 import { ReasonChipInline } from '@/app/components/ui/ReasonChipInline';
 import { IdentifierTip, Tooltip } from '@/app/components/ui/Tooltip';
 import {
+  APPROVAL_COLUMN_WIDTHS,
+  APPROVAL_FLEX_KEYS,
   CELL_LIFT,
   CONNECTED_FRAME,
+  NAME_TEXT,
+  NAME_TRIGGER,
   ROW_BASE,
   ROW_EXCLUDED,
   ROW_TARGET,
@@ -57,33 +77,50 @@ export const ReasonChip = ({ row }: { row: RequestResourceRow }) => {
   );
 };
 
+/**
+ * 열 원장 — 전부 `APPROVAL_COLUMN_WIDTHS` 그대로다(Σ 992 = 250+186+142+156+116+142).
+ * 같은 여섯 질문을 같은 행에 던지는 표가 다른 눈금을 쓸 이유가 없어서, 폭 하나하나의
+ * 근거는 저 원장 한 곳에만 적힌다.
+ */
+const CLOUD_COLUMNS: ConsoleTableColumn[] = [
+  {
+    key: 'name',
+    label: 'Resource Name',
+    width: APPROVAL_COLUMN_WIDTHS.name,
+    flex: true,
+    headClassName: idcStyles.table.nameCell,
+  },
+  // The sink: last flex column, so it takes what the others leave — the ARN, which every row
+  // fills and which is the only value here a cut actually costs the reader.
+  { key: 'id', label: 'Resource ID', width: APPROVAL_COLUMN_WIDTHS.id, flex: true },
+  { key: 'dbType', label: 'Database Type', width: APPROVAL_COLUMN_WIDTHS.dbType },
+  { key: 'region', label: 'Region', width: APPROVAL_COLUMN_WIDTHS.region },
+  // The IDC table's wording for the same question. "연동 대상" named the verdict here while
+  // it named the address column there — one table used the word for a row, the other for a
+  // cell.
+  { key: 'target', label: '요청 대상 여부', width: APPROVAL_COLUMN_WIDTHS.target },
+  // Sized, not flex — see APPROVAL_FLEX_KEYS for the measurement that rejected it as the sink.
+  { key: 'reason', label: '제외 사유', width: APPROVAL_COLUMN_WIDTHS.reason },
+];
+
 export function CloudResourceTable({ rows }: CloudResourceTableProps): ReactElement {
   const { table } = idcStyles;
   // Instance lists follow the shared fold policy (`useClusterFold`): open while the cluster is
   // part of the request, folded once it is excluded. The chevron overrides one cluster.
   const clusterFold = useClusterFold();
+  // This screen's own store — the widths are shared with nothing, unlike the two cards the
+  // service owner's steps 2·3 hang off one key.
+  const resize = useColumnResize({
+    clampToContent: true,
+    storageKey: 'pii:colw:v1:admin-cloud-resources',
+    ephemeralKeys: APPROVAL_FLEX_KEYS,
+  });
   return (
     // No frame of its own — the toolbar above owns the rounded top and the pager below
-    // the bottom, exactly as step 1's list table does (CONNECTED_FRAME).
+    // the bottom, exactly as step 1's list table does (CONNECTED_FRAME). The horizontal
+    // scroll escape lives inside ConsoleTable's own wrapper.
     <div className={CONNECTED_FRAME}>
-      <div className="overflow-x-auto">
-      <table className="w-full text-[14px]">
-        <thead className={table.approvalHeaderChrome}>
-          <tr>
-            {/* Resource ID's text caps at 300px (resId.text), so its column was sitting
-                on ~150px it could not use. Spent here: names differ in their TAIL
-                (…-cluster-001 / -002), which is exactly what truncation eats first. */}
-            <th className={cn(table.approvalHeaderCell, table.nameCell, 'w-[360px]')}>Resource Name</th>
-            <th className={table.approvalHeaderCell}>Resource ID</th>
-            <th className={cn(table.approvalHeaderCell, 'w-[120px] whitespace-nowrap')}>Database Type</th>
-            <th className={cn(table.approvalHeaderCell, 'w-[130px]')}>Region</th>
-            {/* The IDC table's wording and width for the same question. "연동 대상" named
-                the verdict here while it named the address column there — one table used
-                the word for a row, the other for a cell. 112 is what the pill needs. */}
-            <th className={cn(table.approvalHeaderCell, 'w-[112px] whitespace-nowrap')}>요청 대상 여부</th>
-            <th className={cn(table.approvalHeaderCell, 'w-[240px]')}>제외 사유</th>
-          </tr>
-        </thead>
+      <ConsoleTable columns={CLOUD_COLUMNS} resize={resize}>
         <tbody className={table.body}>
           {rows.map((row, index) => {
             const excluded = !row.selected;
@@ -129,6 +166,9 @@ export function CloudResourceTable({ rows }: CloudResourceTableProps): ReactElem
                 <td
                   className={cn(
                     table.approvalCell,
+                    // The covered-clip cell (round 4): the CELL clips, so a long name cuts on
+                    // the column stroke instead of drawing its own ellipsis.
+                    table.consoleCell,
                     table.nameCell,
                     // 14, the size WaitingApprovalTable and the IDC table give their own
                     // identity column — it was rendering at the attribute tier.
@@ -180,10 +220,10 @@ export function CloudResourceTable({ rows }: CloudResourceTableProps): ReactElem
                       content={<IdentifierTip label="Resource Name" value={row.resourceName ?? ''} />}
                       variant="value"
                       size="md"
-                      triggerClassName="block min-w-0 max-w-[360px]"
+                      triggerClassName={NAME_TRIGGER}
                       truncatedOnly
                     >
-                      <span className="block truncate">{row.resourceName || '—'}</span>
+                      <span className={NAME_TEXT}>{row.resourceName || '—'}</span>
                     </Tooltip>
                     {/* Which member the request connects through — the same third line steps
                         1·2·3 carry (owner, 2026-08-13). The queue exists to check that choice,
@@ -194,24 +234,32 @@ export function CloudResourceTable({ rows }: CloudResourceTableProps): ReactElem
                     </span>
                   </span>
                 </td>
-                <td className={table.approvalCell}>
+                <td className={cn(table.approvalCell, table.consoleCell)}>
                   {row.resourceId && (
+                    // +18px = this cell's own right padding (approvalCell px-[18px]): the
+                    // wrapper must END at the column boundary, so the overlay copy button
+                    // anchors to the boundary rather than to a tail reserve. Same call the
+                    // service owner's table makes on the same value.
                     <ResourceIdCell
                       value={row.resourceId}
                       label="Resource ID"
-                      maxWidthClass="max-w-[300px]"
+                      maxWidthClass="w-[calc(100%+18px)]"
                       sizeClass="text-[14px]"
                       textClassName={cn(tone, CELL_LIFT)}
+                      hardClip
                     />
                   )}
                 </td>
-                <td className={cn(table.approvalCell, 'text-[14px]', tone, CELL_LIFT)}>
+                <td
+                  className={cn(table.approvalCell, table.consoleCell, 'text-[14px]', tone, CELL_LIFT)}
+                >
                   {/* wire 는 소문자 원문(mysql·athena)이라 사용자 화면과 같은 표기로 맞춘다. */}
                   {row.databaseType ? getDatabaseShortLabel(row.databaseType) : ''}
                 </td>
                 <td
                   className={cn(
                     table.approvalCell,
+                    table.consoleCell,
                     // A region is one token — wrapping it to "ap-northeast-" / "2" reads
                     // as two values.
                     'whitespace-nowrap font-mono text-[14px]',
@@ -223,7 +271,10 @@ export function CloudResourceTable({ rows }: CloudResourceTableProps): ReactElem
                 </td>
                 {/* The pill the IDC table and step 1 use, not a text label: the verdict
                     is the same fact on every surface, and INSTALL_INELIGIBLE (the scan's
-                    judgement) must not read as a revisable 제외. */}
+                    judgement) must not read as a revisable 제외.
+                    No covered clip on this pair, as on the owner's own steps 2·3: the pill's
+                    longest word fits its column at every legal width, and the chip below
+                    clamps its own text. */}
                 <td className={table.approvalCell}>
                   <TargetPill
                     excluded={excluded}
@@ -259,8 +310,7 @@ export function CloudResourceTable({ rows }: CloudResourceTableProps): ReactElem
             );
           })}
         </tbody>
-      </table>
-      </div>
+      </ConsoleTable>
     </div>
   );
 }

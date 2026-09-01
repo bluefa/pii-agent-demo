@@ -577,7 +577,7 @@ const confirmedGroups = (label: string): readonly ConsoleTableGroup[] => [
  * so widening Name's share narrows the ARN's on a wide screen. That is the trade the ranking
  * above buys, and the drag handle is how a reader unmakes it for one session.
  */
-const APPROVAL_COLUMN_WIDTHS = {
+export const APPROVAL_COLUMN_WIDTHS = {
   name: 250,
   id: CONFIRMED_COLUMN_WIDTHS.id,
   dbType: CONFIRMED_COLUMN_WIDTHS.dbType,

@@ -6,7 +6,7 @@
  * state the list needs.
  */
 import type { ReactElement } from 'react';
-import { cn } from '@/lib/theme';
+import { cn, idcStyles } from '@/lib/theme';
 import { getDatabaseShortLabel } from '@/app/components/ui/DatabaseIcon';
 import { Pagination } from '@/app/components/ui/Pagination';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
@@ -215,10 +215,25 @@ export function ResourceSectionSkeleton(): ReactElement {
         <span className={cn(SKELETON_BAR_ON_BAND, 'ml-auto h-8 w-8 rounded-lg')} />
       </div>
       <div className="rounded-b-[12px] border border-t-0 border-[var(--pl-border)] bg-[var(--pl-bg-card)]">
-        {/* 헤더 밴드: approvalHeaderChrome(gray-100) + approvalHeaderCell(py-3, 12px). */}
-        <div className="flex items-center gap-10 bg-[var(--pl-gray-100)] px-[18px] py-3">
+        {/* 헤더 밴드: approvalHeaderFlat + approvalHeaderCell(py-3). 두 표가 모두 콘솔
+            머리를 쓰므로 스켈레톤도 그 토큰을 그대로 입는다 — 워시도 밑줄도
+            `approvalHeaderFlat` 이 가지고 있으니 값을 여기 옮겨 적을 이유가 없다.
+            gray-100 을 두면 행이 도착하는 순간 머리가 회색에서 파랑으로 뒤집힌다.
+            바는 그대로 gray-200 이다 — 워시 위에서 다시 재보면 함정도 답도 그대로다:
+            gray-100 바는 1.01:1 로 안 보이고(gray-100 밴드 위 1.00:1 과 같은 자리),
+            gray-200 은 1.14:1 로 gray-100 밴드 위에서 갖던 1.13:1 을 지킨다.
+            높이는 실측이다(브라우저, `ConsoleTable` thead): th 44px = py-3 의 12+12 +
+            19.6px 라인 박스(14px × 1.4), 라벨이 그리는 라인 박스는 20px. 그래서 바는
+            h-5 다 — 12px 머리 시절의 18px 을 두면 밴드가 42px 로 서서 행이 도착할 때
+            머리가 2px 움직인다. */}
+        <div
+          className={cn(
+            'flex items-center gap-10 px-[18px] py-3',
+            idcStyles.table.approvalHeaderFlat,
+          )}
+        >
           {[112, 88, 64, 96].map((w, i) => (
-            <span key={i} className={cn(SKELETON_BAR_ON_BAND, 'h-[18px]')} style={{ width: w }} />
+            <span key={i} className={cn(SKELETON_BAR_ON_BAND, 'h-5')} style={{ width: w }} />
           ))}
         </div>
         {Array.from({ length: 6 }, (_, i) => (
