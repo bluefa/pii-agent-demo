@@ -10,8 +10,8 @@ import type { CandidateDraftState, CandidateResource } from '@/lib/types/resourc
 
 const drafts: CandidateDraftState = { endpointDrafts: {}, rdsInstanceDrafts: {} };
 
-// 평범한(credential/default behavior) 클라우드 후보: endpoint 필드가 없으므로 이 행이
-// 보내는 것은 선택 여부뿐이어야 한다.
+// 평범한(credential/default behavior) 클라우드 후보. 스캔 행은 접속 정보를 실을 자리가
+// 없으므로 이 행이 보내는 것은 선택 여부뿐이어야 한다.
 const cloudCandidate: CandidateResource = {
   id: 'res-1',
   resourceId: 'arn:aws:rds:ap-northeast-1:acct:db:mydb',

@@ -4,6 +4,11 @@
  * 왜 좁은지, 라우트가 이걸로 무엇을 하는지는 `app/api/_lib/approval-input.ts` 머리말.
  * 이 파일은 상류 클라이언트를 모른다: 모양은 브라우저와 서버가 함께 읽는 어휘이고,
  * 판정은 서버만의 일이라 파일을 나눈다.
+ *
+ * 스캔이 찾은 행은 **포인터와 선택**뿐이다 — 어느 리소스인가(id), 골랐는가, 왜 뺐는가,
+ * 어느 RDS 멤버인가. 접속 정보(host·port·database_type·oracle_service_id)는 `manual_ec2`
+ * 와 `idc` 안에만 있다. 스캔 행에는 그 값을 실을 자리가 없고, 그래서 "스캔 행의 metadata 는
+ * 전부 서버가 채운다"가 타입 게이트가 아니라 모양으로 참이 된다.
  */
 import { z } from 'zod';
 // IP 판정은 입력 모달과 같은 주인을 쓴다 — 폼이 통과시킨 값을 서버가 되돌려
@@ -28,33 +33,23 @@ const MAX_IDC_HOSTS = 32;
 const HOSTNAME = /^[A-Za-z0-9]([A-Za-z0-9._-]*[A-Za-z0-9])?$/;
 
 /**
- * 수기 접속 정보. VM 추가와 IDC 가 같은 모양을 쓴다 — 둘 다 사용자가 친 값이고,
- * 서버에 원본이 없다는 성격이 같다.
- */
-const EndpointInput = z
-  .object({
-    host: z.string().min(1).max(253).optional(),
-    // 하한이 0 인 이유: 카탈로그는 `port !== null` 이면 endpointConfig 를 만들므로
-    // 와이어의 port 0 이 그대로 올라온다. 옛 경로도 0 을 그대로 보냈다.
-    port: z.number().int().min(0).max(65535).optional(),
-    database_type: z.string().min(1).max(64).optional(),
-    oracle_service_id: z.string().min(1).max(128).optional(),
-    // 스캔이 준 값이다. Azure NIC 리소스 id
-    // (`/subscriptions/{guid}/resourceGroups/{≤90}/providers/Microsoft.Network/networkInterfaces/{≤80}`)
-    // 는 256 을 넘는다 — 와이어 값이 닿을 수 있는 상한은 검증이 아니라 막다른 길이다.
-    network_interface_id: z.string().min(1).max(1024).optional(),
-  })
-  .strict();
-
-/**
  * 수기 추가 EC2 행이 스스로 말하는 것. 이름(Private DNS)은 추가 모달이 검색 결과에서
  * 받은 값이고, 서버가 다시 확인하지 않는다 — 이 경로의 진위는 BFF 가 막는다.
+ *
+ * 클라우드 갈래에서 클라이언트가 접속 정보를 저작하는 자리는 여기 하나다. 폼은
+ * `Ec2AddModal` 이고(포트 1..65535, SID `ORACLE_SID_MAXLEN`=100 ≤ 128, host 는 검색 결과의
+ * private IP), 값은 어느 집합에도 대조하지 않는다 — 형식만 본다.
  */
 const ManualEc2Input = z
   .object({
     // 빈 문자열도 받는다: EC2 검색 와이어가 private DNS 이름 없이 돌아오면 매퍼가
     // `''` 를 싣는다(`app/lib/api/ec2.ts`). 없던 거부를 만들지 않는다.
     resource_name: z.string().max(253).optional(),
+    host: z.string().min(1).max(253).optional(),
+    // 추가 모달과 같은 범위다(`portOk`: 정수 1..65535).
+    port: z.number().int().min(1).max(65535).optional(),
+    database_type: z.string().min(1).max(64).optional(),
+    oracle_service_id: z.string().min(1).max(128).optional(),
   })
   .strict();
 
@@ -110,8 +105,6 @@ export const ApprovalSelectionInput = z
             exclusion_reason: z.string().max(EXCLUSION_REASON_MAXLEN).optional(),
             /** RDS 클러스터에서 고른 멤버. 서버가 후보 목록 안에 있는지 확인한다. */
             selected_rds_instance_resource_id: z.string().min(1).max(1024).optional(),
-            /** VM 계열 수기 접속 정보. */
-            endpoint: EndpointInput.optional(),
             /**
              * 검색해서 손으로 추가한 EC2 행이라는 표시. 스캔 목록에 없는 id 가
              * "오래된 화면"인지 "방금 추가한 인스턴스"인지는 서버가 구별할 수 없다 —
@@ -130,6 +123,5 @@ export const ApprovalSelectionInput = z
   .strict();
 
 export type ApprovalSelection = z.infer<typeof ApprovalSelectionInput>;
-export type EndpointInput = z.infer<typeof EndpointInput>;
 export type IdcInput = z.infer<typeof IdcInput>;
 export type ManualEc2Input = z.infer<typeof ManualEc2Input>;

@@ -15,21 +15,22 @@ const instance = {
 };
 
 /**
- * 수기 추가 EC2 행이 승인 요청에 실리는 모양. 이제 클라이언트가 보내는 것은 선택과
- * 사용자가 친 접속 정보뿐이다 — resource_type·integration_category·주소는 라우트가
- * EC2 검색 결과에서 읽어 붙인다(`app/api/v1/__tests__/approval-input.test.ts`).
+ * 수기 추가 EC2 행이 승인 요청에 실리는 모양. 클라이언트가 보내는 것은 선택과 사용자가 친
+ * 접속 정보뿐이고, 그 접속 정보는 `manual_ec2` 안에만 있다 — 스캔 행에는 실을 자리가 없다.
+ * resource_type·integration_category 는 이 흐름의 상수라 라우트가 붙인다
+ * (`app/api/v1/__tests__/approval-input.test.ts`).
  */
 describe('manual EC2 → approval selection', () => {
-  it('사용자가 친 접속 정보를 endpoint 로 보낸다', () => {
+  it('사용자가 친 접속 정보를 manual_ec2 안에 담아 보낸다', () => {
     const candidate = toManualEc2Candidate(instance, { databaseType: 'MYSQL', port: 3306 });
     const input = toApprovalRequestInput([candidate], new Set([instance.instanceId]), drafts, {});
     const [item] = input.resources;
 
     expect(item.resource_id).toBe(instance.instanceId);
     expect(item.selected).toBe(true);
-    expect(item.endpoint?.database_type).toBe('mysql');
-    expect(item.endpoint?.port).toBe(3306);
-    expect(item.endpoint?.oracle_service_id).toBeUndefined();
+    expect(item.manual_ec2?.database_type).toBe('mysql');
+    expect(item.manual_ec2?.port).toBe(3306);
+    expect(item.manual_ec2?.oracle_service_id).toBeUndefined();
     expect(() => ApprovalSelectionInput.parse(input)).not.toThrow();
   });
 
@@ -38,7 +39,14 @@ describe('manual EC2 → approval selection', () => {
     const input = toApprovalRequestInput([candidate], new Set([instance.instanceId]), drafts, {});
     const [item] = input.resources;
 
-    expect(item.manual_ec2).toEqual({ resource_name: instance.privateDnsName });
+    expect(item.manual_ec2).toMatchObject({
+      resource_name: instance.privateDnsName,
+      host: instance.privateIpAddress,
+      port: 3306,
+      database_type: 'mysql',
+    });
+    // 접속 정보는 이 키 안에만 있다 — 행에는 그 자리가 없다.
+    expect(item).not.toHaveProperty('endpoint');
     // 타입과 카테고리는 이 흐름의 상수라 라우트가 붙인다.
     expect(item).not.toHaveProperty('resource_type');
     expect(item).not.toHaveProperty('integration_category');
@@ -60,7 +68,7 @@ describe('manual EC2 → approval selection', () => {
     });
     const input = toApprovalRequestInput([oracle], new Set([instance.instanceId]), drafts, {});
 
-    expect(input.resources[0].endpoint?.oracle_service_id).toBe('ORCL');
+    expect(input.resources[0].manual_ec2?.oracle_service_id).toBe('ORCL');
   });
 
   it('체크를 풀어도 제외 사유가 필요 없다 — 사용자가 자기 추가를 되돌리는 것이다', () => {

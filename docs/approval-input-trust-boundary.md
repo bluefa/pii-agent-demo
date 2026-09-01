@@ -29,7 +29,7 @@ swagger 는 **Next↔BFF** 를 규정하고, **브라우저↔Next** 는 우리 
 | 갈래 | 권위 소스 | 서버가 하는 일 | 차단 |
 |---|---|---|---|
 | **선택형** (스캔이 찾은 클라우드 리소스) | `confirm.getResources` | 집합 교집합 + 속성 재조립 | 정체성·속성 모두 |
-| **VM/EC2** (검색해서 수기 추가) | 없음 (BFF 가 판정) | 형식만 보고 통과 | 형식만 |
+| **EC2 수기 추가** (검색해서 추가) | 없음 (BFF 가 판정) | `manual_ec2` 안의 접속 정보를 형식만 보고 옮긴다 | 형식만 |
 | **IDC** (수기 입력) | 없음 (서버에 원본 자체가 없음) | 형식만 | 형식만 |
 
 ### D3. EC2 진위는 BFF 가 막는다 — 프론트는 되짚지 않는다
@@ -70,10 +70,10 @@ swagger 는 **Next↔BFF** 를 규정하고, **브라우저↔Next** 는 우리 
 - 계약에 없는 키는 거부(`.strict()`). `idc_source_ips`·`nlb_index` 같은 Step2 소유
   필드 주입을 막는 유일한 지점이고, 값 판정이 아니라 "이 필드를 보낼 수 있는가"다.
 
-### D5. VM 포트도 범위만 본다
+### D5. 수기 EC2 의 접속 정보는 `manual_ec2` 안에서만 온다
 
-수기 추가 EC2 의 접속 정보(host·port·database_type·oracle_service_id)는 사용자가
-친 값이고 대조할 원본이 없다. 포트는 1..65535 범위만 본다.
+스캔 행에는 접속 정보를 실을 자리가 없다 — 모양에 키가 없다. 값은 추가 모달이 친 것이고
+대조할 원본이 없다. 포트는 추가 모달과 같은 1..65535 만 본다.
 
 ### D6. 좁히는 것은 "무엇을 보낼 수 있는가"이지 "무엇이 유효한가"가 아니다
 
@@ -96,20 +96,13 @@ swagger 는 **Next↔BFF** 를 규정하고, **브라우저↔Next** 는 우리 
 |---|---|---|
 | `selected` | 사용자의 선택 | 없음 (선택은 검증 대상이 아니다) |
 | `exclusion_reason` | 사용자가 적은 텍스트 | 길이만. 상한은 **입력 폼과 같은 상수**(`EXCLUSION_REASON_MAXLEN`) |
-| `endpoint.*` | VM 계열 행의 접속 정보 | 형식만. **VM 자원 타입 행에서만 병합**한다 (아래) |
+| `selected_rds_instance_resource_id` | RDS 멤버 선택 | 그 행의 후보 목록에 대조. 역할은 서버가 읽는다 |
 
-`endpoint` 는 스키마가 어느 행에서든 받지만, **병합은 `VM_RESOURCE_TYPES`
-(`AZURE_VM`·`EC2`) 행에서만** 한다. 폼이 그 집합에서만 `endpointConfig` 를 만들기
-때문이고, 서버가 이 게이트를 안 걸면 스캔 RDS 행에 `endpoint` 를 붙여 스캔이 소유해야
-할 `database_type` 을 클라이언트가 덮을 수 있다(병합이 나중에 펼쳐지므로). 폼과 서버가
-같은 상수를 공유한다.
-
-⚠ `VM_RESOURCE_TYPES` 는 내부 철자(`EC2`·`AZURE_VM`)이고 계약 enum 은 `AWS_EC2_INSTANCE`·
-`AZURE_VIRTUAL_MACHINE` 이다. 후보 경로는 어느 쪽도 정규화하지 않는다(`toConfirmResourceItem`
-은 `resource_type` 원문, `pickBehaviorKey` 도 원문). 그래서 **실제 와이어에서는 스캔 행이
-endpoint 갈래를 받는 일이 없다** — 폼도 `endpointConfig` 를 만들지 않고 서버도 병합하지
-않는다(대칭이라 FP 는 없다). #342(2026-04-24) 부터 그랬고 이 작업의 범위 밖이다. 스캔 EC2 에
-접속 정보를 달게 하려면 두 곳이 같은 상수를 읽고 있으니 그 상수 하나를 고치면 된다.
+스캔 행에는 접속 정보 키가 없다. `EC2`·`AZURE_VM` 철자 행에서만 열리던 `endpoint`
+편집기(`VmDatabaseConfigPanel`)는 계약 enum(`AWS_EC2_INSTANCE`·`AZURE_VIRTUAL_MACHINE`)에서
+도달 불가한 경로였고(#342 부터), 그 드래프트는 이제 보내지 않는다. 스캔 EC2 에 사용자가 친
+접속 정보가 필요해지면 `manual_ec2` 처럼 **키가 있는 갈래**로 더한다 — metadata 병합이
+아니라.
 
 `selected_rds_instance_resource_id` 는 사용자의 선택이지만 **후보 목록에 대조해
 검증한다**. 역할(`selected_rds_instance_role`)은 클라이언트가 보내지 않고 서버가 그
@@ -148,12 +141,12 @@ D6 를 지키는 일이 생각보다 어렵다는 증거로 남겨 둔다. 전�
 |---|---|---|
 | 제외 사유 길이 | 1000자 | ~~500자~~ → 폼과 같은 상수 공유 |
 | 수기 EC2 이름 | 빈 문자열 가능(검색 와이어가 private DNS 없이 돌아옴) | ~~`.min(1)`~~ → 빈 값 허용, 키 생략 |
-| VM 포트 | 와이어의 `0` 이 그대로 올라옴 | ~~`.min(1)`~~ → `.min(0)` |
+| VM 포트 | 와이어의 `0` 이 그대로 올라옴 | ~~`.min(1)`~~ → `.min(0)` → 스캔 행은 포트를 보내지 않게 되어 해당 없음 |
 | `resource_id` | 와이어가 id 없으면 `''` | ~~`.min(1)`~~ → **행을 떨군다**(아래) |
 | 행 수 | 스캔 전부, 화면엔 상한 없음 | ~~500~~ → ~~2000~~ → 10000 (sanity) |
 | IDC 이전 요청 IP | `''` 원소가 섞일 수 있음 | 왕복 매퍼에서 걸러 냄 |
 | 같은 id 두 번 | 와이어가 같은 id 를 두 번 주면 화면은 한 선택 상태를 두 행에 그린다 | ~~400~~ → 첫 행만 남긴다 |
-| Azure NIC id | 와이어 값, 300자를 넘을 수 있음 | ~~256~~ → 1024 |
+| Azure NIC id | 와이어 값, 300자를 넘을 수 있음 | ~~256~~ → 1024 → 필드 제거(스캔 행은 접속 정보를 보내지 않는다) |
 | `credential_id` / `resource_id` | 와이어 값, 형식은 프론트가 모름 | ~~64 / 512~~ → 256 / 1024 |
 | IDC Oracle SID | 모달에 상한이 없었음 | 서버 128 → **모달도 같은 상수** `IDC_SID_MAXLEN` |
 
@@ -181,18 +174,17 @@ id 없는 와이어 행이 매 제출에 딸려 오는데, 교집합은 그 행�
 | 자리 | 조건 | 출처 | detail |
 |---|---|---|---|
 | 본문 | 객체가 아님 / `resources` 없음 | 모양 | `Expected object, received …` / `Required` |
-| 본문·행·`endpoint`·`idc`·`manual_ec2` | 모델에 없는 키 | `.strict()` | `Unrecognized key(s) in object: 'x'` |
+| 본문·행·`idc`·`manual_ec2` | 모델에 없는 키 | `.strict()` | `Unrecognized key(s) in object: 'x'` |
 | `resources` | 1 ≤ 길이 ≤ 10000 | sanity — 화면은 후보 **전부**를 싣고 상한이 없다 | `Array must contain at least 1 / at most 10000 element(s)` |
 | `resource_id` | 문자열 ≤ 1024 (`''` 허용 — §2 ① 에서 떨군다) | sanity (와이어 값) | |
 | `selected` | boolean 필수 | 모양 | `Required` |
 | `exclusion_reason` | ≤ 1000 | **폼** — 클라우드 폼이 `EXCLUSION_REASON_MAXLEN` 을 읽는다. IDC 폼은 200(`IDC_REASON_MAXLEN`) | |
 | `selected_rds_instance_resource_id` | 1..1024 | sanity (와이어 값) | |
-| `endpoint.host` | 1..253 | 정상 범위(DNS) — EC2 는 private IP 를 폼이 채운다 | |
-| `endpoint.port` | 정수 0..65535 | 정상 범위 — `0` 은 카탈로그가 와이어 `port: 0` 을 그대로 올리므로 허용. 폼(`Ec2AddModal`·`VmDatabaseConfigPanel`)은 1..65535 | |
-| `endpoint.database_type` | 1..64 | 정상 범위 — select 값(`VM_DATABASE_TYPES`) | |
-| `endpoint.oracle_service_id` | 1..128 | 정상 범위 — EC2 모달 `ORACLE_SID_MAXLEN`=100 ≤ 128 | |
-| `endpoint.network_interface_id` | 1..1024 | sanity (와이어 값 — Azure NIC 리소스 id 는 300자를 넘을 수 있다) | |
 | `manual_ec2.resource_name` | ≤ 253, `''` 허용 | 정상 범위(DNS) — 검색 와이어가 private DNS 없이 오면 `''` | |
+| `manual_ec2.host` | 1..253 | 정상 범위(DNS) — 검색 결과의 private IP | |
+| `manual_ec2.port` | 정수 1..65535 | **폼과 같은 범위** — `Ec2AddModal` (`portOk`) | |
+| `manual_ec2.database_type` | 1..64 | 정상 범위 — select 값(`VM_DATABASE_TYPES`) | |
+| `manual_ec2.oracle_service_id` | 1..128 | 정상 범위 — 모달 `ORACLE_SID_MAXLEN`=100 ≤ 128 | |
 | `idc.host_format` | `HOST` \| `IP` | 계약 enum | |
 | `idc.hosts` | 0..32 개, 각 1..253 | sanity ≥ 폼(`IDC_MAX_IPS`=6, `IDC_DOMAIN_MAXLEN`=100). **빈 배열 허용** — 이전 요청 불러오기가 host 없는 행을 `[]` 로 싣는다 | |
 | `idc.hosts[]` (IP) | `isValidIdcIp` — IPv4 만 | **폼과 같은 함수** — 모달이 `IPv4만 등록할 수 있어요` 로 사전 고지 | `IP 주소 형식이 아닙니다: <값>` |
@@ -213,7 +205,7 @@ id 없는 와이어 행이 매 제출에 딸려 오는데, 교집합은 그 행�
 | ② | 같은 `resource_id` 가 두 번 | **첫 행만 남긴다**(거부 아님) | 와이어가 같은 id 를 두 번 주면 화면도 한 선택 상태를 두 행에 그린다 — 첫 행이 곧 화면이 뜻한 것 |
 | ③ | ①②를 거치고 한 행도 없음 | 400 `연동할 리소스가 없습니다.` | 사실상 아니오 — 매퍼가 먼저 거르고 CTA 는 선택 0 이면 잠긴다. id 없는 행만 골랐을 때뿐 |
 | ④ IDC | 행에 `idc` 없음 | 400 `IDC 연동 대상에는 접속 정보가 필요합니다.` | 아니오 — IDC 매퍼는 모든 행에 `idc` 를 붙인다 |
-| ④ IDC | 행에 `endpoint` 또는 `manual_ec2` | 400 | 아니오 |
+| ④ IDC | 행에 `manual_ec2` | 400 | 아니오 |
 | ⑤ 클라우드 | 어떤 행에든 `idc` | 400 `IDC 접속 정보는 IDC 연동에서만 보낼 수 있습니다.` | 아니오 |
 | ⑥ 클라우드 | 스캔 목록에 있는 id 에 `manual_ec2` | **409** 오래된 화면 | 예 — 수기 추가 뒤 재스캔이 같은 인스턴스를 후보로 올린 경우. 새로고침이 고친다 |
 | ⑦ 클라우드 | `selected_rds_instance_resource_id` 가 그 행의 `rds_instance_candidates` 에 없음 | **409** 오래된 화면 | 예 — 재스캔이 멤버 목록을 바꾼 경우. 새로고침이 고친다 |
@@ -221,6 +213,9 @@ id 없는 와이어 행이 매 제출에 딸려 오는데, 교집합은 그 행�
 | ⑨ 클라우드 | 스캔 목록에 없는 id, 그 외 | **409** 오래된 화면 | 예 — 재스캔이 리소스를 지운 경우. 새로고침이 고친다 |
 
 409 셋은 전부 "다시 읽으면 달라진다" 이고, 400 은 전부 실 UI 가 만들 수 없는 본문이다.
+
+역방향(스캔에는 있는데 본문에 없는 id)은 검사하지 않는다 — 스캔이 자란 경우이고, 사용자가
+본 목록이 곧 요청이다.
 
 ### 3. 상류 실패
 
@@ -287,6 +282,7 @@ rds_instance_candidates 만). "새 필드가 빠진다" 는 이 작업이 만든
 | `metadata.selected_rds_instance_role` | 보내지 않음 | 고른 멤버의 `cluster_member_role`(계약 필드) |
 | `recommend_fail_reason` · 제외 사유 대체값 | 별칭 정규화 값 | 스캔 원문 |
 | 수기 EC2 `metadata.resource_type` | 보내지 않음 | `AWS_EC2_INSTANCE` |
+| 스캔 VM 행(`EC2`·`AZURE_VM` 철자)의 endpoint 드래프트 | metadata 로 병합 | 보내지 않음 — 와이어 enum 에서 도달 불가한 경로 |
 | IDC 행 | 동일 | 동일 |
 
 ## 하지 말 것

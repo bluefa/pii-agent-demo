@@ -107,62 +107,39 @@ describe('선택형 — 스캔 집합이 사실을 소유한다', () => {
   });
 });
 
-describe('endpoint 는 접속 정보를 사용자가 채우는 행에서만 받는다', () => {
-  it('스캔이 찾은 비-VM 행에 endpoint 를 붙여도 스캔 값이 이긴다', async () => {
-    const result = await resolveApprovalInput(1, 'AWS', parse({
-      resources: [
-        {
-          resource_id: 'db-1',
-          selected: true,
-          endpoint: {
-            host: 'attacker.internal',
-            port: 1,
-            database_type: 'oracle',
-            network_interface_id: 'eni-x',
-          },
-        },
-      ],
-    }));
-
-    expect(result.ok).toBe(true);
-    if (!result.ok) return;
-    const meta = result.value.resources?.[0].metadata;
-    // RDS 클러스터의 DB 타입은 스캔이 소유한다 — 클라이언트가 덮을 수 없다.
-    expect(meta?.database_type).toBe('mysql');
-    expect(meta).not.toHaveProperty('host');
-    expect(meta).not.toHaveProperty('network_interface_id');
-    expect(meta?.port).toBeUndefined();
+describe('스캔 행은 포인터와 선택뿐이다 — 접속 정보를 실을 자리가 없다', () => {
+  it('스캔 행에 접속 정보를 붙이면 모양이 거부한다', () => {
+    const bodies: unknown[] = [
+      { resources: [{ resource_id: 'db-1', selected: true, endpoint: { host: 'attacker.internal' } }] },
+      { resources: [{ resource_id: 'db-1', selected: true, host: 'attacker.internal' }] },
+    ];
+    for (const body of bodies) {
+      const parsed = ApprovalSelectionInput.safeParse(body);
+      expect(parsed.success).toBe(false);
+      expect(parsed.success ? '' : parsed.error.issues[0]?.message).toMatch(/^Unrecognized key/);
+    }
   });
 
-  it('스캔이 찾은 VM 행에서는 사용자가 채운 접속 정보를 싣는다', async () => {
-    getResources.mockResolvedValue({
-      resources: [
-        {
-          resource_id: 'vm-1',
-          resource_name: 'vm-one',
-          resource_type: 'EC2',
-          metadata: { provider: 'AWS', region: 'ap-northeast-2' },
-        },
-      ],
-      total_count: 1,
-    });
-
+  it('스캔 행의 metadata 는 스캔 값과 RDS 선택뿐이다', async () => {
     const result = await resolveApprovalInput(1, 'AWS', parse({
       resources: [
-        {
-          resource_id: 'vm-1',
-          selected: true,
-          endpoint: { host: '10.0.0.7', port: 1521, database_type: 'ORACLE' },
-        },
+        { resource_id: 'db-1', selected: true, selected_rds_instance_resource_id: 'inst-a' },
       ],
     }));
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    const meta = result.value.resources?.[0].metadata;
-    expect(meta?.host).toBe('10.0.0.7');
-    expect(meta?.port).toBe(1521);
-    expect(meta?.database_type).toBe('ORACLE');
+    const meta = result.value.resources?.[0].metadata ?? {};
+    expect(Object.keys(meta).sort()).toEqual([
+      'database_type',
+      'provider',
+      'rds_instance_candidates',
+      'region',
+      'selected_rds_instance_resource_id',
+      'selected_rds_instance_role',
+    ]);
+    // DB 타입은 스캔이 소유한다 — 요청은 소문자 정규형으로 나간다.
+    expect(meta.database_type).toBe('mysql');
   });
 });
 
@@ -191,10 +168,14 @@ describe('false positive 경계 — 폼이 받아 준 값은 서버도 받는다
     expect(result.value.resources?.[0].recommend_fail_reason).toBe('엔진 미지원');
   });
 
-  it('이름 없는 수기 EC2 와 포트 0 도 통과한다', () => {
+  it('이름 없는 수기 EC2 도 통과한다', () => {
     const parsed = ApprovalSelectionInput.safeParse({
       resources: [
-        { resource_id: 'i-abc', selected: true, manual_ec2: {}, endpoint: { port: 0 } },
+        {
+          resource_id: 'i-abc',
+          selected: true,
+          manual_ec2: { port: 3306, database_type: 'mysql' },
+        },
       ],
     });
     expect(parsed.success).toBe(true);
@@ -249,21 +230,12 @@ describe('false positive 경계 — 폼이 받아 준 값은 서버도 받는다
     expect(parsed.success).toBe(true);
   });
 
-  it('와이어가 준 긴 값(Azure NIC 리소스 id)은 상한에 걸리지 않는다', () => {
-    const nic = `/subscriptions/${'0'.repeat(36)}/resourceGroups/${'g'.repeat(90)}/providers/Microsoft.Network/networkInterfaces/${'n'.repeat(80)}`;
-    expect(nic.length).toBeGreaterThan(256);
-    const parsed = ApprovalSelectionInput.safeParse({
-      resources: [{ resource_id: 'vm-1', selected: true, endpoint: { network_interface_id: nic } }],
-    });
-    expect(parsed.success).toBe(true);
-  });
-
   it('모델에 없는 키는 어느 깊이에서든 같은 거부다 — 새 필드는 모양·리졸버·매퍼를 함께 고친다', () => {
     const row = { resource_id: 'db-1', selected: true };
     const bodies: unknown[] = [
       { resources: [row], extra: 1 },
       { resources: [{ ...row, resource_name: 'x' }] },
-      { resources: [{ ...row, endpoint: { host: 'h', subnet_id: 'x' } }] },
+      { resources: [{ ...row, manual_ec2: { network_interface_id: 'eni' } }] },
       { resources: [{ ...row, manual_ec2: { region: 'x' } }] },
       { resources: [{ ...row, idc: { host_format: 'IP', hosts: ['10.0.0.1'], nlb_index: 1 } }] },
     ];
@@ -308,8 +280,13 @@ describe('VM — 표시가 갈래를 고르고, 진위는 BFF 가 막는다', ()
         {
           resource_id: 'i-abc123',
           selected: true,
-          manual_ec2: { resource_name: 'ip-10-10-1-24.internal' },
-          endpoint: { host: '10.10.1.24', port: 3306, database_type: 'MYSQL' },
+          manual_ec2: {
+            resource_name: 'ip-10-0-0-7.internal',
+            host: '10.0.0.7',
+            port: 1521,
+            database_type: 'oracle',
+            oracle_service_id: 'ORCL',
+          },
         },
       ],
     }));
@@ -317,11 +294,18 @@ describe('VM — 표시가 갈래를 고르고, 진위는 BFF 가 막는다', ()
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     const [row] = result.value.resources ?? [];
-    expect(row.resource_name).toBe('ip-10-10-1-24.internal');
+    expect(row.resource_name).toBe('ip-10-0-0-7.internal');
     expect(row.resource_type).toBe('AWS_EC2_INSTANCE');
     expect(row.integration_category).toBe('NO_INSTALL_NEEDED');
-    expect(row.metadata?.host).toBe('10.10.1.24');
-    expect(row.metadata?.port).toBe(3306);
+    // 이 행의 metadata 는 유일하게 클라이언트가 적어 넣는 metadata 다 — 전부가 여기 있다.
+    expect(row.metadata).toEqual({
+      provider: 'AWS',
+      resource_type: 'AWS_EC2_INSTANCE',
+      host: '10.0.0.7',
+      port: 1521,
+      database_type: 'oracle',
+      oracle_service_id: 'ORCL',
+    });
   });
 
   it('표시가 없으면 스캔 목록에 없는 id 는 여전히 409 다 (오래된 화면 감지)', async () => {
@@ -371,13 +355,13 @@ describe('VM — 표시가 갈래를 고르고, 진위는 BFF 가 막는다', ()
     expect(result.failure.status).toBe(409);
   });
 
-  it('포트는 범위만 본다 — 벗어나면 스키마가 거부한다', () => {
-    const parsed = ApprovalSelectionInput.safeParse({
-      resources: [
-        { resource_id: 'i-abc', selected: true, manual_ec2: {}, endpoint: { port: 70000 } },
-      ],
-    });
-    expect(parsed.success).toBe(false);
+  it('포트는 범위만 본다 — 추가 모달과 같은 1..65535 다', () => {
+    const at = (port: number) => ApprovalSelectionInput.safeParse({
+      resources: [{ resource_id: 'i-abc', selected: true, manual_ec2: { port } }],
+    }).success;
+    expect(at(70000)).toBe(false);
+    expect(at(0)).toBe(false);
+    expect(at(1)).toBe(true);
   });
 });
 

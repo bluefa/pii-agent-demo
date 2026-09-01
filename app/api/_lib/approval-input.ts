@@ -2,11 +2,9 @@ import { z } from 'zod';
 import { schemas } from '@/lib/generated/install-v1';
 import { bff } from '@/lib/bff/client';
 import { normalizeCloudProvider, toWireDatabaseType, type CloudProvider } from '@/lib/types';
-import { VM_RESOURCE_TYPES } from '@/lib/resource-catalog';
 import {
   ApprovalSelectionInput,
   type ApprovalSelection,
-  type EndpointInput,
   type IdcInput,
   type ManualEc2Input,
 } from '@/lib/approval-selection';
@@ -25,9 +23,8 @@ import {
  *
  *  - 선택형(스캔이 찾은 클라우드 리소스): `confirm.getResources` 집합과 교집합.
  *    정체성도 속성도 서버 것이다.
- *  - VM(EC2 검색 추가): 검색이 "스캔이 찾은 인스턴스" 안에서만 도므로 정확한
- *    instance-id 재검색으로 정체성이 확정되고, 주소도 그 결과에서 읽는다. 사용자가 실제로
- *    친 것은 DB 종류·포트·SID 뿐이다.
+ *  - 수기 추가 EC2(검색해서 추가): 접속 정보는 `manual_ec2` 안에서만 오고, 형식만 본다 —
+ *    대조할 원본이 없고 진위는 BFF 가 막는다. 스캔 행에는 접속 정보를 실을 자리가 없다.
  *  - IDC(수기 입력): 대조할 집합이 서버에 아예 없다. 형식·범위만 강제한다.
  *
  * 형식 검증이 걸러내지 못하는 것 — "그 주소가 이 서비스 것인가" — 은 승인 단계와
@@ -63,19 +60,6 @@ type ResolveResult =
 const providerOf = (provider: string): CloudProvider => normalizeCloudProvider(provider);
 const isIdcProvider = (provider: string): boolean => providerOf(provider) === 'IDC';
 const isAwsProvider = (provider: string): boolean => providerOf(provider) === 'AWS';
-
-const endpointMetadata = (endpoint: EndpointInput | undefined): Metadata =>
-  endpoint
-    ? {
-        ...(endpoint.host ? { host: endpoint.host } : {}),
-        ...(endpoint.port !== undefined ? { port: endpoint.port } : {}),
-        ...(endpoint.database_type ? { database_type: endpoint.database_type } : {}),
-        ...(endpoint.oracle_service_id ? { oracle_service_id: endpoint.oracle_service_id } : {}),
-        ...(endpoint.network_interface_id
-          ? { network_interface_id: endpoint.network_interface_id }
-          : {}),
-      }
-    : {};
 
 const idcMetadata = (idc: IdcInput): Metadata => ({
   provider: 'IDC',
@@ -136,20 +120,11 @@ const rdsSelection = (
   };
 };
 
-/**
- * 접속 정보를 사용자가 채우는 행인가. 폼은 이 집합에서만 endpoint 를 만들고
- * (`lib/resource-catalog.ts`), 서버도 같은 집합으로 판단한다 — 여기를 열어 두면 스캔이
- * 소유해야 할 속성(대표적으로 database_type)을 클라이언트가 덮어쓴다.
- */
-const acceptsEndpoint = (item: ResourceItem): boolean =>
-  !!item.resource_type && VM_RESOURCE_TYPES.has(item.resource_type);
-
 const buildFromAuthoritative = (row: SelectionRow, item: ResourceItem): ResourceItem => {
   const candidates = item.metadata?.rds_instance_candidates ?? [];
   const rds = rdsSelection(row, candidates);
   const metadata: Metadata = {
     ...authoritativeMetadata(item),
-    ...(acceptsEndpoint(item) ? endpointMetadata(row.endpoint) : {}),
     ...(rds.ok ? rds.fields : {}),
   };
   const base = {
@@ -184,7 +159,8 @@ const EC2_INTEGRATION_CATEGORY = 'NO_INSTALL_NEEDED';
 /**
  * 수기 추가 EC2 행. 이 갈래는 서버가 되짚지 않는다 — 인스턴스가 실재하는지, 그 주소가
  * 맞는지는 BFF 가 막는다. 여기서 하는 일은 형식이 통과한 값을 계약 모양으로 옮기는 것뿐이고,
- * 그래서 이 행의 metadata 는 유일하게 클라이언트가 적어 넣는 metadata 다.
+ * 그래서 이 행의 metadata 는 유일하게 클라이언트가 적어 넣는 metadata 다. 접속 정보도
+ * `manual_ec2` 안에서만 온다 — 스캔 행에는 그 키가 없다.
  */
 const buildManualEc2 = (row: SelectionRow, manual: ManualEc2Input): ResourceItem => ({
   resource_id: row.resource_id,
@@ -195,7 +171,10 @@ const buildManualEc2 = (row: SelectionRow, manual: ManualEc2Input): ResourceItem
   metadata: {
     provider: 'AWS',
     resource_type: EC2_INSTANCE_RESOURCE_TYPE,
-    ...endpointMetadata(row.endpoint),
+    ...(manual.host ? { host: manual.host } : {}),
+    ...(manual.port !== undefined ? { port: manual.port } : {}),
+    ...(manual.database_type ? { database_type: manual.database_type } : {}),
+    ...(manual.oracle_service_id ? { oracle_service_id: manual.oracle_service_id } : {}),
   },
   ...(!row.selected && row.exclusion_reason ? { exclusion_reason: row.exclusion_reason } : {}),
 });
@@ -248,7 +227,6 @@ export const resolveApprovalInput = async (
     for (const row of rows) {
       // IDC 는 수기 입력이라 행마다 접속 정보가 있어야 한다 — 없으면 연동 대상이 아니다.
       if (!row.idc) return fail('IDC 연동 대상에는 접속 정보가 필요합니다.');
-      if (row.endpoint) return fail('IDC 행은 endpoint 를 쓰지 않습니다.');
       if (row.manual_ec2) return fail('IDC 행은 수기 추가 EC2 갈래를 쓰지 않습니다.');
       resources.push(buildIdc(row, row.idc));
     }
