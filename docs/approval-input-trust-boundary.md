@@ -98,7 +98,7 @@ select 목록(`VM_DATABASE_TYPES`)이다. 진위 — 그 인스턴스가 실재�
 | 필드 | 성격 | 검증 |
 |---|---|---|
 | `selected` | 사용자의 선택 | 없음 (선택은 검증 대상이 아니다) |
-| `exclusion_reason` | 사용자가 적은 텍스트 | 길이만. 상한은 **입력 폼과 같은 상수**(`EXCLUSION_REASON_MAXLEN`) |
+| `exclusion_reason` | 사용자가 적은 텍스트 | 없음 — 길이 상한은 **폼에만** 있다(`EXCLUSION_REASON_MAXLEN`). 이전 요청이 폼을 거치지 않은 사유를 되싣으므로 서버는 다시 재지 않는다 |
 | `selected_rds_instance_resource_id` | RDS 멤버 선택 | 그 행의 후보 목록에 대조. 역할은 서버가 읽는다 |
 
 스캔 행에는 접속 정보 키가 없다. `EC2`·`AZURE_VM` 철자 행에서만 열리던 `endpoint`
@@ -142,7 +142,7 @@ D6 를 지키는 일이 생각보다 어렵다는 증거로 남겨 둔다. 전�
 
 | 무엇 | 폼은 허용 | 좁힌 스키마는 |
 |---|---|---|
-| 제외 사유 길이 | 1000자 | ~~500자~~ → 폼과 같은 상수 공유 |
+| 제외 사유 길이 | 1000자 | ~~500자~~ → 폼과 같은 상수 공유 → **서버 상한 제거**(아래 마지막 줄) |
 | 수기 EC2 이름 | 빈 문자열 가능(검색 와이어가 private DNS 없이 돌아옴) | ~~`.min(1)`~~ → 빈 값 허용, 키 생략 |
 | VM 포트 | 와이어의 `0` 이 그대로 올라옴 | ~~`.min(1)`~~ → `.min(0)` → 스캔 행은 포트를 보내지 않게 되어 해당 없음 |
 | `resource_id` | 와이어가 id 없으면 `''` | ~~`.min(1)`~~ → **행을 떨군다**(아래) |
@@ -154,8 +154,9 @@ D6 를 지키는 일이 생각보다 어렵다는 증거로 남겨 둔다. 전�
 | 같은 id 두 번 | 와이어가 같은 id 를 두 번 주면 화면은 한 선택 상태를 두 행에 그린다 | ~~400~~ → 첫 행만 남긴다 |
 | Azure NIC id | 와이어 값, 300자를 넘을 수 있음 | ~~256~~ → 1024 → 필드 제거(스캔 행은 접속 정보를 보내지 않는다) |
 | `credential_id` / `resource_id` | 와이어 값, 형식은 프론트가 모름 | ~~64 / 512~~ → 256 / 1024 |
-| IDC Oracle SID | 모달에 상한이 없었음 | 서버 128 → **모달도 같은 상수** `IDC_SID_MAXLEN` |
+| IDC Oracle SID | 모달에 상한이 없었음 | 서버 128 → **모달도 같은 상수** `IDC_SID_MAXLEN` → **서버 상한 제거**(아래 마지막 줄) |
 | IDC 포트 소수 | 모달 `portOk` 가 `Number.isFinite` 라 `80.5` 를 통과시켰고 서버 `.int()` 가 거부 | **모달을 `Number.isInteger` 로** (EC2 모달과 같은 판정) — 서버는 그대로 |
+| 되싣는 텍스트 길이 (제외 사유 1000 · IDC SID 128 · 수기 EC2 SID 128 · 수기 EC2 이름 253) | 계약(`docs/swagger/install-v1.yaml`)에 길이 제한이 없다 — 상류가 더 길게 저장한 값을 화면이 그대로 되싣는다(사유 재시드 `use-candidate-resources.ts`, IDC 왕복 `toIdcResourceView`, 이름은 EC2 검색 와이어라 폼에 칸조차 없다) | **제거.** 폼과 같은 상수라도 **서버가 들면** 폼을 거치지 않은 값에서 400 이 된다 — 상한은 입력 칸의 `maxLength` 만 든다 (Fable-5 교차 리뷰가 찾음) |
 
 `resource_id` 는 스키마를 푸는 것만으로는 부족했다. 매퍼가 후보를 **전부** 싣기 때문에
 id 없는 와이어 행이 매 제출에 딸려 오는데, 교집합은 그 행을 거르는 게 아니라 **요청
@@ -185,20 +186,20 @@ id 없는 와이어 행이 매 제출에 딸려 오는데, 교집합은 그 행�
 | `resources` | 1 개 이상, **상한 없음** | 화면은 후보 **전부**를 싣고 제 상한이 없다 — 숫자를 적으면 그보다 큰 스캔은 영영 못 보낸다 | `Array must contain at least 1 element(s)` |
 | `resource_id` | 문자열, 길이 상한 없음 (`''` 허용 — 어댑터가 목록에서 먼저 떨구고 §2 ① 이 방어) | 스캔이 정하는 값이라 프론트가 길이를 모른다 | |
 | `selected` | boolean 필수 | 모양 | `Required` |
-| `exclusion_reason` | ≤ 1000 | **폼** — 클라우드 폼이 `EXCLUSION_REASON_MAXLEN` 을 읽는다. IDC 폼은 200(`IDC_REASON_MAXLEN`) | |
+| `exclusion_reason` | 문자열, **상한 없음** | 상한은 폼만 든다 — 클라우드 폼 `EXCLUSION_REASON_MAXLEN`(1000) · IDC 폼 `IDC_REASON_MAXLEN`(200). 이전 요청은 그보다 긴 사유를 되싣는다 | |
 | `selected_rds_instance_resource_id` | 1자 이상 | 스캔이 준 후보 id — 길이는 §2 ⑦ 이 목록 대조로 대신 본다 | |
-| `manual_ec2.resource_name` | ≤ 253, `''` 허용 | 정상 범위(DNS) — 검색 와이어가 private DNS 없이 오면 `''` | |
+| `manual_ec2.resource_name` | 문자열, **상한 없음**, `''` 허용 | 표시용 이름이라 DNS 규칙이 아니다 — 추가 모달에 이름 칸이 없고 검색 와이어가 정한다(private DNS 없이 오면 `''`) | |
 | `manual_ec2.host` | 1..253 | 정상 범위(DNS) — 검색 결과의 private IP | |
 | `manual_ec2.port` | 정수 1..65535 | **폼과 같은 범위** — `Ec2AddModal` (`portOk`) | |
 | `manual_ec2.database_type` | `VM_DATABASE_TYPES` 를 `toWireDatabaseType` 로 내린 소문자 집합 | **폼과 같은 상수** — `Ec2AddModal` 의 select 에서 파생 | `지원하지 않는 데이터베이스 타입입니다: <값>` |
-| `manual_ec2.oracle_service_id` | 1..128 | 정상 범위 — 모달 `ORACLE_SID_MAXLEN`=100 ≤ 128 | |
+| `manual_ec2.oracle_service_id` | 1자 이상, **상한 없음** | 상한은 폼만 든다(`ORACLE_SID_MAXLEN`=100) — 이전 요청은 그 밖의 값을 되싣는다 | |
 | `idc.host_format` | `HOST` \| `IP` | 계약 enum | |
 | `idc.hosts` | 각 1..253, **개수 상한 없음**, 빈 배열 허용 | 폼은 6개(`IDC_MAX_IPS`)까지 만들지만 이전 요청은 그때 저장된 만큼을 되싣는다 — 그 수를 프론트가 정한 적이 없다 | |
 | `idc.hosts[]` (IP) | `isValidIdcIp` — IPv4 만 | **폼과 같은 함수** — 모달이 `IPv4만 등록할 수 있어요` 로 사전 고지 | `IP 주소 형식이 아닙니다: <값>` |
 | `idc.hosts[]` (HOST) | `HOSTNAME` — 폼 `IDC_DOMAIN_RE` 의 상위집합(점 없는 이름·밑줄까지) | 폼보다 넓게 — 이전 요청 왕복은 폼을 거치지 않는다 | `호스트명 형식이 아닙니다: <값>` |
 | `idc.database_type` | 1자 이상 | enum 으로도 길이로도 좁히지 않는다 — 이전 요청이 enum 밖 값을 되싣는다 | |
 | `idc.port` | 정수 1..65535 | **폼과 같은 범위**(모달 `portOk`) | |
-| `idc.oracle_service_id` | 1..`IDC_SID_MAXLEN`(128) | **폼과 같은 상수** — 모달 input `maxLength` | |
+| `idc.oracle_service_id` | 1자 이상, **상한 없음** | 상한은 모달 input `maxLength`(`IDC_SID_MAXLEN`=128)에만 있다 — 이전 요청은 폼을 거치지 않는다 | |
 | `idc.credential_id` | 1자 이상 | 와이어가 발급한 id — 폼은 만들지 않고 형식도 길이도 프론트가 모른다 | |
 
 ### 2. 판정 — `resolveApprovalInput` (400 title `연동 대상을 확인하지 못했습니다.` · 409 code `CONFLICT_STALE_TARGET_LIST`, title `Target List Changed`)
@@ -244,7 +245,7 @@ id 없는 와이어 행이 매 제출에 딸려 오는데, 교집합은 그 행�
 | 모델 밖 키 (본문·행·`manual_ec2`·`idc` 어느 깊이든) | `.strict()` | 400 `Unrecognized key(s)` |
 | `resource_id` | 문자열 필수. `''` 는 어댑터가 목록에서 떨구고 리졸버도 떨군다 | — |
 | `selected` | boolean 필수 — `null`·문자열·숫자·누락 전부 거부 | 400 |
-| `exclusion_reason` | ≤ `EXCLUSION_REASON_MAXLEN`(1000, 폼과 같은 상수). 선택 행에서는 무시 | 400 |
+| `exclusion_reason` | 길이를 재지 않는다 — 상한은 폼 textarea 의 `maxLength`(1000·IDC 200)에만 있다. 선택 행에서는 무시 | — |
 | 같은 `resource_id` 두 번 | 첫 행만 남긴다 | — |
 
 ### ① 스캔 행 — AWS · Azure · GCP · SDU (`/resources` 에 있는 리소스)
@@ -259,7 +260,7 @@ id 없는 와이어 행이 매 제출에 딸려 오는데, 교집합은 그 행�
 | `selected_rds_instance_resource_id` | 그 행의 `metadata.rds_instance_candidates[].resource_id` 중 하나 | 409 |
 | 진위 | 스캔이 찾은 리소스만 통과 — 정체성·속성 모두 서버 것 | |
 
-서버가 채우는 것: `resource_name` · `resource_type` · `integration_category` · `recommend_fail_reason` · `metadata.{provider, region, database_type(소문자), resource_type, rds_instance_candidates}` · `metadata.selected_rds_instance_role`(고른 멤버에서). 제외 행의 `exclusion_reason` = 사용자 사유, 없으면 스캔 판정(`recommend_fail_reason`). 스캔의 `selected`·`scan_status`·이전 `exclusion_reason` 은 되싣지 않는다.
+서버가 채우는 것: `resource_name` · `resource_type` · `integration_category` · `recommend_fail_reason`(**제외 행만** — 선택 행에는 붙이지 않는다) · `metadata.{provider, region, database_type(소문자), resource_type, rds_instance_candidates}` · `metadata.selected_rds_instance_role`(고른 멤버에서). 제외 행의 `exclusion_reason` = 사용자 사유, 없으면 스캔 판정(`recommend_fail_reason`). 스캔의 `selected`·`scan_status`·이전 `exclusion_reason` 은 되싣지 않는다.
 
 ### ② 수기 추가 EC2 — 화면이 AWS 로 그리는 대상에서만 (`/resources` 에 없는 id + `manual_ec2`)
 
@@ -268,11 +269,11 @@ id 없는 와이어 행이 매 제출에 딸려 오는데, 교집합은 그 행�
 | 항목 | 검증 | 출처 | 실패 |
 |---|---|---|---|
 | `resource_id` | 스캔 목록에 **없어야** 한다(있으면 오래된 화면) · 대상이 AWS 갈래여야 한다 | 갈래 | 409 |
-| `resource_name` | ≤ 253, `''` 허용(키 생략) | DNS | 400 |
+| `resource_name` | 문자열, 상한 없음, `''` 허용(키 생략) | 검색 와이어 — 폼에 이름 칸이 없다 | — |
 | `host` | 1..253 | DNS | 400 |
 | `port` | 정수 1..65535 | 폼 `Ec2AddModal portOk` 와 같은 판정 | 400 |
 | `database_type` | `VM_DATABASE_TYPES`(15개)를 `toWireDatabaseType` 로 내린 소문자 집합 | 폼 select 와 같은 상수 | 400 `지원하지 않는 데이터베이스 타입입니다: <값>` |
-| `oracle_service_id` | 1..128 | 폼 `ORACLE_SID_MAXLEN`=100 ≤ 128 | 400 |
+| `oracle_service_id` | 1자 이상, 상한 없음 | 폼 `ORACLE_SID_MAXLEN`=100 이 먼저 막는다 | 400 (빈 값) |
 | 진위 | 보지 않는다 — 인스턴스 실재·주소는 **BFF** 가 판정 | 오너 결정 D3 | |
 
 서버가 붙이는 것: `resource_type: AWS_EC2_INSTANCE` · `integration_category: NO_INSTALL_NEEDED` · `metadata.provider: AWS` · `metadata.resource_type: AWS_EC2_INSTANCE`; 접속 정보는 `manual_ec2` 값을 그대로 `metadata.{host, port, database_type, oracle_service_id}` 로.
@@ -289,7 +290,7 @@ id 없는 와이어 행이 매 제출에 딸려 오는데, 교집합은 그 행�
 | `hosts` 개수 | 상한 없음, 빈 배열 허용 | 이전 요청 왕복 | |
 | `database_type` | 1자 이상 — enum 으로 좁히지 않는다 | 이전 요청 왕복 | 400 |
 | `port` | 정수 1..65535 | 폼 `portOk` 와 같은 판정 | 400 |
-| `oracle_service_id` | 1..`IDC_SID_MAXLEN`(128) | 폼 input `maxLength` 와 같은 상수 | 400 |
+| `oracle_service_id` | 1자 이상, 상한 없음 | 폼 input `maxLength`(`IDC_SID_MAXLEN`=128)가 먼저 막는다 | 400 (빈 값) |
 | `credential_id` | 1자 이상 — 폼은 만들지 않고 이전 요청만 싣는다 | | 400 |
 | 모델 밖 키 (`idc_source_ips`·`nlb_index` 등 Step2 소유) | `.strict()` | | 400 |
 | 진위 | 보지 않는다 — "이 주소가 이 서비스 것인가" 는 승인 단계·상류의 몫 | 오너 결정 D4 | |
